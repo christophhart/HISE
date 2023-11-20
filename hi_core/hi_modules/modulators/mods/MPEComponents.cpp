@@ -555,7 +555,7 @@ void MPEPanel::buttonClicked(Button* b)
 		return SafeFunctionCall::OK;
 	};
 
-	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 }
 
@@ -646,7 +646,7 @@ void MPEPanel::Model::deleteKeyPressed(int lastRowSelected)
 			return SafeFunctionCall::OK;
 		};
 
-		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
+		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
 
 	parent.setCurrentMod(nullptr);
@@ -814,7 +814,7 @@ void MPEPanel::Model::LastRow::buttonClicked(Button*)
 				return SafeFunctionCall::OK;
 			};
 
-			mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
+			mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 		}
 	}
 }
@@ -1095,7 +1095,7 @@ void MPEPanel::Model::Row::deleteThisRow()
 
 		findParentComponentOfClass<MPEPanel>()->setCurrentMod(nullptr);
 
-		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
+		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
 }
 

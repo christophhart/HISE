@@ -924,7 +924,7 @@ void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
 	{
 		auto currentThread = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
 
-		if (currentThread == MainController::KillStateHandler::AudioThread)
+		if (currentThread == MainController::KillStateHandler::TargetThread::AudioThread)
 		{
 			asyncValueUpdater.triggerAsyncUpdate();
 			return;
@@ -976,7 +976,7 @@ void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::sendCon
 	{
 		changePending = true;
 
-		if (p->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread ||
+		if (p->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::ScriptingThread ||
             p->getMainController_()->isFlakyThreadingAllowed())
 			handleAsyncUpdate();
 		else
@@ -4149,9 +4149,9 @@ void ScriptingApi::Content::ScriptPanel::repaint()
 
 	auto threadId = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
 
-	if (threadId == MainController::KillStateHandler::SampleLoadingThread ||
-		threadId == MainController::KillStateHandler::ScriptingThread ||
-		threadId == MainController::KillStateHandler::MessageThread)
+	if (threadId == MainController::KillStateHandler::TargetThread::SampleLoadingThread ||
+		threadId == MainController::KillStateHandler::TargetThread::ScriptingThread ||
+		threadId == MainController::KillStateHandler::TargetThread::MessageThread)
 	{
 		internalRepaint(false);
 	}
@@ -4729,7 +4729,7 @@ void ScriptingApi::Content::ScriptPanel::repaintWrapped()
 {
 	auto mc = getScriptProcessor()->getMainController_();
 
-	if (mc->getKillStateHandler().getCurrentThread() != MainController::KillStateHandler::ScriptingThread)
+	if (mc->getKillStateHandler().getCurrentThread() != MainController::KillStateHandler::TargetThread::ScriptingThread)
 	{
 		auto jp = dynamic_cast<JavascriptProcessor*>(getProcessor());
 

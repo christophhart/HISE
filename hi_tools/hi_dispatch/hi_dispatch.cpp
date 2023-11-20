@@ -51,9 +51,11 @@
 #include "03_library/Library.cpp"
 #include "03_library/Processor.cpp"
 
+#if HI_RUN_UNIT_TESTS
 #include "04_unit_test/tests.cpp"
 #include "04_unit_test/dummy_Actions.cpp"
 #include "04_unit_test/dummy_Threads.cpp"
 #include "04_unit_test/dummy_Processor.cpp"
 #include "04_unit_test/dummy_MainController.cpp"
 #include "04_unit_test/library_tests.cpp"
+#endif

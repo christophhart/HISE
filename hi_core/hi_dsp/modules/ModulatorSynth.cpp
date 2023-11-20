@@ -966,10 +966,10 @@ void ModulatorSynth::prepareToPlay(double newSampleRate, int samplesPerBlock)
 	{
 		LockHelpers::freeToGo(getMainController());
 
-		//jassert(LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+		//jassert(LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::AudioLock));
 	}
 
-	LockHelpers::SafeLock audioLock(getMainController(), LockHelpers::AudioLock, isOnAir());
+	LockHelpers::SafeLock audioLock(getMainController(), LockHelpers::Type::AudioLock, isOnAir());
 
 	// You must call finaliseModChains() in your Constructor...
 	jassert(finalised);
@@ -1785,7 +1785,7 @@ int ModulatorSynth::killVoiceAndSiblings(ModulatorSynthVoice* v, bool allowTailO
 
 void ModulatorSynth::deleteAllVoices()
 {
-	LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock, isOnAir());
+	LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock, isOnAir());
     
 	activeVoices.clear();
 	pendingRemoveVoices.clear();
@@ -1796,7 +1796,7 @@ void ModulatorSynth::deleteAllVoices()
 void ModulatorSynth::resetAllVoices()
 {
     {
-        LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock, isOnAir());
+        LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock, isOnAir());
         
         for (int i = 0; i < getNumVoices(); i++)
         {

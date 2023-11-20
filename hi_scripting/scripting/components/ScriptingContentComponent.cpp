@@ -1070,7 +1070,7 @@ bool ScriptContentComponent::ComponentDragInfo::isValid(bool force)
 
 	if (HiseJavascriptEngine::isJavascriptFunction(vf))
 	{
-		LockHelpers::SafeLock sl(getMainController(), LockHelpers::ScriptLock);
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::ScriptLock);
 		
 		auto sc = dynamic_cast<ScriptComponent*>(scriptComponent.getObject());
 		WeakCallbackHolder wc(sc->getScriptProcessor(), nullptr, vf, 1);
@@ -1093,7 +1093,7 @@ void ScriptContentComponent::ComponentDragInfo::callRepaint()
 	{
 		jassert(source != nullptr);
 		jassert(!MessageManager::getInstance()->isThisTheMessageThread());
-		jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::ScriptingThread);
+		jassert(getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::ScriptingThread);
 
 		auto area = ApiHelpers::getRectangleFromVar(dragData["area"], nullptr);
 

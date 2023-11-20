@@ -305,6 +305,7 @@ namespace melatonin
     #define TRACE_EVENT_END(category)
     #define TRACE_EVENT(category, ...)
     #define TRACE_DSP(...)
+	#define TRACE_COUNTER(...)
     #define TRACE_COMPONENT(...)
 	#define TRACE_DISPATCH(...)
 	#define TRACE_DYNAMIC_DISPATCH(...)

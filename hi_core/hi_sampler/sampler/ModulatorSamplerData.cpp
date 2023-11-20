@@ -525,7 +525,7 @@ void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith.get());
 
 	{
-		LockHelpers::SafeLock sl(sampler->getMainController(), LockHelpers::SampleLock);
+		LockHelpers::SafeLock sl(sampler->getMainController(), LockHelpers::Type::SampleLock);
 		sampler->addSound(newSound);
 	}
 
@@ -1878,7 +1878,7 @@ void SampleMap::Notifier::handleHeavyweightPropertyChanges()
 {
 	auto f = [this](Processor* /*p*/)
 	{
-		LockHelpers::SafeLock sl(parent.getSampler()->getMainController(), LockHelpers::SampleLock);
+		LockHelpers::SafeLock sl(parent.getSampler()->getMainController(), LockHelpers::Type::SampleLock);
 
 		Array<AsyncPropertyChange, CriticalSection> changesThisTime;
 

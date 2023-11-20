@@ -1109,7 +1109,7 @@ bool ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor& e_)
     
 	auto p = e->getProcessor();
 
-	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
+	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::TargetThread::ScriptingThread);
 
 	return true;
 }

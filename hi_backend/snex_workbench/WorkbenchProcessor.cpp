@@ -646,7 +646,7 @@ void SnexWorkbenchEditor::addFile(File f)
 	{
 		loadNewNetwork(f);
 		return SafeFunctionCall::OK;
-	}, MainController::KillStateHandler::SampleLoadingThread);
+	}, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 

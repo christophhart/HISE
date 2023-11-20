@@ -329,7 +329,7 @@ void ProcessorWithScriptingContent::defaultControlCallbackIdle(ScriptingApi::Con
 
 	if (auto scriptEngine = thisAsJavascriptProcessor->getScriptEngine())
 	{
-		LockHelpers::SafeLock sl(getMainController_(), LockHelpers::ScriptLock);
+		LockHelpers::SafeLock sl(getMainController_(), LockHelpers::Type::ScriptLock);
 
 		scriptEngine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 
@@ -362,7 +362,7 @@ void ProcessorWithScriptingContent::customControlCallbackIdle(ScriptingApi::Cont
 
 	if (auto scriptEngine = thisAsJavascriptProcessor->getScriptEngine())
 	{
-		LockHelpers::SafeLock sl(getMainController_(), LockHelpers::ScriptLock);
+		LockHelpers::SafeLock sl(getMainController_(), LockHelpers::Type::ScriptLock);
 
 		scriptEngine->maximumExecutionTime = HiseJavascriptEngine::getDefaultTimeOut();
 
@@ -1181,7 +1181,7 @@ void JavascriptProcessor::jumpToDefinition(const String& token, const String& na
 
 		auto p = dynamic_cast<Processor*>(this);
 
-		p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
+		p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::TargetThread::ScriptingThread);
 #endif
 	}
 #endif
@@ -1481,7 +1481,7 @@ void JavascriptProcessor::compileScript(const ResultFunction& rf /*= ResultFunct
 
 	mainController->getJavascriptThreadPool().deactivateSleepUntilCompilation();
 
-	mainController->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(this), f, MainController::KillStateHandler::ScriptingThread);
+	mainController->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(this), f, MainController::KillStateHandler::TargetThread::ScriptingThread);
 }
 
 
@@ -2274,7 +2274,7 @@ JavascriptThreadPool::~JavascriptThreadPool()
 
 void JavascriptThreadPool::cancelAllJobs()
 {
-	LockHelpers::SafeLock ss(getMainController(), LockHelpers::ScriptLock);
+	LockHelpers::SafeLock ss(getMainController(), LockHelpers::Type::ScriptLock);
 
 	stopThread(1000);
 	compilationQueue.clear();
@@ -2432,7 +2432,7 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 
 	switch (currentThread)
 	{
-	case MainController::KillStateHandler::SampleLoadingThread:
+	case MainController::KillStateHandler::TargetThread::SampleLoadingThread:
 	{
 		jassert(!getMainController()->getKillStateHandler().isAudioRunning());
 		
@@ -2454,7 +2454,7 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 
 		break;
 	}
-	case MainController::KillStateHandler::ScriptingThread:
+	case MainController::KillStateHandler::TargetThread::ScriptingThread:
 	{
 		jassert(isBusy());
 		
@@ -2482,7 +2482,7 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 
 		break;
 	}
-	case MainController::KillStateHandler::MessageThread:
+	case MainController::KillStateHandler::TargetThread::MessageThread:
 	{
 		if (getMainController()->isInitialised() && !getMainController()->isFlakyThreadingAllowed())
 		{
@@ -2495,7 +2495,7 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 		}
 		break;
 	}
-	case MainController::KillStateHandler::AudioThread:
+	case MainController::KillStateHandler::TargetThread::AudioThread:
 	{
 		// Nope...
 		jassertfalse;
@@ -2615,9 +2615,10 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		CallbackTask lpt;
 
+#if PERFETTO
 		auto t = perfetto::Track(LowPriorityTrackId);
-
 		PerfettoHelpers::setTrackNameName(t, "low priority queue");
+#endif
 
 		TRACE_EVENT_BEGIN("scripting", "low priority queue");//, t);
 
@@ -2774,7 +2775,7 @@ Result JavascriptThreadPool::Task::callWithResult()
 		if(type == Compilation)
 			LockHelpers::freeToGo(parent.getMainController());
 
-		LockHelpers::SafeLock sl(parent.getMainController(), LockHelpers::ScriptLock);
+		LockHelpers::SafeLock sl(parent.getMainController(), LockHelpers::Type::ScriptLock);
 
 		ScopedValueSetter<bool> svs(parent.busy, true);
 		ScopedValueSetter<Task::Type> svs2(parent.currentType, type);

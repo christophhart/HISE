@@ -762,7 +762,7 @@ private:
 
 	bool isOnSampleLoadingThread() const
 	{
-		return getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread;
+		return getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::SampleLoadingThread;
 	}
 
 	bool allVoicesAreKilled() const

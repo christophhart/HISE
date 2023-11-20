@@ -489,7 +489,7 @@ public:
 
 		AudioThreadGuard guard(&getMainController()->getKillStateHandler());
 		AudioThreadGuard::Suspender sp(isOnAir());
-		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
 
 		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 		wrappedEffect->prepareToPlay(sampleRate, samplesPerBlock); 

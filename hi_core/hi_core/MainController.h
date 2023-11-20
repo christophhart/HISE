@@ -1213,7 +1213,7 @@ public:
 			numIllegalOps
 		};
 
-		enum TargetThread
+		enum class TargetThread
 		{
 			MessageThread = 0,
 			SampleLoadingThread,
@@ -1241,7 +1241,7 @@ public:
 		/** Returns false if there is a pending action somewhere that prevents clickless voice rendering. */
 		bool voiceStartIsDisabled() const;
 
-        bool isCurrentlyExporting() const { return threadIds[TargetThread::AudioExportThread] != nullptr; }
+        bool isCurrentlyExporting() const { return threadIds[(int)TargetThread::AudioExportThread] != nullptr; }
         
 		/** Call this in the processBlock method and it will check whether voice starts are allowed.
 		*
@@ -1309,7 +1309,21 @@ public:
 		bool handleBufferDuringSuspension(AudioSampleBuffer& b);
 
         void setCurrentExportThread(void* exportThread);
-        
+
+		static TargetThread getThreadForLockType(LockHelpers::Type t)
+		{
+			switch(t)
+			{
+			case LockHelpers::Type::MessageLock:				return TargetThread::MessageThread;
+			case LockHelpers::Type::ScriptLock:					return TargetThread::ScriptingThread;
+			case LockHelpers::Type::SampleLock:					return TargetThread::SampleLoadingThread;
+			case LockHelpers::Type::IteratorLock: jassertfalse; return TargetThread::UnknownThread;
+			case LockHelpers::Type::AudioLock:					return TargetThread::AudioThread;
+			case LockHelpers::Type::numLockTypes: jassertfalse; return TargetThread::UnknownThread;
+			default: ;
+			}
+		}
+
 	private:
 
 		friend class SuspendHelpers::ScopedTicket;
@@ -1324,14 +1338,14 @@ public:
 		{
 			LockStates()
 			{
-				threadsForLock[LockHelpers::MessageLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::AudioLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::SampleLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::IteratorLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::ScriptLock] = TargetThread::Free;
+				threadsForLock[(int)LockHelpers::Type::MessageLock] = TargetThread::Free;
+				threadsForLock[(int)LockHelpers::Type::AudioLock] = TargetThread::Free;
+				threadsForLock[(int)LockHelpers::Type::SampleLock] = TargetThread::Free;
+				threadsForLock[(int)LockHelpers::Type::IteratorLock] = TargetThread::Free;
+				threadsForLock[(int)LockHelpers::Type::ScriptLock] = TargetThread::Free;
 			}
 
-			std::atomic<TargetThread> threadsForLock[LockHelpers::Type::numLockTypes];
+			std::atomic<TargetThread> threadsForLock[(int)LockHelpers::Type::numLockTypes];
 		};
 
 		mutable LockStates lockStates;

@@ -1650,7 +1650,7 @@ void ScriptingApi::Engine::reloadAllSamples()
 	
 
 
-	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 double ScriptingApi::Engine::getPreloadProgress()
@@ -2077,7 +2077,7 @@ struct AudioRenderer : public Thread,
 		getMainController()->getSampleManager().handleNonRealtimeState();
 		
 		{
-			LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+			LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
 
 			int numTodo = numSamplesToRender;
 			int pos = 0;
@@ -4464,7 +4464,7 @@ void ScriptingApi::Sampler::loadSampleMap(const String &fileName)
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
 
-	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
+	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock));
 
 	if (fileName.isEmpty())
 		reportScriptError("Trying to load a empty sample map...");
@@ -4648,7 +4648,7 @@ var ScriptingApi::Sampler::loadSfzFile(var sfzFile)
 {
 	WARN_IF_AUDIO_THREAD(true, ScriptGuard::IllegalApiCall);
 
-	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock));
+	jassert(LockHelpers::isLockedBySameThread(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock));
 
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
@@ -5243,7 +5243,7 @@ void ScriptingApi::Synth::noteOffDelayedByEventId(int eventId, int timestamp)
 
 #if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
 
-		if (getProcessor()->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+		if (getProcessor()->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::AudioThread)
 		{
 			// Apparently there was something wrong with the timestamp calculation.
 		// This restores the old behaviour by removing one block from the timestamps.
@@ -6059,7 +6059,7 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 
 #if HISE_USE_BACKWARDS_COMPATIBLE_TIMESTAMPS
 
-						if (getProcessor()->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+						if (getProcessor()->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::AudioThread)
 						{
 							// Apparently there was something wrong with the timestamp calculation.
 						// This restores the old behaviour by removing one block from the timestamps.
@@ -6468,9 +6468,9 @@ void ScriptingApi::Console::stop(bool condition)
 
 	auto c = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
 
-	if (c == MainController::KillStateHandler::ScriptingThread ||
-		c == MainController::KillStateHandler::SampleLoadingThread ||
-		c == MainController::KillStateHandler::AudioThread)
+	if (c == MainController::KillStateHandler::TargetThread::ScriptingThread ||
+		c == MainController::KillStateHandler::TargetThread::SampleLoadingThread ||
+		c == MainController::KillStateHandler::TargetThread::AudioThread)
 	{
 		auto n = Time::getMillisecondCounter();
 

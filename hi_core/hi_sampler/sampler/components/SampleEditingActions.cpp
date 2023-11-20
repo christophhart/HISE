@@ -500,7 +500,7 @@ public:
 		};
 
 
-		sampler->getMainController()->getKillStateHandler().killVoicesAndCall(sampler, f, MainController::KillStateHandler::SampleLoadingThread);
+		sampler->getMainController()->getKillStateHandler().killVoicesAndCall(sampler, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 	}
 

@@ -420,7 +420,7 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 
 	{
 		LOG_START("Compiling all scripts");
-		LockHelpers::SafeLock sl(this, LockHelpers::ScriptLock);
+		LockHelpers::SafeLock sl(this, LockHelpers::Type::ScriptLock);
 		synthChain->compileAllScripts();
 	}
 

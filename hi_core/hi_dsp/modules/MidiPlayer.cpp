@@ -2431,7 +2431,7 @@ void MidiPlayer::addNoteOffsToPendingNoteOns()
 
 	bool sortAfterOp = false;
 
-	LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+	LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
 
 	for (auto& futureEvent : midiChain->artificialEvents)
 	{

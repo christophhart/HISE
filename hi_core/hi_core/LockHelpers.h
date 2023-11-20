@@ -60,7 +60,7 @@ public:
 	the SampleLock is equal, which means you can't acquire one of those while
 	holding the other (there's no situation where you need both of those locks).
 	*/
-	enum Type
+	enum class Type
 	{
 		MessageLock = 0,
 		ScriptLock, ///< This lock will be held whenever a script is executed or compiled

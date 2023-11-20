@@ -284,6 +284,7 @@ struct FuzzyTester;
 #include "03_library/Library.h"
 #include "03_library/Processor.h"
 
+#if HI_RUN_UNIT_TESTS
 #include "04_unit_test/tests.h"
 #include "04_unit_test/tests_impl.h"
 #include "04_unit_test/dummy_Actions.h"
@@ -291,5 +292,6 @@ struct FuzzyTester;
 #include "04_unit_test/dummy_Processor.h"
 #include "04_unit_test/dummy_MainController.h"
 #include "04_unit_test/library_tests.h"
+#endif
 
 //#include "tests.h"

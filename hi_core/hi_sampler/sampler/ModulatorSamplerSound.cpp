@@ -395,7 +395,7 @@ void ModulatorSamplerSound::loadEntireSampleIfMaxPitch()
 
 		auto s = parentMap->getSampler();
 		
-		s->getMainController()->getKillStateHandler().killVoicesAndCall(s, f, MainController::KillStateHandler::SampleLoadingThread);
+		s->getMainController()->getKillStateHandler().killVoicesAndCall(s, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
 }
 
@@ -1709,7 +1709,7 @@ void SamplePreviewer::previewSampleWithMidi(ModulatorSamplerSound::Ptr soundToPl
 		m.setArtificial();
 		previewNote = {};
 
-		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
 		sampler->preHiseEventCallback(m);
 		sampler->noteOff(m);
 	}
@@ -1730,7 +1730,7 @@ void SamplePreviewer::previewSampleWithMidi(ModulatorSamplerSound::Ptr soundToPl
 		previewNote.setArtificial();
 		getMainController()->getEventHandler().pushArtificialNoteOn(previewNote);
 
-		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
 		sampler->preHiseEventCallback(previewNote);
 		sampler->noteOn(previewNote);
 		sampler->setCurrentGroupIndex(group);

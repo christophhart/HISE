@@ -128,7 +128,7 @@ bool LockHelpers::isMessageThreadBeyondInitialisation(const MainController* mc)
 
 bool LockHelpers::isLockedBySameThread(const MainController* mc, Type lockToCheck)
 {
-	if (lockToCheck == MessageLock)
+	if (lockToCheck == Type::MessageLock)
 		return MessageManager::getInstance()->currentThreadHasLockedMessageManager();
 	else
 		return mc->getKillStateHandler().currentThreadHoldsLock(lockToCheck);
@@ -167,7 +167,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 		throw BadLockException(lockType);
 	}
 
-	if (lockType == MessageLock)
+	if (lockType == Type::MessageLock)
 	{
 		// The message thread is not locked by a critical section, 
 		//so calling this is stupid and you should be ashamed.
@@ -185,9 +185,9 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 	}
 #endif
 
-	if (lockType != IteratorLock)
+	if (lockType != Type::IteratorLock)
 	{
-		for (int i = (int)lockType + 1; i < Type::numLockTypes; i++)
+		for (int i = (int)lockType + 1; i < (int)Type::numLockTypes; i++)
 		{
 			Type t = (Type)i;
 
@@ -202,7 +202,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 		}
 	}
 	
-	if (lockType == IteratorLock && isLockedBySameThread(mc, SampleLock))
+	if (lockType == Type::IteratorLock && isLockedBySameThread(mc, Type::SampleLock))
 	{
 		// You can't hold the sample lock while trying to acquire the iterator lock
 		jassertfalse;
@@ -219,10 +219,10 @@ const juce::CriticalSection& LockHelpers::getLockUnchecked(const MainController*
 
 	switch (lockType)
 	{
-	case AudioLock:		return mc->getLockNew();
-	case ScriptLock:	return mc->getJavascriptThreadPool().getLock();
-	case SampleLock:	return mc->getSampleManager().getSampleLock();
-	case IteratorLock:	return mc->getIteratorLock();
+	case Type::AudioLock:		return mc->getLockNew();
+	case Type::ScriptLock:		return mc->getJavascriptThreadPool().getLock();
+	case Type::SampleLock:		return mc->getSampleManager().getSampleLock();
+	case Type::IteratorLock:	return mc->getIteratorLock();
 	default:
 		break;
 	}

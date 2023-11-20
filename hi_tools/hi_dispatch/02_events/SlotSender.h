@@ -88,9 +88,9 @@ class PerfettoFlowManager
 {
 public:
 
-	PerfettoFlowManager(RootObject& r) {};
+	PerfettoFlowManager(RootObject& r, const HashedCharPtr& parent_, const HashedCharPtr& object_) {};
 
-	void openFlow(DispatchType n) {};
+	void openFlow(DispatchType n, uint8 slotIndex) {};
 	void closeFlow(DispatchType n) {};
 };
 #endif

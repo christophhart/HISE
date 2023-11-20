@@ -36,7 +36,7 @@ void SlotFXEditor::comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/)
 
 	auto p = getProcessor();
 
-	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::SampleLoadingThread);
+	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	
 }
 

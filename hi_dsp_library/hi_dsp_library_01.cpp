@@ -76,9 +76,11 @@
 
 #include "dsp_basics/ConvolutionBase.cpp"
 
+#if HI_RUN_UNIT_TESTS
 #include "unit_test/wrapper_tests.cpp"
 #include "unit_test/node_tests.cpp"
 #include "unit_test/container_tests.cpp"
+#endif
 
 #include "dsp_nodes/CoreNodes.cpp"
 #include "dsp_nodes/DelayNode.cpp"

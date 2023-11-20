@@ -130,7 +130,7 @@ void ScriptUserPresetHandler::loadCustomUserPreset(const var& dataObject)
 {
 	if (customLoadCallback)
 	{
-		LockHelpers::SafeLock sl(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock);
+		LockHelpers::SafeLock sl(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
 
 		var args = dataObject;
 		auto ok = customLoadCallback.callSync(&args, 1, nullptr);
@@ -144,7 +144,7 @@ var ScriptUserPresetHandler::saveCustomUserPreset(const String& presetName)
 {
 	if (customSaveCallback)
 	{
-		LockHelpers::SafeLock sl(getScriptProcessor()->getMainController_(), LockHelpers::ScriptLock);
+		LockHelpers::SafeLock sl(getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
 
 		var rv;
 		var args = presetName;
@@ -2213,7 +2213,7 @@ void FullInstrumentExpansion::expansionPackLoaded(Expansion* e)
 			{
 				p->getMainController()->loadPresetFromValueTree(pr);
 				return SafeFunctionCall::OK;
-			}, MainController::KillStateHandler::SampleLoadingThread);
+			}, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 		}
 		else
 		{
@@ -2229,7 +2229,7 @@ void FullInstrumentExpansion::expansionPackLoaded(Expansion* e)
 				}
 
 				return SafeFunctionCall::OK;
-			}, MainController::KillStateHandler::SampleLoadingThread);
+			}, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 		}
 
 
@@ -2453,7 +2453,7 @@ void FullInstrumentExpansion::DefaultHandler::expansionPackLoaded(Expansion* e)
 				p->getMainController()->loadPresetFromValueTree(copy);
 
 				return SafeFunctionCall::OK;
-			}, MainController::KillStateHandler::SampleLoadingThread);
+			}, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 		}
 	}
 }

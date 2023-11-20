@@ -130,16 +130,16 @@ namespace hise { using namespace juce;
 #endif
 
 #define jassert_message_thread jassert(export_ci() || MessageManager::getInstance()->currentThreadHasLockedMessageManager())
-#define jassert_locked_script_thread(mc) jassert(export_ci() ||LockHelpers::isLockedBySameThread(mc, LockHelpers::ScriptLock));
+#define jassert_locked_script_thread(mc) jassert(export_ci() ||LockHelpers::isLockedBySameThread(mc, LockHelpers::Type::ScriptLock));
 #define jassert_dispatched_message_thread(mc) jassert_message_thread; jassert(export_ci() || mc->getLockFreeDispatcher().isInDispatchLoop());
-#define jassert_sample_loading_thread(mc) jassert(export_ci() || !mc->isInitialised() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread || LockHelpers::isLockedBySameThread(mc, LockHelpers::SampleLock));
-#define jassert_sample_loading_or_global_lock(mc) jassert(export_ci() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread || mc->getKillStateHandler().globalLockIsActive());
+#define jassert_sample_loading_thread(mc) jassert(export_ci() || !mc->isInitialised() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::SampleLoadingThread || LockHelpers::isLockedBySameThread(mc, LockHelpers::Type::SampleLock));
+#define jassert_sample_loading_or_global_lock(mc) jassert(export_ci() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::SampleLoadingThread || mc->getKillStateHandler().globalLockIsActive());
 #define jassert_processor_idle jassert(export_ci() || !isOnAir() || !getMainController()->getKillStateHandler().isAudioRunning());
 #define jassert_global_lock(mc) jassert(export_ci() || mc->getKillStateHandler().globalLockIsActive());
 
 
-#define LOCK_PROCESSING_CHAIN(parent) LockHelpers::SafeLock itLock(parent->getMainController(), LockHelpers::IteratorLock, parent->isOnAir()); \
-								  LockHelpers::SafeLock audioLock(parent->getMainController(), LockHelpers::AudioLock, parent->isOnAir());
+#define LOCK_PROCESSING_CHAIN(parent) LockHelpers::SafeLock itLock(parent->getMainController(), LockHelpers::Type::IteratorLock, parent->isOnAir()); \
+								  LockHelpers::SafeLock audioLock(parent->getMainController(), LockHelpers::Type::AudioLock, parent->isOnAir());
 
 
 

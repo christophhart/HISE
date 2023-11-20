@@ -490,7 +490,7 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 			return SafeFunctionCall::OK;
 		};
 
-		getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+		getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 		return true;
 	}

@@ -672,7 +672,7 @@ void ModulatorSampler::deleteSound(int index)
 		}
 
 		{
-			LockHelpers::SafeLock sl(getMainController(), LockHelpers::SampleLock);
+			LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::SampleLock);
 			removeSound(index);
 		}
 
@@ -700,7 +700,7 @@ void ModulatorSampler::deleteAllSounds()
 
 
 	{
-		LockHelpers::SafeLock sl(getMainController(), LockHelpers::SampleLock);
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::SampleLock);
 
 		// The lifetime could exceed this function, so we need to flag it as pending for delete
 		// so that async tasks will not use this later.
@@ -891,10 +891,10 @@ bool ModulatorSampler::killAllVoicesAndCall(const ProcessorFunction& f, bool res
 {
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
-	bool correctThread = (currentThread == MainController::KillStateHandler::SampleLoadingThread) ||
-						 (!restrictToSampleLoadingThread && currentThread == MainController::KillStateHandler::ScriptingThread);
+	bool correctThread = (currentThread == MainController::KillStateHandler::TargetThread::SampleLoadingThread) ||
+						 (!restrictToSampleLoadingThread && currentThread == MainController::KillStateHandler::TargetThread::ScriptingThread);
 
-	bool hasSampleLock = LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::SampleLock);
+	bool hasSampleLock = LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::SampleLock);
 
 	if ((hasSampleLock || !isOnAir()) && correctThread)
 	{
@@ -940,7 +940,7 @@ void ModulatorSampler::setSortByGroup(bool shouldSortByGroup)
 {
 	if (shouldSortByGroup != (soundCollector != nullptr))
 	{
-		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
 
 		if (shouldSortByGroup)
 			soundCollector = new GroupedRoundRobinCollector(this);
@@ -1237,8 +1237,8 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 
 void ModulatorSampler::handleRetriggeredNote(ModulatorSynthVoice *voice)
 {
-	jassert(getMainController()->getSampleManager().isNonRealtime() || getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread ||
-	LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+	jassert(getMainController()->getSampleManager().isNonRealtime() || getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::AudioThread ||
+	LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::AudioLock));
 
 	switch (repeatMode)
 	{

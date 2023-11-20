@@ -500,8 +500,8 @@ void Processor::setParentProcessor(Processor* newParent)
 {
 	// You must call setParentProcessor before locking and inserting to the processing chain
 	jassert(!isOnAir());
-	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
-	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::IteratorLock));
+	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::AudioLock));
 
 	parentProcessor = newParent;
 
@@ -587,8 +587,8 @@ int Processor::getNumParameters() const
 void Processor::setIsOnAir(bool shouldBeOnAir)
 {
 	// This should be called only with a locked iterator lock during insertion...
-	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
-	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::IteratorLock));
+	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::AudioLock));
 
 	// You must call setIsOnAir after setParentProcessor
 	isValidAndInitialised(false);
@@ -728,8 +728,8 @@ bool Chain::restoreChain(const ValueTree &v)
 
 	if(thisAsProcessor->isOnAir() != wasOnAir)
 	{
-		LockHelpers::SafeLock itLock(thisAsProcessor->getMainController(), LockHelpers::IteratorLock);
-		LockHelpers::SafeLock audioLock(thisAsProcessor->getMainController(), LockHelpers::AudioLock);
+		LockHelpers::SafeLock itLock(thisAsProcessor->getMainController(), LockHelpers::Type::IteratorLock);
+		LockHelpers::SafeLock audioLock(thisAsProcessor->getMainController(), LockHelpers::Type::AudioLock);
 
 		thisAsProcessor->setIsOnAir(wasOnAir);
 	}

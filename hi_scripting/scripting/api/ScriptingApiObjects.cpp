@@ -1078,7 +1078,7 @@ void ScriptingObjects::ScriptFile::extractZipFile(var targetDirectory, bool over
 
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());
 
-	getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(p, cb, MainController::KillStateHandler::SampleLoadingThread);
+	getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(p, cb, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 int ScriptingObjects::ScriptFile::getNumZippedItems()
@@ -5005,7 +5005,7 @@ bool ApiHelpers::ModuleHandler::removeModule(Processor* p)
 	if (p == nullptr)
 		return true;
 
-	if (p->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+	if (p->getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::AudioThread)
 	{
 		throw String("Effects can't be removed from the audio thread!");
 	}
@@ -6581,7 +6581,7 @@ bool ScriptingObjects::ScriptBackgroundTask::killVoicesAndCall(var loadingFuncti
 			return SafeFunctionCall::OK;
 		};
 
-		return getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(getScriptProcessor()), f, MainController::KillStateHandler::SampleLoadingThread);
+		return getScriptProcessor()->getMainController_()->getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(getScriptProcessor()), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
 
 	return false;
@@ -8646,7 +8646,7 @@ void ScriptingObjects::ScriptBuilder::setAttributes(int buildIndex, var attribut
 
 void ScriptingObjects::ScriptBuilder::clear()
 {
-	if (getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::SampleLoadingThread)
+	if (getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::SampleLoadingThread)
 	{
 		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "skipping Builder.clear() on project load");
 		return;

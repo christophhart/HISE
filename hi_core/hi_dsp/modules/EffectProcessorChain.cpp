@@ -454,8 +454,8 @@ void EffectProcessorChain::EffectChainHandler::remove(Processor *processorToBeRe
 
 		LOCK_PROCESSING_CHAIN(chain);
 
-		LockHelpers::SafeLock sl2(mc, LockHelpers::IteratorLock);
-		LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+		LockHelpers::SafeLock sl2(mc, LockHelpers::Type::IteratorLock);
+		LockHelpers::SafeLock sl(mc, LockHelpers::Type::AudioLock);
 		
 		jassert(dynamic_cast<EffectProcessor*>(processorToBeRemoved) != nullptr);
 

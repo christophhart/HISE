@@ -511,7 +511,7 @@ void ProcessorEditor::pasteAction()
 						return SafeFunctionCall::OK;
 					};
 
-					getProcessor()->getMainController()->getKillStateHandler().killVoicesAndCall(getProcessor(), f, MainController::KillStateHandler::SampleLoadingThread);
+					getProcessor()->getMainController()->getKillStateHandler().killVoicesAndCall(getProcessor(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 				}
 			}
 		}
@@ -768,7 +768,7 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
         return SafeFunctionCall::OK;
     };
 
-    processorToBeAdded->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::SampleLoadingThread);
+    processorToBeAdded->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
     
     return;
 }

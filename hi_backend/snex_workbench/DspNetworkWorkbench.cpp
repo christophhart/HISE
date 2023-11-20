@@ -335,7 +335,7 @@ void DspNetworkCodeProvider::anythingChanged(valuetree::AnyListener::CallbackTyp
         return SafeFunctionCall::OK;
 	};
 
-	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 namespace RoutingIcons

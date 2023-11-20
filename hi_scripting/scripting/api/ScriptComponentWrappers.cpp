@@ -3136,7 +3136,7 @@ void ScriptedControlAudioParameter::setParameterNotifyingHost(int index, float n
 {
 	auto mc = dynamic_cast<MainController*>(parentProcessor);
 
-	if (mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::AudioThread)
+	if (mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::AudioThread)
 	{
 		indexForHost = index;
 		valueForHost = newValue;

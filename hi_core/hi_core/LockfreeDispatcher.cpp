@@ -129,7 +129,7 @@ bool MainController::LockFreeDispatcher::isMessageThread() const noexcept
 
 bool MainController::LockFreeDispatcher::isLoadingThread() const noexcept
 {
-	return mc->getKillStateHandler().getCurrentThread() == KillStateHandler::SampleLoadingThread;
+	return mc->getKillStateHandler().getCurrentThread() == KillStateHandler::TargetThread::SampleLoadingThread;
 }
 
 

@@ -600,7 +600,7 @@ bool ScriptComponentEditBroadcaster::showPanelDataJSON(juce::Component *t)
                 auto mc = vp->getScriptProcessor()->getMainController_();
                 
                 {
-                    LockHelpers::SafeLock(mc, LockHelpers::ScriptLock);
+                    LockHelpers::SafeLock(mc, LockHelpers::Type::ScriptLock);
                     vp->getTableModel()->setRowData(newData);
                 }
                 vp->sendRepaintMessage();
