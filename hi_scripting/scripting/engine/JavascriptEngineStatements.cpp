@@ -9,6 +9,11 @@ struct HiseJavascriptEngine::RootObject::ScopedBlockStatement: public Statement
 
 	virtual bool isDebugStatement() const = 0;
 
+	void writeLocation(dispatch::StringBuilder& n)
+	{
+		n << "goto " << location.externalFile << "@" << (int)(location.location - location.program.getCharPointer());
+	}
+
 	bool checkCondition(const Scope& s, bool before)
 	{
 		if(before && condition != nullptr)
@@ -49,6 +54,69 @@ struct HiseJavascriptEngine::RootObject::ScopedSetter: public HiseJavascriptEngi
 	mutable var prevValue;
 };
 
+struct HiseJavascriptEngine::RootObject::ScopedLocker: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedLocker(CodeLocation l, ExpPtr c, LockHelpers::Type lockToAcquire):
+	  ScopedBlockStatement(l, c),
+	  lockType(lockToAcquire)
+	{
+		n << ".lock(Threads." << LockHelpers::getLockName(lockType) << ")";
+		writeLocation(loc);
+	}
+
+	SN_NODE_ID("lock");
+
+	bool isDebugStatement() const override { return false; }
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		try
+		{
+			{
+				mc = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor)->getMainController();
+
+				if(mc->getKillStateHandler().currentThreadHoldsLock(lockType))
+					return ResultCode::ok;
+
+#if PERFETTO
+				dispatch::StringBuilder n2;
+				n2 << "waiting for " << LockHelpers::getLockName(lockType);
+				TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(n2));
+#endif
+
+				auto& lock = LockHelpers::getLockChecked(mc, lockType);
+				lock.enter();
+				holdsLock = true;
+			}
+
+			TRACE_EVENT_BEGIN("scripting", DYNAMIC_STRING_BUILDER(n), "location", DYNAMIC_STRING_BUILDER(loc));
+		}
+		catch(const LockHelpers::BadLockException& e)
+		{
+			location.throwError(e.getErrorMessage());
+		}
+		
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+		if(holdsLock)
+		{
+			auto& lock = LockHelpers::getLockUnchecked(mc, lockType);
+			lock.exit();
+			TRACE_EVENT_END("scripting");
+		}
+	}
+
+	mutable MainController* mc = nullptr;
+	const LockHelpers::Type lockType;
+
+	mutable bool holdsLock = false;
+
+	dispatch::StringBuilder n, loc;
+};
+
 struct HiseJavascriptEngine::RootObject::ScopedSuspender: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
 {
 	ScopedSuspender(CodeLocation l, ExpPtr c, const dispatch::HashedPath& path_):
@@ -82,9 +150,9 @@ struct HiseJavascriptEngine::RootObject::ScopedTracer: public HiseJavascriptEngi
 	  ScopedBlockStatement(l, c)
 	{
 		n << v;
-		loc << "goto " << l.externalFile << "@" << (int)(l.location - l.program.getCharPointer());
+		writeLocation(loc);
 	}
-
+	
 	SN_NODE_ID("trace");
 
 #if PERFETTO

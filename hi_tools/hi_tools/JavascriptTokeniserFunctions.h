@@ -102,24 +102,27 @@ struct JavascriptTokeniserFunctions
             { "for", "reg", "let", "int", "new", "try", "var", "NaN", nullptr };
 
         static const char* const keywords4Char[] =
-            { "void", "this", "true", "long", "else", "char",
+            { "void", "this", "true", "JSON", "long", "else", "char", "Math",
               "enum", "case", "goto", "byte", "eval", "null", "with", "JSON", nullptr };
 
         static const char* const keywords5Char[] =
-            { "Synth", "float", "const", "while", "break", "false", "catch", "class",
-              "final", "catch", "yield", "Array", "local", nullptr };
+            { "Synth", "float", "const", "while", "break", "false", "class",
+              "catch", "Array", "trace", "local", nullptr };
 
         static const char* const keywords6Char[] =
-            { "string", "Engine", "return","delete", "double", "export", "public", "static",
-              "switch", "global","typeof", "inline", "object", "number", nullptr };
+            { "string", "Engine", "return","delete", "Buffer", "double", "export", "public", "static",
+              "switch", "global","typeof", "inline", "object", "Synth", "number", nullptr };
 
         static const char* const keywords7Char[] =
-            { "Message", "Console", "Content", "default", "finally", "private",
+            { "Console", "Content", "Colours", "default", "finally", "Message", "private", "Sampler", "Server", "Threads",
               nullptr };
+        
+        static const char* const keywords8Char[] =
+          { "continue", "function", "parseInt", "Settings", nullptr
+          };
 
         static const char* const keywordsOther[] =
-		{ "continue", "protected", "volatile", "undefined",
-              "function", "readLock", "writeLock", "namespace", "isDefined", nullptr };
+		{ "FileSystem", "namespace", "protected", "undefined", "isDefined", nullptr };
 
         const char* const* k;
 
@@ -131,9 +134,10 @@ struct JavascriptTokeniserFunctions
             case 5:     k = keywords5Char; break;
             case 6:     k = keywords6Char; break;
             case 7:     k = keywords7Char; break;
+            case 8:     k = keywords8Char; break;
 
             default:
-                if (tokenLength < 2 || tokenLength > 16)
+                if (tokenLength < 2 || tokenLength > 11)
                     return false;
 
                 k = keywordsOther;

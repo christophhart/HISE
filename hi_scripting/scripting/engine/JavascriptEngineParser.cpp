@@ -725,6 +725,14 @@ private:
 
 			return new ScopedPrinter(location, condition, name);
 		}
+		else if(typeId == ScopedLocker::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto l = (int)parseExpression()->getResult(Scope(nullptr, nullptr, nullptr));
+			match(TokenTypes::closeParen);
+
+			return new ScopedLocker(location, condition, (LockHelpers::Type)l);
+		}
 		else if(typeId == ScopedBefore::getStaticId())
 		{
 			ScopedPointer<ScopedBefore> n = new ScopedBefore(location, condition);
