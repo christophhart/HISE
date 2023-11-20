@@ -1760,6 +1760,18 @@ void JavascriptProcessor::restoreInterfaceData(ValueTree propertyData)
 
 	auto r = dynamic_cast<ProcessorWithScriptingContent*>(this)->getScriptingContent()->createComponentsFromValueTree(propertyData, buildComponents);
 
+	int numComponents = 0;
+
+	valuetree::Helpers::forEach(propertyData, [&numComponents](ValueTree& v)
+	{
+		if(v.getType() == Identifier("Component"))
+			numComponents++;
+
+		return false;
+	});
+
+	dynamic_cast<Processor*>(this)->updateParameterSlots(numComponents);
+
 	if (r.failed())
 	{
 		debugError(dynamic_cast<Processor*>(this), r.getErrorMessage());
@@ -2565,11 +2577,12 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
     }
 	case Task::HiPriorityCallbackExecution:
 	{
-#if USE_BACKEND
 		r = executeQueue(Task::ReplEvaluation, pendingCompilations);
-#else
-        r = executeQueue(Task::Compilation, pendingCompilations);
-#endif
+
+		{
+			TRACE_EVENT("scripting", "high priority dispatch queue");
+			getMainController()->getRootDispatcher().flushHighPriorityQueues(this);
+		}
 
 		TRACE_EVENT("scripting", "high priority queue");//, perfetto::Track(HighPriorityTrackId));
 		

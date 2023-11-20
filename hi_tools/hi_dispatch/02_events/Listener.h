@@ -71,8 +71,8 @@ public:
 
 		SlotBitmap toBitMap() const
 		{
-			jassert(numBytes == sizeof(SlotBitmap::getNumBytes()));
-			return SlotBitmap::fromData(changes, SlotBitmap::getNumBytes());
+			jassert(numBytes == SlotBitmap::getNumBytes());
+			return SlotBitmap(changes);
 		}
 
 		uint8 toSingleSlotIndex() const

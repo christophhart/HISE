@@ -484,7 +484,7 @@ private:
 	{
 		struct ProcessorListener;
 
-		ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& specialId, bool useIntegerParameters);
+		ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<uint16>& parameterIndexes, const var& metadata, const Identifier& specialId, bool useIntegerParameters);
 
 		Identifier getItemId() const override;
 

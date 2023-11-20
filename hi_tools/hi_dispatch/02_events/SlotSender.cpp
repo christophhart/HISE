@@ -95,7 +95,18 @@ bool SlotSender::flush(DispatchType n)
 			switch(f.eventType)
 			{
 			case EventType::Listener: jassertfalse; break;
-			case EventType::ListenerAnySlot: break;
+			case EventType::ListenerAnySlot:
+			{
+				Listener::ListenerData d;
+				d.s = &obj;
+				d.numBytes = thisBitmap.getNumBytes();
+				d.slotIndex = index;
+				d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
+
+				auto& l = f.getTypedObject<Listener>();
+				l.slotChanged(d);
+					break;
+			};
 			case EventType::ListenerSingleSlot: jassertfalse; break;
 			case EventType::SingleListener: jassertfalse; break;
 			case EventType::SingleListenerSingleSlot:
@@ -120,7 +131,7 @@ bool SlotSender::flush(DispatchType n)
 			case EventType::SingleListenerSubset:
 			{
 				jassert(f.numBytes == SlotBitmap::getNumBytes());
-				auto listenerSlots = SlotBitmap::fromData(f.data, f.numBytes);
+				SlotBitmap listenerSlots(f.data);
 
 				if(listenerSlots.hasSomeBitsAs(thisBitmap))
 				{

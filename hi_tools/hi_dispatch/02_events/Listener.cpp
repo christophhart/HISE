@@ -51,7 +51,7 @@ Listener::~Listener()
 void Listener::addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n)
 {
 	for(int i = 0; i < numSlots; i++)
-		source->getListenerQueue(i, n)->push(this, EventType::ListenerAnySlot, nullptr, 0);
+		source->getListenerQueue(slotIndexes[i], n)->push(this, EventType::ListenerAnySlot, nullptr, 0);
 
 	removed = false;
 }

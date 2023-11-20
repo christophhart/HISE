@@ -91,6 +91,13 @@ public:
 		return parent.matchesPath(p) && p.source == getDispatchId();
 	}
 
+protected:
+
+	void setSourceId(HashedCharPtr&& newId)
+	{
+		sourceId = std::move(newId);
+	}
+
 private:
 
 	SourceManager& parent;

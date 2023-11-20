@@ -1037,7 +1037,7 @@ idAndColourDispatcher(synth->getMainController()->getRootDispatcher(), *this, BI
 hierarchy(hierarchy_)
 {
 	synth->addBypassListener(this, dispatch::DispatchType::sendNotificationAsync);
-	NEW_PROCESSOR_DISPATCH(synth->addNameAndColourListener(&idAndColourDispatcher));
+	NEW_PROCESSOR_DISPATCH(synth->addNameAndColourListener(&idAndColourDispatcher, dispatch::DispatchType::sendNotificationAsync));
 	addAndMakeVisible(peak);
 	addAndMakeVisible(idLabel);
 	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));

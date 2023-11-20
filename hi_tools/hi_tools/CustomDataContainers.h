@@ -524,7 +524,7 @@ private:
  
     This is more or less a drop in replacement of the BigInteger class without the dynamic reallocation.
 */
-template <int NV, typename DataType=uint32> class VoiceBitMap
+template <int NV, typename DataType=uint32, bool ThrowOnOutOfBounds=false> class VoiceBitMap
 {
     constexpr static int getElementSize() { return sizeof(DataType) * 8; }
     constexpr static int getNumElements() { return NV / getElementSize(); };
@@ -543,38 +543,46 @@ public:
         clear();
     }
 
-	static VoiceBitMap<NV, DataType> fromData(const void* data, size_t numBytes)
+	explicit VoiceBitMap(const void* externalByteData, size_t numBytes=getNumBytes())
     {
-		jassert(numBytes == sizeof(data));
-		VoiceBitMap c;
-		memcpy(c.data.data(), data, numBytes);
-		c.checkEmpty();
-		return c;
+	    jassert(numBytes == getNumBytes());
+		memcpy(data.data(), externalByteData, numBytes);
+		checkEmpty();
     }
-
+	
     void clear()
     {
-        memset(data.data(), 0, sizeof(data));
+        memset(data.data(), 0, getNumBytes());
 		empty = true;
     }
 
     void setBit(int voiceIndex, bool value)
     {
-        auto dIndex = voiceIndex / getElementSize();
-        auto bIndex = voiceIndex % getElementSize();
+		if(isPositiveAndBelow(voiceIndex, getNumBits()))
+		{
+			auto dIndex = voiceIndex / getElementSize();
+	        auto bIndex = voiceIndex % getElementSize();
 
-        if (value)
-        {
-            auto mask = 1 << bIndex;
-            data[dIndex] |= mask;
-			empty = false;
-        }
-        else
-        {
-            auto mask = 1 << bIndex;
-            data[dIndex] &= ~mask;
-			checkEmpty();
-        }
+			if (value)
+	        {
+	            auto mask = 1 << bIndex;
+	            data[dIndex] |= mask;
+				empty = false;
+	        }
+	        else
+	        {
+	            auto mask = 1 << bIndex;
+	            data[dIndex] &= ~mask;
+				checkEmpty();
+	        }
+
+			return;
+		}
+
+		if constexpr (ThrowOnOutOfBounds)
+		{
+			throw std::out_of_range("out of bounds");
+		}
     }
 
     String toBase64() const
@@ -607,13 +615,18 @@ public:
         {
             auto bIndex = index % getElementSize();
             auto dIndex = index / getElementSize();
-            
             DataType mask = 1 << bIndex;
-
             return (data[dIndex] & mask);
         }
-        
-        return false;
+
+		if constexpr (ThrowOnOutOfBounds)
+		{
+			throw std::out_of_range("out of bounds");
+		}
+		else
+		{
+			return false;
+		}
     }
 
 	static constexpr size_t getNumBytes() { return sizeof(data); };
@@ -624,6 +637,27 @@ public:
     }
 
 	static constexpr size_t getNumBits() { return getNumBytes() * 8; }
+
+	size_t getHighestSetBit() const
+	{
+		size_t rv = 0;
+
+		for(int i = getNumElements() - 1; i >= 0; --i)
+		{
+			auto v = data[i];
+			if(v != 0)
+			{
+				for (int j = getElementSize() - 1; j >= 0; --j)
+	            {
+	                DataType mask = 1 << j;
+					auto match = ((v & mask) != 0) && (rv == 0);
+					rv += static_cast<size_t>(match) * (i * getElementSize() + j);
+	            }
+			}
+		}
+
+		return rv;
+	}
 
     int getFirstFreeBit() const
     {
@@ -647,7 +681,7 @@ public:
         return -1;
     }
 
-    VoiceBitMap<NV>& operator|=(const VoiceBitMap<NV, DataType>& other)
+    VoiceBitMap& operator|=(const VoiceBitMap& other)
     {
 		if(other.empty)
 			return *this;
@@ -658,7 +692,7 @@ public:
         return *this;
     }
 
-	bool hasSomeBitsAs(const VoiceBitMap<NV, DataType>& other) const
+	bool hasSomeBitsAs(const VoiceBitMap& other) const
     {
 		if(empty)
 			return false;

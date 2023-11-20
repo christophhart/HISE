@@ -83,6 +83,19 @@ public:
 
 protected:
 
+	void flushContentParameters()
+	{
+		// Don't use that method if you've already added parameter IDs...
+		jassert(parameterNames.isEmpty());
+
+		for(int i = 0; i < Content.getNumComponents(); i++)
+		{
+			parameterNames.add(Content.getComponent(i)->getName());
+		}
+
+		updateParameterSlots(Content.getNumComponents());
+	}
+
 	void controlCallback(ScriptingApi::Content::ScriptComponent *component, var controllerValue) override;
 
 
@@ -120,7 +133,8 @@ public:
 	DemoHardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 		HardcodedScriptProcessor(mc, id, ms)
 	{
-		onInit();	
+		onInit();
+		flushContentParameters();
 	};
 
 	void onInit() override
@@ -172,7 +186,8 @@ public:
 	LegatoProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 		HardcodedScriptProcessor(mc, id, ms)
 	{
-		onInit();	
+		onInit();
+		flushContentParameters();
 	};
 
 	void onInit() override
@@ -267,7 +282,8 @@ public:
 	CCSwapper(MainController *mc, const String &id, ModulatorSynth *ms):
 		HardcodedScriptProcessor(mc, id, ms)
 	{
-		onInit();	
+		onInit();
+		flushContentParameters();
 	};
 
 	void onInit() override
@@ -318,6 +334,7 @@ public:
 		HardcodedScriptProcessor(mc, id, ms)
 	{
 		onInit();
+		flushContentParameters();
 
 		getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 	};
@@ -459,6 +476,8 @@ public:
 		HardcodedScriptProcessor(mc, id, ms)
 	{
 		onInit();
+		flushContentParameters();
+
 	};
 
 	void onInit() override
@@ -585,6 +604,7 @@ public:
 		HardcodedScriptProcessor(mc, id, ms)
 	{
 		onInit();
+		flushContentParameters();
 
 		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 	};
@@ -729,6 +749,8 @@ public:
 		HardcodedScriptProcessor(mc, id, ms)
 	{
 		onInit();
+		flushContentParameters();
+
 	};
 
 	void onInit() override
@@ -787,6 +809,8 @@ public:
 		HardcodedScriptProcessor(mc, id, ms)
 	{
 		onInit();
+		flushContentParameters();
+
 	};
 
 	void onInit() override

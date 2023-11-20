@@ -64,7 +64,8 @@ enum class ProcessorChangeEvent
 /** This will handle the entire processor notification system.
  *  In HISE this will be a member of the MainController
  */
-class ProcessorHandler: public SourceManager
+class ProcessorHandler: public SourceManager,
+					    public ListenerOwner
 {
 public:
 
@@ -101,7 +102,7 @@ public:
 	{
 	public:
 
-		using Callback = std::function<void(dispatch::library::Processor*, uint8)>;
+		using Callback = std::function<void(dispatch::library::Processor*, uint16)>;
 
 		AttributeListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
 		~AttributeListener() final {};
@@ -114,7 +115,7 @@ public:
 		void slotChanged(const ListenerData& d) final;
 	};
 
-	class NameAndColourListener: private dispatch::Listener
+	class NameAndColourListener: public dispatch::Listener
 	{
 	public:
 
@@ -122,7 +123,13 @@ public:
 
 		NameAndColourListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
 		~NameAndColourListener() final {};
-		
+
+		void callWithProcessor(Processor* p)
+		{
+			jassert(f);
+			f(p);
+		}
+
 	private:
 
 		friend class Processor;
@@ -178,8 +185,30 @@ public:
 
 		friend class Processor;
 	};
-
+	
 	ProcessorHandler(RootObject& r);
+
+	void addNameAndColourListener(NameAndColourListener* l, DispatchType n);
+
+	void removeNameAndColourListener(NameAndColourListener* l);
+
+	void registerProcessor(Processor* p);
+	void deregisterProcessor(Processor* p);
+
+private:
+
+	void onNameOrColourUpdate(Processor* p)
+	{
+		anyNameListeners.flush([&](const Queue::FlushArgument& f)
+		{
+			auto& n = f.getTypedObject<NameAndColourListener>();
+			n.callWithProcessor(p);
+			return true;
+		}, Queue::FlushType::KeepData);
+	}
+
+	Queue anyNameListeners;
+	NameAndColourListener anyNameDispatcher;
 };
 
 
@@ -209,10 +238,10 @@ public:
 	/** Call this in the processor if the bypass state changes. This will cache the value
 	 *  so that the BypassListener API is consistent with the current HISE API.
 	 */
-	void setBypassed(bool value);
+	void setBypassed(bool value, DispatchType n);
 
 	/** Call this in the processor if the ID changes. */
-	void setId(const String& );
+	void setId(HashedCharPtr&& id);
 
 	/** Call this in the processor if the colour changes. */
 	void setColour(const Colour& );
@@ -251,7 +280,7 @@ public:
 		l->removeListener(*this);
 	}
 
-	void addNameAndColourListener(NameAndColourListener* l);
+	void addNameAndColourListener(NameAndColourListener* l, DispatchType n = DispatchType::sendNotificationSync);
 
 	void removeNameAndColourListener(NameAndColourListener* l);
 

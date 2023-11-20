@@ -283,10 +283,16 @@ private:
 		{
 #if HISE_NEW_PROCESSOR_DISPATCH
 			jassert(&p->getOwner<hise::Processor>() == getProcessor());
-			idLabel.setText(p->getOwner<hise::Processor>().getId(), dontSendNotification);
+
+			auto newText = p->getOwner<hise::Processor>().getId();
+
+			SafeAsyncCall::call<Component>(idLabel, [newText](Component& l)
+			{
+				dynamic_cast<Label*>(&l)->setText(newText, dontSendNotification);
+			});
 #endif
-			
-			repaint();
+
+			SafeAsyncCall::repaint(this);
 		}
 
 		void bypassStateChanged(Processor* p, bool bypassState) override

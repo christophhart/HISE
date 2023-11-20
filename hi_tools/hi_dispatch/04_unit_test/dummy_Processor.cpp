@@ -293,7 +293,7 @@ void Processor::setAttribute(int parameterIndex, float newValue, DispatchType n)
 
 void Processor::setBypassed(bool shouldBeBypassed, DispatchType n)
 {
-	dispatcher.setBypassed(shouldBeBypassed);
+	dispatcher.setBypassed(shouldBeBypassed, n);
 }
 
 struct ProcessorListener::AddAction: public Action

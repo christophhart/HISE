@@ -468,17 +468,29 @@ public:
 
     struct AttributeListener: public dispatch::ListenerOwner
     {
-	    AttributeListener(dispatch::RootObject& r, const dispatch::library::Processor::AttributeListener::Callback& f)
+	    AttributeListener(dispatch::RootObject& r)
           NEW_PROCESSOR_DISPATCH(:dispatcher(r, *this, BIND_MEMBER_FUNCTION_2(AttributeListener::internalUpdate)))
 	    {}
 
-        virtual ~AttributeListener();;
+        virtual ~AttributeListener()
+	    {
+		    if(cp != nullptr)
+                cp->removeAttributeListener(&dispatcher);
+	    }
 
-        virtual void onAttributeUpdate(Processor* p, uint8 index) = 0;
+
+        virtual void onAttributeUpdate(Processor* p, uint16 index) = 0;
+
+        void addToProcessor(Processor* p, const uint16* indexes, int numIndexes, dispatch::DispatchType n)
+        {
+            cp = p;
+	        p->addAttributeListener(&dispatcher, indexes, numIndexes, n);
+        }
         
+
     private:
 
-        void internalUpdate(dispatch::library::Processor* p, uint8 index)
+        void internalUpdate(dispatch::library::Processor* p, uint16 index)
         {
 			NEW_PROCESSOR_DISPATCH(onAttributeUpdate(&p->getOwner<hise::Processor>(), index));
         }
@@ -486,8 +498,10 @@ public:
         using Callback = void(*)(dispatch::library::Processor*, uint8);
         
         NEW_PROCESSOR_DISPATCH(dispatch::library::Processor::AttributeListener dispatcher);
+
+        WeakReference<Processor> cp;
         
-        JUCE_DECLARE_WEAK_REFERENCEABLE(BypassListener)
+        JUCE_DECLARE_WEAK_REFERENCEABLE(AttributeListener)
     };
 
     struct OtherListener: public dispatch::ListenerOwner,
@@ -756,7 +770,7 @@ public:
         NEW_PROCESSOR_DISPATCH(dispatcher.removeOtherChangeListener(l));
     }
 
-    void addAttributeListener(dispatch::library::Processor::AttributeListener* l, uint16* indexes, size_t numAttributes, dispatch::DispatchType n)
+    void addAttributeListener(dispatch::library::Processor::AttributeListener* l, const uint16* indexes, size_t numAttributes, dispatch::DispatchType n)
     {
         NEW_PROCESSOR_DISPATCH(dispatcher.addAttributeListener(l, indexes, numAttributes, n));
     }
@@ -766,9 +780,9 @@ public:
         NEW_PROCESSOR_DISPATCH(dispatcher.removeAttributeListener(l));
     }
 
-    void addNameAndColourListener(dispatch::library::Processor::NameAndColourListener* l)
+    void addNameAndColourListener(dispatch::library::Processor::NameAndColourListener* l, dispatch::DispatchType n=dispatch::sendNotificationSync)
     {
-        NEW_PROCESSOR_DISPATCH(dispatcher.addNameAndColourListener(l));
+        NEW_PROCESSOR_DISPATCH(dispatcher.addNameAndColourListener(l, n));
     }
     
     void removeNameAndColourListener(dispatch::library::Processor::NameAndColourListener* l)
@@ -790,11 +804,14 @@ public:
 
 	Array<Identifier> parameterNames;
 
-    void updateParameterSlots()
+    void updateParameterSlots(int numForced = -1)
 	{
-		NEW_PROCESSOR_DISPATCH(dispatcher.setNumAttributes(getNumAttributes()));
-	}
+        if(numForced == -1)
+            numForced = getNumAttributes();
 
+		NEW_PROCESSOR_DISPATCH(dispatcher.setNumAttributes(numForced));
+	}
+    
 protected:
 
 	/** Overwrite this method if you want to supply a custom symbol for the Processor. 

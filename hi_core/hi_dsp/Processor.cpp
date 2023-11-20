@@ -263,7 +263,7 @@ void Processor::setId(const String& newId, NotificationType notifyChangeHandler)
 			MainController::ProcessorChangeHandler::EventType::ProcessorRenamed, false);
 #endif
 #if HISE_NEW_PROCESSOR_DISPATCH
-	dispatcher.setId(newId);
+	dispatcher.setId(dispatch::HashedCharPtr(newId));
 #endif
 
 
@@ -290,7 +290,7 @@ void Processor::setBypassed(bool shouldBeBypassed, NotificationType notifyChange
 #endif
 #endif
 #if HISE_NEW_PROCESSOR_DISPATCH
-		dispatcher.setBypassed(shouldBeBypassed);
+		dispatcher.setBypassed(shouldBeBypassed, (dispatch::DispatchType)notifyChangeHandler);
 #endif
 	}		
 }

@@ -197,7 +197,7 @@ class Source; // => file2.h
 //
 class SlotSender; // => file2.h
 
-using SlotBitmap = VoiceBitMap<32, uint32>;
+using SlotBitmap = VoiceBitMap<32, uint8, true>;
 
 // A listener object that receives notifications about events of the SourceManager
 // lifetime < SourceManager

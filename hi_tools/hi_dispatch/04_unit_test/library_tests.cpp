@@ -78,6 +78,15 @@ void LibraryTest::deinit(int numChecksExpected)
 
 void LibraryTest::runTest()
 {
+	testSlotBitMap();
+
+	testMultipleAttributes({1});
+	testMultipleAttributes({1, 4});
+	testMultipleAttributes({1, 4, 31, 32});
+	testMultipleAttributes({1, 4, 31, 322});
+	testMultipleAttributes({0, 4, 31, 4, 24, 211, 32});
+	testMultipleAttributes({0, 32, 64, 63, 900, 901, 902 });
+	
 	auto n = Thread::getCurrentThread()->getThreadName();
 	PerfettoHelpers::setCurrentThreadName(n.getCharPointer().getAddress());
 
@@ -188,6 +197,191 @@ void LibraryTest::testHelloWorld(int numAttributeCalls, int numExpected, Dispatc
 	updater.stopTimer();
 }
 
+void LibraryTest::testHighAttributeCount()
+{
+	beginTest("testing attribute index 4098");
+
+	auto ln = DispatchType::sendNotificationSync;
+	auto en = DispatchType::sendNotificationSync;
+
+	StringBuilder b;
+
+	RootObject r(nullptr);
+	library::ProcessorHandler ph(r);
+
+	{
+		library::Processor p(ph, *this, "test processor");
+
+		constexpr uint16 BigAttributeIndex = 4098;
+
+		p.setNumAttributes(BigAttributeIndex+1);
+
+		int numCallbacks = 0;
+
+		library::Processor::AttributeListener l(r, *this, [&numCallbacks](library::Processor* l, uint16 idx)
+		{
+			jassert(idx == BigAttributeIndex);
+			numCallbacks++;
+		});
+
+			
+
+		uint16 attributes[1] = { BigAttributeIndex };
+		p.addAttributeListener(&l, attributes, 1, ln);
+		p.setAttribute(BigAttributeIndex, 10.0f, en);
+		p.removeAttributeListener(&l);
+
+		expectEquals(numCallbacks, 1, "callback count mismatch");
+
+		int numIdChanges = 0;
+
+		library::Processor::NameAndColourListener idListener(r, *this, [&](library::Processor* l)
+		{
+			expect(l->getDispatchId() == HashedCharPtr("changed"), "not changed");
+			numIdChanges++;
+		});
+
+		ph.addNameAndColourListener(&idListener, ln);
+			
+		p.setId("changed");
+
+		expectEquals(numIdChanges, 1, "second id change mismatch");
+
+		library::Processor p2(ph, *this, "second processor");
+
+		p2.setId("changed");
+			
+		expectEquals(numIdChanges, 2, "second id change mismatch");
+
+		ph.removeNameAndColourListener(&idListener);
+
+			
+	}
+		
+		
+}
+
+void LibraryTest::testSlotBitMap()
+{
+	beginTest("testing bit map");
+
+	SlotBitmap b;
+	expectEquals(static_cast<int>(b.getNumBytes()), 4, "bytesize match");
+	expect(b.isEmpty(), "not empty at beginning");
+	expectEquals<int>(b.getHighestSetBit(), 0, "highest bit doesn't work");
+	b.setBit(12, true);
+	expect(b[12], "bit not set");
+	expect(!b.isEmpty(), "empty after set");
+	expectEquals<int>(b.getHighestSetBit(), 12, "highest bit doesn't work");
+
+
+
+	b.clear();
+	expect(!b[12], "bit still set");
+	expect(b.isEmpty(), "not empty after clear");
+
+	b.setBit(16, true);
+	b.setBit(16, false);
+	b.setBit(17, true);
+	b.setBit(19, true);
+	expectEquals<int>(b.getHighestSetBit(), 19, "highest bit doesn't work pt. II");
+
+
+	bool caught = false;
+
+	try
+	{
+		b.setBit(45, true);
+		expect(false, "didn't throw");
+	}
+	catch(std::out_of_range& e)
+	{
+		caught = true;
+	}
+
+	expect(caught, "not caught");
+}
+
+void LibraryTest::testMultipleAttributes(const Array<uint16>& multiParameters)
+{
+	beginTest("Testing multiple parameters with " + String(multiParameters.size()) + " indexes");
+
+	uint16 numMax = 0;
+
+	for(auto& m: multiParameters)
+		numMax = jmax(m, numMax);
+
+	auto ln = DispatchType::sendNotificationSync;
+
+	RootObject r(nullptr);
+	library::ProcessorHandler ph(r);
+
+	library::Processor p(ph, *this, "multi_processor");
+
+	p.setNumAttributes(numMax+1);
+
+	BigInteger b;
+	b.setBit(numMax+1, true);
+	b.setBit(numMax+1, false);
+
+	library::Processor::AttributeListener multiListener(r, *this, [&](library::Processor*, uint16 parameterIndex)
+	{
+		b.setBit(parameterIndex, true);
+	});
+
+	p.addAttributeListener(&multiListener, multiParameters.getRawDataPointer(), multiParameters.size(), ln);
+
+	for(auto& mp: multiParameters)
+		p.setAttribute(mp, 0.0f, ln);
+
+	for(auto& mp: multiParameters)
+		expect(b[mp], String(mp) + " was not received at multi test");
+
+	p.removeAttributeListener(&multiListener);
+}
+
+void LibraryTest::testSuspension(const HashedCharPtr& pathToTest)
+{
+	auto path = HashedPath::parse(pathToTest);
+
+	beginTest("test suspension with path " + pathToTest.toString());
+	RootObject r(nullptr);
+
+	library::ProcessorHandler ph(r);
+
+	library::Processor p(ph, *this, "test_processor");
+	p.setNumAttributes(1);
+
+	int numCallbacks = 0;
+
+	library::Processor::AttributeListener l(r, *this, [&numCallbacks](library::Processor* l, int)
+	{
+		numCallbacks++;
+	});
+
+	uint16 attributes[1] = { 0 };
+	p.addAttributeListener(&l, attributes, 1, sendNotificationSync);
+
+	for(int i = 0; i < 50; i++)
+		p.setAttribute(0, 10.0f, sendNotificationSync);
+
+	expectEquals(numCallbacks, 50, "callback count mismatch");
+
+	r.setState(path, State::Paused);
+
+	for(int i = 0; i < 50; i++)
+		p.setAttribute(0, 10.0f, sendNotificationSync);
+
+	expectEquals(numCallbacks, 50, "callback count mismatch when paused");
+
+	r.setState(path, State::Running);
+
+	expectEquals(numCallbacks, 51, "callback count mismatch after resume");
+
+
+	p.removeAttributeListener(&l);
+}
+
 void LibraryTest::runTestFiles()
 {
 	File rootDirectory = getTestDirectory();
@@ -206,6 +400,61 @@ void LibraryTest::runTestFiles()
 			runEvents(obj);
 		}
 	}
+}
+
+LibraryTest::HardcodedTest::HardcodedTest(LibraryTest& parent_, const String& name, int milliSeconds):
+	JSONBuilder(name, milliSeconds),
+	parent(parent_)
+{
+	d.id = "my_processor";
+	d.n = DispatchType::sendNotificationSync;
+	d.t = ThreadType::UIThread;
+	d.lifetime = {0.05, 0.9};
+			
+	addProcessor(d, AttributeIndex+1);
+}
+
+DynamicObject::Ptr LibraryTest::HardcodedTest::expectNumCallbacks(int numExpectedAttributes, int numExpectedBypassCalls)
+{
+	auto processorId = d.id;
+	auto listenerData = getListenerData(processorId);
+	auto counter = addListenerEvent(listenerData.withSingleTimestampWithin(0.99), ActionTypes::count);
+	counter->setProperty(ActionIds::attributes, numExpectedAttributes);
+	counter->setProperty(ActionIds::bypassed, numExpectedBypassCalls);
+	return counter;
+}
+
+DynamicObject::Ptr LibraryTest::HardcodedTest::addListenerToProcessor(DispatchType n, ThreadType t)
+{
+	auto listenerData = d.withTimestampRangeWithin(0.1, 0.8).withDispatchType(n);
+
+	if(t != ThreadType::Undefined)
+		listenerData = listenerData.withThread(t);
+
+	return addListener(listenerData);
+}
+
+DynamicObject::Ptr LibraryTest::HardcodedTest::addListener(const Data& d)
+{
+	return JSONBuilder::addListener(d, { HardcodedTest::AttributeIndex });
+}
+
+DynamicObject::Ptr LibraryTest::HardcodedTest::addSetAttributeCall(double ts, DispatchType n, dummy::ThreadType t)
+{
+	using namespace dummy;
+	auto attributeData = d.withSingleTimestampWithin(ts).withDispatchType(n);
+
+	if(t != ThreadType::Undefined)
+		attributeData = attributeData.withThread(t);
+
+	auto obj = addProcessorEvent(attributeData, ActionTypes::set_attribute);
+	obj->setProperty(ActionIds::index, AttributeIndex);
+	return obj;
+}
+
+void LibraryTest::HardcodedTest::flush()
+{
+	parent.runEvents(getJSON());
 }
 
 void LibraryTest::testBasicSetup()
@@ -231,6 +480,41 @@ void LibraryTest::testBasicSetup()
 		});
 	});
 
+}
+
+File LibraryTest::getTestDirectory()
+{
+	auto f = File::getSpecialLocation(File::currentExecutableFile);
+	f = f.getParentDirectory().getParentDirectory().getParentDirectory();
+	f = f.getParentDirectory().getParentDirectory().getParentDirectory();
+	f = f.getParentDirectory().getParentDirectory();
+        
+	auto dir = f.getChildFile("hi_tools/hi_dispatch/04_unit_test/json");
+	jassert(dir.isDirectory());
+	return dir;
+}
+
+void LibraryTest::runEvents(const var& obj)
+{
+	beginTest(obj[dummy::ActionIds::description].toString());
+
+	// must not run on the message thread!
+	jassert(!MessageManager::getInstance()->isThisTheMessageThread());
+
+	init(obj);
+
+	if(mc != nullptr)
+	{
+		TRACE_DISPATCH("run test");
+		Thread::getCurrentThread()->wait(500);
+
+		while(!mc->isFinished())
+		{
+			Thread::getCurrentThread()->wait(500);
+		}
+	}
+
+	deinit((int)obj[ActionTypes::count]);
 }
 
 

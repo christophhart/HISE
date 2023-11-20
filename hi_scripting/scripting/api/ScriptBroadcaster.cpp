@@ -1008,12 +1008,25 @@ juce::Result ScriptBroadcaster::EqListener::callItem(TargetBase* b)
 	return Result::ok();
 }
 
+
+
+
+
+
+#if HISE_NEW_PROCESSOR_DISPATCH
+struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hise::Processor::AttributeListener,
+#else
 struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hise::Processor::OtherListener,
+#endif
 																	   public hise::Processor::BypassListener
 {
-	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<int>& parameterIndexes_, const Identifier& specialId_, bool useIntegerArgs) :
+	ProcessorListener(ScriptBroadcaster* sb_, Processor* p_, const Array<uint16>& parameterIndexes_, const Identifier& specialId_, bool useIntegerArgs) :
 	    BypassListener(p_->getMainController()->getRootDispatcher()),
-	    OtherListener(p_, dispatch::library::ProcessorChangeEvent::Any), // TODO: replace with attribute listener
+#if HISE_NEW_PROCESSOR_DISPATCH
+		AttributeListener(p_->getMainController()->getRootDispatcher()),
+#else
+	    OtherListener(p_, dispatch::library::ProcessorChangeEvent::Any),
+#endif
 		parameterIndexes(parameterIndexes_),
 		p(p_),
 		sb(sb_),
@@ -1033,7 +1046,11 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hi
 		args.add(p->getId());
 		args.add(0);
 		args.add(0.0f);
-		
+
+		auto data = parameterIndexes_.getRawDataPointer();
+		auto num = parameterIndexes_.size();
+		NEW_PROCESSOR_DISPATCH(addToProcessor(p, data, num, dispatch::DispatchType::sendNotificationAsyncHiPriority));
+
 		if (specialId.isValid())
 		{
             if(specialId.toString() == "Intensity")
@@ -1050,7 +1067,55 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hi
             }
 		}
 	}
-    
+
+#if HISE_NEW_PROCESSOR_DISPATCH
+	void onAttributeUpdate(Processor* p, uint16 index) override
+	{
+		auto i = parameterIndexes.indexOf((int)index);
+
+		auto newValue = p->getAttribute(index);
+
+		if (lastValues[i] != newValue)
+		{
+			lastValues.set(i, newValue);
+
+			var id = parameterNames[i];
+
+			if (useIntegerIndexesAsArgument)
+			{
+				jassert(id.isInt());
+			}
+
+			sendParameterChange(id, newValue);
+		}
+	}
+#else
+	void otherChange(Processor *b) override
+	{
+		if (p == nullptr)
+			return;
+
+		for (int i = 0; i < parameterIndexes.size(); i++)
+		{
+			auto newValue = p->getAttribute(parameterIndexes[i]);
+
+			if (lastValues[i] != newValue)
+			{
+				lastValues.set(i, newValue);
+
+				var id = parameterNames[i];
+
+				if (useIntegerIndexesAsArgument)
+				{
+					jassert(id.isInt());
+				}
+
+				sendParameterChange(id, newValue);
+			}
+		}
+	}
+#endif
+
     static void intensityChanged(ProcessorListener& m, float newValue)
     {
         static const var ip("Intensity");
@@ -1091,34 +1156,8 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hi
 		}
 	}
 
-	void otherChange(Processor *b) override
-	{
-#if HISE_NEW_PROCESSOR_DISPATCH
-		// TODO: Replace with AttributeListener!
-		jassertfalse;
-#endif
-		if (p == nullptr)
-			return;
 
-		for (int i = 0; i < parameterIndexes.size(); i++)
-		{
-			auto newValue = p->getAttribute(parameterIndexes[i]);
-
-			if (lastValues[i] != newValue)
-			{
-				lastValues.set(i, newValue);
-
-				var id = parameterNames[i];
-
-				if (useIntegerIndexesAsArgument)
-				{
-					jassert(id.isInt());
-				}
-
-				sendParameterChange(id, newValue);
-			}
-		}
-	}
+	
 
 	Array<var> args;
 
@@ -1126,7 +1165,7 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hi
 	WeakReference<Processor> p;
 	Array<float> lastValues;
 	Array<var> parameterNames;
-	const Array<int> parameterIndexes;
+	const Array<uint16> parameterIndexes;
 	Identifier specialId;
 	var bypassIdAsVar;
 
@@ -1135,7 +1174,7 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hi
     JUCE_DECLARE_WEAK_REFERENCEABLE(ProcessorListener);
 };
 
-ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<int>& parameterIndexes, const var& metadata, const Identifier& specialId, bool useIntegerParameters):
+ScriptBroadcaster::ModuleParameterListener::ModuleParameterListener(ScriptBroadcaster* b, const Array<WeakReference<Processor>>& processors, const Array<uint16>& parameterIndexes, const var& metadata, const Identifier& specialId, bool useIntegerParameters):
 	ListenerBase(metadata)
 {
 	for (auto& p : processors)
@@ -3557,7 +3596,7 @@ void ScriptBroadcaster::attachToModuleParameter(var moduleIds, var parameterIds,
 	}
 
 	
-	Array<int> parameterIndexes;
+	Array<uint16> parameterIndexes;
 
     Identifier specialId;
 
