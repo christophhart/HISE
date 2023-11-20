@@ -1290,6 +1290,11 @@ public:
 
 		Array<MultithreadedQueueHelpers::PublicToken> createPublicTokenList(int producerFlags = AllProducers);
 
+		TargetThread getThreadThatLocks(LockHelpers::Type t)
+		{
+			return lockStates.threadsForLock[(int)t];
+		}
+
 		void setLockForCurrentThread(LockHelpers::Type t, bool lock) const;
 
 		bool currentThreadHoldsLock(LockHelpers::Type t) const noexcept;
@@ -1310,19 +1315,11 @@ public:
 
         void setCurrentExportThread(void* exportThread);
 
-		static TargetThread getThreadForLockType(LockHelpers::Type t)
-		{
-			switch(t)
-			{
-			case LockHelpers::Type::MessageLock:				return TargetThread::MessageThread;
-			case LockHelpers::Type::ScriptLock:					return TargetThread::ScriptingThread;
-			case LockHelpers::Type::SampleLock:					return TargetThread::SampleLoadingThread;
-			case LockHelpers::Type::IteratorLock: jassertfalse; return TargetThread::UnknownThread;
-			case LockHelpers::Type::AudioLock:					return TargetThread::AudioThread;
-			case LockHelpers::Type::numLockTypes: jassertfalse; return TargetThread::UnknownThread;
-			default: ;
-			}
-		}
+		static LockHelpers::Type getLockTypeForThread(TargetThread t);
+
+		static TargetThread getThreadForLockType(LockHelpers::Type t);
+
+		
 
 	private:
 

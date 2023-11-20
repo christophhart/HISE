@@ -164,7 +164,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 	{
 		// The reentrant case should be handled before acquiring the lock.
 		jassertfalse;
-		throw BadLockException(lockType);
+		throw BadLockException(lockType, BadLockException::ErrorCode::LockedBySameThread);
 	}
 
 	if (lockType == Type::MessageLock)
@@ -172,7 +172,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 		// The message thread is not locked by a critical section, 
 		//so calling this is stupid and you should be ashamed.
 		jassertfalse;
-		throw BadLockException(lockType);
+		throw BadLockException(lockType, BadLockException::ErrorCode::WhyULockMessageThread);
 	}
 
 #if !JUCE_LINUX
@@ -181,7 +181,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 		// You can't acquire any lock from another thread than the message thread
 		// while holding the message lock.
 		jassertfalse;
-		throw BadLockException(lockType);
+		throw BadLockException(lockType, BadLockException::ErrorCode::MessageThreadIsLocked);
 	}
 #endif
 
@@ -197,7 +197,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 				// to acquire a lock with a lower priority after a lock
 				// with higher priority. This might cause deadlocks
 				jassertfalse;
-				throw BadLockException(lockType);
+				throw BadLockException(lockType, BadLockException::ErrorCode::PossibleDeadlock);
 			}
 		}
 	}
@@ -206,7 +206,7 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 	{
 		// You can't hold the sample lock while trying to acquire the iterator lock
 		jassertfalse;
-		throw BadLockException(lockType);
+		throw BadLockException(lockType, BadLockException::ErrorCode::SampleLockWhileIterating);
 	}
 
 	// All checks passed, return the lock you wanted...
@@ -253,6 +253,11 @@ LockHelpers::SafeLock::SafeLock(const MainController* mc_, Type t, bool useRealL
 
 			if (lock != nullptr)
 			{
+#if PERFETTO
+				dispatch::StringBuilder n;
+				n << "waiting for " << getLockName(t);
+				TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(n));
+#endif
 				lock->enter();
 				mc->getKillStateHandler().setLockForCurrentThread(type, true);
 				holdsLock = true;

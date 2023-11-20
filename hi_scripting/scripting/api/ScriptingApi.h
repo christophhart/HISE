@@ -1707,6 +1707,63 @@ private:
 
 	};
 
+    class Threads: public ApiClass,
+				   public ScriptingObject
+    {
+    public:
+
+        Threads(ProcessorWithScriptingContent* p);
+
+        Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Threads"); }
+
+		// API METHODS ===============================================================================
+
+		/** Returns the thread ID of the thread that is calling this method. */
+        int getCurrentThread() const;
+
+		/** Returns true if the audio callback is running or false if it's suspended during a load operation. */
+        bool isAudioRunning() const;
+
+		/** Returns true if the audio exporter is currently rendering the audio on a background thread. */
+		bool isCurrentlyExporting() const;
+
+		/** Returns true if the given thread is currently locked by the current thread. */
+        bool isLockedByCurrentThread(int thread) const;
+
+		/** Returns the thread ID of the thread the locks the given thread ID. */
+        int getLockerThread(int threadThatIsLocked) const;
+
+		/** Returns true if the given thread is currently locked. */
+        bool isLocked(int thread) const;
+
+		/** Returns the name of the given string (for debugging purposes only!). */
+		String toString(int thread) const;
+
+		/** Returns the name of the current thread (for debugging purposes only!). */
+        String getCurrentThreadName() const
+        {
+			return toString(getCurrentThread());
+        }
+
+        /** Kills all voices, suspends the audio processing and calls the given function on the loading thread. Returns true if the function was executed synchronously. */
+        bool killVoicesAndCall(const var& functionToExecute);
+
+    private:
+
+		using TargetThreadId = MainController::KillStateHandler::TargetThread;
+		using LockId = LockHelpers::Type;
+
+        static TargetThreadId getAsThreadId(int x);
+        static LockId getAsLockId(int x);
+
+        MainController::KillStateHandler& getKillStateHandler();
+        const MainController::KillStateHandler& getKillStateHandler() const;
+
+        struct Wrapper;
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Threads);
+    };
+
 	class Colours: public ApiClass
 	{
 	public:

@@ -7270,6 +7270,144 @@ hise::FileHandlerBase::SubDirectories ScriptingApi::FileSystem::getSubdirectory(
 	}
 }
 
+struct ScriptingApi::Threads::Wrapper
+{
+    API_METHOD_WRAPPER_0(ScriptingApi::Threads, getCurrentThread);
+    API_METHOD_WRAPPER_0(ScriptingApi::Threads, isAudioRunning);
+	API_METHOD_WRAPPER_0(ScriptingApi::Threads, isCurrentlyExporting);
+    API_METHOD_WRAPPER_1(ScriptingApi::Threads, isLockedByCurrentThread);
+    API_METHOD_WRAPPER_1(ScriptingApi::Threads, getLockerThread);
+    API_METHOD_WRAPPER_1(ScriptingApi::Threads, isLocked);
+	API_METHOD_WRAPPER_1(ScriptingApi::Threads, toString);
+	API_METHOD_WRAPPER_0(ScriptingApi::Threads, getCurrentThreadName);
+    API_METHOD_WRAPPER_1(ScriptingApi::Threads, killVoicesAndCall);
+};
+
+ScriptingApi::Threads::Threads(ProcessorWithScriptingContent* p):
+	ApiClass(6),
+	ScriptingObject(p)
+{
+	addConstant("Audio", (int)LockHelpers::Type::AudioLock);
+	addConstant("Scripting", (int)LockHelpers::Type::ScriptLock);
+	addConstant("Loading", (int)LockHelpers::Type::SampleLock);
+	addConstant("UI", (int)LockHelpers::Type::MessageLock);
+	addConstant("Unknown", (int)LockHelpers::Type::numLockTypes);
+	addConstant("Free", (int)LockHelpers::Type::unused);
+
+	ADD_API_METHOD_0(getCurrentThread);
+    ADD_API_METHOD_0(isAudioRunning);
+	ADD_API_METHOD_0(isCurrentlyExporting);
+    ADD_API_METHOD_1(isLockedByCurrentThread);
+    ADD_API_METHOD_1(getLockerThread);
+    ADD_API_METHOD_1(isLocked);
+    ADD_API_METHOD_1(killVoicesAndCall);
+	ADD_API_METHOD_1(toString);
+	ADD_API_METHOD_0(getCurrentThreadName);
+}
+
+int ScriptingApi::Threads::getCurrentThread() const
+{
+	auto s = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
+
+	MainController::KillStateHandler::getLockTypeForThread(s);
+
+	switch(s)
+	{
+	case TargetThreadId::MessageThread:		  return (int)LockId::MessageLock;
+	case TargetThreadId::SampleLoadingThread: return (int)LockId::SampleLock;
+	case TargetThreadId::AudioThread:		  return (int)LockId::AudioLock;
+	case TargetThreadId::AudioExportThread:	  return (int)LockId::AudioLock;
+	case TargetThreadId::ScriptingThread:	  return (int)LockId::ScriptLock;
+	case TargetThreadId::UnknownThread:		  return (int)LockId::numLockTypes;
+	case TargetThreadId::Free:				  return (int)LockId::unused;
+	default:								  return -1;
+	}
+}
+
+bool ScriptingApi::Threads::isAudioRunning() const
+{
+	return getScriptProcessor()->getMainController_()->getKillStateHandler().isAudioRunning();
+}
+
+bool ScriptingApi::Threads::isCurrentlyExporting() const
+{
+	return getKillStateHandler().isCurrentlyExporting();
+}
+
+bool ScriptingApi::Threads::isLockedByCurrentThread(int thread) const
+{
+	return getKillStateHandler().currentThreadHoldsLock(getAsLockId(thread));
+}
+
+int ScriptingApi::Threads::getLockerThread(int threadThatIsLocked) const
+{
+	return (int)getKillStateHandler().getLockTypeForThread(getAsThreadId(threadThatIsLocked));
+}
+
+bool ScriptingApi::Threads::isLocked(int thread) const
+{
+	auto t = (LockId)getLockerThread(thread);
+	return t != LockId::unused;
+}
+
+String ScriptingApi::Threads::toString(int thread) const
+{
+	switch(getAsLockId(thread))
+	{
+	case LockHelpers::Type::MessageLock:	return "Message Thread";
+	case LockHelpers::Type::ScriptLock:		return "Scripting Thread";
+	case LockHelpers::Type::SampleLock:		return "Sample Thread";
+	case LockHelpers::Type::IteratorLock:	return "Iterator Thread (never used)";
+	case LockHelpers::Type::AudioLock:		return "Audio Thread";
+	case LockHelpers::Type::numLockTypes:	return "Unknown Thread";
+	case LockHelpers::Type::unused:			return "Free (unlocked)";
+	default:								return "Unknown Thread";
+	}
+}
+
+bool ScriptingApi::Threads::killVoicesAndCall(const var& functionToExecute)
+{
+	WeakCallbackHolder wc(getScriptProcessor(), this, functionToExecute, 0);
+
+	return getKillStateHandler().killVoicesAndCall(dynamic_cast<Processor*>(getScriptProcessor()), [wc](Processor* p)
+	{
+		WeakCallbackHolder copy = std::move(wc);
+
+		if(copy)
+		{
+			LockHelpers::SafeLock sl(p->getMainController(), LockId::ScriptLock);
+			auto ok = copy.callSync(nullptr, 0, nullptr);
+
+			if(!ok.wasOk())
+			{
+				debugError(p, ok.getErrorMessage());
+			}
+
+			return SafeFunctionCall::OK;
+		}
+		else
+		{
+			return SafeFunctionCall::nullPointerCall;
+		}
+	}, TargetThreadId::SampleLoadingThread);
+}
+
+ScriptingApi::Threads::TargetThreadId ScriptingApi::Threads::getAsThreadId(int x)
+{
+	return MainController::KillStateHandler::getThreadForLockType(getAsLockId(x));
+}
+
+ScriptingApi::Threads::LockId ScriptingApi::Threads::getAsLockId(int x)
+{
+	return (LockId)x;
+}
+
+MainController::KillStateHandler& ScriptingApi::Threads::getKillStateHandler()
+{ return getScriptProcessor()->getMainController_()->getKillStateHandler(); }
+
+const MainController::KillStateHandler& ScriptingApi::Threads::getKillStateHandler() const
+{ return getScriptProcessor()->getMainController_()->getKillStateHandler(); }
+
 struct ScriptingApi::Server::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(Server, setBaseURL);

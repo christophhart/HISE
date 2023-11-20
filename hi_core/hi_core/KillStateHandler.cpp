@@ -625,6 +625,37 @@ void MainController::KillStateHandler::setCurrentExportThread(void* exportThread
     }
 }
 
+LockHelpers::Type MainController::KillStateHandler::getLockTypeForThread(TargetThread t)
+{
+	switch(t)
+	{
+	case TargetThread::MessageThread: 		return LockHelpers::Type::MessageLock;
+	case TargetThread::ScriptingThread: 	return LockHelpers::Type::ScriptLock;
+	case TargetThread::SampleLoadingThread: return LockHelpers::Type::SampleLock;
+	case TargetThread::AudioThread: 		return LockHelpers::Type::AudioLock;
+	case TargetThread::AudioExportThread: 	return LockHelpers::Type::AudioLock;
+	case TargetThread::UnknownThread:		return LockHelpers::Type::numLockTypes;
+	case TargetThread::Free:				return LockHelpers::Type::unused;
+	default:								jassertfalse; return LockHelpers::Type::numLockTypes;
+	}
+}
+
+MainController::KillStateHandler::TargetThread MainController::KillStateHandler::getThreadForLockType(
+	LockHelpers::Type t)
+{
+	switch(t)
+	{
+	case LockHelpers::Type::MessageLock:				return TargetThread::MessageThread;
+	case LockHelpers::Type::ScriptLock:					return TargetThread::ScriptingThread;
+	case LockHelpers::Type::SampleLock:					return TargetThread::SampleLoadingThread;
+	case LockHelpers::Type::IteratorLock: jassertfalse; return TargetThread::UnknownThread;
+	case LockHelpers::Type::AudioLock:					return TargetThread::AudioThread;
+	case LockHelpers::Type::numLockTypes: jassertfalse; return TargetThread::UnknownThread;
+	case LockHelpers::Type::unused:						return TargetThread::Free;
+	default:											return TargetThread::UnknownThread;
+	}
+}
+
 void MainController::KillStateHandler::addThreadIdToAudioThreadList()
 {
     if(MessageManager::getInstance()->isThisTheMessageThread())

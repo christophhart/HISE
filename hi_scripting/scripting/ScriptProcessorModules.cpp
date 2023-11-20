@@ -267,6 +267,7 @@ void JavascriptMidiProcessor::registerApiClasses()
 	scriptEngine->registerApiClass(engineObject.get());
 	scriptEngine->registerApiClass(new ScriptingApi::Settings(this));
 	scriptEngine->registerApiClass(new ScriptingApi::FileSystem(this));
+	scriptEngine->registerApiClass(new ScriptingApi::Threads(this));
 	scriptEngine->registerApiClass(new ScriptingApi::Date(this));
 
 	scriptEngine->registerApiClass(serverObject = new ScriptingApi::Server(this));
@@ -547,6 +548,7 @@ void JavascriptPolyphonicEffect::registerApiClasses()
 
 	scriptEngine->registerApiClass(new ScriptingApi::Settings(this));
 	scriptEngine->registerApiClass(new ScriptingApi::FileSystem(this));
+	scriptEngine->registerApiClass(new ScriptingApi::Threads(this));
 
 	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
@@ -833,6 +835,7 @@ void JavascriptMasterEffect::registerApiClasses()
 
 	scriptEngine->registerApiClass(new ScriptingApi::Settings(this));
 	scriptEngine->registerApiClass(new ScriptingApi::FileSystem(this));
+	scriptEngine->registerApiClass(new ScriptingApi::Threads(this));
 
 	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
@@ -1688,6 +1691,7 @@ void JavascriptEnvelopeModulator::registerApiClasses()
 	scriptEngine->registerApiClass(new ScriptingApi::ModulatorApi(this));
 	scriptEngine->registerApiClass(new ScriptingApi::Settings(this));
 	scriptEngine->registerApiClass(new ScriptingApi::FileSystem(this));
+	scriptEngine->registerApiClass(new ScriptingApi::Threads(this));
 
 	scriptEngine->registerApiClass(synthObject);
 
@@ -1803,6 +1807,7 @@ void JavascriptSynthesiser::registerApiClasses()
 
 	scriptEngine->registerApiClass(new ScriptingApi::Settings(this));
 	scriptEngine->registerApiClass(new ScriptingApi::FileSystem(this));
+	scriptEngine->registerApiClass(new ScriptingApi::Threads(this));
 
 	scriptEngine->registerNativeObject("Libraries", new DspFactory::LibraryLoader(this));
 	scriptEngine->registerNativeObject("Buffer", new VariantBuffer::Factory(64));
