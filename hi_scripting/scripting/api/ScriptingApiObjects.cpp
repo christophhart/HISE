@@ -6728,6 +6728,12 @@ void ScriptingObjects::ScriptBackgroundTask::setStatusMessage(String m)
 
 void ScriptingObjects::ScriptBackgroundTask::run()
 {
+	Identifier threadId(getThreadName());
+
+	TRACE_SCRIPTING("Performing background task");
+
+	PerfettoHelpers::setCurrentThreadName(threadId.getCharPointer().getAddress());
+
 	if (currentTask || childProcessData)
 	{
 		if (forwardToLoadingThread)

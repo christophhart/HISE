@@ -2419,10 +2419,10 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
     // If this hits, you need to add that id to the array above.
 	jassert(getAllFunctionNames().contains(functionname));
 
+	PerfettoHelpers::setCurrentThreadName("Message Thread");
+
 	if (!lastResult.wasOk())
 		return false;
-
-    
     
 	auto f = functions.getProperty(functionname, {});
 
