@@ -883,6 +883,8 @@ Result ScriptBroadcaster::ScriptTarget::callSync(const Array<var>& args)
 	}
 #endif
 
+	TERMINATE_BROADCASTER_TRACK("");
+	
 	auto a = var::NativeFunctionArgs(obj, args.getRawDataPointer(), args.size());
 	return callback.callSync(a, nullptr);
 }
@@ -898,7 +900,10 @@ ScriptBroadcaster::DelayedItem::DelayedItem(ScriptBroadcaster* bc, const var& ob
 
 Result ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
 {
+	CONTINUE_BROADCASTER_TRACK("");
+
 	delayedFunction = new DelayedFunction(parent, f, parent->lastValues, ms, obj);
+	delayedFunction->trackIndex = pendingTrack;
 	return Result::ok();
 }
 
@@ -2555,6 +2560,8 @@ Array<var> ScriptBroadcaster::ComponentPropertyItem::createChildArray() const
 
 juce::Result ScriptBroadcaster::ComponentPropertyItem::callSync(const Array<var>& args)
 {
+	TERMINATE_BROADCASTER_TRACK("");
+
 	auto r = Result::ok();
 	
 	if (!enabled)
@@ -2970,6 +2977,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	k.add(defaultValues);
 	keepers = var(k);
 
+	auto parentId = dynamic_cast<Processor*>(p)->getIDAsIdentifier();
 	setWantsCurrentLocation(true);
 }
 
@@ -3298,7 +3306,12 @@ void ScriptBroadcaster::sendMessageInternal(var args, bool isSync)
 		}
 
 		if (bypassed)
+		{
+			dispatch::StringBuilder b;
+			b << metadata.id << "::sendMessage (bypassed)";
+			TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b));
 			return;
+		}
 
 		if (isSync)
 		{
@@ -3311,6 +3324,11 @@ void ScriptBroadcaster::sendMessageInternal(var args, bool isSync)
 		{
 			if (!asyncPending.load() || enableQueue)
 			{
+				TRACE_EVENT("dispatch", "Broadcaster::sendMessage");
+
+				for(auto i: items)
+					OPEN_BROADCASTER_TRACK(i, getScriptProcessor()->getMainController_()->getRootDispatcher());
+
 				WeakReference<ScriptBroadcaster> safeThis(this);
 
 				auto& pool = getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
@@ -3360,6 +3378,8 @@ ScriptBroadcaster::DelayedFunction::DelayedFunction(ScriptBroadcaster* b, var f,
 	if (thisObj.isObject() && thisObj.getObject() != b)
 		c.setThisObjectRefCounted(thisObj);
 
+	c.addAsSource(b, "delayedFunction");
+	
 	startTimer(milliSeconds);
 }
 
@@ -3373,7 +3393,7 @@ void ScriptBroadcaster::DelayedFunction::timerCallback()
 	if (bc != nullptr && !bc->bypassed)
 	{
 		ScopedLock sl(bc->delayFunctionLock);
-
+		c.setTrackIndex(trackIndex);
 		c.call(args.getRawDataPointer(), args.size());
 	}
 				
@@ -4104,6 +4124,8 @@ void ScriptBroadcaster::handleDebugStuff()
 
 Result ScriptBroadcaster::sendInternal(const Array<var>& args)
 {
+	TRACE_EVENT("dispatch", "Broadcaster.callListeners");
+
 	{
 		SimpleReadWriteLock::ScopedReadLock v(lastValueLock);
 

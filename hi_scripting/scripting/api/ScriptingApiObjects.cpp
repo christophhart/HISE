@@ -6451,6 +6451,10 @@ ScriptingObjects::ScriptBackgroundTask::ScriptBackgroundTask(ProcessorWithScript
 	currentTask(p, this, var(), 1),
 	finishCallback(p, this, var(), 2)
 {
+	String s;
+	s << getThreadName() << "abort checks";
+	abortId = Identifier(s);
+	
 	dynamic_cast<JavascriptProcessor*>(p)->getScriptEngine()->preCompileListeners.addListener(*this, recompiled, false);
 
 	ADD_API_METHOD_1(sendAbortSignal);
@@ -6503,6 +6507,28 @@ void ScriptingObjects::ScriptBackgroundTask::sendAbortSignal(bool blockUntilStop
 
 bool ScriptingObjects::ScriptBackgroundTask::shouldAbort()
 {
+#if PERFETTO
+	perfetto::CounterTrack ct(abortId.getCharPointer().getAddress());
+	TRACE_COUNTER("scripting", ct, ++numAbortChecks);
+#endif
+
+#if USE_BACKEND
+	auto now = Time::getCurrentTime();
+	auto delta = now.getMilliseconds() - lastAbortCheck.getMilliseconds();
+
+	if(delta > timeOut)
+	{
+		String errorMessage;
+		errorMessage << "WARNING: time between abort checks " << String(delta) << " ms) is above timeout (" << String(timeOut) << " ms).";
+		errorMessage << "\ngoto ";
+		auto loc = getCurrentLocationInFunctionCall();
+		errorMessage << loc.fileName << "@" << loc.charNumber;
+		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), errorMessage);
+	}
+
+	lastAbortCheck = now;
+#endif
+
 	if (auto engine = dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine())
 	{
 		engine->extendTimeout(timeOut + 10);
@@ -6728,11 +6754,16 @@ void ScriptingObjects::ScriptBackgroundTask::setStatusMessage(String m)
 
 void ScriptingObjects::ScriptBackgroundTask::run()
 {
+#if PERFETTO
 	Identifier threadId(getThreadName());
+	PerfettoHelpers::setCurrentThreadName(threadId.getCharPointer().getAddress());
 
 	TRACE_SCRIPTING("Performing background task");
 
-	PerfettoHelpers::setCurrentThreadName(threadId.getCharPointer().getAddress());
+	perfetto::CounterTrack ct(abortId.getCharPointer().getAddress());
+	numAbortChecks = 0;
+	TRACE_COUNTER("scripting", ct, numAbortChecks);
+#endif
 
 	if (currentTask || childProcessData)
 	{
@@ -7937,6 +7968,7 @@ ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::PlaybackUpdater(ScriptedM
 
 	playbackCallback.incRefCount();
 	playbackCallback.setThisObject(&parent);
+	playbackCallback.addAsSource(&parent, "onPlaybackChange");
 }
 
 ScriptingObjects::ScriptedMidiPlayer::PlaybackUpdater::~PlaybackUpdater()

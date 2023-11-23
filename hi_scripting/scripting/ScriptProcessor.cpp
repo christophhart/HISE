@@ -2518,6 +2518,8 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 
 void JavascriptThreadPool::addDeferredPaintJob(ScriptingApi::Content::ScriptPanel* sp)
 {
+	bumpCounter(Task::DeferredPanelRepaintJob);
+	
 	WeakReference<ScriptingApi::Content::ScriptPanel> spWeak(sp);
 	deferredPanels.push(std::move(spWeak));
 }
@@ -2546,6 +2548,10 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
             SimpleReadWriteLock::ScopedWriteLock sl(getLookAndFeelRenderLock());
 			SuspendHelpers::ScopedTicket ticket;
 
+			clearCounter(Task::LowPriorityCallbackExecution);
+			clearCounter(Task::HiPriorityCallbackExecution);
+			clearCounter(Task::DeferredPanelRepaintJob);
+
 			lowPriorityQueue.clear();
 			highPriorityQueue.clear();
 
@@ -2561,6 +2567,9 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 			pendingCompilations.addIfNotAlreadyThere(ct.getFunction().getProcessor());
 		}
+
+		clearCounter(t);
+		
 
 		return r;
 	}
@@ -2617,8 +2626,14 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 			r = hpt.call();
 		}
 
+		clearCounter(t);
+
 		if (!r.wasOk())
+		{
 			lowPriorityQueue.clear();
+			clearCounter(Task::LowPriorityCallbackExecution);
+		}
+			
 
 		return r;
 	}
@@ -2629,8 +2644,8 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 		CallbackTask lpt;
 
 #if PERFETTO
-		auto t = perfetto::Track(LowPriorityTrackId);
-		PerfettoHelpers::setTrackNameName(t, "low priority queue");
+		auto tr = perfetto::Track(LowPriorityTrackId);
+		PerfettoHelpers::setTrackNameName(tr, "low priority queue");
 #endif
 
 		TRACE_EVENT_BEGIN("scripting", "low priority queue");//, t);
@@ -2661,6 +2676,8 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 		if (!r.wasOk())
 			lowPriorityQueue.clear();
 
+		clearCounter(t);
+
 		WeakReference<ScriptingApi::Content::ScriptPanel> sp;
 
 		if (r.wasOk())
@@ -2686,6 +2703,8 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 		{
 			deferredPanels.clear();
 		}
+
+		clearCounter(Task::DeferredPanelRepaintJob);
 
 		return r;
 	}
@@ -2740,6 +2759,8 @@ void JavascriptThreadPool::killVoicesAndExtendTimeOut(JavascriptProcessor* jp, i
 
 void JavascriptThreadPool::pushToQueue(const Task::Type& t, JavascriptProcessor* p, const Task::Function& f)
 {
+	bumpCounter(t);
+
 	switch (t)
 	{
 	case Task::LowPriorityCallbackExecution:

@@ -756,6 +756,20 @@ public:
 
 private:
 
+	void clearCounter(Task::Type t)
+	{
+		numTasks[t] = 0;
+		TRACE_COUNTER("dispatch", perfetto::CounterTrack(taskNames[t].get()), numTasks[t]);
+	}
+
+	void bumpCounter(Task::Type t)
+	{
+		TRACE_COUNTER("dispatch", perfetto::CounterTrack(taskNames[t].get()), ++numTasks[t]);
+	}
+
+	uint16 numTasks[(int)Task::numTypes];
+	dispatch::HashedCharPtr taskNames[(int)Task::numTypes];
+
 	Array<WeakReference<SleepListener>> sleepListeners;
 
 	bool isSleeping = false;

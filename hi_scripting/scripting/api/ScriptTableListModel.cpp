@@ -1051,6 +1051,7 @@ void ScriptTableListModel::setCallback(var callback)
 	{
 		cellCallback = WeakCallbackHolder(pwsc, nullptr, callback, 1);
 		cellCallback.incRefCount();
+		cellCallback.addAsSource(this, "cellCallback");
 	}
 }
 

@@ -36,6 +36,7 @@ namespace hise { using namespace juce;
 
 struct ScriptTableListModel : public juce::TableListBoxModel,
 							  public ReferenceCountedObject,
+						      public DebugableObjectBase,
 							  public PooledUIUpdater::SimpleTimer,
 							  public AsyncUpdater
 {
@@ -120,6 +121,9 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 	                                   Component* existingComponentToUpdate) override;
 
 	void setup(juce::TableListBox* t);
+
+	/** Override this and return the class id of this object. */
+	virtual Identifier getObjectName() const { RETURN_STATIC_IDENTIFIER("TableModel"); }
 
 	CellType getCellType(int columnId) const;
 

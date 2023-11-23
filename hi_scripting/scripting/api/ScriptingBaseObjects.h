@@ -373,9 +373,17 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	void reportError(const Result& r);
 
+	void setTrackIndex(uint64_t trackIndexToUse)
+	{
+		trackIndex = trackIndexToUse;
+	}
+
 private:
 
 	var getThisObject();
+
+	Identifier cid;
+	uint64_t trackIndex = 0;
 
 	bool highPriority = false;
 	int numExpectedArgs;

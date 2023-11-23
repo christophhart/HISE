@@ -634,10 +634,15 @@ namespace ScriptingObjects
 		std::atomic<double> progress = { 0.0 };
 		String message;
 		int timeOut = 500;
+		Time lastAbortCheck;
 		SimpleReadWriteLock lock;
 		NamedValueSet synchronisedData;
 		WeakCallbackHolder currentTask;
 		WeakCallbackHolder finishCallback;
+
+		Identifier abortId;
+
+		int numAbortChecks = 0;
 
 		struct ChildProcessData
 		{

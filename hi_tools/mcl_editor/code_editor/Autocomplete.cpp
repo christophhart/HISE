@@ -402,10 +402,12 @@ void TokenCollection::signalRebuild()
 
 void TokenCollection::signalClear(NotificationType n)
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(buildLock);
-	dirty = false;
-	tokens.clear();
-	cancelPendingUpdate();
+	{
+		SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
+		dirty = false;
+		tokens.clearQuick();
+		cancelPendingUpdate();
+	}
         
 	for(auto l: listeners)
 	{
