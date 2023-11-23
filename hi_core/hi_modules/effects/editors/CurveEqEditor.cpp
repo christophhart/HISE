@@ -76,18 +76,11 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 
 	numFilters = 0;
 
-	freqSlider->setup(getProcessor(), -1, "Frequency");
-	freqSlider->setMode(HiSlider::Frequency);
-
-	gainSlider->setup(getProcessor(), -1, "Gain");
-	gainSlider->setMode(HiSlider::Decibel, -24.0, 24.0, 0.0);
-
-	qSlider->setup(getProcessor(), -1, "Q");
-	qSlider->setMode(HiSlider::Linear, 0.1, 8.0, 1.0);
-
-	enableBandButton->setup(getProcessor(), -1, "Enable Band");
-
-	typeSelector->setup(getProcessor(), -1, "Type");
+	freqSlider->setup(eq, -1, "");
+    gainSlider->setup(eq, -1, "");
+    qSlider->setup(eq, -1, "");
+    enableBandButton->setup(eq, -1, "");
+    typeSelector->setup(eq, -1, "");
 
 	addAndMakeVisible(fftEnableButton = new ToggleButton("Spectrum Analyser"));
 	fftEnableButton->addListener(this);
@@ -112,6 +105,29 @@ CurveEqEditor::~CurveEqEditor()
     qSlider = nullptr;
     label = nullptr;
 
+}
+
+void CurveEqEditor::filterSelectorChanged(FilterTypeSelector*)
+{
+    jassertfalse;
+	freqSlider->setup(getProcessor(), -1, "Frequency");
+	freqSlider->setMode(HiSlider::Frequency);
+
+	gainSlider->setup(getProcessor(), -1, "Gain");
+	gainSlider->setMode(HiSlider::Decibel, -24.0, 24.0, 0.0);
+
+	qSlider->setup(getProcessor(), -1, "Q");
+	qSlider->setMode(HiSlider::Linear, 0.1, 8.0, 1.0);
+
+	enableBandButton->setup(getProcessor(), -1, "Enable Band");
+
+	typeSelector->setup(getProcessor(), -1, "Type");
+
+    freqSlider->setEnabled(true);
+    gainSlider->setEnabled(true);
+    qSlider->setEnabled(true);
+    enableBandButton->setEnabled(true);
+    typeSelector->setEnabled(true);
 }
 
 //==============================================================================

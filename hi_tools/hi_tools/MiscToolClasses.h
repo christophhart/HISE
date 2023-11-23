@@ -982,6 +982,9 @@ struct SimpleReadWriteLock
 
 			if(wantsLock)
 			{
+				// If this hits, then you're using a reentrant lock. Consider the ScopedWriteLock instead...
+				jassert(thisId != lock.writer.load());
+
 				lock.mutex.lock();
 				lock.writer.store(thisId);
 				holdsLock = true;

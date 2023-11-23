@@ -211,11 +211,16 @@ void Processor::setNumAttributes(uint16 numAttributes)
 
 		auto numAdditionalSlots = (numAttributeSlotsRequired - 1);
 
+		// add the missing slots
 		for(int i = additionalAttributes.size(); i < numAdditionalSlots; i++)
-		{
-			auto lastSlot = i == numAdditionalSlots-1;
 			additionalAttributes.add(new SlotSender(*this, (uint8)i + (uint8)SlotTypes::numSlotTypes, IDs::event::attribute));
-			additionalAttributes.getLast()->setNumSlots(lastSlot ? lastSlotAmount : static_cast<uint8>(SlotBitmap::getNumBits()));
+
+		// update the slot amounts so that the last one has lastSlotAmount and the other the full 32 slots...
+		for(int i = 0; i < additionalAttributes.size(); i++)
+		{
+			auto sl = additionalAttributes[i];
+			auto lastSlot = additionalAttributes.getLast() == sl;
+			sl->setNumSlots(lastSlot ? lastSlotAmount : static_cast<uint8>(SlotBitmap::getNumBits()));
 		}
 	}
 }

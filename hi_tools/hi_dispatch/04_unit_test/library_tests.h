@@ -47,6 +47,8 @@ struct LibraryTest: public UnitTest,
     void deinit(int numChecksExpected);
     void runTest() override;
 
+	void testSingleValueSources();
+
     void testHelloWorld(int numAttributeCalls, int numExpected, DispatchType en, DispatchType ln);
 	void testHighAttributeCount();
     void testSlotBitMap();

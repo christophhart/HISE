@@ -155,18 +155,18 @@ public:
 		void slotChanged(const ListenerData& d) final
 		{
 			jassert(d.s != nullptr);
-			jassert(d.t == EventType::SlotChange);
 			auto slotType = (SlotTypes)d.slotIndex;
 
 			if(slotType == SlotTypes::OtherChange)
 			{
+				auto slotMap = d.toBitMap();
+
 				jassert(MessageManager::getInstance()->isThisTheMessageThread());
-				jassert(d.numBytes == (int)ProcessorChangeEvent::numProcessorChangeEvents);
 				jassert(f);
 
 				auto match = eventToListenTo == ProcessorChangeEvent::Any ||
-					         d.changes[(int)eventToListenTo] || 
-							 d.changes[(int)ProcessorChangeEvent::Any];
+					         slotMap[(int)eventToListenTo] || 
+							 slotMap[(int)ProcessorChangeEvent::Any];
 
 				if(match)
 				{

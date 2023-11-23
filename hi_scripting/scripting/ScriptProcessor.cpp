@@ -2266,7 +2266,11 @@ JavascriptThreadPool::JavascriptThreadPool(MainController* mc) :
 #endif
 	globalServer(new GlobalServer(mc))
 {
-	startThread(8);
+	memset(numTasks, 0, sizeof(numTasks));
+	taskNames[Task::Compilation] = "Compilation Count";
+	taskNames[Task::HiPriorityCallbackExecution] = "Hi Priority Callback Counter";
+	taskNames[Task::LowPriorityCallbackExecution] = "Low Priority Callback Counter";
+	taskNames[Task::DeferredPanelRepaintJob] = "Deferred Paint Routine Counter";
 }
 
 JavascriptThreadPool::~JavascriptThreadPool()

@@ -400,8 +400,12 @@ MacroControlledObject::~MacroControlledObject()
     
 	if (auto p = getProcessor())
 	{
-		p->removeAttributeListener(valueListener);
-		valueListener = nullptr;
+		if(valueListener != nullptr)
+		{
+			p->removeAttributeListener(valueListener);
+			valueListener = nullptr;
+		}
+
 		p->getMainController()->getMainSynthChain()->removeMacroConnectionListener(this);
 	}
 }
@@ -427,15 +431,16 @@ void MacroControlledObject::setup(Processor *p, int parameter_, const String &na
 		valueListener = nullptr;
 	}
 
-	valueListener = new dispatch::library::ProcessorHandler::AttributeListener(p->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_2(MacroControlledObject::onAttributeChange));
-
 	processor = p;
-	parameter = parameter_;
 	name = name_;
 
-	auto a = (uint16)parameter;
-
-	p->addAttributeListener(valueListener, &a, 1, dispatch::DispatchType::sendNotificationAsync);
+	if(parameter_ != -1)
+	{
+		valueListener = new dispatch::library::ProcessorHandler::AttributeListener(p->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_2(MacroControlledObject::onAttributeChange));
+		parameter = parameter_;
+		auto a = (uint16)parameter;
+		p->addAttributeListener(valueListener, &a, 1, dispatch::DispatchType::sendNotificationAsync);
+	}
 
 	initMacroControl(dontSendNotification);
 
@@ -736,7 +741,8 @@ void HiSlider::setup(Processor *p, int parameterIndex, const String &parameterNa
 		modeValues[i] = 0.0;
 	}
 
-	setDoubleClickReturnValue(true, (double)p->getDefaultValue(parameterIndex), ModifierKeys());
+	if(parameterIndex != -1)
+		setDoubleClickReturnValue(true, (double)p->getDefaultValue(parameterIndex), ModifierKeys());
 
 	setName(parameterName);
 }
