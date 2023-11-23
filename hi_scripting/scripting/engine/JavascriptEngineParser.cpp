@@ -646,6 +646,14 @@ private:
 				location.throwError(r.getErrorMessage());
 			}
 		}
+		else if(typeId == ScopedBypasser::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto b = parseExpression();
+			match(TokenTypes::closeParen);
+
+			return new ScopedBypasser(location, condition, b);
+		}
 		else if(typeId == ScopedTracer::getStaticId())
 		{
 			match(TokenTypes::openParen);
@@ -1217,6 +1225,10 @@ private:
 	{
         auto prevLoc = location;
 		Identifier namespaceId = parseIdentifier();
+
+		dispatch::StringBuilder b;
+		b << "parse namespace " << namespaceId;
+		TRACE_SCRIPTING(DYNAMIC_STRING_BUILDER(b));
 
         static const Array<Identifier> illegalIds =
         {
@@ -2366,6 +2378,10 @@ void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(con
 {
 	if (codeToPreprocess.isEmpty()) return;
 
+	dispatch::StringBuilder b;
+	b << "preprocess " << externalFileName;
+	TRACE_SCRIPTING(DYNAMIC_STRING_BUILDER(b));
+
 	static const var undeclared("undeclared");
 
 	JavascriptNamespace* rootNamespace = hiseSpecialData;
@@ -2640,12 +2656,23 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 
-	auto sl = ScopedPointer<BlockStatement>(tb.parseStatementList());
+	ScopedPointer<BlockStatement> sl;
+
+	{
+		TRACE_SCRIPTING("parse script");
+		sl = tb.parseStatementList();
+	}
+	
 	
 	if(shouldUseCycleCheck)
 		prepareCycleReferenceCheck();
 
-	sl->perform(Scope(nullptr, this, this), nullptr);
+	{
+		TRACE_SCRIPTING("run onInit callback");
+		sl->perform(Scope(nullptr, this, this), nullptr);
+	}
+
+	
 
 	Array<OptimizationPass::OptimizationResult> results;
 

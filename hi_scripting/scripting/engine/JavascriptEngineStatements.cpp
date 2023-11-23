@@ -54,6 +54,59 @@ struct HiseJavascriptEngine::RootObject::ScopedSetter: public HiseJavascriptEngi
 	mutable var prevValue;
 };
 
+struct HiseJavascriptEngine::RootObject::ScopedBypasser: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
+{
+	ScopedBypasser(CodeLocation l, ExpPtr c, ExpPtr broadcaster):
+	  ScopedBlockStatement(l, c),
+	  be(broadcaster)
+	{}
+
+	SN_NODE_ID("bypass");
+
+	bool isDebugStatement() const override { return false; }
+
+	ResultCode perform(const Scope& s, var*) const override
+	{
+		auto br = be->getResult(s);
+
+		if(b = dynamic_cast<ScriptingObjects::ScriptBroadcaster*>(br.getObject()))
+		{
+			state = b->isBypassed();
+		}
+		else
+		{
+			location.throwError("expression is not a broadcaster");
+		}
+
+		if(!state)
+		{
+			dispatch::StringBuilder n;
+			n << "bypass " << b->getMetadata().id;
+			TRACE_EVENT_BEGIN("scripting", DYNAMIC_STRING_BUILDER(n));
+		}
+
+		b->setBypassed(true, false, false);
+		
+		return ResultCode::ok;
+	}
+
+	void cleanup(const Scope& s) const override
+	{
+		if(!state)
+		{
+			TRACE_EVENT_END("scripting");
+		}
+
+		if(b != nullptr)
+			b->setBypassed(state, true, false);
+	}
+
+	mutable WeakReference<ScriptingObjects::ScriptBroadcaster> b;
+	mutable bool state = false;
+
+	ExpPtr be;
+};
+
 struct HiseJavascriptEngine::RootObject::ScopedLocker: public HiseJavascriptEngine::RootObject::ScopedBlockStatement
 {
 	ScopedLocker(CodeLocation l, ExpPtr c, LockHelpers::Type lockToAcquire):
@@ -105,6 +158,12 @@ struct HiseJavascriptEngine::RootObject::ScopedLocker: public HiseJavascriptEngi
 		{
 			auto& lock = LockHelpers::getLockUnchecked(mc, lockType);
 			lock.exit();
+
+			if(lockType == LockHelpers::Type::ScriptLock)
+			{
+				mc->getJavascriptThreadPool().notify();
+			}
+
 			TRACE_EVENT_END("scripting");
 		}
 	}

@@ -552,7 +552,7 @@ public:
 		struct ScopedSetter;			struct ScopedLocker;		struct ScopedTracer;
 		struct ScopedPrinter;			struct ScopedBefore;		struct ScopedAfter;
 		struct ScopedDumper;			struct ScopedNoop;			struct ScopedCounter;
-		struct ScopedProfiler;			struct ScopedSuspender;
+		struct ScopedProfiler;			struct ScopedSuspender;		struct ScopedBypasser;
 		
 
 		// Variables
