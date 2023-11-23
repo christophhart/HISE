@@ -41,8 +41,9 @@ MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 
 	threadIds[(int)TargetThread::AudioThread] = nullptr;
 	threadIds[(int)TargetThread::SampleLoadingThread] = mc->getSampleManager().getGlobalSampleThreadPool()->getThreadId();
-	threadIds[(int)TargetThread::ScriptingThread] = mc->javascriptThreadPool->getThreadId();
+	threadIds[(int)TargetThread::ScriptingThread] = nullptr;
 	threadIds[(int)TargetThread::MessageThread] = nullptr;
+	jassert(threadIds[(int)TargetThread::SampleLoadingThread] != nullptr);
 
 	setCurrentExportThread(nullptr);
 }
@@ -583,7 +584,9 @@ void MainController::KillStateHandler::setSampleLoadingThreadId(void* newId)
 
 MainController::KillStateHandler::TargetThread MainController::KillStateHandler::getCurrentThread() const
 {
+	// These must be set during the constructor of MainController
 	jassert(threadIds[(int)TargetThread::SampleLoadingThread] != nullptr);
+	jassert(threadIds[(int)TargetThread::ScriptingThread] != nullptr);
 
 	auto threadId = Thread::getCurrentThreadId();
 

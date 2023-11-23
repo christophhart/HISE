@@ -109,6 +109,9 @@ MainController::MainController() :
 	hostInfo = new DynamicObject();
     
 	startTimer(HISE_UNDO_INTERVAL);
+
+	javascriptThreadPool->startThread(8);
+	getKillStateHandler().setScriptingThreadId(javascriptThreadPool->getThreadId());
 };
 
 

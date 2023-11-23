@@ -1284,6 +1284,13 @@ public:
 		/** This can be set by the Internal Preloader. */
 		void setSampleLoadingThreadId(void* newId);
 
+		void setScriptingThreadId(void* newId)
+		{
+			jassert(newId != nullptr);
+			jassert(threadIds[(int)TargetThread::ScriptingThread] == nullptr);
+			threadIds[(int)TargetThread::ScriptingThread] = newId;
+		}
+
 		TargetThread getCurrentThread() const;
 
 		void addThreadIdToAudioThreadList();

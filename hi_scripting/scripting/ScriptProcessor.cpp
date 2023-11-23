@@ -252,7 +252,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 	}
 	else if (auto customAuto = component->getCustomAutomation())
 	{
-		customAuto->call((float)controllerValue);
+		customAuto->call((float)controllerValue, dispatch::DispatchType::sendNotificationSync);
 	}
 	else if (auto callback = component->getCustomControlCallback())
 	{
@@ -2584,6 +2584,12 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 		{
 			TRACE_EVENT("scripting", "high priority dispatch queue");
+
+			LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::ScriptLock);
+
+			ScopedValueSetter<bool> svs(busy, true);
+			ScopedValueSetter<Task::Type> svs2(currentType, t);
+
 			getMainController()->getRootDispatcher().flushHighPriorityQueues(this);
 		}
 
