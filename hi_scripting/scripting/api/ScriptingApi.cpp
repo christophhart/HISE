@@ -543,7 +543,7 @@ bool ScriptingApi::Message::isMonophonicAfterTouch() const
 	if (constMessageHolder == nullptr)
 	{
 		reportIllegalCall("isMonophonicAfterTouch()", "midi event");
-		RETURN_IF_NO_THROW(-1)
+		RETURN_IF_NO_THROW(false);
 	}
 #endif
 
@@ -582,7 +582,7 @@ bool ScriptingApi::Message::isPolyAftertouch() const
 	if (constMessageHolder == nullptr)
 	{
 		reportIllegalCall("isPolyAftertouch()", "midi event");
-		RETURN_IF_NO_THROW(-1);
+		RETURN_IF_NO_THROW(false);
 	}
 #endif
 

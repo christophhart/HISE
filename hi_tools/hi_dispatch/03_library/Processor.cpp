@@ -70,11 +70,11 @@ void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
 
 	jassert(d.slotIndex >= (uint8)SlotTypes::AttributeOffset);
 
-	auto attributeOffset = (d.slotIndex - (uint8)SlotTypes::AttributeOffset) * SlotBitmap::getNumBits();
+	auto attributeOffset = (uint16)((d.slotIndex - (uint8)SlotTypes::AttributeOffset) * SlotBitmap::getNumBits());
 
 	if(d.numBytes == 1)
 	{
-		auto slotIndex = attributeOffset + d.toSingleSlotIndex();
+		auto slotIndex = (attributeOffset + d.toSingleSlotIndex());
 		TRACE_DISPATCH_CALLBACK(*obj, "onAttribute", slotIndex);
 		f(obj, slotIndex);
 	}
@@ -257,7 +257,7 @@ void Processor::addAttributeListener(AttributeListener* l, const uint16* attribu
 	else
 	{
 		// Sort the incoming indexes (might have any order)
-		Array<uint16> sorted(attributeIndexes, numAttributes);
+		Array<uint16> sorted(attributeIndexes, (int)numAttributes);
 		uint8 currentSlotIndex = attributes.getSlotIndex();
 		sorted.sort();
 

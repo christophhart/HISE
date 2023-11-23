@@ -428,6 +428,8 @@ namespace IDs
 	DECLARE_ID(users);
 }
 
+#undef DECLARE_ID
+
 // TODO: fix multiple active tables
 // TODO: fix URL when clicking on cell
 // TODO: show issue & title when resuming work

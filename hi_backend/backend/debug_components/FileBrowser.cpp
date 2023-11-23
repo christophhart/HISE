@@ -2304,7 +2304,7 @@ Image TableComponent::AssetProvider::getImage(const MarkdownLink& markdownLink, 
 	{
 		if(auto mb = rf.obj.getBinaryData())
 		{
-			auto newImage = ImageCache::getFromMemory(mb->getData(), mb->getSize());
+			auto newImage = ImageCache::getFromMemory(mb->getData(), (int)mb->getSize());
 
 			auto b = newImage.getBounds();
 			auto ok = newImage.isValid();

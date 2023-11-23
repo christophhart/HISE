@@ -491,13 +491,12 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			{
 				reportLocation(sbs, r.getErrorMessage());
 			}
-			catch(const Breakpoint& bp)
+			catch(const Breakpoint&)
 			{
 				reportLocation(sbs, "BREAKPOINT");
 			}
 			catch(const HiseJavascriptEngine::RootObject::Error& e)
 			{
-				auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
 				reportLocation(sbs, e.errorMessage);
 			}
 		}

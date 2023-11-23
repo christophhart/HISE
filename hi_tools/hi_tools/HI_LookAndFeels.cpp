@@ -300,7 +300,7 @@ void GlobalHiseLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool
 		g.drawText(text, textArea, Justification::centredLeft, true);
 	}
 	
-	auto area = b.getLocalBounds().removeFromLeft(b.getHeight()).withSizeKeepingCentre(16, 16).toFloat().reduced(JUCE_LIVE_CONSTANT(1.0f));
+	auto area = b.getLocalBounds().removeFromLeft(b.getHeight()).withSizeKeepingCentre(16, 16).toFloat().reduced(JUCE_LIVE_CONSTANT_OFF(1.0f));
 
 	g.setColour(Colours::black.withAlpha(0.5f));
 	g.fillEllipse(area);
@@ -1989,8 +1989,8 @@ void BalanceButtonLookAndFeel::drawRotarySlider(Graphics& g, int x, int y, int w
 
 	float radius = JUCE_LIVE_CONSTANT_OFF(0.6f);
 
-	track.addPieSegment(area, -2.7, 2.7, radius);
-	thumb.addPieSegment(area, 0.0, -2.7 + (2.7 * 2.0f * sliderPosProportional), radius);
+	track.addPieSegment(area, -2.7f, 2.7f, radius);
+	thumb.addPieSegment(area, 0.0f, -2.7f + (2.7f * 2.0f * sliderPosProportional), radius);
 
 	g.setColour(Colours::black.withAlpha(sliderPosProportional != 0.5 ? 0.3f : 0.15f));
 	g.fillPath(track);

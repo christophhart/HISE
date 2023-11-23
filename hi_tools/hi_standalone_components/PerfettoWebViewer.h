@@ -35,7 +35,7 @@
 namespace hise {
 using namespace juce;
 
-struct BackendRootWindow;
+class BackendRootWindow;
 
 struct PerfettoWebviewer: public Component
 {

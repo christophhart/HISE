@@ -715,7 +715,6 @@ void TimeModulation::applyPanModulation(float * calculatedModValues, float * des
 VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 		VoiceModulation(numVoices, m),
 		Modulator(mc, id, numVoices),
-		Modulation(m),
 		unsavedValue(1.0f)
 {
 	voiceValues.insertMultiple(0, 1.0f, numVoices);
@@ -937,8 +936,7 @@ float TimeVariantModulator::getLastConstantValue() const noexcept
 
 TimeVariantModulator::TimeVariantModulator(MainController* mc, const String& id, Modulation::Mode m):
 	Modulator(mc, id, 1),
-	TimeModulation(m),
-	Modulation(m)
+	TimeModulation(m)
 {
 	lastConstantValue = getInitialValue();
 	smoothedIntensity.setValueWithoutSmoothing(0);

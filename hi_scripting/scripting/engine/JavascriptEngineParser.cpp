@@ -765,10 +765,9 @@ private:
 
 			return n.release();
 		}
-		else
-		{
-			location.throwError("unknown scope statement type " + typeId.toString());
-		}
+
+		location.throwError("unknown scope statement type " + typeId.toString());
+		RETURN_IF_NO_THROW(nullptr);
 	}
 
 	String getFileContent(const String &fileNameInScript, String &refFileName, bool allowMultipleIncludes = false)

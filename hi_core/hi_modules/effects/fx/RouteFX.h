@@ -282,6 +282,8 @@ struct SendEffect : public MasterEffectProcessor
 		case Parameters::SendIndex: return 0.0f;
 		case Parameters::Smoothing: return 1.0f;
 		}
+
+		return 0.0f;
 	}
 
 	float getAttribute(int index) const override 

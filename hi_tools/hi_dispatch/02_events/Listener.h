@@ -136,10 +136,14 @@ private:
 using Listener = dispatch::Listener;
 
 
-template <typename T> struct SingleValueSource: public Source
+template <typename T> class SingleValueSource: public Source
 {
-	struct Listener final : private dispatch::Listener
+public:
+
+	class Listener final : private dispatch::Listener
 	{
+	public:
+
 		using Callback = std::function<void(int, T)>;
 
 		Listener(RootObject& r, ListenerOwner& o, const Callback& c):

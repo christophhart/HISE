@@ -5514,7 +5514,7 @@ void ScriptingObjects::ScriptedMidiPlayer::flushMessageList(var messageList)
 {
 	auto currentSequenceIndex = getPlayer()->getAttribute(MidiPlayer::SpecialParameters::CurrentSequence);
 
-	flushMessageListToSequence(messageList, -1);
+	flushMessageListToSequence(messageList, currentSequenceIndex);
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::setUseTimestampInTicks(bool shouldUseTimestamps)
@@ -8030,41 +8030,8 @@ void ScriptingObjects::ScriptedMacroHandler::macroConnectionChanged(int macroInd
 
 var ScriptingObjects::ScriptedMacroHandler::getMacroDataObject()
 {
-	auto& mm = getScriptProcessor()->getMainController_()->getMacroManager();
-
 	Array<var> list;
-
-#if 0
-	for(int i = 0; i < HISE_NUM_MACROS; i++)
-	{
-		auto md = mm.getMacroChain()->getMacroControlData(i);
-
-		ScopedPointer<XmlElement> xml = md->exportAsXml();
-
-		auto v = ValueTree::fromXml(*xml);
-
-		auto nv = valuetree::Helpers::valueTreeToJSON(v);
-
-		if(auto obj = nv.getDynamicObject())
-		{
-			if(nv.hasProperty("Children"))
-			{
-				obj->removeProperty("ChildId");
-				obj->setProperty("ControlledParameters", nv["Children"]);
-				obj->removeProperty("Children");
-			}
-			else
-			{
-				obj->setProperty("ControlledParameters", var(Array<var>()));
-			}
-			
-			obj->removeProperty("midi_cc");
-
-			list.add(nv);
-		}
-	}
-#endif
-
+	
 	for (int i = 0; i < HISE_NUM_MACROS; i++)
 	{
 		auto md = getScriptProcessor()->getMainController_()->getMacroManager().getMacroChain()->getMacroControlData(i);

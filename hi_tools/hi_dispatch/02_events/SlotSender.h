@@ -96,7 +96,7 @@ struct AccumulatedFlowManager
 	void continueFlow(uint64_t, const char* ) {};
 	void openFlow(uint64_t , const char* , const Identifier& , const String& ) {}
 	void flushAll(const char* ) {}
-	uint64_t flushAllButLastOne(const char* , const Identifier& ) { retrun 0; }
+	uint64_t flushAllButLastOne(const char* , const Identifier& ) { return 0; }
 };
 #endif
 

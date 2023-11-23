@@ -147,8 +147,6 @@ struct EnvelopePopup : public Component
 			case EnvelopeType::PanMode: return getLeft ? "Hold" : "Target Frequency";
 			default: return {};
 			}
-            
-            return {};
 		}
 
 		Path createPath(const String& url) const override

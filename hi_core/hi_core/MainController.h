@@ -654,8 +654,10 @@ public:
 			Result r;
 			var args[2];
 
-			IF_OLD_AUTOMATION_DISPATCH(LambdaBroadcaster<var*> syncListeners);
-			IF_OLD_AUTOMATION_DISPATCH(LambdaBroadcaster<int, float> asyncListeners);
+#if USE_OLD_AUTOMATION_DISPATCH
+			LambdaBroadcaster<var*> syncListeners;
+			LambdaBroadcaster<int, float> asyncListeners;
+#endif
 			IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource dispatcher);
 
 			struct ConnectionBase: public ReferenceCountedObject

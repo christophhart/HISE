@@ -777,7 +777,6 @@ void WeakCallbackHolder::call(const var::NativeFunctionArgs& args)
 
 			TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(trackIndex));
 
-			auto n = highPriority ? dispatch::DispatchType::sendNotificationAsyncHiPriority : dispatch::DispatchType::sendNotificationAsync;
 			auto t = highPriority ? JavascriptThreadPool::Task::HiPriorityCallbackExecution : JavascriptThreadPool::Task::LowPriorityCallbackExecution;
 			getScriptProcessor()->getMainController_()->getJavascriptThreadPool().addJob(t, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), copy);
 		}
