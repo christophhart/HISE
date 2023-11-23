@@ -1115,6 +1115,7 @@ public:
 			ProcessorAdded = 0,
 			ProcessorRemoved,
 			RebuildModuleList,
+			ClearBeforeRebuild,
 #if HISE_OLD_PROCESSOR_DISPATCH
 			ProcessorRenamed,
 			ProcessorColourChange,

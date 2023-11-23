@@ -419,12 +419,11 @@ void ModulatorSynthChain::reset()
 	}
 #endif
 	
-
-    this->getHandler()->clearAsync(nullptr);
-    
     midiProcessorChain->getHandler()->clearAsync(midiProcessorChain);
     gainChain->getHandler()->clearAsync(gainChain);
     effectChain->getHandler()->clearAsync(effectChain);
+	this->getHandler()->clearAsync(nullptr);
+
     getMatrix().resetToDefault();
     getMatrix().setNumSourceChannels(2);
 

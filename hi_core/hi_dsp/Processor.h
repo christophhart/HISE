@@ -480,8 +480,7 @@ public:
 
         virtual ~AttributeListener()
 	    {
-		    if(cp != nullptr)
-                cp->removeAttributeListener(&dispatcher);
+		    removeFromProcessor();
 	    }
 
 
@@ -492,7 +491,13 @@ public:
             cp = p;
 	        p->addAttributeListener(&dispatcher, indexes, numIndexes, n);
         }
-        
+
+        void removeFromProcessor()
+        {
+	        if(cp != nullptr)
+                cp->removeAttributeListener(&dispatcher);
+        }
+
 
     private:
 

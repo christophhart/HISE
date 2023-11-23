@@ -50,7 +50,7 @@ RootObject::Child(r)
 
 Queueable::~Queueable()
 {
-    getRootObject().clearFromAllQueues(this, danglingBehaviour);
+    //getRootObject().clearFromAllQueues(this, danglingBehaviour);
 
     int index = 0;
 

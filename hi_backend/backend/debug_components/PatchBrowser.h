@@ -128,6 +128,12 @@ public:
 
 	void moduleListChanged(Processor* /*changedProcessor*/, MainController::ProcessorChangeHandler::EventType type) override
 	{
+		if(type == MainController::ProcessorChangeHandler::EventType::ClearBeforeRebuild)
+		{
+			clearCollections();
+			return;
+		}
+
 #if HISE_OLD_PROCESSOR_DISPATCH
 		if (type == MainController::ProcessorChangeHandler::EventType::ProcessorRenamed ||
 			type == MainController::ProcessorChangeHandler::EventType::ProcessorColourChange ||

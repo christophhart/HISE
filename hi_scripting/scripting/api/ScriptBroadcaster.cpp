@@ -1155,6 +1155,8 @@ struct ScriptBroadcaster::ModuleParameterListener::ProcessorListener : public hi
 
 	~ProcessorListener()
 	{
+		NEW_PROCESSOR_DISPATCH(removeFromProcessor());
+
 		if (p != nullptr)
 		{
 			p->removeBypassListener(this);

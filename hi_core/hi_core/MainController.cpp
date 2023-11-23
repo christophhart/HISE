@@ -231,13 +231,17 @@ void MainController::clearPreset()
 {
 	Processor::Iterator<Processor> iter(getMainSynthChain(), false);
 
-    
+	auto isMessageThread = MessageManager::getInstance()->isThisTheMessageThread();
+
+	getProcessorChangeHandler().sendProcessorChangeMessage(getMainSynthChain(), ProcessorChangeHandler::EventType::ClearBeforeRebuild, isMessageThread);
+
 	while (auto p = iter.getNextProcessor())
 		p->cleanRebuildFlagForThisAndParents();
 
 	auto f = [](Processor* p)
 	{
 		auto mc = p->getMainController();
+		SUSPEND_GLOBAL_DISPATCH(mc, "reset main controller");
 		LockHelpers::freeToGo(mc);
 
 		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
@@ -265,7 +269,9 @@ void MainController::clearPreset()
 		mc->changed = false;
         
         mc->prepareToPlay(mc->processingSampleRate, mc->numSamplesThisBlock);
-        
+
+		mc->getProcessorChangeHandler().sendProcessorChangeMessage(mc->getMainSynthChain(), ProcessorChangeHandler::EventType::RebuildModuleList, false);
+
 		return SafeFunctionCall::OK;
 	};
 

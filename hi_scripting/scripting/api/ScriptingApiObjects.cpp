@@ -8660,9 +8660,14 @@ void ScriptingObjects::ScriptBuilder::clear()
 	auto thisAsP = dynamic_cast<Processor*>(getScriptProcessor());
 
     auto mc = getScriptProcessor()->getMainController_();
-    
+    SUSPEND_GLOBAL_DISPATCH(mc, "clear from builder");
     MainController::ScopedBadBabysitter sb(mc);
-    
+
+	mc->getProcessorChangeHandler().sendProcessorChangeMessage(mc->getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::ClearBeforeRebuild, false);
+
+	Thread::getCurrentThread()->wait(500);
+	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(500);
+
 	raw::Builder b(mc);
 
 	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
