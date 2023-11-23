@@ -138,7 +138,7 @@ void LoggerTest::testQueue()
 	{
 		numIterations++;
 		return true;
-	});
+	}, Queue::FlushType::Flush);
 
 	expectEquals(numIterations, 3);
 
@@ -164,7 +164,7 @@ void LoggerTest::testQueue()
 		expect(dynamic_cast<NeverExecuted*>(f.source) == nullptr, "never was executed");
 		numIterations++;
 		return true;
-	});
+	}, Queue::FlushType::Flush);
 
 	expectEquals(numIterations, numIterationsToExpect, "all nevers removed properly");
 
@@ -192,7 +192,7 @@ void LoggerTest::testQueue()
 		expect(dynamic_cast<NeverExecuted*>(f.source) == nullptr, "never was executed");
 		numIterations++;
 		return true;
-	});
+	}, Queue::FlushType::Flush);
 
 	expectEquals(numIterations, numIterationsToExpect, "all nevers removed dynamically");
 	root.setLogger(nullptr);

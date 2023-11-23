@@ -109,7 +109,7 @@ struct MainController::UserPresetHandler::CustomAutomationData::CableConnection:
 			v = parent->range.convertFrom0to1((float)v);
 
 			ScopedValueSetter<bool> svs(recursive, true);
-			parent->call(v, true);
+			parent->call(v, dispatch::DispatchType::sendNotificationSync);
 		}
 	}
 
@@ -128,7 +128,7 @@ struct MainController::UserPresetHandler::CustomAutomationData::CableConnection:
 		return "Automation";
 	}
 
-	void call(float v) const final override
+	void call(float v, dispatch::DispatchType) const final override
 	{
 		if (isValid() && !recursive)
 		{
@@ -164,6 +164,7 @@ struct MainController::UserPresetHandler::CustomAutomationData::CableConnection:
 MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(CustomAutomationData::List newList, MainController* mc, int index_, const var& d) :
 	ControlledObject(mc),
 	index(index_),
+	NEW_AUTOMATION_WITH_COMMA(dispatcher(mc->getCustomAutomationSourceManager(), *this, index, dispatch::HashedCharPtr(d["ID"].toString())))
 	r(Result::ok())
 {
 	static const Identifier id_("ID");
@@ -220,13 +221,15 @@ MainController::UserPresetHandler::CustomAutomationData::CustomAutomationData(Cu
     if (id.isEmpty())
 		r = Result::fail("No ID");
 
+#if USE_OLD_AUTOMATION_DISPATCH
 	asyncListeners.enableLockFreeUpdate(mc->getGlobalUIUpdater());
-
     syncListeners.setLockListenersDuringMessage(true);
     asyncListeners.setLockListenersDuringMessage(true);
-    
 	asyncListeners.sendMessage(dontSendNotification, index, lastValue);
 	syncListeners.sendMessage(dontSendNotification, args);
+#endif
+
+	dispatcher.setValue(lastValue, dispatch::DispatchType::dontSendNotification);
 }
 
 hise::MainController::UserPresetHandler::CustomAutomationData::ConnectionBase::Ptr MainController::UserPresetHandler::CustomAutomationData::parse(CustomAutomationData::List newList, MainController* mc, const var& c)
@@ -318,8 +321,13 @@ void MainController::UserPresetHandler::CustomAutomationData::updateFromConnecti
 		args[0] = index;
 		args[1] = newValue;
 
+#if USE_OLD_AUTOMATION_DISPATCH
 		syncListeners.sendMessage(sendNotificationSync, args);
 		asyncListeners.sendMessage(sendNotificationAsync, index, newValue);
+#endif
+
+		IF_NEW_AUTOMATION_DISPATCH(dispatcher.setValue(newValue, dispatch::DispatchType::sendNotificationSync));
+
 	}
 }
 
@@ -343,11 +351,22 @@ bool MainController::UserPresetHandler::CustomAutomationData::isConnectedToMidi(
 
 bool MainController::UserPresetHandler::CustomAutomationData::isConnectedToComponent() const
 {
+#if USE_NEW_AUTOMATION_DISPATCH
+	return dispatcher.getNumListenersWithClass<ScriptingApi::Content::ScriptComponent>() != 0;
+#elif USE_OLD_AUTOMATION_DISPATCH
 	return asyncListeners.template getNumListenersWithClass<ScriptingApi::Content::ScriptComponent>() != 0;
+#else
+	return false;
+#endif
+
+
+	
 }
 
-void MainController::UserPresetHandler::CustomAutomationData::call(float newValue, bool sendToListeners, const std::function<bool(ConnectionBase*)>& connectionFilter)
+void MainController::UserPresetHandler::CustomAutomationData::call(float newValue, dispatch::DispatchType n, const std::function<bool(ConnectionBase*)>& connectionFilter)
 {
+	bool sendToListeners = n != dispatch::DispatchType::dontSendNotification;
+
 	FloatSanitizers::sanitizeFloatNumber(newValue);
 
 	newValue = range.getRange().clipValue(newValue);
@@ -361,26 +380,22 @@ void MainController::UserPresetHandler::CustomAutomationData::call(float newValu
 		for (auto pc : connectionList)
 		{
 			if(!connectionFilter || connectionFilter(pc))
-				pc->call(newValue);
+				pc->call(newValue, n);
 		}
-			
-		syncListeners.sendMessage(sendNotificationSync, args);
-		asyncListeners.sendMessage(sendNotificationAsync, index, lastValue);
-	}
-	else
-	{
-		syncListeners.sendMessage(dontSendNotification, args);
-		asyncListeners.sendMessage(dontSendNotification, index, lastValue);
-	}
+	}	
+
+	IF_OLD_AUTOMATION_DISPATCH(syncListeners.sendMessage(sendNotificationSync, args));
+	IF_OLD_AUTOMATION_DISPATCH(asyncListeners.sendMessage(sendNotificationAsync, index, lastValue));
+	IF_NEW_AUTOMATION_DISPATCH(dispatcher.setValue(lastValue, n));
 }
 
 
-void MainController::UserPresetHandler::CustomAutomationData::ProcessorConnection::call(float v) const
+void MainController::UserPresetHandler::CustomAutomationData::ProcessorConnection::call(float v, dispatch::DispatchType n) const
 {
 	jassert(connectedProcessor != nullptr);
 
 	if (*this)
-		connectedProcessor.get()->setAttribute(connectedParameterIndex, v, sendNotification);
+		connectedProcessor.get()->setAttribute(connectedParameterIndex, v, n);
 }
 
 String MainController::UserPresetHandler::CustomAutomationData::ProcessorConnection::getDisplayString() const

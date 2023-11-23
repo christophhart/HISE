@@ -369,7 +369,7 @@ void MacroControlBroadcaster::MacroControlledParameterData::setAttribute(double 
 		if (customAutomation)
 		{
 			if (auto d = controlledProcessor->getMainController()->getUserPresetHandler().getCustomAutomationData(parameter))
-				d->call(value);
+				d->call(value, dispatch::DispatchType::sendNotificationSync);
 		}
 		else
 			controlledProcessor.get()->setAttribute(parameter, value, readOnly ? sendNotification : dontSendNotification);

@@ -34,24 +34,42 @@
 namespace hise { using namespace juce;
 
 
-struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
+struct CustomAutomationParameter : NEW_AUTOMATION_WITH_COMMA(public dispatch::ListenerOwner)
+								   public juce::AudioProcessorParameterWithID
 {
 	using Data = MainController::UserPresetHandler::CustomAutomationData;
 
 	CustomAutomationParameter(Data::Ptr data_) :
 		AudioProcessorParameterWithID(data_->id, data_->id),
+		NEW_AUTOMATION_WITH_COMMA(autoListener(data_->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_2(CustomAutomationParameter::onUpdate)))
 		data(data_)
 	{
-		data->syncListeners.addListener(*this, update, false);
+
+		IF_OLD_AUTOMATION_DISPATCH(data->syncListeners.addListener(*this, update, false));
+		IF_NEW_AUTOMATION_DISPATCH(data->dispatcher.addValueListener(&autoListener, false, dispatch::DispatchType::sendNotificationSync));
 	};
+
+	~CustomAutomationParameter()
+	{
+		if(data != nullptr)
+		{
+			IF_NEW_AUTOMATION_DISPATCH(data->dispatcher.removeValueListener(&autoListener, dispatch::DispatchType::sendNotificationSync));
+		}
+	}
+
+	void onUpdate(int index, float v)
+	{
+		FloatSanitizers::sanitizeFloatNumber(v);
+		v = data->range.convertTo0to1(v);
+		ScopedValueSetter<bool> svs(recursive, true);
+		setValueNotifyingHost(v);
+	}
 
 	static void update(CustomAutomationParameter& d, var* args)
 	{
 		auto v = (float)args[1];
 
 		FloatSanitizers::sanitizeFloatNumber(v);
-
-
 		v = d.data->range.convertTo0to1(v);
 
 		ScopedValueSetter<bool> svs(d.recursive, true);
@@ -71,7 +89,7 @@ struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
 
 		newValue = data->range.convertFrom0to1(newValue);
 
-		data->call(newValue, true);
+		data->call(newValue, dispatch::DispatchType::sendNotificationSync);
 	}
 
 	float getValueForText(const String& text) const override
@@ -98,6 +116,8 @@ struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
 	Data::Ptr data;
 
 	bool recursive = false;
+
+	IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource::Listener autoListener);
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(CustomAutomationParameter);
 };

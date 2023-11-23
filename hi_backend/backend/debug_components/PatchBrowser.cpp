@@ -2186,6 +2186,7 @@ AutomationDataBrowser::AutomationCollection::AutomationCollection(MainController
 	SimpleTimer(mc->getGlobalUIUpdater()),
 	Collection(),
 	data(data_),
+	NEW_AUTOMATION_WITH_COMMA(listener(mc->getRootDispatcher(), *this, [this](int, double){ this->repaint();}))
 	index(index_)
 {
 	for (auto c_ : data->connectionList)
@@ -2195,10 +2196,14 @@ AutomationDataBrowser::AutomationCollection::AutomationCollection(MainController
 		addAndMakeVisible(items.getLast());
 	}
 
+#if USE_OLD_AUTOMATION_DISPATCH
 	data->asyncListeners.addListener(*this, [](AutomationCollection& c, int index, float v)
 	{
 		c.repaint();
 	}, false);
+#endif
+
+	IF_NEW_AUTOMATION_DISPATCH(data->dispatcher.addValueListener(&listener, true, dispatch::DispatchType::sendNotificationAsync));
 
 	checkIfChanged(false);
 }
@@ -2211,6 +2216,10 @@ void AutomationDataBrowser::AutomationCollection::checkIfChanged(bool rebuildIfC
 	if (hasComponentConnection != hasComponentConnectionNow ||
 		hasMidiConnection != hasMidiConnectionNow)
 	{
+		hasComponentConnection = hasComponentConnectionNow;
+		hasMidiConnection = hasMidiConnectionNow;
+		repaint();
+
 		if (rebuildIfChanged)
 		{
 			if (auto p = findParentComponentOfClass<AutomationDataBrowser>())
@@ -2227,10 +2236,6 @@ void AutomationDataBrowser::AutomationCollection::checkIfChanged(bool rebuildIfC
 
 			return;
 		}
-		
-		hasComponentConnection = hasComponentConnectionNow;
-		hasMidiConnection = hasMidiConnectionNow;
-		repaint();
 	}
 }
 

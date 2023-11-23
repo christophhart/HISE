@@ -89,13 +89,13 @@ public:
 
 	template <typename T> T& getOwner()
 	{
-		static_assert(std::is_base_of<ListenerOwner, T>(), "not a base of listener owner");
+		static_assert(std::is_same<T, ListenerOwner>() || std::is_base_of<ListenerOwner, T>(), "not a base of listener owner");
 		return *dynamic_cast<T*>(&owner);
 	}
 
 	template <typename T> const T& getOwner() const
 	{
-		static_assert(std::is_base_of<ListenerOwner, T>(), "not a base of listener owner");
+		static_assert(std::is_same<T, ListenerOwner>() || std::is_base_of<ListenerOwner, T>(), "not a base of listener owner");
 		return *dynamic_cast<const T*>(&owner);
 	}
 
@@ -134,6 +134,118 @@ private:
 };
 
 using Listener = dispatch::Listener;
+
+
+template <typename T> struct SingleValueSource: public Source
+{
+	struct Listener final : private dispatch::Listener
+	{
+		using Callback = std::function<void(int, T)>;
+
+		Listener(RootObject& r, ListenerOwner& o, const Callback& c):
+		  dispatch::Listener(r, o),
+		  f(c)
+		{};
+
+	private:
+
+		void slotChanged(const ListenerData& d) override
+		{
+			jassert(d.t == EventType::ListenerWithoutData);
+			jassert(f);
+			jassert(d.s != nullptr);
+			
+			auto cd = static_cast<SingleValueSource*>(d.s);
+
+#if PERFETTO
+			StringBuilder b;
+			b << "listener callback for " << cd->getDispatchId();
+			TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+#endif
+
+			f(cd->index, cd->value);
+		}
+
+		friend class SingleValueSource;
+
+		Callback f;
+	};
+
+	SingleValueSource(SingleValueSourceManager<T>& parent, SourceOwner& owner, int index_, const HashedCharPtr& id):
+	  Source(parent, owner, id),
+	  index(index_),
+	  valueSender(*this, 0, "value")
+	{
+		valueSender.setNumSlots(1);
+	};
+
+	void addValueListener(Listener* l, bool initialiseValue, DispatchType n)
+	{
+		valueSender.getListenerQueue(n)->push(l, EventType::ListenerWithoutData, nullptr, 0);
+
+		if(initialiseValue)
+		{
+			StringBuilder n;
+			n << "init call " << getDispatchId();
+			TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(n));
+			dispatch::Listener::ListenerData d;
+			d.t = EventType::ListenerWithoutData;
+			d.s = this;
+			d.slotIndex = 0;
+			d.numBytes = 0;
+			d.changes = nullptr;
+			l->slotChanged(d);
+		}
+	}
+
+	void removeValueListener(Listener* l, DispatchType n=DispatchType::sendNotification)
+	{
+		l->removeListener(*this, n);
+	}
+
+	template <typename T> int getNumListenersWithClass(DispatchType n=DispatchType::sendNotification) const
+	{
+		int numListeners = 0;
+
+		const_cast<SingleValueSource*>(this)->forEachListenerQueue(n, [&numListeners](uint8, DispatchType, Queue* q)
+		{
+			q->flush([&numListeners](const Queue::FlushArgument& f)
+			{
+				auto& l = f.getTypedObject<dispatch::Listener>();
+
+				auto t = dynamic_cast<T*>(&l.getOwner<ListenerOwner>());
+
+				if(t != nullptr)
+					numListeners++;
+
+				return true;
+			}, Queue::FlushType::KeepData);
+		});
+
+		return numListeners;
+	}
+
+	void setValue(T v, DispatchType n)
+	{
+#if PERFETTO
+		StringBuilder b;
+		b << getDispatchId() << "(" << index << ")";
+		TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+#endif
+
+		value = v;
+		valueSender.sendChangeMessage(0, n);
+	}
+
+	int getNumSlotSenders() const override { return 1; }
+	SlotSender* getSlotSender(uint8) override { return &valueSender; }
+
+private:
+
+	T value = T();
+	const int index;
+	SlotSender valueSender;
+};
 
 } // dispatch
 } // hise

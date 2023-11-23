@@ -335,6 +335,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	asyncValueUpdater(*this),
 	propertyTree(name_.isValid() ? parent->getValueTreeForComponent(name) : ValueTree("Component")),
 	value(0.0),
+	NEW_AUTOMATION_WITH_COMMA(automationListener(base->getMainController_()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_2(ScriptComponent::updateAutomation)))
     subComponentNotifier(*this),
 	skipRestoring(false),
 	hasChanged(false),
@@ -615,7 +616,8 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	{
 		if (currentAutomationData != nullptr)
 		{
-			currentAutomationData->asyncListeners.removeListener(*this);
+			IF_OLD_AUTOMATION_DISPATCH(currentAutomationData->asyncListeners.removeListener(*this));
+			IF_NEW_AUTOMATION_DISPATCH(currentAutomationData->dispatcher.removeValueListener(&automationListener));
 		}
 
 		if (!newValue.toString().isEmpty())
@@ -626,10 +628,14 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 			{
 				if ((sc.currentAutomationData = sc.getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(newCustomId)))
 				{
+#if USE_OLD_AUTOMATION_DISPATCH
 					sc.currentAutomationData->asyncListeners.addListener(sc, [](ScriptComponent& c, int index, float v)
 					{
 						c.setValue(v);
 					}, true);
+#endif
+
+					IF_NEW_AUTOMATION_DISPATCH(sc.currentAutomationData->dispatcher.addValueListener(&sc.automationListener, true, dispatch::DispatchType::sendNotificationAsyncHiPriority));
 				}
 			};
 
@@ -1367,7 +1373,11 @@ ScriptingApi::Content::ScriptComponent::~ScriptComponent()
 		linkedComponent->removeLinkedTarget(this);
 
 	if (currentAutomationData != nullptr)
-		currentAutomationData->asyncListeners.removeListener(*this);
+	{
+		IF_OLD_AUTOMATION_DISPATCH(currentAutomationData->asyncListeners.removeListener(*this));
+		IF_NEW_AUTOMATION_DISPATCH(currentAutomationData->dispatcher.removeValueListener(&automationListener));
+	}
+		
 }
 
 void ScriptingApi::Content::ScriptComponent::handleDefaultDeactivatedProperties()

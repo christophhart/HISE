@@ -36,5 +36,44 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+
+
+
+namespace library
+{
+
+class CustomAutomationSourceManager: public SingleValueSourceManager<float>
+{
+public:
+
+	CustomAutomationSourceManager(RootObject& r):
+	  SingleValueSourceManager<float>(r, "automation")
+	{};
+};
+
+using CustomAutomationSource = SingleValueSource<float>;
+
+class MacroControlSourceManager: public SingleValueSourceManager<float>
+{
+public:
+
+	MacroControlSourceManager(RootObject& r):
+	  SingleValueSourceManager<float>(r, "macros")
+	{};
+};
+
+using MacroControlSource = SingleValueSource<float>;
+
+class GlobalCableSourceManager: public SingleValueSourceManager<double>
+{
+	GlobalCableSourceManager(RootObject& r):
+	  SingleValueSourceManager<double>(r, "cables")
+	{};
+};
+
+using GlobalCableSource = SingleValueSource<float>;
+
+}
+
 } // dispatch
 } // hise

@@ -30,13 +30,12 @@
 *   ===========================================================================
 */
 
-
-
 namespace hise {
 namespace dispatch {
 namespace dummy {
 using namespace juce;
 
+#define BEGIN_TEST(x) beginTest(x); TRACE_DISPATCH(x);
 
 LibraryTest::LibraryTest():
 	UnitTest("library test", "dispatch")
@@ -79,6 +78,7 @@ void LibraryTest::deinit(int numChecksExpected)
 void LibraryTest::runTest()
 {
 	testSlotBitMap();
+	testSingleValueSources();
 
 	testMultipleAttributes({1});
 	testMultipleAttributes({1, 4});
@@ -155,7 +155,6 @@ void LibraryTest::testHelloWorld(int numAttributeCalls, int numExpected, Dispatc
 	b << Helpers::getDispatchName(ln) << " listener";
 
 	TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-
 	beginTest(b.toString());
 	PooledUIUpdater updater;
 	RootObject r(ln != sendNotificationSync ? &updater : nullptr);
@@ -199,7 +198,7 @@ void LibraryTest::testHelloWorld(int numAttributeCalls, int numExpected, Dispatc
 
 void LibraryTest::testHighAttributeCount()
 {
-	beginTest("testing attribute index 4098");
+	BEGIN_TEST("testing attribute index 4098");
 
 	auto ln = DispatchType::sendNotificationSync;
 	auto en = DispatchType::sendNotificationSync;
@@ -263,7 +262,7 @@ void LibraryTest::testHighAttributeCount()
 
 void LibraryTest::testSlotBitMap()
 {
-	beginTest("testing bit map");
+	BEGIN_TEST("testing bit map");
 
 	SlotBitmap b;
 	expectEquals(static_cast<int>(b.getNumBytes()), 4, "bytesize match");
@@ -304,6 +303,7 @@ void LibraryTest::testSlotBitMap()
 
 void LibraryTest::testMultipleAttributes(const Array<uint16>& multiParameters)
 {
+	TRACE_DISPATCH("test multiple parameters");
 	beginTest("Testing multiple parameters with " + String(multiParameters.size()) + " indexes");
 
 	uint16 numMax = 0;
@@ -343,7 +343,7 @@ void LibraryTest::testMultipleAttributes(const Array<uint16>& multiParameters)
 void LibraryTest::testSuspension(const HashedCharPtr& pathToTest)
 {
 	auto path = HashedPath::parse(pathToTest);
-
+	TRACE_DISPATCH("test suspension");
 	beginTest("test suspension with path " + pathToTest.toString());
 	RootObject r(nullptr);
 
@@ -517,6 +517,51 @@ void LibraryTest::runEvents(const var& obj)
 	deinit((int)obj[ActionTypes::count]);
 }
 
+void LibraryTest::testSingleValueSources()
+{
+	BEGIN_TEST("testing single value source");
+	RootObject r(nullptr);
+	library::CustomAutomationSourceManager m(r);
+	library::CustomAutomationSource s(m, *this, 0, "testSource");
+
+	int numCallbacks = 0;
+	float valueToSend = 90.0f;
+
+	library::CustomAutomationSource::Listener l(r, *this, [&](int index, float v)
+	{
+		numCallbacks++;
+		expectEquals(v, valueToSend);
+	});
+
+	s.addValueListener(&l, false, DispatchType::sendNotificationSync);
+	s.setValue(valueToSend, DispatchType::sendNotificationSync);
+
+	expectEquals(s.getNumListenersWithClass<LibraryTest>(), 1, "getNumListeners doesn't work");
+
+	expectEquals(s.getNumListenersWithClass<LibraryTest>(), 1, "getNumListeners still works");
+
+	s.removeValueListener(&l);
+
+	expectEquals(s.getNumListenersWithClass<LibraryTest>(), 0, "getNumListeners doesn't work pt. II");
+
+	expectEquals(numCallbacks, 1, "not fired");
+
+	s.setValue(44, DispatchType::sendNotificationSync);
+
+	expect(numCallbacks <= 1, "fired twice");
+
+	bool fired = false;
+
+	library::CustomAutomationSource::Listener l2(r, *this, [&](int index, float v)
+	{
+		fired = true;
+		expectEquals(v, 44.0f);
+	});
+
+	s.addValueListener(&l2, true, sendNotificationSync);
+
+	expect(fired, "second listener not fired");
+}
 
 static LibraryTest libraryTest;
 

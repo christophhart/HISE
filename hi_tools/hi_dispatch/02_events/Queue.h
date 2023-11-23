@@ -195,7 +195,7 @@ public:
 	bool push(Queueable* s, EventType t, const void* values, size_t numValues);
 
 	/** flushes the queue with the given function. If the function returns FALSE, it will abort the iteration and clean the remaining queue. */
-	bool flush(const FlushFunction& f, FlushType flushType=FlushType::Flush);
+	bool flush(const FlushFunction& f, FlushType flushType);
 
 	/** Attaches a logger to the queue. non-owned, lifetime of logger > queue. */
 	void setLogger(Logger* l);

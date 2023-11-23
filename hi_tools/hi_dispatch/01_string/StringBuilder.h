@@ -43,7 +43,29 @@ struct StringBuilder
     static constexpr int SmallBufferSize = 64;
 
     explicit StringBuilder(size_t numToPreallocate=0);
-    
+
+    StringBuilder(const StringBuilder& other):
+      position(other.position)
+    {
+	    data.setSize(other.position);
+        memcpy(data.getObjectPtr(), other.data.getObjectPtr(), position);
+    }
+
+    StringBuilder& operator=(const StringBuilder& other)
+    {
+        position = other.position;
+	    data.setSize(other.position);
+        memcpy(data.getObjectPtr(), other.data.getObjectPtr(), position);
+        return *this;
+    }
+
+    StringBuilder& operator==(StringBuilder&& other)
+    {
+        position = other.position;
+	    std::swap(other.data, data);
+        return *this;
+    }
+
     StringBuilder& operator<<(const char* rawLiteral);
     StringBuilder& operator<<(const CharPtr& p);
     StringBuilder& operator<<(const HashedCharPtr& p);
@@ -60,7 +82,8 @@ struct StringBuilder
     StringBuilder& appendEventValues(EventType eventType, const uint8* values, size_t numBytes);
 
     StringBuilder& appendRawByteArray(const uint8* values, size_t numBytes);
-
+    
+    CharPtr toCharPtr() const noexcept { return CharPtr(reinterpret_cast<const uint8*>(data.getObjectPtr()), length()); }
     String toString() const noexcept;
     const char* get() const noexcept;
     const char* end()   const noexcept;

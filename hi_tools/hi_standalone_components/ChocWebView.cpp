@@ -469,7 +469,8 @@ void WebViewWrapper::call(const String& jsCode)
 
 void WebViewWrapper::navigateToURL(const URL& url)
 {
-    jassert(MessageManager::getInstance()->isThisTheMessageThread());
+    if(!MessageManager::getInstance()->isThisTheMessageThread())
+		return;
 
     auto currentFocusComponent = Component::getCurrentlyFocusedComponent();
 

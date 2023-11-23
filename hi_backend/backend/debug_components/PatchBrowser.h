@@ -490,6 +490,7 @@ public:
 
 	struct AutomationCollection : public SearchableListComponent::Collection,
 								  public ControlledObject,
+								  NEW_AUTOMATION_WITH_COMMA(public dispatch::ListenerOwner)
 								  public PooledUIUpdater::SimpleTimer
 	{
 		struct ConnectionItem : public SearchableListComponent::Item
@@ -534,6 +535,8 @@ public:
 
 		bool hasMidiConnection = false;
 		bool hasComponentConnection = false;
+
+		IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource::Listener listener);
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(AutomationCollection);
 	};

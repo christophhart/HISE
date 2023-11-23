@@ -93,7 +93,12 @@ private:
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SourceManager);
 };
 
-
+template <typename T> struct SingleValueSourceManager: public SourceManager
+{
+	SingleValueSourceManager(RootObject& r, const HashedCharPtr& id):
+	  SourceManager(r, id)
+	{};
+};
 
 
 } // dispatch

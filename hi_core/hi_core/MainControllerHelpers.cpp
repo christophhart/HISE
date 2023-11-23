@@ -934,7 +934,7 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 					if (uph.isUsingCustomDataModel())
 					{
 						if (auto ad = uph.getCustomAutomationData(a.attribute))
-							ad->call(snappedValue);
+							ad->call(snappedValue, dispatch::DispatchType::sendNotificationSync);
 					}
 					else
 					{

@@ -95,10 +95,25 @@ bool SlotSender::flush(DispatchType n)
 			switch(f.eventType)
 			{
 			case EventType::Listener: jassertfalse; break;
+			case EventType::ListenerWithoutData:
+			{
+				Listener::ListenerData d;
+				d.s = &obj;
+				d.t = f.eventType;
+				d.numBytes = 0;
+				d.slotIndex = index;
+				d.changes = nullptr;
+
+				auto& l = f.getTypedObject<Listener>();
+				l.slotChanged(d);
+				break;
+			}
+
 			case EventType::ListenerAnySlot:
 			{
 				Listener::ListenerData d;
 				d.s = &obj;
+				d.t = f.eventType;
 				d.numBytes = thisBitmap.getNumBytes();
 				d.slotIndex = index;
 				d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
@@ -118,6 +133,7 @@ bool SlotSender::flush(DispatchType n)
 				{
 					Listener::ListenerData d;
 					d.s = &obj;
+					d.t = f.eventType;
 					d.slotIndex = index;
 					d.numBytes = 1;
 					d.changes = &slotIndex;
@@ -137,6 +153,7 @@ bool SlotSender::flush(DispatchType n)
 				{
 					Listener::ListenerData d;
 					d.s = &obj;
+					d.t = f.eventType;
 					d.numBytes = thisBitmap.getNumBytes();
 					d.slotIndex = index;
 					d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
@@ -163,8 +180,6 @@ bool SlotSender::flush(DispatchType n)
 
 			default: jassertfalse; break;
 			}
-
-			
 
 			return true;
 		}, Queue::FlushType::KeepData);

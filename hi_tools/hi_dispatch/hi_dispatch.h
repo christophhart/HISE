@@ -82,6 +82,7 @@ enum class EventType: uint8 // change to HeaderType
 
 	Listener,
 	ListenerAnySlot,
+	ListenerWithoutData,
 	ListenerSingleSlot,
 	SingleListener,				// TODO: remove all those weird sub stuff?
 	SingleListenerSingleSlot,

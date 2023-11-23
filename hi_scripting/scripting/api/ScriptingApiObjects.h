@@ -73,18 +73,40 @@ public:
 	static constexpr int AsyncMagicNumber = 912;
 	static constexpr int AsyncHiPriorityMagicNumber = 913;
 
-	static bool isSynchronous(var syncValue)
+	static var getDispatchTypeMagicNumber(dispatch::DispatchType n)
 	{
+		using Type = dispatch::DispatchType;
+
+		switch(n)
+		{
+		case dispatch::dontSendNotification: return var(false);
+		case dispatch::sendNotification: return var(true);
+		case dispatch::sendNotificationSync: return var(SyncMagicNumber);
+		case dispatch::sendNotificationAsync: return var(AsyncMagicNumber);;
+		case dispatch::sendNotificationAsyncHiPriority: return var(AsyncHiPriorityMagicNumber);
+		default: return var(false);
+		}
+	}
+
+	static dispatch::DispatchType getDispatchType(const var& syncValue, bool getDontForFalse)
+	{
+		using Type = dispatch::DispatchType;
+
 		if ((int)syncValue == SyncMagicNumber)
-			return true;
+			return Type::sendNotificationSync;
 
 		if ((int)syncValue == AsyncMagicNumber)
-			return false;
+			return Type::sendNotificationAsync;
 
 		if ((int)syncValue == AsyncHiPriorityMagicNumber)
-			return false;
+			return Type::sendNotificationAsyncHiPriority;
 
-		return (bool)syncValue;
+		return (bool)syncValue ? Type::sendNotificationSync : (getDontForFalse ? Type::dontSendNotification : Type::sendNotificationAsync);
+	}
+
+	static bool isSynchronous(const var& syncValue)
+	{
+		return getDispatchType(syncValue, false) == dispatch::DispatchType::sendNotificationSync;
 	}
 
 	static var getVarFromPoint(Point<float> pos);

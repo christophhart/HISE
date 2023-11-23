@@ -48,7 +48,7 @@ messageQueue(root, numAllocated)
 void Logger::flush()
 {
     TRACE_DISPATCH("flush logger");
-    messageQueue.flush(logToDebugger);
+    messageQueue.flush(logToDebugger, Queue::FlushType::Flush);
 }
 
 void Logger::printRaw(const char* rawMessage, size_t numBytes)

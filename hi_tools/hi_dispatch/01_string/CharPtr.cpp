@@ -132,5 +132,90 @@ HashedCharPtr::HashedCharPtr(const String & s) noexcept :
     hashed(cpl.hash())
 {}
 
+HashedPath::HashedPath():
+	handler(CharPtr::Type::Wildcard),
+	source(CharPtr::Type::Wildcard),
+	slot(CharPtr::Type::Wildcard),
+	dispatchType(CharPtr::Type::Wildcard)
+{}
+
+HashedPath::HashedPath(const HashedCharPtr* tokens):
+	handler(tokens[0] ? tokens[0] : HashedCharPtr(CharPtr::Type::Wildcard)),
+	source(tokens[1] ? tokens[1] : HashedCharPtr(CharPtr::Type::Wildcard)),
+	slot(tokens[2] ? tokens[2] : HashedCharPtr(CharPtr::Type::Wildcard)),
+	dispatchType(tokens[3] ? tokens[3] : HashedCharPtr(CharPtr::Type::Wildcard))
+{}
+
+bool HashedPath::operator==(const HashedPath& otherPath) const
+{
+	return handler == otherPath.handler &&
+		source == otherPath.source &&
+		slot == otherPath.slot &&
+		dispatchType == otherPath.dispatchType;
+}
+
+HashedPath HashedPath::parse(const HashedCharPtr& fullPath)
+{
+	auto start = const_cast<char*>(fullPath.get());
+	auto end = start + fullPath.length();
+	auto pos = start;
+	auto tokenStart = start;
+
+	auto delimiter = '.';
+
+	int tokenIndex = 0;
+
+	HashedCharPtr tokens[4];
+
+	if(*pos == delimiter)
+		throw Result::fail("expected token");
+
+	while(pos < end && tokenIndex < 4)
+	{
+		if(*pos == delimiter)
+		{
+			tokens[tokenIndex++] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (pos - tokenStart));
+			tokenStart = ++pos;
+		}
+
+		while(pos < end && *pos != delimiter)
+		{
+			if(*pos == '*')
+			{
+				tokens[tokenIndex++] = HashedCharPtr(CharPtr::Type::Wildcard);
+				++pos;
+
+				if(pos < end && *pos != delimiter)
+				{
+					throw Result::fail("expected '.'");
+				}
+                    
+				tokenStart = ++pos;
+
+				break;
+			}
+
+			pos++;
+		}
+	}
+
+	if(tokenStart < end && tokenIndex < 4)
+	{
+		tokens[tokenIndex] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (end - tokenStart));
+	}
+
+	return HashedPath(tokens);
+}
+
+HashedPath::operator String() const noexcept
+{
+	String s;
+	s << handler.toString() << '.';
+	s << source.toString() << '.';
+	s << slot.toString() << '.';
+	s << dispatchType.toString() << '.';
+
+	return s;
+}
 } // dispatch
 } // hise

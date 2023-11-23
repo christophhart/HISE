@@ -309,8 +309,14 @@ public:
      *   \param newValue the new value between 0.0 and 1.0
      *	\param notifyEditor if sendNotification, then a asynchronous message is sent.
      */
-    void setAttribute(int parameterIndex, float newValue, juce::NotificationType notifyEditor );
-    
+    void setAttribute(int parameterIndex, float newValue, dispatch::DispatchType notifyEditor );
+
+    void setAttribute(int parameterIndex, float newValue, NotificationType notifyEditor )
+    {
+	    auto nt = static_cast<dispatch::DispatchType>(notifyEditor);
+        setAttribute(parameterIndex, newValue, nt);
+    }
+
     /** returns the attribute with the specified index (use a enum in the derived class). */
     virtual float getAttribute(int parameterIndex) const = 0;
     

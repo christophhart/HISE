@@ -94,7 +94,7 @@ public:
 	void clearAttachedCallbacks();
 
 	/** Updates the given automation values and optionally sends out a message. */
-	void updateAutomationValues(var data, bool sendMessage, bool useUndoManager);
+	void updateAutomationValues(var data, var sendMessage, bool useUndoManager);
 
 	/** Returns the amount of seconds since the last preset has been loaded. */
 	double getSecondsSinceLastPresetLoad();
@@ -145,20 +145,24 @@ public:
 
 private:
 
-	struct AttachedCallback: public ReferenceCountedObject
+	struct AttachedCallback:	NEW_AUTOMATION_WITH_COMMA(public dispatch::ListenerOwner)
+								public ReferenceCountedObject
 	{
-		AttachedCallback(ScriptUserPresetHandler* parent, MainController::UserPresetHandler::CustomAutomationData::Ptr cData, var f, bool isSynchronous);
+		AttachedCallback(ScriptUserPresetHandler* parent, MainController::UserPresetHandler::CustomAutomationData::Ptr cData, var f, dispatch::DispatchType n);
 
 		~AttachedCallback();
 
-		WeakCallbackHolder customUpdateCallback;
-		WeakCallbackHolder customAsyncUpdateCallback;
-
 		static void onCallbackSync(AttachedCallback& c, var* args);
-
 		static void onCallbackAsync(AttachedCallback& c, int index, float newValue);
 
+		void onUpdate(int index, float value);
+
 		MainController::UserPresetHandler::CustomAutomationData::Ptr cData;
+		IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource::Listener listener);
+		WeakCallbackHolder customAsyncUpdateCallback;
+		WeakCallbackHolder customUpdateCallback;
+
+		dispatch::DispatchType n;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(AttachedCallback);
 	};

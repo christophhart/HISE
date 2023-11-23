@@ -218,96 +218,37 @@ private:
 
 struct HashedPath
 {
-	HashedPath():
-	  handler(CharPtr::Type::Wildcard),
-	  source(CharPtr::Type::Wildcard),
-	  slot(CharPtr::Type::Wildcard),
-	  dispatchType(CharPtr::Type::Wildcard)
-	{};
+	HashedPath();;
 
-    HashedPath(const HashedCharPtr* tokens):
-	  handler(tokens[0] ? tokens[0] : HashedCharPtr(CharPtr::Type::Wildcard)),
-	  source(tokens[1] ? tokens[1] : HashedCharPtr(CharPtr::Type::Wildcard)),
-	  slot(tokens[2] ? tokens[2] : HashedCharPtr(CharPtr::Type::Wildcard)),
-	  dispatchType(tokens[3] ? tokens[3] : HashedCharPtr(CharPtr::Type::Wildcard))
-	{};
+    HashedPath(CharPtr::Type t):
+      handler(HashedCharPtr(t)),
+      source(HashedCharPtr(t)),
+      slot(HashedCharPtr(t)),
+      dispatchType(HashedCharPtr(t))
+	{}
 
-    bool operator==(const HashedPath& otherPath) const
-    {
-	    return handler == otherPath.handler &&
-               source == otherPath.source &&
-               slot == otherPath.slot &&
-               dispatchType == otherPath.dispatchType;
-    }
+    HashedPath(const HashedCharPtr* tokens);;
 
-    bool operator!=(const HashedPath& otherPath) const
+    bool operator==(const HashedPath& otherPath) const;
+
+	bool operator!=(const HashedPath& otherPath) const
     {
 	    return !(*this == otherPath);
     }
 
-	static HashedPath parse(const HashedCharPtr& fullPath)
+	static HashedPath parse(const HashedCharPtr& fullPath);
+
+	explicit operator String() const noexcept;
+
+    bool isWildcard()  const noexcept
 	{
-        auto start = const_cast<char*>(fullPath.get());
-        auto end = start + fullPath.length();
-        auto pos = start;
-        auto tokenStart = start;
-
-        auto delimiter = '.';
-
-        int tokenIndex = 0;
-
-        HashedCharPtr tokens[4];
-
-        if(*pos == delimiter)
-            throw Result::fail("expected token");
-
-        while(pos < end && tokenIndex < 4)
-        {
-            if(*pos == delimiter)
-            {
-	            tokens[tokenIndex++] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (pos - tokenStart));
-                tokenStart = ++pos;
-            }
-
-	        while(pos < end && *pos != delimiter)
-	        {
-                if(*pos == '*')
-                {
-	                tokens[tokenIndex++] = HashedCharPtr(CharPtr::Type::Wildcard);
-					++pos;
-
-                    if(pos < end && *pos != delimiter)
-                    {
-	                    throw Result::fail("expected '.'");
-                    }
-                    
-                    tokenStart = ++pos;
-
-                    break;
-                }
-
-		        pos++;
-	        }
-        }
-
-        if(tokenStart < end && tokenIndex < 4)
-        {
-	        tokens[tokenIndex] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (end - tokenStart));
-        }
-
-        return HashedPath(tokens);
-	}
-
-    explicit operator String() const noexcept
-    {
-	    String s;
-        s << handler.toString() << '.';
-        s << source.toString() << '.';
-        s << slot.toString() << '.';
-        s << dispatchType.toString() << '.';
-
-        return s;
+    	return handler.isWildcard() && 
+			   source.isWildcard() && 
+			   slot.isWildcard() && 
+               dispatchType.isWildcard();
     }
+
+    static constexpr bool isHashed() { return true; }
 
 	HashedCharPtr handler;
 	HashedCharPtr source;

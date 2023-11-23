@@ -196,22 +196,18 @@ const Path Processor::getSymbol() const
 void Processor::setSymbol(Path newSymbol)
 {symbol = newSymbol;	}
 
-void Processor::setAttribute(int parameterIndex, float newValue, juce::NotificationType notifyEditor)
+void Processor::setAttribute(int parameterIndex, float newValue, dispatch::DispatchType notifyEditor)
 {
 	setInternalAttribute(parameterIndex, newValue);
 
-	auto nt = static_cast<dispatch::DispatchType>(notifyEditor);
-
-	
-
 #if HISE_OLD_PROCESSOR_DISPATCH
-	if(notifyEditor == sendNotification)
+	if(notifyEditor == dispatch::DispatchType::sendNotification)
 	{
-		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Attribute, nt);
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Attribute, notifyEditor);
 	}
 #endif
 #if HISE_NEW_PROCESSOR_DISPATCH
-	dispatcher.setAttribute(parameterIndex, newValue, nt);
+	dispatcher.setAttribute(parameterIndex, newValue, notifyEditor);
 #endif
 
 	

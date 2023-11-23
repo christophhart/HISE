@@ -46,6 +46,7 @@ MainController::MainController() :
 	javascriptThreadPool(new JavascriptThreadPool(this)),
 	rootDispatcher(getGlobalUIUpdater()),
 	processorHandler(rootDispatcher),
+	customAutomationSourceManager(rootDispatcher),
 	expansionHandler(this),
 	allNotesOffFlag(false),
 	processingBufferSize(-1),

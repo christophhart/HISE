@@ -611,9 +611,27 @@ public:
             bool prevValue;
         };
         
-		
+#define USE_OLD_AUTOMATION_DISPATCH 0
+#define USE_NEW_AUTOMATION_DISPATCH 1
+
+#if USE_OLD_AUTOMATION_DISPATCH
+#define IF_OLD_AUTOMATION_DISPATCH(x) x
+#define OLD_AUTOMATION_WITH_COMMA(x) x,
+#else
+#define IF_OLD_AUTOMATION_DISPATCH(x)
+#define OLD_AUTOMATION_WITH_COMMA(x)
+#endif
+
+#if USE_NEW_AUTOMATION_DISPATCH
+#define IF_NEW_AUTOMATION_DISPATCH(x) x
+#define NEW_AUTOMATION_WITH_COMMA(x) x,
+#else
+#define IF_NEW_AUTOMATION_DISPATCH(x)
+#define NEW_AUTOMATION_WITH_COMMA(x)
+#endif
 
 		struct CustomAutomationData : public ReferenceCountedObject,
+			NEW_AUTOMATION_WITH_COMMA(public dispatch::SourceOwner)
 									  public ControlledObject
 		{
 			using WeakPtr = WeakReference<CustomAutomationData>;
@@ -621,8 +639,6 @@ public:
 			using List = ReferenceCountedArray<CustomAutomationData>;
 
 			CustomAutomationData(CustomAutomationData::List newList, MainController* mc, int index_, const var& d);
-
-			
 
 			void updateFromConnectionValue(int preferredIndex);
 
@@ -638,8 +654,9 @@ public:
 			Result r;
 			var args[2];
 
-			LambdaBroadcaster<var*> syncListeners;
-			LambdaBroadcaster<int, float> asyncListeners;
+			IF_OLD_AUTOMATION_DISPATCH(LambdaBroadcaster<var*> syncListeners);
+			IF_OLD_AUTOMATION_DISPATCH(LambdaBroadcaster<int, float> asyncListeners);
+			IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource dispatcher);
 
 			struct ConnectionBase: public ReferenceCountedObject
 			{
@@ -649,7 +666,7 @@ public:
 				virtual ~ConnectionBase() {};
 				
 				virtual bool isValid() const = 0;
-				virtual void call(float v) const = 0;
+				virtual void call(float v, dispatch::DispatchType n) const = 0;
 
 				virtual String getDisplayString() const = 0;
 
@@ -658,15 +675,15 @@ public:
 				operator bool() const { return isValid(); }
 			};
 
-			void call(float newValue, bool sendToListeners = true, const std::function<bool(ConnectionBase*)>& connectionFilter = {});
+			void call(float newValue, dispatch::DispatchType n, const std::function<bool(ConnectionBase*)>& connectionFilter = {});
 
 			ConnectionBase::Ptr parse(CustomAutomationData::List newList, MainController* mc, const var& jsonData);
 
 			struct MetaConnection : public ConnectionBase
 			{
-				void call(float v) const final override
+				void call(float v, dispatch::DispatchType n) const final override
 				{
-					target->call(v, true);
+					target->call(v, n);
 				}
 
 				bool isValid() const final override
@@ -706,7 +723,7 @@ public:
 
 				float getLastValue() const final override;
 
-				void call(float v) const final override;
+				void call(float v, dispatch::DispatchType n) const final override;
 			};
 
 			ConnectionBase::List connectionList;
@@ -1439,6 +1456,9 @@ public:
 	dispatch::RootObject& getRootDispatcher() { return rootDispatcher; }
 	const dispatch::RootObject& getRootDispatcher() const { return rootDispatcher; }
 
+	dispatch::library::CustomAutomationSourceManager& getCustomAutomationSourceManager() { return customAutomationSourceManager; }
+	const dispatch::library::CustomAutomationSourceManager& getCustomAutomationSourceManager() const { return customAutomationSourceManager; }
+
 	dispatch::library::ProcessorHandler& getProcessorDispatchHandler() { return processorHandler; }
 	const dispatch::library::ProcessorHandler& getProcessorDispatchHandler() const { return processorHandler; }
 
@@ -2022,6 +2042,7 @@ private:
 	PooledUIUpdater globalUIUpdater;
 	dispatch::RootObject rootDispatcher;
 	dispatch::library::ProcessorHandler processorHandler;
+	dispatch::library::CustomAutomationSourceManager customAutomationSourceManager;
 
 	AudioSampleBuffer previewBuffer;
 	double previewBufferIndex = -1.0;
