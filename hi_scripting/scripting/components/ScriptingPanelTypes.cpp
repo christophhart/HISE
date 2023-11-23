@@ -433,6 +433,12 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 		overlay->setShowEditButton(false);
 	}
 
+	~Canvas()
+	{
+		overlay = nullptr;
+		content = nullptr;
+	}
+
 	static void overlayChanged(Canvas& c, const Image& img, float alpha)
 	{
 		c.overlayImage = img;
@@ -573,6 +579,9 @@ private:
 
 void ScriptContentPanel::Canvas::paint(Graphics& g)
 {
+	if(overlay == nullptr || content == nullptr)
+		return;
+
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF1b1b1b)));
 
 	auto overlayBounds = FLOAT_RECTANGLE(getLocalArea(overlay, overlay->getLocalBounds()));

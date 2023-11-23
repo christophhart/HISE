@@ -83,6 +83,8 @@ struct ScriptedPostDrawActions
 			monochrom(monochrom_) 
 		{};
 
+		SET_ACTION_ID(addNoise);
+
 		void perform(Graphics& g) override
 		{
 			m->drawNoiseMap(g, area, noise, monochrom, scale);
@@ -220,6 +222,8 @@ namespace ScriptedDrawActions
 {
 	struct fillAll : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(fillAll);
+
 		fillAll(Colour c_) : c(c_) {};
 		void perform(Graphics& g) { g.fillAll(c); };
 		Colour c;
@@ -227,6 +231,8 @@ namespace ScriptedDrawActions
 
 	struct setColour : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(setColour);
+
 		setColour(Colour c_) : c(c_) {};
 		void perform(Graphics& g) { g.setColour(c); };
 		Colour c;
@@ -234,6 +240,8 @@ namespace ScriptedDrawActions
 
 	struct addTransform : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(addTransform);
+
 		addTransform(AffineTransform a_) : a(a_) {};
 		void perform(Graphics& g) override { g.addTransform(a); };
 		AffineTransform a;
@@ -241,6 +249,8 @@ namespace ScriptedDrawActions
 
 	struct fillPath : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(fillPath);
+
 		fillPath(const Path& p_) : p(p_) {};
 		void perform(Graphics& g) override { g.fillPath(p); };
 		Path p;
@@ -248,6 +258,8 @@ namespace ScriptedDrawActions
 
 	struct drawPath : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawPath);
+
 		drawPath(const Path& p_, PathStrokeType strokeType) : p(p_), s(strokeType) {};
 		void perform(Graphics& g) override
 		{
@@ -259,6 +271,8 @@ namespace ScriptedDrawActions
 
 	struct fillRect : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(fillRect);
+
 		fillRect(Rectangle<float> area_) : area(area_) {};
 		void perform(Graphics& g) { g.fillRect(area); };
 		Rectangle<float> area;
@@ -266,6 +280,8 @@ namespace ScriptedDrawActions
 
 	struct fillEllipse : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(fillEllipse);
+
 		fillEllipse(Rectangle<float> area_) : area(area_) {};
 		void perform(Graphics& g) { g.fillEllipse(area); };
 		Rectangle<float> area;
@@ -273,6 +289,8 @@ namespace ScriptedDrawActions
 
 	struct drawRect : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawRect);
+
 		drawRect(Rectangle<float> area_, float borderSize_) : area(area_), borderSize(borderSize_) {};
 		void perform(Graphics& g) { g.drawRect(area, borderSize); };
 		Rectangle<float> area;
@@ -281,6 +299,8 @@ namespace ScriptedDrawActions
 
 	struct drawEllipse : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawEllipse);
+
 		drawEllipse(Rectangle<float> area_, float borderSize_) : area(area_), borderSize(borderSize_) {};
 		void perform(Graphics& g) { g.drawEllipse(area, borderSize); };
 		Rectangle<float> area;
@@ -289,6 +309,8 @@ namespace ScriptedDrawActions
 
 	struct fillRoundedRect : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(fillRoundedRect);
+
 		fillRoundedRect(Rectangle<float> area_, float cornerSize_) :
 			area(area_), cornerSize(cornerSize_) {};
 		void perform(Graphics& g) 
@@ -316,6 +338,8 @@ namespace ScriptedDrawActions
 
 	struct drawRoundedRectangle : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawRoundedRectangle);
+
 		drawRoundedRectangle(Rectangle<float> area_, float borderSize_, float cornerSize_) :
 			area(area_), borderSize(borderSize_), cornerSize(cornerSize_) {};
 		void perform(Graphics& g) 
@@ -343,6 +367,8 @@ namespace ScriptedDrawActions
 
 	struct drawImageWithin : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawImageWithin);
+
 		drawImageWithin(const Image& img_, Rectangle<float> r_) :
 			img(img_), r(r_) {};
 
@@ -360,6 +386,8 @@ namespace ScriptedDrawActions
 
 	struct drawImage : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawImage);
+
 		drawImage(const Image& img_, Rectangle<float> r_, float scaleFactor_, int yOffset_) :
 			img(img_), r(r_), scaleFactor(scaleFactor_), yOffset(yOffset_) {};
 
@@ -379,6 +407,8 @@ namespace ScriptedDrawActions
 
 	struct drawHorizontalLine : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawHorizontalLine);
+
 		drawHorizontalLine(int y_, float x1_, float x2_) :
 			y(y_), x1(x1_), x2(x2_) {};
 		void perform(Graphics& g) { g.drawHorizontalLine(y, x1, x2); };
@@ -387,6 +417,8 @@ namespace ScriptedDrawActions
 
 	struct drawVerticalLine : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawVerticalLine);
+
 		drawVerticalLine(int x_, float y1_, float y2_) :
 			x(x_), y1(y1_), y2(y2_) {};
 		void perform(Graphics& g) { g.drawVerticalLine(x, y1, y2); };
@@ -395,6 +427,8 @@ namespace ScriptedDrawActions
 
 	struct setOpacity : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(setOpacity);
+
 		setOpacity(float alpha_) :
 			alpha(alpha_) {};
 		void perform(Graphics& g) { g.setOpacity(alpha); };
@@ -403,6 +437,8 @@ namespace ScriptedDrawActions
 
 	struct drawLine : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawLine);
+
 		drawLine(float x1_, float x2_, float y1_, float y2_, float lineThickness_) :
 			x1(x1_), x2(x2_), y1(y1_), y2(y2_), lineThickness(lineThickness_) {};
 		void perform(Graphics& g) { g.drawLine(x1, x2, y1, y2, lineThickness); };
@@ -411,6 +447,8 @@ namespace ScriptedDrawActions
 
 	struct setFont : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(setFont);
+
 		setFont(Font f_) : f(f_) {};
 		void perform(Graphics& g) { g.setFont(f); };
 		Font f;
@@ -418,6 +456,8 @@ namespace ScriptedDrawActions
 
 	struct setGradientFill : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(setGradientFill);
+
 		setGradientFill(ColourGradient grad_) : grad(grad_) {};
 		void perform(Graphics& g) { g.setGradientFill(grad); };
 		ColourGradient grad;
@@ -425,6 +465,8 @@ namespace ScriptedDrawActions
 
 	struct drawText : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawText);
+
 		drawText(const String& text_, Rectangle<float> area_, Justification j_ = Justification::centred) : text(text_), area(area_), j(j_) {};
 		void perform(Graphics& g) override { g.drawText(text, area, j); };
 		String text;
@@ -434,6 +476,8 @@ namespace ScriptedDrawActions
 	
 	struct drawFittedText : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawFittedText);
+
 		drawFittedText(const String& text_, var area_, Justification j_, int maxLines_, float scale_ = Justification::centred) : text(text_), area(area_), j(j_), maxLines(maxLines_), scale(scale_) {};
 		void perform(Graphics& g) override { g.drawFittedText(text, area[0], area[1], area[2], area[3], j, maxLines, scale); };
 		String text;
@@ -445,6 +489,8 @@ namespace ScriptedDrawActions
 
 	struct drawMultiLineText : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawMultiLineText);
+
 		drawMultiLineText(const String& text_, int startX_, int baseLineY_, int maxWidth_, Justification j_ = Justification::centred, float leading_ = 0.0f) : text(text_), startX(startX_), baseLineY(baseLineY_), maxWidth(maxWidth_), j(j_), leading(leading_) {};
 		void perform(Graphics& g) override { g.drawMultiLineText(text, startX, baseLineY, maxWidth, j, leading); };
 		String text;
@@ -457,6 +503,8 @@ namespace ScriptedDrawActions
 
 	struct drawDropShadow : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawDropShadow);
+
 		drawDropShadow(Rectangle<int> r_, DropShadow& shadow_) : r(r_), shadow(shadow_) {};
 		void perform(Graphics& g) override { shadow.drawForRectangle(g, r); };
 		Rectangle<int> r;
@@ -465,6 +513,8 @@ namespace ScriptedDrawActions
 
 	struct addDropShadowFromAlpha : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(addDropShadowFromAlpha);
+
 		addDropShadowFromAlpha(const DropShadow& shadow_) : shadow(shadow_) {};
 
 		bool wantsCachedImage() const override { return true; };
@@ -501,6 +551,8 @@ namespace ScriptedDrawActions
 
 	struct drawDropShadowFromPath : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(drawDropShadowFromPath);
+
 		drawDropShadowFromPath(const Path& p_, Rectangle<float> a, Colour c_, int r_) :
 			p(p_),
 			c(c_),
@@ -537,6 +589,8 @@ namespace ScriptedDrawActions
 
     struct drawSVG: public DrawActions::ActionBase
     {
+		SET_ACTION_ID(drawSVG);
+
         drawSVG(var svgObject, Rectangle<float> bounds_, float opacity_):
            svg(svgObject),
            bounds(bounds_),
@@ -560,6 +614,8 @@ namespace ScriptedDrawActions
 
 	struct addShader : public DrawActions::ActionBase
 	{
+		SET_ACTION_ID(addShader);
+
 		addShader(DrawActions::Handler* h, ScriptingObjects::ScriptShader* o, Rectangle<int> b) :
 			obj(o),
 			handler(h),

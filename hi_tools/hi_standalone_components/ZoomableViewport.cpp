@@ -297,7 +297,7 @@ void ZoomableViewport::paint(Graphics& g)
 {
 	g.fillAll(findColour(ColourIds::backgroundColourId));
 
-	if (!content->isVisible())
+	if (content != nullptr && !content->isVisible())
 	{
 		g.setColour(Colours::black.withAlpha(swapAlpha));
 		g.drawImage(swapImage, swapBounds);

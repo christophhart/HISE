@@ -259,11 +259,13 @@ struct FuzzyTester;
 #define SUSPEND_GLOBAL_DISPATCH(mc, description) dispatch::RootObject::ScopedGlobalSuspender sps(mc->getRootDispatcher(), dispatch::Paused, dispatch::CharPtr(description));
 
 #if PERFETTO
-#define TRACE_FLUSH(x) StringBuilder b; b << "flush " << n << ": " << x; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-#define TRACE_FLUSH_FLOW(x, flow) StringBuilder b; b << "flush " << n << ": " << x; TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), flow);
+#define TRACE_FLUSH(x) dispatch::StringBuilder b; b << "flush " << n << ": " << x; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
+#define TRACE_OPEN_FLOW(x, flow) dispatch::StringBuilder b; b << "send " << n << ": " << x; TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), flow);
+#define TRACE_FLUSH_FLOW(x, flow) dispatch::StringBuilder b; b << "flush " << n << ": " << x; TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), flow);
 #define TRACE_DISPATCH_CALLBACK(obj, callbackName, arg) StringBuilder n; n << (obj).getDispatchId() << "." << callbackName << "(" << (int)arg << ")"; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(n));
 #else
 #define TRACE_FLUSH(x);
+#define TRACE_OPEN_FLOW(x, flow);
 #define TRACE_FLUSH_FLOW(x, flow);
 #define TRACE_DISPATCH_CALLBACK(obj, callbackName, arg);
 #endif

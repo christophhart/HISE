@@ -52,6 +52,18 @@ public:
 		numEnterStates
 	};
 
+	static Identifier getEnterStateAsIdentifier(EnterState s)
+	{
+		switch(s)
+		{
+		case Nothing: { RETURN_STATIC_IDENTIFIER("Nothing"); }
+		case Entered: { RETURN_STATIC_IDENTIFIER("Entered"); }
+		case Exited: { RETURN_STATIC_IDENTIFIER("Exited"); }
+		case numEnterStates:
+		default: return {};
+		}
+	}
+
 	enum class Action
 	{
 		Moved,
@@ -67,6 +79,25 @@ public:
 		Nothing
 	};
 
+	static Identifier getActionAsIdentifier(Action a)
+	{
+		switch(a)
+		{
+		case Action::Moved: { RETURN_STATIC_IDENTIFIER("Moved"); }
+		case Action::Dragged: { RETURN_STATIC_IDENTIFIER("Dragged"); }
+		case Action::Clicked: { RETURN_STATIC_IDENTIFIER("Clicked"); }
+		case Action::DoubleClicked: { RETURN_STATIC_IDENTIFIER("DoubleClicked"); }
+		case Action::MouseUp: { RETURN_STATIC_IDENTIFIER("MouseUp"); }
+		case Action::Entered: { RETURN_STATIC_IDENTIFIER("Entered"); }
+		case Action::FileMove: { RETURN_STATIC_IDENTIFIER("FileMove"); }
+		case Action::FileEnter: { RETURN_STATIC_IDENTIFIER("FileEnter"); }
+		case Action::FileExit: { RETURN_STATIC_IDENTIFIER("FileExit"); }
+		case Action::FileDrop: { RETURN_STATIC_IDENTIFIER("FileDrop"); }
+		case Action::Nothing: { RETURN_STATIC_IDENTIFIER("Nothing"); }
+		default: return {};
+		}
+	}
+
 	enum class CallbackLevel
 	{
 		NoCallbacks = 0,
@@ -76,6 +107,20 @@ public:
 		Drag,
 		AllCallbacks
 	};
+
+	static Identifier getCallbackLevelAsIdentifier(CallbackLevel c)
+	{
+		switch(c)
+		{
+		case CallbackLevel::NoCallbacks: { RETURN_STATIC_IDENTIFIER("NoCallbacks"); };
+		case CallbackLevel::PopupMenuOnly: { RETURN_STATIC_IDENTIFIER("PopupMenuOnly"); };
+		case CallbackLevel::ClicksOnly: { RETURN_STATIC_IDENTIFIER("ClicksOnly"); };
+		case CallbackLevel::ClicksAndEnter: { RETURN_STATIC_IDENTIFIER("ClicksAndEnter"); };
+		case CallbackLevel::Drag: { RETURN_STATIC_IDENTIFIER("Drag"); };
+		case CallbackLevel::AllCallbacks: { RETURN_STATIC_IDENTIFIER("AllCallbacks"); };
+		default: return {};
+		}
+	}
 
 	enum class FileCallbackLevel
 	{
@@ -242,6 +287,12 @@ private:
 	// ================================================================================================================
 };
 
+
+
+
+
+#define SET_ACTION_ID(x) dispatch::HashedCharPtr getDispatchId() const override { return dispatch::HashedCharPtr(#x); }
+
 struct DrawActions
 {
 	class PostActionBase : public ReferenceCountedObject
@@ -264,6 +315,8 @@ struct DrawActions
 		virtual bool wantsCachedImage() const;;
 		virtual bool wantsToDrawOnParent() const;
 
+		virtual dispatch::HashedCharPtr getDispatchId() const = 0;
+
 		virtual void setCachedImage(Image& actionImage_, Image& mainImage_);
 		virtual void setScaleFactor(float sf);
 
@@ -284,6 +337,8 @@ struct DrawActions
 	{
 		MarkdownAction();;
 
+		SET_ACTION_ID(renderMarkdown);
+
 		using Ptr = ReferenceCountedObjectPtr<MarkdownAction>;
 
 		void perform(Graphics& g) override;
@@ -300,6 +355,8 @@ struct DrawActions
 		using Ptr = ReferenceCountedObjectPtr<ActionLayer>;
 
 		ActionLayer(bool drawOnParent_);;
+
+		SET_ACTION_ID(layer);
 
 		bool wantsCachedImage() const override;
 
@@ -329,6 +386,8 @@ struct DrawActions
 	public:
 
 		BlendingLayer(gin::BlendMode m, float alpha_);
+
+		SET_ACTION_ID(blendLayer);
 
 		bool wantsCachedImage() const override;
 
@@ -384,7 +443,7 @@ struct DrawActions
 		struct Listener
 		{
 			virtual ~Listener();;
-			virtual void newPaintActionsAvailable() = 0;
+			virtual void newPaintActionsAvailable(uint64_t perfettoTrackIndex) = 0;
 
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 		};
@@ -403,7 +462,7 @@ struct DrawActions
 
 		void addDrawAction(ActionBase* newDrawAction);
 
-		void flush();
+		void flush(uint64_t perfettoTrackId);
 
 		void logError(const String& message);
 
@@ -424,6 +483,8 @@ struct DrawActions
 		NoiseMapManager* getNoiseMapManager();
 
 	private:
+
+		dispatch::AccumulatedFlowManager flowManager;
 
 		SharedResourcePointer<NoiseMapManager> noiseManager;
 
@@ -467,7 +528,7 @@ public:
 
 	void openGLContextClosing() override;
 
-	void newPaintActionsAvailable() override;
+	void newPaintActionsAvailable(uint64_t flowId) override;
 
 	void paint(Graphics &g);
 	Colour c1, c2, borderColour;
@@ -502,6 +563,8 @@ public:
 	ImageButton closeButton;
 
 	WeakReference<DrawActions::Handler> drawHandler;
+
+	dispatch::AccumulatedFlowManager flowManager;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BorderPanel);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BorderPanel);

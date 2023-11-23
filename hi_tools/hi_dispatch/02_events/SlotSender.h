@@ -40,49 +40,45 @@ using namespace juce;
 class PerfettoFlowManager
 {
 public:
-
 	using PerfettoFlowType = std::function<void(perfetto::EventContext&)>;
-
-	PerfettoFlowManager(RootObject& r, const HashedCharPtr& parent_, const HashedCharPtr& object_):
-	  root(r),
-	  parent(parent_),
-	  object(object_)
-	{
-		b.ensureAllocated(256);
-	}
-
-	void openFlow(DispatchType n, uint8 slotIndex)
-	{
-		b.clearQuick();
-		b << "send " << n << " " << parent << "::" << object << "[" << (int)slotIndex << "]";
-
-		auto& p = pendingFlows.get(n);
-
-		if(p == 0)
-			p = root.bumpFlowCounter();
-		
-		TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(p));
-	}
-
-	PerfettoFlowType closeFlow(DispatchType n)
-	{
-		//b.clearQuick();
-		//b << "flush " << n << " " << parent << "::" << object;
-
-		auto pending = pendingFlows.get(n);
-
-		pendingFlows.get(n) = 0;
-		return perfetto::TerminatingFlow::ProcessScoped(pending);
-	}
+	PerfettoFlowManager(RootObject& r, const HashedCharPtr& parent, const HashedCharPtr& object);
+	void openFlow(DispatchType n, uint8 slotIndex);
+	PerfettoFlowType closeFlow(DispatchType n);
+	StringBuilder& getStringBuilder();;
 
 private:
 
-	HashedCharPtr parent, object;
 	StringBuilder b;
 	DispatchTypeContainer<uint64_t> pendingFlows;
 	std::function<uint64_t()> requestFunction;
-	RootObject& root;
+	RootObject* root;
 };
+
+struct AccumulatedFlowManager
+{
+	void flushSingle(uint64_t idx, StringBuilder& b);
+
+	void continueFlow(uint64_t idx, const char* stepName);
+
+	void openFlow(uint64_t idx, const char* stepName, const Identifier& id, const String& locationString)
+	{
+		if(idx != 0)
+		{
+			pendingTracks.insertWithoutSearch(idx);
+			dispatch::StringBuilder b;
+			b << stepName << id;
+
+			TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(idx), "script_location", DYNAMIC_STRING(locationString));
+		}
+	}
+
+	void flushAll(const char* stepName);
+
+	uint64_t flushAllButLastOne(const char* stepName, const Identifier& id);
+
+	UnorderedStack<uint32_t, 32> pendingTracks;
+};
+
 #else
 class PerfettoFlowManager
 {
@@ -92,6 +88,15 @@ public:
 
 	void openFlow(DispatchType n, uint8 slotIndex) {};
 	void closeFlow(DispatchType n) {};
+};
+
+struct AccumulatedFlowManager
+{
+	void flushSingle(uint64_t , StringBuilder& ) {};
+	void continueFlow(uint64_t, const char* ) {};
+	void openFlow(uint64_t , const char* , const Identifier& , const String& ) {}
+	void flushAll(const char* ) {}
+	uint64_t flushAllButLastOne(const char* , const Identifier& ) { retrun 0; }
 };
 #endif
 

@@ -288,14 +288,6 @@ void GlobalHiseLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool
 {
 	drawHiBackground(g, 0, 0, b.getWidth(), b.getHeight() - 2, &b, isMouseOverButton);
 
-
-
-#if 0
-	const int filmStripHeight = cachedImage_toggle_png.getHeight() / 2;
-
-	Image clip = Image(cachedImage_toggle_png.getClippedImage(Rectangle<int>(0, b.getToggleState() ? filmStripHeight: 0, filmStripHeight, filmStripHeight)));
-#endif
-
 	g.setColour (b.getToggleState() ? Colours::white.withAlpha(0.9f) : Colours::white.withAlpha(0.4f));
 	g.setFont (GLOBAL_FONT());
 
@@ -313,7 +305,7 @@ void GlobalHiseLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool
 	g.setColour(Colours::black.withAlpha(0.5f));
 	g.fillEllipse(area);
 	g.setColour(Colours::white.withAlpha(b.getToggleState() ? 0.8f : 0.2f));
-	g.fillEllipse(area.reduced(JUCE_LIVE_CONSTANT(3.0f)));
+	g.fillEllipse(area.reduced(JUCE_LIVE_CONSTANT_OFF(3.0f)));
 }
 
 GlobalHiseLookAndFeel::GlobalHiseLookAndFeel()

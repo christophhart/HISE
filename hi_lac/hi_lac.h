@@ -145,6 +145,8 @@ PERFETTO_DEFINE_CATEGORIES(
 	.SetDescription("Component"),
     perfetto::Category("dispatch")
     .SetDescription("dispatch"),
+    perfetto::Category("drawactions")
+    .SetDescription("drawactions"),
     perfetto::Category("scripting")
     .SetDescription("scripting"),
 	perfetto::Category("dsp")

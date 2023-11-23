@@ -2416,10 +2416,22 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 
 bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject, Component* c)
 {
+#if PERFETTO
+
+	dispatch::StringBuilder n;
+
+	if(c != nullptr)
+		n << c->getName() << ".";
+
+	n << functionname << "()";
+
+	TRACE_SCRIPTING(DYNAMIC_STRING_BUILDER(n));
+
+#endif
+
     // If this hits, you need to add that id to the array above.
 	jassert(getAllFunctionNames().contains(functionname));
 
-	PerfettoHelpers::setCurrentThreadName("Message Thread");
 
 	if (!lastResult.wasOk())
 		return false;
@@ -2461,6 +2473,8 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		{
 			if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock()))
 			{
+				TRACE_SCRIPTING("executing script function");
+
 				if (c != nullptr && c->getParentComponent() != nullptr)
 				{
 					var n = c->getParentComponent()->getName();
@@ -2499,11 +2513,13 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 				engine->callExternalFunction(f, arg, &lastResult, true);
 
 				if (lastResult.wasOk())
-					g->getDrawHandler().flush();
+					g->getDrawHandler().flush(0);
 				else
 					debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), lastResult.getErrorMessage());
 			}
 		}
+
+		TRACE_SCRIPTING("rendering draw actions");
 
 		DrawActions::Handler::Iterator it(&g->getDrawHandler());
 
@@ -2514,7 +2530,16 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 		else
 		{
 			while (auto action = it.getNextAction())
+			{
+#if PERFETTO
+			dispatch::StringBuilder b;
+			b << "g." << action->getDispatchId() << "()";
+			TRACE_EVENT("drawactions", DYNAMIC_STRING_BUILDER(b));
+#endif
+
 				action->perform(g_);
+			}
+				
 		}
         
 		return true;

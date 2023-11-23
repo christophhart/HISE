@@ -4134,27 +4134,8 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptPanel::createCompon
 void ScriptingApi::Content::ScriptPanel::repaint()
 {
 #if PERFETTO
-	auto thisId = perfettoRepaintId++;
-
-	pendingPerfettoRepaints.insertWithoutSearch(thisId);
-
-	dispatch::StringBuilder b, loc;
-
-	b << "repaint " << getName();
-
-	auto l = getCurrentLocationInFunctionCall();
-
-	loc << "goto ";
-
-	if(l.fileName.isEmpty())
-		loc << "onInit";
-	else
-		loc << l.fileName;
-
-	loc << "@" << l.charNumber;
-
-	TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(thisId), "script_location", DYNAMIC_STRING_BUILDER(loc));
-
+	auto newId = getScriptProcessor()->getMainController_()->getRootDispatcher().bumpFlowCounter();
+	flowManager.openFlow(newId, "repaint ", getName(), getCurrentLocationInFunctionCall().toGotoString());
 #endif
 
 	auto threadId = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
@@ -4225,18 +4206,10 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 {
 	jassert_locked_script_thread(dynamic_cast<Processor*>(getScriptProcessor())->getMainController());
 
+	uint64_t lastId = 0;
+
 #if PERFETTO
-
-	dispatch::StringBuilder b;
-	b << "paint callback " << getName();
-
-	for(auto& id: pendingPerfettoRepaints)
-	{
-		TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(b), perfetto::TerminatingFlow::ProcessScoped(id));
-	}
-
-	pendingPerfettoRepaints.clearQuick();
-	
+	lastId = flowManager.flushAllButLastOne("paint callback", getName());
 #endif
 
 	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
@@ -4280,7 +4253,7 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 	}
 
-	graphics->getDrawHandler().flush();
+	graphics->getDrawHandler().flush(lastId);
 
 	return true;
 }
@@ -4295,6 +4268,7 @@ void ScriptingApi::Content::ScriptPanel::setLoadingCallback(var loadingCallback)
 		loadRoutine.incRefCount();
 		loadRoutine.setThisObject(this);
 		loadRoutine.setHighPriority();
+		loadRoutine.addAsSource(this, "loadingCallback");
 	}
     else
     {
@@ -4318,6 +4292,7 @@ void ScriptingApi::Content::ScriptPanel::setFileDropCallback(String callbackLeve
 	fileDropRoutine.incRefCount();
 	fileDropRoutine.setThisObject(this);
 	fileDropRoutine.setHighPriority();
+	fileDropRoutine.addAsSource(this, "fileDropCallback");
 
 }
 
@@ -4327,6 +4302,7 @@ void ScriptingApi::Content::ScriptPanel::setMouseCallback(var mouseCallbackFunct
 	mouseRoutine.incRefCount();
 	mouseRoutine.setThisObject(this);
 	mouseRoutine.setHighPriority();
+	mouseRoutine.addAsSource(this, "mouseCallback");
 }
 
 void ScriptingApi::Content::ScriptPanel::fileDropCallback(var fileInformation)
@@ -4356,6 +4332,7 @@ void ScriptingApi::Content::ScriptPanel::setTimerCallback(var timerCallback_)
 	timerRoutine = WeakCallbackHolder(getScriptProcessor(), this, timerCallback_, 0);
 	timerRoutine.incRefCount();
 	timerRoutine.setThisObject(this);
+	timerRoutine.addAsSource(this, "timerCallback");
 }
 
 
@@ -4564,7 +4541,7 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 	{
 		drawHandler->beginDrawing();
 		drawHandler->addDrawAction(new ScriptedDrawActions::drawImageWithin(img, b.toFloat()));
-		drawHandler->flush();
+		drawHandler->flush(0);
 	}
 }
 
@@ -4818,7 +4795,7 @@ void ScriptingApi::Content::ScriptPanel::setAnimationFrame(int numFrame)
 	{
 		animation->setFrame(numFrame);
 		updateAnimationData();
-		graphics->getDrawHandler().flush();
+		graphics->getDrawHandler().flush(0);
 	}
 #else
 	reportScriptError("RLottie is disabled. Compile with HISE_INCLUDE_RLOTTIE");

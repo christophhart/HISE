@@ -1119,11 +1119,11 @@ void ScriptContentComponent::ComponentDragInfo::callRepaint()
 		paintRoutine.callSync(args, 2, nullptr);
 
 		auto handler = &dynamic_cast<ScriptingObjects::GraphicsObject*>(graphicsObject.getObject())->getDrawHandler();
-		handler->flush();
+		handler->flush(0);
 	}
 }
 
-void ScriptContentComponent::ComponentDragInfo::newPaintActionsAvailable()
+void ScriptContentComponent::ComponentDragInfo::newPaintActionsAvailable(uint64_t)
 {
 	if (!parent.isDragAndDropActive())
 	{

@@ -36,7 +36,99 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+#if PERFETTO
+PerfettoFlowManager::PerfettoFlowManager(RootObject& r, const HashedCharPtr& parent, const HashedCharPtr& object):
+	root(&r)
+{
+	if(parent || object)
+		b << "send " << parent << "::" << object;
+}
 
+void PerfettoFlowManager::openFlow(DispatchType n, uint8 slotIndex)
+{
+	StringBuilder b2;
+	b2 << b;
+	b2 << "[" << (int)slotIndex << "] (" << n << ")";
+
+	auto& p = pendingFlows.get(n);
+
+	if(p == 0)
+		p = root->bumpFlowCounter();
+		
+	TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b2), perfetto::Flow::ProcessScoped(p));
+}
+
+PerfettoFlowManager::PerfettoFlowType PerfettoFlowManager::closeFlow(DispatchType n)
+{
+	//b.clearQuick();
+	//b << "flush " << n << " " << parent << "::" << object;
+
+	auto pending = pendingFlows.get(n);
+
+	pendingFlows.get(n) = 0;
+	return perfetto::TerminatingFlow::ProcessScoped(pending);
+}
+
+StringBuilder& PerfettoFlowManager::getStringBuilder()
+{
+	b.clearQuick();
+	return b;
+}
+
+void AccumulatedFlowManager::flushSingle(uint64_t idx, dispatch::StringBuilder& b)
+{
+	if(idx != 0)
+	{
+		TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(b), perfetto::TerminatingFlow::ProcessScoped(idx));
+	}
+}
+
+void AccumulatedFlowManager::continueFlow(uint64_t idx, const char* stepName)
+{
+	if(idx != 0)
+	{
+		pendingTracks.insert(idx);
+
+		dispatch::StringBuilder b;
+		b << stepName;
+		TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(idx));
+	}
+}
+
+void AccumulatedFlowManager::flushAll(const char* stepName)
+{
+	dispatch::StringBuilder b;
+	b << stepName;
+	// Close all but the last one...
+	for(auto& pt: pendingTracks)
+	{
+		flushSingle(pt, b);
+	}
+
+	pendingTracks.clearQuick();
+}
+
+uint64_t AccumulatedFlowManager::flushAllButLastOne(const char* stepName, const Identifier& id)
+{
+	if(pendingTracks.isEmpty())
+		return 0;
+
+	dispatch::StringBuilder b;
+	b << stepName << id;
+
+	int numPerfettoIds = pendingTracks.size();
+	auto lastId = pendingTracks[numPerfettoIds - 1];
+	// Close all but the last one...
+	for(int i = 0; i < numPerfettoIds-1; i++)
+	{
+		flushSingle(pendingTracks[i], b);
+	}
+
+	pendingTracks.clearQuick();
+	return lastId;
+}
+
+#endif
 
 SlotSender::SlotSender(Source& s, uint8 index_, const HashedCharPtr& id_):
 	index(index_),

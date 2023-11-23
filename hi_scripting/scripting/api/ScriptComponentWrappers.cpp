@@ -193,6 +193,14 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 
 	void sendMessageOrAsync(const MouseEvent& event, MouseCallbackComponent::Action action, MouseCallbackComponent::EnterState state, int popupMenuIndex = -1)
 	{
+		dispatch::StringBuilder n;
+
+		n << "mouse callback for " << scriptComponent->getName() << ": [";
+		n << MouseCallbackComponent::getCallbackLevelAsIdentifier(data.mouseCallbackLevel);
+		n << ", " << MouseCallbackComponent::getActionAsIdentifier(action) << "]";
+	
+		TRACE_EVENT("component", DYNAMIC_STRING_BUILDER(n));
+
 		if (data.delayMilliseconds == 0)
 			sendMessage(event, action, state, popupMenuIndex);
 		else

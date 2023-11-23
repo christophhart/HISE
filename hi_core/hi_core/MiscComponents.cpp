@@ -639,6 +639,12 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, Ent
 	if (callbackLevel == CallbackLevel::NoCallbacks) 
 		return;
 
+	dispatch::StringBuilder n;
+
+	n << "panel mouse callback for " << Component::getName() << ": [" << getCallbackLevelAsIdentifier(callbackLevel) << ", " << getActionAsIdentifier(action) << "]";
+	
+	TRACE_EVENT("component", DYNAMIC_STRING_BUILDER(n));
+
 	sendToListeners(getMouseCallbackObject(this, e, callbackLevel, action, state));
 }
 
@@ -882,7 +888,7 @@ void DrawActions::Handler::addDrawAction(ActionBase* newDrawAction)
 		currentActions.add(newDrawAction);
 }
 
-void DrawActions::Handler::flush()
+void DrawActions::Handler::flush(uint64_t perfettoTrackId)
 {
 	{
 		SpinLock::ScopedLockType sl(lock);
@@ -891,6 +897,9 @@ void DrawActions::Handler::flush()
 		currentActions.clear();
 		layerStack.clear();
 	}
+
+	if(perfettoTrackId != 0)
+		flowManager.continueFlow(perfettoTrackId, "flush draw handler");
 
 	triggerAsyncUpdate();
 }
@@ -925,10 +934,12 @@ DrawActions::NoiseMapManager* DrawActions::Handler::getNoiseMapManager()
 
 void DrawActions::Handler::handleAsyncUpdate()
 {
+	auto x = flowManager.flushAllButLastOne("flush draw handler", {});
+
 	for (auto l : listeners)
 	{
 		if (l != nullptr)
-			l->newPaintActionsAvailable();
+			l->newPaintActionsAvailable(x);
 	}
 }
 
@@ -1022,8 +1033,11 @@ void BorderPanel::openGLContextClosing()
 {
 }
 
-void BorderPanel::newPaintActionsAvailable()
-{ repaint(); }
+void BorderPanel::newPaintActionsAvailable(uint64_t flowId)
+{
+	flowManager.continueFlow(flowId, "repaint request");
+	repaint();
+}
 
 void BorderPanel::registerToTopLevelComponent()
 {
@@ -1100,9 +1114,20 @@ struct GraphicHelpers
 
 void BorderPanel::paint(Graphics &g)
 {
+
+	dispatch::StringBuilder n;
+
+	bool hasOpenGL = false;
+
+	if(auto c = TopLevelWindowWithOptionalOpenGL::findRoot(this))
+		hasOpenGL = dynamic_cast<TopLevelWindowWithOptionalOpenGL*>(c)->isOpenGLEnabled();
 	
+	n << Component::getName() << "::paint()";
+	TRACE_EVENT("component", DYNAMIC_STRING_BUILDER(n));
+	PerfettoHelpers::setCurrentThreadName(!hasOpenGL ? "UI Render Thread (Software)" : "UI Render Thread (Open GL)");
 
-
+	flowManager.flushAll("juce::Component paint routine");
+	
 	registerToTopLevelComponent();
 
 	
@@ -1110,6 +1135,7 @@ void BorderPanel::paint(Graphics &g)
 #if HISE_INCLUDE_RLOTTIE
 	if (animation != nullptr)
 	{
+		TRACE_EVENT("component", "rendering lottie");
 		animation->render(g, { 0, 0 });
 		return;
 	}
@@ -1117,6 +1143,8 @@ void BorderPanel::paint(Graphics &g)
 
 	if (isUsingCustomImage)
 	{
+		TRACE_EVENT("component", "rendering script draw actions");
+
         SET_IMAGE_RESAMPLING_QUALITY();
 		
 		if (isOpaque())
@@ -1485,6 +1513,12 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 
 		while (auto action = getNextAction())
 		{
+#if PERFETTO
+			dispatch::StringBuilder b;
+			b << "g." << action->getDispatchId() << "()";
+			TRACE_EVENT("drawactions", DYNAMIC_STRING_BUILDER(b));
+#endif
+
 			if (action->wantsCachedImage())
 			{
 				Image actionImage;
@@ -1517,7 +1551,16 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 	else
 	{
 		while (auto action = getNextAction())
+		{
+#if PERFETTO
+			dispatch::StringBuilder b;
+			b << "g." << action->getDispatchId() << "()";
+			TRACE_EVENT("drawactions", DYNAMIC_STRING_BUILDER(b));
+#endif
+
 			action->perform(g);
+		}
+			
 	}
 }
 

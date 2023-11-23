@@ -1788,12 +1788,7 @@ public:
 		String fileDropExtension;
 		String fileDropLevel;
 
-
-#if PERFETTO
-		uint64_t perfettoRepaintId = 0;
-		UnorderedStack<uint64_t> pendingPerfettoRepaints;
-#endif
-		
+		dispatch::AccumulatedFlowManager flowManager;
 
 	private:
 

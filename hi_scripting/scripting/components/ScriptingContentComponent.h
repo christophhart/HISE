@@ -300,7 +300,7 @@ private:
 
 		void callRepaint();
 
-		void newPaintActionsAvailable() override;
+		void newPaintActionsAvailable(uint64_t) override;
 
 	private:
 
