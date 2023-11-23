@@ -1626,7 +1626,7 @@ float MainController::getStringWidthFromEmbeddedFont(const String& text, const S
 	{
 		auto nameToUse = tf.id.isValid() ? tf.id.toString() : tf.typeface->getName();
 
-		if (nameToUse == fontName)
+		if (nameToUse == fontName || tf.typeface->getName() == fontName)
 			return tf.getStringWidthFloat(text, fontSize, kerningFactor);
 	}
 

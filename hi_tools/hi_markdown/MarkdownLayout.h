@@ -57,7 +57,11 @@ namespace MarkdownStyleIds
 
 struct MarkdownLayout
 {
-	MarkdownLayout(const AttributedString& s, float width, bool allInOne=false);
+	// AARGH, Windows can't use multithreaded typeface pointers, so we need to supply
+	// our own getStringWidth function...
+	using StringWidthFunction = std::function<float(const Font&, const String&)>;
+
+	MarkdownLayout(const AttributedString& s, float width, const StringWidthFunction& f, bool allInOne=false);
 
 	struct StyleData
 	{
@@ -113,6 +117,8 @@ struct MarkdownLayout
 	float getHeight() const;
 
 	StyleData styleData;
+
+	StringWidthFunction stringWidthFunction;
 
 	juce::GlyphArrangement normalText;
 	juce::GlyphArrangement codeText;

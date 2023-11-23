@@ -33,8 +33,19 @@
 namespace hise {
 using namespace juce;
 
-MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, bool allInOne)
+MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, const StringWidthFunction& f, bool allInOne)
 {
+	stringWidthFunction = f;
+
+	if(!stringWidthFunction)
+	{
+		stringWidthFunction = [](const Font& f, const String& word)
+		{
+			 return f.getStringWidthFloat(word);
+		};
+	}
+		
+
 	constexpr float marginBetweenAttributes = 2.0f;
 
 	if (width == 0.0f)
@@ -69,7 +80,7 @@ MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, bool allI
 
 			for (int j = 0; j < textLen; ++j)
 			{
-				auto getXDeltaForWordEnd = [](String::CharPointerType copy, Font f)
+				auto getXDeltaForWordEnd = [&](String::CharPointerType copy, Font f)
 				{
 					auto end = copy;
 
@@ -78,7 +89,7 @@ MarkdownLayout::MarkdownLayout(const AttributedString& s, float width, bool allI
 
 					String word(copy, end);
 
-					return f.getStringWidthFloat(word);
+					return stringWidthFunction(f, word);;
 				};
 
 				if (CharacterFunctions::isWhitespace(*t))

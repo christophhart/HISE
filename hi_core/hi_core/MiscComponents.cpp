@@ -682,8 +682,8 @@ void DrawActions::ActionBase::setCachedImage(Image& actionImage_, Image& mainIma
 void DrawActions::ActionBase::setScaleFactor(float sf)
 { scaleFactor = sf; }
 
-DrawActions::MarkdownAction::MarkdownAction():
-	renderer("")
+DrawActions::MarkdownAction::MarkdownAction(const MarkdownLayout::StringWidthFunction& f):
+	renderer("", f)
 {}
 
 void DrawActions::MarkdownAction::perform(Graphics& g)

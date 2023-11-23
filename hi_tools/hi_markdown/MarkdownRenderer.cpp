@@ -394,7 +394,7 @@ void SimpleMarkdownDisplay::resized()
 MarkdownPreview::MarkdownPreview(MarkdownDatabaseHolder& holder) :
 	MarkdownContentProcessor(holder),
 	layoutCache(),
-	renderer("", &layoutCache),
+	renderer("", {}, &layoutCache),
 	toc(*this),
 	viewport(*this),
 	internalComponent(*this),

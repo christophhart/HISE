@@ -164,7 +164,7 @@ public:
 	class URLImageProvider;		class FileBasedImageProvider;	class GlobalPathProvider;
 	class PathDescriptionResolver;
 	
-	MarkdownParser(const String& markdownCode);
+	MarkdownParser(const String& markdownCode, const MarkdownLayout::StringWidthFunction& f={});
 
 	virtual ~MarkdownParser();
 
@@ -330,6 +330,8 @@ protected:
 
 	protected:
 
+		MarkdownLayout::StringWidthFunction stringWidthFunction;
+
 		virtual String generateHtml() const { return {}; }
 
 		static Array<Range<int>> getMatchRanges(const String& fullText, const String& searchString, bool countNewLines);
@@ -456,7 +458,8 @@ private:
 	Font currentFont;
 
 	MarkdownLayout::StyleData styleData;
-	
+	MarkdownLayout::StringWidthFunction stringWidthFunction;
+
 	Iterator it;
 	Result currentParseResult;
 	OwnedArray<ImageProvider> imageProviders;

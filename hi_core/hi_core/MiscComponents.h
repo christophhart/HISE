@@ -335,7 +335,7 @@ struct DrawActions
 
 	struct MarkdownAction: public ActionBase
 	{
-		MarkdownAction();;
+		MarkdownAction(const MarkdownLayout::StringWidthFunction& f);;
 
 		SET_ACTION_ID(renderMarkdown);
 

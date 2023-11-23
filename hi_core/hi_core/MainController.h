@@ -1788,6 +1788,11 @@ public:
 	void fillWithCustomFonts(StringArray &fontList);
 	juce::Typeface* getFont(const String &fontName) const;
 
+	float getStringWidthFloat(const Font& f, const String& name)
+	{
+		return getStringWidthFromEmbeddedFont(name, f.getTypefaceName(), f.getHeight(), f.getExtraKerningFactor());
+	}
+
 	float getStringWidthFromEmbeddedFont(const String& text, const String& fontName, float fontSize,
 	                                     float kerningFactor);
 	

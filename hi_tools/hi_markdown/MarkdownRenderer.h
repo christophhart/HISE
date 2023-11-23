@@ -115,10 +115,10 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
-	MarkdownRenderer(const String& text, LayoutCache* c = nullptr) :
-		MarkdownParser(text),
+	MarkdownRenderer(const String& text, const MarkdownLayout::StringWidthFunction& f={}, LayoutCache* c = nullptr) :
+		MarkdownParser(text, f),
 		layoutCache(c),
-		uncachedLayout({}, 0.0f)
+		uncachedLayout({}, 0.0f, f)
 	{
 		history.add(markdownCode);
 		historyIndex = 0;

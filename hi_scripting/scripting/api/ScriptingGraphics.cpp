@@ -1463,7 +1463,7 @@ struct ScriptingObjects::MarkdownObject::Wrapper
 
 ScriptingObjects::MarkdownObject::MarkdownObject(ProcessorWithScriptingContent* pwsc) :
 	ConstScriptingObject(pwsc, 0),
-	obj(new DrawActions::MarkdownAction())
+	obj(new DrawActions::MarkdownAction(std::bind(&MainController::getStringWidthFloat, pwsc->getMainController_(), std::placeholders::_1, std::placeholders::_2)))
 {
 	ADD_API_METHOD_1(setText);
 	ADD_API_METHOD_1(setStyleData);

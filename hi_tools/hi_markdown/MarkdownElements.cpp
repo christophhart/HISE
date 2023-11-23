@@ -45,7 +45,7 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 	TextBlock(MarkdownParser* parent, int lineNumber, const AttributedString& s) :
 		Element(parent, lineNumber),
 		content(s),
-		l(content, 0.0f)
+		l(content, 0.0f, parent->stringWidthFunction)
 	{}
 
 	void draw(Graphics& g, Rectangle<float> area) override
@@ -66,7 +66,7 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 		}
 		else
 		{
-			l = { content, width };
+			l = { content, width, parent->stringWidthFunction };
 
 			l.addYOffset((float)getTopMargin());
 			l.styleData = parent->styleData;
@@ -235,7 +235,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		headlineLevel(level_),
 		isFirst(isFirst_),
 		imageURL({}, imageURL_),
-		l(s, 0.0f)
+		l(s, 0.0f, parent->stringWidthFunction)
 	{
 		anchorURL = "#" + s.getText().toLowerCase().replaceCharacters(" ", "-");
 	}
@@ -282,7 +282,7 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 		float marginTop = isFirst ? 0.0f : 20.0f * getZoomRatio();
 		float marginBottom = 10.0f * getZoomRatio();
 
-		l = { content, width };
+		l = { content, width, parent->stringWidthFunction};
 		l.addYOffset((float)getTopMargin());
 
 		l.styleData = parent->styleData;
@@ -376,7 +376,7 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 		Element(parser, lineNumber)
 	{
 		for (int i = 0; i < ar.size(); i++)
-			rows.add({ ar[i],{ ar[i], 0.0f }, links[i] });
+			rows.add({ ar[i],{ ar[i], 0.0f, parser->stringWidthFunction }, links[i] });
 
 		for (const auto& r : rows)
 		{
@@ -476,7 +476,7 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 		for (auto& r : rows)
 		{
-			r.l = { r.content, width - bulletPointIntendation };
+			r.l = { r.content, width - bulletPointIntendation, parent->stringWidthFunction };
 			r.l.addXOffset(bulletPointIntendation);
 			r.l.styleData = parent->styleData;
 
@@ -566,7 +566,7 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 {
 	Comment(MarkdownParser* p, int lineNumber, const AttributedString& c) :
 		Element(p, lineNumber),
-		l(c, 0.0f),
+		l(c, 0.0f, p->stringWidthFunction),
 		content(c)
 	{};
 
@@ -612,7 +612,7 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 		{
 			lastWidth = widthToUse;
 
-			l = { content, widthToUse - thisIndentation };
+			l = { content, widthToUse - thisIndentation, parent->stringWidthFunction };
 			l.addYOffset((float)getTopMargin() + thisIndentation);
 			l.addXOffset(thisIndentation);
 			l.styleData = parent->styleData;
@@ -990,7 +990,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 		for (const auto& h : headerItems)
 		{
-			Cell c;
+			Cell c(p->stringWidthFunction);
 			c.content = h.s;
 			c.imageURL = h.imageURL;
 			c.index = index;
@@ -1013,7 +1013,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 			for (const auto& cell_ : e)
 			{
-				Cell c;
+				Cell c(p->stringWidthFunction);
                 
                 c.content = cell_.s;
                 c.imageURL = cell_.imageURL;
@@ -1171,7 +1171,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 
 	struct Cell
 	{
-		Cell() : l({}, 0.0f) {};
+		Cell(const MarkdownLayout::StringWidthFunction& f={}) : l({}, 0.0f, f) {};
 
 		bool operator ==(const Cell& other) const
 		{
@@ -1241,7 +1241,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				float w = getColumnWidth(width, h.index);
 				auto contentWidth = w - 2.0f * intendation;
 
-				h.l = MarkdownLayout(h.content, contentWidth);
+				h.l = MarkdownLayout(h.content, contentWidth, parser->stringWidthFunction);
 				h.l.styleData = parser->styleData;
 				
 				rowHeight = jmax(rowHeight, calculateHeightForCell(h, contentWidth, parser) + 2.0f * intendation);
