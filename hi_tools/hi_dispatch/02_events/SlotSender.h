@@ -76,7 +76,7 @@ struct AccumulatedFlowManager
 
 	uint64_t flushAllButLastOne(const char* stepName, const Identifier& id);
 
-	UnorderedStack<uint32_t, 32> pendingTracks;
+	UnorderedStack<uint64_t, 32> pendingTracks;
 };
 
 #else

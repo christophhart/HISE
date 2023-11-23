@@ -1107,6 +1107,8 @@ void ScriptTableListModel::sendCallback(int rowId, int columnId, var value, Even
 			obj->setProperty("Type", "Undo");
 		case EventType::SpaceKey:
 			obj->setProperty("Type", "SpaceKey");
+        default:
+            break;
 		}
 
 		if (type == EventType::SetValue ||

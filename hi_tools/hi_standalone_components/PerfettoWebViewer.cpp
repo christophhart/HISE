@@ -105,7 +105,7 @@ PerfettoWebviewer::PerfettoWebviewer(BackendRootWindow* unused):
 
 	addAndMakeVisible(browser = new WindowsWebView2WebBrowserComponent(true, pref));
 	browser->goToURL("https://ui.perfetto.dev");
-#elif JUCE_MAC
+#elif JUCE_MAC && USE_BACKEND
     
     addAndMakeVisible(browser = new WebBrowserComponent(true));
     browser->goToURL("https://ui.perfetto.dev");

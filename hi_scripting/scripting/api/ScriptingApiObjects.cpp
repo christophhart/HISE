@@ -5506,7 +5506,7 @@ void ScriptingObjects::ScriptedMidiPlayer::flushMessageListToSequence(var messag
 	}
 	else
 	{
-		reportScriptError("Can't find sequence with one based index " + sequenceIndex);
+		reportScriptError("Can't find sequence with one based index " + String(sequenceIndex));
 	}
 }
 
