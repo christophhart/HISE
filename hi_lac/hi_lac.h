@@ -175,6 +175,7 @@ public:
 
     juce::File writeFile();
 
+    juce::File customFileLocation;
     juce::File lastFile;
     juce::ScopedPointer<juce::TemporaryFile> tempFile;
 

@@ -98,6 +98,7 @@ DECLARE_ID(OverwriteOldUserPresets);
 DECLARE_ID(UseGlobalAppDataFolderWindows);
 DECLARE_ID(UseGlobalAppDataFolderMacOS);
 DECLARE_ID(DefaultUserPreset);
+DECLARE_ID(CompileWithPerfetto);
 
 Array<Identifier> getAllIds();
 

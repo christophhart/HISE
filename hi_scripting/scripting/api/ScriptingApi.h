@@ -823,6 +823,13 @@ public:
 		/** Changes the sample folder. */
 		void setSampleFolder(var sampleFolder);
 
+		/** Starts the perfetto profile recording. */
+		void startPerfettoTracing();
+
+		/** Stops the perfetto profile recording and dumps the data to the given file. */
+		void stopPerfettoTracing(var traceFileToUse);
+	
+
 		// ============================================================================================================
 
 	private:

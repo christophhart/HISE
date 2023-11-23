@@ -2639,6 +2639,8 @@ struct ScriptingApi::Settings::Wrapper
 	API_METHOD_WRAPPER_0(Settings, isOpenGLEnabled);
 	API_VOID_METHOD_WRAPPER_1(Settings, setEnableOpenGL);
 	API_VOID_METHOD_WRAPPER_1(Settings, setEnableDebugMode);
+	API_VOID_METHOD_WRAPPER_0(Settings, startPerfettoTracing);
+	API_VOID_METHOD_WRAPPER_1(Settings, stopPerfettoTracing);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -2682,6 +2684,8 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_1(setEnableOpenGL);
 	ADD_API_METHOD_1(setEnableDebugMode);
 	ADD_API_METHOD_1(setSampleFolder);
+	ADD_API_METHOD_0(startPerfettoTracing);
+	ADD_API_METHOD_1(stopPerfettoTracing);
 }
 
 var ScriptingApi::Settings::getUserDesktopSize()
@@ -2728,6 +2732,42 @@ void ScriptingApi::Settings::setSampleFolder(var sampleFolder)
 	}
 }
 
+void ScriptingApi::Settings::startPerfettoTracing()
+{
+#if PERFETTO
+	auto& mp = MelatoninPerfetto::get();
+	mp.beginSession();
+#else
+	reportScriptError("Perfetto is not enabled, make sure to compile your project / HISE with PERFETTO=1");
+#endif
+}
+
+void ScriptingApi::Settings::stopPerfettoTracing(var traceFileToUse)
+{
+#if PERFETTO
+	if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(traceFileToUse.getObject()))
+	{
+		auto extension = sf->f.getFileExtension();
+
+		auto& mp = MelatoninPerfetto::get();
+
+		mp.customFileLocation = sf->f;
+		mp.endSession(true);
+		mp.customFileLocation = File();
+
+		if(extension != ".pftrace")
+		{
+			reportScriptError("The file needs the extension .pftrace");
+		}
+	}
+	else
+	{
+		reportScriptError("Not a valid file supplied");
+	}
+#else
+	reportScriptError("Perfetto is not enabled, make sure to compile your project / HISE with PERFETTO=1");
+#endif
+}
 
 double ScriptingApi::Settings::getZoomLevel() const
 {

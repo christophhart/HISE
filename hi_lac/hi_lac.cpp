@@ -107,7 +107,11 @@ juce::File MelatoninPerfetto::writeFile()
 	const auto currentTime = juce::Time::getCurrentTime().formatted("%Y-%m-%d_%H%M");
     auto childFile = file.getChildFile("perfetto" + mode + currentTime + ".pftrace");
 
-    if(tempFile != nullptr)
+	if(customFileLocation != juce::File())
+	{
+		childFile = customFileLocation;
+	}
+    else if(tempFile != nullptr)
         childFile = juce::File(tempFile->getFile());
     
 	if (auto output = childFile.createOutputStream())

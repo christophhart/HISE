@@ -106,6 +106,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
     ids.add(UseGlobalAppDataFolderWindows);
     ids.add(UseGlobalAppDataFolderMacOS);
 	ids.add(DefaultUserPreset);
+	ids.add(CompileWithPerfetto);
 
 	return ids;
 }
@@ -266,6 +267,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("> **macOS:** `~/Library/Application Support/Company/Product/`");
 		D("Normally you would try to embed them into the binary, however if you have a lot of audio files (> 50MB)");
 		D("the compiler will crash with an **out of heap space** error, so in this case you're better off not embedding them.");
+		P_();
+
+		P(HiseSettings::Project::CompileWithPerfetto);
+		D("If enabled, the project will be compiled with the Perfetto Tracing SDK.");
+		D("> This allows you to profile & track down issues and performance hotspots, during development or troubleshooting.");
 		P_();
 
 		P(HiseSettings::Project::EmbedImageFiles);
@@ -906,6 +912,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::EnableGlobalPreprocessor ||
         id == Project::UseGlobalAppDataFolderWindows ||
         id == Project::UseGlobalAppDataFolderMacOS ||
+		id == Project::CompileWithPerfetto ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
@@ -1120,6 +1127,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 		else if (id == Project::AdminPermissions) return "No";
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
+	else if (id == Project::CompileWithPerfetto)	return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)       return "No";
 	else if (id == Project::EnableGlobalPreprocessor)      return "No";
