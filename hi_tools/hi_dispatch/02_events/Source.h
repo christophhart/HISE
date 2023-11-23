@@ -100,6 +100,8 @@ protected:
 
 private:
 
+	State currentState = State::Running;
+
 	SourceManager& parent;
 	HashedCharPtr sourceId;
 	SourceOwner& owner;

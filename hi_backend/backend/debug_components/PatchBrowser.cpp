@@ -762,6 +762,8 @@ void PatchBrowser::toggleFoldAll()
 
 void PatchBrowser::toggleShowChains()
 {
+	SUSPEND_GLOBAL_DISPATCH(rootWindow->getBackendProcessor(), "toggle patch browser edit mode");
+
 	showChains = !showChains;
 	rebuildModuleList(true);
     repaint();

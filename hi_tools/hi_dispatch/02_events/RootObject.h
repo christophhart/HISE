@@ -110,20 +110,27 @@ public:
 	void flushHighPriorityQueues(Thread* t);
 
 	/** Call this if you want the root object to use its own background thread for flushing the high priority queue. */
-	void setUseHighPriorityThread(bool shouldUse)
-	{
-		if(shouldUse)
-			ownedHighPriorityThread = new HiPriorityThread(*this);
-		else
-			ownedHighPriorityThread = nullptr;
-	}
+	void setUseHighPriorityThread(bool shouldUse);
 
 	uint64_t bumpFlowCounter() { return ++flowCounter; }
 
-	
+	struct ScopedGlobalSuspender
+	{
+		ScopedGlobalSuspender(RootObject& r, State newState, const CharPtr& description);
+
+		~ScopedGlobalSuspender();
+
+	private:
+
+		RootObject& root;
+		const State prevValue;
+		bool isUsed = false;
+	};
 
 private:
-	
+
+	State globalState = State::Running;
+
 	static uint64_t flowCounter;
 
 	struct HiPriorityThread: public Thread

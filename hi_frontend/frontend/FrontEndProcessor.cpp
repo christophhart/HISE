@@ -374,6 +374,8 @@ updater(*this)
 
 FrontendProcessor::~FrontendProcessor()
 {
+	getRootDispatcher().setState(dispatch::HashedPath(dispatch::CharPtr::Type::Wildcard), dispatch::State::Shutdown);
+
 	numInstances--;
 
 	notifyShutdownToRegisteredObjects();

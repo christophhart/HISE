@@ -63,6 +63,8 @@ RootObject::~RootObject()
 {
 	ownedHighPriorityThread = nullptr;
 
+	globalState = State::Shutdown;
+
 	sources->setQueueState(State::Shutdown);
 	sourceManagers->setQueueState(State::Shutdown);
 	listeners->setQueueState(State::Shutdown);
@@ -153,6 +155,13 @@ void RootObject::removeTypedChild(Child* c)
 
 void RootObject::clearFromAllQueues(Queueable* objectToBeDeleted, DanglingBehaviour behaviour)
 {
+	if(globalState == State::Shutdown)
+		return;
+
+	StringBuilder n;
+	n << "remove queuable";
+	ScopedGlobalSuspender sgs(*this, State::Paused, n.toCharPtr());
+
     callForAllQueues([behaviour, objectToBeDeleted](Queue& q)
     {
 	    q.invalidateQueuable(objectToBeDeleted, behaviour); return false;
@@ -179,6 +188,9 @@ int RootObject::getNumChildren() const
 
 void RootObject::setState(const HashedPath& path, State newState)
 {
+	if(newState == State::Shutdown)
+		globalState = State::Shutdown;
+
 	callForAllSourceManagers([path, newState](SourceManager& sm)
 	{
 		sm.setState(path, newState);
@@ -239,6 +251,39 @@ void RootObject::flushHighPriorityQueues(Thread* t)
 	});
 }
 
+void RootObject::setUseHighPriorityThread(bool shouldUse)
+{
+	if(shouldUse)
+		ownedHighPriorityThread = new HiPriorityThread(*this);
+	else
+		ownedHighPriorityThread = nullptr;
+}
 
+RootObject::ScopedGlobalSuspender::ScopedGlobalSuspender(RootObject& r, State newState, const CharPtr& description):
+	root(r),
+	prevValue(r.globalState)
+{
+	isUsed = prevValue != newState;
+
+	if(isUsed)
+	{
+		StringBuilder b;
+		b << "global suspend: " << description;
+		TRACE_EVENT_BEGIN("dispatch", DYNAMIC_STRING_BUILDER(b));
+
+		root.setState(HashedPath(CharPtr::Type::Wildcard), newState);
+		r.globalState = newState;
+	}
+}
+
+RootObject::ScopedGlobalSuspender::~ScopedGlobalSuspender()
+{
+	if(isUsed)
+	{
+		TRACE_EVENT_END("dispatch");
+		root.setState(HashedPath(CharPtr::Type::Wildcard), prevValue);
+		root.globalState = prevValue;
+	}
+}
 } // dispatch
 } // hise

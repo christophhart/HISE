@@ -84,6 +84,8 @@ public:
 
 private:
 
+	State currentState = State::Running;
+
 	int messageCounter = 0;
 	int skippedCounter = 0;
 

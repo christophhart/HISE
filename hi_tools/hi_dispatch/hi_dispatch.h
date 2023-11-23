@@ -256,6 +256,8 @@ struct FuzzyTester;
 } // dispatch
 } // hise
 
+#define SUSPEND_GLOBAL_DISPATCH(mc, description) dispatch::RootObject::ScopedGlobalSuspender sps(mc->getRootDispatcher(), dispatch::Paused, dispatch::CharPtr(description));
+
 #if PERFETTO
 #define TRACE_FLUSH(x) StringBuilder b; b << "flush " << n << ": " << x; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
 #define TRACE_FLUSH_FLOW(x, flow) StringBuilder b; b << "flush " << n << ": " << x; TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), flow);

@@ -73,6 +73,8 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 
 ScriptContentComponent::~ScriptContentComponent()
 {
+	SUSPEND_GLOBAL_DISPATCH(p->getMainController(), "delete scripting UI");
+
 	if (contentData.get() != nullptr)
 	{
 		for (int i = 0; i < contentData->getNumComponents(); i++)
@@ -521,6 +523,8 @@ void ScriptContentComponent::contentWasRebuilt()
 
 void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 {
+	SUSPEND_GLOBAL_DISPATCH(p->getMainController(), "rebuild scripting UI");
+
 	if (c == nullptr) return;
 
 	currentTextBox = nullptr;

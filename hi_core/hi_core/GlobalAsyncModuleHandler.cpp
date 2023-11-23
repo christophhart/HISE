@@ -164,6 +164,8 @@ void MainController::ProcessorChangeHandler::sendProcessorChangeMessage(Processo
 
 void MainController::ProcessorChangeHandler::handleAsyncUpdate()
 {
+	SUSPEND_GLOBAL_DISPATCH(mc, "processor added / removed");
+
 	if (tempProcessor == nullptr)
 		return;
 

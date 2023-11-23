@@ -58,7 +58,10 @@ Source::~Source()
 void Source::flushChanges(DispatchType n)
 {
 	//TRACE_FLUSH(getDispatchId());
-	
+
+	if(currentState != State::Running)
+		return;
+
 	for(int i = 0; i < getNumSlotSenders(); i++)
 	{
 		getSlotSender(i)->flush(n);
@@ -74,6 +77,8 @@ void Source::setState(const HashedPath& p, State newState)
 {
 	if(!matchesPath(p))
 		return;
+	
+	currentState = newState;
 
 	forEachListenerQueue(DispatchType::sendNotification, [p, newState, this](uint8 s, DispatchType n, Queue* q)
 	{

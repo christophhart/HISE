@@ -1277,7 +1277,10 @@ void JavascriptProcessor::clearExternalWindows()
 
 JavascriptProcessor::SnippetResult JavascriptProcessor::compileInternal()
 {
-	LockHelpers::freeToGo(dynamic_cast<Processor*>(this)->getMainController());
+	auto mc = dynamic_cast<Processor*>(this)->getMainController();
+	LockHelpers::freeToGo(mc);
+
+	SUSPEND_GLOBAL_DISPATCH(mc, "compile script");
 
 	ProcessorWithScriptingContent* thisAsScriptBaseProcessor = dynamic_cast<ProcessorWithScriptingContent*>(this);
 
