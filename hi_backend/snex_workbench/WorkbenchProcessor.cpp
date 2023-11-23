@@ -1623,6 +1623,7 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 	b.addEmptyLine();
 
     b.addComment("Include only the DSP files ", snex::cppgen::Base::CommentType::FillTo80);
+	Include(b, "AppConfig.h");
 	Include(b, "hi_dsp_library/hi_dsp_library.h");
     Include(b, "hi_faust/hi_faust.h");
     
