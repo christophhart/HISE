@@ -207,7 +207,7 @@ public:
 		l->removeListener(*this, n);
 	}
 
-	template <typename T> int getNumListenersWithClass(DispatchType n=DispatchType::sendNotification) const
+	template <typename ListenerType> int getNumListenersWithClass(DispatchType n=DispatchType::sendNotification) const
 	{
 		int numListeners = 0;
 
@@ -217,7 +217,7 @@ public:
 			{
 				auto& l = f.getTypedObject<dispatch::Listener>();
 
-				auto t = dynamic_cast<T*>(&l.getOwner<ListenerOwner>());
+				auto t = dynamic_cast<ListenerType*>(&l.getOwner<ListenerOwner>());
 
 				if(t != nullptr)
 					numListeners++;
