@@ -828,7 +828,9 @@ public:
 
 		/** Stops the perfetto profile recording and dumps the data to the given file. */
 		void stopPerfettoTracing(var traceFileToUse);
-	
+
+		/** Calls abort to terminate the program. You can use this to check your crash reporting workflow. */
+		void crashAndBurn();
 
 		// ============================================================================================================
 

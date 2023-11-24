@@ -1839,6 +1839,10 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	REPLACE_WILDCARD_WITH_STRING("%PERFETTO_COMPILER_FLAGS_WIN%", includePerfetto ? " /Zc:__cplusplus /permissive- /vmg" : "");
 	REPLACE_WILDCARD_WITH_STRING("%PERFETTO_INCLUDE_MACOS%", includePerfetto ? "\nPERFETTO=1" : "");
 
+	const auto dontStripSymbols = (bool)exporter->dataObject.getSetting(HiseSettings::Project::CompileWithDebugSymbols);
+
+	REPLACE_WILDCARD_WITH_STRING("%STRIP_SYMBOLS_WIN%", dontStripSymbols ? " alwaysGenerateDebugSymbols=\"1\" debugInformationFormat=\"ProgramDatabase\"" : "");
+
 	auto& dataObject = exporter->dataObject;
 
 	auto expansionType = GET_SETTING(HiseSettings::Project::ExpansionType);

@@ -63,7 +63,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] =
 "                       binaryPath=\"Compiled/\" headerPath=\"%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%\" useRuntimeLibDLL=\"0\" prebuildCommand=\"%PREBUILD_COMMAND%\"/>\r\n"
 "        <CONFIGURATION name=\"Release\" winWarningLevel=\"1\" generateManifest=\"1\" winArchitecture=\"x64\"\r\n"
 "                       libraryPath=\"%WIN_STATIC_LIB_FOLDER_R64%\" isDebug=\"0\" optimisation=\"3\" targetName=\"%NAME%\"\r\n"
-"                       binaryPath=\"Compiled/\" headerPath=\"%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%\" linkTimeOptimisation=\"%LINK_TIME_OPTIMISATION%\" useRuntimeLibDLL=\"0\" prebuildCommand=\"%PREBUILD_COMMAND%\"/>\r\n"
+"                       binaryPath=\"Compiled/\" headerPath=\"%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%\" linkTimeOptimisation=\"%LINK_TIME_OPTIMISATION%\" useRuntimeLibDLL=\"0\" prebuildCommand=\"%PREBUILD_COMMAND%\"%STRIP_SYMBOLS_WIN%/>\r\n"
 "      </CONFIGURATIONS>\r\n"
 "      <MODULEPATHS>\r\n"
 "        <MODULEPATH id=\"juce_core\" path=\"%JUCE_PATH%\"/>\r\n"

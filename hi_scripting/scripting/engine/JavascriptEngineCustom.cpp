@@ -614,7 +614,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				var nObj(n.get());
 
 				{
-					SimpleReadWriteLock::ScopedWriteLock sl(debugLock);
+					SimpleReadWriteLock::ScopedMultiWriteLock sl(debugLock);
 					std::swap(nObj, debugLocalProperties);
 				}
 			}
@@ -631,7 +631,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				var nObj(obj.get());
 
 				{
-					SimpleReadWriteLock::ScopedWriteLock sl(debugLock);
+					SimpleReadWriteLock::ScopedMultiWriteLock sl(debugLock);
 					std::swap(nObj, debugArgumentProperties);
 				}
 			}

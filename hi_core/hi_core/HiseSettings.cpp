@@ -107,6 +107,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
     ids.add(UseGlobalAppDataFolderMacOS);
 	ids.add(DefaultUserPreset);
 	ids.add(CompileWithPerfetto);
+	ids.add(CompileWithDebugSymbols);
 
 	return ids;
 }
@@ -272,6 +273,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		P(HiseSettings::Project::CompileWithPerfetto);
 		D("If enabled, the project will be compiled with the Perfetto Tracing SDK.");
 		D("> This allows you to profile & track down issues and performance hotspots, during development or troubleshooting.");
+		P_();
+
+		P(HiseSettings::Project::CompileWithDebugSymbols);
+		D("If enabled, the project will be compiled with the debug symbols for better trouble shooting.");
+		D("> With this setting, the crash reports will contain valid source code locations which might be helpful for debugging crashes, but you obviously have to turn this off for a production release!.");
 		P_();
 
 		P(HiseSettings::Project::EmbedImageFiles);
@@ -913,6 +919,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
         id == Project::UseGlobalAppDataFolderWindows ||
         id == Project::UseGlobalAppDataFolderMacOS ||
 		id == Project::CompileWithPerfetto ||
+		id == Project::CompileWithDebugSymbols ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
@@ -1128,6 +1135,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::CompileWithPerfetto)	return "No";
+	else if (id == Project::CompileWithDebugSymbols) return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)       return "No";
 	else if (id == Project::EnableGlobalPreprocessor)      return "No";

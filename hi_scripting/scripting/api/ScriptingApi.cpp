@@ -2641,6 +2641,7 @@ struct ScriptingApi::Settings::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Settings, setEnableDebugMode);
 	API_VOID_METHOD_WRAPPER_0(Settings, startPerfettoTracing);
 	API_VOID_METHOD_WRAPPER_1(Settings, stopPerfettoTracing);
+	API_VOID_METHOD_WRAPPER_0(Settings, crashAndBurn);
 };
 
 ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
@@ -2686,6 +2687,7 @@ ScriptingApi::Settings::Settings(ProcessorWithScriptingContent* s) :
 	ADD_API_METHOD_1(setSampleFolder);
 	ADD_API_METHOD_0(startPerfettoTracing);
 	ADD_API_METHOD_1(stopPerfettoTracing);
+	ADD_API_METHOD_0(crashAndBurn);
 }
 
 var ScriptingApi::Settings::getUserDesktopSize()
@@ -2767,6 +2769,26 @@ void ScriptingApi::Settings::stopPerfettoTracing(var traceFileToUse)
 #else
 	reportScriptError("Perfetto is not enabled, make sure to compile your project / HISE with PERFETTO=1");
 #endif
+}
+
+void ScriptingApi::Settings::crashAndBurn()
+{
+#if USE_BACKEND
+	auto includeSymbols = GET_HISE_SETTING(dynamic_cast<Processor*>(getScriptProcessor()), HiseSettings::Project::CompileWithDebugSymbols);
+
+	if(!includeSymbols)
+	{
+		// don't crash, you're not ready yet...
+		reportScriptError("You need to enable CompileWithDebugSymbols for your project to get a meaningful stack trace");
+	}
+#endif
+	
+	// There you go...
+	volatile int* x = nullptr;
+	*x = 90;
+
+	// If that didn't work, try this...
+	abort();
 }
 
 double ScriptingApi::Settings::getZoomLevel() const
