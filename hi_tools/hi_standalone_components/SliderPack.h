@@ -335,6 +335,8 @@ private:
 
 	int currentlyDraggedSlider;
 
+	int currentlyHoveredSlider = -1;
+
 	double currentlyDraggedSliderValue;
 
 	WeakReference<SliderPackData> data;
