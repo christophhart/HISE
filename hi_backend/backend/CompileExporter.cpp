@@ -1843,8 +1843,16 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 
 	REPLACE_WILDCARD_WITH_STRING("%STRIP_SYMBOLS_WIN%", dontStripSymbols ? " alwaysGenerateDebugSymbols=\"1\" debugInformationFormat=\"ProgramDatabase\"" : "");
 
+    if(dontStripSymbols)
+    {
+        REPLACE_WILDCARD_WITH_STRING("%STRIP_SYMBOLS_MACOS%", "stripLocalSymbols=\"0\" customXcodeFlags=\"STRIP_INSTALLED_PRODUCT=NO,COPY_PHASE_STRIP=NO\"");
+    }
+    else
+    {
+        REPLACE_WILDCARD_WITH_STRING("%STRIP_SYMBOLS_MACOS%", "stripLocalSymbols=\"1\"");
+    }
+    
 	auto& dataObject = exporter->dataObject;
-
 	auto expansionType = GET_SETTING(HiseSettings::Project::ExpansionType);
 
 	if (expansionType == "Custom" || expansionType == "Full")

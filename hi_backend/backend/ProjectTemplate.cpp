@@ -115,7 +115,7 @@ static const unsigned char projectTemplate_jucer_lines[] =
 "        <CONFIGURATION name=\"Release\" osxSDK=\"default\" osxCompatibility=\"10.9 SDK\" osxArchitecture=\"%MACOS_ARCHITECTURE%\"\r\n"
 "                       isDebug=\"0\" optimisation=\"3\" enablePluginBinaryCopyStep=\"%COPY_PLUGIN%\" targetName=\"%NAME%\" headerPath=\"%IPP_HEADER%;%FAUST_HEADER_PATH%\"\r\n"
 "                       libraryPath=\"%IPP_LIBRARY%;%AAX_RELEASE_LIB%;%BEATPORT_RELEASE_LIB%\" cppLibType=\"libc++\" linkTimeOptimisation=\"%LINK_TIME_OPTIMISATION%\"\r\n"
-"                       stripLocalSymbols=\"1\"/>\r\n"
+"                       %STRIP_SYMBOLS_MACOS%/>\r\n"
 "      </CONFIGURATIONS>\r\n"
 "      <MODULEPATHS>\r\n"
 "        <MODULEPATH id=\"juce_product_unlocking\" path=\"%JUCE_PATH%\"/>\r\n"
