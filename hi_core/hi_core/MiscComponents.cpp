@@ -780,17 +780,25 @@ void DrawActions::NoiseMapManager::drawNoiseMap(Graphics& g, Rectangle<int> area
 {
 	auto originalArea = area;
 
+    //scale *= scaleFactor;
+    
 	if(scale != 1.0f)
 		area = area.transformed(AffineTransform::scale(scale));
 
 	const auto& m = getNoiseMap(area, monochrom);
 
+    g.saveState();
+    
 	g.setColour(Colours::black.withAlpha(alpha));
 
+    g.setImageResamplingQuality(Graphics::ResamplingQuality::lowResamplingQuality);
+    
 	if (scale != 1.0f)
 		g.drawImageWithin(m.img, originalArea.getX(), originalArea.getY(), originalArea.getWidth(), originalArea.getHeight(), RectanglePlacement::stretchToFit);
 	else
 		g.drawImageAt(m.img, area.getX(), area.getY());
+    
+    g.restoreState();
 }
 
 DrawActions::NoiseMapManager::NoiseMap& DrawActions::NoiseMapManager::getNoiseMap(Rectangle<int> area, bool monochrom)
@@ -806,6 +814,11 @@ DrawActions::NoiseMapManager::NoiseMap& DrawActions::NoiseMapManager::getNoiseMa
 		}
 	}
 
+    dispatch::StringBuilder n;
+    n << "create noisemap [" << area.getWidth() << ", " << area.getHeight() << "]";
+    
+    TRACE_EVENT("drawactions", DYNAMIC_STRING_BUILDER(n));
+    
 	maps.add(new NoiseMap(area, monochrom));
 
 	return *maps.getLast();
@@ -1491,6 +1504,11 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 
 	handler->setGlobalBounds(gb, tc->getLocalBounds(), sf);
 
+    auto zoomFactor = UnblurryGraphics::getScaleFactorForComponent(c, false);
+    
+    handler->getNoiseMapManager()->setScaleFactor(zoomFactor);
+
+    
 	if (wantsCachedImage())
 	{
 		// We are creating one master image before the loop

@@ -413,8 +413,15 @@ struct DrawActions
 
 		void drawNoiseMap(Graphics& g, Rectangle<int> area, float alpha, bool monochrom, float scale);
 
+        void setScaleFactor(float sf)
+        {
+            scaleFactor = sf;
+        }
+        
 	private:
 
+        float scaleFactor = 1.0f;
+        
 		NoiseMap& getNoiseMap(Rectangle<int> area, bool monochrom);
 
 		SimpleReadWriteLock lock;
