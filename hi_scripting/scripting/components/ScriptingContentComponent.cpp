@@ -649,8 +649,9 @@ void ScriptContentComponent::processorDeleted(Processor* /*deletedProcessor*/)
 
 void ScriptContentComponent::paint(Graphics &g)
 {
-	if(findParentComponentOfClass<FloatingTilePopup>() == nullptr)
-		g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xff252525)));
+	TRACE_COMPONENT();
+
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xff252525)));
 }
 
 void ScriptContentComponent::paintOverChildren(Graphics& g)

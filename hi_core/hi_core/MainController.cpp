@@ -503,6 +503,8 @@ void MainController::stopCpuBenchmark()
 	
 	const float lastUsage = usagePercent.load();
 	
+	TRACE_COUNTER("dsp", perfetto::CounterTrack("Audio Thread CPU usage", "%").set_is_incremental(false), thisUsage);
+
 	if (thisUsage > lastUsage)
 	{
 		usagePercent.store(thisUsage);

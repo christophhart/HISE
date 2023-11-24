@@ -1555,6 +1555,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawEllipse);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, fillEllipse);
 	API_VOID_METHOD_WRAPPER_4(GraphicsObject, drawImage);
+	API_VOID_METHOD_WRAPPER_1(GraphicsObject, drawRepaintMarker);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawDropShadow);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawDropShadowFromPath);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, addDropShadowFromAlpha);
@@ -1638,6 +1639,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_0(endLayer);
 	ADD_API_METHOD_2(beginBlendLayer);
 	ADD_API_METHOD_1(getStringWidth);
+	ADD_API_METHOD_1(drawRepaintMarker);
 
 	WeakReference<Processor> safeP(dynamic_cast<Processor*>(p));
 
@@ -2174,6 +2176,11 @@ void ScriptingObjects::GraphicsObject::addDropShadowFromAlpha(var colour, int ra
 	shadow.radius = radius;
 
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::addDropShadowFromAlpha(shadow));
+}
+
+void ScriptingObjects::GraphicsObject::drawRepaintMarker(const String& label)
+{
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawRepaintMarker(label));
 }
 
 bool ScriptingObjects::GraphicsObject::applyShader(var shader, var area)

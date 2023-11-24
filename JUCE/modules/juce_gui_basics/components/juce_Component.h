@@ -26,6 +26,12 @@
 namespace juce
 {
 
+#if PERFETTO
+#define VIRTUAL_IF_PERFETTO(x) protected: virtual x private:
+#else
+#define VIRTUAL_IF_PERFETTO(x) x
+#endif
+
 //==============================================================================
 /**
     The base class for all JUCE user-interface objects.
@@ -2632,7 +2638,7 @@ private:
     void internalRepaintUnchecked (Rectangle<int>, bool);
     Component* removeChildComponent (int index, bool sendParentEvents, bool sendChildEvents);
     void reorderChildInternal (int sourceIndex, int destIndex);
-    void paintComponentAndChildren (Graphics&);
+    VIRTUAL_IF_PERFETTO(void paintComponentAndChildren(Graphics&););
     void paintWithinParentContext (Graphics&);
     void sendMovedResizedMessages (bool wasMoved, bool wasResized);
     void sendMovedResizedMessagesIfPending();
@@ -2643,6 +2649,8 @@ private:
     void giveAwayKeyboardFocusInternal (bool sendFocusLossEvent);
     void sendEnablementChangeMessage();
     void sendVisibilityChangeMessage();
+
+    VIRTUAL_IF_PERFETTO(void paintChildComponents(Graphics& g, Rectangle<int> clipBounds);)
 
     struct ComponentHelpers;
     friend struct ComponentHelpers;

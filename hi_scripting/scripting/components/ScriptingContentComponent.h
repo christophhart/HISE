@@ -154,6 +154,41 @@ public:
 
 	void paint(Graphics &g) override;
 
+#if PERFETTO
+	void paintComponentAndChildren(Graphics& g) override
+	{
+		dispatch::StringBuilder b;
+		auto cp = g.getClipBounds();
+		b << "[" << cp.getX() << ", " << cp.getY() << ", " << cp.getWidth() << ", " << cp.getHeight() << "]";
+		TRACE_EVENT("component", "Render script interface", "clipBounds", DYNAMIC_STRING_BUILDER(b));
+		double before = Time::getMillisecondCounterHiRes();
+		Component::paintComponentAndChildren(g);
+		double now = Time::getMillisecondCounterHiRes();
+		auto deltaInSeconds = (now - before) * 0.001;
+		auto fps = 1.0 / deltaInSeconds;
+
+		if(fps < 800.0)
+		{
+			auto ct = perfetto::CounterTrack("Interface FPS Counter", "fps");
+			TRACE_COUNTER("component", ct.set_is_incremental(false), fps);
+		}
+	}
+#endif
+
+#if 0
+#define VIRTUAL_PERFETTO_OVERRIDE_2(name, t0, a0, t1, a1, label) void name(t0 a0, t1 a1) override { TRACE_EVENT("drawactions", label); Component::name(a0, a1); };
+
+	VIRTUAL_PERFETTO_OVERRIDE_2(paintChildComponents, Graphics&, g, Rectangle<int>, clipBounds, "paint UI components");
+#endif
+
+#if 0
+	void paintChildComponents(Graphics& g, Rectangle<int> clipBounds) override
+	{
+		TRACE_EVENT("drawactions", "paint UI components");
+		Component::paintChildComponents(g, clipBounds);
+	}
+#endif
+	
     void paintOverChildren(Graphics& g) override;
     
 	void makeScreenshot(const File& target, Rectangle<float> area) override;

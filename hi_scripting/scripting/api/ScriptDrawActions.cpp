@@ -269,6 +269,33 @@ namespace ScriptedDrawActions
 		PathStrokeType s;
 	};
 
+	struct drawRepaintMarker: public DrawActions::ActionBase
+	{
+		SET_ACTION_ID(drawRepaintMarker);
+
+		drawRepaintMarker(const String& l)
+		{
+			if(l.isEmpty())
+				b <<  "anonymous repaint";
+			else
+				b << l;
+		}
+
+
+		void perform(Graphics& g)
+		{
+#if PERFETTO
+			perfetto::CounterTrack ct(b.get());
+			TRACE_COUNTER("drawactions", ct, ++numRepaints);
+			TRACE_EVENT("drawactions", DYNAMIC_STRING_BUILDER(b));
+#endif
+			g.fillAll(Colour::fromHSL(Random::getSystemRandom().nextFloat(), 0.33f, 0.5, 0.3f));
+		};
+
+		dispatch::StringBuilder b;
+		uint32 numRepaints = 0;
+	};
+
 	struct fillRect : public DrawActions::ActionBase
 	{
 		SET_ACTION_ID(fillRect);
