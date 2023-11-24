@@ -35,9 +35,11 @@ namespace hise { using namespace juce;
 MouseCallbackComponent::MouseCallbackComponent() :
 callbackLevel(CallbackLevel::NoCallbacks),
 callbackLevels(getCallbackLevels()),
-constrainer(new RectangleConstrainer())
+constrainer(new RectangleConstrainer()),
+clickInformation(new DynamicObject())
 {
 	initMacroControl(dontSendNotification);
+
 }
 
 
@@ -574,11 +576,16 @@ void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<in
 
 
 
-juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const MouseEvent& event, CallbackLevel callbackLevel, Action action, EnterState state)
+void MouseCallbackComponent::fillMouseCallbackObject(var& clickInformation, Component* c, const MouseEvent& event, CallbackLevel callbackLevel, Action action, EnterState state)
 {
-	auto e = new DynamicObject();
-	var clickInformation(e);
+	auto e = clickInformation.getDynamicObject();
 
+	if(e == nullptr)
+	{
+		auto e = new DynamicObject();
+		clickInformation = var(e);
+	}
+	
 	static const Identifier x("x");
 	static const Identifier y("y");
 	static const Identifier clicked("clicked");
@@ -630,8 +637,6 @@ juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const Mou
 		e->setProperty(dragX, event.getDistanceFromDragStartX());
 		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
-
-	return clickInformation;
 }
 
 void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, EnterState state)
@@ -645,7 +650,9 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, Ent
 	
 	TRACE_EVENT("component", DYNAMIC_STRING_BUILDER(n));
 
-	sendToListeners(getMouseCallbackObject(this, e, callbackLevel, action, state));
+	fillMouseCallbackObject(clickInformation, this, e, callbackLevel, action, state);
+
+	sendToListeners(clickInformation);
 }
 
 void MouseCallbackComponent::sendToListeners(var clickInformation)

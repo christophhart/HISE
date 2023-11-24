@@ -202,7 +202,7 @@ public:
 	void removeCallbackListener(Listener *l);
 	void removeAllCallbackListeners();
 
-	static var getMouseCallbackObject(Component* c, const MouseEvent& e, CallbackLevel level, Action action, EnterState state);
+	static void fillMouseCallbackObject(var& clickInformation, Component* c, const MouseEvent& e, CallbackLevel level, Action action, EnterState state);
 
 	void mouseDown(const MouseEvent& event) override;
 
@@ -244,6 +244,8 @@ public:
 	// ================================================================================================================
 
 private:
+
+	var clickInformation;
 
 	FileCallbackLevel fileCallbackLevel = FileCallbackLevel::NoCallbacks;
 	StringArray fileDropExtensions;

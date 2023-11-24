@@ -3538,6 +3538,8 @@ void ScriptBroadcaster::attachToComponentMouseEvents(var componentIds, var callb
 
 	auto cLevel = (MouseCallbackComponent::CallbackLevel)clValue;
 
+	forceSend = true;
+
 	attachedListeners.add(new MouseEventListener(this, componentIds, cLevel, optionalMetadata));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
