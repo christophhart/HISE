@@ -519,6 +519,8 @@ public:
 
 	LassoComponent<ScriptComponent*> lasso;
 
+	bool lassoActive = false;
+
 	ScriptEditHandler* handler;
 };
 
