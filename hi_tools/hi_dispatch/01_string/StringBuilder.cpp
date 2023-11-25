@@ -121,8 +121,6 @@ StringBuilder& StringBuilder::operator<<(EventType eventType)
 	case EventType::Add:			s << "add_source"; break;
 	case EventType::Remove:			s << "rem_source"; break;
 	case EventType::SlotChange:		s << "slotchange"; break;
-	case EventType::SingleListener: s << "listen_one"; break;
-	case EventType::SubsetListener: s << "listen_set"; break;
 	case EventType::AllListener:	s << "listen_all"; break;
 	case EventType::numEventTypes: break;
 
@@ -161,8 +159,6 @@ StringBuilder& StringBuilder::appendEventValues(EventType eventType, const uint8
 	case EventType::Add:            
 	case EventType::Remove:         s << (int)*values; break;
 	case EventType::SlotChange:     appendRawByteArray(values, numBytes); break;
-	case EventType::SingleListener: jassertfalse; break;
-	case EventType::SubsetListener: jassertfalse; break;
 	case EventType::AllListener:    jassertfalse; break;
 	case EventType::numEventTypes:  jassertfalse; break;
 	

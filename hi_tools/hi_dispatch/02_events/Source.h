@@ -46,6 +46,7 @@ public:
 };
 
 class SlotSender;
+class ListenerQueue;
 
 // just a interface class. 
 // Subclass all classes that have a SlotSender from this class
@@ -80,11 +81,11 @@ public:
 
 	virtual SlotSender* getSlotSender(uint8 slotSenderIndex) = 0;
 	
-	Queue* getListenerQueue(uint8 slotSenderIndex, DispatchType n);
+	ListenerQueue* getListenerQueue(uint8 slotSenderIndex, DispatchType n);
 
 	void setState(const HashedPath& p, State newState) override;
 
-	void forEachListenerQueue(DispatchType n, const std::function<void(uint8, DispatchType, Queue* q)>& f);
+	void forEachListenerQueue(DispatchType n, const std::function<void(uint8, DispatchType, ListenerQueue* q)>& f);
 
 	bool matchesPath(const HashedPath& p) const override
 	{

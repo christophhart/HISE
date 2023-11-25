@@ -36,6 +36,8 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+class Source;
+
 class SourceManager  : public Suspendable,
 					    public PooledUIUpdater::SimpleTimer
 {
@@ -62,13 +64,22 @@ public:
 
 	void setState(const HashedPath& p, State newState) override;
 
-	void forEachSource(const std::function<void(Source&)>& sf)
+	
+
+	template <Behaviour B> void forEachSource(const std::function<void(Source&)>& sf)
 	{
-		sources.flush([sf](const Queue::FlushArgument& f)
+		ScopedReadLock sl(sourceLock);
+
+		for(auto s: sources)
 		{
-			sf(f.getTypedObject<Source>());
-			return true;
-		}, Queue::FlushType::KeepData);
+			if constexpr (B == Behaviour::BreakIfPaused)
+			{
+				if(currentState != State::Running)
+					break;
+			}
+			
+			sf(*s);
+		}
 	}
 
 	void resetMessageCounter();
@@ -90,7 +101,9 @@ private:
 	int skippedCounter = 0;
 
 	StringBuilder messageCounterId, skippedCounterId;
-	Queue sources;
+
+	ReadWriteLock sourceLock;
+	Array<Source*> sources;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(SourceManager);
 };

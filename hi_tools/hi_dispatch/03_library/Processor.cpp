@@ -72,7 +72,7 @@ void ProcessorHandler::AttributeListener::slotChanged(const ListenerData& d)
 
 	auto attributeOffset = (uint16)((d.slotIndex - (uint8)SlotTypes::AttributeOffset) * SlotBitmap::getNumBits());
 
-	if(d.numBytes == 1)
+	if(d.t == EventType::SingleListenerSingleSlot)
 	{
 		auto slotIndex = (attributeOffset + d.toSingleSlotIndex());
 		TRACE_DISPATCH_CALLBACK(*obj, "onAttribute", slotIndex);
@@ -119,12 +119,16 @@ ProcessorHandler::ProcessorHandler(RootObject& r):
 
 void ProcessorHandler::addNameAndColourListener(NameAndColourListener* l, DispatchType n)
 {
-	anyNameListeners.push(l, EventType::ListenerAnySlot, nullptr, 0);
+	ListenerQueue::ListenerInformation info(nullptr, l);
+	info.listenerType = EventType::ListenerAnySlot;
+	info.slotIndex = (uint8)SlotTypes::NameAndColour;
+	anyNameListeners.addListener(info);
+	//anyNameListeners.push(l, EventType::ListenerAnySlot, nullptr, 0);
 }
 
 void ProcessorHandler::removeNameAndColourListener(NameAndColourListener* l)
 {
-	anyNameListeners.removeAllMatches(l);
+	l->removeFromProcessorHandler(*this);
 }
 
 void ProcessorHandler::registerProcessor(Processor* p)
@@ -135,6 +139,27 @@ void ProcessorHandler::registerProcessor(Processor* p)
 void ProcessorHandler::deregisterProcessor(Processor* p)
 {
 	p->removeNameAndColourListener(&anyNameDispatcher);
+}
+
+void ProcessorHandler::onNameOrColourUpdate(Processor* p)
+{
+	ListenerQueue::EventData d;
+	d.s = p;
+	d.slotIndex = (uint8)SlotTypes::NameAndColour;
+	
+	anyNameListeners.flush(d);
+
+#if 0
+		(p, &anyNameDispatcher);
+		anyNameListeners.flush(d);
+
+		anyNameListeners.flush([&](const Queue::FlushArgument& f)
+		{
+			auto& n = f.getTypedObject<NameAndColourListener>();
+			n.callWithProcessor(p);
+			return true;
+		}, Queue::FlushType::KeepData);
+#endif
 }
 
 Processor::Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id):

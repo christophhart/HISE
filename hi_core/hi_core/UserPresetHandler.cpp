@@ -352,7 +352,7 @@ bool MainController::UserPresetHandler::CustomAutomationData::isConnectedToMidi(
 bool MainController::UserPresetHandler::CustomAutomationData::isConnectedToComponent() const
 {
 #if USE_NEW_AUTOMATION_DISPATCH
-	return dispatcher.getNumListenersWithClass<ScriptingApi::Content::ScriptComponent>() != 0;
+	return false;//return dispatcher.getNumListenersWithClass<ScriptingApi::Content::ScriptComponent>() != 0;
 #elif USE_OLD_AUTOMATION_DISPATCH
 	return asyncListeners.template getNumListenersWithClass<ScriptingApi::Content::ScriptComponent>() != 0;
 #else

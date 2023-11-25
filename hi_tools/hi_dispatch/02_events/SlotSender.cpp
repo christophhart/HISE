@@ -182,76 +182,61 @@ bool SlotSender::flush(DispatchType n)
 
 		TRACE_FLUSH_FLOW(id, flowManager.closeFlow(n));
 
-		listenerList.flush([&](const Queue::FlushArgument& f)
+		Listener::ListenerData l;
+		l.slotIndex = index;
+		l.s = &obj;
+		l.changes = thisBitmap;
+		l.t = EventType::SlotChange;
+
+		listenerList.flush(l);
+
+#if 0
+		listenerList.flush([&](const SlotQueueType::FlushArgument& f)
 		{
-			switch(f.eventType)
+			auto d = f;
+#if 0
+			Listener::ListenerData d;
+			d.s = &obj;
+			d.t = f.eventType;
+			d.slotIndex = index;
+#endif
+
+			bool call = false;
+			
+			switch(d.t)
 			{
 			case EventType::Listener: jassertfalse; break;
 			case EventType::ListenerWithoutData:
 			{
-				Listener::ListenerData d;
-				d.s = &obj;
-				d.t = f.eventType;
-				d.numBytes = 0;
-				d.slotIndex = index;
-				d.changes = nullptr;
-
-				auto& l = f.getTypedObject<Listener>();
-				l.slotChanged(d);
+				call = true;
 				break;
 			}
-
 			case EventType::ListenerAnySlot:
 			{
-				Listener::ListenerData d;
-				d.s = &obj;
-				d.t = f.eventType;
-				d.numBytes = thisBitmap.getNumBytes();
-				d.slotIndex = index;
-				d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
-
-				auto& l = f.getTypedObject<Listener>();
-				l.slotChanged(d);
-					break;
+				d.changes = thisBitmap;
+				call = true;
+				break;
 			};
 			case EventType::ListenerSingleSlot: jassertfalse; break;
 			case EventType::SingleListener: jassertfalse; break;
 			case EventType::SingleListenerSingleSlot:
 			{
-				jassert(f.numBytes == 1);
-				auto slotIndex = *f.data;
+				auto slotIndex = d.indexWithinSlot;
 
 				if(thisBitmap[slotIndex])
 				{
-					Listener::ListenerData d;
-					d.s = &obj;
-					d.t = f.eventType;
-					d.slotIndex = index;
-					d.numBytes = 1;
-					d.changes = &slotIndex;
-
-					auto& l = f.getTypedObject<Listener>();
-					l.slotChanged(d);
+					d.indexWithinSlot = slotIndex;
+					call = true;
 				}
 
 				break;
 			}
 			case EventType::SingleListenerSubset:
 			{
-				jassert(f.numBytes == SlotBitmap::getNumBytes());
-				SlotBitmap listenerSlots(f.data);
-
-				if(listenerSlots.hasSomeBitsAs(thisBitmap))
+				if(d.changes.hasSomeBitsAs(thisBitmap))
 				{
-					Listener::ListenerData d;
-					d.s = &obj;
-					d.t = f.eventType;
-					d.numBytes = thisBitmap.getNumBytes();
-					d.slotIndex = index;
-					d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
-
-					auto& l = f.getTypedObject<Listener>();
-					l.slotChanged(d);
+					d.changes = thisBitmap;
+					call = true;
 				}
 
 				break;
@@ -259,22 +244,22 @@ bool SlotSender::flush(DispatchType n)
 			case EventType::SubsetListener: jassertfalse; break;
  			case EventType::AllListener: 
 			{
-				Listener::ListenerData d;
-				d.s = &obj;
-				d.slotIndex = index;
-				d.numBytes = thisBitmap.getNumBytes();
-				d.changes = reinterpret_cast<const uint8*>(thisBitmap.getData());
-
-				auto& l = f.getTypedObject<Listener>();
-				l.slotChanged(d);
+				d.changes = thisBitmap;
+				call = true;
  				break;
 			}
-
 			default: jassertfalse; break;
+			}
+
+			if(call)
+			{
+				auto& l = f.getTypedObject<Listener>();
+				l.slotChanged(d);	
 			}
 
 			return true;
 		}, Queue::FlushType::KeepData);
+#endif
 	}
 
 	if(listenerList.getState() == State::Running)

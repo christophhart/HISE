@@ -50,6 +50,7 @@ Source::~Source()
 {
 	getRootObject().removeTypedChild(this);
 	parent.removeSource(this);
+	cleared();
 }
 
 
@@ -68,7 +69,7 @@ void Source::flushChanges(DispatchType n)
 	}
 }
 
-Queue* Source::getListenerQueue(uint8 slotSenderIndex, DispatchType n)
+ListenerQueue* Source::getListenerQueue(uint8 slotSenderIndex, DispatchType n)
 {
 	return getSlotSender(slotSenderIndex)->getListenerQueue(n);
 }
@@ -80,7 +81,7 @@ void Source::setState(const HashedPath& p, State newState)
 	
 	currentState = newState;
 
-	forEachListenerQueue(DispatchType::sendNotification, [p, newState, this](uint8 s, DispatchType n, Queue* q)
+	forEachListenerQueue(DispatchType::sendNotification, [p, newState, this](uint8 s, DispatchType n, ListenerQueue* q)
 	{
 		auto sender = this->getSlotSender(s);
 
@@ -90,14 +91,13 @@ void Source::setState(const HashedPath& p, State newState)
 
 			if(newState == State::Running && n == sendNotificationSync)
 			{
-				q->resumeAfterPause();
 				sender->flush(n);
 			}
 		}
 	});
 }
 
-void Source::forEachListenerQueue(DispatchType n, const std::function<void(uint8, DispatchType, Queue* q)>& f)
+void Source::forEachListenerQueue(DispatchType n, const std::function<void(uint8, DispatchType, ListenerQueue* q)>& f)
 {
 	for(int i = 0; i < getNumSlotSenders(); i++)
 	{

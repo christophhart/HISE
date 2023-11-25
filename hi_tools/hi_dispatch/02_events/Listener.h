@@ -36,10 +36,134 @@ namespace hise {
 namespace dispatch {	
 using namespace juce;
 
+
+
 // A base class for all classes that have a Listener as a member
 struct ListenerOwner
 {
 	virtual ~ListenerOwner() {};
+};
+
+struct ListenerQueue
+{
+	ListenerQueue(RootObject& r, size_t unused)
+	{
+		
+	}
+
+	struct EventData
+	{
+		EventData()
+		{
+			static_assert(sizeof(EventData) == 16, "not 16 byte");
+		}
+
+		explicit operator bool() const { return t != EventType::Nothing; }
+
+		template <typename T> T* to_static_cast() const
+		{
+			jassert(dynamic_cast<T*>(s) != nullptr);
+			return static_cast<T*>(s);
+		}
+
+		SlotBitmap toBitMap() const
+		{
+			jassert(t == EventType::SingleListenerSubset);
+			return changes;
+		}
+
+		uint8 toSingleSlotIndex() const
+		{
+			jassert(t == EventType::SingleListenerSingleSlot);
+			return indexWithinSlot;
+		}
+
+		Source* s = nullptr;
+		EventType t = EventType::Nothing;
+		uint8 slotIndex = 0;
+		uint8 indexWithinSlot = 0;
+		SlotBitmap changes;
+	};
+
+	struct ListenerInformation
+	{
+		ListenerInformation(Source* s, Listener* l_):
+		  source(s),
+		  l(l_)
+		{};
+
+		const void* get_object_ptr() const { return l; }
+
+		bool operator==(const ListenerInformation& other)
+		{
+			return l == other.l;
+		}
+
+		Listener* l = nullptr;
+		Source* source = nullptr;
+		EventType listenerType;
+		uint8 slotIndex = 0;
+		uint8 indexWithinSlot = 0;
+		uint8 unused = 0;
+		SlotBitmap registeredSlots;
+
+		ListenerInformation()
+		{
+			static_assert(sizeof(ListenerInformation) == 32, "not 32 bytes");
+		}
+
+		void operator()(const EventData& f) const;
+	};
+	
+	sigslot::connection addListener(const ListenerInformation& info)
+	{
+		return sig.connect(info);
+	}
+
+	bool isEmpty()
+	{
+		auto numSlots = sig.slot_count();
+		return numSlots == 0;
+	}
+
+	State getState() const { return currentState; }
+
+	void setQueueState(State s)
+	{
+		if(s != currentState)
+		{
+			currentState = s;
+
+			if(s == State::Paused)
+				sig.block();
+			else
+				sig.unblock();
+		}
+	}
+
+	void removeConnection(const sigslot::connection& c)
+	{
+		sig.disconnect(c);
+	}
+
+	void removeAllMatches(Listener* l);
+
+	void clear()
+	{
+		sig.disconnect_all();
+	}
+
+	bool flush(const EventData& d)
+	{
+		sig(d);
+
+		return currentState == State::Running;
+	}
+
+private:
+
+	State currentState = State::Running;
+	sigslot::signal<const EventData&> sig;
 };
 
 // A listener object that receives notifications about events of the SerialisedTree
@@ -51,41 +175,15 @@ struct ListenerOwner
 //   3. multiple slot changes of a single source
 //   4. slot changes to a subset of Sources
 //   5  all slot changes
-class Listener: public Queueable
+class Listener: public Queueable,
+				public sigslot::observer
 {
 public:
 
 	using ValueChangedFunction = const std::function<void(uint8 index)>;
 
 	// The listener data that holds information about the source event.
-	struct ListenerData
-	{
-		explicit operator bool() const { return t != EventType::Nothing; }
-		Source* s = nullptr;
-
-		template <typename T> T* to_static_cast() const
-		{
-			jassert(dynamic_cast<T*>(s) != nullptr);
-			return static_cast<T*>(s);
-		}
-
-		SlotBitmap toBitMap() const
-		{
-			jassert(numBytes == SlotBitmap::getNumBytes());
-			return SlotBitmap(changes);
-		}
-
-		uint8 toSingleSlotIndex() const
-		{
-			jassert(numBytes == 1);
-			return *changes;
-		}
-
-		EventType t = EventType::Nothing;
-		uint8 slotIndex;
-		const uint8* changes;
-		size_t numBytes;
-	};
+	using ListenerData = ListenerQueue::EventData;
 
 	template <typename T> T& getOwner()
 	{
@@ -107,8 +205,21 @@ public:
 	/** Override this method and implement whatever you want to do with the notification. */
 	virtual void slotChanged(const ListenerData& d) = 0;
 
+	
+
 	/** Registers the listener to all slot changes of a subset of source slots. */
 	void addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n);
+
+	/** Registers a listener without any filters. */
+	void addListenerWithoutData(Source* source, uint8 slotIndex, DispatchType n)
+	{
+		ListenerQueue::ListenerInformation info(source, this);
+		info.listenerType = EventType::ListenerWithoutData;
+		info.slotIndex = slotIndex;
+		auto lq = source->getListenerQueue(slotIndex, n);
+
+		addToQueueInternal(lq, info);
+	}
 
 	/** Registers the listener to slot changes of a certain index within the given slot. */
 	void addListenerToSingleSlotIndexWithinSlot(Source* source, uint8 slotIndex, uint8 indexWithinSlot,
@@ -125,10 +236,41 @@ public:
 	/** Removes the listener. */
 	void removeListener(Source& s, DispatchType n = sendNotification);
 
+	/** @internal, used by ListenerQueue::removeAllMatches. */
+	void removeFromListenerQueue(ListenerQueue* q);
+
 private:
+
+	void addToQueueInternal(ListenerQueue* q, const ListenerQueue::ListenerInformation& info)
+	{
+		if(isPositiveAndBelow(connections.size(), NumMaxConnections))
+		{
+			connections.insertWithoutSearch({q, q->addListener(info)});
+		}
+		else
+		{
+			jassertfalse;
+		}
+		
+	}
+
+	struct ConnectionType
+	{
+		bool operator==(const ConnectionType& other) const
+		{
+			return q == other.q;
+		}
+
+		ListenerQueue* q = nullptr;
+		sigslot::connection con;
+	};
 
 	ListenerOwner& owner;
 	bool removed = true;
+
+	static constexpr int NumMaxConnections = 256;
+
+	hise::UnorderedStack<ConnectionType, NumMaxConnections> connections;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Listener);
 };
@@ -136,120 +278,6 @@ private:
 using Listener = dispatch::Listener;
 
 
-template <typename T> class SingleValueSource: public Source
-{
-public:
-
-	class Listener final : private dispatch::Listener
-	{
-	public:
-
-		using Callback = std::function<void(int, T)>;
-
-		Listener(RootObject& r, ListenerOwner& o, const Callback& c):
-		  dispatch::Listener(r, o),
-		  f(c)
-		{};
-
-	private:
-
-		void slotChanged(const ListenerData& d) override
-		{
-			jassert(d.t == EventType::ListenerWithoutData);
-			jassert(f);
-			jassert(d.s != nullptr);
-			
-			auto cd = static_cast<SingleValueSource*>(d.s);
-
-#if PERFETTO
-			StringBuilder b;
-			b << "listener callback for " << cd->getDispatchId();
-			TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-#endif
-
-			f(cd->index, cd->value);
-		}
-
-		friend class SingleValueSource;
-
-		Callback f;
-	};
-
-	SingleValueSource(SingleValueSourceManager<T>& parent, SourceOwner& owner, int index_, const HashedCharPtr& id):
-	  Source(parent, owner, id),
-	  index(index_),
-	  valueSender(*this, 0, "value")
-	{
-		valueSender.setNumSlots(1);
-	};
-
-	void addValueListener(Listener* l, bool initialiseValue, DispatchType n)
-	{
-		valueSender.getListenerQueue(n)->push(l, EventType::ListenerWithoutData, nullptr, 0);
-
-		if(initialiseValue)
-		{
-			StringBuilder n;
-			n << "init call " << getDispatchId();
-			TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(n));
-			dispatch::Listener::ListenerData d;
-			d.t = EventType::ListenerWithoutData;
-			d.s = this;
-			d.slotIndex = 0;
-			d.numBytes = 0;
-			d.changes = nullptr;
-			l->slotChanged(d);
-		}
-	}
-
-	void removeValueListener(Listener* l, DispatchType n=DispatchType::sendNotification)
-	{
-		l->removeListener(*this, n);
-	}
-
-	template <typename ListenerType> int getNumListenersWithClass(DispatchType n=DispatchType::sendNotification) const
-	{
-		int numListeners = 0;
-
-		const_cast<SingleValueSource*>(this)->forEachListenerQueue(n, [&numListeners](uint8, DispatchType, Queue* q)
-		{
-			q->flush([&numListeners](const Queue::FlushArgument& f)
-			{
-				auto& l = f.getTypedObject<dispatch::Listener>();
-
-				auto t = dynamic_cast<ListenerType*>(&l.getOwner<ListenerOwner>());
-
-				if(t != nullptr)
-					numListeners++;
-
-				return true;
-			}, Queue::FlushType::KeepData);
-		});
-
-		return numListeners;
-	}
-
-	void setValue(T v, DispatchType n)
-	{
-#if PERFETTO
-		StringBuilder b;
-		b << getDispatchId() << "(" << index << ")";
-		TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
-#endif
-
-		value = v;
-		valueSender.sendChangeMessage(0, n);
-	}
-
-	int getNumSlotSenders() const override { return 1; }
-	SlotSender* getSlotSender(uint8) override { return &valueSender; }
-
-private:
-
-	T value = T();
-	const int index;
-	SlotSender valueSender;
-};
 
 } // dispatch
 } // hise

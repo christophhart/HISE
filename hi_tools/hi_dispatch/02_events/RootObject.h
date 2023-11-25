@@ -82,10 +82,7 @@ public:
 
 	/** Removes the element from all queues. */
 	void clearFromAllQueues(Queueable* q, DanglingBehaviour danglingBehaviour);
-
-	/** Call this periodically to ensure that the queues are minimized. */
-	void minimiseQueueOverhead();
-
+	
 	PooledUIUpdater* getUpdater();
 	void setLogger(Logger* l);
 	Logger* getLogger() const { return currentLogger; }
@@ -94,17 +91,19 @@ public:
 
 	void setState(const HashedPath& path, State newState);
 
+#if 0
 	/** Iterates all registered queues and calls the given function. */
-	bool callForAllQueues(const std::function<bool(Queue&)>& qf) const;
+	bool callForAllQueues(Behaviour b, const std::function<bool(Queue&)>& qf) const;
 
 	/** Iterates all registered sources and calls the given function. */
-	bool callForAllSources(const std::function<bool(Source&)>& sf) const;
+	bool callForAllSources(Behaviour b, const std::function<bool(Source&)>& sf) const;
 
 	/** Iterates all registered source managers and calls the given function. */
 	bool callForAllSourceManagers(const std::function<bool(SourceManager&)>& sf) const;
 
 	/** Iterates all registered listener and calls the given function. */
 	bool callForAllListeners(const std::function<bool(dispatch::Listener&)>& lf) const;
+#endif
 
 	/** Call this from a thread that is running periodically. */
 	void flushHighPriorityQueues(Thread* t);
@@ -126,7 +125,7 @@ public:
 		const State prevValue;
 		bool isUsed = false;
 	};
-
+	
 private:
 
 	State globalState = State::Running;
@@ -168,7 +167,47 @@ private:
 
 	std::atomic<int> numChildObjects = { 0 };
 
-	ScopedPointer<Queue> sourceManagers, queues, sources, listeners;
+	enum ChildType
+	{
+		SourceManagerType,
+		SourceType,
+		QueueType,
+		ListenerType,
+		numChildTypes
+	};
+
+	template <typename T, Behaviour B> bool forEach(const std::function<bool(T&)>& objectFunction) const
+	{
+		ChildType CT;
+
+		if constexpr(std::is_same<T, SourceManager>())
+			CT = ChildType::SourceManagerType;
+		if constexpr(std::is_same<T, Source>())
+			CT = ChildType::SourceType;
+		if constexpr(std::is_same<T, Queue>())
+			CT = ChildType::QueueType;
+		if constexpr(std::is_same<T, Listener>())
+			CT = ChildType::ListenerType;
+
+		ScopedReadLock sl(childLock[CT]);
+
+		for(auto element: children[CT])
+		{
+			if constexpr (B == Behaviour::BreakIfPaused)
+			{
+				if(globalState != State::Running)
+					return false;
+			}
+
+			if(objectFunction(*dynamic_cast<T*>(element)))
+					return true;
+		}
+
+		return false;
+	}
+
+	Array<Child*> children[numChildTypes];
+	ReadWriteLock childLock[numChildTypes];
 };
 
 } // dispatch

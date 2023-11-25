@@ -44,6 +44,10 @@ class Logger final : public  PooledUIUpdater::SimpleTimer,
 public:
 
 	Logger(RootObject& root, size_t numAllocated);;
+	~Logger()
+	{
+		cleared();
+	}
 
 	void flush();
 

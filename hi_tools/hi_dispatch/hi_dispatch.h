@@ -32,7 +32,7 @@
 
 #pragma once
 
-
+#include "02_events/signal.hpp"
 
 namespace hise {
 namespace dispatch {	
@@ -80,15 +80,10 @@ enum class EventType: uint8 // change to HeaderType
 	SlotChange,
 	SourcePtr,
 
-	Listener,
 	ListenerAnySlot,
 	ListenerWithoutData,
-	ListenerSingleSlot,
-	SingleListener,				// TODO: remove all those weird sub stuff?
 	SingleListenerSingleSlot,
 	SingleListenerSubset,
-	
-	SubsetListener,
 	AllListener,
 	numEventTypes
 };
@@ -119,6 +114,13 @@ enum TransportCommand // TODO
 	Skip,		 // Skip to the end (flush the remaining elements)
 	Rewind,		 // Start again at position 0
 	numCommands	
+};
+
+enum class Behaviour
+{
+	BreakIfPaused,
+	AlwaysRun,
+	numBehaviours
 };
 
 enum DispatchType
@@ -258,6 +260,10 @@ struct FuzzyTester;
 
 #define SUSPEND_GLOBAL_DISPATCH(mc, description) dispatch::RootObject::ScopedGlobalSuspender sps(mc->getRootDispatcher(), dispatch::Paused, dispatch::CharPtr(description));
 
+#ifndef ENABLE_DISPATCH_QUEUE_RESUME
+#define ENABLE_DISPATCH_QUEUE_RESUME 0
+#endif
+
 #if PERFETTO
 #define TRACE_FLUSH(x) dispatch::StringBuilder b; b << "flush " << n << ": " << x; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
 #define TRACE_OPEN_FLOW(x, flow) dispatch::StringBuilder b; b << "send " << n << ": " << x; TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), flow);
@@ -283,8 +289,9 @@ struct FuzzyTester;
 #include "01_string/StringBuilder.h" // needs Queue
 #include "02_events/SourceManager.h"
 #include "02_events/Source.h"
-#include "02_events/SlotSender.h"
 #include "02_events/Listener.h"
+#include "02_events/SlotSender.h"
+
 
 #include "03_library/Library.h"
 #include "03_library/Processor.h"

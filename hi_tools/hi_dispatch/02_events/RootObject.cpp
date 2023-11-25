@@ -50,32 +50,27 @@ RootObject::Child::~Child()
 }
 
 RootObject::RootObject(PooledUIUpdater* updater_):
-  
 	updater(updater_)
 {
-	queues = new Queue(*this, 4096);
-	sourceManagers = new Queue(*this, 64);
-	sources = new Queue(*this, 4096);
-	listeners = new Queue(*this, 4096);
+	auto initQueueSize = 32768;
+
+	children[QueueType].ensureStorageAllocated(initQueueSize);
+	children[SourceManagerType].ensureStorageAllocated(initQueueSize/8);
+	children[SourceType].ensureStorageAllocated(initQueueSize);
+	children[ListenerType].ensureStorageAllocated(initQueueSize);
 }
 
 RootObject::~RootObject()
 {
-	ownedHighPriorityThread = nullptr;
-
 	globalState = State::Shutdown;
 
-	sources->setQueueState(State::Shutdown);
-	sourceManagers->setQueueState(State::Shutdown);
-	listeners->setQueueState(State::Shutdown);
-	queues->setQueueState(State::Shutdown);
+	ownedHighPriorityThread = nullptr;
 
-	sources = nullptr;
-	sourceManagers = nullptr;
-	listeners = nullptr;
-	queues = nullptr;
-
-    jassert(numChildObjects == 0);
+	for(int i = 0; i < numChildTypes; i++)
+	{
+		ScopedWriteLock sl(childLock[i]);
+		children[i].clear();
+	}
 }
 
 void RootObject::addChild(Child* c)
@@ -90,27 +85,25 @@ void RootObject::removeChild(Child* c)
 
 void RootObject::addTypedChild(Child* c)
 {
-	if(queues == nullptr)
-	{
-		jassert(numChildObjects == 1);
-		return;
-	}
-
 	if(auto typed = dynamic_cast<SourceManager*>(c))
 	{
-		sourceManagers->push(typed, EventType::SourcePtr, nullptr, 0);
+		ScopedWriteLock sl(childLock[SourceManagerType]);
+		children[SourceManagerType].add(c);
 	}
 	else if(auto typed = dynamic_cast<Source*>(c))
 	{
-		sources->push(typed, EventType::SourcePtr, nullptr, 0);
+		ScopedWriteLock sl(childLock[SourceManagerType]);
+		children[SourceType].add(c);
 	}
 	else if(auto typed = dynamic_cast<Queue*>(c))
 	{
-		queues->push(typed, EventType::SourcePtr, nullptr, 0);
+		ScopedWriteLock sl(childLock[QueueType]);
+		children[QueueType].add(c);
 	}
 	else if(auto typed = dynamic_cast<dispatch::Listener*>(c))
 	{
-		listeners->push(typed, EventType::SourcePtr, nullptr, 0);
+		ScopedWriteLock sl(childLock[ListenerType]);
+		children[ListenerType].add(c);
 	}
 	else
 	{
@@ -120,32 +113,25 @@ void RootObject::addTypedChild(Child* c)
 
 void RootObject::removeTypedChild(Child* c)
 {
-	if(queues == nullptr)
-	{
-		jassert(numChildObjects == 1);
-		return;
-	}
-		
-
 	if(auto typed = dynamic_cast<SourceManager*>(c))
 	{
-		Queue::ScopedExplicitSuspender ses(*sourceManagers);
-		sourceManagers->removeFirstMatchInQueue(typed);
+		ScopedWriteLock sl(childLock[SourceManagerType]);
+		children[SourceManagerType].removeFirstMatchingValue(c);
 	}
 	else if(auto typed = dynamic_cast<Source*>(c))
 	{
-		Queue::ScopedExplicitSuspender ses(*sources);
-		sources->removeFirstMatchInQueue(typed);
+		ScopedWriteLock sl(childLock[SourceManagerType]);
+		children[SourceType].removeFirstMatchingValue(c);
 	}
 	else if(auto typed = dynamic_cast<Queue*>(c))
 	{
-		Queue::ScopedExplicitSuspender ses(*queues);
-		queues->removeFirstMatchInQueue(typed);
+		ScopedWriteLock sl(childLock[QueueType]);
+		children[QueueType].removeFirstMatchingValue(c);
 	}
 	else if(auto typed = dynamic_cast<dispatch::Listener*>(c))
 	{
-		Queue::ScopedExplicitSuspender ses(*listeners);
-		listeners->removeFirstMatchInQueue(typed);
+		ScopedWriteLock sl(childLock[ListenerType]);
+		children[ListenerType].removeFirstMatchingValue(c);
 	}
 	else
 	{
@@ -162,15 +148,10 @@ void RootObject::clearFromAllQueues(Queueable* objectToBeDeleted, DanglingBehavi
 	n << "remove queuable";
 	ScopedGlobalSuspender sgs(*this, State::Paused, n.toCharPtr());
 
-    callForAllQueues([behaviour, objectToBeDeleted](Queue& q)
+    forEach<Queue, Behaviour::AlwaysRun>([behaviour, objectToBeDeleted](Queue& q)
     {
 	    q.invalidateQueuable(objectToBeDeleted, behaviour); return false;
     });
-}
-
-void RootObject::minimiseQueueOverhead()
-{
-    jassertfalse;
 }
 
 PooledUIUpdater* RootObject::getUpdater()
@@ -191,57 +172,40 @@ void RootObject::setState(const HashedPath& path, State newState)
 	if(newState == State::Shutdown)
 		globalState = State::Shutdown;
 
-	callForAllSourceManagers([path, newState](SourceManager& sm)
+	forEach<SourceManager, Behaviour::AlwaysRun>([path, newState](SourceManager& sm)
 	{
 		sm.setState(path, newState);
 		return false;
 	});
 }
 
-struct QueueIteratorHelpers
-{
-	template <typename T> static bool forEach(Queue* q, const std::function<bool(T&)>& objectFunction)
-	{
-		return !q->flush([objectFunction](const Queue::FlushArgument& f)
-		{
-			auto& s = f.getTypedObject<T>();
-
-			if(objectFunction(s))
-				return false;
-
-			return true;
-		}, Queue::FlushType::KeepData);
-	}
-};
-
+#if 0
 bool RootObject::callForAllQueues(const std::function<bool(Queue&)>& qf) const
 {
-	if(queues == nullptr)
-		return false;
-
-	return QueueIteratorHelpers::forEach<Queue>(queues, qf);
+	return forEach<Queue, Behaviour::AlwaysRun>(qf);
 }
 
 bool RootObject::callForAllSources(const std::function<bool(Source&)>& sf) const
 {
-	return QueueIteratorHelpers::forEach<Source>(sources, sf);
+	return forEach<Source>(SourceType, sf);
 }
 
 bool RootObject::callForAllSourceManagers(const std::function<bool(SourceManager&)>& sf) const
 {
-	return QueueIteratorHelpers::forEach<SourceManager>(sourceManagers, sf);
+	return forEach<SourceManager>(SourceManagerType, sf);
 }
 
 bool RootObject::callForAllListeners(const std::function<bool(dispatch::Listener&)>& lf) const
 {
-	return QueueIteratorHelpers::forEach<dispatch::Listener>(listeners, lf);
+	return forEach<Listener>(ListenerType, lf);
 }
+#endif
 
 uint64 RootObject::flowCounter = 0;
 
 void RootObject::flushHighPriorityQueues(Thread* t)
 {
-	callForAllSourceManagers([&](SourceManager& sm)
+	forEach<SourceManager, Behaviour::BreakIfPaused>([&](SourceManager& sm)
 	{
 		if(t->threadShouldExit())
 			return true;

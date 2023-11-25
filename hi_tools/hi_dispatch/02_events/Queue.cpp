@@ -50,7 +50,11 @@ RootObject::Child(r)
 
 Queueable::~Queueable()
 {
-    //getRootObject().clearFromAllQueues(this, danglingBehaviour);
+    if(!isCleared)
+    {
+        jassertfalse;
+        getRootObject().clearFromAllQueues(this, danglingBehaviour);
+    }
 
     int index = 0;
 
@@ -91,12 +95,15 @@ Queue::QueuedEvent Queue::QueuedEvent::fromData(uint8* ptr)
 Queue::Iterator::Iterator(Queue& queueToIterate):
 parent(queueToIterate),
 ptr(parent.data.get()),
-lastPos(nullptr)
+lastPos(nullptr),
+startPos(ptr)
 {
 }
 
 bool Queue::Iterator::next(QueuedEvent& e)
 {
+    // ouch, this means the queue has been reallocated during a flush operation...
+    jassert(parent.data.get() == startPos);
     auto end = parent.data.get() + parent.numUsed;
     
     if(ptr < end)
@@ -130,7 +137,6 @@ bool Queue::Iterator::seekTo(size_t position)
         jassertfalse;
         return false;
     }
-    
 }
 
 Queue::Queue(RootObject& root, size_t initAllocatedSize):
@@ -138,12 +144,17 @@ Queue::Queue(RootObject& root, size_t initAllocatedSize):
 {
     root.addTypedChild(this);
     static_assert(sizeof(QueuedEvent) == 16, "must be 16");
-    ensureAllocated(initAllocatedSize);
+
+    if(initAllocatedSize > 0)
+        data.calloc(initAllocatedSize);
+
+    numAllocated = initAllocatedSize;
 }
 
 Queue::~Queue()
 {
     getRootObject().removeTypedChild(this);
+    cleared();
 }
 
 inline bool Queue::ensureAllocated(size_t numBytesRequired)
@@ -157,6 +168,8 @@ inline bool Queue::ensureAllocated(size_t numBytesRequired)
         
         if(isPositiveAndBelow(numToAllocate, MaxQueueSize))
         {
+            jassert(!flushPending);
+
             HeapBlock<uint8> newData;
             newData.calloc(numToAllocate);
             memcpy(newData, data, numUsed);
@@ -212,6 +225,8 @@ bool Queue::push(Queueable* s, EventType t, const void* values, size_t numValues
 
 bool Queue::flush(const FlushFunction& f, FlushType flushType)
 {
+    ScopedValueSetter<bool> svs(flushPending, true);
+
     if(isEmpty())
         return true;
 
@@ -221,9 +236,11 @@ bool Queue::flush(const FlushFunction& f, FlushType flushType)
         return true;
     
     Iterator iter(*this);
-    
+
+#if ENABLE_DISPATCH_QUEUE_RESUME
     if(resumeData != nullptr)
         iter.seekTo(resumeData->offset);
+#endif
     
     int numDangling = 0;
     
@@ -237,10 +254,12 @@ bool Queue::flush(const FlushFunction& f, FlushType flushType)
 
         if(state == State::Paused)
         {
+#if ENABLE_DISPATCH_QUEUE_RESUME
             resumeData = new ResumeData();
             resumeData->f = f;
             resumeData->flushType = flushType;
             resumeData->offset = iter.getPositionOfCurrentQueuable() - data.get();
+#endif
             return true;
         }
         

@@ -355,8 +355,10 @@ struct ProcessorListener::AddAction: public Action
 		{
 			auto& p = processorAddAction->getProcessor()->dispatcher;
 
+			p.removeNameAndColourListener(&listener->idListener);
 			p.removeAttributeListener(&listener->attributeListener);
 			p.removeBypassListener(&listener->bypassListener);
+			
 		}
 
 		jassert(listener != nullptr);

@@ -122,12 +122,18 @@ public:
 		using Callback = std::function<void(Processor*)>;
 
 		NameAndColourListener(RootObject& r, ListenerOwner& owner, const Callback& f_);;
-		~NameAndColourListener() final {};
+		~NameAndColourListener() final {  };
 
 		void callWithProcessor(Processor* p)
 		{
 			jassert(f);
 			f(p);
+		}
+
+		void removeFromProcessorHandler(ProcessorHandler& r)
+		{
+			r.anyNameListeners.removeAllMatches(this);
+			cleared();
 		}
 
 	private:
@@ -159,14 +165,15 @@ public:
 
 			if(slotType == SlotTypes::OtherChange)
 			{
-				auto slotMap = d.toBitMap();
+				auto eventType = (ProcessorChangeEvent)d.indexWithinSlot;
 
-				jassert(MessageManager::getInstance()->isThisTheMessageThread());
+				jassert(MessageManager::getInstance()->isThisTheMessageThread() || 
+					    MessageManager::getInstance()->currentThreadHasLockedMessageManager());
+
 				jassert(f);
 
 				auto match = eventToListenTo == ProcessorChangeEvent::Any ||
-					         slotMap[(int)eventToListenTo] || 
-							 slotMap[(int)ProcessorChangeEvent::Any];
+					         eventType == eventToListenTo;
 
 				if(match)
 				{
@@ -197,17 +204,9 @@ public:
 
 private:
 
-	void onNameOrColourUpdate(Processor* p)
-	{
-		anyNameListeners.flush([&](const Queue::FlushArgument& f)
-		{
-			auto& n = f.getTypedObject<NameAndColourListener>();
-			n.callWithProcessor(p);
-			return true;
-		}, Queue::FlushType::KeepData);
-	}
+	void onNameOrColourUpdate(Processor* p);
 
-	Queue anyNameListeners;
+	ListenerQueue anyNameListeners;
 	NameAndColourListener anyNameDispatcher;
 };
 
@@ -271,7 +270,17 @@ public:
 	void addOtherChangeListener(OtherChangeListener* l, DispatchType n)
 	{
 		uint8 slots = (uint8)SlotTypes::OtherChange;
-		l->addListenerToSingleSource(this, &slots, 1, n);
+
+		if(l->eventToListenTo == ProcessorChangeEvent::Any)
+		{
+			l->addListenerToSingleSource(this, &slots, 1, n);
+		}
+		else
+		{
+			l->addListenerToSingleSlotIndexWithinSlot(this, slots, (uint8)l->eventToListenTo, n);
+		}
+
+		
 	}
 
 	/** Removes a listener that is notified about other events. */

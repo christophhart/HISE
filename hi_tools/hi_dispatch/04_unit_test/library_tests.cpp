@@ -77,8 +77,12 @@ void LibraryTest::deinit(int numChecksExpected)
 
 void LibraryTest::runTest()
 {
+	testSigSlotBasics();
+
 	testSlotBitMap();
 	testSingleValueSources();
+
+	testOtherChangeMessage();
 
 	testMultipleAttributes({1});
 	testMultipleAttributes({1, 4});
@@ -382,6 +386,113 @@ void LibraryTest::testSuspension(const HashedCharPtr& pathToTest)
 	p.removeAttributeListener(&l);
 }
 
+void LibraryTest::testOtherChangeMessage()
+{
+	beginTest("Test other change message");
+
+	RootObject r(nullptr);
+	library::ProcessorHandler ph(r);
+	library::Processor p(ph, *this, "test_processor");
+
+	int numCallbacks = 0;
+	
+	library::Processor::OtherChangeListener l(r, *this, [&](library::Processor* p)
+	{
+		numCallbacks++;
+	}, library::ProcessorChangeEvent::Custom);
+
+	MessageManagerLock mm;
+
+	p.addOtherChangeListener(&l, sendNotificationSync);
+
+	p.sendChangeMessage(library::ProcessorChangeEvent::Macro, sendNotificationSync);
+
+	expectEquals(numCallbacks, 0, "shouldn't fire at intensity");
+
+	p.sendChangeMessage(library::ProcessorChangeEvent::Custom, sendNotificationSync);
+
+	expectEquals(numCallbacks, 1, "should fire at custom");
+	
+	p.removeOtherChangeListener(&l);
+
+	p.sendChangeMessage(library::ProcessorChangeEvent::Custom, sendNotificationSync);
+
+	expectEquals(numCallbacks, 1, "remove didn't work");
+
+	numCallbacks = 0;
+
+	library::Processor::OtherChangeListener a(r, *this, [&](library::Processor* p)
+	{
+		numCallbacks++;
+	}, library::ProcessorChangeEvent::Any);
+
+	p.addOtherChangeListener(&a, sendNotificationSync);
+
+	p.sendChangeMessage(library::ProcessorChangeEvent::Custom, sendNotificationSync);
+
+	expectEquals(numCallbacks, 1, "should fire at custom");
+
+	p.sendChangeMessage(library::ProcessorChangeEvent::Preset, sendNotificationSync);
+
+	expectEquals(numCallbacks, 2, "should fire at preset");
+
+	p.removeOtherChangeListener(&a);
+
+	p.sendChangeMessage(library::ProcessorChangeEvent::Custom, sendNotificationSync);
+
+	expectEquals(numCallbacks, 2, "remove didn't work");
+
+}
+
+void LibraryTest::testSigSlotBasics()
+{
+	beginTest("testing sig slot basics");
+
+	RootObject r(nullptr);
+
+	struct DummyListener: public dispatch::Listener
+	{
+		DummyListener(RootObject& r, LibraryTest& o, bool& flag_):
+		  Listener(r, o),
+		  t(o),
+		  flag(flag_)
+		{};
+
+		~DummyListener() { clearFromRoot(); } 
+
+		void slotChanged(const ListenerData& d) final
+		{
+			auto bm = d.toBitMap();
+			auto x = bm[0];
+			t.expect(bm[0]);
+			t.expect(bm[18]);
+			t.expect(!bm[12]);
+			flag = true;
+		}
+
+		bool& flag;
+		LibraryTest& t;
+	};
+
+	bool executed = false;
+	DummyListener l(r, *this, executed);
+
+	sigslot::signal<const Listener::ListenerData&> slot;
+	slot.connect(&DummyListener::slotChanged, &l);
+
+	SlotBitmap bm;
+	bm.setBit(0, true);
+	bm.setBit(18, true);
+
+	Listener::ListenerData d;
+	d.t = EventType::SingleListenerSubset;
+	d.changes = bm;
+
+	slot(d);
+
+	expect(executed, "not executed");;
+}
+
 void LibraryTest::runTestFiles()
 {
 	File rootDirectory = getTestDirectory();
@@ -534,15 +645,20 @@ void LibraryTest::testSingleValueSources()
 	});
 
 	s.addValueListener(&l, false, DispatchType::sendNotificationSync);
+
+	expect(!s.getSlotSender(0)->getListenerQueue(DispatchType::sendNotificationSync)->isEmpty(), "should not be empty");
+
 	s.setValue(valueToSend, DispatchType::sendNotificationSync);
 
-	expectEquals(s.getNumListenersWithClass<LibraryTest>(), 1, "getNumListeners doesn't work");
+	//expectEquals(s.getNumListenersWithClass<LibraryTest>(), 1, "getNumListeners doesn't work");
 
-	expectEquals(s.getNumListenersWithClass<LibraryTest>(), 1, "getNumListeners still works");
+	//expectEquals(s.getNumListenersWithClass<LibraryTest>(), 1, "getNumListeners still works");
 
 	s.removeValueListener(&l);
 
-	expectEquals(s.getNumListenersWithClass<LibraryTest>(), 0, "getNumListeners doesn't work pt. II");
+	//expectEquals(s.getNumListenersWithClass<LibraryTest>(), 0, "getNumListeners doesn't work pt. II");
+
+	expect(s.getSlotSender(0)->getListenerQueue(DispatchType::sendNotificationSync)->isEmpty(), "should be empty");
 
 	expectEquals(numCallbacks, 1, "not fired");
 
@@ -561,6 +677,8 @@ void LibraryTest::testSingleValueSources()
 	s.addValueListener(&l2, true, sendNotificationSync);
 
 	expect(fired, "second listener not fired");
+
+	s.removeValueListener(&l2);
 }
 
 static LibraryTest libraryTest;

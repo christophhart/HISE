@@ -45,13 +45,15 @@ struct LoggerTest: public UnitTest,
 {
 	struct MyTestQueuable: public Queueable
 	{
-		MyTestQueuable(RootObject& r);;
+		MyTestQueuable(RootObject& r);
+        ~MyTestQueuable() { clearFromRoot(); }
 		HashedCharPtr getDispatchId() const override { return "test"; }
 	};
 
 	struct MyDanglingQueable: public Queueable
 	{
-		MyDanglingQueable(RootObject& r);;
+		MyDanglingQueable(RootObject& r);
+        ~MyDanglingQueable() { clearFromRoot(); }
 		HashedCharPtr getDispatchId() const override { return "dangling"; }
 	};
 
@@ -59,6 +61,7 @@ struct LoggerTest: public UnitTest,
 	struct NeverExecuted: public Queueable
 	{
 		NeverExecuted(RootObject& r, const HashedCharPtr& id_);;
+        ~NeverExecuted() { clearFromRoot(); }
 		operator bool() const { return !wasExecuted; }
 		bool wasExecuted = false;
 		HashedCharPtr getDispatchId() const override { return id; }

@@ -200,6 +200,7 @@ void LoggerTest::testQueue()
 
 void LoggerTest::testQueueResume()
 {
+#if ENABLE_DISPATCH_QUEUE_RESUME
 	BEGIN_TEST("test resuming of queue");
 	RootObject root(nullptr);
 	Logger l(root, 8192);
@@ -314,6 +315,7 @@ void LoggerTest::testQueueResume()
 	b.clear();
 
 	root.setLogger(nullptr);
+#endif
 }
 
 void LoggerTest::testSourceManager()
@@ -335,6 +337,7 @@ void LoggerTest::testSourceManager()
 		~MySource()
 		{
 			helloSlot.shutdown();
+			clearFromRoot();
 		}
 
 		int getNumSlotSenders() const override { return 1; }
@@ -476,6 +479,11 @@ void CharPtrTest::testStringBuilder()
 			  Queueable(r),
 			  id("dummy_source")
 			{}
+
+			~DummySource()
+			{
+				clearFromRoot();
+			}
 			  
 			const HashedCharPtr id;
 			HashedCharPtr getDispatchId() const override { return id; }

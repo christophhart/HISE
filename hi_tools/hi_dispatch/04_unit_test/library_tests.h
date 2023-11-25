@@ -55,6 +55,10 @@ struct LibraryTest: public UnitTest,
     void testMultipleAttributes(const Array<uint16>& multiParameters);
     void testSuspension(const HashedCharPtr& pathToTest);
 
+	void testOtherChangeMessage();
+
+	void testSigSlotBasics();
+
     void runTestFiles();
 
     struct HardcodedTest: public JSONBuilder

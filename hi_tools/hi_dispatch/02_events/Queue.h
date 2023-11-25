@@ -46,8 +46,25 @@ public:
 	explicit Queueable(RootObject& r);;
 	~Queueable() override;
 
+protected:
+	
+	/** Call this in your destructor after you made sure to remove it from all queues.
+	 *  If this is false, it will iterate all queues of the root object with a huge performance penalty! */
+	void cleared()
+	{
+		isCleared = true;
+	}
+
+	/** Call this in your destructor if you want to remove it from all queues. */
+	void clearFromRoot()
+	{
+		getRootObject().clearFromAllQueues(this, danglingBehaviour);
+		cleared();
+	}
+
 private:
 
+	bool isCleared = false;
 	DanglingBehaviour danglingBehaviour = DanglingBehaviour::Undefined;
 };
 
@@ -72,6 +89,9 @@ private:
 };
 
 class Logger;
+
+
+
 
 class Queue final : public Queueable
 {
@@ -142,6 +162,7 @@ public:
 		Queue& parent;
 		uint8* ptr = nullptr;
 		uint8* lastPos = nullptr;
+		uint8* startPos = nullptr;
 	};
 
 	/** Packed data structure supplied to the flush function. */
@@ -223,20 +244,26 @@ public:
 
 	void resumeAfterPause()
 	{
+#if ENABLE_DISPATCH_QUEUE_RESUME
 		if(resumeData != nullptr)
 		{
 			if(flush(resumeData->f, resumeData->flushType))
 				resumeData = nullptr;
 		}
+#endif
 	}
 
 	State getState() const { return explicitState.load(); }
 
 private:
 
+	bool flushPending = false;
+
 	std::atomic<State> explicitState = { State::Running };
 
 	std::function<bool(Queueable*)> pushCheckFunction;
+
+#if ENABLE_DISPATCH_QUEUE_RESUME
 
 	struct ResumeData
 	{
@@ -246,6 +273,8 @@ private:
 	};
 	
 	ScopedPointer<ResumeData> resumeData;
+
+#endif
 
 	FlushArgument createFlushArgument(const QueuedEvent& e, uint8* eventPos) const noexcept;
 
@@ -263,6 +292,7 @@ private:
 	Logger* attachedLogger = nullptr;
 	bool logRecursion = false;
 };
+
 
 template <typename T> struct DispatchTypeContainer
 {

@@ -40,8 +40,7 @@ using namespace juce;
 SourceManager::SourceManager(RootObject& r, const HashedCharPtr& typeId):
   Suspendable(r, nullptr),
   SimpleTimer(r.getUpdater()),
-  treeId(typeId),
-  sources(r, sizeof(void*) * 128)
+  treeId(typeId)
 {
 	messageCounterId << typeId << "messages";
 	skippedCounterId << "skipped " << typeId << "messages";
@@ -54,8 +53,9 @@ SourceManager::~SourceManager()
 {
 	resetMessageCounter();
 	getRootObject().removeTypedChild(this);
+	cleared();
 	sources.clear();
-}
+ }
 
 void SourceManager::resetMessageCounter()
 {
@@ -76,12 +76,15 @@ void SourceManager::timerCallback()
 
 void SourceManager::addSource(Source* s)
 {
-	sources.push(s, EventType::SourcePtr, nullptr, 0);
+	ScopedWriteLock sl(sourceLock);
+	sources.add(s);
+	
 }
 
 void SourceManager::removeSource(Source* s)
 {
-	sources.removeAllMatches(s);
+	ScopedWriteLock sl(sourceLock);
+	sources.removeFirstMatchingValue(s);
 }
 
 void SourceManager::setState(const HashedPath& p, State newState)
@@ -89,11 +92,10 @@ void SourceManager::setState(const HashedPath& p, State newState)
 	if(!matchesPath(p))
 		return;
 
-	sources.flush([newState, p](const Queue::FlushArgument& f)
+	forEachSource<Behaviour::AlwaysRun>([newState, p](Source& s)
 	{
-		f.getTypedObject<Source>().setState(p, newState);
-		return true;
-	}, Queue::FlushType::KeepData);
+		s.setState(p, newState);
+	});
 }
 
 void SourceManager::flush(DispatchType n)
@@ -101,18 +103,12 @@ void SourceManager::flush(DispatchType n)
 	if(getStateFromParent() == State::Running)
 	{
 		//TRACE_FLUSH(getDispatchId());
-		
-		sources.flush([n](const Queue::FlushArgument& f)
+
+		forEachSource<Behaviour::BreakIfPaused>([n](Source& s)
 		{
-			auto& typed = f.getTypedObject<Source>();
-
-			typed.flushChanges(n);
-
-			return true;
-		}, Queue::FlushType::KeepData);
+			s.flushChanges(n);
+		});
 	}
-
-	
 }
 } // dispatch
 } // hise

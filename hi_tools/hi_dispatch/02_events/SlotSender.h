@@ -100,6 +100,10 @@ struct AccumulatedFlowManager
 };
 #endif
 
+
+
+
+
 // A object that can send slot change messages to a SourceManager
 // Ownership: a member of a subclassed Source object
 // Features: 
@@ -134,13 +138,12 @@ public:
 		return false;
 	}
 
-	Queue* getListenerQueue(DispatchType n) { return &listeners.get(n); }
+	ListenerQueue* getListenerQueue(DispatchType n) { return &listeners.get(n); }
 
 	void shutdown()
 	{
 		data.forEach([](SlotBitmap& d) { d.clear(); });
-		
-		listeners.forEach([](Queue& q) { q.clear(); });
+		listeners.forEach([](ListenerQueue& q) { q.clear(); });
 	}
 
 	uint8 getSlotIndex() const noexcept { return index; }
@@ -155,7 +158,7 @@ private:
 	const HashedCharPtr id;
 	
 	DispatchTypeContainer<SlotBitmap> data;
-	DispatchTypeContainer<Queue> listeners;
+	DispatchTypeContainer<ListenerQueue> listeners;
 
 	size_t numSlots;
 	
