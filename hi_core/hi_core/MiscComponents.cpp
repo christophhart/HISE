@@ -35,11 +35,12 @@ namespace hise { using namespace juce;
 MouseCallbackComponent::MouseCallbackComponent() :
 callbackLevel(CallbackLevel::NoCallbacks),
 callbackLevels(getCallbackLevels()),
-constrainer(new RectangleConstrainer()),
-clickInformation(new DynamicObject())
+constrainer(new RectangleConstrainer())
 {
 	initMacroControl(dontSendNotification);
 
+	for(int i = 0; i < (int)Action::Nothing; i++)
+		clickInformation[i] = new DynamicObject();
 }
 
 
@@ -650,9 +651,9 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, Ent
 	
 	TRACE_EVENT("component", DYNAMIC_STRING_BUILDER(n));
 
-	fillMouseCallbackObject(clickInformation, this, e, callbackLevel, action, state);
+	fillMouseCallbackObject(clickInformation[(int)action], this, e, callbackLevel, action, state);
 
-	sendToListeners(clickInformation);
+	sendToListeners(clickInformation[(int)action]);
 }
 
 void MouseCallbackComponent::sendToListeners(var clickInformation)

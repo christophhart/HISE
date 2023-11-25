@@ -245,7 +245,7 @@ public:
 
 private:
 
-	var clickInformation;
+	var clickInformation[(int)Action::Nothing];
 
 	FileCallbackLevel fileCallbackLevel = FileCallbackLevel::NoCallbacks;
 	StringArray fileDropExtensions;

@@ -49,9 +49,11 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 	AdditionalMouseCallback(ScriptComponent* sc, Component* c, const ScriptComponent::MouseListenerData& cd) :
 		scriptComponent(sc),
 		component(c),
-		data(cd),
-	    eventObject(new DynamicObject())
+		data(cd)
 	{
+		for(int i = 0; i < (int)MouseCallbackComponent::Action::Nothing; i++)
+			eventObject[i] = var(new DynamicObject());
+
 		component->addMouseListener(this, true);
 	};
 
@@ -230,8 +232,8 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 
 			if (data.mouseCallbackLevel != MouseCallbackComponent::CallbackLevel::PopupMenuOnly)
             {
-				MouseCallbackComponent::fillMouseCallbackObject(eventObject, component.getComponent(), event, data.mouseCallbackLevel, action, state);
-				arguments[1] = eventObject;
+				MouseCallbackComponent::fillMouseCallbackObject(eventObject[(int)action], component.getComponent(), event, data.mouseCallbackLevel, action, state);
+				arguments[1] = eventObject[(int)action];
                 ComponentWithAdditionalMouseProperties::attachMousePropertyFromParent(event, arguments[1]);
             }
 			else
@@ -245,7 +247,7 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 	Component::SafePointer<Component> component;
 	WeakReference<ScriptComponent> scriptComponent;
 	ScriptComponent::MouseListenerData data;
-	var eventObject;
+	var eventObject[(int)MouseCallbackComponent::Action::Nothing];
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AdditionalMouseCallback);
 };
