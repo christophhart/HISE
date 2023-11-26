@@ -517,8 +517,8 @@ void CharPtrTest::testHashedPath()
 	{
 		try
 		{
-			auto lp = HashedPath::parse(left);
-			auto rp = HashedPath::parse(right);
+			auto lp = HashedPath(left);
+			auto rp = HashedPath(right);
 
 			expect(lp == lp);
 			expect(rp == rp);
@@ -537,8 +537,8 @@ void CharPtrTest::testHashedPath()
 	{
 		try
 		{
-			auto lp = HashedPath::parse(left);
-			auto rp = HashedPath::parse(right);
+			auto lp = HashedPath(left);
+			auto rp = HashedPath(right);
 
 			expect(lp == lp);
 			expect(rp == rp);
@@ -557,7 +557,7 @@ void CharPtrTest::testHashedPath()
 	{
 		try
 		{
-			auto p1 = HashedPath::parse(p);
+			auto p1 = HashedPath(p);
 			expect(true, "worked");
 		}
 		catch(Result& r)
@@ -570,7 +570,7 @@ void CharPtrTest::testHashedPath()
 	{
 		try
 		{
-			auto p1 = HashedPath::parse(p);
+			auto p1 = HashedPath(p);
 			expect(false, "didn't complain: " + p.toString());
 		}
 		catch(Result& r)
@@ -579,8 +579,8 @@ void CharPtrTest::testHashedPath()
 		}
 	};
 
-	auto lp = HashedPath::parse("modules.first.bypassed");
-	auto rp = HashedPath::parse("modules.*.attributes");
+	auto lp = HashedPath("modules.first.bypassed");
+	auto rp = HashedPath("modules.*.attributes");
 
 	expect(lp == lp);
 	expect(rp == rp);

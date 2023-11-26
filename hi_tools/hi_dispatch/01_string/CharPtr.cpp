@@ -139,13 +139,6 @@ HashedPath::HashedPath():
 	dispatchType(CharPtr::Type::Wildcard)
 {}
 
-HashedPath::HashedPath(const HashedCharPtr* tokens):
-	handler(tokens[0] ? tokens[0] : HashedCharPtr(CharPtr::Type::Wildcard)),
-	source(tokens[1] ? tokens[1] : HashedCharPtr(CharPtr::Type::Wildcard)),
-	slot(tokens[2] ? tokens[2] : HashedCharPtr(CharPtr::Type::Wildcard)),
-	dispatchType(tokens[3] ? tokens[3] : HashedCharPtr(CharPtr::Type::Wildcard))
-{}
-
 bool HashedPath::operator==(const HashedPath& otherPath) const
 {
 	return handler == otherPath.handler &&
@@ -154,7 +147,7 @@ bool HashedPath::operator==(const HashedPath& otherPath) const
 		dispatchType == otherPath.dispatchType;
 }
 
-HashedPath HashedPath::parse(const HashedCharPtr& fullPath)
+void HashedPath::parse()
 {
 	auto start = const_cast<char*>(fullPath.get());
 	auto end = start + fullPath.length();
@@ -164,8 +157,20 @@ HashedPath HashedPath::parse(const HashedCharPtr& fullPath)
 	auto delimiter = '.';
 
 	int tokenIndex = 0;
-
-	HashedCharPtr tokens[4];
+    
+    auto setTokenAndAdvance = [&](HashedCharPtr&& p)
+    {
+        switch(tokenIndex)
+        {
+            case 0: std::swap(handler, p); break;
+            case 1: source = std::move(p); break;
+            case 2: slot = std::move(p); break;
+            case 3: dispatchType = std::move(p); break;
+        }
+        
+        tokenIndex++;
+    };
+    
 
 	if(*pos == delimiter)
 		throw Result::fail("expected token");
@@ -174,7 +179,8 @@ HashedPath HashedPath::parse(const HashedCharPtr& fullPath)
 	{
 		if(*pos == delimiter)
 		{
-			tokens[tokenIndex++] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (pos - tokenStart));
+            HashedCharPtr newToken(reinterpret_cast<uint8*>(tokenStart), (pos - tokenStart));
+            setTokenAndAdvance(std::move(newToken));
 			tokenStart = ++pos;
 		}
 
@@ -182,7 +188,7 @@ HashedPath HashedPath::parse(const HashedCharPtr& fullPath)
 		{
 			if(*pos == '*')
 			{
-				tokens[tokenIndex++] = HashedCharPtr(CharPtr::Type::Wildcard);
+				setTokenAndAdvance(HashedCharPtr(CharPtr::Type::Wildcard));
 				++pos;
 
 				if(pos < end && *pos != delimiter)
@@ -201,21 +207,14 @@ HashedPath HashedPath::parse(const HashedCharPtr& fullPath)
 
 	if(tokenStart < end && tokenIndex < 4)
 	{
-		tokens[tokenIndex] = HashedCharPtr(reinterpret_cast<uint8*>(tokenStart), (end - tokenStart));
+        HashedCharPtr newToken(reinterpret_cast<uint8*>(tokenStart), (end - tokenStart));
+        setTokenAndAdvance(std::move(newToken));
 	}
-
-	return HashedPath(tokens);
 }
 
 HashedPath::operator String() const noexcept
 {
-	String s;
-	s << handler.toString() << '.';
-	s << source.toString() << '.';
-	s << slot.toString() << '.';
-	s << dispatchType.toString() << '.';
-
-	return s;
+    return fullPath.toString();
 }
 } // dispatch
 } // hise

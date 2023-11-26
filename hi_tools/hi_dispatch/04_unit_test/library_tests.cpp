@@ -346,7 +346,7 @@ void LibraryTest::testMultipleAttributes(const Array<uint16>& multiParameters)
 
 void LibraryTest::testSuspension(const HashedCharPtr& pathToTest)
 {
-	auto path = HashedPath::parse(pathToTest);
+	auto path = HashedPath(pathToTest);
 	TRACE_DISPATCH("test suspension");
 	beginTest("test suspension with path " + pathToTest.toString());
 	RootObject r(nullptr);

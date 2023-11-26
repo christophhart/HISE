@@ -102,5 +102,59 @@ private:
     size_t position = 0;
 };
 
+struct HashedPath
+{
+    HashedPath();;
+
+    HashedPath(CharPtr::Type t):
+      handler(HashedCharPtr(t)),
+      source(HashedCharPtr(t)),
+      slot(HashedCharPtr(t)),
+      dispatchType(HashedCharPtr(t))
+    {}
+
+    HashedPath(const HashedCharPtr& fullPath_):
+      handler(CharPtr::Type::Wildcard),
+      source(CharPtr::Type::Wildcard),
+      slot(CharPtr::Type::Wildcard),
+      dispatchType(CharPtr::Type::Wildcard)
+    {
+        fullPath << fullPath_;
+        parse();
+    }
+
+    bool operator==(const HashedPath& otherPath) const;
+
+    bool operator!=(const HashedPath& otherPath) const
+    {
+        return !(*this == otherPath);
+    }
+
+
+
+    explicit operator String() const noexcept;
+
+    bool isWildcard()  const noexcept
+    {
+        return handler.isWildcard() &&
+               source.isWildcard() &&
+               slot.isWildcard() &&
+               dispatchType.isWildcard();
+    }
+
+    static constexpr bool isHashed() { return true; }
+
+    HashedCharPtr handler;
+    HashedCharPtr source;
+    HashedCharPtr slot;
+    HashedCharPtr dispatchType;
+    
+private:
+    
+    void parse();
+    
+    StringBuilder fullPath;
+};
+
 } // dispatch
 } // hise
