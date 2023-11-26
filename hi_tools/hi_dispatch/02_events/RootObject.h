@@ -126,8 +126,12 @@ public:
 		bool isUsed = false;
 	};
 	
+    bool isHighPriorityFlushPending() const { return hiPriorityPending; }
+    
 private:
 
+    bool hiPriorityPending = false;
+    
 	State globalState = State::Running;
 
 	static uint64_t flowCounter;

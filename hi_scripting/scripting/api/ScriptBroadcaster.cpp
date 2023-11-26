@@ -3394,6 +3394,10 @@ void ScriptBroadcaster::DelayedFunction::timerCallback()
 {
 	if (bc != nullptr && !bc->bypassed)
 	{
+        auto mc = bc->getScriptProcessor()->getMainController_();
+        
+        jassert(!mc->getRootDispatcher().isHighPriorityFlushPending());
+        
 		ScopedLock sl(bc->delayFunctionLock);
 		c.setTrackIndex(trackIndex);
 		c.call(args.getRawDataPointer(), args.size());

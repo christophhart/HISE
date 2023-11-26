@@ -2465,7 +2465,14 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 	{
 		jassert(isBusy());
 		
-		if (t == currentType)
+        if(currentType == Task::Type::HiPriorityDispatchQueue)
+        {
+            // this happens during the hi priority flush (which should
+            // be treated as UI event since it has the message manager lock)
+            // hence we'll defer the execution to later down the line...
+            pushToQueue(t, p, f);
+        }
+		else if (t == currentType)
 		{
 			// Same priority, just run it
 			executeNow(t, p, f);
@@ -2598,10 +2605,17 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 		{
 			TRACE_EVENT("scripting", "high priority dispatch queue");
 
-			LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::ScriptLock);
+            // The high priority queue is supposed to be treated as UI event
+            // so we need to grab the message thread lock instead of the scripting
+            // lock.
+            //LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::ScriptLock);
+            MessageManagerLock mm;
 
+            // Setting these states will push any script job that is added
+            // during the flush operations to the respective queues where
+            // they will be executed with the proper locking in place...
 			ScopedValueSetter<bool> svs(busy, true);
-			ScopedValueSetter<Task::Type> svs2(currentType, t);
+            ScopedValueSetter<Task::Type> svs2(currentType, Task::HiPriorityDispatchQueue);
 
 			getMainController()->getRootDispatcher().flushHighPriorityQueues(this);
 		}

@@ -682,6 +682,7 @@ public:
 		{
 			Compilation,
             ReplEvaluation,
+            HiPriorityDispatchQueue,
 			HiPriorityCallbackExecution,
 			LowPriorityCallbackExecution,
 			DeferredPanelRepaintJob,

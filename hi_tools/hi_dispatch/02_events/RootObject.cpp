@@ -205,6 +205,8 @@ uint64 RootObject::flowCounter = 0;
 
 void RootObject::flushHighPriorityQueues(Thread* t)
 {
+    ScopedValueSetter<bool> svs(hiPriorityPending, true);
+    
 	forEach<SourceManager, Behaviour::BreakIfPaused>([&](SourceManager& sm)
 	{
 		if(t->threadShouldExit())
