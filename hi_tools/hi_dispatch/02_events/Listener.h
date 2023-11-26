@@ -66,7 +66,7 @@ struct ListenerQueue
 			return static_cast<T*>(s);
 		}
 
-		SlotBitmap toBitMap() const
+		const SlotBitmap& toBitMap() const
 		{
 			jassert(t == EventType::SingleListenerSubset);
 			return changes;

@@ -101,7 +101,7 @@ protected:
 
 private:
 
-	State currentState = State::Running;
+    std::atomic<State> currentState = { State::Running };
 
 	SourceManager& parent;
 	HashedCharPtr sourceId;

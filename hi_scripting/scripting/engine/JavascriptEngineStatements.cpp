@@ -68,8 +68,9 @@ struct HiseJavascriptEngine::RootObject::ScopedBypasser: public HiseJavascriptEn
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		auto br = be->getResult(s);
+        b = dynamic_cast<ScriptingObjects::ScriptBroadcaster*>(br.getObject());
 
-		if(b = dynamic_cast<ScriptingObjects::ScriptBroadcaster*>(br.getObject()))
+		if(b != nullptr)
 		{
 			state = b->isBypassed();
 		}

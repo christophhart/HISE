@@ -712,16 +712,18 @@ private:
 
 	void checkEmpty()
 	{
-		empty = true;
+        auto thisEmpty = true;
 
 		for(int i = 0; i < getNumElements(); i++)
-			empty &= (data[i] == DataType(0));
+            thisEmpty &= (data[i] == DataType(0));
+        
+        empty = thisEmpty;
 	}
 
     static constexpr int NumElements = getNumElements();
 
     std::array<DataType, NumElements> data;
-	bool empty = true;
+    bool empty = {true};
 };
 
 

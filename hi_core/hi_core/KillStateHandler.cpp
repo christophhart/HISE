@@ -37,8 +37,6 @@ MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 	mc(mc_),
 	currentState(State::WaitingForInitialisation)
 {
-	audioThreads.ensureStorageAllocated(16);
-
 	threadIds[(int)TargetThread::AudioThread] = nullptr;
 	threadIds[(int)TargetThread::SampleLoadingThread] = mc->getSampleManager().getGlobalSampleThreadPool()->getThreadId();
 	threadIds[(int)TargetThread::ScriptingThread] = nullptr;
@@ -539,7 +537,7 @@ juce::Array<MultithreadedQueueHelpers::PublicToken> MainController::KillStateHan
 
 	MultithreadedQueueHelpers::PublicToken audioThreadToken;
 	audioThreadToken.canBeProducer = producerFlags & QueueProducerFlags::AudioThreadIsProducer;
-	audioThreadToken.threadIds.insertArray(0, audioThreads.getRawDataPointer(), audioThreads.size());
+	audioThreadToken.threadIds.insertArray(0, audioThreads.begin(), audioThreads.size());
 	audioThreadToken.threadName = "AudioThread";
 
 	MultithreadedQueueHelpers::PublicToken messageThreadToken;
@@ -592,9 +590,9 @@ MainController::KillStateHandler::TargetThread MainController::KillStateHandler:
 
 	if (audioThreads.contains(threadId))
 		return TargetThread::AudioThread;
-	else if (threadId == threadIds[(int)TargetThread::SampleLoadingThread])
+	else if (threadId == threadIds[(int)TargetThread::SampleLoadingThread].load())
 		return TargetThread::SampleLoadingThread;
-	else if (threadId == threadIds[(int)TargetThread::ScriptingThread])
+	else if (threadId == threadIds[(int)TargetThread::ScriptingThread].load())
 		return TargetThread::ScriptingThread;
 
 	if (auto mm = MessageManager::getInstanceWithoutCreating())
@@ -619,12 +617,12 @@ void MainController::KillStateHandler::setCurrentExportThread(void* exportThread
     if(currentExportThread != exportThread)
     {
         if(currentExportThread != nullptr)
-            audioThreads.removeAllInstancesOf(currentExportThread);
+            audioThreads.remove(currentExportThread);
         
         currentExportThread = exportThread;
         
         if(currentExportThread != nullptr)
-            audioThreads.addIfNotAlreadyThere(currentExportThread);
+            audioThreads.insert(currentExportThread);
     }
 }
 
@@ -666,7 +664,7 @@ void MainController::KillStateHandler::addThreadIdToAudioThreadList()
     
 	auto threadId = Thread::getCurrentThreadId();
 
-	audioThreads.addIfNotAlreadyThere(threadId);
+	audioThreads.insert(threadId);
 }
 
 void MainController::KillStateHandler::removeThreadIdFromAudioThreadList()
@@ -676,7 +674,7 @@ void MainController::KillStateHandler::removeThreadIdFromAudioThreadList()
 
 	auto threadId = Thread::getCurrentThreadId();
 
-	audioThreads.removeAllInstancesOf(threadId);
+	audioThreads.remove(threadId);
 }
 
 void MainController::KillStateHandler::initAudioThreadId()

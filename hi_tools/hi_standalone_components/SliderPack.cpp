@@ -1256,8 +1256,6 @@ void SliderPack::setComplexDataUIBase(ComplexDataUIBase* newData)
 
 void SliderPack::mouseMove(const MouseEvent& mouseEvent)
 {
-	auto pos = mouseEvent.getEventRelativeTo(this).getPosition();
-
 	auto thisIndex = getSliderIndexForMouseEvent(mouseEvent);
 
 	if(thisIndex != currentlyHoveredSlider)

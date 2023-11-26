@@ -1291,7 +1291,7 @@ public:
 		{
 			jassert(newId != nullptr);
 			jassert(threadIds[(int)TargetThread::ScriptingThread] == nullptr);
-			threadIds[(int)TargetThread::ScriptingThread] = newId;
+			threadIds[(int)TargetThread::ScriptingThread].store(newId);
 		}
 
 		TargetThread getCurrentThread() const;
@@ -1362,11 +1362,11 @@ public:
 		{
 			LockStates()
 			{
-				threadsForLock[(int)LockHelpers::Type::MessageLock] = TargetThread::Free;
-				threadsForLock[(int)LockHelpers::Type::AudioLock] = TargetThread::Free;
-				threadsForLock[(int)LockHelpers::Type::SampleLock] = TargetThread::Free;
-				threadsForLock[(int)LockHelpers::Type::IteratorLock] = TargetThread::Free;
-				threadsForLock[(int)LockHelpers::Type::ScriptLock] = TargetThread::Free;
+				threadsForLock[(int)LockHelpers::Type::MessageLock].store(TargetThread::Free);
+				threadsForLock[(int)LockHelpers::Type::AudioLock].store(TargetThread::Free);
+				threadsForLock[(int)LockHelpers::Type::SampleLock].store(TargetThread::Free);
+				threadsForLock[(int)LockHelpers::Type::IteratorLock].store(TargetThread::Free);
+				threadsForLock[(int)LockHelpers::Type::ScriptLock].store(TargetThread::Free);
 			}
 
 			std::atomic<TargetThread> threadsForLock[(int)LockHelpers::Type::numLockTypes];
@@ -1414,8 +1414,9 @@ public:
 		UnorderedStack<StackTrace<3, 6>, 32> stackTraces;
 
 		MainController* mc;
-		void* threadIds[(int)TargetThread::numTargetThreads];
-		Array<void*> audioThreads;
+		std::atomic<void*> threadIds[(int)TargetThread::numTargetThreads];
+        hise::SimpleReadWriteLock audioListLock;
+		UnorderedStack<void*, 32> audioThreads;
 	};
 
 	MainController();

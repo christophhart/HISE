@@ -430,7 +430,7 @@ ValueTree MacroControlBroadcaster::MacroControlledParameterData::exportAsValueTr
 
 void MacroControlBroadcaster::MacroControlledParameterData::restoreFromValueTree(const ValueTree& v)
 {
-    id = v.getProperty("id", id).toString(),
+    id = v.getProperty("id", id).toString();
     parameter = v.getProperty("parameter", -1);
     parameterName = v.getProperty("parameter_name", "").toString();
     

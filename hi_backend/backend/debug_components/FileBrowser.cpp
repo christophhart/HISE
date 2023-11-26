@@ -2342,7 +2342,7 @@ Image TableComponent::AssetProvider::getImage(const MarkdownLink& markdownLink, 
 		g.setColour(Colours::white.withAlpha(0.3f));
 		g.drawRoundedRectangle(b.getBounds().toFloat(), 3.0f, 1.0f);
 		g.setColour(Colours::white.withAlpha(0.8f));
-		g.setFont(GLOBAL_BOLD_FONT()),
+        g.setFont(GLOBAL_BOLD_FONT());
 		g.drawText("Refresh this to load the image from the URL", b.getBounds().toFloat(), Justification::centred);
 		return b;
 	}
