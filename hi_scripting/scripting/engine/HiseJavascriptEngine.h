@@ -425,7 +425,7 @@ public:
 
 		struct ScopedLocalThisObject
 		{
-			ScopedLocalThisObject(RootObject& r_, const var& newObject);
+			ScopedLocalThisObject(RootObject& r_, var newObject);
 
 			~ScopedLocalThisObject();
 

@@ -793,7 +793,8 @@ void WeakCallbackHolder::call(const var::NativeFunctionArgs& args)
 
 Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValue)
 {
-	auto a = var::NativeFunctionArgs(getThisObject(), arguments, numArgs);
+    auto to = getThisObject();
+	auto a = var::NativeFunctionArgs(to, arguments, numArgs);
 	return callSync(a, returnValue);
 }
 
