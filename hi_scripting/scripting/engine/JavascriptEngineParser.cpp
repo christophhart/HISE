@@ -636,7 +636,7 @@ private:
 
 			try
 			{
-				auto path = dispatch::HashedPath::parse(p);
+				auto path = dispatch::HashedPath(p);
 				match(TokenTypes::literal);
 				match(TokenTypes::closeParen);
 				return new ScopedSuspender(location, condition, path);
