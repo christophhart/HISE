@@ -986,6 +986,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 			auto v = parent.eq->getAttribute(ei);
 			parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 1 - v);
 			parent.repaint();
+            parent.checkEnabledBands();
 		}
 	}
 	else
@@ -993,6 +994,10 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 		down = true;
 		parent.selectDragger(index);
 		dragger.startDraggingComponent(this, e);
+        
+        parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 1.0f);
+        parent.repaint();
+        parent.checkEnabledBands();
 	}
 }
 
@@ -1112,6 +1117,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDoubleClick(const MouseEvent& 
 	{
 		parent.setEqAttribute(CurveEq::BandParameter::Gain, index, 0.0f);
 		parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 0.0f);
+        parent.checkEnabledBands();
 	}
 	else
 	{
@@ -1121,6 +1127,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDoubleClick(const MouseEvent& 
 		auto enableIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Enabled);
 		auto v = 1.0f - parent.eq->getAttribute(enableIndex);
 		parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, v);
+        parent.checkEnabledBands();
 	}
 
 	
