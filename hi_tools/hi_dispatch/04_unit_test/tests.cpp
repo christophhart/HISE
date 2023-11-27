@@ -55,6 +55,7 @@ inline LoggerTest::LoggerTest():
 
 void LoggerTest::testLogger()
 {
+#if ENABLE_QUEUE_AND_LOGGER
 	BEGIN_TEST("Testing logger");
 
 	RootObject root(nullptr);
@@ -106,10 +107,12 @@ void LoggerTest::testLogger()
 	root.setLogger(nullptr);
 
 	pc.stop();
+#endif
 }
 
 void LoggerTest::testQueue()
 {
+#if ENABLE_QUEUE_AND_LOGGER
 	BEGIN_TEST("Testing queue");
 
 	RootObject root(nullptr);
@@ -196,6 +199,7 @@ void LoggerTest::testQueue()
 
 	expectEquals(numIterations, numIterationsToExpect, "all nevers removed dynamically");
 	root.setLogger(nullptr);
+#endif
 }
 
 void LoggerTest::testQueueResume()
@@ -320,9 +324,14 @@ void LoggerTest::testQueueResume()
 
 void LoggerTest::testSourceManager()
 {
+	beginTest("test source manager");
 	RootObject root(nullptr);
+
+#if ENABLE_QUEUE_AND_LOGGER
 	Logger lg(root, 1024);
 	root.setLogger(&lg);
+#endif
+
 	SourceManager sm(root, IDs::source::automation);
 
 	struct MySource: public Source
@@ -473,7 +482,11 @@ void CharPtrTest::testStringBuilder()
     expectStringResult(b2, s);
 
     {
-	    struct DummySource: public Queueable
+	    
+
+#if ENABLE_QUEUE_AND_LOGGER
+
+		struct DummySource: public Queueable
 		{
 			DummySource(RootObject& r):
 			  Queueable(r),
@@ -504,6 +517,7 @@ void CharPtrTest::testStringBuilder()
 		b << f;
 		s << "dummy_source:\tslotchange [ 70, 90, 1, 1 ] (4 bytes)";
 		expectStringResult(b, s);
+#endif
     }
 	
 	

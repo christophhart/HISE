@@ -38,29 +38,9 @@ using namespace juce;
 
 
 
-Queueable::Queueable(RootObject& r):
-RootObject::Child(r)
-{
-    if(auto l = r.getLogger())
-    {
-        int index = 0;
-        l->log(l, EventType::Add, (uint8*)&index, sizeof(int));
-    }
-}
 
-Queueable::~Queueable()
-{
-    if(!isCleared)
-    {
-        jassertfalse;
-        getRootObject().clearFromAllQueues(this, danglingBehaviour);
-    }
 
-    int index = 0;
 
-    if(auto l = getRootObject().getLogger())
-        l->log(l, EventType::Remove, (uint8*)&index, sizeof(int));
-}
 
 size_t Queue::QueuedEvent::getTotalByteSize() const
 {

@@ -52,12 +52,7 @@ RootObject::Child::~Child()
 RootObject::RootObject(PooledUIUpdater* updater_):
 	updater(updater_)
 {
-	auto initQueueSize = 32768;
-
-	children[QueueType].ensureStorageAllocated(initQueueSize);
-	children[SourceManagerType].ensureStorageAllocated(initQueueSize/8);
-	children[SourceType].ensureStorageAllocated(initQueueSize);
-	children[ListenerType].ensureStorageAllocated(initQueueSize);
+	children[SourceManagerType].ensureStorageAllocated(128);
 }
 
 RootObject::~RootObject()
@@ -71,6 +66,8 @@ RootObject::~RootObject()
 		ScopedWriteLock sl(childLock[i]);
 		children[i].clear();
 	}
+
+	jassert(numChildObjects == 0);
 }
 
 void RootObject::addChild(Child* c)
@@ -90,25 +87,6 @@ void RootObject::addTypedChild(Child* c)
 		ScopedWriteLock sl(childLock[SourceManagerType]);
 		children[SourceManagerType].add(c);
 	}
-	else if(auto typed = dynamic_cast<Source*>(c))
-	{
-		ScopedWriteLock sl(childLock[SourceManagerType]);
-		children[SourceType].add(c);
-	}
-	else if(auto typed = dynamic_cast<Queue*>(c))
-	{
-		ScopedWriteLock sl(childLock[QueueType]);
-		children[QueueType].add(c);
-	}
-	else if(auto typed = dynamic_cast<dispatch::Listener*>(c))
-	{
-		ScopedWriteLock sl(childLock[ListenerType]);
-		children[ListenerType].add(c);
-	}
-	else
-	{
-		jassertfalse;
-	}
 }
 
 void RootObject::removeTypedChild(Child* c)
@@ -118,40 +96,6 @@ void RootObject::removeTypedChild(Child* c)
 		ScopedWriteLock sl(childLock[SourceManagerType]);
 		children[SourceManagerType].removeFirstMatchingValue(c);
 	}
-	else if(auto typed = dynamic_cast<Source*>(c))
-	{
-		ScopedWriteLock sl(childLock[SourceManagerType]);
-		children[SourceType].removeFirstMatchingValue(c);
-	}
-	else if(auto typed = dynamic_cast<Queue*>(c))
-	{
-		ScopedWriteLock sl(childLock[QueueType]);
-		children[QueueType].removeFirstMatchingValue(c);
-	}
-	else if(auto typed = dynamic_cast<dispatch::Listener*>(c))
-	{
-		ScopedWriteLock sl(childLock[ListenerType]);
-		children[ListenerType].removeFirstMatchingValue(c);
-	}
-	else
-	{
-		jassertfalse;
-	}
-}
-
-void RootObject::clearFromAllQueues(Queueable* objectToBeDeleted, DanglingBehaviour behaviour)
-{
-	if(globalState == State::Shutdown)
-		return;
-
-	StringBuilder n;
-	n << "remove queuable";
-	ScopedGlobalSuspender sgs(*this, State::Paused, n.toCharPtr());
-
-    forEach<Queue, Behaviour::AlwaysRun>([behaviour, objectToBeDeleted](Queue& q)
-    {
-	    q.invalidateQueuable(objectToBeDeleted, behaviour); return false;
-    });
 }
 
 PooledUIUpdater* RootObject::getUpdater()
@@ -159,8 +103,10 @@ PooledUIUpdater* RootObject::getUpdater()
 
 void RootObject::setLogger(Logger* l)
 {
+#if ENABLE_QUEUE_AND_LOGGER
     if(currentLogger != nullptr)
         currentLogger->flush();
+#endif
     currentLogger = l;
 }
 
@@ -251,5 +197,38 @@ RootObject::ScopedGlobalSuspender::~ScopedGlobalSuspender()
 		root.globalState = prevValue;
 	}
 }
+
+void RootObject::HiPriorityThread::run()
+{
+	while(!threadShouldExit())
+	{
+		parent.flushHighPriorityQueues(this);
+
+		wait(500);
+	}
+}
+
+Queueable::Queueable(RootObject& r):
+RootObject::Child(r)
+{
+#if ENABLE_QUEUE_AND_LOGGER
+    if(auto l = r.getLogger())
+    {
+        int index = 0;
+        l->log(l, EventType::Add, (uint8*)&index, sizeof(int));
+    }
+#endif
+}
+
+Queueable::~Queueable()
+{
+    int index = 0;
+
+#if ENABLE_QUEUE_AND_LOGGER
+    if(auto l = getRootObject().getLogger())
+        l->log(l, EventType::Remove, (uint8*)&index, sizeof(int));
+#endif
+}
+
 } // dispatch
 } // hise

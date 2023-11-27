@@ -83,7 +83,9 @@ void BuilderFactory::registerItem(const Identifier& id, const CreateFunction& f)
 
 MainController::MainController():
 	root(&updater),
+#if ENABLE_QUEUE_AND_LOGGER
 	logger(root, 1024),
+#endif
 	processorHandler(new library::ProcessorHandler(root)),
     factory(this)
 {
@@ -108,7 +110,9 @@ MainController::MainController():
 
 MainController::~MainController()
 {
+#if ENABLE_QUEUE_AND_LOGGER
 	logger.flush();
+#endif
 	root.setLogger(nullptr);
 	processorHandler = nullptr;
 	allActions.clear();

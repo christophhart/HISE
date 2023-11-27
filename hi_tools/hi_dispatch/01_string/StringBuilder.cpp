@@ -97,7 +97,7 @@ StringBuilder& StringBuilder::operator<<(const StringBuilder& other)
     return *this;
 }
 
-
+#if ENABLE_QUEUE_AND_LOGGER
 StringBuilder& StringBuilder::operator<<(const Queue::FlushArgument& f)
 {
 	using namespace hise::dispatch;
@@ -108,6 +108,7 @@ StringBuilder& StringBuilder::operator<<(const Queue::FlushArgument& f)
 
 	return *this;
 }
+#endif
 
 StringBuilder& StringBuilder::operator<<(EventType eventType)
 {

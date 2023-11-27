@@ -74,7 +74,11 @@ struct StringBuilder
     StringBuilder& operator<<(uint8 number);
     StringBuilder& operator<<(size_t number);
     StringBuilder& operator<<(const StringBuilder& other);
+
+#if ENABLE_QUEUE_AND_LOGGER
 	StringBuilder& operator<<(const Queue::FlushArgument& f);
+#endif
+
     StringBuilder& operator<<(EventType eventType);
 
     StringBuilder& operator<<(DispatchType notificationType);

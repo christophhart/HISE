@@ -264,6 +264,10 @@ struct FuzzyTester;
 #define ENABLE_DISPATCH_QUEUE_RESUME 0
 #endif
 
+#ifndef ENABLE_QUEUE_AND_LOGGER
+#define ENABLE_QUEUE_AND_LOGGER 0
+#endif
+
 #if PERFETTO
 #define TRACE_FLUSH(x) dispatch::StringBuilder b; b << "flush " << n << ": " << x; TRACE_DISPATCH(DYNAMIC_STRING_BUILDER(b));
 #define TRACE_OPEN_FLOW(x, flow) dispatch::StringBuilder b; b << "send " << n << ": " << x; TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), flow);
@@ -284,8 +288,10 @@ struct FuzzyTester;
 #include "01_string/CharPtr.h" // OK
 
 #include "02_events/RootObject.h"
+#if ENABLE_QUEUE_AND_LOGGER
 #include "02_events/Queue.h"
 #include "01_string/Logger.h" // needs Queue
+#endif
 #include "01_string/StringBuilder.h" // needs Queue
 #include "02_events/SourceManager.h"
 #include "02_events/Source.h"

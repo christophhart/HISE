@@ -40,9 +40,13 @@
 #include "01_string/CharPtr.cpp"
 
 #include "02_events/RootObject.cpp"
+#if ENABLE_QUEUE_AND_LOGGER
 #include "02_events/Queue.cpp"
 #include "01_string/StringBuilder.cpp" // needs Queue
 #include "01_string/Logger.cpp" // needs Queue
+#else
+#include "01_string/StringBuilder.cpp"
+#endif
 #include "02_events/SourceManager.cpp"
 #include "02_events/Source.cpp"
 #include "02_events/SlotSender.cpp"

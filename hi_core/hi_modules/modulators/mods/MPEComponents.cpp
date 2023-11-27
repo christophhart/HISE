@@ -517,7 +517,8 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 			currentTable.setColour(TableEditor::ColourIds::bgColour, laf.fillColour.withAlpha(0.05f));
 		}
 
-        ProcessorHelpers::connectTableEditor(currentTable, newMod);
+		if(newMod != nullptr)
+			ProcessorHelpers::connectTableEditor(currentTable, newMod);
         
 		repaint();
 		resized();

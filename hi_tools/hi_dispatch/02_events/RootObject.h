@@ -80,9 +80,6 @@ public:
 
 	void removeTypedChild(Child* c);
 
-	/** Removes the element from all queues. */
-	void clearFromAllQueues(Queueable* q, DanglingBehaviour danglingBehaviour);
-	
 	PooledUIUpdater* getUpdater();
 	void setLogger(Logger* l);
 	Logger* getLogger() const { return currentLogger; }
@@ -90,21 +87,7 @@ public:
 	int getNumChildren() const;
 
 	void setState(const HashedPath& path, State newState);
-
-#if 0
-	/** Iterates all registered queues and calls the given function. */
-	bool callForAllQueues(Behaviour b, const std::function<bool(Queue&)>& qf) const;
-
-	/** Iterates all registered sources and calls the given function. */
-	bool callForAllSources(Behaviour b, const std::function<bool(Source&)>& sf) const;
-
-	/** Iterates all registered source managers and calls the given function. */
-	bool callForAllSourceManagers(const std::function<bool(SourceManager&)>& sf) const;
-
-	/** Iterates all registered listener and calls the given function. */
-	bool callForAllListeners(const std::function<bool(dispatch::Listener&)>& lf) const;
-#endif
-
+	
 	/** Call this from a thread that is running periodically. */
 	void flushHighPriorityQueues(Thread* t);
 
@@ -134,6 +117,7 @@ private:
     
 	State globalState = State::Running;
 
+	// must be static for unit tests...
 	static uint64_t flowCounter;
 
 	struct HiPriorityThread: public Thread
@@ -151,15 +135,7 @@ private:
 			stopThread(500);
 		}
 		  
-		void run() override
-		{
-			while(!threadShouldExit())
-			{
-				parent.flushHighPriorityQueues(this);
-
-				wait(500);
-			}
-		}
+		void run() override;
 
 		RootObject& parent;
 	};
@@ -174,25 +150,12 @@ private:
 	enum ChildType
 	{
 		SourceManagerType,
-		SourceType,
-		QueueType,
-		ListenerType,
 		numChildTypes
 	};
 
 	template <typename T, Behaviour B> bool forEach(const std::function<bool(T&)>& objectFunction) const
 	{
-		ChildType CT;
-
-		if constexpr(std::is_same<T, SourceManager>())
-			CT = ChildType::SourceManagerType;
-		if constexpr(std::is_same<T, Source>())
-			CT = ChildType::SourceType;
-		if constexpr(std::is_same<T, Queue>())
-			CT = ChildType::QueueType;
-		if constexpr(std::is_same<T, Listener>())
-			CT = ChildType::ListenerType;
-
+		ChildType CT = ChildType::SourceManagerType;
 		ScopedReadLock sl(childLock[CT]);
 
 		for(auto element: children[CT])
@@ -212,6 +175,106 @@ private:
 
 	Array<Child*> children[numChildTypes];
 	ReadWriteLock childLock[numChildTypes];
+};
+
+// A subclass of RootObject child that will automatically remove itself from all queues. */
+class Queueable: public RootObject::Child
+{
+public:
+
+	explicit Queueable(RootObject& r);;
+	~Queueable() override;
+
+protected:
+	
+	/** Call this in your destructor after you made sure to remove it from all queues.
+	 *  If this is false, it will iterate all queues of the root object with a huge performance penalty! */
+	void cleared()
+	{
+		isCleared = true;
+	}
+
+	/** Call this in your destructor if you want to remove it from all queues. */
+	void clearFromRoot()
+	{
+		cleared();
+	}
+
+private:
+
+	bool isCleared = false;
+	DanglingBehaviour danglingBehaviour = DanglingBehaviour::Undefined;
+};
+
+class Suspendable: public Queueable
+{
+public:
+
+	Suspendable(RootObject& r, Suspendable* parent_):
+	  Queueable(r),
+	  parent(parent_)
+	{};
+	  
+	~Suspendable() override {};
+	virtual void setState(const HashedPath& p, State newState) = 0;
+	virtual State getStateFromParent() const { return parent != nullptr ? parent->getStateFromParent() : State::Running; }
+
+	bool hasParent() const { return parent != nullptr; }
+
+private:
+
+	Suspendable* parent = nullptr;
+};
+
+template <typename T> struct DispatchTypeContainer
+{
+	template <typename... Args> DispatchTypeContainer(Args&&... args):
+	  sync(std::forward<Args>(args)...),
+	  asyncHiPrio(std::forward<Args>(args)...),
+	  async(std::forward<Args>(args)...)
+	{};
+
+	T& get(DispatchType n)
+	{
+		switch(n)
+		{
+		case DispatchType::sendNotificationAsync:			return async;
+		case DispatchType::sendNotificationAsyncHiPriority: return asyncHiPrio;
+		case DispatchType::sendNotificationSync:			return sync;
+		default: jassertfalse; return async;
+		}
+	}
+
+	void forEach(const std::function<void(T&)>& f)
+	{
+		f(sync);
+		f(asyncHiPrio);
+		f(async);
+	}
+
+	void forEachWithDispatchType(const std::function<void(DispatchType n, T&)>& f)
+	{
+		f(DispatchType::sendNotificationSync,  sync);
+		f(DispatchType::sendNotificationAsyncHiPriority, asyncHiPrio);
+		f(DispatchType::sendNotificationAsync, async);
+	}
+
+	const T& get(DispatchType n) const
+	{
+		switch(n)
+		{
+		case DispatchType::sendNotificationAsync:			return async;
+		case DispatchType::sendNotificationAsyncHiPriority: return asyncHiPrio;
+		case DispatchType::sendNotificationSync:			return sync;
+		default: jassertfalse; return async;
+		}
+	}
+
+private:
+
+	T sync;
+	T asyncHiPrio;
+	T async;
 };
 
 } // dispatch

@@ -85,7 +85,11 @@ struct MainController
 
     PooledUIUpdater updater;
 	RootObject root;
+
+#if ENABLE_QUEUE_AND_LOGGER
     Logger logger;
+#endif
+
 	ScopedPointer<library::ProcessorHandler> processorHandler;
     OwnedArray<SimulatedThread> threads;
     SimulatedThread* audioThread;
