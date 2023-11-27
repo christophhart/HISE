@@ -1346,7 +1346,18 @@ public:
 
 		static TargetThread getThreadForLockType(LockHelpers::Type t);
 
-		
+		void initFromProcessCallback()
+		{
+			addThreadIdToAudioThreadList();
+
+			if (!init)
+			{
+				if (currentState == WaitingForInitialisation)
+					currentState = State::InitialisedButNotActivated;
+				
+				init = true;
+			}
+		}
 
 	private:
 
@@ -1391,6 +1402,7 @@ public:
 		enum State
 		{
 			WaitingForInitialisation = 0,
+			InitialisedButNotActivated,
 			Clear,
 			VoiceKill,
 			WaitingForClearance,

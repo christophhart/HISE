@@ -95,6 +95,8 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 #if USE_COPY_PROTECTION
 	if (!keyFileCorrectlyLoaded || (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()))
     {
+		getKillStateHandler().initFromProcessCallback();
+
         buffer.clear();
         midiMessages.clear();
         return;

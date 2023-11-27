@@ -221,6 +221,9 @@ void MainController::KillStateHandler::requestQuit()
 
 bool MainController::KillStateHandler::allowGracefulExit() const noexcept
 {
+	if(currentState == State::InitialisedButNotActivated)
+		return false;
+
 #if JUCE_WINDOWS && IS_STANDALONE_APP
 	const bool formatAllowsGracefulExit = true;
 #else
@@ -288,6 +291,9 @@ void MainController::KillStateHandler::deferToThread(Processor* p, const Process
 
 bool MainController::KillStateHandler::isAudioRunning() const noexcept
 {
+	if(currentState == State::InitialisedButNotActivated)
+		return false;
+
 	return initialised() && currentState < State::Suspended;
 }
 
@@ -314,11 +320,9 @@ void MainController::KillStateHandler::deinitialise()
 
 bool MainController::KillStateHandler::invalidateTicket(uint16 ticket)
 {
-	//DBG("Invalidate Ticket " + String(ticket));
-
-	jassert(mc->isBeingDeleted() || currentState == Suspended);
-
-	//stackTraces.remove(StackTrace<3, 6>(ticket, false));
+	jassert(mc->isBeingDeleted() || 
+			currentState == Suspended || 
+			currentState == InitialisedButNotActivated);
 
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(ticketLock);
@@ -565,7 +569,7 @@ bool MainController::KillStateHandler::voiceStartIsDisabled() const
 #if HI_RUN_UNIT_TESTS
 	return false;
 #else
-	return currentState > State::Clear && !isCurrentlyExporting();
+	return currentState > State::InitialisedButNotActivated && !isCurrentlyExporting();
 #endif
 }
 
