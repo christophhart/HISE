@@ -44,6 +44,8 @@ MdaLimiterEffect::MdaLimiterEffect(MainController *mc, const String &id):
 	parameterNames.add("Attack");
 	parameterNames.add("Release");
 	parameterNames.add("Knee");
+
+	updateParameterSlots();
 };
 
 ProcessorEditorBody *MdaLimiterEffect::createEditor(ProcessorEditor *parentEditor)
@@ -81,6 +83,8 @@ MdaDegradeEffect::MdaDegradeEffect(MainController *mc, const String &id):
 	parameterNames.add("PostFilt");
 	parameterNames.add("NonLin");
 	parameterNames.add("DryWet");
+
+	updateParameterSlots();
 
 	editorStateIdentifiers.add("DryWetChainShown");
 

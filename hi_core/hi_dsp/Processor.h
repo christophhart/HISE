@@ -524,7 +524,7 @@ public:
 #endif
           processor(p)
         {
-	        processor->otherBroadcaster.addChangeListener(this);
+	        OLD_PROCESSOR_DISPATCH(processor->otherBroadcaster.addChangeListener(this));
             NEW_PROCESSOR_DISPATCH(processor->addOtherChangeListener(&dispatcher, dispatch::sendNotificationAsync));
         }
 
@@ -532,7 +532,7 @@ public:
         {
 	        if(auto p = processor.get())
 	        {
-		        processor->otherBroadcaster.removeChangeListener(this);
+		        OLD_PROCESSOR_DISPATCH(processor->otherBroadcaster.removeChangeListener(this));
                 NEW_PROCESSOR_DISPATCH(p->removeOtherChangeListener(&dispatcher));
 	        }
         }
@@ -540,9 +540,11 @@ public:
 
     	void changeListenerCallback(SafeChangeBroadcaster* b) override
 	    {
+#if HISE_OLD_PROCESSOR_DISPATCH
 		    auto ob = dynamic_cast<OldBroadcaster*>(b);
             jassert(ob != nullptr);
             otherChange(&ob->parent);
+#endif
 	    }
 
     private:

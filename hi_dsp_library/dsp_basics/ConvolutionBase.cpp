@@ -195,7 +195,7 @@ ConvolutionEffectBase::ConvolutionEffectBase() :
 
 ConvolutionEffectBase::~ConvolutionEffectBase()
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
+	SimpleReadWriteLock::ScopedMultiWriteLock sl(swapLock);
 
 	convolverL = nullptr;
 	convolverR = nullptr;
@@ -574,11 +574,11 @@ bool ConvolutionEffectBase::reloadInternal()
 		getImpulseBufferBase().getBuffer().getNumChannels() == 0|| 
 		getImpulseBufferBase().getBuffer().getNumSamples() == 0 )
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
-        
-        while(backgroundThread.isBusy())
+		while(backgroundThread.isBusy())
             Thread::getCurrentThread()->wait(10);
-        
+
+		SimpleReadWriteLock::ScopedMultiWriteLock sl(swapLock);
+
 		convolverL->reset();
 		convolverR->reset();
 		return true;
@@ -649,8 +649,6 @@ bool ConvolutionEffectBase::reloadInternal()
     
     
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(swapLock);
-        
 		while (backgroundThread.isBusy())
 		{
 			auto currentThread = Thread::getCurrentThread();
@@ -658,7 +656,8 @@ bool ConvolutionEffectBase::reloadInternal()
 			if(currentThread != nullptr)
 				currentThread->wait(10);
 		}
-            
+
+		SimpleReadWriteLock::ScopedMultiWriteLock sl(swapLock);
         
         std::swap(fadeOutConvolverL, convolverL);
 		std::swap(fadeOutConvolverR, convolverR);
@@ -669,7 +668,6 @@ bool ConvolutionEffectBase::reloadInternal()
         {
             backgroundThread.addConvolverToBeDeleted(convolverL);
             backgroundThread.addConvolverToBeDeleted(convolverR);
-            
         }
         
         convolverL = s1;
