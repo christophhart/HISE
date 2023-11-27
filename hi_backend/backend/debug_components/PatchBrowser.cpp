@@ -1714,6 +1714,7 @@ struct PlotterPopup: public Component
 {
 	PlotterPopup(Processor* m_):
 		m(m_),
+		p(m_->getMainController()->getGlobalUIUpdater()),
 		resizer(this, nullptr)
 	{
 		dynamic_cast<Modulation*>(m.get())->setPlotter(&p);

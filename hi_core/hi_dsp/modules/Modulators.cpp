@@ -235,7 +235,21 @@ void Modulation::setPlotter(Plotter *targetPlotter)
 	if (attachedPlotter != nullptr)
 	{
 		attachedPlotter->setMode((Plotter::Mode)(int)getMode()); // ugly as f***
-		
+
+		WeakReference<Processor> safeThis(dynamic_cast<Processor*>(this));
+
+		attachedPlotter->setCleanupFunction([safeThis](Plotter* p)
+		{
+			if(safeThis.get() != nullptr)
+			{
+				auto mod = dynamic_cast<Modulation*>(safeThis.get());
+				auto tp = mod->attachedPlotter.getComponent();
+
+				if(tp == p)
+					mod->setPlotter(nullptr);
+			}
+		});
+
 		auto modChain = dynamic_cast<ModulatorChain*>(this);
 
 		if (modChain == nullptr)

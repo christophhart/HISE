@@ -272,9 +272,10 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 #include "hi_standalone_components/RLottieDevComponent.h"
 #endif
 
-#include "hi_standalone_components/Plotter.h"
+
 
 #include "hi_standalone_components/RingBuffer.h"
+#include "hi_standalone_components/Plotter.h"
 
 #include "hi_standalone_components/SliderPack.h"
 #include "hi_standalone_components/TableEditor.h"

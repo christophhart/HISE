@@ -633,10 +633,17 @@ void ComplexDataEditorPanel::fillIndexList(StringArray& indexList)
 
 Component* PlotterPanel::createContentComponent(int)
 {
-	auto p = new Plotter();
+	auto p = new Plotter(getMainController()->getGlobalUIUpdater());
 	if (auto mod = dynamic_cast<Modulation*>(getConnectedProcessor()))
 	{
 		mod->setPlotter(p);
+
+		p->setColour(Plotter::backgroundColour , findPanelColour(PanelColourId::bgColour));
+		p->setColour(Plotter::pathColour , findPanelColour(PanelColourId::itemColour1));
+		p->setColour(Plotter::pathColour2, findPanelColour(PanelColourId::itemColour2));
+		p->setColour(Plotter::outlineColour , findPanelColour(PanelColourId::itemColour3));
+		p->setColour(Plotter::textColour, findPanelColour(PanelColourId::textColour));
+		p->setFont(getFont());
 	}
 
 	return p;

@@ -504,7 +504,7 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 		if (newMod)
 		{
 			currentTable.setEditedTable(newMod->getTable(0));
-			addAndMakeVisible(currentPlotter = new Plotter());
+			addAndMakeVisible(currentPlotter = new Plotter(getMainController()->getGlobalUIUpdater()));
 
 			newMod->setPlotter(currentPlotter);
 

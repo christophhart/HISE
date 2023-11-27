@@ -136,7 +136,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
 	registerType<SliderPackPanel>(PopupMenuOptions::SliderPackPanel);
 	
-	registerType<PlotterPanel>(PopupMenuOptions::Plotter);
+	
 	
 #if USE_BACKEND
 	registerType<ScriptComponentEditPanel::Panel>(PopupMenuOptions::ScriptComponentEditPanel);
@@ -161,6 +161,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<TooltipPanel>(PopupMenuOptions::TooltipPanel);
 	registerType<MidiLearnPanel>(PopupMenuOptions::MidiLearnPanel);
 	registerType<FrontendMacroPanel>(PopupMenuOptions::FrontendMacroPanel);
+	registerType<PlotterPanel>(PopupMenuOptions::Plotter);
 	registerType<AudioAnalyserComponent::Panel>(PopupMenuOptions::AudioAnalyser);
 	registerType<WaveformComponent::Panel>(PopupMenuOptions::WavetablePreview);
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);

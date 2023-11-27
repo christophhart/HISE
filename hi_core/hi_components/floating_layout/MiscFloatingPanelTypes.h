@@ -343,7 +343,11 @@ public:
 	PlotterPanel(FloatingTile* parent):
 		PanelWithProcessorConnection(parent)
 	{
-
+		setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
+		setDefaultPanelColour(PanelColourId::itemColour1, Colour(0x88ffffff));
+		setDefaultPanelColour(PanelColourId::itemColour2, Colour(0x44ffffff));
+		setDefaultPanelColour(PanelColourId::itemColour3, Colours::transparentWhite);
+		setDefaultPanelColour(PanelColourId::textColour, Colours::white);
 	}
 
 	SET_PANEL_NAME("Plotter");
