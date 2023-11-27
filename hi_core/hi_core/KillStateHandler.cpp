@@ -569,7 +569,7 @@ bool MainController::KillStateHandler::voiceStartIsDisabled() const
 #if HI_RUN_UNIT_TESTS
 	return false;
 #else
-	return currentState > State::InitialisedButNotActivated && !isCurrentlyExporting();
+	return currentState != State::Clear && !isCurrentlyExporting();
 #endif
 }
 
@@ -684,6 +684,11 @@ void MainController::KillStateHandler::removeThreadIdFromAudioThreadList()
 void MainController::KillStateHandler::initAudioThreadId()
 {
 	addThreadIdToAudioThreadList();
+
+	if (currentState == State::InitialisedButNotActivated)
+	{
+		currentState = State::Clear;
+	}
 
 	if (!init)
 	{
