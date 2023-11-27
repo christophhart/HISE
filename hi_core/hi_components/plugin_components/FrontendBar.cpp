@@ -255,14 +255,14 @@ void DeactiveOverlay::overlayMessageSent(int state, const String& message)
 	setStateInternal((State)state, true);
 }
 
-
+#if !USE_COPY_PROTECTION
 bool DeactiveOverlay::check(State s, const String& value/*=String()*/)
 {
 	ignoreUnused(s, value);
 	return true;
 }
 
-#if !USE_COPY_PROTECTION
+
 DeactiveOverlay::State DeactiveOverlay::checkLicense(const String &keyContent)
 {
 	ignoreUnused(keyContent);

@@ -383,8 +383,11 @@ const float * ModulatorSamplerVoice::getCrossfadeModulationValues(int startSampl
 
 void ModulatorSamplerVoice::resetVoice()
 {
-	sampler->resetNoteDisplay(this->getCurrentlyPlayingNote() + getTransposeAmount());
-
+	if(sampler->isLastStartedVoice(this))
+	{
+		sampler->resetNoteDisplay(this->getCurrentlyPlayingNote() + getTransposeAmount());
+	}
+	
 	wrappedVoice.resetVoice();
 
 	ModulatorSynthVoice::resetVoice();

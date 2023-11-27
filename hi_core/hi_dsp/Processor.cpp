@@ -522,8 +522,7 @@ void Processor::setInputValue(float newValue, NotificationType notify)
 
 	if(notify == sendNotification)
 	{
-		jassertfalse;
-		otherBroadcaster.sendPooledChangeMessage();
+		//otherBroadcaster.sendPooledChangeMessage();
 	}
 };
 

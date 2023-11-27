@@ -1248,9 +1248,11 @@ void Component::sendMovedResizedMessages (bool wasMoved, bool wasResized)
         });
     }
 
+#if 0
     if ((wasMoved || wasResized) && ! checker.shouldBailOut())
         if (auto* handler = getAccessibilityHandler())
             notifyAccessibilityEventInternal (*handler, InternalAccessibilityEvent::elementMovedOrResized);
+#endif
 }
 
 void Component::setSize (int w, int h)                  { setBounds (getX(), getY(), w, h); }
