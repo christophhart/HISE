@@ -220,16 +220,38 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 		if (mm.isMacroEnabledOnFrontend())
 		{
-			m.addSectionHeader("Assign Macro");
+			
 
+#if HISE_MACROS_ARE_PLUGIN_PARAMETERS
+			auto title = "Assign Automation";
+#else
+			auto title = "Assign Macro";
+#endif
+
+			PopupMenu sub;
+			auto mToUse = &m;
+
+			static constexpr bool useSubMenu = HISE_NUM_MACROS > 8;
+
+			if constexpr (useSubMenu)
+				mToUse = &sub;
+			else
+				m.addSectionHeader(title);
+				
 			for (int i = 0; i < HISE_NUM_MACROS; i++)
 			{
 				auto name = macroChain->getMacroControlData(i)->getMacroName();
 
 				if (name.isNotEmpty())
 				{
-					m.addItem((int)AddMacroControlOffset + i, "Connect to " + name);
+					mToUse->addItem((int)AddMacroControlOffset + i, "Connect to " + name);
 				}
+			}
+
+			if constexpr (useSubMenu)
+			{
+				m.addSeparator();
+				m.addSubMenu(title, sub);
 			}
 		}
 	}
