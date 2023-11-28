@@ -59,6 +59,8 @@ struct XYZSampleMapProvider : public MultiChannelAudioBuffer::XYZProviderBase,
 		MonolithDataProvider(XYZSampleMapProvider* p, const ValueTree& sampleMap_);;
 		MultiChannelAudioBuffer::SampleReference::Ptr loadFile(const String& referenceString) override;
 
+		File parseFileReference(const String& b64) const override { return {}; }
+
 		hise::HlacMonolithInfo::Ptr hmToUse;
 		WeakReference<XYZSampleMapProvider> parent;
 		ValueTree sampleMap;
@@ -68,6 +70,8 @@ struct XYZSampleMapProvider : public MultiChannelAudioBuffer::XYZProviderBase,
 	{
 		FileBasedDataProvider(XYZSampleMapProvider* p);;
 		MultiChannelAudioBuffer::SampleReference::Ptr loadFile(const String& referenceString) override;
+
+		File parseFileReference(const String& b64) const override;
 
 		WeakReference<XYZSampleMapProvider> parent;
 	};
@@ -114,6 +118,14 @@ struct XYZSFZProvider : public XYZSampleMapProvider
 	{
 		SFZFileLoader(const File& sfzFile_);;
 		MultiChannelAudioBuffer::SampleReference::Ptr loadFile(const String& referenceString) override;
+
+		File parseFileReference(const String& f) const override
+		{
+			if(File::isAbsolutePath(f))
+				return File(f);
+
+			return File();
+		}
 
 		File sfzFile;
 	};

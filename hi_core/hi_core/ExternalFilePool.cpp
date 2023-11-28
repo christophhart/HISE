@@ -1541,6 +1541,13 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr PooledAudioFileDataProvider:
 	return lr;
 }
 
+File PooledAudioFileDataProvider::parseFileReference(const String& b64) const
+{
+	PoolReference ref(getMainController(), b64, FileHandlerBase::AudioFiles);
+
+	return ref.getFile();
+}
+
 juce::File PooledAudioFileDataProvider::getRootDirectory()
 {
 	if (customDefaultFolder.isDirectory())

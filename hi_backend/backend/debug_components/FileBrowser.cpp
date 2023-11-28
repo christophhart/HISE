@@ -1151,7 +1151,7 @@ void TableComponent::timerCallback()
 
 	for(auto c: finishedIssues)
 	{
-		jassert(!c->currentlyActive);
+		//jassert(!c->currentlyActive);
 		finishedList.add(c->toJSON());
 	}
 

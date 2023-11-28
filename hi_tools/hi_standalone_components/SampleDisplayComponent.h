@@ -523,6 +523,8 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		/** Override this function and load the content and process the string to be displayed. */
 		virtual SampleReference::Ptr loadFile(const String& referenceString) = 0;
 
+		virtual File parseFileReference(const String& b64) const = 0;
+
 		/** This directory will be used as default directory when opening files. */
 		virtual File getRootDirectory();
 
@@ -561,6 +563,14 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 		int indexOf(const String& ref) const;
 
 		SampleReference::Ptr loadFile(const String& ref) override;
+
+		File parseFileReference(const String& b64) const override
+		{
+			if(File::isAbsolutePath(b64))
+				return File(b64);
+
+			return File();
+		}
 
 		ReferenceCountedArray<SampleReference> pool;
 	};

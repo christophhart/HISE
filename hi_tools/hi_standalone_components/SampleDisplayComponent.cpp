@@ -2493,6 +2493,11 @@ void MultiChannelAudioBufferDisplay::mouseDown(const MouseEvent &e)
 
 			File searchDirectory = connectedBuffer->getProvider()->getRootDirectory();
 
+			auto f = connectedBuffer->getProvider()->parseFileReference(connectedBuffer->toBase64String());
+
+			if(f.existsAsFile())
+				searchDirectory = f.getParentDirectory();
+			
 			FileChooser fc("Load File", searchDirectory, patterns, true);
 
 			if (fc.browseForFileToOpen())

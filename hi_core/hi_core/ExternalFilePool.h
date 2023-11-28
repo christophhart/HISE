@@ -757,6 +757,9 @@ struct PooledAudioFileDataProvider : public hise::MultiChannelAudioBuffer::DataP
 
 	MultiChannelAudioBuffer::SampleReference::Ptr loadFile(const String& ref) override;
 
+    File parseFileReference(const String& b64) const override;
+
+
 	File getRootDirectory() override;
 
 	void setRootDirectory(const File& rootDirectory) override;
