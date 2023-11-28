@@ -298,6 +298,8 @@ ScriptUserPresetHandler::AttachedCallback::AttachedCallback(ScriptUserPresetHand
 		customAsyncUpdateCallback = WeakCallbackHolder(parent->getScriptProcessor(), parent, f, 2);
 	else
 		customUpdateCallback = WeakCallbackHolder(parent->getScriptProcessor(), parent, f, 2);
+
+	cData->dispatcher.addValueListener(&listener, false, n);
 #endif
 
 
