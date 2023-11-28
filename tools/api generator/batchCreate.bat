@@ -19,6 +19,7 @@ xcopy "xml\classhise_1_1_scripting_api_1_1_synth.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_sampler.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_transport_handler.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_api_1_1_threads.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_api_1_1_date.xml" "xml\selection"
 
 xcopy "xml\structhise_1_1fixobj_1_1_array.xml" "xml\selection"
 xcopy "xml\structhise_1_1fixobj_1_1_factory.xml" "xml\selection"
@@ -221,6 +222,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "
 
 ren "xml\selection\structhise_1_1_script_unlocker_1_1_ref_object.xml" "Unlocker.xml"
 ren "xml\selection\classhise_1_1_beatport_manager.xml" "BeatportManager.xml"
+ren "xml\selection\classhise_1_1_scripting_api_1_1_date.xml" "Date.xml"
 
 ApiExtractor.exe xml\selection xml\selection
 
