@@ -263,7 +263,6 @@ struct SamplerTools
 */
 class SamplerSoundWaveform : public AudioDisplayComponent,
 	public Timer,
-	public SettableTooltipClient,
     public Processor::DeleteListener
 {
 public:

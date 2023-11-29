@@ -253,7 +253,8 @@ private:
 *
 *	You can create subclasses of this component and populate it with some SampleArea objects (you can nest them if desired)
 */
-class AudioDisplayComponent: public ComponentWithMiddleMouseDrag
+class AudioDisplayComponent: public ComponentWithMiddleMouseDrag,
+                             public SettableTooltipClient
 {
 public:
 
