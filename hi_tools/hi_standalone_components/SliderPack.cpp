@@ -575,6 +575,8 @@ void SliderPack::resized()
 {
 	int w = getWidth();
 
+    setTextAreaPopup(getLocalBounds().removeFromRight(100).removeFromTop(40));
+    
     if(data != nullptr && (sliderWidths.isEmpty() || getNumSliders()+1 != (sliderWidths.size())))
     {
         float widthPerSlider = (float)w / (float)data->getNumSliders();
@@ -732,7 +734,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 
 		rightClickLine.setEnd((float)x, (float)y);
 
-		repaint(Rectangle<float>(rightClickLine.getStart(), rightClickLine.getEnd()).toNearestInt().expanded(5));
+        repaintWithTextBox(Rectangle<float>(rightClickLine.getStart(), rightClickLine.getEnd()).toNearestInt().expanded(5));
 	}
 	else
 	{
@@ -759,7 +761,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 			double value = s->proportionOfLengthToValue(normalizedValue);
 
 			if(isPositiveAndBelow(currentlyDraggedSlider, sliders.size()))
-				repaint(sliders[currentlyDraggedSlider]->getBoundsInParent());
+                repaintWithTextBox(sliders[currentlyDraggedSlider]->getBoundsInParent());
 
 			currentlyDragged = true;
 			currentlyDraggedSlider = sliderIndex;
@@ -770,7 +772,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 			currentlyDraggedSliderValue = s->getValue();
 
 			if(isPositiveAndBelow(currentlyDraggedSlider, sliders.size()))
-				repaint(sliders[currentlyDraggedSlider]->getBoundsInParent());
+                repaintWithTextBox(sliders[currentlyDraggedSlider]->getBoundsInParent());
 		}
 
 		if (std::abs(sliderIndex - lastDragIndex) > 1)
@@ -1261,12 +1263,12 @@ void SliderPack::mouseMove(const MouseEvent& mouseEvent)
 	if(thisIndex != currentlyHoveredSlider)
 	{
 		if(isPositiveAndBelow(currentlyHoveredSlider, sliders.size()))
-			repaint(sliders[currentlyHoveredSlider]->getBoundsInParent());
+            repaintWithTextBox(sliders[currentlyHoveredSlider]->getBoundsInParent());
 
 		currentlyHoveredSlider = thisIndex;
 
 		if(isPositiveAndBelow(currentlyHoveredSlider, sliders.size()))
-			repaint(sliders[currentlyHoveredSlider]->getBoundsInParent());
+            repaintWithTextBox(sliders[currentlyHoveredSlider]->getBoundsInParent());
 	}
 }
 
