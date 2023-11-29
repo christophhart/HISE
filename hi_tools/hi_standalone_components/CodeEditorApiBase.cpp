@@ -262,15 +262,14 @@ bool ApiProviderBase::Holder::shouldReleaseDebugLock() const
 
 ApiProviderBase::Holder::CompileDebugLock::CompileDebugLock(Holder& h):
 	p(h),
-	prevValue(h.wantsToCompile),
+	prevValue(h.wantsToCompile, true),
 	sl(h.getDebugLock())
 {
-	p.wantsToCompile = true;
 }
 
 ApiProviderBase::Holder::CompileDebugLock::~CompileDebugLock()
 {
-	p.wantsToCompile = prevValue;
+
 }
 
 void ApiProviderBase::Holder::RepaintUpdater::update(int index)

@@ -117,7 +117,15 @@ struct FourColourScheme
 	}
 };
 
-struct MathFunctionProvider : public TokenCollection::Provider
+struct SnexTokenProvider: public TokenCollection::Provider
+{
+    bool shouldAbortTokenRebuild(Thread* t) const override
+    {
+        return t != nullptr && t->threadShouldExit();
+    }
+};
+
+struct MathFunctionProvider : public SnexTokenProvider
 {
 	struct MathFunction : public TokenCollection::Token
 	{
@@ -145,8 +153,10 @@ struct MathFunctionProvider : public TokenCollection::Provider
 	void addTokens(TokenCollection::List& tokens);
 };
 
-struct KeywordProvider : public TokenCollection::Provider
+struct KeywordProvider : public SnexTokenProvider
 {
+    
+    
 	struct KeywordToken : public TokenCollection::Token
 	{
 		KeywordToken(const String& s, int priority_=100) :
@@ -185,7 +195,7 @@ struct KeywordProvider : public TokenCollection::Provider
 	}
 };
 
-struct TemplateProvider : public TokenCollection::Provider
+struct TemplateProvider : public SnexTokenProvider
 {
 	struct TemplateToken : public TokenCollection::Token
 	{
@@ -222,14 +232,14 @@ struct TemplateProvider : public TokenCollection::Provider
 	void addTokens(TokenCollection::List& tokens);
 };
 
-struct ComplexTypeProvider : public TokenCollection::Provider
+struct ComplexTypeProvider : public SnexTokenProvider
 {
 	
 
 	
 };
 
-struct PreprocessorMacroProvider : public TokenCollection::Provider
+struct PreprocessorMacroProvider : public SnexTokenProvider
 {
 	PreprocessorMacroProvider(CodeDocument& d) :
 		doc(d)
@@ -282,7 +292,7 @@ struct PreprocessorMacroProvider : public TokenCollection::Provider
 	CodeDocument& doc;
 };
 
-struct SymbolProvider : public TokenCollection::Provider
+struct SymbolProvider : public SnexTokenProvider
 {
 	struct ComplexMemberToken : public TokenCollection::Token
 	{

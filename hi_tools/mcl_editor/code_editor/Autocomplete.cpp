@@ -500,17 +500,43 @@ int64 TokenCollection::getHashFromTokens(const List& l)
 
 void TokenCollection::rebuild()
 {
+    PerfettoHelpers::setCurrentThreadName("Token Rebuild Thread");
+    
 	if (dirty)
 	{
+        TRACE_EVENT("scripting", "get build lock");
+        
 		SimpleReadWriteLock::ScopedWriteLock sl(buildLock);
 
+
+        
 		List newTokens;
 
-		for (auto tp : tokenProviders)
-			tp->addTokens(newTokens);
+        {
+            TRACE_EVENT("scripting", "rebuild tokens");
+            
+            for (auto tp : tokenProviders)
+                tp->addTokens(newTokens);
+        }
 
-		Sorter ts;
-		newTokens.sort(ts);
+        TRACE_EVENT_BEGIN("scripting", "sorting tokens");
+        
+        try
+        {
+            Sorter ts(*this);
+            
+            SortFunctionConverter<Sorter> converter (ts);
+
+            std::sort(newTokens.begin(), newTokens.end(), converter);
+            
+            newTokens.sort(ts);
+        }
+        catch(Sorter::AbortException& e)
+        {
+            
+        }
+        
+        TRACE_EVENT_END("scripting");
 
 		auto newHash = getHashFromTokens(newTokens);
 
@@ -527,8 +553,11 @@ void TokenCollection::rebuild()
 bool TokenCollection::isEnabled() const
 { return enabled; }
 
-int TokenCollection::Sorter::compareElements(Token* first, Token* second)
+int TokenCollection::Sorter::compareElements(Token* first, Token* second) const
 {
+    if(parent.shouldAbort())
+        throw AbortException();
+    
 	if (first->priority > second->priority)
 		return -1;
 

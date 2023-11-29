@@ -95,6 +95,11 @@ public:
 		*/
 		virtual void addTokens(List& tokens) = 0;
 
+        virtual bool shouldAbortTokenRebuild(Thread* t) const
+        {
+            return t != nullptr && t->threadShouldExit();
+        }
+
 		/** Call the TokenCollections rebuild method. This will not be executed synchronously, but on a dedicated thread. */
 		void signalRebuild();
 
@@ -150,7 +155,16 @@ public:
 
 	struct Sorter
 	{
-		static int compareElements(Token* first, Token* second);
+        struct AbortException: public std::exception
+        {};
+        
+        Sorter(TokenCollection& t):
+          parent(t)
+        {};
+        
+		int compareElements(Token* first, Token* second) const;
+        
+        TokenCollection& parent;
 	};
 
     struct FuzzySorter
@@ -164,6 +178,17 @@ public:
 
     void sortForInput(const String& input);
 
+    bool shouldAbort() const
+    {
+        for(auto p: tokenProviders)
+        {
+            if(p->shouldAbortTokenRebuild(const_cast<TokenCollection*>(this)))
+               return true;
+        }
+
+        return false;
+    }
+    
 private:
 
 	bool enabled = true;

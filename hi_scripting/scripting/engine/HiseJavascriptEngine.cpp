@@ -1785,8 +1785,12 @@ struct TokenHelpers
 	}
 };
 
-
-
+bool HiseJavascriptEngine::TokenProvider::shouldAbortTokenRebuild(Thread* t) const
+{
+    return (t != nullptr && t->threadShouldExit()) ||
+           (jp == nullptr) ||
+           (jp != nullptr && jp->shouldReleaseDebugLock());
+}
 
 
 void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
@@ -1869,7 +1873,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 
 			for (int i = 0; i < numObjects; i++)
 			{
-				if (Thread::currentThreadShouldExit() || jp->shouldReleaseDebugLock())
+				if (shouldAbortTokenRebuild(Thread::getCurrentThread()))
 					return;
 
 				if (e == nullptr)
@@ -1902,7 +1906,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 
 						for (auto methodTree : classTree)
 						{
-							if (Thread::currentThreadShouldExit() || jp->shouldReleaseDebugLock())
+							if (shouldAbortTokenRebuild(Thread::getCurrentThread()))
 								return;
 
 							tokens.add(new ApiToken(cid, methodTree));

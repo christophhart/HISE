@@ -425,7 +425,7 @@ public:
 			~CompileDebugLock();
 
 			Holder& p;
-			bool prevValue = false;
+            ScopedValueSetter<bool> prevValue;
 
 			ScopedWriteLock sl;
 		};

@@ -156,6 +156,9 @@ public:
 
 		void scriptWasCompiled(JavascriptProcessor *processor) override;
 
+        bool shouldAbortTokenRebuild(Thread* t) const override;
+        
+        
 		WeakReference<JavascriptProcessor> jp;
         JUCE_DECLARE_WEAK_REFERENCEABLE(TokenProvider);
 	};
