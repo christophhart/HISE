@@ -2605,6 +2605,10 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 		{
 			TRACE_EVENT("scripting", "high priority dispatch queue");
 
+            // avoid locking the message thread if we're about to close down shop...
+            if(threadShouldExit())
+                return Result::ok();
+            
             // The high priority queue is supposed to be treated as UI event
             // so we need to grab the message thread lock instead of the scripting
             // lock.

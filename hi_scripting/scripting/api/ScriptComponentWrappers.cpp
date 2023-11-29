@@ -222,26 +222,33 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 
 	void sendMessage(const MouseEvent& event, MouseCallbackComponent::Action action, MouseCallbackComponent::EnterState state, int popupMenuIndex = -1)
 	{
-		if (data.listener != nullptr)
-		{
-			LockHelpers::SafeLock sl(scriptComponent->getScriptProcessor()->getMainController_(), LockHelpers::Type::ScriptLock);
+        auto mc = scriptComponent->getScriptProcessor()->getMainController_();
 
-			var arguments[2];
+        SimpleReadWriteLock::ScopedTryReadLock  sl(mc->getJavascriptThreadPool().getLookAndFeelRenderLock());
+        
+        if(sl)
+        {
+            LockHelpers::SafeLock sl(mc, LockHelpers::Type::ScriptLock);
 
-			arguments[0] = var(scriptComponent.get());
-
-			if (data.mouseCallbackLevel != MouseCallbackComponent::CallbackLevel::PopupMenuOnly)
+            if (data.listener != nullptr)
             {
-				MouseCallbackComponent::fillMouseCallbackObject(eventObject[(int)action], component.getComponent(), event, data.mouseCallbackLevel, action, state);
-				arguments[1] = eventObject[(int)action];
-                ComponentWithAdditionalMouseProperties::attachMousePropertyFromParent(event, arguments[1]);
-            }
-			else
-				arguments[1] = var(popupMenuIndex);
+                var arguments[2];
 
-			var::NativeFunctionArgs args({}, arguments, 2);
-			auto ok = data.listener->call(nullptr, args, nullptr);
-		}
+                arguments[0] = var(scriptComponent.get());
+
+                if (data.mouseCallbackLevel != MouseCallbackComponent::CallbackLevel::PopupMenuOnly)
+                {
+                    MouseCallbackComponent::fillMouseCallbackObject(eventObject[(int)action], component.getComponent(), event, data.mouseCallbackLevel, action, state);
+                    arguments[1] = eventObject[(int)action];
+                    ComponentWithAdditionalMouseProperties::attachMousePropertyFromParent(event, arguments[1]);
+                }
+                else
+                    arguments[1] = var(popupMenuIndex);
+
+                var::NativeFunctionArgs args({}, arguments, 2);
+                auto ok = data.listener->call(nullptr, args, nullptr);
+            }
+        }
 	}
 
 	Component::SafePointer<Component> component;
@@ -2714,6 +2721,8 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
 			PROPERTY_CASE::ScriptComponent::itemColour2 :
 			PROPERTY_CASE::ScriptComponent::bgColour :
 			PROPERTY_CASE::ScriptComponent::textColour : updateColours(adc); break;
+            PROPERTY_CASE::ScriptComponent::tooltip :        adc->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
+
 			PROPERTY_CASE::ScriptAudioWaveform::Properties::showLines: adc->getThumbnail()->setDrawHorizontalLines((bool)newValue); break;
 			PROPERTY_CASE::ScriptAudioWaveform::Properties::enableRange:
 			{
