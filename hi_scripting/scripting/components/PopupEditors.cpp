@@ -476,7 +476,17 @@ void PopupIncludeEditor::compileInternal()
 		externalFile->getFileDocument().setSavePoint();
 	}
 
-	jp->compileScript(BIND_MEMBER_FUNCTION_1(PopupIncludeEditor::refreshAfterCompilation));
+    Component::SafePointer<PopupIncludeEditor> safeP(this);
+    
+    auto f = [safeP](const JavascriptProcessor::SnippetResult& r)
+    {
+        if(safeP.getComponent() != nullptr)
+        {
+            safeP->refreshAfterCompilation(r);
+        }
+    };
+    
+	jp->compileScript(f);
 
 	if (auto asmcl = dynamic_cast<mcl::TextEditor*>(editor.get()))
 	{
