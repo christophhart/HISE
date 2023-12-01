@@ -2613,7 +2613,10 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
             // so we need to grab the message thread lock instead of the scripting
             // lock.
             //LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::ScriptLock);
-            MessageManagerLock mm;
+            MessageManagerLock mm(this);
+            
+            if(!mm.lockWasGained())
+                return;
 
             // Setting these states will push any script job that is added
             // during the flush operations to the respective queues where

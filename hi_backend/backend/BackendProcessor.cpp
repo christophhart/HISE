@@ -160,8 +160,9 @@ BackendProcessor::~BackendProcessor()
 	AudioThreadGuard::setHandler(nullptr);
 #endif
 
+    getJavascriptThreadPool().stopThread(1000);
 	getJavascriptThreadPool().getGlobalServer()->cleanup();
-	getJavascriptThreadPool().stopThread(1000);
+
 
 	getSampleManager().cancelAllJobs();
 
