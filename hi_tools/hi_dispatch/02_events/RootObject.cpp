@@ -158,6 +158,11 @@ void RootObject::flushHighPriorityQueues(Thread* t)
 		if(t->threadShouldExit())
 			return true;
 
+        StringBuilder b;
+        b << "flush " << sm.getDispatchId();
+        
+        TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b));
+        
 		sm.flush(DispatchType::sendNotificationAsyncHiPriority);
 		return false;
 	});

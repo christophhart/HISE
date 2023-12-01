@@ -58,15 +58,31 @@ Source::~Source()
 
 void Source::flushChanges(DispatchType n)
 {
+    
+
+    
+    
 	//TRACE_FLUSH(getDispatchId());
 
 	if(currentState != State::Running)
 		return;
 
+    if(n == DispatchType::sendNotificationAsyncHiPriority)
+    {
+        StringBuilder b;
+        b << "flush " << getDispatchId();
+        TRACE_EVENT_BEGIN("dispatch", DYNAMIC_STRING_BUILDER(b));
+    }
+    
 	for(int i = 0; i < getNumSlotSenders(); i++)
 	{
 		getSlotSender(i)->flush(n);
 	}
+    
+    if(n == DispatchType::sendNotificationAsyncHiPriority)
+    {
+        TRACE_EVENT_END("dispatch");
+    }
 }
 
 ListenerQueue* Source::getListenerQueue(uint8 slotSenderIndex, DispatchType n)

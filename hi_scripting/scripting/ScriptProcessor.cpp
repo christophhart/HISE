@@ -2603,7 +2603,7 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 		r = executeQueue(Task::ReplEvaluation, pendingCompilations);
 
 		{
-			TRACE_EVENT("scripting", "high priority dispatch queue");
+			TRACE_EVENT("dispatch", "getting message manager lock");
 
             // avoid locking the message thread if we're about to close down shop...
             if(threadShouldExit())
@@ -2616,8 +2616,10 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
             MessageManagerLock mm(this);
             
             if(!mm.lockWasGained())
-                return;
+                return r;
 
+            TRACE_EVENT("dispatch", "flush hi priority dispatch queue");
+            
             // Setting these states will push any script job that is added
             // during the flush operations to the respective queues where
             // they will be executed with the proper locking in place...
