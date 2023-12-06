@@ -35,6 +35,8 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 
 	dragOverlay->addListener(this);
 
+    
+
     addAndMakeVisible (enableBandButton = new HiToggleButton ("new toggle button"));
     enableBandButton->setButtonText (TRANS("Enable Band"));
     enableBandButton->addListener (this);
@@ -93,6 +95,9 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 
 
 	h = getHeight();
+
+    if(eq->getNumFilterBands() > 0)
+        dragOverlay->selectDragger(0);
 }
 
 CurveEqEditor::~CurveEqEditor()

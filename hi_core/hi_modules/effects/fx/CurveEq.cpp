@@ -134,6 +134,9 @@ void CurveEq::setInternalAttribute(int index, float newValue)
 	{
 		debugError(this, "Invalid attribute index: " + String(index));
 	}
+
+	dispatcher.sendChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::DispatchType::sendNotificationAsync);
+
 }
 
 void CurveEq::sendBroadcasterMessage(const String& type, const var& value, NotificationType n /*= sendNotificationAsync*/)
