@@ -22,6 +22,11 @@ MainContentComponent::MainContentComponent(const String &commandLine)
 {
 	standaloneProcessor = new hise::StandaloneProcessor();
 
+	if(auto mc = dynamic_cast<MainController*>(standaloneProcessor->getCurrentProcessor()))
+	{
+		mc->getSampleManager().getProjectHandler().addListener(this);
+	}
+
 	addAndMakeVisible(editor = standaloneProcessor->createEditor());
 
 	setSize(editor->getWidth(), editor->getHeight());

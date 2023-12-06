@@ -17,13 +17,25 @@
     This component lives inside our window, and this is where you should put all
     your controls and content.
 */
-class MainContentComponent   : public Component
+class MainContentComponent   : public Component,
+							   public ProjectHandler::Listener
 {
 public:
     //==============================================================================
     MainContentComponent(const String &commandLine);
 
 	void handleCommandLineArguments(const String& args);
+
+    void projectChanged(const File& newRootDirectory)
+    {
+	    if(auto mc = dynamic_cast<MainController*>(standaloneProcessor->getCurrentProcessor()))
+	    {
+            String n;
+            n << "HISE - ";
+            n <<  GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Name).toString();
+            findParentComponentOfClass<DocumentWindow>()->setName(n);
+	    }
+    }
 
 	~MainContentComponent();
 
