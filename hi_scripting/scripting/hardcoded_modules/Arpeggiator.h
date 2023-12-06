@@ -43,7 +43,7 @@ namespace hise { using namespace juce;
 */
 class Arpeggiator : public HardcodedScriptProcessor,
           public MidiControllerAutomationHandler::MPEData::Listener,
-          public Processor::BypassListener
+		  public hise::Processor::BypassListener
 {
 public:
 

@@ -483,17 +483,13 @@ void WebViewWrapper::navigateToURL(const URL& url)
 #endif
 
     addAndMakeVisible(content);
-    
-    webView->navigate(url.toString(false).toStdString());
-    
-    
-    
-    
 
+#if !JUCE_LINUX
+    webView->navigate(url.toString(false).toStdString());
+#endif
+    
     if(currentFocusComponent != nullptr)
         currentFocusComponent->grabKeyboardFocusAsync();
-    
-    
 }
 
 void WebViewWrapper::refresh()

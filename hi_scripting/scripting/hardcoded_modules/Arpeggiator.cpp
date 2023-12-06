@@ -36,7 +36,7 @@ namespace hise { using namespace juce;
 
 Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms) :
 	HardcodedScriptProcessor(mc, id, ms),
-	BypassListener(mc->getRootDispatcher())
+	hise::Processor::BypassListener(mc->getRootDispatcher())
 {
 	addBypassListener(this, dispatch::sendNotificationSync);
 
