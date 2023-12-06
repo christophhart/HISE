@@ -1099,7 +1099,11 @@ juce_wchar mcl::TextDocument::getCharacter(Point<int> index) const
 
 const mcl::Selection& mcl::TextDocument::getSelection(int index) const
 {
-	return selections.getReference(index);
+	if(isPositiveAndBelow(index, selections.size()))
+		return selections.getReference(index);
+
+	static mcl::Selection empty;
+	return empty;
 }
 
 const Array<mcl::Selection>& mcl::TextDocument::getSelections() const

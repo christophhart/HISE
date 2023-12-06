@@ -46,6 +46,11 @@ public:
     int readNextToken (CodeDocument::Iterator&) override;
     CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
 
+    void setUseScopeStatements(bool shouldUse)
+    {
+	    useScopeStatementParser = shouldUse;
+    }
+
     static bool isReservedKeyword (const String& token) noexcept;
 
     enum TokenType
@@ -79,6 +84,7 @@ private:
 
     Array<ScopedBrackets> scopedBrackets;
     bool checkDot = false;
+    bool useScopeStatementParser = false;
 };
 
 } // namespace hise

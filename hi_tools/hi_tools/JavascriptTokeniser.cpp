@@ -38,6 +38,11 @@ JavascriptTokeniser::~JavascriptTokeniser() {}
 
 int JavascriptTokeniser::readNextToken (CodeDocument::Iterator& source)
 {
+	if(!useScopeStatementParser)
+	{
+		return JavascriptTokeniserFunctions::readNextToken (source);
+	}
+
 	if(source.getPosition() == 0)
 		scopedBrackets.clearQuick();
 

@@ -352,7 +352,11 @@ GlyphArrangement mcl::GlyphArrangementArray::getGlyphs(int index,
 		{
 			auto glyph = glyphSource.getGlyph(n);
 
+#if JUCE_WINDOWS
+			auto isItalicToken = false;
+#else
             auto isItalicToken = token == JavascriptTokeniser::tokenType_comment;
+#endif
             auto isBoldToken = token == JavascriptTokeniser::tokenType_preprocessor ||
                                token == JavascriptTokeniser::tokenType_scopedstatement ||
                                token == JavascriptTokeniser::tokenType_keyword;
