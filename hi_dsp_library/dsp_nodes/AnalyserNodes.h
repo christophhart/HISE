@@ -284,7 +284,7 @@ struct Helpers
 
 		bool useLogX = true;
 		bool useDb = true;
-		Range<float> dbRange = { -50.0f, 0.0 };
+		Range<float> dbRange = { -100.0f, 0.0 };
 		float yGamma = 1.0f;
 		float decay = 0.7f;
 

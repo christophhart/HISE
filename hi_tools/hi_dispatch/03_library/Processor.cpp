@@ -189,6 +189,8 @@ void Processor::setAttribute(int parameterIndex, float, DispatchType n)
 {
 	if(n != dontSendNotification)
 	{
+		jassert(n != sendNotification);
+
 		if(auto a = getAttributeSender(parameterIndex))
 			a->sendChangeMessage(static_cast<uint8>(parameterIndex % SlotBitmap::getNumBits()), n);
 		else
@@ -343,7 +345,7 @@ void Processor::addNameAndColourListener(NameAndColourListener* l, DispatchType 
 
 void Processor::removeNameAndColourListener(NameAndColourListener* l)
 {
-	l->removeListener(*this, sendNotificationAsync);
+	l->removeListener(*this);
 }
 
 bool Processor::isBypassed() const noexcept
