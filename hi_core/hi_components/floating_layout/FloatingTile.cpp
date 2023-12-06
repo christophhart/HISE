@@ -170,7 +170,7 @@ void FloatingTilePopup::paint(Graphics &g)
 {
 #if USE_BACKEND
     
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xf4242424)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff242424)));
 	g.fillPath(boxPath);
 		
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF222222)));
