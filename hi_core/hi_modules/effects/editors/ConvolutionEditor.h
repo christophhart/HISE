@@ -116,28 +116,6 @@ public:
 
 	void updateGui() override
 	{
-		drySlider->updateValue();
-		wetSlider->updateValue();
-		predelaySlider->updateValue();
-		dampingSlider->updateValue();
-		hiCutSlider->updateValue();
-
-
-		resetButton->updateValue();
-		backgroundButton->updateValue();
-
-		AudioSampleProcessor *sampleProcessor = dynamic_cast<AudioSampleProcessor*>(getProcessor());
-
-		const float numSamples = (float)sampleProcessor->getAudioSampleBuffer().getNumSamples();
-		const float dampingValue = Decibels::decibelsToGain(getProcessor()->getAttribute(ConvolutionEffect::Damping));
-
-		auto numSamplesToUse = jmax(numSamples, 1.0f);
-
-		auto sRange = sampleProcessor->getBuffer().getCurrentRange();
-
-		const auto range = Range<float>((float)sRange.getStart() / numSamplesToUse, (float)sRange.getEnd() / numSamplesToUse);
-
-		fadeoutDisplay->setFadeoutValue(dampingValue, range);
 	};
 
 	void timerCallback()

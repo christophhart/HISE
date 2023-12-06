@@ -49,13 +49,7 @@ public:
 	void updateGui() override
 	{
 		tableUsed = getProcessor()->getAttribute(GlobalModulator::UseTable) == 1.0f;
-
-		useTableButton->updateValue();
-
-		invertButton->updateValue();
-
 		setItemEntry();
-
 	};
 
 	int getBodyHeight() const override
@@ -76,6 +70,8 @@ public:
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
+
+    ProcessorEditorBodyUpdater updater;
 
 	bool tableUsed;
 

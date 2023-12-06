@@ -82,7 +82,7 @@ Path MacroModulator::getSpecialSymbol() const
 {
 	Path path;
 
-	path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+	path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::macros));
 
 	return path;
 }

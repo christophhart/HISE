@@ -13,7 +13,8 @@ namespace hise { using namespace juce;
 #include "SlotFXEditor.h"
 
 SlotFXEditor::SlotFXEditor(ProcessorEditor* parentEditor) :
-	ProcessorEditorBody(parentEditor)
+	ProcessorEditorBody(parentEditor),
+    updater(*this)
 {
 	addAndMakeVisible(effectSelector = new ComboBox());
 

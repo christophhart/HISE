@@ -51,23 +51,9 @@ public:
 
 	void updateGui() override
 	{
-		fadeInSlider->updateValue();
-
-		waveFormSelector->updateValue();
-
 		auto type = (int)getProcessor()->getAttribute(LfoModulator::WaveFormType);
 
-		phaseSlider->updateValue();
-
-		tempoSyncButton->updateValue();
-		retriggerButton->updateValue();
-		clockSyncButton->updateValue();
-		frequencySlider->updateValue();
-
-		smoothTimeSlider->updateValue();
-
 		loopButton->setEnabled(type == LfoModulator::Waveform::Custom || LfoModulator::Waveform::Steps);
-
 		loopButton->updateValue();
 
 		if (getProcessor()->getAttribute(LfoModulator::TempoSync) > 0.5f)
@@ -85,7 +71,6 @@ public:
 			refreshBodySize();
 			resized();
 		}
-
 	};
 
 	void timerCallback() override
@@ -113,6 +98,8 @@ public:
 
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
+
+    ProcessorEditorBodyUpdater updater;
 
     int h = 0;
 

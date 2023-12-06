@@ -40,10 +40,10 @@ using namespace juce;
 
 
 //==============================================================================
-AnalyserEditor::AnalyserEditor (ProcessorEditor *p)
-    : ProcessorEditorBody(p)
+AnalyserEditor::AnalyserEditor (ProcessorEditor *p):
+	ProcessorEditorBody(p),
+	updater(*this)
 {
-
 	addAndMakeVisible(typeSelector = new HiComboBox("Type"));
 
 	addAndMakeVisible(bufferSize = new HiComboBox("BufferSize"));

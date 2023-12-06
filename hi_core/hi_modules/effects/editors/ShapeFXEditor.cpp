@@ -30,7 +30,8 @@ using namespace juce;
 
 //==============================================================================
 ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
-    : ProcessorEditorBody(p)
+    : ProcessorEditorBody(p),
+      updater(*this)
 {
     //[Constructor_pre] You can add your own custom stuff here..
 	auto sfx = dynamic_cast<ShapeFX*>(getProcessor());

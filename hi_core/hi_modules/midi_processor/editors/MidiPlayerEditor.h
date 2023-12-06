@@ -87,6 +87,8 @@ public:
 
 private:
 
+	ProcessorEditorBodyUpdater updater;
+
 	void updateLabel()
 	{
 		auto currentState = dynamic_cast<MidiPlayer*>(getProcessor())->getPlayState();

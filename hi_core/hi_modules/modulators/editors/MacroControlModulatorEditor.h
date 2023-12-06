@@ -55,14 +55,9 @@ public:
 	void updateGui() override
 	{
 		macroSelector->setSelectedId((int)getProcessor()->getAttribute(MacroModulator::MacroIndex) + 2, dontSendNotification);
-
-		smoothingSlider->updateValue();
-
 		tableUsed = getProcessor()->getAttribute(MacroModulator::UseTable) == 1.0f;
 		useTableButton->setToggleState(tableUsed, dontSendNotification);
-
-
-
+        refreshBodySize();
 	}
 
     //[/UserMethods]
@@ -78,6 +73,8 @@ public:
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	int h;
+
+    ProcessorEditorBodyUpdater updater;
 
 	bool tableUsed;
     //[/UserVariables]

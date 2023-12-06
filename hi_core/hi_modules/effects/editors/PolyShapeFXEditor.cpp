@@ -30,7 +30,8 @@ using namespace juce;
 
 //==============================================================================
 PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
-    : ProcessorEditorBody(p)
+    : ProcessorEditorBody(p),
+      updater(*this)
 {
     //[Constructor_pre] You can add your own custom stuff here..
 	auto sfx = dynamic_cast<PolyshapeFX*>(getProcessor());

@@ -31,7 +31,8 @@ namespace hise { using namespace juce;
 
 //==============================================================================
 FilterEditor::FilterEditor (ProcessorEditor *p)
-    : ProcessorEditorBody(p)
+    : ProcessorEditorBody(p),
+      updater(*this)
 {
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]

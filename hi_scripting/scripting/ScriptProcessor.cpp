@@ -2642,7 +2642,12 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
 #if PERFETTO
 			dispatch::StringBuilder b;
-			b << "hi priority callback " << dynamic_cast<Processor*>(hpt.getFunction().getProcessor())->getId();
+
+			if(auto p = dynamic_cast<Processor*>(hpt.getFunction().getProcessor()))
+			{
+				b << "hi priority callback " << p->getId();
+			}
+			
 			TRACE_DYNAMIC_SCRIPTING(b);
 #endif
 

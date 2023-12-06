@@ -79,6 +79,7 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("EnableSecondOscillator");
 	parameterNames.add("PulseWidth1");
 	parameterNames.add("PulseWidth2");
+	parameterNames.add("HardSync");
 
 	updateParameterSlots();
 

@@ -49,13 +49,8 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
 	void updateGui()
 	{
-		tempoSyncButton->updateValue();
-
-		
-
 		const bool isSynced = leftTimeSlider->getRange().getRange() == HiSlider::getRangeForMode(HiSlider::Mode::TempoSync).getRange();
 		const bool shouldBeSynced = tempoSyncButton->getToggleState();
-
 
 		if (isSynced != shouldBeSynced)
 		{
@@ -70,15 +65,6 @@ public:
 				rightTimeSlider->setMode(HiSlider::Mode::Time);
 			}
 		}
-		
-
-		leftTimeSlider->updateValue();
-		rightTimeSlider->updateValue();
-
-		leftFeedbackSlider->updateValue();
-		rightFeedbackSlider->updateValue();
-
-		mixSlider->updateValue();
 	}
 
 	int getBodyHeight() const
@@ -99,6 +85,8 @@ private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	int h;
     //[/UserVariables]
+
+    ProcessorEditorBodyUpdater updater;
 
     //==============================================================================
     ScopedPointer<HiSlider> leftTimeSlider;

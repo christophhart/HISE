@@ -365,6 +365,33 @@ public:
 
 };
 
+/** Use this class whenever you need an attribute update to call the updateGui() callback. */
+struct ProcessorEditorBodyUpdater: public dispatch::ListenerOwner
+{
+	ProcessorEditorBodyUpdater(ProcessorEditorBody& b):
+	  p(b.getProcessor()),
+	  updater(p->getMainController()->getRootDispatcher(), *this, [&b](dispatch::library::Processor*, uint16 p){ b.updateGui(); })
+	  
+	{
+		Array<uint16> indexes;
+
+		for(int i = 0; i < p->getNumParameters(); i++)
+			indexes.add(i);
+
+		p->addAttributeListener(&updater, indexes.getRawDataPointer(), indexes.size(), dispatch::DispatchType::sendNotificationAsync);
+	}
+
+	~ProcessorEditorBodyUpdater()
+	{
+		p->removeAttributeListener(&updater);
+	}
+
+private:
+
+	WeakReference<Processor> p;
+	dispatch::library::Processor::AttributeListener updater;
+};
+
 } // namespace hise
 
 #endif  // PROCESSOREDITOR_H_INCLUDED
