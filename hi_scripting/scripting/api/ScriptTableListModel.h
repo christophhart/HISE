@@ -183,8 +183,20 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
     var getRowData() const;
 
+	String getCellTooltip (int, int) override
+	{
+		return tooltip;
+	}
+
+	void setTooltip(const String& newTooltip)
+	{
+		tooltip = newTooltip;
+	}
 
 private:
+
+	String tooltip;
+
 
 	bool shouldSendCallOnDrag() const
 	{

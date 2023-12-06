@@ -5205,6 +5205,8 @@ void ScriptingApi::Content::ScriptedViewport::setTableMode(var tableMetadata)
 
 	tableModel = new ScriptTableListModel(getScriptProcessor(), tableMetadata);
 
+	tableModel->setTooltip(getScriptObjectProperty(ScriptComponent::Properties::tooltip).toString());
+
 	if (tableModel->isMultiColumn())
 	{
 		WeakReference<ScriptedViewport> safeThis(this);

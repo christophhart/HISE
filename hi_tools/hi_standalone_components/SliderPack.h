@@ -192,6 +192,7 @@ class SliderPack : public Component,
 				   public Slider::Listener,
 				   public SliderPackData::Listener,
 				   public Timer,
+				   public SettableTooltipClient,
 				   public ComplexDataUIBase::EditorBase
 {
 public:

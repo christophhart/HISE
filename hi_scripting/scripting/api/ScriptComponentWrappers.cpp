@@ -1802,6 +1802,8 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int proper
 
 	if (mode != Mode::Viewport)
 	{
+		auto lb = dynamic_cast<ListBox*>(getComponent());
+
 		switch (propertyIndex)
 		{
 			PROPERTY_CASE::ScriptedViewport::Properties::FontName:
@@ -1812,9 +1814,10 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int proper
 			PROPERTY_CASE::ScriptComponent::itemColour :
 			PROPERTY_CASE::ScriptComponent::itemColour2 :
 			PROPERTY_CASE::ScriptComponent::textColour : updateColours(); break;
+			PROPERTY_CASE::ScriptComponent::tooltip :        lb->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 			PROPERTY_CASE::ScriptedViewport::Properties::Items: updateItems(vpc); break;
 			PROPERTY_CASE::ScriptedViewport::Properties::scrollbarThickness: 
-				dynamic_cast<ListBox*>(getComponent())->getViewport()->setScrollBarThickness(newValue); break;
+				lb->getViewport()->setScrollBarThickness(newValue); break;
 		}
 	}
 	else
@@ -2444,6 +2447,7 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateComponent(int prop
 		PROPERTY_CASE::ScriptComponent::itemColour :
 		PROPERTY_CASE::ScriptComponent::itemColour2 :
 		PROPERTY_CASE::ScriptComponent::textColour : updateColours(sp); break;
+		PROPERTY_CASE::ScriptComponent::tooltip :    sp->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 		PROPERTY_CASE::ScriptSliderPack::Properties::FlashActive: sp->setFlashActive(newValue); break;
 		PROPERTY_CASE::ScriptSliderPack::Properties::ShowValueOverlay : sp->setShowValueOverlay(newValue); break;
 		PROPERTY_CASE::ScriptSliderPack::Properties::StepSize:

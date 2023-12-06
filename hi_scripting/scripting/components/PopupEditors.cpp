@@ -104,6 +104,9 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	callback(Identifier()),
 	tokeniser(new JavascriptTokeniser())
 {
+	tokeniser->setUseScopeStatements(true);
+	
+
 	Processor *p = dynamic_cast<Processor*>(jp.get());
 	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit);
 
@@ -143,6 +146,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	callback(callback_),
 	tokeniser(new JavascriptTokeniser())
 {
+	tokeniser->setUseScopeStatements(true);
 	
 	auto& d = *jp->getSnippet(callback_);
 	addEditor(d, true);
@@ -167,9 +171,9 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 
 	CodeTokeniser* createCodeTokeniser() override 
 	{
-        
-        
-		return new JavascriptTokeniser();
+        auto js = new JavascriptTokeniser();
+		js->setUseScopeStatements(true);
+		return js;
 	}
 
     

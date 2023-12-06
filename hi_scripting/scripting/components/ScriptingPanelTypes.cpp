@@ -36,6 +36,7 @@ CodeEditorPanel::CodeEditorPanel(FloatingTile* parent) :
 	PanelWithProcessorConnection(parent)
 {
 	tokeniser = new JavascriptTokeniser();
+	tokeniser->setUseScopeStatements(true);
 
 	getMainController()->addScriptListener(this);
 
