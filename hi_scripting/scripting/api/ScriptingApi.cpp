@@ -1883,6 +1883,7 @@ struct ScriptUndoableAction : public UndoableAction,
 		// ensure it's called synchronously if possible...
 		callback.setHighPriority();
 		callback.incRefCount();
+		callback.setThisObjectRefCounted(thisObject);
 	}
 
 	bool undo() override
