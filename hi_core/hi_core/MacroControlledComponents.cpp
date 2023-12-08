@@ -1504,7 +1504,7 @@ bool MacroControlledObject::UndoableControlEvent::perform()
 {
 	if (processor.get() != nullptr)
 	{
-		processor->setAttribute(parameterIndex, newValue, sendNotification);
+		processor->setAttribute(parameterIndex, newValue, sendNotificationAsync);
 		return true;
 	}
 	else return false;
@@ -1514,7 +1514,7 @@ bool MacroControlledObject::UndoableControlEvent::undo()
 {
 	if (processor.get() != nullptr)
 	{
-		processor->setAttribute(parameterIndex, oldValue, sendNotification);
+		processor->setAttribute(parameterIndex, oldValue, sendNotificationAsync);
 		return true;
 	}
 	else return false;

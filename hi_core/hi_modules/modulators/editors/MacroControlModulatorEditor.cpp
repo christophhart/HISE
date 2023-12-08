@@ -65,7 +65,7 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
     macroSelector->addItem (TRANS("Not connected"), 1);
 
 	for (int i = 0; i < HISE_NUM_MACROS; i++)
-		macroSelector->addItem("Macro " + String(i + 1), i + 1);
+		macroSelector->addItem("Macro " + String(i + 1), i + 2);
 
     macroSelector->addListener (this);
 

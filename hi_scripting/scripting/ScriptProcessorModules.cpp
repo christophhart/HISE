@@ -489,7 +489,7 @@ JavascriptPolyphonicEffect::~JavascriptPolyphonicEffect()
 
 juce::Path JavascriptPolyphonicEffect::getSpecialSymbol() const
 {
-	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
 hise::ProcessorEditorBody * JavascriptPolyphonicEffect::createEditor(ProcessorEditor *parentEditor)
@@ -1031,7 +1031,7 @@ JavascriptVoiceStartModulator::~JavascriptVoiceStartModulator()
 
 Path JavascriptVoiceStartModulator::getSpecialSymbol() const
 {
-	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
 ProcessorEditorBody * JavascriptVoiceStartModulator::createEditor(ProcessorEditor *parentEditor)
@@ -1186,7 +1186,7 @@ JavascriptTimeVariantModulator::~JavascriptTimeVariantModulator()
 
 Path JavascriptTimeVariantModulator::getSpecialSymbol() const
 {
-	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
 float JavascriptTimeVariantModulator::getAttribute(int index) const
@@ -1429,7 +1429,7 @@ JavascriptEnvelopeModulator::~JavascriptEnvelopeModulator()
 
 Path JavascriptEnvelopeModulator::getSpecialSymbol() const
 {
-	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
 bool JavascriptEnvelopeModulator::isPolyphonic() const
@@ -1748,7 +1748,7 @@ JavascriptSynthesiser::~JavascriptSynthesiser()
 
 juce::Path JavascriptSynthesiser::getSpecialSymbol() const
 {
-	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
+	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;
 }
 
 hise::ProcessorEditorBody * JavascriptSynthesiser::createEditor(ProcessorEditor *parentEditor)

@@ -242,7 +242,7 @@ void ProcessorWithScriptingContent::controlCallback(ScriptingApi::Content::Scrip
 		}
 		else
 		{
-			component->getConnectedProcessor()->setAttribute(index, v, sendNotification);
+			component->getConnectedProcessor()->setAttribute(index, v, sendNotificationSync);
 		}
 
 		if (auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(component))

@@ -869,14 +869,23 @@ public:
 		/** Enables the group with the given index (one-based). Works only with samplers and `enableRoundRobin(false)`. */
 		void setActiveGroup(int activeGroupIndex);
 
+		/** Enables the group with the given index (one-based) for the given event ID. Works only with samplers and `enableRoundRobin(false)`. */
+		void setActiveGroupForEventId(int eventId, int activeGroupIndex);
+
 		/** Enables the group with the given index (one-based). Allows multiple groups to be active. */
 		void setMultiGroupIndex(var groupIndex, bool enabled);
+
+		/** Enables the group with the given index (one-based) for the given event id. Allows multiple groups to be active. */
+		void setMultiGroupIndexForEventId(int eventId, var groupIndex, bool enabled);
 
 		/** Sets the volume of a particular group (use -1 for active group). Only works with disabled crossfade tables. */
 		void setRRGroupVolume(int groupIndex, int gainInDecibels);
 
 		/** Returns the currently (single) active RR group. */
 		int getActiveRRGroup();
+
+		/** Returns the RR group that is associated with the event ID. */
+		int getActiveRRGroupForEventId(int eventId);
 
 		/** Returns the number of currently active groups. */
 		int getNumActiveGroups() const;

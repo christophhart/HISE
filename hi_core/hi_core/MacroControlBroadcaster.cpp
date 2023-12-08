@@ -372,7 +372,7 @@ void MacroControlBroadcaster::MacroControlledParameterData::setAttribute(double 
 				d->call(value, dispatch::DispatchType::sendNotificationSync);
 		}
 		else
-			controlledProcessor.get()->setAttribute(parameter, value, readOnly ? sendNotification : dontSendNotification);
+			controlledProcessor.get()->setAttribute(parameter, value, readOnly ? sendNotificationSync : dontSendNotification);
 	}
 	
 };

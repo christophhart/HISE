@@ -3689,8 +3689,11 @@ struct ScriptingApi::Sampler::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(Sampler, enableRoundRobin);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setActiveGroup);
-	API_VOID_METHOD_WRAPPER_2(Sampler, setMultiGroupIndex);
+	API_VOID_METHOD_WRAPPER_2(Sampler, setMultiGroupIndex)
 	API_METHOD_WRAPPER_0(Sampler, getActiveRRGroup);
+	API_VOID_METHOD_WRAPPER_2(Sampler, setActiveGroupForEventId);
+	API_METHOD_WRAPPER_1(Sampler, getActiveRRGroupForEventId);
+	API_VOID_METHOD_WRAPPER_3(Sampler, setMultiGroupIndexForEventId);
 	API_METHOD_WRAPPER_2(Sampler, getRRGroupsForMessage);
 	API_VOID_METHOD_WRAPPER_0(Sampler, refreshRRMap);
 	API_VOID_METHOD_WRAPPER_1(Sampler, selectSounds);
@@ -3746,6 +3749,9 @@ sampler(sampler_)
 	ADD_API_METHOD_1(enableRoundRobin);
 	ADD_API_METHOD_1(setActiveGroup);
 	ADD_API_METHOD_0(getActiveRRGroup);
+	ADD_API_METHOD_2(setActiveGroupForEventId);
+	ADD_API_METHOD_1(getActiveRRGroupForEventId);
+	ADD_API_METHOD_3(setMultiGroupIndexForEventId);
 	ADD_API_METHOD_2(setRRGroupVolume);
 	ADD_API_METHOD_2(setMultiGroupIndex);
 	ADD_API_METHOD_2(getRRGroupsForMessage);
@@ -3842,29 +3848,10 @@ void ScriptingApi::Sampler::enableRoundRobin(bool shouldUseRoundRobin)
 
 void ScriptingApi::Sampler::setActiveGroup(int activeGroupIndex)
 {
-	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
-
-	if (s == nullptr)
-	{
-		reportScriptError("setActiveGroup() only works with Samplers.");
-		return;
-	}
-
-	if (s->isRoundRobinEnabled())
-	{
-		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
-		return;
-	}
-
-	bool ok = s->setCurrentGroupIndex(activeGroupIndex);
-
-	if (!ok)
-	{
-		reportScriptError(String(activeGroupIndex) + " is not a valid group index.");
-	}
+	setActiveGroupForEventId(-1, activeGroupIndex);
 }
 
-void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
+void ScriptingApi::Sampler::setActiveGroupForEventId(int eventId, int activeGroupIndex)
 {
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
@@ -3879,13 +3866,42 @@ void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
 		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
 		return;
 	}
+	
+	if(s->getMainController()->getKillStateHandler().getCurrentThread() != MainController::KillStateHandler::TargetThread::AudioThread)
+	{
+		reportScriptError("This method is only available in the onNoteOnCallback");
+	}
 
+	bool ok = s->setCurrentGroupIndex(activeGroupIndex, eventId);
+
+	if (!ok)
+	{
+		reportScriptError(String(activeGroupIndex) + " is not a valid group index.");
+	}
+}
+
+void ScriptingApi::Sampler::setMultiGroupIndexForEventId(int eventId, var groupIndex, bool enabled)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setActiveGroup() only works with Samplers.");
+		return;
+	}
+
+	if (s->isRoundRobinEnabled())
+	{
+		reportScriptError("Round Robin is not disabled. Call 'Synth.enableRoundRobin(false)' before calling this method.");
+		return;
+	}
+	
 	if (groupIndex.isArray())
 	{
 		for (const auto& v : *groupIndex.getArray())
 		{
 			auto gIndex = (int)v;
-			auto ok = s->setMultiGroupState(gIndex, enabled);
+			auto ok = s->setMultiGroupState(gIndex, enabled, eventId);
 
 			if (!ok)
 				reportScriptError(String(gIndex) + " is not a valid group index.");
@@ -3894,18 +3910,21 @@ void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
 	else if (groupIndex.isObject())
 	{
 		if (auto ml = dynamic_cast<ScriptingObjects::MidiList*>(groupIndex.getObject()))
-			s->setMultiGroupState(ml->getRawDataPointer(), ml->getNumSetValues());
+			s->setMultiGroupState(ml->getRawDataPointer(), ml->getNumSetValues(), eventId);
 	}
 	else
 	{
-		auto ok = s->setMultiGroupState(groupIndex, enabled);
+		auto ok = s->setMultiGroupState(groupIndex, enabled, eventId);
 
 		if (!ok)
 			reportScriptError(groupIndex.toString() + " is not a valid group index.");
 	}
 }
 
-
+void ScriptingApi::Sampler::setMultiGroupIndex(var groupIndex, bool enabled)
+{
+	setMultiGroupIndexForEventId(-1, groupIndex, enabled);
+}
 
 void ScriptingApi::Sampler::setRRGroupVolume(int groupIndex, int gainInDecibels)
 {
@@ -3920,7 +3939,8 @@ void ScriptingApi::Sampler::setRRGroupVolume(int groupIndex, int gainInDecibels)
 	s->setRRGroupVolume(groupIndex, Decibels::decibelsToGain((float)gainInDecibels));
 }
 
-int ScriptingApi::Sampler::getActiveRRGroup()
+
+int ScriptingApi::Sampler::getActiveRRGroupForEventId(int eventId)
 {
 	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
 
@@ -3930,7 +3950,12 @@ int ScriptingApi::Sampler::getActiveRRGroup()
 		return 0;
 	}
 
-	return s->getCurrentRRGroup();
+	return s->getCurrentRRGroup(eventId);
+}
+
+int ScriptingApi::Sampler::getActiveRRGroup()
+{
+	return getActiveRRGroupForEventId(-1);
 }
 
 int ScriptingApi::Sampler::getNumActiveGroups() const

@@ -417,7 +417,7 @@ Path MonophonicEffectProcessor::getSpecialSymbol() const
 {
 	Path path;
 
-	path.loadPathFromData (HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath, sizeof (HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath));
+	path.loadPathFromData (HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath, SIZE_OF_PATH(HiBinaryData::ProcessorEditorHeaderIcons::monophonicPath));
 
 	return path;
 }
