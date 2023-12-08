@@ -827,7 +827,7 @@ Path HiToolbarIcons::createSettingsPath()
 NumberTag::LookAndFeelMethods::~LookAndFeelMethods()
 {}
 
-void NumberTag::LookAndFeelMethods::drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size,
+void NumberTag::LookAndFeelMethods::drawNumberTag(Graphics& g, Component& comp, Colour& c, Rectangle<int> area, int offset, int size,
 	int number)
 {
 	if (number > 0)
@@ -869,7 +869,7 @@ void NumberTag::paint(Graphics& g)
 		return;
 
 	if (auto l = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-		l->drawNumberTag(g, c, getLocalBounds(), roundToInt(offset), roundToInt(size), number);
+		l->drawNumberTag(g, *this, c, getLocalBounds(), roundToInt(offset), roundToInt(size), number);
 }
 
 void NumberTag::setNumber(int newNumber)

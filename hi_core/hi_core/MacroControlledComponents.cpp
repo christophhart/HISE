@@ -1445,6 +1445,17 @@ void HiToggleButton::buttonClicked(Button *b)
 		{
 			numberTag->setNumber(newMacroIndex+1);
 			numberTag->setVisible(true);
+            
+            if(auto asComponent = dynamic_cast<Component*>(this))
+            {
+#define SET_COLOUR(x) numberTag->setColour(x, asComponent->findColour(x));
+                SET_COLOUR(HiseColourScheme::ComponentOutlineColourId);
+                SET_COLOUR(HiseColourScheme::ComponentFillTopColourId);
+                SET_COLOUR(HiseColourScheme::ComponentFillBottomColourId);
+                SET_COLOUR(HiseColourScheme::ComponentTextColourId);
+#undef SET_COLOUR
+            }
+            
 			macroIndex = newMacroIndex;
 		}
 	}

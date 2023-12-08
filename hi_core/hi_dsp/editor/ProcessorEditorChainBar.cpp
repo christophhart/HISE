@@ -500,7 +500,7 @@ void ProcessorEditorChainBar::paintOverChildren(Graphics &g)
 		if (chainButtons[i]->getWidth() != 0)
 		{
             auto c = Colours::white.withAlpha(0.5f);
-			numberRenderer.drawNumberTag(g, c, chainButtons[i]->getBounds(), 2, 14, numProcessorList[i - 1]);
+			numberRenderer.drawNumberTag(g, *this, c, chainButtons[i]->getBounds(), 2, 14, numProcessorList[i - 1]);
 		}
 
 		

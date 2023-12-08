@@ -80,7 +80,7 @@ public:
 	{
         virtual ~LookAndFeelMethods();;
         
-		virtual void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number);
+		virtual void drawNumberTag(Graphics& g, Component& comp, Colour& c, Rectangle<int> area, int offset, int size, int number);
 	};
 
 	struct DefaultLookAndFeel : public LookAndFeel_V3,

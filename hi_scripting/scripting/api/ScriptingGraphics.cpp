@@ -3316,7 +3316,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& 
 		GlobalHiseLookAndFeel::drawButtonBackground(g_, button, bg, isMouseOverButton, isButtonDown);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawNumberTag(Graphics& g_, Colour& c, Rectangle<int> area, int offset, int size, int number)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawNumberTag(Graphics& g_, Component& comp, Colour& c, Rectangle<int> area, int offset, int size, int number)
 {
 	if (auto l = get())
 	{
@@ -3326,12 +3326,17 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawNumberTag(Graphics& g_, Col
 			obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
 			obj->setProperty("macroIndex", number - 1);
 
+            setColourOrBlack(obj, "bgColour",    comp, HiseColourScheme::ComponentOutlineColourId);
+            setColourOrBlack(obj, "itemColour1", comp, HiseColourScheme::ComponentFillTopColourId);
+            setColourOrBlack(obj, "itemColour2", comp, HiseColourScheme::ComponentFillBottomColourId);
+            setColourOrBlack(obj, "textColour",  comp, HiseColourScheme::ComponentTextColourId);
+            
 			if (l->callWithGraphics(g_, "drawNumberTag", var(obj), nullptr))
 				return;
 		}
 	}
 
-	NumberTag::LookAndFeelMethods::drawNumberTag(g_, c, area, offset, size, number);
+	NumberTag::LookAndFeelMethods::drawNumberTag(g_, comp, c, area, offset, size, number);
 }
 
 juce::Path ScriptingObjects::ScriptedLookAndFeel::Laf::createPresetBrowserIcons(const String& id)

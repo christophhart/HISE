@@ -683,7 +683,7 @@ namespace ScriptingObjects
 			void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/,
 				bool isMouseOverButton, bool isButtonDown) override;
 
-			void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number) override;
+			void drawNumberTag(Graphics& g, Component& comp, Colour& c, Rectangle<int> area, int offset, int size, int number) override;
 
 			Path createPresetBrowserIcons(const String& id) override;
 			void drawPresetBrowserBackground(Graphics& g, Component* p) override;
