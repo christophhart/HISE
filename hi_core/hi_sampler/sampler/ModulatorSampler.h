@@ -497,13 +497,15 @@ public:
 	/** Disables the automatic cycling and allows custom setting of the used round robin group. */
 	void setUseRoundRobinLogic(bool shouldUseRoundRobinLogic) noexcept { useRoundRobinCycleLogic = shouldUseRoundRobinLogic; };
 	/** Sets the current index to the group. */
-	bool setCurrentGroupIndex(int currentIndex);
+	bool setCurrentGroupIndex(int currentIndex, int eventId=-1);
+
+	
 
 	void setRRGroupVolume(int groupIndex, float gainValue);
 
-	bool setMultiGroupState(int groupIndex, bool shouldBeEnabled);
+	bool setMultiGroupState(int groupIndex, bool shouldBeEnabled, int eventId=-1);
 	
-	bool setMultiGroupState(const int* data128, int numSet);
+	bool setMultiGroupState(const int* data128, int numSet, int eventId=-1);
 
 	bool isRoundRobinEnabled() const noexcept { return useRoundRobinCycleLogic; };
 	void setRRGroupAmount(int newGroupLimit);
@@ -651,7 +653,19 @@ public:
 		return preloadScaleFactor;
 	}
 
-	int getCurrentRRGroup() const noexcept { return currentRRGroupIndex; }
+	int getCurrentRRGroup(int eventId=-1) const noexcept
+	{
+		if(eventId == -1)
+			return multiRRGroupState.getSingleGroupIndex();
+
+		for(const auto& g: eventIdsForGroupIndexes)
+		{
+			if((uint16)eventId == g.first)
+				return g.second.getSingleGroupIndex();
+		}
+
+		return multiRRGroupState.getSingleGroupIndex();;
+	}
 
 	int getNumActiveGroups() const;
 
@@ -737,7 +751,7 @@ public:
 	double getCurrentTimestretchRatio() const;
 
 	PolyHandler& getSyncVoiceHandler() { return syncVoiceHandler; }
-
+	
 private:
 
 	scriptnode::PolyHandler syncVoiceHandler;
@@ -811,55 +825,74 @@ private:
 	bool purged;
 	bool deactivateUIUpdate;
 	int rrGroupAmount;
-	int currentRRGroupIndex;
-	
-	bool enablePlayFromPurge = false;
+	//int currentRRGroupIndex;
 
-	Array<float> rrGroupGains;
-	bool useRRGain = false;
+	static constexpr int MaxMultiGroupIndex = 64;
 
 	struct MultiGroupState
 	{
 		MultiGroupState()
 		{
-			memset(state, 0, 256);
 			numSet = 0;
 		}
 
 		bool operator[](int index) const
 		{
-			index = (index-1) & 0xFF;
-			return state[index];
+			return data[index];
 		}
 
 		void copyFromIntArray(const int* values, int numToCopy, int numSetValues)
 		{
 			for (int i = 0; i < numToCopy; i++)
-			{
-				state[i] = (uint8)(values[i] != -1);
-			}
+				data.setBit(i, (uint8)(values[i] != -1));
 
 			numSet = numSetValues;
 		}
 
 		void setAll(bool enabled)
 		{
-			memset(state, (int)enabled, 256);
+			data.setAll(enabled);
 			numSet = enabled * 256;
 		}
 
 		void set(int index, bool enabled)
 		{
-			index = (index-1) & 0xFF;
-			state[index] = (uint8)enabled;
+			data.setBit(index, enabled);
 			numSet = jmax(0, numSet + ((int)enabled) * 2 - 1);
 		}
 
-		operator bool() const { return numSet != 0; }
+		operator bool() const { return !data.isEmpty();}
 
-		uint8 state[256];
-		int numSet = 0;
-	} multiRRGroupState;
+		uint8 getNumSetBits() const noexcept { return numSet; }
+
+		void setSingleGroupIndex(uint8 g)
+		{
+			currentRRGroup = g;
+		}
+
+		int getSingleGroupIndex() const noexcept { return currentRRGroup; }
+
+		void bumpRoundRobin(int upperLimit)
+		{
+			currentRRGroup++;
+				if (currentRRGroup > upperLimit) currentRRGroup = 1;
+		}
+
+	private:
+
+		hise::VoiceBitMap<MaxMultiGroupIndex, uint16> data;
+		uint8 numSet = 0;
+		uint8 currentRRGroup = 1;
+	};
+
+	using GroupQueue = hise::UnorderedStack<std::pair<uint16, MultiGroupState>, NUM_POLYPHONIC_VOICES/4>;
+	GroupQueue eventIdsForGroupIndexes;
+	bool enablePlayFromPurge = false;
+
+	Array<float> rrGroupGains;
+	bool useRRGain = false;
+
+	MultiGroupState multiRRGroupState;
 
 	bool useRoundRobinCycleLogic;
 	RepeatMode repeatMode;

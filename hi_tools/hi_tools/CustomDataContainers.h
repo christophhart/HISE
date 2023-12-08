@@ -659,6 +659,17 @@ public:
 		return rv;
 	}
 
+	void setAll(bool shouldBeSet)
+	{
+		if(!shouldBeSet)
+			clear();
+		else
+		{
+			memset(data.data(), std::numeric_limits<DataType>::max(), getNumBytes());
+			empty = false;
+		}
+	}
+
     int getFirstFreeBit() const
     {
 		if(empty)

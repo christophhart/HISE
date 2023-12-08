@@ -102,7 +102,6 @@ sampleMap(new SampleMap(this)),
 rrGroupAmount(1),
 bufferSize(4096),
 preloadScaleFactor(1),
-currentRRGroupIndex(1),
 useRoundRobinCycleLogic(true),
 pitchTrackingEnabled(true),
 oneShotEnabled(false),
@@ -347,8 +346,8 @@ int ModulatorSampler::getNumActiveGroups() const
 {
 	if (crossfadeGroups)
 		return rrGroupAmount;
-
-	return jmax(1, multiRRGroupState.numSet);
+	
+	return jmax(1, (int)multiRRGroupState.getNumSetBits());
 }
 
 void ModulatorSampler::setNumMicPositions(StringArray &micPositions)
@@ -1140,6 +1139,8 @@ void ModulatorSampler::renderNextBlockWithModulators(AudioSampleBuffer& outputAu
 	}
 
 	ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
+
+	eventIdsForGroupIndexes.clearQuick();
 }
 
 SampleThreadPool * ModulatorSampler::getBackgroundThreadPool()
@@ -1223,7 +1224,7 @@ bool ModulatorSampler::soundCanBePlayed(ModulatorSynthSound *sound, int midiChan
 	
 	auto soundGroup = static_cast<ModulatorSamplerSound*>(sound)->getRRGroup();
 
-	const bool rrGroupApplies = (!multiRRGroupState && (crossfadeGroups || currentRRGroupIndex == soundGroup)) ||
+	const bool rrGroupApplies = (!multiRRGroupState && (crossfadeGroups || multiRRGroupState.getSingleGroupIndex() == soundGroup)) ||
 								multiRRGroupState[soundGroup];
 
 	if (!rrGroupApplies) return false;
@@ -1282,24 +1283,36 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 		{
 			if (useRoundRobinCycleLogic)
 			{
-				currentRRGroupIndex++;
-				if (currentRRGroupIndex > rrGroupAmount) currentRRGroupIndex = 1;
+				multiRRGroupState.bumpRoundRobin(rrGroupAmount);
 			}
+			else if (!eventIdsForGroupIndexes.isEmpty())
+			{
+				for(const auto& pending: eventIdsForGroupIndexes)
+				{
+					if(pending.first == m.getEventId())
+					{
+						memcpy(&multiRRGroupState, &pending.second, sizeof(MultiGroupState));
+						break;
+					}
+				}
+			}
+
+			DBG(String(m.getNoteNumber()) + " || Group: " + String(multiRRGroupState.getSingleGroupIndex()));
 
 #if USE_BACKEND
 
 			getSampleEditHandler()->noteBroadcaster.sendMessage(sendNotificationAsync, m.getNoteNumber(), m.getVelocity());
 
 			if (lockRRGroup != -1)
-				currentRRGroupIndex = lockRRGroup;
+				multiRRGroupState.setSingleGroupIndex(lockRRGroup);
 
 			if (lockVelocity > 0)
 				m.setVelocity(lockVelocity);
 
-			getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, currentRRGroupIndex, &getSamplerDisplayValues().visibleGroups);
+			getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, multiRRGroupState.getSingleGroupIndex(), &getSamplerDisplayValues().visibleGroups);
 #endif
 		
-			samplerDisplayValues.currentGroup = currentRRGroupIndex;
+			samplerDisplayValues.currentGroup = multiRRGroupState.getSingleGroupIndex();
 		}
 
 		if (m.isNoteOn())
@@ -1329,7 +1342,7 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 	// If we have set multiple groups to be active manually
 	// we want to use only as much tables as there are active groups...
 	if (multiRRGroupState)
-		groupIndex %= multiRRGroupState.numSet;
+		groupIndex %= multiRRGroupState.getNumSetBits();
 
 	if (groupIndex > 8) return nullptr;
 
@@ -1484,7 +1497,7 @@ float ModulatorSampler::getConstantCrossFadeModulationValue() const noexcept
 {
 	// Return the rr group volume if it is set
 	if (!crossfadeGroups)
-		return useRRGain ? rrGroupGains[currentRRGroupIndex-1] : 1.0f;
+		return useRRGain ? rrGroupGains[multiRRGroupState.getSingleGroupIndex() -1] : 1.0f;
 
 #if HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
 
@@ -1581,7 +1594,7 @@ void ModulatorSampler::updateRRGroupAmountAfterMapLoad()
 		maxGroup = jmax<int>(maxGroup, sound->getSampleProperty(SampleIds::RRGroup));
 	}
 
-	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotification);
+	setAttribute(ModulatorSampler::RRGroupAmount, (float)maxGroup, sendNotificationSync);
 
 }
 
@@ -1608,11 +1621,19 @@ bool ModulatorSampler::saveSampleMapAsMonolith(Component* mainEditor) const
 	return sampleMap->saveAsMonolith(mainEditor);
 }
 
-bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)
+bool ModulatorSampler::setCurrentGroupIndex(int currentIndex, int eventId)
 {
 	if (currentIndex <= rrGroupAmount)
 	{
-		currentRRGroupIndex = currentIndex;
+		if(eventId != -1)
+		{
+			MultiGroupState newState;
+			newState.setSingleGroupIndex(currentIndex);
+			eventIdsForGroupIndexes.insertWithoutSearch({ (uint16)eventId, newState});
+		}
+		else
+			multiRRGroupState.setSingleGroupIndex(currentIndex);
+
 		return true;
 	}
 	else
@@ -1624,7 +1645,7 @@ bool ModulatorSampler::setCurrentGroupIndex(int currentIndex)
 void ModulatorSampler::setRRGroupVolume(int groupIndex, float gainValue)
 {
 	if (groupIndex == -1)
-		groupIndex = currentRRGroupIndex;
+		groupIndex = multiRRGroupState.getSingleGroupIndex();
 
 	FloatSanitizers::sanitizeFloatNumber(gainValue);
 
@@ -1636,23 +1657,39 @@ void ModulatorSampler::setRRGroupVolume(int groupIndex, float gainValue)
 		rrGroupGains.setUnchecked(groupIndex, gainValue);
 }
 
-bool ModulatorSampler::setMultiGroupState(int groupIndex, bool shouldBeEnabled)
+bool ModulatorSampler::setMultiGroupState(int groupIndex, bool shouldBeEnabled, int eventId)
 {
+	auto& state = multiRRGroupState;
+
+	if(eventId != -1)
+	{
+		eventIdsForGroupIndexes.insertWithoutSearch({(uint16)eventId, MultiGroupState()});
+		state = (eventIdsForGroupIndexes.begin() + (eventIdsForGroupIndexes.size()-1))->second;
+	}
+
 	if (groupIndex == -1)
 	{
-		multiRRGroupState.setAll(shouldBeEnabled);
+		state.setAll(shouldBeEnabled);
 		return true;
 	}
 	else
 	{
-		multiRRGroupState.set(groupIndex, shouldBeEnabled);
+		state.set(groupIndex, shouldBeEnabled);
 		return (groupIndex - 1) < rrGroupAmount;
 	}
 }
 
-bool ModulatorSampler::setMultiGroupState(const int* data128, int numSet)
+bool ModulatorSampler::setMultiGroupState(const int* data128, int numSet, int eventId)
 {
-	multiRRGroupState.copyFromIntArray(data128, 128, numSet);
+	auto& state = multiRRGroupState;
+
+	if(eventId != -1)
+	{
+		eventIdsForGroupIndexes.insertWithoutSearch({(uint16)eventId, MultiGroupState()});
+		state = (eventIdsForGroupIndexes.begin() + (eventIdsForGroupIndexes.size()-1))->second;
+	}
+
+	state.copyFromIntArray(data128, 128, numSet);
 	return true;
 }
 
