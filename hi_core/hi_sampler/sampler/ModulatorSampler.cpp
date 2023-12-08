@@ -1140,7 +1140,13 @@ void ModulatorSampler::renderNextBlockWithModulators(AudioSampleBuffer& outputAu
 
 	ModulatorSynth::renderNextBlockWithModulators(outputAudio, inputMidi);
 
-	eventIdsForGroupIndexes.clearQuick();
+	if(!eventIdsForGroupIndexes.isEmpty())
+	{
+		// Copy over the last state from the queue (this makes it effectively the same as calling
+		// the function with an eventId of -1).
+		multiRRGroupState = eventIdsForGroupIndexes[eventIdsForGroupIndexes.size()-1].second;
+		eventIdsForGroupIndexes.clearQuick();
+	}
 }
 
 SampleThreadPool * ModulatorSampler::getBackgroundThreadPool()
@@ -1296,8 +1302,6 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 					}
 				}
 			}
-
-			DBG(String(m.getNoteNumber()) + " || Group: " + String(multiRRGroupState.getSingleGroupIndex()));
 
 #if USE_BACKEND
 
