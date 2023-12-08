@@ -5665,13 +5665,13 @@ var ScriptingObjects::ScriptedMidiPlayer::getMidiFileList()
 void ScriptingObjects::ScriptedMidiPlayer::setTrack(int trackIndex)
 {
 	if (auto pl = getPlayer())
-		pl->setAttribute(MidiPlayer::CurrentTrack, (float)trackIndex, sendNotification);
+		pl->setAttribute(MidiPlayer::CurrentTrack, (float)trackIndex, sendNotificationAsync);
 }
 
 void ScriptingObjects::ScriptedMidiPlayer::setSequence(int sequenceIndex)
 {
 	if (auto pl = getPlayer())
-		pl->setAttribute(MidiPlayer::CurrentSequence, (float)sequenceIndex, sendNotification);
+		pl->setAttribute(MidiPlayer::CurrentSequence, (float)sequenceIndex, sendNotificationAsync);
 }
 
 int ScriptingObjects::ScriptedMidiPlayer::getNumSequences()

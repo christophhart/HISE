@@ -6349,7 +6349,7 @@ void ScriptingApi::Content::restoreAllControlsFromPreset(const ValueTree &preset
 		}
 		else
 		{
-			getProcessor()->setAttribute(i, (float)v, sendNotification);
+			getProcessor()->setAttribute(i, (float)v, sendNotificationAsync);
 		}
 
 		const String macroName = components[i]->getScriptObjectProperty(ScriptComponent::macroControl).toString();

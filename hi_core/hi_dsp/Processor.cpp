@@ -928,7 +928,7 @@ juce::NotificationType ProcessorHelpers::getAttributeNotificationType()
 #if USE_FRONTEND && HI_DONT_SEND_ATTRIBUTE_UPDATES
         return dontSendNotification;
 #else
-	return sendNotification;
+	return sendNotificationAsync;
 #endif
 }
 
