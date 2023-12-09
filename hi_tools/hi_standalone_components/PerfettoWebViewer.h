@@ -56,7 +56,7 @@ private:
 
 #if JUCE_USE_WIN_WEBVIEW2
     ScopedPointer<WindowsWebView2WebBrowserComponent> browser;
-#elif JUCE_MAC && USE_BACKEND
+#elif (JUCE_MAC && USE_BACKEND) || JUCE_LINUX
     ScopedPointer<WebBrowserComponent> browser;
 #else
     WebViewData::Ptr data;

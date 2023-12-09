@@ -285,6 +285,11 @@ namespace melatonin
     }
 }
 
+#if JUCE_LINUX
+    #define TRACE_DSP() TRACE_EVENT("dsp", "dsp()")
+    #define TRACE_COMPONENT() TRACE_EVENT("component", "component()")
+    #define TRACE_DISPATCH(...) TRACE_EVENT("dispatch", __VA_ARGS__)
+#else
     // Et voilà! Our nicer macros.
     // This took > 20 hours, hope the DX is worth it...
     // The separate constexpr calls are required for `compileTimePrettierFunction` to remain constexpr
@@ -296,6 +301,7 @@ namespace melatonin
         constexpr auto pf = melatonin::compileTimePrettierFunction (WRAP_COMPILE_TIME_STRING (PERFETTO_DEBUG_FUNCTION_IDENTIFIER())); \
         TRACE_EVENT ("component", perfetto::StaticString (pf.data()), ##__VA_ARGS__)
 	#define TRACE_DISPATCH(...)  TRACE_EVENT ("dispatch", __VA_ARGS__)
+#endif
 
 #define DYNAMIC_STRING(x) perfetto::DynamicString(String(x).toStdString())
 #define DYNAMIC_STRING_BUILDER(x) perfetto::DynamicString(x.get(), x.length())

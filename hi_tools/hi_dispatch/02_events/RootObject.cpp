@@ -147,7 +147,7 @@ bool RootObject::callForAllListeners(const std::function<bool(dispatch::Listener
 }
 #endif
 
-uint64 RootObject::flowCounter = 0;
+uint64_t RootObject::flowCounter = 0;
 
 void RootObject::flushHighPriorityQueues(Thread* t)
 {
