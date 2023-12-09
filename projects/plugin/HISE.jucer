@@ -159,7 +159,7 @@
     </VS2017>
     <VS2022 targetFolder="Builds/VisualStudio2022" vstFolder="c:\SDKs\vstsdk2.4"
             smallIcon="" useIPP="Sequential" aaxFolder="D:\Development\SDKs\AAX"
-            IPPLibrary="" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;"
+            IPPLibrary="" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;  /Zc:__cplusplus /permissive- /vmg"
             IPP1ALibrary="" extraDefs="HISE_USE_VS2022=1&#10;PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
