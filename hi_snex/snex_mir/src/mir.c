@@ -6126,7 +6126,9 @@ static void scan_finish (MIR_context_t ctx) {
 #include <sys/types.h>
 #include <unistd.h>
 #else
-#define WIN32_LEAN_AND_MEAN
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN 1
+#endif
 #include <windows.h>
 #define getpid GetCurrentProcessId
 #define popen _popen

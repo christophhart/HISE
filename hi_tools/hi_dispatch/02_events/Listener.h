@@ -44,8 +44,10 @@ struct ListenerOwner
 	virtual ~ListenerOwner() {};
 };
 
-struct ListenerQueue
+class ListenerQueue
 {
+public:
+
 	ListenerQueue(RootObject& r, size_t unused)
 	{
 		
