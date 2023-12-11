@@ -49,6 +49,13 @@ JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wnon-virtual-dtor",
 
 static_assert (AAX_SDK_CURRENT_REVISION >= AAX_SDK_2p3p0_REVISION, "JUCE requires AAX SDK version 2.3.0 or higher");
 
+#if defined (AAX_SDK_2p5p0_REVISION) && AAX_SDK_2p5p0_REVISION <= AAX_SDK_CURRENT_REVISION
+ #define JUCE_AAX_SDK_2p5p0 1
+#else
+ #define JUCE_AAX_SDK_2p5p0 0
+#endif
+
+
 #include <AAX_Exports.cpp>
 #include <AAX_ICollection.h>
 #include <AAX_IComponentDescriptor.h>
@@ -309,9 +316,29 @@ namespace AAXClasses
                 case AAX_eStemFormat_Ambi_1_ACN: return AudioChannelSet::ambisonic (1);
                 case AAX_eStemFormat_Ambi_2_ACN: return AudioChannelSet::ambisonic (2);
                 case AAX_eStemFormat_Ambi_3_ACN: return AudioChannelSet::ambisonic (3);
+               #if JUCE_AAX_SDK_2p5p0
+                //case AAX_eStemFormat_5_0_2:      return AudioChannelSet::create5point0point2();
+                case AAX_eStemFormat_5_1_2:      return AudioChannelSet::create5point1point2();
+                //case AAX_eStemFormat_5_0_4:      return AudioChannelSet::create5point0point4();
+                case AAX_eStemFormat_5_1_4:      return AudioChannelSet::create5point1point4();
+                case AAX_eStemFormat_7_0_4:      return AudioChannelSet::create7point0point4();
+                case AAX_eStemFormat_7_1_4:      return AudioChannelSet::create7point1point4();
+                //case AAX_eStemFormat_7_0_6:      return AudioChannelSet::create7point0point6();
+                case AAX_eStemFormat_7_1_6:      return AudioChannelSet::create7point1point6();
+                //case AAX_eStemFormat_9_0_4:      return AudioChannelSet::create9point0point4();
+                //case AAX_eStemFormat_9_1_4:      return AudioChannelSet::create9point1point4();
+                //case AAX_eStemFormat_9_0_6:      return AudioChannelSet::create9point0point6();
+                case AAX_eStemFormat_9_1_6:      return AudioChannelSet::create9point1point6();
+                case AAX_eStemFormat_Ambi_4_ACN: return AudioChannelSet::ambisonic (4);
+                case AAX_eStemFormat_Ambi_5_ACN: return AudioChannelSet::ambisonic (5);
+                case AAX_eStemFormat_Ambi_6_ACN: return AudioChannelSet::ambisonic (6);
+                case AAX_eStemFormat_Ambi_7_ACN: return AudioChannelSet::ambisonic (7);
+               #else
                 case AAX_eStemFormat_Reserved_1:
                 case AAX_eStemFormat_Reserved_2:
                 case AAX_eStemFormat_Reserved_3:
+               #endif
+
                 case AAX_eStemFormatNum:
                 case AAX_eStemFormat_Any:
                 case AAX_eStemFormat_INT32_MAX:
