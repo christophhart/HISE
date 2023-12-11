@@ -783,9 +783,9 @@ protected:
 
 	Array<WeakReference<SnexSourceListener>> compileListeners;
 
-	void addDummyNodeCallbacks(String& s, bool addEvent=true, bool addReset=true, bool addHandleModulation=true);
+	void addDummyNodeCallbacks(String& s, bool addEvent, bool addReset, bool addHandleModulation);
 
-	void addDummyProcessFunctions(String& s, bool addFrame = true, const String& processDataType = {});
+	void addDummyProcessFunctions(String& s, bool addFrame, const String& processDataType = {});
 
 	
 

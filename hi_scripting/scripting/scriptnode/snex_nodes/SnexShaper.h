@@ -169,8 +169,8 @@ struct dynamic : public SnexSource,
 		}
 
 		SnexSource::preprocess(code);
-		SnexSource::addDummyProcessFunctions(code);
-		SnexSource::addDummyNodeCallbacks(code, false);
+		SnexSource::addDummyProcessFunctions(code, true);
+		SnexSource::addDummyNodeCallbacks(code, false, true, false);
 		
 		return true;
 	}

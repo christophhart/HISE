@@ -215,10 +215,8 @@ bool core::SnexOscillator::preprocess(String& code)
 
 	SnexSource::preprocess(code);
 	SnexSource::addDummyProcessFunctions(code, false, "OscProcessData");
-	SnexSource::addDummyNodeCallbacks(code, false, false);
-
+	SnexSource::addDummyNodeCallbacks(code, false, false, false);
 	
-
 	return true;
 }
 
