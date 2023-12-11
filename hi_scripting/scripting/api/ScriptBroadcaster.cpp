@@ -3387,11 +3387,17 @@ ScriptBroadcaster::DelayedFunction::DelayedFunction(ScriptBroadcaster* b, var f,
 
 ScriptBroadcaster::DelayedFunction::~DelayedFunction()
 {
+	ScopedValueSetter<bool> svs(busy, true);
 	stopTimer();
 }
 
 void ScriptBroadcaster::DelayedFunction::timerCallback()
 {
+	if(busy)
+	{
+		return;
+	}
+
 	if (bc != nullptr && !bc->bypassed)
 	{
         auto mc = bc->getScriptProcessor()->getMainController_();

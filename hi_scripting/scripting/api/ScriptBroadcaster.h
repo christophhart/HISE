@@ -263,6 +263,8 @@ private:
 		WeakCallbackHolder c;
 		WeakReference<ScriptBroadcaster> bc;
 		uint64_t trackIndex = 0;
+
+		bool busy = false;
 	};
 
 	CriticalSection delayFunctionLock;

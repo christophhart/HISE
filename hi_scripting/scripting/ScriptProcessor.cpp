@@ -2479,7 +2479,8 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 		}
 		else
 		{
-			if (t == Task::Type::LowPriorityCallbackExecution)
+			if (t == Task::Type::LowPriorityCallbackExecution ||
+				currentType == Task::Type::HiPriorityDispatchQueue)
 			{
 				// We're calling a low priority task from a high priority task
 				// In this case, we defer the task to later (it's just a timer
