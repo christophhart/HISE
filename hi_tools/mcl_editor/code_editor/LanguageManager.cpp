@@ -792,6 +792,8 @@ void FaustLanguageManager::setupEditor(mcl::TextEditor* e)
 {
     currentEditor = e;
     e->setIncludeDotInAutocomplete(true);
+    e->tokenCollection = new TokenCollection(getLanguageId());
+    addTokenProviders(e->tokenCollection.get());
 }
 
 }

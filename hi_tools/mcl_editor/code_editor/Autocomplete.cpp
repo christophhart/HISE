@@ -104,12 +104,15 @@ void Autocomplete::Item::paint(Graphics& g)
 
 
 
-Autocomplete::Autocomplete(TokenCollection& tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_) :
+Autocomplete::Autocomplete(TokenCollection::Ptr tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_) :
 	tokenCollection(tokenCollection_),
 	scrollbar(true),
 	shadow(DropShadow(Colours::black.withAlpha(0.7f), 5, Point<int>())),
 	editor(editor_)
 {
+	currentList = tokenCollection->getTokens();
+	SimpleDocumentTokenProvider::addTokensStatic(currentList, editor->docRef);
+
 	addAndMakeVisible(scrollbar);
 	setInput(input, previousToken, lineNumber);
 	scrollbar.addListener(this);
@@ -185,20 +188,37 @@ void Autocomplete::setInput(const String& input, const String& previousToken, in
 
 	viewIndex = 0;
 
-    tokenCollection.sortForInput(input);
-    
-	for (auto t : tokenCollection)
+	TokenCollection::List matches;
+	
+	matches.ensureStorageAllocated(8192);
+
+	for (auto t : currentList)
 	{
+		if(matches.size() > 8192)
+			break;
+
 		if (t->matches(input, previousToken, lineNumber))
 		{
-			if (t->tokenContent == currentlyDisplayedItem)
-				viewIndex = items.size();
-
-			items.add(createItem(t, currentInput));
-
-			addAndMakeVisible(items.getLast());
+			matches.add(t);
 		}
 	}
+
+	if(input.isNotEmpty())
+	{
+		TokenCollection::FuzzySorter sorter(input);
+		matches.sort(sorter);
+	}
+
+	for(auto t: matches)
+	{
+		if (t->tokenContent == currentlyDisplayedItem)
+				viewIndex = items.size();
+
+		items.add(createItem(t, currentInput));
+
+		addAndMakeVisible(items.getLast());
+	}
+
 
 	int numLinesFull = 7;
 
@@ -350,17 +370,7 @@ MarkdownLink TokenCollection::Token::getLink() const
 String TokenCollection::Token::getCodeToInsert(const String& input) const
 { return tokenContent; }
 
-TokenCollection::Token* const* TokenCollection::begin() const
-{ return tokens.begin(); }
 
-TokenCollection::Token* const* TokenCollection::end() const
-{ return tokens.end(); }
-
-TokenCollection::Token** TokenCollection::begin()
-{ return tokens.begin(); }
-
-TokenCollection::Token** TokenCollection::end()
-{ return tokens.end(); }
 
 TokenCollection::Provider::~Provider()
 {}
@@ -380,21 +390,23 @@ void TokenCollection::Provider::signalClear(NotificationType n)
 TokenCollection::Listener::~Listener()
 {}
 
-void TokenCollection::setEnabled(bool shouldBeEnabled)
+void TokenCollection::setEnabled(bool shouldBeEnabled, bool isDirty)
 {
 	if (shouldBeEnabled != enabled)
 	{
 		enabled = shouldBeEnabled;
 
-		if (enabled && !buildLock.writeAccessIsLocked())
+		if (enabled && !buildLock.writeAccessIsLocked() && isDirty)
 			signalRebuild();
 	}
 }
 
 void TokenCollection::signalRebuild()
 {
-	if (!enabled)
+	if (!enabled || rebuildPending)
 		return;
+
+	rebuildPending = true;
 
 	stopThread(1000);
 	startThread();
@@ -418,12 +430,28 @@ void TokenCollection::signalClear(NotificationType n)
 
 void TokenCollection::run()
 {
+	rebuildPending = false;
+
+	PerfettoHelpers::setCurrentThreadName("TokenRebuildThread");
+	TRACE_EVENT("scripting", "rebuild autocomplete tokens");
+
 	dirty = true;
+
+	for(auto l: listeners)
+		l->threadStateChanged(true);
+
+
 	rebuild();
+
+	for(auto l: listeners)
+		l->threadStateChanged(false);
+
+	
 }
 
 void TokenCollection::clearTokenProviders()
 {
+	SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
 	tokenProviders.clear();
 }
 
@@ -432,12 +460,14 @@ void TokenCollection::addTokenProvider(Provider* ownedProvider)
 	if (tokenProviders.isEmpty())
 		startThread();
 
+	SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
 	tokenProviders.add(ownedProvider);
 	ownedProvider->assignedCollection = this;
 }
 
-TokenCollection::TokenCollection():
-	Thread("TokenRebuildThread", HISE_DEFAULT_STACK_SIZE)
+TokenCollection::TokenCollection(const Identifier& languageId_):
+	Thread("TokenRebuildThread", HISE_DEFAULT_STACK_SIZE),
+	languageId(languageId_)
 {
 
 }
@@ -506,7 +536,7 @@ void TokenCollection::rebuild()
 	{
         TRACE_EVENT("scripting", "get build lock");
         
-		SimpleReadWriteLock::ScopedWriteLock sl(buildLock);
+		SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
 
 
         
@@ -586,7 +616,12 @@ int TokenCollection::FuzzySorter::compareElements(Token* first, Token* second) c
             
 	if(!exactMatch1 && exactMatch2)
 		return 1;
-            
+
+	if(first->priority == -100 && second->priority != -100)
+		return 1;
+	if(first->priority != -100 && second->priority == -100)
+		return -1;
+
 	auto startsWith1 = s1.startsWith(exactSearchTerm);
 	auto startsWith2 = s2.startsWith(exactSearchTerm);
             
@@ -628,15 +663,21 @@ void SimpleDocumentTokenProvider::codeChanged(bool cond, int i, int i1)
 
 void SimpleDocumentTokenProvider::addTokens(TokenCollection::List& tokens)
 {
+	addTokensStatic(tokens, lambdaDoc);
+}
+
+void SimpleDocumentTokenProvider::addTokensStatic(TokenCollection::List& tokens, const CodeDocument& lambdaDoc)
+{
 	CodeDocument::Iterator it(lambdaDoc);
 	String currentString;
+	StringArray existingTokens;
+
+	int numChars = 0;
 
 	while (!it.isEOF())
 	{
 		auto c = it.nextChar();
-
-		int numChars = 0;
-
+		
 		if (CharacterFunctions::isLetter(c) || (c == '_') || (currentString.isNotEmpty() && CharacterFunctions::isLetterOrDigit(c)))
 		{
 			currentString << c;
@@ -644,23 +685,18 @@ void SimpleDocumentTokenProvider::addTokens(TokenCollection::List& tokens)
 		}
 		else
 		{
-			if (numChars > 2 && numChars < 60)
+			if (numChars > 2 && numChars < 60 && !existingTokens.contains(currentString))
 			{
-				bool found = false;
+				existingTokens.add(currentString);
 
-				for (auto& t : tokens)
-				{
-					if (t->tokenContent == currentString)
-					{
-						found = true;
-						break;
-					}
-				}
-
-				if(!found)
-					tokens.add(new TokenCollection::Token(currentString));
+				auto nt = new TokenCollection::Token(currentString);
+				nt->priority = -100;
+				nt->c = Colours::grey;
+				nt->markdownDescription << "local token, first occurrence at `Line " + String(it.getLine()+1) + "`";
+				tokens.add(nt);
 			}
-					
+
+			numChars = 0;
 			currentString = {};
 		}
 	}

@@ -1179,7 +1179,7 @@ CodeEditorComponent::ColourScheme AssemblyTokeniser::getDefaultColourScheme()
 			Types::SnexObjectDatabase::registerObjects(c, 2);
 
 			c.compileJitObject(parent.doc.getAllContent());
-			ed.tokenCollection.signalRebuild();
+			ed.tokenCollection->signalRebuild();
 			auto r = c.getCompileResult();
 
 			if (!r.wasOk())

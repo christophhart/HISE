@@ -314,7 +314,7 @@ GlyphArrangement mcl::TextDocument::findGlyphsIntersecting(Rectangle<float> area
 	{
 		if (!foldManager.isFolded(n))
 		{
-			if (!lines.containsToken(n, token))
+			if (token != -1 && !lines.containsToken(n, token))
 				continue;
 
 			auto l = getGlyphsForRow(n, visibleRange, token);

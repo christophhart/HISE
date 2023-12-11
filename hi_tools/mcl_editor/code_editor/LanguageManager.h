@@ -18,6 +18,20 @@ namespace mcl
 using namespace juce;
 
 
+#define DECLARE_ID(x) static const Identifier x(#x);
+
+namespace LanguageIds
+{
+	DECLARE_ID(XML);
+    DECLARE_ID(Markdown);
+    DECLARE_ID(HiseScript);
+    DECLARE_ID(SNEX);
+    DECLARE_ID(Faust);
+    DECLARE_ID(GLSL);
+}
+
+#undef DECLARE_ID
+
 /** This object will manage different properties of languages:
 
     - code tokeniser & colour scheme
@@ -41,7 +55,10 @@ public:
         CodeDocument::Position location;
         String value;
     };
-    
+
+    /** Used for coallascating the token providers. */
+    virtual Identifier getLanguageId() const = 0;
+
     virtual bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const;
 
     virtual void processBookmarkTitle(juce::String& bookmarkTitle) = 0;
@@ -58,6 +75,8 @@ struct XmlLanguageManager: public LanguageManager
     CodeTokeniser* createCodeTokeniser() override;
 
     void processBookmarkTitle(juce::String& bookmarkTitle) override;
+
+    Identifier getLanguageId() const override { return LanguageIds::XML; }
 
     void addTokenProviders(mcl::TokenCollection*) override;;
 
@@ -78,6 +97,8 @@ struct MarkdownLanguageManager : public LanguageManager
         bookmarkTitle = bookmarkTitle.trimCharactersAtStart("#").trim();
     }
 
+    Identifier getLanguageId() const override { return LanguageIds::Markdown; }
+
     void addTokenProviders(mcl::TokenCollection*) override {};
 
     mcl::FoldableLineRange::List createLineRange(const CodeDocument& doc) override;
@@ -92,6 +113,8 @@ struct FaustLanguageManager: public LanguageManager
     CodeTokeniser* createCodeTokeniser() override;
 
     void processBookmarkTitle(juce::String& bookmarkTitle) {};
+    
+    Identifier getLanguageId() const override { return LanguageIds::Faust; }
 
     void setupEditor(mcl::TextEditor* e) override;
     

@@ -176,7 +176,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 		return js;
 	}
 
-    
+    Identifier getLanguageId() const override { return mcl::LanguageIds::HiseScript; }
     
     bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const override
     {
@@ -218,9 +218,17 @@ struct GLSLLanguageManager : public mcl::LanguageManager
 		
 	}
 
+	Identifier getLanguageId() const override { return mcl::LanguageIds::GLSL; }
+
 	void addTokenProviders(mcl::TokenCollection* t)
 	{
 		t->addTokenProvider(new GLSLKeywordProvider());
+	}
+
+	void setupEditor(mcl::TextEditor* e) override
+	{
+		e->tokenCollection = new mcl::TokenCollection(getLanguageId());
+		addTokenProviders(e->tokenCollection.get());
 	}
 };
 

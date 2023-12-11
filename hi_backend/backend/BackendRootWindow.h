@@ -59,6 +59,7 @@ class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public DragAndDropContainer,
 						  public ComponentWithHelp::GlobalHandler,
                           public ProjectHandler::Listener,
+						  public GlobalScriptCompileListener,
 						  public MainController::LockFreeDispatcher::PresetLoadListener
 {
 public:
@@ -89,7 +90,29 @@ public:
 
 	bool isFullScreenMode() const;
 
-    
+	void rebuildTokenProviders(const Identifier& languageId)
+	{
+		if(javascriptTokens == nullptr && languageId == mcl::LanguageIds::HiseScript)
+			javascriptTokens = new mcl::TokenCollection(languageId);
+
+		mcl::TextEditor::setNewTokenCollectionForAllChildren(this, languageId, javascriptTokens);
+
+		for(auto p: popoutWindows)
+		{
+			mcl::TextEditor::setNewTokenCollectionForAllChildren(p, languageId, javascriptTokens);
+		}
+	}
+
+    void scriptWasCompiled(JavascriptProcessor *processor) override
+    {
+	    if(currentWorkspaceProcessor == dynamic_cast<Processor*>(processor))
+	    {
+			SafeAsyncCall::call<BackendRootWindow>(*this, [](BackendRootWindow& r)
+			{
+				r.rebuildTokenProviders("HiseScript");;
+			});
+	    }
+    }
     
 	File getKeyPressSettingFile() const override;
 
@@ -261,6 +284,8 @@ public:
 	}
 
 private:
+
+	mcl::TokenCollection::Ptr javascriptTokens;
 
 	bool projectIsBeingExtracted = false;
 

@@ -27,9 +27,12 @@ SimpleDocumentTokenProvider class.
 
 */
 class TokenCollection : public Thread,
-						public AsyncUpdater
+						public AsyncUpdater,
+					    public ReferenceCountedObject
 {
 public:
+
+	using Ptr = ReferenceCountedObjectPtr<TokenCollection>;
 
 	/** A Token is the entry that is being used in the autocomplete popup (or any other IDE tools
 	    that might use that database. */
@@ -70,15 +73,19 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Token);
 	};
 
-	/** Make it iteratable. */
-	Token* const* begin() const;
-	Token* const* end() const;
-	Token** begin();
-	Token** end();
-
+	
 	using List = ReferenceCountedArray<Token>;
 	using TokenPtr = ReferenceCountedObjectPtr<Token>;
-	
+
+	TokenCollection::List getTokens() const
+	{
+		List l;
+
+		SimpleReadWriteLock::ScopedReadLock sl(buildLock);
+		l.addArray(tokens);
+		return l;
+	}
+
 	/** A provider is a class that adds its tokens to the given list. 
 	
 		In order to use it, subclass from this and override the addTokens() method.
@@ -116,10 +123,13 @@ public:
 		/** This method will be called on the message thread after the list was rebuilt. */
 		virtual void tokenListWasRebuild() = 0;
 
+		/** This method will be called synchronously indicating the state of the token rebuild process. */
+		virtual void threadStateChanged(bool isRunning) {};
+
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
-	void setEnabled(bool shouldBeEnabled);
+	void setEnabled(bool shouldBeEnabled, bool isDirty);
 
 	void signalRebuild();
 
@@ -133,8 +143,9 @@ public:
 	    but this shouldn't be a problem. */
 	void addTokenProvider(Provider* ownedProvider);
 
-	TokenCollection();
+	TokenCollection(const Identifier& languageId);
 
+	Identifier getLanguageId() const { return languageId;};
 
 	~TokenCollection();
 
@@ -191,6 +202,10 @@ public:
     
 private:
 
+	Identifier languageId;
+
+	bool rebuildPending = false;
+
 	bool enabled = true;
 	OwnedArray<Provider> tokenProviders;
 	Array<WeakReference<Listener>> listeners;
@@ -214,6 +229,8 @@ struct SimpleDocumentTokenProvider : public TokenCollection::Provider,
 	void timerCallback() override;
 
 	void codeChanged(bool, int, int) override;
+
+	static void addTokensStatic(TokenCollection::List& tokens, const CodeDocument& doc);
 
 	void addTokens(TokenCollection::List& tokens) override;
 };
@@ -285,7 +302,7 @@ public:
 		String input;
 	};
 
-	Autocomplete(TokenCollection& tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_);
+	Autocomplete(TokenCollection::Ptr tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_);
 
 	~Autocomplete();
 
@@ -333,7 +350,9 @@ public:
 	Range<int> displayedRange;
 	String currentInput;
 
-	TokenCollection& tokenCollection;
+	TokenCollection::List currentList;
+
+	TokenCollection::Ptr tokenCollection;
 	ScrollBar scrollbar;
 	bool allowPopup = false;
 

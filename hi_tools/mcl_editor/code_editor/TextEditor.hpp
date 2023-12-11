@@ -39,6 +39,7 @@ class TextEditor : public juce::Component,
 				   public TooltipWithArea::Client,
 				   public SearchBoxComponent::Listener,
 				   public ComponentWithDocumentation,
+				   public TokenCollection::Listener,
 				   public Timer
 {
 public:
@@ -69,6 +70,8 @@ public:
 	void scrollToLine(float centerLine, bool roundToLine);
 
 	void timerCallback() override;
+
+	static void setNewTokenCollectionForAllChildren(Component* any, const Identifier& languageId, TokenCollection::Ptr newCollection);
 
 	void setReadOnly(bool shouldBeReadOnly);
 
@@ -130,6 +133,9 @@ public:
 
 	bool gotoDefinition(Selection s1 = {});
 
+	void tokenListWasRebuild() override {};
+
+	void threadStateChanged(bool isRunning) override;
 
 	void codeDocumentTextInserted(const String& newText, int insertIndex) override;
 	
@@ -178,7 +184,7 @@ public:
 	CodeEditorComponent::ColourScheme colourScheme;
 	juce::AffineTransform transform;
 
-	TokenCollection tokenCollection;
+	TokenCollection::Ptr tokenCollection;
 
 	void setTokenTooltipFunction(const TokenTooltipFunction& f);
 
@@ -284,7 +290,8 @@ private:
 	TooltipWithArea tooltipManager;
     
     ScrollbarFader sf;
-    
+
+	bool tokenRebuildPending = false;
 	
 	bool skipTextUpdate = false;
 	Selection autocompleteSelection;

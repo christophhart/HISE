@@ -1797,6 +1797,8 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 {
 	if (jp != nullptr)
 	{
+		LockHelpers::SafeLock ssl(dynamic_cast<Processor*>(jp.get())->getMainController(), LockHelpers::Type::ScriptLock);
+
 		File scriptFolder = dynamic_cast<Processor*>(jp.get())->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
 		auto scriptFiles = scriptFolder.findChildFiles(File::findFiles, true, "*.js");
 
@@ -1828,7 +1830,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 		}
 		
 
-		ScopedReadLock sl(jp->getDebugLock());
+		//ScopedReadLock sl(jp->getDebugLock());
 
 		auto holder = dynamic_cast<ApiProviderBase::Holder*>(jp.get());
 

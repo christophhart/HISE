@@ -365,6 +365,8 @@ struct SnexLanguageManager : public mcl::LanguageManager,
 		debugValues.clear();
 	}
 
+	Identifier getLanguageId() const override { return mcl::LanguageIds::SNEX; }
+
 	void logMessage(int level, const juce::String& s) override
 	{
 		if (s.startsWith("Line"))
@@ -420,8 +422,10 @@ struct SnexLanguageManager : public mcl::LanguageManager,
 		t->addTokenProvider(new debug::PreprocessorMacroProvider(doc));
 	}
 
-	void setupEditor(mcl::TextEditor* editor) override
+	void setupEditor(mcl::TextEditor* e) override
 	{
+		e->tokenCollection = new mcl::TokenCollection(getLanguageId());
+		addTokenProviders(e->tokenCollection.get());
 	}
 
 	CodeDocument& doc;
