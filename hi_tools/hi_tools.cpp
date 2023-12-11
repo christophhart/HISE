@@ -118,7 +118,9 @@
 
 #if !HISE_NO_GUI_TOOLS
 #include "hi_standalone_components/ZoomableViewport.cpp"
+#if USE_BACKEND
 #include "hi_standalone_components/PerfettoWebViewer.cpp"
+#endif
 #endif
 
 #include "hi_standalone_components/SampleDisplayComponent.cpp"

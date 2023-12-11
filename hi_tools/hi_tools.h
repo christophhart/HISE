@@ -257,7 +257,9 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_standalone_components/ScriptWatchTable.h"
 #include "hi_standalone_components/ComponentWithPreferredSize.h"
 #include "hi_standalone_components/ZoomableViewport.h"
+#if USE_BACKEND
 #include "hi_standalone_components/PerfettoWebViewer.h"
+#endif
 #else
 using ComponentWithMiddleMouseDrag = juce::Component;
 #define CHECK_MIDDLE_MOUSE_DOWN(e) ignoreUnused(e);

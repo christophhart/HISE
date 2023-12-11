@@ -32,6 +32,10 @@
 
 #pragma once
 
+#if !USE_BACKEND
+#error "Only include with USE_BACKEND"
+#endif
+
 namespace hise {
 using namespace juce;
 
