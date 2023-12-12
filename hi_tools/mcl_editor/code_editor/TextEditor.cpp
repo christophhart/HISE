@@ -961,7 +961,7 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 	if (parent == nullptr)
 		parent = this;
 
-	if (forceShow || ((input.isNotEmpty() && tokenCollection->hasEntries(input, tokenBefore, lineNumber)) || hasDotAndNotFloat))
+	if (forceShow || ((input.isNotEmpty() && tokenCollection != nullptr && tokenCollection->hasEntries(input, tokenBefore, lineNumber)) || hasDotAndNotFloat))
 	{
 		if (!hasKeyboardFocus(true))
 		{
