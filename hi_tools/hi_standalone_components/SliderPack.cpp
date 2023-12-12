@@ -732,7 +732,9 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 			if (x < 0) x = 0;
 		}
 
-		rightClickLine.setEnd((float)x, (float)y);
+		repaintWithTextBox(Rectangle<float>(rightClickLine.getStart(), rightClickLine.getEnd()).toNearestInt().expanded(5));
+
+		rightClickLine.setEnd((float)x, e.mods.isShiftDown() ? rightClickLine.getStartY() : (float)y);
 
         repaintWithTextBox(Rectangle<float>(rightClickLine.getStart(), rightClickLine.getEnd()).toNearestInt().expanded(5));
 	}
