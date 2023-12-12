@@ -112,55 +112,9 @@ void ProcessorHandler::NameAndColourListener::slotChanged(const ListenerData& d)
 }
 
 ProcessorHandler::ProcessorHandler(RootObject& r):
-  SourceManager(r, IDs::source::modules),
-  anyNameListeners(r, 1024),
-  anyNameDispatcher(r, *this, BIND_MEMBER_FUNCTION_1(ProcessorHandler::onNameOrColourUpdate))
+  SourceManager(r, IDs::source::modules)
 {}
 
-void ProcessorHandler::addNameAndColourListener(NameAndColourListener* l, DispatchType n)
-{
-	ListenerQueue::ListenerInformation info(nullptr, l);
-	info.listenerType = EventType::ListenerAnySlot;
-	info.slotIndex = (uint8)SlotTypes::NameAndColour;
-	anyNameListeners.addListener(info);
-	//anyNameListeners.push(l, EventType::ListenerAnySlot, nullptr, 0);
-}
-
-void ProcessorHandler::removeNameAndColourListener(NameAndColourListener* l)
-{
-	l->removeFromProcessorHandler(*this);
-}
-
-void ProcessorHandler::registerProcessor(Processor* p)
-{
-	p->addNameAndColourListener(&anyNameDispatcher);
-}
-
-void ProcessorHandler::deregisterProcessor(Processor* p)
-{
-	p->removeNameAndColourListener(&anyNameDispatcher);
-}
-
-void ProcessorHandler::onNameOrColourUpdate(Processor* p)
-{
-	ListenerQueue::EventData d;
-	d.s = p;
-	d.slotIndex = (uint8)SlotTypes::NameAndColour;
-	
-	anyNameListeners.flush(d);
-
-#if 0
-		(p, &anyNameDispatcher);
-		anyNameListeners.flush(d);
-
-		anyNameListeners.flush([&](const Queue::FlushArgument& f)
-		{
-			auto& n = f.getTypedObject<NameAndColourListener>();
-			n.callWithProcessor(p);
-			return true;
-		}, Queue::FlushType::KeepData);
-#endif
-}
 
 Processor::Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPtr& id):
 	Source(h, owner, id),
@@ -169,8 +123,6 @@ Processor::Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPt
 	bypassed(*this, (int)SlotTypes::Bypassed, IDs::event::bypassed),
 	otherChange(*this, (int)SlotTypes::OtherChange, IDs::event::other)
 {
-	h.registerProcessor(this);
-
 	bypassed.setNumSlots(1);
 	nameAndColour.setNumSlots(2);
 	otherChange.setNumSlots((int)ProcessorChangeEvent::numProcessorChangeEvents);
@@ -178,7 +130,6 @@ Processor::Processor(ProcessorHandler& h, SourceOwner& owner, const HashedCharPt
 
 Processor::~Processor()
 {
-	dynamic_cast<ProcessorHandler*>(&getParentSourceManager())->deregisterProcessor(this);
 	attributes.shutdown();
 	bypassed.shutdown();
 	nameAndColour.shutdown();
@@ -263,8 +214,13 @@ void Processor::removeBypassListener(BypassListener* l)
 	l->removeListener(*this);
 }
 
+void Processor::addAttributeListener(AttributeListener* l, uint16 singleIndex, DispatchType n)
+{
+	addAttributeListener(l, &singleIndex, 1, n);
+}
+
 void Processor::addAttributeListener(AttributeListener* l, const uint16* attributeIndexes, size_t numAttributes,
-	DispatchType n)
+                                     DispatchType n)
 {
 	if(numAttributes == 1)
 	{

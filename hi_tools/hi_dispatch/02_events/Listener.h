@@ -86,41 +86,8 @@ public:
 		uint8 indexWithinSlot = 0;
 		SlotBitmap changes;
 	};
-
-	struct ListenerInformation
-	{
-		ListenerInformation(Source* s, Listener* l_):
-		  source(s),
-		  l(l_)
-		{};
-
-		const void* get_object_ptr() const { return l; }
-
-		bool operator==(const ListenerInformation& other)
-		{
-			return l == other.l;
-		}
-
-		Listener* l = nullptr;
-		Source* source = nullptr;
-		EventType listenerType;
-		uint8 slotIndex = 0;
-		uint8 indexWithinSlot = 0;
-		uint8 unused = 0;
-		SlotBitmap registeredSlots;
-
-		ListenerInformation()
-		{
-			static_assert(sizeof(ListenerInformation) == 32, "not 32 bytes");
-		}
-
-		void operator()(const EventData& f) const;
-	};
 	
-	sigslot::connection addListener(const ListenerInformation& info)
-	{
-		return sig.connect(info);
-	}
+	sigslot::connection addListener(Listener* l);
 
 	bool isEmpty()
 	{
@@ -143,10 +110,13 @@ public:
 		}
 	}
 
+	
+	/*
 	void removeConnection(const sigslot::connection& c)
 	{
 		sig.disconnect(c);
 	}
+	*/
 
 	void removeAllMatches(Listener* l);
 
@@ -163,6 +133,7 @@ public:
 	}
 
 private:
+
 
 	State currentState = State::Running;
 	sigslot::signal<const EventData&> sig;
@@ -207,21 +178,114 @@ public:
 	/** Override this method and implement whatever you want to do with the notification. */
 	virtual void slotChanged(const ListenerData& d) = 0;
 
-	
+	struct Connection
+	{
+		Connection(Source* s, Listener* l_):
+		  source(s),
+		  l(l_)
+		{};
+
+		const void* get_object_ptr() const { return l; }
+
+		operator bool() const noexcept { return l != nullptr; }
+
+		bool operator==(const Connection& other)
+		{
+			return l == other.l;
+		}
+
+		Listener* l = nullptr;
+		Source* source = nullptr;
+		EventType listenerType;
+		uint8 slotIndex = 0;
+		uint8 indexWithinSlot = 0;
+		DispatchType n = DispatchType::sendNotification;
+		SlotBitmap registeredSlots;
+
+		Connection()
+		{
+			static_assert(sizeof(Connection) == 32, "not 32 bytes");
+		}
+
+		bool call(const ListenerQueue::EventData& f) const
+		{
+			auto d = f;
+			bool call = false;
+
+			jassert(source != nullptr);
+
+			if(source != f.s)
+				return false;
+
+			switch(listenerType)
+			{
+			case EventType::ListenerWithoutData:
+				{
+					call = true;
+					break;
+				}
+			case EventType::ListenerAnySlot:
+				{
+					d.changes = registeredSlots;
+					call = true;
+					break;
+				};
+			case EventType::SingleListenerSingleSlot:
+				{
+					call = d.changes[indexWithinSlot];
+					d.indexWithinSlot = indexWithinSlot;
+					break;
+				}
+			case EventType::SingleListenerSubset:
+				{
+					call = d.changes.hasSomeBitsAs(registeredSlots);
+					break;
+				}
+			case EventType::AllListener: 
+				{
+					d.changes = registeredSlots;
+					call = true;
+					break;
+				}
+			default: jassertfalse; break;
+			}
+
+			if(call)
+			{
+				d.t = listenerType;
+				l->slotChanged(d);	
+			}
+
+			return call;
+		}
+	};
+
+	hise::UnorderedStack<std::pair<ListenerQueue*, Connection>, 32> currentConnection;
+
+	void onSigSlot(const ListenerQueue::EventData& f)
+	{
+		for(auto c: currentConnection)
+		{
+			c.second.call(f);
+		}
+	}
+
+#if 0
+	void addListenerToRawQueue(ListenerQueue* q, uint8 slotIndex, DispatchType n)
+	{
+		Connection info(nullptr, this);
+		info.listenerType = EventType::ListenerAnySlot;
+		info.slotIndex = slotIndex;
+		info.n = n;
+		addToQueueInternal(q, info);
+	}
+#endif
 
 	/** Registers the listener to all slot changes of a subset of source slots. */
 	void addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n);
 
 	/** Registers a listener without any filters. */
-	void addListenerWithoutData(Source* source, uint8 slotIndex, DispatchType n)
-	{
-		ListenerQueue::ListenerInformation info(source, this);
-		info.listenerType = EventType::ListenerWithoutData;
-		info.slotIndex = slotIndex;
-		auto lq = source->getListenerQueue(slotIndex, n);
-
-		addToQueueInternal(lq, info);
-	}
+	void addListenerWithoutData(Source* source, uint8 slotIndex, DispatchType n);
 
 	/** Registers the listener to slot changes of a certain index within the given slot. */
 	void addListenerToSingleSlotIndexWithinSlot(Source* source, uint8 slotIndex, uint8 indexWithinSlot,
@@ -237,25 +301,17 @@ public:
 	
 	/** Removes the listener. */
 	void removeListener(Source& s, DispatchType n = sendNotification);
-
-	/** @internal, used by ListenerQueue::removeAllMatches. */
-	void removeFromListenerQueue(ListenerQueue* q);
-
+	
 private:
 
-	void addToQueueInternal(ListenerQueue* q, const ListenerQueue::ListenerInformation& info)
+	void addToQueueInternal(ListenerQueue* q, const Connection& con)
 	{
-		if(isPositiveAndBelow(connections.size(), NumMaxConnections))
-		{
-			connections.insertWithoutSearch({q, q->addListener(info)});
-		}
-		else
-		{
-			jassertfalse;
-		}
-		
+		jassert(currentConnection.size() < 31);
+		currentConnection.insertWithoutSearch({q, con});
+		q->addListener(this);
 	}
 
+	/*
 	struct ConnectionType
 	{
 		bool operator==(const ConnectionType& other) const
@@ -266,13 +322,16 @@ private:
 		ListenerQueue* q = nullptr;
 		sigslot::connection con;
 	};
+	*/
 
 	ListenerOwner& owner;
 	bool removed = true;
 
 	static constexpr int NumMaxConnections = 256;
 
+	/*
 	hise::UnorderedStack<ConnectionType, NumMaxConnections> connections;
+	*/
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Listener);
 };

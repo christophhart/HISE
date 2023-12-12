@@ -51,6 +51,9 @@ struct LibraryTest: public UnitTest,
 
     void testHelloWorld(int numAttributeCalls, int numExpected, DispatchType en, DispatchType ln);
 	void testHighAttributeCount();
+
+	void testMultipleListeners();
+
     void testSlotBitMap();
     void testMultipleAttributes(const Array<uint16>& multiParameters);
     void testSuspension(const HashedCharPtr& pathToTest);

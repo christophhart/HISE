@@ -132,7 +132,6 @@ public:
 
 		void removeFromProcessorHandler(ProcessorHandler& r)
 		{
-			r.anyNameListeners.removeAllMatches(this);
 			cleared();
 		}
 
@@ -195,19 +194,6 @@ public:
 	
 	ProcessorHandler(RootObject& r);
 
-	void addNameAndColourListener(NameAndColourListener* l, DispatchType n);
-
-	void removeNameAndColourListener(NameAndColourListener* l);
-
-	void registerProcessor(Processor* p);
-	void deregisterProcessor(Processor* p);
-
-private:
-
-	void onNameOrColourUpdate(Processor* p);
-
-	ListenerQueue anyNameListeners;
-	NameAndColourListener anyNameDispatcher;
 };
 
 

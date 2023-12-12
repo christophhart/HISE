@@ -77,12 +77,16 @@ void LibraryTest::deinit(int numChecksExpected)
 
 void LibraryTest::runTest()
 {
+	testMultipleListeners();
+
 	testSigSlotBasics();
 
 	testSlotBitMap();
 	testSingleValueSources();
 
 	testOtherChangeMessage();
+
+	
 
 	testMultipleAttributes({1});
 	testMultipleAttributes({1, 4});
@@ -200,6 +204,62 @@ void LibraryTest::testHelloWorld(int numAttributeCalls, int numExpected, Dispatc
 	updater.stopTimer();
 }
 
+void LibraryTest::testMultipleListeners()
+{
+	BEGIN_TEST("testing multiple listeners");
+
+	
+
+	auto sync = DispatchType::sendNotificationSync;
+
+	RootObject r(nullptr);
+	library::ProcessorHandler ph(r);
+
+	library::Processor p(ph, *this, "first");
+
+	p.setNumAttributes(10);
+
+	SlotBitmap bm;
+	int numCalls = 0;
+
+	library::Processor::AttributeListener l1(r, *this, [&](library::Processor* p, int slotIndex)
+	{
+		numCalls++;
+		bm.setBit(slotIndex, true);
+	});
+
+	library::Processor::AttributeListener l2(r, *this, [&](library::Processor* p, int slotIndex)
+	{
+		numCalls++;
+		bm.setBit(slotIndex, true);
+	});
+
+	library::Processor::AttributeListener l3(r, *this, [&](library::Processor* p, int slotIndex)
+	{
+		numCalls++;
+		bm.setBit(slotIndex, true);
+	});
+
+	p.addAttributeListener(&l1, 3, sync);
+	p.addAttributeListener(&l2, 4, sync);
+	p.addAttributeListener(&l3, 5, sync);
+
+	p.removeAttributeListener(&l2);
+	
+	for(int i = 0; i < 10; i++)
+		p.setAttribute(i, 0.5f, sync);
+
+	expectEquals(numCalls, 2, "call amount mismatch");
+
+	expect(bm[3], "l1 not called");
+	expect(!bm[4], "l2 was called");
+	expect(bm[5], "l3 was called");
+
+	p.removeAttributeListener(&l1);
+	p.removeAttributeListener(&l3);
+
+}
+
 void LibraryTest::testHighAttributeCount()
 {
 	BEGIN_TEST("testing attribute index 4098");
@@ -244,7 +304,7 @@ void LibraryTest::testHighAttributeCount()
 			numIdChanges++;
 		});
 
-		ph.addNameAndColourListener(&idListener, ln);
+		p.addNameAndColourListener(&idListener, ln);
 			
 		p.setId("changed");
 
@@ -252,11 +312,14 @@ void LibraryTest::testHighAttributeCount()
 
 		library::Processor p2(ph, *this, "second processor");
 
+		p2.addNameAndColourListener(&idListener, ln);
+
 		p2.setId("changed");
 			
 		expectEquals(numIdChanges, 2, "second id change mismatch");
 
-		ph.removeNameAndColourListener(&idListener);
+		p.removeNameAndColourListener(&idListener);
+		p2.removeNameAndColourListener(&idListener);
 
 			
 	}
@@ -474,11 +537,13 @@ void LibraryTest::testSigSlotBasics()
 		LibraryTest& t;
 	};
 
+
+
 	bool executed = false;
 	DummyListener l(r, *this, executed);
-
+	
 	sigslot::signal<const Listener::ListenerData&> slot;
-	slot.connect(&DummyListener::slotChanged, &l);
+	auto con = slot.connect(&DummyListener::slotChanged, &l);
 
 	SlotBitmap bm;
 	bm.setBit(0, true);
@@ -491,6 +556,18 @@ void LibraryTest::testSigSlotBasics()
 	slot(d);
 
 	expect(executed, "not executed");;
+
+	DummyListener l2(r, *this, executed);
+
+	executed = false;
+
+	auto con2 = slot.connect(&DummyListener::slotChanged, &l2);
+
+	slot.disconnect(con);
+
+	slot(d);
+
+	expect(executed, "not executed after remove");;
 }
 
 void LibraryTest::runTestFiles()
