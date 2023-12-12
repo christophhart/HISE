@@ -415,8 +415,7 @@ private:
 	// ====================================================================================================================
 
 	class PatchItem :  public SearchableListComponent::Item,
-					   public ModuleDragTarget,
-					   public Processor::BypassListener
+					   public ModuleDragTarget
 	{
 	public:
 

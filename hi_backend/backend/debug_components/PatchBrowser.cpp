@@ -1498,7 +1498,6 @@ void PatchBrowser::PatchCollection::toggleShowChains()
 
 PatchBrowser::PatchItem::PatchItem(Processor *p, Processor *parent_, int hierarchy_, const String &searchTerm) :
 Item(searchTerm.toLowerCase()),
-BypassListener(p->getMainController()->getRootDispatcher()),
 ModuleDragTarget(p),
 parent(parent_),
 lastId(String()),
@@ -1509,7 +1508,6 @@ lastMouseDown(0)
     
 	addAndMakeVisible(closeButton);
 	addAndMakeVisible(createButton);
-	p->addBypassListener(this, dispatch::DispatchType::sendNotificationAsync);
 
     addAndMakeVisible(idLabel);
 	addAndMakeVisible(gotoWorkspace);
@@ -1544,8 +1542,6 @@ lastMouseDown(0)
 
 PatchBrowser::PatchItem::~PatchItem()
 {
-	if(getProcessor() != nullptr)
-		getProcessor()->removeBypassListener(this);
 }
 
 
