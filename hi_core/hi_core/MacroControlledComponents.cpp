@@ -480,6 +480,7 @@ void MacroControlledObject::setup(Processor *p, int parameter_, const String &na
 
 	p->getMainController()->getMainSynthChain()->addMacroConnectionListener(this);
 
+    updateValue(sendNotificationSync);
 	
 }
 
@@ -1059,6 +1060,8 @@ void HiSlider::setMode(Mode m, double min, double max, double mid, double stepSi
 	{
 		setModeRange(min, max, mid, stepSize);
 	}
+    
+    updateValue(sendNotificationSync);
 }
 
 HiSlider::Mode HiSlider::getMode() const
