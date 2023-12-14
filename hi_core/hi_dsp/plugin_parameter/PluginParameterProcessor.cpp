@@ -147,9 +147,6 @@ struct MacroPluginParameter: public juce::HostedAudioProcessorParameter,
 
 		auto n = md->getMacroName();
 
-		if (md->getNumParameters() == 1)
-			n = md->getParameter(0)->getParameterName();
-
 		if (isPositiveAndBelow(n, maximumStringLength))
 			return n;
 
