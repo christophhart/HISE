@@ -77,6 +77,15 @@ public:
         /// If supported, this enables developer features in the browser
         bool enableDebugMode = false;
 
+        /// On OSX, setting this to true will allow the first click on a non-focused
+        /// webview to be used as input, rather than the default behaviour, which is
+        /// for the first click to give the webview focus but not trigger any action.
+        bool acceptsFirstMouseClick = false;
+
+        /// Optional user-agent string which can be used to override the default. Leave
+        // this empty for default behaviour.
+        std::string customUserAgent;
+
         /// Serve resources to the browser from a C++ callback function.
         /// This can effectively be used to implement a basic web server,
         /// serving resources to the browser in any way the client code chooses.
@@ -111,7 +120,11 @@ public:
     /// Directly sets the HTML content of the browser
     void setHTML (const std::string& html);
 
-    /// Directly evaluates some javascript
+    /// Directly evaluates some javascript.
+    /// This call isn't guaranteed to be thread-safe, so calling it on
+    /// threads other than the main message thread could lead to problems.
+    /// It also goes without saying this this is not realtime-safe, and the
+    /// call may block, allocate or make system calls.
     void evaluateJavascript (const std::string& script);
 
     /// Sends the browser to this URL
@@ -186,7 +199,6 @@ struct choc::ui::WebView::Pimpl
                                             this);
 
         webkit_user_content_manager_register_script_message_handler (manager, "external");
-        addInitScript ("window.external = { invoke: function(s) { window.webkit.messageHandlers.external.postMessage(s); } }");
 
         WebKitSettings* settings = webkit_web_view_get_settings (WEBKIT_WEB_VIEW (webview));
         webkit_settings_set_javascript_can_access_clipboard (settings, true);
@@ -195,7 +207,13 @@ struct choc::ui::WebView::Pimpl
         {
             webkit_settings_set_enable_write_console_messages_to_stdout (settings, true);
             webkit_settings_set_enable_developer_extras (settings, true);
+
+            if (auto inspector = WEBKIT_WEB_INSPECTOR (webkit_web_view_get_inspector (WEBKIT_WEB_VIEW (webview))))
+                webkit_web_inspector_show (inspector);
         }
+
+        if (! options.customUserAgent.empty())
+            webkit_settings_set_user_agent (settings, options.customUserAgent.c_str());
 
         if (options.fetchResource)
         {
@@ -263,11 +281,17 @@ struct choc::ui::WebView::Pimpl
         g_clear_object (&webviewContext);
     }
 
+    static constexpr const char* postMessageFn = "window.webkit.messageHandlers.external.postMessage";
+
     void* getViewHandle() const     { return (void*) webview; }
 
     void evaluateJavascript (const std::string& js)
     {
+       #if WEBKIT_CHECK_VERSION (2, 40, 0)
+        webkit_web_view_evaluate_javascript (WEBKIT_WEB_VIEW (webview), js.c_str(), static_cast<gssize> (js.length()), nullptr, nullptr, nullptr, nullptr, nullptr);
+       #else
         webkit_web_view_run_javascript (WEBKIT_WEB_VIEW (webview), js.c_str(), nullptr, nullptr, nullptr);
+       #endif
     }
 
     void navigate (const std::string& url)
@@ -311,8 +335,8 @@ struct choc::ui::WebView::Pimpl
 
 struct choc::ui::WebView::Pimpl
 {
-    Pimpl (WebView& v, const Options& options)
-        : owner (v), fetchResource (options.fetchResource)
+    Pimpl (WebView& v, const Options& optionsToUse)
+        : owner (v), options (optionsToUse)
     {
         using namespace choc::objc;
         AutoReleasePool autoreleasePool;
@@ -334,12 +358,18 @@ struct choc::ui::WebView::Pimpl
         call<void> (manager, "retain");
         call<void> (manager, "addScriptMessageHandler:name:", delegate, getNSString ("external"));
 
-        addInitScript ("window.external = { invoke: function(s) { window.webkit.messageHandlers.external.postMessage(s); } };");
+        //addInitScript ("window.external = { invoke: function(s) { window.webkit.messageHandlers.external.postMessage(s); } };");
 
         if (options.fetchResource)
             call<void> (config, "setURLSchemeHandler:forURLScheme:", delegate, getNSString ("choc"));
 
-        webview = call<id> (call<id> (getClass ("WKWebView"), "alloc"), "initWithFrame:configuration:", CGRect(), config);
+        webview = call<id> (allocateWebview(), "initWithFrame:configuration:", CGRect(), config);
+        objc_setAssociatedObject (webview, "choc_webview", (id) this, OBJC_ASSOCIATION_ASSIGN);
+
+        if (! options.customUserAgent.empty())
+            call<void> (webview, "setValue:forKey:", getNSString (options.customUserAgent), getNSString ("customUserAgent"));
+
+        call<void> (webview, "setUIDelegate:", delegate);
 
         call<void> (config, "release");
 
@@ -351,11 +381,14 @@ struct choc::ui::WebView::Pimpl
     {
         objc::AutoReleasePool autoreleasePool;
         objc_setAssociatedObject (delegate, "choc_webview", nil, OBJC_ASSOCIATION_ASSIGN);
+        objc_setAssociatedObject (webview, "choc_webview", nil, OBJC_ASSOCIATION_ASSIGN);
         objc::call<void> (webview, "release");
         objc::call<void> (manager, "removeScriptMessageHandlerForName:", objc::getNSString ("external"));
         objc::call<void> (manager, "release");
         objc::call<void> (delegate, "release");
     }
+
+    static constexpr const char* postMessageFn = "window.webkit.messageHandlers.external.postMessage";
 
     void* getViewHandle() const     { return (void*) webview; }
 
@@ -407,6 +440,12 @@ private:
         return objc::call<id> ((id) dc.delegateClass, "new");
     }
 
+    id allocateWebview()
+    {
+        static WebviewClass c;
+        return objc::call<id> ((id) c.webviewClass, "alloc");
+    }
+
     void onResourceRequested (id task)
     {
         using namespace choc::objc;
@@ -414,70 +453,149 @@ private:
 
         try
         {
-            const auto requestUrl = call<id> (call<id> (task, "request"), "URL");
+            auto requestUrl = call<id> (call<id> (task, "request"), "URL");
 
-            const auto makeResponse = [&](auto responseCode, id headerFields = nullptr)
+            auto makeResponse = [&] (auto responseCode, id headerFields)
             {
                 return call<id> (call<id> (call<id> (getClass ("NSHTTPURLResponse"), "alloc"),
                                            "initWithURL:statusCode:HTTPVersion:headerFields:",
                                            requestUrl,
                                            responseCode,
                                            getNSString ("HTTP/1.1"),
-                                           headerFields), "autorelease");
+                                           headerFields),
+                                 "autorelease");
             };
 
-            const auto* path = objc::call<const char*> (call<id> (requestUrl, "path"),  "UTF8String");
+            auto path = objc::getString (call<id> (requestUrl, "path"));
 
-            if (const auto resource = fetchResource (path))
+            if (auto resource = options.fetchResource (path))
             {
                 const auto& [bytes, mimeType] = *resource;
 
-                const auto contentLength = std::to_string (bytes.size());
-                const id headerKeys[] = { getNSString ("Content-Length"), getNSString ("Content-Type"), getNSString ("Cache-Control") };
-                const id headerObjects[] = { getNSString (contentLength), getNSString (mimeType), getNSString ("no-store") };
-                const auto headerFields = call<id> (getClass ("NSDictionary"),
-                                                    "dictionaryWithObjects:forKeys:count:",
-                                                    headerObjects,
-                                                    headerKeys,
-                                                    sizeof (headerObjects) / sizeof (id));
+                auto contentLength = std::to_string (bytes.size());
+                id headerKeys[]    = { getNSString ("Content-Length"), getNSString ("Content-Type"), getNSString ("Cache-Control") };
+                id headerObjects[] = { getNSString (contentLength),    getNSString (mimeType),       getNSString ("no-store") };
+
+                auto headerFields = call<id> (getClass ("NSDictionary"), "dictionaryWithObjects:forKeys:count:",
+                                              headerObjects, headerKeys, sizeof (headerObjects) / sizeof (id));
 
                 call<void> (task, "didReceiveResponse:", makeResponse (200, headerFields));
 
-                const auto data = call<id> (getClass ("NSData"), "dataWithBytes:length:", bytes.data(), bytes.size());
+                auto data = call<id> (getClass ("NSData"), "dataWithBytes:length:", bytes.data(), bytes.size());
                 call<void> (task, "didReceiveData:", data);
             }
             else
             {
-                call<void> (task, "didReceiveResponse:", makeResponse (404));
+                call<void> (task, "didReceiveResponse:", makeResponse (404, nullptr));
             }
 
             call<void> (task, "didFinish");
         }
         catch (...)
         {
-            const auto error = call<id> (getClass ("NSError"), "errorWithDomain:code:userInfo:",
-                                         getNSString ("NSURLErrorDomain"), -1, nullptr);
+            auto error = call<id> (getClass ("NSError"), "errorWithDomain:code:userInfo:",
+                                   getNSString ("NSURLErrorDomain"), -1, nullptr);
+
             call<void> (task, "didFailWithError:", error);
         }
     }
 
+    BOOL sendAppAction (id self, const char* action)
+    {
+        objc::call<void> (objc::getSharedNSApplication(), "sendAction:to:from:",
+                          sel_registerName (action), (id) nullptr, self);
+        return true;
+    }
+
+    BOOL performKeyEquivalent (id self, id e)
+    {
+        enum
+        {
+            NSEventTypeKeyDown = 10,
+
+            NSEventModifierFlagShift    = 1 << 17,
+            NSEventModifierFlagControl  = 1 << 18,
+            NSEventModifierFlagOption   = 1 << 19,
+            NSEventModifierFlagCommand  = 1 << 20
+        };
+
+        if (objc::call<int> (e, "type") == NSEventTypeKeyDown)
+        {
+            auto flags = objc::call<int> (e, "modifierFlags") & (NSEventModifierFlagShift | NSEventModifierFlagCommand
+                                                                 | NSEventModifierFlagControl | NSEventModifierFlagOption);
+
+            auto path = objc::getString (objc::call<id> (e, "charactersIgnoringModifiers"));
+
+            if (flags == NSEventModifierFlagCommand)
+            {
+                if (path == "c") return sendAppAction (self, "copy:");
+                if (path == "x") return sendAppAction (self, "cut:");
+                if (path == "v") return sendAppAction (self, "paste:");
+                if (path == "z") return sendAppAction (self, "undo:");
+                if (path == "a") return sendAppAction (self, "selectAll:");
+            }
+            else if (flags == (NSEventModifierFlagShift | NSEventModifierFlagCommand))
+            {
+                if (path == "Z") return sendAppAction (self, "redo:");
+            }
+        }
+
+        return false;
+    }
+
     WebView& owner;
-    Options::FetchResource fetchResource;
+    Options options;
     id webview = {}, manager = {}, delegate = {};
+
+    struct WebviewClass
+    {
+        WebviewClass()
+        {
+            webviewClass = choc::objc::createDelegateClass ("WKWebView", "CHOCWebView_");
+
+            class_addMethod (webviewClass, sel_registerName ("acceptsFirstMouse:"),
+                            (IMP) (+[](id self, SEL, id) -> BOOL
+                            {
+                                if (auto p = reinterpret_cast<Pimpl*> (objc_getAssociatedObject (self, "choc_webview")))
+                                    return p->options.acceptsFirstMouseClick;
+
+                                return false;
+                            }), "B@:@");
+
+            class_addMethod (webviewClass, sel_registerName ("performKeyEquivalent:"),
+                            (IMP) (+[](id self, SEL, id e) -> BOOL
+                            {
+                                if (auto p = reinterpret_cast<Pimpl*> (objc_getAssociatedObject (self, "choc_webview")))
+                                    return p->performKeyEquivalent (self, e);
+
+                                return false;
+                            }), "B@:@");
+
+            objc_registerClassPair (webviewClass);
+        }
+
+        ~WebviewClass()
+        {
+            // NB: it doesn't seem possible to dispose of this class late enough to avoid a warning on shutdown
+            // about the KVO system still using it, so unfortunately the only option seems to be to let it leak..
+            // objc_disposeClassPair (webviewClass);
+        }
+
+        Class webviewClass = {};
+    };
 
     struct DelegateClass
     {
         DelegateClass()
         {
-            delegateClass = choc::objc::createDelegateClass ("NSResponder", "CHOCWebViewDelegate_");
+            delegateClass = choc::objc::createDelegateClass ("NSObject", "CHOCWebViewDelegate_");
 
             class_addMethod (delegateClass, sel_registerName ("userContentController:didReceiveScriptMessage:"),
                             (IMP) (+[](id self, SEL, id, id msg)
                             {
                                 if (auto p = reinterpret_cast<Pimpl*> (objc_getAssociatedObject (self, "choc_webview")))
                                 {
-                                    auto body = objc::call<id> (msg, "body");
-                                    p->owner.invokeBinding (objc::call<const char*> (body, "UTF8String"));
+                                    p->owner.invokeBinding (objc::getString (objc::call<id> (msg, "body")));
                                 }
                             }),
                             "v@:@@");
@@ -491,6 +609,33 @@ private:
                             "v@:@@");
 
             class_addMethod (delegateClass, sel_registerName ("webView:stopURLSchemeTask:"), (IMP) (+[](id, SEL, id, id) {}), "v@:@@");
+
+            class_addMethod (delegateClass, sel_registerName ("webView:runOpenPanelWithParameters:initiatedByFrame:completionHandler:"),
+                             (IMP) (+[](id, SEL, id wkwebview, id params, id /*frame*/, void (^completionHandler)(id))
+                             {
+                                using namespace choc::objc;
+                                AutoReleasePool autoreleasePool;
+
+                                auto panel = call<id> (getClass ("NSOpenPanel"), "openPanel");
+
+                                auto allowsMultipleSelection = call<BOOL> (params, "allowsMultipleSelection");
+                                auto allowedFileExtensions = call<id> (params, "_allowedFileExtensions");
+                                auto window = call<id> (wkwebview, "window");
+
+                                call<void> (panel, "setAllowsMultipleSelection:", allowsMultipleSelection);
+                                call<void> (panel, "setAllowedFileTypes:", allowedFileExtensions);
+
+                                call<void> (panel, "beginSheetModalForWindow:completionHandler:", window,
+                                            ^(long result)
+                                            {
+                                                AutoReleasePool pool;
+
+                                                if (result == 1) // NSModalResponseOK
+                                                    completionHandler (call<id> (panel, "URLs"));
+                                                else
+                                                    completionHandler (nil);
+                                            });
+                             }), "v@:@@@@");
 
             objc_registerClassPair (delegateClass);
         }
@@ -859,7 +1004,7 @@ namespace choc::ui
 struct WebView::Pimpl
 {
     Pimpl (WebView& v, const Options& options)
-        : owner (v), fetchResource (options.fetchResource)
+        : owner (v), fetchResource (options.fetchResource), customUserAgent (options.customUserAgent)
     {
         // You cam define this macro to provide a custom way of getting a
         // choc::file::DynamicLibrary that contains the redistributable
@@ -904,26 +1049,32 @@ struct WebView::Pimpl
         }
     }
 
+    static constexpr const char* postMessageFn = "window.chrome.webview.postMessage";
+
     void* getViewHandle() const     { return (void*) hwnd.hwnd; }
 
     void navigate (const std::string& url)
     {
-        coreWebView->Navigate (createUTF16StringFromUTF8 (url).c_str());
+        if (coreWebView != nullptr)
+            coreWebView->Navigate (createUTF16StringFromUTF8 (url).c_str());
     }
 
     void addInitScript (const std::string& script)
     {
-        coreWebView->AddScriptToExecuteOnDocumentCreated (createUTF16StringFromUTF8 (script).c_str(), nullptr);
+        if (coreWebView != nullptr)
+            coreWebView->AddScriptToExecuteOnDocumentCreated (createUTF16StringFromUTF8 (script).c_str(), nullptr);
     }
 
     void evaluateJavascript (const std::string& script)
     {
-		coreWebView->ExecuteScript(createUTF16StringFromUTF8(script).c_str(), nullptr);
+        if (coreWebView != nullptr)
+            coreWebView->ExecuteScript (createUTF16StringFromUTF8 (script).c_str(), nullptr);
     }
 
     void setHTML (const std::string& html)
     {
-        coreWebView->NavigateToString (createUTF16StringFromUTF8 (html).c_str());
+        if (coreWebView != nullptr)
+            coreWebView->NavigateToString (createUTF16StringFromUTF8 (html).c_str());
     }
 
 	void resizeToFit(float scaleFactor)
@@ -940,7 +1091,7 @@ private:
 
     static LRESULT wndProc (HWND h, UINT msg, WPARAM wp, LPARAM lp)
     {
-		if (msg == WM_SIZE)
+        if (msg == WM_SIZE)
             if (auto w = getPimpl (h))
                 w->resizeContentToFit(w->scaleFactor);
 
@@ -970,27 +1121,32 @@ private:
 
     bool createEmbeddedWebView()
     {
-        auto userDataFolder = getUserDataFolder();
-
-        if (! userDataFolder.empty())
+        if (auto userDataFolder = getUserDataFolder(); ! userDataFolder.empty())
         {
             auto handler = new EventHandler (*this);
             webviewInitialising.test_and_set();
 
-            if (auto createWebView = (decltype(&CreateCoreWebView2EnvironmentWithOptions))
-                                        webviewDLL.findFunction ("CreateCoreWebView2EnvironmentWithOptions"))
+            if (auto createCoreWebView2EnvironmentWithOptions = (decltype(&CreateCoreWebView2EnvironmentWithOptions))
+                                                                   webviewDLL.findFunction ("CreateCoreWebView2EnvironmentWithOptions"))
             {
-                if (createWebView (nullptr, userDataFolder.c_str(), nullptr, handler) == S_OK)
+                if (createCoreWebView2EnvironmentWithOptions (nullptr, userDataFolder.c_str(), nullptr, handler) == S_OK)
                 {
                     MSG msg;
+                    auto timeoutTimer = SetTimer ({}, {}, 6000, {});
 
                     while (webviewInitialising.test_and_set() && GetMessage (std::addressof (msg), nullptr, 0, 0))
                     {
                         TranslateMessage (std::addressof (msg));
                         DispatchMessage (std::addressof (msg));
+
+                        if (msg.message == WM_TIMER && msg.hwnd == nullptr && msg.wParam == timeoutTimer)
+                            break;
                     }
 
-                    addInitScript ("window.external = { invoke: function(s) { window.chrome.webview.postMessage(s); } }");
+                    KillTimer ({}, timeoutTimer);
+
+                    if (coreWebView == nullptr)
+                        return false;
 
                     if (fetchResource)
                     {
@@ -1018,16 +1174,19 @@ private:
 
         env->AddRef();
         coreWebViewEnvironment = env;
-
         return true;
     }
 
     void webviewCreated (ICoreWebView2Controller* controller, ICoreWebView2* view)
     {
-        controller->AddRef();
-        view->AddRef();
-        coreWebViewController = controller;
-        coreWebView = view;
+        if (controller != nullptr && view != nullptr)
+        {
+            controller->AddRef();
+            view->AddRef();
+            coreWebViewController = controller;
+            coreWebView = view;
+        }
+
         webviewInitialising.clear();
     }
 
@@ -1053,30 +1212,22 @@ private:
             Fn onExit;
         };
 
-        const auto makeCleanup = [](auto*& ptr, auto cleanup)
-        {
-            return [&ptr, cleanup]
-            {
-                if (ptr)
-                    cleanup (ptr);
-            };
-        };
-
-        const auto makeCleanupIUnknown = [=](auto*& ptr)
-        {
-            return makeCleanup (ptr, [](auto* p) { p->Release(); });
-        };
+        auto makeCleanup          = [](auto*& ptr, auto cleanup) { return [&ptr, cleanup] { if (ptr) cleanup (ptr); }; };
+        auto makeCleanupIUnknown  = [](auto*& ptr)               { return [&ptr]          { if (ptr) ptr->Release(); }; };
 
         try
         {
+            if (coreWebViewEnvironment == nullptr)
+                return E_FAIL;
+
             ICoreWebView2WebResourceRequest* request = {};
-            const auto cleanupRequest = ScopedExit (makeCleanupIUnknown (request));
+            ScopedExit cleanupRequest (makeCleanupIUnknown (request));
 
             if (args->get_Request (std::addressof (request)) != S_OK)
                 return E_FAIL;
 
             LPWSTR uri = {};
-            const auto cleanupUri = ScopedExit (makeCleanup (uri, CoTaskMemFree));
+            ScopedExit cleanupUri (makeCleanup (uri, CoTaskMemFree));
 
             if (request->get_Uri (std::addressof (uri)) != S_OK)
                 return E_FAIL;
@@ -1084,7 +1235,7 @@ private:
             const auto path = createUTF8FromUTF16 (uri).substr (resourceRequestFilterUriPrefix.size() - 1);
 
             ICoreWebView2WebResourceResponse* response = {};
-            const auto cleanupResponse = ScopedExit (makeCleanupIUnknown (response));
+            ScopedExit cleanupResponse (makeCleanupIUnknown (response));
 
             if (const auto resource = fetchResource (path))
             {
@@ -1096,20 +1247,24 @@ private:
                     return fn ? fn (data, length) : nullptr;
                 };
 
-                const auto& [bytes, mimeType] = *resource;
+                auto* stream = makeMemoryStream (reinterpret_cast<const BYTE*> (resource->data.data()),
+                                                 static_cast<UINT> (resource->data.size()));
 
-                auto* stream = makeMemoryStream (reinterpret_cast<const BYTE*> (bytes.data()), static_cast<UINT> (bytes.size()));
-                const auto cleanupStream = ScopedExit (makeCleanupIUnknown (stream));
-
-                if (! stream)
+                if (stream == nullptr)
                     return E_FAIL;
 
-                const auto mimeTypeHeader = std::string ("Content-Type: ") + mimeType;
-                const auto cacheControlHeader = "Cache-Control: no-store";
-                const std::vector<std::string> headersToConcatenate { mimeTypeHeader, cacheControlHeader };
-                const auto headers = createUTF16StringFromUTF8 (choc::text::joinStrings (headersToConcatenate, "\n"));
+                ScopedExit cleanupStream (makeCleanupIUnknown (stream));
 
-                if (coreWebViewEnvironment->CreateWebResourceResponse (stream, 200, L"OK", headers.c_str(), std::addressof (response)) != S_OK)
+                std::vector<std::string> headers;
+                headers.emplace_back ("Content-Type: " + resource->mimeType);
+                headers.emplace_back ("Cache-Control: no-store");
+
+                if (! customUserAgent.empty())
+                    headers.emplace_back ("User-Agent: " + customUserAgent);
+
+                const auto headerString = createUTF16StringFromUTF8 (choc::text::joinStrings (headers, "\n"));
+
+                if (coreWebViewEnvironment->CreateWebResourceResponse (stream, 200, L"OK", headerString.c_str(), std::addressof (response)) != S_OK)
                     return E_FAIL;
             }
             else
@@ -1161,8 +1316,15 @@ private:
 
         HRESULT STDMETHODCALLTYPE Invoke (HRESULT, ICoreWebView2Controller* controller) override
         {
+            if (controller == nullptr)
+                return E_FAIL;
+
             ICoreWebView2* view = {};
             controller->get_CoreWebView2 (std::addressof (view));
+
+            if (view == nullptr)
+                return E_FAIL;
+
             EventRegistrationToken token;
             view->add_WebMessageReceived (this, std::addressof (token));
             view->add_PermissionRequested (this, std::addressof (token));
@@ -1172,6 +1334,9 @@ private:
 
         HRESULT STDMETHODCALLTYPE Invoke (ICoreWebView2* sender, ICoreWebView2WebMessageReceivedEventArgs* args) override
         {
+            if (sender == nullptr)
+                return E_FAIL;
+
             LPWSTR message = {};
             args->TryGetWebMessageAsString (std::addressof (message));
             ownerPimpl.owner.invokeBinding (createUTF8FromUTF16 (message));
@@ -1210,6 +1375,7 @@ private:
     std::atomic_flag webviewInitialising = ATOMIC_FLAG_INIT;
 
 	float scaleFactor = 1.0f;
+    std::string customUserAgent;
 
     //==============================================================================
     static std::wstring getUserDataFolder()
@@ -1272,7 +1438,7 @@ inline void WebView::bind (const std::string& functionName, CallbackFn&& fn)
         var promise = new Promise(function(resolve, reject) {
           fnBinding[messageID] = { resolve: resolve, reject: reject, };
         });
-        window.external.invoke(JSON.stringify({
+        INVOKE_BINDING(JSON.stringify({
           id: messageID,
           fn: "FUNCTION_NAME",
           params: Array.prototype.slice.call(arguments),
@@ -1281,7 +1447,8 @@ inline void WebView::bind (const std::string& functionName, CallbackFn&& fn)
       }
     })())";
 
-    script = choc::text::replace (script, "FUNCTION_NAME", functionName);
+    script = choc::text::replace (script, "FUNCTION_NAME", functionName,
+                                          "INVOKE_BINDING", Pimpl::postMessageFn);
     addInitScript (script);
     evaluateJavascript (script);
     bindings[functionName] = std::move (fn);
