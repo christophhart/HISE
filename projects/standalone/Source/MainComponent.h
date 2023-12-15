@@ -33,7 +33,9 @@ public:
             String n;
             n << "HISE - ";
             n <<  GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Name).toString();
-            findParentComponentOfClass<DocumentWindow>()->setName(n);
+
+            if(auto d = findParentComponentOfClass<DocumentWindow>())
+                d->setName(n);
 	    }
     }
 

@@ -24,12 +24,29 @@ MainContentComponent::MainContentComponent(const String &commandLine)
 
 	if(auto mc = dynamic_cast<MainController*>(standaloneProcessor->getCurrentProcessor()))
 	{
-		mc->getSampleManager().getProjectHandler().addListener(this);
+		auto& ph = mc->getSampleManager().getProjectHandler();
+		ph.addListener(this);
+
+		auto root = ph.getRootFolder();
+
+		Component::SafePointer<MainContentComponent> safeThis(this);
+
+		auto f = [safeThis, root]()
+		{
+			if(safeThis.getComponent() != nullptr && safeThis->findParentComponentOfClass<DocumentWindow>() != nullptr)
+				safeThis->projectChanged(root);
+		};
+
+		Timer::callAfterDelay(500, f);
+
+		
 	}
 
 	addAndMakeVisible(editor = standaloneProcessor->createEditor());
 
 	setSize(editor->getWidth(), editor->getHeight());
+
+	
 
 	handleCommandLineArguments(commandLine);
 }
