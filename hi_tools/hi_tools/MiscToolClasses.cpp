@@ -2362,7 +2362,31 @@ Spectrum2D::Spectrum2D(Holder* h, const AudioSampleBuffer& s):
 	originalSource(s),
 	parameters(new Parameters())
 {
-	parameters->setFromBuffer(s);
+	//parameters->setFromBuffer(s);
+}
+
+void Spectrum2D::draw(Graphics& g, const Image& img, Rectangle<int> area, Graphics::ResamplingQuality quality)
+{
+	g.saveState();
+	g.setImageResamplingQuality(quality);
+
+	float offsetX = JUCE_LIVE_CONSTANT(0.0);
+	float offsetY = JUCE_LIVE_CONSTANT(0.0);
+
+
+	float scaleX = JUCE_LIVE_CONSTANT(0.0);
+	float scaleY = JUCE_LIVE_CONSTANT(0.0);
+
+	auto t = AffineTransform::translation(-img.getWidth() / 2, -img.getHeight() / 2);
+
+	t = t.followedBy(AffineTransform::rotation(float_Pi * 1.5f));
+	t = t.followedBy(AffineTransform::scale((float)area.getWidth() / (float)img.getHeight(), (float)area.getHeight() / (float)img.getWidth()));
+	t = t.followedBy(AffineTransform::translation(area.getWidth() / 2 + area.getX(), area.getHeight() / 2 + area.getY()));
+
+	g.drawImageTransformed(img, t);
+		
+	//g.drawImageWithin(img, area.getX(), area.getY(), area.getWidth(), area.getHeight(), RectanglePlacement::stretchToFit);
+	g.restoreState();
 }
 
 void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
@@ -2389,7 +2413,7 @@ float FFTHelpers::getPixelValueForLogXAxis(float freq, float width)
 	return (width - 5) * (log(freq / lowFreq) / log(highFreq / lowFreq)) + 2.5f;
 }
 
-juce::PixelARGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput)
+juce::PixelRGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput)
 {
 	auto lutValue = data[jlimit(0, LookupTableSize - 1, roundToInt(normalisedInput * (float)LookupTableSize))];
 	float a = JUCE_LIVE_CONSTANT_OFF(0.3f);
@@ -2397,8 +2421,10 @@ juce::PixelARGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput)
 	auto r = (float)lutValue.getRed() * v;
 	auto g = (float)lutValue.getGreen() * v;
 	auto b = (float)lutValue.getBlue() * v;
-	lutValue.setARGB(255, (uint8)r, (uint8)g, (uint8)b);
-	return lutValue;
+
+	PixelRGB returnValue;
+	returnValue.setARGB(255, (uint8)r, (uint8)g, (uint8)b);
+	return returnValue;
 }
 
 void Spectrum2D::LookupTable::setColourScheme(ColourScheme cs)
@@ -2453,40 +2479,58 @@ Spectrum2D::LookupTable::LookupTable()
 
 Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 {
-    auto newImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels() / 2, true);
-    auto maxLevel = lastBuffer.getMagnitude(0, lastBuffer.getNumSamples());
+	TRACE_EVENT("scripting", "create spectrum image");
 
-    auto s2dHalf = parameters->Spectrum2DSize / 2;
-    
-    if (maxLevel == 0.0f)
-        return newImage;
+    auto newImage = Image(Image::RGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels(), true);
 
-    for (int y = 0; y < s2dHalf; y++)
+	auto s2dHalf = parameters->Spectrum2DSize / 2;
+	
+	Image::BitmapData bd(newImage, Image::BitmapData::writeOnly);
+	
+	for(int y = 0; y < lastBuffer.getNumChannels(); y++)
+	{
+		auto src = lastBuffer.getReadPointer(y);
+		auto dst = bd.getLinePointer(y);
+		
+		for(int x = 0; x < lastBuffer.getNumSamples(); x++)
+		{
+			auto pp = (PixelRGB*)(bd.getPixelPointer(x, y));
+			auto lutValue = parameters->lut->getColouredPixel(src[x]);
+
+			pp->set(lutValue);
+		}
+	}
+
+#if 0
+    for (int x = 0; x < s2dHalf; x++)
     {
-        auto skewedProportionY = holder->getYPosition((float)y / (float)s2dHalf);
+        auto skewedProportionY = holder->getYPosition((float)x / (float)s2dHalf);
         auto fftDataIndex = jlimit(0, s2dHalf-1, (int)(skewedProportionY * (int)s2dHalf));
 
         for (int i = 0; i < lastBuffer.getNumSamples(); i++)
         {
             auto s = lastBuffer.getSample(fftDataIndex, i);
-
-            s *= (1.0f / maxLevel);
+            s *= (1.0f / gf);
 
             auto alpha = jlimit(0.0f, 1.0f, s);
 
             alpha = holder->getXPosition(alpha);
-            alpha = std::pow(alpha, JUCE_LIVE_CONSTANT_OFF(0.6f));
+            alpha = std::pow(alpha, parameters->gamma);
 
 			auto lutValue = parameters->lut->getColouredPixel(alpha);
-            newImage.setPixelAt(i, y, lutValue);
+            newImage.setPixelAt(x, i, lutValue);
         }
     }
+#endif
 
     return newImage;
 }
 
+
+
 AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
 {
+	TRACE_EVENT("scripting", "create spectrum buffer");
     auto fft = juce::dsp::FFT(parameters->order);
 
     auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / parameters->Spectrum2DSize * parameters->oversamplingFactor - 1);
@@ -2496,34 +2540,115 @@ AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
 
     auto paddingSize = JUCE_LIVE_CONSTANT_OFF(0);
     
-    AudioSampleBuffer b(parameters->Spectrum2DSize, numSamplesToFill);
+    AudioSampleBuffer b(numSamplesToFill, parameters->Spectrum2DSize / 2);
     b.clear();
+
+	AudioSampleBuffer out(1, parameters->Spectrum2DSize);
+	AudioSampleBuffer sb(1, parameters->Spectrum2DSize * 2);
+
+	AudioSampleBuffer window(1, parameters->Spectrum2DSize * 2);
+
+	FloatVectorOperations::fill(window.getWritePointer(0), 1.0f, parameters->Spectrum2DSize);
+
+	FFTHelpers::applyWindow(parameters->currentWindowType, window);
+
+	
+
+	auto size = b.getNumSamples();
+
+	HeapBlock<float> positions;
+	positions.calloc(size);
+
+	for(int i = 0; i < size; i++)
+	{
+		auto normIndex = (float)i / (float)size;
+		auto skewedProportionY = holder->getYPosition((float)i / (float)size);
+		positions[i] = skewedProportionY;
+	}
+
+
+	auto db = (float)parameters->minDb;
+
+	auto minGain = Decibels::decibelsToGain(-1.0f * db, -140.0f);
+
+	NormalisableRange<float> gainRange(minGain, 1.0f);
 
     for (int i = 0; i < numSamplesToFill; i++)
     {
         auto offset = (i * parameters->Spectrum2DSize) / parameters->oversamplingFactor;
-        AudioSampleBuffer sb(1, parameters->Spectrum2DSize * 2);
-        sb.clear();
 
-        auto numToCopy = jmin(parameters->Spectrum2DSize, originalSource.getNumSamples() - offset);
+		auto numToCopy = jmin(parameters->Spectrum2DSize, originalSource.getNumSamples() - offset);
 
-        FloatVectorOperations::copy(sb.getWritePointer(0), originalSource.getReadPointer(0, offset), numToCopy);
-
-        FFTHelpers::applyWindow(parameters->currentWindowType, sb);
-
-        fft.performRealOnlyForwardTransform(sb.getWritePointer(0), false);
-
-        AudioSampleBuffer out(1, parameters->Spectrum2DSize);
-
-        FFTHelpers::toFreqSpectrum(sb, out);
-        FFTHelpers::scaleFrequencyOutput(out, false);
-
-        for (int c = 0; c < b.getNumChannels(); c++)
         {
-            b.setSample(c, jmin(numSamplesToFill-1, i+paddingSize), out.getSample(0, c));
+			TRACE_EVENT("scripting", "pre FFT");
+	        sb.clear();
+
+	        FloatVectorOperations::copy(sb.getWritePointer(0), originalSource.getReadPointer(0, offset), numToCopy);
+			FloatVectorOperations::multiply(sb.getWritePointer(0), window.getReadPointer(0), numToCopy);
+        }
+
+        {
+			TRACE_EVENT("scripting", "perform FFT");
+	        fft.performRealOnlyForwardTransform(sb.getWritePointer(0), false);
+        }
+
+        {
+			TRACE_EVENT("scripting", "post FFT");
+	        FFTHelpers::toFreqSpectrum(sb, out);
+			FFTHelpers::scaleFrequencyOutput(out, false);
+        }
+
+
+
+		FloatVectorOperations::copy(b.getWritePointer(i), out.getReadPointer(0), b.getNumSamples());
+
+		auto src = out.getReadPointer(0);
+		auto dst = b.getWritePointer(i);
+
+		{
+	        TRACE_EVENT("scripting", "scale freq output");
+
+			auto bitmask = (b.getNumSamples()-1);
+
+			for(int i = 0; i < size; i++)
+			{
+				auto idx = positions[i] * (float)(size-1);
+
+				auto i1 = (int)(idx) & bitmask;
+				auto i0 = jmax(i1-1, 0);
+				auto i2 = (i1+1) & bitmask;
+				auto i3 = (i1+2) & bitmask;
+				auto alpha = idx - (float)i1;
+
+				auto dstIndex = size - (i+1);
+
+				float value;
+
+				if(parameters->quality == Graphics::highResamplingQuality)
+					value = Interpolator::interpolateCubic(src[i0], src[i1], src[i2], src[i3], alpha);
+				else
+					value = Interpolator::interpolateLinear<float>(src[i1], src[i2], alpha);
+
+				value = jmax<float>(value, minGain) - minGain;
+				
+				value = std::pow(value, parameters->gamma);
+				dst[dstIndex] = value;
+			}
         }
     }
-    
+
+	auto thisGain = parameters->gainFactor;
+
+	if(thisGain == 0.0f)
+	{
+		thisGain = b.getMagnitude(0, b.getNumSamples());
+
+		if(thisGain != 0.0f)
+			thisGain = 1.0f / thisGain;
+	}
+
+	b.applyGain(thisGain);
+
     return b;
 }
 
@@ -2617,28 +2742,41 @@ void ThreadController::popProgressScaler()
 	jassert(progressScalerIndex >= 0);
 }
 
-void Spectrum2D::Parameters::set(const Identifier& id, int value, NotificationType n)
+void Spectrum2D::Parameters::set(const Identifier& id, var value, NotificationType n)
 {
 	jassert(getAllIds().contains(id));
 
 	if (id == Identifier("FFTSize"))
 	{
-		order = jlimit(7, 13, value);
+		order = jlimit(7, 13, (int)value);
 		Spectrum2DSize = roundToInt(std::pow(2.0, (double)order));
 	}
     if(id == Identifier("DynamicRange"))
         minDb = value;
 	if (id == Identifier("Oversampling"))
 		oversamplingFactor = value;
+	if (id == Identifier("Gamma"))
+		gamma = jlimit(0.01f, 16.0f, (float)value);
 	if (id == Identifier("ColourScheme"))
-		lut->setColourScheme((LookupTable::ColourScheme)value);
+		lut->setColourScheme((LookupTable::ColourScheme)(int)value);
 	if (id == Identifier("WindowType"))
-		currentWindowType = (FFTHelpers::WindowType)value;
+		currentWindowType = (FFTHelpers::WindowType)(int)value;
+	if(id == Identifier("ResamplingQuality"))
+	{
+		StringArray q("Low", "Mid", "High");
+		if(q.contains(value.toString()))
+			quality = (Graphics::ResamplingQuality)(int)q.indexOf(value.toString());
+	}
+	if (id == Identifier("GainFactor"))
+	{
+		gainFactor = (float)value;
+		FloatSanitizers::sanitizeFloatNumber(gainFactor);
+	}
 	if (n != dontSendNotification)
 		notifier.sendMessage(n, id, value);
 }
 
-int Spectrum2D::Parameters::get(const Identifier& id) const
+var Spectrum2D::Parameters::get(const Identifier& id) const
 {
 	jassert(getAllIds().contains(id));
 
@@ -2650,8 +2788,17 @@ int Spectrum2D::Parameters::get(const Identifier& id) const
 		return oversamplingFactor;
 	if (id == Identifier("ColourScheme"))
 		return (int)lut->colourScheme;
+	if (id == Identifier("GainFactor"))
+		return gainFactor;
+	if (id == Identifier("Gamma"))
+		return gamma;
+	if (id == Identifier("ResamplingQuality"))
+	{
+		StringArray q("Low", "Mid", "High");
+		return q[(int)quality];
+	}
 	if (id == Identifier("WindowType"))
-		return currentWindowType;
+		return (int)currentWindowType;
 
 	return 0;
 }
@@ -2684,6 +2831,9 @@ juce::Array<juce::Identifier> Spectrum2D::Parameters::getAllIds()
 		Identifier("DynamicRange"),
 		Identifier("Oversampling"),
 		Identifier("ColourScheme"),
+		Identifier("GainFactor"),
+		Identifier("ResamplingQuality"),
+		Identifier("Gamma"),
 		Identifier("WindowType")
 	};
 	
@@ -2754,7 +2904,7 @@ void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
 	cb->addListener(this);
 
 
-	cb->setSelectedId(param->get(id)+1, dontSendNotification);
+	cb->setSelectedId((int)param->get(id)+1, dontSendNotification);
 
 	auto l = new Label();
 	l->setEditable(false);
@@ -2783,7 +2933,7 @@ void Spectrum2D::Parameters::Editor::paint(Graphics& g)
 
 	auto specArea = b.reduced(12);
 	auto textArea = specArea.removeFromTop(13);
-	auto range = param->get("DynamicRange");
+	auto range = (int)param->get("DynamicRange");
 
 	auto parts = (float)specArea.getWidth() / (float)(range / 10);
 	auto tparts = (float)textArea.getWidth() / (float)(range / 10);

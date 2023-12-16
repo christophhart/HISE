@@ -687,6 +687,9 @@ namespace ScriptingObjects
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setPhaseFunction);
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setEnableSpectrum2D);
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setEnableInverseFFT);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setSpectrum2DParameters);
+			API_METHOD_WRAPPER_0(ScriptFFT, getSpectrum2DParameters);
+			API_METHOD_WRAPPER_2(ScriptFFT, dumpSpectrum);
 		};
 
 		ScriptFFT(ProcessorWithScriptingContent* pwsc);
@@ -728,7 +731,18 @@ namespace ScriptingObjects
 			processed FFT. */
 		void setEnableInverseFFT(bool shouldApplyReverseTransformToInput);
 
+		/** Sets the spectrum data from the JSON object. */
+		void setSpectrum2DParameters(var jsonData);
+
+		/** Returns the JSON data for the spectrum parameters. */
+		var getSpectrum2DParameters() const;
+
+		/** Dumps the spectrum image to the given file (as PNG image). */
+		bool dumpSpectrum(var file, bool output);
+
 		// ======================================================================================================= End of API Methods
+
+		Image getSpectrum(bool getOutput) const { return getOutput ? outputSpectrum : spectrum; }
 
 	private:
 

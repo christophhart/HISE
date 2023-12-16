@@ -1772,17 +1772,31 @@ void HiseAudioThumbnail::paint(Graphics& g)
 
 			auto normX = (float)vb.getX() / (float)b.getWidth();
 			auto normR = (float)vb.getRight() / (float)b.getWidth();
-			auto specW = (float)spectrum.getWidth();
+			
 
+#if 0
+			auto specW = (float)spectrum.getWidth();
 			Range<int> specRange(roundToInt(normX * specW), roundToInt(normR * specW));
 
 			auto clipSpec = spectrum.getClippedImage({ specRange.getStart(), 0, specRange.getLength(), spectrum.getHeight() });
+#endif
 
-			g.drawImageWithin(clipSpec, vb.getX(), vb.getY(), vb.getWidth(), vb.getHeight(), RectanglePlacement::stretchToFit);
+
+			auto specW = (float)spectrum.getHeight();
+			Range<int> specRange(roundToInt(normX * specW), roundToInt(normR * specW));
+
+			auto clipSpec = spectrum.getClippedImage({ 0, specRange.getStart(), spectrum.getWidth(), specRange.getLength() });
+
+
+			Spectrum2D::draw(g, clipSpec, vb, Graphics::highResamplingQuality);
+
+			//g.drawImageWithin(clipSpec, vb.getX(), vb.getY(), vb.getWidth(), vb.getHeight(), RectanglePlacement::stretchToFit);
 		}
 		else
 		{
-			g.drawImageWithin(spectrum, 0, 0, getWidth(), getHeight(), RectanglePlacement::stretchToFit);
+			Spectrum2D::draw(g, spectrum, getLocalBounds(), Graphics::highResamplingQuality);
+
+			//g.drawImageWithin(spectrum, 0, 0, getWidth(), getHeight(), RectanglePlacement::stretchToFit);
 		}
 
 		g.restoreState();

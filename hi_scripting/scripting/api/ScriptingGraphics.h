@@ -510,6 +510,9 @@ namespace ScriptingObjects
 		/** Draws the text of the given markdown renderer to its specified area. */
 		void drawMarkdownText(var markdownRenderer);
 
+		/** Draws the spectrum of the FFT object to the panel. */
+		void drawFFTSpectrum(var fftObject, var area);
+
 		/** Sets the current gradient via an array [Colour1, x1, y1, Colour2, x2, y2] */
 		void setGradientFill(var gradientData);
 

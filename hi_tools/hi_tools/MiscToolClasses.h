@@ -2232,7 +2232,7 @@ struct Spectrum2D
 
 		static constexpr int LookupTableSize = 512;
 
-		PixelARGB getColouredPixel(float normalisedInput);
+		PixelRGB getColouredPixel(float normalisedInput);
 
 		LookupTable();
 
@@ -2270,9 +2270,9 @@ struct Spectrum2D
 			Parameters::Ptr param;
 		};
 
-		void set(const Identifier& id, int value, NotificationType n);
+		void set(const Identifier& id, var value, NotificationType n);
 
-		int get(const Identifier& id) const;
+		var get(const Identifier& id) const;
 
 		void saveToJSON(var v) const;
 		void loadFromJSON(const var& v);
@@ -2285,6 +2285,12 @@ struct Spectrum2D
 		int order;
 		int oversamplingFactor = 4;
 		int Spectrum2DSize;
+
+		float gainFactor = 0.0f;
+		float gamma = 0.6f;
+
+		Graphics::ResamplingQuality quality = Graphics::ResamplingQuality::lowResamplingQuality;
+
 		FFTHelpers::WindowType currentWindowType = FFTHelpers::WindowType::BlackmanHarris;
 
 		SharedResourcePointer<LookupTable> lut;
@@ -2308,7 +2314,9 @@ struct Spectrum2D
     };
     
     Spectrum2D(Holder* h, const AudioSampleBuffer& s);;
-    
+
+	static void draw(Graphics& g, const Image& img, Rectangle<int> area, Graphics::ResamplingQuality quality);
+
 	Parameters::Ptr parameters;
     WeakReference<Holder> holder;
     const AudioSampleBuffer& originalSource;

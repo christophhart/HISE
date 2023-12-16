@@ -392,16 +392,33 @@ namespace ScriptedDrawActions
 		bool rounded[4] = { true, true, true, true };
 	};
 
+	struct drawFFTSpectrum: public DrawActions::ActionBase
+	{
+		SET_ACTION_ID(drawFFTSpectrum);
+
+		drawFFTSpectrum(const Image& img_, Rectangle<float> r_, Graphics::ResamplingQuality quality_) :
+			img(img_), r(r_), quality(quality_) {}
+
+		void perform(Graphics& g) override
+		{
+			Spectrum2D::draw(g, img, r.toNearestInt(), quality);
+		}
+
+		Graphics::ResamplingQuality quality;
+		Image img;
+		Rectangle<float> r;
+	};
+
 	struct drawImageWithin : public DrawActions::ActionBase
 	{
 		SET_ACTION_ID(drawImageWithin);
 
-		drawImageWithin(const Image& img_, Rectangle<float> r_) :
-			img(img_), r(r_) {};
+		drawImageWithin(const Image& img_, Rectangle<float> r_, RectanglePlacement p=RectanglePlacement::centred) :
+			img(img_), r(r_), placement(p) {};
 
 		void perform(Graphics& g) override
 		{
-			g.drawImageWithin(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), RectanglePlacement::centred);
+			g.drawImageWithin(img, (int)r.getX(), (int)r.getY(), (int)r.getWidth(), (int)r.getHeight(), placement);
 
 
 			//			g.drawImage(img, ri.getX(), ri.getY(), (int)(r.getWidth() / scaleFactor), (int)(r.getHeight() / scaleFactor), 0, yOffset, (int)img.getWidth(), (int)((double)img.getHeight()));
@@ -409,6 +426,7 @@ namespace ScriptedDrawActions
 
 		Image img;
 		Rectangle<float> r;
+		RectanglePlacement placement = RectanglePlacement::centred;
 	};
 
 	struct drawImage : public DrawActions::ActionBase

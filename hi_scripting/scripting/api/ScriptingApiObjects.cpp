@@ -6820,7 +6820,10 @@ ScriptingObjects::ScriptFFT::ScriptFFT(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(setPhaseFunction);
 	ADD_API_METHOD_1(setEnableSpectrum2D);
 	ADD_API_METHOD_1(setEnableInverseFFT);
-
+	ADD_API_METHOD_1(setSpectrum2DParameters);
+	ADD_API_METHOD_0(getSpectrum2DParameters);
+	ADD_API_METHOD_2(dumpSpectrum);
+	
 	spectrumParameters = new Spectrum2D::Parameters();
 }
 
@@ -6979,6 +6982,8 @@ void ScriptingObjects::ScriptFFT::prepare(int powerOfTwoSize, int maxNumChannels
 
 var ScriptingObjects::ScriptFFT::process(var dataToProcess)
 {
+	TRACE_EVENT("scripting", "render FFT");
+
 	if (scratchBuffers.isEmpty() || fft == nullptr || maxNumSamples == 0)
 		reportScriptError("You must call prepare before process");
 
@@ -7082,19 +7087,27 @@ var ScriptingObjects::ScriptFFT::process(var dataToProcess)
 
 		if (enableSpectrum)
 		{
-			Spectrum2D fb(this, outputData[0].getBuffer()->buffer);
-			fb.parameters = spectrumParameters;
-			auto b = fb.createSpectrumBuffer();
+			auto bToUse = outputData[0].getBuffer();
 
-			if (b.getNumSamples() > 0)
-				outputSpectrum = fb.createSpectrumImage(b);
-			else
-				outputSpectrum = {};
+			if(bToUse == nullptr)
+				bToUse = dataToProcess.getBuffer();
+
+			if(bToUse != nullptr)
+			{
+				Spectrum2D fb(this, bToUse->buffer);
+				fb.parameters = spectrumParameters;
+				auto b = fb.createSpectrumBuffer();
+
+				if (b.getNumSamples() > 0)
+					outputSpectrum = fb.createSpectrumImage(b);
+				else
+					outputSpectrum = {};
+			}
 		}
 
 		return returnValue;
 	}
-	else
+	else if (!enableSpectrum)
 		reportScriptError("the process function is not defined");
 
 	return var();
@@ -7113,6 +7126,34 @@ void ScriptingObjects::ScriptFFT::setEnableInverseFFT(bool shouldApplyReverseTra
 
 		reinitialise();
 	}
+}
+
+void ScriptingObjects::ScriptFFT::setSpectrum2DParameters(var jsonData)
+{
+	spectrumParameters->loadFromJSON(jsonData);
+}
+
+var ScriptingObjects::ScriptFFT::getSpectrum2DParameters() const
+{
+	var d(new DynamicObject());
+	spectrumParameters->saveToJSON(d);
+	return d;
+}
+
+bool ScriptingObjects::ScriptFFT::dumpSpectrum(var file, bool output)
+{
+	auto img = output ? outputSpectrum : spectrum;
+
+	if(auto sf = dynamic_cast<ScriptFile*>(file.getObject()))
+	{
+		sf->f.deleteFile();
+		FileOutputStream fos(sf->f);
+		
+		PNGImageFormat f;
+		return f.writeImageToStream(img, fos);
+	}
+
+	return false;
 }
 
 var ScriptingObjects::ScriptFFT::getBufferArgs(bool useMagnitude, int numToUse)

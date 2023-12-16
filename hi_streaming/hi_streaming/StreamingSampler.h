@@ -54,7 +54,7 @@ public:
 	*	@param delta the sub-integer part between the two indexes (must be between 0.0f and 1.0f)
 	*	@returns the interpolated value.
 	*/
-	template <typename Type> static double interpolateLinear(const Type x1, const Type x2, const Type delta)
+	template <typename Type> static Type interpolateLinear(const Type x1, const Type x2, const Type delta)
 	{
 		jassert(isPositiveAndNotGreaterThan(delta, Type(1)));
 

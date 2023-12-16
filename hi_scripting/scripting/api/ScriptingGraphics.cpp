@@ -1563,6 +1563,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillTriangle);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, fillPath);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawPath);
+	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawFFTSpectrum);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, rotate);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, gaussianBlur);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, boxBlur);
@@ -1619,6 +1620,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_2(fillPath);
 	ADD_API_METHOD_3(drawPath);
 	ADD_API_METHOD_2(rotate);
+	ADD_API_METHOD_2(drawFFTSpectrum);
 
 	ADD_API_METHOD_1(beginLayer);
 	ADD_API_METHOD_1(gaussianBlur);
@@ -2002,6 +2004,17 @@ void ScriptingObjects::GraphicsObject::drawMarkdownText(var markdownRenderer)
 	}
 	else
 		reportScriptError("not a markdown renderer");
+}
+
+void ScriptingObjects::GraphicsObject::drawFFTSpectrum(var fftObject, var area)
+{
+	if (auto obj = dynamic_cast<ScriptingObjects::ScriptFFT*>(fftObject.getObject()))
+	{
+		auto b = ApiHelpers::getRectangleFromVar(area);
+		drawActionHandler.addDrawAction(new ScriptedDrawActions::drawFFTSpectrum(obj->getSpectrum(false), b, obj->getParameters()->quality));
+	}
+	else
+        reportScriptError("not a SVG object");
 }
 
 void ScriptingObjects::GraphicsObject::drawSVG(var svgObject, var bounds, float opacity)
