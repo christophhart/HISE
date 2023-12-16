@@ -100,7 +100,7 @@ struct ComponentUpdateHelpers
 	{
 		void mouseDown(const MouseEvent& e) override
 		{
-			if (onShiftClick(e))
+            if (performModifierAction(e, false))
 				return;
 			else
 				juce::Slider::mouseDown(e);
