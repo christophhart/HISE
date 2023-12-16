@@ -715,16 +715,7 @@ bool MidiProcessorChain::setArtificialTimestamp(uint16 eventId, int newTimestamp
 			return true;
 		}
 	}
-
-	for (auto& e : futureEventBuffer)
-	{
-		if (e.getEventId() == eventId)
-		{
-			e.setTimeStamp(newTimestamp);
-			return true;
-		}
-	}
-
+    
 	return false;
 }
 
@@ -746,10 +737,34 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 		}
 	}
 
-	if (buffer.isEmpty() && futureEventBuffer.isEmpty() && artificialEvents.isEmpty()) return;
+	if (buffer.isEmpty() && artificialEvents.isEmpty()) return;
     
 	logEvents(buffer, true);
 
+    if(!artificialEvents.isEmpty())
+    {
+        HiseEventBuffer::Iterator it1(buffer);
+        
+        while (HiseEvent* off = it1.getNextEventPointer(true))
+        {
+            if(off->isNoteOff())
+            {
+                HiseEventBuffer::Iterator it2(artificialEvents);
+
+                while (HiseEvent* on = it2.getNextEventPointer(true))
+                {
+                    if(on->isNoteOn() &&
+                       on->getEventId() == off->getEventId() &&
+                       on->getTimeStamp() > off->getTimeStamp())
+                    {
+                        on->ignoreEvent(true);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
 	HiseEventBuffer::Iterator it(buffer);
 	
 	jassert(buffer.timeStampsAreSorted());

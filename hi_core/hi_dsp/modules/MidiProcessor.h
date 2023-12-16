@@ -232,9 +232,7 @@ private:
 
 	Array<WeakReference<MidiProcessor>> wholeBufferProcessors;
 
-	HiseEventBuffer futureEventBuffer;
 	HiseEventBuffer artificialEvents;
-
 };
 
 class HardcodedScriptFactoryType;
