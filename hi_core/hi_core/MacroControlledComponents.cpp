@@ -723,7 +723,9 @@ bool HiSlider::callWhenSingleMacro(const std::function<bool(AudioProcessor* p, i
 
 void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 {
-
+	if(getProcessor() == nullptr)
+		return;
+	
 	const bool enabled = !isLocked();
 
 	setEnabled(enabled);
