@@ -3867,9 +3867,10 @@ void ScriptingApi::Sampler::setActiveGroupForEventId(int eventId, int activeGrou
 		return;
 	}
 	
-	if(s->getMainController()->getKillStateHandler().getCurrentThread() != MainController::KillStateHandler::TargetThread::AudioThread)
+	if(eventId != -1 && s->getMainController()->getKillStateHandler().getCurrentThread() != MainController::KillStateHandler::TargetThread::AudioThread)
 	{
 		reportScriptError("This method is only available in the onNoteOnCallback");
+		return;
 	}
 
 	bool ok = s->setCurrentGroupIndex(activeGroupIndex, eventId);
