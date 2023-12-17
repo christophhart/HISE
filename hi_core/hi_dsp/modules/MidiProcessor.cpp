@@ -702,7 +702,28 @@ ProcessorEditorBody *MidiProcessorChain::createEditor(ProcessorEditor *parentEdi
 
 void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 {
+	if(fixNoteOnAfterNoteOff && m.isNoteOff() && !artificialEvents.isEmpty())
+	{
+		HiseEventBuffer::Iterator iter(artificialEvents);
+
+		while(auto e = iter.getNextEventPointer(true))
+		{
+			if(e->isNoteOn() && 
+			   e->getEventId() == m.getEventId() &&
+			   e->getTimeStamp() > m.getTimeStamp())
+			{
+				e->ignoreEvent(true);
+				return; // we actually don't need to add the note-off anymore...
+			}
+		}
+	}
+
 	artificialEvents.addEvent(m);
+}
+
+void MidiProcessorChain::setFixNoteOnAfterNoteOff(bool shouldBeFixed)
+{
+	fixNoteOnAfterNoteOff = shouldBeFixed;
 }
 
 bool MidiProcessorChain::setArtificialTimestamp(uint16 eventId, int newTimestamp)
@@ -741,7 +762,7 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
     
 	logEvents(buffer, true);
 
-    if(!artificialEvents.isEmpty())
+    if(!artificialEvents.isEmpty() && fixNoteOnAfterNoteOff)
     {
         HiseEventBuffer::Iterator it1(buffer);
         
@@ -758,6 +779,9 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
                        on->getTimeStamp() > off->getTimeStamp())
                     {
                         on->ignoreEvent(true);
+
+						// Ignore the note-off too - the entire note has been cancelled
+						off->ignoreEvent(true);
                         break;
                     }
                 }

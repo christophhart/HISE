@@ -176,6 +176,8 @@ public:
 
 	void addArtificialEvent(const HiseEvent& m);
 
+	void setFixNoteOnAfterNoteOff(bool shouldBeFixed);
+
 	bool setArtificialTimestamp(uint16 eventId, int newTimestamp);
 
 	void sendAllNoteOffEvent();;
@@ -215,7 +217,11 @@ public:
 		MidiProcessorChain *chain;
 	};
 
+	
+
 private:
+
+	bool fixNoteOnAfterNoteOff = false;
 
 	friend class MidiPlayer;
 

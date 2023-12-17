@@ -1072,6 +1072,8 @@ public:
 		/** Adds the interface to the Container's body (or the frontend interface if compiled) */
 		void addToFront(bool addToFront);
 
+		
+
 		/** Defers all callbacks to the message thread (midi callbacks become read-only). */
 		void deferCallbacks(bool makeAsynchronous);
 
@@ -1095,6 +1097,9 @@ public:
 
 		/** Plays a note and returns the event id with the given channel and start offset. */
 		int playNoteWithStartOffset(int channel, int number, int velocity, int offset);
+
+		/** Adds a few additional safe checks to prevent stuck notes from note offs being processed before their note-on message. */
+		void setFixNoteOnAfterNoteOff(bool shouldBeFixed);
 
 		/** Fades all voices with the given event id to the target volume (in decibels). */
 		void addVolumeFade(int eventId, int fadeTimeMilliseconds, int targetVolume);
