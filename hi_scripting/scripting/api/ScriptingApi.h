@@ -1098,6 +1098,9 @@ public:
 		/** Plays a note and returns the event id with the given channel and start offset. */
 		int playNoteWithStartOffset(int channel, int number, int velocity, int offset);
 
+		/** Attaches an artificial note to be stopped when the original note is stopped. */
+		bool attachNote(int originalNoteId, int artificialNoteId);
+
 		/** Adds a few additional safe checks to prevent stuck notes from note offs being processed before their note-on message. */
 		void setFixNoteOnAfterNoteOff(bool shouldBeFixed);
 

@@ -724,6 +724,11 @@ void MidiProcessorChain::addArtificialEvent(const HiseEvent& m)
 void MidiProcessorChain::setFixNoteOnAfterNoteOff(bool shouldBeFixed)
 {
 	fixNoteOnAfterNoteOff = shouldBeFixed;
+
+	if(shouldBeFixed)
+		attachedNoteBuffer = new AttachedNoteBuffer();
+	else
+		attachedNoteBuffer = nullptr;
 }
 
 bool MidiProcessorChain::setArtificialTimestamp(uint16 eventId, int newTimestamp)
@@ -747,6 +752,17 @@ void MidiProcessorChain::renderNextHiseEventBuffer(HiseEventBuffer &buffer, int 
 		buffer.clear();
 		buffer.addEvent(HiseEvent(HiseEvent::Type::AllNotesOff, 0, 0, 1));
 		allNotesOffAtNextBuffer = false;
+
+		if(hasAttachedNoteBuffer())
+			attachedNoteBuffer->reset();
+	}
+
+	if(attachedNoteBuffer != nullptr && attachedNoteBuffer->hasAttachedNotes())
+	{
+		HiseEventBuffer::Iterator it(buffer);
+
+		while(auto e = it.getNextEventPointer(true))
+			attachedNoteBuffer->processNoteOff(*e, buffer);
 	}
 
 	if (!wholeBufferProcessors.isEmpty())
