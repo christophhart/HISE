@@ -2465,22 +2465,14 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 	{
 		jassert(isBusy());
 		
-        if(currentType == Task::Type::HiPriorityDispatchQueue)
-        {
-            // this happens during the hi priority flush (which should
-            // be treated as UI event since it has the message manager lock)
-            // hence we'll defer the execution to later down the line...
-            pushToQueue(t, p, f);
-        }
-		else if (t == currentType)
+        if (t == currentType)
 		{
 			// Same priority, just run it
 			executeNow(t, p, f);
 		}
 		else
 		{
-			if (t == Task::Type::LowPriorityCallbackExecution ||
-				currentType == Task::Type::HiPriorityDispatchQueue)
+			if (t == Task::Type::LowPriorityCallbackExecution)
 			{
 				// We're calling a low priority task from a high priority task
 				// In this case, we defer the task to later (it's just a timer
@@ -2602,33 +2594,6 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 	case Task::HiPriorityCallbackExecution:
 	{
 		r = executeQueue(Task::ReplEvaluation, pendingCompilations);
-
-		{
-			TRACE_EVENT("dispatch", "getting message manager lock");
-
-            // avoid locking the message thread if we're about to close down shop...
-            if(threadShouldExit())
-                return Result::ok();
-            
-            // The high priority queue is supposed to be treated as UI event
-            // so we need to grab the message thread lock instead of the scripting
-            // lock.
-            //LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::ScriptLock);
-            MessageManagerLock mm(this);
-            
-            if(!mm.lockWasGained())
-                return r;
-
-            TRACE_EVENT("dispatch", "flush hi priority dispatch queue");
-            
-            // Setting these states will push any script job that is added
-            // during the flush operations to the respective queues where
-            // they will be executed with the proper locking in place...
-			ScopedValueSetter<bool> svs(busy, true);
-            ScopedValueSetter<Task::Type> svs2(currentType, Task::HiPriorityDispatchQueue);
-
-			getMainController()->getRootDispatcher().flushHighPriorityQueues(this);
-		}
 
 		TRACE_EVENT("scripting", "high priority queue");//, perfetto::Track(HighPriorityTrackId));
 		
