@@ -312,6 +312,7 @@ MarkdownPreviewSyncer::MarkdownPreviewSyncer(mcl::FullEditor& editor, MarkdownPr
 
 MarkdownPreviewSyncer::~MarkdownPreviewSyncer()
 {
+	setEnableScrollbarListening(false);
 	e.editor.getTextDocument().getCodeDocument().removeListener(this);
 }
 
