@@ -292,8 +292,17 @@ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
     if(tokenIndex == -1)
         tokenIndex = 1;
     else
-        c = source.nextChar();
-    
+    {
+	    c = source.nextChar();
+    }
+        
+
+    if(tokenIndex == 5)
+    {
+	    source.skipToEndOfLine();
+        return tokenIndex;
+    }
+
     while(!source.isEOF())
     {
         auto nextToken = tokenChars.indexOfChar(source.peekNextChar());
