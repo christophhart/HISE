@@ -23,6 +23,20 @@
 namespace juce
 {
 
+class JUCE_API  ObjectWithJSONConverter
+{
+public:
+
+	virtual ~ObjectWithJSONConverter() {};
+
+    virtual void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) = 0;
+};
+
+// Small helper function that declares two lambdas, nl() and ind() based on the indentLevel and allInOneLine function
+#ifndef JSON_DECLARE_NL_IND
+#define JSON_DECLARE_NL_IND std::function<void()> nl, ind; ind = [&out, indentLevel](){ for(int i = 0; i < indentLevel; i++) out.writeByte(' '); }; nl = [&out](){ out << NewLine(); }; if(allOnOneLine) { nl = [&out](){ out.writeByte(' '); }; ind = [&out]() {}; };
+#endif
+
 //==============================================================================
 /**
     Represents a dynamically implemented object.
@@ -36,7 +50,8 @@ namespace juce
 
     @tags{Core}
 */
-class JUCE_API  DynamicObject  : public ReferenceCountedObject
+class JUCE_API  DynamicObject  : public ReferenceCountedObject,
+								 public ObjectWithJSONConverter
 {
 public:
     //==============================================================================
@@ -117,7 +132,7 @@ public:
         never need to call it directly, but it's virtual so that custom object types
         can stringify themselves appropriately.
     */
-    virtual void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces);
+    void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) override;
 
 private:
     //==============================================================================

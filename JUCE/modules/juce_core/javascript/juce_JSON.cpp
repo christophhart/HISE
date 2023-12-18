@@ -346,7 +346,7 @@ struct JSONFormatter
         }
         else if (v.isObject())
         {
-            if (auto* object = v.getDynamicObject())
+            if (auto* object = dynamic_cast<ObjectWithJSONConverter*>(v.getObject()))
                 object->writeAsJSON (out, indentLevel, allOnOneLine, maximumDecimalPlaces);
             else
                 jassertfalse; // Only DynamicObjects can be converted to JSON!
