@@ -351,11 +351,12 @@ public:
 
 		data[position] = std::move(elementTypeToInsert);
 
-		position = jmin<int>(position + 1, SIZE - 1);
-		return true;
+		auto np = position + 1;
+		position = jmin<int>(np, SIZE - 1);
+		return np < SIZE;
 	}
 
-	void insertWithoutSearch(const ElementType& elementTypeToInsert)
+	bool insertWithoutSearch(const ElementType& elementTypeToInsert)
 	{
 		Lock sl(lock);
 
@@ -363,7 +364,9 @@ public:
 
 		data[position] = elementTypeToInsert;
 
-		position = jmin<int>(position + 1, SIZE - 1);
+		auto np = position + 1;
+		position = jmin<int>(np, SIZE - 1);
+		return np < SIZE;
 	}
 
 	/** Removes the given element and puts the last element into its slot. */
