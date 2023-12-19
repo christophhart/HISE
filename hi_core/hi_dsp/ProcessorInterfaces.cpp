@@ -340,6 +340,8 @@ SliderPackData* ProcessorWithDynamicExternalData::getSliderPack(int index)
 
 	auto s = createAndInit(snex::ExternalData::DataType::SliderPack);
 
+	ensurePosition(sliderPacks, index);
+
 	sliderPacks.set(index, static_cast<SliderPackData*>(s));
 	return sliderPacks[index].get();
 }
@@ -350,6 +352,8 @@ Table* ProcessorWithDynamicExternalData::getTable(int index)
 		return d.get();
 
 	auto s = createAndInit(snex::ExternalData::DataType::Table);
+
+	ensurePosition(tables, index);
 
 	tables.set(index, static_cast<Table*>(s));
 	return tables[index].get();
@@ -362,6 +366,8 @@ MultiChannelAudioBuffer* ProcessorWithDynamicExternalData::getAudioFile(int inde
 
 	auto s = createAndInit(snex::ExternalData::DataType::AudioFile);
 
+	ensurePosition(audioFiles, index);
+
 	audioFiles.set(index, static_cast<MultiChannelAudioBuffer*>(s));
 	return audioFiles[index].get();
 }
@@ -373,6 +379,8 @@ SimpleRingBuffer* ProcessorWithDynamicExternalData::getDisplayBuffer(int index)
 
 	auto s = createAndInit(snex::ExternalData::DataType::DisplayBuffer);
 
+	ensurePosition(ringBuffers, index);
+
 	ringBuffers.set(index, static_cast<SimpleRingBuffer*>(s));
 	return ringBuffers[index].get();
 }
@@ -383,6 +391,8 @@ FilterDataObject* ProcessorWithDynamicExternalData::getFilterData(int index)
 		return d.get();
 
 	auto s = createAndInit(snex::ExternalData::DataType::FilterCoefficients);
+
+	ensurePosition(filterData, index);
 
 	filterData.set(index, static_cast<FilterDataObject*>(s));
 	return filterData[index].get();

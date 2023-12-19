@@ -189,6 +189,21 @@ public:
 
 private:
 
+	template <typename T> bool ensurePosition(ReferenceCountedArray<T>& list, int newSize)
+	{
+		auto numToInsert = newSize - list.size();
+
+		if(numToInsert <= 1)
+			return false;
+
+		list.ensureStorageAllocated(newSize);
+
+		for(int i = 0; i < numToInsert; i++)
+			list.add(nullptr);
+
+		return true;
+	}
+
 	ReferenceCountedArray<SliderPackData> sliderPacks;
 	ReferenceCountedArray<Table> tables;
 	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;

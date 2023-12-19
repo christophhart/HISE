@@ -2469,6 +2469,9 @@ void ScriptCreatedComponentWrappers::SliderPackWrapper::updateColours(SliderPack
 
 void ScriptCreatedComponentWrappers::SliderPackWrapper::updateRange(SliderPackData* data)
 {
+	if(data == nullptr)
+		return;
+
 	ScriptingApi::Content::ScriptSliderPack *ssp = dynamic_cast<ScriptingApi::Content::ScriptSliderPack*>(getScriptComponent());
 
 	double min = GET_SCRIPT_PROPERTY(min);
