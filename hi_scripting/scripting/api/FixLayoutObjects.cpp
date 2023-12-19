@@ -523,7 +523,7 @@ void ObjectReference::writeAsJSON (OutputStream& out, const int indentLevel, con
 		auto v = l->getData(data, nullptr);
 		ind(); out << l->id.toString().quoted() <<  ": " << snex::Types::Helpers::getCppValueString(v, t);
 
-		if(layout.getLast() != l)
+		if(layout.getLast().get() != l)
 			out.writeByte(',');
 
 		nl();
