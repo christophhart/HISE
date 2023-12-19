@@ -103,6 +103,7 @@ struct LayoutBase
 		static DataType getTypeFromVar(const var& value, Result* r);
 		static int getElementSizeFromVar(const var& value, Result* r);
 		static uint32 getTypeSize(DataType type);
+		static int createHash(MemoryLayoutItem::List list);
 	};
 
 	virtual ~LayoutBase();;
@@ -111,6 +112,8 @@ struct LayoutBase
 
 	Allocator::Ptr allocator;
 	MemoryLayoutItem::List layout;
+
+	int typeHash = 0;
 
 protected:
 
@@ -449,6 +452,12 @@ struct Factory : public LayoutBase,
 
 	/** Registers a function that will be used for comparison. If you pass in a string it will only compare the given property. */
 	void setCompareFunction(var newCompareFunction);
+
+	/** Returns the hash code for the memory layout which factors in member IDs, order and type. */
+	int getTypeHash() const
+	{
+		return typeHash;
+	}
 
 	// ============================================================================================================
 

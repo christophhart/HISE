@@ -104,6 +104,19 @@ juce::uint32 LayoutBase::Helpers::getTypeSize(DataType type)
 	}
 }
 
+int LayoutBase::Helpers::createHash(MemoryLayoutItem::List list)
+{
+	String s;
+
+	for(auto l: list)
+	{
+		s << l->id;
+		s << (uint8)l->type;
+	}
+
+	return s.hash();
+}
+
 LayoutBase::~LayoutBase()
 {}
 
@@ -309,6 +322,8 @@ Factory::Factory(ProcessorWithScriptingContent* s, const var& d) :
 
 	addConstant("prototype", d);
 	layout = createLayout(allocator, d, &initResult);
+
+	typeHash = Helpers::createHash(layout);
 
 	compareFunction = BIND_MEMBER_FUNCTION_2(Factory::compare);
 }
@@ -607,6 +622,7 @@ void ObjectReference::init(LayoutBase* referencedLayout, uint8* preallocatedData
 
 	layoutReference = referencedLayout;
 	layout = referencedLayout->layout;
+	typeHash = Helpers::createHash(layout);
 
 	jassert(allocator->validMemoryAccess(data));
 	jassert(allocator->validMemoryAccess(data + getElementSizeInBytes() - 1));
@@ -889,6 +905,8 @@ void Array::init(LayoutBase* parent)
 
 	elementSize = getElementSizeInBytes();
 	numAllocated = getElementSizeInBytes() * (numElements);
+
+	typeHash = Helpers::createHash(layout);
 
 	if (numAllocated > 0)
 	{

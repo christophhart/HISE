@@ -70,9 +70,11 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		ADD_INLINEABLE_API_METHOD_1(ceil);
 		ADD_INLINEABLE_API_METHOD_1(floor);
 		ADD_INLINEABLE_API_METHOD_2(fmod);
+		ADD_INLINEABLE_API_METHOD_3(smoothstep);
 		ADD_INLINEABLE_API_METHOD_2(wrap);
 		ADD_INLINEABLE_API_METHOD_2(from0To1);
 		ADD_INLINEABLE_API_METHOD_2(to0To1);
+		ADD_INLINEABLE_API_METHOD_3(skew);
 
 		addConstant("PI", double_Pi);
 		addConstant("E", exp(1.0));
@@ -119,7 +121,9 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		API_METHOD_WRAPPER_1(MathClass, ceil);
 		API_METHOD_WRAPPER_1(MathClass, floor);
 		API_METHOD_WRAPPER_2(MathClass, fmod);
+		API_METHOD_WRAPPER_3(MathClass, smoothstep);
 		API_METHOD_WRAPPER_2(MathClass, wrap);
+		API_METHOD_WRAPPER_3(MathClass, skew);
 		API_METHOD_WRAPPER_2(MathClass, from0To1);
 		API_METHOD_WRAPPER_2(MathClass, to0To1);
 	};
@@ -250,7 +254,18 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 	/** Wraps the value around the limit (always positive). */
 	var wrap(var value, var limit) { return hmath::wrap((double)value, (double)limit); }
 
-	
+	/** Returns the skew factor for the given mid point. */
+	var skew(var start, var end, var midPoint)
+	{
+		NormalisableRange<double> rng(start, end); rng.setSkewForCentre(midPoint); return rng.skew;
+	}
+
+	/** Calculates a smooth transition between the lower and the upper value. */
+	var smoothstep(var input, var lower, var upper)
+	{
+		return var(upper > lower ? hmath::smoothstep((double)input, (double)lower, (double)upper) : 0.0);
+	}
+
 	/** Converts a normalised value (between 0 and 1) to a range defined by the JSON data in rangeObj. */
 	var from0To1(var value, var rangeObj)
 	{
@@ -269,12 +284,55 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 	{
 		InvertableParameterRange r;
 
-		if (auto dyn = rangeObj.getDynamicObject())
+		if(auto fo = dynamic_cast<fixobj::ObjectReference*>(rangeObj.getObject()))
+		{
+			auto hash = fo->typeHash;
+			auto floatPtr = reinterpret_cast<float*>(fo->data);
+			const bool requiresMiddle = hash == 1468876904 || hash == -1419086716;
+
+			auto setSkew = [requiresMiddle, &r](float v) { if(requiresMiddle) r.rng.setSkewForCentre(v); else r.rng.skew = v; };
+			
+			switch(hash)
+			{
+			case 1207537023:  // { MinValue, MaxValue, SkewFactor, StepSize, Inverted(float) }
+			case -1419086716: // { min, max, middlePosition, stepSize, Inverted(float) }
+			case -748746349:  // { Start, End, Skew, Interval, Inverted }
+			{
+				r.rng.start = floatPtr[0];
+				r.rng.end = floatPtr[1];
+				setSkew(floatPtr[2]);
+				r.rng.interval = floatPtr[3];
+				r.inv = floatPtr[4] > 0.5;
+				break;
+			}
+			case -575529029: // { MinValue, MaxValue, SkewFactor }
+			case 1468876904: // { min, max, middlePosition }
+			case 2138798677: // { Start, End, Skew }
+			{
+				r.rng.start = floatPtr[0];
+				r.rng.end = floatPtr[1];
+				setSkew(floatPtr[2]);
+				break;
+			}
+			case -1567604795: // { MinValue, MaxValue, StepSize }
+			case -1126239209: // { min, max, stepSize }
+			case 1610048532:  // { Start, End, Interval }
+			{
+				r.rng.start = floatPtr[0];
+				r.rng.end = floatPtr[1];
+				r.rng.interval = floatPtr[2];
+				break;
+			}
+			default:
+				throw String("unknown type layout " + JSON::toString(rangeObj, true));
+			}
+		}
+		else if (auto dyn = rangeObj.getDynamicObject())
 		{
 			const auto& set = dyn->getProperties();
 
 			r.inv = set.getWithDefault(PropertyIds::Inverted, false);
-
+			
 			if (set.contains(PropertyIds::MaxValue)) // scriptnode range object
 			{
 				r.rng.start = set.getWithDefault(PropertyIds::MinValue, 0.0);
