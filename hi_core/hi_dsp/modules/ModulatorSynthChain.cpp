@@ -72,9 +72,9 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 
 ModulatorSynthChain::~ModulatorSynthChain()
 {
-	modChains.clear();
-
 	getHandler()->clear();
+
+	modChains.clear();
 
 	effectChain = nullptr;
 	midiProcessorChain = nullptr;
@@ -742,9 +742,17 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::clear()
 {
 	notifyListeners(Listener::Cleared, nullptr);
 
-	ScopedLock sl(synth->getMainController()->getLock());
+	auto root = synth->getMainController()->getMainSynthChain();
 
-	synth->synths.clear();
+	if(root == nullptr || root == synth)
+	{
+		ScopedLock sl(synth->getMainController()->getLock());
+		synth->synths.clear();
+	}
+	else
+	{
+		clearAsync(synth);
+	}
 }
 
 
