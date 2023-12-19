@@ -263,7 +263,8 @@ struct HiseJavascriptEngine::RootObject::ModuloOp : public BinaryOperator
 	var getWithInts(int64 a, int64 b) const override   { return b != 0 ? var(a % b) : var(std::numeric_limits<double>::infinity()); }
     var getWithDoubles(double a, double b) const override
     {
-        return b != 0.0 ? var(roundToInt(a) % roundToInt(b)) : var(std::numeric_limits<double>::infinity());
+		auto mod = roundToInt(b);
+		return mod != 0 ? var(roundToInt(a) % roundToInt(b)) : var(std::numeric_limits<double>::infinity());
     }
 };
 
