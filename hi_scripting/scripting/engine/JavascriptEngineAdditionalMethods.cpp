@@ -287,30 +287,36 @@ void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObje
 {
 	if (cachedIndex == -1)
 	{
-		if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
+		if (dynamic_cast<LiteralValue*>(index.get()) != nullptr ||
+			dynamic_cast<ConstReference*>(index.get()) != nullptr ||
+			dynamic_cast<DotOperator*>(index.get()) ||
+			dynamic_cast<ApiConstant*>(index.get()))
 		{
-			if (dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr)
+			if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
 			{
-				if (ConstScriptingObject* cso = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject()))
+				if (dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr)
 				{
-					int constantIndex = cso->getConstantIndex(dot->child);
-					var possibleIndex = cso->getConstantValue(constantIndex);
-					if (possibleIndex.isInt() || possibleIndex.isInt64())
+					if (ConstScriptingObject* cso = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject()))
 					{
-						cachedIndex = (int)possibleIndex;
+						int constantIndex = cso->getConstantIndex(dot->child);
+						var possibleIndex = cso->getConstantValue(constantIndex);
+						if (possibleIndex.isInt() || possibleIndex.isInt64())
+						{
+							cachedIndex = (int)possibleIndex;
+						}
+						else location.throwError("[]- access only possible with int values");
 					}
-					else location.throwError("[]- access only possible with int values");
+					else location.throwError("[]-access using dot operator only valid with const objects as parent");
 				}
 				else location.throwError("[]-access using dot operator only valid with const objects as parent");
 			}
-			else location.throwError("[]-access using dot operator only valid with const objects as parent");
-		}
-		else
-		{
-			const var i = index->getResult(s);
-			cachedIndex = instance->getCachedIndex(i);
+			else
+			{
+				const var i = index->getResult(s);
+				cachedIndex = instance->getCachedIndex(i);
 
-			if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
+				if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
+			}
 		}
 	}
 }
