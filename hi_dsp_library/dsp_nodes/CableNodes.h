@@ -1039,6 +1039,15 @@ namespace control
 			pimpl::parameter_node_base<ParameterClass>(getStaticId())
 		{};
 
+		void prepare(PrepareSpecs ps)
+		{
+			if (ps.voiceIndex == nullptr || !ps.voiceIndex->isEnabled())
+			{
+				scriptnode::Error::throwError(Error::IllegalMonophony);
+				return;
+			}
+		}
+
 		void handleHiseEvent(HiseEvent& e)
 		{
 			if (e.isNoteOn())

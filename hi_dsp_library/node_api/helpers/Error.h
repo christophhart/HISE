@@ -82,6 +82,7 @@ struct Error: public ErrorC
         RingBufferMultipleWriters,
         DeprecatedNode,
         IllegalPolyphony,
+        IllegalMonophony,
         IllegalBypassConnection,
         IllegalCompilation,
         IllegalFaustNode,

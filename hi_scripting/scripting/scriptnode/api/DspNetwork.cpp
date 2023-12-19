@@ -2070,6 +2070,7 @@ String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 	case Error::NodeDebuggerEnabled: return "Node is being debugged";
 	case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 	case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
+	case Error::IllegalMonophony: return "Can't use this node in a monophonic network";
 	case Error::IllegalFaustNode: return "Faust is disabled. Enable faust and recompile HISE.";
 	case Error::IllegalFaustChannelCount: 
 		s << "Faust node channel mismatch. Expected channels: `" << String(e.expected) << "`";
