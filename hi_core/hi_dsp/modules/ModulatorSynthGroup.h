@@ -274,7 +274,7 @@ public:
 		numSynthGroupParameters
 	};
 
-	SET_PROCESSOR_NAME("SynthGroup", "Syntesizer Group", "A container for other Sound generators that allows FM and other additional synthesis types.");
+	SET_PROCESSOR_NAME("SynthGroup", "Synthesiser Group", "A container for other Sound generators that allows FM and other additional synthesis types.");
 
 		enum InternalChains
 	{

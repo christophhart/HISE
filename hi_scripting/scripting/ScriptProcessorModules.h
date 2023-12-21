@@ -814,7 +814,7 @@ public:
 		bool isVoiceStart = false;
 	};
 	
-	SET_PROCESSOR_NAME("ScriptSynth", "Scriptnode Syntesiser", "A polyphonic scriptable synthesiser.");
+	SET_PROCESSOR_NAME("ScriptSynth", "Scriptnode Synthesiser", "A polyphonic scriptable synthesiser.");
 
 	enum class Callback
 	{
