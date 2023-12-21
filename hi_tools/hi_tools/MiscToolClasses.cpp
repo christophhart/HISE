@@ -2370,12 +2370,11 @@ void Spectrum2D::draw(Graphics& g, const Image& img, Rectangle<int> area, Graphi
 	g.saveState();
 	g.setImageResamplingQuality(quality);
 
-	float offsetX = JUCE_LIVE_CONSTANT(0.0);
-	float offsetY = JUCE_LIVE_CONSTANT(0.0);
-
-
-	float scaleX = JUCE_LIVE_CONSTANT(0.0);
-	float scaleY = JUCE_LIVE_CONSTANT(0.0);
+	float offsetX = JUCE_LIVE_CONSTANT_OFF(0.0);
+	float offsetY = JUCE_LIVE_CONSTANT_OFF(0.0);
+	
+	float scaleX = JUCE_LIVE_CONSTANT_OFF(0.0);
+	float scaleY = JUCE_LIVE_CONSTANT_OFF(0.0);
 
 	auto t = AffineTransform::translation(-img.getWidth() / 2, -img.getHeight() / 2);
 

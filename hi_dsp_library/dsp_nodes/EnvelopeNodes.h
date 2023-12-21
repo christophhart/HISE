@@ -46,13 +46,13 @@ namespace envelope
 
 namespace pimpl
 {
-template <typename ParameterType> struct envelope_base: public control::pimpl::parameter_node_base<ParameterType>
+template <typename ParameterType> struct envelope_base: public control::pimpl::parameter_node_base<ParameterType>,
+														public polyphonic_base
 {
-    envelope_base(const Identifier& id): control::pimpl::parameter_node_base<ParameterType>(id)
-	{
-		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsPolyphonic);
-		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsProcessingHiseEvent);
-	}
+    envelope_base(const Identifier& id):
+	  control::pimpl::parameter_node_base<ParameterType>(id),
+	  polyphonic_base(id, true)
+	{}
 
 	virtual ~envelope_base() {};
 

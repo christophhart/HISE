@@ -1239,9 +1239,14 @@ private:
 };
 
 
-template <typename T> struct illegal_poly: public scriptnode::data::base
+template <typename T> struct illegal_poly: public scriptnode::data::base,
+										   public polyphonic_base
 {
 	SN_GET_SELF_AS_OBJECT(illegal_poly);
+
+	illegal_poly():
+	  polyphonic_base("illegal_poly", false)
+	{};
 
 	static Identifier getStaticId() { return T::getStaticId(); }
 

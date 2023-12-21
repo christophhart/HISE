@@ -143,6 +143,14 @@ public:
 	SN_EMPTY_HANDLE_EVENT;
 	SN_EMPTY_INITIALISE;
 
+	void prepare(PrepareSpecs ps)
+	{
+		handler = ps.voiceIndex;
+
+		if(handler != nullptr && !handler->isEnabled())
+			handler = nullptr;
+	}
+
 	bool isPolyphonic() const { return false; }
 
 	bool handleModulation(double& value)
@@ -165,7 +173,8 @@ public:
 			max = jmax<float>(max, Math.abs(range.getStart()), Math.abs(range.getEnd()));
 		}
 
-		updateBuffer(max, data.getNumSamples());
+		if(handler == nullptr || handler->getVoiceIndex() == 0)
+			updateBuffer(max, data.getNumSamples());
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
@@ -175,11 +184,16 @@ public:
 		for (auto& s : data)
 			max = Math.max(max, Math.abs((double)s));
 
-		updateBuffer(max, 1);
+		if(handler == nullptr || handler->getVoiceIndex() == 0)
+			updateBuffer(max, 1);
 	}
 
 	// This is no state variable, so we don't need it to be polyphonic...
 	double max = 0.0;
+
+	// This is used to figure out whether to send the value
+	PolyHandler* handler = nullptr;
+	
 };
 
 class recorder: public data::base
@@ -577,7 +591,8 @@ template <class ShaperType> struct snex_shaper
 	SN_EMPTY_CREATE_PARAM;
 };
 
-template <int NV, bool UseRingBuffer=false> class ramp : public data::display_buffer_base<UseRingBuffer>
+template <int NV, bool UseRingBuffer=false> class ramp : public data::display_buffer_base<UseRingBuffer>,
+														 public polyphonic_base
 {
 public:
 
@@ -595,11 +610,11 @@ public:
 	SN_GET_SELF_AS_OBJECT(ramp);
 	SN_DESCRIPTION("Creates a ramp signal that can be used as modulation source");
 
-	ramp()
+	ramp():
+	  polyphonic_base(getStaticId(), false)
 	{
 		setPeriodTime(100.0);
 
-		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsPolyphonic);
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UseRingBuffer);
 	}
 
@@ -1103,6 +1118,8 @@ public:
 				processFrameInternal(*asSpan);
 			}
 		}
+
+		currentVoiceData = nullptr;
 	}
 
 	template <typename FrameDataType> void processFrameInternal(FrameDataType& data)
@@ -1129,16 +1146,15 @@ public:
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		if (currentVoiceData == nullptr)
-		{
-			currentVoiceData = &voiceData.get();
-			currentNyquistGain = currentVoiceData->getNyquistAttenuationGain();
-		}
+		currentVoiceData = &voiceData.get();
+		currentNyquistGain = currentVoiceData->getNyquistAttenuationGain();
 
 		if (currentVoiceData->enabled == 0)
 			return;
 
 		processFrameInternal(data);
+
+		currentVoiceData = nullptr;
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -1698,7 +1714,8 @@ private:
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;
 };
 
-template <int V> class gain_impl : public HiseDspBase
+template <int V> class gain_impl : public HiseDspBase,
+								   public polyphonic_base
 {
 public:
 
@@ -1722,6 +1739,10 @@ public:
 	SN_POLY_NODE_ID("gain");
 	SN_GET_SELF_AS_OBJECT(gain_impl);
 	SN_DESCRIPTION("A gain module with decibel range and parameter smoothing");
+
+	gain_impl():
+	  polyphonic_base(getStaticId(), false)
+	{};
 
 	void prepare(PrepareSpecs ps)
 	{

@@ -1417,11 +1417,13 @@ template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 Factory::Factory(DspNetwork* network):
 	NodeFactory(network)
 {
-	registerNode<jchorus>();
+	registerPolyNode<jchorus, wrap::illegal_poly<jchorus>>();
 	registerNode<wrap::data<jlinkwitzriley, data::dynamic::filter>, data::ui::filter_editor>();
 
-	registerNode<jdelay>();
-
+	registerPolyNode<jdelay<1>, jdelay<NUM_POLYPHONIC_VOICES>>();
+	registerPolyNode<jdelay_thiran<1>, jdelay_thiran<NUM_POLYPHONIC_VOICES>>();
+	registerPolyNode<jdelay_cubic<1>, jdelay_cubic<NUM_POLYPHONIC_VOICES>>();
+	
 	registerPolyModNode<dp<jcompressor>, wrap::illegal_poly<dp<jcompressor>>, data::ui::displaybuffer_editor>();
 
 	registerPolyNode<jpanner<1>, jpanner<NUM_POLYPHONIC_VOICES>>();

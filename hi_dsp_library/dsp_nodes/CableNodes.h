@@ -593,9 +593,14 @@ namespace control
 		T value = false;
 	};
 
-	template <int NV> class transport : public transport_base<bool, NV>
+	template <int NV> class transport : public transport_base<bool, NV>,
+									    public polyphonic_base
 	{
 	public:
+
+		transport():
+		  polyphonic_base(getStaticId(), false)
+		{};
 
         static constexpr int NumVoices = NV;
         
@@ -609,13 +614,15 @@ namespace control
 		}
 	};
 
-	template <int NV> class ppq : public transport_base<double, NV>
+	template <int NV> class ppq : public transport_base<double, NV>,
+								  public polyphonic_base
 	{
 	public:
 
         static constexpr int NumVoices = NV;
         
-		ppq()
+		ppq():
+		  polyphonic_base(getStaticId(), false)
 		{
 			loopLengthQuarters = TempoSyncer::getTempoFactor(TempoSyncer::Tempo::Quarter);
 		}

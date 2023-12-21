@@ -559,7 +559,9 @@ public:
 		void registerPolyNode()
     {
 		// enable this static_assert(std::is_base_of<PolyT, polyphonic_base>(), "not a base of scriptnode::polyphonic_base");
-		// or this jassert(std::is_base_of<PolyT, polyphonic_base>(), "not a base of scriptnode::polyphonic_base");
+		// or this
+		//
+		static_assert(std::is_base_of<polyphonic_base, typename PolyT::WrappedObjectType>(), "not a base of scriptnode::polyphonic_base");
 
         using WrappedPolyT = InterpretedNode;
         using WrappedMonoT = InterpretedNode;
