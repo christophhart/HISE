@@ -2201,7 +2201,12 @@ Result checkPluginParameterComponent(ScriptingApi::Content* c, ScriptComponent* 
 	if (!sc->getScriptObjectProperty(ScriptComponent::isPluginParameter))
 	{
 		if (name.isEmpty())
-			return Result::ok();
+		{
+			if(sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::isMetaParameter))
+				return Result::fail(sc->getName() + " has the isMetaParameter flag set but is not a plugin parameter");
+			else
+				return Result::ok();
+		}
 		else
 			return Result::fail(sc->getName() + " has an non-empty plugin parameter ID but is not set as plugin parameter");
 	}

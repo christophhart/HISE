@@ -1847,7 +1847,9 @@ public:
 	{
 		return false;
 	}
-    
+
+	bool& getDeferNotifyHostFlag() { return deferNotifyHostFlag; }
+
 	LambdaBroadcaster<float> &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
 	
@@ -2081,6 +2083,10 @@ private:
 	bool flakyThreadingAllowed = false;
 
 	bool allowSoftBypassRamps = true;
+
+	// Apparrently calling ScriptComponent::changed() in order to update plugin parameters does not
+	// work if the notifyParameter() function is not deferred properly...
+	bool deferNotifyHostFlag = false;
 
 	void loadPresetInternal(const ValueTree& v);
 

@@ -3034,7 +3034,7 @@ void ScriptedControlAudioParameter::setValue(float newValue)
 			{
 				lastValue = snappedValue;
 				lastValueInitialised = true;
-				scriptProcessor->setAttribute(componentIndex, snappedValue, sendNotification);
+				scriptProcessor->setAttribute(componentIndex, snappedValue, sendNotificationAsync);
 			}
 		}
 	}
@@ -3167,7 +3167,9 @@ void ScriptedControlAudioParameter::setParameterNotifyingHost(int index, float n
 {
 	auto mc = dynamic_cast<MainController*>(parentProcessor);
 
-	if (mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::AudioThread)
+	auto defer = mc->getDeferNotifyHostFlag() || mc->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::AudioThread;
+
+	if (defer)
 	{
 		indexForHost = index;
 		valueForHost = newValue;
