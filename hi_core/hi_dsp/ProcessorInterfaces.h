@@ -568,11 +568,17 @@ public:
 	/** a simple POD which contains the id and the name of a Processor type. */
 	struct ProcessorEntry
 	{
-		ProcessorEntry(const Identifier t, const String &n);;
+		ProcessorEntry(const Identifier t, const String &n):
+		  type(t),
+		  name(n),
+		  index(-1)
+		{}
+
 		ProcessorEntry() {};
 
 		Identifier type;
 		String name;
+		int index = 0;
 	};
 
 	// ================================================================================================================
