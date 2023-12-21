@@ -590,6 +590,8 @@ namespace FloatingTileKeyPressIds
 	DECLARE_ID(focus_browser)
 	DECLARE_ID(cycle_editor);
 	DECLARE_ID(cycle_browser)
+	DECLARE_ID(save_hip);
+	DECLARE_ID(save_xml);
 }
 
 #undef DECLARE_ID

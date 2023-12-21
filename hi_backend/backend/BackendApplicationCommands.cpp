@@ -253,18 +253,25 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Open Archive", true, false, 'X', false);
 		result.categoryName = "File";
 		break;
-	case MenuSaveFile:
-		setCommandTarget(result, "Save Archive", true, false, 'S');
+	case MenuSaveFile: {
+		setCommandTarget(result, "Save Archive", true, false, 'S', false);
+		auto k = TopLevelWindowWithKeyMappings::getFirstKeyPress(bpe, FloatingTileKeyPressIds::save_hip);
+		result.addDefaultKeypress(k.getKeyCode(), k.getModifiers());
 		result.categoryName = "File";
-		break;
+		break; }
 	case MenuSaveFileAs:
 		setCommandTarget(result, "Save As Archive", true, false, 'X', false);
+
 		result.categoryName = "File";
 		break;
-	case MenuSaveFileXmlBackup:
-	  	setCommandTarget(result, "Save XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'S', true, ModifierKeys::commandModifier | ModifierKeys::shiftModifier);
+	case MenuSaveFileXmlBackup: {
+	  	setCommandTarget(result, "Save XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'S', false);
+
+		auto k = TopLevelWindowWithKeyMappings::getFirstKeyPress(bpe, FloatingTileKeyPressIds::save_xml);
+		result.addDefaultKeypress(k.getKeyCode(), k.getModifiers());
+
 		result.categoryName = "File";
-		break;
+		break; }
 	case MenuSaveFileAsXmlBackup:
 		setCommandTarget(result, "Save as XML", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		result.categoryName = "File";

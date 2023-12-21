@@ -402,6 +402,10 @@ void BackendRootWindow::initialiseAllKeyPresses()
 
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_browser, "Fold Browser Tab", KeyPress(KeyPress::F2Key, ModifierKeys::shiftModifier, 0));
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_editor, "Fold Code Editor", KeyPress(KeyPress::F3Key, ModifierKeys::shiftModifier, 0));
+
+	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::save_hip, "Save as .HIP", KeyPress('s', ModifierKeys::commandModifier, 's'));
+	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::save_xml, "Save as .XML", KeyPress('s', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 's'));
+
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_interface, "Fold Interface Designer", KeyPress(KeyPress::F4Key, ModifierKeys::shiftModifier, 0));
 
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_watch, "Fold Script Variable Watch Table", KeyPress('q', ModifierKeys::commandModifier, 'q'));
