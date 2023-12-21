@@ -1488,6 +1488,15 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 {
 	ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(newProcessor);
 
+	if(getNumProcessors() >= 8)
+	{
+		debugError(m, "Can't add sound generator to synth group - exceeded max number of child synths (8).");
+
+		// usually this will be owned by the group but since this is an error
+		// we'll live with the memory leak of the processor...
+		return;
+	}
+
 	// Check incompatibilites with SynthGroups
 
 	if (m->getChildProcessor(ModulatorSynth::EffectChain)->getNumChildProcessors() != 0)
