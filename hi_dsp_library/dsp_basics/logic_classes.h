@@ -193,6 +193,25 @@ template <int Unused> struct gate
     }
 };
 
+template <int Unused> struct random
+{
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_INITIALISE;
+
+    bool getMidiValue(HiseEvent& e, double& v)
+    {
+        if (e.isNoteOn())
+        {
+            v = r.nextDouble();
+            return true;
+        }
+
+        return false;
+    }
+    
+    Random r;
+};
+
 template <int Unused> struct velocity
 {
     SN_EMPTY_PREPARE;

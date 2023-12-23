@@ -140,7 +140,9 @@ bool dynamic::getMidiValueWrapped(HiseEvent& e, double& v)
 		return notenumber<0>().getMidiValue(e, v);
 	case Mode::Frequency:
 		return frequency<0>().getMidiValue(e, v);
-
+    case Mode::Random:
+        return random<0>().getMidiValue(e, v);
+        
 	case Mode::Custom:
 	{
 #if HISE_INCLUDE_SNEX

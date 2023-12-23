@@ -127,12 +127,13 @@ struct dynamic : public OptionalSnexSource
 		Velocity,
 		NoteNumber,
 		Frequency,
+        Random,
 		Custom
 	};
 
 	static StringArray getModes()
 	{
-		return { "Gate", "Velocity", "NoteNumber", "Frequency", "Custom" };
+		return { "Gate", "Velocity", "NoteNumber", "Frequency", "Random", "Custom" };
 	}
 
 	String getEmptyText(const Identifier& id) const override;
