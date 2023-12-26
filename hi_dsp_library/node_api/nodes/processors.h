@@ -41,6 +41,57 @@ using namespace snex;
 using namespace snex::Types;
 
 
+namespace interpolators
+{
+
+using linear = juce::Interpolators::Linear;
+using cubic = juce::Interpolators::CatmullRom;
+using none = juce::Interpolators::ZeroOrderHold;
+
+struct dynamic
+{
+    enum class Types
+    {
+        Cubic,
+        Linear,
+        None,
+        numTypes
+    };
+    
+    void process(double ratio, float* inp, float* out, int numOut, int numIn, bool wrap)
+    {
+        switch(currentType)
+        {
+            case Types::Cubic: c.process(ratio, inp, out, numOut, numIn, false); break;
+            case Types::Linear: l.process(ratio, inp, out, numOut, numIn, false); break;
+            case Types::None: n.process(ratio, inp, out, numOut, numIn, false); break;
+        }
+    }
+    
+    void setType(Types nt)
+    {
+        currentType = nt;
+        reset();
+    }
+    
+    void reset()
+    {
+        switch(currentType)
+        {
+            case Types::Cubic: c.reset(); break;
+            case Types::Linear: l.reset(); break;
+            case Types::None: n.reset(); break;
+        }
+    }
+    
+    Types currentType = Types::Cubic;
+    
+    cubic c;
+    linear l;
+    none n;
+};
+
+}
 
 namespace scriptnode_initialisers
 {
@@ -709,62 +760,12 @@ protected:
 	ScopedPointer<Oversampler> oversampler;
 };
 
-namespace interpolators
-{
 
-using linear = juce::Interpolators::Linear;
-using cubic = juce::Interpolators::CatmullRom;
-using none = juce::Interpolators::ZeroOrderHold;
-
-struct dynamic
-{
-    enum class Types
-    {
-        Cubic,
-        Linear,
-        None,
-        numTypes
-    };
-    
-    void process(double ratio, float* inp, float* out, int numOut, int numIn, bool wrap)
-    {
-        switch(currentType)
-        {
-            case Types::Cubic: c.process(ratio, inp, out, numOut, numIn, false); break;
-            case Types::Linear: l.process(ratio, inp, out, numOut, numIn, false); break;
-            case Types::None: n.process(ratio, inp, out, numOut, numIn, false); break;
-        }
-    }
-    
-    void setType(Types nt)
-    {
-        currentType = nt;
-        reset();
-    }
-    
-    void reset()
-    {
-        switch(currentType)
-        {
-            case Types::Cubic: c.reset(); break;
-            case Types::Linear: l.reset(); break;
-            case Types::None: n.reset(); break;
-        }
-    }
-    
-    Types currentType = Types::Cubic;
-    
-    cubic c;
-    linear l;
-    none n;
-};
-
-}
 
 
 template <class T, class InterpolatorType> class repitch
 {
-    static constexpr int MaxDownsampleFactor = 2;
+	static constexpr int MaxDownsampleFactor = 2;
     
     InterpolatorType up[2];
     InterpolatorType down[2];
@@ -838,10 +839,22 @@ public:
     {
         if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
         {
-            if(data.getNumChannels() == 1)
+			if constexpr (data.hasCompileTimeSize())
+			{
+				if constexpr (data.getNumChannels() == 1)
+	                processFixed<1>(data);
+	            if constexpr (data.getNumChannels() == 2)
+	                processFixed<2>(data);
+			}
+			else
+			{
+				if(data.getNumChannels() == 1)
                 processFixed<1>(data.template as<ProcessData<1>>());
-            if(data.getNumChannels() == 2)
-                processFixed<2>(data.template as<ProcessData<2>>());
+	            if(data.getNumChannels() == 2)
+	                processFixed<2>(data.template as<ProcessData<2>>());
+			}
+
+            
         }
     }
 

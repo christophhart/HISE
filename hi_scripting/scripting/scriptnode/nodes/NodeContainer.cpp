@@ -571,6 +571,7 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<NoMidiChainNode>();
 	registerNodeRaw<SoftBypassNode>();
     registerNodeRaw<SidechainNode>();
+	registerNodeRaw<BranchNode>();
 }
 
 juce::ValueTree NodeContainer::MacroParameter::getConnectionTree()

@@ -523,24 +523,20 @@ class RepitchNode : public SerialNode
 {
 public:
 
-    enum Parameters
-    {
-        RepitchFactor,
-        Interpolation,
-        numParameters
-    };
+    
     
     SCRIPTNODE_FACTORY(RepitchNode, "repitch");
 
     String getNodeDescription() const override { return "Resamples the audio signal and processes its child nodes with a different sample rate"; }
 
-    RepitchNode(DspNetwork* network, ValueTree d):
-      SerialNode(network, d)
+    RepitchNode(DspNetwork* network, ValueTree d);
+
+	enum Parameters
     {
-        initListeners(false);
-        addFixedParameters();
-        obj.initialise(this);
-    }
+        RepitchFactor,
+        Interpolation,
+        numParameters
+    };
 
     DEFINE_PARAMETERS
     {
@@ -560,38 +556,22 @@ public:
         obj.setParameter<1>(s);
     }
     
-    void process(ProcessDataDyn& data) final override
-    {
-        obj.process(data);
-    }
+    void process(ProcessDataDyn& data) final;
 
     void processFrame(FrameType& data) noexcept final override
     {
         
     }
 
-    void processMonoFrame(MonoFrameType& data)
-    {
-        obj.processFrame(data);
-    }
-    
-    void processStereoFrame(StereoFrameType& data)
-    {
-        obj.processFrame(data);
-    }
+    void processMonoFrame(MonoFrameType& data) override;
 
-    void prepare(PrepareSpecs ps) final override
-    {
-        obj.prepare(ps);
-    }
-    void reset() final override
-    {
-        obj.reset();
-    }
-    void handleHiseEvent(HiseEvent& e) final override
-    {
-        obj.handleHiseEvent(e);
-    }
+    void processStereoFrame(StereoFrameType& data);
+
+    void prepare(PrepareSpecs ps) final;
+
+    void reset() final;
+
+    void handleHiseEvent(HiseEvent& e) final;
 
     void setBypassed(bool shouldBeBypassed) override
     {
@@ -600,30 +580,8 @@ public:
 
     virtual bool hasFixedParameters() const { return true; }
     
-    ParameterDataList createInternalParameterList() override
-    {
-        ParameterDataList data;
+    ParameterDataList createInternalParameterList() override;
 
-        {
-            parameter::data p("RepitchFactor");
-            p.setRange({0.5, 2.0});
-            p.callback = parameter::inner<RepitchNode, 0>(*this);
-            p.info.index = 0;
-            p.setSkewForCentre(1.0);
-            p.setDefaultValue(1.0);
-            data.add(std::move(p));
-        }
-        {
-            parameter::data p("Interpolation");
-            p.setParameterValueNames({"Cubic", "Linear", "None"});
-            p.callback = parameter::inner<RepitchNode, 1>(*this);
-            p.info.index = 1;
-            data.add(std::move(p));
-        }
-
-        return data;
-    }
-    
     wrap::repitch<DynamicSerialProcessor, wrap::interpolators::dynamic> obj;
 };
 
@@ -838,6 +796,48 @@ public:
 
 	float* currentChannelData[NUM_MAX_CHANNELS];
 	Range<int> channelRanges[NUM_MAX_CHANNELS];
+};
+
+class BranchNode : public ParallelNode
+{
+public:
+
+	BranchNode(DspNetwork* root, ValueTree data);;
+
+	SCRIPTNODE_FACTORY(BranchNode, "branch");
+
+	void updateIndexLimit(ValueTree, bool wasAdded);
+
+	String getNodeDescription() const override { return "Processes a single child based on the branch index"; }
+
+	enum Parameters
+    {
+        Index,
+		numParameters
+    };
+
+    DEFINE_PARAMETERS
+    {
+        DEF_PARAMETER(Index, BranchNode);
+    }
+
+    SN_PARAMETER_MEMBER_FUNCTION;
+    
+    void setIndex(double s);
+
+	void prepare(PrepareSpecs ps) final override;
+	void reset() final override;
+	void handleHiseEvent(HiseEvent& e) override;
+	void processFrame(FrameType& data) final override;
+	void process(ProcessDataDyn& d) final override;
+
+	virtual bool hasFixedParameters() const override { return true; }
+    
+    ParameterDataList createInternalParameterList() override;
+
+	valuetree::ChildListener indexRangeUpdater;
+
+	int currentIndex = 0;
 };
 
 class SingleSampleBlockX : public SerialNode

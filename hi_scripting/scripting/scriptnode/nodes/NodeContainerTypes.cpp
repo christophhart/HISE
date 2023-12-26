@@ -497,6 +497,15 @@ void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange
 		return;
 }
 
+BranchNode::BranchNode(DspNetwork* root, ValueTree data):
+	ParallelNode(root, data)
+{
+	initListeners(false);
+	addFixedParameters();
+
+	indexRangeUpdater.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(BranchNode::updateIndexLimit));
+}
+
 void MultiChannelNode::prepare(PrepareSpecs ps)
 {
 	auto numNodes = this->nodes.size();
@@ -591,6 +600,75 @@ void MultiChannelNode::process(ProcessDataDyn& d)
 
 		channelIndex += numChannelsThisTime;
 	}
+}
+
+void BranchNode::updateIndexLimit(ValueTree, bool wasAdded)
+{
+	auto numChildren = getNodeTree().getNumChildren();
+
+	if(numChildren > 1)
+	{
+		auto p = getParameterFromIndex(0);
+		p->data.setProperty(scriptnode::PropertyIds::MaxValue, numChildren-1, getUndoManager());
+
+		if(p->getValue() > numChildren-1)
+			p->setValueSync((double)(numChildren-1));
+	}
+}
+
+void BranchNode::setIndex(double s)
+{
+	currentIndex = roundToInt(s);
+}
+
+void BranchNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareContainer(ps);
+	NodeContainer::prepareNodes(ps);
+}
+
+void BranchNode::reset()
+{
+	for(auto n: nodes)
+		n->reset();
+}
+
+void BranchNode::handleHiseEvent(HiseEvent& e)
+{
+	if(auto n = nodes[currentIndex])
+		n->handleHiseEvent(e);
+}
+
+void BranchNode::processFrame(FrameType& data)
+{
+	if(auto n = nodes[currentIndex])
+		n->processFrame(data);
+}
+
+void BranchNode::process(ProcessDataDyn& d)
+{
+	if(isBypassed())
+		return;
+	
+	if(auto n = nodes[currentIndex])
+		n->process(d);
+}
+
+ParameterDataList BranchNode::createInternalParameterList()
+{
+	ParameterDataList data;
+
+	{
+		parameter::data p("Index");
+		p.setRange({0.0, 10.0, 1.0});
+		p.callback = parameter::inner<BranchNode, 0>(*this);
+		p.info.index = 0;
+		p.setDefaultValue(0.0);
+		data.add(std::move(p));
+	}
+        
+	return data;
 }
 
 SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :
@@ -1263,6 +1341,72 @@ bool CloneNode::shouldCloneBeDisplayed(int index) const
 		return index == 0;
 
 	return displayedCloneState[index];
+}
+
+RepitchNode::RepitchNode(DspNetwork* network, ValueTree d):
+	SerialNode(network, d)
+{
+	initListeners(false);
+	addFixedParameters();
+	obj.initialise(this);
+}
+
+void RepitchNode::process(ProcessDataDyn& data)
+{
+	NodeProfiler np(this, data.getNumSamples());
+    ProcessDataPeakChecker pd(this, data);
+    TRACE_DSP();
+
+	obj.process(data);
+}
+
+void RepitchNode::processMonoFrame(MonoFrameType& data)
+{
+	obj.processFrame(data);
+}
+
+void RepitchNode::processStereoFrame(StereoFrameType& data)
+{
+	obj.processFrame(data);
+}
+
+void RepitchNode::prepare(PrepareSpecs ps)
+{
+	obj.prepare(ps);
+}
+
+void RepitchNode::reset()
+{
+	obj.reset();
+}
+
+void RepitchNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+ParameterDataList RepitchNode::createInternalParameterList()
+{
+	ParameterDataList data;
+
+	{
+		parameter::data p("RepitchFactor");
+		p.setRange({0.5, 2.0});
+		p.callback = parameter::inner<RepitchNode, 0>(*this);
+		p.info.index = 0;
+		p.setSkewForCentre(1.0);
+		p.setDefaultValue(1.0);
+		data.add(std::move(p));
+	}
+	{
+		parameter::data p("Interpolation");
+		p.setParameterValueNames({"Cubic", "Linear", "None"});
+		p.callback = parameter::inner<RepitchNode, 1>(*this);
+		p.info.index = 1;
+		data.add(std::move(p));
+	}
+
+	return data;
 }
 
 FixedBlockXNode::FixedBlockXNode(DspNetwork* network, ValueTree d) :

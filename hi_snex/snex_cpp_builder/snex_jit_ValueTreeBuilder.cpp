@@ -720,6 +720,8 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 			pooledTypeDefinitions.add(childNode);
         }
 
+		
+
 		parseContainerParameters(u);
 		parseContainerChildren(u);
 
@@ -786,6 +788,11 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		{
 			auto os = realPath.fromFirstOccurrenceOf("oversample", false, false).getIntValue();
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::oversample"), os);
+		}
+		if(useSpecialWrapper && realPath.startsWith("repitch"))
+		{
+			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::repitch"));
+			*u << "interpolators::dynamic";
 		}
 
         jassert(u->nodeTree.isValid());
@@ -1020,6 +1027,12 @@ void ValueTreeBuilder::parseContainerChildren(Node::Ptr container)
 
 void ValueTreeBuilder::parseContainerParameters(Node::Ptr c)
 {
+	if(ValueTreeIterator::isContainerWithFixedParameters(c->nodeTree))
+	{
+		*c << "parameter::empty";
+		return;
+	}
+	
 	addEmptyLine();
 
 	auto pTree = c->nodeTree.getChildWithName(PropertyIds::Parameters);
@@ -1671,11 +1684,16 @@ NamespacedIdentifier ValueTreeBuilder::getNodeVariable(const ValueTree& n)
 }
 
 
+bool ValueTreeIterator::fixCppIllegalCppKeyword(String& s)
+{
+	if (s == "switch")
+	{
+		s = "switcher";
+		return true;
+	}
 
-
-
-
-
+	return false;
+}
 
 bool ValueTreeIterator::needsModulationWrapper(ValueTree& v)
 {
@@ -1853,8 +1871,9 @@ snex::NamespacedIdentifier ValueTreeIterator::getNodeFactoryPath(const ValueTree
 		auto isSplit = fId.id.toString() == "split";
 		auto isMulti = fId.id.toString() == "multi";
 		auto isClone = fId.id.toString() == "clone";
+		auto isBranch = fId.id.toString() == "branch";
 
-		if (!isSplit && !isMulti && !isClone)
+		if (!isSplit && !isMulti && !isClone && !isBranch)
 		{
 			return NamespacedIdentifier::fromString("container::chain");
 		}
@@ -1913,6 +1932,20 @@ int ValueTreeIterator::calculateChannelCount(const ValueTree& nodeTree, int numC
 		numCurrentChannels = 1;
 
 	return numCurrentChannels;
+}
+
+bool ValueTreeIterator::isContainerWithFixedParameters(const ValueTree& nodeTree)
+{
+	static const Array<Identifier> fixContainers =
+	{
+		"oversample",
+		"repitch",
+		"branch"
+	};
+
+	auto s = nodeTree[scriptnode::PropertyIds::FactoryPath].toString().replace(".", "::");
+	auto id = NamespacedIdentifier::fromString(s).id;
+	return fixContainers.contains(id);
 }
 
 bool ValueTreeIterator::hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId)

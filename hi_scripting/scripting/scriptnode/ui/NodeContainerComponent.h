@@ -468,6 +468,16 @@ public:
 			dragButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
 		}
 
+		bool fixed = false;
+
+		void setFixedParameter(bool shouldBeFixed)
+		{
+			fixed = shouldBeFixed;
+
+			addButton.setVisible(!fixed);
+			dragButton.setVisible(!fixed);
+		}
+
 		void buttonClicked(Button* b) override
 		{
 			auto pc = findParentComponentOfClass<ParameterComponent>();
@@ -528,6 +538,9 @@ public:
 			if ((leftTabComponent = dynamic_cast<NodeContainer*>(parent.node.get())->createLeftTabComponent()))
 				addAndMakeVisible(leftTabComponent);
 
+			if(auto mt = dynamic_cast<ContainerComponent::MacroToolbar*>(leftTabComponent.get()))
+				mt->setFixedParameter(isFixedParameterComponent());
+			
 			setSize(500, UIValues::ParameterHeight);
 			rebuildParameters();
 		}

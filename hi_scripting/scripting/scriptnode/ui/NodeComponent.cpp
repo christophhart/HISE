@@ -932,6 +932,7 @@ juce::Path NodeComponentFactory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("split", ScriptnodeIcons::splitIcon);
 	LOAD_EPATH_IF_URL("freeze", HnodeIcons::freezeIcon);
 	LOAD_EPATH_IF_URL("chain", ScriptnodeIcons::chainIcon);
+	LOAD_EPATH_IF_URL("branch", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
 	LOAD_EPATH_IF_URL("multi", ScriptnodeIcons::multiIcon);
 	LOAD_EPATH_IF_URL("modchain", ScriptnodeIcons::modIcon);
 	LOAD_EPATH_IF_URL("midichain", HiBinaryData::SpecialSymbols::midiData);

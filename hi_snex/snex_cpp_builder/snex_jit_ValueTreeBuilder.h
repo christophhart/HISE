@@ -46,16 +46,7 @@ struct ValueTreeIterator: public valuetree::Helpers
 	
 	
 
-	static bool fixCppIllegalCppKeyword(String& s)
-	{
-		if (s == "switch")
-		{
-			s = "switcher";
-			return true;
-		}
-
-		return false;
-	}
+	static bool fixCppIllegalCppKeyword(String& s);
 
 	static bool needsModulationWrapper(ValueTree& v);
 
@@ -86,6 +77,8 @@ struct ValueTreeIterator: public valuetree::Helpers
 	static ValueTree getTargetParameterTree(const ValueTree& connectionTree);
 
 	static int calculateChannelCount(const ValueTree& nodeTree, int numCurrentChannels);
+
+	static bool isContainerWithFixedParameters(const ValueTree& nodeTree);
 
 	static bool hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId);
 

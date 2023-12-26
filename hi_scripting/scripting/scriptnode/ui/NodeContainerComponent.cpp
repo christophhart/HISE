@@ -1088,6 +1088,22 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 			p.addLineSegment({ start, end }, 2.0f);
 		}
 	}
+	else if (auto bn = dynamic_cast<BranchNode*>(node.get()))
+	{
+		if(auto cn = childNodeComponents[bn->currentIndex])
+		{
+			auto b = cn->getBounds().toFloat();
+
+			Point<float> p1(b.getCentreX() + xOffset, b.getY());
+			Point<float> p2(b.getCentreX() + xOffset, b.getBottom());
+
+            if(shouldPaintCable(CableLocation::Input))
+                p.addLineSegment({ start, p1 }, 2.0f);
+            
+            if(shouldPaintCable(CableLocation::Output))
+                p.addLineSegment({ p2, end }, 2.0f);
+		}
+	}
 	else if (auto sn = dynamic_cast<SerialNode*>(node.get()))
 	{
 		DspNetworkPathFactory df;
