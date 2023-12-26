@@ -90,7 +90,8 @@ struct table: public scriptnode::data::base
 			{
 				for (auto& s : data.toChannelData(ch))
 				{
-					processFloat(s);
+                    v = hmath::abs(v);
+					processFloat(v);
 				}
 			}
 
@@ -100,7 +101,7 @@ struct table: public scriptnode::data::base
 
 	void processFloat(float& s)
 	{
-		InterpolatorType ip(hmath::abs(s));
+		InterpolatorType ip(s);
 		s *= tableData[ip];
 	}
 
@@ -114,10 +115,17 @@ struct table: public scriptnode::data::base
 	{
 		DataReadLock l(this);
 
+        float v = 0.0f;
+        
 		if (!tableData.isEmpty())
 		{
 			for(auto& s: data)
-				processFloat(s);
+            {
+                v = hmath::abs(s);
+                processFloat(v);
+            }
+            
+            externalData.setDisplayedValue(v);
 		}
 	}
 
