@@ -611,7 +611,25 @@ struct SpecNode: public NodeBase
 					as.append(String(vr->getNumActiveVoices()) + "\n", f2, w2);
 				}
 			}
+            
+            as.append("Values: ", f1, w1);
+            
+            String valueString;
+            valueString << "[ ";
+            
+            auto peaks = dynamic_cast<SpecNode*>(node.get())->peaks;
+            
+            for(int i = 0; i < specs.numChannels; i++)
+            {
+                valueString << snex::Types::Helpers::getCppValueString(peaks[i]);
+                
+                if(i != specs.numChannels-1)
+                    valueString << ", ";
+            }
 
+            valueString << " ]\n";
+            as.append(valueString, f2, w2);
+            
 			auto b = getLocalBounds();
 			b.removeFromTop(header.getHeight());
 			b = b.reduced(UIValues::NodeMargin);
@@ -636,16 +654,32 @@ struct SpecNode: public NodeBase
 	void process(ProcessDataDyn& data) override
 	{
 		lastMs = Time::getMillisecondCounter();
+        
+        int idx = 0;
+        
+        for(auto& ch: data)
+        {
+            auto b = data.toChannelData(ch);
+            
+            auto r = FloatVectorOperations::findMinAndMax(b.begin(), b.size());
+            
+            if(hmath::abs(r.getStart()) > hmath::abs(r.getEnd()))
+                peaks[idx++] = r.getStart();
+            else
+                peaks[idx++] = r.getEnd();
+        }
 	}
 
 	void reset() override
 	{
-
+        FloatVectorOperations::clear(peaks.begin(), peaks.size());
 	};
 
 	void processFrame(FrameType& data) override
 	{
 		lastMs = Time::getMillisecondCounter();
+        
+        FloatVectorOperations::copy(peaks.begin(), data.begin(), data.size());
 	}
 
 	void prepare(PrepareSpecs ps) override
@@ -670,12 +704,14 @@ struct SpecNode: public NodeBase
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
 	{
-		return { topLeft.getX(), topLeft.getY(), 256, 130 };
+		return { topLeft.getX(), topLeft.getY(), 256, 150 };
 	}
 
 	uint32 lastMs;
 	PrepareSpecs lastSpecs;
 	bool processMidi = false;
+    
+    span<float, NUM_MAX_CHANNELS> peaks;
 };
 
 Factory::Factory(DspNetwork* network) :
