@@ -260,7 +260,34 @@ namespace Operations
 		}
 	};
 
+    struct fmod
+	{
+        SET_DESCRIPTION("Calculates the floating point modulo from the signal.");
+		SET_ID(fmod); SET_DEFAULT(1.0f);
 
+		OP_BLOCK(data, value)
+		{
+            if(value == 0.0f)
+                return;
+
+			for (auto ch : data)
+			{
+				block b(data.toChannelData(ch));
+
+                for (auto& s : b)
+					s = hmath::fmod(s, value);
+			}
+		};
+
+		OP_SINGLE(data, value)
+		{
+            if(value == 0.0f)
+                return;
+
+			for (auto& s : data)
+				s = hmath::fmod(s, value);
+		}
+	};
 
 	struct tanh
 	{
@@ -281,19 +308,19 @@ namespace Operations
         SET_DESCRIPTION("Multiplies the signal with PI (3.13)");
 		SET_ID(pi); SET_DEFAULT(2.0f);
 
-		OP_BLOCK(data, unused)
+		OP_BLOCK(data, value)
 		{
 			for (auto ch : data)
             {
                 block b(data.toChannelData(ch));
-				hmath::vmuls(b, float_Pi);
+				hmath::vmuls(b, float_Pi * value);
             }
 		}
 
 		OP_SINGLE(data, value)
 		{
 			for (auto& s : data)
-				s *= float_Pi;
+				s *= (float_Pi * value);
 		}
 	};
 
@@ -328,7 +355,7 @@ namespace Operations
     struct mod2sig
     {
         SET_DESCRIPTION("Converts a 0...1 signal to a -1...1 signal.");
-        SET_ID(sig2mod); SET_DEFAULT(0.0f);
+        SET_ID(mod2sig); SET_DEFAULT(0.0f);
 
         OP_BLOCK2SINGLE(data, unused);
 
@@ -341,7 +368,7 @@ namespace Operations
 
     struct rect
     {
-        SET_ID(inv); SET_DEFAULT(0.0f);
+        SET_ID(rect); SET_DEFAULT(0.0f);
         SET_DESCRIPTION("Rectifies a normalised signal to 0 or 1");
 
         OP_BLOCK2SINGLE(data, unused);
@@ -730,6 +757,7 @@ DEFINE_MONO_OP_NODE(fill1);
 DEFINE_OP_NODE(sub);
 DEFINE_OP_NODE(div);
 DEFINE_OP_NODE(tanh);
+DEFINE_OP_NODE(fmod);
 DEFINE_OP_NODE(clip);
 DEFINE_MONO_OP_NODE(sin);
 DEFINE_MONO_OP_NODE(pi);

@@ -1081,6 +1081,7 @@ Factory::Factory(DspNetwork* n) :
     REGISTER_POLY_MATH_NODE(add);
     REGISTER_MONO_MATH_NODE(fill1);
     REGISTER_POLY_MATH_NODE(tanh);
+	REGISTER_POLY_MATH_NODE(fmod);
     REGISTER_POLY_MATH_NODE(mul );
     REGISTER_POLY_MATH_NODE(sub );
     REGISTER_POLY_MATH_NODE(div );
@@ -1175,6 +1176,8 @@ namespace control
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
 		
 		registerNoProcessNode<control::normaliser<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+
+		registerNoProcessNode<control::random<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
 		registerNoProcessNode<control::input_toggle<parameter::dynamic_base_holder>, input_toggle_editor>();
 
