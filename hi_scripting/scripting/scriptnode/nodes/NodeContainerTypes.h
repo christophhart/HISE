@@ -519,7 +519,113 @@ public:
 	wrap::oversample<OversampleFactor, SerialNode::DynamicSerialProcessor> obj;
 };
 
+class RepitchNode : public SerialNode
+{
+public:
 
+    enum Parameters
+    {
+        RepitchFactor,
+        Interpolation,
+        numParameters
+    };
+    
+    SCRIPTNODE_FACTORY(RepitchNode, "repitch");
+
+    String getNodeDescription() const override { return "Resamples the audio signal and processes its child nodes with a different sample rate"; }
+
+    RepitchNode(DspNetwork* network, ValueTree d):
+      SerialNode(network, d)
+    {
+        initListeners(false);
+        addFixedParameters();
+        obj.initialise(this);
+    }
+
+    DEFINE_PARAMETERS
+    {
+        DEF_PARAMETER(RepitchFactor, RepitchNode);
+        DEF_PARAMETER(Interpolation, RepitchNode);
+    }
+
+    SN_PARAMETER_MEMBER_FUNCTION;
+    
+    void setRepitchFactor(double s)
+    {
+        obj.setParameter<0>(s);
+    }
+    
+    void setInterpolation(double s)
+    {
+        obj.setParameter<1>(s);
+    }
+    
+    void process(ProcessDataDyn& data) final override
+    {
+        obj.process(data);
+    }
+
+    void processFrame(FrameType& data) noexcept final override
+    {
+        
+    }
+
+    void processMonoFrame(MonoFrameType& data)
+    {
+        obj.processFrame(data);
+    }
+    
+    void processStereoFrame(StereoFrameType& data)
+    {
+        obj.processFrame(data);
+    }
+
+    void prepare(PrepareSpecs ps) final override
+    {
+        obj.prepare(ps);
+    }
+    void reset() final override
+    {
+        obj.reset();
+    }
+    void handleHiseEvent(HiseEvent& e) final override
+    {
+        obj.handleHiseEvent(e);
+    }
+
+    void setBypassed(bool shouldBeBypassed) override
+    {
+        
+    }
+
+    virtual bool hasFixedParameters() const { return true; }
+    
+    ParameterDataList createInternalParameterList() override
+    {
+        ParameterDataList data;
+
+        {
+            parameter::data p("RepitchFactor");
+            p.setRange({0.5, 2.0});
+            p.callback = parameter::inner<RepitchNode, 0>(*this);
+            p.info.index = 0;
+            p.setSkewForCentre(1.0);
+            p.setDefaultValue(1.0);
+            data.add(std::move(p));
+        }
+        {
+            parameter::data p("Interpolation");
+            p.setParameterValueNames({"Cubic", "Linear", "None"});
+            p.callback = parameter::inner<RepitchNode, 1>(*this);
+            p.info.index = 1;
+            data.add(std::move(p));
+        }
+
+        return data;
+    }
+    
+    wrap::repitch<DynamicSerialProcessor, wrap::interpolators::dynamic> obj;
+};
 
 template <int B> class FixedBlockNode : public SerialNode
 {

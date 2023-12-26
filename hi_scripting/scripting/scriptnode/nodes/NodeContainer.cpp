@@ -566,6 +566,7 @@ NodeContainerFactory::NodeContainerFactory(DspNetwork* parent) :
 	registerNodeRaw<FixedBlockNode<256>>();
 	registerNodeRaw<FixedBlockXNode>();
 	registerNodeRaw<OfflineChainNode>();
+    registerNodeRaw<RepitchNode>();
 	registerNodeRaw<CloneNode>();
 	registerNodeRaw<NoMidiChainNode>();
 	registerNodeRaw<SoftBypassNode>();

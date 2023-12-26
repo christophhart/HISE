@@ -709,6 +709,194 @@ protected:
 	ScopedPointer<Oversampler> oversampler;
 };
 
+namespace interpolators
+{
+
+using linear = juce::Interpolators::Linear;
+using cubic = juce::Interpolators::CatmullRom;
+using none = juce::Interpolators::ZeroOrderHold;
+
+struct dynamic
+{
+    enum class Types
+    {
+        Cubic,
+        Linear,
+        None,
+        numTypes
+    };
+    
+    void process(double ratio, float* inp, float* out, int numOut, int numIn, bool wrap)
+    {
+        switch(currentType)
+        {
+            case Types::Cubic: c.process(ratio, inp, out, numOut, numIn, false); break;
+            case Types::Linear: l.process(ratio, inp, out, numOut, numIn, false); break;
+            case Types::None: n.process(ratio, inp, out, numOut, numIn, false); break;
+        }
+    }
+    
+    void setType(Types nt)
+    {
+        currentType = nt;
+        reset();
+    }
+    
+    void reset()
+    {
+        switch(currentType)
+        {
+            case Types::Cubic: c.reset(); break;
+            case Types::Linear: l.reset(); break;
+            case Types::None: n.reset(); break;
+        }
+    }
+    
+    Types currentType = Types::Cubic;
+    
+    cubic c;
+    linear l;
+    none n;
+};
+
+}
+
+
+template <class T, class InterpolatorType> class repitch
+{
+    static constexpr int MaxDownsampleFactor = 2;
+    
+    InterpolatorType up[2];
+    InterpolatorType down[2];
+    
+public:
+    
+    repitch()
+    {};
+    
+    SN_SELF_AWARE_WRAPPER(repitch, T);
+  
+    // Forward the get calls to the wrapped container
+    template <int arg> constexpr auto& get() noexcept { return this->obj.template get<arg>(); }
+    template <int arg> constexpr const auto& get() const noexcept { return this->obj.template get<arg>(); }
+
+    template <int P> void setParameter(double newValue)
+    {
+        if constexpr(P == 0)
+            this->setRepitchFactor(newValue);
+        if constexpr(P == 1)
+            this->setInterpolation(newValue);
+    }
+    SN_FORWARD_PARAMETER_TO_MEMBER(repitch);
+    
+    void setRepitchFactor(double newRatio)
+    {
+        SimpleReadWriteLock::ScopedMultiWriteLock sl(lock);
+        ratio = jlimit(0.5, 2.0, newRatio);
+        invRatio = 1.0 / ratio;
+    }
+    
+    void setInterpolation(double newValue)
+    {
+        if constexpr(std::is_same<InterpolatorType, interpolators::dynamic>())
+        {
+            SimpleReadWriteLock::ScopedMultiWriteLock sl(lock);
+            auto t = (interpolators::dynamic::Types)(int)newValue;
+            
+            up[0].setType(t);
+            up[1].setType(t);
+            down[0].setType(t);
+            down[1].setType(t);
+        }
+    }
+    
+    template <int C> void processFixed(ProcessData<C>& data)
+    {
+        int numInternalSamples = (int)hmath::round((double)data.getNumSamples() / ratio);
+        
+        auto d = ProcessDataHelpers<C>::makeChannelData(buffer, numInternalSamples);
+        ProcessData<C> internalData(d.begin(), numInternalSamples-1);
+
+        for(int i = 0; i < C; i++)
+        {
+            auto inp = data[i];
+            auto out = internalData[i];
+            down[i].process(ratio, inp.begin(), out.begin(), out.size(), inp.size(), false);
+        }
+        
+        this->obj.process(internalData);
+        
+        for(int i = 0; i < C; i++)
+        {
+            auto inp = internalData[i];
+            auto out = data[i];
+            up[i].process(invRatio, inp.begin(), out.begin(), out.size(), inp.size(), false);
+        }
+    }
+    
+    template <typename ProcessDataType> void process(ProcessDataType& data)
+    {
+        if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+        {
+            if(data.getNumChannels() == 1)
+                processFixed<1>(data.template as<ProcessData<1>>());
+            if(data.getNumChannels() == 2)
+                processFixed<2>(data.template as<ProcessData<2>>());
+        }
+    }
+
+    template <typename FrameDataType> void processFrame(FrameDataType& t)
+    {
+        jassertfalse;
+    }
+    
+    void prepare(PrepareSpecs ps)
+    {
+        ps.blockSize *= MaxDownsampleFactor;
+        obj.prepare(ps);
+        
+        if(ps.blockSize == 2)
+        {
+            buffer.setSize(0);
+            return;
+        }
+        
+        auto numChannels = ps.numChannels;
+        auto numSamples = ps.blockSize + 3;
+        auto numElements = numChannels * numSamples;
+
+        if (numElements > buffer.size())
+            buffer.setSize(numElements);
+    }
+    
+    void reset()
+    {
+        {
+            hise::SimpleReadWriteLock::ScopedReadLock sl(lock);
+            
+            up[0].reset();
+            down[0].reset();
+            
+            up[1].reset();
+            down[1].reset();
+        }
+        
+        this->obj.reset();
+    }
+    
+    SN_DEFAULT_INIT(T);
+    SN_DEFAULT_MOD(T);
+    SN_DEFAULT_HANDLE_EVENT(T);
+    
+private:
+        
+    SimpleReadWriteLock lock;
+    
+    double ratio = 1.0;
+    double invRatio = 1.0;
+    T obj;
+    heap<float> buffer;
+};
 
 template <int OversamplingFactor, class T, class InitFunctionClass=scriptnode_initialisers::oversample> class oversample: public oversample_base
 {
