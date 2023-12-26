@@ -814,15 +814,18 @@ public:
     template <int C> void processFixed(ProcessData<C>& data)
     {
         int numInternalSamples = (int)hmath::round((double)data.getNumSamples() / ratio);
-        
+
+		double realRatio = (double)numInternalSamples / (double)data.getNumSamples();
+		auto invRealRatio = 1.0 / realRatio;
+
         auto d = ProcessDataHelpers<C>::makeChannelData(buffer, numInternalSamples);
-        ProcessData<C> internalData(d.begin(), numInternalSamples-1);
+        ProcessData<C> internalData(d.begin(), numInternalSamples);
 
         for(int i = 0; i < C; i++)
         {
             auto inp = data[i];
             auto out = internalData[i];
-            down[i].process(ratio, inp.begin(), out.begin(), out.size(), inp.size(), false);
+            down[i].process(invRealRatio, inp.begin(), out.begin(), out.size(), inp.size(), false);
         }
         
         this->obj.process(internalData);
@@ -831,7 +834,7 @@ public:
         {
             auto inp = internalData[i];
             auto out = data[i];
-            up[i].process(invRatio, inp.begin(), out.begin(), out.size(), inp.size(), false);
+            up[i].process(realRatio, inp.begin(), out.begin(), out.size(), inp.size(), false);
         }
     }
     

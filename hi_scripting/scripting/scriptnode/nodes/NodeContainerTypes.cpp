@@ -1372,6 +1372,8 @@ void RepitchNode::processStereoFrame(StereoFrameType& data)
 
 void RepitchNode::prepare(PrepareSpecs ps)
 {
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
 	obj.prepare(ps);
 }
 
