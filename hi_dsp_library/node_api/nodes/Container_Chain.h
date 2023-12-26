@@ -176,7 +176,68 @@ private:
 
 	tuple_iterator_op(process, BlockProcessor);
 	tuple_iterator_op(processFrame, FrameProcessor);
+};
 
+template <typename... Processors> struct select: public container_base<parameter::empty, Processors...>
+{
+    using Type = container_base<parameter::empty, Processors...>;
+    
+    static constexpr int NumElements = sizeof...(Processors);
+    
+    static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
+    static constexpr int getNumChannels() { return NumChannels; }
+
+    using BlockType = snex::Types::ProcessData<NumChannels>;
+    using BlockProcessor = chainprocessor::Block<BlockType>;
+
+    using FrameType = snex::Types::span<float, NumChannels>;
+    using FrameProcessor = chainprocessor::Frame<FrameType>;
+
+    
+
+    SN_GET_SELF_AS_OBJECT(select);
+
+    select() = default;
+    select(const select& other) = default;
+
+    ~select() {};
+    
+    /** prepares all child nodes with the same specs. */
+    void prepare(PrepareSpecs ps)
+    {
+        call_tuple_iterator1(prepare, ps);
+    }
+
+    /** Processes all child nodes. */
+    void process(BlockType& d)
+    {
+        this->template get<0>().process(d);
+    }
+
+    /** Process all child nodes one frame at a time. */
+    void processFrame(FrameType& d)
+    {
+        this->template get<0>().processFrame(d);
+    }
+
+    /** Calls `handleHiseEvent` for all child nodes. */
+    void handleHiseEvent(HiseEvent& e)
+    {
+    }
+
+    template <int P> static auto getNumChannelsOfFirstElement()
+    {
+        using TupleType = std::tuple<Processors...>;
+        using FirstElementType = typename std::tuple_element<P, TupleType>::type;
+        return FirstElementType::NumChannels;
+    }
+    
+private:
+    
+    int currentIndex = 0;
+
+    tuple_iterator_op(process, BlockProcessor);
+    tuple_iterator_op(processFrame, FrameProcessor);
 };
 
 }
