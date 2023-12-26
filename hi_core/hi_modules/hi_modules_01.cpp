@@ -61,8 +61,6 @@
 *	A list of all available HISE Effects
 */
 
-#include "effects/MdaEffectWrapper.cpp"
-
 #include "effects/fx/RouteFX.cpp"
 #include "effects/fx/FilterTypes.cpp"
 #include "effects/fx/FilterHelpers.cpp"
@@ -76,8 +74,6 @@
 #include "effects/fx/Chorus.cpp"
 #include "effects/fx/Phaser.cpp"
 #include "effects/fx/Convolution.cpp"
-#include "effects/mda/mdaLimiter.cpp"
-#include "effects/mda/mdaDegrade.cpp"
 #include "effects/fx/Dynamics.cpp"
 #include "effects/fx/Saturator.cpp"
 #include "effects/fx/SlotFX.cpp"
@@ -98,8 +94,6 @@
 #include "effects/editors/ChorusEditor.cpp"
 #include "effects/editors/PhaserEditor.cpp"
 #include "effects/editors/ConvolutionEditor.cpp"
-#include "effects/editors/MdaLimiterEditor.cpp"
-#include "effects/editors/MdaDegradeEditor.cpp"
 #include "effects/editors/RouteFXEditor.cpp"
 #include "effects/editors/SaturationEditor.cpp"
 #include "effects/editors/DynamicsEditor.cpp"

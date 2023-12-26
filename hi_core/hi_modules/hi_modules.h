@@ -135,8 +135,6 @@ END_JUCE_MODULE_DECLARATION
 *	A list of all available HISE Effects
 */
 
-#include "effects/MdaEffectWrapper.h"
-
 #include "effects/fx/RouteFX.h"
 #include "effects/fx/FilterTypes.h"
 #include "effects/fx/FilterHelpers.h"
@@ -150,8 +148,6 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/fx/Chorus.h"
 #include "effects/fx/Phaser.h"
 #include "effects/fx/Convolution.h"
-#include "effects/mda/mdaLimiter.h"
-#include "effects/mda/mdaDegrade.h"
 #include "effects/fx/Dynamics.h"
 #include "effects/fx/Saturator.h"
 #include "effects/fx/Analyser.h"
@@ -172,8 +168,6 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/editors/ChorusEditor.h"
 #include "effects/editors/PhaserEditor.h"
 #include "effects/editors/ConvolutionEditor.h"
-#include "effects/editors/MdaLimiterEditor.h"
-#include "effects/editors/MdaDegradeEditor.h"
 #include "effects/editors/RouteFXEditor.h"
 #include "effects/editors/SaturationEditor.h"
 #include "effects/editors/DynamicsEditor.h"

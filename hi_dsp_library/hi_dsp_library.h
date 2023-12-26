@@ -205,7 +205,6 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_nodes/EventNodes.h"
 #include "dsp_nodes/EnvelopeNodes.h"
 #include "dsp_nodes/DynamicsNode.h"
-#include "dsp_nodes/DynamicsNode.cpp"
 #include "dsp_nodes/AnalyserNodes.h"
 
 

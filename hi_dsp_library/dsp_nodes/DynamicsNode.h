@@ -46,8 +46,6 @@ struct DynamicHelpers
         RETURN_STATIC_IDENTIFIER("gate");
     }
     
-    
-    
     static Identifier getId(chunkware_simple::SimpleComp*)
     {
         RETURN_STATIC_IDENTIFIER("comp");
@@ -296,10 +294,6 @@ using comp = dynamics_wrapper<chunkware_simple::SimpleComp>;
 using limiter = dynamics_wrapper<chunkware_simple::SimpleLimit>;
 
     
-    
-    
-    
-    
 class envelope_follower: public data::display_buffer_base<true>
 {
 public:
@@ -395,31 +389,7 @@ public:
 		processSignal = v > 0.5;
 	}
 
-	void createParameters(ParameterDataList& data)
-    {
-        {
-            DEFINE_PARAMETERDATA(envelope_follower, Attack);
-            p.setRange({ 0.0, 1000.0, 0.1 });
-            p.setSkewForCentre(50.0);
-            p.setDefaultValue(20.0);
-            
-            data.add(std::move(p));
-        }
-        
-        {
-            DEFINE_PARAMETERDATA(envelope_follower, Release);
-            p.setRange({ 0.0, 1000.0, 0.1 });
-            p.setSkewForCentre(50.0);
-            p.setDefaultValue(20.0);
-            
-            data.add(std::move(p));
-        }
-        
-        {
-            DEFINE_PARAMETERDATA(envelope_follower, ProcessSignal);
-            data.add(std::move(p));
-        }
-    }
+	void createParameters(ParameterDataList& data);
 
 	EnvelopeFollower::AttackRelease envelope;
 
@@ -430,6 +400,176 @@ public:
 	
 	bool processSignal = false;
 };
+
+class updown_comp: public data::display_buffer_base<true>
+{
+public:
+
+	struct RMSDetector
+	{
+		void prepare(PrepareSpecs ps);
+		void processFrame(span<float, 1>& peak);
+		void setEnabled(double v);
+		void reset();
+
+	private:
+
+		bool enabled = false;
+		dyn<double> data;
+		heap<double> memory;
+		int arrayIndex = 0;
+		double sum = 0.0f;
+		double coeff = 0.0f;
+	};
+
+	struct updown_envelope_follower
+	{
+		void prepare(PrepareSpecs ps);;
+		void reset();
+		void processFrame(span<float, 1>& input);
+		void setLowThreshold(double v);
+		void setAttack(double attack_);
+		void setRelease(double release_);
+
+		double attack;
+		double release;
+
+		double sampleRate;
+		double atk, rel;
+		double lo_t;
+
+		double lastValue;
+
+		void updateCoefficients();
+	};
+
+public:
+
+	enum class Parameters
+	{
+		LowThreshold,
+		LowRatio,
+		HighThreshold,
+		HighRatio,
+		Knee,
+		Attack,
+		Release,
+		RMS
+	};
+
+	// Metadata Definitions ------------------------------------------------------
+
+	SN_NODE_ID("updown_comp");
+	SN_DESCRIPTION("A compressor with adjustable knee, RMS detection and upwards compression");
+
+	SN_GET_SELF_AS_OBJECT(updown_comp);
+	SN_FORWARD_PARAMETER_TO_MEMBER(updown_comp);
+	SN_EMPTY_INITIALISE;;
+	SN_EMPTY_HANDLE_EVENT;
+
+	static constexpr bool isModNode() { return true; };
+	static constexpr bool isPolyphonic() { return false; };
+	static constexpr bool hasTail() { return false; };
+	static constexpr int getFixChannelAmount() { return 2; };
+	
+	void prepare(PrepareSpecs specs) override;
+
+	void reset();
+	
+	template <typename T> void process(T& data)
+	{
+		static constexpr int NumChannels = getFixChannelAmount();
+		auto& fixData = data.template as<ProcessData<NumChannels>>();
+		auto fd = fixData.toFrameData();
+		
+		while(fd.next())
+			processFrame(fd.toSpan());
+	
+		this->updateBuffer(gainRed.getModValue(), data.getNumSamples());
+	}
+
+	float getGainReduction(float input);
+
+	template <typename T> void processFrame(T& data)
+	{
+		span<float, 1> peak;
+
+		for (auto& s : data)
+			peak[0] = Math.max(peak[0], Math.abs(s));
+
+		rmsDetector.processFrame(peak);
+		envelopeFollower.processFrame(peak);
+
+		auto before = peak[0];
+
+		auto g = getGainReduction(peak[0]);
+
+		if (before > 0.0f)
+		{
+			g = jlimit(-24.0f, 24.0f, g / before);
+		}
+		else
+		{
+			g = 0.0f;
+		}
+
+		gainRed.setModValue(jlimit(0.0, 1.0, (double)g));
+
+		data *= g;
+	}
+	
+	int handleModulation(double& value)
+	{
+		return gainRed.getChangedValue(value);
+	}
+	
+	// Parameter Functions -------------------------------------------------------
+	
+	template <int P> void setParameter(double v)
+	{
+		switch ((Parameters)P)
+		{
+		case Parameters::LowThreshold:
+			state[P].set(hmath::db2gain((float)v));
+			envelopeFollower.setLowThreshold(hmath::db2gain((float)v));
+			break;
+		case Parameters::HighThreshold:
+			state[P].set(hmath::db2gain((float)v));
+			break;
+		case Parameters::LowRatio:
+		case Parameters::HighRatio:
+			state[P].set(hmath::range((float)v, 0.2f, 100.0f));
+			break;
+		case Parameters::Knee:
+			state[P].set(hmath::range((float)v, 0.0f, 0.5f));
+			break;
+		case Parameters::Attack:
+			envelopeFollower.setAttack(v);
+			break;
+		case Parameters::Release:
+			envelopeFollower.setRelease(v);
+			break;
+		case Parameters::RMS:
+			rmsDetector.setEnabled(v);
+			break;
+		default:
+			jassertfalse;
+			break;
+		}
+	}
+
+	void createParameters(ParameterDataList& data);
+
+	void calculateGraph(block values);
+
+private:
+
+	updown_envelope_follower envelopeFollower;
+	ModValue gainRed;
+	span<sfloat, (int)Parameters::Knee + 1> state;
+	RMSDetector rmsDetector;
+};
+
 
 }
 

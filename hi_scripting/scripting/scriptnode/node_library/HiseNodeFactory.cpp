@@ -732,12 +732,130 @@ namespace dynamics
 {
 template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 
+struct updown_editor: public ScriptnodeExtraComponent<data::pimpl::dynamic_base>
+{
+	struct viz: public simple_visualiser
+	{
+		viz(PooledUIUpdater* updater):
+		  simple_visualiser(nullptr, updater)
+		{};
+
+		void rebuildPath(Path& p) override
+		{
+			span<float, 100> x;
+			
+			for (int i = 0; i < 100; i++)
+				x[i] = (float)i / 100.0f;
+
+			thickness = 2.0f;
+
+			updown_comp copy;
+			
+			copy.setParameter<0>(getParameter(0));
+			copy.setParameter<1>(getParameter(1));
+			copy.setParameter<2>(getParameter(2));
+			copy.setParameter<3>(getParameter(3));
+			copy.setParameter<4>(getParameter(4));
+			copy.setParameter<7>(getParameter(7));
+
+			copy.calculateGraph(block(x));
+
+			FloatSanitizers::sanitizeArray(x.begin(), x.size());
+
+			p.startNewSubPath(0.0, 0.0);
+			p.startNewSubPath(1.0, 1.0);
+
+			p.startNewSubPath(0, 1.0f - jlimit(0.0f, 1.0f, x[0]));
+
+			for (int i = 1; i < 100; i++)
+			{
+				auto v = jlimit(0.0f, 1.0f, x[i]);
+				p.lineTo(i, 1.0f - v);
+			}
+				
+
+			gridPath.clear();
+
+			gridPath.startNewSubPath(0.25, 0.0); gridPath.lineTo(0.25, 1.0);
+			gridPath.startNewSubPath(0.5, 0.0); gridPath.lineTo(0.5, 1.0);
+			gridPath.startNewSubPath(0.75, 0.0); gridPath.lineTo(0.75, 1.0);
+
+			gridPath.startNewSubPath(0.0, 0.25); gridPath.lineTo(1.0, 0.25);
+			gridPath.startNewSubPath(0.0, 0.5); gridPath.lineTo(1.0, 0.5);
+			gridPath.startNewSubPath(0.0, 0.75); gridPath.lineTo(1.0, 0.75);
+
+			original.clear();
+			original.startNewSubPath(0.0, 1.0f);
+			original.lineTo(1.0, 0.0);
+
+		}
+	};
+
+	updown_editor(PooledUIUpdater* u, data::pimpl::dynamic_base* bPtr) :
+		ScriptnodeExtraComponent<data::pimpl::dynamic_base>(bPtr, u),
+		graph(u),
+	    editor(u)
+	{
+		addAndMakeVisible(graph);
+		addAndMakeVisible(editor);
+		
+		setSize(330 + 28, 330);
+	};
+
+	float gainRed = 0.0f;
+
+	void timerCallback() override
+	{
+		if(auto obj = getObject())
+		{
+			auto ptr = obj->getDisplayBuffer(0);
+
+			auto thisPeak = jlimit(0.0f, 1.0f, ptr->getReadBuffer().getMagnitude(0, 0, roundToInt(44100.0 * 0.03)));
+
+			if(hmath::abs(thisPeak) > hmath::abs(gainRed))
+				gainRed = thisPeak;
+			else
+				gainRed *= 0.97f;
+
+			repaint();
+		}
+	};
+
+	static Component* createExtraComponent(void* ptr, PooledUIUpdater* u)
+	{
+		auto bPtr = reinterpret_cast<data::pimpl::dynamic_base*>(ptr);
+		return new updown_editor(u, bPtr);
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = graph.getBoundsInParent().removeFromRight(18).translated(20, 0).toFloat();
+
+		g.setColour(Colours::black);
+		g.fillRect(b);
+		g.setColour(Colours::white);
+		g.fillRect(b.removeFromTop(b.getHeight() * gainRed));
+
+	}
+
+	void resized()
+	{
+		auto b = getLocalBounds();
+		editor.setBounds(b.removeFromBottom(28));
+		graph.setBounds(b.withSizeKeepingCentre(b.getHeight(), b.getHeight()).reduced(10));
+	}
+
+	viz graph;
+	ModulationSourceBaseComponent editor;
+};
+
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
 	registerPolyModNode<dp<gate>, dp<wrap::illegal_poly<gate>>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<comp>, dp<wrap::illegal_poly<comp>>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<limiter>, dp<wrap::illegal_poly<limiter>>, data::ui::displaybuffer_editor>();
+	registerPolyModNode<dp<updown_comp>, dp<wrap::illegal_poly<updown_comp>>, updown_editor>();
 	registerModNode<dp<envelope_follower>, data::ui::displaybuffer_editor >();
 }
 

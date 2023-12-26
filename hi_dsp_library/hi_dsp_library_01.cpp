@@ -94,6 +94,7 @@
 #include "dsp_nodes/EnvelopeNodes.cpp"
 #include "dsp_nodes/AnalyserNodes.cpp"
 #include "dsp_nodes/ConvolutionNode.cpp"
+#include "dsp_nodes/DynamicsNode.cpp"
 
 namespace hise
 {
