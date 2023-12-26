@@ -280,48 +280,6 @@ hiseSpecialData(this)
 #endif
 
 
-
-
-
-void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObject *instance, const Scope &s) const
-{
-	if (cachedIndex == -1)
-	{
-		if (dynamic_cast<LiteralValue*>(index.get()) != nullptr ||
-			dynamic_cast<ConstReference*>(index.get()) != nullptr ||
-			dynamic_cast<DotOperator*>(index.get()) ||
-			dynamic_cast<ApiConstant*>(index.get()))
-		{
-			if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
-			{
-				if (dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr)
-				{
-					if (ConstScriptingObject* cso = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject()))
-					{
-						int constantIndex = cso->getConstantIndex(dot->child);
-						var possibleIndex = cso->getConstantValue(constantIndex);
-						if (possibleIndex.isInt() || possibleIndex.isInt64())
-						{
-							cachedIndex = (int)possibleIndex;
-						}
-						else location.throwError("[]- access only possible with int values");
-					}
-					else location.throwError("[]-access using dot operator only valid with const objects as parent");
-				}
-				else location.throwError("[]-access using dot operator only valid with const objects as parent");
-			}
-			else
-			{
-				const var i = index->getResult(s);
-				cachedIndex = instance->getCachedIndex(i);
-
-				if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
-			}
-		}
-	}
-}
-
-
 var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) const
 {
 	try
