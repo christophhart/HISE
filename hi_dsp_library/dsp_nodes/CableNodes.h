@@ -1129,6 +1129,29 @@ namespace control
         ConverterClass obj;
     };
 
+	template <typename ParameterClass> struct random : public mothernode,
+                           public pimpl::parameter_node_base<ParameterClass>,
+                           public pimpl::no_processing
+    {
+        SN_NODE_ID("random");
+        SN_GET_SELF_AS_OBJECT(random);
+        SN_DESCRIPTION("creates a random value");
+
+        SN_ADD_SET_VALUE(random);
+
+		random() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId())
+		{};
+
+        void setValue(double)
+        {
+            if (this->getParameter().isConnected())
+                this->getParameter().call(r.nextDouble());
+        }
+
+		Random r;
+    };
+
 	template <typename ParameterClass> struct cable_table : public scriptnode::data::base,
 															public pimpl::parameter_node_base<ParameterClass>,
 															public pimpl::no_processing
