@@ -742,7 +742,7 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 		{
 			auto smoothingTime = (int)ValueTreeIterator::getNodeProperty(u->nodeTree, PropertyIds::SmoothingTime);
 
-			if (smoothingTime == 0)
+			if (smoothingTime == -1)
 				smoothingTime = 20;
 
 			u = wrapNode(u, NamespacedIdentifier::fromString("bypass::smoothed"), smoothingTime);

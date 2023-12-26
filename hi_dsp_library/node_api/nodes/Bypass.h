@@ -198,12 +198,13 @@ public:
 
 	void setSmoothingTime(int newTime)
 	{
-		if (sr <= 0.0)
-			return;
-
 		if constexpr (SmoothingTime == -1)
 		{
 			smoothingTime = jlimit(0, 1000, newTime);
+            
+            if (sr <= 0.0)
+                return;
+            
 			ramper.prepare(sr, smoothingTime);
 			ramper.set(bypassed ? 0.0f : 1.0f);
 			ramper.reset();
