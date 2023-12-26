@@ -925,6 +925,7 @@ Factory::Factory(DspNetwork* n) :
 #define REGISTER_MONO_MATH_NODE(x) registerNode<x<1>>();
     
     REGISTER_POLY_MATH_NODE(add);
+    REGISTER_MONO_MATH_NODE(fill1);
     REGISTER_POLY_MATH_NODE(tanh);
     REGISTER_POLY_MATH_NODE(mul );
     REGISTER_POLY_MATH_NODE(sub );
@@ -935,12 +936,23 @@ Factory::Factory(DspNetwork* n) :
     REGISTER_MONO_MATH_NODE(sin);
     REGISTER_MONO_MATH_NODE(pi);
     REGISTER_MONO_MATH_NODE(sig2mod);
+    REGISTER_MONO_MATH_NODE(mod2sig);
+    REGISTER_MONO_MATH_NODE(rect);
+    REGISTER_MONO_MATH_NODE(mod_inv);
+    REGISTER_MONO_MATH_NODE(inv);
     REGISTER_MONO_MATH_NODE(abs);
 	REGISTER_POLY_MATH_NODE(square);
 	REGISTER_POLY_MATH_NODE(sqrt);
 	REGISTER_POLY_MATH_NODE(pow);
+    REGISTER_POLY_MATH_NODE(intensity);
     
     registerNode<map, map_editor>();
+    
+    registerNode<wrap::data<table, data::dynamic::table>, data::ui::table_editor_without_mod>();
+    
+    registerNode<wrap::data<pack, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+
+
     
 #undef REGISTER_POLY_MATH_NODE
 #undef REGISTER_MONO_MATH_NODE
