@@ -466,6 +466,11 @@ void GlobalHiseLookAndFeel::setDefaultColours(Component& c)
 
 void GlobalHiseLookAndFeel::fillPathHiStyle(Graphics &g, const Path &p, int, int, bool drawBorders /*= true*/)
 {
+	if(!PathFactory::isValid(p))
+		return;
+	
+
+
 	if (drawBorders)
 	{
 		g.setColour(Colours::lightgrey.withAlpha(0.8f));
