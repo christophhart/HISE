@@ -1722,7 +1722,7 @@ private:
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;
 };
 
-template <int V> class gain_impl : public HiseDspBase,
+template <int V> class gain : public HiseDspBase,
 								   public polyphonic_base
 {
 public:
@@ -1736,19 +1736,19 @@ public:
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Gain, gain_impl);
-		DEF_PARAMETER(Smoothing, gain_impl);
-		DEF_PARAMETER(ResetValue, gain_impl);
+		DEF_PARAMETER(Gain, gain);
+		DEF_PARAMETER(Smoothing, gain);
+		DEF_PARAMETER(ResetValue, gain);
 	}
 	SN_PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr int NumVoices = V;
 
 	SN_POLY_NODE_ID("gain");
-	SN_GET_SELF_AS_OBJECT(gain_impl);
+	SN_GET_SELF_AS_OBJECT(gain);
 	SN_DESCRIPTION("A gain module with decibel range and parameter smoothing");
 
-	gain_impl():
+	gain():
 	  polyphonic_base(getStaticId(), false)
 	{};
 
@@ -1859,10 +1859,6 @@ public:
 
 	PolyData<sfloat, NumVoices> gainer;
 };
-
-DEFINE_EXTERN_NODE_TEMPLATE(gain, gain_poly, gain_impl);
-
-
 
 template <int NV> class smoother: public mothernode,
                                   public polyphonic_base

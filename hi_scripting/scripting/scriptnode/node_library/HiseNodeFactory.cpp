@@ -1516,7 +1516,7 @@ Factory::Factory(DspNetwork* network) :
     
 	registerNode   <wrap::data<core::recorder,    data::dynamic::audiofile>, data::ui::audiofile_editor>();
 
-	registerPolyNode<gain, gain_poly>();
+	registerPolyNode<gain<1>, gain<NUM_POLYPHONIC_VOICES>>();
 
 	registerPolyNode<smoother<1>, smoother<NUM_POLYPHONIC_VOICES>>();
 
