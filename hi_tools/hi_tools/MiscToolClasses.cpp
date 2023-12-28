@@ -1469,14 +1469,25 @@ ComplexDataUIUpdaterBase::~ComplexDataUIUpdaterBase()
 void ComplexDataUIUpdaterBase::addEventListener(EventListener* l)
 {
 	ScopedLock sl(updateLock);
-	listeners.addIfNotAlreadyThere(l);
+
+	jassert(isPositiveAndBelow(listeners.size(), NumListenerSlots));
+
+	for(int i = 0; i < listeners.size(); i++)
+	{
+		if(listeners[i] == nullptr)
+			listeners.removeElement(i--);
+	}
+
+	listeners.insert(l);
+	
 	updateUpdater();
 }
 
 void ComplexDataUIUpdaterBase::removeEventListener(EventListener* l)
 {
 	ScopedLock sl(updateLock);
-	listeners.removeAllInstancesOf(l);
+
+	listeners.remove(l);
 	updateUpdater();
 }
 
