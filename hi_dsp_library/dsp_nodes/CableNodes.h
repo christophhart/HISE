@@ -1235,7 +1235,7 @@ namespace control
 					if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
 					{
 						auto v = sp->getValue(changedIndex) * lastValue;
-						this->p.callEachClone(changedIndex, v);
+						this->p.callEachClone(changedIndex, v, false);
 					}
 				}
 			}
@@ -1264,7 +1264,7 @@ namespace control
 			for (int i = 0; i < numToIterate; i++)
 			{
 				auto valueToSend = sliderData[i] * lastValue;
-				this->getParameter().callEachClone(i, valueToSend);
+				this->getParameter().callEachClone(i, valueToSend, false);
 			}
 		}
 
@@ -1285,7 +1285,7 @@ namespace control
 				for(int i = oldNumClones; i < numToIterate; i++)
 				{
 					auto v = sliderData[i] * lastValue;
-					this->p.callEachClone(i, v);
+					this->p.callEachClone(i, v, false);
 				}
 			}
 		}
@@ -1407,7 +1407,7 @@ namespace control
 			for (int i = 0; i < numClones; i++)
 			{
 				auto valueToSend = obj.getValue(i, numClones, lastValue, lastGamma);
-				this->getParameter().callEachClone(i, valueToSend);
+				this->getParameter().callEachClone(i, valueToSend, !obj.shouldUpdateNumClones());
 			}
 		}
 

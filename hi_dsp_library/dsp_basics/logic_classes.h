@@ -279,6 +279,21 @@ template <int Unused> struct frequency
 namespace duplilogic
 {
 
+struct Helpers
+{
+	static bool shouldUpdateNumClones(const String& mode)
+	{
+        // Keep this list up to date with all nodes that return false
+        // at shouldUpdateNumClones();
+		static const StringArray staticModes = 
+        {
+            "toggle"
+		};
+
+        return !staticModes.contains(mode);
+	}
+};
+
 struct spread
 {
     static constexpr bool shouldUpdateNumClones() { return true; }
@@ -353,7 +368,7 @@ struct nyquist: public midi_logic::frequency<0>
 
 struct fixed: public midi_logic::frequency<0>
 {
-    static constexpr bool shouldUpdateNumClones() { return false; }
+    static constexpr bool shouldUpdateNumClones() { return true; }
 
     double getValue(int /*index*/, int /*numUsed*/, double inputValue, double /*gamma*/)
     {

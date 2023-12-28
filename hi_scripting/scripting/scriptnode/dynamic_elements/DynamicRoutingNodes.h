@@ -51,7 +51,7 @@ namespace parameter
 
 		static dynamic_base_holder* getParameterFunctionStatic(void* b);
 
-		void callEachClone(int index, double v);
+		void callEachClone(int index, double v, bool);
 
 		void setParameter(NodeBase* n, dynamic_base::Ptr b) override;
 

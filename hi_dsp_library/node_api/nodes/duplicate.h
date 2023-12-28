@@ -549,11 +549,11 @@ template <class ParameterClass> struct cloned
             sender->removeNumClonesListener(parentListener);
     }
     
-	void callEachClone(int index, double v)
+	void callEachClone(int index, double v, bool ignoreCurrentNumClones)
 	{
 		if (sender != nullptr)
 		{
-			jassert(isPositiveAndBelow(index, sender->getNumClones()));
+			jassert(ignoreCurrentNumClones || isPositiveAndBelow(index, sender->getNumClones()));
 
 			auto thisPtr = (uint8*)firstObj + index * objectDelta;
 
@@ -614,11 +614,11 @@ template <class... CloneParameters> struct clonechain : public advanced_tuple<Cl
 
 	void* getObjectPtr() { return this; }
 
-	tuple_iterator2(callEachClone, int, index, double, v);
+	tuple_iterator3(callEachClone, int, index, double, v, bool, ignore);
 
-	void callEachClone(int index, double v)
+	void callEachClone(int index, double v, bool ignore)
 	{
-		call_tuple_iterator2(callEachClone, index, v);
+		call_tuple_iterator3(callEachClone, index, v, ignore);
 	}
 
 	tuple_iterator1(setParentNumClonesListener, SenderType::Listener*, l);

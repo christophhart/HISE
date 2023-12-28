@@ -2146,11 +2146,22 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 				// call would reset it otherwise.
 				if (p[PropertyIds::ID] == PropertyIds::NumClones.toString())
 				{
-					parent << ";";
-					comment << "" << np.getChildId(p[PropertyIds::ID].toString()).toString();
-					comment << " is deactivated";
-					parent.addComment(comment, Base::CommentType::AlignOnSameLine);
-					continue;
+					// The only exception are clone modes that have a fixed amount of num clones
+					// that will not be updated not update 
+
+					auto mode = ValueTreeIterator::getNodeProperty(sv->nodeTree, PropertyIds::Mode).toString().toLowerCase();
+					jassert(mode.isNotEmpty());
+
+					auto shouldUpdate = duplilogic::Helpers::shouldUpdateNumClones(mode);
+
+					if(shouldUpdate)
+					{
+						parent << ";";
+						comment << "" << np.getChildId(p[PropertyIds::ID].toString()).toString();
+						comment << " is deactivated";
+						parent.addComment(comment, Base::CommentType::AlignOnSameLine);
+						continue;
+					}
 				}
 			}
 
