@@ -154,6 +154,15 @@ struct midi2freq
     }
 };
 
+struct freq2norm
+{
+    double getValue(double input) const
+    {
+        static constexpr double factor = 1.0 / 20000.0;
+        return input * factor;
+    }
+};
+
 struct db2gain
 {
     double getValue(double input) const
