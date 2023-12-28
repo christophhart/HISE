@@ -878,61 +878,7 @@ struct CloneOptionComponent : public Component,
 		setSize(24, 90);
 	}
 
-	void buttonClicked(Button* b) override
-	{
-		if (b == &hideButton)
-		{
-			parent->getValueTree().setProperty(PropertyIds::ShowClones, hideButton.getToggleState(), parent->getUndoManager());
-		}
-		if (b == &deleteButton)
-		{
-			
-			auto network = parent->getRootNetwork();
-			parent->getValueTree().removeProperty(PropertyIds::DisplayedClones, parent->getUndoManager());
-
-			SimpleReadWriteLock::ScopedWriteLock sl(network->getConnectionLock());
-
-			auto nt = dynamic_cast<NodeContainer*>(parent.get())->getNodeTree();
-			StringArray nodesToRemove;
-
-			while (nt.getNumChildren() > 1)
-			{
-				nodesToRemove.add(nt.getChild(1)[PropertyIds::ID].toString());
-				nt.removeChild(1, nullptr);
-			}
-
-			MessageManager::callAsync([nodesToRemove, network]()
-			{
-				for (auto nid : nodesToRemove)
-					network->deleteIfUnused(nid);
-			});
-
-		}
-		if (b == &duplicateButton)
-		{
-			auto parentNode = parent.get();
-
-			deleteButton.triggerClick(sendNotificationSync);
-
-			auto numToCloneString = PresetHandler::getCustomName("NumClones", "Enter the number of clones you want to create");
-
-			SimpleReadWriteLock::ScopedWriteLock sl(parentNode->getRootNetwork()->getConnectionLock());
-
-            Array<DspNetwork::IdChange> changes;
-            
-			auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
-
-			while (numToAdd > 1)
-			{
-				auto nt = dynamic_cast<NodeContainer*>(parentNode)->getNodeTree();
-
-				auto copy = parentNode->getRootNetwork()->cloneValueTreeWithNewIds(nt.getChild(0), changes, true);
-				parentNode->getRootNetwork()->createFromValueTree(true, copy, true);
-				nt.addChild(copy, -1, parentNode->getUndoManager());
-				numToAdd--;
-			}
-		}
-	}
+	void buttonClicked(Button* b) override;
 
 	Path createPath(const String& url) const override
 	{
@@ -965,6 +911,77 @@ struct CloneOptionComponent : public Component,
 	HiseShapeButton hideButton, duplicateButton, deleteButton;
 };
 
+
+void CloneOptionComponent::buttonClicked(Button* b)
+{
+	if (b == &hideButton)
+	{
+		parent->getValueTree().setProperty(PropertyIds::ShowClones, hideButton.getToggleState(), parent->getUndoManager());
+	}
+	if (b == &deleteButton)
+	{
+			
+		auto network = parent->getRootNetwork();
+		parent->getValueTree().removeProperty(PropertyIds::DisplayedClones, parent->getUndoManager());
+
+		SimpleReadWriteLock::ScopedWriteLock sl(network->getConnectionLock());
+
+		auto nt = dynamic_cast<NodeContainer*>(parent.get())->getNodeTree();
+		StringArray nodesToRemove;
+
+		while (nt.getNumChildren() > 1)
+		{
+			nodesToRemove.add(nt.getChild(1)[PropertyIds::ID].toString());
+			nt.removeChild(1, nullptr);
+		}
+
+		MessageManager::callAsync([nodesToRemove, network]()
+		{
+			for (auto nid : nodesToRemove)
+				network->deleteIfUnused(nid);
+		});
+
+	}
+	if (b == &duplicateButton)
+	{
+		auto parentNode = parent.get();
+
+		deleteButton.triggerClick(sendNotificationSync);
+
+		auto numToCloneString = PresetHandler::getCustomName("NumClones", "Enter the number of clones you want to create");
+
+		SimpleReadWriteLock::ScopedWriteLock sl(parentNode->getRootNetwork()->getConnectionLock());
+
+		auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
+			
+		auto network = parentNode->getRootNetwork();
+
+		auto firstChild = dynamic_cast<NodeContainer*>(parentNode)->getNodeTree().getChild(0);
+
+		Array<DspNetwork::IdChange> allChanges;
+		Array<DspNetwork::IdChange> prevChanges;
+
+		while(numToAdd > 1)
+		{
+			// We must create the tree but not update the internal automation connections yet
+			auto newTree = network->cloneValueTreeWithNewIds(firstChild, allChanges, false);
+
+			// Now we only apply the new ID changes to the node ID to prevent the connections
+			// all being wired to the first sibling (because it's the first node ID change)...
+			for(const auto& c: allChanges)
+			{
+				if(!prevChanges.contains(c))
+					network->changeNodeId(newTree, c.oldId, c.newId, nullptr);
+			}
+				
+			network->createFromValueTree(true, newTree, true);
+			firstChild.getParent().addChild(newTree, -1,parentNode->getUndoManager());
+
+			prevChanges = allChanges;
+			numToAdd--;
+		}
+	}
+}
 
 CloneNode::CloneIterator::CloneIterator(CloneNode& n, const ValueTree& v, bool skipOriginal) :
 	cn(n),

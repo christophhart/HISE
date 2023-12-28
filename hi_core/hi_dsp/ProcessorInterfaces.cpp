@@ -92,6 +92,14 @@ ComplexDataUIBase* ProcessorWithExternalData::createAndInit(ExternalData::DataTy
 	ComplexDataUIBase* d;
 
 	d = ExternalData::create(t);
+
+#if USE_BACKEND
+	if(auto af = dynamic_cast<SliderPackData*>(d))
+	{
+		// preallocate 128 sliders to avoid reallocating in the DLL heap
+		af->setUsePreallocatedLength(128);
+	}
+#endif
 		
 	if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(d))
 		af->setProvider(new hise::PooledAudioFileDataProvider(mc_internal));

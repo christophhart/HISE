@@ -153,6 +153,16 @@ protected:
 		object(t)
 	{};
 
+	Colour getHeaderColour() const
+	{
+		if (auto nc = findParentComponentOfClass<NodeComponent>())
+		{
+			return nc->getHeaderColour();
+		}
+
+		return Colours::transparentBlack;
+	}
+
 private:
 
 	WeakReference<ObjectType> object;

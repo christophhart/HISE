@@ -473,7 +473,8 @@ struct DuplicateComponent : public Component,
 
 		Path p;
 #if USE_BACKEND
-		p.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, sizeof(BackendBinaryData::ToolbarIcons::viewPanel));
+
+		p.loadPathFromData(BackendBinaryData::ToolbarIcons::viewPanel, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::viewPanel));
 #endif
 		PathFactory::scalePath(p, getLocalBounds().toFloat().withSizeKeepingCentre(32.0f, 32.0f));
 
