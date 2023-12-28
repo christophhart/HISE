@@ -1140,6 +1140,10 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 	for (auto n : nodes)
 		sa.add(n->getId());
 
+	// Also add the new IDs from the changes
+	for(const auto& c: changes)
+		sa.add(c.newId);
+
 	auto saRef = &sa;
 	auto changeRef = &changes;
 

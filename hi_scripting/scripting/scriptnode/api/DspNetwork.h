@@ -161,6 +161,11 @@ public:
 
     struct IdChange
     {
+		bool operator==(const IdChange& other) const
+		{
+			return oldId == other.oldId && newId == other.newId;
+		}
+
         String oldId;
         String newId;
     };
