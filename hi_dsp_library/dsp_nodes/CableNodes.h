@@ -1221,7 +1221,6 @@ namespace control
 			pimpl::parameter_node_base<ParameterType>(getStaticId())
 		{
 			cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsCloneCableNode);
-            
             this->getParameter().setParentNumClonesListener(this);
 		};
 
@@ -1231,10 +1230,13 @@ namespace control
 			{
 				auto changedIndex = (int)data;
 
-				if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
+				if(isPositiveAndBelow(changedIndex, numClones))
 				{
-					auto v = sp->getValue(changedIndex) * lastValue;
-					this->p.callEachClone(changedIndex, v);
+					if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
+					{
+						auto v = sp->getValue(changedIndex) * lastValue;
+						this->p.callEachClone(changedIndex, v);
+					}
 				}
 			}
 		}
@@ -1242,24 +1244,24 @@ namespace control
 		void setExternalData(const snex::ExternalData& d, int index) override
 		{
 			if (auto existing = this->externalData.obj)
-				existing->getUpdater().addEventListener(this);
+				existing->getUpdater().removeEventListener(this);
 
 			base::setExternalData(d, index);
 
 			if (auto existing = this->externalData.obj)
 				existing->getUpdater().addEventListener(this);
-
+			
 			this->externalData.referBlockTo(sliderData, 0);
 
-			setSliderAmountToNumClones();
+			setValue(lastValue);
 		}
 
 		void setValue(double newValue)
 		{
 			lastValue = newValue;
-			jassert(numClones == sliderData.size());
+			auto numToIterate = jmin(sliderData.size(), numClones);
 
-			for (int i = 0; i < numClones; i++)
+			for (int i = 0; i < numToIterate; i++)
 			{
 				auto valueToSend = sliderData[i] * lastValue;
 				this->getParameter().callEachClone(i, valueToSend);
@@ -1271,20 +1273,20 @@ namespace control
             setNumClones(newSize);
         }
         
-		void setSliderAmountToNumClones()
-		{
-			if (auto sp = dynamic_cast<SliderPackData*>(this->externalData.obj))
-				sp->setNumSliders(numClones);
-
-			setValue(lastValue);
-		}
-
 		void setNumClones(double newNumClones)
 		{
 			if (numClones != newNumClones)
 			{
+				int oldNumClones = numClones;
+
 				numClones = jlimit(1, 128, (int)newNumClones);
-				setSliderAmountToNumClones();
+				auto numToIterate = jmin(numClones, sliderData.size());
+
+				for(int i = oldNumClones; i < numToIterate; i++)
+				{
+					auto v = sliderData[i] * lastValue;
+					this->p.callEachClone(i, v);
+				}
 			}
 		}
 
@@ -1307,8 +1309,6 @@ namespace control
 		double lastValue = 0.0;
 		block sliderData;
 		int numClones = 1;
-
-		
 	};
 		
 
