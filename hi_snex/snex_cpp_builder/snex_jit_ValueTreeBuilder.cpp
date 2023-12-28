@@ -2028,6 +2028,17 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 			addDefaultParameters();
 		}
 
+		if(hasComplexTypes())
+		{
+			String f; f << "~" << nodeClassId << "() override";
+			parent << f;
+			{
+				StatementBlock sb(parent);
+				parent.addComment("Cleanup external data references", Base::CommentType::FillTo80Light);
+				parent << "this->setExternalData({}, -1);";
+			}
+		}
+
 		if (hasPolyData)
 		{
 			parent.addEmptyLine();

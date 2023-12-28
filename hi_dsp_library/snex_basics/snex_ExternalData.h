@@ -415,6 +415,8 @@ struct ExternalData
 
     static void forEachType(const std::function<void(DataType)>& f);
 
+	bool isTypeOrEmpty(DataType t) const { return dataType == t || dataType == DataType::numDataTypes; }
+
     /** assigns a block container to the data type. If the external data is pointing to an audio file you can specify the channelIndex. */
 	void referBlockTo(block& b, int channelIndex) const;
 
@@ -990,7 +992,7 @@ template <int Index, ExternalData::DataType DType> struct plain : index_type_bas
 
 	template <typename NodeType> void setExternalData(NodeType& n, const ExternalData& b, int index)
 	{
-		if (index == Index && b.dataType == DType)
+		if ((index == Index && b.dataType == DType) || b.dataType == ExternalData::DataType::numDataTypes)
 			n.setExternalData(b, 0);
 	}
 };

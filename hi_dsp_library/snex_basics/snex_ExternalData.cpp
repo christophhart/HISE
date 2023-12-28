@@ -259,6 +259,12 @@ void ExternalData::forEachType(const std::function<void(DataType)>& f)
 
 void ExternalData::referBlockTo(block& b, int channelIndex) const
 {
+	if(isEmpty())
+	{
+		b.referToNothing();
+		return;
+	}
+
 	if (dataType == DataType::AudioFile || dataType == DataType::DisplayBuffer)
 	{
 		channelIndex = jmin(channelIndex, numChannels-1);
