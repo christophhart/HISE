@@ -281,6 +281,8 @@ namespace duplilogic
 
 struct spread
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         if (numUsed == 1)
@@ -303,6 +305,8 @@ struct spread
 
 struct triangle
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         if (numUsed == 1)
@@ -328,6 +332,8 @@ struct triangle
 
 struct harmonics: public midi_logic::frequency<0>
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         return (double)(index + 1) * inputValue;
@@ -336,6 +342,8 @@ struct harmonics: public midi_logic::frequency<0>
 
 struct nyquist: public midi_logic::frequency<0>
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         auto hvalue = harmonics().getValue(index, numUsed, inputValue, gamma);
@@ -345,6 +353,8 @@ struct nyquist: public midi_logic::frequency<0>
 
 struct fixed: public midi_logic::frequency<0>
 {
+    static constexpr bool shouldUpdateNumClones() { return false; }
+
     double getValue(int /*index*/, int /*numUsed*/, double inputValue, double /*gamma*/)
     {
         return inputValue;
@@ -353,6 +363,8 @@ struct fixed: public midi_logic::frequency<0>
 
 struct ducker
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int /*index*/, int numUsed, double /*inputValue*/, double gamma)
     {
         auto v = 1.0 / jmax(1.0, (double)numUsed);
@@ -366,8 +378,22 @@ struct ducker
     }
 };
 
+
+struct toggle
+{
+    static constexpr bool shouldUpdateNumClones() { return false; }
+
+    double getValue(int index, int numUsed, double inputValue, double /*gamma*/)
+    {
+        auto thisIndex = (double)index / (double)numUsed;
+        return (double)(thisIndex <= inputValue);
+    }
+};
+
 struct random
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     Random r;
 
 	static constexpr bool IsProcessingHiseEvent() { return true; }
@@ -398,6 +424,8 @@ struct random
 
 struct scale
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         if (numUsed == 1)

@@ -1367,7 +1367,13 @@ namespace control
 
 		void numClonesChanged(int newNumClones) override
 		{
-			setNumClones(newNumClones);
+			if(shouldUpdateClones())
+				setNumClones(newNumClones);
+		}
+
+		bool shouldUpdateClones() const
+		{
+			return obj.shouldUpdateNumClones();
 		}
 
 		void handleHiseEvent(HiseEvent& e)
