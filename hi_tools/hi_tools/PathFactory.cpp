@@ -134,6 +134,9 @@ namespace hise {
 
 	void PathFactory::scalePath(Path& p, Rectangle<float> f)
 	{
+		if(!isValid(p, f))
+			return;
+
 		p.scaleToFit(f.getX(), f.getY(), f.getWidth(), f.getHeight(), true);
 	}
 
@@ -141,6 +144,24 @@ namespace hise {
 	{
 		auto b = c->getBoundsInParent().toFloat().reduced(padding);
 		scalePath(p, b);
+	}
+
+	bool PathFactory::isValid(const Path& p, Rectangle<float> area)
+	{
+		auto isOk = [](float v)
+		{
+			auto v2 = v;
+			FloatSanitizers::sanitizeFloatNumber(v2);
+			return v2 == v;
+		};
+
+		auto pb = p.getBounds();
+
+		auto pathOk = isOk(pb.getX()) && isOk(pb.getY()) && isOk(pb.getWidth()) && isOk(pb.getHeight());
+
+		auto areaOk = area.isEmpty() || (isOk(area.getX()) && isOk(area.getY()) && isOk(area.getWidth()) && isOk(area.getHeight()));
+
+		return pathOk && areaOk;
 	}
 
 	PathFactory::PathFactory()
