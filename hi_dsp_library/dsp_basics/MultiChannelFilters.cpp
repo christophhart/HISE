@@ -106,21 +106,21 @@ template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::setFrequency(double newFrequency)
 {
 	targetFreq = FilterLimits::limitFrequency(newFrequency);
-	frequency.setValue(targetFreq);
+	frequency.setValue(targetFreq, !processed);
 }
 
 template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::setQ(double newQ)
 {
 	targetQ = FilterLimits::limitQ(newQ);
-	q.setValue(targetQ);
+	q.setValue(targetQ, !processed);
 }
 
 template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::setGain(double newGain)
 {
 	targetGain = FilterLimits::limitGain(newGain);
-	gain.setValue(targetGain);
+	gain.setValue(targetGain, !processed);
 }
 
 template <class FilterSubType>
@@ -186,6 +186,8 @@ void MultiChannelFilter<FilterSubType>::reset(int unused/*=0*/)
 	gain.setValueWithoutSmoothing(targetGain);
 	q.setValueWithoutSmoothing(targetQ);
 
+	processed = false;
+
 	internalFilter.reset(numChannels);
 }
 
@@ -193,6 +195,7 @@ template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::processFrame(float* frameData, int channels)
 {
 	jassert(channels == numChannels);
+	processed = true;
 
 	if (--frameCounter <= 0)
 	{
@@ -218,6 +221,8 @@ void MultiChannelFilter<FilterSubType>::render(FilterHelpers::RenderData& r)
 	{
 		setNumChannels(r.b.getNumChannels());
 	}
+
+	processed = true;
 
 	internalFilter.processSamples(r.b, r.startSample, r.numSamples);
 }

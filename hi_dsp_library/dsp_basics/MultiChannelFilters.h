@@ -171,6 +171,7 @@ private:
 	void update(FilterHelpers::RenderData& renderData);
 
 	bool dirty = false;
+	bool processed = false;
 
 	double smoothingTimeSeconds = 0.03;
 	double sampleRate = 44100.0;
