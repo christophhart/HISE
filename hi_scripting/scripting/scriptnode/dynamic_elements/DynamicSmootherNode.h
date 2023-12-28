@@ -61,6 +61,82 @@ namespace control
 		control::multilogic::logic_op lastData;
 	};
 
+	struct blend_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::blend>>
+	{
+		using LogicBase = pimpl::combined_parameter_base<multilogic::blend>;
+
+		blend_editor(LogicBase* b, PooledUIUpdater* u):
+		  ScriptnodeExtraComponent<LogicBase>(b, u),
+		  dragger(u)
+		{
+			addAndMakeVisible(dragger);
+
+			setSize(256, 50);
+		};
+
+		void paint(Graphics& g) override
+		{
+			auto alpha = (float)lastData.alpha * 2.0f - 1.0f;
+
+			auto b = getLocalBounds().removeFromRight((getWidth() * 2) / 3).toFloat();
+
+			auto area = b.reduced(JUCE_LIVE_CONSTANT(40), 15).toFloat();
+
+			ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, true);
+
+			
+
+			area = area.reduced(4);
+
+			auto w = (area.getWidth() - area.getHeight()) * 0.5f;
+
+			auto tb = area.translated(0, 20);
+
+			area = area.withSizeKeepingCentre(area.getHeight(), area.getHeight());
+
+			area = area.translated(alpha * w, 0);
+
+			g.setColour(getHeaderColour());
+
+			g.fillEllipse(area);
+
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			g.drawText(String(lastData.getValue(), 2), tb, Justification::centred);
+		}
+
+		void timerCallback() override
+		{
+			auto thisData = getObject()->getUIData();
+
+			if (!(thisData == lastData))
+			{
+				lastData = thisData;
+				repaint();
+			}
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+
+
+			dragger.setBounds(b.removeFromLeft(getWidth()/3).withSizeKeepingCentre(32, 32));
+
+
+		}
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<mothernode*>(obj);
+			return new blend_editor(dynamic_cast<LogicBase*>(typed), updater);
+		}
+
+		ModulationSourceBaseComponent dragger;
+
+		control::multilogic::blend lastData;
+	};
+
 	struct intensity_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::intensity>>
 	{
 		using IntensityBase = pimpl::combined_parameter_base<multilogic::intensity>;

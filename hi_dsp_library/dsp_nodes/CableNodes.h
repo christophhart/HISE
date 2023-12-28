@@ -1675,6 +1675,66 @@ namespace control
 			mutable bool dirty = false;
 		};
 
+		struct blend
+		{
+			SN_NODE_ID("blend");
+			SN_DESCRIPTION("Blends the two input values based on the Alpha parameter.");
+
+			static constexpr bool isNormalisedModulation() { return false; }
+            static constexpr bool needsProcessing() { return false; }
+
+			bool operator==(const blend& other) const
+			{
+				return alpha == other.alpha && value1 == other.value1 && value2 == other.value2;
+			}
+
+			double getValue() const
+			{
+				dirty = false;
+				return Interpolator::interpolateLinear(value1, value2, alpha);
+			}
+
+			template <int P> void setParameter(double v)
+			{
+				if constexpr (P == 0)
+					alpha = v;
+				if constexpr (P == 1)
+					value1 = v;
+				if constexpr (P == 2)
+					value2 = v;
+
+				dirty = true;
+			}
+
+			template <typename NodeType> static void createParameters(ParameterDataList& data, NodeType& n)
+			{
+				{
+					parameter::data p("Alpha");
+					p.template setParameterCallbackWithIndex<NodeType, 0>(&n);
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Value1");
+					p.template setParameterCallbackWithIndex<NodeType, 1>(&n);
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+				{
+					parameter::data p("Value2");
+					p.template setParameterCallbackWithIndex<NodeType, 2>(&n);
+					p.setDefaultValue(0.0);
+					data.add(std::move(p));
+				}
+			}
+
+			double alpha = 0.0;
+			double value1 = 0.0;
+			double value2 = 0.0;
+
+			mutable bool dirty = false;
+		};
+
 		struct logic_op
 		{
 			enum class LogicState
@@ -2205,6 +2265,7 @@ namespace control
 	template <int NV, typename ParameterType> using bang = multi_parameter<NV, ParameterType, multilogic::bang>;
     template <int NV, typename ParameterType> using delay_cable = multi_parameter<NV, ParameterType, multilogic::delay_cable>;
 	template <int NV, typename ParameterType> using change = multi_parameter<NV, ParameterType, multilogic::change>;
+	template <int NV, typename ParameterType> using blend = multi_parameter<NV, ParameterType, multilogic::blend>;
 
 	struct smoothed_parameter_base: public mothernode
 	{
