@@ -846,16 +846,28 @@ struct filter_base : public data::base,
 
 	virtual IIRCoefficients getApproximateCoefficients() const = 0;
 
-	void setExternalData(const snex::ExternalData& d, int index) override
-	{
-		deregisterAtObject(this->externalData.obj);
-		base::setExternalData(d, index);
-		registerAtObject(this->externalData.obj);
+	void sendCoefficientUpdateMessage();
 
-		if (auto o = dynamic_cast<FilterDataObject*>(d.obj))
-			o->setCoefficients(this, getApproximateCoefficients());
-	}
+	void setExternalData(const snex::ExternalData& d, int index) override;
 };
+
+inline void filter_base::sendCoefficientUpdateMessage()
+{
+	DataReadLock l(this);
+
+	if (this->externalData.obj != nullptr)
+	{
+		auto typed = static_cast<FilterDataObject*>(this->externalData.obj);
+		typed->sendUpdateFromBroadcaster(this);
+	}
+}
+
+inline void filter_base::setExternalData(const snex::ExternalData& d, int index)
+{
+	deregisterAtObject(this->externalData.obj);
+	base::setExternalData(d, index);
+	registerAtObject(this->externalData.obj);
+}
 
 #define SNEX_THROW_IF_MULTIPLE_WRITERS 0
 

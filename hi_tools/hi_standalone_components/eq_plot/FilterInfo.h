@@ -111,7 +111,8 @@ private:
 };
 
 /** This data object holds a number of IIR coefficients and manages the notification / external management. */
-struct FilterDataObject : public ComplexDataUIBase
+struct FilterDataObject : public ComplexDataUIBase,
+						  public ComplexDataUIUpdaterBase::EventListener
 {
 public:
 
@@ -143,8 +144,6 @@ public:
 	bool fromBase64String(const String& b64) override { return true; };
 	String toBase64String() const override { return ""; };
 
-	void setCoefficients(Broadcaster* b, IIRCoefficients newCoefficients);
-
 	void setSampleRate(double sr)
 	{
 		if (sampleRate != sr)
@@ -158,12 +157,29 @@ public:
 
 	IIRCoefficients getCoefficientsForBroadcaster(Broadcaster* b) const;
 
+	void sendUpdateFromBroadcaster(Broadcaster* b)
+	{
+		float idx = 0.0f;
+		for(const auto& d: internalData)
+		{
+			if(d.broadcaster == b)
+			{
+				getUpdater().sendDisplayChangeMessage(idx, sendNotificationAsync, true);
+				return;
+			}
+
+			idx += 1.0f;
+		}
+	}
+
 	double getSamplerate() const { return sampleRate; }
 
 	int getNumCoefficients() const;
 
-private:
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
 
+private:
+	
 	double sampleRate = -1.0;
 
 	UnorderedStack<InternalData> internalData;

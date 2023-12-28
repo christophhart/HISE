@@ -186,8 +186,7 @@ struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1
 };
 
 struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<float>, 1>,
-						public data::filter_base,
-						public hise::ComplexDataUIUpdaterBase::EventListener
+						public data::filter_base
 {
 	SNEX_NODE(jlinkwitzriley);
 
@@ -195,6 +194,12 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 	{
 		sr = ps.sampleRate;
 		JuceBaseType::prepare(ps);
+
+		if (auto fd = dynamic_cast<FilterDataObject*>(this->externalData.obj))
+		{
+			if (sr > 0.0)
+				fd->setSampleRate(sr);
+		}
 	}
 
 	template <int P> void setParameter(double v)
@@ -210,7 +215,7 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 				o.setType((JuceDspType::Type)(int)v);
 		}
 
-		sendCoefficientUpdateMessage();
+		this->sendCoefficientUpdateMessage();
 	}
 
 	IIRCoefficients getApproximateCoefficients() const override
@@ -230,44 +235,14 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 		return IIRCoefficients();
 	}
 
-	void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue) override
-	{
-		if (e == ComplexDataUIUpdaterBase::EventType::ContentChange)
-		{
-			if (auto fd = dynamic_cast<FilterDataObject*>(this->externalData.obj))
-			{
-				if (sr > 0.0)
-					fd->setSampleRate(sr);
-
-				fd->setCoefficients(this, getApproximateCoefficients());
-			}
-		}
-	}
-
-	void sendCoefficientUpdateMessage()
-	{
-		DataReadLock l(this);
-
-		if (this->externalData.obj != nullptr)
-			this->externalData.obj->getUpdater().sendContentChangeMessage(sendNotificationAsync, 0);
-	}
-
 	void setExternalData(const ExternalData& d, int index) override
 	{
-		if (this->externalData.obj != nullptr)
-		{
-			d.obj->getUpdater().removeEventListener(this);
-			
-		}
-
 		jassert(d.dataType == ExternalData::DataType::FilterCoefficients);
 
 		filter_base::setExternalData(d, index);
 
 		if (auto fd = dynamic_cast<FilterDataObject*>(d.obj))
 		{
-			fd->getUpdater().addEventListener(this);
-
 			if (sr > 0.0)
 				fd->setSampleRate(sr);
 		}

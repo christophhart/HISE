@@ -248,7 +248,8 @@ bool FilterDataObject::Broadcaster::registerAtObject(ComplexDataUIBase* obj)
 		InternalData d;
 		d.broadcaster = this;
 		f->internalData.insert(d);
-		return true;
+        f->getUpdater().sendDisplayChangeMessage(f->internalData.size()-1, sendNotificationAsync, true);
+        return true;
 	}
 	
 	return false;
@@ -278,36 +279,14 @@ bool FilterDataObject::Broadcaster::deregisterAtObject(ComplexDataUIBase* obj)
 FilterDataObject::FilterDataObject() :
 	ComplexDataUIBase()
 {
-
+    getUpdater().addEventListener(this);
 }
 
 FilterDataObject::~FilterDataObject()
 {
+    getUpdater().removeEventListener(this);
 	internalData.clear();
 }
-
-void FilterDataObject::setCoefficients(Broadcaster* b, IIRCoefficients newCoefficients)
-{
-	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
-
-	auto isMessageThread = MessageManager::getInstance()->isThisTheMessageThread();
-
-	bool found = false;
-
-	for (auto& d : internalData)
-	{
-		if (d.broadcaster == b)
-		{
-			d.coefficients = newCoefficients;
-			found = true;
-			break;
-		}
-	}
-
-	if (sampleRate > 0.0 && found)
-		getUpdater().sendDisplayChangeMessage(sampleRate, isMessageThread ? sendNotificationSync : sendNotificationAsync, true);
-}
-
 
 juce::IIRCoefficients FilterDataObject::getCoefficients(int index) const
 {
@@ -337,4 +316,17 @@ int FilterDataObject::getNumCoefficients() const
 	return internalData.size();
 }
 
+void FilterDataObject::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	if(t == ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+	{
+		for(auto& d: internalData)
+		{
+			if(auto f = dynamic_cast<scriptnode::data::filter_base*>(d.broadcaster.get()))
+			{
+                d.coefficients = f->getApproximateCoefficients();
+			}
+		}
+	}
+}
 } // namespace hise
