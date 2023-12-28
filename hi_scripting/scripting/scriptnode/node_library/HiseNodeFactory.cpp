@@ -1659,9 +1659,16 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 
 	for (int i = 0; i < numNodesToCreate; i++)
 	{
-		auto isThirdPartyNode = dllFactory.isThirdPartyNode(i);
 
-		if (isThirdPartyNode)
+#if HISE_CREATE_DSP_NETWORKS_FOR_HARDCODED_NODES
+		// Create a network and toggle between frozen and interpreted state...
+		auto createHardcodedNodeOnly = dllFactory.isThirdPartyNode(i);
+#else
+		// Don't create a DSP network but treat it like a compiled third party node
+		auto createHardcodedNodeOnly = i < numNodesInDll;
+#endif
+
+		if (createHardcodedNodeOnly)
 		{
 			NodeFactory::Item item;
 			item.id = dllFactory.getId(i);

@@ -81,6 +81,14 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define HISE_WARN_UNDEFINED_PARAMETER_CALLS 1
 #endif
 
+/** If this is set to 1, then a compiled node will also create a DSP network that you can freeze / unfreeze.
+ *  This was the default behaviour pre HISE 3.7.0, but it introduced a lot of subtle glitches and bugs just for the ability to toggle between
+ *  frozen and unfrozen network. 
+ */
+#ifndef HISE_CREATE_DSP_NETWORKS_FOR_HARDCODED_NODES
+#define HISE_CREATE_DSP_NETWORKS_FOR_HARDCODED_NODES 0
+#endif
+
 #define MAX_SCRIPT_HEIGHT 700
 
 #include "AppConfig.h"
