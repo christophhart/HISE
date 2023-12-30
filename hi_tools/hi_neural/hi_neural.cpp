@@ -634,7 +634,7 @@ protected:
 	template <int Idx> void loadLayer(const nlohmann::json& modelJson, std::string name)
 	{
 		name.append(".");
-		RTNeural::torch_helpers::loadDense<float>(modelJson, name, this->obj.get<Idx>());
+		RTNeural::torch_helpers::loadDense<float>(modelJson, name, this->obj.template get<Idx>());
 	}
 
 	void process(const float* input, float* output) final

@@ -842,7 +842,7 @@ public:
     {
         if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
         {
-			if constexpr (data.hasCompileTimeSize())
+			if constexpr (ProcessDataType::hasCompileTimeSize())
 			{
 				if constexpr (data.getNumChannels() == 1)
 	                processFixed<1>(data);

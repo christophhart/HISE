@@ -1044,9 +1044,12 @@ struct neural: public NodeBase
 public:
 
 	SN_NODE_ID("neural");
-	SN_DESCRIPTION("Runs a per-sample inference on the first channel of the signal using a neural network");
-	SN_GET_SELF_AS_OBJECT(neural);
-	
+    
+    AttributedString getDescription() const override
+    {
+        return AttributedString("Runs a per-sample inference on the first channel of the signal using a neural network");
+    }
+    
 	struct Comp : public ScriptnodeExtraComponent<NodeBase>
 				  
 	{

@@ -17,7 +17,7 @@
 #include <iterator>
 #include <type_traits>
 
-#include "../modules/xsimd/types/xsimd_api.hpp"
+#include "../../../modules/xsimd/types/xsimd_api.hpp"
 
 namespace xsimd
 {
