@@ -80,6 +80,9 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 		return String();
 	};
 
+	attackChain->setTableValueConverter(attackConverter);
+	releaseChain->setTableValueConverter(releaseConverter);
+
 	attackTable->setXTextConverter(attackConverter);
 	releaseTable->setXTextConverter(releaseConverter);
 

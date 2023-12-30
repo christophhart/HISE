@@ -64,14 +64,9 @@ public:
 	void update(bool force);
 	void createProcessorFromPopup(Processor *insertBeforeSibling=nullptr);
 
-    void updateIdAndColour(dispatch::library::Processor* p)
-    {
-		NEW_PROCESSOR_DISPATCH(idLabel->setText(p->getOwner<hise::Processor>().getId(), dontSendNotification));
-		repaint();
-		// skip colour, it's a icon colour (ideally the modulator synth should be a listener that updates the icon colour itself)
-    }
+    void updateIdAndColour(dispatch::library::Processor* p);
 
-	void bypassStateChanged(Processor* p, bool state) override;
+    void bypassStateChanged(Processor* p, bool state) override;
 
     void timerCallback() override;
 
@@ -116,6 +111,9 @@ public:
 	bool isHeaderOfEmptyChain() const;
 
     void paint (Graphics& g) override;
+
+    void paintOverChildren(Graphics& g) override;
+
     void resized() override;
     void sliderValueChanged (Slider* sliderThatWasMoved) override;
 
@@ -170,13 +168,9 @@ private:
 
 	ScopedPointer<ProcessorEditorHeaderLookAndFeel> luf;
 	PopupLookAndFeel plaf;
-
 	VUSliderLookAndFeel vulaf;
-
 	BalanceButtonLookAndFeel bbluf;
-
 	BiPolarSliderLookAndFeel bpslaf;
-
 	WeakReference<Processor> parentProcessor;
 
     //==============================================================================
@@ -195,7 +189,6 @@ private:
 	ScopedPointer<ShapeButton> workspaceButton;
 	ScopedPointer<ShapeButton> monophonicButton;
 	ScopedPointer<ShapeButton> retriggerButton;
-
     ScopedPointer<IntensitySlider> intensitySlider;
 	ScopedPointer<ShapeButton> bipolarModButton;
 

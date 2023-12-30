@@ -62,7 +62,7 @@ public:
 		void setSelected(bool shouldBeSelected, bool shouldBeSelectedAsSend);
 		bool isDifferent(const ChannelConnector *otherConnector) const;
 
-		void setGainValue(float gainValue);
+		void setGainValue(float gainValue, bool peakHold);
 
 	private:
 
@@ -97,6 +97,8 @@ public:
 	void selectConnector(const MouseEvent & e);
 
 private:
+
+	bool peakHold = false;
 
 	void setToPreset(int preset);
 

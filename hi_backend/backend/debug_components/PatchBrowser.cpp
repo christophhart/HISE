@@ -1833,36 +1833,211 @@ void PatchBrowser::PatchItem::resized()
 
 struct PlotterPopup: public Component
 {
+	struct VoiceStartPopup: public Component,
+							public PooledUIUpdater::SimpleTimer
+	{
+		VoiceStartPopup(Processor* m_, PooledUIUpdater* updater):
+		  SimpleTimer(updater),
+		  voiceMod(dynamic_cast<Modulator*>(m_)),
+		  synth(dynamic_cast<ModulatorSynth*>(m_->getParentProcessor(true))),
+		  modChain(dynamic_cast<ModulatorChain*>(m_->getParentProcessor(false)))
+		{
+			
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().toFloat().reduced(15.0f);
+
+
+			g.setColour(Colours::white.withAlpha(0.05f));
+
+			g.drawRect(b, 1.0f);
+
+			auto minText = modChain->getTableValueConverter()(0.0f);
+			auto maxText = modChain->getTableValueConverter()(1.0f);
+
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			g.setColour(Colours::white.withAlpha(0.25f));
+
+			g.drawText(maxText, getLocalBounds().toFloat(), Justification::topLeft);
+			g.drawText(minText, getLocalBounds().toFloat(), Justification::bottomLeft);
+
+			g.setColour(Colours::white.withAlpha(0.8f));
+
+
+
+			g.strokePath(p, PathStrokeType(2.0f));
+
+			for(const auto& i: info)
+				i.draw(g);
+		}
+
+		void timerCallback() override
+		{
+			info.clearQuick();
+			p.clear();
+
+			auto b = getLocalBounds().toFloat().reduced(15.0f);
+			
+			auto numVoices = (float)synth->getNumActiveVoices();
+
+			p.startNewSubPath(b.getBottomLeft());
+
+			using VoiceInfo = std::pair<int, float>;
+			Array<VoiceInfo> voiceValues;
+
+			voiceValues.ensureStorageAllocated(numVoices);
+			info.ensureStorageAllocated(numVoices);
+
+			for(const auto& av: synth->activeVoices)
+			{
+				auto vi = av->getVoiceIndex();
+				auto voiceModValue = dynamic_cast<VoiceStartModulator*>(voiceMod.get())->getVoiceStartValue(vi);
+				
+				voiceValues.add({vi, voiceMod->getValueForTextConverter(voiceModValue)});
+			}
+
+			struct Sorter
+			{
+				static int compareElements(const VoiceInfo& v1, const VoiceInfo& v2)
+				{
+					if(v1.first > v2.first)
+						return 1;
+					if(v1.first < v2.first)
+						return -1;
+
+					return 0;
+				}
+			} sorter;
+
+			voiceValues.sort(sorter);
+
+			int idx = 0;
+
+			
+
+			for(const auto& v: voiceValues)
+			{
+				auto offset = b.getX() + b.getWidth() / (numVoices) * 0.5f;
+				auto x = offset + ((float)idx++ / numVoices) * b.getWidth();
+				auto y = b.getY() + (1.0f - v.second) * b.getHeight();
+
+				p.lineTo(x, y);
+
+				p.addEllipse(x-2.0f, y-2.0f, 4.0f, 4.0f);
+
+				if(auto voice = dynamic_cast<ModulatorSynthVoice*>(synth->getVoice(v.first)))
+				{
+					Info newInfo;
+					newInfo.voiceIndex = v.first;
+					newInfo.modValue = modChain->getTableValueConverter()(v.second);
+					newInfo.pos = { x, y };
+					newInfo.event = voice->getCurrentHiseEvent();
+
+					info.add(newInfo);
+				}
+			}
+
+			p.lineTo(b.getBottomRight());
+
+			repaint();
+		}
+
+		struct Info
+		{
+			Point<float> pos;
+			int voiceIndex;
+			String modValue;
+			HiseEvent event;
+
+			void draw(Graphics& g) const
+			{
+				Rectangle<float> area(pos, pos);
+
+				String m;
+				m << "#" << event.getEventId() << "(" << MidiMessage::getMidiNoteName(event.getNoteNumberIncludingTransposeAmount(), true, true, 2) <<  "): ";
+				m << modValue;
+
+				auto f = GLOBAL_BOLD_FONT();
+
+
+				area = area.withSizeKeepingCentre(f.getStringWidthFloat(m) + 10.0f, 18.0f);
+
+				area = area.translated(0.0f, -10.0f);
+
+				g.setColour(Colours::black.withAlpha(0.8f));
+				g.setFont(f);
+
+				g.fillRoundedRectangle(area, area.getHeight() * 0.5f);
+				g.setColour(Colours::white.withAlpha(0.5f));
+				g.drawText(m, area, Justification::centred);
+			}
+		};
+
+		Array<Info> info;
+
+		Path p;
+
+		ModulatorChain* modChain;
+		WeakReference<Modulator> voiceMod;
+		WeakReference<ModulatorSynth> synth;
+	};
+
 	PlotterPopup(Processor* m_):
 		m(m_),
-		p(m_->getMainController()->getGlobalUIUpdater()),
+		p(),
 		resizer(this, nullptr)
 	{
-		dynamic_cast<Modulation*>(m.get())->setPlotter(&p);
+		auto updater = m_->getMainController()->getGlobalUIUpdater();
+
+		if(auto vc = dynamic_cast<VoiceStartModulator*>(m.get()))
+		{
+			p = new VoiceStartPopup(m_, updater);
+		}
+		else
+		{
+			auto np = new Plotter(updater);
+			p = np;
+			dynamic_cast<Modulation*>(m.get())->setPlotter(np);
+		}
+		
 		addAndMakeVisible(p);
 		addAndMakeVisible(resizer);
 
 		setName("Plotter: " + m_->getId());
 		setSize(280, 200);
-		p.setOpaque(false);
-		p.setColour(Plotter::ColourIds::backgroundColour, Colour(0));
+		p->setOpaque(false);
+		p->setColour(Plotter::ColourIds::backgroundColour, Colour(0));
 		
 	}
 
 	void resized() override
 	{
-		p.setBounds(getLocalBounds().reduced(20));
+
+		p->setBounds(getLocalBounds().reduced(getPlotter() ? 20 : 5));
 		resizer.setBounds(getLocalBounds().removeFromRight(15).removeFromBottom(15));
+	}
+
+	Plotter* getPlotter()
+	{
+		return dynamic_cast<Plotter*>(p.get());
 	}
 
 	~PlotterPopup()
 	{
 		if(m != nullptr)
+		{
 			dynamic_cast<Modulation*>(m.get())->setPlotter(nullptr);
+		}
 	}
 
 	WeakReference<Processor> m;
-	Plotter p;
+
+	ScopedPointer<Component> p;
+
+	
 	juce::ResizableCornerComponent resizer;
 };
 

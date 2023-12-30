@@ -44,7 +44,7 @@ selectedAsSend(false)
 	inMeter->setType(VuMeter::StereoVertical);
     inMeter->setPeak(0.0f, 0.0f);
 	inMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));
-	inMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
+	inMeter->setColour(VuMeter::ledColour, Colour(0x66AAAAAA));
 	inMeter->setInterceptsMouseClicks(false, false);
 }
 
@@ -65,9 +65,16 @@ void RouterComponent::ChannelConnector::paintOverChildren(Graphics& g)
 
 	g.fillEllipse((float)connector.getX() - 3.0f, (float)connector.getY() - 3.0f, 6.0f, 6.0f);
 
-	g.setColour(used ? Colours::white : Colours::white.withAlpha(0.2f));
+	
 
-	g.drawText(String(index + 1), getLocalBounds(), Justification::centred, true);
+	String c1, c2;
+	c1 << "Ch. " << String(index+1) << "\n";
+	c2 << String(Decibels::gainToDecibels(gainValue), 1) + " dB";
+
+	g.setColour(used ? Colours::white.withAlpha(0.7f): Colours::white.withAlpha(0.2f));
+	g.drawText(c1, getLocalBounds().toFloat().reduced(4).translated(0.0, isSource ? -3.0f : 1.0f), Justification::centredTop, true);
+	g.setColour(used ? Colours::white : Colours::white.withAlpha(0.2f));
+	g.drawText(c2, getLocalBounds().toFloat().reduced(4).translated(0.0, isSource ? -3.0f : 1.0f), Justification::centredBottom, true);
 }
 
 void RouterComponent::ChannelConnector::resized()
@@ -97,17 +104,25 @@ void RouterComponent::timerCallback()
 
 	for (int i = 0; i < sourceChannels.size(); i++)
 	{
-		sourceChannels[i]->setGainValue(data->getGainValue(i, true) * 2.0f);
+		sourceChannels[i]->setGainValue(data->getGainValue(i, true) * 2.0f, peakHold);
 	}
 	for (int i = 0; i < destinationChannels.size(); i++)
 	{
-		destinationChannels[i]->setGainValue(data->getGainValue(i, false) * 2.0f);
+		destinationChannels[i]->setGainValue(data->getGainValue(i, false) * 2.0f, peakHold);
 	}
 }
 
-void RouterComponent::ChannelConnector::setGainValue(float newGainValue)
+void RouterComponent::ChannelConnector::setGainValue(float newGainValue, bool peakHold)
 {
-	inMeter->setPeak(newGainValue, newGainValue);
+	if(peakHold)
+	{
+		gainValue = jmax(gainValue, newGainValue * 0.5f);
+	}
+	else
+		gainValue = newGainValue * 0.5f;
+
+	auto sq = newGainValue * newGainValue;
+	inMeter->setPeak(sq, sq);
 }
 
 RouterComponent::RouterComponent(RoutableProcessor::MatrixData *data_)
@@ -175,11 +190,11 @@ void RouterComponent::resized()
 
 	for (int i = 0; i < data->getNumSourceChannels(); i++)
 	{
-		sourceChannels[i]->setBounds(sourceXOffset + routingBounds.getX() + i * widthPerChannel + 1, routingBounds.getY() + 20, widthPerChannel - 2, 32);
+		sourceChannels[i]->setBounds(sourceXOffset + routingBounds.getX() + i * widthPerChannel + 1, routingBounds.getY() + 20, widthPerChannel - 2, 36);
 	}
 	for (int i = 0; i < data->getNumDestinationChannels(); i++)
 	{
-		destinationChannels[i]->setBounds(destinationXOffset + routingBounds.getX() + i * widthPerChannel + 1, routingBounds.getBottom() - 56, widthPerChannel - 2, 32);
+		destinationChannels[i]->setBounds(destinationXOffset + routingBounds.getX() + i * widthPerChannel + 1, routingBounds.getBottom() - 56, widthPerChannel - 2, 36);
 	}
 }
 
@@ -341,7 +356,8 @@ void RouterComponent::mouseDown(const MouseEvent &e)
 		{
 			Copy = 200000,
 			Paste,
-			Clear
+			Clear,
+			PeakHold
 		};
 
 		m.setLookAndFeel(&laf);
@@ -370,7 +386,8 @@ void RouterComponent::mouseDown(const MouseEvent &e)
 		m.addItem(Copy, "Copy Channel Routing");
 		m.addItem(Paste, "Paste Channel Routing");
 		m.addItem(Clear, "Clear Channel Routing");
-
+		m.addSeparator();
+		m.addItem(PeakHold, "Hold max peak", true, peakHold);
 		const int result = m.show();
 
 		if (result == 0) return;
@@ -404,7 +421,10 @@ void RouterComponent::mouseDown(const MouseEvent &e)
 		{
 			data->clearAllConnections();
 		}
-
+		else if (result == PeakHold)
+		{
+			peakHold = !peakHold;
+		}
 		else
 		{
 			setToPreset(result);

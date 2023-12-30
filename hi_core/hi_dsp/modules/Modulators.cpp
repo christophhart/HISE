@@ -288,6 +288,29 @@ Modulator::~Modulator()
 	masterReference.clear();
 }
 
+float Modulator::getValueForTextConverter(float valueToConvert) const
+{
+	auto outputValue = valueToConvert;
+	auto asMod = dynamic_cast<const Modulation*>(this);
+
+	switch(asMod->getMode())
+	{
+	case Modulation::Mode::PanMode:		
+		outputValue = outputValue * 2.0f - 1.0f;
+		outputValue = asMod->calcIntensityValue(outputValue);
+		break;
+	case Modulation::Mode::PitchMode:
+		// The intensity is already in the output value
+		outputValue = hmath::log(outputValue) / hmath::log(2.0f);
+		break;
+	default:
+		outputValue = asMod->calcIntensityValue(outputValue);
+		break;
+	}
+
+	return outputValue;
+}
+
 int Modulator::getNumChildProcessors() const
 {return 0;}
 
