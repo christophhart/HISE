@@ -1551,6 +1551,8 @@ Factory::Factory(DspNetwork* network) :
 		false>;
 
 	registerPolyNode<dp<core::oscillator<1>>, dp<core::oscillator<NUM_POLYPHONIC_VOICES>>, osc_display_>();
+	registerPolyNode<core::phasor<1>, core::phasor<NUM_POLYPHONIC_VOICES>>();
+	registerPolyNode<core::phasor_fm<1>, core::phasor_fm<NUM_POLYPHONIC_VOICES>>();
 	registerNode<wrap::data<granulator, data::dynamic::audiofile>, data::ui::xyz_audio_editor>();
 }
 }

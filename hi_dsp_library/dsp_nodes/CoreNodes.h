@@ -1065,7 +1065,209 @@ public:
 };
 
 
+template <int NV, bool useFM> class phasor_base: public polyphonic_base
+{
+public:
 
+	static constexpr int NumVoices = NV;
+
+	SN_REGISTER_CALLBACK(phasor_base);;
+
+	enum class Parameters
+	{
+		Gate,
+		Frequency,
+		FreqRatio,
+		Phase,
+		numParameters
+	};
+
+	SN_EMPTY_INITIALISE;
+
+	phasor_base(const Identifier& id): polyphonic_base(id) {}
+
+	constexpr bool isProcessingHiseEvent() const { return true; }
+
+	void reset()
+	{
+		for (auto& s : voiceData)
+			s.reset();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		sr = ps.sampleRate;
+		voiceData.prepare(ps);
+		sr = ps.sampleRate;
+		setFrequency(freqValue);
+		setFreqRatio(multiplier);
+	}
+	
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		currentVoiceData = &voiceData.get();
+
+		if(!currentVoiceData->enabled)
+			return;
+
+		for (auto& s : data[0])
+		{
+			auto asSpan = reinterpret_cast<span<float, 1>*>(&s);
+			processFrameInternal(*asSpan);
+		}
+		
+		currentVoiceData = nullptr;
+	}
+
+	int64_t bitwiseOrZero(const double &t) {
+		return static_cast<int64_t>(t) | 0;
+	}
+
+	template <typename FrameDataType> void processFrameInternal(FrameDataType& data)
+	{
+		jassert(currentVoiceData != nullptr);
+
+		auto phase =  currentVoiceData->tick();
+
+		if constexpr (useFM)
+		{
+			double delta = currentVoiceData->uptimeDelta * currentVoiceData->multiplier;
+			delta *= (double)data[0];
+			currentVoiceData->uptime += delta;
+		}
+			
+
+		phase -= bitwiseOrZero(phase);
+		data[0] = (float)phase;
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		currentVoiceData = &voiceData.get();
+		processFrameInternal(data);
+		currentVoiceData = nullptr;
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+			setFrequency(e.getFrequency());
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(phasor_base, Gate);
+			p.setRange({ 0.0, 1.0, 1.0 });
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(phasor_base, Frequency);
+			p.setRange({ 20.0, 20000.0, 0.1 });
+			p.setDefaultValue(220.0);
+			p.setSkewForCentre(1000.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Freq Ratio");
+			p.setRange({ 1.0, 16.0, 1.0 });
+			p.setDefaultValue(1.0);
+			registerCallback<(int)Parameters::FreqRatio>(p);
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(phasor_base, Phase);
+			p.setRange({ 0.0, 1.0 });
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+	}
+
+	void setFrequency(double newFrequency)
+	{
+		freqValue = newFrequency;
+
+		if (sr > 0.0)
+		{
+			auto newUptimeDelta = (double)(newFrequency / sr);
+
+			for (auto& d : voiceData)
+				d.uptimeDelta = newUptimeDelta;
+		}
+	}
+
+	void setGate(double v)
+	{
+		auto shouldBeOn = (int)(v > 0.5);
+
+		for (auto& d : voiceData)
+		{
+			auto shouldReset = shouldBeOn && !d.enabled;
+
+			if (shouldReset)
+				d.uptime = 0.0;
+
+			d.enabled = shouldBeOn;
+		}
+	}
+
+	void setPhase(double v)
+	{
+		for (auto& s : voiceData)
+			s.phase = v;
+	}
+
+	void setFreqRatio(double newMultiplier)
+	{
+		multiplier = jlimit(0.001, 100.0, newMultiplier);
+
+		for (auto& d : voiceData)
+			d.multiplier = multiplier;
+	}
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Gate, phasor_base);
+		DEF_PARAMETER(Frequency, phasor_base);
+		DEF_PARAMETER(FreqRatio, phasor_base);
+		DEF_PARAMETER(Phase, phasor_base);
+	}
+	SN_PARAMETER_MEMBER_FUNCTION;
+
+	double sr = 44100.0;
+	PolyData<OscData, NumVoices> voiceData;
+	OscData* currentVoiceData = nullptr;
+
+	double freqValue = 220.0;
+	double multiplier = 1.0;
+};
+
+template <int NV> class phasor: public phasor_base<NV, false>
+{
+public:
+
+	phasor(): phasor_base<NV, false>(getStaticId()) {};
+
+	constexpr static int NumVoices = NV;
+
+	SN_POLY_NODE_ID("phasor");
+	SN_GET_SELF_AS_OBJECT(phasor);
+	SN_DESCRIPTION("A oscillator that creates a naive ramp from 0...1");
+};
+
+template <int NV> class phasor_fm: public phasor_base<NV, true>
+{
+public:
+
+	constexpr static int NumVoices = NV;
+
+	phasor_fm(): phasor_base<NV, true>(getStaticId()) {};
+
+	SN_POLY_NODE_ID("phasor_fm");
+	SN_GET_SELF_AS_OBJECT(phasor_fm);
+	SN_DESCRIPTION("A ramp oscillator with FM modulation from the input signal");
+};
 
 template <int NV> class oscillator: public OscillatorDisplayProvider,
 								    public polyphonic_base
