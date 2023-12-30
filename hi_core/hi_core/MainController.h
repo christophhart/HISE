@@ -1787,7 +1787,7 @@ public:
 		return lastActiveEditor.getComponent();
 	}
 
-	
+	NeuralNetwork::Holder& getNeuralNetworks() { return neuralNetworks; }
 
 	/** This returns always true after the processor was initialised. */
 	bool isInitialised() const noexcept;;
@@ -2258,11 +2258,11 @@ private:
 
 	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
-    
     bool changed;
-    
     bool midiInputFlag;
-	
+
+	NeuralNetwork::Holder neuralNetworks;
+
 	double processingSampleRate = 0.0;
     std::atomic<double> temp_usage;
 	int scrollY;

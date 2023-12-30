@@ -1034,6 +1034,183 @@ Factory::Factory(DspNetwork* network) :
 
 namespace math
 {
+
+/** TODO:
+ * - Parameters
+ * - ProcessingModes
+ */
+struct neural: public NodeBase
+{
+public:
+
+	SN_NODE_ID("neural");
+	SN_DESCRIPTION("Runs a per-sample inference on the first channel of the signal using a neural network");
+	SN_GET_SELF_AS_OBJECT(neural);
+	
+	struct Comp : public ScriptnodeExtraComponent<NodeBase>
+				  
+	{
+		Comp(neural* n, PooledUIUpdater* updater) :
+			ScriptnodeExtraComponent<NodeBase>(n, updater),
+		    networkSelector("", PropertyIds::Model)
+		{
+			auto& holder = n->getScriptProcessor()->getMainController_()->getNeuralNetworks();
+			networkSelector.initModes(holder.getIdList(), n);
+
+			addAndMakeVisible(networkSelector);
+			setSize(128, 32);
+		};
+
+		ComboBoxWithModeProperty networkSelector;
+
+		void resized() override
+		{
+			networkSelector.setBounds(getLocalBounds());
+		}
+
+		void timerCallback() override
+		{
+
+		}
+
+		void paint(Graphics& g) override
+		{
+			
+		}
+	};
+
+	NodeComponent* createComponent() override
+	{
+		auto n = new DefaultParameterNodeComponent(this);
+		n->setExtraComponent(new Comp(this, getRootNetwork()->getMainController()->getGlobalUIUpdater()));
+		return n;
+	}
+
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		return new neural(n, v);
+	}
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	{
+
+		return Rectangle<int>(topLeft, topLeft.translated(128, 100));
+	}
+
+	neural(DspNetwork* root, const ValueTree& data):
+	  NodeBase(root, data, 0),
+	  networkId(PropertyIds::Model, "")
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+		
+		networkId.initialise(this);
+		networkId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(neural::updateModel), true);
+	}
+
+	void prepare(PrepareSpecs ps) final
+	{
+		NodeBase::prepare(ps);
+
+		if(!ps)
+			return;
+
+		lastSpecs = ps;
+
+		if(currentNetwork != nullptr)
+		{
+			auto poly = getRootNetwork()->isPolyphonic();
+			auto numClones = poly ? NUM_POLYPHONIC_VOICES : 1;
+
+			if(currentNetwork->context.shouldCloneChannels())
+				numClones *= ps.numChannels;
+
+			currentNetwork->setNumNetworks(numClones, poly);
+
+			voiceIndexOffsets.prepare(ps);
+
+			int idx = 0;
+
+			for(auto& v: voiceIndexOffsets)
+			{
+				v = idx;
+				idx += ps.numChannels;
+			}
+		}
+
+		reset();
+	}
+
+	PolyData<int, NUM_POLYPHONIC_VOICES> voiceIndexOffsets;
+
+	bool isPolyphonic() const final { return getRootNetwork()->isPolyphonic(); }
+
+	void reset() final
+	{
+		if(currentNetwork != nullptr)
+		{
+			for(auto v: voiceIndexOffsets)
+			{
+				for(int c = 0; c < lastSpecs.numChannels; c++)
+					currentNetwork->reset(v + c);
+			}
+		}
+	}
+
+	int getNumExpectedNetworks() const
+	{
+		return (isPolyphonic() ? NUM_POLYPHONIC_VOICES : 1) * lastSpecs.numChannels;
+	}
+
+	void process(ProcessDataDyn& data) override
+	{
+		if(currentNetwork != nullptr && getNumExpectedNetworks() == currentNetwork->getNumNetworks())
+		{
+			auto offset = voiceIndexOffsets.get();
+
+			int c = 0;
+			for(auto& ch: data)
+			{
+				auto bl = data.toChannelData(ch);
+
+				for(auto& s: bl)
+					currentNetwork->process(offset + c, &s, &s);
+
+				c++;
+			}
+		}
+	}
+
+	void processFrame(FrameType& data) override
+	{
+		if(currentNetwork != nullptr && data.size() == currentNetwork->getNumNetworks())
+		{
+			auto offset = voiceIndexOffsets.get();
+
+			int c = 0;
+			for(auto& s: data)
+				currentNetwork->process(offset + c++, &s, &s);
+		}
+	}
+
+	void updateModel(Identifier, var value)
+	{
+		auto v = value.toString();
+
+		if(v.isNotEmpty())
+		{
+			auto newId = Identifier(value.toString());
+			currentNetwork = getScriptProcessor()->getMainController_()->getNeuralNetworks().getOrCreate(newId);
+			prepare(lastSpecs);
+		}
+	}
+
+	PrepareSpecs lastSpecs;
+	NodePropertyT<String> networkId;
+	NeuralNetwork::Ptr currentNetwork;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(neural);
+};
+
 struct map_editor : public simple_visualiser
 {
     map_editor(PooledUIUpdater* u) :
@@ -1104,11 +1281,13 @@ Factory::Factory(DspNetwork* n) :
     registerNode<map, map_editor>();
     
     registerNode<wrap::data<table, data::dynamic::table>, data::ui::table_editor_without_mod>();
-    
+
+	
+
     registerNode<wrap::data<pack, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
 
-
-    
+	registerNodeRaw<neural>();
+	
 #undef REGISTER_POLY_MATH_NODE
 #undef REGISTER_MONO_MATH_NODE
 

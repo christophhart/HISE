@@ -1537,6 +1537,76 @@ namespace ScriptingObjects
 		HiseEvent e;
 	};
 
+	class ScriptNeuralNetwork: public ConstScriptingObject
+	{
+	public:
+
+		ScriptNeuralNetwork(ProcessorWithScriptingContent* p, const String& name);
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("NeuralNetwork"); }
+
+		// ================================================================================ API Methods
+
+		/** Runs inference on the given input and returns either a single float or a reference to the output buffer. */
+		var process(var input);
+
+		/** Destroys the model and allows rebuilding using a different layout JSON. */
+		void clearModel();
+
+		/** Create a network using the given JSON for the layer setup. */
+		void build(const var& modelJSON);
+
+		/** Resets the network pipeline. */
+		void reset();
+
+		/** Loads the weights from the JSON object. */
+		void loadWeights(const var& weightData);
+
+		/** Helper function to create a JSON model definition from the Pytorch print(model) output. */
+		var createModelJSONFromTextFile(var fileObject);
+
+		/** Connects the network to a input and output global cable. */
+		void connectToGlobalCables(String inputId, String outputId);
+
+		/** Loads the model layout and weights from a tensorflow model JSON. */
+		void loadTensorFlowModel(const var& modelJSON);
+
+		/** Loads the model layout and weights from a Pytorch model JSON. */
+		void loadPytorchModel(const var& modelJSON);
+
+		/** Returns the model JSON. */
+		var getModelJSON()
+		{
+			return nn->getModelJSON();
+		}
+
+		// ================================================================================ API Methods
+
+	private:
+
+		void postBuild();
+
+		ReferenceCountedObjectPtr<ReferenceCountedObject> outputCableUntyped;
+
+		struct CableInputCallback;
+
+		ScopedPointer<CableInputCallback> cableInput;
+
+		float* getConnectionPtr(bool getInput)
+		{
+			return getInput ? inputBuffer->buffer.getWritePointer(0) : outputBuffer->buffer.getWritePointer(0);
+		}
+
+		VariantBuffer::Ptr inputBuffer;
+		VariantBuffer::Ptr outputBuffer;
+
+		struct Wrapper;
+
+		NeuralNetwork::Ptr nn;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptNeuralNetwork);
+	};
+
 	class ScriptUnorderedStack : public ConstScriptingObject,
 		public AssignableObject
 	{

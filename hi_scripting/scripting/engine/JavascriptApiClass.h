@@ -299,7 +299,7 @@ private:
 };
 
 
-#define NUM_API_FUNCTION_SLOTS 60
+#define NUM_API_FUNCTION_SLOTS 64
 
 
 /** A API class is a class with a fixed number of methods and constants that can be called from Javascript.

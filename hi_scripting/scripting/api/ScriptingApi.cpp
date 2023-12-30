@@ -1062,6 +1062,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_1(Engine, createDspNetwork);
 	API_METHOD_WRAPPER_0(Engine, createExpansionHandler);
 	API_METHOD_WRAPPER_0(Engine, createFFT);
+	API_METHOD_WRAPPER_1(Engine, createNeuralNetwork);
 	API_METHOD_WRAPPER_0(Engine, getExpansionList);
 	API_METHOD_WRAPPER_1(Engine, setCurrentExpansion);
 	API_METHOD_WRAPPER_0(Engine, createGlobalScriptLookAndFeel);
@@ -1179,6 +1180,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createUnorderedStack);
 	ADD_API_METHOD_1(createBackgroundTask);
 	ADD_API_METHOD_0(createFFT);
+	ADD_API_METHOD_1(createNeuralNetwork);
 	ADD_API_METHOD_1(createBroadcaster);
 	ADD_API_METHOD_0(getPlayHead);
 	ADD_API_METHOD_2(dumpAsJSON);
@@ -3395,6 +3397,11 @@ ScriptingObjects::TimerObject* ScriptingApi::Engine::createTimerObject() { retur
 ScriptingObjects::ScriptingMessageHolder* ScriptingApi::Engine::createMessageHolder()
 {
 	return new ScriptingObjects::ScriptingMessageHolder(getScriptProcessor());
+}
+
+ScriptingObjects::ScriptNeuralNetwork* ScriptingApi::Engine::createNeuralNetwork(String id)
+{
+	return new ScriptingObjects::ScriptNeuralNetwork(getScriptProcessor(), id);
 }
 
 var ScriptingApi::Engine::createTransportHandler()

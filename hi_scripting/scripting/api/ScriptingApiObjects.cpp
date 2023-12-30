@@ -4974,7 +4974,224 @@ String ScriptingObjects::ScriptingMessageHolder::dump() const
 	return x;
 }
 
+struct ScriptingObjects::ScriptNeuralNetwork::Wrapper
+{
+	API_METHOD_WRAPPER_1(ScriptNeuralNetwork, process);
+	API_VOID_METHOD_WRAPPER_0(ScriptNeuralNetwork, clearModel);
+	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, build);
+	API_VOID_METHOD_WRAPPER_0(ScriptNeuralNetwork, reset);
+	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, loadWeights);
+	API_METHOD_WRAPPER_0(ScriptNeuralNetwork, getModelJSON);
+	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, loadTensorFlowModel);
+	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, loadPytorchModel);
+	API_METHOD_WRAPPER_1(ScriptNeuralNetwork, createModelJSONFromTextFile);
+};
 
+ScriptingObjects::ScriptNeuralNetwork::ScriptNeuralNetwork(ProcessorWithScriptingContent* p, const String& name):
+	ConstScriptingObject(p, 0)
+{
+	ADD_API_METHOD_1(process);
+	ADD_API_METHOD_0(clearModel);
+	ADD_API_METHOD_1(build);
+	ADD_API_METHOD_0(reset);
+	ADD_API_METHOD_1(loadWeights);
+	ADD_API_METHOD_1(createModelJSONFromTextFile);
+	ADD_API_METHOD_1(loadTensorFlowModel);
+	ADD_API_METHOD_1(loadPytorchModel);
+	ADD_API_METHOD_0(getModelJSON);
+	
+	nn = p->getMainController_()->getNeuralNetworks().getOrCreate(Identifier(name));
+}
+
+var ScriptingObjects::ScriptNeuralNetwork::process(var input)
+{
+	auto isSingleOut = nn->getNumOutputs() == 1;
+	auto isSingleIn = nn->getNumInputs() == 1;
+
+	if(isSingleOut)
+	{
+		float out;
+
+		if(isSingleIn)
+		{
+			float in = (float)input;
+			nn->process(0, &in, &out);
+		}
+		else if (input.isArray())
+		{
+			if(isPositiveAndBelow(inputBuffer->size, input.size()))
+			{
+				int idx = 0;
+				for(const auto& v: *input.getArray())
+					inputBuffer->setSample(idx++, (float)v);
+
+				nn->process(0, getConnectionPtr(true), &out);
+			}
+		}
+		else if (input.isBuffer())
+		{
+			if(isPositiveAndBelow(nn->getNumInputs(), input.getBuffer()->size))
+			{
+				auto ptr = input.getBuffer()->buffer.getReadPointer(0);
+				nn->process(0, ptr, &out);
+			}
+		}
+
+		if(outputCableUntyped != nullptr)
+		{
+			auto typed = dynamic_cast<scriptnode::routing::GlobalRoutingManager::CableTargetBase*>(outputCableUntyped.get());
+			typed->sendValue(out);
+		}
+
+		return var(out);
+	}
+	else
+	{
+		if(isSingleIn)
+		{
+			float in = (float)input;
+			nn->process(0, &in, getConnectionPtr(false));
+		}
+		else if (input.isArray())
+		{
+			if(isPositiveAndBelow(inputBuffer->size, input.size()))
+			{
+				int idx = 0;
+				for(const auto& v: *input.getArray())
+					inputBuffer->setSample(idx++, (float)v);
+
+				nn->process(0, getConnectionPtr(true), getConnectionPtr(false));
+			}
+		}
+		else if (input.isBuffer())
+		{
+			if(isPositiveAndBelow(nn->getNumInputs(), input.getBuffer()->size))
+			{
+				auto ptr = input.getBuffer()->buffer.getReadPointer(0);
+				nn->process(0, ptr, getConnectionPtr(false));
+			}
+		}
+
+		if(outputCableUntyped != nullptr)
+		{
+			auto typed = dynamic_cast<scriptnode::routing::GlobalRoutingManager::CableTargetBase*>(outputCableUntyped.get());
+			typed->sendValue(getConnectionPtr(false)[0]);
+		}
+
+		return var(outputBuffer.get());
+	}
+}
+
+void ScriptingObjects::ScriptNeuralNetwork::clearModel()
+{
+	nn->clearModel();
+}
+
+void ScriptingObjects::ScriptNeuralNetwork::build(const var& modelJSON)
+{
+	nn->build(modelJSON);
+
+	postBuild();
+}
+
+void ScriptingObjects::ScriptNeuralNetwork::reset()
+{
+	nn->reset();
+}
+
+void ScriptingObjects::ScriptNeuralNetwork::loadWeights(const var& weightData)
+{
+	auto jsonData = JSON::toString(weightData, true);
+	nn->loadWeights(jsonData);
+}
+
+var ScriptingObjects::ScriptNeuralNetwork::createModelJSONFromTextFile(var fileObject)
+{
+	if(auto sf = dynamic_cast<ScriptFile*>(fileObject.getObject()))
+	{
+		return NeuralNetwork::parseModelJSON(sf->f);
+	}
+
+	return {};
+}
+
+struct ScriptingObjects::ScriptNeuralNetwork::CableInputCallback: public scriptnode::routing::GlobalRoutingManager::CableTargetBase
+{
+	CableInputCallback(ScriptNeuralNetwork* parent_):
+	  parent(parent_)
+	{};
+	
+	void sendValue(double v) override
+	{
+		if(parent != nullptr)
+		{
+			auto numInputs = parent->nn->getNumInputs();
+
+			if(numInputs == 1)
+			{
+				parent->process(v);
+			}
+			else
+			{
+				auto input = parent->getConnectionPtr(false);
+				input[0] = (float)v;
+				parent->process(var(parent->inputBuffer.get()));
+			}
+		}
+	}
+
+	virtual void selectCallback(Component* rootEditor) {};
+
+	virtual String getTargetId() const { return "NeuralNetwork Input"; }
+
+	virtual Path getTargetIcon() const { return {}; }
+
+	WeakReference<ScriptNeuralNetwork> parent;
+};
+
+void ScriptingObjects::ScriptNeuralNetwork::connectToGlobalCables(String inputId, String outputId)
+{
+	auto rm = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(getScriptProcessor()->getMainController_()->getGlobalRoutingManager());
+
+	using CableType = scriptnode::routing::GlobalRoutingManager::Cable;
+
+	auto ct = routing::GlobalRoutingManager::SlotBase::SlotType::Cable;
+
+	if(inputId.isNotEmpty())
+	{
+		auto inputCable = dynamic_cast<CableType*>(rm->getSlotBase(inputId, ct).get());
+		cableInput = new CableInputCallback(this);
+		inputCable->addTarget(cableInput.get());
+	}
+
+	if(outputId.isNotEmpty())
+	{
+		outputCableUntyped = rm->getSlotBase(outputId, ct);
+	}
+}
+
+void ScriptingObjects::ScriptNeuralNetwork::loadTensorFlowModel(const var& modelJSON)
+{
+	nn->loadTensorFlowModel(modelJSON);
+	postBuild();
+}
+
+void ScriptingObjects::ScriptNeuralNetwork::loadPytorchModel(const var& modelJSON)
+{
+	nn->loadPytorchModel(modelJSON);
+	postBuild();
+}
+
+void ScriptingObjects::ScriptNeuralNetwork::postBuild()
+{
+	auto numInputs = nn->getNumInputs();
+	auto numOutputs = nn->getNumOutputs();
+
+	if(numInputs > 1)
+		inputBuffer = new VariantBuffer(numInputs);
+	if(numOutputs > 1)
+		outputBuffer = new VariantBuffer(numOutputs);
+}
 
 ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_, JavascriptProcessor* sp) :
 	parent(parent_),

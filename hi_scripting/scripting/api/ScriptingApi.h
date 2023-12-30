@@ -608,6 +608,9 @@ public:
 		/** Creates a storage object for Message events. */
 		ScriptingObjects::ScriptingMessageHolder* createMessageHolder();
 
+		/** Creates a neural network with the given ID. */
+		ScriptingObjects::ScriptNeuralNetwork* createNeuralNetwork(String id);
+
 		/** Creates an object that can listen to transport events. */
 		var createTransportHandler();
 

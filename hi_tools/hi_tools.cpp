@@ -139,5 +139,6 @@
 #include "hi_standalone_components/eq_plot/FilterInfo.cpp"
 #include "hi_standalone_components/eq_plot/FilterGraph.cpp"
 
-
-
+#if HISE_INCLUDE_RT_NEURAL
+#include "hi_neural/hi_neural.cpp"
+#endif
