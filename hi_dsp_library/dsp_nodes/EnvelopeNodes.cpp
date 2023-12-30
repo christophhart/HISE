@@ -681,21 +681,20 @@ float simple_ar_base::State::tick()
 	if (!smoothing)
 		return targetValue;
 
-	float returnValue;
 
 	if (targetValue == 1.0)
 		linearRampValue = jmin(1.0, linearRampValue + upRampDelta);
 	else
 		linearRampValue = jmax(0.0, linearRampValue - downRampDelta);
 
-	lastValue = env.calculateValue(targetValue);
+	auto curvedValue = env.calculateValue(targetValue);
 
 	if (curve == 0.5f)
-		returnValue = (float)linearRampValue;
+		lastValue = (float)linearRampValue;
 	else if (curve < 0.5f)
 	{
 		auto alpha = 2.0f * (curve);
-		returnValue = Interpolator::interpolateLinear(lastValue, (float)linearRampValue, alpha);
+		lastValue = Interpolator::interpolateLinear(curvedValue, (float)linearRampValue, alpha);
 	}
 
 	else  //curve > 0.5f
@@ -703,13 +702,13 @@ float simple_ar_base::State::tick()
 		auto oneValue = hmath::pow((float)linearRampValue, float_Pi);
 
 		auto alpha = 2.0f * (curve - 0.5f);
-		returnValue = Interpolator::interpolateLinear((float)linearRampValue, oneValue, alpha);
+		lastValue = Interpolator::interpolateLinear((float)linearRampValue, oneValue, alpha);
 	}
 
 	smoothing = std::abs(targetValue - lastValue) > 0.0001;
 	active = smoothing || targetValue == 1.0;
 
-	return returnValue;
+	return lastValue;
 }
 
 void simple_ar_base::State::recalculateLinearAttackTime()
