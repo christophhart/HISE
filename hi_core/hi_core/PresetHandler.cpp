@@ -843,10 +843,15 @@ bool ProjectHandler::isValidProjectFolder(const File &file) const
 
 bool ProjectHandler::anySubdirectoryExists(const File& possibleProjectFolder) const
 {
-	return	possibleProjectFolder.getChildFile("Scripts").isDirectory() ||
-			possibleProjectFolder.getChildFile("SampleMaps").isDirectory() ||
-			possibleProjectFolder.getChildFile("XmlPresetBackups").isDirectory();
+    for(const auto& dir: getSubDirectoryIds())
+    {
+        auto id = getIdentifier(dir);
+        id.removeCharacters("/");
+        if(possibleProjectFolder.getChildFile(id).isDirectory())
+            return true;
+    }
 
+    return false;
 }
 
 File ProjectHandler::getWorkDirectory() const

@@ -7777,7 +7777,7 @@ struct ScriptingObjects::GlobalCableReference::DummyTarget : public scriptnode::
 	Path getTargetIcon() const override
 	{
 		Path path;
-		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor));
 		return path;
 	}
 
@@ -7931,7 +7931,7 @@ struct ScriptingObjects::GlobalCableReference::Callback: public scriptnode::rout
 	Path getTargetIcon() const override
 	{
 		Path path;
-		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, sizeof(HiBinaryData::SpecialSymbols::scriptProcessor));
+		path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor));
 		return path;
 	}
 
@@ -8040,7 +8040,7 @@ struct MacroCableTarget : public scriptnode::routing::GlobalRoutingManager::Cabl
 	Path getTargetIcon() const override
 	{
 		Path p;
-		p.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+		p.loadPathFromData(HiBinaryData::SpecialSymbols::macros, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::macros));
 		return p;
 	}
 
@@ -8135,7 +8135,7 @@ struct ProcessorParameterTarget : public scriptnode::routing::GlobalRoutingManag
     Path getTargetIcon() const override
     {
         Path p;
-        p.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+        p.loadPathFromData(HiBinaryData::SpecialSymbols::macros, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::macros));
         return p;
     }
 
