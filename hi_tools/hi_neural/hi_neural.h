@@ -71,6 +71,7 @@ struct NeuralNetwork: public ReferenceCountedObject
 
 	struct ModelBase
 	{
+        ModelBase() {};
 		virtual ~ModelBase() {};
 
 		virtual void reset() = 0;
@@ -79,6 +80,8 @@ struct NeuralNetwork: public ReferenceCountedObject
 		virtual int getNumOutputs() const = 0;
 		virtual ModelBase* clone() = 0;
 		virtual Result loadWeights(const String& jsonData) = 0;
+        
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModelBase);
 	};
 
 	struct CppBuilder
@@ -114,21 +117,44 @@ struct NeuralNetwork: public ReferenceCountedObject
 
 	struct Holder
 	{
+        Holder()
+        {
+            f = new Factory();
+        }
+        
+        ~Holder()
+        {
+            f = nullptr;
+        }
+        
 		/** Creates a network with a unique ID or returns a reference if it already exists. */
 		Ptr getOrCreate(const Identifier& id);
 
 		/** Returns a list of all created networks. */
 		StringArray getIdList() const;
 
+        Factory* getFactory() { return f; }
+        
 	private:
 
+        ScopedPointer<Factory> f;
+        
 		List networks;
 	};
 
-	NeuralNetwork(const Identifier& id);
+	NeuralNetwork(const Identifier& id, Factory* f);
 
 	Identifier getId() const { return id; }
 
+    int getRuntimeHash() const override { return id.toString().hashCode(); }
+    
+    runtime_target::RuntimeTarget getType() const override
+    {
+        return runtime_target::RuntimeTarget::NeuralNetwork;
+    }
+    
+    NeuralNetwork::Ptr clone(int numNetworks);
+    
 	~NeuralNetwork();
 
 	/** Parses the model layout from the print() output of the Pytorch model. */
@@ -173,9 +199,9 @@ struct NeuralNetwork: public ReferenceCountedObject
 
 private:
 	
+    Factory* factory = nullptr;
+    
 	mutable hise::SimpleReadWriteLock lock;
-
-	SharedResourcePointer<Factory> f;
 
 	const Identifier id;
 
@@ -183,4 +209,4 @@ private:
 };
 
 
-} // namespace hise
+} // namespace hise} // namespace hise

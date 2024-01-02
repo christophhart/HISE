@@ -424,7 +424,7 @@ NeuralNetwork::Ptr NeuralNetwork::Holder::getOrCreate(const Identifier& id)
 		if(id == nn->getId())
 			return nn;
 
-	auto nn = new NeuralNetwork(id);
+	auto nn = new NeuralNetwork(id, getFactory());
 
 	networks.add(nn);
 	return Ptr(nn);
@@ -440,15 +440,32 @@ StringArray NeuralNetwork::Holder::getIdList() const
 	return sa;
 }
 
-NeuralNetwork::NeuralNetwork(const Identifier& id_):
-	id(id_)
+NeuralNetwork::NeuralNetwork(const Identifier& id_, Factory* f):
+	id(id_),
+    factory(f)
 {
+    jassert(f != nullptr);
 	currentModels.add(f->create(id));
 }
 
 NeuralNetwork::~NeuralNetwork()
 {
-	clearModel();
+    SimpleReadWriteLock::ScopedMultiWriteLock sl(lock);
+    currentModels.clear();
+}
+
+NeuralNetwork::Ptr NeuralNetwork::clone(int numNetworks)
+{
+    auto nn = new NeuralNetwork(getId(), factory);
+    
+    nn->currentModels.clear();
+    
+    nn->context = context;
+    
+    for(int i = 0; i < numNetworks; i++)
+        nn->currentModels.add(currentModels.getFirst()->clone());
+    
+    return nn;
 }
 
 var NeuralNetwork::parseModelJSON(const File& modelFile)
