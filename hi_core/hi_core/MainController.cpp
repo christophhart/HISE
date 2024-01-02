@@ -236,7 +236,12 @@ void MainController::clearPreset()
 	getProcessorChangeHandler().sendProcessorChangeMessage(getMainSynthChain(), ProcessorChangeHandler::EventType::ClearBeforeRebuild, isMessageThread);
 
 	while (auto p = iter.getNextProcessor())
-		p->cleanRebuildFlagForThisAndParents();
+    {
+        if(auto sp = dynamic_cast<HardcodedSwappableEffect*>(p))
+            sp->disconnectRuntimeTargets();
+        
+        p->cleanRebuildFlagForThisAndParents();
+    }
 
 	auto f = [](Processor* p)
 	{
@@ -405,6 +410,11 @@ void MainController::loadPresetInternal(const ValueTree& v)
 			allNotesOff(true);
             
 			getUserPresetHandler().initDefaultPresetManager({});
+            
+            Processor::Iterator<HardcodedSwappableEffect> rti(synthChain, false);
+            
+            while(auto m = rti.getNextProcessor())
+                m->connectRuntimeTargets();
 		}
 		catch (String& errorMessage)
 		{
@@ -820,6 +830,22 @@ hise::RLottieManager::Ptr MainController::getRLottieManager()
 	return rLottieManager.get();
 }
 #endif
+
+void MainController::connectToRuntimeTargets(scriptnode::OpaqueNode& on, bool shouldAdd)
+{
+    if(auto rm = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(getGlobalRoutingManager()))
+    {
+        rm->connectToRuntimeTargets(on, shouldAdd);
+    }
+    
+    for(const auto& id: getNeuralNetworks().getIdList())
+    {
+        auto nn = getNeuralNetworks().getOrCreate(id);
+        
+        auto con = nn->createConnection();
+        on.connectToRuntimeTarget(shouldAdd, con);
+    }
+}
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
 {

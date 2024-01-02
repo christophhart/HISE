@@ -482,7 +482,37 @@ Node::Ptr ValueTreeBuilder::parseFaustNode(Node::Ptr u)
 		DBG("Exporting faust scriptnode, class: " + faustClass);
 	}
 		
-	return parseRoutingNode(u);
+	return parseRuntimeTargetNode(u);
+}
+
+Node::Ptr ValueTreeBuilder::parseRuntimeTargetNode(Node::Ptr u)
+{
+    if(ValueTreeIterator::isRuntimeTargetNode(u->nodeTree))
+    {
+        NamespacedIdentifier indexClass;
+        
+        auto mid = getNodeId(u->nodeTree).getIdentifier().toString();
+
+        mid << "_index";
+        
+        if(CustomNodeProperties::nodeHasProperty(u->nodeTree, PropertyIds::IsFixRuntimeTarget))
+        {
+            indexClass = NamespacedIdentifier::fromString("runtime_target::indexers::fix_hash");
+            
+            auto hashCode = ValueTreeIterator::getFixRuntimeHash(u->nodeTree);
+            
+            UsingTemplate idx(*this, mid, indexClass);
+            
+            idx << hashCode;
+        
+            idx.flushIfNot();
+            
+            *u << idx;
+        }
+        
+    }
+    
+    return parseRoutingNode(u);
 }
 
 Node::Ptr ValueTreeBuilder::parseRoutingNode(Node::Ptr u)
@@ -1764,6 +1794,35 @@ juce::var ValueTreeIterator::getNodeProperty(const ValueTree& nodeTree, const Id
 	return propTree.getChildWithProperty(PropertyIds::ID, id.toString())[PropertyIds::Value];
 }
 
+int ValueTreeIterator::getFixRuntimeHash(const ValueTree &nodeTree)
+{
+    auto path = getNodeFactoryPath(nodeTree);
+    
+    if(path == NamespacedIdentifier::fromString("routing::global_cable"))
+    {
+        auto c = getNodeProperty(nodeTree, PropertyIds::Connection).toString();
+        return c.hashCode();
+    }
+    if(path == NamespacedIdentifier::fromString("math::neural"))
+    {
+        auto c = getNodeProperty(nodeTree, PropertyIds::Model).toString();
+        return c.hashCode();
+    }
+    
+    jassertfalse;
+    return 0;
+    
+
+}
+
+bool ValueTreeIterator::isRuntimeTargetNode(const ValueTree& nodeTree)
+{
+    auto fix = CustomNodeProperties::nodeHasProperty(nodeTree, PropertyIds::IsFixRuntimeTarget);
+    auto dy = CustomNodeProperties::nodeHasProperty(nodeTree, PropertyIds::IsDynamicRuntimeTarget);
+    
+    return fix || dy;
+}
+
 bool ValueTreeIterator::isComplexDataNode(const ValueTree& nodeTree)
 {
 	auto cTree = nodeTree.getChildWithName(PropertyIds::ComplexData);
@@ -2069,6 +2128,41 @@ snex::cppgen::Node::Ptr ValueTreeBuilder::RootContainerBuilder::parse()
 			parent << def;
 		}
 
+        if(hasRuntimeTargets())
+        {
+            parent.addEmptyLine();
+
+            parent << "void connectToRuntimeTarget(bool addConnection, const runtime_target::connection& c)";
+
+            stackVariables.clear();
+
+            StatementBlock sb(parent);
+
+            parent.addComment("Runtime target Connections", Base::CommentType::FillTo80Light);
+
+            ValueTreeIterator::forEach(root->nodeTree.getChildWithName(PropertyIds::Nodes), [&](ValueTree& childNode)
+            {
+                if (childNode.getType() == PropertyIds::Node)
+                {
+                    if (ValueTreeIterator::isRuntimeTargetNode(childNode))
+                    {
+                        auto sv = getChildNodeAsStackVariable(childNode);
+
+                        String def;
+
+                        def << sv->toExpression() << ".connectToRuntimeTarget(addConnection, c);";
+
+                        parent << def;
+
+                        auto type = parent.getNode(childNode, false);
+                        parent.addComment(type->toExpression(), Base::CommentType::AlignOnSameLine);
+                    }
+                }
+
+                return false;
+            });
+        }
+        
 		if (hasComplexTypes())
 		{
 
@@ -2625,6 +2719,17 @@ bool ValueTreeBuilder::RootContainerBuilder::hasComplexTypes() const
 
 		return false;
 	});
+}
+
+bool ValueTreeBuilder::RootContainerBuilder::hasRuntimeTargets() const
+{
+    return ValueTreeIterator::forEach(root->nodeTree, [](ValueTree& v)
+    {
+        if(ValueTreeIterator::isRuntimeTargetNode(v))
+            return true;
+
+        return false;
+    });
 }
 
 PooledStackVariable::PooledStackVariable(Base& p, const ValueTree& nodeTree_) :

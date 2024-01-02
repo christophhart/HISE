@@ -1666,6 +1666,8 @@ public:
 
 	int getPreviewBufferSize() const;
 
+    void connectToRuntimeTargets(scriptnode::OpaqueNode& opaqueNode, bool shouldAdd);
+    
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
 	CustomKeyboardState &getKeyboardState();

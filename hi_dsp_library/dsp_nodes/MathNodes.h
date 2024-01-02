@@ -794,7 +794,137 @@ template <typename ExpressionClass> struct expression_base
 
 template <int NV, class ExpressionClass> using expr = OpNode<expression_base<ExpressionClass>, NV>;
 
+/** TODO:
+ * - Parameters
+ * - ProcessingModes
+ */
+template <int NV, typename IndexType> struct neural:
+public runtime_target::indexable_target<IndexType, runtime_target::RuntimeTarget::NeuralNetwork, hise::NeuralNetwork*>,
+public polyphonic_base
+{
+public:
+
+    SN_NODE_ID("neural");
+    
+    SN_GET_SELF_AS_OBJECT(neural);
+    
+    SN_DESCRIPTION("Runs a per-sample inference on the first channel of the signal using a neural network");
+    
+    SN_EMPTY_INITIALISE;
+    
+    neural():
+      polyphonic_base(getStaticId(), false)
+    {};
+    
+    void prepare(PrepareSpecs ps)
+    {
+        if(!ps)
+            return;
+
+        lastSpecs = ps;
+
+        auto originalNetwork = static_cast<NeuralNetwork*>(this->currentConnection.source);;
+        
+        if(originalNetwork != nullptr)
+        {
+            auto numClones = NV;
+
+            if(originalNetwork->context.shouldCloneChannels())
+                numClones *= ps.numChannels;
+
+            thisNetwork = originalNetwork->clone(numClones);
+
+            voiceIndexOffsets.prepare(ps);
+
+            int idx = 0;
+
+            for(auto& v: voiceIndexOffsets)
+            {
+                v = idx;
+                idx += ps.numChannels;
+            }
+        }
+
+        reset();
+    }
+
+    PolyData<int, NV> voiceIndexOffsets;
+
+    static constexpr bool isPolyphonic() { return NV > 1; }
+
+    void reset()
+    {
+        auto currentNetwork = getCurrentNetwork();
+        if(currentNetwork != nullptr)
+        {
+            for(auto v: voiceIndexOffsets)
+            {
+                for(int c = 0; c < lastSpecs.numChannels; c++)
+                    currentNetwork->reset(v + c);
+            }
+        }
+    }
+
+    void onValue(NeuralNetwork*) override {};
+    
+    void onConnectionChange() override
+    {
+        prepare(lastSpecs);
+    };
+    
+    int getNumExpectedNetworks() const
+    {
+        return (isPolyphonic() ? NV : 1) * lastSpecs.numChannels;
+    }
+
+    SN_EMPTY_HANDLE_EVENT;
+    
+    template <typename PD> void process(PD& data)
+    {
+        auto currentNetwork = getCurrentNetwork();
+        
+        if(currentNetwork != nullptr && getNumExpectedNetworks() == currentNetwork->getNumNetworks())
+        {
+            auto offset = voiceIndexOffsets.get();
+
+            int c = 0;
+            for(auto& ch: data)
+            {
+                auto bl = data.toChannelData(ch);
+
+                for(auto& s: bl)
+                    currentNetwork->process(offset + c, &s, &s);
+
+                c++;
+            }
+        }
+    }
+
+    template <typename FD> void processFrame(FD& data)
+    {
+        auto currentNetwork = getCurrentNetwork();
+        if(currentNetwork != nullptr && data.size() == currentNetwork->getNumNetworks())
+        {
+            auto offset = voiceIndexOffsets.get();
+
+            int c = 0;
+            for(auto& s: data)
+                currentNetwork->process(offset + c++, &s, &s);
+        }
+    }
+
+    NeuralNetwork* getCurrentNetwork()
+    {
+        return thisNetwork.get();
+    }
+    
+    NeuralNetwork::Ptr thisNetwork;
+    
+    PrepareSpecs lastSpecs;
+};
+
 }
+
 
 
 }

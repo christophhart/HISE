@@ -479,6 +479,25 @@ HardcodedSwappableEffect::~HardcodedSwappableEffect()
 	factory = nullptr;
 }
 
+void HardcodedSwappableEffect::connectRuntimeTargets()
+{
+    if(opaqueNode != nullptr)
+    {
+        dynamic_cast<Processor*>(this)->getMainController()->connectToRuntimeTargets(*opaqueNode, true);
+    }
+}
+
+void HardcodedSwappableEffect::disconnectRuntimeTargets()
+{
+    if(opaqueNode != nullptr)
+    {
+        dynamic_cast<Processor*>(this)->getMainController()->connectToRuntimeTargets(*opaqueNode, false);
+        
+        factory->deinitOpaqueNode(opaqueNode);
+        opaqueNode = nullptr;
+    }
+}
+
 bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*/)
 {
 	if (factoryId == currentEffect)
@@ -498,6 +517,9 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 		if (!factory->initOpaqueNode(newNode, idx, isPolyphonic()))
 			newNode = nullptr;
 
+        auto mc = dynamic_cast<Processor*>(this)->getMainController();
+        mc->connectToRuntimeTargets(*newNode, true);
+        
 		bool somethingChanged = false;
 
 		// Create all complex data types we need...

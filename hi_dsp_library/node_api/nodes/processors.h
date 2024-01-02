@@ -1609,6 +1609,12 @@ template <class T> struct node : public scriptnode::data::base
 		if constexpr (prototypes::check::setExternalData<T>::value)
 			obj.setExternalData(d, index);
 	}
+    
+    void connectToRuntimeTarget(bool add, const runtime_target::connection& c)
+    {
+        if constexpr (prototypes::check::connectToRuntimeTarget<T>::value)
+            obj.connectToRuntimeTarget(add, c);
+    }
 
 	void createParameters(ParameterDataList& data)
 	{

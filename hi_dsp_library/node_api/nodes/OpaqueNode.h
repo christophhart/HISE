@@ -157,6 +157,9 @@ struct OpaqueNode
 		if constexpr (prototypes::check::isProcessingHiseEvent<T>::value)
 			shouldProcessHiseEvent = t->isProcessingHiseEvent();
 
+        if constexpr (prototypes::check::connectToRuntimeTarget<T>::value)
+            connectRuntimeFunc = prototypes::static_wrappers<T>::connectToRuntimeTarget;
+        
 		if constexpr (prototypes::check::hasTail<T>::value)
 			hasTail_ = t->hasTail();
 
@@ -219,6 +222,8 @@ struct OpaqueNode
 
 	void setExternalData(const ExternalData& b, int index);
 
+    void connectToRuntimeTarget(bool add, const runtime_target::connection& c);
+    
 	void createParameters(ParameterDataList& l);
 
 	template <int P> static void setParameterStatic(void* obj, double v)
@@ -299,6 +304,7 @@ private:
 	prototypes::processFrame<StereoFrame> stereoFrame = nullptr;
 	prototypes::initialise initFunc = nullptr;
 	prototypes::setExternalData externalDataFunc = nullptr;
+    prototypes::connectRuntimeTarget connectRuntimeFunc = nullptr;
 	prototypes::handleModulation modFunc;
 
 	Array<parameter::data> parameters;

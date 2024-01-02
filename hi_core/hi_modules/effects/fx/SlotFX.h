@@ -89,6 +89,10 @@ public:
 
     var getParameterProperties() const override;
     
+    void disconnectRuntimeTargets();
+    
+    void connectRuntimeTargets();
+    
 protected:
 	
 	HardcodedSwappableEffect(MainController* mc, bool isPolyphonic);

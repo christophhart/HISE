@@ -809,6 +809,44 @@ struct matrix_helpers
 	}
 };
 
+template <typename IndexType, typename ParameterClass> struct global_cable:
+public mothernode,
+public control::pimpl::no_processing,
+public control::pimpl::parameter_node_base<ParameterClass>,
+public runtime_target::indexable_target<IndexType, runtime_target::RuntimeTarget::GlobalCable, double>
+{
+    SN_GET_SELF_AS_OBJECT(global_cable);
+    SN_NODE_ID("global_cable");
+    SN_ADD_SET_VALUE(global_cable);
+    
+    global_cable():
+    control::pimpl::parameter_node_base<ParameterClass>(getStaticId())
+    {
+        
+    };
+    
+    ~global_cable() = default;
+    
+    static constexpr bool isPolyphonic() { return false; }
+    
+    void onValue(double c) override
+    {
+        if(recursion)
+            return;
+        
+        if(this->getParameter().isConnected())
+            this->getParameter().call(c);
+    }
+    
+    void setValue(double newValue)
+    {
+        ScopedValueSetter<bool> rec(recursion, true);
+        this->sendValueToSource(newValue);
+    }
+    
+    bool recursion = false;
+};
+
 template <class MatrixType> struct matrix
 {
 	SN_NODE_ID("matrix");

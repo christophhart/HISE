@@ -30,7 +30,8 @@ using namespace juce;
         json.dump(model.state_dict(), json_file,cls=EncodeTensor)
 	```
  */
-struct NeuralNetwork: public ReferenceCountedObject
+struct NeuralNetwork: public ReferenceCountedObject,
+                      public runtime_target::source_base
 {
 	/** This POD will hold the information about the expected processing mode for the given network
 	 *  Usually you will set these properties after loading a model and then the neural network will

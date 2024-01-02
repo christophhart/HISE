@@ -89,6 +89,12 @@ void OpaqueNode::setExternalData(const ExternalData& b, int index)
 		externalDataFunc(getObjectPtr(), &b, index);
 }
 
+void OpaqueNode::connectToRuntimeTarget(bool add, const runtime_target::connection& c)
+{
+    if(connectRuntimeFunc)
+        connectRuntimeFunc(getObjectPtr(), add, c);
+}
+
 void OpaqueNode::createParameters(ParameterDataList& l)
 {
 	for (const auto& p : ParameterIterator(*this))

@@ -1339,7 +1339,8 @@ GlobalCableNode::GlobalCableNode(DspNetwork* n, ValueTree d) :
 	ModulationSourceNode(n, d),
 	slotId(PropertyIds::Connection, "")
 {
-	cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsControlNode);
+    cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsFixRuntimeTarget);
 
 	globalRoutingManager = GlobalRoutingManager::Helpers::getOrCreate(n->getScriptProcessor()->getMainController_());
 

@@ -227,6 +227,8 @@ will break compatibility with older projects / presets because the tempo indexes
 
 #include "hi_tools/ValueTreeHelpers.h"
 
+#include "hi_tools/runtime_target.h"
+
 #if USE_IPP
 
 #include "ipp.h"

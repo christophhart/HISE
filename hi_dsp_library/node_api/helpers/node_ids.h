@@ -133,6 +133,8 @@ DECLARE_ID(IsOptionalSnexNode);
 DECLARE_ID(TemplateArgumentIsPolyphonic);
 DECLARE_ID(IsCloneCableNode);
 DECLARE_ID(IsRoutingNode);
+DECLARE_ID(IsFixRuntimeTarget);
+DECLARE_ID(IsDynamicRuntimeTarget);
 DECLARE_ID(IsPublicMod);
 DECLARE_ID(UseUnnormalisedModulation);
 DECLARE_ID(AllowPolyphonic);
