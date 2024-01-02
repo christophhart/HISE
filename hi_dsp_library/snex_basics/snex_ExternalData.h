@@ -458,7 +458,11 @@ struct ExternalData
     /** Returns true if there is no data associated with this object. */
 	bool isEmpty() const
 	{
-		return dataType == DataType::numDataTypes || numSamples == 0 || obj == nullptr || numChannels == 0 || data == nullptr;
+		return dataType == DataType::numDataTypes ||
+               numSamples == 0 ||
+               (obj == nullptr && data == nullptr) || // allow obj to be nullptr for embedded data tables
+               numChannels == 0 ||
+               data == nullptr;
 	}
 
 	bool isNotEmpty() const
@@ -739,7 +743,7 @@ struct base
 	virtual void setExternalData(const snex::ExternalData& d, int index)
 	{
 		// This function must always be called while the writer lock is active
-		jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
+		jassert(d.obj == nullptr || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
 
 		
 
