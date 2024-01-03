@@ -188,6 +188,8 @@ struct empty
 		
 	}
 
+	void* getObjectPtr() { return reinterpret_cast<void*>(this); }
+
 	static void callStatic(void*, double) {};
 
 	bool isConnected() const { return true; }

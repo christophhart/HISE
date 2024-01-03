@@ -90,6 +90,7 @@ struct Error: public ErrorC
         CloneMismatch,
         IllegalMod,
         UnscaledModRangeMismatch,
+        UncompiledThirdPartyNode,
         numErrorCodes
     };
     

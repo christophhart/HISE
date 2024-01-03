@@ -1764,23 +1764,94 @@ Factory::Factory(DspNetwork* n) :
 namespace dll
 {
 
+
+struct UncompiledNode: public WrapperNode
+{
+	UncompiledNode(DspNetwork* n, ValueTree v):
+	  WrapperNode(n, v)
+	{
+		auto pl = createInternalParameterList();
+
+		for (auto p : pl)
+		{
+			auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.info.getId());
+			jassert(existingChild.isValid());
+			auto newP = new Parameter(this, existingChild);
+			addParameter(newP);
+		}
+	}
+
+	void* getObjectPtr() override { return nullptr; }
+
+	void prepare(PrepareSpecs ps) override
+	{
+		getRootNetwork()->getExceptionHandler().addCustomError(this, Error::ErrorCode::UncompiledThirdPartyNode, "Uncompiled third party node.");
+	}
+
+	void process(ProcessDataDyn& ) override
+	{
+		
+	}
+
+	void reset() override
+	{
+		
+	}
+
+	void processFrame(FrameType& data) override
+	{
+		
+	}
+};
+
 BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 	NodeFactory(n),
 	dllFactory(dll)
 {
-	auto networks = BackendDllManager::getNetworkFiles(n->getScriptProcessor()->getMainController_());
+	auto mc = n->getScriptProcessor()->getMainController_();
+	auto networks = BackendDllManager::getNetworkFiles(mc);
 	auto numNetworks = networks.size();
 
 	int numNodesInDll = dllFactory.getNumNodes();
 
 	int thirdPartyOffset = 0;
 
-	for (int i = 0; i < numNodesInDll; i++)
-	{
-		if (dllFactory.isThirdPartyNode(i))
-			thirdPartyOffset = i + 1;
-	}
+	Array<Identifier> idsFromJSON;
 
+	if(numNodesInDll == 0)
+	{
+		auto propFile = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::ThirdParty).getChildFile("node_properties.json");
+
+		NamespacedIdentifier rootId("project");
+
+		auto thirdPartyList = JSON::parse(propFile.loadFileAsString());
+
+		if(auto obj = thirdPartyList.getDynamicObject())
+		{
+			for(const auto& nv: obj->getProperties())
+			{
+				thirdPartyOffset++;
+				idsFromJSON.add(nv.name);
+
+				if(nv.value.isArray())
+				{
+					for(const auto& v: *nv.value.getArray())
+					{
+						cppgen::CustomNodeProperties::addNodeIdManually(nv.name, v.toString());
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numNodesInDll; i++)
+		{
+			if (dllFactory.isThirdPartyNode(i))
+				thirdPartyOffset = i + 1;
+		}
+	}
+	
 	// Cater in the scenario where we have third party effects...
 	auto numNodesToCreate = jmax(numNetworks + thirdPartyOffset, numNodesInDll);
 
@@ -1792,40 +1863,54 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 		auto createHardcodedNodeOnly = dllFactory.isThirdPartyNode(i);
 #else
 		// Don't create a DSP network but treat it like a compiled third party node
-		auto createHardcodedNodeOnly = i < numNodesInDll;
+		auto createHardcodedNodeOnly = i < numNodesInDll || i < thirdPartyOffset;
 #endif
 
 		if (createHardcodedNodeOnly)
 		{
-			NodeFactory::Item item;
-			item.id = dllFactory.getId(i);
-
-			dll::FactoryBase* f = &dllFactory;
-
-			item.cb = [this, i, f](DspNetwork* p, ValueTree v)
+			if(numNodesInDll == 0)
 			{
-				auto isModNode = f->getWrapperType(i) == 1;
+				NodeFactory::Item item;
 
-				NodeBase* n;
-
-				if (isModNode)
+				item.id = idsFromJSON[i];
+				item.cb = [](DspNetwork* p, ValueTree v)
 				{
-					auto mn = new InterpretedModNode(p, v);
-					mn->initFromDll(f, i, true);
-					n = mn;
-				}
-				else
+					return new UncompiledNode(p, v);
+				};
+
+				monoNodes.add(item);
+			}
+			else
+			{
+				NodeFactory::Item item;
+				item.id = dllFactory.getId(i);
+
+				dll::FactoryBase* f = &dllFactory;
+
+				item.cb = [this, i, f](DspNetwork* p, ValueTree v)
 				{
-					auto in = new InterpretedNode(p, v);
-					in->initFromDll(f, i, false);
-					n = in;
-				}
+					auto isModNode = f->getWrapperType(i) == 1;
 
-				return n;
-			};
+					NodeBase* n;
 
-			monoNodes.add(item);
+					if (isModNode)
+					{
+						auto mn = new InterpretedModNode(p, v);
+						mn->initFromDll(f, i, true);
+						n = mn;
+					}
+					else
+					{
+						auto in = new InterpretedNode(p, v);
+						in->initFromDll(f, i, false);
+						n = in;
+					}
 
+					return n;
+				};
+
+				monoNodes.add(item);
+			}
 		}
 		else
 		{
