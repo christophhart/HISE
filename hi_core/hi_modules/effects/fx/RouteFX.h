@@ -108,9 +108,13 @@ struct SendContainer : public ModulatorSynth
 	{
 		finaliseModChains();
 		getMatrix().setAllowResizing(true);
-		
-	}
 
+		auto constrainer = new NoMidiInputConstrainer();
+
+		effectChain->getFactoryType()->setConstrainer(constrainer, true);
+		effectChain->setForceMonophonicProcessingOfPolyphonicEffects(true);
+	}
+	
 	void numSourceChannelsChanged() override
 	{
 		prepareToPlay(getSampleRate(), getLargestBlockSize());
@@ -185,11 +189,14 @@ struct SendContainer : public ModulatorSynth
 		{
 			numSamplesToProcess = outputAudio.getNumSamples();
 			AudioSampleBuffer truncatedInternalBuffer(internalBuffer.getArrayOfWritePointers(), internalBuffer.getNumChannels(), numSamplesToProcess);
+
+			effectChain->renderNextBlock(truncatedInternalBuffer, 0, numSamplesToProcess);
 			effectChain->renderMasterEffects(truncatedInternalBuffer);
 		}
 		else
 		{
 			numSamplesToProcess = internalBuffer.getNumSamples();
+			effectChain->renderNextBlock(internalBuffer, 0, numSamplesToProcess);
 			effectChain->renderMasterEffects(internalBuffer);
 		}
 
