@@ -1310,6 +1310,9 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 	}
 	case CurrentSequence:		
 	{
+		auto ps = getLoopStart();
+		auto pe = getLoopEnd();
+
 		currentSequenceIndex = jlimit<int>(-1, currentSequences.size()-1, (int)(newAmount - 1)); 
 
 		currentlyRecordedEvents.clear();
@@ -1317,6 +1320,14 @@ void MidiPlayer::setInternalAttribute(int index, float newAmount)
 
 		updatePositionInCurrentSequence();
 
+		auto ls = getLoopStart();
+		auto le = getLoopEnd();
+
+		if(le != pe)
+			setAttribute(MidiPlayer::LoopEnd, le, sendNotificationSync);
+		if(ls != ps)
+			setAttribute(MidiPlayer::LoopStart, ls, sendNotificationSync);
+		
 		sendSequenceUpdateMessage(sendNotificationAsync);
 
 		break;
