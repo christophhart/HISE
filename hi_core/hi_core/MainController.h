@@ -1431,6 +1431,25 @@ public:
 		UnorderedStack<void*, 32> audioThreads;
 	};
 
+	struct PluginBypassHandler: public PooledUIUpdater::SimpleTimer,
+								public ControlledObject
+	{
+		PluginBypassHandler(MainController* mc):
+		  ControlledObject(mc),
+		  SimpleTimer(mc->getGlobalUIUpdater())
+		{};
+
+		void timerCallback() override;
+
+		void bumpWatchDog();
+
+		uint32 lastProcessBlockTime = 0;
+		bool lastBypassFlag = false;
+		bool currentBypassState = false;
+		bool reactivateOnNextCall = false;
+		LambdaBroadcaster<bool> listeners;
+	};
+
 	MainController();
 
 	virtual ~MainController();
@@ -1445,6 +1464,9 @@ public:
 
 	AutoSaver &getAutoSaver() noexcept { return autoSaver; }
 	const AutoSaver &getAutoSaver() const noexcept { return autoSaver; }
+
+	PluginBypassHandler& getPluginBypassHandler() noexcept { return bypassHandler; }
+	const PluginBypassHandler& getPluginBypassHandler() const noexcept { return bypassHandler; }
 
 	DelayedRenderer& getDelayedRenderer() noexcept { return delayedRenderer; };
 	const DelayedRenderer& getDelayedRenderer() const noexcept { return delayedRenderer; };
@@ -2075,6 +2097,8 @@ private:
 	dispatch::RootObject rootDispatcher;
 	dispatch::library::ProcessorHandler processorHandler;
 	dispatch::library::CustomAutomationSourceManager customAutomationSourceManager;
+
+	PluginBypassHandler bypassHandler;
 
 	AudioSampleBuffer previewBuffer;
 	double previewBufferIndex = -1.0;

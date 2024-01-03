@@ -246,7 +246,17 @@ void BackendProcessor::refreshExpansionType()
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
     TRACE_DSP();
-    
+
+	if(externalClockSim.bypassed)
+	{
+		processBlockBypassed(buffer, midiMessages);
+		return;
+	}
+
+	
+
+	
+
 #if !HISE_BACKEND_AS_FX
 	buffer.clear();
 #endif
@@ -351,7 +361,6 @@ void BackendProcessor::processBlockBypassed(AudioSampleBuffer& buffer, MidiBuffe
 {
 	buffer.clear();
 	midiMessages.clear();
-	//allNotesOff();
 }
 
 void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &/*midiMessages*/)

@@ -77,6 +77,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_scripting_slot_f_x.xml" "xml\sele
 xcopy "xml\classhise_1_1_scripting_objects_1_1_markdown_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_graphics_object.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_path_object.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_neural_network.xml" "xml\selection"
 
 xcopy "xml\structhise_1_1_scripting_objects_1_1_global_cable_reference.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_objects_1_1_global_routing_manager_reference.xml" "xml\selection"
@@ -223,6 +224,7 @@ ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_ring_buffer.xml" "
 ren "xml\selection\structhise_1_1_script_unlocker_1_1_ref_object.xml" "Unlocker.xml"
 ren "xml\selection\classhise_1_1_beatport_manager.xml" "BeatportManager.xml"
 ren "xml\selection\classhise_1_1_scripting_api_1_1_date.xml" "Date.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_neural_network.xml" "NeuralNetwork.xml"
 
 ApiExtractor.exe xml\selection xml\selection
 

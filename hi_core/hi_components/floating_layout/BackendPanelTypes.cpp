@@ -753,6 +753,7 @@ DAWClockController::DAWClockController(MainController* mc):
   SimpleTimer(mc->getGlobalUIUpdater()),
   ControlledObject(mc),
   clock(&dynamic_cast<BackendProcessor*>(mc)->externalClockSim),
+  bypass("bypass", nullptr, f),
   play("play", nullptr, f),
   stop("stop", nullptr, f),
   loop("loop", nullptr, f),
@@ -760,6 +761,7 @@ DAWClockController::DAWClockController(MainController* mc):
   rewind("rewind", nullptr, f),
   metronome("metronome", nullptr, f)
 {
+	addAndMakeVisible(bypass);
     addAndMakeVisible(play);
     addAndMakeVisible(stop);
     addAndMakeVisible(rewind);
@@ -773,7 +775,8 @@ DAWClockController::DAWClockController(MainController* mc):
     
     addAndMakeVisible(grid);
     addAndMakeVisible(length);
-    
+
+	bypass.setToggleModeWithColourChange(true);
     play.setToggleModeWithColourChange(true);
     stop.setToggleModeWithColourChange(true);
     loop.setToggleModeWithColourChange(true);
@@ -796,7 +799,12 @@ DAWClockController::DAWClockController(MainController* mc):
     length.setRange(1, 128.0, 1.0);
     
     length.setValue(dynamic_cast<Ruler*>(ruler.get())->numBars, dontSendNotification);
-    
+
+	bypass.onClick = [this]()
+	{
+		clock->bypassed = !clock->bypassed;
+	};
+
     play.onClick = [this]()
     {
         clock->isPlaying = true;
@@ -837,7 +845,8 @@ DAWClockController::DAWClockController(MainController* mc):
     position.setEditable(false);
     position.setFont(GLOBAL_BOLD_FONT().withHeight(17.0f));
     position.setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(0.5f));
-    
+
+	bypass.setTooltip("Simulate the bypass state of the plugin");
     play.setTooltip("Start the external DAW playback simulator [Space]");
     stop.setTooltip("Stop the external DAW playback simulator [Space]");
     loop.setTooltip("Toggle the loop playback");
@@ -913,7 +922,9 @@ void DAWClockController::timerCallback()
     posString << String(bars+1) << " | " << String(quarters+1) << " | " << String(ticks);
     
     position.setText(posString, dontSendNotification);
-    
+
+	
+	bypass.setToggleStateAndUpdateIcon(!clock->bypassed);
     play.setToggleStateAndUpdateIcon(clock->isPlaying);
     stop.setToggleStateAndUpdateIcon(!clock->isPlaying);
     loop.setToggleStateAndUpdateIcon(clock->isLooping);
@@ -934,7 +945,8 @@ void DAWClockController::resized()
     top.removeFromLeft(TopHeight);
     
     b.removeFromTop(5);
-    
+
+	bypass.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     play.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     stop.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     rewind.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
@@ -1137,6 +1149,7 @@ Path DAWClockController::Icons::createPath(const String& url) const
     LOAD_PATH_IF_URL("loopEnd", ClockIcons::loopEnd);
     LOAD_PATH_IF_URL("rewind", ClockIcons::rewind);
 	LOAD_PATH_IF_URL("metronome", ClockIcons::metronome);
+	LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
 
     return p;
 }

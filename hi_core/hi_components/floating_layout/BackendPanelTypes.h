@@ -133,6 +133,8 @@ public:
 
 	void prepareToPlay(double newSampleRate);
 
+	bool bypassed = false;
+
 	bool isLooping = false;
     bool isPlaying = false;
 	bool metronomeEnabled = false;
@@ -185,7 +187,7 @@ struct DAWClockController: public Component,
     WeakReference<ExternalClockSimulator> clock;
     Icons f;
     
-    HiseShapeButton play, stop, loop, grid, rewind, metronome;
+    HiseShapeButton bypass, play, stop, loop, grid, rewind, metronome;
     
     Slider bpm, nom, denom, length;
     
