@@ -286,6 +286,8 @@ template <typename Unused, typename... Processors> struct branch: public contain
 		}
     }
 
+	SN_EMPTY_SET_EXTERNAL_DATA;
+
     /** Calls `handleHiseEvent` for all child nodes. */
     void handleHiseEvent(HiseEvent& e)
     {
