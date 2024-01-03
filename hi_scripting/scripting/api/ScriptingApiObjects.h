@@ -2945,8 +2945,14 @@ namespace ScriptingObjects
 		/** Returns an object with properties about the length of the current sequence. */
 		var getTimeSignature();
 
+		/** Returns an object with properties about the length of the sequence with the given index. */
+		var getTimeSignatureFromSequence(int index);
+
 		/** Sets the timing information of the current sequence using the given object. */
 		bool setTimeSignature(var timeSignatureObject);
+		
+		/** Sets the timing information of the sequence with the given index using the given object. */
+		bool setTimeSignatureToSequence(int index, var timeSignatureObject);
 
 		/** This will send any CC messages from the MIDI file to the global MIDI handler. */
 		void setAutomationHandlerConsumesControllerEvents(bool shouldBeEnabled);

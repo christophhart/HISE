@@ -5393,6 +5393,8 @@ struct ScriptingObjects::ScriptedMidiPlayer::Wrapper
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getPlayState);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getTimeSignature);
 	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, setTimeSignature);
+	API_METHOD_WRAPPER_1(ScriptedMidiPlayer, getTimeSignatureFromSequence);
+	API_METHOD_WRAPPER_2(ScriptedMidiPlayer, setTimeSignatureToSequence);
 	API_METHOD_WRAPPER_0(ScriptedMidiPlayer, getLastPlayedNotePosition);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSyncToMasterClock);
 	API_VOID_METHOD_WRAPPER_1(ScriptedMidiPlayer, setSequenceCallback);
@@ -5441,6 +5443,8 @@ ScriptingObjects::ScriptedMidiPlayer::ScriptedMidiPlayer(ProcessorWithScriptingC
 	ADD_API_METHOD_0(getPlayState);
 	ADD_API_METHOD_0(getTimeSignature);
 	ADD_API_METHOD_1(setTimeSignature);
+	ADD_API_METHOD_1(getTimeSignatureFromSequence);
+	ADD_API_METHOD_2(setTimeSignatureToSequence);
 	ADD_API_METHOD_1(setSyncToMasterClock);
 	ADD_API_METHOD_1(setUseTimestampInTicks);
 	ADD_API_METHOD_0(getTicksPerQuarter);
@@ -5903,10 +5907,15 @@ int ScriptingObjects::ScriptedMidiPlayer::getNumSequences()
 
 var ScriptingObjects::ScriptedMidiPlayer::getTimeSignature()
 {
-	if (sequenceValid())
-	{
-		auto sig = getSequence()->getTimeSignature();
+	return getTimeSignatureFromSequence(-1);
+	
+}
 
+var ScriptingObjects::ScriptedMidiPlayer::getTimeSignatureFromSequence(int index)
+{
+	if (auto seq = getPlayer()->getSequenceWithIndex(index))
+	{
+		auto sig = seq->getTimeSignature();
 		return sig.getAsJSON();
 	}
 
@@ -5915,7 +5924,13 @@ var ScriptingObjects::ScriptedMidiPlayer::getTimeSignature()
 
 bool ScriptingObjects::ScriptedMidiPlayer::setTimeSignature(var timeSignatureObject)
 {
-	if (sequenceValid())
+	return setTimeSignatureToSequence(-1, timeSignatureObject);
+
+}
+
+bool ScriptingObjects::ScriptedMidiPlayer::setTimeSignatureToSequence(int index, var timeSignatureObject)
+{
+	if (auto seq = getPlayer()->getSequenceWithIndex(index))
 	{
 		HiseMidiSequence::TimeSignature sig;
 
@@ -5929,7 +5944,7 @@ bool ScriptingObjects::ScriptedMidiPlayer::setTimeSignature(var timeSignatureObj
 		bool valid = sig.numBars > 0 && sig.nominator > 0 && sig.denominator > 0;
 
 		if(valid)
-			getSequence()->setLengthFromTimeSignature(sig);
+			seq->setLengthFromTimeSignature(sig);
 
 		return valid;
 	}
