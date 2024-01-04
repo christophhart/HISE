@@ -2753,7 +2753,7 @@ Node::Ptr ValueTreeBuilder::ComplexDataBuilder::parse()
 	auto numTables = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::Table);
 	auto numSliderPacks = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::SliderPack);
 	auto numAudioFiles = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::AudioFile);
-	auto numFilters = ValueTreeIterator::getMaxDataTypeIndex(n->nodeTree, ExternalData::DataType::FilterCoefficients);
+	auto numFilters = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::FilterCoefficients);
 	auto numDisplayBuffers = ValueTreeIterator::getNumDataTypes(n->nodeTree, ExternalData::DataType::DisplayBuffer);
 
 	bool isSingleData = (numTables + numSliderPacks + numAudioFiles + numFilters + numDisplayBuffers) == 1;

@@ -208,7 +208,7 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 		{
 			if (P == 0)
 			{
-				if(std::isfinite(v) && v > 20.0)
+				if(std::isfinite(v) && v > 20.0 && v < 20000.0)
 					o.setCutoffFrequency(v);
 			}
 			if (P == 1)
@@ -237,7 +237,7 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 
 	void setExternalData(const ExternalData& d, int index) override
 	{
-		jassert(d.dataType == ExternalData::DataType::FilterCoefficients);
+		jassert(d.isEmpty() || d.dataType == ExternalData::DataType::FilterCoefficients);
 
 		filter_base::setExternalData(d, index);
 
