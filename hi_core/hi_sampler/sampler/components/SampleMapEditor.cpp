@@ -803,7 +803,13 @@ void SampleMapEditor::resized()
     rootNoteSetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
     lowKeySetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
     highKeySetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
+    
+    lowXFadeSetter ->setBounds (lowKeySetter->getBoundsInParent());
+    highXFadeSetter->setBounds (highKeySetter->getBoundsInParent());
+
+    
     lowVelocitySetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
+    
     highVelocitySetter->setBounds (bb.removeFromLeft(90)); bb.removeFromLeft(10);
     numQuartersSetter->setBounds (bb.removeFromLeft(76));
     
