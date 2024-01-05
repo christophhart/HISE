@@ -98,7 +98,7 @@ public:
 		}
 	}
 
-	IIRCoefficients getApproximateCoefficients() const override;
+	std::pair<IIRCoefficients, int> getApproximateCoefficients() const override;
 
 	void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue) override;
 

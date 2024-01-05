@@ -390,13 +390,13 @@ void FilterGraph::setCustom (int filterNum, double sampleRate, std::vector <doub
 	}
 }
 
-void FilterGraph::setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients)
+void FilterGraph::setCoefficients(int filterNum, double sampleRate, std::pair<IIRCoefficients, int> newCoefficients)
 {
 	if (filterNum < filterVector.size())
 	{
 		auto old = filterVector[filterNum]->getCoefficients();
 
-		if (memcmp(&old.coefficients, newCoefficients.coefficients, sizeof(IIRCoefficients::coefficients)) != 0)
+		if (memcmp(&old.coefficients, newCoefficients.first.coefficients, sizeof(IIRCoefficients::coefficients)) != 0)
 		{
 			filterVector[filterNum]->setSampleRate(sampleRate);
 			filterVector[filterNum]->setCoefficients(filterNum, sampleRate, newCoefficients);

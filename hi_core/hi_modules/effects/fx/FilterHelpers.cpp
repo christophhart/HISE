@@ -269,7 +269,7 @@ void FilterBank::reset()
 	}
 }
 
-juce::IIRCoefficients FilterBank::getCurrentCoefficients() const noexcept
+std::pair<juce::IIRCoefficients, int> FilterBank::getCurrentCoefficients() const noexcept
 {
 	return FilterEffect::getDisplayCoefficients(mode, freqModValue, q, gain * gainModValue, sampleRate);
 }
@@ -289,7 +289,7 @@ void FilterBank::setGain(float newGain)
 #undef RESET_MONO
 #undef RESET_POLY
 
-juce::IIRCoefficients FilterEffect::getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate)
+std::pair<juce::IIRCoefficients, int> FilterEffect::getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate)
 {
 	auto srToUse = samplerate;
 
@@ -302,25 +302,25 @@ juce::IIRCoefficients FilterEffect::getDisplayCoefficients(FilterBank::FilterMod
 
 	switch (m)
 	{
-	case FilterBank::OnePoleLowPass:		return IIRCoefficients::makeLowPass(srToUse, frequency);
-	case FilterBank::OnePoleHighPass:		return IIRCoefficients::makeHighPass(srToUse, frequency);
-	case FilterBank::LowPass:				return IIRCoefficients::makeLowPass(srToUse, frequency);
-	case FilterBank::HighPass:				return IIRCoefficients::makeHighPass(srToUse, frequency, q);
-	case FilterBank::LowShelf:				return IIRCoefficients::makeLowShelf(srToUse, frequency, q, gain);
-	case FilterBank::HighShelf:				return IIRCoefficients::makeHighShelf(srToUse, frequency, q, gain);
-	case FilterBank::Peak:					return IIRCoefficients::makePeakFilter(srToUse, frequency, q, gain);
-	case FilterBank::ResoLow:				return IIRCoefficients::makeLowPass(srToUse, frequency, q);
-	case FilterBank::StateVariableLP:		return IIRCoefficients::makeLowPass(srToUse, frequency, q);
-	case FilterBank::StateVariableHP:		return IIRCoefficients::makeHighPass(srToUse, frequency, q);
-	case FilterBank::LadderFourPoleLP:		return IIRCoefficients::makeLowPass(srToUse, frequency, 2.0*q);
-	case FilterBank::LadderFourPoleHP:		return IIRCoefficients::makeHighPass(srToUse, frequency, 2.0*q);
-	case FilterBank::MoogLP:				return IIRCoefficients::makeLowPass(srToUse, frequency, q);
-	case FilterBank::StateVariablePeak:     return IIRCoefficients::makePeakFilter(srToUse, frequency, q, gain);
-	case FilterBank::StateVariableNotch:    return IIRCoefficients::makeNotchFilter(srToUse, frequency, q);
-	case FilterBank::StateVariableBandPass: return IIRCoefficients::makeBandPass(srToUse, frequency, q);
-	case FilterBank::Allpass:               return IIRCoefficients::makeAllPass(srToUse, frequency, q);
-	case FilterBank::RingMod:               return IIRCoefficients::makeAllPass(srToUse, frequency, q);
-	default:					return IIRCoefficients();
+	case FilterBank::OnePoleLowPass:		return { IIRCoefficients::makeLowPass(srToUse, frequency), 1};
+	case FilterBank::OnePoleHighPass:		return { IIRCoefficients::makeHighPass(srToUse, frequency), 1 };
+	case FilterBank::LowPass:				return { IIRCoefficients::makeLowPass(srToUse, frequency), 1};
+	case FilterBank::HighPass:				return { IIRCoefficients::makeHighPass(srToUse, frequency, q), 1};
+	case FilterBank::LowShelf:				return { IIRCoefficients::makeLowShelf(srToUse, frequency, q, gain), 1};
+	case FilterBank::HighShelf:				return { IIRCoefficients::makeHighShelf(srToUse, frequency, q, gain), 1};
+	case FilterBank::Peak:					return { IIRCoefficients::makePeakFilter(srToUse, frequency, q, gain), 1};
+	case FilterBank::ResoLow:				return { IIRCoefficients::makeLowPass(srToUse, frequency, q), 1};
+	case FilterBank::StateVariableLP:		return { IIRCoefficients::makeLowPass(srToUse, frequency, q), 1};
+	case FilterBank::StateVariableHP:		return { IIRCoefficients::makeHighPass(srToUse, frequency, q), 1};
+	case FilterBank::LadderFourPoleLP:		return { IIRCoefficients::makeLowPass(srToUse, frequency, 2.0*q), 1};
+	case FilterBank::LadderFourPoleHP:		return { IIRCoefficients::makeHighPass(srToUse, frequency, 2.0*q), 1};
+	case FilterBank::MoogLP:				return { IIRCoefficients::makeLowPass(srToUse, frequency, q), 1};
+	case FilterBank::StateVariablePeak:     return { IIRCoefficients::makePeakFilter(srToUse, frequency, q, gain), 1};
+	case FilterBank::StateVariableNotch:    return { IIRCoefficients::makeNotchFilter(srToUse, frequency, q), 1};
+	case FilterBank::StateVariableBandPass: return { IIRCoefficients::makeBandPass(srToUse, frequency, q), 1};
+	case FilterBank::Allpass:               return { IIRCoefficients::makeAllPass(srToUse, frequency, q), 1};
+	case FilterBank::RingMod:               return { IIRCoefficients::makeAllPass(srToUse, frequency, q), 1};
+	default:					return { IIRCoefficients(), 1 };
 	}
 }
 

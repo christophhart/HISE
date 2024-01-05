@@ -129,7 +129,7 @@ public:
     void setEqBand (int filterNum, double sampleRate, double frequency, double Q, float gain, BandType eqType);
     void setCustom (int filterNum, double sampleRate, std::vector <double> numCoeffs, std::vector <double> denCoeffs);
     
-	void setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients);
+	void setCoefficients(int filterNum, double sampleRate, std::pair<IIRCoefficients, int> newCoefficients);
 
 
     float xToFreq (float xPos);

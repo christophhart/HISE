@@ -848,7 +848,7 @@ struct filter_base : public data::base,
 {
 	virtual ~filter_base() {};
 
-	virtual IIRCoefficients getApproximateCoefficients() const = 0;
+	virtual std::pair<IIRCoefficients, int> getApproximateCoefficients() const = 0;
 
 	void sendCoefficientUpdateMessage();
 

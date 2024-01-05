@@ -97,8 +97,14 @@ FilterResponse FilterInfo::getResponse (double inputFrequency) const
     }
     
     std::complex <double> transferFunction = num / den;
-    
-    return FilterResponse (abs (transferFunction) * gainValue, arg (transferFunction));
+
+    auto mag = abs(transferFunction);
+
+    mag = std::pow(mag, (float)order);
+
+    auto phase = arg(transferFunction);
+
+    return FilterResponse (mag * gainValue, phase);
 }
 
 void FilterInfo::zeroCoeffs()
@@ -116,7 +122,7 @@ void FilterInfo::zeroCoeffs()
     denominatorCoeffs [0] = 1;
 }
  
-bool FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, IIRCoefficients newCoefficients)
+bool FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, std::pair<IIRCoefficients, int> newCoefficients)
 {
 	numNumeratorCoeffs = 3;
     numDenominatorCoeffs = 3;
@@ -124,18 +130,19 @@ bool FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, IIRCo
     numeratorCoeffs.resize (3, 0);
     denominatorCoeffs.resize (3, 0);
 
-	coefficients = newCoefficients;
+	coefficients = newCoefficients.first;
+    order = newCoefficients.second;
         
     zeroCoeffs();
 
 	for (int numOrder = 0; numOrder < 3; numOrder++)
     {
-        numeratorCoeffs [numOrder] = newCoefficients.coefficients[numOrder];
+        numeratorCoeffs [numOrder] = newCoefficients.first.coefficients[numOrder];
     }
         
     for (int denOrder = 1; denOrder < 3; denOrder++)
     {
-        denominatorCoeffs [denOrder] = newCoefficients.coefficients [denOrder + 2];
+        denominatorCoeffs [denOrder] = newCoefficients.first.coefficients [denOrder + 2];
     }
     
     gainValue = 1;
@@ -288,7 +295,7 @@ FilterDataObject::~FilterDataObject()
 	internalData.clear();
 }
 
-juce::IIRCoefficients FilterDataObject::getCoefficients(int index) const
+std::pair<juce::IIRCoefficients, int> FilterDataObject::getCoefficients(int index) const
 {
 	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 
@@ -296,7 +303,7 @@ juce::IIRCoefficients FilterDataObject::getCoefficients(int index) const
 	return internalData[index].coefficients;
 }
 
-juce::IIRCoefficients FilterDataObject::getCoefficientsForBroadcaster(Broadcaster* b) const
+std::pair<juce::IIRCoefficients, int> FilterDataObject::getCoefficientsForBroadcaster(Broadcaster* b) const
 {
 	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 

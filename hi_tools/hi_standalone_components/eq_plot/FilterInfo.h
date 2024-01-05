@@ -83,7 +83,7 @@ public:
     
     void setCustom (std::vector <double> numCoeffs, std::vector <double> denCoeffs);
 
-	bool setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients);
+	bool setCoefficients(int filterNum, double sampleRate, std::pair<IIRCoefficients, int> newCoefficients);
 
 	Array<double> toDoubleArray() const;
 	void fromDoubleArray(Array<double>& d);
@@ -99,6 +99,8 @@ public:
 	};
     
 private:
+
+	int order = 1;
 
     double fs;
     int numNumeratorCoeffs, numDenominatorCoeffs;
@@ -132,7 +134,7 @@ public:
 	{
 		bool operator==(const InternalData& other) const { return broadcaster == other.broadcaster; }
 		WeakReference<Broadcaster> broadcaster;
-		IIRCoefficients coefficients;
+		std::pair<IIRCoefficients, int> coefficients;
 	};
 
 	using Ptr = ReferenceCountedObjectPtr<FilterDataObject>;
@@ -153,9 +155,9 @@ public:
 		}
 	}
 
-	IIRCoefficients getCoefficients(int index) const;
+	std::pair<IIRCoefficients, int> getCoefficients(int index) const;
 
-	IIRCoefficients getCoefficientsForBroadcaster(Broadcaster* b) const;
+	std::pair<IIRCoefficients, int> getCoefficientsForBroadcaster(Broadcaster* b) const;
 
 	void sendUpdateFromBroadcaster(Broadcaster* b)
 	{

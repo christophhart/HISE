@@ -218,7 +218,7 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 		this->sendCoefficientUpdateMessage();
 	}
 
-	IIRCoefficients getApproximateCoefficients() const override
+	std::pair<IIRCoefficients, int> getApproximateCoefficients() const override
 	{
         if(sr == 0)
             return {};
@@ -227,12 +227,12 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 
 		switch (o.getType())
 		{
-		case JuceDspType::Type::allpass: return IIRCoefficients::makeAllPass(sr, objects.getFirst().getCutoffFrequency(), 1.0);
-		case JuceDspType::Type::lowpass: return IIRCoefficients::makeLowPass(sr, objects.getFirst().getCutoffFrequency(), 1.0);
-		case JuceDspType::Type::highpass: return IIRCoefficients::makeHighPass(sr, objects.getFirst().getCutoffFrequency(), 1.0);
+		case JuceDspType::Type::allpass:  return { IIRCoefficients::makeAllPass(sr, objects.getFirst().getCutoffFrequency(), 1.0), 1 };
+		case JuceDspType::Type::lowpass:  return { IIRCoefficients::makeLowPass(sr, objects.getFirst().getCutoffFrequency(), 1.0), 1 };
+		case JuceDspType::Type::highpass: return { IIRCoefficients::makeHighPass(sr, objects.getFirst().getCutoffFrequency(), 1.0), 1 };
 		}
 
-		return IIRCoefficients();
+		return { IIRCoefficients(), 1 };
 	}
 
 	void setExternalData(const ExternalData& d, int index) override

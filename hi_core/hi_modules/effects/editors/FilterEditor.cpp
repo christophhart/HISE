@@ -165,7 +165,7 @@ FilterEditor::~FilterEditor()
 
 void FilterEditor::timerCallback()
 {
-	IIRCoefficients c = dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients();
+	auto c = dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients();
 
 	if (!sameCoefficients(c, currentCoefficients))
 	{

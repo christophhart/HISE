@@ -99,7 +99,7 @@ public:
 	void reset(int voiceIndex);
 	void reset();
 
-	IIRCoefficients getCurrentCoefficients() const noexcept;
+	std::pair<IIRCoefficients, int> getCurrentCoefficients() const noexcept;
 
 	FilterMode getMode() const noexcept { return mode; }
 
@@ -472,7 +472,7 @@ class FilterEffect
 {
 public:
 
-	static IIRCoefficients getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate);
+	static std::pair<IIRCoefficients, int> getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate);
 	static String getTableValueAsGain(float input);
 
 
@@ -482,7 +482,7 @@ public:
 
 	virtual ~FilterEffect() {};
 
-	virtual IIRCoefficients getCurrentCoefficients() const = 0;
+	virtual std::pair<IIRCoefficients, int> getCurrentCoefficients() const = 0;
 
 protected:
 

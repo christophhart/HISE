@@ -82,11 +82,14 @@ public:
 
 	void updateNameLabel(bool forceUpdate=false);
 
-	bool sameCoefficients(IIRCoefficients c1, IIRCoefficients c2)
+	bool sameCoefficients(std::pair<IIRCoefficients, int> c1, std::pair<IIRCoefficients, int> c2)
 	{
+		if(c1.second != c2.second)
+			return false;
+
 		for(int i = 0; i < 5; i++)
 		{
-			if(c1.coefficients[i] != c2.coefficients[i]) return false;
+			if(c1.first.coefficients[i] != c2.first.coefficients[i]) return false;
 		}
 
 		return true;
@@ -117,7 +120,7 @@ private:
 
 	bool isPoly = true;
 
-	IIRCoefficients currentCoefficients;
+	std::pair<IIRCoefficients, int> currentCoefficients;
 
     //[/UserVariables]
 

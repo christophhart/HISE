@@ -82,6 +82,7 @@ public:
 		LowShelf,
 		HighShelf,
 		AllPass,
+		Ladder24db,
 		numCoefficientTypes
 	};
 
@@ -153,7 +154,7 @@ public:
 	int getType() const;
 
 	static Identifier getFilterTypeId();
-	IIRCoefficients getApproximateCoefficients() const;
+	std::pair<IIRCoefficients, int> getApproximateCoefficients() const;
 
 	void reset(int unused = 0);
 	void processFrame(float* frameData, int channels);

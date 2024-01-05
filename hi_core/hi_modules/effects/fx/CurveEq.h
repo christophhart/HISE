@@ -170,7 +170,7 @@ public:
 #endif
 	};
 
-	IIRCoefficients getCoefficients(int filterIndex)
+	std::pair<IIRCoefficients, int> getCoefficients(int filterIndex)
 	{
 		return filterBands[filterIndex]->getApproximateCoefficients();
 	};
