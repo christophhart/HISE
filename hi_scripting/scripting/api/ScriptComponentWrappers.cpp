@@ -2731,14 +2731,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
             PROPERTY_CASE::ScriptComponent::tooltip :        adc->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 
 			PROPERTY_CASE::ScriptAudioWaveform::Properties::showLines: adc->getThumbnail()->setDrawHorizontalLines((bool)newValue); break;
-			PROPERTY_CASE::ScriptAudioWaveform::Properties::enableRange:
-			{
-				if (auto w = dynamic_cast<AudioDisplayComponent*>(component.get()))
-				{
-					w->getSampleArea(0)->setAreaEnabled(newValue);
-				}
-				break;
-			}
+			PROPERTY_CASE::ScriptAudioWaveform::Properties::enableRange: adc->getSampleArea(0)->setAreaEnabled(newValue); break;
 		}
 
 		if (auto asb = dynamic_cast<MultiChannelAudioBufferDisplay*>(component.get()))
@@ -2748,6 +2741,7 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateComponent(int p
 			switch (propertyIndex)
 			{
 				PROPERTY_CASE::ScriptAudioWaveform::Properties::showFileName: asb->setShowFileName((bool)newValue); break;
+				PROPERTY_CASE::ScriptAudioWaveform::Properties::loadWithLeftClick: asb->setLoadWithLeftClick((bool)newValue); break;
 			}
 		}
 	}

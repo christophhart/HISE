@@ -1543,6 +1543,9 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr PooledAudioFileDataProvider:
 
 File PooledAudioFileDataProvider::parseFileReference(const String& b64) const
 {
+	if(b64.isEmpty())
+		return File();
+
 	PoolReference ref(getMainController(), b64, FileHandlerBase::AudioFiles);
 
 	return ref.getFile();

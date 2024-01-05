@@ -1401,6 +1401,7 @@ public:
 			showFileName,
 			sampleIndex,
 			enableRange,
+			loadWithLeftClick,
 			numProperties
 		};
 

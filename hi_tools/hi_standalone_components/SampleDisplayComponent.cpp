@@ -2268,7 +2268,9 @@ void MultiChannelAudioBufferDisplay::rangeChanged(AudioDisplayComponent*, int)
 	auto range = areas[0]->getSampleRange();
 
 	if (connectedBuffer != nullptr)
+	{
 		connectedBuffer->setRange(range);
+	}
 }
 
 void MultiChannelAudioBufferDisplay::setBackgroundColour(Colour c)
@@ -2277,7 +2279,10 @@ void MultiChannelAudioBufferDisplay::setBackgroundColour(Colour c)
 void MultiChannelAudioBufferDisplay::mouseDoubleClick(const MouseEvent& mouseEvent)
 {
 	if (connectedBuffer != nullptr)
+	{
+		MultiChannelAudioBuffer::ScopedUndoActivator sv(*connectedBuffer);
 		connectedBuffer->fromBase64String({});
+	}
 }
 
 String MultiChannelAudioBufferDisplay::getCurrentlyLoadedFileName() const
@@ -2444,6 +2449,7 @@ void MultiChannelAudioBufferDisplay::itemDropped(const SourceDetails& dragSource
 {
 	if (connectedBuffer != nullptr)
 	{
+		MultiChannelAudioBuffer::ScopedUndoActivator sv(*connectedBuffer);
 		connectedBuffer->fromBase64String(dragSourceDetails.description.toString());
 	}
 }
@@ -2470,6 +2476,7 @@ void MultiChannelAudioBufferDisplay::filesDropped(const StringArray &fileNames, 
 {
 	if (fileNames.size() > 0 && connectedBuffer != nullptr)
 	{
+		MultiChannelAudioBuffer::ScopedUndoActivator sv(*connectedBuffer);
 		connectedBuffer->fromBase64String(fileNames[0]);
 	}
 }
@@ -2499,7 +2506,7 @@ void MultiChannelAudioBufferDisplay::mouseDown(const MouseEvent &e)
 {
 	CHECK_MIDDLE_MOUSE_DOWN(e);
 
-	if (connectedBuffer != nullptr && (e.mods.isRightButtonDown() || e.mods.isCtrlDown()))
+	if (connectedBuffer != nullptr && (e.mods.isRightButtonDown() || e.mods.isCtrlDown() || (e.mods.isLeftButtonDown() && loadWithLeftClick)))
 	{
 		if (auto p = connectedBuffer->getProvider())
 		{
@@ -2517,6 +2524,8 @@ void MultiChannelAudioBufferDisplay::mouseDown(const MouseEvent &e)
 			if (fc.browseForFileToOpen())
 			{
 				auto f = fc.getResult();
+
+				MultiChannelAudioBuffer::ScopedUndoActivator sv(*connectedBuffer);
 				connectedBuffer->fromBase64String(f.getFullPathName());
 			}
 		}
@@ -2630,82 +2639,127 @@ void MultiChannelAudioBuffer::setXYZProvider(const Identifier& id)
 	}
 }
 
-bool MultiChannelAudioBuffer::fromBase64String(const String& b64)
+struct UndoableBufferLoad: public UndoableAction
 {
+	UndoableBufferLoad(MultiChannelAudioBuffer::Ptr buffer_, const String& b64):
+	  buffer(buffer_),
+	  newFile(b64),
+	  oldFile(buffer->toBase64String())
+	{}
 
-	if (b64 != referenceString)
+	bool perform() override
 	{
-		referenceString = b64;
-		
-		if (referenceString.isEmpty() && xyzProvider != nullptr)
+		if(buffer != nullptr)
 		{
-			SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-			xyzItems.clear();
-			getUpdater().sendContentRedirectMessage();
+			MultiChannelAudioBuffer::ScopedUndoActivator svs(*dynamic_cast<MultiChannelAudioBuffer*>(buffer.get()), false);
+			auto unusedOk = buffer->fromBase64String(newFile);
+			// We need to ignore the load success (because it will return false when you clear a sample)
+			ignoreUnused(unusedOk);
 			return true;
 		}
 
-		Identifier xyzId = XYZProviderFactory::parseID(referenceString);
+		return false;
+	}
 
-		if (xyzId.isValid())
+	bool undo() override
+	{
+		if(buffer != nullptr)
 		{
-			setXYZProvider(xyzId);
+			MultiChannelAudioBuffer::ScopedUndoActivator svs(*dynamic_cast<MultiChannelAudioBuffer*>(buffer.get()), false);
+			auto unusedOk = buffer->fromBase64String(oldFile);
+			ignoreUnused(unusedOk);
+			return true;
+		}
 
-			if (xyzProvider != nullptr)
+		return false;
+	}
+
+	MultiChannelAudioBuffer::Ptr buffer;
+	String newFile, oldFile;
+};
+
+bool MultiChannelAudioBuffer::fromBase64String(const String& b64)
+{
+	if(auto um = getUndoManager(useUndoManagerForLoadOperation))
+	{
+		return um->perform(new UndoableBufferLoad(this, b64));
+	}
+	else
+	{
+		if (b64 != referenceString)
+		{
+			referenceString = b64;
+			
+			if (referenceString.isEmpty() && xyzProvider != nullptr)
 			{
 				SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
 				xyzItems.clear();
-
-				try
-				{
-					auto ok = xyzProvider->parse(b64, xyzItems);
-
-					getUpdater().sendContentRedirectMessage();
-
-					return ok;
-				}
-				catch (String&)
-				{
-					jassertfalse;
-					return false;
-				}
+				getUpdater().sendContentRedirectMessage();
+				return true;
 			}
 
-			return false;
-		}
-		else
-		{
-			xyzProvider = nullptr;
+			Identifier xyzId = XYZProviderFactory::parseID(referenceString);
 
-			jassert(provider != nullptr);
-
-			if (provider != nullptr)
+			if (xyzId.isValid())
 			{
-				if (auto lr = provider->loadFile(referenceString))
-				{
-					originalBuffer = lr->buffer;
-					auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
+				setXYZProvider(xyzId);
 
-					referenceString = lr->reference;
-
-					{
-						SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-						bufferRange = { 0, originalBuffer.getNumSamples() };
-						sampleRate = lr->sampleRate;
-						setLoopRange(lr->loopRange, dontSendNotification);
-						setDataBuffer(nb);
-					}
-
-					return true;
-				}
-				else
+				if (xyzProvider != nullptr)
 				{
 					SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
-					originalBuffer = {};
-					bufferRange = {};
-					currentData = {};
-					getUpdater().sendContentRedirectMessage();
-					return false;
+					xyzItems.clear();
+
+					try
+					{
+						auto ok = xyzProvider->parse(b64, xyzItems);
+
+						getUpdater().sendContentRedirectMessage();
+
+						return ok;
+					}
+					catch (String&)
+					{
+						jassertfalse;
+						return false;
+					}
+				}
+
+				return false;
+			}
+			else
+			{
+				xyzProvider = nullptr;
+
+				jassert(provider != nullptr);
+
+				if (provider != nullptr)
+				{
+					if (auto lr = provider->loadFile(referenceString))
+					{
+						originalBuffer = lr->buffer;
+						auto nb = createNewDataBuffer({ 0, originalBuffer.getNumSamples() });
+
+						referenceString = lr->reference;
+
+						{
+							SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+							bufferRange = { 0, originalBuffer.getNumSamples() };
+							sampleRate = lr->sampleRate;
+							setLoopRange(lr->loopRange, dontSendNotification);
+							setDataBuffer(nb);
+						}
+
+						return true;
+					}
+					else
+					{
+						SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+						originalBuffer = {};
+						bufferRange = {};
+						currentData = {};
+						getUpdater().sendContentRedirectMessage();
+						return false;
+					}
 				}
 			}
 		}

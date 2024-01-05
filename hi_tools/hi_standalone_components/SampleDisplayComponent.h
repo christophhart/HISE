@@ -711,7 +711,18 @@ struct MultiChannelAudioBuffer : public ComplexDataUIBase
 
 	void setDisabledXYZProviders(const Array<Identifier>& ids);
 
+	struct ScopedUndoActivator
+	{
+		ScopedUndoActivator(MultiChannelAudioBuffer& parent, bool value=true):
+		  state(parent.useUndoManagerForLoadOperation, value)
+		{}
+
+		ScopedValueSetter<bool> state;
+	};
+
 private:
+
+	bool useUndoManagerForLoadOperation = false;
 
 	Array<Identifier> deactivatedXYZIds;
 
@@ -808,6 +819,13 @@ public:
 
 	virtual void setSpecialLookAndFeel(LookAndFeel* l, bool shouldOwn=false);
 
+	
+
+	void setLoadWithLeftClick(bool newValue)
+	{
+		loadWithLeftClick = newValue;
+	}
+
 	MultiChannelAudioBufferDisplay();
 	virtual ~MultiChannelAudioBufferDisplay();
 
@@ -868,6 +886,7 @@ protected:
 
 	bool over = false;
 
+	bool loadWithLeftClick = false;
 	bool showLoop = false;
 	bool showFileName = true;
 
