@@ -92,7 +92,12 @@ public:
 
 	static mcl::TokenCollection::Ptr getJavascriptTokenCollection(Component* any)
 	{
-		if(auto brw = GET_BACKEND_ROOT_WINDOW(any))
+        auto cw = any->findParentComponentOfClass<ComponentWithBackendConnection>();
+        
+        if(cw == nullptr)
+            return nullptr;
+        
+		if(auto brw = cw->getBackendRootWindow())
 		{
 			if(brw->javascriptTokens == nullptr)
 				brw->javascriptTokens = new mcl::TokenCollection(mcl::LanguageIds::HiseScript);
