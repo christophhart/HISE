@@ -57,6 +57,8 @@ private:
 
     PerfettoWebviewer viewer;
     
+    ScopedPointer<Component> c;
+    
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
 
