@@ -7,6 +7,12 @@
               jucerFormatVersion="1">
   <MAINGROUP id="V5l5vh" name="minimal_hise_test">
     <GROUP id="{AC16B56A-5346-1AB4-D4BD-30CF29DD2DFA}" name="Source">
+      <FILE id="b4rThj" name="PageFactory.cpp" compile="1" resource="0" file="Source/PageFactory.cpp"/>
+      <FILE id="pRNlEa" name="PageFactory.h" compile="0" resource="0" file="Source/PageFactory.h"/>
+      <FILE id="cO9Vo3" name="MultiPageDialog.cpp" compile="1" resource="0"
+            file="Source/MultiPageDialog.cpp"/>
+      <FILE id="Ozwuki" name="MultiPageDialog.h" compile="0" resource="0"
+            file="Source/MultiPageDialog.h"/>
       <FILE id="u67bzi" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="bXDqfa" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
