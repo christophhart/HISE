@@ -9,7 +9,7 @@
 #pragma once
 
 #include "../JuceLibraryCode/JuceHeader.h"
-
+#include "MultiPageDialog.h"
 
 //==============================================================================
 /*
@@ -46,8 +46,13 @@ public:
 
     void mouseDown(const MouseEvent& e) override
     {
-        jassertfalse;
+        if(c != nullptr)
+            c = nullptr;
+        else
+            build();
     }
+    
+    void build();
     
 private:
     //==============================================================================
@@ -57,7 +62,10 @@ private:
 
     PerfettoWebviewer viewer;
     
+    MultiPageDialog::RunThread rt;
     ScopedPointer<Component> c;
+    
+
     
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

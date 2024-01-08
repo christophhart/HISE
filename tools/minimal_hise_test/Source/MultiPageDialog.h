@@ -56,8 +56,12 @@ namespace MultiPageIds
     // Child properties
     DECLARE_ID(Type);
     DECLARE_ID(ID);
+    DECLARE_ID(CallType);
     DECLARE_ID(Text);
+    DECLARE_ID(Items);
     DECLARE_ID(Help);
+    DECLARE_ID(Foldable);
+    DECLARE_ID(Folded);
     DECLARE_ID(Required);
     DECLARE_ID(Value);
     DECLARE_ID(Padding);
@@ -106,18 +110,44 @@ struct MultiPageDialog: public Component,
         Result check(const var& obj)
         {
 	        if(cf)
-		        return cf(this, obj);
+            {
+                auto ok = cf(this, obj);
+                
+                if(ok.failed())
+                {
+                    if(rootDialog.currentErrorElement == nullptr)
+                        rootDialog.currentErrorElement = this;
 
-            return checkGlobalState(obj);
+                    return ok;
+                }
+            }
+
+            auto ok = checkGlobalState(obj);
+
+            if(ok.failed() && rootDialog.currentErrorElement == nullptr)
+                rootDialog.currentErrorElement = this;
+
+            return ok;
+        }
+        
+        void clearCustomFunction()
+        {
+            cf = {};
         }
 
-        void setCustomCheckFunction(const CustomCheckFunction& cf_) { cf = cf_; }
+        void setCustomCheckFunction(const CustomCheckFunction& cf_)
+        {
+            if(!cf)
+                cf = cf_;
+        }
 
         Identifier id;
 
-    protected:
-
+        bool isError() const { return rootDialog.currentErrorElement == this; }
+        
+        
         MultiPageDialog& rootDialog;
+    protected:
 
         struct HelpButton: public HiseShapeButton
 	    {
@@ -131,7 +161,148 @@ struct MultiPageDialog: public Component,
 
         CustomCheckFunction cf;
         int padding = 0;
+    };
+    
+    struct RunThread: public Thread
+    {
+        RunThread(const var& obj):
+          Thread("Tasks"),
+          currentError(Result::ok())
+        {
+            if(auto gs = obj[MultiPageIds::GlobalState].getDynamicObject())
+                globalState = var(gs->clone());
+            else
+                globalState = var(new DynamicObject());
+        };
         
+        ~RunThread()
+        {
+            stopThread(1000);
+        }
+        
+        double totalProgress = 0.0;
+        
+        
+        
+        void onFinish()
+        {
+            if(currentDialog.get() != nullptr)
+            {
+                currentDialog->nextButton.setEnabled(currentDialog->currentErrorElement == nullptr);
+                currentDialog->prevButton.setEnabled(true);
+            }
+        }
+        
+        
+        
+        void run() override
+        {
+            for(int i = 0; i < jobs.size(); i++)
+            {
+                auto ok = jobs[i]->runJob();
+                
+                if(ok.failed())
+                {
+                    break;
+                }
+                
+                totalProgress = (double)i / (double)jobs.size();
+            }
+            
+            jobs.clear();
+            
+            MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(RunThread::onFinish));
+        }
+        
+        struct Job: public ReferenceCountedObject
+        {
+            using Ptr = ReferenceCountedObjectPtr<Job>;
+            using List = ReferenceCountedArray<Job>;
+            using JobFunction = std::function<Result(Job&)>;
+            
+            Job(RunThread& rt, const var& obj):
+              parent(rt),
+              localObj(obj)
+            {
+                parent.addJob(this);
+            }
+            
+            virtual ~Job() {};
+            
+            bool matches(const var& obj) const
+            {
+                return localObj[MultiPageIds::ID] == obj[MultiPageIds::ID];
+            }
+            
+            Result runJob()
+            {
+                auto ok = run();
+                
+                if(auto p = parent.currentDialog)
+                {
+                    MessageManager::callAsync([p, ok]()
+                    {
+                        p->repaint();
+                        p->errorComponent.setError(ok);
+                    });
+                }
+                
+                return ok;
+            }
+            
+            double& getProgress() { return progress; }
+            
+        protected:
+            
+            virtual Result run() = 0;
+            
+            RunThread& parent;
+            double progress = 0.0;
+            var localObj;
+        };
+        
+        Job::Ptr getJob(const var& obj)
+        {
+            for(auto j: jobs)
+            {
+                if(j->matches(obj))
+                    return j;
+            }
+            
+            return nullptr;
+        }
+        
+        void addJob(Job::Ptr b, bool addFirst=false)
+        {
+            if(addFirst)
+                jobs.insert(0, b);
+            else
+                jobs.add(b);
+            
+            if(!isThreadRunning())
+            {
+                if(currentDialog != nullptr)
+                {
+                    currentDialog->currentErrorElement = nullptr;
+                    currentDialog->repaint();
+                    currentDialog->errorComponent.setError(Result::ok());
+                    currentDialog->nextButton.setEnabled(false);
+                    currentDialog->prevButton.setEnabled(false);
+                }
+                
+                startThread(6);
+            }
+        }
+        
+        Job::List jobs;
+        
+        Result currentError;
+        
+        WeakReference<MultiPageDialog> currentDialog;
+        
+        var globalState;
+        
+        int currentPageIndex = 0;
     };
     
     struct PositionInfo
@@ -144,6 +315,7 @@ struct MultiPageDialog: public Component,
         int ButtonTab = 40;
         int ButtonMargin = 5;
         int OuterPadding = 30;
+        double LabelWidth = -0.25;
     };
     
     struct ErrorComponent: public Component
@@ -179,6 +351,8 @@ struct MultiPageDialog: public Component,
         PageBase* create(MultiPageDialog& r, int currentWidth) const;;
         var& operator[](const Identifier& id) const;
         
+        var getData() const { return data; }
+        
         template <typename T> static PageInfo::Ptr createInfo()
         {
 	        PageInfo::Ptr p = new PageInfo();
@@ -187,10 +361,14 @@ struct MultiPageDialog: public Component,
 	        p->pageCreator = [](MultiPageDialog& r, int w, const var& d){ return new T(r, w, d); };
             return p;
         }
-
-        template <typename T> PageInfo& addChild()
+        
+        template <typename T> PageInfo& addChild(std::initializer_list<std::pair<Identifier, var>>&& values={})
         {
 	        childItems.add(createInfo<T>());
+            
+            for(auto& v: values)
+                childItems.getLast()->data.getDynamicObject()->setProperty(v.first, v.second);
+            
             return *childItems.getLast();
         }
 
@@ -203,7 +381,7 @@ struct MultiPageDialog: public Component,
         {
 	        customCheck = f;
         }
-
+        
     private:
 
         var data;
@@ -239,14 +417,24 @@ struct MultiPageDialog: public Component,
         Array<Item> items;
     };
 
-    MultiPageDialog(const var& obj);
+    MultiPageDialog(const var& obj, RunThread& rt);
 
-    template <typename T> PageInfo& addPage()
+    ~MultiPageDialog()
+    {
+        runThread->currentDialog = nullptr;
+    }
+    
+    template <typename T> PageInfo& addPage(std::initializer_list<std::pair<Identifier, var>>&& values={})
     {
         pages.add(PageInfo::createInfo<T>());
         
+        for (const auto& v: values)
+            (*pages.getLast())[v.first] = v.second;
+        
         return *pages.getLast();
     }
+    
+    Result getCurrentResult() { return runThread->currentError; }
     
     void showFirstPage();
 	void setFinishCallback(const std::function<void()>& f);
@@ -255,6 +443,11 @@ struct MultiPageDialog: public Component,
     static var getGlobalState(Component& page, const Identifier& id, const var& defaultValue);
     static std::pair<Font, Colour> getDefaultFont(Component& c);
 
+    RunThread::Job::Ptr getJob(const var& obj)
+    {
+        return runThread->getJob(obj);
+    }
+    
     Path createPath(const String& url) const override;
 
     MarkdownLayout::StyleData getStyleData() const { return styleData; }
@@ -263,24 +456,28 @@ struct MultiPageDialog: public Component,
     {
 	    properties.getDynamicObject()->setProperty(id, newValue);
     }
-
+    
     void setStyleData(const MarkdownLayout::StyleData& sd);
     bool navigate(bool forward);
 
+    bool getCurrentNavigationDirection() { return currentNavigation; }
+    
     void paint(Graphics& g) override;
     void resized() override;
 
+    RunThread& getRunThread() { return *runThread; }
+    
     struct LookAndFeelMethods
     {
         virtual ~LookAndFeelMethods() {};
-        virtual void drawHeader(Graphics& g, MultiPageDialog& d, Rectangle<int> area);
-        virtual void drawButtonTab(Graphics& g, MultiPageDialog& d, Rectangle<int> area);
-        virtual void drawModalBackground(Graphics& g, Rectangle<int> totalBounds, Rectangle<int> modalBounds)
+        virtual void drawMultiPageHeader(Graphics& g, MultiPageDialog& d, Rectangle<int> area);
+        virtual void drawMultiPageButtonTab(Graphics& g, MultiPageDialog& d, Rectangle<int> area);
+        virtual void drawMultiPageModalBackground(Graphics& g, Rectangle<int> totalBounds, Rectangle<int> modalBounds)
         {
 	        g.setColour(Colour(0xFF222222).withAlpha(0.9f));
             g.fillRect(totalBounds);
             
-            DropShadow sh(Colours::black, 10, { 0, 0 });
+            DropShadow sh(Colours::black.withAlpha(0.7f), 30, { 0, 0 });
             sh.drawForRectangle(g, modalBounds);
 
             g.setColour(Colour(0xFF333333));
@@ -289,16 +486,92 @@ struct MultiPageDialog: public Component,
             g.drawRoundedRectangle(modalBounds.toFloat(), 3.0f, 1.0f);
         }
 
-        virtual PositionInfo getPositionInfo() const = 0;
+
+        
+        virtual void drawMultiPageFoldHeader(Graphics& g, Component& c, Rectangle<float> area, const String& title, bool folded)
+        {
+            auto f = MultiPageDialog::getDefaultFont(c);
+            
+            g.setColour(Colours::black.withAlpha(0.2f));
+            
+            Path bg;
+            bg.addRoundedRectangle(area.getX(), area.getY(), area.getWidth(), area.getHeight(), 8.0f, 8.0f, true, true, folded, folded);
+            
+            g.fillPath(bg);
+            
+            Path p;
+            p.addTriangle({0.5, 0.0}, {1.0, 1.0}, {0.0, 1.0});
+            
+            p.applyTransform(AffineTransform::rotation(folded ? float_Pi * 0.5f : float_Pi));
+            
+            g.setFont(f.first.boldened());
+            g.setColour(f.second);
+            
+            PathFactory::scalePath(p, area.removeFromLeft(area.getHeight()).reduced(10));
+            
+            g.fillPath(p);
+            
+            g.drawText(title, area, Justification::centredLeft);
+        }
+        
+        virtual void drawMultiPageBackground(Graphics& g, MultiPageDialog& tb, Rectangle<int> errorBounds)
+        {
+            g.fillAll(tb.findColour(backgroundColour));
+            
+            if(!errorBounds.isEmpty())
+            {
+                g.setColour(Colour(HISE_ERROR_COLOUR).withAlpha(0.15f));
+                auto eb = errorBounds.toFloat().expanded(-1.0f, 3.0f);
+                g.fillRoundedRectangle(eb, 3.0f);
+                g.setColour(Colour(HISE_ERROR_COLOUR));
+                g.drawRoundedRectangle(eb, 3.0f, 2.0f);
+            }
+        }
+        
+        virtual PositionInfo getMultiPagePositionInfo(const var& pageData) const = 0;
     };
     
     struct DefaultLookAndFeel: public hise::GlobalHiseLookAndFeel,
                                public LookAndFeelMethods
     {
         void drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-        PositionInfo getPositionInfo() const override;
+        PositionInfo getMultiPagePositionInfo(const var& pageData) const override;
         void layoutFilenameComponent (FilenameComponent& filenameComp,
                                       ComboBox* filenameBox, Button* browseButton) override;
+        
+        bool isProgressBarOpaque(ProgressBar&) override { return false; }
+        
+        void drawProgressBar (Graphics &g, ProgressBar &pb, int width, int height, double progress, const String &textToShow) override
+        {
+            
+            auto f = getDefaultFont(pb);
+            
+            Rectangle<float> area = pb.getLocalBounds().toFloat();
+            
+            g.setColour(f.second);
+            
+            area = area.reduced(1.0f);
+            
+            g.drawRoundedRectangle(area, area.getHeight() / 2, 1.0f);
+            
+            area = area.reduced(3.0f);
+            
+            auto copy = area.reduced(2.0f);
+            
+            area = area.removeFromLeft(jmax<float>(area.getHeight(), area.getWidth() * progress));
+            
+            g.fillRoundedRectangle(area, area.getHeight() * 0.5f);
+            
+            g.setColour(f.second.contrasting().withAlpha(progress > 0.5f ? 0.6f : 0.2f));
+            g.fillRoundedRectangle(copy.withSizeKeepingCentre(copy.getHeight() + f.first.getStringWidthFloat(textToShow), copy.getHeight()), copy.getHeight() * 0.5f);
+            
+            g.setColour(f.second);
+            g.setFont(f.first);
+            g.drawText(textToShow, copy, Justification::centred);
+        }
+
+        
+        
         
         PositionInfo defaultPosition;
     } defaultLaf;
@@ -334,7 +607,7 @@ struct MultiPageDialog: public Component,
 
         void dismiss()
         {
-	        setVisible(false);
+            Desktop::getInstance().getAnimator().fadeOut(this, 100);
         }
 
         void setContent(PageInfo::Ptr newContent)
@@ -342,25 +615,38 @@ struct MultiPageDialog: public Component,
 	        content = newContent;
         }
 
-        void show(PositionInfo newInfo)
+        void show(PositionInfo newInfo, bool addButtons)
         {
             info = newInfo;
 
+            okButton.setVisible(addButtons);
+            cancelButton.setVisible(addButtons);
+            
             if(content != nullptr)
             {
 	            addAndMakeVisible(contentComponent = content->create(parent, getWidth() - 4 * info.OuterPadding));
 
                 contentComponent->postInit();
 				resized();
-				setVisible(true);
+                Desktop::getInstance().getAnimator().fadeIn(this, 100);
+                
+
                 toFront(true);
             }
         }
 
+        void mouseDown(const MouseEvent& e) override
+        {
+            if(!modalBounds.contains(e.getPosition()) && !cancelButton.isVisible())
+            {
+                dismiss();
+            }
+        }
+        
         void paint(Graphics& g) override
         {
 	        if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-		        laf->drawModalBackground(g, getLocalBounds(), modalBounds);
+		        laf->drawMultiPageModalBackground(g, getLocalBounds(), modalBounds);
         }
 
         void resized() override
@@ -375,7 +661,8 @@ struct MultiPageDialog: public Component,
             if(modalError.isVisible())
                 thisHeight += modalError.height;
 
-            thisHeight += info.ButtonTab;
+            if(okButton.isVisible())
+                thisHeight += info.ButtonTab;
 
             b = b.withSizeKeepingCentre(getWidth() - 2 * info.OuterPadding, thisHeight);
 
@@ -384,20 +671,21 @@ struct MultiPageDialog: public Component,
             b = b.reduced(info.OuterPadding);
             
             if(modalError.isVisible())
-                modalError.setBounds(b.removeFromTop(modalError.height));
+                modalError.setBounds(b.removeFromTop(modalError.height).expanded(6, 3));
 
-            auto bottom = b.removeFromBottom(info.ButtonTab);
-
-        	okButton.setBounds(bottom.removeFromLeft(100).reduced(info.ButtonMargin));
-            cancelButton.setBounds(bottom.removeFromRight(100).reduced(info.ButtonMargin));
-
+            if(okButton.isVisible())
+            {
+                auto bottom = b.removeFromBottom(info.ButtonTab);
+                
+                okButton.setBounds(bottom.removeFromLeft(100).reduced(info.ButtonMargin));
+                cancelButton.setBounds(bottom.removeFromRight(100).reduced(info.ButtonMargin));
+            }
+            
 	        if(contentComponent != nullptr)
                 contentComponent->setBounds(b);
 
             repaint();
         }
-        
-    private:
 
         MultiPageDialog& parent;
         PositionInfo info;
@@ -419,45 +707,49 @@ struct MultiPageDialog: public Component,
         return *p;
     }
 
-    void showModalPopup()
+    void showModalPopup(bool addButtons)
     {
         PositionInfo info;
 
         if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-            info = laf->getPositionInfo();
+            info = laf->getMultiPagePositionInfo(popup.content->getData());
 
-        popup.show(info);
+        popup.show(info, addButtons);
 	    
     }
 
-    
+    void setCurrentErrorPage(PageBase* b)
+    {
+        currentErrorElement = b;
+    }
 
 private:
 
     var assets;
 
-    
+    bool currentNavigation = true;
 
     var properties;
     MarkdownLayout::StyleData styleData;
     PageInfo::List pages;
-    int currentPageIndex = -1;
+
     TextButton cancelButton;
     TextButton nextButton;
     TextButton prevButton;
-    Result currentError;
+
+    RunThread* runThread;
     Viewport content;
     ScopedPointer<PageBase> currentPage;
     Rectangle<int> top, bottom, center;
     std::function<void()> finishCallback;
     Factory factory;
-    var globalState;
 
+    PageBase* currentErrorElement = nullptr;
     ErrorComponent errorComponent;
-
     ModalPopup popup;
-
     ScrollbarFader sf;
+    
+    JUCE_DECLARE_WEAK_REFERENCEABLE(MultiPageDialog);
 };
 
 }

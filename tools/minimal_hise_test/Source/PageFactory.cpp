@@ -148,113 +148,131 @@ void FileSelector::resized()
 }
 
 Tickbox::Tickbox(MultiPageDialog& r, int width, const var& obj):
-	PageBase(r, width, obj)
+	LabelledComponent(r, width, obj, new ToggleButton())
 {
-	label = obj[MultiPageIds::Text].toString();
-        
 	if(obj.hasProperty("Required"))
 	{
 		required = true;
 		requiredOption = obj["Required"];
 	}
+}
 
-	addAndMakeVisible(button);
-
-	setSize(width, 32);
+void Tickbox::buttonClicked(Button* b)
+{
+    for(auto tb: groupedButtons)
+        tb->setToggleState(b == tb, dontSendNotification);
+    
+    checkGlobalState(MultiPageDialog::getGlobalState(*this, id, var()));
 }
 
 void Tickbox::postInit()
 {
+    auto& button = this->getComponent<ToggleButton>();
+    
+    Component::callRecursive<Tickbox>(&rootDialog, [&](Tickbox* tb)
+    {
+        if(tb->id == id)
+            groupedButtons.add(&tb->getComponent<ToggleButton>());
+        
+        return false;
+    });
+    
+    if(groupedButtons.size() > 1)
+    {
+        thisRadioIndex = groupedButtons.indexOf(&button);
+        auto radioIndex = (int)getValueFromGlobalState(-1);
+        
+        int idx = 0;
+        
+        for(auto b: groupedButtons)
+        {
+            b->addListener(this);
+            b->setToggleState(idx++ == radioIndex, dontSendNotification);
+        }
+    }
+    else
+    {
+        groupedButtons.clear();
+        
+        button.setToggleState(getValueFromGlobalState(false), dontSendNotification);
+    }
+    
 	button.setColour(ToggleButton::ColourIds::tickColourId, MultiPageDialog::getDefaultFont(*this).second);
-	button.setToggleState(getValueFromGlobalState(false), dontSendNotification);
-}
+    
 
-void Tickbox::paint(Graphics& g)
-{
-	auto b = getLocalBounds();
-        
-
-	auto df = MultiPageDialog::getDefaultFont(*this);
-        
-	g.setFont(df.first);
-	g.setColour(df.second);
-        
-        
-	g.drawText(label, b.toFloat(), Justification::left);
-}
-
-void Tickbox::resized()
-{
-	auto b = getLocalBounds();
-	button.setBounds(b.removeFromRight(32));
 }
 
 Result Tickbox::checkGlobalState(var globalState)
 {
+    auto& button = getComponent<ToggleButton>();
+    
 	if(required)
 	{
-		if(button.getToggleState() != required)
+        if(thisRadioIndex == -1 && button.getToggleState() != required)
 		{
 			return Result::fail("You need to tick " + label);
 		}
+        else
+        {
+            auto somethingPressed = false;
+            
+            for(auto tb: groupedButtons)
+                somethingPressed |= tb->getToggleState();
+            
+            if(!somethingPressed)
+                return Result::fail("You need to select one option of " + id.toString());
+        }
 	}
 
-	MultiPageDialog::setGlobalState(*this, id, button.getToggleState());
+    if(thisRadioIndex == -1)
+    	MultiPageDialog::setGlobalState(*this, id, button.getToggleState());
+    else if(button.getToggleState())
+    {
+        MultiPageDialog::setGlobalState(*this, id, thisRadioIndex);
+    }
+    
 	return Result::ok();
 }
 
 TextInput::TextInput(MultiPageDialog& r, int width, const var& obj):
-	PageBase(r, width, obj)
+	LabelledComponent(r, width, obj, new TextEditor())
 {
-	addAndMakeVisible(editor);
+    auto& editor = getComponent<TextEditor>();
 	GlobalHiseLookAndFeel::setTextEditorColours(editor);
-	label = obj[MultiPageIds::Text];
 
+    setWantsKeyboardFocus(true);
+
+    editor.setSelectAllWhenFocused(false);
+    editor.setIgnoreUpDownKeysWhenSingleLine(true);
+    editor.setTabKeyUsedAsCharacter(false);
+    
+    editor.addListener(this);
 	required = obj[MultiPageIds::Required];
-
-	setSize(width, 28);
 }
 
 void TextInput::postInit()
 {
+    auto& editor = getComponent<TextEditor>();
+    editor.setFont(MultiPageDialog::getDefaultFont(*this).first);
+    editor.setIndents(4, 8);
 	editor.setText(getValueFromGlobalState(""));
-}
-
-void TextInput::paint(Graphics& g)
-{
-	if(error)
-	{
-		g.setColour(Colour(HISE_ERROR_COLOUR));
-		g.drawRect(editor.getBoundsInParent(), 2.0f);
-	}
-
-	auto f = MultiPageDialog::getDefaultFont(*this);
-
-	g.setColour(f.second);
-	g.setFont(f.first);
-
-	g.drawText(label, getLocalBounds().toFloat(), Justification::left);
-}
-
-void TextInput::resized()
-{
-	auto b = getLocalBounds();
-
-	b.removeFromLeft(getWidth() / 4);
-
-	if(helpButton != nullptr)
-		helpButton->setBounds(b.removeFromRight(b.getHeight()));
-
-	editor.setBounds(b.reduced(1));
+    
+    if(auto m = findParentComponentOfClass<MultiPageDialog>())
+    {
+        auto c = m->getStyleData().headlineColour;
+        editor.setColour(TextEditor::ColourIds::focusedOutlineColourId, c);
+        editor.setColour(Label::ColourIds::outlineWhenEditingColourId, c);
+        editor.setColour(TextEditor::ColourIds::highlightColourId, c);
+    }
 }
 
 Result TextInput::checkGlobalState(var globalState)
 {
+    auto& editor = getComponent<TextEditor>();
+    
 	if(required && editor.getText().isEmpty())
 	{
-		error = true;
-		repaint();
-		return Result::fail(id + " must not be empty");
+        return Result::fail(id + " must not be empty");
 	}
 		
 	MultiPageDialog::setGlobalState(*this, id, editor.getText());
@@ -318,10 +336,18 @@ void Container::addChild(int width, const var& r)
 
 void List::calculateSize()
 {
-	int h = 0;
+	int h = foldable ? (titleHeight + padding) : 0;
 
-	for(auto& c: childItems)
-		h += c->getHeight() + padding;
+    for(auto c: childItems)
+        c->setVisible(!folded);
+    
+    if(!folded)
+    {
+        for(auto& c: childItems)
+            h += c->getHeight() + padding;
+    }
+    
+    
 
 	setSize(getWidth(), h);
 }
@@ -329,6 +355,9 @@ void List::calculateSize()
 List::List(MultiPageDialog& r, int width, const var& obj):
 	Container(r, width, obj)
 {
+    foldable = obj[MultiPageIds::Foldable];
+    folded = obj[MultiPageIds::Folded];
+    title = obj[MultiPageIds::Text];
 	setSize(width, 0);
 }
 
@@ -339,11 +368,17 @@ void List::resized()
 	if(b.isEmpty())
 		return;
 
-	for(auto c: childItems)
-	{
-		c->setBounds(b.removeFromTop(c->getHeight()));
-		b.removeFromTop(padding);
-	}
+    if(foldable)
+        b.removeFromTop(24 + padding);
+    
+    if(!folded)
+    {
+        for(auto c: childItems)
+        {
+            c->setBounds(b.removeFromTop(c->getHeight()));
+            b.removeFromTop(padding);
+        }
+    }
 }
 
 Column::Column(MultiPageDialog& r, int width, const var& obj):
@@ -351,10 +386,24 @@ Column::Column(MultiPageDialog& r, int width, const var& obj):
 {
 	padding = (int)obj["Padding"];
 
-	auto childList = obj[MultiPageIds::Children];
+	
+    auto childList = obj[MultiPageIds::Children];
+    
+    if(childItems.size() > 0)
+    {
+        auto equidistance = -1.0 / childItems.size();
+        
+        for(int i = 0; i < childItems.size(); i++)
+        {
+            auto v = childList[i][MultiPageIds::Width];
+            
+            if(v.isUndefined() || v.isVoid())
+                widthInfo.add(equidistance);
+            else
+                widthInfo.add((double)v);
+        }
+    }
 
-	for(int i = 0; i < childList.size(); i++)
-		widthInfo.add((double)childList[i][MultiPageIds::Width]);
 
 	setSize(width, 0);
 }

@@ -69,6 +69,7 @@ var MultiPageDialog::PositionInfo::toJSON() const
 	obj->setProperty("ButtonTab", ButtonTab);
 	obj->setProperty("ButtonMargin", ButtonMargin);
 	obj->setProperty("OuterPadding", OuterPadding);
+    obj->setProperty("LabelWidth", LabelWidth);
             
 	return var(obj);
 }
@@ -79,6 +80,7 @@ void MultiPageDialog::PositionInfo::fromJSON(const var& obj)
 	ButtonTab = obj.getProperty("ButtonTab", ButtonTab);
 	ButtonMargin = obj.getProperty("ButtonMargin", ButtonMargin);
 	OuterPadding = obj.getProperty("OuterPadding", OuterPadding);
+    LabelWidth = obj.getProperty("LabelWidth", LabelWidth);
 }
 
 MultiPageDialog::ErrorComponent::ErrorComponent(MultiPageDialog& parent_):
@@ -96,12 +98,17 @@ MultiPageDialog::ErrorComponent::ErrorComponent(MultiPageDialog& parent_):
 
 void MultiPageDialog::ErrorComponent::paint(Graphics& g)
 {
-	g.setColour(Colour(HISE_ERROR_COLOUR));
-	g.fillRoundedRectangle(getLocalBounds().toFloat(), 5.0f);
+    auto ec = Colour(HISE_ERROR_COLOUR);
+    
+	g.setGradientFill(ColourGradient(ec.withMultipliedBrightness(1.1f), 0.0f, 0.0f, ec.withMultipliedBrightness(0.9f), 0.0f, (float)getHeight(), false));
+	g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 5.0f);
+    
+    g.setColour(Colours::black.withAlpha(0.3f));
+    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 5.0f, 1.0f);
             
 	auto x = getLocalBounds().toFloat();
 	x.removeFromRight(40.0f);
-	x.removeFromLeft(10.0f);
+	x.removeFromLeft(40.0f);
 	x.removeFromTop(3.0f);
             
 	parser.draw(g, x);
@@ -115,7 +122,7 @@ void MultiPageDialog::ErrorComponent::setError(const Result& r)
 	{
 		parser.setNewText(r.getErrorMessage());
 		parser.parse();
-		height = jmax<int>(40, parser.getHeightForWidth(getWidth() - 50));
+		height = jmax<int>(40, parser.getHeightForWidth(getWidth() - 80));
 	}
             
 	show(!currentError.wasOk());
@@ -152,7 +159,7 @@ MultiPageDialog::PageBase* MultiPageDialog::PageInfo::create(MultiPageDialog& r,
 	{
 		auto np = pageCreator(r, currentWidth, data);
 
-		np->setCustomCheckFunction(customCheck);
+        np->setCustomCheckFunction(customCheck);
 
 		if(auto c = dynamic_cast<PageFactory::Container*>(np))
 		{
@@ -212,17 +219,18 @@ MultiPageDialog::PageInfo::Ptr MultiPageDialog::Factory::create(const var& obj)
 	return info;
 }
 
-MultiPageDialog::MultiPageDialog(const var& obj):
+MultiPageDialog::MultiPageDialog(const var& obj, MultiPageDialog::RunThread& rt):
 	cancelButton("Cancel"),
 	nextButton("Next"),
 	prevButton("Previous"),
-	currentError(Result::ok()),
 	popup(*this),
+    runThread(&rt),
 	errorComponent(*this)
 {
+    runThread->currentDialog = this;
 	sf.addScrollBarToAnimate(content.getVerticalScrollBar());
 
-	setColour(backgroundColour, Colours::black.withAlpha(0.05f));
+	setColour(backgroundColour, Colours::black.withAlpha(0.15f));
 
 	if(auto sd = obj[MultiPageIds::StyleData].getDynamicObject())
 		styleData.fromDynamicObject(var(sd), [](const String& font){ return Font(font, 13.0f, Font::plain); });
@@ -234,10 +242,7 @@ MultiPageDialog::MultiPageDialog(const var& obj):
 	if(auto ld = obj[MultiPageIds::LayoutData].getDynamicObject())
 		defaultLaf.defaultPosition.fromJSON(var(ld));
 
-	if(auto gs = obj[MultiPageIds::GlobalState].getDynamicObject())
-		globalState = var(gs->clone());
-	else
-		globalState = var(new DynamicObject());
+	
 
 	if(auto ps = obj[MultiPageIds::Properties].getDynamicObject())
 		properties = var(ps);
@@ -280,25 +285,35 @@ MultiPageDialog::MultiPageDialog(const var& obj):
 
 	cancelButton.onClick = [this]()
 	{
-		auto& md = createModalPopup<PageFactory::MarkdownText>();
+		auto& l = createModalPopup<PageFactory::List>();
 
-		md[MultiPageIds::Text] = "Do you want to close this popup?\n> This can't be undone!";
+        l[MultiPageIds::Padding] = 15;
+        
+        auto& md = l.addChild<PageFactory::MarkdownText>();
+        
+        auto& to = l.addChild<PageFactory::Tickbox>({
+            { MultiPageIds::Text, "Save progress" },
+            { MultiPageIds::ID, "Save" }
+        });
+        
+		md[MultiPageIds::Text] = "Do you want to close this popup?";
 
 		md.setCustomCheckFunction([this](PageBase*, var obj)
 		{
-			return Result::fail("NOO!!!!");
 			MessageManager::callAsync(finishCallback);
 			return Result::ok();
 		});
+        
+        
 
-		showModalPopup();
+		showModalPopup(true);
 	};
 }
 
 void MultiPageDialog::showFirstPage()
 {
 	currentPage = nullptr;
-	currentPageIndex = -1;
+    runThread->currentPageIndex--;
 	navigate(true);
 }
 
@@ -309,9 +324,14 @@ void MultiPageDialog::setFinishCallback(const std::function<void()>& f)
 
 void MultiPageDialog::setGlobalState(Component& page, const Identifier& id, var newValue)
 {
-	if(auto m = page.findParentComponentOfClass<MultiPageDialog>())
+    auto typed = dynamic_cast<MultiPageDialog*>(&page);
+    
+    if(typed == nullptr)
+        typed = page.findParentComponentOfClass<MultiPageDialog>();
+    
+    if(typed != nullptr)
 	{
-		m->globalState.getDynamicObject()->setProperty(id, newValue);
+		typed->runThread->globalState.getDynamicObject()->setProperty(id, newValue);
 	}
 }
 
@@ -320,9 +340,9 @@ var MultiPageDialog::getGlobalState(Component& page, const Identifier& id, const
 	if(auto m = page.findParentComponentOfClass<MultiPageDialog>())
 	{
 		if(id.isNull())
-			return m->globalState;
+			return m->runThread->globalState;
 
-		return m->globalState.getProperty(id, defaultValue);
+		return m->runThread->globalState.getProperty(id, defaultValue);
 	}
         
 	return defaultValue;
@@ -352,6 +372,17 @@ Path MultiPageDialog::createPath(const String& url) const
 		return p;
 	}
         
+    if(url == "retry")
+    {
+        static const unsigned char x[] = { 110,109,63,53,160,65,6,129,27,65,98,82,184,148,65,78,98,240,64,16,88,128,65,180,200,194,64,86,14,85,65,248,83,195,64,98,82,184,234,64,170,241,198,64,2,43,63,64,84,227,107,65,84,227,253,64,141,151,156,65,98,104,145,55,65,113,61,184,65,205,204,148,65,246,
+        40,170,65,72,225,165,65,223,79,134,65,108,78,98,216,65,223,79,134,65,98,193,202,214,65,244,253,142,65,49,8,212,65,203,161,151,65,207,247,207,65,98,16,160,65,98,119,190,177,65,119,190,222,65,61,10,37,65,100,59,242,65,92,143,114,64,188,116,192,65,98,217,
+        206,119,192,12,2,134,65,217,206,247,62,217,206,119,62,242,210,83,65,111,18,131,58,98,57,180,86,65,0,0,0,0,33,176,86,65,0,0,0,0,104,145,89,65,111,18,131,58,98,147,24,142,65,10,215,163,61,240,167,172,65,182,243,21,64,145,237,192,65,197,32,180,64,108,250,
+            126,233,65,23,217,14,63,108,45,178,234,65,131,192,102,65,108,0,0,172,65,90,100,101,65,108,168,198,170,65,90,100,101,65,108,168,198,170,65,66,96,101,65,108,104,145,119,65,29,90,100,65,108,63,53,160,65,6,129,27,65,99,101,0,0 };
+        
+        p.loadPathFromData(x, sizeof(x));
+        return p;
+    }
+    LOAD_EPATH_IF_URL("retry", EditorIcons::redoIcon);
 	LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
 	LOAD_EPATH_IF_URL("help", MainToolbarIcons::help);
 
@@ -366,31 +397,37 @@ void MultiPageDialog::setStyleData(const MarkdownLayout::StyleData& sd)
 
 bool MultiPageDialog::navigate(bool forward)
 {
+    ScopedValueSetter<bool> svs(currentNavigation, forward);
+    currentErrorElement = nullptr;
+    errorComponent.setError(Result::ok());
 	repaint();
-	auto newIndex = currentPageIndex + (forward ? 1 : -1);
+	auto newIndex = runThread->currentPageIndex + (forward ? 1 : -1);
         
+    if(!forward)
+        nextButton.setEnabled(true);
+    
 	prevButton.setEnabled(newIndex != 0);
         
 	if(isPositiveAndBelow(newIndex, pages.size()))
 	{
 		if(forward && currentPage != nullptr)
 		{
-			auto ok = currentPage->check(globalState);
+			auto ok = currentPage->check(runThread->globalState);
 			errorComponent.setError(ok);
                 
 			if(!ok.wasOk())
 				return false;
 		}
             
-		if((currentPage = pages[newIndex]->create(*this, content.getWidth() - content.getScrollBarThickness())))
+		if((currentPage = pages[newIndex]->create(*this, content.getWidth() - content.getScrollBarThickness() - 10)))
 		{
 			content.setViewedComponent(currentPage);
 			currentPage->postInit();
-			currentPageIndex = newIndex;
+            runThread->currentPageIndex = newIndex;
                 
 			currentPage->setLookAndFeel(&getLookAndFeel());
                 
-			nextButton.setButtonText(currentPageIndex == pages.size() - 1 ? "Finish" : "Next");
+			nextButton.setButtonText(runThread->currentPageIndex == pages.size() - 1 ? "Finish" : "Next");
                 
 			return true;
 		}
@@ -406,11 +443,16 @@ bool MultiPageDialog::navigate(bool forward)
 
 void MultiPageDialog::paint(Graphics& g)
 {
-	g.fillAll(findColour(backgroundColour));
-	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+    Rectangle<int> errorBounds;
+    
+    if(currentErrorElement != nullptr)
+        errorBounds = this->getLocalArea(currentErrorElement, currentErrorElement->getLocalBounds());
+    
+    if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
 	{
-		laf->drawHeader(g, *this, top);
-		laf->drawButtonTab(g, *this, bottom);
+        laf->drawMultiPageBackground(g, *this, errorBounds);
+		laf->drawMultiPageHeader(g, *this, top);
+		laf->drawMultiPageButtonTab(g, *this, bottom);
 	}
 }
 
@@ -421,7 +463,14 @@ void MultiPageDialog::resized()
 	PositionInfo position;
 
 	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-		position = laf->getPositionInfo();
+    {
+        var pd;
+        
+        if(auto cp = pages[runThread->currentPageIndex])
+            pd = cp->getData();
+        
+        position = laf->getMultiPagePositionInfo(pd);
+    }
         
 	auto b = getLocalBounds().reduced(position.OuterPadding);
         
@@ -445,20 +494,32 @@ void MultiPageDialog::resized()
         
 	copy = center;
 
-	errorComponent.setBounds(copy.removeFromTop(errorComponent.isVisible() ? errorComponent.height : 0));
-        
-	if(errorComponent.isVisible())
-		copy.removeFromTop(position.OuterPadding);
+    if(errorComponent.isVisible())
+    {
+        errorComponent.setBounds(copy.removeFromTop(errorComponent.height));
+        copy.removeFromTop(position.OuterPadding);
+    }
+    else
+        errorComponent.setBounds(copy.removeFromTop(0));
         
 	content.setBounds(copy);
+    
+    if(currentPage != nullptr)
+    {
+        currentPage->setSize(content.getWidth() - content.getScrollBarThickness() - 10, currentPage->getHeight());
+        
+    }
 }
 
-void MultiPageDialog::LookAndFeelMethods::drawHeader(Graphics& g, MultiPageDialog& d, Rectangle<int> area)
+void MultiPageDialog::LookAndFeelMethods::drawMultiPageHeader(Graphics& g, MultiPageDialog& d, Rectangle<int> area)
 {
-	auto pos = getPositionInfo();
+    var pd;
+    
+    if(auto pi = d.pages[d.runThread->currentPageIndex])
+        pd = pi->getData();
+    
+	auto pos = getMultiPagePositionInfo(pd);
 
-	g.setColour(d.findColour(ColourIds::backgroundColour));
-	g.fillRect(area.expanded(pos.OuterPadding));
 
 	auto f = d.styleData.getBoldFont().withHeight(area.getHeight() - 20);
 
@@ -468,7 +529,7 @@ void MultiPageDialog::LookAndFeelMethods::drawHeader(Graphics& g, MultiPageDialo
 
 	g.fillRect(progress);
 
-	auto normProgress = (float)(d.currentPageIndex+1) / jmax(1.0f, (float)d.pages.size());
+	auto normProgress = (float)(d.runThread->currentPageIndex+1) / jmax(1.0f, (float)d.pages.size());
 
 	g.setColour(d.styleData.textColour);
 
@@ -487,13 +548,13 @@ void MultiPageDialog::LookAndFeelMethods::drawHeader(Graphics& g, MultiPageDialo
 	g.setColour(d.styleData.textColour.withAlpha(0.4f));
 
 	String pt;
-	pt << "Step " << String(d.currentPageIndex+1) << " / " << String(d.pages.size());
+	pt << "Step " << String(d.runThread->currentPageIndex+1) << " / " << String(d.pages.size());
 
 	g.drawText(pt, area.toFloat(), Justification::bottomRight);
 
 }
 
-void MultiPageDialog::LookAndFeelMethods::drawButtonTab(Graphics& g, MultiPageDialog& d, Rectangle<int> area)
+void MultiPageDialog::LookAndFeelMethods::drawMultiPageButtonTab(Graphics& g, MultiPageDialog& d, Rectangle<int> area)
 {
 	g.setColour(d.findColour(ColourIds::backgroundColour));
 	g.fillRect(area);
@@ -503,18 +564,20 @@ void MultiPageDialog::DefaultLookAndFeel::drawToggleButton(Graphics& g, ToggleBu
 	bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
 {
 	auto c = tb.findColour(ToggleButton::ColourIds::tickColourId);
-
+    auto b = tb.getLocalBounds().toFloat();
+    
+    b = b.removeFromRight(b.getHeight());
 	g.setColour(c.withMultipliedAlpha(shouldDrawButtonAsHighlighted ? 1.0f : 0.7f));
 
-	g.drawRoundedRectangle(tb.getLocalBounds().reduced(8).toFloat(), 4.0f, 2.0f);
+	g.drawRoundedRectangle(b.reduced(8).toFloat(), 4.0f, 2.0f);
 
 	if(tb.getToggleState())
 	{
-		g.fillRoundedRectangle(tb.getLocalBounds().reduced(11).toFloat(), 3.0f);
+		g.fillRoundedRectangle(b.reduced(11).toFloat(), 3.0f);
 	}
 }
 
-MultiPageDialog::PositionInfo MultiPageDialog::DefaultLookAndFeel::getPositionInfo() const
+MultiPageDialog::PositionInfo MultiPageDialog::DefaultLookAndFeel::getMultiPagePositionInfo(const var& pageData) const
 {
 	return defaultPosition;
 }
@@ -528,7 +591,7 @@ void MultiPageDialog::DefaultLookAndFeel::layoutFilenameComponent(FilenameCompon
 	auto b = filenameComp.getLocalBounds();
             
 	browseButton->setBounds(b.removeFromRight(100));
-	b.removeFromRight(getPositionInfo().OuterPadding);
+    b.removeFromRight(getMultiPagePositionInfo({}).OuterPadding);
 
 	filenameBox->setBounds(b);
 }
@@ -540,7 +603,7 @@ MultiPageDialog::PageBase::HelpButton::HelpButton(String help, const PathFactory
 	{
 		auto mp = findParentComponentOfClass<MultiPageDialog>();
 		mp->createModalPopup<PageFactory::MarkdownText>()[MultiPageIds::Text] = help;
-		mp->showModalPopup();
+		mp->showModalPopup(false);
 	};
 }
 
