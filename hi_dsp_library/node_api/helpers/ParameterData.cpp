@@ -115,6 +115,8 @@ juce::Array<juce::Identifier> RangeHelpers::getRangeIds(bool includeValue, IdSet
 	case IdSet::ScriptComponents:	rangeIds = { Identifier("min"), Identifier("max"), Identifier("stepSize"), Identifier("middlePosition") }; break;
 	case IdSet::MidiAutomation:     rangeIds = { Identifier("Start"), Identifier("End"), Identifier("Interval"), Identifier("Skew") }; break;
 	case IdSet::MidiAutomationFull: rangeIds = { Identifier("FullStart"), Identifier("FullEnd"), Identifier("Interval"), Identifier("Skew") }; break;
+    case IdSet::numIdSets:
+    default: break;
 	}
 
 	if (includeValue)

@@ -65,6 +65,8 @@ struct dynamic
             case Types::Cubic: c.process(ratio, inp, out, numOut, numIn, false); break;
             case Types::Linear: l.process(ratio, inp, out, numOut, numIn, false); break;
             case Types::None: n.process(ratio, inp, out, numOut, numIn, false); break;
+            case Types::numTypes:
+            default: break;
         }
     }
     
@@ -81,6 +83,8 @@ struct dynamic
             case Types::Cubic: c.reset(); break;
             case Types::Linear: l.reset(); break;
             case Types::None: n.reset(); break;
+            case Types::numTypes:
+            default: break;
         }
     }
     

@@ -2381,12 +2381,6 @@ void Spectrum2D::draw(Graphics& g, const Image& img, Rectangle<int> area, Graphi
 	g.saveState();
 	g.setImageResamplingQuality(quality);
 
-	float offsetX = JUCE_LIVE_CONSTANT_OFF(0.0);
-	float offsetY = JUCE_LIVE_CONSTANT_OFF(0.0);
-	
-	float scaleX = JUCE_LIVE_CONSTANT_OFF(0.0);
-	float scaleY = JUCE_LIVE_CONSTANT_OFF(0.0);
-
 	auto t = AffineTransform::translation(-img.getWidth() / 2, -img.getHeight() / 2);
 
 	t = t.followedBy(AffineTransform::rotation(float_Pi * 1.5f));
@@ -2493,14 +2487,11 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 
     auto newImage = Image(Image::RGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels(), true);
 
-	auto s2dHalf = parameters->Spectrum2DSize / 2;
-	
 	Image::BitmapData bd(newImage, Image::BitmapData::writeOnly);
 	
 	for(int y = 0; y < lastBuffer.getNumChannels(); y++)
 	{
 		auto src = lastBuffer.getReadPointer(y);
-		auto dst = bd.getLinePointer(y);
 		
 		for(int x = 0; x < lastBuffer.getNumSamples(); x++)
 		{
@@ -2548,8 +2539,6 @@ AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
     if (numSamplesToFill == 0)
         return {};
 
-    auto paddingSize = JUCE_LIVE_CONSTANT_OFF(0);
-    
     AudioSampleBuffer b(numSamplesToFill, parameters->Spectrum2DSize / 2);
     b.clear();
 
@@ -2572,7 +2561,7 @@ AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
 	for(int i = 0; i < size; i++)
 	{
 		auto normIndex = (float)i / (float)size;
-		auto skewedProportionY = holder->getYPosition((float)i / (float)size);
+		auto skewedProportionY = holder->getYPosition(normIndex);
 		positions[i] = skewedProportionY;
 	}
 

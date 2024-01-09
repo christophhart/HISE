@@ -1020,6 +1020,10 @@ namespace xsimd
             }
         }
 
+    
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wshorten-64-to-32"
+    
         // mask
         template <class A, class T, class = typename std::enable_if<std::is_integral<T>::value, void>::type>
         inline uint64_t mask(batch_bool<T, A> const& self, requires_arch<sse2>) noexcept
@@ -1047,6 +1051,9 @@ namespace xsimd
                 return {};
             }
         }
+    
+#pragma clang diagnostic pop
+    
         template <class A>
         inline uint64_t mask(batch_bool<float, A> const& self, requires_arch<sse2>) noexcept
         {

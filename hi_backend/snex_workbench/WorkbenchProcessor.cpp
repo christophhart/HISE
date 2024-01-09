@@ -1633,6 +1633,11 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
     b.addComment("Now we can add the rest of the codebase", snex::cppgen::Base::CommentType::FillTo80);
     Include(b, "JuceHeader.h");
     
+    b.addEmptyLine();
+    
+    b << "#pragma clang diagnostic push";
+    b << "#pragma clang diagnostic ignored \"-Wreturn-type-c-linkage\"";
+    
 	b.addEmptyLine();
 
 	{
@@ -1835,6 +1840,10 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 		}
 	}
 
+    b.addEmptyLine();
+    b << "#pragma clang diagnostic pop";
+    b.addEmptyLine();
+    
 	f.replaceWithText(b.toString());
     
     auto rnboSibling = f.getSiblingFile("RNBO.cpp");

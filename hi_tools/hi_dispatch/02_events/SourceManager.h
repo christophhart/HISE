@@ -88,6 +88,9 @@ public:
 	{
 		auto& v = used ? messageCounter :		  skippedCounter;
 		auto b = used ?  messageCounterId.get() : skippedCounterId.get();
+        
+        ignoreUnused(v, b);
+        
 		TRACE_COUNTER("dispatch", perfetto::CounterTrack(b), ++v);
 	}
 

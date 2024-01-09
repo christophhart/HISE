@@ -227,9 +227,9 @@ RootObject::Child(r)
 
 Queueable::~Queueable()
 {
-    int index = 0;
-
 #if ENABLE_QUEUE_AND_LOGGER
+    int index = 0;
+    
     if(auto l = getRootObject().getLogger())
         l->log(l, EventType::Remove, (uint8*)&index, sizeof(int));
 #endif
