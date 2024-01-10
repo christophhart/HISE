@@ -66,28 +66,61 @@ namespace MultiPageIds
     DECLARE_ID(Value);
     DECLARE_ID(Padding);
     DECLARE_ID(Width);
+    DECLARE_ID(Wildcard);
+    DECLARE_ID(SaveFile);
+    DECLARE_ID(Directory);
+
 }
 
 #undef DECLARE_ID
 
+class DefaultProperties
+{
+public:
+    DefaultProperties(std::initializer_list<std::pair<Identifier, var>> ilist)
+    : ilist_(ilist) {}
+
+    const std::pair<Identifier, var>* begin() const noexcept
+    {
+        return ilist_.data();
+    }
+
+    const std::pair<Identifier, var>* end() const noexcept
+    {
+        return ilist_.data() + size();
+    }
+
+    std::size_t size() const noexcept
+    {
+        return ilist_.size();
+    }
+
+private:
+    
+    const std::vector<std::pair<Identifier, var>> ilist_;
+};
+
 /* TODO:
  *
  *  - custom error message
- *  - help button attachment
+ *  - help button attachment OK
  *  - column mode OK
- *  - combobox
- *  - extractor component
+ *  - combobox OK
+ *  - add dynamic element
+ *  - extractor component OK
  *  - show total progress OK
  *  - implement header stuff OK
- *  - add modal overlay (and use the help button text here!!!)
- *  - add Progress
- *  - add branching at next button (maybe make a container that shows one of its child items dependingon a global index variable)
- *  - add text input with autocomplete suggestions
+ *  - add modal overlay (and use the help button text here!!!) OK
+ *  - add Progress OK
+ *  - add branching at next button (maybe make a container that shows one of its child items dependingon a global index variable) OK
+ *  - add text input with autocomplete suggestions OK
  *  - broadcaster specific: add preview broadcaster with layouts
  * */
 struct MultiPageDialog: public Component,
 					    public PathFactory
 {
+    //using DefaultProperties = std::initializer_list<std::pair<Identifier, var>>;
+    
     enum ColourIds
     {
         backgroundColour = HiseColourScheme::ComponentBackgroundColour,
@@ -96,12 +129,44 @@ struct MultiPageDialog: public Component,
         numColourIds
     };
     
+    struct PageInfo;
+    
     struct PageBase: public Component
     {
         using CustomCheckFunction = std::function<Result(PageBase*, var)>;
 
         PageBase(MultiPageDialog& rootDialog, int width, const var& obj);
 
+        virtual DefaultProperties getDefaultProperties() const
+        {
+            return {};
+        }
+        
+        virtual void setStateObject(const var& newStateObject)
+        {
+            stateObject = newStateObject;
+        }
+        
+        template <typename PageSubType, typename StopType=juce::Toolbar> PageSubType* getRootPage()
+        {
+            auto p = this;
+            
+            while(auto otherP = p->findParentComponentOfClass<PageSubType>())
+            {
+                if(dynamic_cast<StopType*>(otherP) != nullptr)
+                    return dynamic_cast<PageSubType*>(p);
+                
+                p = otherP;
+            }
+            
+            return dynamic_cast<PageSubType*>(p);
+        }
+        
+        void writeState(const var& newValue)
+        {
+            stateObject.getDynamicObject()->setProperty(id, newValue);
+        }
+        
     	var getValueFromGlobalState(var defaultState=var());
         virtual void postInit() {};
         
@@ -145,6 +210,7 @@ struct MultiPageDialog: public Component,
 
         bool isError() const { return rootDialog.currentErrorElement == this; }
         
+        virtual void createEditorInfo(PageInfo* info) {};
         
         MultiPageDialog& rootDialog;
     protected:
@@ -161,6 +227,7 @@ struct MultiPageDialog: public Component,
 
         CustomCheckFunction cf;
         int padding = 0;
+        var stateObject;
     };
     
     struct RunThread: public Thread
@@ -344,13 +411,11 @@ struct MultiPageDialog: public Component,
 
         using Ptr = ReferenceCountedObjectPtr<PageInfo>;
         using List = ReferenceCountedArray<PageInfo>;
-
         using CreateFunction = std::function<PageBase*(MultiPageDialog&, int width, const var&)>;
 
         operator bool() const noexcept { return (bool)pageCreator; }
         PageBase* create(MultiPageDialog& r, int currentWidth) const;;
         var& operator[](const Identifier& id) const;
-        
         var getData() const { return data; }
         
         template <typename T> static PageInfo::Ptr createInfo()
@@ -362,7 +427,7 @@ struct MultiPageDialog: public Component,
             return p;
         }
         
-        template <typename T> PageInfo& addChild(std::initializer_list<std::pair<Identifier, var>>&& values={})
+        template <typename T> PageInfo& addChild(DefaultProperties&& values={})
         {
 	        childItems.add(createInfo<T>());
             
@@ -382,8 +447,20 @@ struct MultiPageDialog: public Component,
 	        customCheck = f;
         }
         
-    private:
-
+        Ptr clone()
+        {
+            Ptr s = new PageInfo();
+            s->data = data.clone();
+            
+            for(auto c: childItems)
+                s->childItems.add(c->clone());
+            
+            s->pageCreator = pageCreator;
+            s->customCheck = customCheck;
+            
+            return s;
+        }
+        
         var data;
         CreateFunction pageCreator;
         List childItems;
@@ -398,6 +475,16 @@ struct MultiPageDialog: public Component,
 
         PageInfo::Ptr create(const var& obj);
 
+        StringArray getIdList() const
+        {
+            StringArray sa;
+            
+            for(const auto& i: items)
+                sa.add(i.id.toString());
+            
+            return sa;
+        }
+        
     private:
 
         template <typename T> void registerPage()
@@ -424,12 +511,20 @@ struct MultiPageDialog: public Component,
         runThread->currentDialog = nullptr;
     }
     
-    template <typename T> PageInfo& addPage(std::initializer_list<std::pair<Identifier, var>>&& values={})
+    template <typename T> PageInfo& addPage(DefaultProperties&& values={})
     {
         pages.add(PageInfo::createInfo<T>());
         
-        for (const auto& v: values)
-            (*pages.getLast())[v.first] = v.second;
+        if(values.size())
+        {
+            for (const auto& v: values)
+                (*pages.getLast())[v.first] = v.second;
+        }
+        else
+        {
+            for (const auto& v: T::getStaticDefaultProperties())
+                (*pages.getLast())[v.first] = v.second;
+        }
         
         return *pages.getLast();
     }
@@ -439,7 +534,7 @@ struct MultiPageDialog: public Component,
     void showFirstPage();
 	void setFinishCallback(const std::function<void()>& f);
 
-    static void setGlobalState(Component& page, const Identifier& id, var newValue);
+    //static void setGlobalState(Component& page, const Identifier& id, var newValue);
     static var getGlobalState(Component& page, const Identifier& id, const var& defaultValue);
     static std::pair<Font, Colour> getDefaultFont(Component& c);
 
@@ -505,7 +600,7 @@ struct MultiPageDialog: public Component,
             p.applyTransform(AffineTransform::rotation(folded ? float_Pi * 0.5f : float_Pi));
             
             g.setFont(f.first.boldened());
-            g.setColour(f.second);
+            g.setColour(f.second.withAlpha(folded ? 0.7f : 1.0f));
             
             PathFactory::scalePath(p, area.removeFromLeft(area.getHeight()).reduced(10));
             

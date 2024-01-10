@@ -42,6 +42,8 @@ MultiPageDialog::PageBase::PageBase(MultiPageDialog& rootDialog_, int width, con
 {
 	padding = (int)obj[MultiPageIds::Padding];
 
+    stateObject = rootDialog.getRunThread().globalState;
+    
 	auto help = obj[MultiPageIds::Help].toString();
 
 	if(help.isNotEmpty())
@@ -58,7 +60,7 @@ MultiPageDialog::PageBase::PageBase(MultiPageDialog& rootDialog_, int width, con
 
 var MultiPageDialog::PageBase::getValueFromGlobalState(var defaultState)
 {
-	return getGlobalState(*this, id, defaultState);
+    return stateObject.getProperty(id, defaultState);
 }
 
 var MultiPageDialog::PositionInfo::toJSON() const
@@ -322,6 +324,7 @@ void MultiPageDialog::setFinishCallback(const std::function<void()>& f)
 	finishCallback = f;
 }
 
+/*
 void MultiPageDialog::setGlobalState(Component& page, const Identifier& id, var newValue)
 {
     auto typed = dynamic_cast<MultiPageDialog*>(&page);
@@ -334,6 +337,7 @@ void MultiPageDialog::setGlobalState(Component& page, const Identifier& id, var 
 		typed->runThread->globalState.getDynamicObject()->setProperty(id, newValue);
 	}
 }
+*/
 
 var MultiPageDialog::getGlobalState(Component& page, const Identifier& id, const var& defaultValue)
 {
@@ -385,6 +389,7 @@ Path MultiPageDialog::createPath(const String& url) const
     LOAD_EPATH_IF_URL("retry", EditorIcons::redoIcon);
 	LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
 	LOAD_EPATH_IF_URL("help", MainToolbarIcons::help);
+    LOAD_EPATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 
 	return p;
 }

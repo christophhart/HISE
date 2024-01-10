@@ -44,7 +44,7 @@ using namespace juce;
 
 MarkdownText::MarkdownText(MultiPageDialog& r, int width, const var& d):
 	PageBase(r, width, d),
-	r(d["Text"].toString()),
+	r(d[MultiPageIds::Text].toString()),
 	obj(d)
 {
 	setSize(width, 0);
@@ -71,6 +71,20 @@ void MarkdownText::paint(Graphics& g)
 	r.draw(g, getLocalBounds().toFloat().reduced(padding));
 }
 
+void MarkdownText::createEditorInfo(MultiPageDialog::PageInfo* rootList)
+{
+    (*rootList)[MultiPageIds::Padding] = 10;
+    
+    rootList->addChild<MarkdownText>({
+        { { MultiPageIds::Text, "**MarkdownText**"} }
+    });
+    rootList->addChild<TextInput>({
+        { MultiPageIds::ID, "Text" },
+        { MultiPageIds::Text, "Text" }
+    });
+}
+
+
 Result MarkdownText::checkGlobalState(var)
 {
 	return Result::ok();
@@ -81,7 +95,7 @@ FileSelector::FileSelector(MultiPageDialog& r, int width, const var& obj):
 	fileSelector(createFileComponent(obj)),
 	fileId(obj["ID"].toString())
 {
-	isDirectory = obj["isDirectory"];
+	isDirectory = obj[MultiPageIds::Directory];
 	addAndMakeVisible(fileSelector);
         
 	fileSelector->setBrowseButtonText("Browse");
@@ -92,12 +106,12 @@ FileSelector::FileSelector(MultiPageDialog& r, int width, const var& obj):
 
 FilenameComponent* FileSelector::createFileComponent(const var& obj)
 {
-	bool isDirectory = obj["isDirectory"];
-	auto name = obj["Description"].toString();
+	bool isDirectory = obj[MultiPageIds::Directory];
+	auto name = obj[MultiPageIds::Text].toString();
 	if(name.isEmpty())
 		name = isDirectory ? "Directory" : "File";
-	auto wildcard = obj["wildcard"].toString();
-	auto save = (bool)obj["writeAccess"];
+	auto wildcard = obj[MultiPageIds::Wildcard].toString();
+	auto save = (bool)obj[MultiPageIds::SaveFile];
         
 	return new FilenameComponent(name, File(), true, isDirectory, save, wildcard, "", "");
 }
@@ -115,7 +129,8 @@ Result FileSelector::checkGlobalState(var globalState)
         
 	if(f != File() && !f.isRoot() && (f.isDirectory() || f.existsAsFile()))
 	{
-		MultiPageDialog::setGlobalState(*this, fileId, f.getFullPathName());
+        writeState(f.getFullPathName());
+
 		return Result::ok();
 	}
         
@@ -150,10 +165,10 @@ void FileSelector::resized()
 Tickbox::Tickbox(MultiPageDialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, new ToggleButton())
 {
-	if(obj.hasProperty("Required"))
+	if(obj.hasProperty(MultiPageIds::Required))
 	{
 		required = true;
-		requiredOption = obj["Required"];
+		requiredOption = obj[MultiPageIds::Required];
 	}
 }
 
@@ -162,14 +177,24 @@ void Tickbox::buttonClicked(Button* b)
     for(auto tb: groupedButtons)
         tb->setToggleState(b == tb, dontSendNotification);
     
-    checkGlobalState(MultiPageDialog::getGlobalState(*this, id, var()));
+    
+    
+    //checkGlobalState(MultiPageDialog::getGlobalState(*this, id, var()));
 }
 
 void Tickbox::postInit()
 {
     auto& button = this->getComponent<ToggleButton>();
     
-    Component::callRecursive<Tickbox>(&rootDialog, [&](Tickbox* tb)
+    Component* root = getParentComponent();
+    
+    while(dynamic_cast<PageBase*>(root) != nullptr &&
+          dynamic_cast<Builder*>(root->getParentComponent()) == nullptr)
+    {
+        root = root->getParentComponent();
+    }
+    
+    Component::callRecursive<Tickbox>(root, [&](Tickbox* tb)
     {
         if(tb->id == id)
             groupedButtons.add(&tb->getComponent<ToggleButton>());
@@ -225,11 +250,9 @@ Result Tickbox::checkGlobalState(var globalState)
 	}
 
     if(thisRadioIndex == -1)
-    	MultiPageDialog::setGlobalState(*this, id, button.getToggleState());
+        writeState(button.getToggleState());
     else if(button.getToggleState())
-    {
-        MultiPageDialog::setGlobalState(*this, id, thisRadioIndex);
-    }
+        writeState(thisRadioIndex);
     
 	return Result::ok();
 }
@@ -275,8 +298,8 @@ Result TextInput::checkGlobalState(var globalState)
         return Result::fail(id + " must not be empty");
 	}
 		
-	MultiPageDialog::setGlobalState(*this, id, editor.getText());
-
+    writeState(editor.getText());
+    
 	return Result::ok();
 }
 
@@ -299,10 +322,12 @@ void Container::postInit()
 		childItems.add(sp->create(rootDialog, getWidth()));
 		addAndMakeVisible(childItems.getLast());
 	}
-		
 
 	for(auto c: childItems)
-		c->postInit();
+    {
+        c->setStateObject(stateObject);
+        c->postInit();
+    }
 
 	calculateSize();
 }
@@ -361,6 +386,88 @@ List::List(MultiPageDialog& r, int width, const var& obj):
 	setSize(width, 0);
 }
 
+void List::createEditorInfo(MultiPageDialog::PageInfo* info)
+{
+    auto& xxx = *info;
+
+    auto& tt = xxx.addChild<MarkdownText>({
+        { MultiPageIds::Text, "List" }
+    });
+    
+    auto& prop = xxx.addChild<List>();
+    
+    xxx[MultiPageIds::Text] = "List";
+    
+    prop[MultiPageIds::Folded] = false;
+    prop[MultiPageIds::Foldable] = true;
+    prop[MultiPageIds::Padding] = 10;
+    prop[MultiPageIds::Text] = "Properties";
+    
+    auto& listId = prop.addChild<TextInput>({
+        { MultiPageIds::ID, "ID" },
+        { MultiPageIds::Text, "ID" },
+        { MultiPageIds::Help, "The ID of the list. This will be used for identification in some logic cases" }
+    });
+    
+    auto& textId = prop.addChild<TextInput>({
+        { MultiPageIds::ID, "Text" },
+        { MultiPageIds::Text, "Text" },
+        { MultiPageIds::Help, "The title text that is shown at the header bar." }
+    });
+
+    auto& padId = prop.addChild<TextInput>({
+        { MultiPageIds::ID, "Padding" },
+        { MultiPageIds::Text, "Padding" },
+        { MultiPageIds::Help, "The spacing between child elements in pixel." }
+    });
+
+    auto& foldId1 = prop.addChild<Tickbox>({
+        { MultiPageIds::ID, "Foldable" },
+        { MultiPageIds::Text, "Foldable" },
+        { MultiPageIds::Help, "If ticked, then this list will show a clickable header that can be folded" }
+    });
+    
+    auto& foldId2 = prop.addChild<Tickbox>({
+        { MultiPageIds::ID, "Folded" },
+        { MultiPageIds::Text, "Folded" },
+        { MultiPageIds::Help, "If ticked, then this list will folded as default state" }
+    });
+    
+    auto& ff = xxx.addChild<Builder>({
+        { MultiPageIds::Text, "Children" }
+    });
+    
+    auto& typeOptions = ff.addChild<Branch>();
+    
+    MultiPageDialog::Factory f;
+    
+    bool addSelf = false;
+    
+    for(auto type: f.getIdList())
+    {
+        if(type == "List")
+        {
+            addSelf = true;
+        }
+        else
+        {
+            auto& itemBuilder =  typeOptions.addChild<List>();
+            itemBuilder[MultiPageIds::Text] = type;
+
+            auto obj = new DynamicObject();
+            obj->setProperty(MultiPageIds::ID, type + "Id");
+            obj->setProperty(MultiPageIds::Type, type);
+            
+            MultiPageDialog::PageInfo::Ptr c = f.create(obj);
+            ScopedPointer<MultiPageDialog::PageBase> c2 = c->create(rootDialog, 0);
+            c2->createEditorInfo(&itemBuilder);
+        }
+    }
+    
+    if(addSelf)
+        typeOptions.childItems.add(info->clone());
+}
+
 void List::resized()
 {
 	auto b = getLocalBounds();
@@ -384,10 +491,10 @@ void List::resized()
 Column::Column(MultiPageDialog& r, int width, const var& obj):
 	Container(r, width, obj)
 {
-	padding = (int)obj["Padding"];
+	padding = (int)obj[MultiPageIds::Padding];
 
 	
-    auto childList = obj[MultiPageIds::Children];
+    auto widthList = obj[MultiPageIds::Width];
     
     if(childItems.size() > 0)
     {
@@ -395,7 +502,7 @@ Column::Column(MultiPageDialog& r, int width, const var& obj):
         
         for(int i = 0; i < childItems.size(); i++)
         {
-            auto v = childList[i][MultiPageIds::Width];
+            auto v = widthList[i];
             
             if(v.isUndefined() || v.isVoid())
                 widthInfo.add(equidistance);
@@ -403,7 +510,6 @@ Column::Column(MultiPageDialog& r, int width, const var& obj):
                 widthInfo.add((double)v);
         }
     }
-
 
 	setSize(width, 0);
 }

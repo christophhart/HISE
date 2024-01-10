@@ -13,7 +13,12 @@
 
 struct ColourChooser: public PageFactory::LabelledComponent
 {
-    SN_NODE_ID("ColourChooser");
+    DEFAULT_PROPERTIES(ColourChooser)
+    {
+        return {
+            { MultiPageIds::ID, "colourId" }
+        };
+    }
     
     ColourChooser(MultiPageDialog& r, int w, const var& obj):
       LabelledComponent(r, w, obj, new ColourSelector(ColourSelector::ColourSelectorOptions::showColourspace | ColourSelector::showColourAtTop, 2, 0))
@@ -35,7 +40,8 @@ struct ColourChooser: public PageFactory::LabelledComponent
     Result checkGlobalState(var globalState) override
     {
         auto& selector = getComponent<ColourSelector>();
-        MultiPageDialog::setGlobalState(*this, id, (int64)selector.getCurrentColour().getARGB());
+        
+        writeState((int64)selector.getCurrentColour().getARGB());
         
         return Result::ok();
     }
@@ -45,7 +51,12 @@ struct ColourChooser: public PageFactory::LabelledComponent
 
 struct CustomResultPage: public MultiPageDialog::PageBase
 {
-	SN_NODE_ID("Result");
+    DEFAULT_PROPERTIES(CustomResultPage)
+    {
+        return {
+            { MultiPageIds::ID, "custom" }
+        };
+    }
 
     CustomResultPage(MultiPageDialog& r, int width, const var& obj):
       PageBase(r, width, obj),
@@ -103,9 +114,59 @@ void MainComponent::build()
     using namespace PageFactory;
 
     {
+        auto& xxx = mp->addPage<List>();
+        
+        ScopedPointer<MultiPageDialog::PageBase> c2 = xxx.create(*mp, 0);
+        
+        c2->createEditorInfo(&xxx);
+        
+        
+        
+#if 0
+        auto& p42 = mp->addPage<Builder>({
+            { MultiPageIds::ID, "BuildFunk" },
+            { MultiPageIds::Text, "Property List" }
+        });
+        
+        auto& lp = p42.addChild<List>();
+        lp.addChild<TextInput>({
+            { MultiPageIds::ID, "someId" },
+            { MultiPageIds::Text, "some Text" }
+        });
+        lp.addChild<Tickbox>({
+            { MultiPageIds::ID, "someIdsdasd" },
+            { MultiPageIds::Text, "Tick this option" }
+        });
+        lp.addChild<Tickbox>({
+            { MultiPageIds::ID, "someIdsdasd" },
+            { MultiPageIds::Text, "Or This this option" }
+        });
+        
+        lp.addChild<MarkdownText>(MarkdownText::getStaticDefaultProperties());
+        
+        lp.addChild<Tickbox>({
+            { MultiPageIds::ID, "someIdsdasd" },
+            { MultiPageIds::Text, "Or maybe this option" }
+        });
+        lp.addChild<TextInput>({
+            { MultiPageIds::ID, "better" },
+            { MultiPageIds::Text, "Funky" }
+        });
+        
+        auto& x11 = lp.addChild<Builder>({
+            { MultiPageIds::ID, "SubFunk" },
+            { MultiPageIds::Text, "Sub Property List" }
+        });
+        
+        x11.addChild<TextInput>({
+            { MultiPageIds::ID, "Value" },
+            { MultiPageIds::Text, "Noice" }
+        });
+#endif
+        
         auto& p1 = mp->addPage<List>();
 
-        MultiPageDialog::setGlobalState(*mp, "Colour", 0xFF00FF09);
+
         
         p1[MultiPageIds::Padding] = 30;
 
@@ -223,10 +284,10 @@ void MainComponent::build()
             });
         }
         
-        MultiPageDialog::setGlobalState(*mp, "Source", -1);
-        MultiPageDialog::setGlobalState(*mp, "complexDataType", "SliderPack");
-        MultiPageDialog::setGlobalState(*mp, "complexEventType", "Content");
-        MultiPageDialog::setGlobalState(*mp, "complexSlotIndex", 0);
+        //MultiPageDialog::setGlobalState(*mp, "Source", -1);
+        //MultiPageDialog::setGlobalState(*mp, "complexDataType", "SliderPack");
+        //MultiPageDialog::setGlobalState(*mp, "complexEventType", "Content");
+        //MultiPageDialog::setGlobalState(*mp, "complexSlotIndex", 0);
         
         auto& eventPages = mp->addPage<Branch>({
             { MultiPageIds::ID, "Source" }

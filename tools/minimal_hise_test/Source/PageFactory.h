@@ -42,30 +42,51 @@ using namespace juce;
 namespace PageFactory
 {
 
+#define DEFAULT_PROPERTIES(x) SN_NODE_ID(#x); DefaultProperties getDefaultProperties() const override { return getStaticDefaultProperties(); } \
+    static DefaultProperties getStaticDefaultProperties()
+
 struct MarkdownText: public MultiPageDialog::PageBase
 {
-    SN_NODE_ID("Markdown");
-
+    DEFAULT_PROPERTIES(MarkdownText)
+    {
+        return { { MultiPageIds::Text, "### funkyNode" } };
+    }
+    
     MarkdownText(MultiPageDialog& r, int width, const var& d);
 
+    void createEditorInfo(MultiPageDialog::PageInfo* rootList) override;
+    
     void postInit() override;
-
     void paint(Graphics& g) override;
     Result checkGlobalState(var) override;
 
 private:
 
     var obj;
-
     MarkdownRenderer r;
 };
 
 struct FileSelector: public MultiPageDialog::PageBase
 {
-    SN_NODE_ID("FileSelector");
-
+    DEFAULT_PROPERTIES(FileSelector)
+    {
+        return {
+            { MultiPageIds::Directory, true },
+            { MultiPageIds::ID, "fileId" },
+            { MultiPageIds::Wildcard, "*.*" },
+            { MultiPageIds::SaveFile, true }
+        };
+    }
+    
+    void createEditorInfo(MultiPageDialog::PageInfo* rootList) override
+    {
+        rootList->addChild<MarkdownText>({
+            { { MultiPageIds::Text, "oink? "} }
+        });
+    }
+    
     FileSelector(MultiPageDialog& r, int width, const var& obj);
-
+    
     void postInit() override;
     Result checkGlobalState(var globalState) override;
 
@@ -116,8 +137,6 @@ struct LabelledComponent: public MultiPageDialog::PageBase
             b.removeFromRight(5);
         }
 
-        
-        
         b.removeFromLeft(getWidth() / 4);
         
         component->setBounds(b);
@@ -127,60 +146,20 @@ struct LabelledComponent: public MultiPageDialog::PageBase
     ScopedPointer<Component> component;
 };
 
-struct Tickbox: public LabelledComponent,
-                public ButtonListener
-{
-    SN_NODE_ID("Toggle");
-
-    Tickbox(MultiPageDialog& r, int width, const var& obj);;
-
-    void postInit() override;
-
-    Result checkGlobalState(var globalState) override;
-
-    void buttonClicked(Button* b) override;
-    
-private:
-    
-    Array<ToggleButton*> groupedButtons;
-    int thisRadioIndex = -1;
-    
-    bool required = false;
-    bool requiredOption = false;
-};
-
-struct Choice: public LabelledComponent
-{
-    SN_NODE_ID("Choice");
-
-    Choice(MultiPageDialog& r, int width, const var& obj):
-      LabelledComponent(r, width, obj, new ComboBox())
-    {
-        auto& combobox = getComponent<ComboBox>();
-        auto s = obj[MultiPageIds::Items].toString();
-        combobox.addItemList(StringArray::fromLines(s), 1);
-        hise::GlobalHiseLookAndFeel::setDefaultColours(combobox);
-    };
-
-    void postInit() override
-    {
-        auto t = getValueFromGlobalState().toString();
-        getComponent<ComboBox>().setText(t, dontSendNotification);
-    }
-    
-    Result checkGlobalState(var globalState) override
-    {
-        return Result::ok();
-    }
-private:
-    
-};
-
 struct TextInput: public LabelledComponent,
                   public TextEditor::Listener,
                   public Timer
 {
-    SN_NODE_ID("Textinput");
+    DEFAULT_PROPERTIES(Choice)
+    {
+        return {
+            { MultiPageIds::Text, "Label" },
+            { MultiPageIds::ID, "textId" },
+            { MultiPageIds::Help, "" },
+            { MultiPageIds::Required, false },
+            { MultiPageIds::Items, var(Array<var>({var("Autocomplete 1"), var("Autocomplete 2")})) }
+        };
+    }
 
     struct Autocomplete: public Component,
                          public ScrollBar::Listener,
@@ -190,8 +169,6 @@ struct TextInput: public LabelledComponent,
         {
             String displayString;
         };
-        
-
         
         ScrollBar sb;
         ScrollbarFader fader;
@@ -238,9 +215,6 @@ struct TextInput: public LabelledComponent,
             sb.addListener(this);
             addAndMakeVisible(sb);
             fader.addScrollBarToAnimate(sb);
-            
-            for(auto& i: x)
-                allItems.add({i});
             
             sb.setSingleStepSize(0.2);
             
@@ -507,7 +481,9 @@ struct TextInput: public LabelledComponent,
     
     void textEditorTextChanged(TextEditor& e)
     {
-        check(MultiPageDialog::getGlobalState(*this, id, var()));
+        //check(MultiPageDialog::getGlobalState(*this, id, var()));
+        
+        writeState(e.getText());
         
         startTimer(400);
     }
@@ -525,6 +501,102 @@ private:
     JUCE_DECLARE_WEAK_REFERENCEABLE(TextInput);
 };
 
+struct Tickbox: public LabelledComponent,
+                public ButtonListener
+{
+    DEFAULT_PROPERTIES(Tickbox)
+    {
+        return {
+            { MultiPageIds::Text, "Label" },
+            { MultiPageIds::ID, "tickId" },
+            { MultiPageIds::Help, "" },
+            { MultiPageIds::Required, false }
+        };
+    }
+    
+    void createEditorInfo(MultiPageDialog::PageInfo* rootList) override
+    {
+        rootList->addChild<MarkdownText>({
+            { MultiPageIds::Text, "Tickbox" }
+        });
+        
+        rootList->addChild<TextInput>({
+            { MultiPageIds::ID, "ID" },
+            { MultiPageIds::Text, "ID" },
+            { MultiPageIds::Help, "The ID for the element (used as key in the state `var`.\n> If you have multiple tickboxes on the same page with the same ID, they will be put into a radio group and can be selected exclusively (also the ID value will be the integer index of the button in the group list in the order of appearance." }
+        });
+        
+        rootList->addChild<TextInput>({
+            { MultiPageIds::ID, "Text" },
+            { MultiPageIds::Text, "Text" },
+            { MultiPageIds::Help, "The label next to the tickbox" }
+        });
+        
+        rootList->addChild<Tickbox>({
+            { MultiPageIds::ID, "Required" },
+            { MultiPageIds::Text, "Required" },
+            { MultiPageIds::Help, "If this is enabled, the tickbox must be selected in order to proceed to the next page, otherwise it will show a error message.\n> This is particularly useful for eg. accepting TOC" }
+        });
+        
+    }
+
+    Tickbox(MultiPageDialog& r, int width, const var& obj);;
+
+    void postInit() override;
+
+    Result checkGlobalState(var globalState) override;
+
+    void buttonClicked(Button* b) override;
+    
+private:
+    
+    Array<ToggleButton*> groupedButtons;
+    int thisRadioIndex = -1;
+    
+    bool required = false;
+    bool requiredOption = false;
+};
+
+struct Choice: public LabelledComponent
+{
+    DEFAULT_PROPERTIES(Choice)
+    {
+        return {
+            { MultiPageIds::Text, "Label" },
+            { MultiPageIds::ID, "choiceId" },
+            { MultiPageIds::Help, "" },
+            { MultiPageIds::Items, var(Array<var>({var("Option 1"), var("Option 2")})) }
+        };
+    }
+
+
+    
+    Choice(MultiPageDialog& r, int width, const var& obj):
+      LabelledComponent(r, width, obj, new ComboBox())
+    {
+        auto& combobox = getComponent<ComboBox>();
+        auto s = obj[MultiPageIds::Items].toString();
+        combobox.addItemList(StringArray::fromLines(s), 1);
+        hise::GlobalHiseLookAndFeel::setDefaultColours(combobox);
+    };
+
+    void postInit() override
+    {
+        auto t = getValueFromGlobalState().toString();
+        getComponent<ComboBox>().setText(t, dontSendNotification);
+    }
+    
+    Result checkGlobalState(var globalState) override
+    {
+        return Result::ok();
+    }
+private:
+    
+};
+
+
+
+
 struct Container: public MultiPageDialog::PageBase
 {
     Container(MultiPageDialog& r, int width, const var& obj);;
@@ -533,6 +605,8 @@ struct Container: public MultiPageDialog::PageBase
     void postInit() override;
     Result checkGlobalState(var globalState) override;
 
+    
+    
     virtual void calculateSize() = 0;
 
     void addChild(MultiPageDialog::PageInfo::Ptr info);
@@ -550,12 +624,24 @@ private:
 
 struct List: public Container
 {
-    SN_NODE_ID("List");
+    DEFAULT_PROPERTIES(List)
+    {
+        return {
+            { MultiPageIds::ID, "listId" },
+            { MultiPageIds::Text, "Title" },
+            { MultiPageIds::Padding, true },
+            { MultiPageIds::Foldable, false },
+            { MultiPageIds::Folded, false }
+        };
+    }
 
     void calculateSize() override;
 
     List(MultiPageDialog& r, int width, const var& obj);
     void resized() override;
+    
+    void createEditorInfo(MultiPageDialog::PageInfo* info) override;
+    
     
     void mouseDown(const MouseEvent& e)
     {
@@ -793,7 +879,14 @@ struct DummyWait: public Action
 
 struct Column: public Container
 {
-	SN_NODE_ID("Column");
+    DEFAULT_PROPERTIES(Column)
+    {
+        return {
+            { MultiPageIds::ID, "columnId" },
+            { MultiPageIds::Padding, true },
+            { MultiPageIds::Width, var(Array<var>({var(-0.5), var(-0.5)})) }
+        };
+    }
 
     Column(MultiPageDialog& r, int width, const var& obj);
 
@@ -823,17 +916,46 @@ struct Column: public Container
 	Array<double> widthInfo;
 };
 
-
-
 struct Branch: public Container
 {
-    SN_NODE_ID("Branch");
+    
+    DEFAULT_PROPERTIES(Branch)
+    {
+        return {
+            { MultiPageIds::ID, "branchId" }
+        };
+    }
     
     Branch(MultiPageDialog& root, int w, const var& obj):
       Container(root, w, obj)
     {
         setSize(w, 0);
     };
+    
+    PageBase* createWithPopup(int width)
+    {
+        PopupLookAndFeel plaf;
+        PopupMenu m;
+        m.setLookAndFeel(&plaf);
+        
+        int index = 0;
+        
+        for(auto sp: staticPages)
+        {
+            m.addItem(index + 1, sp->getData()[MultiPageIds::Text].toString());
+            index++;
+        }
+        
+        auto result = m.show();
+        
+        if(isPositiveAndBelow(result-1, staticPages.size()))
+        {
+            if(auto sp = staticPages[result - 1])
+                return sp->create(rootDialog, width);
+        }
+        
+        return nullptr;
+    }
     
     void postInit() override
     {
@@ -883,6 +1005,250 @@ struct Branch: public Container
     int currentIndex = 0;
     
 };
+
+struct Builder: public Container,
+                public ButtonListener
+{
+    DEFAULT_PROPERTIES(Builder)
+    {
+        return {
+            { MultiPageIds::ID, "columnId" },
+            { MultiPageIds::Text, "title" },
+            { MultiPageIds::Folded, false },
+            { MultiPageIds::Padding, 10 }
+        };
+    }
+    
+    Builder(MultiPageDialog& r, int w, const var& obj):
+      Container(r, w, obj),
+      addButton("add", nullptr, r)
+    {
+        title = obj[MultiPageIds::Text];
+        padding = jmax(padding, 10);
+        
+        childItems.clear();
+        addAndMakeVisible(addButton);
+        addButton.onClick = BIND_MEMBER_FUNCTION_0(Builder::onAddButton);
+        setSize(w, 32);
+    }
+    
+    var stateList;
+    
+    void mouseDown(const MouseEvent& e) override
+    {
+        if(e.getPosition().getY() < 32)
+        {
+            folded = !folded;
+            rebuildPosition();
+            repaint();
+        }
+    }
+    
+    bool folded = false;
+    
+    void calculateSize() override
+    {
+        int h = 32 + padding;
+        
+        for(auto& c: childItems)
+        {
+            c->setVisible(!folded);
+            
+            if(!folded)
+                h += c->getHeight() + 3 * padding;
+        }
+        
+        setSize(getWidth(), h);
+    }
+    
+    void resized() override
+    {
+        auto b = getLocalBounds();
+        
+        addButton.setBounds(b.removeFromTop(32).removeFromRight(32).withSizeKeepingCentre(24, 24));
+        
+        b.removeFromTop(padding);
+        
+        itemBoxes.clear();
+        
+        for(int i = 0; i < childItems.size(); i++)
+        {
+            auto c = childItems[i];
+            auto row = b.removeFromTop(2 * padding + c->getHeight());
+
+            itemBoxes.addWithoutMerging(row);
+
+            auto bb = row.removeFromRight(32).removeFromTop(32).withSizeKeepingCentre(20, 20);
+            
+            row = row.reduced(padding);
+            
+            closeButtons[i]->setVisible(c->isVisible());
+            
+            if(!folded)
+            {   
+                closeButtons[i]->setBounds(bb);
+                c->setBounds(row);
+                b.removeFromTop(padding);
+            }
+        }
+    }
+    
+    RectangleList<int> itemBoxes;
+    
+    void paint(Graphics& g) override
+    {
+        for(auto& b: itemBoxes)
+        {
+            g.setColour(Colours::white.withAlpha(0.2f));
+            g.drawRoundedRectangle(b.toFloat().reduced(1.0f), 5.0f, 2.0f);
+        }
+        
+        if(auto laf = dynamic_cast<MultiPageDialog::LookAndFeelMethods*>(&rootDialog.getLookAndFeel()))
+        {
+            auto b = getLocalBounds().removeFromTop(32).toFloat();
+            laf->drawMultiPageFoldHeader(g, *this, b, title, folded);
+        }
+    }
+    
+    Result checkGlobalState(var globalState) override
+    {
+        int idx = 0;
+        
+        for(auto& c: childItems)
+        {
+            var obj;
+            
+            if(isPositiveAndBelow(idx, stateList.size()))
+                obj = stateList[idx];
+            
+            if(obj.getDynamicObject() == nullptr)
+            {
+                stateList.insert(idx, var(new DynamicObject()));
+                obj = stateList[idx];
+            }
+            
+            auto ok = c->check(obj);
+            
+            if(ok.failed())
+                return ok;
+            
+            idx++;
+        }
+        
+        DBG(JSON::toString(stateList));
+        
+        return Result::ok();
+    }
+    
+    void addChildItem(PageBase* b, const var& stateInArray)
+    {
+        childItems.add(b);
+        closeButtons.add(new HiseShapeButton("close", nullptr, rootDialog));
+        addAndMakeVisible(closeButtons.getLast());
+        addAndMakeVisible(childItems.getLast());
+        closeButtons.getLast()->addListener(this);
+        childItems.getLast()->setStateObject(stateInArray);
+        childItems.getLast()->postInit();
+    }
+    
+    void createItem(const var& stateInArray)
+    {
+        for(const auto& sp: staticPages)
+        {
+            auto b = sp->create(rootDialog, getWidth());
+            addChildItem(b, stateInArray);
+        }
+    }
+    
+    void onAddButton()
+    {
+        var no(new DynamicObject());
+        
+        stateList.insert(-1, no);
+        
+        folded = false;
+        
+        if(popupOptions != nullptr)
+        {
+            if(auto nb = popupOptions->createWithPopup(getWidth()))
+            {
+                addChildItem(nb, no);
+            }
+        }
+        else
+        {
+            createItem(no);
+        }
+        
+        rebuildPosition();
+    }
+    
+    void rebuildPosition()
+    {
+        auto t = dynamic_cast<Container*>(this);
+        
+        while(t != nullptr)
+        {
+            t->calculateSize();
+            
+            t = t->findParentComponentOfClass<Container>();
+        }
+        repaint();
+    }
+    
+    void buttonClicked(Button* b) override
+    {
+        auto cb = dynamic_cast<HiseShapeButton*>(b);
+        auto indexToDelete = closeButtons.indexOf(cb);
+        
+        stateList.getArray()->remove(indexToDelete);
+        closeButtons.removeObject(cb);
+        childItems.remove(indexToDelete);
+        
+        rebuildPosition();
+    }
+    
+    void postInit() override
+    {
+        stateList = getValueFromGlobalState();
+        
+        if(auto firstItem = staticPages.getFirst())
+        {
+            ScopedPointer<PageBase> fi = firstItem->create(rootDialog, getWidth());
+            
+            if(auto br = dynamic_cast<Branch*>(fi.get()))
+            {
+                popupOptions = br;
+                fi.release();
+            }
+        }
+        
+        if(!stateList.isArray())
+        {
+            stateList = var(Array<var>());
+            writeState(stateList);
+        }
+        else
+        {
+            for(auto& obj: *stateList.getArray())
+            {
+                createItem(obj);
+            }
+        }
+
+        calculateSize();
+    }
+    
+    ScopedPointer<Branch> popupOptions;
+    
+    String title;
+    HiseShapeButton addButton;
+    
+    OwnedArray<HiseShapeButton> closeButtons;
+    
+};
+
+
 
 
 }

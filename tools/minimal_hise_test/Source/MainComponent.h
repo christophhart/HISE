@@ -50,6 +50,8 @@ public:
             c = nullptr;
         else
             build();
+        
+        resized();
     }
     
     void build();
