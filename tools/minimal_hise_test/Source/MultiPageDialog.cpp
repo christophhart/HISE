@@ -35,6 +35,8 @@
 
 namespace hise
 {
+
+namespace multipage {
 using namespace juce;
 
 MultiPageDialog::PageBase::PageBase(MultiPageDialog& rootDialog_, int width, const var& obj):
@@ -50,6 +52,12 @@ MultiPageDialog::PageBase::PageBase(MultiPageDialog& rootDialog_, int width, con
 	{
 		helpButton = new HelpButton(help, rootDialog);
 		addAndMakeVisible(helpButton);
+		helpButton->setWantsKeyboardFocus(false);
+	}
+
+	if(obj.hasProperty(MultiPageIds::Value))
+	{
+		initValue = obj[MultiPageIds::Value];
 	}
 
 	auto idString = obj[MultiPageIds::ID].toString();
@@ -160,6 +168,9 @@ MultiPageDialog::PageBase* MultiPageDialog::PageInfo::create(MultiPageDialog& r,
 	if(pageCreator)
 	{
 		auto np = pageCreator(r, currentWidth, data);
+
+		if(stateObject.isObject())
+			np->setStateObject(stateObject);
 
         np->setCustomCheckFunction(customCheck);
 
@@ -322,6 +333,21 @@ void MultiPageDialog::showFirstPage()
 void MultiPageDialog::setFinishCallback(const std::function<void()>& f)
 {
 	finishCallback = f;
+}
+
+var MultiPageDialog::getOrCreateChild(const var& obj, const Identifier& id)
+{
+	if(id.isNull())
+		return obj;
+
+	if(obj.hasProperty(id))
+		return obj[id];
+
+	jassert(obj.getDynamicObject() != nullptr);
+
+	auto no = new DynamicObject();
+	obj.getDynamicObject()->setProperty(id, var(no));
+	return var(no);
 }
 
 /*
@@ -613,4 +639,5 @@ MultiPageDialog::PageBase::HelpButton::HelpButton(String help, const PathFactory
 }
 
 
+}
 }

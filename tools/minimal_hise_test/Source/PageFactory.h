@@ -33,10 +33,14 @@
 #pragma once
 
 #include <JuceHeader.h>
+
 #include "MultiPageDialog.h"
 
 namespace hise
 {
+
+
+namespace multipage {
 using namespace juce;
 
 namespace PageFactory
@@ -44,6 +48,64 @@ namespace PageFactory
 
 #define DEFAULT_PROPERTIES(x) SN_NODE_ID(#x); DefaultProperties getDefaultProperties() const override { return getStaticDefaultProperties(); } \
     static DefaultProperties getStaticDefaultProperties()
+
+struct Type: public MultiPageDialog::PageBase
+{
+	DEFAULT_PROPERTIES(MarkdownText)
+    {
+        return { { MultiPageIds::ID, "Type" } };
+    }
+
+    Type(MultiPageDialog& r, int width, const var& d):
+      PageBase(r, width, d)
+	{
+        auto visible = true;
+
+		if(d.hasProperty(MultiPageIds::Visible))
+            visible = (bool)d[MultiPageIds::Visible];
+
+		setSize(width, visible ? 42 : 0);
+        typeId = d[MultiPageIds::Type].toString();
+	}
+
+    void postInit() override
+	{
+		
+	}
+
+    Result checkGlobalState(var globalState) override
+	{
+        if(typeId.isNotEmpty())
+        {
+	        writeState(typeId);
+			return Result::ok();
+        }
+        else
+        {
+	        return Result::fail("Must define Type property");
+        }
+	}
+
+    void paint(Graphics& g) override
+	{
+        auto b = getLocalBounds().toFloat();
+        b.removeFromBottom(10);
+        g.setColour(Colours::black.withAlpha(0.1f));
+        g.fillRect(b);
+
+		auto f = MultiPageDialog::getDefaultFont(*this);
+
+        g.setColour(f.second);
+        g.setFont(f.first);
+
+        String m;
+        m << "Type: " << typeId;
+
+        g.drawText(m, b, Justification::centred);
+	}
+
+    String typeId;
+};
 
 struct MarkdownText: public MultiPageDialog::PageBase
 {
@@ -113,7 +175,12 @@ struct LabelledComponent: public MultiPageDialog::PageBase
         
         setSize(width, 32);
     };
-    
+
+    void postInit() override
+    {
+	    init();
+    }
+
     void paint(Graphics& g) override
     {        
         auto b = getLocalBounds();
@@ -157,6 +224,7 @@ struct TextInput: public LabelledComponent,
             { MultiPageIds::ID, "textId" },
             { MultiPageIds::Help, "" },
             { MultiPageIds::Required, false },
+            { MultiPageIds::Multiline, false },
             { MultiPageIds::Items, var(Array<var>({var("Autocomplete 1"), var("Autocomplete 2")})) }
         };
     }
@@ -215,7 +283,10 @@ struct TextInput: public LabelledComponent,
             sb.addListener(this);
             addAndMakeVisible(sb);
             fader.addScrollBarToAnimate(sb);
-            
+
+            for(auto& i: p.autocompleteItems)
+                allItems.add({i});
+
             sb.setSingleStepSize(0.2);
             
             auto& ed = parent->getComponent<TextEditor>();
@@ -419,7 +490,7 @@ struct TextInput: public LabelledComponent,
     
     void showAutocomplete(const String& currentText)
     {
-        if(currentAutocomplete == nullptr && currentText.isNotEmpty())
+        if(!autocompleteItems.isEmpty() && currentAutocomplete == nullptr && currentText.isNotEmpty())
         {
             currentAutocomplete = new Autocomplete(*this);
         }
@@ -427,7 +498,7 @@ struct TextInput: public LabelledComponent,
         {
             if(currentText.isEmpty())
                 currentAutocomplete = nullptr;
-            else
+            else if (currentAutocomplete != nullptr)
                 currentAutocomplete->update(currentText);
         }
     }
@@ -495,7 +566,9 @@ struct TextInput: public LabelledComponent,
     Result checkGlobalState(var globalState) override;
 
 private:
-    
+
+    StringArray autocompleteItems;
+
     bool required = false;
     
     JUCE_DECLARE_WEAK_REFERENCEABLE(TextInput);
@@ -514,31 +587,7 @@ struct Tickbox: public LabelledComponent,
         };
     }
     
-    void createEditorInfo(MultiPageDialog::PageInfo* rootList) override
-    {
-        rootList->addChild<MarkdownText>({
-            { MultiPageIds::Text, "Tickbox" }
-        });
-        
-        rootList->addChild<TextInput>({
-            { MultiPageIds::ID, "ID" },
-            { MultiPageIds::Text, "ID" },
-            { MultiPageIds::Help, "The ID for the element (used as key in the state `var`.\n> If you have multiple tickboxes on the same page with the same ID, they will be put into a radio group and can be selected exclusively (also the ID value will be the integer index of the button in the group list in the order of appearance." }
-        });
-        
-        rootList->addChild<TextInput>({
-            { MultiPageIds::ID, "Text" },
-            { MultiPageIds::Text, "Text" },
-            { MultiPageIds::Help, "The label next to the tickbox" }
-        });
-        
-        rootList->addChild<Tickbox>({
-            { MultiPageIds::ID, "Required" },
-            { MultiPageIds::Text, "Required" },
-            { MultiPageIds::Help, "If this is enabled, the tickbox must be selected in order to proceed to the next page, otherwise it will show a error message.\n> This is particularly useful for eg. accepting TOC" }
-        });
-        
-    }
+    void createEditorInfo(MultiPageDialog::PageInfo* rootList) override;
 
     Tickbox(MultiPageDialog& r, int width, const var& obj);;
 
@@ -613,6 +662,8 @@ struct Container: public MultiPageDialog::PageBase
 
 protected:
 
+    Identifier id;
+
     OwnedArray<PageBase> childItems;
     MultiPageDialog::PageInfo::List staticPages;
 
@@ -627,7 +678,6 @@ struct List: public Container
     DEFAULT_PROPERTIES(List)
     {
         return {
-            { MultiPageIds::ID, "listId" },
             { MultiPageIds::Text, "Title" },
             { MultiPageIds::Padding, true },
             { MultiPageIds::Foldable, false },
@@ -931,7 +981,18 @@ struct Branch: public Container
     {
         setSize(w, 0);
     };
-    
+
+    PageBase* createFromStateObject(const var& obj, int w)
+    {
+        for(auto& sp: staticPages)
+	    {
+            if(sp->data[MultiPageIds::Text].toString() == obj[MultiPageIds::Type].toString())
+                return sp->create(rootDialog, w);
+	    }
+
+        return nullptr;
+    }
+
     PageBase* createWithPopup(int width)
     {
         PopupLookAndFeel plaf;
@@ -1232,7 +1293,17 @@ struct Builder: public Container,
         {
             for(auto& obj: *stateList.getArray())
             {
-                createItem(obj);
+                if(popupOptions != nullptr)
+                {
+                    if(auto nb = popupOptions->createFromStateObject(obj, getWidth()))
+		            {
+		                addChildItem(nb, obj);
+		            }
+                }
+                else
+                {
+	                createItem(obj);
+                }
             }
         }
 
@@ -1253,4 +1324,5 @@ struct Builder: public Container,
 
 }
 
+}
 }

@@ -34,71 +34,15 @@
 
 #include <JuceHeader.h>
 
+#include "MultiPageIds.h"
+
 namespace hise
 {
-using namespace juce;
 
-#define DECLARE_ID(x) static const Identifier x(#x);
 
-namespace MultiPageIds
-{
-    // Root properties
-	DECLARE_ID(StyleData);
-    DECLARE_ID(LayoutData);
-    DECLARE_ID(Properties);
-    DECLARE_ID(GlobalState);
-    DECLARE_ID(Children);
+namespace multipage {
+    using namespace juce;
 
-    // Global Properties
-    DECLARE_ID(Header);
-    DECLARE_ID(Subtitle);
-
-    // Child properties
-    DECLARE_ID(Type);
-    DECLARE_ID(ID);
-    DECLARE_ID(CallType);
-    DECLARE_ID(Text);
-    DECLARE_ID(Items);
-    DECLARE_ID(Help);
-    DECLARE_ID(Foldable);
-    DECLARE_ID(Folded);
-    DECLARE_ID(Required);
-    DECLARE_ID(Value);
-    DECLARE_ID(Padding);
-    DECLARE_ID(Width);
-    DECLARE_ID(Wildcard);
-    DECLARE_ID(SaveFile);
-    DECLARE_ID(Directory);
-
-}
-
-#undef DECLARE_ID
-
-class DefaultProperties
-{
-public:
-    DefaultProperties(std::initializer_list<std::pair<Identifier, var>> ilist)
-    : ilist_(ilist) {}
-
-    const std::pair<Identifier, var>* begin() const noexcept
-    {
-        return ilist_.data();
-    }
-
-    const std::pair<Identifier, var>* end() const noexcept
-    {
-        return ilist_.data() + size();
-    }
-
-    std::size_t size() const noexcept
-    {
-        return ilist_.size();
-    }
-
-private:
-    
-    const std::vector<std::pair<Identifier, var>> ilist_;
-};
 
 /* TODO:
  *
@@ -145,6 +89,15 @@ struct MultiPageDialog: public Component,
         virtual void setStateObject(const var& newStateObject)
         {
             stateObject = newStateObject;
+        }
+
+        void init()
+        {
+	        if(!initValue.isUndefined() && !initValue.isVoid())
+	        {
+		        writeState(initValue);
+                initValue = var();
+	        }
         }
         
         template <typename PageSubType, typename StopType=juce::Toolbar> PageSubType* getRootPage()
@@ -213,7 +166,10 @@ struct MultiPageDialog: public Component,
         virtual void createEditorInfo(PageInfo* info) {};
         
         MultiPageDialog& rootDialog;
+
     protected:
+
+        var initValue;
 
         struct HelpButton: public HiseShapeButton
 	    {
@@ -338,7 +294,17 @@ struct MultiPageDialog: public Component,
             
             return nullptr;
         }
-        
+
+        var getGlobalSubState(const Identifier& id)
+        {
+            if(globalState.hasProperty(id))
+                return globalState[id];
+
+	        var no = new DynamicObject();
+            globalState.getDynamicObject()->setProperty(id, no);
+            return no;
+        }
+
         void addJob(Job::Ptr b, bool addFirst=false)
         {
             if(addFirst)
@@ -446,6 +412,11 @@ struct MultiPageDialog: public Component,
         {
 	        customCheck = f;
         }
+
+        void setStateObject(const var& newStateObject)
+        {
+	        stateObject = newStateObject;
+        }
         
         Ptr clone()
         {
@@ -457,10 +428,12 @@ struct MultiPageDialog: public Component,
             
             s->pageCreator = pageCreator;
             s->customCheck = customCheck;
+            s->stateObject = stateObject;
             
             return s;
         }
-        
+
+        var stateObject;
         var data;
         CreateFunction pageCreator;
         List childItems;
@@ -511,28 +484,35 @@ struct MultiPageDialog: public Component,
         runThread->currentDialog = nullptr;
     }
     
-    template <typename T> PageInfo& addPage(DefaultProperties&& values={})
+    template <typename T> PageInfo& addPage(DefaultProperties&& values={}, int index = -1)
     {
-        pages.add(PageInfo::createInfo<T>());
+        PageInfo::Ptr p;
+
+        if(index == -1)
+			p = pages.add(PageInfo::createInfo<T>());
+        else
+            p = pages.insert(index, PageInfo::createInfo<T>());
         
         if(values.size())
         {
             for (const auto& v: values)
-                (*pages.getLast())[v.first] = v.second;
+                (*p)[v.first] = v.second;
         }
         else
         {
             for (const auto& v: T::getStaticDefaultProperties())
-                (*pages.getLast())[v.first] = v.second;
+                (*p)[v.first] = v.second;
         }
         
-        return *pages.getLast();
+        return *p;
     }
     
     Result getCurrentResult() { return runThread->currentError; }
     
     void showFirstPage();
 	void setFinishCallback(const std::function<void()>& f);
+
+    static var getOrCreateChild(const var& obj, const Identifier& id);
 
     //static void setGlobalState(Component& page, const Identifier& id, var newValue);
     static var getGlobalState(Component& page, const Identifier& id, const var& defaultValue);
@@ -813,6 +793,23 @@ struct MultiPageDialog: public Component,
 	    
     }
 
+    Result checkCurrentPage()
+    {
+	    if(currentPage != nullptr)
+	    {
+            currentErrorElement = nullptr;
+
+		    auto ok = currentPage->check(runThread->globalState);
+
+            errorComponent.setError(ok);
+
+            repaint();
+            return ok;
+	    }
+
+        return Result::fail("No page");
+    }
+
     void setCurrentErrorPage(PageBase* b)
     {
         currentErrorElement = b;
@@ -847,4 +844,5 @@ private:
     JUCE_DECLARE_WEAK_REFERENCEABLE(MultiPageDialog);
 };
 
+}
 }

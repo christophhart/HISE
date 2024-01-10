@@ -295,6 +295,9 @@ bool MarkdownLayout::StyleData::fromDynamicObject(var obj, const std::function<F
 
 	auto getColourFromVar = [&](const Identifier& id, Colour defaultColour)
 	{
+		if(!obj.hasProperty(id))
+			return defaultColour;
+
 		auto v = (int64)obj.getProperty(id, (int64)defaultColour.getARGB());
 		return Colour((uint32)v);
 	};

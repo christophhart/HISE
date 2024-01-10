@@ -35,7 +35,8 @@
 namespace hise
 {
 
-
+namespace multipage {
+using namespace juce;
 
 namespace PageFactory
 {
@@ -75,12 +76,16 @@ void MarkdownText::createEditorInfo(MultiPageDialog::PageInfo* rootList)
 {
     (*rootList)[MultiPageIds::Padding] = 10;
     
-    rootList->addChild<MarkdownText>({
-        { { MultiPageIds::Text, "**MarkdownText**"} }
+    rootList->addChild<Type>({
+        { MultiPageIds::ID, "Type"},
+        { MultiPageIds::Type, "MarkdownText"}
     });
     rootList->addChild<TextInput>({
         { MultiPageIds::ID, "Text" },
-        { MultiPageIds::Text, "Text" }
+        { MultiPageIds::Text, "Text" },
+        { MultiPageIds::Required, true },
+        { MultiPageIds::Multiline, true },
+        { MultiPageIds::Value, "Some markdown **text**." }
     });
 }
 
@@ -162,6 +167,34 @@ void FileSelector::resized()
 	fileSelector->setBounds(getLocalBounds());
 }
 
+void Tickbox::createEditorInfo(MultiPageDialog::PageInfo* rootList)
+{
+	rootList->addChild<Type>({
+        { MultiPageIds::ID, "Type"},
+        { MultiPageIds::Type, "Tickbox"},
+        { MultiPageIds::Help, "A Tickbox lets you enable / disable a boolean option or can be grouped together with other tickboxes to create a radio group with an exclusive selection option" }
+    });       
+
+	rootList->addChild<TextInput>({
+		{ MultiPageIds::ID, "ID" },
+		{ MultiPageIds::Text, "ID" },
+		{ MultiPageIds::Help, "The ID for the element (used as key in the state `var`.\n> If you have multiple tickboxes on the same page with the same ID, they will be put into a radio group and can be selected exclusively (also the ID value will be the integer index of the button in the group list in the order of appearance." }
+	});
+        
+	rootList->addChild<TextInput>({
+		{ MultiPageIds::ID, "Text" },
+		{ MultiPageIds::Text, "Text" },
+		{ MultiPageIds::Help, "The label next to the tickbox" }
+	});
+        
+	rootList->addChild<Tickbox>({
+		{ MultiPageIds::ID, "Required" },
+		{ MultiPageIds::Text, "Required" },
+		{ MultiPageIds::Help, "If this is enabled, the tickbox must be selected in order to proceed to the next page, otherwise it will show a error message.\n> This is particularly useful for eg. accepting TOC" }
+	});
+        
+}
+
 Tickbox::Tickbox(MultiPageDialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, new ToggleButton())
 {
@@ -176,10 +209,6 @@ void Tickbox::buttonClicked(Button* b)
 {
     for(auto tb: groupedButtons)
         tb->setToggleState(b == tb, dontSendNotification);
-    
-    
-    
-    //checkGlobalState(MultiPageDialog::getGlobalState(*this, id, var()));
 }
 
 void Tickbox::postInit()
@@ -268,16 +297,46 @@ TextInput::TextInput(MultiPageDialog& r, int width, const var& obj):
     editor.setSelectAllWhenFocused(false);
     editor.setIgnoreUpDownKeysWhenSingleLine(true);
     editor.setTabKeyUsedAsCharacter(false);
-    
+
+    auto ml = (bool)obj[MultiPageIds::Multiline];
+
+    if(ml)
+    {
+        editor.setReturnKeyStartsNewLine(true);
+	    editor.setMultiLine(ml);
+        editor.setFont(GLOBAL_MONOSPACE_FONT());
+        editor.setTabKeyUsedAsCharacter(true);
+        editor.setIgnoreUpDownKeysWhenSingleLine(false);
+    }
+
+    if(obj.hasProperty(MultiPageIds::Items))
+    {
+	    autocompleteItems = StringArray::fromLines(obj[MultiPageIds::Items].toString());
+    }
+
     editor.addListener(this);
 	required = obj[MultiPageIds::Required];
+
+    if(ml)
+        setSize(width, 80);
 }
 
 void TextInput::postInit()
 {
+    LabelledComponent::postInit();
+
     auto& editor = getComponent<TextEditor>();
-    editor.setFont(MultiPageDialog::getDefaultFont(*this).first);
-    editor.setIndents(4, 8);
+
+    if(editor.isMultiLine())
+    {
+	    
+    }
+    else
+    {
+	    editor.setFont(MultiPageDialog::getDefaultFont(*this).first);
+		editor.setIndents(4, 8);
+    }
+    
 	editor.setText(getValueFromGlobalState(""));
     
     if(auto m = findParentComponentOfClass<MultiPageDialog>())
@@ -306,6 +365,11 @@ Result TextInput::checkGlobalState(var globalState)
 Container::Container(MultiPageDialog& r, int width, const var& obj):
 	PageBase(r, width, obj)
 {
+    if(obj.hasProperty(MultiPageIds::ID))
+    {
+	    id = obj[MultiPageIds::ID].toString();
+    }
+
 	auto l = obj["Children"];
         
 	if(l.isArray())
@@ -317,6 +381,10 @@ Container::Container(MultiPageDialog& r, int width, const var& obj):
 
 void Container::postInit()
 {
+    init();
+
+    stateObject = MultiPageDialog::getOrCreateChild(stateObject, id);
+
 	for(const auto& sp: staticPages)
 	{
 		childItems.add(sp->create(rootDialog, getWidth()));
@@ -334,9 +402,23 @@ void Container::postInit()
 
 Result Container::checkGlobalState(var globalState)
 {
+    var toUse = globalState;
+
+    if(id.isValid())
+    {
+	    if(toUse.hasProperty(id))
+            toUse = toUse[id];
+        else
+        {
+            auto no = new DynamicObject();
+	        toUse.getDynamicObject()->setProperty(id, no);
+            toUse = var(no);
+        }
+    }
+
 	for(auto c: childItems)
 	{
-		auto ok = c->check(globalState);
+		auto ok = c->check(toUse);
             
 		if(!ok.wasOk())
 			return ok;
@@ -390,8 +472,9 @@ void List::createEditorInfo(MultiPageDialog::PageInfo* info)
 {
     auto& xxx = *info;
 
-    auto& tt = xxx.addChild<MarkdownText>({
-        { MultiPageIds::Text, "List" }
+    auto& tt = xxx.addChild<Type>({
+        { MultiPageIds::Type, "List" },
+        { MultiPageIds::ID, "Type"}
     });
     
     auto& prop = xxx.addChild<List>();
@@ -406,9 +489,17 @@ void List::createEditorInfo(MultiPageDialog::PageInfo* info)
     auto& listId = prop.addChild<TextInput>({
         { MultiPageIds::ID, "ID" },
         { MultiPageIds::Text, "ID" },
+        { MultiPageIds::Required, true},
         { MultiPageIds::Help, "The ID of the list. This will be used for identification in some logic cases" }
     });
-    
+
+    if(!xxx[MultiPageIds::Value].isUndefined())
+    {
+        auto v = xxx[MultiPageIds::Value].toString();
+
+	    listId[MultiPageIds::Value] = v;
+    }
+
     auto& textId = prop.addChild<TextInput>({
         { MultiPageIds::ID, "Text" },
         { MultiPageIds::Text, "Text" },
@@ -434,6 +525,7 @@ void List::createEditorInfo(MultiPageDialog::PageInfo* info)
     });
     
     auto& ff = xxx.addChild<Builder>({
+        { MultiPageIds::ID, "Children" },
         { MultiPageIds::Text, "Children" }
     });
     
@@ -556,4 +648,4 @@ void Column::resized()
 
 
 }
-
+}

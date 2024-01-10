@@ -16,6 +16,15 @@
       <FILE id="u67bzi" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="bXDqfa" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
+      <FILE id="oVMFk8" name="ContainerComponents.cpp" compile="1" resource="0"
+            file="Source/ContainerComponents.cpp"/>
+      <FILE id="xqmjtd" name="ContainerComponents.h" compile="0" resource="0"
+            file="Source/ContainerComponents.h"/>
+      <FILE id="rgsLme" name="InputComponents.cpp" compile="1" resource="0"
+            file="Source/InputComponents.cpp"/>
+      <FILE id="opmwCN" name="InputComponents.h" compile="0" resource="0"
+            file="Source/InputComponents.h"/>
+      <FILE id="zwVBjD" name="MultiPageIds.h" compile="0" resource="0" file="Source/MultiPageIds.h"/>
       <FILE id="bZ3Z3T" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
     <FILE id="xlypKj" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
