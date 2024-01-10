@@ -9,7 +9,7 @@
 #pragma once
 
 #include "../JuceLibraryCode/JuceHeader.h"
-#include "MultiPageDialog.h"
+#include "multipage.h"
 
 //==============================================================================
 /*
@@ -77,7 +77,7 @@ public:
 	            stateViewer.setVisible(false);
 	            c->setVisible(false);
 
-		        addAndMakeVisible(preview = new multipage::MultiPageDialog(rt.globalState, pt));
+		        addAndMakeVisible(preview = new multipage::Dialog(rt.globalState, pt));
 
             	preview->showFirstPage();
     
@@ -105,16 +105,16 @@ private:
 
     PerfettoWebviewer viewer;
 
-    multipage::MultiPageDialog::RunThread pt;
-    multipage::MultiPageDialog::RunThread rt;
-    ScopedPointer<multipage::MultiPageDialog> c;
+    multipage::State pt;
+    multipage::State rt;
+    ScopedPointer<multipage::Dialog> c;
 
     juce::CodeDocument doc;
     mcl::TextDocument stateDoc;
 
     mcl::TextEditor stateViewer;
 
-    ScopedPointer<multipage::MultiPageDialog> preview;
+    ScopedPointer<multipage::Dialog> preview;
 
     AlertWindowLookAndFeel alaf;
     TextButton editButton, codeButton, previewButton;

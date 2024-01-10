@@ -15,66 +15,18 @@ namespace hise {
 namespace multipage {
 using namespace juce;
 
-struct ColourChooser: public PageFactory::LabelledComponent
-{
-    DEFAULT_PROPERTIES(ColourChooser)
-    {
-        return {
-            { MultiPageIds::ID, "colourId" }
-        };
-    }
-    
-    ColourChooser(MultiPageDialog& r, int w, const var& obj):
-      LabelledComponent(r, w, obj, new ColourSelector(ColourSelector::ColourSelectorOptions::showColourspace | ColourSelector::showColourAtTop, 2, 0))
-    {
-        auto& selector = getComponent<ColourSelector>();
-        selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
-        selector.setLookAndFeel(&laf);
 
-        setSize(w, 130);
-    }
-    
-    void postInit() override
-    {
-        init();
 
-        auto& selector = getComponent<ColourSelector>();
-        auto colour = (uint32)(int64)getValueFromGlobalState();
-        selector.setCurrentColour(Colour(colour));
-    };
-
-    void resized() override
-    {
-	    LabelledComponent::resized();
-        auto b = getComponent<Component>().getBoundsInParent();
-
-        b.removeFromRight((b.getWidth() - b.getHeight()) * 0.75);
-
-        getComponent<Component>().setBounds(b);
-    }
-
-    Result checkGlobalState(var globalState) override
-    {
-        auto& selector = getComponent<ColourSelector>();
-        
-        writeState((int64)selector.getCurrentColour().getARGB());
-        
-        return Result::ok();
-    }
-    
-    LookAndFeel_V4 laf;
-};
-
-struct CustomResultPage: public MultiPageDialog::PageBase
+struct CustomResultPage: public Dialog::PageBase
 {
     DEFAULT_PROPERTIES(CustomResultPage)
     {
         return {
-            { MultiPageIds::ID, "custom" }
+            { mpid::ID, "custom" }
         };
     }
 
-    CustomResultPage(MultiPageDialog& r, int width, const var& obj):
+    CustomResultPage(Dialog& r, int width, const var& obj):
       PageBase(r, width, obj),
       textDoc(doc),
       codeEditor(textDoc)
@@ -87,11 +39,11 @@ struct CustomResultPage: public MultiPageDialog::PageBase
 
     void postInit() override
     {
-        auto gs = MultiPageDialog::getGlobalState(*this, {}, var());
+        auto gs = Dialog::getGlobalState(*this, {}, var());
 
         String b;
 
-        b << "const var " << MultiPageDialog::getGlobalState(*this, "id", "bc").toString() << " = Engine.createBroadcaster(";
+        b << "const var " << Dialog::getGlobalState(*this, "id", "bc").toString() << " = Engine.createBroadcaster(";
         b << JSON::toString(gs, false) << ");\n";
 
 	    doc.replaceAllContent(b);
@@ -120,11 +72,11 @@ void MainComponent::build()
     //auto ok = JSON::parse(f.loadFileAsString(), obj);
 
     using namespace multipage;
-    using namespace PageFactory;
+    using namespace factory;
 
-    auto mp = new MultiPageDialog({}, rt);
+    auto mp = new Dialog({}, rt);
 
-    mp->setProperty(MultiPageIds::Header, "Multipage Dialog Wizard");
+    mp->setProperty(mpid::Header, "Multipage Dialog Wizard");
 
     auto sd = mp->getStyleData();
     sd.backgroundColour = Colours::transparentBlack;
@@ -137,37 +89,37 @@ void MainComponent::build()
     {
         // TODO: Fix setting properties in nested JSON
         auto& introPage = mp->addPage<List>({
-            { MultiPageIds::Padding, 10 },
+            { mpid::Padding, 10 },
         });
 
         introPage.addChild<MarkdownText>({
-            { MultiPageIds::Text, "Welcome to the JSON builder. You can use this wizard to create a JSON data object that will create a wizard like this!  \n> You can toggle between the editor, a raw JSON viewer and a preview of the wizard that you're about to create by clicking on the buttons in the top row.\nAs first step please enter the name that it should show in the header (like the **JSON Builder** above, then specify the number of pages." }
+            { mpid::Text, "Welcome to the JSON builder. You can use this wizard to create a JSON data object that will create a wizard like this!  \n> You can toggle between the editor, a raw JSON viewer and a preview of the wizard that you're about to create by clicking on the buttons in the top row.\nAs first step please enter the name that it should show in the header (like the **JSON Builder** above, then specify the number of pages." }
         });
 
         auto& propList = introPage.addChild<List>({
-            { MultiPageIds::Padding, 10 },
-            { MultiPageIds::ID, MultiPageIds::Properties.toString() }
+            { mpid::Padding, 10 },
+            { mpid::ID, mpid::Properties.toString() }
         });
         
         propList.addChild<TextInput>({
-            { MultiPageIds::ID, MultiPageIds::Header.toString() },
-            { MultiPageIds::Text, MultiPageIds::Header.toString() },
-            { MultiPageIds::Required, true },
-            { MultiPageIds::Help, "This will be shown as big title at the top" }
+            { mpid::ID, mpid::Header.toString() },
+            { mpid::Text, mpid::Header.toString() },
+            { mpid::Required, true },
+            { mpid::Help, "This will be shown as big title at the top" }
         });
 
         propList.addChild<TextInput>({
-            { MultiPageIds::ID, MultiPageIds::Subtitle.toString() },
-            { MultiPageIds::Text, MultiPageIds::Subtitle.toString() },
-            { MultiPageIds::Help, "This will be shown as small title below" }
+            { mpid::ID, mpid::Subtitle.toString() },
+            { mpid::Text, mpid::Subtitle.toString() },
+            { mpid::Help, "This will be shown as small title below" }
         });
         
         auto& styleProperties = introPage.addChild<List>({
-            { MultiPageIds::ID, MultiPageIds::StyleData.toString(), },
-            { MultiPageIds::Text, MultiPageIds::StyleData.toString(), },
-            { MultiPageIds::Padding, 10 },
-            { MultiPageIds::Foldable, true },
-            { MultiPageIds::Folded, true }
+            { mpid::ID, mpid::StyleData.toString(), },
+            { mpid::Text, mpid::StyleData.toString(), },
+            { mpid::Padding, 10 },
+            { mpid::Foldable, true },
+            { mpid::Folded, true }
         });
         
         auto sdData = sd.toDynamicObject();
@@ -190,22 +142,22 @@ void MainComponent::build()
             if(nv.name.toString().contains("Colour"))
 	        {
 		        auto& ed = styleProperties.addChild<ColourChooser>({
-                    { MultiPageIds::ID, nv.name.toString() },
-                    { MultiPageIds::Text, nv.name.toString() },
-                    { MultiPageIds::Value, nv.value }
+                    { mpid::ID, nv.name.toString() },
+                    { mpid::Text, nv.name.toString() },
+                    { mpid::Value, nv.value }
 		        });
 	        }
             else
             {
 	            auto& ed = styleProperties.addChild<TextInput>({
-                    { MultiPageIds::ID, nv.name.toString() },
-                    { MultiPageIds::Text, nv.name.toString() },
-                    { MultiPageIds::Value, nv.value }
+                    { mpid::ID, nv.name.toString() },
+                    { mpid::Text, nv.name.toString() },
+                    { mpid::Value, nv.value }
 	            });
 
                 if(nv.name == Identifier("Font") || nv.name == Identifier("BoldFont"))
 	            {
-		            ed[MultiPageIds::Items] = Font::findAllTypefaceNames().joinIntoString("\n");
+		            ed[mpid::Items] = Font::findAllTypefaceNames().joinIntoString("\n");
 	            }
 
             }
@@ -215,11 +167,11 @@ void MainComponent::build()
 
         {
             auto& layoutProperties = introPage.addChild<List>({
-	            { MultiPageIds::ID, MultiPageIds::LayoutData.toString() },
-	            { MultiPageIds::Text, MultiPageIds::LayoutData.toString() },
-	            { MultiPageIds::Padding, 10 },
-	            { MultiPageIds::Foldable, true },
-	            { MultiPageIds::Folded, true }
+	            { mpid::ID, mpid::LayoutData.toString() },
+	            { mpid::Text, mpid::LayoutData.toString() },
+	            { mpid::Padding, 10 },
+	            { mpid::Foldable, true },
+	            { mpid::Folded, true }
 	        });
 
 			auto layoutObj = mp->defaultLaf.getMultiPagePositionInfo({}).toJSON();
@@ -234,44 +186,44 @@ void MainComponent::build()
 	        for(auto& v: layoutObj.getDynamicObject()->getProperties())
 	        {
 		        layoutProperties.addChild<TextInput>({
-	                { MultiPageIds::ID, v.name.toString() },
-					{ MultiPageIds::Text, v.name.toString() },
-	                { MultiPageIds::Value, v.value },
-                    { MultiPageIds::Help, help[v.name] }
+	                { mpid::ID, v.name.toString() },
+					{ mpid::Text, v.name.toString() },
+	                { mpid::Value, v.value },
+                    { mpid::Help, help[v.name] }
 		        });
 	        }
         }
         
         {
             auto& numPageCreator = mp->addPage<List>({
-                { MultiPageIds::Padding, 30 }
+                { mpid::Padding, 30 }
             });
 
             numPageCreator.addChild<MarkdownText>({
-                { MultiPageIds::Text, "Now please enter the number of pages that you want to add to your dialog. You can then design each page in the next steps. " }
+                { mpid::Text, "Now please enter the number of pages that you want to add to your dialog. You can then design each page in the next steps. " }
             });
 
 	        auto& te = numPageCreator.addChild<TextInput>({
-		        { MultiPageIds::Text, "Number of pages" },
-	            { MultiPageIds::Required, true },
-                { MultiPageIds::ID, "NumPages" },
-	            { MultiPageIds::Help, "You can specify a number of pages that the wizard will have. This will be displayed at the top and you can navigate with the Next / previous page buttons at the bottom" }
+		        { mpid::Text, "Number of pages" },
+	            { mpid::Required, true },
+                { mpid::ID, "NumPages" },
+	            { mpid::Help, "You can specify a number of pages that the wizard will have. This will be displayed at the top and you can navigate with the Next / previous page buttons at the bottom" }
 			});
 
             
 
             te.setStateObject(var(new DynamicObject()));
 
-            te.setCustomCheckFunction([](MultiPageDialog::PageBase* b, const var& obj)
+            te.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj)
             {
-                auto gs = b->rootDialog.getRunThread().globalState;
+                auto gs = b->getParentDialog().getState().globalState;
 
-                var list = gs[MultiPageIds::Children];
+                var list = gs[mpid::Children];
 
                 if(!list.isArray())
                 {
-	                gs.getDynamicObject()->setProperty(MultiPageIds::Children, var(Array<var>()));
-                    list = gs[MultiPageIds::Children];
+	                gs.getDynamicObject()->setProperty(mpid::Children, var(Array<var>()));
+                    list = gs[mpid::Children];
                 }
                     
                 auto te = dynamic_cast<TextInput*>(b)->getComponent<TextEditor>().getText().getIntValue();
@@ -279,29 +231,29 @@ void MainComponent::build()
                 if(te == 0)
                     return Result::fail("The number of pages cannot be zero. Please enter a number bigger than 0 in order to proceed.");
 
-                auto currentNumPages = (int)b->rootDialog.getProperties()["NumPages"];
+                auto currentNumPages = (int)b->getParentDialog().getProperties()["NumPages"];
 
                 if(currentNumPages != te)
                 {
-		            obj.getDynamicObject()->setProperty(MultiPageIds::Children, var(list));
+		            obj.getDynamicObject()->setProperty(mpid::Children, var(list));
 
 		            for(int i = 0; i < te; i++)
 		            {
-			            auto& xxx = b->rootDialog.addPage<List>({}, 2);
+			            auto& xxx = b->getParentDialog().addPage<List>({}, 2);
 
                         String text;
 
                         text << "### Edit Page " << String((te - i)) << " / " << String(te) <<  "\nYou can define the appearance of this Page by setting the properties and adding UI elements to the `Children` list below.";
 
                         xxx.addChild<MarkdownText>({
-							{ MultiPageIds::Text, text }
+							{ mpid::Text, text }
                         });
 
-                        xxx[MultiPageIds::Value] = "page" + String(te-i);
+                        xxx[mpid::Value] = "page" + String(te-i);
 
 	                    DynamicObject* no = new DynamicObject();
 	                    xxx.setStateObject(var(no));
-		                ScopedPointer<MultiPageDialog::PageBase> c2 = xxx.create(b->rootDialog, 0);
+		                ScopedPointer<Dialog::PageBase> c2 = xxx.create(b->getParentDialog(), 0);
 	                    
 		                list.insert(0, var(no));
                         
@@ -310,7 +262,7 @@ void MainComponent::build()
                         
 		            }
 
-                    b->rootDialog.getProperties().set("NumPages", te);
+                    b->getParentDialog().getProperties().set("NumPages", te);
                 }
 
 	            
@@ -545,7 +497,7 @@ void MainComponent::build()
     }
 
     mp->addPage<MarkdownText>({
-		{ MultiPageIds::Text, "Press finish in order to copy the JSON to the clipboard." }
+		{ mpid::Text, "Press finish in order to copy the JSON to the clipboard." }
     });
 
 #if 0

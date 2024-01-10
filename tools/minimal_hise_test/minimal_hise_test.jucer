@@ -7,20 +7,31 @@
               jucerFormatVersion="1">
   <MAINGROUP id="V5l5vh" name="minimal_hise_test">
     <GROUP id="{AC16B56A-5346-1AB4-D4BD-30CF29DD2DFA}" name="Source">
-      <FILE id="b4rThj" name="PageFactory.cpp" compile="1" resource="0" file="Source/PageFactory.cpp"/>
+      <FILE id="DgwokZ" name="ActionComponents.cpp" compile="0" resource="0"
+            file="Source/ActionComponents.cpp"/>
+      <FILE id="qgLCFJ" name="ActionComponents.h" compile="0" resource="0"
+            file="Source/ActionComponents.h"/>
+      <FILE id="KUyO1E" name="LookAndFeelMethods.cpp" compile="0" resource="0"
+            file="Source/LookAndFeelMethods.cpp"/>
+      <FILE id="VdOWqU" name="multipage.cpp" compile="1" resource="0" file="Source/multipage.cpp"/>
+      <FILE id="YMGpyU" name="multipage.h" compile="0" resource="0" file="Source/multipage.h"/>
+      <GROUP id="{AE8C0D3C-F782-7C53-F11E-959CE393BF6B}" name="Source"/>
+      <FILE id="pidZOe" name="State.cpp" compile="0" resource="0" file="Source/State.cpp"/>
+      <FILE id="NvzCp3" name="State.h" compile="0" resource="0" file="Source/State.h"/>
+      <FILE id="b4rThj" name="PageFactory.cpp" compile="0" resource="0" file="Source/PageFactory.cpp"/>
       <FILE id="pRNlEa" name="PageFactory.h" compile="0" resource="0" file="Source/PageFactory.h"/>
-      <FILE id="cO9Vo3" name="MultiPageDialog.cpp" compile="1" resource="0"
+      <FILE id="cO9Vo3" name="MultiPageDialog.cpp" compile="0" resource="0"
             file="Source/MultiPageDialog.cpp"/>
       <FILE id="Ozwuki" name="MultiPageDialog.h" compile="0" resource="0"
             file="Source/MultiPageDialog.h"/>
       <FILE id="u67bzi" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="bXDqfa" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
-      <FILE id="oVMFk8" name="ContainerComponents.cpp" compile="1" resource="0"
+      <FILE id="oVMFk8" name="ContainerComponents.cpp" compile="0" resource="0"
             file="Source/ContainerComponents.cpp"/>
       <FILE id="xqmjtd" name="ContainerComponents.h" compile="0" resource="0"
             file="Source/ContainerComponents.h"/>
-      <FILE id="rgsLme" name="InputComponents.cpp" compile="1" resource="0"
+      <FILE id="rgsLme" name="InputComponents.cpp" compile="0" resource="0"
             file="Source/InputComponents.cpp"/>
       <FILE id="opmwCN" name="InputComponents.h" compile="0" resource="0"
             file="Source/InputComponents.h"/>

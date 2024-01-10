@@ -30,22 +30,58 @@
  *   ===========================================================================
  */
 
-#include "PageFactory.h"
-
-namespace hise
-{
-
+namespace hise {
 namespace multipage {
+namespace factory {
 using namespace juce;
 
-namespace PageFactory
+
+Type::Type(Dialog& r, int width, const var& d):
+	PageBase(r, width, d)
 {
+	auto visible = true;
 
-using namespace juce;
+	if(d.hasProperty(mpid::Visible))
+		visible = (bool)d[mpid::Visible];
 
-MarkdownText::MarkdownText(MultiPageDialog& r, int width, const var& d):
+	setSize(width, visible ? 42 : 0);
+	typeId = d[mpid::Type].toString();
+}
+
+Result Type::checkGlobalState(var globalState)
+{
+	if(typeId.isNotEmpty())
+	{
+		writeState(typeId);
+		return Result::ok();
+	}
+	else
+	{
+		return Result::fail("Must define Type property");
+	}
+}
+
+void Type::paint(Graphics& g)
+{
+	auto b = getLocalBounds().toFloat();
+	b.removeFromBottom(10);
+	g.setColour(Colours::black.withAlpha(0.1f));
+	g.fillRect(b);
+
+	auto f = Dialog::getDefaultFont(*this);
+
+	g.setColour(f.second);
+	g.setFont(f.first);
+
+	String m;
+	m << "Type: " << typeId;
+
+	g.drawText(m, b, Justification::centred);
+}
+
+MarkdownText::MarkdownText(Dialog& r, int width, const var& d):
 	PageBase(r, width, d),
-	r(d[MultiPageIds::Text].toString()),
+	r(d[mpid::Text].toString()),
 	obj(d)
 {
 	setSize(width, 0);
@@ -53,7 +89,7 @@ MarkdownText::MarkdownText(MultiPageDialog& r, int width, const var& d):
 
 void MarkdownText::postInit()
 {
-	auto sd = findParentComponentOfClass<MultiPageDialog>()->getStyleData();
+	auto sd = findParentComponentOfClass<Dialog>()->getStyleData();
 
 	sd.fromDynamicObject(obj, [](const String& name){ return Font(name, 13.0f, Font::plain); });
 
@@ -72,20 +108,20 @@ void MarkdownText::paint(Graphics& g)
 	r.draw(g, getLocalBounds().toFloat().reduced(padding));
 }
 
-void MarkdownText::createEditorInfo(MultiPageDialog::PageInfo* rootList)
+void MarkdownText::createEditorInfo(Dialog::PageInfo* rootList)
 {
-    (*rootList)[MultiPageIds::Padding] = 10;
+    (*rootList)[mpid::Padding] = 10;
     
     rootList->addChild<Type>({
-        { MultiPageIds::ID, "Type"},
-        { MultiPageIds::Type, "MarkdownText"}
+        { mpid::ID, "Type"},
+        { mpid::Type, "MarkdownText"}
     });
     rootList->addChild<TextInput>({
-        { MultiPageIds::ID, "Text" },
-        { MultiPageIds::Text, "Text" },
-        { MultiPageIds::Required, true },
-        { MultiPageIds::Multiline, true },
-        { MultiPageIds::Value, "Some markdown **text**." }
+        { mpid::ID, "Text" },
+        { mpid::Text, "Text" },
+        { mpid::Required, true },
+        { mpid::Multiline, true },
+        { mpid::Value, "Some markdown **text**." }
     });
 }
 
@@ -95,12 +131,12 @@ Result MarkdownText::checkGlobalState(var)
 	return Result::ok();
 }
 
-FileSelector::FileSelector(MultiPageDialog& r, int width, const var& obj):
+FileSelector::FileSelector(Dialog& r, int width, const var& obj):
 	PageBase(r, width, obj),
 	fileSelector(createFileComponent(obj)),
 	fileId(obj["ID"].toString())
 {
-	isDirectory = obj[MultiPageIds::Directory];
+	isDirectory = obj[mpid::Directory];
 	addAndMakeVisible(fileSelector);
         
 	fileSelector->setBrowseButtonText("Browse");
@@ -111,12 +147,12 @@ FileSelector::FileSelector(MultiPageDialog& r, int width, const var& obj):
 
 FilenameComponent* FileSelector::createFileComponent(const var& obj)
 {
-	bool isDirectory = obj[MultiPageIds::Directory];
-	auto name = obj[MultiPageIds::Text].toString();
+	bool isDirectory = obj[mpid::Directory];
+	auto name = obj[mpid::Text].toString();
 	if(name.isEmpty())
 		name = isDirectory ? "Directory" : "File";
-	auto wildcard = obj[MultiPageIds::Wildcard].toString();
-	auto save = (bool)obj[MultiPageIds::SaveFile];
+	auto wildcard = obj[mpid::Wildcard].toString();
+	auto save = (bool)obj[mpid::SaveFile];
         
 	return new FilenameComponent(name, File(), true, isDirectory, save, wildcard, "", "");
 }
@@ -167,485 +203,8 @@ void FileSelector::resized()
 	fileSelector->setBounds(getLocalBounds());
 }
 
-void Tickbox::createEditorInfo(MultiPageDialog::PageInfo* rootList)
-{
-	rootList->addChild<Type>({
-        { MultiPageIds::ID, "Type"},
-        { MultiPageIds::Type, "Tickbox"},
-        { MultiPageIds::Help, "A Tickbox lets you enable / disable a boolean option or can be grouped together with other tickboxes to create a radio group with an exclusive selection option" }
-    });       
-
-	rootList->addChild<TextInput>({
-		{ MultiPageIds::ID, "ID" },
-		{ MultiPageIds::Text, "ID" },
-		{ MultiPageIds::Help, "The ID for the element (used as key in the state `var`.\n> If you have multiple tickboxes on the same page with the same ID, they will be put into a radio group and can be selected exclusively (also the ID value will be the integer index of the button in the group list in the order of appearance." }
-	});
-        
-	rootList->addChild<TextInput>({
-		{ MultiPageIds::ID, "Text" },
-		{ MultiPageIds::Text, "Text" },
-		{ MultiPageIds::Help, "The label next to the tickbox" }
-	});
-        
-	rootList->addChild<Tickbox>({
-		{ MultiPageIds::ID, "Required" },
-		{ MultiPageIds::Text, "Required" },
-		{ MultiPageIds::Help, "If this is enabled, the tickbox must be selected in order to proceed to the next page, otherwise it will show a error message.\n> This is particularly useful for eg. accepting TOC" }
-	});
-        
-}
-
-Tickbox::Tickbox(MultiPageDialog& r, int width, const var& obj):
-	LabelledComponent(r, width, obj, new ToggleButton())
-{
-	if(obj.hasProperty(MultiPageIds::Required))
-	{
-		required = true;
-		requiredOption = obj[MultiPageIds::Required];
-	}
-}
-
-void Tickbox::buttonClicked(Button* b)
-{
-    for(auto tb: groupedButtons)
-        tb->setToggleState(b == tb, dontSendNotification);
-}
-
-void Tickbox::postInit()
-{
-    auto& button = this->getComponent<ToggleButton>();
-    
-    Component* root = getParentComponent();
-    
-    while(dynamic_cast<PageBase*>(root) != nullptr &&
-          dynamic_cast<Builder*>(root->getParentComponent()) == nullptr)
-    {
-        root = root->getParentComponent();
-    }
-    
-    Component::callRecursive<Tickbox>(root, [&](Tickbox* tb)
-    {
-        if(tb->id == id)
-            groupedButtons.add(&tb->getComponent<ToggleButton>());
-        
-        return false;
-    });
-    
-    if(groupedButtons.size() > 1)
-    {
-        thisRadioIndex = groupedButtons.indexOf(&button);
-        auto radioIndex = (int)getValueFromGlobalState(-1);
-        
-        int idx = 0;
-        
-        for(auto b: groupedButtons)
-        {
-            b->addListener(this);
-            b->setToggleState(idx++ == radioIndex, dontSendNotification);
-        }
-    }
-    else
-    {
-        groupedButtons.clear();
-        
-        button.setToggleState(getValueFromGlobalState(false), dontSendNotification);
-    }
-    
-	button.setColour(ToggleButton::ColourIds::tickColourId, MultiPageDialog::getDefaultFont(*this).second);
-    
-
-}
-
-Result Tickbox::checkGlobalState(var globalState)
-{
-    auto& button = getComponent<ToggleButton>();
-    
-	if(required)
-	{
-        if(thisRadioIndex == -1 && button.getToggleState() != required)
-		{
-			return Result::fail("You need to tick " + label);
-		}
-        else
-        {
-            auto somethingPressed = false;
-            
-            for(auto tb: groupedButtons)
-                somethingPressed |= tb->getToggleState();
-            
-            if(!somethingPressed)
-                return Result::fail("You need to select one option of " + id.toString());
-        }
-	}
-
-    if(thisRadioIndex == -1)
-        writeState(button.getToggleState());
-    else if(button.getToggleState())
-        writeState(thisRadioIndex);
-    
-	return Result::ok();
-}
-
-TextInput::TextInput(MultiPageDialog& r, int width, const var& obj):
-	LabelledComponent(r, width, obj, new TextEditor())
-{
-    auto& editor = getComponent<TextEditor>();
-	GlobalHiseLookAndFeel::setTextEditorColours(editor);
-
-    setWantsKeyboardFocus(true);
-
-    editor.setSelectAllWhenFocused(false);
-    editor.setIgnoreUpDownKeysWhenSingleLine(true);
-    editor.setTabKeyUsedAsCharacter(false);
-
-    auto ml = (bool)obj[MultiPageIds::Multiline];
-
-    if(ml)
-    {
-        editor.setReturnKeyStartsNewLine(true);
-	    editor.setMultiLine(ml);
-        editor.setFont(GLOBAL_MONOSPACE_FONT());
-        editor.setTabKeyUsedAsCharacter(true);
-        editor.setIgnoreUpDownKeysWhenSingleLine(false);
-    }
-
-    if(obj.hasProperty(MultiPageIds::Items))
-    {
-	    autocompleteItems = StringArray::fromLines(obj[MultiPageIds::Items].toString());
-    }
-
-    editor.addListener(this);
-	required = obj[MultiPageIds::Required];
-
-    if(ml)
-        setSize(width, 80);
-}
-
-void TextInput::postInit()
-{
-    LabelledComponent::postInit();
-
-    auto& editor = getComponent<TextEditor>();
-
-    if(editor.isMultiLine())
-    {
-	    
-    }
-    else
-    {
-	    editor.setFont(MultiPageDialog::getDefaultFont(*this).first);
-		editor.setIndents(4, 8);
-    }
-    
-	editor.setText(getValueFromGlobalState(""));
-    
-    if(auto m = findParentComponentOfClass<MultiPageDialog>())
-    {
-        auto c = m->getStyleData().headlineColour;
-        editor.setColour(TextEditor::ColourIds::focusedOutlineColourId, c);
-        editor.setColour(Label::ColourIds::outlineWhenEditingColourId, c);
-        editor.setColour(TextEditor::ColourIds::highlightColourId, c);
-    }
-}
-
-Result TextInput::checkGlobalState(var globalState)
-{
-    auto& editor = getComponent<TextEditor>();
-    
-	if(required && editor.getText().isEmpty())
-	{
-        return Result::fail(id + " must not be empty");
-	}
-		
-    writeState(editor.getText());
-    
-	return Result::ok();
-}
-
-Container::Container(MultiPageDialog& r, int width, const var& obj):
-	PageBase(r, width, obj)
-{
-    if(obj.hasProperty(MultiPageIds::ID))
-    {
-	    id = obj[MultiPageIds::ID].toString();
-    }
-
-	auto l = obj["Children"];
-        
-	if(l.isArray())
-	{
-		for(auto& r: *l.getArray())
-			addChild(width, r);
-	}
-}
-
-void Container::postInit()
-{
-    init();
-
-    stateObject = MultiPageDialog::getOrCreateChild(stateObject, id);
-
-	for(const auto& sp: staticPages)
-	{
-		childItems.add(sp->create(rootDialog, getWidth()));
-		addAndMakeVisible(childItems.getLast());
-	}
-
-	for(auto c: childItems)
-    {
-        c->setStateObject(stateObject);
-        c->postInit();
-    }
-
-	calculateSize();
-}
-
-Result Container::checkGlobalState(var globalState)
-{
-    var toUse = globalState;
-
-    if(id.isValid())
-    {
-	    if(toUse.hasProperty(id))
-            toUse = toUse[id];
-        else
-        {
-            auto no = new DynamicObject();
-	        toUse.getDynamicObject()->setProperty(id, no);
-            toUse = var(no);
-        }
-    }
-
-	for(auto c: childItems)
-	{
-		auto ok = c->check(toUse);
-            
-		if(!ok.wasOk())
-			return ok;
-	}
-        
-	return Result::ok();
-}
-
-void Container::addChild(MultiPageDialog::PageInfo::Ptr info)
-{
-	staticPages.add(info);
-}
-
-void Container::addChild(int width, const var& r)
-{
-	if(auto pi = factory.create(r))
-	{
-		childItems.add(pi->create(rootDialog, width));
-		addAndMakeVisible(childItems.getLast());
-	}
-}
-
-void List::calculateSize()
-{
-	int h = foldable ? (titleHeight + padding) : 0;
-
-    for(auto c: childItems)
-        c->setVisible(!folded);
-    
-    if(!folded)
-    {
-        for(auto& c: childItems)
-            h += c->getHeight() + padding;
-    }
-    
-    
-
-	setSize(getWidth(), h);
-}
-
-List::List(MultiPageDialog& r, int width, const var& obj):
-	Container(r, width, obj)
-{
-    foldable = obj[MultiPageIds::Foldable];
-    folded = obj[MultiPageIds::Folded];
-    title = obj[MultiPageIds::Text];
-	setSize(width, 0);
-}
-
-void List::createEditorInfo(MultiPageDialog::PageInfo* info)
-{
-    auto& xxx = *info;
-
-    auto& tt = xxx.addChild<Type>({
-        { MultiPageIds::Type, "List" },
-        { MultiPageIds::ID, "Type"}
-    });
-    
-    auto& prop = xxx.addChild<List>();
-    
-    xxx[MultiPageIds::Text] = "List";
-    
-    prop[MultiPageIds::Folded] = false;
-    prop[MultiPageIds::Foldable] = true;
-    prop[MultiPageIds::Padding] = 10;
-    prop[MultiPageIds::Text] = "Properties";
-    
-    auto& listId = prop.addChild<TextInput>({
-        { MultiPageIds::ID, "ID" },
-        { MultiPageIds::Text, "ID" },
-        { MultiPageIds::Required, true},
-        { MultiPageIds::Help, "The ID of the list. This will be used for identification in some logic cases" }
-    });
-
-    if(!xxx[MultiPageIds::Value].isUndefined())
-    {
-        auto v = xxx[MultiPageIds::Value].toString();
-
-	    listId[MultiPageIds::Value] = v;
-    }
-
-    auto& textId = prop.addChild<TextInput>({
-        { MultiPageIds::ID, "Text" },
-        { MultiPageIds::Text, "Text" },
-        { MultiPageIds::Help, "The title text that is shown at the header bar." }
-    });
-
-    auto& padId = prop.addChild<TextInput>({
-        { MultiPageIds::ID, "Padding" },
-        { MultiPageIds::Text, "Padding" },
-        { MultiPageIds::Help, "The spacing between child elements in pixel." }
-    });
-
-    auto& foldId1 = prop.addChild<Tickbox>({
-        { MultiPageIds::ID, "Foldable" },
-        { MultiPageIds::Text, "Foldable" },
-        { MultiPageIds::Help, "If ticked, then this list will show a clickable header that can be folded" }
-    });
-    
-    auto& foldId2 = prop.addChild<Tickbox>({
-        { MultiPageIds::ID, "Folded" },
-        { MultiPageIds::Text, "Folded" },
-        { MultiPageIds::Help, "If ticked, then this list will folded as default state" }
-    });
-    
-    auto& ff = xxx.addChild<Builder>({
-        { MultiPageIds::ID, "Children" },
-        { MultiPageIds::Text, "Children" }
-    });
-    
-    auto& typeOptions = ff.addChild<Branch>();
-    
-    MultiPageDialog::Factory f;
-    
-    bool addSelf = false;
-    
-    for(auto type: f.getIdList())
-    {
-        if(type == "List")
-        {
-            addSelf = true;
-        }
-        else
-        {
-            auto& itemBuilder =  typeOptions.addChild<List>();
-            itemBuilder[MultiPageIds::Text] = type;
-
-            auto obj = new DynamicObject();
-            obj->setProperty(MultiPageIds::ID, type + "Id");
-            obj->setProperty(MultiPageIds::Type, type);
-            
-            MultiPageDialog::PageInfo::Ptr c = f.create(obj);
-            ScopedPointer<MultiPageDialog::PageBase> c2 = c->create(rootDialog, 0);
-            c2->createEditorInfo(&itemBuilder);
-        }
-    }
-    
-    if(addSelf)
-        typeOptions.childItems.add(info->clone());
-}
-
-void List::resized()
-{
-	auto b = getLocalBounds();
-
-	if(b.isEmpty())
-		return;
-
-    if(foldable)
-        b.removeFromTop(24 + padding);
-    
-    if(!folded)
-    {
-        for(auto c: childItems)
-        {
-            c->setBounds(b.removeFromTop(c->getHeight()));
-            b.removeFromTop(padding);
-        }
-    }
-}
-
-Column::Column(MultiPageDialog& r, int width, const var& obj):
-	Container(r, width, obj)
-{
-	padding = (int)obj[MultiPageIds::Padding];
-
-	
-    auto widthList = obj[MultiPageIds::Width];
-    
-    if(childItems.size() > 0)
-    {
-        auto equidistance = -1.0 / childItems.size();
-        
-        for(int i = 0; i < childItems.size(); i++)
-        {
-            auto v = widthList[i];
-            
-            if(v.isUndefined() || v.isVoid())
-                widthInfo.add(equidistance);
-            else
-                widthInfo.add((double)v);
-        }
-    }
-
-	setSize(width, 0);
-}
-
-void Column::calculateSize()
-{
-	int h = 0;
-
-	for(auto& c: childItems)
-		h = jmax(h, c->getHeight());
-	        
-	setSize(getWidth(), h);
-}
-
-void Column::resized()
-{
-	auto b = getLocalBounds();
-
-	if(b.isEmpty())
-		return;
-
-	auto fullWidth = getWidth();
-        
-	for(const auto& w: widthInfo)
-	{
-		if(w > 0.0)
-			fullWidth -= (int)w;
-
-		fullWidth -= padding;
-	}
-	
-	for(int i = 0; i < childItems.size(); i++)
-	{
-		auto w = widthInfo[i];
-
-		if(w < 0.0)
-			w = fullWidth * (-1.0) * w;
-
-		childItems[i]->setBounds(b.removeFromLeft(roundToInt(w)));
-		b.removeFromLeft(padding);
-	}
-}
-}
 
 
-}
-}
+} // factory
+} // multipage
+} // hise
