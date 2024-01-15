@@ -7120,7 +7120,13 @@ juce::var ScriptingApi::FileSystem::fromReferenceString(String referenceStringOr
 
 	PoolReference ref(getScriptProcessor()->getMainController_(), referenceStringOrFullPath, sub);
 
-	if (ref.isValid() && !ref.isEmbeddedReference())
+	// also return a file object for missing files...
+	if(ref.isAbsoluteFile())
+	{
+		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(referenceStringOrFullPath)));
+	}
+	
+	if ((ref.isValid()) && !ref.isEmbeddedReference())
 	{
 		auto f = ref.getFile();
 		return var(new ScriptingObjects::ScriptFile(getScriptProcessor(), File(f)));
