@@ -793,41 +793,70 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 String checkSampleReferences(ModulatorSynthChain* chainToExport)
 {
-    Processor::Iterator<ModulatorSampler> iter(chainToExport);
-    
-    const File sampleFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples);
-    
-    Array<File> sampleFiles;
-    
-    sampleFolder.findChildFiles(sampleFiles, File::findFiles, true);
-    
-	Array<File> sampleMapFiles;
-
-	auto sampleMapRoot = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
-
-	sampleMapRoot.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
-
-	Array<PooledSampleMap> maps;
-
-	for (const auto& f : sampleMapFiles)
 	{
-		PoolReference ref(chainToExport->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+		Processor::Iterator<ExternalDataHolder> iter(chainToExport);
 
-		maps.add(chainToExport->getMainController()->getCurrentSampleMapPool()->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
-	}
-
-	for (auto d : maps)
-	{
-		if (auto v = d.getData())
+		while(auto p = iter.getNextProcessor())
 		{
-			const String faulty = SampleMap::checkReferences(chainToExport->getMainController(), *v, sampleFolder, sampleFiles);
+			if(auto numAudioSlots = p->getNumDataObjects(ExternalData::DataType::AudioFile))
+			{
+				for(int i = 0; i < numAudioSlots; i++)
+				{
+					auto ref = p->getAudioFile(i)->toBase64String();
 
-			if (faulty.isNotEmpty())
-				return faulty;
+					if(ref.isNotEmpty())
+					{
+						PoolReference r(chainToExport->getMainController(), ref, ProjectHandler::AudioFiles);
+
+						auto f = r.getFile();
+
+						if(!f.existsAsFile())
+							return ref;
+					}
+				}
+			}
+
 		}
 	}
- 
-    return String();
+	{
+		Processor::Iterator<ModulatorSampler> iter(chainToExport);
+    
+	    const File sampleFolder = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Samples);
+	    
+	    Array<File> sampleFiles;
+	    
+	    sampleFolder.findChildFiles(sampleFiles, File::findFiles, true);
+	    
+		Array<File> sampleMapFiles;
+
+		auto sampleMapRoot = GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::SampleMaps);
+
+		sampleMapRoot.findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+		Array<PooledSampleMap> maps;
+
+		for (const auto& f : sampleMapFiles)
+		{
+			PoolReference ref(chainToExport->getMainController(), f.getFullPathName(), FileHandlerBase::SampleMaps);
+
+			maps.add(chainToExport->getMainController()->getCurrentSampleMapPool()->loadFromReference(ref, PoolHelpers::LoadAndCacheStrong));
+		}
+
+		for (auto d : maps)
+		{
+			if (auto v = d.getData())
+			{
+				const String faulty = SampleMap::checkReferences(chainToExport->getMainController(), *v, sampleFolder, sampleFiles);
+
+				if (faulty.isNotEmpty())
+					return faulty;
+			}
+		}
+	 
+	    return String();
+	}
+
+    
 }
 
 bool CompileExporter::checkSanity(TargetTypes type, BuildOption option)
