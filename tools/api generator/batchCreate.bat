@@ -65,6 +65,7 @@ xcopy "xml\classhise_1_1_scripting_objects_1_1_script_f_f_t.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_script_buffer.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_midi_automation_handler.xml" "xml\selection"
 xcopy "xml\classhise_1_1_scripting_objects_1_1_scripted_macro_handler.xml" "xml\selection"
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_thread_safe_storage.xml" "xml\selection"
 xcopy "xml\classhise_1_1_beatport_manager.xml" "xml\selection"
 
 
@@ -187,6 +188,7 @@ ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_label.xml
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_modulator_meter.xml" "ModulatorMeter.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_table.xml" "ScriptTable.xml"
 ren "xml\selection\structhise_1_1_scripting_objects_1_1_script_background_task.xml" "BackgroundTask.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_thread_safe_storage.xml" "ThreadSafeStorage.xml"
 
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_shader.xml" "ScriptShader.xml"
 ren "xml\selection\structhise_1_1_scripting_api_1_1_content_1_1_script_image.xml" "ScriptImage.xml"

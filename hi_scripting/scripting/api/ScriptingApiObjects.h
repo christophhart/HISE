@@ -670,6 +670,46 @@ namespace ScriptingObjects
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptBackgroundTask);
 	};
 
+	class ScriptThreadSafeStorage: public ConstScriptingObject
+	{
+	public:
+
+		ScriptThreadSafeStorage(ProcessorWithScriptingContent* pwsc);
+
+		~ScriptThreadSafeStorage() override;
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ThreadSafeStorage"); }
+
+		/** Clears the data. If another thread tries to read the value, it will block until that operation is done. */
+		void clear();
+
+		/** Writes the given data to the internal storage. If another thread tries to read the value, it will block until that operation is done. */
+		void store(var dataToStore);
+
+		/** Creates a copy of the data and writes the copy to the data storage. If another thread tries to read the value, it will block until that operation is done. */
+		void storeWithCopy(var dataToStore);
+
+		/** Loads the data. If the data is currently being written, this will lock and wait until the write operation is completed. */
+		var load();
+
+		/** Loads the data if the lock can be gained or returns a given default value if the data is currently being written. */
+		var tryLoad(var returnValueIfLocked);
+
+	private:
+
+		hise::SimpleReadWriteLock lock;
+		var data;
+
+		struct Wrapper
+		{
+			API_VOID_METHOD_WRAPPER_0(ScriptThreadSafeStorage, clear);
+			API_VOID_METHOD_WRAPPER_1(ScriptThreadSafeStorage, store);
+			API_VOID_METHOD_WRAPPER_1(ScriptThreadSafeStorage, storeWithCopy);
+			API_METHOD_WRAPPER_0(ScriptThreadSafeStorage, load);
+			API_METHOD_WRAPPER_1(ScriptThreadSafeStorage, tryLoad);
+		};
+	};
+
 	class ScriptFFT : public ConstScriptingObject,
 					  public Spectrum2D::Holder
 	{

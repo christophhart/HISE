@@ -7031,6 +7031,60 @@ void ScriptingObjects::ScriptBackgroundTask::run()
 	callFinishCallback(true, threadShouldExit());
 }
 
+ScriptingObjects::ScriptThreadSafeStorage::ScriptThreadSafeStorage(ProcessorWithScriptingContent* pwsc):
+	ConstScriptingObject(pwsc, 0)
+{
+	ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_1(store);
+	ADD_API_METHOD_1(storeWithCopy);
+	ADD_API_METHOD_0(load);
+	ADD_API_METHOD_1(tryLoad);
+}
+
+ScriptingObjects::ScriptThreadSafeStorage::~ScriptThreadSafeStorage()
+{
+	clear();
+}
+
+void ScriptingObjects::ScriptThreadSafeStorage::clear()
+{
+	store(var());
+}
+
+void ScriptingObjects::ScriptThreadSafeStorage::store(var dataToStore)
+{
+	SimpleReadWriteLock::ScopedMultiWriteLock sl(lock);
+	std::swap(data, dataToStore);
+}
+
+void ScriptingObjects::ScriptThreadSafeStorage::storeWithCopy(var dataToStore)
+{
+	var copy;
+			
+	if(dataToStore.isString())
+		copy = var(copy.toString());
+	else
+		copy = dataToStore.clone();
+
+	store(copy);
+}
+
+var ScriptingObjects::ScriptThreadSafeStorage::load()
+{
+	SimpleReadWriteLock::ScopedReadLock sl(lock);
+	return data;
+}
+
+var ScriptingObjects::ScriptThreadSafeStorage::tryLoad(var returnValueIfLocked)
+{
+	if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+	{
+		return data;
+	}
+
+	return returnValueIfLocked;
+}
+
 ScriptingObjects::ScriptFFT::ScriptFFT(ProcessorWithScriptingContent* p) :
 	ConstScriptingObject(p, WindowType::numWindowType),
 	phaseFunction(p, this, var(), 2),

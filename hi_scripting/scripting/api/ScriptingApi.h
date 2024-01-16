@@ -385,7 +385,10 @@ public:
 
         /** Creates a fix object factory using the data layout. */
         var createFixObjectFactory(var layoutDescription);
-        
+
+		/** Creates a thread safe storage container. */
+		var createThreadSafeStorage();
+
 		/** Creates a reference to the script license manager. */
 		var createLicenseUnlocker();
 
