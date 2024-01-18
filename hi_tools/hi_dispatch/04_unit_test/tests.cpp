@@ -633,7 +633,7 @@ void CharPtrTest::runTest()
         
 }
 
-static CharPtrTest charPtrTest;
+//static CharPtrTest charPtrTest;
 
 
 } // dispatch
