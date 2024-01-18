@@ -77,6 +77,9 @@ void LibraryTest::deinit(int numChecksExpected)
 
 void LibraryTest::runTest()
 {
+	if(Thread::getCurrentThread() == nullptr)
+		return;
+
 	testMultipleListeners();
 
 	testSigSlotBasics();
@@ -94,10 +97,15 @@ void LibraryTest::runTest()
 	testMultipleAttributes({1, 4, 31, 322});
 	testMultipleAttributes({0, 4, 31, 4, 24, 211, 32});
 	testMultipleAttributes({0, 32, 64, 63, 900, 901, 902 });
-	
-	auto n = Thread::getCurrentThread()->getThreadName();
-	PerfettoHelpers::setCurrentThreadName(n.getCharPointer().getAddress());
 
+	auto ct = Thread::getCurrentThread();
+
+	if(ct != nullptr)
+	{
+		auto n = ct->getThreadName();
+		PerfettoHelpers::setCurrentThreadName(n.getCharPointer().getAddress());
+	}
+	
 	testHelloWorld(1, 1, sendNotificationSync, sendNotificationAsync);
 
 	testHelloWorld(159, 159, sendNotificationSync, sendNotificationSync);

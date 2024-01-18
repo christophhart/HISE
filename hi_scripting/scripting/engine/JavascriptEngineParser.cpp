@@ -2243,7 +2243,7 @@ private:
 	Expression* parseNewOperator()
 	{
 		location.throwError("new is not supported anymore");
-		return nullptr;
+		RETURN_IF_NO_THROW(nullptr);
 	}
 
 	Expression* parseIsDefined()

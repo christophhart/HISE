@@ -648,7 +648,7 @@ public:
 		{
 #if HI_RUN_UNIT_TESTS
 			UnitTestRunner runner;
-			runner.setAssertOnFailure(false);
+			runner.setAssertOnFailure(true);
             
             // If you're working on a unit test, just add the "Current" category
             // and then uncomment this line.

@@ -155,7 +155,7 @@ void RootObject::flushHighPriorityQueues(Thread* t)
     
 	forEach<SourceManager, Behaviour::BreakIfPaused>([&](SourceManager& sm)
 	{
-		if(t->threadShouldExit())
+		if(t != nullptr && t->threadShouldExit())
 			return true;
 
         StringBuilder b;

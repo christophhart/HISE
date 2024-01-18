@@ -496,8 +496,6 @@ void ProcessorEditorHeader::paintOverChildren(Graphics& g)
 	if(isHeaderOfModulator())
 	{
 		auto mod = dynamic_cast<Modulator*>(getProcessor());
-		auto modu = dynamic_cast<Modulation*>(getProcessor());
-
 		auto mc = dynamic_cast<ModulatorChain*>(mod);
 
 		if(mc == nullptr)
