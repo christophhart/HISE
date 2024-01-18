@@ -1957,7 +1957,7 @@ struct PlotterPopup: public Component
 				Rectangle<float> area(pos, pos);
 
 				String m;
-				m << "#" << event.getEventId() << "(" << MidiMessage::getMidiNoteName(event.getNoteNumberIncludingTransposeAmount(), true, true, 2) <<  "): ";
+				m << "#" << String(event.getEventId()) << "(" << MidiMessage::getMidiNoteName(event.getNoteNumberIncludingTransposeAmount(), true, true, 2) <<  "): ";
 				m << modValue;
 
 				auto f = GLOBAL_BOLD_FONT();
