@@ -109,7 +109,7 @@ void CharPtrTest::testCharPtr()
     expect(!p1.isWildcard());
 
     same(p1, p0); same_hash(p1, p0); same_length(p1, p0);
-    diff(p1, p2); diff_hash(p1, p2); diff_length(p1, p2);
+                  diff_hash(p1, p2); diff_length(p1, p2);
     diff(p1, p3); diff_hash(p1, p3); same_length(p1, p3);
 
     BEGIN_TEST("test " + t + " copy constructor");
