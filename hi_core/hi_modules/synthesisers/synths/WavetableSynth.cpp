@@ -491,7 +491,7 @@ WavetableSound::WavetableSound(const ValueTree &wavetableData, Processor* parent
         midiNotes.setRange(l, h - l+1, true);
     }
     
-	wavetableSize = numSamples / wavetableAmount;
+	wavetableSize = wavetableAmount > 0 ? numSamples / wavetableAmount : 0;
 
 #if USE_MOD2_WAVETABLESIZE
 
