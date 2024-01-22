@@ -548,9 +548,14 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 
 			std::swap(newNode, opaqueNode);
 
+			numParameters = opaqueNode->numParameters;
+
+			lastParameters.setSize(opaqueNode->numParameters, true);
+
 			for (auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
 			{
-				lastParameters[p.info.index] = p.info.defaultValue;
+				if(auto ptr = getParameterPtr(p.info.index))
+					*ptr = (float)p.info.defaultValue;
 			}
 
             channelCountMatches = checkHardcodedChannelCount();
@@ -578,8 +583,6 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 		asProcessor().updateParameterSlots();
 
 		effectUpdater.sendMessage(sendNotificationAsync, currentEffect, somethingChanged, opaqueNode->numParameters);
-
-		
 
 		tempoSyncer.tempoChanged(mc_->getBpm());
 	}
@@ -618,7 +621,6 @@ bool HardcodedSwappableEffect::swap(HotswappableProcessor* other)
 		auto& ap = asProcessor();
 		auto& op = otherFX->asProcessor();
 
-
 		ap.parameterNames.swapWith(op.parameterNames);
 		tables.swapWith(otherFX->tables);
 		sliderPacks.swapWith(otherFX->sliderPacks);
@@ -629,7 +631,7 @@ bool HardcodedSwappableEffect::swap(HotswappableProcessor* other)
 
 		for (int i = 0; i < OpaqueNode::NumMaxParameters; i++)
 		{
-			std::swap(lastParameters[i], otherFX->lastParameters[i]);
+			std::swap(lastParameters, otherFX->lastParameters);
 		}
 
 		{
@@ -696,7 +698,8 @@ juce::Result HardcodedSwappableEffect::sanityCheck()
 
 void HardcodedSwappableEffect::setHardcodedAttribute(int index, float newValue)
 {
-	lastParameters[index] = newValue;
+	if(auto ptr = getParameterPtr(index))
+		*ptr = newValue;
 
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
@@ -709,8 +712,8 @@ void HardcodedSwappableEffect::setHardcodedAttribute(int index, float newValue)
 
 float HardcodedSwappableEffect::getHardcodedAttribute(int index) const
 {
-	if (isPositiveAndBelow(index, OpaqueNode::NumMaxParameters))
-		return lastParameters[index];
+	if(auto ptr = getParameterPtr(index))
+		return *ptr;
 
 	return 0.0f;
 }
@@ -815,8 +818,9 @@ ValueTree HardcodedSwappableEffect::writeHardcodedData(ValueTree& v) const
 		for (const auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
 		{
 			auto id = p.info.getId();
-			auto value = lastParameters[p.info.index];
-			v.setProperty(id, value, nullptr);
+
+			if(auto ptr = getParameterPtr(p.info.index))
+				v.setProperty(id, *ptr, nullptr);
 		}
 		
 		ExternalData::forEachType([&](ExternalData::DataType dt)
@@ -1149,18 +1153,21 @@ void HardcodedMasterFX::applyEffect(AudioSampleBuffer &b, int startSample, int n
 				if (!modChains[i].getChain()->shouldBeProcessedAtAll())
 					mv = 1.0f;
 
-				auto value = lastParameters[i] * mv;
-				p->callback.call((double)value);
+				if(auto ptr = getParameterPtr(i))
+					p->callback.call((double)*ptr);
 			}
 			else
 			{
 				auto r = p->toRange();
 
-				auto normMaxValue = r.convertTo0to1(lastParameters[i], false);
-				normMaxValue *= mv;
-				auto value = r.convertFrom0to1(normMaxValue, false);
+				if(auto ptr = getParameterPtr(i))
+				{
+					auto normMaxValue = r.convertTo0to1(*ptr, false);
+					normMaxValue *= mv;
+					auto value = r.convertFrom0to1(normMaxValue, false);
 
-				p->callback.call((double)value);
+					p->callback.call((double)value);
+				}
 			}
 		}
 	}

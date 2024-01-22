@@ -161,8 +161,17 @@ protected:
 
 	String currentEffect = "No network";
 
-	float lastParameters[OpaqueNode::NumMaxParameters];
+	float* getParameterPtr(int index) const
+	{
+		if(isPositiveAndBelow(index, numParameters))
+			return static_cast<float*>(lastParameters.getObjectPtr()) + index;
+		return
+			nullptr;
+	}
 
+	int numParameters = 0;
+	ObjectStorage<sizeof(float) * OpaqueNode::NumMaxParameters, 8> lastParameters;
+	
 	snex::Types::ModValue modValue;
 	snex::Types::DllBoundaryTempoSyncer tempoSyncer;
 	scriptnode::PolyHandler polyHandler;
