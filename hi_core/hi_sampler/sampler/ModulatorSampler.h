@@ -536,9 +536,9 @@ public:
             memset(currentNotes, 0, 128);
 		};
 
-		double currentSamplePos;
-		double currentSampleStartPos;
-		float crossfadeTableValue;
+		double currentSamplePos = 0.0f;
+		double currentSampleStartPos = 0.0f;
+		float crossfadeTableValue = 0.0f;
 		int currentGroup = 1;
 		BigInteger visibleGroups;
 

@@ -66,10 +66,8 @@ int ModulatorSamplerVoice::calculateSampleStartMod()
 		jassert(sampleStartModValue <= 1.0f);
 		sampleStartModulationDelta = (int)(jlimit<float>(0.0f, 1.0f, sampleStartModValue) * sound->getSampleStartModulation());
 	}
-	else
+	else if (auto maxOffset = sound->getSampleStartModulation())
 	{
-		auto maxOffset = sound->getSampleStartModulation();
-
 		// just flip the sign and use it directly...
 		sampleStartModulationDelta = jlimit<int>(0, maxOffset, (int)(-1.0f * sampleStartModValue));
 
