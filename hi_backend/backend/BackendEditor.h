@@ -320,6 +320,7 @@ public:
 		PresetBrowser,
         CustomPopup,
         Keyboard,
+		PeakMeter,
 		numPopupTypes
 	};
 
@@ -438,7 +439,60 @@ private:
 	ScopedPointer<ShapeButton> backButton;
 	ScopedPointer<ShapeButton> forwardButton;
 
-	ScopedPointer<ProcessorPeakMeter> peakMeter;
+	
+
+	struct ClickablePeakMeter: public ProcessorPeakMeter,
+							   public ControlledObject
+	{
+		struct PopupComponent;
+
+		
+
+		ClickablePeakMeter(Processor* p):
+		  ProcessorPeakMeter(p),
+		  ControlledObject(p->getMainController())
+		{
+			setRepaintsOnMouseActivity(true);
+			vuMeter->addMouseListener(this, true);
+		}
+
+		void mouseEnter(const MouseEvent& event) override
+		{
+			hover = true;
+			repaint();
+		}
+
+		void mouseExit(const MouseEvent& event) override
+		{
+			hover = false;
+			repaint();
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			toggleState = !toggleState;
+			findParentComponentOfClass<MainTopBar>()->togglePopup(PopupType::PeakMeter, toggleState);
+			repaint();
+		}
+
+		void paintOverChildren(Graphics& g) override
+		{
+			if(hover)
+				g.fillAll(Colours::white.withAlpha(0.05f));
+
+			if(toggleState)
+			{
+				g.setColour(Colour(SIGNAL_COLOUR));
+				g.drawRect(getLocalBounds(), 2);
+				g.fillAll(Colour(SIGNAL_COLOUR).withAlpha(0.1f));
+			}
+		}
+
+		bool hover = false;
+		bool toggleState = false;
+	};
+
+	ScopedPointer<ClickablePeakMeter> peakMeter;
 	ScopedPointer<ShapeButton> settingsButton;
 	ScopedPointer<ShapeButton> layoutButton;
 
@@ -452,6 +506,33 @@ private:
 	ScopedPointer<HiseShapeButton> scriptingWorkSpaceButton;
 	ScopedPointer<HiseShapeButton> samplerWorkSpaceButton;
 	ScopedPointer<HiseShapeButton> customWorkSpaceButton;
+
+	struct QuickPlayComponent: public Component,
+							   public ControlledObject,
+							   public SettableTooltipClient,
+							   public PooledUIUpdater::SimpleTimer
+	{
+		QuickPlayComponent(MainController* mc);
+
+		void setValue(bool shouldBeOn);
+		void timerCallback() override;
+		void paint(Graphics& g) override;
+		void mouseUp(const MouseEvent& e) override;
+		void setShouldPlayNote(bool v);
+		void mouseDown(const MouseEvent& e) override;
+		void resized() override;
+
+	private:
+
+		bool playNote = true;
+		bool toggle = false;
+		bool toggleState = false;
+		bool currentValue = false;
+		Path play[2];
+		Path note[2];
+		double startPos = 0.0;
+		int noteToPlay = 60;
+	} quickPlayButton;
 
     ScopedPointer<Drawable> hiseIcon;
 };

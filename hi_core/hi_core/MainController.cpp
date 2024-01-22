@@ -54,9 +54,9 @@ bool MainController::unitTestMode = false;
 				auto blockLengthSeconds = numSamples / sampleRate;
 
 				// If there is no watchdog call for 10 buffers worth of time we assume that it's bypassed...
-				auto deltaForBypassDetection = roundToInt(1000.0 * 10.0 * blockLengthSeconds);
+				int deltaForBypassDetection = roundToInt(1000.0 * 10.0 * blockLengthSeconds);
 
-				auto deltaSinceLastCall = (thisTime - lastProcessBlockTime);
+				int deltaSinceLastCall = (thisTime - lastProcessBlockTime);
 				auto noCallsLately = deltaSinceLastCall > deltaForBypassDetection;
 
 				if(reactivateOnNextCall)
@@ -591,6 +591,9 @@ void MainController::sendToMidiOut(const HiseEvent& e)
 
 	outputMidiBuffer.addEvent(e);
 }
+
+const AudioSampleBuffer& MainController::getMultiChannelBuffer() const
+{ return getMainSynthChain()->internalBuffer; }
 
 bool MainController::refreshOversampling()
 {
@@ -1469,7 +1472,6 @@ MainController::CustomTypeFace::CustomTypeFace(ReferenceCountedObjectPtr<juce::T
 {
 	memset(characterWidths, 0, sizeof(float) * 128);
 
-	auto numPrintable = 127 - 32;
 	String s;
 	for(char i = 32; i < 127; i++)
 	{

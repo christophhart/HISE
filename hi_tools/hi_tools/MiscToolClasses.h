@@ -2200,6 +2200,16 @@ struct FFTHelpers
     
     static Array<WindowType> getAvailableWindowTypes();
 
+    static Array<var> getAvailableWindowTypeNames()
+    {
+		Array<var> sa;
+
+		for(auto w: getAvailableWindowTypes())
+			sa.add(getWindowType(w));
+
+		return sa;
+    }
+
     static String getWindowType(WindowType w);
 
     static void applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise=true);
@@ -2221,14 +2231,17 @@ struct FFTHelpers
 
 struct Spectrum2D
 {
-	struct LookupTable
+	struct LookupTable: public ReferenceCountedObject
 	{
+		using Ptr = ReferenceCountedObjectPtr<LookupTable>;
+
 		enum class ColourScheme
 		{
 			blackWhite,
 			rainbow,
 			violetToOrange,
 			hiseColours,
+			preColours,
 			numColourSchemes
 		};
 
@@ -2276,6 +2289,12 @@ struct Spectrum2D
 			Parameters::Ptr param;
 		};
 
+		Parameters():
+		  lut(new LookupTable())
+		{
+			
+		}
+
 		void set(const Identifier& id, var value, NotificationType n);
 
 		var get(const Identifier& id) const;
@@ -2292,14 +2311,27 @@ struct Spectrum2D
 		int oversamplingFactor = 4;
 		int Spectrum2DSize;
 
-		float gainFactor = 0.0f;
-		float gamma = 0.6f;
+		int gainFactorDb = 1000;
+		int gammaPercent = 60;
+
+		float getGamma() const
+		{
+			return (float)gammaPercent / 100.0f;
+		}
+
+		float getGainFactor() const
+		{
+			if(gainFactorDb == 1000)
+				return 0.0f;
+
+			return Decibels::decibelsToGain(gainFactorDb);
+		}
 
 		Graphics::ResamplingQuality quality = Graphics::ResamplingQuality::lowResamplingQuality;
 
 		FFTHelpers::WindowType currentWindowType = FFTHelpers::WindowType::BlackmanHarris;
 
-		SharedResourcePointer<LookupTable> lut;
+		LookupTable::Ptr lut;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Parameters);
 	};
@@ -2328,7 +2360,9 @@ struct Spectrum2D
     const AudioSampleBuffer& originalSource;
     
     Image createSpectrumImage(AudioSampleBuffer& lastBuffer);
-    
+
+	bool useAlphaChannel = false;
+
     AudioSampleBuffer createSpectrumBuffer();
 };
 

@@ -50,7 +50,10 @@ namespace hise {
 		LOAD_EPATH_IF_URL("sample-start", ProcessorIcons::sampleStartIcon);
 		LOAD_EPATH_IF_URL("group-fade", ProcessorIcons::groupFadeIcon);
 		LOAD_EPATH_IF_URL("speaker", ProcessorIcons::speaker);
-		
+		LOAD_EPATH_IF_URL("fft", ProcessorIcons::fftIcon);
+		LOAD_EPATH_IF_URL("stereo", ProcessorIcons::stereoIcon);
+		LOAD_EPATH_IF_URL("osc", ProcessorIcons::pitchIcon);
+		LOAD_EPATH_IF_URL("cpu", ProcessorIcons::cpuIcon);
 		LOAD_EPATH_IF_URL("master-effects", HiBinaryData::SpecialSymbols::masterEffect);
 		LOAD_EPATH_IF_URL("script", HiBinaryData::SpecialSymbols::scriptProcessor);
 		LOAD_EPATH_IF_URL("polyphonic-effects", ProcessorIcons::polyFX);

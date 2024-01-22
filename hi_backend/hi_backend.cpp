@@ -60,6 +60,8 @@
 #include "backend/BackendToolbar.cpp"
 #include "backend/BackendApplicationCommandWindows.cpp"
 #include "backend/BackendApplicationCommands.cpp"
+#include "backend/BackendVisualizer.h"
+#include "backend/BackendVisualizer.cpp"
 #include "backend/BackendEditor.cpp"
 #include "backend/BackendRootWindow.cpp"
 

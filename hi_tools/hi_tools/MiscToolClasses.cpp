@@ -2465,6 +2465,13 @@ void Spectrum2D::LookupTable::setColourScheme(ColourScheme cs)
 		{
 			grad.addColour(0.33f, Colour(0xff3a6666));
 			grad.addColour(0.66f, Colour(SIGNAL_COLOUR));
+			break;
+		}
+		case ColourScheme::preColours:
+		{
+			grad.addColour(0.33f, Colour(0xff666666));
+			grad.addColour(0.66f, Colour(0xff9d629a));
+			break;
 		}
         default:
             break;
@@ -2485,7 +2492,7 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 {
 	TRACE_EVENT("scripting", "create spectrum image");
 
-    auto newImage = Image(Image::RGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels(), true);
+    auto newImage = Image(useAlphaChannel ? Image::ARGB : Image::RGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels(), true);
 
 	Image::BitmapData bd(newImage, Image::BitmapData::writeOnly);
 	
@@ -2495,10 +2502,24 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 		
 		for(int x = 0; x < lastBuffer.getNumSamples(); x++)
 		{
-			auto pp = (PixelRGB*)(bd.getPixelPointer(x, y));
 			auto lutValue = parameters->lut->getColouredPixel(src[x]);
 
-			pp->set(lutValue);
+			if(useAlphaChannel)
+			{
+				auto r = lutValue.getRed();
+				auto g = lutValue.getGreen();
+				auto b = lutValue.getBlue();
+				auto a = jmax(r, g, b);
+
+				auto pp = (PixelARGB*)(bd.getPixelPointer(x, y));
+				pp->set(PixelARGB(a, r, g, b));
+			}
+			else
+			{
+				auto pp = (PixelRGB*)(bd.getPixelPointer(x, y));
+				pp->set(lutValue);
+			}
+				
 		}
 	}
 
@@ -2630,13 +2651,13 @@ AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
 
 				value = jmax<float>(value, minGain) - minGain;
 				
-				value = std::pow(value, parameters->gamma);
+				value = std::pow(value, parameters->getGamma());
 				dst[dstIndex] = value;
 			}
         }
     }
 
-	auto thisGain = parameters->gainFactor;
+	auto thisGain = parameters->getGainFactor();
 
 	if(thisGain == 0.0f)
 	{
@@ -2755,7 +2776,7 @@ void Spectrum2D::Parameters::set(const Identifier& id, var value, NotificationTy
 	if (id == Identifier("Oversampling"))
 		oversamplingFactor = value;
 	if (id == Identifier("Gamma"))
-		gamma = jlimit(0.01f, 16.0f, (float)value);
+		gammaPercent = jlimit(0, 150, (int)value);
 	if (id == Identifier("ColourScheme"))
 		lut->setColourScheme((LookupTable::ColourScheme)(int)value);
 	if (id == Identifier("WindowType"))
@@ -2768,8 +2789,7 @@ void Spectrum2D::Parameters::set(const Identifier& id, var value, NotificationTy
 	}
 	if (id == Identifier("GainFactor"))
 	{
-		gainFactor = (float)value;
-		FloatSanitizers::sanitizeFloatNumber(gainFactor);
+		gainFactorDb = (int)value;
 	}
 	if (n != dontSendNotification)
 		notifier.sendMessage(n, id, value);
@@ -2788,9 +2808,9 @@ var Spectrum2D::Parameters::get(const Identifier& id) const
 	if (id == Identifier("ColourScheme"))
 		return (int)lut->colourScheme;
 	if (id == Identifier("GainFactor"))
-		return gainFactor;
+		return gainFactorDb;
 	if (id == Identifier("Gamma"))
-		return gamma;
+		return gammaPercent;
 	if (id == Identifier("ResamplingQuality"))
 	{
 		StringArray q("Low", "Mid", "High");
@@ -2851,6 +2871,9 @@ Spectrum2D::Parameters::Editor::Editor(Parameters::Ptr p) :
 	addEditor("WindowType");
     addEditor("DynamicRange");
 	addEditor("ColourScheme");
+	addEditor("Gamma");
+	addEditor("ResamplingQuality");
+	addEditor("GainFactor");
 
 	setSize(450, RowHeight * editors.size() + 60);
 }
@@ -2897,13 +2920,39 @@ void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
 		for (auto w : FFTHelpers::getAvailableWindowTypes())
 			cb->addItem(FFTHelpers::getWindowType(w), (int)w + 1);
 	}
+	if (id == Identifier("Gamma"))
+	{
+		cb->addItem("12%", 13);
+		cb->addItem("25%", 26);
+		cb->addItem("33%", 34);
+        cb->addItem("50%", 51);
+		cb->addItem("66%", 67);
+        cb->addItem("75%", 76);
+        cb->addItem("100%", 101);
+        cb->addItem("125%", 126);
+        cb->addItem("150%", 151);
+		
+	}
+	if(id == Identifier("ResamplingQuality"))
+	{
+		cb->addItem("Low", 1);
+		cb->addItem("Mid", 2);
+		cb->addItem("High", 3);
+	}
+	if (id == Identifier("GainFactor"))
+	{
+		cb->addItem("Auto", 1001);
+		cb->addItem("0dB",  1);
+		cb->addItem("+6dB", 7);
+		cb->addItem("+12dB", 13);
+		cb->addItem("+18dB", 14);
+	}
+
+	cb->setSelectedId((int)param->get(id)+1, dontSendNotification);
 
 	addAndMakeVisible(cb);
 	editors.add(cb);
 	cb->addListener(this);
-
-
-	cb->setSelectedId((int)param->get(id)+1, dontSendNotification);
 
 	auto l = new Label();
 	l->setEditable(false);
@@ -2913,7 +2962,6 @@ void Spectrum2D::Parameters::Editor::addEditor(const Identifier& id)
 
 	addAndMakeVisible(l);
 	labels.add(l);
-
 }
 
 void Spectrum2D::Parameters::Editor::comboBoxChanged(ComboBox* comboBoxThatHasChanged)

@@ -1291,9 +1291,6 @@ void TableComponent::run()
 				if(threadShouldExit())
 					return;
 
-				for(auto& h: headers.getAllKeys())
-					DBG(h + ": " + headers.getValue(h, ""));
-
 				if(r->type == RequestType::IssueList)
 				{
 					auto s = inputStream->readEntireStreamAsString();

@@ -102,8 +102,8 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		virtual var getProperty(const Identifier& id) const;
 
 		virtual void setProperty(const Identifier& id, const var& newValue);
-
-		NamedValueSet properties;
+		
+		Array<std::pair<String, var>> properties;  
 
 		virtual void transformReadBuffer(AudioSampleBuffer& b);
 
@@ -112,6 +112,31 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 		Array<Identifier> getPropertyList() const;
 
 		template <typename T> T* getTypedBase() { return dynamic_cast<T*>(writerBase.get()); }
+
+		void setPropertyInternal(const String& c, var nv)
+		{
+			for(auto& p: properties)
+			{
+				if(p.first == c)
+				{
+					p.second = nv;
+					return;
+				}
+			}
+
+			properties.add({ c, nv });
+		}
+
+		var getPropertyInternal(const String& c, var defaultValue=var()) const
+		{
+			for(const auto& p: properties)
+			{
+				if(p.first == c)
+					return p.second;
+			}
+
+			return defaultValue;
+		}
 
 	protected:
 
@@ -128,6 +153,14 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 	void setRingBufferSize(int numChannels, int numSamples, bool acquireLock=true);
 
 	void setupReadBuffer(AudioSampleBuffer& b);
+
+	void setMaxLength(double newMaxLength)
+	{
+		maxLength = newMaxLength;
+
+		interpolatedWriteIndex = 0.0;
+		interpolatedReadIndex = 0.0;
+	}
 
 	String toBase64String() const override;
 
@@ -182,7 +215,11 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
     CriticalSection& getReadBufferLock();
 
+	int getMaxLengthInSamples() const;
+
 private:
+
+	
 
     CriticalSection readBufferLock;
     
@@ -222,7 +259,11 @@ private:
 	std::atomic<bool> isBeingWritten = { false };
 	std::atomic<int> numAvailable = { 0 };
 	std::atomic<int> writeIndex = { 0 };
-	
+
+	double maxLength = -1.0;
+	double interpolatedReadIndex = 0.0;
+	double interpolatedWriteIndex = 0.0;
+
 	int readIndex = 0;
 
 	AudioSampleBuffer internalBuffer;
@@ -268,7 +309,14 @@ struct RingBufferComponentBase : public ComplexDataUIBase::EditorBase,
 
 	virtual Colour getColourForAnalyserBase(int colourId);
 
+	void setUseCustomColours(bool shouldUseCustomColours)
+	{
+		useCustomColours = shouldUseCustomColours;
+	}
+
 protected:
+
+	bool useCustomColours = false;
 
 	SimpleRingBuffer::Ptr rb;
 

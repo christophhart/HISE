@@ -39,6 +39,28 @@ namespace hise { using namespace juce;
 
 class BackendProcessor;
 
+struct AnalyserInfo: public ReferenceCountedObject
+{
+	AnalyserInfo(SimpleRingBuffer::PropertyObject* o1, SimpleRingBuffer::PropertyObject* o2)
+	{
+		ringBuffer[0] = new SimpleRingBuffer();
+		ringBuffer[0]->setPropertyObject(o1);
+		ringBuffer[1] = new SimpleRingBuffer();
+		ringBuffer[1]->setPropertyObject(o2);
+	}
+	
+	using Ptr = ReferenceCountedObjectPtr<AnalyserInfo>;
+
+	SimpleRingBuffer::Ptr getAnalyserBuffer(bool getPost) const
+	{
+		return ringBuffer[(int)getPost];
+	}
+	
+	std::pair<WeakReference<Processor>, int> currentlyAnalysedProcessor = { nullptr, 0 };
+	int lastNoteNumber = -1;
+	double duration = 0.0;
+	SimpleRingBuffer::Ptr ringBuffer[2];
+};
 
 /** This is the main audio processor for the backend application. 
 *
@@ -52,7 +74,8 @@ class BackendProcessor: public PluginParameterAudioProcessor,
 						public MainController,
 						public ProjectHandler::Listener,
 						public MarkdownDatabaseHolder,
-						public ExpansionHandler::Listener
+						public ExpansionHandler::Listener,
+						public SimpleRingBuffer::WriterBase
 {
 public:
 	BackendProcessor(AudioDeviceManager *deviceManager_=nullptr, AudioProcessorPlayer *callback_=nullptr);
@@ -214,11 +237,56 @@ public:
 	LambdaBroadcaster<Identifier, Processor*> workspaceBroadcaster;
 
     ExternalClockSimulator externalClockSim;
-    
+	
+	void pushToAnalyserBuffer(AnalyserInfo::Ptr info, bool post, const AudioSampleBuffer& buffer, int numSamples);
+
+	int getCurrentAnalyserNoteNumber() const
+	{
+		return currentNoteNumber;
+	}
+
+	AnalyserInfo::Ptr getAnalyserInfoForProcessor(Processor* p)
+	{
+		if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(postAnalyserLock))
+		{
+			for(auto i: currentAnalysers)
+			{
+				if(i->currentlyAnalysedProcessor.first == p)
+					return i;
+			}
+		}
+
+		return nullptr;
+	}
+	
+	Result setAnalysedProcessor(AnalyserInfo::Ptr newInfo, bool add)
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(postAnalyserLock);
+
+		if(add)
+		{
+			for(auto i: currentAnalysers)
+			{
+				if(i->currentlyAnalysedProcessor.first == newInfo->currentlyAnalysedProcessor.first)
+					return Result::fail("Another analyser is already assigned to the module " + i->currentlyAnalysedProcessor.first->getId());
+			}
+			currentAnalysers.add(newInfo);
+		}
+			
+		else
+			currentAnalysers.removeObject(newInfo);
+
+		return Result::ok();
+	}
+	
 private:
 
-    
-    
+	int currentNoteNumber = -1;
+
+	mutable SimpleReadWriteLock postAnalyserLock;
+
+	ReferenceCountedArray<AnalyserInfo> currentAnalysers;
+	
 	File databaseRoot;
 
 	MemoryBlock tempLoadingData;
@@ -236,6 +304,43 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)
 };
+
+struct ScopedAnalyser
+{
+	ScopedAnalyser(MainController* mc, Processor* p, AudioSampleBuffer& b, int numSamples_):
+	  bp(static_cast<BackendProcessor*>(mc))
+	{
+		info = bp->getAnalyserInfoForProcessor(p);
+
+		if(info == nullptr)
+			return;
+
+		buffer = &b;
+		numSamples = numSamples_;
+
+		bp->pushToAnalyserBuffer(info, false, *buffer, numSamples);
+		milliSeconds = Time::getMillisecondCounterHiRes();
+	}
+
+	~ScopedAnalyser()
+	{
+		if(buffer != nullptr)
+		{
+			auto now = Time::getMillisecondCounterHiRes();
+
+			info->duration = now - milliSeconds;
+			bp->pushToAnalyserBuffer(info, true, *buffer, numSamples);
+		}
+	}
+
+	double milliSeconds = 0.0;
+	AnalyserInfo::Ptr info;
+	AudioSampleBuffer* buffer = nullptr;
+	int numSamples = -1;
+	BackendProcessor* bp;
+	
+};
+
 
 } // namespace hise
 

@@ -376,7 +376,7 @@ public:
 	void resized() override;
 	void timerCallback() override;
 
-private:
+protected:
 
 	ScopedPointer<VuMeter> vuMeter;
 	WeakReference<Processor> processor;

@@ -254,9 +254,7 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 	}
 
 	
-
 	
-
 #if !HISE_BACKEND_AS_FX
 	buffer.clear();
 #endif
@@ -345,8 +343,10 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 		externalClockSim.addTimelineData(buffer, midiMessages);
 #endif
 
-		getDelayedRenderer().processWrapped(buffer, midiMessages);
+		ScopedAnalyser sa(this, nullptr, buffer, buffer.getNumSamples());
 
+		getDelayedRenderer().processWrapped(buffer, midiMessages);
+		
 #if IS_STANDALONE_APP
 		externalClockSim.addPostTimelineData(buffer, midiMessages);
 #endif
@@ -530,6 +530,58 @@ void BackendProcessor::setEditorData(var editorState)
 
 
 
+
+
+void BackendProcessor::pushToAnalyserBuffer(AnalyserInfo::Ptr info, bool post, const AudioSampleBuffer& buffer, int numSamples)
+{
+	jassert(info != nullptr);
+
+	if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(postAnalyserLock))
+	{
+		auto rb = info->ringBuffer[(int)post];
+
+		if(rb != nullptr)
+		{
+			if(!post)
+			{
+				for(int i = 0; i < 127; i++)
+				{
+					if(getKeyboardState().isNoteOn(1, i))
+					{
+						currentNoteNumber = i;
+						break;
+					}
+				}
+			}
+
+			if(!post && (bool)rb->getPropertyObject()->getProperty(scriptnode::PropertyIds::IsProcessingHiseEvent))
+			{
+				if(currentNoteNumber != -1 && currentNoteNumber != info->lastNoteNumber)
+				{
+					info->lastNoteNumber = currentNoteNumber;
+					auto midiFreq = MidiMessage::getMidiNoteInHertz(info->lastNoteNumber);
+					auto cycleLength = getMainSynthChain()->getSampleRate() / midiFreq;
+					info->ringBuffer[0]->setMaxLength(cycleLength);
+					info->ringBuffer[1]->setMaxLength(cycleLength);
+				}
+			}
+
+			if(rb->getPropertyObject()->getProperty("ShowCpuUsage"))
+			{
+				auto numMsForBuffer = ((double)buffer.getNumSamples() / getMainSynthChain()->getSampleRate()) * 1000.0;
+				auto usage = jlimit(0.0, 1.0, info->duration / numMsForBuffer);
+
+				rb->write(post ? usage : (getCpuUsage() * 0.01), numSamples);
+			}
+			else
+			{
+				jassert(isPositiveAndBelow(info->currentlyAnalysedProcessor.second * 2, buffer.getNumChannels()+1));
+				const float* data[2] = { buffer.getReadPointer(info->currentlyAnalysedProcessor.second * 2), buffer.getReadPointer(info->currentlyAnalysedProcessor.second * 2 +1) };
+				rb->write(data, 2, buffer.getNumSamples());
+			}
+		}
+	}
+}
 } // namespace hise
 
 

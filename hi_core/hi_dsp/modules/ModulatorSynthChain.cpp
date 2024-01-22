@@ -323,9 +323,13 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
     }
 #endif
 
+	ScopedAnalyser sa(getMainController(), this, internalBuffer, buffer.getNumSamples());
+
 	// Process the Synths and add store their output in the internal buffer
 	for (int i = 0; i < synths.size(); i++)
     {
+		ScopedAnalyser sa(getMainController(), synths[i], internalBuffer, internalBuffer.getNumSamples());
+
         if (!synths[i]->isSoftBypassed())
             synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
     }

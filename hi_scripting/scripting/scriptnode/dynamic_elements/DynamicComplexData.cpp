@@ -338,7 +338,7 @@ namespace pimpl
 		DynamicObject::Ptr dynObj = new DynamicObject();
 
 		for (auto& nv : pObj->properties)
-			dynObj->setProperty(nv.name, nv.value);
+			dynObj->setProperty(nv.first, nv.second);
 
 		
 
@@ -558,6 +558,8 @@ namespace pimpl
 		g.excludeClipRegion(b.removeFromRight(4));
 		g.excludeClipRegion(b.removeFromTop(4));
 		g.excludeClipRegion(b.removeFromBottom(4));
+
+		
 
 		g.setColour(c.withAlpha(0.1f));
 		g.fillPath(p);

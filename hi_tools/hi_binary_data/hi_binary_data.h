@@ -94,6 +94,9 @@ namespace HnodeIcons
 
 namespace ProcessorIcons
 {
+	DECLARE_DATA(cpuIcon, 510);
+	DECLARE_DATA(fftIcon, 225);
+	DECLARE_DATA(stereoIcon, 896);
 	DECLARE_DATA(midiIcon, 774);
 	DECLARE_DATA(gainIcon, 115);
 	DECLARE_DATA(pitchIcon, 532);
@@ -122,6 +125,9 @@ namespace MainToolbarIcons
 	DECLARE_DATA(help, 579);
 	DECLARE_DATA(comment, 157);
 	DECLARE_DATA(hise, 1219);
+
+	DECLARE_DATA(quicknote, 245);
+	DECLARE_DATA(quickplay, 239);
 }
 
 namespace ExpansionIcons

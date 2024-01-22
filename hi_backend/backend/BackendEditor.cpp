@@ -333,7 +333,8 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	FloatingTileContent(parent),
 	SimpleTimer(parent->getMainController()->getGlobalUIUpdater()),
 	PreloadListener(parent->getMainController()->getSampleManager()),
-	ComponentWithHelp(parent->getBackendRootWindow())
+	ComponentWithHelp(parent->getBackendRootWindow()),
+	quickPlayButton(parent->getMainController())
 {
     {
         static const String iconData = "1231.nT6K8C1XOzhI.Xiuo5BLOQw..FZHKonCfUDaflA5ZgT2fXIOnsCvqXzRIkTRIR6KqEMqoZZW3Jrm4X+CHC.l..H.Oux8tFOdxKC2FOm8bR3BooKRTgCDZTULUICVnHwzkHMMpHvGRSlhtHUAENTY5AEoJZHhhzjFQanxzEKVHMYhHnfhJThvD8HZBGlZLYhTFbrPiJZRGtXQ4nhJSrVPiJCRQXlhrDMYgiAZTQSHgEVd33++ZPiZCTjlbwiHXr3vLCcDYpxJyrxjIiCGOr3xEINLnQYgxjJtPcqywoQQohjkoHLJ7SF7xLLFlyAZTWTgBYhjvbQRDoHIpHX14HfFkjKTHko.MpHXrD.t5Y6uo1IqZp+m62Vy6kIl26I+p5HdtqPugnoYaod3hOx7sKxZeriO9F5N5uBc80I+4xXb6aPatn57A.nMu2.TNDnQ0A0ENMpKSDMo9pWkJhJSQdfREJQDcQRRlGN3BPfvV1Ne4pp5HtLHt0KqwC11xpfCHZTT.fFkjKRXQS2qew64yEhqsOH.nuT14FO39Xi7siWrCmF0DpKlplHu+tdH3GBt398+7xli58KdI28gMd8cHZcesuLi2q+yNuP72KpKt10saokpiNl6022mkt8cdO6N1WxYtqm7gPX6ZmW27x9tap9ipuV53+My3g4p586h8c+A45+zbs9rzvy46Nndc8w6QH8AMiAhe9puZqoaOdtcJ1Gzd7ldJUDS.s6As6wWrw0Zrx2y6O9wJtdLWcs58K6tNAq5Kkwmm+ki3yuZ61iWm5yq2isfOedB79v9i+mDvPjIE.gADDF5y3WrC09paHrgKE2KWnEWctP56Vu4L1d4He4hOmwaKNgvas5cOGeKD8J3zf.71E53itluv6gM+5mzejuE+fYiHFSbcOK2N+KiBP5V0yc7BDHRnFKQvD.P.PBHAffBgUCLPmQzCHPxncQNk0LAyfEP.4e.crDLxWc0WF5xtPFRNdIN.YbvPxg.izdDQ0OFsF.8tW.dHDORrxg.xnII9jvLBOiG.5xHMxKzzW5eIAiQQ7QA.ZNIBVaFFC49JWE68dx3vmK3QlsG5Aj3bx2.sDjDxJZdlbSipcOtlpvZ9ynMyokW04FbbA4elRMTvGenL8E3CcC1rniW8.olNcQqZ0dUAKJL9hS.xVlOGNzeFmcIRRfWmI1G1N1Vyjn7gJEJ8p8wk9CB7Sba93wICBAYSY7dimsAEOtWJWZo79rvXEo9R05vezh1mgnofRMeLSOesGGWvDXiBfcwW2GUhFKkudo5a13pvfbuX6aqPrmRKOIEFvqBkJLRgMfEVBg4pEFi7hdvFSUq+fSEbuEIdO1pZoy9XNhbLXw0uyymhMUKY0XU6dItKXlqLRn9Vyi67m2g.25Xf9Zya2Rlisb4K.AwJVcVvJltxYOsENFgsjJC0NQBh2sQnn3yxAt36ygkRxPiTzxJ8nUkEVyInJQDQZTENGpx7FhTX.Q2CwoilgfdW0miH8zaJM.laTSj7gIvdAzXS0inQOXyAbwLM3qJ9L.w54NEkbcL7QWjAkEH6rxfWl17OfOChcRzDf94aoxO9ydFGMhmNV9Ot7chYIwjtd+o9Opj8qjTxtUd2Usjj+XtTv4uq0nF52r2SNUJqf6lN.";
@@ -406,7 +407,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	customWorkSpaceButton->setTooltip("Show Scripting Workspace");
 	customWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceCustom, true);
 	
-	addAndMakeVisible(peakMeter = new ProcessorPeakMeter(getRootWindow()->getMainSynthChain()));
+	addAndMakeVisible(peakMeter = new ClickablePeakMeter(getRootWindow()->getMainSynthChain()));
 
 	addAndMakeVisible(settingsButton = new ShapeButton("Audio Settings", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
 	settingsButton->setTooltip("Show Audio Settings");
@@ -419,7 +420,9 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	Path layoutPath;
 	layoutPath.loadPathFromData(ColumnIcons::layoutIcon, sizeof(ColumnIcons::layoutIcon));
 	layoutButton->setShape(layoutPath, false, true, true);
-	
+
+	addAndMakeVisible(quickPlayButton);
+
 	stop();
 
 
@@ -564,6 +567,8 @@ void MainTopBar::resized()
                                  
     settingsButton->setBounds(b.removeFromRight(b.getHeight()).reduced(7));
     peakMeter->setBounds(b.removeFromRight(180).reduced(8));
+
+	quickPlayButton.setBounds(b.removeFromRight(b.getHeight()).reduced(8));
     keyboardPopupButton->setBounds(b.removeFromRight(b.getHeight()).reduced(8));
 }
 
@@ -1047,6 +1052,8 @@ void MainTopBar::popupChanged(Component* newComponent)
     customPopupButton->setToggleState(customShouldBeShown, dontSendNotification);
 }
 
+
+
 void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 {
 	if (!shouldShow)
@@ -1082,6 +1089,12 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 
 		break;
 
+	}
+	case MainTopBar::PopupType::PeakMeter:
+	{
+		c = new ClickablePeakMeter::PopupComponent(peakMeter);
+		button = peakMeter;
+		break;
 	}
 	case PopupType::Settings:
 	{
@@ -1182,8 +1195,8 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	auto popup = getParentShell()->showComponentInRootPopup(c, button, point);
 
     auto sb = dynamic_cast<ShapeButton*>(button);
-    
-    if(popup != nullptr)
+     
+    if(popup != nullptr && sb != nullptr)
     {
         popup->onDetach = [this, sb](bool isDetached)
         {
@@ -1192,6 +1205,162 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
         };
     }
 
+}
+
+MainTopBar::QuickPlayComponent::QuickPlayComponent(MainController* mc):
+	ControlledObject(mc),
+	SimpleTimer(mc->getGlobalUIUpdater())
+{
+	setTooltip("Play a note or start the transport with a single click. Right click to adjust the settings.");
+
+	play[0].loadPathFromData(MainToolbarIcons::quickplay, MainToolbarIcons::quickplay_Size);
+	note[0].loadPathFromData(MainToolbarIcons::quicknote, MainToolbarIcons::quicknote_Size);
+	play[1].loadPathFromData(MainToolbarIcons::quickplay, MainToolbarIcons::quickplay_Size);
+	note[1].loadPathFromData(MainToolbarIcons::quicknote, MainToolbarIcons::quicknote_Size);
+
+	setRepaintsOnMouseActivity(true);
+	stop();
+}
+
+void MainTopBar::QuickPlayComponent::setValue(bool shouldBeOn)
+{
+	currentValue = shouldBeOn;
+
+	if(playNote)
+	{
+		MidiMessage event;
+
+		if(shouldBeOn)
+			getMainController()->getKeyboardState().noteOn(1, noteToPlay, 1.0f);
+					
+		else
+			getMainController()->getKeyboardState().noteOff(1, noteToPlay, 0.0f);
+	}
+	else
+	{
+		auto& clockSim = dynamic_cast<BackendProcessor*>(getMainController())->externalClockSim;
+
+		if(shouldBeOn)
+			startPos = clockSim.ppqPos;
+		else
+			clockSim.ppqPos = startPos;
+				
+		clockSim.isPlaying = shouldBeOn;
+	}
+
+	repaint();
+}
+
+void MainTopBar::QuickPlayComponent::timerCallback()
+{
+	currentValue = dynamic_cast<BackendProcessor*>(getMainController())->externalClockSim.isPlaying;
+
+	if(currentValue)
+	{
+		playNote = false;
+		repaint();
+	}
+}
+
+void MainTopBar::QuickPlayComponent::paint(Graphics& g)
+{
+	auto alpha = currentValue ? 0.8f : 0.6f;
+
+	if(!currentValue && isMouseOver())
+		alpha += 0.2f;
+
+	if(isMouseButtonDown())
+		alpha += 0.2f;
+
+	auto c = Colour(currentValue ? SIGNAL_COLOUR : 0xFFFFFFFF).withAlpha(alpha);
+
+	g.setColour(c);
+	g.fillPath(playNote ? note[isMouseButtonDown()] : play[isMouseButtonDown()]);
+}
+
+void MainTopBar::QuickPlayComponent::mouseUp(const MouseEvent& e)
+{
+	if(e.mods.isRightButtonDown())
+		return;
+
+	if(!toggle)
+		setValue(false);
+}
+
+void MainTopBar::QuickPlayComponent::setShouldPlayNote(bool v)
+{
+	playNote = v;
+
+	if(v)
+		stop();
+	else
+		start();
+}
+
+void MainTopBar::QuickPlayComponent::mouseDown(const MouseEvent& e)
+{
+	if(e.mods.isRightButtonDown())
+	{
+		PopupMenu m;
+		PopupLookAndFeel plaf;
+		m.setLookAndFeel(&plaf);
+
+		m.addSectionHeader("Quickplay Settings");
+		m.addItem(1, "Play MIDI note", true, playNote);
+		m.addItem(2, "Control DAW playback simulator", true, !playNote);
+		m.addSeparator();
+		m.addItem(3, "Toggle Mode (Sustain)", true, toggle);
+
+		PopupMenu noteMenu;
+
+		int NoteOffset = 900;
+
+		for(int i = 0; i < 127; i++)
+		{
+			String n;
+			n << MidiMessage::getMidiNoteName(i, true, true, 3);
+			n << " (" << String(i) << ")";
+			noteMenu.addItem(i+NoteOffset, n, true, i == noteToPlay);
+		}
+
+		m.addSubMenu("Note to play", noteMenu);
+
+		auto result = m.show();
+
+		if(result == 1)
+			playNote = true;
+		else if(result == 2)
+			playNote = false;
+		else if(result == 3)
+			toggle = !toggle;
+		else if (result >= NoteOffset)
+		{
+			noteToPlay = result - NoteOffset;
+		}
+
+		repaint();
+
+		return;
+	}
+
+	if(toggle)
+	{
+		toggleState = !toggleState;
+		setValue(toggleState);
+	}
+	else
+	{
+		setValue(true);
+	}
+}
+
+void MainTopBar::QuickPlayComponent::resized()
+{
+	auto b = getLocalBounds().toFloat();
+	PathFactory::scalePath(play[0], b.reduced(4));
+	PathFactory::scalePath(play[1], b.reduced(5));
+	PathFactory::scalePath(note[0], b.reduced(1));
+	PathFactory::scalePath(note[1], b.reduced(2));
 }
 
 void BackendHelpers::callIfNotInRootContainer(std::function<void(void)> func, Component* c)

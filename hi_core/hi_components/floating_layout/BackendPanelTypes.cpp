@@ -66,32 +66,32 @@ struct AudioTimelineObject : public TimelineObjectBase
 
 	void initialise(double sampleRate) override
 	{
-		WavAudioFormat form;
+		AudioFormatManager afm;
+		afm.registerBasicFormats();
+		
+		ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(f);
 
-		auto fis = new FileInputStream(f);
-		ScopedPointer<AudioFormatReader> reader = form.createReaderFor(fis, true);
-
-		content.setSize(2, (int)reader->lengthInSamples);
-
-		reader->read(&content, 0, (int)reader->lengthInSamples, 0, true, true);
-
-		if (sampleRate != reader->sampleRate)
+		if(reader != nullptr)
 		{
-			LagrangeInterpolator interpolator;
-			auto ratio = sampleRate / reader->sampleRate;
+			content.setSize(2, (int)reader->lengthInSamples);
 
-			AudioSampleBuffer newBuffer(2, reader->lengthInSamples * ratio);
+			reader->read(&content, 0, (int)reader->lengthInSamples, 0, true, true);
 
-			interpolator.process(ratio, content.getReadPointer(0), newBuffer.getWritePointer(0), newBuffer.getNumSamples());
-			interpolator.process(ratio, content.getReadPointer(1), newBuffer.getWritePointer(1), newBuffer.getNumSamples());
+			if (sampleRate != reader->sampleRate)
+			{
+				LagrangeInterpolator interpolator;
+				auto ratio = sampleRate / reader->sampleRate;
 
-			std::swap(content, newBuffer);
+				AudioSampleBuffer newBuffer(2, reader->lengthInSamples * ratio);
+
+				interpolator.process(ratio, content.getReadPointer(0), newBuffer.getWritePointer(0), newBuffer.getNumSamples());
+				interpolator.process(ratio, content.getReadPointer(1), newBuffer.getWritePointer(1), newBuffer.getNumSamples());
+
+				std::swap(content, newBuffer);
+			}
+
 		}
-
-		
-
 		reader = nullptr;
-		
 	}
 
 	void draw(Graphics& g, Rectangle<float> bounds) override
@@ -219,6 +219,7 @@ struct MidiTimelineObject : public TimelineObjectBase,
 		FileInputStream fis(f);
         
         content.readFrom(fis);
+		content.setTicksPerQuarterNote(960);
 	}
 
 	Colour getColour() const override

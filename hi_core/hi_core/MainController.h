@@ -2063,6 +2063,10 @@ protected:
 	bool simulateDynamicBufferSize = false;
 #endif
 
+protected:
+
+	const AudioSampleBuffer& getMultiChannelBuffer() const;
+
 private:
 
 	MasterClock masterClock;

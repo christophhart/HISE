@@ -119,6 +119,8 @@ juce::Path MainToolbarFactory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("settings", MainToolbarIcons::settings);
 	LOAD_EPATH_IF_URL("help", MainToolbarIcons::help);
 	LOAD_EPATH_IF_URL("hise", MainToolbarIcons::hise);
+	LOAD_EPATH_IF_URL("quickplay", MainToolbarIcons::quickplay);
+	LOAD_EPATH_IF_URL("quicknote", MainToolbarIcons::quicknote);
 
 	return p;
 

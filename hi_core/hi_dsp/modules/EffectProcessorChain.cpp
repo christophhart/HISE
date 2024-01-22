@@ -134,8 +134,13 @@ void EffectProcessorChain::renderNextBlock(AudioSampleBuffer& buffer, int startS
 		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
 	}
 
-	FOR_ALL_EFFECTS(renderNextBlock(buffer, startSample, numSamples));
-
+	for(auto fx: allEffects)
+	{
+		if(!fx->isBypassed())
+		{
+			fx->renderNextBlock(buffer, startSample, numSamples);
+		}
+	}
 }
 
 bool EffectProcessorChain::hasTailingMasterEffects() const noexcept
@@ -262,7 +267,13 @@ void EffectProcessorChain::renderMasterEffects(AudioSampleBuffer &b)
 
 	ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::MasterEffectRendering);
 
-	FOR_EACH_MASTER_EFFECT(renderWholeBuffer(b));
+	for(auto mfx: masterEffects)
+	{
+		ScopedAnalyser sa(getMainController(), mfx, b, b.getNumSamples());
+
+		if(!mfx->isSoftBypassed())
+			mfx->renderWholeBuffer(b);
+	};
 
 	const auto prev = resetCounter;
 
