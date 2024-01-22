@@ -109,7 +109,6 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	registerFrontendPanelTypes();
 
-	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
 	registerType<InterfaceContentPanel>(PopupMenuOptions::InterfaceContent);
 	registerType<SampleMapBrowser>(PopupMenuOptions::SampleMapBrowser);
 
@@ -626,7 +625,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
 			addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
 			addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
-			addToPopupMenu(m, PopupMenuOptions::PopoutButton, "Popout Button");
 			addToPopupMenu(m, PopupMenuOptions::ProjectManagementTable, "Project Management Tracker");
 			addToPopupMenu(m, PopupMenuOptions::PerfettoViewer, "Perfetto Viewer");
 
@@ -758,7 +756,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
 	case PopupMenuOptions::PresetBrowser:		parent->setNewContent(GET_PANEL_NAME(PresetBrowserPanel)); break;
-	case PopupMenuOptions::PopoutButton:		parent->setNewContent(GET_PANEL_NAME(PopoutButtonPanel)); break;
 	case PopupMenuOptions::ActivityLed:		    parent->setNewContent(GET_PANEL_NAME(ActivityLedPanel)); break;
 	case PopupMenuOptions::PluginSettings:		parent->setNewContent(GET_PANEL_NAME(CustomSettingsWindowPanel)); break;
 	case PopupMenuOptions::ProjectManagementTable: parent->setNewContent(GET_PANEL_NAME(GenericPanel<ProjectManagement::TableComponent>)); break;

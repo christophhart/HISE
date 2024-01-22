@@ -363,7 +363,6 @@ public:
 			SamplePoolTable,
 			SampleMapPoolTable,
 			MidiFilePoolTable,
-			PopoutButton,
 			PerformanceStatistics,
 			ActivityLed,
             MatrixPeakMeterPanel,
