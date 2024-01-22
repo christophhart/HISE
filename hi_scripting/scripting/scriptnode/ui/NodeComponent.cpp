@@ -1038,6 +1038,14 @@ int NodeComponent::PopupHelpers::isWrappable(NodeBase* n)
 	auto p = n->getPath();
 
 	auto isOptionalSnex = snex::cppgen::CustomNodeProperties::nodeHasProperty(nodeTree, PropertyIds::IsOptionalSnexNode);
+
+	if(isOptionalSnex)
+	{
+		auto mode = n->getNodeProperty(PropertyIds::Mode).toString();
+
+		isOptionalSnex = mode == "Custom";
+	}
+
 	auto isSnex = p.getIdentifier().toString().contains("snex");
 	auto isChain = p == NamespacedIdentifier::fromString("container::chain");
 	auto isExpression = p.getIdentifier().toString().endsWith("expr");
