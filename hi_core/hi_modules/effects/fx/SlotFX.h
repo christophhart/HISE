@@ -288,10 +288,17 @@ public:
 
 	bool isSuspendedOnSilence() const final override;
 
-	Processor *getChildProcessor(int processorIndex) override { return nullptr; };
-	const Processor *getChildProcessor(int processorIndex) const override { return nullptr; };
-	int getNumChildProcessors() const override { return 0; };
-	int getNumInternalChains() const override { return 0; };
+#if NUM_HARDCODED_POLY_FX_MODS
+	Processor *getChildProcessor(int processorIndex) override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_POLY_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
+    const Processor *getChildProcessor(int processorIndex) const override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_POLY_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
+#else
+	Processor *getChildProcessor(int ) override { return nullptr; };
+	const Processor *getChildProcessor(int ) const override { return nullptr; };
+#endif
+
+	
+	int getNumChildProcessors() const override { return NUM_HARDCODED_POLY_FX_MODS; };
+	int getNumInternalChains() const override { return NUM_HARDCODED_POLY_FX_MODS; };
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -315,17 +322,8 @@ public:
 		voiceStack.reset(voiceIndex);
 	}
 	
-	void handleHiseEvent(const HiseEvent &m) override
-	{
-        // Already handled...
-        if(m.isNoteOn())
-            return;
-        
-		if (opaqueNode != nullptr)
-			voiceStack.handleHiseEvent(*opaqueNode, polyHandler, m);
-	}
+	void handleHiseEvent(const HiseEvent &m) override;
 
-	
 
 	void connectionChanged() override
 	{
@@ -337,10 +335,7 @@ public:
 	void numDestinationChannelsChanged() override {};
 
 	/** renders a voice and applies the effect on the voice. */
-	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override
-	{
-		applyEffect(voiceIndex, b, startSample, numSamples);
-	}
+	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 
 	int getNumActiveVoices() const override
 	{
@@ -357,6 +352,9 @@ public:
 
 	VoiceDataStack voiceStack;
 
+#if NUM_HARDCODED_POLY_FX_MODS
+	ModulatorChain* paramModulation[NUM_HARDCODED_POLY_FX_MODS];
+#endif
 };
 
 class HardcodedTimeVariantModulator: public TimeVariantModulator,

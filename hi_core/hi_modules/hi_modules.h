@@ -57,6 +57,20 @@ END_JUCE_MODULE_DECLARATION
 #define NUM_HARDCODED_FX_MODS 0
 #endif
 
+/** Defines the number of modulation slots for polyphonic effects. */
+#ifndef NUM_HARDCODED_POLY_FX_MODS
+#define NUM_HARDCODED_POLY_FX_MODS 0
+#endif
+
+/** This can be used to decrease the block size between modulation values for polyphonic FX modulation. */
+#ifndef HARDCODED_POLY_FX_BLOCKSIZE
+#if NUM_HARDCODED_POLY_FX_MODS
+#define HARDCODED_POLY_FX_BLOCKSIZE 32
+#else 
+#define HARDCODED_POLY_FX_BLOCKSIZE 1024
+#endif
+#endif
+
 #include "synthesisers/synths/PolyBlep.h"
 
 
