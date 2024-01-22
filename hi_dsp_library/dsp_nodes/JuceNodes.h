@@ -317,7 +317,7 @@ template <typename DT, int NV> struct jdelay_base : public base::jwrapper<DT, NV
 		if constexpr (std::is_same<DT, LinearDelay>()) return "A linear interpolating delay line with low computational cost and a low-pass filtering effect.";
 		if constexpr (std::is_same<DT, ThiranDelay>()) return "A delay line using the thiran interpolation. Good performance, flat amplitude response but not suitable for fast modulation";
 		if constexpr (std::is_same<DT, CubicDelay>())  return "A delay line using a 3rd order Lagrange interpolator. Flat amplitude response, modulatable but the highest CPU usage";
-		return "";
+		else return "";
 	};
 
 	jdelay_base():

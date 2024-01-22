@@ -184,7 +184,7 @@ void updown_comp::reset()
 
 float updown_comp::getGainReduction(float input)
 {
-	snex::hmath Math;
+	
 
 	const auto lo_t = state[(int)Parameters::LowThreshold].advance();
 	const auto hi_t = state[(int)Parameters::HighThreshold].advance();
@@ -197,9 +197,9 @@ float updown_comp::getGainReduction(float input)
 	const auto hi_r = state[(int)Parameters::HighRatio].advance();
 	const auto lo_r = state[(int)Parameters::LowRatio].advance();
 
-	if (Math.abs(input - lo_t) < (lo_w * 0.5f))
+	if (hmath::abs(input - lo_t) < (lo_w * 0.5f))
 	{
-		return input - (1.0f / lo_r - 1.0f) * Math.sqr(input - lo_t - lo_w * 0.5f) / (2.0f * lo_w);
+		return input - (1.0f / lo_r - 1.0f) * hmath::sqr(input - lo_t - lo_w * 0.5f) / (2.0f * lo_w);
 	}
 	else if (input < (lo_t - lo_w*0.5f))
 	{
@@ -217,9 +217,9 @@ float updown_comp::getGainReduction(float input)
 		else
 			return v;
 	}
-	else if (Math.abs(input - hi_t) < (hi_w / 2)) // apply soft knee
+	else if (hmath::abs(input - hi_t) < (hi_w / 2)) // apply soft knee
 	{
-		return input + (1.0f / hi_r - 1.0f) * Math.sqr(input - hi_t + hi_w * 0.5f) / (2.0f * hi_w);
+		return input + (1.0f / hi_r - 1.0f) * hmath::sqr(input - hi_t + hi_w * 0.5f) / (2.0f * hi_w);
 	}
 	else if (input > (hi_t + hi_w*0.5f))
 	{

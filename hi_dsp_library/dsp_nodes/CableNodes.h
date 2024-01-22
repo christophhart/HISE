@@ -1441,6 +1441,103 @@ namespace control
 		JUCE_DECLARE_WEAK_REFERENCEABLE(clone_cable);
 	};
 
+	template <typename ParameterType> 
+		struct clone_forward : public control::pimpl::no_processing,
+							   public pimpl::parameter_node_base<ParameterType>,
+							   public mothernode,
+							   public wrap::clone_manager::Listener
+	{
+		SN_GET_SELF_AS_OBJECT(clone_forward);
+		SN_NODE_ID("clone_forward");
+		SN_DESCRIPTION("forwards the unscaled input parameter to all clones");
+
+		static constexpr bool isNormalisedModulation() { return false; }
+		static constexpr bool isProcessingHiseEvent()  { return false; }
+		static constexpr bool isPolyphonic()  { return false; }
+
+		clone_forward():
+            control::pimpl::parameter_node_base<ParameterType>(getStaticId())
+		{
+			cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsCloneCableNode);
+
+			cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UseUnnormalisedModulation);
+			cppgen::CustomNodeProperties::addUnscaledParameter(getStaticId(), "Value");
+
+			this->getParameter().setParentNumClonesListener(this);
+			this->getParameter().isNormalised = isNormalisedModulation();
+		};
+
+		enum class Parameters
+		{
+			NumClones,
+			Value
+		};
+
+		DEFINE_PARAMETERS
+		{
+			DEF_PARAMETER(NumClones, clone_forward);
+			DEF_PARAMETER(Value, clone_forward);
+		};
+		SN_PARAMETER_MEMBER_FUNCTION;
+
+		SN_EMPTY_INITIALISE;
+		SN_EMPTY_HANDLE_EVENT;
+		
+		void setValue(double v)
+		{
+ 			lastValue = v;
+			sendValue();
+		}
+
+		void numClonesChanged(int newNumClones) override
+		{
+			setNumClones(newNumClones);
+		}
+
+		bool shouldUpdateClones() const
+		{
+			return true;
+		}
+		
+		void setNumClones(double newNumClones)
+		{
+			if (numClones != newNumClones)
+			{
+				numClones = jlimit(1, 128, (int)newNumClones);
+				sendValue();
+			}
+		}
+
+		void sendValue()
+		{
+			for (int i = 0; i < numClones; i++)
+			{
+				this->getParameter().callEachClone(i, lastValue, false);
+			}
+		}
+
+		void createParameters(ParameterDataList& data)
+		{
+			{
+				DEFINE_PARAMETERDATA(clone_cable, NumClones);
+				p.setRange({ 1.0, 16.0, 1.0 });
+				p.setDefaultValue(1.0);
+				data.add(std::move(p));
+			}
+			{
+				DEFINE_PARAMETERDATA(clone_cable, Value);
+				p.setRange({ 0.0, 1.0 });
+				p.setDefaultValue(0.0);
+				data.add(std::move(p));
+			}
+		}
+
+		double lastValue = 0.0;
+		int numClones;
+		
+		JUCE_DECLARE_WEAK_REFERENCEABLE(clone_forward);
+	};
+
 	
 	template <typename ParameterClass, typename FaderClass> struct xfader: public pimpl::parameter_node_base<ParameterClass>,
 																		   public control::pimpl::templated_mode,

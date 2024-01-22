@@ -857,14 +857,20 @@ Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
     
 	auto hasNumCloneAutomation = (bool)pTree.getChild(0)[PropertyIds::Automated];
 
-	auto cloneRange = RangeHelpers::getDoubleRange(pTree.getChildWithProperty(PropertyIds::ID, "NumClones"));
+	auto clone_ptree = pTree.getChildWithProperty(PropertyIds::ID, "NumClones");
+
+
+	auto cloneRange = RangeHelpers::getDoubleRange(clone_ptree);
+	auto numStaticClones = clone_ptree[PropertyIds::Automated] ? -1 : (int)clone_ptree[PropertyIds::Value];
 
 	// Check all `control.clone_cable` nodes if they are connected to a child node of this clone container
 	// and verify that the NumClones parameter has the same range as the NumClones parameter
 	// of this clone container
-	ValueTreeIterator::forEach(v, [cloneRange, nTree](ValueTree& tree)
+	ValueTreeIterator::forEach(v, [cloneRange, nTree, numStaticClones](ValueTree& tree)
 	{
-		if (tree[PropertyIds::FactoryPath].toString() == "control.clone_cable")
+		auto path = tree[PropertyIds::FactoryPath].toString();
+
+		if (path == "control.clone_cable" || path == "control.clone_forward")
 		{
 			for (auto m : tree.getChildWithName(PropertyIds::ModulationTargets))
 			{
@@ -884,7 +890,37 @@ Node::Ptr ValueTreeBuilder::parseCloneContainer(Node::Ptr u)
 
 					auto cableRange = RangeHelpers::getDoubleRange(cableP);
 
-					if (!RangeHelpers::isEqual(cableRange, cloneRange))
+					int numStaticCableClones = cableP[PropertyIds::Automated] ? -1 : (int)cableP[PropertyIds::Value];
+
+					if(numStaticClones != numStaticCableClones)
+					{
+						Error e;
+						e.errorMessage = "Clone node sanity check failed: ";
+
+						auto cableId = tree[PropertyIds::ID].toString();
+
+						if(numStaticClones == -1 && numStaticCableClones != -1)
+						{
+							e.errorMessage << "\n> `Container.NumClones` is automated but `" << cableId << ".NumClones` is static.";
+						}
+						else if (numStaticClones == -1 && numStaticCableClones != -1)
+						{
+							e.errorMessage << "\n> `Container.NumClones` is static but `" << cableId << ".NumClones` is automated.";
+						}
+						else
+						{
+							e.errorMessage << "`NumClones mismatch between clone container and cable`";
+							e.errorMessage << "\n- `" << cableId << ".NumClones` = " << (numStaticCableClones == -1 ? String("Automated") : String(numStaticCableClones));
+							e.errorMessage << "\n- `Container.NumClones` = " << (numStaticClones == -1 ? String("Automated") : String(numStaticClones));
+						}
+
+						
+						
+						e.v = nTree;
+						throw e;
+					}
+
+					if (numStaticClones == -1 && !RangeHelpers::isEqual(cableRange, cloneRange))
 					{
 						Error e;
 						e.errorMessage = "Clone node sanity check failed: range mismatch between clone container and clone cable";
@@ -2255,9 +2291,8 @@ void ValueTreeBuilder::RootContainerBuilder::addDefaultParameters()
 					// that will not be updated not update 
 
 					auto mode = ValueTreeIterator::getNodeProperty(sv->nodeTree, PropertyIds::Mode).toString().toLowerCase();
-					jassert(mode.isNotEmpty());
-
-					auto shouldUpdate = duplilogic::Helpers::shouldUpdateNumClones(mode);
+					
+					auto shouldUpdate = mode.isNotEmpty() && duplilogic::Helpers::shouldUpdateNumClones(mode);
 
 					if(shouldUpdate)
 					{

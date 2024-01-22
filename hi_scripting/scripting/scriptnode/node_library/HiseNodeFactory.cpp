@@ -1309,7 +1309,9 @@ namespace control
 		registerNoProcessNode<control::input_toggle<parameter::dynamic_base_holder>, input_toggle_editor>();
 
         registerNoProcessNode<conversion_logic::dynamic::NodeType, conversion_logic::dynamic::editor>();
-        
+
+		registerNoProcessNode<control::clone_forward<parameter::clone_holder>, ModulationSourceBaseComponent>();
+
 		registerNoProcessNode<duplilogic::dynamic::NodeType, duplilogic::dynamic::editor>();
 		registerNoProcessNode<dynamic_dupli_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<faders::dynamic::NodeType, faders::dynamic::editor>();

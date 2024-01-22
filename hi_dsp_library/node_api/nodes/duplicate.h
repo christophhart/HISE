@@ -595,6 +595,7 @@ template <class ParameterClass> struct cloned
 			sender->addNumClonesListener(parentListener);
 	}
 
+    bool isNormalised = true;
 	WeakReference<SenderType> sender = nullptr;
 	void* firstObj = nullptr;
 	size_t objectDelta;

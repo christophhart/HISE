@@ -67,6 +67,7 @@ namespace parameter
 			parentListener = pl;
 		}
 
+		bool isNormalised = true;
 		WeakReference<scriptnode::wrap::clone_manager::Listener> parentListener;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(clone_holder);
