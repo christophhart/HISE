@@ -508,7 +508,7 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::setMode(Mode newMode)
 		currentMode = newMode;
 		auto idx = (int)currentMode;
 
-		toolbar[(int)ToolbarCommand::EditProperties]->setEnabled(currentMode == Mode::Spectrogram || currentMode == Mode::FFT);
+		toolbar[(int)ToolbarCommand::EditProperties]->setVisible(currentMode == Mode::Spectrogram || currentMode == Mode::FFT);
 
 		alphaSlider.setEnabled(currentMode != Mode::StereoField);
 
@@ -633,7 +633,7 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 
 		for(int i = 1; i < 4; i++)
 		{
-			g.setColour(Colours::white.withAlpha(0.1f));
+			g.setColour(Colours::white.withAlpha(0.05f));
 			auto yOffset = ((float)i / 4.0f) * l.getHeight();
 			g.drawHorizontalLine(l.getY() + yOffset, l.getX(), l.getRight());
 			g.drawHorizontalLine(r.getY() + yOffset, l.getX(), l.getRight());
@@ -645,12 +645,12 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 
 		for(int i = 1; i < 8; i++)
 		{
-			g.setColour(Colours::white.withAlpha(0.1f));
+			g.setColour(Colours::white.withAlpha(0.05f));
 			auto xOffset = ((float)i / 8.0f) * l.getWidth();
 			g.drawVerticalLine(l.getX() + xOffset, l.getY(), l.getBottom());
 			g.drawVerticalLine(l.getX() + xOffset, r.getY(), r.getBottom());
 
-			auto label = String(roundToInt((float)i / 2.0f * 1000.0)) + "ms";
+			auto label = String(roundToInt(4000.0 - (float)i / 2.0f * 1000.0)) + "ms";
 
 			g.setColour(Colours::white.withAlpha(0.2f));
 			g.drawText(label, l.getX() + xOffset - 30, l.getY() - 20, 60, 20, Justification::centred);
@@ -688,11 +688,11 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 
 		for(int i = 1; i < 8; i++)
 		{
-			g.setColour(Colours::white.withAlpha(0.1f));
+			g.setColour(Colours::white.withAlpha(0.05f));
 			auto xOffset = ((float)i / 8.0f) * oscArea.getWidth();
 			g.drawVerticalLine(oscArea.getX() + xOffset, oscArea.getY(), oscArea.getBottom());
 
-			auto label = String(roundToInt((float)i / 2.0f * 1000.0)) + "ms";
+			auto label = String(4000.0f - roundToInt((float)i / 2.0f * 1000.0)) + "ms";
 
 			g.setColour(Colours::white.withAlpha(0.2f));
 			g.drawText(label, oscArea.getX() + xOffset - 30, oscArea.getY() - 20, 60, 20, Justification::centred);
@@ -708,7 +708,7 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 
 		for(int i = 0; i < 5; i++)
 		{
-			g.setColour(Colours::white.withAlpha(0.1f));
+			g.setColour(Colours::white.withAlpha(0.05f));
 			auto yOffset = ((float)i / 4.0f) * oscArea.getHeight();
 			g.drawHorizontalLine(oscArea.getY() + yOffset, oscArea.getX(), oscArea.getRight());
 
@@ -718,11 +718,11 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 
 		for(int i = 1; i < 8; i++)
 		{
-			g.setColour(Colours::white.withAlpha(0.1f));
+			g.setColour(Colours::white.withAlpha(0.05f));
 			auto xOffset = ((float)i / 8.0f) * oscArea.getWidth();
 			g.drawVerticalLine(oscArea.getX() + xOffset, oscArea.getY(), oscArea.getBottom());
 			
-			auto label = String(roundToInt((float)i / 2.0f * 1000.0)) + "ms";
+			auto label = String(4000.0f - roundToInt((float)i / 2.0f * 1000.0)) + "ms";
 
 			g.setColour(Colours::white.withAlpha(0.2f));
 			g.drawText(label, xAxis.getX() + xOffset - 30, xAxis.getY(), 60, xAxis.getHeight(), Justification::centred);
@@ -770,7 +770,7 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 			{
 				auto thisH = first ? h / 2 : h;
 
-				g.setColour((blackKeys[i % 12] ? Colours::black : Colours::white).withAlpha(0.03f));
+				g.setColour((blackKeys[i % 12] ? Colours::black : Colours::white).withAlpha(0.02f));
 				g.fillRect(copy.removeFromBottom(thisH-1));
 				copy.removeFromBottom(1);
 
@@ -795,11 +795,11 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 
 		for(int i = 1; i < 8; i++)
 		{
-			g.setColour(Colours::white.withAlpha(0.1f));
+			g.setColour(Colours::white.withAlpha(0.05f));
 			auto xOffset = ((float)i / 8.0f) * oscArea.getWidth();
 			g.drawVerticalLine(oscArea.getX() + xOffset, oscArea.getY(), oscArea.getBottom());
 			
-			auto label = String(roundToInt((float)i / 2.0f * 1000.0)) + "ms";
+			auto label = String(4000.0f - roundToInt((float)i / 2.0f * 1000.0)) + "ms";
 
 			g.setColour(Colours::white.withAlpha(0.2f));
 			g.drawText(label, oscArea.getX() + xOffset - 30, oscArea.getY() - 20, 60, 20, Justification::centred);
@@ -833,7 +833,7 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 			yPos *= fftArea.getHeight();
 			yPos += fftArea.getY() + 0.065f * fftArea.getHeight();
 			
-			g.setColour(Colours::white.withAlpha(0.1f));
+			g.setColour(Colours::white.withAlpha(0.05f));
 			g.drawHorizontalLine(yPos, fftArea.getX(), fftArea.getRight());
 			g.setColour(Colours::white.withAlpha(0.2f));
 			g.drawText(String(roundToInt(Decibels::gainToDecibels(gain))) + "dB", yAxis.getX(), yPos - 10, yAxis.getWidth() - 10, 20, Justification::right);
@@ -882,8 +882,8 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::rebuildPeakMeters()
 	auto pm = new VuMeter(0.0, 0.0, VuMeter::Type::StereoVertical);
 	addAndMakeVisible(pm);
 	peakMeter = pm;
-	pm->setColour(VuMeter::ColourId::backgroundColour, Colour(0xff222222));
-	pm->setColour(VuMeter::ColourId::ledColour, Colour(0xFFDDDDDD));
+	pm->setColour(VuMeter::ColourId::backgroundColour, JUCE_LIVE_CONSTANT(Colour(0xff222222)));
+	pm->setColour(VuMeter::ColourId::ledColour, JUCE_LIVE_CONSTANT(Colour(0xFFDDDDDD)));
 	pm->setColour(VuMeter::ColourId::outlineColour, Colours::transparentBlack);
 	
 }
@@ -1124,14 +1124,17 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paint(Graphics& g)
 		auto preAlpha = jlimit(0.0f, 1.0f, (float)alphaSlider.getValue() * 2.0f);
 		auto postAlpha = jlimit(0.0f, 1.0f, (1.0f - (float)alphaSlider.getValue()) * 2.0f);
 
-		preAlpha = std::pow(preAlpha, 1.5f);
-		postAlpha = std::pow(postAlpha, 1.5f);
+		float alpha[2] = { std::pow(preAlpha, 1.5f), std::pow(postAlpha, 1.5f) };
 
-		if(preAlpha > 0.01f)
-			infos[0][(int)currentMode]->draw(g, preAlpha);
+		auto firstIndex = preAlpha > postAlpha ? 1 : 0;
+		auto secondIndex = 1 - firstIndex;
 
-		if(postAlpha > 0.01f)
-			infos[1][(int)currentMode]->draw(g, postAlpha);
+		if(alpha[firstIndex] > 0.01f)
+			infos[firstIndex][(int)currentMode]->draw(g, alpha[firstIndex]);
+
+		if(alpha[secondIndex] > 0.01f)
+			infos[secondIndex][(int)currentMode]->draw(g, alpha[secondIndex]);
+		
 	}
 
 	
