@@ -280,8 +280,52 @@ private:
 	
 };
 
+struct SubmenuComboBox: public juce::ComboBox
+{
+	SubmenuComboBox(const String& name={}):
+	  ComboBox(name)
+	{}
+
+	virtual bool useCustomPopupMenu() const { return false; }
+
+	virtual void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList) {}
+
+	void showPopup() override
+	{
+		if(useCustomPopupMenu())
+		{
+			if(originalMenu.getNumItems() == 0)
+				originalMenu = *getRootMenu();
+
+			auto& menu = *getRootMenu();
+			
+			StringArray sa;
+			Array<int> activeIndexes;
+
+			Array<std::pair<int, String>> list;
+
+			for (PopupMenu::MenuItemIterator iterator (originalMenu, true); iterator.next();)
+	        {
+				auto& item = iterator.getItem();
+
+				if(item.isSectionHeader)
+					continue;
+
+				sa.add(item.text);
+				activeIndexes.add(item.itemID);
+			}
+
+			createPopupMenu(menu, sa, activeIndexes);
+		}
+
+		ComboBox::showPopup();
+	}
+
+	PopupMenu originalMenu;
+};
+
 /** A combobox which can be controlled by the macro system. */
-class HiComboBox: public ComboBox,
+class HiComboBox: public SubmenuComboBox,
 				  public ComboBox::Listener,
 				  public MacroControlledObject,
                   public TouchAndHoldComponent
@@ -306,6 +350,10 @@ public:
 	
     void mouseDown(const MouseEvent &e) override;
 	void mouseDrag(const MouseEvent& e) override;
+
+	void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList) override;
+
+	bool useCustomPopupMenu() const override { return false; }
 
 	NormalisableRange<double> getRange() const override;;
 	

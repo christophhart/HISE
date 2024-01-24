@@ -1171,7 +1171,7 @@ void HiToggleButton::mouseUp(const MouseEvent& e)
 }
 
 HiComboBox::HiComboBox(const String& name):
-	ComboBox(name),
+	SubmenuComboBox(name),
 	MacroControlledObject()
 {
 	addChildComponent(numberTag);
@@ -1325,6 +1325,11 @@ void HiComboBox::mouseDrag(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_DRAG(e);
 	ComboBox::mouseDrag(e);
+}
+
+void HiComboBox::createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList)
+{
+	m = MouseCallbackComponent::parseFromStringArray(items, indexList, &getLookAndFeel());
 }
 
 void HiComboBox::touchAndHold(Point<int> /*downPosition*/)
