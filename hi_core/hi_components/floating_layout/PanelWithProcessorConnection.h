@@ -204,7 +204,7 @@ private:
 	GlobalHiseLookAndFeel hlaf;
 
 	ScopedPointer<ComboBox> connectionSelector;
-	ScopedPointer<ComboBox> indexSelector;
+	ScopedPointer<SubmenuComboBox> indexSelector;
 	
 	int currentIndex = -1;
 	int previousIndex = -1;

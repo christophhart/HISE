@@ -104,124 +104,188 @@ void MouseCallbackComponent::setPopupMenuItems(const StringArray &newItemList)
 	itemList.addArray(newItemList);
 }
 
+struct PopupMenuParser
+{
+    enum SpecialItem
+    {
+        ItemEntry = 0,
+        Sub = 1,
+        Header = 2,
+        Deactivated = 4,
+        Separator = 8
+    };
+    
+    static int getSpecialItemType(const String& item)
+    {
+        int flags = SpecialItem::ItemEntry;
+        
+        if(item.contains("~~"))
+            flags = SpecialItem::Deactivated;
+        
+        if(item.contains("___") || item.contains("___"))
+            flags = SpecialItem::Separator;
+
+        if(item.contains("**"))
+            flags = SpecialItem::Header;
+        
+        if(item.contains("::"))
+            flags |= SpecialItem::Sub;
+        
+        return flags;
+    };
+    
+    static bool wantsIndex(int flag)
+    {
+        if((flag & SpecialItem::Deactivated) ||
+           (flag & SpecialItem::Separator) ||
+           (flag & SpecialItem::Header))
+            return false;
+        
+        return true;
+    }
+    
+    static bool addToPopupMenu(PopupMenu& tm, int& menuIndex, const String& item, const Array<int>& activeIndexes)
+    {
+        if (item == "%SKIP%")
+        {
+            menuIndex++;
+            return false;
+        }
+        
+        auto isActive = activeIndexes.contains(menuIndex-1);
+        
+        auto fl = getSpecialItemType(item);
+        
+        jassert((fl & SpecialItem::Sub) == 0);
+        
+        auto withoutSpecialChars = item;
+
+        if(fl & SpecialItem::Header)
+            tm.addSectionHeader(item.removeCharacters("*"));
+        else if (fl & SpecialItem::Separator)
+            tm.addSeparator();
+        else
+            tm.addItem(menuIndex, item.removeCharacters("~"), (fl & SpecialItem::Deactivated) == 0, activeIndexes.contains(menuIndex-1));
+        
+        if(wantsIndex(fl))
+            menuIndex++;
+        
+        return isActive;
+    };
+    
+    struct SubInfo
+    {
+        SubInfo() = default;
+        
+        PopupMenu sub;
+        bool ticked = false;
+        String name;
+        StringArray items;
+        
+        void flush(PopupMenu& m, int& firstId, const Array<int>& activeIndexes)
+        {
+            if(items.isEmpty() && children.isEmpty())
+                return;
+            
+            for(auto& s: items)
+            {
+                ticked |= addToPopupMenu(sub, firstId, s, activeIndexes);
+            }
+            
+            for(auto c: children)
+            {
+                c->flush(sub, firstId, activeIndexes);
+            }
+            
+            m.addSubMenu(name, sub, true, nullptr, ticked);
+            
+            items.clear();
+            children.clear();
+        }
+        
+        OwnedArray<SubInfo> children;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(SubInfo);
+        JUCE_DECLARE_NON_COPYABLE(SubInfo);
+    };
+    
+    static SubInfo* getSubMenuFromArray(OwnedArray<SubInfo>& list, const String& name)
+    {
+        auto thisName = name.upToFirstOccurrenceOf("::", false, false);
+        auto rest = name.fromFirstOccurrenceOf("::", false, false);
+        
+        for(auto s: list)
+        {
+            if(s->name == thisName)
+            {
+                if(rest.isEmpty())
+                    return s;
+                else
+                    return getSubMenuFromArray(s->children, rest);
+            }
+        }
+        
+        auto newInfo = new SubInfo();
+        newInfo->name = thisName;
+        list.add(newInfo);
+        
+        if(rest.isEmpty())
+            return newInfo;
+        else
+            return getSubMenuFromArray(newInfo->children, rest);
+    }
+    
+    SubInfo* getSubMenu(const String& name)
+    {
+        return getSubMenuFromArray(subMenus, name);
+    };
+    
+    OwnedArray<SubInfo> subMenus;
+};
+
 juce::PopupMenu MouseCallbackComponent::parseFromStringArray(const StringArray& itemList, Array<int> activeIndexes, LookAndFeel* laf)
 {
 	PopupMenu m;
-
-	
 	m.setLookAndFeel(laf);
 
-	std::vector<MouseCallbackComponent::SubMenuList> subMenus;
+    PopupMenuParser parser;
 
-	for (int i = 0; i < itemList.size(); i++)
+	for (const auto& item: itemList)
 	{
-		if (itemList[i].contains("::"))
+        auto fl = parser.getSpecialItemType(item);
+        
+        if (fl & PopupMenuParser::SpecialItem::Sub)
 		{
-			String subMenuName = itemList[i].upToFirstOccurrenceOf("::", false, false);
-			String subMenuItem = itemList[i].fromFirstOccurrenceOf("::", false, false);
+			String subMenuName = item.upToLastOccurrenceOf("::", false, false);
+			String subMenuItem = item.fromLastOccurrenceOf("::", false, false);
 
-			if (subMenuName.isEmpty() || subMenuItem.isEmpty()) continue;
+			if (subMenuName.isEmpty() || subMenuItem.isEmpty())
+                continue;
 
-			bool subMenuExists = false;
-
-			for (size_t j = 0; j < subMenus.size(); j++)
-			{
-				if (std::get<0>(subMenus[j]) == subMenuName)
-				{
-					std::get<1>(subMenus[j]).add(subMenuItem);
-					subMenuExists = true;
-					break;
-				}
-			}
-
-			if (!subMenuExists)
-			{
-				StringArray sa;
-				sa.add(subMenuItem);
-				MouseCallbackComponent::SubMenuList item(subMenuName, sa);
-				subMenus.push_back(item);
-			}
+            parser.getSubMenu(subMenuName)->items.add(subMenuItem);
 		}
 	}
-	if (subMenus.size() != 0)
-	{
-		int menuIndex = 1;
+    
 
-		for (size_t i = 0; i < subMenus.size(); i++)
-		{
-			PopupMenu sub;
+    int menuIndex = 1;
 
-			StringArray sa = std::get<1>(subMenus[i]);
-
-			bool subIsTicked = false;
-
-			for (int j = 0; j < sa.size(); j++)
-			{
-				if (sa[j].startsWith("**") && sa[j].endsWith("**"))
-				{
-					sub.addSectionHeader(sa[j].replace("**", ""));
-					continue;
-				}
-
-				if (sa[j] == "___")
-				{
-					sub.addSeparator();
-					continue;
-				}
-
-				if (sa[j] == "%SKIP%")
-				{
-					menuIndex++;
-					continue;
-				}
-
-				const bool isDeactivated = sa[j].startsWith("~~") && sa[j].endsWith("~~");
-				const String itemText = isDeactivated ? sa[j].replace("~~", "") : sa[j];
-
-				const bool isTicked = activeIndexes.contains((menuIndex - 1));
-
-				if (isTicked) subIsTicked = true;
-
-				sub.addItem(menuIndex, itemText, !isDeactivated, isTicked);
-
-
-				menuIndex++;
-			}
-
-			m.addSubMenu(std::get<0>(subMenus[i]), sub, true, nullptr, subIsTicked);
-		}
-	}
-	else
-	{
-		int menuIndex = 0;
-
-		for (int i = 0; i < itemList.size(); i++)
-		{
-			if (itemList[i] == "%SKIP%")
-			{
-				menuIndex++;
-				continue;
-			}
-
-			if (itemList[i].startsWith("**") && itemList[i].endsWith("**"))
-			{
-				m.addSectionHeader(itemList[i].replace("**", ""));
-				continue;
-			}
-
-			if (itemList[i] == "___")
-			{
-				m.addSeparator();
-				continue;
-			}
-
-			const bool isDeactivated = itemList[i].startsWith("~~") && itemList[i].endsWith("~~");
-			const String itemText = isDeactivated ? itemList[i].replace("~~", "") : itemList[i];
-			m.addItem(menuIndex + 1, itemText, !isDeactivated, activeIndexes.contains(menuIndex));
-			menuIndex++;
-		}
-	}
-
+    for(const auto& item: itemList)
+    {
+        auto fl = parser.getSpecialItemType(item);
+        auto isSubEntry = (fl & PopupMenuParser::SpecialItem::Sub) != 0;
+        
+        if(isSubEntry)
+        {
+            // We want to only get the first name so that it can
+            // flush its children
+            auto firstMenuName = item.upToFirstOccurrenceOf("::", false, false);
+            
+            parser.getSubMenu(firstMenuName)->flush(m, menuIndex, activeIndexes);
+        }
+        else
+            parser.addToPopupMenu(m, menuIndex, item, activeIndexes);
+    }
+    
 	return m;
 }
 

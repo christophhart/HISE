@@ -2614,7 +2614,8 @@ ScriptComponent(base, name)
 	ADD_SCRIPT_PROPERTY(i03, "fontStyle");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(i04, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
     ADD_SCRIPT_PROPERTY(i05, "popupAlignment"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
-
+    ADD_SCRIPT_PROPERTY(i06, "useCustomPopup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+    
 	priorityProperties.add(getIdFor(Items));
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
@@ -2629,6 +2630,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptComponent::Properties::defaultValue, 1);
 	setDefaultValue(ScriptComponent::min, 1.0f);
 	setDefaultValue(ScriptComboBox::Properties::enableMidiLearn, false);
+    setDefaultValue(ScriptComboBox::Properties::useCustomPopup, false);
 	
 	handleDefaultDeactivatedProperties();
 	initInternalPropertyFromValueTreeOrDefault(Items);

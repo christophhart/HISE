@@ -290,38 +290,33 @@ struct SubmenuComboBox: public juce::ComboBox
 
 	virtual void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList) {}
 
-	void showPopup() override
-	{
-		if(useCustomPopupMenu())
-		{
-			if(originalMenu.getNumItems() == 0)
-				originalMenu = *getRootMenu();
+    void rebuildPopupMenu()
+    {
+        if(!useCustomPopupMenu())
+            return;
+        
+        auto& menu = *getRootMenu();
+        
+        StringArray sa;
+        Array<int> activeIndexes;
 
-			auto& menu = *getRootMenu();
-			
-			StringArray sa;
-			Array<int> activeIndexes;
+        Array<std::pair<int, String>> list;
 
-			Array<std::pair<int, String>> list;
+        for (PopupMenu::MenuItemIterator iterator (menu, true); iterator.next();)
+        {
+            auto& item = iterator.getItem();
 
-			for (PopupMenu::MenuItemIterator iterator (originalMenu, true); iterator.next();)
-	        {
-				auto& item = iterator.getItem();
+            if(item.isSectionHeader)
+                continue;
 
-				if(item.isSectionHeader)
-					continue;
+            if(item.itemID == getSelectedId())
+                activeIndexes.add(item.itemID);
+            
+            sa.add(item.text);
+        }
 
-				sa.add(item.text);
-				activeIndexes.add(item.itemID);
-			}
-
-			createPopupMenu(menu, sa, activeIndexes);
-		}
-
-		ComboBox::showPopup();
-	}
-
-	PopupMenu originalMenu;
+        createPopupMenu(menu, sa, activeIndexes);
+    }
 };
 
 /** A combobox which can be controlled by the macro system. */
@@ -353,8 +348,19 @@ public:
 
 	void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList) override;
 
-	bool useCustomPopupMenu() const override { return false; }
+	bool useCustomPopupMenu() const override { return customPopup; }
 
+    void setUseCustomPopup(bool shouldUse)
+    {
+        if(customPopup != shouldUse)
+        {
+            customPopup = shouldUse;
+            rebuildPopupMenu();
+        }
+    }
+    
+    bool customPopup = false;
+    
 	NormalisableRange<double> getRange() const override;;
 	
 	Font font;

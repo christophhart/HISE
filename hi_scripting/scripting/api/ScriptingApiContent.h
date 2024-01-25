@@ -1068,6 +1068,7 @@ public:
 			FontStyle,
 			enableMidiLearn,
             popupAlignment,
+            useCustomPopup,
 			numProperties
 		};
 

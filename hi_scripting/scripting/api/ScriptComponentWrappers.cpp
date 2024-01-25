@@ -1100,6 +1100,7 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateComponent(int proper
 		PROPERTY_CASE::ScriptComboBox::FontName:
 		PROPERTY_CASE::ScriptComboBox::FontSize :
 		PROPERTY_CASE::ScriptComboBox::FontStyle : updateFont(getScriptComponent()); break;
+        PROPERTY_CASE::ScriptComboBox::useCustomPopup: cb->setUseCustomPopup((bool)newValue); break;
         PROPERTY_CASE::ScriptComboBox::popupAlignment: cb->getProperties().set("popupAlignment", newValue); break;
 		PROPERTY_CASE::ScriptSlider::numProperties :
 	default:
@@ -1149,7 +1150,8 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateFont(ScriptComponent
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateItems(HiComboBox * cb)
 {
 	cb->clear(dontSendNotification);
-
+    cb->rebuildPopupMenu();
+    
 	cb->addItemList(dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(getScriptComponent())->getItemList(), 1);
     
     auto currentValue = (int)getScriptComponent()->getValue();

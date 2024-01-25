@@ -32,6 +32,55 @@
 
 namespace hise { using namespace juce;
 
+struct IndexComboBox: public SubmenuComboBox
+{
+    virtual bool useCustomPopupMenu() const { return useCustomPopup; }
+
+    virtual void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList)
+    {
+        if(items.size() > 7)
+        {
+            StringArray newArray;
+            
+            for(const auto& i: items)
+            {
+                if(i.startsWith("on"))
+                {
+                    newArray.add("Callbacks::" + i);
+                }
+                else if (i.contains("/"))
+                {
+                    newArray.add(i.replace("/", "::"));
+                }
+                else
+                    newArray.add(i);
+            }
+            
+            m = MouseCallbackComponent::parseFromStringArray(newArray, indexList, &getLookAndFeel());
+
+#if 0
+            m.clear();
+            
+            PopupMenu callbacks;
+            
+            int index = 1;
+            
+            for(auto item: items)
+            {
+                if(item == "Disconnect")
+                    m.addItem(index++, item);
+                else if (item.startsWith("on"))
+                    callbacks.addItem(index++, item);
+            }
+            
+            m.addSubMenu("Callbacks", callbacks);
+#endif
+        }
+    }
+
+    bool useCustomPopup = true;
+};
+
 PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent) :
 	FloatingTileContent(parent),
 	showConnectionBar("showConnectionBar"),
@@ -51,7 +100,7 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	connectionSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
 	connectionSelector->setTextWhenNothingSelected("Disconnected");
 
-	addAndMakeVisible(indexSelector = new ComboBox());
+	addAndMakeVisible(indexSelector = new IndexComboBox());
 	indexSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*indexSelector);
 
@@ -462,7 +511,8 @@ void PanelWithProcessorConnection::refreshIndexList()
 
 	indexSelector->addItem("Disconnect", 1);
 	indexSelector->addItemList(items, 2);
-
+    indexSelector->rebuildPopupMenu();
+    
 	if (index != -1)
 		indexSelector->setSelectedId(index + 2, dontSendNotification);
 }

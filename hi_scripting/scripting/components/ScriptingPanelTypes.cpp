@@ -268,9 +268,12 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 			indexList.add(p->getSnippet(i)->getCallbackName().toString());
 		}
 
+        auto scriptRoot = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::SubDirectories::Scripts);
+        
 		for (int i = 0; i < p->getNumWatchedFiles(); i++)
 		{
-			indexList.add(p->getWatchedFile(i).getFileName());
+            auto f = p->getWatchedFile(i);
+			indexList.add(f.getRelativePathFrom(scriptRoot));
 		}
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
