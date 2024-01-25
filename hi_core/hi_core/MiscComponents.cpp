@@ -134,16 +134,6 @@ struct PopupMenuParser
         return flags;
     };
     
-    static bool wantsIndex(int flag)
-    {
-        if((flag & SpecialItem::Deactivated) ||
-           (flag & SpecialItem::Separator) ||
-           (flag & SpecialItem::Header))
-            return false;
-        
-        return true;
-    }
-    
     static bool addToPopupMenu(PopupMenu& tm, int& menuIndex, const String& item, const Array<int>& activeIndexes)
     {
         if (item == "%SKIP%")
@@ -152,7 +142,7 @@ struct PopupMenuParser
             return false;
         }
         
-        auto isActive = activeIndexes.contains(menuIndex-1);
+        auto isTicked = activeIndexes.contains(menuIndex-1);
         
         auto fl = getSpecialItemType(item);
         
@@ -161,16 +151,19 @@ struct PopupMenuParser
         auto withoutSpecialChars = item;
 
         if(fl & SpecialItem::Header)
-            tm.addSectionHeader(item.removeCharacters("*"));
+        {
+	        tm.addSectionHeader(item.removeCharacters("*"));
+			return false;
+		}
         else if (fl & SpecialItem::Separator)
-            tm.addSeparator();
-        else
-            tm.addItem(menuIndex, item.removeCharacters("~"), (fl & SpecialItem::Deactivated) == 0, activeIndexes.contains(menuIndex-1));
+        {
+	        tm.addSeparator();
+			return false;
+        }
         
-        if(wantsIndex(fl))
-            menuIndex++;
+        tm.addItem(menuIndex++, item.removeCharacters("~"), (fl & SpecialItem::Deactivated) == 0, isTicked);
         
-        return isActive;
+        return isTicked;
     };
     
     struct SubInfo
