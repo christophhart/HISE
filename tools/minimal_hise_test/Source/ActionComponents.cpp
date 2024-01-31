@@ -40,6 +40,8 @@ Action::Action(Dialog& r, int, const var& obj):
 	PageBase(r, 0, obj),
 	r(Result::ok())
 {
+	callOnNext = obj[mpid::CallOnNext];
+
 	auto ct = obj[mpid::CallType];
             
 	if(ct.isString())
@@ -50,15 +52,45 @@ Action::Action(Dialog& r, int, const var& obj):
 	}
 	else
 		callType = (CallType)(int)ct;
+
+	if(r.isEditModeEnabled())
+		setSize(20, 32);
+
+	
+}
+
+void Action::paint(Graphics& g)
+{
+	g.setColour(Colours::white.withAlpha(0.05f));
+
+	g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(3.0f), 5.0f);
+
+	auto f = Dialog::getDefaultFont(*this);
+
+	String s = "Action: ";
+
+	if(id.isValid())
+		s << "if (" << id << ") { " << getDescription() << "; }";
+	else
+		s << getDescription();
+
+	g.setColour(f.second.withAlpha(0.5f));
+	g.setFont(GLOBAL_MONOSPACE_FONT());
+	g.drawText(s, getLocalBounds().toFloat(), Justification::centred);
 }
 
 void Action::postInit()
 {
-	switch(callType)
+	init();
+
+	if(!callOnNext)
 	{
-	case CallType::Synchronous: perform(); break;
-	case CallType::Asynchronous: MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(Action::perform)); break;
-	//case CallType::BackgroundThread: rootDialog.getRunThread().addJob(this); break;
+		switch(callType)
+		{
+		case CallType::Synchronous: perform(); break;
+		case CallType::Asynchronous: MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(Action::perform)); break;
+		//case CallType::BackgroundThread: rootDialog.getRunThread().addJob(this); break;
+		}
 	}
 }
 
@@ -68,78 +100,74 @@ void Action::perform()
         
 	CustomCheckFunction f;
 	std::swap(f, cf);
-	r = f(this, obj);
+
+	if(f)
+		r = f(this, obj);
 }
 
 Result Action::checkGlobalState(var globalState)
 {
+	if(callOnNext)
+		perform();
+
 	return r;
 }
 
-Skip::Skip(Dialog& r, int w, const var& obj):
-	Action(r, w, obj)
+void Action::editModeChanged(bool isEditMode)
 {
-	auto direction = r.getCurrentNavigationDirection();
-        
-	setCustomCheckFunction([direction](Dialog::PageBase* pb, const var& obj)
+	PageBase::editModeChanged(isEditMode);
+
+	if(overlay != nullptr)
 	{
-		auto rd = &pb->getParentDialog();
-		MessageManager::callAsync([rd, direction]()
+		overlay->localBoundFunction = [](Component* c)
 		{
-			rd->navigate(direction);
+			return c->getLocalBounds();
+		};
+
+		overlay->setOnClick([this]()
+		{
+			auto& l = rootDialog.createModalPopup<List>();
+
+			l.setStateObject(infoObject);
+			createEditor(l);
+
+			l.setCustomCheckFunction([this](PageBase* b, var obj)
+			{
+				this->repaint();
+				return Result::ok();
+			});
+
+			rootDialog.showModalPopup(true);
+
 		});
-                       
-		return Result::ok();
-	});
+	}
 }
 
-DummyWait::WaitJob::WaitJob(State& r, const var& obj):
+
+
+BackgroundTask::WaitJob::WaitJob(State& r, const var& obj):
 	Job(r, obj)
 {}
 
-Result DummyWait::WaitJob::run()
-{
-	for(int i = 0; i < 100; i++)
-	{
-		if(parent.threadShouldExit())
-			return Result::fail("aborted");
-                
-		progress = (double)i / 99.0;
-		parent.wait(30);
-                
-
-		if(i == 80 && false)
-			return abort("**Lost connection**.  \nPlease ensure that your internet connection is stable and click the retry button to resume the download process.");
-	}
-            
-	return Result::ok();
-
-}
-
-Result DummyWait::WaitJob::abort(const String& message)
+Result BackgroundTask::WaitJob::run()
 {
 	if(currentPage != nullptr)
-	{
-		SafeAsyncCall::call<DummyWait>(*currentPage, [](DummyWait& w)
-		{
-			w.rootDialog.setCurrentErrorPage(&w);
-			w.retryButton.setVisible(true);
-			w.resized();
-		});
-	}
-            
-	return Result::fail(message);
+		return currentPage->performTask(*this);
 }
 
-DummyWait::DummyWait(Dialog& r, int w, const var& obj):
+
+
+BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	Action(r, w, obj),
 	retryButton("retry", nullptr, r)
 {
+	positionInfo = r.getPositionInfo(obj);
+
 	addChildComponent(retryButton);
 	callType = CallType::BackgroundThread;
         
 	job = r.getJob(obj);
-        
+	
 	if(job == nullptr)
 	{
 		job = new WaitJob(r.getState(), obj);
@@ -164,7 +192,7 @@ DummyWait::DummyWait(Dialog& r, int w, const var& obj):
 	setSize(w, 32);
 }
 
-void DummyWait::paint(Graphics& g)
+void BackgroundTask::paint(Graphics& g)
 {
 	if(label.isNotEmpty())
 	{
@@ -178,17 +206,17 @@ void DummyWait::paint(Graphics& g)
 	}
 }
 
-void DummyWait::resized()
+void BackgroundTask::resized()
 {
 	auto b = getLocalBounds().reduced(3, 0);
         
 	if(label.isNotEmpty())
-		b.removeFromLeft(b.getWidth() / 4);
-        
+		b.removeFromLeft(positionInfo.getWidthForLabel(getWidth()));
+	
 	if(retryButton.isVisible())
 		retryButton.setBounds(b.removeFromRight(b.getHeight()).withSizeKeepingCentre(24, 24));
         
-	progress->setBounds(b);
+	progress->setBounds(b.reduced(0, 2));
 }
 } // PageFactory
 } // multipage

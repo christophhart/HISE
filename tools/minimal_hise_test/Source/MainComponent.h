@@ -19,7 +19,8 @@
 class MainComponent   : public Component,
 					    public Timer,
 					    public Thread,
-					    public ButtonListener
+					    public ButtonListener,
+					    public CodeDocument::Listener
 {
 public:
     //==============================================================================
@@ -39,10 +40,39 @@ public:
         });
     }
 
+    bool manualChange = false;
+
+    void codeDocumentTextInserted (const String& , int ) override
+    {
+	    manualChange = true;
+    }
+
+    
+    void codeDocumentTextDeleted (int , int ) override
+    {
+        manualChange = true;
+	    
+    }
+
     void buttonClicked(Button* b) override
     {
         if(b == &editButton)
         {
+            if(manualChange && AlertWindow::showOkCancelBox(MessageBoxIconType::QuestionIcon, "Apply manual JSON changes?", "Do you want to reload the dialog after the manual edit?"))
+            {
+                stateViewer.setVisible(false);
+                var obj;
+                auto ok = JSON::parse(doc.getAllContent(), obj);
+
+                if(ok.wasOk())
+                {
+	                addAndMakeVisible(c = new multipage::Dialog(obj, rt));
+                    
+                    resized();
+                    c->showFirstPage();
+                }
+            }
+
 	        if(preview != nullptr)
 				preview->setVisible(false);
 
@@ -64,7 +94,24 @@ public:
             	c->setVisible(ok.failed());
 
                 if(ok.wasOk())
-                    doc.replaceAllContent(JSON::toString(rt.globalState, false));
+                {
+                    manualChange = false;
+                    doc.removeListener(this);
+
+                    auto jsonData = c->exportAsJSON();
+
+                    if(c->createJSON)
+                    {
+	                    doc.replaceAllContent(JSON::toString(jsonData));
+                    }
+                    else
+                    {
+                        multipage::CodeGenerator cg(jsonData, 1);
+                        doc.replaceAllContent(cg.toString());
+                    }
+                    
+                    doc.addListener(this);
+                }
             }
         }
 

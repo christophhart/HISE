@@ -33,11 +33,49 @@
 
 #include "InputComponents.h"
 
+#include "MultiPageDialog.h"
+#include "MultiPageDialog.h"
+#include "MultiPageDialog.h"
+#include "MultiPageDialog.h"
+#include "MultiPageDialog.h"
+#include "MultiPageDialog.h"
+#include "MultiPageDialog.h"
+
 
 namespace hise {
 namespace multipage {
 namespace factory {
 using namespace juce;
+
+template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList, const String& typeHelp)
+{
+	rootList.addChild<Type>({
+        { mpid::ID, "Type"},
+        { mpid::Type, T::getStaticId().toString() },
+        { mpid::Help, typeHelp }
+    });
+
+    rootList.addChild<TextInput>({
+		{ mpid::ID, "ID" },
+		{ mpid::Text, "ID" },
+        { mpid::Value, "" },
+		{ mpid::Help, "The ID for the element (used as key in the state `var`.\n>" }
+	});
+
+    rootList.addChild<TextInput>({
+		{ mpid::ID, "Text" },
+		{ mpid::Text, "Text" },
+		{ mpid::Help, "The label next to the " + T::getStaticId() }
+	});
+
+    rootList.addChild<Choice>({
+        { mpid::ID, "LabelPosition" },
+        { mpid::Text, "LabelPosition" },
+        { mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
+        { mpid::Value, obj.getDefaultPositionName() },
+        { mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
+    });
+}
 
 LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Component* c):
 	PageBase(r, width, obj),
@@ -45,8 +83,24 @@ LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Compo
 {
 	addAndMakeVisible(c);
 	label = obj[mpid::Text].toString();
-        
-	setSize(width, 32);
+
+    positionInfo = r.getPositionInfo(obj);
+
+    required = obj[mpid::Required];
+
+    if(obj.hasProperty(mpid::LabelPosition))
+    {
+        auto np = positionInfo.getLabelPositionNames().indexOf(obj[mpid::LabelPosition].toString());
+
+        if(np != Dialog::PositionInfo::LabelPositioning::Default)
+        {
+            positionInfo.LabelPosition = np;
+	        inheritsPosition = false;
+        }
+    }
+    
+    setInterceptsMouseClicks(false, true);
+	setSize(width, positionInfo.getHeightForComponent(32));
 }
 
 void LabelledComponent::postInit()
@@ -55,69 +109,120 @@ void LabelledComponent::postInit()
 }
 
 void LabelledComponent::paint(Graphics& g)
-{        
-	auto b = getLocalBounds();
-	auto df = Dialog::getDefaultFont(*this);
-            
-	g.setFont(df.first);
-	g.setColour(df.second);
-            
-	g.drawText(label, b.toFloat().reduced(8.0f, 0.0f), Justification::left);
+{
+    auto b = getLocalBounds();
+    using Pos = Dialog::PositionInfo::LabelPositioning;
+
+    switch((Pos)positionInfo.LabelPosition)
+    {
+    	case Pos::Left:  b = b.removeFromLeft(positionInfo.getWidthForLabel(getWidth())).reduced(8, 0); break;
+		case Pos::Above: b = b.removeFromTop(positionInfo.LabelHeight); break;
+		case Pos::None:  b = {}; break;
+    }
+
+    auto df = Dialog::getDefaultFont(*this);
+
+    if(!b.isEmpty())
+    {
+		g.setFont(df.first);
+		g.setColour(df.second);
+
+        g.drawText(label, b.toFloat(), Justification::left);
+    }
+
+    if(rootDialog.isEditModeEnabled() && id.isValid() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
+    {
+        g.setFont(GLOBAL_MONOSPACE_FONT());
+        g.setColour(df.second.withAlpha(0.5f));
+        g.drawText(id.toString() + " ", b.toFloat(), Justification::right);
+    }
 }
 
 void LabelledComponent::resized()
 {
+    PageBase::resized();
+    
 	auto b = getLocalBounds();
-        
+
+    using Pos = Dialog::PositionInfo::LabelPositioning;
+
+    switch((Pos)positionInfo.LabelPosition)
+    {
+    	case Pos::Left:  b.removeFromLeft(positionInfo.getWidthForLabel(getWidth())); break;
+		case Pos::Above: b.removeFromTop(positionInfo.LabelHeight); break;
+		case Pos::None:  break;
+    }
+
 	if(helpButton != nullptr)
 	{
 		helpButton->setBounds(b.removeFromRight(32).withSizeKeepingCentre(24, 24));
 		b.removeFromRight(5);
 	}
 
-	b.removeFromLeft(getWidth() / 4);
-        
-	component->setBounds(b);
+    component->setBounds(b);
 }
 
-void Tickbox::createEditorInfo(Dialog::PageInfo* rootList)
+void LabelledComponent::editModeChanged(bool isEditMode)
 {
-	rootList->addChild<Type>({
-        { mpid::ID, "Type"},
-        { mpid::Type, "Tickbox"},
-        { mpid::Help, "A Tickbox lets you enable / disable a boolean option or can be grouped together with other tickboxes to create a radio group with an exclusive selection option" }
-    });       
+	PageBase::editModeChanged(isEditMode);
 
-	rootList->addChild<TextInput>({
-		{ mpid::ID, "ID" },
-		{ mpid::Text, "ID" },
-		{ mpid::Help, "The ID for the element (used as key in the state `var`.\n> If you have multiple tickboxes on the same page with the same ID, they will be put into a radio group and can be selected exclusively (also the ID value will be the integer index of the button in the group list in the order of appearance." }
-	});
-        
-	rootList->addChild<TextInput>({
-		{ mpid::ID, "Text" },
-		{ mpid::Text, "Text" },
-		{ mpid::Help, "The label next to the tickbox" }
-	});
-        
-	rootList->addChild<Tickbox>({
+	if(overlay != nullptr)
+	{
+        auto pos = positionInfo;
+
+		overlay->localBoundFunction = [pos](Component* c)
+		{
+			auto b = c->getLocalBounds();
+
+			return b.removeFromLeft(pos.getWidthForLabel(c->getWidth()));
+		};
+
+		overlay->setOnClick([this]()
+		{
+			auto& l = rootDialog.createModalPopup<List>();
+
+            l.setStateObject(infoObject);
+            createEditor(l);
+
+            l.setCustomCheckFunction([this](PageBase* b, var obj)
+		    {
+                auto ok = this->loadFromInfoObject(obj);
+				this->repaint();
+		        return ok;
+		    });
+
+            rootDialog.showModalPopup(true);
+
+		});
+	}
+}
+
+
+
+
+void Tickbox::createEditor(Dialog::PageInfo& rootList)
+{
+    addBasicComponents<Tickbox>(*this, rootList, "A Tickbox lets you enable / disable a boolean option or can be grouped together with other tickboxes to create a radio group with an exclusive selection option");
+
+	rootList.addChild<Tickbox>({
 		{ mpid::ID, "Required" },
 		{ mpid::Text, "Required" },
 		{ mpid::Help, "If this is enabled, the tickbox must be selected in order to proceed to the next page, otherwise it will show a error message.\n> This is particularly useful for eg. accepting TOC" }
 	});
-        
-}
 
+    
+}
 
 
 Tickbox::Tickbox(Dialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, new ToggleButton())
 {
-	if(obj.hasProperty(mpid::Required))
-	{
-		required = true;
-		requiredOption = obj[mpid::Required];
-	}
+    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::None);
+
+	if(positionInfo.LabelPosition == Dialog::PositionInfo::LabelPositioning::None)
+        getComponent<ToggleButton>().setButtonText(obj[mpid::Text]);
+
+	loadFromInfoObject(obj);
 }
 
 void Tickbox::buttonClicked(Button* b)
@@ -126,34 +231,116 @@ void Tickbox::buttonClicked(Button* b)
         tb->setToggleState(b == tb, dontSendNotification);
 }
 
-Choice::Choice(Dialog& r, int width, const var& obj):
-	LabelledComponent(r, width, obj, new ComboBox())
+Result Tickbox::loadFromInfoObject(const var& obj)
 {
-	auto& combobox = getComponent<ComboBox>();
+    auto ok = LabelledComponent::loadFromInfoObject(obj);
+
+    if(obj.hasProperty(mpid::Required))
+	{
+		requiredOption = true;
+	}
+
+    return ok;
+}
+
+Choice::Choice(Dialog& r, int width, const var& obj):
+	LabelledComponent(r, width, obj, new SubmenuComboBox())
+{
+    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
+
+    if(obj.hasProperty(mpid::ValueMode))
+    {
+	    valueMode = (ValueMode)getValueModeNames().indexOf(obj[mpid::ValueMode].toString());
+    }
+
+    loadFromInfoObject(obj);
+    auto& combobox = getComponent<SubmenuComboBox>();
+    custom = obj[mpid::Custom];
+    combobox.setUseCustomPopup(custom);
+	hise::GlobalHiseLookAndFeel::setDefaultColours(combobox);
+
+    resized();
+}
+
+Result Choice::loadFromInfoObject(const var& obj)
+{
+	auto ok = LabelledComponent::loadFromInfoObject(obj);
+
+    auto& combobox = getComponent<ComboBox>();
 	auto s = obj[mpid::Items].toString();
 	combobox.addItemList(StringArray::fromLines(s), 1);
-	hise::GlobalHiseLookAndFeel::setDefaultColours(combobox);
+    return ok;
+
 }
 
 void Choice::postInit()
 {
-	auto t = getValueFromGlobalState().toString();
-	getComponent<ComboBox>().setText(t, dontSendNotification);
+    LabelledComponent::postInit();
+	auto t = getValueFromGlobalState();
+
+    auto& cb = getComponent<ComboBox>();
+
+    switch(valueMode)
+    {
+    case ValueMode::Text: cb.setText(t.toString(), dontSendNotification); break;
+    case ValueMode::Index: cb.setSelectedItemIndex((int)t, dontSendNotification); break;
+    case ValueMode::Id: cb.setSelectedId((int)t, dontSendNotification); break;
+    }
+    
+    getComponent<SubmenuComboBox>().refreshTickState();
 }
 
 Result Choice::checkGlobalState(var globalState)
 {
+    auto& cb = getComponent<ComboBox>();
+
+    switch(valueMode)
+    {
+    case ValueMode::Text:  writeState(cb.getText()); break;
+    case ValueMode::Index: writeState(cb.getSelectedItemIndex()); break;
+    case ValueMode::Id:    writeState(cb.getSelectedId()); break;
+    }
+    
 	return Result::ok();
 }
 
-ColourChooser::ColourChooser(Dialog& r, int w, const var& obj):
-	LabelledComponent(r, w, obj, new ColourSelector(ColourSelector::ColourSelectorOptions::showColourspace | ColourSelector::showColourAtTop, 2, 0))
+void Choice::createEditor(Dialog::PageInfo& rootList)
 {
+    addBasicComponents<Choice>(*this, rootList, "A Choice can be used to select multiple fixed options with a drop down menu");
+
+    rootList.addChild<Tickbox>({
+        { mpid::ID, "Custom" },
+        { mpid::Text, "Custom" },
+        { mpid::Value, custom },
+        { mpid::Help, "If ticked, then you can use the markdown syntax to create complex popup menu configurations." }
+    });
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "Items" },
+		{ mpid::Text, "Items" },
+        { mpid::Multiline, true },
+		{ mpid::Help, "A string with one item per line" }
+	});
+
+    rootList.addChild<Choice>({
+        { mpid::ID, "ValueMode" },
+        { mpid::Text, "ValueMode" },
+        { mpid::Help, "Defines how to store the value in the data object (either as text, integer index or one-based integer ID" },
+        { mpid::Value, getValueModeNames()[(int)valueMode] },
+        { mpid::Items, getValueModeNames().joinIntoString("\n") }
+    });
+}
+
+ColourChooser::ColourChooser(Dialog& r, int w, const var& obj):
+	LabelledComponent(r, w, obj, new ColourSelector(ColourSelector::ColourSelectorOptions::showColourspace | ColourSelector::showColourAtTop | ColourSelector::showAlphaChannel, 2, 0))
+{
+    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Above);
+    
 	auto& selector = getComponent<ColourSelector>();
 	selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
 	selector.setLookAndFeel(&laf);
 
-	setSize(w, 130);
+	setSize(w, positionInfo.getHeightForComponent(130));
 }
 
 void ColourChooser::postInit()
@@ -170,8 +357,6 @@ void ColourChooser::resized()
 	LabelledComponent::resized();
 	auto b = getComponent<Component>().getBoundsInParent();
 
-	b.removeFromRight((b.getWidth() - b.getHeight()) * 0.75);
-
 	getComponent<Component>().setBounds(b);
 }
 
@@ -186,6 +371,8 @@ Result ColourChooser::checkGlobalState(var globalState)
 
 void Tickbox::postInit()
 {
+    init();
+
     auto& button = this->getComponent<ToggleButton>();
     
     Component* root = getParentComponent();
@@ -235,7 +422,7 @@ Result Tickbox::checkGlobalState(var globalState)
     
 	if(required)
 	{
-        if(thisRadioIndex == -1 && button.getToggleState() != required)
+        if(thisRadioIndex == -1 && button.getToggleState() != requiredOption)
 		{
 			return Result::fail("You need to tick " + label);
 		}
@@ -563,8 +750,20 @@ void TextInput::textEditorEscapeKeyPressed(TextEditor& e)
 TextInput::TextInput(Dialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, new TextEditor())
 {
+    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
+
+    
+
+    parseInputAsArray = obj[mpid::ParseArray];
+
     auto& editor = getComponent<TextEditor>();
 	GlobalHiseLookAndFeel::setTextEditorColours(editor);
+
+    if(obj.hasProperty(mpid::EmptyText))
+    {
+        emptyText = obj[mpid::EmptyText].toString();
+	    editor.setTextToShowWhenEmpty(emptyText, editor.findColour(TextEditor::textColourId).withAlpha(0.5f));
+    }
 
     setWantsKeyboardFocus(true);
 
@@ -572,27 +771,14 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
     editor.setIgnoreUpDownKeysWhenSingleLine(true);
     editor.setTabKeyUsedAsCharacter(false);
 
-    auto ml = (bool)obj[mpid::Multiline];
-
-    if(ml)
-    {
-        editor.setReturnKeyStartsNewLine(true);
-	    editor.setMultiLine(ml);
-        editor.setFont(GLOBAL_MONOSPACE_FONT());
-        editor.setTabKeyUsedAsCharacter(true);
-        editor.setIgnoreUpDownKeysWhenSingleLine(false);
-    }
-
-    if(obj.hasProperty(mpid::Items))
-    {
-	    autocompleteItems = StringArray::fromLines(obj[mpid::Items].toString());
-    }
+    loadFromInfoObject(obj);
 
     editor.addListener(this);
-	required = obj[mpid::Required];
 
-    if(ml)
-        setSize(width, 80);
+    if(editor.isMultiLine())
+        setSize(width, positionInfo.getHeightForComponent(80));
+    else
+        resized();
 }
 
 void TextInput::postInit()
@@ -608,10 +794,22 @@ void TextInput::postInit()
     else
     {
 	    editor.setFont(Dialog::getDefaultFont(*this).first);
-		editor.setIndents(4, 8);
+		editor.setIndents(8, 8);
     }
-    
-	editor.setText(getValueFromGlobalState(""));
+
+    auto text = getValueFromGlobalState("");
+
+    if(parseInputAsArray && text.isArray())
+    {
+	    StringArray sa;
+
+        for(const auto& v: *text.getArray())
+			sa.add(v.toString());
+
+        text = sa.joinIntoString(", ");
+    }
+
+	editor.setText(text);
     
     if(auto m = findParentComponentOfClass<Dialog>())
     {
@@ -628,12 +826,109 @@ Result TextInput::checkGlobalState(var globalState)
     
 	if(required && editor.getText().isEmpty())
 	{
-        return Result::fail(id + " must not be empty");
+        return Result::fail(label + " must not be empty");
 	}
-		
-    writeState(editor.getText());
+
+    auto text = editor.getText();
+
+    if(parseInputAsArray)
+    {
+	    auto sa = StringArray::fromTokens(text, ",", "");
+        sa.trim();
+
+        Array<var> values;
+
+        for(const auto& s: sa)
+            values.add(var(s));
+
+        writeState(var(values));
+    }
+    else
+    {
+	    writeState(text);
+    }
     
 	return Result::ok();
+}
+
+void TextInput::createEditor(Dialog::PageInfo& rootList)
+{
+    addBasicComponents<TextInput>(*this, rootList, "A TextInput lets you enter a String");
+
+    rootList.getChild(mpid::ID)[mpid::Value] = id.toString();
+    rootList.getChild(mpid::Text)[mpid::Value] = label;
+
+    rootList.addChild<TextInput>({
+		{ mpid::ID, "EmptyText" },
+		{ mpid::Text, "EmptyText" },
+        { mpid::Value, emptyText },
+		{ mpid::Help, "The text to show when the text field is empty." }
+	});
+#if 0
+	
+        
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "Text" },
+		{ mpid::Text, "Text" },
+        { mpid::Required, true },
+        { mpid::Value, label },
+		{ mpid::Help, "The label next to the text input." }
+	});
+#endif
+        
+	rootList.addChild<Tickbox>({
+		{ mpid::ID, "Required" },
+		{ mpid::Text, "Required" },
+		{ mpid::Help, "If this is enabled, the text input must be a non-empty String" },
+        { mpid::Value, required }
+	});
+
+    rootList.addChild<Tickbox>({
+		{ mpid::ID, "ParseArray" },
+		{ mpid::Text, "ParseArray" },
+		{ mpid::Help, "If this is enabled, the text input will parse comma separated values as Array." },
+        { mpid::Value, parseInputAsArray }
+	});
+
+    rootList.addChild<TextInput>({
+		{ mpid::ID, "Items" },
+		{ mpid::Text, "Items" },
+        { mpid::Multiline, true },
+		{ mpid::Help, "A string with one item per line that will show up in the autocomplete popup." },
+        { mpid::Value, autocompleteItems.joinIntoString("\n") }
+	});
+}
+
+Result TextInput::loadFromInfoObject(const var& obj)
+{
+    auto ok = LabelledComponent::loadFromInfoObject(obj);
+
+	auto& editor = getComponent<TextEditor>();
+	auto ml = (bool)obj[mpid::Multiline];
+
+	if(ml)
+	{
+		editor.setReturnKeyStartsNewLine(true);
+		editor.setMultiLine(ml);
+		editor.setFont(GLOBAL_MONOSPACE_FONT());
+		editor.setTabKeyUsedAsCharacter(true);
+		editor.setIgnoreUpDownKeysWhenSingleLine(false);
+	}
+
+	if(obj.hasProperty(mpid::Items))
+	{
+		autocompleteItems = StringArray::fromLines(obj[mpid::Items].toString());
+	}
+
+	
+	
+	
+	if(obj.hasProperty(mpid::Items))
+	{
+		autocompleteItems = StringArray::fromLines(obj[mpid::Items].toString());
+	}
+
+    return ok;
 }
 
 void TextInput::showAutocomplete(const String& currentText)
@@ -657,6 +952,219 @@ void TextInput::dismissAutocomplete()
 	Desktop::getInstance().getAnimator().fadeOut(currentAutocomplete, 150);
 	currentAutocomplete = nullptr;
 }
+
+
+
+void FileSelector::createEditor(Dialog::PageInfo& rootList)
+{
+    addBasicComponents(*this, rootList, "Select a file using a native file browser or text input. ");
+    
+    rootList.addChild<Tickbox>({
+		{ mpid::ID, "Directory" },
+		{ mpid::Text, "Directory" },
+		{ mpid::Help, "Whether the file selector should be able to select directories vs. files." }
+	});
+
+    rootList.addChild<TextInput>({
+		{ mpid::ID, "Wildcard" },
+		{ mpid::Text, "Wildcard" },
+		{ mpid::Help, "The file wildcard for filtering selectable files" }
+	});
+
+    rootList.addChild<Tickbox>({
+		{ mpid::ID, "SaveFile" },
+		{ mpid::Text, "SaveFile" },
+		{ mpid::Help, "Whether the selected file will be opened or saved." }
+	});
+}
+
+    
+struct BetterFileSelector: public Component,
+						   public TextEditor::Listener
+{
+    BetterFileSelector(const String& name, const File& initialFile, bool unused, bool isDirectory, bool save, const String& wildcard):
+      Component(name),
+      browseButton("Browse"),
+      currentFile(initialFile)
+    {
+	    addAndMakeVisible(browseButton);
+        addAndMakeVisible(fileLabel);
+
+        GlobalHiseLookAndFeel::setTextEditorColours(fileLabel);
+        hise::GlobalHiseLookAndFeel::setDefaultColours(*this);
+
+	    fileLabel.setWantsKeyboardFocus(true);
+        fileLabel.setTextToShowWhenEmpty("No file selected", Colours::black.withAlpha(0.3f));
+        fileLabel.setEscapeAndReturnKeysConsumed(true);
+	    fileLabel.setSelectAllWhenFocused(true);
+	    fileLabel.setIgnoreUpDownKeysWhenSingleLine(true);
+	    fileLabel.setTabKeyUsedAsCharacter(false);
+
+        String wc(wildcard);
+
+        browseButton.onClick = [wc, save, this, isDirectory]()
+        {
+	        
+
+            if(isDirectory)
+            {
+                FileChooser fc("Select directory", currentFile, wc, true);
+
+	            if(fc.browseForDirectory())
+                    setCurrentFile(fc.getResult(), sendNotificationAsync);
+            }
+            else
+            {
+	            if(save)
+	            {
+                    FileChooser fc("Select file to save", currentFile, wc, true);
+
+		            if(fc.browseForFileToSave(true))
+                        setCurrentFile(fc.getResult(), sendNotificationAsync);
+	            }
+	            else
+	            {
+                    FileChooser fc("Select file to open", currentFile, wc, true);
+
+		            if(fc.browseForFileToOpen())
+                        setCurrentFile(fc.getResult(), sendNotificationAsync);
+	            }
+            }
+        };
+
+        fileLabel.onReturnKey = [this]()
+        {
+	        auto t = fileLabel.getText();
+
+            if(File::isAbsolutePath(t))
+            {
+	            setCurrentFile(File(t), sendNotificationAsync);
+            }
+            else if (t.isEmpty())
+            {
+	            setCurrentFile(File(), sendNotificationAsync);
+            }
+        };
+    }
+
+    void resized() override
+    {
+	    auto b = getLocalBounds();
+        b.removeFromRight(5);
+
+        browseButton.setBounds(b.removeFromRight(128));
+        b.removeFromRight(10);
+        fileLabel.setBounds(b);
+    }
+
+
+    void setCurrentFile(const File& f, NotificationType n)
+    {
+	    if(f != currentFile)
+	    {
+            currentFile = f;
+            fileLabel.setText(f.getFullPathName(), dontSendNotification);
+		    fileBroadcaster.sendMessage(n, f);
+	    }
+    }
+
+    File getCurrentFile() const { return currentFile; }
+
+    LambdaBroadcaster<File> fileBroadcaster;
+
+
+
+    File currentFile;
+	TextEditor fileLabel;
+    TextButton browseButton;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(BetterFileSelector);
+};
+
+FileSelector::FileSelector(Dialog& r, int width, const var& obj):
+	LabelledComponent(r, width, obj, createFileComponent(obj)),
+	fileId(obj["ID"].toString())
+{
+    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
+
+    auto& fileSelector = getComponent<BetterFileSelector>();
+
+    fileSelector.fileBroadcaster.addListener(*this, [](FileSelector& f, File nf)
+    {
+        f.writeState(nf.getFullPathName());
+    }, false);
+
+	isDirectory = obj[mpid::Directory];
+	addAndMakeVisible(fileSelector);
+        
+	setSize(width, positionInfo.getHeightForComponent(32));
+    resized();
+}
+
+Component* FileSelector::createFileComponent(const var& obj)
+{
+	bool isDirectory = obj[mpid::Directory];
+	auto name = obj[mpid::Text].toString();
+	if(name.isEmpty())
+		name = isDirectory ? "Directory" : "File";
+	auto wildcard = obj[mpid::Wildcard].toString();
+	auto save = (bool)obj[mpid::SaveFile];
+        
+	return new BetterFileSelector(name, File(), true, isDirectory, save, wildcard);
+}
+
+void FileSelector::postInit()
+{
+    LabelledComponent::postInit();
+
+	auto v = getValueFromGlobalState();
+
+    auto& fileSelector = getComponent<BetterFileSelector>();
+    
+    fileSelector.fileLabel.setFont(Dialog::getDefaultFont(*this).first);
+	fileSelector.fileLabel.setIndents(8, 8);
+
+	fileSelector.setCurrentFile(getInitialFile(v), dontSendNotification);
+}
+
+Result FileSelector::checkGlobalState(var globalState)
+{
+    auto& fileSelector = getComponent<BetterFileSelector>();
+	auto f = fileSelector.getCurrentFile();
+        
+	if(f != File() && !f.isRoot() && (f.isDirectory() || f.existsAsFile()))
+	{
+        writeState(f.getFullPathName());
+
+		return Result::ok();
+	}
+        
+	String message;
+	message << "You need to select a ";
+	if(isDirectory)
+		message << "directory";
+	else
+		message << "file";
+        
+	return Result::fail(message);
+}
+
+File FileSelector::getInitialFile(const var& path)
+{
+	if(path.isString())
+		return File(path);
+	if(path.isInt() || path.isInt64())
+	{
+		auto specialLocation = (File::SpecialLocationType)(int)path;
+		return File::getSpecialLocation(specialLocation);
+	}
+        
+	return File();
+}
+
+
+
+
 } // factory
 } // multipage
 } // hise

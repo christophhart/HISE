@@ -46,19 +46,20 @@ void Dialog::LookAndFeelMethods::drawMultiPageHeader(Graphics& g, Dialog& d, Rec
 	auto pos = getMultiPagePositionInfo(pd);
 
 
-	auto f = d.styleData.getBoldFont().withHeight(area.getHeight() - 20);
+	auto f = d.styleData.getBoldFont().withHeight(d.styleData.fontSize * 1.7f);
 
-	auto progress = area.removeFromBottom(2);
+	if(!d.isEditModeEnabled() && d.pages.size() > 1)
+	{
+		auto progress = area.removeFromBottom(2);
 
-	g.setColour(d.styleData.textColour.withAlpha(0.3f));
+		g.setColour(d.styleData.textColour.withAlpha(0.3f));
+		g.fillRect(progress);
 
-	g.fillRect(progress);
+		auto normProgress = (float)(d.runThread->currentPageIndex+1) / jmax(1.0f, (float)d.pages.size());
 
-	auto normProgress = (float)(d.runThread->currentPageIndex+1) / jmax(1.0f, (float)d.pages.size());
-
-	g.setColour(d.styleData.textColour);
-
-	g.fillRect(progress.removeFromLeft(normProgress * (float)area.getWidth()));
+		g.setColour(d.styleData.textColour.withAlpha(0.6f));
+		g.fillRect(progress.removeFromLeft(normProgress * (float)area.getWidth()));
+	}
 
 	area.removeFromBottom(3);
 
@@ -68,15 +69,27 @@ void Dialog::LookAndFeelMethods::drawMultiPageHeader(Graphics& g, Dialog& d, Rec
 
 	g.setFont(d.styleData.getFont());
 	g.setColour(d.styleData.textColour);
-	g.drawText(d.properties[mpid::Subtitle], area.toFloat(), Justification::bottomLeft);
+
+	auto sub = d.properties[mpid::Subtitle];
+
+	if(sub == "{PAGE_TEXT}" && d.currentPage != nullptr)
+	{
+		sub = d.currentPage->getPropertyFromInfoObject(mpid::Text).toString();
+	}
 
 	g.setColour(d.styleData.textColour.withAlpha(0.4f));
 
-	String pt;
-	pt << "Step " << String(d.runThread->currentPageIndex+1) << " / " << String(d.pages.size());
+	area.removeFromBottom(5.0f);
 
-	g.drawText(pt, area.toFloat(), Justification::bottomRight);
+	g.drawText(sub, area.toFloat(), Justification::bottomLeft);
 
+	if(d.pages.size() > 1 || d.isEditModeEnabled())
+	{
+		String pt;
+		pt << "Step " << String(d.runThread->currentPageIndex+1) << " / " << String(d.pages.size());
+
+		g.drawText(pt, area.toFloat(), Justification::bottomRight);
+	}
 }
 
 void Dialog::LookAndFeelMethods::drawMultiPageButtonTab(Graphics& g, Dialog& d, Rectangle<int> area)
@@ -144,17 +157,40 @@ void Dialog::LookAndFeelMethods::drawMultiPageBackground(Graphics& g, Dialog& tb
 void Dialog::DefaultLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& tb,
                                                   bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown)
 {
-	auto c = tb.findColour(ToggleButton::ColourIds::tickColourId);
+	auto f = Dialog::getDefaultFont(tb);
+	auto c = f.second;
     auto b = tb.getLocalBounds().toFloat();
     
-    b = b.removeFromRight(b.getHeight());
+    auto tickArea = b.removeFromLeft(b.getHeight());
 	g.setColour(c.withMultipliedAlpha(shouldDrawButtonAsHighlighted ? 1.0f : 0.7f));
 
-	g.drawRoundedRectangle(b.reduced(8).toFloat(), 4.0f, 2.0f);
+	g.drawRoundedRectangle(tickArea.reduced(8).toFloat(), 4.0f, 2.0f);
 
 	if(tb.getToggleState())
 	{
-		g.fillRoundedRectangle(b.reduced(11).toFloat(), 3.0f);
+		g.fillRoundedRectangle(tickArea.reduced(11).toFloat(), 3.0f);
+	}
+
+	auto text = tb.getButtonText();
+
+	
+
+	if(text.isNotEmpty())
+	{
+		b.removeFromLeft(3);
+		g.setColour(f.second);
+		g.setFont(f.first);
+		g.drawText(text, b.toFloat(), Justification::left);
+
+		if(auto c = tb.findParentComponentOfClass<factory::LabelledComponent>())
+		{
+			if(c->getId().isValid())
+			{
+				g.setColour(f.second.withAlpha(0.5f));
+				g.setFont(GLOBAL_MONOSPACE_FONT());
+				g.drawText(c->getId().toString(), b.toFloat(), Justification::right);
+			}
+		}
 	}
 }
 

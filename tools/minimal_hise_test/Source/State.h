@@ -48,6 +48,11 @@ public:
     void onFinish();
     void run() override;
 
+    struct CallOnNextAction
+    {
+	    
+    };
+
     struct Job: public ReferenceCountedObject
     {
         using Ptr = ReferenceCountedObjectPtr<Job>;
@@ -56,10 +61,22 @@ public:
         
         Job(State& rt, const var& obj);
         virtual ~Job();;
-        
+
+        void callOnNext()
+        {
+            if(localObj[mpid::CallOnNext])
+            {
+	            parent.addJob(this);
+
+                throw CallOnNextAction();
+            }
+        }
+
         bool matches(const var& obj) const;
         Result runJob();
         double& getProgress();
+
+        Thread& getThread() const { return parent; }
 
     protected:
         

@@ -65,17 +65,156 @@ struct CustomResultPage: public Dialog::PageBase
 }
 }
 
+multipage::Dialog* createHardcodedDialog(multipage::State& state)
+{
+	
+	
+	using namespace multipage;
+	using namespace factory;
+	auto mp_ = new Dialog({}, state);
+	auto& mp = *mp_;
+	mp.setProperty(mpid::Header, "HISE Project Wizard");
+	mp.setProperty(mpid::Subtitle, "Create a new HISE project");
+	auto& List_0 = mp.addPage<List>({
+	});
+
+	auto& MarkdownText_1 = List_0.addChild<MarkdownText>({
+	  { mpid::Text, "Welcome to HISE!\n\nIn order to create a HISE project, you will need to create a folder structure that will contain all assets of your project. This wizard is going to guide you through the steps necessary in order to setup the project.\n\nPlease create an select a directory that you want to use as root folder for your project. \n\n> This folder should be empty and will be populated with multiple subfolder for each asset type." }, 
+	  { mpid::Padding, "0" }
+	});
+
+	auto& rootDirectory_2 = List_0.addChild<FileSelector>({
+	  { mpid::Text, "Project Directory" }, 
+	  { mpid::ID, "rootDirectory" }, 
+	  { mpid::Directory, 1 }, 
+	  { mpid::SaveFile, 1 }
+	});
+
+	// Custom callback for page List_0
+	List_0.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
+
+        return Result::fail("Nope");
+		return Result::ok();
+
+	});
+	auto& List_3 = mp.addPage<List>({
+	  { mpid::Padding, "20" }, 
+	  { mpid::Foldable, 0 }, 
+	  { mpid::Folded, 0 }
+	});
+
+	auto& MarkdownText_4 = List_3.addChild<MarkdownText>({
+	  { mpid::Text, "### Select Template\n\nYou can choose to create an empty project, import a project from a .HXI file or download and extract the Rhapsody Player template." }, 
+	  { mpid::Padding, "0" }
+	});
+
+	auto& projectType_5 = List_3.addChild<Tickbox>({
+	  { mpid::Text, "Empty Project" }, 
+	  { mpid::ID, "projectType" }
+	});
+
+	auto& projectType_6 = List_3.addChild<Tickbox>({
+	  { mpid::Text, "Import from HXI" }, 
+	  { mpid::ID, "projectType" }
+	});
+
+	auto& projectType_7 = List_3.addChild<Tickbox>({
+	  { mpid::Text, "Rhapsody Player template" }, 
+	  { mpid::ID, "projectType" }
+	});
+
+	// Custom callback for page List_3
+	List_3.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
+
+		return Result::ok();
+
+	});
+	auto& List_8 = mp.addPage<List>({
+	});
+
+	auto& projectType_9 = List_8.addChild<Branch>({
+	  { mpid::ID, "projectType" }
+	});
+
+	auto& List_10 = projectType_9.addChild<List>({
+	  { mpid::Text, "empty" }
+	});
+
+	auto& Skip_11 = List_10.addChild<Skip>({
+	});
+
+	auto& List_12 = projectType_9.addChild<List>({
+	  { mpid::Text, "hxi" }
+	});
+
+	auto& MarkdownText_13 = List_12.addChild<MarkdownText>({
+	  { mpid::Text, "Please select the .HXI file that you want to import as HISE project.\n\n> A HXI file is a compressed file format that contains all assets of a HISE project and can be \"decompressed\" into a HISE project folder." }, 
+	  { mpid::Padding, "0" }
+	});
+
+	auto& hxiFile_14 = List_12.addChild<FileSelector>({
+	  { mpid::Text, "HXI File" }, 
+	  { mpid::ID, "hxiFile" }, 
+	  { mpid::Wildcard, "*.hxi" }, 
+	  { mpid::Directory, 0 }, 
+	  { mpid::SaveFile, 0 }
+	});
+
+	auto& List_15 = projectType_9.addChild<List>({
+	  { mpid::Text, "rhapsody" }
+	});
+
+	auto& MarkdownText_16 = List_15.addChild<MarkdownText>({
+	  { mpid::Text, "Click Next in order to download the template from the given URL and extract it into the specified project folder" }, 
+	  { mpid::Padding, "0" }
+	});
+
+	// Custom callback for page List_8
+	List_8.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
+
+		return Result::ok();
+
+	});
+	auto& List_17 = mp.addPage<List>({
+	});
+
+	auto& MarkdownText_18 = List_17.addChild<MarkdownText>({
+	  { mpid::Text, "Press Finish in order to create the project folder and close the wizard" }, 
+	  { mpid::Padding, "0" }
+	});
+
+	// Custom callback for page List_17
+	List_17.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
+
+		return Result::ok();
+
+	});
+	return mp_;
+	
+}
+
 void MainComponent::build()
 {
+#if 0
+	addAndMakeVisible(c = createHardcodedDialog(rt));
+    c->setEditMode(false);
+    c->showFirstPage();
+    return;
+#endif
     var obj;
 
-    //auto ok = JSON::parse(f.loadFileAsString(), obj);
+    File f("D:\\Development\\test.json");
+
+    auto ok = JSON::parse(f.loadFileAsString(), obj);
 
     using namespace multipage;
     using namespace factory;
 
-    auto mp = new Dialog({}, rt);
+    auto mp = new Dialog(obj, rt);
 
+    
+
+#if 0
     mp->setProperty(mpid::Header, "Multipage Dialog Wizard");
 
     auto sd = mp->getStyleData();
@@ -84,8 +223,14 @@ void MainComponent::build()
     mp->setStyleData(sd);
 
     mp->defaultLaf.defaultPosition.OuterPadding = 50;
-    
 
+    auto& introPage = mp->addPage<List>({
+            { mpid::Padding, 10 },
+        });
+
+#endif
+
+#if 0
     {
         // TODO: Fix setting properties in nested JSON
         auto& introPage = mp->addPage<List>({
@@ -251,14 +396,22 @@ void MainComponent::build()
 
                         xxx[mpid::Value] = "page" + String(te-i);
 
+                        List::createEditor(&xxx);
+
+                        DynamicObject* no = new DynamicObject();
+	                    xxx.setStateObject(var(no));
+                        list.insert(0, var(no));
+
+                        Container::addChildrenBuilder(&xxx);
+#if 0
 	                    DynamicObject* no = new DynamicObject();
 	                    xxx.setStateObject(var(no));
 		                ScopedPointer<Dialog::PageBase> c2 = xxx.create(b->getParentDialog(), 0);
 	                    
-		                list.insert(0, var(no));
+		                
                         
 				        c2->createEditorInfo(&xxx);
-                        
+#endif                   
                         
 		            }
 
@@ -276,7 +429,7 @@ void MainComponent::build()
 
 
         
-
+#endif
         
         
         
@@ -492,13 +645,16 @@ void MainComponent::build()
             
             
         }
-#endif
+
 
     }
+    #endif
 
+#if 0
     mp->addPage<MarkdownText>({
 		{ mpid::Text, "Press finish in order to copy the JSON to the clipboard." }
     });
+#endif
 
 #if 0
     mp->addPage<CustomResultPage>();

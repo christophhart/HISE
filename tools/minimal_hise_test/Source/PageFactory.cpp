@@ -81,14 +81,21 @@ void Type::paint(Graphics& g)
 
 MarkdownText::MarkdownText(Dialog& r, int width, const var& d):
 	PageBase(r, width, d),
-	r(d[mpid::Text].toString()),
+	r(getString(d[mpid::Text].toString(), r)),
 	obj(d)
 {
+
+
+	padding = obj[mpid::Padding];
+
 	setSize(width, 0);
+	setInterceptsMouseClicks(false, false);
 }
 
 void MarkdownText::postInit()
 {
+	init();
+
 	auto sd = findParentComponentOfClass<Dialog>()->getStyleData();
 
 	sd.fromDynamicObject(obj, [](const String& name){ return Font(name, 13.0f, Font::plain); });
@@ -108,21 +115,71 @@ void MarkdownText::paint(Graphics& g)
 	r.draw(g, getLocalBounds().toFloat().reduced(padding));
 }
 
-void MarkdownText::createEditorInfo(Dialog::PageInfo* rootList)
+void MarkdownText::createEditor(Dialog::PageInfo* rootList)
 {
     (*rootList)[mpid::Padding] = 10;
     
     rootList->addChild<Type>({
         { mpid::ID, "Type"},
-        { mpid::Type, "MarkdownText"}
+        { mpid::Type, "MarkdownText"},
+		{ mpid::Help, "A field to display text messages with markdown support" }
     });
+
+	rootList->addChild<TextInput>({
+		{ mpid::ID, "Padding" },
+		{ mpid::Text, "Padding" },
+		{ mpid::Value, padding },
+		{ mpid::Help, "The outer padding for the entire text render area" }
+	});
+
     rootList->addChild<TextInput>({
         { mpid::ID, "Text" },
         { mpid::Text, "Text" },
         { mpid::Required, true },
         { mpid::Multiline, true },
-        { mpid::Value, "Some markdown **text**." }
+        { mpid::Value, "Some markdown **text**." },
+		{ mpid::Help, "The text content in markdown syntax." }
     });
+}
+
+void MarkdownText::editModeChanged(bool isEditMode)
+{
+	PageBase::editModeChanged(isEditMode);
+
+	if(overlay != nullptr)
+	{
+		overlay->localBoundFunction = [](Component* c)
+		{
+			return c->getLocalBounds();
+		};
+
+		overlay->setOnClick([this]()
+		{
+			auto& list = rootDialog.createModalPopup<List>();
+			list.setStateObject(infoObject);
+
+			createEditor(&list);
+
+			list.setCustomCheckFunction([this](PageBase* b, const var& obj)
+			{
+				padding = obj[mpid::Padding];
+				r.setNewText(obj[mpid::Text].toString());
+				r.parse();
+
+				auto width = getWidth();
+
+				auto h = roundToInt(r.getHeightForWidth(width - 2 * padding));
+				setSize(width, h + 2 * padding);
+
+				Container::recalculateParentSize(this);
+
+				return Result::ok();
+			});
+
+
+			rootDialog.showModalPopup(true);
+		});
+	}
 }
 
 
@@ -131,80 +188,69 @@ Result MarkdownText::checkGlobalState(var)
 	return Result::ok();
 }
 
-FileSelector::FileSelector(Dialog& r, int width, const var& obj):
-	PageBase(r, width, obj),
-	fileSelector(createFileComponent(obj)),
-	fileId(obj["ID"].toString())
-{
-	isDirectory = obj[mpid::Directory];
-	addAndMakeVisible(fileSelector);
-        
-	fileSelector->setBrowseButtonText("Browse");
-	hise::GlobalHiseLookAndFeel::setDefaultColours(*fileSelector);
-        
-	setSize(width, 32);
-}
-
-FilenameComponent* FileSelector::createFileComponent(const var& obj)
-{
-	bool isDirectory = obj[mpid::Directory];
-	auto name = obj[mpid::Text].toString();
-	if(name.isEmpty())
-		name = isDirectory ? "Directory" : "File";
-	auto wildcard = obj[mpid::Wildcard].toString();
-	auto save = (bool)obj[mpid::SaveFile];
-        
-	return new FilenameComponent(name, File(), true, isDirectory, save, wildcard, "", "");
-}
-
-void FileSelector::postInit()
-{
-	auto v = getValueFromGlobalState();
-
-	fileSelector->setCurrentFile(getInitialFile(v), false, dontSendNotification);
-}
-
-Result FileSelector::checkGlobalState(var globalState)
-{
-	auto f = fileSelector->getCurrentFile();
-        
-	if(f != File() && !f.isRoot() && (f.isDirectory() || f.existsAsFile()))
-	{
-        writeState(f.getFullPathName());
-
-		return Result::ok();
-	}
-        
-	String message;
-	message << "You need to select a ";
-	if(isDirectory)
-		message << "directory";
-	else
-		message << "file";
-        
-	return Result::fail(message);
-}
-
-File FileSelector::getInitialFile(const var& path)
-{
-	if(path.isString())
-		return File(path);
-	if(path.isInt() || path.isInt64())
-	{
-		auto specialLocation = (File::SpecialLocationType)(int)path;
-		return File::getSpecialLocation(specialLocation);
-	}
-        
-	return File();
-}
-
-void FileSelector::resized()
-{
-	fileSelector->setBounds(getLocalBounds());
-}
-
 
 
 } // factory
+
+
+Dialog::Factory::Factory()
+{
+	registerPage<factory::Branch>();
+	registerPage<factory::Builder>();
+	registerPage<factory::FileSelector>();
+	registerPage<factory::Choice>();
+	registerPage<factory::ColourChooser>();
+	registerPage<factory::Column>();
+	registerPage<factory::List>();
+
+    registerPage<factory::MarkdownText>();
+	registerPage<factory::Tickbox>();
+
+	registerPage<factory::TextInput>();
+	registerPage<factory::Skip>();
+	registerPage<factory::Launch>();
+	registerPage<factory::DummyWait>();
+}
+
+Dialog::PageInfo::Ptr Dialog::Factory::create(const var& obj)
+{
+	PageInfo::Ptr info = new PageInfo(obj);
+	
+	auto typeProp = obj[mpid::Type].toString();
+
+	if(typeProp.isEmpty())
+		return nullptr;
+
+	if(typeProp.isNotEmpty())
+	{
+		Identifier id(typeProp);
+
+		for(const auto& i: items)
+		{
+			if(i.id == id)
+			{
+				info->setCreateFunction(i.f);
+				break;
+			}
+		}
+	}
+
+	jassert(info->pageCreator);
+
+	return info;
+}
+
+StringArray Dialog::Factory::getIdList() const
+{
+	StringArray sa;
+            
+	for(const auto& i: items)
+	{
+		sa.add(i.id.toString());
+	}
+		
+	return sa;
+}
+
 } // multipage
 } // hise

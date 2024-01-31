@@ -75,7 +75,8 @@ State::Job::Job(State& rt, const var& obj):
 	parent(rt),
 	localObj(obj)
 {
-	parent.addJob(this);
+	if(!obj[mpid::CallOnNext])
+		parent.addJob(this);
 }
 
 State::Job::~Job()

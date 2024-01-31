@@ -51,6 +51,16 @@ struct Type: public Dialog::PageBase
 
     Type(Dialog& r, int width, const var& d);
 
+    void resized() override
+    {
+	    if(helpButton != nullptr)
+	    {
+            auto b = getLocalBounds();
+            b.removeFromBottom(10);
+		    helpButton->setBounds(b.removeFromRight(b.getHeight()).reduced(3));
+	    }
+    }
+
     Result checkGlobalState(var globalState) override;
 	void paint(Graphics& g) override;
 	String typeId;
@@ -62,56 +72,84 @@ struct MarkdownText: public Dialog::PageBase
     {
         return { { mpid::Text, "### funkyNode" } };
     }
-    
+
+    static String getCategoryId() { return "Layout"; }
+
+    static String getString(const String& markdownText, Dialog& parent)
+    {
+        if(markdownText.contains("{{"))
+        {
+            String other;
+
+	        auto it = markdownText.begin();
+            auto end = markdownText.end();
+
+            while(it < (end - 1))
+            {
+                auto c = *it;
+
+                if(c == '{' && *(it+1) == '{')
+                {
+                    ++it;
+                    ++it;
+                    String variableId;
+
+	                while(it < (end - 1))
+	                {
+                        c = *it;
+		                if(c == '}' && *(it+1) == '}')
+		                {
+                            if(variableId.isNotEmpty())
+                            {
+	                            auto v = parent.getState().globalState[Identifier(variableId)].toString();
+                                other << v;
+                            }
+
+			                ++it;
+                            ++it;
+                            break;
+		                }
+                        else
+                        {
+	                        variableId << c;
+                        }
+
+                        ++it;
+	                }
+                }
+                else
+                {
+	                other << *it;
+                    ++it;
+                }
+            }
+
+            other << *it;
+
+            return other;
+        }
+
+        return markdownText;
+    }
+
     MarkdownText(Dialog& r, int width, const var& d);
 
-    void createEditorInfo(Dialog::PageInfo* rootList) override;
-    
+    void createEditor(Dialog::PageInfo* rootList);
+
+    void editModeChanged(bool isEditMode) override;
+
     void postInit() override;
     void paint(Graphics& g) override;
     Result checkGlobalState(var) override;
 
 private:
 
+    int padding = 0;
     var obj;
     MarkdownRenderer r;
 };
 
-struct FileSelector: public Dialog::PageBase
-{
-    DEFAULT_PROPERTIES(FileSelector)
-    {
-        return {
-            { mpid::Directory, true },
-            { mpid::ID, "fileId" },
-            { mpid::Wildcard, "*.*" },
-            { mpid::SaveFile, true }
-        };
-    }
-    
-    void createEditorInfo(Dialog::PageInfo* rootList) override
-    {
-        rootList->addChild<MarkdownText>({
-            { { mpid::Text, "oink? "} }
-        });
-    }
-    
-    FileSelector(Dialog& r, int width, const var& obj);
-    
-    void postInit() override;
-    Result checkGlobalState(var globalState) override;
 
-    static FilenameComponent* createFileComponent(const var& obj);
-    static File getInitialFile(const var& path);
-
-    void resized() override;
-
-private:
-    
-    bool isDirectory = false;
-    ScopedPointer<juce::FilenameComponent> fileSelector;
-    Identifier fileId;
-};
 
 
 

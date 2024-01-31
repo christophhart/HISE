@@ -42,17 +42,38 @@ struct LabelledComponent: public Dialog::PageBase
 {
     LabelledComponent(Dialog& r, int width, const var& obj, Component* c);;
 
+    virtual Result loadFromInfoObject(const var& obj)
+    {
+	    label = obj[mpid::Text];
+        return Result::ok();
+    }
+    
     void postInit() override;
     void paint(Graphics& g) override;
     void resized() override;
 
+    static String getCategoryId() { return "UI Elements"; }
+    
+
+    void editModeChanged(bool isEditMode) override;
+
     template <typename T> T& getComponent() { return *dynamic_cast<T*>(component.get()); }
+
+    String getDefaultPositionName() const
+    {
+        auto ln = Dialog::PositionInfo::getLabelPositionNames();
+	    return ln[inheritsPosition ? (int)Dialog::PositionInfo::LabelPositioning::Default : positionInfo.LabelPosition];
+    }
 
 protected:
 
     String label;
+    Dialog::PositionInfo positionInfo;
+    bool inheritsPosition = true;
+    bool required = false;
 
 private:
+
 
     ScopedPointer<Component> component;
 
@@ -64,7 +85,7 @@ struct TextInput: public LabelledComponent,
                   public TextEditor::Listener,
                   public Timer
 {
-    DEFAULT_PROPERTIES(Choice)
+    DEFAULT_PROPERTIES(TextInput)
     {
         return {
             { mpid::Text, "Label" },
@@ -86,10 +107,15 @@ struct TextInput: public LabelledComponent,
     void textEditorEscapeKeyPressed(TextEditor& e);
 
     void postInit() override;
-    
     Result checkGlobalState(var globalState) override;
 
+    void createEditor(Dialog::PageInfo& info) override;
+
+    Result loadFromInfoObject(const var& obj) override;
+
 private:
+
+    String emptyText;
 
     void showAutocomplete(const String& currentText);
     void dismissAutocomplete();
@@ -98,7 +124,10 @@ private:
 
     ScopedPointer<Autocomplete> currentAutocomplete;
     StringArray autocompleteItems;
-    bool required = false;
+    
+
+    bool parseInputAsArray = false;
+
     JUCE_DECLARE_WEAK_REFERENCEABLE(TextInput);
 };
 
@@ -117,22 +146,34 @@ struct Tickbox: public LabelledComponent,
 
     Tickbox(Dialog& r, int width, const var& obj);;
 
-    void createEditorInfo(Dialog::PageInfo* rootList) override;
+    void createEditor(Dialog::PageInfo& info) override;
+
     void postInit() override;
     Result checkGlobalState(var globalState) override;
     void buttonClicked(Button* b) override;
-    
+
+    Result loadFromInfoObject(const var& obj) override;
+
 private:
     
     Array<ToggleButton*> groupedButtons;
     int thisRadioIndex = -1;
     
-    bool required = false;
     bool requiredOption = false;
 };
 
 struct Choice: public LabelledComponent
 {
+    enum class ValueMode
+    {
+	    Text,
+        Index,
+        Id,
+        numValueModes
+    };
+
+    static StringArray getValueModeNames() { return { "Text", "Index", "ID" }; }
+
     DEFAULT_PROPERTIES(Choice)
     {
         return {
@@ -145,8 +186,16 @@ struct Choice: public LabelledComponent
 
     Choice(Dialog& r, int width, const var& obj);;
 
+    Result loadFromInfoObject(const var& obj) override;
+
     void postInit() override;
     Result checkGlobalState(var globalState) override;
+
+    void createEditor(Dialog::PageInfo& info) override;
+
+    ValueMode valueMode = ValueMode::Text;
+
+    bool custom = false;
 };
 
 struct ColourChooser: public LabelledComponent
@@ -164,7 +213,49 @@ struct ColourChooser: public LabelledComponent
     void resized() override;
     Result checkGlobalState(var globalState) override;
 
+    Result loadFromInfoObject(const var& obj) override
+    {
+	    return Result::ok();
+    }
+
+    void createEditor(Dialog::PageInfo& info) override
+    {
+	    jassertfalse;
+        
+    }
+
     LookAndFeel_V4 laf;
+    
+};
+
+struct FileSelector: public LabelledComponent
+{
+    DEFAULT_PROPERTIES(FileSelector)
+    {
+        return {
+            { mpid::Directory, true },
+            { mpid::ID, "fileId" },
+            { mpid::Wildcard, "*.*" },
+            { mpid::SaveFile, true }
+        };
+    }
+
+    void createEditor(Dialog::PageInfo& info) override;
+
+    FileSelector(Dialog& r, int width, const var& obj);
+    
+    void postInit() override;
+    Result checkGlobalState(var globalState) override;
+
+    static Component* createFileComponent(const var& obj);
+    static File getInitialFile(const var& path);
+
+private:
+    
+    bool isDirectory = false;
+    Identifier fileId;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(FileSelector);
 };
 
 } // factory

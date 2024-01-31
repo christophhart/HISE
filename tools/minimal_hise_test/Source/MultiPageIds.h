@@ -58,10 +58,12 @@ namespace mpid
 
     // Child properties
     DECLARE_ID(Type);
+    DECLARE_ID(UseLabel);
     DECLARE_ID(ID);
     DECLARE_ID(CallType);
     DECLARE_ID(Text);
     DECLARE_ID(Items);
+    DECLARE_ID(ValueMode);
     DECLARE_ID(Help);
     DECLARE_ID(Foldable);
     DECLARE_ID(Folded);
@@ -69,11 +71,20 @@ namespace mpid
     DECLARE_ID(Multiline);
     DECLARE_ID(Value);
     DECLARE_ID(Padding);
+    DECLARE_ID(ParseArray);
     DECLARE_ID(Width);
     DECLARE_ID(Wildcard);
     DECLARE_ID(SaveFile);
     DECLARE_ID(Directory);
     DECLARE_ID(Visible);
+    DECLARE_ID(EmptyText);
+    DECLARE_ID(Custom);
+    DECLARE_ID(LabelPosition);
+
+    DECLARE_ID(NumTodo);
+    DECLARE_ID(FailIndex);
+    DECLARE_ID(WaitTime);
+    DECLARE_ID(CallOnNext);
 
 }
 
