@@ -79,13 +79,13 @@ struct AudioTimelineObject : public TimelineObjectBase
 
 			if (sampleRate != reader->sampleRate)
 			{
-				LagrangeInterpolator interpolator;
+				LagrangeInterpolator interpolators[2];
 				auto ratio = sampleRate / reader->sampleRate;
 
 				AudioSampleBuffer newBuffer(2, reader->lengthInSamples * ratio);
-
-				interpolator.process(ratio, content.getReadPointer(0), newBuffer.getWritePointer(0), newBuffer.getNumSamples());
-				interpolator.process(ratio, content.getReadPointer(1), newBuffer.getWritePointer(1), newBuffer.getNumSamples());
+				
+				interpolators[0].process(1.0 / ratio, content.getReadPointer(0), newBuffer.getWritePointer(0), newBuffer.getNumSamples());
+				interpolators[1].process(1.0 / ratio, content.getReadPointer(1), newBuffer.getWritePointer(1), newBuffer.getNumSamples());
 
 				std::swap(content, newBuffer);
 			}

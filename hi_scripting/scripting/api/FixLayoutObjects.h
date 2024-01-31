@@ -361,6 +361,12 @@ struct Array : public LayoutBase,
 	/** Copies the property from each element into a buffer (or array). */
 	bool copy(String propertyName, var target);
 
+	/** Exports the memory region of the entire array as Base64 encoded string. */
+	String toBase64() const;
+
+	/** Restores an array from a previously exported state. */
+	bool fromBase64(const String& b64);
+
 	/** Returns the size of the array. */
 	virtual int size() const;
 

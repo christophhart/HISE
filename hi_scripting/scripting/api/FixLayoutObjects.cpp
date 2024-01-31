@@ -827,6 +827,8 @@ struct Array::Wrapper
 	API_METHOD_WRAPPER_2(Array, copy);
 	API_VOID_METHOD_WRAPPER_0(Array, sort);
 	API_METHOD_WRAPPER_0(Array, size);
+	API_METHOD_WRAPPER_0(Array, toBase64);
+	API_METHOD_WRAPPER_1(Array, fromBase64);
 };
 
 Array::Array(ProcessorWithScriptingContent* s, int numElements):
@@ -841,6 +843,8 @@ Array::Array(ProcessorWithScriptingContent* s, int numElements):
 	ADD_API_METHOD_2(copy);
 	ADD_API_METHOD_0(size);
 	ADD_API_METHOD_0(sort);
+	ADD_API_METHOD_0(toBase64);
+	ADD_API_METHOD_1(fromBase64);
 }
 
 void Array::assign(const int index, var newValue)
@@ -987,8 +991,6 @@ bool Array::copy(String propertyName, var target)
 
 	auto ptr = data + offset;
 
-
-
 	if (auto b = target.getBuffer())
 	{
 		if (numElements != b->size)
@@ -1014,6 +1016,26 @@ bool Array::copy(String propertyName, var target)
 			a->set(i, v);
 		}
 
+		return true;
+	}
+
+	return false;
+}
+
+String Array::toBase64() const
+{
+	MemoryBlock mb(data, numAllocated);
+	return mb.toBase64Encoding();
+}
+
+bool Array::fromBase64(const String& b64)
+{
+	MemoryBlock mb;
+	mb.fromBase64Encoding(b64);
+
+	if(mb.getSize() == numAllocated)
+	{
+		memcpy(data, mb.getData(), numAllocated);
 		return true;
 	}
 
