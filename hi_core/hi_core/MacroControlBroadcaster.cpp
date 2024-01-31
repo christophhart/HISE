@@ -717,7 +717,12 @@ void MacroControlBroadcaster::MacroControlData::restoreFromValueTree(const Value
 
     jassert(v.getType() == Identifier("macro"));
 
-    macroName = v.getProperty("name", "Macro " + String(macroIndex+1)).toString();
+
+	auto& mm = dynamic_cast<ModulatorSynthChain*>(&parent)->getMainController()->getMacroManager();
+
+	// Do not overwrite the macro names set by `setFrontendMacros()` ever...
+	if(!mm.isMacroEnabledOnFrontend())
+		macroName = v.getProperty("name", "Macro " + String(macroIndex+1)).toString();
 
     setValue((float)v.getProperty("value", 0.0));
 
