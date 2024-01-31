@@ -41,7 +41,9 @@ void MarkdownParser::parse()
 	{
 		containsLinks = false;
 
-		if (it.getRestString().startsWith("---"))
+		auto rs = it.getRestString();
+
+		if (rs.startsWith("---"))
 		{
 			parseMarkdownHeader();
 		}
@@ -424,6 +426,12 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 void MarkdownParser::parseBlock()
 {
 	juce_wchar c = it.peek();
+
+	if(c == '_' || c == '*' || c == '-')
+	{
+		if(parseHorizontalRuler())
+			return;
+	}
 
 	switch (c)
 	{
@@ -882,8 +890,18 @@ void MarkdownParser::parseMarkdownHeader()
 
 }
 
+bool MarkdownParser::parseHorizontalRuler()
+{
+	auto l = it.getRestString(3);
 
+	if(l == "---" || l == "___" || l == "***")
+	{
+		it.advanceLine();
+		elements.add(new MarkdownParser::HorizontalRuler(this, it.getLineNumber()));
+		return true;
+	}
 
-
+	return false;
+}
 }
 

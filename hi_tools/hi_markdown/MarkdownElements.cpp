@@ -227,6 +227,26 @@ struct MarkdownParser::ActionButton : public Element,
 
 };
 
+struct MarkdownParser::HorizontalRuler: public MarkdownParser::Element
+{
+	HorizontalRuler(MarkdownParser* p, int lineNumber):
+	  Element(p, lineNumber)
+	{};
+
+	void draw(Graphics& g, Rectangle<float> area) override
+	{
+		auto c = parent->styleData.tableLineColour;
+		g.setColour(c);
+		g.drawHorizontalLine(area.getY() + 1, area.getX(), area.getRight());
+	};
+
+	float getHeightForWidth(float width) override { return 22; };
+
+	int getTopMargin() const override { return 10; };
+
+	String getTextToCopy() const override { return {}; };
+};
+
 struct MarkdownParser::Headline : public MarkdownParser::Element
 {
 	Headline(MarkdownParser* parent, int lineNumber, int level_, const String& imageURL_, const AttributedString& s, bool isFirst_) :

@@ -839,12 +839,21 @@ void MarkdownParser::Iterator::skipWhitespace()
 	}
 }
 
-juce::String MarkdownParser::Iterator::getRestString() const
+juce::String MarkdownParser::Iterator::getRestString(int maxLength) const
 {
 	if (it.isEmpty())
 		return {};
 
-	return String(it);
+	if(maxLength == -1)
+	{
+		return String(it);
+	}
+	else
+	{
+		maxLength = jmin(maxLength, (int)(text.end() - it));
+		return String(it, it+maxLength);
+	}
+	
 }
 
 

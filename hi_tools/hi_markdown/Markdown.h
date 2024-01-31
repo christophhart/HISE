@@ -347,7 +347,7 @@ protected:
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
 	struct CodeBlock;	struct MarkdownTable;	struct ImageElement;		struct EnumerationList;
-	struct ActionButton; struct LiveCodeBlock;	struct ContentFooter;
+	struct ActionButton; struct LiveCodeBlock;	struct ContentFooter;       struct HorizontalRuler;
 
 	struct CellContent
 	{
@@ -396,7 +396,7 @@ private:
 		bool match(juce_wchar expected);
 		bool matchIf(juce_wchar expected);
 		void skipWhitespace();
-		String getRestString() const;
+		String getRestString(int maxLength=-1) const;
 		String advanceLine();
 
 		int getLineNumber() const { return currentLine; }
@@ -425,6 +425,7 @@ private:
 
 	void parseText(bool stopAtEndOfLine=true);
 	void parseMarkdownHeader();
+	bool parseHorizontalRuler();
 	void parseBlock();
 	void parseJavascriptBlock();
 	void parseTable();
@@ -468,7 +469,7 @@ private:
 	
 	OwnedArray<LinkResolver> linkResolvers;
 	
-	
+	bool headerWasParsed = false;
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownParser);
