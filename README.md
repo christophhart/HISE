@@ -68,8 +68,6 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 6. Hit compile and wait...
 
-> HISE does not run natively on Apple Silicon and should be compiled for x86 on that platform. Projects exported from HISE will run natively on both x86 and Apple Silicon devices when built as universal binaries.
-
 ### Linux
 
 1. Install the dependencies: 
