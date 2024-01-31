@@ -1842,7 +1842,20 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 		REPLACE_WILDCARD_WITH_STRING("%MACOS_ARCHITECTURE%", "64BitIntel");
 	}
 
-	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", isUsingCIMode() ? "0" : "1");
+    auto copyPlugin = !isUsingCIMode();
+    
+#if JUCE_MAC
+    auto macOSVersion = SystemStats::getOperatingSystemType();
+    
+    // deactivate copy step on Sonoma to avoid the cycle dependencies error...
+    if(macOSVersion == SystemStats::MacOS_14)
+    {
+        PresetHandler::showMessageWindow("Copystep diabled", "macOS Sonoma will cause a compile error if the copy step is enabled, so you have to copy the plugin files into the plugin folders manually after compilation");
+        copyPlugin = false;
+    }
+#endif
+    
+	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", copyPlugin ? "1" : "0");
 
 #if JUCE_MAC
 	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", exporter->useIpp ? "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a" : String());
