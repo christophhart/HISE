@@ -46,6 +46,121 @@ enum class MouseEventFlags
 	Drag
 };
 
+struct SubmenuComboBox: public juce::ComboBox
+{
+	SubmenuComboBox(const String& name={}):
+	  ComboBox(name),
+	  updater(*this)
+	{}
+
+	static juce::PopupMenu parseFromStringArray(const StringArray& itemList, Array<int> activeIndexes, LookAndFeel* laf);
+
+	virtual void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList)
+	{
+		m = parseFromStringArray(items, indexList, &getLookAndFeel());
+	}
+
+	virtual bool useCustomPopupMenu() const { return customPopup; }
+
+    void setUseCustomPopup(bool shouldUse)
+    {
+        if(customPopup != shouldUse)
+        {
+            customPopup = shouldUse;
+
+			original = *getRootMenu();
+
+			updater.refreshEnableState();
+            rebuildPopupMenu();
+        }
+    }
+
+    void rebuildPopupMenu();
+
+	void refreshTickState()
+	{
+		auto currentId = getSelectedId();
+
+		for (PopupMenu::MenuItemIterator iterator (*getRootMenu(), false); iterator.next();)
+		{
+			auto& item = iterator.getItem();
+
+			if(auto s = item.subMenu.get())
+			{
+				item.isTicked = isTicked(*s, currentId);
+			}
+		}
+	}
+
+private:
+
+	bool isTicked(PopupMenu& m, int currentId) const
+	{
+		for (PopupMenu::MenuItemIterator iterator (m, false); iterator.next();)
+		{
+			auto& item = iterator.getItem();
+
+			if(item.itemID == currentId)
+				return true;
+
+			if(auto s = item.subMenu.get())
+			{
+				auto subTicked = isTicked(*s, currentId);
+
+				if(subTicked)
+					return true;
+			}
+		}
+
+		return false;
+	}
+
+	struct Updater: public ComboBoxListener
+	{
+		Updater(SubmenuComboBox& parent_):
+		  parent(parent_)
+		{};
+		
+		void refreshEnableState()
+		{
+			auto shouldBeEnabled = parent.useCustomPopupMenu();
+
+			if(enabled != shouldBeEnabled)
+			{
+				enabled = shouldBeEnabled;
+
+				if(enabled)
+					parent.addListener(this);
+				else
+					parent.removeListener(this);
+			}
+		}
+
+		
+
+		void comboBoxChanged(ComboBox* comboBoxThatHasChanged) override
+		{
+			SafeAsyncCall::callAsyncIfNotOnMessageThread<Updater>(*this, [](Updater& u)
+			{
+				u.parent.refreshTickState();
+				
+			});
+		}
+
+	private:
+
+		SubmenuComboBox& parent;
+		bool enabled = false;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Updater);
+	} updater;
+
+
+	PopupMenu original;
+	bool customPopup = false;
+
+};
+
 struct ZoomableViewport : public Component,
 	public ScrollBar::Listener,
 	public ComponentListener,

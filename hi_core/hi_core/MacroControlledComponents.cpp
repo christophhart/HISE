@@ -1327,11 +1327,6 @@ void HiComboBox::mouseDrag(const MouseEvent& e)
 	ComboBox::mouseDrag(e);
 }
 
-void HiComboBox::createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList)
-{
-	m = MouseCallbackComponent::parseFromStringArray(items, indexList, &getLookAndFeel());
-}
-
 void HiComboBox::touchAndHold(Point<int> /*downPosition*/)
 {
 	enableMidiLearnWithPopup();

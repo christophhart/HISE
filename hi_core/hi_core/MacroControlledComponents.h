@@ -280,44 +280,7 @@ private:
 	
 };
 
-struct SubmenuComboBox: public juce::ComboBox
-{
-	SubmenuComboBox(const String& name={}):
-	  ComboBox(name)
-	{}
 
-	virtual bool useCustomPopupMenu() const { return false; }
-
-	virtual void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList) {}
-
-    void rebuildPopupMenu()
-    {
-        if(!useCustomPopupMenu())
-            return;
-        
-        auto& menu = *getRootMenu();
-        
-        StringArray sa;
-        Array<int> activeIndexes;
-
-        Array<std::pair<int, String>> list;
-
-        for (PopupMenu::MenuItemIterator iterator (menu, true); iterator.next();)
-        {
-            auto& item = iterator.getItem();
-
-            if(item.isSectionHeader)
-                continue;
-
-            if(item.itemID == getSelectedId())
-                activeIndexes.add(item.itemID);
-            
-            sa.add(item.text);
-        }
-
-        createPopupMenu(menu, sa, activeIndexes);
-    }
-};
 
 /** A combobox which can be controlled by the macro system. */
 class HiComboBox: public SubmenuComboBox,
@@ -346,18 +309,9 @@ public:
     void mouseDown(const MouseEvent &e) override;
 	void mouseDrag(const MouseEvent& e) override;
 
-	void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList) override;
+	
 
-	bool useCustomPopupMenu() const override { return customPopup; }
-
-    void setUseCustomPopup(bool shouldUse)
-    {
-        if(customPopup != shouldUse)
-        {
-            customPopup = shouldUse;
-            rebuildPopupMenu();
-        }
-    }
+	
     
     bool customPopup = false;
     

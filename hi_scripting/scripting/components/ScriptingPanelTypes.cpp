@@ -273,7 +273,8 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 		for (int i = 0; i < p->getNumWatchedFiles(); i++)
 		{
             auto f = p->getWatchedFile(i);
-			indexList.add(f.getRelativePathFrom(scriptRoot));
+			auto path = f.getRelativePathFrom(scriptRoot);
+			indexList.add(path.replaceCharacter('\\', '/'));
 		}
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))

@@ -406,6 +406,214 @@ bool ZoomableViewport::changeZoom(bool zoomIn)
 	return false;
 }
 
+struct PopupMenuParser
+{
+    enum SpecialItem
+    {
+        ItemEntry = 0,
+        Sub = 1,
+        Header = 2,
+        Deactivated = 4,
+        Separator = 8
+    };
+    
+    static int getSpecialItemType(const String& item)
+    {
+        int flags = SpecialItem::ItemEntry;
+        
+        if(item.contains("~~"))
+            flags = SpecialItem::Deactivated;
+        
+        if(item.contains("___") || item.contains("___"))
+            flags = SpecialItem::Separator;
+
+        if(item.contains("**"))
+            flags = SpecialItem::Header;
+        
+        if(item.contains("::"))
+            flags |= SpecialItem::Sub;
+        
+        return flags;
+    };
+    
+    static bool addToPopupMenu(PopupMenu& tm, int& menuIndex, const String& item, const Array<int>& activeIndexes)
+    {
+        if (item == "%SKIP%")
+        {
+            menuIndex++;
+            return false;
+        }
+        
+        auto isTicked = activeIndexes.contains(menuIndex-1);
+        
+        auto fl = getSpecialItemType(item);
+        
+        jassert((fl & SpecialItem::Sub) == 0);
+        
+        auto withoutSpecialChars = item;
+
+        if(fl & SpecialItem::Header)
+        {
+	        tm.addSectionHeader(item.removeCharacters("*"));
+			return false;
+		}
+        else if (fl & SpecialItem::Separator)
+        {
+	        tm.addSeparator();
+			return false;
+        }
+        
+        tm.addItem(menuIndex++, item.removeCharacters("~"), (fl & SpecialItem::Deactivated) == 0, isTicked);
+        
+        return isTicked;
+    };
+    
+    struct SubInfo
+    {
+        SubInfo() = default;
+        
+        PopupMenu sub;
+        bool ticked = false;
+        String name;
+        StringArray items;
+        
+        void flush(PopupMenu& m, int& firstId, const Array<int>& activeIndexes)
+        {
+            if(items.isEmpty() && children.isEmpty())
+                return;
+            
+            for(auto& s: items)
+            {
+                ticked |= addToPopupMenu(sub, firstId, s, activeIndexes);
+            }
+            
+            for(auto c: children)
+            {
+                c->flush(sub, firstId, activeIndexes);
+            }
+            
+            m.addSubMenu(name, sub, true, nullptr, ticked);
+            
+            items.clear();
+            children.clear();
+        }
+        
+        OwnedArray<SubInfo> children;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(SubInfo);
+        JUCE_DECLARE_NON_COPYABLE(SubInfo);
+    };
+    
+    static SubInfo* getSubMenuFromArray(OwnedArray<SubInfo>& list, const String& name)
+    {
+        auto thisName = name.upToFirstOccurrenceOf("::", false, false);
+        auto rest = name.fromFirstOccurrenceOf("::", false, false);
+        
+        for(auto s: list)
+        {
+            if(s->name == thisName)
+            {
+                if(rest.isEmpty())
+                    return s;
+                else
+                    return getSubMenuFromArray(s->children, rest);
+            }
+        }
+        
+        auto newInfo = new SubInfo();
+        newInfo->name = thisName;
+        list.add(newInfo);
+        
+        if(rest.isEmpty())
+            return newInfo;
+        else
+            return getSubMenuFromArray(newInfo->children, rest);
+    }
+    
+    SubInfo* getSubMenu(const String& name)
+    {
+        return getSubMenuFromArray(subMenus, name);
+    };
+    
+    OwnedArray<SubInfo> subMenus;
+};
+
+juce::PopupMenu SubmenuComboBox::parseFromStringArray(const StringArray& itemList, Array<int> activeIndexes,
+	LookAndFeel* laf)
+{
+	PopupMenu m;
+	m.setLookAndFeel(laf);
+
+    PopupMenuParser parser;
+
+	for (const auto& item: itemList)
+	{
+        auto fl = parser.getSpecialItemType(item);
+        
+        if (fl & PopupMenuParser::SpecialItem::Sub)
+		{
+			String subMenuName = item.upToLastOccurrenceOf("::", false, false);
+			String subMenuItem = item.fromLastOccurrenceOf("::", false, false);
+
+			if (subMenuName.isEmpty() || subMenuItem.isEmpty())
+                continue;
+
+            parser.getSubMenu(subMenuName)->items.add(subMenuItem);
+		}
+	}
+
+    int menuIndex = 1;
+
+    for(const auto& item: itemList)
+    {
+        auto fl = parser.getSpecialItemType(item);
+        auto isSubEntry = (fl & PopupMenuParser::SpecialItem::Sub) != 0;
+        
+        if(isSubEntry)
+        {
+            // We want to only get the first name so that it can
+            // flush its children
+            auto firstMenuName = item.upToFirstOccurrenceOf("::", false, false);
+            
+            parser.getSubMenu(firstMenuName)->flush(m, menuIndex, activeIndexes);
+        }
+        else
+            parser.addToPopupMenu(m, menuIndex, item, activeIndexes);
+    }
+    
+	return m;
+}
+
+void SubmenuComboBox::rebuildPopupMenu()
+{
+	if(!useCustomPopupMenu())
+		return;
+        
+	auto& menu = *getRootMenu();
+        
+	StringArray sa;
+	Array<int> activeIndexes;
+
+	Array<std::pair<int, String>> list;
+
+	for (PopupMenu::MenuItemIterator iterator (menu, true); iterator.next();)
+	{
+		auto& item = iterator.getItem();
+
+		if(item.isSectionHeader)
+			continue;
+
+		if(item.itemID == getSelectedId())
+			activeIndexes.add(item.itemID);
+            
+		sa.add(item.text);
+	}
+
+	createPopupMenu(menu, sa, activeIndexes);
+
+	refreshTickState();
+}
+
 ZoomableViewport::MouseWatcher::MouseWatcher(ZoomableViewport& p):
 	parent(p)
 {
