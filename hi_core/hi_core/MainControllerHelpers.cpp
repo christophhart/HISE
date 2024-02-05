@@ -1341,10 +1341,10 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
             auto thisOffset = start;
             
 			delayedMidiBuffer.clear();
-			delayedMidiBuffer.addEvents(midiMessages, offset, numThisTime, -offset);
+			delayedMidiBuffer.addEvents(midiMessages, thisOffset, numThisTime, -thisOffset);
 			
 #if HISE_MIDIFX_PLUGIN
-            midiMessages.clear(offset, numThisTime);
+            midiMessages.clear(thisOffset, numThisTime);
 #endif
 
             
@@ -1357,7 +1357,7 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 			processWrapped(chunk, delayedMidiBuffer);
             
 #if HISE_MIDIFX_PLUGIN
-            midiMessages.addEvents(delayedMidiBuffer, 0, numThisTime, offset);
+            midiMessages.addEvents(delayedMidiBuffer, 0, numThisTime, thisOffset);
 #endif
 		}
         
