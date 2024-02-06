@@ -40,14 +40,19 @@ struct IndexComboBox: public SubmenuComboBox
     {
         if(items.size() > 7)
         {
+            StringArray fullArray;
             StringArray newArray;
+            
+            fullArray.add("Disconnect");
             
             for(const auto& i: items)
             {
                 if(i.startsWith("on"))
                 {
-                    newArray.add("Callbacks::" + i);
+                    fullArray.add("Callbacks::" + i);
                 }
+                else if (i == "Disconnect")
+                    continue;
                 else if (i.contains("/"))
                 {
                     newArray.add(i.replace("/", "::"));
@@ -56,7 +61,13 @@ struct IndexComboBox: public SubmenuComboBox
                     newArray.add(i);
             }
             
-            m = MouseCallbackComponent::parseFromStringArray(newArray, indexList, &getLookAndFeel());
+            newArray.sort(true);
+            
+            fullArray.addArray(newArray);
+            
+
+            
+            m = MouseCallbackComponent::parseFromStringArray(fullArray, indexList, &getLookAndFeel());
 
 #if 0
             m.clear();
@@ -413,14 +424,16 @@ void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChan
 
 		if (indexSelector->getSelectedId() != 1)
 		{
-			newIndex = indexSelector->getSelectedId() - 2;
-			setContentWithUndo(connectedProcessor.get(), newIndex);
+            newIndex = indexSelector->getSelectedId();
+            setContentWithUndo(connectedProcessor.get(), newIndex-2);
 		}
 		else
 		{
 			setConnectionIndex(newIndex);
 			refreshContent();
 		}
+        
+        indexSelector->refreshTickState();
 	}
 }
 
@@ -491,6 +504,7 @@ void PanelWithProcessorConnection::refreshSelectorValue(Processor* p, String cur
     {
         currentIndex = index;
         indexSelector->setSelectedId(index + 2, dontSendNotification);
+        indexSelector->refreshTickState();
         
         setCustomTitle(currentId);
         refreshTitle();
@@ -507,14 +521,35 @@ void PanelWithProcessorConnection::refreshIndexList()
 
 	fillIndexList(items);
 
+	
 	int index = items.indexOf(currentId);
 
 	indexSelector->addItem("Disconnect", 1);
 	indexSelector->addItemList(items, 2);
     indexSelector->rebuildPopupMenu();
     
+    auto menu = indexSelector->getRootMenu();
+
+	PopupMenu::MenuItemIterator it(*menu, true);
+
+	while(it.next())
+	{
+		auto& item = it.getItem();
+
+		for(int i = 0; i < items.size(); i++)
+		{
+			if(items[i].contains(item.text))
+			{
+				item.itemID = i + 2;
+				break;
+			}
+		}
+	}
+	
 	if (index != -1)
 		indexSelector->setSelectedId(index + 2, dontSendNotification);
+
+	indexSelector->refreshTickState();
 }
 
 ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain()
@@ -551,6 +586,7 @@ void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, i
 	if (newIndex != -1)
 	{
 		indexSelector->setSelectedId(newIndex + 2, dontSendNotification);
+        indexSelector->refreshTickState();
 	}
 
 }
@@ -578,6 +614,7 @@ void PanelWithProcessorConnection::refreshContent()
 		connectionSelector->setSelectedId(1, dontSendNotification);
 
 	indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
+    indexSelector->refreshTickState();
 
 	if (getProcessor() == nullptr || (hasSubIndex() && currentIndex == -1))
 	{
