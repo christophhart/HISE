@@ -1357,7 +1357,7 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 		auto firstValue = compressedValues[0];
 		auto lastValue = compressedValues[numSamples_cr - 1];
 
-		if (fabsf(firstValue - lastValue) < 0.001f)
+		if (fabsf(firstValue - lastValue) < 0.0001f)
 		{
 			// We need to manually convert the value from the table
 			// and send it to the mod chain to update the ramp value.
