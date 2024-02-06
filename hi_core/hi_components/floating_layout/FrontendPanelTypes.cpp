@@ -194,7 +194,7 @@ namespace hise { using namespace juce;
                 
 			auto oldValue = currentPeaks[i];
                 
-			change |= hmath::abs(thisValue - oldValue) > 0.001;
+			change |= FloatSanitizers::isNotSilence(thisValue - oldValue);
 			currentPeaks[i] = thisValue;
 		}
             

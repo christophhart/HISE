@@ -765,7 +765,7 @@ void ModulatorSynthGroupVoice::checkRelease()
 	ModulatorChain *ownerGainChain = static_cast<ModulatorChain*>(ownerSynth->getChildProcessor(ModulatorSynth::GainModulation));
 	//ModulatorChain *ownerPitchChain = static_cast<ModulatorChain*>(ownerSynth->getChildProcessor(ModulatorSynth::PitchModulation));
 
-	if (killThisVoice && (killFadeLevel < 0.001f))
+	if (killThisVoice && FloatSanitizers::isSilence(killFadeLevel))
 	{
 		resetVoice();
 	}

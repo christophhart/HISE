@@ -847,7 +847,7 @@ private:
 			if (isSmoothing)
 			{
 				auto thisValue = s.smooth(target);
-				isSmoothing = std::abs(thisValue - target) > 0.001f;
+                isSmoothing = FloatSanitizers::isNotSilence(thisValue - target);
 				lastValue = thisValue;
 				return thisValue;
 			}

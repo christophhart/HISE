@@ -355,7 +355,7 @@ float ahdsr_base::state_base::tick()
 		if (envelope->decay != 0.0f)
 		{
 			state->current_value = state->decayBase + state->current_value * state->decayCoef;
-			if ((state->current_value - thisSustain) < 0.001f)
+			if (FloatSanitizers::isSilence(state->current_value - thisSustain))
 			{
 				state->lastSustainValue = state->current_value;
 				state->current_state = state_base::SUSTAIN;
@@ -378,7 +378,7 @@ float ahdsr_base::state_base::tick()
 		if (envelope->release != 0.0f)
 		{
 			state->current_value = state->releaseBase + state->current_value * state->releaseCoef;
-			if (state->current_value <= 0.001f)
+			if (FloatSanitizers::isSilence(state->current_value))
 			{
 				state->current_value = 0.0f;
 				state->current_state = state_base::IDLE;

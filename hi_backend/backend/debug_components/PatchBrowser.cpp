@@ -2352,7 +2352,8 @@ void PatchBrowser::MiniPeak::timerCallback()
 		{
 			auto decay = JUCE_LIVE_CONSTANT_OFF(0.7f);
 			thisData[i] = jmax(thisData[i], channelValues[i] * decay);
-			if (thisData[i] < 0.001)
+            
+			if (FloatSanitizers::isSilence(thisData[i]))
 				thisData[i] = 0.0f;
 
 			somethingChanged |= (thisData[i] != channelValues[i]);

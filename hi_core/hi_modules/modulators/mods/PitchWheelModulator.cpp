@@ -120,7 +120,7 @@ void PitchwheelModulator::setInternalAttribute (int parameter_index, float newVa
 
 void PitchwheelModulator::calculateBlock(int startSample, int numSamples)
 {
-	const bool smoothThisBlock = fabsf(targetValue - currentValue) > 0.001f;
+    const bool smoothThisBlock = FloatSanitizers::isNotSilence(targetValue - currentValue);
 
 	if (smoothThisBlock)
 	{
@@ -140,7 +140,8 @@ void PitchwheelModulator::calculateBlock(int startSample, int numSamples)
 
 float PitchwheelModulator::calculateNewValue ()
 {
-	currentValue = (fabsf(targetValue - currentValue) < 0.001) ? targetValue : smoother.smooth(targetValue);
+	currentValue = FloatSanitizers::isSilence(targetValue - currentValue) ? targetValue : smoother.smooth(targetValue);
+    
 	return currentValue;
 }
 

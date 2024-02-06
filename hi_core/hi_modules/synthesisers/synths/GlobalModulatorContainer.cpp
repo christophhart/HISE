@@ -470,7 +470,7 @@ void GlobalModulatorContainerVoice::checkRelease()
 
 	ModulatorChain *g = static_cast<ModulatorChain*>(gc->getChildProcessor(ModulatorSynth::GainModulation));
 
-	if (killThisVoice && (killFadeLevel < 0.001f))
+	if (killThisVoice && FloatSanitizers::isSilence(killFadeLevel))
 	{
 		resetVoice();
 		return;

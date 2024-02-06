@@ -1609,7 +1609,7 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::PitchTrackInfo::calculate(c
 
 		FloatSanitizers::sanitizeFloatNumber(normalisedPos);
 
-		if(b.getMagnitude(0, i, numThisTime) > 0.001f || !isPost)
+		if(FloatSanitizers::isNotSilence(b.getMagnitude(0, i, numThisTime)) || !isPost)
 		{
 			if(wasZero)
 				stepSize = maxStepSize;

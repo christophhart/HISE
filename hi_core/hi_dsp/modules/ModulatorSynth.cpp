@@ -1425,7 +1425,7 @@ void ModulatorSynthVoice::checkRelease()
 	
 	ModulatorChain *g = static_cast<ModulatorChain*>(os->getChildProcessor(ModulatorSynth::GainModulation));
 
-	if( killThisVoice && (killFadeLevel < 0.001f) )
+	if( killThisVoice && FloatSanitizers::isSilence(killFadeLevel))
 	{
 		resetVoice();
 		return;
@@ -1875,6 +1875,9 @@ void ModulatorSynth::setKillFadeOutTime(double fadeTimeMilliSeconds)
 {
 	killFadeTime = (float)fadeTimeMilliSeconds;
 
+    // the actual kill fade time might be a bit longer because you can set
+    // the silence threshold to some lower value than -60dB with HISE_SILENCE_THRESHOLD_DB
+    // but this still uses -60dB as "RT60" time
 	int samples = (int)(fadeTimeMilliSeconds * 0.001 * Processor::getSampleRate());
 
 	float killTimeFactor = powf(0.001f, (1.0f / (float)samples));

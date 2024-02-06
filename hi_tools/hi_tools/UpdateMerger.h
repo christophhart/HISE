@@ -35,6 +35,50 @@
 
 namespace hise { using namespace juce;
 
+/** A collection of little helper functions to clean float arrays.
+*    @ingroup utility
+*
+*    Source: http://musicdsp.org/showArchiveComment.php?ArchiveID=191
+*/
+struct FloatSanitizers
+{
+    template <typename ContainerType> static void sanitizeArray(ContainerType& d)
+    {
+        for (auto& s : d)
+            sanitizeFloatNumber(s);
+    }
+
+    /** Returns the silence threshold as gain factor. Uses the HISE_SILENCE_THRESHOLD_DB preprocessor. */
+    static bool isSilence(const float value)
+    {
+        static const float Silence = std::pow(10.0f, (float)HISE_SILENCE_THRESHOLD_DB * -0.05f);
+        static const float MinusSilence = -1.0f * Silence;
+        return value < Silence && value > MinusSilence;
+    }
+    
+    static bool isNotSilence(const float value)
+    {
+        return !isSilence(value);
+    }
+    
+    static void sanitizeArray(float* data, int size);;
+
+    static float sanitizeFloatNumber(float& input);;
+
+    struct Test : public UnitTest
+    {
+        Test() :
+            UnitTest("Testing float sanitizer")
+        {
+
+        };
+
+        void runTest() override;
+    };
+};
+
+static FloatSanitizers::Test floatSanitizerTest;
+
 class FallbackRamper
 {
 public:
@@ -364,7 +408,7 @@ public:
 	inline bool ramp(float &valueToChange)
 	{
 		valueToChange += stepDelta;
-		busy = fabs(targetValue - valueToChange) > 0.001f;
+		busy = FloatSanitizers::isNotSilence(targetValue - valueToChange);
 		return busy;
 	};
 

@@ -63,6 +63,16 @@ namespace hise { using namespace juce;
 #endif
 #endif
 
+/** This can be used to change the threshold of what is considered "silence" in HISE.
+
+    This value is used at different places to figure out whether to stop smoothing, stop a decaying envelope curve, etc.
+ 
+    It tries to use a sensible default here, but you can override this (as a positive value, it will calculate the gain factor by taking the
+    number as negative dB value and convert it to a gain factor).
+*/
+#ifndef HISE_SILENCE_THRESHOLD_DB
+#define HISE_SILENCE_THRESHOLD_DB 60
+#endif
 
 #if HI_RUN_UNIT_TESTS
 #define jassert_skip_unit_test(x)

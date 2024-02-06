@@ -1730,37 +1730,10 @@ public:
 
 
 
-/** A collection of little helper functions to clean float arrays.
-*	@ingroup utility
-*
-*	Source: http://musicdsp.org/showArchiveComment.php?ArchiveID=191
-*/
-struct FloatSanitizers
-{
-	template <typename ContainerType> static void sanitizeArray(ContainerType& d)
-	{
-		for (auto& s : d)
-			sanitizeFloatNumber(s);
-	}
-
-	static void sanitizeArray(float* data, int size);;
-
-	static float sanitizeFloatNumber(float& input);;
-
-	struct Test : public UnitTest
-	{
-		Test() :
-			UnitTest("Testing float sanitizer")
-		{
-
-		};
-
-		void runTest() override;
-	};
-};
 
 
-static FloatSanitizers::Test floatSanitizerTest;
+
+
 
 
 /** This class is used to simulate different devices.

@@ -183,7 +183,7 @@ void MacroModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void MacroModulator::calculateBlock(int startSample, int numSamples)
 {
-	const bool smoothThisBlock = fabsf(targetValue - currentValue) > 0.001f;
+    const bool smoothThisBlock = FloatSanitizers::isNotSilence(targetValue - currentValue);
 
 	if (smoothThisBlock)
 	{
