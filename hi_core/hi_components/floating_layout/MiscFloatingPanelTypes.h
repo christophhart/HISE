@@ -41,6 +41,7 @@ class InterfaceContentPanel : public FloatingTileContent,
 							  public Component,
 							  public GlobalScriptCompileListener,
 							  public ButtonListener,
+							  public Processor::DeleteListener,
 							  public GlobalSettingManager::ScaleFactorListener,
 							  public ExpansionHandler::Listener,
 							  public MainController::LockFreeDispatcher::PresetLoadListener
@@ -63,6 +64,10 @@ public:
 	void buttonClicked(Button* b) override;
 
 	void scaleFactorChanged(float newScaleFactor) override;
+
+    void processorDeleted(Processor* deletedProcessor) override;
+        
+	void updateChildEditorList(bool forceUpdate) override {};
 
 private:
 

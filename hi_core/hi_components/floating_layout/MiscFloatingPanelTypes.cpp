@@ -452,6 +452,12 @@ void InterfaceContentPanel::scaleFactorChanged(float /*newScaleFactor*/)
 	updateSize();
 }
 
+void InterfaceContentPanel::processorDeleted(Processor* deletedProcessor)
+{
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+		content = nullptr;
+}
+
 bool InterfaceContentPanel::connectToScript()
 {
 	if (content != nullptr)
@@ -459,6 +465,9 @@ bool InterfaceContentPanel::connectToScript()
 
 	if (auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController()))
 	{
+		if (FullInstrumentExpansion::isEnabled(getMainController()))
+			jsp->addDeleteListener(this);
+
 		addAndMakeVisible(content = new ScriptContentComponent(jsp));
 		connectedProcessor = jsp;
 		

@@ -73,7 +73,7 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 
 ScriptContentComponent::~ScriptContentComponent()
 {
-	SUSPEND_GLOBAL_DISPATCH(p->getMainController(), "delete scripting UI");
+
 
 	if (contentData.get() != nullptr)
 	{
@@ -88,12 +88,18 @@ ScriptContentComponent::~ScriptContentComponent()
 
 	if (p.get() != nullptr)
 	{
+        SUSPEND_GLOBAL_DISPATCH(p->getMainController(), "delete scripting UI");
+        
 		p->getMainController()->removeScriptListener(this);
 		OLD_PROCESSOR_DISPATCH(p->removeChangeListener(this));
 		p->removeDeleteListener(this);
-	};
-
-	componentWrappers.clear();
+        
+        componentWrappers.clear();
+	}
+    else
+    {
+        componentWrappers.clear();
+    }
 }
 
 
