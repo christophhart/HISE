@@ -958,13 +958,13 @@ void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
         {
             value = getThumbnail()->getNextZero(value);
         }
-
-		if (propId == SampleIds::SampleStartMod)
-			value -= (int)currentSound->getSampleProperty(SampleIds::SampleStart);
         
 		if (currentSound == nullptr)
 			return;
 
+        if (propId == SampleIds::SampleStartMod)
+            value -= (int)currentSound->getSampleProperty(SampleIds::SampleStart);
+        
         auto r = currentSound->getPropertyRange(propId);
 
 		if (!r.contains(value))
