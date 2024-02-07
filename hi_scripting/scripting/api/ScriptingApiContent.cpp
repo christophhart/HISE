@@ -5776,6 +5776,7 @@ width(600),
 name(String()),
 allowGuiCreation(true),
 dragCallback(p, nullptr, var(), 1),
+suspendCallback(p, nullptr, var(), 1),
 colour(Colour(0xff777777))
 {
 #if USE_FRONTEND
@@ -5829,6 +5830,7 @@ colour(Colour(0xff777777))
 	setMethod("isCtrlDown", Wrapper::isCtrlDown);
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
+	setMethod("setSuspendTimerCallback", Wrapper::setSuspendTimerCallback);
 	setMethod("createMarkdownRenderer", Wrapper::createMarkdownRenderer);
     setMethod("createSVG", Wrapper::createSVG);
 	setMethod("getScreenBounds", Wrapper::getScreenBounds);
@@ -6657,12 +6659,23 @@ void ScriptingApi::Content::setValuePopupData(var jsonData)
 
 void ScriptingApi::Content::suspendPanelTimers(bool shouldBeSuspended)
 {
+	if(suspendCallback)
+	{
+		suspendCallback.call1(shouldBeSuspended);
+	}
+    
+#if USE_BACKEND
+    for(auto rb: rebuildListeners)
+    {
+        if(rb != nullptr)
+            rb->suspendStateChanged(shouldBeSuspended);
+    }
+#endif
+
 	for (int i = 0; i < components.size(); i++)
 	{
 		if (auto sp = dynamic_cast<ScriptPanel*>(components[i].get()))
-		{
 			sp->suspendTimer(shouldBeSuspended);
-		}
 	}
 }
 

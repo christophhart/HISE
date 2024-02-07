@@ -225,6 +225,10 @@ public:
 			static bool zoomOut(Editor& e);
 			static bool toggleEditMode(Editor& e);
 
+			static bool toggleSuspension(Editor& e);
+
+			static bool editJson(Editor& e);
+
 			static bool move(Editor& e);
 
 			static bool lockSelection(Editor& e);

@@ -685,7 +685,19 @@ void ScriptContentComponent::paintOverChildren(Graphics& g)
 				ug.draw1PxRect(vg.area);
 		}
 	}
+
+	if(processor->simulatedSuspensionState)
+	{
+		g.fillAll(Colours::black.withAlpha(0.8f));
+		g.setColour(Colours::white);
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Suspended...", 0, 0, getWidth(), getHeight(), Justification::centred, false);
+		return;
+	}
+
 #endif
+
+	
 
 	if (isRebuilding)
 	{

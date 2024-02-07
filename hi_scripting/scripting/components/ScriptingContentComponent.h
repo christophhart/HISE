@@ -130,6 +130,11 @@ public:
 		return contentData.get() != nullptr ? contentData->width : -1;
 	}
 
+	void suspendStateChanged(bool shouldBeSuspended) override
+	{
+		repaint();
+	}
+
 	/** returns the script name that was set with Content.setName(). */
 	String getScriptName() const
 	{

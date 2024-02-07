@@ -181,6 +181,8 @@ public:
 
 		virtual bool onDragAction(DragAction a, ScriptComponent* source, var& data) { return false; }
 
+		virtual void suspendStateChanged(bool isSuspended) {};
+
 	private:
 
 		friend class WeakReference<RebuildListener>;
@@ -2260,6 +2262,15 @@ public:
 	/** Returns the ID of the component under the mouse. */
 	String getComponentUnderDrag();
 
+	/** Sets a callback that will be notified whenever the UI timers are suspended. */
+	void setSuspendTimerCallback(var suspendFunction)
+	{
+		if(HiseJavascriptEngine::isJavascriptFunction(suspendFunction))
+		{
+			suspendCallback = WeakCallbackHolder(getScriptProcessor(), nullptr, suspendFunction, 1);
+		}
+	}
+
 	// ================================================================================================================
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
@@ -2469,6 +2480,8 @@ public:
 private:
 
 	WeakCallbackHolder dragCallback;
+
+	WeakCallbackHolder suspendCallback;
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
 	{

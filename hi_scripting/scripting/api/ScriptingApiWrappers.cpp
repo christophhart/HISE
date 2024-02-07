@@ -100,6 +100,9 @@ struct ScriptingApi::Content::Wrapper
 	static var setUseHighResolutionForPanels(const var::NativeFunctionArgs& args);
 	static var isCtrlDown(const var::NativeFunctionArgs& args);
 
+	static var setSuspendTimerCallback(const var::NativeFunctionArgs& args);
+
+
 	static var getCurrentTooltip(const var::NativeFunctionArgs& args);
 
 	static var createScreenshot(const var::NativeFunctionArgs& args);
@@ -470,6 +473,18 @@ var ScriptingApi::Content::Wrapper::setContentTooltip (const var::NativeFunction
 };
 
 
+
+var ScriptingApi::Content::Wrapper::setSuspendTimerCallback(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("setSuspendTimerCallback()", 1);
+
+		thisObject->setSuspendTimerCallback(args.arguments[0]);
+	}
+
+	return var();
+}
 
 var ScriptingApi::Content::Wrapper::setUseHighResolutionForPanels(const var::NativeFunctionArgs& args)
 {

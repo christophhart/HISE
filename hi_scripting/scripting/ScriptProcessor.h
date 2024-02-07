@@ -63,6 +63,18 @@ public:
 
 	virtual int getCallbackEditorStateOffset() const;
 
+#if USE_BACKEND
+
+	void toggleSuspension()
+	{
+		simulatedSuspensionState = !simulatedSuspensionState;
+		suspendStateChanged(simulatedSuspensionState);
+	}
+	
+	bool simulatedSuspensionState = false;
+
+#endif
+
 	void suspendStateChanged(bool shouldBeSuspended) override;
 
 	ScriptingApi::Content *getScriptingContent() const;
