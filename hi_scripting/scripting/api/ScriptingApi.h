@@ -1501,6 +1501,9 @@ private:
 		/** If enabled, this will link the internal / external BPM to the sync mode. */
 		void setLinkBpmToSyncMode(bool shouldPrefer);
 
+		/** This will return true if the DAW is currently bouncing the audio to a file. You can use this in the transport change callback to modify your processing chain. */
+		bool isNonRealtime() const;
+
 	private:
 
 		static void onBypassUpdate(TransportHandler& handler, bool state);

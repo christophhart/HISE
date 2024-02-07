@@ -257,7 +257,7 @@ public:
 
 		bool hasPendingFunction(Processor* p) const;
 
-		bool isNonRealtime()
+		bool isNonRealtime() const
 		{
 			return nonRealtime;
 		}
@@ -1639,6 +1639,8 @@ public:
 
 	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi);
 
+	void sendArtificialTransportMessage(bool shouldBeOn);
+
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
 	
@@ -1669,16 +1671,9 @@ public:
 	DebugLogger& getDebugLogger() { return debugLogger; }
 	const DebugLogger& getDebugLogger() const { return debugLogger; }
     
-	void addPreviewListener(BufferPreviewListener* l)
-	{
-		previewListeners.addIfNotAlreadyThere(l);
-		l->previewStateChanged(previewBufferIndex != -1, previewBuffer);
-	}
+	void addPreviewListener(BufferPreviewListener* l);
 
-	void removePreviewListener(BufferPreviewListener* l)
-	{
-		previewListeners.removeAllInstancesOf(l);
-	}
+	void removePreviewListener(BufferPreviewListener* l);
 
 	void stopBufferToPlay();
 
