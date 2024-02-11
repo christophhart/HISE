@@ -1354,10 +1354,11 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 	{
 		int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
 
-		auto firstValue = compressedValues[0];
-		auto lastValue = compressedValues[numSamples_cr - 1];
-
-		if (fabsf(firstValue - lastValue) < 0.0001f)
+#if HISE_ENABLE_CROSSFADE_MODULATION_THRESHOLD
+        auto firstValue = compressedValues[0];
+        auto lastValue = compressedValues[numSamples_cr - 1];
+        
+		if (fabsf(firstValue - lastValue) < 0.0001f) // -80dB
 		{
 			// We need to manually convert the value from the table
 			// and send it to the mod chain to update the ramp value.
@@ -1366,31 +1367,30 @@ float* ModulatorSampler::calculateCrossfadeModulationValuesForVoice(int voiceInd
 			modChains[Chains::XFade].setCurrentRampValueForVoice(voiceIndex, currentCrossfadeValue);
 			return nullptr;
 		}
-		else
-		{
-			while (--numSamples_cr >= 0)
-			{
-				float value = *compressedValues;
-				*compressedValues++ = getCrossfadeValue(groupIndex, value);
-			}
+#endif
+		
+        while (--numSamples_cr >= 0)
+        {
+            float value = *compressedValues;
+            *compressedValues++ = getCrossfadeValue(groupIndex, value);
+        }
 
-			modChains[Chains::XFade].expandVoiceValuesToAudioRate(voiceIndex, startSample, numSamples);
+        modChains[Chains::XFade].expandVoiceValuesToAudioRate(voiceIndex, startSample, numSamples);
 
-			auto return_ptr = modChains[Chains::XFade].getWritePointerForVoiceValues(0);
+        auto return_ptr = modChains[Chains::XFade].getWritePointerForVoiceValues(0);
 
-			// It might be possible that the expansion results in a "constantification", so check again...
-			if (return_ptr != nullptr)
-			{
-				currentCrossfadeValue = 1.0f;
-				return return_ptr;
-			}
-			else
-			{
-				// Just grab the last mod value, it's already converted using the tables.
-				currentCrossfadeValue = modChains[Chains::XFade].getConstantModulationValue();
-				return nullptr;
-			}
-		}
+        // It might be possible that the expansion results in a "constantification", so check again...
+        if (return_ptr != nullptr)
+        {
+            currentCrossfadeValue = 1.0f;
+            return return_ptr;
+        }
+        else
+        {
+            // Just grab the last mod value, it's already converted using the tables.
+            currentCrossfadeValue = modChains[Chains::XFade].getConstantModulationValue();
+            return nullptr;
+        }
 	}
 	else
 	{
