@@ -58,6 +58,10 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
 #include "../hi_zstd/hi_zstd.h"
 
+#if HISE_INCLUDE_LORIS
+#include "../hi_loris/hi_loris.h"
+#endif
+
 /** Config: HISE_INCLUDE_RLOTTIE
 
     Includes the Rlottie framework so you can load Lottie Animations

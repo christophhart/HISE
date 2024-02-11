@@ -1,0 +1,4 @@
+This directory contains the source code for the Loris C++ library. In
+addition to the interface presented by the C++ classes, the Loris
+library presents a simplified, C-linkable procedural interface through
+the functions descried in loris.h

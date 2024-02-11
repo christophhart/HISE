@@ -94,6 +94,7 @@
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_loris" path="../../../HISE"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
@@ -155,6 +156,7 @@
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_loris" path="../../../HISE"/>
       </MODULEPATHS>
     </VS2017>
     <VS2022 targetFolder="Builds/VisualStudio2022" vstFolder="c:\SDKs\vstsdk2.4"
@@ -216,6 +218,7 @@
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_loris" path="../../../HISE"/>
       </MODULEPATHS>
     </VS2022>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="" linuxExtraPkgConfig="x11 xinerama xext">
@@ -256,6 +259,7 @@
         <MODULEPATH id="hi_faust" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_loris" path="../../../HISE"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -268,6 +272,7 @@
     <MODULE id="hi_faust_lib" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_faust_types" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_loris" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -300,7 +305,7 @@
                HLAC_MEASURE_DECODING_PERFORMANCE="0" HLAC_DEBUG_LOG="0" HLAC_INCLUDE_TEST_SUITE="0"
                HISE_INCLUDE_SNEX="1" USE_RAW_FRONTEND="0" HI_SUPPORT_FULL_DYNAMICS_HLAC="1"
                HISE_ENABLE_MIDI_INPUT_FOR_FX="1" JUCE_LOAD_CURL_SYMBOLS_LAZILY="1"
-               JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_USE_DIRECTWRITE="1"/>
+               JUCE_STRICT_REFCOUNTEDPOINTER="1" JUCE_USE_DIRECTWRITE="1" HISE_INCLUDE_LORIS="1"/>
   <LIVE_SETTINGS>
     <OSX/>
     <WINDOWS/>

@@ -117,9 +117,19 @@ scriptUnlocker(this)
 	}
     
     externalClockSim.bpm = dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
-    
+
+#if HISE_INCLUDE_LORIS && !HISE_USE_LORIS_DLL
+
+	lorisManager = new LorisManager(File(), [this](String message)
+    {
+        this->getConsoleHandler().writeToConsole(message, 1, getMainSynthChain(), Colour(HISE_ERROR_COLOUR));
+    });
+
+#else
+
     if(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Compiler::EnableLoris))
     {
+#if HISE_USE_LORIS_DLL
         auto f = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("loris_library");
         
         if(f.isDirectory())
@@ -137,6 +147,7 @@ scriptUnlocker(this)
                 f.revealToUser();
             }
         }
+#endif
     }
     else
     {
@@ -145,7 +156,8 @@ scriptUnlocker(this)
         if(f.isDirectory())
             debugToConsole(getMainSynthChain(), "You seem to have installed the loris library, but you need to enable the setting `EnableLoris` in the HISE preferences");
     }
-    
+
+#endif
     
 }
 
