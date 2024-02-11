@@ -54,7 +54,7 @@
 #include "loris.h"
 #include "lorisException_pi.h"
 
-#include "AiffFile.h"
+//#include "AiffFile.h"
 #include "Analyzer.h"
 #include "BreakpointEnvelope.h"
 #include "Channelizer.h"
@@ -392,7 +392,8 @@ extern "C"
 void exportAiff( const char * path, const double * buffer, 
 				     unsigned int bufferSize, double samplerate, int bitsPerSamp )
 {
-	try 
+#if 0
+	try
 	{
 		ThrowIfNull((double *) buffer);
 	
@@ -420,7 +421,7 @@ void exportAiff( const char * path, const double * buffer,
 		s.append( ex.what() );
 		handleException( s.c_str() );
 	}
-
+#endif
 }
 
 /* ---------------------------------------------------------------- */
@@ -434,7 +435,8 @@ void exportAiff( const char * path, const double * buffer,
 extern "C"
 void exportSdif( const char * path, PartialList * partials )
 {
-	try 
+#if 0
+	try
 	{
 		ThrowIfNull((PartialList *) partials);
 
@@ -460,7 +462,7 @@ void exportSdif( const char * path, PartialList * partials )
 		s.append( ex.what() );
 		handleException( s.c_str() );
 	}
-
+#endif
 }
 
 /* ---------------------------------------------------------------- */
@@ -481,7 +483,8 @@ extern "C"
 void exportSpc( const char * path, PartialList * partials, double midiPitch, 
 				int enhanced, double endApproachTime )
 {
-	try 
+#if 0
+	try
 	{
 		ThrowIfNull((PartialList *) partials);
 
@@ -535,7 +538,7 @@ void exportSpc( const char * path, PartialList * partials, double midiPitch,
 		s.append( ex.what() );
 		handleException( s.c_str() );
 	}
-
+#endif
 }
 
 /* ---------------------------------------------------------------- */
@@ -603,7 +606,8 @@ unsigned int
 importAiff( const char * path, double * buffer, unsigned int bufferSize, 
             double * samplerate )
 {
-	unsigned int howMany = 0; 
+#if 0
+	unsigned int howMany = 0;
 	try 
 	{
 		//	read samples:
@@ -642,6 +646,9 @@ importAiff( const char * path, double * buffer, unsigned int bufferSize,
 		handleException( s.c_str() );
 	}
 	return howMany;
+#endif
+
+	return 0;
 }
 
 /* ---------------------------------------------------------------- */
@@ -656,7 +663,8 @@ importAiff( const char * path, double * buffer, unsigned int bufferSize,
 extern "C"
 void importSdif( const char * path, PartialList * partials )
 {
-	try 
+#if 0
+	try
 	{
 		ThrowIfNull((PartialList *) partials);
 
@@ -676,6 +684,7 @@ void importSdif( const char * path, PartialList * partials )
 		s.append( ex.what() );
 		handleException( s.c_str() );
 	}
+#endif
 }
 
 /* ---------------------------------------------------------------- */
@@ -687,7 +696,8 @@ void importSdif( const char * path, PartialList * partials )
 extern "C"
 void importSpc( const char * path, PartialList * partials )
 {
-	try 
+#if 0
+	try
 	{
 		Loris::notifier << "importing Partials from " << path << Loris::endl;
 		Loris::SpcFile imp( path );
@@ -706,6 +716,7 @@ void importSpc( const char * path, PartialList * partials )
 		s.append( ex.what() );
 		handleException( s.c_str() );
 	}
+#endif
 }
 
 /* ---------------------------------------------------------------- */

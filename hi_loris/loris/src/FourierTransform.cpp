@@ -323,6 +323,63 @@ public:
     
 }; // end of class FTimpl for FFTW version 2
 
+#elif defined(JUCE_DSP_H_INCLUDED)
+
+struct FTimpl
+{
+    juce::dsp::FFT fftObject;
+    
+	// Construct an implementation instance:
+	// allocate buffers and workspace, and
+	// initialize the twiddle factors.
+	FTimpl( FourierTransform::size_type sz ):
+	  fftObject(log2(sz))
+	{
+		jassert(isPO2(sz));
+
+		input.resize(sz);
+		output.resize(sz);
+
+		for(auto& s: input)
+			s = {};
+
+		for(auto& s: output)
+			s = {};
+	}
+   
+	// Destroy the implementation instance:
+	~FTimpl()
+	{
+        
+	}
+
+	std::vector<std::complex<float>> input, output;
+
+	// Copy complex< double >'s from a buffer into ftIn, 
+	// the buffer must be as long as ftIn.
+	void loadInput( const std::complex< double > * bufPtr )
+	{
+		for(int i = 0; i < input.size(); i++)
+			input[i] = { (float)bufPtr[i].real(), (float)bufPtr[i].imag() };;
+	}
+   
+	//  Copy complex< double >'s from ftOut into a buffer,
+	//  which must be as long as ftOut. Result might be
+    //  stored in the twiddle factor array if this is not
+    //  power of two length DFT.
+	void copyOutput(std::complex< double > * bufPtr ) const
+	{
+		for(int i = 0; i < output.size(); i++)
+			bufPtr[i] = { (double)output[i].real(), (double)output[i].imag() };;
+	}
+    
+    // Compute a forward transform.
+    void forward( void )
+    {
+		fftObject.perform(input.data(), output.data(), false);
+    }
+};
+
 #else
 
 #define SORRY_NO_FFTW  1
