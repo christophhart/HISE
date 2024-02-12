@@ -36,20 +36,75 @@ namespace hise {
 namespace multipage {
 using namespace juce;
 
+
+
 namespace factory
 {
 	struct Container;
 }
 
+struct UndoableVarAction: public UndoableAction
+{
+    enum class Type
+	{
+		SetProperty,
+        RemoveProperty,
+        AddChild,
+        RemoveChild,
+	};
+
+    UndoableVarAction(const var& parent_, const Identifier& id, const var& newValue_):
+       actionType(newValue_.isVoid() ? Type::RemoveProperty : Type::SetProperty),
+       parent(parent_),
+       key(id),
+       index(-1),
+       oldValue(parent[key]),
+       newValue(newValue_)
+    {}
+
+    UndoableVarAction(const var& parent_, int index_, const var& newValue_):
+       actionType(newValue_.isVoid() ? Type::RemoveChild : Type::AddChild),
+       parent(parent_),
+       index(index_),
+       oldValue(isPositiveAndBelow(index, parent.size()) ? parent[index] : var()),
+       newValue(newValue_)
+    {};
+        
+    bool perform() override
+    {
+	    switch(actionType)
+	    {
+	    case Type::SetProperty: parent.getDynamicObject()->setProperty(key, newValue); return true;
+	    case Type::RemoveProperty: parent.getDynamicObject()->removeProperty(key); true;
+	    case Type::AddChild: parent.getArray()->insert(index, newValue); return true;
+	    case Type::RemoveChild: return parent.getArray()->removeAllInstancesOf(oldValue) > 0;
+	    default: return false;
+	    }
+    }
+
+    bool undo() override
+    {
+	    switch(actionType)
+	    {
+	    case Type::SetProperty: parent.getDynamicObject()->setProperty(key, oldValue); return true;
+	    case Type::RemoveProperty: parent.getDynamicObject()->setProperty(key, oldValue); return true;
+	    case Type::AddChild: parent.getArray()->removeAllInstancesOf(newValue); return true;
+	    case Type::RemoveChild: parent.getArray()->insert(index, oldValue);
+	    default: ;
+	    }
+    }
+
+    const Type actionType;
+    var parent;
+    const Identifier key;
+    const int index;
+    var oldValue;
+    var newValue;
+};
+
 struct CodeGenerator
 {
-    struct Helpers
-    {
-        
-        
-    };
-
-	CodeGenerator(const var& totalData, int numTabs_=0):
+    CodeGenerator(const var& totalData, int numTabs_=0):
       data(totalData),
       numTabs(numTabs_)
 	{
@@ -62,11 +117,10 @@ private:
 
     String generateRandomId(const String& prefix) const;
     String getNewLine() const;
-
-    static String arrayToCommaString(const var& value);
-
     String createAddChild(const String& parentId, const var& childData, const String& itemType="Page", bool attachCustomFunction=false) const;
-
+    
+    static String arrayToCommaString(const var& value);
+    
     mutable StringArray existingVariables;
 
     mutable int idCounter = 0;
@@ -104,6 +158,8 @@ struct EditorOverlay: public Component,
 
     EditorOverlay(Dialog& parent);
 
+    void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
+
     void resized() override;
 
     void mouseUp(const MouseEvent& e) override;
@@ -115,14 +171,14 @@ struct EditorOverlay: public Component,
 	    c.setVisible(isOn);
     }
 
-    void setOnClick(const std::function<void()>& f)
+    void setOnClick(const std::function<void(bool)>& f)
     {
 	    cb = f;
     }
 
     std::function<Rectangle<int>(Component*)> localBoundFunction;
 
-    std::function<void()> cb;
+    std::function<void(bool)> cb;
 
     Path outline;
     Rectangle<float> bounds;
@@ -162,7 +218,8 @@ struct ErrorComponent: public Component
  * - add code generator for C++ (move base-cppgen from hi_snex to hi_tools) OK
  * */
 class Dialog: public Component,
-			   public PathFactory
+			  public PathFactory,
+			  public ScrollBar::Listener
 {
 public:
     
@@ -175,7 +232,39 @@ public:
     };
     
     struct PageInfo;
-    
+
+    struct PositionInfo
+    {
+        enum LabelPositioning
+	    {
+	        Default,
+		    Left,
+	        Above,
+	        None,
+            numLabelPositionings
+	    };
+
+        static StringArray getLabelPositionNames()
+        {
+	        return { "Default", "Left", "Above", "None" };
+        }
+
+        var toJSON() const;
+        void fromJSON(const var& obj);
+        Result checkSanity() const;
+        void setDefaultPosition(LabelPositioning p);
+        int getWidthForLabel(int totalWidth) const;
+        int getHeightForComponent(int heightWithoutLabel);
+
+        int TopHeight = 56;
+        int ButtonTab = 40;
+        int ButtonMargin = 5;
+        int OuterPadding = 50;
+        double LabelWidth = 160;
+        int LabelHeight = 32;
+        int LabelPosition = LabelPositioning::Default;
+    };
+
     struct PageBase: public Component
     {
         using CustomCheckFunction = std::function<Result(PageBase*, var)>;
@@ -193,10 +282,21 @@ public:
 
         virtual void createEditor(PageInfo& infoList) {}
 
-        var getPropertyFromInfoObject(const Identifier& id) const
+        var getPropertyFromInfoObject(const Identifier& id) const;
+
+        void deleteFromParent();
+
+        void duplicateInParent();
+
+
+        bool isEditModeAndNotInPopup() const
         {
-	        return infoObject.getProperty(id, var(""));
+	        return rootDialog.isEditModeEnabled() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr;
         }
+
+        bool showDeletePopup(bool isRightClick);
+
+        String getDefaultPositionName() const;
 
     protected:
 
@@ -208,6 +308,7 @@ public:
 	    virtual void editModeChanged(bool isEditMode);
 
         
+	    bool inheritsPosition = true;
 
     public:
 
@@ -238,14 +339,11 @@ public:
 
     protected:
 
-        bool editMode = false;
+        PositionInfo positionInfo;
+
         Identifier id;
         Dialog& rootDialog;
         var initValue;
-
-        
-
-        
 
         struct HelpButton: public HiseShapeButton
 	    {
@@ -259,6 +357,35 @@ public:
         var infoObject;
 
         void setModalHelp(const String& text);
+
+        enum class AreaType
+    {
+	    Label,
+        Component
+    };
+
+	    Rectangle<int> getArea(AreaType t) const
+	    {
+		    auto b = getLocalBounds();
+
+		    using Pos = Dialog::PositionInfo::LabelPositioning;
+
+	        auto posToUse = (Pos)positionInfo.LabelPosition;
+
+	        if(rootDialog.isEditModeEnabled() && posToUse == Pos::None)
+				posToUse = Pos::Left;
+
+	        Rectangle<int> lb;
+
+		    switch(posToUse)
+		    {
+    			case Pos::Left:  lb = b.removeFromLeft(positionInfo.getWidthForLabel(getWidth())); break;
+				case Pos::Above: lb = b.removeFromTop(positionInfo.LabelHeight); break;
+	            case Pos::None:  break;
+		    }
+	        
+	        return t == AreaType::Component ? b : lb;
+	    }
 
     private:
 
@@ -312,67 +439,7 @@ public:
         JUCE_DECLARE_WEAK_REFERENCEABLE(PageBase);
     };
     
-    struct PositionInfo
-    {
-        enum LabelPositioning
-	    {
-	        Default,
-		    Left,
-	        Above,
-	        None,
-            numLabelPositionings
-	    };
-
-        static StringArray getLabelPositionNames()
-        {
-	        return { "Default", "Left", "Above", "None" };
-        }
-
-        var toJSON() const;
-
-        void fromJSON(const var& obj);
-
-        Result checkSanity() const
-        {
-	        if(ButtonTab - 2 * ButtonMargin < 5)
-                return Result::fail("ButtonTab / ButtonMargin invalid");
-
-            if(OuterPadding > 100)
-                return Result::fail("OuterPadding too high");
-            
-            return Result::ok();
-        }
-
-        void setDefaultPosition(LabelPositioning p)
-        {
-	        if(LabelPosition == LabelPositioning::Default)
-                LabelPosition = p;
-        }
-
-        int getWidthForLabel(int totalWidth) const
-        {
-	        if(LabelWidth < 0.0)
-                return jmax(10, roundToInt(totalWidth * -1.0 * LabelWidth));
-            else
-                return jmax(10, roundToInt(LabelWidth));
-        }
-
-        int getHeightForComponent(int heightWithoutLabel)
-        {
-	        if(LabelPosition == (int)LabelPositioning::Above)
-                heightWithoutLabel += LabelHeight;
-
-            return heightWithoutLabel;
-        }
-
-        int TopHeight = 56;
-        int ButtonTab = 40;
-        int ButtonMargin = 5;
-        int OuterPadding = 50;
-        double LabelWidth = -0.2;
-        int LabelHeight = 32;
-        int LabelPosition = LabelPositioning::Default;
-    };
+    
     
     struct PageInfo: public ReferenceCountedObject
     {
@@ -397,26 +464,24 @@ public:
             return p;
         }
 
-        PageInfo& getChild(const Identifier& id)
-        {
-	        for(auto& c: childItems)
-	        {
-		        if(c->data[mpid::ID].toString() == id.toString())
-			        return *c;
-	        }
+        PageInfo* getChildRecursive(PageInfo* p, const Identifier& id);
 
-            jassertfalse;
-            return *this;
-        }
+        PageInfo& getChild(const Identifier& id);
 
         template <typename T> PageInfo& addChild(DefaultProperties&& values={})
         {
+            static_assert(std::is_base_of<PageBase, T>(), "must be base of PageBase");
 	        childItems.add(createInfo<T>());
             
             for(auto& v: values)
                 childItems.getLast()->data.getDynamicObject()->setProperty(v.first, v.second);
             
             return *childItems.getLast();
+        }
+
+        template <typename T> void setLambdaAction(State& s, const T& f)
+        {
+	        (*this)[mpid::Function] = var(LambdaAction(s, f));
         }
 
         void setCreateFunction(const CreateFunction& f);
@@ -479,9 +544,29 @@ public:
         Array<Item> items;
     };
 
-    Dialog(const var& obj, State& rt);
+    Dialog(const var& obj, State& rt, bool addEmptyPage=true);
     ~Dialog();
 
+    void addListPageWithJSON()
+    {
+        auto fc = new DynamicObject();
+        fc->setProperty(mpid::Type, "List");
+        fc->setProperty(mpid::Padding, 10);
+        pageListInfo.add(var(fc));
+        
+        if(auto pi = factory.create(pageListInfo.getLast()))
+        {
+            pi->setStateObject(getState().globalState);
+            pi->useGlobalStateObject = true;
+            pages.add(std::move(pi));
+        }
+        
+        refreshCurrentPage();
+        resized();
+        repaint();
+    }
+    
+    
     template <typename T> PageInfo& addPage(DefaultProperties&& values={}, int index = -1)
     {
         PageInfo::Ptr p;
@@ -517,16 +602,108 @@ public:
     void setProperty(const Identifier& id, const var& newValue);
     void setStyleData(const MarkdownLayout::StyleData& sd);
     bool navigate(bool forward);
+
+    bool refreshCurrentPage()
+    {
+        auto index = getState().currentPageIndex;
+
+        if((currentPage = pages[index]->create(*this, content.getWidth() - content.getScrollBarThickness() - 10)))
+		{
+			content.setViewedComponent(currentPage);
+			currentPage->postInit();
+			currentPage->setLookAndFeel(&getLookAndFeel());
+			nextButton.setButtonText(runThread->currentPageIndex == pages.size() - 1 ? "Finish" : "Next");
+                
+			return true;
+		}
+
+        return false;
+    }
+
     bool getCurrentNavigationDirection() { return currentNavigation; }
     void paint(Graphics& g) override;
     void resized() override;
     State& getState() { return *runThread; }
+
+    struct TabTraverser: public ComponentTraverser
+    {
+        TabTraverser(Dialog& parent_):
+          parent(parent_)
+        {};
+
+        Dialog& parent;
+        
+	    Component* getDefaultComponent (Component* parentComponent) override { return &parent; }
+
+	    Component* getNextComponent (Component* current) override
+	    {
+            bool useNext = false;
+            Component* nextComponent = nullptr;
+
+		    Component::callRecursive<Component>(&parent, [& ](Component* c)
+		    {
+			    if(c == current)
+                    useNext = true;
+                else if (useNext && c->getWantsKeyboardFocus())
+                {
+	                nextComponent = c;
+                    return true;
+                }
+
+                return false;
+		    });
+
+            return nextComponent;
+	    }
+
+	    Component* getPreviousComponent (Component* current) override
+	    {
+		    return nullptr;
+	    }
+
+	    std::vector<Component*> getAllComponents (Component* parentComponent) override
+	    {
+		    std::vector<Component*> list;
+
+            Component::callRecursive<Component>(parentComponent, [&](Component* c)
+            {
+	            if(c->getWantsKeyboardFocus())
+                    list.push_back(c);
+
+                return false;
+            });
+
+            return list;
+	    }
+    };
+
+    std::unique_ptr<ComponentTraverser> createKeyboardFocusTraverser() override
+    {
+	    return std::make_unique<TabTraverser>(*this);
+    }
 
     void mouseDown(const MouseEvent& e) override;
 
     void setEditMode(bool isEditMode);
 
     bool isEditModeEnabled() const noexcept;
+
+    bool isEditModeAllowed() const { return editingAllowed; }
+
+    String getExistingKeysAsItemString() const
+    {
+        String x;
+        const auto& props = runThread->globalState.getDynamicObject()->getProperties();
+        for(auto& nv: props)
+            x << nv.name << "\n";
+        
+        return x;
+    }
+    
+    void setEnableEditMode(bool shouldBeEnabled)
+    {
+	    editingAllowed = shouldBeEnabled;
+    }
 
     LambdaBroadcaster<bool>& getEditModeBroadcaster() { return editModeBroadcaster; }
 
@@ -560,7 +737,9 @@ public:
         void onOk();
         void dismiss();
         void setContent(PageInfo::Ptr newContent);
-        void show(PositionInfo newInfo, bool addButtons);
+        void show(PositionInfo newInfo, bool addButtons, const Image& additionalScreenshot);
+
+        bool keyPressed(const KeyPress& k) override;
 
         void mouseDown(const MouseEvent& e) override;
         void paint(Graphics& g) override;
@@ -573,6 +752,8 @@ public:
         ScopedPointer<PageBase> contentComponent;
         PageInfo::Ptr content;
 	    TextButton okButton, cancelButton;
+
+        Image screenshot;
     };
 
     template <typename T> PageInfo& createModalPopup(DefaultProperties&& values={})
@@ -594,11 +775,45 @@ public:
         return *p;
     }
 
-    void showModalPopup(bool addButtons);
+    static String joinVarArrayToNewLineString(const var& v)
+    {
+        String s;
+
+	    if(v.isArray())
+	    {
+		    for(auto& item: *v.getArray())
+                s << item.toString() << "\n";
+	    }
+        else
+            s << v.toString();
+
+        return s;
+    }
+
+    static var parseCommaList(const String& text)
+    {
+	    auto sa = StringArray::fromTokens(text, ",", "");
+        sa.trim();
+
+        Array<var> values;
+
+        for(const auto& s: sa)
+            values.add(var(s));
+
+        return var(values);
+    }
+
+    void showModalPopup(bool addButtons, const Image& additionalScreenshot = {});
     Result checkCurrentPage();
     void setCurrentErrorPage(PageBase* b);
 
+    bool keyPressed(const KeyPress& k) override;
+
+    Viewport& getViewport() { return content; }
+    
     var exportAsJSON() const;
+
+    void scrollBarMoved (ScrollBar*, double) override { repaint(); }
 
     PositionInfo getPositionInfo(const var& pageData) const
     {
@@ -608,16 +823,20 @@ public:
 
     bool createJSON = false;
 
+    UndoManager& getUndoManager() { return um; }
+
 private:
     void showMainPropertyEditor();
 
     void showNumPageEditor();
 
+    UndoManager um;
+
     TooltipWindow tooltipWindow;
 
     LambdaBroadcaster<bool> editModeBroadcaster;
 
-    bool editMode = true;
+    bool editMode = false;
     bool editingAllowed = true;
 
     friend class State;

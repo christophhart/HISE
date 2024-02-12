@@ -33,15 +33,6 @@
 
 #include "InputComponents.h"
 
-#include "MultiPageDialog.h"
-#include "MultiPageDialog.h"
-#include "MultiPageDialog.h"
-#include "MultiPageDialog.h"
-#include "MultiPageDialog.h"
-#include "MultiPageDialog.h"
-#include "MultiPageDialog.h"
-
-
 namespace hise {
 namespace multipage {
 namespace factory {
@@ -49,7 +40,7 @@ using namespace juce;
 
 template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList, const String& typeHelp)
 {
-	rootList.addChild<Type>({
+    rootList.addChild<Type>({
         { mpid::ID, "Type"},
         { mpid::Type, T::getStaticId().toString() },
         { mpid::Help, typeHelp }
@@ -62,18 +53,27 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 		{ mpid::Help, "The ID for the element (used as key in the state `var`.\n>" }
 	});
 
-    rootList.addChild<TextInput>({
+    auto& col = rootList.addChild<Column>({{mpid::Padding, 24 }});
+
+    col.addChild<TextInput>({
 		{ mpid::ID, "Text" },
 		{ mpid::Text, "Text" },
 		{ mpid::Help, "The label next to the " + T::getStaticId() }
 	});
 
-    rootList.addChild<Choice>({
+    col.addChild<Choice>({
         { mpid::ID, "LabelPosition" },
         { mpid::Text, "LabelPosition" },
         { mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
         { mpid::Value, obj.getDefaultPositionName() },
         { mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
+    });
+
+    rootList.addChild<TextInput>({
+        { mpid::ID, "Help" },
+        { mpid::Text, "Help" },
+        { mpid::Multiline, true },
+        { mpid::Help, "The markdown content that will be shown when you click on the help button" }
     });
 }
 
@@ -83,22 +83,12 @@ LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Compo
 {
 	addAndMakeVisible(c);
 	label = obj[mpid::Text].toString();
-
-    positionInfo = r.getPositionInfo(obj);
-
+    
     required = obj[mpid::Required];
 
-    if(obj.hasProperty(mpid::LabelPosition))
-    {
-        auto np = positionInfo.getLabelPositionNames().indexOf(obj[mpid::LabelPosition].toString());
-
-        if(np != Dialog::PositionInfo::LabelPositioning::Default)
-        {
-            positionInfo.LabelPosition = np;
-	        inheritsPosition = false;
-        }
-    }
     
+
+    setWantsKeyboardFocus(false);
     setInterceptsMouseClicks(false, true);
 	setSize(width, positionInfo.getHeightForComponent(32));
 }
@@ -110,15 +100,10 @@ void LabelledComponent::postInit()
 
 void LabelledComponent::paint(Graphics& g)
 {
-    auto b = getLocalBounds();
-    using Pos = Dialog::PositionInfo::LabelPositioning;
+    auto b = getArea(AreaType::Label);
 
-    switch((Pos)positionInfo.LabelPosition)
-    {
-    	case Pos::Left:  b = b.removeFromLeft(positionInfo.getWidthForLabel(getWidth())).reduced(8, 0); break;
-		case Pos::Above: b = b.removeFromTop(positionInfo.LabelHeight); break;
-		case Pos::None:  b = {}; break;
-    }
+    if(rootDialog.isEditModeEnabled())
+    	b.reduce(10, 0);
 
     auto df = Dialog::getDefaultFont(*this);
 
@@ -126,15 +111,23 @@ void LabelledComponent::paint(Graphics& g)
     {
 		g.setFont(df.first);
 		g.setColour(df.second);
-
         g.drawText(label, b.toFloat(), Justification::left);
     }
 
-    if(rootDialog.isEditModeEnabled() && id.isValid() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
+    if(rootDialog.isEditModeEnabled() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
     {
         g.setFont(GLOBAL_MONOSPACE_FONT());
-        g.setColour(df.second.withAlpha(0.5f));
-        g.drawText(id.toString() + " ", b.toFloat(), Justification::right);
+
+        if(id.isValid())
+        {
+	        g.setColour(df.second.withAlpha(0.5f));
+			g.drawText(id.toString() + " ", b.toFloat(), Justification::right);
+        }
+        else
+        {
+	        g.setColour(Colour(HISE_ERROR_COLOUR).withAlpha(0.5f));
+            g.drawText("anonymous", b.toFloat(), Justification::right);
+        }
     }
 }
 
@@ -142,16 +135,7 @@ void LabelledComponent::resized()
 {
     PageBase::resized();
     
-	auto b = getLocalBounds();
-
-    using Pos = Dialog::PositionInfo::LabelPositioning;
-
-    switch((Pos)positionInfo.LabelPosition)
-    {
-    	case Pos::Left:  b.removeFromLeft(positionInfo.getWidthForLabel(getWidth())); break;
-		case Pos::Above: b.removeFromTop(positionInfo.LabelHeight); break;
-		case Pos::None:  break;
-    }
+	auto b = getArea(AreaType::Component);
 
 	if(helpButton != nullptr)
 	{
@@ -172,14 +156,20 @@ void LabelledComponent::editModeChanged(bool isEditMode)
 
 		overlay->localBoundFunction = [pos](Component* c)
 		{
+            return dynamic_cast<LabelledComponent*>(c)->getArea(AreaType::Label);
 			auto b = c->getLocalBounds();
 
 			return b.removeFromLeft(pos.getWidthForLabel(c->getWidth()));
 		};
 
-		overlay->setOnClick([this]()
+		overlay->setOnClick([this](bool isRightClick)
 		{
-			auto& l = rootDialog.createModalPopup<List>();
+            if(this->showDeletePopup(isRightClick))
+                return;
+
+			auto& l = rootDialog.createModalPopup<List>({
+                { mpid::Padding, 10 }
+			});
 
             l.setStateObject(infoObject);
             createEditor(l);
@@ -197,51 +187,199 @@ void LabelledComponent::editModeChanged(bool isEditMode)
 	}
 }
 
-
-
-
-void Tickbox::createEditor(Dialog::PageInfo& rootList)
+void Button::createEditor(Dialog::PageInfo& rootList)
 {
-    addBasicComponents<Tickbox>(*this, rootList, "A Tickbox lets you enable / disable a boolean option or can be grouped together with other tickboxes to create a radio group with an exclusive selection option");
+    addBasicComponents<Button>(*this, rootList, "A Button lets you enable / disable a boolean option or can be grouped together with other tickboxes to create a radio group with an exclusive selection option");
 
-	rootList.addChild<Tickbox>({
+	rootList.addChild<Button>({
 		{ mpid::ID, "Required" },
 		{ mpid::Text, "Required" },
 		{ mpid::Help, "If this is enabled, the tickbox must be selected in order to proceed to the next page, otherwise it will show a error message.\n> This is particularly useful for eg. accepting TOC" }
 	});
 
-    
+    auto& col = rootList.addChild<Column>();
+
+    col.addChild<Choice>({
+        { mpid::ID, "ButtonType" },
+        { mpid::Text, "ButtonType" },
+        { mpid::Items, "Toggle\nText\nIcon" },
+        { mpid::Help, "The appearance of the button. " },
+
+    });
+
+    col.addChild<Button>({
+		{ mpid::ID, "Trigger" },
+		{ mpid::Text, "Trigger" },
+		{ mpid::Help, "If this is enabled, the button will fire the action with the same ID when you click it, otherwise it will store its value (either on/off or radio group index in the global state" }
+	});
+
+    rootList.addChild<TextInput>({
+      { mpid::ID, "IconData" },
+      { mpid::Text, "IconData" },
+      { mpid::Value, pathData.isEmpty() ? "" : pathData.toBase64Encoding() }
+    });
 }
 
 
-Tickbox::Tickbox(Dialog& r, int width, const var& obj):
-	LabelledComponent(r, width, obj, new ToggleButton())
+Button::Button(Dialog& r, int width, const var& obj):
+	LabelledComponent(r, width, obj, createButton(obj))
 {
     positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::None);
 
 	if(positionInfo.LabelPosition == Dialog::PositionInfo::LabelPositioning::None)
-        getComponent<ToggleButton>().setButtonText(obj[mpid::Text]);
+        getComponent<juce::Button>().setButtonText(obj[mpid::Text]);
 
 	loadFromInfoObject(obj);
 }
 
-void Tickbox::buttonClicked(Button* b)
+void Button::buttonClicked(juce::Button* b)
 {
-    for(auto tb: groupedButtons)
-        tb->setToggleState(b == tb, dontSendNotification);
+    if(isTrigger)
+    {
+        auto thisId = id;
+        
+	    Component::callRecursive<Action>(&rootDialog, [thisId](Action* a)
+	    {
+		    if(a->getId() == thisId)
+		    {
+			    a->perform();
+                return true;
+		    }
+
+            return false;
+	    });
+    }
+    else
+    {
+	    for(auto tb: groupedButtons)
+			tb->setToggleState(b == tb, dontSendNotification);
+    }
 }
 
-Result Tickbox::loadFromInfoObject(const var& obj)
+Result Button::loadFromInfoObject(const var& obj)
 {
     auto ok = LabelledComponent::loadFromInfoObject(obj);
 
+    isTrigger = obj[mpid::Trigger];
+
+    getComponent<juce::Button>().setClickingTogglesState(!isTrigger);
+
+    if(obj.hasProperty(mpid::IconData))
+		pathData.fromBase64Encoding(obj[mpid::IconData].toString());
+
     if(obj.hasProperty(mpid::Required))
-	{
 		requiredOption = true;
-	}
 
     return ok;
 }
+
+String Button::getStringForButtonType() const
+{
+	auto c = &getComponent<Component>();
+
+	if(dynamic_cast<const TextButton*>(c))
+		return "Text";
+	if(dynamic_cast<const ToggleButton*>(c))
+		return "Toggle";
+	if(dynamic_cast<const HiseShapeButton*>(c))
+		return "Icon";
+
+	return "Undefined";
+}
+
+juce::Button* Button::createButton(const var& obj)
+{
+	auto buttonType = obj[mpid::ButtonType].toString();
+
+	if(buttonType == "Toggle")
+		return new ToggleButton();
+	if(buttonType == "Text")
+		return new TextButton(obj[mpid::Text]);
+	if(buttonType == "Icon")
+		return new HiseShapeButton("icon", this, *this);
+    
+    return new ToggleButton();
+}
+
+    
+void Button::postInit()
+{
+    init();
+
+    auto& button = this->getComponent<juce::Button>();
+    
+    Component* root = getParentComponent();
+    
+    while(dynamic_cast<PageBase*>(root) != nullptr)
+    {
+        root = root->getParentComponent();
+    }
+    
+    Component::callRecursive<Button>(root, [&](Button* tb)
+    {
+        if(tb->id == id)
+            groupedButtons.add(&tb->getComponent<juce::Button>());
+        
+        return false;
+    });
+    
+    if(groupedButtons.size() > 1)
+    {
+        thisRadioIndex = groupedButtons.indexOf(&button);
+        auto radioIndex = (int)getValueFromGlobalState(-1);
+        
+        int idx = 0;
+        
+        for(auto b: groupedButtons)
+        {
+            b->addListener(this);
+            b->setToggleState(idx++ == radioIndex, dontSendNotification);
+        }
+    }
+    else
+    {
+        groupedButtons.clear();
+        button.setToggleState(getValueFromGlobalState(false), dontSendNotification);
+    }
+    
+	button.setColour(ToggleButton::ColourIds::tickColourId, Dialog::getDefaultFont(*this).second);
+    
+
+}
+
+Result Button::checkGlobalState(var globalState)
+{
+    if(isTrigger)
+        return Result::ok();
+
+    auto& button = getComponent<juce::Button>();
+    
+	if(required)
+	{
+        if(thisRadioIndex == -1 && button.getToggleState() != requiredOption)
+		{
+			return Result::fail("You need to tick " + label);
+		}
+        else
+        {
+            auto somethingPressed = false;
+            
+            for(auto tb: groupedButtons)
+                somethingPressed |= tb->getToggleState();
+            
+            if(!somethingPressed)
+                return Result::fail("You need to select one option of " + id.toString());
+        }
+	}
+
+    if(thisRadioIndex == -1)
+        writeState(button.getToggleState());
+    else if(button.getToggleState())
+        writeState(thisRadioIndex);
+    
+	return Result::ok();
+}
+
 
 Choice::Choice(Dialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, new SubmenuComboBox())
@@ -308,19 +446,21 @@ void Choice::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents<Choice>(*this, rootList, "A Choice can be used to select multiple fixed options with a drop down menu");
 
-    rootList.addChild<Tickbox>({
-        { mpid::ID, "Custom" },
-        { mpid::Text, "Custom" },
-        { mpid::Value, custom },
-        { mpid::Help, "If ticked, then you can use the markdown syntax to create complex popup menu configurations." }
-    });
-
-	rootList.addChild<TextInput>({
+    auto& col = rootList.addChild<Column>();
+    
+	col.addChild<TextInput>({
 		{ mpid::ID, "Items" },
 		{ mpid::Text, "Items" },
         { mpid::Multiline, true },
 		{ mpid::Help, "A string with one item per line" }
 	});
+
+    col.addChild<Button>({
+        { mpid::ID, "Custom" },
+        { mpid::Text, "Custom" },
+        { mpid::Value, custom },
+        { mpid::Help, "If ticked, then you can use the markdown syntax to create complex popup menu configurations." }
+    });
 
     rootList.addChild<Choice>({
         { mpid::ID, "ValueMode" },
@@ -369,86 +509,15 @@ Result ColourChooser::checkGlobalState(var globalState)
 	return Result::ok();
 }
 
-void Tickbox::postInit()
+void ColourChooser::createEditor(Dialog::PageInfo& info)
 {
-    init();
-
-    auto& button = this->getComponent<ToggleButton>();
-    
-    Component* root = getParentComponent();
-    
-    while(dynamic_cast<PageBase*>(root) != nullptr &&
-          dynamic_cast<Builder*>(root->getParentComponent()) == nullptr)
-    {
-        root = root->getParentComponent();
-    }
-    
-    Component::callRecursive<Tickbox>(root, [&](Tickbox* tb)
-    {
-        if(tb->id == id)
-            groupedButtons.add(&tb->getComponent<ToggleButton>());
+    addBasicComponents(*this, info, "A colour chooser that will store the colour as `0xAARRGGBB` value into the data object.");
         
-        return false;
-    });
-    
-    if(groupedButtons.size() > 1)
-    {
-        thisRadioIndex = groupedButtons.indexOf(&button);
-        auto radioIndex = (int)getValueFromGlobalState(-1);
-        
-        int idx = 0;
-        
-        for(auto b: groupedButtons)
-        {
-            b->addListener(this);
-            b->setToggleState(idx++ == radioIndex, dontSendNotification);
-        }
-    }
-    else
-    {
-        groupedButtons.clear();
-        
-        button.setToggleState(getValueFromGlobalState(false), dontSendNotification);
-    }
-    
-	button.setColour(ToggleButton::ColourIds::tickColourId, Dialog::getDefaultFont(*this).second);
-    
-
-}
-
-Result Tickbox::checkGlobalState(var globalState)
-{
-    auto& button = getComponent<ToggleButton>();
-    
-	if(required)
-	{
-        if(thisRadioIndex == -1 && button.getToggleState() != requiredOption)
-		{
-			return Result::fail("You need to tick " + label);
-		}
-        else
-        {
-            auto somethingPressed = false;
-            
-            for(auto tb: groupedButtons)
-                somethingPressed |= tb->getToggleState();
-            
-            if(!somethingPressed)
-                return Result::fail("You need to select one option of " + id.toString());
-        }
-	}
-
-    if(thisRadioIndex == -1)
-        writeState(button.getToggleState());
-    else if(button.getToggleState())
-        writeState(thisRadioIndex);
-    
-	return Result::ok();
 }
 
 struct TextInput::Autocomplete: public Component,
-                         public ScrollBar::Listener,
-                         public ComponentMovementWatcher
+                                public ScrollBar::Listener,
+                                public ComponentMovementWatcher
 {
     struct Item
     {
@@ -518,7 +587,11 @@ struct TextInput::Autocomplete: public Component,
         
         setTopLeftPosition(topLeft.getX() - 10, topLeft.getY() + ed.getHeight());
 
+#if JUCE_DEBUG
+        setVisible(true);
+#else
         Desktop::getInstance().getAnimator().fadeIn(this, 150);
+#endif
         
     }
     
@@ -703,18 +776,7 @@ struct TextInput::Autocomplete: public Component,
     WeakReference<TextInput> parent;
 };
 
-bool TextInput::keyPressed(const KeyPress& k)
-{
-	if(currentAutocomplete == nullptr)
-		return false;
-        
-	if(k == KeyPress::upKey)
-		return currentAutocomplete->inc(false);
-	if(k == KeyPress::downKey)
-		return currentAutocomplete->inc(true);
-            
-	return false;
-}
+
 
 void TextInput::timerCallback()
 {
@@ -728,6 +790,8 @@ void TextInput::textEditorReturnKeyPressed(TextEditor& e)
 {
 	if(currentAutocomplete != nullptr)
 		currentAutocomplete->setAndDismiss();
+
+    findParentComponentOfClass<Dialog>()->grabKeyboardFocusAsync();
 }
 
 void TextInput::textEditorTextChanged(TextEditor& e)
@@ -748,12 +812,13 @@ void TextInput::textEditorEscapeKeyPressed(TextEditor& e)
 }
 
 TextInput::TextInput(Dialog& r, int width, const var& obj):
-	LabelledComponent(r, width, obj, new TextEditor())
+	LabelledComponent(r, width, obj, new TextEditor()),
+    navigator(*this)
 {
+    juce::Value::ValueSource;
+
     positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
-
     
-
     parseInputAsArray = obj[mpid::ParseArray];
 
     auto& editor = getComponent<TextEditor>();
@@ -765,8 +830,9 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
 	    editor.setTextToShowWhenEmpty(emptyText, editor.findColour(TextEditor::textColourId).withAlpha(0.5f));
     }
 
-    setWantsKeyboardFocus(true);
+    setWantsKeyboardFocus(false);
 
+    editor.addKeyListener(&navigator);
     editor.setSelectAllWhenFocused(false);
     editor.setIgnoreUpDownKeysWhenSingleLine(true);
     editor.setTabKeyUsedAsCharacter(false);
@@ -779,6 +845,19 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
         setSize(width, positionInfo.getHeightForComponent(80));
     else
         resized();
+}
+
+bool TextInput::AutocompleteNavigator::keyPressed(const KeyPress& k, Component* originatingComponent)
+{
+    if(parent.currentAutocomplete == nullptr)
+		return false;
+        
+	if(k == KeyPress::upKey)
+		return parent.currentAutocomplete->inc(false);
+	if(k == KeyPress::downKey)
+		return parent.currentAutocomplete->inc(true);
+            
+	return false;
 }
 
 void TextInput::postInit()
@@ -833,15 +912,7 @@ Result TextInput::checkGlobalState(var globalState)
 
     if(parseInputAsArray)
     {
-	    auto sa = StringArray::fromTokens(text, ",", "");
-        sa.trim();
-
-        Array<var> values;
-
-        for(const auto& s: sa)
-            values.add(var(s));
-
-        writeState(var(values));
+        writeState(Dialog::parseCommaList(text));
     }
     else
     {
@@ -855,7 +926,11 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents<TextInput>(*this, rootList, "A TextInput lets you enter a String");
 
-    rootList.getChild(mpid::ID)[mpid::Value] = id.toString();
+    if(id.isValid())
+		rootList.getChild(mpid::ID)[mpid::Value] = id.toString();
+
+
+
     rootList.getChild(mpid::Text)[mpid::Value] = label;
 
     rootList.addChild<TextInput>({
@@ -875,20 +950,32 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The label next to the text input." }
 	});
 #endif
-        
-	rootList.addChild<Tickbox>({
+
+    auto& col = rootList.addChild<Column>({{mpid::Padding, 24 }});
+
+	col.addChild<Button>({
 		{ mpid::ID, "Required" },
 		{ mpid::Text, "Required" },
+        { mpid::LabelPosition, "Left" },
 		{ mpid::Help, "If this is enabled, the text input must be a non-empty String" },
         { mpid::Value, required }
 	});
 
-    rootList.addChild<Tickbox>({
+    col.addChild<Button>({
 		{ mpid::ID, "ParseArray" },
 		{ mpid::Text, "ParseArray" },
+        { mpid::LabelPosition, "Left" },
 		{ mpid::Help, "If this is enabled, the text input will parse comma separated values as Array." },
         { mpid::Value, parseInputAsArray }
 	});
+    
+    col.addChild<Button>({
+        { mpid::ID, "Multiline" },
+        { mpid::Text, "Multiline" },
+        { mpid::LabelPosition, "Left" },
+        { mpid::Help, "If this is enabled, the text editor will allow multiline editing" },
+        { mpid::Value, infoObject[mpid::Multiline] }
+    });
 
     rootList.addChild<TextInput>({
 		{ mpid::ID, "Items" },
@@ -949,7 +1036,11 @@ void TextInput::showAutocomplete(const String& currentText)
 void TextInput::dismissAutocomplete()
 {
 	stopTimer();
+#if JUCE_DEBUG
+    currentAutocomplete->setVisible(false);
+#else
 	Desktop::getInstance().getAnimator().fadeOut(currentAutocomplete, 150);
+#endif
 	currentAutocomplete = nullptr;
 }
 
@@ -959,7 +1050,7 @@ void FileSelector::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents(*this, rootList, "Select a file using a native file browser or text input. ");
     
-    rootList.addChild<Tickbox>({
+    rootList.addChild<Button>({
 		{ mpid::ID, "Directory" },
 		{ mpid::Text, "Directory" },
 		{ mpid::Help, "Whether the file selector should be able to select directories vs. files." }
@@ -971,7 +1062,7 @@ void FileSelector::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The file wildcard for filtering selectable files" }
 	});
 
-    rootList.addChild<Tickbox>({
+    rootList.addChild<Button>({
 		{ mpid::ID, "SaveFile" },
 		{ mpid::Text, "SaveFile" },
 		{ mpid::Help, "Whether the selected file will be opened or saved." }
@@ -1131,11 +1222,25 @@ Result FileSelector::checkGlobalState(var globalState)
 {
     auto& fileSelector = getComponent<BetterFileSelector>();
 	auto f = fileSelector.getCurrentFile();
-        
+
+    if(f == File() && !fileSelector.fileLabel.isEmpty())
+    {
+	    f = File(fileSelector.fileLabel.getText());
+
+        if(isDirectory && !f.isDirectory())
+        {
+            rootDialog.createModalPopup<MarkdownText>({
+                { mpid::Text, "Do you want to create the directory  \n> " + String(f.getFullPathName()) }
+            });
+
+            jassertfalse;
+	        rootDialog.showModalPopup(true);
+        }
+    }
+
 	if(f != File() && !f.isRoot() && (f.isDirectory() || f.existsAsFile()))
 	{
         writeState(f.getFullPathName());
-
 		return Result::ok();
 	}
         

@@ -153,8 +153,11 @@ void MarkdownText::editModeChanged(bool isEditMode)
 			return c->getLocalBounds();
 		};
 
-		overlay->setOnClick([this]()
+		overlay->setOnClick([this](bool isRightClick)
 		{
+			if(showDeletePopup(isRightClick))
+				return;
+
 			auto& list = rootDialog.createModalPopup<List>();
 			list.setStateObject(infoObject);
 
@@ -196,20 +199,18 @@ Result MarkdownText::checkGlobalState(var)
 Dialog::Factory::Factory()
 {
 	registerPage<factory::Branch>();
-	registerPage<factory::Builder>();
 	registerPage<factory::FileSelector>();
 	registerPage<factory::Choice>();
 	registerPage<factory::ColourChooser>();
 	registerPage<factory::Column>();
 	registerPage<factory::List>();
-
     registerPage<factory::MarkdownText>();
-	registerPage<factory::Tickbox>();
-
+	registerPage<factory::Button>();
 	registerPage<factory::TextInput>();
 	registerPage<factory::Skip>();
 	registerPage<factory::Launch>();
 	registerPage<factory::DummyWait>();
+	registerPage<factory::LambdaTask>();
 }
 
 Dialog::PageInfo::Ptr Dialog::Factory::create(const var& obj)

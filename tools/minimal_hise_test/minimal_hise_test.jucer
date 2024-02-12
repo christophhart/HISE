@@ -35,6 +35,9 @@
             file="Source/InputComponents.cpp"/>
       <FILE id="opmwCN" name="InputComponents.h" compile="0" resource="0"
             file="Source/InputComponents.h"/>
+      <FILE id="Fosy4T" name="DialogLibrary.cpp" compile="0" resource="0"
+            file="Source/DialogLibrary.cpp"/>
+      <FILE id="XVcves" name="DialogLibrary.h" compile="0" resource="0" file="Source/DialogLibrary.h"/>
       <FILE id="zwVBjD" name="MultiPageIds.h" compile="0" resource="0" file="Source/MultiPageIds.h"/>
       <FILE id="bZ3Z3T" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
@@ -79,8 +82,8 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive-"
@@ -105,10 +108,10 @@
         <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
         <MODULEPATH id="hi_snex" path="../../"/>
-        <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
       </MODULEPATHS>
     </VS2022>
   </EXPORTFORMATS>
@@ -140,5 +143,6 @@
   </LIVE_SETTINGS>
   <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" HI_EXPORT_DSP_LIBRARY="0" HISE_INCLUDE_RLOTTIE="0"
                SNEX_STANDALONE_PLAYGROUND="1" HISE_INCLUDE_SNEX="0" HISE_INCLUDE_PERFETTO="1"
-               JUCE_USE_WIN_WEBVIEW2="0" JUCE_ENABLE_LIVE_CONSTANT_EDITOR="0"/>
+               JUCE_USE_WIN_WEBVIEW2="0" JUCE_ENABLE_LIVE_CONSTANT_EDITOR="0"
+               HISE_INCLUDE_LORIS="1"/>
 </JUCERPROJECT>

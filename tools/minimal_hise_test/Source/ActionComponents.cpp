@@ -36,27 +36,14 @@ namespace multipage {
 namespace factory {
 using namespace juce;
 
-Action::Action(Dialog& r, int, const var& obj):
+Action::Action(Dialog& r, int w, const var& obj):
 	PageBase(r, 0, obj),
 	r(Result::ok())
 {
 	callOnNext = obj[mpid::CallOnNext];
-
-	auto ct = obj[mpid::CallType];
-            
-	if(ct.isString())
-	{
-		auto idx = jmax(0, StringArray({"Async", "Sync", "BackgroundThread"}).indexOf(ct.toString()));
-            
-		callType = (CallType)idx;
-	}
-	else
-		callType = (CallType)(int)ct;
-
+	
 	if(r.isEditModeEnabled())
 		setSize(20, 32);
-
-	
 }
 
 void Action::paint(Graphics& g)
@@ -85,12 +72,7 @@ void Action::postInit()
 
 	if(!callOnNext)
 	{
-		switch(callType)
-		{
-		case CallType::Synchronous: perform(); break;
-		case CallType::Asynchronous: MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(Action::perform)); break;
-		//case CallType::BackgroundThread: rootDialog.getRunThread().addJob(this); break;
-		}
+		perform();
 	}
 }
 
@@ -124,8 +106,11 @@ void Action::editModeChanged(bool isEditMode)
 			return c->getLocalBounds();
 		};
 
-		overlay->setOnClick([this]()
+		overlay->setOnClick([this](bool isRightClick)
 		{
+			if(this->showDeletePopup(isRightClick))
+				return;
+
 			auto& l = rootDialog.createModalPopup<List>();
 
 			l.setStateObject(infoObject);
@@ -147,12 +132,16 @@ void Action::editModeChanged(bool isEditMode)
 
 BackgroundTask::WaitJob::WaitJob(State& r, const var& obj):
 	Job(r, obj)
-{}
+{
+	
+}
 
 Result BackgroundTask::WaitJob::run()
 {
 	if(currentPage != nullptr)
 		return currentPage->performTask(*this);
+    
+    return Result::ok();
 }
 
 
@@ -161,10 +150,9 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	Action(r, w, obj),
 	retryButton("retry", nullptr, r)
 {
-	positionInfo = r.getPositionInfo(obj);
+	positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
 
 	addChildComponent(retryButton);
-	callType = CallType::BackgroundThread;
         
 	job = r.getJob(obj);
 	
@@ -189,34 +177,110 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	label = obj[mpid::Text].toString();
         
 	addAndMakeVisible(progress);
-	setSize(w, 32);
+
+	setSize(w, positionInfo.getHeightForComponent(32));
 }
 
 void BackgroundTask::paint(Graphics& g)
 {
+	if(job != nullptr)
+		job->updateProgressBar(progress);
+
 	if(label.isNotEmpty())
 	{
-		auto b = getLocalBounds();
-		auto df = Dialog::getDefaultFont(*this);
-                
-		g.setFont(df.first);
-		g.setColour(df.second);
-                
-		g.drawText(label, b.toFloat().reduced(8.0f, 0.0f), Justification::left);
+		auto b = getArea(AreaType::Label);
+
+	    if(rootDialog.isEditModeEnabled())
+    		b.reduce(10, 0);
+
+	    auto df = Dialog::getDefaultFont(*this);
+
+	    if(!b.isEmpty())
+	    {
+			g.setFont(df.first);
+			g.setColour(df.second);
+	        g.drawText(label, b.toFloat(), Justification::left);
+	    }
 	}
 }
 
 void BackgroundTask::resized()
 {
-	auto b = getLocalBounds().reduced(3, 0);
-        
-	if(label.isNotEmpty())
-		b.removeFromLeft(positionInfo.getWidthForLabel(getWidth()));
+	Action::resized();
+
+	auto b = getArea(AreaType::Component);
 	
 	if(retryButton.isVisible())
 		retryButton.setBounds(b.removeFromRight(b.getHeight()).withSizeKeepingCentre(24, 24));
-        
+	
 	progress->setBounds(b.reduced(0, 2));
+}
+
+void LambdaTask::createEditor(Dialog::PageInfo& rootList)
+{
+	createBasicEditor(*this, rootList, "An action element that will perform a customizable task.)");
+
+	auto& col = rootList.addChild<factory::Column>();
+        
+	col.addChild<TextInput>({
+		{ mpid::ID, "Text" },
+		{ mpid::Text, "Text" },
+		{ mpid::Help, "The label text that will be shown next to the progress bar." }
+	});
+        
+	col.addChild<Choice>({
+		{ mpid::ID, "LabelPosition" },
+		{ mpid::Text, "LabelPosition" },
+		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
+		{ mpid::Value, "Default" },
+		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "Function" },
+		{ mpid::Text, "Function" },
+		{ mpid::Value, infoObject[mpid::Function] },
+		{ mpid::Help, "The full function class name (`Class::functionName`) that will be used as lambda" }
+	});
+}
+
+void DummyWait::createEditor(Dialog::PageInfo& rootList)
+{
+	createBasicEditor(*this, rootList, "An action element that simulates a background task with a progress bar. You can use that during development to simulate the UX before implementing the actual logic.)");
+        
+	auto& col = rootList.addChild<factory::Column>();
+        
+	col.addChild<TextInput>({
+		{ mpid::ID, "Text" },
+		{ mpid::Text, "Text" },
+		{ mpid::Help, "The label text that will be shown next to the progress bar." }
+	});
+        
+	col.addChild<Choice>({
+		{ mpid::ID, "LabelPosition" },
+		{ mpid::Text, "LabelPosition" },
+		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
+		{ mpid::Value, "Default" },
+		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "NumTodo" },
+		{ mpid::Text, "NumTodo" },
+		{ mpid::Help, "The number of iterations that this action is simulating." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "FailIndex" },
+		{ mpid::Text, "FailIndex" },
+		{ mpid::Help, "The index of the iteration that should cause a failure. If zero or bigger then NumTodo, then the operation succeeds." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "WaitTime" },
+		{ mpid::Text, "WaitTime" },
+		{ mpid::Help, "The duration in milliseconds between each iteration. This makes the duration of the entire task `WaitTime * NumTodo`" }
+	});
 }
 } // PageFactory
 } // multipage

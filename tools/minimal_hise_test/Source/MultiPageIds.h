@@ -65,6 +65,7 @@ namespace mpid
     DECLARE_ID(Items);
     DECLARE_ID(ValueMode);
     DECLARE_ID(Help);
+    DECLARE_ID(Function);
     DECLARE_ID(Foldable);
     DECLARE_ID(Folded);
     DECLARE_ID(Required);
@@ -85,6 +86,9 @@ namespace mpid
     DECLARE_ID(FailIndex);
     DECLARE_ID(WaitTime);
     DECLARE_ID(CallOnNext);
+    DECLARE_ID(ButtonType);
+    DECLARE_ID(IconData);
+    DECLARE_ID(Trigger);
 
 }
 

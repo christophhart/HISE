@@ -56,10 +56,16 @@ State::~State()
 
 void State::run()
 {
+	navigateOnFinish = false;
+
 	for(int i = 0; i < jobs.size(); i++)
 	{
+		currentJob = jobs[i];
+		
 		auto ok = jobs[i]->runJob();
-            
+
+		currentJob = nullptr;
+		
 		if(ok.failed())
 			break;
             
@@ -73,14 +79,23 @@ void State::run()
 
 State::Job::Job(State& rt, const var& obj):
 	parent(rt),
-	localObj(obj)
+	localObj(obj),
+	callOnNextEnabled(obj[mpid::CallOnNext])
 {
-	if(!obj[mpid::CallOnNext])
-		parent.addJob(this);
+	
 }
 
 State::Job::~Job()
 {}
+
+void State::Job::callOnNext()
+{
+	if(callOnNextEnabled)
+	{
+		parent.addJob(this);
+		throw CallOnNextAction();
+	}
+}
 
 bool State::Job::matches(const var& obj) const
 {
@@ -89,6 +104,16 @@ bool State::Job::matches(const var& obj) const
 
 double& State::Job::getProgress()
 { return progress; }
+
+void State::Job::setMessage(const String& newMessage)
+{
+	message = newMessage;
+
+	if(parent.currentDialog != nullptr)
+	{
+		SafeAsyncCall::repaint(parent.currentDialog.get());
+	}
+}
 
 State::Job::Ptr State::getJob(const var& obj)
 {
@@ -117,11 +142,18 @@ void State::onFinish()
 	{
 		currentDialog->nextButton.setEnabled(currentDialog->currentErrorElement == nullptr);
 		currentDialog->prevButton.setEnabled(true);
+
+		if(navigateOnFinish)
+		{
+			currentDialog->navigate(true);
+		}
 	}
 }
 
 Result State::Job::runJob()
 {
+	parent.navigateOnFinish |= callOnNextEnabled;
+
 	auto ok = run();
             
 	if(auto p = parent.currentDialog)

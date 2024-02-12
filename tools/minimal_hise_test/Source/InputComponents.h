@@ -58,22 +58,20 @@ struct LabelledComponent: public Dialog::PageBase
     void editModeChanged(bool isEditMode) override;
 
     template <typename T> T& getComponent() { return *dynamic_cast<T*>(component.get()); }
+    template <typename T> const T& getComponent() const { return *dynamic_cast<T*>(component.get()); }
 
-    String getDefaultPositionName() const
-    {
-        auto ln = Dialog::PositionInfo::getLabelPositionNames();
-	    return ln[inheritsPosition ? (int)Dialog::PositionInfo::LabelPositioning::Default : positionInfo.LabelPosition];
-    }
+    
 
 protected:
 
     String label;
-    Dialog::PositionInfo positionInfo;
-    bool inheritsPosition = true;
+
+    
     bool required = false;
 
 private:
 
+    
 
     ScopedPointer<Component> component;
 
@@ -98,8 +96,18 @@ struct TextInput: public LabelledComponent,
     }
 
     TextInput(Dialog& r, int width, const var& obj);;
-    
-    bool keyPressed(const KeyPress& k) override;
+
+    struct AutocompleteNavigator: public KeyListener
+    {
+        AutocompleteNavigator(TextInput& parent_):
+          parent(parent_)
+        {}
+	    bool keyPressed (const KeyPress& key,
+                             Component* originatingComponent) override;
+
+        TextInput& parent;
+    } navigator;
+
     void timerCallback() override;
 
     void textEditorReturnKeyPressed(TextEditor& e);
@@ -112,6 +120,8 @@ struct TextInput: public LabelledComponent,
     void createEditor(Dialog::PageInfo& info) override;
 
     Result loadFromInfoObject(const var& obj) override;
+
+    
 
 private:
 
@@ -131,10 +141,11 @@ private:
     JUCE_DECLARE_WEAK_REFERENCEABLE(TextInput);
 };
 
-struct Tickbox: public LabelledComponent,
-                public ButtonListener
+struct Button: public LabelledComponent,
+                public ButtonListener,
+				public PathFactory
 {
-    DEFAULT_PROPERTIES(Tickbox)
+    DEFAULT_PROPERTIES(Button)
     {
         return {
             { mpid::Text, "Label" },
@@ -144,19 +155,39 @@ struct Tickbox: public LabelledComponent,
         };
     }
 
-    Tickbox(Dialog& r, int width, const var& obj);;
+    Button(Dialog& r, int width, const var& obj);;
+
+    Path createPath(const String& url) const override
+    {
+	    Path p;
+
+        if(pathData.getSize() > 0)
+			p.loadPathFromData(pathData.getData(), pathData.getSize());
+
+        return p;
+    }
 
     void createEditor(Dialog::PageInfo& info) override;
 
     void postInit() override;
     Result checkGlobalState(var globalState) override;
-    void buttonClicked(Button* b) override;
+    void buttonClicked(juce::Button* b) override;
 
     Result loadFromInfoObject(const var& obj) override;
 
 private:
+
+    String getStringForButtonType() const;
+
+    bool isTrigger = false;
+
+    MemoryBlock pathData;
     
-    Array<ToggleButton*> groupedButtons;
+	juce::Button* createButton(const var& obj);
+
+    
+
+    Array<juce::Button*> groupedButtons;
     int thisRadioIndex = -1;
     
     bool requiredOption = false;
@@ -218,11 +249,7 @@ struct ColourChooser: public LabelledComponent
 	    return Result::ok();
     }
 
-    void createEditor(Dialog::PageInfo& info) override
-    {
-	    jassertfalse;
-        
-    }
+    void createEditor(Dialog::PageInfo& info) override;
 
     LookAndFeel_V4 laf;
     

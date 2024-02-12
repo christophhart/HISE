@@ -91,8 +91,6 @@ struct Container: public Dialog::PageBase
 
     virtual Identifier getContainerTypeId() const = 0;
 
-    static void addChildrenBuilder(Dialog::PageInfo* rootList);
-    
     void clearInitValue() override;
 
     void addWithPopup();
@@ -238,7 +236,7 @@ struct Column: public Container
 
     void paint(Graphics& g) override
     {
-	    if(editMode)
+	    if(rootDialog.isEditModeEnabled())
 	    {
             g.setColour(Colours::white.withAlpha(0.02f));
 			g.fillRect(this->getLocalBounds());
@@ -271,15 +269,10 @@ struct Branch: public Container
 
     Identifier getContainerTypeId() const override { return getStaticId(); }
 
-    static void createEditor(Dialog::PageInfo::Ptr info)
-    {
-    }
+    void createEditor(Dialog::PageInfo& info) override;
 
     Branch(Dialog& root, int w, const var& obj);;
-
-    PageBase* createFromStateObject(const var& obj, int w);
-    PageBase* createWithPopup(int width);
-
+    
     void editModeChanged(bool isEditMode) override
     {
 	    Container::editModeChanged(isEditMode);
@@ -293,30 +286,12 @@ struct Branch: public Container
         calculateSize();
         resized();
     }
-
-
-
-    void addChildrenBuilderToContainerChildren()
-    {
-        Dialog::Factory f;
-
-        auto containerTypes = f.getIdList();
-
-        for(auto& s: staticPages)
-        {
-            if(auto isContainer = containerTypes.contains(s->data[mpid::Text].toString()))
-            {
-	            addChildrenBuilder(s);
-            }
-	        
-        }
-    }
-
+    
     void paint(Graphics& g) override
     {
 	    paintEditBounds(g);
 
-        if(editMode)
+        if(rootDialog.isEditModeEnabled())
         {
 	        auto b = getLocalBounds().removeFromLeft(getWidth() / 4);
 
@@ -347,53 +322,7 @@ struct Branch: public Container
     int currentIndex = 0;
 };
 
-struct Builder: public Container,
-                public ButtonListener
-{
-    DEFAULT_PROPERTIES(Builder)
-    {
-        return {
-            { mpid::ID, "columnId" },
-            { mpid::Text, "title" },
-            { mpid::Folded, false },
-            { mpid::Padding, 10 }
-        };
-    }
 
-    Identifier getContainerTypeId() const override { return getStaticId(); }
-
-    Builder(Dialog& r, int w, const var& obj);
-
-    static void createEditor(Dialog::PageInfo::Ptr info)
-    {
-    }
-
-    void resized() override;
-    void paint(Graphics& g) override;
-    void mouseDown(const MouseEvent& e) override;
-    void buttonClicked(Button* b) override;
-
-    void calculateSize() override;
-    void postInit() override;
-    Result checkGlobalState(var globalState) override;
-    void addChildItem(PageBase* b, const var& stateInArray);
-
-    void createItem(const var& stateInArray);
-    void onAddButton();
-    void rebuildPosition();
-
-    var stateList;
-
-private:
-
-    RectangleList<int> itemBoxes;
-
-    bool folded = false;
-    ScopedPointer<Branch> popupOptions;
-    String title;
-    HiseShapeButton addButton;
-    OwnedArray<HiseShapeButton> closeButtons;
-};
 
 } // factory
 } // multipage

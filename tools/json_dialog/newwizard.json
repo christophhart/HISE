@@ -1,0 +1,221 @@
+{
+  "StyleData": {
+    "Font": "Lato",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 16.0,
+    "bgColour": 0,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "New Project Wizard",
+    "Subtitle": ""
+  },
+  "LayoutData": {
+    "TopHeight": 56,
+    "ButtonTab": 40,
+    "ButtonMargin": 5,
+    "OuterPadding": 50,
+    "LabelWidth": 160.0,
+    "LabelHeight": 32,
+    "LabelPosition": "Default"
+  },
+  "GlobalState": {
+    "rootDirectory": "/Users/christophhart/HISE/tools/json_dialog",
+    "projectType": 2
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Welcome to the HISE new project wizard. This will guide you through the process of setting up a HISE project folder in order to start the development of your next HISE project.  \n\nFirst you need to select a folder where you want to store the project. Just select a preexistent empty folder or create a new folder using the file browser below.\n\n> Make sure that the folder is actually empty. If you've checked out a Git repo it will ignore the git files.",
+          "Padding": 0
+        },
+        {
+          "Type": "FileSelector",
+          "Text": "Project Directory:",
+          "ID": "rootDirectory",
+          "LabelPosition": "Above",
+          "Help": "The directory that will be used for the HISE project assets. It will create subfolders for scripts, images, etc.\n\n> It's highly recommended to use a version control system like Git for the HISE project folder in order to track changes during your development",
+          "Directory": true,
+          "Wildcard": "",
+          "SaveFile": false
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": "20",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Now please specify whether you want to start with a blank project, or start out with a template / import a project",
+          "Padding": 0
+        },
+        {
+          "Type": "Button",
+          "Text": "Empty Project",
+          "ID": "projectType",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Create a empty folder",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        },
+        {
+          "Type": "Button",
+          "Text": "Import from HXI",
+          "ID": "projectType",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Import a HISE project from a HXI file.\n\n> A HXI file is a compressed file format which contains all data for a given expansion and can be extracted back into a HISE project for editing / modifying.",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        },
+        {
+          "Type": "Button",
+          "Text": "Download Rhapsody template",
+          "ID": "projectType",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Downloads the RHAPSODY Player expansion template that gives you a head start if you want to develop a RHAPSODY Player plugin",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "Branch",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "Skip",
+                  "Text": "LabelText"
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "### Import HXI File\n\nPlease select the HXI file that you want to import.\n\n> The HXI file must be encoded with the dummy password `1234` in order to be imported into HISE!",
+                  "Padding": 0
+                },
+                {
+                  "Type": "FileSelector",
+                  "Text": "HXI File",
+                  "ID": "hxiDirectory",
+                  "LabelPosition": "Above",
+                  "Help": "",
+                  "Directory": false,
+                  "Wildcard": "",
+                  "SaveFile": false
+                },
+                {
+                  "Type": "LambdaTask",
+                  "Text": "Progress",
+                  "ID": "hxiImportTask",
+                  "CallOnNext": true,
+                  "LabelPosition": "Above",
+                  "Function": "NewProjectWizard::importHXIFile"
+                }
+              ],
+              "ID": "",
+              "Padding": "30",
+              "Foldable": false,
+              "Folded": false
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "### Rhapsody Player template\n\nThe template is being downloaded from the server location and extracted",
+                  "Padding": 0
+                },
+                {
+                  "Type": "LambdaTask",
+                  "Text": "Download template",
+                  "ID": "downloadTemplateTask",
+                  "CallOnNext": false,
+                  "LabelPosition": "Above",
+                  "Function": "NewProjectWizard::downloadTemplate"
+                },
+                {
+                  "Type": "LambdaTask",
+                  "Text": "Extract Template",
+                  "ID": "extractTemplateTask",
+                  "CallOnNext": false,
+                  "LabelPosition": "Above",
+                  "Function": "NewProjectWizard::importHXIFile"
+                }
+              ],
+              "ID": "",
+              "Padding": "30",
+              "Foldable": false,
+              "Folded": false
+            }
+          ],
+          "ID": "projectType"
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Press finish in order to close that wizard and enjoy your new project!",
+          "Padding": 0
+        },
+        {
+          "Type": "Launch",
+          "Text": "https://forum.hise.dev",
+          "ID": "openHiseForum",
+          "CallOnNext": true
+        },
+        {
+          "Type": "Button",
+          "Text": "Goto HISE Forum",
+          "ID": "openHiseForum",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Opens a webbrowser and goes to the HISE forum where you can start hammering your questions into the keyboard!",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        }
+      ]
+    }
+  ]
+}

@@ -84,12 +84,8 @@ void Container::recalculateParentSize(PageBase* b)
 
 void Container::postInit()
 {
+	init();
 	
-
-    init();
-
-	
-
     stateObject = Dialog::getOrCreateChild(stateObject, id);
 
 	DBG(JSON::toString(stateObject));
@@ -149,47 +145,6 @@ void Container::addChild(int width, const var& r)
 	}
 }
 
-void Container::addChildrenBuilder(Dialog::PageInfo* info)
-{
-	Dialog::Factory f;
-
-    auto& xxx = *info;
-    auto& ff = xxx.addChild<Builder>({
-        { mpid::ID, "Children" },
-        { mpid::Text, "Children" }
-    });
-    
-    auto& typeOptions = ff.addChild<Branch>();
-    
-    for(auto type: f.getIdList())
-    {
-		
-
-#if 0
-
-		typeOptions.childItems.add(f.createEditor(Identifier(type)));
-
-		// TODO: Change to PageInfo and make sure that it doesn't create recursive loops...
-		if(f.createContainerPrototype(Identifier(type), rootDialog, getWidth())) 
-		{
-			
-		}
-        else
-        {
-            auto& itemBuilder =  typeOptions.addChild<List>();
-            itemBuilder[mpid::Text] = type;
-
-            auto obj = new DynamicObject();
-            obj->setProperty(mpid::ID, type + "Id");
-            obj->setProperty(mpid::Type, type);
-            
-            Dialog::PageInfo::Ptr c = f.create(obj);
-            ScopedPointer<Dialog::PageBase> c2 = c->create(rootDialog, 0);
-            c2->createEditorInfo(&itemBuilder);
-        }
-#endif
-    }
-}
 
 void Container::clearInitValue()
 {
@@ -202,101 +157,24 @@ void Container::clearInitValue()
 void Container::addWithPopup()
 {
 	PopupLookAndFeel plaf;
-	PopupMenu m;
-	m.setLookAndFeel(&plaf);
+    
+    Dialog::Factory f;
+    auto list = f.getPopupMenuList();
+    
+    PopupMenu m = SubmenuComboBox::parseFromStringArray(list, {}, &plaf);
 
-	m.addItem(1, "Add new item");
-	m.addItem(2, "Edit properties");
+
+
+
+	auto typeName = infoObject[mpid::Type].toString();
+
+    m.addSeparator();
+	m.addItem(90000, "Edit " + typeName);
+	m.addItem(924, "Delete " + typeName, findParentComponentOfClass<Container>() != nullptr);
 
 	if(auto r = m.show())
 	{
-		if(r == 1)
-		{
-			auto& pp = rootDialog.createModalPopup<List>({ { mpid::Padding, 10} });
-
-			auto no = new DynamicObject();
-
-			if(auto ar = infoObject[mpid::Children].getArray())
-				ar->add(no);
-			else
-			{
-				Array<var> newList;
-				newList.add(no);
-				infoObject.getDynamicObject()->setProperty(mpid::Children, var(newList));
-			}
-
-			pp.setStateObject(no);
-
-			pp.addChild<MarkdownText>({
-				{ mpid::Text, "### Add item\nPlease select the type and enter the ID that you want to use "}});
-
-			Dialog::Factory f;
-			auto list = f.getPopupMenuList();
-
-			pp.addChild<Choice>({
-				{ mpid::ID, "Type" },
-				{ mpid::Text, "Type" },
-				{ mpid::Custom, true },
-				{ mpid::Help, "The item type (UI element or action)."},
-				{ mpid::Items, list.joinIntoString("\n") },
-				{ mpid::Value, "TextInput" }
-			});
-
-			pp.addChild<TextInput>(
-				{
-					{ mpid::ID, "Text" },
-					{ mpid::Text, "Text" },
-					{ mpid::Help, "The text label that is shown next to the UI element (or the markdown content)" }, 
-					{ mpid::Value, "Some Label"}
-				});
-
-			pp.addChild<TextInput>(
-			{
-				{ mpid::ID, "ID" },
-				{ mpid::Text, "ID" },
-				{ mpid::Help, "The ID that is used as key in the JSON state object." }, 
-				{ mpid::Value, ""}
-			});
-				
-			pp.setCustomCheckFunction([this](PageBase* b, const var& obj)
-			{
-				if(auto c = dynamic_cast<Container*>(b))
-					c->checkGlobalState(obj);
-
-				childItems.clear();
-				Dialog::Factory f;
-				auto l = infoObject["Children"];
-				
-				if(l.isArray())
-				{
-					for(auto& r: *l.getArray())
-					{
-						if(auto pi = f.create(r))
-						{
-							childItems.add(pi->create(rootDialog, getWidth()));
-							addAndMakeVisible(childItems.getLast());
-							childItems.getLast()->postInit();
-						}
-					}
-				}
-
-				Container* c = this;
-
-				while(c != nullptr)
-				{
-					c->calculateSize();
-					c->resized();
-
-					c = c->findParentComponentOfClass<Container>();
-				}
-				
-				return Result::ok();
-			});
-
-			rootDialog.showModalPopup(true);
-
-		}
-		else
+		if(r == 90000)
 		{
 			auto& x = this->rootDialog.createModalPopup<List>();
 			x.setStateObject(infoObject);
@@ -305,6 +183,69 @@ void Container::addWithPopup()
 			x.setCustomCheckFunction(BIND_MEMBER_FUNCTION_2(Container::customCheckOnAdd));
 
 			this->rootDialog.showModalPopup(true);
+		}
+		else if (r == 924)
+		{
+			deleteFromParent();
+		}
+		else
+		{
+			PopupMenu::MenuItemIterator it(m, true);
+
+			while(it.next())
+			{
+				auto& item = it.getItem();
+
+				if(item.itemID == r)
+				{
+					auto typeId = item.text.fromLastOccurrenceOf("::", false, false);
+					auto catId = item.text.upToLastOccurrenceOf("::", false, false);
+
+					auto no = new DynamicObject();
+					no->setProperty(mpid::Type, typeId);
+					no->setProperty(mpid::Text, "LabelText");
+
+					if(!infoObject[mpid::Children].isArray())
+					{
+						Array<var> newList;
+						infoObject.getDynamicObject()->setProperty(mpid::Children, var(newList));
+					}
+
+					auto childList = infoObject[mpid::Children];
+
+					rootDialog.getUndoManager().perform(new UndoableVarAction(childList, childList.size(), var(no)));
+					
+					checkGlobalState(no);
+
+					childItems.clear();
+					Dialog::Factory f;
+					auto l = infoObject["Children"];
+					
+					if(l.isArray())
+					{
+						for(auto& r: *l.getArray())
+						{
+							if(auto pi = f.create(r))
+							{
+								childItems.add(pi->create(rootDialog, getWidth()));
+								addAndMakeVisible(childItems.getLast());
+								childItems.getLast()->postInit();
+							}
+						}
+					}
+
+					Container* c = this;
+
+					while(c != nullptr)
+					{
+						c->calculateSize();
+						c->resized();
+
+						c = c->findParentComponentOfClass<Container>();
+					}
+					break;
+				}
+			}
 		}
 	}
 }
@@ -323,7 +264,7 @@ void List::calculateSize()
             h += c->getHeight() + padding;
     }
 
-	if(editMode)
+	if(rootDialog.isEditModeEnabled())
 		h += 32;
     
 	setSize(getWidth(), h);
@@ -357,6 +298,7 @@ void List::createEditor(Dialog::PageInfo& rootList)
     auto& listId = prop.addChild<TextInput>({
         { mpid::ID, "ID" },
         { mpid::Text, "ID" },
+
         { mpid::Help, "The ID of the list. This will be used for identification in some logic cases" }
     });
 
@@ -381,14 +323,14 @@ void List::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Value, padding }
     });
 
-    auto& foldId1 = prop.addChild<Tickbox>({
+    auto& foldId1 = prop.addChild<Button>({
         { mpid::ID, "Foldable" },
         { mpid::Text, "Foldable" },
         { mpid::Help, "If ticked, then this list will show a clickable header that can be folded" },
 		{ mpid::Value, foldable }
     });
     
-    auto& foldId2 = prop.addChild<Tickbox>({
+    auto& foldId2 = prop.addChild<Button>({
         { mpid::ID, "Folded" },
         { mpid::Text, "Folded" },
         { mpid::Help, "If ticked, then this list will folded as default state" },
@@ -421,14 +363,20 @@ void List::resized()
     if(foldable)
         b.removeFromTop(24 + padding);
 
-	if(editMode)
+	if(rootDialog.isEditModeEnabled())
 		b.removeFromLeft(10);
 
     if(!folded)
     {
         for(auto c: childItems)
         {
-            c->setBounds(b.removeFromTop(c->getHeight()));
+            auto cb = b.removeFromTop(c->getHeight());
+            
+            if(!cb.isEmpty())
+            {
+                c->setBounds(cb);
+                c->resized();
+            }
             b.removeFromTop(padding);
         }
     }
@@ -453,7 +401,7 @@ void List::paint(Graphics& g)
 
 	auto b = getLocalBounds();
 
-	if(editMode)
+	if(isEditModeAndNotInPopup())
 	{
 		auto c = b.removeFromLeft(10);
 
@@ -506,7 +454,6 @@ void Column::createEditor(Dialog::PageInfo& xxx)
     auto& listId = prop.addChild<TextInput>({
         { mpid::ID, "ID" },
         { mpid::Text, "ID" },
-        { mpid::Required, true},
         { mpid::Help, "The ID. This will be used for identification in some logic cases" }
     });
 
@@ -552,7 +499,7 @@ void Column::calculateSize()
         }
     }
 
-	int h = editMode ? 32 : 0;
+	int h = rootDialog.isEditModeEnabled() ? 32 : 0;
 
 	
 
@@ -571,7 +518,7 @@ void Column::resized()
 
 	auto fullWidth = getWidth();
 
-	if(editMode)
+	if(rootDialog.isEditModeEnabled())
 		fullWidth -= 64;
         
 	for(const auto& w: widthInfo)
@@ -589,7 +536,14 @@ void Column::resized()
 		if(w < 0.0)
 			w = fullWidth * (-1.0) * w;
 
-		childItems[i]->setBounds(b.removeFromLeft(roundToInt(w)));
+        auto cb = b.removeFromLeft(roundToInt(w));
+        
+        if(!cb.isEmpty())
+        {
+            childItems[i]->setBounds(cb);
+            childItems[i]->resized();
+        }
+        
 		b.removeFromLeft(padding);
 	}
 }
@@ -620,42 +574,6 @@ Branch::Branch(Dialog& root, int w, const var& obj):
 	setSize(w, 0);
 }
 
-Dialog::PageBase* Branch::createFromStateObject(const var& obj, int w)
-{
-	for(auto& sp: staticPages)
-	{
-		if(sp->data[mpid::Text].toString() == obj[mpid::Type].toString())
-			return sp->create(rootDialog, w);
-			
-	}
-
-	return nullptr;
-}
-
-Dialog::PageBase* Branch::createWithPopup(int width)
-{
-	PopupLookAndFeel plaf;
-	PopupMenu m;
-	m.setLookAndFeel(&plaf);
-        
-	int index = 0;
-        
-	for(auto sp: staticPages)
-	{
-		m.addItem(index + 1, sp->getData()[mpid::Text].toString());
-		index++;
-	}
-        
-	auto result = m.show();
-        
-	if(isPositiveAndBelow(result-1, staticPages.size()))
-	{
-		if(auto sp = staticPages[result - 1])
-			return sp->create(rootDialog, width);
-	}
-        
-	return nullptr;
-}
 
 void Branch::postInit()
 {
@@ -671,7 +589,7 @@ void Branch::postInit()
 		
 	}
 
-	if(editMode)
+	if(rootDialog.isEditModeEnabled())
 	{
 		for(auto c: childItems)
 		{
@@ -702,7 +620,7 @@ void Branch::postInit()
 
 void Branch::calculateSize()
 {
-	if(editMode)
+	if(rootDialog.isEditModeEnabled())
 	{
 		int h = 32;
 
@@ -731,9 +649,34 @@ Result Branch::checkGlobalState(var globalState)
 	return Result::fail("No branch selected");
 }
 
+void Branch::createEditor(Dialog::PageInfo& rootList)
+{
+    auto& tt = rootList.addChild<Type>({
+        { mpid::Type, "Branch" },
+        { mpid::ID, "Type"}
+    });
+    
+    auto& prop = rootList.addChild<List>();
+    
+    rootList[mpid::Text] = "List";
+    
+    prop[mpid::Folded] = false;
+    prop[mpid::Foldable] = true;
+    prop[mpid::Padding] = 10;
+    prop[mpid::Text] = "Properties";
+    
+    auto& listId = prop.addChild<TextInput>({
+        { mpid::ID, "ID" },
+        { mpid::Text, "ID" },
+        { mpid::Required, true },
+        { mpid::Items, rootDialog.getExistingKeysAsItemString() },
+        { mpid::Help, "The ID of the branch. This will be used as key to fetch the value from the global state to determine which child to show." }
+    });
+}
+
 void Branch::resized()
 {
-	if(editMode)
+	if(rootDialog.isEditModeEnabled())
 	{
 		auto b = getLocalBounds();
 
@@ -758,221 +701,6 @@ void Branch::resized()
 	
 }
 
-Builder::Builder(Dialog& r, int w, const var& obj):
-	Container(r, w, obj),
-	addButton("add", nullptr, r)
-{
-	title = obj[mpid::Text];
-	padding = jmax(padding, 10);
-        
-	childItems.clear();
-	addAndMakeVisible(addButton);
-	addButton.onClick = BIND_MEMBER_FUNCTION_0(Builder::onAddButton);
-	setSize(w, 32);
-}
-
-void Builder::mouseDown(const MouseEvent& e)
-{
-	if(e.getPosition().getY() < 32)
-	{
-		folded = !folded;
-		rebuildPosition();
-		repaint();
-	}
-}
-
-void Builder::calculateSize()
-{
-	int h = 32 + padding;
-        
-	for(auto& c: childItems)
-	{
-		c->setVisible(!folded);
-            
-		if(!folded)
-			h += c->getHeight() + 3 * padding;
-	}
-        
-	setSize(getWidth(), h);
-}
-
-void Builder::resized()
-{
-	auto b = getLocalBounds();
-	addButton.setBounds(b.removeFromTop(32).removeFromRight(32).withSizeKeepingCentre(24, 24));
-	b.removeFromTop(padding);
-	itemBoxes.clear();
-        
-	for(int i = 0; i < childItems.size(); i++)
-	{
-		auto c = childItems[i];
-		auto row = b.removeFromTop(2 * padding + c->getHeight());
-		itemBoxes.addWithoutMerging(row);
-		auto bb = row.removeFromRight(32).removeFromTop(32).withSizeKeepingCentre(20, 20);
-		row = row.reduced(padding);
-		closeButtons[i]->setVisible(c->isVisible());
-            
-		if(!folded)
-		{   
-			closeButtons[i]->setBounds(bb);
-			c->setBounds(row);
-			b.removeFromTop(padding);
-		}
-	}
-}
-
-void Builder::paint(Graphics& g)
-{
-	for(auto& b: itemBoxes)
-	{
-		g.setColour(Colours::white.withAlpha(0.2f));
-		g.drawRoundedRectangle(b.toFloat().reduced(1.0f), 5.0f, 2.0f);
-	}
-        
-	if(auto laf = dynamic_cast<Dialog::LookAndFeelMethods*>(&rootDialog.getLookAndFeel()))
-	{
-		auto b = getLocalBounds().removeFromTop(32).toFloat();
-		laf->drawMultiPageFoldHeader(g, *this, b, title, folded);
-	}
-}
-
-Result Builder::checkGlobalState(var globalState)
-{
-	int idx = 0;
-        
-	for(auto& c: childItems)
-	{
-		var obj;
-            
-		if(isPositiveAndBelow(idx, stateList.size()))
-			obj = stateList[idx];
-            
-		if(obj.getDynamicObject() == nullptr)
-		{
-			stateList.insert(idx, var(new DynamicObject()));
-			obj = stateList[idx];
-		}
-            
-		auto ok = c->check(obj);
-            
-		if(ok.failed())
-			return ok;
-            
-		idx++;
-	}
-        
-	DBG(JSON::toString(stateList));
-        
-	return Result::ok();
-}
-
-void Builder::addChildItem(PageBase* b, const var& stateInArray)
-{
-	DBG(JSON::toString(stateInArray, true));
-
-	childItems.add(b);
-	closeButtons.add(new HiseShapeButton("close", nullptr, rootDialog));
-	addAndMakeVisible(closeButtons.getLast());
-	addAndMakeVisible(childItems.getLast());
-	closeButtons.getLast()->addListener(this);
-	childItems.getLast()->setStateObject(stateInArray);
-
-	
-
-	childItems.getLast()->postInit();
-}
-
-void Builder::createItem(const var& stateInArray)
-{
-	for(const auto& sp: staticPages)
-	{
-		auto b = sp->create(rootDialog, getWidth());
-		addChildItem(b, stateInArray);
-	}
-}
-
-void Builder::onAddButton()
-{
-	var no(new DynamicObject());
-	stateList.insert(-1, no);
-	folded = false;
-        
-	if(popupOptions != nullptr)
-	{
-		if(auto nb = popupOptions->createWithPopup(getWidth()))
-			addChildItem(nb, no);
-	}
-	else
-		createItem(no);
-        
-	rebuildPosition();
-}
-
-void Builder::rebuildPosition()
-{
-	auto t = dynamic_cast<Container*>(this);
-        
-	while(t != nullptr)
-	{
-		t->calculateSize();
-		t = t->findParentComponentOfClass<Container>();
-	}
-	repaint();
-}
-
-void Builder::buttonClicked(Button* b)
-{
-	auto cb = dynamic_cast<HiseShapeButton*>(b);
-	auto indexToDelete = closeButtons.indexOf(cb);
-        
-	stateList.getArray()->remove(indexToDelete);
-	closeButtons.removeObject(cb);
-	childItems.remove(indexToDelete);
-        
-	rebuildPosition();
-}
-
-void Builder::postInit()
-{
-	stateList = getValueFromGlobalState();
-        
-	if(auto firstItem = staticPages.getFirst())
-	{
-		ScopedPointer<PageBase> fi = firstItem->create(rootDialog, getWidth());
-            
-		if(auto br = dynamic_cast<Branch*>(fi.get()))
-		{
-			br->addChildrenBuilderToContainerChildren();
-			popupOptions = br;
-			fi.release();
-		}
-	}
-        
-	if(!stateList.isArray())
-	{
-		stateList = var(Array<var>());
-		writeState(stateList);
-	}
-	else
-	{
-		for(auto& obj: *stateList.getArray())
-		{
-			if(popupOptions != nullptr)
-			{
-				if(auto nb = popupOptions->createFromStateObject(obj, getWidth()))
-				{
-					addChildItem(nb, obj);
-				}
-			}
-			else
-			{
-				createItem(obj);
-			}
-		}
-	}
-
-	calculateSize();
-}
 } // PageFactory
 } // multipage
 } // hise

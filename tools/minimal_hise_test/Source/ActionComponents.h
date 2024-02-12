@@ -40,17 +40,8 @@ using namespace juce;
 
 struct Action: public Dialog::PageBase
 {
-    enum class CallType
-    {
-        Asynchronous,
-        Synchronous,
-        BackgroundThread
-    };
-    
     SN_NODE_ID("Action");
-
     
-
     Action(Dialog& r, int, const var& obj);
 
     static String getCategoryId() { return "Actions"; }
@@ -80,7 +71,7 @@ struct Action: public Dialog::PageBase
             { mpid::Help, "The ID of the action. This will determine whether the action is tied to a global state value. If not empty, the action will only be performed if the value is not zero." }
         });
 
-        rootList.addChild<Tickbox>({
+        rootList.addChild<Button>({
             { mpid::ID, "CallOnNext" },
             { mpid::Text, "CallOnNext" },
             { mpid::Help, "If enabled, the action will launched when you press the next button (otherwise it will be executed on page load." },
@@ -97,11 +88,11 @@ struct Action: public Dialog::PageBase
     void editModeChanged(bool isEditMode) override;
 
     Result r;
-    CallType callType = CallType::Asynchronous;
 
 	bool callOnNext = false;
 };
 
+/** A base class for an action that will be performed on page load. */
 struct ImmediateAction: public Action
 {
     ImmediateAction(Dialog& r,int w, const var& obj):
@@ -144,9 +135,10 @@ struct Skip: public ImmediateAction
     {
 	    auto rt = &rootDialog;
 
-        MessageManager::callAsync([rt]()
+        auto direction = rt->getCurrentNavigationDirection();
+        
+        MessageManager::callAsync([rt, direction]()
         {
-            auto direction = rt->getCurrentNavigationDirection();
 	        rt->navigate(direction);
         });
         
@@ -182,12 +174,18 @@ struct Launch: public ImmediateAction
         currentLaunchTarget = obj[mpid::Text].toString();
 	}
 
+    bool isFinished = false;
+
     Result onAction() override
     {
+        if(isFinished)
+            return Result::ok();
+
 	    auto t = MarkdownText::getString(currentLaunchTarget, rootDialog);
 
         if(URL::isProbablyAWebsiteURL(t))
         {
+            isFinished = true;
 	        URL(t).launchInDefaultBrowser();
             return Result::ok();
         }
@@ -198,6 +196,7 @@ struct Launch: public ImmediateAction
 
             if(f.existsAsFile() || f.isDirectory())
             {
+                isFinished = true;
 	            f.revealToUser();
 				return Result::ok();
             }
@@ -216,7 +215,6 @@ struct Launch: public ImmediateAction
 };
 
 
-// TODO: Rename to BackgroundTask and add dynamic logic
 struct BackgroundTask: public Action
 {
     using Job = State::Job;
@@ -237,6 +235,14 @@ struct BackgroundTask: public Action
 
     void paint(Graphics& g) override;
     void resized() override;
+
+    void postInit() override
+    {
+	    Action::postInit();
+
+        if(job != nullptr)
+            job->postInit();
+    }
 
     virtual Result performTask(State::Job& t) = 0;
 
@@ -266,15 +272,69 @@ protected:
 		return Result::fail(message);
 	}
 
-    Dialog::PositionInfo positionInfo;
-
     String label;
     ScopedPointer<ProgressBar> progress;
     HiseShapeButton retryButton;
 
-   
-
     JUCE_DECLARE_WEAK_REFERENCEABLE(BackgroundTask);
+};
+
+struct LambdaTask: public BackgroundTask
+{
+	SN_NODE_ID("LambdaTask");
+
+    LambdaTask(Dialog& r, int w, const var& obj):
+      BackgroundTask(r, w, obj)
+    {
+	    lambda = obj[mpid::Function].getNativeFunction();
+    };
+
+    var::NativeFunction lambda;
+
+    Result performTask(State::Job& t) override
+	{
+        if(rootDialog.isEditModeEnabled())
+            return Result::ok();
+
+        if(!lambda)
+        {
+            t.setMessage("Empty lambda, simulating...");
+
+            for(int i = 0; i < 30; i++)
+            {
+                t.getProgress() = (double)i / 30.0;
+	            t.getThread().wait(50);
+            }
+
+            t.getProgress() = 1.0;
+            t.setMessage("Done");
+            
+	        return Result::ok();
+        }
+        
+        try
+        {
+            var::NativeFunctionArgs args(rootDialog.getState().globalState, nullptr, 0);
+
+            auto rv = lambda(args);
+
+            if(!rv.isUndefined())
+                writeState(rv);
+
+            return Result::ok();
+        }
+        catch(Result& r)
+        {
+            return r;
+        }
+    }
+
+    String getDescription() const override
+    {
+        return "Lambda Task";
+    }
+
+    void createEditor(Dialog::PageInfo& rootList) override;
 };
 
 struct DummyWait: public BackgroundTask
@@ -299,46 +359,19 @@ struct DummyWait: public BackgroundTask
         if(failIndex == 0)
             failIndex = numTodo + 2;
     }
+    
+	void createEditor(Dialog::PageInfo& rootList) override;
 
-     void createEditor(Dialog::PageInfo& rootList) override
-	{
-        createBasicEditor(*this, rootList, "An action element that simulates a background task with a progress bar. You can use that during development to simulate the UX before implementing the actual logic.)");
-        
-        rootList.addChild<TextInput>({
-            { mpid::ID, "Text" },
-            { mpid::Text, "Text" },
-            { mpid::Help, "The label text that will be shown next to the progress bar." }
-        });
-
-        rootList.addChild<TextInput>({
-            { mpid::ID, "NumTodo" },
-            { mpid::Text, "NumTodo" },
-            { mpid::Help, "The number of iterations that this action is simulating." }
-        });
-
-        rootList.addChild<TextInput>({
-            { mpid::ID, "FailIndex" },
-            { mpid::Text, "FailIndex" },
-            { mpid::Help, "The index of the iteration that should cause a failure. If zero or bigger then NumTodo, then the operation succeeds." }
-        });
-
-        rootList.addChild<TextInput>({
-            { mpid::ID, "WaitTime" },
-            { mpid::Text, "WaitTime" },
-            { mpid::Help, "The duration in milliseconds between each iteration. This makes the duration of the entire task `WaitTime * NumTodo`" }
-        });
-	}
-
-	String getDescription() const override
+    String getDescription() const override
     {
         return "Dummy Wait";
     }
 
 	Result performTask(State::Job& t) override
 	{
-        if(editMode)
+        if(rootDialog.isEditModeEnabled())
             return Result::ok();
-
+        
 		for(int i = 0; i < numTodo; i++)
 		{
 			if(t.getThread().threadShouldExit())

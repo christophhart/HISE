@@ -11,760 +11,276 @@
 #include "MultiPageDialog.h"
 #include "PageFactory.h"
 
-namespace hise {
-namespace multipage {
-using namespace juce;
 
-
-
-struct CustomResultPage: public Dialog::PageBase
-{
-    DEFAULT_PROPERTIES(CustomResultPage)
-    {
-        return {
-            { mpid::ID, "custom" }
-        };
-    }
-
-    CustomResultPage(Dialog& r, int width, const var& obj):
-      PageBase(r, width, obj),
-      textDoc(doc),
-      codeEditor(textDoc)
-    {
-        addAndMakeVisible(codeEditor);
-        codeEditor.setReadOnly(true);
-        codeEditor.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF222222));
-        setSize(width, 400);
-    };
-
-    void postInit() override
-    {
-        auto gs = Dialog::getGlobalState(*this, {}, var());
-
-        String b;
-
-        b << "const var " << Dialog::getGlobalState(*this, "id", "bc").toString() << " = Engine.createBroadcaster(";
-        b << JSON::toString(gs, false) << ");\n";
-
-	    doc.replaceAllContent(b);
-    }
-
-    void resized() override
-    {
-	    codeEditor.setBounds(getLocalBounds());
-    }
-
-    Result checkGlobalState(var globalState) override { return Result::ok(); }
-
-    CodeDocument doc;
-    mcl::TextDocument textDoc;
-    mcl::TextEditor codeEditor;
-
-};
-
-}
-}
-
-multipage::Dialog* createHardcodedDialog(multipage::State& state)
-{
-	
-	
-	using namespace multipage;
-	using namespace factory;
-	auto mp_ = new Dialog({}, state);
-	auto& mp = *mp_;
-	mp.setProperty(mpid::Header, "HISE Project Wizard");
-	mp.setProperty(mpid::Subtitle, "Create a new HISE project");
-	auto& List_0 = mp.addPage<List>({
-	});
-
-	auto& MarkdownText_1 = List_0.addChild<MarkdownText>({
-	  { mpid::Text, "Welcome to HISE!\n\nIn order to create a HISE project, you will need to create a folder structure that will contain all assets of your project. This wizard is going to guide you through the steps necessary in order to setup the project.\n\nPlease create an select a directory that you want to use as root folder for your project. \n\n> This folder should be empty and will be populated with multiple subfolder for each asset type." }, 
-	  { mpid::Padding, "0" }
-	});
-
-	auto& rootDirectory_2 = List_0.addChild<FileSelector>({
-	  { mpid::Text, "Project Directory" }, 
-	  { mpid::ID, "rootDirectory" }, 
-	  { mpid::Directory, 1 }, 
-	  { mpid::SaveFile, 1 }
-	});
-
-	// Custom callback for page List_0
-	List_0.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-        return Result::fail("Nope");
-		return Result::ok();
-
-	});
-	auto& List_3 = mp.addPage<List>({
-	  { mpid::Padding, "20" }, 
-	  { mpid::Foldable, 0 }, 
-	  { mpid::Folded, 0 }
-	});
-
-	auto& MarkdownText_4 = List_3.addChild<MarkdownText>({
-	  { mpid::Text, "### Select Template\n\nYou can choose to create an empty project, import a project from a .HXI file or download and extract the Rhapsody Player template." }, 
-	  { mpid::Padding, "0" }
-	});
-
-	auto& projectType_5 = List_3.addChild<Tickbox>({
-	  { mpid::Text, "Empty Project" }, 
-	  { mpid::ID, "projectType" }
-	});
-
-	auto& projectType_6 = List_3.addChild<Tickbox>({
-	  { mpid::Text, "Import from HXI" }, 
-	  { mpid::ID, "projectType" }
-	});
-
-	auto& projectType_7 = List_3.addChild<Tickbox>({
-	  { mpid::Text, "Rhapsody Player template" }, 
-	  { mpid::ID, "projectType" }
-	});
-
-	// Custom callback for page List_3
-	List_3.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	auto& List_8 = mp.addPage<List>({
-	});
-
-	auto& projectType_9 = List_8.addChild<Branch>({
-	  { mpid::ID, "projectType" }
-	});
-
-	auto& List_10 = projectType_9.addChild<List>({
-	  { mpid::Text, "empty" }
-	});
-
-	auto& Skip_11 = List_10.addChild<Skip>({
-	});
-
-	auto& List_12 = projectType_9.addChild<List>({
-	  { mpid::Text, "hxi" }
-	});
-
-	auto& MarkdownText_13 = List_12.addChild<MarkdownText>({
-	  { mpid::Text, "Please select the .HXI file that you want to import as HISE project.\n\n> A HXI file is a compressed file format that contains all assets of a HISE project and can be \"decompressed\" into a HISE project folder." }, 
-	  { mpid::Padding, "0" }
-	});
-
-	auto& hxiFile_14 = List_12.addChild<FileSelector>({
-	  { mpid::Text, "HXI File" }, 
-	  { mpid::ID, "hxiFile" }, 
-	  { mpid::Wildcard, "*.hxi" }, 
-	  { mpid::Directory, 0 }, 
-	  { mpid::SaveFile, 0 }
-	});
-
-	auto& List_15 = projectType_9.addChild<List>({
-	  { mpid::Text, "rhapsody" }
-	});
-
-	auto& MarkdownText_16 = List_15.addChild<MarkdownText>({
-	  { mpid::Text, "Click Next in order to download the template from the given URL and extract it into the specified project folder" }, 
-	  { mpid::Padding, "0" }
-	});
-
-	// Custom callback for page List_8
-	List_8.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	auto& List_17 = mp.addPage<List>({
-	});
-
-	auto& MarkdownText_18 = List_17.addChild<MarkdownText>({
-	  { mpid::Text, "Press Finish in order to create the project folder and close the wizard" }, 
-	  { mpid::Padding, "0" }
-	});
-
-	// Custom callback for page List_17
-	List_17.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	return mp_;
-	
-}
 
 void MainComponent::build()
 {
-#if 0
-	addAndMakeVisible(c = createHardcodedDialog(rt));
-    c->setEditMode(false);
-    c->showFirstPage();
-    return;
-#endif
-    var obj;
-
-    File f("D:\\Development\\test.json");
-
-    auto ok = JSON::parse(f.loadFileAsString(), obj);
-
     using namespace multipage;
     using namespace factory;
 
-    auto mp = new Dialog(obj, rt);
+#if 1
 
-    
+	addAndMakeVisible(hardcodedDialog = new multipage::library::NewProjectWizard());
 
-#if 0
-    mp->setProperty(mpid::Header, "Multipage Dialog Wizard");
+#else
 
-    auto sd = mp->getStyleData();
-    sd.backgroundColour = Colours::transparentBlack;
-    sd.fontSize = 16.0f;
-    mp->setStyleData(sd);
-
-    mp->defaultLaf.defaultPosition.OuterPadding = 50;
-
-    auto& introPage = mp->addPage<List>({
-            { mpid::Padding, 10 },
-        });
-
-#endif
-
-#if 0
-    {
-        // TODO: Fix setting properties in nested JSON
-        auto& introPage = mp->addPage<List>({
-            { mpid::Padding, 10 },
-        });
-
-        introPage.addChild<MarkdownText>({
-            { mpid::Text, "Welcome to the JSON builder. You can use this wizard to create a JSON data object that will create a wizard like this!  \n> You can toggle between the editor, a raw JSON viewer and a preview of the wizard that you're about to create by clicking on the buttons in the top row.\nAs first step please enter the name that it should show in the header (like the **JSON Builder** above, then specify the number of pages." }
-        });
-
-        auto& propList = introPage.addChild<List>({
-            { mpid::Padding, 10 },
-            { mpid::ID, mpid::Properties.toString() }
-        });
-        
-        propList.addChild<TextInput>({
-            { mpid::ID, mpid::Header.toString() },
-            { mpid::Text, mpid::Header.toString() },
-            { mpid::Required, true },
-            { mpid::Help, "This will be shown as big title at the top" }
-        });
-
-        propList.addChild<TextInput>({
-            { mpid::ID, mpid::Subtitle.toString() },
-            { mpid::Text, mpid::Subtitle.toString() },
-            { mpid::Help, "This will be shown as small title below" }
-        });
-        
-        auto& styleProperties = introPage.addChild<List>({
-            { mpid::ID, mpid::StyleData.toString(), },
-            { mpid::Text, mpid::StyleData.toString(), },
-            { mpid::Padding, 10 },
-            { mpid::Foldable, true },
-            { mpid::Folded, true }
-        });
-        
-        auto sdData = sd.toDynamicObject();
-
-        const Array<Identifier> hiddenProps({
-          Identifier("codeBgColour"),
-	      Identifier("linkBgColour"),
-	      Identifier("codeColour"),
-	      Identifier("linkColour"),
-	      Identifier("tableHeaderBgColour"),
-	      Identifier("tableLineColour"),
-	      Identifier("tableBgColour")
-        });
-
-        for(auto& nv: sdData.getDynamicObject()->getProperties())
-        {
-            if(hiddenProps.contains(nv.name))
-                continue;
-    
-            if(nv.name.toString().contains("Colour"))
-	        {
-		        auto& ed = styleProperties.addChild<ColourChooser>({
-                    { mpid::ID, nv.name.toString() },
-                    { mpid::Text, nv.name.toString() },
-                    { mpid::Value, nv.value }
-		        });
-	        }
-            else
-            {
-	            auto& ed = styleProperties.addChild<TextInput>({
-                    { mpid::ID, nv.name.toString() },
-                    { mpid::Text, nv.name.toString() },
-                    { mpid::Value, nv.value }
-	            });
-
-                if(nv.name == Identifier("Font") || nv.name == Identifier("BoldFont"))
-	            {
-		            ed[mpid::Items] = Font::findAllTypefaceNames().joinIntoString("\n");
-	            }
-
-            }
-        }
-
-        
-
-        {
-            auto& layoutProperties = introPage.addChild<List>({
-	            { mpid::ID, mpid::LayoutData.toString() },
-	            { mpid::Text, mpid::LayoutData.toString() },
-	            { mpid::Padding, 10 },
-	            { mpid::Foldable, true },
-	            { mpid::Folded, true }
-	        });
-
-			auto layoutObj = mp->defaultLaf.getMultiPagePositionInfo({}).toJSON();
-
-            std::map<Identifier, String> help;
-	        help["OuterPadding"] = "The distance between the content and the component bounds in pixel.";
-            help["ButtonTab"] = "The height of the bottom tab with the Cancel / Prev / Next buttons.";
-            help["ButtonMargin"] = "The distance between the buttons in the bottom tab in pixel.";
-            help["TopHeight"] = "The height of the top bar with the title and the step progress in pixel.";
-            help["LabelWidth"] = "The width of the text labels of each property component. You can use either relative or absolute size values:\n- Negative values are relative to the component width (minus the `OuterPadding` property)\n- positive values are absolute pixel values.";
-            
-	        for(auto& v: layoutObj.getDynamicObject()->getProperties())
-	        {
-		        layoutProperties.addChild<TextInput>({
-	                { mpid::ID, v.name.toString() },
-					{ mpid::Text, v.name.toString() },
-	                { mpid::Value, v.value },
-                    { mpid::Help, help[v.name] }
-		        });
-	        }
-        }
-        
-        {
-            auto& numPageCreator = mp->addPage<List>({
-                { mpid::Padding, 30 }
-            });
-
-            numPageCreator.addChild<MarkdownText>({
-                { mpid::Text, "Now please enter the number of pages that you want to add to your dialog. You can then design each page in the next steps. " }
-            });
-
-	        auto& te = numPageCreator.addChild<TextInput>({
-		        { mpid::Text, "Number of pages" },
-	            { mpid::Required, true },
-                { mpid::ID, "NumPages" },
-	            { mpid::Help, "You can specify a number of pages that the wizard will have. This will be displayed at the top and you can navigate with the Next / previous page buttons at the bottom" }
-			});
-
-            
-
-            te.setStateObject(var(new DynamicObject()));
-
-            te.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj)
-            {
-                auto gs = b->getParentDialog().getState().globalState;
-
-                var list = gs[mpid::Children];
-
-                if(!list.isArray())
-                {
-	                gs.getDynamicObject()->setProperty(mpid::Children, var(Array<var>()));
-                    list = gs[mpid::Children];
-                }
-                    
-                auto te = dynamic_cast<TextInput*>(b)->getComponent<TextEditor>().getText().getIntValue();
-
-                if(te == 0)
-                    return Result::fail("The number of pages cannot be zero. Please enter a number bigger than 0 in order to proceed.");
-
-                auto currentNumPages = (int)b->getParentDialog().getProperties()["NumPages"];
-
-                if(currentNumPages != te)
-                {
-		            obj.getDynamicObject()->setProperty(mpid::Children, var(list));
-
-		            for(int i = 0; i < te; i++)
-		            {
-			            auto& xxx = b->getParentDialog().addPage<List>({}, 2);
-
-                        String text;
-
-                        text << "### Edit Page " << String((te - i)) << " / " << String(te) <<  "\nYou can define the appearance of this Page by setting the properties and adding UI elements to the `Children` list below.";
-
-                        xxx.addChild<MarkdownText>({
-							{ mpid::Text, text }
-                        });
-
-                        xxx[mpid::Value] = "page" + String(te-i);
-
-                        List::createEditor(&xxx);
-
-                        DynamicObject* no = new DynamicObject();
-	                    xxx.setStateObject(var(no));
-                        list.insert(0, var(no));
-
-                        Container::addChildrenBuilder(&xxx);
-#if 0
-	                    DynamicObject* no = new DynamicObject();
-	                    xxx.setStateObject(var(no));
-		                ScopedPointer<Dialog::PageBase> c2 = xxx.create(b->getParentDialog(), 0);
-	                    
-		                
-                        
-				        c2->createEditorInfo(&xxx);
-#endif                   
-                        
-		            }
-
-                    b->getParentDialog().getProperties().set("NumPages", te);
-                }
-
-	            
-	            return Result::ok();
-            });
-
-
-        }
-
-        
-
-
-        
-#endif
-        
-        
-        
-
-#if 0
-        auto& p1 = mp->addPage<List>();
-
-
-        
-        p1[MultiPageIds::Padding] = 30;
-
-        p1.addChild<MarkdownText>()[MultiPageIds::Text] = "This wizard will take you through the steps of creating a broadcaster. You can specify every property and connection and it will create a script definition at the end of the process that you then can paste into your `onInit` callback.";
-        auto& idInput = p1.addChild<TextInput>();
-        idInput[MultiPageIds::ID] = "id";
-        idInput[MultiPageIds::Text] = "Broadcaster ID*:";
-        idInput[MultiPageIds::Required] = true;
-        idInput[MultiPageIds::Help] = "The ID will be used to create the script variable definition as well as act as a unique ID for every broadcaster of a single script processor. The name must be a valid HiseScript identifier.";
-
-        auto& additional = p1.addChild<List>({
-            { MultiPageIds::Foldable, true },
-            { MultiPageIds::Folded, true },
-            { MultiPageIds::Text, "Additional Properties" },
-            { MultiPageIds::Padding, 20 }
-        });
-                                            
-        
-        
-        
-        auto& commentInput = additional.addChild<TextInput>();
-        commentInput[MultiPageIds::ID] = "comment";
-        commentInput[MultiPageIds::Text] = "Comment:";
-
-        auto& tagsInput = additional.addChild<TextInput>();
-        tagsInput[MultiPageIds::ID] = "tags";
-        tagsInput[MultiPageIds::Help] = "Enter a comma separated list of strings that will be used as tags for the broadcaster. This lets you filter which broadcaster you want to show on the broadcaster map and is useful for navigating complex projects";
-        tagsInput[MultiPageIds::Text] = "Tags:";
-        
-        additional.addChild<ColourChooser>({
-            { MultiPageIds::Text, "Colour" },
-            { MultiPageIds::Help, "The colour that will be used on the broadcaster map" },
-            { MultiPageIds::ID, "Colour" }
-        });
-    }
-    
-    using namespace PageFactory;
-    
-    {
-        auto& l3 = mp->addPage<List>({
-            { MultiPageIds::Padding, 10 }
-        });
-
-        auto& c2 = l3.addChild<PageFactory::Column>({
-            { MultiPageIds::Padding, 20}
-        });
-        c2.addChild<MarkdownText>({
-            { MultiPageIds::Text, "### Event Source Type\nPlease select the event type that you want to attach the broadcaster to. There are multiple event sources which can trigger a broadcaster message.\n> You can specify the exact source in the next step."},
-            { MultiPageIds::Width, -0.6 }
-        });
-        
-        auto& p2 = c2.addChild<List>({
-            {MultiPageIds::Width, -0.4},
-            {MultiPageIds::Padding, 5},
-        });
-        
-        auto& p2_ = mp->addPage<List>({
-            { MultiPageIds::Padding, 20 }
-        });
-        
-        p2_.addChild<MarkdownText>()[MultiPageIds::Text] = "The current data is downloaded. Please wait...";
-        p2_.addChild<DummyWait>({
-            { MultiPageIds::Text, "Download installer" },
-            { MultiPageIds::ID, "downloadInstaller" }
-        });
-        p2_.addChild<DummyWait>({
-            { MultiPageIds::Text, "Verify installer" },
-            { MultiPageIds::ID, "downloadInstaller2" }
-        });
-        p2_.addChild<DummyWait>({
-            { MultiPageIds::Text, "Extract installer" },
-            { MultiPageIds::ID, "downloadInstaller3" }
-        });
-        
-        //p2_.addChild<Skip>()[MultiPageIds::CallType] = "BackgroundThread";
-        
-        enum class SourceIndex
-        {
-            None,
-            ComplexData,
-            ComponentProperties,
-            ComponentVisibility,
-            ContextMenu,
-            EqEvents,
-            ModuleParameters,
-            MouseEvents,
-            ProcessingSpecs,
-            RadioGroup,
-            RoutingMatrix,
-            numSourceIndexTypes
-        };
-        
-        StringArray options(
-        {
-             "None::No event source. Use this option if you want to call the broadcaster manually or attach it to any other script callback slot (eg. TransportHandler callbacks).",
-             "Complex Data::An event of a complex data object (Tables, Slider Packs or AudioFiles). This can be either:\n- content changes (eg. when loading in a new sample)\n- a display index change (eg. if the table ruler is moved)",
-             "Component Properties::Script properties of a UI component selection (eg. the `visible` property).",
-             "Component Visibility::The visibility of a UI component.\n>This also takes into account the visibility of parent components so it's a more reliable way than listen to the component's `visible` property.",
-             "Context Menu::Adds a popup menu when the UI component is clicked",
-             "EQ Events::Listens to band add / delete, reset events of a parametriq EQ",
-             "Module Parameter::Listens to changes of a module attribute (when calling `setAttribute()`, eg. the **Reverb Width** or **Filter Frequency**",
-             "Mouse Events::Mouse events for a UI component selection",
-             "Processing Specs::Listens to changes of the processing specifications (eg. sample rate of audio buffer size)",
-             "Radio Group::Listens to button clicks within a given radio group ID\n> This is especially useful for implementing your page switch logic",
-             "Routing Matrix::Listens to changes of the routing matrix (the channel routing configuration) of a module"
-        });
-        
-        for(auto sa: options)
-        {
-            p2.addChild<Tickbox>({
-                { MultiPageIds::ID, "Source" },
-                { MultiPageIds::Text, sa.upToFirstOccurrenceOf("::", false, false) },
-                { MultiPageIds::Help, sa.fromFirstOccurrenceOf("::", false, false) },
-                { MultiPageIds::Required, true }
-            });
-        }
-        
-        //MultiPageDialog::setGlobalState(*mp, "Source", -1);
-        //MultiPageDialog::setGlobalState(*mp, "complexDataType", "SliderPack");
-        //MultiPageDialog::setGlobalState(*mp, "complexEventType", "Content");
-        //MultiPageDialog::setGlobalState(*mp, "complexSlotIndex", 0);
-        
-        auto& eventPages = mp->addPage<Branch>({
-            { MultiPageIds::ID, "Source" }
-        });
-        
-        SourceIndex sourceIndex = (SourceIndex)0;
-        
-        for(auto sa: options)
-        {
-            String header;
-            header << "### " << sa.upToFirstOccurrenceOf("::", false, false);
-            
-            auto& ep = eventPages.addChild<List>({
-                {MultiPageIds::Padding, 20 }
-            });
-            
-            ep.addChild<MarkdownText>({
-                {MultiPageIds::Text, header }
-            });
-            
-            
-            
-            switch(sourceIndex)
-            {
-                case SourceIndex::None:
-                {
-                    auto& a = ep.addChild<Skip>();
-                
-                    break;
-                }
-                case SourceIndex::ComplexData:
-                {
-                    ep.addChild<MarkdownText>()[MultiPageIds::Text] = "Attaching a broadcaster to a complex data object lets you listen to table edit changes or playback position updates of one or multiple data sources. Please fill in the information below to proceed to the next step.";
-                    
-                    ep.addChild<Choice>({
-                        { MultiPageIds::Items, "Table\nSliderPack\nAudioFile" },
-                        { MultiPageIds::ID, "complexDataType" },
-                        { MultiPageIds::Text, "Data Type" },
-                        { MultiPageIds::Help, "The data type that you want to listen to" }
-                    });
-                    
-                    ep.addChild<Choice>({
-                        { MultiPageIds::Items, "Content\nDisplayIndex" },
-                        { MultiPageIds::ID, "complexEventType" },
-                        { MultiPageIds::Text, "Event Type" },
-                        { MultiPageIds::Help, "The event type you want to listen to.\n-**Content** events will be triggered whenever the data changes (so eg. loading a new sample or editing a table will trigger this event).\n-**DisplayIndex** events will occur whenever the read position changes (so the playback position in the audio file or the table ruler in the table)." }
-                    });
-                    
-                    auto& mid = ep.addChild<TextInput>({
-                        { MultiPageIds::ID, "complexModuleId" },
-                        { MultiPageIds::Text, "Module ID" },
-                        { MultiPageIds::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }
-                    });
-                    
-                    mid.setCustomCheckFunction([](MultiPageDialog::PageBase* pb, var obj)
-                    {
-                        return Result::fail(pb->getValueFromGlobalState().toString() + " is not a module with a complex data object with the selected type.");
-                    });
-                    
-                    ep.addChild<TextInput>({
-                        { MultiPageIds::ID, "complexSlotIndex" },
-                        { MultiPageIds::Text, "Slot Index" },
-                        { MultiPageIds::Help, "The slot index of the complex data object that you want to listen to.\n> Some modules have multiple complex data objects (eg. the table envelope has two tables for the attack and release phase so if you want to listen to the release table, you need to pass in `1` here." }
-                    });
-                    
-                    break;
-                }
-            }
-            
-            auto& additional = ep.addChild<List>({
-                { MultiPageIds::Foldable, true },
-                { MultiPageIds::Folded, true },
-                { MultiPageIds::Text, "Additional Properties" },
-                { MultiPageIds::Padding, 20 }
-            });
-            
-            additional.addChild<TextInput>({
-                { MultiPageIds::Text, "Comment" },
-                { MultiPageIds::ID, "SourceComment" },
-                { MultiPageIds::Help, "An additional comment that will be displayed on the broadcaster map\n> Pro tip: A comment is also a good hook for searching for the location in a big codebase!" }
-            });
-            
-            sourceIndex = (SourceIndex)((int)sourceIndex + 1);
-            
-            
-        }
-
-
-    }
-    #endif
-
-#if 0
-    mp->addPage<MarkdownText>({
-		{ mpid::Text, "Press finish in order to copy the JSON to the clipboard." }
+    auto mp = new Dialog(var(), rt);
+	
+	mp->setFinishCallback([](){
+    	JUCEApplication::getInstance()->systemRequestedQuit();
     });
-#endif
+    
 
-#if 0
-    mp->addPage<CustomResultPage>();
-#endif
-
-    /*
-    DBG(JSON::toString(mp->defaultLaf.defaultPosition.toJSON()));
-
-    auto sd = MarkdownLayout::StyleData::createDarkStyle();
-
-    DBG(JSON::toString(sd.toDynamicObject()));
-
-    sd.headlineColour = Colours::yellow;
-    
-    mp->setStyleData(sd);
-
-    auto& p = mp->addPage<PageFactory::MarkdownText>();
-    
-    p["Text"] = "b labl";
-    
-    auto& fb = mp->addPage<PageFactory::FileSelector>();
-    fb["isDirectory"] = true;
-    fb["ID"] = "CURRENT_DIRECTORY";
-
-    auto& second = mp->addPage<PageFactory::List>();
-    
-    Array<var> data;
-    
-    auto obj = new DynamicObject();
-    obj->setProperty("Type", "Markdown");
-    obj->setProperty("Text", "Dudel Dudel");
-    
-    data.add(obj);
-    
-    auto obj2 = new DynamicObject();
-    obj2->setProperty("Type", "FileSelector");
-    obj2->setProperty("ID", "SomeID");
-    obj2->setProperty("defaultFile", (int)File::SpecialLocationType::userDesktopDirectory);
-    
-    data.add(obj2);
-    data.add(obj);
-    
-    second["Children"] = data;
-    
-    auto& p2 = mp->addPage<PageFactory::MarkdownText>();
-    
-    p2["Text"] = "# Chapter 1\n> ";
-    auto& p3 = mp->addPage<PageFactory::MarkdownText>();
-    
-    p3["Text"] = "# Chapter 2.\n ";
-    p3["headlineColour"] = (int64)0xFFFF0000;
-
-*/
+    mp->setEditMode(true);
 
     mp->showFirstPage();
     
-    mp->setFinishCallback([](){ JUCEApplication::getInstance()->systemRequestedQuit();
-    });
-    
     addAndMakeVisible(c = mp);
+#endif
+}
+
+PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
+{
+	PopupMenu m;
+
+	if(topLevelMenuIndex == 0) // File
+	{
+		m.addItem(CommandId::FileNew, "New file");
+		m.addItem(CommandId::FileLoad, "Load file");
+
+		PopupMenu r;
+		fileList.createPopupMenuItems(r, CommandId::FileRecentOffset, false, false);
+		m.addSubMenu("Recent files", r);
+		m.addItemWithShortcut(CommandId::FileSave, "Save file",  KeyPress('s', ModifierKeys::commandModifier, 's'), currentFile.existsAsFile());
+		m.addItem(CommandId::FileSaveAs, "Save file as");
+		m.addSeparator();
+		m.addItem(CommandId::FileQuit, "Quit");
+	}
+	if(topLevelMenuIndex == 1) // Edit
+	{
+        if(c == nullptr)
+        {
+            m.addItem(123123123, "Disabled in hardcoded mode", false);
+            return m;
+        }
+        
+        m.addItemWithShortcut(CommandId::EditUndo, "Undo",  KeyPress('z', ModifierKeys::commandModifier, 's'), c->getUndoManager().canUndo());
+        m.addItemWithShortcut(CommandId::EditRedo, "Undo",  KeyPress('y', ModifierKeys::commandModifier, 's'), c->getUndoManager().canRedo());
+        m.addSeparator();
+		m.addItemWithShortcut(CommandId::EditToggleMode, "Toggle Edit mode", KeyPress(KeyPress::F4Key), c->isEditModeAllowed(), c->isEditModeEnabled());
+		m.addItemWithShortcut(CommandId::EditRefreshPage, "Refresh current page", KeyPress(KeyPress::F5Key));
+        m.addItem(CommandId::EditAddPage, "Add page", c->isEditModeAllowed());
+	}
+	if(topLevelMenuIndex == 2) // View
+	{
+		m.addItem(CommandId::ViewShowDialog, "Show dialog");
+        
+        if(c != nullptr)
+        {
+            m.addItem(CommandId::ViewShowCpp, "Show C++ code", c->isEditModeAllowed());
+            m.addItem(CommandId::ViewShowJSON, "Show JSON editor", c->isEditModeAllowed());
+        }
+	}
+	if(topLevelMenuIndex == 3) // Help
+	{
+		m.addItem(CommandId::HelpAbout, "About");
+		m.addItem(CommandId::HelpVersion, "Version");
+	}
+
+	return m;
+}
+
+bool MainComponent::keyPressed(const KeyPress& key)
+{
+	if(key.getKeyCode() == KeyPress::F4Key)
+	{
+		menuItemSelected(CommandId::EditToggleMode, 0);
+		return true;
+	}
+	if(key.getKeyCode() == KeyPress::F5Key)
+	{
+		menuItemSelected(CommandId::EditRefreshPage, 0);
+		return true;
+	}
+	if(key.getKeyCode() == 's' && key.getModifiers().isCommandDown())
+	{
+		menuItemSelected(CommandId::FileSave, 0);
+		return true;
+	}
+}
+
+void MainComponent::menuItemSelected(int menuItemID, int)
+{
+	if(menuItemID >= CommandId::FileRecentOffset)
+	{
+		auto f = fileList.getFile(menuItemID - CommandId::FileRecentOffset);
+		createDialog(f);
+		return;
+	}
+
+	switch((CommandId)menuItemID)
+	{
+	case FileNew:
+		createDialog(File());
+		break;
+	case FileLoad:
+		{
+			FileChooser fc("Open JSON file", File(), "*.json");
+			if(fc.browseForFileToOpen())
+			{
+				createDialog(fc.getResult());
+			}
+
+			break;
+		}
+	case FileSave:
+		{
+			if(currentFile.existsAsFile())
+				currentFile.replaceWithText(JSON::toString(c->exportAsJSON()));
+
+			setSavePoint();
+
+			break;
+		}
+	case FileSaveAs:
+		{
+			FileChooser fc("Save JSON file", File(), "*.json");
+
+			if(fc.browseForFileToSave(true))
+			{
+				currentFile = fc.getResult();
+				currentFile.replaceWithText(JSON::toString(c->exportAsJSON()));
+
+				setSavePoint();
+			}
+                
+			break;
+		}
+	case FileQuit: JUCEApplication::getInstance()->systemRequestedQuit(); break;
+	case EditUndo: c->getUndoManager().undo(); c->refreshCurrentPage(); break;
+	case EditRedo: c->getUndoManager().redo(); c->refreshCurrentPage(); break;
+	case EditToggleMode: 
+		c->setEditMode(!c->isEditModeEnabled());
+		c->repaint();
+		break;
+	case EditRefreshPage: c->refreshCurrentPage(); break;
+        case EditAddPage: c->addListPageWithJSON(); break;
+	case ViewShowDialog:
+		{
+			if(manualChange && AlertWindow::showOkCancelBox(MessageBoxIconType::QuestionIcon, "Apply manual JSON changes?", "Do you want to reload the dialog after the manual edit?"))
+			{
+				stateViewer.setVisible(false);
+				var obj;
+				auto ok = JSON::parse(doc.getAllContent(), obj);
+
+				if(ok.wasOk())
+				{
+                    c = nullptr;
+					addAndMakeVisible(c = new multipage::Dialog(obj, rt));
+					resized();
+
+                    c->setFinishCallback([](){
+    					JUCEApplication::getInstance()->systemRequestedQuit();
+				    });
+
+					c->showFirstPage();
+				}
+			}
+
+			c->setVisible(true);
+			stateViewer.setVisible(false);
+			break;
+		}
+	case ViewShowJSON:
+		manualChange = false;
+		doc.removeListener(this);
+		c->setVisible(false);
+		stateViewer.setVisible(true);
+		doc.replaceAllContent(JSON::toString(c->exportAsJSON()));
+		doc.addListener(this);
+		break;
+	case ViewShowCpp:
+		{
+			multipage::CodeGenerator cg(c->exportAsJSON());
+			manualChange = false;
+			doc.removeListener(this);
+			c->setVisible(false);
+			stateViewer.setVisible(true);
+			doc.replaceAllContent(cg.toString());
+			break;
+		}
+	case HelpAbout: break;
+	case HelpVersion: break;
+	default: ;
+	}
+}
+
+void MainComponent::createDialog(const File& f)
+{
+	var obj;
+
+	if(f.existsAsFile())
+	{
+		JSON::parse(f.loadFileAsString(), obj);
+		fileList.addFile(f);
+	}
+
+	currentFile = f;
+
+    c = nullptr;
+    hardcodedDialog = nullptr;
+
+	addAndMakeVisible(c = new multipage::Dialog(obj, rt));
+
+    c->setFinishCallback([](){
+    	JUCEApplication::getInstance()->systemRequestedQuit();
+    });
+
+    c->setEditMode(true);
+	resized();
+
+	setSavePoint();
 }
 
 //==============================================================================
 MainComponent::MainComponent():
-  Thread("Unit Test thread"),
   rt({}),
-  pt({}),
-  editButton("Edit"),
-  codeButton("State"),
-  previewButton("Preview"),
   doc(),
   stateDoc(doc),
-  stateViewer(stateDoc)
+  stateViewer(stateDoc),
+  menuBar(this)
 {
-    build();
-	startTimer(150);
+    LookAndFeel::setDefaultLookAndFeel(&plaf);
 
+    auto settings = JSON::parse(getSettingsFile());
+
+    if(auto so = settings.getDynamicObject())
+        fileList.restoreFromString(so->getProperty("RecentFiles").toString());
+
+    menuBar.setLookAndFeel(&plaf);
+    addAndMakeVisible(menuBar);
+    build();
+	startTimer(3000);
+    
     addChildComponent(stateViewer);
 
-    addAndMakeVisible(editButton);
-    addAndMakeVisible(codeButton);
-    addAndMakeVisible(previewButton);
-    
-    editButton.setLookAndFeel(&alaf);
-    codeButton.setLookAndFeel(&alaf);
-    previewButton.setLookAndFeel(&alaf);
-
-    editButton.addListener(this);
-    codeButton.addListener(this);
-    previewButton.addListener(this);
-
-    //File f("D:\\Development\\test.json");
-
-    
-    
 #if JUCE_WINDOWS
     
     setSize(1000, 900);
 	//setSize (2560, 1080);
 #else
-    setSize(850, 600);
+    setSize(860, 720);
 #endif
-    
-    
-    
-    
 }
 
 MainComponent::~MainComponent()
 {
+    auto f = fileList.toString();
+
+	auto no = new DynamicObject();
+    no->setProperty("RecentFiles", f);
+    getSettingsFile().replaceWithText(JSON::toString(var(no), true));
+
 #if JUCE_WINDOWS
 	//context.detach();
 #endif
@@ -779,25 +295,43 @@ void MainComponent::paint (Graphics& g)
 void MainComponent::resized()
 {
     auto b = getLocalBounds();
-    auto buttonRow = b.removeFromTop(40);
 
-    editButton.setBounds(buttonRow.removeFromLeft(getWidth() / 3).reduced(10));
-    codeButton.setBounds(buttonRow.removeFromLeft(getWidth() / 3).reduced(10));
-    previewButton.setBounds(buttonRow.reduced(10));
+    menuBar.setBounds(b.removeFromTop(24));
 
     if(c != nullptr)
         c->setBounds(b);
 
-    stateViewer.setBounds(b);
+	if(hardcodedDialog != nullptr)
+		hardcodedDialog->setBounds(b);
 
-    if(preview != nullptr)
-        preview->setBounds(b);
-//    viewer.setBounds(getLocalBounds());
+    stateViewer.setBounds(b);
 }
 
 void MainComponent::timerCallback()
 {
+	if(c == nullptr)
+		return;
+
+    c->getUndoManager().beginNewTransaction();
+
+	const int64 thisHash = JSON::toString(c->exportAsJSON(), true).hashCode64();
+
+    if(firstAfterSave)
+    {
+	    prevHash = thisHash;
+        firstAfterSave = false;
+    }
+    else
+    {
+	    modified |= thisHash != prevHash;
+		prevHash = thisHash;
+    }
 }
 
-
-
+void MainComponent::setSavePoint()
+{
+	modified = false;
+    firstAfterSave = true;
+	
+	menuItemsChanged();
+}

@@ -10,6 +10,7 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "multipage.h"
+#include "DialogLibrary.h"
 
 //==============================================================================
 /*
@@ -18,8 +19,7 @@
 */
 class MainComponent   : public Component,
 					    public Timer,
-					    public Thread,
-					    public ButtonListener,
+					    public MenuBarModel,
 					    public CodeDocument::Listener
 {
 public:
@@ -27,20 +27,18 @@ public:
     MainComponent();
     ~MainComponent();
 
-    void run() override
-    {
-	    UnitTestRunner r;
-		r.setAssertOnFailure(true);
-		r.setPassesAreLogged(false);
-		r.runTestsInCategory("dispatch");
-        
-        Timer::callAfterDelay(500, [&]()
-        {
-            viewer.start(false);
-        });
-    }
-
     bool manualChange = false;
+
+    File getSettingsFile() const
+    {
+        auto f = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory);
+        
+#if JUCE_MAC
+        f = f.getChildFile("Application Support");
+#endif
+        
+        return f.getChildFile("HISE").getChildFile("multipage.json");
+    }
 
     void codeDocumentTextInserted (const String& , int ) override
     {
@@ -51,89 +49,6 @@ public:
     void codeDocumentTextDeleted (int , int ) override
     {
         manualChange = true;
-	    
-    }
-
-    void buttonClicked(Button* b) override
-    {
-        if(b == &editButton)
-        {
-            if(manualChange && AlertWindow::showOkCancelBox(MessageBoxIconType::QuestionIcon, "Apply manual JSON changes?", "Do you want to reload the dialog after the manual edit?"))
-            {
-                stateViewer.setVisible(false);
-                var obj;
-                auto ok = JSON::parse(doc.getAllContent(), obj);
-
-                if(ok.wasOk())
-                {
-	                addAndMakeVisible(c = new multipage::Dialog(obj, rt));
-                    
-                    resized();
-                    c->showFirstPage();
-                }
-            }
-
-	        if(preview != nullptr)
-				preview->setVisible(false);
-
-        	stateViewer.setVisible(false);
-            c->setVisible(true);
-        }
-        
-
-        if(b == &codeButton)
-        {
-            if(preview != nullptr)
-                preview->setVisible(false);
-
-            if(c != nullptr)
-            {
-	            auto ok = c->checkCurrentPage();
-
-                stateViewer.setVisible(ok.wasOk());
-            	c->setVisible(ok.failed());
-
-                if(ok.wasOk())
-                {
-                    manualChange = false;
-                    doc.removeListener(this);
-
-                    auto jsonData = c->exportAsJSON();
-
-                    if(c->createJSON)
-                    {
-	                    doc.replaceAllContent(JSON::toString(jsonData));
-                    }
-                    else
-                    {
-                        multipage::CodeGenerator cg(jsonData, 1);
-                        doc.replaceAllContent(cg.toString());
-                    }
-                    
-                    doc.addListener(this);
-                }
-            }
-        }
-
-        if(b == &previewButton)
-        {
-            auto ok = c->checkCurrentPage();
-
-            if(ok.wasOk())
-            {
-	            stateViewer.setVisible(false);
-	            c->setVisible(false);
-
-		        addAndMakeVisible(preview = new multipage::Dialog(rt.globalState, pt));
-
-            	preview->showFirstPage();
-    
-				preview->setFinishCallback([](){});
-
-	            resized();
-            }
-        }
-        
     }
 
     //==============================================================================
@@ -141,31 +56,86 @@ public:
     void resized() override;
 
     void timerCallback() override;;
-    
+
+    void setSavePoint();
+
+    void checkSave()
+    {
+	    if(modified)
+	    {
+		    if(currentFile.existsAsFile() && AlertWindow::showOkCancelBox(MessageBoxIconType::QuestionIcon, "Save changes", "Do you want to save the changes"))
+	        {
+		        currentFile.replaceWithText(JSON::toString(c->exportAsJSON()));
+                setSavePoint();
+	        }
+	    }
+    }
+
     void build();
+
+    /** This method must return a list of the names of the menus. */
+    StringArray getMenuBarNames()
+    {
+	    return { "File", "Edit", "View", "Help" };
+    }
+
+    enum CommandId
+    {
+	    FileNew = 1,
+        FileLoad,
+        FileSave,
+        FileSaveAs,
+        FileQuit,
+        EditUndo,
+        EditRedo,
+        EditToggleMode,
+        EditRefreshPage,
+        EditAddPage,
+        ViewShowDialog,
+        ViewShowJSON,
+        ViewShowCpp,
+        HelpAbout,
+        HelpVersion,
+        FileRecentOffset = 9000
+    };
     
+	PopupMenu getMenuForIndex (int topLevelMenuIndex, const String&) override;
+
+    bool keyPressed(const KeyPress& key) override;
+
+    void menuItemSelected (int menuItemID, int) override;
+
 private:
+
+    int64 prevHash = 0;
+    bool modified = false;
+    bool firstAfterSave = false;
+
+    File currentFile;
+
+    juce::RecentlyOpenedFilesList fileList;
+
+    void createDialog(const File& f);
+
     //==============================================================================
     // Your private member variables go here...
     int counter = 0;
 	OpenGLContext context;
 
-    PerfettoWebviewer viewer;
-
-    multipage::State pt;
     multipage::State rt;
     ScopedPointer<multipage::Dialog> c;
 
+    
+
     juce::CodeDocument doc;
     mcl::TextDocument stateDoc;
-
     mcl::TextEditor stateViewer;
-
-    ScopedPointer<multipage::Dialog> preview;
-
-    AlertWindowLookAndFeel alaf;
-    TextButton editButton, codeButton, previewButton;
     
+    AlertWindowLookAndFeel plaf;
+    MenuBarComponent menuBar;
+
+    ScopedPointer<multipage::library::HardcodedDialogWithState> hardcodedDialog;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };
 

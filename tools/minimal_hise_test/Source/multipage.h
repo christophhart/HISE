@@ -41,3 +41,4 @@
 #include "InputComponents.h"
 #include "ActionComponents.h"
 #include "ContainerComponents.h"
+#include "DialogLibrary.h"

@@ -172,25 +172,13 @@ void Dialog::DefaultLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& tb,
 	}
 
 	auto text = tb.getButtonText();
-
 	
-
 	if(text.isNotEmpty())
 	{
 		b.removeFromLeft(3);
 		g.setColour(f.second);
 		g.setFont(f.first);
 		g.drawText(text, b.toFloat(), Justification::left);
-
-		if(auto c = tb.findParentComponentOfClass<factory::LabelledComponent>())
-		{
-			if(c->getId().isValid())
-			{
-				g.setColour(f.second.withAlpha(0.5f));
-				g.setFont(GLOBAL_MONOSPACE_FONT());
-				g.drawText(c->getId().toString(), b.toFloat(), Justification::right);
-			}
-		}
 	}
 }
 
