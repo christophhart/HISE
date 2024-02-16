@@ -32,7 +32,7 @@
 
 #pragma once
 
-#include "multipage.h"
+#include <JuceHeader.h>
 
 namespace hise {
 namespace multipage {

@@ -142,7 +142,7 @@ void Dialog::LookAndFeelMethods::drawMultiPageFoldHeader(Graphics& g, Component&
 
 void Dialog::LookAndFeelMethods::drawMultiPageBackground(Graphics& g, Dialog& tb, Rectangle<int> errorBounds)
 {
-	g.fillAll(tb.findColour(backgroundColour));
+	g.fillAll(tb.getStyleData().backgroundColour);
             
 	if(!errorBounds.isEmpty())
 	{

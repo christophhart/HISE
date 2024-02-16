@@ -39,6 +39,140 @@ namespace hise
 namespace multipage {
 using namespace juce;
 
+struct Dialog::TabTraverser: public ComponentTraverser
+{
+    TabTraverser(Dialog& parent_):
+      parent(parent_)
+    {};
+
+    Dialog& parent;
+    
+    Component* getDefaultComponent (Component* parentComponent) override { return &parent; }
+
+    Component* getNextComponent (Component* current) override
+    {
+        bool useNext = false;
+        Component* nextComponent = nullptr;
+
+	    Component::callRecursive<Component>(&parent, [& ](Component* c)
+	    {
+		    if(c == current)
+                useNext = true;
+            else if (useNext && c->getWantsKeyboardFocus())
+            {
+                nextComponent = c;
+                return true;
+            }
+
+            return false;
+	    });
+
+        return nextComponent;
+    }
+
+    Component* getPreviousComponent (Component* current) override
+    {
+	    return nullptr;
+    }
+
+    std::vector<Component*> getAllComponents (Component* parentComponent) override
+    {
+	    std::vector<Component*> list;
+
+        Component::callRecursive<Component>(parentComponent, [&](Component* c)
+        {
+            if(c->getWantsKeyboardFocus())
+                list.push_back(c);
+
+            return false;
+        });
+
+        return list;
+    }
+};
+
+
+Dialog::PageBase::HelpButton::HelpButton(String help, const PathFactory& factory):
+	HiseShapeButton("help", nullptr, factory)
+{
+	setWantsKeyboardFocus(false);
+
+	onClick = [this, help]()
+	{
+		if(auto p = findParentComponentOfClass<Dialog::ModalPopup>())
+		{
+			findParentComponentOfClass<PageBase>()->setModalHelp(help);
+		}
+		else
+		{
+            auto pc = getParentComponent();
+			auto img = pc->createComponentSnapshot(pc->getLocalBounds(), true);
+
+			auto mp = findParentComponentOfClass<Dialog>();
+			mp->createModalPopup<factory::MarkdownText>()[mpid::Text] = help;
+			mp->showModalPopup(false, img);
+		}
+	};
+}
+
+
+
+struct Dialog::PageBase::ModalHelp: public Component
+{
+    ModalHelp(const String& text, PageBase& parent):
+      r(text),
+      closeButton("close", nullptr, parent.rootDialog)
+    {
+        r.setStyleData(parent.rootDialog.styleData);
+        closeButton.onClick = [&parent]()
+        {
+            parent.setModalHelp("");
+        };
+
+        r.parse();
+
+		auto h = r.getHeightForWidth((float)parent.getWidth() - 26.0f);
+
+		setSize(parent.getWidth() + 20, h + 30);
+
+        addAndMakeVisible(closeButton);
+    };
+
+    void paint(Graphics& g) override
+    {
+		auto b = getLocalBounds();
+
+		auto t = b.removeFromTop(10).withSizeKeepingCentre(20, 10).toFloat();
+
+		Path p;
+		p.addRoundedRectangle(b, 6.0f);
+		p.addTriangle(t.getBottomLeft(), t.getBottomRight(), {t.getCentreX(), t.getY()});
+
+        g.setColour(Colour(0xFF222222));
+
+		g.fillPath(p);
+
+        auto area = b.reduced(10);
+        area.removeFromRight(26);
+        
+        r.draw(g, area.toFloat());
+    }
+
+    void resized() override
+    {
+
+        auto b = getLocalBounds().reduced(10);
+
+		b.removeFromTop(10);
+
+		b = b.removeFromRight(18).removeFromTop(18);
+
+        closeButton.setBounds(b);
+    }
+
+    MarkdownRenderer r;
+    HiseShapeButton closeButton;
+};
 
 Dialog::PageBase::PageBase(Dialog& rootDialog_, int width, const var& obj):
   rootDialog(rootDialog_),
@@ -116,59 +250,93 @@ void Dialog::PageBase::duplicateInParent()
 	}
 }
 
+bool Dialog::PageBase::isEditModeAndNotInPopup() const
+{
+	return rootDialog.isEditModeEnabled() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr;
+}
+
+
+void Dialog::PageBase::setModalHelp(const String& text)
+{
+	if(modalHelp != nullptr)
+	{
+#if JUCE_DEBUG
+		modalHelp->setVisible(false);
+#else
+		Desktop::getInstance().getAnimator().fadeOut(modalHelp, 200);
+#endif
+		modalHelp = nullptr;
+	}
+	else
+	{
+		auto popup = findParentComponentOfClass<ModalPopup>();
+
+		Component::callRecursive<PageBase>(popup, [](PageBase* b)
+		{
+			b->modalHelp = nullptr;
+			return false;
+		});
+		
+		jassert(popup != nullptr);
+
+		popup->addAndMakeVisible(modalHelp = new ModalHelp(text, *this));
+		
+
+#if JUCE_DEBUG
+		modalHelp->setVisible(true);
+#else
+		Desktop::getInstance().getAnimator().fadeIn(modalHelp, 200);
+#endif
+
+		modalHelp->toFront(false);
+
+		auto thisBounds = popup->getLocalArea(this, getLocalBounds());
+
+		auto mb = thisBounds.withSizeKeepingCentre(modalHelp->getWidth(), modalHelp->getHeight());
+		mb.setY(thisBounds.getBottom() + 3);
+		
+		modalHelp->setBounds(mb);
+	}
+}
+
+Rectangle<int> Dialog::PageBase::getArea(AreaType t) const
+{
+	auto b = getLocalBounds();
+
+	using Pos = Dialog::PositionInfo::LabelPositioning;
+
+	auto posToUse = (Pos)positionInfo.LabelPosition;
+
+	if(rootDialog.isEditModeEnabled() && posToUse == Pos::None)
+		posToUse = Pos::Left;
+
+	Rectangle<int> lb;
+
+	switch(posToUse)
+	{
+	case Pos::Left:  lb = b.removeFromLeft(positionInfo.getWidthForLabel(getWidth())); break;
+	case Pos::Above: lb = b.removeFromTop(positionInfo.LabelHeight); break;
+	case Pos::None:  break;
+	}
+	        
+	return t == AreaType::Component ? b : lb;
+}
+
+void Dialog::PageBase::onEditModeChange(PageBase& c, bool isOn)
+{
+	c.editModeChanged(isOn);
+}
+
+
+
 bool Dialog::PageBase::showDeletePopup(bool isRightClick)
 {
 	if(isRightClick)
 	{
-		auto typeName = infoObject[mpid::Type].toString();
-
-		PopupLookAndFeel plaf;
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-		m.addItem(1, "Delete " + typeName);
-		m.addItem(2, "Edit " + typeName);
-		m.addItem(3, "Duplicate " + typeName);
-		m.addItem(4, "Copy " + typeName);
-
-		auto clipboard = JSON::parse(SystemClipboard::getTextFromClipboard());
-
-		if(clipboard.getDynamicObject() != nullptr)
-			m.addItem(5, "Paste " + clipboard[mpid::Type].toString());
-
-		const auto r = m.show();
-
-		if(r == 0)
-			return true;
-
-		if(r == 1)
-		{
-			deleteFromParent();
-			return true;
-		}
-		if(r == 3)
-		{
-			duplicateInParent();
-			return true;
-		}
-		if(r == 4)
-		{
-			SystemClipboard::copyTextToClipboard(JSON::toString(infoObject, true));
-			return true;
-		}
-		if(r == 5)
-		{
-			if(auto pc = findParentComponentOfClass<factory::Container>())
-			{
-				auto l = pc->infoObject[mpid::Children];
-				auto idx = l.indexOf(infoObject)+1;
-				rootDialog.getUndoManager().perform(new UndoableVarAction(l, idx, clipboard));
-				rootDialog.refreshCurrentPage();
-			}
-
-			return true;
-		}
+		return rootDialog.nonContainerPopup(infoObject);
 	}
 
+	rootDialog.showEditor(infoObject);
 	return false;
 }
 
@@ -176,6 +344,11 @@ String Dialog::PageBase::getDefaultPositionName() const
 {
 	auto ln = Dialog::PositionInfo::getLabelPositionNames();
 	return ln[inheritsPosition ? (int)Dialog::PositionInfo::LabelPositioning::Default : positionInfo.LabelPosition];
+}
+
+String Dialog::PageBase::evaluate(const Identifier& id) const
+{
+	return factory::MarkdownText::getString(infoObject[id].toString(), rootDialog);
 }
 
 void Dialog::PageBase::init()
@@ -190,8 +363,10 @@ void Dialog::PageBase::init()
 	}
 }
 
+
 void Dialog::PageBase::editModeChanged(bool isEditMode)
 {
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	if(isEditMode)
 	{
 		overlay = new EditorOverlay(rootDialog);
@@ -206,7 +381,9 @@ void Dialog::PageBase::editModeChanged(bool isEditMode)
 	}
 	
 	repaint();
+#endif
 }
+
 
 void Dialog::PageBase::writeState(const var& newValue) const
 {
@@ -334,272 +511,6 @@ int Dialog::PositionInfo::getHeightForComponent(int heightWithoutLabel)
 	return heightWithoutLabel;
 }
 
-String CodeGenerator::toString() const
-{
-	
-
-	String x = getNewLine();
-
-	x << getNewLine() << "// BEGIN AUTOGENERATED CODE";
-
-	x << getNewLine() << "using namespace multipage;";
-	x << getNewLine() << "using namespace factory;";
-	x << getNewLine() << "auto mp_ = new Dialog({}, state, false);";
-	x << getNewLine() << "auto& mp = *mp_;";
-
-	for(auto& p: data[mpid::Properties].getDynamicObject()->getProperties())
-	{
-		x << getNewLine() << "mp.setProperty(mpid::" << p.name << ", " << p.value.toString().quoted() << ");";
-	}
-
-	if(data[mpid::Children].isArray())
-	{
-		int idx = 0;
-		for(const auto& page: *data[mpid::Children].getArray())
-		{
-			x << createAddChild("mp", page, "Page", true);
-
-			
-		}
-	}
-
-	x << getNewLine() << "return mp_;";
-
-	x << getNewLine() << "// END AUTOGENERATED CODE ";
-
-	return x;
-}
-
-String CodeGenerator::generateRandomId(const String& prefix) const
-{
-	String x = prefix;
-
-	if(x.isEmpty())
-		x = "element";
-	
-	x << "_";
-	x << String(idCounter++);
-	
-	return x;
-}
-
-String CodeGenerator::getNewLine() const
-{
-	String x = "\n";
-
-	for(int i = 0; i < numTabs; i++)
-		x << "\t";
-
-	return x;
-}
-
-String CodeGenerator::arrayToCommaString(const var& value)
-{
-	String s;
-
-	for(int i = 0; i < value.size(); i++)
-	{
-		s << value[i].toString();
-
-		if(i < (value.size() - 1))
-			s << ", ";
-	}
-
-	return s.quoted();
-}
-
-String CodeGenerator::createAddChild(const String& parentId, const var& childData, const String& itemType, bool attachCustomFunction) const
-{
-	auto id = childData[mpid::ID].toString();
-	
-	if(id.isEmpty())
-		id = childData[mpid::Type].toString();
-
-	id = generateRandomId(id);
-
-	while(existingVariables.contains(id))
-		id = generateRandomId(id);
-
-	existingVariables.add(id);
-
-	String x = getNewLine();
-
-	auto typeId = childData[mpid::Type].toString();
-
-	x << "auto& " << id << " = " << parentId << ".add" << itemType << "<factory::" << typeId << ">({";
-
-	const auto& prop = childData.getDynamicObject()->getProperties();
-
-	String cp;
-
-	for(auto& nv: prop)
-	{
-		if(nv.name == mpid::Type)
-			continue;
-
-		if(nv.name == mpid::Children)
-			continue;
-
-		if(nv.value.toString().isEmpty())
-			continue;
-
-		cp << getNewLine() << "  { mpid::" << nv.name << ", ";
-
-		if(nv.value.isString())
-			cp << nv.value.toString().quoted().replace("\n", "\\n");
-		else if (nv.value.isArray())
-		{
-			cp << arrayToCommaString(nv.value);
-		}
-		else
-			cp << (int)(nv.value);
-
-		cp << " }";
-
-		cp << ", ";
-	}
-
-	x << cp.upToLastOccurrenceOf(", ", false, false);
-
-	x << getNewLine() << "});\n";
-
-	if(typeId == "LambdaTask")
-	{
-		x << getNewLine() << "// lambda task for " << id;
-		x << getNewLine() << id << ".setLambdaAction(state, ";
-
-		auto bindFunctionName = childData[mpid::Function].toString();
-
-		if(bindFunctionName.isNotEmpty())
-		{
-			x << "BIND_MEMBER_FUNCTION_2(" << bindFunctionName << ")";
-		}
-		else
-		{
-			x << "[](State::Job& t, const var& stateObject)";
-			x << getNewLine() << "{" << getNewLine() << "\treturn var();" << getNewLine() << "}";
-		}
-		
-		x << ");" << getNewLine();
-	}
-
-	auto children = childData[mpid::Children];
-
-	if(children.isArray())
-	{
-		for(const auto& v: *children.getArray())
-		{
-			x << createAddChild(id, v, "Child", false);
-		}
-	}
-
-	if(attachCustomFunction)
-	{
-		x << getNewLine() << "// Custom callback for page " << id;
-		x << getNewLine() << id << ".setCustomCheckFunction([](Dialog::PageBase* b, const var& obj)";
-		x << "{\n" << getNewLine() << "\treturn Result::ok();\n" << getNewLine() << "});" << getNewLine();
-	}
-
-	return x;
-}
-
-EditorOverlay::Updater::Updater(EditorOverlay& parent_, Component* attachedComponent):
-	ComponentMovementWatcher(attachedComponent),
-	parent(parent_)
-{
-	auto root = attachedComponent->findParentComponentOfClass<Dialog>();
-
-	root->addChildComponent(&parent);
-
-	
-
-	componentMovedOrResized(true, true);
-	componentVisibilityChanged();
-
-	
-}
-
-void EditorOverlay::Updater::componentMovedOrResized(bool wasMoved, bool wasResized)
-{
-    
-    
-	auto root = parent.findParentComponentOfClass<Dialog>();
-	auto b = root->getLocalArea(getComponent(), parent.localBoundFunction(getComponent()));
-    
-    Dialog::PositionInfo position;
-
-    if(auto laf = dynamic_cast<Dialog::LookAndFeelMethods*>(&root->getLookAndFeel()))
-    {
-        position = laf->getMultiPagePositionInfo(var());
-    }
-        
-    auto fullBounds = root->getLocalBounds().reduced(position.OuterPadding);
-        
-    fullBounds.removeFromTop(position.TopHeight);
-
-    
-
-    fullBounds.removeFromTop(position.OuterPadding);
-    fullBounds.removeFromBottom(position.ButtonTab);
-    fullBounds.removeFromBottom(position.OuterPadding);
-
-    b = b.getIntersection(fullBounds);
-    
-    parent.setBounds(b);
-}
-
-EditorOverlay::EditorOverlay(Dialog& parent)
-{
-	parent.addChildComponent(*this);
-
-	localBoundFunction = [](Component* c){ return c->getLocalBounds().expanded(10); };
-	
-	setRepaintsOnMouseActivity(true);
-}
-
-void EditorOverlay::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel)
-{
-	findParentComponentOfClass<Dialog>()->getViewport().mouseWheelMove(event, wheel);
-}
-
-void EditorOverlay::resized()
-{
-	outline.clear();
-
-	auto b = getLocalBounds().toFloat().reduced(3.0f);
-	outline.addRoundedRectangle(b, 5.0f);
-
-	bounds = b;
-
-	float l[2] = { 4.0f, 4.0f };
-	PathStrokeType(1.0f).createDashedStroke(outline, outline, l, 2);
-}
-
-void EditorOverlay::mouseUp(const MouseEvent& e)
-{
-	if(cb)
-		cb(e.mods.isRightButtonDown());
-}
-
-void EditorOverlay::paint(Graphics& g)
-{
-	g.setColour(Colours::white.withAlpha(0.2f));
-	g.fillPath(outline);
-
-	float alpha = 0.0f;
-
-	if(isMouseOver())
-		alpha += 0.05f;
-
-	if(isMouseButtonDown())
-		alpha += 0.1f;
-
-	if(alpha > 0.0f)
-	{
-		g.setColour(Colours::white.withAlpha(alpha));
-		g.fillRoundedRectangle(bounds, 5.0f);
-	}
-}
 
 ErrorComponent::ErrorComponent(Dialog& parent_):
 	parent(parent_),
@@ -638,9 +549,14 @@ void ErrorComponent::setError(const Result& r)
             
 	if(!r.wasOk())
 	{
+		auto w = getWidth() - 80;
+
+		if(w < 10)
+			w = 300;
+
 		parser.setNewText(r.getErrorMessage());
 		parser.parse();
-		height = jmax<int>(40, parser.getHeightForWidth(getWidth() - 80));
+		height = jmax<int>(40, parser.getHeightForWidth(w));
 	}
             
 	show(!currentError.wasOk());
@@ -669,7 +585,6 @@ void ErrorComponent::resized()
 	auto cb = b.removeFromRight(40).removeFromTop(40).reduced(10);
 	closeButton->setBounds(cb);
 }
-
 
 
 Dialog::PageBase* Dialog::PageInfo::create(Dialog& r, int currentWidth) const
@@ -791,6 +706,8 @@ void Dialog::ModalPopup::onOk()
 
 void Dialog::ModalPopup::dismiss()
 {
+	parent.currentErrorElement = nullptr;
+
 #if JUCE_DEBUG
 	setVisible(false);
 #else
@@ -896,7 +813,11 @@ void Dialog::ModalPopup::resized()
 	b = b.reduced(info.OuterPadding);
             
 	if(modalError.isVisible())
+	{
 		modalError.setBounds(b.removeFromTop(modalError.height).expanded(6, 3));
+		b.removeFromTop(info.OuterPadding);
+	}
+		
 
 	if(okButton.isVisible())
 	{
@@ -910,6 +831,219 @@ void Dialog::ModalPopup::resized()
 		contentComponent->setBounds(b);
 
 	repaint();
+}
+
+
+Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
+	cancelButton("Cancel"),
+	nextButton("Next"),
+	prevButton("Previous"),
+	popup(*this),
+    runThread(&rt),
+	errorComponent(*this),
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	mainPropertyOverlay(*this),
+#endif
+	tooltipWindow(this)
+{
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	editModeBroadcaster.addListener(mainPropertyOverlay, EditorOverlay::onEditChange);
+	mainPropertyOverlay.setTooltip("Edit the main layout properties (font, colours, etc) of the dialog)");
+	mainPropertyOverlay.setOnClick(BIND_MEMBER_FUNCTION_0(Dialog::showMainPropertyEditor));
+#endif
+
+	
+	jassert(runThread->currentDialog == nullptr);
+
+    runThread->currentDialog = this;
+	sf.addScrollBarToAnimate(content.getVerticalScrollBar());
+
+	setColour(backgroundColour, Colours::black.withAlpha(0.15f));
+
+	if(auto sd = obj[mpid::StyleData].getDynamicObject())
+		styleData.fromDynamicObject(var(sd), [](const String& font){ return Font(font, 13.0f, Font::plain); });
+	else
+	{
+		styleData = MarkdownLayout::StyleData::createDarkStyle();
+		styleData.backgroundColour = Colours::transparentBlack;
+	}
+	
+	errorComponent.parser.setStyleData(styleData);
+
+	addChildComponent(popup);
+
+	if(auto ld = obj[mpid::LayoutData].getDynamicObject())
+		defaultLaf.defaultPosition.fromJSON(var(ld));
+
+	if(auto ps = obj[mpid::Properties].getDynamicObject())
+		properties = var(ps);
+	else
+    {
+        auto po = new DynamicObject();
+        properties = var(po);
+        
+        po->setProperty(mpid::Header, "Header");
+        po->setProperty(mpid::Subtitle, "Subtitle");
+    }
+
+	auto pageList = obj[mpid::Children];
+
+	if(pageList.isArray())
+    {
+		pageListArrayAsVar = pageList;
+        pageListInfo = pageListArrayAsVar.getArray();
+    }
+    else
+    {
+		pageListArrayAsVar = var(Array<var>());
+		pageListInfo = pageListArrayAsVar.getArray();
+
+		if(addEmptyPage)
+		{
+			auto fc = new DynamicObject();
+		    fc->setProperty(mpid::Type, "List");
+		    fc->setProperty(mpid::Padding, 10);
+		    pageListInfo->add(var(fc));
+		}
+    }
+	
+	Factory factory;
+
+    for(const auto& p: *pageListInfo)
+    {
+        if(auto pi = factory.create(p))
+        {
+            pi->setStateObject(getState().globalState);
+            pi->useGlobalStateObject = true;
+            pages.add(std::move(pi));
+        }
+    }
+	
+	addAndMakeVisible(cancelButton);
+	addAndMakeVisible(nextButton);
+	addAndMakeVisible(prevButton);
+	addAndMakeVisible(content);
+	addChildComponent(errorComponent);
+	setLookAndFeel(&defaultLaf);
+
+    setWantsKeyboardFocus(true);
+
+	setSize(700, 400);
+        
+	nextButton.onClick = [this]()
+	{
+		navigate(true);
+	};
+        
+	prevButton.onClick = [this]()
+	{
+		navigate(false);
+	};
+
+	cancelButton.onClick = [this]()
+	{
+		auto& l = createModalPopup<factory::List>();
+
+        l[mpid::Padding] = 15;
+        
+        auto& md = l.addChild<factory::MarkdownText>();
+        
+        auto& to = l.addChild<factory::Button>({
+            { mpid::Text, "Save progress" },
+            { mpid::ID, "Save" }
+        });
+        
+		md[mpid::Text] = "Do you want to close this popup?";
+
+		md.setCustomCheckFunction([this](PageBase*, var obj)
+		{
+			MessageManager::callAsync(finishCallback);
+			return Result::ok();
+		});
+        
+        
+
+		showModalPopup(true);
+	};
+
+	content.getVerticalScrollBar().addListener(this);
+
+	//setEditMode(true);
+}
+
+Dialog::~Dialog()
+{
+	runThread->currentDialog = nullptr;
+}
+
+
+String Dialog::getStringFromModalInput(const String& message, const String& prefilledValue)
+{
+	auto laf = &getLookAndFeel();
+
+	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(message, "", AlertWindow::AlertIconType::QuestionIcon);
+
+	nameWindow->setLookAndFeel(laf);
+
+	nameWindow->addTextEditor("Name", prefilledValue );
+	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
+	nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
+
+	nameWindow->getTextEditor("Name")->setSelectAllWhenFocused(true);
+	nameWindow->getTextEditor("Name")->grabKeyboardFocusAsync();
+
+	if(nameWindow->runModalLoop()) 
+		return nameWindow->getTextEditorContents("Name");
+
+	else return String();
+}
+
+bool Dialog::refreshCurrentPage()
+{
+	auto index = getState().currentPageIndex;
+
+	if((currentPage = pages[index]->create(*this, content.getWidth() - content.getScrollBarThickness() - 10)))
+	{
+		content.setViewedComponent(currentPage);
+		currentPage->postInit();
+		currentPage->setLookAndFeel(&getLookAndFeel());
+		nextButton.setButtonText(runThread->currentPageIndex == pages.size() - 1 ? "Finish" : "Next");
+
+		refreshBroadcaster.sendMessage(sendNotificationSync, index);
+
+		return true;
+	}
+
+	return false;
+}
+
+String Dialog::joinVarArrayToNewLineString(const var& v)
+{
+	String s;
+
+	if(v.isArray())
+	{
+		for(auto& item: *v.getArray())
+			s << item.toString() << "\n";
+	}
+	else
+		s << v.toString();
+
+	return s;
+}
+
+var Dialog::parseCommaList(const String& text)
+{
+	auto sa = StringArray::fromTokens(text, ",", "");
+	sa.trim();
+
+	Array<var> values;
+
+	for(const auto& s: sa)
+		values.add(var(s));
+
+	return var(values);
 }
 
 void Dialog::showModalPopup(bool addButtons, const Image& additionalScreenshot)
@@ -967,9 +1101,35 @@ var Dialog::exportAsJSON() const
 	json->setProperty(mpid::Properties, properties);
 	json->setProperty(mpid::LayoutData, defaultLaf.defaultPosition.toJSON());
 	json->setProperty(mpid::GlobalState, runThread->globalState);
-	json->setProperty(mpid::Children, var(pageListInfo));
+	json->setProperty(mpid::Children, pageListArrayAsVar);
 
 	return var(json.get());
+}
+
+Dialog::PageBase* Dialog::findPageBaseForInfoObject(const var& obj)
+{
+	PageBase* found = nullptr;
+
+	callRecursive<PageBase>(this, [&](PageBase* b)
+	{
+		if(b->matches(obj))
+		{
+			found = b;
+			return true;
+		}
+
+		return false;
+	});
+
+	return found;
+}
+
+Dialog::PositionInfo Dialog::getPositionInfo(const var& pageData) const
+{
+	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+		return laf->getMultiPagePositionInfo(pageData);
+
+	return {};
 }
 
 void Dialog::showMainPropertyEditor()
@@ -1125,7 +1285,6 @@ void Dialog::showMainPropertyEditor()
 		Container::checkChildren(b, obj);
 
 		properties = obj[mpid::Properties].clone();
-
 		styleData.fromDynamicObject(obj[mpid::StyleData], [](const String& n){ return Font(n, 15.0f, Font::plain); });
 
 		PositionInfo newPos;
@@ -1147,200 +1306,40 @@ void Dialog::showMainPropertyEditor()
 
 }
 
-void Dialog::showNumPageEditor()
+
+bool Dialog::removeCurrentPage()
 {
-	using namespace factory;
+	pageListInfo->remove(runThread->currentPageIndex);
+	pages.remove(runThread->currentPageIndex);
 
-	auto& x = createModalPopup<List>();
+	runThread->currentPageIndex = jmin(runThread->currentPageIndex, pageListInfo->size()-1);
 
-	x.addChild<MarkdownText>({
-	  { mpid::Text, "Enter the number of pages that you want to show in this dialog:"}});
-
-	auto& ti = x.addChild<TextInput>({
-	  { mpid::ID, "NumPages" },
-	  { mpid::Text, "Number of Pages" }
-	});
-
-	var no = new DynamicObject();
-
-	x.setStateObject(no);
-	ti.setCustomCheckFunction([&](PageBase* b, var obj)
-	{
-		auto numPages = (int)b->getValueFromGlobalState();
-
-		if(numPages > 0)
-		{
-			getState().globalState.getDynamicObject()->clear();
-			pageListInfo.clear();
-			pages.clear();
-
-			for(int i = 0; i < numPages; i++)
-			{
-				auto no = new DynamicObject();
-
-				Array<var> childList;
-
-				pageListInfo.add(no);
-
-				no->setProperty(mpid::Type, "List");
-				no->setProperty(mpid::Children, var(childList));
-
-				auto& np = addPage<factory::List>();
-				np.data = var(no);
-			}
-			
-			showFirstPage();
-
-			return Result::ok();
-		}
-		else
-		{
-			return Result::fail("You must enter a valid number of pages");
-		}
-	});
-
-	showModalPopup(true);
+	refreshCurrentPage();
+	resized();
+	repaint();
+	return true;
 }
 
-Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
-	cancelButton("Cancel"),
-	nextButton("Next"),
-	prevButton("Previous"),
-	popup(*this),
-    runThread(&rt),
-	errorComponent(*this),
-	mainPropertyOverlay(*this),
-	numPageOverlay(*this),
-	tooltipWindow(this)
+void Dialog::addListPageWithJSON()
 {
-	editModeBroadcaster.addListener(mainPropertyOverlay, EditorOverlay::onEditChange);
-	editModeBroadcaster.addListener(numPageOverlay, EditorOverlay::onEditChange);
+	auto fc = new DynamicObject();
+	fc->setProperty(mpid::Type, "List");
+	fc->setProperty(mpid::Padding, 10);
+        
+	pageListInfo->add(var(fc));
 
-	mainPropertyOverlay.setTooltip("Edit the main layout properties (font, colours, etc) of the dialog)");
-	numPageOverlay.setTooltip("Set the number of pages of the dialog");
+	Factory factory;
 
-	numPageOverlay.setOnClick(BIND_MEMBER_FUNCTION_0(Dialog::showNumPageEditor));
-	mainPropertyOverlay.setOnClick(BIND_MEMBER_FUNCTION_0(Dialog::showMainPropertyEditor));
-
-	if(obj.hasProperty(mpid::GlobalState))
-		runThread->globalState = obj[mpid::GlobalState];	
-	else
-		runThread->globalState = new DynamicObject();
-
-	jassert(runThread->currentDialog == nullptr);
-
-    runThread->currentDialog = this;
-	sf.addScrollBarToAnimate(content.getVerticalScrollBar());
-
-	setColour(backgroundColour, Colours::black.withAlpha(0.15f));
-
-	if(auto sd = obj[mpid::StyleData].getDynamicObject())
-		styleData.fromDynamicObject(var(sd), [](const String& font){ return Font(font, 13.0f, Font::plain); });
-	else
+	if(auto pi = factory.create(pageListInfo->getLast()))
 	{
-		styleData = MarkdownLayout::StyleData::createDarkStyle();
-		styleData.backgroundColour = Colours::transparentBlack;
+		pi->setStateObject(getState().globalState);
+		pi->useGlobalStateObject = true;
+		pages.add(std::move(pi));
 	}
-	
-	errorComponent.parser.setStyleData(styleData);
-
-	addChildComponent(popup);
-
-	if(auto ld = obj[mpid::LayoutData].getDynamicObject())
-		defaultLaf.defaultPosition.fromJSON(var(ld));
-
-	
-
-	if(auto ps = obj[mpid::Properties].getDynamicObject())
-		properties = var(ps);
-	else
-    {
-        auto po = new DynamicObject();
-        properties = var(po);
         
-        po->setProperty(mpid::Header, "Header");
-        po->setProperty(mpid::Subtitle, "Subtitle");
-    }
-
-	auto pageList = obj[mpid::Children];
-
-	if(pageList.isArray())
-    {
-        pageListInfo = *pageList.getArray();
-    }
-    else if(addEmptyPage)
-    {
-        auto fc = new DynamicObject();
-        fc->setProperty(mpid::Type, "List");
-        fc->setProperty(mpid::Padding, 10);
-        pageListInfo.add(var(fc));
-    }
-
-    for(const auto& p: pageListInfo)
-    {
-        if(auto pi = factory.create(p))
-        {
-            pi->setStateObject(getState().globalState);
-            pi->useGlobalStateObject = true;
-            pages.add(std::move(pi));
-        }
-    }
-	
-	addAndMakeVisible(cancelButton);
-	addAndMakeVisible(nextButton);
-	addAndMakeVisible(prevButton);
-	addAndMakeVisible(content);
-	addChildComponent(errorComponent);
-	setLookAndFeel(&defaultLaf);
-
-    setWantsKeyboardFocus(true);
-
-	setSize(700, 400);
-        
-	nextButton.onClick = [this]()
-	{
-		navigate(true);
-	};
-        
-	prevButton.onClick = [this]()
-	{
-		navigate(false);
-	};
-
-	cancelButton.onClick = [this]()
-	{
-		auto& l = createModalPopup<factory::List>();
-
-        l[mpid::Padding] = 15;
-        
-        auto& md = l.addChild<factory::MarkdownText>();
-        
-        auto& to = l.addChild<factory::Button>({
-            { mpid::Text, "Save progress" },
-            { mpid::ID, "Save" }
-        });
-        
-		md[mpid::Text] = "Do you want to close this popup?";
-
-		md.setCustomCheckFunction([this](PageBase*, var obj)
-		{
-			MessageManager::callAsync(finishCallback);
-			return Result::ok();
-		});
-        
-        
-
-		showModalPopup(true);
-	};
-
-	content.getVerticalScrollBar().addListener(this);
-
-	//setEditMode(true);
-}
-
-Dialog::~Dialog()
-{
-	runThread->currentDialog = nullptr;
+	refreshCurrentPage();
+	resized();
+	repaint();
 }
 
 Result Dialog::getCurrentResult()
@@ -1599,74 +1598,20 @@ void Dialog::resized()
 
 	auto topCopy = top;
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	mainPropertyOverlay.setBounds(top.reduced(-20));
-	numPageOverlay.setBounds(topCopy.removeFromBottom(35).removeFromRight(80).translated(12, 6));
+#endif
 }
 
-void Dialog::mouseDown(const MouseEvent& e)
+
+std::unique_ptr<ComponentTraverser> Dialog::createKeyboardFocusTraverser()
 {
-	if(e.mods.isRightButtonDown() && editingAllowed)
-	{
-		PopupLookAndFeel plaf;
-		PopupMenu m;
-		m.setLookAndFeel(&plaf);
-
-		enum Commands
-		{
-			EditMode = 1,
-			ClearDialog,
-			ImportJSON,
-			CreateJSON,
-			CreateCpp,
-			numCommands
-		};
-
-		m.addItem(1, "Toggle Edit mode", editingAllowed, editMode);
-		m.addSeparator();
-
-		var obj;
-
-		auto ok = JSON::parse(SystemClipboard::getTextFromClipboard(), obj);
-
-		m.addItem(ClearDialog, "Clear dialog");
-		//m.addItem(ImportJSON, "Import from JSON", obj.isObject());
-		m.addItem(CreateJSON, "Export as JSON", true, createJSON);
-		m.addItem(CreateCpp, "Export as C++ code", true, !createJSON);
-
-		if(auto r = m.show())
-		{
-			switch((Commands)(r))
-			{
-			case EditMode: 
-				setEditMode(!editMode);
-				repaint();
-				break;
-			case ClearDialog:
-			{
-					
-				
-				auto& x = createModalPopup<factory::MarkdownText>({
-					{ mpid::Text, "Do you really want to clear the current dialog? This action can't be undone" }
-				});
-
-				x.setCustomCheckFunction([](PageBase*, var)
-				{
-					jassertfalse;
-					return Result::ok();
-				});
-
-				showModalPopup(true);
-				break;
-			}
-			case CreateJSON: createJSON = true; break;
-			case CreateCpp: createJSON = false; break;
-			}
-		}
-	}
+	return std::make_unique<TabTraverser>(*this);
 }
 
 void Dialog::setEditMode(bool isEditMode)
 {
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	editMode = isEditMode;
 	editModeBroadcaster.sendMessage(sendNotificationSync, editMode);
 
@@ -1676,59 +1621,200 @@ void Dialog::setEditMode(bool isEditMode)
 	navigate(true);
 	
 	repaint();
+#endif
 }
 
 bool Dialog::isEditModeEnabled() const noexcept
 {
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	return editMode;
+#else
+	return false;
+#endif
 }
 
-
-Dialog::PageBase::HelpButton::HelpButton(String help, const PathFactory& factory):
-	HiseShapeButton("help", nullptr, factory)
+String Dialog::getExistingKeysAsItemString() const
 {
-	setWantsKeyboardFocus(false);
+	String x;
+	const auto& props = runThread->globalState.getDynamicObject()->getProperties();
+	for(auto& nv: props)
+		x << nv.name << "\n";
+        
+	return x;
+}
 
-	onClick = [this, help]()
+void Dialog::containerPopup(const var& infoObject)
+{
+	multipage::Factory factory;
+	
+	auto tp = findPageBaseForInfoObject(infoObject);
+
+	PopupLookAndFeel plaf;
+	    
+	auto list = factory.getPopupMenuList();
+
+	list.sort(false);
+	list.insert(0, "**Add element**");
+
+	PopupMenu m = SubmenuComboBox::parseFromStringArray(list, {}, &plaf);
+
+	auto typeName = infoObject[mpid::Type].toString();
+
+	m.addSeparator();
+	m.addItem(90000, "Edit " + typeName, tp != nullptr);
+	m.addItem(924, "Delete " + typeName, tp != nullptr && tp->findParentComponentOfClass<factory::Container>() != nullptr);
+
+	if(auto r = m.show())
 	{
-		if(auto p = findParentComponentOfClass<Dialog::ModalPopup>())
+		if(r == 90000)
 		{
-			findParentComponentOfClass<PageBase>()->setModalHelp(help);
+			auto& x = createModalPopup<factory::List>();
+			x.setStateObject(infoObject);
+			tp->createEditor(x);
+				
+			x.setCustomCheckFunction([tp](Dialog::PageBase* p, const var& obj){ return dynamic_cast<factory::Container*>(tp)->customCheckOnAdd(p, obj); });
+
+			showModalPopup(true);
+		}
+		else if (r == 924)
+		{
+			tp->deleteFromParent();
 		}
 		else
 		{
-            auto pc = getParentComponent();
-			auto img = pc->createComponentSnapshot(pc->getLocalBounds(), true);
+			PopupMenu::MenuItemIterator it(m, true);
 
-			auto mp = findParentComponentOfClass<Dialog>();
-			mp->createModalPopup<factory::MarkdownText>()[mpid::Text] = help;
-			mp->showModalPopup(false, img);
+			while(it.next())
+			{
+				auto& item = it.getItem();
+
+				if(item.itemID == r)
+				{
+					auto typeId = item.text.fromLastOccurrenceOf("::", false, false);
+					auto catId = item.text.upToLastOccurrenceOf("::", false, false);
+
+					auto no = new DynamicObject();
+					no->setProperty(mpid::Type, typeId);
+					no->setProperty(mpid::Text, "LabelText");
+
+					if(factory.needsIdAtCreation(typeId))
+					{
+						auto id = getStringFromModalInput("Please enter the ID of the " + typeId, typeId + "Id");
+
+						if(id.isNotEmpty())
+							no->setProperty(mpid::ID, id);
+					}
+
+					if(!infoObject[mpid::Children].isArray())
+					{
+						Array<var> newList;
+						infoObject.getDynamicObject()->setProperty(mpid::Children, var(newList));
+					}
+
+					auto childList = infoObject[mpid::Children];
+
+					getUndoManager().perform(new UndoableVarAction(childList, childList.size(), var(no)));
+					refreshCurrentPage();
+				}
+			}
 		}
-	};
+	}
 }
 
-void Dialog::PageBase::setModalHelp(const String& text)
+bool Dialog::nonContainerPopup(const var& infoObject)
 {
-	if(modalHelp != nullptr)
+	auto tp = findPageBaseForInfoObject(infoObject);
+
+	auto typeName = infoObject[mpid::Type].toString();
+
+	PopupLookAndFeel plaf;
+	PopupMenu m;
+	m.setLookAndFeel(&plaf);
+	m.addItem(2, "Edit " + typeName);
+	m.addItem(1, "Delete " + typeName);
+	m.addSeparator();
+	m.addItem(3, "Duplicate " + typeName);
+	m.addItem(4, "Copy " + typeName);
+
+	auto clipboard = JSON::parse(SystemClipboard::getTextFromClipboard());
+
+	if(clipboard.getDynamicObject() != nullptr)
+		m.addItem(5, "Paste " + clipboard[mpid::Type].toString());
+
+	const auto r = m.show();
+
+	if(r == 0)
+		return true;
+
+	if(r == 1 && tp != nullptr)
 	{
-#if JUCE_DEBUG
-		modalHelp->setVisible(false);
-#else
-		Desktop::getInstance().getAnimator().fadeOut(modalHelp, 200);
-#endif
-		modalHelp = nullptr;
+		tp->deleteFromParent();
+		return true;
 	}
-	else
+	if(r == 3)
 	{
+		tp->duplicateInParent();
+		return true;
+	}
+	if(r == 4)
+	{
+		SystemClipboard::copyTextToClipboard(JSON::toString(infoObject, true));
+		return true;
+	}
+	if(r == 5)
+	{
+		if(auto pc = tp->findParentComponentOfClass<factory::Container>())
+		{
+			auto l = pc-> getPropertyFromInfoObject(mpid::Children);
+			auto idx = l.indexOf(infoObject)+1;
+			getUndoManager().perform(new UndoableVarAction(l, idx, clipboard));
+			refreshCurrentPage();
+		}
 
-		addAndMakeVisible(modalHelp = new ModalHelp(text, *this));
+		return true;
+	}
 
-#if JUCE_DEBUG
-		modalHelp->setVisible(true);
-#else
-		Desktop::getInstance().getAnimator().fadeIn(modalHelp, 200);
-#endif
-		modalHelp->setBounds(getLocalBounds());
+	return false;
+}
+
+bool Dialog::showEditor(const var& infoObject)
+{
+	auto tp = findPageBaseForInfoObject(infoObject);
+
+	if(tp == nullptr)
+		return false;
+
+	if(tp != nullptr)
+	{
+		auto& l = createModalPopup<factory::List>({
+	        { mpid::Padding, 10 }
+		});
+
+	    l.setStateObject(infoObject);
+	    tp->createEditor(l);
+
+		if(auto lc = dynamic_cast<factory::LabelledComponent*>(tp))
+		{
+			l.setCustomCheckFunction([lc](PageBase* b, var obj)
+		    {
+				auto ok = lc->loadFromInfoObject(obj);
+				lc->repaint();
+		        return ok;
+		    });
+		}
+
+	    showModalPopup(true);
+	}
+
+	return true;
+}
+
+void Dialog::gotoPage(int newIndex)
+{
+	if(isPositiveAndBelow(newIndex, pageListInfo->size()))
+	{
+		getState().currentPageIndex = newIndex;
+		refreshCurrentPage();
 	}
 }
 }

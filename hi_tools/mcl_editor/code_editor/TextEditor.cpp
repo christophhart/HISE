@@ -700,7 +700,10 @@ TextEditor::Error::Error(TextDocument& doc_, const String& e, bool isWarning_):
 {
 	auto s = e.fromFirstOccurrenceOf("Line ", false, false);
 	auto l = s.getIntValue() - 1;
-	auto c = s.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
+
+	auto useDefaultJuceErrorFormat = s.contains(", column ");
+
+	auto c = s.fromFirstOccurrenceOf(useDefaultJuceErrorFormat ? "column " : "(", false, false).upToFirstOccurrenceOf(")", false, false).getIntValue();
 	errorMessage = s.fromFirstOccurrenceOf(": ", false, false);
 
 	Point<int> pos, endPoint;

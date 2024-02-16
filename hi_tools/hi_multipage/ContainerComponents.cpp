@@ -52,13 +52,55 @@ Container::Container(Dialog& r, int width, const var& obj):
 			id = Identifier(nid);
     }
 
-	auto l = obj["Children"];
+	auto l = obj[mpid::Children];
         
 	if(l.isArray())
 	{
 		for(auto& r: *l.getArray())
 			addChild(width, r);
 	}
+	else
+	{
+		obj.getDynamicObject()->setProperty(mpid::Children, var(Array<var>()));
+	}
+}
+
+void Container::paintEditBounds(Graphics& g)
+{
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	if(overlay != nullptr)
+	{
+		auto f = Dialog::getDefaultFont(*this);
+		auto b = overlay->localBoundFunction(this).reduced(5);
+
+		g.setColour(f.second.withAlpha(0.05f));
+		g.fillRoundedRectangle(b.toFloat(), 3.0f);
+		g.setColour(f.second.withAlpha(0.8f));
+
+		g.setFont(f.first);
+		g.drawText("Click to edit " + getContainerTypeId().toString(), b, Justification::centred);
+	}
+#endif
+}
+
+Result Container::checkChildren(PageBase* b, const var& toUse)
+{
+	if(auto ct = dynamic_cast<Container*>(b))
+	{
+		for(auto c: ct->childItems)
+		{
+			auto ok = c->check(toUse);
+		            
+			if(!ok.wasOk())
+				return ok;
+		}
+	}
+	else
+	{
+		return b->check(toUse);
+	}
+
+	return Result::ok();
 }
 
 void Container::recalculateParentSize(PageBase* b)
@@ -154,100 +196,30 @@ void Container::clearInitValue()
 		c->clearInitValue();
 }
 
+
+
+
 void Container::addWithPopup()
 {
-	PopupLookAndFeel plaf;
-    
-    Dialog::Factory f;
-    auto list = f.getPopupMenuList();
-    
-    PopupMenu m = SubmenuComboBox::parseFromStringArray(list, {}, &plaf);
+	rootDialog.containerPopup(infoObject);
+}
 
+Result Container::customCheckOnAdd(PageBase* b, const var& obj)
+{
+	dynamic_cast<Container*>(b)->checkGlobalState(obj);
+	padding = obj[mpid::Padding];
 
+	Container* c = this;
 
-
-	auto typeName = infoObject[mpid::Type].toString();
-
-    m.addSeparator();
-	m.addItem(90000, "Edit " + typeName);
-	m.addItem(924, "Delete " + typeName, findParentComponentOfClass<Container>() != nullptr);
-
-	if(auto r = m.show())
+	while(c != nullptr)
 	{
-		if(r == 90000)
-		{
-			auto& x = this->rootDialog.createModalPopup<List>();
-			x.setStateObject(infoObject);
-			this->createEditor(x);
+		c->calculateSize();
+		c->resized();
 
-			x.setCustomCheckFunction(BIND_MEMBER_FUNCTION_2(Container::customCheckOnAdd));
-
-			this->rootDialog.showModalPopup(true);
-		}
-		else if (r == 924)
-		{
-			deleteFromParent();
-		}
-		else
-		{
-			PopupMenu::MenuItemIterator it(m, true);
-
-			while(it.next())
-			{
-				auto& item = it.getItem();
-
-				if(item.itemID == r)
-				{
-					auto typeId = item.text.fromLastOccurrenceOf("::", false, false);
-					auto catId = item.text.upToLastOccurrenceOf("::", false, false);
-
-					auto no = new DynamicObject();
-					no->setProperty(mpid::Type, typeId);
-					no->setProperty(mpid::Text, "LabelText");
-
-					if(!infoObject[mpid::Children].isArray())
-					{
-						Array<var> newList;
-						infoObject.getDynamicObject()->setProperty(mpid::Children, var(newList));
-					}
-
-					auto childList = infoObject[mpid::Children];
-
-					rootDialog.getUndoManager().perform(new UndoableVarAction(childList, childList.size(), var(no)));
-					
-					checkGlobalState(no);
-
-					childItems.clear();
-					Dialog::Factory f;
-					auto l = infoObject["Children"];
-					
-					if(l.isArray())
-					{
-						for(auto& r: *l.getArray())
-						{
-							if(auto pi = f.create(r))
-							{
-								childItems.add(pi->create(rootDialog, getWidth()));
-								addAndMakeVisible(childItems.getLast());
-								childItems.getLast()->postInit();
-							}
-						}
-					}
-
-					Container* c = this;
-
-					while(c != nullptr)
-					{
-						c->calculateSize();
-						c->resized();
-
-						c = c->findParentComponentOfClass<Container>();
-					}
-					break;
-				}
-			}
-		}
+		c = c->findParentComponentOfClass<Container>();
 	}
+        
+	return Result::ok();
 }
 
 
@@ -277,6 +249,28 @@ List::List(Dialog& r, int width, const var& obj):
     folded = obj[mpid::Folded];
     title = obj[mpid::Text];
 	setSize(width, 0);
+}
+
+List::~List()
+{
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	if(overlay != nullptr)
+		rootDialog.removeChildComponent(overlay);
+
+	overlay = nullptr;
+#endif
+}
+
+Result List::customCheckOnAdd(PageBase* b, const var& obj)
+{
+	auto ok = Container::customCheckOnAdd(b, obj);
+    	
+	foldable = obj[mpid::Foldable];
+	folded = obj[mpid::Folded];
+	title = obj[mpid::Text];
+
+	calculateSize();
+	return Result::ok();
 }
 
 void List::createEditor(Dialog::PageInfo& rootList)
@@ -340,6 +334,7 @@ void List::createEditor(Dialog::PageInfo& rootList)
 
 void List::editModeChanged(bool isEditMode)
 {
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	PageBase::editModeChanged(isEditMode);
 
 	if(overlay != nullptr)
@@ -351,6 +346,7 @@ void List::editModeChanged(bool isEditMode)
 
 		overlay->setOnClick(BIND_MEMBER_FUNCTION_0(Container::addWithPopup));
 	}
+#endif
 }
 
 void List::resized()
@@ -399,6 +395,8 @@ void List::paint(Graphics& g)
 {
 	paintEditBounds(g);
 
+	auto tc = Dialog::getDefaultFont(*this).second;
+
 	auto b = getLocalBounds();
 
 	if(isEditModeAndNotInPopup())
@@ -409,7 +407,7 @@ void List::paint(Graphics& g)
 		c.removeFromRight(2);
 		c.removeFromBottom(32);
 
-		g.setColour(Colours::white.withAlpha(0.04f));
+		g.setColour(tc.withAlpha(0.04f));
 		g.fillRoundedRectangle(c.toFloat(), 3.0f);
 
 	}
@@ -478,6 +476,58 @@ void Column::createEditor(Dialog::PageInfo& xxx)
     });
 }
 
+Result Column::customCheckOnAdd(PageBase* b, const var& obj)
+{
+	auto ar = obj[mpid::Width];
+
+	if(ar.isArray())
+	{
+		if(ar.size() != childItems.size())
+			return Result::fail("Width array size mismatch. Must have as many elements as children");
+	}
+
+	Container::customCheckOnAdd(b, obj);
+
+	resized();
+	return Result::ok();
+}
+
+
+void Column::editModeChanged(bool isEditMode)
+{
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	Container::editModeChanged(isEditMode);
+
+	if(overlay != nullptr && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
+	{
+		overlay->localBoundFunction = [](Component* c){ return c->getLocalBounds().removeFromRight(64); };
+
+		overlay->setOnClick(BIND_MEMBER_FUNCTION_0(Container::addWithPopup));
+	}
+
+	calculateSize();
+	resized();
+#endif
+}
+
+
+void Column::paint(Graphics& g)
+{
+	if(rootDialog.isEditModeEnabled() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
+	{
+		g.setColour(Colours::white.withAlpha(0.02f));
+		g.fillRect(this->getLocalBounds());
+
+		auto ta = getLocalBounds().removeFromRight(64).toFloat().reduced(5.0f);
+		g.setColour(Colours::white.withAlpha(0.1f));
+		g.fillRoundedRectangle(ta, 3.0f);
+
+		g.setFont(Dialog::getDefaultFont(*this).first);
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.drawText("Edit", ta, Justification::centred);
+	}
+}
+
 void Column::calculateSize()
 {
 	auto widthList = infoObject[mpid::Width];
@@ -518,16 +568,22 @@ void Column::resized()
 
 	auto fullWidth = getWidth();
 
-	if(rootDialog.isEditModeEnabled())
+	auto showEditButton = rootDialog.isEditModeEnabled() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr;
+
+	if(showEditButton)
 		fullWidth -= 64;
         
 	for(const auto& w: widthInfo)
 	{
 		if(w > 0.0)
 			fullWidth -= (int)w;
-
+		
 		fullWidth -= padding;
 	}
+
+	// last padding doesn't count
+	fullWidth += padding;
+
 	
 	for(int i = 0; i < childItems.size(); i++)
 	{
@@ -572,6 +628,50 @@ Branch::Branch(Dialog& root, int w, const var& obj):
 	Container(root, w, obj)
 {
 	setSize(w, 0);
+}
+
+
+void Branch::editModeChanged(bool isEditMode)
+{
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	Container::editModeChanged(isEditMode);
+
+	if(overlay != nullptr)
+	{
+		overlay->localBoundFunction = [](Component* c){ return c->getLocalBounds().removeFromBottom(32); };
+		overlay->setOnClick(BIND_MEMBER_FUNCTION_0(Container::addWithPopup));
+	}
+
+	calculateSize();
+	resized();
+#endif
+}
+
+void Branch::paint(Graphics& g)
+{
+	paintEditBounds(g);
+
+	if(rootDialog.isEditModeEnabled())
+	{
+		auto b = getLocalBounds().removeFromLeft(getWidth() / 4);
+
+		int index = 0;
+
+		for(auto c: childItems)
+		{
+			auto tl = b.removeFromTop(c->getHeight()).toFloat();
+
+			g.setFont(GLOBAL_MONOSPACE_FONT());
+			g.setColour(Colours::white.withAlpha(0.5f));
+
+			String s;
+			s << "if(" << id << " == " << String(index++) << ") {";
+
+			g.drawText(s, tl, Justification::centred);
+
+			b.removeFromTop(10);
+		}
+	}
 }
 
 

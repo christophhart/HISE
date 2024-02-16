@@ -38,7 +38,8 @@ using namespace juce;
 
 class Dialog;
 
-class State: public Thread
+class State: public Thread,
+			 public ApiProviderBase::Holder
 {
 public:
 
@@ -47,6 +48,13 @@ public:
 
     void onFinish();
     void run() override;
+
+    struct StateProvider;
+
+	ScopedPointer<ApiProviderBase> stateProvider;
+
+    /** Override this method and return a provider if it exists. */
+	ApiProviderBase* getProviderBase() override;
 
     struct CallOnNextAction
     {
@@ -62,12 +70,7 @@ public:
         Job(State& rt, const var& obj);
         virtual ~Job();;
 
-        void postInit()
-        {
-	        if(!callOnNextEnabled)
-				parent.addJob(this);
-        }
-
+        void postInit();
         void callOnNext();
 
         bool matches(const var& obj) const;
@@ -75,13 +78,7 @@ public:
         double& getProgress();
 
         void setMessage(const String& newMessage);
-
-        void updateProgressBar(ProgressBar* b)
-        {
-	        if(message.isNotEmpty())
-                b->setTextToDisplay(message);
-        }
-
+        void updateProgressBar(ProgressBar* b) const;
         Thread& getThread() const { return parent; }
 
     protected:
@@ -96,6 +93,8 @@ public:
         bool callOnNextEnabled = false;
     };
 
+    using HardcodedLambda = std::function<var(Job&, const var&)>;
+
     Job::Ptr currentJob = nullptr;
     Job::Ptr getJob(const var& obj);
     var getGlobalSubState(const Identifier& id);
@@ -109,6 +108,15 @@ public:
     WeakReference<Dialog> currentDialog;
     var globalState;
     int currentPageIndex = 0;
+
+    void addTempFile(TemporaryFile* fileToOwnUntilShutdown)
+    {
+	    tempFiles.add(fileToOwnUntilShutdown);
+    }
+
+private:
+    
+    OwnedArray<TemporaryFile> tempFiles;
 };
 
 
@@ -126,21 +134,9 @@ struct CallableAction
 
     virtual ~CallableAction() {};
 
-    var operator()(const var::NativeFunctionArgs& args)
-    {
-        globalState = args.thisObject;
+    var operator()(const var::NativeFunctionArgs& args);
 
-        if(state.currentJob != nullptr)
-        	return perform(*state.currentJob);
-        
-        jassertfalse;
-    	return var();
-    }
-
-    var get(const Identifier& id) const
-    {
-	    return globalState[id];
-    }
+    var get(const Identifier& id) const;
 
     virtual var perform(multipage::State::Job& t) = 0;
     
@@ -152,60 +148,42 @@ protected:
 
 struct LambdaAction: public CallableAction
 {
-    using LambdaFunctionWithObject = std::function<var(State::Job&, const var&)>;
+    using LambdaFunctionWithObject = State::HardcodedLambda;
     using LambdaFunction = std::function<var(State::Job&)>;
 
-	LambdaAction(State& s, const LambdaFunctionWithObject& of_):
-      CallableAction(s),
-      of(of_)
-	{}
+	LambdaAction(State& s, const LambdaFunctionWithObject& of_);
 
-    LambdaAction(State& s, const LambdaFunction& lf_):
-      CallableAction(s),
-      lf(lf_)
-	{}
+    LambdaAction(State& s, const LambdaFunction& lf_);
 
     LambdaFunctionWithObject of;
     LambdaFunction lf;
 
-    var perform(multipage::State::Job& t) override
-    {
-        if(lf)
-			return lf(t);
-        else if (of)
-            return of(t, globalState);
-
-        jassertfalse;
-        return var();
-    }
+    var perform(multipage::State::Job& t) override;
 };
 
-struct JavascriptAction: public CallableAction
+struct UndoableVarAction: public UndoableAction
 {
-    JavascriptAction(multipage::State& s, const String& code_):
-      CallableAction(s),
-      code(code_)
+    enum class Type
 	{
-	    
-	}
+		SetProperty,
+        RemoveProperty,
+        AddChild,
+        RemoveChild,
+	};
 
-    var perform(multipage::State::Job& t) override
-    {
-        auto r = Result::ok();
-        JavascriptEngine e;
+    UndoableVarAction(const var& parent_, const Identifier& id, const var& newValue_);
 
-        auto function = e.evaluate(code, &r);
-
-	    if(r.failed())
-            throw r;
-
-        auto rv = (int)e.callFunctionObject(globalState.getDynamicObject(), function, var::NativeFunctionArgs(var(), nullptr, 0));
+    UndoableVarAction(const var& parent_, int index_, const var& newValue_);;
         
-        return rv;
-    }
+    bool perform() override;
+    bool undo() override;
 
-    const String code;
-    
+    const Type actionType;
+    var parent;
+    const Identifier key;
+    const int index;
+    var oldValue;
+    var newValue;
 };
 
 

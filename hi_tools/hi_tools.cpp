@@ -144,3 +144,7 @@
 #if HISE_INCLUDE_RT_NEURAL
 #include "hi_neural/hi_neural.cpp"
 #endif
+
+#if !HISE_NO_GUI_TOOLS
+#include "hi_multipage/multipage.cpp"
+#endif

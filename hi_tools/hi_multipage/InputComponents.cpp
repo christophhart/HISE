@@ -53,6 +53,25 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 		{ mpid::Help, "The ID for the element (used as key in the state `var`.\n>" }
 	});
 
+    auto& col1 = rootList.addChild<Column>({
+        { mpid::Width, Dialog::parseCommaList("-0.7, -0.3")}
+    });
+
+    col1.addChild<TextInput>({
+		{ mpid::ID, "InitValue" },
+		{ mpid::Text, "InitValue" },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::InitValue) },
+		{ mpid::Help, "The initial value for the UI element" }
+	});
+
+    col1.addChild<Button>({
+        { mpid::ID, "UseInitValue" },
+        { mpid::Text, "UseInitValue" },
+        { mpid::LabelPosition, "None" },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::UseInitValue) },
+        { mpid::Help, "Whether to initialise the state object with the init value" }
+    });
+
     auto& col = rootList.addChild<Column>({{mpid::Padding, 24 }});
 
     col.addChild<TextInput>({
@@ -93,8 +112,19 @@ LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Compo
 	setSize(width, positionInfo.getHeightForComponent(32));
 }
 
+Result LabelledComponent::loadFromInfoObject(const var& obj)
+{
+	label = obj[mpid::Text];
+	return Result::ok();
+}
+
 void LabelledComponent::postInit()
 {
+    if((initValue.isVoid() || initValue.isUndefined()) && infoObject[mpid::UseInitValue] && getValueFromGlobalState(var()).isVoid())
+    {
+	    initValue = infoObject[mpid::InitValue];
+    }
+
 	init();
 }
 
@@ -146,8 +176,11 @@ void LabelledComponent::resized()
     component->setBounds(b);
 }
 
+	    
+
 void LabelledComponent::editModeChanged(bool isEditMode)
 {
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	PageBase::editModeChanged(isEditMode);
 
 	if(overlay != nullptr)
@@ -164,28 +197,16 @@ void LabelledComponent::editModeChanged(bool isEditMode)
 
 		overlay->setOnClick([this](bool isRightClick)
 		{
-            if(this->showDeletePopup(isRightClick))
-                return;
+            this->showDeletePopup(isRightClick);
+                
 
-			auto& l = rootDialog.createModalPopup<List>({
-                { mpid::Padding, 10 }
-			});
-
-            l.setStateObject(infoObject);
-            createEditor(l);
-
-            l.setCustomCheckFunction([this](PageBase* b, var obj)
-		    {
-                auto ok = this->loadFromInfoObject(obj);
-				this->repaint();
-		        return ok;
-		    });
-
-            rootDialog.showModalPopup(true);
+			
 
 		});
 	}
+#endif
 }
+
 
 void Button::createEditor(Dialog::PageInfo& rootList)
 {
@@ -226,10 +247,19 @@ Button::Button(Dialog& r, int width, const var& obj):
 {
     positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::None);
 
-	if(positionInfo.LabelPosition == Dialog::PositionInfo::LabelPositioning::None)
-        getComponent<juce::Button>().setButtonText(obj[mpid::Text]);
+	
 
 	loadFromInfoObject(obj);
+}
+
+Path Button::createPath(const String& url) const
+{
+	Path p;
+
+	if(pathData.getSize() > 0)
+		p.loadPathFromData(pathData.getData(), pathData.getSize());
+
+	return p;
 }
 
 void Button::buttonClicked(juce::Button* b)
@@ -237,7 +267,9 @@ void Button::buttonClicked(juce::Button* b)
     if(isTrigger)
     {
         auto thisId = id;
-        
+
+        writeState(true);
+
 	    Component::callRecursive<Action>(&rootDialog, [thisId](Action* a)
 	    {
 		    if(a->getId() == thisId)
@@ -251,6 +283,15 @@ void Button::buttonClicked(juce::Button* b)
     }
     else
     {
+        if(groupedButtons.isEmpty())
+        {
+	        writeState(b->getToggleState());
+        }
+        else
+        {
+	        writeState(groupedButtons.indexOf(b));
+        }
+
 	    for(auto tb: groupedButtons)
 			tb->setToggleState(b == tb, dontSendNotification);
     }
@@ -304,7 +345,11 @@ juce::Button* Button::createButton(const var& obj)
     
 void Button::postInit()
 {
-    init();
+    LabelledComponent::postInit();
+
+    if(positionInfo.LabelPosition == Dialog::PositionInfo::LabelPositioning::None &&
+       findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
+        getComponent<juce::Button>().setButtonText(infoObject[mpid::Text]);
 
     auto& button = this->getComponent<juce::Button>();
     
@@ -340,6 +385,8 @@ void Button::postInit()
     {
         groupedButtons.clear();
         button.setToggleState(getValueFromGlobalState(false), dontSendNotification);
+
+        button.addListener(this);
     }
     
 	button.setColour(ToggleButton::ColourIds::tickColourId, Dialog::getDefaultFont(*this).second);
@@ -418,6 +465,22 @@ void Choice::postInit()
 
     auto& cb = getComponent<ComboBox>();
 
+    cb.setTextWhenNothingSelected(infoObject[mpid::EmptyText].toString());
+
+    cb.onChange = [this]()
+    {
+        auto& cb = getComponent<ComboBox>();
+
+	    switch(valueMode)
+	    {
+		    {
+		    case ValueMode::Text: writeState(cb.getText()); break;
+		    case ValueMode::Index: writeState(cb.getSelectedItemIndex()); break;
+		    case ValueMode::Id: writeState(cb.getSelectedId()); break;
+		    }
+	    }
+    };
+
     switch(valueMode)
     {
     case ValueMode::Text: cb.setText(t.toString(), dontSendNotification); break;
@@ -446,8 +509,15 @@ void Choice::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents<Choice>(*this, rootList, "A Choice can be used to select multiple fixed options with a drop down menu");
 
+    rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::EmptyText.toString() },
+		{ mpid::Text, mpid::EmptyText.toString() },
+        { mpid::Value, infoObject[mpid::EmptyText] },
+		{ mpid::Help, "A text that will be displayed if nothing is selected" }
+	});
+
     auto& col = rootList.addChild<Column>();
-    
+
 	col.addChild<TextInput>({
 		{ mpid::ID, "Items" },
 		{ mpid::Text, "Items" },
@@ -472,20 +542,26 @@ void Choice::createEditor(Dialog::PageInfo& rootList)
 }
 
 ColourChooser::ColourChooser(Dialog& r, int w, const var& obj):
-	LabelledComponent(r, w, obj, new ColourSelector(ColourSelector::ColourSelectorOptions::showColourspace | ColourSelector::showColourAtTop | ColourSelector::showAlphaChannel, 2, 0))
+	LabelledComponent(r, w, obj, new ColourSelector(ColourSelector::ColourSelectorOptions::showColourspace | ColourSelector::showColourAtTop | ColourSelector::showAlphaChannel | ColourSelector::ColourSelectorOptions::editableColour, 2, 0))
 {
     positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Above);
     
 	auto& selector = getComponent<ColourSelector>();
 	selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
 	selector.setLookAndFeel(&laf);
+    selector.addChangeListener(this);
 
 	setSize(w, positionInfo.getHeightForComponent(130));
 }
 
+ColourChooser::~ColourChooser()
+{
+	getComponent<ColourSelector>().removeChangeListener(this);
+}
+
 void ColourChooser::postInit()
 {
-	init();
+	LabelledComponent::postInit();
 
 	auto& selector = getComponent<ColourSelector>();
 	auto colour = (uint32)(int64)getValueFromGlobalState();
@@ -500,12 +576,22 @@ void ColourChooser::resized()
 	getComponent<Component>().setBounds(b);
 }
 
-Result ColourChooser::checkGlobalState(var globalState)
+void ColourChooser::changeListenerCallback(ChangeBroadcaster* source)
 {
-	auto& selector = getComponent<ColourSelector>();
+    auto& selector = getComponent<ColourSelector>();
         
 	writeState((int64)selector.getCurrentColour().getARGB());
+}
+
+Result ColourChooser::checkGlobalState(var globalState)
+{
+	
         
+	return Result::ok();
+}
+
+Result ColourChooser::loadFromInfoObject(const var& obj)
+{
 	return Result::ok();
 }
 
@@ -797,8 +883,11 @@ void TextInput::textEditorReturnKeyPressed(TextEditor& e)
 void TextInput::textEditorTextChanged(TextEditor& e)
 {
 	//check(MultiPageDialog::getGlobalState(*this, id, var()));
-        
-	writeState(e.getText());
+
+    if(parseInputAsArray)
+        writeState(Dialog::parseCommaList(e.getText()));
+    else
+		writeState(e.getText());
         
 	startTimer(400);
 }
@@ -849,6 +938,15 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
 
 bool TextInput::AutocompleteNavigator::keyPressed(const KeyPress& k, Component* originatingComponent)
 {
+    if(k == KeyPress::tabKey)
+    {
+        if(parent.currentAutocomplete != nullptr)
+			parent.dismissAutocomplete();
+
+	    parent.getComponent<TextEditor>().moveKeyboardFocusToSibling(true);
+        return true;
+    }
+
     if(parent.currentAutocomplete == nullptr)
 		return false;
         
@@ -856,7 +954,9 @@ bool TextInput::AutocompleteNavigator::keyPressed(const KeyPress& k, Component* 
 		return parent.currentAutocomplete->inc(false);
 	if(k == KeyPress::downKey)
 		return parent.currentAutocomplete->inc(true);
-            
+
+    
+        
 	return false;
 }
 
@@ -911,13 +1011,9 @@ Result TextInput::checkGlobalState(var globalState)
     auto text = editor.getText();
 
     if(parseInputAsArray)
-    {
         writeState(Dialog::parseCommaList(text));
-    }
     else
-    {
 	    writeState(text);
-    }
     
 	return Result::ok();
 }
@@ -1067,6 +1163,13 @@ void FileSelector::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Text, "SaveFile" },
 		{ mpid::Help, "Whether the selected file will be opened or saved." }
 	});
+
+    rootList.addChild<Button>({
+		{ mpid::ID, "Required" },
+		{ mpid::Text, "Required" },
+        { mpid::Value, required },
+		{ mpid::Help, "Whether a file / directory must be selected" }
+	});
 }
 
     
@@ -1095,8 +1198,6 @@ struct BetterFileSelector: public Component,
 
         browseButton.onClick = [wc, save, this, isDirectory]()
         {
-	        
-
             if(isDirectory)
             {
                 FileChooser fc("Select directory", currentFile, wc, true);
@@ -1121,6 +1222,8 @@ struct BetterFileSelector: public Component,
                         setCurrentFile(fc.getResult(), sendNotificationAsync);
 	            }
             }
+
+            findParentComponentOfClass<Dialog>()->grabKeyboardFocusAsync();
         };
 
         fileLabel.onReturnKey = [this]()
@@ -1135,6 +1238,8 @@ struct BetterFileSelector: public Component,
             {
 	            setCurrentFile(File(), sendNotificationAsync);
             }
+
+            findParentComponentOfClass<Dialog>()->grabKeyboardFocusAsync();
         };
     }
 
@@ -1173,9 +1278,9 @@ struct BetterFileSelector: public Component,
 };
 
 FileSelector::FileSelector(Dialog& r, int width, const var& obj):
-	LabelledComponent(r, width, obj, createFileComponent(obj)),
-	fileId(obj["ID"].toString())
+	LabelledComponent(r, width, obj, createFileComponent(obj))
 {
+    
     positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
 
     auto& fileSelector = getComponent<BetterFileSelector>();
@@ -1243,15 +1348,20 @@ Result FileSelector::checkGlobalState(var globalState)
         writeState(f.getFullPathName());
 		return Result::ok();
 	}
-        
-	String message;
-	message << "You need to select a ";
-	if(isDirectory)
-		message << "directory";
-	else
-		message << "file";
-        
-	return Result::fail(message);
+
+    if(required)
+    {
+	    String message;
+		message << "You need to select a ";
+		if(isDirectory)
+			message << "directory";
+		else
+			message << "file";
+	        
+		return Result::fail(message);
+    }
+
+    return Result::ok();
 }
 
 File FileSelector::getInitialFile(const var& path)

@@ -42,36 +42,25 @@ struct LabelledComponent: public Dialog::PageBase
 {
     LabelledComponent(Dialog& r, int width, const var& obj, Component* c);;
 
-    virtual Result loadFromInfoObject(const var& obj)
-    {
-	    label = obj[mpid::Text];
-        return Result::ok();
-    }
-    
+    virtual Result loadFromInfoObject(const var& obj);
+
     void postInit() override;
     void paint(Graphics& g) override;
     void resized() override;
 
     static String getCategoryId() { return "UI Elements"; }
-    
 
     void editModeChanged(bool isEditMode) override;
 
     template <typename T> T& getComponent() { return *dynamic_cast<T*>(component.get()); }
     template <typename T> const T& getComponent() const { return *dynamic_cast<T*>(component.get()); }
 
-    
-
 protected:
 
     String label;
-
-    
     bool required = false;
 
 private:
-
-    
 
     ScopedPointer<Component> component;
 
@@ -118,10 +107,7 @@ struct TextInput: public LabelledComponent,
     Result checkGlobalState(var globalState) override;
 
     void createEditor(Dialog::PageInfo& info) override;
-
     Result loadFromInfoObject(const var& obj) override;
-
-    
 
 private:
 
@@ -134,8 +120,6 @@ private:
 
     ScopedPointer<Autocomplete> currentAutocomplete;
     StringArray autocompleteItems;
-    
-
     bool parseInputAsArray = false;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE(TextInput);
@@ -157,16 +141,7 @@ struct Button: public LabelledComponent,
 
     Button(Dialog& r, int width, const var& obj);;
 
-    Path createPath(const String& url) const override
-    {
-	    Path p;
-
-        if(pathData.getSize() > 0)
-			p.loadPathFromData(pathData.getData(), pathData.getSize());
-
-        return p;
-    }
-
+    Path createPath(const String& url) const override;
     void createEditor(Dialog::PageInfo& info) override;
 
     void postInit() override;
@@ -180,16 +155,10 @@ private:
     String getStringForButtonType() const;
 
     bool isTrigger = false;
-
     MemoryBlock pathData;
-    
 	juce::Button* createButton(const var& obj);
-
-    
-
     Array<juce::Button*> groupedButtons;
     int thisRadioIndex = -1;
-    
     bool requiredOption = false;
 };
 
@@ -229,7 +198,75 @@ struct Choice: public LabelledComponent
     bool custom = false;
 };
 
-struct ColourChooser: public LabelledComponent
+struct CodeEditor: public LabelledComponent
+{
+    HISE_MULTIPAGE_ID("CodeEditor"); 
+
+    struct AllEditor: public Component
+    {
+        AllEditor():
+          codeDoc(doc),
+          editor(codeDoc)
+        {
+	        addAndMakeVisible(editor);
+        }
+
+        void resized() override { editor.setBounds(getLocalBounds()); };
+
+	    juce::CodeDocument doc;
+	    mcl::TextDocument codeDoc;
+	    mcl::TextEditor editor;
+    };
+
+	CodeEditor(Dialog& r, int w, const var& obj):
+      LabelledComponent(r, w, obj, new AllEditor())
+	{
+		setSize(w, 260);
+	};
+
+    void postInit() override
+    {
+	    LabelledComponent::postInit();
+
+        auto code = getValueFromGlobalState(var()).toString();
+
+        getComponent<AllEditor>().doc.replaceAllContent(code);
+    }
+
+    bool keyPressed(const KeyPress& k) override
+    {
+	    if(k == KeyPress::F5Key)
+	    {
+		    compile();
+            return true;
+	    }
+
+        return false;
+    }
+
+    Result compile()
+    {
+	    auto code = getComponent<AllEditor>().doc.getAllContent();
+
+        JavascriptEngine e;
+        auto ok = e.execute(code);
+
+        getComponent<AllEditor>().editor.setError(ok.getErrorMessage());
+
+        if(ok.wasOk())
+            writeState(code);
+
+        return ok;
+    }
+
+    Result checkGlobalState(var globalState) override
+    {
+        return compile();
+    }
+};
+
+struct ColourChooser: public LabelledComponent,
+					  public ChangeListener
 {
     DEFAULT_PROPERTIES(ColourChooser)
     {
@@ -240,19 +277,19 @@ struct ColourChooser: public LabelledComponent
     
     ColourChooser(Dialog& r, int w, const var& obj);
 
+    ~ColourChooser() override;
+
     void postInit() override;;
     void resized() override;
-    Result checkGlobalState(var globalState) override;
 
-    Result loadFromInfoObject(const var& obj) override
-    {
-	    return Result::ok();
-    }
+    void changeListenerCallback(ChangeBroadcaster* source) override;
+
+    Result checkGlobalState(var globalState) override;
+    Result loadFromInfoObject(const var& obj) override;
 
     void createEditor(Dialog::PageInfo& info) override;
 
     LookAndFeel_V4 laf;
-    
 };
 
 struct FileSelector: public LabelledComponent
@@ -280,7 +317,6 @@ struct FileSelector: public LabelledComponent
 private:
     
     bool isDirectory = false;
-    Identifier fileId;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE(FileSelector);
 };

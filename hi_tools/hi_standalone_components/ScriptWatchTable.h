@@ -139,6 +139,13 @@ public:
 
     void mouseMove(const MouseEvent& e) override;
 
+	void setRefreshRate(int refreshRate, int fullRefreshFactor_)
+	{
+		timerspeed = refreshRate;
+		fullRefreshFactor = fullRefreshFactor_;
+		startTimer(timerspeed);
+	}
+
 private:
     
 	struct TooltipInfo : public Timer
@@ -164,6 +171,8 @@ private:
     int timerspeed = 500;
 	int fullRefreshFactor = 0;
 	int fullRefreshCounter = 0;
+
+	
 
 	std::function<void(const String&)> logFunction;
 

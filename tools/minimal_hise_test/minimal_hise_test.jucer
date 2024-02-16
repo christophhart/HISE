@@ -7,38 +7,13 @@
               jucerFormatVersion="1">
   <MAINGROUP id="V5l5vh" name="minimal_hise_test">
     <GROUP id="{AC16B56A-5346-1AB4-D4BD-30CF29DD2DFA}" name="Source">
-      <FILE id="DgwokZ" name="ActionComponents.cpp" compile="0" resource="0"
-            file="Source/ActionComponents.cpp"/>
-      <FILE id="qgLCFJ" name="ActionComponents.h" compile="0" resource="0"
-            file="Source/ActionComponents.h"/>
-      <FILE id="KUyO1E" name="LookAndFeelMethods.cpp" compile="0" resource="0"
-            file="Source/LookAndFeelMethods.cpp"/>
-      <FILE id="VdOWqU" name="multipage.cpp" compile="1" resource="0" file="Source/multipage.cpp"/>
-      <FILE id="YMGpyU" name="multipage.h" compile="0" resource="0" file="Source/multipage.h"/>
       <GROUP id="{AE8C0D3C-F782-7C53-F11E-959CE393BF6B}" name="Source"/>
-      <FILE id="pidZOe" name="State.cpp" compile="0" resource="0" file="Source/State.cpp"/>
-      <FILE id="NvzCp3" name="State.h" compile="0" resource="0" file="Source/State.h"/>
-      <FILE id="b4rThj" name="PageFactory.cpp" compile="0" resource="0" file="Source/PageFactory.cpp"/>
-      <FILE id="pRNlEa" name="PageFactory.h" compile="0" resource="0" file="Source/PageFactory.h"/>
-      <FILE id="cO9Vo3" name="MultiPageDialog.cpp" compile="0" resource="0"
-            file="Source/MultiPageDialog.cpp"/>
-      <FILE id="Ozwuki" name="MultiPageDialog.h" compile="0" resource="0"
-            file="Source/MultiPageDialog.h"/>
       <FILE id="u67bzi" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="bXDqfa" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
-      <FILE id="oVMFk8" name="ContainerComponents.cpp" compile="0" resource="0"
-            file="Source/ContainerComponents.cpp"/>
-      <FILE id="xqmjtd" name="ContainerComponents.h" compile="0" resource="0"
-            file="Source/ContainerComponents.h"/>
-      <FILE id="rgsLme" name="InputComponents.cpp" compile="0" resource="0"
-            file="Source/InputComponents.cpp"/>
-      <FILE id="opmwCN" name="InputComponents.h" compile="0" resource="0"
-            file="Source/InputComponents.h"/>
-      <FILE id="Fosy4T" name="DialogLibrary.cpp" compile="0" resource="0"
+      <FILE id="Fosy4T" name="DialogLibrary.cpp" compile="1" resource="0"
             file="Source/DialogLibrary.cpp"/>
       <FILE id="XVcves" name="DialogLibrary.h" compile="0" resource="0" file="Source/DialogLibrary.h"/>
-      <FILE id="zwVBjD" name="MultiPageIds.h" compile="0" resource="0" file="Source/MultiPageIds.h"/>
       <FILE id="bZ3Z3T" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
     <FILE id="xlypKj" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
@@ -82,8 +57,9 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive-"
@@ -110,8 +86,9 @@
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2022>
   </EXPORTFORMATS>
@@ -135,6 +112,8 @@
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
   </MODULES>
   <LIVE_SETTINGS>
     <WINDOWS/>
@@ -144,5 +123,5 @@
   <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" HI_EXPORT_DSP_LIBRARY="0" HISE_INCLUDE_RLOTTIE="0"
                SNEX_STANDALONE_PLAYGROUND="1" HISE_INCLUDE_SNEX="0" HISE_INCLUDE_PERFETTO="1"
                JUCE_USE_WIN_WEBVIEW2="0" JUCE_ENABLE_LIVE_CONSTANT_EDITOR="0"
-               HISE_INCLUDE_LORIS="1"/>
+               HISE_INCLUDE_LORIS="1" JUCE_USE_BETTER_MACHINE_IDS="1"/>
 </JUCERPROJECT>

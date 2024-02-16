@@ -310,3 +310,8 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 #if HISE_INCLUDE_RT_NEURAL
 #include "hi_neural/hi_neural.h"
 #endif
+
+
+#if !HISE_NO_GUI_TOOLS
+#include "hi_multipage/multipage.h"
+#endif

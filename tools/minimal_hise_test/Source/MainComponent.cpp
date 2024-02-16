@@ -8,10 +8,6 @@
 
 #include "MainComponent.h"
 
-#include "MultiPageDialog.h"
-#include "PageFactory.h"
-
-
 
 void MainComponent::build()
 {
@@ -20,7 +16,7 @@ void MainComponent::build()
 
 #if 1
 
-	addAndMakeVisible(hardcodedDialog = new multipage::library::NewProjectWizard());
+	addAndMakeVisible(hardcodedDialog = new multipage::library::BroadcasterWizard());
 
 #else
 
@@ -65,11 +61,14 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
         }
         
         m.addItemWithShortcut(CommandId::EditUndo, "Undo",  KeyPress('z', ModifierKeys::commandModifier, 's'), c->getUndoManager().canUndo());
-        m.addItemWithShortcut(CommandId::EditRedo, "Undo",  KeyPress('y', ModifierKeys::commandModifier, 's'), c->getUndoManager().canRedo());
+        m.addItemWithShortcut(CommandId::EditRedo, "Redo",  KeyPress('y', ModifierKeys::commandModifier, 's'), c->getUndoManager().canRedo());
         m.addSeparator();
 		m.addItemWithShortcut(CommandId::EditToggleMode, "Toggle Edit mode", KeyPress(KeyPress::F4Key), c->isEditModeAllowed(), c->isEditModeEnabled());
 		m.addItemWithShortcut(CommandId::EditRefreshPage, "Refresh current page", KeyPress(KeyPress::F5Key));
+		m.addSeparator();
+		m.addItem(CommandId::EditClearState, "Clear state object");
         m.addItem(CommandId::EditAddPage, "Add page", c->isEditModeAllowed());
+		m.addItem(CommandId::EditRemovePage, "Remove current page", c->isEditModeAllowed() && c->getNumPages() > 1);
 	}
 	if(topLevelMenuIndex == 2) // View
 	{
@@ -92,12 +91,12 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 
 bool MainComponent::keyPressed(const KeyPress& key)
 {
-	if(key.getKeyCode() == KeyPress::F4Key)
+	if(key.getKeyCode() == KeyPress::F4Key && c != nullptr)
 	{
 		menuItemSelected(CommandId::EditToggleMode, 0);
 		return true;
 	}
-	if(key.getKeyCode() == KeyPress::F5Key)
+	if(key.getKeyCode() == KeyPress::F5Key && c != nullptr)
 	{
 		menuItemSelected(CommandId::EditRefreshPage, 0);
 		return true;
@@ -157,14 +156,16 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 			break;
 		}
 	case FileQuit: JUCEApplication::getInstance()->systemRequestedQuit(); break;
+	case EditClearState: rt.globalState.getDynamicObject()->clear(); break;
 	case EditUndo: c->getUndoManager().undo(); c->refreshCurrentPage(); break;
 	case EditRedo: c->getUndoManager().redo(); c->refreshCurrentPage(); break;
 	case EditToggleMode: 
 		c->setEditMode(!c->isEditModeEnabled());
 		c->repaint();
 		break;
-	case EditRefreshPage: c->refreshCurrentPage(); break;
-        case EditAddPage: c->addListPageWithJSON(); break;
+	case EditRefreshPage: c->refreshCurrentPage(); tree.setRoot(*c); break;
+    case EditAddPage: c->addListPageWithJSON(); break;
+	case EditRemovePage: c->removeCurrentPage(); break;
 	case ViewShowDialog:
 		{
 			if(manualChange && AlertWindow::showOkCancelBox(MessageBoxIconType::QuestionIcon, "Apply manual JSON changes?", "Do you want to reload the dialog after the manual edit?"))
@@ -201,12 +202,14 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		break;
 	case ViewShowCpp:
 		{
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 			multipage::CodeGenerator cg(c->exportAsJSON());
 			manualChange = false;
 			doc.removeListener(this);
 			c->setVisible(false);
 			stateViewer.setVisible(true);
 			doc.replaceAllContent(cg.toString());
+#endif
 			break;
 		}
 	case HelpAbout: break;
@@ -229,8 +232,10 @@ void MainComponent::createDialog(const File& f)
 
     c = nullptr;
     hardcodedDialog = nullptr;
-
+	
 	addAndMakeVisible(c = new multipage::Dialog(obj, rt));
+
+	tree.setRoot(*c);
 
     c->setFinishCallback([](){
     	JUCEApplication::getInstance()->systemRequestedQuit();
@@ -250,6 +255,15 @@ MainComponent::MainComponent():
   stateViewer(stateDoc),
   menuBar(this)
 {
+	addChildComponent(watchTable);
+	addChildComponent(tree);
+
+	watchTable.setHolder(&rt);
+
+	Array<var> l({ var("Name"), var("Value")});
+	watchTable.restoreColumnVisibility(var(l));
+	watchTable.setRefreshRate(200, 1);
+
     LookAndFeel::setDefaultLookAndFeel(&plaf);
 
     auto settings = JSON::parse(getSettingsFile());
@@ -266,10 +280,10 @@ MainComponent::MainComponent():
 
 #if JUCE_WINDOWS
     
-    setSize(1000, 900);
+    setSize(1300, 900);
 	//setSize (2560, 1080);
 #else
-    setSize(860, 720);
+    setSize(1300, 720);
 #endif
 }
 
@@ -290,16 +304,74 @@ MainComponent::~MainComponent()
 void MainComponent::paint (Graphics& g)
 {
 	g.fillAll(Colour(0xFF333333));
+
+
+	auto b = getLocalBounds().toFloat();
+
+	
+
+	b.removeFromTop(24);
+
+
+	auto tb = b.removeFromTop(32);
+
+	GlobalHiseLookAndFeel::drawFake3D(g, tb.toNearestInt());
+
+	if(c != nullptr)
+	{
+		b.removeFromLeft(tree.getWidth());
+		b.removeFromRight(watchTable.getWidth());
+
+		Colour c = JUCE_LIVE_CONSTANT(Colour(0x22000000));
+
+		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x22000000)));
+
+		g.drawVerticalLine(b.getX(), 0.0f, (float)getHeight());
+		g.drawVerticalLine(b.getRight()-1, 0.0f, (float)getHeight());
+
+		g.drawVerticalLine(b.getX(), 24+32, (float)getHeight());
+		g.drawVerticalLine(b.getRight()-1, 24+32, (float)getHeight());
+
+		g.setGradientFill(ColourGradient(c, b.getX(), 0.0f, Colours::transparentBlack, b.getX() + 5.0f, 0.0f, false));
+		g.fillRect(b.removeFromLeft(20));
+
+		g.setGradientFill(ColourGradient(c, b.getRight(), 0.0f, Colours::transparentBlack, b.getRight() - 5.0f, 0.0f, false));
+		g.fillRect(b.removeFromRight(20));
+
+		
+
+
+	}
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.setColour(Colours::white.withAlpha(0.7f));
+	g.drawText("Component List", tb.removeFromLeft(300.0f), Justification::centred);
+	g.drawText("State Variables", tb.removeFromRight(300.0f), Justification::centred);
+	g.drawText("Dialog Preview", tb, Justification::centred);
 }
 
 void MainComponent::resized()
 {
     auto b = getLocalBounds();
-
+	
     menuBar.setBounds(b.removeFromTop(24));
 
+	b.removeFromTop(32);
+
     if(c != nullptr)
-        c->setBounds(b);
+    {
+		watchTable.setVisible(true);
+		watchTable.setBounds(b.removeFromRight(300));
+
+		tree.setVisible(true);
+		tree.setBounds(b.removeFromLeft(300));
+		b.removeFromLeft(2);
+
+		b.removeFromRight(2);
+
+	    c->setBounds(b);
+    }
+        
 
 	if(hardcodedDialog != nullptr)
 		hardcodedDialog->setBounds(b);

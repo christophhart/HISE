@@ -48,6 +48,16 @@ Type::Type(Dialog& r, int width, const var& d):
 	typeId = d[mpid::Type].toString();
 }
 
+void Type::resized()
+{
+	if(helpButton != nullptr)
+	{
+		auto b = getLocalBounds();
+		b.removeFromBottom(10);
+		helpButton->setBounds(b.removeFromRight(b.getHeight()).reduced(3));
+	}
+}
+
 Result Type::checkGlobalState(var globalState)
 {
 	if(typeId.isNotEmpty())
@@ -77,6 +87,72 @@ void Type::paint(Graphics& g)
 	m << "Type: " << typeId;
 
 	g.drawText(m, b, Justification::centred);
+}
+
+String MarkdownText::getString(const String& markdownText, Dialog& parent)
+{
+	if(markdownText.contains("$"))
+	{
+		String other;
+
+		auto it = markdownText.begin();
+		auto end = markdownText.end();
+
+		while(it < (end - 1))
+		{
+			auto c = *it;
+
+			if(c == '$')
+			{
+				++it;
+				String variableId;
+
+				while(it < (end))
+				{
+					c = *it;
+					if(!CharacterFunctions::isLetterOrDigit(c) &&c != '_')
+					{
+						if(variableId.isNotEmpty())
+						{
+							auto v = parent.getState().globalState[Identifier(variableId)].toString();
+
+							if(v.isNotEmpty())
+								other << v;
+
+							variableId = {};
+						}
+
+						break;
+					}
+					else
+					{
+						variableId << c;
+					}
+
+					++it;
+				}
+
+				if(variableId.isNotEmpty())
+				{
+					auto v = parent.getState().globalState[Identifier(variableId)].toString();
+
+					if(v.isNotEmpty())
+						other << v;
+				}
+			}
+			else
+			{
+				other << *it;
+				++it;
+			}
+		}
+
+		other << *it;
+
+		return other;
+	}
+
+	return markdownText;
 }
 
 MarkdownText::MarkdownText(Dialog& r, int width, const var& d):
@@ -115,24 +191,24 @@ void MarkdownText::paint(Graphics& g)
 	r.draw(g, getLocalBounds().toFloat().reduced(padding));
 }
 
-void MarkdownText::createEditor(Dialog::PageInfo* rootList)
+void MarkdownText::createEditor(Dialog::PageInfo& rootList)
 {
-    (*rootList)[mpid::Padding] = 10;
+    rootList[mpid::Padding] = 10;
     
-    rootList->addChild<Type>({
+    rootList.addChild<Type>({
         { mpid::ID, "Type"},
         { mpid::Type, "MarkdownText"},
 		{ mpid::Help, "A field to display text messages with markdown support" }
     });
 
-	rootList->addChild<TextInput>({
+	rootList.addChild<TextInput>({
 		{ mpid::ID, "Padding" },
 		{ mpid::Text, "Padding" },
 		{ mpid::Value, padding },
 		{ mpid::Help, "The outer padding for the entire text render area" }
 	});
 
-    rootList->addChild<TextInput>({
+    rootList.addChild<TextInput>({
         { mpid::ID, "Text" },
         { mpid::Text, "Text" },
         { mpid::Required, true },
@@ -142,8 +218,10 @@ void MarkdownText::createEditor(Dialog::PageInfo* rootList)
     });
 }
 
+
 void MarkdownText::editModeChanged(bool isEditMode)
 {
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	PageBase::editModeChanged(isEditMode);
 
 	if(overlay != nullptr)
@@ -161,7 +239,7 @@ void MarkdownText::editModeChanged(bool isEditMode)
 			auto& list = rootDialog.createModalPopup<List>();
 			list.setStateObject(infoObject);
 
-			createEditor(&list);
+			createEditor(list);
 
 			list.setCustomCheckFunction([this](PageBase* b, const var& obj)
 			{
@@ -183,7 +261,9 @@ void MarkdownText::editModeChanged(bool isEditMode)
 			rootDialog.showModalPopup(true);
 		});
 	}
+#endif
 }
+
 
 
 Result MarkdownText::checkGlobalState(var)
@@ -196,7 +276,20 @@ Result MarkdownText::checkGlobalState(var)
 } // factory
 
 
-Dialog::Factory::Factory()
+template <typename T>
+void Factory::registerPage()
+{
+	Item item;
+	item.id = T::getStaticId();
+	item.category = T::getCategoryId();
+	item.f = [](Dialog& r, int width, const var& data) { return new T(r, width, data); };
+
+	item.isContainer = std::is_base_of<factory::Container, T>();
+        
+	items.add(std::move(item));
+}
+
+Factory::Factory()
 {
 	registerPage<factory::Branch>();
 	registerPage<factory::FileSelector>();
@@ -211,11 +304,20 @@ Dialog::Factory::Factory()
 	registerPage<factory::Launch>();
 	registerPage<factory::DummyWait>();
 	registerPage<factory::LambdaTask>();
+	registerPage<factory::DownloadTask>();
+	registerPage<factory::UnzipTask>();
+	registerPage<factory::HlacDecoder>();
+	registerPage<factory::LinkFileWriter>();
+	registerPage<factory::RelativeFileLoader>();
+	registerPage<factory::HttpRequest>();
+	registerPage<factory::CodeEditor>();
+	registerPage<factory::CopyProtection>();
+	registerPage<factory::ProjectInfo>();
 }
 
-Dialog::PageInfo::Ptr Dialog::Factory::create(const var& obj)
+Dialog::PageInfo::Ptr Factory::create(const var& obj)
 {
-	PageInfo::Ptr info = new PageInfo(obj);
+	Dialog::PageInfo::Ptr info = new Dialog::PageInfo(obj);
 	
 	auto typeProp = obj[mpid::Type].toString();
 
@@ -241,7 +343,7 @@ Dialog::PageInfo::Ptr Dialog::Factory::create(const var& obj)
 	return info;
 }
 
-StringArray Dialog::Factory::getIdList() const
+StringArray Factory::getIdList() const
 {
 	StringArray sa;
             
@@ -252,6 +354,36 @@ StringArray Dialog::Factory::getIdList() const
 		
 	return sa;
 }
+
+StringArray Factory::getPopupMenuList() const
+{
+	StringArray sa;
+
+	for(const auto& i: items)
+	{
+		String entry;
+		entry << i.category << "::" << i.id;
+		sa.add(entry);
+	}
+
+	return sa;
+}
+
+bool Factory::needsIdAtCreation(const String& id) const
+{
+	Array<Identifier> categoriesWithId = { Identifier("UI Elements"), Identifier("Actions") };
+
+	Identifier thisId(id);
+
+	for(auto& i: items)
+	{
+		if(i.id == thisId)
+			return categoriesWithId.contains(i.category);
+	}
+
+	return false;
+}
+
 
 } // multipage
 } // hise

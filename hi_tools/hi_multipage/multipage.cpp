@@ -11,7 +11,7 @@
  *   HISE is distributed in the hope that it will be useful,
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of
  *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
+ *   GNU General Public License for more details.f
  *
  *   You should have received a copy of the GNU General Public License
  *   along with HISE.  If not, see <http://www.gnu.org/licenses/>.
@@ -30,15 +30,19 @@
  *   ===========================================================================
  */
 
-#pragma once
+#include "multipage.h"
 
-#include <JuceHeader.h>
+#include "State.cpp"
 
-#include "MultiPageIds.h"
-#include "State.h"
-#include "MultiPageDialog.h"
-#include "PageFactory.h"
-#include "InputComponents.h"
-#include "ActionComponents.h"
-#include "ContainerComponents.h"
-#include "DialogLibrary.h"
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+#include "EditComponents.cpp"
+#endif
+
+#include "MultiPageDialog.cpp"
+#include "LookAndFeelMethods.cpp"
+#include "PageFactory.cpp"
+#include "InputComponents.cpp"
+#include "ActionComponents.cpp"
+#include "ContainerComponents.cpp"
+
+

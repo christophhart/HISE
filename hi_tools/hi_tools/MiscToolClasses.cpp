@@ -2149,7 +2149,11 @@ void ScrollbarFader::Laf::drawScrollbar(Graphics& g, ScrollBar&, int x, int y, i
 
     auto cornerSize = jmin(area.getWidth(), area.getHeight());
 
-    area = area.reduced(4.0f);
+	if(area.getWidth() > 10.0)
+		area = area.reduced(4.0f);
+	else
+		area = area.reduced(2.0f);
+
     cornerSize = jmin(area.getWidth(), area.getHeight());
     
     g.fillRoundedRectangle(area, cornerSize / 2.0f);

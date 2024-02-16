@@ -39,6 +39,32 @@ namespace hise
 namespace multipage {
 using namespace juce;
 
+struct Factory
+{
+    Factory();
+    Dialog::PageInfo::Ptr create(const var& obj);
+
+    StringArray getPopupMenuList() const;
+
+    bool needsIdAtCreation(const String& id) const;
+
+    StringArray getIdList() const;
+    
+private:
+
+    template <typename T> void registerPage();
+
+    struct Item
+    {
+        bool isContainer;
+	    Identifier id;
+        Identifier category;
+        Dialog::PageInfo::CreateFunction f;
+    };
+
+    Array<Item> items;
+};
+
 namespace factory
 {
 
@@ -51,17 +77,9 @@ struct Type: public Dialog::PageBase
 
     Type(Dialog& r, int width, const var& d);
 
-    void resized() override
-    {
-	    if(helpButton != nullptr)
-	    {
-            auto b = getLocalBounds();
-            b.removeFromBottom(10);
-		    helpButton->setBounds(b.removeFromRight(b.getHeight()).reduced(3));
-	    }
-    }
+    void resized() override;
 
-    Result checkGlobalState(var globalState) override;
+	Result checkGlobalState(var globalState) override;
 	void paint(Graphics& g) override;
 	String typeId;
 };
@@ -74,70 +92,12 @@ struct MarkdownText: public Dialog::PageBase
     }
 
     static String getCategoryId() { return "Layout"; }
-
-    static String getString(const String& markdownText, Dialog& parent)
-    {
-        if(markdownText.contains("{{"))
-        {
-            String other;
-
-	        auto it = markdownText.begin();
-            auto end = markdownText.end();
-
-            while(it < (end - 1))
-            {
-                auto c = *it;
-
-                if(c == '{' && *(it+1) == '{')
-                {
-                    ++it;
-                    ++it;
-                    String variableId;
-
-	                while(it < (end - 1))
-	                {
-                        c = *it;
-		                if(c == '}' && *(it+1) == '}')
-		                {
-                            if(variableId.isNotEmpty())
-                            {
-	                            auto v = parent.getState().globalState[Identifier(variableId)].toString();
-                                other << v;
-                            }
-
-			                ++it;
-                            ++it;
-                            break;
-		                }
-                        else
-                        {
-	                        variableId << c;
-                        }
-
-                        ++it;
-	                }
-                }
-                else
-                {
-	                other << *it;
-                    ++it;
-                }
-            }
-
-            other << *it;
-
-            return other;
-        }
-
-        return markdownText;
-    }
+    static String getString(const String& markdownText, Dialog& parent);
 
     MarkdownText(Dialog& r, int width, const var& d);
 
-    void createEditor(Dialog::PageInfo* rootList);
-
+    void createEditor(Dialog::PageInfo& rootList) override;
     void editModeChanged(bool isEditMode) override;
-
     void postInit() override;
     void paint(Graphics& g) override;
     Result checkGlobalState(var) override;
@@ -148,15 +108,6 @@ private:
     var obj;
     MarkdownRenderer r;
 };
-
-
-
-
-
-
-
-
-
 
 }
 
