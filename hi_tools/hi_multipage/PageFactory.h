@@ -39,16 +39,20 @@ namespace hise
 namespace multipage {
 using namespace juce;
 
-struct Factory
+struct Factory: public PathFactory
 {
     Factory();
     Dialog::PageInfo::Ptr create(const var& obj);
 
     StringArray getPopupMenuList() const;
 
+    Colour getColourForCategory(const String& typeName) const;
+    
     bool needsIdAtCreation(const String& id) const;
 
     StringArray getIdList() const;
+    
+    Path createPath(const String& url) const override;
     
 private:
 
@@ -82,6 +86,43 @@ struct Type: public Dialog::PageBase
 	Result checkGlobalState(var globalState) override;
 	void paint(Graphics& g) override;
 	String typeId;
+};
+
+struct Spacer: public Dialog::PageBase
+{
+	DEFAULT_PROPERTIES(Spacer)
+    {
+        return { { mpid::Padding, 30 } };
+    }
+
+    static String getCategoryId() { return "Layout"; }
+
+    Spacer(Dialog& r, int width, const var& d):
+      PageBase(r, width, d)
+	{
+		padding =(int)d[mpid::Padding];
+
+        setSize(width, padding);
+	}
+
+
+
+    void createEditor(Dialog::PageInfo& rootList) override;
+	void editModeChanged(bool isEditMode) override { repaint(); };
+    void postInit() override {};
+    void paint(Graphics& g) override
+    {
+	    if(isEditModeAndNotInPopup())
+	    {
+            g.setColour(Dialog::getDefaultFont(*this).second.withAlpha(0.3f));
+		    g.drawRoundedRectangle(getLocalBounds().toFloat(), 5.0f, 1.0f);
+	    }
+    }
+    Result checkGlobalState(var) override { return Result::ok(); }
+
+private:
+
+    int padding = 0;
 };
 
 struct MarkdownText: public Dialog::PageBase

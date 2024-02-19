@@ -462,9 +462,17 @@ struct PopupMenuParser
 	        tm.addSeparator();
 			return false;
         }
-        
-        tm.addItem(menuIndex++, item.removeCharacters("~"), (fl & SpecialItem::Deactivated) == 0, isTicked);
-        
+
+		PopupMenu::Item newItem;
+
+		newItem.text = item.removeCharacters("~|");
+		newItem.isEnabled = (fl & SpecialItem::Deactivated) == 0;
+		newItem.isTicked = isTicked;
+		newItem.itemID = menuIndex++;
+		newItem.shouldBreakAfter = item.getLastCharacter() == '|';
+
+        tm.addItem(newItem);
+
         return isTicked;
     };
     

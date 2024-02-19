@@ -162,8 +162,9 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 	case EditToggleMode: 
 		c->setEditMode(!c->isEditModeEnabled());
 		c->repaint();
+        resized();
 		break;
-	case EditRefreshPage: c->refreshCurrentPage(); tree.setRoot(*c); break;
+    case EditRefreshPage: c->refreshCurrentPage(); tree.setRoot(*c); resized(); break;
     case EditAddPage: c->addListPageWithJSON(); break;
 	case EditRemovePage: c->removeCurrentPage(); break;
 	case ViewShowDialog:
@@ -232,7 +233,10 @@ void MainComponent::createDialog(const File& f)
 
     c = nullptr;
     hardcodedDialog = nullptr;
-	
+
+	rt.globalState.getDynamicObject()->clear();
+	rt.currentPageIndex = 0;
+
 	addAndMakeVisible(c = new multipage::Dialog(obj, rt));
 
 	tree.setRoot(*c);
@@ -253,16 +257,19 @@ MainComponent::MainComponent():
   doc(),
   stateDoc(doc),
   stateViewer(stateDoc),
-  menuBar(this)
+  menuBar(this),
+  tooltips(this)
 {
 	addChildComponent(watchTable);
 	addChildComponent(tree);
+	addChildComponent(assetManager);
 
 	watchTable.setHolder(&rt);
 
 	Array<var> l({ var("Name"), var("Value")});
 	watchTable.restoreColumnVisibility(var(l));
 	watchTable.setRefreshRate(200, 1);
+	watchTable.setUseParentTooltipClient(true);
 
     LookAndFeel::setDefaultLookAndFeel(&plaf);
 
@@ -271,8 +278,12 @@ MainComponent::MainComponent():
     if(auto so = settings.getDynamicObject())
         fileList.restoreFromString(so->getProperty("RecentFiles").toString());
 
+#if JUCE_MAC
+    setMacMainMenu (this);
+#else
     menuBar.setLookAndFeel(&plaf);
     addAndMakeVisible(menuBar);
+#endif
     build();
 	startTimer(3000);
     
@@ -289,6 +300,10 @@ MainComponent::MainComponent():
 
 MainComponent::~MainComponent()
 {
+#if JUCE_MAC
+    setMacMainMenu (nullptr);
+#endif
+    
     auto f = fileList.toString();
 
 	auto no = new DynamicObject();
@@ -303,14 +318,23 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::paint (Graphics& g)
 {
-	g.fillAll(Colour(0xFF333333));
-
+    
+    g.fillAll(Colour(0xFF222222));
+    
+    if(c != nullptr)
+    {
+        g.setColour(c->getStyleData().backgroundColour);
+        g.fillRect(c->getBoundsInParent());
+        g.setColour(Colours::white.withAlpha(0.2f));
+        g.drawRect(c->getBoundsInParent().reduced(-1.0f), 1.0f);
+    }
+    
 
 	auto b = getLocalBounds().toFloat();
 
 	
 
-	b.removeFromTop(24);
+	b.removeFromTop(menuBar.getHeight());
 
 
 	auto tb = b.removeFromTop(32);
@@ -324,13 +348,16 @@ void MainComponent::paint (Graphics& g)
 
 		Colour c = JUCE_LIVE_CONSTANT(Colour(0x22000000));
 
-		g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x22000000)));
+        g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x11FFFFFF)));
 
-		g.drawVerticalLine(b.getX(), 0.0f, (float)getHeight());
-		g.drawVerticalLine(b.getRight()-1, 0.0f, (float)getHeight());
+		g.fillRect((int)b.getX(), 2, 1, menuBar.getHeight()+32 - 4);
+		g.fillRect((int)b.getRight()-1, 2, 1, menuBar.getHeight()+32 - 4);
 
-		g.drawVerticalLine(b.getX(), 24+32, (float)getHeight());
-		g.drawVerticalLine(b.getRight()-1, 24+32, (float)getHeight());
+
+        g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x22000000)));
+        
+		g.fillRect((int)b.getX(), menuBar.getHeight()+32, 2, getHeight());
+		g.fillRect((int)b.getRight()-1, menuBar.getHeight()+32, 2, getHeight());
 
 		g.setGradientFill(ColourGradient(c, b.getX(), 0.0f, Colours::transparentBlack, b.getX() + 5.0f, 0.0f, false));
 		g.fillRect(b.removeFromLeft(20));
@@ -354,14 +381,21 @@ void MainComponent::resized()
 {
     auto b = getLocalBounds();
 	
+#if !JUCE_MAC
     menuBar.setBounds(b.removeFromTop(24));
+#endif
 
 	b.removeFromTop(32);
 
     if(c != nullptr)
     {
 		watchTable.setVisible(true);
-		watchTable.setBounds(b.removeFromRight(300));
+		assetManager.setVisible(true);
+
+		auto rb = b.removeFromRight(300);
+
+		watchTable.setBounds(rb.removeFromTop(rb.getHeight() / 2));
+		assetManager.setBounds(rb);
 
 		tree.setVisible(true);
 		tree.setBounds(b.removeFromLeft(300));
@@ -369,14 +403,16 @@ void MainComponent::resized()
 
 		b.removeFromRight(2);
 
-	    c->setBounds(b);
+	    c->setBounds(c->defaultLaf.defaultPosition.getBounds(b.reduced(20)));
     }
         
 
 	if(hardcodedDialog != nullptr)
-		hardcodedDialog->setBounds(b);
+		hardcodedDialog->setBounds(hardcodedDialog->dialog->defaultLaf.defaultPosition.getBounds(b));
 
     stateViewer.setBounds(b);
+    
+    repaint();
 }
 
 void MainComponent::timerCallback()

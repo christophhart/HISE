@@ -336,7 +336,7 @@ bool Dialog::PageBase::showDeletePopup(bool isRightClick)
 		return rootDialog.nonContainerPopup(infoObject);
 	}
 
-	rootDialog.showEditor(infoObject);
+
 	return false;
 }
 
@@ -453,8 +453,10 @@ var Dialog::PositionInfo::toJSON() const
 	obj->setProperty("OuterPadding", OuterPadding);
     obj->setProperty("LabelWidth", LabelWidth);
 	obj->setProperty("LabelHeight", LabelHeight);
+	obj->setProperty("DialogWidth", fixedSize.getX());
+	obj->setProperty("DialogHeight", fixedSize.getY());
 	obj->setProperty("LabelPosition", getLabelPositionNames()[LabelPosition]);
-            
+	
 	return var(obj);
 }
 
@@ -470,7 +472,8 @@ void Dialog::PositionInfo::fromJSON(const var& obj)
 
 	auto ln = getLabelPositionNames();
 
-	DBG(JSON::toString(obj));
+	fixedSize.setX(obj.getProperty("DialogWidth", fixedSize.getX()));
+	fixedSize.setY(obj.getProperty("DialogHeight", fixedSize.getY()));
 
 	LabelPosition = ln.indexOf(obj.getProperty(mpid::LabelPosition, ln[LabelPosition]).toString());
 
@@ -509,6 +512,14 @@ int Dialog::PositionInfo::getHeightForComponent(int heightWithoutLabel)
 		heightWithoutLabel += LabelHeight;
 
 	return heightWithoutLabel;
+}
+
+Rectangle<int> Dialog::PositionInfo::getBounds(Rectangle<int> fullBounds) const
+{
+	if(fixedSize.isOrigin())
+		return fullBounds;
+	else
+		return fullBounds.withSizeKeepingCentre(fixedSize.getX(), fixedSize.getY());
 }
 
 
@@ -840,11 +851,10 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 	prevButton("Previous"),
 	popup(*this),
     runThread(&rt),
-	errorComponent(*this),
 #if HISE_MULTIPAGE_INCLUDE_EDIT
 	mainPropertyOverlay(*this),
 #endif
-	tooltipWindow(this)
+	errorComponent(*this)
 {
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
@@ -866,7 +876,7 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 	else
 	{
 		styleData = MarkdownLayout::StyleData::createDarkStyle();
-		styleData.backgroundColour = Colours::transparentBlack;
+		styleData.backgroundColour = Colour(0xFF333333);
 	}
 	
 	errorComponent.parser.setStyleData(styleData);
@@ -1194,6 +1204,8 @@ void Dialog::showMainPropertyEditor()
 
 	PageInfo* colourCol = nullptr;
 
+	
+
     for(auto& nv: sdData.getDynamicObject()->getProperties())
     {
         if(hiddenProps.contains(nv.name))
@@ -1256,11 +1268,21 @@ void Dialog::showMainPropertyEditor()
 		help["LabelHeight"] = "The height of the label if the positioning is set to either `Above` or `Below`";
 		help[mpid::LabelPosition] = "The default position of the text label";
 
+		PageInfo* currentCol = &layoutProperties.addChild<Column>();
+
+		int numInCol = 0;
+
         for(auto& v: layoutObj.getDynamicObject()->getProperties())
         {
+			if(numInCol > 1)
+			{
+				currentCol = &layoutProperties.addChild<Column>();
+				numInCol = 0;
+			}
+
 			if(v.name == mpid::LabelPosition)
 			{
-				layoutProperties.addChild<Choice>({
+				currentCol->addChild<Choice>({
 	                { mpid::ID, v.name.toString() },
 					{ mpid::Text, v.name.toString() },
 	                { mpid::Value, v.value },
@@ -1270,13 +1292,15 @@ void Dialog::showMainPropertyEditor()
 			}
 			else
 			{
-				layoutProperties.addChild<TextInput>({
+				currentCol->addChild<TextInput>({
 	                { mpid::ID, v.name.toString() },
 					{ mpid::Text, v.name.toString() },
 	                { mpid::Value, v.value },
 	                { mpid::Help, help[v.name] }
 		        });
 			}
+
+			numInCol++;
         }
     }
 
@@ -1515,17 +1539,7 @@ bool Dialog::navigate(bool forward)
 
 void Dialog::paint(Graphics& g)
 {
-	if(editMode)
-	{
-		GlobalHiseLookAndFeel::draw1PixelGrid(g, this, getLocalBounds(), Colour(0xFF999999));
-        
-        g.setColour(Colours::white.withAlpha(0.1f));
-        g.setFont(GLOBAL_MONOSPACE_FONT());
-
-        String x;
-        x << "[" << String(getWidth()) << ", " << String(getHeight()) << "]";
-        g.drawText(x, getLocalBounds().toFloat().reduced(5), Justification::topRight);
-	}
+	
 
     Rectangle<int> errorBounds;
     
@@ -1537,6 +1551,18 @@ void Dialog::paint(Graphics& g)
         laf->drawMultiPageBackground(g, *this, errorBounds);
 		laf->drawMultiPageHeader(g, *this, top);
 		laf->drawMultiPageButtonTab(g, *this, bottom);
+	}
+
+	if(editMode)
+	{
+		GlobalHiseLookAndFeel::draw1PixelGrid(g, this, getLocalBounds(), Colour(0x44999999));
+        
+        g.setColour(Colours::white.withAlpha(0.1f));
+        g.setFont(GLOBAL_MONOSPACE_FONT());
+
+        String x;
+        x << "[" << String(getWidth()) << ", " << String(getHeight()) << "]";
+        g.drawText(x, getLocalBounds().toFloat().reduced(5), Justification::topRight);
 	}
 }
 
@@ -1643,6 +1669,7 @@ String Dialog::getExistingKeysAsItemString() const
 	return x;
 }
 
+
 void Dialog::containerPopup(const var& infoObject)
 {
 	multipage::Factory factory;
@@ -1652,11 +1679,24 @@ void Dialog::containerPopup(const var& infoObject)
 	PopupLookAndFeel plaf;
 	    
 	auto list = factory.getPopupMenuList();
-
-	list.sort(false);
-	list.insert(0, "**Add element**");
-
+	
 	PopupMenu m = SubmenuComboBox::parseFromStringArray(list, {}, &plaf);
+	
+	PopupMenu::MenuItemIterator iter(m, true);
+	
+	while(iter.next())
+	{
+		auto& item = iter.getItem();
+		
+		auto p = factory.createPath(item.text);
+
+		if(!p.isEmpty())
+		{
+			auto dp = new juce::DrawablePath();
+			dp->setPath(p);
+			item.image.reset(dp);
+		}
+	}
 
 	auto typeName = infoObject[mpid::Type].toString();
 
@@ -1699,10 +1739,7 @@ void Dialog::containerPopup(const var& infoObject)
 
 					if(factory.needsIdAtCreation(typeId))
 					{
-						auto id = getStringFromModalInput("Please enter the ID of the " + typeId, typeId + "Id");
-
-						if(id.isNotEmpty())
-							no->setProperty(mpid::ID, id);
+						no->setProperty(mpid::ID, typeId + "Id");
 					}
 
 					if(!infoObject[mpid::Children].isArray())
@@ -1746,6 +1783,11 @@ bool Dialog::nonContainerPopup(const var& infoObject)
 	if(r == 0)
 		return true;
 
+    if(r == 2 && tp != nullptr)
+    {
+        showEditor(infoObject);
+        return true;
+    }
 	if(r == 1 && tp != nullptr)
 	{
 		tp->deleteFromParent();

@@ -3,7 +3,7 @@
     "Font": "Lato",
     "BoldFont": "<Sans-Serif>",
     "FontSize": 16.0,
-    "bgColour": 0,
+    "bgColour": 4281545523,
     "codeBgColour": 864585864,
     "linkBgColour": 8947967,
     "textColour": 4294967295,
@@ -26,6 +26,8 @@
     "OuterPadding": 50,
     "LabelWidth": 160.0,
     "LabelHeight": 32,
+    "DialogWidth": 0,
+    "DialogHeight": 0,
     "LabelPosition": "Default"
   },
   "GlobalState": {

@@ -81,6 +81,8 @@ struct Skip: public ImmediateAction
 
     Skip(Dialog& r, int w, const var& obj);
 
+
+
     bool skipIfStateIsFalse() const override { return true; }
 
     void createEditor(Dialog::PageInfo& rootList) override;
@@ -114,8 +116,9 @@ struct RelativeFileLoader: public ImmediateAction
 
     bool skipIfStateIsFalse() const override { return false; }
 
+    static String getCategoryId() { return "Constants"; }
+
 	void createEditor(Dialog::PageInfo& rootList) override;
-	
 
 	static StringArray getSpecialLocations();
 
@@ -123,8 +126,6 @@ struct RelativeFileLoader: public ImmediateAction
 
 	String getDescription() const override { return "FileLoader"; };
 };
-
-
 
 struct Launch: public ImmediateAction
 {

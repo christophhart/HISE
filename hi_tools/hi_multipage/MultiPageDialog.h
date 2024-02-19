@@ -109,13 +109,17 @@ public:
         int getWidthForLabel(int totalWidth) const;
         int getHeightForComponent(int heightWithoutLabel);
 
+        Rectangle<int> getBounds(Rectangle<int> fullBounds) const;
+
         int TopHeight = 56;
         int ButtonTab = 40;
         int ButtonMargin = 5;
         int OuterPadding = 50;
-        double LabelWidth = 160;
+        double LabelWidth = 140;
         int LabelHeight = 32;
         int LabelPosition = LabelPositioning::Default;
+
+        Point<int> fixedSize;
     };
 
     struct PageBase: public Component
@@ -464,9 +468,7 @@ private:
     void showMainPropertyEditor();
 
     UndoManager um;
-
-    TooltipWindow tooltipWindow;
-
+    
     LambdaBroadcaster<bool> editModeBroadcaster;
 
     bool editMode = false;
