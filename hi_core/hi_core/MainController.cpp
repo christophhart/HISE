@@ -1345,39 +1345,39 @@ void MainController::skin(Component &c)
 };
 
 
-void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &/*newPosition*/)
+void MainController::storePlayheadIntoDynamicObject(AudioPlayHead::CurrentPositionInfo &newPosition)
 {
-	//static const Identifier bpmId("bpm");
-	//static const Identifier timeSigNumerator("timeSigNumerator");
-	//static const Identifier timeSigDenominator("timeSigDenominator");
-	//static const Identifier timeInSamples("timeInSamples");
-	//static const Identifier timeInSeconds("timeInSeconds");
-	//static const Identifier editOriginTime("editOriginTime");
-	//static const Identifier ppqPosition("ppqPosition");
-	//static const Identifier ppqPositionOfLastBarStart("ppqPositionOfLastBarStart");
-	//static const Identifier frameRate("frameRate");
-	//static const Identifier isPlaying("isPlaying");
-	//static const Identifier isRecording("isRecording");
-	//static const Identifier ppqLoopStart("ppqLoopStart");
-	//static const Identifier ppqLoopEnd("ppqLoopEnd");
-	//static const Identifier isLooping("isLooping");
+	static const Identifier bpmId("bpm");
+	static const Identifier timeSigNumerator("timeSigNumerator");
+	static const Identifier timeSigDenominator("timeSigDenominator");
+	static const Identifier timeInSamples("timeInSamples");
+	static const Identifier timeInSeconds("timeInSeconds");
+	static const Identifier editOriginTime("editOriginTime");
+	static const Identifier ppqPosition("ppqPosition");
+	static const Identifier ppqPositionOfLastBarStart("ppqPositionOfLastBarStart");
+//	static const Identifier frameRate("frameRate");
+	static const Identifier isPlaying("isPlaying");
+	static const Identifier isRecording("isRecording");
+	static const Identifier ppqLoopStart("ppqLoopStart");
+	static const Identifier ppqLoopEnd("ppqLoopEnd");
+	static const Identifier isLooping("isLooping");
 
-	//ScopedLock sl(getLock());
+	ScopedLock sl(getLock());
 
-	//hostInfo->setProperty(bpmId, newPosition.bpm);
-	//hostInfo->setProperty(timeSigNumerator, newPosition.timeSigNumerator);
-	//hostInfo->setProperty(timeSigDenominator, newPosition.timeSigDenominator);
-	//hostInfo->setProperty(timeInSamples, newPosition.timeInSamples);
-	//hostInfo->setProperty(timeInSeconds, newPosition.timeInSeconds);
-	//hostInfo->setProperty(editOriginTime, newPosition.editOriginTime);
-	//hostInfo->setProperty(ppqPosition, newPosition.ppqPosition);
-	//hostInfo->setProperty(ppqPositionOfLastBarStart, newPosition.ppqPositionOfLastBarStart);
-	//hostInfo->setProperty(frameRate, newPosition.frameRate);
-	//hostInfo->setProperty(isPlaying, newPosition.isPlaying);
-	//hostInfo->setProperty(isRecording, newPosition.isRecording);
-	//hostInfo->setProperty(ppqLoopStart, newPosition.ppqLoopStart);
-	//hostInfo->setProperty(ppqLoopEnd, newPosition.ppqLoopEnd);
-	//hostInfo->setProperty(isLooping, newPosition.isLooping);
+	hostInfo->setProperty(bpmId, newPosition.bpm);
+	hostInfo->setProperty(timeSigNumerator, newPosition.timeSigNumerator);
+	hostInfo->setProperty(timeSigDenominator, newPosition.timeSigDenominator);
+	hostInfo->setProperty(timeInSamples, newPosition.timeInSamples);
+	hostInfo->setProperty(timeInSeconds, newPosition.timeInSeconds);
+	hostInfo->setProperty(editOriginTime, newPosition.editOriginTime);
+	hostInfo->setProperty(ppqPosition, newPosition.ppqPosition);
+	hostInfo->setProperty(ppqPositionOfLastBarStart, newPosition.ppqPositionOfLastBarStart);
+//	hostInfo->setProperty(frameRate, newPosition.frameRate);
+	hostInfo->setProperty(isPlaying, newPosition.isPlaying);
+	hostInfo->setProperty(isRecording, newPosition.isRecording);
+	hostInfo->setProperty(ppqLoopStart, newPosition.ppqLoopStart);
+	hostInfo->setProperty(ppqLoopEnd, newPosition.ppqLoopEnd);
+	hostInfo->setProperty(isLooping, newPosition.isLooping);
 }
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)

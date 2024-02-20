@@ -3209,6 +3209,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBox(Graphics& g_, int 
 		}
 
 		obj->setProperty("text", text);
+		obj->setProperty("id", cb.getComponentID());
 		obj->setProperty("active", cb.getSelectedId() != 0);
 		obj->setProperty("enabled", cb.isEnabled() && cb.getNumItems() > 0);
 		obj->setProperty("hover", cb.isMouseOver(true) || cb.isMouseButtonDown(true) || cb.isPopupActive());
