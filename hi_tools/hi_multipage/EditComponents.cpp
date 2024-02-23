@@ -54,6 +54,14 @@ set Platform=X64
 
 pause
 )";
+#elif JUCE_MAC
+static const char* BatchFile = R"(
+    TODO!!!"
+)";
+#elif JUCE_LINUX
+static const char* BatchFile = R"(
+    TODO!!!"
+)";
 #endif
 
 	static const char* Main_Cpp = R"(#include <JuceHeader.h>

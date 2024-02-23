@@ -277,7 +277,7 @@ void State::reset(const var& obj)
 	eventLogger.sendMessage(sendNotificationSync, MessageType::Clear, "");
 
 	if(auto gs = obj[mpid::GlobalState].getDynamicObject())
-		globalState = var(gs->clone());
+		globalState = var(gs->clone().get());
 	else
 		globalState = var(new DynamicObject());
 
