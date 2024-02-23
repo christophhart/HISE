@@ -74,7 +74,7 @@ struct CodeGenerator
 #if JUCE_WINDOWS
             return root.getChildFile("batchCompile.bat");
 #else
-            jassertfalse;
+            return root.getChildFile("batchCompileOSX");
 #endif
         case FileType::DialogImplementation:  return root.getChildFile("Source/Dialog.cpp");
         case FileType::ProjucerFile:  return root.getChildFile(className).withFileExtension(".jucer");

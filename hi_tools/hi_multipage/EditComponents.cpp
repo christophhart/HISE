@@ -56,7 +56,13 @@ pause
 )";
 #elif JUCE_MAC
 static const char* BatchFile = R"(
-    TODO!!!"
+    chmod +x "%HISE_PATH%/tools/Projucer/Projucer.app/Contents/MacOS/Projucer"
+    cd "`dirname "$0"`"
+    "%HISE_PATH%/tools/Projucer/Projucer.app/Contents/MacOS/Projucer" --resave "%PROJECT%.jucer"
+
+    set -o pipefail
+    echo Compiling %PROJECT% ...
+    xcodebuild -project "Builds/MacOSX/%PROJECT%.xcodeproj" -configuration "Release" -jobs "10" | xcpretty
 )";
 #elif JUCE_LINUX
 static const char* BatchFile = R"(
@@ -158,34 +164,35 @@ START_JUCE_APPLICATION (MainWrapper)
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0&#10;PERFETTO=0&#10;USE_BACKEND=1"
                extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
-               xcodeValidArchs="arm64,arm64e">
+               xcodeValidArchs="x86_64">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
                        macOSDeploymentTarget="10.15" osxCompatibility="10.15 SDK"/>
         <CONFIGURATION isDebug="0" name="Release" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
-                       headerPath="" libraryPath=""/>
+                       headerPath="" libraryPath="" linkTimeOptimisation="0" optimisation="2"
+                       stripLocalSymbols="1"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
-        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../"/>
-        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_snex" path="../../"/>
-        <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_rlottie" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
-        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="hi_zstd" path="%HISE_PATH%/"/>
+        <MODULEPATH id="hi_lac" path="%HISE_PATH%/"/>
+        <MODULEPATH id="juce_cryptography" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="hi_snex" path="%HISE_PATH%/"/>
+        <MODULEPATH id="hi_dsp_library" path="%HISE_PATH%/"/>
+        <MODULEPATH id="juce_dsp" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="%HISE_PATH%/"/>
+        <MODULEPATH id="hi_tools" path="%HISE_PATH%/"/>
+        <MODULEPATH id="juce_product_unlocking" path="%HISE_PATH%/JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive-"

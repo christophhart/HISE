@@ -31,15 +31,17 @@ var projucer_exporter::exportProjucerProject(State::Job& t, const var& stateObje
 		cg.write(fos, (FT)i, &t);
 	}
 
-	ChildProcess cp;
-
 	auto batchFile = cg.getFile(CodeGenerator::FileType::BatchFile);
 
 #if JUCE_WINDOWS
 	batchFile.startAsProcess();
-#else
-	auto command = batchFile.getFullPathName().quoted();
+#elif JUCE_MAC
+    String permissionCommand = "chmod +x " + batchFile.getFullPathName().quoted();
+    system(permissionCommand.getCharPointer());
+    String command = "open " + batchFile.getFullPathName().quoted();
 	system(command.getCharPointer().getAddress());
+#elif JUCE_LINUX
+    // dave...
 #endif
 	
 	return var();
