@@ -139,6 +139,20 @@ public:
 
 	void clearTokenProviders();
 
+	void updateIfSync()
+	{
+		if(!useBackgroundThread)
+		{
+			dirty = true;
+			rebuild();
+		}
+	}
+
+	void setUseBackgroundThread(bool shouldUseBackgroundThread)
+	{
+		useBackgroundThread = shouldUseBackgroundThread;
+	}
+
 	/** Register a token provider to this instance. Be aware that you can't register a token provider to multiple instances,
 	    but this shouldn't be a problem. */
 	void addTokenProvider(Provider* ownedProvider);
@@ -215,6 +229,7 @@ private:
 
 	mutable SimpleReadWriteLock buildLock;
 
+	bool useBackgroundThread = true;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(TokenCollection);
 };

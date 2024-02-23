@@ -113,6 +113,9 @@ void FullEditor::loadSettings(const File& sFile)
 void FullEditor::saveSetting(Component* c, const Identifier& id, const var& newValue)
 {
 	auto pe = c->findParentComponentOfClass<FullEditor>();
+
+	if(pe == nullptr)
+		return;
 		
 	auto s = JSON::parse(pe->settingFile);
 

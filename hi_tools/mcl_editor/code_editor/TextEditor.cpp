@@ -961,8 +961,14 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 
 	auto parent = TopLevelWindowWithOptionalOpenGL::findRoot(this); 
 
+	if(parent == nullptr)
+		parent = dynamic_cast<Component*>(findParentComponentOfClass<TopLevelWindowWithKeyMappings>());
+
 	if (parent == nullptr)
 		parent = this;
+
+	if(tokenCollection != nullptr)
+		tokenCollection->updateIfSync();
 
 	if (forceShow || ((input.isNotEmpty() && tokenCollection != nullptr && tokenCollection->hasEntries(input, tokenBefore, lineNumber)) || hasDotAndNotFloat))
 	{
@@ -990,7 +996,8 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 
 		auto ltl = topLeft.roundToInt().transformedBy(transform);
 
-		ltl = getTopLevelComponent()->getLocalPoint(this, ltl);
+		if(parent != this)
+			ltl = getTopLevelComponent()->getLocalPoint(this, ltl);
 		
 		currentAutoComplete->setTopLeftPosition(ltl);
 
