@@ -13,18 +13,29 @@
     "tableLineColour": 864059520,
     "tableBgColour": 864059520,
     "headlineColour": 4287692721,
-    "UseSpecialBoldFont": false
+    "UseSpecialBoldFont": false,
+    "buttonTabBackgroundColour": 570425344,
+    "buttonBgColour": 4289374890,
+    "buttonTextColour": 4280624421,
+    "modalPopupBackgroundColour": 4281545523,
+    "modalPopupOverlayColour": 3995214370,
+    "modalPopupOutlineColour": 4289374890,
+    "pageProgressColour": 2013265919
   },
   "Properties": {
     "Header": "Export Projucer Project",
-    "Subtitle": ""
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "",
+    "Company": "",
+    "Version": ""
   },
   "LayoutData": {
     "TopHeight": 56,
     "ButtonTab": 40,
     "ButtonMargin": 5,
     "OuterPadding": 50,
-    "LabelWidth": 140.0,
+    "LabelWidth": 120.0,
     "LabelHeight": 32,
     "DialogWidth": 700,
     "DialogHeight": 600,
@@ -51,6 +62,21 @@
           "SaveFile": false
         },
         {
+          "Type": "TextInput",
+          "Text": "Team ID",
+          "ID": "teamID",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "EmptyText": "Enter Team Development ID ",
+          "Required": false,
+          "ParseArray": false,
+          "Height": 80,
+          "Items": "",
+          "Help": "The macOS Team Development ID for signing the compiled binary.",
+          "Multiline": false
+        },
+        {
           "Type": "Spacer",
           "Text": "LabelText",
           "Padding": "30"
@@ -63,7 +89,11 @@
           "LabelPosition": "Default",
           "Function": "exportProjucerProject"
         }
-      ]
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
     },
     {
       "Type": "List",
@@ -97,24 +127,5 @@
       ]
     }
   ],
-  "Assets": [
-    {
-      "Type": 1,
-      "ID": "VST3_binary",
-      "RelativePath": true,
-      "Filename": "../../../Projekte/triaz/triaz/Binaries/Compiled/VST3/Triaz.vst3"
-    },
-    {
-      "Type": 3,
-      "ID": "myAsset",
-      "RelativePath": false,
-      "Filename": "C:\\Users\\chris\\Downloads\\Assets.zip"
-    },
-    {
-      "Type": 3,
-      "ID": "myAsset",
-      "RelativePath": false,
-      "Filename": "C:\\Users\\chris\\Downloads\\Assets.zip"
-    }
-  ]
+  "Assets": []
 }

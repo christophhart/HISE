@@ -302,31 +302,67 @@ ApiProviderBase* State::getProviderBase()
 	return stateProvider.get();
 }
 
-std::unique_ptr<JavascriptEngine> State::createJavascriptEngine()
+std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoObject)
 {
-	struct LogFunction: public DynamicObject
+	struct BaseObj: public DynamicObject
 	{
-		LogFunction(State& s):
-		  state(s)
+		BaseObj(State&state_):
+		  state(state_)
+		{}
+
+		void expectArguments(const var::NativeFunctionArgs& args, int numArgs, const String& customErrorMessage={})
 		{
-			setMethod("print", BIND_MEMBER_FUNCTION_1(LogFunction::print));
+			if(args.numArguments != numArgs)
+			{
+				if(customErrorMessage.isNotEmpty())
+					throw customErrorMessage;
+				else
+					throw "Argument amount mismatch: Expected " + String(numArgs);
+			}
 		}
 
 		State& state;
+	};
+
+	struct LogFunction: public BaseObj
+	{
+		LogFunction(State& s, const var& infoObject_):
+		  BaseObj(s),
+		  infoObject(infoObject_)
+		{
+			setMethod("print", BIND_MEMBER_FUNCTION_1(LogFunction::print));
+			setMethod("setError", BIND_MEMBER_FUNCTION_1(LogFunction::setError));
+		}
+
+		var infoObject;
+
+		var setError(const var::NativeFunctionArgs& args)
+		{
+			expectArguments(args, 1);
+
+			if(auto p = state.currentDialog->findPageBaseForInfoObject(infoObject))
+			{
+				p->setModalHelp(args.arguments[0].toString());
+				state.currentDialog->setCurrentErrorPage(p);
+			}
+
+			return var();
+		}
 
 		var print (const var::NativeFunctionArgs& args)
 		{
-			if(args.numArguments > 0)
-					state.eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, args.arguments[0].toString());
+			expectArguments(args, 1);
+
+			state.eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, args.arguments[0].toString());
 			
 			return var();
 		}
 	};
 
-	struct Dom: public DynamicObject
+	struct Dom: public BaseObj
 	{
 		Dom(State& s):
-		  state(s)
+		  BaseObj(s)
 		{
 			setMethod("getElementById", BIND_MEMBER_FUNCTION_1(Dom::getElementById));
 			setMethod("getElementByType", BIND_MEMBER_FUNCTION_1(Dom::getElementByType));
@@ -334,13 +370,12 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine()
 			setMethod("setStyleData", BIND_MEMBER_FUNCTION_1(Dom::setStyleData));
 		}
 
-		State& state;
-
 		var getElementByType(const var::NativeFunctionArgs& args)
 		{
+			expectArguments(args, 1);
 			Array<var> matches;
 
-			if(args.numArguments > 0 && state.currentDialog != nullptr)
+			if(state.currentDialog != nullptr)
 			{
 				auto id = args.arguments[0].toString();
 
@@ -358,9 +393,11 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine()
 
 		var getElementById(const var::NativeFunctionArgs& args)
 		{
+			expectArguments(args, 1);
+
 			Array<var> matches;
 
-			if(args.numArguments > 0 && state.currentDialog != nullptr)
+			if(state.currentDialog != nullptr)
 			{
 				auto id = Identifier(args.arguments[0].toString());
 
@@ -378,6 +415,8 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine()
 
 		var getStyleData(const var::NativeFunctionArgs& args)
 		{
+			expectArguments(args, 0);
+
 			if(state.currentDialog != nullptr)
 			{
 				return state.currentDialog->getStyleData().toDynamicObject();
@@ -388,7 +427,9 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine()
 
 		var setStyleData(const var::NativeFunctionArgs& args)
 		{
-			if(args.numArguments > 0 && state.currentDialog != nullptr)
+			expectArguments(args, 1);
+
+			if(state.currentDialog != nullptr)
 			{
 				MarkdownLayout::StyleData sd;
 				sd.fromDynamicObject(args.arguments[0], std::bind(&State::loadFont, &state, std::placeholders::_1));
@@ -400,10 +441,16 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine()
 		}
 	};
 
+	
+
 	eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, "Prepare Javascript execution...");
 
 	auto engine = std::make_unique<JavascriptEngine>();
-	engine->registerNativeObject("Console", new LogFunction(*this));
+
+	if(infoObject.isObject())
+		engine->registerNativeObject("element", infoObject.getDynamicObject());
+
+	engine->registerNativeObject("Console", new LogFunction(*this, infoObject));
 	engine->registerNativeObject("document", new Dom(*this));
 	engine->registerNativeObject("state", globalState.getDynamicObject());
 

@@ -339,8 +339,8 @@ bool Dialog::PageBase::showDeletePopup(bool isRightClick)
 		return rootDialog.nonContainerPopup(infoObject);
 	}
 
-
-	return false;
+	return rootDialog.showEditor(infoObject);
+	
 }
 
 String Dialog::PageBase::getDefaultPositionName() const
@@ -1180,6 +1180,7 @@ Result Dialog::checkCurrentPage()
 void Dialog::setCurrentErrorPage(PageBase* b)
 {
 	currentErrorElement = b;
+	repaint();
 }
 
 bool Dialog::keyPressed(const KeyPress& k)

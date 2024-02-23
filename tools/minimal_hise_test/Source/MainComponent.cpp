@@ -278,6 +278,8 @@ MainComponent::MainComponent():
   menuBar(this),
   tooltips(this)
 {
+	TopLevelWindowWithKeyMappings::loadKeyPressMap();
+
 	mcl::TextEditor::initKeyPresses(this);
 
 	addAndMakeVisible(rightTab);
@@ -315,7 +317,9 @@ MainComponent::MainComponent():
 #endif
     build();
 	startTimer(3000);
-    
+
+	
+
     addChildComponent(stateViewer);
 
 #if JUCE_WINDOWS
@@ -329,6 +333,8 @@ MainComponent::MainComponent():
 
 MainComponent::~MainComponent()
 {
+	TopLevelWindowWithKeyMappings::saveKeyPressMap();
+
 #if JUCE_MAC
     setMacMainMenu (nullptr);
 #endif

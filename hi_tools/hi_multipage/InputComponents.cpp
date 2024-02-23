@@ -38,6 +38,16 @@ namespace multipage {
 namespace factory {
 using namespace juce;
 
+void addOnValueCodeEditor(const var& infoObject, Dialog::PageInfo& rootList)
+{
+	rootList.addChild<CodeEditor>({
+		{ mpid::ID, "Code" },
+		{ mpid::Text, "Code" },
+		{ mpid::Value, infoObject[mpid::Code] },
+		{ mpid::Help, "The JS code that will be executed whenever the value changes. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
+	});
+}
+
 template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList, const String& typeHelp)
 {
     rootList.addChild<Type>({
@@ -214,12 +224,13 @@ void Button::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Text, "Trigger" },
 		{ mpid::Help, "If this is enabled, the button will fire the action with the same ID when you click it, otherwise it will store its value (either on/off or radio group index in the global state" }
 	});
-
-    rootList.addChild<TextInput>({
-      { mpid::ID, "IconData" },
-      { mpid::Text, "IconData" },
-      { mpid::Value, pathData.isEmpty() ? "" : pathData.toBase64Encoding() }
-    });
+    
+    col.addChild<CodeEditor>({
+		{ mpid::ID, "Code" },
+		{ mpid::Text, "Code" },
+		{ mpid::Value, infoObject[mpid::Code] },
+		{ mpid::Help, "The JS code that will be evaluated. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
+	});
 }
 
 
@@ -275,6 +286,26 @@ void Button::buttonClicked(juce::Button* b)
 
 	    for(auto tb: groupedButtons)
 			tb->setToggleState(b == tb, dontSendNotification);
+    }
+
+    auto ms = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
+    auto code = infoObject[mpid::Code].toString();
+    if(code.startsWithChar('$'))
+        code = ms->loadText(code);
+
+    if(code.isNotEmpty())
+    {
+	    auto engine = ms->createJavascriptEngine(infoObject);
+
+        
+
+	    auto ok = engine->execute(code);
+        
+	    if(ok.failed())
+	    {
+		    rootDialog.setCurrentErrorPage(this);
+	        setModalHelp(ok.getErrorMessage());
+	    }
     }
 }
 

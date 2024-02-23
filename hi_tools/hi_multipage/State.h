@@ -38,7 +38,49 @@ using namespace juce;
 
 class Dialog;
 
+struct ScopedSetting
+{
+	ScopedSetting()
+	{
+		obj = JSON::parse(getSettingFile().loadFileAsString());
+	}
 
+	~ScopedSetting()
+	{
+		if(changed)
+			getSettingFile().replaceWithText(JSON::toString(obj));
+	}
+
+	void set(const Identifier& id, const var& newValue)
+	{
+		if(auto no = obj.getDynamicObject())
+		{
+			no->setProperty(id, newValue);
+			changed = true;
+		}
+	}
+
+	var get(const Identifier& id, const var& defaultValue=var("")) const
+	{
+		return obj.getProperty(id, defaultValue);
+	}
+
+    static File getSettingFile()
+	{
+		auto f = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory);
+#if JUCE_MAC
+        f = f.getChildFile("Application Support");
+#endif
+        return f.getChildFile("HISE").getChildFile("multipage.json");
+	}
+
+private:
+
+	bool changed = false;
+	var obj;
+
+	
+};
 
 struct Asset: public ReferenceCountedObject
 {
@@ -285,7 +327,7 @@ public:
 	    return Font(fontName, 13.0f, Font::plain);
     }
 
-    std::unique_ptr<JavascriptEngine> createJavascriptEngine();
+    std::unique_ptr<JavascriptEngine> createJavascriptEngine(const var& infoObject);
 
     String loadText(const String& assetVariable) const
     {
@@ -521,7 +563,7 @@ struct HardcodedDialogWithState: public Component
 	virtual void postInit() {}
 
 	void resized() override;
-
+    
 	virtual Dialog* createDialog(State& state) = 0;
 
     std::function<void()> closeFunction;

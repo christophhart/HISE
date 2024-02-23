@@ -952,13 +952,7 @@ public:
 
     File getSettingsFile() const
     {
-        auto f = File::getSpecialLocation(File::SpecialLocationType::userApplicationDataDirectory);
-        
-#if JUCE_MAC
-        f = f.getChildFile("Application Support");
-#endif
-        
-        return f.getChildFile("HISE").getChildFile("multipage.json");
+        return ScopedSetting::getSettingFile();
     }
 
     void codeDocumentTextInserted (const String& , int ) override
@@ -972,7 +966,7 @@ public:
         manualChange = true;
     }
 
-    File getKeyPressSettingFile() const override { return File(); }
+    File getKeyPressSettingFile() const override { return getSettingsFile().getSiblingFile("multipage_keyset.xml"); }
 
     //==============================================================================
     void paint (Graphics&) override;

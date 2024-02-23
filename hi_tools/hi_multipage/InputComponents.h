@@ -204,6 +204,56 @@ struct CodeEditor: public LabelledComponent
 
     struct AllEditor: public Component
     {
+        static void addRecursive(mcl::TokenCollection::List& tokens, const String& parentId, const var& obj)
+        {
+            auto thisId = parentId;
+
+            if(obj.isMethod())
+                thisId << "(args)";
+
+            auto isState = thisId.startsWith("state");
+            auto isElement = thisId.startsWith("element");
+
+            auto prio = 100;
+
+            if(isState)
+                prio += 10;
+
+            if(isElement)
+                prio += 20;
+
+	        auto stateToken = new mcl::TokenCollection::Token(thisId);
+            stateToken->c = isState ? Colour(0xFFBE6093) : isElement ? Colour(0xFF22BE84) : Colour(0xFF88BE14);
+
+            if(isState)
+				stateToken->markdownDescription << "Global state variable  \n> ";
+
+        	stateToken->markdownDescription << "Value: `" << obj.toString() << "`";
+            stateToken->priority = prio;
+            tokens.add(stateToken);
+
+            if(auto no = obj.getDynamicObject())
+            {
+	            for(auto& nv: no->getProperties())
+	            {
+		            String p = parentId;
+                    p << "." << nv.name;
+                    addRecursive(tokens, p, nv.value);
+	            }
+            }
+            if(auto ar = obj.getArray())
+            {
+                int idx = 0;
+
+	            for(auto& nv: *ar)
+	            {
+                    String p = parentId;
+                    p << "[" << String(idx++) << "]";
+		            addRecursive(tokens, p, nv);
+	            }
+            }
+        }
+
         struct TokenProvider: public mcl::TokenCollection::Provider
         {
             TokenProvider(Component* p_):
@@ -217,21 +267,25 @@ struct CodeEditor: public LabelledComponent
                 if(p == nullptr)
                     return;
 
+                auto infoObject = p->findParentComponentOfClass<Dialog>()->getState().globalState;
+
+                DBG(JSON::toString(infoObject));
+
 	            if(auto ms = p->findParentComponentOfClass<ComponentWithSideTab>())
 	            {
-	                for(auto& nv: ms->getMainState()->globalState.getDynamicObject()->getProperties())
-	                {
-		                auto stateToken = new mcl::TokenCollection::Token("state." + nv.name.toString());
-	                    stateToken->c = Colour(0xFFBE6093);
-	                    stateToken->markdownDescription << "Value: `" << nv.name.toString() << "`";
-	                    stateToken->priority = 100;
-	                    tokens.add(stateToken);
-	                }
-	                
+	                auto* state = ms->getMainState();
+
+                    if(engine == nullptr)
+						engine = state->createJavascriptEngine(infoObject);
+
+                    for(auto& nv: engine->getRootObjectProperties())
+                    {
+                        addRecursive(tokens, nv.name.toString(), nv.value);
+                    }
 	            }
-
-
 	        }
+
+            std::unique_ptr<JavascriptEngine> engine;
         };
 
         AllEditor():
@@ -239,7 +293,7 @@ struct CodeEditor: public LabelledComponent
           editor(new mcl::TextEditor(codeDoc))
         {
             editor->tokenCollection = new mcl::TokenCollection("Javascript");
-
+            editor->tokenCollection->setUseBackgroundThread(false);
         	editor->tokenCollection->addTokenProvider(new TokenProvider(this));
 	        addAndMakeVisible(editor);
         }
@@ -296,13 +350,17 @@ struct CodeEditor: public LabelledComponent
         if(code.startsWith("${"))
             code = state->loadText(code);
 
-        auto e = state->createJavascriptEngine();
+        auto infoObject = findParentComponentOfClass<Dialog>()->getState().globalState;
+
+        auto e = state->createJavascriptEngine(infoObject);
         auto ok = e->execute(code);
 
         getComponent<AllEditor>().editor->setError(ok.getErrorMessage());
 
         if(ok.wasOk())
             writeState(code);
+        else
+            state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
 
         return ok;
     }

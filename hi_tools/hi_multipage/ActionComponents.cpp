@@ -154,10 +154,16 @@ void Action::editModeChanged(bool isEditMode)
 			if(this->showDeletePopup(isRightClick))
 				return;
 
+			rootDialog.createEditorInSideTab(infoObject, this, [this](Dialog::PageInfo& r)
+			{
+				createEditor(r);
+			});
+
+#if 0
 			auto& l = rootDialog.createModalPopup<List>();
 
 			l.setStateObject(infoObject);
-			createEditor(l);
+			
 
 			l.setCustomCheckFunction([this](PageBase* b, var obj)
 			{
@@ -166,6 +172,7 @@ void Action::editModeChanged(bool isEditMode)
 			});
 
 			rootDialog.showModalPopup(true);
+#endif
 
 		});
 	}
@@ -242,7 +249,7 @@ Result JavascriptFunction::onAction()
 		code = rootDialog.getState().loadText(code);
 	}
         
-	auto engine = rootDialog.getState().createJavascriptEngine();
+	auto engine = rootDialog.getState().createJavascriptEngine(infoObject);
 	auto ok = engine->execute(code);
 	return ok;
 }

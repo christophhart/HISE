@@ -20,6 +20,12 @@ var projucer_exporter::exportProjucerProject(State::Job& t, const var& stateObje
 	cg.version = exportObj[mpid::Properties][mpid::Version].toString();
 	cg.hisePath = stateObject["hisePath"].toString();
 
+	{
+		ScopedSetting ss;
+		ss.set("hisePath", cg.hisePath);
+		ss.set("teamID", stateObject["teamID"]);
+	}
+
 	using FT = multipage::CodeGenerator::FileType;
 
 	for(int i = 0; i < (int)FT::numFileTypes; i++)
@@ -47,17 +53,31 @@ var projucer_exporter::exportProjucerProject(State::Job& t, const var& stateObje
 	return var();
 }
 
+
+
+void projucer_exporter::postInit()
+{
+	ScopedSetting ss;
+	setProperty("hisePath", ss.get("hisePath", ""));
+	setProperty("teamID", ss.get("teamID"));
+}
+
 using MyClass = projucer_exporter;
 
 Dialog* projucer_exporter::createDialog(State& state)
 {
+	
+	DynamicObject::Ptr fullData = new DynamicObject();
+	fullData->setProperty(mpid::StyleData, JSON::parse(R"({"Font": "Lato Regular", "BoldFont": "<Sans-Serif>", "FontSize": 18.0, "bgColour": 4279834905, "codeBgColour": 864585864, "linkBgColour": 8947967, "textColour": 4289901234, "codeColour": 4294967295, "linkColour": 4289374975, "tableHeaderBgColour": 864059520, "tableLineColour": 864059520, "tableBgColour": 864059520, "headlineColour": 4287692721, "UseSpecialBoldFont": false, "buttonTabBackgroundColour": 570425344, "buttonBgColour": 4289374890, "buttonTextColour": 4280624421, "modalPopupBackgroundColour": 4281545523, "modalPopupOverlayColour": 3995214370, "modalPopupOutlineColour": 4289374890, "pageProgressColour": 2013265919})"));
+	fullData->setProperty(mpid::LayoutData, JSON::parse(R"({"TopHeight": 56, "ButtonTab": 40, "ButtonMargin": 5, "OuterPadding": 50, "LabelWidth": 120.0, "LabelHeight": 32, "DialogWidth": 700, "DialogHeight": 600, "LabelPosition": "Default"})"));
+	fullData->setProperty(mpid::Properties, JSON::parse(R"({"Header": "Export Projucer Project", "Subtitle": "", "Image": "", "ProjectName": "", "Company": "", "Version": ""})"));
 	using namespace factory;
-	auto mp_ = new Dialog({}, state, false);
+	auto mp_ = new Dialog(var(fullData.get()), state, false);
 	auto& mp = *mp_;
-	mp.setProperty(mpid::Header, "Export Projucer Project");
-	mp.setProperty(mpid::Subtitle, "");
 	auto& List_0 = mp.addPage<factory::List>({
-	  { mpid::Padding, 10 }
+	  { mpid::Padding, 10 }, 
+	  { mpid::Foldable, 0 }, 
+	  { mpid::Folded, 0 }
 	});
 
 	auto& hisePath_1 = List_0.addChild<factory::FileSelector>({
@@ -71,12 +91,25 @@ Dialog* projucer_exporter::createDialog(State& state)
 	  { mpid::SaveFile, 0 }
 	});
 
-	auto& Spacer_2 = List_0.addChild<factory::Spacer>({
+	auto& teamID_2 = List_0.addChild<factory::TextInput>({
+	  { mpid::Text, "Team ID" }, 
+	  { mpid::ID, "teamID" }, 
+	  { mpid::UseInitValue, 0 }, 
+	  { mpid::LabelPosition, "Default" }, 
+	  { mpid::EmptyText, "Enter Team Development ID " }, 
+	  { mpid::Required, 0 }, 
+	  { mpid::ParseArray, 0 }, 
+	  { mpid::Height, 80 }, 
+	  { mpid::Help, "The macOS Team Development ID for signing the compiled binary." }, 
+	  { mpid::Multiline, 0 }
+	});
+
+	auto& Spacer_3 = List_0.addChild<factory::Spacer>({
 	  { mpid::Text, "LabelText" }, 
 	  { mpid::Padding, "30" }
 	});
 
-	auto& export_3 = List_0.addChild<factory::LambdaTask>({
+	auto& export_4 = List_0.addChild<factory::LambdaTask>({
 	  { mpid::Text, "Export Progress" }, 
 	  { mpid::ID, "export" }, 
 	  { mpid::CallOnNext, 1 }, 
@@ -85,7 +118,7 @@ Dialog* projucer_exporter::createDialog(State& state)
 	});
 
 	// TODO: add var exportProjucerProject(State::Job& t, const var& stateObject) to class
-	export_3.setLambdaAction(state, BIND_MEMBER_FUNCTION_2(MyClass::exportProjucerProject));
+	export_4.setLambdaAction(state, BIND_MEMBER_FUNCTION_2(MyClass::exportProjucerProject));
 	
 	// Custom callback for page List_0
 	List_0.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
@@ -94,16 +127,19 @@ Dialog* projucer_exporter::createDialog(State& state)
 
 	});
 	
-	auto& List_4 = mp.addPage<factory::List>({
-	  { mpid::Padding, 10 }
+	auto& List_5 = mp.addPage<factory::List>({
+	  { mpid::Padding, 10 }, 
+	  { mpid::Foldable, 0 }, 
+	  { mpid::Folded, 0 }
 	});
 
-	auto& MarkdownText_5 = List_4.addChild<factory::MarkdownText>({
+	auto& MarkdownText_6 = List_5.addChild<factory::MarkdownText>({
 	  { mpid::Text, "The project was created successfully. Do you want to launch the projucer to continue building the dialog binary?" }, 
-	  { mpid::Padding, 0 }
+	  { mpid::Padding, 0 }, 
+	  { mpid::Comment, 0 }
 	});
 
-	auto& openProjucer_6 = List_4.addChild<factory::Button>({
+	auto& openProjucer_7 = List_5.addChild<factory::Button>({
 	  { mpid::Text, "Open Projucer" }, 
 	  { mpid::ID, "openProjucer" }, 
 	  { mpid::UseInitValue, 0 }, 
@@ -112,15 +148,15 @@ Dialog* projucer_exporter::createDialog(State& state)
 	  { mpid::Trigger, 0 }
 	});
 
-	auto& openProjucer_7 = List_4.addChild<factory::Launch>({
+	auto& openProjucer_8 = List_5.addChild<factory::Launch>({
 	  { mpid::Text, "$hisePath/tools/Projucer.exe" }, 
 	  { mpid::ID, "openProjucer" }, 
 	  { mpid::CallOnNext, 1 }, 
-	  { mpid::Args, "$projectDirectory/$projectName.jucer" }
+	  { mpid::Args, "\"$projectDirectory/$projectName.jucer\"" }
 	});
 
-	// Custom callback for page List_4
-	List_4.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
+	// Custom callback for page List_5
+	List_5.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
 
 		return Result::ok();
 
