@@ -417,6 +417,9 @@ struct EnvelopePopup : public Component
 						{
 							t.reset();
 
+							t.addTablePoint(0.0, 0.5);
+							t.addTablePoint(1.0, 0.5);
+
 							for (auto p : list)
 								t.addTablePoint(p.x, p.y);
 
