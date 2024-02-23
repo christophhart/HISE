@@ -132,6 +132,100 @@ DebugInformationBase::Ptr State::StateProvider::createRecursive(const String& na
 }
 #endif
 
+String Asset::toText() const
+{
+	if(type == Type::Text)
+		return data.toString();
+	else
+		return {};
+}
+
+void Asset::writeCppLiteral(OutputStream& c, const String& newLine, ReferenceCountedObject* job_) const
+{
+	auto& job = *static_cast<State::Job*>(job_);
+
+	job.getProgress() = 0.0;
+	job.setMessage("Compressing " + id);
+
+	zstd::ZDefaultCompressor comp;
+
+	MemoryBlock compressed;
+
+	comp.compress(data, compressed);
+
+	job.setMessage("Embedding " + id);
+
+	auto numBytes = compressed.getSize();
+
+	c << newLine << "static const unsigned char " << id << "[" << String(numBytes) << "] = { ";
+
+	auto bytePtr = static_cast<const uint8*>(compressed.getData());
+
+	for(int i = 0; i < numBytes; i++)
+	{
+		c << String((int)bytePtr[i]);
+            
+		if(i <= (numBytes-1))
+			c << ",";
+
+		if ((i % 40) == 39)
+		{
+			job.getProgress() = 0.5 + 0.5 * ((double)i / (double)numBytes);
+			c << newLine;
+		}
+	}
+
+	c << " };";
+
+	c << newLine << "static constexpr char " << id << "_Filename[" << String(filename.length()+1) << "] = ";
+	c << filename.replaceCharacter('\\', '/').quoted() << ";";
+
+	c << newLine << "static constexpr Asset::Type " << id << "_Type = Asset::Type::" << getTypeString(type) << ";";
+}
+
+String Asset::getFilePath(const File& currentRoot) const
+{
+	if(useRelativePath)
+		return File(filename).getRelativePathFrom(currentRoot).replaceCharacter('\\', '/');
+	else
+		return filename;
+}
+
+bool Asset::writeToFile(const File& targetFile, ReferenceCountedObject* job_) const
+{
+	auto& job = *static_cast<State::Job*>(job_);
+
+	MemoryInputStream mis(data, false);
+	targetFile.deleteFile();
+	FileOutputStream fos(targetFile);
+
+	if(fos.failedToOpen())
+		throw Result::fail("Error at writing file: " + fos.getStatus().getErrorMessage());
+
+	auto numToWrite = mis.getTotalLength();
+
+	for(int i = 0; i < numToWrite; i += 8192)
+	{
+		auto numThisTime = jmin<int>(8192, numToWrite - i);
+
+		auto ok = fos.writeFromInputStream(mis, numThisTime) == numThisTime;
+
+		if(!ok || job.getThread().threadShouldExit())
+			throw Result::fail("File write operation failed at " + String(i/1024) + "kb. Disk full?");
+
+		job.getProgress() = (double)i / (double)numToWrite;
+	}
+
+	auto ok = mis.getPosition() == mis.getTotalLength();
+
+	if(ok)
+	{
+		fos.flush();
+	}
+
+	return ok;
+}
+
 State::State(const var& obj):
 	Thread("Tasks"),
 #if HISE_MULTIPAGE_INCLUDE_EDIT
@@ -139,14 +233,9 @@ State::State(const var& obj):
 #endif
 	currentError(Result::ok())
 {
-	if(auto gs = obj[mpid::GlobalState].getDynamicObject())
-		globalState = var(gs->clone());
-	else
-		globalState = var(new DynamicObject());
+	eventLogger.setEnableQueue(true);
 
-	auto d = globalState.getDynamicObject();
-
-	
+	reset(obj);
 }
 
 State::~State()
@@ -183,9 +272,142 @@ void State::run()
 	MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(State::onFinish));
 }
 
+void State::reset(const var& obj)
+{
+	eventLogger.sendMessage(sendNotificationSync, MessageType::Clear, "");
+
+	if(auto gs = obj[mpid::GlobalState].getDynamicObject())
+		globalState = var(gs->clone());
+	else
+		globalState = var(new DynamicObject());
+
+	assets.clear();
+
+	if(auto assetList = obj[mpid::Assets].getArray())
+	{
+		for(const auto& av: *assetList)
+		{
+			assets.add(Asset::fromVar(av, currentRootDirectory));
+		}
+	}
+	
+	currentPageIndex = 0;
+	currentDialog = nullptr;
+	currentError = Result::ok();
+	currentJob = nullptr;
+}
+
 ApiProviderBase* State::getProviderBase()
 {
 	return stateProvider.get();
+}
+
+std::unique_ptr<JavascriptEngine> State::createJavascriptEngine()
+{
+	struct LogFunction: public DynamicObject
+	{
+		LogFunction(State& s):
+		  state(s)
+		{
+			setMethod("print", BIND_MEMBER_FUNCTION_1(LogFunction::print));
+		}
+
+		State& state;
+
+		var print (const var::NativeFunctionArgs& args)
+		{
+			if(args.numArguments > 0)
+					state.eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, args.arguments[0].toString());
+			
+			return var();
+		}
+	};
+
+	struct Dom: public DynamicObject
+	{
+		Dom(State& s):
+		  state(s)
+		{
+			setMethod("getElementById", BIND_MEMBER_FUNCTION_1(Dom::getElementById));
+			setMethod("getElementByType", BIND_MEMBER_FUNCTION_1(Dom::getElementByType));
+			setMethod("getStyleData", BIND_MEMBER_FUNCTION_1(Dom::getStyleData));
+			setMethod("setStyleData", BIND_MEMBER_FUNCTION_1(Dom::setStyleData));
+		}
+
+		State& state;
+
+		var getElementByType(const var::NativeFunctionArgs& args)
+		{
+			Array<var> matches;
+
+			if(args.numArguments > 0 && state.currentDialog != nullptr)
+			{
+				auto id = args.arguments[0].toString();
+
+				Component::callRecursive<Dialog::PageBase>(state.currentDialog.get(), [&](Dialog::PageBase* pb)
+				{
+					if(pb->getPropertyFromInfoObject(mpid::Type) == id)
+						matches.add(pb->getInfoObject());
+
+					return false;
+				});
+			}
+
+			return var(matches);
+		}
+
+		var getElementById(const var::NativeFunctionArgs& args)
+		{
+			Array<var> matches;
+
+			if(args.numArguments > 0 && state.currentDialog != nullptr)
+			{
+				auto id = Identifier(args.arguments[0].toString());
+
+				Component::callRecursive<Dialog::PageBase>(state.currentDialog.get(), [&](Dialog::PageBase* pb)
+				{
+					if(pb->getId() == id)
+						matches.add(pb->getInfoObject());
+
+					return false;
+				});
+			}
+
+			return var(matches);
+		}
+
+		var getStyleData(const var::NativeFunctionArgs& args)
+		{
+			if(state.currentDialog != nullptr)
+			{
+				return state.currentDialog->getStyleData().toDynamicObject();
+			}
+
+			return var();
+		}
+
+		var setStyleData(const var::NativeFunctionArgs& args)
+		{
+			if(args.numArguments > 0 && state.currentDialog != nullptr)
+			{
+				MarkdownLayout::StyleData sd;
+				sd.fromDynamicObject(args.arguments[0], std::bind(&State::loadFont, &state, std::placeholders::_1));
+				state.currentDialog->setStyleData(sd);
+				
+			}
+
+			return var();
+		}
+	};
+
+	eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, "Prepare Javascript execution...");
+
+	auto engine = std::make_unique<JavascriptEngine>();
+	engine->registerNativeObject("Console", new LogFunction(*this));
+	engine->registerNativeObject("document", new Dom(*this));
+	engine->registerNativeObject("state", globalState.getDynamicObject());
+
+	return engine;
 }
 
 State::Job::Job(State& rt, const var& obj):
@@ -225,6 +447,8 @@ double& State::Job::getProgress()
 void State::Job::setMessage(const String& newMessage)
 {
 	message = newMessage;
+
+	parent.eventLogger.sendMessage(sendNotificationAsync, MessageType::ProgressMessage, newMessage);
 
 	if(parent.currentDialog != nullptr)
 	{
@@ -277,18 +501,37 @@ Result State::Job::runJob()
 {
 	parent.navigateOnFinish |= callOnNextEnabled;
 
-	auto ok = run();
-            
-	if(auto p = parent.currentDialog)
+
+	try
 	{
-		MessageManager::callAsync([p, ok]()
-		{
-			p->repaint();
-			p->errorComponent.setError(ok);
-		});
-	}
+		auto ok = run();
             
-	return ok;
+		if(auto p = parent.currentDialog)
+		{
+			MessageManager::callAsync([p, ok]()
+			{
+				p->repaint();
+				//p->errorComponent.setError(ok);
+			});
+		}
+		return ok;
+	}
+	catch(Result& r)
+	{
+		if(auto p = parent.currentDialog)
+		{
+			p->logMessage(MessageType::ProgressMessage, "ERROR: " + r.getErrorMessage());
+
+			MessageManager::callAsync([p]()
+			{
+				
+				p->repaint();
+				//p->errorComponent.setError(ok);
+			});
+		}
+
+		return r;
+	}
 }
 
 void State::addJob(Job::Ptr b, bool addFirst)
@@ -304,7 +547,7 @@ void State::addJob(Job::Ptr b, bool addFirst)
 		{
 			currentDialog->currentErrorElement = nullptr;
 			currentDialog->repaint();
-			currentDialog->errorComponent.setError(Result::ok());
+			//currentDialog->errorComponent.setError(Result::ok());
 			currentDialog->nextButton.setEnabled(false);
 			currentDialog->prevButton.setEnabled(false);
 		}
@@ -389,6 +632,31 @@ bool UndoableVarAction::undo()
 	case Type::RemoveChild: parent.getArray()->insert(index, oldValue);
 	default: ;
 	}
+}
+
+void HardcodedDialogWithState::setOnCloseFunction(const std::function<void()>& f)
+{
+	closeFunction = f;
+
+	if(dialog != nullptr)
+		dialog->setFinishCallback(closeFunction);
+}
+
+void HardcodedDialogWithState::resized()
+{
+	if(dialog == nullptr)
+	{
+		addAndMakeVisible(dialog = createDialog(state));
+
+		postInit();
+
+		
+	}
+
+	dialog->setFinishCallback(closeFunction);
+	dialog->setEnableEditMode(false);
+	dialog->setBounds(getLocalBounds());
+	dialog->showFirstPage();
 }
 }
 }

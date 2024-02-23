@@ -7,13 +7,14 @@
               jucerFormatVersion="1">
   <MAINGROUP id="V5l5vh" name="minimal_hise_test">
     <GROUP id="{AC16B56A-5346-1AB4-D4BD-30CF29DD2DFA}" name="Source">
-      <GROUP id="{AE8C0D3C-F782-7C53-F11E-959CE393BF6B}" name="Source"/>
       <FILE id="u67bzi" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="bXDqfa" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
       <FILE id="Fosy4T" name="DialogLibrary.cpp" compile="1" resource="0"
             file="Source/DialogLibrary.cpp"/>
       <FILE id="XVcves" name="DialogLibrary.h" compile="0" resource="0" file="Source/DialogLibrary.h"/>
+      <FILE id="GgWUE3" name="Exporter.cpp" compile="1" resource="0" file="Source/Exporter.cpp"/>
+      <FILE id="oWOQNH" name="Exporter.h" compile="0" resource="0" file="Source/Exporter.h"/>
       <FILE id="bZ3Z3T" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
     <FILE id="xlypKj" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>

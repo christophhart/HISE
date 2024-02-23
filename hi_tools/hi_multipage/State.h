@@ -38,6 +38,214 @@ using namespace juce;
 
 class Dialog;
 
+
+
+struct Asset: public ReferenceCountedObject
+{
+    using Ptr = ReferenceCountedObjectPtr<Asset>;
+    using List = ReferenceCountedArray<Asset>;
+
+    enum class TargetOS
+    {
+        All,
+	    Windows,
+        macOS,
+        Linux,
+        numTargetOS
+    };
+
+	enum class Type
+	{
+		Image,
+        File,
+        Font,
+        Text,
+        Archive,
+        numTypes
+	};
+
+    enum class Filemode
+    {
+	    Absolute,
+        Relative
+    };
+
+
+
+    static String getTypeString(Type t)
+    {
+	    switch(t)
+	    {
+	    case Type::Image: return "Image";
+	    case Type::File: return "File";
+	    case Type::Font: return "Font";
+	    case Type::Text: return "Text";
+	    case Type::Archive: return "Archive";
+	    case Type::numTypes: break;
+	    default: ;
+	    }
+    }
+
+    static Type getType(const File& f)
+    {
+	    auto extension = f.getFileExtension();
+
+        if(auto format = ImageFileFormat::findImageFormatForFileExtension(f))
+	        return Type::Image;
+        else if(extension == ".txt" || extension == ".md")
+	        return Type::Text;
+        else if(extension == ".ttf" || extension == ".otf")
+            return Type::Font;
+        else if(extension == ".zip")
+            return Type::Archive;
+        else
+			return Type::File;
+    }
+
+    Image toImage() const
+    {
+	    if(type == Type::Image)
+	    {
+		    MemoryInputStream mis(data, false);
+			return ImageFileFormat::loadFrom(mis);
+	    }
+        else
+            return {};
+    }
+
+    Font toFont() const
+    {
+        if(type == Type::Font)
+        {
+	        return Font(Typeface::createSystemTypefaceFor(data.getData(), data.getSize()));
+        }
+
+        return Font(13.0f, Font::plain);
+    }
+
+    String toReferenceVariable() const
+    {
+	    return "${" + id + "}";
+    }
+
+    String toText() const;
+
+    void writeCppLiteral(OutputStream& c, const String& newLine, ReferenceCountedObject* job) const;
+
+    var toJSON(bool embedData=false, const File& currentRoot=File()) const
+    {
+	    auto v = new DynamicObject();
+
+        v->setProperty(mpid::Type, (int)type);
+        v->setProperty(mpid::ID, id);
+
+        v->setProperty(mpid::RelativePath, useRelativePath);
+
+        if(embedData)
+        {
+	        MemoryBlock compressed;
+            zstd::ZDefaultCompressor comp;
+            comp.compress(data, compressed);
+            v->setProperty(mpid::Data, var(compressed));
+        }
+        else
+			v->setProperty(mpid::Filename, getFilePath(currentRoot));
+        return var(v);
+    }
+
+    String getFilePath(const File& currentRoot) const;
+
+    bool writeToFile(const File& targetFile, ReferenceCountedObject* job_) const;
+
+    static Asset::Ptr fromFile(const File& f)
+    {
+	    auto type = getType(f);
+        return new Asset(f, type);
+    }
+
+    static Asset::Ptr fromMemory(MemoryBlock&& mb, Type t, const String& filename, const String& id)
+    {
+        zstd::ZDefaultCompressor comp;
+		comp.expandInplace(mb);
+		auto a = new Asset(std::move(mb), t, id);
+        a->filename = filename;
+        return a;
+    }
+
+    static Asset::Ptr fromVar(const var& obj, const File& currentRoot)
+    {
+	    auto t = (Type)(int)obj[mpid::Type];
+        auto id = obj[mpid::ID].toString();
+
+        if(obj.hasProperty(mpid::Filename))
+        {
+            auto filePath = obj[mpid::Filename].toString();
+
+            File f;
+
+            if(obj[mpid::RelativePath])
+            {
+	            f = currentRoot.getChildFile(filePath);
+            }
+            else
+                f = File(filePath);
+
+	        auto a = fromFile(f);
+            jassert(a->type == t);
+            a->id = id;
+            a->useRelativePath = obj[mpid::RelativePath];
+            return a;
+        }
+        else
+        {
+            return fromMemory(std::move(*obj[mpid::Data].getBinaryData()), t, obj[mpid::Filename].toString(), id);
+        }
+    }
+
+    Asset(MemoryBlock&& mb, Type t, const String& id_):
+      type(t),
+      data(mb),
+      id(id_)
+    {
+	    
+    };
+
+    Asset(const File& f, Type t):
+      type(t),
+      id("asset_" + String(f.getFullPathName().hash())),
+      filename(f.getFullPathName())
+    {
+        
+	    MemoryOutputStream mos;
+        FileInputStream fis(f);
+        mos.writeFromInputStream(fis, fis.getTotalLength());
+        
+        data = std::move(mos.getMemoryBlock());
+    };
+
+    bool matchesOS() const
+    {
+		if(os == TargetOS::All)
+            return true;
+
+#if JUCE_WINDOWS
+        return os == TargetOS::Windows;
+#elif JUCE_MAC
+        return os == TargetOS::macOS;
+#elif JUCE_LINUX
+        return os == TargetOS::Linux;
+#endif
+        return false;
+    }
+
+    TargetOS os = TargetOS::All;
+    const Type type;
+    MemoryBlock data;
+    String id;
+    String filename;
+    bool useRelativePath = false;
+};
+
 class State: public Thread,
 			 public ApiProviderBase::Holder
 {
@@ -53,13 +261,101 @@ public:
 
 	ScopedPointer<ApiProviderBase> stateProvider;
 
+    void reset(const var& obj);
+
     /** Override this method and return a provider if it exists. */
 	ApiProviderBase* getProviderBase() override;
+
+    Font loadFont(String fontName) const
+    {
+        if(fontName.startsWith("${"))
+        {
+	        auto id = fontName.substring(2, fontName.length() - 1);
+
+	        for(auto a: assets)
+	        {
+		        if(a->id == id)
+		        {
+                    return a->toFont();
+		        }
+	        }
+        }
+
+
+	    return Font(fontName, 13.0f, Font::plain);
+    }
+
+    std::unique_ptr<JavascriptEngine> createJavascriptEngine();
+
+    String loadText(const String& assetVariable) const
+    {
+	    if(assetVariable.isEmpty())
+            return {};
+
+	    auto id = assetVariable.substring(2, assetVariable.length() - 1);
+
+        for(auto a: assets)
+        {
+	        if(a->id == id && a->type == Asset::Type::Text)
+	        {
+		        return a->toText();
+	        }
+        }
+
+        return assetVariable;
+    }
+
+    Image loadImage(const String& assetVariable) const
+    {
+        if(assetVariable.isEmpty())
+            return {};
+
+	    auto id = assetVariable.substring(2, assetVariable.length() - 1);
+
+        for(auto a: assets)
+        {
+	        if(a->id == id)
+	        {
+		        return a->toImage();
+	        }
+        }
+
+        return Image();
+    }
 
     struct CallOnNextAction
     {
 	    
     };
+
+    void setLogFile(const File& newLogFile)
+    {
+        if(logFile != File())
+            return;
+
+	    logFile = newLogFile;
+
+        eventLogger.sendMessage(sendNotificationSync, MessageType::Navigation, "Added file logger " + logFile.getFullPathName());
+
+        if(logFile != File())
+        {
+	        logFile.replaceWithText("Logfile " + Time::getCurrentTime().toISO8601(true) + "\n\n");
+        
+	        this->eventLogger.addListener(*this, [](State& s, MessageType t, const String& message)
+	        {
+		        FileOutputStream fos(s.logFile);
+
+                if(fos.openedOk())
+                {
+	                fos << message << "\n";
+					fos.flush();
+                }
+	        });
+        }
+    }
+
+    File logFile;
+    File currentRootDirectory;
 
     struct Job: public ReferenceCountedObject
     {
@@ -109,14 +405,29 @@ public:
     var globalState;
     int currentPageIndex = 0;
 
+    LambdaBroadcaster<MessageType, String> eventLogger;
+
     void addTempFile(TemporaryFile* fileToOwnUntilShutdown)
     {
 	    tempFiles.add(fileToOwnUntilShutdown);
     }
 
+    var exportAssetsAsJSON(bool embedData) const
+    {
+	    Array<var> list;
+
+        for(auto a: assets)
+	        list.add(a->toJSON(embedData, currentRootDirectory));
+
+        return var(list);
+    }
+
+    Asset::List assets;
+
 private:
     
     OwnedArray<TemporaryFile> tempFiles;
+    JUCE_DECLARE_WEAK_REFERENCEABLE(State);
 };
 
 
@@ -186,6 +497,37 @@ struct UndoableVarAction: public UndoableAction
     var newValue;
 };
 
+class Dialog;    
+
+struct HardcodedDialogWithState: public Component
+{
+    HardcodedDialogWithState():
+	  state(var())
+	{};
+
+	void setProperty(const Identifier& id, const var& newValue)
+	{
+		state.globalState.getDynamicObject()->setProperty(id, newValue);
+	}
+
+	var getProperty(const Identifier& id) const
+	{
+		return state.globalState[id];
+	}
+
+    void setOnCloseFunction(const std::function<void()>& f);
+
+    /** Override this method and initialise all default values for the global state. */
+	virtual void postInit() {}
+
+	void resized() override;
+
+	virtual Dialog* createDialog(State& state) = 0;
+
+    std::function<void()> closeFunction;
+	State state;
+    ScopedPointer<Dialog> dialog;
+};
 
 }
 }

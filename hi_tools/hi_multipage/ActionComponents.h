@@ -90,6 +90,23 @@ struct Skip: public ImmediateAction
     String getDescription() const override { return "skipPage()"; };
 };
 
+struct JavascriptFunction: public ImmediateAction
+{
+	HISE_MULTIPAGE_ID("JavascriptFunction");
+
+    JavascriptFunction(Dialog& r, int w, const var& obj):
+      ImmediateAction(r, w, obj)
+    {};
+
+    bool skipIfStateIsFalse() const override { return false; }
+
+	void createEditor(Dialog::PageInfo& rootList) override;
+
+	Result onAction() override;
+
+	String getDescription() const override { return "function() {...}"; };
+};
+
 struct LinkFileWriter: public ImmediateAction
 {
 	HISE_MULTIPAGE_ID("LinkFileWriter");
@@ -143,6 +160,7 @@ private:
 
     bool isFinished = false;
     String currentLaunchTarget;
+    String args;
 };
 
 struct BackgroundTask: public Action
@@ -154,8 +172,7 @@ struct BackgroundTask: public Action
         WaitJob(State& r, const var& obj);;
         
         Result run() override;
-        Result abort(const String& message);
-
+        
         WeakReference<BackgroundTask> currentPage;
     };
     
@@ -191,6 +208,8 @@ protected:
     HiseShapeButton retryButton;
 
 private:
+
+    
 
     File getFileInternal(const Identifier& id) const;
 
@@ -270,6 +289,23 @@ struct UnzipTask: public BackgroundTask
 };
 
 
+struct CopyAsset: public BackgroundTask
+{
+    HISE_MULTIPAGE_ID("CopyAsset");
+
+    CopyAsset(Dialog& r, int w, const var& obj):
+      BackgroundTask(r, w, obj)
+    {}
+
+    Result performTask(State::Job& t) override;
+
+    void createEditor(Dialog::PageInfo& rootList) override;
+
+    String getDescription() const override { return "CopyAsset"; }
+
+    bool overwrite = true;
+};
+
 
 struct HlacDecoder: public BackgroundTask,
 				    public hlac::HlacArchiver::Listener
@@ -282,9 +318,17 @@ struct HlacDecoder: public BackgroundTask,
 
     Result performTask(State::Job& t) override;
 
-    void logStatusMessage(const String& message) override { currentJob->setMessage(message); }
-	void logVerboseMessage(const String& verboseMessage) override {};
-	void criticalErrorOccured(const String& message) override { r = Result::fail(message); }
+    void logStatusMessage(const String& message) override;
+
+    void logVerboseMessage(const String& verboseMessage) override
+    {
+	    rootDialog.logMessage(MessageType::Hlac, verboseMessage);
+    };
+	void criticalErrorOccured(const String& message) override
+	{
+        rootDialog.logMessage(MessageType::Hlac, "ERROR: " + message);
+		r = Result::fail(message);
+	}
 
     void createEditor(Dialog::PageInfo& rootList) override;
 
@@ -352,6 +396,59 @@ struct CopyProtection: public Constants
     String getDescription() const override { return "Copy Protection";}
 
     void loadConstants() override;
+};
+
+struct PluginDirectories: public Constants
+{
+	HISE_MULTIPAGE_ID("PluginDirectories");
+
+	PluginDirectories(Dialog& r, int w, const var& obj):
+      Constants(r, w, obj)
+    {};
+
+    String getDescription() const override { return "Plugin Directories";}
+
+    
+
+	void loadConstants() override;
+};
+
+struct OperatingSystem: public Constants
+{
+	HISE_MULTIPAGE_ID("OperatingSystem");
+
+	OperatingSystem(Dialog& r, int w, const var& obj):
+      Constants(r, w, obj)
+    {};
+
+    String getDescription() const override { return "Operating System";}
+
+	void loadConstants() override;
+};
+
+struct FileLogger: public Constants
+{
+	HISE_MULTIPAGE_ID("FileLogger");
+
+	FileLogger(Dialog& r, int w, const var& obj):
+      Constants(r, w, obj)
+	{
+		
+	};
+
+    String getDescription() const override { return "Project Info";}
+
+    void createEditor(Dialog::PageInfo& rootList) override;
+
+	void loadConstants() override
+	{
+        auto fileName = MarkdownText::getString(infoObject[mpid::Filename].toString(), rootDialog);
+
+        if(File::isAbsolutePath(fileName))
+        {
+	        rootDialog.getState().setLogFile(File(fileName));
+        }
+	}
 };
 
 struct ProjectInfo: public Constants

@@ -105,8 +105,6 @@ struct Spacer: public Dialog::PageBase
         setSize(width, padding);
 	}
 
-
-
     void createEditor(Dialog::PageInfo& rootList) override;
 	void editModeChanged(bool isEditMode) override { repaint(); };
     void postInit() override {};
@@ -125,6 +123,35 @@ private:
     int padding = 0;
 };
 
+
+
+struct EventLogger: public Dialog::PageBase
+{
+    DEFAULT_PROPERTIES(EventLogger)
+    {
+        return { { mpid::Padding, 30 } };
+    }
+
+    EventLogger(Dialog& r, int w, const var& obj):
+      PageBase(r, w, obj),
+      console(r.getState())
+    {
+	    addAndMakeVisible(console);
+        setSize(w, 200);
+    }
+
+    static String getCategoryId() { return "Layout"; }
+
+    Result checkGlobalState(var) override { return Result::ok(); }
+
+    void resized() override
+    {
+	    console.setBounds(getLocalBounds());
+    }
+
+    EventConsole console;
+};
+
 struct MarkdownText: public Dialog::PageBase
 {
     DEFAULT_PROPERTIES(MarkdownText)
@@ -134,6 +161,8 @@ struct MarkdownText: public Dialog::PageBase
 
     static String getCategoryId() { return "Layout"; }
     static String getString(const String& markdownText, Dialog& parent);
+
+
 
     MarkdownText(Dialog& r, int width, const var& d);
 
@@ -146,6 +175,7 @@ struct MarkdownText: public Dialog::PageBase
 private:
 
     int padding = 0;
+    bool isComment = false;
     var obj;
     MarkdownRenderer r;
 };

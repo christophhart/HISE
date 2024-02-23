@@ -7,31 +7,25 @@
 */
 
 #include "MainComponent.h"
-
+#include "MainComponent.h"
+#include "Exporter.h"
 
 void MainComponent::build()
 {
     using namespace multipage;
     using namespace factory;
 
-#if 1
+#if 0
 
 	addAndMakeVisible(hardcodedDialog = new multipage::library::BroadcasterWizard());
 
 #else
 
-    auto mp = new Dialog(var(), rt);
+	createDialog(File());
+
 	
-	mp->setFinishCallback([](){
-    	JUCEApplication::getInstance()->systemRequestedQuit();
-    });
-    
 
-    mp->setEditMode(true);
-
-    mp->showFirstPage();
-    
-    addAndMakeVisible(c = mp);
+	
 #endif
 }
 
@@ -49,6 +43,7 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 		m.addSubMenu("Recent files", r);
 		m.addItemWithShortcut(CommandId::FileSave, "Save file",  KeyPress('s', ModifierKeys::commandModifier, 's'), currentFile.existsAsFile());
 		m.addItem(CommandId::FileSaveAs, "Save file as");
+		m.addItem(CommandId::FileExportAsProjucerProject, "Export as Projucer project");
 		m.addSeparator();
 		m.addItem(CommandId::FileQuit, "Quit");
 	}
@@ -79,6 +74,8 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
             m.addItem(CommandId::ViewShowCpp, "Show C++ code", c->isEditModeAllowed());
             m.addItem(CommandId::ViewShowJSON, "Show JSON editor", c->isEditModeAllowed());
         }
+
+		m.addItem(CommandId::ViewShowConsole, "Show console", true, console->isVisible());
 	}
 	if(topLevelMenuIndex == 3) // Help
 	{
@@ -149,12 +146,18 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 			{
 				currentFile = fc.getResult();
 				currentFile.replaceWithText(JSON::toString(c->exportAsJSON()));
-
+				rt.currentRootDirectory = currentFile.getParentDirectory();
 				setSavePoint();
 			}
                 
 			break;
 		}
+	case FileExportAsProjucerProject:
+	{
+		addAndMakeVisible(modalDialog = new ModalDialog(*this, new multipage::projucer_exporter(rt.currentRootDirectory, rt)));
+		
+		break;
+	}
 	case FileQuit: JUCEApplication::getInstance()->systemRequestedQuit(); break;
 	case EditClearState: rt.globalState.getDynamicObject()->clear(); break;
 	case EditUndo: c->getUndoManager().undo(); c->refreshCurrentPage(); break;
@@ -164,7 +167,7 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		c->repaint();
         resized();
 		break;
-    case EditRefreshPage: c->refreshCurrentPage(); tree.setRoot(*c); resized(); break;
+	case EditRefreshPage: c->refreshCurrentPage(); tree->getContent<multipage::Tree>()->setRoot(*c); resized(); break;
     case EditAddPage: c->addListPageWithJSON(); break;
 	case EditRemovePage: c->removeCurrentPage(); break;
 	case ViewShowDialog:
@@ -201,15 +204,22 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		doc.replaceAllContent(JSON::toString(c->exportAsJSON()));
 		doc.addListener(this);
 		break;
+	case ViewShowConsole:
+		console->setVisible(!console->isVisible());
+		resized();
+		break;
 	case ViewShowCpp:
 		{
 #if HISE_MULTIPAGE_INCLUDE_EDIT
-			multipage::CodeGenerator cg(c->exportAsJSON());
+			multipage::CodeGenerator cg(rt.currentRootDirectory, "MyClass", c->exportAsJSON());
 			manualChange = false;
 			doc.removeListener(this);
 			c->setVisible(false);
 			stateViewer.setVisible(true);
-			doc.replaceAllContent(cg.toString());
+
+			MemoryOutputStream mos;
+			cg.write(mos, multipage::CodeGenerator::FileType::DialogImplementation, nullptr);
+			doc.replaceAllContent(mos.toString());
 #endif
 			break;
 		}
@@ -227,6 +237,7 @@ void MainComponent::createDialog(const File& f)
 	{
 		JSON::parse(f.loadFileAsString(), obj);
 		fileList.addFile(f);
+		rt.currentRootDirectory = f.getParentDirectory();
 	}
 
 	currentFile = f;
@@ -234,12 +245,16 @@ void MainComponent::createDialog(const File& f)
     c = nullptr;
     hardcodedDialog = nullptr;
 
-	rt.globalState.getDynamicObject()->clear();
-	rt.currentPageIndex = 0;
+	rt.reset(obj);
 
 	addAndMakeVisible(c = new multipage::Dialog(obj, rt));
 
-	tree.setRoot(*c);
+	if(f.existsAsFile())
+		c->logMessage(multipage::MessageType::Navigation, "Load file " + f.getFullPathName());
+
+	tree->getContent<multipage::Tree>()->setRoot(*c);
+	assetManager.listbox.updateContent();
+	assetManager.repaint();
 
     c->setFinishCallback([](){
     	JUCEApplication::getInstance()->systemRequestedQuit();
@@ -247,6 +262,8 @@ void MainComponent::createDialog(const File& f)
 
     c->setEditMode(true);
 	resized();
+
+	c->toBack();
 
 	setSavePoint();
 }
@@ -256,20 +273,32 @@ MainComponent::MainComponent():
   rt({}),
   doc(),
   stateDoc(doc),
+  assetManager(rt),
   stateViewer(stateDoc),
   menuBar(this),
   tooltips(this)
 {
-	addChildComponent(watchTable);
-	addChildComponent(tree);
-	addChildComponent(assetManager);
+	mcl::TextEditor::initKeyPresses(this);
 
-	watchTable.setHolder(&rt);
+	addAndMakeVisible(rightTab);
+
+	auto watchTable = new ScriptWatchTable();
+
+	rightTab.add(new SideTab(), 0.5);
+	rightTab.add(watchTable, 0.3);
+	rightTab.add(new AssetManager(rt), 0.2);
+
+	addAndMakeVisible(tree = ComponentWithEdge::wrap(new hise::multipage::Tree(), ResizableEdgeComponent::rightEdge, 360));
+	addAndMakeVisible(assetManager);
+	addAndMakeVisible(console = ComponentWithEdge::wrap(new hise::multipage::EventConsole(rt), ResizableEdgeComponent::topEdge, 200));
+
+	watchTable->setHolder(&rt);
 
 	Array<var> l({ var("Name"), var("Value")});
-	watchTable.restoreColumnVisibility(var(l));
-	watchTable.setRefreshRate(200, 1);
-	watchTable.setUseParentTooltipClient(true);
+	watchTable->restoreColumnVisibility(var(l));
+	watchTable->setRefreshRate(200, 1);
+	watchTable->setUseParentTooltipClient(true);
+	watchTable->setName("State variables");
 
     LookAndFeel::setDefaultLookAndFeel(&plaf);
 
@@ -332,79 +361,92 @@ void MainComponent::paint (Graphics& g)
 
 	auto b = getLocalBounds().toFloat();
 
-	
-
-	b.removeFromTop(menuBar.getHeight());
-
-
-	auto tb = b.removeFromTop(32);
-
-	GlobalHiseLookAndFeel::drawFake3D(g, tb.toNearestInt());
-
 	if(c != nullptr)
 	{
-		b.removeFromLeft(tree.getWidth());
-		b.removeFromRight(watchTable.getWidth());
+		b.removeFromLeft(tree->getWidth());
+		b.removeFromRight(rightTab.getWidth());
 
 		Colour c = JUCE_LIVE_CONSTANT(Colour(0x22000000));
-
-        g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x11FFFFFF)));
-
-		g.fillRect((int)b.getX(), 2, 1, menuBar.getHeight()+32 - 4);
-		g.fillRect((int)b.getRight()-1, 2, 1, menuBar.getHeight()+32 - 4);
-
-
-        g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x22000000)));
-        
-		g.fillRect((int)b.getX(), menuBar.getHeight()+32, 2, getHeight());
-		g.fillRect((int)b.getRight()-1, menuBar.getHeight()+32, 2, getHeight());
 
 		g.setGradientFill(ColourGradient(c, b.getX(), 0.0f, Colours::transparentBlack, b.getX() + 5.0f, 0.0f, false));
 		g.fillRect(b.removeFromLeft(20));
 
 		g.setGradientFill(ColourGradient(c, b.getRight(), 0.0f, Colours::transparentBlack, b.getRight() - 5.0f, 0.0f, false));
 		g.fillRect(b.removeFromRight(20));
-
-		
-
-
 	}
-
-	g.setFont(GLOBAL_BOLD_FONT());
-	g.setColour(Colours::white.withAlpha(0.7f));
-	g.drawText("Component List", tb.removeFromLeft(300.0f), Justification::centred);
-	g.drawText("State Variables", tb.removeFromRight(300.0f), Justification::centred);
-	g.drawText("Dialog Preview", tb, Justification::centred);
 }
 
 void MainComponent::resized()
 {
     auto b = getLocalBounds();
-	
+
+	if(b.isEmpty())
+		return;
+
 #if !JUCE_MAC
     menuBar.setBounds(b.removeFromTop(24));
+	b.removeFromTop(5);
 #endif
 
-	b.removeFromTop(32);
+
 
     if(c != nullptr)
     {
-		watchTable.setVisible(true);
-		assetManager.setVisible(true);
+		auto rb = b.removeFromRight(rightTab.getWidth());
 
-		auto rb = b.removeFromRight(300);
+		rightTab.setBounds(rb);
+		
+		tree->setVisible(true);
+		tree->setBounds(b.removeFromLeft(tree->getWidth()));
 
-		watchTable.setBounds(rb.removeFromTop(rb.getHeight() / 2));
-		assetManager.setBounds(rb);
+		if(console->isVisible())
+			console->setBounds(b.removeFromBottom(console->getHeight()));
 
-		tree.setVisible(true);
-		tree.setBounds(b.removeFromLeft(300));
 		b.removeFromLeft(2);
-
 		b.removeFromRight(2);
 
-	    c->setBounds(c->defaultLaf.defaultPosition.getBounds(b.reduced(20)));
+		
+
+		auto pb = b.reduced(20);
+
+		auto dialogBounds = c->defaultLaf.defaultPosition.getBounds(pb);
+
+		if(dialogBounds.getWidth() > pb.getWidth() ||
+		   dialogBounds.getHeight() > pb.getHeight())
+		{
+			auto wratio = (float)dialogBounds.getWidth() / (float)pb.getWidth();
+			auto hratio = (float)dialogBounds.getHeight() / (float)pb.getHeight();
+
+			auto ratio = jmax(wratio, hratio);
+
+			auto topLeft = dialogBounds.getTopLeft();
+
+			topLeft.applyTransform(AffineTransform::scale(1.0f / ratio));
+
+			
+			c->setTransform(AffineTransform::scale(1.0f / ratio));
+
+			auto parentArea = dialogBounds.transformedBy(c->getTransform().inverted());
+
+			auto width = dialogBounds.getWidth();
+			auto height = dialogBounds.getHeight();
+
+		    c->setBounds (parentArea.getCentreX() - width / 2,
+		               parentArea.getCentreY() - height / 2,
+		               width, height);
+
+			//c->centreWithSize(dialogBounds.getWidth(), dialogBounds.getHeight());
+
+		}
+		else
+		{
+			c->setTransform(AffineTransform());
+			c->setBounds(dialogBounds);
+		}
+		
     }
+	else if(console->isVisible())
+		console->setBounds(b.removeFromBottom(200));
         
 
 	if(hardcodedDialog != nullptr)

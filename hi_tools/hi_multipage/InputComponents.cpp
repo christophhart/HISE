@@ -53,9 +53,7 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 		{ mpid::Help, "The ID for the element (used as key in the state `var`.\n>" }
 	});
 
-    auto& col1 = rootList.addChild<Column>({
-        { mpid::Width, Dialog::parseCommaList("-0.7, -0.3")}
-    });
+    auto& col1 = rootList;
 
     col1.addChild<TextInput>({
 		{ mpid::ID, "InitValue" },
@@ -67,12 +65,11 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
     col1.addChild<Button>({
         { mpid::ID, "UseInitValue" },
         { mpid::Text, "UseInitValue" },
-        { mpid::LabelPosition, "None" },
         { mpid::Value, obj.getPropertyFromInfoObject(mpid::UseInitValue) },
         { mpid::Help, "Whether to initialise the state object with the init value" }
     });
 
-    auto& col = rootList.addChild<Column>({{mpid::Padding, 24 }});
+    auto& col = rootList;
 
     col.addChild<TextInput>({
 		{ mpid::ID, "Text" },
@@ -143,22 +140,6 @@ void LabelledComponent::paint(Graphics& g)
 		g.setColour(df.second);
         g.drawText(label, b.toFloat(), Justification::left);
     }
-
-    if(rootDialog.isEditModeEnabled() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
-    {
-        g.setFont(GLOBAL_MONOSPACE_FONT());
-
-        if(id.isValid())
-        {
-	        g.setColour(df.second.withAlpha(0.5f));
-			g.drawText(id.toString() + " ", b.toFloat(), Justification::right);
-        }
-        else
-        {
-	        g.setColour(Colour(HISE_ERROR_COLOUR).withAlpha(0.5f));
-            g.drawText("anonymous", b.toFloat(), Justification::right);
-        }
-    }
 }
 
 void LabelledComponent::resized()
@@ -169,8 +150,8 @@ void LabelledComponent::resized()
 
 	if(helpButton != nullptr)
 	{
-		helpButton->setBounds(b.removeFromRight(32).withSizeKeepingCentre(24, 24));
-		b.removeFromRight(5);
+		helpButton->setBounds(b.removeFromRight(24).withSizeKeepingCentre(24, 24));
+		b.removeFromRight(10);
 	}
 
     component->setBounds(b);
@@ -218,7 +199,7 @@ void Button::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "If this is enabled, the tickbox must be selected in order to proceed to the next page, otherwise it will show a error message.\n> This is particularly useful for eg. accepting TOC" }
 	});
 
-    auto& col = rootList.addChild<Column>();
+    auto& col = rootList;
 
     col.addChild<Choice>({
         { mpid::ID, "ButtonType" },
@@ -403,9 +384,10 @@ Result Button::checkGlobalState(var globalState)
     
 	if(required)
 	{
-        if(thisRadioIndex == -1 && button.getToggleState() != requiredOption)
+        if(thisRadioIndex == -1)
 		{
-			return Result::fail("You need to tick " + label);
+            if(button.getToggleState() != requiredOption)
+                return Result::fail("You need to tick this button");
 		}
         else
         {
@@ -415,7 +397,7 @@ Result Button::checkGlobalState(var globalState)
                 somethingPressed |= tb->getToggleState();
             
             if(!somethingPressed)
-                return Result::fail("You need to select one option of " + id.toString());
+                return Result::fail("You need to select one option");
         }
 	}
 
@@ -516,7 +498,7 @@ void Choice::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "A text that will be displayed if nothing is selected" }
 	});
 
-    auto& col = rootList.addChild<Column>();
+    auto& col = rootList;
 
 	col.addChild<TextInput>({
 		{ mpid::ID, "Items" },
@@ -930,8 +912,10 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
 
     editor.addListener(this);
 
+    auto mlHeight = (int)obj.getProperty(mpid::Height, 80);
+
     if(editor.isMultiLine())
-        setSize(width, positionInfo.getHeightForComponent(80));
+        setSize(width, positionInfo.getHeightForComponent(mlHeight));
     else
         resized();
 }
@@ -977,7 +961,7 @@ void TextInput::postInit()
     }
 
     auto text = getValueFromGlobalState("");
-
+    
     if(parseInputAsArray && text.isArray())
     {
 	    StringArray sa;
@@ -986,6 +970,10 @@ void TextInput::postInit()
 			sa.add(v.toString());
 
         text = sa.joinIntoString(", ");
+    }
+    else
+    {
+	    text = loadValueOrAssetAsText();
     }
 
 	editor.setText(text);
@@ -1047,7 +1035,7 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
 	});
 #endif
 
-    auto& col = rootList.addChild<Column>({{mpid::Padding, 24 }});
+    auto& col = rootList;
 
 	col.addChild<Button>({
 		{ mpid::ID, "Required" },
@@ -1073,6 +1061,14 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
         { mpid::Value, infoObject[mpid::Multiline] }
     });
 
+    rootList.addChild<TextInput>({
+		{ mpid::ID, "Height" },
+		{ mpid::Text, "Height" },
+        { mpid::Multiline, true },
+		{ mpid::Help, "The height (in pixels) for the editor (if used in multiline mode)." },
+        { mpid::Value, (int)infoObject.getProperty(mpid::Height, 80) }
+	});
+    
     rootList.addChild<TextInput>({
 		{ mpid::ID, "Items" },
 		{ mpid::Text, "Items" },
@@ -1364,10 +1360,13 @@ Result FileSelector::checkGlobalState(var globalState)
     return Result::ok();
 }
 
-File FileSelector::getInitialFile(const var& path)
+File FileSelector::getInitialFile(const var& path) const
 {
 	if(path.isString())
-		return File(path);
+	{
+        auto t = MarkdownText::getString(path.toString(), rootDialog);
+		return File(t);
+	}
 	if(path.isInt() || path.isInt64())
 	{
 		auto specialLocation = (File::SpecialLocationType)(int)path;

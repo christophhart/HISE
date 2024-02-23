@@ -41,16 +41,72 @@ using namespace juce;
 
 struct CodeGenerator
 {
-    CodeGenerator(const var& totalData, int numTabs_=0):
-      data(totalData),
-      numTabs(numTabs_)
-	{
-		
-	}
+    enum class FileType
+    {
+	    AssetHeader,
+        AssetData,
+        DialogHeader,
+        DialogImplementation,
+        ProjucerFile,
+        BatchFile,
+        MainCpp,
+        numFileTypes
+    };
 
-    String toString() const;
+    CodeGenerator(const File& rootDirectory_, String className_, const var& totalData, int numTabs_=0):
+      data(totalData),
+      className(className_),
+      rootDirectory(rootDirectory_),
+      numTabs(numTabs_)
+	{}
+
+    void write(OutputStream& output, FileType t, State::Job* job) const;
+
+    File getFile(FileType type) const
+    {
+        auto root = rootDirectory.getChildFile("Binaries");
+        switch(type)
+        {
+        case FileType::AssetHeader: return root.getChildFile("Source/Assets.h");
+        case FileType::AssetData:  return root.getChildFile("Source/Assets.cpp");
+        case FileType::DialogHeader:  return root.getChildFile("Source/Dialog.h");
+        case FileType::BatchFile:
+#if JUCE_WINDOWS
+            return root.getChildFile("batchCompile.bat");
+#else
+            jassertfalse;
+#endif
+        case FileType::DialogImplementation:  return root.getChildFile("Source/Dialog.cpp");
+        case FileType::ProjucerFile:  return root.getChildFile(className).withFileExtension(".jucer");
+        case FileType::MainCpp:  return root.getChildFile("Source/Main.cpp");
+        case FileType::numFileTypes: 
+        default: return File();
+        }
+    }
+
+    String company;
+    String version;
+    String hisePath;
 
 private:
+
+    struct ScopedTabSetter
+    {
+	    ScopedTabSetter(const CodeGenerator& cg):
+          parent(cg)
+	    {
+		    parent.numTabs++;
+	    }
+
+        ~ScopedTabSetter()
+	    {
+		    parent.numTabs--;
+	    }
+
+        const CodeGenerator& parent;
+    };
+
+    File rootDirectory;
 
     String generateRandomId(const String& prefix) const;
     String getNewLine() const;
@@ -61,8 +117,9 @@ private:
     mutable StringArray existingVariables;
 
     mutable int idCounter = 0;
-    const int numTabs;
+    mutable int numTabs;
     var data;
+    String className;
 };
 
 
@@ -87,6 +144,8 @@ struct EditorOverlay: public Component,
     };
 
     ScopedPointer<Updater> watcher;
+
+    
 
     void setAttachToComponent(Component* c)
     {

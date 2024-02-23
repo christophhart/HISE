@@ -103,11 +103,27 @@ void Action::postInit()
 
 void Action::perform()
 {
+	if(rootDialog.isEditModeEnabled())
+	{
+		rootDialog.logMessage(MessageType::ActionEvent, "Skip action in edit mode: " + getDescription());
+		return;
+	}
+
+	auto shouldPerform = getValueFromGlobalState(var(true));
+
+	if(!shouldPerform)
+	{
+		rootDialog.logMessage(MessageType::ActionEvent, "Skip deactivated action: " + getDescription());
+		return;
+	}
+	
 	auto obj = Dialog::getGlobalState(*this, {}, var());
         
 	CustomCheckFunction f;
 	std::swap(f, cf);
 
+	rootDialog.logMessage(MessageType::ActionEvent, "Perform " + getDescription());
+	
 	if(f)
 		r = f(this, obj);
 }
@@ -165,7 +181,11 @@ ImmediateAction::ImmediateAction(Dialog& r, int w, const var& obj):
 		if(id.isValid() && this->skipIfStateIsFalse())
 		{
 			if(!obj[id])
+			{
+				rootDialog.logMessage(MessageType::ActionEvent, "Skip because value is false");
 				return Result::ok();
+			}
+				
 		}
 
 		if(rootDialog.isEditModeEnabled())
@@ -182,6 +202,8 @@ Skip::Skip(Dialog& r, int w, const var& obj):
 void Skip::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that simply skips the page that contains this element. This can be used in order to skip a page with a branch (eg. if one of the options doesn't require additional information.)");
+
+	
 }
 
 Result Skip::onAction()
@@ -195,6 +217,34 @@ Result Skip::onAction()
 	});
         
 	return Result::ok();
+}
+
+void JavascriptFunction::createEditor(Dialog::PageInfo& rootList)
+{
+	createBasicEditor(*this, rootList, "An action element that will perform a block of Javascript code. You can read / write data from the global state using the `state.variableName` syntax.");
+
+	rootList.addChild<CodeEditor>({
+		{ mpid::ID, "Code" },
+		{ mpid::Text, "Code" },
+		{ mpid::Value, infoObject[mpid::Code] },
+		{ mpid::Help, "The JS code that will be evaluated. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
+	});
+}
+
+
+
+Result JavascriptFunction::onAction()
+{
+	auto code = infoObject[mpid::Code].toString();
+
+	if(code.startsWith("${"))
+	{
+		code = rootDialog.getState().loadText(code);
+	}
+        
+	auto engine = rootDialog.getState().createJavascriptEngine();
+	auto ok = engine->execute(code);
+	return ok;
 }
 
 LinkFileWriter::LinkFileWriter(Dialog& r, int w, const var& obj):
@@ -368,7 +418,10 @@ Result RelativeFileLoader::onAction()
 			}
 		}
 
-		writeState(f.getFullPathName());
+		// If it's already set, then we assume that the user changed the location manually...
+		if(getValueFromGlobalState("").toString().isEmpty())
+			writeState(f.getFullPathName());
+
 		return Result::ok();
 	}
 }
@@ -379,7 +432,9 @@ Launch::Launch(Dialog& r, int w, const var& obj):
 	if(!obj.hasProperty(mpid::CallOnNext))
 		callOnNext = true;
 
-	currentLaunchTarget = evaluate(mpid::Text);
+	// do not evaluate yet...
+	currentLaunchTarget = obj[mpid::Text].toString();
+	args = obj[mpid::Args].toString();
 }
 
 void Launch::createEditor(Dialog::PageInfo& rootList)
@@ -393,6 +448,14 @@ void Launch::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Value, currentLaunchTarget },
 		{ mpid::Help, "The target to be launched. If this is a URL, it will launch the internet browser, if it's a file, it will open the file" }
 	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "Args"},
+		{ mpid::Text, "Args" },
+		{ mpid::Required, false },
+		{ mpid::Value, args },
+		{ mpid::Help, "Additional (command-line) arguments. If this is not empty, the string will be passed as argument" }
+	});
 }
 
 Result Launch::onAction()
@@ -401,6 +464,7 @@ Result Launch::onAction()
 		return Result::ok();
 
 	auto t = MarkdownText::getString(currentLaunchTarget, rootDialog);
+	auto a = MarkdownText::getString(args, rootDialog).trim();
 
 	if(URL::isProbablyAWebsiteURL(t))
 	{
@@ -408,16 +472,31 @@ Result Launch::onAction()
 		URL(t).launchInDefaultBrowser();
 		return Result::ok();
 	}
-
+	
 	if(File::isAbsolutePath(t))
 	{
 		File f(t);
 
 		if(f.existsAsFile() || f.isDirectory())
 		{
-			isFinished = true;
-			f.revealToUser();
-			return Result::ok();
+			if(a.isEmpty())
+			{
+				isFinished = true;
+
+				f.startAsProcess();
+
+				//f.revealToUser();
+				return Result::ok();
+			}
+			else
+			{
+				StringArray cmd;
+				cmd.add(f.getFullPathName());
+				cmd.add(a);
+				auto cp = new ChildProcess();
+				cp->start(cmd);
+				return Result::ok();
+			}
 		}
 		else
 		{
@@ -441,16 +520,42 @@ Result BackgroundTask::WaitJob::run()
 {
 	if(currentPage != nullptr)
 	{
-		auto ok = currentPage->performTask(*this);
-
-		if(ok.failed())
+		if(auto pc = parent.currentDialog)
 		{
-			callOnNextEnabled = true;
-			return ok;
+			if(pc->isEditModeEnabled())
+			{
+				pc->logMessage(MessageType::ActionEvent, "skip background task in edit mode: " + currentPage->getDescription());
+				return Result::ok();
+			}
+			else if(!currentPage->getValueFromGlobalState(var(true)))
+			{
+				pc->logMessage(MessageType::ActionEvent, "skip deactivated background task: " + currentPage->getDescription() + " (" + currentPage->id + " == false)");
+				return Result::ok();
+			}
+			else
+			{
+				pc->logMessage(MessageType::ActionEvent, "Background task: " + currentPage->getDescription());
+			}
 		}
-			
-	}
+
+		try
+		{
+			auto ok = currentPage->performTask(*this);
+
+			if(ok.failed())
+			{
+				currentPage->abort(ok.getErrorMessage());
+				callOnNextEnabled = true;
+				return ok;
+			}
+		}
+		catch(Result& r)
+		{
+			currentPage->abort(r.getErrorMessage());
+			return r;
+		}
 		
+	}
     
     return Result::ok();
 }
@@ -587,9 +692,14 @@ Result BackgroundTask::abort(const String& message)
 	if(infoObject[mpid::CallOnNext])
 		callOnNext = true;
 
-	SafeAsyncCall::call<BackgroundTask>(*this, [](BackgroundTask& w)
+	auto copy = message;
+
+	rootDialog.logMessage(MessageType::ProgressMessage, "ERROR: " + message);
+
+	SafeAsyncCall::call<BackgroundTask>(*this, [copy](BackgroundTask& w)
 	{
 		w.rootDialog.setCurrentErrorPage(&w);
+		w.setModalHelp(copy);
 		w.retryButton.setVisible(true);
 		w.resized();
 	});
@@ -618,9 +728,6 @@ LambdaTask::LambdaTask(Dialog& r, int w, const var& obj):
 
 Result LambdaTask::performTask(State::Job& t)
 {
-	if(rootDialog.isEditModeEnabled())
-		return Result::ok();
-
 	if(!lambda)
 	{
 		t.setMessage("Empty lambda, simulating...");
@@ -639,6 +746,8 @@ Result LambdaTask::performTask(State::Job& t)
         
 	try
 	{
+		rootDialog.logMessage(MessageType::ActionEvent, "Call lambda " + id);
+
 		var::NativeFunctionArgs args(rootDialog.getState().globalState, nullptr, 0);
 
 		auto rv = lambda(args);
@@ -663,7 +772,7 @@ void LambdaTask::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that will perform a customizable task.)");
 
-	auto& col = rootList.addChild<factory::Column>();
+	auto& col = rootList;
         
 	col.addChild<TextInput>({
 		{ mpid::ID, "Text" },
@@ -704,9 +813,6 @@ HttpRequest::HttpRequest(Dialog& r, int w, const var& obj):
 
 Result HttpRequest::performTask(State::Job& t)
 {
-	if(rootDialog.isEditModeEnabled())
-		return Result::ok();
-
 	auto code = infoObject[mpid::Code].toString();
 
 	JavascriptEngine engine;
@@ -745,11 +851,21 @@ Result HttpRequest::performTask(State::Job& t)
 
 	int statusCode = 0;
 
+	rootDialog.logMessage(MessageType::NetworkEvent, "Calling " + url.toString(true));
+
+	auto now = Time::getMillisecondCounter();
+
 	if(auto stream = url.createInputStream(usePost, nullptr, nullptr, extraHeaders, timeout, nullptr, &statusCode))
 	{
 		auto response = stream->readEntireStreamAsString();
 
 		var robj;
+
+		auto delta = Time::getMillisecondCounter() - now;
+		String lm;
+		lm << "HTTP Return code " << String(statusCode) << ": " << String(response.length()) << "bytes (" << String(delta) << "ms)";
+
+		rootDialog.logMessage(MessageType::NetworkEvent, lm);
 
 		if(infoObject[mpid::ParseJSON])
 		{
@@ -789,9 +905,7 @@ void HttpRequest::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that will perform a HTTP request.)");
 
-	
-
-	auto& col = rootList.addChild<Column>();
+	auto& col = rootList;
 
 	col.addChild<TextInput>({
 		{ mpid::ID, "Text" },
@@ -815,7 +929,7 @@ void HttpRequest::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Value, infoObject[mpid::Source] }
 	});
 
-	auto& col2 = rootList.addChild<Column>();
+	auto& col2 = rootList;
 
 	col2.addChild<TextInput>({
 		{ mpid::ID, "Parameters" },
@@ -834,7 +948,7 @@ void HttpRequest::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The extra headers that are supplied with the HTTP request." }
 	});
 
-	auto& col3 = rootList.addChild<Column>();
+	auto& col3 = rootList;
 
 	col3.addChild<Button>({
 		{ mpid::ID, "UsePost" },
@@ -879,19 +993,13 @@ DownloadTask::~DownloadTask()
 
 Result DownloadTask::performTask(State::Job& t)
 {
-	if(rootDialog.isEditModeEnabled())
-		return Result::ok();
-
 	auto targetFile = getTargetFile();
 
 	if(targetFile == File())
 	{
 		tempFile = new TemporaryFile(id.toString());
 		targetFile = tempFile->getFile();
-		
 	}
-
-	
 
 	auto sourceURL = getSourceURL();
 
@@ -912,6 +1020,9 @@ Result DownloadTask::performTask(State::Job& t)
 	}
 
 	auto keepTempFile = tempFile != nullptr;
+
+	rootDialog.logMessage(MessageType::NetworkEvent, "Download " + sourceURL.toString(true));
+	rootDialog.logMessage(MessageType::NetworkEvent, "Target file: " + getTargetFile().getFullPathName());
 
 	dt = sourceURL.downloadToFile(getTargetFile(), extraHeaders, nullptr, usePost);
 
@@ -967,9 +1078,16 @@ Result DownloadTask::performTask(State::Job& t)
 			t.getThread().wait(100);
 		}
 
+
+		
+
 		if(hasError)
 		{
 			return Result::fail("Download failed");
+		}
+		else
+		{
+			rootDialog.logMessage(MessageType::NetworkEvent, "Download complete");
 		}
 	}
 
@@ -978,8 +1096,9 @@ Result DownloadTask::performTask(State::Job& t)
 	// Must be written to the global state so it can pick up a temporary file
 	writeState(targetFile.getFullPathName());
 
-	if(keepTempFile )
+	if(keepTempFile)
 	{
+		rootDialog.logMessage(MessageType::NetworkEvent, "Keep temporary file: " + tempFile->getFile().getFullPathName());
 		rootDialog.getState().addTempFile(tempFile.release());
 	}
 
@@ -991,7 +1110,7 @@ void DownloadTask::createEditor(Dialog::PageInfo& rootList)
 	BackgroundTask::createEditor(rootList);
 	createBasicEditor(*this, rootList, "An action element that will download a file from a URL.)");
 	
-	auto& col = rootList.addChild<factory::Column>();
+	auto& col = rootList;
 
 	col.addChild<TextInput>({
 		{ mpid::ID, "Text" },
@@ -1043,38 +1162,76 @@ UnzipTask::UnzipTask(Dialog& r, int w, const var& obj):
 
 Result UnzipTask::performTask(State::Job& t)
 {
-	if(rootDialog.isEditModeEnabled())
-		return Result::ok();
-
 	auto targetDirectory = getTargetFile();
 	auto sourceFile = getSourceFile();
 
 	if(targetDirectory == File())
 		return Result::fail("No target directory specified");
 
-	if(sourceFile == File())
-		return Result::fail("No source archive specified");
+	ScopedPointer<MemoryInputStream> mis;
+	bool sourceIsFile = sourceFile.existsAsFile();
 
+	if(!sourceIsFile)
+	{
+		if(auto a = getAsset(mpid::Source))
+		{
+			if(a->type == Asset::Type::Archive)
+			{
+				rootDialog.logMessage(MessageType::FileOperation, "Open zip file from asset with filename " + a->filename);
+				mis = new MemoryInputStream(a->data, false);
+			}
+			else
+			{
+				return Result::fail("Asset type is not an archive");
+			}
+		}
+		else
+			return Result::fail("No source archive specified");
+	}
+
+	rootDialog.logMessage(MessageType::FileOperation, "Create directory " + targetDirectory.getFullPathName());
 	targetDirectory.createDirectory();
 
-	ZipFile zip(sourceFile);
+	ScopedPointer<ZipFile> zipFile;
 
-	for(int i = 0; i < zip.getNumEntries(); i++)
+	if(sourceIsFile)
+	{
+		zipFile = new ZipFile(sourceFile);
+		rootDialog.logMessage(MessageType::FileOperation, "Open zip file from " + sourceFile.getFullPathName());
+	}
+	else
+	{
+		zipFile = new ZipFile(*mis);
+		
+	}
+
+	for(int i = 0; i < zipFile->getNumEntries(); i++)
 	{
 		if(t.getThread().threadShouldExit())
 			return Result::fail("Aborted");
 
-		t.getProgress() = (double)i / (double)zip.getNumEntries();
+		t.getProgress() = (double)i / (double)zipFile->getNumEntries();
 
-		zip.uncompressEntry(i, targetDirectory, overwrite, nullptr);
+		zipFile->uncompressEntry(i, targetDirectory, overwrite, nullptr);
 
+		if(rootDialog.getEventLogger().getNumListenersWithClass<EventConsole>() > 0)
+		{
+			String message;
+			auto e = zipFile->getEntry(i);
+			message << "  Uncompressing " << targetDirectory.getChildFile(e->filename).getFullPathName();
+			message << " (" << String(e->uncompressedSize / 1024) << "kB)";
+			rootDialog.logMessage(MessageType::FileOperation, message);
+		}
+		
 		if(t.getThread().threadShouldExit())
 			return Result::fail("Aborted");
 
-		if(zip.getNumEntries() < 10)
+		if(zipFile->getNumEntries() < 10)
 			t.getThread().wait(100);
 	}
-        
+
+	rootDialog.logMessage(MessageType::FileOperation, "Unzip operation complete (" + String(zipFile->getNumEntries()) + " files)");
+
 	return Result::ok();
 }
 
@@ -1083,7 +1240,7 @@ void UnzipTask::createEditor(Dialog::PageInfo& rootList)
 	BackgroundTask::createEditor(rootList);
 	createBasicEditor(*this, rootList, "An action element that will download a file from a URL.)");
 
-	auto& col = rootList.addChild<factory::Column>();
+	auto& col = rootList;
 
 	col.addChild<TextInput>({
 		{ mpid::ID, "Text" },
@@ -1110,6 +1267,73 @@ void UnzipTask::createEditor(Dialog::PageInfo& rootList)
 	});
 }
 
+Result CopyAsset::performTask(State::Job& t)
+{
+	if(auto a = this->getAsset(mpid::Source))
+	{
+		auto fn = File(a->filename).getFileName();
+
+		auto targetDir = getTargetFile();
+
+		if(targetDir == File())
+		{
+			throw Result::fail("No target directory specified");
+		}
+
+		auto targetFile = targetDir.getChildFile(fn);
+
+		rootDialog.logMessage(MessageType::FileOperation, "Trying to write asset " + a->id + " to " + targetFile.getFullPathName());
+
+		auto ok = targetDir.createDirectory();
+
+		if(!ok)
+		{
+			throw Result::fail("Can't create directory " + targetDir.getFullPathName());
+		}
+            
+		if(a->writeToFile(targetFile, &t))
+		{
+			rootDialog.logMessage(MessageType::FileOperation, "... Done");
+			return Result::ok();
+		}
+		else
+			throw Result::fail("Write error: " + targetFile.getFullPathName());
+	}
+	return Result::fail("Can't find asset");
+}
+
+void CopyAsset::createEditor(Dialog::PageInfo& rootList)
+{
+	BackgroundTask::createEditor(rootList);
+	createBasicEditor(*this, rootList, "An action element that will copy an embedded file to a given location.)");
+
+	auto& col = rootList;
+
+	col.addChild<TextInput>({
+		{ mpid::ID, "Text" },
+		{ mpid::Text, "Text" },
+		{ mpid::Help, "The label text that will be shown next to the progress bar." }
+	});
+        
+	col.addChild<Choice>({
+		{ mpid::ID, "LabelPosition" },
+		{ mpid::Text, "LabelPosition" },
+		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
+		{ mpid::Value, "Default" },
+		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
+	});
+
+	addSourceTargetEditor(rootList);
+
+	rootList.addChild<Button>({
+		{ mpid::ID, "Overwrite" },
+		{ mpid::Text, "Overwrite" },
+		{ mpid::Required, false },
+		{ mpid::Value, overwrite },
+		{ mpid::Help, "Whether the file should overwrite the existing file or not" }
+	});
+}
+
 HlacDecoder::HlacDecoder(Dialog& r_, int w, const var& obj):
   BackgroundTask(r_, w, obj),
   r(Result::ok())
@@ -1123,9 +1347,6 @@ HlacDecoder::~HlacDecoder()
 
 Result HlacDecoder::performTask(State::Job& t)
 {
-	if(rootDialog.isEditModeEnabled())
-		return Result::ok();
-
 	currentJob = &t;
 
 	hlac::HlacArchiver archiver(&t.getThread());
@@ -1166,11 +1387,16 @@ Result HlacDecoder::performTask(State::Job& t)
 	return r;
 }
 
+void HlacDecoder::logStatusMessage(const String& message)
+{
+	currentJob->setMessage(message);
+}
+
 void HlacDecoder::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that will extract a HR1 archive to the specified target directory.");
 
-	auto& col = rootList.addChild<factory::Column>();
+	auto& col = rootList;
 
 	col.addChild<TextInput>({
 		{ mpid::ID, "Text" },
@@ -1229,7 +1455,7 @@ void DummyWait::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that simulates a background task with a progress bar. You can use that during development to simulate the UX before implementing the actual logic.)");
         
-	auto& col = rootList.addChild<factory::Column>();
+	auto& col = rootList;
         
 	col.addChild<TextInput>({
 		{ mpid::ID, "Text" },
@@ -1322,6 +1548,7 @@ void Constants::paint(Graphics& g)
 
 void Constants::setConstant(const Identifier& id, const var& newValue)
 {
+	rootDialog.logMessage(MessageType::ValueChangeMessage, "Load constant " + id + " = " + JSON::toString(newValue, true));
 	rootDialog.getState().globalState.getDynamicObject()->setProperty(id, newValue);
 }
 
@@ -1334,6 +1561,65 @@ void CopyProtection::loadConstants()
 	setConstant("systemID", juce::OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()[0]);
 	setConstant("currentTime", Time::getCurrentTime().toISO8601(true));
 	
+}
+
+void PluginDirectories::loadConstants()
+{
+#if JUCE_MAC
+	auto auDir = File("~/Library/Audio/Components");
+	auto vstDir = File("~/Library/Audio/VST");
+	auto vst3Dir = File("~/Library/Audio/VST3");
+	auto aaxDir = File("/Library/Application Support/Avid/Audio/Plug-Ins");
+
+	setConstant("auDirectory", auDir.getFullPathName());
+	setConstant("vstDirectory", vstDir.getFullPathName());
+	setConstant("vst3Directory", vst3Dir.getFullPathName());
+	setConstant("aaxDirectory", aaxDir.getFullPathName());
+#elif JUCE_WINDOWS
+	auto programFiles = File::getSpecialLocation(File::SpecialLocationType::globalApplicationsDirectory);
+	auto vstDir = programFiles.getChildFile("VSTPlugins");
+	auto vst3Dir = programFiles.getChildFile("Common Files").getChildFile("VST3");
+	auto aaxDir = programFiles.getChildFile("Common Files/Avid/Audio/Plug-Ins");
+	setConstant("vstDirectory", vstDir.getFullPathName());
+	setConstant("vst3Directory", vst3Dir.getFullPathName());
+	setConstant("aaxDirectory", aaxDir.getFullPathName());
+#endif
+}
+
+void OperatingSystem::loadConstants()
+{
+#if JUCE_WINDOWS
+	setConstant("WINDOWS", true);
+	setConstant("MAC_OS", false);
+	setConstant("LINUX", false);
+	setConstant("OS", 0);
+#elif JUCE_LINUX
+    setConstant("WINDOWS", false);
+	setConstant("MAC_OS", false);
+    setConstant("LINUX", true);
+	setConstant("OS", 2);
+#elif JUCE_MAC
+    setConstant("WINDOWS", false);
+    setConstant("MAC_OS", true);
+	setConstant("LINUX", false);
+	setConstant("OS", 1);
+#endif
+}
+
+void FileLogger::createEditor(Dialog::PageInfo& rootList)
+{
+	rootList.addChild<Type>({
+		{ mpid::ID, "Type"},
+		{ mpid::Type, FileLogger::getStaticId().toString() },
+		{ mpid::Help, "Adding this will start logging any events to a customizable file location so you can track the process" }
+	});
+        
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "Filename" },
+		{ mpid::Text, "Filename" },
+		{ mpid::Value, infoObject[mpid::Filename].toString() },
+		{ mpid::Help, "The target name. This can be a combination of a state variable and a child path, eg. `$targetDirectory/Logfile.txt`" }
+	});
 }
 
 void ProjectInfo::loadConstants()

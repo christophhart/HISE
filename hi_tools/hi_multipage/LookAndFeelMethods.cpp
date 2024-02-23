@@ -52,12 +52,14 @@ void Dialog::LookAndFeelMethods::drawMultiPageHeader(Graphics& g, Dialog& d, Rec
 	{
 		auto progress = area.removeFromBottom(2);
 
-		g.setColour(d.styleData.textColour.withAlpha(0.3f));
+		auto c = d.additionalColours[pageProgressColour];
+
+		g.setColour(c.withMultipliedAlpha(0.5f));
 		g.fillRect(progress);
 
 		auto normProgress = (float)(d.runThread->currentPageIndex+1) / jmax(1.0f, (float)d.pages.size());
 
-		g.setColour(d.styleData.textColour.withAlpha(0.6f));
+		g.setColour(c);
 		g.fillRect(progress.removeFromLeft(normProgress * (float)area.getWidth()));
 	}
 
@@ -65,12 +67,12 @@ void Dialog::LookAndFeelMethods::drawMultiPageHeader(Graphics& g, Dialog& d, Rec
 
 	g.setFont(f);
 	g.setColour(d.styleData.headlineColour);
-	g.drawText(d.properties[mpid::Header], area.toFloat(), Justification::topLeft);
+	g.drawText(factory::MarkdownText::getString(d.properties[mpid::Header], d), area.toFloat(), Justification::topLeft);
 
 	g.setFont(d.styleData.getFont());
 	g.setColour(d.styleData.textColour);
 
-	auto sub = d.properties[mpid::Subtitle];
+	auto sub = factory::MarkdownText::getString(d.properties[mpid::Subtitle], d);
 
 	if(sub == "{PAGE_TEXT}" && d.currentPage != nullptr)
 	{
@@ -94,22 +96,24 @@ void Dialog::LookAndFeelMethods::drawMultiPageHeader(Graphics& g, Dialog& d, Rec
 
 void Dialog::LookAndFeelMethods::drawMultiPageButtonTab(Graphics& g, Dialog& d, Rectangle<int> area)
 {
-	g.setColour(d.findColour(ColourIds::backgroundColour));
+	g.setColour(d.additionalColours[AdditionalColours::buttonTabBackgroundColour]); 
 	g.fillRect(area);
 }
 
-void Dialog::LookAndFeelMethods::drawMultiPageModalBackground(Graphics& g, Rectangle<int> totalBounds,
+void Dialog::LookAndFeelMethods::drawMultiPageModalBackground(Graphics& g, ModalPopup& popup, Rectangle<int> totalBounds,
 	Rectangle<int> modalBounds)
 {
-	g.setColour(Colour(0xFF222222).withAlpha(0.9f));
+	g.setColour(popup.parent.additionalColours[Dialog::AdditionalColours::modalPopupOverlayColour]);
 	g.fillRect(totalBounds);
-            
+
+	
+
 	DropShadow sh(Colours::black.withAlpha(0.7f), 30, { 0, 0 });
 	sh.drawForRectangle(g, modalBounds);
 
-	g.setColour(Colour(0xFF333333));
+	g.setColour(popup.parent.additionalColours[Dialog::AdditionalColours::modalPopupBackgroundColour]);
 	g.fillRoundedRectangle(modalBounds.toFloat(), 3.0f);
-	g.setColour(Colour(0xFFAAAAAA));
+	g.setColour(popup.parent.additionalColours[Dialog::AdditionalColours::modalPopupOutlineColour]);
 	g.drawRoundedRectangle(modalBounds.toFloat(), 3.0f, 1.0f);
 }
 
@@ -143,7 +147,13 @@ void Dialog::LookAndFeelMethods::drawMultiPageFoldHeader(Graphics& g, Component&
 void Dialog::LookAndFeelMethods::drawMultiPageBackground(Graphics& g, Dialog& tb, Rectangle<int> errorBounds)
 {
 	g.fillAll(tb.getStyleData().backgroundColour);
-            
+
+	if(tb.backgroundImage.isValid())
+	{
+		auto b = tb.getLocalBounds();
+		g.drawImageWithin(tb.backgroundImage, b.getX(), b.getY(), b.getWidth(), b.getHeight(), RectanglePlacement::fillDestination);
+	}
+
 	if(!errorBounds.isEmpty())
 	{
 		g.setColour(Colour(HISE_ERROR_COLOUR).withAlpha(0.15f));
@@ -152,6 +162,66 @@ void Dialog::LookAndFeelMethods::drawMultiPageBackground(Graphics& g, Dialog& tb
 		g.setColour(Colour(HISE_ERROR_COLOUR));
 		g.drawRoundedRectangle(eb, 3.0f, 2.0f);
 	}
+}
+
+Font Dialog::DefaultLookAndFeel::getTextButtonFont(TextButton& textButton, int i)
+{
+	return Dialog::getDefaultFont(textButton).first;
+}
+
+void Dialog::DefaultLookAndFeel::drawButtonBackground(Graphics& g, Button& button, const Colour& colour,
+	bool isMouseOverButton, bool isButtonDown)
+{
+	
+	Colour c = bright;
+
+	if(auto d = button.findParentComponentOfClass<Dialog>())
+		c = d->additionalColours[Dialog::AdditionalColours::buttonBgColour];
+
+	Colour baseColour(c.withMultipliedSaturation(button.hasKeyboardFocus(true) ? 1.3f : 0.9f)
+	                   .withMultipliedAlpha(button.isEnabled() ? 0.9f : 0.5f));
+
+	if (isButtonDown || isMouseOverButton)
+		baseColour = baseColour.contrasting(isButtonDown ? 0.2f : 0.1f);
+
+	g.setColour(baseColour);
+
+	const float width = (float)button.getWidth();
+	const float height = (float)button.getHeight();
+
+	g.fillRoundedRectangle(0.f, 0.f, width, height, 3.0f);
+}
+
+void Dialog::DefaultLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool cond, bool cond1)
+{
+	Font font(getTextButtonFont(button, button.getHeight()));
+	g.setFont(font);
+	
+	Colour c = dark;
+
+	if(auto d = button.findParentComponentOfClass<Dialog>())
+		c = d->additionalColours[Dialog::AdditionalColours::buttonTextColour];
+	    
+	g.setColour(c.withMultipliedAlpha(button.isEnabled() ? 1.0f : 0.5f));
+
+	const int yIndent = jmin(4, button.proportionOfHeight(0.3f));
+	const int cornerSize = jmin(button.getHeight(), button.getWidth()) / 2;
+
+	const int fontHeight = roundToInt(font.getHeight() * 0.6f);
+	const int leftIndent = jmin(fontHeight, 2 + cornerSize / (button.isConnectedOnLeft() ? 4 : 2));
+	const int rightIndent = jmin(fontHeight, 2 + cornerSize / (button.isConnectedOnRight() ? 4 : 2));
+
+	auto w = button.getWidth() - leftIndent - rightIndent;
+
+	if(w < 5)
+		return;
+
+	g.drawFittedText(button.getButtonText(),
+	                 leftIndent,
+	                 yIndent,
+	                 w,
+	                 button.getHeight() - yIndent * 2,
+	                 Justification::centred, 2);
 }
 
 void Dialog::DefaultLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& tb,
@@ -172,7 +242,13 @@ void Dialog::DefaultLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& tb,
 	}
 
 	auto text = tb.getButtonText();
-	
+
+	if(auto d = tb.findParentComponentOfClass<Dialog>())
+	{
+		if(d->isEditModeEnabled())
+			text = "";
+	}
+
 	if(text.isNotEmpty())
 	{
 		b.removeFromLeft(3);

@@ -38,6 +38,8 @@ using namespace juce;
 
 #define HISE_MULTIPAGE_ID(x) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(x); };
 
+#define MULTIPAGE_ADD_ASSET_TO_LIST(x) list.add(Asset::fromMemory(std::move(MemoryBlock(x, sizeof(x))), x ## _Type, String(x ## _Filename), #x));
+
 #define DEFAULT_PROPERTIES(x) HISE_MULTIPAGE_ID(#x); DefaultProperties getDefaultProperties() const override { return getStaticDefaultProperties(); } \
     static DefaultProperties getStaticDefaultProperties()
 
@@ -45,26 +47,47 @@ namespace multipage {
 
 #define DECLARE_ID(x) static const Identifier x(#x);
 
+enum class MessageType: uint32
+{
+    Clear              = 0x00000000,
+	ValueChangeMessage = 0x00000001,
+    Navigation         = 0x00000002,
+    ActionEvent        = 0x00000004,
+    NetworkEvent       = 0x00000008,
+    Hlac               = 0x0000000F,
+    ProgressMessage    = 0x00000010,
+    FileOperation      = 0x00000020,
+    Javascript         = 0x00000040,
+    AllMessages        = 0xFFFFFFFF
+};
+
 namespace mpid
 {
+    DECLARE_ID(Assets);
+    DECLARE_ID(Args);
     DECLARE_ID(ButtonType);
     DECLARE_ID(CallOnNext);
     DECLARE_ID(CallType);
     DECLARE_ID(Code);
     DECLARE_ID(Children);
     DECLARE_ID(Company);
+    DECLARE_ID(Comment);
     DECLARE_ID(Custom);
+    DECLARE_ID(Data);
     DECLARE_ID(Directory);
     DECLARE_ID(EmptyText);
     DECLARE_ID(ExtraHeaders);
     DECLARE_ID(FailIndex);
+    DECLARE_ID(Filename);
     DECLARE_ID(Foldable);
     DECLARE_ID(Folded);
     DECLARE_ID(Function);
     DECLARE_ID(GlobalState);
     DECLARE_ID(Header);
     DECLARE_ID(Help);
+    DECLARE_ID(Height);
     DECLARE_ID(IconData);
+    DECLARE_ID(Image);
     DECLARE_ID(ID);
     DECLARE_ID(InitValue);
     DECLARE_ID(Items);
@@ -78,6 +101,7 @@ namespace mpid
     DECLARE_ID(ParseArray);
     DECLARE_ID(ParseJSON);
     DECLARE_ID(Product);
+    DECLARE_ID(ProjectName);
     DECLARE_ID(Properties);
     DECLARE_ID(Required);
     DECLARE_ID(RelativePath);
@@ -98,6 +122,7 @@ namespace mpid
     DECLARE_ID(UseTotalProgress);
     DECLARE_ID(Value);
     DECLARE_ID(ValueMode);
+    DECLARE_ID(Version);
     DECLARE_ID(Visible);
     DECLARE_ID(WaitTime);
     DECLARE_ID(Width);

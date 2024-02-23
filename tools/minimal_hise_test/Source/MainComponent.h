@@ -17,6 +17,211 @@ namespace multipage
 {
 using namespace juce;
 
+struct ComponentWithEdge: public Component,
+						  public ComponentBoundsConstrainer
+{
+    struct LAF: public LookAndFeel_V4
+    {
+        void drawStretchableLayoutResizerBar (Graphics &g, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override
+        {
+            
+
+            float alpha = 0.0f;
+
+            if(isMouseOver)
+                alpha += 0.4f;
+
+            if(isMouseDragging)
+                alpha += 0.4f;
+
+	        g.setColour(Colour(SIGNAL_COLOUR).withAlpha(alpha));
+            g.fillRect(1, 1, w-2, h-2);
+
+            g.setColour(Colours::white.withAlpha(0.05f));
+            g.drawRect(0, 0, w, h, 1);
+        }
+    } laf;
+
+    ComponentWithEdge(Component* content_, ResizableEdgeComponent::Edge edge_):
+      resizer(this, this, edge_),
+      edge(edge_),
+      content(content_)
+    {
+        setName(content->getName());
+        resizer.setLookAndFeel(&laf);
+	    addAndMakeVisible(content);
+        addAndMakeVisible(resizer);
+    };
+
+    void paint(Graphics& g) override
+    {
+        if(useTitle)
+        {
+	        g.setColour(Colour(0xFF161616));
+	        g.fillRect(titleArea);
+	        GlobalHiseLookAndFeel::drawFake3D(g, titleArea);
+	        g.setColour(Colours::white.withAlpha(0.7f));
+		    g.setFont(GLOBAL_BOLD_FONT());
+	        g.drawText(content->getName(), titleArea.toFloat(), Justification::centred);
+        }
+    }
+
+    void checkBounds (Rectangle<int>& bounds, const Rectangle<int>& previousBounds, const Rectangle<int>& limits, bool , bool , bool , bool ) override
+    {
+        if(bounds.getHeight() < 30 || bounds.getWidth() < 120)
+            bounds = previousBounds;
+    }
+
+
+    template <typename T> T* getContent() { return dynamic_cast<T*>(content.get()); }
+
+    static ComponentWithEdge* wrap(Component* c, ResizableEdgeComponent::Edge e, int initialSize)
+    {
+	    auto ce = new ComponentWithEdge(c, e);
+
+        if(e == ResizableEdgeComponent::topEdge || e == ResizableEdgeComponent::bottomEdge)
+            ce->setSize(100, initialSize);
+        else
+            ce->setSize(initialSize, 100);
+
+        return ce;
+    }
+
+    bool useTitle = true;
+
+    void resized() override
+    {
+        auto b = getLocalBounds();
+
+	    switch(edge)
+	    {
+	    case ResizableEdgeComponent::leftEdge: resizer.setBounds(b.removeFromLeft(5)); break;
+	    case ResizableEdgeComponent::rightEdge: resizer.setBounds(b.removeFromRight(5)); break;
+	    case ResizableEdgeComponent::topEdge: resizer.setBounds(b.removeFromTop(5)); break;
+	    case ResizableEdgeComponent::bottomEdge: resizer.setBounds(b.removeFromBottom(5)); break;
+	    default: ;
+	    }
+
+        if(useTitle)
+			titleArea = b.removeFromTop(20);
+
+        content->setBounds(b);
+        content->resized();
+
+        if(auto c = dynamic_cast<Component*>(findParentComponentOfClass<ComponentWithSideTab>()))
+        {
+	        c->resized();
+			c->repaint();
+        }
+
+        repaint();
+    }
+
+    Rectangle<int> titleArea;
+
+    ScopedPointer<Component> content;
+    const ResizableEdgeComponent::Edge edge;
+	ResizableEdgeComponent resizer;
+};
+
+struct RightTab: public ComponentWithEdge
+{
+    struct ListComponent: public Component
+    {
+        void resized() override
+        {
+            ScopedValueSetter<bool> svs(recursion, true);
+
+	        auto b = getLocalBounds();
+
+	        if(b.isEmpty())
+	            return;
+
+            if(list.size() == initProportions.size())
+            {
+                int idx = 0;
+
+                auto h = (double)getHeight();
+
+	            for(auto l: list)
+				{
+		            auto thisBounds = l == list.getLast() ? b.withHeight(b.getHeight() + 5) : b.removeFromTop(h * initProportions[idx++]);
+					l->setBounds(thisBounds);
+				}
+
+                initProportions.clear();
+            }
+            else
+            {
+	            for(auto l: list)
+				{
+		            auto thisBounds = l == list.getLast() ? b.withHeight(b.getHeight() + 5) : b.removeFromTop(l->getHeight());
+					l->setBounds(thisBounds);
+				}
+            }
+        }
+
+        bool recursion = false;
+        Array<double> initProportions;
+	    OwnedArray<ComponentWithEdge> list;
+    };
+
+    struct Watcher: public ComponentMovementWatcher
+    {
+        Watcher(Component* child_, RightTab& parent_):
+          ComponentMovementWatcher(child_),
+          parent(parent_),
+          child(child_)
+        {
+	        
+        }
+
+        Component* child;
+        RightTab& parent;
+
+        void componentPeerChanged() override {};
+
+	    void componentMovedOrResized (bool wasMoved, bool wasResized) override
+	    {
+            if(!parent.getContent<ListComponent>()->recursion)
+				parent.resized();
+	    }
+
+	    void componentVisibilityChanged() override
+	    {
+            if(!parent.getContent<ListComponent>()->recursion)
+				parent.resized();
+	    }
+    };
+
+    OwnedArray<Watcher> watchers; 
+
+    
+
+    RightTab():
+      ComponentWithEdge(new ListComponent(), ResizableEdgeComponent::leftEdge)
+    {
+        useTitle = false;
+	    setSize(320, 0);
+    };
+
+	void add(Component* newComponent, double initProportion)
+	{
+        auto nc = new ComponentWithEdge(newComponent, ResizableEdgeComponent::bottomEdge);
+        auto l = getContent<ListComponent>();
+		l->list.add(nc);
+        l->addAndMakeVisible(nc);
+        watchers.add(new Watcher(nc, *this));
+        l->initProportions.add(initProportion);
+        
+	}
+
+    template <typename T> T* getChild(int index)
+	{
+		return getContent<ListComponent>()->list[index]->getContent<T>();
+	}
+};
+
 /** TODO:
  *
  * - add Add / Remove button OK
@@ -116,6 +321,11 @@ struct Tree: public Component,
             
         }
 
+        bool isRoot() const
+        {
+	        return root.tree.getRootItem() == this;
+        }
+
         bool isAction() const
         {
 	        return typeColour == Colour(0xFF9CC05B);
@@ -126,6 +336,11 @@ struct Tree: public Component,
         Path icon;
         
         bool isVisible;
+
+        bool isEdited() const
+        {
+            return root.currentDialog->isCurrentlyEdited(obj);
+        }
 
         int getItemHeight() const override
         {
@@ -140,8 +355,6 @@ struct Tree: public Component,
     	String getTooltip() override
         {
 	        String s;
-
-            
 
             s << obj[mpid::Type].toString();
 
@@ -170,6 +383,12 @@ struct Tree: public Component,
 
         void itemClicked(const MouseEvent& e) override
         {
+            if(isRoot())
+            {
+	            root.currentDialog->showMainPropertyEditor();
+                return;
+            }
+
             if(e.mods.isShiftDown())
             {
                 auto typeId = obj[mpid::Type].toString();
@@ -189,8 +408,13 @@ struct Tree: public Component,
                 return;
 
             if(!e.mods.isRightButtonDown())
-                return;
-
+            {
+	            root.currentDialog->showEditor(obj);
+                root.repaint();
+                
+		        return;
+            }
+            
             if(obj.hasProperty(mpid::Children))
             {
 	            root.currentDialog->containerPopup(obj);
@@ -203,12 +427,12 @@ struct Tree: public Component,
 
         void itemDoubleClicked(const MouseEvent&) override
         {
-	        if(!root.currentDialog->showEditor(obj))
-	        {
-		        auto newIndex = root.getPageIndex(obj);
+            
 
-                root.currentDialog->gotoPage(newIndex);
-	        }
+            auto newIndex = root.getPageIndex(obj);
+            root.currentDialog->gotoPage(newIndex);
+
+	        
         }
 
         void itemOpennessChanged(bool isNowOpen) override
@@ -265,7 +489,10 @@ struct Tree: public Component,
                 root.scalePath(ap, ab.toFloat().reduced(4));
                 g.fillPath(ap);
             }
-            
+
+            if(isEdited())
+                g.setColour(Colour(SIGNAL_COLOUR));
+
             g.drawRoundedRectangle(b.toFloat().reduced(2.0f), 3.0f, 1.0f);
 
             g.setColour(typeColour.withAlpha(0.08f));
@@ -281,13 +508,18 @@ struct Tree: public Component,
 
             auto id = obj[mpid::ID].toString();
 
-            
-
             if(!id.isEmpty() && obj[mpid::Required])
                 id << "*";
 
             auto t = isPage ? "Page" : obj[mpid::Type].toString();
-            
+
+            if(isRoot())
+            {
+	            t = "Project";
+                alphaVisible = 1.0f;
+            }
+                
+
             g.setColour(Colours::white.withAlpha(0.8f * alphaVisible));
             g.setFont(GLOBAL_BOLD_FONT());
             g.drawText(t, b.toFloat(), Justification::left);
@@ -317,6 +549,7 @@ struct Tree: public Component,
 	  addButton("add", nullptr, *this),
       deleteButton("delete", nullptr, *this)
     {
+        setName("Component List");
         addAndMakeVisible(addButton);
         addAndMakeVisible(deleteButton);
 
@@ -344,14 +577,21 @@ struct Tree: public Component,
         
     }
 
+    ~Tree()
+    {
+	    tree.deleteRootItem();
+    }
+
     ScrollbarFader sf;
 
     Dialog* currentDialog = nullptr;
 
+
     void refresh()
     {
+        tree.deleteRootItem();
 	    tree.setRootItem(new PageItem(*this, currentDialog->getPageListVar(), 0, true));
-        tree.setRootItemVisible(false);
+        tree.setRootItemVisible(true);
         tree.setDefaultOpenness(true);
     }
 
@@ -380,6 +620,7 @@ struct Tree: public Component,
 
         currentDialog->refreshBroadcaster.addListener(*this, [](Tree& t, int pageIndex)
         {
+            t.deleteButton.setEnabled(t.currentDialog->getNumPages() > 1);
 	        t.refresh();
         }, false);
 
@@ -415,130 +656,12 @@ struct Tree: public Component,
 
 
 
-struct Asset: public ReferenceCountedObject
-{
-    using Ptr = ReferenceCountedObjectPtr<Asset>;
-    using List = ReferenceCountedArray<Asset>;
 
-	enum class Type
-	{
-		Image,
-        File,
-        Text,
-        Archive,
-        numTypes
-	};
-
-    enum class Filemode
-    {
-	    Absolute,
-        Relative
-    };
-
-    static Type getType(const File& f)
-    {
-	    auto extension = f.getFileExtension();
-
-        if(auto format = ImageFileFormat::findImageFormatForFileExtension(f))
-	        return Type::Image;
-        else if(extension == ".txt" || extension == ".md")
-	        return Type::Text;
-        else if(extension == ".zip")
-            return Type::Archive;
-        else
-			return Type::File;
-    }
-
-    Image toImage() const
-    {
-	    if(type == Type::Image)
-	    {
-		    MemoryInputStream mis(data, false);
-			return ImageFileFormat::loadFrom(mis);
-	    }
-        else
-            return {};
-    }
-
-    String toText() const
-    {
-	    if(type == Type::Text)
-            return data.toString();
-        else
-            return {};
-    }
-
-    String toCppLiteral() const
-    {
-	    String c;
-        c << "static const char " << id << "[" << String(data.getSize()) << "] = \"";
-        c << data.toBase64Encoding() << "\";";
-        return c;
-    }
-
-    var toJSON() const
-    {
-	    auto v = new DynamicObject();
-
-        v->setProperty(mpid::Type, (int)type);
-        v->setProperty("ID", id);
-        v->setProperty("Data", var(data));
-    }
-
-    bool writeToFile(const File& targetFile) const
-    {
-	    MemoryInputStream mis(data, false);
-        mis.skipNextBytes(sizeof(int64));
-        FileOutputStream fos(targetFile);
-        auto numToWrite = mis.getTotalLength() - sizeof(int64);
-        return fos.writeFromInputStream(mis, numToWrite) == numToWrite;
-    }
-
-    static Asset::Ptr fromFile(const File& f)
-    {
-	    auto type = getType(f);
-
-        return new Asset(f, type);
-    }
-
-    static Asset::Ptr fromMemory(MemoryBlock&& mb, Type t, const String& id)
-    {
-	    return new Asset(std::move(mb), t, id);
-    }
-
-    Asset(MemoryBlock&& mb, Type t, const String& id_):
-      type(t),
-      data(mb),
-      id(id_)
-    {
-	    
-    };
-
-    Asset(const File& f, Type t):
-      type(t),
-      id("asset_" + String(f.getFullPathName().hash())),
-      filename(f.getFullPathName())
-    {
-
-	    MemoryOutputStream mos;
-        FileInputStream fis(f);
-
-        auto hash = f.getFullPathName().hashCode64();
-
-        mos.writeInt64(hash);
-        mos.writeFromInputStream(fis, fis.getTotalLength());
-        data = std::move(mos.getMemoryBlock());
-    };
-    
-    const Type type;
-    MemoryBlock data;
-    String id;
-    String filename;
-};
 
 struct AssetManager: public Component,
 					 public TableListBoxModel,
-					 public PathFactory
+					 public PathFactory,
+					 public FileDragAndDropTarget
 {
     enum class Columns
     {
@@ -548,26 +671,36 @@ struct AssetManager: public Component,
         Size
     };
     
-    AssetManager():
+    AssetManager(State& s):
+      state(s),
       listbox("Assets", this),
       addButton("add", nullptr, *this),
       deleteButton("delete", nullptr, *this)
     {
+        setName("Assets");
+
         addButton.setTooltip("Add new asset");
         deleteButton.setTooltip("Delete selected asset");
 
-        listbox.setColour(ListBox::ColourIds::backgroundColourId, Colour(0xFF262626));
+        listbox.setLookAndFeel(&tlaf);
+        listbox.setColour(ListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
+        listbox.getHeader().setColour(TableHeaderComponent::ColourIds::backgroundColourId, Colour(0xFF333333));
+        listbox.getHeader().setColour(TableHeaderComponent::ColourIds::textColourId, Colour(0xFF999999));
+        listbox.getHeader().setColour(TableHeaderComponent::ColourIds::outlineColourId, Colour(0xFF444444));
+        listbox.setHeaderHeight(22);
 
 	    addAndMakeVisible(listbox);
         addAndMakeVisible(addButton);
         addAndMakeVisible(deleteButton);
 
-        auto h = listbox.getRowHeight();
+        auto h = listbox.getRowHeight() * 2;
 
-        listbox.getHeader().addColumn("Type", (int)Columns::Type, h, h, h);
-        listbox.getHeader().addColumn("ID", (int)Columns::ID, 100, 100, 100);
-        listbox.getHeader().addColumn("File", (int)Columns::Filename, 128, 128, 128);
-        listbox.getHeader().addColumn("Size", (int)Columns::Size, 50, 50, 50);
+        listbox.getHeader().addColumn("Type", (int)Columns::Type, 50, 50, 50);
+        listbox.getHeader().addColumn("ID", (int)Columns::ID, 100, 100, -1);
+        listbox.getHeader().addColumn("File", (int)Columns::Filename, 100, 100, -1);
+        listbox.getHeader().addColumn("Size", (int)Columns::Size, 50, 50, 100);
+        
+		listbox.getHeader().setStretchToFitActive(true);
 
         addButton.onClick = [this]()
         {
@@ -575,38 +708,155 @@ struct AssetManager: public Component,
 
             if(fc.browseForFileToOpen())
             {
-            	assets.add(Asset::fromFile(fc.getResult()));
+            	state.assets.add(Asset::fromFile(fc.getResult()));
+                state.assets.getLast()->useRelativePath = fc.getResult().isAChildOf(state.currentRootDirectory);
                 listbox.updateContent();
             }
         };
     }
 
-    String createBinaryData() const
+
+    bool isInterestedInFileDrag (const StringArray& files) override 
     {
-	    String s;
+        return !files.isEmpty();
+    }
+    void filesDropped (const StringArray& files, int x, int y) override 
+    {
+        for(const auto& f: files)
+        {
+	        state.assets.add(Asset::fromFile(File(f)));
+            state.assets.getLast()->useRelativePath = File(f).isAChildOf(state.currentRootDirectory);
 
-        s << "namespace EmbeddedData { \n";
-        s << "\n";
-
-        for(auto a: assets)
-            s << a->toCppLiteral() << "\n";
-
-        s << "\n}\n";
-        return s;
+            listbox.updateContent();
+        }
     }
 
-    void paint(Graphics& g) override
+    void rename(Asset::Ptr a)
     {
-	    g.fillAll(Colour(0xFF262626));
+	    a->id = state.currentDialog->getStringFromModalInput("Please enter the asset ID", a->id);
+        listbox.updateContent();
+        repaint();
     }
+    
+    void cellClicked (int rowNumber, int columnId, const MouseEvent& e) override
+    {
+        if(auto a = state.assets[rowNumber])
+        {
+            if(e.mods.isShiftDown())
+            {
+	            rename(a);
+                return;
+            }
 
-	void paintRowBackground (Graphics& g, int rowNumber, int width, int height, bool rowIsSelected) override
+            if(e.mods.isRightButtonDown())
+		    {
+	            PopupMenu m;
+	            PopupLookAndFeel plaf;
+	            m.setLookAndFeel(&plaf);
+
+	            enum CommandIds
+	            {
+		            ChangeAssetID = 1,
+	                RevealToUser,
+					DeleteAsset,
+	                CreateReference,
+	                ChangeFileReference,
+                    UseAbsolutePath,
+                    UseRelativePath,
+	                numCommandIds
+	            };
+
+	            m.addItem(ChangeAssetID, "Change ID");
+	            m.addItem(RevealToUser, "Show in file browser");
+	            m.addItem(CreateReference, "Create asset reference variable");
+	            m.addSeparator();
+                m.addItem(UseAbsolutePath, "Use absolute path", true, !a->useRelativePath);
+                m.addItem(UseRelativePath, "Use relative path", true, a->useRelativePath);
+                m.addSeparator();
+	            m.addItem(ChangeFileReference, "Change file reference");
+	            m.addItem(DeleteAsset, "Delete asset");
+
+	            if(auto r = m.show())
+	            {
+		            switch((CommandIds)r)
+		            {
+		            case ChangeAssetID:
+                        rename(a);
+	                    break;
+		            case RevealToUser:
+	                    File(a->filename).revealToUser();
+	                    break;
+		            case DeleteAsset:
+	                    state.assets.remove(rowNumber);
+	                    listbox.updateContent();
+                        listbox.repaint();
+	                    break;
+		            case UseAbsolutePath:
+                        a->useRelativePath = false;
+                        listbox.repaint();
+                        break;
+		            case UseRelativePath:
+                        a->useRelativePath = true;
+                        listbox.repaint();
+                        break;
+		            case CreateReference:
+		            {
+			            SystemClipboard::copyTextToClipboard(a->toReferenceVariable());
+						break;
+		            }
+		            case ChangeFileReference:
+	                {
+				        FileChooser fc("Change file reference", File(a->filename));
+
+			            if(fc.browseForFileToOpen())
+			            {
+	                        auto oldId = a->id;
+
+	                        state.assets.set(rowNumber, Asset::fromFile(fc.getResult()));
+	                        state.assets[rowNumber]->id = oldId;
+			                listbox.updateContent();
+                            listbox.repaint();
+			            }
+
+			            break;
+			        }
+		            case numCommandIds: break;
+		            default: ;
+		            }
+	            }
+		    }
+        }
+    }
+    
+    
+
+    void paintRowBackground (Graphics& g, int rowNumber, int width, int height, bool rowIsSelected) override
     {
 	    if(rowIsSelected)
         {
             g.setColour(Colours::white.withAlpha(0.05f));
             g.fillRect(0, 0, width, height);
         }
+    }
+
+    String getCellTest(int rowNumber, int columnId) const
+    {
+        if(auto a = state.assets[rowNumber])
+        {
+            const String letters = "IFTA";
+            auto typeIndex = (int)a->type;
+
+	        switch((Columns)columnId)
+            {
+            case Columns::Type: return letters.substring(typeIndex, typeIndex+1);
+            case Columns::ID: return a->id;
+            case Columns::Filename: return File(a->filename).getFileName();
+            case Columns::Size: return String((double)a->data.getSize() / 1024.0 / 1024.0, 1) + String("MB");
+            default: return {};
+            }
+        }
+
+        return {};
     }
 
     /** This must draw one of the cells.
@@ -618,50 +868,28 @@ struct AssetManager: public Component,
         list, so be careful that you don't assume it's less than getNumRows().
     */void paintCell (Graphics& g, int rowNumber,int columnId, int width, int height, bool rowIsSelected) override
     {
-	    if(auto a = assets[rowNumber])
-	    {
-            const String letters = "IFTA";
-
-            g.setFont(GLOBAL_BOLD_FONT());
-            g.setColour(Colours::white.withAlpha(0.5f));
-
-            String s;
-            auto typeIndex = (int)a->type;
-
-            switch((Columns)columnId)
-            {
-            case Columns::Type:
-	            g.drawText(letters.substring(typeIndex, typeIndex+1), 0, 0, width, height, Justification::centred);;
-                break;
-            case Columns::ID:
-                g.drawText(a->id, 0, 0, width, height, Justification::centred);;
-                break;
-            case Columns::Filename:
-                g.drawText(File(a->filename).getFileName(), 0, 0, width, height, Justification::centred);;
-                break;
-            case Columns::Size:
-                s << String((double)a->data.getSize() / 1024.0 / 1024.0, 1) << "MB";
-                g.drawText(s, 0, 0, width, height, Justification::centred);;
-                break;
-            default: ;
-            }
-	    }
+	    g.setFont(GLOBAL_BOLD_FONT());
+        g.setColour(Colours::white.withAlpha(0.5f));
+        g.drawText(getCellTest(rowNumber, columnId), 0, 0, width, height, Justification::centred);;
     }
 
     String getCellTooltip(int rowNumber, int columnId) override
     {
-	    return {};
+	    return getCellTest(rowNumber, columnId);
     }
 
 
-	int getNumRows() override { return assets.size(); }
+	int getNumRows() override { return state.assets.size(); }
 
     void resized() override
     {
 	    auto b = getLocalBounds();
         auto bb = b.removeFromBottom(32);
 
+        listbox.getHeader().resizeAllColumnsToFit(getWidth());
+
 	    listbox.setBounds(b);
+        
         addButton.setBounds(bb.removeFromLeft(bb.getHeight()).reduced(6));
         deleteButton.setBounds(bb.removeFromRight(bb.getHeight()).reduced(6));
     }
@@ -674,17 +902,34 @@ struct AssetManager: public Component,
         LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
 
         return p;
-            
     }
+
+    void paint(Graphics& g) override
+    {
+        g.fillAll(Colour(0xFF262626));
+
+        if (state.assets.isEmpty())
+		{
+			g.setFont(GLOBAL_FONT());
+			g.setColour(Colours::white.withAlpha(0.4f));
+
+			String errorMessage = "Drop or add file assets here...";
+            g.drawText(errorMessage, getLocalBounds().toFloat().removeFromTop(80.0f), Justification::centred);
+		}
+    }
+
+    TableHeaderLookAndFeel tlaf;
 
     TableListBox listbox;
     HiseShapeButton addButton, deleteButton;
 
-	Asset::List assets;
+    State& state;
 };
 
 }
 }
+
+using namespace multipage;
 
 //==============================================================================
 /*
@@ -694,7 +939,9 @@ struct AssetManager: public Component,
 class MainComponent   : public Component,
 					    public Timer,
 					    public MenuBarModel,
-					    public CodeDocument::Listener
+					    public CodeDocument::Listener,
+					    public TopLevelWindowWithKeyMappings,
+						public multipage::ComponentWithSideTab
 {
 public:
     //==============================================================================
@@ -725,6 +972,8 @@ public:
         manualChange = true;
     }
 
+    File getKeyPressSettingFile() const override { return File(); }
+
     //==============================================================================
     void paint (Graphics&) override;
     void resized() override;
@@ -732,6 +981,82 @@ public:
     void timerCallback() override;;
 
     void setSavePoint();
+
+    struct SideTab: public Component
+    {
+        SideTab():
+          Component("Edit Properties")
+        {};
+
+        void paint(Graphics& g) override
+        {
+            g.fillAll(Colour(0xFF262626));
+            
+	        if (dialog == nullptr)
+			{
+				g.setFont(GLOBAL_FONT());
+				g.setColour(Colours::white.withAlpha(0.4f));
+
+				String errorMessage = "No element selected";
+                g.drawText(errorMessage, getLocalBounds().toFloat().removeFromTop(80.0f), Justification::centred);
+			}
+        }
+
+        void set(State* s, Dialog* d)
+        {
+	        dialog = d;
+            state = s;
+
+            if(dialog != nullptr)
+            {
+	            addAndMakeVisible(dialog);
+                resized();
+            }
+        }
+        
+        void resized() override
+        {
+	        auto b = getLocalBounds();
+            b.setHeight(b.getHeight() + 20);
+
+            if(dialog != nullptr)
+				dialog->setBounds(b);
+        }
+
+	    ScopedPointer<multipage::State> state;
+        ScopedPointer<multipage::Dialog> dialog;
+    };
+
+    void refreshDialog() override
+    {
+	    if(c != nullptr)
+	    {
+		    c->refreshCurrentPage();
+            resized();
+	    }
+    }
+
+    State* getMainState() override { return &rt; }
+    
+    bool setSideTab(multipage::State* dialogState, multipage::Dialog* newDialog) override
+    {
+        auto sideDialog = rightTab.getChild<SideTab>(0);
+
+        if(sideDialog->dialog != nullptr && dialogState != nullptr &&
+           sideDialog->state->globalState.getDynamicObject() == dialogState->globalState.getDynamicObject())
+        {
+            sideDialog->set(nullptr, nullptr);
+	        return false;
+        }
+
+        if(dialogState != nullptr)
+        {
+	        sideDialog->set(dialogState, newDialog);
+        }
+        
+        resized();
+        return sideDialog->dialog != nullptr;
+    }
 
     void checkSave()
     {
@@ -759,6 +1084,7 @@ public:
         FileLoad,
         FileSave,
         FileSaveAs,
+        FileExportAsProjucerProject,
         FileQuit,
         EditUndo,
         EditRedo,
@@ -770,6 +1096,7 @@ public:
         ViewShowDialog,
         ViewShowJSON,
         ViewShowCpp,
+        ViewShowConsole,
         HelpAbout,
         HelpVersion,
         FileRecentOffset = 9000
@@ -812,10 +1139,44 @@ private:
     AlertWindowLookAndFeel plaf;
     MenuBarComponent menuBar;
 
-    ScopedPointer<multipage::library::HardcodedDialogWithState> hardcodedDialog;
+    ScopedPointer<multipage::HardcodedDialogWithState> hardcodedDialog;
 
-    ScriptWatchTable watchTable;
-    hise::multipage::Tree tree;
+    struct ModalDialog: public Component
+    {
+        ModalDialog(MainComponent& parent, multipage::HardcodedDialogWithState* newContent):
+          content(newContent)
+        {
+	        addAndMakeVisible(content);
+            parent.addAndMakeVisible(this);
+            setBounds(parent.getLocalBounds());
+            content->centreWithSize(content->getWidth(), content->getHeight());
+
+            content->setOnCloseFunction([&parent]()
+			{
+				parent.modalDialog = nullptr;
+			});
+        }
+
+        void paint(Graphics& g) override
+        {
+	        g.fillAll(Colour(0xCC161616));
+
+            DropShadow sh;
+            sh.colour = Colours::black.withAlpha(0.7f);
+            sh.radius = 20;
+            sh.drawForRectangle(g, content->getBoundsInParent());
+        }
+
+	    ScopedPointer<multipage::HardcodedDialogWithState> content;
+    };
+
+    RightTab rightTab;
+
+    ScopedPointer<ModalDialog> modalDialog;
+
+    
+    ScopedPointer<ComponentWithEdge> tree;
+    ScopedPointer<ComponentWithEdge> console;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

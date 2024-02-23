@@ -43,6 +43,16 @@ namespace factory
 	struct Container;
 }
 
+struct ComponentWithSideTab
+{
+    virtual ~ComponentWithSideTab() {};
+	virtual bool setSideTab(State* dialogState, Dialog* newDialog) = 0;
+
+    virtual State* getMainState() { return nullptr; }
+
+    virtual void refreshDialog() = 0;
+};
+
 struct ErrorComponent: public Component
 {
     ErrorComponent(Dialog& parent_);;
@@ -64,10 +74,11 @@ struct ErrorComponent: public Component
 
 /* TODO:
  *
- * - make dummy app (with exporter in HISE?)
+ * - make dummy app (with exporter in HISE?) OK
  * - remove nested data when using IDs in containers (too messy)...
  * - fix undoability of page removal
- * - add fixed size to position info
+ * - add Logger component (and IDE logger that logs everything)
+ * - add fixed size to position info OK
  * */
 class Dialog: public Component,
 			  public PathFactory,
@@ -75,14 +86,19 @@ class Dialog: public Component,
 {
 public:
     
-    enum ColourIds
+    enum AdditionalColours
     {
-        backgroundColour = HiseColourScheme::ComponentBackgroundColour,
-        textColour = HiseColourScheme::ComponentTextColourId,
-        signalColour = HiseColourScheme::ComponentFillTopColourId,
-        numColourIds
+	    buttonTabBackgroundColour,
+        buttonBgColour,
+        buttonTextColour,
+        modalPopupOverlayColour,
+        modalPopupBackgroundColour,
+        modalPopupOutlineColour,
+        pageProgressColour,
+        numAdditionalColours
     };
 
+    Colour additionalColours[numAdditionalColours];
 
     struct PageInfo;
 
@@ -119,7 +135,7 @@ public:
         int LabelHeight = 32;
         int LabelPosition = LabelPositioning::Default;
 
-        Point<int> fixedSize;
+        Point<int> fixedSize = { 800, 600 };
     };
 
     struct PageBase: public Component
@@ -144,6 +160,8 @@ public:
 	        return infoObject.getDynamicObject() == otherInfo.getDynamicObject();
         }
 
+        var getInfoObject() const { return infoObject; }
+
         var getPropertyFromInfoObject(const Identifier& id) const;
         void deleteFromParent();
         void duplicateInParent();
@@ -155,6 +173,8 @@ public:
         String evaluate(const Identifier& id) const;
 
     protected:
+
+        Asset::Ptr getAsset(const Identifier& id) const;
 
         virtual Result checkGlobalState(var globalState) = 0;
         void init();
@@ -185,6 +205,9 @@ public:
         
         void writeState(const var& newValue) const;
         var getValueFromGlobalState(var defaultState=var());
+
+        String loadValueOrAssetAsText();
+
         Result check(const var& obj);
         void clearCustomFunction();
         void setCustomCheckFunction(const CustomCheckFunction& cf_);
@@ -192,6 +215,8 @@ public:
         Dialog& getParentDialog() { return rootDialog; }
 
         Identifier getId() const { return id; }
+
+        void setModalHelp(const String& text);
 
     protected:
 
@@ -212,7 +237,7 @@ public:
         var stateObject;
         var infoObject;
 
-        void setModalHelp(const String& text);
+        
 
         enum class AreaType
 	    {
@@ -319,6 +344,8 @@ public:
         
         return *p;
     }
+
+    void refreshAdditionalColours(const var& styleDataObject);
     
     Result getCurrentResult();
     void showFirstPage();
@@ -367,30 +394,18 @@ public:
 
     void gotoPage(int newIndex);
 
+    void logMessage(MessageType messageType, const String& message)
+    {
+        auto isMessageThread = MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread();
+        auto n = isMessageThread ? sendNotificationSync : sendNotificationAsync;
+	    getEventLogger().sendMessage(n, messageType, message);
+    }
+
     LambdaBroadcaster<bool>& getEditModeBroadcaster() { return editModeBroadcaster; }
 
-    struct LookAndFeelMethods
-    {
-        virtual ~LookAndFeelMethods() {};
-        virtual void drawMultiPageHeader(Graphics& g, Dialog& d, Rectangle<int> area);
-        virtual void drawMultiPageButtonTab(Graphics& g, Dialog& d, Rectangle<int> area);
-        virtual void drawMultiPageModalBackground(Graphics& g, Rectangle<int> totalBounds, Rectangle<int> modalBounds);
-        virtual void drawMultiPageFoldHeader(Graphics& g, Component& c, Rectangle<float> area, const String& title, bool folded);
-        virtual void drawMultiPageBackground(Graphics& g, Dialog& tb, Rectangle<int> errorBounds);
-        virtual PositionInfo getMultiPagePositionInfo(const var& pageData) const = 0;
-    };
-    
-    struct DefaultLookAndFeel: public hise::GlobalHiseLookAndFeel,
-                               public LookAndFeelMethods
-    {
-        void drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-        PositionInfo getMultiPagePositionInfo(const var& pageData) const override;
-        void layoutFilenameComponent (FilenameComponent& filenameComp, ComboBox* filenameBox, Button* browseButton) override;
-        bool isProgressBarOpaque(ProgressBar&) override { return false; }
-        void drawProgressBar (Graphics &g, ProgressBar &pb, int width, int height, double progress, const String &textToShow) override;
+    LambdaBroadcaster<MessageType, String>& getEventLogger() { return getState().eventLogger; }
 
-        PositionInfo defaultPosition;
-    } defaultLaf;
+    
 
     struct ModalPopup: public Component
     {
@@ -417,6 +432,45 @@ public:
 
         Image screenshot;
     };
+
+    struct LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {};
+        virtual void drawMultiPageHeader(Graphics& g, Dialog& d, Rectangle<int> area);
+        virtual void drawMultiPageButtonTab(Graphics& g, Dialog& d, Rectangle<int> area);
+        virtual void drawMultiPageModalBackground(Graphics& g, ModalPopup& popup, Rectangle<int> totalBounds, Rectangle<int> modalBounds);
+        virtual void drawMultiPageFoldHeader(Graphics& g, Component& c, Rectangle<float> area, const String& title, bool folded);
+        virtual void drawMultiPageBackground(Graphics& g, Dialog& tb, Rectangle<int> errorBounds);
+        virtual PositionInfo getMultiPagePositionInfo(const var& pageData) const = 0;
+    };
+    
+    struct DefaultLookAndFeel: public hise::GlobalHiseLookAndFeel,
+                               public LookAndFeelMethods
+    {
+        Font getTextButtonFont (TextButton &, int /*buttonHeight*/) override;
+
+        void drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+        PositionInfo getMultiPagePositionInfo(const var& pageData) const override;
+        void layoutFilenameComponent (FilenameComponent& filenameComp, ComboBox* filenameBox, Button* browseButton) override;
+        bool isProgressBarOpaque(ProgressBar&) override { return false; }
+        void drawProgressBar (Graphics &g, ProgressBar &pb, int width, int height, double progress, const String &textToShow) override;
+
+        void drawButtonText(Graphics &g, TextButton &button, bool /*isMouseOverButton*/, bool /*isButtonDown*/);
+
+        void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/, bool isMouseOverButton, bool isButtonDown);
+
+        PositionInfo defaultPosition;
+    } defaultLaf;
+
+    void createEditorInSideTab(const var& obj, PageBase* pb, const std::function<void(PageInfo&)>& r);
+
+    bool isCurrentlyEdited(const var& obj) const
+    {
+	    if(currentlyEditedPage != nullptr)
+            return currentlyEditedPage->matches(obj);
+
+        return false;
+    }
 
     template <typename T> PageInfo& createModalPopup(DefaultProperties&& values={})
     {
@@ -448,7 +502,7 @@ public:
     Viewport& getViewport() { return content; }
     var exportAsJSON() const;
     void scrollBarMoved (ScrollBar*, double) override { repaint(); }
-
+    
     PageBase* findPageBaseForInfoObject(const var& obj);
 
     PositionInfo getPositionInfo(const var& pageData) const;
@@ -461,11 +515,16 @@ public:
 
     LambdaBroadcaster<int> refreshBroadcaster;
 
+    void showMainPropertyEditor();
+
+    bool useHelpBubble = false;
+
 private:
 
+    Image backgroundImage;
 
-
-    void showMainPropertyEditor();
+    WeakReference<PageBase> currentlyEditedPage;
+    
 
     UndoManager um;
     
@@ -495,16 +554,92 @@ private:
     std::function<void()> finishCallback;
     
     WeakReference<PageBase> currentErrorElement;
-    ErrorComponent errorComponent;
+    //ErrorComponent errorComponent;
     ModalPopup popup;
     ScrollbarFader sf;
     
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-    EditorOverlay mainPropertyOverlay;
-#endif
-
     JUCE_DECLARE_WEAK_REFERENCEABLE(Dialog);
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Dialog);
+};
+
+struct EventConsole: public Component
+{
+    struct ConsoleEditor: public CodeEditorComponent
+    {
+        ConsoleEditor(CodeDocument& doc):
+          CodeEditorComponent(doc, nullptr)
+        {
+	        setFont(GLOBAL_MONOSPACE_FONT());
+	        setLineNumbersShown(false);
+	        setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF161616));
+	        setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFF999999));
+            setColour(CodeEditorComponent::ColourIds::highlightColourId, Colours::white.withAlpha(0.3f));
+	        setReadOnly(true);
+	        sf.addScrollBarToAnimate(getScrollbar(false));
+        }
+
+	    void addPopupMenuItems (PopupMenu& m, const MouseEvent* e) override
+	    {
+		    m.addItem(90001, "Clear console");
+            CodeEditorComponent::addPopupMenuItems(m, e);
+	    }
+
+    	void performPopupMenuAction (int menuItemID) override
+	    {
+		    CodeEditorComponent::performPopupMenuAction(menuItemID);
+
+            if(menuItemID == 90001)
+            {
+	            getDocument().replaceAllContent("");
+            }
+	    }
+
+        ScrollbarFader sf;
+    };
+
+	EventConsole(State& d):
+	  editor(doc),
+      state(d)
+    {
+        setName("Console");
+        doc.setDisableUndo(true);
+        addAndMakeVisible(editor);
+        editor.getScrollbar(true);
+        state.eventLogger.addListener(*this, onMessage, true);
+    }
+
+    ~EventConsole()
+    {
+	    state.eventLogger.removeListener(*this);
+    }
+
+    MessageType messageFilter = MessageType::AllMessages;
+
+    static void onMessage(EventConsole& l, MessageType messageType, const String& message)
+    {
+        if(messageType == MessageType::Clear)
+        {
+	        l.doc.replaceAllContent("");
+            return;
+        }
+
+        if((uint32)messageType | (uint32)l.messageFilter)
+        {
+	        l.doc.insertText(CodeDocument::Position(l.doc, l.doc.getNumCharacters()), "\n" + message);
+            l.editor.scrollToKeepCaretOnScreen();
+        }
+    }
+
+    void resized() override
+    {
+        editor.setBounds(getLocalBounds());
+    }
+
+    State& state;
+    CodeDocument doc;
+    ConsoleEditor editor;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(EventConsole);
 };
 
 }

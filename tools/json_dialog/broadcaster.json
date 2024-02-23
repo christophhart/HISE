@@ -13,11 +13,22 @@
     "tableLineColour": 864059520,
     "tableBgColour": 864059520,
     "headlineColour": 4287692721,
-    "UseSpecialBoldFont": true
+    "UseSpecialBoldFont": true,
+    "buttonTabBackgroundColour": 570425344,
+    "buttonBgColour": 4289374890,
+    "buttonTextColour": 4280624421,
+    "modalPopupBackgroundColour": 4281545523,
+    "modalPopupOverlayColour": 3995214370,
+    "modalPopupOutlineColour": 4289374890,
+    "pageProgressColour": 2013265919
   },
   "Properties": {
     "Header": "Broadcaster Wizard",
-    "Subtitle": ""
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "",
+    "Company": "",
+    "Version": ""
   },
   "LayoutData": {
     "TopHeight": 56,
@@ -26,12 +37,15 @@
     "OuterPadding": 50,
     "LabelWidth": 160.0,
     "LabelHeight": 32,
-    "DialogWidth": 0,
-    "DialogHeight": 0,
+    "DialogWidth": 832,
+    "DialogHeight": 716,
     "LabelPosition": "Default"
   },
   "GlobalState": {
-    "colour": 0
+    "colour": 0,
+    "id": "asd",
+    "comment": "",
+    "tags": []
   },
   "Children": [
     {
@@ -252,7 +266,11 @@
           ],
           "Padding": "40"
         }
-      ]
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
     },
     {
       "Type": "List",
@@ -1111,5 +1129,6 @@
         }
       ]
     }
-  ]
+  ],
+  "Assets": []
 }

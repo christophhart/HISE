@@ -233,7 +233,10 @@ void List::calculateSize()
     if(!folded)
     {
         for(auto& c: childItems)
-            h += c->getHeight() + padding;
+        {
+	        if(c->getHeight() > 0)
+				h += c->getHeight() + padding;
+        }
     }
 
 	if(rootDialog.isEditModeEnabled())
@@ -280,14 +283,7 @@ void List::createEditor(Dialog::PageInfo& rootList)
         { mpid::ID, "Type"}
     });
     
-    auto& prop = rootList.addChild<List>();
-    
-    rootList[mpid::Text] = "List";
-    
-    prop[mpid::Folded] = false;
-    prop[mpid::Foldable] = true;
-    prop[mpid::Padding] = 10;
-    prop[mpid::Text] = "Properties";
+    auto& prop = rootList;
     
     auto& listId = prop.addChild<TextInput>({
         { mpid::ID, "ID" },
@@ -366,14 +362,14 @@ void List::resized()
     {
         for(auto c: childItems)
         {
-            auto cb = b.removeFromTop(c->getHeight());
+			auto cb = b.removeFromTop(c->getHeight());
             
             if(!cb.isEmpty())
             {
                 c->setBounds(cb);
                 c->resized();
+				b.removeFromTop(padding);
             }
-            b.removeFromTop(padding);
         }
     }
 }
@@ -440,14 +436,8 @@ void Column::createEditor(Dialog::PageInfo& xxx)
         { mpid::ID, "Type"}
     });
     
-    auto& prop = xxx.addChild<List>();
+    auto& prop = xxx;
     
-    xxx[mpid::Text] = "Column";
-    
-    prop[mpid::Folded] = false;
-    prop[mpid::Foldable] = true;
-    prop[mpid::Padding] = 10;
-    prop[mpid::Text] = "Properties";
     
     auto& listId = prop.addChild<TextInput>({
         { mpid::ID, "ID" },
@@ -756,14 +746,9 @@ void Branch::createEditor(Dialog::PageInfo& rootList)
         { mpid::ID, "Type"}
     });
     
-    auto& prop = rootList.addChild<List>();
+    auto& prop = rootList;
     
     rootList[mpid::Text] = "List";
-    
-    prop[mpid::Folded] = false;
-    prop[mpid::Foldable] = true;
-    prop[mpid::Padding] = 10;
-    prop[mpid::Text] = "Properties";
     
     auto& listId = prop.addChild<TextInput>({
         { mpid::ID, "ID" },

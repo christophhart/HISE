@@ -204,24 +204,67 @@ struct CodeEditor: public LabelledComponent
 
     struct AllEditor: public Component
     {
+        struct TokenProvider: public mcl::TokenCollection::Provider
+        {
+            TokenProvider(Component* p_):
+              p(p_)
+            {};
+
+            Component::SafePointer<Component> p;
+
+	        void addTokens(mcl::TokenCollection::List& tokens) override
+	        {
+                if(p == nullptr)
+                    return;
+
+	            if(auto ms = p->findParentComponentOfClass<ComponentWithSideTab>())
+	            {
+	                for(auto& nv: ms->getMainState()->globalState.getDynamicObject()->getProperties())
+	                {
+		                auto stateToken = new mcl::TokenCollection::Token("state." + nv.name.toString());
+	                    stateToken->c = Colour(0xFFBE6093);
+	                    stateToken->markdownDescription << "Value: `" << nv.name.toString() << "`";
+	                    stateToken->priority = 100;
+	                    tokens.add(stateToken);
+	                }
+	                
+	            }
+
+
+	        }
+        };
+
         AllEditor():
           codeDoc(doc),
-          editor(codeDoc)
+          editor(new mcl::TextEditor(codeDoc))
         {
+            editor->tokenCollection = new mcl::TokenCollection("Javascript");
+
+        	editor->tokenCollection->addTokenProvider(new TokenProvider(this));
 	        addAndMakeVisible(editor);
         }
 
-        void resized() override { editor.setBounds(getLocalBounds()); };
+        ~AllEditor()
+        {
+            
+
+	        editor->tokenCollection = nullptr;
+            editor = nullptr;
+        }
+
+        void resized() override { editor->setBounds(getLocalBounds()); };
+
+        
 
 	    juce::CodeDocument doc;
 	    mcl::TextDocument codeDoc;
-	    mcl::TextEditor editor;
+	    ScopedPointer<mcl::TextEditor> editor;
     };
 
 	CodeEditor(Dialog& r, int w, const var& obj):
       LabelledComponent(r, w, obj, new AllEditor())
 	{
-		setSize(w, 260);
+		setSize(w, 360);
 	};
 
     void postInit() override
@@ -248,10 +291,15 @@ struct CodeEditor: public LabelledComponent
     {
 	    auto code = getComponent<AllEditor>().doc.getAllContent();
 
-        JavascriptEngine e;
-        auto ok = e.execute(code);
+        auto* state = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
 
-        getComponent<AllEditor>().editor.setError(ok.getErrorMessage());
+        if(code.startsWith("${"))
+            code = state->loadText(code);
+
+        auto e = state->createJavascriptEngine();
+        auto ok = e->execute(code);
+
+        getComponent<AllEditor>().editor->setError(ok.getErrorMessage());
 
         if(ok.wasOk())
             writeState(code);
@@ -312,7 +360,7 @@ struct FileSelector: public LabelledComponent
     Result checkGlobalState(var globalState) override;
 
     static Component* createFileComponent(const var& obj);
-    static File getInitialFile(const var& path);
+    File getInitialFile(const var& path) const;
 
 private:
     
@@ -320,6 +368,8 @@ private:
 
     JUCE_DECLARE_WEAK_REFERENCEABLE(FileSelector);
 };
+
+
 
 } // factory
 } // multipage

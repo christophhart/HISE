@@ -38,48 +38,7 @@ namespace hise {
 namespace multipage {
 namespace library {
 
-struct HardcodedDialogWithState: public Component
-{
-	HardcodedDialogWithState():
-	  state(var())
-	{};
 
-	void setProperty(const Identifier& id, const var& newValue)
-	{
-		state.globalState.getDynamicObject()->setProperty(id, newValue);
-	}
-
-	var getProperty(const Identifier& id) const
-	{
-		return state.globalState[id];
-	}
-
-	/** Override this method and initialise all default values for the global state. */
-	virtual void postInit() {}
-
-	void resized() override
-	{
-		if(dialog == nullptr)
-		{
-			addAndMakeVisible(dialog = createDialog(state));
-
-			postInit();
-
-			dialog->setFinishCallback([](){
-    			JUCEApplication::getInstance()->systemRequestedQuit();
-		    });
-		}
-
-		dialog->setEnableEditMode(false);
-		dialog->setBounds(getLocalBounds());
-		dialog->showFirstPage();
-	}
-
-    virtual Dialog* createDialog(State& state) = 0;
-
-	State state;
-    ScopedPointer<Dialog> dialog;
-};
 
 struct BroadcasterWizard: public HardcodedDialogWithState
 {

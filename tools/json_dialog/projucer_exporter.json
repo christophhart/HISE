@@ -1,0 +1,120 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4279834905,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4289901234,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Export Projucer Project",
+    "Subtitle": ""
+  },
+  "LayoutData": {
+    "TopHeight": 56,
+    "ButtonTab": 40,
+    "ButtonMargin": 5,
+    "OuterPadding": 50,
+    "LabelWidth": 140.0,
+    "LabelHeight": 32,
+    "DialogWidth": 700,
+    "DialogHeight": 600,
+    "LabelPosition": "Default"
+  },
+  "GlobalState": {
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "FileSelector",
+          "Text": "HISE Path",
+          "ID": "hisePath",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "Required": true,
+          "Help": "The path to the HISE source code repository folder (the root directory with the `hi_xxx` subdirectories).",
+          "Directory": true,
+          "Wildcard": "",
+          "SaveFile": false
+        },
+        {
+          "Type": "Spacer",
+          "Text": "LabelText",
+          "Padding": "30"
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "Export Progress",
+          "ID": "export",
+          "CallOnNext": true,
+          "LabelPosition": "Default",
+          "Function": "exportProjucerProject"
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "The project was created successfully. Do you want to launch the projucer to continue building the dialog binary?",
+          "Padding": 0
+        },
+        {
+          "Type": "Button",
+          "Text": "Open Projucer",
+          "ID": "openProjucer",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        },
+        {
+          "Type": "Launch",
+          "Text": "$hisePath/tools/Projucer.exe",
+          "ID": "openProjucer",
+          "CallOnNext": true,
+          "Args": "\"$projectDirectory/$projectName.jucer\""
+        }
+      ]
+    }
+  ],
+  "Assets": [
+    {
+      "Type": 1,
+      "ID": "VST3_binary",
+      "RelativePath": true,
+      "Filename": "../../../Projekte/triaz/triaz/Binaries/Compiled/VST3/Triaz.vst3"
+    },
+    {
+      "Type": 3,
+      "ID": "myAsset",
+      "RelativePath": false,
+      "Filename": "C:\\Users\\chris\\Downloads\\Assets.zip"
+    },
+    {
+      "Type": 3,
+      "ID": "myAsset",
+      "RelativePath": false,
+      "Filename": "C:\\Users\\chris\\Downloads\\Assets.zip"
+    }
+  ]
+}

@@ -31,6 +31,7 @@
  */
 
 #include "MultiPageDialog.h"
+#include "MultiPageDialog.h"
 #include "MultiPageIds.h"
 
 namespace hise
@@ -99,7 +100,7 @@ Dialog::PageBase::HelpButton::HelpButton(String help, const PathFactory& factory
 
 	onClick = [this, help]()
 	{
-		if(auto p = findParentComponentOfClass<Dialog::ModalPopup>())
+		if(findParentComponentOfClass<Dialog::ModalPopup>() != nullptr || findParentComponentOfClass<Dialog>()->useHelpBubble)
 		{
 			findParentComponentOfClass<PageBase>()->setModalHelp(help);
 		}
@@ -148,7 +149,7 @@ struct Dialog::PageBase::ModalHelp: public Component
 		p.addRoundedRectangle(b, 6.0f);
 		p.addTriangle(t.getBottomLeft(), t.getBottomRight(), {t.getCentreX(), t.getY()});
 
-        g.setColour(Colour(0xFF222222));
+        g.setColour(Colour(0xFF111111));
 
 		g.fillPath(p);
 
@@ -269,7 +270,10 @@ void Dialog::PageBase::setModalHelp(const String& text)
 	}
 	else
 	{
-		auto popup = findParentComponentOfClass<ModalPopup>();
+		Component* popup = findParentComponentOfClass<ModalPopup>();
+
+		if(popup == nullptr)
+			popup = dynamic_cast<Component*>(findParentComponentOfClass<ComponentWithSideTab>());
 
 		Component::callRecursive<PageBase>(popup, [](PageBase* b)
 		{
@@ -280,7 +284,6 @@ void Dialog::PageBase::setModalHelp(const String& text)
 		jassert(popup != nullptr);
 
 		popup->addAndMakeVisible(modalHelp = new ModalHelp(text, *this));
-		
 
 #if JUCE_DEBUG
 		modalHelp->setVisible(true);
@@ -351,6 +354,24 @@ String Dialog::PageBase::evaluate(const Identifier& id) const
 	return factory::MarkdownText::getString(infoObject[id].toString(), rootDialog);
 }
 
+Asset::Ptr Dialog::PageBase::getAsset(const Identifier& id) const
+{
+	auto assetId = infoObject[id].toString().trim();
+
+	if(assetId.startsWith("${"))
+	{
+		assetId = assetId.substring(2, assetId.length() - 1);
+
+		for(auto a: rootDialog.getState().assets)
+		{
+			if(a->id == assetId)
+				return a;
+		}
+	}
+
+	return nullptr;
+}
+
 void Dialog::PageBase::init()
 {
 	if(findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
@@ -393,7 +414,17 @@ void Dialog::PageBase::writeState(const var& newValue) const
 	if(auto o = stateObject.getDynamicObject())
 	{
 		if(stateObject[id] != newValue)
+		{
+			if(stateObject.getDynamicObject() == rootDialog.getState().globalState.getDynamicObject())
+			{
+				String s;
+				s << "state." << id << " = " << JSON::toString(newValue, true);
+				rootDialog.logMessage(MessageType::ValueChangeMessage, s);
+			}
+
 			rootDialog.getUndoManager().perform(new UndoableVarAction(stateObject, id, newValue));
+		}
+			
 	}
 	else
 	{
@@ -404,6 +435,19 @@ void Dialog::PageBase::writeState(const var& newValue) const
 var Dialog::PageBase::getValueFromGlobalState(var defaultState)
 {
     return stateObject.getProperty(id, defaultState);
+	
+}
+
+String Dialog::PageBase::loadValueOrAssetAsText()
+{
+	auto s = getValueFromGlobalState("").toString();
+
+	if(s.startsWith("${"))
+	{
+		return rootDialog.getState().loadText(s);
+	}
+
+	return s;
 }
 
 Result Dialog::PageBase::check(const var& obj)
@@ -538,7 +582,7 @@ ErrorComponent::ErrorComponent(Dialog& parent_):
 
 void ErrorComponent::paint(Graphics& g)
 {
-    auto ec = Colour(HISE_ERROR_COLOUR);
+    auto ec = Colour(0xFF161616);
     
 	g.setGradientFill(ColourGradient(ec.withMultipliedBrightness(1.1f), 0.0f, 0.0f, ec.withMultipliedBrightness(0.9f), 0.0f, (float)getHeight(), false));
 	g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 5.0f);
@@ -679,7 +723,6 @@ void Dialog::PageInfo::setStateObject(const var& newStateObject)
 
 
 
-
 Dialog::ModalPopup::ModalPopup(Dialog& parent_):
 	parent(parent_),
 	modalError(parent),
@@ -782,7 +825,7 @@ void Dialog::ModalPopup::mouseDown(const MouseEvent& e)
 void Dialog::ModalPopup::paint(Graphics& g)
 {
 	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-		laf->drawMultiPageModalBackground(g, getLocalBounds(), modalBounds);
+		laf->drawMultiPageModalBackground(g, *this, getLocalBounds(), modalBounds);
 
 	if(screenshot.isValid())
 	{
@@ -850,36 +893,28 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 	nextButton("Next"),
 	prevButton("Previous"),
 	popup(*this),
-    runThread(&rt),
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	mainPropertyOverlay(*this),
-#endif
-	errorComponent(*this)
+	//errorComponent(*this),
+    runThread(&rt)
 {
 
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	editModeBroadcaster.addListener(mainPropertyOverlay, EditorOverlay::onEditChange);
-	mainPropertyOverlay.setTooltip("Edit the main layout properties (font, colours, etc) of the dialog)");
-	mainPropertyOverlay.setOnClick(BIND_MEMBER_FUNCTION_0(Dialog::showMainPropertyEditor));
-#endif
-
-	
 	jassert(runThread->currentDialog == nullptr);
 
     runThread->currentDialog = this;
 	sf.addScrollBarToAnimate(content.getVerticalScrollBar());
 
-	setColour(backgroundColour, Colours::black.withAlpha(0.15f));
-
 	if(auto sd = obj[mpid::StyleData].getDynamicObject())
-		styleData.fromDynamicObject(var(sd), [](const String& font){ return Font(font, 13.0f, Font::plain); });
+	{
+		styleData.fromDynamicObject(var(sd), std::bind(&State::loadFont, &getState(), std::placeholders::_1));
+		refreshAdditionalColours(var(sd));
+	}
 	else
 	{
 		styleData = MarkdownLayout::StyleData::createDarkStyle();
 		styleData.backgroundColour = Colour(0xFF333333);
+		refreshAdditionalColours({});
 	}
 	
-	errorComponent.parser.setStyleData(styleData);
+	//errorComponent.parser.setStyleData(styleData);
 
 	addChildComponent(popup);
 
@@ -895,7 +930,13 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
         
         po->setProperty(mpid::Header, "Header");
         po->setProperty(mpid::Subtitle, "Subtitle");
+		po->setProperty(mpid::Image, "");
+		po->setProperty(mpid::ProjectName, "MyProject");
+		po->setProperty(mpid::Company, "MyCompany");
+		po->setProperty(mpid::Version, "1.0.0");
     }
+
+	backgroundImage = getState().loadImage(properties[mpid::Image].toString());
 
 	auto pageList = obj[mpid::Children];
 
@@ -934,7 +975,7 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 	addAndMakeVisible(nextButton);
 	addAndMakeVisible(prevButton);
 	addAndMakeVisible(content);
-	addChildComponent(errorComponent);
+	//addChildComponent(errorComponent);
 	setLookAndFeel(&defaultLaf);
 
     setWantsKeyboardFocus(true);
@@ -1013,8 +1054,11 @@ bool Dialog::refreshCurrentPage()
 {
 	auto index = getState().currentPageIndex;
 
+	logMessage(MessageType::Navigation, "Goto page " + String(index+1));
+
 	if((currentPage = pages[index]->create(*this, content.getWidth() - content.getScrollBarThickness() - 10)))
 	{
+
 		content.setViewedComponent(currentPage);
 		currentPage->postInit();
 		currentPage->setLookAndFeel(&getLookAndFeel());
@@ -1026,6 +1070,55 @@ bool Dialog::refreshCurrentPage()
 	}
 
 	return false;
+}
+
+void Dialog::createEditorInSideTab(const var& obj, PageBase* pb, const std::function<void(PageInfo&)>& r)
+{
+	if(auto st = findParentComponentOfClass<ComponentWithSideTab>())
+	{
+		currentlyEditedPage = pb;
+		
+		auto ns = new State(var());
+		ns->globalState = obj;
+		auto d = new Dialog(var(), * ns, true);
+
+		d->useHelpBubble = true;
+
+		d->getViewport().setScrollBarThickness(12);
+
+		auto& layout = d->defaultLaf.defaultPosition;
+		layout.OuterPadding = 10;
+		layout.TopHeight = 0;
+		auto sd = d->getStyleData();
+		sd.fontSize = 14.0f;
+		sd.f = GLOBAL_FONT();
+		sd.textColour = Colours::white.withAlpha(0.7f);
+		sd.backgroundColour = Colours::transparentBlack;
+		d->setStyleData(sd);
+		layout.LabelPosition = PositionInfo::LabelPositioning::Left;
+		layout.ButtonTab = 0;
+		layout.ButtonMargin = 0;
+		layout.LabelWidth = 85.0;
+
+		(*d->pages.getFirst())[mpid::Padding] = 5;
+
+		r(*d->pages.getFirst());
+
+		d->prevButton.setVisible(false);
+		d->nextButton.setButtonText("Apply");
+		d->refreshCurrentPage();
+
+		d->setFinishCallback([this, st]()
+		{
+			this->refreshCurrentPage();
+			st->setSideTab(nullptr, nullptr);
+		});
+            
+		if(!st->setSideTab(ns, d))
+			currentlyEditedPage = nullptr;
+	}
+
+	repaint();
 }
 
 String Dialog::joinVarArrayToNewLineString(const var& v)
@@ -1075,7 +1168,7 @@ Result Dialog::checkCurrentPage()
 
 		auto ok = currentPage->check(runThread->globalState);
 
-		errorComponent.setError(ok);
+		//errorComponent.setError(ok);
 
 		repaint();
 		return ok;
@@ -1091,6 +1184,18 @@ void Dialog::setCurrentErrorPage(PageBase* b)
 
 bool Dialog::keyPressed(const KeyPress& k)
 {
+	if(k.getKeyCode() == KeyPress::F5Key)
+	{
+		if(currentPage != nullptr)
+			currentPage->check(getState().globalState);
+
+		if(auto st = findParentComponentOfClass<ComponentWithSideTab>())
+		{
+			st->refreshDialog();
+		}
+		
+		return true;
+	}
 	if(k.getKeyCode() == KeyPress::returnKey)
 	{
 		if(nextButton.isEnabled())
@@ -1107,11 +1212,46 @@ var Dialog::exportAsJSON() const
 {
 	DynamicObject::Ptr json = new DynamicObject();
 
-	json->setProperty(mpid::StyleData, styleData.toDynamicObject());
+	auto sd = styleData.toDynamicObject();
+
+	auto fontName = sd[MarkdownStyleIds::Font].toString();
+	auto boldFontName = sd[MarkdownStyleIds::BoldFont].toString();
+
+	for(auto a: runThread->assets)
+	{
+		if(a->type == Asset::Type::Font)
+		{
+			auto f = a->toFont();
+
+			if(f.getTypefaceName() == fontName)
+			{
+				sd.getDynamicObject()->setProperty(MarkdownStyleIds::Font, a->toReferenceVariable());
+			}
+			if(f.getTypefaceName() == boldFontName)
+			{
+				sd.getDynamicObject()->setProperty(MarkdownStyleIds::BoldFont, a->toReferenceVariable());
+			}	
+		}
+	}
+
+#define SET_ADDITIONAL_COLOUR(x, unused) sd.getDynamicObject()->setProperty(#x, additionalColours[x].getARGB());
+
+	SET_ADDITIONAL_COLOUR(buttonTabBackgroundColour, 0x22000000);
+    SET_ADDITIONAL_COLOUR(buttonBgColour, 0xFFAAAAAA);
+    SET_ADDITIONAL_COLOUR(buttonTextColour, 0xFF252525);
+    SET_ADDITIONAL_COLOUR(modalPopupBackgroundColour, 0xFF333333);
+	SET_ADDITIONAL_COLOUR(modalPopupOverlayColour, 0xEE222222);
+    SET_ADDITIONAL_COLOUR(modalPopupOutlineColour, 0xFFAAAAAA);
+    SET_ADDITIONAL_COLOUR(pageProgressColour, 0x77FFFFFF);
+
+#undef SET_ADDITIONAL_COLOUR
+
+	json->setProperty(mpid::StyleData, sd);
 	json->setProperty(mpid::Properties, properties);
 	json->setProperty(mpid::LayoutData, defaultLaf.defaultPosition.toJSON());
 	json->setProperty(mpid::GlobalState, runThread->globalState);
 	json->setProperty(mpid::Children, pageListArrayAsVar);
+	json->setProperty(mpid::Assets, runThread->exportAssetsAsJSON(false));
 
 	return var(json.get());
 }
@@ -1146,188 +1286,190 @@ void Dialog::showMainPropertyEditor()
 {
 	using namespace factory;
 
-	auto& introPage = createModalPopup<List>({
-        { mpid::Padding, 10 }
-    });
-
 	auto no = new DynamicObject();
 
-	introPage.setStateObject(no);
-
-	DBG(JSON::toString(properties));
-
-    auto& propList = introPage.addChild<List>({
-        { mpid::Padding, 10 },
-        { mpid::ID, mpid::Properties.toString() }
-    });
-
-	propList.setStateObject(properties);
-
-    propList.addChild<TextInput>({
-        { mpid::ID, mpid::Header.toString() },
-        { mpid::Text, mpid::Header.toString() },
-        { mpid::Required, true },
-		{ mpid::Help, "This will be shown as big title at the top" },
-		{ mpid::Value, properties[mpid::Header] }
-    });
-
-    propList.addChild<TextInput>({
-        { mpid::ID, mpid::Subtitle.toString() },
-        { mpid::Text, mpid::Subtitle.toString() },
-        { mpid::Help, "This will be shown as small title below" },
-		{ mpid::Value, properties[mpid::Subtitle] }
-    });
-    
-    auto& styleProperties = introPage.addChild<List>({
-        { mpid::ID, mpid::StyleData.toString(), },
-        { mpid::Text, mpid::StyleData.toString(), },
-        { mpid::Padding, 10 },
-        { mpid::Foldable, true },
-        { mpid::Folded, true }
-    });
-
-	auto sd = getStyleData();
-
-
-
-    auto sdData = sd.toDynamicObject();
-
-    const Array<Identifier> hiddenProps({
-      Identifier("codeBgColour"),
-      Identifier("linkBgColour"),
-      Identifier("codeColour"),
-      Identifier("linkColour"),
-      Identifier("tableHeaderBgColour"),
-      Identifier("tableLineColour"),
-      Identifier("tableBgColour")
-    });
-
-	PageInfo* colourCol = nullptr;
-
-	
-
-    for(auto& nv: sdData.getDynamicObject()->getProperties())
-    {
-        if(hiddenProps.contains(nv.name))
-            continue;
-
-        if(nv.name.toString().contains("Colour"))
-        {
-			if(colourCol == nullptr)
-			{
-				colourCol = &styleProperties.addChild<Column>({
-				{ mpid::Padding, 10}
-				});
-
-				colourCol->addChild<MarkdownText>({
-					{ mpid::Text, "Colours:" },
-					{ mpid::Padding, 5}
-				});
-			}
-
-	        auto& ed = colourCol->addChild<ColourChooser>({
-                { mpid::ID, nv.name.toString() },
-                { mpid::Text, nv.name.toString() },
-                { mpid::Value, nv.value }
-	        });
-        }
-        else
-        {
-            auto& ed = styleProperties.addChild<TextInput>({
-                { mpid::ID, nv.name.toString() },
-                { mpid::Text, nv.name.toString() },
-                { mpid::Value, nv.value }
-            });
-
-            if(nv.name == Identifier("Font") || nv.name == Identifier("BoldFont"))
-            {
-	            ed[mpid::Items] = Font::findAllTypefaceNames().joinIntoString("\n");
-            }
-        }
-    }
-
-    {
-        auto& layoutProperties = introPage.addChild<List>({
-            { mpid::ID, mpid::LayoutData.toString() },
-            { mpid::Text, mpid::LayoutData.toString() },
-            { mpid::Padding, 10 },
-            { mpid::Foldable, true },
-            { mpid::Folded, true }
-        });
-
-		
-
-		auto layoutObj = defaultLaf.getMultiPagePositionInfo({}).toJSON();
-
-        std::map<Identifier, String> help;
-        help["OuterPadding"] = "The distance between the content and the component bounds in pixel.";
-        help["ButtonTab"] = "The height of the bottom tab with the Cancel / Prev / Next buttons.";
-        help["ButtonMargin"] = "The distance between the buttons in the bottom tab in pixel.";
-        help["TopHeight"] = "The height of the top bar with the title and the step progress in pixel.";
-        help["LabelWidth"] = "The width of the text labels of each property component. You can use either relative or absolute size values:\n- Negative values are relative to the component width (minus the `OuterPadding` property)\n- positive values are absolute pixel values.";
-		help["LabelHeight"] = "The height of the label if the positioning is set to either `Above` or `Below`";
-		help[mpid::LabelPosition] = "The default position of the text label";
-
-		PageInfo* currentCol = &layoutProperties.addChild<Column>();
-
-		int numInCol = 0;
-
-        for(auto& v: layoutObj.getDynamicObject()->getProperties())
-        {
-			if(numInCol > 1)
-			{
-				currentCol = &layoutProperties.addChild<Column>();
-				numInCol = 0;
-			}
-
-			if(v.name == mpid::LabelPosition)
-			{
-				currentCol->addChild<Choice>({
-	                { mpid::ID, v.name.toString() },
-					{ mpid::Text, v.name.toString() },
-	                { mpid::Value, v.value },
-					{ mpid::Items, PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-	                { mpid::Help, help[v.name] }
-		        });
-			}
-			else
-			{
-				currentCol->addChild<TextInput>({
-	                { mpid::ID, v.name.toString() },
-					{ mpid::Text, v.name.toString() },
-	                { mpid::Value, v.value },
-	                { mpid::Help, help[v.name] }
-		        });
-			}
-
-			numInCol++;
-        }
-    }
-
-	introPage.setCustomCheckFunction([&](PageBase* b, var obj)
+	createEditorInSideTab(var(no), nullptr, [this](PageInfo& introPage)
 	{
-		Container::checkChildren(b, obj);
+	    auto& propList = introPage.addChild<List>({
+	        { mpid::Padding, 10 },
+	        { mpid::ID, mpid::Properties.toString() }
+	    });
 
-		properties = obj[mpid::Properties].clone();
-		styleData.fromDynamicObject(obj[mpid::StyleData], [](const String& n){ return Font(n, 15.0f, Font::plain); });
-
-		PositionInfo newPos;
-
-		newPos.fromJSON(obj[mpid::LayoutData]);
-
-		auto ok = newPos.checkSanity();
-
-		if(ok.wasOk())
-			defaultLaf.defaultPosition = newPos;
-
-		resized();
-		repaint();
 		
-		return ok;
+
+		auto& col0 = propList;//
+
+	    col0.addChild<TextInput>({
+	        { mpid::ID, mpid::Header.toString() },
+	        { mpid::Text, mpid::Header.toString() },
+	        { mpid::Required, true },
+			{ mpid::Help, "This will be shown as big title at the top" },
+			{ mpid::Value, properties[mpid::Header] }
+	    });
+
+	    col0.addChild<TextInput>({
+	        { mpid::ID, mpid::Subtitle.toString() },
+	        { mpid::Text, mpid::Subtitle.toString() },
+	        { mpid::Help, "This will be shown as small title below" },
+			{ mpid::Value, properties[mpid::Subtitle] }
+	    });
+
+		col0.addChild<TextInput>({
+	        { mpid::ID, mpid::Image.toString() },
+	        { mpid::Text, mpid::Image.toString() },
+	        { mpid::Help, "The background image used for the dialog (will be scaled to fit the entire area)." },
+			{ mpid::Value, properties[mpid::Image] }
+	    });
+
+		auto& col1 = propList;//
+
+		col1.addChild<TextInput>({
+	        { mpid::ID, mpid::ProjectName.toString() },
+	        { mpid::Text, mpid::ProjectName.toString() },
+			{ mpid::Value, properties[mpid::ProjectName] }
+	    });
+
+		col1.addChild<TextInput>({
+	        { mpid::ID, mpid::Company.toString() },
+	        { mpid::Text, mpid::Company.toString() },
+			{ mpid::Value, properties[mpid::Company] }
+	    });
+
+		col1.addChild<TextInput>({
+	        { mpid::ID, mpid::Version.toString() },
+	        { mpid::Text, mpid::Version.toString() },
+			{ mpid::Value, properties[mpid::Version] }
+	    });
+
+	    auto& styleProperties = introPage.addChild<List>({
+	        { mpid::ID, mpid::StyleData.toString(), },
+	        { mpid::Text, mpid::StyleData.toString(), },
+	        { mpid::Padding, 10 },
+	        { mpid::Foldable, true },
+	        { mpid::Folded, true }
+	    });
+
+		auto sdData = exportAsJSON()[mpid::StyleData];
+	    
+	    const Array<Identifier> hiddenProps({
+	      Identifier("codeBgColour"),
+	      Identifier("linkBgColour"),
+	      Identifier("codeColour"),
+	      Identifier("linkColour"),
+	      Identifier("tableHeaderBgColour"),
+	      Identifier("tableLineColour"),
+	      Identifier("tableBgColour")
+	    });
+
+		PageInfo* colourCol = &styleProperties;
+
+		int numColoursInRow = 0;
+
+	    for(auto& nv: sdData.getDynamicObject()->getProperties())
+	    {
+	        if(hiddenProps.contains(nv.name))
+	            continue;
+
+	        if(nv.name.toString().contains("Colour"))
+	        {
+				auto& ed = styleProperties.addChild<ColourChooser>({
+	                { mpid::ID, nv.name.toString() },
+	                { mpid::Text, nv.name.toString() },
+					{ mpid::LabelPosition, "Above" },
+	                { mpid::Value, nv.value }
+		        });
+	        }
+	        else
+	        {
+	            auto& ed = styleProperties.addChild<TextInput>({
+	                { mpid::ID, nv.name.toString() },
+	                { mpid::Text, nv.name.toString() },
+	                { mpid::Value, nv.value }
+	            });
+
+	            if(nv.name == Identifier("Font") || nv.name == Identifier("BoldFont"))
+	            {
+		            ed[mpid::Items] = Font::findAllTypefaceNames().joinIntoString("\n");
+	            }
+	        }
+	    }
+
+	    {
+	        auto& layoutProperties = introPage.addChild<List>({
+	            { mpid::ID, mpid::LayoutData.toString() },
+	            { mpid::Text, mpid::LayoutData.toString() },
+	            { mpid::Padding, 10 },
+	            { mpid::Foldable, true },
+	            { mpid::Folded, true }
+	        });
+
+			
+
+			auto layoutObj = defaultLaf.getMultiPagePositionInfo({}).toJSON();
+
+	        std::map<Identifier, String> help;
+	        help["OuterPadding"] = "The distance between the content and the component bounds in pixel.";
+	        help["ButtonTab"] = "The height of the bottom tab with the Cancel / Prev / Next buttons.";
+	        help["ButtonMargin"] = "The distance between the buttons in the bottom tab in pixel.";
+	        help["TopHeight"] = "The height of the top bar with the title and the step progress in pixel.";
+	        help["LabelWidth"] = "The width of the text labels of each property component. You can use either relative or absolute size values:\n- Negative values are relative to the component width (minus the `OuterPadding` property)\n- positive values are absolute pixel values.";
+			help["LabelHeight"] = "The height of the label if the positioning is set to either `Above` or `Below`";
+			help[mpid::LabelPosition] = "The default position of the text label";
+
+			PageInfo* currentCol = &layoutProperties;
+
+			int numInCol = 0;
+
+	        for(auto& v: layoutObj.getDynamicObject()->getProperties())
+	        {
+				if(v.name == mpid::LabelPosition)
+				{
+					layoutProperties.addChild<Choice>({
+		                { mpid::ID, v.name.toString() },
+						{ mpid::Text, v.name.toString() },
+		                { mpid::Value, v.value },
+						{ mpid::Items, PositionInfo::getLabelPositionNames().joinIntoString("\n") },
+		                { mpid::Help, help[v.name] }
+			        });
+				}
+				else
+				{
+					layoutProperties.addChild<TextInput>({
+		                { mpid::ID, v.name.toString() },
+						{ mpid::Text, v.name.toString() },
+		                { mpid::Value, v.value },
+		                { mpid::Help, help[v.name] }
+			        });
+				}
+
+				numInCol++;
+	        }
+	    }
+
+		introPage.setCustomCheckFunction([&](PageBase* b, var obj)
+		{
+			Container::checkChildren(b, obj);
+
+			properties = obj[mpid::Properties].clone();
+			styleData.fromDynamicObject(obj[mpid::StyleData], std::bind(&State::loadFont, &getState(), std::placeholders::_1));
+
+			refreshAdditionalColours(obj[mpid::StyleData]);
+
+			PositionInfo newPos;
+
+			newPos.fromJSON(obj[mpid::LayoutData]);
+
+			auto ok = newPos.checkSanity();
+
+			if(ok.wasOk())
+				defaultLaf.defaultPosition = newPos;
+
+			resized();
+			repaint();
+			
+			return ok;
+		});
 	});
-
-	showModalPopup(true);
-
 }
 
 
@@ -1364,6 +1506,21 @@ void Dialog::addListPageWithJSON()
 	refreshCurrentPage();
 	resized();
 	repaint();
+}
+
+void Dialog::refreshAdditionalColours(const var& styleDataObject)
+{
+#define SET_ADDITIONAL_COLOUR(x, defaultColour) additionalColours[x] = Colour((uint32)(int64)styleDataObject.getProperty(#x, Colour(defaultColour).getARGB()));
+
+	SET_ADDITIONAL_COLOUR(buttonTabBackgroundColour, 0x22000000);
+    SET_ADDITIONAL_COLOUR(buttonBgColour, 0xFFAAAAAA);
+    SET_ADDITIONAL_COLOUR(buttonTextColour, 0xFF252525);
+    SET_ADDITIONAL_COLOUR(modalPopupBackgroundColour, 0xFF333333);
+	SET_ADDITIONAL_COLOUR(modalPopupOverlayColour, 0xEE222222);
+    SET_ADDITIONAL_COLOUR(modalPopupOutlineColour, 0xFFAAAAAA);
+    SET_ADDITIONAL_COLOUR(pageProgressColour, 0x77FFFFFF);
+
+#undef SET_ADDITIONAL_COLOUR
 }
 
 Result Dialog::getCurrentResult()
@@ -1480,14 +1637,15 @@ void Dialog::setProperty(const Identifier& id, const var& newValue)
 void Dialog::setStyleData(const MarkdownLayout::StyleData& sd)
 {
 	styleData = sd;
-	errorComponent.parser.setStyleData(sd);
+	repaint();
+	//errorComponent.parser.setStyleData(sd);
 }
 
 bool Dialog::navigate(bool forward)
 {
     ScopedValueSetter<bool> svs(currentNavigation, forward);
     currentErrorElement = nullptr;
-    errorComponent.setError(Result::ok());
+    //errorComponent.setError(Result::ok());
 	repaint();
 	auto newIndex = jlimit(0, pages.size(), runThread->currentPageIndex + (forward ? 1 : -1));
         
@@ -1505,10 +1663,18 @@ bool Dialog::navigate(bool forward)
 				try
 				{
 					auto ok = currentPage->check(runThread->globalState);
-					errorComponent.setError(ok);
+					//errorComponent.setError(ok);
 		                
 					if(!ok.wasOk())
+					{
+						if(currentErrorElement != nullptr)
+						{
+							currentErrorElement->setModalHelp(ok.getErrorMessage());
+						}
+							
 						return false;
+					}
+						
 				}
 				catch(State::CallOnNextAction& cona)
 				{
@@ -1522,7 +1688,7 @@ bool Dialog::navigate(bool forward)
 		if (newIndex == pages.size())
 		{
 			if(!editMode && finishCallback)
-				MessageManager::callAsync(finishCallback);
+				Timer::callAfterDelay(600, finishCallback);
 				
 			return true;
 		}
@@ -1539,8 +1705,6 @@ bool Dialog::navigate(bool forward)
 
 void Dialog::paint(Graphics& g)
 {
-	
-
     Rectangle<int> errorBounds;
     
     if(currentErrorElement != nullptr)
@@ -1559,10 +1723,13 @@ void Dialog::paint(Graphics& g)
         
         g.setColour(Colours::white.withAlpha(0.1f));
         g.setFont(GLOBAL_MONOSPACE_FONT());
+	}
 
-        String x;
-        x << "[" << String(getWidth()) << ", " << String(getHeight()) << "]";
-        g.drawText(x, getLocalBounds().toFloat().reduced(5), Justification::topRight);
+	if(currentlyEditedPage != nullptr)
+	{
+		auto b = getLocalArea(currentlyEditedPage, currentlyEditedPage->getLocalBounds()).expanded(2.0f);
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+		g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
 	}
 }
 
@@ -1606,6 +1773,7 @@ void Dialog::resized()
 
 	copy = center;
 
+#if 0
     if(errorComponent.isVisible())
     {
         errorComponent.setBounds(copy.removeFromTop(errorComponent.height));
@@ -1613,20 +1781,18 @@ void Dialog::resized()
     }
     else
         errorComponent.setBounds(copy.removeFromTop(0));
+#endif
         
 	content.setBounds(copy);
     
     if(currentPage != nullptr)
     {
-        currentPage->setSize(content.getWidth() - content.getScrollBarThickness() - 10, currentPage->getHeight());
+        currentPage->setSize(content.getWidth() - (content.getVerticalScrollBar().isVisible() ? (content.getScrollBarThickness() + 10) : 0), currentPage->getHeight());
         
     }
 
 	auto topCopy = top;
 
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	mainPropertyOverlay.setBounds(top.reduced(-20));
-#endif
 }
 
 
@@ -1701,13 +1867,19 @@ void Dialog::containerPopup(const var& infoObject)
 	auto typeName = infoObject[mpid::Type].toString();
 
 	m.addSeparator();
-	m.addItem(90000, "Edit " + typeName, tp != nullptr);
+	m.addItem(90000, "Edit " + typeName, tp != nullptr, tp == currentlyEditedPage);
 	m.addItem(924, "Delete " + typeName, tp != nullptr && tp->findParentComponentOfClass<factory::Container>() != nullptr);
 
 	if(auto r = m.show())
 	{
 		if(r == 90000)
 		{
+			createEditorInSideTab(infoObject, tp, [tp](PageInfo& editorList)
+			{
+				tp->createEditor(editorList);
+			});
+
+#if 0
 			auto& x = createModalPopup<factory::List>();
 			x.setStateObject(infoObject);
 			tp->createEditor(x);
@@ -1715,6 +1887,7 @@ void Dialog::containerPopup(const var& infoObject)
 			x.setCustomCheckFunction([tp](Dialog::PageBase* p, const var& obj){ return dynamic_cast<factory::Container*>(tp)->customCheckOnAdd(p, obj); });
 
 			showModalPopup(true);
+#endif
 		}
 		else if (r == 924)
 		{
@@ -1752,6 +1925,21 @@ void Dialog::containerPopup(const var& infoObject)
 
 					getUndoManager().perform(new UndoableVarAction(childList, childList.size(), var(no)));
 					refreshCurrentPage();
+
+					Component::callRecursive<PageBase>(this, [this, no](PageBase* pb)
+					{
+						if(pb->matches(var(no)))
+						{
+							this->createEditorInSideTab(var(no), pb, [pb](PageInfo& editorList)
+							{
+								pb->createEditor(editorList);
+							});
+
+							return true;
+						}
+
+						return false;
+					});
 				}
 			}
 		}
@@ -1767,7 +1955,7 @@ bool Dialog::nonContainerPopup(const var& infoObject)
 	PopupLookAndFeel plaf;
 	PopupMenu m;
 	m.setLookAndFeel(&plaf);
-	m.addItem(2, "Edit " + typeName);
+	m.addItem(2, "Edit " + typeName, true, currentlyEditedPage == tp);
 	m.addItem(1, "Delete " + typeName);
 	m.addSeparator();
 	m.addItem(3, "Duplicate " + typeName);
@@ -1828,9 +2016,17 @@ bool Dialog::showEditor(const var& infoObject)
 
 	if(tp != nullptr)
 	{
+		createEditorInSideTab(infoObject, tp, [tp](PageInfo& editorList)
+		{
+			tp->createEditor(editorList);
+		});
+
+		return true;
 		auto& l = createModalPopup<factory::List>({
 	        { mpid::Padding, 10 }
 		});
+
+		
 
 	    l.setStateObject(infoObject);
 	    tp->createEditor(l);

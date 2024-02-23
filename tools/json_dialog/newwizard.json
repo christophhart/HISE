@@ -13,11 +13,22 @@
     "tableLineColour": 864059520,
     "tableBgColour": 864059520,
     "headlineColour": 4287692721,
-    "UseSpecialBoldFont": false
+    "UseSpecialBoldFont": false,
+    "buttonTabBackgroundColour": 570425344,
+    "buttonBgColour": 4289374890,
+    "buttonTextColour": 4280624421,
+    "modalPopupBackgroundColour": 4281545523,
+    "modalPopupOverlayColour": 3995214370,
+    "modalPopupOutlineColour": 4289374890,
+    "pageProgressColour": 2013265919
   },
   "Properties": {
     "Header": "New Project Wizard",
-    "Subtitle": ""
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "",
+    "Company": "",
+    "Version": ""
   },
   "LayoutData": {
     "TopHeight": 56,
@@ -26,13 +37,14 @@
     "OuterPadding": 50,
     "LabelWidth": 160.0,
     "LabelHeight": 32,
-    "DialogWidth": 0,
-    "DialogHeight": 0,
+    "DialogWidth": 700,
+    "DialogHeight": 600,
     "LabelPosition": "Default"
   },
   "GlobalState": {
-    "rootDirectory": "/Users/christophhart/HISE/tools/json_dialog",
-    "projectType": 2
+    "rootDirectory": "D:\\Development\\HISE modules\\tools\\json_dialog\\test\\test",
+    "projectType": 2,
+    "downloadHXI": "D:\\Development\\HISE modules\\tools\\json_dialog\\test\\test\\info.hxi"
   },
   "Children": [
     {
@@ -165,12 +177,15 @@
                   "Padding": 0
                 },
                 {
-                  "Type": "LambdaTask",
-                  "Text": "Download template",
-                  "ID": "downloadTemplateTask",
+                  "Type": "DownloadTask",
+                  "Text": "Download Template",
+                  "ID": "downloadHXI",
                   "CallOnNext": false,
                   "LabelPosition": "Above",
-                  "Function": "NewProjectWizard::downloadTemplate"
+                  "Source": "https://docs.hise.audio/info.hxi",
+                  "Target": "$rootDirectory/info.hxi",
+                  "ExtraHeaders": "",
+                  "UsePost": false
                 },
                 {
                   "Type": "LambdaTask",
@@ -219,5 +234,6 @@
         }
       ]
     }
-  ]
+  ],
+  "Assets": []
 }

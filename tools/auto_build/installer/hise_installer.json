@@ -1,0 +1,392 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281479730,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false,
+    "buttonTabBackgroundColour": 570425344,
+    "buttonBgColour": 4289374890,
+    "buttonTextColour": 4280624421,
+    "modalPopupBackgroundColour": 4281545523,
+    "modalPopupOverlayColour": 3995214370,
+    "modalPopupOutlineColour": 4289374890,
+    "pageProgressColour": 2013265919
+  },
+  "Properties": {
+    "Header": "HISE Installer",
+    "Subtitle": "$version",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "4.0.0"
+  },
+  "LayoutData": {
+    "TopHeight": 56,
+    "ButtonTab": 40,
+    "ButtonMargin": 5,
+    "OuterPadding": 50,
+    "LabelWidth": 140.0,
+    "LabelHeight": 32,
+    "DialogWidth": 800,
+    "DialogHeight": 600,
+    "LabelPosition": "Default"
+  },
+  "GlobalState": {
+    "company": "",
+    "product": "minimal_hise_test",
+    "version": "1.0.0",
+    "eula": " Copyright 2022 Christoph Hart\n\n HISE is free software: you can redistribute it and/or modify\n it under the terms of the GNU General Public License as published by\n the Free Software Foundation, either version 3 of the License, or\n (at your option) any later version.\n\n HISE is distributed in the hope that it will be useful,\n but WITHOUT ANY WARRANTY; without even the implied warranty of\n MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n GNU General Public License for more details.\n\n You should have received a copy of the GNU General Public License\n along with HISE.  If not, see <http://www.gnu.org/licenses/>.\n\n Commercial licenses for using HISE in an closed source project are \n available on request. Please visit the project's website to get more \n information about commercial licensing:\n\n http://www.hise.audio/\n\n HISE is based on the JUCE library, \n which must be separately licensed for commercial applications:\n\n http://www.juce.com",
+    "acceptTOC": true,
+    "WINDOWS": true,
+    "MAC_OS": false,
+    "LINUX": false,
+    "OS": 0,
+    "vstDirectory": "C:\\Program Files\\VSTPlugins",
+    "vst3Directory": "C:\\Program Files\\Common Files\\VST3",
+    "aaxDirectory": "C:\\Program Files\\Common Files\\Avid\\Audio\\Plug-Ins",
+    "standaloneWinTarget": "C:\\Program Files\\HISE",
+    "installStandaloneWindows": "true",
+    "installVST3Windows": "true",
+    "FileSelectorId": "$vst3Directory",
+    "launchHise": true
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "ProjectInfo",
+          "Text": "LabelText"
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "Welcome to the HISE installer. This will install the compiled versions of the latest HISE build.\n\n> This installer is made with the Multipage application wizard within HISE and can be used to create your own installers too!",
+          "Padding": 0
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": "15",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Please \"read\" and accept the EULA before proceeding...",
+          "Padding": 0
+        },
+        {
+          "Type": "TextInput",
+          "Text": "EULA",
+          "ID": "eula",
+          "InitValue": "${eula}",
+          "UseInitValue": true,
+          "LabelPosition": "None",
+          "EmptyText": "",
+          "Required": false,
+          "ParseArray": false,
+          "Height": "180",
+          "Items": "",
+          "Help": "",
+          "Multiline": true
+        },
+        {
+          "Type": "Button",
+          "Text": "I've read and accepted the EULA",
+          "ID": "acceptTOC",
+          "InitValue": "false",
+          "UseInitValue": true,
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Required": true,
+          "Help": "",
+          "ButtonType": "",
+          "Trigger": false
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "OperatingSystem",
+          "Text": "LabelText"
+        },
+        {
+          "Type": "Branch",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "This page will be shown under windows",
+                  "Padding": 0,
+                  "Comment": true
+                },
+                {
+                  "Type": "PluginDirectories",
+                  "Text": "LabelText"
+                },
+                {
+                  "Type": "RelativeFileLoader",
+                  "Text": "LabelText",
+                  "ID": "standaloneWinTarget",
+                  "CallOnNext": false,
+                  "SpecialLocation": "globalApplicationsDirectory",
+                  "RelativePath": "HISE",
+                  "Required": false
+                },
+                {
+                  "Type": "MarkdownText",
+                  "Text": "Please select which formats you want to install.",
+                  "Padding": 0,
+                  "Comment": false
+                },
+                {
+                  "Type": "Column",
+                  "Text": "LabelText",
+                  "Children": [
+                    {
+                      "Type": "Button",
+                      "Text": "Install Standalone",
+                      "ID": "installStandaloneWindows",
+                      "InitValue": "true",
+                      "UseInitValue": true,
+                      "LabelPosition": "Default",
+                      "IconData": "",
+                      "Help": "",
+                      "Required": false,
+                      "ButtonType": "",
+                      "Trigger": false
+                    },
+                    {
+                      "Type": "FileSelector",
+                      "Text": "LabelText",
+                      "ID": "standaloneWinTarget",
+                      "InitValue": "",
+                      "UseInitValue": "",
+                      "LabelPosition": "None",
+                      "Required": false
+                    }
+                  ],
+                  "ID": "",
+                  "Width": [
+                    "190",
+                    "500"
+                  ],
+                  "Padding": ""
+                },
+                {
+                  "Type": "Column",
+                  "Text": "LabelText",
+                  "Children": [
+                    {
+                      "Type": "Button",
+                      "Text": "Install VST3 Plugin",
+                      "ID": "installVST3Windows",
+                      "InitValue": "true",
+                      "UseInitValue": true,
+                      "LabelPosition": "Default",
+                      "IconData": "",
+                      "Help": "",
+                      "Required": false,
+                      "ButtonType": "",
+                      "Trigger": false
+                    },
+                    {
+                      "Type": "FileSelector",
+                      "Text": "LabelText",
+                      "ID": "FileSelectorId",
+                      "InitValue": "$vst3Directory",
+                      "UseInitValue": true,
+                      "LabelPosition": "None",
+                      "Required": false,
+                      "Help": "",
+                      "Directory": false,
+                      "Wildcard": "",
+                      "SaveFile": false
+                    }
+                  ],
+                  "ID": "",
+                  "Width": [
+                    "190",
+                    "500"
+                  ],
+                  "Padding": ""
+                }
+              ],
+              "ID": "",
+              "Padding": "15",
+              "Foldable": false,
+              "Folded": false
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "This page will be shown under macOS",
+                  "Padding": 0,
+                  "Comment": true
+                }
+              ],
+              "ID": "",
+              "Padding": 10,
+              "Foldable": false,
+              "Folded": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "Branch",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "This is the windows install routine",
+                  "Padding": 0,
+                  "Comment": true
+                },
+                {
+                  "Type": "FileLogger",
+                  "Text": "LabelText",
+                  "Filename": "$standaloneWinTarget/InstallLog.txt"
+                },
+                {
+                  "Type": "CopyAsset",
+                  "Text": "Installing Standalone",
+                  "ID": "installStandaloneWindows",
+                  "CallOnNext": false,
+                  "LabelPosition": "Above",
+                  "Overwrite": true,
+                  "Source": "${hise_win_standalone}",
+                  "Target": "$standaloneWinTarget"
+                },
+                {
+                  "Type": "CopyAsset",
+                  "Text": "Installing VST3 Plugin",
+                  "ID": "installVST3Windows",
+                  "CallOnNext": false,
+                  "LabelPosition": "Above",
+                  "Overwrite": true,
+                  "Source": "${hise_win_vst3}",
+                  "Target": "$vst3Directory"
+                }
+              ],
+              "ID": "",
+              "Padding": "30",
+              "Foldable": false,
+              "Folded": false
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "This is the macOS install routine",
+                  "Padding": 0,
+                  "Comment": true
+                }
+              ],
+              "ID": "",
+              "Padding": 10,
+              "Foldable": false,
+              "Folded": false
+            }
+          ],
+          "ID": "OS"
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": "20",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "The installation was complete. Press finish to close the installer.",
+          "Padding": 0,
+          "Comment": false
+        },
+        {
+          "Type": "Button",
+          "Text": "Open HISE",
+          "ID": "launchHise",
+          "InitValue": "true",
+          "UseInitValue": true,
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        },
+        {
+          "Type": "Launch",
+          "Text": "$standaloneWinTarget/HISE.exe",
+          "ID": "launchHise",
+          "CallOnNext": true,
+          "Args": ""
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    }
+  ],
+  "Assets": [
+    {
+      "Type": 3,
+      "ID": "eula",
+      "RelativePath": true,
+      "Filename": "license.txt"
+    },
+    {
+      "Type": 1,
+      "ID": "hise_win_standalone",
+      "RelativePath": true,
+      "Filename": "../../../projects/standalone/Builds/VisualStudio2022/x64/Release with Faust/App/HISE.exe"
+    },
+    {
+      "Type": 1,
+      "ID": "hise_win_vst3",
+      "RelativePath": true,
+      "Filename": "../../../projects/plugin/Builds/VisualStudio2022/x64/Release/VST/HISE x64.dll"
+    }
+  ]
+}
