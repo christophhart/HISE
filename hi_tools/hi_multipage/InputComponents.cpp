@@ -451,7 +451,7 @@ void Choice::postInit()
 
     cb.onChange = [this]()
     {
-        auto& cb = getComponent<ComboBox>();
+        const auto& cb = const_cast<const Choice*>(this)->getComponent<ComboBox>();
 
 	    switch(valueMode)
 	    {
