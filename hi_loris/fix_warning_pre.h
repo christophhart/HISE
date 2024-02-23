@@ -19,7 +19,17 @@ namespace std
 #define bind2nd bind
 
 #endif
+
+#if defined (LINUX) || defined (__linux__)
+#define DEFINE_AUTO_PTR 0
+#else
+#define DEFINE_AUTO_PTR 1
+#endif
+
+#if DEFINE_AUTO_PTR
 #define auto_ptr unique_ptr
+#endif
+
 #endif
 
 #include "../JUCE/modules/juce_core/juce_core.h"
