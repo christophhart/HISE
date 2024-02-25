@@ -403,22 +403,29 @@ struct EnvelopePopup : public Component
 							y += 0.5;
 
 							y = 0.5 * (1.0 - intensity) + intensity * y;
-
+							
 							list.add({ x, y });
 						}
 						
 						numToDo -= numSamplesToUse;
 						offset += numSamplesToUse;
 					}
-
+					
 					if (!list.isEmpty())
 					{
 						auto f = [list](Table& t)
 						{
 							t.reset();
+							t.setTablePoint(0, 0.0f, 0.5f, 0.5f);
+							t.setTablePoint(1, 0.0f, 0.5f, 0.5f);
 
 							for (auto p : list)
-								t.addTablePoint(p.x, p.y);
+							{
+								if (p.y != 0.0 && p.y != 1.0)
+									t.addTablePoint(p.x, p.y);
+							}
+							
+							t.setTablePoint(0, 0.0f, t.getGraphPoint(1).y, 0.5f);
 
 							return true;
 						};
