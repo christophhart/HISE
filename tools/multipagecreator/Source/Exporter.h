@@ -20,6 +20,8 @@ struct projucer_exporter: public HardcodedDialogWithState
 	State& appState;
 
 	Dialog* createDialog(State& state) override;
+
+	var exportObj;
 	
 };
 } // namespace multipage

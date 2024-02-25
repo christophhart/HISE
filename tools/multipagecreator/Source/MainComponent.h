@@ -17,6 +17,32 @@ namespace multipage
 {
 using namespace juce;
 
+struct Autosaver: public Timer
+{
+	Autosaver(const File& f_, State& s):
+      f(f_),
+      state(s)
+	{
+		startTimer(30000);
+	}
+
+    void timerCallback() override
+	{
+        if(state.currentDialog != nullptr)
+        {
+	        auto json = JSON::toString(state.currentDialog->exportAsJSON());
+
+            auto newIndex = ++index % 5;
+			auto autosaveFile = f.getSiblingFile("Autosave_" + String(newIndex)).withFileExtension(".json");
+            autosaveFile.replaceWithText(json);
+        }
+	}
+
+    File f;
+    State& state;
+    int index = 0;
+};
+
 struct ComponentWithEdge: public Component,
 						  public ComponentBoundsConstrainer
 {
@@ -668,7 +694,8 @@ struct AssetManager: public Component,
 	    Type = 1,
         ID,
         Filename,
-        Size
+        Size,
+        TargetOS
     };
     
     AssetManager(State& s):
@@ -687,6 +714,7 @@ struct AssetManager: public Component,
         listbox.getHeader().setColour(TableHeaderComponent::ColourIds::backgroundColourId, Colour(0xFF333333));
         listbox.getHeader().setColour(TableHeaderComponent::ColourIds::textColourId, Colour(0xFF999999));
         listbox.getHeader().setColour(TableHeaderComponent::ColourIds::outlineColourId, Colour(0xFF444444));
+        
         listbox.setHeaderHeight(22);
 
 	    addAndMakeVisible(listbox);
@@ -699,6 +727,7 @@ struct AssetManager: public Component,
         listbox.getHeader().addColumn("ID", (int)Columns::ID, 100, 100, -1);
         listbox.getHeader().addColumn("File", (int)Columns::Filename, 100, 100, -1);
         listbox.getHeader().addColumn("Size", (int)Columns::Size, 50, 50, 100);
+        listbox.getHeader().addColumn("OS", (int)Columns::TargetOS, 60, 60, 60);
         
 		listbox.getHeader().setStretchToFitActive(true);
 
@@ -763,6 +792,7 @@ struct AssetManager: public Component,
 	                ChangeFileReference,
                     UseAbsolutePath,
                     UseRelativePath,
+                    OSOffset,
 	                numCommandIds
 	            };
 
@@ -773,11 +803,25 @@ struct AssetManager: public Component,
                 m.addItem(UseAbsolutePath, "Use absolute path", true, !a->useRelativePath);
                 m.addItem(UseRelativePath, "Use relative path", true, a->useRelativePath);
                 m.addSeparator();
+                m.addItem(OSOffset + (int)Asset::TargetOS::All, "All operating systems", true, a->os == Asset::TargetOS::All);
+                m.addItem(OSOffset + (int)Asset::TargetOS::Windows, "Windows only", true, a->os == Asset::TargetOS::Windows);
+                m.addItem(OSOffset + (int)Asset::TargetOS::macOS, "macOS only", true, a->os == Asset::TargetOS::macOS);
+                m.addItem(OSOffset + (int)Asset::TargetOS::Linux, "Linux only", true, a->os == Asset::TargetOS::Linux);
+                m.addSeparator();
 	            m.addItem(ChangeFileReference, "Change file reference");
 	            m.addItem(DeleteAsset, "Delete asset");
 
 	            if(auto r = m.show())
 	            {
+                    if(r >= OSOffset)
+                    {
+	                    a->os = (Asset::TargetOS)(r - OSOffset);
+                        listbox.updateContent();
+                        listbox.repaintRow(rowNumber);
+                        listbox.repaint();
+                        return;
+                    }
+
 		            switch((CommandIds)r)
 		            {
 		            case ChangeAssetID:
@@ -852,6 +896,7 @@ struct AssetManager: public Component,
             case Columns::ID: return a->id;
             case Columns::Filename: return File(a->filename).getFileName();
             case Columns::Size: return String((double)a->data.getSize() / 1024.0 / 1024.0, 1) + String("MB");
+            case Columns::TargetOS: return Asset::getOSName(a->os);
             default: return {};
             }
         }
@@ -1113,6 +1158,8 @@ private:
     juce::RecentlyOpenedFilesList fileList;
 
     void createDialog(const File& f);
+
+    ScopedPointer<Autosaver> autosaver;
 
     //==============================================================================
     // Your private member variables go here...

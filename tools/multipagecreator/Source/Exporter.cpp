@@ -10,7 +10,8 @@ using namespace juce;
 
 var projucer_exporter::exportProjucerProject(State::Job& t, const var& stateObject)
 {
-	auto exportObj = appState.currentDialog->exportAsJSON();
+	if(!exportObj.isObject())
+		exportObj = appState.currentDialog->exportAsJSON();
 
 	auto projectName = exportObj[mpid::Properties][mpid::ProjectName].toString();
 
@@ -19,6 +20,8 @@ var projucer_exporter::exportProjucerProject(State::Job& t, const var& stateObje
 	cg.company = exportObj[mpid::Properties][mpid::Company].toString();
 	cg.version = exportObj[mpid::Properties][mpid::Version].toString();
 	cg.hisePath = stateObject["hisePath"].toString();
+
+	auto startCompile = !(bool)stateObject["skipCompilation"];
 
 	{
 		ScopedSetting ss;
@@ -37,6 +40,11 @@ var projucer_exporter::exportProjucerProject(State::Job& t, const var& stateObje
 		cg.write(fos, (FT)i, &t);
 	}
 
+	if(!startCompile)
+	{
+		return var(0);
+	}
+
 	auto batchFile = cg.getFile(CodeGenerator::FileType::BatchFile);
 
 #if JUCE_WINDOWS
@@ -50,7 +58,7 @@ var projucer_exporter::exportProjucerProject(State::Job& t, const var& stateObje
     // dave...
 #endif
 	
-	return var();
+	return var(0);
 }
 
 

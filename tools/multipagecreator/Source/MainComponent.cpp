@@ -238,6 +238,8 @@ void MainComponent::createDialog(const File& f)
 		JSON::parse(f.loadFileAsString(), obj);
 		fileList.addFile(f);
 		rt.currentRootDirectory = f.getParentDirectory();
+
+		autosaver = new Autosaver(f, rt);
 	}
 
 	currentFile = f;
@@ -255,6 +257,7 @@ void MainComponent::createDialog(const File& f)
 	tree->getContent<multipage::Tree>()->setRoot(*c);
 	assetManager.listbox.updateContent();
 	assetManager.repaint();
+	assetManager.resized();
 
     c->setFinishCallback([](){
     	JUCEApplication::getInstance()->systemRequestedQuit();

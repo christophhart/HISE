@@ -10,8 +10,144 @@
 
 #include "../JuceLibraryCode/JuceHeader.h"
 #include "MainComponent.h"
+#include "Exporter.h"
 
+class CommandLineActions
+{
+private:
+    
+    static void throwErrorAndQuit(const String& errorMessage)
+    {
+#if JUCE_DEBUG
+        DBG(errorMessage);
+        jassertfalse;
+#else
+        print("ERROR: " + errorMessage);
+        exit(1);
+#endif
+    }
+    
+    static void print(const String& message)
+    {
+#if JUCE_DEBUG
+        DBG(message);
+#else
+        std::cout << message << std::endl;
+#endif
+    }
+    
+    static StringArray getCommandLineArgs(const String& commandLine)
+    {
+        return StringArray::fromTokens(commandLine, true);
+    }
+    
+    
+    
+	static String getArgument(const StringArray& args, const String& prefix)
+	{
+		for (auto arg : args)
+		{
+			if (arg.unquoted().startsWith(prefix))
+				return arg.unquoted().fromFirstOccurrenceOf(prefix, false, false);
+		}
 
+		return {};
+	}
+
+	
+
+	
+
+	static File getFilePathArgument(const StringArray& args, const File& root = File())
+	{
+		auto s = getArgument(args, "-p:");
+
+		if (s.isNotEmpty() && File::isAbsolutePath(s))
+			return File(s);
+
+		if (root.isDirectory())
+		{
+			auto rel = root.getChildFile(s);
+
+			if (rel.existsAsFile())
+				return rel;
+		}
+
+		throwErrorAndQuit("`" + s + "` is not a valid path");
+
+#if JUCE_DEBUG
+		return File();
+#endif
+	}
+
+public:
+
+    static void compileProject(const String& commandLine)
+    {
+	    auto args = getCommandLineArgs(commandLine);
+
+        auto jsonFile = getArgument(args, "--export:").unquoted();
+        auto hisePath = getArgument(args, "--hisepath:").unquoted();
+
+        if(File::isAbsolutePath(jsonFile) && File::isAbsolutePath(hisePath))
+        {
+	        File j(jsonFile);
+            File hp(hisePath);
+
+            if(!hp.isDirectory())
+                throwErrorAndQuit("HISE path does not exist");
+
+            if(!hp.getChildFile("hi_core").isDirectory())
+                throwErrorAndQuit("HISE path is not valid");
+
+            if(!j.existsAsFile())
+                throwErrorAndQuit("JSON file does not exist");
+
+            auto obj = JSON::parse(j.loadFileAsString());
+
+            multipage::State state(obj, j.getParentDirectory());
+            
+            struct RunJob: public State::Job
+            {
+                RunJob(State& s):
+                  Job(s, var())
+                {};
+
+                void setMessage(const String& message) override
+                {
+	                print(message);
+                }
+
+	            Result run() override { return Result::ok(); };
+            };
+
+            RunJob job(state);
+
+            DynamicObject::Ptr so = new DynamicObject();
+            so->setProperty("hisePath", hp.getFullPathName());
+            so->setProperty("skipCompilation", true);
+
+            projucer_exporter pe(j.getParentDirectory(), state);
+            pe.exportObj = obj;
+            auto returnCode = (int)pe.exportProjucerProject(job, var(so.get()));
+
+            exit(returnCode);
+        }
+    }
+
+	static void printHelp()
+	{
+		print("");
+		print("HISE Multipage Creator");
+        print("----------------------");
+        print("");
+        print("Usage: multipagecreator.exe --export:JSON_FILE --hisepath:HISE_PATH");
+        print("");
+        print("Exports the JSON File as a binary application");
+
+		exit(0);
+	}
+};
 
 //==============================================================================
 class jit_playgroundApplication  : public JUCEApplication
@@ -27,6 +163,16 @@ public:
     //==============================================================================
     void initialise (const String& commandLine) override
     {
+        if(commandLine.isNotEmpty())
+        {
+	        if(commandLine.startsWith("--help"))
+                CommandLineActions::printHelp();
+
+            if(commandLine.startsWith("--export"))
+            {
+	            CommandLineActions::compileProject(commandLine);
+            }
+        }
         mainWindow.reset (new MainWindow (getApplicationName()));
     }
 
