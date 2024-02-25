@@ -326,6 +326,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 
 				for(auto& a: *al)
 				{
+					
 					x << getNewLine() << "MULTIPAGE_ADD_ASSET_TO_LIST(" << a[mpid::ID].toString() << ");";
 				}
 

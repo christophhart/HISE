@@ -232,7 +232,10 @@ void Dialog::DefaultLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& tb,
     auto b = tb.getLocalBounds().toFloat();
     
     auto tickArea = b.removeFromLeft(b.getHeight());
-	g.setColour(c.withMultipliedAlpha(shouldDrawButtonAsHighlighted ? 1.0f : 0.7f));
+
+	float alpha = tb.isEnabled() ? 1.0f : 0.6f;
+
+	g.setColour(c.withMultipliedAlpha(alpha * (shouldDrawButtonAsHighlighted ? 1.0f : 0.7f)));
 
 	g.drawRoundedRectangle(tickArea.reduced(8).toFloat(), 4.0f, 2.0f);
 
@@ -252,7 +255,7 @@ void Dialog::DefaultLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& tb,
 	if(text.isNotEmpty())
 	{
 		b.removeFromLeft(3);
-		g.setColour(f.second);
+		g.setColour(f.second.withAlpha(alpha));
 		g.setFont(f.first);
 		g.drawText(text, b.toFloat(), Justification::left);
 	}

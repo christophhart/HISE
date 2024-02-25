@@ -46,6 +46,8 @@ void addOnValueCodeEditor(const var& infoObject, Dialog::PageInfo& rootList)
 		{ mpid::Value, infoObject[mpid::Code] },
 		{ mpid::Help, "The JS code that will be executed whenever the value changes. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
 	});
+
+    
 }
 
 template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList, const String& typeHelp)
@@ -62,6 +64,20 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
         { mpid::Value, "" },
 		{ mpid::Help, "The ID for the element (used as key in the state `var`.\n>" }
 	});
+
+    rootList.addChild<Button>({
+        { mpid::ID, "Visible" },
+        { mpid::Text, "Visible" },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Visible) },
+        { mpid::Help, "Whether to show the UI element at all (in non-edit mode)." }
+    });
+
+    rootList.addChild<Button>({
+        { mpid::ID, "Enabled" },
+        { mpid::Text, "Enabled" },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Enabled) },
+        { mpid::Help, "Whether to allow user input for the element" }
+    });
 
     auto& col1 = rootList;
 
@@ -107,16 +123,25 @@ LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Compo
 	PageBase(r, width, obj),
 	component(c)
 {
+    if(!obj.hasProperty(mpid::Visible))
+        obj.getDynamicObject()->setProperty(mpid::Visible, true);
+
+    if(!obj.hasProperty(mpid::Enabled))
+        obj.getDynamicObject()->setProperty(mpid::Enabled, true);
+
 	addAndMakeVisible(c);
 	label = obj[mpid::Text].toString();
     
     required = obj[mpid::Required];
 
-    
-
     setWantsKeyboardFocus(false);
     setInterceptsMouseClicks(false, true);
-	setSize(width, positionInfo.getHeightForComponent(32));
+
+    auto h = positionInfo.getHeightForComponent(32);
+
+    
+
+	setSize(width, h);
 }
 
 Result LabelledComponent::loadFromInfoObject(const var& obj)
@@ -127,12 +152,22 @@ Result LabelledComponent::loadFromInfoObject(const var& obj)
 
 void LabelledComponent::postInit()
 {
+    if(infoObject.hasProperty(mpid::Enabled))
+        enabled = infoObject[mpid::Enabled];
+
+    loadFromInfoObject(infoObject);
+
     if((initValue.isVoid() || initValue.isUndefined()) && infoObject[mpid::UseInitValue] && getValueFromGlobalState(var()).isVoid())
     {
 	    initValue = infoObject[mpid::InitValue];
     }
 
 	init();
+
+    getComponent<Component>().setEnabled(enabled);
+
+    setVisible(infoObject[mpid::Visible] || rootDialog.isEditModeEnabled());
+    repaint();
 }
 
 void LabelledComponent::paint(Graphics& g)
@@ -147,7 +182,7 @@ void LabelledComponent::paint(Graphics& g)
     if(!b.isEmpty())
     {
 		g.setFont(df.first);
-		g.setColour(df.second);
+		g.setColour(df.second.withAlpha(enabled ? 1.0f : 0.6f));
         g.drawText(label, b.toFloat(), Justification::left);
     }
 }
@@ -167,7 +202,27 @@ void LabelledComponent::resized()
     component->setBounds(b);
 }
 
-	    
+void LabelledComponent::callOnValueChange()
+{
+    auto ms = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
+    auto code = infoObject[mpid::Code].toString();
+    if(code.startsWithChar('$'))
+        code = ms->loadText(code);
+
+    if(code.isNotEmpty())
+    {
+	    auto engine = ms->createJavascriptEngine(infoObject);
+
+	    auto ok = engine->execute(code);
+        
+	    if(ok.failed())
+	    {
+		    rootDialog.setCurrentErrorPage(this);
+	        setModalHelp(ok.getErrorMessage());
+	    }
+    }
+}
+
 
 void LabelledComponent::editModeChanged(bool isEditMode)
 {
@@ -224,13 +279,8 @@ void Button::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Text, "Trigger" },
 		{ mpid::Help, "If this is enabled, the button will fire the action with the same ID when you click it, otherwise it will store its value (either on/off or radio group index in the global state" }
 	});
-    
-    col.addChild<CodeEditor>({
-		{ mpid::ID, "Code" },
-		{ mpid::Text, "Code" },
-		{ mpid::Value, infoObject[mpid::Code] },
-		{ mpid::Help, "The JS code that will be evaluated. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
-	});
+
+    addOnValueCodeEditor(infoObject, rootList);
 }
 
 
@@ -288,25 +338,7 @@ void Button::buttonClicked(juce::Button* b)
 			tb->setToggleState(b == tb, dontSendNotification);
     }
 
-    auto ms = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
-    auto code = infoObject[mpid::Code].toString();
-    if(code.startsWithChar('$'))
-        code = ms->loadText(code);
-
-    if(code.isNotEmpty())
-    {
-	    auto engine = ms->createJavascriptEngine(infoObject);
-
-        
-
-	    auto ok = engine->execute(code);
-        
-	    if(ok.failed())
-	    {
-		    rootDialog.setCurrentErrorPage(this);
-	        setModalHelp(ok.getErrorMessage());
-	    }
-    }
+    callOnValueChange();
 }
 
 Result Button::loadFromInfoObject(const var& obj)
@@ -466,6 +498,7 @@ Result Choice::loadFromInfoObject(const var& obj)
 
     auto& combobox = getComponent<ComboBox>();
 	auto s = obj[mpid::Items].toString();
+    combobox.clear(dontSendNotification);
 	combobox.addItemList(StringArray::fromLines(s), 1);
     return ok;
 
@@ -492,6 +525,8 @@ void Choice::postInit()
 		    case ValueMode::Id: writeState(cb.getSelectedId()); break;
 		    }
 	    }
+
+        callOnValueChange();
     };
 
     switch(valueMode)
@@ -552,9 +587,11 @@ void Choice::createEditor(Dialog::PageInfo& rootList)
         { mpid::Value, getValueModeNames()[(int)valueMode] },
         { mpid::Items, getValueModeNames().joinIntoString("\n") }
     });
+
+    addOnValueCodeEditor(infoObject, rootList);
 }
 
-ColourChooser::ColourChooser(Dialog& r, int w, const var& obj):
+ColourChooser:: ColourChooser(Dialog& r, int w, const var& obj):
 	LabelledComponent(r, w, obj, new ColourSelector(ColourSelector::ColourSelectorOptions::showColourspace | ColourSelector::showColourAtTop | ColourSelector::showAlphaChannel | ColourSelector::ColourSelectorOptions::editableColour, 2, 0))
 {
     positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Above);
@@ -891,6 +928,8 @@ void TextInput::textEditorReturnKeyPressed(TextEditor& e)
 		currentAutocomplete->setAndDismiss();
 
     findParentComponentOfClass<Dialog>()->grabKeyboardFocusAsync();
+
+    callOnValueChange();
 }
 
 void TextInput::textEditorTextChanged(TextEditor& e)
@@ -1107,6 +1146,8 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "A string with one item per line that will show up in the autocomplete popup." },
         { mpid::Value, autocompleteItems.joinIntoString("\n") }
 	});
+
+    addOnValueCodeEditor(infoObject, rootList);
 }
 
 Result TextInput::loadFromInfoObject(const var& obj)
@@ -1197,6 +1238,8 @@ void FileSelector::createEditor(Dialog::PageInfo& rootList)
         { mpid::Value, required },
 		{ mpid::Help, "Whether a file / directory must be selected" }
 	});
+
+    addOnValueCodeEditor(infoObject, rootList);
 }
 
     
@@ -1315,6 +1358,7 @@ FileSelector::FileSelector(Dialog& r, int width, const var& obj):
     fileSelector.fileBroadcaster.addListener(*this, [](FileSelector& f, File nf)
     {
         f.writeState(nf.getFullPathName());
+        f.callOnValueChange();
     }, false);
 
 	isDirectory = obj[mpid::Directory];

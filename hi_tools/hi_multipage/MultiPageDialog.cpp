@@ -1869,7 +1869,9 @@ void Dialog::containerPopup(const var& infoObject)
 
 	m.addSeparator();
 	m.addItem(90000, "Edit " + typeName, tp != nullptr, tp == currentlyEditedPage);
+	
 	m.addItem(924, "Delete " + typeName, tp != nullptr && tp->findParentComponentOfClass<factory::Container>() != nullptr);
+	m.addItem(90001, "Copy info JSON", tp != nullptr);
 
 	if(auto r = m.show())
 	{
@@ -1889,6 +1891,10 @@ void Dialog::containerPopup(const var& infoObject)
 
 			showModalPopup(true);
 #endif
+		}
+		else if (r == 90001)
+		{
+			SystemClipboard::copyTextToClipboard(JSON::toString(tp->getInfoObject(), false));
 		}
 		else if (r == 924)
 		{

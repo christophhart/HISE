@@ -822,14 +822,14 @@ Result HttpRequest::performTask(State::Job& t)
 {
 	auto code = infoObject[mpid::Code].toString();
 
-	JavascriptEngine engine;
+	auto engine = rootDialog.getState().createJavascriptEngine(infoObject);
 
-	auto r = engine.execute(code);
+	auto r = engine->execute(code);
 
 	if(r.failed())
 		return abort(r.getErrorMessage());
 
-	auto hasResponseFunction = engine.getRootObjectProperties().indexOf("onResponse") != -1;
+	auto hasResponseFunction = engine->getRootObjectProperties().indexOf("onResponse") != -1;
 
 	if(!hasResponseFunction)
 		return Result::fail("no `onResponse()` function found");
@@ -889,10 +889,8 @@ Result HttpRequest::performTask(State::Job& t)
 		va[1] = var(robj);
 
 		var::NativeFunctionArgs args(var(), va, 2);
-
-		engine.registerNativeObject("state", rootDialog.getState().globalState.getDynamicObject());
-
-		auto errorMessage = engine.callFunction("onResponse", args, &r).toString();
+		
+		auto errorMessage = engine->callFunction("onResponse", args, &r).toString();
 
 		if(r.failed())
 			return abort(r.getErrorMessage());
@@ -1028,10 +1026,17 @@ Result DownloadTask::performTask(State::Job& t)
 
 	auto keepTempFile = tempFile != nullptr;
 
-	rootDialog.logMessage(MessageType::NetworkEvent, "Download " + sourceURL.toString(true));
-	rootDialog.logMessage(MessageType::NetworkEvent, "Target file: " + getTargetFile().getFullPathName());
+	auto ok = targetFile.getParentDirectory().createDirectory();
 
-	dt = sourceURL.downloadToFile(getTargetFile(), extraHeaders, nullptr, usePost);
+	if(ok.failed())
+		throw ok;
+	
+	rootDialog.logMessage(MessageType::NetworkEvent, "Download " + sourceURL.toString(true));
+	rootDialog.logMessage(MessageType::NetworkEvent, "Target file: " + targetFile.getFullPathName());
+
+
+
+	dt = sourceURL.downloadToFile(targetFile, extraHeaders, nullptr, usePost);
 
 	if(dt != nullptr)
 	{
@@ -1239,6 +1244,12 @@ Result UnzipTask::performTask(State::Job& t)
 
 	rootDialog.logMessage(MessageType::FileOperation, "Unzip operation complete (" + String(zipFile->getNumEntries()) + " files)");
 
+	if(sourceIsFile && (bool)infoObject[mpid::Cleanup])
+	{
+		if(!sourceFile.deleteFile())
+			throw Result::fail("Can't delete source archive");
+	}
+
 	return Result::ok();
 }
 
@@ -1271,6 +1282,14 @@ void UnzipTask::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Required, false },
 		{ mpid::Value, overwrite },
 		{ mpid::Help, "Whether to use a POST or GET request for the download" }
+	});
+
+	rootList.addChild<Button>({
+		{ mpid::ID, "Cleanup" },
+		{ mpid::Text, "Cleanup" },
+		{ mpid::Required, false },
+		{ mpid::Value, infoObject[mpid::Cleanup] },
+		{ mpid::Help, "Whether to remove the archive after it was extracted successfully" }
 	});
 }
 
@@ -1599,17 +1618,17 @@ void OperatingSystem::loadConstants()
 	setConstant("WINDOWS", true);
 	setConstant("MAC_OS", false);
 	setConstant("LINUX", false);
-	setConstant("OS", 0);
+	setConstant("OS", (int)Asset::TargetOS::Windows);
 #elif JUCE_LINUX
     setConstant("WINDOWS", false);
 	setConstant("MAC_OS", false);
     setConstant("LINUX", true);
-	setConstant("OS", 2);
+	setConstant("OS", (int)Asset::TargetOS::Linux);
 #elif JUCE_MAC
     setConstant("WINDOWS", false);
     setConstant("MAC_OS", true);
 	setConstant("LINUX", false);
-	setConstant("OS", 1);
+	setConstant("OS", (int)Asset::TargetOS::macOS);
 #endif
 }
 

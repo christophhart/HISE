@@ -39,30 +39,7 @@ using namespace juce;
 Container::Container(Dialog& r, int width, const var& obj):
 	PageBase(r, width, obj)
 {
-	if(obj.hasProperty(mpid::Padding))
-		padding = (int)obj[mpid::Padding];
-	else
-		padding = 10;
-
-    if(obj.hasProperty(mpid::ID))
-    {
-		auto nid = obj[mpid::ID].toString();
-
-		if(nid.isNotEmpty())
-			id = Identifier(nid);
-    }
-
-	auto l = obj[mpid::Children];
-        
-	if(l.isArray())
-	{
-		for(auto& r: *l.getArray())
-			addChild(width, r);
-	}
-	else
-	{
-		obj.getDynamicObject()->setProperty(mpid::Children, var(Array<var>()));
-	}
+	
 }
 
 void Container::paintEditBounds(Graphics& g)
@@ -87,6 +64,7 @@ Result Container::checkChildren(PageBase* b, const var& toUse)
 {
 	if(auto ct = dynamic_cast<Container*>(b))
 	{
+
 		for(auto c: ct->childItems)
 		{
 			auto ok = c->check(toUse);
@@ -127,11 +105,14 @@ void Container::recalculateParentSize(PageBase* b)
 void Container::postInit()
 {
 	init();
+
+	if(infoObject.hasProperty(mpid::Padding))
+		padding = (int)infoObject[mpid::Padding];
+	else
+		padding = 10;
+
+    rebuildChildren();
 	
-    stateObject = Dialog::getOrCreateChild(stateObject, id);
-
-	DBG(JSON::toString(stateObject));
-
 	for(const auto& sp: staticPages)
 	{
 		childItems.add(sp->create(rootDialog, getWidth()));
@@ -151,6 +132,7 @@ void Container::postInit()
     }
 
 	calculateSize();
+	resized();
 }
 
 Result Container::checkGlobalState(var globalState)
@@ -530,7 +512,7 @@ void Column::calculateSize()
         
         for(int i = 0; i < childItems.size(); i++)
         {
-            auto v = widthList.isArray() ?  widthList[i] : var();
+            auto v = widthList.size() == childItems.size() ?  widthList[i] : var();
             
             if(v.isUndefined() || v.isVoid())
                 widthInfo.add(equidistance);
@@ -670,14 +652,16 @@ void Branch::postInit()
 	init();
 
 	currentIndex = getValueFromGlobalState();
+	
+	rebuildChildren();
         
 	for(const auto& sp: staticPages)
 	{
 		childItems.add(sp->create(rootDialog, getWidth()));
 		addAndMakeVisible(childItems.getLast());
-
-		
 	}
+
+	
 
 	if(rootDialog.isEditModeEnabled())
 	{

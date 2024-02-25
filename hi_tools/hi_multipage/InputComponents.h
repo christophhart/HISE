@@ -48,6 +48,8 @@ struct LabelledComponent: public Dialog::PageBase
     void paint(Graphics& g) override;
     void resized() override;
 
+    void callOnValueChange();
+
     static String getCategoryId() { return "UI Elements"; }
 
     void editModeChanged(bool isEditMode) override;
@@ -59,6 +61,9 @@ protected:
 
     String label;
     bool required = false;
+
+    bool visible = true;
+    bool enabled = true;
 
 private:
 
@@ -229,6 +234,9 @@ struct CodeEditor: public LabelledComponent
 				stateToken->markdownDescription << "Global state variable  \n> ";
 
         	stateToken->markdownDescription << "Value: `" << obj.toString() << "`";
+
+            auto apiObject = dynamic_cast<ApiObject*>(obj.getDynamicObject());
+
             stateToken->priority = prio;
             tokens.add(stateToken);
 
@@ -239,6 +247,9 @@ struct CodeEditor: public LabelledComponent
 		            String p = parentId;
                     p << "." << nv.name;
                     addRecursive(tokens, p, nv.value);
+
+                    if(apiObject != nullptr)
+                        tokens.getLast()->markdownDescription = apiObject->getHelp(nv.name);
 	            }
             }
             if(auto ar = obj.getArray())

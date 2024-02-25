@@ -151,21 +151,34 @@ void Asset::writeCppLiteral(OutputStream& c, const String& newLine, ReferenceCou
 
 	MemoryBlock compressed;
 
-	comp.compress(data, compressed);
+	int numBytes;
 
-	job.setMessage("Embedding " + id);
+	if(matchesOS())
+	{
+		comp.compress(data, compressed);
 
-	auto numBytes = compressed.getSize();
+		job.setMessage("Embedding " + id);
 
+		numBytes = compressed.getSize();
+	}
+	else
+	{
+		c << newLine << "// do not include for current OS...";
+
+		char x1[1] = { 0 };
+		compressed.append(x1, 1);
+		numBytes = 1;
+	}
+	
 	c << newLine << "static const unsigned char " << id << "[" << String(numBytes) << "] = { ";
-
+	
 	auto bytePtr = static_cast<const uint8*>(compressed.getData());
 
 	for(int i = 0; i < numBytes; i++)
 	{
 		c << String((int)bytePtr[i]);
             
-		if(i <= (numBytes-1))
+		if(i < (numBytes-1))
 			c << ",";
 
 		if ((i % 40) == 39)
@@ -193,6 +206,9 @@ String Asset::getFilePath(const File& currentRoot) const
 
 bool Asset::writeToFile(const File& targetFile, ReferenceCountedObject* job_) const
 {
+	if(!matchesOS())
+		throw Result::fail("Trying to access an asset that isn't included in the current OS");
+
 	auto& job = *static_cast<State::Job*>(job_);
 
 	MemoryInputStream mis(data, false);
@@ -226,8 +242,9 @@ bool Asset::writeToFile(const File& targetFile, ReferenceCountedObject* job_) co
 	return ok;
 }
 
-State::State(const var& obj):
+State::State(const var& obj, const File& currentRootDirectory_):
 	Thread("Tasks"),
+	currentRootDirectory(currentRootDirectory_),
 #if HISE_MULTIPAGE_INCLUDE_EDIT
 	stateProvider(new StateProvider(*this)),
 #endif
@@ -302,36 +319,20 @@ ApiProviderBase* State::getProviderBase()
 	return stateProvider.get();
 }
 
+
+
 std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoObject)
 {
-	struct BaseObj: public DynamicObject
-	{
-		BaseObj(State&state_):
-		  state(state_)
-		{}
+	
 
-		void expectArguments(const var::NativeFunctionArgs& args, int numArgs, const String& customErrorMessage={})
-		{
-			if(args.numArguments != numArgs)
-			{
-				if(customErrorMessage.isNotEmpty())
-					throw customErrorMessage;
-				else
-					throw "Argument amount mismatch: Expected " + String(numArgs);
-			}
-		}
-
-		State& state;
-	};
-
-	struct LogFunction: public BaseObj
+	struct LogFunction: public ApiObject
 	{
 		LogFunction(State& s, const var& infoObject_):
-		  BaseObj(s),
+		  ApiObject(s),
 		  infoObject(infoObject_)
 		{
-			setMethod("print", BIND_MEMBER_FUNCTION_1(LogFunction::print));
-			setMethod("setError", BIND_MEMBER_FUNCTION_1(LogFunction::setError));
+			setMethodWithHelp("print", BIND_MEMBER_FUNCTION_1(LogFunction::print), "Prints a value to the console.");
+			setMethodWithHelp("setError", BIND_MEMBER_FUNCTION_1(LogFunction::setError), "Throws an error and displays a popup with the message");
 		}
 
 		var infoObject;
@@ -352,22 +353,22 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 		var print (const var::NativeFunctionArgs& args)
 		{
 			expectArguments(args, 1);
-
-			state.eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, args.arguments[0].toString());
+			state.eventLogger.sendMessage(getNotificationTypeForCurrentThread(), MessageType::Javascript, args.arguments[0].toString());
 			
 			return var();
 		}
 	};
 
-	struct Dom: public BaseObj
+	struct Dom: public ApiObject
 	{
 		Dom(State& s):
-		  BaseObj(s)
+		  ApiObject(s)
 		{
-			setMethod("getElementById", BIND_MEMBER_FUNCTION_1(Dom::getElementById));
-			setMethod("getElementByType", BIND_MEMBER_FUNCTION_1(Dom::getElementByType));
-			setMethod("getStyleData", BIND_MEMBER_FUNCTION_1(Dom::getStyleData));
-			setMethod("setStyleData", BIND_MEMBER_FUNCTION_1(Dom::setStyleData));
+			setMethodWithHelp("getElementById", BIND_MEMBER_FUNCTION_1(Dom::getElementById), "Returns an array with all elements that match the given ID");
+			setMethodWithHelp("getElementByType", BIND_MEMBER_FUNCTION_1(Dom::getElementByType), "Returns an array with all elements that match the given Type.");
+			setMethodWithHelp("updateElement", BIND_MEMBER_FUNCTION_1(Dom::updateElement), "Refreshes the element (call this after you change any property).");
+			setMethodWithHelp("getStyleData", BIND_MEMBER_FUNCTION_1(Dom::getStyleData), "Returns the global markdown style data.");
+			setMethodWithHelp("setStyleData", BIND_MEMBER_FUNCTION_1(Dom::setStyleData), "Sets the global markdown style data");
 		}
 
 		var getElementByType(const var::NativeFunctionArgs& args)
@@ -389,6 +390,39 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 			}
 
 			return var(matches);
+		}
+
+		var updateElement(const var::NativeFunctionArgs& args)
+		{
+			expectArguments(args, 1);
+
+			if(state.currentDialog != nullptr)
+			{
+				auto id = Identifier(args.arguments[0].toString());
+				auto dialog = state.currentDialog.get();
+
+				auto f = [id, dialog]()
+				{
+					Component::callRecursive<Dialog::PageBase>(dialog, [&](Dialog::PageBase* pb)
+					{
+						if(pb->getId() == id)
+						{
+							pb->postInit();
+							factory::Container::recalculateParentSize(pb);
+							dialog->refreshBroadcaster.sendMessage(sendNotificationAsync, dialog->getState().currentPageIndex);
+						}
+							
+						return false;
+					});
+				};
+
+				if(getNotificationTypeForCurrentThread() == sendNotificationAsync)
+					MessageManager::callAsync(f);
+				else
+					f();
+			}
+
+			return var();
 		}
 
 		var getElementById(const var::NativeFunctionArgs& args)
@@ -441,9 +475,10 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 		}
 	};
 
+
 	
 
-	eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, "Prepare Javascript execution...");
+	eventLogger.sendMessage(getNotificationTypeForCurrentThread(), MessageType::Javascript, "Prepare Javascript execution...");
 
 	auto engine = std::make_unique<JavascriptEngine>();
 
@@ -453,7 +488,7 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 	engine->registerNativeObject("Console", new LogFunction(*this, infoObject));
 	engine->registerNativeObject("document", new Dom(*this));
 	engine->registerNativeObject("state", globalState.getDynamicObject());
-
+	
 	return engine;
 }
 

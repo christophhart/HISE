@@ -93,6 +93,7 @@ struct Asset: public ReferenceCountedObject
 	    Windows,
         macOS,
         Linux,
+        Other,
         numTargetOS
     };
 
@@ -111,8 +112,6 @@ struct Asset: public ReferenceCountedObject
 	    Absolute,
         Relative
     };
-
-
 
     static String getTypeString(Type t)
     {
@@ -180,8 +179,8 @@ struct Asset: public ReferenceCountedObject
 
         v->setProperty(mpid::Type, (int)type);
         v->setProperty(mpid::ID, id);
-
         v->setProperty(mpid::RelativePath, useRelativePath);
+        v->setProperty(mpid::OperatingSystem, (int)os);
 
         if(embedData)
         {
@@ -199,6 +198,19 @@ struct Asset: public ReferenceCountedObject
 
     bool writeToFile(const File& targetFile, ReferenceCountedObject* job_) const;
 
+    static String getOSName(TargetOS os)
+    {
+        switch(os)
+        {
+        case TargetOS::All: return "All";
+        case TargetOS::Windows: return "Win";
+        case TargetOS::macOS: return "Mac";
+        case TargetOS::Linux: return "Linux";
+        case TargetOS::numTargetOS:;
+        default: return "All";
+        }
+    }
+
     static Asset::Ptr fromFile(const File& f)
     {
 	    auto type = getType(f);
@@ -211,6 +223,10 @@ struct Asset: public ReferenceCountedObject
 		comp.expandInplace(mb);
 		auto a = new Asset(std::move(mb), t, id);
         a->filename = filename;
+
+        if(mb.getSize() == 1)
+            a->os = TargetOS::Other;
+
         return a;
     }
 
@@ -236,6 +252,7 @@ struct Asset: public ReferenceCountedObject
             jassert(a->type == t);
             a->id = id;
             a->useRelativePath = obj[mpid::RelativePath];
+            a->os = (TargetOS)(int)obj[mpid::OperatingSystem];
             return a;
         }
         else
@@ -270,6 +287,9 @@ struct Asset: public ReferenceCountedObject
 		if(os == TargetOS::All)
             return true;
 
+        if(os == TargetOS::Other)
+            return false;
+
 #if JUCE_WINDOWS
         return os == TargetOS::Windows;
 #elif JUCE_MAC
@@ -293,7 +313,7 @@ class State: public Thread,
 {
 public:
 
-    State(const var& obj);;
+    State(const var& obj, const File& currentRootDirectory=File());;
     ~State();
 
     void onFinish();
@@ -345,6 +365,16 @@ public:
         }
 
         return assetVariable;
+    }
+
+    static NotificationType getNotificationTypeForCurrentThread()
+    {
+	    auto notification = sendNotificationSync;
+
+		if(!MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+			notification = sendNotificationAsync;
+
+        return notification;
     }
 
     Image loadImage(const String& assetVariable) const
@@ -415,7 +445,7 @@ public:
         Result runJob();
         double& getProgress();
 
-        void setMessage(const String& newMessage);
+        virtual void setMessage(const String& newMessage);
         void updateProgressBar(ProgressBar* b) const;
         Thread& getThread() const { return parent; }
 
@@ -540,6 +570,43 @@ struct UndoableVarAction: public UndoableAction
 };
 
 class Dialog;    
+
+struct ApiObject: public DynamicObject
+{
+	ApiObject(State&state_):
+	  state(state_)
+	{}
+
+	void setMethodWithHelp(const Identifier& id, var::NativeFunction f, const String& helpText)
+	{
+		setMethod(id, f);
+		help[id] = helpText;
+	}
+
+	void expectArguments(const var::NativeFunctionArgs& args, int numArgs, const String& customErrorMessage={})
+	{
+		if(args.numArguments != numArgs)
+		{
+			if(customErrorMessage.isNotEmpty())
+				throw customErrorMessage;
+			else
+				throw "Argument amount mismatch: Expected " + String(numArgs);
+		}
+	}
+
+    String getHelp(Identifier methodName) const
+	{
+		return help.at(methodName);
+	}
+
+protected:
+
+	State& state;
+
+private:
+
+    std::map<Identifier, String> help;
+};
 
 struct HardcodedDialogWithState: public Component
 {

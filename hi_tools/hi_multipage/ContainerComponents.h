@@ -67,6 +67,23 @@ struct Container: public Dialog::PageBase
 
 protected:
 
+    void rebuildChildren()
+    {
+	    auto l = infoObject[mpid::Children];
+
+		childItems.clear();
+
+		if(l.isArray())
+		{
+			for(auto& r: *l.getArray())
+				addChild(getWidth(), r);
+		}
+		else
+		{
+			infoObject.getDynamicObject()->setProperty(mpid::Children, var(Array<var>()));
+		}
+    }
+
     int padding = 0;
     Identifier id;
     OwnedArray<PageBase> childItems;
