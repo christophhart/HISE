@@ -26,8 +26,8 @@
     "Header": "HISE Installer",
     "Subtitle": "$version",
     "Image": "",
-    "ProjectName": "MyProject",
-    "Company": "MyCompany",
+    "ProjectName": "HISEInstaller",
+    "Company": "HISE",
     "Version": "4.0.0"
   },
   "LayoutData": {
@@ -42,23 +42,6 @@
     "LabelPosition": "Default"
   },
   "GlobalState": {
-    "company": "",
-    "product": "minimal_hise_test",
-    "version": "1.0.0",
-    "eula": " Copyright 2022 Christoph Hart\n\n HISE is free software: you can redistribute it and/or modify\n it under the terms of the GNU General Public License as published by\n the Free Software Foundation, either version 3 of the License, or\n (at your option) any later version.\n\n HISE is distributed in the hope that it will be useful,\n but WITHOUT ANY WARRANTY; without even the implied warranty of\n MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n GNU General Public License for more details.\n\n You should have received a copy of the GNU General Public License\n along with HISE.  If not, see <http://www.gnu.org/licenses/>.\n\n Commercial licenses for using HISE in an closed source project are \n available on request. Please visit the project's website to get more \n information about commercial licensing:\n\n http://www.hise.audio/\n\n HISE is based on the JUCE library, \n which must be separately licensed for commercial applications:\n\n http://www.juce.com",
-    "acceptTOC": true,
-    "WINDOWS": true,
-    "MAC_OS": false,
-    "LINUX": false,
-    "OS": 0,
-    "vstDirectory": "C:\\Program Files\\VSTPlugins",
-    "vst3Directory": "C:\\Program Files\\Common Files\\VST3",
-    "aaxDirectory": "C:\\Program Files\\Common Files\\Avid\\Audio\\Plug-Ins",
-    "standaloneWinTarget": "C:\\Program Files\\HISE",
-    "installStandaloneWindows": "true",
-    "installVST3Windows": "true",
-    "FileSelectorId": "$vst3Directory",
-    "launchHise": true
   },
   "Children": [
     {
@@ -98,7 +81,9 @@
           "Height": "180",
           "Items": "",
           "Help": "",
-          "Multiline": true
+          "Multiline": true,
+          "Visible": true,
+          "Enabled": true
         },
         {
           "Type": "Button",
@@ -111,7 +96,9 @@
           "Required": true,
           "Help": "",
           "ButtonType": "",
-          "Trigger": false
+          "Trigger": false,
+          "Visible": true,
+          "Enabled": true
         }
       ],
       "ID": "",
@@ -131,6 +118,22 @@
           "Type": "Branch",
           "Text": "LabelText",
           "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "// This is the placeholder for the zero value (the OS constant starts at 1 to match the value of the asset targetOS)",
+                  "Padding": 0,
+                  "Comment": false
+                }
+              ],
+              "ID": "",
+              "Padding": 10,
+              "Foldable": false,
+              "Folded": false
+            },
             {
               "Type": "List",
               "Text": "LabelText",
@@ -175,7 +178,9 @@
                       "Help": "",
                       "Required": false,
                       "ButtonType": "",
-                      "Trigger": false
+                      "Trigger": false,
+                      "Visible": true,
+                      "Enabled": true
                     },
                     {
                       "Type": "FileSelector",
@@ -184,7 +189,9 @@
                       "InitValue": "",
                       "UseInitValue": "",
                       "LabelPosition": "None",
-                      "Required": false
+                      "Required": false,
+                      "Visible": true,
+                      "Enabled": true
                     }
                   ],
                   "ID": "",
@@ -209,7 +216,9 @@
                       "Help": "",
                       "Required": false,
                       "ButtonType": "",
-                      "Trigger": false
+                      "Trigger": false,
+                      "Visible": true,
+                      "Enabled": true
                     },
                     {
                       "Type": "FileSelector",
@@ -222,7 +231,9 @@
                       "Help": "",
                       "Directory": false,
                       "Wildcard": "",
-                      "SaveFile": false
+                      "SaveFile": false,
+                      "Visible": true,
+                      "Enabled": true
                     }
                   ],
                   "ID": "",
@@ -231,6 +242,28 @@
                     "500"
                   ],
                   "Padding": ""
+                },
+                {
+                  "Type": "Column",
+                  "Text": "LabelText",
+                  "Children": [
+                    {
+                      "Type": "Button",
+                      "Text": "Install Multipage Creator Tool",
+                      "ID": "installMultipageCreator",
+                      "InitValue": "1",
+                      "UseInitValue": true,
+                      "LabelPosition": "Default",
+                      "Help": "This will install the multipage creator tool that can be used to create installers (like this one!) to the target directory of the HISE standalone app",
+                      "Required": false,
+                      "ButtonType": "",
+                      "Trigger": false,
+                      "Code": "",
+                      "Visible": true,
+                      "Enabled": true
+                    }
+                  ],
+                  "ID": ""
                 }
               ],
               "ID": "",
@@ -253,8 +286,18 @@
               "Padding": 10,
               "Foldable": false,
               "Folded": false
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [],
+              "ID": "",
+              "Padding": 10,
+              "Foldable": false,
+              "Folded": false
             }
-          ]
+          ],
+          "ID": "OS"
         }
       ]
     },
@@ -266,6 +309,22 @@
           "Type": "Branch",
           "Text": "LabelText",
           "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "// This is the placeholder for the zero value (the OS constant starts at 1 to match the value of the asset targetOS)",
+                  "Padding": 0,
+                  "Comment": true
+                }
+              ],
+              "ID": "",
+              "Padding": 10,
+              "Foldable": false,
+              "Folded": false
+            },
             {
               "Type": "List",
               "Text": "LabelText",
@@ -300,6 +359,16 @@
                   "Overwrite": true,
                   "Source": "${hise_win_vst3}",
                   "Target": "$vst3Directory"
+                },
+                {
+                  "Type": "CopyAsset",
+                  "Text": "Installing Multipage Creator",
+                  "ID": "installMultipageCreator",
+                  "CallOnNext": false,
+                  "LabelPosition": "Above",
+                  "Overwrite": true,
+                  "Source": "${mpc_win}",
+                  "Target": "$standaloneWinTarget"
                 }
               ],
               "ID": "",
@@ -334,7 +403,93 @@
     },
     {
       "Type": "List",
-      "Padding": "20",
+      "Padding": "30",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Do you want to download and extract the HISE source code?\n\n",
+          "Padding": 0,
+          "Comment": false
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "Button",
+              "Text": "Download HISE source code",
+              "ID": "downloadSourceCode",
+              "Visible": true,
+              "Enabled": true,
+              "InitValue": "1",
+              "UseInitValue": true,
+              "LabelPosition": "Default",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Code": ""
+            },
+            {
+              "Type": "FileSelector",
+              "Text": "LabelText",
+              "ID": "sourceCodeLocation",
+              "Visible": true,
+              "Enabled": true,
+              "InitValue": "C:\\HISE",
+              "UseInitValue": true,
+              "LabelPosition": "None",
+              "Required": false,
+              "Help": "",
+              "Directory": false,
+              "Wildcard": "",
+              "SaveFile": false,
+              "Code": ""
+            }
+          ],
+          "ID": "",
+          "Width": [
+            "240",
+            "500"
+          ],
+          "Padding": ""
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "DownloadTask",
+              "Text": "Download",
+              "ID": "downloadSourceCode",
+              "CallOnNext": true,
+              "LabelPosition": "Above",
+              "Source": "https://github.com/christophhart/HISE/archive/refs/tags/3.6.2.zip",
+              "Target": "$sourceCodeLocation/master.zip"
+            },
+            {
+              "Type": "UnzipTask",
+              "Text": "Extract",
+              "ID": "downloadSourceCode",
+              "CallOnNext": true,
+              "LabelPosition": "Above",
+              "Overwrite": true,
+              "Target": "$sourceCodeLocation",
+              "Source": "$sourceCodeLocation/master.zip",
+              "Cleanup": true
+            }
+          ],
+          "ID": ""
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
       "Children": [
         {
           "Type": "MarkdownText",
@@ -353,7 +508,9 @@
           "Help": "",
           "Required": false,
           "ButtonType": "",
-          "Trigger": false
+          "Trigger": false,
+          "Visible": true,
+          "Enabled": true
         },
         {
           "Type": "Launch",
@@ -362,11 +519,7 @@
           "CallOnNext": true,
           "Args": ""
         }
-      ],
-      "ID": "",
-      "Text": "",
-      "Foldable": false,
-      "Folded": false
+      ]
     }
   ],
   "Assets": [
@@ -374,18 +527,28 @@
       "Type": 3,
       "ID": "eula",
       "RelativePath": true,
+      "OperatingSystem": 0,
       "Filename": "license.txt"
+    },
+    {
+      "Type": 1,
+      "ID": "mpc_win",
+      "RelativePath": true,
+      "OperatingSystem": 1,
+      "Filename": "../../multipagecreator/Builds/VisualStudio2022/x64/Release/App/multipagecreator.exe"
     },
     {
       "Type": 1,
       "ID": "hise_win_standalone",
       "RelativePath": true,
-      "Filename": "../../../projects/standalone/Builds/VisualStudio2022/x64/Release with Faust/App/HISE.exe"
+      "OperatingSystem": 1,
+      "Filename": "../../../projects/standalone/Builds/VisualStudio2022/x64/Release/App/HISE.exe"
     },
     {
       "Type": 1,
       "ID": "hise_win_vst3",
       "RelativePath": true,
+      "OperatingSystem": 1,
       "Filename": "../../../projects/plugin/Builds/VisualStudio2022/x64/Release/VST/HISE x64.dll"
     }
   ]
