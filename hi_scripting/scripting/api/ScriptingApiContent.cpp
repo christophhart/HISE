@@ -1540,32 +1540,13 @@ void ScriptingApi::Content::ScriptComponent::setKeyPressCallback(var keyboardFun
 	keyboardCallback.setThisObject(this);
 }
 
+
+
 bool ScriptingApi::Content::ScriptComponent::handleKeyPress(const KeyPress& k)
 {
 	if (keyboardCallback)
 	{
-		auto obj = new DynamicObject();
-		var args(obj);
-
-		obj->setProperty("isFocusChange", false);
-
-		auto c = k.getTextCharacter();
-
-		auto printable    = CharacterFunctions::isPrintable(c);
-		auto isWhitespace = CharacterFunctions::isWhitespace(c);
-		auto isLetter     = CharacterFunctions::isLetter(c);
-		auto isDigit      = CharacterFunctions::isDigit(c);
-		
-		obj->setProperty("character", printable ? String::charToString(c) : "");
-		obj->setProperty("specialKey", !printable);
-		obj->setProperty("isWhitespace", isWhitespace);
-		obj->setProperty("isLetter", isLetter);
-		obj->setProperty("isDigit", isDigit);
-		obj->setProperty("keyCode", k.getKeyCode());
-		obj->setProperty("description", k.getTextDescription());
-		obj->setProperty("shift", k.getModifiers().isShiftDown());
-		obj->setProperty("cmd", k.getModifiers().isCommandDown() || k.getModifiers().isCtrlDown());
-		obj->setProperty("alt", k.getModifiers().isAltDown());
+		auto args = Content::createKeyboardCallbackObject(k);
 
 		var rv;
 
@@ -5780,6 +5761,7 @@ name(String()),
 allowGuiCreation(true),
 dragCallback(p, nullptr, var(), 1),
 suspendCallback(p, nullptr, var(), 1),
+keyCallback(p, nullptr, var(), 1),
 colour(Colour(0xff777777))
 {
 #if USE_FRONTEND
@@ -5834,6 +5816,7 @@ colour(Colour(0xff777777))
 	setMethod("createPath", Wrapper::createPath);
 	setMethod("createShader", Wrapper::createShader);
 	setMethod("setSuspendTimerCallback", Wrapper::setSuspendTimerCallback);
+    setMethod("setKeyPressCallback", Wrapper::setKeyPressCallback);
 	setMethod("createMarkdownRenderer", Wrapper::createMarkdownRenderer);
     setMethod("createSVG", Wrapper::createSVG);
 	setMethod("getScreenBounds", Wrapper::getScreenBounds);
@@ -7085,6 +7068,23 @@ String ScriptingApi::Content::getComponentUnderDrag()
 	}
 
 	return obj.toString();
+}
+
+void ScriptingApi::Content::setSuspendTimerCallback(var suspendFunction)
+{
+	if(HiseJavascriptEngine::isJavascriptFunction(suspendFunction))
+	{
+		suspendCallback = WeakCallbackHolder(getScriptProcessor(), nullptr, suspendFunction, 1);
+	}
+}
+
+void ScriptingApi::Content::setKeyPressCallback(var keyPressCallback)
+{
+	if(HiseJavascriptEngine::isJavascriptFunction(keyPressCallback))
+	{
+		keyCallback = WeakCallbackHolder(getScriptProcessor(), nullptr, keyPressCallback, 1);
+		keyCallback.incRefCount();
+	}
 }
 
 #undef ADD_TO_TYPE_SELECTOR

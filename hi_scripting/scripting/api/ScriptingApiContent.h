@@ -2264,15 +2264,40 @@ public:
 	String getComponentUnderDrag();
 
 	/** Sets a callback that will be notified whenever the UI timers are suspended. */
-	void setSuspendTimerCallback(var suspendFunction)
-	{
-		if(HiseJavascriptEngine::isJavascriptFunction(suspendFunction))
-		{
-			suspendCallback = WeakCallbackHolder(getScriptProcessor(), nullptr, suspendFunction, 1);
-		}
-	}
+	void setSuspendTimerCallback(var suspendFunction);
+
+	/** Sets a callback that is executed when the main window has the keyboard focus. */
+	void setKeyPressCallback(var keyPressCallback);
 
 	// ================================================================================================================
+
+	static var createKeyboardCallbackObject(const KeyPress& k)
+	{
+		auto obj = new DynamicObject();
+		var args(obj);
+
+		obj->setProperty("isFocusChange", false);
+
+		auto c = k.getTextCharacter();
+
+		auto printable    = CharacterFunctions::isPrintable(c);
+		auto isWhitespace = CharacterFunctions::isWhitespace(c);
+		auto isLetter     = CharacterFunctions::isLetter(c);
+		auto isDigit      = CharacterFunctions::isDigit(c);
+		
+		obj->setProperty("character", printable ? String::charToString(c) : "");
+		obj->setProperty("specialKey", !printable);
+		obj->setProperty("isWhitespace", isWhitespace);
+		obj->setProperty("isLetter", isLetter);
+		obj->setProperty("isDigit", isDigit);
+		obj->setProperty("keyCode", k.getKeyCode());
+		obj->setProperty("description", k.getTextDescription());
+		obj->setProperty("shift", k.getModifiers().isShiftDown());
+		obj->setProperty("cmd", k.getModifiers().isCommandDown() || k.getModifiers().isCtrlDown());
+		obj->setProperty("alt", k.getModifiers().isAltDown());
+
+		return args;
+	}
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
 	void restoreAllControlsFromPreset(const ValueTree &preset);
@@ -2483,6 +2508,7 @@ private:
 	WeakCallbackHolder dragCallback;
 
 	WeakCallbackHolder suspendCallback;
+	WeakCallbackHolder keyCallback;
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
 	{
