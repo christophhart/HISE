@@ -646,8 +646,17 @@ void SliderPack::sliderValueChanged(Slider *s)
 		n = dontSendNotification;
 		useUndo = false;
 	}
-	
-	data->setValue(index, (float)s->getValue(), n, useUndo);
+
+    auto currentValue = (float)s->getValue();
+    
+	if(this->toggleMaxMode)
+	{
+		data->setValue(index, currentStepSequencerInputValue, n, useUndo);
+	}
+	else
+	{
+		data->setValue(index, currentValue, n, useUndo);
+	}
 }
 
 void SliderPack::mouseDown(const MouseEvent &e)
@@ -663,6 +672,35 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 	if(callbackOnMouseUp)
 		n = dontSendNotification;
+
+	if(toggleMaxMode)
+	{
+        int sliderIndex = getSliderIndexForMouseEvent(e);
+        
+        if(isPositiveAndBelow(sliderIndex, data->getNumSliders()))
+        {
+			auto rng = sliders[sliderIndex]->getRange();
+			auto thisValue = sliders[sliderIndex]->getValue();
+
+			auto useGhostNoteValue = e.mods.isAnyModifierKeyDown();
+			auto ghostNoteValue = rng.getStart() + 0.25 * rng.getLength();
+
+			if(thisValue == rng.getStart())
+			{
+				if(useGhostNoteValue)
+					currentStepSequencerInputValue = ghostNoteValue;
+				else
+					currentStepSequencerInputValue = rng.getEnd();
+			}
+			else
+			{
+				if(useGhostNoteValue == (thisValue == ghostNoteValue))
+					currentStepSequencerInputValue = rng.getStart();
+				else
+					currentStepSequencerInputValue = useGhostNoteValue ? ghostNoteValue : rng.getEnd();
+			}
+        }
+	}
 
 	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
@@ -996,7 +1034,8 @@ void SliderPack::timerCallback()
 
 void SliderPack::mouseDoubleClick(const MouseEvent &e)
 {
-	if (!isEnabled()) return;
+	if (!isEnabled() || toggleMaxMode) 
+		return;
 
 	if (e.mods.isShiftDown())
 	{

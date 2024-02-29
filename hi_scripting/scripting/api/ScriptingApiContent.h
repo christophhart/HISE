@@ -1312,6 +1312,7 @@ public:
 			ShowValueOverlay,
 			SliderPackIndex,
 			CallbackOnMouseUpOnly,
+			StepSequencerMode,
 			numProperties
 		};
 
