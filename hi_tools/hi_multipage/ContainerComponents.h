@@ -85,7 +85,6 @@ protected:
     }
 
     int padding = 0;
-    Identifier id;
     OwnedArray<PageBase> childItems;
     Dialog::PageInfo::List staticPages;
 

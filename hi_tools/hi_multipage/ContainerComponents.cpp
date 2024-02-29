@@ -111,6 +111,11 @@ void Container::postInit()
 	else
 		padding = 10;
 
+    if(infoObject[mpid::UseChildState])
+    {
+        stateObject = Dialog::getOrCreateChild(stateObject, id);
+    }
+
     rebuildChildren();
 	
 	for(const auto& sp: staticPages)
@@ -274,6 +279,13 @@ void List::createEditor(Dialog::PageInfo& rootList)
         { mpid::Help, "The ID of the list. This will be used for identification in some logic cases" }
     });
 
+    prop.addChild<Button>({
+        { mpid::ID, "UseChildState" },
+        { mpid::Text, "UseChildState" },
+        { mpid::Help, "If ticked, then this list will save its child element values in a sub object of the global state." },
+        { mpid::Value, infoObject[mpid::UseChildState] }
+    });
+    
     if(!rootList[mpid::Value].isUndefined())
     {
         auto v = rootList[mpid::Value].toString();
@@ -301,6 +313,8 @@ void List::createEditor(Dialog::PageInfo& rootList)
         { mpid::Help, "If ticked, then this list will show a clickable header that can be folded" },
 		{ mpid::Value, foldable }
     });
+    
+    
     
     auto& foldId2 = prop.addChild<Button>({
         { mpid::ID, "Folded" },
@@ -427,6 +441,13 @@ void Column::createEditor(Dialog::PageInfo& xxx)
         { mpid::Help, "The ID. This will be used for identification in some logic cases" }
     });
 
+    prop.addChild<Button>({
+        { mpid::ID, "UseChildState" },
+        { mpid::Text, "UseChildState" },
+        { mpid::Help, "If ticked, then this list will save its child element values in a sub object of the global state." },
+        { mpid::Value, infoObject[mpid::UseChildState] }
+    });
+    
     if(!xxx[mpid::Value].isUndefined())
     {
         auto v = xxx[mpid::Value].toString();

@@ -118,6 +118,7 @@ namespace mpid
     DECLARE_ID(Text);
     DECLARE_ID(Trigger);
     DECLARE_ID(Type);
+    DECLARE_ID(UseChildState);
     DECLARE_ID(UseGlobalAppData);
     DECLARE_ID(UseInitValue);
     DECLARE_ID(UseLabel);

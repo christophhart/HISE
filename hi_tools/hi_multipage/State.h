@@ -277,9 +277,12 @@ struct Asset: public ReferenceCountedObject
         
 	    MemoryOutputStream mos;
         FileInputStream fis(f);
-        mos.writeFromInputStream(fis, fis.getTotalLength());
         
-        data = std::move(mos.getMemoryBlock());
+        if(fis.openedOk())
+        {
+            mos.writeFromInputStream(fis, fis.getTotalLength());
+            data = mos.getMemoryBlock();
+        }
     };
 
     bool matchesOS() const

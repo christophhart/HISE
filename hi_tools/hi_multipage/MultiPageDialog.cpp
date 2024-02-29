@@ -1293,6 +1293,7 @@ void Dialog::showMainPropertyEditor()
 	{
 	    auto& propList = introPage.addChild<List>({
 	        { mpid::Padding, 10 },
+            { mpid::UseChildState, true },
 	        { mpid::ID, mpid::Properties.toString() }
 	    });
 
@@ -1346,6 +1347,7 @@ void Dialog::showMainPropertyEditor()
 	        { mpid::ID, mpid::StyleData.toString(), },
 	        { mpid::Text, mpid::StyleData.toString(), },
 	        { mpid::Padding, 10 },
+            { mpid::UseChildState, true },
 	        { mpid::Foldable, true },
 	        { mpid::Folded, true }
 	    });
@@ -1400,6 +1402,7 @@ void Dialog::showMainPropertyEditor()
 	            { mpid::ID, mpid::LayoutData.toString() },
 	            { mpid::Text, mpid::LayoutData.toString() },
 	            { mpid::Padding, 10 },
+                { mpid::UseChildState, true },
 	            { mpid::Foldable, true },
 	            { mpid::Folded, true }
 	        });
