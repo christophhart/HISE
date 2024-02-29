@@ -725,7 +725,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 		double normalizedValue = (double)(getHeight() - y) / (double)getHeight();
 
-		double value = s->proportionOfLengthToValue(normalizedValue);
+		double value = toggleMaxMode ? currentStepSequencerInputValue : s->proportionOfLengthToValue(normalizedValue);
 
 		currentlyDragged = true;
 		currentlyDraggedSlider = sliderIndex;
@@ -798,7 +798,7 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 		{
 			double normalizedValue = (double)(getHeight() - y) / (double)getHeight();
 
-			double value = s->proportionOfLengthToValue(normalizedValue);
+			double value = toggleMaxMode ? currentStepSequencerInputValue : s->proportionOfLengthToValue(normalizedValue);
 
 			if(isPositiveAndBelow(currentlyDraggedSlider, sliders.size()))
                 repaintWithTextBox(sliders[currentlyDraggedSlider]->getBoundsInParent());
