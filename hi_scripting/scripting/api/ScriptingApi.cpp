@@ -1985,14 +1985,21 @@ struct AudioRenderer : public AudioRendererBase
 	{
 		finishCallback.incRefCount();
 		finishCallback.setHighPriority();
-		
+
 		if (auto a = eventList_.getArray())
 		{
+			eventBuffers.add(new HiseEventBuffer());
+
 			for (const auto& e : *a)
 			{
 				if (auto me = dynamic_cast<ScriptingObjects::ScriptingMessageHolder*>(e.getObject()))
 				{
-					events.addEvent(me->getMessageCopy());
+					eventBuffers.getLast()->addEvent(me->getMessageCopy());
+
+					if(eventBuffers.getLast()->getNumUsed() == HISE_EVENT_BUFFER_SIZE)
+					{
+						eventBuffers.add(new HiseEventBuffer());
+					}
 				}
 			}
 		}

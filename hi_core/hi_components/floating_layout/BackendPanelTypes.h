@@ -234,7 +234,7 @@ struct DAWClockController: public Component,
             
 			try
 			{
-				events = parent.clock->getHiseEventBufferForBounce();
+				eventBuffers.add(new HiseEventBuffer(parent.clock->getHiseEventBufferForBounce()));
 				initAfterFillingEventBuffer();
 				return true;
 			}
