@@ -582,8 +582,8 @@ protected:
 	void initAfterFillingEventBuffer();
 
 	Array<VariantBuffer::Ptr> channels;
-	HiseEventBuffer events;
-
+	OwnedArray<HiseEventBuffer> eventBuffers;
+	
     bool skipCallbacks = true;
 	bool sendArtificialTransportMessages = false;
 
