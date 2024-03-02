@@ -491,9 +491,9 @@ var ScriptingApi::Content::Wrapper::setKeyPressCallback(const var::NativeFunctio
 {
 	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
 	{
-		CHECK_ARGUMENTS("setKeyPressCallback()", 1);
+		CHECK_ARGUMENTS("setKeyPressCallback()", 2);
 
-		thisObject->setKeyPressCallback(args.arguments[0]);
+		thisObject->setKeyPressCallback(args.arguments[0], args.arguments[1]);
 	}
 
 	return var();

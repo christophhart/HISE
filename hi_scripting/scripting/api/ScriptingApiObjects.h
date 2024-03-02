@@ -123,6 +123,8 @@ public:
 
 	static StringArray getJustificationNames();
 
+	static KeyPress getKeyPress(const var& keyPressInformation, Result* r = nullptr);
+
 	static Justification getJustification(const String& justificationName, Result* r = nullptr);
 
 	static Array<Identifier> getGlobalApiClasses();

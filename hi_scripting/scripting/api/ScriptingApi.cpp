@@ -98,6 +98,50 @@ StringArray ApiHelpers::getJustificationNames()
 	return sa;
 }
 
+KeyPress ApiHelpers::getKeyPress(const var& keyPressInformation, Result* r)
+{
+	if(keyPressInformation.isString())
+	{
+		auto x = KeyPress::createFromDescription(keyPressInformation.toString());
+
+		if(x == KeyPress() && r != nullptr)
+			*r = Result::fail("not a valid key press");
+
+		return x;
+	}
+	else if (auto dyn = keyPressInformation.getDynamicObject())
+	{
+		int mods = 0;
+
+		if(keyPressInformation["shift"])
+			mods |= ModifierKeys::shiftModifier;
+
+		if(keyPressInformation["cmd"] || keyPressInformation["ctrl"])
+			mods |= (ModifierKeys::ctrlModifier | ModifierKeys::commandModifier);
+		
+		if(keyPressInformation["alt"])
+			mods |= ModifierKeys::altModifier;
+
+		auto keyCode = (int)keyPressInformation["keyCode"];
+
+		if(keyCode == 0 && r != nullptr)
+			*r = Result::fail("not a valid key code");
+
+		auto character = keyPressInformation["character"].toString();
+
+		juce_wchar c = character.isEmpty() ? 0 : character[0];
+
+		return KeyPress(keyCode, mods, c);
+	}
+	else
+	{
+		if(r != nullptr)
+			*r = Result::fail("invalid keypress information, use a JSON or a string");
+
+		return KeyPress();
+	}
+}
+
 Justification ApiHelpers::getJustification(const String& justificationName, Result* r/*=nullptr*/)
 {
 	static Array<Justification::Flags> justifications;

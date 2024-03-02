@@ -2266,8 +2266,8 @@ public:
 	/** Sets a callback that will be notified whenever the UI timers are suspended. */
 	void setSuspendTimerCallback(var suspendFunction);
 
-	/** Sets a callback that is executed when the main window has the keyboard focus. */
-	void setKeyPressCallback(var keyPressCallback);
+	/** Adds a callback that will be performed asynchronously when the key is pressed. */
+	void setKeyPressCallback(const var& keyPress, var keyPressCallback);
 
 	// ================================================================================================================
 
@@ -2503,12 +2503,36 @@ public:
 
 	Array<VisualGuide> guides;
 
+	bool hasKeyPressCallbacks() const { return !registeredKeyPresses.isEmpty(); }
+
+	bool handleKeyPress(const KeyPress& k)
+	{
+		auto k1 = k.getKeyCode();
+		auto m1 = k.getModifiers();
+
+		for(auto& rkp: registeredKeyPresses)
+		{
+			auto k2 = rkp.first.getKeyCode();
+			auto m2 = rkp.first.getModifiers();
+			
+			if(k1 == k2 && m1 == m2)
+			{
+				auto obj = createKeyboardCallbackObject(k);
+				WeakCallbackHolder f(getScriptProcessor(), nullptr, rkp.second, 1);
+				f.call1(obj);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 private:
 
 	WeakCallbackHolder dragCallback;
-
 	WeakCallbackHolder suspendCallback;
-	WeakCallbackHolder keyCallback;
+
+	Array<std::pair<KeyPress, var>> registeredKeyPresses;
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
 	{

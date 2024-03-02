@@ -5761,7 +5761,6 @@ name(String()),
 allowGuiCreation(true),
 dragCallback(p, nullptr, var(), 1),
 suspendCallback(p, nullptr, var(), 1),
-keyCallback(p, nullptr, var(), 1),
 colour(Colour(0xff777777))
 {
 #if USE_FRONTEND
@@ -6055,6 +6054,7 @@ void ScriptingApi::Content::beginInitialization()
 
 	updateWatcher = nullptr;
 	guides.clear();
+	registeredKeyPresses.clear();
 }
 
 
@@ -7078,14 +7078,41 @@ void ScriptingApi::Content::setSuspendTimerCallback(var suspendFunction)
 	}
 }
 
-void ScriptingApi::Content::setKeyPressCallback(var keyPressCallback)
+void ScriptingApi::Content::setKeyPressCallback(const var& keyPress, var keyPressCallback)
 {
+	auto r = Result::ok();
+	auto k = ApiHelpers::getKeyPress(keyPress, &r);
+
+	if(!r.wasOk())
+		reportScriptError(r.getErrorMessage());
+
 	if(HiseJavascriptEngine::isJavascriptFunction(keyPressCallback))
 	{
-		keyCallback = WeakCallbackHolder(getScriptProcessor(), nullptr, keyPressCallback, 1);
-		keyCallback.incRefCount();
+		for(auto& rkp: registeredKeyPresses)
+		{
+			if(rkp.first == k)
+			{
+				rkp.second = keyPressCallback;
+				return;
+			}
+		}
+
+		registeredKeyPresses.add({k, keyPressCallback});
+	}
+	else
+	{
+		for(const auto& rkp: registeredKeyPresses)
+		{
+			if(rkp.first == k)
+			{
+				registeredKeyPresses.remove(&rkp);
+				return;
+			}
+		}
 	}
 }
+
+
 
 #undef ADD_TO_TYPE_SELECTOR
 #undef ADD_AS_SLIDER_TYPE

@@ -524,7 +524,7 @@ void ScriptContentComponent::contentWasRebuilt()
 {
 	contentRebuildNotifier.notify(processor->getScriptingContent());
 
-	setWantsKeyboardFocus(processor->getScriptingContent()->keyCallback);
+	setWantsKeyboardFocus(processor->getScriptingContent()->hasKeyPressCallbacks());
 }
 
 
@@ -646,15 +646,10 @@ void ScriptContentComponent::refreshContentButton()
 
 bool ScriptContentComponent::keyPressed(const KeyPress& k)
 {
-	if(contentData != nullptr && contentData->keyCallback)
+	if(contentData != nullptr && contentData->hasKeyPressCallbacks())
 	{
-		var rv = var(false);
-		var a = ScriptingApi::Content::createKeyboardCallbackObject(k);
-		
-		var::NativeFunctionArgs args(var(), &a, 1);
-		contentData->keyCallback.callSync(args, &rv);
-
-		return (bool)rv;
+		if(contentData->handleKeyPress(k))
+			return true;
 	}
 
 	return false;
