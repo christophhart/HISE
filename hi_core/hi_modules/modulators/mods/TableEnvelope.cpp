@@ -321,7 +321,6 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 			else
 			{
 				state->current_state = TableEnvelopeState::SUSTAIN;
-				state->current_value = 1.0f;
 			}
 		}
 		break;
