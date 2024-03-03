@@ -8456,6 +8456,7 @@ namespace MacroIds
 	DECLARE_ID(MacroIndex);
 	DECLARE_ID(Processor);
 	DECLARE_ID(Attribute);
+	DECLARE_ID(CustomAutomation);
 #undef DECLARE_ID
 }
 
@@ -8497,16 +8498,51 @@ void ScriptingObjects::ScriptedMacroHandler::setFromCallbackArg(const var& obj)
 	{
 		auto pId = obj[MacroIds::Processor].toString();
 
+		auto isCustomId = (bool)obj[MacroIds::CustomAutomation];
+
 		if (auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), pId))
 		{
 			auto param = obj[MacroIds::Attribute];
 			int parameterIndex;
 
+			String pString;
+
 			if (param.isString())
-				parameterIndex = var(p->getParameterIndexForIdentifier(param.toString()));
+			{
+				pString = param.toString();
+
+				if(isCustomId)
+				{
+					if(auto ptr = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(Identifier(param.toString())))
+					{
+						parameterIndex = ptr->index;
+					}
+					else
+						reportScriptError("Can't find custom automation with ID " + param.toString());
+				}
+				else
+					parameterIndex = var(p->getParameterIndexForIdentifier(param.toString()));
+			}
 			else
+			{
 				parameterIndex = (int)param;
 
+				if(isCustomId)
+				{
+					if(auto ptr = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(parameterIndex))
+					{
+						pString = ptr->id;
+					}
+					else
+						reportScriptError("Can't find custom automation with ID " + param.toString());
+				}
+				else
+				{
+					pString = p->getIdentifierForParameterIndex(parameterIndex).toString();
+				}
+			}
+				
+			
 			auto& mm = getScriptProcessor()->getMainController_()->getMacroManager();
 
 			auto fr = RangeHelpers::getDoubleRange(obj, RangeHelpers::IdSet::MidiAutomationFull);
@@ -8515,7 +8551,7 @@ void ScriptingObjects::ScriptedMacroHandler::setFromCallbackArg(const var& obj)
 			if (fr.getRange().isEmpty())
 				fr = nr;
 
-			mm.getMacroChain()->getMacroControlData(mIndex)->addParameter(p, parameterIndex, p->getIdentifierForParameterIndex(parameterIndex).toString(), fr.rng, true, false, dontSendNotification);
+			mm.getMacroChain()->getMacroControlData(mIndex)->addParameter(p, parameterIndex, pString, fr.rng, true, isCustomId, dontSendNotification);
 
 			auto pd = mm.getMacroChain()->getMacroControlData(mIndex)->getParameterWithProcessorAndIndex(p, parameterIndex);
 
@@ -8565,6 +8601,18 @@ var ScriptingObjects::ScriptedMacroHandler::getCallbackArg(int macroIndex, Proce
 			nr.rng = md->getParameter(i)->getParameterRange();
 			nr.inv = md->getParameter(i)->isInverted();
 
+			if(md->getParameter(i)->isCustomAutomation())
+			{
+				obj->setProperty(MacroIds::CustomAutomation, true);
+
+				auto automationId = md->getParameter(i)->getParameter();
+
+				if(auto ptr = getScriptProcessor()->getMainController_()->getUserPresetHandler().getCustomAutomationData(automationId))
+				{
+					obj->setProperty(MacroIds::Attribute, ptr->id);
+				}
+			}
+			
 			scriptnode::InvertableParameterRange fr;
 			fr.rng = md->getParameter(i)->getTotalRange();
 			
