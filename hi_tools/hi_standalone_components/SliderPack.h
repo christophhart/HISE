@@ -360,6 +360,8 @@ private:
 
 	bool currentlyDragged;
 
+	bool showOverlayOnMove = false;
+
 	bool callbackOnMouseUp = false;
 
 	int currentlyDraggedSlider;

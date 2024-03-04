@@ -874,6 +874,7 @@ void SliderPack::mouseExit(const MouseEvent &)
 {
 	if (!isEnabled()) return;
 
+	showOverlayOnMove = false;
 	currentlyDragged = false;
 	currentlyHoveredSlider = -1;
 	repaint();
@@ -932,7 +933,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 			l->drawSliderPackRightClickLine(g, *this, rightClickLine);
 	}
 
-	else if (currentlyDragged && data->isValueOverlayShown())
+	else if ((currentlyDragged || showOverlayOnMove) && data->isValueOverlayShown())
 	{
 		const double logFromStepSize = log10(data->getStepSize());
 		const int unit = -roundToInt(logFromStepSize);
@@ -1301,6 +1302,22 @@ void SliderPack::mouseMove(const MouseEvent& mouseEvent)
 {
 	auto thisIndex = getSliderIndexForMouseEvent(mouseEvent);
 
+	showOverlayOnMove = mouseEvent.mods.isShiftDown();
+
+	if(showOverlayOnMove)
+	{
+		currentlyDraggedSlider = thisIndex;
+
+		auto y = 1.0 - (float)mouseEvent.getPosition().getY() / (float)getHeight();
+
+		if(auto s = sliders[currentlyDraggedSlider])
+		{
+			currentlyDraggedSliderValue = s->getValue();
+		}
+		
+		repaint();
+	}
+	
 	if(thisIndex != currentlyHoveredSlider)
 	{
 		if(isPositiveAndBelow(currentlyHoveredSlider, sliders.size()))
