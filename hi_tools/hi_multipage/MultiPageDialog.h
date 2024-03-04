@@ -511,6 +511,12 @@ public:
 
     UndoManager& getUndoManager() { return um; }
 
+    var getGlobalProperty(const Identifier& id) const
+    {
+        jassert(properties.hasProperty(id));
+	    return properties[id];
+    }
+
     var getPageListVar() { return pageListArrayAsVar; }
 
     LambdaBroadcaster<int> refreshBroadcaster;

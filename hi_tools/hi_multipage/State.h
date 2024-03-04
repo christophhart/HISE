@@ -352,9 +352,24 @@ public:
 
     std::unique_ptr<JavascriptEngine> createJavascriptEngine(const var& infoObject);
 
+    String getAssetReferenceList(Asset::Type t) const
+    {
+	    String s = "None\n";
+
+        for(auto a: assets)
+        {
+	        if(a->type == t)
+	        {
+		        s << a->toReferenceVariable() << "\n";
+	        }
+        }
+
+        return s;
+    }
+
     String loadText(const String& assetVariable) const
     {
-	    if(assetVariable.isEmpty())
+	    if(assetVariable.isEmpty() || assetVariable == "None")
             return {};
 
 	    auto id = assetVariable.substring(2, assetVariable.length() - 1);
@@ -382,7 +397,7 @@ public:
 
     Image loadImage(const String& assetVariable) const
     {
-        if(assetVariable.isEmpty())
+        if(assetVariable.isEmpty() || assetVariable == "None")
             return {};
 
 	    auto id = assetVariable.substring(2, assetVariable.length() - 1);

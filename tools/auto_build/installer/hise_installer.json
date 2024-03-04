@@ -26,9 +26,12 @@
     "Header": "HISE Installer",
     "Subtitle": "$version",
     "Image": "",
-    "ProjectName": "HISEInstaller",
+    "ProjectName": "HISE",
     "Company": "HISE",
-    "Version": "4.0.0"
+    "Version": "4.0.0",
+    "BinaryName": "Hise Installer",
+    "Icon": "${icon}",
+    "UseGlobalAppData": false
   },
   "LayoutData": {
     "TopHeight": 56,
@@ -42,6 +45,9 @@
     "LabelPosition": "Default"
   },
   "GlobalState": {
+    "company": "HISE",
+    "product": "HISE",
+    "version": "4.0.0"
   },
   "Children": [
     {
@@ -550,6 +556,13 @@
       "RelativePath": true,
       "OperatingSystem": 1,
       "Filename": "../../../projects/plugin/Builds/VisualStudio2022/x64/Release/VST/HISE x64.dll"
+    },
+    {
+      "Type": 0,
+      "ID": "icon",
+      "RelativePath": true,
+      "OperatingSystem": 0,
+      "Filename": "icon.png"
     }
   ]
 }

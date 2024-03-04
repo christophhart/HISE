@@ -66,6 +66,7 @@ namespace mpid
     DECLARE_ID(Assets);
     DECLARE_ID(Args);
     DECLARE_ID(ButtonType);
+    DECLARE_ID(BinaryName);
     DECLARE_ID(CallOnNext);
     DECLARE_ID(CallType);
     DECLARE_ID(Cleanup);
@@ -88,7 +89,7 @@ namespace mpid
     DECLARE_ID(Header);
     DECLARE_ID(Help);
     DECLARE_ID(Height);
-    DECLARE_ID(IconData);
+    DECLARE_ID(Icon);
     DECLARE_ID(Image);
     DECLARE_ID(ID);
     DECLARE_ID(InitValue);

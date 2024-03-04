@@ -159,18 +159,21 @@ START_JUCE_APPLICATION (MainWrapper)
         <FILE id="ilgAKy" name="Dialog.h" compile="0" resource="0" file="Source/Dialog.h"/>
         <FILE id="VfEEh3" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
       </GROUP>
+	  %FILE_OBJECT_LINE%	
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0&#10;PERFETTO=0&#10;USE_BACKEND=1"
                extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
-               xcodeValidArchs="x86_64">
+               xcodeValidArchs="x86_64" smallIcon="%ICON_REF%" bigIcon="%ICON_REF%">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
-                       macOSDeploymentTarget="10.15" osxCompatibility="10.15 SDK"/>
+                       macOSDeploymentTarget="10.15" osxCompatibility="10.15 SDK"  targetName="%BINARY_NAME%"
+                       binaryPath="../"/>
         <CONFIGURATION isDebug="0" name="Release" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
                        headerPath="" libraryPath="" linkTimeOptimisation="0" optimisation="2"
-                       stripLocalSymbols="1"/>
+                       stripLocalSymbols="1"  targetName="%BINARY_NAME%"
+                       binaryPath="../"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_audio_basics" path="%HISE_PATH%/JUCE/modules"/>
@@ -196,10 +199,12 @@ START_JUCE_APPLICATION (MainWrapper)
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive-"
-            extraDefs="HI_RUN_UNIT_TESTS=1&#10;USE_BACKEND=1" extraLinkerFlags="/MANIFESTUAC:level='requireAdministrator'">
+            extraDefs="HI_RUN_UNIT_TESTS=1&#10;USE_BACKEND=1" extraLinkerFlags="/MANIFESTUAC:level='requireAdministrator'" smallIcon="%ICON_REF%" bigIcon="%ICON_REF%">
       <CONFIGURATIONS>
-        <CONFIGURATION isDebug="1" name="Debug" defines="PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1"/>
-        <CONFIGURATION isDebug="0" name="Release" optimisation="2" linkTimeOptimisation="0"/>
+        <CONFIGURATION isDebug="1" name="Debug" defines="PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1" 
+                       targetName="%BINARY_NAME%" binaryPath="../"/>
+        <CONFIGURATION isDebug="0" name="Release" optimisation="2" linkTimeOptimisation="0" 
+                       targetName="%BINARY_NAME%" binaryPath="../"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_opengl" path="%HISE_PATH%\JUCE\modules"/>
@@ -275,7 +280,50 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 		temp = temp.replace("%COMPANY%", company);
 		temp = temp.replace("%VERSION%", version);
 		temp = temp.replace("%HISE_PATH%", hisePath);
+		temp = temp.replace("%BINARY_NAME%", data[mpid::Properties][mpid::BinaryName].toString());
 
+		File iconFile;
+
+		auto iconId = data[mpid::Properties][mpid::Icon].toString().removeCharacters("${}");
+
+		if(iconId.isNotEmpty())
+		{
+			if(auto ar = data[mpid::Assets].getArray())
+			{
+				for(auto& v: *ar)
+				{
+					auto assetID =  v[mpid::ID].toString();
+
+					if(assetID == iconId)
+					{
+						auto fn = v[mpid::Filename].toString();
+
+						if(File::isAbsolutePath(fn))
+							iconFile = File(fn);
+						else
+							iconFile = rootDirectory.getChildFile(fn);
+
+						break;
+					}
+				}
+			}
+		}
+
+		String fileObjectLine = "";
+		String iconRef = "";
+
+		if(iconFile.existsAsFile())
+		{
+			fileObjectLine = String(R"(<FILE id="t5fgDK" name="%ICON_NAME%" compile="0" resource="1" file="%RELATIVE%"/>)");
+			iconRef = "t5fgDK";
+
+			fileObjectLine = fileObjectLine.replace("%RELATIVE%", iconFile.getRelativePathFrom(rootDirectory.getChildFile("Binaries")));
+			fileObjectLine = fileObjectLine.replace("%ICON_NAME%", iconFile.getFileName());
+		}
+
+		temp = temp.replace("%ICON_REF%", iconRef);
+		temp = temp.replace("%FILE_OBJECT_LINE%", fileObjectLine);
+		
 		x << temp;
 	}
 	if(t == FileType::MainCpp)

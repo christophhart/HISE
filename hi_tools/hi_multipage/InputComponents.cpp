@@ -349,8 +349,11 @@ Result Button::loadFromInfoObject(const var& obj)
 
     getComponent<juce::Button>().setClickingTogglesState(!isTrigger);
 
-    if(obj.hasProperty(mpid::IconData))
-		pathData.fromBase64Encoding(obj[mpid::IconData].toString());
+    if(obj.hasProperty(mpid::Icon))
+    {
+	    auto b64 = rootDialog.getState().loadText(obj[mpid::Icon].toString());
+        pathData.fromBase64Encoding(b64);
+    }
 
     if(obj.hasProperty(mpid::Required))
 		requiredOption = true;

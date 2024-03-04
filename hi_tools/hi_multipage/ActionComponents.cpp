@@ -259,7 +259,7 @@ LinkFileWriter::LinkFileWriter(Dialog& r, int w, const var& obj):
 {
 	auto company = evaluate(mpid::Company);
 	auto product = evaluate(mpid::Product);
-	auto useGlobal = (bool)obj[mpid::UseGlobalAppData];
+	auto useGlobal = (bool)rootDialog.getGlobalProperty(mpid::UseGlobalAppData);
 
 	auto f = File::getSpecialLocation(useGlobal ? File::globalApplicationsDirectory : File::userApplicationDataDirectory);
 
@@ -307,7 +307,7 @@ void LinkFileWriter::paint(Graphics& g)
 
 void LinkFileWriter::createEditor(Dialog::PageInfo& rootList)
 {
-	createBasicEditor(*this, rootList, "Writes the link file to the sample folder to the app data folder");
+	createBasicEditor(*this, rootList, "Writes the link file to the sample folder to the app data folder.  \n> This takes the global property UseGlobalAppDataFolder into account so make sure that this aligns with your project settings!");
 	
 	rootList.addChild<TextInput>({
 		{ mpid::ID, "Company"},
@@ -323,13 +323,6 @@ void LinkFileWriter::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Required, true },
 		{ mpid::Value, infoObject[mpid::Product] },
 		{ mpid::Help, "The name of the product. Used for determining the correct app data folder." }
-	});
-
-	rootList.addChild<Button>({
-		{ mpid::ID, "UseGlobalAppData"},
-		{ mpid::Text, "UseGlobalAppData" },
-		{ mpid::Value, infoObject[mpid::UseGlobalAppData] },
-		{ mpid::Help, "Whether to use the global or local app data. Has to be consistent with your project settings." }
 	});
 }
 
@@ -1650,9 +1643,9 @@ void FileLogger::createEditor(Dialog::PageInfo& rootList)
 
 void ProjectInfo::loadConstants()
 {
-	setConstant("company", ::ProjectInfo::companyName);
-	setConstant("product", ::ProjectInfo::projectName);
-	setConstant("version", ::ProjectInfo::versionString);
+	setConstant("company", rootDialog.getGlobalProperty(mpid::Company));
+	setConstant("product", rootDialog.getGlobalProperty(mpid::ProjectName));
+	setConstant("version", rootDialog.getGlobalProperty(mpid::Version));
 }
 } // PageFactory
 } // multipage
