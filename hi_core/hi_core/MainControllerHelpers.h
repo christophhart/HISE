@@ -589,7 +589,9 @@ protected:
 
 private:
 
-	static constexpr int NumThrowAwayBuffers = 4;
+	static constexpr int NumThrowAwayBuffers = 12;
+
+	int thisNumThrowAway = 0;
 
 	void cleanup();
 	void run() override;

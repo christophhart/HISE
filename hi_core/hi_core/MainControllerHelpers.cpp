@@ -1532,6 +1532,12 @@ void AudioRendererBase::initAfterFillingEventBuffer()
 	{
 		if ((bufferSize = getMainController()->getMainSynthChain()->getLargestBlockSize()) != 0)
 		{
+			auto numSamplesTill80Ms = getMainController()->getMainSynthChain()->getSampleRate() * 0.08;
+
+			auto numBuffersTill80Ms = roundToInt(numSamplesTill80Ms / (double)bufferSize);
+
+			thisNumThrowAway = jmax(NumThrowAwayBuffers, numBuffersTill80Ms);
+
 			auto& lb = *eventBuffers.getLast();
 			numSamplesToRender = (int)lb.getEvent(lb.getNumUsed() - 1).getTimeStamp();
 
@@ -1550,7 +1556,7 @@ void AudioRendererBase::initAfterFillingEventBuffer()
 
 			for(auto events: eventBuffers)
 			{
-				events->subtractFromTimeStamps(-bufferSize * NumThrowAwayBuffers);
+				events->subtractFromTimeStamps(-bufferSize * thisNumThrowAway);
 				events->alignEventsToRaster<HISE_EVENT_RASTER>(numSamplesToRender);
 			}
 			
@@ -1616,7 +1622,7 @@ bool AudioRendererBase::renderAudio()
 		int numTodo = numSamplesToRender;
 		int pos = 0;
 
-		int numThrowAway = NumThrowAwayBuffers;
+		int numThrowAway = thisNumThrowAway;
 
 		AudioSampleBuffer nirvana(numChannelsToRender, bufferSize);
 
