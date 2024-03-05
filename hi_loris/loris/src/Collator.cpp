@@ -98,7 +98,7 @@ static bool ends_earlier( const Partial & lhs, const Partial & rhs )
 	return lhs.endTime() < rhs.endTime();
 }
 
-struct ends_before : public std::unary_function< const Partial, bool >
+struct ends_before
 {
 	double t;
 	ends_before( double time ) : t( time ) {}

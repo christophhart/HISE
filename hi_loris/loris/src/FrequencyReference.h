@@ -57,7 +57,7 @@ class LinearEnvelope;
 class FrequencyReference : public Envelope
 {
 //	-- instance variables --
-	std::auto_ptr< LinearEnvelope > _env;
+	std::unique_ptr< LinearEnvelope > _env;
 	
 //	-- public interface --
 public:

@@ -520,7 +520,7 @@ public:
 
 private:
 
-    std::auto_ptr< Envelope > m_freqResolutionEnv;    
+    std::unique_ptr< Envelope > m_freqResolutionEnv;    
     							//!  in Hz, minimum instantaneous frequency distance;
                                 //!  this is the core parameter, others are, by default,
                                 //!  computed from this one
@@ -565,11 +565,11 @@ private:
         
     //! builder object for constructing a fundamental frequency
     //! estimate during analysis
-    std::auto_ptr< LinearEnvelopeBuilder > m_f0Builder;
+    std::unique_ptr< LinearEnvelopeBuilder > m_f0Builder;
 
     //! builder object for constructing an amplitude
     //! estimate during analysis
-    std::auto_ptr< LinearEnvelopeBuilder > m_ampEnvBuilder;
+    std::unique_ptr< LinearEnvelopeBuilder > m_ampEnvBuilder;
 
 //  -- private auxiliary functions --
 //	future development

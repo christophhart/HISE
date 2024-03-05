@@ -325,8 +325,10 @@ public:
 
 #elif defined(JUCE_DSP_H_INCLUDED)
 
-struct FTimpl
+class FTimpl
 {
+public:
+
     juce::dsp::FFT fftObject;
     
 	// Construct an implementation instance:

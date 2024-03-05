@@ -74,7 +74,7 @@ struct LorisState
 
 private:
 
-    friend class Helpers;
+    friend struct Helpers;
     
     Options currentOption;
 

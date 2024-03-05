@@ -138,7 +138,7 @@ public:
 
 private:
 
-    std::auto_ptr< Envelope > m_env;   	
+    std::unique_ptr< Envelope > m_env;   	
     double m_scale, m_offset;
 	
 };	//	end of class ScaleAndOffsetEnvelope

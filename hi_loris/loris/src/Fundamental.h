@@ -520,7 +520,7 @@ private:
 
 //  -- private member variables --
 
-    std::auto_ptr< ReassignedSpectrum > m_spectrum;
+    std::unique_ptr< ReassignedSpectrum > m_spectrum;
                                 //! the spectrum analyzer 
                                 
     double m_cacheSampleRate;   //! the sample rate used to construct the 

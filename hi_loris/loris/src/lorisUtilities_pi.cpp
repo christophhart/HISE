@@ -78,7 +78,7 @@ using namespace Loris;
 //	by converting Partial references to pointer arguments.
 //
 
-struct CallWithPointer : public std::unary_function< Partial, void >
+struct CallWithPointer
 {
 	typedef void (* Func)( Partial *, void * );
 	Func func;
@@ -92,7 +92,7 @@ struct CallWithPointer : public std::unary_function< Partial, void >
 	}
 };
 
-struct PredWithPointer : public std::unary_function< const Partial, bool >
+struct PredWithPointer
 {
 	typedef int (* Pred)( const Partial *, void * );
 	Pred pred;

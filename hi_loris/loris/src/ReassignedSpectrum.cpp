@@ -540,7 +540,6 @@ ReassignedSpectrum::operator[]( unsigned long idx ) const
 //
 template <class T>
 struct make_complex
-	: binary_function< T, T, std::complex<T> >
 {
 	std::complex<T> operator()(const T& re, const T& im) const
     {

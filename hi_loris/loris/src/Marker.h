@@ -116,8 +116,7 @@ public:
 	//!	Comparitor (binary) functor returning true if its first Marker
 	//!	argument should appear before the second in a range sorted
 	//!	by Marker name.
-	struct compareNameLess : 
-		public std::binary_function< const Marker, const Marker, bool >
+	struct compareNameLess
 	{
 		//! Function call operator, return true if the first Marker
 		//!	argument should appear before the second in a range sorted
@@ -134,8 +133,7 @@ public:
 	//!	Comparitor (binary) functor returning true if its first Marker
 	//!	argument should appear before the second in a range sorted
 	//!	by Marker time.
-	struct compareTimeLess : 
-		public std::binary_function< const Marker, const Marker, bool >
+	struct compareTimeLess
 	{
 		//! Function call operator, return true if the first Marker
 		//!	argument should appear before the second in a range sorted
@@ -150,7 +148,7 @@ public:
 	
     //! Predicate functor returning true if the name of a Marker
     //! equal to the specified string, and false otherwise.
-    class isNameEqual : public std::unary_function< const Marker, bool >
+    class isNameEqual
     {
     public:
         //! Initialize a new instance with the specified name.

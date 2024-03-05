@@ -127,7 +127,7 @@ private:
 
 // --- parameters ---
     	
-	std::auto_ptr< Envelope > mFreqWarping;	//	reference envelope
+	std::unique_ptr< Envelope > mFreqWarping;	//	reference envelope
     
 	double mFreqDrift;
     	

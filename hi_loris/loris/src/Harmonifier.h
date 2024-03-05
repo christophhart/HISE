@@ -63,7 +63,7 @@ class Harmonifier
 									    //!	frequencies are corrected according to
 									    //!	a reference Partial, if specified.
 
-	std::auto_ptr< Envelope > _weight;  //!	weighting function, when 1 harmonic
+	std::unique_ptr< Envelope > _weight;  //!	weighting function, when 1 harmonic
                                         //! frequencies are used, when 0 breakpoint
                                         //! frequencies are unmodified.
     

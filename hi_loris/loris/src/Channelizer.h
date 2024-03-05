@@ -85,7 +85,7 @@ class Partial;
 class Channelizer
 {
 //  -- implementaion --
-    std::auto_ptr< Envelope > _refChannelFreq;  //! the reference frequency envelope
+    std::unique_ptr< Envelope > _refChannelFreq;  //! the reference frequency envelope
     
     int _refChannelLabel;                       //! the channel number corresponding to the
                                                 //! reference frequency (1 for the fundamental)

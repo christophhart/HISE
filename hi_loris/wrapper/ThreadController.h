@@ -93,10 +93,6 @@ namespace hise
 
 			if (lastTime != nullptr && *lastTime != 0 && thisTime - *lastTime > timeout)
 			{
-				// If this hits, it means that the timeout you've set is too low.
-				// Either increase the timeout or add more checks in between...
-				int x = 5;
-
 				// prevent the jassert above to mess up subsequent timeouts...
 				thisTime = Time::getMillisecondCounter();
 			}
