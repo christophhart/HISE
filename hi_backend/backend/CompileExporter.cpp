@@ -1777,6 +1777,21 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 {
 	handleCompilerWarnings(templateProject);
 
+	const auto includeLoris = (bool)exporter->dataObject.getSetting(HiseSettings::Project::IncludeLorisInFrontend);
+
+	if(includeLoris)
+	{
+		REPLACE_WILDCARD_WITH_STRING("%LORIS_MODULEPATH%", R"(<MODULEPATH id="hi_loris" path="%HISE_PATH%"/>)");
+		REPLACE_WILDCARD_WITH_STRING("%LORIS_MODULEINFO%", R"(<MODULE id="hi_loris" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>)");
+		REPLACE_WILDCARD_WITH_STRING("%HISE_INCLUDE_LORIS%", "1");
+	}
+	else
+	{
+		REPLACE_WILDCARD_WITH_STRING("%LORIS_MODULEPATH%", "");
+		REPLACE_WILDCARD_WITH_STRING("%LORIS_MODULEINFO%", "");
+		REPLACE_WILDCARD_WITH_STRING("%HISE_INCLUDE_LORIS%", "0");
+	}
+
 	const File jucePath = exporter->hisePath.getChildFile("JUCE/modules");
 
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", exporter->hisePath.getFullPathName());

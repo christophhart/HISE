@@ -114,7 +114,7 @@
 #include "hi_tools/Tables.cpp"
 #include "hi_tools/ValueTreeHelpers.cpp"
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
 #include "hi_tools/LorisManager.cpp"
 #endif
 

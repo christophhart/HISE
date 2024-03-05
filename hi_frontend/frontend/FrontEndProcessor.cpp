@@ -258,7 +258,7 @@ updater(*this)
 	GlobalSettingManager::initData(this);
 	GlobalSettingManager::restoreGlobalSettings(this, false);
     
-#if HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
     auto f = FrontendHandler::getAppDataDirectory(this).getChildFile("loris_library");
     
     lorisManager = new LorisManager(f, [this](String m)

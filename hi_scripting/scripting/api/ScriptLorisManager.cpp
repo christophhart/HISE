@@ -132,7 +132,7 @@ void ScriptLorisManager::processCustom(var file, var processCallback)
     }
 }
 
-juce::var ScriptLorisManager::createEnvelopes(juce::var file, snex::jit::String parameter, int harmonicIndex)
+juce::var ScriptLorisManager::createEnvelopes(juce::var file, juce::String parameter, int harmonicIndex)
 {
     initThreadController();
 
@@ -142,7 +142,7 @@ juce::var ScriptLorisManager::createEnvelopes(juce::var file, snex::jit::String 
     return {};
 }
 
-juce::var ScriptLorisManager::createEnvelopePaths(juce::var file, snex::jit::String parameter, int harmonicIndex)
+juce::var ScriptLorisManager::createEnvelopePaths(juce::var file, juce::String parameter, int harmonicIndex)
 {
     initThreadController();
 
@@ -184,10 +184,14 @@ void ScriptLorisManager::initThreadController()
 	if(lorisManager == nullptr)
 		reportScriptError("Loris is not available");
 
-	if(scriptThreadController == nullptr)
+	if(scriptThreadController == nullptr && Thread::getCurrentThread() != nullptr)
+	{
 		scriptThreadController = new ThreadController(Thread::getCurrentThread(), &progress, 500, lastTime);
+	}
+		
 
-	lorisManager->threadController = scriptThreadController;    
+	lorisManager->threadController = scriptThreadController;
+    progress = 0.0;
 }
 
 

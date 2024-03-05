@@ -104,16 +104,6 @@ END_JUCE_MODULE_DECLARATION
 #define HISE_INCLUDE_RT_NEURAL 1
 #endif
 
-/** Config: HISE_ENABLE_LORIS_ON_FRONTEND
- 
- Includes the Loris Manager for compiled plugins. Be aware that the Loris library is only licensed under
- the GPLv3 license, so you must not enable this flag for proprietary products!.
- 
- */
-#ifndef HISE_ENABLE_LORIS_ON_FRONTEND
-#define HISE_ENABLE_LORIS_ON_FRONTEND 0
-#endif
-
 /** Config: HISE_USE_EXTENDED_TEMPO_VALUES
 
 If this is true, the tempo mode will contain lower values than 1/1. This allows eg. the LFO to run slower, however it 
@@ -220,7 +210,7 @@ will break compatibility with older projects / presets because the tempo indexes
 
 #include "hi_dispatch/hi_dispatch.h"
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
 #include "hi_tools/LorisManager.h"
 #endif
 

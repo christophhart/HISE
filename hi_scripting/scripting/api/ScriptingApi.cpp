@@ -2322,7 +2322,7 @@ juce::var ScriptingApi::Engine::getGlobalRoutingManager()
 
 juce::var ScriptingApi::Engine::getLorisManager()
 {
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
     return var(new ScriptLorisManager(getScriptProcessor()));
 #else
     return var();

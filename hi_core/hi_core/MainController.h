@@ -1973,7 +1973,7 @@ public:
 	RLottieManager::Ptr getRLottieManager();
 #endif
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
     LorisManager* getLorisManager() { return lorisManager.get(); }
 #endif
     
@@ -2017,7 +2017,7 @@ protected:
 		}
 	};
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
     LorisManager::Ptr lorisManager;
 #endif
     

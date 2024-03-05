@@ -108,6 +108,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(DefaultUserPreset);
 	ids.add(CompileWithPerfetto);
 	ids.add(CompileWithDebugSymbols);
+	ids.add(IncludeLorisInFrontend);
 
 	return ids;
 }
@@ -384,6 +385,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("If you do not enable this, the expansion list in a compiled project will be empty unless you manually copy the Expansion folder from the project folder to the app data folder.");
 		D("> Be aware that this will only work on the development machine and has nothing to do with proper distribution of the expansions to the end user");
 		D("Be aware that this is a system-specific setting so if you load a project from another machine, make sure to tick / untick this box in order to create the expansion folder on this machine");
+		P_();
+
+		P(HiseSettings::Project::IncludeLorisInFrontend);
+		D("If enabled, this will include the Loris library in the compiled plugin.");
+		D("> Be aware that the Loris library is licensed under the GPL license, so you must not enable this flag in a proprietary project!");
 		P_();
 
 		P(HiseSettings::Project::RedirectSampleFolder);
@@ -920,12 +926,14 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
         id == Project::UseGlobalAppDataFolderMacOS ||
 		id == Project::CompileWithPerfetto ||
 		id == Project::CompileWithDebugSymbols ||
+		id == Project::IncludeLorisInFrontend ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
 		id == Scripting::SaveConnectedFilesOnCompile ||
         id == Scripting::WarnIfUndefinedParameters ||
 		id == Scripting::EnableMousePositioning)
+
 	    return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
@@ -1141,6 +1149,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::EnableGlobalPreprocessor)      return "No";
     else if (id == Project::UseGlobalAppDataFolderWindows) return "No";
     else if (id == Project::UseGlobalAppDataFolderMacOS)   return "No";
+	else if (id == Project::IncludeLorisInFrontend) return "No"; // return "Yes"; everybody straight to jail...
 	else if (id == Other::UseOpenGL)				return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
