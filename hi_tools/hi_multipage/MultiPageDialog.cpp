@@ -259,47 +259,38 @@ bool Dialog::PageBase::isEditModeAndNotInPopup() const
 
 void Dialog::PageBase::setModalHelp(const String& text)
 {
-	if(modalHelp != nullptr)
+	Component* popup = findParentComponentOfClass<ModalPopup>();
+
+	if(popup == nullptr)
+		popup = dynamic_cast<Component*>(findParentComponentOfClass<ComponentWithSideTab>());
+
+	Component::callRecursive<PageBase>(popup, [](PageBase* b)
 	{
-#if JUCE_DEBUG
-		modalHelp->setVisible(false);
-#else
-		Desktop::getInstance().getAnimator().fadeOut(modalHelp, 200);
-#endif
-		modalHelp = nullptr;
-	}
-	else
-	{
-		Component* popup = findParentComponentOfClass<ModalPopup>();
+		b->modalHelp = nullptr;
+		return false;
+	});
 
-		if(popup == nullptr)
-			popup = dynamic_cast<Component*>(findParentComponentOfClass<ComponentWithSideTab>());
+	if(text.isEmpty())
+		return;
 
-		Component::callRecursive<PageBase>(popup, [](PageBase* b)
-		{
-			b->modalHelp = nullptr;
-			return false;
-		});
-		
-		jassert(popup != nullptr);
+	jassert(popup != nullptr);
 
-		popup->addAndMakeVisible(modalHelp = new ModalHelp(text, *this));
+	popup->addAndMakeVisible(modalHelp = new ModalHelp(text, *this));
 
 #if JUCE_DEBUG
-		modalHelp->setVisible(true);
+	modalHelp->setVisible(true);
 #else
-		Desktop::getInstance().getAnimator().fadeIn(modalHelp, 200);
+	Desktop::getInstance().getAnimator().fadeIn(modalHelp, 200);
 #endif
 
-		modalHelp->toFront(false);
+	modalHelp->toFront(false);
 
-		auto thisBounds = popup->getLocalArea(this, getLocalBounds());
+	auto thisBounds = popup->getLocalArea(this, getLocalBounds());
 
-		auto mb = thisBounds.withSizeKeepingCentre(modalHelp->getWidth(), modalHelp->getHeight());
-		mb.setY(thisBounds.getBottom() + 3);
-		
-		modalHelp->setBounds(mb);
-	}
+	auto mb = thisBounds.withSizeKeepingCentre(modalHelp->getWidth(), modalHelp->getHeight());
+	mb.setY(thisBounds.getBottom() + 3);
+	
+	modalHelp->setBounds(mb);
 }
 
 Rectangle<int> Dialog::PageBase::getArea(AreaType t) const
@@ -961,19 +952,9 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 		    pageListInfo->add(var(fc));
 		}
     }
-	
-	Factory factory;
 
-    for(const auto& p: *pageListInfo)
-    {
-        if(auto pi = factory.create(p))
-        {
-            pi->setStateObject(getState().globalState);
-            pi->useGlobalStateObject = true;
-            pages.add(std::move(pi));
-        }
-    }
-	
+	rebuildPagesFromJSON();
+
 	addAndMakeVisible(cancelButton);
 	addAndMakeVisible(nextButton);
 	addAndMakeVisible(prevButton);
@@ -1212,6 +1193,36 @@ bool Dialog::keyPressed(const KeyPress& k)
 	return false;
 }
 
+struct VarIterator
+{
+	static bool forEach(var& obj, const std::function<bool(var&)>& f)
+	{
+		if(f(obj))
+			return true;
+
+		if(auto ar = obj.getArray())
+		{
+			for(auto& v: *ar)
+			{
+				if(forEach(v, f))
+					return true;
+			}
+		}
+
+		if(auto o = obj.getDynamicObject())
+		{
+			for(auto& p: o->getProperties())
+			{
+				auto v = p.value;
+				if(forEach(v, f))
+					return true;
+			}
+		}
+
+		return false;
+	}
+};
+
 var Dialog::exportAsJSON() const
 {
 	DynamicObject::Ptr json = new DynamicObject();
@@ -1257,7 +1268,35 @@ var Dialog::exportAsJSON() const
 	json->setProperty(mpid::Children, pageListArrayAsVar);
 	json->setProperty(mpid::Assets, runThread->exportAssetsAsJSON(false));
 
-	return var(json.get());
+	auto copy = var(json.get()).clone();
+
+	VarIterator::forEach(copy, [](var& v)
+	{
+		if(auto o = v.getDynamicObject())
+			o->removeProperty("onValue");
+
+		return false;
+	});
+
+	return copy;
+}
+
+Dialog::PageBase* Dialog::findPageBaseForID(const String& id)
+{
+	PageBase* found = nullptr;
+
+	callRecursive<PageBase>(this, [&](PageBase* b)
+	{
+		if(b->getId().toString() == id)
+		{
+			found = b;
+			return true;
+		}
+
+		return false;
+	});
+
+	return found;
 }
 
 Dialog::PageBase* Dialog::findPageBaseForInfoObject(const var& obj)
@@ -1539,6 +1578,25 @@ void Dialog::addListPageWithJSON()
 	refreshCurrentPage();
 	resized();
 	repaint();
+}
+
+void Dialog::rebuildPagesFromJSON()
+{
+	pages.clear();
+
+	Factory factory;
+
+    for(const auto& p: *pageListArrayAsVar.getArray())
+    {
+        if(auto pi = factory.create(p))
+        {
+            pi->setStateObject(getState().globalState);
+            pi->useGlobalStateObject = true;
+            pages.add(std::move(pi));
+        }
+    }
+
+	
 }
 
 void Dialog::refreshAdditionalColours(const var& styleDataObject)

@@ -339,11 +339,13 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 
 		var setError(const var::NativeFunctionArgs& args)
 		{
-			expectArguments(args, 1);
+			expectArguments(args, 2);
 
-			if(auto p = state.currentDialog->findPageBaseForInfoObject(infoObject))
+			auto id = args.arguments[0].toString();
+			
+			if(auto p = id.isEmpty() ? state.currentDialog->findPageBaseForInfoObject(infoObject) : state.currentDialog->findPageBaseForID(id))
 			{
-				p->setModalHelp(args.arguments[0].toString());
+				p->setModalHelp(args.arguments[1].toString());
 				state.currentDialog->setCurrentErrorPage(p);
 			}
 
@@ -369,6 +371,7 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 			setMethodWithHelp("updateElement", BIND_MEMBER_FUNCTION_1(Dom::updateElement), "Refreshes the element (call this after you change any property).");
 			setMethodWithHelp("getStyleData", BIND_MEMBER_FUNCTION_1(Dom::getStyleData), "Returns the global markdown style data.");
 			setMethodWithHelp("setStyleData", BIND_MEMBER_FUNCTION_1(Dom::setStyleData), "Sets the global markdown style data");
+			setMethodWithHelp("getClipboardContent", BIND_MEMBER_FUNCTION_1(Dom::getClipboardContent), "Returns the current clipboard content");
 		}
 
 		var getElementByType(const var::NativeFunctionArgs& args)
@@ -390,6 +393,11 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 			}
 
 			return var(matches);
+		}
+
+		var getClipboardContent(const var::NativeFunctionArgs& args) const
+		{
+			return var(SystemClipboard::getTextFromClipboard());
 		}
 
 		var updateElement(const var::NativeFunctionArgs& args)

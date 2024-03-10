@@ -1408,7 +1408,8 @@ int ExternalClockSimulator::getSamplesDelta(double ppqDelta) const
 
 void ExternalClockSimulator::sendLoopMessage()
 {
-	metronome->loopWrap();
+	if(metronome != nullptr)
+		metronome->loopWrap();
 
 	for (auto to : timelineObjects)
 		to->loopWrap();

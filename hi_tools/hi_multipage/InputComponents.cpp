@@ -40,13 +40,27 @@ using namespace juce;
 
 void addOnValueCodeEditor(const var& infoObject, Dialog::PageInfo& rootList)
 {
+    rootList.addChild<Button>({
+        { mpid::ID, "UseOnValue" },
+        { mpid::Text, "UseOnValue" },
+        { mpid::Value, infoObject[mpid::UseOnValue]},
+        { mpid::Help, "Whether to use the `element.onValue(value)` function defined in the `Code` property"}
+    });
+
+    auto code = infoObject[mpid::Code].toString();
+
+    if(code.isEmpty())
+    {
+	    code << "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n";
+        infoObject.getDynamicObject()->setProperty(mpid::Code, code);
+    }
+
 	rootList.addChild<CodeEditor>({
 		{ mpid::ID, "Code" },
 		{ mpid::Text, "Code" },
 		{ mpid::Value, infoObject[mpid::Code] },
-		{ mpid::Help, "The JS code that will be executed whenever the value changes. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
+        { mpid::Help, "This can be used to attach a callback to any value change. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
 	});
-
     
 }
 
@@ -152,6 +166,29 @@ Result LabelledComponent::loadFromInfoObject(const var& obj)
 
 void LabelledComponent::postInit()
 {
+    if(engine == nullptr)
+    {
+        if(infoObject[mpid::UseOnValue])
+	    {
+	        auto code = infoObject[mpid::Code].toString();
+
+		    if(code.startsWithChar('$'))
+		        code = rootDialog.getState().loadText(code);
+
+		    if(code.isNotEmpty())
+		    {
+			    engine = rootDialog.getState().createJavascriptEngine(infoObject);
+
+		        auto ok = engine->execute(code);
+
+		        if(ok.failed())
+		        {
+			        jassertfalse;
+		        }
+		    }
+	    }
+    }
+
     if(infoObject.hasProperty(mpid::Enabled))
         enabled = infoObject[mpid::Enabled];
 
@@ -164,6 +201,8 @@ void LabelledComponent::postInit()
 
 	init();
 
+    
+    
     getComponent<Component>().setEnabled(enabled);
 
     setVisible(infoObject[mpid::Visible] || rootDialog.isEditModeEnabled());
@@ -205,15 +244,34 @@ void LabelledComponent::resized()
 void LabelledComponent::callOnValueChange()
 {
     auto ms = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
-    auto code = infoObject[mpid::Code].toString();
-    if(code.startsWithChar('$'))
-        code = ms->loadText(code);
-
-    if(code.isNotEmpty())
+    
+    if(engine != nullptr && infoObject[mpid::UseOnValue])
     {
-	    auto engine = ms->createJavascriptEngine(infoObject);
+        auto ok = Result::ok();
+        
+        if(auto element = engine->getRootObjectProperties()["element"].getDynamicObject())
+        {
+            if(element->hasProperty("onValue"))
+            {
+	            var a[1];
+		        a[0] = getValueFromGlobalState();
+		        
+		        var::NativeFunctionArgs args(infoObject, a, 1);
 
-	    auto ok = engine->execute(code);
+		        try
+		        {
+	                engine->callFunctionObject(element, element->getProperty("onValue"), args, &ok);
+	            }
+	            catch(String& r)
+	            {
+		            jassertfalse;
+	            }
+            }
+            else
+            {
+	            ok = Result::fail("the element does not have a `onValue()` function");
+            }
+        }
         
 	    if(ok.failed())
 	    {
@@ -270,8 +328,15 @@ void Button::createEditor(Dialog::PageInfo& rootList)
         { mpid::ID, "ButtonType" },
         { mpid::Text, "ButtonType" },
         { mpid::Items, "Toggle\nText\nIcon" },
-        { mpid::Help, "The appearance of the button. " },
+        { mpid::Help, "The appearance of the button. " }
+    });
 
+    col.addChild<Choice>({
+        { mpid::ID, "Icon" },
+        { mpid::Text, "Icon" },
+        { mpid::Value, infoObject[mpid::Icon]},
+        { mpid::Items, rootDialog.getState().getAssetReferenceList(Asset::Type::Text) },
+        { mpid::Help, "The SVG data for the icon (only used with `ButtonType == Icon`). Must be a Base64 encoded SVG path." }
     });
 
     col.addChild<Button>({
@@ -285,23 +350,14 @@ void Button::createEditor(Dialog::PageInfo& rootList)
 
 
 Button::Button(Dialog& r, int width, const var& obj):
+    ButtonListener(),
 	LabelledComponent(r, width, obj, createButton(obj))
 {
     positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::None);
-
+    getComponent<Component>().setWantsKeyboardFocus(false);
 	
 
 	loadFromInfoObject(obj);
-}
-
-Path Button::createPath(const String& url) const
-{
-	Path p;
-
-	if(pathData.getSize() > 0)
-		p.loadPathFromData(pathData.getData(), pathData.getSize());
-
-	return p;
 }
 
 void Button::buttonClicked(juce::Button* b)
@@ -335,7 +391,18 @@ void Button::buttonClicked(juce::Button* b)
         }
 
 	    for(auto tb: groupedButtons)
-			tb->setToggleState(b == tb, dontSendNotification);
+	    {
+            auto thisValue = b == tb;
+		    if(auto sb = dynamic_cast<HiseShapeButton*>(tb))
+		    {
+			    sb->setToggleStateAndUpdateIcon(thisValue, true);
+		    }
+            else
+            {
+	            tb->setToggleState(thisValue, dontSendNotification);
+            }
+	    }
+			
     }
 
     callOnValueChange();
@@ -348,13 +415,7 @@ Result Button::loadFromInfoObject(const var& obj)
     isTrigger = obj[mpid::Trigger];
 
     getComponent<juce::Button>().setClickingTogglesState(!isTrigger);
-
-    if(obj.hasProperty(mpid::Icon))
-    {
-	    auto b64 = rootDialog.getState().loadText(obj[mpid::Icon].toString());
-        pathData.fromBase64Encoding(b64);
-    }
-
+    
     if(obj.hasProperty(mpid::Required))
 		requiredOption = true;
 
@@ -384,8 +445,11 @@ juce::Button* Button::createButton(const var& obj)
 	if(buttonType == "Text")
 		return new TextButton(obj[mpid::Text]);
 	if(buttonType == "Icon")
-		return new HiseShapeButton("icon", this, *this);
-    
+	{
+		IconFactory f(nullptr, obj);
+		return new HiseShapeButton("icon", this, f);
+	}
+	
     return new ToggleButton();
 }
 
@@ -393,6 +457,21 @@ juce::Button* Button::createButton(const var& obj)
 void Button::postInit()
 {
     LabelledComponent::postInit();
+
+    if(auto sb = dynamic_cast<HiseShapeButton*>(&getComponent<juce::Button>()))
+    {
+        IconFactory f(&rootDialog, infoObject);
+
+        auto icon = f.createPath("");
+
+        sb->setShapes(icon, icon);
+
+        sb->offColour = rootDialog.getStyleData().textColour;
+        sb->onColour = rootDialog.getStyleData().headlineColour;
+        sb->setToggleModeWithColourChange(true);
+        sb->refreshShape();
+		sb->refreshButtonColours();
+    }
 
     if(positionInfo.LabelPosition == Dialog::PositionInfo::LabelPositioning::None &&
        findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
@@ -484,7 +563,7 @@ Choice::Choice(Dialog& r, int width, const var& obj):
     if(obj.hasProperty(mpid::ValueMode))
     {
 	    valueMode = (ValueMode)getValueModeNames().indexOf(obj[mpid::ValueMode].toString());
-    }
+    } 
 
     loadFromInfoObject(obj);
     auto& combobox = getComponent<SubmenuComboBox>();

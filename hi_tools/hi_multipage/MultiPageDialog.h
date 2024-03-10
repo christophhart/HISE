@@ -322,6 +322,8 @@ public:
     bool removeCurrentPage();
     void addListPageWithJSON();
 
+    void rebuildPagesFromJSON();
+
     template <typename T> PageInfo& addPage(DefaultProperties&& values={}, int index = -1)
     {
         PageInfo::Ptr p;
@@ -502,7 +504,8 @@ public:
     Viewport& getViewport() { return content; }
     var exportAsJSON() const;
     void scrollBarMoved (ScrollBar*, double) override { repaint(); }
-    
+
+    PageBase* findPageBaseForID(const String& id);
     PageBase* findPageBaseForInfoObject(const var& obj);
 
     PositionInfo getPositionInfo(const var& pageData) const;

@@ -514,8 +514,30 @@ public:
 
     Asset::List assets;
 
+    String getFileLog() const
+    {
+	    String log;
+        String nl = "\n";
+
+        for(auto& f: fileOperations)
+        {
+	        log << (f.second ? '+' : '-');
+            log << f.first.getFullPathName();
+            log << nl;
+        }
+
+        return log;
+    }
+
+    void addFileToLog(const std::pair<File, bool>& fileOp)
+    {
+	    fileOperations.add(fileOp);
+    }
+
 private:
-    
+
+    Array<std::pair<File, bool>> fileOperations;
+
     OwnedArray<TemporaryFile> tempFiles;
     JUCE_DECLARE_WEAK_REFERENCEABLE(State);
 };

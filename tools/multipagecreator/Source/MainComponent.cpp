@@ -10,8 +10,12 @@
 #include "MainComponent.h"
 #include "Exporter.h"
 
+
+
+
 void MainComponent::build()
 {
+	
     using namespace multipage;
     using namespace factory;
 
@@ -235,7 +239,14 @@ void MainComponent::createDialog(const File& f)
 
 	if(f.existsAsFile())
 	{
-		JSON::parse(f.loadFileAsString(), obj);
+		auto ok = JSON::parse(f.loadFileAsString(), obj);
+
+		if(ok.failed())
+		{
+			c->logMessage(multipage::MessageType::Navigation, "Error at parsing JSON: " + ok.getErrorMessage());
+			return;
+		}
+		
 		fileList.addFile(f);
 		rt.currentRootDirectory = f.getParentDirectory();
 
@@ -356,9 +367,7 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::paint (Graphics& g)
 {
-    
-    g.fillAll(Colour(0xFF222222));
-    
+	
     if(c != nullptr)
     {
         g.setColour(c->getStyleData().backgroundColour);
@@ -387,6 +396,8 @@ void MainComponent::paint (Graphics& g)
 
 void MainComponent::resized()
 {
+	
+
     auto b = getLocalBounds();
 
 	if(b.isEmpty())

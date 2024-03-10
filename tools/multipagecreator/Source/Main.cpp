@@ -12,6 +12,8 @@
 #include "MainComponent.h"
 #include "Exporter.h"
 
+#include "simple_css/simple_css.h"
+
 class CommandLineActions
 {
 private:
@@ -206,7 +208,9 @@ public:
                                                     DocumentWindow::allButtons)
         {
             setUsingNativeTitleBar (true);
-            setContentOwned (new MainComponent(), true);
+            //setContentOwned (new MainComponent(), true);
+
+            setContentOwned(new simple_css::Editor(), true);
 
            #if JUCE_IOS || JUCE_ANDROID
             setFullScreen (true);
@@ -219,7 +223,7 @@ public:
 
         void closeButtonPressed() override
         {
-            dynamic_cast<MainComponent*>(getContentComponent())->checkSave();
+            //dynamic_cast<MainComponent*>(getContentComponent())->checkSave();
             
             // This is called when the user tries to close this window. Here, we'll just
             // ask the app to quit when this happens, but you can change this to do

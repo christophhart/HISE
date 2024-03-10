@@ -254,11 +254,11 @@ Result JavascriptFunction::onAction()
 	return ok;
 }
 
-LinkFileWriter::LinkFileWriter(Dialog& r, int w, const var& obj):
+AppDataFileWriter::AppDataFileWriter(Dialog& r, int w, const var& obj):
 	ImmediateAction(r, w, obj)
 {
-	auto company = evaluate(mpid::Company);
-	auto product = evaluate(mpid::Product);
+	auto company = rootDialog.getGlobalProperty(mpid::Company).toString();
+	auto product = rootDialog.getGlobalProperty(mpid::ProjectName).toString();
 	auto useGlobal = (bool)rootDialog.getGlobalProperty(mpid::UseGlobalAppData);
 
 	auto f = File::getSpecialLocation(useGlobal ? File::globalApplicationsDirectory : File::userApplicationDataDirectory);
@@ -269,18 +269,32 @@ LinkFileWriter::LinkFileWriter(Dialog& r, int w, const var& obj):
 
 	f = f.getChildFile(company).getChildFile(product);
 
+	auto filetype = obj[mpid::Target].toString();
+
+	if(filetype == "LinkFile")
+	{
 #if JUCE_WINDOWS
-	f = f.getChildFile("LinkWindows");
+		f = f.getChildFile("LinkWindows");
 #elif JUCE_MAC
         f = f.getChildFile("LinkOSX");
 #else
         f = f.getChildFile("LinkLinux");
 #endif
+	}
+	else
+	{
+#if JUCE_WINDOWS
+		auto ext = ".license_x64";
+#else
+		auto ext = ".license";
+#endif
+		f = f.getChildFile(product).withFileExtension(ext);
+	}
 
 	targetFile = f;
 }
 
-void LinkFileWriter::paint(Graphics& g)
+void AppDataFileWriter::paint(Graphics& g)
 {
 	g.setColour(Colours::white.withAlpha(0.05f));
 	g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(3.0f), 5.0f);
@@ -305,33 +319,37 @@ void LinkFileWriter::paint(Graphics& g)
 	g.drawText(text2, getLocalBounds().toFloat().reduced(3), Justification::centredBottom);
 }
 
-void LinkFileWriter::createEditor(Dialog::PageInfo& rootList)
+void AppDataFileWriter::createEditor(Dialog::PageInfo& rootList)
 {
-	createBasicEditor(*this, rootList, "Writes the link file to the sample folder to the app data folder.  \n> This takes the global property UseGlobalAppDataFolder into account so make sure that this aligns with your project settings!");
-	
-	rootList.addChild<TextInput>({
-		{ mpid::ID, "Company"},
-		{ mpid::Text, "Company" },
-		{ mpid::Required, true },
-		{ mpid::Value, infoObject[mpid::Company] },
-		{ mpid::Help, "Your company name. Used for determining the correct app data folder." }
-	});
+	createBasicEditor(*this, rootList, "Writes a string to a file from the app data folder.  \n> This takes the global property UseGlobalAppDataFolder into account so make sure that this aligns with your project settings!");
 
-	rootList.addChild<TextInput>({
-		{ mpid::ID, "Product"},
-		{ mpid::Text, "Product" },
+	rootList.addChild<Choice>(
+	{
+		{ mpid::ID, "Target"},
+		{ mpid::Text, "Target" },
 		{ mpid::Required, true },
-		{ mpid::Value, infoObject[mpid::Product] },
-		{ mpid::Help, "The name of the product. Used for determining the correct app data folder." }
+		{ mpid::Value, infoObject[mpid::Target] },
+		{ mpid::Items, "LinkFile\nLicenseFile"},
+		{ mpid::Help, "The target file. Select one of the available file types and it will resolve correctly on macOS / Windows / Linux." }
 	});
+	
 }
 
-Result LinkFileWriter::onAction()
+Result AppDataFileWriter::onAction()
 {
 	auto linkContent = getValueFromGlobalState(var()).toString();
-
+	
 	if(linkContent.isEmpty())
 		return Result::fail("No link file target");
+
+	linkContent = rootDialog.getState().loadText(linkContent);
+	linkContent = factory::MarkdownText::getString(linkContent, rootDialog);
+
+	if(!targetFile.existsAsFile())
+		rootDialog.getState().addFileToLog({targetFile, true});
+
+	if(!targetFile.getParentDirectory().isDirectory())
+		targetFile.getParentDirectory().createDirectory();
 
 	targetFile.replaceWithText(linkContent);
 
@@ -837,6 +855,8 @@ Result HttpRequest::performTask(State::Job& t)
 	if(r.failed())
 		return abort(r.getErrorMessage());
 
+	rootDialog.logMessage(MessageType::NetworkEvent, JSON::toString(pobj, true));
+
 	if(auto o = pobj.getDynamicObject())
 	{
 		for(const auto& v: o->getProperties())
@@ -887,10 +907,7 @@ Result HttpRequest::performTask(State::Job& t)
 
 		if(r.failed())
 			return abort(r.getErrorMessage());
-
-		if(errorMessage.isNotEmpty())
-			return abort(errorMessage);
-
+		
 		return Result::ok();
 	}
 	else
@@ -1219,11 +1236,15 @@ Result UnzipTask::performTask(State::Job& t)
 
 		zipFile->uncompressEntry(i, targetDirectory, overwrite, nullptr);
 
+		auto thisFile = targetDirectory.getChildFile(zipFile->getEntry(i)->filename);
+
+		rootDialog.getState().addFileToLog({thisFile, true});
+
 		if(rootDialog.getEventLogger().getNumListenersWithClass<EventConsole>() > 0)
 		{
 			String message;
 			auto e = zipFile->getEntry(i);
-			message << "  Uncompressing " << targetDirectory.getChildFile(e->filename).getFullPathName();
+			message << "  Uncompressing " << thisFile.getFullPathName();
 			message << " (" << String(e->uncompressedSize / 1024) << "kB)";
 			rootDialog.logMessage(MessageType::FileOperation, message);
 		}
@@ -1303,6 +1324,9 @@ Result CopyAsset::performTask(State::Job& t)
 
 		rootDialog.logMessage(MessageType::FileOperation, "Trying to write asset " + a->id + " to " + targetFile.getFullPathName());
 
+		if(!targetDir.isDirectory())
+			rootDialog.getState().addFileToLog({targetDir, true});
+
 		auto ok = targetDir.createDirectory();
 
 		if(!ok)
@@ -1312,6 +1336,8 @@ Result CopyAsset::performTask(State::Job& t)
             
 		if(a->writeToFile(targetFile, &t))
 		{
+			rootDialog.getState().addFileToLog({targetFile, true});
+
 			rootDialog.logMessage(MessageType::FileOperation, "... Done");
 			return Result::ok();
 		}
@@ -1607,21 +1633,25 @@ void PluginDirectories::loadConstants()
 
 void OperatingSystem::loadConstants()
 {
+	
 #if JUCE_WINDOWS
 	setConstant("WINDOWS", true);
 	setConstant("MAC_OS", false);
 	setConstant("LINUX", false);
 	setConstant("OS", (int)Asset::TargetOS::Windows);
+	setConstant("OS_String", "WIN");
 #elif JUCE_LINUX
     setConstant("WINDOWS", false);
 	setConstant("MAC_OS", false);
     setConstant("LINUX", true);
 	setConstant("OS", (int)Asset::TargetOS::Linux);
+	setConstant("OS_String", "LINUX");
 #elif JUCE_MAC
     setConstant("WINDOWS", false);
     setConstant("MAC_OS", true);
 	setConstant("LINUX", false);
 	setConstant("OS", (int)Asset::TargetOS::macOS);
+	setConstant("OS_String", "OSX");
 #endif
 }
 

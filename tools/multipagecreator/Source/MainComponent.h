@@ -352,6 +352,17 @@ struct Tree: public Component,
 	        return root.tree.getRootItem() == this;
         }
 
+        bool isPageData(const var& obj) const
+        {
+	        for(const auto& v: *root.currentDialog->getPageListVar().getArray())
+	        {
+		        if(v.getDynamicObject() == obj.getDynamicObject())
+                    return true;
+	        }
+
+            return false;
+        }
+
         bool isAction() const
         {
 	        return typeColour == Colour(0xFF9CC05B);
@@ -394,11 +405,34 @@ struct Tree: public Component,
 
 		bool isInterestedInDragSource (const DragAndDropTarget::SourceDetails& dragSourceDetails) override
         {
-	        return dragSourceDetails.description[mpid::Type].isString() && obj[mpid::Children].isArray();
+            if(isPageData(dragSourceDetails.description))
+            {
+	            return isRoot();
+            }
+
+            return dragSourceDetails.description[mpid::Type].isString() && obj[mpid::Children].isArray();
         }
 
         void itemDropped (const DragAndDropTarget::SourceDetails& dragSourceDetails, int insertIndex) override
         {
+            if(isPageData(dragSourceDetails.description))
+            {
+	            auto& ar = *(root.currentDialog->getPageListVar().getArray());
+
+                if(ar.size() == 1)
+                    return;
+
+                auto oldIndex = ar.indexOf(dragSourceDetails.description);
+
+                ar.remove(oldIndex);
+                ar.insert(insertIndex, dragSourceDetails.description);
+
+                root.currentDialog->rebuildPagesFromJSON();
+                root.setRoot(*root.currentDialog);
+                
+                return;
+            }
+
             if(root.removeFromParent(dragSourceDetails.description))
             {
 	            obj[mpid::Children].getArray()->insert(insertIndex, dragSourceDetails.description);
@@ -1102,7 +1136,7 @@ public:
 	    if(modified)
 	    {
 		    if(currentFile.existsAsFile() && AlertWindow::showOkCancelBox(MessageBoxIconType::QuestionIcon, "Save changes", "Do you want to save the changes"))
-	        {
+	        { 
 		        currentFile.replaceWithText(JSON::toString(c->exportAsJSON()));
                 setSavePoint();
 	        }
@@ -1215,6 +1249,7 @@ private:
 
     ScopedPointer<ModalDialog> modalDialog;
 
+    
     
     ScopedPointer<ComponentWithEdge> tree;
     ScopedPointer<ComponentWithEdge> console;
