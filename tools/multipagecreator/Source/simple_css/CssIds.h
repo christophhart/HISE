@@ -1,4 +1,4 @@
-﻿/*  ===========================================================================
+/*  ===========================================================================
 *
 *   This file is part of HISE.
 *   Copyright 2016 Christoph Hart
@@ -37,16 +37,16 @@ using namespace juce;
 
 /** TODO:
  *
- * - add font stuff
+ * - add font stuff OK
  * - add !important
- * - add box-shadow
+ * - add box-shadow OK
  * - add selectors (input, button, select,  :hover, :active, :focus)
  * 
  * - cache stuff (after profiling!)
  * - add JSON converter
  * - add layout stuff (replace layoutdata?): width, height, display (none or inherit/init/default)
  * - write LAF for all stock elements
- * - add code editor language manager
+ * - add code editor language manager OK
  */
 
 namespace PropertyIds

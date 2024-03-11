@@ -1,4 +1,4 @@
-﻿/*  ===========================================================================
+/*  ===========================================================================
 *
 *   This file is part of HISE.
 *   Copyright 2016 Christoph Hart
@@ -108,7 +108,13 @@ struct StyleSheet: public ReferenceCountedObject
 		PropertyValue() = default;
 		PropertyValue(PropertyType pt, const String& v);;
 
-		operator bool() const { return valueAsString.isNotEmpty() && valueAsString != "default"; }
+		operator bool() const
+		{
+			if(valueAsString == "default")
+				return false;
+
+			return valueAsString.isNotEmpty();
+		}
 
 		String toString() const;
 
@@ -166,47 +172,12 @@ struct StyleSheet: public ReferenceCountedObject
 			return nullptr;
 		}
 
-		Ptr getOrCreateCascadedStyleSheet(const Array<Selector>& selectors)
-		{
-			if(auto ss = (*this)[selectors])
-				return ss;
+		Ptr getOrCreateCascadedStyleSheet(const Array<Selector>& selectors);
 
-			
-			List matches;
-
-			for(auto s: selectors)
-			{
-				if(auto ss = (*this)[s])
-				{
-					matches.add(ss);
-				}
-			}
-
-			if(matches.isEmpty())
-				return nullptr;
-
-			if(matches.size() == 1)
-				return matches.getFirst();
-
-			StyleSheet::Ptr p = new StyleSheet(Array<Selector>());
-			p->animator = matches.getFirst()->animator;
-
-			for(auto m: matches)
-			{
-				p->selectors.addArray(m->selectors);
-				p->copyPropertiesFrom(m);
-			}
-
-			list.add(p);
-				
-
-			DBG("New CSS added: " + p->toString());
-
-			return p;
-		}
-
+		void addComponentToSetup(Component* c);
+		
 	private:
-
+		
 		List list;
 	};
 
@@ -223,35 +194,60 @@ struct StyleSheet: public ReferenceCountedObject
 	TransitionValue getTransitionValue(const PropertyKey& key) const;
 	PropertyValue getPropertyValue(const PropertyKey& key) const;
 
-	void copyPropertiesFrom(Ptr other)
-	{
-		for(const auto& p: other->properties)
-		{
-			for(const auto& v: p.values)
-			{
-				bool found = false;
-
-				for(auto& tp: properties)
-				{
-					if(tp.name == p.name)
-					{
-						tp.values[v.first] = v.second;
-						found = true;
-						break;
-					}
-				}
-
-				if(!found)
-				{
-					properties.push_back(p);
-				}
-			}
-		}
-	}
+	void copyPropertiesFrom(Ptr other);
 
 	Path getBorderPath(Rectangle<float> totalArea, int stateFlag) const;
 	float getPixelValue(Rectangle<float> totalArea, const PropertyKey& key, float defaultValue=0.0f) const;
 	Rectangle<float> getArea(Rectangle<float> totalArea, const PropertyKey& key) const;
+
+	void setupComponent(Component* c, int currentState);
+
+	Justification getJustification(int currentState) const;
+
+    float getOpacity(int state) const;
+
+	MouseCursor getMouseCursor() const
+	{
+		if(auto mv = getPropertyValue({ "cursor", 0}))
+		{
+			std::map<String, MouseCursor::StandardCursorType> cursors = {
+				{ "default", MouseCursor::NormalCursor },
+				{ "pointer", MouseCursor::PointingHandCursor },
+				{ "wait", MouseCursor::WaitCursor },
+				{ "crosshair", MouseCursor::CrosshairCursor },
+				{ "text", MouseCursor::IBeamCursor },
+				{ "copy", MouseCursor::CopyingCursor },
+				{ "grabbing", MouseCursor::DraggingHandCursor }
+			};
+
+			auto c = cursors.find(mv.valueAsString);
+
+			if(c != cursors.end())
+				return MouseCursor(c->second);
+			
+		}
+
+		return MouseCursor();
+	}
+
+	String getText(const String& t, int currentState) const
+	{
+		if(auto v = getPropertyValue({ "text-transform", currentState}))
+		{
+			if(v.valueAsString == "uppercase")
+				return t.toUpperCase();
+
+			if(v.valueAsString == "lowercase")
+				return t.toLowerCase();
+
+			if(v.valueAsString == "capitalize")
+				return t;
+		}
+
+		return t;
+	}
+
+	Font getFont(int currentState, Rectangle<float> totalArea) const;
 
 	AffineTransform getTransform(Rectangle<float> totalArea, int currentState) const;
 
@@ -280,8 +276,17 @@ struct StyleSheet: public ReferenceCountedObject
 	const Property* begin() const { return properties.data(); }
 	const Property* end() const { return properties.data() + properties.size(); }
 
+	void setDefaultColour(const String& key, Colour c)
+	{
+		defaultColours[key] = c;
+	}
+
 private:
-	
+
+	std::map<String, Colour> defaultColours;
+
+	float defaultFontSize = 16.0f;
+
 	friend class Parser;
 
 	Array<Selector> selectors;

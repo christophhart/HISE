@@ -64,31 +64,53 @@ struct TransformParser
 {
 	struct TransformData
 	{
+		explicit TransformData(TransformTypes t):
+		  type(t)
+		{
+			static constexpr float defaultValues[(int)TransformTypes::numTransformTypes] =
+			{
+				0.0f, // none
+				0.0f, // matrix(n,n,n,n,n,n)
+				0.0f, // translate(x,y)
+				0.0f, // translateX(x)
+				0.0f, // translateY(y)
+				0.0f, // translateZ(z)
+				1.0f, // scale(x,y)
+				1.0f, // scaleX(x)
+				1.0f, // scaleY(y)
+				1.0f, // scaleZ(z)
+				0.0f, // rotate(angle)
+				0.0f, // rotateX(angle)
+				0.0f, // rotateY(angle)
+				0.0f, // rotateZ(angle)
+				1.0f, // skew(x-angle,y-angle)
+				1.0f, // skewX(angle)
+				1.0f, // skewY(angle)
+			};
+
+			values[0] = defaultValues[(int)t];
+			values[1] = values[0];
+		}
+
 		TransformTypes type = TransformTypes::numTransformTypes;
 		std::array<float, 2> values = {0.0f, 0.0f};
 		int numValues = 0;
 
-		TransformData interpolate(const TransformData& other, float alpha) const
-		{
-			TransformData copy = *this;
+		TransformData interpolate(const TransformData& other, float alpha) const;
 
-			if(numValues == 1)
-				copy.values[2] = values[0];
-
-			copy.values[0] = Interpolator::interpolateLinear(copy.values[0], other.values[0], alpha);
-			copy.values[1] = Interpolator::interpolateLinear(copy.values[1], other.values[1], alpha);
-
-			return copy;
-		}
-
-		static AffineTransform toTransform(const std::vector<TransformData>& list)
+		static AffineTransform toTransform(const std::vector<TransformData>& list, Point<float> center)
 		{
 			AffineTransform t;
+
+			if(!list.empty() && !center.isOrigin())
+			{
+				t = AffineTransform::translation(center * -1.0f);
+			}
 
 			for(const auto& d: list)
 			{
 				auto firstValue = d.values[0];
-				auto secondValue = d.numValues == 2 ? d.values[1] : firstValue;
+				auto secondValue = d.values[(int)(d.numValues == 2)];
 
 				switch(d.type)
 				{
@@ -112,6 +134,11 @@ struct TransformParser
 				case TransformTypes::numTransformTypes: break;
 				default: ;
 				}
+			}
+
+			if(!list.empty() && !center.isOrigin())
+			{
+				t = t.followedBy(AffineTransform::translation(center));
 			}
 
 			return t;
@@ -203,6 +230,7 @@ private:
 		Colon,
 		Semicolon,
 		OpenParen,
+		Quote,
 		CloseParen,
 		ValueString,
 		numTokenTypes

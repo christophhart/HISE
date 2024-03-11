@@ -37,16 +37,21 @@ namespace simple_css
 
 	
 void Renderer::setCurrentBrush(Graphics& g, StyleSheet::Ptr ss, Rectangle<float> area,
-	const StyleSheet::PropertyKey& key)
+	const StyleSheet::PropertyKey& key, Colour defaultColour)
 {
 	if (ss != nullptr)
 	{
-		auto c = ss->getColourOrGradient(area, key, Colours::transparentBlack);
+		auto c = ss->getColourOrGradient(area, key, defaultColour);
 
 		if(c.second.getNumColours() > 0)
 			g.setGradientFill(c.second);
 		else
 			g.setColour(c.first);
+        
+        auto op = ss->getOpacity(key.state);
+        
+        if(op != 1.0f)
+            g.setOpacity(jlimit(0.0f, 1.0f, op));
 	}
 }
 
@@ -81,7 +86,9 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 
 	auto ma = ss->getArea(area, {"margin", stateFlag});
 
-	auto transform = ss->getTransform(ma, stateFlag);
+    auto opacity = ss->getOpacity(stateFlag);
+    
+    auto transform = ss->getTransform(ma, stateFlag);
 
 	if(!transform.isIdentity())
 		g.addTransform(transform);

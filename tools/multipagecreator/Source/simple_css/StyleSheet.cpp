@@ -258,6 +258,32 @@ StyleSheet::PropertyValue StyleSheet::getPropertyValue(const PropertyKey& key) c
 	return {};
 }
 
+void StyleSheet::copyPropertiesFrom(Ptr other)
+{
+	for(const auto& p: other->properties)
+	{
+		for(const auto& v: p.values)
+		{
+			bool found = false;
+
+			for(auto& tp: properties)
+			{
+				if(tp.name == p.name)
+				{
+					tp.values[v.first] = v.second;
+					found = true;
+					break;
+				}
+			}
+
+			if(!found)
+			{
+				properties.push_back(p);
+			}
+		}
+	}
+}
+
 StyleSheet::Collection::Collection(List l):
 	list(l)
 {
@@ -292,6 +318,45 @@ String StyleSheet::Collection::toString() const
 	}
 
 	return listContent;
+}
+
+StyleSheet::Ptr StyleSheet::Collection::getOrCreateCascadedStyleSheet(const Array<Selector>& selectors)
+{
+	if(auto ss = (*this)[selectors])
+		return ss;
+
+			
+	List matches;
+
+	for(auto s: selectors)
+	{
+		if(auto ss = (*this)[s])
+		{
+			matches.add(ss);
+		}
+	}
+
+	if(matches.isEmpty())
+		return nullptr;
+
+	if(matches.size() == 1)
+		return matches.getFirst();
+
+	StyleSheet::Ptr p = new StyleSheet(Array<Selector>());
+	p->animator = matches.getFirst()->animator;
+
+	for(auto m: matches)
+	{
+		p->selectors.addArray(m->selectors);
+		p->copyPropertiesFrom(m);
+	}
+
+	list.add(p);
+				
+
+	DBG("New CSS added: " + p->toString());
+
+	return p;
 }
 
 Path StyleSheet::getBorderPath(Rectangle<float> totalArea, int stateFlag) const
@@ -393,15 +458,9 @@ float StyleSheet::getPixelValue(Rectangle<float> totalArea, const PropertyKey& k
 {
 	auto getValueFromString = [&](const String& v)
 	{
-		if(v.endsWithChar('x'))
-			return (float)v.getIntValue();
-
-		auto useHeight = key.name.contains("top") || key.name.contains("bottom");
-
-		if(v == "auto")
-			return useHeight ? totalArea.getHeight() : totalArea.getWidth();
-		if(v.endsWithChar('%'))
-			return totalArea.getHeight() * (float)v.getIntValue() * 0.01f;
+		auto useHeight = key.name.contains("top") || key.name.contains("bottom") || key.name == "font-size";
+		auto fullSize = useHeight ? totalArea.getHeight() : totalArea.getWidth();
+		return Parser::parseSize(v, fullSize, this->defaultFontSize);
 	};
 
 	if(auto tv = getTransitionValue(key))
@@ -429,8 +488,174 @@ Rectangle<float> StyleSheet::getArea(Rectangle<float> totalArea, const PropertyK
 	return totalArea;
 }
 
+struct ComponentUpdaters
+{
+	static void setColourIfDefined(Component* c, StyleSheet* css, int currentState, int id, const String& key)
+	{
+		auto colour = css->getColourOrGradient({}, { key, currentState}, c->findColour(id)).first;
+		c->setColour(id, colour);
+	};
+
+	static void updateTextEditor(StyleSheet::Ptr ss, TextEditor* te, int currentState)
+	{
+		setColourIfDefined(te, ss, currentState, CaretComponent::ColourIds::caretColourId, "caret-color");
+		
+		auto fullBounds = te->getLocalBounds().toFloat();
+
+		auto marginBounds = ss->getArea(fullBounds, { "margin", currentState});
+
+		auto left = roundToInt(marginBounds.getX() - fullBounds.getX());
+		auto top = roundToInt(marginBounds.getY() - fullBounds.getY());
+		auto right = roundToInt(fullBounds.getRight() - marginBounds.getRight());
+		auto bottom = roundToInt(fullBounds.getBottom() - marginBounds.getBottom());
+		
+		te->setBorder(juce::BorderSize<int>(left, right, top, bottom));
+		te->setJustification(ss->getJustification(currentState));
+
+		int paddingLeft = te->getLeftIndent();
+		int paddingTop = te->getTopIndent();
+
+		auto font = ss->getFont(0, te->getLocalBounds().toFloat());
+
+		if(auto v = ss->getPropertyValue({ "padding-left", currentState}))
+			paddingLeft = Parser::parseSize(v.valueAsString, marginBounds.getWidth(), font.getHeight());
+
+		if(auto v = ss->getPropertyValue({ "padding-top", currentState}))
+			paddingTop = Parser::parseSize(v.valueAsString, marginBounds.getWidth(), font.getHeight());
+
+		te->setIndents(paddingLeft, paddingTop);
+		te->applyFontToAllText(font, true);
+
+		setColourIfDefined(te, ss, currentState, TextEditor::textColourId, "color");
+		te->applyColourToAllText(te->findColour(TextEditor::textColourId));
+
+		if(auto root = ComponentWithCSS::find(*te))
+		{
+			if(auto selectionSheet = root->css[Selector(SelectorType::Class, "::selection")])
+			{
+				setColourIfDefined(te, selectionSheet, 0, TextEditor::highlightedTextColourId, "color");
+				setColourIfDefined(te, selectionSheet, 0, TextEditor::highlightColourId, "background");
+			}
+		}
+	}
+};
+
+void StyleSheet::setupComponent(Component* c, int currentState)
+{
+	if(auto te = dynamic_cast<TextEditor*>(c))
+	{
+		ComponentUpdaters::updateTextEditor(this, te, currentState);
+	}
+}
+
+Justification StyleSheet::getJustification(int currentState) const
+{
+	int x = Justification::Flags::horizontallyCentred;
+	int y = Justification::Flags::verticallyCentred;
+
+	if(auto v = getPropertyValue({"text-align", currentState }))
+	{
+		auto jv = v.valueAsString.trim();
+
+		if(jv == "start" || jv == "left")
+			x = Justification::Flags::left;
+		else if(jv == "end" || jv == "right")
+			x = Justification::right;
+	}
+
+	if(auto v = getPropertyValue({"vertical-align", currentState}))
+	{
+		auto vv = v.valueAsString.trim();
+
+		if(vv == "top" || vv == "text-top")
+			y = Justification::Flags::top;
+
+		if(vv == "bottom" || vv == "text-bottom")
+			y = Justification::Flags::bottom;
+	}
+
+	return Justification(x | y);
+}
+
+float StyleSheet::getOpacity(int state) const
+{
+	if(auto tv = getTransitionValue({"opacity", state}))
+	{
+		auto v1 = tv.startValue.getFloatValue();
+		if(tv.startValue.endsWithChar('%'))
+			v1 *= 0.01f;
+            
+		auto v2 = tv.endValue.getFloatValue();
+		if(tv.endValue.endsWithChar('%'))
+			v2 *= 0.01f;
+            
+		return Interpolator::interpolateLinear(v1, v2, (float)tv.progress);
+	}
+	if(auto pv = getPropertyValue({"opacity", state}))
+	{
+		auto v = pv.valueAsString.getFloatValue();
+		if(pv.valueAsString.endsWithChar('%'))
+			v *= 0.01f;
+            
+		return v;
+	}
+        
+	return 1.0f;
+}
+
+Font StyleSheet::getFont(int currentState, Rectangle<float> totalArea) const
+{
+	auto fontName = Font::getDefaultSansSerifFontName();
+
+	if(auto v = getPropertyValue({ "font-family", currentState}))
+		fontName = v.valueAsString;
+
+	if(fontName == "monospace")
+		fontName = Font::getDefaultMonospacedFontName();
+
+	auto size = getPixelValue(totalArea, { "font-size", currentState}, defaultFontSize);
+
+	int flags = 0;
+
+	if(auto wv = getPropertyValue({ "font-weight", currentState}))
+	{
+		static const StringArray normalStrings = { "default", "normal", "400", "unset" };
+
+		if(!normalStrings.contains(wv.valueAsString.trim()))
+			flags |= (int)Font::bold;
+	}
+	
+	if(auto sv = getPropertyValue({ "font-style", currentState }))
+	{
+		if(sv.valueAsString.trim() == "italic")
+			flags |= (int)Font::italic;
+	}
+
+	Font f(fontName, size, (Font::FontStyleFlags)flags);
+		
+	if(auto sv = getPropertyValue({ "font-stretch", currentState}))
+	{
+		auto scale = Parser::parseSize(sv.valueAsString, 1.0f, 1.0f);
+		f = f.withHorizontalScale(scale);
+	}
+
+	if(auto lv = getPropertyValue({ "letter-spacing", currentState}))
+	{
+		auto v = lv.valueAsString.trim();
+
+		if(v != "normal")
+		{
+			auto fullSize = size;
+			auto letterSpacing = Parser::parseSize(lv.valueAsString, fullSize, size);
+			f = f.withExtraKerningFactor(letterSpacing / size);
+		}
+	}
+
+	return f;
+}
+
 std::vector<melatonin::ShadowParameters> StyleSheet::getBoxShadow(Rectangle<float> totalArea,
-	int currentState, bool wantsInset) const
+                                                                  int currentState, bool wantsInset) const
 {
 	if(auto tv = getTransitionValue({ "box-shadow", currentState}))
 	{
@@ -449,12 +674,43 @@ std::vector<melatonin::ShadowParameters> StyleSheet::getBoxShadow(Rectangle<floa
 
 AffineTransform StyleSheet::getTransform(Rectangle<float> totalArea, int currentState) const
 {
+	if(auto tv = getTransitionValue({ "transform", currentState}))
+	{
+		DBG(tv.progress);
+		TransformParser p1(tv.startValue);
+		TransformParser p2(tv.endValue);
+
+		auto lastEmpty = tv.endValue.isEmpty();
+
+		if(lastEmpty)
+		{
+			int x = 5;
+		}
+
+		auto l1 = p1.parse(totalArea);
+		auto l2 = p2.parse(totalArea);
+
+		auto num = jmax(l1.size(), l2.size());
+
+		std::vector<TransformParser::TransformData> mix;
+		mix.reserve(num);
+
+		for(int i = 0; i < num; i++)
+		{
+			auto t1 = isPositiveAndBelow(i, l1.size()) ? l1[i] : TransformParser::TransformData(l2[i].type);
+			auto t2 = isPositiveAndBelow(i, l2.size()) ? l2[i] : TransformParser::TransformData(l1[i].type);
+
+			mix.push_back(t1.interpolate(t2, (float)tv.progress));
+		}
+
+		return TransformParser::TransformData::toTransform(mix, totalArea.getCentre());
+	}
 	if(auto pv = getPropertyValue({ "transform", currentState}))
 	{
 		TransformParser p(pv.valueAsString);
 
 		auto list = p.parse(totalArea);
-		return TransformParser::TransformData::toTransform(list);
+		return TransformParser::TransformData::toTransform(list, totalArea.getCentre());
 	}
 
 	return {};
@@ -465,13 +721,18 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
 {
 	key.appendSuffixIfNot("color");
 
+	if(defaultColour == Colours::transparentBlack && defaultColours.find(key.name) != defaultColours.end())
+	{
+		defaultColour = defaultColours[key.name];
+	}
+
 	auto getValueFromString = [&](const String& v)
 	{
 		if(v.startsWith("linear-gradient"))
 		{
 			ColourGradient grad;
 			ColourGradientParser p(area, v.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false));
-			return std::pair(Colours::transparentBlack, p.getGradient());
+			return std::pair(defaultColour, p.getGradient());
 		}
 		else
 		{
@@ -480,6 +741,36 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
 		}
 	};
 
+    if(auto tv = getTransitionValue({ "background-size", key.state }))
+    {
+        jassertfalse;
+    }
+    else if(auto tv = getPropertyValue({ "background-size", key.state }))
+    {
+        area.setHeight(Parser::parseSize(tv.valueAsString, area.getHeight(), 16.0f));
+        area.setWidth(Parser::parseSize(tv.valueAsString, area.getWidth(), 16.0f));
+    }
+    
+    if(auto tv = getTransitionValue({ "background-position", key.state }))
+    {
+        auto newX1 = area.getX() + Parser::parseSize(tv.startValue, area.getHeight(), 16.0f);
+        auto newY1 = area.getY() + Parser::parseSize(tv.startValue, area.getWidth(), 16.0f);
+        auto newX2 = area.getX() + Parser::parseSize(tv.endValue, area.getHeight(), 16.0f);
+        auto newY2 = area.getY() + Parser::parseSize(tv.endValue, area.getWidth(), 16.0f);
+        auto newX = Interpolator::interpolateLinear(newX1, newX2, (float)tv.progress);
+        auto newY = Interpolator::interpolateLinear(newY1, newY2, (float)tv.progress);
+        
+        area.setX(newX);
+        area.setY(newY);
+    }
+    else if(auto tv = getPropertyValue({ "background-position", key.state }))
+    {
+        auto newX = area.getX() + Parser::parseSize(tv.valueAsString, area.getHeight(), 16.0f);
+        auto newY = area.getY() + Parser::parseSize(tv.valueAsString, area.getWidth(), 16.0f);
+        area.setX(newX);
+        area.setY(newY);
+    }
+    
 	if(auto tv = getTransitionValue(key))
 	{
 		auto v1 = getValueFromString(tv.startValue);

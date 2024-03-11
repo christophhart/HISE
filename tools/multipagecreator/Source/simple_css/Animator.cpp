@@ -78,6 +78,7 @@ bool Animator::Item::timerCallback()
 	if(currentProgress > 1.0 || currentProgress < 0.0)
 	{
 		currentProgress = jlimit(0.0, 1.0, currentProgress);
+		target->repaint();
 		return false;
 	}
 

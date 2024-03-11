@@ -146,6 +146,26 @@ struct StateWatcher
 	{
 		auto stateChanged = changed(c, currentState);
 
+		for(int i = 0; i < updatedComponents.size(); i++)
+		{
+			auto& uc = updatedComponents.getReference(i);
+
+			if(uc.target == nullptr)
+			{
+				updatedComponents.remove(i--);
+				continue;
+			}
+			
+			if(uc.target != c)
+				continue;
+
+			if(!uc.initialised || stateChanged.first)
+			{
+				uc.update(ss, currentState);
+			}
+
+		}
+
 		if(stateChanged.first)
 		{
 			for(const auto& p: *ss)
@@ -214,7 +234,29 @@ struct StateWatcher
 		return { false, stateFlag };
 	}
 
+	void registerComponentToUpdate(Component* c)
+	{
+		updatedComponents.addIfNotAlreadyThere({ c });
+	}
+
 	Array<Item> items;
+	
+	struct UpdatedComponent
+	{
+		bool operator==(const UpdatedComponent& other) const { return target.getComponent() == other.target.getComponent(); }
+
+		Component::SafePointer<Component> target;
+
+		void update(StyleSheet::Ptr ss, int currentState)
+		{
+			ss->setupComponent(target.getComponent(), currentState);
+			initialised = true;
+		}
+
+		bool initialised = false;
+	};
+
+	Array<UpdatedComponent> updatedComponents;
 };
 
 	

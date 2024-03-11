@@ -270,22 +270,22 @@ ColourGradientParser::ColourGradientParser(Rectangle<float> area, const String& 
 	{
 		colourIndex++;
 
-		if(tokens[0].endsWith("left"))
+        if(tokens[0].endsWith("left"))
 		{
 			gradient.point1 = area.getTopRight();
 			gradient.point2 = area.getTopLeft();
 		}
-		if(tokens[0].endsWith("right"))
+		else if(tokens[0].endsWith("right"))
 		{
 			gradient.point1 = area.getTopLeft();
 			gradient.point2 = area.getTopRight();
 		}
-		if(tokens[0].endsWith("top"))
+		else if(tokens[0].endsWith("top"))
 		{
 			gradient.point1 = area.getBottomLeft();
 			gradient.point2 = area.getTopLeft();
 		}
-		if(tokens[0].endsWith("bottom"))
+		else// if(tokens[0].endsWith("bottom"))
 		{
 			gradient.point1 = area.getTopLeft();
 			gradient.point2 = area.getBottomLeft();
@@ -314,31 +314,40 @@ ColourGradientParser::ColourGradientParser(Rectangle<float> area, const String& 
 		gradient.point2 = area.getBottomLeft();
 	}
 
+    Colour lastColour = Colours::transparentBlack;
+    
 	for(int i = colourIndex; i < tokens.size(); i++)
 	{
 		auto colourTokens = StringArray::fromTokens(tokens[i], " ", "()");
 			
 		if(colourTokens.size() > 1)
 		{
-			auto c = ColourParser(colourTokens[0]).getColour();
+			lastColour = ColourParser(colourTokens[0]).getColour();
 
 			if(gradient.getNumColours() == 0)
-				gradient.addColour(0.0f, c);
+				gradient.addColour(0.0f, lastColour);
 
 			for(int j = 1; j< colourTokens.size(); j++)
 			{
 				float proportion = (float)colourTokens[j].getIntValue() / 100.0f;
-				gradient.addColour(proportion, c);
+				gradient.addColour(proportion, lastColour);
 			}
 		}
 		else
 		{
-			auto c = ColourParser(tokens[i]).getColour();
+			lastColour = ColourParser(tokens[i]).getColour();
 
-			float proportion = (float)(i - colourIndex) / (float)(tokens.size() - colourIndex - 1);
-			gradient.addColour(proportion, c);
+			float proportion = (float)(i - colourIndex) / jmax(1.0f, (float)(tokens.size() - colourIndex - 1));
+            
+            FloatSanitizers::sanitizeFloatNumber(proportion);
+            
+            
+			gradient.addColour(jlimit(0.0f, 1.0f, proportion), lastColour);
 		}
 	}
+    
+    while(gradient.getNumColours() <= 1)
+        gradient.addColour(1.0f, lastColour);
 }
 
 
@@ -363,6 +372,23 @@ static std::array<const char*, (int)TransformTypes::numTransformTypes> transform
 	"skewY"
 };
 
+
+TransformParser::TransformData TransformParser::TransformData::interpolate(const TransformData& other,
+	float alpha) const
+{
+	TransformData copy({ TransformTypes(jmax((int)type, (int)other.type))});
+
+	copy.values[0] = values[0];
+
+	if(numValues == 1)
+		copy.values[1] = values[0];
+
+	copy.numValues = jmax(numValues, other.numValues);
+	copy.values[0] = Interpolator::interpolateLinear(copy.values[0], other.values[0], alpha);
+	copy.values[1] = Interpolator::interpolateLinear(copy.values[1], other.values[1], alpha);
+
+	return copy;
+}
 
 TransformParser::TransformParser(const String& stackedTransforms):
 	t(stackedTransforms)
@@ -413,8 +439,7 @@ std::vector<TransformParser::TransformData> TransformParser::parse(Rectangle<flo
 		if(typeIndex == (int)TransformTypes::numTransformTypes)
 			continue;
 
-		TransformData nd;
-		nd.type = (TransformTypes)typeIndex;
+		TransformData nd((TransformTypes)typeIndex);
 			
 		bufferIndex = 0;
 
@@ -428,7 +453,7 @@ std::vector<TransformParser::TransformData> TransformParser::parse(Rectangle<flo
 
 				auto fullSize = valueIndex == 0 ? totalArea.getWidth() : totalArea.getHeight();
 
-				if(nd.type == TransformTypes::scale)
+				if(nd.type >= TransformTypes::scale)
 					fullSize = 1.0;
 
 				nd.values[valueIndex++] = Parser::parseSize(String(nameBuffer).trim(), fullSize, defaultSize);
@@ -815,6 +840,7 @@ bool Parser::matchIf(TokenType t)
 	case CloseParen:   return matchChar(')');
 	case Colon:        return matchChar(':');
 	case Semicolon:    return matchChar(';');
+	case Quote:		   return matchChar('\'') || matchChar('"');
 	case Keyword: 
 		{
 			currentToken = "";
@@ -830,6 +856,33 @@ bool Parser::matchIf(TokenType t)
 
 			while(ptr != end && *ptr != ' ' && *ptr != ';')
 			{
+				if(*ptr == '\'' || *ptr == '"')
+				{
+					auto quoteChar = *ptr;
+
+					++ptr;
+
+					while(ptr != end)
+					{
+						currentToken << *ptr++;
+
+						if(ptr != end && *ptr == quoteChar)
+						{
+							++ptr;
+							
+							if(ptr != end && *ptr == ';')
+								return currentToken.isNotEmpty();
+							else
+								break;
+							
+						}
+							
+					}
+				}
+
+                if(matchIf(CloseBracket))
+                    throwError("Expected ;");
+                
 				if(matchIf(OpenParen))
 				{
 					currentToken << '(';
@@ -891,7 +944,14 @@ Parser::RawClass Parser::parseSelectors()
 	{
 		Selector ns;
 
-		if(matchIf(TokenType::Dot))
+		if(matchIf(TokenType::Colon))
+		{
+			match(TokenType::Colon);
+			match(TokenType::Keyword);
+			ns.name = "::" + currentToken;
+			ns.type = SelectorType::Class;
+		}
+		else if(matchIf(TokenType::Dot))
 		{
 			match(TokenType::Keyword);
 			ns.name = currentToken;
@@ -1062,12 +1122,13 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 	{
 		switch(p)
 		{
-		case PropertyType::Font: return "-height";
+		case PropertyType::Font: return "";
 		case PropertyType::Border: return "-width";
 		case PropertyType::Transform: return "";
 		case PropertyType::Positioning: return "";
 		case PropertyType::Layout: return "";
-		default: jassertfalse; return "-size";
+        case PropertyType::Colour: return "";
+		default: jassertfalse; return "";
 		}
 	}
 	if(styles.contains(token))
@@ -1088,6 +1149,9 @@ PropertyType Parser::getPropertyType(const String& p)
 	if(p == "transform")
 		return PropertyType::Transform;
 
+    if(p == "opacity")
+        return PropertyType::Layout;
+    
 	if(p.startsWith("border"))
 	{
 		if(p.endsWith("radius"))
@@ -1116,7 +1180,7 @@ PropertyType Parser::getPropertyType(const String& p)
 	if(p.endsWith("-shadow"))
 		return PropertyType::Shadow;
 
-	if(p.startsWith("font"))
+	if(p.startsWith("font") || p.startsWith("letter") || p.startsWith("line"))
 		return PropertyType::Font;
 
 	return PropertyType::Undefined;
@@ -1326,9 +1390,13 @@ StyleSheet::Collection Parser::getCSSValues() const
 
 					break;
 				}
+				case PropertyType::Font:
+				{
+						jassertfalse; // soon
+					break;
+				}	
 				case PropertyType::Border:
 				case PropertyType::Colour:
-				case PropertyType::Font:
 				{
 					for(auto t: tokens)
 					{

@@ -159,7 +159,7 @@ struct Renderer: public Animator::ScopedComponentSetter
 	    currentComponent(*c)
 	{};
 	
-	void setCurrentBrush(Graphics& g, StyleSheet::Ptr ss, Rectangle<float> area, const StyleSheet::PropertyKey& key);
+	void setCurrentBrush(Graphics& g, StyleSheet::Ptr ss, Rectangle<float> area, const StyleSheet::PropertyKey& key, Colour defaultColour=Colours::transparentBlack);
 
 	static int getPseudoClassFromComponent(Component* c);
 
