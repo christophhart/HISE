@@ -131,7 +131,8 @@ bool MainController::unitTestMode = false;
 	globalAsyncModuleHandler(this),
 	//presetLoadRampFlag(OldUserPresetHandler::Active),
 	controlUndoManager(new UndoManager()),
-	xyzPool(new MultiChannelAudioBuffer::XYZPool())
+	xyzPool(new MultiChannelAudioBuffer::XYZPool()),
+	defaultFont(GLOBAL_FONT().getTypefacePtr(), "Oxygen")
 {
 	PresetHandler::setCurrentMainController(this);
 
@@ -1729,9 +1730,7 @@ float MainController::getStringWidthFromEmbeddedFont(const String& text, const S
 			return tf.getStringWidthFloat(text, fontSize, kerningFactor);
 	}
 
-	getConsoleHandler().writeToConsole("Warning: default font used for getStringWidth() method (might cause race conditions on Windows)", 0, getMainSynthChain(), Colours::white);
-
-	return Font(fontName, fontSize, Font::plain).withExtraKerningFactor(kerningFactor).getStringWidthFloat(text);
+	return defaultFont.getStringWidthFloat(text, fontSize, kerningFactor);
 }
 
 Font MainController::getFontFromString(const String& fontName, float fontSize) const

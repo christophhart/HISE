@@ -2193,6 +2193,8 @@ private:
 	double originalSampleRate = 0.0;
 	
 	Array<CustomTypeFace> customTypeFaces;
+
+	CustomTypeFace defaultFont;
 	ValueTree customTypeFaceData;
 	ValueTree embeddedMarkdownDocs;
 
