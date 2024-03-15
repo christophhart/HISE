@@ -219,6 +219,9 @@ public:
             centreWithSize (getWidth(), getHeight());
            #endif
             setVisible (true);
+
+            UnitTestRunner r;
+			r.runTestsInCategory("ui");
         }
 
         void closeButtonPressed() override

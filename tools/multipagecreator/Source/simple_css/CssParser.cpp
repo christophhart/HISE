@@ -247,10 +247,10 @@ ColourParser::ColourParser(const String& value)
 		auto values = StringArray::fromTokens(content, ",", "\"'");
 		values.trim();
 
-		auto r = values[0].getIntValue();
-		auto g = values[1].getIntValue();
-		auto b = values[2].getIntValue();
-		auto a = values.size() > 3 ? roundToInt(values[3].getFloatValue() * 255) : 255;
+		auto r = jlimit(0, 255, values[0].getIntValue());
+		auto g = jlimit(0, 255, values[1].getIntValue());
+		auto b = jlimit(0, 255, values[2].getIntValue());
+		auto a = jlimit(0, 255, values.size() > 3 ? roundToInt(values[3].getFloatValue() * 255) : 255);
 		c = value.startsWith("hsl") ? Colour::fromHSL((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f) : Colour::fromRGBA(r, g, b, a);
 	}
 	else
@@ -268,43 +268,84 @@ ColourGradientParser::ColourGradientParser(Rectangle<float> area, const String& 
 
 	if(tokens[0].startsWith("to "))
 	{
+		int flag = 0;
+		auto t = tokens[0].substring(3);
 		colourIndex++;
 
-        if(tokens[0].endsWith("left"))
+		enum Direction
 		{
+			left = 1,
+			right = 2,
+			top = 4,
+			leftTop = 5,
+			rightTop = 6,
+			bottom = 8,
+			leftBottom = 9,
+			rightBottom = 10
+		};
+
+		if(t.contains("top"))
+			flag |= Direction::top;
+		if(t.contains("left"))
+			flag |= Direction::left;
+		if(t.contains("bottom"))
+			flag |= Direction::bottom;
+		if(t.contains("right"))
+			flag |= Direction::right;
+
+		switch((Direction)flag)
+		{
+		case left:
 			gradient.point1 = area.getTopRight();
 			gradient.point2 = area.getTopLeft();
-		}
-		else if(tokens[0].endsWith("right"))
-		{
+			break;
+		case right:
 			gradient.point1 = area.getTopLeft();
 			gradient.point2 = area.getTopRight();
-		}
-		else if(tokens[0].endsWith("top"))
-		{
+			break;
+		case top:
 			gradient.point1 = area.getBottomLeft();
 			gradient.point2 = area.getTopLeft();
-		}
-		else// if(tokens[0].endsWith("bottom"))
-		{
+			break;
+		case leftTop:
+			gradient.point1 = area.getBottomRight();
+			gradient.point2 = area.getTopLeft();
+			break;
+		case rightTop:
+			gradient.point1 = area.getBottomLeft();
+			gradient.point2 = area.getTopRight();
+			break;
+		case bottom:
 			gradient.point1 = area.getTopLeft();
 			gradient.point2 = area.getBottomLeft();
+			break;
+		case leftBottom:
+			gradient.point1 = area.getTopRight();
+			gradient.point2 = area.getBottomLeft();
+			break;
+		case rightBottom:
+			gradient.point1 = area.getTopLeft();
+			gradient.point2 = area.getBottomRight();
+			break;
 		}
 	}
 	else if (tokens[0].endsWith("deg"))
 	{
-		gradient.point1 = area.getTopLeft();
-		gradient.point2 = area.getBottomLeft();
+		auto maxEdge = jmax(area.getWidth(), area.getHeight());
+		auto square = area.withSizeKeepingCentre(maxEdge, maxEdge);
 
-		auto rad = (float)tokens[0].getIntValue() / 180.0f * float_Pi;
+		gradient.point1 = { area.getCentreX(), square.getY() };
+		gradient.point2 = { area.getCentreX(), square.getBottom() };
+
+		auto rad = float_Pi + (float)tokens[0].getIntValue() / 180.0f * float_Pi;
 
 		auto t = AffineTransform::rotation(rad, area.getCentreX(), area.getCentreY());
 
 		gradient.point1.applyTransform(t);
 		gradient.point2.applyTransform(t);
 
-		gradient.point1 = area.getConstrainedPoint(gradient.point1);
-		gradient.point2 = area.getConstrainedPoint(gradient.point2);
+		//gradient.point1 = area.getConstrainedPoint(gradient.point1);
+		//gradient.point2 = area.getConstrainedPoint(gradient.point2);
 
 		colourIndex++;
 	}
@@ -350,6 +391,33 @@ ColourGradientParser::ColourGradientParser(Rectangle<float> area, const String& 
         gradient.addColour(1.0f, lastColour);
 }
 
+TransformParser::TransformData::TransformData(TransformTypes t):
+	type(t)
+{
+	static constexpr float defaultValues[(int)TransformTypes::numTransformTypes] =
+	{
+		0.0f, // none
+		0.0f, // matrix(n,n,n,n,n,n)
+		0.0f, // translate(x,y)
+		0.0f, // translateX(x)
+		0.0f, // translateY(y)
+		0.0f, // translateZ(z)
+		1.0f, // scale(x,y)
+		1.0f, // scaleX(x)
+		1.0f, // scaleY(y)
+		1.0f, // scaleZ(z)
+		0.0f, // rotate(angle)
+		0.0f, // rotateX(angle)
+		0.0f, // rotateY(angle)
+		0.0f, // rotateZ(angle)
+		1.0f, // skew(x-angle,y-angle)
+		1.0f, // skewX(angle)
+		1.0f, // skewY(angle)
+	};
+
+	values[0] = defaultValues[(int)t];
+	values[1] = values[0];
+}
 
 
 static std::array<const char*, (int)TransformTypes::numTransformTypes> transformTypeNames = {
@@ -388,6 +456,52 @@ TransformParser::TransformData TransformParser::TransformData::interpolate(const
 	copy.values[1] = Interpolator::interpolateLinear(copy.values[1], other.values[1], alpha);
 
 	return copy;
+}
+
+AffineTransform TransformParser::TransformData::toTransform(const std::vector<TransformData>& list, Point<float> center)
+{
+	AffineTransform t;
+
+	if(!list.empty() && !center.isOrigin())
+	{
+		t = AffineTransform::translation(center * -1.0f);
+	}
+
+	for(const auto& d: list)
+	{
+		auto firstValue = d.values[0];
+		auto secondValue = d.values[(int)(d.numValues == 2)];
+
+		switch(d.type)
+		{
+		case TransformTypes::none: break;
+		case TransformTypes::matrix: break;
+		case TransformTypes::translate: ;
+		case TransformTypes::translateX: ;
+		case TransformTypes::translateY: ;
+		case TransformTypes::translateZ: t = t.followedBy(AffineTransform::translation(firstValue, secondValue)); break;
+		case TransformTypes::scale: ;
+		case TransformTypes::scaleX: ;
+		case TransformTypes::scaleY: ;
+		case TransformTypes::scaleZ: t = t.followedBy(AffineTransform::scale(firstValue, secondValue)); break;
+		case TransformTypes::rotate: ;
+		case TransformTypes::rotateX: ;
+		case TransformTypes::rotateY: ;
+		case TransformTypes::rotateZ: t = t.followedBy(AffineTransform::rotation(firstValue)); break;
+		case TransformTypes::skew: ;
+		case TransformTypes::skewX: ;
+		case TransformTypes::skewY: t = t.followedBy(AffineTransform::shear(firstValue, secondValue)); break;
+		case TransformTypes::numTransformTypes: break;
+		default: ;
+		}
+	}
+
+	if(!list.empty() && !center.isOrigin())
+	{
+		t = t.followedBy(AffineTransform::translation(center));
+	}
+
+	return t;
 }
 
 TransformParser::TransformParser(const String& stackedTransforms):
@@ -451,13 +565,12 @@ std::vector<TransformParser::TransformData> TransformParser::parse(Rectangle<flo
 			{
 				nameBuffer[bufferIndex] = 0;
 
-				auto fullSize = valueIndex == 0 ? totalArea.getWidth() : totalArea.getHeight();
+				auto areaToUse = totalArea;
 
 				if(nd.type >= TransformTypes::scale)
-					fullSize = 1.0;
+					areaToUse = { 1.0f, 1.0f };
 
-				nd.values[valueIndex++] = Parser::parseSize(String(nameBuffer).trim(), fullSize, defaultSize);
-				
+				nd.values[valueIndex++] = ExpressionParser::evaluate(String(nameBuffer).trim(), { valueIndex == 0, areaToUse, defaultSize });
 
 				bufferIndex = 0;
 
@@ -524,7 +637,7 @@ ShadowParser::ShadowParser(const std::vector<String>& tokens)
 			currentData.inset = true;
 		if(vt == ValueType::Colour)
 			currentData.c = ColourParser(thisToken).getColour();
-		else if(vt == ValueType::Size)
+		else if(vt == ValueType::Size || vt == ValueType::Number)
 			currentData.positions.add(thisToken);
 
 		currentData.somethingSet = true;
@@ -538,6 +651,9 @@ ShadowParser::ShadowParser(const std::vector<String>& tokens)
 
 ShadowParser::ShadowParser(const String& alreadyParsedString, Rectangle<float> totalArea)
 {
+	if(alreadyParsedString == "none")
+		return;
+
 	auto lines = StringArray::fromTokens(alreadyParsedString, "|", "");
 	lines.removeEmptyStrings();
 
@@ -581,16 +697,29 @@ std::vector<melatonin::ShadowParameters> ShadowParser::interpolate(const ShadowP
 {
 	std::vector<melatonin::ShadowParameters> list;
 
-	if(data.size() == other.data.size())
-	{
-		for(int i = 0; i < data.size(); i++)
-		{
-			auto p = data[i].interpolate(other.data[i], alpha).toShadowParameter();
+	auto maxNum = jmax(data.size(), other.data.size());
 
-			if(p.inner == wantsInset)
-				list.push_back(p);
-		}
+	for(int i = 0; i < maxNum; i++)
+	{
+		ShadowParser::Data a, b;
+
+		if(isPositiveAndBelow(i, data.size()))
+			a = data[i].copyWithoutStrings(1.0f);
+		else
+			a = other.data[i].copyWithoutStrings(0.0f);
+
+		if(isPositiveAndBelow(i, other.data.size()))
+			b = other.data[i].copyWithoutStrings(1.0f);
+		else
+			b = data[i].copyWithoutStrings(0.0f);
+
+		auto p = a.interpolate(b, alpha).toShadowParameter();
+
+		if(p.inner == wantsInset)
+			list.push_back(p);
 	}
+
+	
 
 	return list;
 }
@@ -638,7 +767,7 @@ bool ShadowParser::shouldFlushAfter(String& token)
 
 int ShadowParser::parseSize(const String& s, Rectangle<float> totalArea)
 {
-	return roundToInt(Parser::parseSize(s, totalArea.getHeight()));
+	return roundToInt(ExpressionParser::evaluate(s, { false, totalArea, 16.0f }));
 }
 
 melatonin::ShadowParameters ShadowParser::Data::toShadowParameter() const
@@ -664,6 +793,218 @@ ShadowParser::Data ShadowParser::Data::interpolate(const Data& other, double alp
 	mix.c = c.interpolatedWith(other.c, (float)alpha);
 
 	return mix;
+}
+
+float ExpressionParser::evaluateLiteral(const String& s, const Context& context)
+{
+	float value;
+	auto fullSize = context.useWidth ? context.fullArea.getWidth() : context.fullArea.getHeight();
+
+	if(s.endsWith("vh"))
+	{
+		fullSize = context.fullArea.getHeight();
+		value = s.getFloatValue() * 0.01 * fullSize;
+	}
+	else if(s.endsWithChar('x'))
+		value =  s.getFloatValue();
+	else if(s.endsWithChar('%'))
+		value = fullSize * s.getFloatValue() * 0.01f;
+	else if(s.endsWith("em"))
+		value = s.getFloatValue() * context.defaultFontSize;
+	else if(s.endsWith("deg"))
+		value = s.getFloatValue() / 180.0f * float_Pi;
+	else 
+		value = s.getFloatValue();
+
+	FloatSanitizers::sanitizeFloatNumber(value);
+	return value;
+}
+
+float ExpressionParser::Node::evaluate(const Context& context) const
+{
+	switch(type)
+	{
+	case ExpressionType::literal: return evaluateLiteral(s, context);
+	case ExpressionType::calc:
+		{
+			if(children.size() == 2)
+			{
+				auto l = children[0].evaluate(context);
+				auto r = children[1].evaluate(context);
+
+				switch(op)
+				{
+				case '+': return l + r;
+				case '-': return l - r;
+				case '/': return r > 0.0f ? l / r : 0.0f;
+				case '*': return l * r;
+				default: return 0.0f;
+				}
+			}
+		};
+	case ExpressionType::min:
+		{
+			if(children.empty())
+				return 0.0f;
+
+			float value = std::numeric_limits<float>::max();
+
+			for(const auto& c: children)
+				value = jmin(value, c.evaluate(context));
+
+			return value;
+		}
+	case ExpressionType::max:
+		{
+			if(children.empty())
+				return 0.0f;
+
+			float value = std::numeric_limits<float>::min();
+
+			for(const auto& c: children)
+				value = jmax(value, c.evaluate(context));
+
+			return value;
+		}
+	case ExpressionType::clamp:
+		{
+			if(children.size() == 3)
+			{
+				auto minValue = children[0].evaluate(context);
+				auto maxValue = children[2].evaluate(context);
+				auto value = children[1].evaluate(context);
+				return jlimit(minValue, maxValue, value);
+			}
+
+			return 0.0f;
+		}
+	
+	}
+
+	return 0.0f;
+}
+
+void ExpressionParser::match(String::CharPointerType& ptr, const String::CharPointerType end, juce_wchar t)
+{
+	if(ptr == end && t != 0)
+	{
+		String errorMessage;
+		errorMessage << "expected: " << String(t) << ", got EOF";
+		throw Result::fail(errorMessage);
+	}
+
+	if(*ptr != t)
+	{
+		String errorMessage;
+		errorMessage << "expected: " << t << ", got: " << *ptr;
+		throw Result::fail(errorMessage);
+	}
+
+	++ptr;
+}
+
+void ExpressionParser::skipWhitespace(String::CharPointerType& ptr, const String::CharPointerType end)
+{
+	while(ptr != end && CharacterFunctions::isWhitespace(*ptr))
+		ptr++;
+}
+
+ExpressionParser::Node ExpressionParser::parseNode(String::CharPointerType& ptr, const String::CharPointerType end)
+{
+	Node node;
+
+	static constexpr int NumTypes = (int)ExpressionType::numExpressionTypes;
+	static const std::array<const char*, NumTypes> types({ "none", "value", "calc", "min", "max", "clamp" });
+
+	while(ptr != end)
+	{
+		auto isExpressionKeyword = *ptr == 'c' || *ptr == 'm';
+
+		if(isExpressionKeyword)
+		{
+			int bufferIndex = 0;
+			char buffer[6];
+			memset(buffer, 0, sizeof(buffer));
+
+			while(ptr != end)
+			{
+				buffer[bufferIndex++] = *ptr++;
+
+				if(*ptr == '(' || CharacterFunctions::isWhitespace(*ptr))
+				{
+					buffer[bufferIndex] = 0;
+					int typeIndex = 0;
+
+					for(const auto& t: types)
+					{
+						if(memcmp(t, buffer, bufferIndex) == 0)
+						{
+							node.type = (ExpressionType)typeIndex;
+							break;
+						}
+								
+						typeIndex++;
+					}
+
+					skipWhitespace(ptr, end);
+					match(ptr, end, '(');
+
+					while(ptr != end)
+					{
+						node.children.push_back(parseNode(ptr, end));
+
+						if(ptr != end && *ptr == ')')
+						{
+							++ptr;
+							break;
+						}
+								
+						if(ptr != end)
+						{
+							node.op = *ptr++;
+							skipWhitespace(ptr, end);
+						}
+							
+					}
+				}
+			}
+		}
+		else
+		{
+			node.type = ExpressionType::literal;
+
+			while(ptr != end)
+			{
+				if(CharacterFunctions::isWhitespace(*ptr) || *ptr == ',' || *ptr == ')')
+					break;
+					
+				node.s << *ptr++;
+			}
+
+			skipWhitespace(ptr, end);
+
+			break;
+		}
+	}
+
+	return node;
+}
+
+float ExpressionParser::evaluate(const String& expression, const Context& context)
+{
+	if(!CharacterFunctions::isLetter(expression[0]))
+		return evaluateLiteral(expression, context);
+
+		
+
+	auto ptr = expression.begin();
+	auto end = expression.end();
+
+	Node root = parseNode(ptr, end);
+		
+	auto value = root.evaluate(context);
+	FloatSanitizers::sanitizeFloatNumber(value);
+	return value;
 }
 
 
@@ -840,6 +1181,7 @@ bool Parser::matchIf(TokenType t)
 	case CloseParen:   return matchChar(')');
 	case Colon:        return matchChar(':');
 	case Semicolon:    return matchChar(';');
+	case Comma:		   return matchChar(',');	
 	case Quote:		   return matchChar('\'') || matchChar('"');
 	case Keyword: 
 		{
@@ -864,6 +1206,16 @@ bool Parser::matchIf(TokenType t)
 
 					while(ptr != end)
 					{
+						if(*ptr == quoteChar)
+						{
+							ptr++;
+
+							if(*ptr == ';')
+								return true;
+
+							break;
+						}
+							
 						currentToken << *ptr++;
 
 						if(ptr != end && *ptr == quoteChar)
@@ -885,18 +1237,27 @@ bool Parser::matchIf(TokenType t)
                 
 				if(matchIf(OpenParen))
 				{
+					int numOpen = 1;
+
 					currentToken << '(';
 
-					while(ptr != end && *ptr != ')')
+					while(ptr != end)
+					{
+						if(*ptr == '(')
+							++numOpen;
+
+						if(*ptr == ')')
+							--numOpen;
+
 						currentToken << *ptr++;
 
-					match(CloseParen);
-
-					currentToken << ')';
-
+						if(numOpen == 0)
+							break;
+					}
+					
 					break;
 				}
-				else
+				else if (ptr != end)
 					currentToken << *ptr++;
 			}
 
@@ -908,30 +1269,44 @@ bool Parser::matchIf(TokenType t)
 	}
 }
 
-int Parser::parsePseudoClass()
+PseudoState Parser::parsePseudoClass()
 {
 	int state = 0;
+	PseudoElementType element = PseudoElementType::None;
 
 	while(matchIf(TokenType::Colon))
 	{
-		match(TokenType::Keyword);
-			
-		if(currentToken == "active")
+		if(matchIf(TokenType::Colon))
 		{
-			state |= (int)PseudoClassType::Active;
-			state |= (int)PseudoClassType::Hover;
-		}
-			
-		if(currentToken == "hover")
-			state |= (int)PseudoClassType::Hover;
+			match(TokenType::Keyword);
 
-		if(currentToken == "focus")
-			state |= (int)PseudoClassType::Focus;
+			if(currentToken == "before")
+				element = PseudoElementType::Before;
+			if(currentToken == "after")
+				element = PseudoElementType::After;
+		}
+		else
+		{
+			match(TokenType::Keyword);
+
+			if(currentToken == "active")
+				state |= (int)PseudoClassType::Active;
+			if(currentToken == "hidden")
+				state |= (int)PseudoClassType::Hidden;
+			if(currentToken == "disabled")
+				state |= (int)PseudoClassType::Disabled;
+			if(currentToken == "hover")
+				state |= (int)PseudoClassType::Hover;
+			if(currentToken == "focus")
+				state |= (int)PseudoClassType::Focus;
+			if(currentToken == "root")
+				state |= (int)PseudoClassType::Root;
+		}
 
 		skip();
 	}
 
-	return state;
+	return { (PseudoClassType)state, element };
 }
 
 Parser::RawClass Parser::parseSelectors()
@@ -940,8 +1315,18 @@ Parser::RawClass Parser::parseSelectors()
 
 	skip();
 
+	Selector::RawList currentList;
+
 	while(ptr != end && *ptr != '{')
 	{
+		if(matchIf(TokenType::Comma))
+		{
+			if(!currentList.empty())
+			{
+				newClass.selectors.push_back(std::move(currentList));
+				currentList = {};
+			}
+		}
 		Selector ns;
 
 		if(matchIf(TokenType::Colon))
@@ -966,14 +1351,31 @@ Parser::RawClass Parser::parseSelectors()
 		else
 		{
 			match(TokenType::Keyword);
-			ns.name = currentToken;
-			ns.type = SelectorType::Type;
+
+			if(currentToken == "element")
+			{
+				match(TokenType::OpenParen);
+				match(TokenType::Keyword);
+				ns.name = currentToken;
+				ns.type = SelectorType::Element;
+				match(TokenType::CloseParen);
+			}
+			else
+			{
+				ns.name = currentToken;
+				ns.type = SelectorType::Type;
+			}
 		}
 
-		newClass.selector.push_back({ns, parsePseudoClass() });
+		currentList.push_back({ns, parsePseudoClass() });
+
+
+		
 
 		skip();
 	}
+
+	newClass.selectors.push_back(currentList);
 
 	return newClass;
 }
@@ -1070,7 +1472,10 @@ ValueType Parser::findValueType(const String& value)
 
 	if(value.startsWith("linear-gradient"))
 		return ValueType::Gradient;
-		
+
+	if(CharacterFunctions::isDigit(value[0]))
+		return ValueType::Number;
+
 	return ValueType::Undefined;
 }
 
@@ -1089,9 +1494,13 @@ String Parser::processValue(const String& value, ValueType t)
 			return "0x" + cp.getColour().toDisplayString(true);
 		}
 	case ValueType::Gradient:
-		{
-			return value;
-		}
+	{
+		return value;
+	}
+	case ValueType::Time:
+	{
+		 return String(value.endsWith("ms") ? ((double)value.getIntValue() * 0.001) : value.getDoubleValue());
+	}
 	case ValueType::numValueTypes: break;
 	default: ;
 	}
@@ -1146,12 +1555,11 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 
 PropertyType Parser::getPropertyType(const String& p)
 {
+	static const StringArray layoutIds({"x", "y", "left", "right", "top", "bottom", "width", "height", "min-width", "min-height", "max-width", "max-height", "opacity", "gap"});
+
 	if(p == "transform")
 		return PropertyType::Transform;
 
-    if(p == "opacity")
-        return PropertyType::Layout;
-    
 	if(p.startsWith("border"))
 	{
 		if(p.endsWith("radius"))
@@ -1162,7 +1570,7 @@ PropertyType Parser::getPropertyType(const String& p)
 	if(p.startsWith("padding"))
 		return PropertyType::Positioning;
 
-	if(p == "width" || p == "height")
+	if(layoutIds.contains(p))
 		return PropertyType::Layout;
 
 	if(p.startsWith("margin"))
@@ -1208,54 +1616,128 @@ StyleSheet::Collection Parser::getCSSValues() const
 
 	for(const auto& rc: rawClasses)
 	{
-		StyleSheet::List thisList;
+		Array<std::pair<StyleSheet::Ptr, PseudoState>> thisTargets;
 
-		int currentPseudoClass = (int)PseudoClassType::None;
+		//int currentPseudoClass = (int)PseudoClassType::None;
 
-		for(auto l: list)
+		for(const auto& s: rc.selectors)
 		{
-			auto fit = l->matchesRawList(rc.selector);
+			std::pair<bool, PseudoState> fit = { false, PseudoState() };
 
-			if(fit.first)
+			StyleSheet::Ptr match;
+
+			for(auto l: list)
 			{
-				thisList.add(l);
-				currentPseudoClass = fit.second;
-				break;
+				fit = l->matchesRawList(s);
+
+				if(fit.first)
+				{
+					match = l;
+					break;
+				}
+					
+			}
+			
+			if(match != nullptr)
+			{
+				thisTargets.add({ match, fit.second });
+			}
+			else
+			{
+				Array<Selector> thisSelector;
+
+				for(auto& s_: s)
+					thisSelector.add(s_.first);
+				
+				if(!s.empty())
+				{
+					auto p = new StyleSheet(thisSelector);
+					thisTargets.add({ p, s[0].second });
+				}
+					
 			}
 		}
 
-		if(thisList.isEmpty())
+#if 0
+		if(thisTargets.isEmpty())
 		{
-			for(auto s: rc.selector)
+			
+
+			for(const auto& s: rc.selectors[0])
 			{
 				auto p = new StyleSheet(s.first);
 				currentPseudoClass = s.second;
 				thisList.add(p);
 			}
 		}
+#endif
 		
 		auto addOrOverwrite = [&](PropertyType pt, const String& k, const String& v)
 		{
 			bool shouldExtend = pt == PropertyType::Shadow || pt == PropertyType::Transform;
 
-			for(auto l: thisList)
+			for(auto& l: thisTargets)
 			{
-				bool found = false;
+				bool propertyFound = false;
 
-				for(auto& p: l->properties)
+				auto elementIndex = (int)l.second.element;
+				auto pseudoClassIndex = l.second.stateFlag;
+
+				for(auto& p: l.first->properties[elementIndex])
 				{
 					if(p.name == k)
 					{
+						propertyFound = true;
+						bool stateFound = false;
+
+						for(auto& pv: p.values)
+						{
+							if(pv.first == pseudoClassIndex)
+							{
+								if(shouldExtend)
+									pv.second.valueAsString << v;
+								else
+									pv.second = PropertyValue(pt, v);
+
+								stateFound = true;
+								break;
+							}
+						}
+
+						if(!stateFound)
+							p.values.push_back({ pseudoClassIndex, { pt, v} } );
+
+						break;
+					}
+				}
+
+				if(!propertyFound)
+				{
+					Property np;
+					np.name = k;
+
+					if(l.second.hasState())
+						np.values.push_back({ 0, { pt, "" } }); 
+
+					np.values.push_back({ pseudoClassIndex, { pt, v }});
+					l.first->properties[elementIndex].push_back(np);
+				}
+#if 0
+				for(auto& p: l.first->properties)
+				{
+					if(p.name == k)
+					{
+						
 						if(shouldExtend)
 						{
 							if(v == "none")
-								p.values[(int)currentPseudoClass] = { pt, "" };
+								p.values[l.second] = { pt, "" };
 							else
-								p.values[(int)currentPseudoClass].valueAsString << v;
+								p.values[l.second].valueAsString << v;
 						}
 						else
 						{
-							p.values[(int)currentPseudoClass] = { pt, v };
+							p.values[l.second] = { pt, v };
 						}
 						
 						found = true;
@@ -1267,18 +1749,18 @@ StyleSheet::Collection Parser::getCSSValues() const
 				{
 					StyleSheet::Property np;
 					np.name = k;
-					np.values[(int)currentPseudoClass] = { pt, v };
+					np.values[l.second] = { pt, v };
 
-					if(currentPseudoClass != 0)
+					if(l.second != 0)
 						np.values[0] = { pt, "" }; 
 
 					auto containsDefault = np.values.find(0) == np.values.end();
-						
-					l->properties.push_back(np);
+					l.first->properties.push_back(np);
 				}
+#endif
 			}
 		};
-			
+
 		std::map<String, Transition> transitions;
 
 		for(const auto& rv: rc.lines)
@@ -1317,6 +1799,13 @@ StyleSheet::Collection Parser::getCSSValues() const
 						addOrOverwrite(p, rv.property + "-left", tokens[1]);
 						addOrOverwrite(p, rv.property + "-right", tokens[1]);
 					}
+					if(tokens.size() == 3)
+					{
+						addOrOverwrite(p, rv.property + "-top", tokens[0]);
+						addOrOverwrite(p, rv.property + "-left", tokens[1]);
+						addOrOverwrite(p, rv.property + "-right", tokens[1]);
+						addOrOverwrite(p, rv.property + "-bottom", tokens[2]);
+					}
 					if(tokens.size() == 4)
 					{
 						// tokens = [t, r, b, l]
@@ -1334,15 +1823,23 @@ StyleSheet::Collection Parser::getCSSValues() const
 					
 					Transition t;
 					t.active = true;
-					t.duration = tokens[1].getDoubleValue();
+					t.duration = processValue(tokens[1], ValueType::Time).getDoubleValue();
 
 					if(tokens.size() > 2)
-						t.delay = tokens[2].getDoubleValue();
+						t.delay = processValue(tokens[2], ValueType::Time).getDoubleValue();
 
 					if(tokens.size() > 3)
 						t.f = parseTimingFunction(tokens[3]);
 
-
+					if(transitionTarget == "all")
+					{
+						for(auto& l: thisTargets)
+						{
+							if(l.second.isDefaultState())
+								l.first->setDefaultTransition(l.second.element, t);
+						}
+					};
+					
 					transitions[transitionTarget] = t;
 					
 					break;
@@ -1413,31 +1910,62 @@ StyleSheet::Collection Parser::getCSSValues() const
 			{
 				auto t = rv.items[0];
 				auto suffix = getTokenSuffix(p, rv.property, t);
-				addOrOverwrite(p, rv.property + suffix, processValue(t));
+
+				if(rv.property == "background-image" && t.startsWith("linear-gradient"))
+					addOrOverwrite(p, "background-color", processValue(t));
+				else if (p == PropertyType::Transition)
+				{
+					Transition tr;
+					tr.active = true;
+					tr.duration = processValue(t, ValueType::Time).getDoubleValue();
+
+					for(auto& l: thisTargets)
+					{
+						if(l.second.isDefaultState())
+							l.first->setDefaultTransition(l.second.element, tr);
+					}
+					
+					transitions["all"] = tr;
+				}
+				else
+					addOrOverwrite(p, rv.property + suffix, processValue(t));
 			}
 		}
-
+		
 		for(auto& t: transitions)
 		{
-			StyleSheet::PropertyKey k;
+			PropertyKey k;
 			k.name =t.first;
-			k.state = currentPseudoClass;
 
-			for(auto l: thisList)
+			for(const auto& l: thisTargets)
 			{
-				for(auto& p: l->properties)
+				k.state = l.second;
+
+				for(auto& p: l.first->properties[(int)l.second.element])
 				{
 					if(k.looseMatch(p.name))
 					{
-						if(p.values.find(k.state) != p.values.end())
-							p.values[k.state].transition = t.second;
+						for(auto& pv: p.values)
+						{
+							if(pv.first == k.state.stateFlag)
+							{
+								pv.second.transition = t.second;
+
+								if(!p.values[0].second)
+									p.values[0].second.transition = t.second;
+
+								break;
+							}
+						}
 					}
 				}
 			}
 		}
 
-		for(auto l: thisList)
-			list.addIfNotAlreadyThere(l);
+		
+
+		for(const auto& l: thisTargets)
+			list.addIfNotAlreadyThere(l.first);
 	}
 
 	return StyleSheet::Collection(list);

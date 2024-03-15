@@ -14,6 +14,9 @@
         <FILE id="SxbfCM" name="CssParser.h" compile="0" resource="0" file="Source/simple_css/CssParser.h"/>
         <FILE id="Ad4re5" name="Editor.cpp" compile="0" resource="0" file="Source/simple_css/Editor.cpp"/>
         <FILE id="QBl3Dn" name="Editor.h" compile="0" resource="0" file="Source/simple_css/Editor.h"/>
+        <FILE id="XzhH7P" name="HelperClasses.cpp" compile="0" resource="0"
+              file="Source/simple_css/HelperClasses.cpp"/>
+        <FILE id="mrFDbj" name="HelperClasses.h" compile="0" resource="0" file="Source/simple_css/HelperClasses.h"/>
         <FILE id="UaOYZ5" name="Renderer.cpp" compile="0" resource="0" file="Source/simple_css/Renderer.cpp"/>
         <FILE id="fT4eEM" name="Renderer.h" compile="0" resource="0" file="Source/simple_css/Renderer.h"/>
         <FILE id="K74eUS" name="simple_css.cpp" compile="1" resource="0" file="Source/simple_css/simple_css.cpp"/>

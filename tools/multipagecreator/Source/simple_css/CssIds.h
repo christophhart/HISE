@@ -37,16 +37,10 @@ using namespace juce;
 
 /** TODO:
  *
- * - add font stuff OK
- * - add !important
- * - add box-shadow OK
- * - add selectors (input, button, select,  :hover, :active, :focus)
- * 
  * - cache stuff (after profiling!)
  * - add JSON converter
  * - add layout stuff (replace layoutdata?): width, height, display (none or inherit/init/default)
  * - write LAF for all stock elements
- * - add code editor language manager OK
  */
 
 namespace PropertyIds
@@ -77,6 +71,7 @@ enum class SelectorType
 	Type,
 	Class,
 	ID,
+	Element,
 	All
 };
 
@@ -86,7 +81,17 @@ enum class ElementType
 	Button,
 	TextInput,
 	Selector,
-	Panel
+	Panel,
+	Ruler
+};
+
+enum class PositionType
+{
+	initial,
+	relative,
+	absolute,
+	fixed,
+	numPositionTypes
 };
 
 enum class PseudoClassType
@@ -94,8 +99,33 @@ enum class PseudoClassType
 	None = 0,
 	Hover = 1,
 	Active = 2,
-	Focus = 4
+	Focus = 4,
+	Disabled = 8,
+	Hidden = 16,
+	Root = 32,
+	All = 63
 };
+
+enum class PseudoElementType
+{
+	None = 0,
+	Before,
+	After,
+	All
+};
+
+enum class ExpressionType
+{
+	none,
+	literal,
+	calc,
+	min,
+	max,
+	clamp,
+	numExpressionTypes
+};
+
+
 
 enum class TransformTypes
 {
@@ -125,9 +155,13 @@ enum class ValueType
 	Colour,
 	Gradient,
 	Size,
+	Number,
+	Time,
 	numValueTypes
 };
 
+
+	
 	
 } // namespace simple_css
 } // namespace hise

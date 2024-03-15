@@ -37,100 +37,14 @@ namespace simple_css
 {
 using namespace juce;
 
-
 struct Animator;
-
-
-struct Selector
-{
-	using RawList = std::vector<std::pair<Selector, int>>;
-
-	Selector() = default;
-
-	explicit Selector(ElementType dt);
-
-	Selector(SelectorType t, String n):
-	  type(t),
-	  name(n)
-	{};
-
-	String toString() const;
-
-	std::pair<bool, int> matchesRawList(const RawList& blockSelectors) const;
-
-	bool operator==(const Selector& other) const;
-
-	SelectorType type;
-	String name;
-};
-
-struct Transition
-{
-	String toString() const;
-
-	operator bool() const { return active && (duration > 0.0 || delay > 0.0); }
-
-	bool active = false;
-	double duration = 0.0;
-	double delay = 0.0;
-	std::function<double(double)> f;
-};
 
 struct StyleSheet: public ReferenceCountedObject
 {
 	using Ptr = ReferenceCountedObjectPtr<StyleSheet>;
 	using List = ReferenceCountedArray<StyleSheet>;
 
-	struct PropertyKey
-	{
-		PropertyKey withSuffix(const String& suffix) const;
-
-		bool operator==(const PropertyKey& other) const;
-		bool looseMatch(const String& other) const;
-		void appendSuffixIfNot(const String& suffix);
-
-		String name;
-		int state;
-	};
-
-	struct TransitionValue
-	{
-		operator bool() const { return active; }
-
-		bool active = false;
-		String startValue;
-		String endValue;
-		double progress = 0.0;
-	};
-
-	struct PropertyValue
-	{
-		PropertyValue() = default;
-		PropertyValue(PropertyType pt, const String& v);;
-
-		operator bool() const
-		{
-			if(valueAsString == "default")
-				return false;
-
-			return valueAsString.isNotEmpty();
-		}
-
-		String toString() const;
-
-		PropertyType type;
-		Transition transition;
-		String valueAsString;
-	};
-
-	struct Property
-	{
-		String toString() const;
-		PropertyValue getProperty(int stateFlag) const;
-
-		String name;
-		std::map<int, PropertyValue> values;
-	};
+	
 
 	
 
@@ -158,24 +72,27 @@ struct StyleSheet: public ReferenceCountedObject
 
 		String toString() const;
 
-		Ptr findBestMatch(const Array<Selector>& selectors) const
-		{
-			if(auto ss = (*this)[selectors])
-				return ss;
-
-			for(auto s: selectors)
-			{
-				if(auto ss = (*this)[s])
-					return ss;
-			}
-
-			return nullptr;
-		}
+		Ptr findBestMatch(const Array<Selector>& selectors) const;
 
 		Ptr getOrCreateCascadedStyleSheet(const Array<Selector>& selectors);
 
 		void addComponentToSetup(Component* c);
-		
+
+		void addElementStyle(Ptr p)
+		{
+			auto elementSelector = p->selectors.getFirst();
+			jassert(elementSelector.type == SelectorType::Element);
+
+			for(auto p: list)
+			{
+				for(auto& s: p->selectors)
+					if(s == elementSelector)
+						return;
+			}
+
+			list.add(p);
+		}
+
 	private:
 		
 		List list;
@@ -196,102 +113,73 @@ struct StyleSheet: public ReferenceCountedObject
 
 	void copyPropertiesFrom(Ptr other);
 
-	Path getBorderPath(Rectangle<float> totalArea, int stateFlag) const;
+	NonUniformBorderData getNonUniformBorder(Rectangle<float> totalArea, PseudoState stateFlag) const;
+	Path getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag) const;
 	float getPixelValue(Rectangle<float> totalArea, const PropertyKey& key, float defaultValue=0.0f) const;
 	Rectangle<float> getArea(Rectangle<float> totalArea, const PropertyKey& key) const;
 
+	void setFullArea(Rectangle<float> fullArea);
+
+	Rectangle<float> expandArea(Rectangle<float> sourceArea, const PropertyKey& key) const;
+	Rectangle<float> getBounds(Rectangle<float> sourceArea, PseudoState state) const;
+
+	Rectangle<float> getPseudoArea(Rectangle<float> sourceArea, int currentState, PseudoElementType area) const;
+	Rectangle<float> truncateBeforeAndAfter(Rectangle<float> sourceArea, int currentState) const;
+
 	void setupComponent(Component* c, int currentState);
 
-	Justification getJustification(int currentState) const;
-
+	Justification getJustification(int currentState, int defaultXFlag=Justification::horizontallyCentred, int defaultYFlag=Justification::verticallyCentred) const;
     float getOpacity(int state) const;
-
-	MouseCursor getMouseCursor() const
-	{
-		if(auto mv = getPropertyValue({ "cursor", 0}))
-		{
-			std::map<String, MouseCursor::StandardCursorType> cursors = {
-				{ "default", MouseCursor::NormalCursor },
-				{ "pointer", MouseCursor::PointingHandCursor },
-				{ "wait", MouseCursor::WaitCursor },
-				{ "crosshair", MouseCursor::CrosshairCursor },
-				{ "text", MouseCursor::IBeamCursor },
-				{ "copy", MouseCursor::CopyingCursor },
-				{ "grabbing", MouseCursor::DraggingHandCursor }
-			};
-
-			auto c = cursors.find(mv.valueAsString);
-
-			if(c != cursors.end())
-				return MouseCursor(c->second);
-			
-		}
-
-		return MouseCursor();
-	}
-
-	String getText(const String& t, int currentState) const
-	{
-		if(auto v = getPropertyValue({ "text-transform", currentState}))
-		{
-			if(v.valueAsString == "uppercase")
-				return t.toUpperCase();
-
-			if(v.valueAsString == "lowercase")
-				return t.toLowerCase();
-
-			if(v.valueAsString == "capitalize")
-				return t;
-		}
-
-		return t;
-	}
-
+	MouseCursor getMouseCursor() const;
+	String getText(const String& t, int currentState) const;
 	Font getFont(int currentState, Rectangle<float> totalArea) const;
+	AffineTransform getTransform(Rectangle<float> totalArea, PseudoState currentState) const;
+	std::vector<melatonin::ShadowParameters> getShadow(Rectangle<float> totalArea, const PropertyKey& key, bool wantsInset) const;
+	std::pair<Colour, ColourGradient> getColourOrGradient(Rectangle<float> area, PropertyKey key, Colour defaultColour=Colours::transparentBlack) const;
+	PositionType getPositionType(PseudoState state) const;
 
-	AffineTransform getTransform(Rectangle<float> totalArea, int currentState) const;
+	FlexBox getFlexBox() const;
 
-	std::vector<melatonin::ShadowParameters> getBoxShadow(Rectangle<float> totalArea, int currentState, bool wantsInset) const;
+	FlexItem getFlexItem(Component* c, Rectangle<float> fullArea) const;
 
-	std::pair<Colour, ColourGradient> getColourOrGradient(Rectangle<float> area, PropertyKey key, Colour defaultColour=Colours::transparentBlack);
+	Rectangle<float> getLocalBoundsFromText(const String& text) const;
 
-	std::pair<bool, int> matchesRawList(const Selector::RawList& blockSelectors) const;
-
+	std::pair<bool, PseudoState> matchesRawList(const Selector::RawList& blockSelectors) const;
 	String toString() const;
 
-	bool matchesSelectorList(const Array<Selector>& otherSelectors)
+	void setDefaultTransition(PseudoElementType elementType, const Transition& t)
 	{
-		if(selectors.size() != otherSelectors.size())
-			return false;
-
-		for(int i = 0; i < otherSelectors.size(); i++)
-		{
-			if(!(otherSelectors[i] == selectors[i]))
-				return false;
-		}
-
-		return true;
+		defaultTransitions[(int)elementType] = t;
 	}
 
-	const Property* begin() const { return properties.data(); }
-	const Property* end() const { return properties.data() + properties.size(); }
+	Transition getTransitionOrDefault(PseudoElementType elementType, const Transition& t) const;
 
-	void setDefaultColour(const String& key, Colour c)
+	bool matchesSelectorList(const Array<Selector>& otherSelectors);
+	bool forEachProperty(PseudoElementType type, const std::function<bool(PseudoElementType, Property& v)>& f);
+	void setDefaultColour(const String& key, Colour c);
+
+	template <typename EnumType> EnumType getAsEnum(const PropertyKey& key, const StringArray& items, EnumType defaultValue) const
 	{
-		defaultColours[key] = c;
+		if(auto pv = getPropertyValue(key))
+		{
+			auto idx = items.indexOf(pv.valueAsString);
+			if(idx != -1)
+				return static_cast<EnumType>(idx);
+		}
+
+		return defaultValue;
 	}
 
 private:
 
+	Rectangle<float> currentFullArea;
 	std::map<String, Colour> defaultColours;
-
 	float defaultFontSize = 16.0f;
-
 	friend class Parser;
 
 	Array<Selector> selectors;
-	std::vector<Property> properties;
-	
+	std::array<std::vector<Property>, (int)PseudoElementType::All> properties;
+	std::array<Transition, (int)PseudoElementType::All> defaultTransitions;
 	Animator* animator = nullptr;
 };
 

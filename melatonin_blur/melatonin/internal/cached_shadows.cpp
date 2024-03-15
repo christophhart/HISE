@@ -122,8 +122,7 @@ namespace melatonin::internal
         }
         else
         {
-	        needsRecomposite |= renderedSingleChannelShadows[index].updateColor(sh.color.withAlpha(1.0f));
-            needsRecomposite |= renderedSingleChannelShadows[index].updateOpacity(sh.color.getFloatAlpha());
+	        needsRecomposite |= renderedSingleChannelShadows[index].updateColor(sh.color);
             needsRecomposite |= renderedSingleChannelShadows[index].updateOffset(sh.offset, scale);
 
             needsRecalculate |= renderedSingleChannelShadows[index].updateSpread(sh.spread);

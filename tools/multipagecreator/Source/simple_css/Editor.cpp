@@ -42,12 +42,14 @@ namespace simple_css
 		scheme.set("Properties", Colour(0xffbbbbff));
 		scheme.set("PseudoClass", Colour(0xffEEAA00));
 		scheme.set("Keyword", Colours::orange);
+		scheme.set("Expression", Colour(0xFFF787F5));
 		scheme.set("Class", Colour(0xff88bec5));
 		scheme.set("ID", Colour(0xffDDAAAA));
 		scheme.set("SpecialCharacters", Colours::white);
 		scheme.set("Value", Colour(0xffCCCCEE));
 		scheme.set("Comment", Colour(0xff77CC77));
 		scheme.set("Important", Colour(0xffBB3333));
+		scheme.set("String", Colour(0xffCCCCEE).withMultipliedBrightness(0.8f));
 
 #if 0
 			scheme.set("Type", Colour(0xFFAAB5B0));
@@ -67,27 +69,42 @@ namespace simple_css
 
 LanguageManager::KeywordDataBase::KeywordDataBase()
 {
-	keywords[(int)KeywordType::PseudoClass] = { "hover", "active", "focus" };
-	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "input" };
+	keywords[(int)KeywordType::PseudoClass] = { "hover", "active", "focus", "disabled", "hidden", "before", "after", "root" };
+	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "input", "hr" };
+	keywords[(int)KeywordType::ExpressionKeywords] = { "calc", "clamp", "min", "max" };
 	keywords[(int)KeywordType::Property] = {
 		"::selection",
-		"background", "background-color", "background-size", "background-position",
+		"align-items", "align-content", "align-self",
+		"background", "background-color", "background-size", "background-position", "background-image",
         "border", "border-width", "border-style", "border-color",
         "border-radius", "border-top-left-radius", "border-top-right-radius", "border-bottom-left-radius", "border-bottom-right-radius",
-        "box-shadow",
+		"bottom",
+        "box-shadow", "box-sizing",
 		"color",
+		"content",
+		"caret-color",
         "cursor",
+		"display",
         "ease", "ease-in", "ease-in-out", "linear",
+		"flex-wrap", "flex-direction", "flex-grow", "flex-shrink", "flex-basis",
         "font-family", "font-size", "font-weight", "font-stretch",
         "height",
+		"justify-content",
+		"left",
         "letter-spacing",
 		"margin", "margin-top", "margin-left", "margin-right", "margin-bottom",
+		"min-width", "max-width", "min-height", "max-height",
         "opacity",
+		"order",
 		"padding", "padding-top", "padding-left", "padding-right", "padding-bottom",
+		"position",
+		"right",
         "text-align",
         "text-transform",
+		"text-shadow",
 		"transition",
 		"transform",
+		"top",
         "vertical-align",
         "width"
 	};
@@ -96,7 +113,7 @@ LanguageManager::KeywordDataBase::KeywordDataBase()
 void LanguageManager::Tokeniser::skipNumberValue(CodeDocument::Iterator& source)
 {
 	auto c = source.peekNextChar();
-	while(!source.isEOF() && (CharacterFunctions::isLetterOrDigit(c) || c == '-'))
+	while(!source.isEOF() && (CharacterFunctions::isLetterOrDigit(c) || c == '-') || c == '%')
 	{
 		source.skip();
 		c = source.peekNextChar();
@@ -109,9 +126,10 @@ void LanguageManager::Tokeniser::skipToSemicolon(CodeDocument::Iterator& source)
 	while(!source.isEOF() && nextChar != ';')
 	{
 		if(nextChar == '!')
-		{
 			break;
-		}
+
+		if(nextChar == '"' || nextChar == '\'')
+			break;
 				
 		if(nextChar == '/')
 		{
@@ -143,6 +161,21 @@ void LanguageManager::Tokeniser::skipComment(CodeDocument::Iterator& source)
 				if(source.nextChar() == '/')
 					break;
 			}
+		}
+	}
+}
+
+void LanguageManager::Tokeniser::skipStringLiteral(CodeDocument::Iterator& source)
+{
+	auto quoteChar = source.nextChar();
+
+	while(!source.isEOF())
+	{
+		auto n = source.nextChar();
+
+		if(n == quoteChar)
+		{
+			return;
 		}
 	}
 }
@@ -194,6 +227,11 @@ int LanguageManager::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 		return (int)Token::SpecialCharacters;
 	}
 
+	if(c == '\'' || c == '"')
+	{
+		skipStringLiteral(source);
+		return (int)Token::StringLiteral;
+	}
 	if(c == '!')
 	{
 		source.skip();
@@ -264,7 +302,7 @@ int LanguageManager::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 
 	if(wasProperty)
 	{
-		skipToSemicolon(source);
+		skipWord(source);//skipToSemicolon(source);
 		return (int)Token::Value;
 	}
 
@@ -277,6 +315,11 @@ int LanguageManager::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 	source.skip();
 	return (int)Token::SpecialCharacters;
 			
+}
+
+CodeEditorComponent::ColourScheme LanguageManager::Tokeniser::getDefaultColourScheme()
+{
+	return database->getColourScheme();
 }
 
 LanguageManager::LanguageManager(mcl::TextDocument& doc_):
@@ -292,6 +335,7 @@ void LanguageManager::CssTokens::addTokens(mcl::TokenCollection::List& tokens)
 		"Property",
 		"PseudoClass",
 		"ReservedKeywords",
+		"Expression operator"
 	});
 
 	auto colours = database.getColourScheme();
@@ -305,6 +349,11 @@ void LanguageManager::CssTokens::addTokens(mcl::TokenCollection::List& tokens)
 			d->c = colours.types[i].colour;
 			d->priority = i;
 			d->markdownDescription << "`" << s << "` (" << names[i] << ")";
+
+			if(i == (int)KeywordDataBase::KeywordType::ExpressionKeywords)
+			{
+				d->tokenContent << "(op1, op2)";
+			}
 
 			tokens.add(d);
 		}
@@ -328,16 +377,22 @@ void StyleSheetLookAndFeel::drawButtonBackground(Graphics& g, Button& tb, const 
 {
 	if(auto ed = tb.findParentComponentOfClass<ComponentWithCSS>())
 	{
-		Renderer r(&tb);
+		Renderer r(&tb, state);
 
 		Selector s_id(SelectorType::ID, tb.getName().toLowerCase());
 		Selector s_type(ElementType::Button);
 
-		if(auto ss = ed->css.getOrCreateCascadedStyleSheet({s_type, s_id}))
+		if(auto ss = css.getOrCreateCascadedStyleSheet({s_type, s_id}))
 		{
+			ss->setDefaultColour("background-color", tb.findColour(TextButton::buttonColourId));
+
 			auto currentState = Renderer::getPseudoClassFromComponent(&tb);
 			ed->stateWatcher.checkChanges(&tb, ss, currentState);
 			r.drawBackground(g, tb.getLocalBounds().toFloat(), ss);
+		}
+		else
+		{
+			LookAndFeel_V3::drawButtonBackground(g, tb, colour, cond, cond1);
 		}
 	}
 }
@@ -346,30 +401,22 @@ void StyleSheetLookAndFeel::drawButtonText(Graphics& g, TextButton& tb, bool ove
 {
 	if(auto ed = tb.findParentComponentOfClass<ComponentWithCSS>())
 	{
-		Renderer r(&tb);
+		Renderer r(&tb, state);
+
+		
 
 		Selector s_id(SelectorType::ID, tb.getName().toLowerCase());
 		Selector s_type(ElementType::Button);
 
-		if(auto ss = ed->css.getOrCreateCascadedStyleSheet({s_type, s_id}))
+		if(auto ss = css.getOrCreateCascadedStyleSheet({s_type, s_id}))
 		{
-			auto currentState = Renderer::getPseudoClassFromComponent(&tb);
+			ss->setDefaultColour("color", tb.findColour(TextButton::ColourIds::textColourOffId));
 
-			auto totalArea = tb.getLocalBounds().toFloat();
-
-			totalArea = ss->getArea(totalArea, { "margin", currentState });
-			totalArea = ss->getArea(totalArea, { "padding", currentState });
-
-			auto f = ss->getFont(currentState, totalArea);
-			g.setFont(f);
-			r.setCurrentBrush(g, ss, totalArea, {"color", currentState }, Colours::black);
-
-			auto j = ss->getJustification(currentState);
-
-			auto text = ss->getText(tb.getButtonText(), currentState);
-
-			g.drawText(text, totalArea, j);
-
+			r.renderText(g, tb.getLocalBounds().toFloat(), tb.getButtonText(), ss);
+		}
+		else
+		{
+			LookAndFeel_V3::drawButtonText(g, tb, over, down);
 		}
 	}
 		
@@ -379,12 +426,12 @@ void StyleSheetLookAndFeel::fillTextEditorBackground(Graphics& g, int width, int
 {
 	if(auto ed = textEditor.findParentComponentOfClass<ComponentWithCSS>())
 	{
-		Renderer r(&textEditor);
+		Renderer r(&textEditor, state);
 
 		Selector s_id(SelectorType::ID, textEditor.getName().toLowerCase());
 		Selector s_type(ElementType::TextInput);
 
-		if(auto ss = ed->css.getOrCreateCascadedStyleSheet({s_type, s_id}))
+		if(auto ss = css.getOrCreateCascadedStyleSheet({s_type, s_id}))
 		{
 			auto currentState = Renderer::getPseudoClassFromComponent(&textEditor);
 			ed->stateWatcher.checkChanges(&textEditor, ss, currentState);
@@ -408,13 +455,23 @@ Editor::Editor():
 	editor(doc),
 	tokenCollection(new mcl::TokenCollection(Identifier("CSS"))),
 	body(ElementType::Body),
-	header(SelectorType::Class, "header"),
-	content(SelectorType::Class, "content"),
-	footer(SelectorType::Class, "footer"),
+	header(Selector("#header")),
+	content(Selector("#content")),
+	footer(Selector("#footer")),
 	cancel("Cancel"),
 	prev("Previous"),
 	next("Next")
 {
+	FlexboxComponent::Helpers::writeSelectorsToProperties(next, {"#next"});
+	FlexboxComponent::Helpers::writeSelectorsToProperties(cancel, {"#cancel"});
+	FlexboxComponent::Helpers::writeSelectorsToProperties(prev, {"#prev"});
+
+	body.setDefaultStyleSheet("display: flex; flex-direction: column;");
+	header.setDefaultStyleSheet("width: 100%;height: 48px;");
+	content.setDefaultStyleSheet("width: 100%;flex-grow: 1;display: flex;");
+	footer.setDefaultStyleSheet("width: 100%; height: 48px; display:flex;");
+
+
 	TopLevelWindowWithKeyMappings::loadKeyPressMap();
 	setRepaintsOnMouseActivity(true);
 	setSize(1600, 800);
@@ -425,13 +482,15 @@ Editor::Editor():
 	addAndMakeVisible(textInput);
 
 	
-
+	selector.addItemList({ "**header**", "first item", "~~second item~~", "last item", "submenu::item 1", "submenu::item 2"}, 1);
+	selector.setUseCustomPopup(true);
+	selector.setWantsKeyboardFocus(false);
 		
-	editor.tokenCollection = tokenCollection;
+	editor.editor.tokenCollection = tokenCollection;
 	tokenCollection->setUseBackgroundThread(false);
-	editor.setLanguageManager(new LanguageManager(doc));
+	editor.editor.setLanguageManager(new LanguageManager(doc));
 
-		
+	textInput.setRepaintsOnMouseActivity(true);	
 
 	mcl::FullEditor::initKeyPresses(this);
 		
@@ -445,15 +504,16 @@ Editor::Editor():
 
 	context.attachTo(*this);
 
-	addAndMakeVisible(cancel);
-	addAndMakeVisible(prev);
-	addAndMakeVisible(next);
+	addAndMakeVisible(body);
+	body.addAndMakeVisible(header);
+	body.addAndMakeVisible(content);
+	body.addAndMakeVisible(footer);
 
-	cancel.setLookAndFeel(&css_laf);
-	prev.setLookAndFeel(&css_laf);
-	next.setLookAndFeel(&css_laf);
-	textInput.setLookAndFeel(&css_laf);
-
+	footer.addAndMakeVisible(cancel);
+	footer.addSpacer();
+	footer.addAndMakeVisible(prev);
+	footer.addAndMakeVisible(next);
+	
 	stateWatcher.registerComponentToUpdate(&textInput);
 
 	auto f = File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory).getChildFile("current.css");
@@ -479,51 +539,95 @@ void Editor::compile()
 	auto ok = p.parse();
 	auto f = File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory).getChildFile("current.css");
 	f.replaceWithText(jdoc.getAllContent());
-	editor.setError(ok.getErrorMessage());
+	editor.editor.setError(ok.getErrorMessage());
 	css = p.getCSSValues();
 	css.setAnimator(&animator);
+
+	body.setCSS(css);
+
+	css_laf = new StyleSheetLookAndFeel(css, stateWatcher);
+
+	cancel.setLookAndFeel(css_laf);
+	prev.setLookAndFeel(css_laf);
+	next.setLookAndFeel(css_laf);
+	textInput.setLookAndFeel(css_laf);
+	selector.setLookAndFeel(css_laf);
+
+	cancel.setWantsKeyboardFocus(false);
+	prev.setWantsKeyboardFocus(false);
+	next.setWantsKeyboardFocus(false);
 
 	list.setText(css.toString(), dontSendNotification);
 
 	resized();
-		
+	repaint();
 }
 
 void Editor::resized()
 {
 	auto b = getLocalBounds();
 
-	previewArea = b.removeFromRight(b.getWidth() / 3).toFloat();
-	previewArea.removeFromRight(10);
+	auto bodyArea = b.removeFromRight(b.getWidth() / 3);
 
-	simple_css::Positioner pos(css, previewArea);
+	list.setBounds(b.removeFromRight(b.getWidth() / 3));
+	editor.setBounds(b);
+
+	body.setBounds(bodyArea);
+	body.resized();
+	
+#if 0
+	simple_css::Positioner pos(css, previewArea, false);
 
 	areas[0] = pos.bodyArea;
 	areas[1] = pos.removeFromTop(header);
-	areas[3] = pos.removeFromBottom(footer);
+	footer.setBounds(pos.removeFromBottom(footer.selector, 100.0f).toNearestInt());
+	footer.resized();
 	areas[2] = pos.removeFromTop(content);
 		
 	list.setBounds(b.removeFromRight(b.getWidth() / 3));
 
 	editor.setBounds(b);
+#endif
+	
 
+#if 0
 	auto footerArea = areas[3];
 
 	if(auto fss = css[footer])
 	{
-		footerArea = fss->getArea(footerArea, { "margin"});
-		footerArea = fss->getArea(footerArea, { "padding"});
+		footerArea = fss->getArea(footerArea, { "margin", 0});
+		footerArea = fss->getArea(footerArea, { "padding", 0});
 
-		simple_css::Positioner pos2(css, footerArea);
-		pos2.applyMargin = true;
-			
-		cancel.setBounds(pos2.removeFromLeft(Selector(SelectorType::ID, "cancel"), 100.0f).toNearestInt());
-		next.setBounds(pos2.removeFromRight(Selector(SelectorType::ID, "next"), 100.0f).toNearestInt());
-		prev.setBounds(pos2.removeFromRight(Selector(SelectorType::ID, "prev"), 100.0f).toNearestInt());
+		simple_css::Positioner pos2(css, footerArea, false);
+
+		{
+			auto sel = { Selector(ElementType::Button), Selector("#cancel") };
+			auto b = pos2.getLocalBoundsFromText(sel, cancel.getButtonText(), {0, 0, 100, 100 });
+			cancel.setBounds(pos2.removeFromLeft(sel, b.getWidth()).toNearestInt());
+		}
+
+		{
+			auto sel = { Selector(ElementType::Button), Selector("#next") };
+			auto b = pos2.getLocalBoundsFromText(sel, next.getButtonText(), {0, 0, 100, 100 });
+			next.setBounds(pos2.removeFromRight(sel, b.getWidth()).toNearestInt());
+		}
+
+		{
+			auto sel = { Selector(ElementType::Button), Selector("#prev") };
+			auto b = pos2.getLocalBoundsFromText(sel, prev.getButtonText(), {0, 0, 100, 100 });
+			prev.setBounds(pos2.removeFromRight(sel, b.getWidth()).toNearestInt());
+		}
+
+#if 0
+		cancel.setBounds(pos2.removeFromLeft({ Selector(ElementType::Button), Selector("#cancel") }, 100.0f).toNearestInt());
+		next.setBounds(pos2.removeFromRight({ Selector(ElementType::Button), Selector("#next") }, 100.0f).toNearestInt());
+		prev.setBounds(pos2.removeFromRight({ Selector(ElementType::Button), Selector("#prev") }, 100.0f).toNearestInt());
+#endif
 
 		pos2.applyMargin = false;
 		textInput.setBounds(pos2.removeFromLeft(Selector(ElementType::TextInput), 180.0f).toNearestInt());
 
+		selector.setBounds(pos2.removeFromLeft(Selector(ElementType::Selector), 180.0f).toNearestInt());
 		
 
 		if(auto c = css.getOrCreateCascadedStyleSheet({ Selector(ElementType::Button), Selector(SelectorType::ID, "next")}))
@@ -531,7 +635,7 @@ void Editor::resized()
 			next.setMouseCursor(c->getMouseCursor());
 		}
 	}
-
+#endif
 		
 
 	repaint();
@@ -540,8 +644,9 @@ void Editor::resized()
 void Editor::paint(Graphics& g)
 {
 	g.fillAll(Colours::black);
-		
-	Renderer r(this);
+
+#if 0
+	Renderer r(this, stateWatcher);
 		
 	if(auto ss = css[body])
 	{
@@ -550,15 +655,12 @@ void Editor::paint(Graphics& g)
 		r.drawBackground(g, areas[0], ss);
 	}
 
-	if(auto ss = css[header])
-		r.drawBackground(g, areas[1], ss);
-
 	if(auto ss = css[content])
 		r.drawBackground(g, areas[2], ss);
 
-	if(auto ss = css[footer])
-		r.drawBackground(g, areas[3], ss);
-
+	if(auto ss = css[header])
+		r.drawBackground(g, areas[1], ss);
+	
 	auto b = getLocalBounds().removeFromRight(10).toFloat();
 
 	if(auto i = animator.items.getFirst())
@@ -568,6 +670,7 @@ void Editor::paint(Graphics& g)
 		b = b.removeFromBottom(i->currentProgress * b.getHeight());
 		g.fillRect(b);
 	}
+#endif
 }
 }
 }

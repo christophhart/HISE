@@ -40,7 +40,6 @@ struct Animator: public Timer
 	struct ScopedComponentSetter
 	{
 		ScopedComponentSetter(Component* c);
-
 		~ScopedComponentSetter();
 
 		Component::SafePointer<Component> prev;
@@ -54,15 +53,15 @@ struct Animator: public Timer
 		Item() = default;
 		Item(Animator& parent, StyleSheet::Ptr css_, Transition tr_);;
 
-		bool timerCallback();
+		bool timerCallback(double deltaMs);
 
 		Component::SafePointer<Component> target;
 
 		StyleSheet::Ptr css;
 		Transition transitionData;
 
-		StyleSheet::PropertyKey startValue;
-		StyleSheet::PropertyKey endValue;
+		PropertyKey startValue;
+		PropertyKey endValue;
 		
 		double currentProgress = 0.0;
 		bool reverse = false;
@@ -71,20 +70,18 @@ struct Animator: public Timer
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Item);
 	};
 
-	Animator()
-	{
-		startTimer(15);
-	}
+	Animator();
 
 	void timerCallback() override;
 
+	double lastCallbackTime = 0.0;
 	OwnedArray<Item> items;
 };
 
-
-
 struct StateWatcher
 {
+	using TextData = std::tuple<String, Justification, Rectangle<float>>;
+
 	StateWatcher(Animator& animator_):
 	  animator(animator_)
 	{};
@@ -93,151 +90,46 @@ struct StateWatcher
 
 	struct Item
 	{
-		std::pair<bool, int> changed(int stateFlag)
-		{
-			if(stateFlag != currentState)
-			{
-				auto prevState = currentState;
-				currentState = stateFlag;
+		std::pair<bool, int> changed(int stateFlag);
 
-				return { true, prevState };
-			}
-
-			return { false, currentState };
-		}
+		void renderShadow(Graphics& g, const TextData& textData, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset);
+		void renderShadow(Graphics& g, const Path& p, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset);
 
 		Component::SafePointer<Component> c;
 		int currentState = 0;
-
+		
 		melatonin::DropShadow dropShadow;
 		melatonin::InnerShadow innerShadow;
+		melatonin::DropShadow dropShadowText;
+		melatonin::InnerShadow innerShadowText;
 	};
 
-	void renderShadow(Graphics& g, const Path& p, Component* c, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset)
+	template <typename RenderObject> void renderShadow(Graphics& g, const RenderObject& p, Component* c, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset)
 	{
 		if(parameters.empty())
 			return;
+
+		if(c == nullptr)
+		{
+			noComponentItem.renderShadow(g, p, parameters, wantsInset);
+			return;
+		}
 
 		for(auto& item: items)
 		{
 			if(item.c == c)
 			{
-				if(wantsInset)
-				{
-					for(int i = 0; i < parameters.size(); i++)
-						item.innerShadow.setShadow(parameters[i], i);
-
-					item.innerShadow.render(g, p);
-				}
-				else
-				{
-					for(int i = 0; i < parameters.size(); i++)
-						item.dropShadow.setShadow(parameters[i], i);
-
-					item.dropShadow.render(g, p);
-				}
-
+				item.renderShadow(g, p, parameters, wantsInset);
 				break;
 			}
 		}
 	}
 
-	void checkChanges(Component* c, StyleSheet::Ptr ss, int currentState)
-	{
-		auto stateChanged = changed(c, currentState);
+	void checkChanges(Component* c, StyleSheet::Ptr ss, int currentState);
 
-		for(int i = 0; i < updatedComponents.size(); i++)
-		{
-			auto& uc = updatedComponents.getReference(i);
+	std::pair<bool, int> changed(Component* c, int stateFlag);
 
-			if(uc.target == nullptr)
-			{
-				updatedComponents.remove(i--);
-				continue;
-			}
-			
-			if(uc.target != c)
-				continue;
-
-			if(!uc.initialised || stateChanged.first)
-			{
-				uc.update(ss, currentState);
-			}
-
-		}
-
-		if(stateChanged.first)
-		{
-			for(const auto& p: *ss)
-			{
-				if(p.values.find(stateChanged.second) != p.values.end() &&
-				   p.values.find(currentState) != p.values.end())
-				{
-					auto prev = p.values.at(stateChanged.second);
-					auto current = p.values.at(currentState);
-
-					if(prev.transition || current.transition)
-					{
-						auto thisTransition = current.transition ? current.transition : prev.transition;
-
-						StyleSheet::PropertyKey thisStartValue = { p.name, stateChanged.second };
-						StyleSheet::PropertyKey thisEndValue = { p.name, currentState };
-
-						bool found = false;
-
-						for(auto i: animator.items)
-						{
-							if(i->css == ss &&
-							   i->target == animator.currentlyRenderedComponent &&
-							   i->startValue.name == p.name)
-							{
-								if(currentState == i->startValue.state)
-								{
-									i->reverse = !i->reverse;
-									found = true;
-									break;
-								}
-								else
-								{
-									i->endValue.state = currentState;
-									i->transitionData = thisTransition;
-									found = true;
-									break;
-								}
-							}
-						}
-
-						if(found)
-							continue;
-
-						auto ad = new Animator::Item(animator, ss, thisTransition);
-						
-						ad->startValue = thisStartValue;
-						ad->endValue = thisEndValue;
-						
-						animator.items.add(ad);
-					}
-				}
-			}
-		}
-	}
-
-	std::pair<bool, int> changed(Component* c, int stateFlag)
-	{
-		for(auto& i: items)
-		{
-			if(i.c == c)
-				return i.changed(stateFlag);
-		}
-
-		items.add({ c, stateFlag });
-		return { false, stateFlag };
-	}
-
-	void registerComponentToUpdate(Component* c)
-	{
-		updatedComponents.addIfNotAlreadyThere({ c });
-	}
+	void registerComponentToUpdate(Component* c);
 
 	Array<Item> items;
 	
@@ -247,16 +139,13 @@ struct StateWatcher
 
 		Component::SafePointer<Component> target;
 
-		void update(StyleSheet::Ptr ss, int currentState)
-		{
-			ss->setupComponent(target.getComponent(), currentState);
-			initialised = true;
-		}
+		void update(StyleSheet::Ptr ss, int currentState);
 
 		bool initialised = false;
 	};
 
 	Array<UpdatedComponent> updatedComponents;
+	Item noComponentItem;
 };
 
 	

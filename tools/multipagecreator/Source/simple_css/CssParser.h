@@ -64,33 +64,7 @@ struct TransformParser
 {
 	struct TransformData
 	{
-		explicit TransformData(TransformTypes t):
-		  type(t)
-		{
-			static constexpr float defaultValues[(int)TransformTypes::numTransformTypes] =
-			{
-				0.0f, // none
-				0.0f, // matrix(n,n,n,n,n,n)
-				0.0f, // translate(x,y)
-				0.0f, // translateX(x)
-				0.0f, // translateY(y)
-				0.0f, // translateZ(z)
-				1.0f, // scale(x,y)
-				1.0f, // scaleX(x)
-				1.0f, // scaleY(y)
-				1.0f, // scaleZ(z)
-				0.0f, // rotate(angle)
-				0.0f, // rotateX(angle)
-				0.0f, // rotateY(angle)
-				0.0f, // rotateZ(angle)
-				1.0f, // skew(x-angle,y-angle)
-				1.0f, // skewX(angle)
-				1.0f, // skewY(angle)
-			};
-
-			values[0] = defaultValues[(int)t];
-			values[1] = values[0];
-		}
+		explicit TransformData(TransformTypes t);
 
 		TransformTypes type = TransformTypes::numTransformTypes;
 		std::array<float, 2> values = {0.0f, 0.0f};
@@ -98,51 +72,7 @@ struct TransformParser
 
 		TransformData interpolate(const TransformData& other, float alpha) const;
 
-		static AffineTransform toTransform(const std::vector<TransformData>& list, Point<float> center)
-		{
-			AffineTransform t;
-
-			if(!list.empty() && !center.isOrigin())
-			{
-				t = AffineTransform::translation(center * -1.0f);
-			}
-
-			for(const auto& d: list)
-			{
-				auto firstValue = d.values[0];
-				auto secondValue = d.values[(int)(d.numValues == 2)];
-
-				switch(d.type)
-				{
-				case TransformTypes::none: break;
-				case TransformTypes::matrix: break;
-				case TransformTypes::translate: ;
-				case TransformTypes::translateX: ;
-				case TransformTypes::translateY: ;
-				case TransformTypes::translateZ: t = t.followedBy(AffineTransform::translation(firstValue, secondValue)); break;
-				case TransformTypes::scale: ;
-				case TransformTypes::scaleX: ;
-				case TransformTypes::scaleY: ;
-				case TransformTypes::scaleZ: t = t.followedBy(AffineTransform::scale(firstValue, secondValue)); break;
-				case TransformTypes::rotate: ;
-				case TransformTypes::rotateX: ;
-				case TransformTypes::rotateY: ;
-				case TransformTypes::rotateZ: t = t.followedBy(AffineTransform::rotation(firstValue)); break;
-				case TransformTypes::skew: ;
-				case TransformTypes::skewX: ;
-				case TransformTypes::skewY: t = t.followedBy(AffineTransform::shear(firstValue, secondValue)); break;
-				case TransformTypes::numTransformTypes: break;
-				default: ;
-				}
-			}
-
-			if(!list.empty() && !center.isOrigin())
-			{
-				t = t.followedBy(AffineTransform::translation(center));
-			}
-
-			return t;
-		}
+		static AffineTransform toTransform(const std::vector<TransformData>& list, Point<float> center);
 	};
 
 	TransformParser(const String& stackedTransforms);
@@ -182,6 +112,16 @@ private:
 
 		Data interpolate(const Data& other, double alpha) const;
 
+		Data copyWithoutStrings(float alpha) const
+		{
+			Data copy;
+			copy.somethingSet = somethingSet;
+			copy.inset = inset;
+			memcpy(copy.size, size, sizeof(int)*4);
+			copy.c = c.withMultipliedAlpha(alpha);
+			return copy;
+		}
+
 		bool somethingSet = false;
 		bool inset = false;
 		StringArray positions;
@@ -193,6 +133,39 @@ private:
 	
 };
 
+struct ExpressionParser
+{
+	struct Context
+	{
+		bool useWidth = false;
+		Rectangle<float> fullArea = { 1.0f, 1.0f };
+		float defaultFontSize = 16.0f;
+	};
+
+	static float evaluate(const String& expression, const Context& context);
+
+private:
+
+	struct Node
+	{
+		using List = std::vector<Node>;
+		using Ptr = ReferenceCountedObjectPtr<Node>;
+
+		ExpressionType type = ExpressionType::none;
+		juce_wchar op = 0;
+		String s;
+		List children;
+
+		float evaluate(const Context& context) const;
+	};
+
+	static float evaluateLiteral(const String& s, const Context& context);
+	static void match(String::CharPointerType& ptr, const String::CharPointerType end, juce_wchar t);
+	static void skipWhitespace(String::CharPointerType& ptr, const String::CharPointerType end);
+	static Node parseNode(String::CharPointerType& ptr, const String::CharPointerType end);
+	
+};
+
 struct Parser
 {
 	Parser(const String& cssCode);;
@@ -201,19 +174,18 @@ struct Parser
 
 	StyleSheet::Collection getCSSValues() const;
 
-	static float parseSize(const String& s, float fullSize, float defaultHeight=16.0)
+#if 0
+	static float parseSize(const String& s, std::pair<bool, Rectangle<float>> fullArea, float defaultHeight=16.0)
 	{
-		if(s.endsWithChar('x'))
-			return s.getFloatValue();
-		if(s.endsWithChar('%'))
-			return fullSize * s.getFloatValue() * 0.01f;
-		if(s.endsWith("em"))
-			return s.getFloatValue() * defaultHeight;
-		if(s.endsWith("deg"))
-			return s.getFloatValue() / 180.0f * float_Pi;
+		ExpressionParser::Context context;
+		context.fullArea = fullArea.second;
+		context.defaultFontSize = defaultHeight;
+		context.useWidth = fullArea.first;
 
-		return 0;
+		return ExpressionParser::evaluate(s, context);
+		
 	}
+#endif
 
 private:
 
@@ -228,6 +200,7 @@ private:
 		Dot,
 		Hash,
 		Colon,
+		Comma,
 		Semicolon,
 		OpenParen,
 		Quote,
@@ -244,7 +217,7 @@ private:
 
 	struct RawClass
 	{
-		Selector::RawList selector;
+		std::vector<Selector::RawList> selectors;
 		std::vector<RawLine> lines;
 	};
 
@@ -257,7 +230,7 @@ private:
 	bool matchIf(TokenType t);
 	String getLocation();
 
-	int parsePseudoClass();
+	PseudoState parsePseudoClass();
 	RawClass parseSelectors();
 
 	static ValueType findValueType(const String& value);

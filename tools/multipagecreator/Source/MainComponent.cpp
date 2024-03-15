@@ -292,6 +292,8 @@ MainComponent::MainComponent():
   menuBar(this),
   tooltips(this)
 {
+	
+
 	TopLevelWindowWithKeyMappings::loadKeyPressMap();
 
 	mcl::TextEditor::initKeyPresses(this);

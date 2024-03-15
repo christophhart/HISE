@@ -61,28 +61,51 @@ struct ComponentWithCSS
 
 struct Positioner
 {
-	Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_):
-	  css(styleSheet),
-	  totalArea(totalArea_)
+	enum class Direction
 	{
-		if(auto ss = css[Selector(ElementType::Body)])
+		Left,
+		Right,
+		Top,
+		Bottom
+	};
+
+	struct RemoveHelpers
+	{
+		template <Direction D> static Rectangle<float> slice(Rectangle<float>& area, float amount)
 		{
-			totalArea = ss->getArea(totalArea, { "margin", 0});
-
-			bodyArea = totalArea;
-
-			totalArea = ss->getArea(totalArea, { "padding", 0});
+			switch(D)
+			{
+			case Direction::Left: return area.removeFromLeft(amount);
+			case Direction::Right: return area.removeFromRight(amount);
+			case Direction::Top: return area.removeFromTop(amount);
+			case Direction::Bottom: return area.removeFromBottom(amount);
+			}
 		}
-		else
-			bodyArea = totalArea;
-	}
 
-	Rectangle<float> removeFromTop(const Selector& s, float defaultValue = 0.0f)
-	{
-		if(auto ss = css[s])
+		template <Direction D> static Rectangle<float> shrink(Rectangle<float> area, float amount)
 		{
-			auto h = ss->getPixelValue(totalArea, { "height", 0 }, defaultValue);
-			auto b = totalArea.removeFromTop(h);
+			return slice<D>(area, amount);
+		}
+	};
+
+	Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_);
+
+	template <Direction D> Rectangle<float> slice(const Array<Selector>& s, float defaultValue)
+	{
+		if(auto ss = css.getOrCreateCascadedStyleSheet(s))
+		{
+			ss->setFullArea(bodyArea);
+
+			auto key = (D == Direction::Left || D == Direction::Right) ? "width" : "height";
+			auto h = ss->getPixelValue(totalArea, { key, {} }, defaultValue);
+			auto positionType = ss->getPositionType({});
+
+			Rectangle<float> copy = totalArea;
+
+			auto shouldShrink = positionType == PositionType::absolute || positionType == PositionType::fixed;
+			auto& toUse = shouldShrink ? copy : totalArea;
+			auto b = RemoveHelpers::slice<D>(toUse, h);
+			b = ss->getBounds(b, {});
 
 			if(applyMargin)
 				return ss->getArea(b, { "margin", 0 });
@@ -90,63 +113,31 @@ struct Positioner
 				return b;
 		}
 
-		return totalArea.removeFromTop(defaultValue);
+		return RemoveHelpers::slice<D>(totalArea, defaultValue);
 	}
 
-	Rectangle<float> removeFromBottom(const Selector& s, float defaultValue = 0.0f)
+	Rectangle<int> getLocalBoundsFromText(const Array<Selector>& s, const String& text, Rectangle<int> defaultBounds={})
 	{
-		if(auto ss = css[s])
+		if(auto ss = css.getOrCreateCascadedStyleSheet(s))
 		{
-			auto h = ss->getPixelValue(totalArea, { "height", 0 }, defaultValue);
-			auto b = totalArea.removeFromBottom(h);
-
-			if(applyMargin)
-				return ss->getArea(b, { "margin", 0 });
-			else
-				return b;
+			return ss->getLocalBoundsFromText(text).toNearestInt();
 		}
 
-		return totalArea.removeFromBottom(defaultValue);
+		return defaultBounds;
 	}
 
-	Rectangle<float> removeFromLeft(const Selector& s, float defaultValue = 0.0f)
-	{
-		if(auto ss = css[s])
-		{
-			auto h = ss->getPixelValue(totalArea, { "width", 0 }, defaultValue);
-			auto b = totalArea.removeFromLeft(h);
-			
-			if(applyMargin)
-				return ss->getArea(b, { "margin", 0 });
-			else
-				return b;
-		}
+	Rectangle<float> removeFromTop(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Top>(s, defaultValue); }
+	Rectangle<float> removeFromBottom(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Bottom>(s, defaultValue); }
+	Rectangle<float> removeFromLeft(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Left>(s, defaultValue); }
+	Rectangle<float> removeFromRight(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Right>(s, defaultValue); } 
 
-		return totalArea.removeFromLeft(defaultValue);
-	}
-
-	Rectangle<float> removeFromRight(const Selector& s, float defaultValue = 0.0f)
-	{
-		if(auto ss = css[s])
-		{
-			auto h = ss->getPixelValue(totalArea, { "width", 0 }, defaultValue);
-			auto b = totalArea.removeFromRight(h);
-
-			if(applyMargin)
-				return ss->getArea(b, { "margin", 0 });
-			else
-				return b;
-		}
-		
-		return totalArea.removeFromRight(defaultValue);
-	}
-	
 	bool applyMargin = false;
 	Rectangle<float> bodyArea;
 
 private:
 
 	
+
 	Rectangle<float> totalArea;
 	StyleSheet::Collection css;
 };
@@ -154,18 +145,41 @@ private:
 
 struct Renderer: public Animator::ScopedComponentSetter
 {
-	Renderer(Component* c):
-		ScopedComponentSetter(c)  ,
-	    currentComponent(*c)
+	Renderer(Component* c, StateWatcher& state_):
+	  ScopedComponentSetter(c)  ,
+	  currentComponent(c),
+	  state(state_)
 	{};
 	
-	void setCurrentBrush(Graphics& g, StyleSheet::Ptr ss, Rectangle<float> area, const StyleSheet::PropertyKey& key, Colour defaultColour=Colours::transparentBlack);
+	
 
 	static int getPseudoClassFromComponent(Component* c);
 
-	void drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Ptr ss);
+	void drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Ptr ss, PseudoElementType type = PseudoElementType::None);
 
-	Component& currentComponent;
+	
+
+	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss);
+
+	void setPseudoClassState(int state)
+	{
+		pseudoClassState = state;
+	}
+
+	void setCurrentBrush(Graphics& g, StyleSheet::Ptr ss, Rectangle<float> area, const PropertyKey& key, Colour defaultColour=Colours::transparentBlack);
+
+	int getPseudoClassState() const
+	{
+		return currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
+	}
+
+
+
+private:
+
+	int pseudoClassState = 0;
+	Component* currentComponent;
+	StateWatcher& state;
 };
 
 } // namespace simple_css
