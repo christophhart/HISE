@@ -141,7 +141,7 @@ public:
 
 				auto c = filter->getCurrentCoefficients();
 
-				if (!sameCoefficients(c.first, currentCoefficients.first) && c.second != currentCoefficients.second)
+				if (!sameCoefficients(c.first, currentCoefficients.first) || c.second != currentCoefficients.second)
 				{
 					currentCoefficients = c;
 
