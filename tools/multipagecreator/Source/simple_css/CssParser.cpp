@@ -391,6 +391,9 @@ ColourGradientParser::ColourGradientParser(Rectangle<float> area, const String& 
         gradient.addColour(1.0f, lastColour);
 }
 
+ColourGradient ColourGradientParser::getGradient() const
+{ return gradient; }
+
 TransformParser::TransformData::TransformData(TransformTypes t):
 	type(t)
 {
@@ -420,25 +423,7 @@ TransformParser::TransformData::TransformData(TransformTypes t):
 }
 
 
-static std::array<const char*, (int)TransformTypes::numTransformTypes> transformTypeNames = {
-	"none",
-	"matrix",
-	"translate",
-	"translateX",
-	"translateY",
-	"translateZ",
-	"scale",
-	"scaleX",
-	"scaleY",
-	"scaleZ",
-	"rotate",
-	"rotateX",
-	"rotateY",
-	"rotateZ",
-	"skew",
-	"skewX",
-	"skewY"
-};
+
 
 
 TransformParser::TransformData TransformParser::TransformData::interpolate(const TransformData& other,
@@ -504,8 +489,9 @@ AffineTransform TransformParser::TransformData::toTransform(const std::vector<Tr
 	return t;
 }
 
-TransformParser::TransformParser(const String& stackedTransforms):
-	t(stackedTransforms)
+TransformParser::TransformParser(KeywordDataBase* db, const String& stackedTransforms):
+	t(stackedTransforms),
+    database(db)
 {}
 
 std::vector<TransformParser::TransformData> TransformParser::parse(Rectangle<float> totalArea, float defaultSize)
@@ -540,20 +526,11 @@ std::vector<TransformParser::TransformData> TransformParser::parse(Rectangle<flo
 
 		nameBuffer[bufferIndex] = 0;
 
-		int typeIndex = 0;
-
-		for(auto& t: transformTypeNames)
-		{
-			if(memcmp(t, nameBuffer, bufferIndex) == 0)
-				break;
-
-			typeIndex++;
-		}
-
-		if(typeIndex == (int)TransformTypes::numTransformTypes)
-			continue;
-
-		TransformData nd((TransformTypes)typeIndex);
+		String transformId(nameBuffer);
+		
+		KeywordDataBase database;
+		auto typeIndex = database.getAsEnum("transform", transformId, TransformTypes::none);
+		TransformData nd(typeIndex);
 			
 		bufferIndex = 0;
 
@@ -665,7 +642,7 @@ ShadowParser::ShadowParser(const String& alreadyParsedString, Rectangle<float> t
 		Data nd;
 			
 		nd.inset = tokens[0].contains("inset");
-		nd.c = Colour::fromString(tokens[1].trim());
+        nd.c = Colour::fromString(tokens[1].trim().substring(2, 1000));
 		auto positions = StringArray::fromTokens(tokens[2].substring(2, 1000), " ", "");
 
 		nd.size[0] = parseSize(positions[1], totalArea);
@@ -795,7 +772,17 @@ ShadowParser::Data ShadowParser::Data::interpolate(const Data& other, double alp
 	return mix;
 }
 
-float ExpressionParser::evaluateLiteral(const String& s, const Context& context)
+ShadowParser::Data ShadowParser::Data::copyWithoutStrings(float alpha) const
+{
+	Data copy;
+	copy.somethingSet = somethingSet;
+	copy.inset = inset;
+	memcpy(copy.size, size, sizeof(int)*4);
+	copy.c = c.withMultipliedAlpha(alpha);
+	return copy;
+}
+
+float ExpressionParser::evaluateLiteral(const String& s, const Context<>& context)
 {
 	float value;
 	auto fullSize = context.useWidth ? context.fullArea.getWidth() : context.fullArea.getHeight();
@@ -820,7 +807,36 @@ float ExpressionParser::evaluateLiteral(const String& s, const Context& context)
 	return value;
 }
 
-float ExpressionParser::Node::evaluate(const Context& context) const
+String ExpressionParser::Node::evaluateToCodeGeneratorLiteral(const Context<String>& context) const
+{
+	jassert(context.isCodeGenContext());
+
+	if(s.endsWithChar('x'))
+		return s.upToLastOccurrenceOf("px", false, false);
+	if(s.endsWith("em"))
+		return String(context.defaultFontSize * s.getFloatValue(), 2);
+
+	auto fullSize = context.fullArea + (context.useWidth ? ".getWidth()" : ".getHeight()");
+
+	String rv;
+	float value = 0.0f;
+	
+	if(s.endsWith("vh"))
+	{
+		fullSize = context.fullArea + ".getHeight()";
+		value =  s.getFloatValue() * 0.01;
+	}
+
+	if(s.endsWith("%"))
+	{
+		value = s.getFloatValue() * 0.01f;
+	}
+
+	rv << "( " << fullSize << " * " << String(value) << ")";
+	return rv;
+}
+
+float ExpressionParser::Node::evaluate(const Context<>& context) const
 {
 	switch(type)
 	{
@@ -990,7 +1006,7 @@ ExpressionParser::Node ExpressionParser::parseNode(String::CharPointerType& ptr,
 	return node;
 }
 
-float ExpressionParser::evaluate(const String& expression, const Context& context)
+float ExpressionParser::evaluate(const String& expression, const Context<>& context)
 {
 	if(!CharacterFunctions::isLetter(expression[0]))
 		return evaluateLiteral(expression, context);
@@ -1271,6 +1287,8 @@ bool Parser::matchIf(TokenType t)
 
 PseudoState Parser::parsePseudoClass()
 {
+	KeywordWarning kw(*this);
+
 	int state = 0;
 	PseudoElementType element = PseudoElementType::None;
 
@@ -1278,7 +1296,10 @@ PseudoState Parser::parsePseudoClass()
 	{
 		if(matchIf(TokenType::Colon))
 		{
+			kw.setLocation(*this);
 			match(TokenType::Keyword);
+
+			kw.check(currentToken, KeywordDataBase::KeywordType::PseudoClass);
 
 			if(currentToken == "before")
 				element = PseudoElementType::Before;
@@ -1287,7 +1308,10 @@ PseudoState Parser::parsePseudoClass()
 		}
 		else
 		{
+			kw.setLocation(*this);
 			match(TokenType::Keyword);
+
+			kw.check(currentToken, KeywordDataBase::KeywordType::PseudoClass);
 
 			if(currentToken == "active")
 				state |= (int)PseudoClassType::Active;
@@ -1316,6 +1340,9 @@ Parser::RawClass Parser::parseSelectors()
 	skip();
 
 	Selector::RawList currentList;
+
+	KeywordWarning kw(*this);
+
 
 	while(ptr != end && *ptr != '{')
 	{
@@ -1350,6 +1377,8 @@ Parser::RawClass Parser::parseSelectors()
 		}
 		else
 		{
+			kw.setLocation(*this);
+
 			match(TokenType::Keyword);
 
 			if(currentToken == "element")
@@ -1362,16 +1391,14 @@ Parser::RawClass Parser::parseSelectors()
 			}
 			else
 			{
+				kw.check(currentToken, KeywordDataBase::KeywordType::Type);
 				ns.name = currentToken;
 				ns.type = SelectorType::Type;
 			}
 		}
 
 		currentList.push_back({ns, parsePseudoClass() });
-
-
 		
-
 		skip();
 	}
 
@@ -1384,17 +1411,23 @@ Result Parser::parse()
 {
 	try
 	{
+		KeywordWarning kw(*this);	
+
 		while(ptr != end)
 		{
 			auto newClass = parseSelectors();
 
 			match(TokenType::OpenBracket);
 
+			kw.setLocation(*this);
+
 			while(matchIf(TokenType::Keyword))
 			{
 				RawLine newLine;
 				newLine.property = currentToken;
-					
+
+				kw.check(currentToken, KeywordDataBase::KeywordType::Property);
+				
 				match(TokenType::Colon);
 
 				while(ptr != end)
@@ -1410,6 +1443,9 @@ Result Parser::parse()
 				auto currentValue = currentToken;
 					
 				newClass.lines.push_back(std::move(newLine));
+
+				skip();
+				kw.setLocation(*this);
 			}
 
 			match(TokenType::CloseBracket);
@@ -1429,14 +1465,17 @@ Result Parser::parse()
 	}
 }
 
-String Parser::getLocation()
+String Parser::getLocation(String::CharPointerType p) const
 {
+	if(!p)
+		p = ptr;
+
 	int line = 0;
 	int col = 0;
 
 	auto s = code.begin();
 
-	while(s != ptr)
+	while(s != p)
 	{
 		col++;
 
@@ -1452,6 +1491,27 @@ String Parser::getLocation()
 	String loc;
 	loc << "Line " << String(line+1) + ", column " + String(col+1) << ": ";
 	return loc;
+}
+
+Parser::KeywordWarning::KeywordWarning(Parser& parent_):
+	parent(parent_),
+	currentLocation(nullptr)
+{}
+
+void Parser::KeywordWarning::setLocation(Parser& p)
+{
+	currentLocation = p.ptr;
+}
+
+void Parser::KeywordWarning::check(const String& s, KeywordDataBase::KeywordType type)
+{
+	if(!database->getKeywords(type).contains(s))
+	{
+		String w = parent.getLocation(currentLocation);
+		w << "unsupported " + database->getKeywordName(type) << ": ";
+		w << s;
+		parent.warnings.add(w);
+	}
 }
 
 ValueType Parser::findValueType(const String& value)

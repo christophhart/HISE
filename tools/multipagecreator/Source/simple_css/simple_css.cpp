@@ -37,7 +37,11 @@
 #include "CssParser.cpp"
 #include "Animator.cpp"
 #include "Renderer.cpp"
+#include "CSSLookAndFeel.cpp"
+#include "FlexboxComponent.cpp"
+#include "LanguageManager.cpp"
 #include "Editor.cpp"
+
 
 namespace hise {
 namespace simple_css {

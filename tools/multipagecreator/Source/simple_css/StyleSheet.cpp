@@ -35,7 +35,15 @@ namespace hise
 {
 namespace simple_css
 {
+StyleSheet::StyleSheet(const Array<Selector>& selectors_)
+{
+	selectors.addArray(selectors_);
+}
 
+StyleSheet::StyleSheet(const Selector& s)
+{
+	selectors.add(s);
+}
 
 TransitionValue StyleSheet::getTransitionValue(const PropertyKey& key) const
 {
@@ -301,6 +309,21 @@ StyleSheet::Ptr StyleSheet::Collection::getOrCreateCascadedStyleSheet(const Arra
 	return p;
 }
 
+void StyleSheet::Collection::addElementStyle(Ptr p)
+{
+	auto elementSelector = p->selectors.getFirst();
+	jassert(elementSelector.type == SelectorType::Element);
+
+	for(auto p: list)
+	{
+		for(auto& s: p->selectors)
+			if(s == elementSelector)
+				return;
+	}
+
+	list.add(p);
+}
+
 Path StyleSheet::getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag) const
 {
 	float corners[4];
@@ -346,64 +369,25 @@ Path StyleSheet::getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag
 		}
 
 		p.addRoundedRectangle(totalArea.getX(), totalArea.getY(), totalArea.getWidth(), totalArea.getHeight(), cornerSize, cornerSize, borders[0], borders[1], borders[2], borders[3]);
-
-#if 0
-		float csx, csy, csx45, csy45, x, y, cex, cey;
-
-		{
-			x = totalArea.getX();
-			y = totalArea.getY();
-			csx = x;
-			csy = totalArea.getY() + corners[0];
-			cex = totalArea.getX() + corners[0];
-			cey = totalArea.getY();
-
-			p.startNewSubPath(csx, csy);
-			p.quadraticTo(x, y, cex, cey);
-		}
-
-		{
-			x = totalArea.getRight();
-			y = totalArea.getY();
-
-			csx = x - corners[1];
-			csy = y;
-			cex = x;
-			cey = y + corners[1];
-
-			p.lineTo(csx, csy);
-			p.quadraticTo(x, y, cex, cey);
-		}
-
-		{
-			x = totalArea.getRight();
-			y = totalArea.getBottom();
-			csx = x;
-			csy = y - corners[3];
-			cex = x - corners[3];
-			cey = y;
-
-			p.lineTo(csx, csy);
-			p.quadraticTo(x, y, cex, cey);
-		}
-
-		{
-			x = totalArea.getX();
-			y = totalArea.getBottom();
-			csx = x + corners[2];
-			csy = y;
-			cex = x;
-			cey = y - corners[2];
-
-			p.lineTo(csx, csy);
-			p.quadraticTo(x, y, cex, cey);
-		}
-
-		p.closeSubPath();
-#endif
 	}
 
 	return p;
+}
+
+String StyleSheet::getCodeGeneratorPixelValueString(const String& areaName, const PropertyKey& key,
+	float defaultValue) const
+{
+	if(auto v = getPropertyValue(key))
+	{
+		ExpressionParser::Context<String> c;
+		auto useHeight = key.name.contains("top") || key.name.contains("bottom") || key.name == "font-size" || key.name == "height";
+		c.defaultFontSize = defaultFontSize;
+		c.useWidth = !useHeight;
+		c.fullArea = areaName;
+		return ExpressionParser::evaluateToCodeGeneratorLiteral(v.valueAsString, c);
+	}
+
+	return {};
 }
 
 float StyleSheet::getPixelValue(Rectangle<float> totalArea, const PropertyKey& key, float defaultValue) const
@@ -436,6 +420,27 @@ float StyleSheet::getPixelValue(Rectangle<float> totalArea, const PropertyKey& k
 	}
 	
 	return defaultValue;
+}
+
+StringArray StyleSheet::getCodeGeneratorArea(const String& rectangleName, const PropertyKey& key) const
+{
+	StringArray lines;
+
+	auto l = getCodeGeneratorPixelValueString(rectangleName, key.withSuffix("left"));
+	auto t = getCodeGeneratorPixelValueString(rectangleName, key.withSuffix("top"));
+	auto r = getCodeGeneratorPixelValueString(rectangleName, key.withSuffix("right"));
+	auto b = getCodeGeneratorPixelValueString(rectangleName, key.withSuffix("bottom"));
+
+	if(l.isNotEmpty())
+		lines.add(rectangleName + ".removeFromLeft(" + l + ");");
+	if(t.isNotEmpty())
+		lines.add(rectangleName + ".removeFromTop(" + t + ");");
+	if(r.isNotEmpty())
+		lines.add(rectangleName + ".removeFromRight(" + r + ");");
+	if(b.isNotEmpty())
+		lines.add(rectangleName + ".removeFromBottom(" + b + ");");
+
+	return lines;
 }
 
 Rectangle<float> StyleSheet::getArea(Rectangle<float> totalArea, const PropertyKey& key) const
@@ -584,8 +589,8 @@ Rectangle<float> StyleSheet::truncateBeforeAndAfter(Rectangle<float> sourceArea,
 
 	if(truncateBefore)
 	{
-		if(auto v = getPropertyValue({ "position", PseudoState(currentState).withElement(PseudoElementType::Before) }))
-			truncateBefore &= v.valueAsString != "absolute";
+		auto t = getPositionType(PseudoState(currentState).withElement(PseudoElementType::Before));
+		truncateBefore &= (t != PositionType::absolute);
 	}
 
 	if(truncateBefore)
@@ -596,8 +601,8 @@ Rectangle<float> StyleSheet::truncateBeforeAndAfter(Rectangle<float> sourceArea,
 
 	if(truncateAfter)
 	{
-		if(auto v = getPropertyValue({ "position", PseudoState(currentState).withElement(PseudoElementType::After) }))
-			truncateAfter &= v.valueAsString != "absolute";
+		auto t = getPositionType(PseudoState(currentState).withElement(PseudoElementType::After));
+		truncateAfter &= (t != PositionType::absolute);
 	}
 
 	if(truncateAfter)
@@ -649,7 +654,7 @@ struct ComponentUpdaters
 		setColourIfDefined(te, ss, currentState, TextEditor::textColourId, "color");
 		te->applyColourToAllText(te->findColour(TextEditor::textColourId));
 
-		if(auto root = ComponentWithCSS::find(*te))
+		if(auto root = CSSRootComponent::find(*te))
 		{
 			if(auto selectionSheet = root->css[Selector(SelectorType::Class, "::selection")])
 			{
@@ -727,21 +732,20 @@ MouseCursor StyleSheet::getMouseCursor() const
 {
 	if(auto mv = getPropertyValue({ "cursor", 0}))
 	{
-		std::map<String, MouseCursor::StandardCursorType> cursors = {
-			{ "default", MouseCursor::NormalCursor },
-			{ "pointer", MouseCursor::PointingHandCursor },
-			{ "wait", MouseCursor::WaitCursor },
-			{ "crosshair", MouseCursor::CrosshairCursor },
-			{ "text", MouseCursor::IBeamCursor },
-			{ "copy", MouseCursor::CopyingCursor },
-			{ "grabbing", MouseCursor::DraggingHandCursor }
+		enum CustomCursorEnum
+		{
+			Default = MouseCursor::NormalCursor,
+			Pointer = MouseCursor::PointingHandCursor,
+			Wait = MouseCursor::WaitCursor,
+			Crosshair = MouseCursor::CrosshairCursor,
+			Text = MouseCursor::IBeamCursor,
+			Copy = MouseCursor::CopyingCursor,
+			Grab = MouseCursor::DraggingHandCursor 
 		};
 
-		auto c = cursors.find(mv.valueAsString);
+		auto c = getAsEnum({ "cursor", 0}, CustomCursorEnum::Default);
 
-		if(c != cursors.end())
-			return MouseCursor(c->second);
-			
+		return MouseCursor((MouseCursor::StandardCursorType)c);
 	}
 
 	return MouseCursor();
@@ -778,19 +782,11 @@ Font StyleSheet::getFont(int currentState, Rectangle<float> totalArea) const
 
 	int flags = 0;
 
-	if(auto wv = getPropertyValue({ "font-weight", currentState}))
-	{
-		static const StringArray normalStrings = { "default", "normal", "400", "unset" };
+	if(getAsEnum<int>({"font-weight", currentState}, 1) > 3)
+		flags |= (int)Font::bold;
 
-		if(!normalStrings.contains(wv.valueAsString.trim()))
-			flags |= (int)Font::bold;
-	}
-	
-	if(auto sv = getPropertyValue({ "font-style", currentState }))
-	{
-		if(sv.valueAsString.trim() == "italic")
-			flags |= (int)Font::italic;
-	}
+	if(getAsEnum<int>({"font-style", currentState}, 0))
+		flags |= (int)Font::italic;
 
 	Font f(fontName, size, (Font::FontStyleFlags)flags);
 		
@@ -837,8 +833,8 @@ AffineTransform StyleSheet::getTransform(Rectangle<float> totalArea, PseudoState
 	if(auto tv = getTransitionValue({ "transform", currentState}))
 	{
 		DBG(tv.progress);
-		TransformParser p1(tv.startValue);
-		TransformParser p2(tv.endValue);
+		TransformParser p1(keywords, tv.startValue);
+		TransformParser p2(keywords, tv.endValue);
 
 		auto lastEmpty = tv.endValue.isEmpty();
 
@@ -867,7 +863,7 @@ AffineTransform StyleSheet::getTransform(Rectangle<float> totalArea, PseudoState
 	}
 	if(auto pv = getPropertyValue({ "transform", currentState}))
 	{
-		TransformParser p(pv.valueAsString);
+		TransformParser p(keywords, pv.valueAsString);
 
 		auto list = p.parse(totalArea);
 		return TransformParser::TransformData::toTransform(list, totalArea.getCentre());
@@ -880,30 +876,7 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
                                                                   Colour defaultColour) const
 {
 	key.appendSuffixIfNot("color");
-
-#if 0
-	if(key.name.startsWith("bac"))
-	{
-		// the gradient could also be defined as background-image property
-		for(const auto& v: properties[(int)key.state.element])
-		{
-			if(v.name == "background-image-color")
-			{
-				for(const auto& p: v.values)
-				{
-					if(p.first == key.state.stateFlag &&
-						p.second.valueAsString.startsWith("linear-gradient"))
-					{
-						key.name = "background-image-color";
-						break;
-					}
-				}
-			}
-		}
-	}
-#endif
 	
-
 	if(defaultColour == Colours::transparentBlack && defaultColours.find(key.name) != defaultColours.end())
 	{
 		defaultColour = defaultColours.at(key.name);
@@ -974,6 +947,18 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
 	}
 		
 	return { defaultColour, ColourGradient() };
+}
+
+String StyleSheet::getCodeGeneratorColour(const String& rectangleName, PropertyKey key, Colour defaultColour) const
+{
+	key.appendSuffixIfNot("color");
+
+	if(auto v = getPropertyValue(key))
+	{
+		return "Colour(" + v.valueAsString + ")";
+	}
+
+	return {};
 }
 
 std::pair<bool, PseudoState> StyleSheet::matchesRawList(const Selector::RawList& blockSelectors) const
@@ -1048,9 +1033,7 @@ String StyleSheet::toString() const
 
 	for(auto& s: selectors)
 		listContent << s.toString() << " ";
-
 	
-
 	int idx = 0;
 
 	for(const auto& ep: properties)
@@ -1078,6 +1061,11 @@ String StyleSheet::toString() const
 	
 
 	return listContent;
+}
+
+void StyleSheet::setDefaultTransition(PseudoElementType elementType, const Transition& t)
+{
+	defaultTransitions[(int)elementType] = t;
 }
 
 Transition StyleSheet::getTransitionOrDefault(PseudoElementType elementType, const Transition& t) const
@@ -1137,7 +1125,7 @@ void StyleSheet::setDefaultColour(const String& key, Colour c)
 
 PositionType StyleSheet::getPositionType(PseudoState state) const
 {
-	return getAsEnum({ "position", state}, { "initial", "relative", "absolute", "fixed"}, PositionType::initial);
+	return getAsEnum({ "position", state}, PositionType::initial);
 }
 
 FlexBox StyleSheet::getFlexBox() const
@@ -1149,25 +1137,11 @@ FlexBox StyleSheet::getFlexBox() const
 	if(displayType != "flex")
 		return flexBox;
 
-	flexBox.flexDirection = getAsEnum({ "flex-direction", {}}, 
-								      { "row", "row-reverse", "column", "column-reverse" }, 
-								        FlexBox::Direction::row);
-
-	flexBox.flexWrap = getAsEnum({ "flex-wrap", {}}, 
-								 { "nowrap", "wrap", "wrap-reverse" }, 
-								   FlexBox::Wrap::noWrap);
-
-	flexBox.justifyContent = getAsEnum({ "justify-content", {}}, 
-									   { "flex-start", "flex-end", "center", "space-between", "space-around" }, 
-									     FlexBox::JustifyContent::flexStart);
-
-	flexBox.alignItems = getAsEnum({ "align-items", {}},
-								   { "stretch", "flex-start", "flex-end", "center" },
-									 FlexBox::AlignItems::center);
-
-	flexBox.alignContent = getAsEnum({ "align-content", {}},
-									 { "stretch", "flex-start", "flex-end", "center" },
-									   FlexBox::AlignContent::center);
+	flexBox.flexDirection = getAsEnum({ "flex-direction", {}}, FlexBox::Direction::row);
+	flexBox.flexWrap = getAsEnum({ "flex-wrap", {}}, FlexBox::Wrap::noWrap);
+	flexBox.justifyContent = getAsEnum({ "justify-content", {}}, FlexBox::JustifyContent::flexStart);
+	flexBox.alignItems = getAsEnum({ "align-items", {}}, FlexBox::AlignItems::center);
+	flexBox.alignContent = getAsEnum({ "align-content", {}}, FlexBox::AlignContent::center);
 	
 	return flexBox;
 }
@@ -1182,9 +1156,7 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 
 	float defaultWidth = -1.0f;
 	float defaultHeight = -1.0f;
-
 	
-		
 	item.width = getPixelValue(b, { "width", {}}, -1.0f);
 	item.height = getPixelValue(b, { "height", {}}, -1.0f);
 	item.minWidth = getPixelValue(b, { "min-width", {}}, -1.0f);
@@ -1200,16 +1172,10 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 		item.minWidth = tb.getWidth();
 	}
 	
-	
-	
-	
-
 	if(auto v = getPropertyValue({ "order", {}}))
 		item.order = v.valueAsString.getIntValue();
 
-	item.alignSelf = getAsEnum( { "align-self", {} }, 
-								{ "auto", "flex-start", "flex-end", "center", "stretch"}, 
-								  FlexItem::AlignSelf::autoAlign);
+	item.alignSelf = getAsEnum( { "align-self", {} }, FlexItem::AlignSelf::autoAlign);
 
 	if(auto pv = getPropertyValue({ "flex-grow", {}}))
 		item.flexGrow = ExpressionParser::evaluate(pv.valueAsString, {});

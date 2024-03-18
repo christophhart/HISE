@@ -34,46 +34,60 @@ namespace hise
 {
 namespace simple_css
 {
-	Positioner::Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_):
-		css(styleSheet),
-		totalArea(totalArea_),
-		applyMargin(applyMargin_)
+Positioner::Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_):
+	css(styleSheet),
+	totalArea(totalArea_),
+	applyMargin(applyMargin_)
+{
+	if(auto ss = css[Selector(ElementType::Body)])
 	{
-		if(auto ss = css[Selector(ElementType::Body)])
-		{
-			if(applyMargin)
-				totalArea = ss->getArea(totalArea, { "margin", 0});
+		if(applyMargin)
+			totalArea = ss->getArea(totalArea, { "margin", 0});
 
-			bodyArea = totalArea;
+		bodyArea = totalArea;
 
-			totalArea = ss->getArea(totalArea, { "padding", 0});
-		}
-		else
-			bodyArea = totalArea;
+		totalArea = ss->getArea(totalArea, { "padding", 0});
+	}
+	else
+		bodyArea = totalArea;
+}
+
+Rectangle<int> Positioner::getLocalBoundsFromText(const Array<Selector>& s, const String& text,
+	Rectangle<int> defaultBounds)
+{
+	if(auto ss = css.getOrCreateCascadedStyleSheet(s))
+	{
+		return ss->getLocalBoundsFromText(text).toNearestInt();
 	}
 
-	
+	return defaultBounds;
+}
 
-	
 
 void Renderer::setCurrentBrush(Graphics& g, StyleSheet::Ptr ss, Rectangle<float> area,
-	                               const PropertyKey& key, Colour defaultColour)
+                               const PropertyKey& key, Colour defaultColour)
 {
-	if (ss != nullptr)
-	{
-		auto c = ss->getColourOrGradient(area, key, defaultColour);
+if (ss != nullptr)
+{
+	auto c = ss->getColourOrGradient(area, key, defaultColour);
 
-		if(c.second.getNumColours() > 0)
-			g.setGradientFill(c.second);
-		else
-			g.setColour(c.first);
-        
-        auto op = ss->getOpacity(key.state.stateFlag);
-        
-        if(op != 1.0f)
-            g.setOpacity(jlimit(0.0f, 1.0f, op));
-	}
+	if(c.second.getNumColours() > 0)
+		g.setGradientFill(c.second);
+	else
+		g.setColour(c.first);
+    
+    auto op = ss->getOpacity(key.state.stateFlag);
+    
+    if(op != 1.0f)
+        g.setOpacity(jlimit(0.0f, 1.0f, op));
 }
+}
+
+Renderer::Renderer(Component* c, StateWatcher& state_):
+	ScopedComponentSetter(c)  ,
+	currentComponent(c),
+	state(state_)
+{}
 
 int Renderer::getPseudoClassFromComponent(Component* c)
 {
@@ -105,6 +119,10 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	if(ss == nullptr)
 		return;
 
+	CodeGenerator cg(ss);
+
+	DBG(cg.toCode());
+
 	auto stateFlag = currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
 	auto defaultState = PseudoState(stateFlag).withElement(type);
 
@@ -113,11 +131,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 
 	if(!transform.isIdentity())
 		g.addTransform(transform);
-
 	
-
-	
-
 	auto p = ss->getBorderPath(ma, defaultState);
 
 	Path bp;
@@ -271,6 +285,11 @@ void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text
 	setCurrentBrush(g, ss, totalArea, {"color", currentState }, Colours::black);
 	
 	g.drawText(textToDraw, totalArea, j);
+}
+
+void Renderer::setPseudoClassState(int state)
+{
+	pseudoClassState = state;
 }
 }
 }

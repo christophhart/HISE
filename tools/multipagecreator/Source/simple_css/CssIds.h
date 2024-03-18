@@ -43,18 +43,11 @@ using namespace juce;
  * - write LAF for all stock elements
  */
 
-namespace PropertyIds
-{
-#define DECLARE_ID(x) static const Identifier x(#x);
-	DECLARE_ID(margin);
-	DECLARE_ID(padding);
-#undef DECLARE_ID
-}
-
+/** A high level, internal property categorization that helps the parser figure out some stuff. */
 enum class PropertyType
 {
-	Positioning, // margin or padding
-	Layout, // height or width
+	Positioning, 
+	Layout, 
 	Transform,
 	Border,
 	BorderRadius,
@@ -65,6 +58,19 @@ enum class PropertyType
 	Undefined
 };
 
+/** A high level, internal value categorization that helps the parser figure out some stuff. */
+enum class ValueType
+{
+	Undefined,
+	Colour,
+	Gradient,
+	Size,
+	Number,
+	Time,
+	numValueTypes
+};
+
+/** the type of selector used for the next CSS block. */
 enum class SelectorType
 {
 	None,
@@ -75,6 +81,7 @@ enum class SelectorType
 	All
 };
 
+/** The supported element types which correlates to some native JUCE UI components. */
 enum class ElementType
 {
 	Body,
@@ -85,6 +92,7 @@ enum class ElementType
 	Ruler
 };
 
+/** The positioning mode values. Currently there is only a distinction between absolute & fixed and the others. */
 enum class PositionType
 {
 	initial,
@@ -94,6 +102,7 @@ enum class PositionType
 	numPositionTypes
 };
 
+/** A list of supported pseudo class states that can be used to customize the appearance based on the component state. */
 enum class PseudoClassType
 {
 	None = 0,
@@ -106,6 +115,8 @@ enum class PseudoClassType
 	All = 63
 };
 
+/** A list of pseudo elements. Currently there is only support for before & after (because most text-based pseudo elements like
+ *  first-letter do not really apply to a JUCE based layout system). */
 enum class PseudoElementType
 {
 	None = 0,
@@ -114,6 +125,7 @@ enum class PseudoElementType
 	All
 };
 
+/** The number of supported expression functions when using CSS expressions. */
 enum class ExpressionType
 {
 	none,
@@ -126,39 +138,31 @@ enum class ExpressionType
 };
 
 
-
+/** The supported transform types. Note that this is a complete list of all CSS translations, but some
+ *  are unsupported */
 enum class TransformTypes
 {
 	none, // none
-	matrix, // matrix(n,n,n,n,n,n)
+	matrix, // matrix(n,n,n,n,n,n) - unsupported
 	translate, // translate(x,y)
 	translateX, // translateX(x)
 	translateY, // translateY(y)
-	translateZ, // translateZ(z)
+	translateZ, // translateZ(z) - unsupported
 	scale, // scale(x,y)
 	scaleX, // scaleX(x)
 	scaleY, // scaleY(y)
-	scaleZ, // scaleZ(z)
+	scaleZ, // scaleZ(z) - unsupported
 	rotate, // rotate(angle)
 	rotateX, // rotateX(angle)
 	rotateY, // rotateY(angle)
-	rotateZ, // rotateZ(angle)
+	rotateZ, // rotateZ(angle) - unsupported
 	skew, // skew(x-angle,y-angle)
 	skewX, // skewX(angle)
 	skewY, // skewY(angle)
 	numTransformTypes
 };
 
-enum class ValueType
-{
-	Undefined,
-	Colour,
-	Gradient,
-	Size,
-	Number,
-	Time,
-	numValueTypes
-};
+
 
 
 	

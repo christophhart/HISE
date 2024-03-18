@@ -40,32 +40,11 @@ using namespace juce;
 /** A combined object for a pseudo class (aka state) and a pseudo element (eg. ::before). */
 struct PseudoState
 {
-	PseudoState(PseudoClassType t, PseudoElementType e=PseudoElementType::None):
-	  stateFlag((int)t),
-	  element(e)
-	{};
-
+	PseudoState(PseudoClassType t, PseudoElementType e=PseudoElementType::None);;
 	PseudoState() = default;
+	explicit PseudoState(int state);;
 
-	explicit PseudoState(int state):
-	  stateFlag(state),
-	  element(PseudoElementType::None)
-	{};
-
-	static String getPseudoElementName(int idx)
-	{
-		static const StringArray list({
-			"None ",
-			"Before",
-			"After",
-			"All"
-		});
-
-		if(isPositiveAndBelow(idx, list.size()))
-			return list[idx];
-
-		return "Unknown";
-	}
+	static String getPseudoElementName(int idx);
 
 	bool isPseudoElement() const { return element != PseudoElementType::None; }
 	bool hasState() const { return stateFlag != 0; };
@@ -125,15 +104,9 @@ struct Transition
 /** This is a ID for querying style sheets for its properties. */
 struct PropertyKey
 {
-	PropertyKey(const char* name_, int state_):
-	  name(name_),
-	  state(state_)
-	{};
+	PropertyKey(const char* name_, int state_);;
 
-	PropertyKey(const String& name_, PseudoState state_):
-	  name(name_),
-	  state(state_)
-	{};
+	PropertyKey(const String& name_, PseudoState state_);;
 
 	PropertyKey() = default;
 	  

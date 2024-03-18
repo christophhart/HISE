@@ -35,7 +35,7 @@ namespace simple_css
 {
 using namespace juce;
 
-
+/** Parses colour values. Pretty feature complete except for weird color space syntax. */
 struct ColourParser
 {
 	static Colour getColourFromHardcodedString(const String& colourId);
@@ -44,22 +44,31 @@ struct ColourParser
 
 	Colour getColour() const { return c; }
 
+	String toCodeGeneratorString() const
+	{
+		String s = "Colour(";
+		s << String::toHexString(c.getARGB()) << ")";
+		return s;
+	}
+
 private:
 
 	Colour c;
 };
 
+/** Parses a colour gradient using a list of value items and an area. */
 struct ColourGradientParser
 {
 	ColourGradientParser(Rectangle<float> area, const String& items);
 
-	ColourGradient getGradient() const { return gradient; }
+	ColourGradient getGradient() const;
 
 private:
 
 	ColourGradient gradient;
 };
 
+/** Parses a affine transform that can be applied to the graphics context. */
 struct TransformParser
 {
 	struct TransformData
@@ -73,16 +82,20 @@ struct TransformParser
 		TransformData interpolate(const TransformData& other, float alpha) const;
 
 		static AffineTransform toTransform(const std::vector<TransformData>& list, Point<float> center);
+		static String toCppCode(const std::vector<TransformData>& list, const String& pointName);
 	};
 
-	TransformParser(const String& stackedTransforms);
+	TransformParser(KeywordDataBase* database_, const String& stackedTransforms);
 	std::vector<TransformData> parse(Rectangle<float> totalArea, float defaultSize=16.0);
 
 private:
 
+	KeywordDataBase* database;
+
 	String t;
 };
 
+/** Parses box-shadow and text-shadow properties to create a melatonin::DropShadow stack. */
 struct ShadowParser
 {
 	ShadowParser(const std::vector<String>& tokens);
@@ -112,15 +125,7 @@ private:
 
 		Data interpolate(const Data& other, double alpha) const;
 
-		Data copyWithoutStrings(float alpha) const
-		{
-			Data copy;
-			copy.somethingSet = somethingSet;
-			copy.inset = inset;
-			memcpy(copy.size, size, sizeof(int)*4);
-			copy.c = c.withMultipliedAlpha(alpha);
-			return copy;
-		}
+		Data copyWithoutStrings(float alpha) const;
 
 		bool somethingSet = false;
 		bool inset = false;
@@ -133,16 +138,39 @@ private:
 	
 };
 
+/** Parses a CSS expression that performs some very simple math formula calculations. */
 struct ExpressionParser
 {
-	struct Context
+	template <typename SourceType=Rectangle<float>> struct Context
 	{
+		static constexpr bool isCodeGenContext() { return std::is_same<SourceType, juce::String>(); }
+
+		static constexpr SourceType getDefaultSource()
+		{
+			if constexpr (isCodeGenContext())
+				return String();
+			else
+				return Rectangle<float>(1.0f, 1.0f);
+		}
+		
 		bool useWidth = false;
-		Rectangle<float> fullArea = { 1.0f, 1.0f };
+		SourceType fullArea = getDefaultSource();
 		float defaultFontSize = 16.0f;
 	};
 
-	static float evaluate(const String& expression, const Context& context);
+	static String evaluateToCodeGeneratorLiteral(const String& expression, const Context<String>& context)
+	{
+		jassert(context.isCodeGenContext());
+		
+		auto ptr = expression.begin();
+		auto end = expression.end();
+
+		Node root = parseNode(ptr, end);
+
+		return root.evaluateToCodeGeneratorLiteral(context);
+	}
+
+	static float evaluate(const String& expression, const Context<>& context);
 
 private:
 
@@ -156,38 +184,48 @@ private:
 		String s;
 		List children;
 
-		float evaluate(const Context& context) const;
+		String evaluateToCodeGeneratorLiteral(const Context<String>& context) const;
+
+		float evaluate(const Context<>& context) const;
 	};
 
-	static float evaluateLiteral(const String& s, const Context& context);
+	static float evaluateLiteral(const String& s, const Context<>& context);
 	static void match(String::CharPointerType& ptr, const String::CharPointerType end, juce_wchar t);
 	static void skipWhitespace(String::CharPointerType& ptr, const String::CharPointerType end);
 	static Node parseNode(String::CharPointerType& ptr, const String::CharPointerType end);
 	
 };
 
+/** Parses a string containing CSS code. */
 struct Parser
 {
 	Parser(const String& cssCode);;
 
+	/** This will parse the string and return a Result indicating the errors. */
 	Result parse();
 
+	/** After you've parsed the string you can query this function to get all the warnings that the CSS code
+	 *  produced. It contains missing properties and invalid selectors. */
+	StringArray getWarnings() const { return warnings; }
+
+	/** returns a list of StyleSheet objects that can be used to style the appearance of your JUCE components. */
 	StyleSheet::Collection getCSSValues() const;
-
-#if 0
-	static float parseSize(const String& s, std::pair<bool, Rectangle<float>> fullArea, float defaultHeight=16.0)
-	{
-		ExpressionParser::Context context;
-		context.fullArea = fullArea.second;
-		context.defaultFontSize = defaultHeight;
-		context.useWidth = fullArea.first;
-
-		return ExpressionParser::evaluate(s, context);
-		
-	}
-#endif
-
+	
 private:
+
+	String getLocation(String::CharPointerType p=String::CharPointerType(nullptr)) const;
+
+	struct KeywordWarning
+	{
+		KeywordWarning(Parser& parent_);
+
+		void setLocation(Parser& p);
+		void check(const String& s, KeywordDataBase::KeywordType type);
+
+		SharedResourcePointer<KeywordDataBase> database;
+		String::CharPointerType currentLocation;
+		Parser& parent;
+	};
 
 	friend class ShadowParser;
 
@@ -228,11 +266,10 @@ private:
 	bool match(TokenType t);
 	void throwError(const String& errorMessage);
 	bool matchIf(TokenType t);
-	String getLocation();
-
+	
 	PseudoState parsePseudoClass();
 	RawClass parseSelectors();
-
+	
 	static ValueType findValueType(const String& value);
 	static String getTokenName(TokenType t);
 	static String processValue(const String& value, ValueType t=ValueType::Undefined);
@@ -242,6 +279,8 @@ private:
 
 	String code;
 	String::CharPointerType ptr, end;
+
+	StringArray warnings;
 };
 
 	

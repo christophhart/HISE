@@ -36,12 +36,13 @@
 #include <JuceHeader.h>
 
 #include "CssIds.h"
+#include "LanguageManager.h"
 #include "HelperClasses.h"
 #include "StyleSheet.h"
 #include "CssParser.h"
 #include "Animator.h"
 #include "Renderer.h"
+#include "CSSLookAndFeel.h"
+#include "FlexboxComponent.h"
 #include "Editor.h"
-
-
 

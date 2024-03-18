@@ -10,13 +10,25 @@
         <FILE id="S2LiRa" name="Animator.cpp" compile="0" resource="0" file="Source/simple_css/Animator.cpp"/>
         <FILE id="QKG2BH" name="Animator.h" compile="0" resource="0" file="Source/simple_css/Animator.h"/>
         <FILE id="FTP6Aj" name="CssIds.h" compile="0" resource="0" file="Source/simple_css/CssIds.h"/>
+        <FILE id="nbgOZD" name="CSSLookAndFeel.cpp" compile="0" resource="0"
+              file="Source/simple_css/CSSLookAndFeel.cpp"/>
+        <FILE id="nbQsvm" name="CSSLookAndFeel.h" compile="0" resource="0"
+              file="Source/simple_css/CSSLookAndFeel.h"/>
         <FILE id="cWC5jv" name="CssParser.cpp" compile="0" resource="0" file="Source/simple_css/CssParser.cpp"/>
         <FILE id="SxbfCM" name="CssParser.h" compile="0" resource="0" file="Source/simple_css/CssParser.h"/>
         <FILE id="Ad4re5" name="Editor.cpp" compile="0" resource="0" file="Source/simple_css/Editor.cpp"/>
         <FILE id="QBl3Dn" name="Editor.h" compile="0" resource="0" file="Source/simple_css/Editor.h"/>
+        <FILE id="QUkg7x" name="FlexboxComponent.cpp" compile="0" resource="0"
+              file="Source/simple_css/FlexboxComponent.cpp"/>
+        <FILE id="K96HEp" name="FlexboxComponent.h" compile="0" resource="0"
+              file="Source/simple_css/FlexboxComponent.h"/>
         <FILE id="XzhH7P" name="HelperClasses.cpp" compile="0" resource="0"
               file="Source/simple_css/HelperClasses.cpp"/>
         <FILE id="mrFDbj" name="HelperClasses.h" compile="0" resource="0" file="Source/simple_css/HelperClasses.h"/>
+        <FILE id="xjhkDj" name="LanguageManager.cpp" compile="0" resource="0"
+              file="Source/simple_css/LanguageManager.cpp"/>
+        <FILE id="XAnhsM" name="LanguageManager.h" compile="0" resource="0"
+              file="Source/simple_css/LanguageManager.h"/>
         <FILE id="UaOYZ5" name="Renderer.cpp" compile="0" resource="0" file="Source/simple_css/Renderer.cpp"/>
         <FILE id="fT4eEM" name="Renderer.h" compile="0" resource="0" file="Source/simple_css/Renderer.h"/>
         <FILE id="K74eUS" name="simple_css.cpp" compile="1" resource="0" file="Source/simple_css/simple_css.cpp"/>

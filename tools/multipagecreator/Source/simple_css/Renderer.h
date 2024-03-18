@@ -38,20 +38,26 @@ namespace simple_css
 {
 using namespace juce;
 
-struct ComponentWithCSS
+/** Subclass any component from this class and it will act as a root for all CSS features.
+ *
+ *  Usually this is a top-level component, but you can use multiple instances for advanced use cases.
+ *
+ *	Child components with a StyleSheetLookAndFeel will then use this in order to fetch the StyleSheet object
+ *	and the animator in order to render its graphics. */
+struct CSSRootComponent
 {
-	ComponentWithCSS():
+	CSSRootComponent():
 	  stateWatcher(animator)
 	{
 		css.setAnimator(&animator);
 	};
 
-	static ComponentWithCSS* find(Component& c)
+	static CSSRootComponent* find(Component& c)
 	{
-		if(auto self = dynamic_cast<ComponentWithCSS*>(&c))
+		if(auto self = dynamic_cast<CSSRootComponent*>(&c))
 			return self;
 
-		return c.findParentComponentOfClass<ComponentWithCSS>();
+		return c.findParentComponentOfClass<CSSRootComponent>();
 	}
 
 	Animator animator;
@@ -59,7 +65,14 @@ struct ComponentWithCSS
 	StyleSheet::Collection css;
 };
 
-struct Positioner
+
+/** This helper class will use a style sheet collection to slice an area in order to calculate the UI layout.
+ *  The syntax of the methods mimic the juce::Rectangle<> class so you can apply the proven slicing workflow
+ *	when defining your component layout.
+ *
+ *	Note: you can also use the FlexboxComponent for UI layout.
+ */
+class Positioner
 {
 	enum class Direction
 	{
@@ -88,8 +101,6 @@ struct Positioner
 		}
 	};
 
-	Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_);
-
 	template <Direction D> Rectangle<float> slice(const Array<Selector>& s, float defaultValue)
 	{
 		if(auto ss = css.getOrCreateCascadedStyleSheet(s))
@@ -116,70 +127,129 @@ struct Positioner
 		return RemoveHelpers::slice<D>(totalArea, defaultValue);
 	}
 
-	Rectangle<int> getLocalBoundsFromText(const Array<Selector>& s, const String& text, Rectangle<int> defaultBounds={})
-	{
-		if(auto ss = css.getOrCreateCascadedStyleSheet(s))
-		{
-			return ss->getLocalBoundsFromText(text).toNearestInt();
-		}
+public:
 
-		return defaultBounds;
-	}
+	/** Creates a positioner for the given CSS collection and a given area (usually the component bounds).
+	 *
+	 *  If applyMargin is true, the rectangles returned by the methods will factor in the margin of the component,
+	 *	however in most cases you don't want that to be the case because the margin is also factored in in the
+	 *	Renderer::drawBackground() class (so it can draw box-shadows without resorting to unclipped painting).
+	 */
+	Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_=false);
 
+	/** Creates a rectangle at origin with the width and sized set to the exact dimension to display the provided text.
+	 *  This factors in font properties and margin / padding / borders so whenever you have a component that displays a text
+	 *  use this to set it to the exact size that you know and love from your favorite web browser. */
+	Rectangle<int> getLocalBoundsFromText(const Array<Selector>& s, const String& text, Rectangle<int> defaultBounds={});
+
+	/** Slices a rectangle from the top of the full area using the style sheet identified by the list of supplied selectors. */
 	Rectangle<float> removeFromTop(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Top>(s, defaultValue); }
-	Rectangle<float> removeFromBottom(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Bottom>(s, defaultValue); }
-	Rectangle<float> removeFromLeft(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Left>(s, defaultValue); }
-	Rectangle<float> removeFromRight(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Right>(s, defaultValue); } 
 
-	bool applyMargin = false;
-	Rectangle<float> bodyArea;
+	/** Slices a rectangle from the bottom of the full area using the style sheet identified by the list of supplied selectors. */
+	Rectangle<float> removeFromBottom(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Bottom>(s, defaultValue); }
+
+	/** Slices a rectangle from the left of the full area using the style sheet identified by the list of supplied selectors. */
+	Rectangle<float> removeFromLeft(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Left>(s, defaultValue); }
+
+	/** Slices a rectangle from the right of the full area using the style sheet identified by the list of supplied selectors. */
+	Rectangle<float> removeFromRight(const Array<Selector>& s, float defaultValue = 0.0f) { return slice<Direction::Right>(s, defaultValue); } 
 
 private:
 
-	
-
+	bool applyMargin = false;
+	Rectangle<float> bodyArea;
 	Rectangle<float> totalArea;
 	StyleSheet::Collection css;
 };
 
 
+/** A lightweight object that will render CSS defined appearances on a Graphics context. */
 struct Renderer: public Animator::ScopedComponentSetter
 {
-	Renderer(Component* c, StateWatcher& state_):
-	  ScopedComponentSetter(c)  ,
-	  currentComponent(c),
-	  state(state_)
-	{};
-	
-	
+	/** Creates a renderer that will draw on the component using the state watcher. */
+	Renderer(Component* c, StateWatcher& state_);;
 
+	/** Tries to set the flags based on the component state (visible, enabled, hovered, etc). */
 	static int getPseudoClassFromComponent(Component* c);
 
+	/** Renders the background of the component using the supplied style sheet and pseudo element type.
+	 *
+	 *  Make sure to call StateWatcher::checkState() before rendering this method in order to pick up the correct pseudo class
+	 *	to use.
+	 */
 	void drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Ptr ss, PseudoElementType type = PseudoElementType::None);
 
-	
-
+	/** Renders a text using the supplied style sheet. */
 	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss);
 
-	void setPseudoClassState(int state)
-	{
-		pseudoClassState = state;
-	}
+	/** Manually set the state flags for the renderer. this is useful for cases where the style flags can't be easily queried
+	 *  from the component hover states (eg. at popup menu items). */
+	void setPseudoClassState(int state);
 
+	/** Sets the current colour (or gradient) for the renderer based on the supplied style sheet and property key. */
 	void setCurrentBrush(Graphics& g, StyleSheet::Ptr ss, Rectangle<float> area, const PropertyKey& key, Colour defaultColour=Colours::transparentBlack);
 
+	/** returns the pseudo class state to use */
 	int getPseudoClassState() const
 	{
 		return currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
 	}
-
-
 
 private:
 
 	int pseudoClassState = 0;
 	Component* currentComponent;
 	StateWatcher& state;
+};
+
+/** This class will create a set of C++ instructions that render the style sheet on a juce::Graphics context.
+ *
+ *  This makes it a very convenient tool during development: just use a style sheet to customize the appearance and then
+ *	use this class to create a hardcoded C++ renderer with the same appearance but no performance overhead.
+ *
+ *	The generated code can be used as a dropin-replacement for the simple_css::Renderer class.
+ */
+class CodeGenerator
+{
+public:
+
+	CodeGenerator(StyleSheet::Ptr ss_):
+	  ss(ss_)
+	{
+		String nl = "\n";
+
+		code << "drawBackground(Graphics& g, Rectangle<float> fullArea, PseudoElementType type=PseudoElementType::None)" << nl;
+
+		code << "{" << nl;
+		code << "\t" << nl;
+
+		for(const auto& ra: ss->getCodeGeneratorArea("fullArea", { "margin", {}}))
+		{
+			appendLine(ra);
+		}
+
+		auto c = ss->getCodeGeneratorColour("fullArea", { "background", {} });
+
+		appendLine("g.setColour(" + c + ");");
+		appendLine("g.fillRect(fullArea);");
+
+		code << "};" << nl;
+	}
+
+	void appendLine(const String& s)
+	{
+		if(s.isNotEmpty())
+			code << "\t" << s << "\n";
+	}
+
+	String toCode()
+	{
+		return code;
+	}
+
+	String code;
+	
+	StyleSheet::Ptr ss;
 };
 
 } // namespace simple_css

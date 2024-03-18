@@ -35,6 +35,30 @@ namespace hise
 {
 namespace simple_css
 {
+	PseudoState::PseudoState(PseudoClassType t, PseudoElementType e):
+		stateFlag((int)t),
+		element(e)
+	{}
+
+	PseudoState::PseudoState(int state):
+		stateFlag(state),
+		element(PseudoElementType::None)
+	{}
+
+	String PseudoState::getPseudoElementName(int idx)
+	{
+		static const StringArray list({
+			"None ",
+			"Before",
+			"After",
+			"All"
+		});
+
+		if(isPositiveAndBelow(idx, list.size()))
+			return list[idx];
+
+		return "Unknown";
+	}
 
 Selector::Selector(ElementType dt)
 {
@@ -141,6 +165,16 @@ String Transition::toString() const
 	return s;
 }
 
+
+PropertyKey::PropertyKey(const char* name_, int state_):
+	name(name_),
+	state(state_)
+{}
+
+PropertyKey::PropertyKey(const String& name_, PseudoState state_):
+	name(name_),
+	state(state_)
+{}
 
 PropertyKey PropertyKey::withSuffix(const String& suffix) const
 {

@@ -36,10 +36,10 @@ namespace simple_css
 
 Animator::ScopedComponentSetter::ScopedComponentSetter(Component* c)
 {
-	auto root = dynamic_cast<ComponentWithCSS*>(c);
+	auto root = dynamic_cast<CSSRootComponent*>(c);
 
 	if(root == nullptr && c != nullptr)
-		root = c->findParentComponentOfClass<ComponentWithCSS>();
+		root = c->findParentComponentOfClass<CSSRootComponent>();
 
 	if(root != nullptr)
 	{
@@ -213,7 +213,10 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 
 					PropertyKey thisStartValue(p.name, PseudoState(stateChanged.second).withElement(t));
 					PropertyKey thisEndValue(p.name, PseudoState(currentState).withElement(t));
+                    
+                    
 
+                    
 					bool found = false;
 
 					for(auto i: animator.items)

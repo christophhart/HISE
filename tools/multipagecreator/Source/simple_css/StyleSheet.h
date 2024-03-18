@@ -44,10 +44,7 @@ struct StyleSheet: public ReferenceCountedObject
 	using Ptr = ReferenceCountedObjectPtr<StyleSheet>;
 	using List = ReferenceCountedArray<StyleSheet>;
 
-	
-
-	
-
+	/** A collection is a list of multiple StyleSheet objects that can be used to query a style sheet for a given list of selectors. */
 	struct Collection
 	{
 		Collection() = default;
@@ -73,40 +70,20 @@ struct StyleSheet: public ReferenceCountedObject
 		String toString() const;
 
 		Ptr findBestMatch(const Array<Selector>& selectors) const;
-
 		Ptr getOrCreateCascadedStyleSheet(const Array<Selector>& selectors);
 
 		void addComponentToSetup(Component* c);
 
-		void addElementStyle(Ptr p)
-		{
-			auto elementSelector = p->selectors.getFirst();
-			jassert(elementSelector.type == SelectorType::Element);
-
-			for(auto p: list)
-			{
-				for(auto& s: p->selectors)
-					if(s == elementSelector)
-						return;
-			}
-
-			list.add(p);
-		}
+		void addElementStyle(Ptr p);
 
 	private:
 		
 		List list;
 	};
 
-	StyleSheet(const Array<Selector>& selectors_)
-	{
-		selectors.addArray(selectors_);
-	}
+	StyleSheet(const Array<Selector>& selectors_);
 
-	StyleSheet(const Selector& s)
-	{
-		selectors.add(s);
-	};
+	StyleSheet(const Selector& s);;
 
 	TransitionValue getTransitionValue(const PropertyKey& key) const;
 	PropertyValue getPropertyValue(const PropertyKey& key) const;
@@ -115,7 +92,15 @@ struct StyleSheet: public ReferenceCountedObject
 
 	NonUniformBorderData getNonUniformBorder(Rectangle<float> totalArea, PseudoState stateFlag) const;
 	Path getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag) const;
+
+	String getCodeGeneratorPixelValueString(const String& areaName, const PropertyKey& key,
+	                                        float defaultValue = 0.0f) const;
+
 	float getPixelValue(Rectangle<float> totalArea, const PropertyKey& key, float defaultValue=0.0f) const;
+
+	
+	StringArray getCodeGeneratorArea(const String& rectangleName, const PropertyKey& key) const;
+
 	Rectangle<float> getArea(Rectangle<float> totalArea, const PropertyKey& key) const;
 
 	void setFullArea(Rectangle<float> fullArea);
@@ -136,6 +121,9 @@ struct StyleSheet: public ReferenceCountedObject
 	AffineTransform getTransform(Rectangle<float> totalArea, PseudoState currentState) const;
 	std::vector<melatonin::ShadowParameters> getShadow(Rectangle<float> totalArea, const PropertyKey& key, bool wantsInset) const;
 	std::pair<Colour, ColourGradient> getColourOrGradient(Rectangle<float> area, PropertyKey key, Colour defaultColour=Colours::transparentBlack) const;
+
+	String getCodeGeneratorColour(const String& rectangleName, PropertyKey key, Colour defaultColour=Colours::transparentBlack) const;
+
 	PositionType getPositionType(PseudoState state) const;
 
 	FlexBox getFlexBox() const;
@@ -147,10 +135,7 @@ struct StyleSheet: public ReferenceCountedObject
 	std::pair<bool, PseudoState> matchesRawList(const Selector::RawList& blockSelectors) const;
 	String toString() const;
 
-	void setDefaultTransition(PseudoElementType elementType, const Transition& t)
-	{
-		defaultTransitions[(int)elementType] = t;
-	}
+	void setDefaultTransition(PseudoElementType elementType, const Transition& t);
 
 	Transition getTransitionOrDefault(PseudoElementType elementType, const Transition& t) const;
 
@@ -158,19 +143,21 @@ struct StyleSheet: public ReferenceCountedObject
 	bool forEachProperty(PseudoElementType type, const std::function<bool(PseudoElementType, Property& v)>& f);
 	void setDefaultColour(const String& key, Colour c);
 
-	template <typename EnumType> EnumType getAsEnum(const PropertyKey& key, const StringArray& items, EnumType defaultValue) const
+	template <typename EnumType> EnumType getAsEnum(const PropertyKey& key, EnumType defaultValue) const
 	{
 		if(auto pv = getPropertyValue(key))
 		{
-			auto idx = items.indexOf(pv.valueAsString);
-			if(idx != -1)
-				return static_cast<EnumType>(idx);
+			return keywords->getAsEnum(key.name, pv.valueAsString, defaultValue);
 		}
 
 		return defaultValue;
 	}
 
 private:
+
+	
+
+	SharedResourcePointer<KeywordDataBase> keywords;
 
 	Rectangle<float> currentFullArea;
 	std::map<String, Colour> defaultColours;
