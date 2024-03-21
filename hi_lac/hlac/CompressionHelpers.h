@@ -307,7 +307,7 @@ struct CompressionHelpers
 
 	static void dump(const AudioBufferInt16& b, String fileName=String());
 
-	static void dump(const AudioSampleBuffer& b, String fileName = String());
+	static void dump(const AudioSampleBuffer& b, String fileName = String(), double sampleRate = 44100, int bitDepth = 16);
 
 	static void fastInt16ToFloat(const void* source, float* destination, int numSamples);
 

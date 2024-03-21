@@ -2196,6 +2196,14 @@ public:
 			int numChannels = ob.getNumChannels();
 			int numSamples = ob.getNumSamples();
 
+			AudioFormatManager afm;
+	    afm.registerBasicFormats(); // Register basic audio formats
+
+	    std::unique_ptr<AudioFormatReader> reader(afm.createReaderFor(fileToUse));
+
+			double sampleRate = reader->sampleRate;
+			int bitDepth = reader->bitsPerSample;
+
 			fileToUse.deleteFile();
 
 			AudioSampleBuffer lut;
@@ -2370,8 +2378,8 @@ public:
 				CascadedEnvelopeLowPass lp(true);
 
 				PrepareSpecs ps;
-				ps.blockSize = 16;
-				ps.sampleRate = 44100.0;
+				ps.blockSize = bitDepth;
+				ps.sampleRate = sampleRate;
 				ps.numChannels = numChannels;
 
 				lp.prepare(ps);
@@ -2388,7 +2396,7 @@ public:
 			}
 
 			propertyData.removeProperty(id, nullptr);
-			hlac::CompressionHelpers::dump(ob, fileToUse.getFullPathName());
+			hlac::CompressionHelpers::dump(ob, fileToUse.getFullPathName(), sampleRate, bitDepth);
 		}
 
 		ValueTree propertyData;
