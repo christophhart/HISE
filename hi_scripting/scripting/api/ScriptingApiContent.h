@@ -1691,6 +1691,9 @@ public:
 		/** Checks if the image has been loaded into the panel */
 		bool isImageLoaded(String prettyName);
 
+		/** Returns the width and height of the image */
+		var getImageSize(String imageName);
+
 		/** If `allowedDragging` is enabled, it will define the boundaries where the panel can be dragged. */
 		void setDraggingBounds(var area);
 
