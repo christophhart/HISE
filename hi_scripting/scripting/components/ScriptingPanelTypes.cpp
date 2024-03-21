@@ -274,6 +274,10 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 		{
             auto f = p->getWatchedFile(i);
 			auto path = f.getRelativePathFrom(scriptRoot);
+
+			if(p->isEmbeddedSnippetFile(i))
+				path << " (embedded)";
+
 			indexList.add(path.replaceCharacter('\\', '/'));
 		}
 

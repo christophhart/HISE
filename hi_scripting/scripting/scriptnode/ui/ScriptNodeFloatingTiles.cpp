@@ -389,7 +389,7 @@ struct FaustEditorWrapper: public Component,
     {
         if(currentDocument != nullptr)
         {
-            currentDocument->file.replaceWithText(currentDocument->d.getAllContent());
+            currentDocument->writeFile();
             network->faustManager.sendCompileMessage(currentDocument->file, sendNotificationSync);
         }
     }
@@ -409,8 +409,14 @@ struct FaustEditorWrapper: public Component,
         
         if(currentDocument == nullptr)
         {
-            documents.add(new FaustDocument(f));
-            currentDocument = documents.getLast();
+			auto ef = network->getMainController()->getExternalScriptFile(f, false);
+
+			if(ef != nullptr)
+				currentDocument = documents.add(new FaustDocument(ef));
+			else if(f.existsAsFile())
+				currentDocument = documents.add(new FaustDocument(f));
+			else
+				return;
         }
         
 		bottomBar = new EditorBottomBar(dynamic_cast<JavascriptProcessor*>(network->getScriptProcessor()));
@@ -475,18 +481,48 @@ struct FaustEditorWrapper: public Component,
             editor->setBounds(b);
         }
     }
-    
+
     struct FaustDocument
     {
         FaustDocument(const File& f):
           file(f),
-          doc(d)
+          docToUse(&d),
+		  doc(*docToUse),
+		  resourceType(ExternalScriptFile::ResourceType::FileBased)
         {
+			// should use the other constructor...
+			jassert(f.existsAsFile());
             d.replaceAllContent(f.loadFileAsString());
         };
-        
-        File file;
-        CodeDocument d;
+
+		FaustDocument(ExternalScriptFile::Ptr p):
+		  file(p->getFile()),
+		  docToUse(&p->getFileDocument()),
+		  doc(*docToUse),
+		  resourceType(ExternalScriptFile::ResourceType::EmbeddedInSnippet)
+		{}
+
+		bool writeFile()
+		{
+			if(resourceType == ExternalScriptFile::ResourceType::FileBased)
+			{
+				return file.replaceWithText(docToUse->getAllContent());
+			}
+
+			return false;
+		}
+
+		File file;
+
+	private:
+		
+		CodeDocument d;
+
+    public:
+
+		const ExternalScriptFile::ResourceType resourceType;
+
+		CodeDocument* docToUse = nullptr;
         mcl::TextDocument doc;
     };
     

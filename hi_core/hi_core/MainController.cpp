@@ -344,16 +344,14 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
     ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 
-	if (v.isValid() && v.getProperty("Type", var::undefined()).toString() == "SynthChain")
+
+	if (v.isValid() )
 	{
+		auto isExtendedSnippet = v.getType() == Identifier("extended_snippet");
+		auto isValidPreset = (v.getType() == Identifier("Processor") && v.getProperty("Type", var::undefined()).toString() == "SynthChain");
 
-		if (v.getType() != Identifier("Processor"))
-		{
-			jassertfalse;
-			
-		}
-
-		loadPresetInternal(v);
+		if(isExtendedSnippet || isValidPreset)
+			loadPresetInternal(v);
 	}
 	else
 	{
@@ -362,9 +360,9 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
 }
 
 
-void MainController::loadPresetInternal(const ValueTree& v)
+void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
 {
-	auto f = [this, v](Processor* )
+	auto f = [this, valueTreeToLoad](Processor* )
 	{
 		LockHelpers::freeToGo(this);
 
@@ -388,7 +386,22 @@ void MainController::loadPresetInternal(const ValueTree& v)
 
 			getSampleManager().setShouldSkipPreloading(true);
 
-			
+			ValueTree v;
+
+			if(valueTreeToLoad.getType() == Identifier("Processor"))
+			{
+				v = valueTreeToLoad;
+			}
+			else
+			{
+				v = valueTreeToLoad.getChildWithName("Processor");
+
+				// restore the included files now...
+
+				restoreIncludedScriptFilesFromSnippet(valueTreeToLoad);
+			}
+
+			jassert(v.isValid());
 
 			// Reset the sample rate so that prepareToPlay does not get called in restoreFromValueTree
 			// synthChain->setCurrentPlaybackSampleRate(-1.0);

@@ -238,6 +238,16 @@ public:
 
 	File getWatchedFile(int index) const;
 
+	bool isEmbeddedSnippetFile(int index) const
+	{
+		if(isPositiveAndBelow(index, watchers.size()))
+		{
+			return watchers[index]->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet;
+		}
+
+		return false;
+	}
+
 	CodeDocument& getWatchedFileDocument(int index);
 
 	void setCurrentPopup(DocumentWindow *window);

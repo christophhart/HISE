@@ -1007,6 +1007,11 @@ Result DspNetwork::checkBeforeCompilation()
 	return Result::ok();
 }
 
+void DspNetwork::deselect(NodeBase* node)
+{
+	selection.deselect(node);
+}
+
 void DspNetwork::addToSelection(NodeBase* node, ModifierKeys mods)
 {
 	auto pNode = node->getParentNode();
@@ -1544,10 +1549,45 @@ void DspNetwork::Holder::saveNetworks(ValueTree& d) const
 
 			if (embedResources)
 			{
-				// Include all SNEX files here
+				auto mc = dynamic_cast<const ControlledObject*>(this)->getMainController();
+				auto snexRootFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::CodeLibrary);
 
-				// implement me...
-				jassertfalse;
+				valuetree::Helpers::forEach(c, [snexRootFolder, mc](ValueTree& v)
+				{
+					if(v.getType() == PropertyIds::Node)
+					{
+						auto props = v.getChildWithName(PropertyIds::Properties);
+
+						auto ct = props.getChildWithProperty(PropertyIds::ID, PropertyIds::ClassId.toString());
+
+						if(ct.isValid())
+						{
+							auto fileName = ct[PropertyIds::Value].toString();
+							auto rootDir = v[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf(".", false, false);
+
+							auto extension = rootDir == "faust" ? ".dsp" : ".h";
+
+							auto f = snexRootFolder.getChildFile(rootDir).getChildFile(fileName).withFileExtension(extension);
+							jassert(f.existsAsFile());
+
+							auto path = f.getRelativePathFrom(snexRootFolder);
+							auto content = f.loadFileAsString();
+
+							// just add it so it will be embedded into the snippet
+							const_cast<MainController*>(mc)->getExternalScriptFile(f, true);
+
+							auto pfile = f.withFileExtension(".xml");
+
+							if(pfile.existsAsFile())
+							{
+								// add the parameter metadata file too...
+								const_cast<MainController*>(mc)->getExternalScriptFile(pfile, true);
+							}
+
+						}
+					}
+					return false;
+				});
 			}
 			else
             {
@@ -1779,8 +1819,14 @@ snex::ui::WorkbenchData::Ptr DspNetwork::CodeManager::getOrCreate(const Identifi
 	}
 
 	auto targetFile = getCodeFolder().getChildFile(typeId.toString()).getChildFile(classId.toString()).withFileExtension("h");
-	entries.add(new Entry(typeId, targetFile, parent.getScriptProcessor()));
-	return entries.getLast()->wb;
+
+	auto ef = parent.getMainController()->getExternalScriptFile(targetFile, false);
+
+	if(ef != nullptr)
+		return entries.add(new Entry(typeId, ef, parent.getScriptProcessor()))->wb;
+	else
+		return entries.add(new Entry(typeId, targetFile, parent.getScriptProcessor()))->wb;
+	
 }
 
 ValueTree DspNetwork::CodeManager::getParameterTree(const Identifier& typeId, const Identifier& classId)
@@ -1814,22 +1860,58 @@ StringArray DspNetwork::CodeManager::getClassList(const Identifier& id, const St
 
 DspNetwork::CodeManager::Entry::Entry(const Identifier& t, const File& targetFile, ProcessorWithScriptingContent* sp):
 	type(t),
-	parameterFile(targetFile.withFileExtension("xml"))
+	parameterFile(targetFile.withFileExtension("xml")),
+	resourceType(ExternalScriptFile::ResourceType::FileBased)
 {
 	targetFile.create();
 
-	cp = new snex::ui::WorkbenchData::DefaultCodeProvider(wb.get(), targetFile);
-	wb = new snex::ui::WorkbenchData();
-	wb->setCodeProvider(cp, dontSendNotification);
-	wb->setCompileHandler(new SnexSourceCompileHandler(wb.get(), sp));
+	ValueTree pTree;
 
 	if (auto xml = XmlDocument::parse(parameterFile))
-		parameterTree = ValueTree::fromXml(*xml);
-	else
-		parameterTree = ValueTree(PropertyIds::Parameters);
+		pTree = ValueTree::fromXml(*xml);
+	
+	init(new snex::ui::WorkbenchData::DefaultCodeProvider(wb.get(), targetFile), pTree, sp);
+}
 
-	pListener.setCallback(parameterTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::parameterAddedOrRemoved));
-	propListener.setCallback(parameterTree, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::propertyChanged));
+struct EmbeddedSnippetCodeProvider: public snex::ui::WorkbenchData::CodeProvider
+{
+	EmbeddedSnippetCodeProvider(ExternalScriptFile::Ptr ef_):
+	  CodeProvider(nullptr),
+	  ef(ef_)
+	{
+		
+	}
+
+	String loadCode() const override
+	{
+		return ef->getFileDocument().getAllContent();
+	};
+
+	bool saveCode(const String& s) override
+	{
+		jassertfalse;
+		return true;
+	}
+
+	/** Override this method and return the instance id. This will be used to find the main class in nodes. */
+	virtual Identifier getInstanceId() const override { return ef->getFile().getFileNameWithoutExtension(); }
+
+	ExternalScriptFile::Ptr ef;
+};
+
+DspNetwork::CodeManager::Entry::Entry(const Identifier& t, const ExternalScriptFile::Ptr& embeddedFile, 
+	ProcessorWithScriptingContent* sp):
+	type(t),
+    resourceType(ExternalScriptFile::ResourceType::EmbeddedInSnippet)
+{
+	parameterExternalFile = sp->getMainController_()->getExternalScriptFile(embeddedFile->getFile().withFileExtension(".xml"), true);
+
+	ValueTree pTree;
+
+	if(auto xml = XmlDocument::parse(parameterExternalFile->getFileDocument().getAllContent()))
+		pTree = ValueTree::fromXml(*xml);
+
+	init(new EmbeddedSnippetCodeProvider(embeddedFile), pTree, sp);
 }
 
 void DspNetwork::CodeManager::Entry::parameterAddedOrRemoved(ValueTree, bool)
@@ -1845,7 +1927,16 @@ void DspNetwork::CodeManager::Entry::propertyChanged(ValueTree, Identifier)
 void DspNetwork::CodeManager::Entry::updateFile()
 {
 	auto xml = parameterTree.createXml();
-	parameterFile.replaceWithText(xml->createDocument(""));
+	auto c = xml->createDocument("");
+
+	if(resourceType == ExternalScriptFile::ResourceType::FileBased)
+	{
+		parameterFile.replaceWithText(c);
+	}
+	else
+	{
+		parameterExternalFile->getFileDocument().replaceAllContent(c);
+	}
 }
 
 DspNetwork::CodeManager::SnexSourceCompileHandler::SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_) :

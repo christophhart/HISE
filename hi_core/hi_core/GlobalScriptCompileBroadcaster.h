@@ -67,6 +67,13 @@ class ExternalScriptFile : public ReferenceCountedObject
 {
 public:
 
+	enum class ResourceType
+	{
+		EmbeddedInSnippet,
+		FileBased,
+		numResourceTypes
+	};
+
 	struct RuntimeError
 	{
 		using Broadcaster = LambdaBroadcaster<Array<RuntimeError>*>;
@@ -102,6 +109,19 @@ public:
 
 	ExternalScriptFile(const File&file);
 
+	ExternalScriptFile(const File& rootDirectory, const ValueTree& v):
+	  resourceType(ResourceType::EmbeddedInSnippet),
+	  file(rootDirectory.getChildFile(v["filename"].toString())),
+	  currentResult(Result::ok())
+	{
+
+#if USE_BACKEND
+		content.replaceAllContent(v["content"]);
+		content.setSavePoint();
+		content.clearUndoHistory();
+#endif
+	}
+
 	~ExternalScriptFile();
 
 	void setResult(Result r);
@@ -112,13 +132,47 @@ public:
 
 	File getFile() const;
 
+	ValueTree toEmbeddableValueTree(const File& rootDirectory) const
+	{
+		auto fn = getFile();
+		auto name =  fn.getRelativePathFrom(rootDirectory);
+		
+		ValueTree c("file");
+		c.setProperty("filename", name.replaceCharacter('\\', '/'), nullptr);
+		c.setProperty("content", content.getAllContent(), nullptr);
+		return c;
+	}
+
 	typedef ReferenceCountedObjectPtr<ExternalScriptFile> Ptr;
 
 	void setRuntimeErrors(const Result& r);
 
 	RuntimeError::Broadcaster& getRuntimeErrorBroadcaster();
 
+	ResourceType getResourceType() const
+	{
+		return resourceType;
+	}
+
+	bool extractEmbedded()
+	{
+		if(resourceType == ResourceType::EmbeddedInSnippet)
+		{
+			if(!file.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite local file", "The file " + getFile().getFileName() + " from the snippet already exists. Do you want to overwrite your local file?"))
+			{
+				file.getParentDirectory().createDirectory();
+				file.replaceWithText(content.getAllContent());
+				resourceType = ResourceType::FileBased;
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 private:
+
+	ResourceType resourceType;
 
 	RuntimeError::Broadcaster runtimeErrorBroadcaster;
 
@@ -179,11 +233,15 @@ public:
 
 	int getNumExternalScriptFiles() const;
 
-	ExternalScriptFile::Ptr getExternalScriptFile(const File& fileToInclude);
+	ExternalScriptFile::Ptr getExternalScriptFile(const File& fileToInclude, bool createIfNotFound);
 
 	ExternalScriptFile::Ptr getExternalScriptFile(int index) const;
 
 	void clearIncludedFiles();
+
+	void restoreIncludedScriptFilesFromSnippet(const ValueTree& snippetTree);
+
+	ValueTree collectIncludedScriptFilesForSnippet(const Identifier& id, const File& root) const;
 
 	ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster();
 

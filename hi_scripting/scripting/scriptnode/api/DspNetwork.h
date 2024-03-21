@@ -381,12 +381,12 @@ public:
 		{
 			Entry(const Identifier& t, const File& targetFile, ProcessorWithScriptingContent* sp);
 
+			Entry(const Identifier& t, const ExternalScriptFile::Ptr& embeddedFile, ProcessorWithScriptingContent* sp);
+
 			const Identifier type;
 			const File parameterFile;
 
 			ScopedPointer<snex::ui::WorkbenchData::CodeProvider> cp;
-
-			
 
 			snex::ui::WorkbenchData::Ptr wb;
 
@@ -398,7 +398,27 @@ public:
 			
 		private:
 
+			ExternalScriptFile::ResourceType resourceType;
+
+			void init(snex::ui::WorkbenchData::CodeProvider* codeProvider, const ValueTree& pTree, ProcessorWithScriptingContent* sp)
+			{
+				cp = codeProvider;
+				wb = new snex::ui::WorkbenchData();
+				wb->setCodeProvider(cp, dontSendNotification);
+				wb->setCompileHandler(new SnexSourceCompileHandler(wb.get(), sp));
+
+				parameterTree = pTree;
+
+				if(!parameterTree.isValid())
+					parameterTree = ValueTree(PropertyIds::Parameters);
+
+				pListener.setCallback(parameterTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::parameterAddedOrRemoved));
+				propListener.setCallback(parameterTree, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::propertyChanged));
+			}
+
 			void updateFile();
+
+			ExternalScriptFile::Ptr parameterExternalFile;
 
 			valuetree::ChildListener pListener;
 			valuetree::RecursivePropertyListener propListener;
@@ -566,10 +586,7 @@ public:
 
 	bool isSelected(NodeBase* node) const { return selection.isSelected(node); }
 
-	void deselect(NodeBase* node)
-	{
-		selection.deselect(node);
-	}
+	void deselect(NodeBase* node);
 
 	void deselectAll() { selection.deselectAll(); }
 

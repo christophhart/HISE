@@ -263,17 +263,24 @@ void faust_jit_node_base::reinitFaustWrapper()
 	//resetParameters();
 	File sourceFile = getFaustFile(newClassId);
 
-	// Do nothing if file doesn't exist:
-	if (!sourceFile.existsAsFile()) {
+
+	String code;
+
+	auto mc = getRootNetwork()->getMainController();
+	auto ef = mc->getExternalScriptFile(sourceFile, false);
+
+	if(ef != nullptr)
+		code = ef->getFileDocument().getAllContent();
+	else if (sourceFile.existsAsFile())
+		code = sourceFile.loadFileAsString();
+	else
+	{
 		DBG("Could not load Faust source file (" + sourceFile.getFullPathName() + "): File not found.");
 		return;
 	}
-
+	
 	DBG("Faust DSP file to load:" << sourceFile.getFullPathName());
-
-	// Load file and recompile
-	String code = sourceFile.loadFileAsString();
-
+	
 	bool classIdValid = setFaustCode(newClassId, code.toStdString());
 
 	if (!classIdValid)

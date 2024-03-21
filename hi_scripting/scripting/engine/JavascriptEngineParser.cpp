@@ -800,9 +800,18 @@ private:
 		File f(refFileName);
 		const String shortFileName = f.getFileName();
 
-		if (!f.existsAsFile())
-			throwError("File " + refFileName + " not found");
+		auto mc = dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController();
+		auto ef = mc->getExternalScriptFile(f, false);
 
+		String code;
+
+		if(ef != nullptr)
+			code = ef->getFileDocument().getAllContent();
+		else if (f.existsAsFile())
+			code = f.loadFileAsString();
+		else
+			throwError("File " + refFileName + " not found");
+		
 		if (!allowMultipleIncludes)
 		{
 			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
@@ -815,7 +824,7 @@ private:
 			}
 		}
 
-		return f.loadFileAsString();
+		return code;
 
 #else
 

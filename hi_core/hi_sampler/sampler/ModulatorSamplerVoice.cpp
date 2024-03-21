@@ -54,7 +54,7 @@ void ModulatorSamplerVoice::startVoiceInternal(int midiNoteNumber, float velocit
 
 int ModulatorSamplerVoice::calculateSampleStartMod()
 {
-	int sampleStartModulationDelta;
+	int sampleStartModulationDelta = 0;
 
 	// if value is >= 0, then it comes from the modulator chain value
 	const bool sampleStartModIsFromChain = sampleStartModValue >= 0.0f;

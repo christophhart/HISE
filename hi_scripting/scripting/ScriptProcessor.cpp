@@ -458,7 +458,7 @@ FileChangeListener::~FileChangeListener()
 
 ExternalScriptFile::Ptr FileChangeListener::addFileWatcher(const File &file)
 {
-	auto p = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFile(file);
+	auto p = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFile(file, true);
 
 	watchers.add(p);
 

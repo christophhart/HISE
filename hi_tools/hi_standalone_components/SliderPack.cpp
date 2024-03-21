@@ -683,7 +683,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 			auto thisValue = sliders[sliderIndex]->getValue();
 
 			auto useGhostNoteValue = e.mods.isAnyModifierKeyDown();
-			auto ghostNoteValue = rng.getStart() + 0.25 * rng.getLength();
+			auto ghostNoteValue = rng.getStart() + 0.5 * rng.getLength();
 
 			if(thisValue == rng.getStart())
 			{

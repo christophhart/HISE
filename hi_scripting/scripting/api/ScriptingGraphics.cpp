@@ -99,9 +99,19 @@ String ScriptingObjects::ScriptShader::FileParser::createLinePointer(int i) cons
 String ScriptingObjects::ScriptShader::FileParser::loadFileContent()
 {
 #if USE_BACKEND
-	auto f = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileNameWithoutExtension).withFileExtension("glsl");
 
-    if(!f.existsAsFile())
+	auto glslFile = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileNameWithoutExtension).withFileExtension("glsl");
+
+
+	auto ef = getMainController()->getExternalScriptFile(glslFile, false);
+
+	String content;
+
+	if(ef != nullptr)
+		content = ef->getFileDocument().getAllContent();
+	else if (glslFile.existsAsFile())
+		content = glslFile.loadFileAsString();
+	else
     {
         String s;
         String nl = "\n";
@@ -118,21 +128,22 @@ String ScriptingObjects::ScriptShader::FileParser::loadFileContent()
         s << "    fragColor = pixelAlpha * vec4(col,1.0);" << nl;
         s << "}" << nl;
         
-        f.replaceWithText(s);
+		content = s;
+		glslFile.replaceWithText(s);
     }
-    
+	
 	if (auto jp = dynamic_cast<JavascriptProcessor*>(sp))
 	{
-		auto ef = jp->addFileWatcher(f);
+		ef = jp->addFileWatcher(glslFile);
 
 		if (includedFiles.contains(ef))
 			throw String("Trying to include " + fileNameWithoutExtension + " multiple times");
 
 		includedFiles.add(ef);
-		jp->getScriptEngine()->addShaderFile(f);
+		jp->getScriptEngine()->addShaderFile(glslFile);
 	}
 
-	return f.loadFileAsString();
+	return content;
 #else
 
 	if (!fileNameWithoutExtension.endsWith(".glsl"))

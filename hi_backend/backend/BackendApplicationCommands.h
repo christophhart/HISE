@@ -94,6 +94,7 @@ public:
 		MenuCloseProject,
 		MenuFileArchiveProject,
 		MenuFileImportProjectFromHXI,
+		MenuFileExtractEmbeddeSnippetFiles,
 		MenuFileDownloadNewProject,
 		MenuFileCreateRecoveryXml,
 		MenuProjectShowInFinder,
@@ -276,21 +277,7 @@ public:
 		menuItemsChanged();
 	}
 
-	void setCopyPasteTarget(CopyPasteTarget *newTarget)
-	{
-        if (currentCopyPasteTarget.get() != nullptr)
-		{
-			currentCopyPasteTarget->deselect();
-		}
-		else
-		{
-			mainCommandManager->setFirstCommandTarget(this);
-		}
-        
-		currentCopyPasteTarget = newTarget;
-
-		updateCommands();
-	}
+	void setCopyPasteTarget(CopyPasteTarget *newTarget);
 
 	void createMenuBarNames();
 
@@ -404,6 +391,8 @@ public:
 
 		static void createThirdPartyNode(BackendRootWindow* bpe);
 		static void restoreToDefault(BackendRootWindow * bpe);
+
+		static void extractEmbeddedFilesFromSnippet(BackendRootWindow* bpe);
 	};
 
 private:

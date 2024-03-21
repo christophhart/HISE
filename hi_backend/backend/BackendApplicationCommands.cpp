@@ -112,6 +112,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuFileSettingCheckSanity,
 		MenuFileSettingsCleanBuildDirectory,
 		MenuFileCreateThirdPartyNode,
+		MenuFileExtractEmbeddeSnippetFiles,
 		MenuReplaceWithClipboardContent,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
@@ -193,6 +194,22 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuHelpShowDocumentation
 	};
 	commands.addArray(id, numElementsInArray(id));
+}
+
+void BackendCommandTarget::setCopyPasteTarget(CopyPasteTarget* newTarget)
+{
+	if (currentCopyPasteTarget.get() != nullptr)
+	{
+		currentCopyPasteTarget->deselect();
+	}
+	else
+	{
+		mainCommandManager->setFirstCommandTarget(this);
+	}
+        
+	currentCopyPasteTarget = newTarget;
+
+	updateCommands();
 }
 
 void BackendCommandTarget::createMenuBarNames()
@@ -294,6 +311,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuFileArchiveProject:
 		setCommandTarget(result, "Archive Project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "File";
+		break;
+	case MenuFileExtractEmbeddeSnippetFiles:
+		setCommandTarget(result, "Extract embedded files from HISE snippet", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		result.categoryName = "File";
 		break;
 	case MenuFileDownloadNewProject:
@@ -733,6 +754,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuFileSettingsCleanBuildDirectory:	Actions::cleanBuildDirectory(bpe); return true;
 	case MenuFileCreateThirdPartyNode:	Actions::createThirdPartyNode(bpe); return true;
 	case MenuReplaceWithClipboardContent: Actions::replaceWithClipboardContent(bpe); return true;
+	case MenuFileExtractEmbeddeSnippetFiles: Actions::extractEmbeddedFilesFromSnippet(bpe); return true;
 	case MenuFileQuit:                  if (PresetHandler::showYesNoWindow("Quit Application", "Do you want to quit?"))
                                             JUCEApplicationBase::quit(); return true;
 	case MenuEditUndo:					bpe->owner->getControlUndoManager()->undo(); updateCommands(); return true;
@@ -940,6 +962,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		
 		ADD_ALL_PLATFORMS(MenuReplaceWithClipboardContent);
+		ADD_ALL_PLATFORMS(MenuFileExtractEmbeddeSnippetFiles);
 		ADD_ALL_PLATFORMS(MenuFileCreateRecoveryXml);
 		
 
@@ -1289,6 +1312,7 @@ void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendRootWindo
 		if (v.isValid())
 		{
 			bpe->loadNewContainer(v);
+			
 			return;
 		}
 	}
@@ -1736,13 +1760,27 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 	MainController::ScopedEmbedAllResources sd(bp);
     
 	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
+	
+	auto scriptRootFolder = bp->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
+	auto snexRootFolder = BackendDllManager::getSubFolder(bp, BackendDllManager::FolderSubType::CodeLibrary);
 
+	auto embeddedScripts = bp->collectIncludedScriptFilesForSnippet("embeddedScripts", scriptRootFolder);
+	auto embeddedSnexFiles = bp->collectIncludedScriptFilesForSnippet("embeddedSnexFiles", snexRootFolder);
+	
 	MemoryOutputStream mos;
 
-	v.writeToStream(mos);
+	if(embeddedScripts.getNumChildren() > 0 || embeddedSnexFiles.getNumChildren() > 0)
+	{
+		ValueTree nv("extended_snippet");
+		nv.addChild(v, -1, nullptr);
+		nv.addChild(embeddedScripts, -1, nullptr);
+		nv.addChild(embeddedSnexFiles, -1, nullptr);
+		nv.writeToStream(mos);
+	}
+	else
+		v.writeToStream(mos);
 
 	MemoryOutputStream mos2;
-
 	GZIPCompressorOutputStream zipper(&mos2, 9);
 	
 	zipper.write(mos.getData(), mos.getDataSize());
@@ -1756,7 +1794,6 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
 	{
 		PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
 	}
-	
 }
 
 void BackendCommandTarget::Actions::createRnboTemplate(BackendRootWindow* bpe)
@@ -3109,6 +3146,27 @@ void BackendCommandTarget::Actions::restoreToDefault(BackendRootWindow * bpe)
 	}
 
 	debugToConsole(mp, message);
+}
+
+void BackendCommandTarget::Actions::extractEmbeddedFilesFromSnippet(BackendRootWindow* bpe)
+{
+	auto gp = dynamic_cast<GlobalScriptCompileBroadcaster*>(bpe->getBackendProcessor());
+
+	int numWritten = 0;
+
+	auto chain = bpe->getBackendProcessor()->getMainSynthChain();
+
+	for(int i = 0; i < gp->getNumExternalScriptFiles(); i++)
+	{
+		if(gp->getExternalScriptFile(i)->extractEmbedded())
+		{
+			debugToConsole(chain, "Extracted " + gp->getExternalScriptFile(i)->getFile().getFullPathName());
+			numWritten++;
+		}
+	}
+
+	debugToConsole(chain, "Extracted " + String(numWritten) + " files from currently loaded HISE snippet");
+	
 }
 
 #undef REPLACE_WILDCARD

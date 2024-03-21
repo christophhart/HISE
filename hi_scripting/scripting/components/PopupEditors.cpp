@@ -108,7 +108,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	
 
 	Processor *p = dynamic_cast<Processor*>(jp.get());
-	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit);
+	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, true);
 
     p->getMainController()->addScriptListener(this);
     
@@ -480,12 +480,17 @@ File PopupIncludeEditor::getFile() const
 
 void PopupIncludeEditor::compileInternal()
 {
-    
-    
 	if (externalFile != nullptr)
 	{
-		externalFile->getFile().replaceWithText(externalFile->getFileDocument().getAllContent());
-		externalFile->getFileDocument().setSavePoint();
+		if(externalFile->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet)
+		{
+			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Skip writing embedded file " + externalFile->getFile().getFileName() + " to disk...");
+		}
+		else
+		{
+			externalFile->getFile().replaceWithText(externalFile->getFileDocument().getAllContent());
+			externalFile->getFileDocument().setSavePoint();
+		}
 	}
 
     Component::SafePointer<PopupIncludeEditor> safeP(this);
