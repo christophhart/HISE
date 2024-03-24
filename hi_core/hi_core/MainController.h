@@ -1986,6 +1986,10 @@ public:
     
 private: // Never call this directly, but wrap it through DelayedRenderer...
 
+	// except for the audio rendererbase as this does not need to use the outer interface
+	// (in order to avoid messing with the leftover sample logic from misbehFL!avinStudio!!1!g hosts...)
+	friend class AudioRendererBase;
+
 	/** This is the main processing loop that is shared among all subclasses. */
 	void processBlockCommon(AudioSampleBuffer &b, MidiBuffer &mb);
 

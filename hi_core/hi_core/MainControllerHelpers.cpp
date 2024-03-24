@@ -1650,8 +1650,10 @@ bool AudioRendererBase::renderAudio()
 
 			auto& bufferToUse = numThrowAway > 0 ? nirvana : ab;
 
-			dynamic_cast<AudioProcessor*>(getMainController())->processBlock(bufferToUse, mb);
-
+			// call this directly to avoid messing with the logic that copes with
+			// weird buffer lenghts (this is not multithread-safe like the internal audio rendering)...
+			getMainController()->processBlockCommon(bufferToUse, mb);
+			
 			if (numThrowAway > 0)
 			{
 				--numThrowAway;
