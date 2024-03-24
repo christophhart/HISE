@@ -1620,15 +1620,15 @@ TempoSyncer::TempoString TempoSyncer::tempoNames[numTempos];
 float TempoSyncer::tempoFactors[numTempos];
 
 
-int TempoSyncer::getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor)
+double TempoSyncer::getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor)
 {
 	if (hostTempoBpm == 0.0) hostTempoBpm = 120.0;
 
-	const float seconds = (60.0f / (float)hostTempoBpm) * tempoFactor;
-	return (int)(seconds * (float)sampleRate);
+	const auto seconds = (60.0 / hostTempoBpm) * (double)tempoFactor;
+	return seconds * sampleRate;
 }
 
-int TempoSyncer::getTempoInSamples(double hostTempoBpm, double sampleRate, Tempo t)
+double TempoSyncer::getTempoInSamples(double hostTempoBpm, double sampleRate, Tempo t)
 {
 	return getTempoInSamples(hostTempoBpm, sampleRate, getTempoFactor(t));
 }
@@ -1752,37 +1752,37 @@ void MasterClock::setSyncMode(SyncModes newSyncMode)
 	currentSyncMode = newSyncMode;
 }
 
-void MasterClock::changeState(int timestamp, bool internalClock, bool startPlayback)
+bool MasterClock::changeState(int timestamp, bool internalClock, bool startPlayback)
 {
 	if (currentSyncMode == SyncModes::Inactive)
-		return;
+		return false;
 
 	if (internalClock)
 		internalClockIsRunning = startPlayback;
 
 	// Already stopped / not running, just return
 	if (!startPlayback && currentState == State::Idle)
-		return;
+		return false;
 
 	// Nothing to do
 	if (internalClock && startPlayback && currentState == State::InternalClockPlay)
-		return;
+		return false;
 
 	// Nothing to do
 	if (!internalClock && startPlayback && currentState == State::ExternalClockPlay)
-		return;
+		return false;
 
 	// Ignore any internal clock events when the external is running and should be preferred
 	if(!shouldPreferInternal() && (currentState == State::ExternalClockPlay && internalClock))
-		return;
+		return false;
 
 	// Ignore any external clock events when the external is running and should be preferred
 	if (shouldPreferInternal() && (currentState == State::InternalClockPlay && !internalClock))
-		return;
+		return false;
 		
 	// Ignore the stop command from the external clock
 	if (currentSyncMode == SyncModes::SyncInternal && !startPlayback && !internalClock)
-		return;
+		return false;
 
 	nextTimestamp = timestamp;
 
@@ -1799,6 +1799,8 @@ void MasterClock::changeState(int timestamp, bool internalClock, bool startPlayb
 		else
 			nextState = State::InternalClockPlay;
 	}
+
+	return true;
 }
 
 MasterClock::GridInfo MasterClock::processAndCheckGrid(int numSamples,

@@ -1940,9 +1940,9 @@ public:
 	};
 
 	/** Returns the sample amount for the specified tempo. */
-	static int getTempoInSamples(double hostTempoBpm, double sampleRate, Tempo t);;
+	static double getTempoInSamples(double hostTempoBpm, double sampleRate, Tempo t);;
 
-	static int getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor);
+	static double getTempoInSamples(double hostTempoBpm, double sampleRate, float tempoFactor);
 
 	static StringArray getTempoNames();;
 
@@ -2004,7 +2004,7 @@ struct MasterClock
 
 	void setSyncMode(SyncModes newSyncMode);
 
-	void changeState(int timestamp, bool internalClock, bool startPlayback);
+	bool changeState(int timestamp, bool internalClock, bool startPlayback);
 
 	struct GridInfo
 	{

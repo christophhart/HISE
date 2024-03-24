@@ -1861,7 +1861,9 @@ public:
 	}
 
     ReferenceCountedObject* getGlobalPreprocessor();
-    
+
+	bool isInsideAudioRendering() const;
+
 	bool shouldAbortMessageThreadOperation() const noexcept
 	{
 		return false;
@@ -2278,7 +2280,9 @@ private:
 	bool enablePluginParameterUpdate = true;
 
     double globalPitchFactor;
-    
+
+	std::pair<bool, Thread::ThreadID> currentlyRenderingThread;
+
     std::atomic<double> bpm;
 
 	std::atomic<bool> hostIsPlaying;

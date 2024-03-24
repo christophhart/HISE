@@ -120,6 +120,7 @@ bool MainController::unitTestMode = false;
 	customTypeFaceData(ValueTree("CustomFonts")),
 	masterEventBuffer(),
 	eventIdHandler(masterEventBuffer),
+	currentlyRenderingThread({false, Thread::ThreadID()}),
 	lockfreeDispatcher(this),
 	moduleStateManager(this),
 	userPresetHandler(this),
@@ -1018,6 +1019,8 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	ModulatorSynthChain *synthChain = getMainSynthChain();
 
+
+	ScopedValueSetter renderFlag(currentlyRenderingThread, {true, Thread::getCurrentThreadId()} );
 
 #if ENABLE_CPU_MEASUREMENT
 	startCpuBenchmark(getOriginalBufferSize());
@@ -2024,6 +2027,17 @@ ReferenceCountedObject* MainController::getGlobalPreprocessor()
     }
     
     return preprocessor.get();
+}
+
+bool MainController::isInsideAudioRendering() const
+{
+	if(currentlyRenderingThread.first)
+	{
+		auto t = Thread::getCurrentThreadId();
+		return currentlyRenderingThread.second == t;
+	}
+
+	return false;
 }
 
 float MainController::getGlobalCodeFontSize() const
