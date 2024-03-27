@@ -496,6 +496,7 @@ public:
 		ShowAddButton,
 		ShowRenameButton,
 		ShowDeleteButton,
+    ShowSearchBar,
 		ButtonsInsideBorder,
 		ColumnRowPadding,
 		SearchBarBounds,
