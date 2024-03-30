@@ -85,7 +85,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -95,6 +94,8 @@
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_loris" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -152,7 +153,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -162,6 +162,8 @@
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_loris" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <VS2022 targetFolder="Builds/VisualStudio2022" smallIcon="ho3qQy" bigIcon="ho3qQy"
@@ -218,7 +220,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -228,6 +229,8 @@
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_loris" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </VS2022>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;PERFETTO=1"
@@ -262,7 +265,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -272,6 +274,8 @@
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_loris" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -308,6 +312,7 @@
     <MODULE id="juce_osc" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
+    <MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <JUCEOPTIONS USE_IPP="0" USE_BACKEND="1" USE_FRONTEND="0" USE_RAW_FRONTEND="0"
                IS_STANDALONE_APP="1" USE_COPY_PROTECTION="0" HI_EXPORT_DSP_LIBRARY="0"

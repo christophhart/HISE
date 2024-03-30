@@ -104,6 +104,7 @@ static const unsigned char projectTemplate_jucer_lines[] = R"(
         <MODULEPATH id="hi_streaming" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_snex" path="%HISE_PATH%"/>
+		<MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
         %LORIS_MODULEPATH%
       </MODULEPATHS>
     </%VS_VERSION%>
@@ -149,6 +150,7 @@ static const unsigned char projectTemplate_jucer_lines[] = R"(
         <MODULEPATH id="hi_streaming" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_snex" path="%HISE_PATH%"/>
+		<MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
         %LORIS_MODULEPATH%
       </MODULEPATHS>
     </XCODE_MAC>
@@ -195,6 +197,7 @@ static const unsigned char projectTemplate_jucer_lines[] = R"(
         <MODULEPATH id="hi_streaming" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_snex" path="%HISE_PATH%"/>
+		<MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
         %LORIS_MODULEPATH%
       </MODULEPATHS>
     </XCODE_IPHONE>)"
@@ -236,6 +239,7 @@ static const unsigned char projectTemplate_jucer_lines[] = R"(
         <MODULEPATH id="hi_core" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
         <MODULEPATH id="hnode_jit" path="%HISE_PATH%"/>
+		<MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
         %LORIS_MODULEPATH%
       </MODULEPATHS>
     </LINUX_MAKE>
@@ -270,6 +274,7 @@ static const unsigned char projectTemplate_jucer_lines[] = R"(
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="juce_osc" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+	<MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     %LORIS_MODULEINFO%
   </MODULES>
   <JUCEOPTIONS JUCE_QUICKTIME="disabled" USE_BACKEND="disabled" USE_FRONTEND="enabled" USE_RAW_FRONTEND="%USE_RAW_FRONTEND%" HI_EXPORT_DSP_LIBRARY="disabled" HISE_ENABLE_MIDI_INPUT_FOR_FX="%ENABLE_MIDI_INPUT_FX%" PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN="%PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN%" HISE_MIDIFX_PLUGIN="%HISE_MIDIFX_PLUGIN%" USE_COPY_PROTECTION="%USE_COPY_PROTECTION%" IS_STANDALONE_APP="disabled"

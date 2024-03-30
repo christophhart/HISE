@@ -95,6 +95,7 @@
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_loris" path="../../../HISE"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2017 targetFolder="Builds/VisualStudio2017" vstFolder="c:\SDKs\vstsdk2.4"
@@ -157,6 +158,7 @@
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_loris" path="../../../HISE"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </VS2017>
     <VS2022 targetFolder="Builds/VisualStudio2022" vstFolder="c:\SDKs\vstsdk2.4"
@@ -219,6 +221,7 @@
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_loris" path="../../../HISE"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </VS2022>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="" linuxExtraPkgConfig="x11 xinerama xext">
@@ -260,6 +263,7 @@
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
         <MODULEPATH id="hi_loris" path="../../../HISE"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -297,6 +301,7 @@
     <MODULE id="juce_osc" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
+    <MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <JUCEOPTIONS JUCE_QUICKTIME="disabled" HI_EXPORT_DSP_LIBRARY="0" ENABLE_CONSOLE_OUTPUT="1"
                USE_BACKEND="1" USE_FRONTEND="0" IS_STANDALONE_APP="0" USE_COPY_PROTECTION="0"

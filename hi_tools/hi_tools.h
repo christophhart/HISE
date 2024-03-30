@@ -133,6 +133,7 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_rlottie/hi_rlottie.h"
+#include "../melatonin_blur/melatonin_blur.h"
 #endif
 
 // Include at least the thread controller to avoid compile errors...
@@ -301,6 +302,10 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 #include "hi_neural/hi_neural.h"
 #endif
 
+#if !HISE_NO_GUI_TOOLS
+
+#include "simple_css/simple_css.h"
+#endif
 
 #if !HISE_NO_GUI_TOOLS
 #include "hi_multipage/multipage.h"

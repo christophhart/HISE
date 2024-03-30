@@ -94,6 +94,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
         <MODULEPATH id="hi_streaming" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_snex" path="%HISE_PATH%"/>
+		<MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
 		%LORIS_MODULEPATH%
       </MODULEPATHS>
     </%VS_VERSION%>
@@ -138,6 +139,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
         <MODULEPATH id="hi_streaming" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_snex" path="%HISE_PATH%"/>
+		<MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
 		%LORIS_MODULEPATH%
       </MODULEPATHS>
     </XCODE_MAC>
@@ -175,6 +177,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
         <MODULEPATH id="hi_core" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_snex" path="%HISE_PATH%"/>
+		<MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
 		%LORIS_MODULEPATH%
       </MODULEPATHS>
     </LINUX_MAKE>
@@ -208,6 +211,7 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="juce_osc" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+	<MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
 	%LORIS_MODULEINFO%
   </MODULES>
   <JUCEOPTIONS JUCE_QUICKTIME="disabled" USE_BACKEND="disabled" USE_FRONTEND="enabled" USE_RAW_FRONTEND="%USE_RAW_FRONTEND%"
