@@ -1731,7 +1731,10 @@ private:
         
         /** Decrypts the given string using a RSA public key. */
         String decryptWithRSA(const String& dataToDecrypt, const String& publicKey);
-        
+
+		/** Loads a bunch of dummy assets (audio files, MIDI files, filmstrips) for use in snippets & examples. */
+		void loadExampleAssets();
+
 		// ========================================================= End of API calls
 
 		ProcessorWithScriptingContent* p;

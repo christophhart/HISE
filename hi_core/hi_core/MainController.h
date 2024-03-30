@@ -209,11 +209,13 @@ public:
 		*/
 		const ValueTree getLoadedSampleMap(const String &fileName) const;
 
-		NativeFileHandler &getProjectHandler() { return projectHandler; }
+		
+
+		NativeFileHandler &getProjectHandler();
 
 		void setDiskMode(DiskMode mode) noexcept;
 
-		const NativeFileHandler &getProjectHandler() const { return projectHandler; }
+		const NativeFileHandler &getProjectHandler() const;
 
 		bool isUsingHddMode() const noexcept{ return hddMode; };
 

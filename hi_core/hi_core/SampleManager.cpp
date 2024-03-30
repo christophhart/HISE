@@ -204,6 +204,19 @@ const ValueTree MainController::SampleManager::getLoadedSampleMap(const String &
 	return ValueTree();
 }
 
+NativeFileHandler& MainController::SampleManager::getProjectHandler()
+{
+#if USE_BACKEND
+	auto assetHandler = dynamic_cast<BackendProcessor*>(mc)->assetManager.get();
+
+	if(assetHandler != nullptr)
+		return *assetHandler;
+
+
+#endif
+	return projectHandler;
+}
+
 void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
 {
 	if (hddMode != (mode == DiskMode::HDD))
@@ -221,6 +234,18 @@ void MainController::SampleManager::setDiskMode(DiskMode mode) noexcept
 			sampler->setPreloadMultiplier(multplier);
 		}
 	}
+}
+
+const NativeFileHandler& MainController::SampleManager::getProjectHandler() const
+{
+#if USE_BACKEND
+	auto assetHandler = dynamic_cast<BackendProcessor*>(mc)->assetManager.get();
+
+	if(assetHandler != nullptr)
+		return *assetHandler;
+#endif
+
+	return projectHandler;
 }
 
 

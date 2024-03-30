@@ -62,6 +62,162 @@ struct AnalyserInfo: public ReferenceCountedObject
 	SimpleRingBuffer::Ptr ringBuffer[2];
 };
 
+struct ExampleAssetManager: public ReferenceCountedObject,
+							public ProjectHandler
+						    
+{
+	ExampleAssetManager(MainController* mc):
+	  ProjectHandler(mc),
+	  mainProjectHandler(mc->getCurrentFileHandler())
+	{
+		setWorkingProject(mainProjectHandler.getRootFolder());
+
+		auto hp = GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Compiler::HisePath).toString();
+
+		if(hp.isNotEmpty())
+		{
+			rootDirectory = File(hp).getChildFile("example_assets");
+
+			for(auto d: getSubDirectoryIds())
+				rootDirectory.getChildFile(getIdentifier(d)).createDirectory();
+
+			checkSubDirectories();
+			downloadThread = new DownloadThread(*this);
+		}
+		else
+		{
+			debugError(mc->getMainSynthChain(), "You need to set the HISE path in order to download the example assets");
+		}
+	}
+
+	FileHandlerBase& mainProjectHandler;
+
+	File getSubDirectory(SubDirectories dir) const override
+	{
+		auto redirected = getSubDirectoryIds();
+
+		if(redirected.contains(dir))
+			return ProjectHandler::getSubDirectory(dir);
+		else
+			return mainProjectHandler.getSubDirectory(dir);
+	}
+
+	Array<SubDirectories> getSubDirectoryIds() const override
+	{
+		return {
+			FileHandlerBase::SubDirectories::AudioFiles,
+			FileHandlerBase::SubDirectories::SampleMaps,
+			FileHandlerBase::SubDirectories::Samples,
+			FileHandlerBase::SubDirectories::Images,
+			FileHandlerBase::SubDirectories::MidiFiles
+		};
+	}
+
+	File getRootFolder() const override
+	{
+		return rootDirectory;
+	}
+
+	struct DownloadThread: public Thread,
+						   public URL::DownloadTaskListener
+	{
+		DownloadThread(ExampleAssetManager& parent_):
+		  Thread("Download example assets"),
+		  parent(parent_)
+		{
+			startThread(5);
+		}
+
+		~DownloadThread()
+		{
+			stopThread(1000);
+		}
+
+		ExampleAssetManager& parent;
+
+		std::unique_ptr<URL::DownloadTask> download;
+
+		void finished (URL::DownloadTask* task, bool success) override
+		{
+			String message;
+
+			if(success)
+				message << "Download complete";
+			else
+				message << "Download failed";
+
+			debugToConsole(parent.getMainController()->getMainSynthChain(), message);
+		}
+			
+        void progress (URL::DownloadTask* task, int64 bytesDownloaded, int64 totalLength) override
+		{
+			String message;
+			message << "Downloading example assets... " << String(bytesDownloaded/1024) << " / " << String(totalLength/1024) << " kB";
+			debugToConsole(parent.getMainController()->getMainSynthChain(), message);
+		}
+
+		void downloadAndExtract()
+		{
+			debugToConsole(parent.getMainController()->getMainSynthChain(), "Downloading example assets...");
+
+			parent.rootDirectory.createDirectory();
+			URL url("https://github.com/qdr/HiseSnippetDB/releases/download/1.0.0/Assets.zip");
+
+			auto target = parent.rootDirectory.getChildFile("Assets.zip");
+
+			download = url.downloadToFile(target, {}, this);
+
+			while(!download->isFinished())
+			{
+				if(threadShouldExit())
+					break;
+
+				wait(300);
+			}
+
+			if(!download->hadError())
+			{
+				debugToConsole(parent.getMainController()->getMainSynthChain(), "Extracting example assets...");
+
+				ZipFile zf(target);
+
+				auto ok = zf.uncompressTo(parent.rootDirectory, true);
+
+				if(!ok.wasOk())
+				{
+					debugToConsole(parent.getMainController()->getMainSynthChain(), "Extracted OK");
+					target.deleteFile();
+				}
+				else
+					debugToConsole(parent.getMainController()->getMainSynthChain(), ok.getErrorMessage());
+			}
+		}
+
+		void run() override
+		{
+			if(parent.rootDirectory != File())
+			{
+				downloadAndExtract();
+
+				parent.checkSubDirectories();
+
+				parent.pool->getAudioSampleBufferPool().loadAllFilesFromProjectFolder();
+				parent.pool->getImagePool().loadAllFilesFromProjectFolder();
+				parent.pool->getMidiFilePool().loadAllFilesFromProjectFolder();
+				parent.pool->getSampleMapPool().loadAllFilesFromProjectFolder();
+			}
+			
+		}
+
+		bool done;
+	};
+
+	ScopedPointer<DownloadThread> downloadThread;
+	File rootDirectory;
+
+	using Ptr = ReferenceCountedObjectPtr<ExampleAssetManager>;
+};
+
 /** This is the main audio processor for the backend application. 
 *
 *	It connects to a BackendProcessorEditor and has extensive development features.
@@ -278,7 +434,19 @@ public:
 
 		return Result::ok();
 	}
-	
+
+	ExampleAssetManager::Ptr getAssetManager()
+	{
+		if(assetManager == nullptr)
+		{
+			assetManager = new ExampleAssetManager(this);
+		}
+
+		return assetManager;
+	}
+
+	ExampleAssetManager::Ptr assetManager;
+
 private:
 
 	int currentNoteNumber = -1;

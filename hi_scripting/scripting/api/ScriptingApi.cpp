@@ -6942,6 +6942,7 @@ struct ScriptingApi::FileSystem::Wrapper
     API_METHOD_WRAPPER_2(FileSystem, encryptWithRSA);
     API_METHOD_WRAPPER_0(FileSystem, findFileSystemRoots);
     API_METHOD_WRAPPER_2(FileSystem, decryptWithRSA);
+	API_VOID_METHOD_WRAPPER_0(FileSystem, loadExampleAssets);
 };
 
 ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
@@ -6974,6 +6975,7 @@ ScriptingApi::FileSystem::FileSystem(ProcessorWithScriptingContent* pwsc):
     ADD_API_METHOD_2(encryptWithRSA);
     ADD_API_METHOD_2(decryptWithRSA);
     ADD_API_METHOD_0(findFileSystemRoots);
+	ADD_API_METHOD_0(loadExampleAssets);
 }
 
 ScriptingApi::FileSystem::~FileSystem()
@@ -7186,6 +7188,13 @@ String ScriptingApi::FileSystem::decryptWithRSA(const String& dataToDecrypt, con
     }
     
     return {};
+}
+
+void ScriptingApi::FileSystem::loadExampleAssets()
+{
+#if USE_BACKEND
+	dynamic_cast<BackendProcessor*>(getMainController())->getAssetManager();
+#endif
 }
 
 
