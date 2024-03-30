@@ -84,11 +84,26 @@ struct MarkdownLayout
 
 		bool useSpecialBoldFont = false;
 
+		std::array<float, 4> headlineFontSize = { 2.375f, 1.9375f, 1.5f, 1.2f };
+
+		std::array<std::pair<int, std::pair<float, float>>, 8> margins;
+		
+		std::pair<float, float> getMargin(int elementType, std::pair<float, float> defaultMargin) const
+		{
+			for(const auto& s: margins)
+			{
+				if(s.first == elementType)
+					return s.second;
+			}
+
+			return defaultMargin;
+		}
+
 		static StyleData createBrightStyle();
 
 		bool fromDynamicObject(var obj, const std::function<Font(const String&)>& fontLoader);
 
-		var toDynamicObject() const;
+		var toDynamicObject(bool colourAsString=false) const;
 
 		static StyleData createDarkStyle()
 		{

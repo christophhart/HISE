@@ -318,23 +318,28 @@ bool MarkdownLayout::StyleData::fromDynamicObject(var obj, const std::function<F
 	return true;
 }
 
-juce::var MarkdownLayout::StyleData::toDynamicObject() const
+juce::var MarkdownLayout::StyleData::toDynamicObject(bool colourAsString) const
 {
 	DynamicObject::Ptr obj = new DynamicObject();
+
+	auto getColour = [&](const Colour& c)
+	{
+		return colourAsString ? var(c.toString()) : var((int64)c.getARGB());
+	};
 
 	obj->setProperty(MarkdownStyleIds::Font, f.getTypefaceName());
 	obj->setProperty(MarkdownStyleIds::BoldFont, boldFont.getTypefaceName());
 	obj->setProperty(MarkdownStyleIds::FontSize, fontSize);
-	obj->setProperty(MarkdownStyleIds::bgColour, backgroundColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::codeBgColour, codebackgroundColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::linkBgColour, linkBackgroundColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::textColour, textColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::codeColour, codeColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::linkColour, linkColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::tableHeaderBgColour, tableHeaderBackgroundColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::tableLineColour, tableLineColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::tableBgColour, tableBgColour.getARGB());
-	obj->setProperty(MarkdownStyleIds::headlineColour, headlineColour.getARGB());
+	obj->setProperty(MarkdownStyleIds::bgColour, getColour(backgroundColour));
+	obj->setProperty(MarkdownStyleIds::codeBgColour, getColour(codebackgroundColour));
+	obj->setProperty(MarkdownStyleIds::linkBgColour, getColour(linkBackgroundColour));
+	obj->setProperty(MarkdownStyleIds::textColour, getColour(textColour));
+	obj->setProperty(MarkdownStyleIds::codeColour, getColour(codeColour));
+	obj->setProperty(MarkdownStyleIds::linkColour, getColour(linkColour));
+	obj->setProperty(MarkdownStyleIds::tableHeaderBgColour, getColour(tableHeaderBackgroundColour));
+	obj->setProperty(MarkdownStyleIds::tableLineColour, getColour(tableLineColour));
+	obj->setProperty(MarkdownStyleIds::tableBgColour, getColour(tableBgColour));
+	obj->setProperty(MarkdownStyleIds::headlineColour, getColour(headlineColour));
 	obj->setProperty(MarkdownStyleIds::UseSpecialBoldFont, useSpecialBoldFont);
 
 	return var(obj.get());

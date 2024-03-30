@@ -278,7 +278,7 @@ protected:
 
 		virtual void draw(Graphics& g, Rectangle<float> area) = 0;
 		virtual float getHeightForWidth(float width) = 0;
-		virtual int getTopMargin() const = 0;
+		virtual float getTopMargin() const = 0;
 		virtual Component* createComponent(int maxWidth)
 		{ 
 			ignoreUnused(maxWidth);

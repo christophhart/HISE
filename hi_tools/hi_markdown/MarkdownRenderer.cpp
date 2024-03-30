@@ -57,6 +57,9 @@ void MarkdownRenderer::draw(Graphics& g, Rectangle<float> totalArea, Rectangle<i
 
 float MarkdownRenderer::getHeightForWidth(float width, bool forceUpdate/*=false*/)
 {
+	if(width == 0.0f && lastHeight > 0.0f)
+		return lastHeight;
+
 	if (width == lastWidth && !forceUpdate)
 		return lastHeight;
 
@@ -372,7 +375,12 @@ void SimpleMarkdownDisplay::setText(const String& text)
 {
 	r.setNewText(text);
 	r.setTargetComponent(&canvas);
-		
+
+	if(resizeToFit)
+	{
+		auto h = r.getHeightForWidth(getWidth(), true);
+		setSize(getWidth(), h + 1);
+	}
 
 	resized();
 	r.updateCreatedComponents();
@@ -381,13 +389,29 @@ void SimpleMarkdownDisplay::setText(const String& text)
 void SimpleMarkdownDisplay::resized()
 {
 	auto b = getLocalBounds();
+
+	if(b.isEmpty())
+		return;
+
 	vp.setBounds(b);
+	
+	if(resizeToFit)
+	{
+		auto h = r.getHeightForWidth((float)b.getWidth(), true);
+		canvas.setSize(b.getWidth(), (int)h);
+	}
+	else
+	{
+		auto w = b.getWidth();
+		w -= vp.getScrollBarThickness();
+		totalHeight = r.getHeightForWidth(w, true);
+		canvas.setSize(w, totalHeight);
+	}
 		
-	auto w = b.getWidth() - vp.getScrollBarThickness();
 
-	totalHeight = r.getHeightForWidth(w, true);
+	
 
-	canvas.setSize(w, totalHeight);
+	
 	repaint();
 }
 

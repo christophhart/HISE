@@ -238,6 +238,13 @@ public:
 
 	void resized() override;
 
+	void setResizeToFit(bool shouldResizeToFit)
+	{
+		resizeToFit = shouldResizeToFit;
+	}
+
+	bool resizeToFit = false;
+
 	MarkdownRenderer r;
 	float totalHeight = 0.0;
 	Viewport vp;
