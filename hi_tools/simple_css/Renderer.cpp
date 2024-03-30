@@ -41,10 +41,7 @@ namespace simple_css
 		for(const auto& s: selectors)
 			text << s.toString() << " ";
 
-
-		auto v = reinterpret_cast<uint32>(c.getComponent());
-
-		auto hue = (double)v / (double)INT_MAX;
+        auto hue = 0.27f;
 		
 		auto colour = Colour::fromHSL(hue, 0.7f, 0.8f, 1.0f);
 		g.setColour(colour.withAlpha(0.4f));

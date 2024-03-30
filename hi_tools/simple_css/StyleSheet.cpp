@@ -536,7 +536,8 @@ StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(const Selector& s)
 		return nullptr;
 
 	ComplexSelector::List l;
-	l.add(new ComplexSelector({ {s, {}}}));
+    
+	l.add(new ComplexSelector(s, {}));
 
 	auto ptr = new StyleSheet(l);
 

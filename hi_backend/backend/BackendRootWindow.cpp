@@ -291,11 +291,7 @@ namespace hise { using namespace juce;
 			background: #555;
 		})";
 
-		showEditor();
-
 		setStylesheetCode(code);
-
-		
 	}
 
 	void SnippetBrowser::load(int rowIndex)
