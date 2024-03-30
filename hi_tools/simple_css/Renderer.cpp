@@ -34,12 +34,92 @@ namespace hise
 {
 namespace simple_css
 {
-Positioner::Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_):
+	void CSSRootComponent::InfoOverlay::Item::draw(Graphics& g)
+	{
+		String text;
+
+		for(const auto& s: selectors)
+			text << s.toString() << " ";
+
+
+		auto v = reinterpret_cast<uint32>(c.getComponent());
+
+		auto hue = (double)v / (double)INT_MAX;
+		
+		auto colour = Colour::fromHSL(hue, 0.7f, 0.8f, 1.0f);
+		g.setColour(colour.withAlpha(0.4f));
+		g.drawRect(globalBounds, 1.0f);
+
+		g.setColour(colour);
+		g.setFont(GLOBAL_MONOSPACE_FONT());
+
+		auto tb = textBounds.withWidth(GLOBAL_MONOSPACE_FONT().getStringWidthFloat(text) + 6.0f);
+		
+		g.drawText(text, tb.reduced(3), Justification::topLeft);
+	}
+
+	CSSRootComponent::InfoOverlay::InfoOverlay(CSSRootComponent& parent_):
+	  parent(parent_)
+	{
+		auto root = dynamic_cast<Component*>(&parent);
+		root->addAndMakeVisible(this);
+		setBounds(0, 0, root->getWidth(), root->getHeight());
+		toFront(false);
+
+		setInterceptsMouseClicks(false, false);
+		rebuild();
+	}
+
+	void CSSRootComponent::InfoOverlay::rebuild()
+	{
+		items.clear();
+
+		auto root = dynamic_cast<Component*>(&parent);
+
+		Component::callRecursive<Component>(root, [&](Component* child)
+		{
+			if(!child->isShowing())
+				return false;
+
+			auto ni = new Item();
+
+			ni->selectors.addArray(FlexboxComponent::Helpers::getClassSelectorFromComponentClass(child));
+
+			if(auto id = FlexboxComponent::Helpers::getIdSelectorFromComponentClass(child))
+				ni->selectors.add(id);
+
+			ni->globalBounds = root->getLocalArea(child, child->getLocalBounds()).toFloat();
+			ni->textBounds = ni->globalBounds;
+			ni->ss = parent.css.getForComponent(child);
+			ni->c = child;
+
+			if(*ni)
+				items.add(ni);
+
+			return false;
+		});
+
+		for(auto ni: items)
+		{
+			for(int i = 0; i < items.size(); i++)
+			{
+				if(items[i] == ni)
+					break;
+
+				if(items[i]->globalBounds.getTopLeft() == ni->globalBounds.getTopLeft())
+					ni->textBounds.removeFromTop(18.0f);
+			}
+		}
+
+		repaint();
+	}
+
+	Positioner::Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_):
 	css(styleSheet),
 	totalArea(totalArea_),
 	applyMargin(applyMargin_)
 {
-	if(auto ss = css[Selector(ElementType::Body)])
+	if(auto ss = css.getWithAllStates(Selector(ElementType::Body)))
 	{
 		if(applyMargin)
 			totalArea = ss->getArea(totalArea, { "margin", 0});
@@ -55,7 +135,7 @@ Positioner::Positioner(StyleSheet::Collection styleSheet, Rectangle<float> total
 Rectangle<int> Positioner::getLocalBoundsFromText(const Array<Selector>& s, const String& text,
 	Rectangle<int> defaultBounds)
 {
-	if(auto ss = css.getOrCreateCascadedStyleSheet(s))
+	if(auto ss = css.getWithAllStates(s.getFirst()))
 	{
 		return ss->getLocalBoundsFromText(text).toNearestInt();
 	}
@@ -99,15 +179,32 @@ int Renderer::getPseudoClassFromComponent(Component* c)
 	auto isHover = c->isMouseOverOrDragging(true);
 	auto isDown = c->isMouseButtonDown(false);
 	auto isFocus = c->hasKeyboardFocus(false);
-		
-	if(isHover)
-		state |= (int)PseudoClassType::Hover;
 
-	if(isDown)
-		state |= (int)PseudoClassType::Active;
+	if(auto b = dynamic_cast<Button*>(c))
+	{
+		if(b->getToggleState())
+			state |= (int)PseudoClassType::Checked;
+	}
 
-	if(isFocus)
-		state |= (int)PseudoClassType::Focus;
+	if(c->getProperties()["first-child"])
+		state |= (int)PseudoClassType::First;
+
+	if(c->getProperties()["last-child"])
+		state |= (int)PseudoClassType::Last;
+
+	if(!c->isEnabled())
+		state |= (int)PseudoClassType::Disabled;
+	else
+	{
+		if(isHover)
+			state |= (int)PseudoClassType::Hover;
+
+		if(isDown)
+			state |= (int)PseudoClassType::Active;
+
+		if(isFocus)
+			state |= (int)PseudoClassType::Focus;
+	}
 
 	return state;
 }
@@ -118,15 +215,14 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 {
 	if(ss == nullptr)
 		return;
-
-	CodeGenerator cg(ss);
-
-	DBG(cg.toCode());
-
+	
 	auto stateFlag = currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
 	auto defaultState = PseudoState(stateFlag).withElement(type);
 
-	auto ma = ss->getArea(area, {"margin", defaultState});
+	if(ss->getPropertyValueString({ "display", defaultState}) == "none")
+		return;
+
+	auto ma = applyMargin ? ss->getArea(area, {"margin", defaultState}) : area;
     auto transform = ss->getTransform(ma, defaultState);
 
 	if(!transform.isIdentity())
@@ -139,13 +235,8 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 
 	auto borderSize = ss->getPixelValue(ma, {"border-width", defaultState});
 
-	auto useBorderBox = false;
-
-	if(auto bs = ss->getPropertyValue({ "box-sizing", defaultState}))
-	{
-		useBorderBox = bs.valueAsString == "border-box";
-	}
-
+	auto useBorderBox = ss->getPropertyValueString({ "box-sizing", defaultState}) == "border-box";
+	
 	auto pathToFill = p;
 	auto pathToStroke = p;
 
@@ -193,6 +284,11 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 		{
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, beforeArea, ss, PseudoElementType::Before);
+
+			auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::Before)});
+
+			if(v.isNotEmpty())
+				renderText(g, beforeArea, v, ss, PseudoElementType::Before);
 		}
 
 		auto afterArea = ss->getPseudoArea(ma, stateFlag, PseudoElementType::After);
@@ -201,78 +297,27 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 		{
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, afterArea, ss, PseudoElementType::After);
+
+			auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::After)});
+
+			if(v.isNotEmpty())
+				renderText(g, afterArea, v, ss, PseudoElementType::After);
 		}
 	}
-
-#if 0
-	auto beforeArea = ss->getPseudoArea(ma, stateFlag, PseudoElementType::Before);
-	if(!beforeArea.isEmpty())
-	{
-		PseudoState ps(stateFlag);
-		ps.element = PseudoElementType::Before;
-
-		Graphics::ScopedSaveState sss(g);
-
-		auto transform = ss->getTransform(beforeArea, ps);
-		if(!transform.isIdentity())
-			g.addTransform(transform);
-		
-		auto bp = ss->getBorderPath(beforeArea, ps);
-
-		state.renderShadow(g, bp, currentComponent, ss->getShadow(beforeArea, { "box-shadow", ps}, false), false);
-
-		setCurrentBrush(g, ss, beforeArea, { "background", ps });
-		g.fillPath(bp);
-
-		state.renderShadow(g, bp, currentComponent, ss->getShadow(beforeArea, { "box-shadow", ps}, true), true);
-
-		auto beforeStroke = ss->getPixelValue(beforeArea, {"border-width", ps});
-
-		if(beforeStroke > 0.0f)
-		{
-			setCurrentBrush(g, ss, beforeArea, {"border", ps});
-			g.strokePath(bp, PathStrokeType(beforeStroke));
-		}
-	}
-
-	auto afterArea = ss->getPseudoArea(ma, stateFlag, PseudoElementType::After);
-	if(!afterArea.isEmpty())
-	{
-		PseudoState ps(stateFlag);
-		ps.element = PseudoElementType::After;
-
-		Graphics::ScopedSaveState sss(g);
-
-		auto transform = ss->getTransform(afterArea, ps);
-		if(!transform.isIdentity())
-			g.addTransform(transform);
-		
-		auto bp = ss->getBorderPath(afterArea, ps);
-		setCurrentBrush(g, ss, afterArea, { "background", ps });
-		
-		g.fillPath(bp);
-
-		auto afterStroke = ss->getPixelValue(afterArea, {"border-width", ps});
-
-		if(afterStroke > 0.0f)
-		{
-			setCurrentBrush(g, ss, afterArea, {"border", ps});
-			g.strokePath(bp, PathStrokeType(afterStroke));
-		}
-	}
-#endif
 }
 
-void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss)
+void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type)
 {
-	auto currentState = getPseudoClassState();
+	auto currentState = PseudoState(getPseudoClassState()).withElement(type);
+
 	auto totalArea = area;
 		
 	totalArea = ss->getArea(totalArea, { "margin", currentState });
 	totalArea = ss->getArea(totalArea, { "padding", currentState });
 
 
-	totalArea = ss->truncateBeforeAndAfter(totalArea, currentState);
+	if(type == PseudoElementType::None)
+		totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
 	
 	g.setFont(ss->getFont(currentState, totalArea));
 

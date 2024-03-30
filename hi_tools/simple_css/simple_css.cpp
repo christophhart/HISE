@@ -55,8 +55,192 @@ struct CssTestSuite: public UnitTest
 
 	void runTest() override
 	{
+		testSelectors();
 		testParser();
 		testValueParsers();
+		
+	}
+
+	template <typename ComponentType=Component>
+	void expectSelectorRed(const StringArray& parentSelectors, 
+					       const StringArray& componentSelectors, 
+					       const String& selectorInCss, 
+		                   const String& fallbackStylesheet={})
+	{
+		auto parent = createComponentWithSelectors<>(parentSelectors);
+		auto c = createComponentWithSelectors<ComponentType>(componentSelectors);
+
+		if(fallbackStylesheet.isNotEmpty())
+			FlexboxComponent::Helpers::setFallbackStyleSheet(*c, fallbackStylesheet);
+
+		parent->addChildComponent(c.get());
+
+		String code;
+
+		code << selectorInCss;
+
+		Parser p(code);
+		auto ok = p.parse();
+
+		expect(ok.wasOk(), ok.getErrorMessage());
+
+		auto css = p.getCSSValues();
+		auto ss = css.getForComponent(c.get());
+
+		expect(ss != nullptr, "CSS not found");
+
+		if(ss != nullptr)
+		{
+			expect(ss->getColourOrGradient({}, { "background", {}}).first == Colours::red, "didn't select red stylesheet");
+		}
+	}
+
+	void testComplexSelector(const String& selectorCode, const std::function<void(ComplexSelector::Ptr)>& f)
+	{
+		Parser p(selectorCode + " { background: red; }");
+		p.parse();
+		auto css = p.getCSSValues();
+		auto ss = css.getFirst();
+
+		if(ss->complexSelectors.size() == 1)
+		{
+			f(ss->complexSelectors[0]);
+		}
+		else
+		{
+			expect(false, "not a single complex selector");
+		}
+	}
+
+	template <typename T=Component> std::unique_ptr<T> createComponentWithSelectors(const StringArray& selectors)
+	{
+		static_assert(std::is_base_of<Component, T>() || std::is_same<T, Component>(), "not a component");
+		auto c = std::make_unique<T>("name");
+		FlexboxComponent::Helpers::writeSelectorsToProperties(*c, selectors);
+		return c;
+	}
+
+	void testSelectors()
+	{
+		beginTest("test complex selector parser");
+
+		testComplexSelector(".myclass", [&](ComplexSelector::Ptr cs)
+		{
+			expect(!cs->hasParentSelectors(), "parent not empty");
+			expect(cs->thisSelectors.isSingle() == 1, "selectors not 1");
+
+			auto c = createComponentWithSelectors({ ".myclass "});
+			expect(cs->matchesComponent(c.get()));
+		});
+		
+		testComplexSelector(".parent .myclass", [&](ComplexSelector::Ptr cs)
+		{
+			expect(cs->parentSelectors.isSingle() == 1, "parent not 1");
+			expect(cs->thisSelectors.isSingle() == 1, "selectors not 1");
+
+			auto p = createComponentWithSelectors({ ".parent"});
+			auto c = createComponentWithSelectors({ ".myclass "});
+
+			p->addAndMakeVisible(*c);
+
+			expect(cs->matchesComponent(c.get()));
+		});
+
+		testComplexSelector(".parent *", [&](ComplexSelector::Ptr cs)
+		{
+			expect(cs->parentSelectors.isSingle() == 1, "parent not 1");
+			expect(cs->thisSelectors.isSingle() == 1, "selectors not 1");
+
+			auto p = createComponentWithSelectors({ ".parent"});
+			auto c = createComponentWithSelectors({ ".myclass "});
+
+			p->addAndMakeVisible(*c);
+
+			expect(cs->matchesComponent(c.get()));
+		});
+
+		testComplexSelector({".myclass.secondclass"}, [&](ComplexSelector::Ptr cs)
+		{
+			expect(!cs->hasParentSelectors(), "parent not 0");
+			expect(cs->thisSelectors.selectors.size() == 2, "selectors not 2");
+
+			auto c0 = createComponentWithSelectors({ ".myclass"});
+			auto c1 = createComponentWithSelectors({ ".secondclass"});
+			auto c2 = createComponentWithSelectors({ ".myclass", ".secondclass"});
+			auto c3 = createComponentWithSelectors({ ".myclass ", ".secondclass", "#someid"});
+			
+			expect(!cs->matchesComponent(c0.get()));
+			expect(!cs->matchesComponent(c1.get()));
+			expect(cs->matchesComponent(c2.get()));
+			expect(cs->matchesComponent(c3.get()));
+		});
+
+		testComplexSelector({"button.myclass"}, [&](ComplexSelector::Ptr cs)
+		{
+			expect(!cs->hasParentSelectors(), "parent not 0");
+			expect(cs->thisSelectors.selectors.size() == 2, "selectors not 2");
+
+			auto c0 = createComponentWithSelectors<Component>({ ".myclass"});
+			auto c1 = createComponentWithSelectors<TextButton>({ ".secondclass"});
+			auto c2 = createComponentWithSelectors<TextButton>({ ".myclass", ".secondclass"});
+			auto c3 = createComponentWithSelectors<TextButton>({ ".myclass "});
+			
+			expect(!cs->matchesComponent(c0.get()));
+			expect(!cs->matchesComponent(c1.get()));
+			expect(cs->matchesComponent(c2.get()));
+			expect(cs->matchesComponent(c3.get()));
+		});
+
+		testComplexSelector({"select.myclass button:hover"}, [&](ComplexSelector::Ptr cs)
+		{
+			expect(cs->hasParentSelectors(), "parent not 1");
+			expect(cs->parentSelectors.selectors.size() == 2, "selectors not 2");
+			expect(cs->thisSelectors.selectors.size() == 1, "selectors not 1");
+
+			auto ep = createComponentWithSelectors<ComboBox>({});
+			auto cp = createComponentWithSelectors<ComboBox>({ ".myclass"});
+
+			auto c0 = createComponentWithSelectors<TextButton>({});
+			auto c1 = createComponentWithSelectors<TextButton>({ ".secondclass"});
+			auto c2 = createComponentWithSelectors<TextButton>({ ".myclass", ".secondclass"});
+			auto c3 = createComponentWithSelectors<TextButton>({ ".myclass "});
+
+			ep->addChildComponent(*c0);
+			ep->addChildComponent(*c1);
+			cp->addChildComponent(*c2);
+			cp->addChildComponent(*c3);
+
+			expect(!cs->matchesComponent(c0.get()));
+			expect(!cs->matchesComponent(c1.get()));
+			expect(cs->matchesComponent(c2.get()));
+			expect(cs->matchesComponent(c3.get()));
+		});
+
+		beginTest("testing selectors");
+
+
+
+		// simple type & class selector tests
+		expectSelectorRed<>({}, { ".my-class" }, ".my-class { background: red; }");
+		expectSelectorRed<>({}, { "#my-id" }, "#my-id { background: red; }");
+		expectSelectorRed<>({}, { "#my-id" }, "#my-id { background: red; }");
+
+		expectSelectorRed<>({ ".parent-class" }, { ".child-class" }, ".parent-class .child-class { background: red; }");
+
+		// test all selector
+		expectSelectorRed<>({}, { ".my-button"}, "* { background: green; } .my-button { background: red; }");
+		expectSelectorRed<>({}, { ".my-button"}, ".my-button { background: red; } * { background: green; }");
+
+		expectSelectorRed<TextButton>({}, {}, "button { background: red; }");
+		expectSelectorRed<ComboBox>({}, {}, "select { background: red; }");
+
+		expectSelectorRed<TextButton>({}, { ".myclass"}, "button { background: green; } .myclass { background: red; }");
+		expectSelectorRed<>({}, { ".myclass"}, "button { background: green; } .myclass { background: red; }");
+		expectSelectorRed<TextButton>({}, { ".myclass"}, "button { background: red; } .myclass2 { background: green; }");
+
+		expectSelectorRed<TextButton>({}, { ".myclass"}, "button { color: blue; }", "background: red;");
+		
+
 	}
 
 	void testValueParsers()
@@ -135,7 +319,7 @@ struct CssTestSuite: public UnitTest
 			
 		code << " }";
 
-		if(auto ss = parse(code)[ElementType::Body])
+		if(auto ss = parse(code).getFirst())
 		{
 			ss->setFullArea({0.0f, 0.0f, 100.0f, 100.0f});
 
@@ -158,7 +342,7 @@ struct CssTestSuite: public UnitTest
 		if(!ok)
 			expect(false, colourValue + ": " + ok.getErrorMessage());
 
-		if(auto ss = p.getCSSValues()[ElementType::Body])
+		if(auto ss = p.getCSSValues().getFirst())
 		{
 			auto rc = ss->getColourOrGradient({}, { "background", 0}).first;
 			expectEquals(rc.toDisplayString(true), c.toDisplayString(true));
@@ -219,7 +403,7 @@ struct CssTestSuite: public UnitTest
 		if(!ok)
 			expect(false, "parser error: " + ok.getErrorMessage());
 
-		if(auto ss = p.getCSSValues()[s])
+		if(auto ss = p.getCSSValues().getWithAllStates(s))
 		{
 			auto c = ss->getColourOrGradient({}, { "background", state }).first;
 			expect(c == Colours::red, selectorCode + " can't resolve background property");
@@ -239,7 +423,7 @@ struct CssTestSuite: public UnitTest
 		if(ok.failed())
 			expect(false, "Parser error: " + ok.getErrorMessage());
 
-		auto ss = p.getCSSValues()[s];
+		auto ss = p.getCSSValues().getWithAllStates(s);
 		expect(ss != nullptr, cssCode);
 	}
 };

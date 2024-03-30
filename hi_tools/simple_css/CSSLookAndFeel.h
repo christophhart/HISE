@@ -49,9 +49,8 @@ struct StyleSheetLookAndFeel: public LookAndFeel_V3
 {
 	/** Creates a style sheet LAF using a compiled CSS collection and a state watcher that
 	 *  will track the pseudo class state of each component. */
-	StyleSheetLookAndFeel(const StyleSheet::Collection& collection_, StateWatcher& state_):
-	  css(collection_),
-	  state(state_)
+	StyleSheetLookAndFeel(CSSRootComponent& root_):
+	  root(root_)
 	{
 		setColour(PopupMenu::backgroundColourId, Colours::transparentBlack);
 	};
@@ -59,8 +58,31 @@ struct StyleSheetLookAndFeel: public LookAndFeel_V3
 	/** Uses the selector "button [#id]". */
 	void drawButtonBackground(Graphics& g, Button& tb, const Colour&, bool, bool) override;
 
+	bool drawButtonText(Graphics& g, Button* b)
+	{
+		if(auto ed = b->findParentComponentOfClass<CSSRootComponent>())
+		{
+			Renderer r(b, root.stateWatcher);
+			
+			if(auto ss = root.css.getForComponent(b))
+			{
+				ss->setDefaultColour("color", b->findColour(TextButton::ColourIds::textColourOffId));
+				r.renderText(g, b->getLocalBounds().toFloat(), b->getButtonText(), ss);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	/** Uses the selector "button [#id]". */
 	void drawButtonText(Graphics& g, TextButton& tb, bool over, bool down) override;
+
+	void drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
+	{
+		drawButtonBackground(g, tb, {}, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
+		drawButtonText(g, &tb);
+	}
 
 	/** Uses the selector "input [#id]". */
 	void fillTextEditorBackground (Graphics&, int width, int height, TextEditor&) override;
@@ -87,6 +109,10 @@ struct StyleSheetLookAndFeel: public LookAndFeel_V3
                                                const PopupMenu::Item& item,
                                                const PopupMenu::Options&) override;
 
+	void drawProgressBar(Graphics& g, ProgressBar& pb, int width, int height, double progress, const String& textToShow) override;
+
+	bool isProgressBarOpaque(ProgressBar& b) override { return false; }
+
 	StyleSheet::Ptr getBestPopupStyleSheet(bool getItem);
 
 	void getIdealPopupMenuItemSizeWithOptions (const String& text,
@@ -109,10 +135,13 @@ struct StyleSheetLookAndFeel: public LookAndFeel_V3
 	void positionComboBoxText (ComboBox& cb, Label& label) override;
 	void drawComboBoxTextWhenNothingSelected (Graphics&, ComboBox&, Label&) override { }
 
+	void drawTableHeaderBackground (Graphics&, TableHeaderComponent&) override;
+
+    void drawTableHeaderColumn (Graphics&, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags) override;
+
 private:
 
-	StateWatcher& state;
-	StyleSheet::Collection css;
+	CSSRootComponent& root;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StyleSheetLookAndFeel);
 };

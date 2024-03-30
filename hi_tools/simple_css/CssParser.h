@@ -38,7 +38,7 @@ using namespace juce;
 /** Parses colour values. Pretty feature complete except for weird color space syntax. */
 struct ColourParser
 {
-	static Colour getColourFromHardcodedString(const String& colourId);
+	static std::pair<bool, Colour> getColourFromHardcodedString(const String& colourId);
 
 	ColourParser(const String& value);
 
@@ -210,7 +210,25 @@ struct Parser
 
 	/** returns a list of StyleSheet objects that can be used to style the appearance of your JUCE components. */
 	StyleSheet::Collection getCSSValues() const;
-	
+
+	Array<Selector> getSelectors() const
+	{
+		Array<Selector> s;
+
+		for(const auto& r: rawClasses)
+		{
+			for(const auto& v: r.selectors)
+			{
+				for(const auto& v2: v)
+				{
+					s.addIfNotAlreadyThere(v2.first);
+				}
+			}
+		}
+
+		return s;
+	}
+
 private:
 
 	String getLocation(String::CharPointerType p=String::CharPointerType(nullptr)) const;
@@ -244,6 +262,7 @@ private:
 		Quote,
 		CloseParen,
 		ValueString,
+		Asterisk,
 		numTokenTypes
 	};
 

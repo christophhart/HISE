@@ -56,8 +56,12 @@ CodeEditorComponent::ColourScheme KeywordDataBase::getColourScheme()
 
 KeywordDataBase::KeywordDataBase()
 {
-	keywords[(int)KeywordType::PseudoClass] = { "hover", "active", "focus", "disabled", "hidden", "before", "after", "root" };
-	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "input", "hr" };
+	inheritedProperties = { "color", "cursor", "font-family", "font-size", "font-style",
+		                    "font-variant", "font-weight", "font", "letter-spacing", "opacity",
+	                        "text-align", "text-transform" };
+	
+	keywords[(int)KeywordType::PseudoClass] = { "hover", "active", "focus", "disabled", "hidden", "before", "after", "root", "checked", "first-child", "last-child" };
+	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "input", "hr", "label", "table", "th", "tr", "td", "p", "progress", "h1", "h2", "h3", "h4" };
 	keywords[(int)KeywordType::ExpressionKeywords] = { "calc", "clamp", "min", "max" };
 	keywords[(int)KeywordType::Property] = {
 		"::selection",
@@ -74,6 +78,7 @@ KeywordDataBase::KeywordDataBase()
 		"display",
 		"flex-wrap", "flex-direction", "flex-grow", "flex-shrink", "flex-basis",
         "font-family", "font-size", "font-weight", "font-stretch",
+		"gap",
         "height",
 		"justify-content",
 		"left",
@@ -82,6 +87,7 @@ KeywordDataBase::KeywordDataBase()
 		"min-width", "max-width", "min-height", "max-height",
         "opacity",
 		"order",
+		"overflow",
 		"padding", "padding-top", "padding-left", "padding-right", "padding-bottom",
 		"position",
 		"right",
@@ -374,6 +380,11 @@ int LanguageManager::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 		isClass = true;
 		source.skip();
 	}
+	if(c == '*')
+	{
+		source.skip();
+		return (int)Token::Type;
+	}
 	if(c == '#')
 	{
 		isID = true;
@@ -441,7 +452,7 @@ CodeEditorComponent::ColourScheme LanguageManager::Tokeniser::getDefaultColourSc
 LanguageManager::LanguageManager(mcl::TextDocument& doc_):
 	doc(doc_)
 {
-		
+	this->hashIsPreprocessor = false;	
 }
 
 void LanguageManager::CssTokens::addTokens(mcl::TokenCollection::List& tokens)

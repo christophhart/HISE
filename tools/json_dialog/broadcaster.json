@@ -13,14 +13,7 @@
     "tableLineColour": 864059520,
     "tableBgColour": 864059520,
     "headlineColour": 4287692721,
-    "UseSpecialBoldFont": true,
-    "buttonTabBackgroundColour": 570425344,
-    "buttonBgColour": 4289374890,
-    "buttonTextColour": 4280624421,
-    "modalPopupBackgroundColour": 4281545523,
-    "modalPopupOverlayColour": 3995214370,
-    "modalPopupOutlineColour": 4289374890,
-    "pageProgressColour": 2013265919
+    "UseSpecialBoldFont": true
   },
   "Properties": {
     "Header": "Broadcaster Wizard",
@@ -31,21 +24,26 @@
     "Version": ""
   },
   "LayoutData": {
-    "TopHeight": 56,
-    "ButtonTab": 40,
-    "ButtonMargin": 5,
-    "OuterPadding": 50,
-    "LabelWidth": 160.0,
-    "LabelHeight": 32,
     "DialogWidth": 832,
-    "DialogHeight": 716,
-    "LabelPosition": "Default"
+    "DialogHeight": 716
   },
   "GlobalState": {
     "colour": 0,
-    "id": "asd",
+    "id": "myBroadcaster",
     "comment": "",
-    "tags": []
+    "tags": [],
+    "attachType": 10,
+    "complexDataType": "Table",
+    "complexEventType": "Content",
+    "moduleIds": [
+      "someId"
+    ],
+    "complexSlotIndex": "0",
+    "attachMetadata": "",
+    "targetType": 1,
+    "thisTarget": "funky",
+    "targetFunctionId": "onClick",
+    "targetMetadata": "nudel"
   },
   "Children": [
     {
@@ -67,7 +65,8 @@
           "ParseArray": false,
           "Items": "",
           "Help": "The ID will be used to create the script variable definition as well as act as a unique ID for every broadcaster of a single script processor. The name must be a valid HiseScript identifier.",
-          "Multiline": false
+          "Multiline": false,
+          "Enabled": true
         },
         {
           "Type": "List",
@@ -87,7 +86,8 @@
               "ParseArray": false,
               "Items": "",
               "Help": "A comment that is shown in the broadcaster map and helps with navigation & code organisation",
-              "Multiline": false
+              "Multiline": false,
+              "Enabled": true
             },
             {
               "Type": "TextInput",
@@ -98,14 +98,16 @@
               "Required": false,
               "ParseArray": true,
               "Items": "",
-              "Help": "Enter a comma separated list of strings that will be used as tags for the broadcaster. This lets you filter which broadcaster you want to show on the broadcaster map and is useful for navigating complex projects"
+              "Help": "Enter a comma separated list of strings that will be used as tags for the broadcaster. This lets you filter which broadcaster you want to show on the broadcaster map and is useful for navigating complex projects",
+              "Enabled": true
             },
             {
               "Type": "ColourChooser",
               "Text": "Colour",
               "ID": "colour",
               "LabelPosition": "Left",
-              "Help": "The colour of the broadcaster in the broadcaster map"
+              "Help": "The colour of the broadcaster in the broadcaster map",
+              "Enabled": true
             }
           ]
         }
@@ -141,7 +143,8 @@
                   "Help": "### None\n\nNo event source. Use this option if you want to call the broadcaster manually or attach it to any other script callback slot (eg. TransportHandler callbacks).",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -152,7 +155,8 @@
                   "Help": "### ComplexData\n\nAn event of a complex data object (Tables, Slider Packs or AudioFiles). This can be either:\n\n- content changes (eg. when loading in a new sample)\n- a display index change (eg. if the table ruler is moved)",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -163,7 +167,8 @@
                   "Help": "### ComponentProperties\n\nScript properties of a UI component selection (eg. the `visible` property).",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -174,7 +179,8 @@
                   "Help": "### ComponentVisibility\n\nThe visibility of a UI component.\n\n>This also takes into account the visibility of parent components so it's a more reliable way than listen to the component's `visible` property.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -185,7 +191,8 @@
                   "Help": "### Context Menu\n\nAdds a popup menu when the UI component is clicked.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -196,7 +203,8 @@
                   "Help": "### EQ Events\n\nListens to band add / delete, reset events of a parametriq EQ.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -207,7 +215,8 @@
                   "Help": "### Module Parameter\n\nListens to changes of a module attribute (when calling `setAttribute()`, eg. the **Reverb Width** or **Filter Frequency**",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -218,7 +227,8 @@
                   "Help": "## Mouse Events\n\nMouse events for a UI component selection",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -229,7 +239,8 @@
                   "Help": "### Processing Specs\n\nListens to changes of the processing specifications (eg. sample rate of audio buffer size)",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -240,7 +251,8 @@
                   "Help": "### Radio Group\n\nListens to button clicks within a given radio group ID\\n> This is especially useful for implementing your page switch logic",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -251,20 +263,28 @@
                   "Help": "### Routing Matrix\n\nListens to changes of the routing matrix (the channel routing configuration) of a module.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 }
               ],
               "ID": "",
               "Padding": "3",
               "Foldable": false,
-              "Folded": false
+              "Folded": false,
+              "Style": "gap: 6px;",
+              "UseChildState": false,
+              "Class": ""
             }
           ],
           "Width": [
             "-0.65",
             "-0.35"
           ],
-          "Padding": "40"
+          "Padding": "40",
+          "ID": "",
+          "Style": "",
+          "Class": "",
+          "UseChildState": false
         }
       ],
       "ID": "",
@@ -307,7 +327,8 @@
                   "Custom": false,
                   "ValueMode": "Text",
                   "Items": "Table\nSliderPack\nAudioFile",
-                  "Help": "The data type that you want to listen to"
+                  "Help": "The data type that you want to listen to",
+                  "Enabled": true
                 },
                 {
                   "Type": "Choice",
@@ -317,7 +338,8 @@
                   "Custom": false,
                   "ValueMode": "Text",
                   "Help": "The event type you want to listen to.\n\n-**Content** events will be triggered whenever the data changes (so eg. loading a new sample or editing a table will trigger this event).\n-**DisplayIndex** events will occur whenever the read position changes (so the playback position in the audio file or the table ruler in the table).",
-                  "Items": "Content\nDisplayIndex"
+                  "Items": "Content\nDisplayIndex",
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -329,7 +351,8 @@
                   "ParseArray": true,
                   "Items": "",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -340,7 +363,8 @@
                   "Required": true,
                   "ParseArray": false,
                   "Items": "",
-                  "Help": "The slot index of the complex data object that you want to listen to.\n\n> Some modules have multiple complex data objects (eg. the table envelope has two tables for the attack and release phase so if you want to listen to the release table, you need to pass in `1` here."
+                  "Help": "The slot index of the complex data object that you want to listen to.\n\n> Some modules have multiple complex data objects (eg. the table envelope has two tables for the attack and release phase so if you want to listen to the release table, you need to pass in `1` here.",
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -352,7 +376,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },
@@ -769,7 +794,8 @@
                   "Help": "Skip the creation of a target callback.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -780,7 +806,8 @@
                   "Help": "A script function that will be executed immediately when the event occurs.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -791,7 +818,8 @@
                   "Help": "A script function that will be executed with a given delay after the event occurred.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -802,7 +830,8 @@
                   "Help": "This will change a component property based on a customizeable function that must calculate and return the value",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -813,7 +842,8 @@
                   "Help": "Simply sends out a component refresh method (eg. `repaint()`) to its registered components.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "Button",
@@ -824,7 +854,8 @@
                   "Help": "This sets the value of a component",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 }
               ]
             }
@@ -875,7 +906,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "You can specify any HiseScript expression that will be used as `this` object in the function.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -887,7 +919,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -899,7 +932,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },

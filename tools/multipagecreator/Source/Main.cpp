@@ -12,8 +12,6 @@
 #include "MainComponent.h"
 #include "Exporter.h"
 
-#include "simple_css/simple_css.h"
-
 class CommandLineActions
 {
 private:
@@ -207,10 +205,11 @@ public:
                                                                           .findColour (ResizableWindow::backgroundColourId),
                                                     DocumentWindow::allButtons)
         {
-            setUsingNativeTitleBar (true);
-            //setContentOwned (new MainComponent(), true);
+            UnitTestRunner r;
+			r.runTestsInCategory("ui");
 
-            setContentOwned(new simple_css::Editor(), true);
+            setUsingNativeTitleBar (true);
+            setContentOwned (new MainComponent(), true);
 
            #if JUCE_IOS || JUCE_ANDROID
             setFullScreen (true);
@@ -220,8 +219,7 @@ public:
            #endif
             setVisible (true);
 
-            UnitTestRunner r;
-			r.runTestsInCategory("ui");
+            
         }
 
         void closeButtonPressed() override

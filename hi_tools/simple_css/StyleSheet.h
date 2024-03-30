@@ -51,44 +51,60 @@ struct StyleSheet: public ReferenceCountedObject
 
 		explicit Collection(List l);
 
+		bool operator==(const Collection& other) const { return list.getFirst() == other.list.getFirst(); }
+		bool operator!=(const Collection& other) const { return !(*this == other); }
+
 		operator bool() const { return !list.isEmpty(); }
 
 		void setAnimator(Animator* a);
-		Ptr operator[](const Selector& s) const;
 
-		Ptr operator[](const Array<Selector>& s) const
-		{
-			for(auto& l: list)
-			{
-				if(l->matchesSelectorList(s))
-					return l;
-			}
+		Ptr getFirst() const { return list.getFirst(); }
 
-			return nullptr;
-		}
+		
 
+		Ptr getForComponent(Component* c);
+		
 		String toString() const;
 
-		Ptr findBestMatch(const Array<Selector>& selectors) const;
-		Ptr getOrCreateCascadedStyleSheet(const Array<Selector>& selectors);
+		Ptr getWithAllStates(const Selector& s);
 
 		void addComponentToSetup(Component* c);
 
-		void addElementStyle(Ptr p);
+		void setPropertyVariable(const Identifier& id, const var& newValue);
+
+		MarkdownLayout::StyleData getMarkdownStyleData(Component* c);
+
+		bool clearCache(Component* c = nullptr);
 
 	private:
+
+		Ptr operator[](const Selector& s) const;
+
+		void forEach(const std::function<void(Ptr)>& f);
+
+		Array<std::pair<Selector, StyleSheet::Ptr>> cachedMapForAllStates;
+		Array<std::pair<Component::SafePointer<Component>, StyleSheet::Ptr>> cachedMaps;
 		
 		List list;
 	};
 
-	StyleSheet(const Array<Selector>& selectors_);
+	StyleSheet(ComplexSelector::List cs):
+	  complexSelectors(cs)
+	{};
 
-	StyleSheet(const Selector& s);;
-
+	StyleSheet(const Selector& s)
+	{
+		complexSelectors.add(new ComplexSelector(s));
+	}
+	
 	TransitionValue getTransitionValue(const PropertyKey& key) const;
 	PropertyValue getPropertyValue(const PropertyKey& key) const;
 
-	void copyPropertiesFrom(Ptr other);
+	String getPropertyValueString(const PropertyKey& key) const;
+
+	void copyPropertiesFrom(Ptr other, bool overwriteExisting=true, const StringArray& propertiesToCopy={});
+
+	void copyPropertiesFromParent(Ptr parent);
 
 	NonUniformBorderData getNonUniformBorder(Rectangle<float> totalArea, PseudoState stateFlag) const;
 	Path getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag) const;
@@ -97,8 +113,6 @@ struct StyleSheet: public ReferenceCountedObject
 	                                        float defaultValue = 0.0f) const;
 
 	float getPixelValue(Rectangle<float> totalArea, const PropertyKey& key, float defaultValue=0.0f) const;
-
-	
 	StringArray getCodeGeneratorArea(const String& rectangleName, const PropertyKey& key) const;
 
 	Rectangle<float> getArea(Rectangle<float> totalArea, const PropertyKey& key) const;
@@ -113,11 +127,11 @@ struct StyleSheet: public ReferenceCountedObject
 
 	void setupComponent(Component* c, int currentState);
 
-	Justification getJustification(int currentState, int defaultXFlag=Justification::horizontallyCentred, int defaultYFlag=Justification::verticallyCentred) const;
+	Justification getJustification(PseudoState currentState, int defaultXFlag=Justification::horizontallyCentred, int defaultYFlag=Justification::verticallyCentred) const;
     float getOpacity(int state) const;
 	MouseCursor getMouseCursor() const;
-	String getText(const String& t, int currentState) const;
-	Font getFont(int currentState, Rectangle<float> totalArea) const;
+	String getText(const String& t, PseudoState currentState) const;
+	Font getFont(PseudoState currentState, Rectangle<float> totalArea) const;
 	AffineTransform getTransform(Rectangle<float> totalArea, PseudoState currentState) const;
 	std::vector<melatonin::ShadowParameters> getShadow(Rectangle<float> totalArea, const PropertyKey& key, bool wantsInset) const;
 	std::pair<Colour, ColourGradient> getColourOrGradient(Rectangle<float> area, PropertyKey key, Colour defaultColour=Colours::transparentBlack) const;
@@ -133,6 +147,7 @@ struct StyleSheet: public ReferenceCountedObject
 	Rectangle<float> getLocalBoundsFromText(const String& text) const;
 
 	std::pair<bool, PseudoState> matchesRawList(const Selector::RawList& blockSelectors) const;
+
 	String toString() const;
 
 	void setDefaultTransition(PseudoElementType elementType, const Transition& t);
@@ -142,20 +157,39 @@ struct StyleSheet: public ReferenceCountedObject
 	bool matchesSelectorList(const Array<Selector>& otherSelectors);
 	bool forEachProperty(PseudoElementType type, const std::function<bool(PseudoElementType, Property& v)>& f);
 	void setDefaultColour(const String& key, Colour c);
-
+	
 	template <typename EnumType> EnumType getAsEnum(const PropertyKey& key, EnumType defaultValue) const
 	{
 		if(auto pv = getPropertyValue(key))
 		{
-			return keywords->getAsEnum(key.name, pv.valueAsString, defaultValue);
+			return keywords->getAsEnum(key.name, pv.getValue(varProperties), defaultValue);
 		}
 
 		return defaultValue;
 	}
 
+	void setPropertyVariable(const Identifier& id, const String& newValue);
+
+	ComplexSelector::List complexSelectors;
+
+	bool isAll() const
+	{
+		for(auto cs: complexSelectors)
+		{
+			if(!cs->hasParentSelectors() && 
+			   cs->thisSelectors.isSingle() && 
+			   cs->thisSelectors.selectors[0].first.type == SelectorType::All)
+				return true;
+		}
+
+		return false;
+	}
+
 private:
 
-	
+	friend class ComponentUpdaters;
+
+	DynamicObject::Ptr varProperties;
 
 	SharedResourcePointer<KeywordDataBase> keywords;
 
@@ -164,7 +198,7 @@ private:
 	float defaultFontSize = 16.0f;
 	friend class Parser;
 
-	Array<Selector> selectors;
+	//Array<Selector> selectors;
 	std::array<std::vector<Property>, (int)PseudoElementType::All> properties;
 	std::array<Transition, (int)PseudoElementType::All> defaultTransitions;
 	Animator* animator = nullptr;

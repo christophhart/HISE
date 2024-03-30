@@ -131,7 +131,14 @@ mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDo
 
             break;
         }
-        case '#': it.skipToEndOfLine(); break;
+        case '#':
+        {
+	        if(hashIsPreprocessor)
+            {
+	            it.skipToEndOfLine();
+            	break;
+            }
+        }
         case '/':
         {
             if (it.peekNextChar() == '*')

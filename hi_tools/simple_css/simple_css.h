@@ -33,7 +33,25 @@
 
 #pragma once
 
-#include <JuceHeader.h>
+/** TODO:
+ * - fix branch node (or remove altoghether?) OK
+ * - 
+ * - remove position data OK
+ * - add stylesheet editor
+ * - add !important
+ * - add stylesheet inspector for component (create a string during stylesheet coallascating, then display that)
+ * - add inline style properties to components which are applied after everything else OK
+ * - check JS stuff (setting CSS properties with JS) OK
+  c* - fix transform: rotate OK
+ * - fix modal overlay OK
+ * - fix help popup (remove screenshot, use popup bubble) OK
+ * - add IDs for #next #prev #cancel OK
+ * - cleanup CSSCollection:getOrCreateCoall... OK
+ * - cleanup CSSCollection: remove operator[] OK
+ * - cleanup StyleSheet::selectors OK
+ * - add Class to action editor OK
+ * - 
+*/
 
 #include "CssIds.h"
 #include "LanguageManager.h"

@@ -35,30 +35,30 @@ namespace hise
 {
 namespace simple_css
 {
-	PseudoState::PseudoState(PseudoClassType t, PseudoElementType e):
-		stateFlag((int)t),
-		element(e)
-	{}
+PseudoState::PseudoState(PseudoClassType t, PseudoElementType e):
+	stateFlag((int)t),
+	element(e)
+{}
 
-	PseudoState::PseudoState(int state):
-		stateFlag(state),
-		element(PseudoElementType::None)
-	{}
+PseudoState::PseudoState(int state):
+	stateFlag(state),
+	element(PseudoElementType::None)
+{}
 
-	String PseudoState::getPseudoElementName(int idx)
-	{
-		static const StringArray list({
-			"None ",
-			"Before",
-			"After",
-			"All"
-		});
+String PseudoState::getPseudoElementName(int idx)
+{
+	static const StringArray list({
+		"None ",
+		"Before",
+		"After",
+		"All"
+	});
 
-		if(isPositiveAndBelow(idx, list.size()))
-			return list[idx];
+	if(isPositiveAndBelow(idx, list.size()))
+		return list[idx];
 
-		return "Unknown";
-	}
+	return "Unknown";
+}
 
 Selector::Selector(ElementType dt)
 {
@@ -72,6 +72,17 @@ Selector::Selector(ElementType dt)
 	case ElementType::Selector: name = "select"; break;
 	case ElementType::Panel: name = "div"; break;
 	case ElementType::Ruler: name = "hr"; break;
+	case ElementType::Table: name = "table"; break;
+	case ElementType::Paragraph: name = "p"; break;
+	case ElementType::TableHeader: name = "th"; break;
+	case ElementType::TableRow: name = "tr"; break;
+	case ElementType::TableCell: name = "td"; break;
+	case ElementType::Progress: name = "progress"; break;
+	case ElementType::Headline1: name = "h1"; break;
+	case ElementType::Headline2: name = "h2"; break;
+	case ElementType::Headline3: name = "h3"; break;
+	case ElementType::Headline4: name = "h4"; break;
+	case ElementType::Label: name = "label"; break;
 	default: ;
 	}
 }
@@ -82,6 +93,10 @@ Selector::Selector(const String& s)
 
 	switch(firstChar)
 	{
+	case ' ':
+		type = SelectorType::ParentDelimiter;
+		name = " ";
+		break;
 	case '.':
 		type = SelectorType::Class;
 		name = s.substring(1, 1000).trim();
@@ -110,9 +125,9 @@ String Selector::toString() const
 	{
 	case SelectorType::None: break;
 	case SelectorType::Type: break;
+	case SelectorType::ParentDelimiter: s << " "; break;
 	case SelectorType::Class: s << '.'; break;
 	case SelectorType::ID: s << '#'; break;
-	case SelectorType::All: s << '*'; break;
 	case SelectorType::Element: s << "element(" << name << ")"; return s;
 	default: ;
 	}
@@ -144,6 +159,38 @@ bool Selector::operator==(const Selector& other) const
 	}
 
 	return false;
+}
+
+Array<Selector> ComplexSelector::getSelectorsForComponent(Component* c)
+{
+	auto t = FlexboxComponent::Helpers::getTypeSelectorFromComponentClass(c);
+	auto i = FlexboxComponent::Helpers::getIdSelectorFromComponentClass(c);
+	auto list = FlexboxComponent::Helpers::getClassSelectorFromComponentClass(c);
+
+	if(t)
+		list.insert(0, t);
+
+	if(i)
+		list.add(i);
+		
+	return list;
+}
+
+bool ComplexSelector::matchesComponent(Component* c) const
+{
+	auto clist = getSelectorsForComponent(c);
+
+	Array<Selector> plist;
+
+	auto p = c->getParentComponent();
+
+	while(p != nullptr)
+	{
+		plist.addArray(getSelectorsForComponent(p));
+		p = p->getParentComponent();
+	}
+	
+	return matchesSelectors(clist, plist);
 }
 
 String Transition::toString() const
@@ -219,6 +266,11 @@ String PropertyValue::toString() const
 	s << valueAsString;
 	s << transition.toString();
 	return s;
+}
+
+void PropertyValue::appendToValue(const String& s)
+{
+	valueAsString << s;
 }
 
 String Property::toString() const

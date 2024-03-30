@@ -124,63 +124,7 @@ private:
 
 
 
-struct EditorOverlay: public Component,
-				      public SettableTooltipClient
-{
-    struct Updater: public ComponentMovementWatcher
-    {
-	    Updater(EditorOverlay& parent_, Component* attachedComponent);
 
-        void componentMovedOrResized (bool wasMoved, bool wasResized) override;
-
-	    void componentPeerChanged() override {};
-
-	    void componentVisibilityChanged() override
-	    {
-		    parent.setVisible(getComponent()->isVisible());
-	    }
-
-        EditorOverlay& parent;
-    };
-
-    ScopedPointer<Updater> watcher;
-
-    
-
-    void setAttachToComponent(Component* c)
-    {
-	    watcher = new Updater(*this, c);
-    }
-
-    EditorOverlay(Dialog& parent);
-
-    void mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& wheel) override;
-
-    void resized() override;
-
-    void mouseUp(const MouseEvent& e) override;
-
-    void paint(Graphics& g) override;
-
-    static void onEditChange(EditorOverlay& c, bool isOn)
-    {
-	    c.setVisible(isOn);
-    }
-
-    void setOnClick(const std::function<void(bool)>& f)
-    {
-	    cb = f;
-    }
-
-    std::function<Rectangle<int>(Component*)> localBoundFunction;
-
-    std::function<void(bool)> cb;
-
-    Path outline;
-    Rectangle<float> bounds;
-	
-    JUCE_DECLARE_WEAK_REFERENCEABLE(EditorOverlay);
-};
 
 } // multipage
 } // hise

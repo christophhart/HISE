@@ -45,14 +45,11 @@ struct LabelledComponent: public Dialog::PageBase
     virtual Result loadFromInfoObject(const var& obj);
 
     void postInit() override;
-    void paint(Graphics& g) override;
     void resized() override;
 
     void callOnValueChange();
 
     static String getCategoryId() { return "UI Elements"; }
-
-    void editModeChanged(bool isEditMode) override;
 
     template <typename T> T& getComponent() { return *dynamic_cast<T*>(component.get()); }
     template <typename T> const T& getComponent() const { return *dynamic_cast<T*>(component.get()); }
@@ -62,7 +59,6 @@ protected:
     String label;
     bool required = false;
 
-    bool visible = true;
     bool enabled = true;
 
     std::unique_ptr<JavascriptEngine> engine;
@@ -360,6 +356,7 @@ struct CodeEditor: public LabelledComponent
 	CodeEditor(Dialog& r, int w, const var& obj):
       LabelledComponent(r, w, obj, new AllEditor())
 	{
+        Helpers::writeInlineStyle(getComponent<AllEditor>(), "height: 360px;");
 		setSize(w, 360);
 	};
 

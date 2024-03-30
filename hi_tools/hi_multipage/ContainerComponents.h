@@ -43,8 +43,6 @@ struct Container: public Dialog::PageBase
     Container(Dialog& r, int width, const var& obj);;
     virtual ~Container() {}
 
-    void paintEditBounds(Graphics& g);
-
     // Call this in the custom callback to ensure that all children are evaluated before the parent check...
     static Result checkChildren(PageBase* b, const var& toUse);
     static String getCategoryId() { return "Layout"; }
@@ -54,7 +52,7 @@ struct Container: public Dialog::PageBase
 
     void postInit() override;
     Result checkGlobalState(var globalState) override;
-    virtual void calculateSize() = 0;
+    
     void addChild(Dialog::PageInfo::Ptr info);
 
     virtual Identifier getContainerTypeId() const = 0;
@@ -84,7 +82,6 @@ protected:
 		}
     }
 
-    int padding = 0;
     OwnedArray<PageBase> childItems;
     Dialog::PageInfo::List staticPages;
 
@@ -102,7 +99,6 @@ struct List: public Container
     {
         return {
             { mpid::Text, "Title" },
-            { mpid::Padding, true },
             { mpid::Foldable, false },
             { mpid::Folded, false }
         };
@@ -115,70 +111,46 @@ struct List: public Container
 
     Result customCheckOnAdd(PageBase* b, const var& obj) override;
 
-    void editModeChanged(bool isEditMode) override;
+    void refreshFold();
 
-    void resized() override;
-    void mouseDown(const MouseEvent& e) override;
-    void paint(Graphics& g) override;
-
-    void calculateSize() override;
     void createEditor(Dialog::PageInfo& info) override;
 
-    int titleHeight = 32;
     Path fold;
     String title;
     bool foldable = false;
     bool folded = false;
+
+    ScopedPointer<TextButton> foldButton;
 };
 
 struct Column: public Container
 {
     DEFAULT_PROPERTIES(Column)
     {
-        return {
-            { mpid::ID, "columnId" },
-            { mpid::Padding, true },
-            { mpid::Width, var(Array<var>({var(-0.5), var(-0.5)})) }
-        };
+        return { { mpid::ID, "columnId" }};
     }
 
     Identifier getContainerTypeId() const override { return getStaticId(); }
-
     Column(Dialog& r, int width, const var& obj);
 
     void createEditor(Dialog::PageInfo& info) override;
-    Result customCheckOnAdd(PageBase* b, const var& obj) override;
-    void editModeChanged(bool isEditMode) override;
-    void calculateSize() override;
-    void postInit() override;
-
-    void paint(Graphics& g) override;
-	void resized() override;
-
-    Array<double> widthInfo;
 };
 
 struct Branch: public Container
 {
     DEFAULT_PROPERTIES(Branch)
     {
-        return {
-            { mpid::ID, "branchId" }
-        };
+        return { { mpid::ID, "branchId" } };
     }
 
-    Identifier getContainerTypeId() const override { return getStaticId(); }
-
-    void createEditor(Dialog::PageInfo& info) override;
-
     Branch(Dialog& root, int w, const var& obj);;
+
+    Identifier getContainerTypeId() const override { return getStaticId(); }
+    void createEditor(Dialog::PageInfo& info) override;
     
-    void editModeChanged(bool isEditMode) override;
     void paint(Graphics& g) override;
     void postInit() override;
-    void calculateSize() override;
     Result checkGlobalState(var globalState) override;
-    void resized() override;
     
     int currentIndex = 0;
 };

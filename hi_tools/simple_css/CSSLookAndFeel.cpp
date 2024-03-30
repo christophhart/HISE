@@ -39,12 +39,9 @@ void StyleSheetLookAndFeel::drawButtonBackground(Graphics& g, Button& tb, const 
 {
 	if(auto ed = tb.findParentComponentOfClass<CSSRootComponent>())
 	{
-		Renderer r(&tb, state);
-
-		Selector s_id(SelectorType::ID, tb.getName().toLowerCase());
-		Selector s_type(ElementType::Button);
-
-		if(auto ss = css.getOrCreateCascadedStyleSheet({s_type, s_id}))
+		Renderer r(&tb, root.stateWatcher);
+		
+		if(auto ss = root.css.getForComponent(&tb))
 		{
 			ss->setDefaultColour("background-color", tb.findColour(TextButton::buttonColourId));
 
@@ -61,39 +58,17 @@ void StyleSheetLookAndFeel::drawButtonBackground(Graphics& g, Button& tb, const 
 
 void StyleSheetLookAndFeel::drawButtonText(Graphics& g, TextButton& tb, bool over, bool down)
 {
-	if(auto ed = tb.findParentComponentOfClass<CSSRootComponent>())
-	{
-		Renderer r(&tb, state);
-
-		
-
-		Selector s_id(SelectorType::ID, tb.getName().toLowerCase());
-		Selector s_type(ElementType::Button);
-
-		if(auto ss = css.getOrCreateCascadedStyleSheet({s_type, s_id}))
-		{
-			ss->setDefaultColour("color", tb.findColour(TextButton::ColourIds::textColourOffId));
-
-			r.renderText(g, tb.getLocalBounds().toFloat(), tb.getButtonText(), ss);
-		}
-		else
-		{
-			LookAndFeel_V3::drawButtonText(g, tb, over, down);
-		}
-	}
-		
+	if(!drawButtonText(g, &tb))
+		LookAndFeel_V3::drawButtonText(g, tb, over, down);
 }
 
 void StyleSheetLookAndFeel::fillTextEditorBackground(Graphics& g, int width, int height, TextEditor& textEditor)
 {
 	if(auto ed = textEditor.findParentComponentOfClass<CSSRootComponent>())
 	{
-		Renderer r(&textEditor, state);
+		Renderer r(&textEditor, root.stateWatcher);
 
-		Selector s_id(SelectorType::ID, textEditor.getName().toLowerCase());
-		Selector s_type(ElementType::TextInput);
-
-		if(auto ss = css.getOrCreateCascadedStyleSheet({s_type, s_id}))
+		if(auto ss = root.css.getForComponent(&textEditor))
 		{
 			auto currentState = Renderer::getPseudoClassFromComponent(&textEditor);
 			ed->stateWatcher.checkChanges(&textEditor, ss, currentState);
@@ -115,7 +90,7 @@ Font StyleSheetLookAndFeel::getPopupMenuFont()
 {
 	if(auto ss = getBestPopupStyleSheet(true))
 	{
-		return ss->getFont(0, {});
+		return ss->getFont({}, {});
 	}
 
 	return LookAndFeel_V3::getPopupMenuFont();
@@ -124,10 +99,14 @@ Font StyleSheetLookAndFeel::getPopupMenuFont()
 void StyleSheetLookAndFeel::drawPopupMenuBackgroundWithOptions(Graphics& g, int width, int height,
 	const PopupMenu::Options& o)
 {
-	Renderer r(nullptr, state);
+	Renderer r(nullptr, root.stateWatcher);
 
 	if(auto ss = getBestPopupStyleSheet(false))
+	{
+		DBG(ss->toString());
 		r.drawBackground(g, { (float)width, (float)height }, ss);
+	}
+		
 	else
 		LookAndFeel_V3::drawPopupMenuBackgroundWithOptions(g, width, height, o);
 }
@@ -137,7 +116,7 @@ void StyleSheetLookAndFeel::drawPopupMenuItem(Graphics& g, Rectangle<float> area
 {
 	if(auto ss = getBestPopupStyleSheet(true))
 	{
-		Renderer r(nullptr, state);
+		Renderer r(nullptr, root.stateWatcher);
 
 		r.setPseudoClassState(flags);
 
@@ -147,7 +126,7 @@ void StyleSheetLookAndFeel::drawPopupMenuItem(Graphics& g, Rectangle<float> area
 		{
 			auto sep = ss->getArea(area.toFloat(), { "padding", flags});
 
-			if(auto rss = css[ElementType::Ruler])
+			if(auto rss = root.css.getWithAllStates(ElementType::Ruler))
 			{
 				sep = rss->getArea(sep, { "margin", flags});
 				sep = rss->getArea(sep, { "padding", flags});
@@ -195,15 +174,29 @@ void StyleSheetLookAndFeel::drawPopupMenuItemWithOptions(Graphics& g, const Rect
 	drawPopupMenuItem(g, area.toFloat(), flags, item.text, item.isSeparator);
 }
 
+void StyleSheetLookAndFeel::drawProgressBar(Graphics& g, ProgressBar& progressBar, int width, int height,
+	double progress, const String& textToShow)
+{
+	if(auto ss = root.css.getForComponent(&progressBar))
+	{
+		Renderer r(&progressBar, root.stateWatcher);
+
+		auto currentState = Renderer::getPseudoClassFromComponent(&progressBar);
+		root.stateWatcher.checkChanges(&progressBar, ss, currentState);
+
+		ss->setPropertyVariable("progress", String(progress * 100) + "%");
+
+		r.drawBackground(g, progressBar.getLocalBounds().toFloat(), ss);
+		r.renderText(g, progressBar.getLocalBounds().toFloat(), textToShow, ss);
+	}
+}
+
 StyleSheet::Ptr StyleSheetLookAndFeel::getBestPopupStyleSheet(bool getItem)
 {
 	if(getItem)
-	{
-		if(auto c = css.getOrCreateCascadedStyleSheet({ Selector::withClass("popup"), Selector::withClass("popup-item")}))
-			return c;
-	}
+		return root.css.getWithAllStates(Selector::withClass("popup-item"));
 
-	return css[Selector::withClass("popup")];
+	return root.css.getWithAllStates(Selector::withClass("popup"));
 }
 
 void StyleSheetLookAndFeel::getIdealPopupMenuItemSizeWithOptions(const String& text, bool isSeparator,
@@ -213,16 +206,18 @@ void StyleSheetLookAndFeel::getIdealPopupMenuItemSizeWithOptions(const String& t
 
 	if(auto ss = getBestPopupStyleSheet(true))
 	{
-		auto textWidth = f.getStringWidthFloat(ss->getText(text, 0));
+		auto textWidth = f.getStringWidthFloat(ss->getText(text, {}));
 		auto h = f.getHeight();
 
 		int state = 0;
 		if(standardMenuItemHeight == -1)
 			state = (int)PseudoClassType::Focus;
 
-		if(auto v = ss->getPropertyValue({ "height", state }))
+		auto hv = ss->getPropertyValueString({ "height", state });
+
+		if(hv.isNotEmpty())
 		{
-			h = ExpressionParser::evaluate(v.valueAsString, { false, {h, h}, f.getHeight() });
+			h = ExpressionParser::evaluate(hv, { false, {h, h}, f.getHeight() });
 		}
 
 		Rectangle<float> ta(textWidth, h);
@@ -250,11 +245,11 @@ void StyleSheetLookAndFeel::drawPopupMenuSectionHeaderWithOptions(Graphics& g, c
 void StyleSheetLookAndFeel::drawComboBox(Graphics& g, int width, int height, bool isButtonDown, int buttonX,
 	int buttonY, int buttonW, int buttonH, ComboBox& cb)
 {
-	if(auto ss = css[ElementType::Selector])
+	if(auto ss = root.css.getForComponent(&cb))
 	{
-		Renderer r(&cb, state);
+		Renderer r(&cb, root.stateWatcher);
 			
-		state.checkChanges(&cb, ss, r.getPseudoClassState());
+		root.stateWatcher.checkChanges(&cb, ss, r.getPseudoClassState());
 
 		r.drawBackground(g, cb.getLocalBounds().toFloat(), ss);
 
@@ -269,29 +264,44 @@ void StyleSheetLookAndFeel::drawComboBox(Graphics& g, int width, int height, boo
 void StyleSheetLookAndFeel::positionComboBoxText(ComboBox& cb, Label& label)
 {
 	label.setVisible(false);
-#if 0
-		if(auto ss = css[ElementType::Selector])
-		{
-			auto state = Renderer::getPseudoClassFromComponent(&cb);
+}
 
-			auto area = cb.getLocalBounds().toFloat();
+void StyleSheetLookAndFeel::drawTableHeaderBackground(Graphics& graphics, TableHeaderComponent& tableHeaderComponent)
+{
+	
+}
 
-			area = ss->getArea(area, { "margin", state });
-			area = ss->getArea(area, { "padding", state });
+void StyleSheetLookAndFeel::drawTableHeaderColumn(Graphics& g, TableHeaderComponent& tableHeaderComponent,
+	const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags)
+{
+	if(auto ss = root.css.getForComponent(&tableHeaderComponent))
+	{
+		Renderer r(&tableHeaderComponent, root.stateWatcher);
 
-			area = ss->truncateBeforeAndAfter(area, state);
+		int flags = 0;
 
+		if(isMouseDown)
+			flags |= (int)PseudoClassType::Active;
 
-			label.setBounds (area.toNearestInt());
-			label.setFont (ss->getFont(state, area));
-			label.setColour(Label::ColourIds::textColourId, ss->getColourOrGradient(area, { "color", state }, label.findColour(Label::textColourId)).first);
-			label.setJustificationType(ss->getJustification(state, Justification::left));
-		}
-		else
-		{
-			LookAndFeel_V3::positionComboBoxText(cb, label);
-		}
-#endif
+		if(isMouseOver)
+			flags |= (int)PseudoClassType::Hover;
+
+		root.stateWatcher.checkChanges(&tableHeaderComponent, ss, flags);
+
+		r.setPseudoClassState(flags);
+
+		auto area = Rectangle<float>(0.0f, 0.0f, (float)width, (float)height);
+
+		r.drawBackground(g, area, ss);
+		r.renderText(g, area, columnName, ss);
+	}
+	else
+	{
+		LookAndFeel_V3::drawTableHeaderColumn(g, tableHeaderComponent, columnName, columnId, width, height,
+	                                      isMouseOver, isMouseDown, columnFlags);
+	}
+
+	
 }
 }
 }

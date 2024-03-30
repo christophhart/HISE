@@ -416,6 +416,7 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 						if(pb->getId() == id)
 						{
 							pb->postInit();
+							dialog->body.rebuildLayout();
 							factory::Container::recalculateParentSize(pb);
 							dialog->refreshBroadcaster.sendMessage(sendNotificationAsync, dialog->getState().currentPageIndex);
 						}
@@ -635,7 +636,7 @@ void State::addJob(Job::Ptr b, bool addFirst)
 	{
 		if(currentDialog != nullptr)
 		{
-			currentDialog->currentErrorElement = nullptr;
+			currentDialog->setCurrentErrorPage(nullptr);
 			currentDialog->repaint();
 			//currentDialog->errorComponent.setError(Result::ok());
 			currentDialog->nextButton.setEnabled(false);

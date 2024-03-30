@@ -100,9 +100,12 @@ Dialog::PageBase::HelpButton::HelpButton(String help, const PathFactory& factory
 
 	onClick = [this, help]()
 	{
+		findParentComponentOfClass<PageBase>()->setModalHelp(help);
+
+#if 0
 		if(findParentComponentOfClass<Dialog::ModalPopup>() != nullptr || findParentComponentOfClass<Dialog>()->useHelpBubble)
 		{
-			findParentComponentOfClass<PageBase>()->setModalHelp(help);
+			
 		}
 		else
 		{
@@ -113,32 +116,53 @@ Dialog::PageBase::HelpButton::HelpButton(String help, const PathFactory& factory
 			mp->createModalPopup<factory::MarkdownText>()[mpid::Text] = help;
 			mp->showModalPopup(false, img);
 		}
+#endif
 	};
 }
 
 
 
-struct Dialog::PageBase::ModalHelp: public Component
+struct Dialog::PageBase::ModalHelp: public simple_css::FlexboxComponent
 {
     ModalHelp(const String& text, PageBase& parent):
-      r(text),
+	  FlexboxComponent(simple_css::Selector(".help-popup")),
+	  textDisplay(),
       closeButton("close", nullptr, parent.rootDialog)
     {
-        r.setStyleData(parent.rootDialog.styleData);
+
+        //r.setStyleData(parent.rootDialog.styleData);
         closeButton.onClick = [&parent]()
         {
             parent.setModalHelp("");
         };
 
-        r.parse();
+		Helpers::writeSelectorsToProperties(textDisplay, { ".help-text"});
+		Helpers::writeSelectorsToProperties(closeButton, { ".help-close"});
 
-		auto h = r.getHeightForWidth((float)parent.getWidth() - 26.0f);
+		Helpers::setFallbackStyleSheet(textDisplay, "width: 100%;");
 
-		setSize(parent.getWidth() + 20, h + 30);
+        //r.parse();
 
-        addAndMakeVisible(closeButton);
+		//auto h = r.getHeightForWidth((float)parent.getWidth() - 26.0f);
+
+		textDisplay.setResizeToFit(true);
+		textDisplay.setText(text);
+		
+
+		addFlexItem(textDisplay);
+		addFlexItem(closeButton);
+
+		auto p = CSSRootComponent::find(parent);
+
+		setParent(p);
+		setCSS(p->css);
+		
+		setSize(parent.getWidth() + 20, 0);
+    	setSize(parent.getWidth() + 20, getAutoSize());
+		
     };
 
+#if 0
     void paint(Graphics& g) override
     {
 		auto b = getLocalBounds();
@@ -159,8 +183,10 @@ struct Dialog::PageBase::ModalHelp: public Component
         r.draw(g, area.toFloat());
     }
 
+
     void resized() override
     {
+		
 
         auto b = getLocalBounds().reduced(10);
 
@@ -170,36 +196,33 @@ struct Dialog::PageBase::ModalHelp: public Component
 
         closeButton.setBounds(b);
     }
+#endif
 
-    MarkdownRenderer r;
+	SimpleMarkdownDisplay textDisplay;
+
+    //MarkdownRenderer r;
     HiseShapeButton closeButton;
 };
 
 Dialog::PageBase::PageBase(Dialog& rootDialog_, int width, const var& obj):
+  FlexboxComponent(simple_css::Selector("#" + obj[mpid::ID].toString())),
   rootDialog(rootDialog_),
   infoObject(obj)
 {
     stateObject = rootDialog.getState().globalState;
 
-	positionInfo = rootDialog.getPositionInfo(obj);
-
-	if(obj.hasProperty(mpid::LabelPosition))
-    {
-        auto np = positionInfo.getLabelPositionNames().indexOf(obj[mpid::LabelPosition].toString());
-
-        if(np != Dialog::PositionInfo::LabelPositioning::Default)
-        {
-            positionInfo.LabelPosition = np;
-	        inheritsPosition = false;
-        }
-    }
+    updateStyleSheetInfo();
 
 	auto help = obj[mpid::Help].toString();
 
 	if(help.isNotEmpty())
 	{
 		helpButton = new HelpButton(help, rootDialog);
-		addAndMakeVisible(helpButton);
+		addFlexItem(*helpButton);
+
+		Helpers::writeSelectorsToProperties(*helpButton, { ".help-button"} );
+		Helpers::setFallbackStyleSheet(*helpButton, "order: 1000; height: 24px; width: 32px;");
+
 		helpButton->setWantsKeyboardFocus(false);
 	}
 
@@ -222,6 +245,61 @@ DefaultProperties Dialog::PageBase::getDefaultProperties() const
 void Dialog::PageBase::setStateObject(const var& newStateObject)
 {
 	stateObject = newStateObject;
+}
+
+void Dialog::PageBase::updateStyleSheetInfo()
+{
+	auto isFirst = classHash == 0 && styleHash == 0;
+	auto classList = infoObject[mpid::Class].toString();
+            
+	auto newHash = classList.isNotEmpty() ? classList.hashCode() : 0;
+
+	auto didSomething = false;
+
+	if(newHash != classHash)
+	{
+		classHash = newHash;
+		auto sa = StringArray::fromTokens(classList, " ", "");
+		sa.removeEmptyStrings();
+		Helpers::writeSelectorsToProperties(*this, sa);
+		didSomething = true;
+	}
+
+	auto inlineStyle = infoObject[mpid::Style].toString();
+
+	newHash = inlineStyle.isNotEmpty() ? inlineStyle.hashCode() : 0;
+
+	if(newHash != styleHash)
+	{
+		styleHash = newHash;
+		Helpers::writeInlineStyle(*this, inlineStyle);
+		didSomething = true;
+	}
+
+	if(!isFirst && didSomething)
+	{
+		Component::callRecursive<Component>(this, [](Component* c)
+		{
+			Helpers::invalidateCache(*c);
+			return false;
+		});
+
+		// rebuild to allow resizing...
+		rootDialog.body.setCSS(rootDialog.css);
+	}
+}
+
+void Dialog::PageBase::forwardInlineStyleToChildren()
+{
+	auto inlineStyle = simple_css::FlexboxComponent::Helpers::getInlineStyle(*this);
+
+	if(inlineStyle.isNotEmpty())
+	{
+		for(int i = 0; i < getNumChildComponents(); i++)
+			simple_css::FlexboxComponent::Helpers::writeInlineStyle(*getChildComponent(i), inlineStyle);
+
+		simple_css::FlexboxComponent::Helpers::writeInlineStyle(*this, "");
+	}
 }
 
 var Dialog::PageBase::getPropertyFromInfoObject(const Identifier& id) const
@@ -293,28 +371,7 @@ void Dialog::PageBase::setModalHelp(const String& text)
 	modalHelp->setBounds(mb);
 }
 
-Rectangle<int> Dialog::PageBase::getArea(AreaType t) const
-{
-	auto b = getLocalBounds();
 
-	using Pos = Dialog::PositionInfo::LabelPositioning;
-
-	auto posToUse = (Pos)positionInfo.LabelPosition;
-
-	if(rootDialog.isEditModeEnabled() && posToUse == Pos::None)
-		posToUse = Pos::Left;
-
-	Rectangle<int> lb;
-
-	switch(posToUse)
-	{
-	case Pos::Left:  lb = b.removeFromLeft(positionInfo.getWidthForLabel(getWidth())); break;
-	case Pos::Above: lb = b.removeFromTop(positionInfo.LabelHeight); break;
-	case Pos::None:  break;
-	}
-	        
-	return t == AreaType::Component ? b : lb;
-}
 
 void Dialog::PageBase::onEditModeChange(PageBase& c, bool isOn)
 {
@@ -332,12 +389,6 @@ bool Dialog::PageBase::showDeletePopup(bool isRightClick)
 
 	return rootDialog.showEditor(infoObject);
 	
-}
-
-String Dialog::PageBase::getDefaultPositionName() const
-{
-	auto ln = Dialog::PositionInfo::getLabelPositionNames();
-	return ln[inheritsPosition ? (int)Dialog::PositionInfo::LabelPositioning::Default : positionInfo.LabelPosition];
 }
 
 String Dialog::PageBase::evaluate(const Identifier& id) const
@@ -368,6 +419,8 @@ void Dialog::PageBase::init()
 	if(findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
 		rootDialog.getEditModeBroadcaster().addListener(*this, PageBase::onEditModeChange);
 
+	updateStyleSheetInfo();
+
 	if(!initValue.isUndefined() && !initValue.isVoid())
 	{
 		writeState(initValue);
@@ -378,22 +431,7 @@ void Dialog::PageBase::init()
 
 void Dialog::PageBase::editModeChanged(bool isEditMode)
 {
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	if(isEditMode)
-	{
-		overlay = new EditorOverlay(rootDialog);
-		overlay->setAttachToComponent(this);
-	            
-	}
-	else
-	{
-		if(overlay != nullptr)
-			rootDialog.removeChildComponent(overlay);
-		overlay = nullptr;
-	}
-	
 	repaint();
-#endif
 }
 
 
@@ -449,9 +487,7 @@ Result Dialog::PageBase::check(const var& obj)
                 
 		if(ok.failed())
 		{
-			if(rootDialog.currentErrorElement == nullptr)
-				rootDialog.currentErrorElement = this;
-
+			rootDialog.setCurrentErrorPage(this);
 			return ok;
 		}
 	}
@@ -459,7 +495,8 @@ Result Dialog::PageBase::check(const var& obj)
 	auto ok = checkGlobalState(obj);
 
 	if(ok.failed() && rootDialog.currentErrorElement == nullptr)
-		rootDialog.currentErrorElement = this;
+		rootDialog.setCurrentErrorPage(this);
+		
 
 	return ok;
 }
@@ -478,76 +515,25 @@ void Dialog::PageBase::setCustomCheckFunction(const CustomCheckFunction& cf_)
 bool Dialog::PageBase::isError() const
 { return rootDialog.currentErrorElement == this; }
 
+
+
+
 var Dialog::PositionInfo::toJSON() const
 {
 	auto obj = new DynamicObject();
             
-	obj->setProperty("TopHeight", TopHeight);
-	obj->setProperty("ButtonTab", ButtonTab);
-	obj->setProperty("ButtonMargin", ButtonMargin);
-	obj->setProperty("OuterPadding", OuterPadding);
-    obj->setProperty("LabelWidth", LabelWidth);
-	obj->setProperty("LabelHeight", LabelHeight);
 	obj->setProperty("DialogWidth", fixedSize.getX());
 	obj->setProperty("DialogHeight", fixedSize.getY());
-	obj->setProperty("LabelPosition", getLabelPositionNames()[LabelPosition]);
 	
 	return var(obj);
 }
 
 void Dialog::PositionInfo::fromJSON(const var& obj)
 {
-	TopHeight = obj.getProperty("TopHeight", TopHeight);
-	ButtonTab = obj.getProperty("ButtonTab", ButtonTab);
-	ButtonMargin = obj.getProperty("ButtonMargin", ButtonMargin);
-	OuterPadding = obj.getProperty("OuterPadding", OuterPadding);
-    LabelWidth = obj.getProperty("LabelWidth", LabelWidth);
-
-	LabelHeight = obj.getProperty("LabelHeight", LabelHeight);
-
-	auto ln = getLabelPositionNames();
-
 	fixedSize.setX(obj.getProperty("DialogWidth", fixedSize.getX()));
 	fixedSize.setY(obj.getProperty("DialogHeight", fixedSize.getY()));
-
-	LabelPosition = ln.indexOf(obj.getProperty(mpid::LabelPosition, ln[LabelPosition]).toString());
-
-	if(!isPositiveAndBelow(LabelPosition, LabelPositioning::numLabelPositionings))
-		LabelPosition = (int)LabelPositioning::Left;
 }
 
-Result Dialog::PositionInfo::checkSanity() const
-{
-	if(ButtonTab - 2 * ButtonMargin < 5)
-		return Result::fail("ButtonTab / ButtonMargin invalid");
-
-	if(OuterPadding > 100)
-		return Result::fail("OuterPadding too high");
-            
-	return Result::ok();
-}
-
-void Dialog::PositionInfo::setDefaultPosition(LabelPositioning p)
-{
-	if(LabelPosition == LabelPositioning::Default)
-		LabelPosition = p;
-}
-
-int Dialog::PositionInfo::getWidthForLabel(int totalWidth) const
-{
-	if(LabelWidth < 0.0)
-		return jmax(10, roundToInt(totalWidth * -1.0 * LabelWidth));
-	else
-		return jmax(10, roundToInt(LabelWidth));
-}
-
-int Dialog::PositionInfo::getHeightForComponent(int heightWithoutLabel)
-{
-	if(LabelPosition == (int)LabelPositioning::Above)
-		heightWithoutLabel += LabelHeight;
-
-	return heightWithoutLabel;
-}
 
 Rectangle<int> Dialog::PositionInfo::getBounds(Rectangle<int> fullBounds) const
 {
@@ -557,80 +543,6 @@ Rectangle<int> Dialog::PositionInfo::getBounds(Rectangle<int> fullBounds) const
 		return fullBounds.withSizeKeepingCentre(fixedSize.getX(), fixedSize.getY());
 }
 
-
-ErrorComponent::ErrorComponent(Dialog& parent_):
-	parent(parent_),
-	currentError(Result::ok()),
-	parser("")
-	
-{
-	addAndMakeVisible(closeButton = new HiseShapeButton("close", nullptr, parent));
-	closeButton->onClick = [this]()
-	{
-		this->show(false);
-	};
-}
-
-void ErrorComponent::paint(Graphics& g)
-{
-    auto ec = Colour(0xFF161616);
-    
-	g.setGradientFill(ColourGradient(ec.withMultipliedBrightness(1.1f), 0.0f, 0.0f, ec.withMultipliedBrightness(0.9f), 0.0f, (float)getHeight(), false));
-	g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 5.0f);
-    
-    g.setColour(Colours::black.withAlpha(0.3f));
-    g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 5.0f, 1.0f);
-            
-	auto x = getLocalBounds().toFloat();
-	x.removeFromRight(40.0f);
-	x.removeFromLeft(40.0f);
-	x.removeFromTop(3.0f);
-            
-	parser.draw(g, x);
-}
-
-void ErrorComponent::setError(const Result& r)
-{
-	currentError = r;
-            
-	if(!r.wasOk())
-	{
-		auto w = getWidth() - 80;
-
-		if(w < 10)
-			w = 300;
-
-		parser.setNewText(r.getErrorMessage());
-		parser.parse();
-		height = jmax<int>(40, parser.getHeightForWidth(w));
-	}
-            
-	show(!currentError.wasOk());
-}
-
-void ErrorComponent::show(bool shouldShow)
-{
-	setVisible(shouldShow);
-	getParentComponent()->resized();
-    getParentComponent()->repaint();
-	setVisible(!shouldShow);
-            
-	auto& animator = Desktop::getInstance().getAnimator();
-            
-	if(shouldShow)
-		animator.fadeIn(this, 50);
-	else
-		animator.fadeOut(this, 50);
-
-	repaint();
-}
-
-void ErrorComponent::resized()
-{
-	auto b = getLocalBounds();
-	auto cb = b.removeFromRight(40).removeFromTop(40).reduced(10);
-	closeButton->setBounds(cb);
-}
 
 
 Dialog::PageBase* Dialog::PageInfo::create(Dialog& r, int currentWidth) const
@@ -714,25 +626,58 @@ void Dialog::PageInfo::setStateObject(const var& newStateObject)
 
 
 
-Dialog::ModalPopup::ModalPopup(Dialog& parent_):
+Dialog::ModalPopup::ModalPopup(Dialog& parent_, PageInfo::Ptr info_, bool addButtons):
+	FlexboxComponent(simple_css::Selector(".modal-bg")),
+	content(simple_css::Selector(".modal-popup")),
 	parent(parent_),
-	modalError(parent),
+	info(info_),
+	contentViewport(simple_css::Selector(".modal-content")),
+	bottom(simple_css::Selector(".modal-bottom")),
 	okButton("OK"),
 	cancelButton("Cancel")
 {
-	addChildComponent(modalError);
-	addAndMakeVisible(okButton);
-	addAndMakeVisible(cancelButton);
+	setDefaultStyleSheet("position: absolute; background: rgba(128,128,128, 0.8);");
+	content.setDefaultStyleSheet("background: #161616;display:flex;width: 100%;flex-direction: column;margin: 120px 90px;padding: 20px;");
+	contentViewport.setDefaultStyleSheet("display: flex;flex-direction: row;width: 100%;flex-grow: 1;");
 
+	okButton.setVisible(addButtons);
+	cancelButton.setVisible(addButtons);
+
+	addFlexItem(content);
+	content.addFlexItem(contentViewport);
+
+	content.addMouseListener(this, false);
+
+	if(addButtons)
+	{
+		Helpers::writeSelectorsToProperties(okButton, { ".modal-button", "#modal-ok"});
+		Helpers::writeSelectorsToProperties(cancelButton, { ".modal-button", "#modal-cancel"});
+		content.addFlexItem(bottom);
+		bottom.addFlexItem(okButton);
+		bottom.addSpacer();
+		bottom.addFlexItem(cancelButton);
+		bottom.setDefaultStyleSheet("width: 100%;height: auto;");
+	}
+	
 	okButton.onClick = BIND_MEMBER_FUNCTION_0(ModalPopup::onOk);
 	cancelButton.onClick = BIND_MEMBER_FUNCTION_0(ModalPopup::dismiss);
+}
+
+void Dialog::ModalPopup::init()
+{
+	if(info != nullptr)
+	{
+		contentComponent = info->create(parent, parent.getWidth());
+		contentViewport.addFlexItem(*contentComponent);
+		contentComponent->postInit();
+	}
 }
 
 void Dialog::ModalPopup::onOk()
 {
 	if(contentComponent != nullptr)
 	{
-		auto obj = content->stateObject;
+		auto obj = info->stateObject;
 
 		if(!obj.isObject())
 			obj = getGlobalState(*this, {}, var());
@@ -741,7 +686,6 @@ void Dialog::ModalPopup::onOk()
 
 		if(!r.wasOk())
 		{
-			modalError.setError(r);
 			return;
 		}
 
@@ -751,7 +695,7 @@ void Dialog::ModalPopup::onOk()
 
 void Dialog::ModalPopup::dismiss()
 {
-	parent.currentErrorElement = nullptr;
+	parent.setCurrentErrorPage(nullptr);
 
 #if JUCE_DEBUG
 	setVisible(false);
@@ -760,36 +704,6 @@ void Dialog::ModalPopup::dismiss()
 #endif
 }
 
-void Dialog::ModalPopup::setContent(PageInfo::Ptr newContent)
-{
-	content = newContent;
-}
-
-void Dialog::ModalPopup::show(PositionInfo newInfo, bool addButtons, const Image& additionalScreenshot)
-{
-	info = newInfo;
-
-	okButton.setVisible(addButtons);
-	cancelButton.setVisible(addButtons);
-
-	screenshot = additionalScreenshot;
-
-	if(content != nullptr)
-	{
-		addAndMakeVisible(contentComponent = content->create(parent, getWidth() - 4 * info.OuterPadding));
-
-		contentComponent->postInit();
-		resized();
-
-#if JUCE_DEBUG
-		setVisible(true);
-#else
-		Desktop::getInstance().getAnimator().fadeIn(this, 100);
-#endif        
-
-		toFront(true);
-	}
-}
 
 bool Dialog::ModalPopup::keyPressed(const KeyPress& k)
 {
@@ -807,12 +721,10 @@ bool Dialog::ModalPopup::keyPressed(const KeyPress& k)
 
 void Dialog::ModalPopup::mouseDown(const MouseEvent& e)
 {
-	if(!modalBounds.contains(e.getPosition()))
-	{
-		dismiss();
-	}
+	dismiss();
 }
 
+#if 0
 void Dialog::ModalPopup::paint(Graphics& g)
 {
 	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
@@ -878,39 +790,43 @@ void Dialog::ModalPopup::resized()
 	repaint();
 }
 
+#endif
 
 Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
+	HeaderContentFooter(true),
 	cancelButton("Cancel"),
 	nextButton("Next"),
 	prevButton("Previous"),
-	popup(*this),
+	
 	//errorComponent(*this),
-    runThread(&rt)
+    runThread(&rt),
+	totalProgress(progressValue)
 {
-
 	jassert(runThread->currentDialog == nullptr);
 
     runThread->currentDialog = this;
-	sf.addScrollBarToAnimate(content.getVerticalScrollBar());
 
 	if(auto sd = obj[mpid::StyleData].getDynamicObject())
 	{
 		styleData.fromDynamicObject(var(sd), std::bind(&State::loadFont, &getState(), std::placeholders::_1));
-		refreshAdditionalColours(var(sd));
 	}
 	else
 	{
 		styleData = MarkdownLayout::StyleData::createDarkStyle();
 		styleData.backgroundColour = Colour(0xFF333333);
-		refreshAdditionalColours({});
 	}
-	
+
+	auto defaultValues = styleData.toDynamicObject(true);
+	setDefaultCSSProperties(defaultValues.getDynamicObject());
+
 	//errorComponent.parser.setStyleData(styleData);
 
 	addChildComponent(popup);
 
+	totalProgress.setOpaque(true);
+
 	if(auto ld = obj[mpid::LayoutData].getDynamicObject())
-		defaultLaf.defaultPosition.fromJSON(var(ld));
+		positionInfo.fromJSON(var(ld));
 
 	if(auto ps = obj[mpid::Properties].getDynamicObject())
 		properties = var(ps);
@@ -948,19 +864,28 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 		{
 			auto fc = new DynamicObject();
 		    fc->setProperty(mpid::Type, "List");
-		    fc->setProperty(mpid::Padding, 10);
 		    pageListInfo->add(var(fc));
 		}
     }
 
 	rebuildPagesFromJSON();
 
-	addAndMakeVisible(cancelButton);
-	addAndMakeVisible(nextButton);
-	addAndMakeVisible(prevButton);
-	addAndMakeVisible(content);
-	//addChildComponent(errorComponent);
-	setLookAndFeel(&defaultLaf);
+	header.addTextElement({ "#title"}, properties[mpid::Header].toString());
+	header.addTextElement({ "#subtitle" }, properties[mpid::Subtitle].toString() );
+	header.addFlexItem(totalProgress);
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(totalProgress, { "#total-progress" });
+
+
+
+
+	footer.addFlexItem(cancelButton);
+	footer.addSpacer();
+	footer.addFlexItem(prevButton);
+	footer.addFlexItem(nextButton);
+
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(cancelButton, { "#cancel", ".nav-button" });
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(nextButton, { "#next", ".nav-button" });
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(prevButton, { "#prev", ".nav-button" });
 
     setWantsKeyboardFocus(true);
 
@@ -978,13 +903,11 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 	cancelButton.onClick = [this]()
 	{
-		auto& l = createModalPopup<factory::List>();
+		auto l = createModalPopup<factory::List>();
 
-        l[mpid::Padding] = 15;
-        
-        auto& md = l.addChild<factory::MarkdownText>();
-        
-        auto& to = l.addChild<factory::Button>({
+		auto& root = *l;
+        auto& md = root.addChild<factory::MarkdownText>();
+        auto& to = root.addChild<factory::Button>({
             { mpid::Text, "Save progress" },
             { mpid::ID, "Save" }
         });
@@ -996,16 +919,15 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 			MessageManager::callAsync(finishCallback);
 			return Result::ok();
 		});
-        
-        
-
-		showModalPopup(true);
+		
+		showModalPopup(true, l);
 	};
 
-	content.getVerticalScrollBar().addListener(this);
-
 	//setEditMode(true);
+	
+
 }
+
 
 Dialog::~Dialog()
 {
@@ -1036,20 +958,36 @@ String Dialog::getStringFromModalInput(const String& message, const String& pref
 
 bool Dialog::refreshCurrentPage()
 {
+	popup = nullptr;
+
 	auto index = getState().currentPageIndex;
+
+	String pt;
+	pt << "Step " << String(index+1) << " / " << String(pages.size());
+
+
+	if(pages.size() > 1)
+		progressValue = (double)index / (double)(pages.size() - 1);
+
+	totalProgress.setTextToDisplay(pt);
+
+	css.clearCache();
 
 	logMessage(MessageType::Navigation, "Goto page " + String(index+1));
 
-	if((currentPage = pages[index]->create(*this, content.getWidth() - content.getScrollBarThickness() - 10)))
+	if((currentPage = pages[index]->create(*this, dynamic_cast<Component*>(content.get())->getWidth())))
 	{
+		content->addFlexItem(*currentPage);
 
-		content.setViewedComponent(currentPage);
+		
 		currentPage->postInit();
-		currentPage->setLookAndFeel(&getLookAndFeel());
+		//currentPage->setLookAndFeel(&getLookAndFeel());
 		nextButton.setButtonText(runThread->currentPageIndex == pages.size() - 1 ? "Finish" : "Next");
-
 		refreshBroadcaster.sendMessage(sendNotificationSync, index);
 
+		update(css);
+		
+		
 		return true;
 	}
 
@@ -1066,25 +1004,18 @@ void Dialog::createEditorInSideTab(const var& obj, PageBase* pb, const std::func
 		ns->globalState = obj;
 		auto d = new Dialog(var(), * ns, true);
 
+		auto css = DefaultCSSFactory::getTemplateCollection(DefaultCSSFactory::Template::PropertyEditor);
+		d->update(css);
+
 		d->useHelpBubble = true;
 
-		d->getViewport().setScrollBarThickness(12);
-
-		auto& layout = d->defaultLaf.defaultPosition;
-		layout.OuterPadding = 10;
-		layout.TopHeight = 0;
+		auto& layout = d->positionInfo;
 		auto sd = d->getStyleData();
 		sd.fontSize = 14.0f;
 		sd.f = GLOBAL_FONT();
 		sd.textColour = Colours::white.withAlpha(0.7f);
 		sd.backgroundColour = Colours::transparentBlack;
 		d->setStyleData(sd);
-		layout.LabelPosition = PositionInfo::LabelPositioning::Left;
-		layout.ButtonTab = 0;
-		layout.ButtonMargin = 0;
-		layout.LabelWidth = 85.0;
-
-		(*d->pages.getFirst())[mpid::Padding] = 5;
 
 		r(*d->pages.getFirst());
 
@@ -1133,22 +1064,21 @@ var Dialog::parseCommaList(const String& text)
 	return var(values);
 }
 
-void Dialog::showModalPopup(bool addButtons, const Image& additionalScreenshot)
+void Dialog::showModalPopup(bool addButtons, PageInfo::Ptr content)
 {
-	PositionInfo info;
-
-	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-		info = laf->getMultiPagePositionInfo(popup.content->getData());
-
-	popup.show(info, addButtons, additionalScreenshot);
-	    
+	popup = new ModalPopup(*this, content, addButtons);
+	popup->setVisible(true);
+	body.addFlexItem(*popup);
+	popup->init();
+	body.setCSS(css);
+	
 }
 
 Result Dialog::checkCurrentPage()
 {
 	if(currentPage != nullptr)
 	{
-		currentErrorElement = nullptr;
+		setCurrentErrorPage(nullptr);
 
 		auto ok = currentPage->check(runThread->globalState);
 
@@ -1163,7 +1093,19 @@ Result Dialog::checkCurrentPage()
 
 void Dialog::setCurrentErrorPage(PageBase* b)
 {
+	if(currentErrorElement == b)
+		return;
+
+	if(currentErrorElement != nullptr)
+	{
+		currentErrorElement->changeClass(simple_css::Selector(".error"), false);
+	}
+
 	currentErrorElement = b;
+
+	if(currentErrorElement != nullptr)
+		currentErrorElement->changeClass(simple_css::Selector(".error"), true);
+	
 	repaint();
 }
 
@@ -1249,21 +1191,9 @@ var Dialog::exportAsJSON() const
 		}
 	}
 
-#define SET_ADDITIONAL_COLOUR(x, unused) sd.getDynamicObject()->setProperty(#x, additionalColours[x].getARGB());
-
-	SET_ADDITIONAL_COLOUR(buttonTabBackgroundColour, 0x22000000);
-    SET_ADDITIONAL_COLOUR(buttonBgColour, 0xFFAAAAAA);
-    SET_ADDITIONAL_COLOUR(buttonTextColour, 0xFF252525);
-    SET_ADDITIONAL_COLOUR(modalPopupBackgroundColour, 0xFF333333);
-	SET_ADDITIONAL_COLOUR(modalPopupOverlayColour, 0xEE222222);
-    SET_ADDITIONAL_COLOUR(modalPopupOutlineColour, 0xFFAAAAAA);
-    SET_ADDITIONAL_COLOUR(pageProgressColour, 0x77FFFFFF);
-
-#undef SET_ADDITIONAL_COLOUR
-
 	json->setProperty(mpid::StyleData, sd);
 	json->setProperty(mpid::Properties, properties);
-	json->setProperty(mpid::LayoutData, defaultLaf.defaultPosition.toJSON());
+	json->setProperty(mpid::LayoutData, positionInfo.toJSON());
 	json->setProperty(mpid::GlobalState, runThread->globalState);
 	json->setProperty(mpid::Children, pageListArrayAsVar);
 	json->setProperty(mpid::Assets, runThread->exportAssetsAsJSON(false));
@@ -1319,10 +1249,7 @@ Dialog::PageBase* Dialog::findPageBaseForInfoObject(const var& obj)
 
 Dialog::PositionInfo Dialog::getPositionInfo(const var& pageData) const
 {
-	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-		return laf->getMultiPagePositionInfo(pageData);
-
-	return {};
+	return positionInfo;
 }
 
 void Dialog::showMainPropertyEditor()
@@ -1334,7 +1261,6 @@ void Dialog::showMainPropertyEditor()
 	createEditorInSideTab(var(no), nullptr, [this](PageInfo& introPage)
 	{
 	    auto& propList = introPage.addChild<List>({
-	        { mpid::Padding, 10 },
             { mpid::UseChildState, true },
 	        { mpid::ID, mpid::Properties.toString() }
 	    });
@@ -1414,7 +1340,6 @@ void Dialog::showMainPropertyEditor()
 	    auto& styleProperties = introPage.addChild<List>({
 	        { mpid::ID, mpid::StyleData.toString(), },
 	        { mpid::Text, mpid::StyleData.toString(), },
-	        { mpid::Padding, 10 },
             { mpid::UseChildState, true },
 	        { mpid::Foldable, true },
 	        { mpid::Folded, true }
@@ -1446,7 +1371,6 @@ void Dialog::showMainPropertyEditor()
 				auto& ed = styleProperties.addChild<ColourChooser>({
 	                { mpid::ID, nv.name.toString() },
 	                { mpid::Text, nv.name.toString() },
-					{ mpid::LabelPosition, "Above" },
 	                { mpid::Value, nv.value }
 		        });
 	        }
@@ -1469,24 +1393,13 @@ void Dialog::showMainPropertyEditor()
 	        auto& layoutProperties = introPage.addChild<List>({
 	            { mpid::ID, mpid::LayoutData.toString() },
 	            { mpid::Text, mpid::LayoutData.toString() },
-	            { mpid::Padding, 10 },
                 { mpid::UseChildState, true },
 	            { mpid::Foldable, true },
 	            { mpid::Folded, true }
 	        });
 
-			
+			auto layoutObj = positionInfo.toJSON();
 
-			auto layoutObj = defaultLaf.getMultiPagePositionInfo({}).toJSON();
-
-	        std::map<Identifier, String> help;
-	        help["OuterPadding"] = "The distance between the content and the component bounds in pixel.";
-	        help["ButtonTab"] = "The height of the bottom tab with the Cancel / Prev / Next buttons.";
-	        help["ButtonMargin"] = "The distance between the buttons in the bottom tab in pixel.";
-	        help["TopHeight"] = "The height of the top bar with the title and the step progress in pixel.";
-	        help["LabelWidth"] = "The width of the text labels of each property component. You can use either relative or absolute size values:\n- Negative values are relative to the component width (minus the `OuterPadding` property)\n- positive values are absolute pixel values.";
-			help["LabelHeight"] = "The height of the label if the positioning is set to either `Above` or `Below`";
-			help[mpid::LabelPosition] = "The default position of the text label";
 
 			PageInfo* currentCol = &layoutProperties;
 
@@ -1494,25 +1407,11 @@ void Dialog::showMainPropertyEditor()
 
 	        for(auto& v: layoutObj.getDynamicObject()->getProperties())
 	        {
-				if(v.name == mpid::LabelPosition)
-				{
-					layoutProperties.addChild<Choice>({
+				layoutProperties.addChild<TextInput>({
 		                { mpid::ID, v.name.toString() },
 						{ mpid::Text, v.name.toString() },
-		                { mpid::Value, v.value },
-						{ mpid::Items, PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-		                { mpid::Help, help[v.name] }
+		                { mpid::Value, v.value }
 			        });
-				}
-				else
-				{
-					layoutProperties.addChild<TextInput>({
-		                { mpid::ID, v.name.toString() },
-						{ mpid::Text, v.name.toString() },
-		                { mpid::Value, v.value },
-		                { mpid::Help, help[v.name] }
-			        });
-				}
 
 				numInCol++;
 	        }
@@ -1525,21 +1424,16 @@ void Dialog::showMainPropertyEditor()
 			properties = obj[mpid::Properties].clone();
 			styleData.fromDynamicObject(obj[mpid::StyleData], std::bind(&State::loadFont, &getState(), std::placeholders::_1));
 
-			refreshAdditionalColours(obj[mpid::StyleData]);
+			auto defaultValues = styleData.toDynamicObject(true);
 
-			PositionInfo newPos;
+			setDefaultCSSProperties(defaultValues.getDynamicObject());
 
-			newPos.fromJSON(obj[mpid::LayoutData]);
-
-			auto ok = newPos.checkSanity();
-
-			if(ok.wasOk())
-				defaultLaf.defaultPosition = newPos;
+			positionInfo.fromJSON(obj[mpid::LayoutData]);
 
 			resized();
 			repaint();
 			
-			return ok;
+			return Result::ok();
 		});
 	});
 }
@@ -1562,7 +1456,6 @@ void Dialog::addListPageWithJSON()
 {
 	auto fc = new DynamicObject();
 	fc->setProperty(mpid::Type, "List");
-	fc->setProperty(mpid::Padding, 10);
         
 	pageListInfo->add(var(fc));
 
@@ -1597,21 +1490,6 @@ void Dialog::rebuildPagesFromJSON()
     }
 
 	
-}
-
-void Dialog::refreshAdditionalColours(const var& styleDataObject)
-{
-#define SET_ADDITIONAL_COLOUR(x, defaultColour) additionalColours[x] = Colour((uint32)(int64)styleDataObject.getProperty(#x, Colour(defaultColour).getARGB()));
-
-	SET_ADDITIONAL_COLOUR(buttonTabBackgroundColour, 0x22000000);
-    SET_ADDITIONAL_COLOUR(buttonBgColour, 0xFFAAAAAA);
-    SET_ADDITIONAL_COLOUR(buttonTextColour, 0xFF252525);
-    SET_ADDITIONAL_COLOUR(modalPopupBackgroundColour, 0xFF333333);
-	SET_ADDITIONAL_COLOUR(modalPopupOverlayColour, 0xEE222222);
-    SET_ADDITIONAL_COLOUR(modalPopupOutlineColour, 0xFFAAAAAA);
-    SET_ADDITIONAL_COLOUR(pageProgressColour, 0x77FFFFFF);
-
-#undef SET_ADDITIONAL_COLOUR
 }
 
 Result Dialog::getCurrentResult()
@@ -1735,7 +1613,8 @@ void Dialog::setStyleData(const MarkdownLayout::StyleData& sd)
 bool Dialog::navigate(bool forward)
 {
     ScopedValueSetter<bool> svs(currentNavigation, forward);
-    currentErrorElement = nullptr;
+
+	setCurrentErrorPage(nullptr);
     //errorComponent.setError(Result::ok());
 	repaint();
 	auto newIndex = jlimit(0, pages.size(), runThread->currentPageIndex + (forward ? 1 : -1));
@@ -1800,7 +1679,8 @@ void Dialog::paint(Graphics& g)
     
     if(currentErrorElement != nullptr)
         errorBounds = this->getLocalArea(currentErrorElement, currentErrorElement->getLocalBounds()).expanded(5, 2);
-    
+
+#if 0
     if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
 	{
         laf->drawMultiPageBackground(g, *this, errorBounds);
@@ -1815,19 +1695,28 @@ void Dialog::paint(Graphics& g)
         g.setColour(Colours::white.withAlpha(0.1f));
         g.setFont(GLOBAL_MONOSPACE_FONT());
 	}
+#endif
 
-	if(currentlyEditedPage != nullptr)
+	if(auto ss = css.getWithAllStates(simple_css::ElementType::Body))
 	{
-		auto b = getLocalArea(currentlyEditedPage, currentlyEditedPage->getLocalBounds()).expanded(2.0f);
-		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
-		g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
+		auto c = ss->getColourOrGradient(getLocalBounds().toFloat(), { "background-color", {}}, Colour(0xFF222222));
+
+		if(c.second.getNumColours() != 0)
+			g.setGradientFill(c.second);
+		else
+			g.setColour(c.first);
+
+		g.fillAll();
 	}
+
+	
 }
 
 void Dialog::resized()
 {
-	popup.setBounds(getLocalBounds());
+	HeaderContentFooter::resized();
 
+#if 0
 	PositionInfo position;
 
 	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
@@ -1879,10 +1768,9 @@ void Dialog::resized()
     if(currentPage != nullptr)
     {
         currentPage->setSize(content.getWidth() - (content.getVerticalScrollBar().isVisible() ? (content.getScrollBarThickness() + 10) : 0), currentPage->getHeight());
-        
     }
 
-	auto topCopy = top;
+#endif
 
 }
 
@@ -1896,6 +1784,8 @@ void Dialog::setEditMode(bool isEditMode)
 {
 #if HISE_MULTIPAGE_INCLUDE_EDIT
 	editMode = isEditMode;
+	//showInfo(isEditMode);
+
 	editModeBroadcaster.sendMessage(sendNotificationSync, editMode);
 
 	currentPage = nullptr;
@@ -2119,26 +2009,6 @@ bool Dialog::showEditor(const var& infoObject)
 		});
 
 		return true;
-		auto& l = createModalPopup<factory::List>({
-	        { mpid::Padding, 10 }
-		});
-
-		
-
-	    l.setStateObject(infoObject);
-	    tp->createEditor(l);
-
-		if(auto lc = dynamic_cast<factory::LabelledComponent*>(tp))
-		{
-			l.setCustomCheckFunction([lc](PageBase* b, var obj)
-		    {
-				auto ok = lc->loadFromInfoObject(obj);
-				lc->repaint();
-		        return ok;
-		    });
-		}
-
-	    showModalPopup(true);
 	}
 
 	return true;

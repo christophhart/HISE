@@ -38,15 +38,46 @@ using namespace juce;
 
 
 struct Editor: public Component,
-	           public CSSRootComponent,
-		       public TopLevelWindowWithKeyMappings
+	           public TopLevelWindowWithKeyMappings,
+			   public DeletedAtShutdown
 {
-	Editor();
+	using CompileCallback = std::function<void(StyleSheet::Collection&)>;
+
+	Editor(Component* target, const CompileCallback& f_);
 
 	~Editor()
 	{
 		TopLevelWindowWithKeyMappings::saveKeyPressMap();
-		context.detach();
+	}
+
+	void userTriedToCloseWindow() override
+	{
+
+		MessageManager::callAsync([this]()
+		{
+			delete this;
+		});
+	}
+	
+
+	static void showEditor(Component* t, const CompileCallback& f)
+	{
+		auto e = new Editor(t, f);
+		e->setVisible(true);
+
+		int flags = 0;
+
+		flags |= ComponentPeer::StyleFlags::windowAppearsOnTaskbar;
+		flags |= ComponentPeer::StyleFlags::windowHasCloseButton;
+		flags |= ComponentPeer::StyleFlags::windowHasDropShadow;
+		flags |= ComponentPeer::StyleFlags::windowHasMaximiseButton;
+		flags |= ComponentPeer::StyleFlags::windowHasTitleBar;
+		flags |= ComponentPeer::StyleFlags::windowIsResizable;
+
+		e->setName("Live CSS Editor");
+		e->addToDesktop(flags, nullptr);
+		e->centreWithSize(900, 600);
+
 	}
 
 	File getKeyPressSettingFile() const override { return File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory).getChildFile("something.js"); }
@@ -56,27 +87,16 @@ struct Editor: public Component,
 	void resized() override;
 	void paint(Graphics& g) override;
 
+	CompileCallback f;
+
 	mcl::TokenCollection::Ptr tokenCollection;
 	hise::GlobalHiseLookAndFeel laf;
-	//Rectangle<float> previewArea;
-	
-	FlexboxComponent body;
-	FlexboxComponent header;
-	FlexboxComponent content;
-	FlexboxComponent footer;
-
-	ScopedPointer<LookAndFeel> css_laf;
-	
-	TextButton cancel, prev, next;
-
-	SubmenuComboBox selector;
-	TextEditor textInput;
 	
 	juce::CodeDocument jdoc;
 	mcl::TextDocument doc;
 	mcl::FullEditor editor;
 	juce::TextEditor list;
-	OpenGLContext context;
+	Component::SafePointer<Component> target;
 };
 
 	

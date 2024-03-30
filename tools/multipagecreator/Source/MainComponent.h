@@ -682,7 +682,7 @@ struct Tree: public Component,
         {
             t.deleteButton.setEnabled(t.currentDialog->getNumPages() > 1);
 	        t.refresh();
-        }, false);
+        }, true);
 
         refresh();
     }
@@ -1110,9 +1110,13 @@ public:
     }
 
     State* getMainState() override { return &rt; }
-    
+
+    Component::SafePointer<Dialog> currentSideTabDialog;
+
     bool setSideTab(multipage::State* dialogState, multipage::Dialog* newDialog) override
     {
+        currentSideTabDialog = newDialog;
+
         auto sideDialog = rightTab.getChild<SideTab>(0);
 
         if(sideDialog->dialog != nullptr && dialogState != nullptr &&

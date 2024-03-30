@@ -39,12 +39,7 @@ using namespace juce;
 Type::Type(Dialog& r, int width, const var& d):
 	PageBase(r, width, d)
 {
-	auto visible = true;
-
-	if(d.hasProperty(mpid::Visible))
-		visible = (bool)d[mpid::Visible];
-
-	setSize(width, visible ? 42 : 0);
+	setSize(width, 42);
 	typeId = d[mpid::Type].toString();
 }
 
@@ -91,19 +86,52 @@ void Type::paint(Graphics& g)
 
 void Spacer::createEditor(Dialog::PageInfo& rootList)
 {
-		rootList[mpid::Padding] = 10;
-    
     rootList.addChild<Type>({
         { mpid::ID, "Type"},
         { mpid::Type, "Spacer"},
 		{ mpid::Help, "A simple spacer for convenient layouting." }
     });
+}
+
+SimpleText::SimpleText(Dialog& r, int width, const var& obj):
+	PageBase(r, width, obj)
+{
+	setDefaultStyleSheet("width: 100%;height: auto;display: flex;");
+	auto t = addTextElement({}, obj[mpid::Text].toString());
+	Helpers::writeInlineStyle(*t, "flex-grow:1;");
+	setSize(width, t->getHeight());
+}
+
+void SimpleText::createEditor(Dialog::PageInfo& rootList)
+{
+	rootList.addChild<Type>({
+		{ mpid::ID, "Type"},
+		{ mpid::Type, "SimpleText"},
+		{ mpid::Help, "A field to display text messages with markdown support" }
+	});
 
 	rootList.addChild<TextInput>({
-		{ mpid::ID, "Padding" },
-		{ mpid::Text, "Padding" },
-		{ mpid::Value, padding },
-		{ mpid::Help, "The size of the spacer" }
+		{ mpid::ID, "Text" },
+		{ mpid::Text, "Text" },
+		{ mpid::Required, true },
+		{ mpid::Multiline, true },
+		{ mpid::Height, 80 },
+		{ mpid::Value, infoObject[mpid::Text].toString() },
+		{ mpid::Help, "The plain text content." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Class.toString() },
+		{ mpid::Text, mpid::Class.toString() },
+		{ mpid::Help, "The CSS class that is applied to the action UI element (progress bar & label)." },
+		{ mpid::Value, infoObject[mpid::Class] }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+		{ mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
 }
 
@@ -208,38 +236,46 @@ struct AssetImageProvider: public MarkdownParser::ImageProvider
 	Identifier getId() const { RETURN_STATIC_IDENTIFIER("AssetImageProvider"); };
 };
 
-MarkdownText::MarkdownText(Dialog& d, int width, const var& obj_):
-	PageBase(d, width, obj_),
-	r("", {}),
+MarkdownText::MarkdownText(Dialog& d, int width_, const var& obj_):
+	PageBase(d, width_, obj_),
+	display(),
+	width((float)width_),
 	obj(obj_)
 {
-	r.setImageProvider(new AssetImageProvider(&r, d.getState()));
+	display.r.setImageProvider(new AssetImageProvider(&display.r, d.getState()));
+	display.setResizeToFit(true);
+	
+	Helpers::writeSelectorsToProperties(display, {".markdown"});
 
-	padding = obj[mpid::Padding];
-	isComment = obj[mpid::Comment];
+	setDefaultStyleSheet("width: 100%; height: auto;");
+	Helpers::setFallbackStyleSheet(display, "width: 100%;");
+
+	
+
+	addFlexItem(display);
+
+	forwardInlineStyleToChildren();
 
 	setSize(width, 0);
-	setInterceptsMouseClicks(false, false);
+	//setInterceptsMouseClicks(false, false);
 }
 
 void MarkdownText::postInit()
 {
 	init();
 
-	if(isComment && !rootDialog.isEditModeEnabled())
+	if(auto root = simple_css::CSSRootComponent::find(*this))
 	{
-		setSize(getWidth(), 0);
-		return;
+		display.r.setStyleData(root->css.getMarkdownStyleData(&display));
 	}
 
 	auto markdownText = getString(infoObject[mpid::Text].toString(), rootDialog);
 
 	if(markdownText.startsWith("${"))
-	{
 		markdownText = rootDialog.getState().loadText(markdownText);
-	}
 
-	r.setNewText(isComment ? ("// " + markdownText) : markdownText);
+	display.setSize(width, 0);
+	display.setText(markdownText);
 
 	auto sd = findParentComponentOfClass<Dialog>()->getStyleData();
 
@@ -247,21 +283,12 @@ void MarkdownText::postInit()
 
 	if(findParentComponentOfClass<Dialog::ModalPopup>() != nullptr)
 		sd.backgroundColour = Colours::transparentBlack;
-
-	if(isComment)
-		sd.textColour = Colour(HISE_OK_COLOUR);
-
-	r.setStyleData(sd);
-	r.parse();
-
-	auto width = getWidth();
-
-	auto h = roundToInt(r.getHeightForWidth(width - 2 * (padding + isComment * 10)));
-	setSize(width, h + 2 * (padding + isComment * 10));
 }
 
+	#if 0
 void MarkdownText::paint(Graphics& g)
 {
+
 	if(isComment)
 	{
 		auto c = Colour(HISE_OK_COLOUR);
@@ -272,11 +299,12 @@ void MarkdownText::paint(Graphics& g)
 	}
 
 	r.draw(g, getLocalBounds().toFloat().reduced(padding + isComment * 10));
+
 }
+	#endif
 
 void MarkdownText::createEditor(Dialog::PageInfo& rootList)
 {
-    rootList[mpid::Padding] = 10;
     
     rootList.addChild<Type>({
         { mpid::ID, "Type"},
@@ -295,64 +323,18 @@ void MarkdownText::createEditor(Dialog::PageInfo& rootList)
     });
 
 	rootList.addChild<TextInput>({
-		{ mpid::ID, "Padding" },
-		{ mpid::Text, "Padding" },
-		{ mpid::Value, padding },
-		{ mpid::Help, "The outer padding for the entire text render area" }
+        { mpid::ID, mpid::Class.toString() },
+        { mpid::Text, mpid::Class.toString() },
+        { mpid::Help, "The CSS class that is applied to the action UI element (progress bar & label)." },
+		{ mpid::Value, infoObject[mpid::Class] }
+    });
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+        { mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
-
-	rootList.addChild<Button>({
-		{ mpid::ID, "Comment" },
-		{ mpid::Text, "Comment" },
-		{ mpid::Value, isComment },
-		{ mpid::Help, "If enabled, this will only be displayed in edit mode and can be used for comments" }
-	});
-}
-
-
-void MarkdownText::editModeChanged(bool isEditMode)
-{
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	PageBase::editModeChanged(isEditMode);
-
-	if(overlay != nullptr)
-	{
-		overlay->localBoundFunction = [](Component* c)
-		{
-			return c->getLocalBounds();
-		};
-
-		overlay->setOnClick([this](bool isRightClick)
-		{
-			if(showDeletePopup(isRightClick))
-				return;
-
-			auto& list = rootDialog.createModalPopup<List>();
-			list.setStateObject(infoObject);
-
-			createEditor(list);
-
-			list.setCustomCheckFunction([this](PageBase* b, const var& obj)
-			{
-				padding = obj[mpid::Padding];
-				r.setNewText(obj[mpid::Text].toString());
-				r.parse();
-
-				auto width = getWidth();
-
-				auto h = roundToInt(r.getHeightForWidth(width - 2 * padding));
-				setSize(width, h + 2 * padding);
-
-				Container::recalculateParentSize(this);
-
-				return Result::ok();
-			});
-
-
-			rootDialog.showModalPopup(true);
-		});
-	}
-#endif
 }
 
 
@@ -361,8 +343,6 @@ Result MarkdownText::checkGlobalState(var)
 {
 	return Result::ok();
 }
-
-
 
 } // factory
 
@@ -389,6 +369,7 @@ Factory::Factory()
 	registerPage<factory::Column>();
 	registerPage<factory::Spacer>();
 	registerPage<factory::List>();
+	registerPage<factory::SimpleText>();
     registerPage<factory::MarkdownText>();
 	registerPage<factory::Button>();
 	registerPage<factory::TextInput>();
@@ -798,6 +779,8 @@ static const unsigned char OperatingSystem[] = { 110,109,148,176,35,68,180,70,18
 81,190,32,68,133,56,159,67,86,183,33,68,232,8,157,67,98,132,176,34,68,76,217,154,67,223,44,35,68,9,146,151,67,223,44,35,68,16,51,147,67,98,223,44,35,68,50,225,142,67,186,179,34,68,54,168,139,67,75,193,33,68,17,136,137,67,98,220,206,32,68,229,103,135,
 67,200,140,31,68,214,87,134,67,58,251,29,68,214,87,134,67,98,209,105,28,68,214,87,134,67,14,38,27,68,52,107,135,67,104,48,26,68,238,145,137,67,98,154,58,25,68,168,184,139,67,198,191,24,68,40,247,142,67,198,191,24,68,104,77,147,67,99,101,0,0 };
 
+
+
 static const unsigned char JavascriptFunction[] = { 110,109,28,81,38,68,96,95,171,67,108,196,217,45,68,224,228,169,67,98,20,78,46,68,160,243,174,67,108,57,47,68,32,174,178,67,100,156,48,68,160,9,181,67,98,84,255,49,68,160,106,183,67,76,222,51,68,96,152,184,67,236,56,54,68,96,152,184,67,98,68,183,56,68,
 96,152,184,67,100,152,58,68,128,139,183,67,20,220,59,68,224,113,181,67,98,196,31,61,68,192,82,179,67,156,193,61,68,224,219,176,67,156,193,61,68,160,7,174,67,98,156,193,61,68,224,58,172,67,148,125,61,68,224,175,170,67,60,245,60,68,192,102,169,67,98,44,
 109,60,68,0,35,168,67,92,127,59,68,192,5,167,67,12,44,58,68,96,20,166,67,98,252,67,57,68,64,117,165,67,212,50,55,68,0,88,164,67,228,248,51,68,128,188,162,67,98,132,210,47,68,192,173,160,67,172,232,44,68,128,38,158,67,52,60,43,68,96,38,155,67,98,132,225,
@@ -830,6 +813,7 @@ Path Factory::createPath(const String& url) const
     LOAD_MULTIPAGE_PATH(List);
 	LOAD_MULTIPAGE_PATH(Spacer);
     LOAD_MULTIPAGE_PATH(MarkdownText);
+	if(url == factory::SimpleText::getStaticId().toString()) p.loadPathFromData(Icons::MarkdownText, sizeof(Icons::MarkdownText));;
     LOAD_MULTIPAGE_PATH(Button);
     LOAD_MULTIPAGE_PATH(TextInput);
     LOAD_MULTIPAGE_PATH(Skip);

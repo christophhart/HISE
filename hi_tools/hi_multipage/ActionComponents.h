@@ -55,15 +55,10 @@ struct Action: public Dialog::PageBase
     void postInit() override;
     void perform();
     Result checkGlobalState(var globalState) override;
-
-    void editModeChanged(bool isEditMode) override;
-
     Result r;
 
 	bool callOnNext = false;
 };
-
-
 
 /** A base class for an action that will be performed on page load. */
 struct ImmediateAction: public Action
@@ -81,13 +76,13 @@ struct Skip: public ImmediateAction
 
     Skip(Dialog& r, int w, const var& obj);
 
-
-
     bool skipIfStateIsFalse() const override { return true; }
 
     void createEditor(Dialog::PageInfo& rootList) override;
     Result onAction() override;
     String getDescription() const override { return "skipPage()"; };
+
+    bool invert = false;
 };
 
 struct JavascriptFunction: public ImmediateAction

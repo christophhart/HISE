@@ -65,6 +65,9 @@ Animator::Item::Item(Animator& parent, StyleSheet::Ptr css_, Transition tr_):
 
 bool Animator::Item::timerCallback(double delta)
 {
+	if(target.getComponent() == nullptr)
+		return false;
+
 	auto d = delta * 0.001;
 
 	if(transitionData.duration > 0.0)
@@ -82,7 +85,13 @@ bool Animator::Item::timerCallback(double delta)
 		return false;
 	}
 
-	target->repaint();
+	if(target.getComponent() != nullptr)
+		target->repaint();
+	else
+	{
+		return false;
+	}
+
 	return true;
 }
 

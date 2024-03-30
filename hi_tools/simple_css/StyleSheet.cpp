@@ -35,15 +35,7 @@ namespace hise
 {
 namespace simple_css
 {
-StyleSheet::StyleSheet(const Array<Selector>& selectors_)
-{
-	selectors.addArray(selectors_);
-}
 
-StyleSheet::StyleSheet(const Selector& s)
-{
-	selectors.add(s);
-}
 
 TransitionValue StyleSheet::getTransitionValue(const PropertyKey& key) const
 {
@@ -62,8 +54,8 @@ TransitionValue StyleSheet::getTransitionValue(const PropertyKey& key) const
 
 		if(i->startValue.name == key.name && i->startValue.state.matchesElement(key.state))
 		{
-			tv.startValue = getPropertyValue(i->startValue).valueAsString;
-			tv.endValue = getPropertyValue(i->endValue).valueAsString;
+			tv.startValue = getPropertyValueString(i->startValue);
+			tv.endValue = getPropertyValueString(i->endValue);
 
 			if(tv.startValue == tv.endValue)
 			{
@@ -94,13 +86,34 @@ PropertyValue StyleSheet::getPropertyValue(const PropertyKey& key) const
 	return {};
 }
 
-void StyleSheet::copyPropertiesFrom(Ptr other)
+String StyleSheet::getPropertyValueString(const PropertyKey& key) const
 {
+	return getPropertyValue(key).getValue(varProperties);
+}
+
+void StyleSheet::copyPropertiesFrom(Ptr other, bool overwriteExisting, const StringArray& propertiesToCopy)
+{
+	if(other->varProperties != nullptr)
+	{
+		if(varProperties == nullptr)
+		{
+			varProperties = other->varProperties->clone();
+		}
+		else
+		{
+			for(const auto& nv: other->varProperties->getProperties())
+			varProperties->setProperty(nv.name, nv.value);
+		}
+	}
+
 	other->forEachProperty(PseudoElementType::All, [&](PseudoElementType t, Property& p)
 	{
 		for(const auto& v: p.values)
 		{
 			bool found = false;
+
+			if(!propertiesToCopy.isEmpty() && !propertiesToCopy.contains(p.name))
+				continue;
 
 			for(auto& tp: properties[(int)t])
 			{
@@ -110,7 +123,9 @@ void StyleSheet::copyPropertiesFrom(Ptr other)
 					{
 						if(stateValue.first == v.first)
 						{
-							stateValue.second = v.second;
+							if(overwriteExisting)
+								stateValue.second = v.second;
+
 							found = true;
 						}
 					}
@@ -132,6 +147,17 @@ void StyleSheet::copyPropertiesFrom(Ptr other)
 
 		return false;
 	});
+
+	forEachProperty(PseudoElementType::All, [](PseudoElementType t, Property& v)
+	{
+		std::sort(v.values.begin(), v.values.end(), [](const std::pair<int, PropertyValue>& v1, const std::pair<int, PropertyValue>& v2)
+		{
+			return v1.first < v2.first;
+		});
+
+		return false;
+	});
+	
 
 #if 0
 	for(const auto& p: other->properties)
@@ -157,6 +183,12 @@ void StyleSheet::copyPropertiesFrom(Ptr other)
 		}
 	}
 #endif
+}
+
+void StyleSheet::copyPropertiesFromParent(Ptr parent)
+{
+	if(parent != nullptr)
+		copyPropertiesFrom(parent, true, keywords->getInheritedProperties());
 }
 
 NonUniformBorderData StyleSheet::getNonUniformBorder(Rectangle<float> totalArea, PseudoState stateFlag) const
@@ -195,7 +227,7 @@ NonUniformBorderData StyleSheet::getNonUniformBorder(Rectangle<float> totalArea,
 		}
 		else if(auto pv = getPropertyValue(k))
 		{
-			auto bs = ExpressionParser::evaluate(pv.valueAsString, {  useWidth, totalArea , defaultFontSize});
+			auto bs = ExpressionParser::evaluate(pv.getValue(varProperties), {  useWidth, totalArea , defaultFontSize});
 			nub.setBorderSize(borderType, bs);
 		}
 	};
@@ -224,25 +256,236 @@ NonUniformBorderData StyleSheet::getNonUniformBorder(Rectangle<float> totalArea,
 StyleSheet::Collection::Collection(List l):
 	list(l)
 {
+	if(auto body = (*this)[Selector(SelectorType::All, "*")])
+	{
+		for(auto s: list)
+		{
+			if(s == body.get())
+				continue;
+
+			s->copyPropertiesFrom(body, false, { "color", "font-family", "font-size", "font-weight", "text-align"});
+		}
+	}
+
 	// TODO: sort so that it takes the best match first
 }
 
 void StyleSheet::Collection::setAnimator(Animator* a)
 {
-	for(auto l: list)
-		l->animator = a;
+	forEach([a](Ptr p)
+	{
+		p->animator = a;
+	});
 }
 
 StyleSheet::Ptr StyleSheet::Collection::operator[](const Selector& s) const
 {
-	for(auto l: list)
+	StyleSheet::Ptr all;
+
+	for(auto& l: list)
 	{
-		auto item = std::find(l->selectors.begin(), l->selectors.end(), s);
-		if(item != l->selectors.end())
-			return l;
+		if(l->matchesSelectorList({s}))
+		{
+			if(l->isAll())
+				all = l;
+			else
+				return l;
+		}
 	}
 
-	return nullptr;
+	return all;
+}
+
+StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
+{
+	for(const auto& existing: cachedMaps)
+	{
+		if(existing.first.getComponent() == c)
+			return existing.second;
+	}
+	
+	using Match = std::pair<ComplexSelector::Score, StyleSheet::Ptr>;
+
+
+	Array<Match> matches;
+
+	auto all = getWithAllStates(Selector(SelectorType::All, "*"));
+	StyleSheet::Ptr parentStyle;
+
+	if(auto p = c->getParentComponent())
+	{
+		parentStyle = getForComponent(p);
+	}
+
+	auto selectors = ComplexSelector::getSelectorsForComponent(c);
+
+	for(auto l: list)
+	{
+		if(l->isAll())
+		{
+			continue;
+		}
+		else
+		{
+			for(auto cs: l->complexSelectors)
+			{
+				if(cs->matchesComponent(c))
+					matches.add({ ComplexSelector::Score(cs, selectors), l });
+			}
+		}
+	}
+
+	auto elementStyle = c->getProperties()["style"].toString();
+	auto inlineStyle = FlexboxComponent::Helpers::getInlineStyle(*c);
+
+	auto customCode = elementStyle.isNotEmpty() || inlineStyle.isNotEmpty() || parentStyle != nullptr || all != nullptr;
+
+	if(matches.isEmpty() && !customCode)
+		return nullptr;
+	
+	if(matches.size() == 1 && !customCode)
+		return matches.getFirst().second;
+
+	struct Sorter
+	{
+		static int compareElements(const Match& m1, const Match& m2)
+		{
+			if(m1.first < m2.first)
+				return 1;
+			if(m1.first > m2.first)
+				return -1;
+
+			return 0;
+		}
+	} sorter;
+	
+	matches.sort(sorter);
+
+	auto ptrValue = reinterpret_cast<uint64>(c);
+	Selector elementSelector(SelectorType::Element, String::toHexString(ptrValue));
+
+	StyleSheet::Ptr ptr;
+
+	if(elementStyle.isNotEmpty())
+	{
+		String code;
+
+		code << elementSelector.toString();
+		code << "{ " << elementStyle;
+		if(!code.endsWithChar(';')) code << ";";
+		code << " }";
+
+		Parser p(code);
+		auto ok = p.parse();
+
+		if(ok.wasOk())
+			ptr = p.getCSSValues()[elementSelector];
+	}
+	else
+		ptr = new StyleSheet(elementSelector);
+	
+	ptr->copyPropertiesFromParent(all);
+	ptr->copyPropertiesFromParent(parentStyle);
+
+	for(int i = matches.size() - 1; i >= 0; i--)
+	{
+		ptr->copyPropertiesFrom(matches[i].second);
+	}
+
+	if(inlineStyle.isNotEmpty())
+	{
+		String ic;
+		ic << elementSelector.toString();
+		ic << "{" << inlineStyle;
+		if(!inlineStyle.endsWithChar(';'))
+			ic << ";";
+
+		ic << "}";
+		Parser p(ic);
+		p.parse();
+		auto is = p.getCSSValues().getWithAllStates(elementSelector);
+		ptr->copyPropertiesFrom(is, true);
+	}
+
+	cachedMaps.add({ c, ptr });
+
+	if(auto root = CSSRootComponent::find(*c))
+		setAnimator(&root->animator);
+
+	DBG("CSS for component");
+	DBG(ptr->toString());
+
+	return ptr;
+
+#if 0
+	Array<Selector> selectors;
+
+	if(auto fc = dynamic_cast<FlexboxComponent*>(c))
+	{
+		// overwrite the default behaviour and only return the
+		// selector that was defined
+		selectors.add(fc->getSelector());
+		selectors.addArray(FlexboxComponent::Helpers::getClassSelectorFromComponentClass(c));
+	}
+	else
+	{
+		if(auto ts = FlexboxComponent::Helpers::getTypeSelectorFromComponentClass(c))
+			selectors.add(ts);
+
+		auto classList = FlexboxComponent::Helpers::getClassSelectorFromComponentClass(c);
+
+		selectors.addArray(classList);
+
+		if(auto is = FlexboxComponent::Helpers::getIdSelectorFromComponentClass(c))
+			selectors.add(is);
+	}
+
+	auto elementStyle = c->getProperties()["style"].toString();
+
+	StyleSheet::Ptr ptr;
+
+	if(elementStyle.isNotEmpty())
+	{
+		String code;
+
+		auto ptrValue = reinterpret_cast<uint64>(c);
+		Selector elementSelector(SelectorType::Element, String::toHexString(ptrValue));
+					
+		code << elementSelector.toString();
+		code << "{ " << elementStyle;
+		if(!code.endsWithChar(';')) code << ";";
+		code << " }";
+
+		Parser p(code);
+		auto ok = p.parse();
+		if(ok.wasOk())
+			ptr = p.getCSSValues().getOrCreateCascadedStyleSheet({elementSelector});
+
+		addElementStyle(ptr);
+
+		if(auto body = (*this)[ElementType::Body])
+		{
+			ptr->copyPropertiesFrom(body, false);
+		}
+	}
+
+	auto cssPtr = getOrCreateCascadedStyleSheet(selectors);
+
+	if(ptr != nullptr)
+	{
+		if(cssPtr != nullptr)
+			ptr->copyPropertiesFrom(cssPtr);
+	}
+	else
+	{
+		ptr = cssPtr;
+	}
+
+	if(auto root = CSSRootComponent::find(*c))
+		setAnimator(&root->animator);
+
+	return ptr;
+#endif
 }
 
 String StyleSheet::Collection::toString() const
@@ -257,71 +500,173 @@ String StyleSheet::Collection::toString() const
 	return listContent;
 }
 
-StyleSheet::Ptr StyleSheet::Collection::findBestMatch(const Array<Selector>& selectors) const
-{
-	if(auto ss = (*this)[selectors])
-		return ss;
+	
 
-	for(auto s: selectors)
+
+
+StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(const Selector& s)
+{
+	for(const auto& existing: cachedMapForAllStates)
 	{
-		if(auto ss = (*this)[s])
-			return ss;
+		if(existing.first.exactMatch(s))
+			return existing.second;
 	}
 
-	return nullptr;
-}
+	auto wantsAll = s.type == SelectorType::All;
 
-StyleSheet::Ptr StyleSheet::Collection::getOrCreateCascadedStyleSheet(const Array<Selector>& selectors)
-{
-	if(auto ss = (*this)[selectors])
-		return ss;
-	
 	List matches;
 
-	for(auto s: selectors)
+	for(auto l: list)
 	{
-		if(auto ss = (*this)[s])
+		if(l->isAll() != wantsAll)
+			continue;
+
+		for(auto cs: l->complexSelectors)
 		{
-			matches.add(ss);
+			if(!cs->hasParentSelectors() && 
+				cs->thisSelectors.isSingle() &&
+				cs->thisSelectors.selectors[0].first == s)
+			{
+				matches.add(l);
+			}
 		}
 	}
 
 	if(matches.isEmpty())
 		return nullptr;
 
-	if(matches.size() == 1)
-		return matches.getFirst();
+	ComplexSelector::List l;
+	l.add(new ComplexSelector({ {s, {}}}));
 
-	StyleSheet::Ptr p = new StyleSheet(Array<Selector>());
-	p->animator = matches.getFirst()->animator;
+	auto ptr = new StyleSheet(l);
 
 	for(auto m: matches)
-	{
-		p->selectors.addArray(m->selectors);
-		p->copyPropertiesFrom(m);
-	}
+		ptr->copyPropertiesFrom(m, true);
 
-	list.add(p);
-				
+	DBG("new all state css");
+	DBG(ptr->toString());
 
-	DBG("New CSS added: " + p->toString());
+	cachedMapForAllStates.add({s, ptr});
 
-	return p;
+	ptr->animator = matches.getFirst()->animator;
+
+	return ptr;
 }
 
-void StyleSheet::Collection::addElementStyle(Ptr p)
-{
-	auto elementSelector = p->selectors.getFirst();
-	jassert(elementSelector.type == SelectorType::Element);
 
-	for(auto p: list)
+void StyleSheet::Collection::setPropertyVariable(const Identifier& id, const var& newValue)
+{
+	forEach([id, newValue](Ptr p)
 	{
-		for(auto& s: p->selectors)
-			if(s == elementSelector)
-				return;
+		p->setPropertyVariable(id, newValue);
+	});
+}
+
+MarkdownLayout::StyleData StyleSheet::Collection::getMarkdownStyleData(Component* c)
+{
+	auto sd = MarkdownLayout::StyleData::createDarkStyle();
+
+	auto ss = getForComponent(c);
+
+	if(ss == nullptr)
+		return sd;
+
+	auto h1 = (*this)[ElementType::Headline1];
+	auto h2 = (*this)[ElementType::Headline2];
+	auto h3 = (*this)[ElementType::Headline3];
+	auto h4 = (*this)[ElementType::Headline4];
+
+	auto h = h1;
+	if(h == nullptr) h = h2;
+	if(h == nullptr) h = h3;
+	if(h == nullptr) h = h4;
+
+	sd.backgroundColour = ss->getColourOrGradient({}, { "background-color", {}}, sd.backgroundColour).first;
+	sd.textColour = ss->getColourOrGradient({}, { "color", {}}, sd.textColour).first;
+	sd.f = ss->getFont({}, {});
+	sd.fontSize = sd.f.getHeight();
+	sd.boldFont = sd.f.boldened();
+	sd.useSpecialBoldFont = true;
+
+	if(h != nullptr)
+		sd.headlineColour = h->getColourOrGradient({}, { "color", {}}, sd.headlineColour).first;
+
+	/* h1: 29
+h2: 24.4
+h3: 19.7
+h4: 5
+*/
+
+	int marginIndex = 0;
+
+	if(h1 != nullptr)
+	{
+		sd.headlineFontSize[0] = h1->getPixelValue({}, { "font-size", {}}, sd.headlineFontSize[0] * sd.fontSize) / sd.fontSize;
+		std::pair<float, float> m = { h1->getPixelValue({}, { "margin-top", {}}, 29.1f), h1->getPixelValue({}, { "margin-bottom", {}}, 10.1f) };
+		sd.margins[marginIndex++] = { (int)ElementType::Headline1, m};
+	}
+	if(h2 != nullptr)
+	{
+		sd.headlineFontSize[1] = h2->getPixelValue({}, { "font-size", {}}, sd.headlineFontSize[1] * sd.fontSize) / sd.fontSize;
+		std::pair<float, float> m = { h2->getPixelValue({}, { "margin-top", {}}, 24.4f), h2->getPixelValue({}, { "margin-bottom", {}}, 10.1f) };
+		sd.margins[marginIndex++] = { (int)ElementType::Headline2, m};
+	}
+	if(h3 != nullptr)
+	{
+		sd.headlineFontSize[2] = h3->getPixelValue({}, { "font-size", {}}, sd.headlineFontSize[2] * sd.fontSize) / sd.fontSize;
+		std::pair<float, float> m = { h3->getPixelValue({}, { "margin-top", {}}, 19.1f), h3->getPixelValue({}, { "margin-bottom", {}}, 10.1f) };
+		sd.margins[marginIndex++] = { (int)ElementType::Headline3, m};
+	}
+	if(h4 != nullptr)
+	{
+		sd.headlineFontSize[3] = h4->getPixelValue({}, { "font-size", {}}, sd.headlineFontSize[3] * sd.fontSize) / sd.fontSize;
+		std::pair<float, float> m = { h4->getPixelValue({}, { "margin-top", {}}, 5.0f), h4->getPixelValue({}, { "margin-bottom", {}}, 10.1f) };
+		sd.margins[marginIndex++] = { (int)ElementType::Headline4, m};
+	}
+		
+
+	return sd;
+}
+
+bool StyleSheet::Collection::clearCache(Component* c)
+{
+	if(c == nullptr)
+	{
+		cachedMaps.clear();
+		cachedMapForAllStates.clear();
+		return true;
+	}
+	else
+	{
+		for(int i = 0; i < cachedMaps.size(); i++)
+		{
+			if(cachedMaps[i].first.getComponent() == c)
+			{
+
+				cachedMaps.remove(i);
+				return true;
+			}
+		}
+
+		return false;
+	}
+}
+
+void StyleSheet::Collection::forEach(const std::function<void(Ptr)>& f)
+{
+	for(auto l: list)
+		f(l);
+
+	for(const auto& e: cachedMaps)
+	{
+		if(e.first != nullptr)
+			f(e.second);
 	}
 
-	list.add(p);
+	for(const auto& e: cachedMapForAllStates)
+	{
+		f(e.second);
+	}
 }
 
 Path StyleSheet::getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag) const
@@ -337,12 +682,14 @@ Path StyleSheet::getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag
 
 	Path p;
 
-	if(auto pv = getPropertyValue({"background-image", stateFlag}))
+	auto pv = getPropertyValueString({"background-image", stateFlag});
+
+	if(pv.isNotEmpty())
 	{
-		if(!pv.valueAsString.startsWith("linear-gradient"))
+		if(!pv.startsWith("linear-gradient"))
 		{
 			MemoryBlock mb;
-			mb.fromBase64Encoding(pv.valueAsString);
+			mb.fromBase64Encoding(pv);
 			p.loadPathFromData(mb.getData(), mb.getSize());
 			PathFactory::scalePath(p, totalArea);
 			return p;
@@ -384,7 +731,7 @@ String StyleSheet::getCodeGeneratorPixelValueString(const String& areaName, cons
 		c.defaultFontSize = defaultFontSize;
 		c.useWidth = !useHeight;
 		c.fullArea = areaName;
-		return ExpressionParser::evaluateToCodeGeneratorLiteral(v.valueAsString, c);
+		return ExpressionParser::evaluateToCodeGeneratorLiteral(v.getValue(varProperties), c);
 	}
 
 	return {};
@@ -397,12 +744,17 @@ float StyleSheet::getPixelValue(Rectangle<float> totalArea, const PropertyKey& k
 		auto useHeight = key.name.contains("top") || key.name.contains("bottom") || key.name == "font-size" || key.name == "height";
 		auto useWidth = !useHeight;
 
-		if(v == "auto" && !currentFullArea.isEmpty())
+		if(v == "auto")
 		{
-			auto size = useHeight ? totalArea.getHeight() : totalArea.getWidth();
-			auto fullSize = useHeight ? currentFullArea.getWidth() : currentFullArea.getHeight();
+			if(!currentFullArea.isEmpty())
+			{
+				auto size = useHeight ? totalArea.getHeight() : totalArea.getWidth();
+				auto fullSize = useHeight ? currentFullArea.getWidth() : currentFullArea.getHeight();
 
-			return (fullSize - size) / 2;
+				return (fullSize - size) / 2;
+			}
+			else
+				return -1.0f;
 		}
 		
 		return ExpressionParser::evaluate(v, { useWidth, totalArea, this->defaultFontSize });
@@ -416,7 +768,7 @@ float StyleSheet::getPixelValue(Rectangle<float> totalArea, const PropertyKey& k
 	}
 	if(auto v = getPropertyValue(key))
 	{
-		return getValueFromString(v.valueAsString);
+		return getValueFromString(v.getValue(varProperties));
 	}
 	
 	return defaultValue;
@@ -451,7 +803,7 @@ Rectangle<float> StyleSheet::getArea(Rectangle<float> totalArea, const PropertyK
 	totalArea.removeFromBottom(getPixelValue(oa, key.withSuffix("bottom")));
 	totalArea.removeFromRight(getPixelValue(oa, key.withSuffix("right")));
 
-	if(key.name == "margin" && getPropertyValue(key.withSuffix("left")).valueAsString == "auto")
+	if(key.name == "margin" && getPropertyValueString(key.withSuffix("left")) == "auto")
 	{
 		totalArea.setWidth(oa.getWidth());
 		totalArea.setHeight(oa.getHeight());
@@ -483,12 +835,12 @@ Rectangle<float> StyleSheet::getBounds(Rectangle<float> sourceArea, PseudoState 
 	auto w = sourceArea.getWidth();
 
 	if(auto pv = getPropertyValue({"width", ps }))
-		w = ExpressionParser::evaluate(pv.valueAsString, { true, sourceArea, defaultFontSize });
+		w = ExpressionParser::evaluate(pv.getValue(varProperties), { true, sourceArea, defaultFontSize });
 
 	if(auto mv = getPropertyValue({ "max-width", ps}))
-		w = jmin(w, ExpressionParser::evaluate(mv.valueAsString, { true, sourceArea, defaultFontSize }));
+		w = jmin(w, ExpressionParser::evaluate(mv.getValue(varProperties), { true, sourceArea, defaultFontSize }));
 	if(auto mv = getPropertyValue({ "min-width", ps})) // min has precedence
-		w = jmax(w, ExpressionParser::evaluate(mv.valueAsString, { true, sourceArea, defaultFontSize }));
+		w = jmax(w, ExpressionParser::evaluate(mv.getValue(varProperties), { true, sourceArea, defaultFontSize }));
 	
 	switch(ps.element)
 	{
@@ -505,15 +857,13 @@ Rectangle<float> StyleSheet::getBounds(Rectangle<float> sourceArea, PseudoState 
 
 	auto h = a.getHeight();
 
-
-
 	if(auto hv = getPropertyValue({ "height", ps }))
-		h = ExpressionParser::evaluate(hv.valueAsString, { false, a, defaultFontSize });
+		h = ExpressionParser::evaluate(hv.getValue(varProperties), { false, a, defaultFontSize });
 
 	if(auto mv = getPropertyValue({ "max-height", ps}))
-		h = jmin(h, ExpressionParser::evaluate(mv.valueAsString, { true, sourceArea, defaultFontSize }));
+		h = jmin(h, ExpressionParser::evaluate(mv.getValue(varProperties), { true, sourceArea, defaultFontSize }));
 	if(auto mv = getPropertyValue({ "min-height", ps})) // min has precedence
-		h = jmax(h, ExpressionParser::evaluate(mv.valueAsString, { true, sourceArea, defaultFontSize }));
+		h = jmax(h, ExpressionParser::evaluate(mv.getValue(varProperties), { true, sourceArea, defaultFontSize }));
 
 	a = a.removeFromTop(h);
 
@@ -538,7 +888,7 @@ Rectangle<float> StyleSheet::getBounds(Rectangle<float> sourceArea, PseudoState 
 		else if(auto v = getPropertyValue(k))
 		{
 			rv.match = true;
-			rv.value = ExpressionParser::evaluate(v.valueAsString, { useWidth, sourceArea, defaultFontSize });
+			rv.value = ExpressionParser::evaluate(v.getValue(varProperties), { useWidth, sourceArea, defaultFontSize });
 		}
 		
 		return rv;
@@ -613,11 +963,20 @@ Rectangle<float> StyleSheet::truncateBeforeAndAfter(Rectangle<float> sourceArea,
 
 struct ComponentUpdaters
 {
-	static void setColourIfDefined(Component* c, StyleSheet* css, int currentState, int id, const String& key)
+	static void setColourIfDefined(Component* c, StyleSheet::Ptr css, int currentState, int id, const String& key)
 	{
 		auto colour = css->getColourOrGradient({}, {key.getCharPointer().getAddress(), currentState}, c->findColour(id)).first;
 		c->setColour(id, colour);
 	};
+
+	static void updateTableHeader(StyleSheet::Ptr ss, TableHeaderComponent* header, int currentState)
+	{
+		auto parentTable = header->findParentComponentOfClass<TableListBox>();
+		jassert(parentTable != nullptr);
+
+		auto height = ss->getLocalBoundsFromText("M").getHeight();
+		parentTable->setHeaderHeight(height);
+	}
 
 	static void updateTextEditor(StyleSheet::Ptr ss, TextEditor* te, int currentState)
 	{
@@ -633,18 +992,18 @@ struct ComponentUpdaters
 		auto bottom = roundToInt(fullBounds.getBottom() - marginBounds.getBottom());
 		
 		te->setBorder(juce::BorderSize<int>(left, right, top, bottom));
-		te->setJustification(ss->getJustification(currentState, Justification::left, Justification::verticallyCentred));
+		te->setJustification(ss->getJustification(PseudoState(currentState), Justification::left, Justification::verticallyCentred));
 
 		int paddingLeft = te->getLeftIndent();
 		int paddingTop = te->getTopIndent();
 
-		auto font = ss->getFont(0, te->getLocalBounds().toFloat());
+		auto font = ss->getFont({}, te->getLocalBounds().toFloat());
 
 		if(auto v = ss->getPropertyValue({ "padding-left", currentState}))
-			paddingLeft = ExpressionParser::evaluate(v.valueAsString, { true, marginBounds, font.getHeight() });
+			paddingLeft = ExpressionParser::evaluate(v.getValue(ss->varProperties), { true, marginBounds, font.getHeight() });
 
 		if(auto v = ss->getPropertyValue({ "padding-top", currentState}))
-			paddingTop = ExpressionParser::evaluate(v.valueAsString, { true, marginBounds, font.getHeight() });
+			paddingTop = ExpressionParser::evaluate(v.getValue(ss->varProperties), { true, marginBounds, font.getHeight() });
 
 		te->setIndents(paddingLeft, paddingTop);
 		te->applyFontToAllText(font, true);
@@ -656,7 +1015,7 @@ struct ComponentUpdaters
 
 		if(auto root = CSSRootComponent::find(*te))
 		{
-			if(auto selectionSheet = root->css[Selector(SelectorType::Class, "::selection")])
+			if(auto selectionSheet = root->css.getWithAllStates(Selector(SelectorType::Class, "::selection")))
 			{
 				setColourIfDefined(te, selectionSheet, 0, TextEditor::highlightedTextColourId, "color");
 				setColourIfDefined(te, selectionSheet, 0, TextEditor::highlightColourId, "background");
@@ -665,22 +1024,29 @@ struct ComponentUpdaters
 	}
 };
 
+
+
 void StyleSheet::setupComponent(Component* c, int currentState)
 {
 	if(auto te = dynamic_cast<TextEditor*>(c))
 	{
 		ComponentUpdaters::updateTextEditor(this, te, currentState);
 	}
+	if(auto h = dynamic_cast<TableHeaderComponent*>(c))
+	{
+		ComponentUpdaters::updateTableHeader(this, h, currentState);
+	}
+	
 }
 
-Justification StyleSheet::getJustification(int currentState, int defaultXFlag, int defaultYFlag) const
+Justification StyleSheet::getJustification(PseudoState currentState, int defaultXFlag, int defaultYFlag) const
 {
 	int x = defaultXFlag;
 	int y = defaultYFlag;
 
 	if(auto v = getPropertyValue({"text-align", currentState }))
 	{
-		auto jv = v.valueAsString.trim();
+		auto jv = v.getValue(varProperties);
 
 		if(jv == "start" || jv == "left")
 			x = Justification::Flags::left;
@@ -690,7 +1056,7 @@ Justification StyleSheet::getJustification(int currentState, int defaultXFlag, i
 
 	if(auto v = getPropertyValue({"vertical-align", currentState }))
 	{
-		auto vv = v.valueAsString.trim();
+		auto vv = v.getValue(varProperties);
 
 		if(vv == "top" || vv == "text-top")
 			y = Justification::Flags::top;
@@ -718,8 +1084,8 @@ float StyleSheet::getOpacity(int state) const
 	}
 	if(auto pv = getPropertyValue({"opacity", state}))
 	{
-		auto v = pv.valueAsString.getFloatValue();
-		if(pv.valueAsString.endsWithChar('%'))
+		auto v = pv.getValue(varProperties).getFloatValue();
+		if(pv.getValue(varProperties).endsWithChar('%'))
 			v *= 0.01f;
             
 		return v;
@@ -732,49 +1098,52 @@ MouseCursor StyleSheet::getMouseCursor() const
 {
 	if(auto mv = getPropertyValue({ "cursor", 0}))
 	{
-		enum CustomCursorEnum
+		std::array<MouseCursor::StandardCursorType, 7> cursors = 
 		{
-			Default = MouseCursor::NormalCursor,
-			Pointer = MouseCursor::PointingHandCursor,
-			Wait = MouseCursor::WaitCursor,
-			Crosshair = MouseCursor::CrosshairCursor,
-			Text = MouseCursor::IBeamCursor,
-			Copy = MouseCursor::CopyingCursor,
-			Grab = MouseCursor::DraggingHandCursor 
+			MouseCursor::NormalCursor,
+			MouseCursor::PointingHandCursor,
+			MouseCursor::WaitCursor,
+			MouseCursor::CrosshairCursor,
+			MouseCursor::IBeamCursor,
+			MouseCursor::CopyingCursor,
+			MouseCursor::DraggingHandCursor 
 		};
 
-		auto c = getAsEnum({ "cursor", 0}, CustomCursorEnum::Default);
+		auto c = getAsEnum({ "cursor", 0}, 0);
 
-		return MouseCursor((MouseCursor::StandardCursorType)c);
+		if(isPositiveAndBelow(c, cursors.size()))
+			return MouseCursor(cursors[c]);
 	}
 
 	return MouseCursor();
 }
 
-String StyleSheet::getText(const String& t, int currentState) const
+String StyleSheet::getText(const String& t, PseudoState currentState) const
 {
 	if(auto v = getPropertyValue({ "text-transform", currentState}))
 	{
-		if(v.valueAsString == "uppercase")
+		auto tv = v.getValue(varProperties);
+
+		if(tv == "uppercase")
 			return t.toUpperCase();
 
-		if(v.valueAsString == "lowercase")
+		if(tv == "lowercase")
 			return t.toLowerCase();
 
-		if(v.valueAsString == "capitalize")
+		if(tv == "capitalize")
 			return t;
 	}
 
 	return t;
 }
 
-Font StyleSheet::getFont(int currentState, Rectangle<float> totalArea) const
+Font StyleSheet::getFont(PseudoState currentState, Rectangle<float> totalArea) const
 {
-	auto fontName = Font::getDefaultSansSerifFontName();
+	auto fontName = getPropertyValueString({ "font-family", currentState});
 
-	if(auto v = getPropertyValue({ "font-family", currentState}))
-		fontName = v.valueAsString;
-
+	if(fontName.isEmpty())
+		fontName = Font::getDefaultSansSerifFontName();
+	
 	if(fontName == "monospace")
 		fontName = Font::getDefaultMonospacedFontName();
 
@@ -792,18 +1161,18 @@ Font StyleSheet::getFont(int currentState, Rectangle<float> totalArea) const
 		
 	if(auto sv = getPropertyValue({ "font-stretch", currentState}))
 	{
-		auto scale = ExpressionParser::evaluate(sv.valueAsString, { false, {1.0f, 1.0f }, 1.0f });
+		auto scale = ExpressionParser::evaluate(sv.getValue(varProperties), { false, {1.0f, 1.0f }, 1.0f });
 		f = f.withHorizontalScale(scale);
 	}
 
 	if(auto lv = getPropertyValue({ "letter-spacing", currentState}))
 	{
-		auto v = lv.valueAsString.trim();
+		auto v = lv.getValue(varProperties);
 
 		if(v != "normal")
 		{
 			auto fullSize = size;
-			auto letterSpacing = ExpressionParser::evaluate(lv.valueAsString, { false, { fullSize, fullSize }, size });
+			auto letterSpacing = ExpressionParser::evaluate(lv.getValue(varProperties), { false, { fullSize, fullSize }, size });
 			f = f.withExtraKerningFactor(letterSpacing / size);
 		}
 	}
@@ -821,7 +1190,7 @@ std::vector<melatonin::ShadowParameters> StyleSheet::getShadow(Rectangle<float> 
 	}
 	else if(auto v = getPropertyValue(key))
 	{
-		ShadowParser s(v.valueAsString, totalArea);
+		ShadowParser s(v.getValue(varProperties), totalArea);
 		return s.getShadowParameters(wantsInset);
 	}
 
@@ -863,7 +1232,7 @@ AffineTransform StyleSheet::getTransform(Rectangle<float> totalArea, PseudoState
 	}
 	if(auto pv = getPropertyValue({ "transform", currentState}))
 	{
-		TransformParser p(keywords, pv.valueAsString);
+		TransformParser p(keywords, pv.getValue(varProperties));
 
 		auto list = p.parse(totalArea);
 		return TransformParser::TransformData::toTransform(list, totalArea.getCentre());
@@ -903,8 +1272,8 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
     }
     else if(auto tv = getPropertyValue({ "background-size", key.state }))
     {
-		area.setHeight(ExpressionParser::evaluate(tv.valueAsString, { false, area , 16.0f }));
-		area.setWidth(ExpressionParser::evaluate(tv.valueAsString, { true, area , 16.0f }));
+		area.setHeight(ExpressionParser::evaluate(tv.getValue(varProperties), { false, area , 16.0f }));
+		area.setWidth(ExpressionParser::evaluate(tv.getValue(varProperties), { true, area , 16.0f }));
     }
     
     if(auto tv = getTransitionValue({ "background-position", key.state }))
@@ -921,8 +1290,8 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
     }
     else if(auto tv = getPropertyValue({ "background-position", key.state }))
     {
-		auto newX = area.getX() + ExpressionParser::evaluate(tv.valueAsString, { false, area, 16.0f });
-		auto newY = area.getY() + ExpressionParser::evaluate(tv.valueAsString, { true, area, 16.0f });
+		auto newX = area.getX() + ExpressionParser::evaluate(tv.getValue(varProperties), { false, area, 16.0f });
+		auto newY = area.getY() + ExpressionParser::evaluate(tv.getValue(varProperties), { true, area, 16.0f });
         area.setX(newX);
         area.setY(newY);
     }
@@ -943,7 +1312,7 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
 	}
 	if(auto v = getPropertyValue(key))
 	{
-		return getValueFromString(v.valueAsString);
+		return getValueFromString(v.getValue(varProperties));
 	}
 		
 	return { defaultColour, ColourGradient() };
@@ -955,7 +1324,7 @@ String StyleSheet::getCodeGeneratorColour(const String& rectangleName, PropertyK
 
 	if(auto v = getPropertyValue(key))
 	{
-		return "Colour(" + v.valueAsString + ")";
+		return "Colour(" + v.getValue(varProperties) + ")";
 	}
 
 	return {};
@@ -970,21 +1339,24 @@ std::pair<bool, PseudoState> StyleSheet::matchesRawList(const Selector::RawList&
 	std::vector<Selector> thisClasses;
 	std::vector<Selector> blockClasses;
 
-	for(const auto& v: selectors)
+	for(const auto& cs: complexSelectors)
 	{
-		if(v.type == SelectorType::Type)
+		for(auto& v: cs->thisSelectors.selectors)
 		{
-			jassert(thisType.type == SelectorType::All);
-			thisType = v;
-		}
-		else if(v.type == SelectorType::ID)
-		{
-			jassert(thisID.type == SelectorType::All);
-			thisID = v;
-		}
-		else if (v.type == SelectorType::Class)
-		{
-			thisClasses.push_back(v);
+			if(v.first.type == SelectorType::Type)
+			{
+				jassert(thisType.type == SelectorType::All);
+				thisType = v.first;
+			}
+			else if(v.first.type == SelectorType::ID)
+			{
+				jassert(thisID.type == SelectorType::All);
+				thisID = v.first;
+			}
+			else if (v.first.type == SelectorType::Class)
+			{
+				thisClasses.push_back(v.first);
+			}
 		}
 	}
 
@@ -1031,8 +1403,14 @@ String StyleSheet::toString() const
 {
 	String listContent;
 
-	for(auto& s: selectors)
-		listContent << s.toString() << " ";
+	for(auto s: complexSelectors)
+	{
+		listContent << s->toString();
+
+		if(s != complexSelectors.getLast().get())
+			listContent << ", ";
+	}
+		
 	
 	int idx = 0;
 
@@ -1078,16 +1456,13 @@ Transition StyleSheet::getTransitionOrDefault(PseudoElementType elementType, con
 
 bool StyleSheet::matchesSelectorList(const Array<Selector>& otherSelectors)
 {
-	if(selectors.size() != otherSelectors.size())
-		return false;
-
-	for(int i = 0; i < otherSelectors.size(); i++)
+	for(auto cs: complexSelectors)
 	{
-		if(!(otherSelectors[i] == selectors[i]))
-			return false;
+		if(cs->matchesSelectors(otherSelectors))
+			return true;
 	}
 
-	return true;
+	return false;
 }
 
 bool StyleSheet::forEachProperty(PseudoElementType type, const std::function<bool(PseudoElementType, Property& v)>& f)
@@ -1123,6 +1498,16 @@ void StyleSheet::setDefaultColour(const String& key, Colour c)
 	defaultColours[key] = c;
 }
 
+
+
+void StyleSheet::setPropertyVariable(const Identifier& id, const String& newValue)
+{
+	if(varProperties == nullptr)
+		varProperties = new DynamicObject();
+
+	varProperties->setProperty(id, newValue);
+}
+
 PositionType StyleSheet::getPositionType(PseudoState state) const
 {
 	return getAsEnum({ "position", state}, PositionType::initial);
@@ -1132,9 +1517,7 @@ FlexBox StyleSheet::getFlexBox() const
 {
 	FlexBox flexBox;
 
-	auto displayType = getPropertyValue({ "display", {}}).valueAsString;
-
-	if(displayType != "flex")
+	if(getPropertyValueString({ "display", {}}) != "flex")
 		return flexBox;
 
 	flexBox.flexDirection = getAsEnum({ "flex-direction", {}}, FlexBox::Direction::row);
@@ -1168,31 +1551,65 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 	{
 		auto tb = getLocalBoundsFromText(bt->getButtonText());
 
-		item.minHeight = tb.getHeight();
-		item.minWidth = tb.getWidth();
+		if(item.width == -1)
+			item.width = tb.getWidth();
+
+		if(item.height == -1)
+			item.height = tb.getHeight();
+	}
+	if(auto md = dynamic_cast<SimpleMarkdownDisplay*>(c))
+	{
+		if(item.height == -1.0f)
+		{
+			auto h = md->r.getHeightForWidth(item.width, false);
+			item.height = h;
+		}
+	}
+	if(auto st = dynamic_cast<FlexboxComponent::SimpleTextDisplay*>(c))
+	{
+		auto b = getLocalBoundsFromText(st->currentText);
+
+		if(item.height == -1.0f)
+			item.height = b.getHeight();
+
+		if(item.width == -1.0f)
+			item.width = b.getWidth() + 4.0f;
+
+	}
+	if(auto md = dynamic_cast<FlexboxComponent*>(c))
+	{
+		if(getPropertyValueString({"width", {}}) == "auto")
+		{
+			item.width = md->getAutoSize(false);
+		}
+
+		if(getPropertyValueString({"height", {}}) == "auto")
+		{
+			item.height = md->getAutoSize();
+		}
 	}
 	
 	if(auto v = getPropertyValue({ "order", {}}))
-		item.order = v.valueAsString.getIntValue();
+		item.order = v.getValue(varProperties).getIntValue();
 
 	item.alignSelf = getAsEnum( { "align-self", {} }, FlexItem::AlignSelf::autoAlign);
 
 	if(auto pv = getPropertyValue({ "flex-grow", {}}))
-		item.flexGrow = ExpressionParser::evaluate(pv.valueAsString, {});
+		item.flexGrow = ExpressionParser::evaluate(pv.getValue(varProperties), {});
 
 	if(auto pv = getPropertyValue({ "flex-shrink", {}}))
-		item.flexShrink = ExpressionParser::evaluate(pv.valueAsString, {});
+		item.flexShrink = ExpressionParser::evaluate(pv.getValue(varProperties), {});
 
 	if(auto pv = getPropertyValue({ "flex-basis", {}}))
-		item.flexBasis = ExpressionParser::evaluate(pv.valueAsString, {});
+		item.flexBasis = ExpressionParser::evaluate(pv.getValue(varProperties), {});
 	
 	return item;
 }
 
 Rectangle<float> StyleSheet::getLocalBoundsFromText(const String& text) const
 {
-	auto f = getFont(0, {});
-	auto textWidth = f.getStringWidthFloat(getText(text, 0));
+	auto f = getFont({}, {});
+	auto textWidth = f.getStringWidthFloat(getText(text, {}));
 	auto textHeight = f.getHeight();
 
 	Rectangle<float> area(0.0f, 0.0f, textWidth, textHeight);

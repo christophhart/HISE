@@ -68,6 +68,8 @@ public:
 
     /** Use this for additional setup. */
     virtual void setupEditor(TextEditor* editor);
+
+    bool hashIsPreprocessor = true;
 };
 
 struct XmlLanguageManager: public LanguageManager

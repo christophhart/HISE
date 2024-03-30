@@ -53,92 +53,52 @@ struct ComponentWithSideTab
     virtual void refreshDialog() = 0;
 };
 
-struct ErrorComponent: public Component
+struct DefaultCSSFactory
 {
-    ErrorComponent(Dialog& parent_);;
-    
-    void paint(Graphics& g) override;
-    void resized() override;
+	enum class Template
+	{
+		PropertyEditor,
+        Dark,
+        Bright,
+        numTemplates
+	};
 
-    void setError(const Result& r);
-    void show(bool shouldShow);
-    
-    Dialog& parent;
+    static String getTemplate(Template t);
 
-    int height = 40;
-    MarkdownRenderer parser;
-    ScopedPointer<HiseShapeButton> closeButton;
-    Result currentError;
+    static simple_css::StyleSheet::Collection getTemplateCollection(Template t);
 };
+
 
 
 /* TODO:
  *
- * - make dummy app (with exporter in HISE?) OK
  * - remove nested data when using IDs in containers (too messy)...
  * - fix undoability of page removal
- * - add Logger component (and IDE logger that logs everything)
  * - add fixed size to position info OK
  * */
-class Dialog: public Component,
+class Dialog: public simple_css::HeaderContentFooter,
 			  public PathFactory,
 			  public ScrollBar::Listener
 {
 public:
-    
-    enum AdditionalColours
-    {
-	    buttonTabBackgroundColour,
-        buttonBgColour,
-        buttonTextColour,
-        modalPopupOverlayColour,
-        modalPopupBackgroundColour,
-        modalPopupOutlineColour,
-        pageProgressColour,
-        numAdditionalColours
-    };
 
-    Colour additionalColours[numAdditionalColours];
+    
 
     struct PageInfo;
 
     struct PositionInfo
     {
-        enum LabelPositioning
-	    {
-	        Default,
-		    Left,
-	        Above,
-	        None,
-            numLabelPositionings
-	    };
-
-        static StringArray getLabelPositionNames()
-        {
-	        return { "Default", "Left", "Above", "None" };
-        }
-
         var toJSON() const;
         void fromJSON(const var& obj);
-        Result checkSanity() const;
-        void setDefaultPosition(LabelPositioning p);
         int getWidthForLabel(int totalWidth) const;
         int getHeightForComponent(int heightWithoutLabel);
 
         Rectangle<int> getBounds(Rectangle<int> fullBounds) const;
 
-        int TopHeight = 56;
-        int ButtonTab = 40;
-        int ButtonMargin = 5;
-        int OuterPadding = 50;
-        double LabelWidth = 140;
-        int LabelHeight = 32;
-        int LabelPosition = LabelPositioning::Default;
-
         Point<int> fixedSize = { 800, 600 };
-    };
+    } positionInfo;
 
-    struct PageBase: public Component
+    struct PageBase: public simple_css::FlexboxComponent
     {
         using CustomCheckFunction = std::function<Result(PageBase*, var)>;
 
@@ -152,6 +112,10 @@ public:
         {
 	        initValue = var();
         }
+
+        void updateStyleSheetInfo();
+
+        void forwardInlineStyleToChildren();
 
         virtual void createEditor(PageInfo& infoList) {}
 
@@ -167,7 +131,6 @@ public:
         void duplicateInParent();
         bool isEditModeAndNotInPopup() const;
         bool showDeletePopup(bool isRightClick);
-        String getDefaultPositionName() const;
 
         /** Returns the string from the info object for the given property. If it contains a wildcard with "$", it will resolve it using the state object. */
         String evaluate(const Identifier& id) const;
@@ -179,13 +142,8 @@ public:
         virtual Result checkGlobalState(var globalState) = 0;
         void init();
 
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-        ScopedPointer<EditorOverlay> overlay;
-#endif
         virtual void editModeChanged(bool isEditMode);
         
-	    bool inheritsPosition = true;
-
     public:
 
         template <typename PageSubType, typename StopType=juce::Toolbar> PageSubType* getRootPage()
@@ -220,8 +178,6 @@ public:
 
     protected:
 
-        PositionInfo positionInfo;
-
         Identifier id;
         Dialog& rootDialog;
         var initValue;
@@ -236,17 +192,7 @@ public:
         
         var stateObject;
         var infoObject;
-
         
-
-        enum class AreaType
-	    {
-		    Label,
-	        Component
-	    };
-
-	    Rectangle<int> getArea(AreaType t) const;
-
     private:
 
         static void onEditModeChange(PageBase& c, bool isOn);
@@ -254,6 +200,9 @@ public:
         struct ModalHelp;
 
         ScopedPointer<Component> modalHelp;
+
+        int styleHash = 0;
+        int classHash = 0;
 
         JUCE_DECLARE_WEAK_REFERENCEABLE(PageBase);
     };
@@ -347,8 +296,6 @@ public:
         return *p;
     }
 
-    void refreshAdditionalColours(const var& styleDataObject);
-    
     Result getCurrentResult();
     void showFirstPage();
 	void setFinishCallback(const std::function<void()>& f);
@@ -370,6 +317,26 @@ public:
     void paint(Graphics& g) override;
     void resized() override;
     State& getState() { return *runThread; }
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+    void paintOverChildren(Graphics& g) override
+    {
+	    if(editMode)
+		{
+			GlobalHiseLookAndFeel::draw1PixelGrid(g, this, getLocalBounds(), Colour(0x44999999));
+	        
+	        g.setColour(Colours::white.withAlpha(0.1f));
+	        g.setFont(GLOBAL_MONOSPACE_FONT());
+		}
+
+        if(currentlyEditedPage != nullptr)
+		{
+			auto b = getLocalArea(currentlyEditedPage, currentlyEditedPage->getLocalBounds()).expanded(2.0f);
+			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+			g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
+		}
+    }
+#endif
 
     struct TabTraverser;
 
@@ -409,60 +376,29 @@ public:
 
     
 
-    struct ModalPopup: public Component
+    struct ModalPopup: public simple_css::FlexboxComponent
     {
-        ModalPopup(Dialog& parent_);;
+        ModalPopup(Dialog& parent_, PageInfo::Ptr info, bool addButtons);
+
+        void init();
 
         void onOk();
         void dismiss();
-        void setContent(PageInfo::Ptr newContent);
-        void show(PositionInfo newInfo, bool addButtons, const Image& additionalScreenshot);
 
         bool keyPressed(const KeyPress& k) override;
 
         void mouseDown(const MouseEvent& e) override;
-        void paint(Graphics& g) override;
-        void resized() override;
+        
+        //void resized() override;
 
         Dialog& parent;
-        PositionInfo info;
-        ErrorComponent modalError;
-        Rectangle<int> modalBounds;
         ScopedPointer<PageBase> contentComponent;
-        PageInfo::Ptr content;
+        PageInfo::Ptr info;
 	    TextButton okButton, cancelButton;
-
-        Image screenshot;
+        simple_css::FlexboxComponent content;
+        simple_css::FlexboxComponent bottom;
+        simple_css::FlexboxViewport contentViewport;
     };
-
-    struct LookAndFeelMethods
-    {
-        virtual ~LookAndFeelMethods() {};
-        virtual void drawMultiPageHeader(Graphics& g, Dialog& d, Rectangle<int> area);
-        virtual void drawMultiPageButtonTab(Graphics& g, Dialog& d, Rectangle<int> area);
-        virtual void drawMultiPageModalBackground(Graphics& g, ModalPopup& popup, Rectangle<int> totalBounds, Rectangle<int> modalBounds);
-        virtual void drawMultiPageFoldHeader(Graphics& g, Component& c, Rectangle<float> area, const String& title, bool folded);
-        virtual void drawMultiPageBackground(Graphics& g, Dialog& tb, Rectangle<int> errorBounds);
-        virtual PositionInfo getMultiPagePositionInfo(const var& pageData) const = 0;
-    };
-    
-    struct DefaultLookAndFeel: public hise::GlobalHiseLookAndFeel,
-                               public LookAndFeelMethods
-    {
-        Font getTextButtonFont (TextButton &, int /*buttonHeight*/) override;
-
-        void drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-        PositionInfo getMultiPagePositionInfo(const var& pageData) const override;
-        void layoutFilenameComponent (FilenameComponent& filenameComp, ComboBox* filenameBox, Button* browseButton) override;
-        bool isProgressBarOpaque(ProgressBar&) override { return false; }
-        void drawProgressBar (Graphics &g, ProgressBar &pb, int width, int height, double progress, const String &textToShow) override;
-
-        void drawButtonText(Graphics &g, TextButton &button, bool /*isMouseOverButton*/, bool /*isButtonDown*/);
-
-        void drawButtonBackground(Graphics& g, Button& button, const Colour& /*backgroundColour*/, bool isMouseOverButton, bool isButtonDown);
-
-        PositionInfo defaultPosition;
-    } defaultLaf;
 
     void createEditorInSideTab(const var& obj, PageBase* pb, const std::function<void(PageInfo&)>& r);
 
@@ -474,7 +410,7 @@ public:
         return false;
     }
 
-    template <typename T> PageInfo& createModalPopup(DefaultProperties&& values={})
+    template <typename T> PageInfo::Ptr createModalPopup(DefaultProperties&& values={})
     {
 	    auto p = PageInfo::createInfo<T>();
         
@@ -488,20 +424,18 @@ public:
             for (const auto& v: T::getStaticDefaultProperties())
                 (*p)[v.first] = v.second;
         }
-
-        popup.setContent(p);
-        return *p;
+        
+        return p;
     }
 
     static String joinVarArrayToNewLineString(const var& v);
 
     static var parseCommaList(const String& text);
 
-    void showModalPopup(bool addButtons, const Image& additionalScreenshot = {});
+    void showModalPopup(bool addButtons, PageInfo::Ptr p);
     Result checkCurrentPage();
     void setCurrentErrorPage(PageBase* b);
     bool keyPressed(const KeyPress& k) override;
-    Viewport& getViewport() { return content; }
     var exportAsJSON() const;
     void scrollBarMoved (ScrollBar*, double) override { repaint(); }
 
@@ -557,16 +491,20 @@ private:
     TextButton nextButton;
     TextButton prevButton;
     State* runThread;
-    Viewport content;
+    
     ScopedPointer<PageBase> currentPage;
     Rectangle<int> top, bottom, center;
     std::function<void()> finishCallback;
     
     WeakReference<PageBase> currentErrorElement;
     //ErrorComponent errorComponent;
-    ModalPopup popup;
+    ScopedPointer<ModalPopup> popup;
     ScrollbarFader sf;
+
+    double progressValue = 0.0;
+    ProgressBar totalProgress;
     
+
     JUCE_DECLARE_WEAK_REFERENCEABLE(Dialog);
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Dialog);
 };

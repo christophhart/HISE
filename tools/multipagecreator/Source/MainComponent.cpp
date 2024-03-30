@@ -262,10 +262,16 @@ void MainComponent::createDialog(const File& f)
 
 	addAndMakeVisible(c = new multipage::Dialog(obj, rt));
 
+	c->showFirstPage();
+
+	//static_cast<simple_css::HeaderContentFooter*>(c.get())->showEditor();
+	auto css = DefaultCSSFactory::getTemplateCollection(DefaultCSSFactory::Template::Dark);
+	c->update(css);
+	
 	if(f.existsAsFile())
 		c->logMessage(multipage::MessageType::Navigation, "Load file " + f.getFullPathName());
 
-	tree->getContent<multipage::Tree>()->setRoot(*c);
+	
 	assetManager.listbox.updateContent();
 	assetManager.repaint();
 	assetManager.resized();
@@ -274,8 +280,12 @@ void MainComponent::createDialog(const File& f)
     	JUCEApplication::getInstance()->systemRequestedQuit();
     });
 
-    c->setEditMode(true);
+
+	
+
 	resized();
+
+	tree->getContent<multipage::Tree>()->setRoot(*c);
 
 	c->toBack();
 
@@ -292,7 +302,17 @@ MainComponent::MainComponent():
   menuBar(this),
   tooltips(this)
 {
-	
+#if 0
+	simple_css::Editor::showEditor(this, [this](simple_css::StyleSheet::Collection& c)
+	{
+		auto d = currentSideTabDialog.getComponent();
+
+		if(d != nullptr)
+		{
+			d->update(c);
+		}
+	});
+#endif
 
 	TopLevelWindowWithKeyMappings::loadKeyPressMap();
 
@@ -369,7 +389,8 @@ MainComponent::~MainComponent()
 //==============================================================================
 void MainComponent::paint (Graphics& g)
 {
-	
+	g.fillAll(Colour(0xFF222222));
+
     if(c != nullptr)
     {
         g.setColour(c->getStyleData().backgroundColour);
@@ -398,8 +419,6 @@ void MainComponent::paint (Graphics& g)
 
 void MainComponent::resized()
 {
-	
-
     auto b = getLocalBounds();
 
 	if(b.isEmpty())
@@ -409,8 +428,6 @@ void MainComponent::resized()
     menuBar.setBounds(b.removeFromTop(24));
 	b.removeFromTop(5);
 #endif
-
-
 
     if(c != nullptr)
     {
@@ -427,11 +444,9 @@ void MainComponent::resized()
 		b.removeFromLeft(2);
 		b.removeFromRight(2);
 
-		
-
 		auto pb = b.reduced(20);
 
-		auto dialogBounds = c->defaultLaf.defaultPosition.getBounds(pb);
+		auto dialogBounds = c->positionInfo.getBounds(pb);
 
 		if(dialogBounds.getWidth() > pb.getWidth() ||
 		   dialogBounds.getHeight() > pb.getHeight())
@@ -472,7 +487,7 @@ void MainComponent::resized()
         
 
 	if(hardcodedDialog != nullptr)
-		hardcodedDialog->setBounds(hardcodedDialog->dialog->defaultLaf.defaultPosition.getBounds(b));
+		hardcodedDialog->setBounds(hardcodedDialog->dialog->positionInfo.getBounds(b));
 
     stateViewer.setBounds(b);
     

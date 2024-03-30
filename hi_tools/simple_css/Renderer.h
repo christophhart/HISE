@@ -46,11 +46,46 @@ using namespace juce;
  *	and the animator in order to render its graphics. */
 struct CSSRootComponent
 {
+	struct InfoOverlay: public Component
+	{
+		struct Item
+		{
+			operator bool() const { return !selectors.isEmpty() && c.getComponent() != nullptr; }
+
+
+			void draw(Graphics& g);
+
+			Array<Selector> selectors;
+			StyleSheet::Ptr ss;
+			Rectangle<float> globalBounds;
+			Rectangle<float> textBounds;
+			Component::SafePointer<Component> c;
+			Rectangle<float> textPosition;
+		};
+
+		InfoOverlay(CSSRootComponent& parent);
+
+		void rebuild();
+
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colour(0x99444444));
+
+			for(auto i: items)
+				i->draw(g);
+		}
+
+		CSSRootComponent& parent;
+		OwnedArray<Item> items;
+	};
+
 	CSSRootComponent():
 	  stateWatcher(animator)
 	{
 		css.setAnimator(&animator);
 	};
+
+	virtual ~CSSRootComponent() {};
 
 	static CSSRootComponent* find(Component& c)
 	{
@@ -60,9 +95,18 @@ struct CSSRootComponent
 		return c.findParentComponentOfClass<CSSRootComponent>();
 	}
 
+	void showInfo(bool shouldShow)
+	{
+		if(shouldShow)
+			info = new InfoOverlay(*this);
+		else
+			info = nullptr;
+	}
+
 	Animator animator;
 	StateWatcher stateWatcher;
 	StyleSheet::Collection css;
+	ScopedPointer<InfoOverlay> info;
 };
 
 
@@ -103,7 +147,7 @@ class Positioner
 
 	template <Direction D> Rectangle<float> slice(const Array<Selector>& s, float defaultValue)
 	{
-		if(auto ss = css.getOrCreateCascadedStyleSheet(s))
+		if(auto ss = css.getWithAllStates(s.getFirst()))
 		{
 			ss->setFullArea(bodyArea);
 
@@ -180,7 +224,7 @@ struct Renderer: public Animator::ScopedComponentSetter
 	void drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Ptr ss, PseudoElementType type = PseudoElementType::None);
 
 	/** Renders a text using the supplied style sheet. */
-	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss);
+	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type=PseudoElementType::None);
 
 	/** Manually set the state flags for the renderer. this is useful for cases where the style flags can't be easily queried
 	 *  from the component hover states (eg. at popup menu items). */
@@ -195,7 +239,14 @@ struct Renderer: public Animator::ScopedComponentSetter
 		return currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
 	}
 
+	void setApplyMargin(bool useMargin)
+	{
+		applyMargin = useMargin;
+	}
+
 private:
+
+	bool applyMargin = true;
 
 	int pseudoClassState = 0;
 	Component* currentComponent;

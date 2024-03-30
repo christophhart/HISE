@@ -56,6 +56,8 @@ struct KeywordDataBase
 	static String getKeywordName(KeywordType type);
 	const StringArray& getValuesForProperty(const String& propertyId) const;
 
+	const StringArray getInheritedProperties() const { return inheritedProperties; }
+
 	template <typename EnumType=int> EnumType getAsEnum(const String& propertyId, const String& value, EnumType defaultValue) const
 	{
 		auto idx = getValuesForProperty(propertyId).indexOf(value);
@@ -78,6 +80,8 @@ struct KeywordDataBase
 	const StringArray& getKeywords(KeywordType type) const;
 	std::array<StringArray, (int)KeywordType::numKeywords> keywords;
 	KeywordType getKeywordType(const String& t);
+
+	StringArray inheritedProperties;
 };
 
 

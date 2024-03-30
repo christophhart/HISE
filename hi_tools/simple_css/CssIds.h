@@ -55,6 +55,7 @@ enum class PropertyType
 	Transition,
 	Shadow,
 	Font,
+	Variable,
 	Undefined
 };
 
@@ -78,7 +79,9 @@ enum class SelectorType
 	Class,
 	ID,
 	Element,
-	All
+	All,
+	ParentDelimiter,
+	numSelectorTypes
 };
 
 /** The supported element types which correlates to some native JUCE UI components. */
@@ -87,9 +90,20 @@ enum class ElementType
 	Body,
 	Button,
 	TextInput,
+	Paragraph,
 	Selector,
 	Panel,
-	Ruler
+	Ruler,
+	Table,
+	TableHeader,
+	TableRow,
+	TableCell,
+	Label,
+	Headline1,
+	Headline2,
+	Headline3,
+	Headline4,
+	Progress
 };
 
 /** The positioning mode values. Currently there is only a distinction between absolute & fixed and the others. */
@@ -106,13 +120,16 @@ enum class PositionType
 enum class PseudoClassType
 {
 	None = 0,
-	Hover = 1,
-	Active = 2,
-	Focus = 4,
-	Disabled = 8,
-	Hidden = 16,
-	Root = 32,
-	All = 63
+	First = 1,
+	Last = 2,
+	Root = 4,
+	Hover = 8,
+	Active = 16,
+	Focus = 32,
+	Disabled = 64,
+	Hidden = 128,
+	Checked = 256,
+	All = 511
 };
 
 /** A list of pseudo elements. Currently there is only support for before & after (because most text-based pseudo elements like

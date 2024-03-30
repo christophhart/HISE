@@ -80,13 +80,6 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 	});
 
     rootList.addChild<Button>({
-        { mpid::ID, "Visible" },
-        { mpid::Text, "Visible" },
-        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Visible) },
-        { mpid::Help, "Whether to show the UI element at all (in non-edit mode)." }
-    });
-
-    rootList.addChild<Button>({
         { mpid::ID, "Enabled" },
         { mpid::Text, "Enabled" },
         { mpid::Value, obj.getPropertyFromInfoObject(mpid::Enabled) },
@@ -117,45 +110,59 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 		{ mpid::Help, "The label next to the " + T::getStaticId() }
 	});
 
-    col.addChild<Choice>({
-        { mpid::ID, "LabelPosition" },
-        { mpid::Text, "LabelPosition" },
-        { mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-        { mpid::Value, obj.getDefaultPositionName() },
-        { mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
-    });
-
     rootList.addChild<TextInput>({
         { mpid::ID, "Help" },
         { mpid::Text, "Help" },
         { mpid::Multiline, true },
         { mpid::Help, "The markdown content that will be shown when you click on the help button" }
     });
+
+    col1.addChild<TextInput>({
+		{ mpid::ID, mpid::Class.toString() },
+		{ mpid::Text, mpid::Class.toString() },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Class) },
+		{ mpid::Help, "The CSS class selectors for the UI element" }
+	});
+
+    col1.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Style) },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+}
+
+void tut(Component& c, const String& styleCode)
+{
+	
 }
 
 LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Component* c):
 	PageBase(r, width, obj),
 	component(c)
 {
-    if(!obj.hasProperty(mpid::Visible))
-        obj.getDynamicObject()->setProperty(mpid::Visible, true);
+    Helpers::setFallbackStyleSheet(*this, "display: flex; flex-direction: row; width: 100%; height: auto; gap: 10px;");
 
     if(!obj.hasProperty(mpid::Enabled))
         obj.getDynamicObject()->setProperty(mpid::Enabled, true);
 
-	addAndMakeVisible(c);
-	label = obj[mpid::Text].toString();
-    
-    required = obj[mpid::Required];
+    this->setTextElementSelector(simple_css::ElementType::Label);
 
+    label = obj[mpid::Text].toString();
+
+    auto lc = addTextElement({  }, label);
+    
+    Helpers::setFallbackStyleSheet(*c, "flex-grow: 1; height: 32px;");
+	addFlexItem(*c);
+	
+    required = obj[mpid::Required];
+    
     setWantsKeyboardFocus(false);
     setInterceptsMouseClicks(false, true);
 
-    auto h = positionInfo.getHeightForComponent(32);
+    //auto h = positionInfo.getHeightForComponent(32);
 
-    
-
-	setSize(width, h);
+	//setSize(width, h);
 }
 
 Result LabelledComponent::loadFromInfoObject(const var& obj)
@@ -205,12 +212,14 @@ void LabelledComponent::postInit()
     
     getComponent<Component>().setEnabled(enabled);
 
-    setVisible(infoObject[mpid::Visible] || rootDialog.isEditModeEnabled());
+    //setVisible(infoObject[mpid::Visible] || rootDialog.isEditModeEnabled());
     repaint();
 }
 
+    #if 0
 void LabelledComponent::paint(Graphics& g)
 {
+
     auto b = getArea(AreaType::Label);
 
     if(rootDialog.isEditModeEnabled())
@@ -224,10 +233,15 @@ void LabelledComponent::paint(Graphics& g)
 		g.setColour(df.second.withAlpha(enabled ? 1.0f : 0.6f));
         g.drawText(label, b.toFloat(), Justification::left);
     }
+
 }
+    #endif
 
 void LabelledComponent::resized()
 {
+    FlexboxComponent::resized();
+
+#if 0
     PageBase::resized();
     
 	auto b = getArea(AreaType::Component);
@@ -239,6 +253,7 @@ void LabelledComponent::resized()
 	}
 
     component->setBounds(b);
+#endif
 }
 
 void LabelledComponent::callOnValueChange()
@@ -282,34 +297,7 @@ void LabelledComponent::callOnValueChange()
 }
 
 
-void LabelledComponent::editModeChanged(bool isEditMode)
-{
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	PageBase::editModeChanged(isEditMode);
 
-	if(overlay != nullptr)
-	{
-        auto pos = positionInfo;
-
-		overlay->localBoundFunction = [pos](Component* c)
-		{
-            return dynamic_cast<LabelledComponent*>(c)->getArea(AreaType::Label);
-			auto b = c->getLocalBounds();
-
-			return b.removeFromLeft(pos.getWidthForLabel(c->getWidth()));
-		};
-
-		overlay->setOnClick([this](bool isRightClick)
-		{
-            this->showDeletePopup(isRightClick);
-                
-
-			
-
-		});
-	}
-#endif
-}
 
 
 void Button::createEditor(Dialog::PageInfo& rootList)
@@ -353,10 +341,10 @@ Button::Button(Dialog& r, int width, const var& obj):
     ButtonListener(),
 	LabelledComponent(r, width, obj, createButton(obj))
 {
-    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::None);
     getComponent<Component>().setWantsKeyboardFocus(false);
-	
 
+	Helpers::writeSelectorsToProperties(getComponent<juce::Button>(), { ".toggle-button" });
+    
 	loadFromInfoObject(obj);
 }
 
@@ -472,12 +460,9 @@ void Button::postInit()
         sb->refreshShape();
 		sb->refreshButtonColours();
     }
-
-    if(positionInfo.LabelPosition == Dialog::PositionInfo::LabelPositioning::None &&
-       findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
-        getComponent<juce::Button>().setButtonText(infoObject[mpid::Text]);
-
+    
     auto& button = this->getComponent<juce::Button>();
+    button.setButtonText(infoObject[mpid::Text].toString());
     
     Component* root = getParentComponent();
     
@@ -558,8 +543,6 @@ Result Button::checkGlobalState(var globalState)
 Choice::Choice(Dialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, new SubmenuComboBox())
 {
-    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
-
     if(obj.hasProperty(mpid::ValueMode))
     {
 	    valueMode = (ValueMode)getValueModeNames().indexOf(obj[mpid::ValueMode].toString());
@@ -578,10 +561,14 @@ Result Choice::loadFromInfoObject(const var& obj)
 {
 	auto ok = LabelledComponent::loadFromInfoObject(obj);
 
-    auto& combobox = getComponent<ComboBox>();
+    auto& combobox = getComponent<SubmenuComboBox>();
 	auto s = obj[mpid::Items].toString();
     combobox.clear(dontSendNotification);
 	combobox.addItemList(StringArray::fromLines(s), 1);
+
+    if(custom)
+        combobox.rebuildPopupMenu();
+
     return ok;
 
 }
@@ -676,14 +663,11 @@ void Choice::createEditor(Dialog::PageInfo& rootList)
 ColourChooser:: ColourChooser(Dialog& r, int w, const var& obj):
 	LabelledComponent(r, w, obj, new ColourSelector(ColourSelector::ColourSelectorOptions::showColourspace | ColourSelector::showColourAtTop | ColourSelector::showAlphaChannel | ColourSelector::ColourSelectorOptions::editableColour, 2, 0))
 {
-    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Above);
-    
 	auto& selector = getComponent<ColourSelector>();
 	selector.setColour(ColourSelector::ColourIds::backgroundColourId, Colours::transparentBlack);
 	selector.setLookAndFeel(&laf);
     selector.addChangeListener(this);
-
-	setSize(w, positionInfo.getHeightForComponent(130));
+    Helpers::appendToElementStyle(selector, "height: 130px");
 }
 
 ColourChooser::~ColourChooser()
@@ -1038,10 +1022,6 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, new TextEditor()),
     navigator(*this)
 {
-    juce::Value::ValueSource;
-
-    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
-    
     parseInputAsArray = obj[mpid::ParseArray];
 
     auto& editor = getComponent<TextEditor>();
@@ -1060,6 +1040,8 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
     editor.setIgnoreUpDownKeysWhenSingleLine(true);
     editor.setTabKeyUsedAsCharacter(false);
 
+    r.stateWatcher.registerComponentToUpdate(&editor);
+
     loadFromInfoObject(obj);
 
     editor.addListener(this);
@@ -1067,7 +1049,7 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
     auto mlHeight = (int)obj.getProperty(mpid::Height, 80);
 
     if(editor.isMultiLine())
-        setSize(width, positionInfo.getHeightForComponent(mlHeight));
+        Helpers::appendToElementStyle(editor, "height:" + String(mlHeight) + "px;");
     else
         resized();
 }
@@ -1192,7 +1174,6 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
 	col.addChild<Button>({
 		{ mpid::ID, "Required" },
 		{ mpid::Text, "Required" },
-        { mpid::LabelPosition, "Left" },
 		{ mpid::Help, "If this is enabled, the text input must be a non-empty String" },
         { mpid::Value, required }
 	});
@@ -1200,7 +1181,6 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
     col.addChild<Button>({
 		{ mpid::ID, "ParseArray" },
 		{ mpid::Text, "ParseArray" },
-        { mpid::LabelPosition, "Left" },
 		{ mpid::Help, "If this is enabled, the text input will parse comma separated values as Array." },
         { mpid::Value, parseInputAsArray }
 	});
@@ -1208,7 +1188,6 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
     col.addChild<Button>({
         { mpid::ID, "Multiline" },
         { mpid::Text, "Multiline" },
-        { mpid::LabelPosition, "Left" },
         { mpid::Help, "If this is enabled, the text editor will allow multiline editing" },
         { mpid::Value, infoObject[mpid::Multiline] }
     });
@@ -1325,20 +1304,22 @@ void FileSelector::createEditor(Dialog::PageInfo& rootList)
 }
 
     
-struct BetterFileSelector: public Component,
+struct BetterFileSelector: public simple_css::FlexboxComponent,
 						   public TextEditor::Listener
 {
     BetterFileSelector(const String& name, const File& initialFile, bool unused, bool isDirectory, bool save, const String& wildcard):
-      Component(name),
+      FlexboxComponent(simple_css::Selector(".fileselector")),
       browseButton("Browse"),
       currentFile(initialFile)
     {
-	    addAndMakeVisible(browseButton);
+        setName(name);
+
         addAndMakeVisible(fileLabel);
+        addAndMakeVisible(browseButton);
 
-        GlobalHiseLookAndFeel::setTextEditorColours(fileLabel);
-        hise::GlobalHiseLookAndFeel::setDefaultColours(*this);
-
+        setDefaultStyleSheet("display: flex; gap: 10px; height: auto; flex-grow: 1;");
+        Helpers::setFallbackStyleSheet(fileLabel, "flex-grow: 1; height: 100%;");
+        
 	    fileLabel.setWantsKeyboardFocus(true);
         fileLabel.setTextToShowWhenEmpty("No file selected", Colours::black.withAlpha(0.3f));
         fileLabel.setEscapeAndReturnKeysConsumed(true);
@@ -1394,18 +1375,7 @@ struct BetterFileSelector: public Component,
             findParentComponentOfClass<Dialog>()->grabKeyboardFocusAsync();
         };
     }
-
-    void resized() override
-    {
-	    auto b = getLocalBounds();
-        b.removeFromRight(5);
-
-        browseButton.setBounds(b.removeFromRight(128));
-        b.removeFromRight(10);
-        fileLabel.setBounds(b);
-    }
-
-
+    
     void setCurrentFile(const File& f, NotificationType n)
     {
 	    if(f != currentFile)
@@ -1432,10 +1402,9 @@ struct BetterFileSelector: public Component,
 FileSelector::FileSelector(Dialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, createFileComponent(obj))
 {
-    
-    positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
-
     auto& fileSelector = getComponent<BetterFileSelector>();
+
+    r.stateWatcher.registerComponentToUpdate(&fileSelector.fileLabel);
 
     fileSelector.fileBroadcaster.addListener(*this, [](FileSelector& f, File nf)
     {
@@ -1446,7 +1415,7 @@ FileSelector::FileSelector(Dialog& r, int width, const var& obj):
 	isDirectory = obj[mpid::Directory];
 	addAndMakeVisible(fileSelector);
         
-	setSize(width, positionInfo.getHeightForComponent(32));
+	setSize(width, 32);
     resized();
 }
 
@@ -1487,12 +1456,11 @@ Result FileSelector::checkGlobalState(var globalState)
 
         if(isDirectory && !f.isDirectory())
         {
-            rootDialog.createModalPopup<MarkdownText>({
+            auto i = rootDialog.createModalPopup<MarkdownText>({
                 { mpid::Text, "Do you want to create the directory  \n> " + String(f.getFullPathName()) }
             });
-
-            jassertfalse;
-	        rootDialog.showModalPopup(true);
+            
+	        rootDialog.showModalPopup(true, i);
         }
     }
 

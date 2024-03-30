@@ -35,7 +35,7 @@ namespace hise
 namespace simple_css
 {
 
-Colour ColourParser::getColourFromHardcodedString(const String& colourId)
+std::pair<bool, Colour> ColourParser::getColourFromHardcodedString(const String& colourId)
 {
 	struct NamedColour
 	{
@@ -196,6 +196,7 @@ Colour ColourParser::getColourFromHardcodedString(const String& colourId)
 		{ "snow", 0xFFfffafa  },
 		{ "springgreen", 0xFF00ff7f  },
 		{ "steelblue", 0xFF4682b4  },
+		{ "transparent", 0x00000000 },
 		{ "tan", 0xFFd2b48c  },
 		{ "teal", 0xFF008080  },
 		{ "thistle", 0xFFd8bfd8  },
@@ -213,11 +214,11 @@ Colour ColourParser::getColourFromHardcodedString(const String& colourId)
 	{
 		if(c.name == colourId)
 		{
-			return Colour(c.colour);
+			return { true, Colour(c.colour) };
 		}
 	}
 
-	return Colours::transparentBlack;
+	return { false, Colours::transparentBlack }; 
 }
 
 ColourParser::ColourParser(const String& value)
@@ -255,7 +256,7 @@ ColourParser::ColourParser(const String& value)
 	}
 	else
 	{
-		c = getColourFromHardcodedString(value);
+		c = getColourFromHardcodedString(value).second;
 	}
 }
 
@@ -636,6 +637,9 @@ ShadowParser::ShadowParser(const String& alreadyParsedString, Rectangle<float> t
 
 	for(const auto& l: lines)
 	{
+		if(l == "none")
+			continue;
+
 		auto tokens = StringArray::fromTokens(l, ";", "");
 		jassert(tokens.size() == 3);
 
@@ -786,7 +790,7 @@ float ExpressionParser::evaluateLiteral(const String& s, const Context<>& contex
 {
 	float value;
 	auto fullSize = context.useWidth ? context.fullArea.getWidth() : context.fullArea.getHeight();
-
+	
 	if(s.endsWith("vh"))
 	{
 		fullSize = context.fullArea.getHeight();
@@ -1197,7 +1201,8 @@ bool Parser::matchIf(TokenType t)
 	case CloseParen:   return matchChar(')');
 	case Colon:        return matchChar(':');
 	case Semicolon:    return matchChar(';');
-	case Comma:		   return matchChar(',');	
+	case Comma:		   return matchChar(',');
+	case Asterisk:	   return matchChar('*');
 	case Quote:		   return matchChar('\'') || matchChar('"');
 	case Keyword: 
 		{
@@ -1313,6 +1318,10 @@ PseudoState Parser::parsePseudoClass()
 
 			kw.check(currentToken, KeywordDataBase::KeywordType::PseudoClass);
 
+			if(currentToken == "first-child")
+				state |= (int)PseudoClassType::First;
+			if(currentToken == "last-child")
+				state |= (int)PseudoClassType::Last;
 			if(currentToken == "active")
 				state |= (int)PseudoClassType::Active;
 			if(currentToken == "hidden")
@@ -1325,6 +1334,8 @@ PseudoState Parser::parsePseudoClass()
 				state |= (int)PseudoClassType::Focus;
 			if(currentToken == "root")
 				state |= (int)PseudoClassType::Root;
+			if(currentToken == "checked")
+				state |= (int)PseudoClassType::Checked;
 		}
 
 		skip();
@@ -1356,7 +1367,12 @@ Parser::RawClass Parser::parseSelectors()
 		}
 		Selector ns;
 
-		if(matchIf(TokenType::Colon))
+		if(matchIf(TokenType::Asterisk))
+		{
+			ns.name == "*";
+			ns.type = SelectorType::All;
+		}
+		else if(matchIf(TokenType::Colon))
 		{
 			match(TokenType::Colon);
 			match(TokenType::Keyword);
@@ -1397,11 +1413,18 @@ Parser::RawClass Parser::parseSelectors()
 			}
 		}
 
+		auto isSpace = CharacterFunctions::isWhitespace(*ptr);
+
 		currentList.push_back({ns, parsePseudoClass() });
+
 		
+
+		if(isSpace)
+			currentList.push_back({ Selector(SelectorType::ParentDelimiter, " "), {}});
+
 		skip();
 	}
-
+	
 	newClass.selectors.push_back(currentList);
 
 	return newClass;
@@ -1527,7 +1550,7 @@ ValueType Parser::findValueType(const String& value)
 	if(value.endsWith("px") || value.endsWithChar('%') || value.endsWith("em"))
 		return ValueType::Size;
 
-	if(!ColourParser::getColourFromHardcodedString(value).isTransparent())
+	if(ColourParser::getColourFromHardcodedString(value).first)
 		return ValueType::Colour;
 
 	if(value.startsWith("linear-gradient"))
@@ -1597,6 +1620,7 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 		case PropertyType::Positioning: return "";
 		case PropertyType::Layout: return "";
         case PropertyType::Colour: return "";
+		case PropertyType::Variable: return "";
 		default: jassertfalse; return "";
 		}
 	}
@@ -1615,6 +1639,9 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 
 PropertyType Parser::getPropertyType(const String& p)
 {
+	if(p.startsWith("--"))
+		return PropertyType::Variable;
+
 	static const StringArray layoutIds({"x", "y", "left", "right", "top", "bottom", "width", "height", "min-width", "min-height", "max-width", "max-height", "opacity", "gap"});
 
 	if(p == "transform")
@@ -1676,6 +1703,18 @@ StyleSheet::Collection Parser::getCSSValues() const
 
 	for(const auto& rc: rawClasses)
 	{
+		// TODO: REMOVE ENTIRE selector member from Stylesheet and use ComplexSelector instead!
+
+		// - create a new style sheet for each raw class.
+		// - then before adding it to the collection,
+		//   check if a exact match already exists, then copy over the properties
+		// - TODO: add Ptr StyleSheet::coallascate(StyleSheet::Ptr other) for stylesheets with the same complex selector!
+		// - TODO: sort style sheets and copy properties to its matches...
+
+
+
+		
+#if 0
 		Array<std::pair<StyleSheet::Ptr, PseudoState>> thisTargets;
 
 		//int currentPseudoClass = (int)PseudoClassType::None;
@@ -1684,10 +1723,24 @@ StyleSheet::Collection Parser::getCSSValues() const
 		{
 			std::pair<bool, PseudoState> fit = { false, PseudoState() };
 
+			ComplexSelector::Ptr thisComplexSelector = new ComplexSelector(s);
+
 			StyleSheet::Ptr match;
 
 			for(auto l: list)
 			{
+				for(auto c: l->complexSelectors)
+				{
+					if(thisComplexSelector->matchesOtherComplexSelector(c))
+					{
+						match = l;
+						break;
+					}
+				}
+
+				if(match != nullptr)
+					break;
+
 				fit = l->matchesRawList(s);
 
 				if(fit.first)
@@ -1712,7 +1765,12 @@ StyleSheet::Collection Parser::getCSSValues() const
 				if(!s.empty())
 				{
 					auto p = new StyleSheet(thisSelector);
-					thisTargets.add({ p, s[0].second });
+
+					p->complexSelectors.add(thisComplexSelector);
+
+					auto& sel = thisComplexSelector->thisSelectors.selectors;
+					auto ps = sel[sel.size() - 1].second;
+					thisTargets.add({ p, ps });
 				}
 					
 			}
@@ -1731,13 +1789,25 @@ StyleSheet::Collection Parser::getCSSValues() const
 			}
 		}
 #endif
+
+#endif
+
+
 		
+
+#if 0
 		auto addOrOverwrite = [&](PropertyType pt, const String& k, const String& v)
 		{
 			bool shouldExtend = pt == PropertyType::Shadow || pt == PropertyType::Transform;
 
 			for(auto& l: thisTargets)
 			{
+				if(pt == PropertyType::Variable)
+				{
+					l.first->setPropertyVariable(Identifier(k.substring(2, 1000)), v);
+					continue;
+				}
+
 				bool propertyFound = false;
 
 				auto elementIndex = (int)l.second.element;
@@ -1755,7 +1825,7 @@ StyleSheet::Collection Parser::getCSSValues() const
 							if(pv.first == pseudoClassIndex)
 							{
 								if(shouldExtend)
-									pv.second.valueAsString << v;
+									pv.second.appendToValue(v);
 								else
 									pv.second = PropertyValue(pt, v);
 
@@ -1782,42 +1852,69 @@ StyleSheet::Collection Parser::getCSSValues() const
 					np.values.push_back({ pseudoClassIndex, { pt, v }});
 					l.first->properties[elementIndex].push_back(np);
 				}
-#if 0
-				for(auto& p: l.first->properties)
+			}
+		};
+#endif
+
+		Array<PseudoState> thisStates;
+
+		ComplexSelector::List selectorList;
+
+		for(auto& s: rc.selectors)
+		{
+			selectorList.add(new ComplexSelector(s));
+
+			for(const auto& ts: selectorList.getLast()->thisSelectors.selectors)
+			{
+				thisStates.addIfNotAlreadyThere(ts.second);
+			}
+		}
+		
+		auto n = new StyleSheet(selectorList);
+		
+		auto addOrOverwrite = [&](PropertyType pt, const String& k, const String& v)
+		{
+			bool shouldExtend = pt == PropertyType::Shadow || pt == PropertyType::Transform;
+
+			if(pt == PropertyType::Variable)
+			{
+				n->setPropertyVariable(Identifier(k.substring(2, 1000)), v);
+				return;
+			}
+
+			for(auto& thisPseudoState: thisStates)
+			{
+				bool found = false;
+
+				for(auto& elementProperties: n->properties[(int)thisPseudoState.element])
 				{
-					if(p.name == k)
+					if(elementProperties.name == k)
 					{
-						
-						if(shouldExtend)
+						for(auto& propertyValue: elementProperties.values)
 						{
-							if(v == "none")
-								p.values[l.second] = { pt, "" };
-							else
-								p.values[l.second].valueAsString << v;
+							if(propertyValue.first == thisPseudoState.stateFlag)
+							{
+								if(shouldExtend)
+									propertyValue.second.appendToValue(v);
+								else
+									propertyValue.second = PropertyValue(pt, v);
+
+								found = true;
+								break;
+							}
 						}
-						else
-						{
-							p.values[l.second] = { pt, v };
-						}
-						
-						found = true;
-						break;
 					}
+
+					
 				}
 
 				if(!found)
 				{
-					StyleSheet::Property np;
-					np.name = k;
-					np.values[l.second] = { pt, v };
-
-					if(l.second != 0)
-						np.values[0] = { pt, "" }; 
-
-					auto containsDefault = np.values.find(0) == np.values.end();
-					l.first->properties.push_back(np);
+					Property p;
+					p.name = k;
+					p.values.push_back({thisPseudoState.stateFlag, PropertyValue(pt, v)});
+					n->properties[(int)thisPseudoState.element].push_back(p);
 				}
-#endif
 			}
 		};
 
@@ -1893,10 +1990,10 @@ StyleSheet::Collection Parser::getCSSValues() const
 
 					if(transitionTarget == "all")
 					{
-						for(auto& l: thisTargets)
+						for(auto& l: thisStates)
 						{
-							if(l.second.isDefaultState())
-								l.first->setDefaultTransition(l.second.element, t);
+							if(l.isDefaultState())
+								n->setDefaultTransition(l.element, t);
 						}
 					};
 					
@@ -1979,10 +2076,10 @@ StyleSheet::Collection Parser::getCSSValues() const
 					tr.active = true;
 					tr.duration = processValue(t, ValueType::Time).getDoubleValue();
 
-					for(auto& l: thisTargets)
+					for(auto& l: thisStates)
 					{
-						if(l.second.isDefaultState())
-							l.first->setDefaultTransition(l.second.element, tr);
+						if(l.isDefaultState())
+							n->setDefaultTransition(l.element, tr);
 					}
 					
 					transitions["all"] = tr;
@@ -1997,11 +2094,11 @@ StyleSheet::Collection Parser::getCSSValues() const
 			PropertyKey k;
 			k.name =t.first;
 
-			for(const auto& l: thisTargets)
+			for(const auto& l: thisStates)
 			{
-				k.state = l.second;
+				k.state = l;
 
-				for(auto& p: l.first->properties[(int)l.second.element])
+				for(auto& p: n->properties[(int)l.element])
 				{
 					if(k.looseMatch(p.name))
 					{
@@ -2022,10 +2119,7 @@ StyleSheet::Collection Parser::getCSSValues() const
 			}
 		}
 
-		
-
-		for(const auto& l: thisTargets)
-			list.addIfNotAlreadyThere(l.first);
+		list.add(n);
 	}
 
 	return StyleSheet::Collection(list);

@@ -70,11 +70,10 @@ namespace mpid
     DECLARE_ID(CallOnNext);
     DECLARE_ID(CallType);
     DECLARE_ID(Cleanup);
+    DECLARE_ID(Class);
     DECLARE_ID(Code);
-    
     DECLARE_ID(Children);
     DECLARE_ID(Company);
-    DECLARE_ID(Comment);
     DECLARE_ID(Custom);
     DECLARE_ID(Data);
     DECLARE_ID(Directory);
@@ -92,16 +91,15 @@ namespace mpid
     DECLARE_ID(Height);
     DECLARE_ID(Icon);
     DECLARE_ID(Image);
+    DECLARE_ID(Inverted);
     DECLARE_ID(ID);
     DECLARE_ID(InitValue);
     DECLARE_ID(Items);
-    DECLARE_ID(LabelPosition);
     DECLARE_ID(LayoutData);
     DECLARE_ID(Multiline);
     DECLARE_ID(NumTodo);
     DECLARE_ID(Overwrite);
     DECLARE_ID(OperatingSystem);
-    DECLARE_ID(Padding);
     DECLARE_ID(Parameters);
     DECLARE_ID(ParseArray);
     DECLARE_ID(ParseJSON);
@@ -114,6 +112,7 @@ namespace mpid
     DECLARE_ID(Source);
     DECLARE_ID(SpecialLocation);
 	DECLARE_ID(StyleData);
+    DECLARE_ID(Style);
     DECLARE_ID(Subtitle);
     DECLARE_ID(SupportFullDynamics);
     DECLARE_ID(Target);
@@ -130,7 +129,6 @@ namespace mpid
     DECLARE_ID(Value);
     DECLARE_ID(ValueMode);
     DECLARE_ID(Version);
-    DECLARE_ID(Visible);
     DECLARE_ID(WaitTime);
     DECLARE_ID(Width);
     DECLARE_ID(Wildcard);

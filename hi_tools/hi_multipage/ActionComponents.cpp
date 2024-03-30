@@ -53,6 +53,20 @@ void Action::createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& h
 		{ mpid::Help, "The ID of the action. This will determine whether the action is tied to a global state value. If not empty, the action will only be performed if the value is not zero." }
 	});
 
+	rootList.addChild<TextInput>({
+        { mpid::ID, mpid::Class.toString() },
+        { mpid::Text, mpid::Class.toString() },
+        { mpid::Help, "The CSS class that is applied to the action UI element (progress bar & label)." },
+		{ mpid::Value, infoObject[mpid::Class] }
+    });
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+        { mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+
 	rootList.addChild<Button>({
 		{ mpid::ID, "CallOnNext" },
 		{ mpid::Text, "CallOnNext" },
@@ -137,47 +151,7 @@ Result Action::checkGlobalState(var globalState)
 }
 
 
-void Action::editModeChanged(bool isEditMode)
-{
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	PageBase::editModeChanged(isEditMode);
 
-	if(overlay != nullptr)
-	{
-		overlay->localBoundFunction = [](Component* c)
-		{
-			return c->getLocalBounds();
-		};
-
-		overlay->setOnClick([this](bool isRightClick)
-		{
-			if(this->showDeletePopup(isRightClick))
-				return;
-
-			rootDialog.createEditorInSideTab(infoObject, this, [this](Dialog::PageInfo& r)
-			{
-				createEditor(r);
-			});
-
-#if 0
-			auto& l = rootDialog.createModalPopup<List>();
-
-			l.setStateObject(infoObject);
-			
-
-			l.setCustomCheckFunction([this](PageBase* b, var obj)
-			{
-				this->repaint();
-				return Result::ok();
-			});
-
-			rootDialog.showModalPopup(true);
-#endif
-
-		});
-	}
-#endif
-}
 
 
 ImmediateAction::ImmediateAction(Dialog& r, int w, const var& obj):
@@ -200,6 +174,15 @@ ImmediateAction::ImmediateAction(Dialog& r, int w, const var& obj):
 
 		return this->onAction();
 	});
+
+	if(rootDialog.isEditModeEnabled())
+	{
+		Helpers::writeInlineStyle(*this, "width:100%;height: 32px;background:red;");
+	}
+	else
+	{
+		Helpers::writeInlineStyle(*this, "display:none;");
+	}
 }
 
 Skip::Skip(Dialog& r, int w, const var& obj):
@@ -209,8 +192,6 @@ Skip::Skip(Dialog& r, int w, const var& obj):
 void Skip::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that simply skips the page that contains this element. This can be used in order to skip a page with a branch (eg. if one of the options doesn't require additional information.)");
-
-	
 }
 
 Result Skip::onAction()
@@ -584,10 +565,8 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	Action(r, w, obj),
 	retryButton("retry", nullptr, r)
 {
-	positionInfo.setDefaultPosition(Dialog::PositionInfo::LabelPositioning::Left);
+	this->setTextElementSelector(simple_css::ElementType::Label);
 
-	addChildComponent(retryButton);
-        
 	job = r.getJob(obj);
 	
 	if(job == nullptr)
@@ -597,29 +576,41 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
         
 	dynamic_cast<WaitJob*>(job.get())->currentPage = this;
         
-	addAndMakeVisible(progress = new ProgressBar(job->getProgress()));
-        
-	progress->setOpaque(false);
+	progress = new ProgressBar(job->getProgress());
         
 	retryButton.onClick = [this]()
 	{
 		rootDialog.getState().addJob(job, true);
+		rootDialog.setCurrentErrorPage(nullptr);
 		retryButton.setVisible(false);
 		resized();
 	};
         
 	label = obj[mpid::Text].toString();
-        
-	addAndMakeVisible(progress);
 
-	setSize(w, positionInfo.getHeightForComponent(32));
+	addTextElement({ ".label"}, label);
+
+        
+	addFlexItem(*progress);
+
+	addFlexItem(retryButton);
+	retryButton.setVisible(false);
+
+	setDefaultStyleSheet("display: flex; width: 100%; height: auto; gap: 10px;");
+	Helpers::setFallbackStyleSheet(*progress, "flex-grow: 1; height: 32px;");
+	Helpers::writeSelectorsToProperties(retryButton, { ".retry-button"});
+
+	setSize(w, 0);
 }
 
 void BackgroundTask::paint(Graphics& g)
 {
+	FlexboxComponent::paint(g);
+
 	if(job != nullptr)
 		job->updateProgressBar(progress);
 
+#if 0
 	if(label.isNotEmpty())
 	{
 		auto b = getArea(AreaType::Label);
@@ -636,18 +627,20 @@ void BackgroundTask::paint(Graphics& g)
 	        g.drawText(label, b.toFloat(), Justification::left);
 	    }
 	}
+#endif
 }
 
 void BackgroundTask::resized()
 {
 	Action::resized();
-
+#if 0
 	auto b = getArea(AreaType::Component);
 	
 	if(retryButton.isVisible())
 		retryButton.setBounds(b.removeFromRight(b.getHeight()).withSizeKeepingCentre(24, 24));
 	
 	progress->setBounds(b.reduced(0, 2));
+#endif
 }
 
 void BackgroundTask::postInit()
@@ -798,14 +791,6 @@ void LambdaTask::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The label text that will be shown next to the progress bar." }
 	});
         
-	col.addChild<Choice>({
-		{ mpid::ID, "LabelPosition" },
-		{ mpid::Text, "LabelPosition" },
-		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-		{ mpid::Value, "Default" },
-		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
-	});
-
 	rootList.addChild<TextInput>({
 		{ mpid::ID, "Function" },
 		{ mpid::Text, "Function" },
@@ -928,14 +913,6 @@ void HttpRequest::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The label text that will be shown next to the progress bar." }
 	});
         
-	col.addChild<Choice>({
-		{ mpid::ID, "LabelPosition" },
-		{ mpid::Text, "LabelPosition" },
-		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-		{ mpid::Value, "Default" },
-		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
-	});
-
 	rootList.addChild<TextInput>({
 		{ mpid::ID, "Source" },
 		{ mpid::Text, "Source" },
@@ -1140,14 +1117,6 @@ void DownloadTask::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The label text that will be shown next to the progress bar." }
 	});
         
-	col.addChild<Choice>({
-		{ mpid::ID, "LabelPosition" },
-		{ mpid::Text, "LabelPosition" },
-		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-		{ mpid::Value, "Default" },
-		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
-	});
-
 	addSourceTargetEditor(rootList);
 
 	rootList.addChild<TextInput>({
@@ -1280,14 +1249,6 @@ void UnzipTask::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The label text that will be shown next to the progress bar." }
 	});
         
-	col.addChild<Choice>({
-		{ mpid::ID, "LabelPosition" },
-		{ mpid::Text, "LabelPosition" },
-		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-		{ mpid::Value, "Default" },
-		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
-	});
-
 	addSourceTargetEditor(rootList);
 
 	rootList.addChild<Button>({
@@ -1360,14 +1321,6 @@ void CopyAsset::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The label text that will be shown next to the progress bar." }
 	});
         
-	col.addChild<Choice>({
-		{ mpid::ID, "LabelPosition" },
-		{ mpid::Text, "LabelPosition" },
-		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-		{ mpid::Value, "Default" },
-		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
-	});
-
 	addSourceTargetEditor(rootList);
 
 	rootList.addChild<Button>({
@@ -1449,14 +1402,6 @@ void HlacDecoder::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The label text that will be shown next to the progress bar." }
 	});
         
-	col.addChild<Choice>({
-		{ mpid::ID, "LabelPosition" },
-		{ mpid::Text, "LabelPosition" },
-		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-		{ mpid::Value, "Default" },
-		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
-	});
-
 	rootList.addChild<Button>({
 		{ mpid::ID, "UseTotalProgress" },
 		{ mpid::Text, "UseTotalProgress" },
@@ -1508,14 +1453,6 @@ void DummyWait::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The label text that will be shown next to the progress bar." }
 	});
         
-	col.addChild<Choice>({
-		{ mpid::ID, "LabelPosition" },
-		{ mpid::Text, "LabelPosition" },
-		{ mpid::Items, Dialog::PositionInfo::getLabelPositionNames().joinIntoString("\n") },
-		{ mpid::Value, "Default" },
-		{ mpid::Help, "The position of the text label. This overrides the value of the global layout data. " }
-	});
-
 	rootList.addChild<TextInput>({
 		{ mpid::ID, "NumTodo" },
 		{ mpid::Text, "NumTodo" },
@@ -1638,18 +1575,33 @@ void OperatingSystem::loadConstants()
 	setConstant("WINDOWS", true);
 	setConstant("MAC_OS", false);
 	setConstant("LINUX", false);
+
+	setConstant("NOT_WINDOWS", false);
+	setConstant("NOT_MAC_OS", true);
+	setConstant("NOT_LINUX", true);
+
 	setConstant("OS", (int)Asset::TargetOS::Windows);
 	setConstant("OS_String", "WIN");
 #elif JUCE_LINUX
     setConstant("WINDOWS", false);
 	setConstant("MAC_OS", false);
     setConstant("LINUX", true);
+
+	setConstant("NOT_WINDOWS", true);
+	setConstant("NOT_MAC_OS", true);
+	setConstant("NOT_LINUX", false);
+
 	setConstant("OS", (int)Asset::TargetOS::Linux);
 	setConstant("OS_String", "LINUX");
 #elif JUCE_MAC
     setConstant("WINDOWS", false);
     setConstant("MAC_OS", true);
 	setConstant("LINUX", false);
+
+	setConstant("NOT_WINDOWS", true);
+	setConstant("NOT_MAC_OS", false);
+	setConstant("NOT_LINUX", true);
+
 	setConstant("OS", (int)Asset::TargetOS::macOS);
 	setConstant("OS_String", "OSX");
 #endif

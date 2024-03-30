@@ -42,23 +42,7 @@ Container::Container(Dialog& r, int width, const var& obj):
 	
 }
 
-void Container::paintEditBounds(Graphics& g)
-{
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	if(overlay != nullptr)
-	{
-		auto f = Dialog::getDefaultFont(*this);
-		auto b = overlay->localBoundFunction(this).reduced(5);
 
-		g.setColour(f.second.withAlpha(0.05f));
-		g.fillRoundedRectangle(b.toFloat(), 3.0f);
-		g.setColour(f.second.withAlpha(0.8f));
-
-		g.setFont(f.first);
-		g.drawText("Click to edit " + getContainerTypeId().toString(), b, Justification::centred);
-	}
-#endif
-}
 
 Result Container::checkChildren(PageBase* b, const var& toUse)
 {
@@ -83,33 +67,12 @@ Result Container::checkChildren(PageBase* b, const var& toUse)
 
 void Container::recalculateParentSize(PageBase* b)
 {
-	Container* c = dynamic_cast<Container*>(b);
-
-	if(c == nullptr)
-		c = b->findParentComponentOfClass<Container>();
-
-	if(c == nullptr)
-		return;
-
-	c->calculateSize();
-
-	while(c = dynamic_cast<Container*>(c->getParentComponent()))
-		c->calculateSize();
-
-	if(auto p = b->findParentComponentOfClass<Dialog::ModalPopup>())
-	{
-		p->resized();
-	}
+	b->rebuildRootLayout();
 }
 
 void Container::postInit()
 {
 	init();
-
-	if(infoObject.hasProperty(mpid::Padding))
-		padding = (int)infoObject[mpid::Padding];
-	else
-		padding = 10;
 
     if(infoObject[mpid::UseChildState])
     {
@@ -121,7 +84,7 @@ void Container::postInit()
 	for(const auto& sp: staticPages)
 	{
 		childItems.add(sp->create(rootDialog, getWidth()));
-		addAndMakeVisible(childItems.getLast());
+		addFlexItem(*childItems.getLast());
 	}
 
 	for(auto c: childItems)
@@ -129,14 +92,11 @@ void Container::postInit()
         c->setStateObject(stateObject);
 
 		if(stateObject.hasProperty(c->getId()))
-		{
 			c->clearInitValue();
-		}
 
         c->postInit();
     }
 
-	calculateSize();
 	resized();
 }
 
@@ -170,7 +130,7 @@ void Container::addChild(int width, const var& r)
 	if(auto pi = factory.create(r))
 	{
 		childItems.add(pi->create(rootDialog, width));
-		addAndMakeVisible(childItems.getLast());
+		addFlexItem(*childItems.getLast());
 	}
 }
 
@@ -194,61 +154,39 @@ void Container::addWithPopup()
 Result Container::customCheckOnAdd(PageBase* b, const var& obj)
 {
 	dynamic_cast<Container*>(b)->checkGlobalState(obj);
-	padding = obj[mpid::Padding];
-
 	Container* c = this;
 
-	while(c != nullptr)
-	{
-		c->calculateSize();
-		c->resized();
-
-		c = c->findParentComponentOfClass<Container>();
-	}
-        
+	rebuildRootLayout();
+    
 	return Result::ok();
-}
-
-
-void List::calculateSize()
-{
-	int h = foldable ? (titleHeight + padding) : 0;
-
-    for(auto c: childItems)
-        c->setVisible(!folded);
-    
-    if(!folded)
-    {
-        for(auto& c: childItems)
-        {
-	        if(c->getHeight() > 0)
-				h += c->getHeight() + padding;
-        }
-    }
-
-	if(rootDialog.isEditModeEnabled())
-		h += 32;
-    
-	setSize(getWidth(), h);
 }
 
 List::List(Dialog& r, int width, const var& obj):
 	Container(r, width, obj)
 {
-    foldable = obj[mpid::Foldable];
+	setDefaultStyleSheet("display:flex; flex-direction: column; flex-wrap: nowrap;height: auto;width:100%; gap: 10px;");
+
+	foldable = obj[mpid::Foldable];
     folded = obj[mpid::Folded];
     title = obj[mpid::Text];
+
+	if(foldable)
+	{
+		foldButton = new TextButton(title);
+		foldButton->setClickingTogglesState(true);
+		foldButton->setToggleState(folded, dontSendNotification);
+		foldButton->setWantsKeyboardFocus(false);
+		foldButton->onClick = BIND_MEMBER_FUNCTION_0(List::refreshFold);
+
+		Helpers::writeSelectorsToProperties(*foldButton, { ".fold-bar" });
+		addFlexItem(*foldButton);
+	}
+
 	setSize(width, 0);
 }
 
 List::~List()
 {
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	if(overlay != nullptr)
-		rootDialog.removeChildComponent(overlay);
-
-	overlay = nullptr;
-#endif
 }
 
 Result List::customCheckOnAdd(PageBase* b, const var& obj)
@@ -259,7 +197,6 @@ Result List::customCheckOnAdd(PageBase* b, const var& obj)
 	folded = obj[mpid::Folded];
 	title = obj[mpid::Text];
 
-	calculateSize();
 	return Result::ok();
 }
 
@@ -300,12 +237,19 @@ void List::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Value, title }
     });
 
-    auto& padId = prop.addChild<TextInput>({
-        { mpid::ID, "Padding" },
-        { mpid::Text, "Padding" },
-        { mpid::Help, "The spacing between child elements in pixel." },
-		{ mpid::Value, padding }
+	prop.addChild<TextInput>({
+        { mpid::ID, mpid::Class.toString() },
+        { mpid::Text, mpid::Class.toString() },
+        { mpid::Help, "The CSS class that is applied to the container" },
+		{ mpid::Value, infoObject[mpid::Class] }
     });
+
+	prop.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+        { mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
 
     auto& foldId1 = prop.addChild<Button>({
         { mpid::ID, "Foldable" },
@@ -324,104 +268,25 @@ void List::createEditor(Dialog::PageInfo& rootList)
     });
 }
 
-void List::editModeChanged(bool isEditMode)
+
+void List::refreshFold()
 {
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	PageBase::editModeChanged(isEditMode);
-
-	if(overlay != nullptr)
-	{
-		overlay->localBoundFunction = [](Component* c)
-		{
-			return c->getLocalBounds().removeFromBottom(32);
-		};
-
-		overlay->setOnClick(BIND_MEMBER_FUNCTION_0(Container::addWithPopup));
-	}
-#endif
-}
-
-void List::resized()
-{
-	auto b = getLocalBounds();
-
-	if(b.isEmpty())
-		return;
-
-    if(foldable)
-        b.removeFromTop(24 + padding);
-
-	if(rootDialog.isEditModeEnabled())
-		b.removeFromLeft(10);
-
-    if(!folded)
-    {
-        for(auto c: childItems)
-        {
-			auto cb = b.removeFromTop(c->getHeight());
-            
-            if(!cb.isEmpty())
-            {
-                c->setBounds(cb);
-                c->resized();
-				b.removeFromTop(padding);
-            }
-        }
-    }
-}
-
-void List::mouseDown(const MouseEvent& e)
-{
-	if(foldable && e.getPosition().getY() < titleHeight)
-	{
-		folded = !folded;
-            
-		
-		repaint();
-
-		Container::recalculateParentSize(this);
-	}
-}
-
-void List::paint(Graphics& g)
-{
-	paintEditBounds(g);
-
-	auto tc = Dialog::getDefaultFont(*this).second;
-
-	auto b = getLocalBounds();
-
-	if(isEditModeAndNotInPopup())
-	{
-		auto c = b.removeFromLeft(10);
-
-		c.removeFromLeft(2);
-		c.removeFromRight(2);
-		c.removeFromBottom(32);
-
-		g.setColour(tc.withAlpha(0.04f));
-		g.fillRoundedRectangle(c.toFloat(), 3.0f);
-
-	}
-
 	if(foldable)
 	{
-		if(auto laf = dynamic_cast<Dialog::LookAndFeelMethods*>(&rootDialog.getLookAndFeel()))
+		for(int i = 1; i < getNumChildComponents(); i++)
 		{
-			auto ta = b.removeFromTop(titleHeight).toFloat();
-			laf->drawMultiPageFoldHeader(g, *this, ta, title, folded);
+			getChildComponent(i)->setVisible(!foldButton->getToggleState());
 		}
+
+		rebuildRootLayout();
 	}
 }
+
 
 Column::Column(Dialog& r, int width, const var& obj):
 	Container(r, width, obj)
 {
-	padding = (int)obj[mpid::Padding];
-
-	
-    
-
+	setDefaultStyleSheet("display:flex; flex-direction: row; flex-wrap: nowrap;height: auto;width:100%; gap: 10px;");
 	setSize(width, 0);
 }
 
@@ -441,6 +306,20 @@ void Column::createEditor(Dialog::PageInfo& xxx)
         { mpid::Help, "The ID. This will be used for identification in some logic cases" }
     });
 
+	prop.addChild<TextInput>({
+        { mpid::ID, mpid::Class.toString() },
+        { mpid::Text, mpid::Class.toString() },
+        { mpid::Help, "The CSS class that is applied to the container" },
+		{ mpid::Value, infoObject[mpid::Class] }
+    });
+
+	prop.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+        { mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+
     prop.addChild<Button>({
         { mpid::ID, "UseChildState" },
         { mpid::Text, "UseChildState" },
@@ -454,195 +333,21 @@ void Column::createEditor(Dialog::PageInfo& xxx)
 
 	    listId[mpid::Value] = v;
     }
-	
-    prop.addChild<TextInput>({
-        { mpid::ID, "Padding" },
-        { mpid::Text, "Padding" },
-        { mpid::Help, "The spacing between child elements in pixel." }
-    });
-
-	prop.addChild<TextInput>({
-        { mpid::ID, "Width" },
-        { mpid::Text, "Width" },
-		{ mpid::ParseArray, true },
-        { mpid::Help, "The relative width between child elements." }
-    });
-}
-
-Result Column::customCheckOnAdd(PageBase* b, const var& obj)
-{
-	auto ar = obj[mpid::Width];
-
-	if(ar.isArray())
-	{
-		if(ar.size() != childItems.size())
-			return Result::fail("Width array size mismatch. Must have as many elements as children");
-	}
-
-	Container::customCheckOnAdd(b, obj);
-
-	resized();
-	return Result::ok();
-}
-
-
-void Column::editModeChanged(bool isEditMode)
-{
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	Container::editModeChanged(isEditMode);
-
-	if(overlay != nullptr && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
-	{
-		overlay->localBoundFunction = [](Component* c){ return c->getLocalBounds().removeFromRight(64); };
-
-		overlay->setOnClick(BIND_MEMBER_FUNCTION_0(Container::addWithPopup));
-	}
-
-	calculateSize();
-	resized();
-#endif
-}
-
-
-void Column::paint(Graphics& g)
-{
-	if(rootDialog.isEditModeEnabled() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
-	{
-		g.setColour(Colours::white.withAlpha(0.02f));
-		g.fillRect(this->getLocalBounds());
-
-		auto ta = getLocalBounds().removeFromRight(64).toFloat().reduced(5.0f);
-		g.setColour(Colours::white.withAlpha(0.1f));
-		g.fillRoundedRectangle(ta, 3.0f);
-
-		g.setFont(Dialog::getDefaultFont(*this).first);
-		g.setColour(Colours::white.withAlpha(0.7f));
-		g.drawText("Edit", ta, Justification::centred);
-	}
-}
-
-void Column::calculateSize()
-{
-	auto widthList = infoObject[mpid::Width];
-
-	widthInfo.clear();
-
-    if(childItems.size() > 0)
-    {
-        auto equidistance = -1.0 / childItems.size();
-        
-        for(int i = 0; i < childItems.size(); i++)
-        {
-            auto v = widthList.size() == childItems.size() ?  widthList[i] : var();
-            
-            if(v.isUndefined() || v.isVoid())
-                widthInfo.add(equidistance);
-            else
-                widthInfo.add((double)v);
-        }
-    }
-
-	int h = rootDialog.isEditModeEnabled() ? 32 : 0;
-
-	
-
-	for(auto& c: childItems)
-		h = jmax(h, c->getHeight());
-	        
-	setSize(getWidth(), h);
-}
-
-void Column::resized()
-{
-	auto b = getLocalBounds();
-
-	if(b.isEmpty())
-		return;
-
-	auto fullWidth = getWidth();
-
-	auto showEditButton = rootDialog.isEditModeEnabled() && findParentComponentOfClass<Dialog::ModalPopup>() == nullptr;
-
-	if(showEditButton)
-		fullWidth -= 64;
-        
-	for(const auto& w: widthInfo)
-	{
-		if(w > 0.0)
-			fullWidth -= (int)w;
-		
-		fullWidth -= padding;
-	}
-
-	// last padding doesn't count
-	fullWidth += padding;
-
-	
-	for(int i = 0; i < childItems.size(); i++)
-	{
-		auto w = widthInfo[i];
-
-		if(w < 0.0)
-			w = fullWidth * (-1.0) * w;
-
-        auto cb = b.removeFromLeft(roundToInt(w));
-        
-        if(!cb.isEmpty())
-        {
-            childItems[i]->setBounds(cb);
-            childItems[i]->resized();
-        }
-        
-		b.removeFromLeft(padding);
-	}
-}
-
-void Column::postInit()
-{
-	if(!staticPages.isEmpty())
-	{
-		auto equidistance = -1.0 / staticPages.size();
-            
-		for(auto sp: staticPages)
-		{
-			auto v = (*sp)[mpid::Width];
-                
-			if(v.isUndefined() || v.isVoid())
-				widthInfo.add(equidistance);
-			else
-				widthInfo.add((double)v);
-		}
-	}
-	    
-	Container::postInit();
 }
 
 Branch::Branch(Dialog& root, int w, const var& obj):
 	Container(root, w, obj)
 {
+	setDefaultStyleSheet("display:flex; flex-direction: column; flex-wrap: nowrap;height: auto;width:100%; gap: 10px;");
 	setSize(w, 0);
-}
 
-
-void Branch::editModeChanged(bool isEditMode)
-{
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	Container::editModeChanged(isEditMode);
-
-	if(overlay != nullptr)
-	{
-		overlay->localBoundFunction = [](Component* c){ return c->getLocalBounds().removeFromBottom(32); };
-		overlay->setOnClick(BIND_MEMBER_FUNCTION_0(Container::addWithPopup));
-	}
-
-	calculateSize();
-	resized();
-#endif
+	if(root.isEditModeEnabled())
+		Helpers::writeInlineStyle(*this, "margin-left: 25%;min-height:30px;");
 }
 
 void Branch::paint(Graphics& g)
 {
-	paintEditBounds(g);
+	FlexboxComponent::paint(g);
 
 	if(rootDialog.isEditModeEnabled())
 	{
@@ -661,7 +366,6 @@ void Branch::paint(Graphics& g)
 			s << "if(" << id << " == " << String(index++) << ") {";
 
 			g.drawText(s, tl, Justification::centred);
-
 			b.removeFromTop(10);
 		}
 	}
@@ -679,21 +383,19 @@ void Branch::postInit()
 	for(const auto& sp: staticPages)
 	{
 		childItems.add(sp->create(rootDialog, getWidth()));
-		addAndMakeVisible(childItems.getLast());
+		addFlexItem(*childItems.getLast());
 	}
-
 	
-
 	if(rootDialog.isEditModeEnabled())
 	{
 		for(auto c: childItems)
 		{
+			Helpers::writeInlineStyle(*c, "min-height:30px;border: 1px solid #555;padding: 5px;border-radius:6px;");
+
 			c->setStateObject(stateObject);
 
 			if(stateObject.hasProperty(c->getId()))
-			{
 				c->clearInitValue();
-			}
 
 			c->postInit();
 		}
@@ -710,30 +412,7 @@ void Branch::postInit()
 			childItems.clear();
 	}
 	
-	calculateSize();
-}
-
-void Branch::calculateSize()
-{
-	if(rootDialog.isEditModeEnabled())
-	{
-		int h = 32;
-
-		for(auto c: childItems)
-		{
-			h += c->getHeight() + 10;
-		}
-
-		setSize(getWidth(), h);
-	}
-	else
-	{
-		if(auto c = childItems[0])
-		{
-			c->setVisible(true);
-			setSize(getWidth(), c->getHeight());
-		}
-	}
+	rebuildLayout();
 }
 
 Result Branch::checkGlobalState(var globalState)
@@ -764,32 +443,6 @@ void Branch::createEditor(Dialog::PageInfo& rootList)
     });
 }
 
-void Branch::resized()
-{
-	if(rootDialog.isEditModeEnabled())
-	{
-		auto b = getLocalBounds();
-
-		b.removeFromLeft(getWidth() / 4);
-
-		for(auto c: childItems)
-		{
-			c->setBounds(b.removeFromTop(c->getHeight()));
-			b.removeFromTop(10);
-		}
-	}
-	else
-	{
-		auto b = getLocalBounds();
-
-		if(b.isEmpty())
-			return;
-
-		if(auto p = childItems[0])
-			p->setBounds(b);
-	}
-	
-}
 
 } // PageFactory
 } // multipage

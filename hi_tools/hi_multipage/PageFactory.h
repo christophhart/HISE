@@ -92,7 +92,7 @@ struct Spacer: public Dialog::PageBase
 {
 	DEFAULT_PROPERTIES(Spacer)
     {
-        return { { mpid::Padding, 30 } };
+        return { };
     }
 
     static String getCategoryId() { return "Layout"; }
@@ -100,9 +100,7 @@ struct Spacer: public Dialog::PageBase
     Spacer(Dialog& r, int width, const var& d):
       PageBase(r, width, d)
 	{
-		padding =(int)d[mpid::Padding];
-
-        setSize(width, padding);
+        setSize(width, 0);
 	}
 
     void createEditor(Dialog::PageInfo& rootList) override;
@@ -117,19 +115,14 @@ struct Spacer: public Dialog::PageBase
 	    }
     }
     Result checkGlobalState(var) override { return Result::ok(); }
-
-private:
-
-    int padding = 0;
+    
 };
-
-
 
 struct EventLogger: public Dialog::PageBase
 {
     DEFAULT_PROPERTIES(EventLogger)
     {
-        return { { mpid::Padding, 30 } };
+        return { };
     }
 
     EventLogger(Dialog& r, int w, const var& obj):
@@ -152,6 +145,22 @@ struct EventLogger: public Dialog::PageBase
     EventConsole console;
 };
 
+struct SimpleText: public Dialog::PageBase
+{
+    DEFAULT_PROPERTIES(SimpleText)
+    {
+        return { { mpid::Text, "### funkyNode" } };
+    }
+
+	SimpleText(Dialog& r, int width, const var& obj);
+    
+    static String getCategoryId() { return "Layout"; }
+
+    void createEditor(Dialog::PageInfo& rootList) override;
+
+    Result checkGlobalState(var) override { return Result::ok(); }
+};
+
 struct MarkdownText: public Dialog::PageBase
 {
     DEFAULT_PROPERTIES(MarkdownText)
@@ -162,22 +171,27 @@ struct MarkdownText: public Dialog::PageBase
     static String getCategoryId() { return "Layout"; }
     static String getString(const String& markdownText, Dialog& parent);
 
-
-
     MarkdownText(Dialog& r, int width, const var& d);
 
     void createEditor(Dialog::PageInfo& rootList) override;
-    void editModeChanged(bool isEditMode) override;
+    
     void postInit() override;
-    void paint(Graphics& g) override;
+
+    void resized() override
+    {
+        FlexboxComponent::resized();
+        display.resized();
+    }
+    //void paint(Graphics& g) override;
     Result checkGlobalState(var) override;
 
 private:
 
-    int padding = 0;
-    bool isComment = false;
     var obj;
-    MarkdownRenderer r;
+    float width = 0.0f;
+    SimpleMarkdownDisplay display;
+
+    //MarkdownRenderer r;
 };
 
 }

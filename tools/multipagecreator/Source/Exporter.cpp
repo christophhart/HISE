@@ -83,7 +83,6 @@ Dialog* projucer_exporter::createDialog(State& state)
 	auto mp_ = new Dialog(var(fullData.get()), state, false);
 	auto& mp = *mp_;
 	auto& List_0 = mp.addPage<factory::List>({
-	  { mpid::Padding, 10 }, 
 	  { mpid::Foldable, 0 }, 
 	  { mpid::Folded, 0 }
 	});
@@ -92,7 +91,6 @@ Dialog* projucer_exporter::createDialog(State& state)
 	  { mpid::Text, "HISE Path" }, 
 	  { mpid::ID, "hisePath" }, 
 	  { mpid::UseInitValue, 0 }, 
-	  { mpid::LabelPosition, "Default" }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The path to the HISE source code repository folder (the root directory with the `hi_xxx` subdirectories)." }, 
 	  { mpid::Directory, 1 }, 
@@ -103,7 +101,6 @@ Dialog* projucer_exporter::createDialog(State& state)
 	  { mpid::Text, "Team ID" }, 
 	  { mpid::ID, "teamID" }, 
 	  { mpid::UseInitValue, 0 }, 
-	  { mpid::LabelPosition, "Default" }, 
 	  { mpid::EmptyText, "Enter Team Development ID " }, 
 	  { mpid::Required, 0 }, 
 	  { mpid::ParseArray, 0 }, 
@@ -114,14 +111,12 @@ Dialog* projucer_exporter::createDialog(State& state)
 
 	auto& Spacer_3 = List_0.addChild<factory::Spacer>({
 	  { mpid::Text, "LabelText" }, 
-	  { mpid::Padding, "30" }
 	});
 
 	auto& export_4 = List_0.addChild<factory::LambdaTask>({
 	  { mpid::Text, "Export Progress" }, 
 	  { mpid::ID, "export" }, 
 	  { mpid::CallOnNext, 1 }, 
-	  { mpid::LabelPosition, "Default" }, 
 	  { mpid::Function, "exportProjucerProject" }
 	});
 
@@ -136,22 +131,18 @@ Dialog* projucer_exporter::createDialog(State& state)
 	});
 	
 	auto& List_5 = mp.addPage<factory::List>({
-	  { mpid::Padding, 10 }, 
 	  { mpid::Foldable, 0 }, 
 	  { mpid::Folded, 0 }
 	});
 
 	auto& MarkdownText_6 = List_5.addChild<factory::MarkdownText>({
 	  { mpid::Text, "The project was created successfully. Do you want to launch the projucer to continue building the dialog binary?" }, 
-	  { mpid::Padding, 0 }, 
-	  { mpid::Comment, 0 }
 	});
 
 	auto& openProjucer_7 = List_5.addChild<factory::Button>({
 	  { mpid::Text, "Open Projucer" }, 
 	  { mpid::ID, "openProjucer" }, 
 	  { mpid::UseInitValue, 0 }, 
-	  { mpid::LabelPosition, "Default" }, 
 	  { mpid::Required, 0 }, 
 	  { mpid::Trigger, 0 }
 	});
