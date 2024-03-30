@@ -425,6 +425,13 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 
 	stop();
 
+	auto isSnippetBrowser = getRootWindow()->getBackendProcessor()->assetManager != nullptr;
+
+	if(isSnippetBrowser)
+	{
+		settingsButton->setVisible(false);
+		layoutButton->setVisible(false);
+	}
 
 	//getRootWindow()->getBackendProcessor()->getCommandManager()->addListener(this);
 }
@@ -482,7 +489,10 @@ void MainTopBar::paint(Graphics& g)
 #if PERFETTO
     infoText << " + Perfetto";
 #endif
-    
+
+	if(getRootWindow()->getBackendProcessor()->assetManager != nullptr)
+		infoText = "HISE Snippet Playground";
+
 	g.setFont(GLOBAL_BOLD_FONT());
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.drawText(infoText, b.toFloat(), Justification::right);
@@ -564,8 +574,10 @@ void MainTopBar::resized()
     macroButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
     pluginPreviewButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
     presetBrowserButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
-                                 
-    settingsButton->setBounds(b.removeFromRight(b.getHeight()).reduced(7));
+
+	if(settingsButton->isVisible())
+		settingsButton->setBounds(b.removeFromRight(b.getHeight()).reduced(7));
+
     peakMeter->setBounds(b.removeFromRight(180).reduced(8));
 
 	quickPlayButton.setBounds(b.removeFromRight(b.getHeight()).reduced(8));

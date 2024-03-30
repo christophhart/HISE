@@ -47,7 +47,7 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60104
+#define JUCE_PROJUCER_VERSION 0x60103
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                    1
@@ -82,6 +82,7 @@
 #define JUCE_MODULE_AVAILABLE_juce_opengl                   1
 #define JUCE_MODULE_AVAILABLE_juce_osc                      1
 #define JUCE_MODULE_AVAILABLE_juce_product_unlocking        1
+#define JUCE_MODULE_AVAILABLE_melatonin_blur                1
 
 #define JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED 1
 
@@ -427,10 +428,6 @@
 
 #ifndef    HISE_INCLUDE_RT_NEURAL
  //#define HISE_INCLUDE_RT_NEURAL 1
-#endif
-
-#ifndef    HISE_ENABLE_LORIS_ON_FRONTEND
- //#define HISE_ENABLE_LORIS_ON_FRONTEND 0
 #endif
 
 #ifndef    HISE_USE_EXTENDED_TEMPO_VALUES

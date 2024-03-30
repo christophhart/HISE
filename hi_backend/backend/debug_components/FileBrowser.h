@@ -154,6 +154,8 @@ public:
 
 	void previewFile(const File& f);
 
+	void resetToRoot();
+
 	void textEditorTextChanged(TextEditor& editor) override;
 
 	~FileBrowser();

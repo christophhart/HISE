@@ -32,6 +32,308 @@
 
 namespace hise { using namespace juce;
 
+	void SuspendedOverlay::paint(Graphics& g)
+	{
+		g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xEE222222)));
+		g.setColour(Colours::white.withAlpha(0.8f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("This instance is currently suspended. Click to activate the audio rendering for this instance...", getLocalBounds().toFloat(), Justification::centred);
+	}
+
+	void SuspendedOverlay::mouseDown(const MouseEvent& event)
+	{
+		auto bpe = findParentComponentOfClass<BackendRootWindow>();
+		bpe->setCurrentlyActiveProcessor();
+	}
+
+	SnippetBrowser::SnippetBrowser(Component* parent):
+		HeaderContentFooter(false),
+		closeButton("Close"),
+		loadButton("Load snippet"),
+		refreshButton("Refresh list"),
+		table("snippet list", this),
+		categories(simple_css::Selector(".categories")),
+		tags(simple_css::Selector(".tags")),
+		searchTab(simple_css::Selector(".search-tab"))
+	{
+		auto& th = table.getHeader();
+		th.addColumn("Name", columnName, 100);
+		th.addColumn("Author", columnAuthor, 100, 100, 100);
+		th.setStretchToFitActive(true);
+
+		table.setColour(TableListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
+		table.setHeaderHeight(32);
+		table.autoSizeAllColumns();
+		table.setRepaintsOnMouseActivity(true);
+		searchTab.addFlexItem(searchField);
+		content->addFlexItem(categories);
+		content->addFlexItem(tags);
+		content->addFlexItem(searchTab);
+		content->addFlexItem(table);
+		content->addFlexItem(description);
+		description.setVisible(false);
+		description.setResizeToFit(true);
+		footer.addFlexItem(closeButton);
+		footer.addFlexItem(loadButton);
+		
+		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(closeButton, {"#close"});
+		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(loadButton, {"#load"});
+		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(table, {"#snippet-list"});
+		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(description, {"#snippet-description"});
+
+		stateWatcher.registerComponentToUpdate(&searchField);
+		stateWatcher.registerComponentToUpdate(&table.getHeader());
+		
+		rebuildDatabase();
+
+		sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
+		table.getViewport()->setScrollBarThickness(14);
+
+		searchField.onTextChange = BIND_MEMBER_FUNCTION_0(SnippetBrowser::updateFilter);
+
+		auto catNames = getCategoryNames();
+
+		for(int i = 0; i < catNames.size(); i++)
+		{
+			categoryButtons[i].setButtonText(catNames[i]);
+			categoryButtons[i].setClickingTogglesState(true);
+			categoryButtons[i].setRadioGroupId(5423198676759);
+			categoryButtons[i].onClick = BIND_MEMBER_FUNCTION_0(SnippetBrowser::updateFilter);
+			
+			simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(categoryButtons[i], {".category-button"});
+			categories.addFlexItem(categoryButtons[i]);
+		}
+
+		categoryButtons[0].setToggleState(true, dontSendNotification);
+
+		const char* code = R"(
+		body
+		{
+			background: #222;
+			box-shadow: inset 0px 2px 10px black;
+		}
+
+		#content
+		{
+			background: #222;
+			padding: 10px 15px;
+			flex-direction: column;
+			gap: 10px;
+		}
+		#footer, #header
+		{
+			height: 0px;
+		}
+		button
+		{
+			font-family: Lato;
+		}
+		button:hover
+		{
+			color: white;
+		}
+		input
+		{
+			background: #BBB;
+			border-radius: 3px;
+			width: 200px;
+			
+			margin-right: 10px;
+			font-family: Lato;
+			font-weight: 500;
+			padding-top: 3px;
+			width: 100%;
+			padding-left: 70vh;
+		}
+		input:hover
+		{
+			background: #aaa;
+		}
+		input:focus
+		{
+			border: 1px solid #FFF;
+		}
+		input::before
+		{
+			content: '';
+			width: 100vh;
+			margin: 5px;
+			background: #222;
+			background-image: "332.t0FmczAQNEKvCwlxc8.QvBC2CwF..d.QTVGyCwla0TAQTrPrCIl6CJAQFsLpCQt7PPjvv64PjKODDoFWTNjXjKODDgZu2Mj2WkAQhonSCQ9qjPjYmKzPrQ9qjPj27G1PhwBfcPDNgx1Pl9EFDglIDNjoegAQpwEkCIloegAQJrRpC4hzfPDjOn6P3jyJDA4C5NjX1BZMDA4C5NDyR3CQJrRpCwrD9PjZbQ4PhwrD9PDka72P1BZMDYnTcMDN4rBQFJUWCIlgRjBQFJUWCgX.mPjWD60PBQQIDYQagMDaBQQIDA4fBMjXVyvIDwym.MjjajBQd54OCgSNqPjmd9yPhgZt4Pjmd9yP..XQDwtstMD..VDQpwEkCIF..VDQ10UrCgZt4PDmoi7P3jyJDwY5HOjXpgfIDwY5HODHwDBQfUdwCwYGcPjSwB7PiUF";
+		}
+		::selection
+		{
+			background: #222;
+			color: #fff;
+		}
+		.search-tab
+		{
+			width: 100%;
+			height: 26px;
+		}
+		#snippet-list
+		{
+			width: 100%;
+			min-height: 200px;
+			
+			flex-grow: 1;
+		}
+		#snippet-description
+		{
+			width: 100%;
+			height: 150px;
+		}
+		tr
+		{
+			background: #333;
+		}
+		tr:active
+		{
+			margin: 0px;
+			background: #555;
+			color: #eee;
+			margin-bottom: 2px;
+		}
+		td
+		{
+			font-family: Lato;
+			font-size: 14px;
+			font-weight: 500;
+			text-align: left;
+			padding-left: 10px;
+			color: #aaa;
+		}
+		td:active
+		{
+			color: #eee;
+		}
+		.categories
+		{
+			height: auto;
+			width: 100%;
+			display: flex;
+			padding-top: 40px;
+			gap: 1px;
+		}
+		.categories::before
+		{
+			content: 'Browse snippets';
+			background: #333;
+			border-radius: 4px;
+			height: 30px;
+			color: white;
+			font-family: Lato;
+			font-weight: 500;
+		}
+		.category-button
+		{	
+			flex-grow: 1;
+			margin: 0px;
+			margin-bottom: 4px;
+			padding: 3px;
+			background: grey;
+			border-radius: 0px;
+			box-shadow: 0px 1px 4px black;
+		}
+		.category-button:first-child
+		{
+			border-radius: 50% 0 50% 0;
+			padding-left: 10px;
+		}
+		.category-button:last-child
+		{
+			border-radius: 0 50% 0 50%;
+			padding-right: 10px;
+		}
+		.category-button:checked
+		{
+			background: white;
+			color: #222;
+		}
+		.tag-button
+		{
+			background: linear-gradient(to bottom, #555, #444);
+			flex-grow: 1;
+			padding: 3px 10px;
+			border-radius: 50%;
+			font-size: 14px;
+			margin: 3px;
+			color: #999;
+		}
+		.tag-button:checked
+		{
+			background: #eee;
+			color: #222;
+		}
+		.tags
+		{
+			width: 100%;
+			height: auto;
+			flex-direction: row;
+			display: flex;
+			margin: 10px;
+			justify-content: space-between;
+			flex-wrap: wrap;
+		}
+		th
+		{
+			text-align: left;
+			padding: 5px;
+			background: #444;
+			color: #eee;
+			font-family: Lato;
+			font-weight: 500;
+			margin: 1px;
+			border-radius: 2px;
+		}
+		th:hover
+		{
+			background: #555;
+		})";
+
+		showEditor();
+
+		setStylesheetCode(code);
+
+		
+	}
+
+	void SnippetBrowser::load(int rowIndex)
+	{
+		if(isPositiveAndBelow(rowIndex, filteredItems.size()))
+		{
+			const auto& item = filteredItems.getReference(rowIndex);
+
+			auto bpe = findParentComponentOfClass<BackendRootWindow>();
+			BackendCommandTarget::Actions::loadSnippet(bpe, filteredItems[rowIndex].snippet);
+
+			
+
+			auto root = bpe->getRootFloatingTile();
+
+			auto foldState = getFoldConfiguration(item.category);
+
+			root->forEach<FloatingTileContent>([&](FloatingTileContent* t)
+			{
+				auto s = t->getParentShell()->getLayoutData().getKeyPressId();
+
+				if(s.isValid() && foldState.find(s) != foldState.end())
+				{
+					auto x = foldState[s];
+					t->getParentShell()->setFolded(x);
+				}
+				
+				return false;
+			});
+
+			bpe->setCurrentlyActiveProcessor();
+
+			bpe->currentCategory = item.category;
+		}
+
+		
+	}
+
 	TextLayout BackendRootWindow::TooltipLookAndFeel::layoutTooltipText(const String& text, Colour colour) noexcept
 	{
 		const int maxToolTipWidth = 400;
@@ -106,6 +408,8 @@ namespace hise { using namespace juce;
 	dynamic_cast<MainController*>(ownerProcessor)->addScriptListener(this, false);
 
 	loadKeyPressMap();
+
+	allWindowsAndBrowsers.add(this);
 
 	bool loadedCorrectly = true;
 	bool objectFound = editorState.isObject();
@@ -330,14 +634,31 @@ namespace hise { using namespace juce;
 
 BackendRootWindow::~BackendRootWindow()
 {
-	saveKeyPressMap();
+	auto isSnippetBrowser = owner->assetManager != nullptr;
 
-	saveInterfaceData();
-    
+	if(!isSnippetBrowser)
+	{
+		for(auto w: allWindowsAndBrowsers)
+		{
+			if(w.getComponent() == nullptr)
+				continue;
+
+			if(w != this)
+				w->deleteThisSnippetInstance(true);
+		}
+
+		saveKeyPressMap();
+		saveInterfaceData();
+	}
+	else
+	{
+		// I know what I'm doing...
+		saved = true;
+	}
+	
 	popoutWindows.clear();
 
 	getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
-
 	getMainController()->removeScriptListener(this);
 
     GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).removeListener(this);
@@ -372,8 +693,6 @@ BackendRootWindow::~BackendRootWindow()
 	mainEditor = nullptr;
 
 	detachOpenGl();
-    
-    
 }
 
 bool BackendRootWindow::isFullScreenMode() const
@@ -472,8 +791,6 @@ void BackendRootWindow::initialiseAllKeyPresses()
 void BackendRootWindow::paint(Graphics& g)
 {
 	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
-
-	//g.fillAll(Colour(0xFF333333));
 }
 
 void BackendRootWindow::setScriptProcessorForWorkspace(JavascriptProcessor* jsp)
@@ -585,14 +902,26 @@ void BackendRootWindow::resized()
 	}
 #endif
 
-	progressOverlay->setBounds(0, 0, getWidth(), getHeight());
+	auto b = getLocalBounds();
+
+	if(snippetBrowser != nullptr && snippetBrowser->isVisible())
+	{
+		snippetBrowser->setBounds(b.removeFromLeft(400));
+	}
+
+	if(suspendedOverlay != nullptr)
+	{
+		suspendedOverlay->setBounds(b);
+	}
+
+	progressOverlay->setBounds(b);
 
 	const int menuBarOffset = menuBar == nullptr ? 0 : 20;
 
 	if (menuBarOffset != 0)
-		menuBar->setBounds(getLocalBounds().withHeight(menuBarOffset));
+		menuBar->setBounds(b.removeFromTop(menuBarOffset));
 
-	floatingRoot->setBounds(0, menuBarOffset, getWidth(), getHeight() - menuBarOffset);
+	floatingRoot->setBounds(b);
 
 #if IS_STANDALONE_APP
 
@@ -685,9 +1014,21 @@ void BackendRootWindow::loadNewContainer(const File &f)
 
 void BackendRootWindow::newHisePresetLoaded()
 {
-	if (auto jsp = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getMainSynthChain()))
+	JavascriptProcessor* p = nullptr;
+
+	switch(currentCategory)
 	{
-		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
+	case SnippetBrowser::Category::Scriptnode: 
+		p = ProcessorHelpers::getFirstProcessorWithType<JavascriptMasterEffect>(getMainSynthChain());
+		break;
+	default:
+		p = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getMainSynthChain());
+		break;
+	}
+
+	if (p != nullptr)
+	{
+		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, p);
 		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotificationSync);
 
 		SafeAsyncCall::callWithDelay<BackendRootWindow>(*this, [](BackendRootWindow& r)
@@ -695,6 +1036,15 @@ void BackendRootWindow::newHisePresetLoaded()
 			r.rebuildTokenProviders("HiseScript");;
 		}, 500);
 	}
+
+	if(currentCategory == SnippetBrowser::Category::UI)
+		{
+		Component::callRecursive<MainTopBar>(this, [](MainTopBar* t)
+		{
+			t->togglePopup(MainTopBar::PopupType::PluginPreview, true);
+			return true;
+		});
+		}
 }
 
 void BackendRootWindow::gotoIfWorkspace(Processor* p)

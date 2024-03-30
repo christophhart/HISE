@@ -80,8 +80,13 @@ public:
 		WorkspaceCustom,
 		numToolbarButtons,
 		MenuFileOffset = 0x20000,
+
+		MenuSnippetFileNew,
+		MenuSnippetFileImport,
+		MenuSnippetClose,
 		MenuNewFile,
 		MenuOpenFile,
+		MenuFileBrowseExamples,
 		MenuOpenFileFromProjectOffset,
 		MenuSaveFile = 0x23000,
 		MenuSaveFileAs,
@@ -145,6 +150,7 @@ public:
 		MenuViewAddInterfacePreview,
         MenuViewGotoUndo,
         MenuViewGotoRedo,
+		MenuViewToggleSnippetBrowser,
 		MenuOneColumn,
 		MenuTwoColumns,
 		MenuThreeColumns,
@@ -298,6 +304,9 @@ public:
 		static void openFile(BackendRootWindow *bpe);
 		static void saveFile(BackendRootWindow *bpe, bool forceRename);
 		static void replaceWithClipboardContent(BackendRootWindow *bpe);
+
+		static void loadSnippet(BackendRootWindow *bpe, const String& snippet);
+
 		static void createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget);
 		static void recompileAllScripts(BackendRootWindow * bpe);
 		static void toggleFullscreen(BackendRootWindow * bpe);
@@ -393,6 +402,8 @@ public:
 		static void restoreToDefault(BackendRootWindow * bpe);
 
 		static void extractEmbeddedFilesFromSnippet(BackendRootWindow* bpe);
+
+		static void showExampleBrowser(BackendRootWindow* bpe);
 	};
 
 private:
