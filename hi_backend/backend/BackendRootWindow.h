@@ -747,7 +747,7 @@ public:
 
 	void userTriedToCloseWindow()
 	{
-		jassert(owner->assetManager != nullptr);
+		jassert(owner->isSnippetBrowser());
 		deleteThisSnippetInstance(false);
 	}
 

@@ -630,7 +630,7 @@ namespace hise { using namespace juce;
 
 BackendRootWindow::~BackendRootWindow()
 {
-	auto isSnippetBrowser = owner->assetManager != nullptr;
+	auto isSnippetBrowser = owner->isSnippetBrowser();
 
 	if(!isSnippetBrowser)
 	{

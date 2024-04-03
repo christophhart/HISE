@@ -889,7 +889,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 {
 	MenuNames m = (MenuNames)topLevelMenuIndex;
 
-	auto isSnippetBrowser = bpe->getBackendProcessor()->assetManager != nullptr;
+	auto isSnippetBrowser = bpe->getBackendProcessor()->isSnippetBrowser();
 
 	
 

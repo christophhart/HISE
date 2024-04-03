@@ -425,9 +425,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 
 	stop();
 
-	auto isSnippetBrowser = getRootWindow()->getBackendProcessor()->assetManager != nullptr;
-
-	if(isSnippetBrowser)
+	if(getRootWindow()->getBackendProcessor()->isSnippetBrowser())
 	{
 		settingsButton->setVisible(false);
 		layoutButton->setVisible(false);
@@ -490,7 +488,7 @@ void MainTopBar::paint(Graphics& g)
     infoText << " + Perfetto";
 #endif
 
-	if(getRootWindow()->getBackendProcessor()->assetManager != nullptr)
+	if(getRootWindow()->getBackendProcessor()->isSnippetBrowser())
 		infoText = "HISE Snippet Playground";
 
 	g.setFont(GLOBAL_BOLD_FONT());

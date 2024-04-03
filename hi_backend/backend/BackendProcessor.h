@@ -435,12 +435,20 @@ public:
 		return Result::ok();
 	}
 
+	bool isSnippetBrowser() const
+	{
+		return isSnippet;
+	}
+
+	void setIsSnippetBrowser()
+	{
+		isSnippet = true;
+	}
+
 	ExampleAssetManager::Ptr getAssetManager()
 	{
 		if(assetManager == nullptr)
-		{
 			assetManager = new ExampleAssetManager(this);
-		}
 
 		return assetManager;
 	}
@@ -448,6 +456,8 @@ public:
 	ExampleAssetManager::Ptr assetManager;
 
 private:
+
+	bool isSnippet = false;
 
 	int currentNoteNumber = -1;
 
