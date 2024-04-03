@@ -59,6 +59,7 @@
 #include "backend/BackendComponents.cpp"
 #include "backend/BackendToolbar.cpp"
 #include "backend/BackendApplicationCommandWindows.cpp"
+#include "backend/dialog_library/dialog_library.cpp"
 #include "backend/BackendApplicationCommands.cpp"
 #include "backend/BackendVisualizer.h"
 #include "backend/BackendVisualizer.cpp"

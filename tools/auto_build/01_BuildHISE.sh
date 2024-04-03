@@ -20,6 +20,20 @@ chmod +x "tools/Projucer/Projucer.app/Contents/MacOS/Projucer"
 
 "tools/Projucer/Projucer.app/Contents/MacOS/Projucer" --resave "projects/plugin/HISE.jucer"
 "tools/Projucer/Projucer.app/Contents/MacOS/Projucer" --resave "projects/standalone/HISE Standalone.jucer"
+"tools/Projucer/Projucer.app/Contents/MacOS/Projucer" --resave "tools/multipagecreator/multipagecreator.jucer"
+
+echo "Compiling Multipage Creator App..."
+
+xcodebuild -project "tools/multipagecreator/Builds/MacOSX/multipagecreator.xcodeproj" -configuration "Release" | xcpretty
+
+if [ $? != "0" ];
+then
+	echo "========================================================================"
+	echo "Error at compiling. Aborting..."
+    exit
+fi
+
+echo "OK"
 
 echo "Compiling VST / AU Plugins..."
 

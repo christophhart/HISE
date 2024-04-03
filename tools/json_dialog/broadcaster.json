@@ -19,31 +19,31 @@
     "Header": "Broadcaster Wizard",
     "Subtitle": "",
     "Image": "",
-    "ProjectName": "",
+    "ProjectName": "BroadcasterWizard",
     "Company": "",
-    "Version": ""
+    "Version": "",
+    "BinaryName": "",
+    "UseGlobalAppData": false,
+    "Icon": ""
   },
   "LayoutData": {
+    "StyleSheet": "Dark",
+    "Style": "#targetMetadata,\n#contextItems\n{\n\theight: 120px;\n}\n\n\n\n#targetMetadata input,\n#contextItems input\n{\n\theight: 100%;\n\tfont-family: monospace;\n\tfont-size: 14px;\n\tvertical-align: top;\n\tpadding-top: 5px;\n}\n\n.button-selector\n{\n\tflex-wrap:wrap;\n\tgap:0px;\n}\n\n.button-selector div\n{\n\twidth: 33%;\n\tgap: 0px;\n\tpadding: 5px;\n}\n\n.button-selector label\n{\n\tdisplay: none;\n}\n\n.button-selector .toggle-button\n{\n\tbackground: #222;\n\tcolor: #ccc;\n\tborder-radius: 5px;\n\tfont-family: monospace;\n\tfont-size: 15px;\n}\n\n.button-selector button:checked\n{\n\tbackground: #aaa;\n\tcolor: #222;\n\tborder-radius: 5px;\n}\n\n.button-selector button::before,\n.button-selector button::after\n{\n\tdisplay: none;\n}\n\n\n",
     "DialogWidth": 832,
     "DialogHeight": 716
   },
   "GlobalState": {
+    "targetType": 0,
+    "thisTarget": "",
+    "targetFunctionId": "",
+    "targetMetadata": "someId",
     "colour": 0,
     "id": "myBroadcaster",
     "comment": "",
     "tags": [],
-    "attachType": 10,
-    "complexDataType": "Table",
-    "complexEventType": "Content",
-    "moduleIds": [
-      "someId"
-    ],
-    "complexSlotIndex": "0",
-    "attachMetadata": "",
-    "targetType": 1,
-    "thisTarget": "funky",
-    "targetFunctionId": "onClick",
-    "targetMetadata": "nudel"
+    "attachType": 4,
+    "noneArgs": "index",
+    "contextItems": "funky\nwhy\nset this to something"
   },
   "Children": [
     {
@@ -115,165 +115,235 @@
       "ID": "",
       "Text": "",
       "Foldable": false,
-      "Folded": false
+      "Folded": false,
+      "Style": "gap: 15px;",
+      "UseChildState": false,
+      "Class": ""
     },
     {
       "Type": "List",
       "Padding": 10,
       "Children": [
         {
+          "Type": "MarkdownText",
+          "Text": "\n\nPlease select the event type that you want to attach the broadcaster to. There are multiple event sources which can trigger a broadcaster message.\n\nThis will create a script line calling one of the `attachToXXX()` functions that hook up the broadcaster to an event source.",
+          "Padding": 0,
+          "ID": "",
+          "Class": "",
+          "Style": ""
+        },
+        {
           "Type": "Column",
           "Text": "LabelText",
           "Children": [
             {
-              "Type": "MarkdownText",
-              "Text": "### Event Source Type\n\nPlease select the event type that you want to attach the broadcaster to. There are multiple event sources which can trigger a broadcaster message.\n\n> You can specify the exact source in the next step.\n\nThis will create a script line calling one of the `attachToXXX()` functions that hook up the broadcaster to an event source.",
-              "Padding": 0
+              "Type": "Button",
+              "Text": "None",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "No event source. Use this option if you want to call the broadcaster manually or attach it to any other script callback slot (eg. TransportHandler callbacks).",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "true",
+              "UseInitValue": true,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
             },
             {
-              "Type": "List",
-              "Text": "LabelText",
-              "Children": [
-                {
-                  "Type": "Button",
-                  "Text": "None",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### None\n\nNo event source. Use this option if you want to call the broadcaster manually or attach it to any other script callback slot (eg. TransportHandler callbacks).",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "ComplexData",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### ComplexData\n\nAn event of a complex data object (Tables, Slider Packs or AudioFiles). This can be either:\n\n- content changes (eg. when loading in a new sample)\n- a display index change (eg. if the table ruler is moved)",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "ComponentProperties",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### ComponentProperties\n\nScript properties of a UI component selection (eg. the `visible` property).",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "ComponentVisibility",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### ComponentVisibility\n\nThe visibility of a UI component.\n\n>This also takes into account the visibility of parent components so it's a more reliable way than listen to the component's `visible` property.",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "ContextMenu",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### Context Menu\n\nAdds a popup menu when the UI component is clicked.",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "EqEvents",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### EQ Events\n\nListens to band add / delete, reset events of a parametriq EQ.",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "ModuleParameters",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### Module Parameter\n\nListens to changes of a module attribute (when calling `setAttribute()`, eg. the **Reverb Width** or **Filter Frequency**",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "MouseEvents",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "## Mouse Events\n\nMouse events for a UI component selection",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "ProcessingSpecs",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### Processing Specs\n\nListens to changes of the processing specifications (eg. sample rate of audio buffer size)",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "RadioGroup",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### Radio Group\n\nListens to button clicks within a given radio group ID\\n> This is especially useful for implementing your page switch logic",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "RoutingMatrix",
-                  "ID": "attachType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "### Routing Matrix\n\nListens to changes of the routing matrix (the channel routing configuration) of a module.",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                }
-              ],
-              "ID": "",
-              "Padding": "3",
-              "Foldable": false,
-              "Folded": false,
-              "Style": "gap: 6px;",
-              "UseChildState": false,
-              "Class": ""
+              "Type": "Button",
+              "Text": "ComplexData",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "An event of a complex data object (Tables, Slider Packs or AudioFiles). This can be either:\n\n- content changes (eg. when loading in a new sample)\n- a display index change (eg. if the table ruler is moved)",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "ComponentProperties",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Script properties of a UI component selection (eg. the `visible` property).",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "ComponentVisibility",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "The visibility of a UI component.\n\n>This also takes into account the visibility of parent components so it's a more reliable way than listen to the component's `visible` property.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "ContextMenu",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Adds a popup menu when the UI component is clicked.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "EqEvents",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Listens to band add / delete, reset events of a parametriq EQ.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "ModuleParameters",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Listens to changes of a module attribute (when calling `setAttribute()`, eg. the **Reverb Width** or **Filter Frequency**",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "MouseEvents",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Mouse events for a UI component selection",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "ProcessingSpecs",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Listens to changes of the processing specifications (eg. sample rate of audio buffer size)",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "RadioGroup",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Listens to button clicks within a given radio group ID\\n> This is especially useful for implementing your page switch logic",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "RoutingMatrix",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Listens to changes of the routing matrix (the channel routing configuration) of a module.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false
             }
           ],
           "Width": [
@@ -283,7 +353,7 @@
           "Padding": "40",
           "ID": "",
           "Style": "",
-          "Class": "",
+          "Class": ".button-selector",
           "UseChildState": false
         }
       ],
@@ -305,10 +375,35 @@
               "Text": "LabelText",
               "Children": [
                 {
-                  "Type": "Skip",
-                  "Text": "LabelText"
+                  "Type": "MarkdownText",
+                  "Text": "### No source\n\nYou can use a broadcaster without attaching it to a event source. In this case, please add a comma separated list of argument IDs that you want this broadcaster to use.\n",
+                  "ID": "",
+                  "Class": "",
+                  "Style": ""
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "Arguments",
+                  "ID": "noneArgs",
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": "",
+                  "Style": "",
+                  "EmptyText": "",
+                  "Required": false,
+                  "ParseArray": false,
+                  "Height": 80,
+                  "Items": "",
+                  "Help": "This is a comma separated list of arguments and will define how many data slots the broadcaster will have. This property will also define how many arguments a listener callback is supposed to have.",
+                  "Multiline": false,
+                  "UseOnValue": false
                 }
-              ]
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
             },
             {
               "Type": "List",
@@ -349,10 +444,16 @@
                   "EmptyText": "Enter module IDs as shown in the Patch Browser...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -364,7 +465,13 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The slot index of the complex data object that you want to listen to.\n\n> Some modules have multiple complex data objects (eg. the table envelope has two tables for the attack and release phase so if you want to listen to the release table, you need to pass in `1` here.",
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -377,7 +484,13 @@
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 }
               ]
             },
@@ -398,9 +511,17 @@
                   "EmptyText": "Enter component IDs as shown in the Component List...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80,
+                  "UseOnValue": false
                 },
                 {
                   "Type": "TextInput",
@@ -410,8 +531,15 @@
                   "EmptyText": "Enter script property (text, enabled, etc)...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
-                  "Help": "The property you want to listen to. You can also use a comma-separated list for multiple properties"
+                  "Items": "{DYNAMIC}",
+                  "Help": "The property you want to listen to. You can also use a comma-separated list for multiple properties",
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -423,7 +551,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 }
               ]
             },
@@ -444,9 +579,16 @@
                   "EmptyText": "Enter component IDs as shown in the Component List...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all components that you want to listen to.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -458,7 +600,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 }
               ]
             },
@@ -479,9 +628,16 @@
                   "EmptyText": "Enter component IDs as shown in the Component List...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all components that you want to listen to.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -492,7 +648,14 @@
                   "Required": true,
                   "ParseArray": false,
                   "Items": "",
-                  "Help": "A state function that will be used to query the enable and ticked state of the context menu. This will be called whenever it needs to refresh the context menu state so you need to supply a function that takes two parameters, `isEnabled` and `index` and return the appropriate boolean value."
+                  "Help": "A function name that will be created by the template generator to query the active and ticked state of each context menu item. ",
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -504,7 +667,15 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "This will define the items that are shown in the list (one item per new line). You can use the markdown-like syntax to create sub menus, separators and headers known from the other Context menu builders in HISE (ScriptPanel, SubmenuCombobox)...",
-                  "Multiline": true
+                  "Multiline": true,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": "",
+                  "Style": "height: 150px;",
+                  "Height": 80,
+                  "UseOnValue": false
                 },
                 {
                   "Type": "Button",
@@ -515,7 +686,8 @@
                   "Help": "If this is true, the context menu will be shown when you click on the UI element with the left mouse button, otherwise it will require a right click to show up.",
                   "Required": false,
                   "ButtonType": "",
-                  "Trigger": false
+                  "Trigger": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -527,7 +699,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },
@@ -548,9 +721,16 @@
                   "EmptyText": "Enter module IDs as shown in the Patch Browser...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -562,7 +742,8 @@
                   "ParseArray": false,
                   "Items": "BandAdded\nBandRemoved\nBandSelected\nFFTEnabled",
                   "Help": "Set the event type that the broadcaster should react too. This can be multiple items from this list:\n\n- `BandAdded`\n- `BandRemoved`\n- `BandSelected`\n- `FFTEnabled`",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -574,7 +755,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },
@@ -595,9 +777,16 @@
                   "EmptyText": "Enter module IDs as shown in the Patch Browser...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -609,7 +798,8 @@
                   "ParseArray": true,
                   "Items": "",
                   "Help": "The parameters that you want to listen to. This can be either the actual parameter names or the indexes of the parameters",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -621,7 +811,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },
@@ -642,9 +833,16 @@
                   "EmptyText": "Enter component IDs as shown in the Component List...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all components that you want to listen to.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "Choice",
@@ -654,7 +852,8 @@
                   "Custom": false,
                   "ValueMode": "Text",
                   "Help": "The callback level that determines when the broadcaster will send a message",
-                  "Items": "No Callbacks\nContext Menu\nClicks Only\nClicks & Hover\nClicks, Hover & Dragging\nAll Callbacks"
+                  "Items": "No Callbacks\nContext Menu\nClicks Only\nClicks & Hover\nClicks, Hover & Dragging\nAll Callbacks",
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -666,7 +865,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },
@@ -689,7 +889,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },
@@ -710,9 +911,16 @@
                   "EmptyText": "Enter radio group ID...",
                   "Required": true,
                   "ParseArray": false,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "The radio group id as it was set as `radioGroup` script property to the buttons that you want to listen to.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -724,7 +932,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },
@@ -745,9 +954,16 @@
                   "EmptyText": "Enter module IDs as shown in the Patch Browser...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -759,7 +975,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 }
               ]
             }
@@ -773,91 +996,124 @@
       "Padding": 10,
       "Children": [
         {
+          "Type": "MarkdownText",
+          "Text": "### Target type\n\nNow you can add a target listener which will receive the events caused by the event source specified on the previous page.\n\n> With this dialog you can only create a single listener, but a broadcaster is of course capable of sending messages to multiple listeners.",
+          "Padding": 0,
+          "ID": ""
+        },
+        {
           "Type": "Column",
           "Text": "LabelText",
           "Children": [
             {
-              "Type": "MarkdownText",
-              "Text": "### Target type\n\nNow you can add a target listener which will receive the events caused by the event source specified on the previous page.\n\n> With this dialog you can only create a single listener, but a broadcaster is of course capable of sending messages to multiple listeners.",
-              "Padding": 0
+              "Type": "Button",
+              "Text": "None",
+              "ID": "targetType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Skip the creation of a target callback.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": "",
+              "Class": "",
+              "Style": ""
+            },
+            {
+              "Type": "Button",
+              "Text": "Callback",
+              "ID": "targetType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "A script function that will be executed immediately when the event occurs.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": "",
+              "Class": "",
+              "Style": ""
+            },
+            {
+              "Type": "Button",
+              "Text": "Callback (Delayed)",
+              "ID": "targetType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "A script function that will be executed with a given delay after the event occurred.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": "",
+              "Class": "",
+              "Style": ""
+            },
+            {
+              "Type": "Button",
+              "Text": "Component Property",
+              "ID": "targetType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "This will change a component property based on a customizeable function that must calculate and return the value",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": "",
+              "Class": "",
+              "Style": ""
+            },
+            {
+              "Type": "Button",
+              "Text": "Component Refresh",
+              "ID": "targetType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "Simply sends out a component refresh method (eg. `repaint()`) to its registered components.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": "",
+              "Class": "",
+              "Style": ""
+            },
+            {
+              "Type": "Button",
+              "Text": "Component Value",
+              "ID": "targetType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "This sets the value of a component",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": "",
+              "Class": "",
+              "Style": ""
             },
             {
               "Type": "List",
               "Text": "LabelText",
-              "Children": [
-                {
-                  "Type": "Button",
-                  "Text": "None",
-                  "ID": "targetType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "Skip the creation of a target callback.",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "Callback",
-                  "ID": "targetType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "A script function that will be executed immediately when the event occurs.",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "Callback (Delayed)",
-                  "ID": "targetType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "A script function that will be executed with a given delay after the event occurred.",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "Component Property",
-                  "ID": "targetType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "This will change a component property based on a customizeable function that must calculate and return the value",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "Component Refresh",
-                  "ID": "targetType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "Simply sends out a component refresh method (eg. `repaint()`) to its registered components.",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                },
-                {
-                  "Type": "Button",
-                  "Text": "Component Value",
-                  "ID": "targetType",
-                  "LabelPosition": "Default",
-                  "IconData": "",
-                  "Help": "This sets the value of a component",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Trigger": false,
-                  "Enabled": true
-                }
-              ]
+              "Children": [],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
             }
           ],
           "ID": "",
@@ -865,7 +1121,10 @@
             "-0.65",
             "-0.35"
           ],
-          "Padding": "30"
+          "Padding": "30",
+          "Class": ".button-selector",
+          "Style": "margin-top: 10px;",
+          "UseChildState": false
         }
       ]
     },
@@ -907,7 +1166,13 @@
                   "Items": "",
                   "Help": "You can specify any HiseScript expression that will be used as `this` object in the function.",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -920,7 +1185,13 @@
                   "Items": "",
                   "Help": "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function.",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -933,7 +1204,13 @@
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 }
               ]
             },
@@ -956,7 +1233,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "You can specify any HiseScript expression that will be used as `this` object in the function.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -968,7 +1252,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -980,7 +1265,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The delay time in milliseconds",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 },
                 {
                   "Type": "TextInput",
@@ -992,7 +1278,8 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true
                 }
               ]
             },
@@ -1013,9 +1300,16 @@
                   "EmptyText": "Enter component IDs as shown in the Component List...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -1025,9 +1319,16 @@
                   "EmptyText": "Enter script property (text, enabled, etc)...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "The property you want to listen to. You can also use a comma-separated list for multiple properties",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -1039,7 +1340,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -1051,7 +1359,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 }
               ]
             },
@@ -1072,9 +1387,16 @@
                   "EmptyText": "Enter component IDs as shown in the Component List...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "Choice",
@@ -1084,7 +1406,13 @@
                   "Custom": false,
                   "ValueMode": "Text",
                   "Help": "The type of refresh message that should be sent:\n\n- `repaint`: causes a component repaint message (and if the component is a panel, it will also call its paint routine)\n- `changed`: causes a value change callback that will fire the component's `setValue()` callback\n- `updateValueFromProcessorConnection`: updates the component from the current processor's value (if it is connected via `processorId` and `parameterId`).\n- `loseFocus`: will lose the focus of the keyboard (if the component has currently the keyboard focus).\n- `resetValueToDefault`: will reset the component to its default (as defined by the `defaultValue` property). Basically the same as a double click.",
-                  "Items": "repaint\nchanged\nupdateValueFromProcessorConnection\nloseFocus\nresetValueToDefault"
+                  "Items": "repaint\nchanged\nupdateValueFromProcessorConnection\nloseFocus\nresetValueToDefault",
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": ""
                 },
                 {
                   "Type": "TextInput",
@@ -1096,7 +1424,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 }
               ]
             },
@@ -1117,9 +1452,16 @@
                   "EmptyText": "Enter component IDs as shown in the Component List...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -1131,7 +1473,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -1143,7 +1492,14 @@
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Multiline": false
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80
                 }
               ]
             }
@@ -1160,8 +1516,20 @@
           "Type": "MarkdownText",
           "Text": "Press Finished in order to copy the code below to the clipboard (you can make some manual adjustments before).",
           "Padding": 0
+        },
+        {
+          "Type": "Placeholder",
+          "Text": "LabelText",
+          "ID": "",
+          "ContentType": "CustomResultPage",
+          "Style": "height: 350px;",
+          "Class": ""
         }
-      ]
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
     }
   ],
   "Assets": []

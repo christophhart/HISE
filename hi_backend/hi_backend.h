@@ -67,6 +67,7 @@ If true, the backend processor will create a workbench editor instead of the HIS
 #include "backend/BackendProcessor.h"
 #include "backend/BackendComponents.h"
 #include "backend/BackendToolbar.h"
+#include "backend/dialog_library/dialog_library.h"
 #include "backend/BackendApplicationCommands.h"
 #include "backend/BackendEditor.h"
 #include "backend/BackendRootWindow.h"

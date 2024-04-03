@@ -1,0 +1,620 @@
+{
+  "StyleData": {
+    "Font": "Lato",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4286175125,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Snippet Exporter",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "SnippetExporter",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "#footer {\n\tflex-direction: row;\n}\n\n#prev\n{\n\tdisplay: flex;\n}\n\n#header\n{\n\tpadding: 10px 30px;\n}\n\n.tag-button button {\n\ttransform: none;\n\tbackground: #222;\n\tcolor: #999;\n\tborder-radius: 10%;\n\tmargin: 2px;\n\tpadding: 0px;\n}\n\n.tag-button button:hover {\n\tbackground: #262626;\n}\n\n.tag-button button:checked {\n\tbackground: #ddd;\n\tcolor: #222;\n\tborder-radius: 2px solid #222;\n\tmargin: 1px;\n}\n\n.tag-button button::before,\n.tag-button button::after {\n\tdisplay: none;\n}\n\n.tag-button label {\n\tdisplay: none;\t\n}\n\n.color-border\n{\n\tborder-radius: 50%;\n\t\n\tflex-grow: 0;\n\tgap: 0px;\n\tpadding: 2px;\n\twidth: 114px;\n\tmargin-right: 5px;\n\tmargin-bottom: 10px;\n}\n\n.color-border button\n{\n\tbackground: #282828;\n\n\tcolor: #bbb;\n\tfont-family: monospace;\n\tfont-size: 13px;\n\tborder-radius: 50%;\n\n}\n\n.color-border button:active\n{\n\ttransform: scale(98%);\n}\n\n.color-border button:checked\n{\n\tbackground: #fff;\n\t\n}\n\n.markdown-editor\n{\n\theight: 100px;\n}\n\n.markdown-editor input\n{\n\tpadding-top: 10px;\n\tfont-family: monospace;\n\tfont-size: 14px;\n}\n\n.markdown-editor input\n{\n\theight: 100%;\n\tvertical-align: top;\n}\n\n#previewButton\n{\n\twidth: 250px;\n}\n\n#previewButton label\n{\n\tdisplay: none;\n}\n\n#previewButton button\n{\n\tbackground: #222;\n\tborder-radius: 50%;\n\tcolor: white;\n\t\n\tcursor: pointer;\n}\n\n#previewButton button::before,\n#previewButton button::after\n{\n\tdisplay: none;\n}\n\n/** Now we skin the top progress bar */\n#total-progress\n{\n\tdisplay:flex;\n\n\tbox-shadow: none;\n\tborder: 0px;\n\tmargin: 0px;\n\tbackground: transparent;\n\tcolor: transparent;\n\theight: 24px;\n\twidth: 100%;\n\tfont-size: 12px;\n\tvertical-align: top;\n\ttext-align: right;\n}\n\n#total-progress::after:hover\n{\n    background: white;\n    transition: all 0.4s ease-in-out;\n}\n\n#total-progress::before\n{\n    position: absolute;\n    margin: 0px;\n    content: '';\n    width: 100%;\n    height: 4px;\n    top: 20px;\n    background: #181818;\n    border-radius: 2px;\n}\n\n#total-progress::after\n{\n    position: absolute;\n    left: 2px;\n    top: 21px;\n    \n    content: '';\n    width: var(--progress);\n    background: #ddd;\n    height: 2px;\n    max-width: calc(100% - 4px);\n    border-radius: 1px;\n    box-shadow: 0px 0px 3px rgba(255, 255, 255, 0.1);\n    \n}\n",
+    "DialogWidth": 800,
+    "DialogHeight": 600
+  },
+  "GlobalState": {
+    "previewButton": true,
+    "description": "",
+    "category": "true",
+    "targetFile": "/Users/christophhart/HISE/tools/json_dialog/create_css/funky.md",
+    "showFile": true
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "You can use this dialog to create a snippet markdown file that can be uploaded to the official HISE snippet repository. Please fill in the metadata and then click OK in order to create the file.",
+          "Class": "",
+          "Style": "",
+          "ID": ""
+        },
+        {
+          "Type": "TextInput",
+          "Text": "Snippet Name",
+          "ID": "name",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": "",
+          "Style": "margin-top: 10px;",
+          "EmptyText": "Enter the snippet name",
+          "Required": true,
+          "ParseArray": true,
+          "Height": 80,
+          "Items": "",
+          "Help": "The snippet name. This should be a descriptive title with less than 80 characters.",
+          "Multiline": false,
+          "UseOnValue": false
+        },
+        {
+          "Type": "TextInput",
+          "Text": "Author",
+          "ID": "author",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": "",
+          "Style": "",
+          "EmptyText": "Enter your name",
+          "Required": true,
+          "ParseArray": false,
+          "Height": 80,
+          "Items": "",
+          "Help": "The author name (you) that will be shown in the snippet browser. At least try to be serious and pass on the opportunity to put in `HISEFucker2000`...",
+          "Multiline": false,
+          "UseOnValue": false
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "SimpleText",
+              "Text": "Category",
+              "Style": "min-width: 130px; text-align: left;",
+              "Class": ""
+            },
+            {
+              "Type": "Button",
+              "Text": "All",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "true",
+              "UseInitValue": true,
+              "Class": ".tag-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "Modules",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".tag-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "MIDI",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".tag-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "Scripting",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".tag-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "Scriptnode",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".tag-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "UI",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".tag-button",
+              "Style": "",
+              "Help": "The category that will be used for the snippet. This is an exclusive property so please select the one that is most suitable for your snippet.  \n> The category will also define how the default appearance of the HISE snippet playground will look like (eg. if you're using the **UI** category it will show the front interface upon loading).",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            }
+          ],
+          "ID": "",
+          "Style": "gap: 0px; margin-bottom: 20px;",
+          "Class": "",
+          "UseChildState": false
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "SimpleText",
+              "Text": "Tags",
+              "Style": "min-width: 120px; text-align: left; width: 120px;",
+              "Class": "",
+              "ID": ""
+            },
+            {
+              "Type": "Column",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "List",
+                  "Text": "LabelText",
+                  "Children": [
+                    {
+                      "Type": "Column",
+                      "Text": "LabelText",
+                      "Children": [
+                        {
+                          "Type": "Button",
+                          "Text": "project",
+                          "ID": "project",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #9e0142;",
+                          "Help": "Use this tag for projects",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        },
+                        {
+                          "Type": "Button",
+                          "Text": "API",
+                          "ID": "API",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #d53e4f;",
+                          "Help": "Use this tag when you demonstrate an API method",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        },
+                        {
+                          "Type": "Button",
+                          "Text": "hello",
+                          "ID": "hello",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #f46d43;",
+                          "Help": "Use this tag for snippets that are a good \"first experience\" (simple hello world things)",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        },
+                        {
+                          "Type": "Button",
+                          "Text": "advanced",
+                          "ID": "advanced",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #fdae61",
+                          "Help": "Use this tag for advanced examples that demonstrate a complex feature.",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        },
+                        {
+                          "Type": "Button",
+                          "Text": "framework",
+                          "ID": "framework",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #fee08b",
+                          "Help": "Use this tag when the snippet contains a script file that provides helper functions and can be easily imported to your project.",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        }
+                      ],
+                      "ID": "",
+                      "Style": "gap:0px;",
+                      "Class": "",
+                      "UseChildState": false
+                    },
+                    {
+                      "Type": "Column",
+                      "Text": "LabelText",
+                      "Children": [
+                        {
+                          "Type": "Button",
+                          "Text": "Open GL",
+                          "ID": "opengl",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #e6f598",
+                          "Help": "Use this tag when you demonstrate a OpenGL function (shaders etc).",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        },
+                        {
+                          "Type": "Button",
+                          "Text": "SNEX",
+                          "ID": "snex",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #abdda4",
+                          "Help": "Use this tag when the snippet contains a SNEX class.",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        },
+                        {
+                          "Type": "Button",
+                          "Text": "Faust",
+                          "ID": "faust",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background:  #66c2a5",
+                          "Help": "Use this tag for snippets that contain a Faust example",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        },
+                        {
+                          "Type": "Button",
+                          "Text": "Sampler",
+                          "ID": "sampler",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #3288bd",
+                          "Help": "Use this tag when demonstrating a sampler feature\n\n> Make sure to use the example assets when creating a sampler snippet so that the user can load it properly.",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        },
+                        {
+                          "Type": "Button",
+                          "Text": "Panel",
+                          "ID": "panel",
+                          "Enabled": true,
+                          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                          "InitValue": "",
+                          "UseInitValue": false,
+                          "Class": ".tag-button .color-border",
+                          "Style": "background: #5e4fa2",
+                          "Help": "Use this tag when the snippet contains an example using a ScriptPanel.",
+                          "Required": false,
+                          "ButtonType": "",
+                          "Icon": "",
+                          "Trigger": false,
+                          "UseOnValue": false
+                        }
+                      ],
+                      "ID": "",
+                      "Style": "gap:0px;",
+                      "Class": "",
+                      "UseChildState": false
+                    }
+                  ],
+                  "ID": "",
+                  "Foldable": false,
+                  "Folded": false,
+                  "Style": "gap:0px;",
+                  "UseChildState": false,
+                  "Class": ""
+                }
+              ],
+              "ID": "",
+              "Style": "",
+              "Class": "",
+              "UseChildState": false
+            }
+          ],
+          "ID": ""
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false,
+      "Style": "gap: 20px;",
+      "UseChildState": false,
+      "Class": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Please enter the description for the snippet. It supports markdown & links so you can reference the documentation or other things.",
+          "ID": "",
+          "Class": "",
+          "Style": ""
+        },
+        {
+          "Type": "TextInput",
+          "Text": "Description",
+          "ID": "description",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\tvar x = document.getElementById(\"preview\")[0];\n\t\n\tConsole.print(trace(x));\n\t\n\t\n\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": ".markdown-editor",
+          "Style": "",
+          "EmptyText": "Please enter the markdown description",
+          "Required": false,
+          "ParseArray": false,
+          "Height": "200",
+          "Items": "",
+          "Multiline": true,
+          "Help": "The markdown description for the snippet. This information will be shown in the preset browser and can be used to add additional information / explanations about this snippet.",
+          "UseOnValue": true
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "Button",
+              "Text": "Preview",
+              "ID": "previewButton",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\tvar text = state.description;\n\t\n\tif(text.length == 0)\n\t\ttext = \"Click on the left button to preview the markdown content...\";\n\t\n\n\tdocument.getElementById(\"preview\")[0].Text = text;\n\t\n\tdocument.updateElement(\"preview\");\n\n\t// Will be called whenever the value changes\n\tConsole.print(state.description);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Trigger": true,
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "UseOnValue": true
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "Click on the left button to preview the markdown content...",
+                  "ID": "preview",
+                  "Style": "width: 500px;",
+                  "Class": ""
+                }
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false,
+              "Style": "background: #222;padding: 20px; border: 1px solid #444;box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.5);margin-top: 20px; border-radius: 5px;margin-right: 42px;margin-bottom: 10px;",
+              "UseChildState": false,
+              "Class": ""
+            }
+          ],
+          "ID": "",
+          "Style": "",
+          "Class": "",
+          "UseChildState": false
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false,
+      "Style": "gap: 20px;",
+      "UseChildState": false,
+      "Class": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Please choose a file location that will be used to save your snippet.\n\n> You can either use your local snippet folder or the repository folder for automatically pushing new snippets.",
+          "ID": "",
+          "Class": "",
+          "Style": ""
+        },
+        {
+          "Type": "FileSelector",
+          "Text": "Target File",
+          "ID": "targetFile",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": "",
+          "Style": "",
+          "Required": false,
+          "SaveFile": true,
+          "Wildcard": "*.md",
+          "Help": "The target file. This will create a markdown file with the properly formatted YAML metadata header so you can upload it to the repository.",
+          "Directory": false,
+          "UseOnValue": false
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "Creating File",
+          "ID": "createTask",
+          "CallOnNext": true,
+          "Class": "",
+          "Style": "display:none;",
+          "Function": "createMarkdownFile"
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false,
+      "Style": "gap:20px;",
+      "UseChildState": false,
+      "Class": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "The file was created and written to the location. Press Finish in order to close the dialog.",
+          "ID": "",
+          "Class": "",
+          "Style": ""
+        },
+        {
+          "Type": "Button",
+          "Text": "Show File",
+          "ID": "showFile",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": "",
+          "Style": "",
+          "Help": "Opens the file in the Explorer / Finder",
+          "Required": false,
+          "ButtonType": "",
+          "Icon": "",
+          "Trigger": false,
+          "UseOnValue": false
+        },
+        {
+          "Type": "Launch",
+          "Text": "$targetFile",
+          "ID": "showFile",
+          "CallOnNext": true,
+          "Args": "",
+          "Class": "",
+          "Style": ""
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false,
+      "Style": "",
+      "UseChildState": false,
+      "Class": ""
+    }
+  ],
+  "Assets": []
+}

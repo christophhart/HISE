@@ -13,14 +13,7 @@
     "tableLineColour": 864059520,
     "tableBgColour": 864059520,
     "headlineColour": 4287692721,
-    "UseSpecialBoldFont": false,
-    "buttonTabBackgroundColour": 570425344,
-    "buttonBgColour": 4289374890,
-    "buttonTextColour": 4280624421,
-    "modalPopupBackgroundColour": 4281545523,
-    "modalPopupOverlayColour": 3995214370,
-    "modalPopupOutlineColour": 4289374890,
-    "pageProgressColour": 2013265919
+    "UseSpecialBoldFont": false
   },
   "Properties": {
     "Header": "New Project Wizard",
@@ -31,20 +24,12 @@
     "Version": ""
   },
   "LayoutData": {
-    "TopHeight": 56,
-    "ButtonTab": 40,
-    "ButtonMargin": 5,
-    "OuterPadding": 50,
-    "LabelWidth": 160.0,
-    "LabelHeight": 32,
+    "StyleSheet": "Dark",
+    "Style": "#title\n{\n\tfont-size: 1.5em;\n}",
     "DialogWidth": 700,
-    "DialogHeight": 600,
-    "LabelPosition": "Default"
+    "DialogHeight": 600
   },
   "GlobalState": {
-    "rootDirectory": "D:\\Development\\HISE modules\\tools\\json_dialog\\test\\test",
-    "projectType": 2,
-    "downloadHXI": "D:\\Development\\HISE modules\\tools\\json_dialog\\test\\test\\info.hxi"
   },
   "Children": [
     {
@@ -64,9 +49,20 @@
           "Help": "The directory that will be used for the HISE project assets. It will create subfolders for scripts, images, etc.\n\n> It's highly recommended to use a version control system like Git for the HISE project folder in order to track changes during your development",
           "Directory": true,
           "Wildcard": "",
-          "SaveFile": false
+          "SaveFile": false,
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": "",
+          "Class": "",
+          "Style": "",
+          "Required": true
         }
-      ]
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
     },
     {
       "Type": "List",
@@ -86,7 +82,8 @@
           "Help": "Create a empty folder",
           "Required": false,
           "ButtonType": "",
-          "Trigger": false
+          "Trigger": false,
+          "Enabled": true
         },
         {
           "Type": "Button",
@@ -97,7 +94,8 @@
           "Help": "Import a HISE project from a HXI file.\n\n> A HXI file is a compressed file format which contains all data for a given expansion and can be extracted back into a HISE project for editing / modifying.",
           "Required": false,
           "ButtonType": "",
-          "Trigger": false
+          "Trigger": false,
+          "Enabled": true
         },
         {
           "Type": "Button",
@@ -108,7 +106,8 @@
           "Help": "Downloads the RHAPSODY Player expansion template that gives you a head start if you want to develop a RHAPSODY Player plugin",
           "Required": false,
           "ButtonType": "",
-          "Trigger": false
+          "Trigger": false,
+          "Enabled": true
         }
       ],
       "ID": "",

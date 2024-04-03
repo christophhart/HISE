@@ -150,7 +150,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCheckCyclicReferences,
         MenuToolsCheckPluginParameterSanity,
 		MenuToolsConvertSVGToPathData,
-		MenuToolsCreateToolbarPropertyDefinition,
+        MenuToolsBroadcasterWizard,
 		MenuToolsCreateExternalScriptFile,
 		MenuToolsRestoreToDefault,
 		MenuToolsValidateUserPresets,
@@ -526,8 +526,8 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Recompile all scripts on preset load", true, bpe->getBackendProcessor()->isCompilingAllScriptsOnPresetLoad(), 'X', false);
 		result.categoryName = "Tools";
 		break;
-	case MenuToolsCreateToolbarPropertyDefinition:
-		setCommandTarget(result, "Create default Toolbar JSON definition", true, false, 'X', false);
+	case MenuToolsBroadcasterWizard:
+		setCommandTarget(result, "Show Broadcaster Wizard", true, false, 'X', false);
 		break;
 	case MenuToolsCreateExternalScriptFile:
 		setCommandTarget(result, "Create external script file", true, false, 'X', false);
@@ -819,6 +819,12 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(); updateCommands(); return true;
 	case MenuToolsApplySampleMapProperties: Actions::applySampleMapProperties(bpe); return true;
 	case MenuToolsConvertSVGToPathData:	Actions::convertSVGToPathData(bpe); return true;
+    case MenuToolsBroadcasterWizard:
+    {
+        auto s = new multipage::library::BroadcasterWizard();
+        s->setModalBaseWindowComponent(bpe);
+        return true;
+    }
 	case MenuToolsEditShortcuts:		Actions::editShortcuts(bpe); return true;
     case MenuViewFullscreen:            Actions::toggleFullscreen(bpe); updateCommands(); return true;
 	case MenuViewReset:				    bpe->resetInterface(); updateCommands(); return true;
@@ -859,7 +865,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
         return true;
     }
 	case MenuExportCompileNetworksAsDll: Actions::compileNetworksToDll(bpe); return true;
-    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe->getBackendProcessor()); return true;
+    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
 	case MenuExportProject:				Actions::exportHiseProject(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
 	case MenuExportWavetablesToMonolith: Actions::exportWavetablesToMonolith(bpe); return true;
@@ -1088,7 +1094,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_DESKTOP_ONLY(MenuToolsValidateUserPresets);
 			ADD_DESKTOP_ONLY(MenuToolsRestoreToDefault);
 			ADD_DESKTOP_ONLY(MenuToolsConvertSVGToPathData);
-			
+            ADD_DESKTOP_ONLY(MenuToolsBroadcasterWizard);
+            
 			p.addSeparator();
 			p.addSectionHeader("Sample Management");
 			
@@ -1819,8 +1826,10 @@ void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendRoot
 
 
 
-void BackendCommandTarget::Actions::exportFileAsSnippet(BackendProcessor* bp)
+void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
 {
+    auto bp = bpe->getBackendProcessor();
+            
 	MainController::ScopedEmbedAllResources sd(bp);
     
 	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
