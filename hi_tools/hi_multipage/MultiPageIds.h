@@ -71,6 +71,7 @@ namespace mpid
     DECLARE_ID(CallType);
     DECLARE_ID(Cleanup);
     DECLARE_ID(Class);
+    DECLARE_ID(ContentType);
     DECLARE_ID(Code);
     DECLARE_ID(Children);
     DECLARE_ID(Company);
@@ -113,8 +114,10 @@ namespace mpid
     DECLARE_ID(SpecialLocation);
 	DECLARE_ID(StyleData);
     DECLARE_ID(Style);
+    DECLARE_ID(StyleSheet);
     DECLARE_ID(Subtitle);
     DECLARE_ID(SupportFullDynamics);
+    DECLARE_ID(Syntax);
     DECLARE_ID(Target);
     DECLARE_ID(Text);
     DECLARE_ID(Trigger);

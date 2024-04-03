@@ -103,6 +103,7 @@ struct Asset: public ReferenceCountedObject
         File,
         Font,
         Text,
+        Stylesheet,
         Archive,
         numTypes
 	};
@@ -121,6 +122,7 @@ struct Asset: public ReferenceCountedObject
 	    case Type::File: return "File";
 	    case Type::Font: return "Font";
 	    case Type::Text: return "Text";
+        case Type::Stylesheet: return "CSS";
 	    case Type::Archive: return "Archive";
 	    case Type::numTypes: break;
 	    default: ;
@@ -137,6 +139,8 @@ struct Asset: public ReferenceCountedObject
 	        return Type::Text;
         else if(extension == ".ttf" || extension == ".otf")
             return Type::Font;
+        else if(extension == ".css")
+            return Type::Stylesheet;
         else if(extension == ".zip")
             return Type::Archive;
         else
@@ -170,6 +174,15 @@ struct Asset: public ReferenceCountedObject
     }
 
     String toText() const;
+
+    simple_css::StyleSheet::Collection toStyleSheet(const String& additionalStyle) const
+    {
+        auto code = data.toString();
+        code << additionalStyle;
+        simple_css::Parser p(code);
+        p.parse();
+        return p.getCSSValues();
+    }
 
     void writeCppLiteral(OutputStream& c, const String& newLine, ReferenceCountedObject* job) const;
 
@@ -350,22 +363,11 @@ public:
 	    return Font(fontName, 13.0f, Font::plain);
     }
 
+    simple_css::StyleSheet::Collection getStyleSheet(const String& name, const String& additionalStyle) const;
+
     std::unique_ptr<JavascriptEngine> createJavascriptEngine(const var& infoObject);
 
-    String getAssetReferenceList(Asset::Type t) const
-    {
-	    String s = "None\n";
-
-        for(auto a: assets)
-        {
-	        if(a->type == t)
-	        {
-		        s << a->toReferenceVariable() << "\n";
-	        }
-        }
-
-        return s;
-    }
+    String getAssetReferenceList(Asset::Type t) const;
 
     String loadText(const String& assetVariable) const
     {
@@ -664,6 +666,9 @@ struct HardcodedDialogWithState: public Component
 		return state.globalState[id];
 	}
 
+    /** Override this method and return an item list for the autocomplete popup for the given id*/
+    virtual StringArray getAutocompleteItems(const Identifier& textEditorId) { return {}; };
+    
     void setOnCloseFunction(const std::function<void()>& f);
 
     /** Override this method and initialise all default values for the global state. */

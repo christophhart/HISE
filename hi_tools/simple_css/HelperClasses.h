@@ -46,10 +46,37 @@ struct PseudoState
 
 	static String getPseudoElementName(int idx);
 
+    static String getPseudoClassName(int state)
+    {
+        String c;
+        
+        if((state & (int)PseudoClassType::First) > 0)
+            c << ":first";
+        if((state & (int)PseudoClassType::Last) > 0)
+            c << ":last";
+        if((state & (int)PseudoClassType::Root) > 0)
+            c << ":root";
+        if((state & (int)PseudoClassType::Hover) > 0)
+            c << ":hover";
+        if((state & (int)PseudoClassType::Active) > 0)
+            c << ":active";
+        if((state & (int)PseudoClassType::Focus) > 0)
+            c << ":focus";
+        if((state & (int)PseudoClassType::Disabled) > 0)
+            c << ":disabled";
+        if((state & (int)PseudoClassType::Hidden) > 0)
+            c << ":hidden";
+        if((state & (int)PseudoClassType::Checked) > 0)
+            c << ":checked";
+
+        return c;
+    }
+    
 	bool isPseudoElement() const { return element != PseudoElementType::None; }
 	bool hasState() const { return stateFlag != 0; };
 	bool isDefaultState() const { return stateFlag == 0; }
 
+    
 	bool matchesElement(const PseudoState& other) const { return element == other.element; }
 	bool matchesElement(PseudoElementType otherType) const { return element == otherType; }
 
@@ -384,7 +411,7 @@ struct TransitionValue
 struct PropertyValue
 {
 	PropertyValue() = default;
-	PropertyValue(PropertyType pt, const String& v);;
+	PropertyValue(PropertyType pt, const String& v, bool isImportant=false);;
 
 	operator bool() const
 	{
@@ -416,6 +443,7 @@ struct PropertyValue
 
 	PropertyType type;
 	Transition transition;
+    bool important = false;
 
 	void appendToValue(const String& s);
 

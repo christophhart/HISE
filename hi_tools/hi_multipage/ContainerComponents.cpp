@@ -275,10 +275,12 @@ void List::refreshFold()
 	{
 		for(int i = 1; i < getNumChildComponents(); i++)
 		{
-			getChildComponent(i)->setVisible(!foldButton->getToggleState());
+            setFlexChildVisibility(i, false, foldButton->getToggleState());
 		}
 
-		rebuildRootLayout();
+        rebuildLayout();
+        setSize(getWidth(), getAutoSize());
+        rebuildRootLayout();
 	}
 }
 

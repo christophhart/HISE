@@ -266,6 +266,22 @@ START_JUCE_APPLICATION (MainWrapper)
 )";
 }
 
+struct Helpers
+{
+    static void callRecursive(const var& d, const std::function<void(const var&)>& f)
+    {
+        f(d);
+        
+        auto l = d[mpid::Children];
+        
+        if(auto ar = l.getArray())
+        {
+            for(const auto& a: *ar)
+                callRecursive(a, f);
+        }
+    }
+};
+
 
 void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 {
@@ -388,57 +404,151 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 	}
 	else if (t == FileType::DialogHeader)
 	{
-		x << getNewLine() << "#pragma once";
-		x << getNewLine() << "#include <JuceHeader.h>";
+        if(!rawMode)
+        {
+            x << getNewLine() << "#pragma once";
+            x << getNewLine() << "#include <JuceHeader.h>";
+        }
 
 		x << getNewLine() << "namespace hise {";
 		x << getNewLine() << "namespace multipage {";
+        
+        if(rawMode)
+            x << getNewLine() << "namespace library {";
+        
 		x << getNewLine() << "using namespace juce;";
 
 		x << getNewLine() << "struct " << className << ": public HardcodedDialogWithState";
+        
+        if(rawMode)
+            x << "," << getNewLine() << "                                     public hise::QuasiModalComponent";
+        
 		x << getNewLine() << "{";
 		{
 			ScopedTabSetter to(*this);
 
-			x << getNewLine() << className << "() { setSize(";
-			x << String((int)data[mpid::LayoutData]["DialogWidth"]) << ", ";
-			x << String((int)data[mpid::LayoutData]["DialogHeight"]) << "); };";
+            if(rawMode)
+            {
+                Helpers::callRecursive(data, [&](const var& f)
+                {
+                    auto id = f[mpid::ID].toString();
+                    
+                    lambdaLocalIds.addIfNotAlreadyThere(id);
+                    
+                    auto type = f[mpid::Type].toString();
+                    
+                    if(type == "LambdaTask")
+                        lambdaIds.add(f[mpid::Function].toString());
+                });
+                
+                for(auto& lt: lambdaIds)
+                    x << getNewLine() << "var " << lt << "(State::Job& t, const var& state);";
+            }
+            
 
-			x << getNewLine();
-			x << getNewLine() << "Dialog* createDialog(State& state) override;";
-			x << getNewLine();
+            
+            x << getNewLine() << className << "()";
+            x << getNewLine() << "{";
+            
+            {
+                ScopedTabSetter st(*this);
+                
+                if(rawMode)
+                    x << getNewLine() << "closeFunction = BIND_MEMBER_FUNCTION_0(" << className << "::destroy);";
+                      
+                x << getNewLine() << "setSize(";
+                
+                x << String((int)data[mpid::LayoutData]["DialogWidth"]) << ", ";
+                x << String((int)data[mpid::LayoutData]["DialogHeight"]) << ");";
+
+                
+            }
+            
+            x << getNewLine() << "}";
+            
+            x << getNewLine();
+            x << getNewLine() << "Dialog* createDialog(State& state) override;";
+            x << getNewLine();
 		}
 		
 		x << getNewLine() << "};";
+        
+        if(rawMode)
+            x << getNewLine() << "} // namespace library";
+        
 		x << getNewLine() << "} // namespace multipage";
 		x << getNewLine() << "} // namespace hise";
 
-		x << getNewLine();
-		x << getNewLine() << "using DialogClass = hise::multipage::" << className << ";";
-
+        if(!rawMode)
+        {
+            x << getNewLine();
+            x << getNewLine() << "using DialogClass = hise::multipage::" << className << ";";
+        }
 	}
 	else if (t == FileType::DialogImplementation)
 	{
-		x << getNewLine() << "#include \"Dialog.h\"";
-		x << getNewLine() << "#include \"Assets.h\"";
+        if(!rawMode)
+        {
+            x << getNewLine() << "#include \"Dialog.h\"";
+            x << getNewLine() << "#include \"Assets.h\"";
+        }
 
 		x << getNewLine() << "namespace hise {";
 		x << getNewLine() << "namespace multipage {";
+        
+        if(rawMode)
+            x << getNewLine() << "namespace library {";
+        
 		x << getNewLine() << "using namespace juce;";
 
+        if(rawMode)
+        {
+            for(const auto& lt: lambdaIds)
+            {
+                x << getNewLine() << "var " << className << "::" << lt << "(State::Job& t, const var& state)";
+                x << getNewLine() << "{";
+                
+                {
+                    ScopedTabSetter to(*this);
+                    
+                    x << getNewLine() << "// All variables: ";
+                    
+                    for(const auto& id: lambdaLocalIds)
+                    {
+                        if(id.isEmpty() || id == lt)
+                            continue;
+                        
+                        x << getNewLine() << "auto " << id << " = state[" << id.quoted() << "];";
+                    }
+                    
+                    x << getNewLine();
+                    x << getNewLine() << "// ADD CODE here...";
+                    x << getNewLine();
+                    
+                    x << getNewLine() << "return var(\"\"); // return a error";
+                }
+                
+                x << getNewLine() << "}";
+            }
+
+        }
+        
 		x << getNewLine() << "Dialog* " << className << "::createDialog(State& state)";
 		x << getNewLine() << "{";
 
 		{
 			ScopedTabSetter t0(*this);
 
-			x << getNewLine() << "state.assets = " << className << "_Assets::createAssets();";
-
+            if(!rawMode)
+                x << getNewLine() << "state.assets = " << className << "_Assets::createAssets();";
 
 			x << getNewLine() << "DynamicObject::Ptr fullData = new DynamicObject();";
 
-			x << getNewLine() << "fullData->setProperty(mpid::StyleData, JSON::parse(R\"(" << JSON::toString(data[mpid::StyleData], true) << ")\"));";
+            if(!rawMode)
+                x << getNewLine() << "fullData->setProperty(mpid::StyleData, JSON::parse(R\"(" << JSON::toString(data[mpid::StyleData], true) << ")\"));";
+            
 			x << getNewLine() << "fullData->setProperty(mpid::LayoutData, JSON::parse(R\"(" << JSON::toString(data[mpid::LayoutData], true) << ")\"));";
+            
 			x << getNewLine() << "fullData->setProperty(mpid::Properties, JSON::parse(R\"(" << JSON::toString(data[mpid::Properties], true) << ")\"));";
 
 			x << getNewLine() << "using namespace factory;";
@@ -461,6 +571,9 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 
 		x << getNewLine() << "}";
 
+        if(rawMode)
+            x << getNewLine() << "} // namespace library";
+        
 		x << getNewLine() << "} // namespace multipage";
 		x << getNewLine() << "} // namespace hise";
 	}
@@ -522,23 +635,62 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
 
 	auto typeId = childData[mpid::Type].toString();
 
-	x << "auto& " << id << " = " << parentId << ".add" << itemType << "<factory::" << typeId << ">({";
+    auto canBeAnonymous = childData[mpid::Children].size() == 0 &&
+                          typeId != "LambdaTask";
+    
+    if(!canBeAnonymous)
+        x << "auto& " << id << " = ";
 
-	const auto& prop = childData.getDynamicObject()->getProperties();
+    const auto& prop = childData.getDynamicObject()->getProperties();
 
+    if(typeId == "Placeholder")
+        typeId << "<" << prop[mpid::ContentType].toString() << ">";
+
+    x << parentId << ".add" << itemType << "<" << typeId << ">({";
+    
 	String cp;
 
+    NamedValueSet defaultValues;
+    defaultValues.set(mpid::Trigger, false);
+    defaultValues.set(mpid::Help, "");
+    defaultValues.set(mpid::Class, "");
+    defaultValues.set(mpid::Style, "");
+    defaultValues.set(mpid::Text, "LabelText");
+    defaultValues.set(mpid::UseInitValue, false);
+    defaultValues.set(mpid::InitValue, "");
+    defaultValues.set(mpid::Required, false);
+    defaultValues.set(mpid::UseOnValue, false);
+    defaultValues.set(mpid::Enabled, true);
+    defaultValues.set(mpid::Foldable, false);
+    defaultValues.set(mpid::Folded, false);
+    defaultValues.set(mpid::UseChildState, false);
+    defaultValues.set(mpid::EmptyText, "");
+    defaultValues.set(mpid::ParseArray, false);
+    defaultValues.set(mpid::Multiline, false);
+    
+    static const Array<Identifier> deprecatedIds = { Identifier("Padding"),
+    												 Identifier("LabelPosition")};
+    
 	for(auto& nv: prop)
 	{
-		if(nv.name == mpid::Type)
+		if(nv.name == mpid::Type || nv.name == mpid::ContentType || nv.name == mpid::Children)
 			continue;
 
-		if(nv.name == mpid::Children)
-			continue;
-
+        if(deprecatedIds.contains(nv.name))
+            continue;
+        
 		if(nv.value.toString().isEmpty())
 			continue;
 
+        if(nv.name == mpid::Code)
+        {
+            if(prop.contains(mpid::UseOnValue) && !prop[mpid::UseOnValue])
+                continue;
+        }
+        
+        if(defaultValues.contains(nv.name) && nv.value == defaultValues[nv.name])
+            continue;
+        
 		cp << getNewLine() << "  { mpid::" << nv.name << ", ";
 
 		if(nv.value.isString())
@@ -577,7 +729,8 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
 		else
 		{
 			x << "[](State::Job& t, const var& stateObject)";
-			x << getNewLine() << "{" << getNewLine() << "\treturn var();" << getNewLine() << "}";
+            x << getNewLine() << "{";
+            x << getNewLine() << "\treturn var();" << getNewLine() << "}";
 		}
 		
 		x << ");" << getNewLine();

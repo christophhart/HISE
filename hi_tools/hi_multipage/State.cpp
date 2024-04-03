@@ -320,6 +320,28 @@ ApiProviderBase* State::getProviderBase()
 }
 
 
+simple_css::StyleSheet::Collection State::getStyleSheet(const String& name, const String& additionalStyle) const
+{
+	if(name.startsWith("${"))
+	{
+		auto id = name.substring(2, name.length() - 1);
+
+		for(auto a: assets)
+		{
+			if(a->id == id)
+				return a->toStyleSheet(additionalStyle);
+		}
+	}
+
+	auto list = StringArray::fromLines(DefaultCSSFactory::getTemplateList());
+
+	auto idx = list.indexOf(name);
+
+	if(idx != -1)
+		return DefaultCSSFactory::getTemplateCollection((DefaultCSSFactory::Template)idx, additionalStyle);
+
+	return {};
+}
 
 std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoObject)
 {
@@ -499,6 +521,21 @@ std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoO
 	engine->registerNativeObject("state", globalState.getDynamicObject());
 	
 	return engine;
+}
+
+String State::getAssetReferenceList(Asset::Type t) const
+{
+	String s = "None\n";
+
+	for(auto a: assets)
+	{
+		if(a->type == t)
+		{
+			s << a->toReferenceVariable() << "\n";
+		}
+	}
+
+	return s;
 }
 
 State::Job::Job(State& rt, const var& obj):

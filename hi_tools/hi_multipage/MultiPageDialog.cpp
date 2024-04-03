@@ -157,8 +157,10 @@ struct Dialog::PageBase::ModalHelp: public simple_css::FlexboxComponent
 		setParent(p);
 		setCSS(p->css);
 		
-		setSize(parent.getWidth() + 20, 0);
-    	setSize(parent.getWidth() + 20, getAutoSize());
+        auto w = jmax(400, parent.getWidth() + 20);
+        
+		setSize(w, 0);
+    	setSize(w, getAutoSize());
 		
     };
 
@@ -337,10 +339,7 @@ bool Dialog::PageBase::isEditModeAndNotInPopup() const
 
 void Dialog::PageBase::setModalHelp(const String& text)
 {
-	Component* popup = findParentComponentOfClass<ModalPopup>();
-
-	if(popup == nullptr)
-		popup = dynamic_cast<Component*>(findParentComponentOfClass<ComponentWithSideTab>());
+    auto popup = getTopLevelComponent();
 
 	Component::callRecursive<PageBase>(popup, [](PageBase* b)
 	{
@@ -365,9 +364,11 @@ void Dialog::PageBase::setModalHelp(const String& text)
 
 	auto thisBounds = popup->getLocalArea(this, getLocalBounds());
 
-	auto mb = thisBounds.withSizeKeepingCentre(modalHelp->getWidth(), modalHelp->getHeight());
+	auto mb = thisBounds.withSizeKeepingCentre(jmax(400, modalHelp->getWidth()), modalHelp->getHeight());
 	mb.setY(thisBounds.getBottom() + 3);
 	
+	mb = mb.constrainedWithin(popup->getLocalBounds());
+    
 	modalHelp->setBounds(mb);
 }
 
@@ -522,14 +523,22 @@ var Dialog::PositionInfo::toJSON() const
 {
 	auto obj = new DynamicObject();
             
+    obj->setProperty(mpid::StyleSheet, styleSheet);
+	obj->setProperty(mpid::Style, additionalStyle);
+
 	obj->setProperty("DialogWidth", fixedSize.getX());
 	obj->setProperty("DialogHeight", fixedSize.getY());
 	
+
+    
 	return var(obj);
 }
 
 void Dialog::PositionInfo::fromJSON(const var& obj)
 {
+    styleSheet = obj.getProperty(mpid::StyleSheet, styleSheet);
+	additionalStyle = obj.getProperty(mpid::Style, additionalStyle).toString();
+
 	fixedSize.setX(obj.getProperty("DialogWidth", fixedSize.getX()));
 	fixedSize.setY(obj.getProperty("DialogHeight", fixedSize.getY()));
 }
@@ -828,6 +837,8 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 	if(auto ld = obj[mpid::LayoutData].getDynamicObject())
 		positionInfo.fromJSON(var(ld));
 
+	
+
 	if(auto ps = obj[mpid::Properties].getDynamicObject())
 		properties = var(ps);
 	else
@@ -888,9 +899,8 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(prevButton, { "#prev", ".nav-button" });
 
     setWantsKeyboardFocus(true);
-
 	setSize(700, 400);
-        
+
 	nextButton.onClick = [this]()
 	{
 		navigate(true);
@@ -907,11 +917,6 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 		auto& root = *l;
         auto& md = root.addChild<factory::MarkdownText>();
-        auto& to = root.addChild<factory::Button>({
-            { mpid::Text, "Save progress" },
-            { mpid::ID, "Save" }
-        });
-        
 		md[mpid::Text] = "Do you want to close this popup?";
 
 		md.setCustomCheckFunction([this](PageBase*, var obj)
@@ -1262,6 +1267,9 @@ void Dialog::showMainPropertyEditor()
 	{
 	    auto& propList = introPage.addChild<List>({
             { mpid::UseChildState, true },
+            { mpid::Text, "Project Properties" },
+            { mpid::Foldable, true },
+            { mpid::Folded, true },
 	        { mpid::ID, mpid::Properties.toString() }
 	    });
 
@@ -1336,10 +1344,64 @@ void Dialog::showMainPropertyEditor()
 			{ mpid::Value,  properties[mpid::Icon] },
 			{ mpid::Help, "The image asset that should be used as icon" }
 	    });
-		
+
+		{
+	        auto& layoutProperties = introPage.addChild<List>({
+	            { mpid::ID, mpid::LayoutData.toString() },
+	            { mpid::Text, "CSS Styling" },
+                { mpid::UseChildState, true },
+	            { mpid::Foldable, true },
+	            { mpid::Folded, true }
+	        });
+
+			auto layoutObj = positionInfo.toJSON();
+
+
+			PageInfo* currentCol = &layoutProperties;
+
+			int numInCol = 0;
+
+	        for(auto& v: layoutObj.getDynamicObject()->getProperties())
+	        {
+                if(v.name == mpid::StyleSheet)
+                {
+                    auto items = getState().getAssetReferenceList(Asset::Type::Stylesheet);
+                    
+                    items << DefaultCSSFactory::getTemplateList();
+                    
+                    layoutProperties.addChild<Choice>({
+                        { mpid::ID, v.name.toString() },
+                        { mpid::Text, v.name.toString() },
+                        { mpid::Items, items },
+                        { mpid::Value, v.value }
+                    });
+                }
+				else if (v.name == mpid::Style)
+				{
+					layoutProperties.addChild<CodeEditor>({
+						{ mpid::ID, "Style" },
+						{ mpid::Text, "Style" },
+						{ mpid::Syntax, "CSS" },
+						{ mpid::Value, v.value }
+					});
+				}
+                else
+                {
+                    layoutProperties.addChild<TextInput>({
+                        { mpid::ID, v.name.toString() },
+                        { mpid::Text, v.name.toString() },
+                        { mpid::Value, v.value }
+                    });
+                }
+                
+
+				numInCol++;
+	        }
+	    }
+
 	    auto& styleProperties = introPage.addChild<List>({
 	        { mpid::ID, mpid::StyleData.toString(), },
-	        { mpid::Text, mpid::StyleData.toString(), },
+	        { mpid::Text, "Text & Colour", },
             { mpid::UseChildState, true },
 	        { mpid::Foldable, true },
 	        { mpid::Folded, true }
@@ -1389,34 +1451,6 @@ void Dialog::showMainPropertyEditor()
 	        }
 	    }
 
-	    {
-	        auto& layoutProperties = introPage.addChild<List>({
-	            { mpid::ID, mpid::LayoutData.toString() },
-	            { mpid::Text, mpid::LayoutData.toString() },
-                { mpid::UseChildState, true },
-	            { mpid::Foldable, true },
-	            { mpid::Folded, true }
-	        });
-
-			auto layoutObj = positionInfo.toJSON();
-
-
-			PageInfo* currentCol = &layoutProperties;
-
-			int numInCol = 0;
-
-	        for(auto& v: layoutObj.getDynamicObject()->getProperties())
-	        {
-				layoutProperties.addChild<TextInput>({
-		                { mpid::ID, v.name.toString() },
-						{ mpid::Text, v.name.toString() },
-		                { mpid::Value, v.value }
-			        });
-
-				numInCol++;
-	        }
-	    }
-
 		introPage.setCustomCheckFunction([&](PageBase* b, var obj)
 		{
 			Container::checkChildren(b, obj);
@@ -1430,12 +1464,21 @@ void Dialog::showMainPropertyEditor()
 
 			positionInfo.fromJSON(obj[mpid::LayoutData]);
 
+			loadStyleFromPositionInfo();
+
 			resized();
 			repaint();
 			
 			return Result::ok();
 		});
 	});
+}
+
+void Dialog::loadStyleFromPositionInfo()
+{
+	auto css = getState().getStyleSheet(positionInfo.styleSheet, positionInfo.additionalStyle);
+	
+	update(css);
 }
 
 
@@ -1497,6 +1540,7 @@ Result Dialog::getCurrentResult()
 
 void Dialog::showFirstPage()
 {
+	loadStyleFromPositionInfo();
 	currentPage = nullptr;
     runThread->currentPageIndex = -1;
 	navigate(true);

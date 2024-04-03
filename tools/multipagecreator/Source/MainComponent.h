@@ -81,7 +81,7 @@ struct ComponentWithEdge: public Component,
 
     void paint(Graphics& g) override
     {
-        if(useTitle)
+        if(useTitle && content != nullptr)
         {
 	        g.setColour(Colour(0xFF161616));
 	        g.fillRect(titleArea);
@@ -224,14 +224,44 @@ struct RightTab: public ComponentWithEdge
 
     
 
-    RightTab():
-      ComponentWithEdge(new ListComponent(), ResizableEdgeComponent::leftEdge)
+    RightTab(bool isRight):
+      ComponentWithEdge(new ListComponent(), isRight ? ResizableEdgeComponent::leftEdge : ResizableEdgeComponent::rightEdge)
     {
         useTitle = false;
 	    setSize(320, 0);
     };
 
-	void add(Component* newComponent, double initProportion)
+    void remove(Component* componentToRemove)
+    {
+        auto l = getContent<ListComponent>();
+        
+        int idx = 0;
+        
+        for(auto c: l->list)
+        {
+            if(c->getContent<Component>() == componentToRemove)
+            {
+                break;
+            }
+            idx++;
+        }
+        
+        l->list.remove(idx);
+        watchers.remove(idx);
+        l->initProportions.remove(idx);
+        l->resized();
+        resized();
+    }
+    
+    void setInitProportions(Array<double> prop)
+    {
+        auto l = getContent<ListComponent>();
+        jassert(l->list.size() == prop.size());
+        l->initProportions = prop;
+        l->resized();
+    }
+    
+	Component* add(Component* newComponent, double initProportion)
 	{
         auto nc = new ComponentWithEdge(newComponent, ResizableEdgeComponent::bottomEdge);
         auto l = getContent<ListComponent>();
@@ -239,7 +269,7 @@ struct RightTab: public ComponentWithEdge
         l->addAndMakeVisible(nc);
         watchers.add(new Watcher(nc, *this));
         l->initProportions.add(initProportion);
-        
+        return newComponent;
 	}
 
     template <typename T> T* getChild(int index)
@@ -713,11 +743,6 @@ struct Tree: public Component,
 };
 
 
-
-
-
-
-
 struct AssetManager: public Component,
 					 public TableListBoxModel,
 					 public PathFactory,
@@ -787,11 +812,17 @@ struct AssetManager: public Component,
     {
         for(const auto& f: files)
         {
-	        state.assets.add(Asset::fromFile(File(f)));
-            state.assets.getLast()->useRelativePath = File(f).isAChildOf(state.currentRootDirectory);
-
-            listbox.updateContent();
+            addAsset(f);
         }
+    }
+    
+    Asset::Ptr addAsset(const File& f)
+    {
+        state.assets.add(Asset::fromFile(File(f)));
+        state.assets.getLast()->useRelativePath = File(f).isAChildOf(state.currentRootDirectory);
+
+        listbox.updateContent();
+        return state.assets.getLast();
     }
 
     void rename(Asset::Ptr a)
@@ -1158,6 +1189,7 @@ public:
     enum CommandId
     {
 	    FileNew = 1,
+        FileCreateCSS,
         FileLoad,
         FileSave,
         FileSaveAs,
@@ -1174,6 +1206,7 @@ public:
         ViewShowJSON,
         ViewShowCpp,
         ViewShowConsole,
+        ViewShowCSSDebugger,
         HelpAbout,
         HelpVersion,
         FileRecentOffset = 9000
@@ -1184,6 +1217,8 @@ public:
     bool keyPressed(const KeyPress& key) override;
 
     void menuItemSelected (int menuItemID, int) override;
+
+    multipage::AssetManager* assetManager;
 
 private:
 
@@ -1213,7 +1248,7 @@ private:
     mcl::TextDocument stateDoc;
     mcl::TextEditor stateViewer;
 
-    multipage::AssetManager assetManager;
+    Component* currentInspector = nullptr;
 
     AlertWindowLookAndFeel plaf;
     MenuBarComponent menuBar;
@@ -1250,12 +1285,13 @@ private:
     };
 
     RightTab rightTab;
+    RightTab leftTab; // fuck yeah...
 
     ScopedPointer<ModalDialog> modalDialog;
 
     
     
-    ScopedPointer<ComponentWithEdge> tree;
+    Tree* tree;
     ScopedPointer<ComponentWithEdge> console;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)

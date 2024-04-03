@@ -48,10 +48,10 @@ PseudoState::PseudoState(int state):
 String PseudoState::getPseudoElementName(int idx)
 {
 	static const StringArray list({
-		"None ",
-		"Before",
-		"After",
-		"All"
+		"none ",
+		"before",
+		"after",
+		"all"
 	});
 
 	if(isPositiveAndBelow(idx, list.size()))
@@ -199,7 +199,7 @@ String Transition::toString() const
 
 	if(active)
 	{
-		s << " tr(";
+		s << " trans(";
 		s << "dur:" << String(duration, 2) << "s, ";
 		s << "del:" << String(duration, 2) << "s";
 
@@ -255,9 +255,10 @@ void PropertyKey::appendSuffixIfNot(const String& suffix)
 		name << '-' << suffix;
 }
 
-PropertyValue::PropertyValue(PropertyType pt, const String& v):
+PropertyValue::PropertyValue(PropertyType pt, const String& v, bool important_):
 	type(pt),
-	valueAsString(v)
+	valueAsString(v),
+    important(important_)
 {}
 
 String PropertyValue::toString() const
@@ -275,6 +276,9 @@ void PropertyValue::appendToValue(const String& s)
 
 String Property::toString() const
 {
+    if(name != "all" && values.size() == 1 && values[0].second.toString() == "default")
+        return {};
+    
 	String s;
 
 	s << "  " << name;
@@ -291,7 +295,9 @@ String Property::toString() const
 		if(!first)
 			s << intend;
 
-		s << "[" << String((int)v.first) << "]: " << v.second.toString() << "\n";
+        auto pc = PseudoState::getPseudoClassName(v.first);
+        
+		s << "[" << pc << "]: " << v.second.toString() << "\n";
 		first = false;
 	}
 

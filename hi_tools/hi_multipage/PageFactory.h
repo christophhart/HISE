@@ -66,8 +66,26 @@ private:
         Dialog::PageInfo::CreateFunction f;
     };
 
+
     Array<Item> items;
 };
+
+struct PlaceholderContentBase
+{
+	virtual ~PlaceholderContentBase() {};
+
+    PlaceholderContentBase(Dialog& r, const var& obj):
+      rootDialog(r),
+      infoObject(obj)
+    {}
+
+    virtual void postInit() = 0;
+    virtual Result checkGlobalState(var state) = 0;
+
+    Dialog& rootDialog;
+    var infoObject;
+};
+
 
 namespace factory
 {
@@ -177,11 +195,7 @@ struct MarkdownText: public Dialog::PageBase
     
     void postInit() override;
 
-    void resized() override
-    {
-        FlexboxComponent::resized();
-        display.resized();
-    }
+    void resized() override;
     //void paint(Graphics& g) override;
     Result checkGlobalState(var) override;
 
@@ -190,6 +204,94 @@ private:
     var obj;
     float width = 0.0f;
     SimpleMarkdownDisplay display;
+
+    //MarkdownRenderer r;
+};
+
+
+
+struct DummyContent: public Component,
+					 public PlaceholderContentBase
+{
+    DummyContent(Dialog& r, const var& infoObject):
+      PlaceholderContentBase(r, infoObject)
+    {
+	    classId = infoObject[mpid::ContentType].toString();
+    }
+
+    void paint(Graphics& g) override
+    {
+	    g.fillAll(Colours::white.withAlpha(0.1f));
+        g.setColour(Colours::white.withAlpha(0.7f));
+        g.setFont(GLOBAL_MONOSPACE_FONT());
+        g.drawRect(getLocalBounds(), 1);
+        g.drawText("Placeholder for " + classId, getLocalBounds().toFloat(), Justification::centred);
+    }
+
+    void postInit() override {};
+    Result checkGlobalState(var state) override { return Result::ok(); }
+
+    String classId;
+
+	static void createEditor(const var& infoObject, Dialog::PageInfo& rootList);
+};
+
+template <typename ContentType> struct Placeholder: public Dialog::PageBase
+{
+    struct Content: public Component
+    {
+	    virtual Result check(const var& state) = 0;
+    };
+
+    DEFAULT_PROPERTIES(Placeholder)
+    {
+        return {};
+    }
+
+    static String getCategoryId() { return "Layout"; }
+
+    Placeholder(Dialog& r, int width, const var& d):
+      PageBase(r, width, d)
+    {
+        static_assert(std::is_base_of<PlaceholderContentBase, ContentType>(),
+                      "not a base of multipage::factory::PlaceholderContentBase");
+
+        static_assert(std::is_base_of<juce::Component, ContentType>(),
+					  "not a base of juce::Component");
+
+        content = new ContentType(r, d);
+
+        Helpers::setFallbackStyleSheet(*this, "display:flex;min-height:32px;width:100%;");
+        Helpers::setFallbackStyleSheet(*content, "width:100%;height:100%;");
+
+	    addFlexItem(*content);
+        setSize(width, 0);
+    };
+
+    void createEditor(Dialog::PageInfo& rootList) override
+    {
+	    DummyContent::createEditor(infoObject, rootList);
+    }
+    
+    void postInit() override
+    {
+	    content->postInit();
+    }
+
+    void resized() override
+    {
+        FlexboxComponent::resized();
+    }
+    Result checkGlobalState(var state) override
+    {
+	    return content->checkGlobalState(state);
+    }
+
+private:
+
+    var obj;
+    float width = 0.0f;
+    ScopedPointer<ContentType> content;
 
     //MarkdownRenderer r;
 };

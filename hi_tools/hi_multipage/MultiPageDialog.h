@@ -60,12 +60,14 @@ struct DefaultCSSFactory
 		PropertyEditor,
         Dark,
         Bright,
+        ModalPopup,
         numTemplates
 	};
 
     static String getTemplate(Template t);
+    static String getTemplateList() { return "Property Editor\nDark\nBright\nModalPopup"; }
 
-    static simple_css::StyleSheet::Collection getTemplateCollection(Template t);
+    static simple_css::StyleSheet::Collection getTemplateCollection(Template t, const String& additionalStyle={});
 };
 
 
@@ -82,8 +84,6 @@ class Dialog: public simple_css::HeaderContentFooter,
 {
 public:
 
-    
-
     struct PageInfo;
 
     struct PositionInfo
@@ -96,6 +96,9 @@ public:
         Rectangle<int> getBounds(Rectangle<int> fullBounds) const;
 
         Point<int> fixedSize = { 800, 600 };
+        
+        String styleSheet = "Dark";
+        String additionalStyle;
     } positionInfo;
 
     struct PageBase: public simple_css::FlexboxComponent
@@ -321,6 +324,8 @@ public:
 #if HISE_MULTIPAGE_INCLUDE_EDIT
     void paintOverChildren(Graphics& g) override
     {
+        HeaderContentFooter::paintOverChildren(g);
+        
 	    if(editMode)
 		{
 			GlobalHiseLookAndFeel::draw1PixelGrid(g, this, getLocalBounds(), Colour(0x44999999));
@@ -461,6 +466,8 @@ public:
     void showMainPropertyEditor();
 
     bool useHelpBubble = false;
+
+    void loadStyleFromPositionInfo();
 
 private:
 

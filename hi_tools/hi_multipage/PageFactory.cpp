@@ -109,6 +109,13 @@ void SimpleText::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Type, "SimpleText"},
 		{ mpid::Help, "A field to display text messages with markdown support" }
 	});
+    
+    rootList.addChild<TextInput>({
+        { mpid::ID, "ID" },
+        { mpid::Text, "ID" },
+        { mpid::Value, id.toString() },
+        { mpid::Help, "The ID for the element (used as key in the state `var`.\n>" }
+    });
 
 	rootList.addChild<TextInput>({
 		{ mpid::ID, "Text" },
@@ -285,7 +292,13 @@ void MarkdownText::postInit()
 		sd.backgroundColour = Colours::transparentBlack;
 }
 
-	#if 0
+void MarkdownText::resized()
+{
+	FlexboxComponent::resized();
+	display.resized();
+}
+
+#if 0
 void MarkdownText::paint(Graphics& g)
 {
 
@@ -312,6 +325,13 @@ void MarkdownText::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "A field to display text messages with markdown support" }
     });
 
+    rootList.addChild<TextInput>({
+        { mpid::ID, "ID" },
+        { mpid::Text, "ID" },
+        { mpid::Value, id.toString() },
+        { mpid::Help, "The ID for the element.\n>" }
+    });
+    
     rootList.addChild<TextInput>({
         { mpid::ID, "Text" },
         { mpid::Text, "Text" },
@@ -344,6 +364,44 @@ Result MarkdownText::checkGlobalState(var)
 	return Result::ok();
 }
 
+void DummyContent::createEditor(const var& infoObject, Dialog::PageInfo& rootList)
+{
+	rootList.addChild<Type>({
+		{ mpid::ID, "Type"},
+		{ mpid::Type, "Placeholder"},
+		{ mpid::Help, "A basic component placeholder for any juce::Component" }
+	});
+	    
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "ID" },
+		{ mpid::Text, "ID" },
+		{ mpid::Value, infoObject[mpid::ID].toString() },
+		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::ContentType.toString() },
+		{ mpid::Text, mpid::ContentType.toString() },
+		{ mpid::Required, true },
+		{ mpid::Multiline, false },
+		{ mpid::Value, infoObject[mpid::ContentType] },
+		{ mpid::Help, "The C++ class name that will be used for the content.  \n> The class must be derived from `juce::Component` and `hise::multipage::PlaceholderContentBase`" }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Class.toString() },
+		{ mpid::Text, mpid::Class.toString() },
+		{ mpid::Help, "The CSS class that is applied to the UI element." },
+		{ mpid::Value, infoObject[mpid::Class] }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+		{ mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+}
 } // factory
 
 
@@ -371,6 +429,7 @@ Factory::Factory()
 	registerPage<factory::List>();
 	registerPage<factory::SimpleText>();
     registerPage<factory::MarkdownText>();
+	registerPage<factory::Placeholder<factory::DummyContent>>();
 	registerPage<factory::Button>();
 	registerPage<factory::TextInput>();
 	registerPage<factory::Skip>();

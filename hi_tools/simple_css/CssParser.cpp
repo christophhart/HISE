@@ -1620,8 +1620,7 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 		case PropertyType::Positioning: return "";
 		case PropertyType::Layout: return "";
         case PropertyType::Colour: return "";
-		case PropertyType::Variable: return "";
-		default: jassertfalse; return "";
+		case PropertyType::Variable: return "";		default: jassertfalse; return "";
 		}
 	}
 	if(styles.contains(token))
@@ -1703,159 +1702,6 @@ StyleSheet::Collection Parser::getCSSValues() const
 
 	for(const auto& rc: rawClasses)
 	{
-		// TODO: REMOVE ENTIRE selector member from Stylesheet and use ComplexSelector instead!
-
-		// - create a new style sheet for each raw class.
-		// - then before adding it to the collection,
-		//   check if a exact match already exists, then copy over the properties
-		// - TODO: add Ptr StyleSheet::coallascate(StyleSheet::Ptr other) for stylesheets with the same complex selector!
-		// - TODO: sort style sheets and copy properties to its matches...
-
-
-
-		
-#if 0
-		Array<std::pair<StyleSheet::Ptr, PseudoState>> thisTargets;
-
-		//int currentPseudoClass = (int)PseudoClassType::None;
-
-		for(const auto& s: rc.selectors)
-		{
-			std::pair<bool, PseudoState> fit = { false, PseudoState() };
-
-			ComplexSelector::Ptr thisComplexSelector = new ComplexSelector(s);
-
-			StyleSheet::Ptr match;
-
-			for(auto l: list)
-			{
-				for(auto c: l->complexSelectors)
-				{
-					if(thisComplexSelector->matchesOtherComplexSelector(c))
-					{
-						match = l;
-						break;
-					}
-				}
-
-				if(match != nullptr)
-					break;
-
-				fit = l->matchesRawList(s);
-
-				if(fit.first)
-				{
-					match = l;
-					break;
-				}
-					
-			}
-			
-			if(match != nullptr)
-			{
-				thisTargets.add({ match, fit.second });
-			}
-			else
-			{
-				Array<Selector> thisSelector;
-
-				for(auto& s_: s)
-					thisSelector.add(s_.first);
-				
-				if(!s.empty())
-				{
-					auto p = new StyleSheet(thisSelector);
-
-					p->complexSelectors.add(thisComplexSelector);
-
-					auto& sel = thisComplexSelector->thisSelectors.selectors;
-					auto ps = sel[sel.size() - 1].second;
-					thisTargets.add({ p, ps });
-				}
-					
-			}
-		}
-
-#if 0
-		if(thisTargets.isEmpty())
-		{
-			
-
-			for(const auto& s: rc.selectors[0])
-			{
-				auto p = new StyleSheet(s.first);
-				currentPseudoClass = s.second;
-				thisList.add(p);
-			}
-		}
-#endif
-
-#endif
-
-
-		
-
-#if 0
-		auto addOrOverwrite = [&](PropertyType pt, const String& k, const String& v)
-		{
-			bool shouldExtend = pt == PropertyType::Shadow || pt == PropertyType::Transform;
-
-			for(auto& l: thisTargets)
-			{
-				if(pt == PropertyType::Variable)
-				{
-					l.first->setPropertyVariable(Identifier(k.substring(2, 1000)), v);
-					continue;
-				}
-
-				bool propertyFound = false;
-
-				auto elementIndex = (int)l.second.element;
-				auto pseudoClassIndex = l.second.stateFlag;
-
-				for(auto& p: l.first->properties[elementIndex])
-				{
-					if(p.name == k)
-					{
-						propertyFound = true;
-						bool stateFound = false;
-
-						for(auto& pv: p.values)
-						{
-							if(pv.first == pseudoClassIndex)
-							{
-								if(shouldExtend)
-									pv.second.appendToValue(v);
-								else
-									pv.second = PropertyValue(pt, v);
-
-								stateFound = true;
-								break;
-							}
-						}
-
-						if(!stateFound)
-							p.values.push_back({ pseudoClassIndex, { pt, v} } );
-
-						break;
-					}
-				}
-
-				if(!propertyFound)
-				{
-					Property np;
-					np.name = k;
-
-					if(l.second.hasState())
-						np.values.push_back({ 0, { pt, "" } }); 
-
-					np.values.push_back({ pseudoClassIndex, { pt, v }});
-					l.first->properties[elementIndex].push_back(np);
-				}
-			}
-		};
-#endif
-
 		Array<PseudoState> thisStates;
 
 		ComplexSelector::List selectorList;
@@ -1869,10 +1715,22 @@ StyleSheet::Collection Parser::getCSSValues() const
 				thisStates.addIfNotAlreadyThere(ts.second);
 			}
 		}
+
+		StyleSheet::Ptr n;
+
+		for(auto existing: list)
+		{
+			if(existing->matchesComplexSelectorList(selectorList))
+			{
+				n = existing;
+				break;
+			}
+		}
+
+		if(n == nullptr)
+			n = new StyleSheet(selectorList);
 		
-		auto n = new StyleSheet(selectorList);
-		
-		auto addOrOverwrite = [&](PropertyType pt, const String& k, const String& v)
+		auto addOrOverwrite = [&](PropertyType pt, bool isImportant, const String& k, const String& v)
 		{
 			bool shouldExtend = pt == PropertyType::Shadow || pt == PropertyType::Transform;
 
@@ -1894,25 +1752,39 @@ StyleSheet::Collection Parser::getCSSValues() const
 						{
 							if(propertyValue.first == thisPseudoState.stateFlag)
 							{
-								if(shouldExtend)
-									propertyValue.second.appendToValue(v);
-								else
-									propertyValue.second = PropertyValue(pt, v);
-
+                                if(isImportant >= (int)propertyValue.second.important)
+                                {
+                                    if(v == "initial" || v == "unset" || v == "inherit")
+                                    {
+                                        propertyValue.second = PropertyValue(pt, "default", isImportant);
+                                    }
+                                    else
+                                    {
+                                        if(shouldExtend)
+                                            propertyValue.second.appendToValue(v);
+                                        else
+                                            propertyValue.second = PropertyValue(pt, v, isImportant);
+                                    }
+                                }
 								found = true;
 								break;
 							}
 						}
 					}
-
-					
 				}
 
 				if(!found)
 				{
+                    auto vToUse = v;
+                    
+                    if(v == "initial" || v == "unset" || v == "inherit")
+                    {
+                        vToUse = "default";
+                    }
+                    
 					Property p;
 					p.name = k;
-					p.values.push_back({thisPseudoState.stateFlag, PropertyValue(pt, v)});
+					p.values.push_back({thisPseudoState.stateFlag, PropertyValue(pt, vToUse, isImportant)});
 					n->properties[(int)thisPseudoState.element].push_back(p);
 				}
 			}
@@ -1922,10 +1794,20 @@ StyleSheet::Collection Parser::getCSSValues() const
 
 		for(const auto& rv: rc.lines)
 		{
+            bool isImportant = false;
+            
 			auto p = getPropertyType(rv.property);
 
-			auto isMultiValue = rv.items.size() > 1;
-				
+            auto tokens = rv.items;
+			auto isMultiValue = tokens.size() > 1;
+            
+            if(tokens[tokens.size()-1] == "!important")
+            {
+                isImportant = true;
+                tokens.pop_back();
+                isMultiValue = tokens.size() > 1;
+            }
+            
 			if(p == PropertyType::Positioning)
 				isMultiValue = !rv.property.containsChar('-');
 
@@ -1934,42 +1816,40 @@ StyleSheet::Collection Parser::getCSSValues() const
 
 			if(isMultiValue)
 			{
-				auto& tokens = rv.items;
-
 				switch(p)
 				{
 				case PropertyType::Positioning:
 				{
 					if(tokens.size() == 1)
 					{
-						addOrOverwrite(p, rv.property + "-top", tokens[0]);
-						addOrOverwrite(p, rv.property + "-bottom", tokens[0]);
-						addOrOverwrite(p, rv.property + "-left", tokens[0]);
-						addOrOverwrite(p, rv.property + "-right", tokens[0]);
+						addOrOverwrite(p, isImportant, rv.property + "-top", tokens[0]);
+						addOrOverwrite(p, isImportant, rv.property + "-bottom", tokens[0]);
+						addOrOverwrite(p, isImportant, rv.property + "-left", tokens[0]);
+						addOrOverwrite(p, isImportant, rv.property + "-right", tokens[0]);
 					}
 					if(tokens.size() == 2)
 					{
 						// tokens[0] = t, b
 						// tokens[1] = r, l
-						addOrOverwrite(p, rv.property + "-top", tokens[0]);
-						addOrOverwrite(p, rv.property + "-bottom", tokens[0]);
-						addOrOverwrite(p, rv.property + "-left", tokens[1]);
-						addOrOverwrite(p, rv.property + "-right", tokens[1]);
+						addOrOverwrite(p, isImportant, rv.property + "-top", tokens[0]);
+						addOrOverwrite(p, isImportant, rv.property + "-bottom", tokens[0]);
+						addOrOverwrite(p, isImportant, rv.property + "-left", tokens[1]);
+						addOrOverwrite(p, isImportant, rv.property + "-right", tokens[1]);
 					}
 					if(tokens.size() == 3)
 					{
-						addOrOverwrite(p, rv.property + "-top", tokens[0]);
-						addOrOverwrite(p, rv.property + "-left", tokens[1]);
-						addOrOverwrite(p, rv.property + "-right", tokens[1]);
-						addOrOverwrite(p, rv.property + "-bottom", tokens[2]);
+						addOrOverwrite(p, isImportant, rv.property + "-top", tokens[0]);
+						addOrOverwrite(p, isImportant, rv.property + "-left", tokens[1]);
+						addOrOverwrite(p, isImportant, rv.property + "-right", tokens[1]);
+						addOrOverwrite(p, isImportant, rv.property + "-bottom", tokens[2]);
 					}
 					if(tokens.size() == 4)
 					{
 						// tokens = [t, r, b, l]
-						addOrOverwrite(p, rv.property + "-top", tokens[0]);
-						addOrOverwrite(p, rv.property + "-bottom", tokens[1]);
-						addOrOverwrite(p, rv.property + "-left", tokens[2]);
-						addOrOverwrite(p, rv.property + "-right", tokens[3]);
+						addOrOverwrite(p, isImportant, rv.property + "-top", tokens[0]);
+						addOrOverwrite(p, isImportant, rv.property + "-bottom", tokens[1]);
+						addOrOverwrite(p, isImportant, rv.property + "-left", tokens[2]);
+						addOrOverwrite(p, isImportant, rv.property + "-right", tokens[3]);
 					}
 
 					break;
@@ -2005,24 +1885,24 @@ StyleSheet::Collection Parser::getCSSValues() const
 				{
 					if(tokens.size() == 1)
 					{
-						addOrOverwrite(p, "border-top-left-radius", tokens[0]);
-						addOrOverwrite(p, "border-top-right-radius", tokens[0]);
-						addOrOverwrite(p, "border-bottom-left-radius", tokens[0]);
-						addOrOverwrite(p, "border-bottom-right-radius", tokens[0]);
+						addOrOverwrite(p, isImportant, "border-top-left-radius", tokens[0]);
+						addOrOverwrite(p, isImportant, "border-top-right-radius", tokens[0]);
+						addOrOverwrite(p, isImportant, "border-bottom-left-radius", tokens[0]);
+						addOrOverwrite(p, isImportant, "border-bottom-right-radius", tokens[0]);
 					}
 					if(tokens.size() == 2)
 					{
-						addOrOverwrite(p, "border-top-left-radius", tokens[0]);
-						addOrOverwrite(p, "border-top-right-radius", tokens[1]);
-						addOrOverwrite(p, "border-bottom-left-radius", tokens[1]);
-						addOrOverwrite(p, "border-bottom-right-radius", tokens[0]);
+						addOrOverwrite(p, isImportant, "border-top-left-radius", tokens[0]);
+						addOrOverwrite(p, isImportant, "border-top-right-radius", tokens[1]);
+						addOrOverwrite(p, isImportant, "border-bottom-left-radius", tokens[1]);
+						addOrOverwrite(p, isImportant, "border-bottom-right-radius", tokens[0]);
 					}
 					if(tokens.size() == 4)
 					{
-						addOrOverwrite(p, "border-top-left-radius", tokens[0]);
-						addOrOverwrite(p, "border-top-right-radius", tokens[1]);
-						addOrOverwrite(p, "border-bottom-left-radius", tokens[2]);
-						addOrOverwrite(p, "border-bottom-right-radius", tokens[3]);
+						addOrOverwrite(p, isImportant, "border-top-left-radius", tokens[0]);
+						addOrOverwrite(p, isImportant, "border-top-right-radius", tokens[1]);
+						addOrOverwrite(p, isImportant, "border-bottom-left-radius", tokens[2]);
+						addOrOverwrite(p, isImportant, "border-bottom-right-radius", tokens[3]);
 					}
 
 					break;
@@ -2031,14 +1911,14 @@ StyleSheet::Collection Parser::getCSSValues() const
 				{
 					ShadowParser bp(tokens);
 					
-					addOrOverwrite(PropertyType::Shadow, rv.property, bp.toParsedString());
+					addOrOverwrite(PropertyType::Shadow, isImportant, rv.property, bp.toParsedString());
 					break;
 				}
 				case PropertyType::Transform:
 				{
 					for(const auto& t: tokens)
 					{
-						addOrOverwrite(PropertyType::Transform, rv.property, t);
+						addOrOverwrite(PropertyType::Transform, isImportant, rv.property, t);
 							
 					}
 
@@ -2055,7 +1935,7 @@ StyleSheet::Collection Parser::getCSSValues() const
 					for(auto t: tokens)
 					{
 						auto suffix = getTokenSuffix(p, rv.property, t);
-						addOrOverwrite(p, rv.property + suffix, processValue(t));
+						addOrOverwrite(p, isImportant, rv.property + suffix, processValue(t));
 					}
 
 					break;
@@ -2065,11 +1945,11 @@ StyleSheet::Collection Parser::getCSSValues() const
 			}
 			else
 			{
-				auto t = rv.items[0];
+				auto t = tokens[0];
 				auto suffix = getTokenSuffix(p, rv.property, t);
 
 				if(rv.property == "background-image" && t.startsWith("linear-gradient"))
-					addOrOverwrite(p, "background-color", processValue(t));
+					addOrOverwrite(p, isImportant, "background-color", processValue(t));
 				else if (p == PropertyType::Transition)
 				{
 					Transition tr;
@@ -2085,7 +1965,7 @@ StyleSheet::Collection Parser::getCSSValues() const
 					transitions["all"] = tr;
 				}
 				else
-					addOrOverwrite(p, rv.property + suffix, processValue(t));
+					addOrOverwrite(p, isImportant, rv.property + suffix, processValue(t));
 			}
 		}
 		

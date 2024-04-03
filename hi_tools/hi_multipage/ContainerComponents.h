@@ -115,6 +115,17 @@ struct List: public Container
 
     void createEditor(Dialog::PageInfo& info) override;
 
+    void postInit() override
+    {
+        Container::postInit();
+        
+        if(foldable)
+        {
+            foldButton->setToggleState(folded, dontSendNotification);
+            refreshFold();
+        }
+    }
+    
     Path fold;
     String title;
     bool foldable = false;

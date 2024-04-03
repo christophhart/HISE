@@ -113,6 +113,23 @@ Array<Selector> FlexboxComponent::Helpers::getClassSelectorFromComponentClass(Co
 	return list;
 }
 
+String FlexboxComponent::Helpers::dump(Component& c)
+{
+    String s;
+    
+    auto t = getTypeSelectorFromComponentClass(&c);
+    
+    if(t)
+        s << t.toString();
+    
+    s << " " << getIdSelectorFromComponentClass(&c).toString();
+
+    for(auto c: getClassSelectorFromComponentClass(&c))
+        s << " " << c.toString();
+    
+    return s;
+}
+
 void FlexboxComponent::Helpers::writeClassSelectors(Component& c, const Array<Selector>& classList)
 {
 	Array<var> classes;
@@ -304,20 +321,25 @@ float FlexboxComponent::getAutoSize(bool getAutoHeight)
 
 		auto w = 0.0f;
 
+        auto first = true;
+        
 		for(const auto& i: data.flexBox.items)
-			w += i.width;
+        {
+            w += i.width;
+            w += jmax(i.margin.left, i.margin.right);
+        }
 
 		if(ss != nullptr)
 		{
 			Rectangle<float> b(0.0f, 0.0f, w, 0.0f);
 
-			w += ss->getPixelValue(b, {"padding-top", {}});
-			w += ss->getPixelValue(b, {"padding-bottom", {}});
+			w += ss->getPixelValue(b, {"padding-left", {}});
+			w += ss->getPixelValue(b, {"padding-right", {}});
 
 			if(applyMargin)
 			{
-				w += ss->getPixelValue(b, {"margin-top", {}});
-				w += ss->getPixelValue(b, {"margin-bottom", {}});
+				w += ss->getPixelValue(b, {"margin-left", {}});
+				w += ss->getPixelValue(b, {"margin-right", {}});
 			}
 		}
 
@@ -583,6 +605,8 @@ void HeaderContentFooter::showEditor()
 			
 	});
 }
+
+
 
 void HeaderContentFooter::setStylesheetCode(const String& code)
 {

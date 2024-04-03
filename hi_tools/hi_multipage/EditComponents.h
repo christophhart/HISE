@@ -58,7 +58,9 @@ struct CodeGenerator
       className(className_),
       rootDirectory(rootDirectory_),
       numTabs(numTabs_)
-	{}
+	{
+        className = totalData[mpid::Properties][mpid::ProjectName].toString();
+    }
 
     void write(OutputStream& output, FileType t, State::Job* job) const;
 
@@ -84,12 +86,20 @@ struct CodeGenerator
         }
     }
 
+    void setUseRawMode(bool shouldUseRawMode)
+    {
+        rawMode = shouldUseRawMode;
+    }
+    
     String company;
     String version;
     String hisePath;
 
 private:
 
+    mutable StringArray lambdaLocalIds;
+    mutable StringArray lambdaIds;
+    
     struct ScopedTabSetter
     {
 	    ScopedTabSetter(const CodeGenerator& cg):
@@ -116,6 +126,8 @@ private:
     
     mutable StringArray existingVariables;
 
+    bool rawMode = false;
+    
     mutable int idCounter = 0;
     mutable int numTabs;
     var data;

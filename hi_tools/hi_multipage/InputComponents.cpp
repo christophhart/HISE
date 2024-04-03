@@ -258,7 +258,10 @@ void LabelledComponent::resized()
 
 void LabelledComponent::callOnValueChange()
 {
-    auto ms = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
+    auto state = &rootDialog.getState();
+    
+    if(auto ms = findParentComponentOfClass<ComponentWithSideTab>())
+        state = ms->getMainState();
     
     if(engine != nullptr && infoObject[mpid::UseOnValue])
     {
@@ -1229,15 +1232,10 @@ Result TextInput::loadFromInfoObject(const var& obj)
 
 	if(obj.hasProperty(mpid::Items))
 	{
-		autocompleteItems = StringArray::fromLines(obj[mpid::Items].toString());
-	}
-
-	
-	
-	
-	if(obj.hasProperty(mpid::Items))
-	{
-		autocompleteItems = StringArray::fromLines(obj[mpid::Items].toString());
+        auto items = obj[mpid::Items].toString();
+        
+        useDynamicAutocomplete = items == "{DYNAMIC}";
+		autocompleteItems = StringArray::fromLines(items);
 	}
 
     return ok;
@@ -1245,6 +1243,14 @@ Result TextInput::loadFromInfoObject(const var& obj)
 
 void TextInput::showAutocomplete(const String& currentText)
 {
+    if(useDynamicAutocomplete)
+    {
+        if(auto hd = findParentComponentOfClass<HardcodedDialogWithState>())
+            autocompleteItems = hd->getAutocompleteItems(id);
+        else
+            autocompleteItems = {};
+    }
+    
 	if(!autocompleteItems.isEmpty() && currentAutocomplete == nullptr && currentText.isNotEmpty())
 	{
 		currentAutocomplete = new Autocomplete(*this);
@@ -1472,6 +1478,13 @@ Result FileSelector::checkGlobalState(var globalState)
 
     if(required)
     {
+        auto isSave = (bool)infoObject[mpid::SaveFile];
+        
+        auto allowNewFile = isSave && f != File();
+        
+        if(allowNewFile)
+            return Result::ok();
+        
 	    String message;
 		message << "You need to select a ";
 		if(isDirectory)

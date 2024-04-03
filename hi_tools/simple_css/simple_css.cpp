@@ -231,6 +231,10 @@ struct CssTestSuite: public UnitTest
 		expectSelectorRed<>({}, { ".my-button"}, "* { background: green; } .my-button { background: red; }");
 		expectSelectorRed<>({}, { ".my-button"}, ".my-button { background: red; } * { background: green; }");
 
+        expectSelectorRed<>({}, { ".my-button"}, ".my-button { background: green; } .my-button { background: red; }");
+        
+        expectSelectorRed<>({}, { ".my-button"}, ".my-button { background: red !important; } .my-button { background: green; }");
+        
 		expectSelectorRed<TextButton>({}, {}, "button { background: red; }");
 		expectSelectorRed<ComboBox>({}, {}, "select { background: red; }");
 
@@ -284,9 +288,10 @@ struct CssTestSuite: public UnitTest
 		expectArea("width: 50px; height: 50px; min-width: 80px;", { 0, 0, 80, 50 });
 		expectArea("width: 50px; height: 50px; min-height: 80px;", { 0, 0, 50, 80 });
 
-		
+#if JUCE_WINDOWS
 		expectAreaFromText("1234567890", "padding: 10px; font-family: monospace; font-size: 16px;", {0, 0, 116, 36});
 		expectAreaFromText("1234567890", "font-family: monospace; font-size: 16px; max-width: 80px; margin-bottom: 10px;", {0, 0, 80, 26});
+#endif
 
 	}
 

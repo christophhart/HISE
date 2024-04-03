@@ -93,6 +93,9 @@ String StyleSheet::getPropertyValueString(const PropertyKey& key) const
 
 void StyleSheet::copyPropertiesFrom(Ptr other, bool overwriteExisting, const StringArray& propertiesToCopy)
 {
+    if(other == nullptr)
+        return;
+    
 	if(other->varProperties != nullptr)
 	{
 		if(varProperties == nullptr)
@@ -110,6 +113,19 @@ void StyleSheet::copyPropertiesFrom(Ptr other, bool overwriteExisting, const Str
 	{
 		for(const auto& v: p.values)
 		{
+            if(p.name == "all")
+            {
+                auto valueToUse = p.values[0].second;
+                
+                for(auto& tp: properties[(int)t])
+                {
+                    for(auto& s: tp.values)
+                        s.second = valueToUse;
+                }
+                
+                return false;
+            }
+            
 			bool found = false;
 
 			if(!propertiesToCopy.isEmpty() && !propertiesToCopy.contains(p.name))
@@ -117,14 +133,20 @@ void StyleSheet::copyPropertiesFrom(Ptr other, bool overwriteExisting, const Str
 
 			for(auto& tp: properties[(int)t])
 			{
-				if(tp.name == p.name)
+                if(tp.name == p.name)
 				{
 					for(auto& stateValue: tp.values)
 					{
 						if(stateValue.first == v.first)
 						{
+                            auto thisImportant = stateValue.second.important;
+                            auto otherImportant = v.second.important;
+                            
 							if(overwriteExisting)
-								stateValue.second = v.second;
+                            {
+                                if((int)otherImportant >= (int)thisImportant)
+                                    stateValue.second = v.second;
+                            }
 
 							found = true;
 						}
@@ -306,7 +328,8 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	
 	using Match = std::pair<ComplexSelector::Score, StyleSheet::Ptr>;
 
-
+    List debugList;
+    
 	Array<Match> matches;
 
 	auto all = getWithAllStates(Selector(SelectorType::All, "*"));
@@ -383,13 +406,25 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	}
 	else
 		ptr = new StyleSheet(elementSelector);
-	
+    
 	ptr->copyPropertiesFromParent(all);
+    
+    if(all != nullptr)
+        debugList.addIfNotAlreadyThere(all);
+    
 	ptr->copyPropertiesFromParent(parentStyle);
+
+    if(parentStyle != nullptr)
+        debugList.addIfNotAlreadyThere(parentStyle);
 
 	for(int i = matches.size() - 1; i >= 0; i--)
 	{
-		ptr->copyPropertiesFrom(matches[i].second);
+        auto other = matches[i].second;
+        
+        if(other != nullptr)
+            debugList.addIfNotAlreadyThere(other);
+        
+		ptr->copyPropertiesFrom(other);
 	}
 
 	if(inlineStyle.isNotEmpty())
@@ -404,16 +439,92 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		Parser p(ic);
 		p.parse();
 		auto is = p.getCSSValues().getWithAllStates(elementSelector);
+        
+        if(is != nullptr)
+            debugList.addIfNotAlreadyThere(is);
+        
 		ptr->copyPropertiesFrom(is, true);
 	}
 
-	cachedMaps.add({ c, ptr });
+    String inherited;
+    String styleSheetLog;
+    
+    for(int i = debugList.size() - 1; i >= 0; i--)
+    {
+        auto newStyle = debugList[i]->toString();
+        
+        auto lines = StringArray::fromLines(newStyle);
+        
+        for(auto& l: lines)
+        {
+            auto prop = l.upToFirstOccurrenceOf(":", true, false).trim();
+            
+            if(l.containsChar(':') && inherited.contains(prop) )
+                l =   "/*" + l + "*/";
+        }
+        
+        newStyle = lines.joinIntoString("\n");
+        
+        inherited << newStyle;
+        inherited << "\n";
+    }
+    
+    auto tc = c;
+    styleSheetLog << "/* CSS for component hierarchy: */\n";
+    
+
+    
+    StringArray hierarchy;
+    
+    StringArray elementSelectors;
+    
+    while(tc != nullptr)
+    {
+        if(auto vp = dynamic_cast<FlexboxViewport*>(tc))
+            tc = tc->getParentComponent();
+        
+        hierarchy.add(FlexboxComponent::Helpers::dump(*tc));
+        
+        auto currentType = FlexboxComponent::Helpers::getTypeSelectorFromComponentClass(tc);
+        
+        if(currentType == Selector(ElementType::Body))
+            break;
+        
+        auto ptrValue = reinterpret_cast<uint64>(tc);
+        Selector elementSelector(SelectorType::Element, String::toHexString(ptrValue));
+        
+        elementSelectors.add(elementSelector.toString());
+        
+        tc = tc->getParentComponent();
+    }
+    
+    String pre = "\n";
+    
+    for(int i = hierarchy.size() - 1; i >= 0; i--)
+    {
+        styleSheetLog << pre << hierarchy[i];
+        pre << " ";
+    }
+    
+    styleSheetLog << "\n\n/** Component stylesheet: */\n";
+    
+
+    
+    styleSheetLog << ptr->toString();
+    
+    styleSheetLog << "\n\n/** Inherited style sheets: */\n";
+    
+    styleSheetLog << inherited;
+    
+    for(int i = 0; i < elementSelectors.size(); i++)
+    {
+        styleSheetLog = styleSheetLog.replace(elementSelectors[i], hierarchy[i]);
+    }
+    
+	cachedMaps.add({ c, ptr, styleSheetLog });
 
 	if(auto root = CSSRootComponent::find(*c))
 		setAnimator(&root->animator);
-
-	DBG("CSS for component");
-	DBG(ptr->toString());
 
 	return ptr;
 
@@ -1404,14 +1515,17 @@ String StyleSheet::toString() const
 {
 	String listContent;
 
+    String sel;
+    
 	for(auto s: complexSelectors)
 	{
-		listContent << s->toString();
+		sel << s->toString();
 
 		if(s != complexSelectors.getLast().get())
-			listContent << ", ";
+			sel << ", ";
 	}
 		
+    listContent << sel;
 	
 	int idx = 0;
 
@@ -1424,7 +1538,7 @@ String StyleSheet::toString() const
 		}
 			
 		if(idx != 0)
-			listContent << "\n::" << PseudoState::getPseudoElementName(idx);
+			listContent << sel << "::" << PseudoState::getPseudoElementName(idx);
 
 		idx++;
 
@@ -1453,6 +1567,28 @@ Transition StyleSheet::getTransitionOrDefault(PseudoElementType elementType, con
 		return t;
 
 	return defaultTransitions[(int)elementType];
+}
+
+bool StyleSheet::matchesComplexSelectorList(ComplexSelector::List list) const
+{
+	if(list.size() != complexSelectors.size())
+		return false;
+
+	bool match = true;
+
+	for(auto ts: complexSelectors)
+	{
+		auto thisMatch = false;
+
+		for(auto os: list)
+		{
+			thisMatch |= ts->matchesOtherComplexSelector(os);
+		}
+
+		match &= thisMatch;
+	}
+
+	return match;
 }
 
 bool StyleSheet::matchesSelectorList(const Array<Selector>& otherSelectors)
@@ -1507,6 +1643,19 @@ void StyleSheet::setPropertyVariable(const Identifier& id, const String& newValu
 		varProperties = new DynamicObject();
 
 	varProperties->setProperty(id, newValue);
+}
+
+bool StyleSheet::isAll() const
+{
+	for(auto cs: complexSelectors)
+	{
+		if(!cs->hasParentSelectors() && 
+			cs->thisSelectors.isSingle() && 
+			cs->thisSelectors.selectors[0].first.type == SelectorType::All)
+			return true;
+	}
+
+	return false;
 }
 
 PositionType StyleSheet::getPositionType(PseudoState state) const

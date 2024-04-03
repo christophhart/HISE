@@ -114,6 +114,8 @@ struct TextInput: public LabelledComponent,
 
 private:
 
+    bool useDynamicAutocomplete = false;
+    
     String emptyText;
 
     void showAutocomplete(const String& currentText);
@@ -326,27 +328,33 @@ struct CodeEditor: public LabelledComponent
             std::unique_ptr<JavascriptEngine> engine;
         };
 
-        AllEditor():
+        AllEditor(const String& syntax):
           codeDoc(doc),
           editor(new mcl::TextEditor(codeDoc))
         {
-            editor->tokenCollection = new mcl::TokenCollection("Javascript");
-            editor->tokenCollection->setUseBackgroundThread(false);
-        	editor->tokenCollection->addTokenProvider(new TokenProvider(this));
+            if(syntax == "CSS")
+            {
+	            editor->tokenCollection = new mcl::TokenCollection("CSS");
+                editor->tokenCollection->setUseBackgroundThread(false);
+	            editor->setLanguageManager(new simple_css::LanguageManager(codeDoc));
+            }
+            else
+            {
+	            editor->tokenCollection = new mcl::TokenCollection("Javascript");
+		        editor->tokenCollection->setUseBackgroundThread(false);
+		        editor->tokenCollection->addTokenProvider(new TokenProvider(this));
+            }
+            
 	        addAndMakeVisible(editor);
         }
 
         ~AllEditor()
         {
-            
-
 	        editor->tokenCollection = nullptr;
             editor = nullptr;
         }
 
         void resized() override { editor->setBounds(getLocalBounds()); };
-
-        
 
 	    juce::CodeDocument doc;
 	    mcl::TextDocument codeDoc;
@@ -354,7 +362,7 @@ struct CodeEditor: public LabelledComponent
     };
 
 	CodeEditor(Dialog& r, int w, const var& obj):
-      LabelledComponent(r, w, obj, new AllEditor())
+      LabelledComponent(r, w, obj, new AllEditor(obj[mpid::Syntax].toString()))
 	{
         Helpers::writeInlineStyle(getComponent<AllEditor>(), "height: 360px;");
 		setSize(w, 360);
@@ -382,26 +390,58 @@ struct CodeEditor: public LabelledComponent
 
     Result compile()
     {
-	    auto code = getComponent<AllEditor>().doc.getAllContent();
+        auto syntax = infoObject[mpid::Syntax].toString();
+
+        auto& editor = *getComponent<AllEditor>().editor.get();
+
+        auto code = getComponent<AllEditor>().doc.getAllContent();
 
         auto* state = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
 
         if(code.startsWith("${"))
             code = state->loadText(code);
 
-        auto infoObject = findParentComponentOfClass<Dialog>()->getState().globalState;
+        if(syntax == "CSS")
+        {
+            simple_css::Parser p(code);
+            auto ok = p.parse();
+			editor.clearWarningsAndErrors();
+			editor.setError(ok.getErrorMessage());
 
-        auto e = state->createJavascriptEngine(infoObject);
-        auto ok = e->execute(code);
+			for(const auto& w: p.getWarnings())
+				editor.addWarning(w);
 
-        getComponent<AllEditor>().editor->setError(ok.getErrorMessage());
+            if(ok.wasOk())
+            {
+	            writeState(code);
 
-        if(ok.wasOk())
-            writeState(code);
+	            if(auto d = state->currentDialog.get())
+	            {
+		            d->positionInfo.additionalStyle = code;
+					d->loadStyleFromPositionInfo();
+	            }
+            }
+            else
+                state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
+            
+            return ok;
+        }
         else
-            state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
+        {
+	        auto infoObject = findParentComponentOfClass<Dialog>()->getState().globalState;
 
-        return ok;
+	        auto e = state->createJavascriptEngine(infoObject);
+	        auto ok = e->execute(code);
+
+	        getComponent<AllEditor>().editor->setError(ok.getErrorMessage());
+
+	        if(ok.wasOk())
+	            writeState(code);
+	        else
+	            state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
+
+	        return ok;
+        }
     }
 
     Result checkGlobalState(var globalState) override

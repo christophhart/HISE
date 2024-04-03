@@ -40,76 +40,7 @@ namespace library {
 
 
 
-struct BroadcasterWizard: public HardcodedDialogWithState
-{
-    struct CustomResultPage: public Dialog::PageBase
-	{
-	    enum class SourceIndex
-	    {
-	        None,
-	        ComplexData,
-	        ComponentProperties,
-	        ComponentVisibility,
-	        ContextMenu,
-	        EqEvents,
-	        ModuleParameters,
-	        MouseEvents,
-	        ProcessingSpecs,
-	        RadioGroup,
-	        RoutingMatrix,
-	        numSourceIndexTypes
-	    };
 
-	    enum class StringProcessor
-	    {
-		    None,
-	        Unquote,
-	        JoinToStringWithNewLines,
-	        ParseInt,
-	        numStringProcessors
-	    };
-
-	    enum class TargetIndex
-	    {
-	        None,
-	        Callback,
-	        CallbackDelayed,
-	        ComponentProperty,
-	        ComponentRefresh,
-	        ComponentValue,
-	        numTargetIndexTypes
-	    };
-	    
-	    DEFAULT_PROPERTIES(CustomResultPage)
-	    {
-	        return {
-	            { mpid::ID, "custom" }
-	        };
-	    }
-
-	    CustomResultPage(Dialog& r, int width, const var& obj);;
-
-	    static var getArgs(SourceIndex source);
-	    static String createFunctionBodyIfAnonymous(const String& functionName, SourceIndex sourceIndex, bool createValueFunction);
-	    static void appendLine(String& x, const var& state, const String& suffix, const Array<var>& args, Array<StringProcessor> sp={});
-	    static String getTargetLine(TargetIndex target, const var& state);
-	    static String getAttachLine(SourceIndex source, const var& state);
-
-	    void postInit() override;
-	    void resized() override;
-	    Result checkGlobalState(var globalState) override;
-
-	    CodeDocument doc;
-	    mcl::TextDocument textDoc;
-	    mcl::TextEditor codeEditor;
-
-	};
-
-    BroadcasterWizard();
-    ~BroadcasterWizard() override;
-	
-    Dialog* createDialog(State& state) override;
-};
 
 struct NewProjectWizard: public HardcodedDialogWithState
 {
@@ -167,3 +98,25 @@ struct NewProjectWizard: public HardcodedDialogWithState
 } // namespace library
 } // namespace multipage
 } // namespace hise
+
+
+namespace hise {
+namespace multipage {
+namespace library {
+using namespace juce;
+struct CreateCSSFromTemplate: public HardcodedDialogWithState
+{
+    var createFile(State::Job& t, const var& state);
+    CreateCSSFromTemplate() { setSize(700, 330); };
+    
+    Dialog* createDialog(State& state) override;
+    
+};
+} // namespace library
+} // namespace multipage
+} // namespace hise
+
+
+
+
+

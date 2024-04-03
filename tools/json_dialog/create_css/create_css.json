@@ -1,0 +1,114 @@
+{
+  "StyleData": {
+    "Font": "Lato",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Create Stylesheet",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "CreateCSSFromTemplate",
+    "Company": "HISE",
+    "Version": "1.0.0",
+    "BinaryName": "",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "",
+    "DialogWidth": 700,
+    "DialogHeight": 330
+  },
+  "GlobalState": {
+    "ChoiceId": "Dark",
+    "ButtonId": true,
+    "template": "Dark",
+    "addAsAsset": "true",
+    "templateIndex": "Dark"
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "FileSelector",
+          "Text": "CSS File",
+          "ID": "file",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": "",
+          "Style": "",
+          "Required": true,
+          "Wildcard": "*.css",
+          "SaveFile": true,
+          "Help": "The CSS file to be created.  \n> it's highly recommended to pick a file that is relative to the `json` file you're using to create this dialog!.",
+          "Directory": false,
+          "UseOnValue": false
+        },
+        {
+          "Type": "Choice",
+          "Text": "Template",
+          "ID": "templateIndex",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "Dark",
+          "UseInitValue": true,
+          "Class": "",
+          "Style": "",
+          "Custom": false,
+          "ValueMode": "Index",
+          "Help": "The template to be used by the style sheet.",
+          "EmptyText": "",
+          "Items": "Dark\nBright\nProperties",
+          "UseOnValue": false
+        },
+        {
+          "Type": "Button",
+          "Text": "Add as asset",
+          "ID": "addAsAsset",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "true",
+          "UseInitValue": true,
+          "Class": "",
+          "Style": "",
+          "Help": "Whether to add this file as asset to the current dialog.",
+          "Required": false,
+          "ButtonType": "",
+          "Icon": "",
+          "Trigger": false,
+          "UseOnValue": false
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "LabelText",
+          "ID": "createFile",
+          "CallOnNext": true,
+          "Style": "display: none;",
+          "Class": "",
+          "Function": "createFile"
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    }
+  ],
+  "Assets": []
+}

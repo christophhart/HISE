@@ -43,7 +43,8 @@ struct FlexboxContainer
 	virtual void setDefaultStyleSheet(const String& code) = 0;
 	virtual void setCSS(StyleSheet::Collection& css) = 0;
 	virtual void addFlexItem(Component& c) = 0;
-
+    virtual void rebuildLayout() = 0;
+    
 	bool fullRebuild = true;
 };
 
@@ -52,6 +53,19 @@ struct FlexboxContainer
 struct FlexboxComponent: public Component,
 					     public FlexboxContainer
 {
+    struct VisibleState
+    {
+        bool isVisible(bool displayValue) const
+        {
+            displayValue |= mustBeVisible;
+            displayValue &= !mustBeHidden;
+            return displayValue;
+        }
+
+        bool mustBeVisible = true;
+        bool mustBeHidden = false;
+    };
+    
 	struct Helpers
 	{
 		static void setFallbackStyleSheet(Component& c, const String& properties);
@@ -64,6 +78,8 @@ struct FlexboxComponent: public Component,
 			invalidateCache(c);
 		}
 
+        static String dump(Component& c);
+        
 		static void writeSelectorsToProperties(Component& c, const StringArray& selectors);
 		static Selector getTypeSelectorFromComponentClass(Component* c);
 		static Array<Selector> getClassSelectorFromComponentClass(Component* c);
@@ -128,28 +144,39 @@ struct FlexboxComponent: public Component,
 
 	void rebuildRootLayout()
 	{
-		auto fc = this;
-
-		while(auto pfc = dynamic_cast<FlexboxComponent*>(fc->getParentComponent()))
+        rebuildLayout();
+        
+		Component* c = this;
+        
+		while(c = c->getParentComponent())
 		{
-			fc = pfc;
+            if(auto pfc = dynamic_cast<FlexboxContainer*>(c))
+            {
+                pfc->rebuildLayout();
+            }
 		}
-
-		fc->rebuildLayout();
 	}
 
 	/** Call this to ensure that the layout is changed properly. */
-	void rebuildLayout()
+	void rebuildLayout() override
 	{
 		for(int i = 0; i < getNumChildComponents(); i++)
 		{
-			if(auto childSS = childSheets[getChildComponent(i)])
+            auto c = getChildComponent(i);
+            
+			if(auto childSS = childSheets[c])
 			{
-				auto shouldBeHidden = childSS->getPropertyValueString({ "display", {} }) == "none";
-				getChildComponent(i)->setVisible(!shouldBeHidden);
+				auto displayValue = childSS->getPropertyValueString({ "display", {} }) != "none";
+                
+                if(visibleStates.find(c) != visibleStates.end())
+                {
+                    displayValue = visibleStates[c].isVisible(displayValue);
+                }
+                
+				getChildComponent(i)->setVisible(displayValue);
 			}
 		}
-
+        
 		callRecursive<FlexboxContainer>(this, [](FlexboxContainer* fc)
 		{
 			if(!dynamic_cast<Component*>(fc)->isVisible())
@@ -231,9 +258,19 @@ struct FlexboxComponent: public Component,
 	{
 		labelSelector = s;
 	}
+    
+    
+    
+    void setFlexChildVisibility(int childIndex, bool mustBeVisible, bool mustBeHidden)
+    {
+        auto c = getChildComponent(childIndex);
+        visibleStates[c] = { mustBeVisible, mustBeHidden };
+    }
 
 private:
 
+    std::map<Component*, VisibleState> visibleStates;
+    
 	ElementType labelSelector = ElementType::Paragraph;
 
 	CSSRootComponent* parentToUse = nullptr;
@@ -319,6 +356,9 @@ struct FlexboxViewport: public Component,
 	{
 		viewport.setViewedComponent(&content, false);
 		addAndMakeVisible(viewport);
+        sf.addScrollBarToAnimate(viewport.getVerticalScrollBar());
+        viewport.setScrollBarsShown(true, false);
+        viewport.setScrollBarThickness(12);
 		content.setApplyMargin(false);
 		content.setDefaultStyleSheet("display: flex; width: 100%;height: auto;");
 	}
@@ -353,12 +393,19 @@ struct FlexboxViewport: public Component,
 		viewport.setBounds(b.toNearestInt());
 	}
 
+    void rebuildLayout() override
+    {
+        content.rebuildLayout();
+        resized();
+    }
+    
 	void addFlexItem(Component& c) override
 	{
 		content.addFlexItem(c);
 	}
 
 	Viewport viewport;
+    ScrollbarFader sf;
 	FlexboxComponent content;
 	Selector s;
 	StyleSheet::Ptr ss;
@@ -376,7 +423,7 @@ struct HeaderContentFooter: public Component,
 	{
 		auto cs = Selector("#content");
 
-		if(useViewportContent)
+        if(useViewportContent)
 			content = new FlexboxViewport(cs);
 		else
 			content = new FlexboxComponent(cs);
@@ -417,12 +464,53 @@ struct HeaderContentFooter: public Component,
 		}
 	}
 
+    void paintOverChildren(Graphics& g) override
+    {
+        if(!inspectorData.first.isEmpty())
+        {
+            auto cb = inspectorData.first;
+            auto b = getLocalBounds().toFloat();
+            auto left = b.removeFromLeft(cb.getX());
+            auto right = b.removeFromRight(b.getRight() - cb.getRight());
+            auto top = b.removeFromTop(cb.getY());
+            auto bottom = b.removeFromBottom(b.getBottom() - cb.getBottom());
+            
+            g.setColour(Colours::black.withAlpha(0.5f));
+            g.fillRect(top);
+            g.fillRect(left);
+            g.fillRect(right);
+            g.fillRect(bottom);
+            
+            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.3f));
+            g.drawRect(inspectorData.first, 1.0f);
+            g.setColour(Colour(SIGNAL_COLOUR));
+            auto f = GLOBAL_MONOSPACE_FONT();
+            g.setFont(f);
+            
+            auto tb = inspectorData.first.withSizeKeepingCentre(f.getStringWidthFloat(inspectorData.second), inspectorData.first.getHeight() + 40).constrainedWithin(getLocalBounds().toFloat());
+            
+            if(inspectorData.first.getY() > 20)
+                g.drawText(inspectorData.second, tb, Justification::centredTop);
+            else
+                g.drawText(inspectorData.second, tb, Justification::centredBottom);
+        }
+    }
+    
+    void setCurrentInspectorData(const std::pair<Rectangle<float>, String>& newData)
+    {
+        inspectorData = newData;
+        repaint();
+    }
+    
+    std::pair<Rectangle<float>, String> inspectorData;
+    
 	FlexboxComponent body;
 	FlexboxComponent header;
 	ScopedPointer<FlexboxContainer> content;
 	FlexboxComponent footer;
 
 private:
+
 
 	DynamicObject::Ptr defaultProperties;
 };

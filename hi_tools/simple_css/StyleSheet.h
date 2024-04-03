@@ -60,7 +60,17 @@ struct StyleSheet: public ReferenceCountedObject
 
 		Ptr getFirst() const { return list.getFirst(); }
 
-		
+
+        String getDebugLogForComponent(Component* c) const
+        {
+            for(auto& cm: cachedMaps)
+            {
+                if(cm.first.getComponent() == c)
+                    return cm.debugLog;
+            }
+            
+            return {};
+        }
 
 		Ptr getForComponent(Component* c);
 		
@@ -82,8 +92,15 @@ struct StyleSheet: public ReferenceCountedObject
 
 		void forEach(const std::function<void(Ptr)>& f);
 
+        struct CachedStyleSheet
+        {
+            Component::SafePointer<Component> first;
+            StyleSheet::Ptr second;
+            String debugLog;
+        };
+        
 		Array<std::pair<Selector, StyleSheet::Ptr>> cachedMapForAllStates;
-		Array<std::pair<Component::SafePointer<Component>, StyleSheet::Ptr>> cachedMaps;
+		Array<CachedStyleSheet> cachedMaps;
 		
 		List list;
 	};
@@ -154,6 +171,8 @@ struct StyleSheet: public ReferenceCountedObject
 
 	Transition getTransitionOrDefault(PseudoElementType elementType, const Transition& t) const;
 
+	bool matchesComplexSelectorList(ComplexSelector::List list) const;
+
 	bool matchesSelectorList(const Array<Selector>& otherSelectors);
 	bool forEachProperty(PseudoElementType type, const std::function<bool(PseudoElementType, Property& v)>& f);
 	void setDefaultColour(const String& key, Colour c);
@@ -172,18 +191,7 @@ struct StyleSheet: public ReferenceCountedObject
 
 	ComplexSelector::List complexSelectors;
 
-	bool isAll() const
-	{
-		for(auto cs: complexSelectors)
-		{
-			if(!cs->hasParentSelectors() && 
-			   cs->thisSelectors.isSingle() && 
-			   cs->thisSelectors.selectors[0].first.type == SelectorType::All)
-				return true;
-		}
-
-		return false;
-	}
+	bool isAll() const;
 
 private:
 

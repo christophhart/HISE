@@ -12,25 +12,213 @@
 
 
 
+namespace hise {
+namespace multipage {
+
+struct CSSDebugger: public Component,
+                    public Timer,
+                    public PathFactory
+{
+    CSSDebugger(MainComponent& c):
+      parent(c),
+      codeDoc(doc),
+      editor(codeDoc),
+      powerButton("bypass", nullptr, *this)
+    {
+        root = parent.getMainState()->currentDialog;
+        
+        doc.setDisableUndo(true);
+        setName("CSS Inspector");
+        addAndMakeVisible(editor);
+        
+        editor.tokenCollection = new mcl::TokenCollection("CSS");
+        editor.tokenCollection->setUseBackgroundThread(false);
+        editor.setLanguageManager(new simple_css::LanguageManager(codeDoc));
+        editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(12.0f));
+        setSize(450, 800);
+        setOpaque(true);
+        startTimer(1000);
+        
+        addAndMakeVisible(powerButton);
+        powerButton.setToggleModeWithColourChange(true);
+        powerButton.setToggleStateAndUpdateIcon(true);
+        
+        powerButton.onClick = [this]()
+        {
+            if(powerButton.getToggleState())
+                this->startTimer(1000);
+            else
+                this->stopTimer();
+            
+            clear();
+        };
+    }
+    
+    MainComponent& parent;
+    
+    void clear()
+    {
+        if(root.getComponent() != nullptr)
+            root->setCurrentInspectorData({});
+    }
+    
+    HiseShapeButton powerButton;
+    
+    Path createPath(const String& url) const override
+    {
+        Path p;
+        LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+        return p;
+    }
+    
+    ~CSSDebugger()
+    {
+        clear();
+    }
+    
+    void paint(Graphics& g) override
+    {
+        g.fillAll(Colour(0xFF222222));
+    }
+    
+    void timerCallback() override
+    {
+        root = parent.getMainState()->currentDialog;
+        
+        if(root.getComponent() == nullptr)
+            return;
+        
+        auto* target = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+        
+        if(target != nullptr && target->findParentComponentOfClass<simple_css::CSSRootComponent>() == root.getComponent())
+        {
+            currentTarget = target;
+        }
+        
+        if(currentTarget.getComponent() != nullptr)
+        {
+            auto b = root.getComponent()->getLocalArea(currentTarget, currentTarget->getLocalBounds()).toFloat();
+            auto data = simple_css::FlexboxComponent::Helpers::dump(*currentTarget);
+            root->setCurrentInspectorData({b, data});
+            auto s = root->css.getDebugLogForComponent(currentTarget);
+            
+            if(doc.getAllContent() != s)
+                doc.replaceAllContent(s);
+        }
+    }
+    
+    Component::SafePointer<Component> currentTarget = nullptr;
+    
+    void resized() override
+    {
+        auto b = getLocalBounds();
+        auto topArea = b.removeFromTop(24);
+        
+        powerButton.setBounds(topArea.removeFromLeft(topArea.getHeight()).reduced(2));
+        editor.setBounds(b);
+    }
+
+    juce::CodeDocument doc;
+    mcl::TextDocument codeDoc;
+    mcl::TextEditor editor;
+    
+    Component::SafePointer<simple_css::HeaderContentFooter> root;
+};
+
+struct CreateCSSTemplate: public HardcodedDialogWithState
+{
+    CreateCSSTemplate():
+      HardcodedDialogWithState()
+    {
+        setSize(600, 350);
+        
+    }
+    
+    
+    Dialog* createDialog(State& state) override;
+};
+
+using namespace juce;
+Dialog* CreateCSSTemplate::createDialog(State& state)
+{
+    DynamicObject::Ptr fullData = new DynamicObject();
+    fullData->setProperty(mpid::StyleData, JSON::parse(R"({"Font": "Lato", "BoldFont": "<Sans-Serif>", "FontSize": 18.0, "bgColour": 4281545523, "codeBgColour": 864585864, "linkBgColour": 8947967, "textColour": 4294967295, "codeColour": 4294967295, "linkColour": 4289374975, "tableHeaderBgColour": 864059520, "tableLineColour": 864059520, "tableBgColour": 864059520, "headlineColour": 4287692721, "UseSpecialBoldFont": false})"));
+    fullData->setProperty(mpid::LayoutData, JSON::parse(R"({"DialogWidth": 700, "DialogHeight": 500, "StyleSheet": "ModalPopup"})"));
+    fullData->setProperty(mpid::Properties, JSON::parse(R"({"Header": "Create Stylesheet", "Subtitle": "Subtitle", "Image": "", "ProjectName": "MyProject", "Company": "MyCompany", "Version": "1.0.0", "BinaryName": "My Binary", "UseGlobalAppData": false, "Icon": ""})"));
+    using namespace factory;
+    auto mp_ = new Dialog(var(fullData.get()), state, false);
+    
+    auto& mp = *mp_;
+    
+//    dynamic_cast<simple_css::HeaderContentFooter*>(mp_)->showEditor();
+    
+    auto& List_0 = mp.addPage<factory::List>({
+      { mpid::Foldable, 0 },
+      { mpid::Folded, 0 }
+    });
+
+    auto& file_1 = List_0.addChild<factory::FileSelector>({
+      { mpid::Text, "CSS File" },
+      { mpid::ID, "file" },
+      { mpid::Enabled, 1 },
+      { mpid::Code, "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n    // Will be called whenever the value changes\n    Console.print(value);\n}\n" },
+      { mpid::UseInitValue, 0 },
+      { mpid::Required, 1 },
+      { mpid::Wildcard, "*.css" },
+      { mpid::SaveFile, 1 },
+      { mpid::Help, "The CSS file to be created.  \n> it's highly recommended to pick a file that is relative to the `json` file you're using to create this dialog!." },
+      { mpid::Directory, 0 },
+      { mpid::UseOnValue, 0 }
+    });
+
+    auto& ChoiceId_2 = List_0.addChild<factory::Choice>({
+      { mpid::Text, "Template" },
+      { mpid::ID, "templateIndex" },
+      { mpid::Enabled, 1 },
+      { mpid::Code, "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n    // Will be called whenever the value changes\n    Console.print(value);\n}\n" },
+      { mpid::InitValue, "Dark" },
+      { mpid::UseInitValue, 1 },
+      { mpid::Custom, 0 },
+      { mpid::ValueMode, "Index" },
+      { mpid::Help, "The template to be used by the style sheet." },
+      { mpid::Items, DefaultCSSFactory::getTemplateList() },
+      { mpid::UseOnValue, 0 }
+    });
+
+    auto& ButtonId_3 = List_0.addChild<factory::Button>({
+      { mpid::Text, "Add as asset" },
+      { mpid::ID, "addAsAsset" },
+      { mpid::Enabled, 1 },
+      { mpid::Code, "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n    // Will be called whenever the value changes\n    Console.print(value);\n}\n" },
+      { mpid::InitValue, "true" },
+      { mpid::UseInitValue, 1 },
+      { mpid::Help, "Whether to add this file as asset to the current dialog." },
+      { mpid::Required, 0 },
+      { mpid::Trigger, 0 },
+      { mpid::UseOnValue, 0 }
+    });
+
+    // Custom callback for page List_0
+    List_0.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj)
+    {
+        auto targetFile = File(obj["file"].toString());
+        
+        return Result::ok();
+
+    });
+    
+    return mp_;
+}
+} // namespace multipage
+} // namespace hise
+
+
 
 void MainComponent::build()
 {
-	
     using namespace multipage;
     using namespace factory;
-
-#if 0
-
-	addAndMakeVisible(hardcodedDialog = new multipage::library::BroadcasterWizard());
-
-#else
-
 	createDialog(File());
-
-	
-
-	
-#endif
 }
 
 PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
@@ -40,6 +228,7 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 	if(topLevelMenuIndex == 0) // File
 	{
 		m.addItem(CommandId::FileNew, "New file");
+
 		m.addItem(CommandId::FileLoad, "Load file");
 
 		PopupMenu r;
@@ -49,6 +238,8 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 		m.addItem(CommandId::FileSaveAs, "Save file as");
 		m.addItem(CommandId::FileExportAsProjucerProject, "Export as Projucer project");
 		m.addSeparator();
+        m.addItem(CommandId::FileCreateCSS, "Create CSS stylesheet");
+        m.addSeparator();
 		m.addItem(CommandId::FileQuit, "Quit");
 	}
 	if(topLevelMenuIndex == 1) // Edit
@@ -80,6 +271,7 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
         }
 
 		m.addItem(CommandId::ViewShowConsole, "Show console", true, console->isVisible());
+        m.addItem(CommandId::ViewShowCSSDebugger, "Show CSS Debugger", true, currentInspector != nullptr);
 	}
 	if(topLevelMenuIndex == 3) // Help
 	{
@@ -107,7 +299,11 @@ bool MainComponent::keyPressed(const KeyPress& key)
 		menuItemSelected(CommandId::FileSave, 0);
 		return true;
 	}
+    
+    return false;
 }
+
+
 
 void MainComponent::menuItemSelected(int menuItemID, int)
 {
@@ -123,6 +319,11 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 	case FileNew:
 		createDialog(File());
 		break;
+ 
+    case FileCreateCSS:
+        addAndMakeVisible(modalDialog = new ModalDialog(*this, new library::CreateCSSFromTemplate()));
+
+        break;
 	case FileLoad:
 		{
 			FileChooser fc("Open JSON file", File(), "*.json");
@@ -171,7 +372,7 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		c->repaint();
         resized();
 		break;
-	case EditRefreshPage: c->refreshCurrentPage(); tree->getContent<multipage::Tree>()->setRoot(*c); resized(); break;
+	case EditRefreshPage: c->refreshCurrentPage(); tree->setRoot(*c); resized(); break;
     case EditAddPage: c->addListPageWithJSON(); break;
 	case EditRemovePage: c->removeCurrentPage(); break;
 	case ViewShowDialog:
@@ -211,22 +412,43 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 	case ViewShowConsole:
 		console->setVisible(!console->isVisible());
 		resized();
+        menuItemsChanged();
 		break;
 	case ViewShowCpp:
 		{
 #if HISE_MULTIPAGE_INCLUDE_EDIT
 			multipage::CodeGenerator cg(rt.currentRootDirectory, "MyClass", c->exportAsJSON());
 			manualChange = false;
+            cg.setUseRawMode(true),
 			doc.removeListener(this);
 			c->setVisible(false);
 			stateViewer.setVisible(true);
 
 			MemoryOutputStream mos;
+            cg.write(mos, multipage::CodeGenerator::FileType::DialogHeader, nullptr);
 			cg.write(mos, multipage::CodeGenerator::FileType::DialogImplementation, nullptr);
 			doc.replaceAllContent(mos.toString());
 #endif
 			break;
 		}
+    case ViewShowCSSDebugger:
+    {
+        if(currentInspector != nullptr)
+        {
+            leftTab.remove(currentInspector);
+            currentInspector = nullptr;
+        }
+        else
+        {
+            currentInspector = leftTab.add(new CSSDebugger(*this), 0.5);
+            leftTab.setInitProportions({0.5, 0.5});
+        }
+        
+        menuItemsChanged();
+        
+        resized();
+        break;
+    }
 	case HelpAbout: break;
 	case HelpVersion: break;
 	default: ;
@@ -263,29 +485,22 @@ void MainComponent::createDialog(const File& f)
 	addAndMakeVisible(c = new multipage::Dialog(obj, rt));
 
 	c->showFirstPage();
-
-	//static_cast<simple_css::HeaderContentFooter*>(c.get())->showEditor();
-	auto css = DefaultCSSFactory::getTemplateCollection(DefaultCSSFactory::Template::Dark);
-	c->update(css);
 	
 	if(f.existsAsFile())
 		c->logMessage(multipage::MessageType::Navigation, "Load file " + f.getFullPathName());
 
 	
-	assetManager.listbox.updateContent();
-	assetManager.repaint();
-	assetManager.resized();
+	assetManager->listbox.updateContent();
+	assetManager->repaint();
+	assetManager->resized();
 
     c->setFinishCallback([](){
     	JUCEApplication::getInstance()->systemRequestedQuit();
     });
 
-
-	
-
 	resized();
 
-	tree->getContent<multipage::Tree>()->setRoot(*c);
+	tree->setRoot(*c);
 
 	c->toBack();
 
@@ -297,10 +512,11 @@ MainComponent::MainComponent():
   rt({}),
   doc(),
   stateDoc(doc),
-  assetManager(rt),
   stateViewer(stateDoc),
   menuBar(this),
-  tooltips(this)
+  tooltips(this),
+  leftTab(false),
+  rightTab(true)
 {
 #if 0
 	simple_css::Editor::showEditor(this, [this](simple_css::StyleSheet::Collection& c)
@@ -318,16 +534,17 @@ MainComponent::MainComponent():
 
 	mcl::TextEditor::initKeyPresses(this);
 
+    addAndMakeVisible(leftTab);
 	addAndMakeVisible(rightTab);
 
 	auto watchTable = new ScriptWatchTable();
 
+    tree = dynamic_cast<Tree*>(leftTab.add(new Tree(), 0.5));
 	rightTab.add(new SideTab(), 0.5);
 	rightTab.add(watchTable, 0.3);
-	rightTab.add(new AssetManager(rt), 0.2);
+	assetManager = dynamic_cast<AssetManager*>(rightTab.add(new AssetManager(rt), 0.2));
 
-	addAndMakeVisible(tree = ComponentWithEdge::wrap(new hise::multipage::Tree(), ResizableEdgeComponent::rightEdge, 360));
-	addAndMakeVisible(assetManager);
+//	addAndMakeVisible(tree = ComponentWithEdge::wrap(new hise::multipage::Tree(), ResizableEdgeComponent::rightEdge, 360));
 	addAndMakeVisible(console = ComponentWithEdge::wrap(new hise::multipage::EventConsole(rt), ResizableEdgeComponent::topEdge, 200));
 
 	watchTable->setHolder(&rt);
@@ -402,7 +619,7 @@ void MainComponent::paint (Graphics& g)
 
 	auto b = getLocalBounds().toFloat();
 
-	if(c != nullptr)
+	if(c != nullptr && tree != nullptr)
 	{
 		b.removeFromLeft(tree->getWidth());
 		b.removeFromRight(rightTab.getWidth());
@@ -435,8 +652,7 @@ void MainComponent::resized()
 
 		rightTab.setBounds(rb);
 		
-		tree->setVisible(true);
-		tree->setBounds(b.removeFromLeft(tree->getWidth()));
+        leftTab.setBounds(b.removeFromLeft(leftTab.getWidth()));
 
 		if(console->isVisible())
 			console->setBounds(b.removeFromBottom(console->getHeight()));
@@ -522,3 +738,6 @@ void MainComponent::setSavePoint()
 	
 	menuItemsChanged();
 }
+
+
+
