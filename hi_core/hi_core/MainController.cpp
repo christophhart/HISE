@@ -1104,6 +1104,13 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 
 	if (getMasterClock().shouldCreateInternalInfo(newTime) || insideInternalExport)
 	{
+		if(insideInternalExport)
+		{
+			// we need to make sure that the BPM is not reset to 120BPM
+			newTime.bpm = bpm;
+		}
+			
+
 		auto externalTime = newTime;
 
 		gridInfo = getMasterClock().processAndCheckGrid(buffer.getNumSamples(), newTime);
