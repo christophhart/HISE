@@ -68,16 +68,22 @@ StringArray BroadcasterWizard::getAutocompleteItems(const Identifier& textEditor
        textEditorId == Identifier("targetPropertyType"))
     {
         auto pToUse = textEditorId == Identifier("propertyType") ? "componentIds" : "targetComponentIds";
-        auto name = getProperty(pToUse)[0].toString().trim();
+
+        auto n = getProperty(pToUse);
 
         StringArray sa;
 
-        if(auto sc = sp->getScriptingContent()->getComponentWithName(name.trim()))
+        if(n.isArray())
         {
-	        auto numIds = sc->getNumIds();
+	        auto name = n[0].toString().trim();
 
-            for(int i = 0; i < numIds; i++)
-	            sa.add(sc->getIdFor(i).toString());
+	        if(auto sc = sp->getScriptingContent()->getComponentWithName(name.trim()))
+	        {
+		        auto numIds = sc->getNumIds();
+
+	            for(int i = 0; i < numIds; i++)
+		            sa.add(sc->getIdFor(i).toString());
+	        }
         }
 
         return sa;

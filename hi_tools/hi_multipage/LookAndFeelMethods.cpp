@@ -73,8 +73,6 @@ div
 label
 {
  text-align: left;
- color: #999;
- font-size: 13px;
  min-width: 70px;
 }
 
@@ -268,7 +266,6 @@ static const char* FOLD_BAR = R"(
  width: 100%;
  height: 34px;
  font-weight: 500;
- font-size: 13px;
  background: #202020;
  border-radius: 5px 5px 0px 0px;
  border: 0px;
