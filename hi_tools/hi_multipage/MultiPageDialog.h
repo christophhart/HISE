@@ -99,6 +99,7 @@ public:
         
         String styleSheet = "Dark";
         String additionalStyle;
+        bool useViewport = true;
     } positionInfo;
 
     struct PageBase: public simple_css::FlexboxComponent

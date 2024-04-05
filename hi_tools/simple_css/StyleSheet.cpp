@@ -1087,7 +1087,10 @@ struct ComponentUpdaters
 		jassert(parentTable != nullptr);
 
 		auto height = ss->getLocalBoundsFromText("M").getHeight();
-		parentTable->setHeaderHeight(height);
+
+		auto height2 = ss->getFlexItem(header, {}).height;
+
+		parentTable->setHeaderHeight(jmax(height, height2));
 	}
 
 	static void updateTextEditor(StyleSheet::Ptr ss, TextEditor* te, int currentState)
@@ -1730,12 +1733,16 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 	{
 		if(getPropertyValueString({"width", {}}) == "auto")
 		{
-			item.width = md->getAutoSize(false);
+			item.width = md->getAutoWidthForHeight(item.height);
 		}
 
 		if(getPropertyValueString({"height", {}}) == "auto")
 		{
-			item.height = md->getAutoSize();
+            auto l = getPixelValue(b, { "padding-left", {}}, 0.0);
+            auto r = getPixelValue(b, { "padding-right", {}}, 0.0);
+            
+            auto w = item.width - l - r;
+            item.height = md->getAutoHeightForWidth(w);
 		}
 	}
 	

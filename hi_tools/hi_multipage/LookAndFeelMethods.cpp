@@ -81,6 +81,11 @@ h1, h2, h3, h4
  font-size: 1.8rem;
 }
 
+#content
+{
+    background: #333;
+}
+
 #title
 {
     font-size: 1.5em;
@@ -391,7 +396,98 @@ progress::before
 
 )";
 
+static const char* TABLE = R"(
+th
+{
+    border-radius: 0px;
+    background: linear-gradient(to bottom, #282828, #242424);
+    font-size: 1.2em;
+    font-weight: 500;
+    padding: 8px 10px;
+    text-align: left;
+    margin-right: 1px;
+}
+
+th:first-child
+{
+    border-radius: 8px 0px 0px 0px;
+}
+th:last-child
+{
+    margin-right: 0px;
+    border-radius: 0px 8px 0px 0px;
+}
+
+tr
+{
+    background: transparent;
+}
+
+tr:hover
+{
+    background: #383838;
+}
+
+tr:checked
+{
+    background: #414141;
+}
+
+td
+{
+    border: 1px solid #282828;
+    border-top: 0px;
+    border-left: 0px;
+    color: #ccc;
+    font-weight: 400;
+    text-align: left;
+    padding: 7px 10px;
+}
+
+td:first-child
+{
+    border-left: 1px;
+}
+
+td:checked
+{
+    color: #fff;
+    font-weight: 500;
+}
+)";
+
+static const char* TAG_BUTTON = R"(
+.tag-button
+{
+    color: #bbb;
+    font-size: 0.95em;
+    padding: 5px 10px;
+    width: auto;
+    border-radius: 50%;
+    margin: 5px;
+    box-shadow: 0px 2px 3px rgba(0, 0, 0, 0.5);
+    border: 1px solid #666;
+}
+
+.tag-button:checked
+{
+    background: #bbb;
+    border: 1px solid #ddd;
+    color: #222;
+}
+
+.tag-list
+{
+    gap: 0px;
+}
+)";
+
 static const char* propertyCSS = R"(
+
+body {
+    font-size: 14px;
+}
+
 #header,
 #footer
 {
@@ -401,6 +497,7 @@ static const char* propertyCSS = R"(
 #content
 {
  padding: 5px;
+ background: #222;
 }
 
 input, select
@@ -1059,9 +1156,11 @@ String DefaultCSSFactory::getTemplate(Template t)
 	}
 
     s << default_css::POPUP_MENU;
+    s << default_css::TABLE;
     s << default_css::HELP;
     s << default_css::PROGRESS;
     s << default_css::FOLD_BAR;
+    s << default_css::TAG_BUTTON;
     
 	return s;
 }

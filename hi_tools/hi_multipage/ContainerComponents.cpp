@@ -279,7 +279,7 @@ void List::refreshFold()
 		}
 
         rebuildLayout();
-        setSize(getWidth(), getAutoSize());
+        setSize(getWidth(), getAutoHeightForWidth(getWidth()));
         rebuildRootLayout();
 	}
 }

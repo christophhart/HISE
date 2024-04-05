@@ -402,6 +402,394 @@ void DummyContent::createEditor(const var& infoObject, Dialog::PageInfo& rootLis
 		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
 }
+
+TagList::TagList(Dialog& parent, int w, const var& obj):
+	PageBase(parent, w, obj)
+{
+	Helpers::setFallbackStyleSheet(*this, "display:flex;width:100%;height:auto;flex-wrap:wrap;");
+	Helpers::writeClassSelectors(*this, simple_css::Selector(".tag-list"));
+}
+
+void TagList::buttonClicked(juce::Button*)
+{
+	Array<var> values;
+        
+	for(auto b: buttons)
+	{
+		if(b->getToggleState())
+			values.add(b->getButtonText());
+	}
+        
+	writeState(var(values));
+}
+
+void TagList::createEditor(Dialog::PageInfo& rootList)
+{
+	rootList.addChild<Type>({
+		{ mpid::ID, "Type"},
+		{ mpid::Type, "TagList"},
+		{ mpid::Help, "A dynamic list of clickable tags." }
+	});
+            
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "ID" },
+		{ mpid::Text, "ID" },
+		{ mpid::Value, infoObject[mpid::ID].toString() },
+		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Items.toString() },
+		{ mpid::Text, mpid::Items.toString() },
+		{ mpid::Help, "The list of tags - one per line" },
+		{ mpid::Multiline, true },
+		{ mpid::Height, 80 },
+		{ mpid::Value, infoObject[mpid::Items] }
+	});
+        
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Class.toString() },
+		{ mpid::Text, mpid::Class.toString() },
+		{ mpid::Help, "The CSS class that is applied to the UI element." },
+		{ mpid::Value, infoObject[mpid::Class] }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+		{ mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+}
+
+void TagList::postInit()
+{
+	buttons.clear();
+        
+	auto items = StringArray::fromLines(infoObject[mpid::Items].toString());
+        
+	for(auto i: items)
+	{
+		auto b = new TextButton(i);
+		b->setClickingTogglesState(true);
+		Helpers::writeClassSelectors(*b, simple_css::Selector(".tag-button"));
+		buttons.add(b);
+		b->addListener(this);
+		addFlexItem(*b);
+	}
+        
+	resized();
+}
+
+Table::CellComponent::CellComponent(Table& parent_):
+	parent(parent_)
+{
+	using namespace simple_css;
+            
+	setInterceptsMouseClicks(true, false);
+	setRepaintsOnMouseActivity(true);
+	Helpers::setCustomType(*this, Selector(ElementType::TableCell));
+}
+
+void Table::CellComponent::update(Point<int> newPos, const String& newContent)
+{
+	cellPosition = newPos;
+	content = newContent;
+            
+	auto isFirst = newPos.x == 0;
+	auto isLast = newPos.x == (parent.table.getHeader().getNumColumns(true)-1);
+            
+	getProperties().set("first-child", isFirst);
+	getProperties().set("last-child", isLast);
+            
+	repaint();
+}
+
+void Table::CellComponent::paint(Graphics& g)
+{
+	using namespace simple_css;
+            
+	Renderer r(nullptr, parent.rootDialog.stateWatcher);
+
+	if(auto ss = parent.rootDialog.css.getForComponent(this))
+	{
+                
+		auto state = r.getPseudoClassFromComponent(this);
+                
+		if(parent.table.isRowSelected(cellPosition.y))
+			state |= (int)PseudoClassType::Checked;
+                
+		r.setPseudoClassState(state);
+                
+		r.drawBackground(g, getLocalBounds().toFloat(), ss);
+		r.renderText(g, getLocalBounds().toFloat(), content, ss);
+	}
+}
+
+Table::Table(Dialog& parent, int w, const var& obj):
+	PageBase(parent, w, obj),
+	table(obj[mpid::ID].toString(), this),
+	repainter(table)
+{
+	if(!obj.hasProperty(mpid::ValueMode))
+		obj.getDynamicObject()->setProperty(mpid::ValueMode, "Row");
+        
+	addFlexItem(table);
+        
+	setSize(w, 250);
+	Helpers::setFallbackStyleSheet(*this, "height: 250px; width: 100%;");
+	Helpers::setFallbackStyleSheet(table, "height: 100%; width: 100%;");
+
+	table.setColour(TableListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
+	table.setHeaderHeight(32);
+	table.autoSizeAllColumns();
+	table.setRepaintsOnMouseActivity(true);
+	parent.stateWatcher.registerComponentToUpdate(&table.getHeader());
+        
+	sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
+	table.getViewport()->setScrollBarThickness(14);
+
+}
+
+void Table::rebuildColumns()
+{
+	auto columns = StringArray::fromLines(infoObject[mpid::Columns].toString());
+
+	auto& th = table.getHeader();
+
+	th.removeAllColumns();
+        
+	int columnId = 1;
+
+	for(auto c: columns)
+	{
+		auto instructions = StringArray::fromTokens(c, ";", "\"'");
+
+		String name;
+		int width = 100;
+		int minWidth = 30;
+		int maxWidth = -1;
+		int flags = 0;
+
+		enum class Properties
+		{
+			Name,
+			MinWidth,
+			MaxWidth,
+			Width,
+			Undefined,
+			numProperties
+		};
+
+		static const StringArray properties =
+		{
+			"name",
+			"min-width",
+			"max-width",
+			"width"
+		};
+
+		auto getProperty = [&](const String& v)
+		{
+			auto prop = v.upToFirstOccurrenceOf(":", false, false).trim();
+			auto idx = properties.indexOf(prop);
+			if(idx != -1)
+				return (Properties)idx;
+			else
+				return Properties::Undefined;
+		};
+
+		auto getPixelValue = [&](const String& v)
+		{
+			if(v.trim().endsWithChar('%'))
+			{
+				auto pv = v.getIntValue();
+				return roundToInt((float)pv * 0.01 * (float)table.getWidth());
+			}
+			else
+			{
+				return v.getIntValue();
+			}
+		};
+
+		for(auto i: instructions)
+		{
+			auto p = getProperty(i);
+			auto value = i.fromFirstOccurrenceOf(":", false, false).trim().unquoted();
+
+			switch(p)
+			{
+			case Properties::Name:
+				name = value;
+				break;
+			case Properties::MinWidth:
+				minWidth = jlimit(0, 1000, getPixelValue(value));
+				break;
+			case Properties::MaxWidth:
+				maxWidth = jlimit(-1, 1000, getPixelValue(value));
+				break;
+			case Properties::Width:
+				width = jlimit(10, 1000, getPixelValue(value));
+				break;
+			case Properties::Undefined:
+				break;
+			case Properties::numProperties:
+				break;
+			default: ;
+			}
+		}
+
+		th.addColumn(name, columnId++, width, minWidth, maxWidth, TableHeaderComponent::ColumnPropertyFlags::visible);
+	}
+
+	th.setStretchToFitActive(true);
+	th.resizeAllColumnsToFit(table.getWidth());
+        
+	using namespace simple_css;
+        
+	if(auto ss = rootDialog.css.getWithAllStates(Selector(ElementType::TableCell)))
+	{
+		table.setRowHeight(ss->getLocalBoundsFromText("M").getHeight());
+	}
+}
+
+String Table::getCellContent(int columnId, int rowNumber) const
+{
+	if(isPositiveAndBelow(rowNumber, items.size()))
+	{
+		if(auto cells = items[rowNumber].getArray())
+		{
+			if(isPositiveAndBelow(columnId - 1, cells->size()))
+				return (*cells)[columnId-1].toString();
+		}
+	}
+        
+	return {};
+}
+
+Component* Table::refreshComponentForCell(int rowNumber, int columnId, bool isRowSelected,
+	Component* existingComponentToUpdate)
+{
+	if(existingComponentToUpdate == nullptr)
+	{
+		auto newComponent = new CellComponent(*this);
+		newComponent->update({columnId-1, rowNumber}, getCellContent(columnId, rowNumber));
+		return newComponent;
+	}
+	else if(auto c = dynamic_cast<CellComponent*>(existingComponentToUpdate))
+	{
+		c->update({ columnId-1, rowNumber }, getCellContent(columnId, rowNumber));
+		return existingComponentToUpdate;
+	}
+	return nullptr;
+}
+
+void Table::createEditor(Dialog::PageInfo& rootList)
+{
+	rootList.addChild<Type>({
+		{ mpid::ID, "Type"},
+		{ mpid::Type, "Table"},
+		{ mpid::Help, "A component with fix columns and a dynamic amount of rows" }
+	});
+            
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "ID" },
+		{ mpid::Text, "ID" },
+		{ mpid::Value, infoObject[mpid::ID].toString() },
+		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Columns.toString() },
+		{ mpid::Text, mpid::Columns.toString() },
+		{ mpid::Help, "The list of columns - one per line using a pseudo CSS syntax for `name`, `max-width`, `min-width` and `width` properties." },
+		{ mpid::Multiline, true },
+		{ mpid::Height, 80 },
+		{ mpid::Value, itemsToString(infoObject[mpid::Columns]) }
+	});
+        
+        
+        
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Items.toString() },
+		{ mpid::Text, mpid::Items.toString() },
+		{ mpid::Help, "The list of rows - one per line using comma for separating cells" },
+		{ mpid::Multiline, true },
+		{ mpid::Height, 80 },
+		{ mpid::Value, infoObject[mpid::Items] }
+	});
+
+	rootList.addChild<factory::Choice>({
+		{ mpid::Text, mpid::ValueMode.toString() },
+		{ mpid::ID,  mpid::ValueMode.toString() },
+		{ mpid::Help, "How the table stores the selected item (either the zero based index of the selected row or the `[column, row]` position of the clicked cell" },
+		{ mpid::Items, "Row\nGrid" },
+		{ mpid::Value, infoObject[mpid::ValueMode] },
+		{ mpid::UseOnValue, 0 }
+	});
+        
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Class.toString() },
+		{ mpid::Text, mpid::Class.toString() },
+		{ mpid::Help, "The CSS class that is applied to the UI element." },
+		{ mpid::Value, infoObject[mpid::Class] }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+		{ mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+}
+
+void Table::paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
+{
+	using namespace simple_css;
+	simple_css::Renderer r(nullptr, rootDialog.stateWatcher);
+
+	auto point = table.getMouseXYRelative();
+
+	auto hoverRow = table.getRowContainingPosition(point.getX(), point.getY());
+
+	int flags = 0;
+
+	if(rowNumber == hoverRow)
+	{
+		flags |= (int)PseudoClassType::Hover;
+
+		if(isMouseButtonDownAnywhere())
+		{
+			flags |= (int)PseudoClassType::Active;
+		}
+	}
+
+	if(rowIsSelected)
+		flags |= (int)PseudoClassType::Checked;
+
+	r.setPseudoClassState(flags);
+
+	if(auto ss = rootDialog.css.getWithAllStates((Selector(ElementType::TableRow))))
+	{
+		r.drawBackground(g, {0.0f, 0.0f, (float)width, (float)height}, ss);
+	}
+}
+
+Result Table::checkGlobalState(var state)
+{
+	return Result::ok();
+}
+
+void Table::paint(Graphics& g)
+{
+	FlexboxComponent::paint(g);
+        
+	if(auto ss = rootDialog.css.getForComponent(&table))
+	{
+		simple_css::Renderer r(&table, rootDialog.stateWatcher);
+		r.drawBackground(g, table.getBoundsInParent().toFloat(), ss);
+	}
+}
 } // factory
 
 
@@ -451,6 +839,12 @@ Factory::Factory()
 	registerPage<factory::EventLogger>();
 	registerPage<factory::FileLogger>();
 	registerPage<factory::JavascriptFunction>();
+    registerPage<factory::Table>();
+    registerPage<factory::TagList>();
+
+	registerAdditionalPages();
+
+	
 }
 
 Dialog::PageInfo::Ptr Factory::create(const var& obj)
@@ -855,6 +1249,23 @@ static const unsigned char JavascriptFunction[] = { 110,109,28,81,38,68,96,95,17
 68,96,86,175,67,100,53,15,68,224,113,178,67,80,196,15,68,32,68,180,67,98,140,154,16,68,96,2,183,67,176,224,17,68,128,97,184,67,56,150,19,68,128,97,184,67,98,28,80,21,68,128,97,184,67,144,136,22,68,32,101,183,67,204,63,23,68,224,113,181,67,98,196,246,
 23,68,32,121,179,67,96,82,24,68,64,97,175,67,96,82,24,68,96,42,169,67,108,96,82,24,68,160,60,111,67,99,101,0,0 };
 
+static const unsigned char Table[] = { 110,109,2,85,37,68,64,67,80,67,108,2,85,37,68,196,89,142,67,108,128,133,7,68,196,89,142,67,108,128,133,7,68,72,143,108,67,98,128,133,7,68,2,14,101,67,89,68,8,68,200,219,93,67,231,151,9,68,52,141,88,67,98,140,235,10,68,162,62,83,67,50,184,12,68,64,67,
+80,67,131,152,14,68,64,67,80,67,108,2,85,37,68,64,67,80,67,99,109,56,74,69,68,106,224,105,67,108,56,74,69,68,196,89,142,67,108,183,122,39,68,196,89,142,67,108,183,122,39,68,64,67,80,67,108,237,226,62,68,64,67,80,67,98,196,149,64,68,64,67,80,67,166,54,
+66,68,22,246,82,67,21,106,67,68,204,195,87,67,98,131,157,68,68,132,145,92,67,56,74,69,68,106,21,99,67,56,74,69,68,106,224,105,67,99,109,66,124,37,68,151,85,148,67,108,66,124,37,68,137,39,177,67,108,0,128,7,68,137,39,177,67,108,0,128,7,68,151,85,148,67,
+108,66,124,37,68,151,85,148,67,99,109,86,140,34,68,112,53,154,67,108,236,111,10,68,112,53,154,67,98,236,111,10,68,112,53,154,67,236,111,10,68,175,71,171,67,236,111,10,68,175,71,171,67,108,86,140,34,68,175,71,171,67,108,86,140,34,68,112,53,154,67,99,109,
+66,124,37,68,112,12,183,67,108,66,124,37,68,97,222,211,67,108,63,139,14,68,97,222,211,67,98,1,173,12,68,97,222,211,67,87,226,10,68,126,98,210,67,36,144,9,68,24,190,207,67,98,241,61,8,68,178,25,205,67,0,128,7,68,95,132,201,67,0,128,7,68,226,199,197,67,
+108,0,128,7,68,112,12,183,67,108,66,124,37,68,112,12,183,67,99,109,86,140,34,68,74,236,188,67,108,236,111,10,68,74,236,188,67,108,236,111,10,68,226,199,197,67,98,236,111,10,68,137,245,199,67,187,222,10,68,67,12,202,67,229,163,11,68,150,150,203,67,98,
+15,105,12,68,235,32,205,67,108,116,13,68,136,254,205,67,63,139,14,68,136,254,205,67,108,86,140,34,68,136,254,205,67,108,86,140,34,68,74,236,188,67,99,109,0,128,69,68,151,85,148,67,108,0,128,69,68,137,39,177,67,108,190,131,39,68,137,39,177,67,108,190,
+131,39,68,151,85,148,67,108,0,128,69,68,151,85,148,67,99,109,20,144,66,68,112,53,154,67,108,170,115,42,68,112,53,154,67,98,170,115,42,68,112,53,154,67,170,115,42,68,175,71,171,67,170,115,42,68,175,71,171,67,108,20,144,66,68,175,71,171,67,108,20,144,66,
+68,112,53,154,67,99,109,0,128,69,68,112,12,183,67,108,0,128,69,68,193,34,197,67,98,0,128,69,68,24,11,201,67,78,185,68,68,121,202,204,67,172,87,67,68,186,141,207,67,98,244,245,65,68,252,80,210,67,92,22,64,68,97,222,211,67,48,34,62,68,97,222,211,67,108,
+190,131,39,68,97,222,211,67,108,190,131,39,68,112,12,183,67,108,0,128,69,68,112,12,183,67,99,109,20,144,66,68,74,236,188,67,108,170,115,42,68,74,236,188,67,108,170,115,42,68,136,254,205,67,108,48,34,62,68,136,254,205,67,98,240,78,63,68,136,254,205,67,
+84,111,64,68,151,15,205,67,236,67,65,68,58,102,203,67,98,155,24,66,68,9,189,201,67,20,144,66,68,66,124,199,67,20,144,66,68,193,34,197,67,108,20,144,66,68,74,236,188,67,99,101,0,0 };
+
+static const unsigned char TagList[] = { 110,109,114,145,58,68,70,248,132,67,108,113,254,68,68,66,210,153,67,108,2,23,36,68,214,160,219,67,108,0,128,7,68,210,114,162,67,108,74,103,40,68,125,72,65,67,108,206,13,51,68,248,225,107,67,98,177,106,50,68,145,31,116,67,182,233,50,68,174,119,125,67,
+222,138,52,68,37,254,129,67,98,5,44,54,68,116,64,133,67,12,130,56,68,127,62,134,67,114,145,58,68,70,248,132,67,99,109,162,26,51,68,99,66,107,67,108,58,172,40,68,198,136,65,67,108,85,88,57,68,10,223,64,67,98,231,145,60,68,84,190,64,67,7,172,63,68,227,
+207,69,67,209,243,65,68,12,239,78,67,98,191,59,68,68,52,14,88,67,0,128,69,68,184,118,100,67,210,119,69,68,252,92,113,67,108,99,77,69,68,180,6,154,67,108,87,185,58,68,157,222,132,67,98,82,145,59,68,183,75,132,67,48,92,60,68,106,86,131,67,82,8,61,68,37,
+254,129,67,98,47,96,63,68,106,157,122,67,47,96,63,68,90,101,107,67,82,8,61,68,120,6,98,67,98,154,176,58,68,6,167,88,67,150,226,54,68,6,167,88,67,222,138,52,68,120,6,98,67,98,187,222,51,68,113,182,100,67,240,99,51,68,121,226,103,67,162,26,51,68,99,66,
+107,67,99,101,0,0 };
 
 } // Icons
 
@@ -894,6 +1305,9 @@ Path Factory::createPath(const String& url) const
 	LOAD_MULTIPAGE_PATH(EventLogger);
 	LOAD_MULTIPAGE_PATH(FileLogger);
 	LOAD_MULTIPAGE_PATH(JavascriptFunction);
+    
+    LOAD_MULTIPAGE_PATH(Table);
+    LOAD_MULTIPAGE_PATH(TagList);
     
     return p;
     

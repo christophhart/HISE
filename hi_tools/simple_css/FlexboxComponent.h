@@ -109,6 +109,12 @@ struct FlexboxComponent: public Component,
 			c.getProperties().set("inline-style", inlineCode);
 			invalidateCache(c);
 		}
+
+		static void setCustomType(Component& c, const Selector& selector)
+		{
+			c.getProperties().set("custom-type", selector.toString());
+			invalidateCache(c);
+		}
 	};
 
 	struct SimpleTextDisplay: public Component
@@ -243,9 +249,10 @@ struct FlexboxComponent: public Component,
 	}
 
 	
-
-	float getAutoSize(bool getAutoHeight=true);
-
+    float getAutoWidthForHeight(float fullHeight);
+    
+    float getAutoHeightForWidth(float fullWidth);
+    
 	void setApplyMargin(bool shouldApplyMargin)
 	{
 		applyMargin = shouldApplyMargin;
@@ -382,7 +389,7 @@ struct FlexboxViewport: public Component,
 		if(ss != nullptr)
 			b = ss->getArea(b, { "margin", {}});
 
-		auto contentHeight = content.getAutoSize();
+        auto contentHeight = content.getAutoHeightForWidth(b.getWidth());
 
 		auto w = b.getWidth();
 

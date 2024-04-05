@@ -56,6 +56,9 @@ struct Factory: public PathFactory
     
 private:
 
+    void registerAdditionalPages();
+    
+
     template <typename T> void registerPage();
 
     struct Item
@@ -294,6 +297,192 @@ private:
     ScopedPointer<ContentType> content;
 
     //MarkdownRenderer r;
+};
+
+struct TagList: public Dialog::PageBase,
+                public Button::Listener
+{
+    DEFAULT_PROPERTIES(TagList)
+    {
+        return { { mpid::Text, "### funkyNode" } };
+    }
+    
+    static String getCategoryId() { return "UI Elements"; }
+    
+    TagList(Dialog& parent, int w, const var& obj);
+
+    void buttonClicked(juce::Button*) override;
+
+    void createEditor(Dialog::PageInfo& rootList) override;
+
+    void postInit() override;
+
+    Result checkGlobalState(var state) override
+    {
+        return Result::ok();
+    }
+
+    OwnedArray<TextButton> buttons;
+};
+
+struct Table: public Dialog::PageBase,
+              public juce::TableListBoxModel
+{
+    struct CellComponent: public Component
+    {
+        CellComponent(Table& parent_);
+
+        void update(Point<int> newPos, const String& newContent);
+
+        void mouseDown(const MouseEvent& event) override
+        {
+            parent.table.selectRowsBasedOnModifierKeys(cellPosition.y, event.mods, false);
+        }
+
+        void mouseUp(const MouseEvent& event) override
+        {
+            parent.table.selectRowsBasedOnModifierKeys(cellPosition.y, event.mods, true);
+        }
+
+        void paint(Graphics& g) override;
+
+        Point<int> cellPosition;
+
+        Table& parent;
+        String content;
+    };
+    
+    Table(Dialog& parent, int w, const var& obj);
+
+    ScrollbarFader sf;
+    
+    Array<var> items;
+    
+    void rebuildColumns();
+
+    DEFAULT_PROPERTIES(Table)
+    {
+        return { { mpid::Text, "### funkyNode" } };
+    }
+    
+    static String getCategoryId() { return "UI Elements"; }
+
+    String getCellContent(int columnId, int rowNumber) const;
+
+    void resized() override
+    {
+        auto b = getLocalBounds();
+        FlexboxComponent::resized();
+    }
+    
+    Component* refreshComponentForCell (int rowNumber, int columnId, bool isRowSelected,
+                                                Component* existingComponentToUpdate) override;
+
+    static String itemsToString(const var& data)
+    {
+        if(data.isString())
+            return data;
+        
+        if(auto items = data.getArray())
+        {
+            String s;
+            for(auto& rows: *items)
+            {
+                if(auto cells = rows.getArray())
+                {
+                    for(auto& cell: *cells)
+                        s << cell.toString() << " | ";
+                    
+                    s << "\n";
+                }
+            }
+            
+            return s;
+        }
+        
+        return {};
+    }
+    
+    static Array<var> stringToItems(const var& data)
+    {
+        if(data.isArray())
+            return *data.getArray();
+        
+        Array<var> rows;
+        
+        for(auto& l: StringArray::fromLines(data.toString()))
+        {
+            Array<var> row;
+            
+            for(auto& c: StringArray::fromTokens(l, "|", "\"'"))
+            {
+                row.add(var(c.trim()));
+            }
+            
+            rows.add(var(row));
+        }
+        
+        return rows;
+    }
+    
+    void createEditor(Dialog::PageInfo& rootList) override;
+
+    int getNumRows() override
+    {
+        return items.size();
+    }
+
+    void postInit() override
+    {
+        init();
+        rebuildColumns();
+        
+        items = stringToItems(infoObject[mpid::Items]);
+        
+        table.updateContent();
+    }
+
+    void paintCell (Graphics&,
+                            int rowNumber,
+                            int columnId,
+                            int width, int height,
+                            bool rowIsSelected) override {};
+    
+    void paintRowBackground (Graphics& g, int rowNumber, int width, int height, bool rowIsSelected) override;
+
+    Result checkGlobalState(var state) override;
+
+    void paint(Graphics& g) override;
+
+    TableListBox table;
+
+    struct TableRepainter: public MouseListener
+    {
+        TableRepainter(TableListBox& t):
+          MouseListener(),
+          table(t)
+        {
+            t.addMouseListener(this, true);
+        }
+        
+        void mouseMove(const MouseEvent& event) override
+        {
+            if(event.eventComponent != lastComponent)
+            {
+                if(lastComponent != nullptr)
+                    lastComponent->repaint();
+
+                lastComponent = event.eventComponent;
+                table.repaint();
+
+                if(lastComponent != nullptr)
+                    lastComponent->repaint();
+            }
+        }
+
+        Component::SafePointer<Component> lastComponent = nullptr;
+        TableListBox& table;
+    } repainter;
 };
 
 }

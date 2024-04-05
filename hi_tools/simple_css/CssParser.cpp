@@ -791,6 +791,8 @@ float ExpressionParser::evaluateLiteral(const String& s, const Context<>& contex
 	float value;
 	auto fullSize = context.useWidth ? context.fullArea.getWidth() : context.fullArea.getHeight();
 	
+    if(s == "auto")
+        return fullSize;
 	if(s.endsWith("vh"))
 	{
 		fullSize = context.fullArea.getHeight();

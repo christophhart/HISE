@@ -85,10 +85,17 @@ Selector FlexboxComponent::Helpers::getTypeSelectorFromComponentClass(Component*
 	}
 	if(dynamic_cast<juce::TextEditor*>(c) != nullptr)
 		return Selector(ElementType::TextInput);
+    if(dynamic_cast<juce::TableListBox*>(c) != nullptr)
+        return Selector(ElementType::Table);
 	if(dynamic_cast<juce::TableHeaderComponent*>(c) != nullptr)
 		return Selector(ElementType::TableHeader);
 	if(dynamic_cast<juce::ProgressBar*>(c) != nullptr)
 		return Selector(ElementType::Progress);
+
+	if(c->getProperties().contains("custom-type"))
+	{
+		return Selector(c->getProperties()["custom-type"].toString());
+	}
 
 	return Selector(ElementType::Panel);;
 }
@@ -313,174 +320,177 @@ void FlexboxComponent::addFlexItem(Component& c)
 	addAndMakeVisible(c);
 }
 
-float FlexboxComponent::getAutoSize(bool getAutoHeight)
+float FlexboxComponent::getAutoWidthForHeight(float fullHeight)
 {
-	if(!getAutoHeight)
-	{
-		auto data = createPositionData();
+    auto data = createPositionData();
 
-		auto w = 0.0f;
+    auto w = 0.0f;
 
-        auto first = true;
-        
-		for(const auto& i: data.flexBox.items)
+    auto first = true;
+    
+    for(const auto& i: data.flexBox.items)
+    {
+        w += i.width;
+        w += jmax(i.margin.left, i.margin.right);
+    }
+
+    if(ss != nullptr)
+    {
+        Rectangle<float> b(0.0f, 0.0f, w, 0.0f);
+
+        w += ss->getPixelValue(b, {"padding-left", {}});
+        w += ss->getPixelValue(b, {"padding-right", {}});
+
+        if(applyMargin)
         {
-            w += i.width;
-            w += jmax(i.margin.left, i.margin.right);
+            w += ss->getPixelValue(b, {"margin-left", {}});
+            w += ss->getPixelValue(b, {"margin-right", {}});
+        }
+    }
+
+    return w;
+}
+
+float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
+{
+    float h = 0.0f;
+
+    auto wrap = ss != nullptr ? ss->getAsEnum({ "flex-wrap", {}}, FlexBox::Wrap::noWrap) : FlexBox::Wrap::noWrap;
+    auto direction = ss != nullptr ? ss->getAsEnum({ "flex-direction", {}}, FlexBox::Direction::row) : FlexBox::Direction::row;
+
+    if(wrap == FlexBox::Wrap::wrap || wrap == FlexBox::Wrap::wrapReverse)
+    {
+        if(direction == FlexBox::Direction::column ||
+           direction == FlexBox::Direction::columnReverse)
+        {
+            setSize(getWidth(), 1000);
+            resized();
+
+            auto minHeight = 0;
+            auto maxHeight = 0;
+
+            for(int i = 0; i < getNumChildComponents(); i++)
+            {
+                auto child = getChildComponent(i);
+
+                if(!child->isVisible())
+                    continue;
+
+                minHeight = jmin(minHeight, child->getBoundsInParent().getY());
+                maxHeight = jmax(maxHeight, child->getBoundsInParent().getBottom());
+            }
+
+            h = maxHeight - minHeight;
+        }
+        else
+        {
+            auto d = createPositionData();
+            d.area.setWidth(fullWidth);
+
+            d.flexBox.performLayout(d.area);
+
+            auto minHeight = 0;
+            auto maxHeight = 0;
+
+            for(int i = 0; i < getNumChildComponents(); i++)
+            {
+                auto child = getChildComponent(i);
+
+                if(!child->isVisible())
+                    continue;
+
+                minHeight = jmin(minHeight, child->getBoundsInParent().getY());
+                maxHeight = jmax(maxHeight, child->getBoundsInParent().getBottom());
+            }
+
+            h = maxHeight - minHeight;
+        }
+    }
+    else
+    {
+        float gap = 0.0f;
+
+        if(ss != nullptr)
+        {
+            auto mv = ss->getPropertyValueString({"gap", {}});
+
+            if(mv.isNotEmpty())
+            {
+                ExpressionParser::Context cb;
+                cb.fullArea = getLocalBounds().toFloat();
+                cb.useWidth = true;
+                cb.defaultFontSize = 16.0f;
+                gap = ExpressionParser::evaluate(mv, cb);
+            }
         }
 
-		if(ss != nullptr)
-		{
-			Rectangle<float> b(0.0f, 0.0f, w, 0.0f);
+        auto getHeightFromItem = [](const FlexItem& i)
+        {
+            auto h = i.height;
 
-			w += ss->getPixelValue(b, {"padding-left", {}});
-			w += ss->getPixelValue(b, {"padding-right", {}});
+            if(i.minHeight > 0.0f)
+                h = jmax(i.minHeight, h);
 
-			if(applyMargin)
-			{
-				w += ss->getPixelValue(b, {"margin-left", {}});
-				w += ss->getPixelValue(b, {"margin-right", {}});
-			}
-		}
+            if(i.maxHeight > 0.0f)
+                h = jmin(i.maxHeight, h);
 
-		return w;
-	}
+            return h;
+        };
 
-	float h = 0.0f;
+        if(direction == FlexBox::Direction::column ||
+           direction == FlexBox::Direction::columnReverse)
+        {
+            auto lastComponent = getFirstLastComponents().second;
 
-	auto wrap = ss != nullptr ? ss->getAsEnum({ "flex-wrap", {}}, FlexBox::Wrap::noWrap) : FlexBox::Wrap::noWrap;
-	auto direction = ss != nullptr ? ss->getAsEnum({ "flex-direction", {}}, FlexBox::Direction::row) : FlexBox::Direction::row;
+            for(int i = 0; i < getNumChildComponents(); i++)
+            {
+                auto child = getChildComponent(i);
 
-	if(wrap == FlexBox::Wrap::wrap || wrap == FlexBox::Wrap::wrapReverse)
-	{
-		if(direction == FlexBox::Direction::column ||
-		   direction == FlexBox::Direction::columnReverse)
-		{
-			setSize(getWidth(), 1000);
-			resized();
+                if(!child->isVisible())
+                    continue;
 
-			auto minHeight = 0;
-			auto maxHeight = 0;
+                
 
-			for(int i = 0; i < getNumChildComponents(); i++)
-			{
-				auto child = getChildComponent(i);
+                if(auto ssChild = childSheets[child])
+                    h += (float)getHeightFromItem(ssChild->getFlexItem(child, getLocalBounds().toFloat()));
+                
+                if(child != lastComponent)
+                    h += gap;
+            }
+        }
+        else
+        {
+            for(int i = 0; i < getNumChildComponents(); i++)
+            {
+                auto child = getChildComponent(i);
 
-				if(!child->isVisible())
-					continue;
+                if(!child->isVisible())
+                    continue;
 
-				minHeight = jmin(minHeight, child->getBoundsInParent().getY());
-				maxHeight = jmax(maxHeight, child->getBoundsInParent().getBottom());
-			}
+                if(auto ssChild = childSheets[child])
+                    h = jmax(h, getHeightFromItem(ssChild->getFlexItem(child, getLocalBounds().toFloat())));
+            }
+        }
+    }
 
-			h = maxHeight - minHeight;
-		}
-		else
-		{
-			auto d = createPositionData();
+    if(ss != nullptr)
+    {
+        Rectangle<float> b(0.0f, 0.0f, 0.0f, h);
 
-			d.flexBox.performLayout(d.area);
+        if(applyMargin)
+        {
+            h += ss->getPixelValue(b, {"margin-top", {}});
+            h += ss->getPixelValue(b, {"margin-bottom", {}});
+        }
+        
+        h += ss->getPixelValue(b, {"padding-top", {}});
+        h += ss->getPixelValue(b, {"padding-bottom", {}});
+    }
 
-			auto minHeight = 0;
-			auto maxHeight = 0;
-
-			for(int i = 0; i < getNumChildComponents(); i++)
-			{
-				auto child = getChildComponent(i);
-
-				if(!child->isVisible())
-					continue;
-
-				minHeight = jmin(minHeight, child->getBoundsInParent().getY());
-				maxHeight = jmax(maxHeight, child->getBoundsInParent().getBottom());
-			}
-
-			h = maxHeight - minHeight;
-		}
-	}
-	else
-	{
-		float gap = 0.0f;
-
-		if(ss != nullptr)
-		{
-			auto mv = ss->getPropertyValueString({"gap", {}});
-
-			if(mv.isNotEmpty())
-			{
-				ExpressionParser::Context cb;
-				cb.fullArea = getLocalBounds().toFloat();
-				cb.useWidth = true;
-				cb.defaultFontSize = 16.0f;
-				gap = ExpressionParser::evaluate(mv, cb);
-			}
-		}
-
-		auto getHeightFromItem = [](const FlexItem& i)
-		{
-			auto h = i.height;
-
-			if(i.minHeight > 0.0f)
-				h = jmax(i.minHeight, h);
-
-			if(i.maxHeight > 0.0f)
-				h = jmin(i.maxHeight, h);
-
-			return h;
-		};
-
-		if(direction == FlexBox::Direction::column ||
-		   direction == FlexBox::Direction::columnReverse)
-		{
-			auto lastComponent = getFirstLastComponents().second;
-
-			for(int i = 0; i < getNumChildComponents(); i++)
-			{
-				auto child = getChildComponent(i);
-
-				if(!child->isVisible())
-					continue;
-
-				
-
-				if(auto ssChild = childSheets[child])
-					h += (float)getHeightFromItem(ssChild->getFlexItem(child, getLocalBounds().toFloat()));
-				
-				if(child != lastComponent)
-					h += gap;
-			}
-		}
-		else
-		{
-			for(int i = 0; i < getNumChildComponents(); i++)
-			{
-				auto child = getChildComponent(i);
-
-				if(!child->isVisible())
-					continue;
-
-				if(auto ssChild = childSheets[child])
-					h = jmax(h, getHeightFromItem(ssChild->getFlexItem(child, getLocalBounds().toFloat())));
-			}
-		}
-	}
-
-	if(ss != nullptr)
-	{
-		Rectangle<float> b(0.0f, 0.0f, 0.0f, h);
-
-		if(applyMargin)
-		{
-			h += ss->getPixelValue(b, {"margin-top", {}});
-			h += ss->getPixelValue(b, {"margin-bottom", {}});
-		}
-		
-		h += ss->getPixelValue(b, {"padding-top", {}});
-		h += ss->getPixelValue(b, {"padding-bottom", {}});
-	}
-
-	return h;
+    return h;
 }
+
+
 
 void FlexboxComponent::setParent(CSSRootComponent* p)
 {
@@ -497,8 +507,10 @@ FlexboxComponent::PositionData FlexboxComponent::createPositionData()
 	{
 		auto isAuto = ss->getPropertyValueString({"height", {}}) == "auto";
 		
+#if 0
 		if(!isAuto)
 			b = ss->getBounds(b, {});
+#endif
 
 		if(applyMargin)
 			b = ss->getArea(b, { "margin", {}});

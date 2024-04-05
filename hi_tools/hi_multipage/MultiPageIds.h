@@ -73,6 +73,7 @@ namespace mpid
     DECLARE_ID(Class);
     DECLARE_ID(ContentType);
     DECLARE_ID(Code);
+    DECLARE_ID(Columns);
     DECLARE_ID(Children);
     DECLARE_ID(Company);
     DECLARE_ID(Custom);
@@ -129,6 +130,7 @@ namespace mpid
     DECLARE_ID(UseLabel);
     DECLARE_ID(UsePost);
     DECLARE_ID(UseTotalProgress);
+    DECLARE_ID(UseViewport);
     DECLARE_ID(Value);
     DECLARE_ID(ValueMode);
     DECLARE_ID(Version);

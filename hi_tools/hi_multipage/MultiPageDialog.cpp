@@ -160,7 +160,7 @@ struct Dialog::PageBase::ModalHelp: public simple_css::FlexboxComponent
         auto w = jmax(400, parent.getWidth() + 20);
         
 		setSize(w, 0);
-    	setSize(w, getAutoSize());
+    	setSize(w, getAutoHeightForWidth(w));
 		
     };
 
@@ -525,12 +525,11 @@ var Dialog::PositionInfo::toJSON() const
             
     obj->setProperty(mpid::StyleSheet, styleSheet);
 	obj->setProperty(mpid::Style, additionalStyle);
-
+    obj->setProperty(mpid::UseViewport, useViewport);
+    
 	obj->setProperty("DialogWidth", fixedSize.getX());
 	obj->setProperty("DialogHeight", fixedSize.getY());
 	
-
-    
 	return var(obj);
 }
 
@@ -539,6 +538,8 @@ void Dialog::PositionInfo::fromJSON(const var& obj)
     styleSheet = obj.getProperty(mpid::StyleSheet, styleSheet);
 	additionalStyle = obj.getProperty(mpid::Style, additionalStyle).toString();
 
+    useViewport = obj.getProperty(mpid::UseViewport, useViewport);
+    
 	fixedSize.setX(obj.getProperty("DialogWidth", fixedSize.getX()));
 	fixedSize.setY(obj.getProperty("DialogHeight", fixedSize.getY()));
 }
@@ -802,7 +803,7 @@ void Dialog::ModalPopup::resized()
 #endif
 
 Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
-	HeaderContentFooter(true),
+	HeaderContentFooter(obj[mpid::LayoutData].getProperty(mpid::UseViewport, true)),
 	cancelButton("Cancel"),
 	nextButton("Next"),
 	prevButton("Previous"),
@@ -1363,7 +1364,16 @@ void Dialog::showMainPropertyEditor()
 
 	        for(auto& v: layoutObj.getDynamicObject()->getProperties())
 	        {
-                if(v.name == mpid::StyleSheet)
+                if(v.name == mpid::UseViewport)
+                {
+                    layoutProperties.addChild<Button>({
+                        { mpid::ID, mpid::UseViewport.toString() },
+                        { mpid::Text, mpid::UseViewport.toString() },
+                        { mpid::Value, v.value },
+                        { mpid::Help, "Whether to put the content into a scrollable viewport or not (requires reload)." }
+                    });
+                }
+                else if(v.name == mpid::StyleSheet)
                 {
                     auto items = getState().getAssetReferenceList(Asset::Type::Stylesheet);
                     

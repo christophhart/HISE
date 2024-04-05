@@ -276,17 +276,32 @@ void StyleSheetLookAndFeel::drawTableHeaderColumn(Graphics& g, TableHeaderCompon
 {
 	if(auto ss = root.css.getForComponent(&tableHeaderComponent))
 	{
-		Renderer r(&tableHeaderComponent, root.stateWatcher);
+		Renderer r(nullptr, root.stateWatcher);
 
 		int flags = 0;
 
+        auto columnIndex = tableHeaderComponent.getIndexOfColumnId(columnId, true);
+        
+        auto isFirst = columnIndex == 0;
+        auto isLast = (tableHeaderComponent.getNumColumns(true)-1) == columnIndex;
+        
+        if(isFirst)
+            flags |= (int)PseudoClassType::First;
+
+        if(isLast)
+            flags |= (int)PseudoClassType::Last;
+        
 		if(isMouseDown)
 			flags |= (int)PseudoClassType::Active;
 
 		if(isMouseOver)
 			flags |= (int)PseudoClassType::Hover;
+        
+        uint32 firstLastMask = 0xFFFFFFFF;
+        firstLastMask ^= (uint32)PseudoClassType::First;
+        firstLastMask ^= (uint32)PseudoClassType::Last;
 
-		root.stateWatcher.checkChanges(&tableHeaderComponent, ss, flags);
+		root.stateWatcher.checkChanges(&tableHeaderComponent, ss, flags & firstLastMask);
 
 		r.setPseudoClassState(flags);
 
