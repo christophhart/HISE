@@ -56,9 +56,6 @@ struct Factory: public PathFactory
     
 private:
 
-    void registerAdditionalPages();
-    
-
     template <typename T> void registerPage();
 
     struct Item

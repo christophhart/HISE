@@ -841,10 +841,6 @@ Factory::Factory()
 	registerPage<factory::JavascriptFunction>();
     registerPage<factory::Table>();
     registerPage<factory::TagList>();
-
-	registerAdditionalPages();
-
-	
 }
 
 Dialog::PageInfo::Ptr Factory::create(const var& obj)

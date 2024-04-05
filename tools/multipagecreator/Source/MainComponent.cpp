@@ -15,11 +15,6 @@
 namespace hise {
 namespace multipage {
 
-void Factory::registerAdditionalPages()
-{
-	
-}
-
 struct CSSDebugger: public Component,
                     public Timer,
                     public PathFactory

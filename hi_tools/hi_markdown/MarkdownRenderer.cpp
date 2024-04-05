@@ -366,7 +366,8 @@ SimpleMarkdownDisplay::SimpleMarkdownDisplay():
 	vp.setViewedComponent(&canvas, false);
 	addAndMakeVisible(vp);
 	vp.setScrollOnDragEnabled(true);
-        
+	vp.setScrollBarsShown(true, false);
+
 	sf.addScrollBarToAnimate(vp.getVerticalScrollBar());
 	vp.setScrollBarThickness(14);
 }
