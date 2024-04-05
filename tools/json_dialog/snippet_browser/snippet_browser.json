@@ -1,0 +1,292 @@
+{
+  "StyleData": {
+    "Font": "Lato",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Header",
+    "Subtitle": "Subtitle",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "Dark",
+    "Style": "body\n{\n\tfont-size: 15px;\n}\n\n#footer\n{\n\tdisplay:none;\n}\n\n#header\n{\n\tdisplay: none;\n}\n\n#content\n{\n\tpadding: 10px;\n}\n\n#headerlabel\n{\n\tfont-size: 1.4em;\n\tbackground: #282828;\n\tpadding: 10px;\n\tborder-radius: 4px;\n\n}\n\n.category-button label\n{\n\tdisplay: none;\n}\n\n.category-button button\n{\n\ttransform: none;\n\t\n\tpadding: 0px;\n\tcolor: #bbb;\n\tborder-radius: 0px;\n}\n\n\n.category-button button:hover\n{\n\tcolor: #eee;\n}\n\n.category-button button:active\n{\n\tcolor: #fff;\n\ttransform: scale(98%);\n\t\n}\n\n.category-button button:checked\n{\n\tbackground: #999;\n\tcolor: #222;\n}\n\n.first-child button\n{\n\tborder-radius: 50% 0px 50% 0px;\n}\n\n.last-child button\n{\n\tborder-radius: 0% 50% 0% 50%;\n}\n\n.category-button button::before\n{\n\tdisplay:none;\n}\n\n.category-button button::after\n{\n\tdisplay:none;\n}\n\n.tag-button button\n{\n\twidth: auto;\n\tflex-grow: 0;\n\tpadding: 0px 15px;\n\tborder-radius: 50%;\n\tborder: 1px solid #444;\n\tcolor: #888;\n\tmargin: 3px;\n\tbox-shadow: 0px 2px 3px rgba(0, 0, 0, 0.3);\n\t\n}\n\n.tag-button\n{\n\twidth: auto;\n}\n\n#searchBar label\n{\n\tdisplay: none;\n}\n\n#searchBar input\n{\n\tpadding-left: 100vh;\n}\n\n#searchBar input::before\n{\n\tcontent: '';\n\twidth: 100vh;\n\tbackground-image: \"332.t0lHDd.QGD+iCI159e.QO.jZCkBBSPjNL8yPg4HHDoCS+LjXUJlKDoCS+LzvblCQxSCaCMLm4PD3BG4PhMLm4PTiky4PWq7MDoCLmNzM2RCQDK3qCw1++UDQ4QQzCw1Mc+CQimE2CwFFF7BQ.tptCIVluqBQ7bGvCQX7kPToeO7Pg4HHDU52COjXrnqDDU52COz++c.QIsVqC8+eGPD3BG4Ph8+eGPTgRE4PoB3ADoo3PNDIBd.Q6KGjCwF4P9.Q6KGjCIlzN9.Q0INjCcaiOPzWRE4P213CDAtvQNjX213CDs1gjNDGrbAQ1P7rCElifPjMDO6PhYJ7oPjMDO6P26XLDs1gjNz8NFCQfKbjCI18NFCQrxeeCYJ7oPTYC90Pg4HHDU1feMjX8n2EDU1feMDEM.AQPl.eCo8jOPzAw+3PrIBgGPzAw+3PiUF\";\n\tmargin: 7px;\n\tbackground: #333;\n\t\n}\n\n#snippetList\n{\n\theight: calc(100% - 550px);\n}\n\n\n.description\n{\n\tbackground: #282828;\n\tpadding: 10px;\n}\n\nth\n{\n\tfont-size: 1em;\n}",
+    "UseViewport": false,
+    "DialogWidth": 450,
+    "DialogHeight": 700
+  },
+  "GlobalState": {
+    "category": 0,
+    "ButtonId": 0,
+    "searchBar": ""
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "SimpleText",
+          "Text": "Snippet Browser",
+          "ID": "",
+          "Class": "#headerlabel",
+          "Style": ""
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "Categories",
+          "ID": "",
+          "Class": "",
+          "Style": "text-align: left; "
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "Button",
+              "Text": "All",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button .first-child",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "Text",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "Modules",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "Text",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "MIDI",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "Text",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "Scripting",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "Text",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "Scriptnode",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "Text",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "UI",
+              "ID": "category",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button .last-child",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "Text",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            }
+          ],
+          "ID": "",
+          "Style": "gap:1px;",
+          "Class": "",
+          "UseChildState": false
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "Tags",
+          "ID": "",
+          "Class": "",
+          "Style": "text-align: left; margin-top: 10px;"
+        },
+        {
+          "Type": "JavascriptFunction",
+          "Text": "LabelText",
+          "ID": "JavascriptFunctionId",
+          "CallOnNext": false
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "Button",
+              "Text": "LabelText",
+              "ID": "ButtonId",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button .tag-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "wh",
+              "ID": "ButtonId",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button .tag-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            },
+            {
+              "Type": "Button",
+              "Text": "Something good",
+              "ID": "ButtonId",
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": ".category-button .tag-button",
+              "Style": "",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Icon": "",
+              "Trigger": false,
+              "UseOnValue": false
+            }
+          ],
+          "ID": "tagColumn",
+          "Style": "gap: 0px;",
+          "Class": "",
+          "UseChildState": false
+        },
+        {
+          "Type": "TextInput",
+          "Text": "LabelText",
+          "ID": "searchBar",
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": "",
+          "Style": "",
+          "EmptyText": "",
+          "Required": false,
+          "ParseArray": false,
+          "Height": 80,
+          "Items": "",
+          "Help": "",
+          "Multiline": false,
+          "UseOnValue": false
+        },
+        {
+          "Type": "Table",
+          "Text": "LabelText",
+          "ValueMode": "Row",
+          "ID": "snippetList",
+          "Columns": "name:Name\nname:Author;max-width: 200px;width: 200px;",
+          "Items": "funky | what\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy\nnudel | boy",
+          "Class": "",
+          "Style": ""
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "### Some text\n\nblablablablabl\n\nnude nude nudel\n\nasldklkjah\nas\u00f6djkhkasd\nlakjsdhkjahslkjdhasdasd\n\n> noice\n\n```\nwas geht\n```\n",
+          "ID": "",
+          "Class": ".description",
+          "Style": "max-height: 250px;"
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false,
+      "Style": "gap: 20px; height: 100%;",
+      "UseChildState": false,
+      "Class": ""
+    }
+  ],
+  "Assets": []
+}
