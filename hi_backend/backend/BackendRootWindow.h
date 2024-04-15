@@ -71,6 +71,87 @@ namespace fold_ids
 
 }
 
+struct SnippetBrowserHelpers
+{
+	enum class Category
+	{
+		Undefined,
+		Modules,
+		MIDI,
+		ScriptingApi,
+		Scriptnode,
+		UI,
+		numCategories
+	};
+
+	static std::map<Identifier, bool> getFoldConfiguration(Category c)
+	{
+		std::map<Identifier, bool> map;
+
+		switch(c)
+		{
+		case Category::Undefined: break;
+		case Category::Modules:
+			map[fold_ids::editor] = false;
+			map[fold_ids::console] = true;
+			map[fold_ids::interface] = true;
+			map[fold_ids::list] = true;
+			map[fold_ids::properties] = true;
+			map[fold_ids::browser] = false;
+			break;
+		case Category::MIDI:
+			map[fold_ids::editor] = false;
+			map[fold_ids::console] = false;
+			map[fold_ids::interface] = true;
+			map[fold_ids::list] = true;
+			map[fold_ids::properties] = true;
+			map[fold_ids::browser] = false;
+			break;
+		case Category::ScriptingApi:
+			map[fold_ids::editor] = false;
+			map[fold_ids::console] = false;
+			map[fold_ids::interface] = true;
+			map[fold_ids::list] = true;
+			map[fold_ids::properties] = true;
+			map[fold_ids::browser] = true;
+			break;
+		case Category::Scriptnode:
+			map[fold_ids::editor] = true;
+			map[fold_ids::console] = false;
+			map[fold_ids::interface] = false;
+			map[fold_ids::list] = true;
+			map[fold_ids::properties] = true;
+			map[fold_ids::browser] = true;
+			break;
+		case Category::UI:
+			map[fold_ids::editor] = false;
+			map[fold_ids::console] = false;
+			map[fold_ids::interface] = true;
+			map[fold_ids::list] = true;
+			map[fold_ids::properties] = true;
+			map[fold_ids::browser] = true;
+			break;
+		case Category::numCategories:
+			map[fold_ids::editor] = true;
+			map[fold_ids::console] = true;
+			map[fold_ids::interface] = true;
+			map[fold_ids::list] = true;
+			map[fold_ids::properties] = true;
+			map[fold_ids::browser] = true;
+			break;
+		default: ;
+		}
+
+		return map;
+	}
+
+	static StringArray getCategoryNames()
+	{
+		return { "All", "Modules", "MIDI", "Scripting", "Scriptnode", "UI" };
+	}
+};
+
+#if 0
 struct SnippetBrowser: public simple_css::HeaderContentFooter,
 					   public TableListBoxModel
 {
@@ -446,6 +527,7 @@ struct SnippetBrowser: public simple_css::HeaderContentFooter,
 
 	TableListBox table;
 };
+#endif
 
 class BackendRootWindow : public TopLevelWindowWithOptionalOpenGL,
 						  public TopLevelWindowWithKeyMappings,
@@ -520,7 +602,7 @@ public:
 	{
 		if(snippetBrowser == nullptr)
 		{
-			addAndMakeVisible(snippetBrowser = new SnippetBrowser(this));
+			addAndMakeVisible(snippetBrowser = new multipage::library::SnippetBrowser(this));
 		}
 		else
 		{
@@ -530,7 +612,7 @@ public:
 		resized();
 	}
 
-	ScopedPointer<SnippetBrowser> snippetBrowser;
+	ScopedPointer<multipage::library::SnippetBrowser> snippetBrowser;
 
 	static mcl::TokenCollection::Ptr getJavascriptTokenCollection(Component* any)
 	{
@@ -784,7 +866,7 @@ public:
 		
 	}
 
-	SnippetBrowser::Category currentCategory = SnippetBrowser::Category::Undefined;
+	SnippetBrowserHelpers::Category currentCategory = SnippetBrowserHelpers::Category::Undefined;
 
 private:
 

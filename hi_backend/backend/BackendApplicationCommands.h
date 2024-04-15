@@ -343,7 +343,7 @@ public:
 		static void saveFileXml(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
-		static void exportFileAsSnippet(BackendRootWindow* bpe);
+		static String exportFileAsSnippet(BackendRootWindow* bpe, bool copyToClipboard=true);
 		static void showFilePresetSettings(BackendRootWindow * bpe);
 		static void showFileProjectSettings(BackendRootWindow * bpe);
 		static void showFileUserSettings(BackendRootWindow * bpe);

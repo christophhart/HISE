@@ -7193,7 +7193,8 @@ String ScriptingApi::FileSystem::decryptWithRSA(const String& dataToDecrypt, con
 void ScriptingApi::FileSystem::loadExampleAssets()
 {
 #if USE_BACKEND
-	dynamic_cast<BackendProcessor*>(getMainController())->getAssetManager();
+	auto am = dynamic_cast<BackendProcessor*>(getMainController())->getAssetManager();
+	am->initialise();
 #endif
 }
 

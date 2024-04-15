@@ -2,3 +2,4 @@
 
 #include "snippet_exporter.cpp"
 #include "broadcaster.cpp"
+#include "snippet_browser.cpp"

@@ -15,9 +15,13 @@
 namespace hise {
 namespace multipage {
 
+
+
+
 struct CSSDebugger: public Component,
                     public Timer,
-                    public PathFactory
+                    public PathFactory,
+				    public simple_css::CSSRootComponent
 {
     CSSDebugger(MainComponent& c):
       parent(c),
@@ -38,11 +42,23 @@ struct CSSDebugger: public Component,
         setSize(450, 800);
         setOpaque(true);
         startTimer(1000);
-        
+
+        css = DefaultCSSFactory::getTemplateCollection(DefaultCSSFactory::Template::PropertyEditor);
+        laf = new simple_css::StyleSheetLookAndFeel(*this);
+        hierarchy.setLookAndFeel(laf);
+        addAndMakeVisible(hierarchy);
         addAndMakeVisible(powerButton);
         powerButton.setToggleModeWithColourChange(true);
         powerButton.setToggleStateAndUpdateIcon(true);
-        
+        hierarchy.setTextWhenNothingSelected("Select parent component");
+        addAndMakeVisible(powerButton);
+
+        hierarchy.onChange = [&]()
+        {
+	        auto pd = parentData[hierarchy.getSelectedItemIndex()];
+            updateWithInspectorData(pd);
+        };
+
         powerButton.onClick = [this]()
         {
             if(powerButton.getToggleState())
@@ -80,7 +96,20 @@ struct CSSDebugger: public Component,
     {
         g.fillAll(Colour(0xFF222222));
     }
-    
+
+    simple_css::HeaderContentFooter::InspectorData createInspectorData(Component* c)
+    {
+	    auto b = root.getComponent()->getLocalArea(c, c->getLocalBounds()).toFloat();
+        auto data = simple_css::FlexboxComponent::Helpers::dump(*c);
+
+        simple_css::HeaderContentFooter::InspectorData id;
+        id.first = b;
+        id.second = data;
+        id.c = c;
+
+        return id;
+    }
+
     void timerCallback() override
     {
         root = parent.getMainState()->currentDialog;
@@ -89,22 +118,54 @@ struct CSSDebugger: public Component,
             return;
         
         auto* target = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
-        
+
+        bool change = false;
+
         if(target != nullptr && target->findParentComponentOfClass<simple_css::CSSRootComponent>() == root.getComponent())
         {
             currentTarget = target;
+            change = true;
         }
         
-        if(currentTarget.getComponent() != nullptr)
+        if(currentTarget.getComponent() != nullptr && change)
         {
-            auto b = root.getComponent()->getLocalArea(currentTarget, currentTarget->getLocalBounds()).toFloat();
-            auto data = simple_css::FlexboxComponent::Helpers::dump(*currentTarget);
-            root->setCurrentInspectorData({b, data});
-            auto s = root->css.getDebugLogForComponent(currentTarget);
-            
-            if(doc.getAllContent() != s)
-                doc.replaceAllContent(s);
+            auto id = createInspectorData(currentTarget.getComponent());
+            auto tc = id.c.getComponent();
+
+            StringArray items;
+
+            parentData.clear();
+
+            while(tc != nullptr)
+            {
+                if(dynamic_cast<CSSRootComponent*>(tc) != nullptr)
+                    break;
+
+                parentData.add(createInspectorData(tc));
+	            tc = tc->getParentComponent();
+            }
+
+            hierarchy.clear(dontSendNotification);
+
+            int idx = 1;
+            for(const auto& pd: parentData)
+                hierarchy.addItem(pd.second, idx++);
+
+            hierarchy.setText("", dontSendNotification);
+
+            updateWithInspectorData(id);
         }
+    }
+
+    Array<simple_css::HeaderContentFooter::InspectorData> parentData;
+
+    void updateWithInspectorData(const simple_css::HeaderContentFooter::InspectorData& id)
+    {
+	    root->setCurrentInspectorData(id);
+        auto s = root->css.getDebugLogForComponent(id.c.getComponent());
+        
+        if(doc.getAllContent() != s)
+            doc.replaceAllContent(s);
     }
     
     Component::SafePointer<Component> currentTarget = nullptr;
@@ -113,15 +174,20 @@ struct CSSDebugger: public Component,
     {
         auto b = getLocalBounds();
         auto topArea = b.removeFromTop(24);
-        
+
         powerButton.setBounds(topArea.removeFromLeft(topArea.getHeight()).reduced(2));
+        hierarchy.setBounds(b.removeFromBottom(32));
         editor.setBounds(b);
     }
 
     juce::CodeDocument doc;
     mcl::TextDocument codeDoc;
     mcl::TextEditor editor;
-    
+
+    ComboBox hierarchy;
+
+    ScopedPointer<LookAndFeel> laf;
+
     Component::SafePointer<simple_css::HeaderContentFooter> root;
 };
 

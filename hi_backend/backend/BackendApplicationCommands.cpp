@@ -865,7 +865,21 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
         return true;
     }
 	case MenuExportCompileNetworksAsDll: Actions::compileNetworksToDll(bpe); return true;
-    case MenuExportFileAsSnippet:       Actions::exportFileAsSnippet(bpe); return true;
+    case MenuExportFileAsSnippet:       
+	{
+		if(bpe->getBackendProcessor()->isSnippetBrowser())
+		{
+			auto s = new multipage::library::SnippetExporter(bpe);
+			s->setModalBaseWindowComponent(bpe);
+			return true;
+		}
+		else
+		{
+			Actions::exportFileAsSnippet(bpe);
+		}
+
+		return true;
+	}
 	case MenuExportProject:				Actions::exportHiseProject(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
 	case MenuExportWavetablesToMonolith: Actions::exportWavetablesToMonolith(bpe); return true;
@@ -1826,7 +1840,7 @@ void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendRoot
 
 
 
-void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
+String BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe, bool copyToClipboard)
 {
     auto bp = bpe->getBackendProcessor();
             
@@ -1861,12 +1875,15 @@ void BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe)
 
 	String data = "HiseSnippet " + mos2.getMemoryBlock().toBase64Encoding();
 
-	SystemClipboard::copyTextToClipboard(data);
+	if(copyToClipboard)
+		SystemClipboard::copyTextToClipboard(data);
 
-	if (!MainController::inUnitTestMode())
+	if (!MainController::inUnitTestMode() && copyToClipboard)
 	{
 		PresetHandler::showMessageWindow("Preset copied as compressed snippet", "You can paste the clipboard content to share this preset", PresetHandler::IconType::Info);
 	}
+
+	return data;
 }
 
 void BackendCommandTarget::Actions::createRnboTemplate(BackendRootWindow* bpe)
@@ -3268,7 +3285,7 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 	auto bp = new BackendProcessor(dm, cb);
 
-	bp->getAssetManager();
+	bp->setIsSnippetBrowser();
 	
 	auto nw = dynamic_cast<BackendRootWindow*>(bp->createEditor());
 

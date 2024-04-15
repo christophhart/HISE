@@ -46,6 +46,7 @@ namespace hise { using namespace juce;
 		bpe->setCurrentlyActiveProcessor();
 	}
 
+#if 0
 	SnippetBrowser::SnippetBrowser(Component* parent):
 		HeaderContentFooter(false),
 		closeButton("Close"),
@@ -329,6 +330,7 @@ namespace hise { using namespace juce;
 
 		
 	}
+#endif
 
 	TextLayout BackendRootWindow::TooltipLookAndFeel::layoutTooltipText(const String& text, Colour colour) noexcept
 	{
@@ -1014,7 +1016,7 @@ void BackendRootWindow::newHisePresetLoaded()
 
 	switch(currentCategory)
 	{
-	case SnippetBrowser::Category::Scriptnode: 
+	case SnippetBrowserHelpers::Category::Scriptnode: 
 		p = ProcessorHelpers::getFirstProcessorWithType<JavascriptMasterEffect>(getMainSynthChain());
 		break;
 	default:
@@ -1033,7 +1035,7 @@ void BackendRootWindow::newHisePresetLoaded()
 		}, 500);
 	}
 
-	if(currentCategory == SnippetBrowser::Category::UI)
+	if(currentCategory == SnippetBrowserHelpers::Category::UI)
 		{
 		Component::callRecursive<MainTopBar>(this, [](MainTopBar* t)
 		{

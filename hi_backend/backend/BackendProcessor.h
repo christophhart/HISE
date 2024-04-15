@@ -70,23 +70,51 @@ struct ExampleAssetManager: public ReferenceCountedObject,
 	  ProjectHandler(mc),
 	  mainProjectHandler(mc->getCurrentFileHandler())
 	{
-		setWorkingProject(mainProjectHandler.getRootFolder());
+		
+	}
 
-		auto hp = GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Compiler::HisePath).toString();
+	bool initialised = false;
 
-		if(hp.isNotEmpty())
+	void initialise()
+	{
+		if(!initialised)
 		{
-			rootDirectory = File(hp).getChildFile("example_assets");
+			initialised = true;
 
-			for(auto d: getSubDirectoryIds())
-				rootDirectory.getChildFile(getIdentifier(d)).createDirectory();
+			setWorkingProject(mainProjectHandler.getRootFolder());
 
-			checkSubDirectories();
-			downloadThread = new DownloadThread(*this);
-		}
-		else
-		{
-			debugError(mc->getMainSynthChain(), "You need to set the HISE path in order to download the example assets");
+			auto snippetSettings = getAppDataDirectory(getMainController()).getChildFile("snippetBrowser.xml");
+
+			if(auto xml = XmlDocument::parse(snippetSettings))
+			{
+				if(auto sd = xml->getChildByName("snippetDirectory"))
+				{
+					auto snippetDirectory = sd->getStringAttribute("value");
+
+					if(File::isAbsolutePath(snippetDirectory))
+					{
+						auto assetDirectory = File(snippetDirectory).getChildFile("Assets");
+
+						if(assetDirectory.isDirectory())
+						{
+							rootDirectory = assetDirectory;
+
+							for(auto d: getSubDirectoryIds())
+								rootDirectory.getChildFile(getIdentifier(d)).createDirectory();
+
+							checkSubDirectories();
+
+							pool->getAudioSampleBufferPool().loadAllFilesFromProjectFolder();
+							pool->getImagePool().loadAllFilesFromProjectFolder();
+							pool->getMidiFilePool().loadAllFilesFromProjectFolder();
+							pool->getSampleMapPool().loadAllFilesFromProjectFolder();
+							return;
+						}
+					}
+				}
+			}
+
+			debugError(getMainController()->getMainSynthChain(), "You need to download the assets using the snippet browser");
 		}
 	}
 
@@ -118,101 +146,6 @@ struct ExampleAssetManager: public ReferenceCountedObject,
 		return rootDirectory;
 	}
 
-	struct DownloadThread: public Thread,
-						   public URL::DownloadTaskListener
-	{
-		DownloadThread(ExampleAssetManager& parent_):
-		  Thread("Download example assets"),
-		  parent(parent_)
-		{
-			startThread(5);
-		}
-
-		~DownloadThread()
-		{
-			stopThread(1000);
-		}
-
-		ExampleAssetManager& parent;
-
-		std::unique_ptr<URL::DownloadTask> download;
-
-		void finished (URL::DownloadTask* task, bool success) override
-		{
-			String message;
-
-			if(success)
-				message << "Download complete";
-			else
-				message << "Download failed";
-
-			debugToConsole(parent.getMainController()->getMainSynthChain(), message);
-		}
-			
-        void progress (URL::DownloadTask* task, int64 bytesDownloaded, int64 totalLength) override
-		{
-			String message;
-			message << "Downloading example assets... " << String(bytesDownloaded/1024) << " / " << String(totalLength/1024) << " kB";
-			debugToConsole(parent.getMainController()->getMainSynthChain(), message);
-		}
-
-		void downloadAndExtract()
-		{
-			debugToConsole(parent.getMainController()->getMainSynthChain(), "Downloading example assets...");
-
-			parent.rootDirectory.createDirectory();
-			URL url("https://github.com/qdr/HiseSnippetDB/releases/download/1.0.0/Assets.zip");
-
-			auto target = parent.rootDirectory.getChildFile("Assets.zip");
-
-			download = url.downloadToFile(target, {}, this);
-
-			while(!download->isFinished())
-			{
-				if(threadShouldExit())
-					break;
-
-				wait(300);
-			}
-
-			if(!download->hadError())
-			{
-				debugToConsole(parent.getMainController()->getMainSynthChain(), "Extracting example assets...");
-
-				ZipFile zf(target);
-
-				auto ok = zf.uncompressTo(parent.rootDirectory, true);
-
-				if(!ok.wasOk())
-				{
-					debugToConsole(parent.getMainController()->getMainSynthChain(), "Extracted OK");
-					target.deleteFile();
-				}
-				else
-					debugToConsole(parent.getMainController()->getMainSynthChain(), ok.getErrorMessage());
-			}
-		}
-
-		void run() override
-		{
-			if(parent.rootDirectory != File())
-			{
-				downloadAndExtract();
-
-				parent.checkSubDirectories();
-
-				parent.pool->getAudioSampleBufferPool().loadAllFilesFromProjectFolder();
-				parent.pool->getImagePool().loadAllFilesFromProjectFolder();
-				parent.pool->getMidiFilePool().loadAllFilesFromProjectFolder();
-				parent.pool->getSampleMapPool().loadAllFilesFromProjectFolder();
-			}
-			
-		}
-
-		bool done;
-	};
-
-	ScopedPointer<DownloadThread> downloadThread;
 	File rootDirectory;
 
 	using Ptr = ReferenceCountedObjectPtr<ExampleAssetManager>;
