@@ -425,7 +425,7 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		}
 	case FileExportAsProjucerProject:
 	{
-		addAndMakeVisible(modalDialog = new ModalDialog(*this, new multipage::projucer_exporter(rt.currentRootDirectory, rt)));
+		addAndMakeVisible(modalDialog = new ModalDialog(*this, new multipage::library::ProjectExporter(rt.currentRootDirectory, rt)));
 		
 		break;
 	}
