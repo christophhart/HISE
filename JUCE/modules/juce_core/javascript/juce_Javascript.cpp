@@ -412,7 +412,9 @@ struct JavascriptEngine::RootObject   : public DynamicObject
 
         void assign (const Scope& s, const var& newValue) const override
         {
-            if (auto* o = parent->getResult (s).getDynamicObject())
+            auto p = parent->getResult(s);
+
+            if (auto* o = p.getDynamicObject())
                 o->setProperty (child, newValue);
             else
                 Expression::assign (s, newValue);
@@ -743,16 +745,23 @@ struct JavascriptEngine::RootObject   : public DynamicObject
 
             const var::NativeFunctionArgs args (thisObject, argVars.begin(), argVars.size());
 
-            if (var::NativeFunction nativeFunction = function.getNativeFunction())
-                return nativeFunction (args);
+            try
+            {
+	            if (var::NativeFunction nativeFunction = function.getNativeFunction())
+	                return nativeFunction (args);
 
-            if (auto* fo = dynamic_cast<FunctionObject*> (function.getObject()))
-                return fo->invoke (s, args);
+	            if (auto* fo = dynamic_cast<FunctionObject*> (function.getObject()))
+	                return fo->invoke (s, args);
 
-            if (auto* dot = dynamic_cast<DotOperator*> (object.get()))
-                if (auto* o = thisObject.getDynamicObject())
-                    if (o->hasMethod (dot->child)) // allow an overridden DynamicObject::invokeMethod to accept a method call.
-                        return o->invokeMethod (dot->child, args);
+	            if (auto* dot = dynamic_cast<DotOperator*> (object.get()))
+	                if (auto* o = thisObject.getDynamicObject())
+	                    if (o->hasMethod (dot->child)) // allow an overridden DynamicObject::invokeMethod to accept a method call.
+	                        return o->invokeMethod (dot->child, args);
+            }
+            catch(String& t)
+            {
+	            location.throwError(t);
+            }
 
             location.throwError ("This expression is not a function!"); return {};
         }
@@ -1660,6 +1669,8 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             setMethod ("charCodeAt",    charCodeAt);
             setMethod ("fromCharCode",  fromCharCode);
             setMethod ("split",         split);
+            setMethod ("trim",          trim);
+            setMethod ("toLowerCase",   toLowerCase);
         }
 
         static Identifier getClassName()  { static const Identifier i ("String"); return i; }
@@ -1669,6 +1680,8 @@ struct JavascriptEngine::RootObject   : public DynamicObject
         static var indexOf (Args a)       { return a.thisObject.toString().indexOf (getString (a, 0)); }
         static var charCodeAt (Args a)    { return (int) a.thisObject.toString() [getInt (a, 0)]; }
         static var charAt (Args a)        { int p = getInt (a, 0); return a.thisObject.toString().substring (p, p + 1); }
+        static var trim (Args a)          { return a.thisObject.toString().trim(); }
+        static var toLowerCase (Args a)   { return a.thisObject.toString().toLowerCase(); }
 
         static var split (Args a)
         {
@@ -1784,7 +1797,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
     };
 
     //==============================================================================
-    static var trace (Args a)        { Logger::outputDebugString (JSON::toString (a.thisObject)); return var::undefined(); }
+    static var trace (Args a)        { return JSON::toString(get(a, 0)); }
     static var charToInt (Args a)    { return (int) (getString (a, 0)[0]); }
     static var parseFloat (Args a)   { return getDouble (a, 0); }
 
