@@ -140,7 +140,7 @@ struct Dialog::PageBase::ModalHelp: public simple_css::FlexboxComponent
 		Helpers::writeSelectorsToProperties(closeButton, { ".help-close"});
 
 		Helpers::setFallbackStyleSheet(textDisplay, "width: 100%;");
-
+		
         //r.parse();
 
 		//auto h = r.getHeightForWidth((float)parent.getWidth() - 26.0f);
@@ -249,21 +249,31 @@ void Dialog::PageBase::setStateObject(const var& newStateObject)
 	stateObject = newStateObject;
 }
 
-void Dialog::PageBase::updateStyleSheetInfo()
+void Dialog::PageBase::updateStyleSheetInfo(bool forceUpdate)
 {
+	Component* componentToUse = !isInvisibleWrapper() ? this : getChildComponent(0);
+
+	if(componentToUse == nullptr)
+		return;
+
 	auto isFirst = classHash == 0 && styleHash == 0;
 	auto classList = infoObject[mpid::Class].toString();
-            
 	auto newHash = classList.isNotEmpty() ? classList.hashCode() : 0;
-
 	auto didSomething = false;
 
-	if(newHash != classHash)
+	if(newHash != classHash || forceUpdate)
 	{
 		classHash = newHash;
 		auto sa = StringArray::fromTokens(classList, " ", "");
 		sa.removeEmptyStrings();
-		Helpers::writeSelectorsToProperties(*this, sa);
+
+		for(auto& s: sa)
+		{
+			if(!s.startsWithChar('.'))
+				s = "." + s;
+		}
+
+		Helpers::writeSelectorsToProperties(*componentToUse, sa);
 		didSomething = true;
 	}
 
@@ -271,10 +281,10 @@ void Dialog::PageBase::updateStyleSheetInfo()
 
 	newHash = inlineStyle.isNotEmpty() ? inlineStyle.hashCode() : 0;
 
-	if(newHash != styleHash)
+	if(newHash != styleHash || forceUpdate)
 	{
 		styleHash = newHash;
-		Helpers::writeInlineStyle(*this, inlineStyle);
+		Helpers::writeInlineStyle(*componentToUse, inlineStyle);
 		didSomething = true;
 	}
 
@@ -287,7 +297,8 @@ void Dialog::PageBase::updateStyleSheetInfo()
 		});
 
 		// rebuild to allow resizing...
-		rootDialog.body.setCSS(rootDialog.css);
+		if(!rootDialog.getSkipRebuildFlag())
+			rootDialog.body.setCSS(rootDialog.css);
 	}
 }
 
@@ -364,7 +375,7 @@ void Dialog::PageBase::setModalHelp(const String& text)
 
 	auto thisBounds = popup->getLocalArea(this, getLocalBounds());
 
-	auto mb = thisBounds.withSizeKeepingCentre(jmax(400, modalHelp->getWidth()), modalHelp->getHeight());
+	auto mb = thisBounds.withSizeKeepingCentre(jmax(500, modalHelp->getWidth()), modalHelp->getHeight());
 	mb.setY(thisBounds.getBottom() + 3);
 	
 	mb = mb.constrainedWithin(popup->getLocalBounds());
@@ -397,6 +408,43 @@ String Dialog::PageBase::evaluate(const Identifier& id) const
 	return factory::MarkdownText::getString(infoObject[id].toString(), rootDialog);
 }
 
+void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject::Ptr thisObject)
+{
+	auto state = &rootDialog.getState();
+		    
+	if(auto ms = findParentComponentOfClass<ComponentWithSideTab>())
+		state = ms->getMainState();
+
+	engine = state->createJavascriptEngine();
+
+	if(engine != nullptr && (infoObject[mpid::UseOnValue] || !eventListeners.isEmpty()))
+	{
+		auto ok = Result::ok();
+		
+		ApiObject::ScopedThisSetter sts(*state, thisObject == nullptr ? new Element(*state, infoObject) : thisObject);
+
+		auto code = infoObject[mpid::Code].toString();
+
+		if(code.isNotEmpty() && infoObject[mpid::UseOnValue])
+			engine->evaluate(code, &ok);
+
+		for(auto& v: eventListeners)
+		{
+			if(v.first == eventType)
+			engine->callFunctionObject(sts.getThisObject(), v.second, var::NativeFunctionArgs(var(sts.getThisObject()), nullptr, 0), &ok);
+
+			if(ok.failed())
+				break;
+		}
+
+		if(ok.failed())
+		{
+			rootDialog.setCurrentErrorPage(this);
+			setModalHelp(ok.getErrorMessage());
+		}
+	}
+}
+
 Asset::Ptr Dialog::PageBase::getAsset(const Identifier& id) const
 {
 	auto assetId = infoObject[id].toString().trim();
@@ -420,7 +468,7 @@ void Dialog::PageBase::init()
 	if(findParentComponentOfClass<Dialog::ModalPopup>() == nullptr)
 		rootDialog.getEditModeBroadcaster().addListener(*this, PageBase::onEditModeChange);
 
-	updateStyleSheetInfo();
+	updateStyleSheetInfo(false);
 
 	if(!initValue.isUndefined() && !initValue.isVoid())
 	{
@@ -474,10 +522,35 @@ String Dialog::PageBase::loadValueOrAssetAsText()
 
 	if(s.startsWith("${"))
 	{
-		return rootDialog.getState().loadText(s);
+		return rootDialog.getState().loadText(s, true);
 	}
 
 	return s;
+}
+
+StringArray Dialog::PageBase::getItemsAsStringArray() const
+{
+	auto itemList = infoObject[mpid::Items];
+
+	StringArray sa;
+
+	if(itemList.isArray())
+	{
+		for(auto& v: *itemList.getArray())
+		{
+			sa.add(v.toString().unquoted().trim());
+		}
+	}
+	else
+	{
+		sa = StringArray::fromLines(itemList.toString());
+
+		for(auto& s: sa)
+			s = s.trim().unquoted();
+	}
+
+	sa.removeEmptyStrings();
+	return sa;
 }
 
 Result Dialog::PageBase::check(const var& obj)
@@ -517,7 +590,11 @@ bool Dialog::PageBase::isError() const
 { return rootDialog.currentErrorElement == this; }
 
 
-
+ComponentWithSideTab::ComponentWithSideTab()
+{
+	propertyStyleSheet = DefaultCSSFactory::getTemplateCollection(DefaultCSSFactory::Template::PropertyEditor);
+    	
+}
 
 var Dialog::PositionInfo::toJSON() const
 {
@@ -727,6 +804,8 @@ bool Dialog::ModalPopup::keyPressed(const KeyPress& k)
 		dismiss();
 		return true;
 	}
+
+	return false;
 }
 
 void Dialog::ModalPopup::mouseDown(const MouseEvent& e)
@@ -818,6 +897,7 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 	if(auto sd = obj[mpid::StyleData].getDynamicObject())
 	{
+
 		styleData.fromDynamicObject(var(sd), std::bind(&State::loadFont, &getState(), std::placeholders::_1));
 	}
 	else
@@ -1010,8 +1090,7 @@ void Dialog::createEditorInSideTab(const var& obj, PageBase* pb, const std::func
 		ns->globalState = obj;
 		auto d = new Dialog(var(), * ns, true);
 
-		auto css = DefaultCSSFactory::getTemplateCollection(DefaultCSSFactory::Template::PropertyEditor);
-		d->update(css);
+		d->setFixStyleSheet(st->propertyStyleSheet);
 
 		d->useHelpBubble = true;
 
@@ -1119,8 +1198,16 @@ bool Dialog::keyPressed(const KeyPress& k)
 {
 	if(k.getKeyCode() == KeyPress::F5Key)
 	{
-		if(currentPage != nullptr)
-			currentPage->check(getState().globalState);
+		try
+		{
+			if(currentPage != nullptr)
+				currentPage->check(getState().globalState);
+		}
+		catch(State::CallOnNextAction& )
+		{
+			getState().jobs.clear();
+		}
+		
 
 		if(auto st = findParentComponentOfClass<ComponentWithSideTab>())
 		{
@@ -1751,7 +1838,7 @@ void Dialog::paint(Graphics& g)
 	}
 #endif
 
-	if(auto ss = css.getWithAllStates(simple_css::ElementType::Body))
+	if(auto ss = css.getWithAllStates(nullptr, simple_css::ElementType::Body))
 	{
 		auto c = ss->getColourOrGradient(getLocalBounds().toFloat(), { "background-color", {}}, Colour(0xFF222222));
 

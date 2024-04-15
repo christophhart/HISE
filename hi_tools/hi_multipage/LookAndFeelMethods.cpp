@@ -41,10 +41,17 @@ namespace default_css {
 static const char* GLOBAL = R"(
 * {
     color: #ddd;
-    font-size: 17px;
-    font-family: 'Lato';
+    
+	/** Pickup the font from the global selector. */
+    font-family: var(--Font);
+ 
+    /** Pickup the font size from the global selector. */
+    font-size: var(--FontSize);
+
     opacity: 1.0;
     color: var(--textColour);
+
+	--triangle-icon: "66.t01PhrCQTd7bCwF..VDQTd7bCwF..ZBQzvgvCwF..d.QTd7bCwVccGAQTd7bCwF..ZBQEZepCw1PhrCQTd7bCMVY";
 }
 
 *:disabled
@@ -55,14 +62,8 @@ static const char* GLOBAL = R"(
 /** Global properties (font, background, etc). */
 body
 {
-    /** Pickup the font from the global selector. */
-    font-family: var(--Font);
- 
-    /** Pickup the font size from the global selector. */
-    font-size: var(--FontSize);
-
     --global-padding: 10px;
-    --triangle-icon: "66.t01PhrCQTd7bCwF..VDQTd7bCwF..ZBQzvgvCwF..d.QTd7bCwVccGAQTd7bCwF..ZBQEZepCw1PhrCQTd7bCMVY";
+    
 }
 
 div
@@ -232,6 +233,13 @@ static const char* HELP = R"(
  left: calc(50% - 10px);
 }
 
+.help-text
+{
+	width: calc(100% - 18px);
+	height: auto;
+	max-height: 300px;
+}
+
 .help-close
 {
  position: absolute;
@@ -253,6 +261,8 @@ static const char* HELP = R"(
  border-radius: 3px;
  box-shadow: 0px 2px 4px black;
 }
+
+
 
 )";
 
@@ -733,7 +743,7 @@ select::after:hover
 {
  background: #282828;
  color: transparent;
- width: 32px;
+ width: auto;
  margin: 0px;
  box-shadow: none;
  border: 0px;
@@ -751,7 +761,7 @@ select::after:hover
 
 .toggle-button::before
 {
- position: absolute;
+ position: initial;
  content: '';
  width: 32px;
  margin: 6px;
@@ -948,6 +958,29 @@ input:focus
 
 )";
 
+static const char* rawHTML = R"(
+*
+{
+   color: black;
+}
+
+#content
+{
+	background: transparent;
+
+}
+
+#header,
+#footer
+{
+	display: none;
+}
+
+body
+{
+	background: white;
+})";
+
 static const char* modalPopup = R"(
 /** Global properties (font, background, etc). */
 body
@@ -962,9 +995,10 @@ body
 
 #header
 {
+	display: flex;
     background-color: #282828;
     height: auto;
-    padding: 10px;
+    padding: 20px;
     margin: 1px;
 
     flex-direction: column;
@@ -988,10 +1022,11 @@ body
 #footer
 {
     gap: 5px;
-    padding: 10px;
+    padding: 20px;
     height: auto;
     margin: 1px;
-    flex-direction: row-reverse;
+	display: flex;
+    flex-direction: row;
     background: #222;
     box-shadow: inset 0px 0px 5px rgba(0, 0, 0, 0.5);
 }
@@ -1139,8 +1174,13 @@ String DefaultCSSFactory::getTemplate(Template t)
 
 	switch(t)
 	{
+	case Template::None:
+        return s;
 	case Template::PropertyEditor: 
         s << default_css::propertyCSS;
+        break;
+	case Template::RawHTML:
+        s << default_css::rawHTML;
         break;
 	case Template::Dark:
         s << default_css::darkCSS;

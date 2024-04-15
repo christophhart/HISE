@@ -227,10 +227,10 @@ Result JavascriptFunction::onAction()
 
 	if(code.startsWith("${"))
 	{
-		code = rootDialog.getState().loadText(code);
+		code = rootDialog.getState().loadText(code, true);
 	}
         
-	auto engine = rootDialog.getState().createJavascriptEngine(infoObject);
+	auto engine = rootDialog.getState().createJavascriptEngine();
 	auto ok = engine->execute(code);
 	return ok;
 }
@@ -323,7 +323,7 @@ Result AppDataFileWriter::onAction()
 	if(linkContent.isEmpty())
 		return Result::fail("No link file target");
 
-	linkContent = rootDialog.getState().loadText(linkContent);
+	linkContent = rootDialog.getState().loadText(linkContent, true);
 	linkContent = factory::MarkdownText::getString(linkContent, rootDialog);
 
 	if(!targetFile.existsAsFile())
@@ -423,6 +423,8 @@ Result RelativeFileLoader::onAction()
 
 		return Result::ok();
 	}
+
+	return Result::fail("Can't parse location type");
 }
 
 Launch::Launch(Dialog& r, int w, const var& obj):
@@ -582,8 +584,8 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	{
 		rootDialog.getState().addJob(job, true);
 		rootDialog.setCurrentErrorPage(nullptr);
-		retryButton.setVisible(false);
-		resized();
+		setFlexChildVisibility(2, false, true);
+		rebuildLayout();
 	};
         
 	label = obj[mpid::Text].toString();
@@ -594,7 +596,10 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	addFlexItem(*progress);
 
 	addFlexItem(retryButton);
-	retryButton.setVisible(false);
+
+	setFlexChildVisibility(2, false, true);
+
+	
 
 	setDefaultStyleSheet("display: flex; width: 100%; height: auto; gap: 10px;");
 	Helpers::setFallbackStyleSheet(*progress, "flex-grow: 1; height: 32px;");
@@ -711,8 +716,8 @@ Result BackgroundTask::abort(const String& message)
 	{
 		w.rootDialog.setCurrentErrorPage(&w);
 		w.setModalHelp(copy);
-		w.retryButton.setVisible(true);
-		w.resized();
+		w.setFlexChildVisibility(2, true, false);
+		w.rebuildLayout();
 	});
 	            
 	return Result::fail(message);
@@ -818,7 +823,7 @@ Result HttpRequest::performTask(State::Job& t)
 {
 	auto code = infoObject[mpid::Code].toString();
 
-	auto engine = rootDialog.getState().createJavascriptEngine(infoObject);
+	auto engine = rootDialog.getState().createJavascriptEngine();
 
 	auto r = engine->execute(code);
 
@@ -1162,6 +1167,8 @@ Result UnzipTask::performTask(State::Job& t)
 	ScopedPointer<MemoryInputStream> mis;
 	bool sourceIsFile = sourceFile.existsAsFile();
 
+	auto allowNoSource = (bool)infoObject[mpid::SkipIfNoSource];
+
 	if(!sourceIsFile)
 	{
 		if(auto a = getAsset(mpid::Source))
@@ -1173,11 +1180,29 @@ Result UnzipTask::performTask(State::Job& t)
 			}
 			else
 			{
-				return Result::fail("Asset type is not an archive");
+				if(allowNoSource)
+				{
+					rootDialog.logMessage(MessageType::FileOperation, "Skip extracting of nonexistent source " + sourceFile.getFullPathName());
+					return Result::ok();
+				}
+					
+				else
+					return Result::fail("Asset type is not an archive");
 			}
 		}
 		else
-			return Result::fail("No source archive specified");
+		{
+			if(allowNoSource)
+			{
+				rootDialog.logMessage(MessageType::FileOperation, "Skip extracting of nonexistent source " + sourceFile.getFullPathName());
+				return Result::ok();
+			}
+			else
+			{
+				return Result::fail("No source archive specified");
+			}
+		}
+			
 	}
 
 	rootDialog.logMessage(MessageType::FileOperation, "Create directory " + targetDirectory.getFullPathName());
@@ -1196,13 +1221,23 @@ Result UnzipTask::performTask(State::Job& t)
 		
 	}
 
+	auto skipFirstFolder = (bool)infoObject[mpid::SkipFirstFolder];
+
 	for(int i = 0; i < zipFile->getNumEntries(); i++)
 	{
 		if(t.getThread().threadShouldExit())
 			return Result::fail("Aborted");
 
 		t.getProgress() = (double)i / (double)zipFile->getNumEntries();
+		
+		auto zn = const_cast<ZipFile::ZipEntry*>(zipFile->getEntry(i));
 
+		if(skipFirstFolder)
+		{
+			zn->filename = zn->filename.replaceCharacter('\\', '/');
+			zn->filename = zn->filename.fromFirstOccurrenceOf("/", false, false);
+		}
+		
 		zipFile->uncompressEntry(i, targetDirectory, overwrite, nullptr);
 
 		auto thisFile = targetDirectory.getChildFile(zipFile->getEntry(i)->filename);
@@ -1243,29 +1278,22 @@ void UnzipTask::createEditor(Dialog::PageInfo& rootList)
 
 	auto& col = rootList;
 
-	col.addChild<TextInput>({
-		{ mpid::ID, "Text" },
-		{ mpid::Text, "Text" },
-		{ mpid::Help, "The label text that will be shown next to the progress bar." }
-	});
-        
+	col.addChild<TextInput>(DefaultProperties::getForSetting(infoObject, mpid::Text, 
+		"The label text that will be shown next to the progress bar."));
+
 	addSourceTargetEditor(rootList);
 
-	rootList.addChild<Button>({
-		{ mpid::ID, "Overwrite" },
-		{ mpid::Text, "Overwrite" },
-		{ mpid::Required, false },
-		{ mpid::Value, overwrite },
-		{ mpid::Help, "Whether to use a POST or GET request for the download" }
-	});
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::Overwrite, 
+		"Whether to use overwrite existing files or not"));
 
-	rootList.addChild<Button>({
-		{ mpid::ID, "Cleanup" },
-		{ mpid::Text, "Cleanup" },
-		{ mpid::Required, false },
-		{ mpid::Value, infoObject[mpid::Cleanup] },
-		{ mpid::Help, "Whether to remove the archive after it was extracted successfully" }
-	});
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::Cleanup, 
+		"Whether to remove the archive after it was extracted successfully"));
+
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::SkipFirstFolder, 
+		"Whether to skip the first folder hierarchy in the source archive.  \n> This is useful if your archive has all files in a subdirectory and you want to extract the archive directly to the specified target."));
+
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::SkipIfNoSource, 
+		"Whether to silently skip the extraction process or throw an error message if the source doesn't exist. Use this option if you conditionally download the archive before extracting."));
 }
 
 Result CopyAsset::performTask(State::Job& t)
@@ -1388,6 +1416,11 @@ Result HlacDecoder::performTask(State::Job& t)
 void HlacDecoder::logStatusMessage(const String& message)
 {
 	currentJob->setMessage(message);
+}
+
+void HlacDecoder::logVerboseMessage(const String& verboseMessage)
+{
+	rootDialog.logMessage(MessageType::Hlac, verboseMessage);
 }
 
 void HlacDecoder::createEditor(Dialog::PageInfo& rootList)
@@ -1623,11 +1656,292 @@ void FileLogger::createEditor(Dialog::PageInfo& rootList)
 	});
 }
 
+DirectoryScanner::DirectoryScanner(Dialog& r, int w, const var& obj):
+	Constants(r, w, obj)
+{
+}
+
+void DirectoryScanner::createEditor(Dialog::PageInfo& rootList)
+{
+	rootList.addChild<Type>({
+		{ mpid::ID, "Type"},
+		{ mpid::Type, getStaticId().toString() },
+		{ mpid::Help, "An action object that loads & stores values to a settings file" }
+	});
+
+	rootList.addChild<TextInput>(DefaultProperties::getForSetting(infoObject, mpid::ID, 
+		"The ID for the directory list. This will store an array of filenames in the global state"));
+
+	rootList.addChild<TextInput>(DefaultProperties::getForSetting(infoObject, mpid::Source, 
+		"The source for the root directory"));
+
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::RelativePath, 
+		"Whether to store the full path or just the filename"));
+
+	rootList.addChild<TextInput>(DefaultProperties::getForSetting(infoObject, mpid::Wildcard, 
+		"A wildcard filter for the file scanner"));
+
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::Directory, 
+		"Whether to look for child files or child directories"));
+}
+
+void DirectoryScanner::loadConstants()
+{
+	auto source = MarkdownText::getString(infoObject[mpid::Source].toString(), rootDialog);
+
+	Array<var> items;
+
+	if(File::isAbsolutePath(source))
+	{
+		auto searchDirectories = (bool)infoObject[mpid::Directory];
+		auto wildcard = infoObject[mpid::Wildcard].toString();
+
+		if(wildcard.isEmpty())
+			wildcard = "*";
+
+		auto relativePath = (bool)infoObject[mpid::RelativePath];
+            
+		File root(source);
+
+		auto childFiles = root.findChildFiles(searchDirectories ? File::findDirectories : File::findFiles, false, wildcard);
+		childFiles.sort();
+
+		for(auto f: childFiles)
+		{
+			if(f.isHidden())
+				continue;
+
+			if(relativePath)
+				items.add(f.getFileName());
+			else
+				items.add(f.getFullPathName());
+		}
+	}
+
+	writeState(var(items));
+}
+
+ProjectInfo::ProjectInfo(Dialog& r, int w, const var& obj):
+	Constants(r, w, obj)
+{}
+
 void ProjectInfo::loadConstants()
 {
 	setConstant("company", rootDialog.getGlobalProperty(mpid::Company));
 	setConstant("product", rootDialog.getGlobalProperty(mpid::ProjectName));
 	setConstant("version", rootDialog.getGlobalProperty(mpid::Version));
+}
+
+PersistentSettings::PersistentSettings(Dialog& r, int w, const var& obj):
+	Constants(r, w, obj)
+{
+	    
+}
+
+File PersistentSettings::getSettingFile() const
+{
+	auto c = rootDialog.getGlobalProperty(mpid::Company).toString();
+	auto p = rootDialog.getGlobalProperty(mpid::ProjectName).toString();
+
+	if(c.isEmpty() || p.isEmpty())
+		return File();
+
+	auto useGlobal = (bool)rootDialog.getGlobalProperty(mpid::UseGlobalAppData);
+	auto appDataDirectoryToUse = File::userApplicationDataDirectory;
+
+	if(useGlobal)
+		appDataDirectoryToUse = File::commonApplicationDataDirectory;
+
+	auto appDataFolder = File::getSpecialLocation(appDataDirectoryToUse);
+
+#if JUCE_MAC
+	    appDataFolder = appDataFolder.getChildFile("Application Support");
+#endif
+
+	auto projectFolder = appDataFolder.getChildFile(c);
+
+	if(infoObject[mpid::UseProject])
+		projectFolder = projectFolder.getChildFile(p);
+
+	if(!projectFolder.isDirectory())
+		projectFolder.createDirectory();
+
+        
+	auto settingName = infoObject[mpid::Filename].toString();
+
+	return projectFolder.getChildFile(settingName).withFileExtension(shouldUseJson() ? ".json" : ".xml");
+}
+
+void PersistentSettings::createEditor(Dialog::PageInfo& rootList)
+{
+	// mpid::Filename, mpid::ParseJSON, mpid::UseChildState, mpid::ID, mpid::Items, 
+
+	rootList.addChild<Type>({
+		{ mpid::ID, "Type"},
+		{ mpid::Type, getStaticId().toString() },
+		{ mpid::Help, "An action object that loads & stores values to a settings file" }
+	});
+
+	rootList.addChild<TextInput>(DefaultProperties::getForSetting(infoObject, mpid::ID, 
+		"The ID of the constant. This will be used as tag name of the root element of the file.")); 
+
+	rootList.addChild<TextInput>(DefaultProperties::getForSetting(infoObject, mpid::Filename, 
+		"The filename of the setting file. This should only be the filename without path or file extension")); 
+
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::UseProject, 
+		"Whether to use the project name as subdirectory (`APPDATA/Company/Project` vs. `APPDATA/Company/`));")); 
+
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::ParseJSON, 
+		"Whether to use JSON or XML for the file"));
+
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::UseChildState, 
+		"Whether to store the settings as root properties or as child element with a single value property (only used in XML format")); 
+
+	auto& items = rootList.addChild<TextInput>(DefaultProperties::getForSetting(infoObject, mpid::Items, 
+		"A list of default values that are used for the setting. One line per item with the syntax `key:value`.")); 
+
+	items[mpid::Multiline] = true;
+}
+
+void PersistentSettings::loadConstants()
+{
+	auto f = getSettingFile();
+        
+	if(f == File())
+		return;
+
+	auto lines = getItemsAsStringArray();
+
+	for(const auto& l: lines)
+	{
+		auto key = l.upToFirstOccurrenceOf(":", false, false).trim();
+		auto value = l.fromFirstOccurrenceOf(":", false, false).trim();
+
+		if(key.isNotEmpty())
+		{
+			defaultValues.set(Identifier(key), var(value.unquoted()));
+		}
+	}
+
+	valuesFromFile = defaultValues;
+
+	if(shouldUseJson())
+	{
+		var data;
+		auto ok = JSON::parse(f.loadFileAsString(), data);
+
+		if(ok.wasOk() && data.getDynamicObject() != nullptr)
+		{
+			for(auto& nv: data.getDynamicObject()->getProperties())
+				valuesFromFile.set(nv.name, nv.value);
+		}
+	}
+	else
+	{
+		if(auto xml = XmlDocument::parse(f))
+		{
+			auto v = ValueTree::fromXml(*xml);
+
+			if(useValueChildren())
+			{
+				for(auto c: v)
+				{
+					auto key = c.getType();
+					auto value = c["value"];
+					valuesFromFile.set(key, value);
+				}
+			}
+			else
+			{
+				for(int i = 0; i < v.getNumProperties(); i++)
+				{
+					auto key = v.getPropertyName(i);
+					valuesFromFile.set(key, v[key]);
+				}
+			}
+		}
+	}
+
+	rootDialog.logMessage(MessageType::FileOperation, "Loading constants from settings file " + f.getFullPathName());
+
+	for(const auto& nv: valuesFromFile)
+	{
+		setConstant(nv.name, nv.value);
+	}
+}
+
+bool PersistentSettings::useValueChildren() const
+{
+	return (bool)infoObject[mpid::UseChildState];
+}
+
+bool PersistentSettings::shouldUseJson() const
+{
+	return (bool)infoObject[mpid::ParseJSON];
+}
+
+Result PersistentSettings::checkGlobalState(var globalState)
+{
+	auto f = getSettingFile();
+
+	if(f == File())
+		return Result::fail("Can't write setting file");
+
+	if(valuesFromFile.isEmpty())
+	{
+		rootDialog.logMessage(MessageType::FileOperation, "Skip writing empty setting file to " + f.getFullPathName());
+		return Result::ok();
+	}
+		
+	for(auto& nv: valuesFromFile)
+	{
+		auto newValue = rootDialog.getState().globalState[nv.name];
+
+		String m;
+		m << "change setting " << nv.name << " in file " << infoObject[mpid::Filename].toString() << ": ";
+		m << nv.value.toString() << " -> " << newValue.toString();
+		rootDialog.logMessage(MessageType::FileOperation, m);
+		valuesFromFile.set(nv.name, newValue);
+	}
+
+	if(shouldUseJson())
+	{
+		DynamicObject::Ptr p = new DynamicObject();
+
+		for(auto& nv: valuesFromFile)
+		{
+			p->setProperty(nv.name, nv.value);
+		}
+
+		auto data = JSON::toString(var(p.get()), true);
+		f.replaceWithText(data);
+	}
+	else
+	{
+		ValueTree v(infoObject[mpid::ID].toString());
+
+		auto useValueState = useValueChildren();
+
+		for(const auto& nv: valuesFromFile)
+		{
+			if(useValueState)
+			{
+				auto c = ValueTree(nv.name.toString());
+				c.setProperty("value", nv.value, nullptr);
+				v.addChild(c, -1, nullptr);
+			}
+			else
+			{
+				v.setProperty(nv.name, nv.value, nullptr);
+			}
+		}
+
+		auto xml = v.createXml();
+		auto data = xml->createDocument("");
+		f.replaceWithText(data);
+	}
+
+	return Result::ok();
 }
 } // PageFactory
 } // multipage

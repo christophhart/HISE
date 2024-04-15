@@ -154,10 +154,7 @@ void Container::addWithPopup()
 Result Container::customCheckOnAdd(PageBase* b, const var& obj)
 {
 	dynamic_cast<Container*>(b)->checkGlobalState(obj);
-	Container* c = this;
-
 	rebuildRootLayout();
-    
 	return Result::ok();
 }
 

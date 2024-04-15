@@ -44,6 +44,7 @@
 #endif
 
 #include "MultiPageDialog.h"
+#include "JavascriptApi.h"
 #include "PageFactory.h"
 #include "InputComponents.h"
 #include "ActionComponents.h"

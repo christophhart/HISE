@@ -46,9 +46,7 @@ struct LabelledComponent: public Dialog::PageBase
 
     void postInit() override;
     void resized() override;
-
-    void callOnValueChange();
-
+    
     static String getCategoryId() { return "UI Elements"; }
 
     template <typename T> T& getComponent() { return *dynamic_cast<T*>(component.get()); }
@@ -61,9 +59,11 @@ protected:
 
     bool enabled = true;
 
-    std::unique_ptr<JavascriptEngine> engine;
+    
 
 private:
+
+    bool showLabel = false;
 
     ScopedPointer<Component> component;
 
@@ -115,7 +115,9 @@ struct TextInput: public LabelledComponent,
 private:
 
     bool useDynamicAutocomplete = false;
-    
+
+    bool callOnEveryChange = false;
+
     String emptyText;
 
     void showAutocomplete(const String& currentText);
@@ -173,7 +175,7 @@ private:
             auto b64 = obj[mpid::Icon].toString();
 
             if(d != nullptr)
-                b64 = d->getState().loadText(b64);
+                b64 = d->getState().loadText(b64, false);
 
             MemoryBlock mb;
             mb.fromBase64Encoding(b64);
@@ -316,7 +318,7 @@ struct CodeEditor: public LabelledComponent
 	                auto* state = ms->getMainState();
 
                     if(engine == nullptr)
-						engine = state->createJavascriptEngine(infoObject);
+						engine = state->createJavascriptEngine();
 
                     for(auto& nv: engine->getRootObjectProperties())
                     {
@@ -325,7 +327,7 @@ struct CodeEditor: public LabelledComponent
 	            }
 	        }
 
-            std::unique_ptr<JavascriptEngine> engine;
+            JavascriptEngine* engine = nullptr;
         };
 
         AllEditor(const String& syntax):
@@ -338,6 +340,10 @@ struct CodeEditor: public LabelledComponent
                 editor->tokenCollection->setUseBackgroundThread(false);
 	            editor->setLanguageManager(new simple_css::LanguageManager(codeDoc));
             }
+            else if(syntax == "HTML")
+			{
+                editor->setLanguageManager(new mcl::XmlLanguageManager());
+			}
             else
             {
 	            editor->tokenCollection = new mcl::TokenCollection("Javascript");
@@ -399,7 +405,7 @@ struct CodeEditor: public LabelledComponent
         auto* state = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
 
         if(code.startsWith("${"))
-            code = state->loadText(code);
+            code = state->loadText(code, true);
 
         if(syntax == "CSS")
         {
@@ -411,10 +417,10 @@ struct CodeEditor: public LabelledComponent
 			for(const auto& w: p.getWarnings())
 				editor.addWarning(w);
 
+            writeState(code);
+
             if(ok.wasOk())
             {
-	            writeState(code);
-
 	            if(auto d = state->currentDialog.get())
 	            {
 		            d->positionInfo.additionalStyle = code;
@@ -426,18 +432,27 @@ struct CodeEditor: public LabelledComponent
             
             return ok;
         }
+        else if (syntax == "HTML")
+        {
+	        writeState(code);
+
+            if(auto d = state->currentDialog.get())
+	        {
+                d->refreshCurrentPage();
+	        }
+
+            return Result::ok();
+        }
         else
         {
-	        auto infoObject = findParentComponentOfClass<Dialog>()->getState().globalState;
+            writeState(code);
 
-	        auto e = state->createJavascriptEngine(infoObject);
+	        auto e = state->createJavascriptEngine();
 	        auto ok = e->execute(code);
 
 	        getComponent<AllEditor>().editor->setError(ok.getErrorMessage());
 
-	        if(ok.wasOk())
-	            writeState(code);
-	        else
+	        if(!ok.wasOk())
 	            state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
 
 	        return ok;

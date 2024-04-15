@@ -93,13 +93,195 @@ void Spacer::createEditor(Dialog::PageInfo& rootList)
     });
 }
 
+void Spacer::paint(Graphics& g)
+{
+	if(isEditModeAndNotInPopup())
+	{
+		g.setColour(Dialog::getDefaultFont(*this).second.withAlpha(0.3f));
+		g.drawRoundedRectangle(getLocalBounds().toFloat(), 5.0f, 1.0f);
+	}
+}
+
+HtmlElement::HtmlElement(Dialog& r, int width, const var& d):
+	PageBase(r, width, d)
+{
+	Helpers::setFallbackStyleSheet(*this, "width: 100%; height: auto;display:flex;");
+}
+
+void HtmlElement::postInit()
+{
+	init();
+
+    auto content = infoObject[mpid::Code].toString();
+
+    if(content.startsWithChar('$'))
+	    content = rootDialog.getState().loadText(content, true);
+
+    if(auto xml = XmlDocument::parse(content))
+    {
+        HtmlParser::HeaderInformation hi;
+
+        ScopedPointer<simple_css::StyleSheet::Collection::DataProvider> dp = rootDialog.createDataProvider();
+
+		HtmlParser p;
+
+        auto obj = p.getElement(dp, hi, xml.get());
+
+        auto ok = hi.flush(dp, rootDialog.getState());
+
+		if(!ok.wasOk())
+		{
+			rootDialog.setCurrentErrorPage(this);
+			setModalHelp(ok.getErrorMessage());
+		}
+
+        if(auto r = simple_css::CSSRootComponent::find(*this))
+        {
+	        r->css.addCollectionForComponent(this, hi.css);
+        }
+        
+        Factory factory;
+
+	    if(auto pi = factory.create(obj))
+        {
+            pi->useGlobalStateObject = false;
+            auto nc = pi->pageCreator(rootDialog, getWidth(), obj);
+            childElements.add(nc);
+            addFlexItem(*nc);
+            nc->postInit();
+        }
+    }
+}
+
+void HtmlElement::createEditor(Dialog::PageInfo& rootList)
+{
+	rootList.addChild<Type>({
+		{ mpid::ID, "HtmlElement"},
+		{ mpid::Type, "HtmlElement"},
+		{ mpid::Help, "A UI element defined by HTML markup language" }
+	});
+            
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "ID" },
+		{ mpid::Text, "ID" },
+		{ mpid::Value, infoObject[mpid::ID].toString() },
+		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
+	});
+
+	rootList.addChild<CodeEditor>({
+		{ mpid::ID, mpid::Code.toString() },
+		{ mpid::Text, mpid::Code.toString() },
+		{ mpid::Help, "The HTML code" },
+		{ mpid::Syntax, "HTML" },
+		{ mpid::Value, infoObject[mpid::Code] }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Class.toString() },
+		{ mpid::Text, mpid::Class.toString() },
+		{ mpid::Help, "The CSS class that is applied to the UI element." },
+		{ mpid::Value, infoObject[mpid::Class] }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+		{ mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+}
+
+
+
+
+Image::Image(Dialog& r, int width, const var& d):
+	PageBase(r, width, d)
+{
+	setSize(width, 0);
+	addFlexItem(img);
+	Helpers::setFallbackStyleSheet(*this, "display:flex;gap:0px;width:100%;height:100px;");
+	Helpers::setFallbackStyleSheet(img, "width:100%;height:100%;");
+}
+
+void Image::createEditor(Dialog::PageInfo& rootList)
+{
+	rootList.addChild<Type>({
+		{ mpid::ID, "Image"},
+		{ mpid::Type, "Image"},
+		{ mpid::Help, "A component with fix columns and a dynamic amount of rows" }
+	});
+            
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "ID" },
+		{ mpid::Text, "ID" },
+		{ mpid::Value, infoObject[mpid::ID].toString() },
+		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Source.toString() },
+		{ mpid::Text, mpid::Source.toString() },
+		{ mpid::Help, "The image source - either a URL or a asset reference" },
+		{ mpid::Items, rootDialog.getState().getAssetReferenceList(Asset::Type::Image) },
+		{ mpid::Value, infoObject[mpid::Source] }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Class.toString() },
+		{ mpid::Text, mpid::Class.toString() },
+		{ mpid::Help, "The CSS class that is applied to the UI element." },
+		{ mpid::Value, infoObject[mpid::Class] }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Style.toString() },
+		{ mpid::Text, mpid::Style.toString() },
+		{ mpid::Value, infoObject[mpid::Style] },
+		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+}
+
+void Image::postInit()
+{
+	auto imgPath = infoObject[mpid::Source].toString();
+
+	if(URL::isProbablyAWebsiteURL(imgPath))
+		img.setImage(URL(imgPath));
+	else
+		img.setImage(rootDialog.getState().loadImage(imgPath));
+}
+
+EventLogger::EventLogger(Dialog& r, int w, const var& obj):
+	PageBase(r, w, obj),
+	console(r.getState())
+{
+	addAndMakeVisible(console);
+	setSize(w, 200);
+}
+
 SimpleText::SimpleText(Dialog& r, int width, const var& obj):
 	PageBase(r, width, obj)
 {
-	setDefaultStyleSheet("width: 100%;height: auto;display: flex;");
 	auto t = addTextElement({}, obj[mpid::Text].toString());
-	Helpers::writeInlineStyle(*t, "flex-grow:1;");
+	setIsInvisibleWrapper(true);
+
+	this->updateStyleSheetInfo(true);
+
+	//setDefaultStyleSheet("width: 100%;height: auto;display: flex;");
+	
+	//Helpers::writeInlineStyle(*t, "flex-grow:1;");
 	setSize(width, t->getHeight());
+}
+
+void SimpleText::postInit()
+{
+	init();
+
+	if(auto st = dynamic_cast<SimpleTextDisplay*>(getChildComponent(0)))
+	{
+		auto text = infoObject[mpid::Text].toString();
+		st->setText(text);
+	}
 }
 
 void SimpleText::createEditor(Dialog::PageInfo& rootList)
@@ -219,7 +401,7 @@ struct AssetImageProvider: public MarkdownParser::ImageProvider
 
 	MarkdownParser::ResolveType getPriority() const override { return MarkdownParser::ResolveType::EmbeddedPath; }
 
-	Image getImage(const MarkdownLink& imageURL, float width) override
+	juce::Image getImage(const MarkdownLink& imageURL, float width) override
 	{
 		auto id = imageURL.toString(MarkdownLink::Format::UrlWithoutAnchor).substring(1, 10000);
 
@@ -279,7 +461,7 @@ void MarkdownText::postInit()
 	auto markdownText = getString(infoObject[mpid::Text].toString(), rootDialog);
 
 	if(markdownText.startsWith("${"))
-		markdownText = rootDialog.getState().loadText(markdownText);
+		markdownText = rootDialog.getState().loadText(markdownText, true);
 
 	display.setSize(width, 0);
 	display.setText(markdownText);
@@ -407,7 +589,7 @@ TagList::TagList(Dialog& parent, int w, const var& obj):
 	PageBase(parent, w, obj)
 {
 	Helpers::setFallbackStyleSheet(*this, "display:flex;width:100%;height:auto;flex-wrap:wrap;");
-	Helpers::writeClassSelectors(*this, simple_css::Selector(".tag-list"));
+	Helpers::writeClassSelectors(*this, simple_css::Selector(".tag-list"), true);
 }
 
 void TagList::buttonClicked(juce::Button*)
@@ -419,60 +601,33 @@ void TagList::buttonClicked(juce::Button*)
 		if(b->getToggleState())
 			values.add(b->getButtonText());
 	}
-        
+	
 	writeState(var(values));
+	callOnValueChange("click");
 }
 
-void TagList::createEditor(Dialog::PageInfo& rootList)
-{
-	rootList.addChild<Type>({
-		{ mpid::ID, "Type"},
-		{ mpid::Type, "TagList"},
-		{ mpid::Help, "A dynamic list of clickable tags." }
-	});
-            
-	rootList.addChild<TextInput>({
-		{ mpid::ID, "ID" },
-		{ mpid::Text, "ID" },
-		{ mpid::Value, infoObject[mpid::ID].toString() },
-		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
-	});
 
-	rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Items.toString() },
-		{ mpid::Text, mpid::Items.toString() },
-		{ mpid::Help, "The list of tags - one per line" },
-		{ mpid::Multiline, true },
-		{ mpid::Height, 80 },
-		{ mpid::Value, infoObject[mpid::Items] }
-	});
-        
-	rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Class.toString() },
-		{ mpid::Text, mpid::Class.toString() },
-		{ mpid::Help, "The CSS class that is applied to the UI element." },
-		{ mpid::Value, infoObject[mpid::Class] }
-	});
-
-	rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Style.toString() },
-		{ mpid::Text, mpid::Style.toString() },
-		{ mpid::Value, infoObject[mpid::Style] },
-		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
-	});
-}
 
 void TagList::postInit()
 {
+	PageBase::init();
+
 	buttons.clear();
         
-	auto items = StringArray::fromLines(infoObject[mpid::Items].toString());
-        
+	auto items = getItemsAsStringArray();
+
+	auto valueList = getValueFromGlobalState(var(Array<var>()));
+
 	for(auto i: items)
 	{
 		auto b = new TextButton(i);
 		b->setClickingTogglesState(true);
-		Helpers::writeClassSelectors(*b, simple_css::Selector(".tag-button"));
+
+		auto toggleState = valueList.indexOf(var(i)) != -1;
+
+		b->setToggleState(toggleState, dontSendNotification);
+
+		Helpers::writeClassSelectors(*b, simple_css::Selector(".tag-button"), true);
 		buttons.add(b);
 		b->addListener(this);
 		addFlexItem(*b);
@@ -484,6 +639,8 @@ void TagList::postInit()
 Table::CellComponent::CellComponent(Table& parent_):
 	parent(parent_)
 {
+	setWantsKeyboardFocus(true);
+
 	using namespace simple_css;
             
 	setInterceptsMouseClicks(true, false);
@@ -535,21 +692,27 @@ Table::Table(Dialog& parent, int w, const var& obj):
 		obj.getDynamicObject()->setProperty(mpid::ValueMode, "Row");
         
 	addFlexItem(table);
+	
         
 	setSize(w, 250);
-	Helpers::setFallbackStyleSheet(*this, "height: 250px; width: 100%;");
+	
 	Helpers::setFallbackStyleSheet(table, "height: 100%; width: 100%;");
+
+	setIsInvisibleWrapper(true);
 
 	table.setColour(TableListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
 	table.setHeaderHeight(32);
 	table.autoSizeAllColumns();
 	table.setRepaintsOnMouseActivity(true);
 	parent.stateWatcher.registerComponentToUpdate(&table.getHeader());
-        
+
+
 	sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
 	table.getViewport()->setScrollBarThickness(14);
 
 }
+
+
 
 void Table::rebuildColumns()
 {
@@ -643,11 +806,12 @@ void Table::rebuildColumns()
 	}
 
 	th.setStretchToFitActive(true);
-	th.resizeAllColumnsToFit(table.getWidth());
+	th.resizeAllColumnsToFit(table.getWidth() - table.getViewport()->getScrollBarThickness());
+	table.setMultipleSelectionEnabled(infoObject[mpid::Multiline]);
         
 	using namespace simple_css;
         
-	if(auto ss = rootDialog.css.getWithAllStates(Selector(ElementType::TableCell)))
+	if(auto ss = rootDialog.css.getWithAllStates(this, Selector(ElementType::TableCell)))
 	{
 		table.setRowHeight(ss->getLocalBoundsFromText("M").getHeight());
 	}
@@ -655,12 +819,26 @@ void Table::rebuildColumns()
 
 String Table::getCellContent(int columnId, int rowNumber) const
 {
-	if(isPositiveAndBelow(rowNumber, items.size()))
+	if(getFilterFunctionId().isValid())
 	{
-		if(auto cells = items[rowNumber].getArray())
+		if(isPositiveAndBelow(rowNumber, visibleItems.size()))
 		{
-			if(isPositiveAndBelow(columnId - 1, cells->size()))
-				return (*cells)[columnId-1].toString();
+			if(auto cells = visibleItems[rowNumber].second.getArray())
+			{
+				if(isPositiveAndBelow(columnId - 1, cells->size()))
+					return (*cells)[columnId-1].toString();
+			}
+		}
+	}
+	else
+	{
+		if(isPositiveAndBelow(rowNumber, items.size()))
+		{
+			if(auto cells = items[rowNumber].getArray())
+			{
+				if(isPositiveAndBelow(columnId - 1, cells->size()))
+					return (*cells)[columnId-1].toString();
+			}
 		}
 	}
         
@@ -684,63 +862,70 @@ Component* Table::refreshComponentForCell(int rowNumber, int columnId, bool isRo
 	return nullptr;
 }
 
-void Table::createEditor(Dialog::PageInfo& rootList)
+
+
+int Table::getNumRows()
 {
-	rootList.addChild<Type>({
-		{ mpid::ID, "Type"},
-		{ mpid::Type, "Table"},
-		{ mpid::Help, "A component with fix columns and a dynamic amount of rows" }
-	});
-            
-	rootList.addChild<TextInput>({
-		{ mpid::ID, "ID" },
-		{ mpid::Text, "ID" },
-		{ mpid::Value, infoObject[mpid::ID].toString() },
-		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
-	});
+	if(getFilterFunctionId().isValid())
+		return visibleItems.size();
+	else
+		return items.size();
+}
 
-	rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Columns.toString() },
-		{ mpid::Text, mpid::Columns.toString() },
-		{ mpid::Help, "The list of columns - one per line using a pseudo CSS syntax for `name`, `max-width`, `min-width` and `width` properties." },
-		{ mpid::Multiline, true },
-		{ mpid::Height, 80 },
-		{ mpid::Value, itemsToString(infoObject[mpid::Columns]) }
-	});
-        
-        
-        
-	rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Items.toString() },
-		{ mpid::Text, mpid::Items.toString() },
-		{ mpid::Help, "The list of rows - one per line using comma for separating cells" },
-		{ mpid::Multiline, true },
-		{ mpid::Height, 80 },
-		{ mpid::Value, infoObject[mpid::Items] }
-	});
+void Table::rebuildRows()
+{
+	visibleItems.clear();
 
-	rootList.addChild<factory::Choice>({
-		{ mpid::Text, mpid::ValueMode.toString() },
-		{ mpid::ID,  mpid::ValueMode.toString() },
-		{ mpid::Help, "How the table stores the selected item (either the zero based index of the selected row or the `[column, row]` position of the clicked cell" },
-		{ mpid::Items, "Row\nGrid" },
-		{ mpid::Value, infoObject[mpid::ValueMode] },
-		{ mpid::UseOnValue, 0 }
-	});
-        
-	rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Class.toString() },
-		{ mpid::Text, mpid::Class.toString() },
-		{ mpid::Help, "The CSS class that is applied to the UI element." },
-		{ mpid::Value, infoObject[mpid::Class] }
-	});
+	auto fid = getFilterFunctionId();
 
-	rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Style.toString() },
-		{ mpid::Text, mpid::Style.toString() },
-		{ mpid::Value, infoObject[mpid::Style] },
-		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
-	});
+	if(fid.isValid())
+	{
+		auto engine = rootDialog.getState().createJavascriptEngine();
+		int index = 0;
+		auto ok = Result::ok();
+		var args[2];
+		auto thisObj = var(new Element(rootDialog.getState(), infoObject));
+
+		auto filterFunction = engine->getRootObjectProperties()[fid];
+
+		for(auto v: items)
+		{
+			args[0] = index;
+			args[1] = v;
+			
+			auto shouldShow = engine->callFunctionObject(thisObj.getDynamicObject(), filterFunction, var::NativeFunctionArgs(thisObj, args, 2), &ok);
+
+			if(ok.wasOk() && (bool)shouldShow)
+			{
+				visibleItems.add({index, v});
+			}
+			
+			index++;
+		}
+	}
+
+	if(originalSelectionIndex != -1)
+	{
+		if(getFilterFunctionId().isValid())
+		{
+			int index = 0;
+
+			for(const auto& v: visibleItems)
+			{
+				if(v.first == originalSelectionIndex)
+				{
+					table.selectRow(index);
+					break;
+				}
+
+				index++;
+			}
+		}
+		else
+		{
+			table.selectRow(originalSelectionIndex);
+		}
+	}
 }
 
 void Table::paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
@@ -769,7 +954,7 @@ void Table::paintRowBackground(Graphics& g, int rowNumber, int width, int height
 
 	r.setPseudoClassState(flags);
 
-	if(auto ss = rootDialog.css.getWithAllStates((Selector(ElementType::TableRow))))
+	if(auto ss = rootDialog.css.getWithAllStates(this, (Selector(ElementType::TableRow))))
 	{
 		r.drawBackground(g, {0.0f, 0.0f, (float)width, (float)height}, ss);
 	}
@@ -814,6 +999,8 @@ Factory::Factory()
 	registerPage<factory::ColourChooser>();
 	registerPage<factory::Column>();
 	registerPage<factory::Spacer>();
+	registerPage<factory::Image>();
+	registerPage<factory::HtmlElement>();
 	registerPage<factory::List>();
 	registerPage<factory::SimpleText>();
     registerPage<factory::MarkdownText>();
@@ -834,6 +1021,7 @@ Factory::Factory()
 	registerPage<factory::CopyProtection>();
 	registerPage<factory::ProjectInfo>();
 	registerPage<factory::PluginDirectories>();
+	registerPage<factory::PersistentSettings>();
 	registerPage<factory::CopyAsset>();
 	registerPage<factory::OperatingSystem>();
 	registerPage<factory::EventLogger>();
@@ -841,6 +1029,7 @@ Factory::Factory()
 	registerPage<factory::JavascriptFunction>();
     registerPage<factory::Table>();
     registerPage<factory::TagList>();
+	registerPage<factory::DirectoryScanner>();
 }
 
 Dialog::PageInfo::Ptr Factory::create(const var& obj)
@@ -1263,6 +1452,34 @@ static const unsigned char TagList[] = { 110,109,114,145,58,68,70,248,132,67,108
 254,129,67,98,47,96,63,68,106,157,122,67,47,96,63,68,90,101,107,67,82,8,61,68,120,6,98,67,98,154,176,58,68,6,167,88,67,150,226,54,68,6,167,88,67,222,138,52,68,120,6,98,67,98,187,222,51,68,113,182,100,67,240,99,51,68,121,226,103,67,162,26,51,68,99,66,
 107,67,99,101,0,0 };
 
+static const unsigned char PersistentSettings[] = { 110,109,0,128,7,68,120,160,175,67,108,79,94,18,68,120,160,175,67,98,70,238,17,68,116,156,172,67,153,169,17,68,248,129,169,67,35,146,17,68,52,94,166,67,108,78,201,22,68,108,203,162,67,98,140,219,22,68,40,212,158,67,111,77,23,68,104,239,154,67,4,25,24,
+68,24,78,151,67,108,135,44,20,68,40,143,143,67,98,180,77,21,68,120,125,139,67,159,195,22,68,48,212,135,67,189,126,24,68,100,184,132,67,108,228,36,29,68,252,165,138,67,98,149,188,30,68,216,73,136,67,190,137,32,68,172,141,134,67,253,115,34,68,236,135,133,
+67,108,215,8,35,68,224,34,117,67,98,46,84,37,68,240,152,115,67,192,171,39,68,240,152,115,67,25,247,41,68,224,34,117,67,108,242,139,42,68,236,135,133,67,98,49,118,44,68,172,141,134,67,91,67,46,68,216,73,136,67,28,219,47,68,252,165,138,67,108,50,129,52,
+68,100,184,132,67,98,97,60,54,68,48,212,135,67,58,178,55,68,120,125,139,67,103,211,56,68,40,143,143,67,108,235,230,52,68,24,78,151,67,98,128,178,53,68,104,239,154,67,99,36,54,68,40,212,158,67,161,54,54,68,108,203,162,67,108,205,109,59,68,52,94,166,67,
+98,25,75,59,68,164,2,171,67,166,197,58,68,64,147,175,67,0,227,57,68,196,225,179,67,108,136,105,52,68,76,147,178,67,98,43,125,51,68,232,20,182,67,13,62,50,68,176,52,185,67,8,189,48,68,168,201,187,67,108,225,151,50,68,28,44,198,67,98,101,177,48,68,132,
+219,200,67,47,149,46,68,8,227,202,67,79,89,44,68,216,46,204,67,108,61,114,41,68,132,207,194,67,98,221,127,39,68,224,141,195,67,18,128,37,68,224,141,195,67,178,141,35,68,132,207,194,67,108,161,166,32,68,216,46,204,67,98,192,106,30,68,8,227,202,67,137,
+78,28,68,132,219,200,67,15,104,26,68,28,44,198,67,108,231,66,28,68,168,201,187,67,98,227,193,26,68,176,52,185,67,196,130,25,68,232,20,182,67,102,150,24,68,76,147,178,67,108,239,28,19,68,196,225,179,67,98,74,58,18,68,64,147,175,67,213,180,17,68,164,2,
+171,67,35,146,17,68,52,94,166,67,108,130,102,18,68,252,215,175,67,108,0,128,7,68,252,215,175,67,108,0,128,7,68,180,210,224,67,108,0,128,69,68,180,210,224,67,108,0,128,69,68,160,63,131,67,108,155,162,44,68,144,90,54,67,108,0,128,7,68,144,90,54,67,108,
+0,128,7,68,120,160,175,67,99,109,0,128,38,68,208,46,152,67,98,100,189,41,68,208,46,152,67,186,94,44,68,144,112,157,67,186,94,44,68,156,235,163,67,98,186,94,44,68,168,102,170,67,100,189,41,68,184,169,175,67,0,128,38,68,184,169,175,67,98,155,66,35,68,184,
+169,175,67,53,161,32,68,168,102,170,67,53,161,32,68,156,235,163,67,98,53,161,32,68,144,112,157,67,155,66,35,68,208,46,152,67,0,128,38,68,208,46,152,67,99,101,0,0 };
+
+static const unsigned char Image[] = { 110,109,114,64,21,68,164,233,57,67,108,186,30,21,68,44,126,82,67,98,175,86,16,68,182,48,85,67,168,167,12,68,216,164,101,67,168,167,12,68,232,130,121,67,98,168,167,12,68,234,101,134,67,37,32,16,68,145,110,142,67,8,180,20,68,253,32,144,67,108,92,37,20,
+68,136,30,196,67,108,168,167,12,68,94,158,213,67,108,88,245,19,68,94,158,213,67,108,126,219,19,68,46,11,223,67,108,196,117,12,68,46,11,223,67,98,242,184,9,68,46,11,223,67,0,128,7,68,58,153,218,67,0,128,7,68,166,31,213,67,108,0,128,7,68,180,192,77,67,
+98,0,128,7,68,138,205,66,67,242,184,9,68,164,233,57,67,196,117,12,68,164,233,57,67,108,114,64,21,68,164,233,57,67,99,109,189,125,21,68,164,233,57,67,108,142,138,64,68,164,233,57,67,98,88,71,67,68,164,233,57,67,0,128,69,68,138,205,66,67,0,128,69,68,180,
+192,77,67,108,0,128,69,68,166,31,213,67,98,0,128,69,68,58,153,218,67,88,71,67,68,46,11,223,67,142,138,64,68,46,11,223,67,108,192,24,20,68,46,11,223,67,108,163,50,20,68,94,158,213,67,108,144,88,64,68,94,158,213,67,108,106,8,48,68,57,72,150,67,108,111,
+138,39,68,8,65,183,67,108,236,152,32,68,164,8,167,67,108,54,100,20,68,18,140,195,67,108,18,241,20,68,16,54,144,67,98,157,115,21,68,199,95,144,67,95,249,21,68,125,117,144,67,165,129,22,68,125,117,144,67,98,148,241,27,68,125,117,144,67,170,91,32,68,82,
+161,135,67,170,91,32,68,232,130,121,67,98,170,91,32,68,44,195,99,67,148,241,27,68,246,26,82,67,165,129,22,68,246,26,82,67,98,102,30,22,68,246,26,82,67,126,188,21,68,226,49,82,67,46,92,21,68,150,94,82,67,108,189,125,21,68,164,233,57,67,99,101,0,0 };
+
+static const unsigned char DirectoryScanner[] = { 110,109,36,206,58,68,232,191,148,67,98,36,206,58,68,136,117,158,67,24,115,57,68,216,138,167,67,140,27,55,68,232,72,175,67,108,0,128,69,68,80,19,204,67,108,180,66,62,68,56,142,218,67,108,16,40,48,68,192,90,190,67,98,24,239,43,68,216,116,196,67,252,192,
+38,68,8,14,200,67,16,39,33,68,8,14,200,67,98,172,253,18,68,8,14,200,67,0,128,7,68,160,16,177,67,0,128,7,68,232,191,148,67,98,0,128,7,68,192,221,112,67,172,253,18,68,144,227,66,67,16,39,33,68,144,227,66,67,98,252,78,47,68,144,227,66,67,36,206,58,68,192,
+221,112,67,36,206,58,68,232,191,148,67,108,168,204,58,68,8,25,148,67,108,180,92,49,68,8,25,148,67,108,44,94,49,68,232,191,148,67,98,44,94,49,68,72,217,130,67,124,25,42,68,48,162,104,67,16,39,33,68,48,162,104,67,98,40,51,24,68,48,162,104,67,244,239,16,
+68,72,217,130,67,244,239,16,68,232,191,148,67,98,244,239,16,68,56,166,166,67,40,51,24,68,112,46,181,67,16,39,33,68,112,46,181,67,98,124,25,42,68,112,46,181,67,44,94,49,68,56,166,166,67,44,94,49,68,232,191,148,67,108,44,94,49,68,152,248,148,67,108,36,
+206,58,68,152,248,148,67,108,36,206,58,68,232,191,148,67,99,101,0,0 };
+
+static const unsigned char HtmlElement[] = { 110,109,48,44,40,68,128,141,126,67,108,184,99,44,68,128,141,126,67,108,72,237,36,68,64,185,188,67,108,136,194,32,68,64,185,188,67,108,48,44,40,68,128,141,126,67,99,109,40,139,30,68,96,33,183,67,108,0,128,7,68,248,2,164,67,108,0,128,7,68,232,250,151,67,
+108,40,139,30,68,108,212,132,67,108,40,139,30,68,176,57,147,67,108,48,138,16,68,24,5,158,67,108,40,139,30,68,204,209,168,67,108,40,139,30,68,96,33,183,67,99,109,216,116,46,68,96,33,183,67,108,0,128,69,68,248,2,164,67,108,0,128,69,68,232,250,151,67,108,
+216,116,46,68,108,212,132,67,108,216,116,46,68,176,57,147,67,108,208,117,60,68,24,5,158,67,108,216,116,46,68,204,209,168,67,108,216,116,46,68,96,33,183,67,99,101,0,0 };
+
 } // Icons
 
 #define LOAD_MULTIPAGE_PATH(Class) if(url == factory::Class::getStaticId().toString()) p.loadPathFromData(Icons::Class, sizeof(Icons::Class));
@@ -1289,6 +1506,8 @@ Path Factory::createPath(const String& url) const
     LOAD_MULTIPAGE_PATH(DownloadTask);
     LOAD_MULTIPAGE_PATH(UnzipTask);
     LOAD_MULTIPAGE_PATH(HlacDecoder);
+	LOAD_MULTIPAGE_PATH(Image);
+	LOAD_MULTIPAGE_PATH(HtmlElement);
     LOAD_MULTIPAGE_PATH(AppDataFileWriter);
     LOAD_MULTIPAGE_PATH(RelativeFileLoader);
     LOAD_MULTIPAGE_PATH(HttpRequest);
@@ -1300,8 +1519,9 @@ Path Factory::createPath(const String& url) const
 	LOAD_MULTIPAGE_PATH(OperatingSystem);
 	LOAD_MULTIPAGE_PATH(EventLogger);
 	LOAD_MULTIPAGE_PATH(FileLogger);
+	LOAD_MULTIPAGE_PATH(DirectoryScanner);
 	LOAD_MULTIPAGE_PATH(JavascriptFunction);
-    
+	LOAD_MULTIPAGE_PATH(PersistentSettings);
     LOAD_MULTIPAGE_PATH(Table);
     LOAD_MULTIPAGE_PATH(TagList);
     

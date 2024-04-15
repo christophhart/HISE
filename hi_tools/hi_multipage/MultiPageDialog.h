@@ -45,19 +45,25 @@ namespace factory
 
 struct ComponentWithSideTab
 {
+    ComponentWithSideTab();
+
     virtual ~ComponentWithSideTab() {};
 	virtual bool setSideTab(State* dialogState, Dialog* newDialog) = 0;
 
     virtual State* getMainState() { return nullptr; }
 
     virtual void refreshDialog() = 0;
+
+    simple_css::StyleSheet::Collection propertyStyleSheet;
 };
 
 struct DefaultCSSFactory
 {
 	enum class Template
 	{
+        None,
 		PropertyEditor,
+        RawHTML,
         Dark,
         Bright,
         ModalPopup,
@@ -65,7 +71,7 @@ struct DefaultCSSFactory
 	};
 
     static String getTemplate(Template t);
-    static String getTemplateList() { return "Property Editor\nDark\nBright\nModalPopup"; }
+    static String getTemplateList() { return "None\nProperty Editor\nRawHTML\nDark\nBright\nModalPopup"; }
 
     static simple_css::StyleSheet::Collection getTemplateCollection(Template t, const String& additionalStyle={});
 };
@@ -117,7 +123,7 @@ public:
 	        initValue = var();
         }
 
-        void updateStyleSheetInfo();
+        void updateStyleSheetInfo(bool forceUpdate=false);
 
         void forwardInlineStyleToChildren();
 
@@ -139,7 +145,21 @@ public:
         /** Returns the string from the info object for the given property. If it contains a wildcard with "$", it will resolve it using the state object. */
         String evaluate(const Identifier& id) const;
 
+        void callOnValueChange(const String& eventType, DynamicObject::Ptr thisObject=nullptr);
+
+        void addEventListener(const String& eventType, const var& functionObject)
+        {
+            eventListeners.add({ eventType, functionObject });
+        }
+
+        void removeEventListener(const String& eventType, const var& functionObject)
+        {
+	        eventListeners.removeAllInstancesOf({ eventType, functionObject });
+        }
+
     protected:
+
+        Array<std::pair<String, var>> eventListeners;
 
         Asset::Ptr getAsset(const Identifier& id) const;
 
@@ -147,7 +167,8 @@ public:
         void init();
 
         virtual void editModeChanged(bool isEditMode);
-        
+
+
     public:
 
         template <typename PageSubType, typename StopType=juce::Toolbar> PageSubType* getRootPage()
@@ -169,6 +190,8 @@ public:
         var getValueFromGlobalState(var defaultState=var());
 
         String loadValueOrAssetAsText();
+
+        StringArray getItemsAsStringArray() const;
 
         Result check(const var& obj);
         void clearCustomFunction();
@@ -198,6 +221,8 @@ public:
         var infoObject;
         
     private:
+
+        JavascriptEngine* engine = nullptr;
 
         static void onEditModeChange(PageBase& c, bool isOn);
 
@@ -350,6 +375,37 @@ public:
 
     void setEditMode(bool isEditMode);
 
+    struct DialogDataProvider: public simple_css::StyleSheet::Collection::DataProvider
+    {
+	    DialogDataProvider(Dialog& d):
+          rootDialog(d)
+	    {
+		    
+	    }
+
+        Font loadFont(const String& fontName, const String& url) override
+	    {
+            return rootDialog.getState().loadFont(url);
+	    }
+
+    	String importStyleSheet(const String& url) override
+	    {
+		    return rootDialog.getState().loadText(url, true);
+	    }
+
+        Image loadImage(const String& imageURL) override
+	    {
+		    return rootDialog.getState().loadImage(imageURL);
+	    }
+
+        Dialog& rootDialog;
+    };
+
+    simple_css::StyleSheet::Collection::DataProvider* createDataProvider() override
+    {
+        return new DialogDataProvider(*this);
+    }
+
     bool isEditModeEnabled() const noexcept;
 
     bool isEditModeAllowed() const { return editingAllowed; }
@@ -470,7 +526,11 @@ public:
 
     void loadStyleFromPositionInfo();
 
+    bool& getSkipRebuildFlag() { return skipRebuild; }
+
 private:
+
+    bool skipRebuild = false;
 
     Image backgroundImage;
 

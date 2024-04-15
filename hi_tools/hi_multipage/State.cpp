@@ -132,10 +132,17 @@ DebugInformationBase::Ptr State::StateProvider::createRecursive(const String& na
 }
 #endif
 
-String Asset::toText() const
+String Asset::toText(bool reload)
 {
-	if(type == Type::Text)
+	if(type == Type::Text || type == Type::Stylesheet)
+	{
+		if(reload && File::isAbsolutePath(filename))
+		{
+			loadFromFile();
+		}
+
 		return data.toString();
+	}
 	else
 		return {};
 }
@@ -343,184 +350,21 @@ simple_css::StyleSheet::Collection State::getStyleSheet(const String& name, cons
 	return {};
 }
 
-std::unique_ptr<JavascriptEngine> State::createJavascriptEngine(const var& infoObject)
+JavascriptEngine* State::createJavascriptEngine()
 {
+	if(javascriptEngine.get() != nullptr)
+		return javascriptEngine.get();
 	
-
-	struct LogFunction: public ApiObject
-	{
-		LogFunction(State& s, const var& infoObject_):
-		  ApiObject(s),
-		  infoObject(infoObject_)
-		{
-			setMethodWithHelp("print", BIND_MEMBER_FUNCTION_1(LogFunction::print), "Prints a value to the console.");
-			setMethodWithHelp("setError", BIND_MEMBER_FUNCTION_1(LogFunction::setError), "Throws an error and displays a popup with the message");
-		}
-
-		var infoObject;
-
-		var setError(const var::NativeFunctionArgs& args)
-		{
-			expectArguments(args, 2);
-
-			auto id = args.arguments[0].toString();
-			
-			if(auto p = id.isEmpty() ? state.currentDialog->findPageBaseForInfoObject(infoObject) : state.currentDialog->findPageBaseForID(id))
-			{
-				p->setModalHelp(args.arguments[1].toString());
-				state.currentDialog->setCurrentErrorPage(p);
-			}
-
-			return var();
-		}
-
-		var print (const var::NativeFunctionArgs& args)
-		{
-			expectArguments(args, 1);
-			state.eventLogger.sendMessage(getNotificationTypeForCurrentThread(), MessageType::Javascript, args.arguments[0].toString());
-			
-			return var();
-		}
-	};
-
-	struct Dom: public ApiObject
-	{
-		Dom(State& s):
-		  ApiObject(s)
-		{
-			setMethodWithHelp("getElementById", BIND_MEMBER_FUNCTION_1(Dom::getElementById), "Returns an array with all elements that match the given ID");
-			setMethodWithHelp("getElementByType", BIND_MEMBER_FUNCTION_1(Dom::getElementByType), "Returns an array with all elements that match the given Type.");
-			setMethodWithHelp("updateElement", BIND_MEMBER_FUNCTION_1(Dom::updateElement), "Refreshes the element (call this after you change any property).");
-			setMethodWithHelp("getStyleData", BIND_MEMBER_FUNCTION_1(Dom::getStyleData), "Returns the global markdown style data.");
-			setMethodWithHelp("setStyleData", BIND_MEMBER_FUNCTION_1(Dom::setStyleData), "Sets the global markdown style data");
-			setMethodWithHelp("getClipboardContent", BIND_MEMBER_FUNCTION_1(Dom::getClipboardContent), "Returns the current clipboard content");
-		}
-
-		var getElementByType(const var::NativeFunctionArgs& args)
-		{
-			expectArguments(args, 1);
-			Array<var> matches;
-
-			if(state.currentDialog != nullptr)
-			{
-				auto id = args.arguments[0].toString();
-
-				Component::callRecursive<Dialog::PageBase>(state.currentDialog.get(), [&](Dialog::PageBase* pb)
-				{
-					if(pb->getPropertyFromInfoObject(mpid::Type) == id)
-						matches.add(pb->getInfoObject());
-
-					return false;
-				});
-			}
-
-			return var(matches);
-		}
-
-		var getClipboardContent(const var::NativeFunctionArgs& args) const
-		{
-			return var(SystemClipboard::getTextFromClipboard());
-		}
-
-		var updateElement(const var::NativeFunctionArgs& args)
-		{
-			expectArguments(args, 1);
-
-			if(state.currentDialog != nullptr)
-			{
-				auto id = Identifier(args.arguments[0].toString());
-				auto dialog = state.currentDialog.get();
-
-				auto f = [id, dialog]()
-				{
-					Component::callRecursive<Dialog::PageBase>(dialog, [&](Dialog::PageBase* pb)
-					{
-						if(pb->getId() == id)
-						{
-							pb->postInit();
-							dialog->body.rebuildLayout();
-							factory::Container::recalculateParentSize(pb);
-							dialog->refreshBroadcaster.sendMessage(sendNotificationAsync, dialog->getState().currentPageIndex);
-						}
-							
-						return false;
-					});
-				};
-
-				if(getNotificationTypeForCurrentThread() == sendNotificationAsync)
-					MessageManager::callAsync(f);
-				else
-					f();
-			}
-
-			return var();
-		}
-
-		var getElementById(const var::NativeFunctionArgs& args)
-		{
-			expectArguments(args, 1);
-
-			Array<var> matches;
-
-			if(state.currentDialog != nullptr)
-			{
-				auto id = Identifier(args.arguments[0].toString());
-
-				Component::callRecursive<Dialog::PageBase>(state.currentDialog.get(), [&](Dialog::PageBase* pb)
-				{
-					if(pb->getId() == id)
-						matches.add(pb->getInfoObject());
-
-					return false;
-				});
-			}
-
-			return var(matches);
-		}
-
-		var getStyleData(const var::NativeFunctionArgs& args)
-		{
-			expectArguments(args, 0);
-
-			if(state.currentDialog != nullptr)
-			{
-				return state.currentDialog->getStyleData().toDynamicObject();
-			}
-
-			return var();
-		}
-
-		var setStyleData(const var::NativeFunctionArgs& args)
-		{
-			expectArguments(args, 1);
-
-			if(state.currentDialog != nullptr)
-			{
-				MarkdownLayout::StyleData sd;
-				sd.fromDynamicObject(args.arguments[0], std::bind(&State::loadFont, &state, std::placeholders::_1));
-				state.currentDialog->setStyleData(sd);
-				
-			}
-
-			return var();
-		}
-	};
-
-
-	
-
 	eventLogger.sendMessage(getNotificationTypeForCurrentThread(), MessageType::Javascript, "Prepare Javascript execution...");
 
-	auto engine = std::make_unique<JavascriptEngine>();
+	javascriptEngine = std::make_unique<JavascriptEngine>();
 
-	if(infoObject.isObject())
-		engine->registerNativeObject("element", infoObject.getDynamicObject());
-
-	engine->registerNativeObject("Console", new LogFunction(*this, infoObject));
-	engine->registerNativeObject("document", new Dom(*this));
-	engine->registerNativeObject("state", globalState.getDynamicObject());
 	
-	return engine;
+	javascriptEngine->registerNativeObject("Console", new LogFunction(*this));
+	javascriptEngine->registerNativeObject("document", new Dom(*this));
+	javascriptEngine->registerNativeObject("state", globalState.getDynamicObject());
+	
+	return javascriptEngine.get();
 }
 
 String State::getAssetReferenceList(Asset::Type t) const
@@ -757,9 +601,11 @@ bool UndoableVarAction::undo()
 	case Type::SetProperty: parent.getDynamicObject()->setProperty(key, oldValue); return true;
 	case Type::RemoveProperty: parent.getDynamicObject()->setProperty(key, oldValue); return true;
 	case Type::AddChild: parent.getArray()->removeAllInstancesOf(newValue); return true;
-	case Type::RemoveChild: parent.getArray()->insert(index, oldValue);
+	case Type::RemoveChild: parent.getArray()->insert(index, oldValue); return true;
 	default: ;
 	}
+
+	return false;
 }
 
 void HardcodedDialogWithState::setOnCloseFunction(const std::function<void()>& f)
@@ -778,13 +624,13 @@ void HardcodedDialogWithState::resized()
 
 		postInit();
 
+		dialog->setFinishCallback(closeFunction);
+		dialog->setEnableEditMode(false);
 		
+		dialog->showFirstPage();
 	}
 
-	dialog->setFinishCallback(closeFunction);
-	dialog->setEnableEditMode(false);
 	dialog->setBounds(getLocalBounds());
-	dialog->showFirstPage();
 }
 }
 }

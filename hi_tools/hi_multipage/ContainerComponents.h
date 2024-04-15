@@ -63,6 +63,41 @@ struct Container: public Dialog::PageBase
 
     virtual Result customCheckOnAdd(PageBase* b, const var& obj);
 
+    /** Adds the child for the given object (must be within the child list!. */
+    void addChildDynamic(const var& childObject, bool rebuild=true)
+    {
+        auto idx = infoObject[mpid::Children].indexOf(childObject);
+        jassert(idx != -1);
+
+        if(auto pi = factory.create(childObject))
+		{
+            auto c = pi->create(rootDialog, getWidth());
+            
+            childItems.insert(idx, c);
+			addDynamicFlexItem(*c);
+            c->postInit();
+
+            if(rebuild)
+				rebuildRootLayout();
+		}
+    }
+
+    void replaceChildrenDynamic()
+    {
+        {
+	        ScopedValueSetter<bool> svs(rootDialog.getSkipRebuildFlag(), true);
+
+		    childItems.clear();
+	        auto l = infoObject[mpid::Children];
+			childItems.clear();
+
+			for(auto& r: *l.getArray())
+				addChildDynamic(r, false);
+        }
+
+        rootDialog.body.setCSS(rootDialog.css);
+    }
+
 protected:
 
     void rebuildChildren()

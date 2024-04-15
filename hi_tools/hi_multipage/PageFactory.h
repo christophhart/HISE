@@ -31,6 +31,8 @@
  */
 
 #pragma once
+#include "MultiPageDialog.h"
+#include "MultiPageDialog.h"
 
 namespace hise
 {
@@ -124,16 +126,49 @@ struct Spacer: public Dialog::PageBase
     void createEditor(Dialog::PageInfo& rootList) override;
 	void editModeChanged(bool isEditMode) override { repaint(); };
     void postInit() override {};
-    void paint(Graphics& g) override
+    void paint(Graphics& g) override;
+	Result checkGlobalState(var) override { return Result::ok(); }
+    
+};
+
+struct HtmlElement: public Dialog::PageBase
+{
+	DEFAULT_PROPERTIES(HtmlElement)
     {
-	    if(isEditModeAndNotInPopup())
-	    {
-            g.setColour(Dialog::getDefaultFont(*this).second.withAlpha(0.3f));
-		    g.drawRoundedRectangle(getLocalBounds().toFloat(), 5.0f, 1.0f);
-	    }
+        return { };
     }
+
+    static String getCategoryId() { return "Layout"; }
+
+	HtmlElement(Dialog& r, int width, const var& d);
+
+	void createEditor(Dialog::PageInfo& rootList) override;
+	void editModeChanged(bool isEditMode) override { repaint(); };
+	void postInit() override;;
+
+    Result checkGlobalState(var) override { return Result::ok(); }
+
+    OwnedArray<PageBase> childElements;
+};
+
+struct Image: public Dialog::PageBase
+{
+	DEFAULT_PROPERTIES(Image)
+    {
+        return { };
+    }
+
+    static String getCategoryId() { return "Layout"; }
+
+    Image(Dialog& r, int width, const var& d);
+
+	void createEditor(Dialog::PageInfo& rootList) override;
+
+	void editModeChanged(bool isEditMode) override { repaint(); };
+    void postInit() override;;
     Result checkGlobalState(var) override { return Result::ok(); }
     
+    simple_css::CSSImage img;
 };
 
 struct EventLogger: public Dialog::PageBase
@@ -143,13 +178,7 @@ struct EventLogger: public Dialog::PageBase
         return { };
     }
 
-    EventLogger(Dialog& r, int w, const var& obj):
-      PageBase(r, w, obj),
-      console(r.getState())
-    {
-	    addAndMakeVisible(console);
-        setSize(w, 200);
-    }
+    EventLogger(Dialog& r, int w, const var& obj);
 
     static String getCategoryId() { return "Layout"; }
 
@@ -173,6 +202,8 @@ struct SimpleText: public Dialog::PageBase
 	SimpleText(Dialog& r, int width, const var& obj);
     
     static String getCategoryId() { return "Layout"; }
+
+    void postInit() override;
 
     void createEditor(Dialog::PageInfo& rootList) override;
 
@@ -331,6 +362,11 @@ struct Table: public Dialog::PageBase,
 
         void update(Point<int> newPos, const String& newContent);
 
+        void mouseDoubleClick(const MouseEvent& e) override
+        {
+            parent.cellDoubleClicked(cellPosition.y, cellPosition.x, e);
+        }
+
         void mouseDown(const MouseEvent& event) override
         {
             parent.table.selectRowsBasedOnModifierKeys(cellPosition.y, event.mods, false);
@@ -354,7 +390,8 @@ struct Table: public Dialog::PageBase,
     ScrollbarFader sf;
     
     Array<var> items;
-    
+    Array<std::pair<int, var>> visibleItems;
+
     void rebuildColumns();
 
     DEFAULT_PROPERTIES(Table)
@@ -424,19 +461,27 @@ struct Table: public Dialog::PageBase,
     
     void createEditor(Dialog::PageInfo& rootList) override;
 
-    int getNumRows() override
-    {
-        return items.size();
-    }
+    juce::JavascriptEngine* currentEngine = nullptr;
+
+    int getNumRows() override;
+
+    void rebuildRows();
 
     void postInit() override
     {
+        if(auto ss = rootDialog.css.getForComponent(&table.getHeader()))
+        {
+	        rootDialog.stateWatcher.checkChanges(&table.getHeader(), ss, 0);
+        }
+        
         init();
+        
         rebuildColumns();
-        
         items = stringToItems(infoObject[mpid::Items]);
-        
+        rebuildRows();
         table.updateContent();
+        table.setWantsKeyboardFocus(true);
+
     }
 
     void paintCell (Graphics&,
@@ -444,12 +489,104 @@ struct Table: public Dialog::PageBase,
                             int columnId,
                             int width, int height,
                             bool rowIsSelected) override {};
-    
+
+    int originalSelectionIndex = -1;
+
     void paintRowBackground (Graphics& g, int rowNumber, int width, int height, bool rowIsSelected) override;
 
     Result checkGlobalState(var state) override;
 
     void paint(Graphics& g) override;
+
+    enum class EventType
+    {
+	    CellClick,
+        RowClick,
+        DoubleClick,
+        RowSelection,
+        ReturnKey
+    };
+
+    void cellClicked (int rowNumber, int columnId, const MouseEvent&) override
+    {
+	    updateValue(EventType::CellClick, rowNumber, columnId);
+    }
+    void cellDoubleClicked (int rowNumber, int columnId, const MouseEvent&) override
+    {
+	    updateValue(EventType::DoubleClick, rowNumber, columnId);
+    }
+
+
+    void backgroundClicked (const MouseEvent&) override
+    {
+	    updateValue(EventType::CellClick, -1, -1);
+    }
+    void selectedRowsChanged (int lastRowSelected) override
+    {
+	    updateValue(EventType::RowSelection, lastRowSelected, -1);
+    }
+
+    void returnKeyPressed (int lastRowSelected) override
+    {
+	    updateValue(EventType::ReturnKey, lastRowSelected, -1);
+    }
+
+    void updateValue(EventType t, int row, int column)
+    {
+	    if(row == -1)
+	    {
+		    if(getFilterFunctionId().isValid())
+                originalSelectionIndex = visibleItems[row].first;
+            else
+                originalSelectionIndex = row;
+	    }
+        else
+            originalSelectionIndex = -1;
+
+        enum class ValueMode
+        {
+	        Row,
+            Grid,
+            FirstColumnText
+        };
+
+        static const StringArray ValueModes = 
+        {
+	        "Row",
+            "Grid",
+            "FirstColumnText"
+        };
+
+        auto idx = infoObject[mpid::ValueMode].toString();
+        auto vm = ValueModes.indexOf(idx);
+
+        if(vm == -1)
+            return;
+
+        static const StringArray EventTypes =
+		{
+		    "click",
+		    "click",
+		    "dblclick",
+		    "select",
+		    "keydown"
+		};
+        
+        auto etype = EventTypes[(int)t];
+
+        auto toValue = [&]()
+        {
+            DynamicObject::Ptr v = new DynamicObject();
+
+            v->setProperty("eventType", etype);
+            v->setProperty("row", row);
+            v->setProperty("originalRow", getFilterFunctionId().isValid() ? visibleItems[row].first : row);
+            v->setProperty("column", column);
+            return v;
+        };
+        
+        callOnValueChange(etype, toValue());
+    }
 
     TableListBox table;
 
@@ -480,6 +617,15 @@ struct Table: public Dialog::PageBase,
         Component::SafePointer<Component> lastComponent = nullptr;
         TableListBox& table;
     } repainter;
+
+    Identifier getFilterFunctionId() const
+    {
+	    auto filterFunction = infoObject[mpid::FilterFunction].toString();
+        if(filterFunction.isEmpty())
+            return {};
+
+        return Identifier(filterFunction);
+    }
 };
 
 }

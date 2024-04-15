@@ -32,6 +32,7 @@
 
 #include "multipage.h"
 
+#include "JavascriptApi.cpp"
 #include "State.cpp"
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
@@ -39,6 +40,7 @@
 #endif
 
 #include "MultiPageDialog.cpp"
+
 #include "LookAndFeelMethods.cpp"
 #include "PageFactory.cpp"
 #include "InputComponents.cpp"

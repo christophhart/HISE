@@ -65,10 +65,11 @@ namespace mpid
 {
     DECLARE_ID(Assets);
     DECLARE_ID(Args);
+    DECLARE_ID(Autofocus);
     DECLARE_ID(ButtonType);
     DECLARE_ID(BinaryName);
+    DECLARE_ID(CallOnTyping);
     DECLARE_ID(CallOnNext);
-    DECLARE_ID(CallType);
     DECLARE_ID(Cleanup);
     DECLARE_ID(Class);
     DECLARE_ID(ContentType);
@@ -84,6 +85,7 @@ namespace mpid
     DECLARE_ID(ExtraHeaders);
     DECLARE_ID(FailIndex);
     DECLARE_ID(Filename);
+    DECLARE_ID(FilterFunction);
     DECLARE_ID(Foldable);
     DECLARE_ID(Folded);
     DECLARE_ID(Function);
@@ -100,6 +102,7 @@ namespace mpid
     DECLARE_ID(LayoutData);
     DECLARE_ID(Multiline);
     DECLARE_ID(NumTodo);
+    DECLARE_ID(NoLabel);
     DECLARE_ID(Overwrite);
     DECLARE_ID(OperatingSystem);
     DECLARE_ID(Parameters);
@@ -111,6 +114,8 @@ namespace mpid
     DECLARE_ID(Required);
     DECLARE_ID(RelativePath);
     DECLARE_ID(SaveFile);
+    DECLARE_ID(SkipIfNoSource);
+    DECLARE_ID(SkipFirstFolder);
     DECLARE_ID(Source);
     DECLARE_ID(SpecialLocation);
 	DECLARE_ID(StyleData);
@@ -129,6 +134,7 @@ namespace mpid
     DECLARE_ID(UseOnValue);
     DECLARE_ID(UseLabel);
     DECLARE_ID(UsePost);
+    DECLARE_ID(UseProject);
     DECLARE_ID(UseTotalProgress);
     DECLARE_ID(UseViewport);
     DECLARE_ID(Value);
@@ -137,6 +143,7 @@ namespace mpid
     DECLARE_ID(WaitTime);
     DECLARE_ID(Width);
     DECLARE_ID(Wildcard);
+    
 }
 
 #undef DECLARE_ID
@@ -147,6 +154,16 @@ public:
     DefaultProperties(std::initializer_list<std::pair<Identifier, var>> ilist)
     : ilist_(ilist) {}
 
+    static DefaultProperties getForSetting(const var& infoObject, const Identifier& id, const String& help)
+    {
+        return DefaultProperties({
+            { mpid::ID, id.toString() },
+            { mpid::Text, id.toString() },
+            { mpid::Value, infoObject[id] },
+            { mpid::Help, help }
+            });
+    }
+    
     const std::pair<Identifier, var>* begin() const noexcept
     {
         return ilist_.data();

@@ -669,7 +669,8 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
     defaultValues.set(mpid::Multiline, false);
     
     static const Array<Identifier> deprecatedIds = { Identifier("Padding"),
-    												 Identifier("LabelPosition")};
+    												 Identifier("LabelPosition"),
+													 Identifier("UseFilter") };
     
 	for(auto& nv: prop)
 	{
@@ -686,6 +687,8 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
         {
             if(prop.contains(mpid::UseOnValue) && !prop[mpid::UseOnValue])
                 continue;
+
+            
         }
         
         if(defaultValues.contains(nv.name) && nv.value == defaultValues[nv.name])
@@ -694,7 +697,19 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
 		cp << getNewLine() << "  { mpid::" << nv.name << ", ";
 
 		if(nv.value.isString())
-			cp << nv.value.toString().replace("\"", "\\\"").quoted().replace("\n", "\\n");
+		{
+            auto asString = nv.value.toString();
+
+            if(asString.containsAnyOf("\n\"\\"))
+            {
+	            cp << "R\"(" << asString;
+				cp << ")\"";
+            }
+            else
+            {
+	            cp << asString.quoted();
+            }
+		}
 		else if (nv.value.isArray())
 		{
 			cp << arrayToCommaString(nv.value);

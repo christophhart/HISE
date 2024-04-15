@@ -327,10 +327,7 @@ struct HlacDecoder: public BackgroundTask,
 
     void logStatusMessage(const String& message) override;
 
-    void logVerboseMessage(const String& verboseMessage) override
-    {
-	    rootDialog.logMessage(MessageType::Hlac, verboseMessage);
-    };
+    void logVerboseMessage(const String& verboseMessage) override;;
 	void criticalErrorOccured(const String& message) override
 	{
         rootDialog.logMessage(MessageType::Hlac, "ERROR: " + message);
@@ -458,17 +455,50 @@ struct FileLogger: public Constants
 	}
 };
 
+struct DirectoryScanner: public Constants
+{
+	HISE_MULTIPAGE_ID("DirectoryScanner");
+
+	DirectoryScanner(Dialog& r, int w, const var& obj);
+
+	String getDescription() const override { return "Directory Scanner";}
+
+    void createEditor(Dialog::PageInfo& infoList) override;
+
+	void loadConstants() override;
+};
+
 struct ProjectInfo: public Constants
 {
 	HISE_MULTIPAGE_ID("ProjectInfo");
 
-	ProjectInfo(Dialog& r, int w, const var& obj):
-      Constants(r, w, obj)
-    {};
+	ProjectInfo(Dialog& r, int w, const var& obj);;
 
     String getDescription() const override { return "Project Info";}
 
 	void loadConstants() override;
+};
+
+struct PersistentSettings: public Constants
+{
+    HISE_MULTIPAGE_ID("PersistentSettings");
+
+    PersistentSettings(Dialog& r, int w, const var& obj);
+
+    String getDescription() const override { return "PersistentSettings";}
+
+    void createEditor(Dialog::PageInfo& rootList) override;
+    Result checkGlobalState(var globalState) override;
+    void loadConstants() override;
+
+private:
+
+    File getSettingFile() const;
+    bool useValueChildren() const;
+    bool shouldUseJson() const;
+
+    NamedValueSet defaultValues;
+    NamedValueSet valuesFromFile;
 };
 
 } // factory
