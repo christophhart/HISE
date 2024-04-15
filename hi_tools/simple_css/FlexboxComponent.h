@@ -48,6 +48,8 @@ struct FlexboxContainer
 	bool fullRebuild = true;
 };
 
+
+
 /** A container component that applies flex box positioning to its children.
  */
 struct FlexboxComponent: public Component,
@@ -79,12 +81,13 @@ struct FlexboxComponent: public Component,
 		}
 
         static String dump(Component& c);
-        
+
+
 		static void writeSelectorsToProperties(Component& c, const StringArray& selectors);
 		static Selector getTypeSelectorFromComponentClass(Component* c);
 		static Array<Selector> getClassSelectorFromComponentClass(Component* c);
 
-		static void writeClassSelectors(Component& c, const Array<Selector>& classList);
+		static void writeClassSelectors(Component& c, const Array<Selector>& classList, bool append);
 
 		static void invalidateCache(Component& c)
 		{
@@ -154,12 +157,14 @@ struct FlexboxComponent: public Component,
         
 		Component* c = this;
         
-		while(c = c->getParentComponent())
+		while(c != nullptr)
 		{
             if(auto pfc = dynamic_cast<FlexboxContainer*>(c))
             {
                 pfc->rebuildLayout();
             }
+
+			c = c->getParentComponent();
 		}
 	}
 
@@ -219,7 +224,18 @@ struct FlexboxComponent: public Component,
 
 	void addFlexItem(Component& c) override;
 
-	void changeClass(const Selector& s, bool add)
+    void addDynamicFlexItem(Component& c)
+    {
+		addFlexItem(c);
+		
+		if(auto root = CSSRootComponent::find(*this))
+		{
+			if(auto fb = dynamic_cast<FlexboxComponent*>(&c))
+				fb->setCSS(root->css);
+		}
+    }
+
+    void changeClass(const Selector& s, bool add)
 	{
 		// must be a class
 		jassert(s.type == SelectorType::Class);
@@ -234,7 +250,7 @@ struct FlexboxComponent: public Component,
 		else
 			list.removeAllInstancesOf(s);
 
-		Helpers::writeClassSelectors(*this, list);
+		Helpers::writeClassSelectors(*this, list, false);
 
 		if(auto r = findParentComponentOfClass<CSSRootComponent>())
 		{
@@ -266,15 +282,26 @@ struct FlexboxComponent: public Component,
 		labelSelector = s;
 	}
     
-    
-    
     void setFlexChildVisibility(int childIndex, bool mustBeVisible, bool mustBeHidden)
     {
         auto c = getChildComponent(childIndex);
         visibleStates[c] = { mustBeVisible, mustBeHidden };
     }
 
+	void setIsInvisibleWrapper(bool shouldBeInvisibleWrapper);
+
+    juce::FlexItem createFlexItemForInvisibleWrapper(Rectangle<float> fullArea)
+    {
+		jassert(isInvisibleWrapper());
+		auto fc = getChildComponent(0);
+		return childSheets[fc]->getFlexItem(fc, fullArea);
+    }
+
+    bool isInvisibleWrapper() const { return invisibleWrapper; }
+
 private:
+
+	bool invisibleWrapper = false;
 
     std::map<Component*, VisibleState> visibleStates;
     
@@ -319,6 +346,11 @@ private:
 			
 			if(auto css = childSheets[d.c])
 			{
+				auto childPos = css->getPositionType({});
+
+				if(childPos == PositionType::absolute || childPos == PositionType::fixed)
+					continue;
+
 				auto order = css->getPropertyValueString({ "order", {}});
 				if(!order.isEmpty())
 					d.order = order.getIntValue();
@@ -379,7 +411,7 @@ struct FlexboxViewport: public Component,
 	void setCSS(StyleSheet::Collection& css) override
 	{
 		content.setCSS(css);
-		ss = css.getWithAllStates(s);
+		ss = css.getWithAllStates(this, s);
 	}
 
 	void resized() override
@@ -418,6 +450,126 @@ struct FlexboxViewport: public Component,
 	StyleSheet::Ptr ss;
 };
 
+struct CSSImage: public Component
+{
+	CSSImage()
+	{
+		using namespace simple_css;
+		FlexboxComponent::Helpers::setCustomType(*this, Selector(ElementType::Image));
+	}
+
+	void paint(Graphics& g) override
+	{
+		using namespace simple_css;
+
+		if(auto p = CSSRootComponent::find(*this))
+		{
+			if(auto ss = p->css.getForComponent(this))
+			{
+				Renderer r(this, p->stateWatcher);
+				auto area = getLocalBounds().toFloat();
+
+                auto currentState = Renderer::getPseudoClassFromComponent(this);
+				p->stateWatcher.checkChanges(this, ss, currentState);
+                r.drawImage(g, currentImage, area, ss, true);
+			}
+		}
+	}
+
+	void setImage(const URL& url)
+	{
+		auto img = imageCache->getImage(url);
+
+		if(img.isValid())
+			setImage(img);
+		else
+			currentLoadThread = new LoadThread(*this, url);
+	}
+
+	void setImage(const juce::Image& newImage)
+	{
+		currentImage = newImage;
+		repaint();
+	}
+
+	juce::Image currentImage;
+
+	struct LoadThread: public Thread,
+					   public AsyncUpdater
+    {
+	    LoadThread(CSSImage& parent_, const URL& url):
+          Thread("Load image"),
+          parent(parent_),
+          imageURL(url)
+	    {
+	    	startThread(5);
+	    }
+
+        void handleAsyncUpdate() override
+	    {
+			parent.imageCache->setImage(imageURL, loadedImage);
+		    parent.setImage(loadedImage);
+            parent.currentLoadThread = nullptr;
+	    }
+
+        void run() override
+	    {
+            int status = 0;
+		    auto input = imageURL.createInputStream(false, nullptr, nullptr, {}, 500, nullptr, &status);
+
+            MemoryBlock mb;
+            input->readIntoMemoryBlock(mb);
+
+            MemoryInputStream mis(mb, false);
+
+            if(auto f = ImageFileFormat::findImageFormatForStream(mis))
+            {
+	            loadedImage = f->loadFrom(mis);
+            }
+
+		    triggerAsyncUpdate();
+	    }
+
+        CSSImage& parent;
+        juce::Image loadedImage;
+        URL imageURL;
+    };
+
+	struct Cache
+	{
+		~Cache()
+		{
+			int x = 5;
+		}
+
+		void setImage(const URL& url, const Image& img)
+		{
+			if(getImage(url).isValid())
+				return;
+
+			imageCache.add({url,img });
+		}
+
+		Image getImage(const URL& url) const
+		{
+			for(const auto& v: imageCache)
+			{
+				if(v.first == url)
+					return v.second;
+			}
+
+			return {};
+		}
+
+	private:
+
+		Array<std::pair<URL, Image>> imageCache;
+	};
+
+	SharedResourcePointer<Cache> imageCache;
+    ScopedPointer<LoadThread> currentLoadThread;
+};
+
 /** A combined component with three flex boxes for header, footer & content. */
 struct HeaderContentFooter: public Component,
 						    public CSSRootComponent
@@ -436,9 +588,9 @@ struct HeaderContentFooter: public Component,
 			content = new FlexboxComponent(cs);
 
 		body.setDefaultStyleSheet("display: flex; flex-direction: column;");
-		header.setDefaultStyleSheet("width: 100%;height: 48px; background: blue;");
-		content->setDefaultStyleSheet("width: 100%;flex-grow: 1;display: flex; background: red;");
-		footer.setDefaultStyleSheet("width: 100%; height: 48px; display:flex; background: green;");
+		header.setDefaultStyleSheet("width: 100%;height: auto;");
+		content->setDefaultStyleSheet("width: 100%;flex-grow: 1;display: flex;");
+		footer.setDefaultStyleSheet("width: 100%; height: auto; display:flex;");
 
 		addAndMakeVisible(body);
 
@@ -449,6 +601,9 @@ struct HeaderContentFooter: public Component,
 		StyleSheet::Collection c;
 		body.setCSS(c);
 	}
+
+	void setFixStyleSheet(StyleSheet::Collection& newCss);
+
 
 	void showEditor();
 
@@ -471,45 +626,22 @@ struct HeaderContentFooter: public Component,
 		}
 	}
 
-    void paintOverChildren(Graphics& g) override
-    {
-        if(!inspectorData.first.isEmpty())
-        {
-            auto cb = inspectorData.first;
-            auto b = getLocalBounds().toFloat();
-            auto left = b.removeFromLeft(cb.getX());
-            auto right = b.removeFromRight(b.getRight() - cb.getRight());
-            auto top = b.removeFromTop(cb.getY());
-            auto bottom = b.removeFromBottom(b.getBottom() - cb.getBottom());
-            
-            g.setColour(Colours::black.withAlpha(0.5f));
-            g.fillRect(top);
-            g.fillRect(left);
-            g.fillRect(right);
-            g.fillRect(bottom);
-            
-            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.3f));
-            g.drawRect(inspectorData.first, 1.0f);
-            g.setColour(Colour(SIGNAL_COLOUR));
-            auto f = GLOBAL_MONOSPACE_FONT();
-            g.setFont(f);
-            
-            auto tb = inspectorData.first.withSizeKeepingCentre(f.getStringWidthFloat(inspectorData.second), inspectorData.first.getHeight() + 40).constrainedWithin(getLocalBounds().toFloat());
-            
-            if(inspectorData.first.getY() > 20)
-                g.drawText(inspectorData.second, tb, Justification::centredTop);
-            else
-                g.drawText(inspectorData.second, tb, Justification::centredBottom);
-        }
-    }
-    
-    void setCurrentInspectorData(const std::pair<Rectangle<float>, String>& newData)
+    void paintOverChildren(Graphics& g) override;
+
+	struct InspectorData
+	{
+		Component::SafePointer<Component> c;
+		Rectangle<float> first;
+		String second;
+	};
+
+    void setCurrentInspectorData(const InspectorData& newData)
     {
         inspectorData = newData;
         repaint();
     }
     
-    std::pair<Rectangle<float>, String> inspectorData;
+    InspectorData inspectorData;
     
 	FlexboxComponent body;
 	FlexboxComponent header;
@@ -518,9 +650,13 @@ struct HeaderContentFooter: public Component,
 
 private:
 
-
+	bool useFixStyleSheet = false;
 	DynamicObject::Ptr defaultProperties;
+
+	SharedResourcePointer<CSSImage::Cache> imageCache;
 };
+
+
 
 } // namespace simple_css
 } // namespace hise

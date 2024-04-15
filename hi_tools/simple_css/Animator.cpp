@@ -197,15 +197,6 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 			auto findPropertyValue = [&](int stateToFind)
 			{
 				return p.getProperty(stateToFind);
-
-
-				for(auto& pv: p.values)
-				{
-					if(pv.first == stateToFind)
-						return pv.second;
-				}
-
-				return PropertyValue();
 			};
 
 			auto f1 = findPropertyValue(stateChanged.second);

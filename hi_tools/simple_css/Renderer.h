@@ -95,6 +95,8 @@ struct CSSRootComponent
 		return c.findParentComponentOfClass<CSSRootComponent>();
 	}
 
+	virtual StyleSheet::Collection::DataProvider* createDataProvider() { return nullptr; }
+
 	void showInfo(bool shouldShow)
 	{
 		if(shouldShow)
@@ -147,7 +149,7 @@ class Positioner
 
 	template <Direction D> Rectangle<float> slice(const Array<Selector>& s, float defaultValue)
 	{
-		if(auto ss = css.getWithAllStates(s.getFirst()))
+		if(auto ss = css.getWithAllStates(nullptr, s.getFirst()))
 		{
 			ss->setFullArea(bodyArea);
 
@@ -223,6 +225,8 @@ struct Renderer: public Animator::ScopedComponentSetter
 	 */
 	void drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Ptr ss, PseudoElementType type = PseudoElementType::None);
 
+	void drawImage(Graphics& g, const juce::Image& img, Rectangle<float> area, StyleSheet::Ptr ss, bool isContent);
+
 	/** Renders a text using the supplied style sheet. */
 	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type=PseudoElementType::None);
 
@@ -264,28 +268,7 @@ class CodeGenerator
 {
 public:
 
-	CodeGenerator(StyleSheet::Ptr ss_):
-	  ss(ss_)
-	{
-		String nl = "\n";
-
-		code << "drawBackground(Graphics& g, Rectangle<float> fullArea, PseudoElementType type=PseudoElementType::None)" << nl;
-
-		code << "{" << nl;
-		code << "\t" << nl;
-
-		for(const auto& ra: ss->getCodeGeneratorArea("fullArea", { "margin", {}}))
-		{
-			appendLine(ra);
-		}
-
-		auto c = ss->getCodeGeneratorColour("fullArea", { "background", {} });
-
-		appendLine("g.setColour(" + c + ");");
-		appendLine("g.fillRect(fullArea);");
-
-		code << "};" << nl;
-	}
+	CodeGenerator(StyleSheet::Ptr ss_);
 
 	void appendLine(const String& s)
 	{

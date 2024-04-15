@@ -41,6 +41,7 @@ CodeEditorComponent::ColourScheme KeywordDataBase::getColourScheme()
 	scheme.set("Type", Colour(0xffDDAADD));
 	scheme.set("Properties", Colour(0xffbbbbff));
 	scheme.set("PseudoClass", Colour(0xffEEAA00));
+	scheme.set("AtRule", Colour(0xFFB474C1));
 	scheme.set("Keyword", Colours::orange);
 	scheme.set("Expression", Colour(0xFFF787F5));
 	scheme.set("Class", Colour(0xff88bec5));
@@ -61,7 +62,8 @@ KeywordDataBase::KeywordDataBase()
 	                        "text-align", "text-transform" };
 	
 	keywords[(int)KeywordType::PseudoClass] = { "hover", "active", "focus", "disabled", "hidden", "before", "after", "root", "checked", "first-child", "last-child" };
-	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "input", "hr", "label", "table", "th", "tr", "td", "p", "progress", "h1", "h2", "h3", "h4" };
+	keywords[(int)KeywordType::AtRules] = { "@font-face", "@import" };
+	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "img", "input", "hr", "label", "table", "th", "tr", "td", "p", "progress", "h1", "h2", "h3", "h4" };
 	keywords[(int)KeywordType::ExpressionKeywords] = { "calc", "clamp", "min", "max" };
 	keywords[(int)KeywordType::Property] = {
 		"::selection",
@@ -86,6 +88,7 @@ KeywordDataBase::KeywordDataBase()
 		"margin", "margin-top", "margin-left", "margin-right", "margin-bottom",
 		"min-width", "max-width", "min-height", "max-height",
         "opacity",
+		"object-fit",
 		"order",
 		"overflow",
 		"padding", "padding-top", "padding-left", "padding-right", "padding-bottom",
@@ -108,13 +111,14 @@ KeywordDataBase::KeywordDataBase()
 	valueNames["align-items"] = { "stretch", "flex-start", "flex-end", "center" };
 	valueNames["align-content"] = { "stretch", "flex-start", "flex-end", "center" };
 	valueNames["align-self"] = { "auto", "flex-start", "flex-end", "center", "stretch" };
-	valueNames["font-weight"] = { "default", "normal", "unset", "400", "500", "600", "700", "800", "900" };
+	valueNames["font-weight"] = { "default", "normal", "unset", "400", "bold", "bolder", "500", "600", "700", "800", "900" };
 	valueNames["font-style"] = { "normal", "italic" };
 	valueNames["cursor"] = { "default", "pointer", "wait", "crosshair", "text", "copy", "grabbing" };
     valueNames["box-sizing"] = { "initial", "content-box", "border-box" };
     valueNames["transition"] = { "linear", "ease", "ease-in", "ease-in-out" };
     valueNames["text-transform"] = { "none", "capitalize", "uppercase", "lowercase" };
-
+	valueNames["object-fit"] = { "fill", "contain", "cover", "none", "scale-down" };
+	valueNames["background-size"] = { "fill", "contain", "cover", "none", "scale-down" };
 	functNames["transform"] = { "none", "matrix", "translate", "translateX", "translateY", "translateZ",
 								"scale", "scaleX", "scaleY", "scaleZ", "rotate", "rotateX", "rotateY", "rotateZ",
 								"skew", "skewX", "skewY" };
@@ -127,6 +131,7 @@ String KeywordDataBase::getKeywordName(KeywordType type)
 		"type",
 		"property",
 		"pseudo-class",
+		"at-rule",
 		"keywords",
 		"expression",
 		"numKeywords",
@@ -341,6 +346,7 @@ int LanguageManager::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 
 	bool isClass = false;
 	bool isID = false;
+	bool isAtRule = false;
 	bool wasProperty = false;
 
 	if(String("{};").containsChar(c))
@@ -385,6 +391,11 @@ int LanguageManager::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 		source.skip();
 		return (int)Token::Type;
 	}
+	if(c == '@')
+	{
+		isAtRule = true;
+		source.skip();
+	}
 	if(c == '#')
 	{
 		isID = true;
@@ -412,6 +423,9 @@ int LanguageManager::Tokeniser::readNextToken(CodeDocument::Iterator& source)
 
 		if(isID)
 			return (int)Token::ID;
+
+		if(isAtRule)
+			return (int)Token::AtRule;
 
 		auto keyType = database->getKeywordType(word);
 
@@ -461,6 +475,7 @@ void LanguageManager::CssTokens::addTokens(mcl::TokenCollection::List& tokens)
 		"Type",
 		"Property",
 		"PseudoClass",
+		"AtRules",
 		"ReservedKeywords",
 		"Expression operator"
 	});

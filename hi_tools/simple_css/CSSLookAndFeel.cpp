@@ -126,7 +126,7 @@ void StyleSheetLookAndFeel::drawPopupMenuItem(Graphics& g, Rectangle<float> area
 		{
 			auto sep = ss->getArea(area.toFloat(), { "padding", flags});
 
-			if(auto rss = root.css.getWithAllStates(ElementType::Ruler))
+			if(auto rss = root.css.getWithAllStates(nullptr, ElementType::Ruler))
 			{
 				sep = rss->getArea(sep, { "margin", flags});
 				sep = rss->getArea(sep, { "padding", flags});
@@ -194,9 +194,9 @@ void StyleSheetLookAndFeel::drawProgressBar(Graphics& g, ProgressBar& progressBa
 StyleSheet::Ptr StyleSheetLookAndFeel::getBestPopupStyleSheet(bool getItem)
 {
 	if(getItem)
-		return root.css.getWithAllStates(Selector::withClass("popup-item"));
+		return root.css.getWithAllStates(nullptr, Selector::withClass("popup-item"));
 
-	return root.css.getWithAllStates(Selector::withClass("popup"));
+	return root.css.getWithAllStates(nullptr, Selector::withClass("popup"));
 }
 
 void StyleSheetLookAndFeel::getIdealPopupMenuItemSizeWithOptions(const String& text, bool isSeparator,

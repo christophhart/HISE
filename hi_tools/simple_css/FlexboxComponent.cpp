@@ -36,10 +36,12 @@ namespace simple_css
 {
 void FlexboxComponent::Helpers::setFallbackStyleSheet(Component& c, const String& properties)
 {
-	if(c.getProperties().contains("style"))
+	static const Identifier sid("style");
+
+	if(c.getProperties().contains(sid))
 		return;
 
-	c.getProperties().set("style", properties);
+	c.getProperties().set(sid, properties);
 	invalidateCache(c);
 }
 
@@ -60,10 +62,12 @@ void FlexboxComponent::Helpers::writeSelectorsToProperties(Component& c, const S
 			id = sel.name;
 	}
 
-	writeClassSelectors(c, classSelectors);
+	static const Identifier iid("id");
+
+	writeClassSelectors(c, classSelectors, false);
 
 	if(id.isNotEmpty())
-		c.getProperties().set("id", id);
+		c.getProperties().set(iid, id);
 }
 
 Selector FlexboxComponent::Helpers::getTypeSelectorFromComponentClass(Component* c)
@@ -92,9 +96,11 @@ Selector FlexboxComponent::Helpers::getTypeSelectorFromComponentClass(Component*
 	if(dynamic_cast<juce::ProgressBar*>(c) != nullptr)
 		return Selector(ElementType::Progress);
 
-	if(c->getProperties().contains("custom-type"))
+	static const Identifier ct("custom-type");
+
+	if(c->getProperties().contains(ct))
 	{
-		return Selector(c->getProperties()["custom-type"].toString());
+		return Selector(c->getProperties()[ct].toString());
 	}
 
 	return Selector(ElementType::Panel);;
@@ -107,7 +113,9 @@ Array<Selector> FlexboxComponent::Helpers::getClassSelectorFromComponentClass(Co
 
 	Array<Selector> list;
 
-	auto classes = c->getProperties()["class"];
+	static const Identifier cid("class");
+
+	auto classes = c->getProperties()[cid];
 
 	if(classes.isString())
 		list.add(Selector(SelectorType::Class, classes.toString()));
@@ -137,24 +145,34 @@ String FlexboxComponent::Helpers::dump(Component& c)
     return s;
 }
 
-void FlexboxComponent::Helpers::writeClassSelectors(Component& c, const Array<Selector>& classList)
+void FlexboxComponent::Helpers::writeClassSelectors(Component& c, const Array<Selector>& classList, bool append)
 {
 	Array<var> classes;
 
+	static const Identifier cid("class");
+
+	if(append)
+	{
+		if(auto ar = c.getProperties()[cid].getArray())
+			classes.addArray(*ar);
+	}
+	
 	for(const auto& s: classList)
 		classes.add(s.toString().substring(1, 1000));
 
-	c.getProperties().set("class", classes);
+	c.getProperties().set(cid, classes);
 
 	invalidateCache(c);
 }
 
 Selector FlexboxComponent::Helpers::getIdSelectorFromComponentClass(Component* c)
 {
+	static const Identifier iid("id");
+
 	if(auto vp = dynamic_cast<FlexboxViewport*>(c))
 		return getIdSelectorFromComponentClass(&vp->content);
 
-	auto id = c->getProperties()["id"].toString();
+	auto id = c->getProperties()[iid].toString();
 
 	if(id.isNotEmpty())
 		return Selector(SelectorType::ID, id);
@@ -262,15 +280,13 @@ void FlexboxComponent::resized()
 	if(getLocalBounds().isEmpty())
 		return;
 
-	if(getNumChildComponents() == 1)
+	if(isInvisibleWrapper())
 	{
-		auto c = getChildComponent(0);
-		
+		getChildComponent(0)->setBounds(getLocalBounds());
+		return;
 	}
 
 	auto data = createPositionData();
-
-	
 
 	std::vector<std::pair<Component*, Rectangle<int>>> prevPositions;
 
@@ -322,10 +338,22 @@ void FlexboxComponent::addFlexItem(Component& c)
 
 float FlexboxComponent::getAutoWidthForHeight(float fullHeight)
 {
-    auto data = createPositionData();
+	if(isInvisibleWrapper())
+	{
+		auto item = createFlexItemForInvisibleWrapper({0.0f, 0.0f, 0.0f, fullHeight});
 
+		auto w = item.width;
+		if(item.minWidth > 0.0f)
+			w = jmax(w, item.minWidth);
+
+		if(item.maxWidth > 0.0f)
+			w = jmin(w, item.maxWidth);
+
+		return w;
+	}
+
+	auto data = createPositionData();
     auto w = 0.0f;
-
     auto first = true;
     
     for(const auto& i: data.flexBox.items)
@@ -353,6 +381,20 @@ float FlexboxComponent::getAutoWidthForHeight(float fullHeight)
 
 float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
 {
+	if(isInvisibleWrapper())
+	{
+		auto item = createFlexItemForInvisibleWrapper({0.0f, 0.0f, fullWidth, 0.0f});
+
+		auto h = item.height;
+		if(item.minHeight > 0.0f)
+			h = jmax(h, item.minHeight);
+
+		if(item.maxWidth > 0.0f)
+			h = jmin(h, item.maxHeight);
+
+		return h;
+	}
+
     float h = 0.0f;
 
     auto wrap = ss != nullptr ? ss->getAsEnum({ "flex-wrap", {}}, FlexBox::Wrap::noWrap) : FlexBox::Wrap::noWrap;
@@ -497,6 +539,35 @@ void FlexboxComponent::setParent(CSSRootComponent* p)
 	parentToUse = p;
 }
 
+void FlexboxComponent::setIsInvisibleWrapper(bool shouldBeInvisibleWrapper)
+{
+	if(invisibleWrapper == shouldBeInvisibleWrapper)
+		return;
+
+	invisibleWrapper = shouldBeInvisibleWrapper;
+
+	if(invisibleWrapper)
+	{
+		jassert(getNumChildComponents() == 1);
+		
+		StringArray selectors;
+		selectors.add(Helpers::getIdSelectorFromComponentClass(this).toString());
+
+		for(auto c: Helpers::getClassSelectorFromComponentClass(this))
+			selectors.add(c.toString());
+
+		selector = Selector(ElementType::Panel);
+
+		Helpers::writeSelectorsToProperties(*getChildComponent(0), selectors);
+
+		getProperties().remove("id");
+
+		Helpers::writeSelectorsToProperties(*this, {});
+		
+		Helpers::writeInlineStyle(*this, "display: flex; gap: 0px; width: auto; height: auto;");
+	}
+}
+
 FlexboxComponent::PositionData FlexboxComponent::createPositionData()
 {
 	PositionData data;
@@ -603,6 +674,30 @@ FlexboxComponent::PositionData FlexboxComponent::createPositionData()
 	return data;
 }
 
+void HeaderContentFooter::setFixStyleSheet(StyleSheet::Collection& newCss)
+{
+	if(auto dp = createDataProvider())
+	{
+		newCss.performAtRules(dp);
+		delete dp;
+	}
+		
+	css = newCss;
+	useFixStyleSheet = true;
+
+	if(defaultProperties != nullptr)
+	{
+		for(const auto& p: defaultProperties->getProperties())
+			css.setPropertyVariable(p.name, p.value);
+	}
+
+	css.setAnimator(&animator);
+	currentLaf = new StyleSheetLookAndFeel(*this);
+	setLookAndFeel(currentLaf);
+
+	styleSheetCollectionChanged();
+}
+
 void HeaderContentFooter::showEditor()
 {
 	Component::SafePointer<HeaderContentFooter> safeThis(this);
@@ -618,8 +713,6 @@ void HeaderContentFooter::showEditor()
 	});
 }
 
-
-
 void HeaderContentFooter::setStylesheetCode(const String& code)
 {
 	simple_css::Parser p(code);
@@ -628,10 +721,88 @@ void HeaderContentFooter::setStylesheetCode(const String& code)
 	update(newCss);
 }
 
+void hise::simple_css::HeaderContentFooter::paintOverChildren(Graphics& g)
+{
+	if(!inspectorData.first.isEmpty())
+	{
+		auto cb = inspectorData.first;
+		auto b = getLocalBounds().toFloat();
+		auto left = b.removeFromLeft(cb.getX());
+		auto right = b.removeFromRight(b.getRight() - cb.getRight());
+		auto top = b.removeFromTop(cb.getY());
+		auto bottom = b.removeFromBottom(b.getBottom() - cb.getBottom());
+            
+		g.setColour(Colours::black.withAlpha(0.5f));
+		g.fillRect(top);
+		g.fillRect(left);
+		g.fillRect(right);
+		g.fillRect(bottom);
+            
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.3f));
+		g.drawRect(inspectorData.first, 1.0f);
+		g.setColour(Colour(SIGNAL_COLOUR));
+		auto f = GLOBAL_MONOSPACE_FONT();
+		g.setFont(f);
+            
+		auto tb = inspectorData.first.withSizeKeepingCentre(f.getStringWidthFloat(inspectorData.second), inspectorData.first.getHeight() + 40).constrainedWithin(getLocalBounds().toFloat());
+            
+		if(inspectorData.first.getY() > 20)
+			g.drawText(inspectorData.second, tb, Justification::centredTop);
+		else
+			g.drawText(inspectorData.second, tb, Justification::centredBottom);
+
+        if(inspectorData.c.getComponent() == nullptr)
+            return;
+
+        if(auto ss = css.getForComponent(inspectorData.c.getComponent()))
+        {
+	        auto b = inspectorData.first;
+
+            auto mb = ss->getArea(b, { "margin", {}});
+            auto pb = ss->getArea(mb, { "padding", {}});
+
+            Colour paddingColour(0xFFB8C37F);
+            Colour marginColour(0xFFB08354);
+
+	        {
+                Graphics::ScopedSaveState sss(g);
+                g.reduceClipRegion(b.toNearestInt());
+                g.excludeClipRegion(mb.toNearestInt());
+                g.fillAll(marginColour.withAlpha(0.33f));
+            }
+
+            
+            ;
+            {
+	        	Graphics::ScopedSaveState sss(g);
+                g.reduceClipRegion(mb.toNearestInt());
+		        g.excludeClipRegion(pb.toNearestInt());
+                g.fillAll(paddingColour.withAlpha(0.33f));
+	        }
+
+            g.setColour(paddingColour);
+            g.drawRect(mb, 1);
+            g.drawRect(pb, 1);
+            g.setColour(marginColour);
+            g.drawRect(b, 1);
+
+        }
+	}
+}
+
 void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 {
-	if(css != newCss)
+	if(useFixStyleSheet)
+		css.clearCache();
+
+	if(css != newCss && !useFixStyleSheet)
 	{
+		if(auto dp = createDataProvider())
+		{
+			newCss.performAtRules(dp);
+			delete dp;
+		}
+
 		css = newCss;
 
 		if(defaultProperties != nullptr)
@@ -643,9 +814,9 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 		css.setAnimator(&animator);
 		currentLaf = new simple_css::StyleSheetLookAndFeel(*this);
 		setLookAndFeel(currentLaf);
-	}
 
-	styleSheetCollectionChanged();
+		styleSheetCollectionChanged();
+	}
 
 	body.setCSS(css);
 }
@@ -656,6 +827,8 @@ void HeaderContentFooter::resized()
 	body.resized();
 	body.repaint();
 }
+
+
 }
 }
 

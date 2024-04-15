@@ -120,6 +120,18 @@ struct CssTestSuite: public UnitTest
 		return c;
 	}
 
+	static bool matchesComponent(ComplexSelector::Ptr cs, Component* c)
+	{
+		auto selectors = ComplexSelector::getSelectorsForComponent(c);
+		Array<Selector> pSelectors;
+
+		if(auto p = c->getParentComponent())
+			pSelectors = ComplexSelector::getSelectorsForComponent(p);
+
+
+		return cs->matchesSelectors(selectors, pSelectors);
+	}
+
 	void testSelectors()
 	{
 		beginTest("test complex selector parser");
@@ -130,7 +142,8 @@ struct CssTestSuite: public UnitTest
 			expect(cs->thisSelectors.isSingle() == 1, "selectors not 1");
 
 			auto c = createComponentWithSelectors({ ".myclass "});
-			expect(cs->matchesComponent(c.get()));
+			expect(matchesComponent(cs, c.get()));
+			
 		});
 		
 		testComplexSelector(".parent .myclass", [&](ComplexSelector::Ptr cs)
@@ -142,8 +155,7 @@ struct CssTestSuite: public UnitTest
 			auto c = createComponentWithSelectors({ ".myclass "});
 
 			p->addAndMakeVisible(*c);
-
-			expect(cs->matchesComponent(c.get()));
+			expect(matchesComponent(cs, c.get()));
 		});
 
 		testComplexSelector(".parent *", [&](ComplexSelector::Ptr cs)
@@ -155,8 +167,7 @@ struct CssTestSuite: public UnitTest
 			auto c = createComponentWithSelectors({ ".myclass "});
 
 			p->addAndMakeVisible(*c);
-
-			expect(cs->matchesComponent(c.get()));
+			expect(matchesComponent(cs, c.get()));
 		});
 
 		testComplexSelector({".myclass.secondclass"}, [&](ComplexSelector::Ptr cs)
@@ -168,11 +179,11 @@ struct CssTestSuite: public UnitTest
 			auto c1 = createComponentWithSelectors({ ".secondclass"});
 			auto c2 = createComponentWithSelectors({ ".myclass", ".secondclass"});
 			auto c3 = createComponentWithSelectors({ ".myclass ", ".secondclass", "#someid"});
-			
-			expect(!cs->matchesComponent(c0.get()));
-			expect(!cs->matchesComponent(c1.get()));
-			expect(cs->matchesComponent(c2.get()));
-			expect(cs->matchesComponent(c3.get()));
+
+			expect(!matchesComponent(cs, c0.get()));
+			expect(!matchesComponent(cs, c1.get()));
+			expect(matchesComponent(cs, c2.get()));
+			expect(matchesComponent(cs, c3.get()));
 		});
 
 		testComplexSelector({"button.myclass"}, [&](ComplexSelector::Ptr cs)
@@ -185,10 +196,10 @@ struct CssTestSuite: public UnitTest
 			auto c2 = createComponentWithSelectors<TextButton>({ ".myclass", ".secondclass"});
 			auto c3 = createComponentWithSelectors<TextButton>({ ".myclass "});
 			
-			expect(!cs->matchesComponent(c0.get()));
-			expect(!cs->matchesComponent(c1.get()));
-			expect(cs->matchesComponent(c2.get()));
-			expect(cs->matchesComponent(c3.get()));
+			expect(!matchesComponent(cs, c0.get()));
+			expect(!matchesComponent(cs, c1.get()));
+			expect( matchesComponent(cs, c2.get()));
+			expect( matchesComponent(cs, c3.get()));
 		});
 
 		testComplexSelector({"select.myclass button:hover"}, [&](ComplexSelector::Ptr cs)
@@ -210,10 +221,10 @@ struct CssTestSuite: public UnitTest
 			cp->addChildComponent(*c2);
 			cp->addChildComponent(*c3);
 
-			expect(!cs->matchesComponent(c0.get()));
-			expect(!cs->matchesComponent(c1.get()));
-			expect(cs->matchesComponent(c2.get()));
-			expect(cs->matchesComponent(c3.get()));
+			expect(!matchesComponent(cs, c0.get()));
+			expect(!matchesComponent(cs, c1.get()));
+			expect( matchesComponent(cs, c2.get()));
+			expect( matchesComponent(cs, c3.get()));
 		});
 
 		beginTest("testing selectors");
@@ -408,7 +419,7 @@ struct CssTestSuite: public UnitTest
 		if(!ok)
 			expect(false, "parser error: " + ok.getErrorMessage());
 
-		if(auto ss = p.getCSSValues().getWithAllStates(s))
+		if(auto ss = p.getCSSValues().getWithAllStates(nullptr, s))
 		{
 			auto c = ss->getColourOrGradient({}, { "background", state }).first;
 			expect(c == Colours::red, selectorCode + " can't resolve background property");
@@ -428,7 +439,7 @@ struct CssTestSuite: public UnitTest
 		if(ok.failed())
 			expect(false, "Parser error: " + ok.getErrorMessage());
 
-		auto ss = p.getCSSValues().getWithAllStates(s);
+		auto ss = p.getCSSValues().getWithAllStates(nullptr, s);
 		expect(ss != nullptr, cssCode);
 	}
 };

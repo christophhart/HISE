@@ -502,8 +502,6 @@ std::vector<TransformParser::TransformData> TransformParser::parse(Rectangle<flo
 
 	std::vector<TransformData> list;
 
-	TransformTypes currentType = TransformTypes::numTransformTypes;
-		
 	while(ptr != end)
 	{
 		char nameBuffer[20];
@@ -637,7 +635,7 @@ ShadowParser::ShadowParser(const String& alreadyParsedString, Rectangle<float> t
 
 	for(const auto& l: lines)
 	{
-		if(l == "none")
+		if(l.startsWith("none"))
 			continue;
 
 		auto tokens = StringArray::fromTokens(l, ";", "");
@@ -696,7 +694,7 @@ std::vector<melatonin::ShadowParameters> ShadowParser::interpolate(const ShadowP
 
 		auto p = a.interpolate(b, alpha).toShadowParameter();
 
-		if(p.inner == wantsInset)
+		if(p.inner == (bool)wantsInset)
 			list.push_back(p);
 	}
 
@@ -1123,6 +1121,8 @@ String Parser::getTokenName(TokenType t)
 	case numTokenTypes: break;
 	default: ;
 	}
+
+	return {};
 }
 
 void Parser::skip()
@@ -1197,6 +1197,7 @@ bool Parser::matchIf(TokenType t)
 	case EndOfFIle:    return matchChar(0);
 	case OpenBracket:  return matchChar('{');
 	case CloseBracket: return matchChar('}');
+	case At:		   return matchChar('@');	
 	case Dot:		   return matchChar('.');
 	case Hash:		   return matchChar('#');
 	case OpenParen:	   return matchChar('(');
@@ -1290,6 +1291,8 @@ bool Parser::matchIf(TokenType t)
 	case numTokenTypes: break;
 	default: ;
 	}
+
+	return false;
 }
 
 PseudoState Parser::parsePseudoClass()
@@ -1356,7 +1359,6 @@ Parser::RawClass Parser::parseSelectors()
 
 	KeywordWarning kw(*this);
 
-
 	while(ptr != end && *ptr != '{')
 	{
 		if(matchIf(TokenType::Comma))
@@ -1373,6 +1375,13 @@ Parser::RawClass Parser::parseSelectors()
 		{
 			ns.name == "*";
 			ns.type = SelectorType::All;
+		}
+		else if(matchIf(TokenType::At))
+		{
+			match(TokenType::Keyword);
+
+			ns.name = currentToken;
+			ns.type = SelectorType::AtRule;
 		}
 		else if(matchIf(TokenType::Colon))
 		{
@@ -1419,7 +1428,8 @@ Parser::RawClass Parser::parseSelectors()
 
 		currentList.push_back({ns, parsePseudoClass() });
 
-		
+		if(ns.type == SelectorType::AtRule)
+			break;
 
 		if(isSpace)
 			currentList.push_back({ Selector(SelectorType::ParentDelimiter, " "), {}});
@@ -1442,7 +1452,32 @@ Result Parser::parse()
 		{
 			auto newClass = parseSelectors();
 
-			match(TokenType::OpenBracket);
+			if(!matchIf(TokenType::OpenBracket))
+			{
+				// could be a import statement;
+
+				if(newClass.selectors[0][0].first.toString() == "@import")
+				{
+					match(TokenType::ValueString);
+
+					auto src = currentToken;
+					match(TokenType::Semicolon);
+
+					RawLine l;
+					l.property = "src";
+					l.items.push_back(src);
+
+					newClass.lines.push_back(std::move(l));
+					rawClasses.push_back(newClass);
+
+					skip();
+					continue;
+				}
+				else
+				{
+					match(TokenType::OpenBracket);
+				}
+			}
 
 			kw.setLocation(*this);
 
@@ -1704,6 +1739,8 @@ StyleSheet::Collection Parser::getCSSValues() const
 
 	for(const auto& rc: rawClasses)
 	{
+		
+
 		Array<PseudoState> thisStates;
 
 		ComplexSelector::List selectorList;
@@ -1754,7 +1791,7 @@ StyleSheet::Collection Parser::getCSSValues() const
 						{
 							if(propertyValue.first == thisPseudoState.stateFlag)
 							{
-                                if(isImportant >= (int)propertyValue.second.important)
+                                if((int)isImportant >= (int)propertyValue.second.important)
                                 {
                                     if(v == "initial" || v == "unset" || v == "inherit")
                                     {

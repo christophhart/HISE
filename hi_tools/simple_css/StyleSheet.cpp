@@ -111,8 +111,15 @@ void StyleSheet::copyPropertiesFrom(Ptr other, bool overwriteExisting, const Str
 
 	other->forEachProperty(PseudoElementType::All, [&](PseudoElementType t, Property& p)
 	{
+
+
 		for(const auto& v: p.values)
 		{
+			if(p.name == "font-family")
+			{
+				int x = 5;
+			}
+
             if(p.name == "all")
             {
                 auto valueToUse = p.values[0].second;
@@ -278,6 +285,7 @@ NonUniformBorderData StyleSheet::getNonUniformBorder(Rectangle<float> totalArea,
 StyleSheet::Collection::Collection(List l):
 	list(l)
 {
+#if 0
 	if(auto body = (*this)[Selector(SelectorType::All, "*")])
 	{
 		for(auto s: list)
@@ -288,6 +296,7 @@ StyleSheet::Collection::Collection(List l):
 			s->copyPropertiesFrom(body, false, { "color", "font-family", "font-size", "font-weight", "text-align"});
 		}
 	}
+#endif
 
 	// TODO: sort so that it takes the best match first
 }
@@ -332,29 +341,59 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
     
 	Array<Match> matches;
 
-	auto all = getWithAllStates(Selector(SelectorType::All, "*"));
+	auto all = getWithAllStates(c, Selector(SelectorType::All, "*"));
 	StyleSheet::Ptr parentStyle;
+
+	Array<Selector> pSelectors;
 
 	if(auto p = c->getParentComponent())
 	{
 		parentStyle = getForComponent(p);
+
+		auto tp = p;
+
+		while(tp != nullptr)
+		{
+			if(dynamic_cast<CSSRootComponent*>(tp))
+				break;
+
+			pSelectors.addArray(ComplexSelector::getSelectorsForComponent(tp));
+			tp = tp->getParentComponent();
+		}
 	}
 
 	auto selectors = ComplexSelector::getSelectorsForComponent(c);
 
-	for(auto l: list)
+	auto addFromList = [&](List& listToUse)
 	{
-		if(l->isAll())
+		for(auto l: listToUse)
 		{
-			continue;
-		}
-		else
-		{
-			for(auto cs: l->complexSelectors)
+			if(l->getAtRuleName().isNotEmpty())
+				continue;
+
+			if(l->isAll())
 			{
-				if(cs->matchesComponent(c))
-					matches.add({ ComplexSelector::Score(cs, selectors), l });
+				all = l;
 			}
+			else
+			{
+				for(auto cs: l->complexSelectors)
+				{
+					if(cs->matchesSelectors(selectors, pSelectors))
+						matches.add({ ComplexSelector::Score(cs, selectors), l });
+				}
+			}
+		}
+	};
+
+	addFromList(list);
+
+	for(auto& cc: childCollections)
+	{
+		auto p = cc.first.getComponent();
+		if(p != nullptr && p->isParentOf(c))
+		{
+			addFromList(cc.second);
 		}
 	}
 
@@ -374,15 +413,15 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		static int compareElements(const Match& m1, const Match& m2)
 		{
 			if(m1.first < m2.first)
-				return 1;
-			if(m1.first > m2.first)
 				return -1;
+			if(m1.first > m2.first)
+				return 1;
 
 			return 0;
 		}
 	} sorter;
-	
-	matches.sort(sorter);
+
+	matches.sort(sorter, true);
 
 	auto ptrValue = reinterpret_cast<uint64>(c);
 	Selector elementSelector(SelectorType::Element, String::toHexString(ptrValue));
@@ -417,9 +456,9 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
     if(parentStyle != nullptr)
         debugList.addIfNotAlreadyThere(parentStyle);
 
-	for(int i = matches.size() - 1; i >= 0; i--)
+	for(const auto& m: matches)
 	{
-        auto other = matches[i].second;
+        auto other = m.second;
         
         if(other != nullptr)
             debugList.addIfNotAlreadyThere(other);
@@ -438,7 +477,7 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		ic << "}";
 		Parser p(ic);
 		p.parse();
-		auto is = p.getCSSValues().getWithAllStates(elementSelector);
+		auto is = p.getCSSValues().getWithAllStates(nullptr, elementSelector);
         
         if(is != nullptr)
             debugList.addIfNotAlreadyThere(is);
@@ -448,7 +487,7 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 
     String inherited;
     String styleSheetLog;
-    
+	
     for(int i = debugList.size() - 1; i >= 0; i--)
     {
         auto newStyle = debugList[i]->toString();
@@ -470,7 +509,9 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
     }
     
     auto tc = c;
-    styleSheetLog << "/* CSS for component hierarchy: */\n";
+
+	if(createStackTrace)
+		styleSheetLog << "/* CSS for component hierarchy: */\n";
     
 
     
@@ -497,30 +538,28 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
         
         tc = tc->getParentComponent();
     }
-    
-    String pre = "\n";
-    
-    for(int i = hierarchy.size() - 1; i >= 0; i--)
-    {
-        styleSheetLog << pre << hierarchy[i];
-        pre << " ";
-    }
-    
-    styleSheetLog << "\n\n/** Component stylesheet: */\n";
-    
 
+	if(createStackTrace)
+	{
+		String pre = "\n";
     
-    styleSheetLog << ptr->toString();
-    
-    styleSheetLog << "\n\n/** Inherited style sheets: */\n";
-    
-    styleSheetLog << inherited;
-    
-    for(int i = 0; i < elementSelectors.size(); i++)
-    {
-        styleSheetLog = styleSheetLog.replace(elementSelectors[i], hierarchy[i]);
-    }
-    
+	    for(int i = hierarchy.size() - 1; i >= 0; i--)
+	    {
+	        styleSheetLog << pre << hierarchy[i];
+	        pre << " ";
+	    }
+	    
+	    styleSheetLog << "\n\n/** Component stylesheet: */\n";
+	    styleSheetLog << ptr->toString();
+	    styleSheetLog << "\n\n/** Inherited style sheets: */\n";
+	    styleSheetLog << inherited;
+	    
+	    for(int i = 0; i < elementSelectors.size(); i++)
+	    {
+	        styleSheetLog = styleSheetLog.replace(elementSelectors[i], hierarchy[i]);
+	    }
+	}
+	
 	cachedMaps.add({ c, ptr, styleSheetLog });
 
 	if(auto root = CSSRootComponent::find(*c))
@@ -615,8 +654,10 @@ String StyleSheet::Collection::toString() const
 
 
 
-StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(const Selector& s)
+StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(Component* c, const Selector& s)
 {
+	
+
 	for(const auto& existing: cachedMapForAllStates)
 	{
 		if(existing.first.exactMatch(s))
@@ -627,10 +668,13 @@ StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(const Selector& s)
 
 	List matches;
 
-	for(auto l: list)
+	auto addIfMatch = [&](Ptr l)
 	{
+		if(l->getAtRuleName().isNotEmpty())
+			return;
+
 		if(l->isAll() != wantsAll)
-			continue;
+			return;
 
 		for(auto cs: l->complexSelectors)
 		{
@@ -639,6 +683,23 @@ StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(const Selector& s)
 				cs->thisSelectors.selectors[0].first == s)
 			{
 				matches.add(l);
+			}
+		}
+	};
+
+	for(auto l: list)
+	{
+		addIfMatch(l);
+	}
+
+	if(c != nullptr)
+	{
+		for(auto& s: childCollections)
+		{
+			if(s.first->isParentOf(c))
+			{
+				for(auto l: s.second)
+					addIfMatch(l);
 			}
 		}
 	}
@@ -654,9 +715,6 @@ StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(const Selector& s)
 
 	for(auto m: matches)
 		ptr->copyPropertiesFrom(m, true);
-
-	DBG("new all state css");
-	DBG(ptr->toString());
 
 	cachedMapForAllStates.add({s, ptr});
 
@@ -764,6 +822,81 @@ bool StyleSheet::Collection::clearCache(Component* c)
 	}
 }
 
+void StyleSheet::Collection::addCollectionForComponent(Component* c, const Collection& other)
+{
+	for(int i = 0; i < childCollections.size(); i++)
+	{
+		if(childCollections[i].first == nullptr)
+		{
+			childCollections.remove(i--);
+			continue;
+		}
+
+		if(childCollections[i].first == c)
+		{
+			childCollections[i].second = other.list;
+			return;
+		}
+	}
+
+	childCollections.add({ c, other.list });
+}
+
+Result StyleSheet::Collection::performAtRules(DataProvider* d)
+{
+	Array<std::pair<String, Font>> customFonts;
+
+	for(int i = 0; i < list.size(); i++)
+	{
+		auto l = list[i];
+		auto ar = l->getAtRuleName();
+
+		auto url = l->getURLFromProperty({ "src", {} });
+		
+		if(ar == "font-face")
+		{
+			auto fontName = l->getPropertyValueString({"font-family", {}});
+			auto fToUse = d->loadFont(fontName, url);
+
+			customFonts.add({ fontName, fToUse });
+		}
+		if(ar == "import")
+		{
+			auto code = d->importStyleSheet(url);
+
+			if(code.isNotEmpty())
+			{
+				simple_css::Parser p(code);
+				auto ok = p.parse();
+
+				if(!ok.Result::wasOk())
+				{
+					Result::fail("Error at importing " + url + ": " + ok.Result::getErrorMessage());
+				}
+
+				list.removeAndReturn(i);
+
+				auto newCss = p.getCSSValues();
+
+				for(int j = 0; j < newCss.list.size(); j++)
+				{
+					list.insert(i+j, newCss.list[j]);
+				}
+			}
+		}
+	}
+
+	if(!customFonts.isEmpty())
+	{
+		for(auto s: list)
+		{
+			s->setCustomFonts(customFonts);
+		}
+	}
+
+	return Result::ok();
+}
+
 void StyleSheet::Collection::forEach(const std::function<void(Ptr)>& f)
 {
 	for(auto l: list)
@@ -798,7 +931,7 @@ Path StyleSheet::getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag
 
 	if(pv.isNotEmpty())
 	{
-		if(!pv.startsWith("linear-gradient"))
+		if(!pv.startsWith("linear-gradient") && !pv.startsWith("url"))
 		{
 			MemoryBlock mb;
 			mb.fromBase64Encoding(pv);
@@ -1020,10 +1153,24 @@ Rectangle<float> StyleSheet::getBounds(Rectangle<float> sourceArea, PseudoState 
 
 Rectangle<float> StyleSheet::getPseudoArea(Rectangle<float> sourceArea, int currentState, PseudoElementType area) const
 {
+	auto display = getPropertyValueString({ "display", PseudoState(PseudoClassType::None, area)});
+
+	if(display == "none")
+		return {};
+
 	bool found = false;
+
+	
 
 	for(auto& pv: properties[(int)area])
 	{
+		if(pv.name == "display")
+		{
+			auto v = pv.values[0].second.toString();
+			return {};
+		}
+			
+
 		if(pv.name == "content")
 		{
 			found = true;
@@ -1046,20 +1193,30 @@ Rectangle<float> StyleSheet::getPseudoArea(Rectangle<float> sourceArea, int curr
 
 Rectangle<float> StyleSheet::truncateBeforeAndAfter(Rectangle<float> sourceArea, int currentState) const
 {
-	auto wb = getPseudoArea(sourceArea, currentState, PseudoElementType::Before).getWidth();
-	auto truncateBefore = wb > 0.0f;
+	auto wb = getPseudoArea(sourceArea, currentState, PseudoElementType::Before);
+	auto truncateBefore = !wb.isEmpty();
 
 	if(truncateBefore)
 	{
 		auto t = getPositionType(PseudoState(currentState).withElement(PseudoElementType::Before));
 		truncateBefore &= (t != PositionType::absolute);
 	}
-
+	
 	if(truncateBefore)
-		sourceArea.removeFromLeft(wb);
+	{
+		if(wb.getX() == sourceArea.getX())
+			sourceArea.removeFromLeft(wb.getWidth());
+		else if (wb.getRight() == sourceArea.getRight())
+			sourceArea.removeFromRight(wb.getWidth());
+		else
+		{
+			jassertfalse;
+		}
+	}
 
-	auto wa = getPseudoArea(sourceArea, currentState, PseudoElementType::After).getWidth();
-	auto truncateAfter = wa > 0.0f;
+
+	auto wa = getPseudoArea(sourceArea, currentState, PseudoElementType::After);
+	auto truncateAfter = !wa.isEmpty();
 
 	if(truncateAfter)
 	{
@@ -1068,13 +1225,24 @@ Rectangle<float> StyleSheet::truncateBeforeAndAfter(Rectangle<float> sourceArea,
 	}
 
 	if(truncateAfter)
-		sourceArea.removeFromRight(wa);
+	{
+		if(wa.getX() == sourceArea.getX())
+			sourceArea.removeFromLeft(wa.getWidth());
+		else if (wa.getRight() == sourceArea.getRight())
+			sourceArea.removeFromRight(wa.getWidth());
+		else
+		{
+			jassertfalse;
+		}
+	}
 
 	return sourceArea;
 }
 
-struct ComponentUpdaters
+class ComponentUpdaters
 {
+public:
+
 	static void setColourIfDefined(Component* c, StyleSheet::Ptr css, int currentState, int id, const String& key)
 	{
 		auto colour = css->getColourOrGradient({}, {key.getCharPointer().getAddress(), currentState}, c->findColour(id)).first;
@@ -1130,7 +1298,7 @@ struct ComponentUpdaters
 
 		if(auto root = CSSRootComponent::find(*te))
 		{
-			if(auto selectionSheet = root->css.getWithAllStates(Selector(SelectorType::Class, "::selection")))
+			if(auto selectionSheet = root->css.getWithAllStates(te, Selector(SelectorType::Class, "::selection")))
 			{
 				setColourIfDefined(te, selectionSheet, 0, TextEditor::highlightedTextColourId, "color");
 				setColourIfDefined(te, selectionSheet, 0, TextEditor::highlightColourId, "background");
@@ -1235,29 +1403,36 @@ MouseCursor StyleSheet::getMouseCursor() const
 
 String StyleSheet::getText(const String& t, PseudoState currentState) const
 {
+	auto textToUse = t;
+
+	if(auto v = getPropertyValue({ "content", currentState}))
+	{
+		textToUse = v.toString();
+	}
+
 	if(auto v = getPropertyValue({ "text-transform", currentState}))
 	{
 		auto tv = v.getValue(varProperties);
 
 		if(tv == "uppercase")
-			return t.toUpperCase();
+			return textToUse.toUpperCase();
 
 		if(tv == "lowercase")
-			return t.toLowerCase();
+			return textToUse.toLowerCase();
 
 		if(tv == "capitalize")
-			return t;
+			return textToUse;
 	}
 
-	return t;
+	return textToUse;
 }
 
 Font StyleSheet::getFont(PseudoState currentState, Rectangle<float> totalArea) const
 {
 	auto fontName = getPropertyValueString({ "font-family", currentState});
 
-	if(fontName.isEmpty())
-		fontName = Font::getDefaultSansSerifFontName();
+	if(fontName.isEmpty() || fontName == "sans-serif")
+		fontName = GLOBAL_FONT().getTypefaceName();
 	
 	if(fontName == "monospace")
 		fontName = Font::getDefaultMonospacedFontName();
@@ -1273,7 +1448,16 @@ Font StyleSheet::getFont(PseudoState currentState, Rectangle<float> totalArea) c
 		flags |= (int)Font::italic;
 
 	Font f(fontName, size, (Font::FontStyleFlags)flags);
-		
+
+	for(const auto& cf: customFonts)
+	{
+		if(cf.first == fontName)
+		{
+			f = cf.second.withHeight(size).withStyle((Font::FontStyleFlags)flags);
+			break;
+		}
+	}
+
 	if(auto sv = getPropertyValue({ "font-stretch", currentState}))
 	{
 		auto scale = ExpressionParser::evaluate(sv.getValue(varProperties), { false, {1.0f, 1.0f }, 1.0f });
@@ -1443,6 +1627,22 @@ String StyleSheet::getCodeGeneratorColour(const String& rectangleName, PropertyK
 	}
 
 	return {};
+}
+
+String StyleSheet::getAtRuleName() const
+{
+	if(complexSelectors.size() > 1)
+		return {};
+
+	if(!complexSelectors[0]->thisSelectors.isSingle())
+		return {};
+
+	auto fs = complexSelectors[0]->thisSelectors.selectors[0].first;
+
+	if(fs.type == SelectorType::AtRule)
+		return fs.name;
+	else
+		return {};
 }
 
 std::pair<bool, PseudoState> StyleSheet::matchesRawList(const Selector::RawList& blockSelectors) const
@@ -1682,6 +1882,20 @@ FlexBox StyleSheet::getFlexBox() const
 	return flexBox;
 }
 
+RectanglePlacement StyleSheet::getRectanglePlacement() const
+{
+	std::array<int, 5> values = 
+	{
+		RectanglePlacement::stretchToFit, // fill
+		RectanglePlacement::onlyIncreaseInSize, // contain
+		RectanglePlacement::fillDestination, // cover
+		RectanglePlacement::doNotResize, // none
+		RectanglePlacement::onlyReduceInSize // scale-down
+	};
+	
+	auto idx = getAsEnum({ "object-fit", {}}, 0);
+	return RectanglePlacement(values[idx]);
+}
 
 
 FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
@@ -1690,9 +1904,6 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 
 	FlexItem item(*c);
 
-	float defaultWidth = -1.0f;
-	float defaultHeight = -1.0f;
-	
 	item.width = getPixelValue(b, { "width", {}}, -1.0f);
 	item.height = getPixelValue(b, { "height", {}}, -1.0f);
 	item.minWidth = getPixelValue(b, { "min-width", {}}, -1.0f);
@@ -1731,18 +1942,28 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 	}
 	if(auto md = dynamic_cast<FlexboxComponent*>(c))
 	{
-		if(getPropertyValueString({"width", {}}) == "auto")
+		if(md->isInvisibleWrapper())
 		{
-			item.width = md->getAutoWidthForHeight(item.height);
-		}
 
-		if(getPropertyValueString({"height", {}}) == "auto")
+			item = md->createFlexItemForInvisibleWrapper(fullArea);
+			item.associatedComponent = c;
+			return item;
+		}
+		else
 		{
-            auto l = getPixelValue(b, { "padding-left", {}}, 0.0);
-            auto r = getPixelValue(b, { "padding-right", {}}, 0.0);
-            
-            auto w = item.width - l - r;
-            item.height = md->getAutoHeightForWidth(w);
+			if(getPropertyValueString({"width", {}}) == "auto")
+			{
+				item.width = md->getAutoWidthForHeight(item.height);
+			}
+
+			if(getPropertyValueString({"height", {}}) == "auto")
+			{
+	            auto l = getPixelValue(b, { "padding-left", {}}, 0.0);
+	            auto r = getPixelValue(b, { "padding-right", {}}, 0.0);
+	            
+	            auto w = item.width - l - r;
+	            item.height = md->getAutoHeightForWidth(w);
+			}
 		}
 	}
 	

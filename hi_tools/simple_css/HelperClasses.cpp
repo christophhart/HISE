@@ -72,6 +72,7 @@ Selector::Selector(ElementType dt)
 	case ElementType::Selector: name = "select"; break;
 	case ElementType::Panel: name = "div"; break;
 	case ElementType::Ruler: name = "hr"; break;
+	case ElementType::Image: name = "img"; break;
 	case ElementType::Table: name = "table"; break;
 	case ElementType::Paragraph: name = "p"; break;
 	case ElementType::TableHeader: name = "th"; break;
@@ -105,6 +106,10 @@ Selector::Selector(const String& s)
 		type = SelectorType::ID;
 		name = s.substring(1, 1000).trim();
 		break;
+	case '@':
+		type = SelectorType::AtRule;
+		name = s.substring(1, 1000).trim();
+		break;
 	default:
 		type = SelectorType::Type;
 		name = s;
@@ -129,6 +134,7 @@ String Selector::toString() const
 	case SelectorType::Class: s << '.'; break;
 	case SelectorType::ID: s << '#'; break;
 	case SelectorType::Element: s << "element(" << name << ")"; return s;
+	case SelectorType::AtRule: s << '@'; break;
 	default: ;
 	}
 
@@ -174,23 +180,6 @@ Array<Selector> ComplexSelector::getSelectorsForComponent(Component* c)
 		list.add(i);
 		
 	return list;
-}
-
-bool ComplexSelector::matchesComponent(Component* c) const
-{
-	auto clist = getSelectorsForComponent(c);
-
-	Array<Selector> plist;
-
-	auto p = c->getParentComponent();
-
-	while(p != nullptr)
-	{
-		plist.addArray(getSelectorsForComponent(p));
-		p = p->getParentComponent();
-	}
-	
-	return matchesSelectors(clist, plist);
 }
 
 String Transition::toString() const

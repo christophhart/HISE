@@ -96,8 +96,10 @@ private:
 };
 
 /** Parses box-shadow and text-shadow properties to create a melatonin::DropShadow stack. */
-struct ShadowParser
+class ShadowParser
 {
+public:
+
 	ShadowParser(const std::vector<String>& tokens);
 	ShadowParser(const String& alreadyParsedString, Rectangle<float> totalArea);
 	ShadowParser() = default;
@@ -197,8 +199,10 @@ private:
 };
 
 /** Parses a string containing CSS code. */
-struct Parser
+class Parser
 {
+public:
+
 	Parser(const String& cssCode);;
 
 	/** This will parse the string and return a Result indicating the errors. */
@@ -231,6 +235,8 @@ struct Parser
 
 private:
 
+	
+
 	String getLocation(String::CharPointerType p=String::CharPointerType(nullptr)) const;
 
 	struct KeywordWarning
@@ -252,6 +258,7 @@ private:
 		EndOfFIle = 0,
 		OpenBracket,
 		CloseBracket,
+		At,
 		Keyword,
 		Dot,
 		Hash,
@@ -277,6 +284,8 @@ private:
 		std::vector<Selector::RawList> selectors;
 		std::vector<RawLine> lines;
 	};
+
+	void performAtRule(StyleSheet::List& list, StyleSheet::Ptr rule);
 
 	String currentToken;
 	std::vector<RawClass> rawClasses;

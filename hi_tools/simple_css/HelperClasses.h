@@ -348,8 +348,6 @@ struct ComplexSelector: public ReferenceCountedObject
 		return match;
 	}
 
-	bool matchesComponent(Component* c) const;
-
 	bool matchesSelectors(const Array<Selector> selectors, const Array<Selector>& pSelectors = {}) const
 	{
 		auto match = false;

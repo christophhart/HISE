@@ -76,7 +76,7 @@ struct StyleSheet: public ReferenceCountedObject
 		
 		String toString() const;
 
-		Ptr getWithAllStates(const Selector& s);
+		Ptr getWithAllStates(Component* c, const Selector& s);
 
 		void addComponentToSetup(Component* c);
 
@@ -86,7 +86,28 @@ struct StyleSheet: public ReferenceCountedObject
 
 		bool clearCache(Component* c = nullptr);
 
+		void setCreateStackTrace(bool shouldCreateStackTrace)
+		{
+			createStackTrace = shouldCreateStackTrace;
+			clearCache();
+		}
+
+		void addCollectionForComponent(Component* c, const Collection& other);
+
+		struct DataProvider
+		{
+			virtual Font loadFont(const String& fontName, const String& url) = 0;
+			virtual String importStyleSheet(const String& url) = 0;
+			virtual Image loadImage(const String& imageURL) = 0;
+		};
+
+		Result performAtRules(DataProvider* d);
+
 	private:
+
+		Array<std::pair<Component::SafePointer<Component>, List>> childCollections;
+
+		bool createStackTrace = true;
 
 		Ptr operator[](const Selector& s) const;
 
@@ -155,11 +176,29 @@ struct StyleSheet: public ReferenceCountedObject
 
 	String getCodeGeneratorColour(const String& rectangleName, PropertyKey key, Colour defaultColour=Colours::transparentBlack) const;
 
+	String getAtRuleName() const;
+
 	PositionType getPositionType(PseudoState state) const;
 
 	FlexBox getFlexBox() const;
 
+	juce::RectanglePlacement getRectanglePlacement() const;
+
 	FlexItem getFlexItem(Component* c, Rectangle<float> fullArea) const;
+
+	String getURLFromProperty(const PropertyKey& key) const
+	{
+		auto n = getPropertyValueString(key);
+		if(n.startsWith("url"))
+		{
+			n = n.fromFirstOccurrenceOf("url(", false, false);
+			n = n.upToLastOccurrenceOf(")", false, false);
+			return n.unquoted();
+		}
+
+		return {};
+	}
+
 
 	Rectangle<float> getLocalBoundsFromText(const String& text) const;
 
@@ -172,6 +211,8 @@ struct StyleSheet: public ReferenceCountedObject
 	Transition getTransitionOrDefault(PseudoElementType elementType, const Transition& t) const;
 
 	bool matchesComplexSelectorList(ComplexSelector::List list) const;
+	
+	
 
 	bool matchesSelectorList(const Array<Selector>& otherSelectors);
 	bool forEachProperty(PseudoElementType type, const std::function<bool(PseudoElementType, Property& v)>& f);
@@ -193,7 +234,14 @@ struct StyleSheet: public ReferenceCountedObject
 
 	bool isAll() const;
 
+	void setCustomFonts(const Array<std::pair<String, Font>>& cf)
+	{
+		customFonts = cf;
+	}
+
 private:
+
+	Array<std::pair<String, Font>> customFonts;
 
 	friend class ComponentUpdaters;
 

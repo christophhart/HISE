@@ -79,6 +79,7 @@ enum class SelectorType
 	Class,
 	ID,
 	Element,
+	AtRule,
 	All,
 	ParentDelimiter,
 	numSelectorTypes
@@ -94,6 +95,7 @@ enum class ElementType
 	Selector,
 	Panel,
 	Ruler,
+	Image,
 	Table,
 	TableHeader,
 	TableRow,

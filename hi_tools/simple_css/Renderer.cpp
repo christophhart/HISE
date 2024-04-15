@@ -116,7 +116,7 @@ namespace simple_css
 	totalArea(totalArea_),
 	applyMargin(applyMargin_)
 {
-	if(auto ss = css.getWithAllStates(Selector(ElementType::Body)))
+	if(auto ss = css.getWithAllStates(nullptr, Selector(ElementType::Body)))
 	{
 		if(applyMargin)
 			totalArea = ss->getArea(totalArea, { "margin", 0});
@@ -132,7 +132,7 @@ namespace simple_css
 Rectangle<int> Positioner::getLocalBoundsFromText(const Array<Selector>& s, const String& text,
 	Rectangle<int> defaultBounds)
 {
-	if(auto ss = css.getWithAllStates(s.getFirst()))
+	if(auto ss = css.getWithAllStates(nullptr, s.getFirst()))
 	{
 		return ss->getLocalBoundsFromText(text).toNearestInt();
 	}
@@ -158,6 +158,29 @@ if (ss != nullptr)
     if(op != 1.0f)
         g.setOpacity(jlimit(0.0f, 1.0f, op));
 }
+}
+
+CodeGenerator::CodeGenerator(StyleSheet::Ptr ss_):
+	ss(ss_)
+{
+	String nl = "\n";
+
+	code << "drawBackground(Graphics& g, Rectangle<float> fullArea, PseudoElementType type=PseudoElementType::None)" << nl;
+
+	code << "{" << nl;
+	code << "\t" << nl;
+
+	for(const auto& ra: ss->getCodeGeneratorArea("fullArea", { "margin", {}}))
+	{
+		appendLine(ra);
+	}
+
+	auto c = ss->getCodeGeneratorColour("fullArea", { "background", {} });
+
+	appendLine("g.setColour(" + c + ");");
+	appendLine("g.fillRect(fullArea);");
+
+	code << "};" << nl;
 }
 
 Renderer::Renderer(Component* c, StateWatcher& state_):
@@ -231,7 +254,6 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	Path sp;
 
 	auto borderSize = ss->getPixelValue(ma, {"border-width", defaultState});
-
 	auto useBorderBox = ss->getPropertyValueString({ "box-sizing", defaultState}) == "border-box";
 	
 	auto pathToFill = p;
@@ -253,26 +275,36 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 			pathToFill = {};
 	}
 
-	state.renderShadow(g, pathToFill, currentComponent, ss->getShadow(ma, { "box-shadow", defaultState}, false), false);
+	auto imageURL = ss->getURLFromProperty({ "background-image", defaultState});
 
-	setCurrentBrush(g, ss, ma, {"background", defaultState});
-	g.fillPath(pathToFill);
-
-	state.renderShadow(g, bp.isEmpty() ? p : bp, currentComponent, ss->getShadow(ma, { "box-shadow", defaultState}, true), true);
-
-	if(auto nub = ss->getNonUniformBorder(ma, defaultState))
+	if(imageURL.isNotEmpty())
 	{
-		nub.draw(g);
+		auto hc = CSSRootComponent::find(*currentComponent);
+		ScopedPointer<StyleSheet::Collection::DataProvider> dp = hc->createDataProvider();
+		auto img = dp->loadImage(imageURL);
+		drawImage(g, img, area, ss, false);
 	}
 	else
 	{
-		if(borderSize > 0.0f)
-		{
-			setCurrentBrush(g, ss, ma, {"border", defaultState});
-			g.strokePath(pathToStroke, PathStrokeType(borderSize));
-		} 
-	}
+		state.renderShadow(g, pathToFill, currentComponent, ss->getShadow(ma, { "box-shadow", defaultState}, false), false);
+		setCurrentBrush(g, ss, ma, {"background", defaultState});
+		g.fillPath(pathToFill);
+		state.renderShadow(g, bp.isEmpty() ? p : bp, currentComponent, ss->getShadow(ma, { "box-shadow", defaultState}, true), true);
 
+		if(auto nub = ss->getNonUniformBorder(ma, defaultState))
+		{
+			nub.draw(g);
+		}
+		else
+		{
+			if(borderSize > 0.0f)
+			{
+				setCurrentBrush(g, ss, ma, {"border", defaultState});
+				g.strokePath(pathToStroke, PathStrokeType(borderSize));
+			} 
+		}
+	}
+	
 	if(type == PseudoElementType::None)
 	{
 		auto beforeArea = ss->getPseudoArea(ma, stateFlag, PseudoElementType::Before);
@@ -300,6 +332,124 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 			if(v.isNotEmpty())
 				renderText(g, afterArea, v, ss, PseudoElementType::After);
 		}
+	}
+}
+
+void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> area, StyleSheet::Ptr ss, bool isContent)
+{
+	Rectangle<float> clipBounds;
+
+	{
+		Graphics::ScopedSaveState sss(g);
+
+		auto currentState = PseudoState(getPseudoClassState());
+		auto totalArea = area;
+
+		totalArea = ss->getArea(totalArea, { "margin", currentState });
+
+		if(isContent)
+			totalArea = ss->getArea(totalArea, { "padding", currentState });
+
+		totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
+
+		g.setColour(Colours::black.withAlpha(ss->getOpacity(currentState.stateFlag)));
+
+		// { "fill", "contain", "cover", "none", "scale-down" };
+
+		enum class CSSPlacement
+		{
+			fill,
+			contain,
+			cover,
+			none,
+			scaledown,
+			numPlacements
+		};
+		
+		auto placement = ss->getAsEnum({ isContent ? "object-fit" : "background-size", currentState}, CSSPlacement::fill);
+		
+		Rectangle<float> imageBounds = img.getBounds().toFloat();
+
+		auto sourceWidth = imageBounds.getWidth();
+		auto sourceHeight = imageBounds.getHeight();
+		auto targetWidth = totalArea.getWidth();
+		auto targetHeight = totalArea.getHeight();
+
+		auto minScale = jmin(targetWidth / sourceWidth, targetHeight / sourceHeight);
+		auto maxScale = jmax(targetWidth / sourceWidth, targetHeight / sourceHeight);
+		
+		switch(placement)
+		{
+		case CSSPlacement::fill:
+			imageBounds = totalArea;
+			break;
+		case CSSPlacement::contain:
+			imageBounds = totalArea.withSizeKeepingCentre(sourceWidth * minScale, sourceHeight * minScale);
+			break;
+		case CSSPlacement::cover:
+			imageBounds = totalArea.withSizeKeepingCentre(sourceWidth * maxScale, sourceHeight * maxScale);
+			break;
+		case CSSPlacement::none:
+			imageBounds = totalArea.withSizeKeepingCentre(sourceWidth, sourceHeight);
+			break;
+		case CSSPlacement::scaledown:
+			imageBounds = totalArea.withSizeKeepingCentre(sourceWidth * jmax(1.0f, maxScale), sourceHeight * jmax(1.0f, maxScale));
+			break;
+		case CSSPlacement::numPlacements: break;
+		}
+
+		clipBounds = imageBounds.constrainedWithin(totalArea);
+		auto transform = ss->getTransform(clipBounds, currentState);
+
+		if(!transform.isIdentity())
+			g.addTransform(transform);
+
+		auto borderSize = ss->getPixelValue(clipBounds, {"border-width", currentState});
+
+		auto bp = ss->getBorderPath(clipBounds, currentState);
+
+		auto scopy = clipBounds.reduced(borderSize * 0.5f);
+
+		auto originalPath = bp;
+
+		if(!scopy.isEmpty())
+			bp.scaleToFit(scopy.getX(), scopy.getY(), scopy.getWidth(), scopy.getHeight(), false);
+		else
+			bp = {};
+
+		state.renderShadow(g, bp, currentComponent, ss->getShadow(clipBounds, { "box-shadow", currentState}, false), false);
+
+		{
+			Graphics::ScopedSaveState sss(g);
+
+			if(!originalPath.isEmpty())
+				g.reduceClipRegion(bp, {});
+
+			g.drawImage(img, imageBounds);
+		}
+		
+		state.renderShadow(g, bp, currentComponent, ss->getShadow(clipBounds, { "box-shadow", currentState}, true), true);
+
+		if(auto nub = ss->getNonUniformBorder(clipBounds, currentState))
+		{
+			nub.draw(g);
+		}
+		else
+		{
+			if(borderSize > 0.0f)
+			{
+				setCurrentBrush(g, ss, clipBounds, {"border", currentState});
+				g.strokePath(bp, PathStrokeType(borderSize));
+			} 
+		}
+	}
+
+	if(isContent)
+	{
+		ScopedValueSetter<bool> svs(applyMargin, false);
+
+		drawBackground(g, clipBounds, ss, PseudoElementType::Before);
+		drawBackground(g, clipBounds, ss, PseudoElementType::After);
 	}
 }
 
