@@ -1153,6 +1153,9 @@ public:
         if(sideDialog->dialog != nullptr && dialogState != nullptr &&
            sideDialog->state->globalState.getDynamicObject() == dialogState->globalState.getDynamicObject())
         {
+            delete newDialog;
+            delete dialogState;
+            
             sideDialog->set(nullptr, nullptr);
 	        return false;
         }
