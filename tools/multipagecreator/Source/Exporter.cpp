@@ -10,6 +10,8 @@ using namespace juce;
 
 var projucer_exporter::exportProjucerProject(State::Job& t, const var& stateObject)
 {
+    appState.callEventListeners("save", {});
+    
 	if(!exportObj.isObject())
 		exportObj = appState.currentDialog->exportAsJSON();
 

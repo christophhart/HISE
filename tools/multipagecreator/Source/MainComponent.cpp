@@ -402,6 +402,8 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		}
 	case FileSave:
 		{
+            c->getState().callEventListeners("save", {});
+            
 			if(currentFile.existsAsFile())
 				currentFile.replaceWithText(JSON::toString(c->exportAsJSON()));
 
@@ -416,6 +418,9 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 			if(fc.browseForFileToSave(true))
 			{
 				currentFile = fc.getResult();
+                
+                c->getState().callEventListeners("save", {});
+                
 				currentFile.replaceWithText(JSON::toString(c->exportAsJSON()));
 				rt.currentRootDirectory = currentFile.getParentDirectory();
 				setSavePoint();
@@ -472,6 +477,7 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		doc.removeListener(this);
 		c->setVisible(false);
 		stateViewer.setVisible(true);
+        c->getState().callEventListeners("save", {});
 		doc.replaceAllContent(JSON::toString(c->exportAsJSON()));
 		doc.addListener(this);
 		break;
@@ -483,6 +489,7 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 	case ViewShowCpp:
 		{
 #if HISE_MULTIPAGE_INCLUDE_EDIT
+            c->getState().callEventListeners("save", {});
 			multipage::CodeGenerator cg(rt.currentRootDirectory, "MyClass", c->exportAsJSON());
 			manualChange = false;
             cg.setUseRawMode(true),

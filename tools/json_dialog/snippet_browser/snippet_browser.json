@@ -34,65 +34,6 @@
     "DialogHeight": 900
   },
   "GlobalState": {
-    "snippetDirectory": "D:\\Development\\HISE Snippets",
-    "snippetRoot": [
-      "A ball shooting Game.md",
-      "A simple OpenGL circle.md",
-      "Array.md",
-      "BasicSynth.md",
-      "Broadcaster Starting Point.md",
-      "Button Pack.md",
-      "Choke Off Note.md",
-      "Colour the Keyboard.md",
-      "Console.md",
-      "Control 3 parameters in 3 ranges with 1 Knob..md",
-      "Date.md",
-      "Dynamic List.md",
-      "Global Modulator Container.md",
-      "GLSL Hello World.md",
-      "GLSL MorphBall.md",
-      "GLSL Slider.md",
-      "Loop a filmstrip.md",
-      "Lottie Hello World.md",
-      "Micro Tuner.md",
-      "Modulate a circle with a Gain LFO.md",
-      "Open a Website.md",
-      "Ping Ping Delay.md",
-      "Play chords from single notes.md",
-      "Press a button to play a specific MIDI note.md",
-      "README.md",
-      "RectHelpers.md",
-      "Rotate an image.md",
-      "Saving custom LFO Shapes.md",
-      "Script references and callbacks for components.md",
-      "ScriptPanel Slider.md",
-      "Simple Page Logic.md",
-      "SixState Filmstrip Button.md",
-      "SnippetDB.md",
-      "Stereo Widener.md",
-      "Switch SampleMaps with a ComboBox.md",
-      "Switch TableData.md",
-      "Tabbed View.md",
-      "Two linked Sliders.md",
-      "Use the sustain pedal to switch between sound generators.md",
-      "_Template.md"
-    ],
-    "category": 0,
-    "editButton": false,
-    "saveFileButton": 0,
-    "newName": "Date",
-    "addCategory": 3,
-    "addTagList": [
-      "ScriptAPI"
-    ],
-    "description": "Explores the ScriptAPI Date Object. ",
-    "addButton": true,
-    "settingButton": false,
-    "searchBar": "",
-    "closeButton": true,
-    "downloadSnippets": "true",
-    "downloadAssets": "true",
-    "tagList": []
   },
   "Children": [
     {
@@ -179,7 +120,7 @@
               "ID": "snippetBrowser",
               "Filename": "snippetBrowser",
               "UseChildState": true,
-              "Items": "snippetDirectory:\"\"",
+              "Items": "snippetDirectory:\"\"\nauthor: \"\"",
               "UseProject": false,
               "ParseJSON": false
             },
@@ -344,7 +285,7 @@
           "Type": "TagList",
           "Text": "LabelText",
           "ID": "tagList",
-          "Items": "ScriptPanel\nGLSL\nScriptAPI\nfull-project\nBroadcaster\n\"\"\nLayout\nModulator\nLottie\nTool\n",
+          "Items": "ScriptPanel\nScriptAPI\nfull-project\nBroadcaster\n\"\"\nLayout\nModulator\nGLSL\nLottie\nTool\n",
           "Class": "",
           "Style": "",
           "Code": "rebuildTable();",
@@ -356,7 +297,7 @@
           "ValueMode": "Row",
           "ID": "snippetList",
           "Columns": "name:Name;max-width:-1;\nname:Author;max-width: 140px;width: 110px;",
-          "Items": "A ball shooting Game.md| christoph-hart |\nA simple OpenGL circle.md| undefined |\nArray.md| do-mayer |\nBasicSynth.md| christoph-hart |\nBroadcaster Starting Point.md| dhealey |\nButton Pack.md| christoph-hart |\nChoke Off Note.md| christoph-hart |\nColour the Keyboard.md| do-mayer |\nConsole.md| do-mayer |\nControl 3 parameters in 3 ranges with 1 Knob..md| christoph-hart |\nDate.md| do-mayer |\nDynamic List.md| christoph-hart |\nGlobal Modulator Container.md| do-mayer |\nGLSL Hello World.md| do-mayer |\nGLSL MorphBall.md| christoph-hart |\nGLSL Slider.md| christoph-hart |\nLoop a filmstrip.md| christoph-hart |\nLottie Hello World.md| christoph-hart |\nMicro Tuner.md| do-mayer |\nModulate a circle with a Gain LFO.md| do-mayer |\nOpen a Website.md| christoph-hart |\nPing Ping Delay.md|  |\nPlay chords from single notes.md| christoph-hart |\nPress a button to play a specific MIDI note.md| do-mayer |\nRectHelpers.md| christoph-hart |\nRotate an image.md| do-mayer |\nSaving custom LFO Shapes.md| christoph-hart |\nScript references and callbacks for components.md| do-mayer |\nScriptPanel Slider.md| christoph-hart |\nSimple Page Logic.md| undefined |\nSixState Filmstrip Button.md| christoph-hart |\nStereo Widener.md| beyhan-kilic |\nSwitch SampleMaps with a ComboBox.md| christoph-hart |\nSwitch TableData.md| christoph-hart |\nTabbed View.md| christoph-hart |\nTwo linked Sliders.md| christoph-hart |\nUse the sustain pedal to switch between sound generators.md|  |\n",
+          "Items": "A ball shooting Game.md| christoph-hart |\nArray.md| do-mayer |\nBasicSynth.md| christoph-hart |\nBroadcaster Starting Point.md| dhealey |\nButton Pack.md| christoph-hart |\nChoke Off Note.md| christoph-hart |\nColour the Keyboard.md| do-mayer |\nConsole.md| do-mayer |\nControl 3 parameters in 3 ranges with 1 Knob..md| christoph-hart |\nDate.md| do-mayer |\nDynamic List.md| christoph-hart |\nGlobal Modulator Container.md| do-mayer |\nGLSL Hello World.md| do-mayer |\nGLSL MorphBall.md| christoph-hart |\nGLSL Slider.md| christoph-hart |\nLoop a filmstrip.md| christoph-hart |\nLottie Hello World.md| christoph-hart |\nMicro Tuner.md| do-mayer |\nModulate a circle with a Gain LFO.md| do-mayer |\nnudel.md| undefined |\nOpen a Website.md| christoph-hart |\nPing Ping Delay.md|  |\nPlay chords from single notes.md| christoph-hart |\nPress a button to play a specific MIDI note.md| do-mayer |\nRectHelpers.md| christoph-hart |\nRotate an image.md| do-mayer |\nSaving custom LFO Shapes.md| christoph-hart |\nScript references and callbacks for components.md| do-mayer |\nScriptPanel Slider.md| christoph-hart |\nSine Wave.md|  |\nSixState Filmstrip Button.md| christoph-hart |\nStereo Widener.md| beyhan-kilic |\nSwitch SampleMaps with a ComboBox.md| christoph-hart |\nSwitch TableData.md| christoph-hart |\nTabbed View.md| christoph-hart |\nTwo linked Sliders.md| christoph-hart |\nUse the sustain pedal to switch between sound generators.md|  |\n",
           "Class": "",
           "Style": "",
           "FilterFunction": "showItem",
@@ -367,7 +308,7 @@
         },
         {
           "Type": "MarkdownText",
-          "Text": "Implements the ScriptAPI Array function. \n\n",
+          "Text": "A first starting point to building broadcasters.",
           "ID": "descriptionDisplay",
           "Class": ".description",
           "Style": "font-size: 18px; height: 180px;"
@@ -378,6 +319,28 @@
           "ID": "JavascriptFunctionId",
           "CallOnNext": false,
           "Code": "var CATEGORIES = [\"All\", \"Modules\", \"MIDI\", \"Scripting\", \"Scriptnode\", \"UI\"];\n\r\nparsedData = [];\r\n\nvar rebuildTable = function()\n{\n\n\t//b.setAttribute(\"disabled\", currentlyLoadedData == 0);\n\t//b.updateElement();\n\n\ttable.updateElement();\n};\n\nvar showAddPage = function(editCurrentSnippet)\n{\n\tstate.saveFileButton = false;\n\t\n\tif(!editCurrentSnippet)\n\t{\n\t\tstate.newName = \"\";\n\t\tstate.description = \"\";\n\t\tstate.addCategory = 0;\n\t\tstate.addTagList = [];\n\t}\n\telse if (currentlyLoadedData != 0)\n\t{\n\t\tvar catValue = CATEGORIES.indexOf(currentlyLoadedData.category);\n\t\t\n\t\tConsole.print(\"CAT: \" + catValue);\n\t\t\n\t\tstate.newName = currentlyLoadedData.name.split(\".\")[0];\n\t\tstate.addCategory = catValue;\n\t\tstate.addTagList = currentlyLoadedData.tags.clone();\n\t\t\n\t\tConsole.print(\"TAGS: \" + trace(currentlyLoadedData.tags.clone()));\n\t\t\n\t\tstate.description = currentlyLoadedData.description;\n\t}\n\t\n\t\n\tdocument.navigate(2);\n};\n\nvar showItem = function(index, data)\n{\n\tvar name = data[0];\n\n\tif(state.category != 0)\n\t{\n\t\tvar cc = CATEGORIES[state.category];\n\t\tvar tc = parsedData[index].category;\n\t\t\n\t\tif(cc != tc)\n\t\t\treturn false;\n\t}\n\t\n\tvar tagFound = state.tagList.length == 0;\n\t\n\tfor(i = 0; i < state.tagList.length; i++)\n\t{\n\t\tvar tt = parsedData[index].tags;\n\t\t\n\t\tif(tt.indexOf(state.tagList[i]) != -1)\n\t\t\ttagFound = true;\n\t}\n\t\n\tif(!tagFound)\n\t\treturn false;\n\t\n\tif(state.searchBar.length > 0)\n\t{\n\t\tif(name.toLowerCase().indexOf(state.searchBar.toLowerCase()) == -1)\n\t\t\treturn false;\n\t}\n\t\n\treturn true;\n};\n\r\nvar hiddenItems = [\"README.md\", \"LICENSE.m\", \"_Template.md\", \"SnippetDB.md\"];\r\n\r\nvar tags = [];\r\n\r\nfor(i = 0; i < state.snippetRoot.length; i++)\r\n{\r\n\tvar item = state.snippetRoot[i];\r\n\r\n\tif(hiddenItems.indexOf(item) != -1)\r\n\t\tcontinue;\r\n\r\n\tvar content = document.readFile(state.snippetDirectory + \"/\" + state.snippetRoot[i]);\r\n\tcontent = content.substring(3, 100000);\r\n\tvar end = content.indexOf(\"---\");\r\n\tvar header = content.substring(0, end);\r\n\tvar description = content.substring(end + 4, 100000);\r\n\tvar ml = header.split(\"\\n\");\r\n\tvar data = {};\r\n\t\r\n\tdata[\"name\"] = item;\r\n\tdata[\"description\"] = description;\r\n\t\r\n\tdata.tags = [];\r\n\t\r\n\tfor(j = 0; j < ml.length; j++)\r\n\t{\r\n\t\tvar kv = ml[j].split(\":\");\r\n\t\tvar key = kv[0];\r\n\t\t\t\r\n\t\tif(key == \"tags\")\r\n\t\t{\r\n\t\t\tvar tagList = kv[1].split(\",\");\r\n\t\t\t\r\n\t\t\tfor(t = 0; t < tagList.length; t++)\r\n\t\t\t{\r\n\t\t\t\tvar tt = tagList[t].trim();\r\n\t\t\t\t\r\n\t\t\t\tif(tt.length > 0)\r\n\t\t\t\t\tdata.tags.push(tt);\r\n\t\t\t}\r\n\t\t}\r\n\t\telse\r\n\t\t{\r\n\t\t\tif(key.length > 0)\r\n\t\t\t\tdata[key] = kv[1].trim();\r\n\t\t}\r\n\t}\r\n\t\r\n\tfor(j = 0; j < data.tags.length; j++)\r\n\t{\r\n\t\tif(tags.indexOf(data.tags[j]) == -1)\r\n\t\t\ttags.push(data.tags[j]);\r\n\t}\r\n\t\r\n\tparsedData.push(data);\r\n}\r\n\r\nvar tagItems = \"\";\r\n\r\nfor(i = 0; i < tags.length; i++)\r\n\ttagItems += tags[i] + \"\\n\";\r\n\r\nvar tl = document.getElementById(\"tagList\");\r\ntl.setAttribute(\"items\", tagItems);\r\n\r\nvar table = document.getElementById(\"snippetList\");\r\n\r\nvar newItems = \"\";\r\n\r\nfor(i = 0; i < parsedData.length; i++)\r\n{\r\n\tvar item = parsedData[i];\r\n\r\n\tif(hiddenItems.indexOf(item.name) != -1)\r\n\t\tcontinue;\r\n\r\n\tnewItems += item.name + \"| \" + item.author + \" |\";\r\n\t\r\n\tif(i != state.snippetRoot.length - 1)\r\n\t\tnewItems += \"\\n\";\t\r\n}\r\n\r\ntable.setAttribute(\"items\", newItems);\r\n\ntable.addEventListener(\"select\", function()\n{\n\tvar data = parsedData[this.originalRow];\n\tdescription.innerText = data.description;\n});\n\nvar loadSnippet = document.bindCallback(\"loadSnippet\", function(fullPath, category)\n{\n\tConsole.print(\"LOAD SNIPPET: \" + fullPath + \" from category \" + category);\n});\n\nvar currentlyLoadedData = 0;\n\nvar loadFunction = function()\n{\n\tvar data = parsedData[this.originalRow];\n\tcurrentlyLoadedData = data;\n\t\n\tdocument.getElementById(\"editButton\").style.display = \"flex\";\n\t\n\t\n\tloadSnippet(data.HiseSnippet, data.category);\n};\n\ntable.addEventListener(\"dblclick\", loadFunction);\ntable.addEventListener(\"keydown\", loadFunction);\n\r\nvar description = document.getElementById(\"descriptionDisplay\");\r\ndescription.innerText = \"Please double click a snippet to load...\";\r\n\nif(state.snippetDirectory.length == 0)\n{\n\tdocument.navigate(1);\n}\n\nvar editButton = document.getElementById(\"editButton\");\neditButton.style.display = \"none\";\n\nrebuildTable();\n"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "LabelText",
+          "ID": "author",
+          "Enabled": true,
+          "Code": "Console.print(value);",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": "",
+          "Style": "display: none;",
+          "NoLabel": false,
+          "EmptyText": "",
+          "Required": false,
+          "ParseArray": false,
+          "Height": 80,
+          "Items": "",
+          "Help": "",
+          "Multiline": false,
+          "Autofocus": false,
+          "UseOnValue": false,
+          "CallOnTyping": false
         }
       ],
       "ID": "",
@@ -439,7 +402,7 @@
           "ID": "snippetBrowser",
           "Filename": "snippetBrowser",
           "UseChildState": true,
-          "Items": "snippetDirectory:\"\"",
+          "Items": "snippetDirectory:\"\"\nauthor: \"\"",
           "UseProject": false,
           "ParseJSON": false
         },
@@ -482,7 +445,7 @@
             {
               "Type": "TextInput",
               "Text": "",
-              "ID": "TextInputId",
+              "ID": "author",
               "Enabled": true,
               "Code": "Console.print(value);",
               "InitValue": "",
@@ -905,12 +868,6 @@
       "Style": "height: 100%;",
       "UseChildState": false,
       "Class": ""
-    },
-    {
-      "Type": "List"
-    },
-    {
-      "Type": "List"
     }
   ],
   "Assets": [

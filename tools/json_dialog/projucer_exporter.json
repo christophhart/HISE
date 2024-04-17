@@ -19,9 +19,9 @@
     "Header": "Export Projucer Project",
     "Subtitle": "",
     "Image": "",
-    "ProjectName": "",
-    "Company": "",
-    "Version": "",
+    "ProjectName": "ProjectExporter",
+    "Company": "HISE",
+    "Version": "1.0.0",
     "BinaryName": "",
     "UseGlobalAppData": false,
     "Icon": ""
@@ -34,6 +34,17 @@
     "DialogHeight": 400
   },
   "GlobalState": {
+    "HisePath": "/Users/christophhart/HISE",
+    "VisualStudioVersion": "Visual Studio 2017",
+    "UseIPP": "0",
+    "LegacyCPUSupport": "No",
+    "RebuildPoolFiles": "0",
+    "Support32BitMacOS": "Yes",
+    "CustomNodePath": "",
+    "FaustPath": "/Users/christophhart/HISE/tools/faust",
+    "FaustExternalEditor": "0",
+    "EnableLoris": "1",
+    "teamID": ""
   },
   "Children": [
     {
@@ -41,9 +52,19 @@
       "Padding": 10,
       "Children": [
         {
+          "Type": "PersistentSettings",
+          "Text": "LabelText",
+          "ID": "CompilerSettings",
+          "Filename": "compilerSettings",
+          "UseChildState": true,
+          "Items": "HisePath: \"\"",
+          "UseProject": false,
+          "ParseJSON": false
+        },
+        {
           "Type": "FileSelector",
           "Text": "HISE Path",
-          "ID": "hisePath",
+          "ID": "HisePath",
           "InitValue": "",
           "UseInitValue": false,
           "LabelPosition": "Default",
@@ -55,7 +76,9 @@
           "Enabled": true,
           "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
           "Class": "",
-          "Style": ""
+          "Style": "",
+          "NoLabel": false,
+          "UseOnValue": false
         },
         {
           "Type": "TextInput",

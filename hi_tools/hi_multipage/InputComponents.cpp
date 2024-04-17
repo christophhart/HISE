@@ -322,6 +322,8 @@ Button::Button(Dialog& r, int width, const var& obj):
 
 void Button::buttonClicked(juce::Button* b)
 {
+    jassert(b == &getComponent<juce::Button>());
+    
     if(isTrigger)
     {
         auto thisId = id;
@@ -343,11 +345,11 @@ void Button::buttonClicked(juce::Button* b)
     {
         if(groupedButtons.isEmpty())
         {
-	        writeState(b->getToggleState());
+            writeState(b->getToggleState());
         }
         else
         {
-	        writeState(groupedButtons.indexOf(b));
+            writeState(groupedButtons.indexOf(b));
         }
 
 	    for(auto tb: groupedButtons)
@@ -365,10 +367,7 @@ void Button::buttonClicked(juce::Button* b)
 			
     }
 
-    if(b == &getComponent<juce::Button>())
-    {
-	    callOnValueChange("click");
-    }
+    callOnValueChange("click");
 }
 
 Result Button::loadFromInfoObject(const var& obj)
@@ -463,9 +462,10 @@ void Button::postInit()
         
         for(auto b: groupedButtons)
         {
-            b->addListener(this);
             b->setToggleState(idx++ == radioIndex, dontSendNotification);
         }
+        
+        button.addListener(this);
     }
     else
     {

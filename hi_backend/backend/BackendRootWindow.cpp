@@ -650,6 +650,22 @@ BackendRootWindow::~BackendRootWindow()
 	}
 	else
 	{
+#if JUCE_MAC
+        for(auto w: allWindowsAndBrowsers)
+        {
+            auto brw = w.getComponent();
+            
+            if(brw != nullptr && brw != this &&
+               !brw->getBackendProcessor()->isSnippetBrowser())
+            {
+                MenuBarModel::setMacMainMenu(nullptr);
+                MenuBarModel::setMacMainMenu(brw);
+                brw->updateCommands();
+                break;
+            }
+        }
+#endif
+        
 		// I know what I'm doing...
 		saved = true;
 	}
@@ -680,7 +696,8 @@ BackendRootWindow::~BackendRootWindow()
 	// Remove the menu
 
 #if JUCE_MAC && IS_STANDALONE_APP
-	MenuBarModel::setMacMainMenu(nullptr);
+    if(!getBackendProcessor()->isSnippetBrowser())
+    	MenuBarModel::setMacMainMenu(nullptr);
 #else
 	menuBar->setModel(nullptr);
 	menuBar = nullptr;
@@ -904,7 +921,13 @@ void BackendRootWindow::resized()
 
 	if(snippetBrowser != nullptr && snippetBrowser->isVisible())
 	{
-		snippetBrowser->setBounds(b.removeFromLeft(400));
+        auto sb = b.removeFromLeft(400);
+        
+#if JUCE_MAC
+        sb.setTop(-20);
+#endif
+        
+		snippetBrowser->setBounds(sb);
 	}
 
 	if(suspendedOverlay != nullptr)
