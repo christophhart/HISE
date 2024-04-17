@@ -870,21 +870,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
         return true;
     }
 	case MenuExportCompileNetworksAsDll: Actions::compileNetworksToDll(bpe); return true;
-    case MenuExportFileAsSnippet:       
-	{
-		if(bpe->getBackendProcessor()->isSnippetBrowser())
-		{
-			auto s = new multipage::library::SnippetExporter(bpe);
-			s->setModalBaseWindowComponent(bpe);
-			return true;
-		}
-		else
-		{
-			Actions::exportFileAsSnippet(bpe);
-		}
-
-		return true;
-	}
+    case MenuExportFileAsSnippet:        Actions::exportFileAsSnippet(bpe); return true;
 	case MenuExportProject:				Actions::exportHiseProject(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
 	case MenuExportWavetablesToMonolith: Actions::exportWavetablesToMonolith(bpe); return true;
@@ -1407,6 +1393,7 @@ void BackendCommandTarget::Actions::replaceWithClipboardContent(BackendRootWindo
 	if (hasSnippetInClipboard())
 	{
 		loadSnippet(bpe, clipboardContent);
+		return;
 	}
 	else
 	{
@@ -3323,7 +3310,7 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 	nw->toggleSnippetBrowser();
 	nw->setVisible(true);
-	nw->centreWithSize(1600, 800);
+	nw->centreWithSize(1600, 1000);
 
 	
 

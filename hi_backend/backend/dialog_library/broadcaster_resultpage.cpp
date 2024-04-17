@@ -15,8 +15,12 @@ inline var SnippetBrowser::loadSnippet(const var::NativeFunctionArgs& args)
 	auto snippet = args.arguments[0].toString();
     auto category = args.arguments[1].toString();
 
+    auto am = bpe->getBackendProcessor()->getAssetManager();
+    am->initialise();
 	BackendCommandTarget::Actions::loadSnippet(bpe, snippet);
 	auto root = bpe->getRootFloatingTile();
+
+    
 
     auto catIndex = SnippetBrowserHelpers::getCategoryNames().indexOf(category);
 

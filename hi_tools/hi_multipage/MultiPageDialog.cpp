@@ -1046,7 +1046,7 @@ bool Dialog::refreshCurrentPage()
 {
 	popup = nullptr;
 
-	auto index = getState().currentPageIndex;
+	auto index = jlimit(0, pages.size()-1, getState().currentPageIndex);
 
 	String pt;
 	pt << "Step " << String(index+1) << " / " << String(pages.size());

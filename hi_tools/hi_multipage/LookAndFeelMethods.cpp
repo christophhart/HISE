@@ -519,6 +519,7 @@ input, select
  color: #111;
  text-align: left;
  padding-left: 8px;
+ padding-right: 8px;
  padding-top: 3px;
 }
 
@@ -708,6 +709,7 @@ input, select
  color: #111;
  text-align: left;
  padding-left: 8px;
+ padding-right: 8px;
  padding-top: 3px;
 }
 
@@ -945,6 +947,7 @@ input
  margin: 5px;
  padding-top: 0px;
  padding-left: 10px;
+ padding-right: 10px;
  border-radius: 5px;
 }
 
@@ -1063,6 +1066,7 @@ input, select
     color: #111;
     text-align: left;
     padding-left: 8px;
+	padding-right: 8px;
     padding-top: 3px;
 }
 

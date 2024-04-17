@@ -1703,6 +1703,9 @@ void PatchBrowser::PatchItem::mouseDown(const MouseEvent& e)
 
 void PatchBrowser::PatchItem::applyLayout()
 {
+	if(getProcessor() == nullptr)
+		return;
+
     auto b = getLocalBounds();
 
     b.removeFromLeft(hierarchy * 10 + 10);

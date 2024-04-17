@@ -2,35 +2,7 @@
 
 #include "hi_backend/backend/BackendApplicationCommands.h"
 
-namespace hise {
-namespace multipage {
-namespace library {
-using namespace juce;
-struct SnippetExporter: public HardcodedDialogWithState,
-                        public hise::QuasiModalComponent
-{
-	SnippetExporter(BackendRootWindow* brw):
-      rootWindow(brw)
-	{
-		closeFunction = BIND_MEMBER_FUNCTION_0(SnippetExporter::destroy);
-        state.bindCallback("exportSnippet", BIND_MEMBER_FUNCTION_1(SnippetExporter::exportSnippet));
-		setSize(800, 700);
-	}
 
-    var exportSnippet(const var::NativeFunctionArgs& args)
-	{
-		BackendCommandTarget::Actions::exportFileAsSnippet(rootWindow);
-        return var(SystemClipboard::getTextFromClipboard());
-	}
-
-    BackendRootWindow* rootWindow;
-	
-	Dialog* createDialog(State& state) override;
-	
-};
-} // namespace library
-} // namespace multipage
-} // namespace hise
 
 namespace hise {
 namespace multipage {

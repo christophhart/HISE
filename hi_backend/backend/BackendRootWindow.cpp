@@ -1018,6 +1018,12 @@ void BackendRootWindow::loadNewContainer(ValueTree & v)
 	while (auto p = iter.getNextPanel())
 		p->setContentWithUndo(nullptr, 0);
 
+	Component::callRecursive<PatchBrowser>(this, [](PatchBrowser* b)
+	{
+		b->clearCollections();
+		return false;
+	});
+
 	mainEditor->loadNewContainer(v);
 
 	

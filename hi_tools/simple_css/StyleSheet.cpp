@@ -1268,13 +1268,14 @@ public:
 		auto fullBounds = te->getLocalBounds().toFloat();
 
 		auto marginBounds = ss->getArea(fullBounds, { "margin", currentState});
+		auto paddingBounds = ss->getArea(marginBounds, { "padding", currentState });
 
-		auto left = roundToInt(marginBounds.getX() - fullBounds.getX());
-		auto top = roundToInt(marginBounds.getY() - fullBounds.getY());
-		auto right = roundToInt(fullBounds.getRight() - marginBounds.getRight());
-		auto bottom = roundToInt(fullBounds.getBottom() - marginBounds.getBottom());
+		auto left = roundToInt(paddingBounds.getX() - fullBounds.getX());
+		auto top = roundToInt(paddingBounds.getY() - fullBounds.getY());
+		auto right = roundToInt(fullBounds.getRight() - paddingBounds.getRight());
+		auto bottom = roundToInt(fullBounds.getBottom() - paddingBounds.getBottom());
 		
-		te->setBorder(juce::BorderSize<int>(left, right, top, bottom));
+		te->setBorder(juce::BorderSize<int>(top, left, bottom, right));
 		te->setJustification(ss->getJustification(PseudoState(currentState), Justification::left, Justification::verticallyCentred));
 
 		int paddingLeft = te->getLeftIndent();
@@ -1288,7 +1289,7 @@ public:
 		if(auto v = ss->getPropertyValue({ "padding-top", currentState}))
 			paddingTop = ExpressionParser::evaluate(v.getValue(ss->varProperties), { true, marginBounds, font.getHeight() });
 
-		te->setIndents(paddingLeft, paddingTop);
+		te->setIndents(0, 0);//paddingLeft, paddingTop);
 		te->applyFontToAllText(font, true);
 
 		te->setColour(PopupMenu::backgroundColourId, Colours::transparentBlack);

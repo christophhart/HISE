@@ -117,6 +117,12 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
         { mpid::Help, "The markdown content that will be shown when you click on the help button" }
     });
 
+    col.addChild<TextInput>({
+		{ mpid::ID, mpid::Tooltip.toString() },
+		{ mpid::Text, mpid::Tooltip.toString() },
+		{ mpid::Help, "The tooltip that will be applied when hovering the element" }
+	});
+
     col1.addChild<TextInput>({
 		{ mpid::ID, mpid::Class.toString() },
 		{ mpid::Text, mpid::Class.toString() },
@@ -185,6 +191,13 @@ LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Compo
 Result LabelledComponent::loadFromInfoObject(const var& obj)
 {
 	label = obj[mpid::Text];
+
+    auto tooltip = obj[mpid::Tooltip].toString();
+
+    if(auto stc = dynamic_cast<SettableTooltipClient*>(component.get()))
+    {
+	    stc->setTooltip(tooltip);
+    }
 
     if(showLabel)
     {
@@ -1062,7 +1075,7 @@ void TextInput::postInit()
     callOnEveryChange = (bool)infoObject[mpid::CallOnTyping];
 
     auto& editor = getComponent<TextEditor>();
-
+    
     if(editor.isMultiLine())
     {
 	    

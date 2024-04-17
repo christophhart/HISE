@@ -125,6 +125,7 @@ namespace mpid
     DECLARE_ID(SupportFullDynamics);
     DECLARE_ID(Syntax);
     DECLARE_ID(Target);
+    DECLARE_ID(Tooltip);
     DECLARE_ID(Text);
     DECLARE_ID(Trigger);
     DECLARE_ID(Type);
