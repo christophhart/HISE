@@ -2762,12 +2762,18 @@ public:
 	{
 		return input.startsWith("const var") || input.startsWith("[");
 	}
+    
+    static bool isCPlusPlusArray(const String& input)
+    {
+        return input.startsWith("{");
+    }
 
 	static String parse(const String& input, OutputFormat format)
 	{
 		String rt = input.trim();
-
-		if (isHiseScriptArray(rt) || format == OutputFormat::Base64SVG)
+        
+		if (isHiseScriptArray(rt) || format == OutputFormat::Base64SVG ||
+            isCPlusPlusArray(rt))
 		{
 			return rt;
 		}
@@ -2905,6 +2911,41 @@ public:
 
 		String result = "No path generated.. Not a valid SVG path string?";
 
+        if (isCPlusPlusArray(inputText))
+        {
+            inputText = inputText.replaceCharacter('{', '[');
+            inputText = inputText.replaceCharacter('}', ']');
+            
+            auto ar = JSON::parse(inputText);
+
+            if (ar.isArray())
+            {
+                MemoryOutputStream mos;
+
+                for (auto v : *ar.getArray())
+                {
+                    auto byte = (uint8)(int)v;
+                    mos.write(&byte, 1);
+                }
+                
+                mos.flush();
+
+                path.clear();
+                path.loadPathFromData(mos.getData(), mos.getDataSize());
+
+                auto b64 = mos.getMemoryBlock().toBase64Encoding();
+
+                result = {};
+
+                if (!inputText.startsWith("["))
+                    result << inputText.upToFirstOccurrenceOf("[", false, false);
+
+                result << b64.quoted();
+
+                if (inputText.endsWith(";"))
+                    result << ";";
+            }
+        }
 		if (isHiseScriptArray(inputText))
 		{
 			auto ar = JSON::parse(inputText.fromFirstOccurrenceOf("[", true, true));

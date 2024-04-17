@@ -389,7 +389,9 @@ StringArray RelativeFileLoader::getSpecialLocations()
 		"currentApplicationFile",
 		"invokedExecutableFile",
 		"hostApplicationPath",
+#if JUCE_WINDOWS
 		"windowsSystemDirectory",
+#endif
 		"globalApplicationsDirectory",
 	};
 }
@@ -543,6 +545,8 @@ Result BackgroundTask::WaitJob::run()
 		{
 			auto ok = currentPage->performTask(*this);
 
+            progress = 1.0f;
+            
 			if(ok.failed())
 			{
 				currentPage->abort(ok.getErrorMessage());
@@ -1740,10 +1744,12 @@ PersistentSettings::PersistentSettings(Dialog& r, int w, const var& obj):
 
 File PersistentSettings::getSettingFile() const
 {
+    auto useProject = (bool)infoObject[mpid::UseProject];
+    
 	auto c = rootDialog.getGlobalProperty(mpid::Company).toString();
 	auto p = rootDialog.getGlobalProperty(mpid::ProjectName).toString();
 
-	if(c.isEmpty() || p.isEmpty())
+	if(c.isEmpty() || (p.isEmpty() && useProject))
 		return File();
 
 	auto useGlobal = (bool)rootDialog.getGlobalProperty(mpid::UseGlobalAppData);
@@ -1760,7 +1766,7 @@ File PersistentSettings::getSettingFile() const
 
 	auto projectFolder = appDataFolder.getChildFile(c);
 
-	if(infoObject[mpid::UseProject])
+	if(useProject)
 		projectFolder = projectFolder.getChildFile(p);
 
 	if(!projectFolder.isDirectory())
@@ -1817,10 +1823,7 @@ void PersistentSettings::loadConstants()
 		auto key = l.upToFirstOccurrenceOf(":", false, false).trim();
 		auto value = l.fromFirstOccurrenceOf(":", false, false).trim();
 
-		if(key.isNotEmpty())
-		{
-			defaultValues.set(Identifier(key), var(value.unquoted()));
-		}
+        defaultValues.set(Identifier(key), var(value.unquoted()));
 	}
 
 	valuesFromFile = defaultValues;
@@ -1833,7 +1836,10 @@ void PersistentSettings::loadConstants()
 		if(ok.wasOk() && data.getDynamicObject() != nullptr)
 		{
 			for(auto& nv: data.getDynamicObject()->getProperties())
-				valuesFromFile.set(nv.name, nv.value);
+            {
+                valuesFromFile.set(nv.name, nv.value);
+            }
+
 		}
 	}
 	else
@@ -1848,7 +1854,7 @@ void PersistentSettings::loadConstants()
 				{
 					auto key = c.getType();
 					auto value = c["value"];
-					valuesFromFile.set(key, value);
+                    valuesFromFile.set(key, value);
 				}
 			}
 			else
@@ -1856,7 +1862,10 @@ void PersistentSettings::loadConstants()
 				for(int i = 0; i < v.getNumProperties(); i++)
 				{
 					auto key = v.getPropertyName(i);
-					valuesFromFile.set(key, v[key]);
+                    
+                    auto value = v[key];
+                    
+                    valuesFromFile.set(key, value);
 				}
 			}
 		}
@@ -1866,7 +1875,7 @@ void PersistentSettings::loadConstants()
 
 	for(const auto& nv: valuesFromFile)
 	{
-		setConstant(nv.name, nv.value);
+        setConstant(nv.name, nv.value);
 	}
 }
 

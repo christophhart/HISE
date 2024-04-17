@@ -373,6 +373,68 @@ public:
 	    return Font(fontName, 13.0f, Font::plain);
     }
 
+    void addEventListener(const String& eventType, const var& functionObject)
+    {
+        addCurrentEventGroup();
+        
+        eventListeners[currentEventGroup].addIfNotAlreadyThere({eventType, functionObject});
+    }
+    
+    void removeEventListener(const String& eventType, const var& functionObject)
+    {
+        addCurrentEventGroup();
+
+        for(auto& map: eventListeners)
+        {
+            map.second.removeAllInstancesOf({eventType, functionObject});
+        }
+    }
+    
+    void addCurrentEventGroup()
+    {
+        if(eventListeners.find(currentEventGroup) == eventListeners.end())
+        {
+            eventListeners[currentEventGroup] = {};
+        }
+    }
+    
+    void clearAndSetGroup(const String& groupId)
+    {
+        currentEventGroup = groupId;
+        addCurrentEventGroup();
+        eventListeners[currentEventGroup] = {};
+    }
+    
+    void callEventListeners(const String& eventType, const Array<var>& args)
+    {
+        auto ok = Result::ok();
+
+        addCurrentEventGroup();
+        
+        auto engine = createJavascriptEngine();
+
+        for(auto& map: eventListeners)
+        {
+            for(auto& v: map.second)
+            {
+                if(v.first == eventType)
+                {
+                    auto to = new DynamicObject();
+                    
+                    engine->callFunctionObject(to, v.second, var::NativeFunctionArgs(var(to), args.getRawDataPointer(), args.size()), &ok);
+                }
+
+                if(ok.failed())
+                    break;
+            }
+        }
+
+        if(ok.failed())
+        {
+            jassertfalse;
+        }
+    }
+    
     simple_css::StyleSheet::Collection getStyleSheet(const String& name, const String& additionalStyle) const;
 
     JavascriptEngine* createJavascriptEngine();
@@ -570,6 +632,10 @@ public:
         return false;
     }
 
+    String currentEventGroup;
+    
+    std::map<String, Array<std::pair<String, var>>> eventListeners;
+    
 private:
 
     std::unique_ptr<JavascriptEngine> javascriptEngine;

@@ -118,5 +118,43 @@ struct CreateCSSFromTemplate: public HardcodedDialogWithState
 
 
 
+namespace hise {
+namespace multipage {
+namespace library {
+using namespace juce;
+struct ProjectExporter: public HardcodedDialogWithState
+{
+    var exportProjucerProject(State::Job& t, const var& state);
+    ProjectExporter(File& rootDir_, State& appState_):
+      rootDir(rootDir_),
+      appState(appState_)
+    {
+        //closeFunction = BIND_MEMBER_FUNCTION_0(ProjectExporter::destroy);
+        setSize(700, 400);
+        
+        ScopedSetting ss;
+
+    }
+    
+    void postInit() override
+    {
+        ScopedSetting ss;
+        setProperty("hisePath", ss.get("hisePath", ""));
+        setProperty("teamID", ss.get("teamID"));
+    }
+    
+    Dialog* createDialog(State& state) override;
+    
+    File rootDir;
+    State& appState;
+    
+};
+} // namespace library
+} // namespace multipage
+} // namespace hise
+
+
+
+
 
 

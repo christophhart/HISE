@@ -1,8 +1,8 @@
 {
   "StyleData": {
-    "Font": "Lato Regular",
+    "Font": "Lato",
     "BoldFont": "<Sans-Serif>",
-    "FontSize": 18.0,
+    "FontSize": 16.0,
     "bgColour": 4279834905,
     "codeBgColour": 864585864,
     "linkBgColour": 8947967,
@@ -13,35 +13,38 @@
     "tableLineColour": 864059520,
     "tableBgColour": 864059520,
     "headlineColour": 4287692721,
-    "UseSpecialBoldFont": false,
-    "buttonTabBackgroundColour": 570425344,
-    "buttonBgColour": 4289374890,
-    "buttonTextColour": 4280624421,
-    "modalPopupBackgroundColour": 4281545523,
-    "modalPopupOverlayColour": 3995214370,
-    "modalPopupOutlineColour": 4289374890,
-    "pageProgressColour": 2013265919
+    "UseSpecialBoldFont": false
   },
   "Properties": {
     "Header": "Export Projucer Project",
     "Subtitle": "",
     "Image": "",
-    "ProjectName": "",
-    "Company": "",
-    "Version": ""
+    "ProjectName": "ProjectExporter",
+    "Company": "HISE",
+    "Version": "1.0.0",
+    "BinaryName": "",
+    "UseGlobalAppData": false,
+    "Icon": ""
   },
   "LayoutData": {
-    "TopHeight": 56,
-    "ButtonTab": 40,
-    "ButtonMargin": 5,
-    "OuterPadding": 50,
-    "LabelWidth": 120.0,
-    "LabelHeight": 32,
+    "StyleSheet": "ModalPopup",
+    "Style": "#header\n{\n\n\tdisplay: flex;\n}\n",
+    "UseViewport": true,
     "DialogWidth": 700,
-    "DialogHeight": 600,
-    "LabelPosition": "Default"
+    "DialogHeight": 400
   },
   "GlobalState": {
+    "HisePath": "/Users/christophhart/HISE",
+    "VisualStudioVersion": "Visual Studio 2017",
+    "UseIPP": "0",
+    "LegacyCPUSupport": "No",
+    "RebuildPoolFiles": "0",
+    "Support32BitMacOS": "Yes",
+    "CustomNodePath": "",
+    "FaustPath": "/Users/christophhart/HISE/tools/faust",
+    "FaustExternalEditor": "0",
+    "EnableLoris": "1",
+    "teamID": ""
   },
   "Children": [
     {
@@ -49,9 +52,19 @@
       "Padding": 10,
       "Children": [
         {
+          "Type": "PersistentSettings",
+          "Text": "LabelText",
+          "ID": "CompilerSettings",
+          "Filename": "compilerSettings",
+          "UseChildState": true,
+          "Items": "HisePath: \"\"",
+          "UseProject": false,
+          "ParseJSON": false
+        },
+        {
           "Type": "FileSelector",
           "Text": "HISE Path",
-          "ID": "hisePath",
+          "ID": "HisePath",
           "InitValue": "",
           "UseInitValue": false,
           "LabelPosition": "Default",
@@ -59,7 +72,13 @@
           "Help": "The path to the HISE source code repository folder (the root directory with the `hi_xxx` subdirectories).",
           "Directory": true,
           "Wildcard": "",
-          "SaveFile": false
+          "SaveFile": false,
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "Class": "",
+          "Style": "",
+          "NoLabel": false,
+          "UseOnValue": false
         },
         {
           "Type": "TextInput",
@@ -74,7 +93,11 @@
           "Height": 80,
           "Items": "",
           "Help": "The macOS Team Development ID for signing the compiled binary.",
-          "Multiline": false
+          "Multiline": false,
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "Class": "",
+          "Style": ""
         },
         {
           "Type": "Spacer",
@@ -93,7 +116,10 @@
       "ID": "",
       "Text": "",
       "Foldable": false,
-      "Folded": false
+      "Folded": false,
+      "Style": "gap: 15px;",
+      "UseChildState": false,
+      "Class": ""
     },
     {
       "Type": "List",
@@ -115,7 +141,8 @@
           "Help": "",
           "Required": false,
           "ButtonType": "",
-          "Trigger": false
+          "Trigger": false,
+          "Enabled": true
         },
         {
           "Type": "Launch",

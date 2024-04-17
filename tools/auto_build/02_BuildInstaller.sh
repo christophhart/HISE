@@ -24,7 +24,7 @@ fi
 plugin_path=./../../projects/plugin/Builds/MacOSX/build/Release
 
 plugin_au="$plugin_path/HISE.component/"
-plugin_vst="$plugin_path/HISE.vst/"
+plugin_vst="$plugin_path/HISE.vst3/"
 standalone_app=./../../projects/standalone/Builds/MacOSX/build/Release/HISE.app
 
 abort_if_not_exist $plugin_au

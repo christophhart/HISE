@@ -182,6 +182,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
         MenuViewRotate,
 		MenuViewEnableGlobalLayoutMode,
 		MenuViewAddFloatingWindow,
+        MenuViewToggleSnippetBrowser,
 		MenuViewAddInterfacePreview,
         MenuViewGotoUndo,
         MenuViewGotoRedo,
@@ -639,6 +640,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Reset custom Look and Feel", true, false, 'X', false);
 		result.categoryName = "View";
 		break;
+    case MenuViewToggleSnippetBrowser:
+        setCommandTarget(result, "Toggle Snippet Browser", true, false, 'X', false);
+        result.categoryName = "View";
+        break;
 	case MenuViewReset:
 		setCommandTarget(result, "Reset Workspaces", true, false, 'X', false);
 		result.categoryName = "View";
@@ -1092,7 +1097,14 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	{
 		if(isSnippetBrowser)
 		{
-			p.addItem(1, "no tools available in snippet browser mode", false, false);
+            ADD_ALL_PLATFORMS(MenuToolsRecompile);
+            ADD_DESKTOP_ONLY(MenuToolsConvertSVGToPathData);
+            ADD_DESKTOP_ONLY(MenuToolsBroadcasterWizard);
+            p.addSeparator();
+            ADD_DESKTOP_ONLY(MenuToolsShowDspNetworkDllInfo);
+            ADD_DESKTOP_ONLY(MenuToolsRecordOneSecond);
+            ADD_DESKTOP_ONLY(MenuToolsSimulateChangingBufferSize);
+
 		}
 		else
 		{
@@ -1145,7 +1157,23 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 		if(isSnippetBrowser)
 		{
-			p.addItem(1, "no view tools available in snippet browser mode", false, false);
+            ADD_ALL_PLATFORMS(MenuViewGotoUndo);
+            ADD_ALL_PLATFORMS(MenuViewGotoRedo);
+            
+            p.addSeparator();
+
+            ADD_ALL_PLATFORMS(MenuViewToggleSnippetBrowser);
+            
+            p.addSeparator();
+            
+            ADD_ALL_PLATFORMS(WorkspaceScript);
+            ADD_ALL_PLATFORMS(WorkspaceSampler);
+            ADD_ALL_PLATFORMS(WorkspaceCustom);
+            
+            p.addSeparator();
+            
+            ADD_ALL_PLATFORMS(MenuViewResetLookAndFeel);
+
 		}
 		else
 		{
@@ -1154,7 +1182,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	        
 	        p.addSeparator();
 	        
-	        ADD_ALL_PLATFORMS(MenuViewFullscreen);
 	        ADD_ALL_PLATFORMS(MenuViewRotate);
 
 			p.addSeparator();

@@ -723,6 +723,12 @@ struct Dom: public ApiObject
 		setMethodWithHelp("navigate", BIND_MEMBER_FUNCTION_1(Dom::navigate), "Navigates to the page with the given index");
 		setMethodWithHelp("createElement", BIND_MEMBER_FUNCTION_1(Dom::createElement), "Creates an element");
 		setMethodWithHelp("bindCallback", BIND_MEMBER_FUNCTION_1(Dom::bindCallback), "Registers an external function");
+        
+        setMethodWithHelp("addEventListener", BIND_MEMBER_FUNCTION_1(Dom::addEventListener), "Adds a event listener to a global event");
+        setMethodWithHelp("removeEventListener", BIND_MEMBER_FUNCTION_1(Dom::removeEventListener), "Removes the event listener.");
+        
+        setMethodWithHelp("clearEventListeners", BIND_MEMBER_FUNCTION_1(Dom::clearEventListeners), "Clears all listeners with the given group ID");
+        
 	}
 
 	Array<var> createdElements;
@@ -767,17 +773,17 @@ struct Dom: public ApiObject
 		auto fallback = args.arguments[1];
 		auto s = &state;
 
-		auto f = [name, s, fallback](const var::NativeFunctionArgs& args)
-		{
-			var rv;
-			auto found = s->callNativeFunction(name, args, &rv);
+        var::NativeFunction f = [name, s, fallback](const var::NativeFunctionArgs& args)
+        {
+            var rv;
+            auto found = s->callNativeFunction(name, args, &rv);
 
-			if(!found)
-				rv = s->createJavascriptEngine()->callFunctionObject(args.thisObject.getDynamicObject(), fallback, args);
+            if(!found)
+                rv = s->createJavascriptEngine()->callFunctionObject(args.thisObject.getDynamicObject(), fallback, args);
 
-			return rv;
-		};
-
+            return rv;
+        };
+        
 		return var(f);
 	}
 
@@ -872,7 +878,39 @@ struct Dom: public ApiObject
 	{
 		return var(SystemClipboard::getTextFromClipboard());
 	}
-	
+    
+    var addEventListener(const var::NativeFunctionArgs& args)
+    {
+        expectArguments(args, 2);
+        
+        auto eventType = args.arguments[0].toString();
+        auto f = args.arguments[1];
+        
+        state.addEventListener(eventType, f);
+        return var();
+    }
+    
+    var removeEventListener(const var::NativeFunctionArgs& args)
+    {
+        expectArguments(args, 2);
+        
+        auto eventType = args.arguments[0].toString();
+        auto f = args.arguments[1];
+        
+        state.removeEventListener(eventType, f);
+        return var();
+    }
+    
+    var clearEventListeners(const var::NativeFunctionArgs& args)
+    {
+        expectArguments(args, 1);
+        
+        auto id = args.arguments[0].toString();
+
+        state.clearAndSetGroup(id);
+        return var();
+    }
+    
 	var getElementById(const var::NativeFunctionArgs& args)
 	{
 		expectArguments(args, 1);

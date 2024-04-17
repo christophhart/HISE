@@ -196,6 +196,7 @@ START_JUCE_APPLICATION (MainWrapper)
         <MODULEPATH id="hi_rlottie" path="%HISE_PATH%/"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%/"/>
         <MODULEPATH id="juce_product_unlocking" path="%HISE_PATH%/JUCE/modules"/>
+        <MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive-"
@@ -227,6 +228,7 @@ START_JUCE_APPLICATION (MainWrapper)
         <MODULEPATH id="hi_rlottie" path="%HISE_PATH%"/>
         <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
         <MODULEPATH id="juce_product_unlocking" path="%HISE_PATH%\JUCE\modules"/>
+        <MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
       </MODULEPATHS>
     </VS2022>
   </EXPORTFORMATS>
@@ -252,6 +254,7 @@ START_JUCE_APPLICATION (MainWrapper)
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
+    <MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <LIVE_SETTINGS>
     <WINDOWS/>

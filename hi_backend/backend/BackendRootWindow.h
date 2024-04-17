@@ -862,7 +862,9 @@ public:
 		}
 		
 		
-
+#if JUCE_MAC
+        MenuBarModel::setMacMainMenu(this);
+#endif
 		
 	}
 
