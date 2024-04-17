@@ -1564,6 +1564,7 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             setMethod ("push",     push);
             setMethod ("splice",   splice);
             setMethod ("indexOf",  indexOf);
+            setMethod ("sort",     sort);
         }
 
         static Identifier getClassName()   { static const Identifier i ("Array"); return i; }
@@ -1606,6 +1607,46 @@ struct JavascriptEngine::RootObject   : public DynamicObject
             }
 
             return var::undefined();
+        }
+
+        static var sort (Args a)
+        {
+            if (auto* array = a.thisObject.getArray())
+            {
+                if(a.numArguments > 0)
+                {
+					auto fo = dynamic_cast<FunctionObject*>(a.arguments[0].getDynamicObject());
+
+                    
+
+                    struct Comparator
+                    {
+	                    Comparator(FunctionObject& fo_):
+                          fo(fo_)
+	                    {
+							thisScope = new DynamicObject();
+	                    }
+
+                        int compareElements(const var& f1, const var& f2) const
+	                    {
+                            var a[2] = { f1, f2 };
+                            return (int)fo.invoke(Scope(nullptr, nullptr, thisScope), var::NativeFunctionArgs(var(thisScope.get()), a, 2));
+	                    }
+
+                        FunctionObject& fo;
+                        DynamicObject::Ptr thisScope;
+                    };
+
+                	Comparator comp(*fo);
+                    array->sort(comp);
+                }
+                else
+                {
+	                array->sort();
+                }
+            }
+
+            return a.thisObject;
         }
 
         static var splice (Args a)
