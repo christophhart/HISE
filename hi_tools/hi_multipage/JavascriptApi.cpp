@@ -824,8 +824,8 @@ struct Dom: public ApiObject
 				jassertfalse;
 				pageIndex = 0;//state.currentDialog->getPageIndex(newIndex.toString());
 			}
-
-			if(pageIndex != state.currentPageIndex && isPositiveAndBelow(newIndex, state.currentDialog->getNumPages()))
+			
+			if(isPositiveAndBelow(newIndex, state.currentDialog->getNumPages()))
 			{
 				WeakReference<State> s = &state;
 
