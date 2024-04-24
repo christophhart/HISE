@@ -1017,7 +1017,10 @@ void BackendRootWindow::loadNewContainer(ValueTree & v)
 	callRecursive<mcl::TextEditor>(this, [](mcl::TextEditor* editor)
 	{
 		if(editor->tokenCollection != nullptr)
+		{
 			editor->tokenCollection->stopThread(1000);
+			editor->tokenCollection->clearTokenProviders();
+		}
 		
 		return false;
 	});
