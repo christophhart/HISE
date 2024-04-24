@@ -442,7 +442,7 @@ juce::Identifier PoolHelpers::Reference::getId() const
 
 juce::File PoolHelpers::Reference::getFile() const
 {
-	jassert(isValid() && !isEmbeddedReference());
+	jassert(isValid(true) && !isEmbeddedReference());
 	
 	return f;
 }
@@ -531,10 +531,10 @@ juce::int64 PoolHelpers::Reference::getHashCode() const
 	return hashCode;
 }
 
-bool PoolHelpers::Reference::isValid() const
+bool PoolHelpers::Reference::isValid(bool allowNonExistentAbsolutePaths) const
 {
 	if (m == AbsolutePath)
-		return f.existsAsFile();
+		return f.existsAsFile() || allowNonExistentAbsolutePaths;
 
 	return m != Invalid;
 }

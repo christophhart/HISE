@@ -1013,20 +1013,30 @@ bool BackendRootWindow::toggleRotate()
 
 void BackendRootWindow::loadNewContainer(ValueTree & v)
 {
-	FloatingTile::Iterator<PanelWithProcessorConnection> iter(getRootFloatingTile());
+	// Avoid the token collectio thread keeping alive some objects that should be deleted.
+	callRecursive<mcl::TextEditor>(this, [](mcl::TextEditor* editor)
+	{
+		if(editor->tokenCollection != nullptr)
+			editor->tokenCollection->stopThread(1000);
+		
+		return false;
+	});
 
-	while (auto p = iter.getNextPanel())
+	// Clear all panels with a processor connection
+	callRecursive<PanelWithProcessorConnection>(this, [](PanelWithProcessorConnection* p)
+	{
 		p->setContentWithUndo(nullptr, 0);
-
-	Component::callRecursive<PatchBrowser>(this, [](PatchBrowser* b)
+		return false;
+	});
+	
+	// Make sure the items in the patch browser that refer to the module are deleted before the module.
+	callRecursive<PatchBrowser>(this, [](PatchBrowser* b)
 	{
 		b->clearCollections();
 		return false;
 	});
-
-	mainEditor->loadNewContainer(v);
-
 	
+	mainEditor->loadNewContainer(v);
 }
 
 void BackendRootWindow::loadNewContainer(const File &f)

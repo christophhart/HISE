@@ -5504,19 +5504,17 @@ void ScriptingObjects::ScriptedMidiPlayer::timerCallback()
 
 var ScriptingObjects::ScriptedMidiPlayer::getNoteRectangleList(var targetBounds)
 {
-	if (!sequenceValid())
-		return {};
-
-	Result r = Result::ok();
-
-	auto rect = ApiHelpers::getRectangleFromVar(targetBounds, &r);
-
-	auto list = getSequence()->getRectangleList(rect);
-
 	Array<var> returnArray;
 
-	for (auto re : list)
-		returnArray.add(ApiHelpers::getVarRectangle(re, &r));
+	if (sequenceValid())
+	{
+		Result r = Result::ok();
+		auto rect = ApiHelpers::getRectangleFromVar(targetBounds, &r);
+		auto list = getSequence()->getRectangleList(rect);
+
+		for (auto re : list)
+			returnArray.add(ApiHelpers::getVarRectangle(re, &r));
+	}
 
 	return var(returnArray);
 }
