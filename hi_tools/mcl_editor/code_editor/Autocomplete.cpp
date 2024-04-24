@@ -454,6 +454,7 @@ void TokenCollection::clearTokenProviders()
 {
 	SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
 	tokenProviders.clear();
+	tokens.clear();
 }
 
 void TokenCollection::addTokenProvider(Provider* ownedProvider)
