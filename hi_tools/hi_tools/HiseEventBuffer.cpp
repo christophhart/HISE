@@ -1086,6 +1086,15 @@ void EventIdHandler::pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept
 	currentEventId++;
 }
 
+void EventIdHandler::reinsertArtificialNoteOn(HiseEvent& noteOnEvent) noexcept
+{
+	jassert(noteOnEvent.isNoteOn());
+	jassert(noteOnEvent.isArtificial());
+
+	artificialEvents[noteOnEvent.getEventId() % HISE_EVENT_ID_ARRAY_SIZE] = noteOnEvent;
+	lastArtificialEventIds[noteOnEvent.getChannel() % 16][noteOnEvent.getNoteNumber()] = noteOnEvent.getEventId();
+}
+
 
 HiseEvent EventIdHandler::popNoteOnFromEventId(uint16 eventId)
 {

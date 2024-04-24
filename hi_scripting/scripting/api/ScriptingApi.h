@@ -224,6 +224,8 @@ public:
 
 		uint16 artificialNoteOnIds[128];
 
+		HiseEvent artificialNoteOnThatWasKilled;
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Message);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Message);
 	};

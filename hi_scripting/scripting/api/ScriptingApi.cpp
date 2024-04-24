@@ -680,6 +680,14 @@ void ScriptingApi::Message::ignoreEvent(bool shouldBeIgnored/*=true*/)
 		RETURN_VOID_IF_NO_THROW()
 	}
 
+	// If we call make artificial and then later ignore the note off, we need
+	// to reintroduce the note on event so that it can be killed later.
+	if(shouldBeIgnored && isArtificial() && messageHolder->isNoteOff() && (artificialNoteOnThatWasKilled.getEventId() == messageHolder->getEventId())) 
+	{
+		getScriptProcessor()->getMainController_()->getEventHandler().reinsertArtificialNoteOn(artificialNoteOnThatWasKilled);
+		pushArtificialNoteOn(artificialNoteOnThatWasKilled);
+	}
+
 	messageHolder->ignoreEvent(shouldBeIgnored);
 }
 
@@ -904,6 +912,8 @@ int ScriptingApi::Message::makeArtificial()
 
 int ScriptingApi::Message::makeArtificialInternal(bool makeLocal)
 {
+	artificialNoteOnThatWasKilled = {};
+
 	if (messageHolder != nullptr)
 	{
 		HiseEvent copy(*messageHolder);
@@ -921,6 +931,9 @@ int ScriptingApi::Message::makeArtificialInternal(bool makeLocal)
 		else if (copy.isNoteOff())
 		{
 			HiseEvent e = getScriptProcessor()->getMainController_()->getEventHandler().popNoteOnFromEventId(artificialNoteOnIds[copy.getNoteNumber()]);
+
+			// keep this alive
+			artificialNoteOnThatWasKilled = e;
 
 			if (e.isEmpty())
 			{
