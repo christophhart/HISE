@@ -1245,6 +1245,7 @@ void JavascriptProcessor::addInplaceDebugValue(const Identifier& callback, int l
 		newValue.location = CodeDocument::Position(*sn, lineNumber, 99);
 		newValue.originalLineNumber = lineNumber;
 		newValue.value = value;
+		newValue.initialised = sn->isInitialised();
 
 		inplaceValues.add(newValue);
 		inplaceValues.getReference(inplaceValues.size() - 1).location.setPositionMaintained(true);
@@ -2279,11 +2280,13 @@ JavascriptThreadPool::~JavascriptThreadPool()
 	stopThread(1000);
 }
 
-void JavascriptThreadPool::cancelAllJobs()
+void JavascriptThreadPool::cancelAllJobs(bool shouldStopThread)
 {
 	LockHelpers::SafeLock ss(getMainController(), LockHelpers::Type::ScriptLock);
 
-	stopThread(1000);
+	if(shouldStopThread)
+		stopThread(1000);
+
 	compilationQueue.clear();
 	lowPriorityQueue.clear();
 	highPriorityQueue.clear();

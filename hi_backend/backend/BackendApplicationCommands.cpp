@@ -3327,7 +3327,7 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 	nw->addToDesktop(flags, nullptr);
 
-	bpe->setCurrentlyActiveProcessor();
+	nw->setCurrentlyActiveProcessor();
 	
 }
 

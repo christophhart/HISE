@@ -348,6 +348,8 @@ public:
 
 		void replaceContentAsync(String s, bool shouldBeAsync=true);
 
+		bool isInitialised() const { return pendingNewContent.isEmpty(); }
+
 	private:
 
 		/** This is necessary in order to avoid sending change messages to its Listeners
@@ -694,7 +696,7 @@ public:
 
 	~JavascriptThreadPool();
 
-	void cancelAllJobs();
+	void cancelAllJobs(bool stopThread=true);
 
 	class Task
 	{

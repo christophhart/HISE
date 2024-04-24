@@ -584,7 +584,12 @@ struct Table: public Dialog::PageBase,
             v->setProperty("column", column);
             return v;
         };
-        
+
+        if(t == EventType::DoubleClick || t == EventType::ReturnKey)
+        {
+	        writeState(row);
+        }
+
         callOnValueChange(etype, toValue());
     }
 

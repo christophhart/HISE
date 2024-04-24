@@ -51,7 +51,18 @@ public:
 
     struct InplaceDebugValue
     {
+        void init()
+        {
+	        if(!initialised)
+	        {
+		        location = CodeDocument::Position(*location.getOwner(), originalLineNumber, 99);
+                location.setPositionMaintained(true);
+                initialised = true;
+	        }
+        }
+
         int originalLineNumber;
+        bool initialised = false;
         CodeDocument::Position location;
         String value;
     };

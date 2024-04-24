@@ -674,8 +674,13 @@ void Table::CellComponent::paint(Graphics& g)
 		auto state = r.getPseudoClassFromComponent(this);
                 
 		if(parent.table.isRowSelected(cellPosition.y))
+			state |= (int)PseudoClassType::Focus;
+
+		auto v = parent.getValueFromGlobalState();
+
+		if(v.isInt() && (int)v == cellPosition.y)
 			state |= (int)PseudoClassType::Checked;
-                
+
 		r.setPseudoClassState(state);
                 
 		r.drawBackground(g, getLocalBounds().toFloat(), ss);
@@ -950,6 +955,11 @@ void Table::paintRowBackground(Graphics& g, int rowNumber, int width, int height
 	}
 
 	if(rowIsSelected)
+		flags |= (int)PseudoClassType::Focus;
+
+	auto v = getValueFromGlobalState();
+
+	if(v.isInt() && (int)v == rowNumber)
 		flags |= (int)PseudoClassType::Checked;
 
 	r.setPseudoClassState(flags);

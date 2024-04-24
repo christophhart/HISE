@@ -438,6 +438,7 @@ tr:hover
     background: #383838;
 }
 
+tr:focus,
 tr:checked
 {
     background: #414141;

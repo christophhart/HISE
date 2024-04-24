@@ -180,8 +180,18 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
     
     bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const override
     {
-		values.addArray(jp->inplaceValues);
-        
+		auto sn = jp->getSnippet(callback);
+		
+		for(auto& ip: jp->inplaceValues)
+		{
+			ip.init();
+
+			if(ip.location.getOwner() == sn)
+			{
+				values.add(ip);
+			}
+		}
+
         return true;
     }
     

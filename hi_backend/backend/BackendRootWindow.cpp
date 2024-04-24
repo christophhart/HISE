@@ -1013,6 +1013,8 @@ bool BackendRootWindow::toggleRotate()
 
 void BackendRootWindow::loadNewContainer(ValueTree & v)
 {
+	getBackendProcessor()->getJavascriptThreadPool().cancelAllJobs(false);
+
 	// Avoid the token collectio thread keeping alive some objects that should be deleted.
 	callRecursive<mcl::TextEditor>(this, [](mcl::TextEditor* editor)
 	{
