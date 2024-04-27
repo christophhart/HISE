@@ -49,8 +49,15 @@
 #endif
 
 #if _IPP_SEQUENTIAL_STATIC || _IPP_SEQUENTIAL_DYNAMIC || _IPP_PARALLEL_STATIC || _IPP_PARALLEL_DYNAMIC
+#include <ipp.h>
+
+#if IPP_VERSION_MAJOR >= 2021 && IPP_VERSION_MINOR >= 10
+#include <ipp/ippcore.h>
+#include <ipp/ipps.h>
+#else
  #include <ippcore.h>
  #include <ipps.h>
+#endif
  #define JUCE_IPP_AVAILABLE 1
 #endif
 

@@ -3,13 +3,23 @@
 
 #if _IPP_SEQUENTIAL_STATIC
 
-    #include "ipp_vector.h"
-    #include <ipp.h>
+#include "ipp_vector.h"
+#include <ipp.h>
+
+
+#if IPP_VERSION_MAJOR >= 2021 && IPP_VERSION_MINOR >= 10
+    #include <ipp/ippcore_tl.h>
+    #include <ipp/ippcv.h>
+    #include <ipp/ippi.h>
+    #include <ipp/ippi_l.h>
+    #include <ipp/ipps.h>
+#else
     #include <ippcore_tl.h>
     #include <ippcv.h>
     #include <ippi.h>
     #include <ippi_l.h>
     #include <ipps.h>
+#endif
 
 // This is a port of the cross-platform stack blur implementation in tests/implementations/vector.h
 // This one doesn't rely on melatonin::vector, only IPP
