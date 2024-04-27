@@ -1062,7 +1062,8 @@ private:
 
 		static void copyToClipboard(BackendProcessor* bp)
 		{
-			BackendCommandTarget::Actions::exportFileAsSnippet(bp);
+            jassertfalse;
+			//BackendCommandTarget::Actions::exportFileAsSnippet(bp);
 		}
 
 		template <class ProcessorType> static ProcessorType* get(BackendProcessor* bp)
