@@ -347,6 +347,10 @@ FloatingTabComponent::FloatingTabComponent(FloatingTile* parent) :
 
 	getTabbedButtonBar().setLookAndFeel(&laf);
 
+#if USE_BACKEND
+	getTabbedButtonBar().setUndoManager(getMainController()->getLocationUndoManager());
+#endif
+
 	setColour(TabbedComponent::ColourIds::outlineColourId, Colours::transparentBlack);
 
 	addFloatingTile(new FloatingTile(parent->getMainController(), this));

@@ -228,7 +228,7 @@ public:
 
 		bool undo() override;
 
-		TextDocument& doc;
+		WeakReference<TextDocument> doc;
 		Array<Selection> before;
 		Array<Selection> now;
 	};
@@ -476,6 +476,8 @@ private:
 	Array<WeakReference<Selection::Listener>> selectionListeners;
 
 	juce::Array<Selection> selections;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TextDocument);
 };
 
 class TokenCollection;

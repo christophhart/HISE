@@ -1623,20 +1623,30 @@ int FoldableLineRange::getNearestLineStart(int lineNumber)
 
 TextDocument::SelectionAction::SelectionAction(TextDocument& t, const Array<Selection>& now_):
 	now(now_),
-	doc(t)
+	doc(&t)
 {
 	before.addArray(t.selections);
 }
 
 bool TextDocument::SelectionAction::perform()
 {
-	doc.setSelections(now, false);
+	if(doc != nullptr)
+	{
+		doc->setSelections(now, false);
+		return true;
+	}
+	
 	return true;
 }
 
 bool TextDocument::SelectionAction::undo()
 {
-	doc.setSelections(before, false);
+	if(doc != nullptr)
+	{
+		doc->setSelections(before, false);
+		return true;
+	}
+	
 	return true;
 }
 

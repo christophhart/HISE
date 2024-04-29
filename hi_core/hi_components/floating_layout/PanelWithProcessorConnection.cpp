@@ -572,16 +572,36 @@ void PanelWithProcessorConnection::changeContentWithUndo(int newIndex)
 
 void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, int newIndex)
 {
+	if(setContentRecursion)
+		return;
+
 	StringArray indexes;
 	fillIndexList(indexes);
 
 	refreshIndexList();
-    
+
+	ScopedValueSetter<bool> svs(setContentRecursion, true);
+
 	ScopedPointer<ProcessorConnection> connection = new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation());
 
-	connection->perform();
-
-	connection = nullptr;
+	if(auto lum = getMainController()->getLocationUndoManager())
+	{
+		if(!lum->isPerformingUndoRedo())
+		{
+			lum->perform(connection.release());
+		}
+		else
+		{
+			connection->perform();
+			connection = nullptr;
+		}
+		
+	}
+	else
+	{
+		connection->perform();
+		connection = nullptr;
+	}
 
 	if (newIndex != -1)
 	{
@@ -667,7 +687,7 @@ bool PanelWithProcessorConnection::ProcessorConnection::perform()
 
 bool PanelWithProcessorConnection::ProcessorConnection::undo()
 {
-	if (panel.getComponent())
+	if (panel.getComponent() && oldProcessor != nullptr)
 	{
 		panel->currentIndex = oldIndex;
 		panel->setCurrentProcessor(oldProcessor.get());

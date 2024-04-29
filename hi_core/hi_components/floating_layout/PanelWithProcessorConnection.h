@@ -198,6 +198,8 @@ protected:
 
 private:
 
+	bool setContentRecursion = false;
+
 	bool forceHideSelector = false;
 	bool listInitialised = false;
 
