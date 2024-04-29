@@ -238,7 +238,7 @@ public:
 
         To deselect all the tabs, use an index of -1.
     */
-    void setCurrentTabIndex (int newTabIndex, bool sendChangeMessage = true);
+    void setCurrentTabIndex (int newTabIndex, bool sendChangeMessage = true, bool useUndoManager=true);
 
     /** Returns the name of the currently selected tab.
         This could be an empty string if none are selected.
@@ -335,6 +335,9 @@ public:
     /** @internal */
     void lookAndFeelChanged() override;
 
+    /** Use a undo manager to enable back / forward navigation of clicked tabs. */
+    void setUndoManager(UndoManager* um_) { um = um_; }
+
 protected:
     //==============================================================================
     /** This creates one of the tabs.
@@ -365,6 +368,10 @@ private:
     std::unique_ptr<AccessibilityHandler> createAccessibilityHandler() override;
     void showExtraItemsMenu();
     void updateTabPositions (bool animate);
+
+    UndoManager* um = nullptr;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(TabbedButtonBar);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TabbedButtonBar)
 };
