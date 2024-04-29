@@ -95,6 +95,13 @@ struct ExampleAssetManager: public ReferenceCountedObject,
 					{
 						auto assetDirectory = File(snippetDirectory).getChildFile("Assets");
 
+						if(!assetDirectory.getChildFile("SampleMaps").isDirectory())
+						{
+							debugError(getMainController()->getMainSynthChain(), "Uninitialised assets, please download the assets and reload the snippet");
+							initialised = false;
+							return;
+						}
+
 						if(assetDirectory.isDirectory())
 						{
 							rootDirectory = assetDirectory;
