@@ -5010,7 +5010,7 @@ var ScriptingObjects::ScriptNeuralNetwork::process(var input)
 
 	if(isSingleOut)
 	{
-		float out;
+		float out = 0.0f;
 
 		if(isSingleIn)
 		{
@@ -8501,7 +8501,7 @@ void ScriptingObjects::ScriptedMacroHandler::setFromCallbackArg(const var& obj)
 		if (auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), pId))
 		{
 			auto param = obj[MacroIds::Attribute];
-			int parameterIndex;
+			int parameterIndex = 0;
 
 			String pString;
 

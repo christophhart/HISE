@@ -1136,7 +1136,7 @@ struct TextInput::Autocomplete: public Component,
         else
             nt = newTextAfterComma;
         
-        ed.setText(nt, sendNotificationSync);
+        ed.setText(nt, true);
         
         return dismiss();
     }

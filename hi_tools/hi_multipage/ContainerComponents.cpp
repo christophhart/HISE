@@ -232,7 +232,7 @@ Result List::customCheckOnAdd(PageBase* b, const var& obj)
 
 void List::createEditor(Dialog::PageInfo& rootList)
 {
-    auto& tt = rootList.addChild<Type>({
+    rootList.addChild<Type>({
         { mpid::Type, "List" },
         { mpid::ID, "Type"}
     });
@@ -260,7 +260,7 @@ void List::createEditor(Dialog::PageInfo& rootList)
 	    listId[mpid::Value] = v;
     }
 
-    auto& textId = prop.addChild<TextInput>({
+    prop.addChild<TextInput>({
         { mpid::ID, "Text" },
         { mpid::Text, "Text" },
         { mpid::Help, "The title text that is shown at the header bar." },
@@ -281,16 +281,14 @@ void List::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
 
-    auto& foldId1 = prop.addChild<Button>({
+    prop.addChild<Button>({
         { mpid::ID, "Foldable" },
         { mpid::Text, "Foldable" },
         { mpid::Help, "If ticked, then this list will show a clickable header that can be folded" },
 		{ mpid::Value, foldable }
     });
     
-    
-    
-    auto& foldId2 = prop.addChild<Button>({
+    prop.addChild<Button>({
         { mpid::ID, "Folded" },
         { mpid::Text, "Folded" },
         { mpid::Help, "If ticked, then this list will folded as default state" },
@@ -335,7 +333,7 @@ Column::Column(Dialog& r, int width, const var& obj):
 
 void Column::createEditor(Dialog::PageInfo& xxx)
 {
-    auto& tt = xxx.addChild<Type>({
+    xxx.addChild<Type>({
         { mpid::Type, "Column" },
         { mpid::ID, "Type"}
     });
@@ -468,7 +466,7 @@ Result Branch::checkGlobalState(var globalState)
 
 void Branch::createEditor(Dialog::PageInfo& rootList)
 {
-    auto& tt = rootList.addChild<Type>({
+    rootList.addChild<Type>({
         { mpid::Type, "Branch" },
         { mpid::ID, "Type"}
     });
@@ -477,7 +475,7 @@ void Branch::createEditor(Dialog::PageInfo& rootList)
     
     rootList[mpid::Text] = "List";
     
-    auto& listId = prop.addChild<TextInput>({
+    prop.addChild<TextInput>({
         { mpid::ID, "ID" },
         { mpid::Text, "ID" },
         { mpid::Required, true },

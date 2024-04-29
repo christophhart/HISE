@@ -414,10 +414,6 @@ float PolyFilterEffect::getAttribute(int parameterIndex) const
 
 void PolyFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
-	auto& filterBankToUse = hasPolyMods() ? voiceFilters : monoFilters;
-
-	
-
 	switch (parameterIndex)
 	{
 	case PolyFilterEffect::Gain:		

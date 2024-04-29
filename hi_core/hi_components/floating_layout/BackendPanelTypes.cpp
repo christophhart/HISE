@@ -426,22 +426,17 @@ Result MidiTimelineObject::addEventsForBouncing(HiseEventBuffer& b, ExternalCloc
 		{
 			auto e = t->getEventPointer(i);
 
-			auto ts = e->message.getTimeStamp();
+			const auto timestampPPQ = e->message.getTimeStamp() / ticksPerQuarter;
+			const auto timestampSamples = clock->getSamplesDelta(timestampPPQ);
 
-			if (true)
-			{
-				auto timestampPPQ = e->message.getTimeStamp() / ticksPerQuarter;
-				auto timestampSamples = clock->getSamplesDelta(timestampPPQ);
-
-                if(b.size() == HISE_EVENT_BUFFER_SIZE-1)
-                    return Result::ok();
-                
-                HiseEvent he(e->message);
-                he.setTimeStamp(timestampSamples);
-                
-                if(!he.isEmpty())
-                    b.addEvent(he);
-			}
+            if(b.size() == HISE_EVENT_BUFFER_SIZE-1)
+                return Result::ok();
+            
+            HiseEvent he(e->message);
+            he.setTimeStamp(timestampSamples);
+            
+            if(!he.isEmpty())
+                b.addEvent(he);
 		}
 	}
     

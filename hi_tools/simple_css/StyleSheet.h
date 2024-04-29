@@ -87,6 +87,7 @@ struct StyleSheet: public ReferenceCountedObject
 
 		struct DataProvider
 		{
+			virtual ~DataProvider() {};
 			virtual Font loadFont(const String& fontName, const String& url) = 0;
 			virtual String importStyleSheet(const String& url) = 0;
 			virtual Image loadImage(const String& imageURL) = 0;

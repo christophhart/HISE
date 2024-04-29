@@ -557,14 +557,11 @@ void TokenCollection::rebuild()
         try
         {
             Sorter ts(*this);
-            
             SortFunctionConverter<Sorter> converter (ts);
-
             std::sort(newTokens.begin(), newTokens.end(), converter);
-            
             newTokens.sort(ts);
         }
-        catch(Sorter::AbortException& e)
+        catch(Sorter::AbortException&)
         {
             
         }

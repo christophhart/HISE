@@ -3,6 +3,10 @@
 // ARGB on Windows and macOS fallback when no vImage
 #include "../implementations/gin.h"
 
+
+#pragma warning(push)
+#pragma warning(disable: 4267)
+
 // These are *compile-time* flags for implementation choices
 // There are also runtime considerations
 #if JUCE_MAC || JUCE_IOS
@@ -98,3 +102,5 @@ namespace melatonin::blur
 #endif
     }
 }
+
+#pragma warning(pop)

@@ -560,12 +560,9 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 			
 			if(data[mpid::Children].isArray())
 			{
-				int idx = 0;
 				for(const auto& page: *data[mpid::Children].getArray())
 				{
 					x << createAddChild("mp", page, "Page", true);
-
-					
 				}
 			}
 

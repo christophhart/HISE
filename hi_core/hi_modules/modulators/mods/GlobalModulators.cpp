@@ -246,7 +246,7 @@ bool GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 
 #if USE_BACKEND
         auto asP = dynamic_cast<Processor*>(this);
-
+		ignoreUnused(asP);
 #if USE_OLD_PROCESSOR_DISPATCH
 	    asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
 #endif

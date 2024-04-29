@@ -90,6 +90,7 @@ struct table: public scriptnode::data::base
 			{
 				for (auto& s : data.toChannelData(ch))
 				{
+					ignoreUnused(s);
                     v = hmath::abs(v);
 					processFloat(v);
 				}

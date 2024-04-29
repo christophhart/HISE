@@ -122,7 +122,7 @@ bool ApiObject::callForEachInfoObject(const std::function<bool(const var& obj)>&
 	}
 	else
 	{
-		Component::callRecursive<Dialog::PageBase>(state.currentDialog, [&](Dialog::PageBase* pb)
+		return Component::callRecursive<Dialog::PageBase>(state.currentDialog, [&](Dialog::PageBase* pb)
 		{
 			return f(pb->getInfoObject());
 		});
@@ -359,6 +359,8 @@ Identifier HtmlParser::IDConverter::convert(const Identifier& id) const
 		if(i.multipageId == id)
 			return i.htmlId;
 	}
+
+	return {};
 }
 
 void HtmlParser::IDConverter::set(const Identifier& html, const Identifier& mp)

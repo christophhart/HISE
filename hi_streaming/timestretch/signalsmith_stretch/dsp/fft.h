@@ -463,10 +463,10 @@ template <typename Sample> struct JuceFFTWrapper
 		FFTType complexFft;
 	public:
 		static size_t fastSizeAbove(size_t size) {
-			return FFTType::fastSizeAbove((size + 1)/2)*2;
+			return FFTType::fastSizeAbove((static_cast<int>(size) + 1)/2)*2;
 		}
 		static size_t fastSizeBelow(size_t size) {
-			return FFTType::fastSizeBelow(size/2)*2;
+			return FFTType::fastSizeBelow(static_cast<int>(size)/2)*2;
 		}
 
 		RealFFT(size_t size=0, int fastDirection=0) : complexFft(0) {
@@ -493,7 +493,7 @@ template <typename Sample> struct JuceFFTWrapper
 				}
 			}
 			
-			return complexFft.setSize(size/2);
+			return complexFft.setSize(static_cast<int>(size)/2);
 		}
 		size_t setFastSizeAbove(size_t size) {
 			return setSize(fastSizeAbove(size));
@@ -511,7 +511,7 @@ template <typename Sample> struct JuceFFTWrapper
             TRACE_EVENT("dsp", "outerFFT");
             
 			size_t hSize = complexFft.size();
-			for (size_t i = 0; i < hSize; ++i) {
+			for (int i = 0; i < hSize; ++i) {
 				if (modified) {
 					complexBuffer1[i] = _fft_impl::complexMul<false>({input[2*i], input[2*i + 1]}, modifiedRotations[i]);
 				} else {

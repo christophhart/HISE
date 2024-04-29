@@ -115,11 +115,6 @@ void StyleSheet::copyPropertiesFrom(Ptr other, bool overwriteExisting, const Str
 
 		for(const auto& v: p.values)
 		{
-			if(p.name == "font-family")
-			{
-				int x = 5;
-			}
-
             if(p.name == "all")
             {
                 auto valueToUse = p.values[0].second;
@@ -1515,13 +1510,6 @@ AffineTransform StyleSheet::getTransform(Rectangle<float> totalArea, PseudoState
 		DBG(tv.progress);
 		TransformParser p1(keywords, tv.startValue);
 		TransformParser p2(keywords, tv.endValue);
-
-		auto lastEmpty = tv.endValue.isEmpty();
-
-		if(lastEmpty)
-		{
-			int x = 5;
-		}
 
 		auto l1 = p1.parse(totalArea);
 		auto l2 = p2.parse(totalArea);

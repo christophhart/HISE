@@ -106,8 +106,6 @@ void MarkdownParser::parseHeadline()
 
 	headlineLevel = jlimit(1, 4, headlineLevel);
 
-	auto level = Headline::getSizeLevelForHeadline(headlineLevel);
-
 	auto fontSize = styleData.fontSize *  styleData.headlineFontSize[headlineLevel - 1];
 
 	currentFont = styleData.getBoldFont().withHeight(fontSize);

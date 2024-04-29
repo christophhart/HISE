@@ -662,9 +662,6 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::paintBackground(Graphics& g
 	{
 		g.setFont(GLOBAL_FONT());
 
-
-		auto holder = dynamic_cast<Spec2DInfo*>(infos[0][(int)Mode::Spectrogram]);
-
 		Array<float> freqValues = { 100.0, 500.0, 1000.0, 2000.0, 5000.0, 10000.0 };
 
 		for(auto f: freqValues)
@@ -1398,28 +1395,11 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::FFTInfo::calculate(const Au
 void MainTopBar::ClickablePeakMeter::PopupComponent::FFTInfo::draw(Graphics& g, float baseAlpha)
 {
 	float alpha = baseAlpha;
-
-	bool first = true;
-
-	for(auto& p: fftPaths)
-	{
-		g.setColour(c.interpolatedWith(Colours::white, alpha * 0.8f).withAlpha(alpha * alpha));
-		g.strokePath(p, PathStrokeType(0.5f + (JUCE_LIVE_CONSTANT_OFF(1.0f) / alpha)));
-		alpha *= jmax(0.1f, JUCE_LIVE_CONSTANT_OFF(0.5f));
-
-		if(first)
-		{
-			g.setColour(c.withAlpha(0.1f * baseAlpha));
-			g.fillPath(p);
-		}
-
-		if(freeze)
-			break;
-
-		break;
-
-		first = false;
-	}
+	auto& p =  fftPaths[0];
+	g.setColour(c.interpolatedWith(Colours::white, alpha * 0.8f).withAlpha(alpha * alpha));
+	g.strokePath(p, PathStrokeType(0.5f + (JUCE_LIVE_CONSTANT_OFF(1.0f) / alpha)));
+	g.setColour(c.withAlpha(0.1f * baseAlpha));
+	g.fillPath(p);
 }
 
 void MainTopBar::ClickablePeakMeter::PopupComponent::OscInfo::draw(Graphics& g, float baseAlpha)
@@ -1649,10 +1629,6 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::PitchTrackInfo::calculate(c
 
 	Path path0, path1;
 
-	int idx = 0;
-	
-	
-
 	auto tolerance = JUCE_LIVE_CONSTANT(0.02);
 
 	for(int i = 1; i < dataPoints.size() - 1; i++)
@@ -1790,7 +1766,6 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::CpuInfo::calculate(const Au
 	path.clear();
 	path.startNewSubPath(area.getX(), area.getBottom());
 
-	auto ptr = b.getReadPointer(0);
 	path.preallocateSpace(numPointsToCalculate * 3);
 
 	int x = 0;

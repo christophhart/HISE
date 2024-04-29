@@ -1308,8 +1308,6 @@ void SliderPack::mouseMove(const MouseEvent& mouseEvent)
 	{
 		currentlyDraggedSlider = thisIndex;
 
-		auto y = 1.0 - (float)mouseEvent.getPosition().getY() / (float)getHeight();
-
 		if(auto s = sliders[currentlyDraggedSlider])
 		{
 			currentlyDraggedSliderValue = s->getValue();

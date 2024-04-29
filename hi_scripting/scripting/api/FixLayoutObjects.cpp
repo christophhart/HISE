@@ -114,7 +114,7 @@ int LayoutBase::Helpers::createHash(MemoryLayoutItem::List list)
 		s << (uint8)l->type;
 	}
 
-	return s.hash();
+	return s.hashCode();
 }
 
 LayoutBase::~LayoutBase()
@@ -1185,8 +1185,8 @@ struct Stack::Viewer: public Component,
 	{
 		setName("FixObjectStack Viewer");
 
-		auto numColumns = s->layout.size();
-		auto numRows = jmin<int>(16, s->numElements);
+		const auto numColumns = s->layout.size();
+		const auto numRows = jmin<int>(16, static_cast<int>(s->numElements));
 
 		setSize(numColumns * Row::ColumnWidth + Row::IndexWidth, numRows * Row::Height);
 

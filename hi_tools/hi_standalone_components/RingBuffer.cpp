@@ -91,8 +91,6 @@ int SimpleRingBuffer::read(AudioSampleBuffer& b)
 		{
 			numSamples = getMaxLengthInSamples();
 			
-			int pos = roundToInt(interpolatedReadIndex);
-
 			for (int i = 0; i < numChannels; i++)
 			{
 				auto buffer = internalBuffer.getReadPointer(i);
@@ -222,8 +220,6 @@ void SimpleRingBuffer::write(const float** data, int numChannels, int numSamples
 			if(maxLength != -1.0)
 			{
 				auto upperLimit = maxLength;
-				auto pos = roundToInt(interpolatedWriteIndex);
-
 				auto numToWrite = (double)numSamples;
 
 				while(numToWrite > 0)

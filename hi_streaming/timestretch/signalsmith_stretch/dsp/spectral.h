@@ -36,11 +36,11 @@ namespace spectral {
 	public:
 		/// Returns a fast FFT size <= `size`
 		static int fastSizeAbove(int size, int divisor=1) {
-			return MRFFT::fastSizeAbove(size/divisor)*divisor;
+			return static_cast<int>(MRFFT::fastSizeAbove(static_cast<size_t>(size / divisor)))*static_cast<size_t>(divisor);
 		}
 		/// Returns a fast FFT size >= `size`
 		static int fastSizeBelow(int size, int divisor=1) {
-			return MRFFT::fastSizeBelow(1 + (size - 1)/divisor)*divisor;
+			return static_cast<int>(MRFFT::fastSizeBelow(1 + (static_cast<size_t>(size) - 1) / (size_t)divisor))*(size_t)divisor;
 		}
 
 		WindowedFFT() {}
@@ -110,7 +110,7 @@ namespace spectral {
 		template<class Input, class Output>
 		void ifft(Input &&input, Output &&output) {
 			mrfft.ifft(input, output);
-			int size = mrfft.size();
+			auto size = static_cast<int>(mrfft.size());
             
 #if USE_JUCE_FFT
             juce::FloatVectorOperations::multiply(output.data(), fftWindow.data(), size);

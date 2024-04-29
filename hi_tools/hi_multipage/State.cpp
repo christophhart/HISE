@@ -182,7 +182,7 @@ String Asset::toText(bool reload)
 		return {};
 }
 
-void Asset::writeCppLiteral(OutputStream& c, const String& newLine, ReferenceCountedObject* job_) const
+void Asset::writeCppLiteral(OutputStream& c, const String& nl, ReferenceCountedObject* job_) const
 {
 	auto& job = *static_cast<State::Job*>(job_);
 
@@ -201,18 +201,18 @@ void Asset::writeCppLiteral(OutputStream& c, const String& newLine, ReferenceCou
 
 		job.setMessage("Embedding " + id);
 
-		numBytes = compressed.getSize();
+		numBytes = static_cast<int>(compressed.getSize());
 	}
 	else
 	{
-		c << newLine << "// do not include for current OS...";
+		c << nl << "// do not include for current OS...";
 
 		char x1[1] = { 0 };
 		compressed.append(x1, 1);
 		numBytes = 1;
 	}
 	
-	c << newLine << "static const unsigned char " << id << "[" << String(numBytes) << "] = { ";
+	c << nl << "static const unsigned char " << id << "[" << String(numBytes) << "] = { ";
 	
 	auto bytePtr = static_cast<const uint8*>(compressed.getData());
 
@@ -226,16 +226,16 @@ void Asset::writeCppLiteral(OutputStream& c, const String& newLine, ReferenceCou
 		if ((i % 40) == 39)
 		{
 			job.getProgress() = 0.5 + 0.5 * ((double)i / (double)numBytes);
-			c << newLine;
+			c << nl;
 		}
 	}
 
 	c << " };";
 
-	c << newLine << "static constexpr char " << id << "_Filename[" << String(filename.length()+1) << "] = ";
+	c << nl << "static constexpr char " << id << "_Filename[" << String(filename.length()+1) << "] = ";
 	c << filename.replaceCharacter('\\', '/').quoted() << ";";
 
-	c << newLine << "static constexpr Asset::Type " << id << "_Type = Asset::Type::" << getTypeString(type) << ";";
+	c << nl << "static constexpr Asset::Type " << id << "_Type = Asset::Type::" << getTypeString(type) << ";";
 }
 
 var Asset::toJSON(bool embedData, const File& currentRoot) const

@@ -3209,7 +3209,6 @@ void ScriptingApi::Content::ScriptSliderPack::setAllValuesWithUndo(var value)
 {
 	if (auto d = getCachedSliderPack())
 	{
-		auto isMultiValue = value.isBuffer() || value.isArray();
 		int maxIndex = value.isBuffer() ? (value.getBuffer()->size) : (value.isArray() ? value.size() : d->getNumSliders());
 
 		Array<float> newData;

@@ -475,7 +475,6 @@ float FlexboxComponent::getAutoWidthForHeight(float fullHeight)
 
 	auto data = createPositionData();
     auto w = 0.0f;
-    auto first = true;
     
     for(const auto& i: data.flexBox.items)
     {
@@ -751,13 +750,6 @@ FlexboxComponent::PositionData FlexboxComponent::createPositionData()
 		
 	if(ss != nullptr)
 	{
-		auto isAuto = ss->getPropertyValueString({"height", {}}) == "auto";
-		
-#if 0
-		if(!isAuto)
-			b = ss->getBounds(b, {});
-#endif
-
 		if(applyMargin)
 			b = ss->getArea(b, { "margin", {}});
 

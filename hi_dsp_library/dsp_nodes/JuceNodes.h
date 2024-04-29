@@ -301,9 +301,9 @@ template <typename DT, int NV> struct jdelay_base : public base::jwrapper<DT, NV
 	static Identifier getStaticId()
 	{
 		if constexpr (std::is_same<DT, LinearDelay>()) { RETURN_STATIC_IDENTIFIER("jdelay"); }
-		if constexpr (std::is_same<DT, ThiranDelay>()) { RETURN_STATIC_IDENTIFIER("jdelay_thiran"); }
-		if constexpr (std::is_same<DT, CubicDelay>())  { RETURN_STATIC_IDENTIFIER("jdelay_cubic"); }
-		return "";
+		else if constexpr (std::is_same<DT, ThiranDelay>()) { RETURN_STATIC_IDENTIFIER("jdelay_thiran"); }
+		else if constexpr (std::is_same<DT, CubicDelay>())  { RETURN_STATIC_IDENTIFIER("jdelay_cubic"); }
+		else return "";
 	};;
 
 	SN_GET_SELF_AS_OBJECT(jdelay_base);
@@ -315,8 +315,8 @@ template <typename DT, int NV> struct jdelay_base : public base::jwrapper<DT, NV
 	static juce::String getDescription()
 	{
 		if constexpr (std::is_same<DT, LinearDelay>()) return "A linear interpolating delay line with low computational cost and a low-pass filtering effect.";
-		if constexpr (std::is_same<DT, ThiranDelay>()) return "A delay line using the thiran interpolation. Good performance, flat amplitude response but not suitable for fast modulation";
-		if constexpr (std::is_same<DT, CubicDelay>())  return "A delay line using a 3rd order Lagrange interpolator. Flat amplitude response, modulatable but the highest CPU usage";
+		else if constexpr (std::is_same<DT, ThiranDelay>()) return "A delay line using the thiran interpolation. Good performance, flat amplitude response but not suitable for fast modulation";
+		else if constexpr (std::is_same<DT, CubicDelay>())  return "A delay line using a 3rd order Lagrange interpolator. Flat amplitude response, modulatable but the highest CPU usage";
 		else return "";
 	};
 

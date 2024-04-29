@@ -1495,8 +1495,8 @@ Result Parser::parse()
 
 			while(matchIf(TokenType::Keyword))
 			{
-				RawLine newLine;
-				newLine.property = currentToken;
+				RawLine nl;
+				nl.property = currentToken;
 
 				kw.check(currentToken, KeywordDataBase::KeywordType::Property);
 				
@@ -1506,7 +1506,7 @@ Result Parser::parse()
 				{
 					match(TokenType::ValueString);
 
-					newLine.items.push_back(currentToken);
+					nl.items.push_back(currentToken);
 
 					if(matchIf(TokenType::Semicolon))
 						break;
@@ -1514,7 +1514,7 @@ Result Parser::parse()
 					
 				auto currentValue = currentToken;
 					
-				newClass.lines.push_back(std::move(newLine));
+				newClass.lines.push_back(std::move(nl));
 
 				skip();
 				kw.setLocation(*this);

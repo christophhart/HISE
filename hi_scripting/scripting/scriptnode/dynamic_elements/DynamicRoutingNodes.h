@@ -123,6 +123,7 @@ namespace duplilogic
 			case DupliMode::Nyquist: return nyquist::shouldUpdateNumClones();
 			case DupliMode::Ducker: return ducker::shouldUpdateNumClones();
 			case DupliMode::Toggle: return toggle::shouldUpdateNumClones();
+			default: return false;
 			}
 		}
 

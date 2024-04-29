@@ -86,12 +86,6 @@ END_MARKDOWN()
 END_MARKDOWN_CHAPTER()
 
 
-static bool canConnectToWebsite(const URL& url)
-{
-	auto in = url.createInputStream(false, nullptr, nullptr, String(), 2000, nullptr);
-	return in != nullptr;
-}
-
 static bool areMajorWebsitesAvailable()
 {
 	const char* urlsToTry[] = { "http://google.com/generate_204", "https://amazon.com", nullptr };

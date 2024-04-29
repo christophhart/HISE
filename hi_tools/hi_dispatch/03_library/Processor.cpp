@@ -186,7 +186,7 @@ void Processor::setNumAttributes(uint16 numAttributes)
 	}
 	else
 	{
-		attributes.setNumSlots(SlotBitmap::getNumBits());
+		attributes.setNumSlots(static_cast<uint8>(SlotBitmap::getNumBits()));
 
 		auto numAttributeSlotsRequired = (static_cast<size_t>(numAttributes) / SlotBitmap::getNumBits()) + 1;
 		auto lastSlotAmount = static_cast<uint8>(numAttributes % SlotBitmap::getNumBits());

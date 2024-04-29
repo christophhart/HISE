@@ -3329,7 +3329,10 @@ void ScriptBroadcaster::sendMessageInternal(var args, bool isSync)
 				TRACE_EVENT("dispatch", "Broadcaster::sendMessage");
 
 				for(auto i: items)
+				{
+					ignoreUnused(i);
 					OPEN_BROADCASTER_TRACK(i, getScriptProcessor()->getMainController_()->getRootDispatcher());
+				}
 
 				WeakReference<ScriptBroadcaster> safeThis(this);
 

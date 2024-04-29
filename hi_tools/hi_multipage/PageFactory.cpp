@@ -737,7 +737,6 @@ void Table::rebuildColumns()
 		int width = 100;
 		int minWidth = 30;
 		int maxWidth = -1;
-		int flags = 0;
 
 		enum class Properties
 		{

@@ -1094,7 +1094,6 @@ void Dialog::createEditorInSideTab(const var& obj, PageBase* pb, const std::func
 
 		d->useHelpBubble = true;
 
-		auto& layout = d->positionInfo;
 		auto sd = d->getStyleData();
 		sd.fontSize = 14.0f;
 		sd.f = GLOBAL_FONT();
@@ -1445,8 +1444,6 @@ void Dialog::showMainPropertyEditor()
 			auto layoutObj = positionInfo.toJSON();
 
 
-			PageInfo* currentCol = &layoutProperties;
-
 			int numInCol = 0;
 
 	        for(auto& v: layoutObj.getDynamicObject()->getProperties())
@@ -1516,10 +1513,6 @@ void Dialog::showMainPropertyEditor()
 	      Identifier("tableBgColour")
 	    });
 
-		PageInfo* colourCol = &styleProperties;
-
-		int numColoursInRow = 0;
-
 	    for(auto& nv: sdData.getDynamicObject()->getProperties())
 	    {
 	        if(hiddenProps.contains(nv.name))
@@ -1527,7 +1520,7 @@ void Dialog::showMainPropertyEditor()
 
 	        if(nv.name.toString().contains("Colour"))
 	        {
-				auto& ed = styleProperties.addChild<ColourChooser>({
+				styleProperties.addChild<ColourChooser>({
 	                { mpid::ID, nv.name.toString() },
 	                { mpid::Text, nv.name.toString() },
 	                { mpid::Value, nv.value }
@@ -1787,7 +1780,7 @@ bool Dialog::navigate(bool forward)
 					}
 						
 				}
-				catch(State::CallOnNextAction& cona)
+				catch(State::CallOnNextAction& )
 				{
 					nextButton.setEnabled(false);
 					prevButton.setEnabled(false);

@@ -230,8 +230,6 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 		return Range<float>(lPos, rPos);
 	};
 
-	float xPos = targetBounds.getX();
-
 	lPath.preallocateSpace(5 * size-1);
 
 	Array<Point<float>> dataPoints;
@@ -258,7 +256,6 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 	for(int i = 0; i < dataPoints.size(); i++)
 	{
 		auto x = dataPoints[i].getX();
-		auto y = dataPoints[i].getY();
 
 		if(x == 0.0f && dataPoints[i+1].getX() == 0.0f)
 		{

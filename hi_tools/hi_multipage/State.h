@@ -123,7 +123,7 @@ struct Asset: public ReferenceCountedObject
 	    if(type == Type::Image)
 	    {
 		    MemoryInputStream mis(data, false);
-            return ImageCache::getFromMemory(data.getData(), data.getSize());
+            return ImageCache::getFromMemory(data.getData(), (int)data.getSize());
 	    }
         else
             return {};
@@ -219,8 +219,9 @@ struct Asset: public ReferenceCountedObject
         return os == TargetOS::macOS;
 #elif JUCE_LINUX
         return os == TargetOS::Linux;
-#endif
+#else
         return false;
+#endif
     }
 
     TargetOS os = TargetOS::All;

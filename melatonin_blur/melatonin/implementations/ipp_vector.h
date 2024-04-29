@@ -1,10 +1,15 @@
 #pragma once
 #include "juce_gui_basics/juce_gui_basics.h"
 
+#pragma warning(push)
+#pragma warning(disable: 4018 4267)
+
 #if _IPP_SEQUENTIAL_STATIC
 
 #include "ipp_vector.h"
 #include <ipp.h>
+
+
 
 
 #if IPP_VERSION_MAJOR >= 2021 && IPP_VERSION_MINOR >= 10
@@ -142,7 +147,7 @@ namespace melatonin::blur
 
         // Fill the right half of the queue with the next pixel values
         // zero is the center pixel here, it was added above (radius + 1) times to the sum
-        for (auto i = 1u; i <= radius; ++i)
+        for (auto i = 1; i <= radius; ++i)
         {
             if (i <= w - 1)
             {
@@ -566,4 +571,7 @@ namespace melatonin::blur
         }
     }
 }
+
 #endif
+
+#pragma warning(pop)
