@@ -125,13 +125,46 @@ ValueTree GlobalScriptCompileBroadcaster::collectIncludedScriptFilesForSnippet(c
 	ValueTree d(id);
 	
 	auto chain = dynamic_cast<const MainController*>(this)->getMainSynthChain();
-	
+
+	auto scriptProcessorList = ProcessorHelpers::getListOfAllProcessors<JavascriptProcessor>(chain);
+
 	for(auto f: includedFiles)
 	{
 		if(!f->getFile().isAChildOf(root))
 			continue;
 
+		bool included = false;
+
+		auto extension = f->getFile().getFileExtension();
+
+		// Include faust & snex files but check the others
+		// whether they are actually used or "(detached)"
+		if(extension == ".dsp" || extension == ".h" || extension == ".xml")
+			included = true;
+
+		for(auto jp: scriptProcessorList)
+		{
+			for(int i = 0; i < jp->getNumWatchedFiles(); i++)
+			{
+				if(jp->getWatchedFile(i) == f->getFile())
+				{
+					included = true;
+					break;
+				}
+			}
+
+			if(included)
+				break;
+		}
+
 		auto c = f->toEmbeddableValueTree(root);
+
+		if(!included)
+		{
+			debugToConsole(const_cast<ModulatorSynthChain*>(chain), "skip detached file " + c["filename"].toString() + " from embedding into HISE snippet");
+			continue;
+		}
+		
 		debugToConsole(const_cast<ModulatorSynthChain*>(chain), "embedded " + c["filename"].toString() + " into HISE snippet");
 		d.addChild(c, -1, nullptr);
 	}
