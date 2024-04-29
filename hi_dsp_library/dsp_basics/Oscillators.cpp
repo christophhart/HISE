@@ -199,7 +199,15 @@ float OscillatorDisplayProvider::tickSine(OscData& d)
 
 float OscillatorDisplayProvider::tickSquare(OscData& d)
 {
-	return (float)(1 - (int)std::signbit(tickSaw(d))) * 2.0f - 1.0f;
+	auto phase = d.tick() / 2048.0;
+	phase -= bitwiseOrZero(phase);
+	auto phase180 = phase + 0.5;
+    phase180 -= bitwiseOrZero(phase180);
+    double y =  phase < 0.5 ? 1.0 : -1.0;
+	const auto dt = d.uptimeDelta / 2048.0;
+    y += blep(phase, dt) - blep(phase180, dt);
+
+	return (float)y;
 }
 
 
