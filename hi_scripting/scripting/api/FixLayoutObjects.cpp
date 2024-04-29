@@ -391,12 +391,18 @@ void Factory::setCompareFunction(var newCompareFunction)
 			
 			juce::Array<ObjectReference::MultiComparator<1>::Item> items;
 
-			for(auto l: layout)
+			for(auto& id: ids)
 			{
-				if(ids.contains(l->id))
-					items.add(l);
+				for(auto l: layout)
+				{
+					if(l->id == id)
+					{
+						items.add(l);
+						break;
+					}
+				}
 			}
-
+			
 			if(items.size() != ids.size())
 				reportScriptError("unknown properties: " + text);
 
@@ -407,15 +413,17 @@ void Factory::setCompareFunction(var newCompareFunction)
 
 			switch(items.size())
 			{
-			case 2: compareFunction = ObjectReference::MultiComparator<2>(dataPtr); return;
-			case 3: compareFunction = ObjectReference::MultiComparator<3>(dataPtr); return;
-			case 4: compareFunction = ObjectReference::MultiComparator<4>(dataPtr); return;
+			case 2: compareFunction = ObjectReference::MultiComparator<2>(dataPtr); break;
+			case 3: compareFunction = ObjectReference::MultiComparator<3>(dataPtr); break;
+			case 4: compareFunction = ObjectReference::MultiComparator<4>(dataPtr); break;
 			default: reportScriptError("At this point you might want to use a custom function");
 			}
 		}
 		else
 		{
 			auto id = Identifier(text);
+
+			bool found = false;
 
 			for(auto l: layout)
 			{
@@ -439,11 +447,13 @@ void Factory::setCompareFunction(var newCompareFunction)
 						break;
 					}					
 
-					return;
+					found = true;
+					break;
 				}
 			}
 
-			reportScriptError("Can't find property " + newCompareFunction.toString());
+			if(!found)
+				reportScriptError("Can't find property " + newCompareFunction.toString());
 		}
 	}
 	else if (HiseJavascriptEngine::isJavascriptFunction(newCompareFunction))
@@ -451,8 +461,16 @@ void Factory::setCompareFunction(var newCompareFunction)
 		customCompareFunction = WeakCallbackHolder(getScriptProcessor(), this, newCompareFunction, 2);
 		customCompareFunction.incRefCount();
 	}
+	else
+	{
+		compareFunction = BIND_MEMBER_FUNCTION_2(Factory::compare);
+	}
 
-	compareFunction = BIND_MEMBER_FUNCTION_2(Factory::compare);
+	// update the compare function for all created arrays or stacks
+	for(auto& a: arrays)
+	{
+		a->compareFunction = compareFunction;
+	}
 }
 
 int Factory::compare(ObjectReference::Ptr v1, ObjectReference::Ptr v2)
@@ -1067,8 +1085,9 @@ void Array::sort()
 	};
 
 	Sorter s(*this);
-
-	items.sort(s);
+	SortFunctionConverter<Sorter> converter (s);
+	
+	std::sort(items.begin(), items.begin() + size(), converter);
 }
 
 void Array::writeAsJSON(OutputStream& out, const int indentLevel, const bool allOnOneLine, int maximumDecimalPlaces)

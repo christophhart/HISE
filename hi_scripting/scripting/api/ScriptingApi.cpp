@@ -7711,7 +7711,12 @@ bool ScriptingApi::TransportHandler::Callback::matches(const var& f) const
 
 void ScriptingApi::TransportHandler::Callback::callSync()
 {
-	callback.callSync(args, numArgs);
+	auto ok = callback.callSync(args, numArgs);
+
+#if USE_BACKEND
+	if(!ok.wasOk())
+		debugError(dynamic_cast<Processor*>(jp), ok.getErrorMessage());
+#endif
 }
 
 struct ScriptingApi::TransportHandler::Wrapper
