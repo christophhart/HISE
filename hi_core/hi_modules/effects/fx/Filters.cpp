@@ -416,16 +416,42 @@ void PolyFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
 	auto& filterBankToUse = hasPolyMods() ? voiceFilters : monoFilters;
 
+	
+
 	switch (parameterIndex)
 	{
-	case PolyFilterEffect::Gain:		gain = newValue;
-										filterBankToUse.setGain(Decibels::decibelsToGain(newValue));			  break;
-	case PolyFilterEffect::Frequency:	frequency = newValue;
-										filterBankToUse.setFrequency(newValue); break;
-	case PolyFilterEffect::Q:			q = newValue;
-										filterBankToUse.setQ(newValue); break;
-	case PolyFilterEffect::Mode:		mode = (FilterBank::FilterMode)(int)newValue;
-										filterBankToUse.setMode(mode); break;
+	case PolyFilterEffect::Gain:		
+		gain = newValue;
+		monoFilters.setGain(Decibels::decibelsToGain(newValue));
+
+		if(hasPolyMods())
+			voiceFilters.setGain(Decibels::decibelsToGain(newValue));
+
+		break;
+	case PolyFilterEffect::Frequency:	
+		frequency = newValue;
+		monoFilters.setFrequency(newValue);
+
+		if(hasPolyMods())
+			voiceFilters.setFrequency(newValue);
+
+		break;
+	case PolyFilterEffect::Q:			
+		q = newValue;
+		monoFilters.setQ(newValue);
+
+		if(hasPolyMods())
+			voiceFilters.setQ(newValue);
+
+		break;
+	case PolyFilterEffect::Mode:		
+		mode = (FilterBank::FilterMode)(int)newValue;
+		monoFilters.setMode(mode);
+
+		if(hasPolyMods())
+			voiceFilters.setMode(mode);
+
+		break;
     case PolyFilterEffect::Quality:		setRenderQuality((int)newValue); break;
 	case PolyFilterEffect::BipolarIntensity: bipolarParameterValue = jlimit<float>(-1.0f, 1.0f, newValue);
 										bipolarIntensity.setTargetValue(bipolarParameterValue); break;
