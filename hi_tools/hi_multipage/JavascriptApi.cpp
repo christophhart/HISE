@@ -129,6 +129,25 @@ bool ApiObject::callForEachInfoObject(const std::function<bool(const var& obj)>&
 	}
 }
 
+void HtmlParser::HeaderInformation::appendStyle(DataType t, const String& text)
+{
+	code[(int)t] << text;
+}
+
+Result HtmlParser::HeaderInformation::flush(DataProvider* d, State& state)
+{
+	simple_css::Parser p(code[(int)DataType::StyleSheet]);
+	auto ok = p.parse();
+
+	if(!ok.wasOk())
+		return ok;
+
+	css = p.getCSSValues();
+	css.performAtRules(d);
+
+	return state.createJavascriptEngine()->execute(code[(int)DataType::ScriptCode]);
+}
+
 HtmlParser::HtmlParser()
 {
 	using namespace factory;

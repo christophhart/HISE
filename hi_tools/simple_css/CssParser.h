@@ -160,17 +160,7 @@ struct ExpressionParser
 		float defaultFontSize = 16.0f;
 	};
 
-	static String evaluateToCodeGeneratorLiteral(const String& expression, const Context<String>& context)
-	{
-		jassert(context.isCodeGenContext());
-		
-		auto ptr = expression.begin();
-		auto end = expression.end();
-
-		Node root = parseNode(ptr, end);
-
-		return root.evaluateToCodeGeneratorLiteral(context);
-	}
+	static String evaluateToCodeGeneratorLiteral(const String& expression, const Context<String>& context);
 
 	static float evaluate(const String& expression, const Context<>& context);
 
@@ -215,27 +205,9 @@ public:
 	/** returns a list of StyleSheet objects that can be used to style the appearance of your JUCE components. */
 	StyleSheet::Collection getCSSValues() const;
 
-	Array<Selector> getSelectors() const
-	{
-		Array<Selector> s;
-
-		for(const auto& r: rawClasses)
-		{
-			for(const auto& v: r.selectors)
-			{
-				for(const auto& v2: v)
-				{
-					s.addIfNotAlreadyThere(v2.first);
-				}
-			}
-		}
-
-		return s;
-	}
+	Array<Selector> getSelectors() const;
 
 private:
-
-	
 
 	String getLocation(String::CharPointerType p=String::CharPointerType(nullptr)) const;
 

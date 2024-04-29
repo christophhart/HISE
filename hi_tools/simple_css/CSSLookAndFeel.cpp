@@ -56,10 +56,34 @@ void StyleSheetLookAndFeel::drawButtonBackground(Graphics& g, Button& tb, const 
 	}
 }
 
+bool StyleSheetLookAndFeel::drawButtonText(Graphics& g, Button* b)
+{
+	if(auto ed = b->findParentComponentOfClass<CSSRootComponent>())
+	{
+		Renderer r(b, root.stateWatcher);
+			
+		if(auto ss = root.css.getForComponent(b))
+		{
+			ss->setDefaultColour("color", b->findColour(TextButton::ColourIds::textColourOffId));
+			r.renderText(g, b->getLocalBounds().toFloat(), b->getButtonText(), ss);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void StyleSheetLookAndFeel::drawButtonText(Graphics& g, TextButton& tb, bool over, bool down)
 {
 	if(!drawButtonText(g, &tb))
 		LookAndFeel_V3::drawButtonText(g, tb, over, down);
+}
+
+void StyleSheetLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted,
+	bool shouldDrawButtonAsDown)
+{
+	drawButtonBackground(g, tb, {}, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
+	drawButtonText(g, &tb);
 }
 
 void StyleSheetLookAndFeel::fillTextEditorBackground(Graphics& g, int width, int height, TextEditor& textEditor)

@@ -1010,6 +1010,18 @@ ExpressionParser::Node ExpressionParser::parseNode(String::CharPointerType& ptr,
 	return node;
 }
 
+String ExpressionParser::evaluateToCodeGeneratorLiteral(const String& expression, const Context<String>& context)
+{
+	jassert(context.isCodeGenContext());
+		
+	auto ptr = expression.begin();
+	auto end = expression.end();
+
+	Node root = parseNode(ptr, end);
+
+	return root.evaluateToCodeGeneratorLiteral(context);
+}
+
 float ExpressionParser::evaluate(const String& expression, const Context<>& context)
 {
 	if(!CharacterFunctions::isLetter(expression[0]))
@@ -2042,6 +2054,24 @@ StyleSheet::Collection Parser::getCSSValues() const
 	}
 
 	return StyleSheet::Collection(list);
+}
+
+Array<Selector> Parser::getSelectors() const
+{
+	Array<Selector> s;
+
+	for(const auto& r: rawClasses)
+	{
+		for(const auto& v: r.selectors)
+		{
+			for(const auto& v2: v)
+			{
+				s.addIfNotAlreadyThere(v2.first);
+			}
+		}
+	}
+
+	return s;
 }
 } // simple_css
 } // hise

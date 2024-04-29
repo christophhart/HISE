@@ -114,40 +114,9 @@ struct Asset: public ReferenceCountedObject
         Relative
     };
 
-    static String getTypeString(Type t)
-    {
-	    switch(t)
-	    {
-	    case Type::Image: return "Image";
-	    case Type::File: return "File";
-	    case Type::Font: return "Font";
-	    case Type::Text: return "Text";
-        case Type::Stylesheet: return "CSS";
-	    case Type::Archive: return "Archive";
-	    case Type::numTypes: break;
-	    default: ;
-	    }
+    static String getTypeString(Type t);
 
-        return {};
-    }
-
-    static Type getType(const File& f)
-    {
-	    auto extension = f.getFileExtension();
-
-        if(auto format = ImageFileFormat::findImageFormatForFileExtension(f))
-	        return Type::Image;
-        else if(extension == ".txt" || extension == ".md" || extension == ".js" || extension == ".html")
-	        return Type::Text;
-        else if(extension == ".ttf" || extension == ".otf")
-            return Type::Font;
-        else if(extension == ".css")
-            return Type::Stylesheet;
-        else if(extension == ".zip")
-            return Type::Archive;
-        else
-			return Type::File;
-    }
+    static Type getType(const File& f);
 
     Image toImage() const
     {
@@ -188,43 +157,13 @@ struct Asset: public ReferenceCountedObject
 
     void writeCppLiteral(OutputStream& c, const String& newLine, ReferenceCountedObject* job) const;
 
-    var toJSON(bool embedData=false, const File& currentRoot=File()) const
-    {
-	    auto v = new DynamicObject();
-
-        v->setProperty(mpid::Type, (int)type);
-        v->setProperty(mpid::ID, id);
-        v->setProperty(mpid::RelativePath, useRelativePath);
-        v->setProperty(mpid::OperatingSystem, (int)os);
-
-        if(embedData)
-        {
-	        MemoryBlock compressed;
-            zstd::ZDefaultCompressor comp;
-            comp.compress(data, compressed);
-            v->setProperty(mpid::Data, var(compressed));
-        }
-        else
-			v->setProperty(mpid::Filename, getFilePath(currentRoot));
-        return var(v);
-    }
+    var toJSON(bool embedData=false, const File& currentRoot=File()) const;
 
     String getFilePath(const File& currentRoot) const;
 
     bool writeToFile(const File& targetFile, ReferenceCountedObject* job_) const;
 
-    static String getOSName(TargetOS os)
-    {
-        switch(os)
-        {
-        case TargetOS::All: return "All";
-        case TargetOS::Windows: return "Win";
-        case TargetOS::macOS: return "Mac";
-        case TargetOS::Linux: return "Linux";
-        case TargetOS::numTargetOS:;
-        default: return "All";
-        }
-    }
+    static String getOSName(TargetOS os);
 
     static Asset::Ptr fromFile(const File& f)
     {
@@ -245,36 +184,7 @@ struct Asset: public ReferenceCountedObject
         return a;
     }
 
-    static Asset::Ptr fromVar(const var& obj, const File& currentRoot)
-    {
-	    auto t = (Type)(int)obj[mpid::Type];
-        auto id = obj[mpid::ID].toString();
-
-        if(obj.hasProperty(mpid::Filename))
-        {
-            auto filePath = obj[mpid::Filename].toString();
-
-            File f;
-
-            if(obj[mpid::RelativePath])
-            {
-	            f = currentRoot.getChildFile(filePath);
-            }
-            else
-                f = File(filePath);
-
-	        auto a = fromFile(f);
-            jassert(a->type == t);
-            a->id = id;
-            a->useRelativePath = obj[mpid::RelativePath];
-            a->os = (TargetOS)(int)obj[mpid::OperatingSystem];
-            return a;
-        }
-        else
-        {
-            return fromMemory(std::move(*obj[mpid::Data].getBinaryData()), t, obj[mpid::Filename].toString(), id);
-        }
-    }
+    static Asset::Ptr fromVar(const var& obj, const File& currentRoot);
 
     Asset(MemoryBlock&& mb, Type t, const String& id_):
       type(t),
@@ -293,18 +203,7 @@ struct Asset: public ReferenceCountedObject
 	    loadFromFile();
     }
 
-    void loadFromFile()
-    {
-	    MemoryOutputStream mos;
-        File f(filename);
-        FileInputStream fis(f);
-        
-        if(fis.openedOk())
-        {
-            mos.writeFromInputStream(fis, fis.getTotalLength());
-            data = mos.getMemoryBlock();
-        }
-    }
+    void loadFromFile();
 
     bool matchesOS() const
     {
@@ -352,115 +251,21 @@ public:
     /** Override this method and return a provider if it exists. */
 	ApiProviderBase* getProviderBase() override;
 
-    Font loadFont(String fontName) const
-    {
-        jassert(fontName != "default");
+    Font loadFont(String fontName) const;
 
-        if(fontName.startsWith("${"))
-        {
-	        auto id = fontName.substring(2, fontName.length() - 1);
+    void addEventListener(const String& eventType, const var& functionObject);
+    void removeEventListener(const String& eventType, const var& functionObject);
+    void addCurrentEventGroup();
+    void clearAndSetGroup(const String& groupId);
+    void callEventListeners(const String& eventType, const Array<var>& args);
 
-	        for(auto a: assets)
-	        {
-		        if(a->id == id)
-		        {
-                    return a->toFont();
-		        }
-	        }
-        }
-
-
-	    return Font(fontName, 13.0f, Font::plain);
-    }
-
-    void addEventListener(const String& eventType, const var& functionObject)
-    {
-        addCurrentEventGroup();
-        
-        eventListeners[currentEventGroup].addIfNotAlreadyThere({eventType, functionObject});
-    }
-    
-    void removeEventListener(const String& eventType, const var& functionObject)
-    {
-        addCurrentEventGroup();
-
-        for(auto& map: eventListeners)
-        {
-            map.second.removeAllInstancesOf({eventType, functionObject});
-        }
-    }
-    
-    void addCurrentEventGroup()
-    {
-        if(eventListeners.find(currentEventGroup) == eventListeners.end())
-        {
-            eventListeners[currentEventGroup] = {};
-        }
-    }
-    
-    void clearAndSetGroup(const String& groupId)
-    {
-        currentEventGroup = groupId;
-        addCurrentEventGroup();
-        eventListeners[currentEventGroup] = {};
-    }
-    
-    void callEventListeners(const String& eventType, const Array<var>& args)
-    {
-        auto ok = Result::ok();
-
-        addCurrentEventGroup();
-        
-        auto engine = createJavascriptEngine();
-
-        for(auto& map: eventListeners)
-        {
-            for(auto& v: map.second)
-            {
-                if(v.first == eventType)
-                {
-                    auto to = new DynamicObject();
-                    
-                    engine->callFunctionObject(to, v.second, var::NativeFunctionArgs(var(to), args.getRawDataPointer(), args.size()), &ok);
-                }
-
-                if(ok.failed())
-                    break;
-            }
-        }
-
-        if(ok.failed())
-        {
-            jassertfalse;
-        }
-    }
-    
     simple_css::StyleSheet::Collection getStyleSheet(const String& name, const String& additionalStyle) const;
 
     JavascriptEngine* createJavascriptEngine();
 
     String getAssetReferenceList(Asset::Type t) const;
 
-    String loadText(const String& assetVariable, bool forceReload) const
-    {
-	    if(assetVariable.isEmpty() || assetVariable == "None")
-            return {};
-
-	    auto id = assetVariable.substring(2, assetVariable.length() - 1);
-
-        for(auto a: assets)
-        {
-            if(!(a->type == Asset::Type::Text || a->type == Asset::Type::Stylesheet))
-                continue;
-
-	        if(a->id == id || a->filename.endsWith(assetVariable))
-	        {
-		        return a->toText(forceReload);
-	        }
-        }
-
-        return assetVariable;
-    }
+    String loadText(const String& assetVariable, bool forceReload) const;
 
     static NotificationType getNotificationTypeForCurrentThread()
     {
@@ -472,54 +277,14 @@ public:
         return notification;
     }
 
-    Image loadImage(const String& assetVariable) const
-    {
-        if(assetVariable.isEmpty() || assetVariable == "None")
-            return {};
-
-	    auto id = assetVariable.substring(2, assetVariable.length() - 1);
-
-        for(auto a: assets)
-        {
-	        if(a->id == id)
-	        {
-		        return a->toImage();
-	        }
-        }
-
-        return Image();
-    }
+    Image loadImage(const String& assetVariable) const;
 
     struct CallOnNextAction
     {
 	    
     };
 
-    void setLogFile(const File& newLogFile)
-    {
-        if(logFile != File())
-            return;
-
-	    logFile = newLogFile;
-
-        eventLogger.sendMessage(sendNotificationSync, MessageType::Navigation, "Added file logger " + logFile.getFullPathName());
-
-        if(logFile != File())
-        {
-	        logFile.replaceWithText("Logfile " + Time::getCurrentTime().toISO8601(true) + "\n\n");
-        
-	        this->eventLogger.addListener(*this, [](State& s, MessageType t, const String& message)
-	        {
-		        FileOutputStream fos(s.logFile);
-
-                if(fos.openedOk())
-                {
-	                fos << message << "\n";
-					fos.flush();
-                }
-	        });
-        }
-    }
+    void setLogFile(const File& newLogFile);
 
     File logFile;
     File currentRootDirectory;
@@ -607,30 +372,11 @@ public:
         return log;
     }
 
-    void addFileToLog(const std::pair<File, bool>& fileOp)
-    {
-	    fileOperations.add(fileOp);
-    }
+    void addFileToLog(const std::pair<File, bool>& fileOp);
 
-    void bindCallback(const String& functionName, const var::NativeFunction& f)
-    {
-	    jsLambdas[functionName] = f;
-    }
+    void bindCallback(const String& functionName, const var::NativeFunction& f);
 
-    bool callNativeFunction(const String& functionName, const var::NativeFunctionArgs& args, var* returnValue)
-    {
-	    if(jsLambdas.find(functionName) != jsLambdas.end())
-	    {
-            auto rv = jsLambdas[functionName](args);
-
-            if(returnValue != nullptr)
-                *returnValue = rv;
-
-            return true;
-	    }
-
-        return false;
-    }
+    bool callNativeFunction(const String& functionName, const var::NativeFunctionArgs& args, var* returnValue);
 
     String currentEventGroup;
     

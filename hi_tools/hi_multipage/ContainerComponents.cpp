@@ -158,6 +158,39 @@ Result Container::customCheckOnAdd(PageBase* b, const var& obj)
 	return Result::ok();
 }
 
+void Container::replaceChildrenDynamic()
+{
+	{
+		ScopedValueSetter<bool> svs(rootDialog.getSkipRebuildFlag(), true);
+
+		childItems.clear();
+		auto l = infoObject[mpid::Children];
+		childItems.clear();
+
+		for(auto& r: *l.getArray())
+			addChildDynamic(r, false);
+	}
+
+	rootDialog.body.setCSS(rootDialog.css);
+}
+
+void Container::rebuildChildren()
+{
+	auto l = infoObject[mpid::Children];
+
+	childItems.clear();
+
+	if(l.isArray())
+	{
+		for(auto& r: *l.getArray())
+			addChild(getWidth(), r);
+	}
+	else
+	{
+		infoObject.getDynamicObject()->setProperty(mpid::Children, var(Array<var>()));
+	}
+}
+
 List::List(Dialog& r, int width, const var& obj):
 	Container(r, width, obj)
 {
@@ -263,6 +296,17 @@ void List::createEditor(Dialog::PageInfo& rootList)
         { mpid::Help, "If ticked, then this list will folded as default state" },
 		{ mpid::Value, folded }
     });
+}
+
+void List::postInit()
+{
+	Container::postInit();
+        
+	if(foldable)
+	{
+		foldButton->setToggleState(folded, dontSendNotification);
+		refreshFold();
+	}
 }
 
 

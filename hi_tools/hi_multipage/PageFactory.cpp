@@ -867,6 +867,52 @@ Component* Table::refreshComponentForCell(int rowNumber, int columnId, bool isRo
 	return nullptr;
 }
 
+String Table::itemsToString(const var& data)
+{
+	if(data.isString())
+		return data;
+        
+	if(auto items = data.getArray())
+	{
+		String s;
+		for(auto& rows: *items)
+		{
+			if(auto cells = rows.getArray())
+			{
+				for(auto& cell: *cells)
+					s << cell.toString() << " | ";
+                    
+				s << "\n";
+			}
+		}
+            
+		return s;
+	}
+        
+	return {};
+}
+
+Array<var> Table::stringToItems(const var& data)
+{
+	if(data.isArray())
+		return *data.getArray();
+        
+	Array<var> rows;
+        
+	for(auto& l: StringArray::fromLines(data.toString()))
+	{
+		Array<var> row;
+            
+		for(auto& c: StringArray::fromTokens(l, "|", "\"'"))
+		{
+			row.add(var(c.trim()));
+		}
+            
+		rows.add(var(row));
+	}
+        
+	return rows;
+}
 
 
 int Table::getNumRows()
@@ -933,6 +979,23 @@ void Table::rebuildRows()
 	}
 }
 
+void Table::postInit()
+{
+	if(auto ss = rootDialog.css.getForComponent(&table.getHeader()))
+	{
+		rootDialog.stateWatcher.checkChanges(&table.getHeader(), ss, 0);
+	}
+        
+	init();
+        
+	rebuildColumns();
+	items = stringToItems(infoObject[mpid::Items]);
+	rebuildRows();
+	table.updateContent();
+	table.setWantsKeyboardFocus(true);
+
+}
+
 void Table::paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
 {
 	using namespace simple_css;
@@ -983,6 +1046,83 @@ void Table::paint(Graphics& g)
 	{
 		simple_css::Renderer r(&table, rootDialog.stateWatcher);
 		r.drawBackground(g, table.getBoundsInParent().toFloat(), ss);
+	}
+}
+
+void Table::updateValue(EventType t, int row, int column)
+{
+	if(row == -1)
+	{
+		if(getFilterFunctionId().isValid())
+			originalSelectionIndex = visibleItems[row].first;
+		else
+			originalSelectionIndex = row;
+	}
+	else
+		originalSelectionIndex = -1;
+
+	enum class ValueMode
+	{
+		Row,
+		Grid,
+		FirstColumnText
+	};
+
+	static const StringArray ValueModes = 
+	{
+		"Row",
+		"Grid",
+		"FirstColumnText"
+	};
+
+	auto idx = infoObject[mpid::ValueMode].toString();
+	auto vm = ValueModes.indexOf(idx);
+
+	if(vm == -1)
+		return;
+
+	static const StringArray EventTypes =
+	{
+		"click",
+		"click",
+		"dblclick",
+		"select",
+		"keydown"
+	};
+        
+	auto etype = EventTypes[(int)t];
+
+	auto toValue = [&]()
+	{
+		DynamicObject::Ptr v = new DynamicObject();
+
+		v->setProperty("eventType", etype);
+		v->setProperty("row", row);
+		v->setProperty("originalRow", getFilterFunctionId().isValid() ? visibleItems[row].first : row);
+		v->setProperty("column", column);
+		return v;
+	};
+
+	if(t == EventType::DoubleClick || t == EventType::ReturnKey)
+	{
+		writeState(row);
+	}
+
+	callOnValueChange(etype, toValue());
+}
+
+void Table::TableRepainter::mouseMove(const MouseEvent& event)
+{
+	if(event.eventComponent != lastComponent)
+	{
+		if(lastComponent != nullptr)
+			lastComponent->repaint();
+
+		lastComponent = event.eventComponent;
+		table.repaint();
+
+		if(lastComponent != nullptr)
+			lastComponent->repaint();
 	}
 }
 } // factory

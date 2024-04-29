@@ -444,15 +444,7 @@ struct FileLogger: public Constants
 
     void createEditor(Dialog::PageInfo& rootList) override;
 
-	void loadConstants() override
-	{
-        auto fileName = MarkdownText::getString(infoObject[mpid::Filename].toString(), rootDialog);
-
-        if(File::isAbsolutePath(fileName))
-        {
-	        rootDialog.getState().setLogFile(File(fileName));
-        }
-	}
+	void loadConstants() override;
 };
 
 struct DirectoryScanner: public Constants

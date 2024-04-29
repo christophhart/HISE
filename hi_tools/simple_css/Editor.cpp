@@ -70,6 +70,35 @@ Editor::Editor(Component* target_, const CompileCallback& f_):
 	compile();
 }
 
+void Editor::userTriedToCloseWindow()
+{
+
+	MessageManager::callAsync([this]()
+	{
+		delete this;
+	});
+}
+
+void Editor::showEditor(Component* t, const CompileCallback& f)
+{
+	auto e = new Editor(t, f);
+	e->setVisible(true);
+
+	int flags = 0;
+
+	flags |= ComponentPeer::StyleFlags::windowAppearsOnTaskbar;
+	flags |= ComponentPeer::StyleFlags::windowHasCloseButton;
+	flags |= ComponentPeer::StyleFlags::windowHasDropShadow;
+	flags |= ComponentPeer::StyleFlags::windowHasMaximiseButton;
+	flags |= ComponentPeer::StyleFlags::windowHasTitleBar;
+	flags |= ComponentPeer::StyleFlags::windowIsResizable;
+
+	e->setName("Live CSS Editor");
+	e->addToDesktop(flags, nullptr);
+	e->centreWithSize(900, 600);
+
+}
+
 bool Editor::keyPressed(const KeyPress& key)
 {
 	if(key == KeyPress::F5Key)

@@ -58,10 +58,6 @@
 #include "hi_tools/IppFFT.cpp"
 #endif
 
-#if !HISE_NO_GUI_TOOLS
-#include "simple_css/simple_css.cpp"
-#endif
-
 #include "hi_tools/CustomDataContainers.cpp"
 #include "hi_tools/HiseEventBuffer.cpp"
 
@@ -147,8 +143,4 @@
 
 #if HISE_INCLUDE_RT_NEURAL
 #include "hi_neural/hi_neural.cpp"
-#endif
-
-#if !HISE_NO_GUI_TOOLS
-#include "hi_multipage/multipage.cpp"
 #endif

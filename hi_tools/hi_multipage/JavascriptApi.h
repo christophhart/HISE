@@ -107,26 +107,11 @@ struct HtmlParser
 	        rootObject = new DynamicObject();
         }
 
-        void appendStyle(DataType t, const String& text)
-        {
-	        code[(int)t] << text;
-        }
+        void appendStyle(DataType t, const String& text);
 
-        Result flush(DataProvider* d, State& state)
-        {
-            simple_css::Parser p(code[(int)DataType::StyleSheet]);
-            auto ok = p.parse();
+        Result flush(DataProvider* d, State& state);
 
-			if(!ok.wasOk())
-				return ok;
-
-            css = p.getCSSValues();
-            css.performAtRules(d);
-
-			return state.createJavascriptEngine()->execute(code[(int)DataType::ScriptCode]);
-        }
-        
-	    simple_css::StyleSheet::Collection css;
+        simple_css::StyleSheet::Collection css;
         DynamicObject::Ptr rootObject;
 
     private:

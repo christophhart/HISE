@@ -30,49 +30,13 @@
 *   ===========================================================================
 */
 
-namespace hise {
-namespace simple_css
-{
-using namespace juce;
 
 
 
-struct Editor: public Component,
-	           public TopLevelWindowWithKeyMappings,
-			   public DeletedAtShutdown
-{
-	using CompileCallback = std::function<void(StyleSheet::Collection&)>;
+#include "hi_tools.h"
+#include <juce_product_unlocking/juce_product_unlocking.h>
 
-	Editor(Component* target, const CompileCallback& f_);
-
-	~Editor()
-	{
-		TopLevelWindowWithKeyMappings::saveKeyPressMap();
-	}
-
-	void userTriedToCloseWindow() override;
-
-	static void showEditor(Component* t, const CompileCallback& f);
-
-	File getKeyPressSettingFile() const override { return File::getSpecialLocation(File::SpecialLocationType::userDesktopDirectory).getChildFile("something.js"); }
-	bool keyPressed(const KeyPress& key) override;
-
-	void compile();
-	void resized() override;
-	void paint(Graphics& g) override;
-
-	CompileCallback f;
-
-	mcl::TokenCollection::Ptr tokenCollection;
-	hise::GlobalHiseLookAndFeel laf;
-	
-	juce::CodeDocument jdoc;
-	mcl::TextDocument doc;
-	mcl::FullEditor editor;
-	juce::TextEditor list;
-	Component::SafePointer<Component> target;
-};
-
-	
-} // namespace simple_css
-} // namespace hise
+#if !HISE_NO_GUI_TOOLS
+#include "simple_css/simple_css.cpp"
+#include "hi_multipage/multipage.cpp"
+#endif

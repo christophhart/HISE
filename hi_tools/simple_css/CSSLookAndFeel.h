@@ -58,31 +58,12 @@ struct StyleSheetLookAndFeel: public LookAndFeel_V3
 	/** Uses the selector "button [#id]". */
 	void drawButtonBackground(Graphics& g, Button& tb, const Colour&, bool, bool) override;
 
-	bool drawButtonText(Graphics& g, Button* b)
-	{
-		if(auto ed = b->findParentComponentOfClass<CSSRootComponent>())
-		{
-			Renderer r(b, root.stateWatcher);
-			
-			if(auto ss = root.css.getForComponent(b))
-			{
-				ss->setDefaultColour("color", b->findColour(TextButton::ColourIds::textColourOffId));
-				r.renderText(g, b->getLocalBounds().toFloat(), b->getButtonText(), ss);
-				return true;
-			}
-		}
-
-		return false;
-	}
+	bool drawButtonText(Graphics& g, Button* b);
 
 	/** Uses the selector "button [#id]". */
 	void drawButtonText(Graphics& g, TextButton& tb, bool over, bool down) override;
 
-	void drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
-	{
-		drawButtonBackground(g, tb, {}, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
-		drawButtonText(g, &tb);
-	}
+	void drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
 
 	/** Uses the selector "input [#id]". */
 	void fillTextEditorBackground (Graphics&, int width, int height, TextEditor&) override;

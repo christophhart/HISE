@@ -327,6 +327,17 @@ StyleSheet::Ptr StyleSheet::Collection::operator[](const Selector& s) const
 	return all;
 }
 
+String StyleSheet::Collection::getDebugLogForComponent(Component* c) const
+{
+	for(auto& cm: cachedMaps)
+	{
+		if(cm.first.getComponent() == c)
+			return cm.debugLog;
+	}
+            
+	return {};
+}
+
 StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 {
 	for(const auto& existing: cachedMaps)
@@ -1983,6 +1994,19 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 		item.flexBasis = ExpressionParser::evaluate(pv.getValue(varProperties), {});
 	
 	return item;
+}
+
+String StyleSheet::getURLFromProperty(const PropertyKey& key) const
+{
+	auto n = getPropertyValueString(key);
+	if(n.startsWith("url"))
+	{
+		n = n.fromFirstOccurrenceOf("url(", false, false);
+		n = n.upToLastOccurrenceOf(")", false, false);
+		return n.unquoted();
+	}
+
+	return {};
 }
 
 Rectangle<float> StyleSheet::getLocalBoundsFromText(const String& text) const

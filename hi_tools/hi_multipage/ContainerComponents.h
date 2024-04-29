@@ -82,40 +82,11 @@ struct Container: public Dialog::PageBase
 		}
     }
 
-    void replaceChildrenDynamic()
-    {
-        {
-	        ScopedValueSetter<bool> svs(rootDialog.getSkipRebuildFlag(), true);
-
-		    childItems.clear();
-	        auto l = infoObject[mpid::Children];
-			childItems.clear();
-
-			for(auto& r: *l.getArray())
-				addChildDynamic(r, false);
-        }
-
-        rootDialog.body.setCSS(rootDialog.css);
-    }
+    void replaceChildrenDynamic();
 
 protected:
 
-    void rebuildChildren()
-    {
-	    auto l = infoObject[mpid::Children];
-
-		childItems.clear();
-
-		if(l.isArray())
-		{
-			for(auto& r: *l.getArray())
-				addChild(getWidth(), r);
-		}
-		else
-		{
-			infoObject.getDynamicObject()->setProperty(mpid::Children, var(Array<var>()));
-		}
-    }
+    void rebuildChildren();
 
     OwnedArray<PageBase> childItems;
     Dialog::PageInfo::List staticPages;
@@ -150,17 +121,8 @@ struct List: public Container
 
     void createEditor(Dialog::PageInfo& info) override;
 
-    void postInit() override
-    {
-        Container::postInit();
-        
-        if(foldable)
-        {
-            foldButton->setToggleState(folded, dontSendNotification);
-            refreshFold();
-        }
-    }
-    
+    void postInit() override;
+
     Path fold;
     String title;
     bool foldable = false;

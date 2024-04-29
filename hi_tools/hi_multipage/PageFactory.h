@@ -412,53 +412,10 @@ struct Table: public Dialog::PageBase,
     Component* refreshComponentForCell (int rowNumber, int columnId, bool isRowSelected,
                                                 Component* existingComponentToUpdate) override;
 
-    static String itemsToString(const var& data)
-    {
-        if(data.isString())
-            return data;
-        
-        if(auto items = data.getArray())
-        {
-            String s;
-            for(auto& rows: *items)
-            {
-                if(auto cells = rows.getArray())
-                {
-                    for(auto& cell: *cells)
-                        s << cell.toString() << " | ";
-                    
-                    s << "\n";
-                }
-            }
-            
-            return s;
-        }
-        
-        return {};
-    }
-    
-    static Array<var> stringToItems(const var& data)
-    {
-        if(data.isArray())
-            return *data.getArray();
-        
-        Array<var> rows;
-        
-        for(auto& l: StringArray::fromLines(data.toString()))
-        {
-            Array<var> row;
-            
-            for(auto& c: StringArray::fromTokens(l, "|", "\"'"))
-            {
-                row.add(var(c.trim()));
-            }
-            
-            rows.add(var(row));
-        }
-        
-        return rows;
-    }
-    
+    static String itemsToString(const var& data);
+
+    static Array<var> stringToItems(const var& data);
+
     void createEditor(Dialog::PageInfo& rootList) override;
 
     juce::JavascriptEngine* currentEngine = nullptr;
@@ -467,28 +424,13 @@ struct Table: public Dialog::PageBase,
 
     void rebuildRows();
 
-    void postInit() override
-    {
-        if(auto ss = rootDialog.css.getForComponent(&table.getHeader()))
-        {
-	        rootDialog.stateWatcher.checkChanges(&table.getHeader(), ss, 0);
-        }
-        
-        init();
-        
-        rebuildColumns();
-        items = stringToItems(infoObject[mpid::Items]);
-        rebuildRows();
-        table.updateContent();
-        table.setWantsKeyboardFocus(true);
-
-    }
+    void postInit() override;
 
     void paintCell (Graphics&,
-                            int rowNumber,
-                            int columnId,
-                            int width, int height,
-                            bool rowIsSelected) override {};
+                    int rowNumber,
+                    int columnId,
+                    int width, int height,
+                    bool rowIsSelected) override {};
 
     int originalSelectionIndex = -1;
 
@@ -531,67 +473,7 @@ struct Table: public Dialog::PageBase,
 	    updateValue(EventType::ReturnKey, lastRowSelected, -1);
     }
 
-    void updateValue(EventType t, int row, int column)
-    {
-	    if(row == -1)
-	    {
-		    if(getFilterFunctionId().isValid())
-                originalSelectionIndex = visibleItems[row].first;
-            else
-                originalSelectionIndex = row;
-	    }
-        else
-            originalSelectionIndex = -1;
-
-        enum class ValueMode
-        {
-	        Row,
-            Grid,
-            FirstColumnText
-        };
-
-        static const StringArray ValueModes = 
-        {
-	        "Row",
-            "Grid",
-            "FirstColumnText"
-        };
-
-        auto idx = infoObject[mpid::ValueMode].toString();
-        auto vm = ValueModes.indexOf(idx);
-
-        if(vm == -1)
-            return;
-
-        static const StringArray EventTypes =
-		{
-		    "click",
-		    "click",
-		    "dblclick",
-		    "select",
-		    "keydown"
-		};
-        
-        auto etype = EventTypes[(int)t];
-
-        auto toValue = [&]()
-        {
-            DynamicObject::Ptr v = new DynamicObject();
-
-            v->setProperty("eventType", etype);
-            v->setProperty("row", row);
-            v->setProperty("originalRow", getFilterFunctionId().isValid() ? visibleItems[row].first : row);
-            v->setProperty("column", column);
-            return v;
-        };
-
-        if(t == EventType::DoubleClick || t == EventType::ReturnKey)
-        {
-	        writeState(row);
-        }
-
-        callOnValueChange(etype, toValue());
-    }
+    void updateValue(EventType t, int row, int column);
 
     TableListBox table;
 
@@ -604,20 +486,7 @@ struct Table: public Dialog::PageBase,
             t.addMouseListener(this, true);
         }
         
-        void mouseMove(const MouseEvent& event) override
-        {
-            if(event.eventComponent != lastComponent)
-            {
-                if(lastComponent != nullptr)
-                    lastComponent->repaint();
-
-                lastComponent = event.eventComponent;
-                table.repaint();
-
-                if(lastComponent != nullptr)
-                    lastComponent->repaint();
-            }
-        }
+        void mouseMove(const MouseEvent& event) override;
 
         Component::SafePointer<Component> lastComponent = nullptr;
         TableListBox& table;

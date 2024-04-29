@@ -1660,6 +1660,16 @@ void FileLogger::createEditor(Dialog::PageInfo& rootList)
 	});
 }
 
+void FileLogger::loadConstants()
+{
+	auto fileName = MarkdownText::getString(infoObject[mpid::Filename].toString(), rootDialog);
+
+	if(File::isAbsolutePath(fileName))
+	{
+		rootDialog.getState().setLogFile(File(fileName));
+	}
+}
+
 DirectoryScanner::DirectoryScanner(Dialog& r, int w, const var& obj):
 	Constants(r, w, obj)
 {

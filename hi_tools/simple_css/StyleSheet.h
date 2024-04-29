@@ -61,16 +61,7 @@ struct StyleSheet: public ReferenceCountedObject
 		Ptr getFirst() const { return list.getFirst(); }
 
 
-        String getDebugLogForComponent(Component* c) const
-        {
-            for(auto& cm: cachedMaps)
-            {
-                if(cm.first.getComponent() == c)
-                    return cm.debugLog;
-            }
-            
-            return {};
-        }
+        String getDebugLogForComponent(Component* c) const;
 
 		Ptr getForComponent(Component* c);
 		
@@ -186,19 +177,7 @@ struct StyleSheet: public ReferenceCountedObject
 
 	FlexItem getFlexItem(Component* c, Rectangle<float> fullArea) const;
 
-	String getURLFromProperty(const PropertyKey& key) const
-	{
-		auto n = getPropertyValueString(key);
-		if(n.startsWith("url"))
-		{
-			n = n.fromFirstOccurrenceOf("url(", false, false);
-			n = n.upToLastOccurrenceOf(")", false, false);
-			return n.unquoted();
-		}
-
-		return {};
-	}
-
+	String getURLFromProperty(const PropertyKey& key) const;
 
 	Rectangle<float> getLocalBoundsFromText(const String& text) const;
 
@@ -212,8 +191,6 @@ struct StyleSheet: public ReferenceCountedObject
 
 	bool matchesComplexSelectorList(ComplexSelector::List list) const;
 	
-	
-
 	bool matchesSelectorList(const Array<Selector>& otherSelectors);
 	bool forEachProperty(PseudoElementType type, const std::function<bool(PseudoElementType, Property& v)>& f);
 	void setDefaultColour(const String& key, Colour c);

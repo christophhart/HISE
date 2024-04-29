@@ -45,33 +45,8 @@ struct PseudoState
 	explicit PseudoState(int state);;
 
 	static String getPseudoElementName(int idx);
+    static String getPseudoClassName(int state);
 
-    static String getPseudoClassName(int state)
-    {
-        String c;
-        
-        if((state & (int)PseudoClassType::First) > 0)
-            c << ":first";
-        if((state & (int)PseudoClassType::Last) > 0)
-            c << ":last";
-        if((state & (int)PseudoClassType::Root) > 0)
-            c << ":root";
-        if((state & (int)PseudoClassType::Hover) > 0)
-            c << ":hover";
-        if((state & (int)PseudoClassType::Active) > 0)
-            c << ":active";
-        if((state & (int)PseudoClassType::Focus) > 0)
-            c << ":focus";
-        if((state & (int)PseudoClassType::Disabled) > 0)
-            c << ":disabled";
-        if((state & (int)PseudoClassType::Hidden) > 0)
-            c << ":hidden";
-        if((state & (int)PseudoClassType::Checked) > 0)
-            c << ":checked";
-
-        return c;
-    }
-    
 	bool isPseudoElement() const { return element != PseudoElementType::None; }
 	bool hasState() const { return stateFlag != 0; };
 	bool isDefaultState() const { return stateFlag == 0; }
@@ -130,110 +105,17 @@ struct ComplexSelector: public ReferenceCountedObject
 	{
 		Score() = default;
 
-		Score(ComplexSelector::Ptr cs, const Array<Selector>& selectors)
-		{
-			hasParent = cs->hasParentSelectors();
+		Score(ComplexSelector::Ptr cs, const Array<Selector>& selectors);
 
-			for(const auto& s: selectors)
-			{
-				if(s.type == SelectorType::ID)
-				{
-					for(const auto& ts: cs->thisSelectors.selectors)
-					{
-						if(ts.first.type == SelectorType::ID)
-						{
-							if(ts.first.name == s.name)
-								idScore++;
+		bool operator<(const Score& other) const;
 
-							break;
-						}
-					}
-				}
-				if(s.type == SelectorType::Type)
-				{
-					for(const auto& ts: cs->thisSelectors.selectors)
-					{
-						if(ts.first.type == SelectorType::Type)
-						{
-							if(ts.first.name == s.name)
-								typeScore++;
+		bool operator>(const Score& other) const;
 
-							break;
-						}
-					}
-				}
-				if(s.type == SelectorType::Class)
-				{
-					for(const auto& ts: cs->thisSelectors.selectors)
-					{
-						if(ts.first.type == SelectorType::Class)
-						{
-							if(ts.first.name == s.name)
-							{
-								classScore++;
-								// allow multiple, do not break if no match...
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
+		bool operator==(const Score& other) const;
 
-		bool operator<(const Score& other) const
-		{
-			if(hasParent && !other.hasParent)
-				return false;
-			if(other.hasParent && !hasParent)
-				return true;
+		bool operator !=(const Score& other) const;
 
-			if(*this == other)
-				return false;
-
-			if(idScore < other.idScore)
-				return true;
-			if(idScore > other.idScore)
-				return false;
-
-			if(classScore < other.classScore)
-				return true;
-			if(classScore > other.classScore)
-				return false;
-
-			if(typeScore < other.typeScore)
-				return true;
-			if(typeScore > other.typeScore)
-				return false;
-			
-			return false;
-		}
-
-		bool operator>(const Score& other) const
-		{
-			if(*this == other)
-				return false;
-
-			return !(*this < other);
-		}
-
-		bool operator==(const Score& other) const
-		{
-			return idScore == other.idScore && classScore == other.classScore && typeScore == other.typeScore && hasParent == other.hasParent;
-		}
-
-		bool operator !=(const Score& other) const
-		{
-			return !(*this == other);
-		}
-
-		String toString() const
-		{
-			String s;
-			s << "t: " << String(typeScore) << ", ";
-			s << "c: " << String(classScore) << ", ";
-			s << "i: " << String(typeScore);
-			return s;
-		}
+		String toString() const;
 
 		int idScore = 0;
 		int classScore = 0;
@@ -247,118 +129,26 @@ struct ComplexSelector: public ReferenceCountedObject
 		thisSelectors.selectors.push_back({singleSelector, state});
 	}
 
-	ComplexSelector(const std::vector<std::pair<Selector, PseudoState>>& rawList)
-	{
-		AndGroup currentGroup;
-
-		bool alreadySwapped = false;
-
-		int index = 0;
-
-		for(const auto& r: rawList)
-		{
-			auto isLast = rawList.size() == ++index;
-
-			if(r.first.type == SelectorType::ParentDelimiter)
-			{
-				if(alreadySwapped || isLast)
-					continue;
-
-				thisSelectors = currentGroup;
-				std::swap(thisSelectors, parentSelectors);
-				currentGroup = {};
-				alreadySwapped = true;
-				continue;
-			}
-
-			currentGroup.selectors.push_back(r);
-		}
-
-		thisSelectors = currentGroup;
-	}
+	ComplexSelector(const std::vector<std::pair<Selector, PseudoState>>& rawList);
 
 	struct AndGroup
 	{
-		bool matchesSelectors(const Array<Selector>& searchTerm) const
-		{
-			if(isSingle())
-			{
-				auto fc = selectors[0].first;
-				return fc.type == SelectorType::All || searchTerm.contains(fc);
-			}
-			else
-			{
-				auto match = true;
-
-				for(const auto& f: selectors)
-					match &= searchTerm.contains(f.first);
-
-				return match;
-			}
-		}
-
+		bool matchesSelectors(const Array<Selector>& searchTerm) const;
 
 
 		bool isSingle() const { return selectors.size() == 1; };
 		std::vector<std::pair<Selector, PseudoState>> selectors;
 	};
 
-	String toString() const
-	{
-		String s;
-
-		for(auto& p: parentSelectors.selectors)
-			s << p.first.toString();
-
-		if(hasParentSelectors())
-			s << " ";
-
-		for(auto& p: thisSelectors.selectors)
-			s << p.first.toString();
-
-		return s;
-	}
+	String toString() const;
 
 	bool hasParentSelectors() const { return !parentSelectors.selectors.empty(); }
 	
 	static Array<Selector> getSelectorsForComponent(Component* c);
 
-	bool matchesOtherComplexSelector(Ptr other) const
-	{
-		auto match = parentSelectors.selectors.size() == other->parentSelectors.selectors.size();
-		match &= thisSelectors.selectors.size() == other->thisSelectors.selectors.size();
+	bool matchesOtherComplexSelector(Ptr other) const;
 
-		if(!match)
-			return false;
-
-		for(int i = 0; i < thisSelectors.selectors.size(); i++)
-		{
-			match &= thisSelectors.selectors[i].first.exactMatch(other->thisSelectors.selectors[i].first);
-			match &= thisSelectors.selectors[i].second.element == other->thisSelectors.selectors[i].second.element;
-		}
-			
-
-		for(int i = 0; i < parentSelectors.selectors.size(); i++)
-		{
-			match &= parentSelectors.selectors[i].first.exactMatch(other->parentSelectors.selectors[i].first);
-			match &= parentSelectors.selectors[i].second.element == other->parentSelectors.selectors[i].second.element;
-		}
-			
-
-		return match;
-	}
-
-	bool matchesSelectors(const Array<Selector> selectors, const Array<Selector>& pSelectors = {}) const
-	{
-		auto match = false;
-	
-		match = thisSelectors.matchesSelectors(selectors);
-
-		if(hasParentSelectors())
-			match &= parentSelectors.matchesSelectors(pSelectors);
-
-		return match;
-	}
+	bool matchesSelectors(const Array<Selector> selectors, const Array<Selector>& pSelectors = {}) const;
 
 	AndGroup parentSelectors;
 	AndGroup thisSelectors;
@@ -411,31 +201,9 @@ struct PropertyValue
 	PropertyValue() = default;
 	PropertyValue(PropertyType pt, const String& v, bool isImportant=false);;
 
-	operator bool() const
-	{
-		if(valueAsString == "default")
-			return false;
+	operator bool() const;
 
-		return valueAsString.isNotEmpty();
-	}
-
-	String getValue(DynamicObject::Ptr variables)
-	{
-		if(valueAsString.startsWith("var("))
-		{
-			if(variables != nullptr)
-			{
-				Identifier id(valueAsString.substring(6, valueAsString.length() - 1));
-				return variables->getProperty(id).toString();
-			}
-			else
-				return {};
-		}
-		else
-		{
-			return valueAsString;
-		}
-	}
+	String getValue(DynamicObject::Ptr variables);
 
 	String toString() const;
 

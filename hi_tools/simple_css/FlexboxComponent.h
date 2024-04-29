@@ -72,15 +72,9 @@ struct FlexboxComponent: public Component,
 	{
 		static void setFallbackStyleSheet(Component& c, const String& properties);
 
-		static void appendToElementStyle(Component& c, const String& additionalStyle)
-		{
-			auto elementStyle = c.getProperties()["style"].toString();
-			elementStyle << additionalStyle;
-			c.getProperties().set("style", elementStyle);
-			invalidateCache(c);
-		}
+		static void appendToElementStyle(Component& c, const String& additionalStyle);
 
-        static String dump(Component& c);
+		static String dump(Component& c);
 
 
 		static void writeSelectorsToProperties(Component& c, const StringArray& selectors);
@@ -89,14 +83,7 @@ struct FlexboxComponent: public Component,
 
 		static void writeClassSelectors(Component& c, const Array<Selector>& classList, bool append);
 
-		static void invalidateCache(Component& c)
-		{
-			if(auto r = CSSRootComponent::find(c))
-			{
-				r->css.clearCache(&c);
-			}
-				
-		}
+		static void invalidateCache(Component& c);
 
 		static Selector getIdSelectorFromComponentClass(Component* c);
 
@@ -151,120 +138,26 @@ struct FlexboxComponent: public Component,
 	/** Applies the position using the JUCE::Flexbox class. */
 	void resized() override;
 
-	void rebuildRootLayout()
-	{
-        rebuildLayout();
-        
-		Component* c = this;
-        
-		while(c != nullptr)
-		{
-            if(auto pfc = dynamic_cast<FlexboxContainer*>(c))
-            {
-                pfc->rebuildLayout();
-            }
+	void rebuildRootLayout();
 
-			c = c->getParentComponent();
-		}
-	}
+    /** Call this to ensure that the layout is changed properly. */
+	void rebuildLayout() override;
 
-	/** Call this to ensure that the layout is changed properly. */
-	void rebuildLayout() override
-	{
-		for(int i = 0; i < getNumChildComponents(); i++)
-		{
-            auto c = getChildComponent(i);
-            
-			if(auto childSS = childSheets[c])
-			{
-				auto displayValue = childSS->getPropertyValueString({ "display", {} }) != "none";
-                
-                if(visibleStates.find(c) != visibleStates.end())
-                {
-                    displayValue = visibleStates[c].isVisible(displayValue);
-                }
-                
-				getChildComponent(i)->setVisible(displayValue);
-			}
-		}
-        
-		callRecursive<FlexboxContainer>(this, [](FlexboxContainer* fc)
-		{
-			if(!dynamic_cast<Component*>(fc)->isVisible())
-				return false;
-
-			fc->fullRebuild = true;
-			return false;
-		});
-
-		if(!getLocalBounds().isEmpty() && ss != nullptr)
-			resized();
-	}
-
-	/** Adds a invisible component as child that will act as spacer. */
+    /** Adds a invisible component as child that will act as spacer. */
 	void addSpacer();
 
 	/** Adds a text element with a single format. */
-	Component* addTextElement(const StringArray& selectors, const String& content)
-	{
-		auto nd = new SimpleTextDisplay(labelSelector);
-		addFlexItem(*nd);
-		textDisplays.add(nd);
-		Helpers::setFallbackStyleSheet(*nd, "background: rgba(0, 0, 0, 0)");
+	Component* addTextElement(const StringArray& selectors, const String& content);
 
-		if(!selectors.isEmpty())
-			Helpers::writeSelectorsToProperties(*nd, selectors);
-
-		nd->setText(content);
-
-		return nd;
-	}
-
-	Selector getSelector() const { return selector; }
+    Selector getSelector() const { return selector; }
 
 	void addFlexItem(Component& c) override;
 
-    void addDynamicFlexItem(Component& c)
-    {
-		addFlexItem(c);
-		
-		if(auto root = CSSRootComponent::find(*this))
-		{
-			if(auto fb = dynamic_cast<FlexboxComponent*>(&c))
-				fb->setCSS(root->css);
-		}
-    }
+    void addDynamicFlexItem(Component& c);
 
-    void changeClass(const Selector& s, bool add)
-	{
-		// must be a class
-		jassert(s.type == SelectorType::Class);
-		
-		auto list = Helpers::getClassSelectorFromComponentClass(this);
+    void changeClass(const Selector& s, bool add);
 
-		// must not contain the selector...
-		jassert(add == !list.contains(s));
 
-		if(add)
-			list.addIfNotAlreadyThere(s);
-		else
-			list.removeAllInstancesOf(s);
-
-		Helpers::writeClassSelectors(*this, list, false);
-
-		if(auto r = findParentComponentOfClass<CSSRootComponent>())
-		{
-			auto newss = r->css.getForComponent(this);
-
-			if(newss != ss)
-			{
-				ss = newss;
-				rebuildRootLayout();
-			}
-		}
-	}
-
-	
     float getAutoWidthForHeight(float fullHeight);
     
     float getAutoHeightForWidth(float fullWidth);
@@ -309,61 +202,9 @@ private:
 
 	CSSRootComponent* parentToUse = nullptr;
 
-	std::pair<Component*, Component*> getFirstLastComponents()
-	{
-		struct Data
-		{
-			bool operator<(const Data& other) const
-			{
-				if(order == -1 && other.order == -1)
-					return indexInList < other.indexInList;
-				else
-					// makes order == -1 always < than a defined order...
-					return other.order > order; 
-			}
+	std::pair<Component*, Component*> getFirstLastComponents();
 
-			bool operator>(const Data& other) const
-			{
-				return !(*this < other);
-			}
-
-			Component* c;
-			int indexInList;
-			int order;
-		};
-
-		Array<Data> thisList;
-
-		for(int i = 0; i < getNumChildComponents(); i++)
-		{
-			Data d;
-			d.c = getChildComponent(i);
-			d.indexInList = i;
-			d.order = -1;
-
-			if(!d.c->isVisible())
-				continue;
-			
-			if(auto css = childSheets[d.c])
-			{
-				auto childPos = css->getPositionType({});
-
-				if(childPos == PositionType::absolute || childPos == PositionType::fixed)
-					continue;
-
-				auto order = css->getPropertyValueString({ "order", {}});
-				if(!order.isEmpty())
-					d.order = order.getIntValue();
-			}
-			
-			thisList.add(d);
-		}
-
-		thisList.sort();
-		return { thisList.getFirst().c, thisList.getLast().c };
-	}
-	
-	struct PositionData
+    struct PositionData
 	{
 		Rectangle<float> area;
 		juce::FlexBox flexBox;
@@ -389,59 +230,17 @@ private:
 struct FlexboxViewport: public Component,
 					    public FlexboxContainer
 {
-	FlexboxViewport(const Selector& selector):
-	  content(selector),
-	  s(selector)
-	{
-		viewport.setViewedComponent(&content, false);
-		addAndMakeVisible(viewport);
-        sf.addScrollBarToAnimate(viewport.getVerticalScrollBar());
-        viewport.setScrollBarsShown(true, false);
-        viewport.setScrollBarThickness(12);
-		content.setApplyMargin(false);
-		content.setDefaultStyleSheet("display: flex; width: 100%;height: auto;");
-	}
+	FlexboxViewport(const Selector& selector);
 
-	void setDefaultStyleSheet(const String& styleSheet) override
-	{
-		FlexboxComponent::Helpers::setFallbackStyleSheet(*this, styleSheet);
-		
-	}
+	void setDefaultStyleSheet(const String& styleSheet) override;
 
-	void setCSS(StyleSheet::Collection& css) override
-	{
-		content.setCSS(css);
-		ss = css.getWithAllStates(this, s);
-	}
+	void setCSS(StyleSheet::Collection& css) override;
 
-	void resized() override
-	{
-		auto b = getLocalBounds().toFloat();
+	void resized() override;
 
-		if(ss != nullptr)
-			b = ss->getArea(b, { "margin", {}});
+	void rebuildLayout() override;
 
-        auto contentHeight = content.getAutoHeightForWidth(b.getWidth());
-
-		auto w = b.getWidth();
-
-		if(contentHeight > b.getHeight())
-			w -= viewport.getScrollBarThickness();
-
-		content.setSize(w, contentHeight);
-		viewport.setBounds(b.toNearestInt());
-	}
-
-    void rebuildLayout() override
-    {
-        content.rebuildLayout();
-        resized();
-    }
-    
-	void addFlexItem(Component& c) override
-	{
-		content.addFlexItem(c);
-	}
+	void addFlexItem(Component& c) override;
 
 	Viewport viewport;
     ScrollbarFader sf;
@@ -458,108 +257,32 @@ struct CSSImage: public Component
 		FlexboxComponent::Helpers::setCustomType(*this, Selector(ElementType::Image));
 	}
 
-	void paint(Graphics& g) override
-	{
-		using namespace simple_css;
+	void paint(Graphics& g) override;
 
-		if(auto p = CSSRootComponent::find(*this))
-		{
-			if(auto ss = p->css.getForComponent(this))
-			{
-				Renderer r(this, p->stateWatcher);
-				auto area = getLocalBounds().toFloat();
-
-                auto currentState = Renderer::getPseudoClassFromComponent(this);
-				p->stateWatcher.checkChanges(this, ss, currentState);
-                r.drawImage(g, currentImage, area, ss, true);
-			}
-		}
-	}
-
-	void setImage(const URL& url)
-	{
-		auto img = imageCache->getImage(url);
-
-		if(img.isValid())
-			setImage(img);
-		else
-			currentLoadThread = new LoadThread(*this, url);
-	}
-
-	void setImage(const juce::Image& newImage)
-	{
-		currentImage = newImage;
-		repaint();
-	}
+	void setImage(const URL& url);
+	void setImage(const juce::Image& newImage);
 
 	juce::Image currentImage;
 
 	struct LoadThread: public Thread,
 					   public AsyncUpdater
     {
-	    LoadThread(CSSImage& parent_, const URL& url):
-          Thread("Load image"),
-          parent(parent_),
-          imageURL(url)
-	    {
-	    	startThread(5);
-	    }
+	    LoadThread(CSSImage& parent_, const URL& url);
 
-        void handleAsyncUpdate() override
-	    {
-			parent.imageCache->setImage(imageURL, loadedImage);
-		    parent.setImage(loadedImage);
-            parent.currentLoadThread = nullptr;
-	    }
+        void handleAsyncUpdate() override;
 
-        void run() override
-	    {
-            int status = 0;
-		    auto input = imageURL.createInputStream(false, nullptr, nullptr, {}, 500, nullptr, &status);
+	    void run() override;
 
-            MemoryBlock mb;
-            input->readIntoMemoryBlock(mb);
-
-            MemoryInputStream mis(mb, false);
-
-            if(auto f = ImageFileFormat::findImageFormatForStream(mis))
-            {
-	            loadedImage = f->loadFrom(mis);
-            }
-
-		    triggerAsyncUpdate();
-	    }
-
-        CSSImage& parent;
+	    CSSImage& parent;
         juce::Image loadedImage;
         URL imageURL;
     };
 
 	struct Cache
 	{
-		~Cache()
-		{
-			int x = 5;
-		}
+		void setImage(const URL& url, const Image& img);
 
-		void setImage(const URL& url, const Image& img)
-		{
-			if(getImage(url).isValid())
-				return;
-
-			imageCache.add({url,img });
-		}
-
-		Image getImage(const URL& url) const
-		{
-			for(const auto& v: imageCache)
-			{
-				if(v.first == url)
-					return v.second;
-			}
-
-			return {};
-		}
+		Image getImage(const URL& url) const;
 
 	private:
 
@@ -574,33 +297,7 @@ struct CSSImage: public Component
 struct HeaderContentFooter: public Component,
 						    public CSSRootComponent
 {
-	HeaderContentFooter(bool useViewportContent):
-	  body(ElementType::Body),
-	  header(Selector("#header")),
-	  
-	  footer(Selector("#footer"))
-	{
-		auto cs = Selector("#content");
-
-        if(useViewportContent)
-			content = new FlexboxViewport(cs);
-		else
-			content = new FlexboxComponent(cs);
-
-		body.setDefaultStyleSheet("display: flex; flex-direction: column;");
-		header.setDefaultStyleSheet("width: 100%;height: auto;");
-		content->setDefaultStyleSheet("width: 100%;flex-grow: 1;display: flex;");
-		footer.setDefaultStyleSheet("width: 100%; height: auto; display:flex;");
-
-		addAndMakeVisible(body);
-
-		body.addFlexItem(header);
-		body.addFlexItem(*dynamic_cast<Component*>(content.get()));
-		body.addFlexItem(footer);
-
-		StyleSheet::Collection c;
-		body.setCSS(c);
-	}
+	HeaderContentFooter(bool useViewportContent);
 
 	void setFixStyleSheet(StyleSheet::Collection& newCss);
 
@@ -615,18 +312,9 @@ struct HeaderContentFooter: public Component,
 
 	ScopedPointer<StyleSheetLookAndFeel> currentLaf;
 
-	void setDefaultCSSProperties(DynamicObject::Ptr newDefaultProperties)
-	{
-		defaultProperties = newDefaultProperties;
+	void setDefaultCSSProperties(DynamicObject::Ptr newDefaultProperties);
 
-		if(defaultProperties != nullptr)
-		{
-			for(const auto& p: defaultProperties->getProperties()) 
-				css.setPropertyVariable(p.name, p.value);
-		}
-	}
-
-    void paintOverChildren(Graphics& g) override;
+	void paintOverChildren(Graphics& g) override;
 
 	struct InspectorData
 	{
