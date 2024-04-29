@@ -550,7 +550,7 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 
 			numParameters = opaqueNode->numParameters;
 
-			lastParameters.setSize(opaqueNode->numParameters, true);
+			lastParameters.setSize(opaqueNode->numParameters * sizeof(float), true);
 
 			for (auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
 			{
