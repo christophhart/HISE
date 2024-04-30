@@ -74,6 +74,14 @@ namespace hise { using namespace juce;
 #define HISE_SILENCE_THRESHOLD_DB 60
 #endif
 
+/** This can be used to allow a frame processing context in scriptnode to use more than two channels.
+ *  It's set to two channels as a default value because 99% of all projects will not use more channels, but if you use the frame container
+ *	with more than two channels, bump this value to ensure it keeps working.
+ */
+#ifndef HISE_NUM_MAX_FRAME_CONTAINER_CHANNELS
+#define HISE_NUM_MAX_FRAME_CONTAINER_CHANNELS 2
+#endif
+
 #if HI_RUN_UNIT_TESTS
 #define jassert_skip_unit_test(x)
 #else
