@@ -285,13 +285,23 @@ MarkdownLayout::StyleData MarkdownLayout::StyleData::createBrightStyle()
 
 bool MarkdownLayout::StyleData::fromDynamicObject(var obj, const std::function<Font(const String&)>& fontLoader)
 {
-	auto fName = obj.getProperty(MarkdownStyleIds::Font, f.getTypefaceName());
-	auto bName = obj.getProperty(MarkdownStyleIds::BoldFont, getBoldFont().getTypefaceName());
+	auto fName = obj.getProperty(MarkdownStyleIds::Font, "default");
+	auto bName = obj.getProperty(MarkdownStyleIds::BoldFont, "default");
 	useSpecialBoldFont = obj.getProperty(MarkdownStyleIds::UseSpecialBoldFont, useSpecialBoldFont);
 	fontSize = obj.getProperty(MarkdownStyleIds::FontSize, fontSize);
 
-	f = fontLoader(fName);
-	boldFont = fontLoader(bName);
+	if(fName == "default")
+		f = GLOBAL_FONT();
+	else
+		f = fontLoader(fName);
+
+	if(bName == "default")
+	{
+		boldFont = GLOBAL_BOLD_FONT();
+		useSpecialBoldFont = true;
+	}
+	else
+		boldFont = fontLoader(bName);
 
 	auto getColourFromVar = [&](const Identifier& id, Colour defaultColour)
 	{
