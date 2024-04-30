@@ -374,7 +374,7 @@ void TabbedButtonBar::setCurrentTabIndex (int newIndex, bool shouldSendChangeMes
 {
     if (currentTabIndex != newIndex)
     {
-        if(useUndoManager && um != nullptr)
+        if(useUndoManager && um != nullptr && !um->isPerformingUndoRedo())
 	    {
 	        um->perform(new TabButtonUndoAction(*this, newIndex, shouldSendChangeMessage));
 	    }
