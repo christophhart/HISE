@@ -3758,7 +3758,10 @@ public:
 
 			formats.add(new WavAudioFormat());
 			formats.add(new AiffAudioFormat());
+
+#if JUCE_USE_OGGVORBIS
 			formats.add(new juce::OggVorbisAudioFormat());
+#endif
 
 			for (auto af : formats)
 			{

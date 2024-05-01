@@ -823,7 +823,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 		{
 			ignoreUnused(visibleArea);
 
-#if USE_BACKEND
+#if USE_BACKEND && JUCE_WEB_BROWSER
 			if (!visibleArea.contains(getBoundsInParent()))
 			{
 				gifPlayer = nullptr;
@@ -850,7 +850,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 
 			setMouseCursor(MouseCursor(MouseCursor::NormalCursor));
 
-#if USE_BACKEND
+#if USE_BACKEND && JUCE_WEB_BROWSER
 			addAndMakeVisible(gifPlayer = new WebBrowserComponent());
 			gifPlayer->setSize(p.img.getWidth() + 50, p.img.getHeight() + 50);
 			gifPlayer->setTopLeftPosition(0, 0);
@@ -861,7 +861,7 @@ struct MarkdownParser::ImageElement : public MarkdownParser::Element
 
 		ImageElement& p;
 
-#if USE_BACKEND
+#if USE_BACKEND && JUCE_WEB_BROWSER
 		ScopedPointer<WebBrowserComponent> gifPlayer;
 #endif
 

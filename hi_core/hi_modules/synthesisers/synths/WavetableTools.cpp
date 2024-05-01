@@ -412,6 +412,7 @@ void SampleMapToWavetableConverter::rebuildPreviewBuffersInternal()
 
 juce::AudioSampleBuffer SampleMapToWavetableConverter::removeHarmonicsAboveNyquistWithLoris(double ratio)
 {
+#if HISE_INCLUDE_LORIS
 	auto& map = *getCurrentMap();
 	jassert(ratio > 2.0);
 
@@ -451,6 +452,9 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::removeHarmonicsAboveNyqui
 	FloatVectorOperations::copy(b.getWritePointer(1), sb[map.isStereo ? 1 : 0].getBuffer()->buffer.getReadPointer(0), b.getNumSamples());
 
 	return b;
+#else
+	return {};
+#endif
 }
 
 float* SampleMapToWavetableConverter::getPhaseData(const HarmonicMap& map, int sliceIndex, bool getRight)
@@ -582,6 +586,8 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getResampledLorisBuffer(A
 
 void SampleMapToWavetableConverter::calculateHarmonicMap()
 {
+#if HISE_INCLUDE_LORIS
+
 	if (!isPositiveAndBelow(currentIndex, harmonicMaps.size()))
 		throw Result::fail("wrong array index");
 
@@ -894,6 +900,11 @@ void SampleMapToWavetableConverter::calculateHarmonicMap()
 			sendChangeMessage();
 		}
 	}
+#else
+
+	throw Result::fail("You must enable HISE_INCLUDE_LORIS when building HISE in order to use this function");
+
+#endif
 }
 
 void SampleMapToWavetableConverter::setPreviewMode(PreviewNoise mode)

@@ -794,6 +794,9 @@ template <typename ExpressionClass> struct expression_base
 
 template <int NV, class ExpressionClass> using expr = OpNode<expression_base<ExpressionClass>, NV>;
 
+
+#if HISE_INCLUDE_RT_NEURAL
+
 /** TODO:
  * - Parameters
  * - ProcessingModes
@@ -923,8 +926,29 @@ public:
     PrepareSpecs lastSpecs;
 };
 
+#else
+
+template <int NV, typename IndexType> struct neural: public polyphonic_base
+{
+	SN_NODE_ID("neural");
+    
+    SN_GET_SELF_AS_OBJECT(neural);
+    
+    SN_DESCRIPTION("Runs a per-sample inference on the first channel of the signal using a neural network");
+    
+    neural():
+      polyphonic_base(getStaticId(), false)
+    {};
+
+    SN_EMPTY_INITIALISE;
+    SN_EMPTY_RESET;
+    SN_EMPTY_MOD;
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_PROCESS;
+    SN_EMPTY_PROCESS_FRAME;
+};
+
+#endif
+
 }
-
-
-
 }

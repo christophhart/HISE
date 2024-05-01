@@ -1044,10 +1044,12 @@ struct NeuralComp : public ScriptnodeExtraComponent<NodeBase>
         ScriptnodeExtraComponent<NodeBase>(n, updater),
         networkSelector("", PropertyIds::Model)
     {
+#if HISE_INCLUDE_RT_NEURAL
         auto& holder = n->getScriptProcessor()->getMainController_()->getNeuralNetworks();
         networkSelector.initModes(holder.getIdList(), n);
-
-        addAndMakeVisible(networkSelector);
+		addAndMakeVisible(networkSelector);
+#endif
+        
         setSize(128, 32);
     };
 
@@ -1065,7 +1067,12 @@ struct NeuralComp : public ScriptnodeExtraComponent<NodeBase>
 
     void paint(Graphics& g) override
     {
-        
+#if !HISE_INCLUDE_RT_NEURAL
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("This node is disabled.", getLocalBounds().toFloat(), Justification::centredTop);
+		g.drawText("Recompile HISE with HISE_INCLUDE_RT_NEURAL.", getLocalBounds().toFloat(), Justification::centredBottom);
+#endif
     }
 };
 
@@ -1130,18 +1137,20 @@ template <int NV> struct NeuralNode: public NodeBase
     
     void updateModel(Identifier, var value)
     {
+#if HISE_INCLUDE_RT_NEURAL
         auto v = value.toString();
 
         if(v.isNotEmpty())
         {
             auto newId = Identifier(value.toString());
-            
+
+
             auto nn = getScriptProcessor()->getMainController_()->getNeuralNetworks().getOrCreate(newId);
             
             // make sure it matches when connecting
             obj.getIndex().currentHash = nn->getRuntimeHash();
-            
             obj.connectToRuntimeTarget(true, nn->createConnection());
+
         }
         else
         {
@@ -1150,6 +1159,7 @@ template <int NV> struct NeuralNode: public NodeBase
                 obj.connectToRuntimeTarget(false, nn->createConnection());
             }
         }
+#endif
     }
     
     neural<NV, runtime_target::indexers::dynamic> obj;
