@@ -109,7 +109,7 @@ struct TextInput: public LabelledComponent,
     void postInit() override;
     Result checkGlobalState(var globalState) override;
 
-    void createEditor(Dialog::PageInfo& info) override;
+    CREATE_EDITOR_OVERRIDE;
     Result loadFromInfoObject(const var& obj) override;
 
 private:
@@ -146,9 +146,8 @@ struct Button:  public ButtonListener,
     }
 
     Button(Dialog& r, int width, const var& obj);;
-
     
-    void createEditor(Dialog::PageInfo& info) override;
+    CREATE_EDITOR_OVERRIDE;
 
     void postInit() override;
     Result checkGlobalState(var globalState) override;
@@ -209,7 +208,7 @@ struct Choice: public LabelledComponent
     void postInit() override;
     Result checkGlobalState(var globalState) override;
 
-    void createEditor(Dialog::PageInfo& info) override;
+    CREATE_EDITOR_OVERRIDE;
 
     ValueMode valueMode = ValueMode::Text;
 
@@ -231,9 +230,12 @@ struct CodeEditor: public LabelledComponent
             {};
 
             Component::SafePointer<Component> p;
-
-	        void addTokens(mcl::TokenCollection::List& tokens) override;
-
+            
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+            void addTokens(mcl::TokenCollection::List& tokens) override;
+#else
+            void addTokens(mcl::TokenCollection::List& ) override {}
+#endif
             JavascriptEngine* engine = nullptr;
         };
 
@@ -288,7 +290,7 @@ struct ColourChooser: public LabelledComponent,
     Result checkGlobalState(var globalState) override;
     Result loadFromInfoObject(const var& obj) override;
 
-    void createEditor(Dialog::PageInfo& info) override;
+    CREATE_EDITOR_OVERRIDE;
 
     LookAndFeel_V4 laf;
 };
@@ -305,7 +307,7 @@ struct FileSelector: public LabelledComponent
         };
     }
 
-    void createEditor(Dialog::PageInfo& info) override;
+    CREATE_EDITOR_OVERRIDE;
 
     FileSelector(Dialog& r, int width, const var& obj);
     

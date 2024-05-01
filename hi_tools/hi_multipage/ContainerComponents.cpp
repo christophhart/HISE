@@ -143,12 +143,11 @@ void Container::clearInitValue()
 		c->clearInitValue();
 }
 
-
-
-
 void Container::addWithPopup()
 {
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	rootDialog.containerPopup(infoObject);
+#endif
 }
 
 Result Container::customCheckOnAdd(PageBase* b, const var& obj)
@@ -230,6 +229,7 @@ Result List::customCheckOnAdd(PageBase* b, const var& obj)
 	return Result::ok();
 }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void List::createEditor(Dialog::PageInfo& rootList)
 {
     rootList.addChild<Type>({
@@ -295,6 +295,7 @@ void List::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Value, folded }
     });
 }
+#endif
 
 void List::postInit()
 {
@@ -331,6 +332,7 @@ Column::Column(Dialog& r, int width, const var& obj):
 	setSize(width, 0);
 }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void Column::createEditor(Dialog::PageInfo& xxx)
 {
     xxx.addChild<Type>({
@@ -375,6 +377,7 @@ void Column::createEditor(Dialog::PageInfo& xxx)
 	    listId[mpid::Value] = v;
     }
 }
+#endif
 
 Branch::Branch(Dialog& root, int w, const var& obj):
 	Container(root, w, obj)
@@ -464,6 +467,7 @@ Result Branch::checkGlobalState(var globalState)
 	return Result::fail("No branch selected");
 }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void Branch::createEditor(Dialog::PageInfo& rootList)
 {
     rootList.addChild<Type>({
@@ -483,6 +487,7 @@ void Branch::createEditor(Dialog::PageInfo& rootList)
         { mpid::Help, "The ID of the branch. This will be used as key to fetch the value from the global state to determine which child to show." }
     });
 }
+#endif
 
 
 } // PageFactory

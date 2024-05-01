@@ -38,6 +38,7 @@ namespace multipage {
 namespace factory {
 using namespace juce;
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void addOnValueCodeEditor(const var& infoObject, Dialog::PageInfo& rootList)
 {
     rootList.addChild<Button>({
@@ -144,11 +145,7 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 		{ mpid::Help, "Whether to attach a label to the UI element and wrap it into a div.  \n> If this is disabled, the style / class will be applied directly to the UI element, otherwise it will be applied to the wrapper div" }
 	});
 }
-
-void tut(Component& c, const String& styleCode)
-{
-	
-}
+#endif
 
 LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Component* c):
 	PageBase(r, width, obj),
@@ -239,52 +236,14 @@ void LabelledComponent::postInit()
     repaint();
 }
 
-    #if 0
-void LabelledComponent::paint(Graphics& g)
-{
-
-    auto b = getArea(AreaType::Label);
-
-    if(rootDialog.isEditModeEnabled())
-    	b.reduce(10, 0);
-
-    auto df = Dialog::getDefaultFont(*this);
-
-    if(!b.isEmpty())
-    {
-		g.setFont(df.first);
-		g.setColour(df.second.withAlpha(enabled ? 1.0f : 0.6f));
-        g.drawText(label, b.toFloat(), Justification::left);
-    }
-
-}
-    #endif
+    
 
 void LabelledComponent::resized()
 {
     FlexboxComponent::resized();
-
-#if 0
-    PageBase::resized();
-    
-	auto b = getArea(AreaType::Component);
-
-	if(helpButton != nullptr)
-	{
-		helpButton->setBounds(b.removeFromRight(24).withSizeKeepingCentre(24, 24));
-		b.removeFromRight(10);
-	}
-
-    component->setBounds(b);
-#endif
 }
 
-
-
-
-
-
-
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void Button::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents<Button>(*this, rootList, "A Button lets you enable / disable a boolean option or can be grouped together with other tickboxes to create a radio group with an exclusive selection option");
@@ -320,6 +279,7 @@ void Button::createEditor(Dialog::PageInfo& rootList)
 
     addOnValueCodeEditor(infoObject, rootList);
 }
+#endif
 
 
 Button::Button(Dialog& r, int width, const var& obj):
@@ -629,6 +589,7 @@ Result Choice::checkGlobalState(var globalState)
 	return Result::ok();
 }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void Choice::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents<Choice>(*this, rootList, "A Choice can be used to select multiple fixed options with a drop down menu");
@@ -666,6 +627,7 @@ void Choice::createEditor(Dialog::PageInfo& rootList)
 
     addOnValueCodeEditor(infoObject, rootList);
 }
+
 
 void CodeEditor::AllEditor::addRecursive(mcl::TokenCollection::List& tokens, const String& parentId, const var& obj)
 {
@@ -745,6 +707,7 @@ void CodeEditor::AllEditor::TokenProvider::addTokens(mcl::TokenCollection::List&
 		}
 	}
 }
+#endif
 
 CodeEditor::AllEditor::AllEditor(const String& syntax):
 	codeDoc(doc),
@@ -913,11 +876,13 @@ Result ColourChooser::loadFromInfoObject(const var& obj)
 	return Result::ok();
 }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void ColourChooser::createEditor(Dialog::PageInfo& info)
 {
     addBasicComponents(*this, info, "A colour chooser that will store the colour as `0xAARRGGBB` value into the data object.");
         
 }
+#endif
 
 struct TextInput::Autocomplete: public Component,
                                 public ScrollBar::Listener,
@@ -1352,6 +1317,7 @@ Result TextInput::checkGlobalState(var globalState)
 	return Result::ok();
 }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void TextInput::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents<TextInput>(*this, rootList, "A TextInput lets you enter a String");
@@ -1432,6 +1398,7 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
     col.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::CallOnTyping,
         "Enables the value change callback for every key input (instea of when pressing return"));
 }
+#endif
 
 Result TextInput::loadFromInfoObject(const var& obj)
 {
@@ -1500,7 +1467,7 @@ void TextInput::dismissAutocomplete()
 }
 
 
-
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void FileSelector::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents(*this, rootList, "Select a file using a native file browser or text input. ");
@@ -1532,6 +1499,7 @@ void FileSelector::createEditor(Dialog::PageInfo& rootList)
 
     addOnValueCodeEditor(infoObject, rootList);
 }
+#endif
 
     
 struct BetterFileSelector: public simple_css::FlexboxComponent,
@@ -1737,7 +1705,7 @@ File FileSelector::getInitialFile(const var& path) const
 	return File();
 }
 
-
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 void Table::createEditor(Dialog::PageInfo& rootList)
 {
 	rootList.addChild<Type>({
@@ -1847,6 +1815,7 @@ void TagList::createEditor(Dialog::PageInfo& rootList)
 
     addOnValueCodeEditor(infoObject, rootList);
 }
+#endif
 
 } // factory
 } // multipage

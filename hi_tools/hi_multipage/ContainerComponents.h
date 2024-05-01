@@ -119,7 +119,7 @@ struct List: public Container
 
     void refreshFold();
 
-    void createEditor(Dialog::PageInfo& info) override;
+    CREATE_EDITOR_OVERRIDE;
 
     void postInit() override;
 
@@ -140,8 +140,8 @@ struct Column: public Container
 
     Identifier getContainerTypeId() const override { return getStaticId(); }
     Column(Dialog& r, int width, const var& obj);
-
-    void createEditor(Dialog::PageInfo& info) override;
+    
+    CREATE_EDITOR_OVERRIDE;
 };
 
 struct Branch: public Container
@@ -154,7 +154,8 @@ struct Branch: public Container
     Branch(Dialog& root, int w, const var& obj);;
 
     Identifier getContainerTypeId() const override { return getStaticId(); }
-    void createEditor(Dialog::PageInfo& info) override;
+
+    CREATE_EDITOR_OVERRIDE;
     
     void paint(Graphics& g) override;
     void postInit() override;

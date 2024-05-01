@@ -33,7 +33,13 @@
 #pragma once
 
 #ifndef HISE_MULTIPAGE_INCLUDE_EDIT
-#define HISE_MULTIPAGE_INCLUDE_EDIT 1
+#define HISE_MULTIPAGE_INCLUDE_EDIT 0
+#endif
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+#define CREATE_EDITOR_OVERRIDE void createEditor(Dialog::PageInfo& info) override;
+#else
+#define CREATE_EDITOR_OVERRIDE
 #endif
 
 #include "MultiPageIds.h"

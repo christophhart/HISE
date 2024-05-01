@@ -127,7 +127,9 @@ public:
 
         void forwardInlineStyleToChildren();
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
         virtual void createEditor(PageInfo& infoList) {}
+#endif
 
         bool matches(const var& otherInfo) const
         {
@@ -417,11 +419,13 @@ public:
 	    editingAllowed = shouldBeEnabled;
     }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
     void containerPopup(const var& infoObject);
 
     bool nonContainerPopup(const var& infoObject);
 
     bool showEditor(const var& infoObject);
+#endif
 
     void gotoPage(int newIndex);
 

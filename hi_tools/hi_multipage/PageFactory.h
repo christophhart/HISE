@@ -123,7 +123,8 @@ struct Spacer: public Dialog::PageBase
         setSize(width, 0);
 	}
 
-    void createEditor(Dialog::PageInfo& rootList) override;
+    CREATE_EDITOR_OVERRIDE;
+
 	void editModeChanged(bool isEditMode) override { repaint(); };
     void postInit() override {};
     void paint(Graphics& g) override;
@@ -142,7 +143,8 @@ struct HtmlElement: public Dialog::PageBase
 
 	HtmlElement(Dialog& r, int width, const var& d);
 
-	void createEditor(Dialog::PageInfo& rootList) override;
+    CREATE_EDITOR_OVERRIDE;
+
 	void editModeChanged(bool isEditMode) override { repaint(); };
 	void postInit() override;;
 
@@ -162,7 +164,7 @@ struct Image: public Dialog::PageBase
 
     Image(Dialog& r, int width, const var& d);
 
-	void createEditor(Dialog::PageInfo& rootList) override;
+	CREATE_EDITOR_OVERRIDE;
 
 	void editModeChanged(bool isEditMode) override { repaint(); };
     void postInit() override;;
@@ -205,7 +207,7 @@ struct SimpleText: public Dialog::PageBase
 
     void postInit() override;
 
-    void createEditor(Dialog::PageInfo& rootList) override;
+    CREATE_EDITOR_OVERRIDE;
 
     Result checkGlobalState(var) override { return Result::ok(); }
 };
@@ -222,7 +224,7 @@ struct MarkdownText: public Dialog::PageBase
 
     MarkdownText(Dialog& r, int width, const var& d);
 
-    void createEditor(Dialog::PageInfo& rootList) override;
+    CREATE_EDITOR_OVERRIDE;
     
     void postInit() override;
 
@@ -264,7 +266,9 @@ struct DummyContent: public Component,
 
     String classId;
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
 	static void createEditor(const var& infoObject, Dialog::PageInfo& rootList);
+#endif
 };
 
 template <typename ContentType> struct Placeholder: public Dialog::PageBase
@@ -299,10 +303,12 @@ template <typename ContentType> struct Placeholder: public Dialog::PageBase
         setSize(width, 0);
     };
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
     void createEditor(Dialog::PageInfo& rootList) override
     {
 	    DummyContent::createEditor(infoObject, rootList);
     }
+#endif
     
     void postInit() override
     {
@@ -341,7 +347,7 @@ struct TagList: public Dialog::PageBase,
 
     void buttonClicked(juce::Button*) override;
 
-    void createEditor(Dialog::PageInfo& rootList) override;
+    CREATE_EDITOR_OVERRIDE;
 
     void postInit() override;
 
@@ -416,7 +422,7 @@ struct Table: public Dialog::PageBase,
 
     static Array<var> stringToItems(const var& data);
 
-    void createEditor(Dialog::PageInfo& rootList) override;
+    CREATE_EDITOR_OVERRIDE;
 
     juce::JavascriptEngine* currentEngine = nullptr;
 
