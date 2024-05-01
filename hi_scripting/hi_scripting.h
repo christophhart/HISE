@@ -116,7 +116,9 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #if USE_BACKEND
 #include "scripting/components/ScriptingCodeEditor.h"
 #include "scripting/scriptnode/node_library/BackendHostFactory.h"
+#if HISE_INCLUDE_SNEX
 #include "scripting/scriptnode/api/TestClasses.h"
+#endif
 #endif
 
 #include "scripting/scriptnode/ui/ScriptNodeFloatingTiles.h"

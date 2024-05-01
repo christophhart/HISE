@@ -1808,7 +1808,9 @@ public:
 		return lastActiveEditor.getComponent();
 	}
 
+#if HISE_INCLUDE_RT_NEURAL
 	NeuralNetwork::Holder& getNeuralNetworks() { return neuralNetworks; }
+#endif
 
 	/** This returns always true after the processor was initialised. */
 	bool isInitialised() const noexcept;;
@@ -2298,7 +2300,9 @@ private:
     bool changed;
     bool midiInputFlag;
 
+#if HISE_INCLUDE_RT_NEURAL
 	NeuralNetwork::Holder neuralNetworks;
+#endif
 
 	double processingSampleRate = 0.0;
     std::atomic<double> temp_usage;

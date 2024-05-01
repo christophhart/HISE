@@ -4999,12 +4999,15 @@ ScriptingObjects::ScriptNeuralNetwork::ScriptNeuralNetwork(ProcessorWithScriptin
 	ADD_API_METHOD_1(loadTensorFlowModel);
 	ADD_API_METHOD_1(loadPytorchModel);
 	ADD_API_METHOD_0(getModelJSON);
-	
+
+#if HISE_INCLUDE_RT_NEURAL
 	nn = p->getMainController_()->getNeuralNetworks().getOrCreate(Identifier(name));
+#endif
 }
 
 var ScriptingObjects::ScriptNeuralNetwork::process(var input)
 {
+#if HISE_INCLUDE_RT_NEURAL
 	auto isSingleOut = nn->getNumOutputs() == 1;
 	auto isSingleIn = nn->getNumInputs() == 1;
 
@@ -5080,39 +5083,61 @@ var ScriptingObjects::ScriptNeuralNetwork::process(var input)
 
 		return var(outputBuffer.get());
 	}
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+	RETURN_IF_NO_THROW(var());
+#endif
 }
 
 void ScriptingObjects::ScriptNeuralNetwork::clearModel()
 {
+#if HISE_INCLUDE_RT_NEURAL
 	nn->clearModel();
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+#endif
 }
 
 void ScriptingObjects::ScriptNeuralNetwork::build(const var& modelJSON)
 {
+#if HISE_INCLUDE_RT_NEURAL
 	nn->build(modelJSON);
-
 	postBuild();
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+#endif
 }
 
 void ScriptingObjects::ScriptNeuralNetwork::reset()
 {
+#if HISE_INCLUDE_RT_NEURAL
 	nn->reset();
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+#endif
 }
 
 void ScriptingObjects::ScriptNeuralNetwork::loadWeights(const var& weightData)
 {
+#if HISE_INCLUDE_RT_NEURAL
 	auto jsonData = JSON::toString(weightData, true);
 	nn->loadWeights(jsonData);
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+#endif
 }
 
 var ScriptingObjects::ScriptNeuralNetwork::createModelJSONFromTextFile(var fileObject)
 {
+#if HISE_INCLUDE_RT_NEURAL
 	if(auto sf = dynamic_cast<ScriptFile*>(fileObject.getObject()))
-	{
 		return NeuralNetwork::parseModelJSON(sf->f);
-	}
 
 	return {};
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+	RETURN_IF_NO_THROW(var());
+#endif
 }
 
 struct ScriptingObjects::ScriptNeuralNetwork::CableInputCallback: public scriptnode::routing::GlobalRoutingManager::CableTargetBase
@@ -5125,6 +5150,7 @@ struct ScriptingObjects::ScriptNeuralNetwork::CableInputCallback: public scriptn
 	{
 		if(parent != nullptr)
 		{
+#if HISE_INCLUDE_RT_NEURAL
 			auto numInputs = parent->nn->getNumInputs();
 
 			if(numInputs == 1)
@@ -5137,6 +5163,7 @@ struct ScriptingObjects::ScriptNeuralNetwork::CableInputCallback: public scriptn
 				input[0] = (float)v;
 				parent->process(var(parent->inputBuffer.get()));
 			}
+#endif
 		}
 	}
 
@@ -5172,18 +5199,39 @@ void ScriptingObjects::ScriptNeuralNetwork::connectToGlobalCables(String inputId
 
 void ScriptingObjects::ScriptNeuralNetwork::loadTensorFlowModel(const var& modelJSON)
 {
+#if HISE_INCLUDE_RT_NEURAL
 	nn->loadTensorFlowModel(modelJSON);
 	postBuild();
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+#endif
+
+	
 }
 
 void ScriptingObjects::ScriptNeuralNetwork::loadPytorchModel(const var& modelJSON)
 {
+#if HISE_INCLUDE_RT_NEURAL
 	nn->loadPytorchModel(modelJSON);
 	postBuild();
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+#endif
+}
+
+var ScriptingObjects::ScriptNeuralNetwork::getModelJSON()
+{
+#if HISE_INCLUDE_RT_NEURAL
+	return nn->getModelJSON();
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+	RETURN_IF_NO_THROW(var());
+#endif
 }
 
 void ScriptingObjects::ScriptNeuralNetwork::postBuild()
 {
+#if HISE_INCLUDE_RT_NEURAL
 	auto numInputs = nn->getNumInputs();
 	auto numOutputs = nn->getNumOutputs();
 
@@ -5191,6 +5239,10 @@ void ScriptingObjects::ScriptNeuralNetwork::postBuild()
 		inputBuffer = new VariantBuffer(numInputs);
 	if(numOutputs > 1)
 		outputBuffer = new VariantBuffer(numOutputs);
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+#endif
+	
 }
 
 ApiHelpers::ModuleHandler::ModuleHandler(Processor* parent_, JavascriptProcessor* sp) :

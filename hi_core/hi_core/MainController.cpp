@@ -913,7 +913,8 @@ void MainController::connectToRuntimeTargets(scriptnode::OpaqueNode& on, bool sh
     {
         rm->connectToRuntimeTargets(on, shouldAdd);
     }
-    
+
+#if HISE_INCLUDE_RT_NEURAL
     for(const auto& id: getNeuralNetworks().getIdList())
     {
         auto nn = getNeuralNetworks().getOrCreate(id);
@@ -921,6 +922,7 @@ void MainController::connectToRuntimeTargets(scriptnode::OpaqueNode& on, bool sh
         auto con = nn->createConnection();
         on.connectToRuntimeTarget(shouldAdd, con);
     }
+#endif
 }
 
 void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &midiMessages)
