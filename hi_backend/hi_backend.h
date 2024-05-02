@@ -73,23 +73,15 @@ If true, the backend processor will create a workbench editor instead of the HIS
 #include "backend/BackendRootWindow.h"
 #include "backend/CompileExporter.h"
 
-#include "backend/debug_components/SamplePoolTable.h"
-#include "backend/debug_components/MacroEditTable.h"
-#include "backend/debug_components/ScriptComponentEditPanel.h"
-#include "backend/debug_components/ScriptComponentPropertyPanels.h"
-#include "backend/debug_components/ProcessorCollection.h"
-#include "backend/debug_components/ApiBrowser.h"
-#include "backend/debug_components/ScriptComponentList.h"
-#include "backend/debug_components/ModuleBrowser.h"
-#include "backend/debug_components/PatchBrowser.h"
-#include "backend/debug_components/FileBrowser.h"
 
-#include "backend/doc_generators/ApiMarkdownGenerator.h"
-#include "backend/doc_generators/ModuleDocGenerator.h"
-#include "backend/doc_generators/UiComponentDocGenerator.h"
-#include "backend/doc_generators/MenuReferenceGenerator.h"
 
+
+
+#if HISE_INCLUDE_SNEX
 #include "snex_workbench/DspNetworkWorkbench.h"
+#endif
 #include "snex_workbench/WorkbenchProcessor.h"
+
+
 
 #endif   // HI_BACKEND_INCLUDED

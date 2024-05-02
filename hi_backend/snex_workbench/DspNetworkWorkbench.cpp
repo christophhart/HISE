@@ -38,6 +38,7 @@ namespace hise {
 using namespace juce;
 
 
+#if 0
 
 snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const String& codeToCompile)
 {
@@ -607,5 +608,7 @@ void WorkbenchInfoComponent::resized()
 	scriptnodeButton.setBounds(b.removeFromRight(b.getHeight()).reduced(4));
 	parameterButton.setBounds(b.removeFromRight(b.getHeight()).reduced(4));
 }
+
+#endif
 
 }

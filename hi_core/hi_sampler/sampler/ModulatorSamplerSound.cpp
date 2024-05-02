@@ -1377,10 +1377,10 @@ String ModulatorSamplerSoundPool::getTextForPoolTable(int columnId, int indexInP
 	{
 		switch (columnId)
 		{
-		case SamplePoolTable::FileName:	return s.r.getReferenceString();
-		case SamplePoolTable::Memory:	return String((int)(s.get()->getActualPreloadSize() / 1024)) + " kB";
-		case SamplePoolTable::State:	return String(s.get()->getSampleStateAsString());
-		case SamplePoolTable::References:	return String(s.get()->getReferenceCount());
+		case ColumnId::FileName:	return s.r.getReferenceString();
+		case ColumnId::Memory:	return String((int)(s.get()->getActualPreloadSize() / 1024)) + " kB";
+		case ColumnId::State:	return String(s.get()->getSampleStateAsString());
+		case ColumnId::References:	return String(s.get()->getReferenceCount());
 		default:						jassertfalse; return "";
 		}
 	}

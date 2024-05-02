@@ -241,6 +241,7 @@ class BaseDebugArea;
 *	You can change the parameter range and invert it.
 */
 class MacroParameterTable      :	public Component,
+									public MidiKeyboardFocusTraverser::ParentWithKeyboardFocus,
 									public TableListBoxModel
 {
 public:

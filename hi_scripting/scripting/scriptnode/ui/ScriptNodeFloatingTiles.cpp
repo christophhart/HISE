@@ -282,15 +282,8 @@ Component* DspNetworkGraphPanel::createComponentForNetwork(DspNetwork* p)
 Component* DspNetworkGraphPanel::createEmptyComponent()
 {
 #if USE_BACKEND
-
-	// don't show this in the workbench
-	if (findParentComponentOfClass<SnexWorkbenchEditor>() != nullptr)
-		return nullptr;
-
 	if (auto h = dynamic_cast<DspNetwork::Holder*>(getProcessor()))
-	{
 		return new Selector(h, getMainController());
-	}
 #endif
 
 	return nullptr;

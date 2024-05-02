@@ -1,9 +1,13 @@
-#include "src/mir.h"
-#include "src/mir-gen.h"
-
 #define DEFINE_ID(x) static const Identifier x(#x);
 #define REGISTER_INLINER(x) currentState->inlinerManager.registerInliner(#x, InlinerFunctions::x);
 #define REGISTER_TYPE(X) currentState->instructionManager.registerInstruction(InstructionIds::X, InstructionParsers::X);
+
+#if HISE_INCLUDE_SNEX_CODEGEN
+
+#include "src/mir.h"
+#include "src/mir-gen.h"
+
+
 
 #include "snex_MirHelpers.h"
 #include "snex_MirState.h"
@@ -16,8 +20,12 @@
 
 
 #include "snex_MirBuilder.cpp"
+
+#endif
+
 #include "snex_MirObject.cpp"
 
 #undef REGISTER_TYPE
 #undef REGISTER_INLINER
 #undef DEFINE_ID
+

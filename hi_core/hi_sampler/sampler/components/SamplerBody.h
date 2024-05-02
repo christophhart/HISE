@@ -40,6 +40,7 @@
                                                                     //[/Comments]
 */
 class SamplerBody  : public ProcessorEditorBody,
+				     public MidiKeyboardFocusTraverser::ParentWithKeyboardFocus,
                      public ButtonListener
 {
 public:

@@ -103,7 +103,6 @@ class ProcessorEditorPanel;
 
 class ProcessorEditor :		  public Component,
 							  public Processor::OtherListener,
-							  public DragAndDropTarget,
 							  public CopyPasteTarget,
 							  public Dispatchable,
 							  public ComponentWithDocumentation
@@ -119,16 +118,6 @@ public:
     static void createProcessorFromPopup(Component* editorIfPossible, Processor* parentChainProcessor, Processor* insertBeforeSibling);
     
 	static void showContextMenu(Component* c, Processor* p);
-
-	bool isInterestedInDragSource(const SourceDetails &dragSourceDetails) override;
-
-	void itemDragEnter(const SourceDetails &dragSourceDetails) override;
-		
-	void itemDragExit(const SourceDetails &dragSourceDetails) override;
-
-	void itemDropped(const SourceDetails &dragSourceDetails) override;;
-
-	ProcessorEditorPanel *getDragChainPanel();
 
 	MarkdownLink getLink() const override;
 

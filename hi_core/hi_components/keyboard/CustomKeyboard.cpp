@@ -32,13 +32,14 @@
 
 namespace hise { using namespace juce;
 
+
+
 Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentComponent)
 {
 #if USE_BACKEND
-	if (FileBrowser *browser = parentComponent->findParentComponentOfClass<FileBrowser>())						return browser;
-	if (SamplerBody *samplerBody = parentComponent->findParentComponentOfClass<SamplerBody>())					return samplerBody;
-	else if (ScriptingContentOverlay::Dragger* dragger = parentComponent->findParentComponentOfClass<ScriptingContentOverlay::Dragger>()) return dragger;
-	else if (MacroParameterTable *table = parentComponent->findParentComponentOfClass<MacroParameterTable>())	return table;
+
+	if (auto p = parentComponent->findParentComponentOfClass<ParentWithKeyboardFocus>())						
+		return dynamic_cast<Component*>(p);
 
 	if (dynamic_cast<CopyPasteTarget*>(parentComponent))
 	{

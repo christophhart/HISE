@@ -108,7 +108,9 @@
 
 #if USE_BACKEND
 #include "scripting/scriptnode/node_library/BackendHostFactory.cpp"
+#if HISE_INCLUDE_SNEX
 #include "scripting/scriptnode/api/TestClasses.cpp"
+#endif
 #else
 #include "scripting/scriptnode/node_library/FrontendHostFactory.h"
 #include "scripting/scriptnode/node_library/FrontendHostFactory.cpp"

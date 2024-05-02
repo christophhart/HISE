@@ -424,11 +424,17 @@ public:
 
 		void handlePopupMenu(PopupMenu& m, FloatingTile* parent);
 
+		bool handleBackendMenu(PopupMenuOptions r, FloatingTile* parent);
+
 		void registerLayoutPanelTypes();
 
 		void registerAllPanelTypes();
 
 		void registerFrontendPanelTypes();
+
+#if USE_BACKEND
+		void registerBackendPanelTypes();
+#endif
 
 #if HI_ENABLE_EXTERNAL_CUSTOM_TILES
 		void registerExternalPanelTypes();

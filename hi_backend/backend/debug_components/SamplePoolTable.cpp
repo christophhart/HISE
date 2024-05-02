@@ -61,10 +61,10 @@ SamplePoolTable::SamplePoolTable(BackendRootWindow* rootWindow) :
 
 	table.getHeader().setInterceptsMouseClicks(true, true);
 
-	table.getHeader().addColumn("File Name", FileName, 900 - 32 - 200);
-	table.getHeader().addColumn("Memory", Memory, 60);
-	table.getHeader().addColumn("State", State, 100);
-	table.getHeader().addColumn("#Ref", References, 100);
+	table.getHeader().addColumn("File Name", ColumnId::FileName, 900 - 32 - 200);
+	table.getHeader().addColumn("Memory", ColumnId::Memory, 60);
+	table.getHeader().addColumn("State", ColumnId::State, 100);
+	table.getHeader().addColumn("#Ref", ColumnId::References, 100);
 
 	table.addMouseListener(this, true);
 }
@@ -140,10 +140,10 @@ void SamplePoolTable::resized()
 {
     table.setBounds(getLocalBounds());
 
-	table.getHeader().setColumnWidth(FileName, getWidth() - 170);
-	table.getHeader().setColumnWidth(Memory, 60);
-	table.getHeader().setColumnWidth(State, 70);
-	table.getHeader().setColumnWidth(References, 40);
+	table.getHeader().setColumnWidth(ColumnId::FileName, getWidth() - 170);
+	table.getHeader().setColumnWidth(ColumnId::Memory, 60);
+	table.getHeader().setColumnWidth(ColumnId::State, 70);
+	table.getHeader().setColumnWidth(ColumnId::References, 40);
 
 }
 

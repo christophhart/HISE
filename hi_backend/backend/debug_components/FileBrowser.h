@@ -70,6 +70,7 @@ private:
 class BackendProcessorEditor;
 
 class FileBrowser : public Component,
+					public MidiKeyboardFocusTraverser::ParentWithKeyboardFocus,
 					public DragAndDropContainer,
 					public ApplicationCommandTarget,
 					public TextEditor::Listener,

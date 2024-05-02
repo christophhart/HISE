@@ -60,6 +60,77 @@ void drawPlug(Graphics& g, Rectangle<float> area, Colour c)
     
 }
 
+DspNodeList::NodeItem::NodeItem(DspNetwork* parent, const String& id):
+	Item(id),
+	node(dynamic_cast<NodeBase*>(parent->get(id).getObject())),
+	label(),
+	powerButton("on", this, f)
+{
+	label.setText(id, dontSendNotification);
+	usePopupMenu = false;
+
+	addAndMakeVisible(powerButton);
+	addAndMakeVisible(label);
+	label.addListener(this);
+
+	label.setFont(GLOBAL_BOLD_FONT());
+	label.setColour(Label::ColourIds::textColourId, Colours::white);
+	label.setInterceptsMouseClicks(false, true);
+	label.refreshWithEachKey = false;
+	label.addMouseListener(this, true);
+
+            
+	label.setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
+	label.setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
+	label.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
+	label.setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
+	label.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
+            
+	powerButton.setToggleModeWithColourChange(true);
+
+	idListener.setCallback(node->getValueTree(), { PropertyIds::ID }, valuetree::AsyncMode::Asynchronously,
+	                       BIND_MEMBER_FUNCTION_2(NodeItem::updateId));
+
+	bypassListener.setCallback(node->getValueTree(), { PropertyIds::Bypassed }, valuetree::AsyncMode::Asynchronously,
+	                           BIND_MEMBER_FUNCTION_2(NodeItem::updateBypassState));
+
+	auto fid = node->getValueTree()[PropertyIds::FactoryPath].toString();
+
+	searchKeywords << ";" << fid;
+
+
+	if(fid.startsWith("container.") && fid != "container.chain")
+	{
+		scriptnode::NodeComponentFactory f;
+		icon = f.createPath(fid.fromFirstOccurrenceOf("container.", false, false));
+	}
+
+}
+
+void DspNodeList::NodeItem::updateBypassState(Identifier id, var newValue)
+{
+	powerButton.setToggleStateAndUpdateIcon(!newValue);
+	label.setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(!newValue ? 0.8f : 0.3f));
+	repaint();
+}
+
+int DspNodeList::NodeItem::getIntendation() const
+{
+	auto networkData = node->getRootNetwork()->getValueTree();
+            
+	auto nTree = node->getValueTree();
+            
+	int index = 0;
+            
+	while(nTree.isValid() && nTree != networkData)
+	{
+		index++;
+		nTree = nTree.getParent();
+	}
+            
+	return index;
+}
+
 void DspNodeList::NodeItem::paint(Graphics& g)
 {
     if (node != nullptr)
@@ -142,6 +213,43 @@ void DspNodeList::NodeItem::paint(Graphics& g)
     }
 }
 
+void DspNodeList::NodeItem::resized()
+{
+	auto b = getLocalBounds().reduced(1);
+	b.removeFromLeft(getIntendation()*2);
+	area = b;
+	b.removeFromLeft(5);
+            
+	powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(2));
+            
+	if(!icon.isEmpty())
+	{
+                
+                
+		PathFactory::scalePath(icon, b.removeFromLeft(b.getHeight() - 4).reduced(2).toFloat());
+	}
+            
+	label.setBounds(b);
+}
+
+void DspNodeList::NodeCollection::paint(Graphics& g)
+{
+	auto b = getLocalBounds();
+	auto top = b.removeFromTop(30);
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText(getName(), top.toFloat(), Justification::centred);
+}
+
+void DspNodeList::NodeCollection::addItems(const StringArray& idList)
+{
+	for (const auto& id : idList)
+	{
+		auto newItem = new NodeItem(network.get(), id);
+		addAndMakeVisible(newItem);
+		items.add(newItem);
+	}
+}
 }
 
 namespace hise { using namespace juce;

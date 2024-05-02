@@ -209,6 +209,26 @@ void BackendProcessorEditor::clearPopup()
 	
 }
 
+void BackendProcessorEditor::refreshContainer(Processor* selectedProcessor)
+{
+	if (container != nullptr)
+	{
+		const int y = viewport->viewport->getViewPositionY();
+
+		setRootProcessor(container->getRootEditor()->getProcessor(), y);
+
+		ProcessorEditor::Iterator iter(getRootContainer()->getRootEditor());
+
+		while (ProcessorEditor *editor = iter.getNextEditor())
+		{
+			if (editor->getProcessor() == selectedProcessor)
+			{
+				editor->grabCopyAndPasteFocus();
+			}
+		}
+	}
+}
+
 void BackendProcessorEditor::scriptWasCompiled(JavascriptProcessor * /*sp*/)
 {
 	parentRootWindow->updateCommands();
@@ -1035,6 +1055,23 @@ struct ToolkitPopup : public Component,
 };
 
 
+void MainTopBar::timerCallback()
+{
+	auto newProgress = getMainController()->getSampleManager().getPreloadProgressConst();
+	auto m = getMainController()->getSampleManager().getPreloadMessage();
+	auto state = preloadState;
+
+	if (newProgress != preloadProgress ||
+		m != preloadMessage ||
+		state != preloadState)
+	{
+		preloadState = state;
+		preloadMessage = m;
+		preloadProgress = newProgress;
+		repaint();
+	}
+}
+
 void MainTopBar::popupChanged(Component* newComponent)
 {
     bool macroShouldBeOn = dynamic_cast<MacroComponent*>(newComponent) != nullptr;
@@ -1062,6 +1099,20 @@ void MainTopBar::popupChanged(Component* newComponent)
     customPopupButton->setToggleState(customShouldBeShown, dontSendNotification);
 }
 
+void MainTopBar::preloadStateChanged(bool isPreloading)
+{
+	preloadState = isPreloading;
+
+	if (isPreloading)
+		start();
+	else
+	{
+		timerCallback();
+		stop();
+	}
+        
+	repaint();
+}
 
 
 void MainTopBar::togglePopup(PopupType t, bool shouldShow)
@@ -1214,6 +1265,34 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
             sb->setToggleState(!isDetached, dontSendNotification);
         };
     }
+
+}
+
+void MainTopBar::applicationCommandInvoked(const ApplicationCommandTarget::InvocationInfo& info)
+{
+
+	switch (info.commandID)
+	{
+	case BackendCommandTarget::WorkspaceScript: 
+		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(true);
+		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		break;
+	case BackendCommandTarget::WorkspaceSampler:
+		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(true);
+		customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		break;
+		
+	case BackendCommandTarget::WorkspaceCustom:
+		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
+		customWorkSpaceButton->setToggleStateAndUpdateIcon(true);
+		break;
+	}
 
 }
 

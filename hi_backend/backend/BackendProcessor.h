@@ -75,78 +75,13 @@ struct ExampleAssetManager: public ReferenceCountedObject,
 
 	bool initialised = false;
 
-	void initialise()
-	{
-		if(!initialised)
-		{
-			initialised = true;
-
-			setWorkingProject(mainProjectHandler.getRootFolder());
-
-			auto snippetSettings = getAppDataDirectory(getMainController()).getChildFile("snippetBrowser.xml");
-
-			if(auto xml = XmlDocument::parse(snippetSettings))
-			{
-				if(auto sd = xml->getChildByName("snippetDirectory"))
-				{
-					auto snippetDirectory = sd->getStringAttribute("value");
-
-					if(File::isAbsolutePath(snippetDirectory))
-					{
-						auto assetDirectory = File(snippetDirectory).getChildFile("Assets");
-
-						if(!assetDirectory.getChildFile("SampleMaps").isDirectory())
-						{
-							debugError(getMainController()->getMainSynthChain(), "Uninitialised assets, please download the assets and reload the snippet");
-							initialised = false;
-							return;
-						}
-
-						if(assetDirectory.isDirectory())
-						{
-							rootDirectory = assetDirectory;
-
-							for(auto d: getSubDirectoryIds())
-								rootDirectory.getChildFile(getIdentifier(d)).createDirectory();
-
-							checkSubDirectories();
-
-							pool->getAudioSampleBufferPool().loadAllFilesFromProjectFolder();
-							pool->getImagePool().loadAllFilesFromProjectFolder();
-							pool->getMidiFilePool().loadAllFilesFromProjectFolder();
-							pool->getSampleMapPool().loadAllFilesFromProjectFolder();
-							return;
-						}
-					}
-				}
-			}
-
-			debugError(getMainController()->getMainSynthChain(), "You need to download the assets using the snippet browser");
-		}
-	}
+	void initialise();
 
 	FileHandlerBase& mainProjectHandler;
 
-	File getSubDirectory(SubDirectories dir) const override
-	{
-		auto redirected = getSubDirectoryIds();
+	File getSubDirectory(SubDirectories dir) const override;
 
-		if(redirected.contains(dir))
-			return ProjectHandler::getSubDirectory(dir);
-		else
-			return mainProjectHandler.getSubDirectory(dir);
-	}
-
-	Array<SubDirectories> getSubDirectoryIds() const override
-	{
-		return {
-			FileHandlerBase::SubDirectories::AudioFiles,
-			FileHandlerBase::SubDirectories::SampleMaps,
-			FileHandlerBase::SubDirectories::Samples,
-			FileHandlerBase::SubDirectories::Images,
-			FileHandlerBase::SubDirectories::MidiFiles
-		};
-	}
+	Array<SubDirectories> getSubDirectoryIds() const override;
 
 	File getRootFolder() const override
 	{
@@ -182,28 +117,7 @@ public:
 
 	void refreshExpansionType();
 
-	void handleEditorData(bool save)
-	{
-#if IS_STANDALONE_APP
-		File jsonFile = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("editorData.json");
-
-		if (save)
-		{
-			if (editorInformation.isObject())
-				jsonFile.replaceWithText(JSON::toString(editorInformation));
-			else
-				jsonFile.deleteFile();
-		}
-		else
-		{
-			editorInformation = JSON::parse(jsonFile);
-		}
-#else
-		ignoreUnused(save);
-#endif
-
-		
-	}
+	void handleEditorData(bool save);
 
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() 
@@ -341,39 +255,9 @@ public:
 		return currentNoteNumber;
 	}
 
-	AnalyserInfo::Ptr getAnalyserInfoForProcessor(Processor* p)
-	{
-		if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(postAnalyserLock))
-		{
-			for(auto i: currentAnalysers)
-			{
-				if(i->currentlyAnalysedProcessor.first == p)
-					return i;
-			}
-		}
+	AnalyserInfo::Ptr getAnalyserInfoForProcessor(Processor* p);
 
-		return nullptr;
-	}
-	
-	Result setAnalysedProcessor(AnalyserInfo::Ptr newInfo, bool add)
-	{
-		SimpleReadWriteLock::ScopedWriteLock sl(postAnalyserLock);
-
-		if(add)
-		{
-			for(auto i: currentAnalysers)
-			{
-				if(i->currentlyAnalysedProcessor.first == newInfo->currentlyAnalysedProcessor.first)
-					return Result::fail("Another analyser is already assigned to the module " + i->currentlyAnalysedProcessor.first->getId());
-			}
-			currentAnalysers.add(newInfo);
-		}
-			
-		else
-			currentAnalysers.removeObject(newInfo);
-
-		return Result::ok();
-	}
+	Result setAnalysedProcessor(AnalyserInfo::Ptr newInfo, bool add);
 
 	bool isSnippetBrowser() const
 	{

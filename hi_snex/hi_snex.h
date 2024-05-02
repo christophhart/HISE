@@ -92,6 +92,17 @@ Set to 0 to disable SNEX compilation (default on iOS).
 #endif
 #endif
 
+/** Config: HISE_INCLUDE_SNEX_CODEGEN
+
+This can be deactivated to skip the compilation of the code generation tools and
+might save a bit time.
+
+*/
+#ifndef HISE_INCLUDE_SNEX_CODEGEN
+#error "You need to set this to a non default value so that the other translation units can pick it up"
+#define HISE_INCLUDE_SNEX_CODEGEN 1
+#endif
+
 /** Config: SNEX_STANDALONE_PLAYGROUND
  
  Enables the playground.
@@ -329,6 +340,7 @@ namespace snex
 #include "snex_core/snex_jit_JitCallableObject.h"
 #include "snex_core/snex_jit_JitCompiledFunctionClass.h"
 #include "snex_public/snex_jit_JitCompiler.h"
+
 #include "snex_cpp_builder/snex_jit_CppBuilder.h"
 #include <set>
 #include "snex_cpp_builder/snex_jit_ValueTreeBuilder.h"

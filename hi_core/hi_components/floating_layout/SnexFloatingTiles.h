@@ -35,32 +35,7 @@
 namespace hise {
 using namespace juce;
 
-struct SnexTileBase : public Component,
-	public FloatingTileContent
-{
-	enum SpecialPanelIds
-	{
-		FileName = (int)FloatingTileContent::PanelPropertyId::numPropertyIds, ///< the content of the text editor
-		numSpecialPanelIds
-	};
 
-	SnexTileBase(FloatingTile* parent) :
-		FloatingTileContent(parent)
-	{};
-
-	var toDynamicObject() const override;
-
-	void setCurrentFile(const File& f);
-
-	void fromDynamicObject(const var& object) override;
-
-	virtual void workbenchChanged(snex::ui::WorkbenchData::Ptr newWorkbench) = 0;
-
-	int getNumDefaultableProperties() const override { return numSpecialPanelIds; };
-	Identifier getDefaultablePropertyId(int index) const override;
-	var getDefaultProperty(int index) const override;
-	File currentFile;
-};
 
 /** A Wrapper around a SnexWorkbenchComponent. 
 

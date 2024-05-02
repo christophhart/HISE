@@ -39,7 +39,7 @@
 namespace hise {
 using namespace juce;
 
-
+#if 0
 struct DebuggableSnexProcessor : public snex::ui::WorkbenchManager::WorkbenchChangeListener,
 	public snex::ui::WorkbenchData::Listener
 {
@@ -746,6 +746,6 @@ struct DspNetworkCompileHandler : public WorkbenchData::CompileHandler,
 
 	JitCompiledNode::Ptr jitNode;
 };
-
+#endif
 
 }

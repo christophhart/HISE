@@ -32,305 +32,102 @@
 
 namespace hise { using namespace juce;
 
-	void SuspendedOverlay::paint(Graphics& g)
+#define DECLARE_FOLD_ID(id) static const Identifier id("$fold_" + String(#id));
+
+namespace fold_ids
+{
+	DECLARE_FOLD_ID(editor);
+	DECLARE_FOLD_ID(watch);
+	DECLARE_FOLD_ID(map);
+	DECLARE_FOLD_ID(console);
+	DECLARE_FOLD_ID(interface);
+	DECLARE_FOLD_ID(list);
+	DECLARE_FOLD_ID(properties);
+	DECLARE_FOLD_ID(browser);
+}
+
+#undef DECLARE_FOLD_ID
+
+void SuspendedOverlay::paint(Graphics& g)
+{
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xEE222222)));
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText("This instance is currently suspended. Click to activate the audio rendering for this instance...", getLocalBounds().toFloat(), Justification::centred);
+}
+
+void SuspendedOverlay::mouseDown(const MouseEvent& event)
+{
+	auto bpe = findParentComponentOfClass<BackendRootWindow>();
+	bpe->setCurrentlyActiveProcessor();
+}
+
+std::map<Identifier, bool> SnippetBrowserHelpers::getFoldConfiguration(Category c)
+{
+	std::map<Identifier, bool> map;
+
+	switch(c)
 	{
-		g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xEE222222)));
-		g.setColour(Colours::white.withAlpha(0.8f));
-		g.setFont(GLOBAL_BOLD_FONT());
-		g.drawText("This instance is currently suspended. Click to activate the audio rendering for this instance...", getLocalBounds().toFloat(), Justification::centred);
+	case Category::Undefined: break;
+	case Category::Modules:
+		map[fold_ids::editor] = false;
+		map[fold_ids::console] = true;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = false;
+		break;
+	case Category::MIDI:
+		map[fold_ids::editor] = false;
+		map[fold_ids::console] = false;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = false;
+		break;
+	case Category::ScriptingApi:
+		map[fold_ids::editor] = false;
+		map[fold_ids::console] = false;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = true;
+		break;
+	case Category::Scriptnode:
+		map[fold_ids::editor] = true;
+		map[fold_ids::console] = false;
+		map[fold_ids::interface] = false;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = true;
+		break;
+	case Category::UI:
+		map[fold_ids::editor] = false;
+		map[fold_ids::console] = false;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = true;
+		break;
+	case Category::numCategories:
+		map[fold_ids::editor] = true;
+		map[fold_ids::console] = true;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = true;
+		break;
+	default: ;
 	}
 
-	void SuspendedOverlay::mouseDown(const MouseEvent& event)
-	{
-		auto bpe = findParentComponentOfClass<BackendRootWindow>();
-		bpe->setCurrentlyActiveProcessor();
-	}
+	return map;
+}
 
-#if 0
-	SnippetBrowser::SnippetBrowser(Component* parent):
-		HeaderContentFooter(false),
-		closeButton("Close"),
-		loadButton("Load snippet"),
-		refreshButton("Refresh list"),
-		table("snippet list", this),
-		categories(simple_css::Selector(".categories")),
-		tags(simple_css::Selector(".tags")),
-		searchTab(simple_css::Selector(".search-tab"))
-	{
-		auto& th = table.getHeader();
-		th.addColumn("Name", columnName, 100);
-		th.addColumn("Author", columnAuthor, 100, 100, 100);
-		th.setStretchToFitActive(true);
+StringArray SnippetBrowserHelpers::getCategoryNames()
+{
+	return { "All", "Modules", "MIDI", "Scripting", "Scriptnode", "UI" };
+}
 
-		table.setColour(TableListBox::ColourIds::backgroundColourId, Colours::transparentBlack);
-		table.setHeaderHeight(32);
-		table.autoSizeAllColumns();
-		table.setRepaintsOnMouseActivity(true);
-		searchTab.addFlexItem(searchField);
-		content->addFlexItem(categories);
-		content->addFlexItem(tags);
-		content->addFlexItem(searchTab);
-		content->addFlexItem(table);
-		content->addFlexItem(description);
-		description.setVisible(false);
-		description.setResizeToFit(true);
-		footer.addFlexItem(closeButton);
-		footer.addFlexItem(loadButton);
-		
-		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(closeButton, {"#close"});
-		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(loadButton, {"#load"});
-		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(table, {"#snippet-list"});
-		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(description, {"#snippet-description"});
-
-		stateWatcher.registerComponentToUpdate(&searchField);
-		stateWatcher.registerComponentToUpdate(&table.getHeader());
-		
-		rebuildDatabase();
-
-		sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
-		table.getViewport()->setScrollBarThickness(14);
-
-		searchField.onTextChange = BIND_MEMBER_FUNCTION_0(SnippetBrowser::updateFilter);
-
-		auto catNames = getCategoryNames();
-
-		for(int i = 0; i < catNames.size(); i++)
-		{
-			categoryButtons[i].setButtonText(catNames[i]);
-			categoryButtons[i].setClickingTogglesState(true);
-			categoryButtons[i].setRadioGroupId(5423198676759);
-			categoryButtons[i].onClick = BIND_MEMBER_FUNCTION_0(SnippetBrowser::updateFilter);
-			
-			simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(categoryButtons[i], {".category-button"});
-			categories.addFlexItem(categoryButtons[i]);
-		}
-
-		categoryButtons[0].setToggleState(true, dontSendNotification);
-
-		const char* code = R"(
-		body
-		{
-			background: #222;
-			box-shadow: inset 0px 2px 10px black;
-		}
-
-		#content
-		{
-			background: #222;
-			padding: 10px 15px;
-			flex-direction: column;
-			gap: 10px;
-		}
-		#footer, #header
-		{
-			height: 0px;
-		}
-		button
-		{
-			font-family: Lato;
-		}
-		button:hover
-		{
-			color: white;
-		}
-		input
-		{
-			background: #BBB;
-			border-radius: 3px;
-			width: 200px;
-			
-			margin-right: 10px;
-			font-family: Lato;
-			font-weight: 500;
-			padding-top: 3px;
-			width: 100%;
-			padding-left: 70vh;
-		}
-		input:hover
-		{
-			background: #aaa;
-		}
-		input:focus
-		{
-			border: 1px solid #FFF;
-		}
-		input::before
-		{
-			content: '';
-			width: 100vh;
-			margin: 5px;
-			background: #222;
-			background-image: "332.t0FmczAQNEKvCwlxc8.QvBC2CwF..d.QTVGyCwla0TAQTrPrCIl6CJAQFsLpCQt7PPjvv64PjKODDoFWTNjXjKODDgZu2Mj2WkAQhonSCQ9qjPjYmKzPrQ9qjPj27G1PhwBfcPDNgx1Pl9EFDglIDNjoegAQpwEkCIloegAQJrRpC4hzfPDjOn6P3jyJDA4C5NjX1BZMDA4C5NDyR3CQJrRpCwrD9PjZbQ4PhwrD9PDka72P1BZMDYnTcMDN4rBQFJUWCIlgRjBQFJUWCgX.mPjWD60PBQQIDYQagMDaBQQIDA4fBMjXVyvIDwym.MjjajBQd54OCgSNqPjmd9yPhgZt4Pjmd9yP..XQDwtstMD..VDQpwEkCIF..VDQ10UrCgZt4PDmoi7P3jyJDwY5HOjXpgfIDwY5HODHwDBQfUdwCwYGcPjSwB7PiUF";
-		}
-		::selection
-		{
-			background: #222;
-			color: #fff;
-		}
-		.search-tab
-		{
-			width: 100%;
-			height: 26px;
-		}
-		#snippet-list
-		{
-			width: 100%;
-			min-height: 200px;
-			
-			flex-grow: 1;
-		}
-		#snippet-description
-		{
-			width: 100%;
-			height: 150px;
-		}
-		tr
-		{
-			background: #333;
-		}
-		tr:active
-		{
-			margin: 0px;
-			background: #555;
-			color: #eee;
-			margin-bottom: 2px;
-		}
-		td
-		{
-			font-family: Lato;
-			font-size: 14px;
-			font-weight: 500;
-			text-align: left;
-			padding-left: 10px;
-			color: #aaa;
-		}
-		td:active
-		{
-			color: #eee;
-		}
-		.categories
-		{
-			height: auto;
-			width: 100%;
-			display: flex;
-			padding-top: 40px;
-			gap: 1px;
-		}
-		.categories::before
-		{
-			content: 'Browse snippets';
-			background: #333;
-			border-radius: 4px;
-			height: 30px;
-			color: white;
-			font-family: Lato;
-			font-weight: 500;
-		}
-		.category-button
-		{	
-			flex-grow: 1;
-			margin: 0px;
-			margin-bottom: 4px;
-			padding: 3px;
-			background: grey;
-			border-radius: 0px;
-			box-shadow: 0px 1px 4px black;
-		}
-		.category-button:first-child
-		{
-			border-radius: 50% 0 50% 0;
-			padding-left: 10px;
-		}
-		.category-button:last-child
-		{
-			border-radius: 0 50% 0 50%;
-			padding-right: 10px;
-		}
-		.category-button:checked
-		{
-			background: white;
-			color: #222;
-		}
-		.tag-button
-		{
-			background: linear-gradient(to bottom, #555, #444);
-			flex-grow: 1;
-			padding: 3px 10px;
-			border-radius: 50%;
-			font-size: 14px;
-			margin: 3px;
-			color: #999;
-		}
-		.tag-button:checked
-		{
-			background: #eee;
-			color: #222;
-		}
-		.tags
-		{
-			width: 100%;
-			height: auto;
-			flex-direction: row;
-			display: flex;
-			margin: 10px;
-			justify-content: space-between;
-			flex-wrap: wrap;
-		}
-		th
-		{
-			text-align: left;
-			padding: 5px;
-			background: #444;
-			color: #eee;
-			font-family: Lato;
-			font-weight: 500;
-			margin: 1px;
-			border-radius: 2px;
-		}
-		th:hover
-		{
-			background: #555;
-		})";
-
-		setStylesheetCode(code);
-	}
-
-	void SnippetBrowser::load(int rowIndex)
-	{
-		if(isPositiveAndBelow(rowIndex, filteredItems.size()))
-		{
-			const auto& item = filteredItems.getReference(rowIndex);
-
-			auto bpe = findParentComponentOfClass<BackendRootWindow>();
-			BackendCommandTarget::Actions::loadSnippet(bpe, filteredItems[rowIndex].snippet);
-
-			
-
-			auto root = bpe->getRootFloatingTile();
-
-			auto foldState = getFoldConfiguration(item.category);
-
-			root->forEach<FloatingTileContent>([&](FloatingTileContent* t)
-			{
-				auto s = t->getParentShell()->getLayoutData().getKeyPressId();
-
-				if(s.isValid() && foldState.find(s) != foldState.end())
-				{
-					auto x = foldState[s];
-					t->getParentShell()->setFolded(x);
-				}
-				
-				return false;
-			});
-
-			bpe->setCurrentlyActiveProcessor();
-
-			bpe->currentCategory = item.category;
-		}
-
-		
-	}
-#endif
 
 	TextLayout BackendRootWindow::TooltipLookAndFeel::layoutTooltipText(const String& text, Colour colour) noexcept
 	{
@@ -725,6 +522,89 @@ bool BackendRootWindow::isFullScreenMode() const
 #endif
 }
 
+void BackendRootWindow::deleteThisSnippetInstance(bool sync)
+{
+	removeFromDesktop();
+
+	if(!sync)
+	{
+		for(auto w: allWindowsAndBrowsers)
+		{
+			if(w != this)
+				w->setCurrentlyActiveProcessor();
+		}
+	}
+		
+
+	auto f = [this]()
+	{
+		auto o = this->owner;
+		delete this;
+		delete o;
+	};
+
+	if(sync)
+		f();
+	else
+		MessageManager::callAsync(f);
+}
+
+void BackendRootWindow::toggleSnippetBrowser()
+{
+	if(snippetBrowser == nullptr)
+	{
+		addAndMakeVisible(snippetBrowser = new multipage::library::SnippetBrowser(this));
+	}
+	else
+	{
+		snippetBrowser->setVisible(!snippetBrowser->isVisible());
+	}
+
+	resized();
+}
+
+mcl::TokenCollection::Ptr BackendRootWindow::getJavascriptTokenCollection(Component* any)
+{
+	auto cw = any->findParentComponentOfClass<ComponentWithBackendConnection>();
+        
+	if(cw == nullptr)
+		return nullptr;
+        
+	if(auto brw = cw->getBackendRootWindow())
+	{
+		if(brw->javascriptTokens == nullptr)
+			brw->javascriptTokens = new mcl::TokenCollection(mcl::LanguageIds::HiseScript);
+
+		return brw->javascriptTokens;
+	}
+
+	return nullptr;
+}
+
+void BackendRootWindow::rebuildTokenProviders(const Identifier& languageId)
+{
+	if(javascriptTokens == nullptr && languageId == mcl::LanguageIds::HiseScript)
+		javascriptTokens = new mcl::TokenCollection(languageId);
+
+	mcl::TextEditor::setNewTokenCollectionForAllChildren(this, languageId, javascriptTokens);
+
+	for(auto p: popoutWindows)
+	{
+		mcl::TextEditor::setNewTokenCollectionForAllChildren(p, languageId, javascriptTokens);
+	}
+}
+
+void BackendRootWindow::scriptWasCompiled(JavascriptProcessor* processor)
+{
+	if(currentWorkspaceProcessor == dynamic_cast<Processor*>(processor))
+	{
+		SafeAsyncCall::call<BackendRootWindow>(*this, [](BackendRootWindow& r)
+		{
+			r.rebuildTokenProviders("HiseScript");;
+		});
+	}
+}
+
 File BackendRootWindow::getKeyPressSettingFile() const
 {
 	return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("KeyPressMapping.xml");
@@ -1058,7 +938,7 @@ void BackendRootWindow::newHisePresetLoaded()
 {
 	JavascriptProcessor* p = nullptr;
 
-	switch(currentCategory)
+	switch((SnippetBrowserHelpers::Category)currentCategory)
 	{
 	case SnippetBrowserHelpers::Category::Scriptnode: 
 		p = ProcessorHelpers::getFirstProcessorWithType<JavascriptMasterEffect>(getMainSynthChain());
@@ -1142,37 +1022,7 @@ void BackendRootWindow::showWorkspace(int workspace)
 }
 
 
-MarkdownPreview* BackendRootWindow::createOrShowDocWindow(const MarkdownLink& link)
-{
-	if (docWindow == nullptr)
-	{
-		docWindow = new FloatingTileDocumentWindow(this);
-		docWindow->setName("HISE Documentation");
-		docWindow->setSize(1300, 900);
 
-		AutogeneratedDocHelpers::createDocFloatingTile(docWindow->getRootFloatingTile(), link);
-
-		docWindow->getRootFloatingTile()->setVital(true);
-	}
-	else
-	{
-		docWindow->toFront(true);
-
-		auto preview = FloatingTileHelpers::findTileWithId<MarkdownPreviewPanel>(docWindow->getRootFloatingTile(), "Preview");
-
-		preview->initPanel();
-		preview->preview->renderer.gotoLink(link);
-	}
-		
-	auto p = FloatingTileHelpers::findTileWithId<MarkdownPreviewPanel>(docWindow->getRootFloatingTile(), "Preview");
-	
-	p->initPanel();
-
-	return p->preview;;
-
-	
-	
-}
 
 void BackendRootWindow::paintOverChildren(Graphics& g)
 {
@@ -1209,6 +1059,47 @@ void BackendRootWindow::paintOverChildren(Graphics& g)
 			g.fillPath(p);
 		}
 	}
+}
+
+void BackendRootWindow::userTriedToCloseWindow()
+{
+	jassert(owner->isSnippetBrowser());
+	deleteThisSnippetInstance(false);
+}
+
+void BackendRootWindow::setCurrentlyActiveProcessor()
+{
+	for(int i = 0; i < allWindowsAndBrowsers.size(); i++)
+	{
+		if(allWindowsAndBrowsers[i].getComponent() == nullptr)
+			allWindowsAndBrowsers.remove(i--);
+	}
+
+	for(auto w: allWindowsAndBrowsers)
+	{
+		auto isActive = this == w;
+
+		if(isActive)
+		{
+			Desktop::getInstance().getAnimator().fadeOut(suspendedOverlay, 300);
+			suspendedOverlay = nullptr;
+			w->getBackendProcessor()->callback->setProcessor(w->getBackendProcessor());
+			w->getBackendProcessor()->allNotesOff(true);
+			resized();
+		}
+		else
+		{
+			w->addAndMakeVisible(w->suspendedOverlay = new SuspendedOverlay());
+			w->suspendedOverlay->toFront(false);
+			w->resized();
+		}
+	}
+		
+		
+#if JUCE_MAC
+        MenuBarModel::setMacMainMenu(this);
+#endif
+		
 }
 
 hise::FloatingTabComponent* BackendRootWindow::getCodeTabs()

@@ -166,25 +166,7 @@ public:
 
 	void clearPopup();
 
-	void refreshContainer(Processor *selectedProcessor)
-	{
-		if (container != nullptr)
-		{
-			const int y = viewport->viewport->getViewPositionY();
-
-			setRootProcessor(container->getRootEditor()->getProcessor(), y);
-
-			ProcessorEditor::Iterator iter(getRootContainer()->getRootEditor());
-
-			while (ProcessorEditor *editor = iter.getNextEditor())
-			{
-				if (editor->getProcessor() == selectedProcessor)
-				{
-					editor->grabCopyAndPasteFocus();
-				}
-			}
-		}
-	}
+	void refreshContainer(Processor *selectedProcessor);
 
 	void scriptWasCompiled(JavascriptProcessor *sp) override;
 
@@ -338,22 +320,7 @@ public:
 		return "/ui-components/floating-tiles/hise/maintopbar";
 	}
 
-	void timerCallback() override
-	{
-		auto newProgress = getMainController()->getSampleManager().getPreloadProgressConst();
-		auto m = getMainController()->getSampleManager().getPreloadMessage();
-		auto state = preloadState;
-
-		if (newProgress != preloadProgress ||
-			m != preloadMessage ||
-			state != preloadState)
-		{
-			preloadState = state;
-			preloadMessage = m;
-			preloadProgress = newProgress;
-			repaint();
-		}
-	}
+	void timerCallback() override;
 
 	bool showTitleInPresentationMode() const override
 	{
@@ -362,20 +329,7 @@ public:
 
 	void popupChanged(Component* newComponent) override;
 
-	void preloadStateChanged(bool isPreloading) override
-	{
-		preloadState = isPreloading;
-
-		if (isPreloading)
-			start();
-		else
-		{
-			timerCallback();
-			stop();
-		}
-        
-        repaint();
-	}
+	void preloadStateChanged(bool isPreloading) override;
 
 	void paint(Graphics& g) override;
 
@@ -394,34 +348,9 @@ public:
 
 	void togglePopup(PopupType t, bool shouldShow);
 
-	void applicationCommandInvoked(const ApplicationCommandTarget::InvocationInfo& info) override
-	{
-		switch (info.commandID)
-		{
-		case BackendCommandTarget::WorkspaceScript: 
-			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			break;
-		case BackendCommandTarget::WorkspaceSampler:
-			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-			customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			break;
-		
-		case BackendCommandTarget::WorkspaceCustom:
-			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			customWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-			break;
-		}
+	void applicationCommandInvoked(const ApplicationCommandTarget::InvocationInfo& info) override;
 
-	}
 
-	
 	void applicationCommandListChanged() {};
 	
 

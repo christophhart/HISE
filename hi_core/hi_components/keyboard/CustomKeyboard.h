@@ -37,6 +37,13 @@ namespace hise { using namespace juce;
 
 class MidiKeyboardFocusTraverser : public KeyboardFocusTraverser
 {
+public:
+
+	struct ParentWithKeyboardFocus
+	{
+		virtual ~ParentWithKeyboardFocus() {};
+	};
+
 	Component *getDefaultComponent(Component *parentComponent) override;
 };
 

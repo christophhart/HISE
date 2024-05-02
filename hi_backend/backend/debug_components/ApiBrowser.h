@@ -322,61 +322,11 @@ public:
 		public Label::Listener
 	{
 		
-		NodeItem(DspNetwork* parent, const String& id) :
-			Item(id),
-			node(dynamic_cast<NodeBase*>(parent->get(id).getObject())),
-			label(),
-			powerButton("on", this, f)
-		{
-			label.setText(id, dontSendNotification);
-			usePopupMenu = false;
+		NodeItem(DspNetwork* parent, const String& id);
 
-			addAndMakeVisible(powerButton);
-			addAndMakeVisible(label);
-			label.addListener(this);
-
-			label.setFont(GLOBAL_BOLD_FONT());
-			label.setColour(Label::ColourIds::textColourId, Colours::white);
-            label.setInterceptsMouseClicks(false, true);
-			label.refreshWithEachKey = false;
-			label.addMouseListener(this, true);
-
-            
-            label.setColour(Label::ColourIds::textWhenEditingColourId, Colours::white);
-            label.setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
-            label.setColour(TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR));
-            label.setColour(TextEditor::ColourIds::highlightedTextColourId, Colours::black);
-            label.setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
-            
-			powerButton.setToggleModeWithColourChange(true);
-
-			idListener.setCallback(node->getValueTree(), { PropertyIds::ID }, valuetree::AsyncMode::Asynchronously,
-				BIND_MEMBER_FUNCTION_2(NodeItem::updateId));
-
-			bypassListener.setCallback(node->getValueTree(), { PropertyIds::Bypassed }, valuetree::AsyncMode::Asynchronously,
-				BIND_MEMBER_FUNCTION_2(NodeItem::updateBypassState));
-
-			auto fid = node->getValueTree()[PropertyIds::FactoryPath].toString();
-
-			searchKeywords << ";" << fid;
-
-
-            if(fid.startsWith("container.") && fid != "container.chain")
-            {
-				scriptnode::NodeComponentFactory f;
-                icon = f.createPath(fid.fromFirstOccurrenceOf("container.", false, false));
-            }
-
-		}
-        
         Path icon;
 
-		void updateBypassState(Identifier id, var newValue)
-		{
-			powerButton.setToggleStateAndUpdateIcon(!newValue);
-            label.setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(!newValue ? 0.8f : 0.3f));
-            repaint();
-		}
+		void updateBypassState(Identifier id, var newValue);
 
 		void updateId(Identifier id, var newValue)
 		{
@@ -395,45 +345,13 @@ public:
 				node->setValueTreeProperty(PropertyIds::Bypassed, !b->getToggleState());
 		}
 
-        int getIntendation() const
-        {
-            auto networkData = node->getRootNetwork()->getValueTree();
-            
-            auto nTree = node->getValueTree();
-            
-            int index = 0;
-            
-            while(nTree.isValid() && nTree != networkData)
-            {
-                index++;
-                nTree = nTree.getParent();
-            }
-            
-            return index;
-        }
-        
-        void paint(Graphics& g) override;
+        int getIntendation() const;
+
+		void paint(Graphics& g) override;
 		
 
-		void resized() override
-		{
-			auto b = getLocalBounds().reduced(1);
-            b.removeFromLeft(getIntendation()*2);
-            area = b;
-            b.removeFromLeft(5);
-            
-            powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(2));
-            
-            if(!icon.isEmpty())
-            {
-                
-                
-                PathFactory::scalePath(icon, b.removeFromLeft(b.getHeight() - 4).reduced(2).toFloat());
-            }
-            
-			label.setBounds(b);
-		}
-        
+		void resized() override;
+
 		void mouseUp(const MouseEvent& event) override
 		{
             if(event.mods.isShiftDown())
@@ -463,24 +381,9 @@ public:
 			network(network_)
 		{};
 
-		void paint(Graphics& g) override
-		{
-			auto b = getLocalBounds();
-			auto top = b.removeFromTop(30);
-			g.setColour(Colours::white.withAlpha(0.8f));
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText(getName(), top.toFloat(), Justification::centred);
-		}
+		void paint(Graphics& g) override;
 
-		void addItems(const StringArray& idList)
-		{
-			for (const auto& id : idList)
-			{
-				auto newItem = new NodeItem(network.get(), id);
-				addAndMakeVisible(newItem);
-				items.add(newItem);
-			}
-		}
+		void addItems(const StringArray& idList);
 
 	protected:
 

@@ -31,6 +31,7 @@
 */
 
 
+#if HISE_INCLUDE_SNEX_CODEGEN
 
 #include "src/mir.h"
 #include "src/mir-gen.h"
@@ -499,10 +500,67 @@ MirCompiler::~MirCompiler()
 }
 
 
-
-
-
-
-
 }
 }
+
+#else
+
+namespace snex {
+namespace mir {
+
+using namespace hise;
+using namespace juce;
+
+MirCompiler::MirCompiler(jit::GlobalScope& m):
+	r(Result::fail("HISE_INCLUDE_SNEX_CODEGEN is disabled")),
+	memory(m)
+{
+}
+
+jit::FunctionCollectionBase* MirCompiler::compileMirCode(const String& code)
+{
+	return nullptr;
+}
+
+jit::FunctionCollectionBase* MirCompiler::compileMirCode(const ValueTree& ast)
+{
+	return nullptr;
+}
+
+void MirCompiler::setDataLayout(const Array<ValueTree>& dataTree)
+{
+}
+
+Result MirCompiler::getLastError() const
+{
+	return r;
+}
+
+MirCompiler::~MirCompiler()
+{
+}
+
+void MirCompiler::setLibraryFunctions(const Array<StaticFunctionPointer>& )
+{
+	
+}
+
+void* MirCompiler::resolve(const char* name)
+{
+	return nullptr;
+}
+
+bool MirCompiler::isExternalFunction(const String& sig)
+{
+	return false;
+}
+
+MirFunctionCollection* MirCompiler::getFunctionClass()
+{
+	return nullptr;
+}
+	
+} // mir
+} // snex
+
+#endif

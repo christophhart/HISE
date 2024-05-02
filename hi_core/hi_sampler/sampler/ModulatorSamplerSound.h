@@ -734,6 +734,15 @@ class ModulatorSamplerSoundPool : public StreamingSamplerSoundPool,
 {
 public:
 
+	enum ColumnId
+	{
+		FileName = 1,
+		Memory,
+		State,
+		References,
+		numColumns
+	};
+
 	// ================================================================================================================
 
 	ModulatorSamplerSoundPool(MainController *mc, FileHandlerBase* handler);

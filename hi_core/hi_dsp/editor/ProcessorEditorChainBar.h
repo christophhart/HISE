@@ -38,7 +38,6 @@ namespace hise { using namespace juce;
 
 class ProcessorEditorChainBar  : public ProcessorEditorChildComponent,
 								 public ButtonListener,
-								 public DragAndDropTarget,
 								 public Timer
 {
 public:
@@ -81,14 +80,6 @@ public:
 		}
 	}
 	
-
-    bool isInterestedInDragSource(const SourceDetails & 	dragSourceDetails) override;
-
-	void itemDragEnter(const SourceDetails &dragSourceDetails) override;
-	void itemDragExit(const SourceDetails &dragSourceDetails) override;
-	void itemDropped(const SourceDetails &dragSourceDetails) override;
-	void itemDragMove(const SourceDetails& dragSourceDetails) override;;
-
 	void refreshPanel();
 
     void resized() override;
