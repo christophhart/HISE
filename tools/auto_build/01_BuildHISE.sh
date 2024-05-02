@@ -1,4 +1,5 @@
 cd "$(dirname "$0")"
+cd "$(dirname "$0")"
 cd ..
 cd ..
 
@@ -17,6 +18,33 @@ standalone_folder="projects/standalone"
 plugin_folder="projects/plugin"
 
 chmod +x "tools/Projucer/Projucer.app/Contents/MacOS/Projucer"
+
+echo Write team development ID
+
+echo Fetching Apple Code Signing ID
+echo If this fails, you need to add your certificate as $USER keychain password with the ID dev_certificate_id
+APPLE_CERTIFICATE_ID=$(security find-generic-password -a "$USER" -s "dev_certificate_id" -w)
+echo The certificate was found: $APPLE_CERTIFICATE_ID
+echo Fetching Apple Installer Code Signing ID
+echo If this fails, you need to add your installer certificate as $USER keychain password with the ID dev_installer_id
+APPLE_CERTIFICATE_ID_INSTALLER=$(security find-generic-password -a "$USER" -s "dev_installer_id" -w)
+echo The installer certificate was found: $APPLE_CERTIFICATE_ID_INSTALLER
+
+# regex the actual team ID
+[[ $APPLE_CERTIFICATE_ID_INSTALLER =~ .*\((.*)\) ]] && team_id=${BASH_REMATCH[1]}
+
+echo The team ID is: $team_id
+
+echo Fetching App specific password for notarizing
+echo If this fails, you need to create an app specific password in iCloud and add it as $USER keychain password with the ID notarize_app_password
+
+notarize_app_password=$(security find-generic-password -a "$USER" -s "notarize_app_password" -w)
+
+echo $notarize_app_password
+
+sed -i -e "s/iosDevelopmentTeamID=\"\"/iosDevelopmentTeamID=\"$team_id\"/g" "projects/plugin/HISE.jucer"
+sed -i -e "s/iosDevelopmentTeamID=\"\"/iosDevelopmentTeamID=\"$team_id\"/g" "projects/standalone/HISE Standalone.jucer"
+sed -i -e "s/iosDevelopmentTeamID=\"\"/iosDevelopmentTeamID=\"$team_id\"/g" "tools/multipagecreator/multipagecreator.jucer"
 
 "tools/Projucer/Projucer.app/Contents/MacOS/Projucer" --resave "projects/plugin/HISE.jucer"
 "tools/Projucer/Projucer.app/Contents/MacOS/Projucer" --resave "projects/standalone/HISE Standalone.jucer"
@@ -70,4 +98,13 @@ then
 fi
 
 echo "OK"
+
+echo "Compiling HISE installer"
+
+mp_binary="tools/multipagecreator/Builds/MacOSX/build/Release/multipagecreator.app"
+
+$mp_binary/Contents/MacOS/multipagecreator --export:"$PWD/tools/auto_build/Installer/hise_installer.json" --hisepath:"$PWD" --teamid:$team_id
+
+chmod +x tools/auto_build/Installer/Binaries/batchCompileOSX
+tools/auto_build/Installer/Binaries/batchCompileOSX
 
