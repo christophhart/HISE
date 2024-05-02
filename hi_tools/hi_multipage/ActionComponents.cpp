@@ -1585,9 +1585,9 @@ void CopyProtection::loadConstants()
 void PluginDirectories::loadConstants()
 {
 #if JUCE_MAC
-	auto auDir = File("~/Library/Audio/Components");
-	auto vstDir = File("~/Library/Audio/VST");
-	auto vst3Dir = File("~/Library/Audio/VST3");
+	auto auDir = File("~/Library/Audio/Plug-Ins/Components");
+	auto vstDir = File("~/Library/Audio/Plug-Ins/VST");
+	auto vst3Dir = File("~/Library/Audio/Plug-Ins/VST3");
 	auto aaxDir = File("/Library/Application Support/Avid/Audio/Plug-Ins");
 
 	setConstant("auDirectory", auDir.getFullPathName());
