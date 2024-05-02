@@ -102,7 +102,6 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	registerType<ScriptingObjects::ScriptBroadcasterPanel>(PopupMenuOptions::ScriptBroadcasterMap);
 
-	registerType<GenericPanel<ProjectManagement::TableComponent>>(PopupMenuOptions::ProjectManagementTable);
 	registerType<GenericPanel<PerfettoWebviewer>>(PopupMenuOptions::PerfettoViewer);
 
 #endif
@@ -625,7 +624,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
 			addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
 			addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
-			addToPopupMenu(m, PopupMenuOptions::ProjectManagementTable, "Project Management Tracker");
 			addToPopupMenu(m, PopupMenuOptions::PerfettoViewer, "Perfetto Viewer");
 
 			addToPopupMenu(m, PopupMenuOptions::Note, "Note");
@@ -758,7 +756,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::PresetBrowser:		parent->setNewContent(GET_PANEL_NAME(PresetBrowserPanel)); break;
 	case PopupMenuOptions::ActivityLed:		    parent->setNewContent(GET_PANEL_NAME(ActivityLedPanel)); break;
 	case PopupMenuOptions::PluginSettings:		parent->setNewContent(GET_PANEL_NAME(CustomSettingsWindowPanel)); break;
-	case PopupMenuOptions::ProjectManagementTable: parent->setNewContent(GET_PANEL_NAME(GenericPanel<ProjectManagement::TableComponent>)); break;
 	case PopupMenuOptions::PerformanceStatistics: parent->setNewContent(GET_PANEL_NAME(PerformanceLabelPanel)); break;
 	case PopupMenuOptions::MidiSourceList:		parent->setNewContent(GET_PANEL_NAME(MidiSourcePanel)); break;
 	case PopupMenuOptions::MidiChannelList:		parent->setNewContent(GET_PANEL_NAME(MidiChannelPanel)); break;
