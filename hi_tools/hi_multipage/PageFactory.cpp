@@ -704,7 +704,7 @@ Table::Table(Dialog& parent, int w, const var& obj):
 
 
 	sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
-	table.getViewport()->setScrollBarThickness(14);
+	table.getViewport()->setScrollBarThickness(13);
 
 }
 

@@ -849,7 +849,7 @@ FlexboxViewport::FlexboxViewport(const Selector& selector):
 	addAndMakeVisible(viewport);
 	sf.addScrollBarToAnimate(viewport.getVerticalScrollBar());
 	viewport.setScrollBarsShown(true, false);
-	viewport.setScrollBarThickness(12);
+	viewport.setScrollBarThickness(13);
 	content.setApplyMargin(false);
 	content.setDefaultStyleSheet("display: flex; width: 100%;height: auto;");
 }

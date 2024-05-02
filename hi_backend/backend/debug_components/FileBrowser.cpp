@@ -244,7 +244,7 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 
     auto vp = fileTreeComponent->getViewport();
     
-    vp->setScrollBarThickness(14);
+    vp->setScrollBarThickness(13);
     
     sf.addScrollBarToAnimate(vp->getVerticalScrollBar());
 

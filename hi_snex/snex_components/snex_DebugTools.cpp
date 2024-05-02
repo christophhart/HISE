@@ -368,7 +368,7 @@ struct LiveCodePopup::Data : public juce::DeletedAtShutdown
 			originalEditor.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white.withAlpha(0.3f));
 			originalEditor.getScrollbar(true).setVisible(false);
 
-			originalEditor.setScrollbarThickness(12);
+			originalEditor.setScrollbarThickness(13);
 
 			fader.addScrollBarToAnimate(originalEditor.getScrollbar(true));
 			fader.addScrollBarToAnimate(originalEditor.getScrollbar(false));

@@ -88,7 +88,7 @@ namespace hise { using namespace juce;
 		rebuildDatabase();
 
 		sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
-		table.getViewport()->setScrollBarThickness(14);
+		table.getViewport()->setScrollBarThickness(13);
 
 		searchField.onTextChange = BIND_MEMBER_FUNCTION_0(SnippetBrowser::updateFilter);
 

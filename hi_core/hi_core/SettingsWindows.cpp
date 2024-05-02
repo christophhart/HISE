@@ -43,7 +43,7 @@ public:
 		properties.setLookAndFeel(&pplaf);
 
         auto& sb = properties.getViewport().getVerticalScrollBar();
-        properties.getViewport().setScrollBarThickness(12);
+        properties.getViewport().setScrollBarThickness(13);
         
         sf.addScrollBarToAnimate(sb);
         
