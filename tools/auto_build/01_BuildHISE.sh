@@ -99,12 +99,41 @@ fi
 
 echo "OK"
 
+
+au_project=$PWD/$plugin_folder/Builds/MacOSX/build/Release/HISE.component
+vst3_project=$PWD/$plugin_folder/Builds/MacOSX/build/Release/HISE.vst3
+standalone_project=$PWD/$standalone_folder/Builds/MacOSX/build/Release/HISE.app
+mp_binary="$PWD/tools/multipagecreator/Builds/MacOSX/build/Release/multipagecreator.app"
+installer_binary="$PWD/tools/auto_build/installer/Hise Installer.app"
+
 echo "Compiling HISE installer"
 
-mp_binary="tools/multipagecreator/Builds/MacOSX/build/Release/multipagecreator.app"
 
-$mp_binary/Contents/MacOS/multipagecreator --export:"$PWD/tools/auto_build/Installer/hise_installer.json" --hisepath:"$PWD" --teamid:$team_id
+
+$mp_binary/Contents/MacOS/multipagecreator --export:"$PWD/tools/auto_build/installer/hise_installer.json" --hisepath:"$PWD" --teamid:$team_id
 
 chmod +x tools/auto_build/Installer/Binaries/batchCompileOSX
 tools/auto_build/Installer/Binaries/batchCompileOSX
+
+echo "Code signing"
+
+echo "Signing VST & AU"
+codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$au_project" --timestamp
+codesign -dv --verbose=4 "$au_project"
+codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$vst3_project" --timestamp
+codesign -dv --verbose=4 "$vst3_project"
+
+echo "Signing Standalone App"
+codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$standalone_project" --timestamp
+codesign -dv --verbose=4 "$standalone_project"
+codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$mp_binary" --timestamp
+codesign -dv --verbose=4 "$mp_binary"
+
+echo "Signing Installer"
+
+codesign --deep --force --options runtime -s "$APPLE_CERTIFICATE_ID" "$installer_binary" --timestamp
+codesign -dv --verbose=4 "$mp_binary"
+
+
+
 
