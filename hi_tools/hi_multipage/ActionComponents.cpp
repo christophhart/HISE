@@ -1688,6 +1688,11 @@ void PluginDirectories::loadConstants()
 	auto vst3Dir = File("~/Library/Audio/Plug-Ins/VST3");
 	auto aaxDir = File("/Library/Application Support/Avid/Audio/Plug-Ins");
 
+    vstDir.createDirectory();
+    auDir.createDirectory();
+    vst3Dir.createDirectory();
+    aaxDir.createDirectory();
+    
 	setConstant("auDirectory", auDir.getFullPathName());
 	setConstant("vstDirectory", vstDir.getFullPathName());
 	setConstant("vst3Directory", vst3Dir.getFullPathName());

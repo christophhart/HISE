@@ -822,7 +822,7 @@
       "ID": "icon",
       "RelativePath": true,
       "OperatingSystem": 0,
-      "Filename": "icon.png"
+      "Filename": "icon_macos.png"
     }
   ]
 }
