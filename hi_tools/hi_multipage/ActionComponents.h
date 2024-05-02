@@ -52,6 +52,8 @@ struct Action: public Dialog::PageBase
 
     void paint(Graphics& g) override;
 
+    virtual void setActive(bool shouldBeActive) {};
+    
     void postInit() override;
     void perform();
     Result checkGlobalState(var globalState) override;
@@ -184,6 +186,15 @@ struct BackgroundTask: public Action
 
     Result checkGlobalState(var globalState) override;
 
+    void setActive(bool shouldBeActive) override
+    {
+        if(!shouldBeActive)
+            progress->setTextToDisplay("This step is inactive");
+
+        textLabel->setEnabled(shouldBeActive);
+        progress->setEnabled(shouldBeActive);
+    }
+    
 protected:
 
     void addSourceTargetEditor(Dialog::PageInfo& rootList);
@@ -200,6 +211,7 @@ protected:
     Result abort(const String& message);
 
     String label;
+    Component* textLabel;
     ScopedPointer<ProgressBar> progress;
     HiseShapeButton retryButton;
 
@@ -316,6 +328,22 @@ struct CopyAsset: public BackgroundTask
     bool overwrite = true;
 };
 
+struct CopySiblingFile: public BackgroundTask
+{
+    HISE_MULTIPAGE_ID("CopySiblingFile");
+
+    CopySiblingFile(Dialog& r, int w, const var& obj):
+      BackgroundTask(r, w, obj)
+    {}
+
+    Result performTask(State::Job& t) override;
+
+    CREATE_EDITOR_OVERRIDE;
+
+    String getDescription() const override { return "CopySiblingFile"; }
+
+    bool overwrite = true;
+};
 
 struct HlacDecoder: public BackgroundTask,
 				    public hlac::HlacArchiver::Listener

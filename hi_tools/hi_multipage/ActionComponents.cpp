@@ -127,6 +127,8 @@ void Action::perform()
 
 	auto shouldPerform = getValueFromGlobalState(var(true));
 
+    setActive(shouldPerform);
+    
 	if(!shouldPerform)
 	{
 		rootDialog.logMessage(MessageType::ActionEvent, "Skip deactivated action: " + getDescription());
@@ -605,7 +607,7 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
         
 	label = obj[mpid::Text].toString();
 
-	addTextElement({ ".label"}, label);
+	textLabel = addTextElement({ ".label"}, label);
 
         
 	addFlexItem(*progress);
@@ -1238,6 +1240,26 @@ Result UnzipTask::performTask(State::Job& t)
 
 		auto thisFile = targetDirectory.getChildFile(zipFile->getEntry(i)->filename);
 
+#if JUCE_MAC
+        
+        auto p1 =thisFile.getParentDirectory();
+        auto p2 = p1.getParentDirectory();
+        
+        auto isBinary = p1.getFileName() == "MacOS" &&
+                        p2.getFileName() == "Contents";
+        
+        if(isBinary)
+        {
+            String permissionCommand = "chmod +x " + thisFile.getFullPathName().quoted();
+            system(permissionCommand.getCharPointer());
+            String message;
+
+            message << "  Setting execution permissions for  " << thisFile.getFullPathName();
+            rootDialog.logMessage(MessageType::FileOperation, message);
+        }
+        
+#endif
+        
 		rootDialog.getState().addFileToLog({thisFile, true});
 
 		if(rootDialog.getEventLogger().getNumListenersWithClass<EventConsole>() > 0)
@@ -1357,6 +1379,82 @@ void CopyAsset::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Value, overwrite },
 		{ mpid::Help, "Whether the file should overwrite the existing file or not" }
 	});
+}
+#endif
+
+Result CopySiblingFile::performTask(State::Job& t)
+{
+    auto sourceFile = getSourceFile();
+    auto target = getTargetFile();
+    
+    if(!target.isDirectory())
+        return Result::fail("Target is not a directory");
+    
+    if(sourceFile.existsAsFile())
+    {
+        auto ok = sourceFile.copyFileTo(target.getChildFile(sourceFile.getFileName()));
+        
+        if(ok)
+            return Result::ok();
+        else
+            return Result::fail("Can't copy file to target");
+    }
+    else if(sourceFile.isDirectory())
+    {
+        auto list = sourceFile.findChildFiles(File::findFiles, true);
+        
+        target.getChildFile(sourceFile.getFileName()).createDirectory();
+        
+        for(auto sf: list)
+        {
+            auto p = sf.getRelativePathFrom(sourceFile.getParentDirectory());
+            auto tf = target.getChildFile(p);
+            tf.getParentDirectory().createDirectory();
+            auto ok = sf.copyFileTo(tf);
+            
+            if(!ok)
+            {
+                return Result::fail("Error at writing file " + tf.getFullPathName());
+            }
+        }
+    }
+    else
+    {
+        return Result::fail("Can't find source file " + sourceFile.getFullPathName());
+    }
+    
+    for(int i = 0; i < 30; i++)
+    {
+        t.getProgress() = (double)i / 30.0;
+        Thread::getCurrentThread()->sleep(30);
+    }
+    
+    return Result::ok();
+}
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+void CopySiblingFile::createEditor(Dialog::PageInfo& rootList)
+{
+    BackgroundTask::createEditor(rootList);
+    createBasicEditor(*this, rootList, "An action element that will copy an embedded file to a given location.)");
+
+    auto& col = rootList;
+
+    col.addChild<TextInput>({
+        { mpid::ID, "Text" },
+        { mpid::Text, "Text" },
+        { mpid::Help, "The label text that will be shown next to the progress bar." }
+    });
+        
+    addSourceTargetEditor(rootList);
+
+    rootList.addChild<Button>({
+        { mpid::ID, "Overwrite" },
+        { mpid::Text, "Overwrite" },
+        { mpid::Required, false },
+        { mpid::Value, overwrite },
+        { mpid::Help, "Whether the file should overwrite the existing file or not" }
+    });
 }
 #endif
 

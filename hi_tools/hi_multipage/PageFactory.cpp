@@ -1163,6 +1163,7 @@ Factory::Factory()
 	registerPage<factory::PluginDirectories>();
 	registerPage<factory::PersistentSettings>();
 	registerPage<factory::CopyAsset>();
+    registerPage<factory::CopySiblingFile>();
 	registerPage<factory::OperatingSystem>();
 	registerPage<factory::EventLogger>();
 	registerPage<factory::FileLogger>();
