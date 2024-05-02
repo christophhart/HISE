@@ -88,7 +88,20 @@ public:
 
         auto jsonFile = getArgument(args, "--export:").unquoted();
         auto hisePath = getArgument(args, "--hisepath:").unquoted();
+        auto teamID = getArgument(args, "--teamid:").unquoted();
+        
+        
+        if(teamID.contains("("))
+            teamID = teamID.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false).trim();
 
+        auto tlength = teamID.length();
+        
+        if(tlength != 0 && tlength != 10)
+            throwErrorAndQuit("Team Developer ID is invalid");
+        
+        if(jsonFile.isNotEmpty() && hisePath.isEmpty())
+            throwErrorAndQuit("You must supply the HISE path when building from the command line");
+        
         if(File::isAbsolutePath(jsonFile) && File::isAbsolutePath(hisePath))
         {
 	        File j(jsonFile);
@@ -126,6 +139,9 @@ public:
             DynamicObject::Ptr so = new DynamicObject();
             so->setProperty("hisePath", hp.getFullPathName());
             so->setProperty("skipCompilation", true);
+            
+            if(teamID.isNotEmpty())
+                so->setProperty("teamID", teamID);
 
             projucer_exporter pe(j.getParentDirectory(), state);
             pe.exportObj = obj;
@@ -141,7 +157,7 @@ public:
 		print("HISE Multipage Creator");
         print("----------------------");
         print("");
-        print("Usage: multipagecreator.exe --export:JSON_FILE --hisepath:HISE_PATH");
+        print("Usage: multipagecreator.exe --export:JSON_FILE [--hisepath:HISE_PATH] [--teamid::APPLE_DEV_ID]");
         print("");
         print("Exports the JSON File as a binary application");
 
@@ -172,6 +188,8 @@ public:
             {
 	            CommandLineActions::compileProject(commandLine);
             }
+            
+            return;
         }
         mainWindow.reset (new MainWindow (getApplicationName()));
     }
