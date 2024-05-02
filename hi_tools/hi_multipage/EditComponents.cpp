@@ -112,6 +112,8 @@ public:
             auto nc = new DialogClass();
 			nc->setOnCloseFunction(BIND_MEMBER_FUNCTION_0(MainWindow::closeButtonPressed));
 
+            state = &nc->state;
+
             setContentOwned (nc, true);
             setResizable(false, false);
             centreWithSize (getWidth(), getHeight());
@@ -123,6 +125,8 @@ public:
             JUCEApplication::getInstance()->systemRequestedQuit();
         }
 
+        multipage::State* getMainState() override { return state; }
+
 		bool setSideTab(multipage::State* dialogState, multipage::Dialog* newDialog) override
         {
 	        delete dialogState;
@@ -133,6 +137,9 @@ public:
 		void refreshDialog() override {};
 
     private:
+
+        multipage::State* state;
+
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainWindow)
     };
 
@@ -165,7 +172,7 @@ START_JUCE_APPLICATION (MainWrapper)
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0&#10;PERFETTO=0&#10;USE_BACKEND=1"
                extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
-               xcodeValidArchs="x86_64" smallIcon="%ICON_REF%" bigIcon="%ICON_REF%">
+               xcodeValidArchs="x86_64" smallIcon="%ICON_REF%" bigIcon="%ICON_REF%" iosDevelopmentTeamID="%TEAM_ID%">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
                        macOSDeploymentTarget="10.15" osxCompatibility="10.15 SDK"  targetName="%BINARY_NAME%"
@@ -300,7 +307,8 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 		temp = temp.replace("%VERSION%", version);
 		temp = temp.replace("%HISE_PATH%", hisePath);
 		temp = temp.replace("%BINARY_NAME%", data[mpid::Properties][mpid::BinaryName].toString());
-
+        temp = temp.replace("%TEAM_ID%", teamId);
+        
 		File iconFile;
 
 		auto iconId = data[mpid::Properties][mpid::Icon].toString().removeCharacters("${}");
@@ -459,6 +467,8 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
                 if(rawMode)
                     x << getNewLine() << "closeFunction = BIND_MEMBER_FUNCTION_0(" << className << "::destroy);";
                       
+
+                
                 x << getNewLine() << "setSize(";
                 
                 x << String((int)data[mpid::LayoutData]["DialogWidth"]) << ", ";
@@ -669,8 +679,10 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
     defaultValues.set(mpid::Multiline, false);
     
     static const Array<Identifier> deprecatedIds = { Identifier("Padding"),
-    												 Identifier("LabelPosition"),
-													 Identifier("UseFilter") };
+        Identifier("LabelPosition"),
+        Identifier("UseFilter"),
+        Identifier("Visible"),
+        Identifier("Comment")};
     
 	for(auto& nv: prop)
 	{
