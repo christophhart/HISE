@@ -2,12 +2,8 @@
 #define REGISTER_INLINER(x) currentState->inlinerManager.registerInliner(#x, InlinerFunctions::x);
 #define REGISTER_TYPE(X) currentState->instructionManager.registerInstruction(InstructionIds::X, InstructionParsers::X);
 
-#if HISE_INCLUDE_SNEX_CODEGEN
-
 #include "src/mir.h"
 #include "src/mir-gen.h"
-
-
 
 #include "snex_MirHelpers.h"
 #include "snex_MirState.h"
@@ -18,10 +14,7 @@
 #include "snex_MirInliners.cpp"
 #include "snex_MirInstructions.cpp"
 
-
 #include "snex_MirBuilder.cpp"
-
-#endif
 
 #include "snex_MirObject.cpp"
 

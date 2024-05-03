@@ -21,7 +21,7 @@
 #pragma clang diagnostic ignored "-Wconversion"
 #endif
 
-#if HISE_INCLUDE_SNEX && HISE_INCLUDE_SNEX_CODEGEN
+#if HISE_INCLUDE_SNEX
 #define MIR_NO_INTERP 1
 #include "snex_mir/src/mir.c"
 #endif

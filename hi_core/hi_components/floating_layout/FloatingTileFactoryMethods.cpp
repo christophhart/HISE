@@ -718,10 +718,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::PresetBrowser:		parent->setNewContent(GET_PANEL_NAME(PresetBrowserPanel)); break;
 	case PopupMenuOptions::ActivityLed:		    parent->setNewContent(GET_PANEL_NAME(ActivityLedPanel)); break;
 	case PopupMenuOptions::PluginSettings:		parent->setNewContent(GET_PANEL_NAME(CustomSettingsWindowPanel)); break;
-<<<<<<< HEAD
-	
-=======
->>>>>>> origin/develop
 	case PopupMenuOptions::PerformanceStatistics: parent->setNewContent(GET_PANEL_NAME(PerformanceLabelPanel)); break;
 	case PopupMenuOptions::MidiSourceList:		parent->setNewContent(GET_PANEL_NAME(MidiSourcePanel)); break;
 	case PopupMenuOptions::MidiChannelList:		parent->setNewContent(GET_PANEL_NAME(MidiChannelPanel)); break;

@@ -32,7 +32,7 @@
 
 namespace hise { using namespace juce;
 
-
+#define DECLARE_FOLD_ID(x) static const Identifier x(#x);
 
 namespace fold_ids
 {

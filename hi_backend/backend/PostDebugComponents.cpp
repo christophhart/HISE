@@ -495,7 +495,6 @@ void FloatingTileContent::Factory::registerBackendPanelTypes()
 
 	registerType<ScriptingObjects::ScriptBroadcasterPanel>(PopupMenuOptions::ScriptBroadcasterMap);
 
-	registerType<GenericPanel<ProjectManagement::TableComponent>>(PopupMenuOptions::ProjectManagementTable);
 	registerType<GenericPanel<PerfettoWebviewer>>(PopupMenuOptions::PerfettoViewer);
 
 	registerType<SamplerTablePanel>(PopupMenuOptions::SamplerTable);
@@ -513,7 +512,6 @@ bool FloatingTileContent::Factory::handleBackendMenu(PopupMenuOptions r, Floatin
 	{
 	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); return true;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); return true;
-	case PopupMenuOptions::ProjectManagementTable: parent->setNewContent(GET_PANEL_NAME(GenericPanel<ProjectManagement::TableComponent>)); return true;
 	case PopupMenuOptions::DspNodeList:			parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNodeList::Panel)); return true;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); return true;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); return true;
