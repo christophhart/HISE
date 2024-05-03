@@ -167,8 +167,8 @@ struct MarkdownPreviewSyncer : public Timer,
 
     bool recursiveScrollProtector = false;
     
-    MarkdownPreview& p;
-    mcl::FullEditor& e;
+    Component::SafePointer<MarkdownPreview> p;
+    Component::SafePointer<mcl::FullEditor> e;
 };
 
 }

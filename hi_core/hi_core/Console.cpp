@@ -47,7 +47,7 @@ CodeEditorComponent(doc, tok)
     setColour(CodeEditorComponent::ColourIds::highlightColourId, Colours::white.withAlpha(0.15f));
     
 	setLineNumbersShown(false);
-    setScrollbarThickness(14);
+    setScrollbarThickness(13);
     
     fader.addScrollBarToAnimate(getScrollbar(true));
     fader.addScrollBarToAnimate(getScrollbar(false));

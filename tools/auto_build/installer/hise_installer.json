@@ -28,12 +28,32 @@
   },
   "LayoutData": {
     "StyleSheet": "Dark",
-    "Style": "body\n{\n\t--global-padding: 25px;\n}\n\n#eula input\n{\n\theight: 100%;\n}\n\n#eula label\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n#title\n{\n\tfont-size: 1.5em;\n}\n\n.install-option\n{\n\tflex-grow: 0;\n\tflex-shrink: 0;\n\twidth: 180px;\n}\n\n.install-option button\n{\n\t\n\tcolor: #ddd;\n\ttext-align: left;\n}\n\n.install-option label\n{\n\tdisplay: none;\n}\n\n.install-target\n{\n\tflex-grow: 1;\n}\n\n.install-target label\n{\n\tdisplay: none;\n}\n",
+    "Style": "body\n{\n\t--global-padding: 25px;\n}\n\n#eula input\n{\n\theight: 100%;\n}\n\n#eula label\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n#title\n{\n\tfont-size: 1.5em;\n}\n\n.install-option\n{\n\tflex-grow: 0;\n\tflex-shrink: 0;\n\twidth: 180px;\n}\n\n.install-option button\n{\n\t\n\tcolor: #ddd;\n\ttext-align: left;\n}\n\n.install-option label\n{\n\tdisplay: none;\n}\n\n.install-target\n{\n\tflex-grow: 1;\n}\n\n.install-target label\n{\n\tdisplay: none;\n}\n\n.task label\n{\n\twidth: 160px;\n}\n",
     "UseViewport": true,
     "DialogWidth": 700,
     "DialogHeight": 530
   },
   "GlobalState": {
+    "company": "HISE",
+    "product": "HISE",
+    "version": "4.0.0",
+    "WINDOWS": false,
+    "MAC_OS": true,
+    "LINUX": false,
+    "NOT_WINDOWS": true,
+    "NOT_MAC_OS": false,
+    "NOT_LINUX": true,
+    "OS": 2,
+    "OS_String": "OSX",
+    "auDirectory": "/Users/christophhart/Library/Audio/Plug-Ins/Components",
+    "vstDirectory": "/Users/christophhart/Library/Audio/Plug-Ins/VST",
+    "vst3Directory": "/Users/christophhart/Library/Audio/Plug-Ins/VST3",
+    "aaxDirectory": "/Library/Application Support/Avid/Audio/Plug-Ins",
+    "installStandalone": "1",
+    "installVST3": "true",
+    "installAU": "1",
+    "installMultipageCreator": "1",
+    "multipageTarget": "$standaloneTarget"
   },
   "Children": [
     {
@@ -455,7 +475,7 @@
                   "Overwrite": true,
                   "Source": "${hise_win_standalone}",
                   "Target": "$standaloneTarget",
-                  "Class": "",
+                  "Class": "task",
                   "Style": ""
                 },
                 {
@@ -467,7 +487,7 @@
                   "Overwrite": true,
                   "Source": "${hise_win_vst3}",
                   "Target": "$vst3Directory",
-                  "Class": "",
+                  "Class": "task",
                   "Style": ""
                 },
                 {
@@ -479,7 +499,7 @@
                   "Overwrite": true,
                   "Source": "${mpc_win}",
                   "Target": "$multipageTarget",
-                  "Class": "",
+                  "Class": "task",
                   "Style": ""
                 }
               ],
@@ -493,6 +513,14 @@
               "Text": "LabelText",
               "Children": [
                 {
+                  "Type": "RelativeFileLoader",
+                  "Text": "LabelText",
+                  "ID": "dmgRoot",
+                  "CallOnNext": false,
+                  "SpecialLocation": "currentApplicationFile",
+                  "RelativePath": "../"
+                },
+                {
                   "Type": "MarkdownText",
                   "Text": "Installing macOS binaries...",
                   "Padding": 0,
@@ -502,40 +530,48 @@
                   "Style": ""
                 },
                 {
-                  "Type": "UnzipTask",
-                  "Text": "Installing Standalone app",
+                  "Type": "CopySiblingFile",
+                  "Text": "Installing Standalone",
                   "ID": "installStandalone",
                   "CallOnNext": false,
                   "Overwrite": true,
-                  "Source": "${hise_macOS_standalone}",
+                  "Source": "$dmgRoot/HISE.app",
                   "Target": "$standaloneTarget",
-                  "Class": "",
-                  "Style": "",
-                  "Cleanup": false
+                  "Class": "task",
+                  "Style": ""
                 },
                 {
-                  "Type": "UnzipTask",
-                  "Text": "Install VST Plugin",
+                  "Type": "CopySiblingFile",
+                  "Text": "Install VST3 Plugin",
                   "ID": "installVST3",
                   "CallOnNext": false,
                   "Overwrite": true,
+                  "Source": "$dmgRoot/HISE.vst3",
                   "Target": "$vst3Directory",
-                  "Class": "",
-                  "Style": "",
-                  "Source": "${hise_macOS_vst3}",
-                  "Cleanup": false
+                  "Class": "task",
+                  "Style": ""
                 },
                 {
-                  "Type": "UnzipTask",
-                  "Text": "Install AU Plugin",
+                  "Type": "CopySiblingFile",
+                  "Text": "Install AU",
                   "ID": "installAU",
                   "CallOnNext": false,
                   "Overwrite": true,
-                  "Class": "",
-                  "Style": "",
                   "Target": "$auDirectory",
-                  "Source": "${hise_macOS_au}",
-                  "Cleanup": false
+                  "Source": "$dmgRoot/HISE.component",
+                  "Class": "task",
+                  "Style": ""
+                },
+                {
+                  "Type": "CopySiblingFile",
+                  "Text": "Install Multipage Creator",
+                  "ID": "installMultipageCreator",
+                  "CallOnNext": false,
+                  "Overwrite": true,
+                  "Source": "$dmgRoot/multipagecreator.app",
+                  "Target": "$multipageTarget",
+                  "Class": "task",
+                  "Style": ""
                 }
               ],
               "ID": "",
@@ -786,28 +822,7 @@
       "ID": "icon",
       "RelativePath": true,
       "OperatingSystem": 0,
-      "Filename": "icon.png"
-    },
-    {
-      "Type": 5,
-      "ID": "hise_macOS_standalone",
-      "RelativePath": true,
-      "OperatingSystem": 2,
-      "Filename": "../../../projects/standalone/Builds/MacOSX/build/Release/HISE.zip"
-    },
-    {
-      "Type": 5,
-      "ID": "hise_macOS_vst3",
-      "RelativePath": true,
-      "OperatingSystem": 2,
-      "Filename": "../../../projects/plugin/Builds/MacOSX/build/Release/HISE.vst3.zip"
-    },
-    {
-      "Type": 5,
-      "ID": "hise_macOS_au",
-      "RelativePath": true,
-      "OperatingSystem": 2,
-      "Filename": "../../../projects/plugin/Builds/MacOSX/build/Release/HISE.component.zip"
+      "Filename": "icon_macos.png"
     }
   ]
 }

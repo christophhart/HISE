@@ -293,7 +293,10 @@ void FullEditor::paint(Graphics& g)
 
 void MarkdownPreviewSyncer::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart)
 {
-    synchroniseTabs(scrollBarThatHasMoved == &e.editor.getVerticalScrollBar());
+    if(e == nullptr || p == nullptr)
+        return;
+    
+    synchroniseTabs(scrollBarThatHasMoved == &e->editor.getVerticalScrollBar());
 }
 
 void MarkdownPreviewSyncer::codeDocumentTextInserted(const String& newText, int insertIndex)
@@ -307,26 +310,31 @@ void MarkdownPreviewSyncer::codeDocumentTextDeleted(int startIndex, int endIndex
 }
 
 MarkdownPreviewSyncer::MarkdownPreviewSyncer(mcl::FullEditor& editor, MarkdownPreview& preview):
-	p(preview),
-	e(editor)
+	p(&preview),
+	e(&editor)
 {
-	e.editor.getTextDocument().getCodeDocument().addListener(this);
+	e->editor.getTextDocument().getCodeDocument().addListener(this);
 }
 
 MarkdownPreviewSyncer::~MarkdownPreviewSyncer()
 {
 	setEnableScrollbarListening(false);
-	e.editor.getTextDocument().getCodeDocument().removeListener(this);
+    
+    if(e != nullptr)
+        e->editor.getTextDocument().getCodeDocument().removeListener(this);
 }
 
 void MarkdownPreviewSyncer::timerCallback()
 {
+    if(p == nullptr || e == nullptr)
+        return;
+    
 	{
-		MarkdownRenderer::ScopedScrollDisabler sds(p.renderer);
+		MarkdownRenderer::ScopedScrollDisabler sds(p->renderer);
 		ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
 
-		if (p.isShowing())
-			p.setNewText(e.editor.getTextDocument().getCodeDocument().getAllContent(), {}, false);
+		if (p->isShowing())
+			p->setNewText(e->editor.getTextDocument().getCodeDocument().getAllContent(), {}, false);
 
 		stopTimer();
 	}
@@ -364,15 +372,18 @@ void XmlEditor::resized()
 
 void MarkdownPreviewSyncer::setEnableScrollbarListening(bool shouldListenToScrollBars)
 {
+    if(e == nullptr || p == nullptr)
+        return;
+    
     if (shouldListenToScrollBars)
     {
-        p.viewport.getVerticalScrollBar().addListener(this);
-        e.editor.getVerticalScrollBar().addListener(this);
+        p->viewport.getVerticalScrollBar().addListener(this);
+        e->editor.getVerticalScrollBar().addListener(this);
     }
     else
     {
-        p.viewport.getVerticalScrollBar().removeListener(this);
-        e.editor.getVerticalScrollBar().removeListener(this);
+        p->viewport.getVerticalScrollBar().removeListener(this);
+        e->editor.getVerticalScrollBar().removeListener(this);
     }
 }
 
@@ -381,23 +392,26 @@ void MarkdownPreviewSyncer::synchroniseTabs(bool editorIsSource)
     if (recursiveScrollProtector)
         return;
     
-    if(!e.isVisible() || !p.isVisible())
+    if(e == nullptr || p == nullptr)
+        return;
+    
+    if(!e->isVisible() || !p->isVisible())
         return;
 
     ScopedValueSetter<bool> svs(recursiveScrollProtector, true);
 
     if (!editorIsSource)
     {
-        auto yPos = (float)p.viewport.getViewPositionY();
-        auto lineNumber = p.renderer.getLineNumberForY(yPos);
+        auto yPos = (float)p->viewport.getViewPositionY();
+        auto lineNumber = p->renderer.getLineNumberForY(yPos);
 
-        e.editor.setFirstLineOnScreen(lineNumber);
+        e->editor.setFirstLineOnScreen(lineNumber);
     }
     else
     {
-        auto currentLine = e.editor.getFirstLineOnScreen();
-        auto yPos = p.renderer.getYForLineNumber(currentLine);
-        p.viewport.setViewPosition(0, yPos);
+        auto currentLine = e->editor.getFirstLineOnScreen();
+        auto yPos = p->renderer.getYForLineNumber(currentLine);
+        p->viewport.setViewPosition(0, yPos);
     }
 }
 

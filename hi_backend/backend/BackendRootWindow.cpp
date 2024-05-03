@@ -32,7 +32,7 @@
 
 namespace hise { using namespace juce;
 
-#define DECLARE_FOLD_ID(id) static const Identifier id("$fold_" + String(#id));
+
 
 namespace fold_ids
 {
@@ -1020,8 +1020,6 @@ void BackendRootWindow::showWorkspace(int workspace)
 
 	getRootFloatingTile()->refreshRootLayout();
 }
-
-
 
 
 void BackendRootWindow::paintOverChildren(Graphics& g)

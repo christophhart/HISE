@@ -104,8 +104,6 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuCloseProject,
 		MenuFileBrowseExamples,
 		MenuFileCreateRecoveryXml,
-		MenuFileArchiveProject,
-		MenuFileDownloadNewProject,
 		MenuProjectShowInFinder,
         MenuFileSaveUserPreset,
 		MenuFileSettingsPreset,
@@ -325,16 +323,8 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Close Project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		result.categoryName = "File";
 		break;
-	case MenuFileArchiveProject:
-		setCommandTarget(result, "Archive Project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
-		result.categoryName = "File";
-		break;
 	case MenuFileExtractEmbeddeSnippetFiles:
 		setCommandTarget(result, "Copy snippet script files to current project", GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
-		result.categoryName = "File";
-		break;
-	case MenuFileDownloadNewProject:
-		setCommandTarget(result, "Download archived Project", true, false, 'X', false);
 		result.categoryName = "File";
 		break;
 	case MenuProjectShowInFinder:
@@ -763,8 +753,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuProjectNew:				Actions::createNewProject(bpe); updateCommands();  return true;
 	case MenuProjectLoad:				Actions::loadProject(bpe); updateCommands(); return true;
 	case MenuCloseProject:				Actions::closeProject(bpe); updateCommands(); return true;
-	case MenuFileArchiveProject:		Actions::archiveProject(bpe); return true;
-	case MenuFileDownloadNewProject:	Actions::downloadNewProject(bpe); return true;
 	case MenuProjectShowInFinder:		Actions::showProjectInFinder(bpe); return true;
 	case MenuFileBrowseExamples:		Actions::showExampleBrowser(bpe); return true;
 	case MenuFileCreateRecoveryXml:		Actions::createRecoveryXml(bpe); return true;
@@ -2549,37 +2537,6 @@ void BackendCommandTarget::Actions::toggleForcePoolSearch(BackendRootWindow * bp
 }
 
 
-void BackendCommandTarget::Actions::archiveProject(BackendRootWindow * bpe)
-{
-	ProjectHandler *handler = &GET_PROJECT_HANDLER(bpe->getMainSynthChain());
-
-	if (handler->isRedirected(ProjectHandler::SubDirectories::Samples))
-	{
-		if (PresetHandler::showYesNoWindow("Sample Folder is redirected", 
-										   "The sample folder is redirected to another location.\nIt will not be included in the archive. Press OK to continue or cancel to abort", 
-										   PresetHandler::IconType::Warning))
-			return;
-	}
-
-	FileChooser fc("Select archive destination", File(), "*.zip");
-
-	if (fc.browseForFileToSave(true))
-	{
-		File archiveFile = fc.getResult();
-
-		File projectDirectory = handler->getWorkDirectory();
-
-		new ProjectArchiver(archiveFile, projectDirectory, bpe->getBackendProcessor());
-
-	}
-}
-
-void BackendCommandTarget::Actions::downloadNewProject(BackendRootWindow * bpe)
-{
-	ProjectDownloader *downloader = new ProjectDownloader(bpe->mainEditor);
-
-	downloader->setModalBaseWindowComponent(bpe);
-}
 
 void BackendCommandTarget::Actions::showMainMenu(BackendRootWindow * /*bpe*/)
 {

@@ -614,6 +614,7 @@ public:
 		MarkdownPreview& parent;
 		MarkdownDataBase* db = nullptr;
 		MarkdownLink pendingLink;
+        ScrollbarFader sf;
 	};
 
 

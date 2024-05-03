@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="3.6.2"
               bundleIdentifier="com.hartinstruments.HISE" includeBinaryInAppConfig="1"
-              buildVST="1" buildVST3="0" buildAU="1" buildRTAS="0" buildAAX="0"
+              buildVST="0" buildVST3="1" buildAU="1" buildRTAS="0" buildAAX="0"
               pluginName="HISE" pluginDesc="HISE" pluginManufacturer="Hart Instruments"
               pluginManufacturerCode="Hain" pluginCode="Hise" pluginChannelConfigs=""
               pluginIsSynth="1" pluginWantsMidiIn="1" pluginProducesMidiOut="1"
@@ -11,7 +11,7 @@
               pluginAAXCategory="2048" companyName="Hart Instruments" companyWebsite="http://hise.audio"
               pluginIsMidiEffectPlugin="0" buildAUv3="0" companyCopyright="Hart Instruments"
               displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
-              buildStandalone="0" enableIAA="0" cppLanguageStandard="17" pluginFormats="buildVST,buildAU"
+              buildStandalone="0" enableIAA="0" cppLanguageStandard="17" pluginFormats="buildAU,buildVST3"
               pluginCharacteristicsValue="pluginIsSynth,pluginWantsMidiIn,pluginProducesMidiOut,pluginEditorRequiresKeys"
               jucerFormatVersion="1" pluginRTASDisableBypass="0" pluginRTASDisableMultiMono="0"
               pluginAAXDisableBypass="0" pluginAAXDisableMultiMono="0">
@@ -34,7 +34,7 @@
                postbuildCommand="" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation"
                customPList="" aaxFolder="/Volumes/Shared/Development/HISE modules/tools/SDK/AAX"
                smallIcon="" bigIcon="" xcodeValidArchs="arm64,arm64e,x86_64"
-               extraDefs="USE_IPP=0&#10;PERFETTO=1" extraLinkerFlags="">
+               extraDefs="USE_IPP=0&#10;PERFETTO=1" extraLinkerFlags="" iosDevelopmentTeamID="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxCompatibility="10.13 SDK" isDebug="1" optimisation="1"
                        macOSDeploymentTarget="10.13" targetName="HISE Debug" cppLibType="libc++"

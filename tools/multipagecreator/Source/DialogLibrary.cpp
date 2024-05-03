@@ -152,7 +152,8 @@ var ProjectExporter::exportProjucerProject(State::Job& t, const var& state)
 
     cg.company = exportObj[mpid::Properties][mpid::Company].toString();
     cg.version = exportObj[mpid::Properties][mpid::Version].toString();
-    cg.hisePath = state["GisePath"].toString();
+    cg.hisePath = state["HisePath"].toString();
+    cg.teamId = state["teamID"].toString();
 
     auto startCompile = !(bool)state["skipCompilation"];
 

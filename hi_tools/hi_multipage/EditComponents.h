@@ -94,6 +94,7 @@ struct CodeGenerator
     String company;
     String version;
     String hisePath;
+    String teamId;
 
 private:
 

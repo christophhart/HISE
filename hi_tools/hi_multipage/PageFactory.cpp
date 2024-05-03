@@ -704,7 +704,7 @@ Table::Table(Dialog& parent, int w, const var& obj):
 
 
 	sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
-	table.getViewport()->setScrollBarThickness(14);
+	table.getViewport()->setScrollBarThickness(13);
 
 }
 
@@ -1163,6 +1163,7 @@ Factory::Factory()
 	registerPage<factory::PluginDirectories>();
 	registerPage<factory::PersistentSettings>();
 	registerPage<factory::CopyAsset>();
+    registerPage<factory::CopySiblingFile>();
 	registerPage<factory::OperatingSystem>();
 	registerPage<factory::EventLogger>();
 	registerPage<factory::FileLogger>();

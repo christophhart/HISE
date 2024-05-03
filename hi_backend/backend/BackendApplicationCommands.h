@@ -97,10 +97,8 @@ public:
 		MenuProjectNew = 0x24000,
 		MenuProjectLoad,
 		MenuCloseProject,
-		MenuFileArchiveProject,
 		MenuFileImportProjectFromHXI,
 		MenuFileExtractEmbeddeSnippetFiles,
-		MenuFileDownloadNewProject,
 		MenuFileCreateRecoveryXml,
 		MenuProjectShowInFinder,
 		MenuProjectRecentOffset,
@@ -354,8 +352,6 @@ public:
 		static void createRSAKeys(BackendRootWindow * bpe);
 		static void createDummyLicenseFile(BackendRootWindow * bpe);
 		static void toggleForcePoolSearch(BackendRootWindow * bpe);
-		static void archiveProject(BackendRootWindow * bpe);
-		static void downloadNewProject(BackendRootWindow * bpe);
 		static void showMainMenu(BackendRootWindow * bpe);
 		static void moveModule(CopyPasteTarget *currentCopyPasteTarget, bool moveUp);
 		static void createExternalScriptFile(BackendRootWindow * bpe);

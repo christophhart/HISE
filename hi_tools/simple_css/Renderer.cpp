@@ -148,15 +148,22 @@ if (ss != nullptr)
 {
 	auto c = ss->getColourOrGradient(area, key, defaultColour);
 
+    auto op = ss->getOpacity(key.state.stateFlag);
+    
+    if(op != 1.0f)
+    {
+        op = jlimit(0.0f, 1.0f, op);
+        
+        if(c.second.getNumColours() > 0)
+            c.second.multiplyOpacity(op);
+        else
+            c.first = c.first.withMultipliedAlpha(op);
+    }
+
 	if(c.second.getNumColours() > 0)
 		g.setGradientFill(c.second);
 	else
 		g.setColour(c.first);
-    
-    auto op = ss->getOpacity(key.state.stateFlag);
-    
-    if(op != 1.0f)
-        g.setOpacity(jlimit(0.0f, 1.0f, op));
 }
 }
 

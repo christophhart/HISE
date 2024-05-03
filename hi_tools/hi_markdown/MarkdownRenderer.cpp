@@ -369,7 +369,7 @@ SimpleMarkdownDisplay::SimpleMarkdownDisplay():
 	vp.setScrollBarsShown(true, false);
 
 	sf.addScrollBarToAnimate(vp.getVerticalScrollBar());
-	vp.setScrollBarThickness(14);
+	vp.setScrollBarThickness(13);
 }
 
 void SimpleMarkdownDisplay::setText(const String& text)
@@ -1909,6 +1909,8 @@ MarkdownPreview::MarkdownDatabaseTreeview::MarkdownDatabaseTreeview(MarkdownPrev
 	tree.setRootItemVisible(false);
 
 	tree.getViewport()->setScrollBarsShown(true, false);
+    tree.getViewport()->setScrollBarThickness(13);
+    sf.addScrollBarToAnimate(tree.getViewport()->getVerticalScrollBar());
 	databaseWasRebuild();
 }
 

@@ -2426,7 +2426,7 @@ OSCLogger::OSCLogger(FloatingTile* parent) :
 	filterButton.setToggleModeWithColourChange(true);
 
 	fader.addScrollBarToAnimate(list.getVerticalScrollBar());
-	list.getViewport()->setScrollBarThickness(12);
+	list.getViewport()->setScrollBarThickness(13);
 }
 
 OSCLogger::~OSCLogger()
