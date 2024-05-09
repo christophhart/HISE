@@ -29,6 +29,7 @@
   "LayoutData": {
     "StyleSheet": "Dark",
     "Style": "#targetMetadata,\n#contextItems\n{\n\theight: 120px;\n}\n\n\n\n#targetMetadata input,\n#contextItems input\n{\n\theight: 100%;\n\tfont-family: monospace;\n\tfont-size: 14px;\n\tvertical-align: top;\n\tpadding-top: 5px;\n}\n\n.button-selector\n{\n\tflex-wrap:wrap;\n\tgap:0px;\n}\n\n.button-selector div\n{\n\twidth: 33%;\n\tgap: 0px;\n\tpadding: 5px;\n}\n\n.button-selector label\n{\n\tdisplay: none;\n}\n\n.button-selector .toggle-button\n{\n\tbackground: #222;\n\tcolor: #ccc;\n\tborder-radius: 5px;\n\tfont-family: monospace;\n\tfont-size: 15px;\n}\n\n.button-selector button:checked\n{\n\tbackground: #aaa;\n\tcolor: #222;\n\tborder-radius: 5px;\n}\n\n.button-selector button::before,\n.button-selector button::after\n{\n\tdisplay: none;\n}\n\n\n",
+    "UseViewport": true,
     "DialogWidth": 832,
     "DialogHeight": 716
   },
@@ -50,6 +51,13 @@
       "Type": "List",
       "Padding": "30",
       "Children": [
+        {
+          "Type": "JavascriptFunction",
+          "Text": "LabelText",
+          "ID": "JavascriptFunctionId",
+          "CallOnNext": false,
+          "Code": "var f = document.bindCallback(\"checkSelection\", function()\n{\n\treturn false;\n});\n\nif(f())\n{\n\tdocument.navigate(3, false);\n}\n\n"
+        },
         {
           "Type": "MarkdownText",
           "Text": "This wizard will take you through the steps of creating a broadcaster. You can specify every property and connection and it will create a script definition at the end of the process that you then can paste into your `onInit` callback.",
@@ -453,7 +461,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -471,7 +480,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -521,7 +531,8 @@
                   "Class": "",
                   "Style": "",
                   "Height": 80,
-                  "UseOnValue": false
+                  "UseOnValue": false,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -539,7 +550,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -588,7 +600,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -607,7 +620,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 }
               ]
             },
@@ -637,7 +651,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -655,7 +670,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -675,7 +691,8 @@
                   "Class": "",
                   "Style": "height: 150px;",
                   "Height": 80,
-                  "UseOnValue": false
+                  "UseOnValue": false,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "Button",
@@ -687,7 +704,13 @@
                   "Required": false,
                   "ButtonType": "",
                   "Trigger": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -743,7 +766,14 @@
                   "Items": "BandAdded\nBandRemoved\nBandSelected\nFFTEnabled",
                   "Help": "Set the event type that the broadcaster should react too. This can be multiple items from this list:\n\n- `BandAdded`\n- `BandRemoved`\n- `BandSelected`\n- `FFTEnabled`",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "NoLabel": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -758,7 +788,10 @@
                   "Multiline": false,
                   "Enabled": true
                 }
-              ]
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
             },
             {
               "Type": "List",
@@ -796,10 +829,17 @@
                   "EmptyText": "Enter parameters...",
                   "Required": true,
                   "ParseArray": true,
-                  "Items": "",
+                  "Items": "{DYNAMIC}",
                   "Help": "The parameters that you want to listen to. This can be either the actual parameter names or the indexes of the parameters",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "NoLabel": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
@@ -812,7 +852,14 @@
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "NoLabel": "",
+                  "Height": 80
                 }
               ]
             },
@@ -1198,7 +1245,7 @@
                   "Text": "Metadata",
                   "ID": "targetMetadata",
                   "LabelPosition": "Default",
-                  "EmptyText": "Enter metadata (optional)...",
+                  "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "ParseArray": false,
                   "Items": "",
@@ -1210,7 +1257,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 }
               ]
             },
@@ -1266,20 +1314,38 @@
                   "Items": "",
                   "Help": "The delay time in milliseconds",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "NoLabel": "",
+                  "Height": 80
                 },
                 {
                   "Type": "TextInput",
                   "Text": "Metadata",
                   "ID": "targetMetadata",
                   "LabelPosition": "Default",
-                  "EmptyText": "Enter metadata (optional)...",
+                  "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "ParseArray": false,
                   "Items": "",
                   "Help": "The metadata that will be shown on the broadcaster map.",
                   "Multiline": false,
-                  "Enabled": true
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": "",
+                  "Style": "",
+                  "NoLabel": false,
+                  "Height": 80,
+                  "Tooltip": "",
+                  "Autofocus": false,
+                  "UseOnValue": false,
+                  "CallOnTyping": false
                 }
               ]
             },
@@ -1354,7 +1420,7 @@
                   "Text": "Metadata",
                   "ID": "targetMetadata",
                   "LabelPosition": "Default",
-                  "EmptyText": "Enter metadata...",
+                  "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "ParseArray": false,
                   "Items": "",
@@ -1366,7 +1432,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 }
               ]
             },
@@ -1419,7 +1486,7 @@
                   "Text": "Metadata",
                   "ID": "targetMetadata",
                   "LabelPosition": "Default",
-                  "EmptyText": "Enter metadata...",
+                  "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "ParseArray": false,
                   "Items": "",
@@ -1431,7 +1498,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 }
               ]
             },
@@ -1487,7 +1555,7 @@
                   "Text": "Metadata",
                   "ID": "targetMetadata",
                   "LabelPosition": "Default",
-                  "EmptyText": "Enter metadata...",
+                  "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "ParseArray": false,
                   "Items": "",
@@ -1499,9 +1567,13 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 }
-              ]
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
             }
           ],
           "ID": "targetType"

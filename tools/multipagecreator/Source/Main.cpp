@@ -182,15 +182,18 @@ public:
         if(commandLine.isNotEmpty())
         {
 	        if(commandLine.startsWith("--help"))
+            {
                 CommandLineActions::printHelp();
+                return;
+            }
 
             if(commandLine.startsWith("--export"))
             {
 	            CommandLineActions::compileProject(commandLine);
+                return;
             }
-            
-            return;
         }
+        
         mainWindow.reset (new MainWindow (getApplicationName()));
     }
 
