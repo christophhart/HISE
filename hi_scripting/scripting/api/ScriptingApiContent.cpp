@@ -230,6 +230,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setControlCallback);
 	API_METHOD_WRAPPER_0(ScriptComponent, getAllProperties);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setKeyPressCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setConsumedKeyPresses);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, loseFocus);
     API_VOID_METHOD_WRAPPER_0(ScriptComponent, grabFocus);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setZLevel);
@@ -423,6 +424,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(getAllProperties);
 	ADD_API_METHOD_1(setZLevel);
 	ADD_API_METHOD_1(setKeyPressCallback);
+	ADD_API_METHOD_1(setConsumedKeyPresses);
 	ADD_API_METHOD_0(loseFocus);
     ADD_API_METHOD_0(grabFocus);
 	ADD_API_METHOD_1(setLocalLookAndFeel);
@@ -1535,27 +1537,79 @@ var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
 
 void ScriptingApi::Content::ScriptComponent::setKeyPressCallback(var keyboardFunction)
 {
+    if(!consumedCalled && HiseJavascriptEngine::isJavascriptFunction(keyboardFunction))
+    {
+        reportScriptError("You need to call setConsumedKeyPresses() before calling this method.");
+    }
+    
 	keyboardCallback = WeakCallbackHolder(getScriptProcessor(), this, keyboardFunction, 1);
 	keyboardCallback.incRefCount();
 	keyboardCallback.setThisObject(this);
 }
 
+void ScriptComponent::setConsumedKeyPresses(var listOfKeys)
+{
+    consumedCalled = true;
+    
+	registeredKeys.clear();
+
+	auto r = Result::ok();
+
+	if(listOfKeys.isArray())
+	{
+		catchAllKeys = false;
+				
+		for(const auto& v: *listOfKeys.getArray())
+		{
+			auto k = ApiHelpers::getKeyPress(v, &r);
+
+			if(!r.wasOk())
+				reportScriptError(r.getErrorMessage());
+			else
+				registeredKeys.add(k);
+		}
+	}
+	else
+	{
+        if(listOfKeys.toString() == "all")
+        {
+            catchAllKeys = true;
+        }
+        else
+        {
+            auto k = ApiHelpers::getKeyPress(listOfKeys, &r);
+
+            if(r.wasOk())
+            {
+                catchAllKeys = false;
+                registeredKeys.add(k);
+            }
+            else
+            {
+                reportScriptError(r.getErrorMessage());
+            }
+        }
+
+	}
+}
 
 
 bool ScriptingApi::Content::ScriptComponent::handleKeyPress(const KeyPress& k)
 {
 	if (keyboardCallback)
 	{
-		auto args = Content::createKeyboardCallbackObject(k);
+		if(catchAllKeys || registeredKeys.contains(k))
+		{
+			auto args = Content::createKeyboardCallbackObject(k);
 
-		var rv;
+			var rv;
 
-		auto ok = keyboardCallback.callSync(&args, 1, &rv);
+			keyboardCallback.call(&args, 1); 
 
-		if (ok.wasOk())
-			return (bool)rv;
-		else
-			reportScriptError(ok.getErrorMessage());
+			return true;
+		}
+
+		
 	}
 
 	return false;

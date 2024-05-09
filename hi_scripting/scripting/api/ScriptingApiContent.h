@@ -531,6 +531,9 @@ public:
 		/** Adds a callback to react on key presses (when this component is focused). */
 		void setKeyPressCallback(var keyboardFunction);
 
+		/** Registers a selection of key presses to be consumed by this component. */
+		void setConsumedKeyPresses(var listOfKeys);
+
 		/** Call this method in order to give away the focus for this component. */
 		void loseFocus();
 
@@ -736,6 +739,10 @@ public:
 		var localLookAndFeel;
 
 		MacroControlledObject::ModulationPopupData::Ptr modulationData;
+
+        bool consumedCalled = false;
+		bool catchAllKeys = true;
+		Array<juce::KeyPress> registeredKeys;
 
 		WeakCallbackHolder keyboardCallback;
 
