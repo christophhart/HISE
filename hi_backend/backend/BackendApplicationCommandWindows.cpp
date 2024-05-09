@@ -88,7 +88,7 @@ END_MARKDOWN_CHAPTER()
 
 static bool areMajorWebsitesAvailable()
 {
-	const char* urlsToTry[] = { "http://google.com/generate_204", "https://amazon.com", nullptr };
+	const char* urlsToTry[] = { "http://korneffaudio.com", nullptr };
 
 	for (const char** url = urlsToTry; *url != nullptr; ++url)
 	{
