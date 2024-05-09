@@ -538,7 +538,7 @@ void PanelWithProcessorConnection::refreshIndexList()
 
 		for(int i = 0; i < items.size(); i++)
 		{
-			if(items[i].contains(item.text))
+			if(items[i].fromLastOccurrenceOf("/", false, false) == item.text)
 			{
 				item.itemID = i + 2;
 				break;
