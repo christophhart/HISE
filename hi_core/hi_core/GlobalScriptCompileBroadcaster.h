@@ -130,6 +130,31 @@ public:
 
 	Result getResult() const;
 
+	void reloadIfChanged()
+	{
+#if USE_BACKEND
+
+		if(resourceType == ResourceType::EmbeddedInSnippet)
+			return;
+
+		auto thisLast = getFile().getLastModificationTime();
+
+		if(thisLast > lastEditTime)
+		{
+			getFileDocument().replaceAllContent(getFile().loadFileAsString());
+            getFileDocument().setSavePoint();
+			lastEditTime = thisLast;
+		}
+#endif
+	}
+
+	void saveFile()
+	{
+		getFile().replaceWithText(getFileDocument().getAllContent());
+		lastEditTime = getFile().getLastModificationTime();
+        getFileDocument().setSavePoint();
+	}
+
 	File getFile() const;
 
 	ValueTree toEmbeddableValueTree(const File& rootDirectory) const
@@ -171,6 +196,8 @@ public:
 	}
 
 private:
+
+	Time lastEditTime;
 
 	ResourceType resourceType;
 

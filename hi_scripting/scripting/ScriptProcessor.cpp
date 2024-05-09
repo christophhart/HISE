@@ -460,6 +460,11 @@ ExternalScriptFile::Ptr FileChangeListener::addFileWatcher(const File &file)
 {
 	auto p = dynamic_cast<Processor*>(this)->getMainController()->getExternalScriptFile(file, true);
 
+#if USE_BACKEND
+	if(reloader == nullptr)
+		reloader = new ExternalReloader(*this);
+#endif
+
 	watchers.add(p);
 
 	return p;
@@ -546,6 +551,16 @@ File FileChangeListener::getWatchedFile(int index) const
 
 	}
 	else return File();
+}
+
+bool FileChangeListener::isEmbeddedSnippetFile(int index) const
+{
+	if(isPositiveAndBelow(index, watchers.size()))
+	{
+		return watchers[index]->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet;
+	}
+
+	return false;
 }
 
 CodeDocument& FileChangeListener::getWatchedFileDocument(int index)
@@ -702,6 +717,14 @@ ValueTree FileChangeListener::collectAllScriptFiles(ModulatorSynthChain *chainTo
 	}
 
 	return externalScriptFiles;
+}
+
+void FileChangeListener::ExternalReloader::timerCallback()
+{
+	for(auto w: parent.watchers)
+	{
+		w->reloadIfChanged();
+	}
 }
 
 void FileChangeListener::addFileContentToValueTree(JavascriptProcessor* jp, ValueTree externalScriptFiles, File scriptFile, ModulatorSynthChain* chainToExport)

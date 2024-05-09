@@ -488,6 +488,8 @@ ExternalScriptFile::ExternalScriptFile(const File& file):
 	resourceType(ResourceType::FileBased),
 	currentResult(Result::ok())
 {
+	lastEditTime = getFile().getLastModificationTime();
+
 #if USE_BACKEND
 	content.replaceAllContent(file.loadFileAsString());
 	content.setSavePoint();

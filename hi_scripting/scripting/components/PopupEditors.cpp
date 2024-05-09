@@ -498,8 +498,7 @@ void PopupIncludeEditor::compileInternal()
 		}
 		else
 		{
-			externalFile->getFile().replaceWithText(externalFile->getFileDocument().getAllContent());
-			externalFile->getFileDocument().setSavePoint();
+            externalFile->saveFile();
 		}
 	}
 
