@@ -1418,7 +1418,7 @@ Result TextInput::loadFromInfoObject(const var& obj)
 
 	if(obj.hasProperty(mpid::Items))
 	{
-        if(obj[mpid::ID].toString() == "{DYNAMIC}")
+        if(obj[mpid::Items].toString() == "{DYNAMIC}")
         {
 	        useDynamicAutocomplete = true;
         }

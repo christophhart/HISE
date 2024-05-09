@@ -11,16 +11,26 @@ using namespace juce;
 struct BroadcasterWizard: public HardcodedDialogWithState,
                           public hise::QuasiModalComponent
 {
-    BroadcasterWizard()
+    BroadcasterWizard(BackendRootWindow* brw):
+      bpe(brw)
     {
         closeFunction = BIND_MEMBER_FUNCTION_0(BroadcasterWizard::destroy);
+        
+        state.bindCallback("checkSelection", BIND_MEMBER_FUNCTION_1(BroadcasterWizard::checkSelection));
+        
         setSize(832, 716);
     }
     
+    var checkSelection(const var::NativeFunctionArgs& args);
+
     StringArray getAutocompleteItems(const Identifier& textEditorId);
     
     Dialog* createDialog(State& state) override;
     
+    BackendRootWindow* bpe;
+
+    bool addListenersOnly = false;
+    String customId;
 };
 } // namespace library
 } // namespace multipage

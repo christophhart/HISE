@@ -814,7 +814,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsConvertSVGToPathData:	Actions::convertSVGToPathData(bpe); return true;
     case MenuToolsBroadcasterWizard:
     {
-        auto s = new multipage::library::BroadcasterWizard();
+        auto s = new multipage::library::BroadcasterWizard(bpe);
         s->setModalBaseWindowComponent(bpe);
         return true;
     }

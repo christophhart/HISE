@@ -51,6 +51,60 @@ inline var SnippetBrowser::loadSnippet(const var::NativeFunctionArgs& args)
 }
 
 
+var BroadcasterWizard::checkSelection(const var::NativeFunctionArgs& args)
+{
+	if(auto fe = dynamic_cast<mcl::FullEditor*>(bpe->getBackendProcessor()->getLastActiveEditor()))
+	{
+		auto s = fe->editor.getTextDocument().getSelection(0);
+        auto selection = fe->editor.getTextDocument().getSelectionContent(s);
+
+        if(selection.contains("Engine.createBroadcaster"))
+        {
+            addListenersOnly = true;
+
+            auto obj = selection.fromFirstOccurrenceOf("{", true, true).upToLastOccurrenceOf("}", true, true);
+
+            auto cid = selection.upToFirstOccurrenceOf("=", false, false).trim();
+
+            cid = cid.replace("const", "");
+            cid = cid.replace("reg", "");
+            cid = cid.replace("var", "");
+            cid = cid.replace("global", "");
+            cid = cid.trim();
+
+            auto p = JSON::parse(obj);
+
+            if(auto go = state.globalState.getDynamicObject())
+            {
+                go->setProperty("id", p["id"]);
+
+                String args;
+
+                if(p["args"].isArray())
+                {
+	                for(auto& a: *p["args"].getArray())
+                        args << a.toString() << ", ";
+                }
+
+                if(cid != p["id"].toString())
+                {
+	                customId = cid;
+                }
+
+                go->setProperty("noneArgs", args.upToLastOccurrenceOf(", ", false, false));
+            }
+
+	        return var(true);
+        }
+
+        
+	}
+    
+	//auto content = BackendCommandTarget::Actions::exportFileAsSnippet(bpe, false);
+        
+	return var(false);
+}
+
 StringArray BroadcasterWizard::getAutocompleteItems(const Identifier& textEditorId)
 {
     using SourceIndex = CustomResultPage::SourceIndex;
@@ -195,7 +249,7 @@ String CustomResultPage::createFunctionBodyIfAnonymous(const String& functionNam
 void CustomResultPage::appendLine(String& x, const var& state, const String& suffix,
     const Array<var>& args, Array<StringProcessor> sp)
 {
-    x << state["id"].toString() << suffix << "(";
+    x << getVariableName() << suffix << "(";
 
     int idx = 0;
 
@@ -390,45 +444,69 @@ String CustomResultPage::getAttachLine(SourceIndex source, const var& state)
     return x;
 }
 
+String CustomResultPage::getVariableName() const
+{
+    auto br = findParentComponentOfClass<BroadcasterWizard>();
+    
+    auto cid = Dialog::getGlobalState(*const_cast<CustomResultPage*>(this), "id", var()).toString();
+    
+    if(br->customId.isNotEmpty())
+        cid = br->customId;
+
+    return cid;
+}
+
 void CustomResultPage::postInit()
 {
     gs = Dialog::getGlobalState(*this, {}, var());
     String b;
 
+    auto listenersOnly = findParentComponentOfClass<BroadcasterWizard>()->addListenersOnly;
+
     String nl = "\n";
 
-    b << "// Broadcaster definition" << nl;
-    b << "const var " << Dialog::getGlobalState(*this, "id", var()).toString() << " = Engine.createBroadcaster({" << nl;
-
-    auto sourceIndex = (SourceIndex)(int)gs["attachType"];
-
-    auto noneArgs = gs["noneArgs"].toString();
-
-    b << "  " << String("id").quoted() << ": " << gs["id"].toString().quoted();
-    b << ",\n  " << String("args").quoted() << ": " << JSON::toString(Dialog::parseCommaList(getArgs(sourceIndex, noneArgs)), true);
-
-    if(gs["tags"].toString().isNotEmpty())
-        b << ",\n  " << String("tags").quoted() << ": " << JSON::toString(gs["tags"], true);
-
-    if(gs["comment"].toString().isNotEmpty())
-        b << ",\n  " << String("comment").quoted() << ": " << gs["tags"].toString();
-
-    if((int)gs["colour"])
-        b << ",\n  " << String("colour").quoted() << ": " << gs["colour"].toString();
-            
-    b << nl << "});" << nl << nl;
-
-    if(sourceIndex != SourceIndex::None)
+    if(!listenersOnly)
     {
-        b << "// attach to event Type" << nl;
-        b << getAttachLine(sourceIndex, gs);
-    }
+	    b << "// Broadcaster definition" << nl;
+	    b << "const var " << getVariableName() << " = Engine.createBroadcaster({" << nl;
 
+	    auto sourceIndex = (SourceIndex)(int)gs["attachType"];
+	    auto noneArgs = gs["noneArgs"].toString();
+
+	    b << "  " << String("id").quoted() << ": " << gs["id"].toString().quoted();
+	    b << ",\n  " << String("args").quoted() << ": " << JSON::toString(Dialog::parseCommaList(getArgs(sourceIndex, noneArgs)), true);
+
+	    if(gs["tags"].toString().isNotEmpty())
+	        b << ",\n  " << String("tags").quoted() << ": " << JSON::toString(gs["tags"], true);
+
+	    if(gs["comment"].toString().isNotEmpty())
+	        b << ",\n  " << String("comment").quoted() << ": " << gs["tags"].toString();
+
+	    if((int)gs["colour"])
+	        b << ",\n  " << String("colour").quoted() << ": " << gs["colour"].toString();
+	            
+	    b << nl << "});" << nl << nl;
+
+	    if(sourceIndex != SourceIndex::None)
+	    {
+	        b << "// attach to event Type" << nl;
+	        b << getAttachLine(sourceIndex, gs);
+	    }
+    }
+    
     auto targetIndex = (TargetIndex)(int)gs["targetType"];
 
     if(targetIndex != TargetIndex::None)
     {
-        b << nl << "// attach first listener" << nl;
+        if(listenersOnly)
+        {
+	        b << nl << "// attach additional listener" << nl;
+        }
+        else
+        {
+	        b << nl << "// attach first listener" << nl;
+        }
+        
         b << getTargetLine(targetIndex, gs);
     }
 

@@ -50,9 +50,11 @@ struct CustomResultPage: public Component,
 
     static var getArgs(SourceIndex source, const String& noneArgs);
     static String createFunctionBodyIfAnonymous(const String& functionName, SourceIndex sourceIndex, bool createValueFunction, const String& noneArgs);
-    static void appendLine(String& x, const var& state, const String& suffix, const Array<var>& args, Array<StringProcessor> sp={});
-    static String getTargetLine(TargetIndex target, const var& state);
-    static String getAttachLine(SourceIndex source, const var& state);
+	void appendLine(String& x, const var& state, const String& suffix, const Array<var>& args, Array<StringProcessor> sp={});
+     String getTargetLine(TargetIndex target, const var& state);
+     String getAttachLine(SourceIndex source, const var& state);
+
+    String getVariableName() const;
 
     void postInit() override;
     void resized() override;
