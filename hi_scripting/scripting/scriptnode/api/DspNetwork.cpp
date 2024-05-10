@@ -1889,7 +1889,7 @@ struct EmbeddedSnippetCodeProvider: public snex::ui::WorkbenchData::CodeProvider
 
 	bool saveCode(const String& s) override
 	{
-		jassertfalse;
+        ef->getFileDocument().replaceAllContent(s);
 		return true;
 	}
 
