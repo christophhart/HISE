@@ -101,6 +101,7 @@ namespace mpid
     DECLARE_ID(Items);
     DECLARE_ID(LayoutData);
     DECLARE_ID(Multiline);
+    DECLARE_ID(ManualAction);
     DECLARE_ID(NumTodo);
     DECLARE_ID(NoLabel);
     DECLARE_ID(Overwrite);

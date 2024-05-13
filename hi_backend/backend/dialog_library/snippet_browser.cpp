@@ -116,7 +116,7 @@ author: "")" },
 	  { mpid::InitValue, "0" }, 
 	  { mpid::UseInitValue, 1 }, 
 	  { mpid::Class, ".category-button .first-child" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Shows uncategorized / all snippets" }
@@ -127,7 +127,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets that demonstrate HISE modules" }
@@ -138,7 +138,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets related to MIDI processing" }
@@ -149,7 +149,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show scripting snippets" }
@@ -160,7 +160,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show DSP snippets using scriptnode and Faust / SNEX" }
@@ -171,7 +171,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button .last-child" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets related to UI design" }
@@ -736,7 +736,7 @@ By Priority
 	  { mpid::InitValue, "0" }, 
 	  { mpid::UseInitValue, 1 }, 
 	  { mpid::Class, ".category-button .first-child" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -744,7 +744,7 @@ By Priority
 	  { mpid::Text, "Modules" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -752,7 +752,7 @@ By Priority
 	  { mpid::Text, "MIDI" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -760,7 +760,7 @@ By Priority
 	  { mpid::Text, "Scripting" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -768,7 +768,7 @@ By Priority
 	  { mpid::Text, "Scriptnode" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -776,7 +776,7 @@ By Priority
 	  { mpid::Text, "UI" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button .last-child" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 

@@ -69,11 +69,20 @@ void Action::createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& h
 	});
 
 	rootList.addChild<Button>({
+		{ mpid::ID, mpid::ManualAction.toString() },
+		{ mpid::Text, mpid::ManualAction.toString() },
+		{ mpid::Help, "If enabled, the action will not be called on page load (or submit). Instead you need to call it manually from JS." },
+		{ mpid::Value, manualAction }
+	});
+
+	rootList.addChild<Button>({
 		{ mpid::ID, "CallOnNext" },
 		{ mpid::Text, "CallOnNext" },
 		{ mpid::Help, "If enabled, the action will launched when you press the next button (otherwise it will be executed on page load." },
 		{ mpid::Value, callOnNext }
 	});
+
+
 #endif
 }
 
@@ -82,6 +91,7 @@ Action::Action(Dialog& r, int w, const var& obj):
 	r(Result::ok())
 {
 	callOnNext = obj[mpid::CallOnNext];
+	manualAction = obj[mpid::ManualAction];
 	
 	if(r.isEditModeEnabled())
 		setSize(20, 32);
@@ -125,6 +135,12 @@ void Action::perform()
 		return;
 	}
 
+	if(manualAction && !isManualCall)
+	{
+		rootDialog.logMessage(MessageType::ActionEvent, "Skip manual action: " + getDescription());
+		return;
+	}
+	
 	auto shouldPerform = getValueFromGlobalState(var(true));
 
     setActive(shouldPerform);
@@ -137,13 +153,10 @@ void Action::perform()
 	
 	auto obj = Dialog::getGlobalState(*this, {}, var());
         
-	CustomCheckFunction f;
-	std::swap(f, cf);
-
 	rootDialog.logMessage(MessageType::ActionEvent, "Perform " + getDescription());
 	
-	if(f)
-		r = f(this, obj);
+	if(cf)
+		r = cf(this, obj);
 }
 
 Result Action::checkGlobalState(var globalState)
@@ -163,7 +176,7 @@ ImmediateAction::ImmediateAction(Dialog& r, int w, const var& obj):
 {
 	setCustomCheckFunction([this](Dialog::PageBase* pb, const var& obj)
 	{
-		if(id.isValid() && this->skipIfStateIsFalse())
+		if(!isManualCall && id.isValid() && this->skipIfStateIsFalse())
 		{
 			if(!obj[id])
 			{
@@ -476,15 +489,11 @@ void Launch::createEditor(Dialog::PageInfo& rootList)
 
 Result Launch::onAction()
 {
-	if(isFinished)
-		return Result::ok();
-
 	auto t = MarkdownText::getString(currentLaunchTarget, rootDialog);
 	auto a = MarkdownText::getString(args, rootDialog).trim();
 
 	if(URL::isProbablyAWebsiteURL(t))
 	{
-		isFinished = true;
 		URL(t).launchInDefaultBrowser();
 		return Result::ok();
 	}
@@ -495,13 +504,13 @@ Result Launch::onAction()
 
 		if(f.existsAsFile() || f.isDirectory())
 		{
-			if(a.isEmpty())
+			if(f.isDirectory())
 			{
-				isFinished = true;
-
+				f.revealToUser();
+			}
+			else if(a.isEmpty())
+			{
 				f.startAsProcess();
-
-				//f.revealToUser();
 				return Result::ok();
 			}
 			else
@@ -643,8 +652,27 @@ void BackgroundTask::postInit()
 {
 	Action::postInit();
 
-	if(job != nullptr)
-		job->postInit();
+	auto f = [this](PageBase*, var)
+	{
+		if(this->rootDialog.getState().currentJob == job)
+			return Result::ok();
+
+		if(job != nullptr)
+			job->postInit();
+
+		return Result::ok();
+	};
+
+	if(manualAction)
+	{
+		cf = f;
+	}
+	else
+	{
+		f(this, var());
+	}
+
+	
 }
 
 Result BackgroundTask::checkGlobalState(var globalState)

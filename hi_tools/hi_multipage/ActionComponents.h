@@ -47,7 +47,6 @@ struct Action: public Dialog::PageBase
     static String getCategoryId() { return "Actions"; }
     virtual String getDescription() const = 0;
 
-
     template <typename T> void createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& helpText);
 
     void paint(Graphics& g) override;
@@ -59,6 +58,9 @@ struct Action: public Dialog::PageBase
     Result checkGlobalState(var globalState) override;
     Result r;
 
+    bool isManualCall = false;
+
+    bool manualAction = false;
 	bool callOnNext = false;
 };
 
@@ -156,7 +158,6 @@ struct Launch: public ImmediateAction
 
 private:
 
-    bool isFinished = false;
     String currentLaunchTarget;
     String args;
 };

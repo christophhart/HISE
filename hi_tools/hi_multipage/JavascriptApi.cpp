@@ -524,6 +524,8 @@ struct Element: public ApiObject
 		return var();
 	}
 
+	
+
 	var removeEventListener(const var::NativeFunctionArgs& args)
 	{
 		expectArguments(args, 2, "addEventListener needs 2 arguments (event type and function)");
@@ -743,6 +745,7 @@ struct Dom: public ApiObject
 		setMethodWithHelp("readFile", BIND_MEMBER_FUNCTION_1(Dom::readFile), "Loads string content of the file");
 		setMethodWithHelp("navigate", BIND_MEMBER_FUNCTION_1(Dom::navigate), "Navigates to the page with the given index");
 		setMethodWithHelp("createElement", BIND_MEMBER_FUNCTION_1(Dom::createElement), "Creates an element");
+		setMethodWithHelp("callAction", BIND_MEMBER_FUNCTION_1(Dom::callAction), "Calls the action for the given ID");
 		setMethodWithHelp("bindCallback", BIND_MEMBER_FUNCTION_1(Dom::bindCallback), "Registers an external function");
         
         setMethodWithHelp("addEventListener", BIND_MEMBER_FUNCTION_1(Dom::addEventListener), "Adds a event listener to a global event");
@@ -898,6 +901,27 @@ struct Dom: public ApiObject
 	var getClipboardContent(const var::NativeFunctionArgs& args) const
 	{
 		return var(SystemClipboard::getTextFromClipboard());
+	}
+
+	var callAction(const var::NativeFunctionArgs& args)
+	{
+		Identifier id(args.arguments[0].toString());
+
+		updateWithLambda(var(), id, [](Component* c)
+		{
+			auto a = dynamic_cast<factory::Action*>(c);
+
+			if(!a->manualAction)
+				throw String("Only manual actions can be called");
+
+			if(!a->isManualCall)
+			{
+				ScopedValueSetter<bool> svs(a->isManualCall, true);
+				a->perform();
+			}
+		});
+
+		return var();
 	}
     
     var addEventListener(const var::NativeFunctionArgs& args)
