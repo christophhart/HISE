@@ -543,6 +543,12 @@ public:
 	void detachCurrentPopupAsync();
 	void toggleDetachPopup(FloatingTilePopup* p);
 
+	void clearAllPopups()
+	{
+		showComponentInRootPopup(nullptr, nullptr, {});
+		detachedPopups.clear();
+	}
+
 private:
 
 	bool interfaceFloatingTile = false;

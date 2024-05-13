@@ -454,6 +454,10 @@ public:
 			addButton("add", this, f)
 		{
 			addAndMakeVisible(dragButton);
+
+			dragButton.setTooltip("Enable drag mode to draw connections between the parameters");
+			addButton.setTooltip("Create a new parameter");
+
 			addAndMakeVisible(addButton);
 			dragButton.setToggleModeWithColourChange(true);
 			setSize(32, 40);

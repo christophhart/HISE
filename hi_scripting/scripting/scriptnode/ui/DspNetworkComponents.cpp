@@ -2606,7 +2606,7 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 		BACKEND_ONLY(addCustomComponent(new BreadcrumbComponent(n.get())));
 	}
 
-    addButton("debug");
+    //addButton("debug");
     
 	if(n->canBeFrozen())
 		addButton("export");
