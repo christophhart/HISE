@@ -40,6 +40,14 @@ using namespace juce;
 
 struct Action: public Dialog::PageBase
 {
+    enum class TriggerType
+    {
+	    OnPageLoad, // called when page is loaded (in postInit)
+        OnPageLoadAsync, // called asynchronously when page is loaded
+        OnSubmit, // called when Next is pressed
+        OnCall // manual call
+    };
+
     HISE_MULTIPAGE_ID("Action");
     
     Action(Dialog& r, int, const var& obj);
@@ -58,10 +66,56 @@ struct Action: public Dialog::PageBase
     Result checkGlobalState(var globalState) override;
     Result r;
 
-    bool isManualCall = false;
+    static StringArray getEventTriggerIds()
+    {
+	    return {
+            "OnPageLoad",
+            "OnPageLoadAsync",
+            "OnSubmit",
+            "OnCall"
+	    };
+    }
 
-    bool manualAction = false;
-	bool callOnNext = false;
+    void setTriggerType()
+    {
+        if(infoObject.hasProperty("CallOnNext"))
+        {
+	        if((bool)infoObject["ManualAction"])
+	        {
+		        triggerType = TriggerType::OnCall;
+	        }
+            else
+            {
+	            triggerType = (bool)infoObject["CallOnNext"] ? TriggerType::OnSubmit : TriggerType::OnPageLoad;
+            }
+
+            infoObject.getDynamicObject()->removeProperty("CallOnNext");
+            infoObject.getDynamicObject()->removeProperty("ManualAction");
+            infoObject.getDynamicObject()->setProperty(mpid::EventTrigger, getEventTriggerIds()[(int)triggerType]);
+
+            return;
+        }
+
+	    const auto typeIds = getEventTriggerIds();
+        auto typeName = infoObject[mpid::EventTrigger].toString();
+
+        auto idx = typeIds.indexOf(typeName);
+
+        if(typeName.isNotEmpty() && idx != -1)
+        {
+            triggerType = (TriggerType)idx;
+        }
+        else
+        {
+	        triggerType = TriggerType::OnPageLoad;
+        }
+    }
+
+    CustomCheckFunction actionCallback;
+
+    TriggerType triggerType = TriggerType::OnPageLoad;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(Action);
 };
 
 /** A base class for an action that will be performed on page load. */
@@ -183,6 +237,11 @@ struct BackgroundTask: public Action
     void resized() override;
     void postInit() override;
 
+    bool hasOnSubmitEvent() const override
+    {
+	    return triggerType == TriggerType::OnSubmit && !finished;
+    }
+
     virtual Result performTask(State::Job& t) = 0;
 
     Result checkGlobalState(var globalState) override;
@@ -214,11 +273,17 @@ protected:
     String label;
     Component* textLabel;
     ScopedPointer<ProgressBar> progress;
-    HiseShapeButton retryButton;
+    HiseShapeButton retryButton, stopButton;
+
+    void abortWithErrorMessage(const String& e)
+    {
+	    errorMessage = e;
+    }
 
 private:
 
-    
+    String errorMessage;
+    bool finished = false;
 
     File getFileInternal(const Identifier& id) const;
 

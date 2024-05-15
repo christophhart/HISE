@@ -207,6 +207,13 @@ static const char* HELP = R"(
  width: 24px;
 }
 
+.stop-button
+{
+ order: 1000;
+ height: 24px;
+ width: 24px;
+}
+
 .help-popup
 {
  display: flex;

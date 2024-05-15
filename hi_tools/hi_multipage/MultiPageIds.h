@@ -69,7 +69,6 @@ namespace mpid
     DECLARE_ID(ButtonType);
     DECLARE_ID(BinaryName);
     DECLARE_ID(CallOnTyping);
-    DECLARE_ID(CallOnNext);
     DECLARE_ID(Cleanup);
     DECLARE_ID(Class);
     DECLARE_ID(ContentType);
@@ -82,6 +81,7 @@ namespace mpid
     DECLARE_ID(Directory);
     DECLARE_ID(EmptyText);
     DECLARE_ID(Enabled);
+    DECLARE_ID(EventTrigger);
     DECLARE_ID(ExtraHeaders);
     DECLARE_ID(FailIndex);
     DECLARE_ID(Filename);
@@ -101,7 +101,6 @@ namespace mpid
     DECLARE_ID(Items);
     DECLARE_ID(LayoutData);
     DECLARE_ID(Multiline);
-    DECLARE_ID(ManualAction);
     DECLARE_ID(NumTodo);
     DECLARE_ID(NoLabel);
     DECLARE_ID(Overwrite);
@@ -129,6 +128,7 @@ namespace mpid
     DECLARE_ID(Tooltip);
     DECLARE_ID(Text);
     DECLARE_ID(Trigger);
+    
     DECLARE_ID(Type);
     DECLARE_ID(UseChildState);
     DECLARE_ID(UseGlobalAppData);

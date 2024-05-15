@@ -911,14 +911,10 @@ struct Dom: public ApiObject
 		{
 			auto a = dynamic_cast<factory::Action*>(c);
 
-			if(!a->manualAction)
+			if(a->triggerType != factory::Action::TriggerType::OnCall)
 				throw String("Only manual actions can be called");
 
-			if(!a->isManualCall)
-			{
-				ScopedValueSetter<bool> svs(a->isManualCall, true);
-				a->perform();
-			}
+			a->perform();
 		});
 
 		return var();

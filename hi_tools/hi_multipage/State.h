@@ -280,10 +280,6 @@ public:
 
     Image loadImage(const String& assetVariable) const;
 
-    struct CallOnNextAction
-    {
-	    
-    };
 
     void setLogFile(const File& newLogFile);
 
@@ -299,9 +295,6 @@ public:
         Job(State& rt, const var& obj);
         virtual ~Job();;
 
-        void postInit();
-        void callOnNext();
-
         bool matches(const var& obj) const;
         Result runJob();
         double& getProgress();
@@ -311,7 +304,7 @@ public:
         Thread& getThread() const { return parent; }
 
     protected:
-
+        
         String message;
 
         virtual Result run() = 0;
@@ -319,8 +312,6 @@ public:
         State& parent;
         double progress = 0.0;
         var localObj;
-
-        bool callOnNextEnabled = false;
     };
 
     using HardcodedLambda = std::function<var(Job&, const var&)>;

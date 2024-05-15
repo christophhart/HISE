@@ -123,6 +123,8 @@ public:
 	        initValue = var();
         }
 
+        virtual bool hasOnSubmitEvent() const { return false; }
+
         void updateStyleSheetInfo(bool forceUpdate=false);
 
         void forwardInlineStyleToChildren();
@@ -360,13 +362,17 @@ public:
 	        
 	        g.setColour(Colours::white.withAlpha(0.1f));
 	        g.setFont(GLOBAL_MONOSPACE_FONT());
-		}
 
-        if(currentlyEditedPage != nullptr)
-		{
-			auto b = getLocalArea(currentlyEditedPage, currentlyEditedPage->getLocalBounds()).expanded(2.0f);
-			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
-			g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
+            for(auto& s: mouseSelector.selection.getItemArray())
+            {
+	            if(auto c = findPageBaseForInfoObject(s))
+	            {
+		            auto b = getLocalArea(c, c->getLocalBounds()).expanded(2.0f);
+					g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+					g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
+	            }
+            }
+
 		}
     }
 #endif
@@ -424,7 +430,7 @@ public:
 
     bool nonContainerPopup(const var& infoObject);
 
-    bool showEditor(const var& infoObject);
+    bool showEditor(const Array<var>& infoObjects);
 #endif
 
     void gotoPage(int newIndex);
@@ -527,6 +533,42 @@ public:
     void showMainPropertyEditor();
 
     bool useHelpBubble = false;
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+
+    LambdaBroadcaster<Array<var>> selectionUpdater;
+
+    struct MouseSelector: public MouseListener,
+						  public LassoSource<var>,
+						  public ChangeListener	
+    {
+        MouseSelector();
+
+        ~MouseSelector() override;
+
+        void changeListenerCallback(ChangeBroadcaster* source) override;
+        void findLassoItemsInArea (Array<var>& itemsFound, const Rectangle<int>& area) override;
+
+        SelectedItemSet<var>& getLassoSelection() override
+        {
+	        return selection;
+        }
+
+        
+
+        void mouseMove(const MouseEvent& event) override;
+        void mouseDrag(const MouseEvent& e) override;
+        void mouseUp(const MouseEvent& e) override;
+        void mouseDown(const MouseEvent& event) override;
+
+        Dialog* parent = nullptr;
+        LassoComponent<var> lasso;
+        uint64 lastHash = 0;
+        SelectedItemSet<var> selection;
+    } mouseSelector;
+#endif
+
+    
 
     void loadStyleFromPositionInfo();
 

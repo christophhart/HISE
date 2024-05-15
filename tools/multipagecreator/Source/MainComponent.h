@@ -404,9 +404,11 @@ struct Tree: public Component,
         
         bool isVisible;
 
+        bool edited = false;
+
         bool isEdited() const
         {
-            return root.currentDialog->isCurrentlyEdited(obj);
+            return root.currentDialog->mouseSelector.selection.isSelected(obj);
         }
 
         int getItemHeight() const override
@@ -417,7 +419,7 @@ struct Tree: public Component,
         var getDragSourceDescription() override
         {
 	        return obj;
-        }
+        } 
 
     	String getTooltip() override
         {
@@ -499,8 +501,12 @@ struct Tree: public Component,
 
             if(!e.mods.isRightButtonDown())
             {
-	            root.currentDialog->showEditor(obj);
-                root.repaint();
+                auto& s = root.currentDialog->mouseSelector.selection;
+
+                if(s.isSelected(obj))
+                    s.deselect(obj);
+                else
+                    s.addToSelectionBasedOnModifiers(obj, e.mods);
                 
 		        return;
             }
@@ -574,7 +580,7 @@ struct Tree: public Component,
 
             if(isAction())
             {
-                auto ab = obj[mpid::CallOnNext] ? b.removeFromRight(b.getHeight()) : b.removeFromLeft(b.getHeight());
+                auto ab = (obj[mpid::EventTrigger].toString() == "OnSubmit") ? b.removeFromRight(b.getHeight()) : b.removeFromLeft(b.getHeight());
 	            auto ap = root.createPath("arrow");
                 root.scalePath(ap, ab.toFloat().reduced(4));
                 g.fillPath(ap);
@@ -707,6 +713,11 @@ struct Tree: public Component,
     {
         rootObj = d.getPageListVar();
         currentDialog = &d;
+
+        currentDialog->selectionUpdater.addListener(*this, [](Tree& t, const Array<var>& selection)
+        {
+	        t.repaint();
+        });
 
         currentDialog->refreshBroadcaster.addListener(*this, [](Tree& t, int pageIndex)
         {
@@ -1150,20 +1161,7 @@ public:
 
         auto sideDialog = rightTab.getChild<SideTab>(0);
 
-        if(sideDialog->dialog != nullptr && dialogState != nullptr &&
-           sideDialog->state->globalState.getDynamicObject() == dialogState->globalState.getDynamicObject())
-        {
-            delete newDialog;
-            delete dialogState;
-            
-            sideDialog->set(nullptr, nullptr);
-	        return false;
-        }
-
-        if(dialogState != nullptr)
-        {
-	        sideDialog->set(dialogState, newDialog);
-        }
+        sideDialog->set(dialogState, newDialog);
         
         resized();
         return sideDialog->dialog != nullptr;

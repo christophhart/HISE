@@ -51,7 +51,7 @@
     "installMultipageCreator": false,
     "multipageTarget": "$standaloneTarget",
     "installAU": "1",
-    "HisePath": "D:\\Development\\HISE modules",
+    "HisePath": "D:\\Development\\HISE 2",
     "VisualStudioVersion": "Visual Studio 2022",
     "UseIPP": "Yes",
     "RebuildPoolFiles": "0",
@@ -68,8 +68,10 @@
     "version": "4.0.0",
     "eula": " Copyright 2022 Christoph Hart\n\n HISE is free software: you can redistribute it and/or modify\n it under the terms of the GNU General Public License as published by\n the Free Software Foundation, either version 3 of the License, or\n (at your option) any later version.\n\n HISE is distributed in the hope that it will be useful,\n but WITHOUT ANY WARRANTY; without even the implied warranty of\n MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n GNU General Public License for more details.\n\n You should have received a copy of the GNU General Public License\n along with HISE.  If not, see <http://www.gnu.org/licenses/>.\n\n Commercial licenses for using HISE in an closed source project are \n available on request. Please visit the project's website to get more \n information about commercial licensing:\n\n http://www.hise.audio/\n\n HISE is based on the JUCE library, \n which must be separately licensed for commercial applications:\n\n http://www.juce.com",
     "acceptTOC": true,
-    "ButtonId": false,
-    "sourceDownloader": true
+    "ButtonId": true,
+    "sourceDownloader": true,
+    "launchHise": "true",
+    "setupHISE": true
   },
   "Children": [
     {
@@ -108,7 +110,8 @@
           "RelativePath": "",
           "Required": false,
           "Class": "",
-          "Style": ""
+          "Style": "",
+          "EventTrigger": "OnPageLoad"
         },
         {
           "Type": "TextInput",
@@ -207,7 +210,8 @@
                   "RelativePath": "HISE",
                   "Required": false,
                   "Class": "",
-                  "Style": ""
+                  "Style": "",
+                  "EventTrigger": "OnPageLoad"
                 }
               ],
               "ID": "",
@@ -448,7 +452,8 @@
                   "Source": "${hise_win_standalone}",
                   "Target": "$standaloneTarget",
                   "Class": "task",
-                  "Style": ""
+                  "Style": "",
+                  "EventTrigger": "OnPageLoad"
                 },
                 {
                   "Type": "CopyAsset",
@@ -460,7 +465,8 @@
                   "Source": "${mpc_win}",
                   "Target": "$multipageTarget",
                   "Class": "task",
-                  "Style": ""
+                  "Style": "",
+                  "EventTrigger": "OnPageLoad"
                 },
                 {
                   "Type": "CopyAsset",
@@ -472,7 +478,8 @@
                   "Source": "${hise_win_vst3}",
                   "Target": "$vst3Directory",
                   "Class": "task",
-                  "Style": ""
+                  "Style": "",
+                  "EventTrigger": "OnPageLoad"
                 }
               ],
               "ID": "",
@@ -576,7 +583,7 @@
         {
           "Type": "Button",
           "Text": "Setup HISE for exporting",
-          "ID": "ButtonId",
+          "ID": "setupHISE",
           "Enabled": true,
           "Code": "Console.print(value);",
           "InitValue": "",
@@ -605,6 +612,23 @@
       "Type": "List",
       "Children": [
         {
+          "Type": "JavascriptFunction",
+          "Text": "LabelText",
+          "ID": "",
+          "EventTrigger": "OnPageLoad",
+          "Code": "state.skipSetup = !state.setupHISE;\nConsole.print(\"DUDEL\");\n\nConsole.print(state.skipSetup);",
+          "Class": "",
+          "Style": ""
+        },
+        {
+          "Type": "Skip",
+          "Text": "LabelText",
+          "ID": "skipSetup",
+          "EventTrigger": "OnPageLoad",
+          "Class": "",
+          "Style": ""
+        },
+        {
           "Type": "MarkdownText",
           "Text": "**HISE Source Code:**\n\nPlease select a directory where you want to store the HISE source code. \n\n",
           "ID": "",
@@ -618,7 +642,8 @@
           "CallOnNext": false,
           "SpecialLocation": "userDocumentsDirectory",
           "RelativePath": "HISE source",
-          "ManualAction": false
+          "ManualAction": false,
+          "EventTrigger": "OnPageLoad"
         },
         {
           "Type": "PersistentSettings",
@@ -667,7 +692,8 @@
               "Style": "",
               "ExtraHeaders": "",
               "UsePost": false,
-              "ManualAction": true
+              "ManualAction": true,
+              "EventTrigger": "OnPageLoad"
             },
             {
               "Type": "UnzipTask",
@@ -683,7 +709,8 @@
               "SkipIfNoSource": true,
               "Class": "",
               "Style": "",
-              "ManualAction": true
+              "ManualAction": true,
+              "EventTrigger": "OnPageLoad"
             },
             {
               "Type": "Button",
@@ -795,7 +822,8 @@
                   "Text": "$standaloneWinTarget/HISE.exe",
                   "ID": "launchHise",
                   "CallOnNext": true,
-                  "Args": ""
+                  "Args": "",
+                  "EventTrigger": "OnPageLoad"
                 }
               ],
               "ID": "",
@@ -813,7 +841,8 @@
                   "CallOnNext": true,
                   "Args": "",
                   "Class": "",
-                  "Style": ""
+                  "Style": "",
+                  "EventTrigger": "OnPageLoad"
                 }
               ],
               "ID": "",

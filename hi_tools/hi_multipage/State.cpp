@@ -384,8 +384,6 @@ State::~State()
 
 void State::run()
 {
-	navigateOnFinish = false;
-
 	for(int i = 0; i < jobs.size(); i++)
 	{
 		currentJob = jobs[i];
@@ -399,7 +397,6 @@ void State::run()
 			navigateOnFinish = false;
 			break;
 		}
-			
             
 		totalProgress = (double)i / (double)jobs.size();
 	}
@@ -645,29 +642,11 @@ void State::setLogFile(const File& newLogFile)
 
 State::Job::Job(State& rt, const var& obj):
 	parent(rt),
-	localObj(obj),
-	callOnNextEnabled(obj[mpid::CallOnNext])
-{
-	
-}
+	localObj(obj)
+{}
 
 State::Job::~Job()
 {}
-
-void State::Job::postInit()
-{
-	if(!callOnNextEnabled)
-		parent.addJob(this);
-}
-
-void State::Job::callOnNext()
-{
-	if(callOnNextEnabled)
-	{
-		parent.addJob(this);
-		throw CallOnNextAction();
-	}
-}
 
 bool State::Job::matches(const var& obj) const
 {
@@ -723,30 +702,27 @@ void State::onFinish()
 		currentDialog->nextButton.setEnabled(currentDialog->currentErrorElement == nullptr);
 		currentDialog->prevButton.setEnabled(true);
 
+		auto p = currentDialog->currentPage.get();
+		
 		if(navigateOnFinish)
 		{
 			currentDialog->navigate(true);
+			navigateOnFinish = false;
 		}
 	}
 }
 
 Result State::Job::runJob()
 {
-	parent.navigateOnFinish |= callOnNextEnabled;
-
-
 	try
 	{
 		auto ok = run();
             
-		if(auto p = parent.currentDialog)
+		if(auto p = parent.currentDialog.get())
 		{
-			MessageManager::callAsync([p, ok]()
-			{
-				p->repaint();
-				//p->errorComponent.setError(ok);
-			});
+			SafeAsyncCall::repaint(p);
 		}
+
 		return ok;
 	}
 	catch(Result& r)
@@ -757,9 +733,7 @@ Result State::Job::runJob()
 
 			MessageManager::callAsync([p]()
 			{
-				
 				p->repaint();
-				//p->errorComponent.setError(ok);
 			});
 		}
 
@@ -780,7 +754,6 @@ void State::addJob(Job::Ptr b, bool addFirst)
 		{
 			currentDialog->setCurrentErrorPage(nullptr);
 			currentDialog->repaint();
-			//currentDialog->errorComponent.setError(Result::ok());
 			currentDialog->nextButton.setEnabled(false);
 			currentDialog->prevButton.setEnabled(false);
 		}

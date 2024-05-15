@@ -1,3 +1,5 @@
+
+
 namespace hise {
 namespace multipage {
 namespace library {
@@ -225,7 +227,6 @@ name:Author;max-width: 140px;width: 110px;)" },
 
 	List_0.addChild<JavascriptFunction>({
 	  { mpid::ID, "JavascriptFunctionId" }, 
-	  { mpid::CallOnNext, 0 }, 
 	  { mpid::Code, R"(var CATEGORIES = ["All", "Modules", "MIDI", "Scripting", "Scriptnode", "UI"];
 
 parsedData = [];
@@ -475,7 +476,8 @@ document.addEventListener("save", function()
 });
 
 rebuildTable();
-)" }
+)" }, 
+	  { mpid::EventTrigger, "OnPageLoad" }
 	});
 
 	List_0.addChild<TextInput>({
@@ -619,23 +621,23 @@ By Priority
 	List_41.addChild<DownloadTask>({
 	  { mpid::Text, "Download" }, 
 	  { mpid::ID, "downloadSnippets" }, 
-	  { mpid::CallOnNext, 1 }, 
 	  { mpid::Source, "https://github.com/qdr/HiseSnippetDB/archive/refs/heads/main.zip" }, 
 	  { mpid::Target, "$snippetDirectory/snippets.zip" }, 
-	  { mpid::UsePost, 0 }
+	  { mpid::UsePost, 0 }, 
+	  { mpid::EventTrigger, "OnSubmit" }
 	});
 
 	List_41.addChild<UnzipTask>({
 	  { mpid::Text, "Extract" }, 
 	  { mpid::ID, "extractSnippets" }, 
-	  { mpid::CallOnNext, 1 }, 
 	  { mpid::Overwrite, 1 }, 
 	  { mpid::Source, "$snippetDirectory/snippets.zip" }, 
 	  { mpid::Style, "margin-bottom: 40px;" }, 
 	  { mpid::Target, "$snippetDirectory" }, 
 	  { mpid::Cleanup, 1 }, 
 	  { mpid::SkipFirstFolder, 1 }, 
-	  { mpid::SkipIfNoSource, 1 }
+	  { mpid::SkipIfNoSource, 1 }, 
+	  { mpid::EventTrigger, "OnSubmit" }
 	});
 
 	List_41.addChild<Button>({
@@ -649,22 +651,22 @@ By Priority
 	List_41.addChild<DownloadTask>({
 	  { mpid::Text, "Download" }, 
 	  { mpid::ID, "downloadAssets" }, 
-	  { mpid::CallOnNext, 1 }, 
 	  { mpid::Source, "https://github.com/qdr/HiseSnippetDB/releases/download/1.0.0/Assets.zip" }, 
 	  { mpid::Target, "$snippetDirectory/assets.zip" }, 
-	  { mpid::UsePost, 0 }
+	  { mpid::UsePost, 0 }, 
+	  { mpid::EventTrigger, "OnSubmit" }
 	});
 
 	List_41.addChild<UnzipTask>({
 	  { mpid::Text, "Extract" }, 
 	  { mpid::ID, "extractAssets" }, 
-	  { mpid::CallOnNext, 1 }, 
 	  { mpid::Overwrite, 1 }, 
 	  { mpid::Source, "$snippetDirectory/assets.zip" }, 
 	  { mpid::Target, "$snippetDirectory/Assets" }, 
 	  { mpid::Cleanup, 1 }, 
 	  { mpid::SkipIfNoSource, 1 }, 
-	  { mpid::SkipFirstFolder, 0 }
+	  { mpid::SkipFirstFolder, 0 }, 
+	  { mpid::EventTrigger, "OnSubmit" }
 	});
 
 	List_41.addChild<Button>({
@@ -864,7 +866,6 @@ UI Logic)" }
 	});
 
 	List_54.addChild<JavascriptFunction>({
-	  { mpid::CallOnNext, 0 }, 
 	  { mpid::Code, R"(
 document.getElementById("editTitle").innerText = state.newName.length > 0 ? "Edit Snippet" : "Add Snippet";
 
@@ -881,7 +882,6 @@ document.getElementById("description").addEventListener("change", function()
 	});
 
 	List_50.addChild<JavascriptFunction>({
-	  { mpid::CallOnNext, 1 }, 
 	  { mpid::Code, R"(function appendLine(key, value)
 {
 	md += "" + key + ": ";
