@@ -20,7 +20,7 @@ Dialog* BroadcasterWizard::createDialog(State& state)
 
     List_0.addChild<JavascriptFunction>({
       { mpid::ID, "JavascriptFunctionId" },
-      { mpid::CallOnNext, 0 },
+      { mpid::EventTrigger, "OnPageLoad" },
       { mpid::Code, R"(var f = document.bindCallback("checkSelection", function()
 {
     return false;
