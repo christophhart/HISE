@@ -477,7 +477,45 @@ struct Tree: public Component,
         {
             if(isRoot())
             {
-	            root.currentDialog->showMainPropertyEditor();
+                if(e.mods.isRightButtonDown())
+                {
+                    PopupLookAndFeel plaf;
+	                PopupMenu m;
+                    m.setLookAndFeel(&plaf);
+                    
+                    m.addItem(1, "Edit Stylesheet", true, false);
+                    m.addItem(2, "Edit Raw XML", true, false);
+                    auto r = m.show();
+
+                    if(r != 0)
+                    {
+	                    if(auto st = root.findParentComponentOfClass<ComponentWithSideTab>())
+	                    {
+                            if(r == 1)
+                            {
+	                            auto pos = root.currentDialog->getPositionInfo({}).toJSON();
+								st->addCodeEditor(pos, mpid::Style);
+                            }
+                            else if (r == 2)
+                            {
+	                            st->addCodeEditor(root.currentDialog->exportAsJSON(), mpid::Children);
+                            }
+                            
+	                    }
+                    }
+                    
+                }
+
+                root.currentDialog->mouseSelector.selection.deselectAll();
+
+                auto d = root.currentDialog;
+
+                MessageManager::callAsync([d]()
+                {
+	                d->showMainPropertyEditor();
+                });
+
+	            
                 return;
             }
 
@@ -503,12 +541,9 @@ struct Tree: public Component,
             {
                 auto& s = root.currentDialog->mouseSelector.selection;
 
-                if(s.isSelected(obj))
-                    s.deselect(obj);
-                else
-                    s.addToSelectionBasedOnModifiers(obj, e.mods);
-                
-		        return;
+                s.addToSelectionBasedOnModifiers(obj, e.mods);
+                return;
+                    
             }
             
             if(obj.hasProperty(mpid::Children))
@@ -523,12 +558,21 @@ struct Tree: public Component,
 
         void itemDoubleClicked(const MouseEvent&) override
         {
-            
-
             auto newIndex = root.getPageIndex(obj);
+
+            auto c = obj;
+            auto d = root.currentDialog;
+
+            MessageManager::callAsync([c, d]()
+            {
+	            d->mouseSelector.selection.selectOnly(c);
+            });
+
             root.currentDialog->gotoPage(newIndex);
 
-	        
+            
+
+            
         }
 
         void itemOpennessChanged(bool isNowOpen) override
@@ -618,10 +662,17 @@ struct Tree: public Component,
 
             g.setColour(Colours::white.withAlpha(0.8f * alphaVisible));
             g.setFont(GLOBAL_BOLD_FONT());
-            g.drawText(t, b.toFloat(), Justification::left);
+
+            auto lb = b.removeFromLeft(GLOBAL_BOLD_FONT().getStringWidthFloat(id) + 10.0f).toFloat();
+
+            g.drawText(id, lb, Justification::left);
             g.setColour(Colours::white.withAlpha(0.4f * alphaVisible));
             g.setFont(GLOBAL_MONOSPACE_FONT());
-            g.drawText(id, b.toFloat(), Justification::right);
+
+            if(GLOBAL_MONOSPACE_FONT().getStringWidthFloat(t) > b.getWidth())
+                t = "...";
+
+            g.drawText(t, b.toFloat(), Justification::right);
         }
 
         String getUniqueName() const override
@@ -1220,9 +1271,339 @@ public:
 
     void menuItemSelected (int menuItemID, int) override;
 
+    void addCodeEditor(const var& infoObject, const Identifier& codeId) override
+    {
+        if(codeEditorTab == nullptr)
+            addAndMakeVisible(codeEditorTab = new CodeEditorTab(*this));
+
+        codeEditorTab->addCodeEditor(infoObject, codeId);
+
+	    resized();
+    }
+
     multipage::AssetManager* assetManager;
 
 private:
+
+    struct CodeEditorTab: public Component
+    {
+        enum class Layout
+        {
+	        Tabs = 1,
+            HorizontalSplit,
+            VerticalSplit
+        };
+
+	    CodeEditorTab(MainComponent& parent_):
+          parent(parent_),
+          resizer(this, nullptr, ResizableEdgeComponent::rightEdge)
+	    {
+		    addAndMakeVisible(resizer);
+	    };
+
+        struct TabButton: public Component
+        {
+            TabButton(const String& text)
+            {
+	            setName(text);
+                closePath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, HiBinaryData::ProcessorEditorHeaderIcons::closeIcon_Size);
+            }
+
+	        void paint(Graphics& g) override
+	        {
+                if(active)
+                {
+	                g.fillAll(Colours::white.withAlpha(0.8f));
+                }
+
+		        g.setFont(GLOBAL_BOLD_FONT());
+                g.setColour(Colours::white.withAlpha(0.8f));
+                g.drawText(getName(), getLocalBounds().toFloat().reduced(5.0f), Justification::left);
+                g.fillPath(closePath);
+	        }
+
+            void resized() override
+            {
+	            PathFactory::scalePath(closePath, getLocalBounds().toFloat().removeFromRight((float)getHeight()).reduced(4.0f));
+            }
+
+            bool active = false;
+
+            void setActive(bool isActive)
+            {
+	            active = isActive;
+                repaint();
+            }
+
+            void mouseDown(const MouseEvent& e) override
+            {
+	            auto isClose = e.getMouseDownX() > getWidth() - getHeight();
+
+                auto parent = findParentComponentOfClass<CodeEditorTab>();
+
+            	auto idx = parent->tabButtons.indexOf(this);
+
+                if(isClose)
+                {
+	                MessageManager::callAsync([parent, idx]()
+	                {
+		                parent->closePage(idx);
+	                });
+                }
+                else
+                {
+                    if(!active)
+                    {
+	                    parent->showPage(idx);
+                    }
+                }
+            }
+
+            Path closePath;
+        };
+
+        struct VarCodeEditor: public Component,
+						      public CodeDocument::Listener,
+							  public Timer
+        {
+            static void fillValueTree(ValueTree& p, const var& infoObject)
+            {
+	            for(auto& nv: infoObject.getDynamicObject()->getProperties())
+	            {
+                    if(nv.name == mpid::Type)
+                        continue;
+
+                    if(nv.name == mpid::Code)
+                    {
+	                    p.setProperty(nv.name, "HASH1234", nullptr);
+                        continue;
+                    }
+
+                    if(nv.name == mpid::Children)
+                    {
+	                    for(auto& v: *nv.value.getArray())
+	                    {
+                            ValueTree c(v[mpid::Type].toString());
+		                    fillValueTree(c, v);
+                            p.addChild(c, -1, nullptr);
+	                    }
+                    }
+                    else
+                    {
+                        if(nv.value.toString().isEmpty())
+                            continue;
+
+	                    p.setProperty(nv.name, nv.value, nullptr);
+                    }
+	            }
+            }
+
+	        VarCodeEditor(const var& infoObject_, const Identifier& id_):
+              codeDoc(),
+              doc(codeDoc),
+              editor(doc),
+              infoObject(infoObject_),
+              id(id_)
+	        {
+                if(id == mpid::Children)
+                {
+                    ValueTree p("Project");
+
+                    fillValueTree(p, infoObject);
+
+                    p.removeAllProperties(nullptr);
+
+                    auto c = p.createXml()->createDocument("", false);
+                    codeDoc.replaceAllContent(c);
+                    editor.editor.setLanguageManager(new mcl::XmlLanguageManager());
+                }
+                else
+                {
+	                codeDoc.replaceAllContent(infoObject[id].toString());
+                }
+
+                
+                codeDoc.clearUndoHistory();
+                codeDoc.addListener(this);
+		        addAndMakeVisible(editor);
+	        }
+
+            void timerCallback() override
+	        {
+		        
+	        }
+
+            void resized() override { editor.setBounds(getLocalBounds()); }
+
+            void codeDocumentTextInserted (const String& newText, int insertIndex) override
+	        {
+		        startTimer(2000);
+	        }
+
+	        
+	        void codeDocumentTextDeleted (int startIndex, int endIndex) override
+	        {
+		        startTimer(2000);
+	        }
+
+            var infoObject;
+            const Identifier id;
+            juce::CodeDocument codeDoc;
+            mcl::TextDocument doc;
+            mcl::FullEditor editor;
+        };
+
+        Layout currentLayout = Layout::Tabs;
+
+        void mouseDown(const MouseEvent& e) override
+        {
+	        if(e.mods.isRightButtonDown())
+	        {
+		        PopupMenu m;
+                PopupLookAndFeel plaf;
+                m.setLookAndFeel(&plaf);
+
+                m.addItem(9000, "Close all");
+                m.addItem((int)Layout::Tabs, "Tabs");
+                m.addItem((int)Layout::VerticalSplit, "Vertical Split");
+                m.addItem((int)Layout::HorizontalSplit, "Horizontal Split");
+                
+                auto r = m.show();
+
+                if(r == 1)
+                {
+	                closeAll();
+                }
+                else
+                {
+	                currentLayout = (Layout)r;
+                    resized();
+                }
+	        }
+        }
+
+        void closeAll()
+        {
+	        auto d = &parent;
+            MessageManager::callAsync([d]()
+            {
+                d->codeEditorTab = nullptr;
+				d->resized();
+            });
+        }
+
+        void closePage(int index)
+        {
+            tabButtons.remove(index);
+            editors.remove(index);
+
+            if(!editors.isEmpty())
+            {
+                showPage(jmax(0, index-1));
+            }
+            else
+            {
+                closeAll();
+            }
+        }
+
+        void showPage(int index)
+        {
+            for(int i = 0; i < editors.size(); i++)
+            {
+                tabButtons[i]->setActive(i == index);
+	            
+                if(i == index && editors[i]->id == mpid::Code)
+                {
+                    parent.c->mouseSelector.selection.selectOnly(editors[i]->infoObject);
+                }
+
+                if(i == index)
+                {
+	                editors[i]->grabKeyboardFocusAsync();
+                }
+
+            }
+
+	        resized();
+        }
+
+        void resized() override
+        {
+	        auto b = getLocalBounds();
+
+            resizer.setBounds(b.removeFromRight(5));
+
+            auto top = b.removeFromTop(24);
+
+            if(editors.isEmpty())
+                return;
+
+            for(auto tb: tabButtons)
+            {
+                auto w = roundToInt(GLOBAL_BOLD_FONT().getStringWidthFloat(tb->getName()) + 36.0f);
+	            tb->setBounds(top.removeFromLeft(w));
+            }
+
+            if(currentLayout == Layout::Tabs)
+            {
+	            for(auto e: editors)
+	            {
+                    e->setVisible(tabButtons[editors.indexOf(e)]->active);
+		            e->setBounds(b);
+	            }
+            }
+            if(currentLayout == Layout::HorizontalSplit)
+            {
+				auto h = getHeight() / editors.size();
+
+	            for(auto e: editors)
+	            {
+		            e->setBounds(b.removeFromTop(h));
+                    e->setVisible(true);
+	            }
+            }
+            if(currentLayout == Layout::VerticalSplit)
+            {
+				auto w = getWidth() / editors.size();
+
+	            for(auto e: editors)
+	            {
+		            e->setBounds(b.removeFromLeft(w));
+                    e->setVisible(true);
+	            }
+            }
+        }
+
+        void addCodeEditor(const var& infoObject, const Identifier& id)
+        {
+            auto ne = new VarCodeEditor(infoObject, id);
+
+            auto tabName = infoObject[mpid::ID].toString();
+
+            if(tabName.isEmpty())
+                tabName = id.toString();
+
+            addAndMakeVisible(editors.add(ne));
+
+            auto tb = new TabButton(tabName);
+
+            
+
+            addAndMakeVisible(tabButtons.add(tb));
+
+            showPage(tabButtons.size()-1);
+
+        }
+
+		OwnedArray<TabButton> tabButtons;
+        OwnedArray<VarCodeEditor> editors;
+
+        ResizableEdgeComponent resizer;
+        MainComponent& parent;
+    };
+
+    ScopedPointer<CodeEditorTab> codeEditorTab;
 
     int64 prevHash = 0;
     bool modified = false;
@@ -1291,7 +1672,7 @@ private:
 
     ScopedPointer<ModalDialog> modalDialog;
 
-    
+    Rectangle<int> contentBounds;
     
     Tree* tree;
     ScopedPointer<ComponentWithEdge> console;

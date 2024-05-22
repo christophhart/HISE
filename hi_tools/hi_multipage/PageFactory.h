@@ -106,6 +106,8 @@ struct Type: public Dialog::PageBase
 	Result checkGlobalState(var globalState) override;
 	void paint(Graphics& g) override;
 	String typeId;
+
+    Path icon;
 };
 
 struct Spacer: public Dialog::PageBase

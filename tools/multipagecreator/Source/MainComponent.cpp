@@ -733,7 +733,14 @@ void MainComponent::resized()
 		b.removeFromLeft(2);
 		b.removeFromRight(2);
 
-		auto pb = b.reduced(20);
+        contentBounds = b;
+
+        if(codeEditorTab != nullptr)
+        {
+	        codeEditorTab->setBounds(contentBounds.removeFromLeft(contentBounds.getWidth() / 2));
+        }
+
+		auto pb = contentBounds.reduced(20);
 
 		auto dialogBounds = c->positionInfo.getBounds(pb);
 

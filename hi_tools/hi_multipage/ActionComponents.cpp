@@ -54,14 +54,19 @@ void Action::createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& h
 		{ mpid::Help, "The ID of the action. This will determine whether the action is tied to a global state value. If not empty, the action will only be performed if the value is not zero." }
 	});
 
-	rootList.addChild<TextInput>({
+	auto& css = rootList.addChild<List>({
+		{ mpid::Text, "CSS Properties" },
+		{ mpid::Foldable, true }
+	});
+
+	css.addChild<TextInput>({
         { mpid::ID, mpid::Class.toString() },
         { mpid::Text, mpid::Class.toString() },
         { mpid::Help, "The CSS class that is applied to the action UI element (progress bar & label)." },
 		{ mpid::Value, infoObject[mpid::Class] }
     });
 
-	rootList.addChild<TextInput>({
+	css.addChild<TextInput>({
 		{ mpid::ID, mpid::Style.toString() },
 		{ mpid::Text, mpid::Style.toString() },
         { mpid::Value, infoObject[mpid::Style] },

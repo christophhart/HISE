@@ -414,6 +414,8 @@ String Dialog::PageBase::evaluate(const Identifier& id) const
 
 void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject::Ptr thisObject)
 {
+	callAdditionalStateCallback();
+
 	auto state = &rootDialog.getState();
 		    
 	if(auto ms = findParentComponentOfClass<ComponentWithSideTab>())
@@ -890,20 +892,14 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 	cancelButton("Cancel"),
 	nextButton("Next"),
 	prevButton("Previous"),
-	
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	mouseSelector(*this),
+#endif
 	//errorComponent(*this),
     runThread(&rt),
 	totalProgress(progressValue)
 {
 	jassert(runThread->currentDialog == nullptr);
-
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-	addMouseListener(&mouseSelector, true);
-	selectionUpdater.addListener(*this, [](Dialog& b, const Array<var>& list)
-	{
-		b.showEditor(list);
-	}, false);
-#endif
 
     runThread->currentDialog = this;
 
@@ -1021,6 +1017,13 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 		showModalPopup(true, l);
 	};
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	selectionUpdater.addListener(*this, [](Dialog& b, const Array<var>& list)
+	{
+		b.showEditor(list);
+	}, false);
+#endif
+
 	//setEditMode(true);
 	
 
@@ -1103,6 +1106,11 @@ void Dialog::createEditorInSideTab(const var& obj, PageBase* pb, const std::func
 		auto d = new Dialog(var(), * ns, true);
 
 		d->setFixStyleSheet(st->propertyStyleSheet);
+
+		d->additionalChangeCallback = [this]()
+		{
+			this->refreshCurrentPage();
+		};
 
 		d->useHelpBubble = true;
 
@@ -1569,8 +1577,12 @@ void Dialog::showMainPropertyEditor()
 }
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
-Dialog::MouseSelector::MouseSelector()
+Dialog::MouseSelector::MouseSelector(Dialog& parent_):
+    parent(parent_)
 {
+	parent.addMouseListener(this, true);
+	
+
 	selection.addChangeListener(this);
 }
 
@@ -1583,76 +1595,59 @@ void Dialog::MouseSelector::changeListenerCallback(ChangeBroadcaster* source)
 {
 	DBG("Rebuild!!!");
 
-	if(parent != nullptr)
+	const auto& list = selection.getItemArray();
+
+	uint64 thisHash = 0;
+
+	for(auto& l: list)
 	{
-		const auto& list = selection.getItemArray();
+		thisHash += reinterpret_cast<uint64>(l.getObject());
+	}
 
-		uint64 thisHash = 0;
-
-		for(auto& l: list)
-		{
-			thisHash += reinterpret_cast<uint64>(l.getObject());
-		}
-
-		if(thisHash != lastHash)
-		{
-			lastHash = thisHash;
-			parent->selectionUpdater.sendMessage(sendNotificationSync, list);
-		}
+	if(thisHash != lastHash)
+	{
+		lastHash = thisHash;
+		parent.selectionUpdater.sendMessage(sendNotificationSync, list);
 	}
 }
 
 void Dialog::MouseSelector::findLassoItemsInArea(Array<var>& itemsFound, const Rectangle<int>& area)
 {
-	if(parent != nullptr)
+	parent.currentPage->callRecursive<PageBase>(parent.currentPage, [&](PageBase* b)
 	{
-		parent->currentPage->callRecursive<PageBase>(parent->currentPage, [&](PageBase* b)
-		{
-			auto la = parent->getLocalArea(b, b->getLocalBounds());
+		auto la = parent.getLocalArea(b, b->getLocalBounds());
 
-			if(dynamic_cast<factory::Container*>(b) != nullptr)
-				return false;
-
-			if(area.intersectRectangle(la))
-			{
-				struct Sorter
-				{
-					static int compareElements(const var& b1, const var& b2)
-					{
-						return b1[mpid::ID].toString().compare(b2[mpid::ID].toString());
-					}
-				} sorter;
-
-				itemsFound.addSorted(sorter, b->getInfoObject());
-			}
-
+		if(dynamic_cast<factory::Container*>(b) != nullptr)
 			return false;
-		});
-	}
-}
 
-void Dialog::MouseSelector::mouseMove(const MouseEvent& event)
-{
-	if(parent == nullptr)
-		parent = event.eventComponent->findParentComponentOfClass<Dialog>();
+		if(area.intersectRectangle(la))
+		{
+			struct Sorter
+			{
+				static int compareElements(const var& b1, const var& b2)
+				{
+					return b1[mpid::ID].toString().compare(b2[mpid::ID].toString());
+				}
+			} sorter;
 
-	if(parent != nullptr && parent->isEditModeEnabled())
-	{
-		int x = 5;
-	}
+			itemsFound.addSorted(sorter, b->getInfoObject());
+		}
+
+		return false;
+	});
 }
 
 void Dialog::MouseSelector::mouseDrag(const MouseEvent& e)
 {
-	if(parent != nullptr && parent->isEditModeEnabled())
+	if(parent.isEditModeEnabled())
 	{
-		lasso.dragLasso(e.getEventRelativeTo(parent));
+		lasso.dragLasso(e.getEventRelativeTo(&parent));
 	}
 }
 
 void Dialog::MouseSelector::mouseUp(const MouseEvent& e)
 {
-	if(parent != nullptr && parent->isEditModeEnabled())
+	if(parent.isEditModeEnabled())
 	{
 		lasso.endLasso();
 	}
@@ -1660,7 +1655,7 @@ void Dialog::MouseSelector::mouseUp(const MouseEvent& e)
 
 void Dialog::MouseSelector::mouseDown(const MouseEvent& event)
 {
-	if(parent != nullptr && parent->isEditModeEnabled())
+	if(parent.isEditModeEnabled())
 	{
 		selection.deselectAll();
 
@@ -1671,8 +1666,8 @@ void Dialog::MouseSelector::mouseDown(const MouseEvent& event)
 			selection.addToSelectionBasedOnModifiers(pb->getInfoObject(), event.mods);
 		}
 
-		parent->addChildComponent(lasso);
-		lasso.beginLasso(event.getEventRelativeTo(parent), this);
+		parent.addChildComponent(lasso);
+		lasso.beginLasso(event.getEventRelativeTo(&parent), this);
 	}
 }
 #endif
@@ -2110,7 +2105,9 @@ void Dialog::containerPopup(const var& infoObject)
 
 	m.addSeparator();
 	m.addItem(90000, "Edit " + typeName, tp != nullptr, tp == currentlyEditedPage);
+
 	
+
 	m.addItem(924, "Delete " + typeName, tp != nullptr && tp->findParentComponentOfClass<factory::Container>() != nullptr);
 	m.addItem(90001, "Copy info JSON", tp != nullptr);
 
@@ -2123,6 +2120,7 @@ void Dialog::containerPopup(const var& infoObject)
 				tp->createEditor(editorList);
 			});
 		}
+		
 		else if (r == 90001)
 		{
 			SystemClipboard::copyTextToClipboard(JSON::toString(tp->getInfoObject(), false));
@@ -2194,6 +2192,7 @@ bool Dialog::nonContainerPopup(const var& infoObject)
 	PopupMenu m;
 	m.setLookAndFeel(&plaf);
 	m.addItem(2, "Edit " + typeName, true, currentlyEditedPage == tp);
+	m.addItem(1235, "Edit Code", tp->getInfoObject().hasProperty(mpid::Code), false);
 	m.addItem(1, "Delete " + typeName);
 	m.addSeparator();
 	m.addItem(3, "Duplicate " + typeName);
@@ -2223,6 +2222,13 @@ bool Dialog::nonContainerPopup(const var& infoObject)
 	{
 		tp->duplicateInParent();
 		return true;
+	}
+	else if (r == 1235)
+	{
+		if(auto st = findParentComponentOfClass<ComponentWithSideTab>())
+		{
+			st->addCodeEditor(tp->getInfoObject(), mpid::Code);
+		}
 	}
 	if(r == 4)
 	{
@@ -2278,7 +2284,10 @@ bool Dialog::showEditor(const Array<var>& infoObjects)
 			tp->createEditor(*d->pages.getFirst());
 
 
-			
+			d->additionalChangeCallback = [this]()
+			{
+				this->refreshCurrentPage();
+			};
 
 			d->setFinishCallback([this, st]()
 			{

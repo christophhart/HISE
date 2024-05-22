@@ -56,12 +56,14 @@ void addOnValueCodeEditor(const var& infoObject, Dialog::PageInfo& rootList)
         infoObject.getDynamicObject()->setProperty(mpid::Code, code);
     }
 
+#if 0
 	rootList.addChild<CodeEditor>({
 		{ mpid::ID, "Code" },
 		{ mpid::Text, "Code" },
 		{ mpid::Value, infoObject[mpid::Code] },
         { mpid::Help, "This can be used to attach a callback to any value change. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
 	});
+#endif
     
 }
 
@@ -87,16 +89,35 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
         { mpid::Help, "Whether to allow user input for the element" }
     });
 
-    auto& col1 = rootList;
+    
 
-    col1.addChild<TextInput>({
+    auto& vlist = rootList.addChild<List>({
+        { mpid::Text, "Value Properties"},
+        { mpid::ID, "valueList"},
+        { mpid::Foldable, true }
+    });
+
+    auto& tlist = rootList.addChild<List>({
+        { mpid::Text, "Text Properties"},
+        { mpid::ID, "textList"},
+        { mpid::Foldable, true }
+    });
+
+    auto& clist = rootList.addChild<List>({
+        { mpid::Text, "CSS Properties"},
+        { mpid::Foldable, true }
+    });
+
+    vlist.addChild<TextInput>({
 		{ mpid::ID, "InitValue" },
 		{ mpid::Text, "InitValue" },
         { mpid::Value, obj.getPropertyFromInfoObject(mpid::InitValue) },
 		{ mpid::Help, "The initial value for the UI element" }
 	});
 
-    col1.addChild<Button>({
+    
+
+    vlist.addChild<Button>({
         { mpid::ID, "UseInitValue" },
         { mpid::Text, "UseInitValue" },
         { mpid::Value, obj.getPropertyFromInfoObject(mpid::UseInitValue) },
@@ -105,40 +126,40 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 
     auto& col = rootList;
 
-    col.addChild<TextInput>({
+    tlist.addChild<TextInput>({
 		{ mpid::ID, "Text" },
 		{ mpid::Text, "Text" },
 		{ mpid::Help, "The label next to the " + T::getStaticId() }
 	});
 
-    rootList.addChild<TextInput>({
+    tlist.addChild<TextInput>({
         { mpid::ID, "Help" },
         { mpid::Text, "Help" },
         { mpid::Multiline, true },
         { mpid::Help, "The markdown content that will be shown when you click on the help button" }
     });
 
-    col.addChild<TextInput>({
+    tlist.addChild<TextInput>({
 		{ mpid::ID, mpid::Tooltip.toString() },
 		{ mpid::Text, mpid::Tooltip.toString() },
 		{ mpid::Help, "The tooltip that will be applied when hovering the element" }
 	});
 
-    col1.addChild<TextInput>({
+    clist.addChild<TextInput>({
 		{ mpid::ID, mpid::Class.toString() },
 		{ mpid::Text, mpid::Class.toString() },
         { mpid::Value, obj.getPropertyFromInfoObject(mpid::Class) },
 		{ mpid::Help, "The CSS class selectors for the UI element" }
 	});
 
-    col1.addChild<TextInput>({
+    clist.addChild<TextInput>({
 		{ mpid::ID, mpid::Style.toString() },
 		{ mpid::Text, mpid::Style.toString() },
         { mpid::Value, obj.getPropertyFromInfoObject(mpid::Style) },
 		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
 
-    col1.addChild<Button>({
+    clist.addChild<Button>({
 		{ mpid::ID, mpid::NoLabel.toString() },
 		{ mpid::Text, mpid::NoLabel.toString() },
         { mpid::Value, obj.getPropertyFromInfoObject(mpid::NoLabel) },
@@ -248,36 +269,32 @@ void Button::createEditor(Dialog::PageInfo& rootList)
 {
     addBasicComponents<Button>(*this, rootList, "A Button lets you enable / disable a boolean option or can be grouped together with other tickboxes to create a radio group with an exclusive selection option");
 
-	rootList.addChild<Button>({
+    auto& vlist = rootList.getChild("valueList");
+
+    auto& tlist = rootList.getChild("textList");
+
+	vlist.addChild<Button>({
 		{ mpid::ID, "Required" },
 		{ mpid::Text, "Required" },
 		{ mpid::Help, "If this is enabled, the tickbox must be selected in order to proceed to the next page, otherwise it will show a error message.\n> This is particularly useful for eg. accepting TOC" }
 	});
 
-    auto& col = rootList;
+    
 
-    col.addChild<Choice>({
+    rootList.addChild<Choice>({
         { mpid::ID, "ButtonType" },
         { mpid::Text, "ButtonType" },
         { mpid::Items, "Toggle\nText\nIcon" },
         { mpid::Help, "The appearance of the button. " }
     });
 
-    col.addChild<Choice>({
-        { mpid::ID, "Icon" },
-        { mpid::Text, "Icon" },
-        { mpid::Value, infoObject[mpid::Icon]},
-        { mpid::Items, rootDialog.getState().getAssetReferenceList(Asset::Type::Text) },
-        { mpid::Help, "The SVG data for the icon (only used with `ButtonType == Icon`). Must be a Base64 encoded SVG path." }
-    });
-
-    col.addChild<Button>({
+    vlist.addChild<Button>({
 		{ mpid::ID, "Trigger" },
 		{ mpid::Text, "Trigger" },
 		{ mpid::Help, "If this is enabled, the button will fire the action with the same ID when you click it, otherwise it will store its value (either on/off or radio group index in the global state" }
 	});
 
-    addOnValueCodeEditor(infoObject, rootList);
+    addOnValueCodeEditor(infoObject, vlist);
 }
 #endif
 
@@ -1165,7 +1182,9 @@ void TextInput::textEditorReturnKeyPressed(TextEditor& e)
 	if(currentAutocomplete != nullptr)
 		currentAutocomplete->setAndDismiss();
 
-    findParentComponentOfClass<Dialog>()->grabKeyboardFocusAsync();
+    
+
+    rootDialog.grabKeyboardFocusAsync();
 
     callOnValueChange("submit");
 }
@@ -1260,12 +1279,27 @@ void TextInput::postInit()
     
     if(editor.isMultiLine())
     {
-	    
+        auto h = jmax(40, (int)infoObject[mpid::Height]);
+        simple_css::FlexboxComponent::Helpers::writeInlineStyle(*this, "height:"+String(h)+"px;");
+        
+        String s = Helpers::getInlineStyle(editor);
+
+    	s << "vertical-align:top;";
+
+        if(infoObject[mpid::NoLabel])
+            s << "height:"+String(h)+"px;";
+        else
+            s << "height:100%;";
+
+	    simple_css::FlexboxComponent::Helpers::writeInlineStyle(editor, s);
+        
     }
     else
     {
 	    editor.setFont(Dialog::getDefaultFont(*this).first);
 		editor.setIndents(8, 8);
+
+        
     }
 
     auto text = getValueFromGlobalState("");
@@ -1382,8 +1416,7 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
     rootList.addChild<TextInput>({
 		{ mpid::ID, "Height" },
 		{ mpid::Text, "Height" },
-        { mpid::Multiline, true },
-		{ mpid::Help, "The height (in pixels) for the editor (if used in multiline mode)." },
+        { mpid::Help, "The height (in pixels) for the editor (if used in multiline mode)." },
         { mpid::Value, (int)infoObject.getProperty(mpid::Height, 80) }
 	});
     
@@ -1391,6 +1424,7 @@ void TextInput::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::ID, "Items" },
 		{ mpid::Text, "Items" },
         { mpid::Multiline, true },
+        { mpid::Height, 100},
 		{ mpid::Help, "A string with one item per line that will show up in the autocomplete popup." },
         { mpid::Value, autocompleteItems.joinIntoString("\n") }
 	});

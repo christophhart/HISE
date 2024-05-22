@@ -52,6 +52,8 @@ struct ComponentWithSideTab
 
     virtual State* getMainState() { return nullptr; }
 
+    virtual void addCodeEditor(const var& infoObject, const Identifier& codeId) = 0;
+
     virtual void refreshDialog() = 0;
 
     simple_css::StyleSheet::Collection propertyStyleSheet;
@@ -128,6 +130,8 @@ public:
         void updateStyleSheetInfo(bool forceUpdate=false);
 
         void forwardInlineStyleToChildren();
+
+        
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
         virtual void createEditor(PageInfo& infoList) {}
@@ -208,6 +212,17 @@ public:
         void setModalHelp(const String& text);
 
     protected:
+
+        void callAdditionalStateCallback()
+        {
+            if(rootDialog.additionalChangeCallback)
+            {
+	            if(cf)
+	                cf(this, getValueFromGlobalState());
+
+	            rootDialog.callAdditionalChangeCallback();
+            }
+        }
 
         Identifier id;
         Dialog& rootDialog;
@@ -362,18 +377,17 @@ public:
 	        
 	        g.setColour(Colours::white.withAlpha(0.1f));
 	        g.setFont(GLOBAL_MONOSPACE_FONT());
-
-            for(auto& s: mouseSelector.selection.getItemArray())
-            {
-	            if(auto c = findPageBaseForInfoObject(s))
-	            {
-		            auto b = getLocalArea(c, c->getLocalBounds()).expanded(2.0f);
-					g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
-					g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
-	            }
-            }
-
 		}
+
+        for(auto& s: mouseSelector.selection.getItemArray())
+        {
+            if(auto c = findPageBaseForInfoObject(s))
+            {
+	            auto b = getLocalArea(c, c->getLocalBounds()).expanded(2.0f);
+				g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+				g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
+            }
+        }
     }
 #endif
 
@@ -445,6 +459,12 @@ public:
     LambdaBroadcaster<bool>& getEditModeBroadcaster() { return editModeBroadcaster; }
 
     LambdaBroadcaster<MessageType, String>& getEventLogger() { return getState().eventLogger; }
+
+    void callAdditionalChangeCallback()
+    {
+        if(additionalChangeCallback)
+            additionalChangeCallback();
+    }
 
     
 
@@ -542,7 +562,7 @@ public:
 						  public LassoSource<var>,
 						  public ChangeListener	
     {
-        MouseSelector();
+        MouseSelector(Dialog& parent);
 
         ~MouseSelector() override;
 
@@ -554,14 +574,11 @@ public:
 	        return selection;
         }
 
-        
-
-        void mouseMove(const MouseEvent& event) override;
         void mouseDrag(const MouseEvent& e) override;
         void mouseUp(const MouseEvent& e) override;
         void mouseDown(const MouseEvent& event) override;
 
-        Dialog* parent = nullptr;
+        Dialog& parent;
         LassoComponent<var> lasso;
         uint64 lastHash = 0;
         SelectedItemSet<var> selection;
@@ -575,6 +592,8 @@ public:
     bool& getSkipRebuildFlag() { return skipRebuild; }
 
 private:
+
+    std::function<void()> additionalChangeCallback;
 
     bool skipRebuild = false;
 
