@@ -41,10 +41,10 @@ namespace routing
 
 #if USE_BACKEND
 
-struct SelectorEditor: public ScriptnodeExtraComponent<selector>
+struct SelectorEditor: public ScriptnodeExtraComponent<selector_base>
 {
-    SelectorEditor(selector* s, PooledUIUpdater* u):
-        ScriptnodeExtraComponent<selector>(s, u)
+    SelectorEditor(selector_base* s, PooledUIUpdater* u):
+        ScriptnodeExtraComponent<selector_base>(s, u)
     {
         setSize(256, 80);
         
@@ -95,7 +95,7 @@ struct SelectorEditor: public ScriptnodeExtraComponent<selector>
             
             for(int i = 0; i < obj->numChannels; i++)
             {
-                auto sourceIndex = jlimit(0, size-1, obj->channelIndex + i);
+                auto sourceIndex = jlimit(0, size-1, obj->getChannelIndex() + i);
                 auto targetIndex = jlimit(0, size-1, i);
                 
                 if(obj->selectOutput)
@@ -113,7 +113,9 @@ struct SelectorEditor: public ScriptnodeExtraComponent<selector>
     
     static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
     {
-        return new SelectorEditor(static_cast<ObjectType*>(obj), updater);
+		auto mn = static_cast<mothernode*>(obj);
+		auto t = dynamic_cast<selector_base*>(mn);
+        return new SelectorEditor(t, updater);
     }
     
     void timerCallback() override
@@ -186,7 +188,7 @@ Factory::Factory(DspNetwork* n) :
 	registerNode<ms_encode>();
 	registerNode<ms_decode>();
 	registerNode<public_mod>();
-    registerNode<selector, SelectorEditor>();
+    registerPolyNode<selector<1>, selector<NUM_POLYPHONIC_VOICES>, SelectorEditor>();
     
 	registerNodeRaw<GlobalSendNode>();
 	registerPolyNodeRaw<GlobalReceiveNode<1>, GlobalReceiveNode<NUM_POLYPHONIC_VOICES>>();

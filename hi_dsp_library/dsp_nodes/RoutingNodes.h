@@ -802,7 +802,22 @@ struct ms_decode: public HiseDspBase
 	}
 };
 
-struct selector: public mothernode
+struct selector_base: public mothernode
+{
+	~selector_base() override {};
+
+	virtual int getChannelIndex() const = 0;
+
+	bool clearOtherChannels = true;
+    int numChannels = 1;
+    bool selectOutput = false;
+    int numProcessingChannels = 2;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(selector_base);
+};
+
+template <int NV> struct selector: public selector_base,
+								   public polyphonic_base
 {
     enum class Parameters
     {
@@ -821,8 +836,12 @@ struct selector: public mothernode
     };
 	SN_PARAMETER_MEMBER_FUNCTION;
     
-    constexpr bool isPolyphonic() { return false; }
-    
+    constexpr bool isPolyphonic() { return NV > 1; }
+
+	selector():
+	  polyphonic_base(getStaticId(), false)
+	{}
+
     SN_NODE_ID("selector");
     SN_GET_SELF_AS_OBJECT(selector);
     SN_DESCRIPTION("A dynamic router of the first channel (pair)");
@@ -833,7 +852,8 @@ struct selector: public mothernode
     
     void prepare(PrepareSpecs ps)
     {
-        numProcessingChannels = ps.numChannels;
+        this->numProcessingChannels = ps.numChannels;
+		channelIndex.prepare(ps);
     }
     
     static void copy(block dst, const block& src)
@@ -845,32 +865,36 @@ struct selector: public mothernode
     {
         dst = src;
     }
-    
+
+	int getChannelIndex() const override { return channelIndex.getFirst(); }
+
     template <typename T> void op(T& data, int size)
     {
-        int numToProcess = jmin(numChannels, size - channelIndex);
-        
-        if(channelIndex != 0)
+		auto c = channelIndex.get();
+
+        int numToProcess = jmin(this->numChannels, size - c);
+
+        if(c != 0)
         {
-            if(selectOutput)
+            if(this->selectOutput)
             {
                 for(int i = 0; i < numToProcess; i++)
-                    copy(data[channelIndex + i], data[i]);
+                    copy(data[c + i], data[i]);
             }
 			else
             {
                 for(int i = 0; i < numToProcess; i++)
-                    copy(data[i], data[channelIndex + i]);
+                    copy(data[i], data[c + i]);
             }
         }
         
-        if(clearOtherChannels)
+        if(this->clearOtherChannels)
         {
-			if (selectOutput)
+			if (this->selectOutput)
 			{
 				for (int i = 0; i < size; i++)
 				{
-					if (i >= channelIndex && i < (channelIndex + numChannels))
+					if (i >= c && i < (c + this->numChannels))
 						continue;
 
 					data[i] = 0.0f;
@@ -878,7 +902,7 @@ struct selector: public mothernode
 			}
 			else
 			{
-				for (int i = numChannels; i < size; i++)
+				for (int i = this->numChannels; i < size; i++)
 					data[i] = 0.0f;
 			}
         }
@@ -896,22 +920,23 @@ struct selector: public mothernode
     
     void setChannelIndex(double v)
     {
-        channelIndex = jlimit(0, 16, roundToInt(v));
+		for(auto& s: channelIndex)
+			s = jlimit(0, 16, roundToInt(v));
     }
     
     void setNumChannels(double v)
     {
-        numChannels = jlimit(0, 16, roundToInt(v));
+        this->numChannels = jlimit(0, 16, roundToInt(v));
     };
     
     void setClearOtherChannels(double v)
     {
-        clearOtherChannels = v > 0.5;
+        this->clearOtherChannels = v > 0.5;
     }
     
     void setSelectOutput(double v)
     {
-        selectOutput = v > 0.5;
+        this->selectOutput = v > 0.5;
     }
     
     void createParameters(ParameterDataList& data)
@@ -946,13 +971,8 @@ struct selector: public mothernode
         
     }
 
-    bool clearOtherChannels = true;
-    int channelIndex = 0;
-    int numChannels = 1;
-    bool selectOutput = false;
-    
-    int numProcessingChannels = 2;
-    
+	PolyData<int, NV> channelIndex;
+
     JUCE_DECLARE_WEAK_REFERENCEABLE(selector);
 };
 
