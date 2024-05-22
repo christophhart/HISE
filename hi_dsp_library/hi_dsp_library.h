@@ -144,7 +144,7 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_library/DspFactory.h"
 
 
-#include "dsp_basics/chunkware_simple_dynamics/chunkware_simple_dynamics.h"
+#include "dsp_basics/dynamics_module_dynamics/dynamics_module_dynamics.h"
 #include "dsp_basics/AllpassDelay.h"
 
 

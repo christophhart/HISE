@@ -35,14 +35,14 @@
 
 namespace hise { using namespace juce;
 
-/** A general purpose dynamics processor based on chunkware's SimpleCompressor.
-	@ingroup effectTypes
-*/
+
+
+
 class DynamicsEffect : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("Dynamics", "Dynamics", "A general purpose dynamics processor based on chunkware's SimpleCompressor");
+	SET_PROCESSOR_NAME("Dynamics", "Dynamics", "A general purpose dynamics processor with gate, compressor and limiter.");
 
 		enum Parameters
 	{
@@ -97,9 +97,9 @@ private:
 
 	void updateMakeupValues(bool updateLimiter);
 
-	chunkware_simple::SimpleGate gate;
-	chunkware_simple::SimpleComp compressor;
-	chunkware_simple::SimpleLimit limiter;
+	dynamics_module::SimpleGate gate;
+	dynamics_module::SimpleComp compressor;
+	dynamics_module::SimpleLimit limiter;
 
 	std::atomic<bool> gateEnabled;
 	std::atomic<bool> compressorEnabled;

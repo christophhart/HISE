@@ -338,7 +338,7 @@ private:
 
 	bool limitInput;
 
-	chunkware_simple::SimpleLimit limiter;
+	dynamics_module::SimpleLimit limiter;
 
 	ScopedPointer<TableUpdater> tableUpdater;
 

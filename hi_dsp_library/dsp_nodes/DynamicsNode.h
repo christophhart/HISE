@@ -41,37 +41,37 @@ namespace dynamics
     
 struct DynamicHelpers
 {
-    static Identifier getId(chunkware_simple::SimpleGate*)
+    static Identifier getId(dynamics_module::SimpleGate*)
     {
         RETURN_STATIC_IDENTIFIER("gate");
     }
     
-    static Identifier getId(chunkware_simple::SimpleComp*)
+    static Identifier getId(dynamics_module::SimpleComp*)
     {
         RETURN_STATIC_IDENTIFIER("comp");
     }
     
-    static Identifier getId(chunkware_simple::SimpleCompRms*)
+    static Identifier getId(dynamics_module::SimpleCompRms*)
     {
         RETURN_STATIC_IDENTIFIER("comp_rms");
     }
     
-    static Identifier getId(chunkware_simple::SimpleLimit*)
+    static Identifier getId(dynamics_module::SimpleLimit*)
     {
         RETURN_STATIC_IDENTIFIER("limiter");
     }
     
-    static String getDescription(const chunkware_simple::SimpleGate*)
+    static String getDescription(const dynamics_module::SimpleGate*)
     {
         return "A gate effect with the ducking amount as modulation signal";
     }
     
-    static String getDescription(const chunkware_simple::SimpleComp*)
+    static String getDescription(const dynamics_module::SimpleComp*)
     {
         return "A compressor with the ducking amount as modulation signal";
     }
     
-    static String getDescription(const chunkware_simple::SimpleLimit*)
+    static String getDescription(const dynamics_module::SimpleLimit*)
     {
         return "A limiter with the ducking amount as modulation signal";
     }
@@ -285,13 +285,13 @@ public:
     SidechainMode sidechainMode = SidechainMode::Disabled;
 };
 
-template class dynamics_wrapper<chunkware_simple::SimpleGate>;
-template class dynamics_wrapper<chunkware_simple::SimpleComp>;
-template class dynamics_wrapper<chunkware_simple::SimpleLimit>;
+template class dynamics_wrapper<dynamics_module::SimpleGate>;
+template class dynamics_wrapper<dynamics_module::SimpleComp>;
+template class dynamics_wrapper<dynamics_module::SimpleLimit>;
 
-using gate = dynamics_wrapper<chunkware_simple::SimpleGate>;
-using comp = dynamics_wrapper<chunkware_simple::SimpleComp>;
-using limiter = dynamics_wrapper<chunkware_simple::SimpleLimit>;
+using gate = dynamics_wrapper<dynamics_module::SimpleGate>;
+using comp = dynamics_wrapper<dynamics_module::SimpleComp>;
+using limiter = dynamics_wrapper<dynamics_module::SimpleLimit>;
 
     
 class envelope_follower: public data::display_buffer_base<true>
