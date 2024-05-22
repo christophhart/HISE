@@ -709,7 +709,7 @@ class VoiceStartModulatorFactoryType: public FactoryType
 		globalStaticTimeVariantModulator,
 		arrayModulator,
 		scriptVoiceStartModulator,
-
+		eventDataStartModulator
 	};
 
 public:
@@ -754,7 +754,8 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		scriptEnvelope,
 		mpeModulator,
 		voiceKillEnvelope,
-		globalEnvelope
+		globalEnvelope,
+		eventDataEnvelope
 	};
 
 public:

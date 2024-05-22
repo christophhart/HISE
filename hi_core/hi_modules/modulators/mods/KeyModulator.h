@@ -30,8 +30,7 @@
 *   ===========================================================================
 */
 
-#ifndef KEYMODULATOR_H_INCLUDED
-#define KEYMODULATOR_H_INCLUDED
+#pragma once
 
 namespace hise { using namespace juce;
 
@@ -83,7 +82,5 @@ public:
 };
 
 
-
 } // namespace hise
 
-#endif  // KEYMODULATOR_H_INCLUDED

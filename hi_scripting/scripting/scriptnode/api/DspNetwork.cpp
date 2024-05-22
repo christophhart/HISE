@@ -70,6 +70,19 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	tempoSyncer.publicModValue = &networkModValue;
 
+	auto mc_ = p->getMainController_();
+
+	addPostInitFunction([mc_, this]()
+	{
+		if(auto rm = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(mc_->getGlobalRoutingManager()))
+		{
+			tempoSyncer.additionalEventStorage = &rm->additionalEventStorage;
+			return true;
+		}
+		
+		return false;
+	});
+	
 	polyHandler.setTempoSyncer(&tempoSyncer);
 	getScriptProcessor()->getMainController_()->addTempoListener(&tempoSyncer);
 
@@ -245,8 +258,6 @@ DspNetwork::~DspNetwork()
 	selectionUpdater = nullptr;
 	nodes.clear();
     nodeFactories.clear();
-	
-	
 
 	getMainController()->removeTempoListener(&tempoSyncer);
 }
@@ -2163,6 +2174,7 @@ String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 	case Error::NoMatchingParent:	 return "Can't find suitable parent node";
 	case Error::RingBufferMultipleWriters: return "Buffer used multiple times";
 	case Error::NodeDebuggerEnabled: return "Node is being debugged";
+	case Error::NoGlobalManager: return "No global routing manager present.";
 	case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 	case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
 	case Error::IllegalMonophony: return "Can't use this node in a monophonic network";
@@ -2507,9 +2519,16 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 		auto pp = b->getParentNode();
 		auto isInMidiChain = b->getRootNetwork()->isPolyphonic();
 
-		while (pp != nullptr && !isInMidiChain)
+		while (pp != nullptr)
 		{
 			isInMidiChain |= pp->getValueTree()[PropertyIds::FactoryPath].toString().contains("midichain");
+
+			if(pp->getValueTree()[PropertyIds::FactoryPath].toString().contains("no_midi"))
+			{
+				isInMidiChain = false;
+				break;
+			}
+
 			pp = pp->getParentNode();
 		}
 

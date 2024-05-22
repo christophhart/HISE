@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#include "KeyModulator.h"
+
 namespace hise { using namespace juce;
 
 KeyModulator::KeyModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
@@ -54,5 +56,6 @@ ProcessorEditorBody *KeyModulator::createEditor(ProcessorEditor *parentEditor)
 	return nullptr;
 
 #endif
-};
+}
+
 } // namespace hise
