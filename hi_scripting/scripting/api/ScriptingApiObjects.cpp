@@ -7646,6 +7646,8 @@ struct ScriptingObjects::GlobalRoutingManagerReference::Wrapper
 	API_METHOD_WRAPPER_2(GlobalRoutingManagerReference, connectToOSC);
 	API_METHOD_WRAPPER_2(GlobalRoutingManagerReference, sendOSCMessage);
 	API_VOID_METHOD_WRAPPER_2(GlobalRoutingManagerReference, addOSCCallback);
+	API_VOID_METHOD_WRAPPER_3(GlobalRoutingManagerReference, setEventData);
+	API_METHOD_WRAPPER_2(GlobalRoutingManagerReference, getEventData);
 };
 
 
@@ -7661,6 +7663,8 @@ ScriptingObjects::GlobalRoutingManagerReference::GlobalRoutingManagerReference(P
 	ADD_API_METHOD_2(connectToOSC);
 	ADD_API_METHOD_2(sendOSCMessage);
 	ADD_API_METHOD_2(addOSCCallback);
+	ADD_API_METHOD_3(setEventData);
+	ADD_API_METHOD_2(getEventData);
 }
 
 ScriptingObjects::GlobalRoutingManagerReference::~GlobalRoutingManagerReference()
@@ -7849,8 +7853,31 @@ bool ScriptingObjects::GlobalRoutingManagerReference::sendOSCMessage(String oscS
 	return false;
 }
 
+bool ScriptingObjects::GlobalRoutingManagerReference::setEventData(int eventId, int dataSlot, double value)
+{
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		m->additionalEventStorage.setValue((uint16)eventId, (uint8)dataSlot, value, sendNotificationSync);
+	}
+
+	return false;
+}
+
+var ScriptingObjects::GlobalRoutingManagerReference::getEventData(int eventId, int dataSlot) const
+{
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		auto nv = m->additionalEventStorage.getValue((uint16)eventId, (uint8)dataSlot);
+
+		if(nv.first)
+			return var(nv.second);
+	}
+
+	return var();
+}
+
 ScriptingObjects::GlobalRoutingManagerReference::OSCCallback::OSCCallback(GlobalRoutingManagerReference* parent,
-	String& sd, const var& cb):
+                                                                          String& sd, const var& cb):
 	callback(parent->getScriptProcessor(), parent, cb, 2),
 	subDomain(sd),
 	fullAddress("/*")

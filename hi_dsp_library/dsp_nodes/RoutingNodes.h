@@ -319,6 +319,222 @@ struct public_mod
 	ModValue* ptr = nullptr;
 };
 
+struct NoCheck
+{
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_PREPARE;
+};
+
+template <int NV, typename CheckClass=NoCheck> struct event_data_reader: 
+	public mothernode,
+	public polyphonic_base
+{
+	SN_NODE_ID("event_data_reader");
+	SN_GET_SELF_AS_OBJECT(event_data_reader);
+	SN_DESCRIPTION("reads data that was written to the event ID storage of the global routing manager");
+
+	static constexpr bool isPolyphonic() { return NV > 1; };
+
+	event_data_reader():
+	  polyphonic_base(getStaticId(), true)
+	{};
+
+	enum Parameters
+	{
+		SlotIndex,
+		Static
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(SlotIndex, event_data_reader);
+		DEF_PARAMETER(Static, event_data_reader);
+	}
+	SN_PARAMETER_MEMBER_FUNCTION;
+
+	SN_EMPTY_RESET;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_PROCESS;
+
+	void initialise(NodeBase* b)
+	{
+		checkClass.initialise(b);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		checkClass.prepare(ps);
+
+		eventStorage = ps.voiceIndex->getTempoSyncer()->additionalEventStorage;
+		currentEventId.prepare(ps);
+
+		if(eventStorage == nullptr)
+			Error::throwError(Error::NoGlobalManager);
+	}
+
+	constexpr bool isProcessingHiseEvent() const { return true; }
+
+	bool handleModulation(double& value)
+	{
+		if(isStatic)
+			return staticValue.getChangedValue(value);
+		else
+			return eventStorage != nullptr ? eventStorage->changed(currentEventId.get(), dataSlot, value) : false;
+	}
+	
+	static constexpr bool isNormalisedModulation() { return true; }
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(event_data_reader_base, SlotIndex);
+			p.setRange({0.0, (double)AdditionalEventStorage::NumDataSlots, 1.0});
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(event_data_reader_base, Static);
+			p.setParameterValueNames({ "Off", "On"});
+			data.add(std::move(p));
+		}
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if(e.isNoteOn())
+		{
+			currentEventId.get() = e.getEventId();
+
+			if(isStatic && eventStorage != nullptr)
+			{
+				auto v = eventStorage->getValue(currentEventId.get(), dataSlot);
+
+				if(v.first)
+					staticValue.setModValue(v.second);
+			}
+		}
+	}
+
+	void setSlotIndex(double newValue)
+	{
+		dataSlot = jlimit<uint8>(0, hise::AdditionalEventStorage::NumDataSlots, (uint8)newValue);
+	}
+
+	void setStatic(double newValue)
+	{
+		isStatic = newValue > 0.5;
+	}
+
+	hise::AdditionalEventStorage* eventStorage = nullptr;
+	bool isStatic = false;
+	PolyData<uint16, NV> currentEventId;
+	ModValue staticValue;
+	uint8 dataSlot = 0;
+
+	CheckClass checkClass;
+};
+
+
+
+template <int NV, typename CheckClass=NoCheck> struct event_data_writer: 
+	public mothernode,
+	public polyphonic_base
+{
+	SN_NODE_ID("event_data_writer");
+	SN_GET_SELF_AS_OBJECT(event_data_writer);
+	SN_DESCRIPTION("writes data to the event ID storage of the global routing manager");
+
+	event_data_writer():
+	  polyphonic_base(getStaticId(), true)
+	{}
+
+	static constexpr bool isPolyphonic() { return NV > 1; }
+
+	enum Parameters
+	{
+		SlotIndex,
+		Value
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(SlotIndex, event_data_writer);
+		DEF_PARAMETER(Value, event_data_writer);
+	}
+	SN_PARAMETER_MEMBER_FUNCTION;
+
+	SN_EMPTY_RESET;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_PROCESS;
+
+	void initialise(NodeBase* b)
+	{
+		checkClass.initialise(b);
+	}
+
+	constexpr bool isProcessingHiseEvent() const { return true; }
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(event_data_writer, SlotIndex);
+			p.setRange({0.0, (double)AdditionalEventStorage::NumDataSlots, 1.0});
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(event_data_writer, Value);
+			data.add(std::move(p));
+		}
+	}
+
+	
+
+	void prepare(PrepareSpecs ps)
+	{
+		checkClass.prepare(ps);
+
+		eventStorage = ps.voiceIndex->getTempoSyncer()->additionalEventStorage;
+		currentEventId.prepare(ps);
+
+		if(eventStorage == nullptr)
+			Error::throwError(Error::NoGlobalManager);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if(e.isNoteOn() && eventStorage != nullptr)
+		{
+			auto& s = currentEventId.get();
+			s.first = e.getEventId();
+			eventStorage->setValue(s.first, dataSlot, s.second, dontSendNotification);
+		}
+	}
+
+	void setSlotIndex(double newValue)
+	{
+		dataSlot = jlimit<uint8>(0, hise::AdditionalEventStorage::NumDataSlots, (uint8)newValue);
+	}
+
+	void setValue(double newValue)
+	{
+		if(eventStorage == nullptr)
+			return;
+
+		for(auto& s: currentEventId)
+		{
+			s.second = newValue;
+			eventStorage->setValue(s.first, dataSlot, newValue, dontSendNotification);
+		}
+	}
+
+	hise::AdditionalEventStorage* eventStorage = nullptr;
+	PolyData<std::pair<uint16, double>, NV> currentEventId;
+	uint8 dataSlot = 0;
+
+	CheckClass checkClass;
+};
+
 struct base
 {
 	base(const Identifier& id)

@@ -98,6 +98,7 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/mods/SimpleEnvelope.h"
 #include "modulators/mods/KeyModulator.h"
 #include "modulators/mods/AhdsrEnvelope.h"
+#include "modulators/mods/EventDataModulator.h"
 #include "modulators/mods/PitchWheelModulator.h"
 #include "modulators/mods/TableEnvelope.h"
 #include "modulators/mods/VelocityModulator.h"

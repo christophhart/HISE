@@ -57,10 +57,7 @@ namespace routing
 
 struct GlobalRoutingManager: public ReferenceCountedObject
 {
-	
-
 	using Ptr = ReferenceCountedObjectPtr<GlobalRoutingManager>;
-
 	using IdList = StringArray;
 
 	struct SlotBase;
@@ -354,6 +351,8 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 	WeakErrorHandler::Ptr oscErrorHandler;
 
 	LambdaBroadcaster<OSCConnectionData::Ptr> oscListeners;
+
+	hise::AdditionalEventStorage additionalEventStorage;
 
 	void sendOSCError(const String& r);
 

@@ -158,6 +158,20 @@ using SelectorEditor = HostHelpers::NoExtraComponent;
 #endif
 
 
+struct ProcessingCheck
+{
+	void initialise(NodeBase* n)
+	{
+		b = n;
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		ScriptnodeExceptionHandler::validateMidiProcessingContext(b);
+	}
+
+	NodeBase* b;
+};
 
 Factory::Factory(DspNetwork* n) :
 	NodeFactory(n)
@@ -177,6 +191,9 @@ Factory::Factory(DspNetwork* n) :
 	registerNodeRaw<GlobalSendNode>();
 	registerPolyNodeRaw<GlobalReceiveNode<1>, GlobalReceiveNode<NUM_POLYPHONIC_VOICES>>();
 	registerNodeRaw<GlobalCableNode>();
+
+	registerPolyModNode<event_data_reader<1, ProcessingCheck>, event_data_reader<NUM_POLYPHONIC_VOICES, ProcessingCheck>, ModulationSourceBaseComponent>();
+	registerPolyNode<event_data_writer<1, ProcessingCheck>, event_data_writer<NUM_POLYPHONIC_VOICES, ProcessingCheck>>();
 }
 
 }

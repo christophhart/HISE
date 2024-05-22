@@ -91,6 +91,7 @@ struct Error: public ErrorC
         IllegalMod,
         UnscaledModRangeMismatch,
         UncompiledThirdPartyNode,
+        NoGlobalManager,
         numErrorCodes
     };
     

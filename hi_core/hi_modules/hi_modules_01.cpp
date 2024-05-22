@@ -17,6 +17,7 @@
 #include "modulators/mods/SimpleEnvelope.cpp"
 #include "modulators/mods/KeyModulator.cpp"
 #include "modulators/mods/AhdsrEnvelope.cpp"
+#include "modulators/mods/EventDataModulator.cpp"
 #include "modulators/mods/PitchWheelModulator.cpp"
 #include "modulators/mods/TableEnvelope.cpp"
 #include "modulators/mods/VelocityModulator.cpp"

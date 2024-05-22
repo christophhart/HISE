@@ -2545,6 +2545,12 @@ namespace ScriptingObjects
 		/** Send an OSC message to the output port. */
 		bool sendOSCMessage(String oscSubAddress, var data);
 
+		/** Writes a value into the given slot that can be retrieved using the event ID. */
+		bool setEventData(int eventId, int dataSlot, double value);
+
+		/** Returns the double value that is written to the data slot using setEventData. If the event ID wasn't written, it will return undefined. */
+		var getEventData(int eventId, int dataSlot) const;
+
 		// =============================================================================================
 
 	private:

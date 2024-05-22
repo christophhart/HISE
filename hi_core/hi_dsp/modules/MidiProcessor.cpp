@@ -294,6 +294,27 @@ struct MidiProcessor::EventLogger
 			}
 		}
 
+		void drawEventDataColumn(Graphics& g, const HiseEvent& e, Columns c, Rectangle<float> area, int dataSlot, double value)
+        {
+	        g.setColour(getColourForEvent(e.getEventId()).withAlpha(1.0f));
+
+        	switch(c)
+            {
+                case Columns::Type:
+					g.drawText("D", area, Justification::centred);
+                	break;
+        	case Columns::Number: 
+					g.drawText(String(dataSlot), area, Justification::centred);
+        			break;
+                case Columns::Channel:
+					break;
+                case Columns::Value:
+					g.drawText(String(value, 3), area, Justification::centred);
+					break;
+				default: return;
+			}
+        }
+
         void drawEventColumn(Graphics& g, const HiseEvent& e, Columns c, Rectangle<float> area)
         {
 			auto hasNumberData = e.isNoteOnOrOff() || e.isController() || 
@@ -438,8 +459,12 @@ struct MidiProcessor::EventLogger
 
                 drawColumnHeader(g, (Columns)i, h.toFloat());
             }
-            
+
+			auto rm = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(mp->getMainController()->getGlobalRoutingManager());
+
 			int numActiveNotes = 0;
+
+			int dataOffset = 0;
 
             for(auto e: events)
             {
@@ -472,12 +497,28 @@ struct MidiProcessor::EventLogger
 
 					UnblurryGraphics ug(g, *this);
 
+
+
 					for (int i = 0; i < events.size(); i++)
 					{
 						if (events[i].isNoteOff() && events[i].getEventId() == e.getEventId())
 						{
-							c = c.withBottom(TopHeight + (i + 1) * RowHeight).reduced(numActiveNotes*2.0f, RowHeight / 2);
+							
 
+							if(rm != nullptr)
+							{
+								for(int j = 0; j < AdditionalEventStorage::NumDataSlots; j++)
+								{
+									auto nv = rm->additionalEventStorage.getValue(e.getEventId(), (uint8)j);
+
+									if(nv.first)
+									{
+										dataOffset++;
+									}
+								}
+							}
+
+							c = c.withBottom(TopHeight + (i + 1 + dataOffset) * RowHeight).reduced(numActiveNotes*2.0f, RowHeight / 2);
 
 							g.setColour(getColourForEvent(e.getEventId()).withAlpha(1.0f));
 
@@ -486,6 +527,35 @@ struct MidiProcessor::EventLogger
 							ug.draw1PxHorizontalLine(c.getY(), c.getX(), c.getRight());
 							ug.draw1PxHorizontalLine(c.getBottom(), c.getX(), c.getRight());
 							ug.draw1PxVerticalLine(c.getX(), c.getY(), c.getBottom());
+						}
+					}
+				}
+
+				if(e.isNoteOn())
+				{
+					if(rm != nullptr)
+					{
+						for(int i = 0; i < AdditionalEventStorage::NumDataSlots; i++)
+						{
+							auto nv = rm->additionalEventStorage.getValue(e.getEventId(), (uint8)i);
+
+							if(nv.first)
+							{
+								auto dataRow = b.removeFromTop(RowHeight);
+
+								for(int j = 0; j < int(Columns::numColumns); j++)
+				                {
+				                    auto h = dataRow.removeFromLeft(getColumnWidth((Columns)j));
+
+									if (h.isEmpty())
+										continue;
+
+				                    drawEventDataColumn(g, e, (Columns)j, h.toFloat(), i, nv.second);
+				                }
+								
+								
+
+							}
 						}
 					}
 				}
@@ -531,6 +601,8 @@ struct MidiProcessor::EventLogger
 
 				if(didSomething)
 					rebuildEventsToShow();
+
+				repaint();
             }
         }
 		
