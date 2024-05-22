@@ -51,7 +51,7 @@ public:
 	FilterDataObject* getFilterData(int index) override { return getOrCreate<FilterDataObject>(filterData, index);; }
 	SimpleRingBuffer* getDisplayBuffer(int index) override { return getOrCreate<SimpleRingBuffer>(displayBuffers, index); }
 
-	
+	LambdaBroadcaster<String> errorBroadcaster;
 
 	// ===================================================================================== Custom hardcoded API calls
 
@@ -179,7 +179,7 @@ protected:
 	ScopedPointer<scriptnode::OpaqueNode> opaqueNode;
 	ScopedPointer<scriptnode::dll::FactoryBase> factory;
 
-	virtual void prepareOpaqueNode(OpaqueNode* n);
+	virtual Result prepareOpaqueNode(OpaqueNode* n);
 
 	bool channelCountMatches = false;
 
@@ -388,7 +388,7 @@ public:
     
     void calculateBlock(int startSample, int numSamples) override;
     
-    void prepareOpaqueNode(OpaqueNode* n) override;
+    Result prepareOpaqueNode(OpaqueNode* n) override;
 };
 
 

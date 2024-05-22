@@ -496,6 +496,9 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 	// Oh boy, what a disgrace...
 	ModValue* publicModValue = nullptr;
 
+	// And now we don't even care anymore about tucking stuff in here...
+	hise::AdditionalEventStorage* additionalEventStorage = nullptr;
+
 	/** @internal This can be used to temporarily change the pointer to the mod value.
 		The OpaqueNetworkHolder uses this abomination of a class in the prepare
 		call back in order to allow public_mod nodes to use the parent's network mod value.

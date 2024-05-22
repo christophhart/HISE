@@ -28,7 +28,6 @@ struct FaustMenuBar : public Component,
 	HiseShapeButton addButton;
 	HiseShapeButton editButton;
 	HiseShapeButton reloadButton;
-	HiseShapeButton svgButton;
 
 	bool compilePending = false;
 

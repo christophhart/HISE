@@ -172,6 +172,7 @@ private:
 	class ModuleDragTarget : public ButtonListener,
 							 public Label::Listener,
 							 public Processor::BypassListener,
+							 public Processor::DeleteListener,
 							 public DragAndDropTarget,
                              public SettableTooltipClient
 	{
@@ -265,6 +266,17 @@ private:
 				}
 			}
 		}
+
+		void processorDeleted(Processor* dp) override
+        {
+	        dp->removeBypassListener(this);
+			dp->removeNameAndColourListener(&idUpdater);
+        }
+
+		void updateChildEditorList(bool forceUpdate) override
+        {
+	        
+        }
 
 	protected:
 

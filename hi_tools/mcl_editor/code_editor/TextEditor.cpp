@@ -955,6 +955,8 @@ void TextEditor::updateAutocomplete(bool forceShow /*= false*/)
 
 	auto tokenBefore = document.getSelectionContent(beforeToken);
 
+	tokenBefore = tokenBefore.removeCharacters("!");
+
 	auto hasDotAndNotFloat = !CharacterFunctions::isDigit(tokenBefore[0]) && tokenBefore.endsWith(".");
 
 	auto lineNumber = o.x;

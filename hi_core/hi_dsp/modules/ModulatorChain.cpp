@@ -1474,6 +1474,7 @@ void VoiceStartModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(GlobalStaticTimeVariantModulator);
 	ADD_NAME_TO_TYPELIST(ArrayModulator);
 	ADD_NAME_TO_TYPELIST(JavascriptVoiceStartModulator);
+	ADD_NAME_TO_TYPELIST(EventDataModulator);
 }
 
 void EnvelopeModulatorFactoryType::fillTypeNameList()
@@ -1485,6 +1486,7 @@ void EnvelopeModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(MPEModulator);
 	ADD_NAME_TO_TYPELIST(ScriptnodeVoiceKiller);
 	ADD_NAME_TO_TYPELIST(GlobalEnvelopeModulator);
+	ADD_NAME_TO_TYPELIST(EventDataEnvelope);
 }
 
 
