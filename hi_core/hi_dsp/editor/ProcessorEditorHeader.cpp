@@ -796,13 +796,13 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 	{
 		const bool newValue = !retriggerButton->getToggleState();
 
-		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Retrigger, newValue ? 1.0f : 0.f, sendNotification);
+		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Retrigger, newValue ? 1.0f : 0.f, sendNotificationAsync);
 	}
 	else if (buttonThatWasClicked == monophonicButton)
 	{
 		const bool newValue = !monophonicButton->getToggleState();
 
-		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Monophonic, newValue ? 1.0f : 0.f, sendNotification);
+		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Monophonic, newValue ? 1.0f : 0.f, sendNotificationAsync);
 
 	}
     else if (buttonThatWasClicked == foldButton)

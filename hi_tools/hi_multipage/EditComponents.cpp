@@ -682,7 +682,9 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
         Identifier("LabelPosition"),
         Identifier("UseFilter"),
         Identifier("Visible"),
-        Identifier("Comment")};
+        Identifier("Comment"),
+        Identifier("ManualAction"),
+        Identifier("CallOnNext")};
     
 	for(auto& nv: prop)
 	{

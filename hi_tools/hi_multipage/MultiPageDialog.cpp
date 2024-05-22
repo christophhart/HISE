@@ -897,6 +897,14 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 {
 	jassert(runThread->currentDialog == nullptr);
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	addMouseListener(&mouseSelector, true);
+	selectionUpdater.addListener(*this, [](Dialog& b, const Array<var>& list)
+	{
+		b.showEditor(list);
+	}, false);
+#endif
+
     runThread->currentDialog = this;
 
 	if(auto sd = obj[mpid::StyleData].getDynamicObject())
@@ -1201,16 +1209,8 @@ bool Dialog::keyPressed(const KeyPress& k)
 {
 	if(k.getKeyCode() == KeyPress::F5Key)
 	{
-		try
-		{
-			if(currentPage != nullptr)
-				currentPage->check(getState().globalState);
-		}
-		catch(State::CallOnNextAction& )
-		{
-			getState().jobs.clear();
-		}
-		
+		if(currentPage != nullptr)
+			currentPage->check(getState().globalState);
 
 		if(auto st = findParentComponentOfClass<ComponentWithSideTab>())
 		{
@@ -1568,6 +1568,115 @@ void Dialog::showMainPropertyEditor()
 	});
 }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+Dialog::MouseSelector::MouseSelector()
+{
+	selection.addChangeListener(this);
+}
+
+Dialog::MouseSelector::~MouseSelector()
+{
+	selection.removeChangeListener(this);
+}
+
+void Dialog::MouseSelector::changeListenerCallback(ChangeBroadcaster* source)
+{
+	DBG("Rebuild!!!");
+
+	if(parent != nullptr)
+	{
+		const auto& list = selection.getItemArray();
+
+		uint64 thisHash = 0;
+
+		for(auto& l: list)
+		{
+			thisHash += reinterpret_cast<uint64>(l.getObject());
+		}
+
+		if(thisHash != lastHash)
+		{
+			lastHash = thisHash;
+			parent->selectionUpdater.sendMessage(sendNotificationSync, list);
+		}
+	}
+}
+
+void Dialog::MouseSelector::findLassoItemsInArea(Array<var>& itemsFound, const Rectangle<int>& area)
+{
+	if(parent != nullptr)
+	{
+		parent->currentPage->callRecursive<PageBase>(parent->currentPage, [&](PageBase* b)
+		{
+			auto la = parent->getLocalArea(b, b->getLocalBounds());
+
+			if(dynamic_cast<factory::Container*>(b) != nullptr)
+				return false;
+
+			if(area.intersectRectangle(la))
+			{
+				struct Sorter
+				{
+					static int compareElements(const var& b1, const var& b2)
+					{
+						return b1[mpid::ID].toString().compare(b2[mpid::ID].toString());
+					}
+				} sorter;
+
+				itemsFound.addSorted(sorter, b->getInfoObject());
+			}
+
+			return false;
+		});
+	}
+}
+
+void Dialog::MouseSelector::mouseMove(const MouseEvent& event)
+{
+	if(parent == nullptr)
+		parent = event.eventComponent->findParentComponentOfClass<Dialog>();
+
+	if(parent != nullptr && parent->isEditModeEnabled())
+	{
+		int x = 5;
+	}
+}
+
+void Dialog::MouseSelector::mouseDrag(const MouseEvent& e)
+{
+	if(parent != nullptr && parent->isEditModeEnabled())
+	{
+		lasso.dragLasso(e.getEventRelativeTo(parent));
+	}
+}
+
+void Dialog::MouseSelector::mouseUp(const MouseEvent& e)
+{
+	if(parent != nullptr && parent->isEditModeEnabled())
+	{
+		lasso.endLasso();
+	}
+}
+
+void Dialog::MouseSelector::mouseDown(const MouseEvent& event)
+{
+	if(parent != nullptr && parent->isEditModeEnabled())
+	{
+		selection.deselectAll();
+
+		auto pb = event.eventComponent->findParentComponentOfClass<PageBase>();
+
+		if(pb != nullptr)
+		{
+			selection.addToSelectionBasedOnModifiers(pb->getInfoObject(), event.mods);
+		}
+
+		parent->addChildComponent(lasso);
+		lasso.beginLasso(event.getEventRelativeTo(parent), this);
+	}
+}
+#endif
+
 void Dialog::loadStyleFromPositionInfo()
 {
 	auto css = getState().getStyleSheet(positionInfo.styleSheet, positionInfo.additionalStyle);
@@ -1716,6 +1825,18 @@ Path Dialog::createPath(const String& url) const
 		p.loadPathFromData(mb.getData(), mb.getSize());
 		return p;
 	}
+
+	if(url == "stop")
+	{
+		static const unsigned char x[] = { 110,109,240,151,39,68,8,19,64,67,98,143,50,56,68,252,97,66,67,0,128,69,68,120,6,121,67,0,128,69,68,0,0,158,67,98,0,128,69,68,212,55,192,67,3,156,55,68,188,255,219,67,0,128,38,68,188,255,219,67,98,5,100,21,68,188,255,219,67,0,128,7,68,212,55,192,67,0,
+128,7,68,0,0,158,67,98,0,128,7,68,84,144,119,67,5,100,21,68,132,0,64,67,0,128,38,68,132,0,64,67,98,68,186,38,68,132,0,64,67,95,244,38,68,216,1,64,67,240,46,39,68,32,7,64,67,108,120,17,40,68,48,255,88,67,98,214,140,39,68,36,222,88,67,234,6,39,68,244,204,
+88,67,0,128,38,68,244,204,88,67,98,0,208,24,68,244,204,88,67,53,179,13,68,222,159,130,67,53,179,13,68,0,0,158,67,98,53,179,13,68,32,96,185,67,0,208,24,68,132,153,207,67,0,128,38,68,132,153,207,67,98,255,47,52,68,132,153,207,67,203,76,63,68,32,96,185,
+67,203,76,63,68,0,0,158,67,98,203,76,63,68,244,244,131,67,90,62,53,68,108,39,93,67,26,123,40,68,72,28,89,67,108,240,151,39,68,8,19,64,67,99,109,56,50,50,68,212,155,134,67,108,200,205,26,68,212,155,134,67,108,200,205,26,68,44,100,181,67,108,56,50,50,68,
+44,100,181,67,108,56,50,50,68,212,155,134,67,99,101,0,0 };
+
+		p.loadPathFromData(x, sizeof(x));
+        return p;
+	}
         
     if(url == "retry")
     {
@@ -1727,7 +1848,7 @@ Path Dialog::createPath(const String& url) const
         p.loadPathFromData(x, sizeof(x));
         return p;
     }
-    LOAD_EPATH_IF_URL("retry", EditorIcons::redoIcon);
+
 	LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
 	LOAD_EPATH_IF_URL("help", MainToolbarIcons::help);
     LOAD_EPATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
@@ -1768,24 +1889,26 @@ bool Dialog::navigate(bool forward)
 		{
 			if(!isEditModeEnabled())
 			{
-				try
+				auto hasOnSubmit = callRecursive<PageBase>(currentPage, [](PageBase* b)
 				{
-					auto ok = currentPage->check(runThread->globalState);
-					//errorComponent.setError(ok);
+					return b->hasOnSubmitEvent();
+				});
+
+				auto ok = currentPage->check(runThread->globalState);
 		                
-					if(!ok.wasOk())
+				if(!ok.wasOk())
+				{
+					if(currentErrorElement != nullptr)
 					{
-						if(currentErrorElement != nullptr)
-						{
-							currentErrorElement->setModalHelp(ok.getErrorMessage());
-						}
-							
-						return false;
+						currentErrorElement->setModalHelp(ok.getErrorMessage());
 					}
 						
+					return false;
 				}
-				catch(State::CallOnNextAction& )
+
+				if(hasOnSubmit)
 				{
+					getState().navigateOnFinish = true;
 					nextButton.setEnabled(false);
 					prevButton.setEnabled(false);
 					return false;
@@ -2122,8 +2245,118 @@ bool Dialog::nonContainerPopup(const var& infoObject)
 	return false;
 }
 
-bool Dialog::showEditor(const var& infoObject)
+bool Dialog::showEditor(const Array<var>& infoObjects)
 {
+	if(auto st = findParentComponentOfClass<ComponentWithSideTab>())
+	{
+		if(infoObjects.isEmpty())
+		{
+			st->setSideTab(nullptr, nullptr);
+		}
+		else
+		{
+			auto ns = new State(var());
+			ns->globalState = infoObjects[0];
+			auto d = new Dialog(var(), * ns, true);
+
+			d->setFixStyleSheet(st->propertyStyleSheet);
+
+			d->useHelpBubble = true;
+
+			auto sd = d->getStyleData();
+			sd.fontSize = 14.0f;
+			sd.f = GLOBAL_FONT();
+			sd.textColour = Colours::white.withAlpha(0.7f);
+			sd.backgroundColour = Colours::transparentBlack;
+			d->setStyleData(sd);
+
+			d->prevButton.setVisible(false);
+			
+
+			auto tp = findPageBaseForInfoObject(infoObjects[0]);
+
+			tp->createEditor(*d->pages.getFirst());
+
+
+			
+
+			d->setFinishCallback([this, st]()
+			{
+				this->refreshCurrentPage();
+				st->setSideTab(nullptr, nullptr);
+			});
+
+			d->refreshCurrentPage();
+
+			if(infoObjects.size() > 1)
+			{
+				Array<var> sameObjects;
+
+				auto initValues = infoObjects[0].getDynamicObject()->clone();
+				
+				auto firstType = infoObjects[0][mpid::Type].toString();
+
+				auto ud = &getUndoManager();
+
+				for(int i = 1; i < infoObjects.size(); i++)
+				{
+					sameObjects.add(infoObjects[i]);
+				}
+
+				if(!sameObjects.isEmpty())
+				{
+					Component::callRecursive<PageBase>(d, [ud, sameObjects, initValues](PageBase* b)
+					{
+						b->setCustomCheckFunction([ud, sameObjects, initValues](PageBase* b, const var& obj)
+						{
+							auto idToWrite = b->getId();
+
+							if(idToWrite.isNull())
+								return Result::ok();
+
+							auto valueToWrite = b->getValueFromGlobalState();
+
+							if(initValues->getProperty(idToWrite) == valueToWrite)
+								return Result::ok();
+
+							initValues->setProperty(idToWrite, valueToWrite);
+
+							ud->beginNewTransaction();
+
+							for(auto& v: sameObjects)
+							{
+								if(!v.getDynamicObject()->hasProperty(idToWrite))
+									continue;
+
+								ud->perform(new UndoableVarAction(v, idToWrite, valueToWrite));
+
+								//v.getDynamicObject()->setProperty(idToWrite, valueToWrite);
+							}
+
+							return Result::ok();
+						});
+
+						return false;
+					});
+				}
+
+				
+			}
+
+			
+
+			if(!st->setSideTab(ns, d))
+				currentlyEditedPage = nullptr;
+		}
+		
+
+		//currentlyEditedPage = pb;
+	}
+
+	repaint();
+
+	return false;
+#if 0
 	auto tp = findPageBaseForInfoObject(infoObject);
 
 	if(tp == nullptr)
@@ -2140,6 +2373,7 @@ bool Dialog::showEditor(const var& infoObject)
 	}
 
 	return true;
+#endif
 }
 #endif
 

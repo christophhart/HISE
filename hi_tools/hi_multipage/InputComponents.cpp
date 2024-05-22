@@ -287,8 +287,10 @@ Button::Button(Dialog& r, int width, const var& obj):
 	LabelledComponent(r, width, obj, createButton(obj))
 {
     getComponent<Component>().setWantsKeyboardFocus(false);
-    
-	Helpers::writeClassSelectors(getComponent<juce::Button>(), { ".toggle-button" }, true);
+
+    auto isText = infoObject[mpid::ButtonType].toString() == "Text";
+
+    Helpers::writeClassSelectors(getComponent<juce::Button>(), { (isText ? ".text-button" : ".toggle-button") }, true);
     
 	loadFromInfoObject(obj);
 }

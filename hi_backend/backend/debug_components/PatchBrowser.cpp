@@ -824,6 +824,9 @@ idUpdater(p->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTI
 	
 	closeButton.onClick = [this]()
 	{
+		auto brw = GET_BACKEND_ROOT_WINDOW((&closeButton));
+		brw->getRootFloatingTile()->clearAllPopups();
+
 		auto p = getProcessor();
 		auto c = dynamic_cast<Component*>(this);
 
@@ -862,11 +865,18 @@ idUpdater(p->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTI
     
 	bypassed = getProcessor()->isBypassed();
 
+	getProcessor()->addDeleteListener(this);
 	getProcessor()->addNameAndColourListener(&idUpdater, dispatch::sendNotificationAsync);
 }
 
 PatchBrowser::ModuleDragTarget::~ModuleDragTarget()
 {
+	if(getProcessor() == nullptr)
+	{
+		return;
+	}
+
+	getProcessor()->removeDeleteListener(this);
 	getProcessor()->removeBypassListener(this);
 	getProcessor()->removeNameAndColourListener(&idUpdater);
 }
@@ -1159,7 +1169,7 @@ hierarchy(hierarchy_)
 {
 	addAndMakeVisible(peak);
 	addAndMakeVisible(idLabel);
-	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colours::white.withAlpha(0.4f), Colour(0xFF222222)));
+	addAndMakeVisible(foldButton = new ShapeButton("Fold Overview", Colour(0xFF222222), Colour(0xFF888888), Colour(0xFF222222)));
 
 	foldButton->setVisible(true);
 
@@ -1292,9 +1302,8 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 
     g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
                                      JUCE_LIVE_CONSTANT_OFF(Colour(0xff212121)), 0.0f, (float)b.getHeight(), false));
-    
 
-    
+	auto isRoot = synth == synth->getMainController()->getMainSynthChain();
     
 	auto iconSpace2 = b.reduced(7.0f);
 
@@ -1305,13 +1314,17 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 
 	auto iconSpace = iconSpace2.removeFromLeft(iconSpace2.getHeight());
 
+	if(isRoot && createButton.isVisible())
+	{
+		iconSpace2.removeFromLeft(7);
+	}
+	
 
+	g.fillRoundedRectangle(iconSpace2.reduced(2.0f), 2.0f);
     
-    g.fillRoundedRectangle(iconSpace2.reduced(2.0f), 2.0f);
-    
-    g.setColour(Colours::white.withAlpha(0.1f));
-    g.drawRoundedRectangle(iconSpace2.reduced(2.0f), 1.0f, 1.0f);
-    
+	g.setColour(Colours::white.withAlpha(0.1f));
+	g.drawRoundedRectangle(iconSpace2.reduced(2.0f), 1.0f, 1.0f);
+
 	auto c = synth->getIconColour();
 
 	if (c.isTransparent() && getProcessor()->getMainController()->getMainSynthChain() != getProcessor())
@@ -1320,16 +1333,21 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 	if (getProcessor()->isBypassed())
 		c = c.withMultipliedAlpha(0.4f);
 
-	g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.1f), 0.0f, 7.0f,
+	if(!isRoot)
+	{
+		g.setGradientFill(ColourGradient(c.withMultipliedBrightness(1.1f), 0.0f, 7.0f,
 		c.withMultipliedBrightness(0.9f), 0.0f, 35.0f, false));
 
-	g.fillRoundedRectangle(iconSpace.reduced(2.0f), 2.0f);
+		g.fillRoundedRectangle(iconSpace.reduced(2.0f), 2.0f);
 
-	iconArea = iconSpace.toNearestInt();
+		iconArea = iconSpace.toNearestInt();
 
-	g.setColour(Colour(0xFF222222));
+		g.setColour(Colour(0xFF222222));
 
-	g.drawRoundedRectangle(iconSpace.reduced(2.0f), 2.0f,  1.0f);
+		g.drawRoundedRectangle(iconSpace.reduced(2.0f), 2.0f,  1.0f);
+	}
+
+	
 
     if (isMouseOver(false) || (gotoWorkspace != nullptr && gotoWorkspace->isMouseOver(true)))
     {

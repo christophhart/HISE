@@ -104,7 +104,7 @@ Dialog* CreateCSSFromTemplate::createDialog(State& state)
 
     auto& createFile_4 = List_0.addChild<LambdaTask>({
       { mpid::ID, "createFile" },
-      { mpid::CallOnNext, 1 },
+      { mpid::EventTrigger, "OnSubmit" },
       { mpid::Style, "display: none;" },
       { mpid::Function, "createFile" }
     });
@@ -243,7 +243,7 @@ element.onValue = function(value)
     auto& export_5 = List_0.addChild<LambdaTask>({
       { mpid::Text, "Export Progress" },
       { mpid::ID, "export" },
-      { mpid::CallOnNext, 1 },
+      { mpid::EventTrigger, "OnSubmit" },
       { mpid::Function, "exportProjucerProject" }
     });
 
@@ -272,7 +272,7 @@ element.onValue = function(value)
     List_6.addChild<Launch>({
       { mpid::Text, "$hisePath/tools/Projucer.exe" },
       { mpid::ID, "openProjucer" },
-      { mpid::CallOnNext, 1 },
+      { mpid::EventTrigger, "OnSubmit" },
       { mpid::Args, R"("$projectDirectory/$projectName.jucer")" }
     });
 
