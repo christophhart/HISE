@@ -880,6 +880,7 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 	}
 	if (name == "learn")
 	{
+		b->setTooltip("Enable automatic parameter assignment mode");
 		b->actionFunction = [](Editor& e)
 		{
 			auto bc = e.getScriptComponentEditBroadcaster();
