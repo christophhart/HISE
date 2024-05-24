@@ -116,7 +116,7 @@ author: "")" },
 	  { mpid::InitValue, "0" }, 
 	  { mpid::UseInitValue, 1 }, 
 	  { mpid::Class, ".category-button .first-child" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Shows uncategorized / all snippets" }
@@ -127,7 +127,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets that demonstrate HISE modules" }
@@ -138,7 +138,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets related to MIDI processing" }
@@ -149,7 +149,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show scripting snippets" }
@@ -160,7 +160,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show DSP snippets using scriptnode and Faust / SNEX" }
@@ -171,7 +171,7 @@ author: "")" },
 	  { mpid::ID, "category" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button .last-child" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets related to UI design" }
@@ -225,7 +225,6 @@ name:Author;max-width: 140px;width: 110px;)" },
 
 	List_0.addChild<JavascriptFunction>({
 	  { mpid::ID, "JavascriptFunctionId" }, 
-	  { mpid::CallOnNext, 0 }, 
 	  { mpid::Code, R"(var CATEGORIES = ["All", "Modules", "MIDI", "Scripting", "Scriptnode", "UI"];
 
 parsedData = [];
@@ -619,7 +618,7 @@ By Priority
 	List_41.addChild<DownloadTask>({
 	  { mpid::Text, "Download" }, 
 	  { mpid::ID, "downloadSnippets" }, 
-	  { mpid::CallOnNext, 1 }, 
+	  { mpid::EventTrigger, "OnSubmit" }, 
 	  { mpid::Source, "https://github.com/qdr/HiseSnippetDB/archive/refs/heads/main.zip" }, 
 	  { mpid::Target, "$snippetDirectory/snippets.zip" }, 
 	  { mpid::UsePost, 0 }
@@ -628,7 +627,7 @@ By Priority
 	List_41.addChild<UnzipTask>({
 	  { mpid::Text, "Extract" }, 
 	  { mpid::ID, "extractSnippets" }, 
-	  { mpid::CallOnNext, 1 }, 
+	  { mpid::EventTrigger, "OnSubmit" }, 
 	  { mpid::Overwrite, 1 }, 
 	  { mpid::Source, "$snippetDirectory/snippets.zip" }, 
 	  { mpid::Style, "margin-bottom: 40px;" }, 
@@ -649,7 +648,7 @@ By Priority
 	List_41.addChild<DownloadTask>({
 	  { mpid::Text, "Download" }, 
 	  { mpid::ID, "downloadAssets" }, 
-	  { mpid::CallOnNext, 1 }, 
+	  { mpid::EventTrigger, "OnSubmit" }, 
 	  { mpid::Source, "https://github.com/qdr/HiseSnippetDB/releases/download/1.0.0/Assets.zip" }, 
 	  { mpid::Target, "$snippetDirectory/assets.zip" }, 
 	  { mpid::UsePost, 0 }
@@ -658,7 +657,7 @@ By Priority
 	List_41.addChild<UnzipTask>({
 	  { mpid::Text, "Extract" }, 
 	  { mpid::ID, "extractAssets" }, 
-	  { mpid::CallOnNext, 1 }, 
+	  { mpid::EventTrigger, "OnSubmit" }, 
 	  { mpid::Overwrite, 1 }, 
 	  { mpid::Source, "$snippetDirectory/assets.zip" }, 
 	  { mpid::Target, "$snippetDirectory/Assets" }, 
@@ -736,7 +735,7 @@ By Priority
 	  { mpid::InitValue, "0" }, 
 	  { mpid::UseInitValue, 1 }, 
 	  { mpid::Class, ".category-button .first-child" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -744,7 +743,7 @@ By Priority
 	  { mpid::Text, "Modules" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -752,7 +751,7 @@ By Priority
 	  { mpid::Text, "MIDI" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -760,7 +759,7 @@ By Priority
 	  { mpid::Text, "Scripting" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -768,7 +767,7 @@ By Priority
 	  { mpid::Text, "Scriptnode" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -776,7 +775,7 @@ By Priority
 	  { mpid::Text, "UI" }, 
 	  { mpid::ID, "addCategory" }, 
 	  { mpid::Class, ".category-button .last-child" }, 
-	  { mpid::ButtonType, "Text" }, 
+	  { mpid::ButtonType, "Toggle" }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -864,7 +863,6 @@ UI Logic)" }
 	});
 
 	List_54.addChild<JavascriptFunction>({
-	  { mpid::CallOnNext, 0 }, 
 	  { mpid::Code, R"(
 document.getElementById("editTitle").innerText = state.newName.length > 0 ? "Edit Snippet" : "Add Snippet";
 
@@ -881,7 +879,7 @@ document.getElementById("description").addEventListener("change", function()
 	});
 
 	List_50.addChild<JavascriptFunction>({
-	  { mpid::CallOnNext, 1 }, 
+	  { mpid::EventTrigger, "OnSubmit" }, 
 	  { mpid::Code, R"(function appendLine(key, value)
 {
 	md += "" + key + ": ";

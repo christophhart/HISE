@@ -319,6 +319,222 @@ struct public_mod
 	ModValue* ptr = nullptr;
 };
 
+struct NoCheck
+{
+	SN_EMPTY_INITIALISE;
+	SN_EMPTY_PREPARE;
+};
+
+template <int NV, typename CheckClass=NoCheck> struct event_data_reader: 
+	public mothernode,
+	public polyphonic_base
+{
+	SN_NODE_ID("event_data_reader");
+	SN_GET_SELF_AS_OBJECT(event_data_reader);
+	SN_DESCRIPTION("reads data that was written to the event ID storage of the global routing manager");
+
+	static constexpr bool isPolyphonic() { return NV > 1; };
+
+	event_data_reader():
+	  polyphonic_base(getStaticId(), true)
+	{};
+
+	enum Parameters
+	{
+		SlotIndex,
+		Static
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(SlotIndex, event_data_reader);
+		DEF_PARAMETER(Static, event_data_reader);
+	}
+	SN_PARAMETER_MEMBER_FUNCTION;
+
+	SN_EMPTY_RESET;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_PROCESS;
+
+	void initialise(NodeBase* b)
+	{
+		checkClass.initialise(b);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		checkClass.prepare(ps);
+
+		eventStorage = ps.voiceIndex->getTempoSyncer()->additionalEventStorage;
+		currentEventId.prepare(ps);
+
+		if(eventStorage == nullptr)
+			Error::throwError(Error::NoGlobalManager);
+	}
+
+	constexpr bool isProcessingHiseEvent() const { return true; }
+
+	bool handleModulation(double& value)
+	{
+		if(isStatic)
+			return staticValue.getChangedValue(value);
+		else
+			return eventStorage != nullptr ? eventStorage->changed(currentEventId.get(), dataSlot, value) : false;
+	}
+	
+	static constexpr bool isNormalisedModulation() { return true; }
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(event_data_reader_base, SlotIndex);
+			p.setRange({0.0, (double)AdditionalEventStorage::NumDataSlots, 1.0});
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(event_data_reader_base, Static);
+			p.setParameterValueNames({ "Off", "On"});
+			data.add(std::move(p));
+		}
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if(e.isNoteOn())
+		{
+			currentEventId.get() = e.getEventId();
+
+			if(isStatic && eventStorage != nullptr)
+			{
+				auto v = eventStorage->getValue(currentEventId.get(), dataSlot);
+
+				if(v.first)
+					staticValue.setModValue(v.second);
+			}
+		}
+	}
+
+	void setSlotIndex(double newValue)
+	{
+		dataSlot = jlimit<uint8>(0, hise::AdditionalEventStorage::NumDataSlots, (uint8)newValue);
+	}
+
+	void setStatic(double newValue)
+	{
+		isStatic = newValue > 0.5;
+	}
+
+	hise::AdditionalEventStorage* eventStorage = nullptr;
+	bool isStatic = false;
+	PolyData<uint16, NV> currentEventId;
+	ModValue staticValue;
+	uint8 dataSlot = 0;
+
+	CheckClass checkClass;
+};
+
+
+
+template <int NV, typename CheckClass=NoCheck> struct event_data_writer: 
+	public mothernode,
+	public polyphonic_base
+{
+	SN_NODE_ID("event_data_writer");
+	SN_GET_SELF_AS_OBJECT(event_data_writer);
+	SN_DESCRIPTION("writes data to the event ID storage of the global routing manager");
+
+	event_data_writer():
+	  polyphonic_base(getStaticId(), true)
+	{}
+
+	static constexpr bool isPolyphonic() { return NV > 1; }
+
+	enum Parameters
+	{
+		SlotIndex,
+		Value
+	};
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(SlotIndex, event_data_writer);
+		DEF_PARAMETER(Value, event_data_writer);
+	}
+	SN_PARAMETER_MEMBER_FUNCTION;
+
+	SN_EMPTY_RESET;
+	SN_EMPTY_PROCESS_FRAME;
+	SN_EMPTY_PROCESS;
+
+	void initialise(NodeBase* b)
+	{
+		checkClass.initialise(b);
+	}
+
+	constexpr bool isProcessingHiseEvent() const { return true; }
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(event_data_writer, SlotIndex);
+			p.setRange({0.0, (double)AdditionalEventStorage::NumDataSlots, 1.0});
+			data.add(std::move(p));
+		}
+
+		{
+			DEFINE_PARAMETERDATA(event_data_writer, Value);
+			data.add(std::move(p));
+		}
+	}
+
+	
+
+	void prepare(PrepareSpecs ps)
+	{
+		checkClass.prepare(ps);
+
+		eventStorage = ps.voiceIndex->getTempoSyncer()->additionalEventStorage;
+		currentEventId.prepare(ps);
+
+		if(eventStorage == nullptr)
+			Error::throwError(Error::NoGlobalManager);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if(e.isNoteOn() && eventStorage != nullptr)
+		{
+			auto& s = currentEventId.get();
+			s.first = e.getEventId();
+			eventStorage->setValue(s.first, dataSlot, s.second, dontSendNotification);
+		}
+	}
+
+	void setSlotIndex(double newValue)
+	{
+		dataSlot = jlimit<uint8>(0, hise::AdditionalEventStorage::NumDataSlots, (uint8)newValue);
+	}
+
+	void setValue(double newValue)
+	{
+		if(eventStorage == nullptr)
+			return;
+
+		for(auto& s: currentEventId)
+		{
+			s.second = newValue;
+			eventStorage->setValue(s.first, dataSlot, newValue, dontSendNotification);
+		}
+	}
+
+	hise::AdditionalEventStorage* eventStorage = nullptr;
+	PolyData<std::pair<uint16, double>, NV> currentEventId;
+	uint8 dataSlot = 0;
+
+	CheckClass checkClass;
+};
+
 struct base
 {
 	base(const Identifier& id)
@@ -586,7 +802,22 @@ struct ms_decode: public HiseDspBase
 	}
 };
 
-struct selector: public mothernode
+struct selector_base: public mothernode
+{
+	~selector_base() override {};
+
+	virtual int getChannelIndex() const = 0;
+
+	bool clearOtherChannels = true;
+    int numChannels = 1;
+    bool selectOutput = false;
+    int numProcessingChannels = 2;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(selector_base);
+};
+
+template <int NV> struct selector: public selector_base,
+								   public polyphonic_base
 {
     enum class Parameters
     {
@@ -605,8 +836,12 @@ struct selector: public mothernode
     };
 	SN_PARAMETER_MEMBER_FUNCTION;
     
-    constexpr bool isPolyphonic() { return false; }
-    
+    constexpr bool isPolyphonic() { return NV > 1; }
+
+	selector():
+	  polyphonic_base(getStaticId(), false)
+	{}
+
     SN_NODE_ID("selector");
     SN_GET_SELF_AS_OBJECT(selector);
     SN_DESCRIPTION("A dynamic router of the first channel (pair)");
@@ -617,7 +852,8 @@ struct selector: public mothernode
     
     void prepare(PrepareSpecs ps)
     {
-        numProcessingChannels = ps.numChannels;
+        this->numProcessingChannels = ps.numChannels;
+		channelIndex.prepare(ps);
     }
     
     static void copy(block dst, const block& src)
@@ -629,32 +865,36 @@ struct selector: public mothernode
     {
         dst = src;
     }
-    
+
+	int getChannelIndex() const override { return channelIndex.getFirst(); }
+
     template <typename T> void op(T& data, int size)
     {
-        int numToProcess = jmin(numChannels, size - channelIndex);
-        
-        if(channelIndex != 0)
+		auto c = channelIndex.get();
+
+        int numToProcess = jmin(this->numChannels, size - c);
+
+        if(c != 0)
         {
-            if(selectOutput)
+            if(this->selectOutput)
             {
                 for(int i = 0; i < numToProcess; i++)
-                    copy(data[channelIndex + i], data[i]);
+                    copy(data[c + i], data[i]);
             }
 			else
             {
                 for(int i = 0; i < numToProcess; i++)
-                    copy(data[i], data[channelIndex + i]);
+                    copy(data[i], data[c + i]);
             }
         }
         
-        if(clearOtherChannels)
+        if(this->clearOtherChannels)
         {
-			if (selectOutput)
+			if (this->selectOutput)
 			{
 				for (int i = 0; i < size; i++)
 				{
-					if (i >= channelIndex && i < (channelIndex + numChannels))
+					if (i >= c && i < (c + this->numChannels))
 						continue;
 
 					data[i] = 0.0f;
@@ -662,7 +902,7 @@ struct selector: public mothernode
 			}
 			else
 			{
-				for (int i = numChannels; i < size; i++)
+				for (int i = this->numChannels; i < size; i++)
 					data[i] = 0.0f;
 			}
         }
@@ -680,22 +920,23 @@ struct selector: public mothernode
     
     void setChannelIndex(double v)
     {
-        channelIndex = jlimit(0, 16, roundToInt(v));
+		for(auto& s: channelIndex)
+			s = jlimit(0, 16, roundToInt(v));
     }
     
     void setNumChannels(double v)
     {
-        numChannels = jlimit(0, 16, roundToInt(v));
+        this->numChannels = jlimit(0, 16, roundToInt(v));
     };
     
     void setClearOtherChannels(double v)
     {
-        clearOtherChannels = v > 0.5;
+        this->clearOtherChannels = v > 0.5;
     }
     
     void setSelectOutput(double v)
     {
-        selectOutput = v > 0.5;
+        this->selectOutput = v > 0.5;
     }
     
     void createParameters(ParameterDataList& data)
@@ -730,13 +971,8 @@ struct selector: public mothernode
         
     }
 
-    bool clearOtherChannels = true;
-    int channelIndex = 0;
-    int numChannels = 1;
-    bool selectOutput = false;
-    
-    int numProcessingChannels = 2;
-    
+	PolyData<int, NV> channelIndex;
+
     JUCE_DECLARE_WEAK_REFERENCEABLE(selector);
 };
 

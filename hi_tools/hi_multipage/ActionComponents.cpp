@@ -54,25 +54,31 @@ void Action::createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& h
 		{ mpid::Help, "The ID of the action. This will determine whether the action is tied to a global state value. If not empty, the action will only be performed if the value is not zero." }
 	});
 
-	rootList.addChild<TextInput>({
+	auto& css = rootList.addChild<List>({
+		{ mpid::Text, "CSS Properties" },
+		{ mpid::Foldable, true }
+	});
+
+	css.addChild<TextInput>({
         { mpid::ID, mpid::Class.toString() },
         { mpid::Text, mpid::Class.toString() },
         { mpid::Help, "The CSS class that is applied to the action UI element (progress bar & label)." },
 		{ mpid::Value, infoObject[mpid::Class] }
     });
 
-	rootList.addChild<TextInput>({
+	css.addChild<TextInput>({
 		{ mpid::ID, mpid::Style.toString() },
 		{ mpid::Text, mpid::Style.toString() },
         { mpid::Value, infoObject[mpid::Style] },
 		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
 
-	rootList.addChild<Button>({
-		{ mpid::ID, "CallOnNext" },
-		{ mpid::Text, "CallOnNext" },
-		{ mpid::Help, "If enabled, the action will launched when you press the next button (otherwise it will be executed on page load." },
-		{ mpid::Value, callOnNext }
+	rootList.addChild<Choice>({
+		{ mpid::ID, mpid::EventTrigger.toString() },
+		{ mpid::Text, mpid::EventTrigger.toString() },
+        { mpid::Value, infoObject[mpid::EventTrigger] },
+		{ mpid::Items, getEventTriggerIds() },
+		{ mpid::Help, "The event that will trigger the action" }
 	});
 #endif
 }
@@ -81,8 +87,9 @@ Action::Action(Dialog& r, int w, const var& obj):
 	PageBase(r, 0, obj),
 	r(Result::ok())
 {
-	callOnNext = obj[mpid::CallOnNext];
-	
+	if(!obj.hasProperty(mpid::EventTrigger))
+		obj.getDynamicObject()->setProperty(mpid::EventTrigger, "OnPageLoad");
+
 	if(r.isEditModeEnabled())
 		setSize(20, 32);
 }
@@ -109,11 +116,20 @@ void Action::paint(Graphics& g)
 
 void Action::postInit()
 {
+	setTriggerType();
+
 	init();
 
-	if(!callOnNext)
+	switch(triggerType)
 	{
+	case TriggerType::OnPageLoad:
 		perform();
+		break;
+	case TriggerType::OnPageLoadAsync:
+		SafeAsyncCall::call<Action>(*this, [](Action& a){ a.perform();});
+		break;
+	default:
+		break;
 	}
 }
 
@@ -125,7 +141,7 @@ void Action::perform()
 		return;
 	}
 
-	auto shouldPerform = getValueFromGlobalState(var(true));
+	auto shouldPerform = triggerType == TriggerType::OnCall || getValueFromGlobalState(var(true));
 
     setActive(shouldPerform);
     
@@ -137,40 +153,32 @@ void Action::perform()
 	
 	auto obj = Dialog::getGlobalState(*this, {}, var());
         
-	CustomCheckFunction f;
-	std::swap(f, cf);
-
 	rootDialog.logMessage(MessageType::ActionEvent, "Perform " + getDescription());
 	
-	if(f)
-		r = f(this, obj);
+	if(actionCallback)
+		r = actionCallback(this, obj);
 }
 
 Result Action::checkGlobalState(var globalState)
 {
-	if(callOnNext)
+	if(triggerType == TriggerType::OnSubmit)
 		perform();
 
 	return r;
 }
 
-
-
-
-
 ImmediateAction::ImmediateAction(Dialog& r, int w, const var& obj):
 	Action(r, w, obj)
 {
-	setCustomCheckFunction([this](Dialog::PageBase* pb, const var& obj)
+	actionCallback = ([this](Dialog::PageBase* pb, const var& obj)
 	{
-		if(id.isValid() && this->skipIfStateIsFalse())
+		if(triggerType != TriggerType::OnCall && id.isValid() && this->skipIfStateIsFalse())
 		{
 			if(!obj[id])
 			{
 				rootDialog.logMessage(MessageType::ActionEvent, "Skip because value is false");
 				return Result::ok();
 			}
-				
 		}
 
 		if(rootDialog.isEditModeEnabled())
@@ -443,9 +451,6 @@ Result RelativeFileLoader::onAction()
 Launch::Launch(Dialog& r, int w, const var& obj):
 	ImmediateAction(r, w, obj)
 {
-	if(!obj.hasProperty(mpid::CallOnNext))
-		callOnNext = true;
-
 	// do not evaluate yet...
 	currentLaunchTarget = obj[mpid::Text].toString();
 	args = obj[mpid::Args].toString();
@@ -476,15 +481,11 @@ void Launch::createEditor(Dialog::PageInfo& rootList)
 
 Result Launch::onAction()
 {
-	if(isFinished)
-		return Result::ok();
-
 	auto t = MarkdownText::getString(currentLaunchTarget, rootDialog);
 	auto a = MarkdownText::getString(args, rootDialog).trim();
 
 	if(URL::isProbablyAWebsiteURL(t))
 	{
-		isFinished = true;
 		URL(t).launchInDefaultBrowser();
 		return Result::ok();
 	}
@@ -495,13 +496,13 @@ Result Launch::onAction()
 
 		if(f.existsAsFile() || f.isDirectory())
 		{
-			if(a.isEmpty())
+			if(f.isDirectory())
 			{
-				isFinished = true;
-
+				f.revealToUser();
+			}
+			else if(a.isEmpty())
+			{
 				f.startAsProcess();
-
-				//f.revealToUser();
 				return Result::ok();
 			}
 			else
@@ -536,6 +537,8 @@ Result BackgroundTask::WaitJob::run()
 {
 	if(currentPage != nullptr)
 	{
+		
+
 		if(auto pc = parent.currentDialog)
 		{
 			if(pc->isEditModeEnabled())
@@ -543,7 +546,7 @@ Result BackgroundTask::WaitJob::run()
 				pc->logMessage(MessageType::ActionEvent, "skip background task in edit mode: " + currentPage->getDescription());
 				return Result::ok();
 			}
-			else if(!currentPage->getValueFromGlobalState(var(true)))
+			else if(currentPage->triggerType != Action::TriggerType::OnCall && !currentPage->getValueFromGlobalState(var(true)))
 			{
 				pc->logMessage(MessageType::ActionEvent, "skip deactivated background task: " + currentPage->getDescription() + " (" + currentPage->id + " == false)");
 				return Result::ok();
@@ -558,23 +561,31 @@ Result BackgroundTask::WaitJob::run()
 		{
 			auto ok = currentPage->performTask(*this);
 
-            progress = 1.0f;
-            
 			if(ok.failed())
 			{
-				currentPage->abort(ok.getErrorMessage());
-				callOnNextEnabled = true;
-				return ok;
+				return currentPage->abort(ok.getErrorMessage());
+			}
+			else
+			{
+				SafeAsyncCall::call<BackgroundTask>(*currentPage, [](BackgroundTask& bt)
+				{
+					bt.setFlexChildVisibility(2, false, true);
+					bt.setFlexChildVisibility(3, false, true);
+					bt.rebuildLayout();
+				});
+				
+				progress = 1.0f;
 			}
 		}
 		catch(Result& r)
 		{
-			currentPage->abort(r.getErrorMessage());
-			return r;
+			return currentPage->abort(r.getErrorMessage());
 		}
-		
+
+		currentPage->finished = true;
 	}
-    
+
+	
     return Result::ok();
 }
 
@@ -582,7 +593,8 @@ Result BackgroundTask::WaitJob::run()
 
 BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	Action(r, w, obj),
-	retryButton("retry", nullptr, r)
+	retryButton("retry", nullptr, r),
+	stopButton("stop", nullptr, r)
 {
 	this->setTextElementSelector(simple_css::ElementType::Label);
 
@@ -599,10 +611,18 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
         
 	retryButton.onClick = [this]()
 	{
+		this->finished = false;
 		rootDialog.getState().addJob(job, true);
 		rootDialog.setCurrentErrorPage(nullptr);
 		setFlexChildVisibility(2, false, true);
+		setFlexChildVisibility(3, true, false);
 		rebuildLayout();
+	};
+
+	stopButton.onClick = [this]()
+	{
+		rootDialog.getState().stopThread(1000);
+		abort("This action was cancelled by the user");
 	};
         
 	label = obj[mpid::Text].toString();
@@ -613,14 +633,15 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	addFlexItem(*progress);
 
 	addFlexItem(retryButton);
+	addFlexItem(stopButton);
 
 	setFlexChildVisibility(2, false, true);
-
-	
+	setFlexChildVisibility(3, false, true);
 
 	setDefaultStyleSheet("display: flex; width: 100%; height: auto; gap: 10px;");
 	Helpers::setFallbackStyleSheet(*progress, "flex-grow: 1; height: 32px;");
 	Helpers::writeSelectorsToProperties(retryButton, { ".retry-button"});
+	Helpers::writeSelectorsToProperties(stopButton, { ".stop-button"});
 
 	setSize(w, 0);
 }
@@ -641,21 +662,31 @@ void BackgroundTask::resized()
 
 void BackgroundTask::postInit()
 {
-	Action::postInit();
+	actionCallback = [this](PageBase*, var)
+	{
+		if(finished)
+			return Result::ok();
 
-	if(job != nullptr)
-		job->postInit();
+		auto& state = this->rootDialog.getState();
+
+		if(state.currentJob == job)
+			return Result::ok();
+
+		if(job != nullptr)
+		{
+			setFlexChildVisibility(3, true, false);
+			rebuildLayout();
+			state.addJob(job, false);	
+		}
+
+		return Result::ok();
+	};
+
+	Action::postInit();
 }
 
 Result BackgroundTask::checkGlobalState(var globalState)
 {
-	if(callOnNext)
-	{
-		// make it go through the next time
-		callOnNext = false;
-		job->callOnNext();
-	}
-            
 	return Action::checkGlobalState(globalState);
 }
 
@@ -698,9 +729,6 @@ URL BackgroundTask::getSourceURL() const
 Result BackgroundTask::abort(const String& message)
 {
 	// reset call on next
-	if(infoObject[mpid::CallOnNext])
-		callOnNext = true;
-
 	auto copy = message;
 
 	rootDialog.logMessage(MessageType::ProgressMessage, "ERROR: " + message);
@@ -710,6 +738,7 @@ Result BackgroundTask::abort(const String& message)
 		w.rootDialog.setCurrentErrorPage(&w);
 		w.setModalHelp(copy);
 		w.setFlexChildVisibility(2, true, false);
+		w.setFlexChildVisibility(3, false, true);
 		w.rebuildLayout();
 	});
 	            

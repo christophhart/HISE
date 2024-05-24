@@ -480,7 +480,7 @@ void CustomResultPage::postInit()
 	        b << ",\n  " << String("tags").quoted() << ": " << JSON::toString(gs["tags"], true);
 
 	    if(gs["comment"].toString().isNotEmpty())
-	        b << ",\n  " << String("comment").quoted() << ": " << gs["tags"].toString();
+	        b << ",\n  " << String("comment").quoted() << ": " << gs["comment"].toString().quoted();
 
 	    if((int)gs["colour"])
 	        b << ",\n  " << String("colour").quoted() << ": " << gs["colour"].toString();

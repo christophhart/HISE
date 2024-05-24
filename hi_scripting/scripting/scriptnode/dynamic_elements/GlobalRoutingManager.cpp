@@ -44,6 +44,7 @@ scriptnode::routing::GlobalRoutingManager::Ptr GlobalRoutingManager::Helpers::ge
 	if(newP == nullptr)
 	{
 		newP = new GlobalRoutingManager();
+		newP->additionalEventStorage.getBroadcaster().enableLockFreeUpdate(mc->getGlobalUIUpdater());
 		mc->setGlobalRoutingManager(newP.get());
 		mc->getProcessorChangeHandler().sendProcessorChangeMessage(mc->getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
 	}

@@ -677,12 +677,15 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
     defaultValues.set(mpid::EmptyText, "");
     defaultValues.set(mpid::ParseArray, false);
     defaultValues.set(mpid::Multiline, false);
+    defaultValues.set(mpid::EventTrigger, "OnPageLoad");
     
     static const Array<Identifier> deprecatedIds = { Identifier("Padding"),
         Identifier("LabelPosition"),
         Identifier("UseFilter"),
         Identifier("Visible"),
-        Identifier("Comment")};
+        Identifier("Comment"),
+        Identifier("ManualAction"),
+        Identifier("CallOnNext")};
     
 	for(auto& nv: prop)
 	{

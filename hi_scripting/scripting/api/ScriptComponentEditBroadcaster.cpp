@@ -691,8 +691,14 @@ void ScriptComponentEditBroadcaster::setCurrentlyLearnedComponent(ScriptComponen
 	if (c != currentlyLearnedComponent)
 	{
 		currentlyLearnedComponent = c;
-		learnBroadcaster.sendMessage(sendNotificationSync, currentlyLearnedComponent);
+		
 	}
+	else
+	{
+		currentlyLearnedComponent = nullptr;
+	}
+
+	learnBroadcaster.sendMessage(sendNotificationSync, currentlyLearnedComponent);
 }
 
 void ScriptComponentEditBroadcaster::setLearnMode(bool shouldBeEnabled)

@@ -340,6 +340,14 @@ public:
 		ComponentWithHelp::openHelp();
 	}
 
+	static void updateLearnConnection(MainTopBar& b, ScriptComponent* c)
+	{
+		auto n = c != nullptr ? c->getName().toString() : String();
+
+		b.currentlyLearnedScriptComponent = n;
+		b.repaint();
+	}
+
 	void buttonClicked(Button* b) override;
 
 	void resized() override;
@@ -355,6 +363,8 @@ public:
 	
 
 private:
+
+	String currentlyLearnedScriptComponent;
 
 	bool preloadState = false;
 	double preloadProgress = 0.0;
@@ -464,6 +474,8 @@ private:
 	} quickPlayButton;
 
     ScopedPointer<Drawable> hiseIcon;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MainTopBar);
 };
 
 

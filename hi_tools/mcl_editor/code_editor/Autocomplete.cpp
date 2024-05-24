@@ -97,6 +97,7 @@ void Autocomplete::Item::paint(Graphics& g)
 	g.setColour(token->c);
 	g.fillRect(bar);
 	
+	tBounds.removeFromLeft(3);
 
 	auto s = createDisplayText();
 	s.draw(g, tBounds);
@@ -114,6 +115,7 @@ Autocomplete::Autocomplete(TokenCollection::Ptr tokenCollection_, const String& 
 	SimpleDocumentTokenProvider::addTokensStatic(currentList, editor->docRef);
 
 	addAndMakeVisible(scrollbar);
+	fader.addScrollBarToAnimate(scrollbar);
 	setInput(input, previousToken, lineNumber);
 	scrollbar.addListener(this);
 }
@@ -254,13 +256,15 @@ void Autocomplete::setInput(const String& input, const String& previousToken, in
 	{
 		auto maxWidth = 0;
 
-		auto nf = Font(Font::getDefaultMonospacedFontName(), 16.0f * getScaleFactor(), Font::plain);
+		auto nf = Font(GLOBAL_MONOSPACE_FONT().getTypefaceName(), 16.0f * getScaleFactor(), Font::plain);
 
 		for (auto& i : items)
 		{
 
-			maxWidth = jmax(maxWidth, nf.getStringWidth(i->token->tokenContent) + 20);
+			maxWidth = jmax(maxWidth, nf.getStringWidth(i->token->tokenContent) + 30);
 		}
+
+		maxWidth = jmax(JUCE_LIVE_CONSTANT_OFF(500), maxWidth);
 
 		setSize(maxWidth, h);
 		resized();
@@ -719,12 +723,13 @@ Selection Autocomplete::ParameterSelection::getSelection() const
 }
 
 Autocomplete::HelpPopup::HelpPopup(Autocomplete* p):
-	ac(p),
-	corner(this, nullptr)
+	ac(p)
 {
 	addAndMakeVisible(display);
+
+	display.setResizeToFit(true);
+
 	p->addComponentListener(this);
-	addAndMakeVisible(corner);
 }
 
 Autocomplete::HelpPopup::~HelpPopup()
@@ -759,7 +764,7 @@ void Autocomplete::HelpPopup::refreshText()
 void Autocomplete::HelpPopup::resized()
 {
 	display.setBounds(getLocalBounds().reduced(10));
-	corner.setBounds(getLocalBounds().removeFromRight(10).removeFromBottom(10));
+	
 }
 
 void Autocomplete::HelpPopup::paint(Graphics& g)
@@ -920,7 +925,7 @@ void Autocomplete::paint(Graphics& g)
 void Autocomplete::paintOverChildren(Graphics& g)
 {
 	auto b = getLocalBounds();
-	g.setColour(Colour(0xFF222222));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff434343)));
 	g.drawRect(b.toFloat(), 1.0f);
 }
 

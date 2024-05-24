@@ -398,8 +398,8 @@ void SimpleMarkdownDisplay::resized()
 	
 	if(resizeToFit)
 	{
-		auto h = r.getHeightForWidth((float)b.getWidth(), true);
-		canvas.setSize(b.getWidth(), (int)h);
+		totalHeight = r.getHeightForWidth((float)b.getWidth(), true);
+		canvas.setSize(b.getWidth(), (int)totalHeight);
 	}
 	else
 	{

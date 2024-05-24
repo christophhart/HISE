@@ -39,8 +39,16 @@ using namespace juce;
 Type::Type(Dialog& r, int width, const var& d):
 	PageBase(r, width, d)
 {
+	
+
 	setSize(width, 42);
 	typeId = d[mpid::Type].toString();
+	Helpers::writeInlineStyle(*this, "background-color: red; height: 38px;width: 100%;");
+
+	Factory fac;
+	
+	icon = fac.createPath(typeId);
+	fac.scalePath(icon, Rectangle<float>(70.0f, 0.0f, 32.0f, 32.0f).reduced(6.0f));
 }
 
 void Type::resized()
@@ -69,9 +77,14 @@ Result Type::checkGlobalState(var globalState)
 void Type::paint(Graphics& g)
 {
 	auto b = getLocalBounds().toFloat();
-	b.removeFromBottom(10);
-	g.setColour(Colours::black.withAlpha(0.1f));
-	g.fillRect(b);
+	g.setColour(Colours::white);
+
+	g.setFont(GLOBAL_FONT());
+	
+	g.drawText("Type", b.reduced(1.0f), Justification::left);
+
+
+	b.removeFromLeft(b.getHeight() + 70);
 
 	auto f = Dialog::getDefaultFont(*this);
 
@@ -79,9 +92,15 @@ void Type::paint(Graphics& g)
 	g.setFont(f.first);
 
 	String m;
-	m << "Type: " << typeId;
+	m << typeId;
 
-	g.drawText(m, b, Justification::centred);
+	g.setFont(GLOBAL_FONT());
+
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText(m, b.reduced(1.0f), Justification::left);
+	
+	g.fillPath(icon);
+
 }
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT

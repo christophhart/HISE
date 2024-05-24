@@ -52,6 +52,8 @@ struct ComponentWithSideTab
 
     virtual State* getMainState() { return nullptr; }
 
+    virtual void addCodeEditor(const var& infoObject, const Identifier& codeId) = 0;
+
     virtual void refreshDialog() = 0;
 
     simple_css::StyleSheet::Collection propertyStyleSheet;
@@ -123,9 +125,13 @@ public:
 	        initValue = var();
         }
 
+        virtual bool hasOnSubmitEvent() const { return false; }
+
         void updateStyleSheetInfo(bool forceUpdate=false);
 
         void forwardInlineStyleToChildren();
+
+        
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
         virtual void createEditor(PageInfo& infoList) {}
@@ -206,6 +212,17 @@ public:
         void setModalHelp(const String& text);
 
     protected:
+
+        void callAdditionalStateCallback()
+        {
+            if(rootDialog.additionalChangeCallback)
+            {
+	            if(cf)
+	                cf(this, getValueFromGlobalState());
+
+	            rootDialog.callAdditionalChangeCallback();
+            }
+        }
 
         Identifier id;
         Dialog& rootDialog;
@@ -362,12 +379,15 @@ public:
 	        g.setFont(GLOBAL_MONOSPACE_FONT());
 		}
 
-        if(currentlyEditedPage != nullptr)
-		{
-			auto b = getLocalArea(currentlyEditedPage, currentlyEditedPage->getLocalBounds()).expanded(2.0f);
-			g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
-			g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
-		}
+        for(auto& s: mouseSelector.selection.getItemArray())
+        {
+            if(auto c = findPageBaseForInfoObject(s))
+            {
+	            auto b = getLocalArea(c, c->getLocalBounds()).expanded(2.0f);
+				g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+				g.drawRoundedRectangle(b.toFloat(), 3.0f, 1.0f);
+            }
+        }
     }
 #endif
 
@@ -424,7 +444,7 @@ public:
 
     bool nonContainerPopup(const var& infoObject);
 
-    bool showEditor(const var& infoObject);
+    bool showEditor(const Array<var>& infoObjects);
 #endif
 
     void gotoPage(int newIndex);
@@ -439,6 +459,12 @@ public:
     LambdaBroadcaster<bool>& getEditModeBroadcaster() { return editModeBroadcaster; }
 
     LambdaBroadcaster<MessageType, String>& getEventLogger() { return getState().eventLogger; }
+
+    void callAdditionalChangeCallback()
+    {
+        if(additionalChangeCallback)
+            additionalChangeCallback();
+    }
 
     
 
@@ -528,11 +554,46 @@ public:
 
     bool useHelpBubble = false;
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+
+    LambdaBroadcaster<Array<var>> selectionUpdater;
+
+    struct MouseSelector: public MouseListener,
+						  public LassoSource<var>,
+						  public ChangeListener	
+    {
+        MouseSelector(Dialog& parent);
+
+        ~MouseSelector() override;
+
+        void changeListenerCallback(ChangeBroadcaster* source) override;
+        void findLassoItemsInArea (Array<var>& itemsFound, const Rectangle<int>& area) override;
+
+        SelectedItemSet<var>& getLassoSelection() override
+        {
+	        return selection;
+        }
+
+        void mouseDrag(const MouseEvent& e) override;
+        void mouseUp(const MouseEvent& e) override;
+        void mouseDown(const MouseEvent& event) override;
+
+        Dialog& parent;
+        LassoComponent<var> lasso;
+        uint64 lastHash = 0;
+        SelectedItemSet<var> selection;
+    } mouseSelector;
+#endif
+
+    
+
     void loadStyleFromPositionInfo();
 
     bool& getSkipRebuildFlag() { return skipRebuild; }
 
 private:
+
+    std::function<void()> additionalChangeCallback;
 
     bool skipRebuild = false;
 

@@ -232,8 +232,10 @@ template <class T, int Size, int Alignment=16> struct span
 		else if constexpr (std::is_pointer<T>())
 		{
 #if JUCE_WINDOWS
-			static_assert(std::is_same<OpType, SpanOperators<T>::assign>(), "only assignment supported");
+            using PT = typename SpanOperators<T>::assign;
+            static_assert(std::is_same<OpType, PT>(), "only assignment supported");
 #endif
+
 			static_assert(std::is_same<typename OperandType::DataType, T>(), "type mismatch");
 
 			memset(begin(), 0, sizeof(void*) * (size_t)size());
