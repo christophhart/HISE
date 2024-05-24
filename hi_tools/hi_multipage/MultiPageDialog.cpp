@@ -350,7 +350,10 @@ bool Dialog::PageBase::isEditModeAndNotInPopup() const
 
 void Dialog::PageBase::setModalHelp(const String& text)
 {
-    auto popup = getTopLevelComponent();
+	auto popup = TopLevelWindowWithOptionalOpenGL::findRoot(this);
+
+	if(popup == nullptr)
+		popup = getTopLevelComponent();
 
 	Component::callRecursive<PageBase>(popup, [](PageBase* b)
 	{
