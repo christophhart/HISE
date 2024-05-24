@@ -854,6 +854,7 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	}
 
 
+
 	MPEPanel::Factory f;
 
 	deleteButton.setShape(f.createPath("Delete"), false, true, false);
@@ -895,6 +896,11 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	{
 		intensity.setMode(HiSlider::Pan);
 		defaultValue.setMode(HiSlider::Pan);
+	}
+	else if (mode == Modulation::GlobalMode)
+	{
+		intensity.setMode(HiSlider::NormalizedPercentage);
+		defaultValue.setMode(HiSlider::NormalizedPercentage);
 	}
 
 	smoothingTime.setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
@@ -945,7 +951,7 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	modeSelector.setLookAndFeel(&laf_);
 	defaultValue.setLookAndFeel(&laf_);
 
-	changeListenerCallback(nullptr);
+	otherChange(mod);
 }
 
 
@@ -1054,17 +1060,17 @@ void MPEPanel::Model::Row::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 	if (result == 0)
 	{
-		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, false, sendNotification);
+		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, false, sendNotificationSync);
 	}
 	else if (result == 1)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, true, dontSendNotification);
-		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, false, sendNotification);
+		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, false, sendNotificationSync);
 	}
 	else if (result == 2)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, true, dontSendNotification);
-		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, true, sendNotification);
+		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, true, sendNotificationSync);
 	}
 }
 
