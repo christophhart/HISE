@@ -1077,7 +1077,7 @@ String MainTopBar::ClickablePeakMeter::PopupComponent::getHoverText(bool isX, fl
 			}
 			else
 			{
-				s << MidiMessage::getMidiNoteName(roundToInt(hoverValue), true, true, 2);
+				s << MidiMessage::getMidiNoteName(roundToInt(hoverValue), true, true, 3);
 			}
 
 			return s;
