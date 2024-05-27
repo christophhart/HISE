@@ -335,7 +335,7 @@ struct ScriptingApi::Message::Wrapper
 
 ScriptingApi::Message::Message(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
-ApiClass(2),
+ApiClass(11),
 messageHolder(nullptr),
 constMessageHolder(nullptr),
 allNotesOffCallback(p, nullptr, var(), 0)
@@ -343,6 +343,16 @@ allNotesOffCallback(p, nullptr, var(), 0)
 	addConstant("PITCH_BEND_CC", HiseEvent::PitchWheelCCNumber);
 	addConstant("AFTERTOUC_CC", HiseEvent::AfterTouchCCNumber);
 
+	addConstant("Empty ", (int)HiseEvent::Type::Empty );
+	addConstant("NoteOn", (int)HiseEvent::Type::NoteOn);
+	addConstant("NoteOff", (int)HiseEvent::Type::NoteOff);
+	addConstant("Controller", (int)HiseEvent::Type::Controller);
+	addConstant("PitchBend", (int)HiseEvent::Type::PitchBend);
+	addConstant("Aftertouch", (int)HiseEvent::Type::Aftertouch);
+	addConstant("AllNotesOff", (int)HiseEvent::Type::AllNotesOff);
+	addConstant("VolumeFade", (int)HiseEvent::Type::VolumeFade);
+	addConstant("PitchFade", (int)HiseEvent::Type::PitchFade);
+	
 	memset(artificialNoteOnIds, 0, sizeof(uint16) * 128);
 
 	ADD_TYPED_API_METHOD_1(setNoteNumber, VarTypeChecker::Number);

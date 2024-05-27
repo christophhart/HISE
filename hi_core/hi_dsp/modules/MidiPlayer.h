@@ -600,6 +600,9 @@ public:
 
 private:
 
+	bool sustainActive = false;
+	std::array<uint8, 16> sustainPedalStates;
+
 	bool processRecordedEvent(HiseEvent& m);
 
 	Array<WeakReference<EventRecordProcessor>> eventRecordProcessors;
