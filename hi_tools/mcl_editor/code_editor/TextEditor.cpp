@@ -155,11 +155,8 @@ void TextEditor::setNewTokenCollectionForAllChildren(Component* any, const Ident
 {
 	if(newCollection == nullptr)
 		newCollection = new TokenCollection(languageId);
-	else
-		newCollection->clearTokenProviders();
 	
 	auto top = any->getTopLevelComponent();
-	bool first = true;
 
 	Component::callRecursive<TextEditor>(top, [&](TextEditor* t)
 	{
@@ -168,10 +165,9 @@ void TextEditor::setNewTokenCollectionForAllChildren(Component* any, const Ident
 			t->tokenCollection = newCollection;
 			newCollection->addListener(t);
 
-			if(first)
+			if(!newCollection->hasTokenProviders())
 			{
 				t->languageManager->addTokenProviders(newCollection.get());
-				first = false;
 			}
 		}
 			

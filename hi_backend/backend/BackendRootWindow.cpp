@@ -583,9 +583,14 @@ mcl::TokenCollection::Ptr BackendRootWindow::getJavascriptTokenCollection(Compon
 
 void BackendRootWindow::rebuildTokenProviders(const Identifier& languageId)
 {
-	if(javascriptTokens == nullptr && languageId == mcl::LanguageIds::HiseScript)
-		javascriptTokens = new mcl::TokenCollection(languageId);
-
+	if(languageId == mcl::LanguageIds::HiseScript)
+	{
+		if(javascriptTokens == nullptr)
+			javascriptTokens = new mcl::TokenCollection(languageId);
+		else
+			javascriptTokens->clearTokenProviders();
+	}
+	
 	mcl::TextEditor::setNewTokenCollectionForAllChildren(this, languageId, javascriptTokens);
 
 	for(auto p: popoutWindows)

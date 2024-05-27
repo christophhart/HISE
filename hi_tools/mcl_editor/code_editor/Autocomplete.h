@@ -139,6 +139,8 @@ public:
 
 	void clearTokenProviders();
 
+	bool hasTokenProviders() const { return !tokenProviders.isEmpty(); }
+
 	void updateIfSync()
 	{
 		if(!useBackgroundThread)
