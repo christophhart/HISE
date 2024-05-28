@@ -185,13 +185,8 @@ juce::StringArray WavetableSynth::getWavetableList() const
 	return sa;
 }
 
-void WavetableSynth::loadWavetableFromIndex(int index)
+void WavetableSynth::loadWavetableInternal()
 {
-	if (currentBankIndex != index)
-	{
-		currentBankIndex = index;
-	}
-
 	if (currentBankIndex == 0)
 	{
 		clearSounds();
@@ -220,7 +215,7 @@ void WavetableSynth::loadWavetableFromIndex(int index)
         ignoreUnused(dataSize);
 		
 
-		auto itemToLoad = headers[index - 1];
+		auto itemToLoad = headers[currentBankIndex - 1];
 
 		if (itemToLoad.name.isEmpty())
 		{
@@ -253,9 +248,9 @@ void WavetableSynth::loadWavetableFromIndex(int index)
 		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
 		wavetables.sort();
 
-		if (wavetables[index - 1].existsAsFile())
+		if (wavetables[currentBankIndex - 1].existsAsFile())
 		{
-			FileInputStream fis(wavetables[index - 1]);
+			FileInputStream fis(wavetables[currentBankIndex - 1]);
 
 			ValueTree v = ValueTree::readFromStream(fis);
 
@@ -266,6 +261,25 @@ void WavetableSynth::loadWavetableFromIndex(int index)
 			clearSounds();
 		}
 	}
+}
+
+void WavetableSynth::loadWavetableFromIndex(int index)
+{
+	if (currentBankIndex != index)
+	{
+		currentBankIndex = index;
+
+		getMainController()->getKillStateHandler().killVoicesAndCall(this, [](Processor* p)
+		{
+			auto ws = static_cast<WavetableSynth*>(p);
+
+			ws->loadWavetableInternal();
+
+			return SafeFunctionCall::OK;
+		}, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
+	}
+	
+	
 }
 
 float WavetableSynth::getDisplayTableValue() const

@@ -232,7 +232,7 @@ private:
 
 	int octaveTransposeFactor;
 
-	WavetableSound *currentSound;
+	WavetableSound *currentSound = nullptr;
 
 	int tableSize;
 	
@@ -489,6 +489,8 @@ public:
 	}
 
 private:
+	void loadWavetableInternal();
+	
 
 	float displayTableValue = 1.0f;
 
