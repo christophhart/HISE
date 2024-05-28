@@ -588,7 +588,14 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 
 	const String suffix = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::suffix);
 
-	if (min >= max || stepsize <= 0.0 || min < -100000.0 || max > 100000.0)
+	static constexpr double MaxValue = 10000000.0;
+
+	if(std::abs(min) > MaxValue || std::abs(max) > MaxValue)
+	{
+		debugError(dynamic_cast<Processor*>(sc->getScriptProcessor()), "Slider min/max value exceeds upper limit!");
+	}
+
+	if (min >= max || stepsize <= 0.0 || min < -MaxValue || max > MaxValue)
 	{
 		s->setMode(HiSlider::Mode::Linear, 0.0, 1.0);
 		s->setSkewFactor(1.0);
