@@ -23,6 +23,7 @@
 
 #if HISE_INCLUDE_SNEX
 #define MIR_NO_INTERP 1
+#define MIR_NO_IO 1
 #include "snex_mir/src/mir.c"
 #endif
 

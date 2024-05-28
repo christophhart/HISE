@@ -9504,7 +9504,7 @@ static bb_version_t get_bb_version (gen_ctx_t gen_ctx, bb_stub_t bb_stub, uint32
   bb_version->call_p = call_p;
   DLIST_APPEND (bb_version_t, bb_stub->bb_versions, bb_version);
   bb_version->machine_code = NULL;
-  *addr = bb_version->addr = _MIR_get_bb_thunk (ctx, bb_version, bb_wrapper);
+  //*addr = bb_version->addr = _MIR_get_bb_thunk (ctx, bb_version, bb_wrapper);
   return bb_version;
 }
 
@@ -9639,7 +9639,7 @@ void MIR_gen_init (MIR_context_t ctx) {
   addr_regs = bitmap_create2 (256);
   insn_to_consider = bitmap_create2 (1024);
   func_used_hard_regs = bitmap_create2 (MAX_HARD_REG + 1);
-  bb_wrapper = _MIR_get_bb_wrapper (ctx, gen_ctx, bb_version_generator);
+  //bb_wrapper = _MIR_get_bb_wrapper (ctx, gen_ctx, bb_version_generator);
   overall_bbs_num = overall_gen_bbs_num = 0;
 }
 

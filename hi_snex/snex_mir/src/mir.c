@@ -768,7 +768,7 @@ MIR_context_t _MIR_init (void) {
   HTAB_CREATE (MIR_item_t, module_item_tab, 512, item_hash, item_eq, NULL);
   setjmp_addr = NULL;
   code_init (ctx);
-  wrapper_end_addr = _MIR_get_wrapper_end (ctx); /* should be after code_init */
+  //wrapper_end_addr = _MIR_get_wrapper_end (ctx); /* should be after code_init */
   hard_reg_name_init (ctx);
   interp_init (ctx);
   return ctx;
