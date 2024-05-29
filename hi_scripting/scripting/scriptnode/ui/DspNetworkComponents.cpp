@@ -2521,6 +2521,10 @@ void KeyboardPopup::PopupList::Item::mouseDoubleClick(const MouseEvent& event)
 
 bool KeyboardPopup::PopupList::Item::keyPressed(const KeyPress& k)
 {
+	if(k == KeyPress::F1Key)
+	{
+		return findParentComponentOfClass<KeyboardPopup>()->keyPressed(k, this);
+	}
     if(k == KeyPress::upKey)
     {
         findParentComponentOfClass<PopupList>()->selectNext(false);

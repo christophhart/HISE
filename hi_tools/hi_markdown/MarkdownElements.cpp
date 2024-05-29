@@ -1557,13 +1557,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 				g.setFont(font);
 				g.setColour(textColour.withAlpha(button.isEnabled() ? 1.0f : 0.1f));
 
-				String text;
-
-				if (isNextLink)
-					text << "Next: " << nextLink;
-				else
-					text << "Read the discussion";
-
+				String text = "Next: " + nextLink;
 				g.drawText(text, bounds.toFloat().reduced(5.0f), isNextLink ? Justification::centredRight : Justification::centredLeft);
 			}
 
@@ -1574,37 +1568,23 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 			String nextLink;
 		};
 
-		void checkForumLink()
-		{
-			forumLink = parent.getParser()->getHolder()->getDatabase().getForumDiscussion(currentPage);
-			forumButton.setEnabled(forumLink.isValid());
-		}
-
 		Content(ContentFooter& parent_, const MarkdownLink& currentPage_, const MarkdownLink& nextLink_, const String& nextName_):
 			parent(parent_),
-			forumButton("Discussion"),
 			nextButton("Next"),
 			nextLink(nextLink_),
 			currentPage(currentPage_),
 			nextName(nextName_)
 		{
-			addAndMakeVisible(forumButton);
 			addAndMakeVisible(nextButton);
 
-			forumButton.addListener(this);
 			nextButton.addListener(this);
 			
 			nextButton.setEnabled(nextLink.isValid());
-
-			checkForumLink();
-
-			
 
 			blaf.textColour = parent.getTextColour();
 			blaf.nextLink = nextName;
 			blaf.font = parent.getFont();
 
-			forumButton.setLookAndFeel(&blaf);
 			nextButton.setLookAndFeel(&blaf);
 
 		}
@@ -1625,11 +1605,6 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 				return;
 			}
-
-			if (b == &forumButton && forumLink.isValid())
-			{
-				URL(forumLink.toString(MarkdownLink::UrlFull)).launchInDefaultBrowser();
-			}
 		}
 
 		int getPreferredHeight() const
@@ -1644,8 +1619,6 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 		void paint(Graphics& g) override
 		{
-			
-
 			g.setColour(Colours::black.withAlpha(0.1f));
 
 			auto bounds = getLocalBounds();
@@ -1666,7 +1639,6 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 			blaf.h = getButtonHeight();
 			auto bounds = getLocalBounds();
 			auto top = bounds.removeFromTop(getButtonHeight());
-			forumButton.setBounds(top.removeFromLeft(bounds.getWidth() / 4));
 
 			int nextWidth = blaf.font.getStringWidth(nextName) + getButtonHeight() * 3;
 
@@ -1674,7 +1646,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 		}
 
 		ButtonLookAndFeel blaf;
-		TextButton forumButton;
+		
 		TextButton nextButton;
 
 		MarkdownLink forumLink;
@@ -1687,7 +1659,6 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 	ScopedPointer<Content> content;
 
-	MarkdownLink discussion;
 	MarkdownLink next;
 	AttributedString s;
 	

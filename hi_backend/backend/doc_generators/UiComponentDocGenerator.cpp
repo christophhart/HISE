@@ -77,6 +77,11 @@ void UIComponentDatabase::CommonData::Data::init(BackendProcessor* bp_)
 
 hise::ScriptComponent* UIComponentDatabase::CommonData::getComponentForURL(const MarkdownLink& url)
 {
+	auto fullURL = url.toString(MarkdownLink::Format::UrlFull);
+
+	if(!fullURL.startsWith(uiComponentWildcard))
+		return nullptr;
+
 	auto id = getComponentIDFromURL(url);
 
 	if (id.isNotEmpty())
