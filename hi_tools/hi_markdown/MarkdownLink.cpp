@@ -718,6 +718,8 @@ juce::String MarkdownLink::Helpers::getMarkdownHeader(const String& content)
 {
 	if (content.contains("---"))
 	{
+		jassert(!content.endsWith("---"));
+
 		return content.upToLastOccurrenceOf("---\n", true, true);
 	}
 

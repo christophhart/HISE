@@ -1009,18 +1009,7 @@ bool CompileExporter::checkSanity(TargetTypes type, BuildOption option)
 			}
 		}
 	}
-
-    if((type != TargetTypes::EffectPlugin) && !shouldBeSilent() && PresetHandler::showYesNoWindow("Check Sample references", "Do you want to validate all sample references"))
-    {
-        const String faultySample = checkSampleReferences(chainToExport);
-        
-        if(faultySample.isNotEmpty())
-        {
-            printErrorMessage("Wrong / missing sample reference", "The sample " + faultySample + " is missing or an absolute path");
-            return false;
-        }
-    }
-    
+	
 	return true;
 }
 

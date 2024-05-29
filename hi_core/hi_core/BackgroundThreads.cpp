@@ -648,7 +648,7 @@ ComponentWithHelp::~ComponentWithHelp()
 }
 
 SampleDataExporter::SampleDataExporter(MainController* mc) :
-	DialogWindowWithBackgroundThread("Export Samples for Installer"),
+	DialogWindowWithBackgroundThread("Package sample monolith files"),
 	ControlledObject(mc),
 	synthChain(getMainController()->getMainSynthChain())
 {

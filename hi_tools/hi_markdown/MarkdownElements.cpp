@@ -1395,6 +1395,8 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 			{
 				int nextIndex = i + 1;
 
+				links.nextLink = list[nextIndex].url.withAnchor("");
+
 				while (nextIndex < list.size() && links.nextLink == links.thisLink)
 				{
 					nextIndex++;

@@ -417,18 +417,6 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	pluginPreviewButton->setShape(f.createPath("Plugin Preview"), false, true, true);
 	pluginPreviewButton->addListener(this);
 
-	addAndMakeVisible(scriptingWorkSpaceButton = new HiseShapeButton("Scripting Workspace", this, f));
-	scriptingWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	scriptingWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceScript, true);
-
-	addAndMakeVisible(samplerWorkSpaceButton = new HiseShapeButton("Sampler Workspace", this, f));
-	samplerWorkSpaceButton->setTooltip("Show Sampler Workspace");
-	samplerWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceSampler, true);
-
-	addAndMakeVisible(customWorkSpaceButton = new HiseShapeButton("Custom Workspace", this, f));
-	customWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	customWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceCustom, true);
-	
 	addAndMakeVisible(peakMeter = new ClickablePeakMeter(getRootWindow()->getMainSynthChain()));
 
 	addAndMakeVisible(settingsButton = new ShapeButton("Audio Settings", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
@@ -641,10 +629,6 @@ void MainTopBar::resized()
 	
     layoutButton->setVisible(false);
     
-    scriptingWorkSpaceButton->setVisible(false);
-    samplerWorkSpaceButton->setVisible(false);
-    customWorkSpaceButton->setVisible(false);
-
     auto bWidth = getHeight() * 2;
     
     frontendArea = getLocalBounds().withSizeKeepingCentre(bWidth * 3, getHeight());
@@ -1335,29 +1319,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 void MainTopBar::applicationCommandInvoked(const ApplicationCommandTarget::InvocationInfo& info)
 {
 
-	switch (info.commandID)
-	{
-	case BackendCommandTarget::WorkspaceScript: 
-		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		break;
-	case BackendCommandTarget::WorkspaceSampler:
-		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-		customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		break;
-		
-	case BackendCommandTarget::WorkspaceCustom:
-		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		customWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-		break;
-	}
-
+	
 }
 
 MainTopBar::QuickPlayComponent::QuickPlayComponent(MainController* mc):

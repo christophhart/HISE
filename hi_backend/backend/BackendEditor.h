@@ -441,11 +441,6 @@ private:
     ScopedPointer<ShapeButton> customPopupButton;
     ScopedPointer<ShapeButton> keyboardPopupButton;
 
-	ScopedPointer<HiseShapeButton> mainWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> scriptingWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> samplerWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> customWorkSpaceButton;
-
 	struct QuickPlayComponent: public Component,
 							   public ControlledObject,
 							   public SettableTooltipClient,
