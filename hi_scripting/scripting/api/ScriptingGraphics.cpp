@@ -1559,6 +1559,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, setFontWithSpacing);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
+	API_VOID_METHOD_WRAPPER_4(GraphicsObject, drawAlignedTextShadow);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawMultiLineText);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, drawMarkdownText);
@@ -1615,6 +1616,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_3(setFontWithSpacing);
 	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);
+	ADD_API_METHOD_4(drawAlignedTextShadow);
 	ADD_API_METHOD_5(drawFittedText);
 	ADD_API_METHOD_5(drawMultiLineText);
 	ADD_API_METHOD_1(drawMarkdownText);
@@ -1629,6 +1631,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_3(drawTriangle);
 	ADD_API_METHOD_2(fillTriangle);
 	ADD_API_METHOD_2(fillPath);
+	
 	ADD_API_METHOD_3(drawPath);
 	ADD_API_METHOD_2(rotate);
 	ADD_API_METHOD_2(drawFFTSpectrum);
@@ -1979,6 +1982,26 @@ void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, St
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r, just));
 }
 
+void ScriptingObjects::GraphicsObject::drawAlignedTextShadow(String text, var area, String alignment, var shadowData)
+{
+	Rectangle<float> r = getRectangleFromVar(area);
+
+	Result re = Result::ok();
+	auto just = ApiHelpers::getJustification(alignment, &re);
+
+	
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+
+	auto sp = ApiHelpers::getShadowParameters(shadowData, &re);
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawTextShadow(text, r, just, sp));
+}
+
 void ScriptingObjects::GraphicsObject::drawFittedText(String text, var area, String alignment, int maxLines, float scale)
 {
 	Result re = Result::ok();
@@ -2153,6 +2176,8 @@ void ScriptingObjects::GraphicsObject::drawDropShadowFromPath(var path, var area
 	auto r = getIntRectangleFromVar(area);
 	auto o = getPointFromVar(offset);
 	auto c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
+
+
 
 	if (auto p = dynamic_cast<ScriptingObjects::PathObject*>(path.getObject()))
 	{

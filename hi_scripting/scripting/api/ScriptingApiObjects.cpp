@@ -6077,7 +6077,26 @@ int ScriptingObjects::ScriptedMidiPlayer::getNumTracks()
 }
 
 
+dispatch::DispatchType ApiHelpers::getDispatchType(const var& syncValue, bool getDontForFalse)
+{
+	using Type = dispatch::DispatchType;
 
+	if ((int)syncValue == SyncMagicNumber)
+		return Type::sendNotificationSync;
+
+	if ((int)syncValue == AsyncMagicNumber)
+		return Type::sendNotificationAsync;
+
+	if ((int)syncValue == AsyncHiPriorityMagicNumber)
+		return Type::sendNotificationAsyncHiPriority;
+
+	return (bool)syncValue ? Type::sendNotificationSync : (getDontForFalse ? Type::dontSendNotification : Type::sendNotificationAsync);
+}
+
+bool ApiHelpers::isSynchronous(const var& syncValue)
+{
+	return getDispatchType(syncValue, false) == dispatch::DispatchType::sendNotificationSync;
+}
 
 var ApiHelpers::getVarFromPoint(Point<float> pos)
 {

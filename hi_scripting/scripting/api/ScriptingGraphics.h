@@ -500,7 +500,10 @@ namespace ScriptingObjects
 
 		/** Draws a text with the given alignment (see the Label alignment property). */
 		void drawAlignedText(String text, var area, String alignment);
-		
+
+		/** Renders a (blurred) shadow for the text. */
+		void drawAlignedTextShadow(String text, var area, String alignment, var shadowData);
+
 		/** Tries to draw a text string inside a given space. */
 		void drawFittedText(String text, var area, String alignment, int maxLines, float scale);
 

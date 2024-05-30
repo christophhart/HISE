@@ -7904,21 +7904,8 @@ void ScriptingApi::Content::Helpers::sanitizeNumberProperties(juce::ValueTree co
 
 juce::Colour ScriptingApi::Content::Helpers::getCleanedObjectColour(const var& value)
 {
-	int64 colourValue = 0;
-
-	if (value.isInt64() || value.isInt())
-		colourValue = (int64)value;
-	else if (value.isString())
-	{
-		auto string = value.toString();
-
-		if (string.startsWith("0x"))
-			colourValue = string.getHexValue64();
-		else
-			colourValue = string.getLargeIntValue();
-	}
-
-	return Colour((uint32)colourValue);
+	return ApiHelpers::getColourFromVar(value);
+	
 }
 
 var ScriptingApi::Content::Helpers::getCleanedComponentValue(const var& data, bool allowStrings)

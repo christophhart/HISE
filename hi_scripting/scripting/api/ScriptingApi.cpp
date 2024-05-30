@@ -142,6 +142,53 @@ KeyPress ApiHelpers::getKeyPress(const var& keyPressInformation, Result* r)
 	}
 }
 
+melatonin::ShadowParameters ApiHelpers::getShadowParameters(const var& shadowData, Result* r)
+{
+	if(auto obj = shadowData.getDynamicObject())
+	{
+		melatonin::ShadowParameters sp;
+		sp.color = getColourFromVar(shadowData.getProperty("Colour", var(0xFF000000)));
+
+		Array<var> zero;
+		zero.add(0); zero.add(0);
+
+		sp.offset = getPointFromVar(shadowData.getProperty("Offset", var(zero))).toInt();
+		sp.inner = shadowData.getProperty("Inner", false);
+		sp.radius = shadowData.getProperty("Radius", 0);
+		sp.spread = shadowData.getProperty("Spread", 0);
+
+		return sp;
+	}
+	else
+	{
+		if(r != nullptr)
+		{
+			*r = Result::fail("shadowData needs to be a JSON object with the shadow parameters");
+		}
+
+		return {};
+	}
+}
+
+Colour ApiHelpers::getColourFromVar(const var& value)
+{
+	int64 colourValue = 0;
+
+	if (value.isInt64() || value.isInt())
+		colourValue = (int64)value;
+	else if (value.isString())
+	{
+		auto string = value.toString();
+
+		if (string.startsWith("0x"))
+			colourValue = string.getHexValue64();
+		else
+			colourValue = string.getLargeIntValue();
+	}
+
+	return Colour((uint32)colourValue);
+}
+
 Justification ApiHelpers::getJustification(const String& justificationName, Result* r/*=nullptr*/)
 {
 	static Array<Justification::Flags> justifications;

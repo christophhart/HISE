@@ -518,7 +518,35 @@ namespace ScriptedDrawActions
 		Rectangle<float> area;
 		Justification j;
 	};
-	
+
+	struct drawTextShadow : public DrawActions::ActionBase
+	{
+		SET_ACTION_ID(drawTextShadow);
+
+		drawTextShadow(const String& text_, Rectangle<float> area_, Justification j_ = Justification::centred, const melatonin::ShadowParameters& sp_={}) : text(text_), area(area_), j(j_), sp(sp_)
+		{
+			if(sp.inner)
+				is.setShadow(sp, 0);
+			else
+				ds.setShadow(sp, 0);
+		};
+		void perform(Graphics& g) override
+		{
+			if(sp.inner)
+				is.render(g, text, area, j);
+			else
+				ds.render(g, text, area, j);
+		};
+
+		String text;
+		Rectangle<float> area;
+		Justification j;
+
+		melatonin::ShadowParameters sp;
+		melatonin::DropShadow ds;
+		melatonin::InnerShadow is;
+	};
+
 	struct drawFittedText : public DrawActions::ActionBase
 	{
 		SET_ACTION_ID(drawFittedText);
