@@ -96,7 +96,7 @@ public:
 		MenuSaveFileAs,
 		MenuOpenFileFromProjectOffset,
 		// ---------------------------
-		MenuFileImportSnippet,
+		MenuFileImportSnippet = 0x24000,
 		MenuFileExtractEmbeddeSnippetFiles,
 		MenuFileCreateRecoveryXml,
 		MenuSnippetClose,
