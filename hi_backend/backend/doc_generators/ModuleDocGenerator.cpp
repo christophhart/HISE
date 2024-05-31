@@ -698,6 +698,26 @@ hise::Image ScreenshotProvider::getImage(const MarkdownLink& url, float width)
 	{
 		auto id = imageFileURL.fromFirstOccurrenceOf("sn_screen_", false, false);
 
+		auto rootDir = parent->getHolder()->getDatabaseRootDirectory();
+
+		if(rootDir.isDirectory())
+		{
+ 			auto snDir = rootDir.getChildFile("images/override/scriptnode/");
+
+			if(snDir.isDirectory())
+			{
+				auto of = snDir.getChildFile(id).withFileExtension(".png");
+
+				if(of.existsAsFile())
+				{
+					auto img = ImageFileFormat::loadFrom(of);
+
+					updateWidthFromURL(url, width);
+					return resizeImageToFit(img, width);
+				}
+			}
+		}
+
 		if (auto node = dynamic_cast<NodeBase*>(data->network->get(id).getObject()))
 		{
 			MessageManagerLock mmlock;

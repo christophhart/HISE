@@ -1004,7 +1004,7 @@ namespace ScriptingObjects
 
 		snex::ExternalData::DataType getDataType() const { return type; }
 
-		String getDebugName() const override { return "Script" + snex::ExternalData::getDataTypeName(getDataType()); };
+		String getDebugName() const override { return getObjectName().toString(); };
 		String getDebugValue() const override { return getDebugName(); };
 		
 
@@ -1155,7 +1155,7 @@ namespace ScriptingObjects
 
 		ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* other=nullptr);
 
-		Identifier getObjectName() const override { return Identifier("ScriptRingBuffer"); }
+		Identifier getObjectName() const override { return Identifier("DisplayBuffer"); }
 
 		// ============================================================================================================
 
