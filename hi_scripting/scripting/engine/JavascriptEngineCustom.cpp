@@ -578,7 +578,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
             
 			setFunctionCall(dynamicFunctionCall);
 
-#if ENABLE_SCRIPTING_BREAKPOINTS
+#if ENABLE_SCRIPTING_BREAKPOINTS && 0
 			if(numArgs != dynamicFunctionCall->parameterResults.size())
 			{
 				String e;
