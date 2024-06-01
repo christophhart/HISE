@@ -699,6 +699,16 @@ SnexSource::SnexParameter::SnexParameter(SnexSource* n, NodeBase* parent, ValueT
 	case 6: p = parameter::inner<SnexSource::ParameterHandler, 6>(pHandler); break;
 	case 7: p = parameter::inner<SnexSource::ParameterHandler, 7>(pHandler); break;
 	case 8: p = parameter::inner<SnexSource::ParameterHandler, 8>(pHandler); break;
+	case 9: p = parameter::inner<SnexSource::ParameterHandler, 9>(pHandler); break;
+	case 10: p = parameter::inner<SnexSource::ParameterHandler, 10>(pHandler); break;
+	case 11: p = parameter::inner<SnexSource::ParameterHandler, 11>(pHandler); break;
+	case 12: p = parameter::inner<SnexSource::ParameterHandler, 12>(pHandler); break;
+	case 13: p = parameter::inner<SnexSource::ParameterHandler, 13>(pHandler); break;
+	case 14: p = parameter::inner<SnexSource::ParameterHandler, 14>(pHandler); break;
+	case 15: p = parameter::inner<SnexSource::ParameterHandler, 15>(pHandler); break;
+	case 16: p = parameter::inner<SnexSource::ParameterHandler, 16>(pHandler); break;
+	default:
+		jassertfalse;
 	}
 
 	auto ndb = new parameter::dynamic_base(p);
