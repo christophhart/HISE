@@ -140,13 +140,15 @@ struct table: public scriptnode::data::base
 	JUCE_DECLARE_WEAK_REFERENCEABLE(table);
 };
 
-class peak: public data::display_buffer_base<true>
+
+
+template <bool Unscaled> class peak_base: public data::display_buffer_base<true>
 {
 public:
+	
+	SN_GET_SELF_AS_OBJECT(peak_base);
 
-	SN_NODE_ID("peak");
-	SN_GET_SELF_AS_OBJECT(peak);
-	SN_DESCRIPTION("create a modulation signal from the input peak");
+	~peak_base() override {};
 
 	SN_EMPTY_CREATE_PARAM;
 	SN_EMPTY_HANDLE_EVENT;
@@ -168,20 +170,41 @@ public:
 		return true;
 	}
 
-	void reset() noexcept;;
+	void reset() noexcept
+	{
+		max = 0.0;
+	}
 
-	static constexpr bool isNormalisedModulation() { return true; }
+	static constexpr bool isNormalisedModulation() { return !Unscaled; }
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		max = 0.0f;
+		max = 0.0;
 
-		for (auto& ch : data)
+		if constexpr (Unscaled)
 		{
-			auto range = FloatVectorOperations::findMinAndMax(data.toChannelData(ch).begin(), data.getNumSamples());
-			max = jmax<float>(max, Math.abs(range.getStart()), Math.abs(range.getEnd()));
-		}
+			float thisMin = 0.0f;
+			float thisMax = 0.0f;
 
+			for (auto& ch : data)
+			{
+				auto range = FloatVectorOperations::findMinAndMax(data.toChannelData(ch).begin(), data.getNumSamples());
+
+				thisMax = jmax(range.getEnd(), thisMax);
+				thisMin = jmin(range.getStart(), thisMin);
+			}
+
+			max = Math.abs(thisMin) > Math.abs(thisMax) ? thisMin : thisMax;
+		}
+		else
+		{
+			for (auto& ch : data)
+			{
+				auto range = FloatVectorOperations::findMinAndMax(data.toChannelData(ch).begin(), data.getNumSamples());
+				max = jmax<float>(max, Math.abs(range.getStart()), Math.abs(range.getEnd()));
+			}
+		}
+		
 		if(handler == nullptr || handler->getVoiceIndex() == 0)
 			updateBuffer(max, data.getNumSamples());
 	}
@@ -190,8 +213,26 @@ public:
 	{
 		max = 0.0;
 
-		for (auto& s : data)
-			max = Math.max(max, Math.abs((double)s));
+		if constexpr (Unscaled)
+		{
+			float thisMin = 0.0f;
+			float thisMax = 0.0f;
+
+			for (auto& s : data)
+			{
+				thisMax = Math.max(thisMax, s);
+				thisMin = Math.min(thisMin, s);
+			}
+
+			max = Math.abs(thisMin) > Math.abs(thisMax) ? thisMin : thisMax;
+		}
+		else
+		{
+			for (auto& s : data)
+			{
+				max = Math.max(max, Math.abs((double)s));
+			}
+		}
 
 		if(handler == nullptr || handler->getVoiceIndex() == 0)
 			updateBuffer(max, 1);
@@ -202,7 +243,18 @@ public:
 
 	// This is used to figure out whether to send the value
 	PolyHandler* handler = nullptr;
-	
+};
+
+struct peak: public peak_base<false>
+{
+	SN_NODE_ID("peak");
+	SN_DESCRIPTION("create a modulation signal from the (absolute) input magnitude");
+};
+
+struct peak_unscaled: public peak_base<true>
+{
+	SN_NODE_ID("peak_unscaled");
+	SN_DESCRIPTION("create a raw modulation signal from the input");
 };
 
 class recorder: public data::base

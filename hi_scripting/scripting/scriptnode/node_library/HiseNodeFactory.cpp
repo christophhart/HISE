@@ -1676,6 +1676,7 @@ Factory::Factory(DspNetwork* network) :
 	registerModNode<dp<global_mod>, data::ui::displaybuffer_editor>();
 	
 	registerModNode<dp<peak>, data::ui::displaybuffer_editor>();
+	registerModNode<dp<peak_unscaled>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<ramp<1, true>>, dp<ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();
 
 	registerPolyModNode<dp<clock_ramp<1, true>>, dp<clock_ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();

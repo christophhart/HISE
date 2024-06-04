@@ -49,10 +49,7 @@ template <int NV> void oscillator<NV>::prepare(PrepareSpecs ps)
 }
 
 
-void peak::reset() noexcept
-{
-	max = 0.0;
-}
+
 
 void fm::prepare(PrepareSpecs ps)
 {
