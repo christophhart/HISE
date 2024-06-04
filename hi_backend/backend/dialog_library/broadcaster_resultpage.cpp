@@ -161,6 +161,27 @@ StringArray BroadcasterWizard::getAutocompleteItems(const Identifier& textEditor
 
         return sa;
     }
+    if(textEditorId == Identifier("targetModuleId"))
+    {
+	    auto sa = ProcessorHelpers::getAllIdsForType<Processor>(chain);
+        sa.removeDuplicates(false);
+        sa.sort(true);
+        return sa;
+    }
+    if(textEditorId == Identifier("targetModuleParameter"))
+    {
+	    auto firstId = getProperty("targetModuleId")[0].toString().trim();
+        
+        if(auto p = ProcessorHelpers::getFirstProcessorWithName(chain, firstId))
+        {
+            StringArray sa;
+            int numParameters = p->getNumParameters();
+            for(int i = 0; i < numParameters; i++)
+                sa.add(p->getIdentifierForParameterIndex(i).toString());
+
+            return sa;
+        }
+    }
     if(textEditorId == Identifier("propertyType") ||
        textEditorId == Identifier("targetPropertyType"))
     {
@@ -205,15 +226,16 @@ var CustomResultPage::getArgs(SourceIndex source, const String& noneArgs)
     {
     case SourceIndex::None:                 return noneArgs;
     case SourceIndex::ComplexData:          return "processor, index, value";
-    case SourceIndex::ComponentProperties: return "component, property, value";
-    case SourceIndex::ComponentVisibility: return "component, isVisible";
-    case SourceIndex::ContextMenu: return "component, index";
-    case SourceIndex::EqEvents: return "eventType, value";
-    case SourceIndex::ModuleParameters: return "processor, parameter, value";
-    case SourceIndex::MouseEvents: return "component, event";
-    case SourceIndex::ProcessingSpecs: return "sampleRate, blockSize";
-    case SourceIndex::RadioGroup: return "radioGroupIndex";
-    case SourceIndex::RoutingMatrix: return "module";
+    case SourceIndex::ComponentProperties:  return "component, property, value";
+    case SourceIndex::ComponentValue:       return "component, value";
+    case SourceIndex::ComponentVisibility:  return "component, isVisible";
+    case SourceIndex::ContextMenu:          return "component, index";
+    case SourceIndex::EqEvents:             return "eventType, value";
+    case SourceIndex::ModuleParameters:     return "processor, parameter, value";
+    case SourceIndex::MouseEvents:          return "component, event";
+    case SourceIndex::ProcessingSpecs:      return "sampleRate, blockSize";
+    case SourceIndex::RadioGroup:           return "radioGroupIndex";
+    case SourceIndex::RoutingMatrix:        return "module";
     case SourceIndex::numSourceIndexTypes: break;
     default: ;
     }
@@ -277,6 +299,8 @@ void CustomResultPage::appendLine(String& x, const var& state, const String& suf
                 
 	            v = JSON::toString(var(list), true);
             }
+            else if (pr == StringProcessor::FirstItemAsString)
+                v = a[0].toString().quoted();
             else if(pr == StringProcessor::JoinToStringWithNewLines)
                 v = Dialog::joinVarArrayToNewLineString(a).replace("\n", "\\n").quoted();
         }
@@ -336,6 +360,10 @@ String CustomResultPage::getTargetLine(TargetIndex target, const var& state)
                    { state["targetComponentIds"], state["targetMetadata"], functionBody},
                    { StringProcessor::None,       StringProcessor::None,   StringProcessor::Unquote});
         break;
+    case TargetIndex::ModuleParameter:
+        appendLine(x, state, ".addModuleParameterSyncer",
+                   { state["targetModuleId"], state["targetModuleParameter"], state["targetMetadata"] },
+                   { StringProcessor::FirstItemAsString, StringProcessor::FirstItemAsString, StringProcessor::None });
     case TargetIndex::numTargetIndexTypes: break;
     default: ;
     }
@@ -362,6 +390,9 @@ String CustomResultPage::getAttachLine(SourceIndex source, const var& state)
                        state["propertyType"],
                        state["attachMetadata"]
                    });
+        break;
+    case SourceIndex::ComponentValue:
+        appendLine(x, state, ".attachToComponentValue", { state["componentIds"], state["attachMetadata"]});
         break;
     case SourceIndex::ComponentVisibility:
         appendLine(x, state, ".attachToComponentProperties", { state["componentIds"],

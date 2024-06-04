@@ -126,6 +126,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Adds a listener that will cause a refresh message (eg. repaint(), changed()) to be send out to the given components. */
 	bool addComponentRefreshListener(var componentIds, String refreshType, var metadata);
 
+	/** Adds a listener that will sync module parameters from the attached module parameter source. */
+	bool addModuleParameterSyncer(String moduleId, var parameterIndex, var metadata);
+	
 	/** Removes the listener that was assigned with the given object. */
 	bool removeListener(var idFromMetadata);
 
@@ -441,6 +444,37 @@ private:
 		Result callSync(const Array<var>& args) override;
 
 		ScopedPointer<WeakCallbackHolder> optionalCallback;
+	};
+
+	struct ModuleParameterSyncer: public TargetBase
+	{
+		ModuleParameterSyncer(ScriptBroadcaster* sb, const var& obj, const var& metadata, Processor* target_, int parameterIndex_):
+		  TargetBase(obj, {}, metadata),
+		  target(target_),
+		  parameterIndex(parameterIndex_)
+		{}
+
+		Identifier getItemId() const override { return "ModuleParameterSyncer"; }
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override {};
+
+		Array<var> createChildArray() const override { return {}; }
+
+		Result callSync(const Array<var>& args) override
+		{
+			auto v = (float)args.getLast();
+			FloatSanitizers::sanitizeFloatNumber(v);
+
+			if(target.get() != nullptr)
+			{
+				target->setAttribute(parameterIndex, v, sendNotificationAsync);
+			}
+
+			return Result::ok();
+		}
+
+		WeakReference<Processor> target;
+		int parameterIndex;
 	};
 
 	struct OtherBroadcasterTarget : public TargetBase

@@ -2856,6 +2856,7 @@ struct ScriptBroadcaster::Wrapper
 	API_METHOD_WRAPPER_4(ScriptBroadcaster, addComponentPropertyListener);
 	API_METHOD_WRAPPER_3(ScriptBroadcaster, addComponentValueListener);
 	API_METHOD_WRAPPER_3(ScriptBroadcaster, addComponentRefreshListener);
+	API_METHOD_WRAPPER_3(ScriptBroadcaster, addModuleParameterSyncer);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeListener);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeSource);
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, removeAllListeners);
@@ -2900,6 +2901,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_4(addComponentPropertyListener);
 	ADD_API_METHOD_3(addComponentValueListener);
 	ADD_API_METHOD_3(addComponentRefreshListener);
+	ADD_API_METHOD_3(addModuleParameterSyncer);
 	ADD_API_METHOD_1(removeListener);
 	ADD_API_METHOD_1(removeSource);
 	ADD_API_METHOD_0(removeAllListeners);
@@ -3203,6 +3205,47 @@ bool ScriptBroadcaster::addComponentRefreshListener(var componentIds, String ref
 
 	ItemBase::PrioritySorter sorter;
 	items.addSorted(sorter, ni.release());
+
+	return true;
+}
+
+bool ScriptBroadcaster::addModuleParameterSyncer(String moduleId, var parameterIndex, var metadata)
+{
+	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), moduleId);
+
+	if(p == nullptr)
+	{
+		reportScriptError("Can't find module with ID " + moduleId);
+		RETURN_IF_NO_THROW(false);
+	}
+
+	int pIndex = 0;
+
+	if(parameterIndex.isString())
+	{
+		pIndex = p->getParameterIndexForIdentifier(Identifier(parameterIndex.toString()));
+	}
+	else
+		pIndex = (int)parameterIndex;
+
+	if(isPositiveAndBelow(pIndex, p->getNumParameters()))
+	{
+		auto newObject = new ModuleParameterSyncer(this, {}, metadata, p, pIndex);
+
+		ScopedPointer<TargetBase> ni = newObject;
+		
+		initItem(ni);
+		
+		ItemBase::PrioritySorter sorter;
+		items.addSorted(sorter, ni.release());
+
+		setForceSynchronousExecution(true);
+	}
+	else
+	{
+		reportScriptError("Can't find parameter " + parameterIndex.toString());
+		RETURN_IF_NO_THROW(false);
+	}
 
 	return true;
 }

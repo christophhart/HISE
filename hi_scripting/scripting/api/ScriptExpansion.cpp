@@ -611,8 +611,11 @@ void ScriptUserPresetHandler::updateSaveInPresetComponents(var obj)
 
 	for (auto c : v)
 	{
-		auto type = content->getComponentWithName(Identifier(c["id"]))->getScriptObjectProperty("type");
-		c.setProperty("type", type, nullptr);
+		if(auto sc =  content->getComponentWithName(Identifier(c["id"])))
+		{
+			auto type = sc->getScriptObjectProperty("type");
+			c.setProperty("type", type, nullptr);
+		}
 	}
 
 	content->restoreAllControlsFromPreset(v);

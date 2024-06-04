@@ -734,6 +734,9 @@ namespace pimpl
 
 	juce::Colour complex_ui_laf::getNodeColour(Component* comp)
 	{
+		if(!nodeColour.isTransparent())
+			return nodeColour;
+
 		auto c = Colour(0xFFDADADA);
 
 		if (auto nc = comp->findParentComponentOfClass<NodeComponent>())

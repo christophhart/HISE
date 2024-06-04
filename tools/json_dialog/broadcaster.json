@@ -34,17 +34,6 @@
     "DialogHeight": 716
   },
   "GlobalState": {
-    "targetType": 0,
-    "thisTarget": "",
-    "targetFunctionId": "",
-    "targetMetadata": "someId",
-    "colour": 0,
-    "id": "myBroadcaster",
-    "comment": "",
-    "tags": [],
-    "attachType": 4,
-    "noneArgs": "index",
-    "contextItems": "funky\nwhy\nset this to something"
   },
   "Children": [
     {
@@ -55,8 +44,8 @@
           "Type": "JavascriptFunction",
           "Text": "LabelText",
           "ID": "JavascriptFunctionId",
-          "CallOnNext": false,
-          "Code": "var f = document.bindCallback(\"checkSelection\", function()\n{\n\treturn false;\n});\n\nif(f())\n{\n\tdocument.navigate(3, false);\n}\n\n"
+          "Code": "var f = document.bindCallback(\"checkSelection\", function()\n{\n\treturn false;\n});\n\nif(f())\n{\n\tdocument.navigate(3, false);\n}\n\n",
+          "EventTrigger": "OnPageLoad"
         },
         {
           "Type": "MarkdownText",
@@ -203,6 +192,27 @@
             },
             {
               "Type": "Button",
+              "Text": "ComponentValue",
+              "ID": "attachType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "The value of a component. This will register the broadcaster as additional value callback that will be fired whenever the control callback will be executed.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "Icon": "",
+              "UseOnValue": false,
+              "NoLabel": false,
+              "Tooltip": ""
+            },
+            {
+              "Type": "Button",
               "Text": "ComponentVisibility",
               "ID": "attachType",
               "LabelPosition": "Default",
@@ -218,7 +228,8 @@
               "Class": "",
               "Style": "",
               "Icon": "",
-              "UseOnValue": false
+              "UseOnValue": false,
+              "NoLabel": ""
             },
             {
               "Type": "Button",
@@ -237,7 +248,8 @@
               "Class": "",
               "Style": "",
               "Icon": "",
-              "UseOnValue": false
+              "UseOnValue": false,
+              "NoLabel": ""
             },
             {
               "Type": "Button",
@@ -500,9 +512,13 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 }
-              ]
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
             },
             {
               "Type": "List",
@@ -511,7 +527,8 @@
                 {
                   "Type": "MarkdownText",
                   "Text": "### Component Properties\n\nAttaches the broadcaster to changes of the script properties like `enabled`, `text`, etc.\n\n> If you want to listen to visibility changes, take a look at the **ComponentVisibility** attachment mode, which also takes the visibility of parent components into account.",
-                  "Padding": 0
+                  "Padding": 0,
+                  "ID": ""
                 },
                 {
                   "Type": "TextInput",
@@ -580,8 +597,66 @@
               "Children": [
                 {
                   "Type": "MarkdownText",
+                  "Text": "### Component Value\n\nThis attachment mode will register the broadcaster to control callbacks of a Component.",
+                  "ID": "",
+                  "Class": "",
+                  "Style": ""
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "Component IDs",
+                  "ID": "componentIds",
+                  "LabelPosition": "Default",
+                  "EmptyText": "Enter component IDs as shown in the Component List...",
+                  "Required": true,
+                  "ParseArray": true,
+                  "Items": "{DYNAMIC}",
+                  "Help": "A comma-separated list of all component IDs that you want to listen to.",
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80,
+                  "UseOnValue": false,
+                  "NoLabel": ""
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "Metadata",
+                  "ID": "attachMetadata",
+                  "LabelPosition": "Default",
+                  "EmptyText": "Enter metadata (optional)...",
+                  "Required": false,
+                  "ParseArray": false,
+                  "Items": "",
+                  "Help": "The metadata that will be shown on the broadcaster map.",
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80,
+                  "NoLabel": ""
+                }
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
                   "Text": "### Component Visibility\n\nThis mode attaches the broadcaster to whether the component is actually shown on the interface, which also takes into account the parent visibility and whether its bounds are within the parent's dimension",
-                  "Padding": 0
+                  "Padding": 0,
+                  "ID": ""
                 },
                 {
                   "Type": "TextInput",
@@ -623,7 +698,10 @@
                   "Height": 80,
                   "NoLabel": ""
                 }
-              ]
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
             },
             {
               "Type": "List",
@@ -632,7 +710,8 @@
                 {
                   "Type": "MarkdownText",
                   "Text": "### Context Menu\n\nThis attach mode will show a context menu when you click on the registered UI components and allow you to perform additional actions.",
-                  "Padding": 0
+                  "Padding": 0,
+                  "ID": ""
                 },
                 {
                   "Type": "TextInput",
@@ -734,7 +813,8 @@
                 {
                   "Type": "MarkdownText",
                   "Text": "### EQ Events\n\nThis attachment mode will register one or more Parametriq EQ modules to the broadcaster and will send events when EQ bands are added / removed.\n\n> This does not cover the band parameter changes, as this can be queried with the usual module parameter attachment mode.",
-                  "Padding": 0
+                  "Padding": 0,
+                  "ID": ""
                 },
                 {
                   "Type": "TextInput",
@@ -1044,9 +1124,11 @@
       "Children": [
         {
           "Type": "MarkdownText",
-          "Text": "### Target type\n\nNow you can add a target listener which will receive the events caused by the event source specified on the previous page.\n\n> With this dialog you can only create a single listener, but a broadcaster is of course capable of sending messages to multiple listeners.",
+          "Text": "### Target type\n\nNow you can add a target listener which will receive the events caused by the event source specified on the previous page.\n\n",
           "Padding": 0,
-          "ID": ""
+          "ID": "",
+          "Class": "",
+          "Style": ""
         },
         {
           "Type": "Column",
@@ -1152,7 +1234,32 @@
               "InitValue": "",
               "UseInitValue": "",
               "Class": "",
-              "Style": ""
+              "Style": "",
+              "NoLabel": ""
+            },
+            {
+              "Type": "Button",
+              "Text": "Module Parameter",
+              "ID": "targetType",
+              "LabelPosition": "Default",
+              "IconData": "",
+              "Help": "This will sync the given module parameter to the last argument of the broadcaster.",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Enabled": true,
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "InitValue": "",
+              "UseInitValue": false,
+              "Class": "",
+              "Style": "",
+              "NoLabel": false,
+              "valueList": {
+              },
+              "UseOnValue": false,
+              "textList": {
+              },
+              "Tooltip": ""
             },
             {
               "Type": "List",
@@ -1173,7 +1280,11 @@
           "Style": "margin-top: 10px;",
           "UseChildState": false
         }
-      ]
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
     },
     {
       "Type": "List",
@@ -1189,7 +1300,8 @@
               "Children": [
                 {
                   "Type": "Skip",
-                  "Text": "LabelText"
+                  "Text": "LabelText",
+                  "EventTrigger": "OnPageLoad"
                 }
               ]
             },
@@ -1200,7 +1312,8 @@
                 {
                   "Type": "MarkdownText",
                   "Text": "### Callback\n\nThis will call a function with a customizeable `this` object.",
-                  "Padding": 0
+                  "Padding": 0,
+                  "ID": ""
                 },
                 {
                   "Type": "TextInput",
@@ -1260,7 +1373,10 @@
                   "Height": 80,
                   "NoLabel": ""
                 }
-              ]
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
             },
             {
               "Type": "List",
@@ -1375,7 +1491,8 @@
                   "UseInitValue": "",
                   "Class": "",
                   "Style": "",
-                  "Height": 80
+                  "Height": 80,
+                  "NoLabel": ""
                 },
                 {
                   "Type": "TextInput",
@@ -1549,6 +1666,98 @@
                   "Class": "",
                   "Style": "",
                   "Height": 80
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "Metadata",
+                  "ID": "targetMetadata",
+                  "LabelPosition": "Default",
+                  "EmptyText": "Enter metadata (required)...",
+                  "Required": true,
+                  "ParseArray": false,
+                  "Items": "",
+                  "Help": "The metadata that will be shown on the broadcaster map.",
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80,
+                  "NoLabel": ""
+                }
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "### Module Parameter\n\nAttaching this as listener will send the last argument of the broadcaster as parameter change to the given module.",
+                  "ID": "",
+                  "Class": "",
+                  "Style": ""
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "Module ID",
+                  "ID": "targetModuleId",
+                  "LabelPosition": "Default",
+                  "EmptyText": "Enter module ID",
+                  "Required": true,
+                  "ParseArray": true,
+                  "Items": "{DYNAMIC}",
+                  "Help": "The ID of the module that you want to send the parameter change to.",
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80,
+                  "NoLabel": false,
+                  "valueList": {
+                  },
+                  "textList": {
+                  },
+                  "Tooltip": "",
+                  "Autofocus": false,
+                  "UseOnValue": false,
+                  "CallOnTyping": false
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "Parameter",
+                  "ID": "targetModuleParameter",
+                  "LabelPosition": "Default",
+                  "EmptyText": "Enter parameter ID",
+                  "Required": true,
+                  "ParseArray": true,
+                  "Items": "{DYNAMIC}",
+                  "Help": "A single parameter (either an integer or the parameter ID) that should be set for the given module",
+                  "Multiline": false,
+                  "Enabled": true,
+                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": "",
+                  "Style": "",
+                  "Height": 80,
+                  "NoLabel": false,
+                  "valueList": {
+                  },
+                  "textList": {
+                  },
+                  "Tooltip": "",
+                  "Autofocus": false,
+                  "UseOnValue": false,
+                  "CallOnTyping": false
                 },
                 {
                   "Type": "TextInput",
