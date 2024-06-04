@@ -684,6 +684,8 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
         Identifier("UseFilter"),
         Identifier("Visible"),
         Identifier("Comment"),
+		Identifier("valueList"),
+		Identifier("textList"),
         Identifier("ManualAction"),
         Identifier("CallOnNext")};
     
@@ -786,6 +788,171 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
 	return x;
 }
 
+void AllEditor::addRecursive(mcl::TokenCollection::List& tokens, const String& parentId, const var& obj)
+{
+	auto thisId = parentId;
 
+	if(obj.isMethod())
+		thisId << "(args)";
+
+	auto isState = thisId.startsWith("state");
+	auto isElement = thisId.startsWith("element");
+
+	auto prio = 100;
+
+	if(isState)
+		prio += 10;
+
+	if(isElement)
+		prio += 20;
+
+	auto stateToken = new mcl::TokenCollection::Token(thisId);
+	stateToken->c = isState ? Colour(0xFFBE6093) : isElement ? Colour(0xFF22BE84) : Colour(0xFF88BE14);
+
+	if(isState)
+		stateToken->markdownDescription << "Global state variable  \n> ";
+
+	stateToken->markdownDescription << "Value: `" << obj.toString() << "`";
+
+	auto apiObject = dynamic_cast<ApiObject*>(obj.getDynamicObject());
+
+	stateToken->priority = prio;
+	tokens.add(stateToken);
+
+	if(auto no = obj.getDynamicObject())
+	{
+		for(auto& nv: no->getProperties())
+		{
+			String p = parentId;
+			p << "." << nv.name;
+			addRecursive(tokens, p, nv.value);
+
+			if(apiObject != nullptr)
+				tokens.getLast()->markdownDescription = apiObject->getHelp(nv.name);
+		}
+	}
+	if(auto ar = obj.getArray())
+	{
+		int idx = 0;
+
+		for(auto& nv: *ar)
+		{
+			String p = parentId;
+			p << "[" << String(idx++) << "]";
+			addRecursive(tokens, p, nv);
+		}
+	}
+}
+
+void AllEditor::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
+{
+	if(p == nullptr)
+		return;
+
+	auto infoObject = p->findParentComponentOfClass<Dialog>()->getState().globalState;
+
+	DBG(JSON::toString(infoObject));
+
+	if(auto ms = p->findParentComponentOfClass<ComponentWithSideTab>())
+	{
+		auto* state = ms->getMainState();
+
+		if(engine == nullptr)
+			engine = state->createJavascriptEngine();
+
+		for(auto& nv: engine->getRootObjectProperties())
+		{
+			addRecursive(tokens, nv.name.toString(), nv.value);
+		}
+	}
+}
+
+
+AllEditor::AllEditor(const String& syntax):
+	codeDoc(doc),
+	editor(new mcl::TextEditor(codeDoc))
+{
+	if(syntax == "CSS")
+	{
+		editor->tokenCollection = new mcl::TokenCollection("CSS");
+		editor->tokenCollection->setUseBackgroundThread(false);
+		editor->setLanguageManager(new simple_css::LanguageManager(codeDoc));
+	}
+	else if(syntax == "HTML")
+	{
+		editor->setLanguageManager(new mcl::XmlLanguageManager());
+	}
+	else
+	{
+		editor->tokenCollection = new mcl::TokenCollection("Javascript");
+		editor->tokenCollection->setUseBackgroundThread(false);
+		editor->tokenCollection->addTokenProvider(new TokenProvider(this));
+	}
+            
+	addAndMakeVisible(editor);
+}
+
+AllEditor::~AllEditor()
+{
+	editor->tokenCollection = nullptr;
+	editor = nullptr;
+}
+
+Result AllEditor::compile()
+{
+	if(compileCallback)
+		return compileCallback();
+
+	auto code = doc.getAllContent();
+	auto* state = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
+
+	if(code.startsWith("${"))
+		code = state->loadText(code, true);
+
+	if(syntax == "CSS")
+	{
+		simple_css::Parser p(code);
+		auto ok = p.parse();
+		editor->clearWarningsAndErrors();
+		editor->setError(ok.getErrorMessage());
+
+		for(const auto& w: p.getWarnings())
+			editor->addWarning(w);
+
+		if(ok.wasOk())
+		{
+			if(auto d = state->currentDialog.get())
+			{
+				d->positionInfo.additionalStyle = code;
+				d->loadStyleFromPositionInfo();
+			}
+		}
+		else
+			state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
+	            
+		return ok;
+	}
+	else if (syntax == "HTML")
+	{
+		if(auto d = state->currentDialog.get())
+		{
+			d->refreshCurrentPage();
+		}
+
+		return Result::ok();
+	}
+	else
+	{
+		auto e = state->createJavascriptEngine();
+		auto ok = e->execute(code);
+
+		editor->setError(ok.getErrorMessage());
+
+		if(!ok.wasOk())
+			state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
+
+		return ok;
+	}
+}
 } // multipage
 } // hise

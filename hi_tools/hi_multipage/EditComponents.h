@@ -136,7 +136,49 @@ private:
 };
 
 
+struct AllEditor: public Component
+{
+    static void addRecursive(mcl::TokenCollection::List& tokens, const String& parentId, const var& obj);
 
+    struct TokenProvider: public mcl::TokenCollection::Provider
+    {
+        TokenProvider(Component* p_):
+          p(p_)
+        {};
+
+        Component::SafePointer<Component> p;
+        
+        void addTokens(mcl::TokenCollection::List& tokens) override;
+
+        JavascriptEngine* engine = nullptr;
+    };
+
+    AllEditor(const String& syntax);
+
+    ~AllEditor();
+
+    bool keyPressed(const KeyPress& k)
+	{
+		if(k == KeyPress::F5Key)
+		{
+			compile();
+			return true;
+		}
+
+		return false;
+	}
+
+    Result compile();
+
+    void resized() override { editor->setBounds(getLocalBounds()); };
+
+    std::function<Result()> compileCallback;
+
+    String syntax;
+    juce::CodeDocument doc;
+    mcl::TextDocument codeDoc;
+    ScopedPointer<mcl::TextEditor> editor;
+};
 
 
 } // multipage

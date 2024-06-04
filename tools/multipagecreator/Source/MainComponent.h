@@ -1366,7 +1366,67 @@ private:
 						      public CodeDocument::Listener,
 							  public Timer
         {
-            static void fillValueTree(ValueTree& p, const var& infoObject)
+            static void fillInfoObject(DynamicObject::Ptr obj, const ValueTree& p, const Array<std::pair<int64, String>>& codeTable)
+            {
+                obj->setProperty(mpid::Type, p.getType().toString());
+
+	            for(int i = 0; i < p.getNumProperties(); i++)
+	            {
+                    auto tid = p.getPropertyName(i);
+		            obj->setProperty(tid, p[tid]);
+	            }
+
+                if(p.getNumChildren() > 0)
+                {
+                    auto ar = obj->getProperty(mpid::Children).getArray();
+
+                    if(ar == nullptr)
+                    {
+	                    obj->setProperty(mpid::Children, var(Array<var>()));
+                        ar = obj->getProperty(mpid::Children).getArray();
+                    }
+                    
+	                for(const auto& c: p)
+	                {
+		                DynamicObject::Ptr no = new DynamicObject();
+                        
+                        fillInfoObject(no, c, codeTable);
+                        ar->add(var(no.get()));
+	                }
+                }
+            }
+
+            static void setTextElement(XmlElement& xml, bool removeTextAttribute)
+            {
+                if(removeTextAttribute && xml.hasAttribute("Text"))
+	            {
+		            auto t = xml.getStringAttribute("Text");
+                    
+                    xml.addTextElement(t);
+                    xml.removeAttribute("Text");
+	            }
+                
+
+                for(int i = 0; i < xml.getNumChildElements(); i++)
+                {
+                    if(xml.getChildElement(i)->isTextElement())
+                    {
+                        if(!removeTextAttribute)
+                        {
+	                        auto t = xml.getChildElement(i)->getText();
+                            xml.setAttribute("Text", t);
+                            xml.removeChildElement(xml.getChildElement(i), true);
+                            i--;
+                            continue;
+                        }
+	                    
+                    }
+
+	                setTextElement(*xml.getChildElement(i), removeTextAttribute);
+                }
+            }
+
+            static void fillValueTree(ValueTree& p, const var& infoObject, Array<std::pair<int64, String>>& codeTable)
             {
 	            for(auto& nv: infoObject.getDynamicObject()->getProperties())
 	            {
@@ -1375,7 +1435,29 @@ private:
 
                     if(nv.name == mpid::Code)
                     {
-	                    p.setProperty(nv.name, "HASH1234", nullptr);
+                        auto code = nv.value.toString();
+
+                        if(code.length() > 60)
+                        {
+                            auto hash = code.hashCode64();
+
+                            bool found = false;
+
+                            for(auto& c: codeTable)
+                            {
+	                            if(c.first == hash)
+	                            {
+		                            found = true;
+                                    break;
+	                            }
+                            }
+
+                            if(!found)
+								codeTable.add({hash, code});
+
+	                        p.setProperty(nv.name, var(hash), nullptr);
+                        }
+	                    
                         continue;
                     }
 
@@ -1384,7 +1466,7 @@ private:
 	                    for(auto& v: *nv.value.getArray())
 	                    {
                             ValueTree c(v[mpid::Type].toString());
-		                    fillValueTree(c, v);
+		                    fillValueTree(c, v, codeTable);
                             p.addChild(c, -1, nullptr);
 	                    }
                     }
@@ -1399,39 +1481,65 @@ private:
             }
 
 	        VarCodeEditor(const var& infoObject_, const Identifier& id_):
-              codeDoc(),
-              doc(codeDoc),
-              editor(doc),
+              editor("CSS"),
               infoObject(infoObject_),
               id(id_)
 	        {
                 if(id == mpid::Children)
                 {
+                    editor.syntax = "HTML";
                     ValueTree p("Project");
 
-                    fillValueTree(p, infoObject);
+                    
+
+                    fillValueTree(p, infoObject, codeTable);
 
                     p.removeAllProperties(nullptr);
 
-                    auto c = p.createXml()->createDocument("", false);
-                    codeDoc.replaceAllContent(c);
-                    editor.editor.setLanguageManager(new mcl::XmlLanguageManager());
+                    auto xml1 = p.createXml();
+                    setTextElement(*xml1, true);
+
+                    auto c = xml1->createDocument("", false);
+                    editor.doc.replaceAllContent(c);
+                    editor.editor->setLanguageManager(new mcl::XmlLanguageManager());
+
+                    editor.compileCallback = [this]()
+                    {
+	                    if(auto xml = XmlDocument::parse(editor.doc.getAllContent()))
+	                    {
+                            setTextElement(*xml, false);
+
+		                    auto v = ValueTree::fromXml(*xml);
+                            fillInfoObject(infoObject.getDynamicObject(), v, codeTable);
+
+                            DBG(JSON::toString(infoObject));
+	                    }
+
+                        return Result::ok();
+                    };
                 }
                 else
                 {
-	                codeDoc.replaceAllContent(infoObject[id].toString());
+                    if(id == mpid::Code)
+                        editor.syntax = "Javascript";
+                    else
+                        editor.syntax = "CSS";
+
+	                editor.doc.replaceAllContent(infoObject[id].toString());
                 }
 
                 
-                codeDoc.clearUndoHistory();
-                codeDoc.addListener(this);
+                editor.doc.clearUndoHistory();
+                editor.doc.addListener(this);
 		        addAndMakeVisible(editor);
 	        }
 
             void timerCallback() override
 	        {
-		        
+		        infoObject.getDynamicObject()->setProperty(id, editor.doc.getAllContent());
 	        }
+
+            
 
             void resized() override { editor.setBounds(getLocalBounds()); }
 
@@ -1446,11 +1554,11 @@ private:
 		        startTimer(2000);
 	        }
 
+            AllEditor editor;
+
             var infoObject;
+            Array<std::pair<int64, String>> codeTable;
             const Identifier id;
-            juce::CodeDocument codeDoc;
-            mcl::TextDocument doc;
-            mcl::FullEditor editor;
         };
 
         Layout currentLayout = Layout::Tabs;

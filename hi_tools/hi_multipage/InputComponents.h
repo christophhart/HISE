@@ -218,47 +218,10 @@ struct Choice: public LabelledComponent
 struct CodeEditor: public LabelledComponent
 {
     HISE_MULTIPAGE_ID("CodeEditor"); 
-
-    struct AllEditor: public Component
-    {
-        static void addRecursive(mcl::TokenCollection::List& tokens, const String& parentId, const var& obj);
-
-        struct TokenProvider: public mcl::TokenCollection::Provider
-        {
-            TokenProvider(Component* p_):
-              p(p_)
-            {};
-
-            Component::SafePointer<Component> p;
-            
-#if HISE_MULTIPAGE_INCLUDE_EDIT
-            void addTokens(mcl::TokenCollection::List& tokens) override;
-#else
-            void addTokens(mcl::TokenCollection::List& ) override {}
-#endif
-            JavascriptEngine* engine = nullptr;
-        };
-
-        AllEditor(const String& syntax);
-
-        ~AllEditor()
-        {
-	        editor->tokenCollection = nullptr;
-            editor = nullptr;
-        }
-
-        void resized() override { editor->setBounds(getLocalBounds()); };
-
-	    juce::CodeDocument doc;
-	    mcl::TextDocument codeDoc;
-	    ScopedPointer<mcl::TextEditor> editor;
-    };
-
+    
 	CodeEditor(Dialog& r, int w, const var& obj);;
 
     void postInit() override;
-
-    bool keyPressed(const KeyPress& k) override;
 
     Result compile();
 
