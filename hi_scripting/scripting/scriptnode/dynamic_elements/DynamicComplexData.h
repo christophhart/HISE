@@ -511,6 +511,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			}
 			if(r == 9001)
 			{
+#if USE_BACKEND
 				if (auto obj = dynamic_cast<SimpleRingBuffer*>(getObject()->currentlyUsedData))
 				{
 					struct ResizableModPlotter: public Component
@@ -549,8 +550,9 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 					auto rt = GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile();
 
 					rt->showComponentInRootPopup(n, this, {});
-					return;
 				}
+#endif
+				return;
 			}
 
 			auto network = getObject()->parentNode->getRootNetwork();
