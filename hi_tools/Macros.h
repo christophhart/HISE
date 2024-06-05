@@ -79,7 +79,7 @@ namespace hise { using namespace juce;
  *	with more than two channels, bump this value to ensure it keeps working.
  */
 #ifndef HISE_NUM_MAX_FRAME_CONTAINER_CHANNELS
-#define HISE_NUM_MAX_FRAME_CONTAINER_CHANNELS 2
+#define HISE_NUM_MAX_FRAME_CONTAINER_CHANNELS 8
 #endif
 
 #if HI_RUN_UNIT_TESTS

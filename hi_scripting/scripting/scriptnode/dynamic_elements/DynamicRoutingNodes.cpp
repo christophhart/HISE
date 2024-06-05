@@ -144,7 +144,7 @@ struct MatrixEditor : public ScriptnodeExtraComponent<matrix<dynamic_matrix>>
 
 	void timerCallback() override
 	{
-
+		
 	}
 
 	void resized() override

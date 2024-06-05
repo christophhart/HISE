@@ -398,8 +398,25 @@ struct dynamic_matrix : public RoutableProcessor
 		}
 	}
 
+	static constexpr bool createDisplayValues() { return true; }
+
+	void handleDisplayValues(bool isSource, ProcessDataDyn& data)
+	{
+		float values[NUM_MAX_CHANNELS];
+		
+		for(int i = 0; i < data.getNumChannels(); i++)
+		{
+			auto r = FloatVectorOperations::findMinAndMax(data.getRawChannelPointers()[i], data.getNumSamples());
+			values[i] = jmax(r.getStart(), -r.getStart(), r.getEnd(), -r.getEnd());
+		}
+
+		getMatrix().setGainValues(values, isSource);
+	}
+
 	void initialise(NodeBase* n)
 	{
+		
+
 		um = n->getUndoManager();
 
 		getMatrix().init(dynamic_cast<Processor*>(n->getScriptProcessor()));
@@ -440,8 +457,6 @@ struct dynamic_matrix : public RoutableProcessor
 	int8 sendRouting[NUM_MAX_CHANNELS];
 
 	NodePropertyT<String> internalData;
-
-	
 };
 
 }
