@@ -104,21 +104,21 @@ DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool all
 		help2 << "If you want it to work on your local computer, leave it empty to use the html link to your specified html folder:  " << nl;
 		help2 << "`file::///{PATH}/`  " << nl;
 		help2 << "otherwise just add your root URL for the online docs, eg.:  " << nl;
-		help2 << "`https://docs.hise.audio/`  " << nl;
+		help2 << "`https://docs.hise.dev/`  " << nl;
 		help2 << "> Important: The Base URL **must** end with a slash (`/`), otherwise the links won't work.  " << nl;
 		help2 << "Also your template header has to have this wildcard (which will be replaced before creating the HTML files...:  " << nl << nl;
 		help2 << "```" << nl;
 		help2 << "<base href=\"{BASE_URL}\"/>" << nl;
 		help2 << "```" << nl;
 
-		addTextEditor("baseURL", "", "Base URL");
+		addTextEditor("baseURL", "https://docs.hise.dev/", "Base URL");
 
 		helpButton2 = MarkdownHelpButton::createAndAddToComponent(getTextEditor("baseURL"), help2);
 
 		markdownRepository = new FilenameComponent("Markdown Repository", holder.getDatabaseRootDirectory(), false, true, false, {}, {}, "No markdown repository specified");
 		markdownRepository->setSize(400, 32);
 
-		auto htmlDir = holder.getDatabaseRootDirectory().getParentDirectory().getChildFile("html");
+		auto htmlDir = holder.getDatabaseRootDirectory().getParentDirectory().getChildFile("html_build");
 
 
 		htmlDirectory = new FilenameComponent("Target directory", htmlDir, true, true, true, {}, {}, "Select a HTML target directory");
