@@ -125,6 +125,8 @@ public:
             JUCEApplication::getInstance()->systemRequestedQuit();
         }
 
+		void addCodeEditor(const var& infoObject, const Identifier& codeId) override {}
+
         multipage::State* getMainState() override { return state; }
 
 		bool setSideTab(multipage::State* dialogState, multipage::Dialog* newDialog) override

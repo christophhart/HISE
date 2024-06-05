@@ -52,7 +52,7 @@ struct ComponentWithSideTab
 
     virtual State* getMainState() { return nullptr; }
 
-    virtual void addCodeEditor(const var& infoObject, const Identifier& codeId) = 0;
+    virtual void addCodeEditor(const var& infoObject, const Identifier& codeId) {};
 
     virtual void refreshDialog() = 0;
 
