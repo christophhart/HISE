@@ -186,6 +186,9 @@ namespace matrixtypes
 {
 template <int C> struct identity
 {
+	static constexpr bool createDisplayValues() { return false; }
+	void handleDisplayValues(bool, ProcessDataDyn& ) {}
+
 	static constexpr bool isFixedChannelMatrix() { return true; }
 	static constexpr int getNumChannels() { return C; }
 	static constexpr int getChannel(int index) { return index; }
@@ -195,6 +198,9 @@ template <int C> struct identity
 
 template <int Index, int C> struct one2all
 {
+	static constexpr bool createDisplayValues() { return false; }
+	void handleDisplayValues(bool, ProcessDataDyn& ) {}
+
 	static constexpr bool isFixedChannelMatrix() { return true; }
 	static constexpr int getNumChannels() { return C; }
 	static constexpr int getChannel(int index) { return Index; }
