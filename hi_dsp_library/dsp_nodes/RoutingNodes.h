@@ -1107,7 +1107,7 @@ template <class MatrixType> struct matrix
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		m.handleDisplayValues(true, data.as<ProcessDataDyn>());
+		m.handleDisplayValues(true, data.template as<ProcessDataDyn>());
 
 		if constexpr (MatrixType::isFixedChannelMatrix())
 		{
@@ -1121,7 +1121,7 @@ template <class MatrixType> struct matrix
 		else
 			FrameConverters::forwardToFrame16(this, data);
 
-		m.handleDisplayValues(false, data.as<ProcessDataDyn>());
+		m.handleDisplayValues(false, data.template as<ProcessDataDyn>());
 	}
 	
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
