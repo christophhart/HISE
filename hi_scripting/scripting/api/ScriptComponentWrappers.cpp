@@ -2869,6 +2869,12 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateLookAndFeel()
         Component::callRecursive<Component>(ft, [laf](Component* c)
         {
             c->setLookAndFeel(laf);
+            
+            if(auto ed = dynamic_cast<ComplexDataUIBase::EditorBase*>(c))
+            {
+                ed->setSpecialLookAndFeel(laf, false);
+            }
+            
             return false;
         });
     }

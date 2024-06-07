@@ -631,10 +631,17 @@ namespace ScriptedDrawActions
 			c(c_),
 			area(a),
 			radius(r_)
-		{}
+		{
+			//shadow.setColor(c);
+			//shadow.setRadius(radius);
+		}
 
 		void perform(Graphics& g) override
 		{
+//			PathFactory::scalePath(p, area);
+//			shadow.render(g, p);
+
+#if 1
 			auto spb = area.withPosition((float)radius, (float)radius).transformed(AffineTransform::scale(scaleFactor));
 
 			auto copy = p;
@@ -642,9 +649,6 @@ namespace ScriptedDrawActions
 			copy.scaleToFit(spb.getX(), spb.getY(), spb.getWidth(), spb.getHeight(), false);
 
 			auto drawTargetArea = area.expanded((float)radius).transformed(AffineTransform::scale(scaleFactor));
-
-			
-			
 			Image img(Image::PixelFormat::ARGB, drawTargetArea.getWidth(), drawTargetArea.getHeight(), true);
 			Graphics g2(img);
 			g2.setColour(c);
@@ -652,7 +656,11 @@ namespace ScriptedDrawActions
 			gin::applyStackBlur(img, radius);
 			
 			g.drawImageAt(img, drawTargetArea.getX(), drawTargetArea.getY());
+#endif
 		}
+
+        // Soon...
+		//melatonin::DropShadow shadow;
 
 		Rectangle<float> area;
 		Path p;
