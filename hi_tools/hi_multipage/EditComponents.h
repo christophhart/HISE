@@ -161,14 +161,21 @@ struct AllEditor: public Component
 	{
 		if(k == KeyPress::F5Key)
 		{
-			compile();
+			auto ok = compile();
+
+            if(!ok.wasOk())
+            {
+	            auto errorMessage = ok.getErrorMessage();
+                editor->setError(errorMessage);
+            }
+
 			return true;
 		}
 
 		return false;
 	}
 
-    Result compile();
+    Result compile(bool useCompileCallback=true);
 
     void resized() override { editor->setBounds(getLocalBounds()); };
 

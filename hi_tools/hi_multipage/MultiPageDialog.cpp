@@ -426,7 +426,7 @@ void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject:
 
 	engine = state->createJavascriptEngine();
 
-	if(engine != nullptr && (infoObject[mpid::UseOnValue] || !eventListeners.isEmpty()))
+	if(engine != nullptr && (infoObject[mpid::Code].toString().isNotEmpty() || !eventListeners.isEmpty()))
 	{
 		auto ok = Result::ok();
 		
@@ -434,7 +434,7 @@ void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject:
 
 		auto code = infoObject[mpid::Code].toString();
 
-		if(code.isNotEmpty() && infoObject[mpid::UseOnValue])
+		if(code.trim().isNotEmpty())
 			engine->evaluate(code, &ok);
 
 		for(auto& v: eventListeners)
@@ -1904,6 +1904,11 @@ bool Dialog::navigate(bool forward)
 					return false;
 				}
 
+				hasOnSubmit = callRecursive<PageBase>(currentPage, [](PageBase* b)
+				{
+					return b->hasOnSubmitEvent();
+				});
+
 				if(hasOnSubmit)
 				{
 					getState().navigateOnFinish = true;
@@ -2107,12 +2112,12 @@ void Dialog::containerPopup(const var& infoObject)
 	auto typeName = infoObject[mpid::Type].toString();
 
 	m.addSeparator();
-	m.addItem(90000, "Edit " + typeName, tp != nullptr, tp == currentlyEditedPage);
-
+	m.addItem(90000, "Edit " + typeName, tp != nullptr, currentlyEditedPage != nullptr && infoObject == currentlyEditedPage->getInfoObject());
 	
+	m.addItem(924, "Delete " + typeName, tp != nullptr && pageListInfo->indexOf(infoObject) == -1);
+	m.addItem(90001, "Copy info JSON", infoObject.isObject());
 
-	m.addItem(924, "Delete " + typeName, tp != nullptr && tp->findParentComponentOfClass<factory::Container>() != nullptr);
-	m.addItem(90001, "Copy info JSON", tp != nullptr);
+	m.addItem(90002, "Edit as XML", infoObject.isObject());
 
 	if(auto r = m.show())
 	{
@@ -2126,7 +2131,12 @@ void Dialog::containerPopup(const var& infoObject)
 		
 		else if (r == 90001)
 		{
-			SystemClipboard::copyTextToClipboard(JSON::toString(tp->getInfoObject(), false));
+			SystemClipboard::copyTextToClipboard(JSON::toString(infoObject, false));
+		}
+		else if (r == 90002)
+		{
+			findParentComponentOfClass<ComponentWithSideTab>()->addCodeEditor(infoObject, "HTML");
+			return;
 		}
 		else if (r == 924)
 		{
@@ -2187,15 +2197,15 @@ void Dialog::containerPopup(const var& infoObject)
 
 bool Dialog::nonContainerPopup(const var& infoObject)
 {
-	auto tp = findPageBaseForInfoObject(infoObject);
+	
 
 	auto typeName = infoObject[mpid::Type].toString();
 
 	PopupLookAndFeel plaf;
 	PopupMenu m;
 	m.setLookAndFeel(&plaf);
-	m.addItem(2, "Edit " + typeName, true, currentlyEditedPage == tp);
-	m.addItem(1235, "Edit Code", tp->getInfoObject().hasProperty(mpid::Code), false);
+	m.addItem(2, "Edit " + typeName, true, currentlyEditedPage != nullptr && currentlyEditedPage->getInfoObject() == infoObject);
+	m.addItem(1235, "Edit Code", infoObject.hasProperty(mpid::Code), false);
 	m.addItem(1, "Delete " + typeName);
 	m.addSeparator();
 	m.addItem(3, "Duplicate " + typeName);
@@ -2211,26 +2221,35 @@ bool Dialog::nonContainerPopup(const var& infoObject)
 	if(r == 0)
 		return true;
 
-    if(r == 2 && tp != nullptr)
+    if(r == 2)
     {
         showEditor(infoObject);
         return true;
     }
-	if(r == 1 && tp != nullptr)
+	if(r == 1)
 	{
-		tp->deleteFromParent();
+		if(auto tp = findPageBaseForInfoObject(infoObject))
+		{
+			tp->deleteFromParent();
+			
+		}
+
 		return true;
 	}
 	if(r == 3)
 	{
-		tp->duplicateInParent();
+		if(auto tp = findPageBaseForInfoObject(infoObject))
+		{
+			tp->duplicateInParent();
+		}
+		
 		return true;
 	}
 	else if (r == 1235)
 	{
 		if(auto st = findParentComponentOfClass<ComponentWithSideTab>())
 		{
-			st->addCodeEditor(tp->getInfoObject(), mpid::Code);
+			st->addCodeEditor(infoObject, mpid::Code);
 		}
 	}
 	if(r == 4)
@@ -2240,12 +2259,15 @@ bool Dialog::nonContainerPopup(const var& infoObject)
 	}
 	if(r == 5)
 	{
-		if(auto pc = tp->findParentComponentOfClass<factory::Container>())
+		if(auto tp = findPageBaseForInfoObject(infoObject))
 		{
-			auto l = pc-> getPropertyFromInfoObject(mpid::Children);
-			auto idx = l.indexOf(infoObject)+1;
-			getUndoManager().perform(new UndoableVarAction(l, idx, clipboard));
-			refreshCurrentPage();
+			if(auto pc = tp->findParentComponentOfClass<factory::Container>())
+			{
+				auto l = pc-> getPropertyFromInfoObject(mpid::Children);
+				auto idx = l.indexOf(infoObject)+1;
+				getUndoManager().perform(new UndoableVarAction(l, idx, clipboard));
+				refreshCurrentPage();
+			}
 		}
 
 		return true;
@@ -2282,9 +2304,12 @@ bool Dialog::showEditor(const Array<var>& infoObjects)
 			d->prevButton.setVisible(false);
 			
 
-			auto tp = findPageBaseForInfoObject(infoObjects[0]);
+			if(auto tp = findPageBaseForInfoObject(infoObjects[0]))
+			{
+				tp->createEditor(*d->pages.getFirst());
+			}
 
-			tp->createEditor(*d->pages.getFirst());
+			
 
 
 			d->additionalChangeCallback = [this]()

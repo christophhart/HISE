@@ -227,41 +227,38 @@ Dialog* CreateCSSTemplate::createDialog(State& state)
       { mpid::Text, "CSS File" },
       { mpid::ID, "file" },
       { mpid::Enabled, 1 },
-      { mpid::Code, "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n    // Will be called whenever the value changes\n    Console.print(value);\n}\n" },
+      { mpid::Code, "" },
       { mpid::UseInitValue, 0 },
       { mpid::Required, 1 },
       { mpid::Wildcard, "*.css" },
       { mpid::SaveFile, 1 },
       { mpid::Help, "The CSS file to be created.  \n> it's highly recommended to pick a file that is relative to the `json` file you're using to create this dialog!." },
-      { mpid::Directory, 0 },
-      { mpid::UseOnValue, 0 }
+      { mpid::Directory, 0 }
     });
 
     auto& ChoiceId_2 = List_0.addChild<factory::Choice>({
       { mpid::Text, "Template" },
       { mpid::ID, "templateIndex" },
       { mpid::Enabled, 1 },
-      { mpid::Code, "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n    // Will be called whenever the value changes\n    Console.print(value);\n}\n" },
+      { mpid::Code, "" },
       { mpid::InitValue, "Dark" },
       { mpid::UseInitValue, 1 },
       { mpid::Custom, 0 },
       { mpid::ValueMode, "Index" },
       { mpid::Help, "The template to be used by the style sheet." },
-      { mpid::Items, DefaultCSSFactory::getTemplateList() },
-      { mpid::UseOnValue, 0 }
+      { mpid::Items, DefaultCSSFactory::getTemplateList() }
     });
 
     auto& ButtonId_3 = List_0.addChild<factory::Button>({
       { mpid::Text, "Add as asset" },
       { mpid::ID, "addAsAsset" },
       { mpid::Enabled, 1 },
-      { mpid::Code, "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n    // Will be called whenever the value changes\n    Console.print(value);\n}\n" },
+      { mpid::Code, "" },
       { mpid::InitValue, "true" },
       { mpid::UseInitValue, 1 },
       { mpid::Help, "Whether to add this file as asset to the current dialog." },
       { mpid::Required, 0 },
-      { mpid::Trigger, 0 },
-      { mpid::UseOnValue, 0 }
+      { mpid::Trigger, 0 }
     });
 
     // Custom callback for page List_0

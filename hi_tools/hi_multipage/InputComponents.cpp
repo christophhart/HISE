@@ -228,6 +228,9 @@ void LabelledComponent::postInit()
 	    initValue = infoObject[mpid::InitValue];
     }
 
+    if(!infoObject.hasProperty(mpid::Code))
+        infoObject.getDynamicObject()->setProperty(mpid::Code, "");
+
 	init();
 
     

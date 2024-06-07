@@ -314,6 +314,7 @@ struct Tree: public Component,
         return var();
     }
 
+    /*
     static bool containsRecursive(const var& parent, const var& child)
     {
         if(parent == child)
@@ -343,6 +344,7 @@ struct Tree: public Component,
 
         return -1;
     }
+    */
 
     bool removeFromParent(const var& child)
     {
@@ -364,6 +366,8 @@ struct Tree: public Component,
           root(root_),
           isPage(isPage_)
         {
+            path = root.currentDialog->getPathForInfoObject(obj);
+
             isVisible = root_.currentDialog->findPageBaseForInfoObject(obj) != nullptr;
 	        setLinesDrawnForSubItems(true);
             
@@ -534,16 +538,15 @@ struct Tree: public Component,
                 return;
             }
 
-            if(!isVisible)
-                return;
-
             if(!e.mods.isRightButtonDown())
             {
-                auto& s = root.currentDialog->mouseSelector.selection;
-
-                s.addToSelectionBasedOnModifiers(obj, e.mods);
-                return;
-                    
+                if(isVisible)
+                {
+	                auto& s = root.currentDialog->mouseSelector.selection;
+					s.addToSelectionBasedOnModifiers(obj, e.mods);
+                }
+                
+                return;    
             }
             
             if(obj.hasProperty(mpid::Children))
@@ -558,7 +561,7 @@ struct Tree: public Component,
 
         void itemDoubleClicked(const MouseEvent&) override
         {
-            auto newIndex = root.getPageIndex(obj);
+            auto newIndex = path.upToFirstOccurrenceOf(".", false, false).getTrailingIntValue()-1;
 
             auto c = obj;
             auto d = root.currentDialog;
@@ -610,10 +613,10 @@ struct Tree: public Component,
         void paintItem (Graphics& g, int width, int height) override
         {
             float alphaVisible = isVisible ? 1.0f : 0.4f;
-            
+
+            g.setColour(Colours::white.withAlpha(0.5f));
             
             Rectangle<int> b(0, 0, width, height);
-
             
             PathFactory::scalePath(icon, b.removeFromLeft(height).reduced(2).toFloat());
             
@@ -690,6 +693,7 @@ struct Tree: public Component,
 
         Tree& root;
         const bool isPage;
+        String path;
     };
     
     Tree():
@@ -1305,26 +1309,40 @@ private:
         {
             TabButton(const String& text)
             {
+                setRepaintsOnMouseActivity(true);
 	            setName(text);
                 closePath.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::closeIcon, HiBinaryData::ProcessorEditorHeaderIcons::closeIcon_Size);
             }
 
 	        void paint(Graphics& g) override
 	        {
+                float alpha = 0.05f;
+
                 if(active)
                 {
-	                g.fillAll(Colours::white.withAlpha(0.8f));
+                    alpha += 0.1f;
                 }
 
+                if(isMouseOver())
+                    alpha += 0.05f;
+
+                Path p;
+                p.addRoundedRectangle(0.0f, 0.0f, (float)getWidth() - 1.0f, (float)getHeight(), 4.0f, 4.0f, true, true, false, false);
+                g.setColour(Colours::white.withAlpha(alpha));
+                g.fillPath(p);
+
 		        g.setFont(GLOBAL_BOLD_FONT());
-                g.setColour(Colours::white.withAlpha(0.8f));
+                g.setColour(Colours::white.withAlpha(0.9f));
                 g.drawText(getName(), getLocalBounds().toFloat().reduced(5.0f), Justification::left);
+
+                g.setColour(Colours::white.withAlpha(0.6f));
+
                 g.fillPath(closePath);
 	        }
 
             void resized() override
             {
-	            PathFactory::scalePath(closePath, getLocalBounds().toFloat().removeFromRight((float)getHeight()).reduced(4.0f));
+	            PathFactory::scalePath(closePath, getLocalBounds().toFloat().removeFromRight((float)getHeight()).reduced(6.0f));
             }
 
             bool active = false;
@@ -1363,17 +1381,39 @@ private:
         };
 
         struct VarCodeEditor: public Component,
-						      public CodeDocument::Listener,
 							  public Timer
         {
             static void fillInfoObject(DynamicObject::Ptr obj, const ValueTree& p, const Array<std::pair<int64, String>>& codeTable)
             {
                 obj->setProperty(mpid::Type, p.getType().toString());
 
+                if(auto ar = obj->getProperty(mpid::Children).getArray())
+                    ar->clearQuick();
+
 	            for(int i = 0; i < p.getNumProperties(); i++)
 	            {
                     auto tid = p.getPropertyName(i);
-		            obj->setProperty(tid, p[tid]);
+
+                    if(tid == mpid::Code)
+                    {
+	                    auto hash = (int64)p.getProperty(tid);
+
+                        for(const auto& cp: codeTable)
+                        {
+	                        if(cp.first == hash)
+	                        {
+		                        obj->setProperty(tid, cp.second);
+                                break;
+	                        }
+                        }
+                    }
+                    else
+                    {
+	                    auto v = escapeString(ConversionType::XmlFormat, ConversionType::VarFormat, p[tid].toString());
+	                    v = escapeString(ConversionType::EditorFormat, ConversionType::VarFormat, v);
+
+			            obj->setProperty(tid, v);
+                    }
 	            }
 
                 if(p.getNumChildren() > 0)
@@ -1392,21 +1432,46 @@ private:
                         
                         fillInfoObject(no, c, codeTable);
                         ar->add(var(no.get()));
+
+                        
 	                }
                 }
             }
+
+            void focusOfChildComponentChanged (FocusChangeType cause)
+            {
+                if(auto t = findParentComponentOfClass<CodeEditorTab>())
+                {
+	                if(hasKeyboardFocus(true))
+	                {
+                        auto idx = t->editors.indexOf(this);
+                        int i = 0;
+
+		                for(auto b: t->tabButtons)
+		                {
+			                b->active = idx == i++;
+                            b->repaint();
+		                }
+	                }
+                }
+
+	            int x = 5;
+            }
+
+            
 
             static void setTextElement(XmlElement& xml, bool removeTextAttribute)
             {
                 if(removeTextAttribute && xml.hasAttribute("Text"))
 	            {
 		            auto t = xml.getStringAttribute("Text");
+
                     
+
                     xml.addTextElement(t);
                     xml.removeAttribute("Text");
 	            }
                 
-
                 for(int i = 0; i < xml.getNumChildElements(); i++)
                 {
                     if(xml.getChildElement(i)->isTextElement())
@@ -1414,6 +1479,7 @@ private:
                         if(!removeTextAttribute)
                         {
 	                        auto t = xml.getChildElement(i)->getText();
+                            
                             xml.setAttribute("Text", t);
                             xml.removeChildElement(xml.getChildElement(i), true);
                             i--;
@@ -1424,6 +1490,34 @@ private:
 
 	                setTextElement(*xml.getChildElement(i), removeTextAttribute);
                 }
+            }
+
+            enum class ConversionType
+            {
+	            XmlFormat,
+                EditorFormat,
+                VarFormat,
+                numFormats
+            };
+
+            static String escapeString(ConversionType source, ConversionType target, String text)
+            {
+                std::vector<std::array<StringRef, 3>> charTable;
+
+                //                    XML      EDITOR VAR
+                charTable.push_back({ "&#10;", "\\n", "\n"});
+                charTable.push_back({ "&gt;" , ">"  , ">"});
+                charTable.push_back({ "&#96;",  "`",   "`"});
+                charTable.push_back({ "&#9;",   "\t", "\t"});
+                charTable.push_back({ "&quot;", "\"", "\""});
+                charTable.push_back({ "&#167;", "§",  "§"});
+                charTable.push_back({ "&#94;", "^", "^"});
+                charTable.push_back({ "&lt;", "<", "<"});
+
+                for(const auto& ct: charTable)
+                        text = text.replace(ct[(int)source], ct[(int)target]);
+                
+                return text;
             }
 
             static void fillValueTree(ValueTree& p, const var& infoObject, Array<std::pair<int64, String>>& codeTable)
@@ -1437,26 +1531,26 @@ private:
                     {
                         auto code = nv.value.toString();
 
-                        if(code.length() > 60)
+                        if(code.isEmpty())
+                            continue;
+
+                        auto hash = code.hashCode64();
+
+                        bool found = false;
+
+                        for(auto& c: codeTable)
                         {
-                            auto hash = code.hashCode64();
-
-                            bool found = false;
-
-                            for(auto& c: codeTable)
+                            if(c.first == hash)
                             {
-	                            if(c.first == hash)
-	                            {
-		                            found = true;
-                                    break;
-	                            }
+	                            found = true;
+                                break;
                             }
-
-                            if(!found)
-								codeTable.add({hash, code});
-
-	                        p.setProperty(nv.name, var(hash), nullptr);
                         }
+
+                        if(!found)
+							codeTable.add({hash, code});
+
+                        p.setProperty(nv.name, var(hash), nullptr);
 	                    
                         continue;
                     }
@@ -1472,65 +1566,142 @@ private:
                     }
                     else
                     {
-                        if(nv.value.toString().isEmpty())
+                        if(nv.value.toString().isEmpty() || (nv.value.isBool() && !(bool)nv.value))
                             continue;
 
-	                    p.setProperty(nv.name, nv.value, nullptr);
+                        p.setProperty(nv.name, nv.value, nullptr);
                     }
 	            }
             }
 
-	        VarCodeEditor(const var& infoObject_, const Identifier& id_):
-              editor("CSS"),
-              infoObject(infoObject_),
-              id(id_)
-	        {
-                if(id == mpid::Children)
+            static void updateAfterRefresh(VarCodeEditor& editor, int pageIndex)
+            {
+                auto d = editor.findParentComponentOfClass<ComponentWithSideTab>()->getMainState()->currentDialog.get();
+
+                auto newObject = d->getInfoObjectForPath(editor.infoPath);
+
+                if(newObject.getDynamicObject() == nullptr)
                 {
-                    editor.syntax = "HTML";
-                    ValueTree p("Project");
-
-                    
-
-                    fillValueTree(p, infoObject, codeTable);
-
-                    p.removeAllProperties(nullptr);
-
-                    auto xml1 = p.createXml();
-                    setTextElement(*xml1, true);
-
-                    auto c = xml1->createDocument("", false);
-                    editor.doc.replaceAllContent(c);
-                    editor.editor->setLanguageManager(new mcl::XmlLanguageManager());
-
-                    editor.compileCallback = [this]()
-                    {
-	                    if(auto xml = XmlDocument::parse(editor.doc.getAllContent()))
-	                    {
-                            setTextElement(*xml, false);
-
-		                    auto v = ValueTree::fromXml(*xml);
-                            fillInfoObject(infoObject.getDynamicObject(), v, codeTable);
-
-                            DBG(JSON::toString(infoObject));
-	                    }
-
-                        return Result::ok();
-                    };
+	                editor.setEnabled(false);
+                    editor.editor.doc.replaceAllContent("Can't find the UI element for this tab. If you changed the ID / path make sure to load a new tab");
                 }
                 else
                 {
-                    if(id == mpid::Code)
-                        editor.syntax = "Javascript";
+                    editor.infoObject = newObject;
+
+                    if(editor.editor.syntax == "HTML")
+                    {
+	                    editor.rebuildHtml();
+                    }
                     else
-                        editor.syntax = "CSS";
+                    {
+	                    editor.editor.doc.replaceAllContent(editor.infoObject[editor.id].toString());
+                    }
+	                
+                }
+
+	            
+            }
+
+            void rebuildHtml()
+            {
+                ValueTree p(id == mpid::Children ? "Project" : infoObject[mpid::Type].toString());
+                fillValueTree(p, infoObject, codeTable);
+                p.removeAllProperties(nullptr);
+                auto xml1 = p.createXml();
+                setTextElement(*xml1, true);
+
+                auto c = xml1->createDocument("", false);
+                
+                c = c.fromFirstOccurrenceOf(R"(<?xml version="1.0" encoding="UTF-8"?>)", false, false).trim();
+
+                c = escapeString(ConversionType::XmlFormat, ConversionType::EditorFormat, c);
+
+                auto s = editor.codeDoc.getSelection(0);
+                editor.doc.replaceAllContent(c);
+
+                editor.codeDoc.setSelection(0, s, false);
+
+                
+            }
+
+            static String getSyntax(const Identifier& id)
+            {
+	            if(id == mpid::Style)
+                    return "CSS";
+                else if(id == mpid::Code)
+                    return "Javascript";
+                else
+                    return "HTML";
+            }
+
+	        VarCodeEditor(const var& infoObject_, const Identifier& id_, const String& infoPath_):
+              editor(getSyntax(id_)),
+              infoObject(infoObject_),
+              id(id_),
+              infoPath(infoPath_)
+	        {
+                if(id == mpid::Children || id_ == Identifier("HTML"))
+                {
+                    editor.compileCallback = [this]()
+	                {
+                        auto& currentPage = this->findParentComponentOfClass<ComponentWithSideTab>()->getMainState()->currentPageIndex;
+
+                        auto thisPageIndex = infoPath.upToFirstOccurrenceOf(".", false, false).getTrailingIntValue()-1;
+
+                        if(currentPage != thisPageIndex)
+                        {
+	                        currentPage = thisPageIndex;
+                        }
+
+                        auto t = editor.doc.getAllContent();
+
+                        XmlDocument d(t);;
+
+	                    if(auto xml = d.getDocumentElement())
+	                    {
+	                        setTextElement(*xml, false);
+
+		                    auto v = ValueTree::fromXml(*xml);
+
+	                        fillInfoObject(infoObject.getDynamicObject(), v, codeTable);
+	                        findParentComponentOfClass<ComponentWithSideTab>()->refreshDialog();
+	                    }
+                        else
+                        {
+                            String error = "Line 1: " + d.getLastParseError();
+	                        return Result::fail(error);
+                        }
+
+	                    return Result::ok();
+	                };
+
+                    rebuildHtml();
+                    
+                }
+                else
+                {
+                    editor.compileCallback = [this]()
+                    {
+                        auto& currentPage = this->findParentComponentOfClass<ComponentWithSideTab>()->getMainState()->currentPageIndex;
+
+                        auto thisPageIndex = infoPath.upToFirstOccurrenceOf(".", false, false).getTrailingIntValue()-1;
+
+                        if(currentPage != thisPageIndex)
+                        {
+	                        currentPage = thisPageIndex;
+                        }
+                        
+
+                        infoObject.getDynamicObject()->setProperty(id, editor.doc.getAllContent());
+                        return editor.compile(false);
+                    };
 
 	                editor.doc.replaceAllContent(infoObject[id].toString());
                 }
 
                 
                 editor.doc.clearUndoHistory();
-                editor.doc.addListener(this);
 		        addAndMakeVisible(editor);
 	        }
 
@@ -1543,22 +1714,14 @@ private:
 
             void resized() override { editor.setBounds(getLocalBounds()); }
 
-            void codeDocumentTextInserted (const String& newText, int insertIndex) override
-	        {
-		        startTimer(2000);
-	        }
-
-	        
-	        void codeDocumentTextDeleted (int startIndex, int endIndex) override
-	        {
-		        startTimer(2000);
-	        }
-
             AllEditor editor;
 
             var infoObject;
             Array<std::pair<int64, String>> codeTable;
             const Identifier id;
+            const String infoPath;
+
+            JUCE_DECLARE_WEAK_REFERENCEABLE(VarCodeEditor);
         };
 
         Layout currentLayout = Layout::Tabs;
@@ -1685,12 +1848,24 @@ private:
 
         void addCodeEditor(const var& infoObject, const Identifier& id)
         {
-            auto ne = new VarCodeEditor(infoObject, id);
+            auto d = findParentComponentOfClass<ComponentWithSideTab>()->getMainState()->currentDialog;
 
-            auto tabName = infoObject[mpid::ID].toString();
+            jassert(d != nullptr);
 
-            if(tabName.isEmpty())
-                tabName = id.toString();
+            auto tabName = id.toString() == "Style" ? "Main CSS" : d->getPathForInfoObject(infoObject);
+
+            auto ne = new VarCodeEditor(infoObject, id, tabName);
+
+            if(id != mpid::Style)
+            {
+                d->refreshBroadcaster.addListener(*ne, VarCodeEditor::updateAfterRefresh, false);
+
+	            var obj = d->getInfoObjectForPath(tabName);
+                // If this hits, the path detection is not correct...
+				jassert(obj.isObject() && obj == infoObject);
+
+                tabName << "." << id.toString();
+            }
 
             addAndMakeVisible(editors.add(ne));
 

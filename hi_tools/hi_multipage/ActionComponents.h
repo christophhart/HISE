@@ -150,11 +150,18 @@ struct JavascriptFunction: public ImmediateAction
 
     JavascriptFunction(Dialog& r, int w, const var& obj):
       ImmediateAction(r, w, obj)
-    {};
+    {
+	    if(!obj.hasProperty(mpid::Code))
+	    {
+		    obj.getDynamicObject()->setProperty(mpid::Code, "// Enter the code here...");
+	    }
+    }
 
     bool skipIfStateIsFalse() const override { return false; }
 
 	CREATE_EDITOR_OVERRIDE;
+
+    
 
 	Result onAction() override;
 
@@ -239,7 +246,7 @@ struct BackgroundTask: public Action
 
     bool hasOnSubmitEvent() const override
     {
-	    return triggerType == TriggerType::OnSubmit && !finished;
+	    return triggerType == TriggerType::OnSubmit && !finished && active;
     }
 
     virtual Result performTask(State::Job& t) = 0;
@@ -248,6 +255,8 @@ struct BackgroundTask: public Action
 
     void setActive(bool shouldBeActive) override
     {
+        active = shouldBeActive;
+
         if(!shouldBeActive)
             progress->setTextToDisplay("This step is inactive");
 
@@ -256,6 +265,8 @@ struct BackgroundTask: public Action
     }
     
 protected:
+
+    bool active = true;
 
     void addSourceTargetEditor(Dialog::PageInfo& rootList);
 

@@ -858,8 +858,9 @@ void AllEditor::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
 }
 
 
-AllEditor::AllEditor(const String& syntax):
+AllEditor::AllEditor(const String& syntax_):
 	codeDoc(doc),
+	syntax(syntax_),
 	editor(new mcl::TextEditor(codeDoc))
 {
 	if(syntax == "CSS")
@@ -888,9 +889,9 @@ AllEditor::~AllEditor()
 	editor = nullptr;
 }
 
-Result AllEditor::compile()
+Result AllEditor::compile(bool useCompileCallback)
 {
-	if(compileCallback)
+	if(compileCallback && useCompileCallback)
 		return compileCallback();
 
 	auto code = doc.getAllContent();
@@ -940,6 +941,11 @@ Result AllEditor::compile()
 
 		if(!ok.wasOk())
 			state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
+
+		if(auto d = state->currentDialog.get())
+		{
+			d->refreshCurrentPage();
+		}
 
 		return ok;
 	}
