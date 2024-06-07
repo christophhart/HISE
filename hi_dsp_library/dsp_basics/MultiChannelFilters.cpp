@@ -1027,7 +1027,7 @@ void StateVariableFilterSubType::processSamples(AudioSampleBuffer& buffer, int s
 			for (int i = 0; i < numSamples; ++i)
 			{
 				const float input = d[i];
-				const float HP = (input - x1 * z1_A[c] - v2[c]) / x2;
+				const float HP = (input - x1 * z1_A[c] - v2[c]) * x2;
 				const float BP = HP * gCoeff + z1_A[c];
 				const float LP = BP * gCoeff + v2[c];
 
