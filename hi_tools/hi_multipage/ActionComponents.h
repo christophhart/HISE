@@ -304,6 +304,19 @@ struct LambdaTask: public BackgroundTask
     var::NativeFunction lambda;
 };
 
+struct CommandLineTask: public BackgroundTask
+{
+	HISE_MULTIPAGE_ID("CommandLineTask");
+
+	CommandLineTask(Dialog& r, int w, const var& obj);;
+
+    Result performTask(State::Job& t) override;
+
+	String getDescription() const override { return "CommandLineTask"; }
+
+    CREATE_EDITOR_OVERRIDE;
+    
+};
 
 struct HttpRequest: public BackgroundTask
 {

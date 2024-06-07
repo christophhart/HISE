@@ -226,12 +226,7 @@ void JavascriptFunction::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that will perform a block of Javascript code. You can read / write data from the global state using the `state.variableName` syntax.");
 
-	rootList.addChild<CodeEditor>({
-		{ mpid::ID, "Code" },
-		{ mpid::Text, "Code" },
-		{ mpid::Value, infoObject[mpid::Code] },
-		{ mpid::Help, "The JS code that will be evaluated. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
-	});
+	
 }
 #endif
 
@@ -824,6 +819,72 @@ void LambdaTask::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Text, "Function" },
 		{ mpid::Value, infoObject[mpid::Function] },
 		{ mpid::Help, "The full function class name (`Class::functionName`) that will be used as lambda" }
+	});
+}
+#endif
+
+CommandLineTask::CommandLineTask(Dialog& r, int w, const var& obj):
+	BackgroundTask(r, w, obj)
+{
+	if(!obj.hasProperty(mpid::Code))
+	{
+		obj.getDynamicObject()->setProperty(mpid::Code, "");
+	}
+}
+
+Result CommandLineTask::performTask(State::Job& t)
+{
+	ChildProcess cp;
+
+
+
+	auto command = infoObject[mpid::Code].toString();
+
+	if(command.isEmpty())
+		return Result::fail("Command is empty");
+
+	auto ok = cp.start(command);
+
+	if(!ok)
+	{
+		return Result::fail("command wasn't found");
+	}
+
+	cp.waitForProcessToFinish(500);
+
+	auto result = cp.readAllProcessOutput();
+
+	rootDialog.logMessage(MessageType::ActionEvent, result);
+
+	auto exitCode = cp.getExitCode();
+
+	if(exitCode != 0)
+	{
+		return Result::fail(result);
+	}
+
+	return Result::ok();
+}
+
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+void CommandLineTask::createEditor(Dialog::PageInfo& rootList)
+{
+	createBasicEditor(*this, rootList, "An action element that launches a child process and executes a terminal command.)");
+
+	auto& col = rootList;
+
+	col.addChild<TextInput>({
+		{ mpid::ID, "Text" },
+		{ mpid::Text, "Text" },
+		{ mpid::Help, "The label text that will be shown next to the progress bar." }
+	});
+        
+	col.addChild<TextInput>({
+		{ mpid::ID, mpid::Code.toString() },
+		{ mpid::Text, mpid::Code.toString() },
+		{ mpid::Help, "The terminal command that should be executed." },
+		{ mpid::Code, infoObject[mpid::Code].toString() }
 	});
 }
 #endif
