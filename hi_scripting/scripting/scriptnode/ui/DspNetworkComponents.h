@@ -564,12 +564,7 @@ public:
 
 
 
-struct DspNetworkPathFactory : public PathFactory
-{
-	String getId() const override { return {}; }
 
-	Path createPath(const String& url) const override;
-};
 
 
 

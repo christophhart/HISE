@@ -344,7 +344,7 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
     const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
     const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::TargetThread::SampleLoadingThread;
     
-	jassert(isCommandLine || isSampleLoadingThread || !isInitialised());
+	jassert(isCommandLine || isSampleLoadingThread || !isInitialised() || isFlakyThreadingAllowed());
     ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 
@@ -380,7 +380,7 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
 			const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
 			const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::TargetThread::SampleLoadingThread;
 
-			jassert(!isInitialised() || isCommandLine || isSampleLoadingThread);
+			jassert(!isInitialised() || isCommandLine || isSampleLoadingThread || isFlakyThreadingAllowed());
 			ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 

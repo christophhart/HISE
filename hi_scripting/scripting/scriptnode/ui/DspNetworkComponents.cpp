@@ -175,9 +175,52 @@ static const unsigned char signalIcon[] = { 110,109,244,229,47,68,184,230,154,68
 	245,65,53,222,11,66,98,102,102,251,65,215,163,7,66,199,75,254,65,2,43,2,66,199,75,254,65,145,237,246,65,98,199,75,254,65,137,65,233,65,102,102,251,65,27,47,222,65,166,155,245,65,82,184,213,65,98,229,208,239,65,150,67,205,65,236,81,231,65,49,8,201,65,
 	184,30,220,65,49,8,201,65,98,133,235,208,65,49,8,201,65,188,116,200,65,248,83,205,65,94,186,194,65,133,235,213,65,98,0,0,189,65,18,131,222,65,209,34,186,65,227,165,233,65,209,34,186,65,236,81,247,65,98,209,34,186,65,250,126,2,66,207,247,188,65,201,246,
 	7,66,203,161,194,65,98,16,12,66,98,199,75,200,65,2,43,16,66,94,186,208,65,76,55,18,66,145,237,219,65,76,55,18,66,99,101,0,0 };
-
-
 }
+
+Array<PathFactory::Description> DspNetworkPathFactory::getDescription() const
+{
+	Array<Description> d;
+
+#define ADD_DESC(x) d.add({x, x});
+
+	ADD_DESC("probe");
+	ADD_DESC("colour");
+	ADD_DESC("cable");
+	ADD_DESC("fold");
+	ADD_DESC("foldunselected");
+	ADD_DESC("deselect");
+	ADD_DESC("undo");
+    ADD_DESC("eject");
+	ADD_DESC("redo");
+	ADD_DESC("rebuild");
+	ADD_DESC("goto");
+	ADD_DESC("properties");
+	ADD_DESC("bypass");
+	ADD_DESC("profile");
+	ADD_DESC("swap-orientation");
+	ADD_DESC("copy");
+	ADD_DESC("delete");
+	ADD_DESC("duplicate");
+	ADD_DESC("add");
+	ADD_DESC("zoom");
+	ADD_DESC("zoom-out");
+	ADD_DESC("zoom-fit");
+	ADD_DESC("zoom-sel");
+    ADD_DESC("signal");
+	ADD_DESC("error");
+	ADD_DESC("export");
+	ADD_DESC("wrap");
+	ADD_DESC("parameters");
+	ADD_DESC("surround");
+    ADD_DESC("save");
+    ADD_DESC("export");
+	ADD_DESC("debug");
+
+#undef ADD_DESC
+
+	return d;
+}
+
 
 juce::Path DspNetworkPathFactory::createPath(const String& url) const
 {

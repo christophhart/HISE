@@ -87,6 +87,18 @@ File MarkdownLink::toFile(FileType fileType, File rootToUse) const noexcept
 		if (asFolder.isDirectory())
 			return asFolder.getChildFile("Readme.md");
 
+		if(originalURL.containsChar('.'))
+		{
+			auto ou = originalURL;
+			if(ou.startsWithChar('/'))
+				ou = ou.substring(1, 90000);
+
+			auto of = rootToUse.getChildFile(ou);
+
+			if(of.existsAsFile())
+				return of;
+		}
+
 		return f;
 	}
 	case FileType::Directory:

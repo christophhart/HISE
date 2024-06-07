@@ -786,7 +786,7 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 
 void ScriptContentPanel::Editor::rebuildAfterContentChange()
 {
-	addButton("showall");
+	addButton("zoom-fit");
 
 	addCustomComponent(zoomSelector);
 
@@ -854,7 +854,7 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		b->setTooltip("Simulates the suspension of the UI timers (as if all interface would be closed).");
 		b->actionFunction = Actions::toggleSuspension;
 	}
-	if (name == "showall")
+	if (name == "zoom-fit")
 	{
 		b->actionFunction = [](Editor& e)
 		{
@@ -1457,7 +1457,7 @@ struct ServerController: public Component,
 		{
 			Path p;
 
-			LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+			LOAD_EPATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
 			LOAD_EPATH_IF_URL("clear", SampleMapIcons::deleteSamples);
 			LOAD_PATH_IF_URL("edit", ServerIcons::parameters);
 			LOAD_EPATH_IF_URL("web", MainToolbarIcons::web);
@@ -2215,7 +2215,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 	Path p;
 
-	LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+	LOAD_EPATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
 	LOAD_EPATH_IF_URL("edit", OverlayIcons::penShape);
 	LOAD_EPATH_IF_URL("editoff", OverlayIcons::lockShape);
 	LOAD_EPATH_IF_URL("lock", OverlayIcons::lockShape);
