@@ -133,7 +133,6 @@ namespace mpid
     DECLARE_ID(UseChildState);
     DECLARE_ID(UseGlobalAppData);
     DECLARE_ID(UseInitValue);
-    DECLARE_ID(UseOnValue);
     DECLARE_ID(UseLabel);
     DECLARE_ID(UsePost);
     DECLARE_ID(UseProject);

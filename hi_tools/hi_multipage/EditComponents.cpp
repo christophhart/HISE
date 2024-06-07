@@ -671,7 +671,6 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
     defaultValues.set(mpid::UseInitValue, false);
     defaultValues.set(mpid::InitValue, "");
     defaultValues.set(mpid::Required, false);
-    defaultValues.set(mpid::UseOnValue, false);
     defaultValues.set(mpid::Enabled, true);
     defaultValues.set(mpid::Foldable, false);
     defaultValues.set(mpid::Folded, false);
@@ -686,6 +685,7 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
         Identifier("UseFilter"),
         Identifier("Visible"),
         Identifier("Comment"),
+		Identifier("UseOnValue"),
 		Identifier("valueList"),
 		Identifier("textList"),
         Identifier("ManualAction"),
@@ -701,15 +701,7 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
         
 		if(nv.value.toString().isEmpty())
 			continue;
-
-        if(nv.name == mpid::Code)
-        {
-            if(prop.contains(mpid::UseOnValue) && !prop[mpid::UseOnValue])
-                continue;
-
-            
-        }
-        
+		
         if(defaultValues.contains(nv.name) && nv.value == defaultValues[nv.name])
             continue;
         
@@ -850,10 +842,6 @@ void AllEditor::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
 {
 	if(p == nullptr)
 		return;
-
-	auto infoObject = p->findParentComponentOfClass<Dialog>()->getState().globalState;
-
-	DBG(JSON::toString(infoObject));
 
 	if(auto ms = p->findParentComponentOfClass<ComponentWithSideTab>())
 	{

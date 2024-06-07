@@ -317,11 +317,6 @@ var HtmlParser::getElement(DataProvider* d, HeaderInformation& hi, XmlElement* x
 			}
 		}
 
-		if(nv->hasProperty(mpid::Code))
-		{
-			nv->setProperty(mpid::UseOnValue, true);
-		}
-
 		if(itemList.isNotEmpty())
 			nv->setProperty(mpid::Items, var(itemList.upToLastOccurrenceOf("\n", false, false)));
 

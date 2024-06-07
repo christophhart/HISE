@@ -41,29 +41,10 @@ using namespace juce;
 #if HISE_MULTIPAGE_INCLUDE_EDIT
 void addOnValueCodeEditor(const var& infoObject, Dialog::PageInfo& rootList)
 {
-    rootList.addChild<Button>({
-        { mpid::ID, "UseOnValue" },
-        { mpid::Text, "UseOnValue" },
-        { mpid::Value, infoObject[mpid::UseOnValue]},
-        { mpid::Help, "Whether to use the `element.onValue(value)` function defined in the `Code` property"}
-    });
-
     auto code = infoObject[mpid::Code].toString();
 
-    if(code.isEmpty())
-    {
-	    code << "Console.print(value);";
-        infoObject.getDynamicObject()->setProperty(mpid::Code, code);
-    }
-
-#if 0
-	rootList.addChild<CodeEditor>({
-		{ mpid::ID, "Code" },
-		{ mpid::Text, "Code" },
-		{ mpid::Value, infoObject[mpid::Code] },
-        { mpid::Help, "This can be used to attach a callback to any value change. This is not HiseScript but vanilla JS!  \n> If you want to log something to the console, use `Console.print(message);`." } 
-	});
-#endif
+    
+    
     
 }
 
@@ -1630,7 +1611,7 @@ void Table::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "How the table stores the selected item (either the zero based index of the selected row or the `[column, row]` position of the clicked cell" },
 		{ mpid::Items, "Row\nGrid\nFirstColumnText" },
 		{ mpid::Value, infoObject[mpid::ValueMode] },
-		{ mpid::UseOnValue, 0 }
+		
 	});
 
     rootList.addChild<factory::Button>(DefaultProperties::getForSetting(infoObject, mpid::Multiline,

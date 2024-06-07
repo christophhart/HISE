@@ -104,6 +104,7 @@ Result Container::checkGlobalState(var globalState)
 {
     var toUse = globalState;
 
+#if 0
     if(id.isValid())
     {
 	    if(toUse.hasProperty(id))
@@ -115,6 +116,7 @@ Result Container::checkGlobalState(var globalState)
             toUse = var(no);
         }
     }
+#endif
 
 	return checkChildren(this, toUse);
 	
