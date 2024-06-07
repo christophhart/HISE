@@ -81,7 +81,7 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 		valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(NodeComponent::Header::updatePowerButtonState));
 
-	colourUpdater.setCallback(parent.node->getValueTree(), { PropertyIds::NodeColour }, valuetree::AsyncMode::Asynchronously,
+	colourUpdater.setCallback(parent.node->getValueTree(), { PropertyIds::NodeColour }, valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(NodeComponent::Header::updateColour));
 
 	dynamicPowerUpdater.setTypesToWatch({ PropertyIds::Nodes, PropertyIds::Connections });
