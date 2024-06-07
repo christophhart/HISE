@@ -226,15 +226,7 @@ Dialog* ProjectExporter::createDialog(State& state)
       { mpid::EmptyText, "Enter Team Development ID " },
       { mpid::Height, 80 },
       { mpid::Help, "The macOS Team Development ID for signing the compiled binary." },
-      { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-    // Will be called whenever the value changes
-    Console.print(value);
-}
-)" }
+      { mpid::Code, R"()" }
     });
 
     List_0.addChild<Spacer>({

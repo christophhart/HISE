@@ -1315,6 +1315,10 @@ var Dialog::exportAsJSON() const
 		return false;
 	});
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+	CodeGenerator::sanitizeData(copy);
+#endif
+
 	return copy;
 }
 

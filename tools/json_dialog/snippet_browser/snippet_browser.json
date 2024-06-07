@@ -48,8 +48,12 @@
       "Colour the Keyboard.md",
       "Console.md",
       "Control 3 parameters in 3 ranges with 1 Knob.md",
+      "Custom Event Data 101.md",
+      "Custom Event Data 102.md",
+      "Custom Event Data 103.md",
       "Date.md",
       "Dynamic List.md",
+      "Dynamic voice routing.md",
       "Faust Zita Reverb.md",
       "Global Modulator Container.md",
       "GLSL Hello World.md",
@@ -71,9 +75,12 @@
       "Rotate an image.md",
       "Saving custom LFO Shapes.md",
       "Script references and callbacks for components.md",
+      "Scriptnode Oscillator Visualisation.md",
       "Scriptnode Visualisation 101.md",
       "Scriptnode Voice Management.md",
       "ScriptPanel Slider.md",
+      "Sidechain Example 1.md",
+      "Sidechain Example 2.md",
       "SixState Filmstrip Button.md",
       "SNEX Oneshot Player.md",
       "SNEX Portamento Oscillator.md",
@@ -88,7 +95,7 @@
     ],
     "category": 0,
     "showUserOnly": 0,
-    "clearFilter": true,
+    "clearFilter": false,
     "searchBar": "",
     "tagList": [],
     "addButton": true,
@@ -103,7 +110,9 @@
     "downloadSnippets": false,
     "downloadAssets": "true",
     "ButtonId": true,
-    "settingButton": true
+    "settingButton": false,
+    "editButton": false,
+    "applyButton": true
   },
   "Children": [
     {
@@ -111,134 +120,71 @@
       "Children": [
         {
           "Type": "Column",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "Button",
               "Text": "",
               "ID": "addButton",
-              "Enabled": true,
               "Code": "showAddPage(false);\n",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".top-button",
-              "Style": "",
               "NoLabel": true,
-              "Help": "",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "Tooltip": "Add snippet to browser"
             },
             {
               "Type": "Button",
               "Text": "",
               "ID": "editButton",
-              "Enabled": true,
               "Code": "showAddPage(true);\n",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".top-button",
               "Style": "display:none;",
               "NoLabel": true,
-              "Help": "",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "Tooltip": "Edit the currently loaded snippet"
             },
             {
               "Type": "SimpleText",
               "Text": "Snippet Browser",
-              "ID": "",
-              "Class": "",
               "Style": "flex-grow: 1"
             },
             {
               "Type": "Button",
-              "Text": "LabelText",
               "ID": "settingButton",
-              "Enabled": true,
               "Code": "document.navigate(1);",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".top-button",
-              "Style": "",
-              "Help": "",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "NoLabel": true,
               "Tooltip": "Show the snippet browser settings"
             }
           ],
-          "ID": "",
-          "Style": "",
-          "Class": ".header-label",
-          "UseChildState": false
+          "Class": ".header-label"
         },
         {
           "Type": "List",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "PersistentSettings",
-              "Text": "LabelText",
               "ID": "snippetBrowser",
               "Filename": "snippetBrowser",
               "UseChildState": true,
-              "Items": "snippetDirectory:\"\"\nauthor: \"\"",
-              "UseProject": false,
-              "ParseJSON": false
+              "Items": "snippetDirectory:\"\"\nauthor: \"\""
             },
             {
               "Type": "DirectoryScanner",
-              "Text": "LabelText",
               "Source": "$snippetDirectory",
               "ID": "snippetRoot",
               "RelativePath": true,
-              "Wildcard": "*.md",
-              "Directory": false
+              "Wildcard": "*.md"
             }
           ],
-          "ID": "",
-          "Foldable": false,
-          "Folded": false,
-          "Style": "display: none;",
-          "UseChildState": false,
-          "Class": ""
+          "Style": "display: none;"
         },
         {
           "Type": "Column",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "TextInput",
-              "Text": "LabelText",
               "ID": "searchBar",
-              "Enabled": true,
               "Code": "rebuildTable();",
-              "InitValue": "",
-              "UseInitValue": false,
-              "Class": "",
-              "Style": "",
-              "EmptyText": "",
-              "Required": false,
-              "ParseArray": false,
               "Height": 80,
-              "Items": "",
-              "Help": "",
-              "Multiline": false,
-              "UseOnValue": true,
-              "CallOnTyping": true,
-              "NoLabel": false,
-              "Autofocus": false
+              "CallOnTyping": true
             },
             {
               "Type": "Button",
@@ -246,64 +192,30 @@
               "ID": "clearFilter",
               "Enabled": false,
               "Code": "clearFilter();",
-              "InitValue": "",
-              "UseInitValue": false,
-              "Class": "",
-              "Style": "",
               "NoLabel": true,
-              "Help": "",
-              "Tooltip": "Clear all filters",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true
+              "Tooltip": "Clear all filters"
             },
             {
               "Type": "Button",
-              "Text": "LabelText",
               "ID": "showUserOnly",
-              "Enabled": true,
               "Code": "rebuildTable();",
-              "InitValue": "",
-              "UseInitValue": false,
-              "Class": "",
-              "Style": "",
               "NoLabel": true,
-              "Help": "",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "Tooltip": "Show only user generated snippets"
             }
-          ],
-          "ID": "",
-          "Style": "",
-          "Class": "",
-          "UseChildState": false
+          ]
         },
         {
           "Type": "Column",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "Button",
               "Text": "All",
               "ID": "category",
-              "Enabled": true,
               "Code": "rebuildTable();",
               "InitValue": "0",
               "UseInitValue": true,
               "Class": ".category-button .first-child",
-              "Style": "",
-              "Help": "",
-              "Required": false,
               "ButtonType": "Toggle",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "NoLabel": true,
               "Tooltip": "Shows uncategorized / all snippets"
             },
@@ -311,18 +223,9 @@
               "Type": "Button",
               "Text": "Modules",
               "ID": "category",
-              "Enabled": true,
               "Code": "rebuildTable();",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".category-button",
-              "Style": "",
-              "Help": "",
-              "Required": false,
               "ButtonType": "Toggle",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "NoLabel": true,
               "Tooltip": "Show snippets that demonstrate HISE modules"
             },
@@ -330,18 +233,9 @@
               "Type": "Button",
               "Text": "MIDI",
               "ID": "category",
-              "Enabled": true,
               "Code": "rebuildTable();",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".category-button",
-              "Style": "",
-              "Help": "",
-              "Required": false,
               "ButtonType": "Toggle",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "NoLabel": true,
               "Tooltip": "Show snippets related to MIDI processing"
             },
@@ -349,18 +243,9 @@
               "Type": "Button",
               "Text": "Scripting",
               "ID": "category",
-              "Enabled": true,
               "Code": "rebuildTable();",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".category-button",
-              "Style": "",
-              "Help": "",
-              "Required": false,
               "ButtonType": "Toggle",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "NoLabel": true,
               "Tooltip": "Show scripting snippets"
             },
@@ -368,18 +253,9 @@
               "Type": "Button",
               "Text": "Scriptnode",
               "ID": "category",
-              "Enabled": true,
               "Code": "rebuildTable();",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".category-button",
-              "Style": "",
-              "Help": "",
-              "Required": false,
               "ButtonType": "Toggle",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "NoLabel": true,
               "Tooltip": "Show DSP snippets using scriptnode and Faust / SNEX"
             },
@@ -387,26 +263,14 @@
               "Type": "Button",
               "Text": "UI",
               "ID": "category",
-              "Enabled": true,
               "Code": "rebuildTable();",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".category-button .last-child",
-              "Style": "",
-              "Help": "",
-              "Required": false,
               "ButtonType": "Toggle",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "NoLabel": true,
               "Tooltip": "Show snippets related to UI design"
             }
           ],
-          "ID": "",
-          "Style": "gap:1px;height: auto;",
-          "Class": "",
-          "UseChildState": false
+          "Style": "gap:1px;height: auto;"
         },
         {
           "Type": "List",
@@ -414,36 +278,20 @@
           "Children": [
             {
               "Type": "TagList",
-              "Text": "LabelText",
               "ID": "tagList",
               "Items": "API\nBest Practice\nBroadcaster\nComplex\nFaust\nFeatured\nFirst contact\nFull Project\nFramework\nGraphics API\nHelper Tools\nHost Sync\nInternal Messaging\nLookAndFeel\nMIDI Player\nScriptPanel\nSimple\nSNEX\nUI Logic",
-              "Class": "",
-              "Style": "",
-              "Code": "rebuildTable();",
-              "UseOnValue": true
+              "Code": "rebuildTable();"
             }
           ],
-          "ID": "",
           "Foldable": true,
-          "Folded": true,
-          "UseChildState": false,
-          "Class": "",
-          "Style": ""
+          "Folded": true
         },
         {
           "Type": "Table",
-          "Text": "LabelText",
           "ValueMode": "Row",
           "ID": "snippetList",
           "Columns": "name:Name;max-width:-1;\nname:Author;max-width: 140px;width: 110px;",
-          "Items": "",
-          "Class": "",
-          "Style": "",
-          "FilterFunction": "showItem",
-          "Code": "Console.print(value);",
-          "Multiline": false,
-          "UseFilter": true,
-          "UseOnValue": false
+          "FilterFunction": "showItem"
         },
         {
           "Type": "MarkdownText",
@@ -454,257 +302,137 @@
         },
         {
           "Type": "JavascriptFunction",
-          "Text": "LabelText",
           "ID": "JavascriptFunctionId",
-          "EventTrigger": "OnPageLoad",
-          "Code": "var CATEGORIES = [\"All\", \"Modules\", \"MIDI\", \"Scripting\", \"Scriptnode\", \"UI\"];\n\r\nparsedData = [];\r\n\nvar cf = document.getElementById(\"clearFilter\");\n\nvar rebuildTable = function()\n{\n\tvar hasFilter = state.category != 0;\n\thasFilter = hasFilter || state.searchBar.length != 0;\n\thasFilter = hasFilter || state.tagList.length != 0;\n\thasFilter = hasFilter || state.showUserOnly;\n\n\tConsole.print(hasFilter ? \"HAS FILTER\" : \"HAS NO FILTER\");\n\n\tcf.setAttribute(\"disabled\", !hasFilter);\n\tcf.updateElement();\n\ttable.updateElement();\n};\n\nvar clearFilter = function()\n{\n\tstate.category = 0;\n\tstate.searchBar = \"\";\n\tstate.tagList = [];\n\tstate.showUserOnly = false;\n\n\tdocument.navigate(0, false);\n\n\tConsole.print(\"CLEAR FILTER\");\n};\n\nvar showAddPage = function(editCurrentSnippet)\n{\n\tstate.saveFileButton = false;\n\t\n\tif(!editCurrentSnippet)\n\t{\n\t\tstate.newName = \"\";\n\t\tstate.description = \"\";\n\t\tstate.addCategory = 0;\n\t\tstate.addTagList = [];\n\t}\n\telse if (currentlyLoadedData != 0)\n\t{\n\t\tvar catValue = CATEGORIES.indexOf(currentlyLoadedData.category);\n\t\t\n\t\tConsole.print(\"CAT: \" + catValue);\n\t\t\n\t\tstate.newName = currentlyLoadedData.name;\n\t\tstate.addCategory = catValue;\n\t\tstate.addTagList = currentlyLoadedData.tags.clone();\n\t\t\n\t\tConsole.print(\"TAGS: \" + trace(currentlyLoadedData.tags.clone()));\n\t\t\n\t\tstate.description = currentlyLoadedData.description;\n\t}\n\t\n\t\n\tdocument.navigate(2, false);\n};\n\nvar showItem = function(index, data)\n{\n\tvar name = data[0];\n\n\tif(state.category != 0)\n\t{\n\t\tvar cc = CATEGORIES[state.category];\n\t\tvar tc = parsedData[index].category;\n\t\t\n\t\tif(cc != tc)\n\t\t\treturn false;\n\t}\n\t\n\tvar tagFound = state.tagList.length == 0;\n\t\n\tfor(i = 0; i < state.tagList.length; i++)\n\t{\n\t\tvar tt = parsedData[index].tags;\n\t\t\n\t\tif(tt.indexOf(state.tagList[i]) != -1)\n\t\t\ttagFound = true;\n\t}\n\t\n\tif(!tagFound)\n\t\treturn false;\n\t\n\tif(state.searchBar.length > 0)\n\t{\n\t\tif(name.toLowerCase().indexOf(state.searchBar.toLowerCase()) == -1)\n\t\t\treturn false;\n\t}\n\t\n\tif(state.showUserOnly && state.author != parsedData[index].author)\n\t{\n\t\treturn false;\n\t}\n\t\n\treturn true;\n};\n\r\nvar hiddenItems = [\"README.md\", \"LICENSE.md\", \"_Template.md\", \"SnippetDB.md\"];\r\n\r\nvar tags = [];\r\n\r\nfor(i = 0; i < state.snippetRoot.length; i++)\r\n{\r\n\tvar item = state.snippetRoot[i];\r\n\r\n\tif(hiddenItems.indexOf(item) != -1)\r\n\t\tcontinue;\r\n\r\n\tvar content = document.readFile(state.snippetDirectory + \"/\" + state.snippetRoot[i]);\r\n\tcontent = content.substring(3, 100000);\r\n\tvar end = content.indexOf(\"---\");\r\n\tvar header = content.substring(0, end);\r\n\tvar description = content.substring(end + 4, 100000);\r\n\tvar ml = header.split(\"\\n\");\r\n\tvar data = {};\r\n\t\r\n\tdata[\"name\"] = item.split(\".\")[0];\r\n\tdata[\"description\"] = description;\r\n\tdata.tags = [];\r\n\t\r\n\tfor(j = 0; j < ml.length; j++)\r\n\t{\r\n\t\tvar kv = ml[j].split(\":\");\r\n\t\tvar key = kv[0];\n\t\t\n\t\tif(key == undefined)\n\t\t\tcontinue;\r\n\t\t\t\r\n\t\tif(key == \"tags\")\r\n\t\t{\r\n\t\t\tvar tagList = kv[1].split(\",\");\r\n\t\t\t\r\n\t\t\tfor(t = 0; t < tagList.length; t++)\r\n\t\t\t{\r\n\t\t\t\tvar tt = tagList[t].trim();\r\n\t\t\t\t\r\n\t\t\t\tif(tt.length > 0)\r\n\t\t\t\t\tdata.tags.push(tt);\r\n\t\t\t}\r\n\t\t}\r\n\t\telse\r\n\t\t{\r\n\t\t\tif(key.length > 0 && kv.length > 1)\r\n\t\t\t\tdata[key] = kv[1].trim();\r\n\t\t}\r\n\t}\r\n\t\r\n\tfor(j = 0; j < data.tags.length; j++)\r\n\t{\r\n\t\tif(tags.indexOf(data.tags[j]) == -1)\r\n\t\t\ttags.push(data.tags[j]);\r\n\t}\r\n\t\r\n\tparsedData.push(data);\r\n}\r\n\nif(state.sortByPriority)\n{\n\tparsedData.sort(function(d1, d2)\n\t{\n\t\tvar p1 = d1.priority ? d1.priority : 3;\n\t\tvar p2 = d2.priority ? d2.priority : 3;\n\t\t\n\t\tif(p1 > p2)\n\t\t\treturn -1;\n\t\telse if(p1 < p2)\n\t\t\treturn 1;\n\t\telse\n\t\t\treturn 0;\n\t});\n}\n\n\n\r\n\r\n\r\nvar tl = document.getElementById(\"tagList\");\r\n\r\n\r\nvar table = document.getElementById(\"snippetList\");\r\n\r\nvar newItems = \"\";\r\n\r\nfor(i = 0; i < parsedData.length; i++)\r\n{\r\n\tvar item = parsedData[i];\r\n\r\n\tif(hiddenItems.indexOf(item.name) != -1)\r\n\t\tcontinue;\r\n\r\n\tnewItems += item.name + \"| \" + item.author + \" |\";\r\n\t\r\n\tif(i != state.snippetRoot.length - 1)\r\n\t\tnewItems += \"\\n\";\t\r\n}\r\n\r\ntable.setAttribute(\"items\", newItems);\r\n\ntable.addEventListener(\"select\", function()\n{\n\tvar data = parsedData[this.originalRow];\n\tdescription.innerText = data.description;\n});\n\nvar loadSnippet = document.bindCallback(\"loadSnippet\", function(fullPath, category)\n{\n\tConsole.print(\"LOAD SNIPPET: \" + fullPath + \" from category \" + category);\n});\n\nvar currentlyLoadedData = 0;\n\nvar loadFunction = function()\n{\n\tvar data = parsedData[this.originalRow];\n\tcurrentlyLoadedData = data;\n\t\n\tdocument.getElementById(\"editButton\").style.display = \"flex\";\n\t\n\t\n\tloadSnippet(data.HiseSnippet, data.category);\n};\n\ntable.addEventListener(\"dblclick\", loadFunction);\ntable.addEventListener(\"keydown\", loadFunction);\n\r\nvar description = document.getElementById(\"descriptionDisplay\");\r\ndescription.innerText = \"Please double click a snippet to load...\";\r\n\nif(state.snippetDirectory.length == 0)\n{\n\tdocument.navigate(1);\n}\n\nvar editButton = document.getElementById(\"editButton\");\neditButton.style.display = \"none\";\n\ndocument.clearEventListeners(\"mainEvents\");\n\ndocument.addEventListener(\"save\", function()\n{\n\ttable.setAttribute(\"items\", \"\");\n});\n\nrebuildTable();\n",
-          "EventTrigger": "OnPageLoad"
+          "Code": "var CATEGORIES = [\"All\", \"Modules\", \"MIDI\", \"Scripting\", \"Scriptnode\", \"UI\"];\n\r\nparsedData = [];\r\n\nvar cf = document.getElementById(\"clearFilter\");\n\nvar rebuildTable = function()\n{\n\tvar hasFilter = state.category != 0;\n\thasFilter = hasFilter || state.searchBar.length != 0;\n\thasFilter = hasFilter || state.tagList.length != 0;\n\thasFilter = hasFilter || state.showUserOnly;\n\n\tConsole.print(hasFilter ? \"HAS FILTER\" : \"HAS NO FILTER\");\n\n\tcf.setAttribute(\"disabled\", !hasFilter);\n\tcf.updateElement();\n\ttable.updateElement();\n};\n\nvar clearFilter = function()\n{\n\tstate.category = 0;\n\tstate.searchBar = \"\";\n\tstate.tagList = [];\n\tstate.showUserOnly = false;\n\n\tdocument.navigate(0, false);\n\n\tConsole.print(\"CLEAR FILTER\");\n};\n\nvar showAddPage = function(editCurrentSnippet)\n{\n\tstate.saveFileButton = false;\n\t\n\tif(!editCurrentSnippet)\n\t{\n\t\tstate.newName = \"\";\n\t\tstate.description = \"\";\n\t\tstate.addCategory = 0;\n\t\tstate.addTagList = [];\n\t}\n\telse if (currentlyLoadedData != 0)\n\t{\n\t\tvar catValue = CATEGORIES.indexOf(currentlyLoadedData.category);\n\t\t\n\t\tConsole.print(\"CAT: \" + catValue);\n\t\t\n\t\tstate.newName = currentlyLoadedData.name;\n\t\tstate.addCategory = catValue;\n\t\tstate.addTagList = currentlyLoadedData.tags.clone();\n\t\t\n\t\tConsole.print(\"TAGS: \" + trace(currentlyLoadedData.tags.clone()));\n\t\t\n\t\tstate.description = currentlyLoadedData.description;\n\t}\n\t\n\t\n\tdocument.navigate(2, false);\n};\n\nvar showItem = function(index, data)\n{\n\tvar name = data[0];\n\n\tif(state.category != 0)\n\t{\n\t\tvar cc = CATEGORIES[state.category];\n\t\tvar tc = parsedData[index].category;\n\t\t\n\t\tif(cc != tc)\n\t\t\treturn false;\n\t}\n\t\n\tvar tagFound = state.tagList.length == 0;\n\t\n\tfor(i = 0; i < state.tagList.length; i++)\n\t{\n\t\tvar tt = parsedData[index].tags;\n\t\t\n\t\tif(tt.indexOf(state.tagList[i]) != -1)\n\t\t\ttagFound = true;\n\t}\n\t\n\tif(!tagFound)\n\t\treturn false;\n\t\n\tif(state.searchBar.length > 0)\n\t{\n\t\tif(name.toLowerCase().indexOf(state.searchBar.toLowerCase()) == -1)\n\t\t\treturn false;\n\t}\n\t\n\tif(state.showUserOnly && state.author != parsedData[index].author)\n\t{\n\t\treturn false;\n\t}\n\t\n\treturn true;\n};\n\r\nvar hiddenItems = [\"README.md\", \"LICENSE.md\", \"_Template.md\", \"SnippetDB.md\"];\r\n\r\nvar tags = [];\r\n\r\nfor(i = 0; i < state.snippetRoot.length; i++)\r\n{\r\n\tvar item = state.snippetRoot[i];\r\n\r\n\tif(hiddenItems.indexOf(item) != -1)\r\n\t\tcontinue;\r\n\r\n\tvar content = document.readFile(state.snippetDirectory + \"/\" + state.snippetRoot[i]);\r\n\tcontent = content.substring(3, 100000);\r\n\tvar end = content.indexOf(\"---\");\r\n\tvar header = content.substring(0, end);\r\n\tvar description = content.substring(end + 4, 100000);\r\n\tvar ml = header.split(\"\\n\");\r\n\tvar data = {};\r\n\t\r\n\tdata[\"name\"] = item.split(\".\")[0];\r\n\tdata[\"description\"] = description;\r\n\tdata.tags = [];\r\n\t\r\n\tfor(j = 0; j < ml.length; j++)\r\n\t{\r\n\t\tvar kv = ml[j].split(\":\");\r\n\t\tvar key = kv[0];\n\t\t\n\t\tif(key == undefined)\n\t\t\tcontinue;\r\n\t\t\t\r\n\t\tif(key == \"tags\")\r\n\t\t{\r\n\t\t\tvar tagList = kv[1].split(\",\");\r\n\t\t\t\r\n\t\t\tfor(t = 0; t < tagList.length; t++)\r\n\t\t\t{\r\n\t\t\t\tvar tt = tagList[t].trim();\r\n\t\t\t\t\r\n\t\t\t\tif(tt.length > 0)\r\n\t\t\t\t\tdata.tags.push(tt);\r\n\t\t\t}\r\n\t\t}\r\n\t\telse\r\n\t\t{\r\n\t\t\tif(key.length > 0 && kv.length > 1)\r\n\t\t\t\tdata[key] = kv[1].trim();\r\n\t\t}\r\n\t}\r\n\t\r\n\tfor(j = 0; j < data.tags.length; j++)\r\n\t{\r\n\t\tif(tags.indexOf(data.tags[j]) == -1)\r\n\t\t\ttags.push(data.tags[j]);\r\n\t}\r\n\t\r\n\tparsedData.push(data);\r\n}\r\n\nif(state.sortByPriority)\n{\n\tparsedData.sort(function(d1, d2)\n\t{\n\t\tvar p1 = d1.priority ? d1.priority : 3;\n\t\tvar p2 = d2.priority ? d2.priority : 3;\n\t\t\n\t\tif(p1 > p2)\n\t\t\treturn -1;\n\t\telse if(p1 < p2)\n\t\t\treturn 1;\n\t\telse\n\t\t\treturn 0;\n\t});\n}\n\n\n\r\n\r\n\r\nvar tl = document.getElementById(\"tagList\");\r\n\r\n\r\nvar table = document.getElementById(\"snippetList\");\r\n\r\nvar newItems = \"\";\r\n\r\nfor(i = 0; i < parsedData.length; i++)\r\n{\r\n\tvar item = parsedData[i];\r\n\r\n\tif(hiddenItems.indexOf(item.name) != -1)\r\n\t\tcontinue;\r\n\r\n\tnewItems += item.name + \"| \" + item.author + \" |\";\r\n\t\r\n\tif(i != state.snippetRoot.length - 1)\r\n\t\tnewItems += \"\\n\";\t\r\n}\r\n\r\ntable.setAttribute(\"items\", newItems);\r\n\ntable.addEventListener(\"select\", function()\n{\n\tvar data = parsedData[this.originalRow];\n\tdescription.innerText = data.description;\n});\n\nvar loadSnippet = document.bindCallback(\"loadSnippet\", function(fullPath, category)\n{\n\tConsole.print(\"LOAD SNIPPET: \" + fullPath + \" from category \" + category);\n});\n\nvar currentlyLoadedData = 0;\n\nvar loadFunction = function()\n{\n\tvar data = parsedData[this.originalRow];\n\tcurrentlyLoadedData = data;\n\t\n\tdocument.getElementById(\"editButton\").style.display = \"flex\";\n\t\n\t\n\tloadSnippet(data.HiseSnippet, data.category);\n};\n\ntable.addEventListener(\"dblclick\", loadFunction);\ntable.addEventListener(\"keydown\", loadFunction);\n\r\nvar description = document.getElementById(\"descriptionDisplay\");\r\ndescription.innerText = \"Please double click a snippet to load...\";\r\n\nif(state.snippetDirectory.length == 0)\n{\n\tdocument.navigate(1);\n}\n\nvar editButton = document.getElementById(\"editButton\");\neditButton.style.display = \"none\";\n\ndocument.clearEventListeners(\"mainEvents\");\n\ndocument.addEventListener(\"save\", function()\n{\n\ttable.setAttribute(\"items\", \"\");\n});\n\nrebuildTable();\n"
         },
         {
           "Type": "TextInput",
-          "Text": "LabelText",
           "ID": "author",
-          "Enabled": true,
-          "Code": "Console.print(value);",
-          "InitValue": "",
-          "UseInitValue": false,
-          "Class": "",
           "Style": "display: none;",
-          "NoLabel": false,
-          "EmptyText": "",
-          "Required": false,
-          "ParseArray": false,
-          "Height": 80,
-          "Items": "",
-          "Help": "",
-          "Multiline": false,
-          "Autofocus": false,
-          "UseOnValue": false,
-          "CallOnTyping": false
+          "Height": 80
         }
       ],
-      "ID": "",
       "Text": "",
-      "Foldable": false,
-      "Folded": false,
-      "Style": "gap: 10px; height: 100%;",
-      "UseChildState": false,
-      "Class": ""
+      "Style": "gap: 10px; height: 100%;"
     },
     {
       "Type": "List",
       "Children": [
         {
           "Type": "Column",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "SimpleText",
               "Text": "Snippet Browser",
-              "ID": "",
               "Class": "#headerlabel",
               "Style": "flex-grow: 1;"
             },
             {
               "Type": "Button",
-              "Text": "LabelText",
               "ID": "applyButton",
-              "Enabled": true,
               "Code": "document.navigate(0, false);",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".top-button",
-              "Style": "",
-              "Help": "",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true,
               "NoLabel": true
             }
           ],
-          "ID": "",
-          "Style": "",
-          "Class": ".header-label",
-          "UseChildState": false
+          "Class": ".header-label"
         },
         {
           "Type": "MarkdownText",
-          "Text": "Setup the snippet directory and download the demo assets & snippet data.\n\n",
-          "ID": "",
-          "Class": "",
-          "Style": ""
+          "Text": "Setup the snippet directory and download the demo assets & snippet data.\n\n"
         },
         {
           "Type": "PersistentSettings",
-          "Text": "LabelText",
           "ID": "snippetBrowser",
           "Filename": "snippetBrowser",
           "UseChildState": true,
-          "Items": "snippetDirectory:\"\"\nauthor: \"\"",
-          "UseProject": false,
-          "ParseJSON": false
+          "Items": "snippetDirectory:\"\"\nauthor: \"\""
         },
         {
           "Type": "List",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "Column",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "SimpleText",
                   "Text": "Snippet Directory",
-                  "ID": "",
-                  "Style": "text-align: left; width: auto;",
-                  "Class": ""
+                  "Style": "text-align: left; width: auto;"
                 },
                 {
                   "Type": "Button",
                   "Text": "",
                   "ID": "showLocation",
-                  "Enabled": true,
-                  "Code": "Console.print(value);",
-                  "InitValue": "",
-                  "UseInitValue": false,
-                  "Class": "",
-                  "Style": "",
                   "NoLabel": true,
-                  "Help": "",
-                  "Tooltip": "Open the snippet directory in the OS file browser",
-                  "Required": false,
-                  "ButtonType": "",
-                  "Icon": "",
-                  "Trigger": false,
-                  "UseOnValue": true
+                  "Tooltip": "Open the snippet directory in the OS file browser"
                 }
-              ],
-              "ID": ""
+              ]
             },
             {
               "Type": "FileSelector",
               "Text": "Directory",
               "ID": "snippetDirectory",
-              "Enabled": true,
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
-              "InitValue": "",
-              "UseInitValue": false,
-              "Class": "",
-              "Style": "",
+              "Code": "",
               "Required": true,
               "Help": "The location where you want to store the snippets.",
-              "Directory": true,
-              "Wildcard": "",
-              "SaveFile": false,
-              "UseOnValue": false,
-              "NoLabel": false
+              "Directory": true
             },
             {
               "Type": "SimpleText",
               "Text": "Username",
-              "ID": "",
-              "Style": "text-align: left; width: 100%;margin-top: 10px;",
-              "Class": ""
+              "Style": "text-align: left; width: 100%;margin-top: 10px;"
             },
             {
               "Type": "TextInput",
               "Text": "",
               "ID": "author",
-              "Enabled": true,
-              "Code": "Console.print(value);",
-              "InitValue": "",
-              "UseInitValue": false,
-              "Class": "",
               "Style": "width: 100%;",
-              "NoLabel": false,
-              "EmptyText": "",
-              "Required": false,
-              "ParseArray": false,
               "Height": 80,
-              "Items": "",
-              "Help": "The name that is used when you create snippets. Make it your HISE user forum name for increased karma!",
-              "Multiline": false,
-              "Autofocus": false,
-              "UseOnValue": false,
-              "CallOnTyping": false
+              "Help": "The name that is used when you create snippets. Make it your HISE user forum name for increased karma!"
             },
             {
               "Type": "SimpleText",
               "Text": "Snippet sorting type",
-              "ID": "",
-              "Style": "text-align: left; width: 100%;margin-top: 10px;",
-              "Class": ""
+              "Style": "text-align: left; width: 100%;margin-top: 10px;"
             },
             {
               "Type": "Choice",
-              "Text": "LabelText",
               "ID": "sortByPriority",
-              "Enabled": true,
-              "Code": "Console.print(value);",
               "InitValue": "1",
               "UseInitValue": true,
-              "Class": "",
-              "Style": "",
-              "NoLabel": false,
-              "Custom": false,
               "ValueMode": "Index",
               "Help": "Whether to sort the snippets in the list based on their priority or alphabetically",
-              "Tooltip": "",
-              "EmptyText": "",
-              "Items": "Alphabetically\nBy Priority\n",
-              "UseOnValue": false
+              "Items": "Alphabetically\nBy Priority\n"
             }
           ],
-          "ID": "",
-          "Foldable": false,
-          "Folded": false,
           "Style": "background: #282828; padding: 20px; border-radius: 3px; border: 1px solid #444;",
-          "UseChildState": false,
           "Class": ".settings-panel"
         },
         {
           "Type": "List",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "MarkdownText",
               "Text": "**Download example content**",
-              "ID": "",
-              "Class": "",
               "Style": "margin: 0px;"
             },
             {
               "Type": "Button",
               "Text": "Snippets",
               "ID": "downloadSnippets",
-              "Enabled": true,
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "Code": "",
               "InitValue": "true",
               "UseInitValue": true,
-              "Class": "",
               "Style": "margin-top: 20px;",
-              "Help": "Untick this if you don't want to download the snippets (most likely because you've setup the target folder as Git repository already).",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": false,
-              "NoLabel": false,
-              "Tooltip": ""
+              "Help": "Untick this if you don't want to download the snippets (most likely because you've setup the target folder as Git repository already)."
             },
             {
               "Type": "DownloadTask",
               "Text": "Download",
               "ID": "downloadSnippets",
               "EventTrigger": "OnSubmit",
-              "Class": "",
-              "Style": "",
               "Source": "https://github.com/qdr/HiseSnippetDB/archive/refs/heads/main.zip",
-              "Target": "$snippetDirectory/snippets.zip",
-              "ExtraHeaders": "",
-              "UsePost": false
+              "Target": "$snippetDirectory/snippets.zip"
             },
             {
               "Type": "UnzipTask",
@@ -713,44 +441,28 @@
               "EventTrigger": "OnSubmit",
               "Overwrite": true,
               "Source": "$snippetDirectory/snippets.zip",
-              "Class": "",
               "Style": "margin-bottom: 40px;",
               "Target": "$snippetDirectory",
               "Cleanup": true,
               "SkipFirstFolder": true,
-              "SkipIfNoSource": true,
-              "EventTrigger": "OnSubmit"
+              "SkipIfNoSource": true
             },
             {
               "Type": "Button",
               "Text": "Assets",
               "ID": "downloadAssets",
-              "Enabled": true,
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "Code": "",
               "InitValue": "true",
               "UseInitValue": true,
-              "Class": "",
-              "Style": "",
-              "Help": "Untick this if you don't want to download the example assets (about 50MB)",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": false,
-              "NoLabel": ""
+              "Help": "Untick this if you don't want to download the example assets (about 50MB)"
             },
             {
               "Type": "DownloadTask",
               "Text": "Download",
               "ID": "downloadAssets",
               "EventTrigger": "OnSubmit",
-              "Class": "",
-              "Style": "",
               "Source": "https://github.com/qdr/HiseSnippetDB/releases/download/1.0.0/Assets.zip",
-              "Target": "$snippetDirectory/assets.zip",
-              "ExtraHeaders": "",
-              "UsePost": false,
-              "EventTrigger": "OnSubmit"
+              "Target": "$snippetDirectory/assets.zip"
             },
             {
               "Type": "UnzipTask",
@@ -758,48 +470,24 @@
               "ID": "extractAssets",
               "EventTrigger": "OnSubmit",
               "Overwrite": true,
-              "Class": "",
-              "Style": "",
               "Source": "$snippetDirectory/assets.zip",
               "Target": "$snippetDirectory/Assets",
               "Cleanup": true,
-              "SkipIfNoSource": true,
-              "SkipFirstFolder": false,
-              "EventTrigger": "OnSubmit"
+              "SkipIfNoSource": true
             },
             {
               "Type": "Button",
               "Text": "Download",
               "ID": "ButtonId",
-              "Enabled": true,
               "Code": "document.navigate(0, true);",
-              "InitValue": "",
-              "UseInitValue": false,
-              "Class": ".download-button",
-              "Style": "",
-              "NoLabel": false,
-              "Help": "",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true
+              "Class": ".download-button"
             }
           ],
-          "ID": "",
-          "Foldable": false,
-          "Folded": false,
-          "Style": "",
-          "UseChildState": false,
           "Class": ".download-box"
         }
       ],
-      "ID": "",
       "Text": "",
-      "Foldable": false,
-      "Folded": false,
       "Style": "gap: 10px; ",
-      "UseChildState": false,
       "Class": ".setup-page"
     },
     {
@@ -807,190 +495,93 @@
       "Children": [
         {
           "Type": "Column",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "SimpleText",
               "Text": "Add Snippet",
               "ID": "editTitle",
-              "Class": "",
               "Style": "flex-grow: 1;"
             },
             {
               "Type": "Button",
-              "Text": "LabelText",
               "ID": "closeButton",
-              "Enabled": true,
               "Code": "document.navigate(0, false);\n",
-              "InitValue": "",
-              "UseInitValue": false,
               "Class": ".top-button",
-              "Style": "",
-              "NoLabel": true,
-              "Help": "",
-              "Required": false,
-              "ButtonType": "",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true
+              "NoLabel": true
             }
           ],
-          "ID": "",
-          "Class": ".header-label",
-          "Style": "",
-          "UseChildState": false
+          "Class": ".header-label"
         },
         {
           "Type": "List",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "TextInput",
               "Text": "Filename",
               "ID": "newName",
-              "Enabled": true,
-              "Code": "Console.print(value);",
-              "InitValue": "",
-              "UseInitValue": false,
-              "Class": "",
-              "Style": "",
-              "NoLabel": false,
-              "EmptyText": "",
               "Required": true,
-              "ParseArray": false,
               "Height": 80,
-              "Items": "",
-              "Help": "Select the filename for the snippet. It will save a markdown file with the snippet data and the supplied metadata.\n",
-              "Multiline": false,
-              "Autofocus": false,
-              "UseOnValue": false,
-              "CallOnTyping": false
+              "Help": "Select the filename for the snippet. It will save a markdown file with the snippet data and the supplied metadata.\n"
             },
             {
               "Type": "MarkdownText",
-              "Text": "Please select a category and tags for the snippet",
-              "ID": "",
-              "Class": "",
-              "Style": ""
+              "Text": "Please select a category and tags for the snippet"
             },
             {
               "Type": "Column",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "Button",
                   "Text": "All",
                   "ID": "addCategory",
-                  "Enabled": true,
-                  "Code": "Console.print(value);",
                   "InitValue": "0",
                   "UseInitValue": true,
                   "Class": ".category-button .first-child",
-                  "Style": "",
-                  "Help": "",
-                  "Required": false,
                   "ButtonType": "Toggle",
-                  "Icon": "",
-                  "Trigger": false,
-                  "UseOnValue": false,
                   "NoLabel": true
                 },
                 {
                   "Type": "Button",
                   "Text": "Modules",
                   "ID": "addCategory",
-                  "Enabled": true,
-                  "Code": "Console.print(value);",
-                  "InitValue": "",
-                  "UseInitValue": false,
                   "Class": ".category-button",
-                  "Style": "",
-                  "Help": "",
-                  "Required": false,
                   "ButtonType": "Toggle",
-                  "Icon": "",
-                  "Trigger": false,
-                  "UseOnValue": false,
                   "NoLabel": true
                 },
                 {
                   "Type": "Button",
                   "Text": "MIDI",
                   "ID": "addCategory",
-                  "Enabled": true,
-                  "Code": "Console.print(value);",
-                  "InitValue": "",
-                  "UseInitValue": false,
                   "Class": ".category-button",
-                  "Style": "",
-                  "Help": "",
-                  "Required": false,
                   "ButtonType": "Toggle",
-                  "Icon": "",
-                  "Trigger": false,
-                  "UseOnValue": false,
                   "NoLabel": true
                 },
                 {
                   "Type": "Button",
                   "Text": "Scripting",
                   "ID": "addCategory",
-                  "Enabled": true,
-                  "Code": "Console.print(value);",
-                  "InitValue": "",
-                  "UseInitValue": false,
                   "Class": ".category-button",
-                  "Style": "",
-                  "Help": "",
-                  "Required": false,
                   "ButtonType": "Toggle",
-                  "Icon": "",
-                  "Trigger": false,
-                  "UseOnValue": false,
                   "NoLabel": true
                 },
                 {
                   "Type": "Button",
                   "Text": "Scriptnode",
                   "ID": "addCategory",
-                  "Enabled": true,
-                  "Code": "Console.print(value);",
-                  "InitValue": "",
-                  "UseInitValue": false,
                   "Class": ".category-button",
-                  "Style": "",
-                  "Help": "",
-                  "Required": false,
                   "ButtonType": "Toggle",
-                  "Icon": "",
-                  "Trigger": false,
-                  "UseOnValue": false,
                   "NoLabel": true
                 },
                 {
                   "Type": "Button",
                   "Text": "UI",
                   "ID": "addCategory",
-                  "Enabled": true,
-                  "Code": "Console.print(value);",
-                  "InitValue": "",
-                  "UseInitValue": false,
                   "Class": ".category-button .last-child",
-                  "Style": "",
-                  "Help": "",
-                  "Required": false,
                   "ButtonType": "Toggle",
-                  "Icon": "",
-                  "Trigger": false,
-                  "UseOnValue": false,
-                  "NoLabel": true,
-                  "Tooltip": ""
+                  "NoLabel": true
                 }
               ],
-              "ID": "",
-              "Style": "gap:1px;height: auto;",
-              "Class": "",
-              "UseChildState": false
+              "Style": "gap:1px;height: auto;"
             },
             {
               "Type": "List",
@@ -998,76 +589,44 @@
               "Children": [
                 {
                   "Type": "TagList",
-                  "Text": "LabelText",
                   "ID": "addTagList",
-                  "Items": "API\nBest Practice\nBroadcaster\nComplex\nFaust\nFeatured\nFirst contact\nFull Project\nFramework\nGraphics API\nHelper Tools\nHost Sync\nInternal Messaging\nLookAndFeel\nMIDI Player\nScriptPanel\nSimple\nSNEX\nUI Logic",
-                  "Class": "",
-                  "Style": "",
-                  "Code": "Console.print(value);",
-                  "UseOnValue": false
+                  "Items": "API\nBest Practice\nBroadcaster\nComplex\nFaust\nFeatured\nFirst contact\nFull Project\nFramework\nGraphics API\nHelper Tools\nHost Sync\nInternal Messaging\nLookAndFeel\nMIDI Player\nScriptPanel\nSimple\nSNEX\nUI Logic"
                 }
               ],
-              "ID": "",
               "Foldable": true,
-              "Folded": true,
-              "UseChildState": false,
-              "Class": "",
-              "Style": ""
+              "Folded": true
             },
             {
               "Type": "Choice",
               "Text": "Priority",
               "ID": "priority",
-              "Enabled": true,
-              "Code": "Console.print(value);",
               "InitValue": "3",
               "UseInitValue": true,
-              "Class": "",
-              "Style": "",
-              "NoLabel": false,
-              "Custom": false,
               "ValueMode": "ID",
               "Help": "This will be used to sort the snippets in the browser. Pick a value between 1 (low priority for edge case snippets) to 5 for the most important examples that should appear at the top.",
-              "Tooltip": "",
-              "EmptyText": "",
-              "Items": "1 - low priority\n2\n3\n4\n5 - great stuff",
-              "UseOnValue": false
+              "Items": "1 - low priority\n2\n3\n4\n5 - great stuff"
             },
             {
               "Type": "SimpleText",
               "Text": "Description",
-              "ID": "",
-              "Style": "width: 100%; text-align: left;",
-              "Class": ""
+              "Style": "width: 100%; text-align: left;"
             },
             {
               "Type": "TextInput",
               "Text": "",
               "ID": "description",
-              "Enabled": true,
               "Code": " ",
-              "InitValue": "",
-              "UseInitValue": false,
-              "Class": "",
               "Style": "flex-grow: 2;  font-family: monospace;vertical-align: top; font-size: 12px; padding-top: 8px; ",
               "NoLabel": true,
-              "EmptyText": "",
               "Required": true,
-              "ParseArray": false,
               "Height": 80,
-              "Items": "",
-              "Help": "",
               "Multiline": true,
-              "Autofocus": false,
-              "UseOnValue": false,
               "CallOnTyping": true
             },
             {
               "Type": "SimpleText",
               "Text": "Preview",
-              "ID": "",
-              "Style": "width: 100%; text-align: left;",
-              "Class": ""
+              "Style": "width: 100%; text-align: left;"
             },
             {
               "Type": "MarkdownText",
@@ -1080,54 +639,26 @@
               "Type": "Button",
               "Text": "Save file",
               "ID": "saveFileButton",
-              "Enabled": true,
               "Code": "document.navigate(0, true);",
               "InitValue": "false",
               "UseInitValue": true,
-              "Class": "",
-              "Style": "",
-              "NoLabel": false,
-              "Help": "",
-              "Required": false,
-              "ButtonType": "Toggle",
-              "Icon": "",
-              "Trigger": false,
-              "UseOnValue": true
+              "ButtonType": "Toggle"
             },
             {
               "Type": "JavascriptFunction",
-              "Text": "LabelText",
-              "ID": "",
-              "EventTrigger": "OnPageLoad",
-              "Code": "\ndocument.getElementById(\"editTitle\").innerText = state.newName.length > 0 ? \"Edit Snippet\" : \"Add Snippet\";\n\ndocument.getElementById(\"descriptionPreview\").innerText = \"\";\ndocument.getElementById(\"description\").addEventListener(\"change\", function()\n{\n\tConsole.print(\"VALUE: \" + this.value);\n\t\n\n\tdocument.getElementById(\"descriptionPreview\").innerText = this.value;\n});\n\n",
-              "Class": "",
-              "Style": ""
+              "Code": "\ndocument.getElementById(\"editTitle\").innerText = state.newName.length > 0 ? \"Edit Snippet\" : \"Add Snippet\";\n\ndocument.getElementById(\"descriptionPreview\").innerText = \"\";\ndocument.getElementById(\"description\").addEventListener(\"change\", function()\n{\n\tConsole.print(\"VALUE: \" + this.value);\n\t\n\n\tdocument.getElementById(\"descriptionPreview\").innerText = this.value;\n});\n\n"
             }
           ],
-          "ID": "",
-          "Foldable": false,
-          "Folded": false,
-          "Style": "border: 1px solid #222; padding: 15px; gap: 15px; flex-grow: 1;",
-          "UseChildState": false,
-          "Class": ""
+          "Style": "border: 1px solid #222; padding: 15px; gap: 15px; flex-grow: 1;"
         },
         {
           "Type": "JavascriptFunction",
-          "Text": "LabelText",
-          "ID": "",
           "EventTrigger": "OnSubmit",
-          "Class": "",
-          "Style": "",
           "Code": "function appendLine(key, value)\n{\n\tmd += \"\" + key + \": \";\n\t\n\tif(typeof(value) == \"object\")\n\t{\n\t\tfor(i = 0; i < value.length; i++)\n\t\t{\n\t\t\tmd += value[i];\n\t\t\tif(i != value.length -1)\n\t\t\t   md += \", \";\n\t\t}\n\t\t\n\t\tmd += \"\\n\";\n\t}\n\telse\n\t{\n\t\tmd += value + \"\\n\";\n\t}\n}\n\nvar exportSnippet = document.bindCallback(\"exportSnippet\", function()\n{\n\treturn \"This will be the snippet\";\n});\n\nif(state.newName.length > 0)\n{\n\tConsole.print(\"SAVE\");\n\t\n\t// Write the metadata\n\tvar md = \"\";\n\t\n\tmd += \"---\\n\";\n\t\n\tvar CATEGORIES = [\"All\", \"Modules\", \"MIDI\", \"Scripting\", \"Scriptnode\", \"UI\"];\n\t\t\n\tappendLine(\"author\", state.author);\n\tappendLine(\"category\", CATEGORIES[state.addCategory]);\n\tappendLine(\"tags\", state.addTagList);\n\tappendLine(\"active\", \"true\");\n\tappendLine(\"priority\", state.priority);\n\tappendLine(\"HiseSnippet\", exportSnippet());\n\t\n\tmd += \"---\\n\";\n\t\n\t// Write the file\n\tvar fileContent = md;\n\tfileContent += \"\\n\" + state.description;\n\tvar newFile = state.snippetDirectory + \"/\" + state.newName.trim() + \".md\";\n\tdocument.writeFile(newFile, fileContent);\n\t\n}\n\n\n"
         }
       ],
-      "ID": "",
       "Text": "",
-      "Foldable": false,
-      "Folded": false,
-      "Style": "height: 100%;",
-      "UseChildState": false,
-      "Class": ""
+      "Style": "height: 100%;"
     }
   ],
   "Assets": [

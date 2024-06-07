@@ -24,7 +24,6 @@ Dialog* SnippetBrowser::createDialog(State& state)
 )" }, 
 	  { mpid::Class, ".top-button" }, 
 	  { mpid::NoLabel, 1 }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::Tooltip, "Add snippet to browser" }
 	});
 
@@ -35,7 +34,6 @@ Dialog* SnippetBrowser::createDialog(State& state)
 	  { mpid::Class, ".top-button" }, 
 	  { mpid::Style, "display:none;" }, 
 	  { mpid::NoLabel, 1 }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::Tooltip, "Edit the currently loaded snippet" }
 	});
 
@@ -48,7 +46,6 @@ Dialog* SnippetBrowser::createDialog(State& state)
 	  { mpid::ID, "settingButton" }, 
 	  { mpid::Code, "document.navigate(1);" }, 
 	  { mpid::Class, ".top-button" }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show the snippet browser settings" }
 	});
@@ -62,17 +59,14 @@ Dialog* SnippetBrowser::createDialog(State& state)
 	  { mpid::Filename, "snippetBrowser" }, 
 	  { mpid::UseChildState, 1 }, 
 	  { mpid::Items, R"(snippetDirectory:""
-author: "")" }, 
-	  { mpid::UseProject, 0 }, 
-	  { mpid::ParseJSON, 0 }
+author: "")" }
 	});
 
 	List_6.addChild<DirectoryScanner>({
 	  { mpid::Source, "$snippetDirectory" }, 
 	  { mpid::ID, "snippetRoot" }, 
 	  { mpid::RelativePath, 1 }, 
-	  { mpid::Wildcard, "*.md" }, 
-	  { mpid::Directory, 0 }
+	  { mpid::Wildcard, "*.md" }
 	});
 
 	auto& Column_9 = List_0.addChild<Column>({
@@ -82,10 +76,7 @@ author: "")" },
 	  { mpid::ID, "searchBar" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Height, 80 }, 
-	  { mpid::UseOnValue, 1 }, 
-	  { mpid::CallOnTyping, 1 }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::Autofocus, 0 }
+	  { mpid::CallOnTyping, 1 }
 	});
 
 	Column_9.addChild<Button>({
@@ -93,15 +84,13 @@ author: "")" },
 	  { mpid::Enabled, 0 }, 
 	  { mpid::Code, "clearFilter();" }, 
 	  { mpid::NoLabel, 1 }, 
-	  { mpid::Tooltip, "Clear all filters" }, 
-	  { mpid::UseOnValue, 1 }
+	  { mpid::Tooltip, "Clear all filters" }
 	});
 
 	Column_9.addChild<Button>({
 	  { mpid::ID, "showUserOnly" }, 
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::NoLabel, 1 }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::Tooltip, "Show only user generated snippets" }
 	});
 
@@ -117,7 +106,6 @@ author: "")" },
 	  { mpid::UseInitValue, 1 }, 
 	  { mpid::Class, ".category-button .first-child" }, 
 	  { mpid::ButtonType, "Toggle" }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Shows uncategorized / all snippets" }
 	});
@@ -128,7 +116,6 @@ author: "")" },
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
 	  { mpid::ButtonType, "Toggle" }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets that demonstrate HISE modules" }
 	});
@@ -139,7 +126,6 @@ author: "")" },
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
 	  { mpid::ButtonType, "Toggle" }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets related to MIDI processing" }
 	});
@@ -150,7 +136,6 @@ author: "")" },
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
 	  { mpid::ButtonType, "Toggle" }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show scripting snippets" }
 	});
@@ -161,7 +146,6 @@ author: "")" },
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button" }, 
 	  { mpid::ButtonType, "Toggle" }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show DSP snippets using scriptnode and Faust / SNEX" }
 	});
@@ -172,7 +156,6 @@ author: "")" },
 	  { mpid::Code, "rebuildTable();" }, 
 	  { mpid::Class, ".category-button .last-child" }, 
 	  { mpid::ButtonType, "Toggle" }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Tooltip, "Show snippets related to UI design" }
 	});
@@ -204,8 +187,7 @@ ScriptPanel
 Simple
 SNEX
 UI Logic)" }, 
-	  { mpid::Code, "rebuildTable();" }, 
-	  { mpid::UseOnValue, 1 }
+	  { mpid::Code, "rebuildTable();" }
 	});
 
 	List_0.addChild<Table>({
@@ -480,10 +462,7 @@ rebuildTable();
 	List_0.addChild<TextInput>({
 	  { mpid::ID, "author" }, 
 	  { mpid::Style, "display: none;" }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::Height, 80 }, 
-	  { mpid::Autofocus, 0 }, 
-	  { mpid::CallOnTyping, 0 }
+	  { mpid::Height, 80 }
 	});
 
 	// Custom callback for page List_0
@@ -512,7 +491,6 @@ rebuildTable();
 	  { mpid::ID, "applyButton" }, 
 	  { mpid::Code, "document.navigate(0, false);" }, 
 	  { mpid::Class, ".top-button" }, 
-	  { mpid::UseOnValue, 1 }, 
 	  { mpid::NoLabel, 1 }
 	});
 
@@ -527,9 +505,7 @@ rebuildTable();
 	  { mpid::Filename, "snippetBrowser" }, 
 	  { mpid::UseChildState, 1 }, 
 	  { mpid::Items, R"(snippetDirectory:""
-author: "")" }, 
-	  { mpid::UseProject, 0 }, 
-	  { mpid::ParseJSON, 0 }
+author: "")" }
 	});
 
 	auto& List_32 = List_26.addChild<List>({
@@ -547,10 +523,8 @@ author: "")" },
 
 	Column_33.addChild<Button>({
 	  { mpid::ID, "showLocation" }, 
-	  { mpid::Code, "Console.print(value);" }, 
 	  { mpid::NoLabel, 1 }, 
-	  { mpid::Tooltip, "Open the snippet directory in the OS file browser" }, 
-	  { mpid::UseOnValue, 1 }
+	  { mpid::Tooltip, "Open the snippet directory in the OS file browser" }
 	});
 
 	List_32.addChild<FileSelector>({
@@ -558,9 +532,7 @@ author: "")" },
 	  { mpid::ID, "snippetDirectory" }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The location where you want to store the snippets." }, 
-	  { mpid::Directory, 1 }, 
-	  { mpid::SaveFile, 0 }, 
-	  { mpid::NoLabel, 0 }
+	  { mpid::Directory, 1 }
 	});
 
 	List_32.addChild<SimpleText>({
@@ -571,11 +543,8 @@ author: "")" },
 	List_32.addChild<TextInput>({
 	  { mpid::ID, "author" }, 
 	  { mpid::Style, "width: 100%;" }, 
-	  { mpid::NoLabel, 0 }, 
 	  { mpid::Height, 80 }, 
-	  { mpid::Help, "The name that is used when you create snippets. Make it your HISE user forum name for increased karma!" }, 
-	  { mpid::Autofocus, 0 }, 
-	  { mpid::CallOnTyping, 0 }
+	  { mpid::Help, "The name that is used when you create snippets. Make it your HISE user forum name for increased karma!" }
 	});
 
 	List_32.addChild<SimpleText>({
@@ -587,8 +556,6 @@ author: "")" },
 	  { mpid::ID, "sortByPriority" }, 
 	  { mpid::InitValue, "1" }, 
 	  { mpid::UseInitValue, 1 }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::Custom, 0 }, 
 	  { mpid::ValueMode, "Index" }, 
 	  { mpid::Help, "Whether to sort the snippets in the list based on their priority or alphabetically" }, 
 	  { mpid::Items, R"(Alphabetically
@@ -611,8 +578,7 @@ By Priority
 	  { mpid::InitValue, "true" }, 
 	  { mpid::UseInitValue, 1 }, 
 	  { mpid::Style, "margin-top: 20px;" }, 
-	  { mpid::Help, "Untick this if you don't want to download the snippets (most likely because you've setup the target folder as Git repository already)." }, 
-	  { mpid::NoLabel, 0 }
+	  { mpid::Help, "Untick this if you don't want to download the snippets (most likely because you've setup the target folder as Git repository already)." }
 	});
 
 	List_41.addChild<DownloadTask>({
@@ -620,8 +586,7 @@ By Priority
 	  { mpid::ID, "downloadSnippets" }, 
 	  { mpid::EventTrigger, "OnSubmit" }, 
 	  { mpid::Source, "https://github.com/qdr/HiseSnippetDB/archive/refs/heads/main.zip" }, 
-	  { mpid::Target, "$snippetDirectory/snippets.zip" }, 
-	  { mpid::UsePost, 0 }
+	  { mpid::Target, "$snippetDirectory/snippets.zip" }
 	});
 
 	List_41.addChild<UnzipTask>({
@@ -650,8 +615,7 @@ By Priority
 	  { mpid::ID, "downloadAssets" }, 
 	  { mpid::EventTrigger, "OnSubmit" }, 
 	  { mpid::Source, "https://github.com/qdr/HiseSnippetDB/releases/download/1.0.0/Assets.zip" }, 
-	  { mpid::Target, "$snippetDirectory/assets.zip" }, 
-	  { mpid::UsePost, 0 }
+	  { mpid::Target, "$snippetDirectory/assets.zip" }
 	});
 
 	List_41.addChild<UnzipTask>({
@@ -662,17 +626,14 @@ By Priority
 	  { mpid::Source, "$snippetDirectory/assets.zip" }, 
 	  { mpid::Target, "$snippetDirectory/Assets" }, 
 	  { mpid::Cleanup, 1 }, 
-	  { mpid::SkipIfNoSource, 1 }, 
-	  { mpid::SkipFirstFolder, 0 }
+	  { mpid::SkipIfNoSource, 1 }
 	});
 
 	List_41.addChild<Button>({
 	  { mpid::Text, "Download" }, 
 	  { mpid::ID, "ButtonId" }, 
 	  { mpid::Code, "document.navigate(0, true);" }, 
-	  { mpid::Class, ".download-button" }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::UseOnValue, 1 }
+	  { mpid::Class, ".download-button" }
 	});
 
 	// Custom callback for page List_26
@@ -701,8 +662,7 @@ By Priority
 	  { mpid::Code, R"(document.navigate(0, false);
 )" }, 
 	  { mpid::Class, ".top-button" }, 
-	  { mpid::NoLabel, 1 }, 
-	  { mpid::UseOnValue, 1 }
+	  { mpid::NoLabel, 1 }
 	});
 
 	auto& List_54 = List_50.addChild<List>({
@@ -712,13 +672,10 @@ By Priority
 	List_54.addChild<TextInput>({
 	  { mpid::Text, "Filename" }, 
 	  { mpid::ID, "newName" }, 
-	  { mpid::NoLabel, 0 }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Height, 80 }, 
 	  { mpid::Help, R"(Select the filename for the snippet. It will save a markdown file with the snippet data and the supplied metadata.
-)" }, 
-	  { mpid::Autofocus, 0 }, 
-	  { mpid::CallOnTyping, 0 }
+)" }
 	});
 
 	List_54.addChild<MarkdownText>({
@@ -813,8 +770,6 @@ UI Logic)" }
 	  { mpid::ID, "priority" }, 
 	  { mpid::InitValue, "3" }, 
 	  { mpid::UseInitValue, 1 }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::Custom, 0 }, 
 	  { mpid::ValueMode, "ID" }, 
 	  { mpid::Help, "This will be used to sort the snippets in the browser. Pick a value between 1 (low priority for edge case snippets) to 5 for the most important examples that should appear at the top." }, 
 	  { mpid::Items, R"(1 - low priority
@@ -831,12 +786,12 @@ UI Logic)" }
 
 	List_54.addChild<TextInput>({
 	  { mpid::ID, "description" }, 
+	  { mpid::Code, " " }, 
 	  { mpid::Style, "flex-grow: 2;  font-family: monospace;vertical-align: top; font-size: 12px; padding-top: 8px; " }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Height, 80 }, 
 	  { mpid::Multiline, 1 }, 
-	  { mpid::Autofocus, 0 }, 
 	  { mpid::CallOnTyping, 1 }
 	});
 
@@ -857,9 +812,7 @@ UI Logic)" }
 	  { mpid::Code, "document.navigate(0, true);" }, 
 	  { mpid::InitValue, "false" }, 
 	  { mpid::UseInitValue, 1 }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::ButtonType, "Toggle" }, 
-	  { mpid::UseOnValue, 1 }
+	  { mpid::ButtonType, "Toggle" }
 	});
 
 	List_54.addChild<JavascriptFunction>({

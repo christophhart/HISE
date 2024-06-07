@@ -86,6 +86,69 @@ struct CodeGenerator
         }
     }
 
+    static void sanitizeData(var& obj)
+    {
+        if(auto dobj = obj.getDynamicObject())
+        {
+            NamedValueSet defaultValues;
+		    defaultValues.set(mpid::Trigger, false);
+		    defaultValues.set(mpid::Help, "");
+		    defaultValues.set(mpid::Class, "");
+		    defaultValues.set(mpid::Style, "");
+		    defaultValues.set(mpid::Text, "LabelText");
+		    defaultValues.set(mpid::UseInitValue, false);
+		    defaultValues.set(mpid::InitValue, "");
+		    defaultValues.set(mpid::Required, false);
+		    defaultValues.set(mpid::Enabled, true);
+		    defaultValues.set(mpid::Foldable, false);
+		    defaultValues.set(mpid::Folded, false);
+		    defaultValues.set(mpid::UseChildState, false);
+		    defaultValues.set(mpid::EmptyText, "");
+		    defaultValues.set(mpid::ParseArray, false);
+		    defaultValues.set(mpid::Multiline, false);
+		    defaultValues.set(mpid::EventTrigger, "OnPageLoad");
+            
+		    static const Array<Identifier> deprecatedIds = { Identifier("Padding"),
+		        Identifier("LabelPosition"),
+		        Identifier("UseFilter"),
+		        Identifier("Visible"),
+		        Identifier("Comment"),
+				Identifier("UseOnValue"),
+				Identifier("valueList"),
+				Identifier("textList"),
+		        Identifier("ManualAction"),
+		        Identifier("CallOnNext")};
+
+	        for(int i = 0; i < dobj->getProperties().size(); i++)
+	        {
+		        auto tid = dobj->getProperties().getName(i);
+
+                if(deprecatedIds.contains(tid))
+                {
+	                dobj->removeProperty(tid);
+                    i--;
+                    continue;
+                }
+
+                if(obj[tid] == defaultValues[tid])
+                {
+	                dobj->removeProperty(tid);
+                    i--;
+                    continue;
+                }
+	        }
+
+            if(obj[mpid::Code].toString() == "Console.print(value);")
+                dobj->removeProperty(mpid::Code);
+
+		    if(auto ar = obj[mpid::Children].getArray())
+		    {
+			    for(auto& a: *ar)
+	                sanitizeData(a);
+		    }
+        }
+    }
+
     void setUseRawMode(bool shouldUseRawMode)
     {
         rawMode = shouldUseRawMode;
