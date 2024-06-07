@@ -229,6 +229,7 @@ void DocUpdater::run()
 		}
 		if(b->getSelectedItemIndex() == 3)
 		{
+#if USE_BACKEND
 			auto mc = GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor();
 
 			bool done = false;
@@ -245,6 +246,7 @@ void DocUpdater::run()
 			{
 				wait(500);
 			}
+#endif
 		}
 
 	}
