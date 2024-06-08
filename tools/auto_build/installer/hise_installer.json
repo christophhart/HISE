@@ -38,88 +38,68 @@
   "Children": [
     {
       "Type": "List",
-      "Padding": 10,
       "Children": [
         {
-          "Type": "ProjectInfo",
-          "Text": "LabelText"
+          "Type": "ProjectInfo"
         },
         {
           "Type": "MarkdownText",
-          "Text": "Welcome to the HISE installer. This will install the compiled versions of HISE $version.\n\n\n\n",
-          "Padding": 0,
-          "ID": "",
-          "Class": "",
-          "Style": ""
+          "Text": "Welcome to the HISE installer. This will install the compiled versions of HISE $version.\n\n\n\n"
         }
       ],
-      "ID": "",
-      "Text": "",
-      "Foldable": false,
-      "Folded": false
+      "Text": ""
     },
     {
       "Type": "List",
-      "Padding": 10,
       "Children": [
         {
           "Type": "MarkdownText",
-          "Padding": "0",
           "Text": "Please select which formats you want to install."
         },
         {
-          "Type": "OperatingSystem",
-          "Text": "LabelText"
+          "Type": "OperatingSystem"
         },
         {
-          "Type": "PluginDirectories",
-          "Text": "LabelText"
+          "Type": "PluginDirectories"
         },
         {
           "Type": "Branch",
           "ID": "OS",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "List",
-              "Padding": "10",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "MarkdownText",
-                  "Padding": "0",
                   "Text": "// This is the placeholder for the zero value (the OS constant starts at 1 to match the value of the asset targetOS)"
                 }
               ]
             },
             {
               "Type": "List",
-              "Padding": "15",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "RelativeFileLoader",
                   "ID": "standaloneTarget",
                   "SpecialLocation": "globalApplicationsDirectory",
-                  "RelativePath": "HISE",
-                  "EventTrigger": "OnPageLoad",
-                  "Text": "LabelText"
+                  "RelativePath": "HISE"
                 }
               ]
             },
             {
               "Type": "List",
-              "Padding": "10",
-              "Text": "LabelText",
               "Children": [
                 {
+                  "Type": "RelativeFileLoader",
+                  "ID": "standaloneTarget",
+                  "SpecialLocation": "globalApplicationsDirectory"
+                },
+                {
                   "Type": "Column",
-                  "Text": "LabelText",
                   "Children": [
                     {
                       "Type": "Button",
                       "ID": "installAU",
-                      "Enabled": "1",
                       "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                       "InitValue": "1",
                       "UseInitValue": "1",
@@ -129,10 +109,9 @@
                     {
                       "Type": "FileSelector",
                       "ID": "auDirectory",
-                      "Enabled": "1",
                       "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                       "Class": ".install-target",
-                      "Text": "LabelText"
+                      "UseInitValue": ""
                     }
                   ]
                 }
@@ -140,23 +119,18 @@
             },
             {
               "Type": "List",
-              "Padding": "10",
-              "Text": "LabelText"
+              "Children": []
             }
           ]
         },
         {
           "Type": "Column",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "Button",
               "ID": "installStandalone",
               "InitValue": "1",
               "UseInitValue": "1",
-              "LabelPosition": "Default",
-              "Visible": "1",
-              "Enabled": "1",
               "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "Class": ".install-option",
               "Text": "Standalone App"
@@ -164,26 +138,20 @@
             {
               "Type": "FileSelector",
               "ID": "standaloneTarget",
-              "Visible": "1",
-              "Enabled": "1",
               "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "Class": ".install-target",
-              "Text": "LabelText"
+              "UseInitValue": ""
             }
           ]
         },
         {
           "Type": "Column",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "Button",
               "ID": "installVST3",
               "InitValue": "true",
               "UseInitValue": "1",
-              "LabelPosition": "Default",
-              "Visible": "1",
-              "Enabled": "1",
               "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "Class": ".install-option",
               "Text": "VST3 Plugin"
@@ -191,59 +159,41 @@
             {
               "Type": "FileSelector",
               "ID": "vst3Directory",
-              "Visible": "1",
-              "Enabled": "1",
               "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "Class": ".install-target",
-              "Text": "LabelText"
+              "UseInitValue": ""
             }
           ]
         }
       ],
-      "ID": "",
       "Text": "",
-      "Foldable": false,
-      "Folded": false,
-      "Style": "gap: 10px;",
-      "UseChildState": false,
-      "Class": ""
+      "Style": "gap: 10px;"
     },
     {
       "Type": "List",
-      "Padding": 10,
       "Children": [
         {
           "Type": "FileLogger",
-          "Filename": "$standaloneWinTarget/InstallLog.txt",
-          "Text": "LabelText"
+          "Filename": "$standaloneWinTarget/InstallLog.txt"
         },
         {
           "Type": "Branch",
           "ID": "OS",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "List",
-              "Padding": "10",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "MarkdownText",
-                  "Padding": "0",
-                  "Comment": "1",
                   "Text": "// This is the placeholder for the zero value (the OS constant starts at 1 to match the value of the asset targetOS)"
                 }
               ]
             },
             {
               "Type": "List",
-              "Padding": "30",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "MarkdownText",
-                  "Padding": "0",
-                  "Comment": "1",
                   "Text": "Installing Windows binaries..."
                 },
                 {
@@ -253,7 +203,6 @@
                   "Source": "${hise_win_standalone}",
                   "Target": "$standaloneTarget",
                   "Class": "task",
-                  "EventTrigger": "OnPageLoad",
                   "Text": "Install Standalone"
                 },
                 {
@@ -263,7 +212,6 @@
                   "Source": "${mpc_win}",
                   "Target": "$standaloneTarget",
                   "Class": "task",
-                  "EventTrigger": "OnPageLoad",
                   "Text": "Install Multipage Creator"
                 },
                 {
@@ -273,28 +221,21 @@
                   "Source": "${hise_win_vst3}",
                   "Target": "$vst3Directory",
                   "Class": "task",
-                  "EventTrigger": "OnPageLoad",
                   "Text": "Install VST3 Plugin"
                 }
               ]
             },
             {
               "Type": "List",
-              "Padding": "10",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "RelativeFileLoader",
                   "ID": "dmgRoot",
                   "SpecialLocation": "currentApplicationFile",
-                  "RelativePath": "../",
-                  "EventTrigger": "OnPageLoad",
-                  "Text": "LabelText"
+                  "RelativePath": "../"
                 },
                 {
                   "Type": "MarkdownText",
-                  "Padding": "0",
-                  "Comment": "1",
                   "Text": "Installing macOS binaries..."
                 },
                 {
@@ -304,7 +245,6 @@
                   "Source": "$dmgRoot/HISE.app",
                   "Target": "$standaloneTarget",
                   "Class": "task",
-                  "EventTrigger": "OnPageLoad",
                   "Text": "Installing Standalone"
                 },
                 {
@@ -314,7 +254,6 @@
                   "Source": "$dmgRoot/multipagecreator.app",
                   "Target": "$standaloneTarget",
                   "Class": "task",
-                  "EventTrigger": "OnPageLoad",
                   "Text": "Install Multipage Creator"
                 },
                 {
@@ -324,7 +263,6 @@
                   "Source": "$dmgRoot/HISE.vst3",
                   "Target": "$vst3Directory",
                   "Class": "task",
-                  "EventTrigger": "OnPageLoad",
                   "Text": "Install VST3 Plugin"
                 },
                 {
@@ -334,7 +272,6 @@
                   "Target": "$auDirectory",
                   "Source": "$dmgRoot/HISE.component",
                   "Class": "task",
-                  "EventTrigger": "OnPageLoad",
                   "Text": "Install AU"
                 }
               ]
@@ -342,92 +279,56 @@
           ]
         }
       ],
-      "ID": "",
-      "Text": "",
-      "Foldable": false,
-      "Folded": false
+      "Text": ""
     },
     {
       "Type": "List",
-      "Padding": 10,
       "Children": [
         {
           "Type": "MarkdownText",
-          "Text": "The installation was complete. Press finish to close the installer.",
-          "Padding": 0,
-          "Comment": false
+          "Text": "The installation was complete. Press finish to close the installer."
         },
         {
           "Type": "Button",
           "Text": "Open HISE",
           "ID": "launchHise",
           "InitValue": "true",
-          "UseInitValue": true,
-          "LabelPosition": "Default",
-          "IconData": "",
-          "Help": "",
-          "Required": false,
-          "ButtonType": "",
-          "Trigger": false,
-          "Visible": true,
-          "Enabled": true,
-          "Code": ""
+          "UseInitValue": true
         },
         {
           "Type": "Branch",
-          "Text": "LabelText",
           "Children": [
             {
               "Type": "List",
-              "Text": "LabelText",
-              "Children": [],
-              "ID": "",
-              "Foldable": false,
-              "Folded": false
+              "Children": []
             },
             {
               "Type": "List",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "Launch",
                   "Text": "$standaloneWinTarget/HISE.exe",
                   "ID": "launchHise",
-                  "Args": "",
                   "EventTrigger": "OnSubmit"
                 }
-              ],
-              "ID": "",
-              "Foldable": false,
-              "Folded": false
+              ]
             },
             {
               "Type": "List",
-              "Text": "LabelText",
               "Children": [
                 {
                   "Type": "Launch",
                   "Text": "$standaloneTarget/HISE.app",
                   "ID": "launchHise",
-                  "CallOnNext": true,
-                  "Args": "",
-                  "Class": "",
-                  "Style": "",
-                  "EventTrigger": "OnPageLoad"
+                  "EventTrigger": "OnSubmit"
                 }
-              ],
-              "ID": "",
-              "Foldable": false,
-              "Folded": false
+              ]
             }
           ],
           "ID": "OS"
         }
       ],
-      "ID": "",
-      "Text": "",
-      "Foldable": false,
-      "Folded": false
+      "Text": ""
     }
   ],
   "Assets": [
