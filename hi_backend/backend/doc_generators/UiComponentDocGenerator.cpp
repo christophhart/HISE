@@ -473,6 +473,9 @@ juce::String UIComponentDatabase::FloatingTileResolver::getFloatingTileContent(c
 	return {};
 #endif
 
+    if(id.toString() == "PerfettoWebviewer")
+        return {};
+    
     ScopedPointer<FloatingTileContent> ft;
     
     {
