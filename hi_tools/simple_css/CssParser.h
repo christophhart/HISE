@@ -156,7 +156,7 @@ struct ExpressionParser
 		}
 		
 		bool useWidth = false;
-		SourceType fullArea = getDefaultSource();
+		SourceType fullArea = Context<SourceType>::getDefaultSource();
 		float defaultFontSize = 16.0f;
 	};
 
