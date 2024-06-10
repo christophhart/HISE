@@ -525,6 +525,17 @@ void SliderPack::updateSliderRange()
 	repaint();
 }
 
+void SliderPack::updateSliderColours()
+{
+	for(auto s: sliders)
+	{
+		s->setColour(Slider::backgroundColourId, findColour(Slider::backgroundColourId));
+		s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
+		s->setColour(Slider::thumbColourId, findColour(Slider::thumbColourId));
+		s->setColour(Slider::trackColourId, findColour(Slider::trackColourId));
+	}
+}
+
 void SliderPack::updateSliders()
 {
 	for (int i = 0; i < sliders.size(); i++)
@@ -1087,8 +1098,7 @@ void SliderPack::setColourForSliders(int colourId, Colour c)
 	// when the sliderpack gets updated, it fetches the colour from here...
 	setColour(colourId, c);
 
-	sliders.clear();
-	rebuildSliders();
+	updateSliderColours();
 }
 
 void SliderPack::setShowValueOverlay(bool shouldShowValueOverlay)
@@ -1136,14 +1146,11 @@ void SliderPack::rebuildSliders()
 			s->addListener(this);
 			s->setSliderStyle(Slider::SliderStyle::LinearBarVertical);
 			s->setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
-
 			s->setRange(data->getRange().getStart(), data->getRange().getEnd(), data->getStepSize());
-			s->setColour(Slider::backgroundColourId, findColour(Slider::backgroundColourId));
-			s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
-			s->setColour(Slider::thumbColourId, findColour(Slider::thumbColourId));
-			s->setColour(Slider::trackColourId, findColour(Slider::trackColourId));
 		}
 
+		updateSliderColours();
+		
 		updateSliders();
 	}
 }

@@ -333,7 +333,7 @@ public:
     
 private:
 	
-    bool toggleMaxMode = true;
+    bool toggleMaxMode = false;
     Rectangle<int> textArea;
 
 	int lastDragIndex = -1;
@@ -344,6 +344,8 @@ private:
     double currentStepSequencerInputValue = 0.0;
 
 	void rebuildSliders();
+
+	void updateSliderColours();
 
 	int currentDisplayIndex = -1;
 
