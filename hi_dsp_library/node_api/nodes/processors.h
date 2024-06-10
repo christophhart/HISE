@@ -1233,6 +1233,124 @@ template <int BlockSize, class T> struct fix_block: public fix_blockx<T, static_
 {
 };
 
+template <class T> struct dynamic_blocksize
+{
+	SN_SELF_AWARE_WRAPPER(dynamic_blocksize, T);
+	
+    // A oversample node is never polyphonic
+    static constexpr bool isPolyphonic() { return false; }
+    
+	// Forward the get calls to the wrapped container
+	template <int arg> constexpr auto& get() noexcept { return this->obj.template get<arg>(); }
+	template <int arg> constexpr const auto& get() const noexcept { return this->obj.template get<arg>(); }
+
+    template <int P> void setParameter(double newValue)
+    {
+		static_assert(P == 0, "illegal parameter index");
+
+        if constexpr(P == 0)
+            this->setBlockSize(newValue);
+    }
+	SN_FORWARD_PARAMETER_TO_MEMBER(dynamic_blocksize);
+
+	forcedinline void reset() noexcept 
+	{
+		obj.reset();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		lastSpecs = ps;
+		
+		ps.blockSize = jmin(ps.blockSize, currentBlockSize);
+		obj.prepare(ps);
+	}
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		obj.processFrame(data);
+	}
+	
+	template <typename ProcessDataType>  void process(ProcessDataType& data)
+	{
+#define BLOCKSIZE_CASE(x) case x: static_functions::fix_block<x>::process(&obj, prototypes::static_wrappers<T>::template process<ProcessDataType>, data); break;
+
+		if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+		{
+ 			switch(currentBlockSize)
+ 			{
+ 			case 1:
+ 			{
+ 				constexpr int C = ProcessDataType::getNumFixedChannels();
+
+				if constexpr (ProcessDataType::hasCompileTimeSize())
+					FrameConverters::processFix<C>(&obj, data);
+				else
+					FrameConverters::forwardToFrame16(&obj, data);
+
+ 				break;
+ 			}
+ 			BLOCKSIZE_CASE(8);
+			BLOCKSIZE_CASE(16);
+			BLOCKSIZE_CASE(32);
+			BLOCKSIZE_CASE(64);
+			BLOCKSIZE_CASE(128);
+			BLOCKSIZE_CASE(256);
+			BLOCKSIZE_CASE(512);
+ 			}
+		}
+#undef BLOCKSIZE_CASE	
+	}
+
+	void setBlockSize(double newBlockSize)
+	{
+		static const std::array<int, 8> BlockSizes = { 1, 8, 16, 32, 64, 128, 256, 512 };
+
+		auto idx = roundToInt(newBlockSize);
+
+		if(isPositiveAndBelow(idx, BlockSizes.size()))
+		{
+			auto nb = BlockSizes[idx];
+
+			if(nb != currentBlockSize)
+			{
+				currentBlockSize = nb;
+				SimpleReadWriteLock::ScopedWriteLock sl(lock);
+				this->prepare(lastSpecs);
+			}
+		}
+	}
+
+	int getBlockSize() const { return currentBlockSize; }
+
+private:
+
+	PrepareSpecs lastSpecs;
+
+	int currentBlockSize = 64;
+
+	static_functions::fix_block<8> b8;
+	static_functions::fix_block<16> b16;
+	static_functions::fix_block<32> b32;
+	static_functions::fix_block<64> b64;
+	static_functions::fix_block<128> b128;
+	static_functions::fix_block<256> b256;
+	static_functions::fix_block<512> b512;
+
+	T obj;
+
+	hise::SimpleReadWriteLock lock;
+};
 
 
 /** Downsamples the incoming signal with the HISE_EVENT_RASTER value
