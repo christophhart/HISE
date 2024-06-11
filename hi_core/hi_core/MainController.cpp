@@ -276,7 +276,7 @@ void MainController::loadPresetFromFile(const File &f, Component* /*mainEditor*/
 #endif
 }
 
-void MainController::clearPreset()
+void MainController::clearPreset(NotificationType sendPresetLoadMessage)
 {
 	Processor::Iterator<Processor> iter(getMainSynthChain(), false);
 
@@ -292,7 +292,7 @@ void MainController::clearPreset()
         p->cleanRebuildFlagForThisAndParents();
     }
 
-	auto f = [](Processor* p)
+	auto f = [sendPresetLoadMessage](Processor* p)
 	{
 		auto mc = p->getMainController();
 		SUSPEND_GLOBAL_DISPATCH(mc, "reset main controller");
@@ -328,6 +328,8 @@ void MainController::clearPreset()
         mc->prepareToPlay(mc->processingSampleRate, mc->numSamplesThisBlock);
 
 		mc->getProcessorChangeHandler().sendProcessorChangeMessage(mc->getMainSynthChain(), ProcessorChangeHandler::EventType::RebuildModuleList, false);
+
+		mc->sendHisePresetLoadMessage(sendPresetLoadMessage);
 
 		return SafeFunctionCall::OK;
 	};
@@ -386,7 +388,7 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
 
 			getSampleManager().setCurrentPreloadMessage("Closing...");
 
-			clearPreset();
+			clearPreset(dontSendNotification);
 
 			getSampleManager().setShouldSkipPreloading(true);
 
@@ -454,20 +456,7 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
             getJavascriptThreadPool().getGlobalServer()->setInitialised();
 #endif
 
-			auto f = [](Dispatchable* obj)
-			{
-				auto p = static_cast<Processor*>(obj);
-			
-				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Building UI...");
-				p->sendRebuildMessage(true);
-				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
-				p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
-
-				return Dispatchable::Status::OK;
-			};
-
-			if(USE_BACKEND || FullInstrumentExpansion::isEnabled(this))
-				getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
+			sendHisePresetLoadMessage(sendNotificationAsync);
 
             if(!isInitialised())
                 getSampleManager().clearPreloadFlag();
@@ -612,6 +601,32 @@ void MainController::sendToMidiOut(const HiseEvent& e)
 
 const AudioSampleBuffer& MainController::getMultiChannelBuffer() const
 { return getMainSynthChain()->internalBuffer; }
+
+void MainController::sendHisePresetLoadMessage(NotificationType n)
+{
+	if(n == dontSendNotification)
+		return;
+
+	auto f = [](Dispatchable* obj)
+	{
+		auto p = static_cast<Processor*>(obj);
+		
+		p->getMainController()->getSampleManager().setCurrentPreloadMessage("Building UI...");
+		p->sendRebuildMessage(true);
+		p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
+		p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
+
+		return Dispatchable::Status::OK;
+	};
+
+	if(USE_BACKEND || FullInstrumentExpansion::isEnabled(this))
+	{
+		if(n == sendNotificationSync)
+			f(getMainSynthChain());
+		else
+			getLockFreeDispatcher().callOnMessageThreadAfterSuspension(getMainSynthChain(), f);
+	}
+}
 
 bool MainController::refreshOversampling()
 {

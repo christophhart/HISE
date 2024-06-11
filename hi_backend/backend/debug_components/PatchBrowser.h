@@ -42,6 +42,7 @@ class PatchBrowser : public SearchableListComponent,
 					 public DragAndDropContainer,
 					 public ButtonListener,
 				     public MainController::ProcessorChangeHandler::Listener,
+					 public MainController::LockFreeDispatcher::PresetLoadListener,
 					 public Timer
 {
 
@@ -164,7 +165,9 @@ public:
 	void buttonClicked(Button *b) override;
 
     void rebuilt() override;
-    
+
+	void newHisePresetLoaded() override;
+
 private:
 
 	// ====================================================================================================================

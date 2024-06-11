@@ -1592,7 +1592,7 @@ public:
 
 	void loadPresetFromFile(const File &f, Component *mainEditor=nullptr);
 	void loadPresetFromValueTree(const ValueTree &v, Component *mainEditor=nullptr);
-    void clearPreset();
+    void clearPreset(NotificationType n);
     
 
 	/** Compiles all scripts in the main synth chain */
@@ -2073,6 +2073,8 @@ protected:
 	const AudioSampleBuffer& getMultiChannelBuffer() const;
 
 private:
+
+	void sendHisePresetLoadMessage(NotificationType n);
 
 	MasterClock masterClock;
 

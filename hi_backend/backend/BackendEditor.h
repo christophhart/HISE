@@ -67,6 +67,7 @@ class BackendProcessorEditor: public FloatingTileContent,
 							  public Component,
 							  public GlobalScriptCompileListener,
                               public Label::Listener,
+							  public MainController::LockFreeDispatcher::PresetLoadListener,
 							  public MainController::SampleManager::PreloadListener
 {
 public:
@@ -95,7 +96,7 @@ public:
 
 	void removeContainer();
 
-	
+	void newHisePresetLoaded() override;
 
 	void preloadStateChanged(bool isPreloading) override;
 

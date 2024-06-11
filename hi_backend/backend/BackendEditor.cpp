@@ -121,6 +121,17 @@ void BackendProcessorEditor::removeContainer()
 	container = nullptr;
 }
 
+void BackendProcessorEditor::newHisePresetLoaded()
+{
+	auto rw = GET_BACKEND_ROOT_WINDOW(this);
+
+	if(auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getBackendProcessor()))
+	{
+		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rw, jsp);
+		BackendPanelHelpers::showWorkspace(rw, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+	}
+}
+
 
 void BackendProcessorEditor::preloadStateChanged(bool isPreloading)
 {
@@ -314,8 +325,6 @@ void BackendProcessorEditor::clearPreset()
 {
 	setPluginPreviewWindow(nullptr);
 
-	
-
 	clearModuleList();
     container = nullptr;
 	isLoadingPreset = true;
@@ -327,14 +336,8 @@ void BackendProcessorEditor::clearPreset()
 
 	owner->killAndCallOnLoadingThread([rw](Processor* p) 
 	{
-		p->getMainController()->clearPreset(); 
-		auto jsp = dynamic_cast<BackendProcessor*>(p->getMainController())->createInterface(600, 500);
-
-		MessageManager::callAsync([rw, jsp]()
-		{
-			BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rw, jsp);
-			BackendPanelHelpers::showWorkspace(rw, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
-		});
+		p->getMainController()->clearPreset(sendNotificationAsync); 
+		dynamic_cast<BackendProcessor*>(p->getMainController())->createInterface(600, 500);
 
 		return SafeFunctionCall::OK;
 	});

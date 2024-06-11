@@ -168,7 +168,7 @@ scriptUnlocker(this)
 		getAutoSaver().updateAutosaving();
 	}
 	
-	clearPreset();
+	clearPreset(dontSendNotification);
 	getSampleManager().getProjectHandler().addListener(this);
 
 	createInterface(600, 500);
@@ -255,7 +255,7 @@ BackendProcessor::~BackendProcessor()
 
 	deletePendingFlag = true;
 
-	clearPreset();
+	clearPreset(dontSendNotification);
 
 	synthChain = nullptr;
 

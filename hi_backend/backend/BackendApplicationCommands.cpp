@@ -1981,7 +1981,7 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 		else
 		{
 			bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
-			bpe->getBackendProcessor()->clearPreset();
+			bpe->getBackendProcessor()->clearPreset(dontSendNotification);
 			loadFirstXmlAfterProjectSwitch(bpe);
 		}
 			

@@ -57,7 +57,9 @@ showChains(false)
     addButton->setToggleStateAndUpdateIcon(false);
 	
 	addCustomButton(addButton);
-	
+
+	window->getBackendProcessor()->getLockFreeDispatcher().addPresetLoadListener(this);
+
 	
 #if 0
 	addAndMakeVisible(foldButton = new ShapeButton("Fold all", Colours::white.withAlpha(0.6f), Colours::white, Colours::white));
@@ -73,12 +75,17 @@ showChains(false)
 #endif
 
 	setOpaque(true);
+
+	newHisePresetLoaded();
 }
 
 PatchBrowser::~PatchBrowser()
 {
 	if(rootWindow != nullptr)
+	{
+		rootWindow->getBackendProcessor()->getLockFreeDispatcher().removePresetLoadListener(this);
 		rootWindow->getModuleListNofifier().removeProcessorChangeListener(this);
+	}
 
 	addButton = nullptr;
 }
@@ -700,8 +707,10 @@ void PatchBrowser::toggleFoldAll()
 void PatchBrowser::toggleShowChains()
 {
 	SUSPEND_GLOBAL_DISPATCH(rootWindow->getBackendProcessor(), "toggle patch browser edit mode");
-
+	
 	showChains = !showChains;
+
+	addButton->setToggleStateAndUpdateIcon(showChains);
 	rebuildModuleList(true);
     repaint();
 }
@@ -773,6 +782,23 @@ void PatchBrowser::rebuilt()
 	}
 
 	refreshPopupState();
+}
+
+void PatchBrowser::newHisePresetLoaded()
+{
+	Processor::Iterator<Processor> iter(rootWindow->getBackendProcessor()->getMainSynthChain());
+
+	int counter = 0;
+
+	while(iter.getNextProcessor())
+		counter++;
+
+	auto shouldBeEditable = counter <= 6;
+
+	if(showChains != shouldBeEditable)
+	{
+		toggleShowChains();
+	}
 }
 
 // ====================================================================================================================
