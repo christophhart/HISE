@@ -356,6 +356,15 @@ ExternalPreprocessorDefinition::List GlobalScope::getDefaultDefinitions()
 	}
 
 	{
+		
+
+		ExternalPreprocessorDefinition son(ExternalPreprocessorDefinition::Type::Macro);
+		son.name = "SNEX_INIT_FILTER(externalData, index)";
+		son.value = "// nothing to do";
+		defaultMacros.add(son);
+	}
+
+	{
 		ExternalPreprocessorDefinition dpe(ExternalPreprocessorDefinition::Type::Macro);
 		dpe.name = "DECLARE_PARAMETER_EXPRESSION(name, expression)";
 		dpe.value = "struct name { static double op(double input) { return expression; }};";

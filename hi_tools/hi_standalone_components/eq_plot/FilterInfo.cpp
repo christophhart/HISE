@@ -34,6 +34,73 @@
 
 namespace hise { using namespace juce;
 
+double FilterCoefficientData::getFilterPlotValueForIIRCoefficients(const void* obj, bool getMagnitude,
+	double xAxisNormalised)
+{
+	auto typed = static_cast<const FilterCoefficientData*>(obj);
+	
+	std::complex <double> normalisedFrequency (0, (2 * double_Pi * xAxisNormalised));
+	std::complex <double> z = pow (MathConstants<double>::euler, normalisedFrequency);
+    
+	std::complex <double> num (0, 0);
+	std::complex <double> den (0, 0);
+
+	double numeratorCoeffs[3];
+	double denominatorCoeffs[3];
+
+	int numNumeratorCoeffs = 3;
+	int numDenominatorCoeffs = 3;
+
+	// zero coeffs
+	for (int numOrder = 0; numOrder < numNumeratorCoeffs; numOrder++)
+	{
+		numeratorCoeffs [numOrder] = 0;
+	}
+    
+	for (int denOrder = 1; denOrder < numDenominatorCoeffs; denOrder++)
+	{
+		denominatorCoeffs [denOrder] = 0;
+	}
+    
+	denominatorCoeffs [0] = 1;
+
+	// convert coefficients to array
+	for (int numOrder = 0; numOrder < 3; numOrder++)
+	{
+		numeratorCoeffs [numOrder] = typed->first.coefficients[numOrder];
+	}
+        
+	for (int denOrder = 1; denOrder < 3; denOrder++)
+	{
+		denominatorCoeffs [denOrder] = typed->first.coefficients [denOrder + 2];
+	}
+
+	// calcualate 
+	for (int numOrder = 0; numOrder < numNumeratorCoeffs; numOrder++)
+	{
+		num += numeratorCoeffs [numOrder] / pow (z, numOrder);
+	}
+    
+	for (int denOrder = 0; denOrder < numDenominatorCoeffs; denOrder++)
+	{
+		den += denominatorCoeffs [denOrder] / pow (z, denOrder);
+	}
+    
+	std::complex <double> transferFunction = num / den;
+
+	if(getMagnitude)
+	{
+		auto mag = abs(transferFunction);
+		mag = std::pow(mag, (float)typed->second);
+		return mag;
+	}
+	else
+	{
+		auto phase = arg(transferFunction);
+		return phase;
+	}
+}
+
 //==============================================================================
 FilterResponse::FilterResponse (double magnitudeInit, double phaseInit)
 {
@@ -79,6 +146,15 @@ void FilterInfo::setGain (double gain)
 
 FilterResponse FilterInfo::getResponse (double inputFrequency) const
 {
+    auto normalisedFrequency = inputFrequency / fs;
+
+    auto m = cd.getFilterPlotValue(true, normalisedFrequency);
+    auto p = cd.getFilterPlotValue(false, normalisedFrequency);
+
+    return { m * gainValue, p };
+
+#if 0
+    FilterResponse(m, p);
 
     std::complex <double> normalisedFrequency (0, (2 * double_Pi * inputFrequency / fs));
     std::complex <double> z = pow (double_E, normalisedFrequency);
@@ -105,6 +181,7 @@ FilterResponse FilterInfo::getResponse (double inputFrequency) const
     auto phase = arg(transferFunction);
 
     return FilterResponse (mag * gainValue, phase);
+#endif
 }
 
 void FilterInfo::zeroCoeffs()
@@ -122,8 +199,10 @@ void FilterInfo::zeroCoeffs()
     denominatorCoeffs [0] = 1;
 }
  
-bool FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, std::pair<IIRCoefficients, int> newCoefficients)
+bool FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, FilterCoefficientData newCoefficients)
 {
+    cd = newCoefficients;
+
 	numNumeratorCoeffs = 3;
     numDenominatorCoeffs = 3;
         
@@ -295,7 +374,7 @@ FilterDataObject::~FilterDataObject()
 	internalData.clear();
 }
 
-std::pair<juce::IIRCoefficients, int> FilterDataObject::getCoefficients(int index) const
+FilterDataObject::CoefficientData FilterDataObject::getCoefficients(int index) const
 {
 	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 
@@ -303,7 +382,7 @@ std::pair<juce::IIRCoefficients, int> FilterDataObject::getCoefficients(int inde
 	return internalData[index].coefficients;
 }
 
-std::pair<juce::IIRCoefficients, int> FilterDataObject::getCoefficientsForBroadcaster(Broadcaster* b) const
+FilterDataObject::CoefficientData FilterDataObject::getCoefficientsForBroadcaster(Broadcaster* b) const
 {
 	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 

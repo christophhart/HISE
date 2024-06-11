@@ -269,7 +269,7 @@ void FilterBank::reset()
 	}
 }
 
-std::pair<juce::IIRCoefficients, int> FilterBank::getCurrentCoefficients() const noexcept
+FilterDataObject::CoefficientData FilterBank::getCurrentCoefficients() const noexcept
 {
 	return FilterEffect::getDisplayCoefficients(mode, freqModValue, q, gain * gainModValue, sampleRate);
 }
@@ -289,7 +289,7 @@ void FilterBank::setGain(float newGain)
 #undef RESET_MONO
 #undef RESET_POLY
 
-std::pair<juce::IIRCoefficients, int> FilterEffect::getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate)
+FilterDataObject::CoefficientData FilterEffect::getDisplayCoefficients(FilterBank::FilterMode m, double frequency, double q, float gain, double samplerate)
 {
 	auto srToUse = samplerate;
 

@@ -37,6 +37,37 @@
 
 namespace hise { using namespace juce;
 
+struct FilterCoefficientData
+{
+	typedef double (*PlotFunction)(void*, bool, double);
+
+	IIRCoefficients first;
+	int second;
+
+	bool hasCustomFunction() const
+	{
+		return customFunction != nullptr;
+	}
+
+	double getFilterPlotValue(bool getMagnitude, double xAxisNormalised) const
+	{
+		if(hasCustomFunction())
+		{
+			if(obj == nullptr)
+				return customFunction(const_cast<FilterCoefficientData*>(this), getMagnitude, xAxisNormalised);
+			else
+				return customFunction(obj, getMagnitude, xAxisNormalised);
+		}
+
+		return getFilterPlotValueForIIRCoefficients(this, getMagnitude, xAxisNormalised);
+	}
+
+	static double getFilterPlotValueForIIRCoefficients(const void* obj, bool getMagnitude, double xAxisNormalised);
+
+	void* obj = nullptr;
+	PlotFunction customFunction = nullptr;
+};
+
 #ifndef double_E
 #define double_E 2.71828183
 #endif
@@ -83,7 +114,7 @@ public:
     
     void setCustom (std::vector <double> numCoeffs, std::vector <double> denCoeffs);
 
-	bool setCoefficients(int filterNum, double sampleRate, std::pair<IIRCoefficients, int> newCoefficients);
+	bool setCoefficients(int filterNum, double sampleRate, FilterCoefficientData newCoefficients);
 
 	Array<double> toDoubleArray() const;
 	void fromDoubleArray(Array<double>& d);
@@ -99,6 +130,8 @@ public:
 	};
     
 private:
+
+	FilterCoefficientData cd;
 
 	int order = 1;
 
@@ -118,6 +151,9 @@ struct FilterDataObject : public ComplexDataUIBase,
 {
 public:
 
+
+	using CoefficientData = FilterCoefficientData;
+
 	struct Broadcaster
 	{
 		virtual ~Broadcaster() {};
@@ -134,7 +170,7 @@ public:
 	{
 		bool operator==(const InternalData& other) const { return broadcaster == other.broadcaster; }
 		WeakReference<Broadcaster> broadcaster;
-		std::pair<IIRCoefficients, int> coefficients;
+		CoefficientData coefficients;
 	};
 
 	using Ptr = ReferenceCountedObjectPtr<FilterDataObject>;
@@ -155,9 +191,9 @@ public:
 		}
 	}
 
-	std::pair<IIRCoefficients, int> getCoefficients(int index) const;
+	CoefficientData getCoefficients(int index) const;
 
-	std::pair<IIRCoefficients, int> getCoefficientsForBroadcaster(Broadcaster* b) const;
+	CoefficientData getCoefficientsForBroadcaster(Broadcaster* b) const;
 
 	void sendUpdateFromBroadcaster(Broadcaster* b)
 	{

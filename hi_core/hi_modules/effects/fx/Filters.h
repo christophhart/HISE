@@ -202,7 +202,7 @@ public:
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	std::pair<IIRCoefficients, int> getCurrentCoefficients() const override;;
+	FilterDataObject::CoefficientData getCurrentCoefficients() const override;;
 
 	bool hasPolyMods() const noexcept;
 

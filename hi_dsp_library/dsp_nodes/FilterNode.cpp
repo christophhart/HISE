@@ -98,7 +98,7 @@ void FilterNodeBase<FilterType, NV>::reset()
 
 
 template <class FilterType, int NV>
-std::pair<IIRCoefficients, int> FilterNodeBase<FilterType, NV>::getApproximateCoefficients() const
+FilterDataObject::CoefficientData FilterNodeBase<FilterType, NV>::getApproximateCoefficients() const
 {
 	if (!enabled)
 		return {};

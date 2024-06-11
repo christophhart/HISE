@@ -296,7 +296,7 @@ private:
 		}
 	}
 
-	std::pair<IIRCoefficients, int> currentCoefficients;
+	FilterDataObject::CoefficientData currentCoefficients;
 
 };
 

@@ -498,6 +498,12 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			m.addItem(9001, "Show in big popup");
 		}
 
+		if constexpr (std::is_same<DynamicDataType, data::dynamic::filter>())
+		{
+			m.addSeparator();
+			m.addItem(9001, "Show in big popup");
+		}
+
 		if (auto r = m.show())
 		{
 			if (r == 9000)
@@ -512,6 +518,49 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 			if(r == 9001)
 			{
 #if USE_BACKEND
+				if(auto obj = dynamic_cast<FilterDataObject*>(getObject()->currentlyUsedData))
+				{
+					struct ResizableFilterGraph: public Component
+					{
+						ResizableFilterGraph(const String& name, FilterDataObject* obj, Colour nColour):
+						  resizer(this, nullptr)
+						{
+							setName("Filter Graph: " + name);
+
+							fg.setComplexDataUIBase(obj);
+
+							auto laf = new complex_ui_laf();
+							laf->nodeColour = nColour;
+							fg.setSpecialLookAndFeel(laf, true);
+
+							addAndMakeVisible(fg);
+							addAndMakeVisible(resizer);
+
+							setSize(768, 400);
+						}
+
+						void resized() override
+						{
+							auto b = getLocalBounds();
+							fg.setBounds(b.reduced(10));
+							resizer.setBounds(b.removeFromRight(10).removeFromBottom(10));
+						}
+
+						FilterGraph fg;
+						ResizableCornerComponent resizer;
+					};
+
+					auto pc = findParentComponentOfClass<NodeComponent>();
+					auto nColour = pc != nullptr ? getColourFromNodeComponent(pc) : Colours::white;
+
+					auto fg = new ResizableFilterGraph(getObject()->parentNode->getId(), obj, nColour);
+					
+					auto rt = GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile();
+
+					rt->showComponentInRootPopup(fg, this, {});
+				}
+
+
 				if (auto obj = dynamic_cast<SimpleRingBuffer*>(getObject()->currentlyUsedData))
 				{
 					struct ResizableModPlotter: public Component
@@ -544,7 +593,7 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 					};
 
 					auto pc = findParentComponentOfClass<NodeComponent>();
-					auto nColour = getColourFromNodeComponent(pc);
+					auto nColour = pc != nullptr ? getColourFromNodeComponent(pc) : Colours::white;
 
 					auto n = new ResizableModPlotter("Plotter: " + getObject()->parentNode->getId(), obj, nColour);
 					auto rt = GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile();

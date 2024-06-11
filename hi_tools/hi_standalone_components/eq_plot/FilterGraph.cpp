@@ -395,7 +395,7 @@ void FilterGraph::setCustom (int filterNum, double sampleRate, std::vector <doub
 	}
 }
 
-void FilterGraph::setCoefficients(int filterNum, double sampleRate, std::pair<IIRCoefficients, int> newCoefficients)
+void FilterGraph::setCoefficients(int filterNum, double sampleRate, FilterDataObject::CoefficientData newCoefficients)
 {
 	if (filterNum < filterVector.size())
 	{

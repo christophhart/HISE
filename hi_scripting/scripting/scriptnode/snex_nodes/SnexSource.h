@@ -226,8 +226,16 @@ public:
 
 			SimpleReadWriteLock::ScopedReadLock l(getAccessLock());
 			externalFunction.callVoid(v, index);
-		}
 
+			if(d.dataType == ExternalData::DataType::FilterCoefficients)
+			{
+				if(auto obj = parent.getCallbackHandler().getFilterDataObject())
+				{
+					obj->setExternalData(d, index);
+				}
+			}
+		}
+		
 		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override
 		{
 			auto newFunction = getFunctionAsObjectCallback("setExternalData");
@@ -247,6 +255,7 @@ public:
 	protected:
 
 		snex::jit::FunctionData externalFunction;
+		ExternalData lastData;
 	};
 
 	struct ComplexDataHandler : public ComplexDataHandlerLight,
@@ -301,7 +310,7 @@ public:
 
 		bool hasComplexData() const
 		{
-			return !tables.isEmpty() || !sliderPacks.isEmpty() || !audioFiles.isEmpty();
+			return !tables.isEmpty() || !sliderPacks.isEmpty() || !audioFiles.isEmpty() || !filters.isEmpty();
 		}
 
 		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override;
@@ -333,6 +342,7 @@ public:
 		valuetree::ChildListener dataListeners[(int)ExternalData::DataType::numDataTypes];
 
 		OwnedArray<snex::ExternalDataHolder> tables;
+		OwnedArray<snex::ExternalDataHolder> filters;
 		OwnedArray<snex::ExternalDataHolder> sliderPacks;
 		OwnedArray<snex::ExternalDataHolder> displayBuffers;
 		OwnedArray<snex::ExternalDataHolder> audioFiles;
@@ -390,6 +400,8 @@ public:
 			CallbackHandlerBase& parent;
 			const bool prevState;
 		};
+
+		virtual data::filter_base* getFilterDataObject() const { return nullptr; };
 
 	protected:
 
@@ -783,7 +795,7 @@ protected:
 
 	Array<WeakReference<SnexSourceListener>> compileListeners;
 
-	void addDummyNodeCallbacks(String& s, bool addEvent, bool addReset, bool addHandleModulation);
+	void addDummyNodeCallbacks(String& s, bool addEvent, bool addReset, bool addHandleModulation, bool addPlotValue);
 
 	void addDummyProcessFunctions(String& s, bool addFrame, const String& processDataType = {});
 
