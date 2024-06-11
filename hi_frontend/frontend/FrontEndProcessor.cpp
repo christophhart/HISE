@@ -393,7 +393,7 @@ FrontendProcessor::~FrontendProcessor()
 
 	setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
 	
-	clearPreset();
+	clearPreset(dontSendNotification);
 	
 	synthChain = nullptr;
 
