@@ -73,7 +73,8 @@ static inline uint64_t mir_hash_1 (const void *key, size_t len, uint64_t seed, i
   }
   if (len >= 8) {
     r ^= mir_mum (mir_get_key_part (v, 8, relax_p), mir_hash_p1, relax_p);
-    len -= 8, v += 8;
+    len -= 8;
+  	v += 8;
   }
   if (len != 0) r ^= mir_mum (mir_get_key_part (v, len, relax_p), mir_hash_p2, relax_p);
   return mir_round (r, r, relax_p);

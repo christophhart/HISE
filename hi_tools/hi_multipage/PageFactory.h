@@ -410,12 +410,6 @@ struct Table: public Dialog::PageBase,
     static String getCategoryId() { return "UI Elements"; }
 
     String getCellContent(int columnId, int rowNumber) const;
-
-    void resized() override
-    {
-        auto b = getLocalBounds();
-        FlexboxComponent::resized();
-    }
     
     Component* refreshComponentForCell (int rowNumber, int columnId, bool isRowSelected,
                                                 Component* existingComponentToUpdate) override;

@@ -240,7 +240,7 @@ KeywordDataBase::KeywordType KeywordDataBase::getKeywordType(const String& t)
 void LanguageManager::Tokeniser::skipNumberValue(CodeDocument::Iterator& source)
 {
 	auto c = source.peekNextChar();
-	while(!source.isEOF() && (CharacterFunctions::isLetterOrDigit(c) || c == '-') || c == '%')
+	while(!source.isEOF() && ((CharacterFunctions::isLetterOrDigit(c) || c == '-') || c == '%'))
 	{
 		source.skip();
 		c = source.peekNextChar();
@@ -313,7 +313,7 @@ String LanguageManager::Tokeniser::skipWord(CodeDocument::Iterator& source)
 
 	auto c = source.peekNextChar();
 
-	while(!source.isEOF() && CharacterFunctions::isLetterOrDigit(c) || c == '-')
+	while(!source.isEOF() && (CharacterFunctions::isLetterOrDigit(c) || c == '-'))
 	{
 		s << c;
 

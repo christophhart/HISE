@@ -285,7 +285,7 @@ bool Asset::writeToFile(const File& targetFile, ReferenceCountedObject* job_) co
 
 	for(int i = 0; i < numToWrite; i += 8192)
 	{
-		auto numThisTime = jmin<int>(8192, numToWrite - i);
+		auto numThisTime = jmin<int>(8192, (int)numToWrite - i);
 
 		auto ok = fos.writeFromInputStream(mis, numThisTime) == numThisTime;
 
@@ -844,7 +844,7 @@ bool UndoableVarAction::perform()
 	switch(actionType)
 	{
 	case Type::SetProperty: parent.getDynamicObject()->setProperty(key, newValue); return true;
-	case Type::RemoveProperty: parent.getDynamicObject()->removeProperty(key); true;
+	case Type::RemoveProperty: parent.getDynamicObject()->removeProperty(key); return true;
 	case Type::AddChild: parent.getArray()->insert(index, newValue); return true;
 	case Type::RemoveChild: return parent.getArray()->removeAllInstancesOf(oldValue) > 0;
 	default: return false;
