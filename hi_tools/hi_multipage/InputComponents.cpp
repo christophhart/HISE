@@ -172,6 +172,8 @@ LabelledComponent::LabelledComponent(Dialog& r, int width, const var& obj, Compo
         setIsInvisibleWrapper(true);
         updateStyleSheetInfo(true);
 	    Helpers::setFallbackStyleSheet(*c, "flex-grow: 1; height: 32px;width: 100%;");
+
+        changeClass(simple_css::Selector(".no-label"), true);
     }
     
     if(!obj.hasProperty(mpid::Enabled))

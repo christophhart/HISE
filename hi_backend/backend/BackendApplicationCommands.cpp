@@ -738,17 +738,13 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 {
 	MenuNames m = (MenuNames)topLevelMenuIndex;
 
-	int lastMenuId = 0;
-
-	
-
 	auto isSnippetBrowser = bpe->getBackendProcessor()->isSnippetBrowser();
-
 	auto categoryIds = mainCommandManager->getCommandsInCategory(menuName.upToFirstOccurrenceOf(" ", false, false));
 
 	jassert(!categoryIds.isEmpty());
 
 #if JUCE_DEBUG
+	int lastMenuId = 0;
 	bool allowCheck = true;//
 
 	auto checkSanity = [&](MainToolbarCommands x)

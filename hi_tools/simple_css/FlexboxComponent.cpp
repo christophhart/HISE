@@ -432,8 +432,10 @@ void FlexboxComponent::changeClass(const Selector& s, bool add)
 {
 	// must be a class
 	jassert(s.type == SelectorType::Class);
-		
-	auto list = Helpers::getClassSelectorFromComponentClass(this);
+
+	auto c = invisibleWrapper ? getChildComponent(0) : this;
+
+	auto list = Helpers::getClassSelectorFromComponentClass(c);
 
 	// must not contain the selector...
 	jassert(add == !list.contains(s));
@@ -443,7 +445,9 @@ void FlexboxComponent::changeClass(const Selector& s, bool add)
 	else
 		list.removeAllInstancesOf(s);
 
-	Helpers::writeClassSelectors(*this, list, false);
+	
+
+	Helpers::writeClassSelectors(*c, list, false);
 
 	if(auto r = findParentComponentOfClass<CSSRootComponent>())
 	{

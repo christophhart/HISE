@@ -757,6 +757,9 @@ select::after:hover
  margin: 0px;
  box-shadow: none;
  border: 0px;
+ text-align: left;
+ padding-left: 10px;
+ 
 }
 
 .toggle-button:hover
@@ -775,7 +778,7 @@ select::after:hover
  content: '';
  width: 32px;
  margin: 6px;
- right: 0px;
+ left: 0px;
  border-radius: 5px;
  border: 2px solid #ccc;
  background: transparent;
@@ -800,7 +803,7 @@ select::after:hover
  position: absolute;
 
  content: '';
- right: 0px;
+ left: 0px;
  width: 100vh;
  margin: 10px;
  border-radius: 2px;
@@ -816,6 +819,12 @@ select::after:hover
 {
  background: #ccc;
  
+}
+
+.no-label
+{
+ color: white; 
+ width: 100%;
 }
 
 )";

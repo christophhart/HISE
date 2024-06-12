@@ -2,7 +2,7 @@
   "StyleData": {
     "Font": "Lato",
     "BoldFont": "<Sans-Serif>",
-    "FontSize": 16.0,
+    "FontSize": 18.0,
     "bgColour": 4281479730,
     "codeBgColour": 864585864,
     "linkBgColour": 8947967,
@@ -28,7 +28,7 @@
   },
   "LayoutData": {
     "StyleSheet": "Dark",
-    "Style": "body\n{\n\t--global-padding: 25px;\n}\n\n#eula input\n{\n\theight: 100%;\n}\n\n#eula label\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n#title\n{\n\tfont-size: 1.5em;\n}\n\n.install-option\n{\n\tflex-grow: 0;\n\tflex-shrink: 0;\n\twidth: 180px;\n}\n\n.install-option button\n{\n\t\n\tcolor: #ddd;\n\ttext-align: left;\n}\n\n.install-option label\n{\n\tdisplay: none;\n}\n\n.install-target\n{\n\tflex-grow: 1;\n}\n\n.install-target label\n{\n\tdisplay: none;\n}\n\n.task label\n{\n\twidth: 160px;\n}\n",
+    "Style": "body\n{\n\t--global-padding: 25px;\n\t\n}\n\n#content\n{\n\tpadding-left: 70px;\n\tpadding-right: 70px;\n}\n\n#eula input\n{\n\theight: 100%;\n}\n\n#eula label\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n#title\n{\n\tfont-size: 1.5em;\n}\n\n.install-option\n{\n\tflex-grow: 0;\n\tflex-shrink: 0;\n\twidth: 180px;\n}\n\n.install-option button\n{\n\t\n\tcolor: #ddd;\n\ttext-align: left;\n}\n\n.install-option label\n{\n\tdisplay: none;\n}\n\n.install-target\n{\n\tflex-grow: 1;\n}\n\n.install-target label\n{\n\tdisplay: none;\n}\n\n.task label\n{\n\twidth: 160px;\n}\n",
     "UseViewport": true,
     "DialogWidth": 700,
     "DialogHeight": 530
@@ -48,6 +48,42 @@
         }
       ],
       "Text": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Please \"read\" and accept the EULA before proceeding..."
+        },
+        {
+          "Type": "RelativeFileLoader",
+          "ID": "standaloneTarget",
+          "SpecialLocation": "globalApplicationsDirectory"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "EULA",
+          "ID": "eula",
+          "InitValue": "${eula}",
+          "UseInitValue": true,
+          "Height": "180",
+          "Multiline": true,
+          "Style": "height: 200px; "
+        },
+        {
+          "Type": "Button",
+          "Text": "I've read and accepted the EULA",
+          "ID": "acceptTOC",
+          "InitValue": "false",
+          "UseInitValue": true,
+          "Required": true,
+          "Style": "color: white;",
+          "NoLabel": true
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 10px;"
     },
     {
       "Type": "List",
@@ -203,7 +239,7 @@
                   "Source": "${hise_win_standalone}",
                   "Target": "$standaloneTarget",
                   "Class": "task",
-                  "Text": "Install Standalone"
+                  "Text": "Standalone"
                 },
                 {
                   "Type": "CopyAsset",
@@ -212,7 +248,7 @@
                   "Source": "${mpc_win}",
                   "Target": "$standaloneTarget",
                   "Class": "task",
-                  "Text": "Install Multipage Creator"
+                  "Text": "Multipage Creator"
                 },
                 {
                   "Type": "CopyAsset",
@@ -221,7 +257,7 @@
                   "Source": "${hise_win_vst3}",
                   "Target": "$vst3Directory",
                   "Class": "task",
-                  "Text": "Install VST3 Plugin"
+                  "Text": "VST3 Plugin"
                 }
               ]
             },
@@ -285,29 +321,36 @@
       "Type": "List",
       "Children": [
         {
+          "Type": "OperatingSystem"
+        },
+        {
           "Type": "MarkdownText",
-          "Text": "The installation was complete. Press finish to close the installer."
+          "Text": "The installation was complete. Press finish to close the installer.",
+          "Style": "margin-bottom: 10px;"
         },
         {
           "Type": "Button",
           "Text": "Open HISE",
           "ID": "launchHise",
           "InitValue": "true",
-          "UseInitValue": true
+          "UseInitValue": true,
+          "Style": "color: white;",
+          "NoLabel": true
         },
         {
           "Type": "Branch",
           "Children": [
             {
               "Type": "List",
-              "Children": []
+              "Children": [],
+              "Text": ""
             },
             {
               "Type": "List",
               "Children": [
                 {
                   "Type": "Launch",
-                  "Text": "$standaloneWinTarget/HISE.exe",
+                  "Text": "$standaloneTarget/HISE.exe",
                   "ID": "launchHise",
                   "EventTrigger": "OnSubmit"
                 }
@@ -328,7 +371,8 @@
           "ID": "OS"
         }
       ],
-      "Text": ""
+      "Text": "",
+      "Style": "gap: 10px;"
     }
   ],
   "Assets": [

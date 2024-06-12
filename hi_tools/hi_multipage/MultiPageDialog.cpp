@@ -1203,6 +1203,9 @@ void Dialog::setCurrentErrorPage(PageBase* b)
 	if(currentErrorElement == b)
 		return;
 
+	if(b != nullptr && b->isInvisibleWrapper())
+		return;
+
 	if(currentErrorElement != nullptr)
 	{
 		currentErrorElement->changeClass(simple_css::Selector(".error"), false);
