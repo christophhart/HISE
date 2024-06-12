@@ -2048,10 +2048,16 @@ struct ScriptUndoableAction : public UndoableAction,
 
 			break;
 		}
+		case MainController::KillStateHandler::TargetThread::UnknownThread: break;
 		case MainController::KillStateHandler::TargetThread::MessageThread:
 		{
 			callback.call(args);
 		}
+		case MainController::KillStateHandler::TargetThread::AudioThread: break;
+		case MainController::KillStateHandler::TargetThread::AudioExportThread: break;
+		case MainController::KillStateHandler::TargetThread::numTargetThreads: break;
+		case MainController::KillStateHandler::TargetThread::Free: break;
+		default: ;
 		}
 	}
 

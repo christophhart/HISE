@@ -898,7 +898,10 @@ float ExpressionParser::Node::evaluate(const Context<>& context) const
 
 			return 0.0f;
 		}
-	
+	case ExpressionType::numExpressionTypes:
+	case ExpressionType::none:
+	default:
+		break;
 	}
 
 	return 0.0f;

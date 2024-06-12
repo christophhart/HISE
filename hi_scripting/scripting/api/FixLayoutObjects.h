@@ -223,6 +223,8 @@ public:
 					result = isArray ? ObjectReference::NumberComparator<float, true>(d.offset, d.elementSize)(p1, p2) :
 									   ObjectReference::NumberComparator<float, false>(d.offset)(p1, p2);
 					break;
+				case DataType::numTypes:
+				default: break;
 				}
 
 				if(result != 0)

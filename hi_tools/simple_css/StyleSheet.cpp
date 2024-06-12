@@ -1104,6 +1104,9 @@ Rectangle<float> StyleSheet::getBounds(Rectangle<float> sourceArea, PseudoState 
 	case PseudoElementType::Before:
 		a = a.removeFromLeft(w);
 		break;
+	case PseudoElementType::All:
+	default:
+		break;
 	}
 
 	auto h = a.getHeight();

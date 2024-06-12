@@ -562,6 +562,8 @@ void Choice::postInit()
 		    case ValueMode::Text: writeState(cb.getText()); break;
 		    case ValueMode::Index: writeState(cb.getSelectedItemIndex()); break;
 		    case ValueMode::Id: writeState(cb.getSelectedId()); break;
+		    case ValueMode::numValueModes: 
+            default: break;
 		    }
 	    }
 
@@ -573,6 +575,8 @@ void Choice::postInit()
     case ValueMode::Text: cb.setText(t.toString(), dontSendNotification); break;
     case ValueMode::Index: cb.setSelectedItemIndex((int)t, dontSendNotification); break;
     case ValueMode::Id: cb.setSelectedId((int)t, dontSendNotification); break;
+    case ValueMode::numValueModes: 
+    default: break;
     }
     
     getComponent<SubmenuComboBox>().refreshTickState();
