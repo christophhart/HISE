@@ -26,11 +26,6 @@ jobs:
         working-directory: ${{ github.workspace }}/tools/auto_build/
         run: 02_BuildInstaller.bat
         shell: cmd
-      - name: Upload Installer
-        uses: actions/upload-artifact@v2
-        with:
-          name: HISE Installer
-          path: ${{ github.workspace }}/tools/auto_build/Output/*.exe
   build_installer_macos:
     runs-on: [self-hosted, macos]
     steps:
@@ -43,11 +38,3 @@ jobs:
       - name: Build HISE
         working-directory: ${{ github.workspace }}/tools/auto_build/
         run: sh ./01_BuildHISE.sh
-      - name: Build Installer
-        working-directory: ${{ github.workspace }}/tools/auto_build/
-        run: sh ./02_BuildInstaller.sh
-      - name: Upload Installer
-        uses: actions/upload-artifact@v2
-        with:
-          name: HISE Installer
-          path: ${{ github.workspace }}/tools/auto_build/Output/*.pkg
