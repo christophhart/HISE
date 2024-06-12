@@ -338,7 +338,6 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::performCommand(ToolbarComma
 			currentEditor = infos[0][(int)currentMode]->createEditor(infos[1][(int)currentMode]->rbo);
 
 			addAndMakeVisible(currentEditor);
-			auto tb = contentArea;
 			currentEditor->setBounds(contentArea.withSizeKeepingCentre(currentEditor->getWidth(), currentEditor->getHeight()));
 		}
 	}

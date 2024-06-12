@@ -9482,15 +9482,10 @@ void MIR_gen_set_optimize_level (MIR_context_t ctx, unsigned int level) {
 static void generate_bb_version_machine_code (gen_ctx_t gen_ctx, bb_version_t bb_version);
 static void *bb_version_generator (gen_ctx_t gen_ctx, bb_version_t bb_version);
 
-template <typename... Types>
-void ignoreUnusedMIR (Types&&...) noexcept {}
-
 static bb_version_t get_bb_version (gen_ctx_t gen_ctx, bb_stub_t bb_stub, uint32_t n_attrs,
                                     spot_attr_t *attrs, int call_p, void **addr) {
   MIR_context_t ctx = gen_ctx->ctx;
   bb_version_t bb_version;
-
-  ignoreUnusedMIR(ctx);
 
   if ((bb_version = DLIST_HEAD (bb_version_t, bb_stub->bb_versions)) != NULL) {
     VARR_PUSH (target_bb_version_t, target_succ_bb_versions, NULL);
