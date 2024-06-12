@@ -474,8 +474,12 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			String m;
 			m << sbs->location.getLocationString() << " - Error at scope cleanup: " << message;
 			auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
-			debugError(p, m);
+
+			ignoreUnused(p);
 			ignoreUnused(m);
+
+			debugError(p, m);
+			
 		};
 
 		for(int i = scopedBlockCounter ; i >= 0; i--)

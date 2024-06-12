@@ -368,7 +368,7 @@ void LibraryTest::testSlotBitMap()
 		b.setBit(45, true);
 		expect(false, "didn't throw");
 	}
-	catch(std::out_of_range& e)
+	catch(std::out_of_range& )
 	{
 		caught = true;
 	}

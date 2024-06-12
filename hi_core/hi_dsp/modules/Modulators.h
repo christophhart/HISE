@@ -143,21 +143,21 @@ public:
 
 	struct PitchConverters
 	{
-		static inline float octaveRangeToSignedNormalisedRange(float octaveValue);
+		static float octaveRangeToSignedNormalisedRange(float octaveValue);
 
 		/** [-1 ... 1] => [0.5 ... 2.0] */
-		static inline float normalisedRangeToPitchFactor(float range);
+		static float normalisedRangeToPitchFactor(float range);
 
 		/** [0.5 ... 2.0] => [-1 ... 1] */
-		static inline float pitchFactorToNormalisedRange(float pitchFactor);
+		static float pitchFactorToNormalisedRange(float pitchFactor);
 
-		static inline float octaveRangeToPitchFactor(float octaveValue);
+		static float octaveRangeToPitchFactor(float octaveValue);
 
-		static inline void octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues);
+		static void octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues);
 
 		static void normalisedRangeToPitchFactor(float* rangeValues, int numValues);
 
-		static inline void octaveRangeToPitchFactor(float* octaveValues, int numValues);
+		static void octaveRangeToPitchFactor(float* octaveValues, int numValues);
 	};
 
 	public:

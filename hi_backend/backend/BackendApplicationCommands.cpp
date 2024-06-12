@@ -748,6 +748,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 
 	jassert(!categoryIds.isEmpty());
 
+#if JUCE_DEBUG
 	bool allowCheck = true;//
 
 	auto checkSanity = [&](MainToolbarCommands x)
@@ -770,6 +771,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		lastMenuId = x;
 		return true;
 	};
+#endif
+	
 
 	PopupMenu p;
 

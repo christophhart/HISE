@@ -591,6 +591,8 @@ Result Choice::checkGlobalState(var globalState)
     case ValueMode::Text:  writeState(cb.getText()); break;
     case ValueMode::Index: writeState(cb.getSelectedItemIndex()); break;
     case ValueMode::Id:    writeState(cb.getSelectedId()); break;
+    case ValueMode::numValueModes:
+    default: break;
     }
     
 	return Result::ok();

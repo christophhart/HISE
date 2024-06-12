@@ -420,10 +420,7 @@ private:
 		Helpers::setAttribute<SimpleEnvelope>(bp, SimpleEnvelope::Release, 0.0f);
 
 		// Setup
-
-		auto pitchFade = HiseEvent::createPitchFade(1, 1000, 12, 0);
-
-
+		
 		const String pitchMidiProcessor = R"(function onNoteOn(){Synth.addPitchFade(Message.getEventId(),500,12,0);})" \
 			R"(function onNoteOff(){}function onController(){}function onTimer(){}function onControl(number, value){})";
 
