@@ -3447,7 +3447,8 @@ void ScriptBroadcaster::DelayedFunction::timerCallback()
 	if (bc != nullptr && !bc->bypassed)
 	{
         auto mc = bc->getScriptProcessor()->getMainController_();
-        
+
+		ignoreUnused(mc);
         jassert(!mc->getRootDispatcher().isHighPriorityFlushPending());
         
 		ScopedLock sl(bc->delayFunctionLock);

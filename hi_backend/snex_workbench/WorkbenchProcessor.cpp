@@ -930,9 +930,11 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
     Include(b, "JuceHeader.h");
     
     b.addEmptyLine();
-    
+
+	b << "#if !JUCE_WINDOWS";
     b << "#pragma clang diagnostic push";
     b << "#pragma clang diagnostic ignored \"-Wreturn-type-c-linkage\"";
+	b << "#endif";
     
 	b.addEmptyLine();
 
@@ -1137,7 +1139,9 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 	}
 
     b.addEmptyLine();
+	b << "#if !JUCE_WINDOWS";
     b << "#pragma clang diagnostic pop";
+	b << "#endif";
     b.addEmptyLine();
     
 	f.replaceWithText(b.toString());

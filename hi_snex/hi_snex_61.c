@@ -2,10 +2,13 @@
 
 #if (defined (_WIN32) || defined (_WIN64))
 #pragma warning( push )
+#pragma warning( disable : 4005)
 #pragma warning( disable : 4018)
 #pragma warning( disable : 4090)
+#pragma warning( disable : 4101)
 #pragma warning( disable : 4130)
 #pragma warning( disable : 4152)
+#pragma warning( disable : 4189)
 #pragma warning( disable : 4204)
 #pragma warning( disable : 4214)
 #pragma warning( disable : 4267)

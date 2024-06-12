@@ -765,8 +765,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		// is not correct and needs to be shuffled in the enum definition
 		// to match the menu order
 		jassert(prev < x);
-
-		
+		ignoreUnused(prev);
 
 		lastMenuId = x;
 		return true;

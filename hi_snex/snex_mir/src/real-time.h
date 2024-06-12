@@ -19,7 +19,10 @@ static double __attribute__ ((unused)) real_usec_time (void) {
   return tv.tv_usec + tv.tv_sec * 1000000.0;
 }
 #else
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <windows.h>
 
 // does not return actual time, use as a stopwatch only

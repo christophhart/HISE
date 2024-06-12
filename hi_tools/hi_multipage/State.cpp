@@ -701,8 +701,6 @@ void State::onFinish()
 	{
 		currentDialog->nextButton.setEnabled(currentDialog->currentErrorElement == nullptr);
 		currentDialog->prevButton.setEnabled(true);
-
-		auto p = currentDialog->currentPage.get();
 		
 		if(navigateOnFinish)
 		{
