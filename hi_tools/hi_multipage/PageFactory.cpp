@@ -377,7 +377,7 @@ String MarkdownText::getString(const String& markdownText, Dialog& parent)
 							auto v = parent.getState().globalState[Identifier(variableId)].toString();
 
 							if(v.isNotEmpty())
-								other << v;
+								other << getString(v, parent);
 
 							variableId = {};
 						}
@@ -396,6 +396,8 @@ String MarkdownText::getString(const String& markdownText, Dialog& parent)
 				{
 					auto v = parent.getState().globalState[Identifier(variableId)].toString();
 
+                    v = getString(v, parent);
+                    
 					if(v.isNotEmpty())
 						other << v;
 				}

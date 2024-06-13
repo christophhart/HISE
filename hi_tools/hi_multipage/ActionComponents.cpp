@@ -141,8 +141,20 @@ void Action::perform()
 		return;
 	}
 
-	auto shouldPerform = triggerType == TriggerType::OnCall || getValueFromGlobalState(var(true));
-
+    auto shouldPerform = triggerType == TriggerType::OnCall;
+    
+    if(!shouldPerform)
+    {
+        if(!skipIfStateIsFalse())
+        {
+            shouldPerform = true;
+        }
+        else
+        {
+            shouldPerform = getValueFromGlobalState(var(true));
+        }
+    }
+    
     setActive(shouldPerform);
     
 	if(!shouldPerform)
@@ -407,6 +419,7 @@ StringArray RelativeFileLoader::getSpecialLocations()
 		"windowsSystemDirectory",
 #endif
 		"globalApplicationsDirectory",
+        "parentDirectory"
 	};
 }
 
@@ -414,13 +427,29 @@ Result RelativeFileLoader::onAction()
 {
 	auto locString = infoObject[mpid::SpecialLocation].toString();
 
+    
+    
 	auto idx = getSpecialLocations().indexOf(locString);
 
 	if(idx != -1)
 	{
-		auto f = File::getSpecialLocation((File::SpecialLocationType)idx);
-
-		auto rp = infoObject[mpid::RelativePath].toString();
+        File f;
+        
+        if(locString == "parentDirectory")
+        {
+    #if HISE_MULTIPAGE_INCLUDE_EDIT
+            f = rootDialog.getState().currentRootDirectory;
+    #else
+            f = File::getSpecialLocation(File::SpecialLocationType::currentApplicationFile);
+            f = f.getParentDirectory();
+    #endif
+        }
+        else
+        {
+            f = File::getSpecialLocation((File::SpecialLocationType)idx);
+        }
+        
+        auto rp = evaluate(mpid::RelativePath);
 
 		if(rp.isNotEmpty())
 			f = f.getChildFile(rp);
@@ -1573,6 +1602,9 @@ Result HlacDecoder::performTask(State::Job& t)
 	data.debugLogMode = false;
 	data.partProgress = &unused1;
 
+    if(!data.targetDirectory.isDirectory())
+        data.targetDirectory.createDirectory();
+    
 	if(useTotalProgress)
 	{
 		data.progress = &unused2;

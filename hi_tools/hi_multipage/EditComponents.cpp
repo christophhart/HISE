@@ -156,7 +156,7 @@ START_JUCE_APPLICATION (MainWrapper)
 
 <JUCERPROJECT id="L2bkCQ" name="%PROJECT%" projectType="guiapp" cppLanguageStandard="17"
               displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
-              version="%VERSION%" bundleIdentifier="com.%COMPANY%.%PROJECT%" includeBinaryInAppConfig="1"
+              version="%VERSION%" bundleIdentifier="com.%COMPANY_TRIMMED%.%PROJECT_TRIMMED%" includeBinaryInAppConfig="1"
               companyCopyright="" headerPath="%HISE_PATH%"
               jucerFormatVersion="1">
   <MAINGROUP id="V5l5vh" name="%PROJECT%">
@@ -299,6 +299,8 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 {
 	x << getNewLine();
 
+    auto companyTrimmed = company.removeCharacters("_ ./-:");
+    
 	if(t == FileType::BatchFile || t == FileType::ProjucerFile)
 	{
 		String temp(t == FileType::BatchFile ? Templates::BatchFile : Templates::Projucer_Xml);
@@ -306,6 +308,11 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 		temp = temp.replace("%PROJECT%", className);
 		temp = temp.replace("%ROOT_DIR%", rootDirectory.getChildFile("Binaries").getFullPathName());
 		temp = temp.replace("%COMPANY%", company);
+        
+        temp = temp.replace("%PROJECT_TRIMMED%", classNameTrimmed);
+        temp = temp.replace("%COMPANY_TRIMMED%", companyTrimmed);
+
+        
 		temp = temp.replace("%VERSION%", version);
 		temp = temp.replace("%HISE_PATH%", hisePath);
 		temp = temp.replace("%BINARY_NAME%", data[mpid::Properties][mpid::BinaryName].toString());
@@ -366,12 +373,12 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 
 		if(auto al = data[mpid::Assets].getArray())
 		{
-			x << getNewLine() << "namespace " << className << "_Assets {";
+			x << getNewLine() << "namespace " << classNameTrimmed << "_Assets {";
 
 			x << getNewLine() << "using namespace hise::multipage;";
 
 			x << getNewLine() << "Asset::List createAssets();";
-			x << getNewLine() << "} // namespace " << className << "_Assets";
+			x << getNewLine() << "} // namespace " << classNameTrimmed << "_Assets";
 			x << getNewLine();
 		}
 	}
@@ -380,7 +387,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 		if(auto al = data[mpid::Assets].getArray())
 		{
 			x << getNewLine() << "#include \"Assets.h\"";
-			x << getNewLine() << "namespace " << className << "_Assets {";
+			x << getNewLine() << "namespace " << classNameTrimmed << "_Assets {";
 			x << getNewLine() << "using namespace hise::multipage;";
 
 			{
@@ -411,7 +418,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 			}
 			x << getNewLine() << "}";
 
-			x << getNewLine() << "} // namespace " << className << "_Assets";
+			x << getNewLine() << "} // namespace " << classNameTrimmed << "_Assets";
 			x << getNewLine();
 		}
 	}
@@ -431,7 +438,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
         
 		x << getNewLine() << "using namespace juce;";
 
-		x << getNewLine() << "struct " << className << ": public HardcodedDialogWithState";
+		x << getNewLine() << "struct " << classNameTrimmed << ": public HardcodedDialogWithState";
         
         if(rawMode)
             x << "," << getNewLine() << "                                     public hise::QuasiModalComponent";
@@ -460,14 +467,14 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
             
 
             
-            x << getNewLine() << className << "()";
+            x << getNewLine() << classNameTrimmed << "()";
             x << getNewLine() << "{";
             
             {
                 ScopedTabSetter st(*this);
                 
                 if(rawMode)
-                    x << getNewLine() << "closeFunction = BIND_MEMBER_FUNCTION_0(" << className << "::destroy);";
+                    x << getNewLine() << "closeFunction = BIND_MEMBER_FUNCTION_0(" << classNameTrimmed << "::destroy);";
                       
 
                 
@@ -497,7 +504,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
         if(!rawMode)
         {
             x << getNewLine();
-            x << getNewLine() << "using DialogClass = hise::multipage::" << className << ";";
+            x << getNewLine() << "using DialogClass = hise::multipage::" << classNameTrimmed << ";";
         }
 	}
 	else if (t == FileType::DialogImplementation)
@@ -520,7 +527,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
         {
             for(const auto& lt: lambdaIds)
             {
-                x << getNewLine() << "var " << className << "::" << lt << "(State::Job& t, const var& state)";
+                x << getNewLine() << "var " << classNameTrimmed << "::" << lt << "(State::Job& t, const var& state)";
                 x << getNewLine() << "{";
                 
                 {
@@ -548,14 +555,14 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 
         }
         
-		x << getNewLine() << "Dialog* " << className << "::createDialog(State& state)";
+		x << getNewLine() << "Dialog* " << classNameTrimmed << "::createDialog(State& state)";
 		x << getNewLine() << "{";
 
 		{
 			ScopedTabSetter t0(*this);
 
             if(!rawMode)
-                x << getNewLine() << "state.assets = " << className << "_Assets::createAssets();";
+                x << getNewLine() << "state.assets = " << classNameTrimmed << "_Assets::createAssets();";
 
 			x << getNewLine() << "DynamicObject::Ptr fullData = new DynamicObject();";
 
@@ -715,7 +722,7 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
 		
 		if(bindFunctionName.isNotEmpty())
 		{
-			x << "BIND_MEMBER_FUNCTION_2(" << className << "::" << bindFunctionName << ")";
+			x << "BIND_MEMBER_FUNCTION_2(" << classNameTrimmed << "::" << bindFunctionName << ")";
 		}
 		else
 		{

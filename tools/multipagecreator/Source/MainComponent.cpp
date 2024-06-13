@@ -347,6 +347,12 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 
 bool MainComponent::keyPressed(const KeyPress& key)
 {
+    if(key == KeyPress::escapeKey)
+    {
+        auto& s = c->mouseSelector.selection;
+        s.deselectAll();
+        return true;
+    }
 	if(key.getKeyCode() == KeyPress::F4Key && c != nullptr)
 	{
 		menuItemSelected(CommandId::EditToggleMode, 0);
@@ -418,6 +424,8 @@ void MainComponent::menuItemSelected(int menuItemID, int)
                 
                 c->getState().callEventListeners("save", {});
                 
+                rt.globalState.getDynamicObject()->clear();
+                
 				currentFile.replaceWithText(JSON::toString(c->exportAsJSON()));
 				rt.currentRootDirectory = currentFile.getParentDirectory();
 				setSavePoint();
@@ -432,7 +440,12 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		break;
 	}
 	case FileQuit: JUCEApplication::getInstance()->systemRequestedQuit(); break;
-	case EditClearState: rt.globalState.getDynamicObject()->clear(); break;
+	case EditClearState: 
+         rt.globalState.getDynamicObject()->clear();
+         c->refreshCurrentPage();
+         tree->setRoot(*c);
+         resized();
+         break;
 	case EditUndo: c->getUndoManager().undo(); c->refreshCurrentPage(); break;
 	case EditRedo: c->getUndoManager().redo(); c->refreshCurrentPage(); break;
 	case EditToggleMode: 

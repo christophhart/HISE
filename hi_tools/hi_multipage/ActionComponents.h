@@ -76,6 +76,8 @@ struct Action: public Dialog::PageBase
 	    };
     }
 
+    virtual bool skipIfStateIsFalse() const { return true; }
+    
     void setTriggerType()
     {
         if(infoObject.hasProperty("CallOnNext"))
@@ -123,7 +125,7 @@ struct ImmediateAction: public Action
 {
     ImmediateAction(Dialog& r,int w, const var& obj);;
 
-    virtual bool skipIfStateIsFalse() const = 0;
+
 
 	virtual Result onAction() = 0;
 };

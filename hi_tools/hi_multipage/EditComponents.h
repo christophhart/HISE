@@ -60,6 +60,9 @@ struct CodeGenerator
       numTabs(numTabs_)
 	{
         className = totalData[mpid::Properties][mpid::ProjectName].toString();
+        classNameTrimmed = className.removeCharacters("_ ./-:");
+        
+
     }
 
     void write(OutputStream& output, FileType t, State::Job* job) const;
@@ -196,6 +199,9 @@ private:
     mutable int numTabs;
     var data;
     String className;
+    
+    String classNameTrimmed;
+
 };
 
 
