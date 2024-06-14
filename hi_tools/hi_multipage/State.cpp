@@ -760,6 +760,21 @@ void State::addJob(Job::Ptr b, bool addFirst)
 	}
 }
 
+String State::getFileLog() const
+{
+	String log;
+	String nl = "\n";
+
+	for(auto& f: fileOperations)
+	{
+		log << (f.second ? '+' : '-');
+		log << f.first.getFullPathName();
+		log << nl;
+	}
+
+	return log;
+}
+
 void State::addFileToLog(const std::pair<File, bool>& fileOp)
 {
 	fileOperations.add(fileOp);
@@ -865,6 +880,199 @@ bool UndoableVarAction::undo()
 	return false;
 }
 
+String MonolithData::getMarkerName(Markers m)
+{
+	switch(m)
+	{
+	case MonolithBeginJSON: return "MonolithBeginJSON";
+	case MonolithEndJSON: return "MonolithEndJSON";
+	case MonolithBeginAssets: return "MonolithBeginAssets";
+	case MonolithAssetJSONStart: return "MonolithAssetJSONStart";
+	case MonolithAssetJSONEnd: return "MonolithAssetJSONEnd";
+	case MonolithAssetStart: return "MonolithAssetStart";
+	case MonolithAssetEnd: return "MonolithAssetEnd";
+	case MonolithEndAssets: return "MonolithEndAssets";
+	default: return {};
+	}
+}
+
+MonolithData::MonolithData(const File& location_):
+	location(location_)
+{
+	    
+}
+
+int64 MonolithData::expectFlag(FileInputStream& fis, Markers m, bool throwIfMismatch)
+{
+	static const Array<Markers> beginMarkers = { MonolithBeginJSON, MonolithAssetJSONStart, MonolithAssetStart };
+
+	auto isBeginMarker = beginMarkers.contains(m);
+        
+	auto flag = fis.readInt();
+
+	if(flag == m)
+	{
+		return isBeginMarker ? fis.readInt64() : 0;
+	}
+	else if (throwIfMismatch)
+	{
+		throw String("Expected marker " + getMarkerName(m));
+	}
+	else
+		return 0;
+}
+
+var MonolithData::readJSON(FileInputStream& fis, int64 numToRead)
+{
+	MemoryBlock mb;
+	fis.readIntoMemoryBlock(mb, numToRead);
+	String jsonString;
+	zstd::ZDefaultCompressor comp;
+	comp.expand(mb, jsonString);
+	var obj;
+	auto r = JSON::parse(jsonString, obj);
+
+	if(!r.wasOk())
+		throw r.getErrorMessage();
+
+	return obj;
+}
+
+multipage::Dialog* MonolithData::create(State& state)
+{
+	FileInputStream fis(location);
+
+	auto numToRead = expectFlag(fis, Markers::MonolithBeginJSON);
+	auto jsonData = readJSON(fis, numToRead);
+	expectFlag(fis, Markers::MonolithEndJSON);
+
+	expectFlag(fis, Markers::MonolithBeginAssets);
+
+	state.reset(jsonData);
+        
+	while(auto metadataSize = expectFlag(fis, Markers::MonolithAssetJSONStart, false))
+	{
+		auto metadata = readJSON(fis, metadataSize);
+		expectFlag(fis, Markers::MonolithAssetJSONEnd);
+
+		auto numBytesInData = expectFlag(fis, Markers::MonolithAssetStart);
+
+		MemoryBlock mb, mb2;
+		fis.readIntoMemoryBlock(mb, numBytesInData);
+		zstd::ZDefaultCompressor comp;
+		comp.expand(mb, mb2);
+            
+		metadata.getDynamicObject()->setProperty(mpid::Data, var(std::move(mb2)));
+		auto r = multipage::Asset::fromVar(metadata, state.currentRootDirectory);
+		state.assets.add(r);
+
+		expectFlag(fis, Markers::MonolithAssetEnd);
+	}
+
+	// caught by the last while loope
+	//expectFlag(fis, Markers::MonolithEndAssets);
+
+	if(fis.getPosition() != fis.getTotalLength())
+	{
+		throw String("Not EOF");
+	}
+
+        
+
+	return new multipage::Dialog(jsonData, state);
+}
+
+Result MonolithData::exportMonolith(State& state, const File& target)
+{
+	// clear the state
+	auto json = state.currentDialog->exportAsJSON();
+	json.getDynamicObject()->removeProperty(mpid::GlobalState);
+	json.getDynamicObject()->removeProperty(mpid::Assets);
+
+	auto c = JSON::toString(json);
+	MemoryBlock mb;
+	zstd::ZDefaultCompressor comp;
+	comp.compress(c, mb);
+
+	FileOutputStream fos(target);
+        
+	fos.writeInt(Markers::MonolithBeginJSON);
+	fos.writeInt64((int64)mb.getSize());
+	fos.write(mb.getData(), mb.getSize());
+	fos.writeInt(Markers::MonolithEndJSON);
+
+	fos.writeInt(Markers::MonolithBeginAssets);
+
+	for(auto s: state.assets)
+	{
+		if(!s->matchesOS())
+			continue;
+
+		auto assetJSON = s->toJSON(false, state.currentRootDirectory);
+		assetJSON.getDynamicObject()->removeProperty(mpid::Filename);
+
+		auto metadata = JSON::toString(assetJSON);
+
+		MemoryBlock mb2;
+		comp.compress(metadata, mb2);
+
+		fos.writeInt(Markers::MonolithAssetJSONStart);
+		fos.writeInt64(mb2.getSize());
+		fos.write(mb2.getData(), mb2.getSize());
+		fos.writeInt(Markers::MonolithAssetJSONEnd);
+
+		fos.writeInt(Markers::MonolithAssetStart);
+
+		MemoryBlock mb3;
+
+		comp.compress(s->data, mb3);
+
+		fos.writeInt64(mb3.getSize());
+		auto ok = fos.write(mb3.getData(), mb3.getSize());
+
+		if(!ok)
+			return Result::fail("Error writing asset " + s->id);
+
+		fos.writeInt(Markers::MonolithAssetEnd);
+	}
+
+	fos.writeInt(Markers::MonolithEndAssets);
+	fos.flush();
+
+	return Result::ok();
+}
+
+var MonolithData::getJSON() const
+{
+	FileInputStream fis(location);
+
+	auto flag = fis.readInt();
+
+	if(flag == MonolithBeginJSON)
+	{
+		auto numToRead = fis.readInt64();
+		MemoryBlock mb;
+		auto numRead = fis.readIntoMemoryBlock(mb, numToRead);
+
+		if(numRead == numToRead)
+		{
+			zstd::ZDefaultCompressor comp;
+			String jsonString;
+			comp.expand(mb, jsonString);
+
+			var obj;
+			auto r = JSON::parse(jsonString, obj);
+
+			if(r.wasOk())
+				return obj;
+			else
+				throw String(r.getErrorMessage());
+		}
+		else
+			throw String("Failed to read " + String(numToRead) + " bytes");
+	}
+}
+
 void HardcodedDialogWithState::setOnCloseFunction(const std::function<void()>& f)
 {
 	closeFunction = f;
@@ -877,17 +1085,21 @@ void HardcodedDialogWithState::resized()
 {
 	if(dialog == nullptr)
 	{
-		addAndMakeVisible(dialog = createDialog(state));
+		if(dialog = createDialog(state))
+		{
+			addAndMakeVisible(dialog);
 
-		postInit();
+			postInit();
 
-		dialog->setFinishCallback(closeFunction);
-		dialog->setEnableEditMode(false);
-		
-		dialog->showFirstPage();
+			dialog->setFinishCallback(closeFunction);
+			dialog->setEnableEditMode(false);
+			
+			dialog->showFirstPage();
+		}
 	}
 
-	dialog->setBounds(getLocalBounds());
+	if(dialog != nullptr)
+		dialog->setBounds(getLocalBounds());
 }
 }
 }

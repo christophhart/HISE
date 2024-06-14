@@ -349,20 +349,7 @@ public:
 
     Asset::List assets;
 
-    String getFileLog() const
-    {
-	    String log;
-        String nl = "\n";
-
-        for(auto& f: fileOperations)
-        {
-	        log << (f.second ? '+' : '-');
-            log << f.first.getFullPathName();
-            log << nl;
-        }
-
-        return log;
-    }
+    String getFileLog() const;
 
     void addFileToLog(const std::pair<File, bool>& fileOp);
 
@@ -454,7 +441,32 @@ struct UndoableVarAction: public UndoableAction
 
 class Dialog;    
 
+struct MonolithData
+{
+    enum Markers
+    {
+	    MonolithBeginJSON = 9124,
+        MonolithEndJSON,
+        MonolithBeginAssets,
+        MonolithAssetJSONStart,
+        MonolithAssetJSONEnd,
+        MonolithAssetStart,
+        MonolithAssetEnd,
+        MonolithEndAssets
+    };
 
+    static String getMarkerName(Markers m);
+
+    MonolithData(const File& location_);
+
+    int64 expectFlag(FileInputStream& fis, Markers m, bool throwIfMismatch=true);
+    var readJSON(FileInputStream& fis, int64 numToRead);
+    multipage::Dialog* create(State& state);
+    static Result exportMonolith(State& state, const File& target);
+    var getJSON() const;
+
+    File location;
+};
 
 struct HardcodedDialogWithState: public Component
 {

@@ -212,9 +212,9 @@ START_JUCE_APPLICATION (MainWrapper)
             extraDefs="HI_RUN_UNIT_TESTS=1&#10;USE_BACKEND=1" extraLinkerFlags="/MANIFESTUAC:level='requireAdministrator'" smallIcon="%ICON_REF%" bigIcon="%ICON_REF%">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" defines="PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1" 
-                       targetName="%BINARY_NAME%" binaryPath="../"/>
-        <CONFIGURATION isDebug="0" name="Release" optimisation="2" linkTimeOptimisation="0" 
-                       targetName="%BINARY_NAME%" binaryPath="../"/>
+                       targetName="%BINARY_NAME%" binaryPath="../" useRuntimeLibDLL="0"/>
+        <CONFIGURATION isDebug="0" name="Release" optimisation="2" linkTimeOptimisation="0"
+                       targetName="%BINARY_NAME%" binaryPath="../" useRuntimeLibDLL="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_opengl" path="%HISE_PATH%\JUCE\modules"/>

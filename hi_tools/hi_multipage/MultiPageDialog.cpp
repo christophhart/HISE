@@ -990,8 +990,10 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(nextButton, { "#next", ".nav-button" });
 	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(prevButton, { "#prev", ".nav-button" });
 
+	
+
     setWantsKeyboardFocus(true);
-	setSize(700, 400);
+	setSize(positionInfo.fixedSize.getX(), positionInfo.fixedSize.getY());
 
 	nextButton.onClick = [this]()
 	{

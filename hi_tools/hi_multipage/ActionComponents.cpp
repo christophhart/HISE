@@ -1461,9 +1461,26 @@ Result CopyAsset::performTask(State::Job& t)
 		{
 			throw Result::fail("Can't create directory " + targetDir.getFullPathName());
 		}
+
+		auto before = Time::getCurrentTime().getMilliseconds();
             
 		if(a->writeToFile(targetFile, &t))
 		{
+			auto now = Time::getCurrentTime().getMilliseconds();
+
+			if((now - before) < 500)
+			{
+				t.getProgress() = (double)0.0;
+
+				for(int i = 0; i < 100; i+= 1)
+				{
+					t.getThread().wait(10);
+					t.getProgress() = (double)i / 100.0;
+				}
+
+				t.getProgress() = 1.0;
+			}
+
 			rootDialog.getState().addFileToLog({targetFile, true});
 
 			rootDialog.logMessage(MessageType::FileOperation, "... Done");
