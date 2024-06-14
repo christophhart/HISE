@@ -192,6 +192,8 @@ struct FlexboxComponent: public Component,
 
     bool isInvisibleWrapper() const { return invisibleWrapper; }
 
+	void setHiseShapeButtonColours(HiseShapeButton& b);
+
 private:
 
 	bool invisibleWrapper = false;

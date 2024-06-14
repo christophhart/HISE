@@ -205,7 +205,19 @@ static const char* HELP = R"(
  order: 1000;
  height: 20px;
  width: 24px;
+ background: #999;
 }
+
+.help-button:hover, .retry-button:hover
+{
+ background: #aaa;
+}
+
+.help-button:checked, .retry-button:checked
+{
+ background: #bbb;
+}
+
 
 .stop-button
 {
@@ -830,34 +842,262 @@ select::after:hover
 )";
 
 static const char* brightCSS = R"(
+
 *
 {
- color: #222;
- font-family: 'Lato';
- font-size: 16px;
+	color: #333;
+}
+
+body
+{
+	background-color: #cccccf;
+}
+
+#header
+{
+	background-color: #aaa;
+}
+
+#content
+{
+	border-top: 0px;
+	background-color: transparent;
+	padding: 30px 100px;
+}
+
+#footer
+{
+	background-color: #aaa;
+}
+
+button
+{
+	background: #bbb;
+	border: 1px solid #999;
+}
+
+button:hover
+{
+	background: #ccc;
+}
+
+.nav-button
+{
+	background-color: #bbb;
+	border: 1px solid #888;
+	cursor: pointer;
+}
+
+.nav-button:hover
+{
+	background-color: #eee;
+	transition: background-color 0.1s ease-in-out;
+}
+
+
+.text-button:checked
+{
+	background: #ddd;
+}
+
+.text-button: hover
+{
+	background-color: #ccc;
+	border: 1px solid #999;
+}
+
+.toggle-button
+{
+	margin-left: 2px;
+	margin-right: 2px;
+	background: rgba(0, 0, 0, 0.1);
+}
+
+.toggle-button:hover
+{
+	background: rgba(0, 0, 0, 0.15);
+}
+
+.toggle-button::before
+{
+	box-shadow: unset;
+	border-color: #444;
+}
+
+.toggle-button::before:hover
+{
+	border-color: #555;
+}
+
+
+
+
+.toggle-button::after:checked
+{
+	background: #444;
+}
+
+input, select
+{
+	background: rgba(0, 0, 0, 0.1);
+}
+
+input:focus
+{
+	border-color: #eee;
+}
+
+.popup
+{
+	background: #ddd;
+	border-color: #888;
+}
+
+.popup-item,
+.popup-item:active
+{
+	color: #333;
+}
+
+::selection
+{
+ background: var(--headlineColour);
+ color: #ddd;
+}
+
+.tag-button
+{
+	background: #666;
+	border-color: #555;
+	
+}
+
+.tag-button:hover
+{
+	background: #777;
+	
+}
+
+.tag-button:checked
+{
+	background: #fff;
+	border-color: #333;
+}
+
+.help-button,
+.stop-button,
+.retry-button
+{
+	background-color: #444;
+}
+
+.error
+{
+	background: rgba(255, 0, 0, 0.2);
+}
+
+progress
+{
+	background: #bbb;
+	color: #333;
+	box-shadow: unset;
+}
+
+progress::before
+{
+	background: #ddd;
+	margin: 3px;
+	color: blue;
+}
+
+progress::after
+{
+	background: #eee;
+}
+
+
+#total-progress
+{
+	color: #333;
+}
+
+#total-progress::before
+{
+	background: #888;
+}
+
+#total-progress::after
+{
+	background: #fff;
+}
+
+.fold-bar,
+.fold-bar:checked,
+.fold-bar:hover
+{
+	background: #aaa;
+	border: 1px solid #999;
+	color: #333;
+}
+
+.help-popup
+{
+ background: #888;
+ border-color: #777;
+}
+
+.help-popup::before
+{
+ background: #888;
+}
+
+.modal-bg
+{
+ background: rgba(200, 200, 200, 0.8);
+}
+
+.modal-popup
+{
+	background: #aaa;
+ 	border: 1px solid #888;
+ 	box-shadow: unset; 	
+}
+
+)";
+
+#if 0
+static const char* brightCSS = R"(
+
+/** Global properties (font, background, etc). */
+body
+{
+ background: #999;
+ 
+ /** This is used for all global containers to get a consistent padding. */
+ --global-padding: 30px;
 }
 
 #header
 {
  background: linear-gradient(to bottom, #ddd, #bbb);
  box-shadow: inset 0px -2px 10px rgba(0, 0, 0, 0.2);
- height: 80px;
+ height: auto;
  display: flex;
  flex-direction: column;
  align-items: flex-start;
- padding: 20px;
+ padding: var(--global-padding);
  border-bottom: 1px solid #777;
+
 }
 
 #title
 {
- font-size: 24px;
+ font-size: 2.0em;
  font-weight: 500;
-}
-
-body
-{
- background: #999;
+ padding-bottom: 5px;
+ 
+ /** Use the color from the global properties */
+ color: var(--headlineColour);
 }
 
 #content
@@ -977,6 +1217,7 @@ input:focus
 }
 
 )";
+#endif
 
 static const char* rawHTML = R"(
 *
@@ -1193,6 +1434,7 @@ String DefaultCSSFactory::getTemplate(Template t)
     
     s << default_css::GLOBAL;
 
+
 	switch(t)
 	{
 	case Template::None:
@@ -1207,7 +1449,8 @@ String DefaultCSSFactory::getTemplate(Template t)
         s << default_css::darkCSS;
         break;
 	case Template::Bright:
-        s << default_css::brightCSS;
+        s << default_css::darkCSS;
+        
         break;
     case Template::ModalPopup:
         s << default_css::modalPopup;
@@ -1216,12 +1459,18 @@ String DefaultCSSFactory::getTemplate(Template t)
 	default: ;
 	}
 
+    
     s << default_css::POPUP_MENU;
     s << default_css::TABLE;
     s << default_css::HELP;
     s << default_css::PROGRESS;
     s << default_css::FOLD_BAR;
     s << default_css::TAG_BUTTON;
+
+    // overwrite everything with bright colours
+    if(t == Template::Bright)
+        s << default_css::brightCSS; 
+    
     
 	return s;
 }

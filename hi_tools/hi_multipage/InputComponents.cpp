@@ -248,6 +248,11 @@ void LabelledComponent::postInit()
 void LabelledComponent::resized()
 {
     FlexboxComponent::resized();
+
+    if(helpButton != nullptr)
+	{
+		setHiseShapeButtonColours(*helpButton);
+	}
 }
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT

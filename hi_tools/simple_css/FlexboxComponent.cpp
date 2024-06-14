@@ -692,6 +692,18 @@ void FlexboxComponent::setIsInvisibleWrapper(bool shouldBeInvisibleWrapper)
 	}
 }
 
+void FlexboxComponent::setHiseShapeButtonColours(HiseShapeButton& b)
+{
+	if(auto css = childSheets[&b])
+	{
+		auto normal = css->getColourOrGradient({}, PropertyKey("background", PseudoClassType::None)).first;
+		auto hover = css->getColourOrGradient({}, PropertyKey("background", PseudoClassType::Hover)).first;
+		auto down = css->getColourOrGradient({}, PropertyKey("background", PseudoClassType::Checked)).first;
+
+		b.setColours(normal, hover, down);
+	}
+}
+
 std::pair<Component*, Component*> FlexboxComponent::getFirstLastComponents()
 {
 	struct Data

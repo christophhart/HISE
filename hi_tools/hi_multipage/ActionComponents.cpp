@@ -681,6 +681,9 @@ void BackgroundTask::paint(Graphics& g)
 
 void BackgroundTask::resized()
 {
+	setHiseShapeButtonColours(stopButton);
+	setHiseShapeButtonColours(retryButton);
+
 	Action::resized();
 }
 
@@ -706,6 +709,8 @@ void BackgroundTask::postInit()
 		return Result::ok();
 	};
 
+	setHiseShapeButtonColours(stopButton);
+	
 	Action::postInit();
 }
 
