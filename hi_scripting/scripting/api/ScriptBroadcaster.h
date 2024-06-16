@@ -201,6 +201,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Attaches this broadcaster to changes of the audio processing specs (samplerate / buffer size). */
 	void attachToProcessingSpecs(var optionalMetadata);
 
+	/** Attaches the broadcaster to events of a samplemap (loading, changing, adding samples). */
+	void attachToSampleMap(var samplerIds, var eventTypes, var optionalMetadata);
+
 	/** Calls a function after a short period of time. This is exclusive, so if you pass in a new function while another is pending, the first will be replaced. */
 	void callWithDelay(int delayInMilliseconds, var argArray, var function);
 
@@ -587,6 +590,70 @@ private:
 		Result callItem(TargetBase* b) override;
 
 		OwnedArray<MatrixListener> listeners;
+	};
+
+	struct SamplemapListener: public ListenerBase
+	{
+		enum class EventTypes
+		{
+			SampleMapChanged,
+			SamplesAddedOrRemoved,
+			SampleChanged,
+			numEventTypes
+		};
+
+		struct Event
+		{
+			Event() = default;
+
+			Event(const var& value)
+			{
+				if(value.isString())
+				{
+					if(value.toString() == "SampleMapChanged")
+						type = EventTypes::SampleMapChanged;
+					if(value.toString() == "SamplesAddedOrRemoved")
+						type = EventTypes::SamplesAddedOrRemoved;
+				}
+				else if (value.isInt())
+				{
+					auto ids = SampleIds::Helpers::getAllIds();
+					auto idx = (int)value;
+
+					if(isPositiveAndBelow(idx, ids.size()))
+					{
+						type = EventTypes::SampleChanged;
+						id = ids[idx];
+					}
+				}
+			}
+
+			operator bool() const { return type != EventTypes::numEventTypes; };
+
+			EventTypes type = EventTypes::numEventTypes;
+			Identifier id;
+		};
+
+		static Array<Event> getEventTypes(const var& eventTypes);
+
+		struct SamplemapListenerItem;
+
+		SamplemapListener(ScriptBroadcaster* b, const Array<WeakReference<ModulatorSampler>>& samplers, const Array<Event>& eventTypes, const var& metadata);
+
+		~SamplemapListener() { items.clear(); }
+
+		Array<var> createChildArray() const override;
+
+		Result callItem(TargetBase* n) override;
+
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
+		Identifier getItemId() const override;
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		ReferenceCountedArray<SamplemapListenerItem> items;
 	};
 
 	struct ScriptCallListener : public ListenerBase

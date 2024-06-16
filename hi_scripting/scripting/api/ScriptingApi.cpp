@@ -3769,30 +3769,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(setTimestretchOptions);
 	ADD_API_METHOD_0(getTimestretchOptions);
 
-	sampleIds.add(SampleIds::ID);
-	sampleIds.add(SampleIds::FileName);
-	sampleIds.add(SampleIds::Root);
-	sampleIds.add(SampleIds::HiKey);
-	sampleIds.add(SampleIds::LoKey);
-	sampleIds.add(SampleIds::LoVel);
-	sampleIds.add(SampleIds::HiVel);
-	sampleIds.add(SampleIds::RRGroup);
-	sampleIds.add(SampleIds::Volume);
-	sampleIds.add(SampleIds::Pan);
-	sampleIds.add(SampleIds::Normalized);
-	sampleIds.add(SampleIds::Pitch);
-	sampleIds.add(SampleIds::SampleStart);
-	sampleIds.add(SampleIds::SampleEnd);
-	sampleIds.add(SampleIds::SampleStartMod);
-	sampleIds.add(SampleIds::LoopStart);
-	sampleIds.add(SampleIds::LoopEnd);
-	sampleIds.add(SampleIds::LoopXFade);
-	sampleIds.add(SampleIds::LoopEnabled);
-	sampleIds.add(SampleIds::LowerVelocityXFade);
-	sampleIds.add(SampleIds::UpperVelocityXFade);
-	sampleIds.add(SampleIds::SampleState);
-	sampleIds.add(SampleIds::Reversed);
-    sampleIds.add(SampleIds::NumQuarters);
+	sampleIds = SampleIds::Helpers::getAllIds();
 
 	for (int i = 1; i < sampleIds.size(); i++)
 	{
