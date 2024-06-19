@@ -68,6 +68,7 @@ enum class ValueType
 	Size,
 	Number,
 	Time,
+	Variable,
 	numValueTypes
 };
 

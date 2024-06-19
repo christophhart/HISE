@@ -95,19 +95,8 @@ void StyleSheet::copyPropertiesFrom(Ptr other, bool overwriteExisting, const Str
 {
     if(other == nullptr)
         return;
-    
-	if(other->varProperties != nullptr)
-	{
-		if(varProperties == nullptr)
-		{
-			varProperties = other->varProperties->clone();
-		}
-		else
-		{
-			for(const auto& nv: other->varProperties->getProperties())
-			varProperties->setProperty(nv.name, nv.value);
-		}
-	}
+	
+	copyVarProperties(other);
 
 	other->forEachProperty(PseudoElementType::All, [&](PseudoElementType t, Property& p)
 	{
@@ -340,9 +329,9 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		if(existing.first.getComponent() == c)
 			return existing.second;
 	}
-	
-	using Match = std::pair<ComplexSelector::Score, StyleSheet::Ptr>;
 
+	using Match = std::pair<ComplexSelector::Score, StyleSheet::Ptr>;
+	
     List debugList;
     
 	Array<Match> matches;
@@ -352,22 +341,25 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 
 	Array<Selector> pSelectors;
 
-	if(auto p = c->getParentComponent())
+	if(!useIsolatedCollections)
 	{
-		parentStyle = getForComponent(p);
-
-		auto tp = p;
-
-		while(tp != nullptr)
+		if(auto p = c->getParentComponent())
 		{
-			if(dynamic_cast<CSSRootComponent*>(tp))
-				break;
+			parentStyle = getForComponent(p);
 
-			pSelectors.addArray(ComplexSelector::getSelectorsForComponent(tp));
-			tp = tp->getParentComponent();
+			auto tp = p;
+
+			while(tp != nullptr)
+			{
+				if(dynamic_cast<CSSRootComponent*>(tp))
+					break;
+
+				pSelectors.addArray(ComplexSelector::getSelectorsForComponent(tp));
+				tp = tp->getParentComponent();
+			}
 		}
 	}
-
+	
 	auto selectors = ComplexSelector::getSelectorsForComponent(c);
 
 	auto addFromList = [&](List& listToUse)
@@ -392,14 +384,28 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		}
 	};
 
-	addFromList(list);
-
-	for(auto& cc: childCollections)
+	if(useIsolatedCollections)
 	{
-		auto p = cc.first.getComponent();
-		if(p != nullptr && p->isParentOf(c))
+		for(auto& cc: childCollections)
 		{
-			addFromList(cc.second);
+			if(sameOrParent(cc.first.getComponent(), c))
+			{
+				addFromList(cc.second);
+				break;
+			}
+		}
+	}
+	else
+	{
+		addFromList(list);
+
+		for(auto& cc: childCollections)
+		{
+			auto p = cc.first.getComponent();
+			if(p != nullptr && p->isParentOf(c))
+			{
+				addFromList(cc.second);
+			}
 		}
 	}
 
@@ -411,8 +417,10 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	if(matches.isEmpty() && !customCode)
 		return nullptr;
 	
-	if(matches.size() == 1 && !customCode)
+	if(matches.size() == 1 && !customCode && !useIsolatedCollections)
+	{
 		return matches.getFirst().second;
+	}
 
 	struct Sorter
 	{
@@ -570,7 +578,7 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 
 	if(auto root = CSSRootComponent::find(*c))
 		setAnimator(&root->animator);
-
+	
 	return ptr;
 
 #if 0
@@ -662,8 +670,6 @@ String StyleSheet::Collection::toString() const
 
 StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(Component* c, const Selector& s)
 {
-	
-
 	for(const auto& existing: cachedMapForAllStates)
 	{
 		if(existing.first.exactMatch(s))
@@ -693,19 +699,33 @@ StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(Component* c, const Sel
 		}
 	};
 
-	for(auto l: list)
-	{
-		addIfMatch(l);
-	}
-
-	if(c != nullptr)
+	if(useIsolatedCollections)
 	{
 		for(auto& s: childCollections)
 		{
-			if(s.first->isParentOf(c))
+			if(c == nullptr || sameOrParent(s.first.getComponent(), c))
 			{
 				for(auto l: s.second)
 					addIfMatch(l);
+			}
+		}
+	}
+	else
+	{
+		for(auto l: list)
+		{
+			addIfMatch(l);
+		}
+
+		if(c != nullptr)
+		{
+			for(auto& s: childCollections)
+			{
+				if(s.first->isParentOf(c))
+				{
+					for(auto l: s.second)
+						addIfMatch(l);
+				}
 			}
 		}
 	}
@@ -828,6 +848,41 @@ bool StyleSheet::Collection::clearCache(Component* c)
 	}
 }
 
+void StyleSheet::Collection::updateIsolatedCollection(const String& fileName, const Collection& other)
+{
+	// refresh the popup menu...
+	cachedMapForAllStates.clear();
+
+	for(int i = 0; i < isolatedStyleSheetFileNames.size(); i++)
+	{
+		if(isolatedStyleSheetFileNames[i].first.getComponent() == nullptr)
+			isolatedStyleSheetFileNames.remove(i--);
+	}
+
+	for(const auto& f: isolatedStyleSheetFileNames)
+	{
+		if(f.second == fileName)
+		{
+			for(auto& c: childCollections)
+			{
+				if(c.first == f.first)
+				{
+					auto prev = getForComponent(c.first);
+
+					c.second = other.list;
+
+					clearCache(c.first);
+
+					auto ss = getForComponent(c.first);
+
+					if(prev != nullptr && ss != nullptr)
+						ss->copyVarProperties(prev);
+				}
+			}
+		}
+	}
+}
+
 void StyleSheet::Collection::addCollectionForComponent(Component* c, const Collection& other)
 {
 	for(int i = 0; i < childCollections.size(); i++)
@@ -901,6 +956,22 @@ Result StyleSheet::Collection::performAtRules(DataProvider* d)
 	}
 
 	return Result::ok();
+}
+
+bool StyleSheet::Collection::sameOrParent(Component* possibleParent, Component* componentToLookFor)
+{
+	while(componentToLookFor != nullptr)
+	{
+		if(componentToLookFor == componentToLookFor)
+			return true;
+
+		if(dynamic_cast<CSSRootComponent*>(componentToLookFor) != nullptr)
+			break;
+
+		componentToLookFor = componentToLookFor->getParentComponent();
+	}
+
+	return false;
 }
 
 void StyleSheet::Collection::forEach(const std::function<void(Ptr)>& f)

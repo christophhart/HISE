@@ -83,6 +83,39 @@ struct StyleSheet: public ReferenceCountedObject
 			clearCache();
 		}
 
+		void addIsolatedCollection(Component* c, const String& fileName, const Collection& other)
+		{
+			setUseIsolatedCollections(true);
+			addCollectionForComponent(c, other);
+
+			if(fileName.isNotEmpty())
+			{
+				for(auto& f: isolatedStyleSheetFileNames)
+				{
+					if(f.first == c)
+					{
+						f.second = fileName;
+						return;
+					}
+				}
+
+				isolatedStyleSheetFileNames.add({ c, fileName});
+			}
+			else
+			{
+				for(const auto& f: isolatedStyleSheetFileNames)
+				{
+					if(f.first == c)
+					{
+						isolatedStyleSheetFileNames.remove(&f);
+						return;
+					}
+				}
+			}
+		}
+
+		void updateIsolatedCollection(const String& fileName, const Collection& other);
+
 		void addCollectionForComponent(Component* c, const Collection& other);
 
 		struct DataProvider
@@ -95,8 +128,19 @@ struct StyleSheet: public ReferenceCountedObject
 
 		Result performAtRules(DataProvider* d);
 
+		/** If this is true, then getForComponent() will look only in the child collection for matches. */
+		void setUseIsolatedCollections(bool shouldUseIsolatedCollections)
+		{
+			useIsolatedCollections = shouldUseIsolatedCollections;
+		}
+		
 	private:
 
+		static bool sameOrParent(Component* possibleParent, Component* componentToLookFor);
+
+		bool useIsolatedCollections = false;
+		
+		Array<std::pair<Component::SafePointer<Component>, String>> isolatedStyleSheetFileNames;
 		Array<std::pair<Component::SafePointer<Component>, List>> childCollections;
 
 		bool createStackTrace = true;
@@ -135,6 +179,22 @@ struct StyleSheet: public ReferenceCountedObject
 	void copyPropertiesFrom(Ptr other, bool overwriteExisting=true, const StringArray& propertiesToCopy={});
 
 	void copyPropertiesFromParent(Ptr parent);
+
+	void copyVarProperties(Ptr other)
+	{
+		if(other->varProperties != nullptr)
+		{
+			if(varProperties == nullptr)
+			{
+				varProperties = other->varProperties->clone();
+			}
+			else
+			{
+				for(const auto& nv: other->varProperties->getProperties())
+					varProperties->setProperty(nv.name, nv.value);
+			}
+		}
+	}
 
 	NonUniformBorderData getNonUniformBorder(Rectangle<float> totalArea, PseudoState stateFlag) const;
 	Path getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag) const;

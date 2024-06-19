@@ -105,6 +105,7 @@ struct CSSRootComponent
 			info = nullptr;
 	}
 
+	
 	Animator animator;
 	StateWatcher stateWatcher;
 	StyleSheet::Collection css;
@@ -232,16 +233,13 @@ struct Renderer: public Animator::ScopedComponentSetter
 
 	/** Manually set the state flags for the renderer. this is useful for cases where the style flags can't be easily queried
 	 *  from the component hover states (eg. at popup menu items). */
-	void setPseudoClassState(int state);
+	void setPseudoClassState(int state, bool forceOverwrite=false);
 
 	/** Sets the current colour (or gradient) for the renderer based on the supplied style sheet and property key. */
 	void setCurrentBrush(Graphics& g, StyleSheet::Ptr ss, Rectangle<float> area, const PropertyKey& key, Colour defaultColour=Colours::transparentBlack);
 
 	/** returns the pseudo class state to use */
-	int getPseudoClassState() const
-	{
-		return currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
-	}
+	int getPseudoClassState() const;
 
 	void setApplyMargin(bool useMargin)
 	{
@@ -252,6 +250,7 @@ private:
 
 	bool applyMargin = true;
 
+	bool forceOverwriteState = false;
 	int pseudoClassState = 0;
 	Component* currentComponent;
 	StateWatcher& state;

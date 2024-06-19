@@ -34,6 +34,11 @@ namespace hise
 {
 namespace simple_css
 {
+	StyleSheetLookAndFeel::StyleSheetLookAndFeel(CSSRootComponent& root_):
+		root(root_)
+	{
+		
+	}
 
 void StyleSheetLookAndFeel::drawButtonBackground(Graphics& g, Button& tb, const Colour& colour, bool cond, bool cond1)
 {
@@ -51,7 +56,7 @@ void StyleSheetLookAndFeel::drawButtonBackground(Graphics& g, Button& tb, const 
 		}
 		else
 		{
-			LookAndFeel_V3::drawButtonBackground(g, tb, colour, cond, cond1);
+			GlobalHiseLookAndFeel::drawButtonBackground(g, tb, colour, cond, cond1);
 		}
 	}
 }
@@ -60,14 +65,14 @@ bool StyleSheetLookAndFeel::drawButtonText(Graphics& g, Button* b)
 {
 	if(auto ed = b->findParentComponentOfClass<CSSRootComponent>())
 	{
-		Renderer r(b, root.stateWatcher);
-			
 		if(auto ss = root.css.getForComponent(b))
 		{
+			Renderer r(b, root.stateWatcher);
 			ss->setDefaultColour("color", b->findColour(TextButton::ColourIds::textColourOffId));
 			r.renderText(g, b->getLocalBounds().toFloat(), b->getButtonText(), ss);
 			return true;
 		}
+		
 	}
 
 	return false;
@@ -76,24 +81,33 @@ bool StyleSheetLookAndFeel::drawButtonText(Graphics& g, Button* b)
 void StyleSheetLookAndFeel::drawButtonText(Graphics& g, TextButton& tb, bool over, bool down)
 {
 	if(!drawButtonText(g, &tb))
-		LookAndFeel_V3::drawButtonText(g, tb, over, down);
+		AlertWindowLookAndFeel::drawButtonText(g, tb, over, down);
 }
 
 void StyleSheetLookAndFeel::drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted,
 	bool shouldDrawButtonAsDown)
 {
-	drawButtonBackground(g, tb, {}, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
-	drawButtonText(g, &tb);
+	if(auto ed = tb.findParentComponentOfClass<CSSRootComponent>())
+	{
+		if(auto ss = root.css.getForComponent(&tb))
+		{
+			drawButtonBackground(g, tb, {}, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
+			drawButtonText(g, &tb);
+			return;
+		}
+	}
+
+	GlobalHiseLookAndFeel::drawToggleButton(g, tb, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
 }
 
 void StyleSheetLookAndFeel::fillTextEditorBackground(Graphics& g, int width, int height, TextEditor& textEditor)
 {
 	if(auto ed = textEditor.findParentComponentOfClass<CSSRootComponent>())
 	{
-		Renderer r(&textEditor, root.stateWatcher);
-
 		if(auto ss = root.css.getForComponent(&textEditor))
 		{
+			Renderer r(&textEditor, root.stateWatcher);
+
 			auto currentState = Renderer::getPseudoClassFromComponent(&textEditor);
 			ed->stateWatcher.checkChanges(&textEditor, ss, currentState);
 
@@ -104,9 +118,32 @@ void StyleSheetLookAndFeel::fillTextEditorBackground(Graphics& g, int width, int
 		}
 		else
 		{
-			LookAndFeel_V3::fillTextEditorBackground(g, width, height, textEditor);
-			LookAndFeel_V3::drawTextEditorOutline(g, width, height, textEditor);
+			GlobalHiseLookAndFeel::fillTextEditorBackground(g, width, height, textEditor);
+			GlobalHiseLookAndFeel::drawTextEditorOutline(g, width, height, textEditor);
 		}
+	}
+}
+
+void StyleSheetLookAndFeel::drawLinearSlider(Graphics& g, int x, int y, int width, int height, float sliderPos,
+	float minSliderPos, float maxSliderPos, const Slider::SliderStyle sliderStyle, Slider& slider)
+{
+	if(auto ss = root.css.getForComponent(&slider))
+	{
+		auto normPos = NormalisableRange<double>(slider.getRange()).convertTo0to1(slider.getValue());
+			
+		ss->setPropertyVariable("value", String(normPos, 4));
+
+		Renderer r(&slider, root.stateWatcher);
+
+		auto currentState = Renderer::getPseudoClassFromComponent(&slider);
+		root.stateWatcher.checkChanges(&slider, ss, currentState);
+
+		r.drawBackground(g, slider.getLocalBounds().toFloat(), ss);
+	}
+	else
+	{
+		GlobalHiseLookAndFeel::drawLinearSlider(g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos,
+		                                        sliderStyle, slider);
 	}
 }
 
@@ -117,22 +154,19 @@ Font StyleSheetLookAndFeel::getPopupMenuFont()
 		return ss->getFont({}, {});
 	}
 
-	return LookAndFeel_V3::getPopupMenuFont();
+	return GlobalHiseLookAndFeel::getPopupMenuFont();
 }
 
 void StyleSheetLookAndFeel::drawPopupMenuBackgroundWithOptions(Graphics& g, int width, int height,
 	const PopupMenu::Options& o)
 {
-	Renderer r(nullptr, root.stateWatcher);
-
 	if(auto ss = getBestPopupStyleSheet(false))
 	{
-		DBG(ss->toString());
+		Renderer r(nullptr, root.stateWatcher);
 		r.drawBackground(g, { (float)width, (float)height }, ss);
 	}
-		
 	else
-		LookAndFeel_V3::drawPopupMenuBackgroundWithOptions(g, width, height, o);
+		GlobalHiseLookAndFeel::drawPopupMenuBackgroundWithOptions(g, width, height, o);
 }
 
 void StyleSheetLookAndFeel::drawPopupMenuItem(Graphics& g, Rectangle<float> area, int flags, const String& text,
@@ -171,31 +205,38 @@ void StyleSheetLookAndFeel::drawPopupMenuItem(Graphics& g, Rectangle<float> area
 		{
 			r.renderText(g, area.toFloat(), text, ss);
 		}
-
-			
+	}
+	else
+	{
+		jassertfalse;
 	}
 }
 
 void StyleSheetLookAndFeel::drawPopupMenuItemWithOptions(Graphics& g, const Rectangle<int>& area, bool isHighlighted,
 	const PopupMenu::Item& item, const PopupMenu::Options& options)
 {
-	int flags = 0;
+	if(auto ss = getBestPopupStyleSheet(true))
+	{
+		int flags = 0;
 
-	if(isHighlighted && !(item.isSeparator || item.isSectionHeader))
-		flags |= (int)PseudoClassType::Hover;
+		if(isHighlighted && !(item.isSeparator || item.isSectionHeader))
+			flags |= (int)PseudoClassType::Hover;
 
-	if(item.isTicked)
-		flags |= (int)PseudoClassType::Active;
+		if(item.isTicked)
+			flags |= (int)PseudoClassType::Active;
 
-	if(!item.isEnabled)
-		flags |= (int)PseudoClassType::Disabled;
+		if(!item.isEnabled)
+			flags |= (int)PseudoClassType::Disabled;
 
-	if(item.subMenu != nullptr)
-		flags |= (int)PseudoClassType::Root;
+		if(item.subMenu != nullptr)
+			flags |= (int)PseudoClassType::Root;
 
-	DBG(flags);
-
-	drawPopupMenuItem(g, area.toFloat(), flags, item.text, item.isSeparator);
+		drawPopupMenuItem(g, area.toFloat(), flags, item.text, item.isSeparator);
+	}
+	else
+	{
+		GlobalHiseLookAndFeel::drawPopupMenuItemWithOptions(g, area, isHighlighted, item, options);
+	}
 }
 
 void StyleSheetLookAndFeel::drawProgressBar(Graphics& g, ProgressBar& progressBar, int width, int height,
@@ -213,23 +254,24 @@ void StyleSheetLookAndFeel::drawProgressBar(Graphics& g, ProgressBar& progressBa
 		r.drawBackground(g, progressBar.getLocalBounds().toFloat(), ss);
 		r.renderText(g, progressBar.getLocalBounds().toFloat(), textToShow, ss);
 	}
+	else
+	{
+		GlobalHiseLookAndFeel::drawProgressBar(g, progressBar, width, height, progress, textToShow);
+	}
 }
 
 StyleSheet::Ptr StyleSheetLookAndFeel::getBestPopupStyleSheet(bool getItem)
 {
-	if(getItem)
-		return root.css.getWithAllStates(nullptr, Selector::withClass("popup-item"));
-
-	return root.css.getWithAllStates(nullptr, Selector::withClass("popup"));
+	return root.css.getWithAllStates(nullptr, Selector::withClass(getItem ? "popup-item" : "popup"));
 }
 
 void StyleSheetLookAndFeel::getIdealPopupMenuItemSizeWithOptions(const String& text, bool isSeparator,
 	int standardMenuItemHeight, int& idealWidth, int& idealHeight, const PopupMenu::Options& options)
 {
-	auto f = getPopupMenuFont();
-
 	if(auto ss = getBestPopupStyleSheet(true))
 	{
+		auto f = getPopupMenuFont();
+
 		auto textWidth = f.getStringWidthFloat(ss->getText(text, {}));
 		auto h = f.getHeight();
 
@@ -258,6 +300,10 @@ void StyleSheetLookAndFeel::getIdealPopupMenuItemSizeWithOptions(const String& t
 		idealWidth = roundToInt(ta.getWidth());
 		idealHeight = roundToInt(ta.getHeight());
 	}
+	else
+	{
+		GlobalHiseLookAndFeel::getIdealPopupMenuItemSizeWithOptions(text, isSeparator, standardMenuItemHeight, idealWidth, idealHeight, options);
+	}
 }
 
 void StyleSheetLookAndFeel::drawPopupMenuSectionHeaderWithOptions(Graphics& g, const Rectangle<int>& area,
@@ -266,8 +312,37 @@ void StyleSheetLookAndFeel::drawPopupMenuSectionHeaderWithOptions(Graphics& g, c
 	drawPopupMenuItem(g, area.toFloat(), (int)PseudoClassType::Focus, sectionName, false);
 }
 
+void StyleSheetLookAndFeel::drawLabel(Graphics& g, Label& l)
+{
+	if(auto ss = root.css.getForComponent(&l))
+	{
+		Renderer r(&l, root.stateWatcher);
+
+		auto state = r.getPseudoClassState();
+
+		if(l.isBeingEdited())
+			state |= (int)PseudoClassType::Focus;
+		else
+			state &= (0xFFFFFFFF ^ (int)PseudoClassType::Focus);
+
+
+		r.setPseudoClassState(state, true);
+
+		root.stateWatcher.checkChanges(&l, ss, r.getPseudoClassState());
+
+		r.drawBackground(g, l.getLocalBounds().toFloat(), ss);
+
+		if(!l.isBeingEdited())
+			r.renderText(g, l.getLocalBounds().toFloat(), l.getText(), ss);
+	}
+	else
+	{
+		GlobalHiseLookAndFeel::drawLabel(g, l);
+	}
+}
+
 void StyleSheetLookAndFeel::drawComboBox(Graphics& g, int width, int height, bool isButtonDown, int buttonX,
-	int buttonY, int buttonW, int buttonH, ComboBox& cb)
+                                         int buttonY, int buttonW, int buttonH, ComboBox& cb)
 {
 	if(auto ss = root.css.getForComponent(&cb))
 	{
@@ -281,12 +356,14 @@ void StyleSheetLookAndFeel::drawComboBox(Graphics& g, int width, int height, boo
 	}
 	else
 	{
-		LookAndFeel_V3::drawComboBox(g, width, height, isButtonDown, buttonX, buttonY, buttonW, buttonH, cb);
+		GlobalHiseLookAndFeel::drawComboBox(g, width, height, isButtonDown, buttonX, buttonY, buttonW, buttonH, cb);
 	}
 }
 
 void StyleSheetLookAndFeel::positionComboBoxText(ComboBox& cb, Label& label)
 {
+	// position it but then hide it so that the popup menu size will be initialised correctly (wtf, 1 hour of debugging for this...)
+	GlobalHiseLookAndFeel::positionComboBoxText(cb, label);
 	label.setVisible(false);
 }
 
@@ -336,7 +413,7 @@ void StyleSheetLookAndFeel::drawTableHeaderColumn(Graphics& g, TableHeaderCompon
 	}
 	else
 	{
-		LookAndFeel_V3::drawTableHeaderColumn(g, tableHeaderComponent, columnName, columnId, width, height,
+		GlobalHiseLookAndFeel::drawTableHeaderColumn(g, tableHeaderComponent, columnName, columnId, width, height,
 	                                      isMouseOver, isMouseDown, columnFlags);
 	}
 

@@ -600,7 +600,21 @@ PropertyValue Property::getProperty(int stateFlag) const
 		}
 	}
 
-	return values[0].second;
+	// We didn't find the property, so now let's check if
+	// the default state is defined
+	if(stateFlag != 0)
+	{
+		for(auto& pv: values)
+		{
+			if(pv.first == 0)
+				return pv.second;
+		}
+	}
+
+	// default state not defined, return null...
+	return {};
+
+	//return values[0].second;
 }
 
 NonUniformBorderData::NonUniformBorderData(Rectangle<float> totalArea_, float defaultWidth_,

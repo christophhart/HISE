@@ -167,6 +167,14 @@ if (ss != nullptr)
 }
 }
 
+int Renderer::getPseudoClassState() const
+{
+	if(forceOverwriteState)
+		return pseudoClassState;
+
+	return currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
+}
+
 CodeGenerator::CodeGenerator(StyleSheet::Ptr ss_):
 	ss(ss_)
 {
@@ -243,7 +251,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	if(ss == nullptr)
 		return;
 	
-	auto stateFlag = currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
+	auto stateFlag = getPseudoClassState();
 	auto defaultState = PseudoState(stateFlag).withElement(type);
 
 	if(ss->getPropertyValueString({ "display", defaultState}) == "none")
@@ -314,7 +322,8 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	
 	if(type == PseudoElementType::None)
 	{
-		auto beforeArea = ss->getPseudoArea(ma, stateFlag, PseudoElementType::Before);
+		auto beforeAbsolute = ss->getPropertyValue({"position", PseudoState(0).withElement(PseudoElementType::Before)}).toString() == "absolute";
+		auto beforeArea = ss->getPseudoArea(beforeAbsolute ? area : ma, stateFlag, PseudoElementType::Before);
 
 		if(!beforeArea.isEmpty())
 		{
@@ -327,8 +336,10 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 				renderText(g, beforeArea, v, ss, PseudoElementType::Before);
 		}
 
-		auto afterArea = ss->getPseudoArea(ma, stateFlag, PseudoElementType::After);
-
+		auto afterAbsolute = ss->getPropertyValue({"position", PseudoState(0).withElement(PseudoElementType::After)}).toString() == "absolute";
+		
+		auto afterArea = ss->getPseudoArea(afterAbsolute ? area : ma, stateFlag, PseudoElementType::After);
+		
 		if(!afterArea.isEmpty())
 		{
 			Graphics::ScopedSaveState sss(g);
@@ -486,8 +497,9 @@ void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text
 	g.drawText(textToDraw, totalArea, j);
 }
 
-void Renderer::setPseudoClassState(int state)
+void Renderer::setPseudoClassState(int state, bool shouldForceOverwrite)
 {
+	forceOverwriteState |= shouldForceOverwrite;
 	pseudoClassState = state;
 }
 }
