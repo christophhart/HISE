@@ -1593,6 +1593,9 @@ ValueType Parser::findValueType(const String& value)
 {
 	static const StringArray colourPrefixes = { "#", "rgba(", "hsl(", "rgb(" };
 
+	if(value.startsWith("var(--"))
+		return ValueType::Variable;
+
 	for(const auto& cp: colourPrefixes)
 	{
 		if(value.startsWith(cp))
@@ -1690,7 +1693,7 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 
 PropertyType Parser::getPropertyType(const String& p)
 {
-	if(p.startsWith("--"))
+	if(p.startsWith("--") || p.startsWith("var(--"))
 		return PropertyType::Variable;
 
 	static const StringArray layoutIds({"x", "y", "left", "right", "top", "bottom", "width", "height", "min-width", "min-height", "max-width", "max-height", "opacity", "gap"});
@@ -1963,9 +1966,33 @@ StyleSheet::Collection Parser::getCSSValues() const
 				}
 				case PropertyType::Shadow:
 				{
-					ShadowParser bp(tokens);
+					bool hasVariables = false;
+
+					for(auto& t: tokens)
+					{
+						if(getPropertyType(t) == PropertyType::Variable)
+						{
+							hasVariables = true;
+							break;
+						}
+					}
+
+					if(hasVariables)
+					{
+						// We need to defer the parsing of the shadow until the variable is resolved
+						String s;
+
+						for(auto& t: tokens)
+							s << "|" << t;
+
+						addOrOverwrite(PropertyType::Shadow, isImportant, rv.property, s);
+					}
+					else
+					{
+						ShadowParser bp(tokens);
+						addOrOverwrite(PropertyType::Shadow, isImportant, rv.property, bp.toParsedString());
+					}
 					
-					addOrOverwrite(PropertyType::Shadow, isImportant, rv.property, bp.toParsedString());
 					break;
 				}
 				case PropertyType::Transform:

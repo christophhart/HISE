@@ -1345,6 +1345,8 @@ Justification StyleSheet::getJustification(PseudoState currentState, int default
 			x = Justification::Flags::left;
 		else if(jv == "end" || jv == "right")
 			x = Justification::right;
+		else if (jv == "center")
+			x = Justification::horizontallyCentred;
 	}
 
 	if(auto v = getPropertyValue({"vertical-align", currentState }))
@@ -1356,6 +1358,9 @@ Justification StyleSheet::getJustification(PseudoState currentState, int default
 
 		if(vv == "bottom" || vv == "text-bottom")
 			y = Justification::Flags::bottom;
+
+		if(vv == "middle")
+			y = Justification::Flags::verticallyCentred;
 	}
 
 	return Justification(x | y);
@@ -1499,8 +1504,57 @@ std::vector<melatonin::ShadowParameters> StyleSheet::getShadow(Rectangle<float> 
 	}
 	else if(auto v = getPropertyValue(key))
 	{
-		ShadowParser s(v.getValue(varProperties), totalArea);
-		return s.getShadowParameters(wantsInset);
+		if(v.getRawValueString().startsWithChar('|'))
+		{
+			auto full = v.getRawValueString();
+			auto ptr = full.begin();
+			auto token = ptr;
+			auto end = full.end();
+
+			char buffer[128];
+			int pos = 0;
+
+			std::vector<String> list;
+
+			while(ptr != end)
+			{
+				if(*ptr == '|')
+				{
+					if(pos != 0)
+						list.push_back(String(buffer));
+
+					memset(buffer, 0, sizeof(buffer));
+					pos = 0;
+				}
+				else
+				{
+					buffer[pos++] = *ptr;
+				}
+
+				++ptr;
+			}
+
+			list.push_back(String(buffer));
+
+			for(auto& v: list)
+			{
+				if(v.startsWith("var(--"))
+				{
+					Identifier id(v.substring(6, v.length() - 1));
+					v = varProperties->getProperty(id).toString();
+				}
+			}
+
+			ShadowParser s(list);
+			auto parsed = s.toParsedString();
+			ShadowParser ps(parsed, totalArea);
+			return ps.getShadowParameters(wantsInset);
+		}
+		else
+		{
+			ShadowParser s(v.getValue(varProperties), totalArea);
+			return s.getShadowParameters(wantsInset);
+		}
 	}
 
 	return {};
@@ -1555,6 +1609,29 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
 
 	auto getValueFromString = [&](const String& v)
 	{
+		if(v.startsWith("color-mix"))
+		{
+			
+			auto args = v.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false);
+			auto tokens = StringArray::fromTokens(args, ",", "()");
+			tokens.trim();
+			
+			auto type = tokens[0];
+
+			auto c1 = tokens[1];
+			auto c2 = tokens[2];
+			auto c1Colour = c1.upToFirstOccurrenceOf(" ", false, false);
+			ExpressionParser::Context<> context;
+			auto c1Mix = ExpressionParser::evaluate(c1.fromFirstOccurrenceOf(" ", false, false), context);
+
+			auto c2Colour = c2.upToFirstOccurrenceOf(" ", false, false);
+			
+
+			auto colour1 = ColourParser(c1Colour).getColour();
+			auto colour2 = ColourParser(c2Colour).getColour();
+
+			return std::pair(colour1.interpolatedWith(colour2, 1.0 - c1Mix), ColourGradient());
+		}
 		if(v.startsWith("linear-gradient"))
 		{
 			ColourGradient grad;

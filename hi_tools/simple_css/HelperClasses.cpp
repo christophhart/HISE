@@ -502,6 +502,28 @@ String PropertyValue::getValue(DynamicObject::Ptr variables)
 		else
 			return {};
 	}
+	else if(valueAsString.contains("var("))
+	{
+		if(variables != nullptr)
+		{
+			auto current = valueAsString;
+
+			while(current.contains("var(--"))
+			{
+				auto id = current.fromFirstOccurrenceOf("var(--", false, false);
+				id = id.upToFirstOccurrenceOf(")", false, false);
+				auto rp = variables->getProperty(Identifier(id)).toString();
+
+				auto bf = "var(--" + id + ")";
+
+				current = current.replace(bf, rp);
+			}
+
+			return current;
+		}
+		else
+			return {};
+	}
 	else
 	{
 		return valueAsString;

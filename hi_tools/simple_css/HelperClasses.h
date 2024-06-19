@@ -205,6 +205,8 @@ struct PropertyValue
 
 	String getValue(DynamicObject::Ptr variables);
 
+	String getRawValueString() const { return valueAsString; }
+
 	String toString() const;
 
 	PropertyType type;
