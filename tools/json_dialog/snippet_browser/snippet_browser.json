@@ -540,7 +540,7 @@
               "Text": "",
               "ID": "description",
               "Code": " ",
-              "Style": "flex-grow: 2;  font-family: monospace;vertical-align: top; font-size: 12px; padding-top: 8px; ",
+              "Style": "flex-grow: 2;  font-family: monospace;vertical-align: top; font-size: 12px; padding-top: 8px; color: black;",
               "NoLabel": true,
               "Required": true,
               "Height": 80,

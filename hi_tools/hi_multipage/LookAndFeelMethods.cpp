@@ -327,6 +327,8 @@ static const char* FOLD_BAR = R"(
  background-color: #555;
  background-image: var(--triangle-icon);
  margin: 6px;
+ top: 3px;
+ height: 20px;
  transform: none;
 }
 

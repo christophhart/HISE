@@ -790,7 +790,7 @@ UI Logic)" }
 	List_54.addChild<TextInput>({
 	  { mpid::ID, "description" }, 
 	  { mpid::Code, " " }, 
-	  { mpid::Style, "flex-grow: 2;  font-family: monospace;vertical-align: top; font-size: 12px; padding-top: 8px; " }, 
+	  { mpid::Style, "flex-grow: 2;  font-family: monospace;vertical-align: top; font-size: 12px; padding-top: 8px; color: black;" }, 
 	  { mpid::NoLabel, 1 }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Height, 80 }, 
