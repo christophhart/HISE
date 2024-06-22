@@ -80,6 +80,12 @@ public:
     /** Use this for additional setup. */
     virtual void setupEditor(TextEditor* editor);
 
+    /** Override this and check if the current line is commented. */
+    virtual bool isLineCommented(TextDocument& document, Selection s) const;
+
+    /** Overwrite this and toggle the line comment. */
+    virtual void toggleCommentForLine(TextEditor* editor, bool shouldBeCommented);
+
     bool hashIsPreprocessor = true;
 };
 
@@ -105,10 +111,7 @@ struct MarkdownLanguageManager : public LanguageManager
         return new MarkdownParser::Tokeniser();
     }
 
-    void processBookmarkTitle(juce::String& bookmarkTitle) override
-    {
-        bookmarkTitle = bookmarkTitle.trimCharactersAtStart("#").trim();
-    }
+    void processBookmarkTitle(juce::String& bookmarkTitle) override;
 
     Identifier getLanguageId() const override { return LanguageIds::Markdown; }
 

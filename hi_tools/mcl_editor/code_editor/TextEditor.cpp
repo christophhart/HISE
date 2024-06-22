@@ -2623,28 +2623,7 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
         return true;
     };
     
-	auto remove = [this](Target target, Direction direction)
-	{
-		const auto& s = document.getSelections().getLast();
-
-		auto l = document.getCharacter(s.head.translated(0, -1));
-		auto r = document.getCharacter(s.head);
-		
-		if (lastInsertWasDouble && ActionHelpers::isMatchingClosure(l, r))
-		{
-			document.navigateSelections(Target::character, Direction::backwardCol, Selection::Part::tail);
-			document.navigateSelections(Target::character, Direction::forwardCol, Selection::Part::head);
-			
-			insert({});
-			return true;
-		}
-
-		if (s.isSingular())
-			expandBack(target, direction);
-
-		insert({});
-		return true;
-	};
+	
 
     // =======================================================================================
     if (keyMatchesId(key, TextEditorShortcuts::show_autocomplete))
@@ -2897,22 +2876,12 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
     
 	if (keyMatchesId(key, TextEditorShortcuts::comment_line)) // "Cmd + #"
 	{
-		auto isComment = [this](Selection s)
-		{
-			document.navigate(s.tail, Target::line, Direction::forwardCol);
-			document.navigate(s.head, Target::line, Direction::forwardCol);
-			document.navigate(s.tail, Target::firstnonwhitespace, Direction::backwardCol);
-			document.navigate(s.head, Target::firstnonwhitespace, Direction::backwardCol);
-			s.head.y += 2;
-			return document.getSelectionContent(s) == "//";
-		};
-
 		bool anythingCommented = false;
 		bool anythingUncommented = false;
 
 		for (auto s : document.getSelections())
 		{
-			auto thisOne = isComment(s);
+			auto thisOne = languageManager->isLineCommented(document, s);
 
 			anythingCommented |= thisOne;
 			anythingUncommented |= !thisOne;
@@ -2936,12 +2905,15 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
 
 		if (anythingUncommented)
 		{
-			insert("//");
+			languageManager->toggleCommentForLine(this, true);
+
+			
 		}
 		else
 		{
-			remove(Target::character, Direction::forwardCol);
-			remove(Target::character, Direction::forwardCol);
+			languageManager->toggleCommentForLine(this, false);
+
+			
 		}
 
 		Array<Selection> newSelection;

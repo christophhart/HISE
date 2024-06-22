@@ -142,6 +142,49 @@ struct LanguageManager: public mcl::LanguageManager
 	Identifier getLanguageId() const override { return "CSS"; }
 	CodeTokeniser* createCodeTokeniser() override { return new Tokeniser(); }
 
+	bool isLineCommented(mcl::TextDocument& document, mcl::Selection s) const override
+	{
+		document.navigate(s.tail, mcl::TextDocument::Target::line, mcl::TextDocument::Direction::forwardCol);
+		document.navigate(s.head, mcl::TextDocument::Target::line, mcl::TextDocument::Direction::forwardCol);
+		document.navigate(s.tail, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+		document.navigate(s.head, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+		s.head.y += 2;
+		
+	    return document.getSelectionContent(s) == "/*";
+	}
+
+	/** Overwrite this and toggle the line comment. */
+	void toggleCommentForLine(mcl::TextEditor* editor, bool shouldBeCommented) override
+	{
+		if(shouldBeCommented)
+		{
+			auto s = editor->getTextDocument().getSelection(0);
+
+	        editor->getTextDocument().navigate(s.head, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+	        editor->getTextDocument().navigate(s.head, mcl::TextDocument::Target::line, mcl::TextDocument::Direction::forwardCol);
+
+	        auto t = editor->getTextDocument().getSelectionContent(s);
+
+	        editor->getTextDocument().setSelection(0, s, true);
+
+	        editor->insert("/* " + t + " */");
+		}
+		else
+		{
+			auto s = editor->getTextDocument().getSelection(0);
+
+	        editor->getTextDocument().navigate(s.head, mcl::TextDocument::Target::firstnonwhitespace, mcl::TextDocument::Direction::backwardCol);
+	        editor->getTextDocument().navigate(s.head, mcl::TextDocument::Target::line, mcl::TextDocument::Direction::forwardCol);
+
+	        auto t = editor->getTextDocument().getSelectionContent(s);
+
+	        t = t.fromFirstOccurrenceOf("/*", false, false).upToLastOccurrenceOf("*/", false, false).trim();
+
+	        editor->getTextDocument().setSelection(0, s, true);
+	        editor->insert(t);
+		}
+	}
+
 	SharedResourcePointer<KeywordDataBase> database;
 	mcl::TextDocument& doc;
 };

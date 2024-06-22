@@ -209,6 +209,29 @@ public:
 
 	bool insert(const juce::String& content);
 
+	bool remove(TextDocument::Target target, TextDocument::Direction direction)
+	{
+		const auto& s = document.getSelections().getLast();
+
+		auto l = document.getCharacter(s.head.translated(0, -1));
+		auto r = document.getCharacter(s.head);
+		
+		if (lastInsertWasDouble && ActionHelpers::isMatchingClosure(l, r))
+		{
+			document.navigateSelections(TextDocument::Target::character, TextDocument::Direction::backwardCol, Selection::Part::tail);
+			document.navigateSelections(TextDocument::Target::character, TextDocument::Direction::forwardCol, Selection::Part::head);
+			
+			insert({});
+			return true;
+		}
+
+		if (s.isSingular())
+			expandBack(target, direction);
+
+		insert({});
+		return true;
+	};
+
 	bool enableLiveParsing = true;
 	bool enablePreprocessorParsing = true;
 
