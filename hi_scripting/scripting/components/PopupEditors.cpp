@@ -104,17 +104,25 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	callback(Identifier()),
 	tokeniser(new JavascriptTokeniser())
 {
+	
+	if(fileToEdit.getFileExtension() == ".glsl")
+		t = FileTypes::GLSL;
+	else if (fileToEdit.getFileExtension() == ".css")
+		t = FileTypes::CSS;
+	else
+		t = FileTypes::Javascript;
+
 	tokeniser->setUseScopeStatements(true);
 	
 
 	Processor *p = dynamic_cast<Processor*>(jp.get());
-	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, true);
+	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, t == FileTypes::Javascript);
 
     p->getMainController()->addScriptListener(this);
     
     checkUnreferencedExternalFile();
     
-	auto isJavascript = !externalFile->getFile().hasFileExtension("glsl");
+	auto isJavascript = t == FileTypes::Javascript;
 
 	addEditor(externalFile->getFileDocument(), isJavascript);
 
@@ -502,17 +510,59 @@ void PopupIncludeEditor::compileInternal()
 		}
 	}
 
-    Component::SafePointer<PopupIncludeEditor> safeP(this);
+	if(t == FileTypes::CSS)
+	{
+		auto& ed = editor->editor;
+
+		simple_css::Parser p(ed.getTextDocument().getCodeDocument().getAllContent());
+
+		ed.clearWarningsAndErrors();
+
+		auto ok = p.parse();
+
+		for(auto w: p.getWarnings())
+			ed.addWarning(w, true);
+
+		bottomBar->setError(ok.getErrorMessage());
+
+		if(!ok.wasOk())
+		{
+			ed.setError(ok.getErrorMessage());
+		}
+		else
+		{
+			auto top = getTopLevelComponent();
+
+			auto css = p.getCSSValues();
+			auto fileName = getFile().getFileName();
+
+			Component::callRecursive<ScriptContentComponent>(top, [&](ScriptContentComponent* c)
+			{
+				c->css.updateIsolatedCollection(fileName, css);
+				c->repaint();
+
+				return false;
+			});
+		}
+		
+		return;
+	}
+	else
+	{
+		Component::SafePointer<PopupIncludeEditor> safeP(this);
     
-    auto f = [safeP](const JavascriptProcessor::SnippetResult& r)
-    {
-        if(safeP.getComponent() != nullptr)
-        {
-            safeP->refreshAfterCompilation(r);
-        }
-    };
+	    auto f = [safeP](const JavascriptProcessor::SnippetResult& r)
+	    {
+	        if(safeP.getComponent() != nullptr)
+	        {
+	            safeP->refreshAfterCompilation(r);
+	        }
+	    };
+	    
+		jp->compileScript(f);
+	}
+
     
-	jp->compileScript(f);
 
 	if (auto asmcl = dynamic_cast<mcl::TextEditor*>(editor.get()))
 	{
@@ -570,13 +620,20 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 		ed.setLanguageManager(new JavascriptLanguageManager(jp, callback, ed));
 	else
 	{
-		ed.setLanguageManager(new GLSLLanguageManager());
+		if(t == FileTypes::GLSL)
+			ed.setLanguageManager(new GLSLLanguageManager());
+		else
+		{
+			ed.tokenCollection = new mcl::TokenCollection("CSS");
+			ed.tokenCollection->setUseBackgroundThread(false);
+			ed.setLanguageManager(new simple_css::LanguageManager(ed.getTextDocument()));
+			ed.tokenCollection->rebuild();
+		}
+			
 	}
 
 	ed.setPopupLookAndFeel(new PopupLookAndFeel());
-
-    
-    
+	
 	auto mc = dynamic_cast<Processor*>(jp.get())->getMainController();
 
     ed.getTextDocument().setExternalViewUndoManager(mc->getLocationUndoManager());

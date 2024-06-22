@@ -196,6 +196,15 @@ public:
     
 private:
 
+	enum class FileTypes
+	{
+		Javascript = 0,
+		GLSL,
+		CSS
+	};
+
+	FileTypes t = FileTypes::Javascript;
+
     void checkUnreferencedExternalFile()
     {
         bool before = unreferencedExternalFile;
