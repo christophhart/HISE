@@ -312,15 +312,40 @@ void PropertyListener::sendMessageForAllProperties()
 		break;
 	case AsyncMode::Synchronously:
 	{
-		for (auto id : ids)
-			f(id, v[id]);
+		if(ids.isEmpty())
+		{
+			for(int i = 0; i <  v.getNumProperties(); i++)
+			{
+				auto id = v.getPropertyName(i);
+				f(id, v[id]);
+			}
+		}
+		else
+		{
+			for (auto id : ids)
+				f(id, v[id]);
+		}
+		
 		break;
 	}
 	case AsyncMode::Asynchronously:
 	{
 		ScopedLock sl(asyncLock);
 		changedIds.clear();
-		changedIds.addArray(ids);
+
+		if(ids.isEmpty())
+		{
+			changedIds.ensureStorageAllocated(v.getNumProperties());
+
+			for(int i = 0; i < v.getNumProperties(); i++)
+				changedIds.add(v.getPropertyName(i));
+		}
+		else
+		{
+			changedIds.addArray(ids);
+		}
+
+		
 		triggerAsyncUpdate();
 		break;
 	}
@@ -353,7 +378,7 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 {
 	Identifier id2(id.toString());
 
-	if (v == v_ && ids.contains(id2))
+	if (v == v_ && (ids.isEmpty() || ids.contains(id2)))
 	{
 		auto thisValue = v[id];
 
