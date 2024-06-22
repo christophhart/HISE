@@ -147,6 +147,32 @@ void StyleSheetLookAndFeel::drawLinearSlider(Graphics& g, int x, int y, int widt
 	}
 }
 
+void StyleSheetLookAndFeel::drawRotarySlider(Graphics& graphics, int x, int y, int width, int height,
+	float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, Slider& slider)
+{
+	if(auto ss = root.css.getForComponent(&slider))
+	{
+		auto normPos = NormalisableRange<double>(slider.getRange()).convertTo0to1(slider.getValue());
+			
+		ss->setPropertyVariable("value", String(normPos, 4));
+
+		Renderer r(&slider, root.stateWatcher);
+
+		auto currentState = Renderer::getPseudoClassFromComponent(&slider);
+		root.stateWatcher.checkChanges(&slider, ss, currentState);
+
+		r.drawBackground(graphics, slider.getLocalBounds().toFloat(), ss);
+		auto t = slider.getTextFromValue(slider.getValue());
+		r.renderText(graphics, slider.getLocalBounds().toFloat(), t, ss);
+	}
+	else
+	{
+		GlobalHiseLookAndFeel::drawRotarySlider(graphics, x, y, width, height, sliderPosProportional, rotaryStartAngle,
+	                                        rotaryEndAngle, slider);
+	}
+	
+}
+
 Font StyleSheetLookAndFeel::getPopupMenuFont()
 {
 	if(auto ss = getBestPopupStyleSheet(true))
@@ -339,6 +365,16 @@ void StyleSheetLookAndFeel::drawLabel(Graphics& g, Label& l)
 	{
 		GlobalHiseLookAndFeel::drawLabel(g, l);
 	}
+}
+
+Font StyleSheetLookAndFeel::getLabelFont(Label& label)
+{
+	if(auto ss = root.css.getForComponent(&label))
+	{
+		return ss->getFont({}, label.getLocalBounds().toFloat());
+	}
+	else
+		return GlobalHiseLookAndFeel::getLabelFont(label);
 }
 
 void StyleSheetLookAndFeel::drawComboBox(Graphics& g, int width, int height, bool isButtonDown, int buttonX,

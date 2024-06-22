@@ -70,6 +70,9 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 	                      float maxSliderPos, const Slider::SliderStyle sliderStyle, Slider&slider) override;
 
 
+	void drawRotarySlider(Graphics&graphics, int x, int y, int width, int height, float sliderPosProportional,
+	                      float rotaryStartAngle, float rotaryEndAngle, Slider&slider) override;
+
 	/** Uses the selector "input [#id]". */
 	void drawTextEditorOutline (Graphics&, int width, int height, TextEditor&) override {};
 
@@ -79,15 +82,7 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 
 	void drawLabel(Graphics& g, Label& l) override;
 
-	Font getLabelFont(Label& label) override
-	{
-		if(auto ss = root.css.getForComponent(&label))
-		{
-			return ss->getFont({}, label.getLocalBounds().toFloat());
-		}
-		else
-			return GlobalHiseLookAndFeel::getLabelFont(label);
-	}
+	Font getLabelFont(Label& label) override;
 
 	/** Uses the selector "select". */
 	void drawComboBox (Graphics& g, int width, int height, bool isButtonDown,
