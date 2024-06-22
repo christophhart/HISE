@@ -483,6 +483,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		String getComment() const override { return commentDoc; }
 
+		Identifier getCallId() const override { return name; }
+
 		int getNumChildElements() const override
 		{
 			return ENABLE_SCRIPTING_BREAKPOINTS * 2;

@@ -1688,11 +1688,10 @@ struct TokenHelpers
 		if (auto slaf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(ptr->getObject()))
 		{
 			auto l = ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames();
-
+			
 			for (auto id : l)
 				tokens.add(new LookAndFeelToken(ptr->getTextForName(), id));
-
-			return true;
+			
 		}
 
 

@@ -570,7 +570,9 @@ struct HiseJavascriptEngine::RootObject::FunctionObject : public DynamicObject,
 	bool updateCyclicReferenceList(ThreadData& data, const Identifier& id) override;
 
     bool isRealtimeSafe() const { return false; }
-    
+
+	Identifier getCallId() const override { return name; }
+
 	void prepareCycleReferenceCheck() override;
 
     DynamicObject::Ptr createScope(RootObject* r) override

@@ -193,7 +193,9 @@ public:
 	ExternalScriptFile::Ptr externalFile;
 
 	ScopedPointer<EditorBottomBar> bottomBar;
-    
+
+	bool isJavascript() const { return t == FileTypes::Javascript; }
+
 private:
 
 	enum class FileTypes

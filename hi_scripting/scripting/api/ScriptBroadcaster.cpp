@@ -907,6 +907,19 @@ Result ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
 	return Result::ok();
 }
 
+Result ScriptBroadcaster::ModuleParameterSyncer::callSync(const Array<var>& args)
+{
+	auto v = (float)args.getLast();
+	FloatSanitizers::sanitizeFloatNumber(v);
+
+	if(target.get() != nullptr)
+	{
+		target->setAttribute(parameterIndex, v, sendNotificationAsync);
+	}
+
+	return Result::ok();
+}
+
 ScriptBroadcaster::OtherBroadcasterTarget::OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async_, const var& metadata_):
 	TargetBase(var(target_), transformFunction, metadata_),
 	parent(parent_),

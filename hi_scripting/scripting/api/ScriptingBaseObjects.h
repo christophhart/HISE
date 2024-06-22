@@ -237,6 +237,8 @@ struct WeakCallbackHolder : private ScriptingObject
 
 		virtual String getComment() const { return {}; }
 
+		virtual Identifier getCallId() const = 0;
+
 	protected:
 
 		Result lastResult;

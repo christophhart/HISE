@@ -109,6 +109,8 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
         
 	void timerCallback() override;
 
+	Identifier getCallId() const override { return metadata.id; }
+
 	// =============================================================================== API Methods
 
 	/** Adds a listener that is notified when a message is send. The object can be either a JSON object, a script object or a simple string. */
@@ -463,18 +465,7 @@ private:
 
 		Array<var> createChildArray() const override { return {}; }
 
-		Result callSync(const Array<var>& args) override
-		{
-			auto v = (float)args.getLast();
-			FloatSanitizers::sanitizeFloatNumber(v);
-
-			if(target.get() != nullptr)
-			{
-				target->setAttribute(parameterIndex, v, sendNotificationAsync);
-			}
-
-			return Result::ok();
-		}
+		Result callSync(const Array<var>& args) override;
 
 		WeakReference<Processor> target;
 		int parameterIndex;
