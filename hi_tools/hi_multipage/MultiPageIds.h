@@ -72,6 +72,7 @@ namespace mpid
     DECLARE_ID(Cleanup);
     DECLARE_ID(Class);
     DECLARE_ID(ContentType);
+    DECLARE_ID(ConfirmClose);
     DECLARE_ID(Code);
     DECLARE_ID(Columns);
     DECLARE_ID(Children);

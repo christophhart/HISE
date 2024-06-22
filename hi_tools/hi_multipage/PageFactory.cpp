@@ -458,10 +458,12 @@ MarkdownText::MarkdownText(Dialog& d, int width_, const var& obj_):
 	width((float)width_),
 	obj(obj_)
 {
+	Helpers::writeClassSelectors(*this, { ".markdown" }, true);
+	
 	display.r.setImageProvider(new AssetImageProvider(&display.r, d.getState()));
 	display.setResizeToFit(true);
-	
-	Helpers::writeSelectorsToProperties(display, {".markdown"});
+
+	//Helpers::writeSelectorsToProperties(display, {".markdown"});
 
 	setDefaultStyleSheet("width: 100%; height: auto;");
 	Helpers::setFallbackStyleSheet(display, "width: 100%;");

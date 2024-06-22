@@ -104,7 +104,8 @@ public:
         Rectangle<int> getBounds(Rectangle<int> fullBounds) const;
 
         Point<int> fixedSize = { 800, 600 };
-        
+
+        bool confirmClose = true;
         String styleSheet = "Dark";
         String additionalStyle;
         bool useViewport = true;

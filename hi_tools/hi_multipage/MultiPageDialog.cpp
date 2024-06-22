@@ -612,6 +612,7 @@ var Dialog::PositionInfo::toJSON() const
     obj->setProperty(mpid::StyleSheet, styleSheet);
 	obj->setProperty(mpid::Style, additionalStyle);
     obj->setProperty(mpid::UseViewport, useViewport);
+	obj->setProperty(mpid::ConfirmClose, confirmClose);
     
 	obj->setProperty("DialogWidth", fixedSize.getX());
 	obj->setProperty("DialogHeight", fixedSize.getY());
@@ -625,7 +626,9 @@ void Dialog::PositionInfo::fromJSON(const var& obj)
 	additionalStyle = obj.getProperty(mpid::Style, additionalStyle).toString();
 
     useViewport = obj.getProperty(mpid::UseViewport, useViewport);
-    
+
+	confirmClose = obj.getProperty(mpid::ConfirmClose, confirmClose);
+
 	fixedSize.setX(obj.getProperty("DialogWidth", fixedSize.getX()));
 	fixedSize.setY(obj.getProperty("DialogHeight", fixedSize.getY()));
 }
@@ -1007,19 +1010,33 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 	cancelButton.onClick = [this]()
 	{
-		auto l = createModalPopup<factory::List>();
-
-		auto& root = *l;
-        auto& md = root.addChild<factory::MarkdownText>();
-		md[mpid::Text] = "Do you want to close this popup?";
-
-		md.setCustomCheckFunction([this](PageBase*, var obj)
+		if(getPositionInfo({}).confirmClose)
 		{
+			auto l = createModalPopup<factory::List>();
+
+			auto& root = *l;
+	        auto& md = root.addChild<factory::MarkdownText>();
+			md[mpid::Text] = "Do you want to close this popup?";
+
+			md.setCustomCheckFunction([this](PageBase*, var obj)
+			{
+				var v[2] = { var(false), getState().globalState };
+				var::NativeFunctionArgs args(var(), v, 2);
+				getState().callNativeFunction("onFinish", args, nullptr);
+
+				MessageManager::callAsync(finishCallback);
+				return Result::ok();
+			});
+			
+			showModalPopup(true, l);
+		}
+		else
+		{
+			var v[2] = { var(false), getState().globalState };
+			var::NativeFunctionArgs args(var(), v, 2);
+			getState().callNativeFunction("onFinish", args, nullptr);
 			MessageManager::callAsync(finishCallback);
-			return Result::ok();
-		});
-		
-		showModalPopup(true, l);
+		}
 	};
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
@@ -2003,14 +2020,9 @@ void Dialog::paint(Graphics& g)
 
 	if(auto ss = css.getWithAllStates(nullptr, simple_css::ElementType::Body))
 	{
-		auto c = ss->getColourOrGradient(getLocalBounds().toFloat(), { "background-color", {}}, Colour(0xFF222222));
+		simple_css::Renderer r(this, stateWatcher);
 
-		if(c.second.getNumColours() != 0)
-			g.setGradientFill(c.second);
-		else
-			g.setColour(c.first);
-
-		g.fillAll();
+		r.drawBackground(g, getLocalBounds().toFloat(), ss);
 	}
 
 	
