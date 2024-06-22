@@ -884,7 +884,7 @@ Result AllEditor::compile(bool useCompileCallback)
 
 		if(ok.wasOk())
 		{
-			if(auto d = state->currentDialog.get())
+			if(auto d = state->getFirstDialog())
 			{
 				d->positionInfo.additionalStyle = code;
 				d->loadStyleFromPositionInfo();
@@ -897,7 +897,7 @@ Result AllEditor::compile(bool useCompileCallback)
 	}
 	else if (syntax == "HTML")
 	{
-		if(auto d = state->currentDialog.get())
+		if(auto d = state->getFirstDialog())
 		{
 			d->refreshCurrentPage();
 		}
@@ -914,7 +914,7 @@ Result AllEditor::compile(bool useCompileCallback)
 		if(!ok.wasOk())
 			state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
 
-		if(auto d = state->currentDialog.get())
+		if(auto d = state->getFirstDialog())
 		{
 			d->refreshCurrentPage();
 		}

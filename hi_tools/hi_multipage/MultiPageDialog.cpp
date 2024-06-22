@@ -206,8 +206,10 @@ struct Dialog::PageBase::ModalHelp: public simple_css::FlexboxComponent
     HiseShapeButton closeButton;
 };
 
+
+
 Dialog::PageBase::PageBase(Dialog& rootDialog_, int width, const var& obj):
-  FlexboxComponent(simple_css::Selector("#" + obj[mpid::ID].toString())),
+  FlexboxComponent(getSelectorFromId(obj)),
   rootDialog(rootDialog_),
   infoObject(obj)
 {
@@ -247,6 +249,16 @@ DefaultProperties Dialog::PageBase::getDefaultProperties() const
 void Dialog::PageBase::setStateObject(const var& newStateObject)
 {
 	stateObject = newStateObject;
+}
+
+simple_css::Selector Dialog::PageBase::getSelectorFromId(const var& obj)
+{
+	auto id = obj[mpid::ID].toString();
+
+	if(id.isNotEmpty())
+		return simple_css::Selector("#" + id);
+	else
+		return simple_css::Selector(simple_css::ElementType::Panel);
 }
 
 void Dialog::PageBase::updateStyleSheetInfo(bool forceUpdate)
@@ -412,7 +424,7 @@ bool Dialog::PageBase::showDeletePopup(bool isRightClick)
 
 String Dialog::PageBase::evaluate(const Identifier& id) const
 {
-	return factory::MarkdownText::getString(infoObject[id].toString(), rootDialog);
+	return factory::MarkdownText::getString(infoObject[id].toString(), rootDialog.getState());
 }
 
 void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject::Ptr thisObject)
@@ -456,20 +468,8 @@ void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject:
 
 Asset::Ptr Dialog::PageBase::getAsset(const Identifier& id) const
 {
-	auto assetId = infoObject[id].toString().trim();
-
-	if(assetId.startsWith("${"))
-	{
-		assetId = assetId.substring(2, assetId.length() - 1);
-
-		for(auto a: rootDialog.getState().assets)
-		{
-			if(a->id == assetId)
-				return a;
-		}
-	}
-
-	return nullptr;
+	return rootDialog.getState().getAsset(infoObject, id);
+	
 }
 
 void Dialog::PageBase::init()
@@ -902,9 +902,9 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
     runThread(&rt),
 	totalProgress(progressValue)
 {
-	jassert(runThread->currentDialog == nullptr);
+	
 
-    runThread->currentDialog = this;
+    runThread->currentDialogs.add(this);
 
 	if(auto sd = obj[mpid::StyleData].getDynamicObject())
 	{
@@ -1037,7 +1037,10 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 Dialog::~Dialog()
 {
-	runThread->currentDialog = nullptr;
+	finishCallback = {};
+
+	if(runThread != nullptr)
+		runThread->currentDialogs.removeAllInstancesOf(this);
 }
 
 
@@ -1080,6 +1083,10 @@ bool Dialog::refreshCurrentPage()
 	css.clearCache();
 
 	logMessage(MessageType::Navigation, "Goto page " + String(index+1));
+
+	var v[2] = { var(index), var(getState().globalState) };
+	var::NativeFunctionArgs args(var(), v, 2);
+	getState().callNativeFunction("onPageLoad", args, nullptr);
 
 	if((currentPage = pages[index]->create(*this, dynamic_cast<Component*>(content.get())->getWidth())))
 	{
@@ -1930,6 +1937,10 @@ bool Dialog::navigate(bool forward)
 
 		if (newIndex == pages.size())
 		{
+			var v[2] = { var(true), getState().globalState };
+			var::NativeFunctionArgs args(var(), v, 2);
+			getState().callNativeFunction("onFinish", args, nullptr);
+
 			if(!editMode && finishCallback)
 				Timer::callAfterDelay(600, finishCallback);
 				
@@ -1944,6 +1955,26 @@ bool Dialog::navigate(bool forward)
 	
 
 	return false;
+}
+
+void Dialog::onStateDestroy(NotificationType mode)
+{
+	if(mode == sendNotificationSync)
+	{
+		std::function<void()> copy;
+		std::swap(copy, finishCallback);
+
+		if(copy)
+			copy();
+	}
+	if(mode == sendNotificationAsync)
+	SafeAsyncCall::callAsyncIfNotOnMessageThread<Dialog>(*this, [](Dialog& t)
+	{
+		std::function<void()> copy;
+		std::swap(copy, t.finishCallback);
+		if(copy)
+			copy();
+	});
 }
 
 void Dialog::paint(Graphics& g)

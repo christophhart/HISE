@@ -379,6 +379,8 @@ State::~State()
 {
 	stopThread(1000);
 
+	onDestroy();
+
 	tempFiles.clear();
 }
 
@@ -389,6 +391,9 @@ void State::run()
 		currentJob = jobs[i];
 		
 		auto ok = jobs[i]->runJob();
+
+		if(threadShouldExit())
+			return;
 
 		currentJob = nullptr;
 		
@@ -402,8 +407,8 @@ void State::run()
 	}
         
 	jobs.clear();
-        
-	MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(State::onFinish));
+
+	SafeAsyncCall::call<State>(*this, [](State& s){ s.onFinish(); });
 }
 
 void State::reset(const var& obj)
@@ -426,9 +431,10 @@ void State::reset(const var& obj)
 	}
 	
 	currentPageIndex = 0;
-	currentDialog = nullptr;
-	currentError = Result::ok();
-	currentJob = nullptr;
+
+	onDestroy();
+
+	
 }
 
 ApiProviderBase* State::getProviderBase()
@@ -455,6 +461,26 @@ Font State::loadFont(String fontName) const
 
 
 	return Font(fontName, 13.0f, Font::plain);
+}
+
+void State::onDestroy()
+{
+	currentJob = nullptr;
+
+	var v[2] = { var(false), globalState };
+	var::NativeFunctionArgs args(var(), v, 2);
+	callNativeFunction("onFinish", args, nullptr);
+
+	for(auto d: currentDialogs)
+	{
+		if(d != nullptr)
+			d->onStateDestroy();
+	}
+
+	currentDialogs.clear();
+
+	currentError = Result::ok();
+	
 }
 
 void State::addEventListener(const String& eventType, const var& functionObject)
@@ -662,9 +688,9 @@ void State::Job::setMessage(const String& newMessage)
 
 	parent.eventLogger.sendMessage(sendNotificationAsync, MessageType::ProgressMessage, newMessage);
 
-	if(parent.currentDialog != nullptr)
+	for(auto d: parent.currentDialogs)
 	{
-		SafeAsyncCall::repaint(parent.currentDialog.get());
+		SafeAsyncCall::repaint(d.get());
 	}
 }
 
@@ -697,17 +723,19 @@ var State::getGlobalSubState(const Identifier& id)
 
 void State::onFinish()
 {
-	if(currentDialog.get() != nullptr)
+	for(auto d: currentDialogs)
 	{
-		currentDialog->nextButton.setEnabled(currentDialog->currentErrorElement == nullptr);
-		currentDialog->prevButton.setEnabled(true);
-		
-		if(navigateOnFinish)
+		if(d != nullptr)
 		{
-			currentDialog->navigate(true);
-			navigateOnFinish = false;
+			d->nextButton.setEnabled(d->currentErrorElement == nullptr);
+			d->prevButton.setEnabled(true);
+			
+			if(navigateOnFinish)
+				d->navigate(true);
 		}
 	}
+
+	navigateOnFinish = false;
 }
 
 Result State::Job::runJob()
@@ -715,25 +743,18 @@ Result State::Job::runJob()
 	try
 	{
 		auto ok = run();
-            
-		if(auto p = parent.currentDialog.get())
-		{
-			SafeAsyncCall::repaint(p);
-		}
 
+		for(auto d: parent.currentDialogs)
+			SafeAsyncCall::repaint(d.get());
+		
 		return ok;
 	}
 	catch(Result& r)
 	{
-		if(auto p = parent.currentDialog)
-		{
-			p->logMessage(MessageType::ProgressMessage, "ERROR: " + r.getErrorMessage());
+		parent.logMessage(MessageType::ProgressMessage, "ERROR: " + r.getErrorMessage());
 
-			MessageManager::callAsync([p]()
-			{
-				p->repaint();
-			});
-		}
+		for(auto d: parent.currentDialogs)
+			SafeAsyncCall::repaint(d.get());
 
 		return r;
 	}
@@ -748,12 +769,12 @@ void State::addJob(Job::Ptr b, bool addFirst)
         
 	if(!isThreadRunning())
 	{
-		if(currentDialog != nullptr)
+		for(auto d: currentDialogs)
 		{
-			currentDialog->setCurrentErrorPage(nullptr);
-			currentDialog->repaint();
-			currentDialog->nextButton.setEnabled(false);
-			currentDialog->prevButton.setEnabled(false);
+			d->setCurrentErrorPage(nullptr);
+			d->repaint();
+			d->nextButton.setEnabled(false);
+			d->prevButton.setEnabled(false);
 		}
             
 		startThread(6);
@@ -782,7 +803,10 @@ void State::addFileToLog(const std::pair<File, bool>& fileOp)
 
 void State::bindCallback(const String& functionName, const var::NativeFunction& f)
 {
-	jsLambdas[functionName] = f;
+	if(!f)
+		jsLambdas.erase(functionName);
+	else
+		jsLambdas[functionName] = f;
 }
 
 bool State::callNativeFunction(const String& functionName, const var::NativeFunctionArgs& args, var* returnValue)
@@ -985,7 +1009,7 @@ multipage::Dialog* MonolithData::create(State& state)
 Result MonolithData::exportMonolith(State& state, const File& target)
 {
 	// clear the state
-	auto json = state.currentDialog->exportAsJSON();
+	auto json = state.getFirstDialog()->exportAsJSON();
 	json.getDynamicObject()->removeProperty(mpid::GlobalState);
 	json.getDynamicObject()->removeProperty(mpid::Assets);
 

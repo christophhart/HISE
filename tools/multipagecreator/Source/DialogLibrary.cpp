@@ -144,7 +144,7 @@ var ProjectExporter::exportProjucerProject(State::Job& t, const var& state)
     appState.callEventListeners("save", {});
     
     if(!exportObj.isObject())
-        exportObj = appState.currentDialog->exportAsJSON();
+        exportObj = appState.getFirstDialog()->exportAsJSON();
 
     auto projectName = exportObj[mpid::Properties][mpid::ProjectName].toString();
 

@@ -125,6 +125,8 @@ public:
 	        initValue = var();
         }
 
+        static simple_css::Selector getSelectorFromId(const var& obj);
+
         virtual bool hasOnSubmitEvent() const { return false; }
 
         void updateStyleSheetInfo(bool forceUpdate=false);
@@ -461,6 +463,11 @@ public:
     bool removeCurrentPage();
     void addListPageWithJSON();
 
+    void cancel()
+    {
+	    cancelButton.triggerClick(sendNotificationAsync);
+    }
+
     void rebuildPagesFromJSON();
 
     template <typename T> PageInfo& addPage(DefaultProperties&& values={}, int index = -1)
@@ -498,6 +505,8 @@ public:
     void setProperty(const Identifier& id, const var& newValue);
     void setStyleData(const MarkdownLayout::StyleData& sd);
     bool navigate(bool forward);
+
+    void onStateDestroy(NotificationType mode = sendNotificationAsync);
 
     String getStringFromModalInput(const String& message, const String& prefilledValue);
 
@@ -593,9 +602,7 @@ public:
 
     void logMessage(MessageType messageType, const String& message)
     {
-        auto isMessageThread = MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread();
-        auto n = isMessageThread ? sendNotificationSync : sendNotificationAsync;
-	    getEventLogger().sendMessage(n, messageType, message);
+        getState().logMessage(messageType, message);
     }
 
     LambdaBroadcaster<bool>& getEditModeBroadcaster() { return editModeBroadcaster; }
@@ -765,7 +772,7 @@ private:
     TextButton cancelButton;
     TextButton nextButton;
     TextButton prevButton;
-    State* runThread;
+    WeakReference<State> runThread;
     
     ScopedPointer<PageBase> currentPage;
     Rectangle<int> top, bottom, center;

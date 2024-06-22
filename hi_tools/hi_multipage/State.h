@@ -233,10 +233,15 @@ struct Asset: public ReferenceCountedObject
 };
 
 class State: public Thread,
-			 public ApiProviderBase::Holder
+			 public ApiProviderBase::Holder,
+			 public ReferenceCountedObject,
+			 public hlac::HlacArchiver::Listener
 {
 public:
 
+    using Ptr = ReferenceCountedObjectPtr<State>;
+    using WeakPtr = WeakReference<State>;
+    
     State(const var& obj, const File& currentRootDirectory=File());;
     ~State();
 
@@ -244,6 +249,22 @@ public:
     void run() override;
 
     struct StateProvider;
+
+    void logStatusMessage(const String& message) override
+    {
+	    logMessage(MessageType::Hlac, message);
+    }
+
+    void logVerboseMessage(const String& verboseMessage) override
+    {
+	    logMessage(MessageType::Hlac, verboseMessage);
+    }
+
+	void criticalErrorOccured(const String& message) override
+	{
+        logMessage(MessageType::Hlac, message);
+        jassertfalse;
+	}
 
 	ScopedPointer<ApiProviderBase> stateProvider;
 
@@ -253,6 +274,8 @@ public:
 	ApiProviderBase* getProviderBase() override;
 
     Font loadFont(String fontName) const;
+
+    void onDestroy();
 
     void addEventListener(const String& eventType, const var& functionObject);
     void removeEventListener(const String& eventType, const var& functionObject);
@@ -303,6 +326,8 @@ public:
         void updateProgressBar(ProgressBar* b) const;
         Thread& getThread() const { return parent; }
 
+        var getInfoObject() const { return localObj; }
+
     protected:
         
         String message;
@@ -326,9 +351,19 @@ public:
     double totalProgress = 0.0;
     Job::List jobs;
     Result currentError;
-    WeakReference<Dialog> currentDialog;
+    Array<WeakReference<Dialog>> currentDialogs;
+
+    WeakReference<Dialog> getFirstDialog() { return currentDialogs.getFirst(); }
+
     var globalState;
     int currentPageIndex = 0;
+
+    void logMessage(MessageType t, const String& m)
+    {
+	    auto isMessageThread = MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread();
+        auto n = isMessageThread ? sendNotificationSync : sendNotificationAsync;
+	    eventLogger.sendMessage(n, t, m);
+    }
 
     LambdaBroadcaster<MessageType, String> eventLogger;
 
@@ -360,7 +395,26 @@ public:
     String currentEventGroup;
     
     std::map<String, Array<std::pair<String, var>>> eventListeners;
-    
+
+    Asset::Ptr getAsset(const var& infoObjectToUse, const Identifier& id)
+    {
+	    auto assetId = infoObjectToUse[id].toString().trim();
+
+		if(assetId.startsWith("${"))
+		{
+			assetId = assetId.substring(2, assetId.length() - 1);
+
+			for(auto a: assets)
+			{
+				if(a->id == assetId)
+					return a;
+			}
+		}
+
+		return nullptr;
+    }
+
+
 private:
 
     std::unique_ptr<JavascriptEngine> javascriptEngine;
@@ -370,6 +424,7 @@ private:
 
     OwnedArray<TemporaryFile> tempFiles;
     JUCE_DECLARE_WEAK_REFERENCEABLE(State);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(State);
 };
 
 

@@ -28,9 +28,9 @@ struct Autosaver: public Timer
 
     void timerCallback() override
 	{
-        if(state.currentDialog != nullptr)
+        if(state.getFirstDialog() != nullptr)
         {
-	        auto json = JSON::toString(state.currentDialog->exportAsJSON());
+	        auto json = JSON::toString(state.getFirstDialog()->exportAsJSON());
 
             auto newIndex = ++index % 5;
 			auto autosaveFile = f.getSiblingFile("Autosave_" + String(newIndex)).withFileExtension(".json");
@@ -893,7 +893,7 @@ struct AssetManager: public Component,
 
     void rename(Asset::Ptr a)
     {
-	    a->id = state.currentDialog->getStringFromModalInput("Please enter the asset ID", a->id);
+	    a->id = state.getFirstDialog()->getStringFromModalInput("Please enter the asset ID", a->id);
         listbox.updateContent();
         repaint();
     }
@@ -1578,7 +1578,7 @@ private:
 
             static void updateAfterRefresh(VarCodeEditor& editor, int pageIndex)
             {
-                auto d = editor.findParentComponentOfClass<ComponentWithSideTab>()->getMainState()->currentDialog.get();
+                auto d = editor.findParentComponentOfClass<ComponentWithSideTab>()->getMainState()->getFirstDialog();
 
                 auto newObject = d->getInfoObjectForPath(editor.infoPath);
 
@@ -1850,7 +1850,7 @@ private:
 
         void addCodeEditor(const var& infoObject, const Identifier& id)
         {
-            auto d = findParentComponentOfClass<ComponentWithSideTab>()->getMainState()->currentDialog;
+            auto d = findParentComponentOfClass<ComponentWithSideTab>()->getMainState()->getFirstDialog();
 
             jassert(d != nullptr);
 
