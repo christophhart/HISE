@@ -316,7 +316,21 @@ String StyleSheet::Collection::getDebugLogForComponent(Component* c) const
 	for(auto& cm: cachedMaps)
 	{
 		if(cm.first.getComponent() == c)
+		{
+			if(auto obj = cm.second->varProperties.get())
+			{
+				String s;
+				s << "Current variable values:\n";
+				s << JSON::toString(var(obj));
+				s << "\n==============================\n\n";
+
+				s << cm.debugLog;
+				return s;
+			}
+
 			return cm.debugLog;
+		}
+			
 	}
             
 	return {};

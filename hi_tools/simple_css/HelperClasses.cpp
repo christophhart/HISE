@@ -146,7 +146,12 @@ Selector::Selector(const String& s)
 Selector::Selector(SelectorType t, String n):
 	type(t),
 	name(n)
-{}
+{
+	if(t == SelectorType::Class && n.startsWithChar('.'))
+		name = name.substring(1);
+	if(t == SelectorType::ID && n.startsWithChar('#'))
+		name = name.substring(1);
+}
 
 String Selector::toString() const
 {
