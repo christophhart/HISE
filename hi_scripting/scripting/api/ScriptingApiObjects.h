@@ -114,6 +114,10 @@ public:
 	
 	static Colour getColourFromVar(const var& value);
 
+	static var convertStyleSheetProperty(const var& value, const String& type);
+	
+	
+
 	static Array<Identifier> getGlobalApiClasses();
 
 	static void loadPathFromData(Path& p, var data);
@@ -146,11 +150,7 @@ namespace ScriptingObjects
 	{
 	public:
 
-		ScriptBuffer(ProcessorWithScriptingContent* p, int size) :
-			ConstScriptingObject(p, 0)
-		{
-			jassertfalse;
-		};
+		ScriptBuffer(ProcessorWithScriptingContent* p, int size);;
 
 		Identifier getObjectName() const override { return "Buffer"; }
 
@@ -231,11 +231,7 @@ namespace ScriptingObjects
 
 		int getNumChildElements() const override { return 128; }
 
-		DebugInformationBase* getChildElement(int index) override
-		{
-			IndexedValue i(this, index);
-			return new LambdaValueInformation(i, i.getId(), {}, DebugInformation::Type::Constant, getLocation());
-		}
+		DebugInformationBase* getChildElement(int index) override;
 		// ================================================================================================ API METHODS
 
 		/** Fills the MidiList with a number specified with valueToFill. */

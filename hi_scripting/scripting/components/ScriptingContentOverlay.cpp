@@ -580,6 +580,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				restoreToData,
 				copySnapshot,
 				toggleLearnMode,
+				showCSSLog,
 				editComponentOffset = 20000,
 
 			};

@@ -237,6 +237,8 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setLocalLookAndFeel);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, sendRepaintMessage);
 	API_VOID_METHOD_WRAPPER_2(ScriptComponent, fadeComponent);
+	API_VOID_METHOD_WRAPPER_3(ScriptComponent, setStyleSheetProperty);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setStyleSheetClass);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, updateValueFromProcessorConnection);
 };
 
@@ -431,6 +433,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(sendRepaintMessage);
 	ADD_API_METHOD_2(fadeComponent);
 	ADD_API_METHOD_0(updateValueFromProcessorConnection);
+	ADD_API_METHOD_3(setStyleSheetProperty);
+	ADD_API_METHOD_1(setStyleSheetClass);
 
 	//setName(name_.toString());
 
@@ -817,6 +821,27 @@ void ScriptingApi::Content::ScriptComponent::updateValueFromProcessorConnection(
         FloatSanitizers::sanitizeFloatNumber(value);
         setValue(value);
     }
+}
+
+void ScriptComponent::setStyleSheetClass(const String& classIds)
+{
+	String selfClass;
+
+	simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
+
+	selfClass << classType.toString() << " ";
+	selfClass << classIds;
+
+	if(!styleSheetProperties.isValid())
+		styleSheetProperties = ValueTree("ComponentStyleSheetProperties");
+
+	styleSheetProperties.setProperty("class", selfClass, nullptr);
+}
+
+void ScriptComponent::setStyleSheetProperty(const String& variableId, const var& value, const String& type)
+{
+	auto v = ApiHelpers::convertStyleSheetProperty(value, type);
+	styleSheetProperties.setProperty(variableId, v, nullptr);
 }
 
 const Identifier ScriptingApi::Content::ScriptComponent::getIdFor(int p) const
@@ -1690,11 +1715,28 @@ void ScriptComponent::handleScriptPropertyChange(const Identifier& id)
 	}
 }
 
-juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFeel()
+juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFeel(ScriptContentComponent* contentComponent, Component* componentToRegister)
 {
 	if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(localLookAndFeel.getObject()))
 	{
-		return new ScriptingObjects::ScriptedLookAndFeel::LocalLaf(l);
+		if(l->isUsingCSS())
+		{
+			if(!styleSheetProperties.isValid())
+			{
+				styleSheetProperties = ValueTree("ComponentStyleSheetProperties");
+				
+				simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
+				styleSheetProperties.setProperty("class", classType.toString(), nullptr);
+			}
+			
+			return new ScriptingObjects::ScriptedLookAndFeel::CSSLaf(l, contentComponent, componentToRegister, this->propertyTree, this->styleSheetProperties);
+		}
+		else
+		{
+			return new ScriptingObjects::ScriptedLookAndFeel::LocalLaf(l);
+		}
+
+		
 	}
 
 	return nullptr;

@@ -359,6 +359,9 @@ namespace ScriptingObjects
 		/** Creates a string representation of this path. */
 		String toString();
 
+		/** Creates a base64 encoded representation of the path. */
+		String toBase64();
+
 		/** Restores a path that has been converted into a string. */
 		void fromString(String stringPath);
 
@@ -619,9 +622,39 @@ namespace ScriptingObjects
 	{
 	public:
 
-		
+		struct LafBase
+		{
+			virtual ~LafBase() {};
+
+			virtual ScriptedLookAndFeel* get() = 0;
+			
+		};
+
+		struct CSSLaf: public simple_css::StyleSheetLookAndFeel,
+					   public LafBase
+		{
+			CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree);;
+
+			ScriptedLookAndFeel* get() override;
+
+			void updateMultipageDialog(multipage::Dialog& mp)
+			{
+				simple_css::Parser p(parent->currentStyleSheet);
+				auto ok = p.parse();
+				auto css = p.getCSSValues();
+				mp.update(css);
+			}
+
+			simple_css::CSSRootComponent& root;
+			WeakReference<ScriptedLookAndFeel> parent;
+
+			valuetree::PropertyListener colourUpdater;
+			valuetree::PropertyListener additionalPropertyUpdater;
+			valuetree::PropertyListener additionalComponentPropertyUpdater;
+		};
 
 		struct Laf : public GlobalHiseLookAndFeel,
+			public LafBase,
 			public PresetBrowserLookAndFeelMethods,
 			public TableEditor::LookAndFeelMethods,
             public HiseAudioThumbnail::LookAndFeelMethods,
@@ -642,11 +675,10 @@ namespace ScriptingObjects
 			Laf(MainController* mc);
 
 			virtual ~Laf();;
-
-			virtual ScriptedLookAndFeel* get();
-
+			
 			Font getFont();
 
+			ScriptedLookAndFeel* get() override;
 
 			void drawAlertBox(Graphics&, AlertWindow&, const Rectangle<int>& textArea, TextLayout&) override;
 
@@ -796,6 +828,15 @@ namespace ScriptingObjects
 		/** Set a global font. */
 		void setGlobalFont(const String& fontName, float fontSize);
 
+		/** Parses CSS code and switches the look and feel to use the CSS renderer. */
+		void setInlineStyleSheet(const String& cssCode);
+
+		/** Parses CSS code from a style sheet file in the scripts folder and switches the look and feel to use the CSS renderer. */
+		void setStyleSheet(const String& fileName);
+
+		/** Sets a variable that can be queried from a style sheet. */
+		void setStyleSheetProperty(const String& variableId, var value, const String& type);
+
 		/** Loads an image that can be used by the look and feel functions. */
 		void loadImage(String imageFile, String prettyName);
 
@@ -807,9 +848,17 @@ namespace ScriptingObjects
 
 		// ========================================================================================
 
+		bool isUsingCSS() const { return !currentStyleSheet.isEmpty(); }
+
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject, Component* c);
 
 		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
+
+		String loadStyleSheetFile(const String& filename);
+
+		void setStyleSheetInternal(const String& cssCode);
+
+		void clearScriptContext();
 
 		int getNumChildElements() const override;
 
@@ -831,7 +880,9 @@ namespace ScriptingObjects
         
         Array<GraphicsWithComponent> graphics;
         
-		
+		String currentStyleSheet;
+		String currentStyleSheetFile;
+		simple_css::StyleSheet::Collection css;
 
 		var functions;
 
@@ -847,6 +898,8 @@ namespace ScriptingObjects
 		Array<NamedImage> loadedImages;
 
 		Result lastResult;
+
+		ValueTree additionalProperties;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedLookAndFeel);
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptedLookAndFeel);

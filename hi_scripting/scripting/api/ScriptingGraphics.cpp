@@ -1002,6 +1002,7 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_METHOD_WRAPPER_1(PathObject, getBounds);
 	API_METHOD_WRAPPER_0(PathObject, getLength);
 	API_METHOD_WRAPPER_0(PathObject, toString);
+	API_METHOD_WRAPPER_0(PathObject, toBase64);
 	API_VOID_METHOD_WRAPPER_1(PathObject, fromString);
 };
 
@@ -1034,6 +1035,7 @@ ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_0(getLength);
 	ADD_API_METHOD_2(createStrokedPath);
 	ADD_API_METHOD_0(toString);
+	ADD_API_METHOD_0(toBase64);
 	ADD_API_METHOD_1(fromString);
 }
 
@@ -1273,6 +1275,13 @@ juce::var ScriptingObjects::PathObject::createStrokedPath(var strokeData, var do
 String ScriptingObjects::PathObject::toString()
 {
 	return p.toString();
+}
+
+String ScriptingObjects::PathObject::toBase64()
+{
+	MemoryOutputStream mos;
+	p.writePathToStream(mos);
+	return mos.getMemoryBlock().toBase64Encoding();
 }
 
 void ScriptingObjects::PathObject::fromString(String stringPath)
@@ -2362,6 +2371,9 @@ struct ScriptingObjects::ScriptedLookAndFeel::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, loadImage);
 	API_VOID_METHOD_WRAPPER_0(ScriptedLookAndFeel, unloadAllImages);
 	API_METHOD_WRAPPER_1(ScriptedLookAndFeel, isImageLoaded);
+	API_VOID_METHOD_WRAPPER_1(ScriptedLookAndFeel, setInlineStyleSheet);
+	API_VOID_METHOD_WRAPPER_1(ScriptedLookAndFeel, setStyleSheet);
+	API_VOID_METHOD_WRAPPER_3(ScriptedLookAndFeel, setStyleSheetProperty);
 };
 
 
@@ -2377,7 +2389,10 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_0(unloadAllImages);
 	ADD_API_METHOD_1(isImageLoaded);
-
+	ADD_API_METHOD_1(setInlineStyleSheet);
+	ADD_API_METHOD_1(setStyleSheet);
+	ADD_API_METHOD_3(setStyleSheetProperty);
+	
 	if(isGlobal)
 		getScriptProcessor()->getMainController_()->setCurrentScriptLookAndFeel(this);
 }
@@ -2385,10 +2400,7 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 ScriptingObjects::ScriptedLookAndFeel::~ScriptedLookAndFeel()
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(getMainController()->getJavascriptThreadPool().getLookAndFeelRenderLock());
-
-    functions = var();
-    graphics.clear();
-    loadedImages.clear();
+	clearScriptContext();
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::registerFunction(var functionName, var function)
@@ -2404,6 +2416,96 @@ void ScriptingObjects::ScriptedLookAndFeel::setGlobalFont(const String& fontName
 {
 	f = getScriptProcessor()->getMainController_()->getFontFromString(fontName, fontSize);
 }
+
+void ScriptingObjects::ScriptedLookAndFeel::setInlineStyleSheet(const String& cssCode)
+{
+	currentStyleSheetFile = {};
+	setStyleSheetInternal(cssCode);
+}
+
+String ScriptingObjects::ScriptedLookAndFeel::loadStyleSheetFile(const String& fileName)
+{
+	if(!fileName.endsWith(".css"))
+		reportScriptError("the file must have the .css extension.");
+	
+#if true || USE_BACKEND
+
+	auto cssFile = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileName);
+	
+	auto ef = getMainController()->getExternalScriptFile(cssFile, false);
+
+	String content;
+
+	if(ef != nullptr)
+		content = ef->getFileDocument().getAllContent();
+	else if (cssFile.existsAsFile())
+		content = cssFile.loadFileAsString();
+	else
+    {
+        String s;
+        String nl = "\n";
+        
+        s << "*" << nl;
+        s << "{" << nl;
+        s << "    color: white;" << nl;
+        s << "}" << nl;
+        
+		content = s;
+		cssFile.replaceWithText(s);
+    }
+
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		ef = jp->addFileWatcher(cssFile);
+		
+		jp->getScriptEngine()->addShaderFile(cssFile);
+	}
+
+	
+
+	return content;
+#else
+	
+	return getMainController()->getExternalScriptFromCollection(fileName);
+#endif
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::setStyleSheetInternal(const String& cssCode)
+{
+	debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "\tThe CSS renderer is still experimental, so use with precaution.");
+
+	currentStyleSheet = cssCode;
+	simple_css::Parser p(cssCode);
+
+	additionalProperties = ValueTree("additionalProperties");
+
+	auto ok = p.parse();
+
+	if(!ok.wasOk())
+		reportScriptError(ok.getErrorMessage());
+
+	SimpleReadWriteLock::ScopedWriteLock sl(getMainController()->getJavascriptThreadPool().getLookAndFeelRenderLock());
+	graphics.clear();
+	css = p.getCSSValues();
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::setStyleSheet(const String& fileName)
+{
+	
+
+	currentStyleSheetFile = fileName;
+	auto content = loadStyleSheetFile(fileName);
+	setStyleSheetInternal(content);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::setStyleSheetProperty(const String& variableId, var value,
+	const String& type)
+{
+	value = ApiHelpers::convertStyleSheetProperty(value, type);
+	
+	additionalProperties.setProperty(Identifier(variableId), value, nullptr);
+}
+
 
 Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 {
@@ -2637,6 +2739,15 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 	return {};
 }
 
+
+
+void ScriptingObjects::ScriptedLookAndFeel::clearScriptContext()
+{
+	functions = var();
+	graphics.clear();
+	loadedImages.clear();
+}
+
 hise::DebugableObjectBase::Location ScriptingObjects::ScriptedLookAndFeel::getLocation() const
 {
 	for (const auto& s : functions.getDynamicObject()->getProperties())
@@ -2680,6 +2791,88 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::setColourOrBlack(DynamicObject*
 	else
 		obj->setProperty(id, 0);
 }
+
+ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& data, const ValueTree& ad):
+	LafBase(),
+	StyleSheetLookAndFeel(*content),
+	root(*content),
+	parent(parent_)
+{
+	root.css.addIsolatedCollection(c, parent->currentStyleSheetFile, parent->css);
+	
+	simple_css::Selector id(simple_css::SelectorType::ID, data["id"].toString());
+
+	StringArray initIds;
+	initIds.add(id.toString());
+
+	initIds.addArray(StringArray::fromTokens(ad["class"].toString(), " ", ""));
+
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(*c, initIds);
+	
+	
+	if(auto ptr = root.css.getForComponent(c))
+	{
+		root.css.setAnimator(&root.animator);
+
+		Component::SafePointer<Component> safe(c);
+
+		auto updateProperty = [safe](Identifier v, var newValue)
+		{
+			if(safe.getComponent() != nullptr)
+			{
+				if(auto root = simple_css::CSSRootComponent::find(*safe.getComponent()))
+				{
+					if(auto ptr = root->css.getForComponent(safe.getComponent()))
+					{
+						if(v == Identifier("class"))
+						{
+							auto t = StringArray::fromTokens(newValue.toString(), " ", "");
+
+							Array<var> classIds;
+
+							for(auto& c: t)
+								classIds.add(var(c));
+
+							safe->getProperties().set(v, classIds);
+							root->css.clearCache(safe);
+						}
+						else
+
+							ptr->setPropertyVariable(v, newValue);
+						
+						safe->repaint();
+					}
+				}
+			}
+		};
+
+		additionalPropertyUpdater.setCallback(parent->additionalProperties, {}, valuetree::AsyncMode::Asynchronously, updateProperty);
+		additionalComponentPropertyUpdater.setCallback(ad, {}, valuetree::AsyncMode::Asynchronously, updateProperty);
+
+		colourUpdater.setCallback(data, { Identifier("bgColour"), Identifier("itemColour"), Identifier("itemColour2"), Identifier("textColour")}, 
+			valuetree::AsyncMode::Asynchronously, 
+			[safe](Identifier v, var newValue)
+		{
+			if(safe.getComponent() != nullptr)
+			{
+				String c;
+				c << "#" << ApiHelpers::getColourFromVar(newValue).toDisplayString(true);
+
+				if(auto root = simple_css::CSSRootComponent::find(*safe.getComponent()))
+				{
+					if(auto ptr = root->css.getForComponent(safe.getComponent()))
+					{
+						ptr->setPropertyVariable(v, c);
+						safe->repaint();
+					}
+				}
+			}
+		});
+	}
+}
+
+ScriptingObjects::ScriptedLookAndFeel* ScriptingObjects::ScriptedLookAndFeel::CSSLaf::get()
+{ return parent.get(); }
 
 ScriptingObjects::ScriptedLookAndFeel::Laf::Laf(MainController* mc):
 	ControlledObject(mc)

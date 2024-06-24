@@ -73,6 +73,12 @@ void ScriptingObjects::MidiList::assign(const int index, var newValue)			 { setV
 int ScriptingObjects::MidiList::getCachedIndex(const var &indexExpression) const { return (int)indexExpression; }
 var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return getValue(index); }
 
+DebugInformationBase* ScriptingObjects::MidiList::getChildElement(int index)
+{
+	IndexedValue i(this, index);
+	return new LambdaValueInformation(i, i.getId(), {}, DebugInformation::Type::Constant, getLocation());
+}
+
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
 	for (int i = 0; i < 128; i++)
@@ -6191,6 +6197,12 @@ juce::ValueTree ApiHelpers::getApiTree()
 		v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
 
 	return v;
+}
+
+ScriptingObjects::ScriptBuffer::ScriptBuffer(ProcessorWithScriptingContent* p, int size):
+	ConstScriptingObject(p, 0)
+{
+	jassertfalse;
 }
 #endif
 

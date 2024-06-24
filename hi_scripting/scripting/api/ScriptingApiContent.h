@@ -556,6 +556,12 @@ public:
 			to refresh the knob value to show the current state. */
 		void updateValueFromProcessorConnection();
 
+		/** Sets a variable for this component that can be queried from a style sheet. */
+		void setStyleSheetProperty(const String& variableId, const var& value, const String& type);
+
+		/** Sets the given class selectors for the component stylesheet. */
+		void setStyleSheetClass(const String& classIds);
+
 		// End of API Methods ============================================================================================
 
 		var getLookAndFeelObject();
@@ -588,7 +594,7 @@ public:
 		Content *parent;
 		bool skipRestoring;
 
-		
+		ValueTree styleSheetProperties;
 
 		WeakReference<WeakCallbackHolder::CallableObject> valueListener;
 		
@@ -650,7 +656,7 @@ public:
 		void handleScriptPropertyChange(const Identifier& id);
 
 		/** Returns a local look and feel if it was registered before. */
-		LookAndFeel* createLocalLookAndFeel();
+		LookAndFeel* createLocalLookAndFeel(ScriptContentComponent* contentComponent, Component* componentToRegister);
 
 		static Array<Identifier> numberPropertyIds;
 		static bool numbersInitialised;
@@ -687,6 +693,19 @@ public:
 		MacroControlledObject::ModulationPopupData::Ptr getModulationData() const { return modulationData; }
 
 	protected:
+
+		String getCSSFromLocalLookAndFeel()
+		{
+			if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(localLookAndFeel.getObject()))
+			{
+				if(l->isUsingCSS())
+				{
+					return l->currentStyleSheet;
+				}
+			}
+
+			return {};
+		}
 
 		bool isCorrectlyInitialised(int p) const
 		{

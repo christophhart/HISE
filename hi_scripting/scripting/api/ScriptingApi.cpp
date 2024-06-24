@@ -170,6 +170,21 @@ melatonin::ShadowParameters ApiHelpers::getShadowParameters(const var& shadowDat
 	}
 }
 
+var ApiHelpers::convertStyleSheetProperty(const var& value, const String& type)
+{
+	if(type == "path")
+	{
+		if(auto p = dynamic_cast<ScriptingObjects::PathObject*>(value.getObject()))
+			return var(p->toBase64());
+	}
+	else if(type == "color")
+	{
+		return var(String("#") + ApiHelpers::getColourFromVar(value).toDisplayString(true));
+	}
+
+	return value;
+}
+
 Colour ApiHelpers::getColourFromVar(const var& value)
 {
 	int64 colourValue = 0;
