@@ -377,35 +377,42 @@ State::State(const var& obj, const File& currentRootDirectory_):
 
 State::~State()
 {
-	stopThread(1000);
-
 	onDestroy();
 
-	tempFiles.clear();
+	
 }
 
 void State::run()
 {
+	
 	for(int i = 0; i < jobs.size(); i++)
 	{
 		currentJob = jobs[i];
-		
-		auto ok = jobs[i]->runJob();
+		auto ok = Result::ok();
 
-		if(threadShouldExit())
-			return;
 
+		if(!completedJobs.contains(currentJob))
+		{
+			ok = jobs[i]->runJob();
+
+			if(threadShouldExit())
+				return;
+
+			
+		}
+
+		completedJobs.addIfNotAlreadyThere(currentJob);
 		currentJob = nullptr;
-		
+	
 		if(ok.failed())
 		{
 			navigateOnFinish = false;
 			break;
 		}
-            
+
 		totalProgress = (double)i / (double)jobs.size();
 	}
-        
+    
 	jobs.clear();
 
 	SafeAsyncCall::call<State>(*this, [](State& s){ s.onFinish(); });
@@ -413,9 +420,12 @@ void State::run()
 
 void State::reset(const var& obj)
 {
+	stopThread(1000);
+
+
 	eventLogger.sendMessage(sendNotificationSync, MessageType::Clear, "");
 
-	jsLambdas.clear();
+	onDestroy();
 
 	if(auto gs = obj[mpid::GlobalState].getDynamicObject())
 		globalState = var(gs->clone().get());
@@ -434,7 +444,7 @@ void State::reset(const var& obj)
 	
 	currentPageIndex = 0;
 
-	onDestroy();
+	
 
 	
 }
@@ -467,8 +477,11 @@ Font State::loadFont(String fontName) const
 
 void State::onDestroy()
 {
+	stopThread(1000);
 	currentJob = nullptr;
-
+	jobs.clear();
+	completedJobs.clear();
+	
 	var v[2] = { var(false), globalState };
 	var::NativeFunctionArgs args(var(), v, 2);
 	callNativeFunction("onFinish", args, nullptr);
@@ -479,7 +492,9 @@ void State::onDestroy()
 			d->onStateDestroy();
 	}
 
+	jsLambdas.clear();
 	currentDialogs.clear();
+	tempFiles.clear();
 
 	currentError = Result::ok();
 	
@@ -709,6 +724,12 @@ State::Job::Ptr State::getJob(const var& obj)
 		if(j->matches(obj))
 			return j;
 	}
+
+	for(auto j: completedJobs)
+	{
+		if(j->matches(obj))
+			return j;
+	}
         
 	return nullptr;
 }
@@ -764,10 +785,16 @@ Result State::Job::runJob()
 
 void State::addJob(Job::Ptr b, bool addFirst)
 {
-	if(addFirst)
-		jobs.insert(0, b);
-	else
-		jobs.add(b);
+	if(completedJobs.contains(b))
+		return;
+
+	if(!jobs.contains(b))
+	{
+		if(addFirst)
+			jobs.insert(0, b);
+		else
+			jobs.add(b);
+	}
         
 	if(!isThreadRunning())
 	{
@@ -971,7 +998,6 @@ multipage::Dialog* MonolithData::create(State& state)
 	auto numToRead = expectFlag(fis, Markers::MonolithBeginJSON);
 	auto jsonData = readJSON(fis, numToRead);
 	expectFlag(fis, Markers::MonolithEndJSON);
-
 	expectFlag(fis, Markers::MonolithBeginAssets);
 
 	state.reset(jsonData);

@@ -349,7 +349,7 @@ public:
     bool navigateOnFinish = false;
 
     double totalProgress = 0.0;
-    Job::List jobs;
+    
     Result currentError;
     Array<WeakReference<Dialog>> currentDialogs;
 
@@ -416,6 +416,9 @@ public:
 
 
 private:
+
+    Job::List jobs;
+    Job::List completedJobs;
 
     std::unique_ptr<JavascriptEngine> javascriptEngine;
 
@@ -514,11 +517,15 @@ struct MonolithData
 
     MonolithData(const File& location_);
 
-    int64 expectFlag(FileInputStream& fis, Markers m, bool throwIfMismatch=true);
-    var readJSON(FileInputStream& fis, int64 numToRead);
     multipage::Dialog* create(State& state);
+    
     static Result exportMonolith(State& state, const File& target);
     var getJSON() const;
+
+private:
+
+    int64 expectFlag(FileInputStream& fis, Markers m, bool throwIfMismatch=true);
+    var readJSON(FileInputStream& fis, int64 numToRead);
 
     File location;
 };

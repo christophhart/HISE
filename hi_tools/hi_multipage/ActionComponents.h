@@ -272,6 +272,7 @@ struct BackgroundTask: public Action
                 getState().globalState.getDynamicObject()->setProperty(id, newValue);
 	    }
 
+        bool aborted = false;
         std::function<Result(WaitJob&)> task;
     };
     
@@ -369,8 +370,6 @@ struct HttpRequest: public BackgroundTask
 	String getDescription() const override { return "HttpRequest"; }
 
     CREATE_EDITOR_OVERRIDE;
-
-    
 };
 
 struct DownloadTask: public BackgroundTask
@@ -469,15 +468,12 @@ struct HlacDecoder: public BackgroundTask
     ~HlacDecoder() override;
 
     static Result performTaskStatic(WaitJob& t);
-
     
-
     CREATE_EDITOR_OVERRIDE;
 
     String getDescription() const override;
     
 };
-
 
 struct DummyWait: public BackgroundTask
 {

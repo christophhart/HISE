@@ -580,6 +580,14 @@ Result BackgroundTask::WaitJob::run()
 		{
 			pc->logMessage(MessageType::ActionEvent, "Background task: " + currentPage->getDescription());
 		}
+
+		SafeAsyncCall::call<BackgroundTask>(*currentPage, [](BackgroundTask& bt)
+		{
+			// show the stop button
+			bt.setFlexChildVisibility(3, true, false);
+			bt.rebuildLayout();
+		});
+		
 	}
 
 	try
@@ -645,6 +653,8 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	retryButton.onClick = [this]()
 	{
 		this->finished = false;
+		dynamic_cast<WaitJob*>(job.get())->aborted = false;
+
 		rootDialog.getState().addJob(job, true);
 		rootDialog.setCurrentErrorPage(nullptr);
 		setFlexChildVisibility(2, false, true);
@@ -662,14 +672,39 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 
 	textLabel = addTextElement({ ".label"}, label);
 
+	static constexpr int RETRY = 2;
+	static constexpr int STOP = 3;
+
         
 	addFlexItem(*progress);
 
 	addFlexItem(retryButton);
 	addFlexItem(stopButton);
 
-	setFlexChildVisibility(2, false, true);
-	setFlexChildVisibility(3, false, true);
+	
+	if(dynamic_cast<WaitJob*>(job.get())->aborted)
+	{
+		// The job was aborted before the window is reloaded
+		// hide the stop button and show the retry button
+		setFlexChildVisibility(RETRY, true, false);
+		setFlexChildVisibility(STOP, false, true);
+		rootDialog.setCurrentErrorPage(this);
+	}
+	
+	else if (rootDialog.getState().currentJob == job.get())
+	{
+		// The job is currently running, hide the retry button and show the stop button
+		setFlexChildVisibility(RETRY, false, true);
+		setFlexChildVisibility(STOP, true, false);
+	}
+	else
+	{
+		// the job wasn't executed jet, hide both stop and retry button
+		setFlexChildVisibility(RETRY, false, true);
+		setFlexChildVisibility(STOP, false, true);
+	}
+
+	
 
 	setDefaultStyleSheet("display: flex; width: 100%; height: auto; gap: 10px;");
 	Helpers::setFallbackStyleSheet(*progress, "flex-grow: 1; height: 32px;");
@@ -710,8 +745,6 @@ void BackgroundTask::postInit()
 
 		if(job != nullptr)
 		{
-			setFlexChildVisibility(3, true, false);
-			rebuildLayout();
 			state.addJob(job, false);	
 		}
 
@@ -766,6 +799,8 @@ URL BackgroundTask::WaitJob::getSourceURL() const
 
 Result BackgroundTask::WaitJob::abort(const String& message)
 {
+	aborted = true;
+
 	// reset call on next
 	auto copy = message;
 
