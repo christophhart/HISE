@@ -1100,9 +1100,14 @@ String Dialog::getStringFromModalInput(const String& message, const String& pref
 
 bool Dialog::refreshCurrentPage()
 {
+	
+	footer.setFlexChildVisibility(2, false, pages.size() <= 1);
+
 	popup = nullptr;
 
 	auto index = jlimit(0, pages.size()-1, getState().currentPageIndex);
+
+	prevButton.setEnabled(index != 0);
 
 	String pt;
 	pt << "Step " << String(index+1) << " / " << String(pages.size());
@@ -2039,6 +2044,10 @@ void Dialog::paint(Graphics& g)
 		simple_css::Renderer r(this, stateWatcher);
 
 		r.drawBackground(g, getLocalBounds().toFloat(), ss);
+	}
+	else
+	{
+		g.fillAll(Colours::red);
 	}
 
 	
