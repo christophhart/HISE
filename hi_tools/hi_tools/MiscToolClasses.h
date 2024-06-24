@@ -1441,6 +1441,11 @@ template <typename...Ps> struct LambdaBroadcaster final
 		return !listeners.isEmpty();
 	}
 
+	template <int P=0> auto getLastValue() const noexcept
+	{
+		return std::get<P>(lastValue);
+	}
+
 private:
     
 	void sendMessageInternal(NotificationType n, const std::tuple<Ps...>& value)
