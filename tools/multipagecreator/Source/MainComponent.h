@@ -1268,6 +1268,7 @@ public:
         ViewShowCSSDebugger,
         HelpAbout,
         HelpVersion,
+        HelpCreatePropertyDocs,
         FileRecentOffset = 9000
     };
     
@@ -1897,6 +1898,8 @@ private:
     File currentFile;
 
     juce::RecentlyOpenedFilesList fileList;
+
+    String createPropertyDocs();
 
     void createDialog(const File& f);
 

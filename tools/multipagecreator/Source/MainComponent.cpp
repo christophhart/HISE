@@ -172,6 +172,7 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 	{
 		m.addItem(CommandId::HelpAbout, "About");
 		m.addItem(CommandId::HelpVersion, "Version");
+        m.addItem(CommandId::HelpCreatePropertyDocs, "Create property docs");
 	}
 
 	return m;
@@ -390,11 +391,223 @@ void MainComponent::menuItemSelected(int menuItemID, int)
     }
 	case HelpAbout: break;
 	case HelpVersion: break;
+	case HelpCreatePropertyDocs:
+		SystemClipboard::copyTextToClipboard(createPropertyDocs());
+        break;
 	default: ;
 	}
 }
 
 
+String MainComponent::createPropertyDocs()
+{
+	using namespace multipage;
+	multipage::Factory f2;
+    
+    struct Data
+    {
+        struct Property
+        {
+            std::string typeId;
+            std::string help;
+            std::string defaultValue;
+            var items;
+            
+            String toString() const
+            {
+                String s;
+                
+                s << "| `" << typeId << "` | " << help;
+                
+                if(items.toString().isNotEmpty())
+                {
+                    s << "  **Options**: ";
+                    
+                    if(items.isArray())
+                    {
+                        for(auto& i: *items.getArray())
+                            s << "`" << i.toString() << "`, ";
+                    }
+                    else
+                    {
+                        s << "`" << items.toString().replace("\n", ", ") << "`";
+                    }
+                    
+
+                }
+                
+                
+                s << " |\n";
+                
+                return s;
+            }
+            
+        };
+        
+        String toString() const
+        {
+            if(typeId.empty())
+                return {};
+            
+            String s;
+            s << "### " << typeId << "\n";
+
+            s << help << "\n\n";
+            s << "| ID | Description |\n";
+            s << "| == | ====== |\n";
+            
+            for(auto& p: props)
+                s << p.toString();
+            
+            s << "\n";
+            return s;
+        }
+        
+        std::string typeId;
+        std::string help;
+        String c;
+        
+        std::vector<Property> props;
+    };
+    
+    std::vector<Data> data;
+    
+    auto flist = f2.getIdList();
+    flist.sort(false);
+    
+    for(auto l: flist)
+    {
+        DynamicObject* n = new DynamicObject();
+        n->setProperty(mpid::Type, l);
+        auto ni = f2.create(n);;
+
+        auto pb = ni->create(*c, 100);
+
+
+        
+        Dialog::PageInfo list;
+        
+        pb->createEditor(list);
+
+        Data nd;
+
+        nd.typeId = l.toStdString();
+        nd.c = f2.getCategoryName(l);
+
+        
+
+        for(auto& l: list.childItems)
+        {
+            
+            auto obj = l->data;
+            
+            if(obj[mpid::ID] == "Type")
+            {
+                nd.typeId = obj[mpid::Type].toString().toStdString();
+                nd.help = obj[mpid::Help].toString().toStdString();
+
+            }
+            else
+            {
+                Data::Property p;
+                
+                p.typeId = obj[mpid::ID].toString().toStdString();
+                p.help = obj[mpid::Help].toString().toStdString();
+                p.items = obj[mpid::Items];
+                
+                if(p.typeId.empty())
+                   continue;
+                
+                if(p.typeId == "valueList" || p.typeId == "textList")
+                {
+                    for(auto& cp: l->childItems)
+                    {
+                        auto obj2 = cp->data;
+                        
+                        Data::Property p2;
+                        
+                        p2.typeId = obj2[mpid::ID].toString().toStdString();
+                        p2.help = obj2[mpid::Help].toString().toStdString();
+                        p2.items = obj2[mpid::Items];
+                        
+                        if(p2.typeId.empty())
+                           continue;
+                        
+                        nd.props.push_back(p2);
+                    }
+                    
+                    continue;
+                }
+                
+                nd.props.push_back(p);
+            }
+        }
+
+        if(auto c = dynamic_cast<factory::Constants*>(pb))
+        {
+            rt.globalState.getDynamicObject()->clear();
+	        pb->postInit();
+
+            String ht;
+
+            for(auto& s: rt.globalState.getDynamicObject()->getProperties())
+            {
+
+	            ht << "- `" << s.name << "`: `" << s.value.toString() << "`\n";
+            }
+
+            nd.help.append(ht.toStdString());
+        }
+        
+        data.push_back(std::move(nd));
+    }
+    
+    String md;
+
+    md << R"(---
+keywords: Multipage Dialog Reference
+summary:  A list of all available elements & properties in the multipage dialog system
+author:   Christoph Hart
+modified: 23.06.2024
+---
+
+)";
+
+    auto f = File::getSpecialLocation(File::SpecialLocationType::currentExecutableFile);
+
+    while((f.existsAsFile() || f.isDirectory()) && !f.isRoot())
+    {
+        if(f.isDirectory() && f.getFileName() == "multipagecreator")
+            break;
+
+	    f = f.getParentDirectory();
+    }
+
+    auto docDir = f.getChildFile("docs");
+
+    md << docDir.getChildFile("intro.md").loadFileAsString() << "\n";
+
+    StringArray cat = { "Layout", "UI Elements", "Actions", "Constants" };
+    
+    for(auto& c: cat)
+    {
+        md << "## " << c << "\n\n";
+
+        auto cf = docDir.getChildFile(MarkdownLink::Helpers::getSanitizedFilename(c)).withFileExtension("md");
+
+        md << cf.loadFileAsString() << "\n";
+
+        for(auto& d: data)
+        {
+            if(d.c == c)
+                md << d.toString();
+        }
+
+        md << "\n";
+    }
+
+    return md;
+}
 
 void MainComponent::createDialog(const File& f)
 {
