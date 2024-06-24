@@ -54,6 +54,8 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 	processor(p_),
 	p(dynamic_cast<Processor*>(p_))
 {
+	css.setUseIsolatedCollections(true);
+
 	processor->getScriptingContent()->addRebuildListener(this);
 	processor->getScriptingContent()->addScreenshotListener(this);
 
@@ -629,6 +631,8 @@ void ScriptContentComponent::deleteAllScriptComponents()
 	}
 
 	componentWrappers.clear();
+
+	css.clearCache();
 }
 
 void ScriptContentComponent::refreshContentButton()

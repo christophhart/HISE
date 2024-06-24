@@ -5650,6 +5650,425 @@ void ScriptingApi::Content::ScriptFloatingTile::setContentData(var data)
 	//triggerAsyncUpdate();
 }
 
+struct ScriptingApi::Content::ScriptMultipageDialog::Wrapper
+{
+	API_VOID_METHOD_WRAPPER_0(ScriptMultipageDialog, resetDialog);
+	API_METHOD_WRAPPER_0(ScriptMultipageDialog, addPage);
+	API_METHOD_WRAPPER_3(ScriptMultipageDialog, add);
+	API_METHOD_WRAPPER_2(ScriptMultipageDialog, bindCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, setOnFinishCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, setOnPageLoadCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, show);
+	API_VOID_METHOD_WRAPPER_0(ScriptMultipageDialog, cancel);
+	API_VOID_METHOD_WRAPPER_3(ScriptMultipageDialog, setElementProperty);
+	API_VOID_METHOD_WRAPPER_2(ScriptMultipageDialog, setElementValue);
+	API_METHOD_WRAPPER_2(ScriptMultipageDialog, getElementProperty);
+	API_METHOD_WRAPPER_0(ScriptMultipageDialog, getState);
+	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, loadFromDataFile);
+};
+
+ScriptingApi::Content::ScriptMultipageDialog::ScriptMultipageDialog(ProcessorWithScriptingContent* base,
+	Content* parentContent, Identifier panelName, int x, int y, int width, int height):
+  ScriptComponent(base, panelName, 2)
+{
+	using namespace multipage;
+
+	ADD_SCRIPT_PROPERTY(i05, "Font"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i0532, "FontSize"); ADD_AS_SLIDER_TYPE(5, 50, 1);
+	ADD_SCRIPT_PROPERTY(i051, "EnableConsoleOutput"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i02, "DialogWidth");		ADD_AS_SLIDER_TYPE(100, 900, 1);
+	ADD_SCRIPT_PROPERTY(i03, "DialogHeight");		ADD_AS_SLIDER_TYPE(100, MAX_SCRIPT_HEIGHT, 1);
+	ADD_SCRIPT_PROPERTY(i06, mpid::UseViewport);		 ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i01, mpid::StyleSheet.toString());		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(i056, mpid::ConfirmClose.toString());		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	
+	setDefaultValue(ScriptComponent::Properties::x, x);
+	setDefaultValue(ScriptComponent::Properties::y, y);
+	setDefaultValue(ScriptComponent::Properties::width, 600);
+	setDefaultValue(ScriptComponent::Properties::height, 500);
+	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
+
+	setDefaultValue(ScriptComponent::Properties::textColour, 0xFFFFFFFF);
+	setDefaultValue(ScriptComponent::Properties::bgColour, 0x88111111);
+	setDefaultValue(ScriptComponent::Properties::itemColour, SIGNAL_COLOUR);
+	setDefaultValue(Properties::Font, "Default");
+	setDefaultValue(Properties::FontSize, 16.0);
+
+	setDefaultValue(Properties::EnableConsoleOutput, false);
+	setDefaultValue(Properties::DialogWidth, 500);
+	setDefaultValue(Properties::DialogHeight, 400);
+	setDefaultValue(Properties::UseViewport, true);
+	setDefaultValue(Properties::StyleSheet, "Dark");
+	setDefaultValue(Properties::ConfirmClose, false);
+	
+	handleDefaultDeactivatedProperties();
+	
+	ADD_API_METHOD_0(resetDialog);
+	ADD_API_METHOD_0(addPage);
+	ADD_API_METHOD_3(add);
+	ADD_API_METHOD_2(bindCallback);
+	ADD_API_METHOD_1(setOnFinishCallback);
+	ADD_API_METHOD_1(setOnPageLoadCallback);
+	ADD_API_METHOD_1(show);
+	ADD_API_METHOD_0(cancel);
+	ADD_API_METHOD_3(setElementProperty);
+	ADD_API_METHOD_2(setElementValue);
+	ADD_API_METHOD_2(getElementProperty);
+	ADD_API_METHOD_0(getState);
+	ADD_API_METHOD_1(loadFromDataFile);
+
+	multipage::Factory f;
+
+	DynamicObject::Ptr props = new DynamicObject();
+	DynamicObject::Ptr types = new DynamicObject();
+	
+	for(auto t: f.getIdList())
+	{
+		types->setProperty(Identifier(t), var(t));
+	}
+	
+	addConstant("types", var(types.get()));
+	addConstant("ids", multipage::mpid::Helpers::getIdList());
+
+	backdropBroadcaster.addListener(*this, handleVisibility, false);
+}
+
+ScriptingApi::Content::ScriptMultipageDialog::~ScriptMultipageDialog()
+{
+	resetDialog();
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::setScriptObjectPropertyWithChangeMessage(const Identifier& id,
+	var newValue, NotificationType notifyEditor)
+{
+	if(id == getIdFor(ScriptComponent::visible))
+	{
+		if((bool)newValue)
+		{
+			backdropBroadcaster.sendMessage(sendNotificationAsync, Backdrop::MessageType::Show);
+		}
+	}
+
+	using namespace multipage;
+
+	Array<Identifier> refreshIds = {
+		getIdFor(ScriptComponent::Properties::text),
+		getIdFor(ScriptComponent::Properties::textColour),
+		getIdFor(ScriptComponent::Properties::itemColour),
+		getIdFor(ScriptComponent::Properties::bgColour),
+		getIdFor(Font),
+		getIdFor(FontSize),
+		getIdFor(DialogWidth),
+		getIdFor(DialogHeight),
+		mpid::UseViewport,
+		mpid::ConfirmClose,
+		mpid::StyleSheet
+	};
+
+	if(isDialogVisible() && refreshIds.contains(id))
+		backdropBroadcaster.sendMessage(sendNotificationAsync, Backdrop::MessageType::Show);
+	
+	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+		
+}
+
+ScriptCreatedComponentWrapper* ScriptingApi::Content::ScriptMultipageDialog::createComponentWrapper(
+	ScriptContentComponent* content, int index)
+{
+	return new ScriptCreatedComponentWrappers::MultipageDialogWrapper(content, this, index);
+}
+
+StringArray ScriptingApi::Content::ScriptMultipageDialog::getOptionsFor(const Identifier& id)
+{
+	if(id == multipage::mpid::StyleSheet)
+	{
+		return StringArray::fromLines(multipage::DefaultCSSFactory::getTemplateList());
+	}
+	if(id == getIdFor(Font))
+	{
+		StringArray sa;
+		sa.add("Oxygen");
+		sa.add("Source Code Pro");
+		getScriptProcessor()->getMainController_()->fillWithCustomFonts(sa);
+		sa.addArray(Font::findAllTypefaceNames());
+		return sa;
+	}
+
+	return ScriptComponent::getOptionsFor(id);
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::handleDefaultDeactivatedProperties()
+{
+	ScriptComponent::handleDefaultDeactivatedProperties();
+
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::saveInPreset));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::macroControl));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isPluginParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::min));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::max));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::locked));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::itemColour2));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::defaultValue));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::pluginParameterName));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::tooltip));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::useUndoManager));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::processorId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::parameterId));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::isMetaParameter));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::linkedTo));
+	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::automationId));
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::resetDialog()
+{
+	getMultipageState()->reset({});
+	valueCallbacks.clear();
+	
+	pages.clear();
+	elementData.clear();
+
+	backdropBroadcaster.sendMessage(dontSendNotification, Backdrop::MessageType::Hide);
+}
+
+int ScriptingApi::Content::ScriptMultipageDialog::addPage()
+{
+	using namespace multipage;
+
+	DynamicObject::Ptr no = new DynamicObject();
+
+	no->setProperty(mpid::Type, "List");
+	no->setProperty(mpid::Children, Array<var>());
+
+	pages.add(var(no.get()));
+
+	elementData.add(var(no.get()));
+	return elementData.size()-1;
+}
+
+int ScriptingApi::Content::ScriptMultipageDialog::add(int parentIndex, String type, const var& properties)
+{
+	using namespace multipage;
+
+	if(!getConstantValue(0).hasProperty(Identifier(type)))
+	{
+		reportScriptError("Illegal type " + type);
+	}
+
+	if(isPositiveAndBelow(parentIndex, elementData.size()))
+	{
+		if(auto obj = properties.getDynamicObject())
+		{
+			if(auto parentObject = elementData[parentIndex].getDynamicObject())
+			{
+				if(!parentObject->getProperty(mpid::Children).isArray())
+					parentObject->setProperty(mpid::Children, var(Array<var>()));
+
+				auto ar = parentObject->getProperty(mpid::Children).getArray();
+				auto newInfoObject = obj->clone();
+
+				if(properties.hasProperty("Callback"))
+				{
+					auto cb = properties.getDynamicObject()->getProperty("Callback").getObject();
+					auto callable = dynamic_cast<WeakCallbackHolder::CallableObject*>(cb);
+
+					if(callable != nullptr)
+					{
+						auto code = bindCallback(callable->getCallId().toString(), properties["Callback"]);
+						newInfoObject->removeProperty("Callback");
+						newInfoObject->setProperty(mpid::Code, code);
+					}
+				}
+				
+				newInfoObject->setProperty(mpid::Type, type);
+
+				for(auto& p: newInfoObject->getProperties())
+				{
+					if(!getConstantValue(1).hasProperty(p.name))
+						reportScriptError("unknown ID " + p.name);
+				}
+
+				ar->add(var(newInfoObject.get()));
+				elementData.add(var(newInfoObject.get()));
+				return elementData.size()-1;
+			}
+		}
+	}
+	
+	return -1;
+}
+
+String ScriptingApi::Content::ScriptMultipageDialog::bindCallback(String id, var callback)
+{
+	auto nc = new ValueCallback(this, id, callback);
+	valueCallbacks.add(nc);
+	
+	String callCode;
+
+	callCode << "{BIND::" + id + "}";
+	return callCode;
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::setOnFinishCallback(var onFinish)
+{
+	jassertfalse;
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::setOnPageLoadCallback(var onPageLoad)
+{
+	jassertfalse;
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::show(bool clearState)
+{
+	if(clearState)
+	{
+		getMultipageState()->globalState = new DynamicObject();
+	}
+
+	backdropBroadcaster.sendMessage(sendNotificationAsync, Backdrop::MessageType::Show);
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::cancel()
+{
+	backdropBroadcaster.sendMessage(sendNotificationAsync, Backdrop::MessageType::Hide);
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::setElementProperty(int elementId, String propertyId, const var& newValue)
+{
+	if(isPositiveAndBelow(elementId, elementData.size()))
+	{
+		DynamicObject::Ptr obj = elementData[elementId].getDynamicObject();
+
+		obj->setProperty(propertyId, newValue);
+		sendRepaintMessage();
+	}
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::setElementValue(int elementId, var value)
+{
+	jassertfalse;
+}
+
+var ScriptingApi::Content::ScriptMultipageDialog::getElementProperty(int elementId, String propertyId) const
+{
+	jassertfalse;
+	return {};
+}
+
+var ScriptingApi::Content::ScriptMultipageDialog::getState()
+{
+	return getMultipageState()->globalState;
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::preRecompileCallback()
+{
+	ScriptComponent::preRecompileCallback();
+	resetDialog();
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::onMultipageLog(ScriptMultipageDialog& m, multipage::MessageType mt,
+	const String& message)
+{
+	if(m.getScriptObjectProperty(Properties::EnableConsoleOutput))
+	{
+		auto p = m.getScriptProcessor()->getMainController_()->getMainSynthChain();
+		debugToConsole(p, message);
+	}
+}
+
+#define SET_PROPERTY(id, propId) propertyObject->setProperty(id, getScriptObjectProperty(propId));
+#if USE_BACKEND
+#define SET_PROPERTY_FROM_SETTING(id, s) propertyObject->setProperty(id, GET_HISE_SETTING(getProcessor()->getMainController()->getMainSynthChain(), s).toString());
+#else
+#define SET_PROPERTY_FROM_SETTING(id, s) propertyObject->setProperty(id, s);
+#endif
+#define SET_LAYOUT(id, propId) layoutObject->setProperty(id, getScriptObjectProperty(propId));
+#define SET_STYLE(id, propId) styleData->setProperty(id, getScriptObjectProperty(propId));
+
+
+
+var ScriptingApi::Content::ScriptMultipageDialog::createDialogData(String cssToUse)
+{
+	using namespace multipage;
+
+	for(auto vc: valueCallbacks)
+	{
+		getMultipageState()->bindCallback(vc->name, *vc);
+	}
+
+	DynamicObject::Ptr no, propertyObject, layoutObject, styleData;
+
+	if(monolithFile.existsAsFile())
+	{
+		MonolithData mf(monolithFile);
+
+		no = mf.getJSON().getDynamicObject();
+
+		propertyObject = no->getProperty(mpid::Properties).getDynamicObject();
+		layoutObject = no->getProperty(mpid::LayoutData).getDynamicObject();
+		styleData = no->getProperty(mpid::StyleData).getDynamicObject();
+	}
+	else
+	{
+		no = new DynamicObject();
+		propertyObject = new DynamicObject();
+		layoutObject = new DynamicObject();
+		styleData = MarkdownLayout::StyleData::createDarkStyle().toDynamicObject().getDynamicObject();
+
+		no->setProperty(mpid::StyleData, var(styleData.get()));
+		no->setProperty(mpid::Properties, var(propertyObject.get()));
+		no->setProperty(mpid::LayoutData, var(layoutObject.get()));
+		no->setProperty(mpid::Children, var(pages));
+	}
+
+	SET_PROPERTY(mpid::Header, ScriptComponent::Properties::text);
+
+#if USE_BACKEND
+
+	SET_PROPERTY_FROM_SETTING(mpid::Company, HiseSettings::User::Company);
+	SET_PROPERTY_FROM_SETTING(mpid::ProjectName, HiseSettings::Project::Name);
+	SET_PROPERTY_FROM_SETTING(mpid::Version, HiseSettings::Project::Version);
+
+#if JUCE_WINDOWS
+	SET_PROPERTY_FROM_SETTING(mpid::UseGlobalAppData, HiseSettings::Project::UseGlobalAppDataFolderWindows);
+#else
+	SET_PROPERTY_FROM_SETTING(mpid::UseGlobalAppData, HiseSettings::Project::UseGlobalAppDataFolderMacOS);
+#endif
+
+#else
+
+	SET_PROPERTY_FROM_SETTING(mpid::Company, FrontendHandler::getCompanyName());
+	SET_PROPERTY_FROM_SETTING(mpid::ProjectName, FrontendHandler::getProjectName());
+	SET_PROPERTY_FROM_SETTING(mpid::Version, FrontendHandler::getVersionString());
+	SET_PROPERTY_FROM_SETTING(mpid::UseGlobalAppData, (bool)HISE_USE_SYSTEM_APP_DATA_FOLDER);
+			
+#endif
+
+	if(cssToUse.isEmpty())
+		cssToUse = getCSSFromLocalLookAndFeel();
+
+	if(cssToUse.isNotEmpty())
+		layoutObject->setProperty(mpid::Style, cssToUse);
+			
+	SET_LAYOUT("DialogWidth", Properties::DialogWidth);
+	SET_LAYOUT("DialogHeight", Properties::DialogHeight);
+	SET_LAYOUT(mpid::ConfirmClose, Properties::ConfirmClose);
+	SET_LAYOUT(mpid::UseViewport, Properties::UseViewport);
+	SET_LAYOUT(mpid::StyleSheet, Properties::StyleSheet);
+
+	SET_STYLE("textColour", ScriptComponent::Properties::textColour);
+	SET_STYLE("headlineColour", ScriptComponent::Properties::itemColour);
+	SET_STYLE(getIdFor(Properties::Font), Properties::Font);
+	SET_STYLE(getIdFor(Properties::FontSize), Properties::FontSize);
+	
+	return var(no.get());
+}
+
+#undef SET_PROPERTY
+#undef SET_LAYOUT
+#undef SET_STYLE
+#undef SET_PROPERTY_FROM_SETTING
+
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptFloatingTile::createComponentWrapper(ScriptContentComponent *content, int index)
 {
 	return new ScriptCreatedComponentWrappers::FloatingTileWrapper(content, this, index);
@@ -5886,6 +6305,7 @@ colour(Colour(0xff777777))
 	setMethod("addAudioWaveform", Wrapper::addAudioWaveform);
 	setMethod("addSliderPack", Wrapper::addSliderPack);
 	setMethod("addFloatingTile", Wrapper::addFloatingTile);
+	setMethod("addMultipageDialog", Wrapper::addMultipageDialog);
 	setMethod("addWebView", Wrapper::addWebView);
 	setMethod("setContentTooltip", Wrapper::setContentTooltip);
 	setMethod("setToolbarProperties", Wrapper::setToolbarProperties);
@@ -6041,6 +6461,12 @@ ScriptingApi::Content::ScriptWebView* ScriptingApi::Content::addWebView(Identifi
 ScriptingApi::Content::ScriptFloatingTile* ScriptingApi::Content::addFloatingTile(Identifier floatingTileName, int x, int y)
 {
 	return addComponent<ScriptFloatingTile>(floatingTileName, x, y);
+}
+
+ScriptingApi::Content::ScriptMultipageDialog* ScriptingApi::Content::addMultipageDialog(Identifier dialogId, int x,
+	int y)
+{
+	return addComponent<ScriptMultipageDialog>(dialogId, x, y);
 }
 
 
@@ -7920,6 +8346,9 @@ ScriptingApi::Content::ScriptComponent * ScriptingApi::Content::Helpers::createC
 		return sc;
 
 	if (auto sc = createComponentIfTypeMatches<ScriptFloatingTile>(c, typeId, name, x, y, w, h))
+		return sc;
+
+	if(auto sc = createComponentIfTypeMatches<ScriptMultipageDialog>(c, typeId, name, x, y, w, h))
 		return sc;
 
 	return nullptr;

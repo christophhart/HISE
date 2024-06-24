@@ -2886,6 +2886,15 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateLookAndFeel()
     }
 }
 
+ScriptCreatedComponentWrappers::MultipageDialogWrapper::MultipageDialogWrapper(ScriptContentComponent* content,
+	ScriptDialog* mp, int index):
+	ScriptCreatedComponentWrapper(content, index)
+{
+	component = mp->createBackdrop();
+	initAllProperties();
+			
+}
+
 void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent()
 {
 }

@@ -71,6 +71,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addSliderPack(const var::NativeFunctionArgs& args);
 	static var addWebView(const var::NativeFunctionArgs& args);
 	static var addFloatingTile(const var::NativeFunctionArgs& args);
+	static var addMultipageDialog(const var::NativeFunctionArgs& args);
 	static var getComponent(const var::NativeFunctionArgs& args);
 	static var getAllComponents(const var::NativeFunctionArgs& args);
 	static var set(const var::NativeFunctionArgs& args);
@@ -335,6 +336,17 @@ var ScriptingApi::Content::Wrapper::addFloatingTile(const var::NativeFunctionArg
 	{
 		CHECK_ARGUMENTS("addFloatingTile()", 3);
 		return thisObject->addFloatingTile(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
+	}
+
+	return var();
+}
+
+var ScriptingApi::Content::Wrapper::addMultipageDialog(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("addMultipageDialog()", 3);
+		return thisObject->addMultipageDialog(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
 	}
 
 	return var();

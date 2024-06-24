@@ -65,6 +65,7 @@ public:
 		SliderPack,
 		WebView,
 		FloatingTile,
+		MultipageDialog,
 		duplicateComponent,
 		numComponentTypes
 	};

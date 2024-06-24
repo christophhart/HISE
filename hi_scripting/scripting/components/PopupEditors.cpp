@@ -539,6 +539,15 @@ void PopupIncludeEditor::compileInternal()
 			Component::callRecursive<ScriptContentComponent>(top, [&](ScriptContentComponent* c)
 			{
 				c->css.updateIsolatedCollection(fileName, css);
+
+				using BD = ScriptingApi::Content::ScriptMultipageDialog::Backdrop;
+
+				Component::callRecursive<BD>(c, [&](BD* mp)
+				{
+					mp->create(getEditor()->editor.getDocument().getAllContent());
+					return false;
+				});
+
 				c->repaint();
 
 				return false;

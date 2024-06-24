@@ -2103,6 +2103,344 @@ public:
 		// ========================================================================================================
 	};
 
+	/*
+
+		TODO:
+
+		- implement all other callbacks
+		- remove all Broadcaster stuff again OK
+		- add export & import from .dat file && Base64
+		- remove all floating tile stuff OK
+		- fix hiding of backdrop when opening new window OK
+		- fix recompilation while function is in progress OK
+		- add font, text colour & other colour properties OK
+		- append to Stylesheet content, not replace
+		- big todo: make debugger in scriptwatchtable popup (or even as floating tile?)
+		- big todo: remove Javascript API altogether?
+		- add API for handling modal popups within dialog
+		- add mp.navigate(index, bool submitCurrentPage)
+		- add mp.refresh() individual
+		- fix stopped tasks being repeated & stuck when stopped & reloaded window OK
+		- add mp.exportAsJSON(file)
+	 */
+	struct ScriptMultipageDialog: public ScriptComponent
+	{
+		enum Properties
+		{
+			Font  = ScriptComponent::Properties::numProperties,
+			FontSize,
+			EnableConsoleOutput,
+			DialogWidth,
+			DialogHeight,
+			UseViewport,
+			StyleSheet,
+			ConfirmClose,
+			numProperties
+		};
+
+		// ========================================================================================================
+
+		ScriptMultipageDialog(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);
+		~ScriptMultipageDialog() override;;
+
+		// ========================================================================================================
+
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
+
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptMultipageDialog"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
+
+		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		StringArray getOptionsFor(const Identifier &id) override;
+		
+		void handleDefaultDeactivatedProperties() override;
+
+		void setValue(var newValue) override {};
+
+		var getValue() const override { return var(); }
+
+		// ========================================================================================================
+
+		/** Clears the dialog. */
+		void resetDialog();
+
+		/** Adds a page to the dialog and returns the element index of the page. */
+		int addPage();
+
+		/** Adds an element to the parent with the given type and properties. */
+		int add(int parentIndex, String type, const var& properties);
+
+		/** Registers a callable object to the dialog and returns the codestring that calls it from within the dialogs Javascript engine. */
+		String bindCallback(String id, var callback);
+
+		/** Registers a function that will be called when the dialog is finished. */
+		void setOnFinishCallback(var onFinish);
+
+		/** Registers a function that will be called when the dialog shows a new page. */
+		void setOnPageLoadCallback(var onPageLoad);
+
+		/** Shows the dialog (with optionally clearing the state. */
+		void show(bool clearState);
+
+		/** Closes the dialog (as if the user pressed the cancel button). */
+		void cancel();
+
+		/** Sets the property for the given element ID and updates the dialog. */
+		void setElementProperty(int elementId, String propertyId, const var& newValue);
+
+		/** Sets the value of the given element ID and calls the callback. */
+		void setElementValue(int elementId, var value);
+
+		/** Returns the value for the given element ID. */
+		var getElementProperty(int elementId, String propertyId) const;
+
+		/** returns the state object for the dialog. */
+		var getState();
+
+		/** Loads the dialog from a file (on the disk). */
+		void loadFromDataFile(var fileObject)
+		{
+			if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(fileObject.getObject()))
+			{
+				monolithFile = sf->f;
+			}
+		}
+
+		// ========================================================================================================
+
+		void sendRepaintMessage() override
+		{
+			if(backdropBroadcaster.getLastValue<0>() != Backdrop::MessageType::Hide)
+				backdropBroadcaster.sendMessage(sendNotificationAsync, Backdrop::MessageType::RefreshDialog);
+		}
+
+		void preRecompileCallback() override;
+
+		static void onMultipageLog(ScriptMultipageDialog& m, multipage::MessageType mt, const String& message);
+
+		multipage::State::Ptr getMultipageState()
+		{
+			if(multiState == nullptr)
+			{
+				multiState = new multipage::State(dialogData, {});
+
+#if USE_BACKEND
+				multiState->eventLogger.addListener(*this, onMultipageLog);
+#endif
+			}
+				
+
+			return multiState;
+		}
+
+		struct Backdrop: public Component
+		{
+			enum class MessageType
+			{
+				Hide,
+				Show,
+				RefreshDialog,
+				numBackdropMessages
+			};
+
+			Backdrop(ScriptMultipageDialog* d):
+			  dialogData(d)
+			{
+				setInterceptsMouseClicks(true, true);
+			};
+
+			void mouseDown(const MouseEvent& e)
+			{
+				if(closeOnClick)
+					dialogData->cancel();
+			}
+			
+			void create(const String& cssToUse={})
+			{
+				destroy();
+
+				if(dialogData != nullptr)
+				{
+					auto state = dialogData->getMultipageState();
+					auto data = dialogData->createDialogData(cssToUse);
+
+					
+					addAndMakeVisible(currentDialog = new multipage::Dialog(data, *state.get(), true));
+
+
+					currentDialog->setFinishCallback(BIND_MEMBER_FUNCTION_0(Backdrop::onFinish));
+
+					currentDialog->loadStyleFromPositionInfo();
+					currentDialog->refreshCurrentPage();
+
+					closeOnClick = !dialogData->getScriptObjectProperty(Properties::ConfirmClose);
+						
+					setVisible(true);
+					resized();
+				}
+
+			}
+
+			void onFinish()
+			{
+				if(dialogData.get())
+					dialogData->cancel();
+				//dialogData->backdropBroadcaster.sendMessage(sendNotificationSync, MessageType::Hide);
+			}
+
+			void paint(Graphics& g)
+			{
+				g.fillAll(juce::Colours::black.withAlpha(0.9f));
+			}
+
+			void destroy()
+			{
+				if(currentDialog != nullptr)
+				{
+					MessageManagerLock mm;
+					currentDialog = nullptr;
+				}
+			}
+
+			static void onMessage(Backdrop& bp, MessageType mt)
+			{
+				if(mt == MessageType::Show)
+				{
+					bp.create();
+				}
+				if(mt == MessageType::Hide)
+				{
+					bp.destroy();
+				}
+				if(mt == MessageType::RefreshDialog)
+				{
+					auto colour = bp.dialogData->getScriptObjectProperty(ScriptComponent::Properties::bgColour);
+
+					bp.bgColour = ApiHelpers::getColourFromVar(colour);
+					bp.repaint(); 
+
+					if(bp.currentDialog != nullptr)
+						bp.currentDialog->refreshCurrentPage();
+				}
+			}
+
+			void resized() override
+			{
+				if(currentDialog != nullptr && !getLocalBounds().isEmpty())
+				{
+					auto size = currentDialog->getPositionInfo({}).fixedSize;
+					currentDialog->centreWithSize(size.getX(), size.getY());
+				}
+			}
+
+			bool closeOnClick = false;
+			Colour bgColour;
+			WeakReference<ScriptMultipageDialog> dialogData;
+			ScopedPointer<multipage::Dialog> currentDialog;
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Backdrop);
+		};
+
+		Backdrop* createBackdrop()
+		{
+			auto bp = new Backdrop(this);
+			backdropBroadcaster.addListener(*bp, Backdrop::onMessage, false);
+			
+			if(isDialogVisible())
+				bp->create();
+
+			return bp;
+		}
+
+	private:
+
+		File monolithFile;
+
+		static void handleVisibility(ScriptMultipageDialog& d, Backdrop::MessageType t)
+		{
+			auto isVisible = (bool)d.getScriptObjectProperty(ScriptComponent::Properties::visible);
+			auto shouldBeVisible = t != Backdrop::MessageType::Hide;
+
+			if(isVisible != shouldBeVisible)
+			{
+				ScopedPropertyEnabler sds(&d);
+				d.set("visible", shouldBeVisible);
+
+				if(!shouldBeVisible)
+				{
+					d.getMultipageState()->onDestroy();
+				}
+			}
+		}
+
+		struct ValueCallback
+		{
+			ValueCallback(ScriptMultipageDialog* p, String name_, const var& functionToCall):
+			  callback(p->getScriptProcessor(), p, functionToCall, 2),
+			  name(name_)
+			{
+				callback.incRefCount();
+				callback.setThisObject(p);
+				args[0] = var(name);
+			};
+
+			var operator()(const var::NativeFunctionArgs& a)
+			{
+				callback.call(a);
+				return var();
+			}
+
+			String name;
+			var args[2];
+			WeakCallbackHolder callback;
+		};
+
+		OwnedArray<ValueCallback> valueCallbacks;
+
+		var createDialogData(String cssToUse={});
+
+		Array<var> pages;
+		Array<var> elementData;
+		
+		LambdaBroadcaster<Backdrop::MessageType> backdropBroadcaster;
+
+		bool isDialogVisible() const
+		{
+			return backdropBroadcaster.getLastValue<0>() != Backdrop::MessageType::Hide;
+		}
+
+		var dialogData;
+
+		void clearState()
+		{
+			if(multiState != nullptr)
+			{
+				multiState->stopThread(1000);
+
+				MessageManagerLock mm;
+
+				Array<WeakReference<multipage::Dialog>> dialogCopy;
+				dialogCopy.addArray(multiState->currentDialogs);
+
+				for(auto d: dialogCopy)
+				{
+					if(d != nullptr)
+						d->onStateDestroy(sendNotificationSync);
+				}
+			}
+
+			multiState = nullptr;
+		}
+
+		struct Wrapper;
+
+		multipage::State::Ptr multiState;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptMultipageDialog);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptMultipageDialog);
+
+		// ========================================================================================================
+	};
 
 	using ScreenshotListener = hise::ScreenshotListener;
 
@@ -2195,6 +2533,9 @@ public:
 
 	/** Adds a floating layout component. */
 	ScriptFloatingTile* addFloatingTile(Identifier floatingTileName, int x, int y);
+
+	/** Adds a multipage dialog component. */
+	ScriptMultipageDialog* addMultipageDialog(Identifier dialogId, int x, int y);
 
 	/** Returns the reference to the given component. */
 	var getComponent(var name);

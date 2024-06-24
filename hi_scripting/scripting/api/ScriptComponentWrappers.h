@@ -870,6 +870,20 @@ public:
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(FloatingTileWrapper)
 	};
 
+	class MultipageDialogWrapper : public ScriptCreatedComponentWrapper
+	{
+	public:
+
+		using ScriptDialog = ScriptingApi::Content::ScriptMultipageDialog;
+
+		MultipageDialogWrapper(ScriptContentComponent* content, ScriptDialog* mp, int index);
+
+		~MultipageDialogWrapper() override {};
+
+		void updateComponent() override {}
+		
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MultipageDialogWrapper);
+	};
 
 };
 
