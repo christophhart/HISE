@@ -197,8 +197,16 @@ float OscillatorDisplayProvider::tickSine(OscData& d)
 	return sinTable->getInterpolatedValue(d.tick());
 }
 
+/** Set this to 1 to restore the old behaviour. */
+#ifndef HISE_USE_NAIVE_SQUARE_OSCILLATOR
+#define HISE_USE_NAIVE_SQUARE_OSCILLATOR 0
+#endif
+
 float OscillatorDisplayProvider::tickSquare(OscData& d)
 {
+#if HISE_USE_NAIVE_SQUARE_OSCILLATOR
+	return (float)(1 - (int)std::signbit(tickSaw(d))) * 2.0f - 1.0f;
+#else
 	auto phase = d.tick() / 2048.0;
 	phase -= bitwiseOrZero(phase);
 	auto phase180 = phase + 0.5;
@@ -208,6 +216,7 @@ float OscillatorDisplayProvider::tickSquare(OscData& d)
     y += blep(phase, dt) - blep(phase180, dt);
 
 	return (float)y;
+#endif
 }
 
 
