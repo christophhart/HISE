@@ -540,6 +540,7 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, Ent
 	fillMouseCallbackObject(clickInformation[(int)action], this, e, callbackLevel, action, state);
 
 	sendToListeners(clickInformation[(int)action]);
+	repaint();
 }
 
 void MouseCallbackComponent::sendToListeners(var clickInformation)
@@ -1064,7 +1065,32 @@ void BorderPanel::paint(Graphics &g)
 	}
 	else
 	{
-        
+        if(auto laf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&getLookAndFeel()))
+        {
+			if(auto root = simple_css::CSSRootComponent::find(*this))
+			{
+				if(auto c = root->css.getForComponent(this))
+		        {
+			        simple_css::Renderer r(this, root->stateWatcher);
+
+					r.getPseudoClassFromComponent(this);
+					root->stateWatcher.checkChanges(this, c, r.getPseudoClassState());
+
+					r.drawBackground(g, getLocalBounds().toFloat(), c);
+
+					auto t = c->getText({}, simple_css::PseudoState(r.getPseudoClassState()).withElement(simple_css::PseudoElementType::None));
+
+					if(!t.isEmpty())
+					{
+						r.renderText(g, getLocalBounds().toFloat(), t, c);
+					}
+
+					return;
+		        }
+			}
+
+	        
+        }
 		
 		Rectangle<float> fillR(borderSize, borderSize, getWidth() - 2 * borderSize, getHeight() - 2 * borderSize);
 
@@ -1115,7 +1141,7 @@ MultilineLabel::MultilineLabel(const String &name) :
 Label(name),
 multiline(false)
 {
-
+	simple_css::FlexboxComponent::Helpers::setCustomType(*this, simple_css::Selector("label"));
 }
 
 void MultilineLabel::setMultiline(bool shouldBeMultiline)
@@ -1128,6 +1154,11 @@ TextEditor * MultilineLabel::createEditorComponent()
 	TextEditor *textEditor = Label::createEditorComponent();
 
 	textEditor->setMultiLine(multiline, true);
+
+	if(auto root = simple_css::CSSRootComponent::find(*this))
+		root->stateWatcher.registerComponentToUpdate(textEditor);
+
+	textEditor->setLookAndFeel(&getLookAndFeel());
 
 	textEditor->setReturnKeyStartsNewLine(multiline);
 	

@@ -453,8 +453,8 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 
 		updateComponent(i, v);
 	}
-
-	if (auto l = sc->createLocalLookAndFeel())
+	
+	if (auto l = sc->createLocalLookAndFeel(contentComponent, component.get()))
 	{
 		localLookAndFeel = l;
 		component->setLookAndFeel(l);
@@ -638,16 +638,22 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderStyle(ScriptingA
 		s->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
 	}
 
+	auto isLinearSlider = sc->styleId == Slider::LinearBar || sc->styleId == Slider::LinearBarVertical;
+
+	simple_css::FlexboxComponent::Helpers::writeClassSelectors(*s, { simple_css::Selector(".linear-slider")}, isLinearSlider);
+
     auto showTextBox = (bool)sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::showTextBox);
     
-    s->enableShiftTextInput = showTextBox;
+    s->enableShiftTextInput = true;
     
-	if (sc->styleId == Slider::LinearBar || sc->styleId == Slider::LinearBarVertical)
+	if (isLinearSlider)
 	{
 		if (!showTextBox)
 			s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
 
 		s->setTextBoxStyle(showTextBox ? Slider::TextBoxAbove : Slider::NoTextBox, !showTextBox, s->getWidth(), s->getHeight());
+
+		s->enableShiftTextInput = !showTextBox;
 	}
 
 }
@@ -2857,14 +2863,14 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateLookAndFeel()
     {
         laf = &mc->getGlobalLookAndFeel();
 
-        if (auto l = floatingTile->createLocalLookAndFeel())
+        if (auto l = floatingTile->createLocalLookAndFeel(contentComponent, ft))
         {
             localLookAndFeel = l;
             laf = localLookAndFeel.get();
         }
     }
     
-    if (dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::Laf*>(laf) != nullptr)
+    if (dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::LafBase*>(laf) != nullptr)
     {
         Component::callRecursive<Component>(ft, [laf](Component* c)
         {

@@ -134,9 +134,12 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	PopupMenu m;
 
 	auto mc = getProcessor()->getMainController();
-	auto& plaf = mc->getGlobalLookAndFeel();
+	LookAndFeel* plaf = &mc->getGlobalLookAndFeel();
 
-	m.setLookAndFeel(&plaf);
+	if(auto css = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&asComponent()->getLookAndFeel()))
+		plaf = css;
+
+	m.setLookAndFeel(plaf);
 
 	auto ccName = handler->getCCName();
 
@@ -544,6 +547,20 @@ bool SliderWithShiftTextBox::onShiftClick(const MouseEvent& e)
 	if (asSlider()->getWidth() > 25 && enableShiftTextInput)
 	{
 		asSlider()->addAndMakeVisible(inputLabel = new TextEditor());
+
+		if(auto root = simple_css::CSSRootComponent::find(*asSlider()))
+		{
+			if(auto ss = root->css.getForComponent(inputLabel))
+			{
+				root->stateWatcher.registerComponentToUpdate(inputLabel);
+				inputLabel->setBounds(asSlider()->getLocalBounds());
+				inputLabel->addListener(this);
+				inputLabel->setText(asSlider()->getTextFromValue(asSlider()->getValue()), dontSendNotification);
+				inputLabel->selectAll();
+				inputLabel->grabKeyboardFocus();
+				return true;
+			}
+		}
 
 		inputLabel->centreWithSize(asSlider()->getWidth(), 20);
 		inputLabel->addListener(this);
