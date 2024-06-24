@@ -750,7 +750,7 @@ void SamplerSoundWaveform::drawSampleStartBar(Graphics &g)
 	if (sampleStartPosition != -1.0)
 	{
 		auto c = SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::SampleStartArea);
-		g.setColour(0x00FFFFFF);
+		g.setColour(c);
 
 		const int x = areas[PlayArea]->getX() + areas[SampleStartArea]->getX() + (int)(sampleStartPosition * areas[SampleStartArea]->getWidth());
 
