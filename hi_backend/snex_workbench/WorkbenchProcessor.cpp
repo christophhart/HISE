@@ -861,6 +861,12 @@ void DspNetworkCompileExporter::createProjucerFile()
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", hisePath.getFullPathName());
 	REPLACE_WILDCARD_WITH_STRING("%JUCE_PATH%", jucePath.getFullPathName());
 
+	String s = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::ExtraDefinitionsNetworkDll).toString();
+
+	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", s);
+	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", s);
+	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", s);
+
 	auto includeFaust = BackendDllManager::shouldIncludeFaust(getMainController());
 	REPLACE_WILDCARD_WITH_STRING("%HISE_INCLUDE_FAUST%", includeFaust ? "enabled" : "disabled");
 

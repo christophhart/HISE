@@ -690,8 +690,7 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 		setFlexChildVisibility(STOP, false, true);
 		rootDialog.setCurrentErrorPage(this);
 	}
-	
-	else if (rootDialog.getState().currentJob == job.get())
+	else if (rootDialog.getState().currentJob.get() == job.get())
 	{
 		// The job is currently running, hide the retry button and show the stop button
 		setFlexChildVisibility(RETRY, false, true);

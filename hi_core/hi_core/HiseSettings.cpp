@@ -84,6 +84,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(ExtraDefinitionsOSX);
 	ids.add(ExtraDefinitionsIOS);
     ids.add(ExtraDefinitionsLinux);
+	ids.add(ExtraDefinitionsNetworkDll);
 	ids.add(AppGroupID);
 	ids.add(RedirectSampleFolder);
 	ids.add(AAXCategoryFX);
@@ -345,6 +346,16 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("ENABLE_ALL_PEAK_METERS=0");
 		D("NUM_POLYPHONIC_VOICES=100");
 		D("```\n");
+		P_();
+
+		P(HiseSettings::Project::ExtraDefinitionsIOS);
+		D("This field can be used to add preprocessor definitions to the compiled network DLL. Use it to tailor the compile options for HISE for the project.");
+		D("#### Examples");
+		D("```javascript");
+		D("ENABLE_ALL_PEAK_METERS=0");
+		D("NUM_POLYPHONIC_VOICES=100");
+		D("```\n");
+		D("> Be aware that these fields are only added to the compiled network DLL. If you want to add them to the exported project, add every property to the other extra definitions.");
 		P_();
 
 		P(HiseSettings::Project::EmbedUserPresets);
