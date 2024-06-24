@@ -229,6 +229,22 @@ public:
 
 			static bool editJson(Editor& e);
 
+			static bool debugCSS(Editor& e)
+			{
+				e.callRecursive<simple_css::HeaderContentFooter>(&e, [&](simple_css::HeaderContentFooter* r)
+				{
+
+					auto newEditor = new simple_css::HeaderContentFooter::CSSDebugger(*r);
+
+					newEditor->setSize(400, 700);
+
+					e.findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(newEditor, &e, {15, 30});
+					return true;
+				});
+				
+				return true;
+			}
+
 			static bool move(Editor& e);
 
 			static bool lockSelection(Editor& e);

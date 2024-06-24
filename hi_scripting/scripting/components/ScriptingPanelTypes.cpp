@@ -115,7 +115,8 @@ Component* CodeEditorPanel::createContentComponent(int index)
             pe->getEditor()->editor.setScaleFactor(scaleFactor);
 #endif
 
-		pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
+		if(pe->isJavascript())
+			pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
 
 		if(auto ed = pe->getEditor())
 			getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
@@ -816,6 +817,7 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 	addSpacer(10);
 
 	addButton("edit-json");
+	addButton("debug-css");
 
 	addCustomComponent(overlaySelector);
 	addCustomComponent(overlayAlphaSlider);
@@ -847,6 +849,16 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		b->enabledFunction = isSelected;
 		b->actionFunction = Actions::editJson;
 		b->setTooltip("Edits the raw property data object as JSON (Dangerzone!)");
+	}
+	if(name == "debug-css")
+	{
+		b->enabledFunction = [](Editor& e)
+		{
+			return callRecursive<simple_css::HeaderContentFooter>(&e, [](simple_css::HeaderContentFooter*){ return true; });
+		};
+
+		b->actionFunction = Actions::debugCSS;
+		b->setTooltip("Show the CSS debugger for the current dialog");
 	}
 	if(name == "suspend")
 	{
@@ -2230,6 +2242,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);
 	LOAD_PATH_IF_URL("horizontal-distribute", ColumnIcons::horizontalDistribute);
 	LOAD_EPATH_IF_URL("edit-json", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_PATH_IF_URL("debug-css", ColumnIcons::debugCSS);
 	LOAD_EPATH_IF_URL("suspend", EditorIcons::nightIcon);
 
 	return p;
