@@ -1235,6 +1235,15 @@ StringArray Factory::getIdList() const
 	return sa;
 }
 
+String Factory::getCategoryName(const String& id) const
+{
+	for(const auto& i: items)
+		if(i.id == Identifier(id))
+			return i.category.toString();
+
+	return id;
+}
+
 StringArray Factory::getPopupMenuList() const
 {
 	StringArray sa;

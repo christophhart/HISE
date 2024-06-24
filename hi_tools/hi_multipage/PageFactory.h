@@ -53,7 +53,9 @@ struct Factory: public PathFactory
     bool needsIdAtCreation(const String& id) const;
 
     StringArray getIdList() const;
-    
+
+    String getCategoryName(const String& id) const;
+
     Path createPath(const String& url) const override;
     
 private:

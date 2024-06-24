@@ -415,6 +415,8 @@ void State::reset(const var& obj)
 {
 	eventLogger.sendMessage(sendNotificationSync, MessageType::Clear, "");
 
+	jsLambdas.clear();
+
 	if(auto gs = obj[mpid::GlobalState].getDynamicObject())
 		globalState = var(gs->clone().get());
 	else

@@ -63,6 +63,12 @@ enum class MessageType: uint32
 
 namespace mpid
 {
+    // ALWAYS COPY IT HERE TOO!
+    struct Helpers
+    {
+	    static var getIdList();
+    };
+
     DECLARE_ID(Assets);
     DECLARE_ID(Args);
     DECLARE_ID(Autofocus);
@@ -145,7 +151,6 @@ namespace mpid
     DECLARE_ID(WaitTime);
     DECLARE_ID(Width);
     DECLARE_ID(Wildcard);
-    
 }
 
 #undef DECLARE_ID

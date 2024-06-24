@@ -436,6 +436,22 @@ void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject:
 	if(auto ms = findParentComponentOfClass<ComponentWithSideTab>())
 		state = ms->getMainState();
 
+	auto codeToExecute = infoObject[mpid::Code].toString();
+
+	if(codeToExecute.startsWith("{BIND::"))
+	{
+		auto callbackName = codeToExecute.fromFirstOccurrenceOf("{BIND::", false, false).upToLastOccurrenceOf("}", false, false);
+
+		var a[2];
+		a[0] = var(id.toString());
+		a[1] = getValueFromGlobalState();
+
+		var::NativeFunctionArgs args(state->globalState, a, 2);
+
+		if(state->callNativeFunction(callbackName, args, nullptr))
+			return;
+	}
+
 	engine = state->createJavascriptEngine();
 
 	if(engine != nullptr && (infoObject[mpid::Code].toString().isNotEmpty() || !eventListeners.isEmpty()))
