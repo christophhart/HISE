@@ -363,49 +363,76 @@ void ApiClass::addFunction5(const Identifier &id, call5 newFunction)
 	jassertfalse;
 }
 
-void ApiClass::getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const
+bool ApiClass::getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const
 {
+	if(isPositiveAndBelow(numArgs, 6))
+	{
+		std::array<const Identifier*, 6> argPointer;
+		argPointer[0] = id0;
+		argPointer[1] = id1;
+		argPointer[2] = id2;
+		argPointer[3] = id3;
+		argPointer[4] = id4;
+		argPointer[5] = id5;
+
+		auto idsToUse = argPointer[numArgs];
+
+		for(int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
+		{
+			if (idsToUse[i] == id)
+			{
+				index = i;
+				return true;
+			}
+		}
+
+		return false;
+	}
+	
 	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
 	{
+
 		if (id0[i] == id)
 		{
 			index = i;
 			numArgs = 0;
-			return;
+			return true;
 		}
 		else if (id1[i] == id)
 		{
 			index = i;
 			numArgs = 1;
-			return;
+			return true;
 		}
 		else if (id2[i] == id)
 		{
 			index = i;
 			numArgs = 2;
-			return;
+			return true;
 		}
 		else if (id3[i] == id)
 		{
 			index = i;
 			numArgs = 3;
-			return;
+			return true;
 		}
 		else if (id4[i] == id)
 		{
 			index = i;
 			numArgs = 4;
-			return;
+			return true;
 		}
 		else if (id5[i] == id)
 		{
 			index = i;
 			numArgs = 5;
-			return;
+			return true;
 		}
 	}
+
 	index = -1;
 	numArgs = -1;
+	return false;
 }
 
 var ApiClass::callFunction(int index, var *args, int numArgs)

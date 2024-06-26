@@ -471,7 +471,7 @@ public:
     *
     *   The JavascriptEngine uses this to resolve the function call into a function pointer at compile time.
     *   When the script is executed, this information will be used for blazing fast access to the methods.*/
-	void getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const;
+	bool getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const;
     
     /** Calls the function with the index and the argument data.
     *
