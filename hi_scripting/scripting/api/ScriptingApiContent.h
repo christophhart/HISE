@@ -1724,7 +1724,7 @@ public:
 		void setPopupData(var jsonData, var position);
         
         /** Sets a new value, stores this action in the undo manager and calls the control callbacks. */
-        void setValueWithUndo(var oldValue, var newValue, var actionName);
+        void setPanelValueWithUndo(var oldValue, var newValue, var actionName);
         
 		/** Opens the panel as popup. */
 		void showAsPopup(bool closeOtherPopups);

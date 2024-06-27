@@ -4055,7 +4055,7 @@ struct ScriptingApi::Content::ScriptPanel::Wrapper
 	API_METHOD_WRAPPER_1(ScriptPanel, isImageLoaded);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, setDraggingBounds);
 	API_VOID_METHOD_WRAPPER_2(ScriptPanel, setPopupData);
-  API_VOID_METHOD_WRAPPER_3(ScriptPanel, setValueWithUndo);
+  API_VOID_METHOD_WRAPPER_3(ScriptPanel, setPanelValueWithUndo);
 	API_VOID_METHOD_WRAPPER_1(ScriptPanel, showAsPopup);
 	API_VOID_METHOD_WRAPPER_0(ScriptPanel, closeAsPopup);
 	API_VOID_METHOD_WRAPPER_3(ScriptPanel, setMouseCursor);
@@ -4165,7 +4165,7 @@ void ScriptingApi::Content::ScriptPanel::init()
 	ADD_API_METHOD_1(isImageLoaded);
 	ADD_API_METHOD_1(setDraggingBounds);
 	ADD_API_METHOD_2(setPopupData);
-	ADD_API_METHOD_3(setValueWithUndo);
+	ADD_API_METHOD_3(setPanelValueWithUndo);
 	ADD_API_METHOD_1(showAsPopup);
 	ADD_API_METHOD_0(closeAsPopup);
 	ADD_API_METHOD_1(setIsModalPopup);
@@ -4567,7 +4567,7 @@ struct PanelComplexDataUndoEvent : public UndoableAction
 	int index;
 };
 
-void ScriptingApi::Content::ScriptPanel::setValueWithUndo(var oldValue, var newValue, var actionName)
+void ScriptingApi::Content::ScriptPanel::setPanelValueWithUndo(var oldValue, var newValue, var actionName)
 {
     auto p = dynamic_cast<Processor*>(getScriptProcessor());
     
