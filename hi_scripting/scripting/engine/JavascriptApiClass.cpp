@@ -266,32 +266,32 @@ Identifier ApiClass::getConstantName(int index) const
 
 void ApiClass::addFunction(const Identifier &id, call0 newFunction)
 {
-	addFunctionT<0>(id, static_cast<void*>(newFunction));
+	addFunctionT<0>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction1(const Identifier &id, call1 newFunction)
 {
-	addFunctionT<1>(id, static_cast<void*>(newFunction));
+	addFunctionT<1>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction2(const Identifier &id, call2 newFunction)
 {
-	addFunctionT<2>(id, static_cast<void*>(newFunction));
+	addFunctionT<2>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction3(const Identifier &id, call3 newFunction)
 {
-	addFunctionT<3>(id, static_cast<void*>(newFunction));
+	addFunctionT<3>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction4(const Identifier &id, call4 newFunction)
 {
-	addFunctionT<4>(id, static_cast<void*>(newFunction));
+	addFunctionT<4>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction5(const Identifier &id, call5 newFunction)
 {
-	addFunctionT<5>(id, static_cast<void*>(newFunction));
+	addFunctionT<5>(id, reinterpret_cast<void*>(newFunction));
 }
 
 bool ApiClass::getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const
@@ -327,12 +327,12 @@ var ApiClass::callFunction(int index, var *args, int numArgs)
 
 	switch (numArgs)
 	{
-	case 0: { auto f = static_cast<call0>(functions[numArgs][index]); return f(this); }
-	case 1: { auto f = static_cast<call1>(functions[numArgs][index]); return f(this, args[0]); }
-	case 2: { auto f = static_cast<call2>(functions[numArgs][index]); return f(this, args[0], args[1]); }
-	case 3: { auto f = static_cast<call3>(functions[numArgs][index]); return f(this, args[0], args[1], args[2]); }
-	case 4: { auto f = static_cast<call4>(functions[numArgs][index]); return f(this, args[0], args[1], args[2], args[3]); }
-	case 5: { auto f = static_cast<call5>(functions[numArgs][index]); return f(this, args[0], args[1], args[2], args[3], args[4]); }
+	case 0: { auto f = reinterpret_cast<call0>(functions[numArgs][index]); return f(this); }
+	case 1: { auto f = reinterpret_cast<call1>(functions[numArgs][index]); return f(this, args[0]); }
+	case 2: { auto f = reinterpret_cast<call2>(functions[numArgs][index]); return f(this, args[0], args[1]); }
+	case 3: { auto f = reinterpret_cast<call3>(functions[numArgs][index]); return f(this, args[0], args[1], args[2]); }
+	case 4: { auto f = reinterpret_cast<call4>(functions[numArgs][index]); return f(this, args[0], args[1], args[2], args[3]); }
+	case 5: { auto f = reinterpret_cast<call5>(functions[numArgs][index]); return f(this, args[0], args[1], args[2], args[3], args[4]); }
 	}
 
 	return var();
