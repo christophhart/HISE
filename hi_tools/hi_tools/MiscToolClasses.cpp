@@ -1919,7 +1919,7 @@ MasterClock::GridInfo MasterClock::updateFromExternalPlayHead(const AudioPlayHea
 
 			auto gridPos = std::fmod(info.ppqPosition, multiplier);
 
-			if (std::abs(gridPos) <= 0.1)
+			if (std::abs(gridPos) <= 0.2)
 			{
 				gi.change = true;
 				gi.gridIndex = roundToInt(info.ppqPosition / multiplier);
