@@ -388,6 +388,9 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 		auto itemName = entries[rowNumber].getFileNameWithoutExtension();
 		auto position = Rectangle<int>(0, 1, width, height - 2);
 
+		if (showFavoritesOnly && parent.getComponent()->shouldShowFullPathFavorites())
+			itemName = entries[rowNumber].getRelativePathFrom(totalRoot);
+
 		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
 	}
 }
