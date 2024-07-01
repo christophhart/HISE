@@ -510,7 +510,7 @@ juce::File HiseMidiSequence::writeToTempFile()
 	if (name.isEmpty())
 		name = "temp";
 
-	auto tmp = File::getSpecialLocation(File::SpecialLocationType::tempDirectory).getNonexistentChildFile("HouseCat", ".mid");
+	auto tmp = File::getSpecialLocation(File::SpecialLocationType::tempDirectory).getNonexistentChildFile("ESW House Cat", ".mid");
 	tmp.create();
 
 	FileOutputStream fos(tmp);
