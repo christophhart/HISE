@@ -395,7 +395,7 @@ String CustomResultPage::getAttachLine(SourceIndex source, const var& state)
         appendLine(x, state, ".attachToComponentValue", { state["componentIds"], state["attachMetadata"]});
         break;
     case SourceIndex::ComponentVisibility:
-        appendLine(x, state, ".attachToComponentProperties", { state["componentIds"],
+        appendLine(x, state, ".attachToComponentVisibility", { state["componentIds"],
                        state["attachMetadata"]
                    });
         break;
