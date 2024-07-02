@@ -539,7 +539,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 minHeight = jmin(minHeight, child->getBoundsInParent().getY());
@@ -562,7 +562,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 minHeight = jmin(minHeight, child->getBoundsInParent().getY());
@@ -612,7 +612,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 
@@ -630,7 +630,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 if(auto ssChild = childSheets[child])
@@ -736,7 +736,7 @@ std::pair<Component*, Component*> FlexboxComponent::getFirstLastComponents()
 		d.indexInList = i;
 		d.order = -1;
 
-		if(!d.c->isVisible())
+		if(!isVisibleOrPlaceHolder(d.c))
 			continue;
 			
 		if(auto css = childSheets[d.c])
@@ -801,7 +801,7 @@ FlexboxComponent::PositionData FlexboxComponent::createPositionData()
 			auto isLast = c == flc.second;
 			auto isFirst = c == flc.first;
 
-			if(!c->isVisible())
+			if(!isVisibleOrPlaceHolder(c))
 				continue;
 
 			c->getProperties().set("first-child", isFirst);

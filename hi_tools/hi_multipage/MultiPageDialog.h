@@ -134,7 +134,9 @@ public:
 
         void forwardInlineStyleToChildren();
 
-        
+        VisibleState getVisibility() const;
+
+        static StringArray getVisibilityNames();
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
         virtual void createEditor(PageInfo& infoList) {}

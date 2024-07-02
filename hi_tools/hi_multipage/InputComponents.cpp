@@ -140,6 +140,14 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
 
+    clist.addChild<Choice>({
+		{ mpid::ID, mpid::Visibility.toString() },
+		{ mpid::Text, mpid::Visibility.toString() },
+        { mpid::Items, Dialog::PageBase::getVisibilityNames().joinIntoString("\n") },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Visibility) },
+		{ mpid::Help, "Whether to show or hide the element" }
+	});
+
     clist.addChild<Button>({
 		{ mpid::ID, mpid::NoLabel.toString() },
 		{ mpid::Text, mpid::NoLabel.toString() },
