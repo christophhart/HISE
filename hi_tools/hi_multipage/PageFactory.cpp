@@ -1114,7 +1114,7 @@ void Table::updateValue(EventType t, int row, int column)
 		return v;
 	};
 
-	if(t == EventType::DoubleClick || t == EventType::ReturnKey)
+	if(t == EventType::DoubleClick || t == EventType::ReturnKey || infoObject[mpid::SelectOnClick])
 	{
 		writeState(row);
 	}
