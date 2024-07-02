@@ -1866,7 +1866,8 @@ private:
 
 	Expression* parseApiCall(ApiClass *apiClass, const Identifier &functionName)
 	{
-		int functionIndex, numArgs;
+		int functionIndex = 0;
+		int numArgs = 0;
 		apiClass->getIndexAndNumArgsForFunction(functionName, functionIndex, numArgs);
 
 		const String prettyName = apiClass->getObjectName() + "." + functionName.toString();

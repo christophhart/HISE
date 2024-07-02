@@ -76,6 +76,14 @@ void Action::createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& h
 		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
 
+	css.addChild<Choice>({
+		{ mpid::ID, mpid::Visibility.toString() },
+		{ mpid::Text, mpid::Visibility.toString() },
+        { mpid::Items, Dialog::PageBase::getVisibilityNames().joinIntoString("\n") },
+        { mpid::Value, infoObject[mpid::Visibility] },
+		{ mpid::Help, "Whether to show or hide the element" }
+	});
+
 	rootList.addChild<Choice>({
 		{ mpid::ID, mpid::EventTrigger.toString() },
 		{ mpid::Text, mpid::EventTrigger.toString() },

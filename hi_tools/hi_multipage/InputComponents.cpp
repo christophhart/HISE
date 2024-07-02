@@ -140,6 +140,14 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
 		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
 	});
 
+    clist.addChild<Choice>({
+		{ mpid::ID, mpid::Visibility.toString() },
+		{ mpid::Text, mpid::Visibility.toString() },
+        { mpid::Items, Dialog::PageBase::getVisibilityNames().joinIntoString("\n") },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Visibility) },
+		{ mpid::Help, "Whether to show or hide the element" }
+	});
+
     clist.addChild<Button>({
 		{ mpid::ID, mpid::NoLabel.toString() },
 		{ mpid::Text, mpid::NoLabel.toString() },
@@ -1638,6 +1646,13 @@ void Table::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Text, "FilterFunction" },
 		{ mpid::Value, infoObject[mpid::FilterFunction] },
         { mpid::Help, "A function in the root namespace that will be called to filter the items." } 
+	});
+
+    rootList.addChild<Button>({
+		{ mpid::ID, mpid::SelectOnClick.toString() },
+		{ mpid::Text, mpid::SelectOnClick.toString() },
+		{ mpid::Value, infoObject[mpid::SelectOnClick] },
+        { mpid::Help, "Whether to fire the value callback on a single mouse click or double click / return key only." } 
 	});
 
 	rootList.addChild<TextInput>({

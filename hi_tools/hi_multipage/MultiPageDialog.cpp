@@ -327,6 +327,41 @@ void Dialog::PageBase::forwardInlineStyleToChildren()
 	}
 }
 
+simple_css::FlexboxComponent::VisibleState Dialog::PageBase::getVisibility() const
+{
+	auto visibility = infoObject[mpid::Visibility].toString();
+
+	auto idx = getVisibilityNames().indexOf(visibility);
+
+	VisibleState s;
+
+	if(idx == 0) // default
+	{
+		s.mustBeHidden = false;
+		s.mustBeVisible = false;
+		s.usePlaceHolder = false;
+	}
+	if(idx == 1) // Hidden
+	{
+		s.mustBeHidden = true;
+		s.mustBeVisible = false;
+		s.usePlaceHolder = false;
+	}
+	if(idx == 2) // placeholder
+	{
+		s.mustBeHidden = true;
+		s.mustBeVisible = false;
+		s.usePlaceHolder = true;
+	}
+
+	return s;
+}
+
+StringArray Dialog::PageBase::getVisibilityNames()
+{
+	return { "Default", "Hidden", "Placeholder" };
+}
+
 var Dialog::PageBase::getPropertyFromInfoObject(const Identifier& id) const
 {
 	return infoObject.getProperty(id, var(""));

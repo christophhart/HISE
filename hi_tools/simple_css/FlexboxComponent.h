@@ -59,13 +59,14 @@ struct FlexboxComponent: public Component,
     {
         bool isVisible(bool displayValue) const
         {
-            displayValue |= mustBeVisible;
+			displayValue |= mustBeVisible;
             displayValue &= !mustBeHidden;
             return displayValue;
         }
 
         bool mustBeVisible = true;
         bool mustBeHidden = false;
+		bool usePlaceHolder = false;
     };
     
 	struct Helpers
@@ -91,8 +92,6 @@ struct FlexboxComponent: public Component,
 		{
 			return c.getProperties()["inline-style"].toString().trim();
 		}
-
-		
 
 		static void writeInlineStyle(Component& c, const String& inlineCode)
 		{
@@ -174,11 +173,32 @@ struct FlexboxComponent: public Component,
 	{
 		labelSelector = s;
 	}
-    
-    void setFlexChildVisibility(int childIndex, bool mustBeVisible, bool mustBeHidden)
+
+	void setFlexChildVisibility(int childIndex, bool mustBeVisible, bool mustBeHidden)
+	{
+		VisibleState s;
+		s.mustBeHidden = mustBeHidden;
+		s.mustBeVisible = mustBeVisible;
+		setFlexChildVisibility(childIndex, s);
+	}
+
+	bool isVisibleOrPlaceHolder(Component* c) const
+	{
+		if(visibleStates.find(c) != visibleStates.end())
+		{
+			if(visibleStates.at(c).usePlaceHolder)
+				return true;
+
+			return visibleStates.at(c).isVisible(c->isVisible());
+		}
+
+		return c->isVisible();
+	}
+
+    void setFlexChildVisibility(int childIndex, VisibleState newState)
     {
         auto c = getChildComponent(childIndex);
-        visibleStates[c] = { mustBeVisible, mustBeHidden };
+        visibleStates[c] = newState;
     }
 
 	void setIsInvisibleWrapper(bool shouldBeInvisibleWrapper);

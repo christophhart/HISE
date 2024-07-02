@@ -9,13 +9,13 @@ using namespace juce;
 Dialog* BroadcasterWizard::createDialog(State& state)
 {
 	DynamicObject::Ptr fullData = new DynamicObject();
-	fullData->setProperty(mpid::LayoutData, JSON::parse(R"({"StyleSheet": "Dark", "Style": "#targetMetadata,\n#contextItems\n{\n\theight: 120px;\n}\n\n\n\n#targetMetadata input,\n#contextItems input\n{\n\theight: 100%;\n\tfont-family: monospace;\n\tfont-size: 14px;\n\tvertical-align: top;\n\tpadding-top: 5px;\n}\n\n.button-selector\n{\n\tflex-wrap:wrap;\n\tgap:0px;\n}\n\n.button-selector div\n{\n\twidth: 33%;\n\tgap: 0px;\n\tpadding: 5px;\n}\n\n.button-selector label\n{\n\tdisplay: none;\n}\n\n.button-selector .toggle-button\n{\n\tbackground: #222;\n\tcolor: #ccc;\n\tborder-radius: 5px;\n\tfont-family: monospace;\n\tfont-size: 15px;\n}\n\n.button-selector button:checked\n{\n\tbackground: #aaa;\n\tcolor: #222;\n\tborder-radius: 5px;\n}\n\n.button-selector button::before,\n.button-selector button::after\n{\n\tdisplay: none;\n}\n\n\n", "UseViewport": true, "DialogWidth": 832, "DialogHeight": 716})"));
+	fullData->setProperty(mpid::LayoutData, JSON::parse(R"({"StyleSheet": "Dark", "Style": "#targetMetadata,\n#contextItems\n{\n\theight: 120px;\n}\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n\n\n#targetMetadata input,\n#contextItems input\n{\n\theight: 100%;\n\tfont-family: monospace;\n\tfont-size: 14px;\n\tvertical-align: top;\n\tpadding-top: 5px;\n}\n\nlabel\n{\n\tmin-width: 100px;\n}\n\n.button-selector\n{\n\tflex-wrap:wrap;\n\tgap:0px;\n}\n\n.button-selector div\n{\n\twidth: 33%;\n\tgap: 0px;\n\tpadding: 5px;\n}\n\n.button-selector label\n{\n\tdisplay: none;\n}\n\n.button-selector .toggle-button\n{\n\tbackground: #222;\n\tcolor: #ccc;\n\tborder-radius: 5px;\n\tfont-family: monospace;\n\tfont-size: 13px;\n\tmargin-right: 5px;\n}\n\n.button-selector button:checked\n{\n\tbackground: #aaa;\n\tcolor: #222;\n\tborder-radius: 5px;\n}\n\n.button-selector button::before,\n.button-selector button::after\n{\n\tdisplay: none;\n}\n\n\n", "UseViewport": true, "ConfirmClose": true, "DialogWidth": 832, "DialogHeight": 716})"));
 	fullData->setProperty(mpid::Properties, JSON::parse(R"({"Header": "Broadcaster Wizard", "Subtitle": "", "Image": "", "ProjectName": "BroadcasterWizard", "Company": "", "Version": "", "BinaryName": "", "UseGlobalAppData": false, "Icon": ""})"));
 	using namespace factory;
 	auto mp_ = new Dialog(var(fullData.get()), state, false);
 	auto& mp = *mp_;
 	auto& List_0 = mp.addPage<List>({
-	  { mpid::Style, "gap: 15px;" }
+	  { mpid::Style, "gap: 20px;" }
 	});
 
 	List_0.addChild<JavascriptFunction>({
@@ -121,8 +121,7 @@ This will create a script line calling one of the `attachToXXX()` functions that
 	Column_10.addChild<Button>({
 	  { mpid::Text, "ComponentValue" }, 
 	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "The value of a component. This will register the broadcaster as additional value callback that will be fired whenever the control callback will be executed." }, 
-	  { mpid::NoLabel, 0 }
+	  { mpid::Help, "The value of a component. This will register the broadcaster as additional value callback that will be fired whenever the control callback will be executed." }
 	});
 
 	Column_10.addChild<Button>({
@@ -218,7 +217,6 @@ Attaching a broadcaster to a complex data object lets you listen to table edit c
 	List_28.addChild<Choice>({
 	  { mpid::Text, "DataType" }, 
 	  { mpid::ID, "complexDataType" }, 
-	  { mpid::Custom, 0 }, 
 	  { mpid::ValueMode, "Text" }, 
 	  { mpid::Items, R"(Table
 SliderPack
@@ -229,7 +227,6 @@ AudioFile)" },
 	List_28.addChild<Choice>({
 	  { mpid::Text, "Event Type" }, 
 	  { mpid::ID, "complexEventType" }, 
-	  { mpid::Custom, 0 }, 
 	  { mpid::ValueMode, "Text" }, 
 	  { mpid::Help, R"(The event type you want to listen to.
 
@@ -247,15 +244,6 @@ DisplayIndex)" }
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -267,15 +255,6 @@ element.onValue = function(value)
 	  { mpid::Help, R"(The slot index of the complex data object that you want to listen to.
 
 > Some modules have multiple complex data objects (eg. the table envelope has two tables for the attack and release phase so if you want to listen to the release table, you need to pass in `1` here.)" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -284,15 +263,6 @@ element.onValue = function(value)
 	  { mpid::ID, "attachMetadata" }, 
 	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -326,15 +296,6 @@ Attaches the broadcaster to changes of the script properties like `enabled`, `te
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The property you want to listen to. You can also use a comma-separated list for multiple properties" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -343,15 +304,6 @@ element.onValue = function(value)
 	  { mpid::ID, "attachMetadata" }, 
 	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -380,15 +332,6 @@ This attachment mode will register the broadcaster to control callbacks of a Com
 	  { mpid::ID, "attachMetadata" }, 
 	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -409,15 +352,6 @@ This mode attaches the broadcaster to whether the component is actually shown on
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "A comma-separated list of all components that you want to listen to." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -426,15 +360,6 @@ element.onValue = function(value)
 	  { mpid::ID, "attachMetadata" }, 
 	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -455,15 +380,6 @@ This attach mode will show a context menu when you click on the registered UI co
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "A comma-separated list of all components that you want to listen to." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -473,15 +389,6 @@ element.onValue = function(value)
 	  { mpid::EmptyText, "Enter state function id..." }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "A function name that will be created by the template generator to query the active and ticked state of each context menu item. " }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -499,8 +406,7 @@ element.onValue = function(value)
 	List_48.addChild<Button>({
 	  { mpid::Text, "Trigger on Left Click" }, 
 	  { mpid::ID, "contextLeftClick" }, 
-	  { mpid::Help, "If this is true, the context menu will be shown when you click on the UI element with the left mouse button, otherwise it will require a right click to show up." }, 
-	  { mpid::Code, "Console.print(value);" }
+	  { mpid::Help, "If this is true, the context menu will be shown when you click on the UI element with the left mouse button, otherwise it will require a right click to show up." }
 	});
 
 	List_48.addChild<TextInput>({
@@ -529,15 +435,6 @@ This attachment mode will register one or more Parametriq EQ modules to the broa
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -556,8 +453,8 @@ FFTEnabled)" },
 - `BandRemoved`
 - `BandSelected`
 - `FFTEnabled`)" }, 
-	  { mpid::Code, "Console.print(value);" }, 
-	  { mpid::Height, 80 }
+	  { mpid::Height, 80 }, 
+	  { mpid::ParseArray, 1 }
 	});
 
 	List_55.addChild<TextInput>({
@@ -584,15 +481,6 @@ Attaches the broadcaster to attribute changes of one or more modules.)" }
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -604,7 +492,6 @@ element.onValue = function(value)
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The parameters that you want to listen to. This can be either the actual parameter names or the indexes of the parameters" }, 
-	  { mpid::Code, "Console.print(value);" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -613,7 +500,6 @@ element.onValue = function(value)
 	  { mpid::ID, "attachMetadata" }, 
 	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, "Console.print(value);" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -634,22 +520,12 @@ This attachment mode will cause the broadcaster to fire at certain mouse callbac
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "A comma-separated list of all components that you want to listen to." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
 	List_65.addChild<Choice>({
 	  { mpid::Text, "Callback Type" }, 
 	  { mpid::ID, "mouseCallbackType" }, 
-	  { mpid::Custom, 0 }, 
 	  { mpid::ValueMode, "Text" }, 
 	  { mpid::Help, "The callback level that determines when the broadcaster will send a message" }, 
 	  { mpid::Items, R"(No Callbacks
@@ -701,15 +577,6 @@ This will attach the broadcaster to a radio group (a selection of multiple butto
 	  { mpid::Required, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The radio group id as it was set as `radioGroup` script property to the buttons that you want to listen to." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -737,15 +604,6 @@ This attaches the broadcaster to changes in a channel routing of one or more mod
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -754,15 +612,6 @@ element.onValue = function(value)
 	  { mpid::ID, "attachMetadata" }, 
 	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -793,98 +642,43 @@ Now you can add a target listener which will receive the events caused by the ev
 	Column_83.addChild<Button>({
 	  { mpid::Text, "None" }, 
 	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "Skip the creation of a target callback." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }
+	  { mpid::Help, "Skip the creation of a target callback." }
 	});
 
 	Column_83.addChild<Button>({
 	  { mpid::Text, "Callback" }, 
 	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "A script function that will be executed immediately when the event occurs." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }
+	  { mpid::Help, "A script function that will be executed immediately when the event occurs." }
 	});
 
 	Column_83.addChild<Button>({
 	  { mpid::Text, "Callback (Delayed)" }, 
 	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "A script function that will be executed with a given delay after the event occurred." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }
+	  { mpid::Help, "A script function that will be executed with a given delay after the event occurred." }
 	});
 
 	Column_83.addChild<Button>({
 	  { mpid::Text, "Component Property" }, 
 	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "This will change a component property based on a customizeable function that must calculate and return the value" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }
+	  { mpid::Help, "This will change a component property based on a customizeable function that must calculate and return the value" }
 	});
 
 	Column_83.addChild<Button>({
 	  { mpid::Text, "Component Refresh" }, 
 	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "Simply sends out a component refresh method (eg. `repaint()`) to its registered components." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }
+	  { mpid::Help, "Simply sends out a component refresh method (eg. `repaint()`) to its registered components." }
 	});
 
 	Column_83.addChild<Button>({
 	  { mpid::Text, "Component Value" }, 
 	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "This sets the value of a component" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }
+	  { mpid::Help, "This sets the value of a component" }
 	});
 
 	Column_83.addChild<Button>({
 	  { mpid::Text, "Module Parameter" }, 
 	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "This will sync the given module parameter to the last argument of the broadcaster." }, 
-	  { mpid::NoLabel, 0 }
+	  { mpid::Help, "This will sync the given module parameter to the last argument of the broadcaster." }
 	});
 
 	Column_83.addChild<List>({
@@ -924,15 +718,6 @@ This will call a function with a customizeable `this` object.)" }
 	  { mpid::ID, "thisTarget" }, 
 	  { mpid::EmptyText, "Enter this object..." }, 
 	  { mpid::Help, "You can specify any HiseScript expression that will be used as `this` object in the function." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -941,15 +726,6 @@ element.onValue = function(value)
 	  { mpid::ID, "targetFunctionId" }, 
 	  { mpid::EmptyText, "Enter function ID..." }, 
 	  { mpid::Help, "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -959,15 +735,6 @@ element.onValue = function(value)
 	  { mpid::EmptyText, "Enter metadata (required)..." }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -985,15 +752,6 @@ This will call a script function with a delay.)" }
 	  { mpid::ID, "thisTarget" }, 
 	  { mpid::EmptyText, "Enter this object..." }, 
 	  { mpid::Help, "You can specify any HiseScript expression that will be used as `this` object in the function." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1010,7 +768,6 @@ element.onValue = function(value)
 	  { mpid::EmptyText, "Enter delay time (ms)..." }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The delay time in milliseconds" }, 
-	  { mpid::Code, "Console.print(value);" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1020,10 +777,7 @@ element.onValue = function(value)
 	  { mpid::EmptyText, "Enter metadata (required)..." }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::Height, 80 }, 
-	  { mpid::Autofocus, 0 }, 
-	  { mpid::CallOnTyping, 0 }
+	  { mpid::Height, 80 }
 	});
 
 	auto& List_107 = targetType_93.addChild<List>({
@@ -1045,15 +799,6 @@ This will set one or more component properties of one or more components to a gi
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "A comma-separated list of all component IDs that you want to listen to." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1065,15 +810,6 @@ element.onValue = function(value)
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The property you want to listen to. You can also use a comma-separated list for multiple properties" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1082,15 +818,6 @@ element.onValue = function(value)
 	  { mpid::ID, "targetFunctionId" }, 
 	  { mpid::EmptyText, "Enter function ID..." }, 
 	  { mpid::Help, "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1100,15 +827,6 @@ element.onValue = function(value)
 	  { mpid::EmptyText, "Enter metadata (required)..." }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1129,22 +847,12 @@ This will send out an update message to the specified components)" }
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "A comma-separated list of all component IDs that you want to listen to." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
 	List_113.addChild<Choice>({
 	  { mpid::Text, "Refresh Type" }, 
 	  { mpid::ID, "targetRefreshType" }, 
-	  { mpid::Custom, 0 }, 
 	  { mpid::ValueMode, "Text" }, 
 	  { mpid::Help, R"(The type of refresh message that should be sent:
 
@@ -1157,16 +865,7 @@ element.onValue = function(value)
 changed
 updateValueFromProcessorConnection
 loseFocus
-resetValueToDefault)" }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }
+resetValueToDefault)" }
 	});
 
 	List_113.addChild<TextInput>({
@@ -1175,15 +874,6 @@ element.onValue = function(value)
 	  { mpid::EmptyText, "Enter metadata (required)..." }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1204,15 +894,6 @@ This will cause a value change alongside with a control callback for the given c
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "A comma-separated list of all component IDs that you want to listen to." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1221,15 +902,6 @@ element.onValue = function(value)
 	  { mpid::ID, "targetFunctionId" }, 
 	  { mpid::EmptyText, "Enter function ID..." }, 
 	  { mpid::Help, "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1239,15 +911,6 @@ element.onValue = function(value)
 	  { mpid::EmptyText, "Enter metadata (required)..." }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 
@@ -1268,10 +931,7 @@ Attaching this as listener will send the last argument of the broadcaster as par
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "The ID of the module that you want to send the parameter change to." }, 
-	  { mpid::Height, 80 }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::Autofocus, 0 }, 
-	  { mpid::CallOnTyping, 0 }
+	  { mpid::Height, 80 }
 	});
 
 	List_123.addChild<TextInput>({
@@ -1282,10 +942,7 @@ Attaching this as listener will send the last argument of the broadcaster as par
 	  { mpid::ParseArray, 1 }, 
 	  { mpid::Items, "{DYNAMIC}" }, 
 	  { mpid::Help, "A single parameter (either an integer or the parameter ID) that should be set for the given module" }, 
-	  { mpid::Height, 80 }, 
-	  { mpid::NoLabel, 0 }, 
-	  { mpid::Autofocus, 0 }, 
-	  { mpid::CallOnTyping, 0 }
+	  { mpid::Height, 80 }
 	});
 
 	List_123.addChild<TextInput>({
@@ -1294,15 +951,6 @@ Attaching this as listener will send the last argument of the broadcaster as par
 	  { mpid::EmptyText, "Enter metadata (required)..." }, 
 	  { mpid::Required, 1 }, 
 	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Code, R"(// initialisation, will be called on page load
-Console.print("init");
-
-element.onValue = function(value)
-{
-	// Will be called whenever the value changes
-	Console.print(value);
-}
-)" }, 
 	  { mpid::Height, 80 }
 	});
 

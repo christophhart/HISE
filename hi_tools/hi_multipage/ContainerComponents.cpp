@@ -94,6 +94,14 @@ void Container::postInit()
 		if(stateObject.hasProperty(c->getId()))
 			c->clearInitValue();
 
+		for(int i = 0; i < getNumChildComponents(); i++)
+		{
+			if(getChildComponent(i) == c)
+			{
+				setFlexChildVisibility(i, c->getVisibility());
+			}
+		}
+
         c->postInit();
     }
 
@@ -281,6 +289,14 @@ void List::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Text, mpid::Style.toString() },
         { mpid::Value, infoObject[mpid::Style] },
 		{ mpid::Help, "Additional inline properties that will be used by the UI element" }
+	});
+
+	prop.addChild<Choice>({
+		{ mpid::ID, mpid::Visibility.toString() },
+		{ mpid::Text, mpid::Visibility.toString() },
+        { mpid::Items, Dialog::PageBase::getVisibilityNames().joinIntoString("\n") },
+        { mpid::Value, infoObject[mpid::Visibility] },
+		{ mpid::Help, "Whether to show or hide the element" }
 	});
 
     prop.addChild<Button>({
