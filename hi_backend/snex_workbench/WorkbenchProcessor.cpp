@@ -446,10 +446,20 @@ void DspNetworkCompileExporter::run()
 
 #if HISE_INCLUDE_FAUST_JIT
 	DBG("sourceDir: " + sourceDir.getFullPathName());
-	auto codeDestDir = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src");
+
+
+
+	auto codeDestDir = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src_");
 	auto codeDestDirPath = codeDestDir.getFullPathName().toStdString();
+
+	auto realCodeDestDir = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src");
+	
 	if (!codeDestDir.isDirectory())
 		codeDestDir.createDirectory();
+
+	if(!realCodeDestDir.isDirectory())
+		realCodeDestDir.createDirectory();
+
 	DBG("codeDestDirPath: " + codeDestDirPath);
 
 	auto boilerplateDestDirPath = codeDestDir.getParentDirectory().getFullPathName().toStdString();
@@ -486,7 +496,11 @@ void DspNetworkCompileExporter::run()
 			}
 		}
 
+
 		auto code_path = scriptnode::faust::faust_jit_helpers::genStaticInstanceCode(_classId, faustSourcePath, faustLibraryPaths, codeDestDirPath);
+		
+		auto ok = codeDestDir.getChildFile(code_path).copyFileTo(realCodeDestDir.getChildFile(code_path));
+
 		if (code_path.size() > 0)
 			DBG("Wrote code file to " + code_path);
 		else

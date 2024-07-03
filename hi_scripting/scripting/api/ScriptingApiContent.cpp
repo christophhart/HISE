@@ -5656,7 +5656,8 @@ struct ScriptingApi::Content::ScriptMultipageDialog::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptMultipageDialog, resetDialog);
 	API_METHOD_WRAPPER_0(ScriptMultipageDialog, addPage);
 	API_METHOD_WRAPPER_3(ScriptMultipageDialog, add);
-	API_METHOD_WRAPPER_2(ScriptMultipageDialog, bindCallback);
+	API_METHOD_WRAPPER_2(ScriptMultipageDialog, navigate);
+	API_METHOD_WRAPPER_3(ScriptMultipageDialog, bindCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, setOnFinishCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, setOnPageLoadCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, show);
@@ -5665,6 +5666,7 @@ struct ScriptingApi::Content::ScriptMultipageDialog::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptMultipageDialog, setElementValue);
 	API_METHOD_WRAPPER_2(ScriptMultipageDialog, getElementProperty);
 	API_METHOD_WRAPPER_0(ScriptMultipageDialog, getState);
+	API_METHOD_WRAPPER_1(ScriptMultipageDialog, exportAsMonolith);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, loadFromDataFile);
 };
 
@@ -5707,16 +5709,18 @@ ScriptingApi::Content::ScriptMultipageDialog::ScriptMultipageDialog(ProcessorWit
 	ADD_API_METHOD_0(resetDialog);
 	ADD_API_METHOD_0(addPage);
 	ADD_API_METHOD_3(add);
-	ADD_API_METHOD_2(bindCallback);
+	ADD_API_METHOD_3(bindCallback);
 	ADD_API_METHOD_1(setOnFinishCallback);
 	ADD_API_METHOD_1(setOnPageLoadCallback);
 	ADD_API_METHOD_1(show);
+	ADD_API_METHOD_2(navigate);
 	ADD_API_METHOD_0(cancel);
 	ADD_API_METHOD_3(setElementProperty);
 	ADD_API_METHOD_2(setElementValue);
 	ADD_API_METHOD_2(getElementProperty);
 	ADD_API_METHOD_0(getState);
 	ADD_API_METHOD_1(loadFromDataFile);
+	ADD_API_METHOD_1(exportAsMonolith);
 
 	multipage::Factory f;
 
@@ -5874,7 +5878,7 @@ int ScriptingApi::Content::ScriptMultipageDialog::add(int parentIndex, String ty
 
 					if(callable != nullptr)
 					{
-						auto code = bindCallback(callable->getCallId().toString(), properties["Callback"]);
+						auto code = bindCallback(callable->getCallId().toString(), properties["Callback"], ApiHelpers::getDispatchTypeMagicNumber(dispatch::DispatchType::sendNotificationAsync));
 						newInfoObject->removeProperty("Callback");
 						newInfoObject->setProperty(mpid::Code, code);
 					}
@@ -5898,9 +5902,11 @@ int ScriptingApi::Content::ScriptMultipageDialog::add(int parentIndex, String ty
 	return -1;
 }
 
-String ScriptingApi::Content::ScriptMultipageDialog::bindCallback(String id, var callback)
+String ScriptingApi::Content::ScriptMultipageDialog::bindCallback(String id, var callback, var notificationType)
 {
-	auto nc = new ValueCallback(this, id, callback);
+	auto n = ApiHelpers::getDispatchType(notificationType, false);
+
+	auto nc = new ValueCallback(this, id, callback, n);
 	valueCallbacks.add(nc);
 	
 	String callCode;
@@ -5947,7 +5953,25 @@ void ScriptingApi::Content::ScriptMultipageDialog::setElementProperty(int elemen
 
 void ScriptingApi::Content::ScriptMultipageDialog::setElementValue(int elementId, var value)
 {
-	jassertfalse;
+	if(isPositiveAndBelow(elementId, elementData.size()))
+	{
+		DynamicObject::Ptr obj = elementData[elementId].getDynamicObject();
+
+		auto id = obj->getProperty(multipage::mpid::ID).toString();
+
+		getMultipageState()->globalState.getDynamicObject()->setProperty(id, value);
+
+		if(auto f = getMultipageState()->getFirstDialog())
+		{
+			if(auto pb = f->findPageBaseForInfoObject(elementData[elementId]))
+			{
+				SafeAsyncCall::call<multipage::Dialog::PageBase>(*pb, [](multipage::Dialog::PageBase& p)
+				{
+					p.postInit();
+				});
+			}
+		}
+	}
 }
 
 var ScriptingApi::Content::ScriptMultipageDialog::getElementProperty(int elementId, String propertyId) const
@@ -5959,6 +5983,40 @@ var ScriptingApi::Content::ScriptMultipageDialog::getElementProperty(int element
 var ScriptingApi::Content::ScriptMultipageDialog::getState()
 {
 	return getMultipageState()->globalState;
+}
+
+void ScriptingApi::Content::ScriptMultipageDialog::loadFromDataFile(var fileObject)
+{
+	if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(fileObject.getObject()))
+	{
+		monolithFile = sf->f;
+	}
+}
+
+String ScriptingApi::Content::ScriptMultipageDialog::exportAsMonolith(var optionalFile)
+{
+	multipage::MonolithData md(nullptr);
+
+	if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(optionalFile.getDynamicObject()))
+	{
+		FileOutputStream fos(sf->f);
+		md.exportMonolith(*getMultipageState(), &fos);
+		return "";
+	}
+	else
+	{
+		MemoryOutputStream mos;
+		md.exportMonolith(*getMultipageState(), &mos);
+
+		mos.flush();
+
+
+
+		
+
+
+		return mos.getMemoryBlock().toBase64Encoding();
+	}
 }
 
 void ScriptingApi::Content::ScriptMultipageDialog::preRecompileCallback()
@@ -5987,6 +6045,22 @@ void ScriptingApi::Content::ScriptMultipageDialog::onMultipageLog(ScriptMultipag
 #define SET_STYLE(id, propId) styleData->setProperty(id, getScriptObjectProperty(propId));
 
 
+var ScriptingApi::Content::ScriptMultipageDialog::ValueCallback::operator()(const var::NativeFunctionArgs& a)
+{
+	if(n == dispatch::DispatchType::sendNotificationAsync)
+	{
+		callback.call(a);
+	}
+	else
+	{
+		auto ok = callback.callSync(a, nullptr);
+
+		if(!ok.wasOk())
+			callback.reportError(ok);
+	}
+
+	return var();
+}
 
 var ScriptingApi::Content::ScriptMultipageDialog::createDialogData(String cssToUse)
 {
@@ -6001,7 +6075,8 @@ var ScriptingApi::Content::ScriptMultipageDialog::createDialogData(String cssToU
 
 	if(monolithFile.existsAsFile())
 	{
-		MonolithData mf(monolithFile);
+		FileInputStream fis(monolithFile);
+		MonolithData mf(&fis);
 
 		no = mf.getJSON().getDynamicObject();
 

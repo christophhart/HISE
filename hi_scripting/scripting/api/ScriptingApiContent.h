@@ -2172,7 +2172,7 @@ public:
 		int add(int parentIndex, String type, const var& properties);
 
 		/** Registers a callable object to the dialog and returns the codestring that calls it from within the dialogs Javascript engine. */
-		String bindCallback(String id, var callback);
+		String bindCallback(String id, var callback, var notificationType);
 
 		/** Registers a function that will be called when the dialog is finished. */
 		void setOnFinishCallback(var onFinish);
@@ -2182,6 +2182,36 @@ public:
 
 		/** Shows the dialog (with optionally clearing the state. */
 		void show(bool clearState);
+
+		/** Navigates to the given page index. */
+		bool navigate(int pageIndex, bool submitCurrentPage)
+		{
+			getMultipageState()->currentPageIndex = pageIndex;
+
+			if(submitCurrentPage && getMultipageState()->getFirstDialog() != nullptr)
+			{
+				SafeAsyncCall::call<multipage::State>(*getMultipageState(), [pageIndex](multipage::State& s)
+				{
+					s.currentPageIndex = pageIndex - 1;
+					s.getFirstDialog()->navigate(true);
+				});
+				
+				return true;
+			}
+			else
+			{
+				SafeAsyncCall::call<multipage::State>(*getMultipageState(), [pageIndex](multipage::State& s)
+				{
+					s.currentPageIndex = pageIndex;
+
+					for(auto f: s.currentDialogs)
+						f->refreshCurrentPage();
+					
+				});
+
+				return true;
+			}
+		}
 
 		/** Closes the dialog (as if the user pressed the cancel button). */
 		void cancel();
@@ -2199,13 +2229,10 @@ public:
 		var getState();
 
 		/** Loads the dialog from a file (on the disk). */
-		void loadFromDataFile(var fileObject)
-		{
-			if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(fileObject.getObject()))
-			{
-				monolithFile = sf->f;
-			}
-		}
+		void loadFromDataFile(var fileObject);
+
+		/** Exports the entire dialog. */
+		String exportAsMonolith(var optionalFile);
 
 		// ========================================================================================================
 
@@ -2375,24 +2402,22 @@ public:
 
 		struct ValueCallback
 		{
-			ValueCallback(ScriptMultipageDialog* p, String name_, const var& functionToCall):
+			ValueCallback(ScriptMultipageDialog* p, String name_, const var& functionToCall, dispatch::DispatchType n_):
 			  callback(p->getScriptProcessor(), p, functionToCall, 2),
-			  name(name_)
+			  name(name_),
+			  n(n_)
 			{
 				callback.incRefCount();
 				callback.setThisObject(p);
 				args[0] = var(name);
 			};
 
-			var operator()(const var::NativeFunctionArgs& a)
-			{
-				callback.call(a);
-				return var();
-			}
+			var operator()(const var::NativeFunctionArgs& a);
 
 			String name;
 			var args[2];
 			WeakCallbackHolder callback;
+			const dispatch::DispatchType n;
 		};
 
 		OwnedArray<ValueCallback> valueCallbacks;

@@ -540,6 +540,12 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("There should be at least the following directories inside: \"share\", \"lib\", \"include\"");
 		P_();
 
+		P(HiseSettings::Compiler::ExportSetup);
+		D("If this is ticked the system is ready for export.  ");
+		D("Starting with HISE 4.0.1 this will be deactivated by default until the export setup wizard has been executed once.");
+		D("> Nobody prevents you from ticking the box here in order to bypass the export wizard...");
+		P_();
+
         P(HiseSettings::Compiler::FaustExternalEditor);
         D("If enabled, the edit button in the faust node will launch an external editor for ");
         D("editing the faust source files. If disabled, it will use a FaustCodeEditor floating tile");
@@ -921,6 +927,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
         id == Compiler::FaustExternalEditor ||
+		id == Compiler::ExportSetup ||
 		id == Project::SupportMonoFX ||
 		id == Project::EnableMidiInputFX ||
         id == Project::EnableMidiOut ||
@@ -1154,6 +1161,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
 	else if (id == Project::CompileWithPerfetto)	return "No";
+	else if (id == Compiler::ExportSetup)			return "No";
 	else if (id == Project::CompileWithDebugSymbols) return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)       return "No";

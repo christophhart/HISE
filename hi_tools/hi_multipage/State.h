@@ -515,19 +515,19 @@ struct MonolithData
 
     static String getMarkerName(Markers m);
 
-    MonolithData(const File& location_);
-
+    MonolithData(InputStream* input);
+    
     multipage::Dialog* create(State& state);
     
-    static Result exportMonolith(State& state, const File& target);
+    static Result exportMonolith(State& state, OutputStream* output);
     var getJSON() const;
 
 private:
 
-    int64 expectFlag(FileInputStream& fis, Markers m, bool throwIfMismatch=true);
-    var readJSON(FileInputStream& fis, int64 numToRead);
+    int64 expectFlag(Markers m, bool throwIfMismatch=true);
+    var readJSON(int64 numToRead);
 
-    File location;
+    InputStream* input;
 };
 
 struct HardcodedDialogWithState: public Component
