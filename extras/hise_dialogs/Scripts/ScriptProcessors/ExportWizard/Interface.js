@@ -139,6 +139,10 @@ inline function checkIDE(id, state)
 			state.ippExists = true;
 		}
 	}
+	else
+	{
+		Console.print("MACOS!");
+	}
 }
 
 mp.add(secondPage, mp.types.JavascriptFunction, { ID: "checkIDE", Code: mp.bindCallback("checkIDE", checkIDE, SyncNotification)});
@@ -150,8 +154,27 @@ mp.add(secondPage, mp.types.MarkdownText, { Text: "First we'll check whether the
 
 const var ideBranch = mp.add(secondPage, mp.types.Branch, { ID: "OS"});
 
-const var macOSIDE = mp.add(ideBranch, mp.types.List, {});
+const var linuxIDE = mp.add(ideBranch, mp.types.List, {});
 const var windowsIDE = mp.add(ideBranch, mp.types.List, {});
+const var macOSIDE = mp.add(ideBranch, mp.types.List, {});
+
+const var xcodeExists = mp.add(macOSIDE, mp.types.Button, {
+	ID: "xcodeExists",
+	Enabled: false, 
+	Text: "Checking Xcode", 
+	Class: ".checkbutton",
+	Help: "If this is not checked, please download and install the latest Xcode version from either [here](https://xcodereleases.com) or through the App Store.", 
+	Required: true
+});
+
+const var xcPrettyExists = mp.add(macOSIDE, mp.types.Button, {
+	ID: "xcPrettyExists",
+	Enabled: false, 
+	Text: "Checking xcpretty", 
+	Class: ".checkbutton",
+	Help: "If this is not checked, please download and install [xcpretty](https://github.com/xcpretty/xcpretty).  \n> The installation is as easy as opening a terminal window and type in `gem install xcpretty`.", 
+	Required: true
+});
 
 const var msBuildExists = mp.add(windowsIDE, mp.types.Button, 
 { 
@@ -207,6 +230,7 @@ const var hisePathExists = mp.add(thirdPage, mp.types.Button,
 { 
 	ID: "hisePathExists", 
 	Text: "Checking HISE Path...",
+	Class: ".checkbutton",
 	Enabled: false,
 	Help: "If this is not checked, then the wizard will download and extract the HISE path to the location you specify"
 });
@@ -215,6 +239,7 @@ const var hiseVersionMatches = mp.add(thirdPage, mp.types.Button,
 { 
 	ID: "hiseVersionMatches", 
 	Text: "Checking Version...",
+	Class: ".checkbutton",
 	Enabled: false,
 	Required: true,
 	Help: "If this is not checked, then the source code in the HISE path does not match the HISE version of this build. This will lead to unpredicted behaviour so make sure that you're using the exact source code that was used for compiling HISE"
@@ -263,6 +288,7 @@ mp.add(page4, mp.types.JavascriptFunction, { Code: mp.bindCallback("checkSDK", c
 const var projucerWorks = mp.add(page4, mp.types.Button, {
 	ID: "projucerWorks",
 	Text: "Check Projucer...",
+	Class: ".checkbutton",
 	Enabled: false,
 	Required: true,
 	Help: "If this is not checked, then your system cannot launch the Projucer from the HISE source code folder"
@@ -271,6 +297,7 @@ const var projucerWorks = mp.add(page4, mp.types.Button, {
 mp.add(page4, mp.types.Button, {
 	ID: "sdkExists",
 	Text: "Checking SDKs...",
+	Class: ".checkbutton",
 	Enabled: false,
 	Help: "The SDKs are necessary to compile VST3 and standalone apps with the ASIO driver"
 });

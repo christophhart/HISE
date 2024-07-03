@@ -3147,8 +3147,8 @@ struct ExportSetupWizard: public EncodedDialogBase
 	ExportSetupWizard():
 	  EncodedDialogBase()
 	{
-		auto c = "2469.jNB..zXB........nT6K8CFLlzAS.n8VbCQKv5LiafUHFTJQrY8PqhrrVhHrOol8ugvBByvkE2lQGcragv4SRN9A8eP+b5BhEDPBALP.s.VKpG8rHz9Qcrl5ZMlUEUoGlwS+UgOqU5+2gEJq2xnjeH+f.RyJKOrVa+CN5+H+jA4mXiwQ4GHSgn7lu6squyKwVLUMMmSDYLOxfoJpJJJRGVoMGUPdjguJzU3VywW7Y8E3b0ohRRdx4ZdT1CXD1Y22W6S8IINSq0TsgOsmN0yzG61PWirVjgY87pqP3gIVlfIBKsDFebu0RnEUSpfoREsebWQGw32BFJVf.ykJXlPAySpeKQfwBELgjvXkKUnDwkL8yyfXRkJTp7vkITVqIZmGcMfvpnt7vZM0d.ufLo.MHsuhTk7UBdQOCjI+YKlVqoW5TLs6tMjg0ZhedSGK8WS61PFBXamr4jvsJc3mI6zz71uHlsOIOicEWaeIZKhylNxQ9KDke.0DFpNxiM1Rxw1d62PYve+Z2EVHTWaK83lF4sEwaZcVEH+rK0t8ydar0+kq+Zo5R69tt6L1aaLNZqvsMdR8Wg8rzFTnouHbSSUkkMPvthppHroqdTCGEpI6N5uVSiZHGXlrVfjv2imureomIfHVk0Zj+3sZDRShrVS+gXsdsNRZFwZIgfnLGBl9HANdfDZvDzxPSDS34gQZ5JNnhL1vQFMha34BYjYhmGRSfjGYjgxqvwHMQNPKYP8nnfizvSFTh1xPwHMzJL7HiInLw1CUOEkKSeVqFDyAi7jcNETnLl1uF2Wds0kKAzZPM8EtNXy0dfCnoecwL+2l1U2NDyQkczUBw.UPTMQhGLKxZRzhf0JOcPxVzYzNu5vEGRHxgVCIhsLyAI5BUWfjHQhDIjj2dI8SBmmQ8Zd0oYPNppHIRrpy+2JPGMs2nvx4TsE93rkdnriamLoZx5vW2esQtqB4XeaW4NNWH66RsN0JG0rWOX0PhSWlJ2VljoWXDIRjRw495Xj+Jj1aeuMZ2Xj.8n8qTHEP3royES6IFMzQSg0diVGHSOjCq6xhFD6QhAHPP5FujheBoYUVD2fOdrG2HpoSKqMWzISFdY+UOO+WcLUY4wSGqsmgUt96TcAFWMnqT1Sljh52WzNBe9iSFJG.9ngN93qtGo+fEUSaY.d5VEJgZdVppmQ6G0WIThDQP5awny0D04j2V5Q9gXiKN1RTtV6rVtQnWU1wQOaHpGAZm00XcU7PFH2ZsoSM+WL90r8RHL6jbSCU4MlPOnn8WYNIeagFPX.SRttnqI1Wkn9m0T3Ft5NBl9G4ZeQmhWW4Q0tm2bnHdqw1W+YvWSmxNtiarTX9x09SBe9AkzfY8rxYdb9YLkhZyBVXaY2Xak2194Y6H+hZz8eohHf+6y8r6ndS4s1aWKIY4mN5LIyQ64FYN+2W+jcVS2.A21JAd3BotVvBxtEjjyJEeVR6ONgAlSXGFJ3MnJ+fRHSoTzLxD.B...fPf..ABIJKRWO7AHNXDkDcPPPDgAH.f.BPY.H.DX.HBB.B.XH.gNf1oCdH1WGLfvBmkI9DwGuZL1mnnca5AKbvxhKRzJ60ajdNrrKibR3fj4dSj2EA0MzO0YoPAx7ILWzRI0OCCH5AV+lrGX09G5S8y0tV3abprt4Y2LBsR6LWoxGzuKYAwTN2MisF8UsL1CvxVgi08yk+ZPq+PA77yiat8+w9OJxL.ynYSoBDpFLvqIYX2ChL1Yu3a0inUTVhZWKxZZRHxoHSGhw++NYYxmPNMrAindolofUERmX85IEHYkwG96m9u.PHj4HObxR2YYQkxpF.gK.U3cJBu+2Sn0jVx5pgRFFMKwbjS5sPCgYClFo9HxmAKMLVPCNiYYTixO4X6gVIKUbXSpCvjN8MYYZC7inZ.gDf6dwFAAN2xcrSRBxwKGgPVaT8JFiIV7TnZINi348Qc34Je5U0FtTn6YZL.X4pAkX6IsC.pf+fz+mbBnJpNXSzMhRuk2EF4EQ6aYprEIzyPJpz1WyGag1AuL2PcQHYkg+nO1dNoW2f9MxSa7EJGFNWYoScCExuRtvOV+aDiy0vDeSRu9GqN4kL80MycsYALUnM9ExwZKj+Ep.8GV1cGpdDB7kctj.qhXIJMWb2Iq6Gf2i+.GkanWPglAR8fY58BNQ3+Y2xoIzqqyYiSPsZGxjXwfTxSXFZ95o2rrN0EOx9NUFjUkzb3P+Ns3SHCyBMEBsXSGsLUwU4DjX7VJPhdoBhljv4j4h5zL7vhb1tztjiu8S6wivfH77lICvRXRqswaH9zrfkg0SVwlg.E6snVh0Ii4eE1fWQ1Lbhv7L0KaAcGb3frIDcDdsDuPV3dktArZe4INIh7LGaKonePOuTxXcH3SEfd7XgJB6ujIFXsS4DKRg++QPxy1viQJljvRsQIhZ1H0khkCoXzRO5wBeKpXuCNqSL8tskUtWib2aBlc0rC5lREltGo4exNV4l30gX6oFlOGTPLW03FJKpr0VA9hKWo.E9aSrDsvPXz0iqGCOzNSP3koetMSiL8M1x7fwOrkcAIcitskCCEpajB3V16jWXQvOud8ELVIQ+J1aY66m5FDTkheJuRd.LI+PpAeQZt92I3Bl6SvAQFGQWfoi+Cln.wmvrC9HPHKAi+dCwhMYeaJFrgyuaT2dz65SUraoBEpLQjCbiJ7PRQUci1z1Mm.Qn2YvhiS.pkYtbhXoISFrfz51glZYN4gn9Jj.DiiAYAQE2V9ugDwfMUAdYeoTgWrgtuwSuODZpqbsfxvMD5HSOmHWIpAgjSRfK7PPsAcFZMKB6vBuTdV7qudCt4zIUSZvY.qArgiYxkFV3XZ6821ScQ55dVB6vNc5Yx82B.MKcfWUq6sd5FZcaRXZuN00gbBY.WbPO1ORdbk.kDiKeVjODql.mBHw.aqcHtZmzuDUflD5L4WG2eIA7P8Xp5vj8jD6tigCLLFQy7xRSId2d+QjbvYF1WDWHK5Py2ZOchP0iUMZFO6UtDzY6rOMm9p6Bsd.BUDjHOlYOCYAoM0zAmVj7azw2zJ5Y56fjrmBBcWMfkgnTHCJZxDdaKLI+p8buM9KAdn20dKov06omSDabrzRGtoKE+Av.8kb46iJtFFB217gK6mkL9o8r3qIUvsMMREXkUVX826PXCfd1.BtOLgpI+SqJinzncLBk3gDSXMmvSKQkikLx9XO6eOA.XVGnGm+nAEgjFL6EKGKAkkj7JnT4XZyysvgDKx2b40NXIvMOfD03M.LFTW7uwOK5v82+kX+7kPA9kNB..X5H..vpi...";
-		
+        auto c = "2628.jNB..vhB........nT6K8C1zpTQT.nXXTGQKv5LiafZwFcJQrY8PqhrrVxbrbSM5eCfUP5iXKrUmB9bggfSzoI7Ok9SS4+vhTD.FALQ.vIOImS+.Bio8mw8kWWc4RKfsh5QGaBseT+podVeUsUcODim9qBeUqz+m6BDVqgMIGQ9QBFMor7vVo8Onn+C4GYP9Qru3n7CIRfn7luaMqmy6XLjnjlSJh7kGafD0D0zCRGVosG0OdjgOKzUnVuwZ7X8E1tL5j7by07nrHvHrStus1m5yQUHsUR0F9zd5zNRiraCcMxYQFh0SqtBgGnXgBFIrzRX7wsVKgXPQoBlJTz9w8Ec7heKXhvBDXtTACkHv7i52hDXrDAFPRXrxkJQHwkL8ywffRkJQT4gKThXqjnbdz074hZ5xCakTKBzRhzBxfz1ZRUxVJ3E8LRj7mwPZqjdoagzt61PF1JI94Mcr6sj1sgLDUZOCqa8ygRiMrbPWobGLoE0usncD97WEYn70xI6MIbqRG9XRtrLucMhX6SxyXegk12Q6PUrgiTj+.Q4LllPPUQdru1Q901Z+BBC96W4tvJg5Ya2iaZj2NDqkwYWf7icmpvhyEq1O6suV+2s9qc0kx8cc2Yr01XTzVgZd9Q8Wg8ryiztUnouHTSCEkEsOv9BJpHroqdTyFElIaN5uURhZnGXnrUejv2imureoiIf3UksRj+Xs5jQTlrUS+gXq9rNNZJwVIgen7VBj9XBdjwDb.Ex3PiDTz4AQZ5JO3BN13QlNhd5bANxPwqyHJLRDNxL4U7PjlXEPKbL8llfh5nCGSgzxXgHMTpMDgCJhfBsGn9oHtH8wV0e3szXRdi1yMxa9uu9Iarlp8Aps0B7vURcCIDI29QxXcwmkz9iTbf4Dxggtioouv8AarVDf.M8iKh4+1Tt51f3MpjitRIGfBBJJS7fXQNahNDrV4IAjLFMFkyqDvxiIBQftiIhsDi.SvApx.GlLYxDPRV6cneNr4XSelWcJFbapFxAGppy+0L.HMs0pvt4zrE9pX6dnjaiBEJJqCebu0FYtJzi8sck63bkruKy3TqbTyZkwpYTEbYpaZXRlZswjIS5hy80wH+UHs09VSztwXAZQ6WoPKjTwFNVLsmaz.HMEV6MYbjH8vsKNKL5ObG4Fz9yGH0SHK9IjhU4PrCF4wdTJx2DpoyppMZvISFpcd9s.QhppSGNA.XjF.Yju5cj9CUSMskA3oc0iZUnDl0YmpNlFN3PHH8savwpNm71ROxODdr7X6nbs1XszCnWUxwQIi0YAQ8HPaLt9h6hG1.4VqMcl4+dweUi1KgvjSxMETk8LghLQ6uxaN7MFc.gAHI23htlXa0Q8GqovMb08DL8eh0lWzs30UVTk6YMGFh05q80OF70zoji6nmc5x2Z+IgOmQWFlG24iwzoIsPB46ZK69Zqr1Jx0nFc+WZGp.Mlz+84d1bTuo7V6QN72t1IY4GfLExV+Ijc18RnnMxR3Fs+kk8z6pbuUl8bfKtOUXhMp6+l1oo9asyIEZe3bpuGn1TXueseNJg94Xi.IBxEpROoDxTJEMin.....BgA.DNDYgoRJ95gz3QDRjAA4T.lAP.B..DI.B.PH.hf.fP.fZBPDMfvNz3jXSUX.sGzUlVdjNXCIpOzQaLAE+xHA5i7Zb+WfLOXSYFiyF6aZvQq2GG0WNITHZz5BQ1x3zOTbZIfJG6EEAe5c8gNyKSdqSnzDzEnrNAe3SZmX9IEHjQzeloprTQZeKSa4tn8WH3hX3dkUSgUF8fOUv48gLSSLJsYg6gLgDUCaLuHz6vXdlZOb2whFGFQwUgrtKwWOtX1mKRuvVvZTL68QajPRlVTRPOnbPSlQwYNVzA+U4JLNSl0OLRd9PF8WYLiqet1BGlMyJEbku3nFHRTUzuoP+Gr9iJcswKbSCihx28CjkV9g.TAaKgv4CtB2b0ma2WSYViNFhMmts1pD24mZvS5rooxN8lavvlv0k4t2ZmTsPnEICBRzB8JIBKrAZw4rUx22hqQ7LZoNYsR0KQz2NM+RQ7MlFD.t4JSkvjjRlRkFe.6E0cLhOdgM0BTixfqHlirxQaFjpmcBmaHOT9lfW9kGuoKj6AAUHWh0b1wTYIQwv9ZzwIHSCgKDiQx0peGw5YPV1VpEzXotK7QQqL3mG6aY9LIwLCjl0OVSYjBjO0wsPFWVEz+zMpnZPWoB+8ftfOgSkIh+97RUwPOP7KegCnvtjHVGP0jERayYEE+O3Fd0p2sRL9PGVF.BLRL3wFSS4oMGGbtrHoqpnbhjR02EQYJWR8RgJimKf4bh1PkqiqkEqbbbYUQMDTQ7uTPOY0fCrEgiRlc4VsLj0lrEc5ZPXvpd60mlN5Wxg1RhAZAVhXiKQuWMNwOsgtx1NFUW5kwfPm7+Dc0iJvLb8hIJhSeW8R44enUHQb56gWDkiMa6sykG+Wosmn6HfusyOSCCoQzDYmTPyYpDYXlBp7mFEg2u4E+2O2XiNDMZm1o2Wqro.LdPq9sYcn5ahpTK7TigEf9qLdIyrGFzcUvjcWB1ojkMaAdY8HWi5HFxbhijLHK0.5tOkAtwsmdVApTyC1M.yyb6YQqh.jDAjAr5T4fGa8mHBhsYaEGoVBIxhM9polIScAY4PDi+6QBWX4lJVzgyfeoCasrX6Zl6dUvbayN+ZpYFcOI7+Q0wvzT1ODUmZHKbP4p4NY2fM.l6cptRvCpTP29ivB0WXX5CUmqGKCZPKVJy3g1lQ3lRUqtO3jFthucj922hx.CglckY7N8NEPqgzkWuFSMVC8Su68H56Q55EppVLYqRJIrZ9AyfIrM+92we.yGifURFbz40z1+Sun.oGz1egHPQZ.FG9s9K15.31wfcH+twa6QeqaUptk7dn5jHs+t9+P21oZV2zdOm3xnNjYQNS.bxzWchXBLSJnfL6VESs7QdT04BhQcDWZYAQ9aL+G4h.wnvRy6BAwl7Vv6OSqdUmKRUFfCJHkfbpmn6qz5i.0S5rEF3wJPbvXMkfMcgJOelAp6nA+3zpbOxx4Ht40vwBbvNKfh1+2l6tKhkd.kvCam9UVV4yIfMqOPfcK4sjwFsPTRbdTM0lgsgbHVzuG3aSfbUTo1vI0EMMBuhoyNR78sFCB05F1KPJ.jPmI8b3NTB5Y0lUM3lXriEowtMF8Qhae42hhnP3avIC42mt6L53zWAOcl55yCaaFaa8cUfSA404OwDZxE99I3bSlwlB0hh8OVOcsvwu0G24ao83TuYleTPnRQCX+EQTFZfIowMnD.7aqmusgPDPxdV6lHEARNd0QBzXlX8.l7wjCfbf9hwd+xj0n36CmOXYmk5v+kmOMGXMs9nihGpSbp3+dAA5yn2GPiCRKJbPvL6w3J+Kbi+Jvlz7zH+IqKfTHXAoSBGqD9qwA.yqg5F92yzAIz3fVfbubNKc4UPdl1LNIGKLjBYrLdLQG3GbdTvDirSWGCzW7CtOMS6MT+az+78x28.kNB..X5H..vpi...";
+        
 		loadFrom(c);
 	}
 
@@ -3169,12 +3169,10 @@ struct ExportSetupWizard: public EncodedDialogBase
 		writeState("hisePathExists", exists);
 		writeState("hisePathExtract", !exists);
 		writeState("hisePathDownload", !exists);
-		writeState("hiseVersionMatches", true);
+		writeState("hiseVersionMatches", true); // TODO: make a proper version check against the source code
 
 		return var();
 	}
-
-	
 
 	var checkIDE(const var::NativeFunctionArgs& args)
 	{
@@ -3193,7 +3191,20 @@ struct ExportSetupWizard: public EncodedDialogBase
 			writeState("ippExists", true);
 		}
 #elif JUCE_MAC
-		jassertfalse;
+        {
+            juce::ChildProcess xc;
+            xc.start("xcodebuild --help");
+            auto output = xc.readAllProcessOutput();
+            auto xcodeExists = xc.getExitCode() == 0;
+            writeState("xcodeExists", xcodeExists);
+        }
+        {
+            juce::ChildProcess xcp;
+            xcp.start("gem list");
+            auto output = xcp.readAllProcessOutput();
+            auto xcPrettyExists = output.contains("xcpretty");
+            writeState("xcPrettyExists", xcPrettyExists);
+        }
 #endif
 
 		return var();
@@ -3209,7 +3220,13 @@ struct ExportSetupWizard: public EncodedDialogBase
 
 		auto ok = projucer.startAsProcess("--help");
 #elif JUCE_MAC
-		auto ok = false;
+        
+        auto projucer = toolsDir.getChildFile("projucer/Projucer.app/Contents/MacOS/Projucer");
+        
+        jassert(projucer.existsAsFile());
+        
+        auto ok = projucer.startAsProcess("--help");
+        
 #else
 		auto ok = true;
 #endif
