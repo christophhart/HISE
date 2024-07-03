@@ -262,10 +262,11 @@ Result JavascriptFunction::onAction()
 	{
 		auto fn = code.fromFirstOccurrenceOf("{BIND::", false, false).upToLastOccurrenceOf("}", false, false);
 
+		var thisObj(new DynamicObject());
 		var args[2];
 		args[0] = infoObject[mpid::ID];
 		args[1] = rootDialog.getState().globalState;
-		var::NativeFunctionArgs a({}, args, 2);
+		var::NativeFunctionArgs a(thisObj, args, 2);
 
 		rootDialog.getState().callNativeFunction(fn, a, nullptr);
 		return Result::ok();
@@ -1193,6 +1194,11 @@ Result DownloadTask::performTaskStatic(WaitJob& t)
 	auto extraHeaders = obj[mpid::ExtraHeaders].toString();
 
 	auto targetFile = t.getTargetFile();
+
+	if(targetFile.isDirectory())
+	{
+		throw Result::fail("Target must not be a directory");
+	}
 
 	std::unique_ptr<URL::DownloadTask> dt;
     ScopedPointer<TemporaryFile> tempFile;

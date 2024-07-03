@@ -2200,8 +2200,15 @@ public:
 			}
 			else
 			{
-				getMultipageState()->currentPageIndex = pageIndex - 1;
-				backdropBroadcaster.sendMessage(sendNotificationAsync, Backdrop::MessageType::RefreshDialog);
+				SafeAsyncCall::call<multipage::State>(*getMultipageState(), [pageIndex](multipage::State& s)
+				{
+					s.currentPageIndex = pageIndex;
+
+					for(auto f: s.currentDialogs)
+						f->refreshCurrentPage();
+					
+				});
+
 				return true;
 			}
 		}
@@ -2223,6 +2230,9 @@ public:
 
 		/** Loads the dialog from a file (on the disk). */
 		void loadFromDataFile(var fileObject);
+
+		/** Exports the entire dialog. */
+		String exportAsMonolith(var optionalFile);
 
 		// ========================================================================================================
 
