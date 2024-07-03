@@ -110,6 +110,7 @@ public:
 		MenuRevertFile = 0x26000,
         
 		// Export Menu
+		MenuExportSetupWizard,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
@@ -393,6 +394,10 @@ public:
 		static void extractEmbeddedFilesFromSnippet(BackendRootWindow* bpe);
 
 		static void showExampleBrowser(BackendRootWindow* bpe);
+
+		static void setupExportWizard(BackendRootWindow* bpe);
+
+		static void exportProject(BackendRootWindow* bpe, int buildOption);
 	};
 
 private:

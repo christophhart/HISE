@@ -102,6 +102,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCreateThirdPartyNode,
 		MenuFileExtractEmbeddeSnippetFiles,
 		MenuFileImportSnippet,
+		MenuExportSetupWizard,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
@@ -304,6 +305,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 	case MenuToolsCreateThirdPartyNode:
 		setCommandTarget(result, "Create C++ third party node template", true, false, 'X', false);
 		result.categoryName = "Tools";
+		break;
+	case MenuExportSetupWizard:
+		setCommandTarget(result, "Setup Export Wizard", true, false, 'X', false);
+		result.categoryName = "Export";
 		break;
     case MenuExportFileAsPlugin:
         setCommandTarget(result, "Export as Instrument (VSTi / AUi) plugin", true, false, 'X', false);
@@ -657,6 +662,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuExportRestoreToDefault:		Actions::restoreToDefault(bpe); return true;
 	case MenuExportCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
+	case MenuExportSetupWizard:			Actions::setupExportWizard(bpe); return true;
 	case MenuToolsShowDspNetworkDllInfo: Actions::showNetworkDllInfo(bpe); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertSampleMapToWavetableBanks:	Actions::convertSampleMapToWavetableBanks(bpe); return true;
@@ -693,29 +699,17 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuViewGotoUndo: bpe->getBackendProcessor()->getLocationUndoManager()->undo(); updateCommands(); return true;
     case MenuViewGotoRedo:  bpe->getBackendProcessor()->getLocationUndoManager()->redo(); updateCommands(); return true;
 	case MenuExportFileAsPlugin:
-    {
-        CompileExporter exporter(bpe->getMainSynthChain());
-        exporter.exportMainSynthChainAsInstrument();
+		Actions::exportProject(bpe, (int)CompileExporter::BuildOption::AllPluginFormatsInstrument);
         return true;
-    }
 	case MenuExportFileAsEffectPlugin:
-    {
-        CompileExporter exporter(bpe->getMainSynthChain());
-        exporter.exportMainSynthChainAsFX();
+		Actions::exportProject(bpe, (int)CompileExporter::BuildOption::AllPluginFormatsFX);
         return true;
-    }
 	case MenuExportFileAsStandaloneApp:
-    {
-        CompileExporter exporter(bpe->getMainSynthChain());
-        exporter.exportMainSynthChainAsStandaloneApp();
+		Actions::exportProject(bpe, (int)CompileExporter::BuildOption::StandaloneLinux);
         return true;
-    }
 	case MenuExportFileAsMidiFXPlugin:
-    {
-        CompileExporter exporter(bpe->getMainSynthChain());
-        exporter.exportMainSynthChainAsMidiFx();
+    	Actions::exportProject(bpe, (int)CompileExporter::BuildOption::AllPluginFormatsMidiFX);
         return true;
-    }
 	case MenuExportCompileNetworksAsDll: Actions::compileNetworksToDll(bpe); return true;
     case MenuExportFileAsSnippet:        Actions::exportFileAsSnippet(bpe); return true;
 	case MenuExportProjectAsExpansion:				Actions::exportHiseProject(bpe); return true;
@@ -932,6 +926,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		}
 		else 
 		{
+			ADD_MENU_ITEM(MenuExportSetupWizard);
+
 			p.addSectionHeader("Export As");
 			ADD_MENU_ITEM(MenuExportFileAsPlugin);
 			ADD_MENU_ITEM(MenuExportFileAsEffectPlugin);
@@ -2452,6 +2448,16 @@ juce::Result BackendCommandTarget::Actions::createSampleArchive(BackendProcessor
 
 void BackendCommandTarget::Actions::compileNetworksToDll(BackendRootWindow* bpe)
 {
+	auto exportIsReady = (bool)bpe->getBackendProcessor()->getSettingsObject().getSetting(HiseSettings::Compiler::ExportSetup);
+
+	if(!exportIsReady)
+	{
+		if(PresetHandler::showYesNoWindow("System not configured", "Your system has not been setup for export. Do you want to launch the Export Setup wizard?"))
+			Actions::setupExportWizard(bpe);
+
+		return;
+	}
+
 	auto s = new DspNetworkCompileExporter(bpe, bpe->getBackendProcessor());
 	s->setModalBaseWindowComponent(bpe);
 }
@@ -3060,6 +3066,229 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 	nw->setCurrentlyActiveProcessor();
 	
+}
+
+namespace multipage
+{
+
+#define MULTIPAGE_BIND_CPP(className, methodName) state->bindCallback(#methodName, BIND_MEMBER_FUNCTION_1(className::methodName));
+
+struct EncodedDialogBase: public Component,
+						  public QuasiModalComponent
+{
+	void writeState(const Identifier& id, const var& value)
+	{
+		state->globalState.getDynamicObject()->setProperty(id, value);
+	}
+
+	var readState(const Identifier& id) const
+	{
+		return state->globalState[id];
+	}
+
+	virtual void bindCallbacks() = 0;
+
+	void loadFrom(const String& d)
+	{
+		MemoryBlock mb;
+		mb.fromBase64Encoding(d);
+		MemoryInputStream mis(mb, false);
+		MonolithData md(&mis);
+
+		state = new State(var());
+		addAndMakeVisible(dialog = md.create(*state));
+
+		dialog->setFinishCallback([this]()
+		{
+			findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+		});
+
+		bindCallbacks();
+
+		setSize(dialog->getWidth(), dialog->getHeight());
+
+		dialog->showFirstPage();
+	}
+	
+	void resized() override
+	{
+		dialog->setBounds(getLocalBounds());
+	}
+
+	void navigate(int pageIndex, bool shouldSubmit)
+	{
+		SafeAsyncCall::call<EncodedDialogBase>(*this, [pageIndex, shouldSubmit](EncodedDialogBase& db)
+		{
+			if(shouldSubmit)
+			{
+				db.state->currentPageIndex = pageIndex-1;
+				db.dialog->navigate(true);
+			}
+			else
+			{
+				db.state->currentPageIndex = pageIndex;
+				db.dialog->refreshCurrentPage();
+			}
+		});
+	}
+
+protected:
+
+	ScopedPointer<State> state;
+	ScopedPointer<Dialog> dialog;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(EncodedDialogBase);
+};
+
+
+
+struct ExportSetupWizard: public EncodedDialogBase
+{
+	ExportSetupWizard():
+	  EncodedDialogBase()
+	{
+		auto c = "2469.jNB..zXB........nT6K8CFLlzAS.n8VbCQKv5LiafUHFTJQrY8PqhrrVhHrOol8ugvBByvkE2lQGcragv4SRN9A8eP+b5BhEDPBALP.s.VKpG8rHz9Qcrl5ZMlUEUoGlwS+UgOqU5+2gEJq2xnjeH+f.RyJKOrVa+CN5+H+jA4mXiwQ4GHSgn7lu6squyKwVLUMMmSDYLOxfoJpJJJRGVoMGUPdjguJzU3VywW7Y8E3b0ohRRdx4ZdT1CXD1Y22W6S8IINSq0TsgOsmN0yzG61PWirVjgY87pqP3gIVlfIBKsDFebu0RnEUSpfoREsebWQGw32BFJVf.ykJXlPAySpeKQfwBELgjvXkKUnDwkL8yyfXRkJTp7vkITVqIZmGcMfvpnt7vZM0d.ufLo.MHsuhTk7UBdQOCjI+YKlVqoW5TLs6tMjg0ZhedSGK8WS61PFBXamr4jvsJc3mI6zz71uHlsOIOicEWaeIZKhylNxQ9KDke.0DFpNxiM1Rxw1d62PYve+Z2EVHTWaK83lF4sEwaZcVEH+rK0t8ydar0+kq+Zo5R69tt6L1aaLNZqvsMdR8Wg8rzFTnouHbSSUkkMPvthppHroqdTCGEpI6N5uVSiZHGXlrVfjv2imureomIfHVk0Zj+3sZDRShrVS+gXsdsNRZFwZIgfnLGBl9HANdfDZvDzxPSDS34gQZ5JNnhL1vQFMha34BYjYhmGRSfjGYjgxqvwHMQNPKYP8nnfizvSFTh1xPwHMzJL7HiInLw1CUOEkKSeVqFDyAi7jcNETnLl1uF2Wds0kKAzZPM8EtNXy0dfCnoecwL+2l1U2NDyQkczUBw.UPTMQhGLKxZRzhf0JOcPxVzYzNu5vEGRHxgVCIhsLyAI5BUWfjHQhDIjj2dI8SBmmQ8Zd0oYPNppHIRrpy+2JPGMs2nvx4TsE93rkdnriamLoZx5vW2esQtqB4XeaW4NNWH66RsN0JG0rWOX0PhSWlJ2VljoWXDIRjRw495Xj+Jj1aeuMZ2Xj.8n8qTHEP3royES6IFMzQSg0diVGHSOjCq6xhFD6QhAHPP5FujheBoYUVD2fOdrG2HpoSKqMWzISFdY+UOO+WcLUY4wSGqsmgUt96TcAFWMnqT1Sljh52WzNBe9iSFJG.9ngN93qtGo+fEUSaY.d5VEJgZdVppmQ6G0WIThDQP5awny0D04j2V5Q9gXiKN1RTtV6rVtQnWU1wQOaHpGAZm00XcU7PFH2ZsoSM+WL90r8RHL6jbSCU4MlPOnn8WYNIeagFPX.SRttnqI1Wkn9m0T3Ft5NBl9G4ZeQmhWW4Q0tm2bnHdqw1W+YvWSmxNtiarTX9x09SBe9AkzfY8rxYdb9YLkhZyBVXaY2Xak2194Y6H+hZz8eohHf+6y8r6ndS4s1aWKIY4mN5LIyQ64FYN+2W+jcVS2.A21JAd3BotVvBxtEjjyJEeVR6ONgAlSXGFJ3MnJ+fRHSoTzLxD.B...fPf..ABIJKRWO7AHNXDkDcPPPDgAH.f.BPY.H.DX.HBB.B.XH.gNf1oCdH1WGLfvBmkI9DwGuZL1mnnca5AKbvxhKRzJ60ajdNrrKibR3fj4dSj2EA0MzO0YoPAx7ILWzRI0OCCH5AV+lrGX09G5S8y0tV3abprt4Y2LBsR6LWoxGzuKYAwTN2MisF8UsL1CvxVgi08yk+ZPq+PA77yiat8+w9OJxL.ynYSoBDpFLvqIYX2ChL1Yu3a0inUTVhZWKxZZRHxoHSGhw++NYYxmPNMrAindolofUERmX85IEHYkwG96m9u.PHj4HObxR2YYQkxpF.gK.U3cJBu+2Sn0jVx5pgRFFMKwbjS5sPCgYClFo9HxmAKMLVPCNiYYTixO4X6gVIKUbXSpCvjN8MYYZC7inZ.gDf6dwFAAN2xcrSRBxwKGgPVaT8JFiIV7TnZINi348Qc34Je5U0FtTn6YZL.X4pAkX6IsC.pf+fz+mbBnJpNXSzMhRuk2EF4EQ6aYprEIzyPJpz1WyGag1AuL2PcQHYkg+nO1dNoW2f9MxSa7EJGFNWYoScCExuRtvOV+aDiy0vDeSRu9GqN4kL80MycsYALUnM9ExwZKj+Ep.8GV1cGpdDB7kctj.qhXIJMWb2Iq6Gf2i+.GkanWPglAR8fY58BNQ3+Y2xoIzqqyYiSPsZGxjXwfTxSXFZ95o2rrN0EOx9NUFjUkzb3P+Ns3SHCyBMEBsXSGsLUwU4DjX7VJPhdoBhljv4j4h5zL7vhb1tztjiu8S6wivfH77lICvRXRqswaH9zrfkg0SVwlg.E6snVh0Ii4eE1fWQ1Lbhv7L0KaAcGb3frIDcDdsDuPV3dktArZe4INIh7LGaKonePOuTxXcH3SEfd7XgJB6ujIFXsS4DKRg++QPxy1viQJljvRsQIhZ1H0khkCoXzRO5wBeKpXuCNqSL8tskUtWib2aBlc0rC5lREltGo4exNV4l30gX6oFlOGTPLW03FJKpr0VA9hKWo.E9aSrDsvPXz0iqGCOzNSP3koetMSiL8M1x7fwOrkcAIcitskCCEpajB3V16jWXQvOud8ELVIQ+J1aY66m5FDTkheJuRd.LI+PpAeQZt92I3Bl6SvAQFGQWfoi+Cln.wmvrC9HPHKAi+dCwhMYeaJFrgyuaT2dz65SUraoBEpLQjCbiJ7PRQUci1z1Mm.Qn2YvhiS.pkYtbhXoISFrfz51glZYN4gn9Jj.DiiAYAQE2V9ugDwfMUAdYeoTgWrgtuwSuODZpqbsfxvMD5HSOmHWIpAgjSRfK7PPsAcFZMKB6vBuTdV7qudCt4zIUSZvY.qArgiYxkFV3XZ6821ScQ55dVB6vNc5Yx82B.MKcfWUq6sd5FZcaRXZuN00gbBY.WbPO1ORdbk.kDiKeVjODql.mBHw.aqcHtZmzuDUflD5L4WG2eIA7P8Xp5vj8jD6tigCLLFQy7xRSId2d+QjbvYF1WDWHK5Py2ZOchP0iUMZFO6UtDzY6rOMm9p6Bsd.BUDjHOlYOCYAoM0zAmVj7azw2zJ5Y56fjrmBBcWMfkgnTHCJZxDdaKLI+p8buM9KAdn20dKov06omSDabrzRGtoKE+Av.8kb46iJtFFB217gK6mkL9o8r3qIUvsMMREXkUVX826PXCfd1.BtOLgpI+SqJinzncLBk3gDSXMmvSKQkikLx9XO6eOA.XVGnGm+nAEgjFL6EKGKAkkj7JnT4XZyysvgDKx2b40NXIvMOfD03M.LFTW7uwOK5v82+kX+7kPA9kNB..X5H..vpi...";
+		
+		loadFrom(c);
+	}
+
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, prevDownload);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, skipIfDesired);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkIDE);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkHisePath);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkSDK);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, onPost);
+	}
+
+	var checkHisePath(const var::NativeFunctionArgs& args)
+	{
+		auto exists = readState("HisePath").toString().isNotEmpty();
+
+		writeState("hisePathExists", exists);
+		writeState("hisePathExtract", !exists);
+		writeState("hisePathDownload", !exists);
+		writeState("hiseVersionMatches", true);
+
+		return var();
+	}
+
+	
+
+	var checkIDE(const var::NativeFunctionArgs& args)
+	{
+#if JUCE_WINDOWS
+
+		auto MSBuildPath = "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe";
+		writeState("msBuildExists", File(MSBuildPath).existsAsFile());
+
+		if(readState("UseIPP"))
+		{
+			auto IppPath = "C:/Program Files (x86)/Intel/oneAPI/ipp/latest/include/ipp.h";
+			writeState("ippExists", File(IppPath).existsAsFile());
+		}
+		else
+		{
+			writeState("ippExists", true);
+		}
+#elif JUCE_MAC
+		jassertfalse;
+#endif
+
+		return var();
+	}
+	
+	var checkSDK(const var::NativeFunctionArgs& args)
+	{
+		auto toolsDir = File(readState("HisePath").toString()).getChildFile("tools");
+		auto vst3sdk = toolsDir.getChildFile("SDK/VST3 SDK");
+
+#if JUCE_WINDOWS
+		auto projucer = toolsDir.getChildFile("projucer/Projucer.exe");
+
+		auto ok = projucer.startAsProcess("--help");
+#elif JUCE_MAC
+		auto ok = false;
+#else
+		auto ok = true;
+#endif
+
+		writeState("projucerWorks", ok);
+		writeState("sdkExists", vst3sdk.isDirectory());
+		writeState("sdkExtract", !vst3sdk.isDirectory());
+
+		return var();
+	}
+
+	var prevDownload(const var::NativeFunctionArgs& args)
+	{
+		auto id = args.arguments[0].toString();
+		String url;
+
+		url << "https://github.com/christophhart/HISE/archive/refs/tags/";
+		url << GlobalSettingManager::getHiseVersion();
+		url << ".zip";
+		
+		writeState("sourceURL", url);
+		return var();
+	}
+
+	var skipIfDesired(const var::NativeFunctionArgs& args)
+	{
+		if(readState("skipEverything"))
+			navigate(4, false);
+
+		return var();
+	}
+
+	var onPost(const var::NativeFunctionArgs& args)
+	{
+		auto bp = findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
+		bp->getSettingsObject().loadSettingsFromFile(HiseSettings::SettingFiles::CompilerSettings);
+		
+		return var();
+	}
+};
+
+}
+
+
+void BackendCommandTarget::Actions::setupExportWizard(BackendRootWindow* bpe)
+{
+	auto np = new multipage::ExportSetupWizard();
+	np->setModalBaseWindowComponent(bpe);
+}
+
+void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int buildOption)
+{
+	auto exportIsReady = (bool)bpe->getBackendProcessor()->getSettingsObject().getSetting(HiseSettings::Compiler::ExportSetup);
+
+	if(!exportIsReady)
+	{
+		if(PresetHandler::showYesNoWindow("System not configured", "Your system has not been setup for export. Do you want to launch the Export Setup wizard?"))
+			Actions::setupExportWizard(bpe);
+
+		return;
+	}
+
+	CompileExporter exporter(bpe->getMainSynthChain());
+
+	switch((CompileExporter::BuildOption)buildOption)
+	{
+	case CompileExporter::BuildOption::AllPluginFormatsInstrument:
+		exporter.exportMainSynthChainAsInstrument();
+		break;
+	case CompileExporter::BuildOption::AllPluginFormatsFX:
+		exporter.exportMainSynthChainAsFX();
+		break;
+	case CompileExporter::BuildOption::AllPluginFormatsMidiFX:
+		exporter.exportMainSynthChainAsMidiFx();
+		break;
+	case CompileExporter::BuildOption::StandaloneLinux:
+		exporter.exportMainSynthChainAsStandaloneApp();
+		break;
+	}
 }
 
 #undef REPLACE_WILDCARD
