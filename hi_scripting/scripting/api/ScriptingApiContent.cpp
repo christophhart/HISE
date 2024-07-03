@@ -5655,7 +5655,8 @@ struct ScriptingApi::Content::ScriptMultipageDialog::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptMultipageDialog, resetDialog);
 	API_METHOD_WRAPPER_0(ScriptMultipageDialog, addPage);
 	API_METHOD_WRAPPER_3(ScriptMultipageDialog, add);
-	API_METHOD_WRAPPER_2(ScriptMultipageDialog, bindCallback);
+	API_METHOD_WRAPPER_2(ScriptMultipageDialog, navigate);
+	API_METHOD_WRAPPER_3(ScriptMultipageDialog, bindCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, setOnFinishCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, setOnPageLoadCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, show);
@@ -5706,10 +5707,11 @@ ScriptingApi::Content::ScriptMultipageDialog::ScriptMultipageDialog(ProcessorWit
 	ADD_API_METHOD_0(resetDialog);
 	ADD_API_METHOD_0(addPage);
 	ADD_API_METHOD_3(add);
-	ADD_API_METHOD_2(bindCallback);
+	ADD_API_METHOD_3(bindCallback);
 	ADD_API_METHOD_1(setOnFinishCallback);
 	ADD_API_METHOD_1(setOnPageLoadCallback);
 	ADD_API_METHOD_1(show);
+	ADD_API_METHOD_2(navigate);
 	ADD_API_METHOD_0(cancel);
 	ADD_API_METHOD_3(setElementProperty);
 	ADD_API_METHOD_2(setElementValue);
@@ -5873,7 +5875,7 @@ int ScriptingApi::Content::ScriptMultipageDialog::add(int parentIndex, String ty
 
 					if(callable != nullptr)
 					{
-						auto code = bindCallback(callable->getCallId().toString(), properties["Callback"]);
+						auto code = bindCallback(callable->getCallId().toString(), properties["Callback"], ApiHelpers::getDispatchTypeMagicNumber(dispatch::DispatchType::sendNotificationAsync));
 						newInfoObject->removeProperty("Callback");
 						newInfoObject->setProperty(mpid::Code, code);
 					}
@@ -5897,9 +5899,11 @@ int ScriptingApi::Content::ScriptMultipageDialog::add(int parentIndex, String ty
 	return -1;
 }
 
-String ScriptingApi::Content::ScriptMultipageDialog::bindCallback(String id, var callback)
+String ScriptingApi::Content::ScriptMultipageDialog::bindCallback(String id, var callback, var notificationType)
 {
-	auto nc = new ValueCallback(this, id, callback);
+	auto n = ApiHelpers::getDispatchType(notificationType, false);
+
+	auto nc = new ValueCallback(this, id, callback, n);
 	valueCallbacks.add(nc);
 	
 	String callCode;
@@ -5960,6 +5964,14 @@ var ScriptingApi::Content::ScriptMultipageDialog::getState()
 	return getMultipageState()->globalState;
 }
 
+void ScriptingApi::Content::ScriptMultipageDialog::loadFromDataFile(var fileObject)
+{
+	if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(fileObject.getObject()))
+	{
+		monolithFile = sf->f;
+	}
+}
+
 void ScriptingApi::Content::ScriptMultipageDialog::preRecompileCallback()
 {
 	ScriptComponent::preRecompileCallback();
@@ -5986,6 +5998,24 @@ void ScriptingApi::Content::ScriptMultipageDialog::onMultipageLog(ScriptMultipag
 #define SET_STYLE(id, propId) styleData->setProperty(id, getScriptObjectProperty(propId));
 
 
+var ScriptingApi::Content::ScriptMultipageDialog::ValueCallback::operator()(const var::NativeFunctionArgs& a)
+{
+	if(n == dispatch::DispatchType::sendNotificationSync)
+	{
+		callback.call(a);
+		return var();
+	}
+	else
+	{
+		var rv;
+		auto ok = callback.callSync(a, &rv);
+
+		if(!ok.wasOk())
+			callback.reportError(ok);
+
+		return rv;
+	}
+}
 
 var ScriptingApi::Content::ScriptMultipageDialog::createDialogData(String cssToUse)
 {
