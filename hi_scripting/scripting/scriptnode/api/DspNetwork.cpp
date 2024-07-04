@@ -2178,6 +2178,12 @@ String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 	case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 	case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
 	case Error::IllegalMonophony: return "Can't use this node in a monophonic network";
+	case Error::OldFaustVersion:  
+		s << "Your Faust version is too old (";
+		s << String(e.actual / 1000000) << "." << String((e.actual % 1000000) / 1000) << "." << String(e.actual % 1000) << "). ";
+		s << "Min required version: ";
+		s << String(e.expected / 1000000) << "." << String((e.expected % 1000000) / 1000) << "." << String(e.expected % 1000) << ". ";
+		return s;
 	case Error::IllegalFaustNode: return "Faust is disabled. Enable faust and recompile HISE.";
 	case Error::IllegalFaustChannelCount: 
 		s << "Faust node channel mismatch. Expected channels: `" << String(e.expected) << "`";
