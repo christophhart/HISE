@@ -1184,6 +1184,7 @@ void TextInput::postInit()
 
     if(infoObject[mpid::Autofocus])
     {
+        editor.selectAll();
 	    editor.grabKeyboardFocusAsync();
     }
 }
@@ -1640,6 +1641,13 @@ void Table::createEditor(Dialog::PageInfo& rootList)
 
     rootList.addChild<factory::Button>(DefaultProperties::getForSetting(infoObject, mpid::Multiline,
         "Allows selection of multiple rows / cells"));
+
+    rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::EmptyText.toString() },
+		{ mpid::Text, mpid::EmptyText.toString() },
+		{ mpid::Value, infoObject[mpid::EmptyText] },
+        { mpid::Help, "The text that will be displayed if no table content is present." } 
+	});
 
 	rootList.addChild<TextInput>({
 		{ mpid::ID, "FilterFunction" },

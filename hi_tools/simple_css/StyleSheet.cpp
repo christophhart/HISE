@@ -357,19 +357,22 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 
 	if(!useIsolatedCollections)
 	{
-		if(auto p = c->getParentComponent())
+		if(dynamic_cast<CSSRootComponent*>(c) == nullptr)
 		{
-			parentStyle = getForComponent(p);
-
-			auto tp = p;
-
-			while(tp != nullptr)
+			if(auto p = c->getParentComponent())
 			{
-				if(dynamic_cast<CSSRootComponent*>(tp))
-					break;
+				parentStyle = getForComponent(p);
 
-				pSelectors.addArray(ComplexSelector::getSelectorsForComponent(tp));
-				tp = tp->getParentComponent();
+				auto tp = p;
+
+				while(tp != nullptr)
+				{
+					if(dynamic_cast<CSSRootComponent*>(tp))
+						break;
+
+					pSelectors.addArray(ComplexSelector::getSelectorsForComponent(tp));
+					tp = tp->getParentComponent();
+				}
 			}
 		}
 	}

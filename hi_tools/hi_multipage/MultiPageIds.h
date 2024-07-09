@@ -66,6 +66,17 @@ namespace mpid
     // ALWAYS COPY IT HERE TOO!
     struct Helpers
     {
+        enum RequiredUpdate
+		{
+			PostInit,
+			ResizeParent,
+            UpdateVisibility,
+			UpdateCSS,
+			FullRebuild
+		};
+
+        static RequiredUpdate getUpdateType(const Identifier& id);
+
 	    static var getIdList();
     };
 

@@ -131,6 +131,19 @@ struct StateWatcher
 
 	void registerComponentToUpdate(Component* c);
 
+	void resetComponent(Component* c)
+	{
+		for(auto& i: updatedComponents)
+		{
+			if(i.target == c)
+			{
+				i.resetInitialisation();
+				c->repaint();
+				break;
+			}
+		}
+	}
+
 	Array<Item> items;
 	
 	struct UpdatedComponent
@@ -138,6 +151,8 @@ struct StateWatcher
 		bool operator==(const UpdatedComponent& other) const { return target.getComponent() == other.target.getComponent(); }
 
 		Component::SafePointer<Component> target;
+
+		void resetInitialisation() { initialised = false; }
 
 		void update(StyleSheet::Ptr ss, int currentState);
 

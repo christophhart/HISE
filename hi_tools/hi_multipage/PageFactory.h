@@ -444,6 +444,8 @@ struct Table: public Dialog::PageBase,
 
     void paint(Graphics& g) override;
 
+    void resized() override;
+
     enum class EventType
     {
 	    CellClick,
@@ -465,7 +467,7 @@ struct Table: public Dialog::PageBase,
 
     void backgroundClicked (const MouseEvent&) override
     {
-	    updateValue(EventType::CellClick, -1, -1);
+        table.deselectAllRows();
     }
     void selectedRowsChanged (int lastRowSelected) override
     {

@@ -94,18 +94,10 @@ void Container::postInit()
 		if(stateObject.hasProperty(c->getId()))
 			c->clearInitValue();
 
-		for(int i = 0; i < getNumChildComponents(); i++)
-		{
-			if(getChildComponent(i) == c)
-			{
-				setFlexChildVisibility(i, c->getVisibility());
-			}
-		}
+		c->postInit();
+	}
 
-        c->postInit();
-    }
-
-	resized();
+	updateChildVisibility();
 }
 
 Result Container::checkGlobalState(var globalState)

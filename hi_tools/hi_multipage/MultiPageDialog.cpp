@@ -48,7 +48,10 @@ struct Dialog::TabTraverser: public ComponentTraverser
 
     Dialog& parent;
     
-    Component* getDefaultComponent (Component* parentComponent) override { return &parent; }
+    Component* getDefaultComponent (Component* parentComponent) override
+    {
+		return &parent;
+    }
 
     Component* getNextComponent (Component* current) override
     {
@@ -786,6 +789,7 @@ Dialog::ModalPopup::ModalPopup(Dialog& parent_, PageInfo::Ptr info_, bool addBut
 	okButton("OK"),
 	cancelButton("Cancel")
 {
+	setWantsKeyboardFocus(true);
 	setDefaultStyleSheet("position: absolute; background: rgba(128,128,128, 0.8);");
 	content.setDefaultStyleSheet("background: #161616;display:flex;width: 100%;flex-direction: column;margin: 120px 90px;padding: 20px;");
 	contentViewport.setDefaultStyleSheet("display: flex;flex-direction: row;width: 100%;flex-grow: 1;");
@@ -819,6 +823,11 @@ void Dialog::ModalPopup::init()
 	{
 		contentComponent = info->create(parent, parent.getWidth());
 		contentViewport.addFlexItem(*contentComponent);
+
+		auto s = info->stateObject;
+
+		ScopedValueSetter<var> stateSwitcher(parent.getState().globalState, s);
+
 		contentComponent->postInit();
 	}
 }
@@ -1315,9 +1324,20 @@ bool Dialog::keyPressed(const KeyPress& k)
 		
 		return true;
 	}
+	if(k.getKeyCode() == KeyPress::escapeKey)
+	{
+		if(popup != nullptr)
+		{
+			popup->dismiss();
+			return true;
+		}
+	}
 	if(k.getKeyCode() == KeyPress::returnKey)
 	{
-		if(nextButton.isEnabled())
+		if(this->popup != nullptr)
+			return this->popup->keyPressed(k);
+
+		if(nextButton.isEnabled() && nextButton.isVisible())
 		{
 			nextButton.triggerClick();
 			return true;

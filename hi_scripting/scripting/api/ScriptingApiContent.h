@@ -2168,6 +2168,12 @@ public:
 		/** Adds a page to the dialog and returns the element index of the page. */
 		int addPage();
 
+		/** Adds a modal page to the dialog that can be populated like a normal page and shown using showModalPage(). */
+		int addModalPage();
+
+		/** Shows a modal page with the given index and the state object. */
+		void showModalPage(int pageIndex, var modalState, var finishCallback);
+
 		/** Adds an element to the parent with the given type and properties. */
 		int add(int parentIndex, String type, const var& properties);
 
@@ -2420,10 +2426,15 @@ public:
 			const dispatch::DispatchType n;
 		};
 
+		ScopedPointer<ValueCallback> onModalFinish;
+
 		OwnedArray<ValueCallback> valueCallbacks;
 
 		var createDialogData(String cssToUse={});
 
+		int addPageInternal(bool isModal);
+
+		Array<var> modalPages;
 		Array<var> pages;
 		Array<var> elementData;
 		

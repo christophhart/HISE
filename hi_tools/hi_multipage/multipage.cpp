@@ -40,7 +40,46 @@ namespace mpid
 {
 using namespace juce;
 
+#define DECLARE_ID(x, type) updateTypes[x] = RequiredUpdate::type;
+
+Helpers::RequiredUpdate Helpers::getUpdateType(const Identifier& id)
+{
+    std::map<Identifier, RequiredUpdate> updateTypes;
+
+    // CSS properties:
+    DECLARE_ID(Style, UpdateCSS);
+    DECLARE_ID(Class, UpdateCSS);
+
+    // Resize properties:
+    DECLARE_ID(Visibility, UpdateVisibility);
+    DECLARE_ID(NoLabel, ResizeParent);
+    DECLARE_ID(Folded, ResizeParent);
+    DECLARE_ID(Height, ResizeParent);
+
+    // Post init update properties:
+    DECLARE_ID(Items, PostInit);
+    DECLARE_ID(EmptyText, PostInit);
+    DECLARE_ID(Help, PostInit);
+    DECLARE_ID(Multiline, PostInit);
+    DECLARE_ID(Text, PostInit);
+    DECLARE_ID(Tooltip, PostInit);
+
+    DECLARE_ID(Source, PostInit);
+    DECLARE_ID(Target, PostInit);
+    DECLARE_ID(Enabled, PostInit);
+    DECLARE_ID(Autofocus, PostInit);
+
+    if(updateTypes.find(id) != updateTypes.end())
+        return updateTypes.at(id);
+    else
+        return RequiredUpdate::FullRebuild;
+}
+
+#undef DECLARE_ID
+
 #define DECLARE_ID(x) no->setProperty(x, #x);
+
+
 
 var Helpers::getIdList()
 {
@@ -98,6 +137,7 @@ var Helpers::getIdList()
     DECLARE_ID(Required);
     DECLARE_ID(RelativePath);
     DECLARE_ID(SaveFile);
+    DECLARE_ID(SelectOnClick);
     DECLARE_ID(SkipIfNoSource);
     DECLARE_ID(SkipFirstFolder);
     DECLARE_ID(Source);
@@ -125,6 +165,7 @@ var Helpers::getIdList()
     DECLARE_ID(Value);
     DECLARE_ID(ValueMode);
     DECLARE_ID(Version);
+    DECLARE_ID(Visibility);
     DECLARE_ID(WaitTime);
     DECLARE_ID(Width);
     DECLARE_ID(Wildcard);

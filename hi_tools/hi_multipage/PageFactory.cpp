@@ -824,13 +824,17 @@ void Table::rebuildColumns()
 	th.setStretchToFitActive(true);
 	th.resizeAllColumnsToFit(table.getWidth() - table.getViewport()->getScrollBarThickness());
 	table.setMultipleSelectionEnabled(infoObject[mpid::Multiline]);
-        
+
 	using namespace simple_css;
-        
+
+	rootDialog.stateWatcher.resetComponent(&th);
+
 	if(auto ss = rootDialog.css.getWithAllStates(this, Selector(ElementType::TableCell)))
 	{
 		table.setRowHeight(ss->getLocalBoundsFromText("M").getHeight());
 	}
+
+	th.repaint();
 }
 
 String Table::getCellContent(int columnId, int rowNumber) const
@@ -1056,7 +1060,40 @@ void Table::paint(Graphics& g)
 	if(auto ss = rootDialog.css.getForComponent(&table))
 	{
 		simple_css::Renderer r(&table, rootDialog.stateWatcher);
-		r.drawBackground(g, table.getBoundsInParent().toFloat(), ss);
+
+		auto currentState = r.getPseudoClassState();
+
+		rootDialog.stateWatcher.checkChanges(&table, ss, currentState);
+
+		r.drawBackground(g, getLocalBounds().toFloat(), ss);
+
+		if(getNumRows() == 0)
+		{
+			auto et = infoObject[mpid::EmptyText].toString();
+
+			if(et.isNotEmpty())
+				r.renderText(g, getLocalBounds().toFloat(), et, ss);
+		}
+	}
+}
+
+void Table::resized()
+{
+	FlexboxComponent::resized();
+
+	auto area = getLocalBounds().toFloat();
+
+	if(getParentComponent() != nullptr && !area.isEmpty())
+	{ 
+		using namespace simple_css;
+		
+		if(auto ss = rootDialog.css.getForComponent(&table))
+		{
+			area = ss->getArea(area, { "margin", 0});
+			area = ss->getArea(area, { "padding", 0});
+		}
+		
+		table.setBounds(area.toNearestInt());
 	}
 }
 
