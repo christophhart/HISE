@@ -2305,8 +2305,11 @@ bool DspNetworkGraph::Actions::showParameterPopup(DspNetworkGraph& g)
 	if (b == nullptr)
 		b = &g;
 
-	ft->showComponentInRootPopup(s, b, {12, 24});
-
+	if(ft->setTogglePopupFlag(g, g.showParameters))
+	{
+		ft->showComponentInRootPopup(s, b, {12, 24});
+	}
+	
 	return true;
 }
 
