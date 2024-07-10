@@ -953,7 +953,8 @@ struct ToolkitPopup : public Component,
         sustainButton.setToggleModeWithColourChange(true);
         
 		keyboard.setUseVectorGraphics(true);
-        keyboard.setRange(24, 127);
+        keyboard.setRange(36, 127);
+		keyboard.setShowOctaveNumber(true);
 
         addAndMakeVisible(clockController);
         
@@ -978,7 +979,7 @@ struct ToolkitPopup : public Component,
             auto l = keyboard.getRangeStart() + delta;
             auto h = jmin(127, keyboard.getRangeEnd() + delta);
             
-            if(l > 0)
+            if(l > 0 && l <= 64)
                 keyboard.setRange(l, h);
         }
 	}
