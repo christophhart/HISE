@@ -515,6 +515,7 @@ static bool isLoadCurlSymbolsLazilyEnabled (Project& project)
 StringArray ProjectExporter::getLinuxPackages (PackageDependencyType type) const
 {
     auto packages = linuxPackages;
+    juce::DynamicLibrary library;
 
     // don't add libcurl if curl symbols are loaded at runtime
     if (isCurlEnabled (project) && ! isLoadCurlSymbolsLazilyEnabled (project))
@@ -522,7 +523,11 @@ StringArray ProjectExporter::getLinuxPackages (PackageDependencyType type) const
 
     if (isWebBrowserComponentEnabled (project) && type == PackageDependencyType::compile)
     {
-        packages.add ("webkit2gtk-4.0");
+		if (library.open ("libwebkit2gtk-4.1.so"))
+			packages.add ("webkit2gtk-4.1");
+        else
+			packages.add ("webkit2gtk-4.0");
+			
         packages.add ("gtk+-x11-3.0");
     }
 
