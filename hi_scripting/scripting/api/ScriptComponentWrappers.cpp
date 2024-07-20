@@ -2032,6 +2032,11 @@ ScriptCreatedComponentWrapper(content, index)
 
 	initAllProperties();
 
+	if(auto slaf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&component->getLookAndFeel()))
+	{
+		component->setInterceptsMouseClicks(true, true);
+		component->setRepaintsOnMouseActivity(true);
+	}
 }
 
 void ScriptCreatedComponentWrappers::ImageWrapper::updateComponent()
@@ -2703,6 +2708,15 @@ ScriptCreatedComponentWrappers::AudioWaveformWrapper::AudioWaveformWrapper(Scrip
 
 	if (auto adc = dynamic_cast<AudioDisplayComponent*>(component.get()))
 	{
+		if(auto slaf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::CSSLaf*>(localLookAndFeel.get()))
+		{
+			Component::callRecursive<ResizableEdgeComponent>(adc, [slaf](ResizableEdgeComponent* edge)
+			{
+				edge->setLookAndFeel(slaf);
+				return false;
+			});
+		}
+
 		if (auto l = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(localLookAndFeel.get()))
 			adc->getThumbnail()->setLookAndFeel(localLookAndFeel);
 		else if (auto s = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(slaf))

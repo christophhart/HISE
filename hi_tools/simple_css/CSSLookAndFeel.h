@@ -58,6 +58,23 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 
 	bool drawButtonText(Graphics& g, Button* b);
 
+	bool drawImageOnComponent(Graphics& g, Component* c, const Image& img)
+	{
+		if(auto ss = root.css.getWithAllStates(c, Selector(ElementType::Image)))
+		{
+			Renderer r(c, root.stateWatcher);
+
+			auto state = r.getPseudoClassFromComponent(c);
+			root.stateWatcher.checkChanges(c, ss, state);
+			
+			r.drawImage(g, img, c->getLocalBounds().toFloat(), ss, true);
+			return true;
+		}
+
+		return false;
+	}
+	
+
 	/** Uses the selector "button [#id]". */
 	void drawButtonText(Graphics& g, TextButton& tb, bool over, bool down) override;
 
