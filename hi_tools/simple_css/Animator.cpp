@@ -61,6 +61,7 @@ Animator::Item::Item(Animator& parent, StyleSheet::Ptr css_, Transition tr_):
 	target(parent.currentlyRenderedComponent)
 {
 	jassert(target != nullptr);
+	resetWaitCounter();
 }
 
 bool Animator::Item::timerCallback(double delta)
@@ -73,10 +74,18 @@ bool Animator::Item::timerCallback(double delta)
 	if(transitionData.duration > 0.0)
 		d /= transitionData.duration;
 
+	if(waitCounter > 0.0)
+	{
+		waitCounter -= d;
+
+		if(waitCounter > 0.0)
+			return true;
+	}
+
 	if(reverse)
 		d *= -1.0;
 
-	currentProgress += d;
+	currentProgress += d / speed;
 
 	if(currentProgress > 1.0 || currentProgress < 0.0)
 	{
@@ -202,14 +211,27 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 			auto f1 = findPropertyValue(stateChanged.second);
 			auto f2 = findPropertyValue(currentState);
 				
-			if( f1 || f2)
+			if( (f1 || f2) && (f1.getRawValueString() != f2.getRawValueString()))
 			{
+				
+
 				auto pt = ss->getTransitionOrDefault(t, f1.transition);
 				auto ct = ss->getTransitionOrDefault(t, f2.transition);
-					
+
+				Transition thisTransition;
+
 				if(pt || ct)
 				{
-					auto thisTransition = ct ? ct : pt;
+					thisTransition = ct ? ct : pt;
+				}
+				else
+				{
+					thisTransition = findPropertyValue(0).transition;
+				}
+
+				if(thisTransition)
+				{
+					
 
 					PropertyKey thisStartValue(p.name, PseudoState(stateChanged.second).withElement(t));
 					PropertyKey thisEndValue(p.name, PseudoState(currentState).withElement(t));
@@ -223,16 +245,31 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 							i->startValue.name == p.name &&
 							i->startValue.state.matchesElement(t))
 						{
-							if(currentState == i->startValue.state.stateFlag)
+							i->resetWaitCounter();
+
+							// just a switch between the start and end state
+							auto stateToggle = currentState == i->startValue.state.stateFlag ||
+							   (i->reverse && currentState == i->endValue.state.stateFlag);
+
+							if(false)
 							{
 								i->reverse = !i->reverse;
+								i->updateCurrentRange();
+
 								found = true;
 								break;
 							}
 							else
 							{
+								auto tv = ss->getTransitionValue(i->endValue);
+
 								i->currentProgress = 0.0;
-								i->startValue.state = i->endValue.state;
+								i->reverse = false;
+								 
+								String m;
+								m << tv.startValue << "~" << tv.endValue << "~" << String(tv.progress, 3);
+
+								i->intermediateStartValue = m;
 								i->endValue.state.stateFlag = currentState;
 								i->transitionData = thisTransition;
 								found = true;
