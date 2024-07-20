@@ -78,14 +78,18 @@ struct Animator: public Timer
 	OwnedArray<Item> items;
 };
 
+struct CSSRootComponent;
+
 struct StateWatcher
 {
 	using TextData = std::tuple<String, Justification, Rectangle<float>>;
 
-	StateWatcher(Animator& animator_):
-	  animator(animator_)
+	StateWatcher(CSSRootComponent* parent_, Animator& animator_):
+	  animator(animator_),
+	  parent(parent_)
 	{};
 
+	CSSRootComponent* parent;
 	Animator& animator;
 
 	struct Item
@@ -154,7 +158,7 @@ struct StateWatcher
 
 		void resetInitialisation() { initialised = false; }
 
-		void update(StyleSheet::Ptr ss, int currentState);
+		void update(CSSRootComponent* cssRoot, StyleSheet::Ptr ss, int currentState);
 
 		bool initialised = false;
 	};

@@ -287,6 +287,8 @@ StyleSheet::Collection::Collection(List l):
 
 void StyleSheet::Collection::setAnimator(Animator* a)
 {
+	animator = a;
+
 	forEach([a](Ptr p)
 	{
 		p->animator = a;
@@ -593,8 +595,8 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	
 	cachedMaps.add({ c, ptr, styleSheetLog });
 
-	if(auto root = CSSRootComponent::find(*c))
-		setAnimator(&root->animator);
+	jassert(animator != nullptr);
+	ptr->animator = animator;
 	
 	return ptr;
 
@@ -761,7 +763,9 @@ StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(Component* c, const Sel
 
 	cachedMapForAllStates.add({s, ptr});
 
-	ptr->animator = matches.getFirst()->animator;
+	jassert(animator != nullptr);
+
+	ptr->animator = animator;
 
 	return ptr;
 }
@@ -1346,7 +1350,7 @@ public:
 		c->setColour(id, colour);
 	};
 
-	static void updateTableHeader(StyleSheet::Ptr ss, TableHeaderComponent* header, int currentState)
+	static void updateTableHeader(CSSRootComponent* root, StyleSheet::Ptr ss, TableHeaderComponent* header, int currentState)
 	{
 		auto parentTable = header->findParentComponentOfClass<TableListBox>();
 		jassert(parentTable != nullptr);
@@ -1358,7 +1362,22 @@ public:
 		parentTable->setHeaderHeight(jmax(height, height2));
 	}
 
-	static void updateTextEditor(StyleSheet::Ptr ss, TextEditor* te, int currentState)
+	static void updateListBox(CSSRootComponent* root, StyleSheet::Ptr ss, ListBox* lb, int currentState)
+	{
+		auto height = ss->getLocalBoundsFromText("M").getHeight();
+		lb->setRowHeight(height);
+
+		if(root != nullptr)
+		{
+			if(auto sbss = root->css.getWithAllStates(lb, Selector(ElementType::Scrollbar)))
+			{
+				auto thickness = sbss->getPixelValue({}, { "width", 0}, (float)lb->getViewport()->getScrollBarThickness());
+				lb->getViewport()->setScrollBarThickness(thickness);
+			}
+		}
+	}
+
+	static void updateTextEditor(CSSRootComponent* root, StyleSheet::Ptr ss, TextEditor* te, int currentState)
 	{
 		setColourIfDefined(te, ss, currentState, CaretComponent::ColourIds::caretColourId, "caret-color");
 		
@@ -1394,7 +1413,7 @@ public:
 		setColourIfDefined(te, ss, currentState, TextEditor::textColourId, "color");
 		te->applyColourToAllText(te->findColour(TextEditor::textColourId));
 
-		if(auto root = CSSRootComponent::find(*te))
+		if(root != nullptr)
 		{
 			if(auto selectionSheet = root->css.getWithAllStates(te, Selector(SelectorType::Class, "::selection")))
 			{
@@ -1407,17 +1426,20 @@ public:
 
 
 
-void StyleSheet::setupComponent(Component* c, int currentState)
+void StyleSheet::setupComponent(CSSRootComponent* cssRoot, Component* c, int currentState)
 {
 	if(auto te = dynamic_cast<TextEditor*>(c))
 	{
-		ComponentUpdaters::updateTextEditor(this, te, currentState);
+		ComponentUpdaters::updateTextEditor((cssRoot), this, te, currentState);
 	}
 	if(auto h = dynamic_cast<TableHeaderComponent*>(c))
 	{
-		ComponentUpdaters::updateTableHeader(this, h, currentState);
+		ComponentUpdaters::updateTableHeader((cssRoot), this, h, currentState);
 	}
-	
+	if(auto lb = dynamic_cast<ListBox*>(c))
+	{
+		ComponentUpdaters::updateListBox((cssRoot), this, lb, currentState);
+	}
 }
 
 Justification StyleSheet::getJustification(PseudoState currentState, int defaultXFlag, int defaultYFlag) const

@@ -61,22 +61,7 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel,
 
 	bool drawButtonText(Graphics& g, Button* b);
 
-	bool drawImageOnComponent(Graphics& g, Component* c, const Image& img)
-	{
-		if(auto ss = root.css.getWithAllStates(c, Selector(ElementType::Image)))
-		{
-			Renderer r(c, root.stateWatcher);
-
-			auto state = r.getPseudoClassFromComponent(c);
-			root.stateWatcher.checkChanges(c, ss, state);
-			
-			r.drawImage(g, img, c->getLocalBounds().toFloat(), ss, true);
-			return true;
-		}
-
-		return false;
-	}
-	
+	bool drawImageOnComponent(Graphics& g, Component* c, const Image& img);
 
 	/** Uses the selector "button [#id]". */
 	void drawButtonText(Graphics& g, TextButton& tb, bool over, bool down) override;
@@ -94,7 +79,17 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel,
 	                      float rotaryStartAngle, float rotaryEndAngle, Slider&slider) override;
 
 	/** Uses the selector "input [#id]". */
-	void drawTextEditorOutline (Graphics&, int width, int height, TextEditor&) override {};
+	void drawTextEditorOutline (Graphics&, int width, int height, TextEditor&) override {}
+
+
+	/** Draws any generic component background. */
+	bool drawComponentBackground(Graphics& g, Component* c, Selector s = {});
+
+	/** Use this for drawing a listbox row by styling the `tr` element. */
+	bool drawListBoxRow(int rowNumber, Graphics& g, const String& text, Component* lb, int width, int height, bool rowIsSelected,
+	                 bool rowIsHovered);
+
+	void initComponent(Component* c, Selector s={});
 
 	void drawProgressBar(Graphics& g, ProgressBar& pb, int width, int height, double progress, const String& textToShow) override;
 
@@ -154,47 +149,15 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel,
     void drawScrollbarButton (Graphics& ,ScrollBar& ,int , int ,int ,bool ,bool ,bool ) override {}
 	int getScrollbarButtonSize (ScrollBar&) override { return 0; }
 
-	
-
     void drawScrollbar (Graphics& g, ScrollBar& scrollbar,
                                 int x, int y, int width, int height,
                                 bool isScrollbarVertical,
                                 int thumbStartPosition,
                                 int thumbSize,
                                 bool isMouseOver,
-                                bool isMouseDown) override
-	{
-		if(auto ss = root.css.getWithAllStates(&scrollbar, Selector(ElementType::Scrollbar)))
-		{
-			Renderer r(&scrollbar, root.stateWatcher);
+                                bool isMouseDown) override;
 
-			int state = 0;
-
-			if(isMouseOver || isMouseDown)
-				state |= (int)PseudoClassType::Hover;
-
-			if(isMouseDown)
-				state |= (int)PseudoClassType::Active;
-			
-			r.setPseudoClassState(state, true);
-
-			root.stateWatcher.checkChanges(&scrollbar, ss, state);
-
-			Rectangle<float> b;
-
-			if(isScrollbarVertical)
-				b = { (float)x, (float)(y + thumbStartPosition), (float)width, (float)thumbSize };
-			else
-				b = { (float)(x + thumbStartPosition), (float)y, (float)thumbSize, (float)height };
-
-			r.drawBackground(g, b, ss);
-			return;
-		}
-
-		fallback.drawScrollbar(g, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
-	}
-	
-    /** Returns the minimum length in pixels to use for a scrollbar thumb. */
+	/** Returns the minimum length in pixels to use for a scrollbar thumb. */
     int getMinimumScrollbarThumbSize (ScrollBar& sb) override
 	{
 		return jmin (sb.getWidth(), sb.getHeight()) * 2;

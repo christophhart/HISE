@@ -38,6 +38,7 @@ namespace simple_css
 using namespace juce;
 
 struct Animator;
+struct CSSRootComponent;
 
 struct StyleSheet: public ReferenceCountedObject
 {
@@ -158,7 +159,9 @@ struct StyleSheet: public ReferenceCountedObject
         
 		Array<std::pair<Selector, StyleSheet::Ptr>> cachedMapForAllStates;
 		Array<CachedStyleSheet> cachedMaps;
-		
+
+		Animator* animator = nullptr;
+
 		List list;
 	};
 
@@ -215,7 +218,7 @@ struct StyleSheet: public ReferenceCountedObject
 	Rectangle<float> getPseudoArea(Rectangle<float> sourceArea, int currentState, PseudoElementType area) const;
 	Rectangle<float> truncateBeforeAndAfter(Rectangle<float> sourceArea, int currentState) const;
 
-	void setupComponent(Component* c, int currentState);
+	void setupComponent(CSSRootComponent* cssRoot, Component* c, int currentState);
 
 	Justification getJustification(PseudoState currentState, int defaultXFlag=Justification::horizontallyCentred, int defaultYFlag=Justification::verticallyCentred) const;
     float getOpacity(int state) const;

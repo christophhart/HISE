@@ -631,56 +631,51 @@ namespace ScriptingObjects
 		};
 
 		struct CSSLaf: public simple_css::StyleSheetLookAndFeel,
+					   public SliderPack::LookAndFeelMethods,
+					   public TableEditor::LookAndFeelMethods,
+					   public HiseAudioThumbnail::LookAndFeelMethods,
 					   public LafBase
 		{
 			CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree);;
 
 			ScriptedLookAndFeel* get() override;
 
-			void updateMultipageDialog(multipage::Dialog& mp)
-			{
-				simple_css::Parser p(parent->currentStyleSheet);
-				auto ok = p.parse();
-				auto css = p.getCSSValues();
-				mp.update(css);
-			}
+			void updateMultipageDialog(multipage::Dialog& mp);
 
-			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override
-			{
-				using namespace simple_css;
+			static void copyPropertiesToElementSelector(simple_css::CSSRootComponent& root, Component& parent, simple_css::Selector s);
+			static void copyPropertiesToChildComponents(simple_css::CSSRootComponent& root, Component& parent);
 
-				if(auto ss = root.css.getWithAllStates(&resizer, Selector(SelectorType::Class, ".waveformedge")))
-				{
-					auto c = dynamic_cast<ResizableEdgeComponent*>(&resizer);
+			void drawSliderPackBackground(Graphics& g, SliderPack& s) override;
+			void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity) override;
+			void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw) override;
+			void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw) override;
 
-					Renderer r(c, root.stateWatcher);
+			void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition) override {};
+			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
+			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
+			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+			void drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox) override;
 
-					int state = 0;
+			void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
+			void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
+			void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override;
+			void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
+			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override;
+			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
+			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
 
-					if(c->getEdge() == ResizableEdgeComponent::Edge::leftEdge)
-						state |= (int)PseudoClassType::First;
-					else
-						state |= (int)PseudoClassType::Last;
+			Rectangle<float> getValueLabelSize(Component& c, const String& text);
+			bool drawValueLabel(Graphics& g, Component& c, const String& text, bool useAlignment=true);
 
-					if(isMouseOver || isMouseDragging)
-						state |= (int)PseudoClassType::Hover;
+		private:
 
-					if(isMouseDragging)
-						state |= (int)PseudoClassType::Active;
-
-					r.setPseudoClassState(state, true);
-
-					root.stateWatcher.checkChanges(c, ss, state);
-					r.drawBackground(g, resizer.getLocalBounds().toFloat(), ss);
-					return;
-
-
-					return;
-				}
-				g.fillAll(Colours::red);
-			}
-			simple_css::CSSRootComponent& root;
+			Rectangle<float> getTextLabelPopupArea(simple_css::StyleSheet::Ptr ss, Rectangle<float> fullBounds, const String& text);
+			void setupSliderPack(SliderPack& s);
+			void setPathAsVariable(simple_css::StyleSheet::Ptr ss, const Path& p, const Identifier& id);
+			bool drawPlayhead(Graphics& g, Component& c, double position, Rectangle<float> area);
+			
 			WeakReference<ScriptedLookAndFeel> parent;
+			Component::SafePointer<Component> componentToStyle;
 
 			valuetree::PropertyListener colourUpdater;
 			valuetree::PropertyListener additionalPropertyUpdater;

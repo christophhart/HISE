@@ -841,6 +841,10 @@ void ScriptComponent::setStyleSheetClass(const String& classIds)
 void ScriptComponent::setStyleSheetProperty(const String& variableId, const var& value, const String& type)
 {
 	auto v = ApiHelpers::convertStyleSheetProperty(value, type);
+
+	if(!styleSheetProperties.isValid())
+		reportScriptError("You need to set the LookAndFeel for this component before calling this method");
+
 	styleSheetProperties.setProperty(variableId, v, nullptr);
 }
 
@@ -1746,6 +1750,9 @@ void ScriptingApi::Content::ScriptComponent::setLocalLookAndFeel(var lafObject)
 {
 	if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(lafObject.getObject()))
 	{
+		if(l->currentStyleSheet.isNotEmpty())
+			setStyleSheetClass({});
+
 		localLookAndFeel = lafObject;
 
 		ChildIterator<ScriptComponent> iter(this);

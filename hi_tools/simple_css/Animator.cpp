@@ -185,7 +185,7 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 
 		if(!uc.initialised || stateChanged.first)
 		{
-			uc.update(ss, currentState);
+			uc.update(parent, ss, currentState);
 		}
 
 	}
@@ -213,9 +213,6 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 
 					PropertyKey thisStartValue(p.name, PseudoState(stateChanged.second).withElement(t));
 					PropertyKey thisEndValue(p.name, PseudoState(currentState).withElement(t));
-                    
-                    
-
                     
 					bool found = false;
 
@@ -279,9 +276,9 @@ void StateWatcher::registerComponentToUpdate(Component* c)
 	updatedComponents.addIfNotAlreadyThere({ c });
 }
 
-void StateWatcher::UpdatedComponent::update(StyleSheet::Ptr ss, int currentState)
+void StateWatcher::UpdatedComponent::update(CSSRootComponent* cssRoot, StyleSheet::Ptr ss, int currentState)
 {
-	ss->setupComponent(target.getComponent(), currentState);
+	ss->setupComponent(cssRoot, target.getComponent(), currentState);
 	initialised = true;
 }
 }
