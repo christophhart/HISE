@@ -471,7 +471,7 @@ void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> a
 	}
 }
 
-void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type)
+void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type, Justification jToUse)
 {
 	auto currentState = PseudoState(getPseudoClassState()).withElement(type);
 
@@ -488,7 +488,7 @@ void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text
 
 	auto textToDraw = ss->getText(text, currentState);
 
-	auto j = ss->getJustification(currentState);
+	auto j = jToUse.getFlags() ? jToUse : ss->getJustification(currentState);
 
 	state.renderShadow(g, std::make_tuple(textToDraw, j, totalArea), currentComponent, ss->getShadow(totalArea, { "text-shadow", currentState}, false), false);	
 

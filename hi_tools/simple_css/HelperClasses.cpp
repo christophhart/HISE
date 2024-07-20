@@ -110,6 +110,7 @@ Selector::Selector(ElementType dt)
 	case ElementType::Headline3: name = "h3"; break;
 	case ElementType::Headline4: name = "h4"; break;
 	case ElementType::Label: name = "label"; break;
+	case ElementType::Scrollbar: name = "scrollbar"; break;
 	default: ;
 	}
 }
