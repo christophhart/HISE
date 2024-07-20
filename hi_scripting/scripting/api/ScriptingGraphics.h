@@ -645,6 +645,40 @@ namespace ScriptingObjects
 				mp.update(css);
 			}
 
+			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override
+			{
+				using namespace simple_css;
+
+				if(auto ss = root.css.getWithAllStates(&resizer, Selector(SelectorType::Class, ".waveformedge")))
+				{
+					auto c = dynamic_cast<ResizableEdgeComponent*>(&resizer);
+
+					Renderer r(c, root.stateWatcher);
+
+					int state = 0;
+
+					if(c->getEdge() == ResizableEdgeComponent::Edge::leftEdge)
+						state |= (int)PseudoClassType::First;
+					else
+						state |= (int)PseudoClassType::Last;
+
+					if(isMouseOver || isMouseDragging)
+						state |= (int)PseudoClassType::Hover;
+
+					if(isMouseDragging)
+						state |= (int)PseudoClassType::Active;
+
+					r.setPseudoClassState(state, true);
+
+					root.stateWatcher.checkChanges(c, ss, state);
+					r.drawBackground(g, resizer.getLocalBounds().toFloat(), ss);
+					return;
+
+
+					return;
+				}
+				g.fillAll(Colours::red);
+			}
 			simple_css::CSSRootComponent& root;
 			WeakReference<ScriptedLookAndFeel> parent;
 
