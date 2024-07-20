@@ -313,7 +313,11 @@ void Dialog::PageBase::updateStyleSheetInfo(bool forceUpdate)
 
 		// rebuild to allow resizing...
 		if(!rootDialog.getSkipRebuildFlag())
+		{
+			rootDialog.css.setAnimator(&rootDialog.animator);
 			rootDialog.body.setCSS(rootDialog.css);
+		}
+			
 	}
 }
 

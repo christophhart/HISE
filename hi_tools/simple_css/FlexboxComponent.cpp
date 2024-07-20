@@ -1022,6 +1022,7 @@ HeaderContentFooter::HeaderContentFooter(bool useViewportContent):
 	body.addFlexItem(footer);
 
 	StyleSheet::Collection c;
+	c.setAnimator(&animator);
 	body.setCSS(c);
 }
 
@@ -1180,6 +1181,7 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 		styleSheetCollectionChanged();
 	}
 
+	css.setAnimator(&animator);
 	body.setCSS(css);
 }
 

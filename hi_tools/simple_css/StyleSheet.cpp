@@ -395,6 +395,7 @@ StyleSheet::Collection::Collection(List l):
 
 void StyleSheet::Collection::setAnimator(Animator* a)
 {
+	jassert(a != nullptr);
 	animator = a;
 
 	forEach([a](Ptr p)
@@ -618,7 +619,11 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		ic << "}";
 		Parser p(ic);
 		p.parse();
-		auto is = p.getCSSValues().getWithAllStates(nullptr, elementSelector);
+
+		auto otherList = p.getCSSValues();
+		otherList.setAnimator(animator);
+
+		auto is = otherList.getWithAllStates(nullptr, elementSelector);
         
         if(is != nullptr)
             debugList.addIfNotAlreadyThere(is);
