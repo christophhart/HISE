@@ -58,6 +58,8 @@ struct Factory: public PathFactory
 
     Path createPath(const String& url) const override;
     
+    String getCategoryName(const String& typeName) const;
+    
 private:
 
     template <typename T> void registerPage();

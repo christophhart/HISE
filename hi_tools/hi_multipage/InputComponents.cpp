@@ -657,7 +657,7 @@ using EditorType = AllEditor;
 #else
 struct EditorType: public Component
 {
-    EditorType(const String& unused) {};
+    EditorType(const String& unused, var unused2) {};
     String syntax;
     Result compile() { return Result::fail("not implemented"); }
 	CodeDocument doc;
@@ -666,7 +666,7 @@ struct EditorType: public Component
 
 
 CodeEditor::CodeEditor(Dialog& r, int w, const var& obj):
-	LabelledComponent(r, w, obj, new EditorType(obj[mpid::Syntax].toString()))
+	LabelledComponent(r, w, obj, new EditorType(obj[mpid::Syntax].toString(), var()))
 {
 	Helpers::writeInlineStyle(getComponent<EditorType>(), "height: 360px;");
 	setSize(w, 360);
