@@ -1745,7 +1745,20 @@ Result HlacDecoder::performTaskStatic(WaitJob& t)
 	archiver.setListener(&t.getState());
 	archiver.extractSampleData(data);
 
-	
+	auto ok = archiver.extractSampleData(data);
+
+    currentJob = nullptr;
+    
+    if(!ok)
+    {
+        return Result::fail("HLAC extraction failed");
+    }
+    
+    if(infoObject[mpid::Cleanup])
+    {
+        for(auto p: archiver.getSourceFiles(data.sourceFile))
+            p.deleteFile();
+    }
 
 	return r;
 }
@@ -1778,6 +1791,9 @@ void HlacDecoder::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Value, infoObject[mpid::SupportFullDynamics] },
 		{ mpid::Help, "Whether to support the HLAC Full Dynamics mode." }
 	});
+    
+    rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::Cleanup,
+        "Whether to remove the archive after it was extracted successfully"));
 }
 #endif
 

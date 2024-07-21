@@ -429,6 +429,15 @@ struct HlacArchiver
 	/** Extracts the compressed data from the given file. */
 	bool extractSampleData(const DecompressData& data);
 
+    static Array<File> getSourceFiles(const File& firstSourceFile)
+    {
+        Array<File> parts;
+
+        firstSourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, firstSourceFile.getFileNameWithoutExtension() + ".*");
+
+        return parts;
+    }
+    
 	/** Compressed the given data using the supplied Thread. */
 	void compressSampleData(const CompressData& data);
 
