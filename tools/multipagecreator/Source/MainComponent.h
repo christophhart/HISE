@@ -1639,7 +1639,7 @@ private:
             }
 
 	        VarCodeEditor(const var& infoObject_, const Identifier& id_, const String& infoPath_):
-              editor(getSyntax(id_)),
+              editor(getSyntax(id_), infoObject_),
               infoObject(infoObject_),
               id(id_),
               infoPath(infoPath_)
