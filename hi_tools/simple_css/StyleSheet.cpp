@@ -1096,7 +1096,7 @@ bool StyleSheet::Collection::sameOrParent(Component* possibleParent, Component* 
 {
 	while(componentToLookFor != nullptr)
 	{
-		if(componentToLookFor == componentToLookFor)
+		if(componentToLookFor == possibleParent)
 			return true;
 
 		if(dynamic_cast<CSSRootComponent*>(componentToLookFor) != nullptr)

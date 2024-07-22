@@ -2393,6 +2393,8 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 	ADD_API_METHOD_1(setStyleSheet);
 	ADD_API_METHOD_3(setStyleSheetProperty);
 	
+    additionalProperties = ValueTree("additionalProperties");
+    
 	if(isGlobal)
 		getScriptProcessor()->getMainController_()->setCurrentScriptLookAndFeel(this);
 }
@@ -2419,7 +2421,8 @@ void ScriptingObjects::ScriptedLookAndFeel::setGlobalFont(const String& fontName
 
 void ScriptingObjects::ScriptedLookAndFeel::setInlineStyleSheet(const String& cssCode)
 {
-	currentStyleSheetFile = {};
+	currentStyleSheetFile = "inline_";
+    currentStyleSheetFile << String(cssCode.hash());
 	setStyleSheetInternal(cssCode);
 }
 
@@ -2477,7 +2480,7 @@ void ScriptingObjects::ScriptedLookAndFeel::setStyleSheetInternal(const String& 
 	currentStyleSheet = cssCode;
 	simple_css::Parser p(cssCode);
 
-	additionalProperties = ValueTree("additionalProperties");
+    
 
 	auto ok = p.parse();
 
@@ -2796,6 +2799,8 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 	LafBase(),
 	StyleSheetLookAndFeel(*content),
 	parent(parent_),
+    dataCopy(data),
+    additionalDataCopy(ad),
 	componentToStyle(c)
 {
 	this->root.css.addIsolatedCollection(c, parent->currentStyleSheetFile, parent->css);
@@ -2816,14 +2821,16 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 
 		Component::SafePointer<Component> safe(c);
 
-		auto updateProperty = [safe](Identifier v, var newValue)
+		auto updateProperty = [ptr, safe](Identifier v, var newValue)
 		{
 			if(safe.getComponent() != nullptr)
 			{
 				if(auto root = simple_css::CSSRootComponent::find(*safe.getComponent()))
 				{
-					if(auto ptr = root->css.getForComponent(safe.getComponent()))
+					if(auto ptr2 = root->css.getForComponent(safe.getComponent()))
 					{
+                        jassert(ptr2 == ptr);
+                        
 						if(v == Identifier("class"))
 						{
 							auto t = StringArray::fromTokens(newValue.toString(), " ", "");
@@ -2834,7 +2841,10 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 								classIds.add(var(c));
 
 							safe->getProperties().set(v, classIds);
-							root->css.clearCache(safe);
+                            root->css.clearCache(safe);
+                            
+                            auto ptr3 = root->css.getForComponent(safe.getComponent());
+                            ptr3->copyVarProperties(ptr);
 						}
 						else
 
@@ -2847,9 +2857,9 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 		};
 
 		additionalPropertyUpdater.setCallback(parent->additionalProperties, {}, valuetree::AsyncMode::Asynchronously, updateProperty);
-		additionalComponentPropertyUpdater.setCallback(ad, {}, valuetree::AsyncMode::Asynchronously, updateProperty);
+		additionalComponentPropertyUpdater.setCallback(additionalDataCopy, {}, valuetree::AsyncMode::Asynchronously, updateProperty);
 
-		colourUpdater.setCallback(data, { Identifier("bgColour"), Identifier("itemColour"), Identifier("itemColour2"), Identifier("textColour")}, 
+		colourUpdater.setCallback(dataCopy, { Identifier("bgColour"), Identifier("itemColour"), Identifier("itemColour2"), Identifier("textColour")}, 
 			valuetree::AsyncMode::Asynchronously, 
 			[safe](Identifier v, var newValue)
 		{

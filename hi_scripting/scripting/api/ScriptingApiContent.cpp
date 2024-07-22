@@ -843,7 +843,7 @@ void ScriptComponent::setStyleSheetProperty(const String& variableId, const var&
 	auto v = ApiHelpers::convertStyleSheetProperty(value, type);
 
 	if(!styleSheetProperties.isValid())
-		reportScriptError("You need to set the LookAndFeel for this component before calling this method");
+        styleSheetProperties = ValueTree("ComponentStyleSheetProperties");
 
 	styleSheetProperties.setProperty(variableId, v, nullptr);
 }
@@ -1728,10 +1728,23 @@ juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFee
 			if(!styleSheetProperties.isValid())
 			{
 				styleSheetProperties = ValueTree("ComponentStyleSheetProperties");
-				
-				simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
-				styleSheetProperties.setProperty("class", classType.toString(), nullptr);
 			}
+            
+            auto initProperty = [&](const Identifier& id)
+            {
+                if(!propertyTree.hasProperty(id))
+                    propertyTree.setProperty(id, defaultValues[id], nullptr);
+            };
+            
+            initProperty("bgColour");
+            initProperty("itemColour");
+            initProperty("itemColour2");
+            initProperty("textColour");
+            
+            removePropertyIfDefault = false;
+            
+            simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
+            styleSheetProperties.setProperty("class", classType.toString(), nullptr);
 			
 			return new ScriptingObjects::ScriptedLookAndFeel::CSSLaf(l, contentComponent, componentToRegister, this->propertyTree, this->styleSheetProperties);
 		}

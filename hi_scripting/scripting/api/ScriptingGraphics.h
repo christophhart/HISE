@@ -677,6 +677,9 @@ namespace ScriptingObjects
 			WeakReference<ScriptedLookAndFeel> parent;
 			Component::SafePointer<Component> componentToStyle;
 
+            ValueTree dataCopy;
+            ValueTree additionalDataCopy;
+            
 			valuetree::PropertyListener colourUpdater;
 			valuetree::PropertyListener additionalPropertyUpdater;
 			valuetree::PropertyListener additionalComponentPropertyUpdater;
