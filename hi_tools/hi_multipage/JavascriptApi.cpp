@@ -890,7 +890,10 @@ struct Dom: public ApiObject
 						if(s != nullptr && s.get()->getFirstDialog() != nullptr)
 						{
 							if(shouldCheck)
-								dialog->navigate(true);
+                            {
+                                s->currentPageIndex--;
+                                dialog->navigate(true);
+                            }
 							else
 								dialog->refreshCurrentPage();
 						}

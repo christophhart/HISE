@@ -1746,8 +1746,6 @@ Result HlacDecoder::performTaskStatic(WaitJob& t)
 	archiver.extractSampleData(data);
 
 	auto ok = archiver.extractSampleData(data);
-
-    currentJob = nullptr;
     
     if(!ok)
     {

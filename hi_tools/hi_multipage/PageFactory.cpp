@@ -1315,18 +1315,6 @@ StringArray Factory::getPopupMenuList() const
 	return sa;
 }
 
-String Factory::getCategoryName(const String& id) const
-{
-    Identifier thisId(id);
-
-    for(auto& i: items)
-    {
-        if(i.id == thisId)
-            return i.category.toString();
-    }
-    
-    return String();
-}
 
 Colour Factory::getColourForCategory(const String& id) const
 {
