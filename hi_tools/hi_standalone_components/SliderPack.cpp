@@ -1390,6 +1390,7 @@ int SliderPack::getHoverStateForSlider(Slider* s) const
 
 	int state = 0;
 
+#if !HISE_NO_GUI_TOOLS
 	if(currentlyDragged)
 	{
 		if(idx == currentlyDraggedSlider)
@@ -1403,6 +1404,7 @@ int SliderPack::getHoverStateForSlider(Slider* s) const
 		if(idx == currentlyHoveredSlider)
 			state |= (int)simple_css::PseudoClassType::Hover;
 	}
+#endif
 	
 	return state;
 }
