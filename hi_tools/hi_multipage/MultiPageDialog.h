@@ -134,6 +134,8 @@ public:
 
         void forwardInlineStyleToChildren();
 
+        bool updateInfoProperty(const Identifier& pid);
+
         VisibleState getVisibility() const;
 
         static StringArray getVisibilityNames();

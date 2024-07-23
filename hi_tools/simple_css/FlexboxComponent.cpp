@@ -415,6 +415,11 @@ Component* FlexboxComponent::addTextElement(const StringArray& selectors, const 
 void FlexboxComponent::addFlexItem(Component& c)
 {
 	addAndMakeVisible(c);
+
+	if(auto root = CSSRootComponent::find(*this))
+	{
+		childSheets[&c] = root->css.getForComponent(&c);
+	}
 }
 
 void FlexboxComponent::addDynamicFlexItem(Component& c)

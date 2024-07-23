@@ -91,6 +91,15 @@ void Action::createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& h
 		{ mpid::Items, getEventTriggerIds() },
 		{ mpid::Help, "The event that will trigger the action" }
 	});
+
+	rootList.addChild<Button>({
+		{ mpid::ID, mpid::SkipIfFalse.toString() },
+		{ mpid::Text, mpid::SkipIfFalse.toString() },
+        { mpid::Value, infoObject[mpid::SkipIfFalse] },
+		{ mpid::Help, "Whether the action should be skipped if the state value is false" }
+	});
+
+	
 #endif
 }
 
@@ -163,6 +172,9 @@ void Action::perform()
         else
         {
             shouldPerform = getValueFromGlobalState(var(true));
+
+			if(infoObject[mpid::SkipIfTrue])
+				shouldPerform = !shouldPerform;
         }
     }
     
@@ -197,7 +209,17 @@ ImmediateAction::ImmediateAction(Dialog& r, int w, const var& obj):
 	{
 		if(triggerType != TriggerType::OnCall && id.isValid() && this->skipIfStateIsFalse())
 		{
-			if(!obj[id])
+			auto shouldSkipIfFalse = this->skipIfStateIsFalse();
+
+			if(infoObject[mpid::SkipIfTrue])
+				shouldSkipIfFalse = false;
+
+			auto shouldSkip = !obj[id];
+
+			if(infoObject[mpid::SkipIfTrue])
+				shouldSkip = !shouldSkip;
+
+			if(shouldSkip)
 			{
 				rootDialog.logMessage(MessageType::ActionEvent, "Skip because value is false");
 				return Result::ok();

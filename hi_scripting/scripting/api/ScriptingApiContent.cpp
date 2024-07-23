@@ -6038,50 +6038,16 @@ void ScriptingApi::Content::ScriptMultipageDialog::setElementProperty(int elemen
 
 		obj->setProperty(propertyId, newValue);
 
-		auto updateType = multipage::mpid::Helpers::getUpdateType(Identifier(propertyId));
+		auto pid = Identifier(propertyId);
 
 		for(auto c: getMultipageState()->currentDialogs)
 		{
-			SafeAsyncCall::call<multipage::Dialog>(*c, [infoObject, updateType](multipage::Dialog& d)
+			SafeAsyncCall::call<multipage::Dialog>(*c, [infoObject, pid](multipage::Dialog& d)
 			{
-				if(updateType == multipage::mpid::Helpers::RequiredUpdate::FullRebuild)
-				{
-					d.refreshCurrentPage();
-					return;
-				}
-
 				if(auto pb = d.findPageBaseForInfoObject(infoObject))
 				{
-					if(updateType == multipage::mpid::Helpers::RequiredUpdate::UpdateCSS)
-					{
-						pb->updateStyleSheetInfo(true);
-						d.css.clearCache(pb);
+					if(pb->updateInfoProperty(pid))
 						return;
-					}
-					if(updateType == multipage::mpid::Helpers::RequiredUpdate::UpdateVisibility)
-					{
-						if(auto c = pb->findParentComponentOfClass<multipage::factory::Container>())
-						{
-							c->updateChildVisibility();
-						}
-						return;
-					}
-					if(updateType == multipage::mpid::Helpers::RequiredUpdate::ResizeParent)
-					{
-						if(auto p = pb->findParentComponentOfClass<multipage::Dialog::PageBase>())
-						{
-							p->postInit();
-						}
-						
-						return;
-					}
-					if(updateType == multipage::mpid::Helpers::RequiredUpdate::PostInit)
-					{
-						pb->postInit();
-						pb->resized();
-						pb->repaint();
-						return;
-					}
 				}
 			});
 		}

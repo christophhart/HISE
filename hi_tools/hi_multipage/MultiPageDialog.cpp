@@ -334,6 +334,50 @@ void Dialog::PageBase::forwardInlineStyleToChildren()
 	}
 }
 
+bool Dialog::PageBase::updateInfoProperty(const Identifier& pid)
+{
+	auto updateType = multipage::mpid::Helpers::getUpdateType(Identifier(pid));
+
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::FullRebuild)
+	{
+		findParentComponentOfClass<multipage::Dialog>()->refreshCurrentPage();
+		return true;
+	}
+
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::UpdateCSS)
+	{
+		updateStyleSheetInfo(true);
+		findParentComponentOfClass<multipage::Dialog>()->css.clearCache(this);
+		return true;
+	}
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::UpdateVisibility)
+	{
+		if(auto c = findParentComponentOfClass<multipage::factory::Container>())
+		{
+			c->updateChildVisibility();
+		}
+		return true;
+	}
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::ResizeParent)
+	{
+		if(auto p = findParentComponentOfClass<multipage::Dialog::PageBase>())
+		{
+			p->postInit();
+		}
+				
+		return true;
+	}
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::PostInit)
+	{
+		postInit();
+		resized();
+		repaint();
+		return true;
+	}
+
+	return false;
+}
+
 simple_css::FlexboxComponent::VisibleState Dialog::PageBase::getVisibility() const
 {
 	auto visibility = infoObject[mpid::Visibility].toString();

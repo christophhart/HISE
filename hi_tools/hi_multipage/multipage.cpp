@@ -140,6 +140,7 @@ var Helpers::getIdList()
     DECLARE_ID(SelectOnClick);
     DECLARE_ID(SkipIfNoSource);
     DECLARE_ID(SkipFirstFolder);
+    DECLARE_ID(SkipIfTrue);
     DECLARE_ID(Source);
     DECLARE_ID(SpecialLocation);
 	DECLARE_ID(StyleData);
