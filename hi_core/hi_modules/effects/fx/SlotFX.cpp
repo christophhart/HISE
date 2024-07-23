@@ -330,18 +330,9 @@ public:
 			g.setColour(Colours::white.withAlpha(0.5f));
 			g.setFont(GLOBAL_BOLD_FONT());
 
-			Rectangle<float> ta;
-
-			if (currentParameters.isEmpty())
-			{
-				ta = getLocalBounds().toFloat();
-				ta.removeFromLeft(selector.getWidth());
-			}
-			else
-				ta = selector.getBounds().translated(0, 40).toFloat();
-
-			g.drawText("Error!", ta, Justification::centredTop);
-			g.drawText(errorMessage, ta, Justification::centredBottom);
+			auto ta = body.toFloat();
+			
+			g.drawText("ERROR: " + errorMessage, ta, Justification::centred);
 		}
 
 	}
@@ -350,6 +341,9 @@ public:
 	{
 		currentEditors.clear();
 		currentParameters.clear();
+
+		if(!getErrorMessage().isEmpty())
+			return;
 
 		if (auto on = getEffect()->opaqueNode.get())
 		{
@@ -392,6 +386,8 @@ public:
 		updateGui();
 	}
 
+	Rectangle<int> body;
+
 	void resized() override
 	{
 		auto b = getLocalBounds().reduced(Margin);
@@ -403,6 +399,8 @@ public:
 		b.removeFromLeft(Margin);
 
 		selector.setBounds(sb.removeFromTop(28));
+
+		body = b;
 
 		Rectangle<int> currentRow;
 
@@ -1271,9 +1269,9 @@ void HardcodedTimeVariantModulator::calculateBlock(int startSample, int numSampl
 {
     SimpleReadWriteLock::ScopedReadLock sl(lock);
 
-    if(opaqueNode != nullptr)
+    if(opaqueNode != nullptr && channelCountMatches)
     {
-        auto* modData = internalBuffer.getWritePointer(0, startSample);
+		auto* modData = internalBuffer.getWritePointer(0, startSample);
         FloatVectorOperations::clear(modData, numSamples);
         
         ProcessDataDyn d(&modData, numSamples, 1);
