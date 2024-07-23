@@ -128,6 +128,7 @@ public:
 		MenuExportUnloadAllSampleMaps,
 		MenuExportUnloadAllAudioFiles,
 		MenuExportCleanBuildDirectory,
+		MenuExportCleanDspNetworkFiles,
 		// --------------------------------------
 		MenuExportSampleDataForInstaller,
 		MenuExportCompileFilesInPool,
@@ -398,6 +399,8 @@ public:
 		static void setupExportWizard(BackendRootWindow* bpe);
 
 		static void exportProject(BackendRootWindow* bpe, int buildOption);
+
+		static void cleanDspNetworkFiles(BackendRootWindow* bpe);
 	};
 
 private:

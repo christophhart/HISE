@@ -135,6 +135,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportValidateUserPresets,
 		MenuExportCheckAllSampleMaps,
 		MenuExportCheckUnusedImages,
+		MenuExportCleanDspNetworkFiles,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertSampleMapToWavetableBanks,
 		MenuToolsConvertAllSamplesToMonolith,
@@ -360,6 +361,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportCleanBuildDirectory:
 		setCommandTarget(result, "Clean Build directory", true, false, 'X', false);
+		result.categoryName = "Export";
+		break;
+	case MenuExportCleanDspNetworkFiles:
+		setCommandTarget(result, "Clean DSP network files", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuFileImportSnippet:
@@ -676,6 +681,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuExportCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
     case MenuExportCheckPluginParameters:    Actions::checkPluginParameterSanity(bpe); return true;
+	case MenuExportCleanDspNetworkFiles: Actions::cleanDspNetworkFiles(bpe); return true;
     case MenuToolsCreateRnboTemplate:   Actions::createRnboTemplate(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
@@ -956,6 +962,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_MENU_ITEM(MenuExportUnloadAllSampleMaps);
 			ADD_MENU_ITEM(MenuExportUnloadAllAudioFiles);
 			ADD_MENU_ITEM(MenuExportCleanBuildDirectory);
+			ADD_MENU_ITEM(MenuExportCleanDspNetworkFiles);
 
 			p.addSeparator();
 
@@ -3109,7 +3116,16 @@ struct EncodedDialogBase: public Component,
 
 		dialog->showFirstPage();
 	}
-	
+
+	void setElementProperty(const String& listId, const Identifier& id, const var& newValue)
+	{
+		if(auto pb = dialog->findPageBaseForID(listId))
+		{
+			pb->getInfoObject().getDynamicObject()->setProperty(id, newValue);
+			pb->updateInfoProperty(id);
+		}
+	}
+
 	void resized() override
 	{
 		dialog->setBounds(getLocalBounds());
@@ -3140,6 +3156,209 @@ protected:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(EncodedDialogBase);
 };
 
+struct CleanDspNetworkFiles: public EncodedDialogBase,
+						     public ControlledObject
+{
+	CleanDspNetworkFiles(MainController* mc):
+	  EncodedDialogBase(),
+	  ControlledObject(mc)
+	{
+		auto c = "1049.jNB..D.A........nT6K8CFTVz6G.XnJAhB3via.3zmojz2VMTRjOXG1C1J+abUa3xyKHd.7S4gT9PpjDlgxgapA5A.c.LG.QQynbqqZ88gITrP4phkIWr8ZprCEEqKKJayE6E5Yn3a4pxBAWWrtnTc8l52RkKKUWinxo0EqpJWvzb9FATrrprlbgREiAse9zy5BQI4ZBiA6LjZPfHHRZasHWZTy.toiABz+XGHiAepuAxLyNzfwfwOlommdMHyNzHP+WYWOABx7DskaJ8xnrp30I6Ennr38bxHxzWelQxJEQ6O6a8ZoVBAD3HaLy2sm1+4mhcfTvZMgYLjOU.RIgRRE0kWaCQmOiRNK5qzqIE87a8EZz3rvIZrRxyt8TJhGY8ReS4OZYXZrmY2V91t51OvMX1QemQ+1biXDYnf.3CpxQZR5O9W3KIE5Si5PWmzB5oMFZZNm9Uoc65oVy3bNpFp++GlYGJ1w8rICGZImajM1.l+7SikX910SO687u0y9x8M1yOrDADHimQpsYqyRnwiFO.+2u3FljaEwb8aimSYId59yWoGn2T..a3nho6eecuqjJ27oVyrA7E2XuWVh45dysU1uryQ+32oLB8mEjHNcQP+UN23hgkwCGLZPpeNeekDIYcQ1t5gu21VYJDJEQhDgRwiGbGU93AUEapRwXTYmMRhKvT0ZBiUicUHo1+kJ496Yy4OS4QaxI0k+V.nxfFblQgLTMjTBA.P.f..fQYP5FDlsBLppZXDegEjYyeJWcUzR8NF71YnNrAKlMsPh4NYR.9aYN1RWPIAxIFh5sBdwRHHVvMlLfWeero1E.SVjg53IKU1IyWICMgydirIBhqKjIs2BH6wFAnU61wL26XPHvPmr84VdfpXWHrqoj5Vrzs9PZGwKWDRqzAobqqHPlIY.Fsp36UPo.XOFIXNKMR0ePQdESHIPuoEA59rePDrxUTRCdPvc8jfZyYKqyR3U.NwLC0hEb6tnLsuQFVEstlqKQE94tI9U1JG3lEytkL+LgQfLrByQV+eHKDffbiCH9+k6XUd.WluREJwhTNL6SuTS3exnbPAiDc1IhXRAUCcDVTtMYBZY4hhJ6DhaKcf1Vewb1TzQ7NRbu2KYTFr2j4vd.Dh0QRbZ1aKx7YXssCBmqPwjWm.CIkrQ2Z4cI1k+nePRq.QHvnulgIAH3NelX0fgn0vQ3cxtwvLPQbrFSnEREpkg2Bo1J.8Ay5G1VX3AW9QtL4rhoq9EAguA8vps8fEDnjktAdE6hsJkmZzsf0rGU08v0GV0I1p8bsjV0B+kCCf2VnXS+iYTxZXjHwms3guRE6TbjfLxB7BQb2cnTGe70O.nClFLyHfWDxvTPYL6w+k4ymqt59uNow2fKOPoi...lNB..r5H...";
+		loadFrom(c);
+	}
+
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(CleanDspNetworkFiles, setItems);
+		MULTIPAGE_BIND_CPP(CleanDspNetworkFiles, clearFile);
+	}
+
+	BackendDllManager::FolderSubType getType(const var::NativeFunctionArgs& args)
+	{
+		auto id = args.arguments[0].toString();
+
+		id = id.replace("setItem", "");
+		id = id.replace("clear", "");
+
+		if(id == "Networks")
+		{
+			return BackendDllManager::FolderSubType::Networks;
+		}
+		if(id == "SNEX")
+		{
+			return BackendDllManager::FolderSubType::CodeLibrary;
+		}
+		if(id == "Faust")
+		{
+			return BackendDllManager::FolderSubType::FaustCode;
+		}
+		if(id == "Cpp")
+		{
+			return BackendDllManager::FolderSubType::ThirdParty;
+		}
+
+		return BackendDllManager::FolderSubType::numFolderSubTypes;
+	}
+
+	var setItems(const var::NativeFunctionArgs& args)
+	{
+		String wildcard = "*";
+		bool recursive = false;
+
+		auto ft = getType(args);
+
+		if(ft == BackendDllManager::FolderSubType::CodeLibrary)
+		{
+			recursive = true;
+		}
+
+		auto folder = BackendDllManager::getSubFolder(getMainController(), ft);
+		auto files = folder.findChildFiles(File::findFiles, recursive, wildcard);
+
+		Array<var> list;
+
+		Array<File> filesToSkip;
+
+		if(ft == BackendDllManager::FolderSubType::CodeLibrary)
+		{
+			// skip the faust files
+			filesToSkip = getFolder(BackendDllManager::FolderSubType::FaustCode).findChildFiles(File::findFiles, false, "*");
+
+			// skip the XML files...
+			auto parameterFiles = folder.findChildFiles(File::findFiles, true, "*.xml");
+
+			filesToSkip.addArray(parameterFiles);
+		}
+		if(ft == BackendDllManager::FolderSubType::ThirdParty)
+		{
+			// skip the CPP files created by faust
+			auto faustFiles = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::FaustCode).findChildFiles(File::findFiles, false, "*");
+
+			filesToSkip.add(folder.getChildFile("node_properties.json"));
+
+			for(auto ff: faustFiles)
+			{
+				auto cppFile = folder.getChildFile(ff.getFileNameWithoutExtension()).withFileExtension(".h");
+				filesToSkip.add(cppFile);
+			}
+		}
+
+		for(auto f: files)
+		{
+			auto fn = f.getRelativePathFrom(folder);
+
+			if(filesToSkip.contains(f))
+				continue;
+			
+			list.add(fn);
+		}
+
+
+		auto id = args.arguments[0].toString();
+
+		auto listId = id.replace("setItem", "list");
+
+		setElementProperty(listId, mpid::Items, list);
+
+		return var();
+	}
+
+	File getFolder(BackendDllManager::FolderSubType t)
+	{
+		return BackendDllManager::getSubFolder(getMainController(), t);
+	}
+
+	void removeNodeProperties(const Array<File>& filesToBeDeleted)
+	{
+		auto jsonFile = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("node_properties.json");
+
+		if(jsonFile.existsAsFile())
+		{
+			auto nodeProperties = JSON::parse(jsonFile);
+
+			if(auto obj = nodeProperties.getDynamicObject())
+			{
+				for(auto& f: filesToBeDeleted)
+				{
+					auto id = Identifier(f.getFileNameWithoutExtension());
+
+					obj->removeProperty(id);
+				}
+
+				jsonFile.replaceWithText(JSON::toString(obj));
+			}
+		}
+	}
+
+	var clearFile(const var::NativeFunctionArgs& args)
+	{
+		auto listId = args.arguments[0].toString().replace("clear", "list");
+
+		auto ft = getType(args);
+
+		auto values = dialog->getState().globalState.getDynamicObject()->getProperty(listId);
+
+		if(values.size() != 0)
+		{
+			auto root = BackendDllManager::getSubFolder(getMainController(), ft);
+
+			auto thirdParty = getFolder(BackendDllManager::FolderSubType::ThirdParty);
+
+			Array<File> filesToDelete;
+
+			String message;
+			message << "Press OK to delete the following files:\n";
+
+			for(auto& v: *values.getArray())
+			{
+				auto p = v.toString();
+
+				auto f = root.getChildFile(p);
+				filesToDelete.add(f);
+				message << "- `" << f.getFullPathName() << "`\n";
+
+				if(ft == BackendDllManager::FolderSubType::FaustCode)
+				{
+					auto f1 = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src_").getChildFile(f.getFileNameWithoutExtension()).withFileExtension(".cpp");
+					auto f2 = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src").getChildFile(f.getFileNameWithoutExtension()).withFileExtension(".cpp");
+					auto f3 = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile(f.getFileNameWithoutExtension()).withFileExtension(".h");
+
+					message << "- `" << f1.getFullPathName() << "`\n";
+					message << "- `" << f2.getFullPathName() << "`\n";
+					message << "- `" << f3.getFullPathName() << "`\n";
+
+					filesToDelete.add(f1);
+					filesToDelete.add(f2);
+					filesToDelete.add(f3);
+				}
+
+				if(ft == BackendDllManager::FolderSubType::CodeLibrary)
+				{
+					auto xmlFile = f.withFileExtension("xml");
+
+					if(xmlFile.existsAsFile())
+					{
+						message << "- `" << xmlFile.getFullPathName() << "`\n";
+						filesToDelete.add(xmlFile);
+					}
+				}
+			}
+
+			if(PresetHandler::showYesNoWindow("Confirm delete", message))
+			{
+				for(auto ff: filesToDelete)
+					ff.deleteFile();
+
+				if(ft == BackendDllManager::FolderSubType::ThirdParty)		
+					removeNodeProperties(filesToDelete);
+			}
+
+			values.getArray()->clear();
+		}
+
+		return var();
+	}
+};
 
 
 struct ExportSetupWizard: public EncodedDialogBase
@@ -3312,6 +3531,12 @@ void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int bu
 		exporter.exportMainSynthChainAsStandaloneApp();
 		break;
 	}
+}
+
+void BackendCommandTarget::Actions::cleanDspNetworkFiles(BackendRootWindow* bpe)
+{
+	auto np = new multipage::CleanDspNetworkFiles(bpe->getBackendProcessor());
+	np->setModalBaseWindowComponent(bpe);
 }
 
 #undef REPLACE_WILDCARD
