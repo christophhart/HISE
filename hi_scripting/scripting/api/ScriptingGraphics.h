@@ -664,8 +664,8 @@ namespace ScriptingObjects
 			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
 			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
 
-			Rectangle<float> getValueLabelSize(Component& c, const String& text);
-			bool drawValueLabel(Graphics& g, Component& c, const String& text, bool useAlignment=true);
+			Rectangle<float> getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text);
+			bool drawValueLabel(Graphics& g, Component& valuePopup, Component& attachedComponent, const String& text, bool useAlignment=true);
 
 		private:
 

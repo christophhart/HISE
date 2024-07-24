@@ -327,7 +327,15 @@ public:
 	static void repaintComponent(ScriptCreatedComponentWrapper& w, bool unused)
 	{
 		if (auto c = w.getComponent())
+		{
+			if(dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&c->getLookAndFeel()))
+			{
+				auto styleSheetPseudoState = w.getScriptComponent()->getStyleSheetPseudoState();
+				simple_css::FlexboxComponent::Helpers::writeManualPseudoState(*c, styleSheetPseudoState);
+			}
+
 			c->repaint();
+		}
 	}
 
     Processor *getProcessor();

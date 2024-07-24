@@ -239,6 +239,7 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptComponent, fadeComponent);
 	API_VOID_METHOD_WRAPPER_3(ScriptComponent, setStyleSheetProperty);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setStyleSheetClass);
+	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setStyleSheetPseudoState);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, updateValueFromProcessorConnection);
 };
 
@@ -435,6 +436,7 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(updateValueFromProcessorConnection);
 	ADD_API_METHOD_3(setStyleSheetProperty);
 	ADD_API_METHOD_1(setStyleSheetClass);
+	ADD_API_METHOD_1(setStyleSheetPseudoState);
 
 	//setName(name_.toString());
 
@@ -836,6 +838,13 @@ void ScriptComponent::setStyleSheetClass(const String& classIds)
 		styleSheetProperties = ValueTree("ComponentStyleSheetProperties");
 
 	styleSheetProperties.setProperty("class", selfClass, nullptr);
+}
+
+void ScriptComponent::setStyleSheetPseudoState(const String& pseudoStateString)
+{
+	pseudoState = simple_css::PseudoState::getPseudoClassIndex(pseudoStateString);
+
+	sendRepaintMessage();
 }
 
 void ScriptComponent::setStyleSheetProperty(const String& variableId, const var& value, const String& type)

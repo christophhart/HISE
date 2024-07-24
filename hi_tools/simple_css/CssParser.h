@@ -382,6 +382,7 @@ private:
 	static String getTokenName(TokenType t);
 	static String processValue(const String& value, ValueType t=ValueType::Undefined);
 	static String getTokenSuffix(PropertyType p, const String& keyword, String& token);
+	static bool hasVariable(const String& value) { return value.indexOf("var(--") != -1; }
 	static PropertyType getPropertyType(const String& p);
 	static std::function<double(double)> parseTimingFunction(const String& t);
 

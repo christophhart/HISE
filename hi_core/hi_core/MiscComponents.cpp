@@ -1073,7 +1073,6 @@ void BorderPanel::paint(Graphics &g)
 		        {
 			        simple_css::Renderer r(this, root->stateWatcher);
 
-					r.getPseudoClassFromComponent(this);
 					root->stateWatcher.checkChanges(this, c, r.getPseudoClassState());
 
 					r.drawBackground(g, getLocalBounds().toFloat(), c);

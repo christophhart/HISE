@@ -1735,6 +1735,9 @@ String Parser::processValue(const String& value, ValueType t)
 		t = findValueType(value);
 	}
 
+	if(hasVariable(value))
+		return value;
+
 	switch(t)
 	{
 	case ValueType::Colour:

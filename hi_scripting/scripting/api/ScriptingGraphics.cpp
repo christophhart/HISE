@@ -2454,6 +2454,9 @@ String ScriptingObjects::ScriptedLookAndFeel::loadStyleSheetFile(const String& f
         s << "}" << nl;
         
 		content = s;
+
+		cssFile.getParentDirectory().createDirectory();
+
 		cssFile.replaceWithText(s);
     }
 
@@ -2821,7 +2824,7 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 
 		Component::SafePointer<Component> safe(c);
 
-		auto updateProperty = [ptr, safe](Identifier v, var newValue)
+		auto updateProperty = [safe](Identifier v, var newValue)
 		{
 			if(safe.getComponent() != nullptr)
 			{
@@ -2829,8 +2832,6 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 				{
 					if(auto ptr2 = root->css.getForComponent(safe.getComponent()))
 					{
-                        jassert(ptr2 == ptr);
-                        
 						if(v == Identifier("class"))
 						{
 							auto t = StringArray::fromTokens(newValue.toString(), " ", "");
@@ -2844,11 +2845,11 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
                             root->css.clearCache(safe);
                             
                             auto ptr3 = root->css.getForComponent(safe.getComponent());
-                            ptr3->copyVarProperties(ptr);
+                            ptr3->copyVarProperties(ptr2);
 						}
 						else
 
-							ptr->setPropertyVariable(v, newValue);
+							ptr2->setPropertyVariable(v, newValue);
 						
 						safe->repaint();
 					}
@@ -3057,7 +3058,7 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawSliderPackTextPopup(Grap
 {
 	using namespace simple_css;
 
-	if(drawValueLabel(g, s, textToDraw))
+	if(drawValueLabel(g, s, s, textToDraw))
 		return;
 
 	SliderPack::LookAndFeelMethods::drawSliderPackTextPopup(g, s, textToDraw);
@@ -3138,11 +3139,11 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTableRuler(Graphics& g, 
 	TableEditor::LookAndFeelMethods::drawTableRuler(g, te, area, lineThickness, rulerPosition);
 }
 
-Rectangle<float> ScriptingObjects::ScriptedLookAndFeel::CSSLaf::getValueLabelSize(Component& c, const String& text)
+Rectangle<float> ScriptingObjects::ScriptedLookAndFeel::CSSLaf::getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text)
 {
 	using namespace simple_css;
 
-	if(auto ss = root.css.getWithAllStates(&c, Selector(ElementType::Label)))
+	if(auto ss = root.css.getWithAllStates(&attachedComponent, Selector(ElementType::Label)))
 	{
 		auto newArea = getTextLabelPopupArea(ss, {0.0f, 0.0f, 10000.0f, 10000.0f}, text);
 
@@ -3152,23 +3153,21 @@ Rectangle<float> ScriptingObjects::ScriptedLookAndFeel::CSSLaf::getValueLabelSiz
 	return {};
 }
 
-bool ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawValueLabel(Graphics& g, Component& c, const String& text,
+bool ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawValueLabel(Graphics& g, Component& valuePopup, Component& attachedComponent, const String& text,
 	bool useAlignment)
 {
 	using namespace simple_css;
 
-	if(auto ss = root.css.getWithAllStates(&c, Selector(ElementType::Label)))
+	if(auto ss = root.css.getWithAllStates(&attachedComponent, Selector(ElementType::Label)))
 	{
-		Renderer r(&c, root.stateWatcher);
+		Renderer r(&valuePopup, root.stateWatcher);
 
-		auto bounds = useAlignment ? getTextLabelPopupArea(ss, c.getLocalBounds().toFloat(), text) : c.getLocalBounds().toFloat();
+		auto bounds = useAlignment ? getTextLabelPopupArea(ss, valuePopup.getLocalBounds().toFloat(), text) : valuePopup.getLocalBounds().toFloat();
 
 		if(!useAlignment)
-			root.stateWatcher.checkChanges(&c, ss, 0);
+			root.stateWatcher.checkChanges(&valuePopup, ss, 0);
 
 		r.drawBackground(g, bounds, ss);
-
-
 
 		r.renderText(g, bounds, text, ss, PseudoElementType::None, Justification::centred);
 		return true;
@@ -3183,7 +3182,7 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTableValueLabel(Graphics
 	if(!te.shouldDrawTableValueLabel())
 		return;
 
-	if(drawValueLabel(g, te, text, true))
+	if(drawValueLabel(g, te, te, text, true))
 		return;
 
 	TableEditor::LookAndFeelMethods::drawTableValueLabel(g, te, f, text, textBox);
@@ -3241,7 +3240,7 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawHiseThumbnailRectList(Gr
 void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTextOverlay(Graphics& g, HiseAudioThumbnail& th,
 	const String& text, Rectangle<float> area)
 {
-	if(drawValueLabel(g, th, text, true))
+	if(drawValueLabel(g, th, th, text, true))
 		return;
 
 	HiseAudioThumbnail::LookAndFeelMethods::drawTextOverlay(g, th, text, area);

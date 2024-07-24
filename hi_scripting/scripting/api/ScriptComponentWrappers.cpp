@@ -458,6 +458,11 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 	{
 		localLookAndFeel = l;
 		component->setLookAndFeel(l);
+
+		if(auto ps = sc->getStyleSheetPseudoState())
+		{
+			simple_css::FlexboxComponent::Helpers::writeManualPseudoState(*component, ps);
+		}
 	}
 	else
 	{
@@ -3332,7 +3337,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::updateText()
 
 	if(auto laf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::CSSLaf*>(&parent.getComponent()->getLookAndFeel()))
 	{
-		auto area = laf->getValueLabelSize(*this, thisText);
+		auto area = laf->getValueLabelSize(*this, *parent.getComponent(), thisText);
 
 		if(!area.isEmpty())
 		{
@@ -3365,7 +3370,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::paint(Graphics& g)
 {
 	if(auto laf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::CSSLaf*>(&parent.getComponent()->getLookAndFeel()))
 	{
-		laf->drawValueLabel(g, *this, currentText, false);
+		laf->drawValueLabel(g, *this, *parent.getComponent(), currentText, false);
 		return;
 	}
 

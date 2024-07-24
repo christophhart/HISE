@@ -122,7 +122,7 @@ KeywordDataBase::KeywordDataBase()
 	functNames["transform"] = { "none", "matrix", "translate", "translateX", "translateY", "translateZ",
 								"scale", "scaleX", "scaleY", "scaleZ", "rotate", "rotateX", "rotateY", "rotateZ",
 								"skew", "skewX", "skewY" };
-    functNames["color"] = { "rgba", "rgb", "hsl", "linear-gradient" };
+    functNames["color"] = { "rgba", "rgb", "hsl", "linear-gradient", "color-mix" };
 }
 
 String KeywordDataBase::getKeywordName(KeywordType type)

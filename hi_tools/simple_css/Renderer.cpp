@@ -206,10 +206,10 @@ Renderer::Renderer(Component* c, StateWatcher& state_):
 
 int Renderer::getPseudoClassFromComponent(Component* c)
 {
-	int state = 0;
-
 	if(c == nullptr)
 		return 0;
+
+	int state = FlexboxComponent::Helpers::getManualPseudoState(*c);
 
 	auto isHover = c->isMouseOverOrDragging(true);
 	auto isDown = c->isMouseButtonDown(false);

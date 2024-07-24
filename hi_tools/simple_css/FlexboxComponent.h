@@ -78,6 +78,16 @@ struct FlexboxComponent: public Component,
 		static String dump(Component& c);
 
 
+		static void writeManualPseudoState(Component& c, int state)
+		{
+			c.getProperties().set("manualPseudoState", state);
+		}
+
+		static int getManualPseudoState(Component& c)
+		{
+			return (int)c.getProperties().getWithDefault("manualPseudoState", var(0));
+		}
+
 		static void writeSelectorsToProperties(Component& c, const StringArray& selectors);
 		static Selector getTypeSelectorFromComponentClass(Component* c);
 		static Array<Selector> getClassSelectorFromComponentClass(Component* c);
