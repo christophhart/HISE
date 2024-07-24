@@ -188,18 +188,6 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	setEnableUndoManager(enableUndo);
 
-	idUpdater.setCallback(data, { PropertyIds::ID }, valuetree::AsyncMode::Synchronously, 
-		[this](ValueTree v, Identifier id)
-	{
-		if (auto n = getNodeForValueTree(v))
-		{
-			auto oldId = n->getCurrentId();
-			auto newId = v[PropertyIds::ID].toString();
-
-			changeNodeId(data, oldId, newId, getUndoManager());
-		}
-	});
-
 	exceptionResetter.setTypeToWatch(PropertyIds::Nodes);
 	exceptionResetter.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasAdded)
 	{

@@ -1641,7 +1641,7 @@ bool DspNetworkGraph::Actions::editNodeProperty(DspNetworkGraph& g)
 	}
 	else
 	{
-		auto nn = new PropertyEditor(g.network->getRootNode(), false, g.network->getValueTree(), {}, false);
+		auto nn = new PropertyEditor(g.network->getRootNode(), false, g.network->getValueTree(), {PropertyIds::ID, PropertyIds::FactoryPath}, false);
 
 		nn->setName("Edit Network Properties");
 

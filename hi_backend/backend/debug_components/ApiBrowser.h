@@ -336,7 +336,7 @@ public:
 		void labelTextChanged(Label*) override
 		{
 			if (node != nullptr)
-				node->setValueTreeProperty(PropertyIds::ID, label.getText());
+				node->setValueTreeProperty(PropertyIds::Name, label.getText());
 		}
 
 		void buttonClicked(Button* b) override
@@ -428,6 +428,31 @@ public:
 			setName("Unused Nodes");
 			addItems(network->getListOfUnusedNodeIds());
 		};
+        
+        void mouseDown(const MouseEvent& e) override
+        {
+            if(e.mods.isRightButtonDown())
+            {
+                PopupMenu m;
+                PopupLookAndFeel plaf;
+                m.setLookAndFeel(&plaf);
+                m.addItem(1, "Clear unused nodes");
+                
+                auto r = m.show();
+                
+                if(r == 1)
+                {
+                    network->clear(false, true);
+                    
+                    auto f = findParentComponentOfClass<SearchableListComponent>();
+                    
+                    MessageManager::callAsync([f]()
+                    {
+                        f->rebuildModuleList(true);
+                    });
+                }
+            }
+        }
 	};
 
 	struct Panel : public NetworkPanel
