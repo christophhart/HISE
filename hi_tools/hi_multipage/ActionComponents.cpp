@@ -31,8 +31,6 @@
  */
 
 
-#include "ActionComponents.h"
-#include "ActionComponents.h"
 
 namespace hise {
 namespace multipage {
@@ -93,9 +91,9 @@ void Action::createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& h
 	});
 
 	rootList.addChild<Button>({
-		{ mpid::ID, mpid::SkipIfFalse.toString() },
-		{ mpid::Text, mpid::SkipIfFalse.toString() },
-        { mpid::Value, infoObject[mpid::SkipIfFalse] },
+		{ mpid::ID, mpid::SkipIfTrue.toString() },
+		{ mpid::Text, mpid::SkipIfTrue.toString() },
+        { mpid::Value, infoObject[mpid::SkipIfTrue] },
 		{ mpid::Help, "Whether the action should be skipped if the state value is false" }
 	});
 
