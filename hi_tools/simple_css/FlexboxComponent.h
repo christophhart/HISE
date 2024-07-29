@@ -217,7 +217,21 @@ struct FlexboxComponent: public Component,
     {
 		jassert(isInvisibleWrapper());
 		auto fc = getChildComponent(0);
-		return childSheets[fc]->getFlexItem(fc, fullArea);
+        
+        auto ss = childSheets[fc];
+        
+        if(ss == nullptr)
+        {
+            childSheets[fc] = parentToUse->css.getForComponent(fc);
+            ss = childSheets[fc];
+        }
+        
+        if(ss != nullptr)
+        {
+            return childSheets[fc]->getFlexItem(fc, fullArea);
+        }
+        
+        return {};
     }
 
     bool isInvisibleWrapper() const { return invisibleWrapper; }

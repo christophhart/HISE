@@ -101,6 +101,7 @@ var Helpers::getIdList()
     DECLARE_ID(Company);
     DECLARE_ID(Custom);
     DECLARE_ID(Data);
+    DECLARE_ID(DecodeFlac);
     DECLARE_ID(Directory);
     DECLARE_ID(EmptyText);
     DECLARE_ID(Enabled);

@@ -132,6 +132,7 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 		m.addItem(CommandId::FileSaveAs, "Save file as");
 		m.addItem(CommandId::FileExportAsProjucerProject, "Export as Projucer project");
         m.addItem(CommandId::FileExportAsMonolith, "Export as monolith payload");
+        m.addItem(CommandId::FileCompressAudioFolder, "Compress audio folder");
 		m.addSeparator();
         m.addItem(CommandId::FileCreateCSS, "Create CSS stylesheet");
         m.addSeparator();
@@ -291,7 +292,8 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 
 		if(fc.browseForFileToSave(true))
 		{
-            MonolithData::exportMonolith(rt, fc.getResult());
+            FileOutputStream fos(fc.getResult());
+            MonolithData::exportMonolith(rt, &fos);
 		}
             
 		break;
@@ -303,6 +305,11 @@ void MainComponent::menuItemSelected(int menuItemID, int)
          tree->setRoot(*c);
          resized();
          break;
+	case FileCompressAudioFolder:
+        addAndMakeVisible(modalDialog = new ModalDialog(*this, new multipage::library::AudioFolderCompressor()));
+		
+		break;
+
 	case EditUndo: c->getUndoManager().undo(); c->refreshCurrentPage(); break;
 	case EditRedo: c->getUndoManager().redo(); c->refreshCurrentPage(); break;
 	case EditToggleMode: 
@@ -643,7 +650,9 @@ void MainComponent::createDialog(const File& f)
         {
             hardcodedDialog = nullptr;
 
-	        addAndMakeVisible(c = MonolithData(f).create(rt));
+            FileInputStream fis(f);
+            
+	        addAndMakeVisible(c = MonolithData(&fis).create(rt));
         }
 	}
     else

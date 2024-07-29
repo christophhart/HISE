@@ -1454,6 +1454,7 @@ Result UnzipTask::performTaskStatic(WaitJob& t)
 	}
 
 	auto skipFirstFolder = (bool)obj[mpid::SkipFirstFolder];
+    auto decodeFlac = (bool)obj[mpid::DecodeFlac];
 
 	for(int i = 0; i < zipFile->getNumEntries(); i++)
 	{
@@ -1470,9 +1471,35 @@ Result UnzipTask::performTaskStatic(WaitJob& t)
 			zn->filename = zn->filename.fromFirstOccurrenceOf("/", false, false);
 		}
 		
-		zipFile->uncompressEntry(i, targetDirectory, overwrite, nullptr);
+        auto thisFile = targetDirectory.getChildFile(zipFile->getEntry(i)->filename);
+        
+        zipFile->uncompressEntry(i, targetDirectory, overwrite, nullptr);
+        
+        if(thisFile.getFileExtension() == ".flac" && decodeFlac)
+        {
+			auto tf = thisFile.withFileExtension(".wav");
 
-		auto thisFile = targetDirectory.getChildFile(zipFile->getEntry(i)->filename);
+			FlacAudioFormat ff;
+			WavAudioFormat wf;
+
+			auto fis = new FileInputStream(thisFile);
+			auto fos = new FileOutputStream(tf);
+
+			ScopedPointer<AudioFormatReader> reader = ff.createReaderFor (fis, true);
+
+			if(reader != nullptr)
+			{
+			    ScopedPointer<AudioFormatWriter> writer = wf.createWriterFor (fos, reader->sampleRate, reader->getChannelLayout(), reader->bitsPerSample, reader->metadataValues, 0);
+
+				if(writer->writeFromAudioReader (*reader, 0, reader->lengthInSamples))
+				{
+				    writer->flush();
+					writer = nullptr;
+					reader = nullptr;
+					thisFile.deleteFile();
+				}
+			}
+        }
 
 #if JUCE_MAC
         
@@ -1545,7 +1572,10 @@ void UnzipTask::createEditor(Dialog::PageInfo& rootList)
 	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::SkipFirstFolder, 
 		"Whether to skip the first folder hierarchy in the source archive.  \n> This is useful if your archive has all files in a subdirectory and you want to extract the archive directly to the specified target."));
 
-	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::SkipIfNoSource, 
+    rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::DecodeFlac,
+        "Whether to decode FLAC files from the archive to WAV files.  \n> This should be used if the archive was created using the **File -> Compress Audio Folder** function."));
+    
+	rootList.addChild<Button>(DefaultProperties::getForSetting(infoObject, mpid::SkipIfNoSource,
 		"Whether to silently skip the extraction process or throw an error message if the source doesn't exist. Use this option if you conditionally download the archive before extracting."));
 }
 #endif

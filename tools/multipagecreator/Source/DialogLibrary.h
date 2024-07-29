@@ -155,6 +155,24 @@ struct ProjectExporter: public HardcodedDialogWithState
 
 
 
-
+namespace hise {
+namespace multipage {
+namespace library {
+using namespace juce;
+struct AudioFolderCompressor: public HardcodedDialogWithState
+{
+    var createFolder(State::Job& t, const var& state);
+    AudioFolderCompressor()
+    {
+        setOnCloseFunction([](){});
+        setSize(700, 550);
+    }
+    
+    Dialog* createDialog(State& state) override;
+    
+};
+} // namespace library
+} // namespace multipage
+} // namespace hise
 
 

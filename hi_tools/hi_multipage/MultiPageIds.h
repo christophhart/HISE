@@ -97,6 +97,7 @@ namespace mpid
     DECLARE_ID(Custom);
     DECLARE_ID(Data);
     DECLARE_ID(Directory);
+    DECLARE_ID(DecodeFlac);
     DECLARE_ID(EmptyText);
     DECLARE_ID(Enabled);
     DECLARE_ID(EventTrigger);

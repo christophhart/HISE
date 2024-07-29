@@ -48,7 +48,7 @@ struct ComponentWithEdge: public Component,
 {
     struct LAF: public LookAndFeel_V4
     {
-        void drawStretchableLayoutResizerBar (Graphics &g, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override
+        void drawStretchableLayoutResizerBar (Graphics &g, Component& c, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override
         {
             
 
@@ -1253,6 +1253,7 @@ public:
         FileSaveAs,
         FileExportAsProjucerProject,
         FileExportAsMonolith,
+        FileCompressAudioFolder,
         FileQuit,
         EditUndo,
         EditRedo,
