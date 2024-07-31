@@ -454,3 +454,81 @@ Dialog* AudioFolderCompressor::createDialog(State& state)
 } // namespace library
 } // namespace multipage
 } // namespace hise
+
+
+namespace hise {
+namespace multipage {
+namespace library {
+using namespace juce;
+var ExportMonolithPayload::exportMonolith(State::Job& t, const var& state)
+{
+	// All variables: 
+	auto targetFile = state["targetFile"].toString();
+	auto LambdaTaskId = state["LambdaTaskId"];
+
+    auto compressAssets = (bool)state["compressAssets"];
+
+    File tf(targetFile);
+    tf.deleteFile();
+    FileOutputStream fos(tf);
+
+    MonolithData::exportMonolith(stateToExport, &fos, compressAssets, &t);
+    
+	return var(""); // return a error
+}
+Dialog* ExportMonolithPayload::createDialog(State& state)
+{
+	DynamicObject::Ptr fullData = new DynamicObject();
+	fullData->setProperty(mpid::LayoutData, JSON::parse(R"({"StyleSheet": "ModalPopup", "Style": "", "UseViewport": true, "ConfirmClose": true, "DialogWidth": 700, "DialogHeight": 500})"));
+	fullData->setProperty(mpid::Properties, JSON::parse(R"({"Header": "Export Monolith Payload", "Subtitle": "Subtitle", "Image": "", "ProjectName": "ExportMonolithPayload", "Company": "HISE", "Version": "1.0.0", "BinaryName": "ExportMonolithPayload", "UseGlobalAppData": false, "Icon": ""})"));
+	using namespace factory;
+	auto mp_ = new Dialog(var(fullData.get()), state, false);
+	auto& mp = *mp_;
+	auto& List_0 = mp.addPage<List>({
+	  { mpid::Style, "gap: 10px;" }
+	});
+
+	List_0.addChild<MarkdownText>({
+	  { mpid::Text, R"(This will package all assets and the dialog info into a .dat file that can be loaded by a dynamic payload installer.
+
+___)" }
+	});
+
+	List_0.addChild<FileSelector>({
+	  { mpid::Text, "Target File" }, 
+	  { mpid::ID, "targetFile" }, 
+	  { mpid::Required, 1 }, 
+	  { mpid::Wildcard, "*.dat" }, 
+	  { mpid::SaveFile, 1 }
+	});
+
+	List_0.addChild<Button>({
+	  { mpid::Text, "Compress Assets" }, 
+	  { mpid::ID, "compressAssets" }, 
+	  { mpid::InitValue, "1" }, 
+	  { mpid::UseInitValue, 1 }, 
+	  { mpid::Help, "If enabled, this will compress the assets. Disable this if the assets are already compressed." }
+	});
+
+	auto& LambdaTaskId_4 = List_0.addChild<LambdaTask>({
+	  { mpid::Text, "Progress" }, 
+	  { mpid::ID, "LambdaTaskId" }, 
+	  { mpid::Function, "exportMonolith" }, 
+	  { mpid::EventTrigger, "OnSubmit" }
+	});
+
+	// TODO: add var exportMonolith(State::Job& t, const var& stateObject) to class
+	LambdaTaskId_4.setLambdaAction(state, BIND_MEMBER_FUNCTION_2(ExportMonolithPayload::exportMonolith));
+	
+	// Custom callback for page List_0
+	List_0.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
+
+		return Result::ok();
+
+	});
+	
+	return mp_;
+}
+} // namespace library
+} // namespace multipage
+} // namespace hise

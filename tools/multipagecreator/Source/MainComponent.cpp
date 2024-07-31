@@ -132,6 +132,7 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 		m.addItem(CommandId::FileSaveAs, "Save file as");
 		m.addItem(CommandId::FileExportAsProjucerProject, "Export as Projucer project");
         m.addItem(CommandId::FileExportAsMonolith, "Export as monolith payload");
+        m.addItem(CommandId::FileExportAsBase64, "Export monolith as Base64 string");
         m.addItem(CommandId::FileCompressAudioFolder, "Compress audio folder");
 		m.addSeparator();
         m.addItem(CommandId::FileCreateCSS, "Create CSS stylesheet");
@@ -286,21 +287,30 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 		
 		break;
 	}
+	case FileExportAsBase64:
+	{
+        MemoryOutputStream mos;
+
+        MonolithData::exportMonolith(rt, &mos, true);
+
+        mos.flush();
+
+		auto b64 = mos.getMemoryBlock().toBase64Encoding();
+
+        SystemClipboard::copyTextToClipboard(b64);
+        
+		break;
+	}
 	case FileExportAsMonolith:
 	{
-		FileChooser fc("Export installer payload as monolith", File(), "*.dat");
-
-		if(fc.browseForFileToSave(true))
-		{
-            FileOutputStream fos(fc.getResult());
-            MonolithData::exportMonolith(rt, &fos);
-		}
-            
+		addAndMakeVisible(modalDialog = new ModalDialog(*this, new multipage::library::ExportMonolithPayload(rt)));
+    
 		break;
 	}
 	case FileQuit: JUCEApplication::getInstance()->systemRequestedQuit(); break;
 	case EditClearState: 
          rt.globalState.getDynamicObject()->clear();
+         rt.clearCompletedJobs();
          c->refreshCurrentPage();
          tree->setRoot(*c);
          resized();
