@@ -689,9 +689,20 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	{
 		job = new WaitJob(r.getState(), obj);
 	}
+	else
+	{
+		finished = r.getState().isFinished(job);
+	}
         
 	progress = new ProgressBar(job->getProgress());
-        
+
+	auto emptyText = infoObject[mpid::EmptyText].toString();
+
+	if(emptyText.isNotEmpty())
+		progress->setTextToDisplay(emptyText);
+
+	
+
 	retryButton.onClick = [this]()
 	{
 		this->finished = false;
@@ -713,6 +724,9 @@ BackgroundTask::BackgroundTask(Dialog& r, int w, const var& obj):
 	label = obj[mpid::Text].toString();
 
 	textLabel = addTextElement({ ".label"}, label);
+
+	if(label.isEmpty())
+		setFlexChildVisibility(0, false, true);
 
 	static constexpr int RETRY = 2;
 	static constexpr int STOP = 3;
