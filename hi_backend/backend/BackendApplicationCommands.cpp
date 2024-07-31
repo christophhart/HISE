@@ -3508,10 +3508,7 @@ void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int bu
 
 	if(!exportIsReady)
 	{
-		if(PresetHandler::showYesNoWindow("System not configured", "Your system has not been setup for export. Do you want to launch the Export Setup wizard?"))
-			Actions::setupExportWizard(bpe);
-
-		return;
+		PresetHandler::showMessageWindow("System not configured", "This computer is not setup for export yet. Please run the Export Wizard (**Tools -> Setup Export Wizard**) in order to silence this message.");
 	}
 
 	CompileExporter exporter(bpe->getMainSynthChain());
