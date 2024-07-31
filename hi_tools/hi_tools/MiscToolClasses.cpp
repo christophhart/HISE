@@ -897,8 +897,11 @@ void ScrollbarFader::Laf::drawStretchableLayoutResizerBar(Graphics& g, int w, in
 
 void ScrollbarFader::scrollBarMoved(ScrollBar* sb, double)
 {
-	sb->setAlpha(1.0f);
-	startFadeOut();
+	if(sb->getRangeLimit() != sb->getCurrentRange())
+	{
+		sb->setAlpha(1.0f);
+		startFadeOut();
+	}
 }
 
 void ScrollbarFader::addScrollBarToAnimate(ScrollBar& b)

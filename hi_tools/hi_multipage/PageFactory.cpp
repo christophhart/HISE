@@ -1081,6 +1081,8 @@ void Table::resized()
 {
 	FlexboxComponent::resized();
 
+	table.getViewport()->getVerticalScrollBar().setAutoHide(false);
+
 	auto area = getLocalBounds().toFloat();
 
 	if(getParentComponent() != nullptr && !area.isEmpty())
