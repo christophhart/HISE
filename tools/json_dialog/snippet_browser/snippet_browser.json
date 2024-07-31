@@ -30,10 +30,100 @@
     "StyleSheet": "Dark",
     "Style": "body\n{\n\tfont-size: 15px;\t\n}\n\n\n\n\n\ntr:focus\n{\n\tbackground: rgba(255,255,255, 0.07);\n}\n\n#footer,\n#header\n{\n\tdisplay: none;\n}\n\n\n\n#content\n{\n\tpadding: 15px;\n\talign-items: flex-start;\n\tbackground: #333;\n\tbox-shadow: inset 0px 0px 5px black;\n\tpadding-top: 24px;\n\t\n}\n\n#content::before\n{\n\tcontent: '';\n\n\tbackground: #222;\n\theight: 20px;\n\tborder-bottom: 1px solid #555;\n}\n\n.header-label\n{\n\tfont-size: 1.1em;\n\tfont-weight: bold;\n\tbackground: linear-gradient(to bottom, #222, #202020);\n\tcolor: #ddd;\n\tborder-radius: 4px;\n\tpadding: 0px;\n}\n\n\n\n.toggle-button\n{\n\tbackground: transparent;\n}\n\n.toggle-button:hover\n{\n\tbackground: transparent;\n}\n\n.tag-button\n{\n\tfont-size: 13px;\n}\n\n.category-button\n{\n\ttransform: none;\n\tpadding: 0px;\n\tcolor: #bbb;\n\twidth: auto;\n\tfont-size: 14px !important;\n\tfont-weight: 500;\n\tborder-radius: 0px;\n\ttext-align: center !important;\n\tbackground: #242424;\n\theight: 28px;\n}\n\n.category-button button:hover\n{\n\tcolor: #eee;\n\tbackground: #222;\n}\n\n.category-button:active\n{\n\tcolor: #fff;\n\t\n\ttransform: scale(98%);\n\t\n}\n\n.category-button:checked\n{\n\tbackground: #bbb;\n\tcolor: #222;\n}\n\n.first-child\n{\n\tborder-radius: 50% 0px 50% 0px;\n}\n\n.last-child\n{\n\tborder-radius: 0% 50% 0% 50%;\n}\n\n.category-button::before\n{\n\tdisplay:none;\n}\n\n.category-button::after\n{\n\tdisplay:none;\n}\n\n#searchBar\n{\n\t\n}\n\n#searchBar label\n{\n\tdisplay: none;\n}\n\n#searchBar input\n{\n\tpadding-left: 100vh;\n\theight: 32px;\n}\n\n#searchBar input::before\n{\n\tcontent: '';\n\twidth: 100vh;\n\tbackground-image: \"332.t0lHDd.QGD+iCI159e.QO.jZCkBBSPjNL8yPg4HHDoCS+LjXUJlKDoCS+LzvblCQxSCaCMLm4PD3BG4PhMLm4PTiky4PWq7MDoCLmNzM2RCQDK3qCw1++UDQ4QQzCw1Mc+CQimE2CwFFF7BQ.tptCIVluqBQ7bGvCQX7kPToeO7Pg4HHDU52COjXrnqDDU52COz++c.QIsVqC8+eGPD3BG4Ph8+eGPTgRE4PoB3ADoo3PNDIBd.Q6KGjCwF4P9.Q6KGjCIlzN9.Q0INjCcaiOPzWRE4P213CDAtvQNjX213CDs1gjNDGrbAQ1P7rCElifPjMDO6PhYJ7oPjMDO6P26XLDs1gjNz8NFCQfKbjCI18NFCQrxeeCYJ7oPTYC90Pg4HHDU1feMjX8n2EDU1feMDEM.AQPl.eCo8jOPzAw+3PrIBgGPzAw+3PiUF\";\n\tmargin: 7px;\n\tbackground: #333;\n\t\n}\n\n#snippetList\n{\n\tflex-grow: 1;\n\theight: auto;\n}\n\n\n.description\n{\n\tbackground: #282828;\n\tpadding: 10px;\n}\n\nth\n{\n\tfont-size: 1em;\n}\n\n.setup-page label\n{\n\tmin-width: 0px;\n}\n\n.setup-page button\n{\n\tpadding: 10px 10px;\n}\n\n\n\n.top-button\n{\n\tflex-grow: 0;\n\theight: 32px;\n\twidth: 32px;\n\tbackground: transparent;\n}\n\n.top-button:hover\n{\n\tbackground: transparent;\n}\n\n.top-button::before\n{\n\tborder: 0px;\n\tbackground: #bbb;\n}\n\n#addButton\n{\n\tmargin: 2px;\n}\n\n#addButton::before\n{\n\t\n\tbackground-image: \"320.t010HCBQd5VpCw1kao.Qd5VpCI1yGi.Qd5VpCA.fGPD8da5P..3ADAvsiNDa..3ADALRXNjX..3ADoTHUNzyGi.QfFojCc4VJPDnQJ4PrcMxfPDnQJ4PrcMxfPjbtszPhcMxfPDUeTzPrBgHDgA..MzYjNBQX..PCw1gakBQX..PCIlPuqBQX..PCgwMrPDUeTzPXbCKDImaKMDaXbCKDAZjRNDavQpPDAZjRNjXrfCQDAZjRND..VDQJERkCA.fEQDvHg4PrA.fEQD.2N5PhA.fEQD8da5PrfCQD4oaoNDbjJDQd5VpCwFF2vBQd5VpCwFF2vBQSij0CIFF2vBQIAW1CIz6pPz7+u8PGtUJDM++aODamQ5HDM++aOjXrBgHDM++aOz0HCBQIAW1CcMxfPzzHY8PrcMxfPjmtk5PiUF\";\n\n}\n\n#settingButton::before\n{\n\tbackground-image: \"598.t0lBhtBQ.ADQCIFF7fBQPgePCE+vjPDT3GzPH3UHDADPDMDa3rAHDQytdMjXrRQGDw+7gMjE7nAQb71YC48sWPDui61Pr8XvQPDyQI1PhISLOPDiFt1PvcPCDQLX1Mz.as.QhXSfCwly99.Q5B2hCI1K84.Q1yRjC4SxMPDtUc4P3wZCD45kcNDa..3ADIy+hNjXsM6ADYA3oNDC4g.QHQJrCYLxIPjoCb6ProNgPPjTFZ6Phol9QPD1Pv6PXJ+DDYU.AOj6RYAQFUQwCwlYVRAQtsgzCIl6lcAQzUg0CswgZPDnWj8PoXcGDY8.aODaYgcHDQnKPOjX1tNIDItVQODWTfBQhqUzCg6IqPDgt.8PrAdJuPj0Cr8Ph0NdxPDnWj8PijYMDQWEVOznogCQtsgzCwFIsZCQFUQwCIVdMjCQVEPvCgZA6PD1Pv6P5rGODIkg1NDadcyPDY5.2NjXXbHQDgDovNjhLUDQV.dpCA.fEQjL+K5Pr46T+PjqW14PhAqM+PDtUc4P+JnODYOKQNzWA0CQ5B2hCwFHkFDQhXSfCIVn3+CQDClcC4ry8PDiFt1Pn4yNDwbThMDapfTMDw63tMjXyOrLDwwamMjYq+BQ7OeXCkM4rPDM650ProfnqPDP.QzPi0FA.ZBQBIjhCIlwSwBQBIjhCAtCwPjy3N4Pf6PLDACXeNjXf6PLDA4AqNjwSwBQb3GsCQ.flPDG9Q6PhwDqfPDG9Q6PoD+FDA4AqNTJwuAQv.1mCIVJwuAQNi6jCwDqfPjPBo3PD.nIDIjPJNzXkA\";\n}\n\n#applyButton::before\n{\n\tbackground-image: \"228.t0FXGUBQjNbqCw1Oo3.Q7++1CwF..d.Qx0pyCwFGd5AQBEGnCw12ZwAQBEGnCw12ZwAQ953lCwFGd5AQ953lCwF..d.QJTpVCw1Oo3.QH..PCwFXGUBQ.wiiCwFXGUBQJWahCwFj3dBQJWahCwFj3dBQ.wiiCw1tV6CQH..PCwF..VDQJTpVCwF0g4BQ953lCwVDkBCQ953lCwVDkBCQBEGnCwF0g4BQBEGnCwF..VDQx0pyCw1tV6CQ7++1CwFj3dBQjNbqCwFj3dBQdnjrCwFXGUBQdnjrCwFXGUBQjNbqCMVY\";\n\tmargin: 8px;\n}\n\n#editButton\n{\n\tmargin: 2px;\n\tborder: 0px;\n}\n\n#editButton::before\n{\n\tcontent: '';\n\tbackground-image: \"206.t0VofuCQ19JgCwFYLhAQ2f0xCwlUc9.QanWtCw1kwKCQxLZYCwVofuCQ19JgCMVaVbvPD8c8HMjX..XQDYX1RMD..VDQWHtXCYwACQzoEy1Pr4Eg9PjhP62Pr8Tk0PTTTr0PrwqJ5Pjm9hzPhQaU6PTuRPzP2rNODktbAMDAR5CQoKWPCIVz3.DQoKWPC4jyAQTuRPzPFkuPD4ouHMDaVbvPD8c8HMzXsA.fGPDiFs8ProfqLPDUz86PrwQZUPDgpC8PrA.fGPDiFs8PiUF\";\n\tmargin: 5px;\n}\n\n#closeButton\n{\n\tmargin: 3px;\n}\n\n#closeButton::before\n{\n\tbackground-image: \t\"228.t0FXGUBQjNbqCw1Oo3.Q7++1CwF..d.Qx0pyCwFGd5AQBEGnCw12ZwAQBEGnCw12ZwAQ953lCwFGd5AQ953lCwF..d.QJTpVCw1Oo3.QH..PCwFXGUBQ.wiiCwFXGUBQJWahCwFj3dBQJWahCwFj3dBQ.wiiCw1tV6CQH..PCwF..VDQJTpVCwF0g4BQ953lCwVDkBCQ953lCwVDkBCQBEGnCwF0g4BQBEGnCwF..VDQx0pyCw1tV6CQ7++1CwFj3dBQjNbqCwFj3dBQdnjrCwFXGUBQdnjrCwFXGUBQjNbqCMVY\";\n}\n\n.top-button::before:hover\n{\n\tborder: 0px;\n\tbackground: #eee;\n}\n\n.top-button::after\n{\n\tdisplay: none;\n}\n\n#snippetDirectory label\n{\n\tdisplay: none;\n}\n\n.settings-panel label\n{\n\twidth: 80px;\n}\n\n#newName label\n{\n\tmax-width: 55px;\n\t\n}\n\n.download-box\n{\n\tbackground: #282828; \n\tpadding: 20px; \n\tpadding-top: 10px;\n\tborder-radius: 3px; \n\tborder: 1px solid #444;\n}\n\n.download-box label\n{\n\t\n\twidth: 70px;\n}\n\n.download-button\n{\n\tmargin-top: 30px;\n}\n\n.download-button button::before\n{\n\tbackground-image: \"185.t0lM.ZBQ78+OCIFMbdCQ78+OC4+eEQDrOd2P9+WQDQ8+cNjX9+WQDA8M.ODMbdCQDA.2CYCflPDQ.v8PhgCYUPDQ.v8P9+2ADA8M.Oj++c.QT+emCIl++c.Qv93cCgCYUPDe++yP1.nIDw2++LzXsIWMfPDtVj1PrIWMfPDp.N5PrQegTPDp.N5PrYCflPDSzc7Profd3PDp.N5ProuxrPDp.N5ProuxrPDtVj1PrIWMfPDtVj1PiUF\";\n\tborder: 0px;\n\tbackground-color: #999;\n\tmargin: 3px;\n}\n\n.download-button button::before:hover\n{\n\n\tborder: 0px;\n\tbackground-color: #fff;\n}\n\n.download-button button::after\n{\n\tdisplay: none;\n}\n\n\n#saveFileButton\n{\n\t\n}\n\n#saveFileButton button::after\n{\n\tdisplay: none;\n}\n\n#saveFileButton button::before\n{\n\tbackground-image: \"399.t0F..VDQ.M6eCwF..VDQnUDzCIF..VDQXw0zCg73DQDDRY8Pfx7PDgEfXOjX3UqPDgpqZODn5DDQHb91CAMr+PDBmu8PrguGMPDBmu8PhgKAJPDBmu8P..3ADgY2VOD..d.QPjJzCwF..d.QPqvUCIF..d.Qf3OTCgnFHPDPsrzPvxRBDAI4FMjXf6iBDA+lBMDDyt.QPGCPCg9MMPDzw.zPrATn0PDzw.zPrA.fEQDPy92Pi0F1DbCQfUbnCwFjVWAQfUbnCIFZIQAQfUbnCAwASPDHJQ5PPbvDDAFYmNDaPbvDDAS8SODaHTVNDAS8SODaHTVNDgaglNjXHTVNDg0PkNDNjjCQH4.oCAzr3PD.oL5PhAIP3PD.GI5PPX5MDAVwgND1DbCQfUbnCMVaPETLDAJPQMDaHRWEDAJPQMDaHRWEDAXSzMjXHRWEDAlQ3MD5.YAQfe2dCAxOWPD32s2PrgkfuPD32s2PhAedvPD32s2PPETLDAkV3MDTAECQfJHcCwFTAECQfBTTCMVY\";\n\tborder: 0px;\n\tbackground: #999;\n}\n\n#saveFileButton button::before:hover\n{\n\tbackground: #fff;\n\tborder: 0px;\n}\n\n#clearFilter\n{\n\twidth: 80px !important;\n\t\n}\n\n#clearFilter:disabled\n{\n\topacity: 1.0;\n}\n\n#clearFilter::before\n{\n\tbackground-image:  \"230.t0F++YBQ9..PCIF+adCQ9..PCA.fEQDKPd2P..XQDcA.dNjX..XQDk+M.OD+adCQg++1Cw+elPT3+u8PhM.YUPT3+u8P..3ADk+M.OD..d.QW.fmCIF..d.Qr.4cCM.YUPjO..zP7+mID4C..MzXsQvjrPzE.34PrYcL3PTcBa3PrUsGxPDx3T2Prw+elPzAZG4ProR3ZPDx3T2ProhyTPTcBa3PrwOafPzE.34ProhyTPj98T6ProR3ZPzdiE7Prw+elPDJln5PrUsGxPzdiE7PrYcL3Pj98T6PrQvjrPzE.34PiUF\";\n\tborder: 0px;\n\tbackground-color: #999;\n}\n\n#clearFilter::before:disabled\n{\n\tbackground-color: #444;\n}\n\n#showUserOnly,\n#clearFilter\n{\n\twidth: 90px !important;\n}\n\n#showUserOnly::before\n{\n\tbackground-image: \"451.t0lW.ZBQ.F.PCIFwadCQ.F.PCA.fEQDdOd2P..XQDA..dNjX..XQDQDN.ODwadCQD8+1C4EflPDQ+u8PhoCYUPDQ+u8P..3ADQDN.OD..d.Q..fmCIF..d.Q383cCoCYUPDfA.zPdAnIDAX..MzXs4EflPD.g4zPhgBXWPD.g4zPdhwBDAye+MjmXr.Q..fmCIlmXr.QrADuCgBXWPDgOS8PdAnIDQ3yTOjXTBZMDQ3yTODGnGDQrADuCwA5AQD..34PhwA5AQDL+82PTBZMDAPXNMjW.ZBQ.DlSCMVav2fIDg3fpMjXTmCKDg3fpMD77DCQ3+neCAOOwPDwet3PhAOOwPDj2e4PTmCKDQb+gND7MXBQD2enCIlSg+AQD2enC4t2ZPDj2e4Pt6sFDQ7mKNjXt6sFDg+i9MjSg+AQHNnZCAeClPDhCp1Pi0l8uKAQLmCtCIlUJXAQLJwqCY7QaPDhNj5PbeSHDgnCoNDa1ogJDgnCoNjXVYGLDgnCoNDcFXCQvW+qCAo.4PDr3n6PhAfpzPDtEU7PzodKDg0WLOjOYYBQX8EyCIl1T4AQX8EyCgKOWPDOnQ7P1+tDDwbN3NzXkA\";\n\t\n\tborder: 0px;\n\tbackground-color: #777;\n}\n\n#showUserOnly::before:hover,\n#clearFilter::before:hover\n{\n\tbackground-color: #aaa;\n\tborder: 0px;\n}\n\n#showUserOnly::before:checked\n{\n\tbackground: #fff;\n\tborder: 0px;\n}\n\n#showUserOnly::after,\n#clearFilter::after\n{\n\tdisplay: none;\n}\n\n#showLocation\n{\n\twidth: 24px;\n\n\tflex-grow: 0; \n\theight: 24px;\n}\n\n#showLocation::before\n{\n\tbackground-image: \"348.t0Fq8tCQ37ZrCwFq8tCQT5ssCIFq8tCQfO5wCgw6zPDZ+T8PD0HKDg1OUODavAqEDg1OUOjXT5jCDg1OUOD..d.QfO5wCA.fGPDkda6PrA.fGPD5jr3PhA.fGPDxAS2PT5jCDAChYMDbvZAQvfXVCwFyInAQvfXVCwFyInAQff4dCwFbvZAQff4dCIFSALAQff4dCA.APPDpFO3P.P.DDgNIKNDa.P.DDQo21NjX.P.DDQMO9NDSALAQvcCwCAGrVPDb2P7PrQTirPDb2P7PhAFOvPDb2P7PrlyLDQMO9NDq4LCQT5ssCwFq4LCQ37ZrCwFq8tCQ37ZrCMVaDR6JDw+GTNjX7P1IDA4VVNDkZ3AQDeRmCQnGbPDUK65PhQnGbPDUK65PPQYFDg.e9MDgztBQ3OaeCwFgztBQvDXSCwF..VDQnrxgCwFgztBQDS4oCwFgztBQ7+AkCMVY\";\n\tborder: 0px;\n\tbackground: #999;\n\tmargin: 6px;\n\tmargin-top: 3px;\n}\n\n#showLocation::before:hover\n{\n\tborder: 0px;\n\tbackground: #bbb;\n}\n\n#showLocation::after\n{\n\tdisplay: none;\n}\n\n#sortByPriority label\n{\n\tdisplay: none;\n}",
     "UseViewport": false,
+    "ConfirmClose": true,
+    "CloseMessage": "Do you want to close this popup?",
     "DialogWidth": 400,
     "DialogHeight": 900
   },
   "GlobalState": {
+    "snippetDirectory": "D:\\Development\\HISE Snippets",
+    "author": "christoph-hart",
+    "snippetRoot": [
+      "A ball shooting Game.md",
+      "An enhanced Button LAF.md",
+      "Array.md",
+      "Audio Render Example.md",
+      "BasicSynth.md",
+      "Big & small Knob LAF.md",
+      "Broadcaster Starting Point.md",
+      "Button Pack.md",
+      "Choke Off Note.md",
+      "Clocksynced Arpeggiator.md",
+      "Colour the Keyboard.md",
+      "Console.md",
+      "Control 3 parameters in 3 ranges with 1 Knob.md",
+      "Control current EQ band.md",
+      "Create thumbnails of your MIDI files.md",
+      "Custom Event Data 101.md",
+      "Custom Event Data 102.md",
+      "Custom Event Data 103.md",
+      "Customized Table LAF.md",
+      "Date.md",
+      "Dynamic List.md",
+      "Dynamic voice routing.md",
+      "Faust Zita Reverb.md",
+      "Global Modulator Container.md",
+      "GLSL Hello World.md",
+      "GLSL MorphBall.md",
+      "GLSL Slider.md",
+      "Horizontal Linear Slider LAF.md",
+      "LAF Tutorial Toolkit.md",
+      "LAF UI Kit.md",
+      "Loop a filmstrip.md",
+      "Lottie Hello World.md",
+      "Micro Tuner.md",
+      "Minimal Sampler Example.md",
+      "Modulate a circle with a Gain LFO.md",
+      "Monophonic Glide Script.md",
+      "Neural Network Sine Generator.md",
+      "Open a Website.md",
+      "Peak Meter LAF with FilmStrip Image.md",
+      "Ping Pong Delay.md",
+      "Play chords from single notes.md",
+      "Press a button to play a specific MIDI note.md",
+      "README.md",
+      "RectHelpers.md",
+      "Rotate an image.md",
+      "Rotating Tape Reel Icon Knobs LAF.md",
+      "Saving custom LFO Shapes.md",
+      "Script references and callbacks for components.md",
+      "Scriptnode Oscillator Visualisation.md",
+      "Scriptnode Visualisation 101.md",
+      "Scriptnode Voice Management.md",
+      "ScriptPanel Slider.md",
+      "Shaded Sliderpack LAF.md",
+      "Sidechain Example 1.md",
+      "Sidechain Example 2.md",
+      "SixState Filmstrip Button.md",
+      "Skeumorphic Knob LAF.md",
+      "Slider Peak Meter LAF.md",
+      "SNEX Bufferstop.md",
+      "SNEX One pole filter.md",
+      "SNEX Oneshot Player.md",
+      "SNEX Portamento Oscillator.md",
+      "SNEX Saturation.md",
+      "SNEX Velocity Modulator.md",
+      "SnippetDB.md",
+      "Stereo Widener.md",
+      "Switch TableData.md",
+      "Tabbed View.md",
+      "Two linked Sliders.md",
+      "Wavetable Example.md",
+      "_Template.md"
+    ],
+    "category": "0",
+    "searchBar": "",
+    "clearFilter": false,
+    "showUserOnly": false,
+    "sortByPriority": "1",
+    "downloadSnippets": "true",
+    "downloadAssets": "true",
+    "addCategory": "0",
+    "priority": "3",
+    "saveFileButton": "false",
+    "addButton": true,
+    "closeButton": true,
+    "snippetList": 0
   },
   "Children": [
     {
@@ -46,21 +136,35 @@
               "Type": "Button",
               "Text": "",
               "ID": "addButton",
-              "Code": "showAddPage(false);\n",
               "Class": ".top-button",
               "NoLabel": true,
               "Tooltip": "Add snippet to browser",
-              "UseInitValue": ""
+              "UseInitValue": "",
+              "Trigger": true
+            },
+            {
+              "Type": "Skip",
+              "ID": "addButton",
+              "EventTrigger": "OnCall",
+              "Target": 3,
+              "Visibility": "Hidden"
             },
             {
               "Type": "Button",
               "Text": "",
               "ID": "editButton",
-              "Code": "showAddPage(true);\n",
               "Class": ".top-button",
-              "Style": "display:none;",
               "NoLabel": true,
-              "Tooltip": "Edit the currently loaded snippet"
+              "Tooltip": "Edit the currently loaded snippet",
+              "Trigger": true,
+              "Visibility": "Placeholder"
+            },
+            {
+              "Type": "Skip",
+              "ID": "editButton",
+              "EventTrigger": "OnCall",
+              "Target": 3,
+              "Visibility": "Hidden"
             },
             {
               "Type": "SimpleText",
@@ -70,11 +174,18 @@
             {
               "Type": "Button",
               "ID": "settingButton",
-              "Code": "document.navigate(1);",
               "Class": ".top-button",
               "NoLabel": true,
               "Tooltip": "Show the snippet browser settings",
-              "UseInitValue": ""
+              "UseInitValue": "",
+              "Trigger": true
+            },
+            {
+              "Type": "Skip",
+              "ID": "settingButton",
+              "EventTrigger": "OnCall",
+              "Target": 2,
+              "Visibility": "Hidden"
             }
           ],
           "Class": ".header-label"
@@ -105,25 +216,29 @@
             {
               "Type": "TextInput",
               "ID": "searchBar",
-              "Code": "rebuildTable();",
+              "Code": "{BIND::rebuildTable}",
               "Height": 80,
-              "CallOnTyping": true
+              "CallOnTyping": true,
+              "Text": "",
+              "UseInitValue": ""
             },
             {
               "Type": "Button",
               "Text": "",
               "ID": "clearFilter",
               "Enabled": false,
-              "Code": "clearFilter();",
+              "Code": "{BIND::clearFilter}",
               "NoLabel": true,
-              "Tooltip": "Clear all filters"
+              "Tooltip": "Clear all filters",
+              "UseInitValue": ""
             },
             {
               "Type": "Button",
               "ID": "showUserOnly",
-              "Code": "rebuildTable();",
+              "Code": "{BIND::rebuildTable}",
               "NoLabel": true,
-              "Tooltip": "Show only user generated snippets"
+              "Tooltip": "Show only user generated snippets",
+              "Text": ""
             }
           ]
         },
@@ -134,7 +249,7 @@
               "Type": "Button",
               "Text": "All",
               "ID": "category",
-              "Code": "rebuildTable();",
+              "Code": "{BIND::rebuildTable}",
               "InitValue": "0",
               "UseInitValue": true,
               "Class": ".category-button .first-child",
@@ -146,7 +261,7 @@
               "Type": "Button",
               "Text": "Modules",
               "ID": "category",
-              "Code": "rebuildTable();",
+              "Code": "{BIND::rebuildTable}",
               "Class": ".category-button",
               "ButtonType": "Toggle",
               "NoLabel": true,
@@ -156,7 +271,7 @@
               "Type": "Button",
               "Text": "MIDI",
               "ID": "category",
-              "Code": "rebuildTable();",
+              "Code": "{BIND::rebuildTable}",
               "Class": ".category-button",
               "ButtonType": "Toggle",
               "NoLabel": true,
@@ -166,7 +281,7 @@
               "Type": "Button",
               "Text": "Scripting",
               "ID": "category",
-              "Code": "rebuildTable();",
+              "Code": "{BIND::rebuildTable}",
               "Class": ".category-button",
               "ButtonType": "Toggle",
               "NoLabel": true,
@@ -176,7 +291,7 @@
               "Type": "Button",
               "Text": "Scriptnode",
               "ID": "category",
-              "Code": "rebuildTable();",
+              "Code": "{BIND::rebuildTable}",
               "Class": ".category-button",
               "ButtonType": "Toggle",
               "NoLabel": true,
@@ -186,7 +301,7 @@
               "Type": "Button",
               "Text": "UI",
               "ID": "category",
-              "Code": "rebuildTable();",
+              "Code": "{BIND::rebuildTable}",
               "Class": ".category-button .last-child",
               "ButtonType": "Toggle",
               "NoLabel": true,
@@ -203,7 +318,7 @@
               "Type": "TagList",
               "ID": "tagList",
               "Items": "API\nBest Practice\nBroadcaster\nComplex\nFaust\nFeatured\nFirst contact\nFull Project\nFramework\nGraphics API\nHelper Tools\nHost Sync\nInternal Messaging\nLookAndFeel\nMIDI Player\nScriptPanel\nSimple\nSNEX\nUI Logic",
-              "Code": "rebuildTable();"
+              "Code": "{BIND::rebuildTable}"
             }
           ],
           "Foldable": true,
@@ -214,7 +329,9 @@
           "ValueMode": "Row",
           "ID": "snippetList",
           "Columns": "name:Name;max-width:-1;\nname:Author;max-width: 140px;width: 110px;",
-          "FilterFunction": "showItem"
+          "FilterFunction": "{BIND::showItem}",
+          "Code": "{BIND::onTable}",
+          "Items": "dudel | asd\nnoice |  asd"
         },
         {
           "Type": "MarkdownText",
@@ -225,14 +342,8 @@
         },
         {
           "Type": "JavascriptFunction",
-          "ID": "JavascriptFunctionId",
-          "Code": "var CATEGORIES = [\"All\", \"Modules\", \"MIDI\", \"Scripting\", \"Scriptnode\", \"UI\"];\n\r\nparsedData = [];\r\n\nvar cf = document.getElementById(\"clearFilter\");\n\nvar rebuildTable = function()\n{\n\tvar hasFilter = state.category != 0;\n\thasFilter = hasFilter || state.searchBar.length != 0;\n\thasFilter = hasFilter || state.tagList.length != 0;\n\thasFilter = hasFilter || state.showUserOnly;\n\n\tConsole.print(hasFilter ? \"HAS FILTER\" : \"HAS NO FILTER\");\n\n\tcf.setAttribute(\"disabled\", !hasFilter);\n\tcf.updateElement();\n\ttable.updateElement();\n};\n\nvar clearFilter = function()\n{\n\tstate.category = 0;\n\tstate.searchBar = \"\";\n\tstate.tagList = [];\n\tstate.showUserOnly = false;\n\n\tdocument.navigate(0, false);\n\n\tConsole.print(\"CLEAR FILTER\");\n};\n\nvar showAddPage = function(editCurrentSnippet)\n{\n\tstate.saveFileButton = false;\n\t\n\tif(!editCurrentSnippet)\n\t{\n\t\tstate.newName = \"\";\n\t\tstate.description = \"\";\n\t\tstate.addCategory = 0;\n\t\tstate.addTagList = [];\n\t}\n\telse if (currentlyLoadedData != 0)\n\t{\n\t\tvar catValue = CATEGORIES.indexOf(currentlyLoadedData.category);\n\t\t\n\t\tConsole.print(\"CAT: \" + catValue);\n\t\t\n\t\tstate.newName = currentlyLoadedData.name;\n\t\tstate.addCategory = catValue;\n\t\tstate.addTagList = currentlyLoadedData.tags.clone();\n\t\t\n\t\tConsole.print(\"TAGS: \" + trace(currentlyLoadedData.tags.clone()));\n\t\t\n\t\tstate.description = currentlyLoadedData.description;\n\t}\n\t\n\t\n\tdocument.navigate(2, false);\n};\n\nvar showItem = function(index, data)\n{\n\tvar name = data[0];\n\n\tif(state.category != 0)\n\t{\n\t\tvar cc = CATEGORIES[state.category];\n\t\tvar tc = parsedData[index].category;\n\t\t\n\t\tif(cc != tc)\n\t\t\treturn false;\n\t}\n\t\n\tvar tagFound = state.tagList.length == 0;\n\t\n\tfor(i = 0; i < state.tagList.length; i++)\n\t{\n\t\tvar tt = parsedData[index].tags;\n\t\t\n\t\tif(tt.indexOf(state.tagList[i]) != -1)\n\t\t\ttagFound = true;\n\t}\n\t\n\tif(!tagFound)\n\t\treturn false;\n\t\n\tif(state.searchBar.length > 0)\n\t{\n\t\tif(name.toLowerCase().indexOf(state.searchBar.toLowerCase()) == -1)\n\t\t\treturn false;\n\t}\n\t\n\tif(state.showUserOnly && state.author != parsedData[index].author)\n\t{\n\t\treturn false;\n\t}\n\t\n\treturn true;\n};\n\r\nvar hiddenItems = [\"README.md\", \"LICENSE.md\", \"_Template.md\", \"SnippetDB.md\"];\r\n\r\nvar tags = [];\r\n\r\nfor(i = 0; i < state.snippetRoot.length; i++)\r\n{\r\n\tvar item = state.snippetRoot[i];\r\n\r\n\tif(hiddenItems.indexOf(item) != -1)\r\n\t\tcontinue;\r\n\r\n\tvar content = document.readFile(state.snippetDirectory + \"/\" + state.snippetRoot[i]);\r\n\tcontent = content.substring(3, 100000);\r\n\tvar end = content.indexOf(\"---\");\r\n\tvar header = content.substring(0, end);\r\n\tvar description = content.substring(end + 4, 100000);\r\n\tvar ml = header.split(\"\\n\");\r\n\tvar data = {};\r\n\t\r\n\tdata[\"name\"] = item.split(\".\")[0];\r\n\tdata[\"description\"] = description;\r\n\tdata.tags = [];\r\n\t\r\n\tfor(j = 0; j < ml.length; j++)\r\n\t{\r\n\t\tvar kv = ml[j].split(\":\");\r\n\t\tvar key = kv[0];\n\t\t\n\t\tif(key == undefined)\n\t\t\tcontinue;\r\n\t\t\t\r\n\t\tif(key == \"tags\")\r\n\t\t{\r\n\t\t\tvar tagList = kv[1].split(\",\");\r\n\t\t\t\r\n\t\t\tfor(t = 0; t < tagList.length; t++)\r\n\t\t\t{\r\n\t\t\t\tvar tt = tagList[t].trim();\r\n\t\t\t\t\r\n\t\t\t\tif(tt.length > 0)\r\n\t\t\t\t\tdata.tags.push(tt);\r\n\t\t\t}\r\n\t\t}\r\n\t\telse\r\n\t\t{\r\n\t\t\tif(key.length > 0 && kv.length > 1)\r\n\t\t\t\tdata[key] = kv[1].trim();\r\n\t\t}\r\n\t}\r\n\t\r\n\tfor(j = 0; j < data.tags.length; j++)\r\n\t{\r\n\t\tif(tags.indexOf(data.tags[j]) == -1)\r\n\t\t\ttags.push(data.tags[j]);\r\n\t}\r\n\t\r\n\tparsedData.push(data);\r\n}\r\n\nif(state.sortByPriority)\n{\n\tparsedData.sort(function(d1, d2)\n\t{\n\t\tvar p1 = d1.priority ? d1.priority : 3;\n\t\tvar p2 = d2.priority ? d2.priority : 3;\n\t\t\n\t\tif(p1 > p2)\n\t\t\treturn -1;\n\t\telse if(p1 < p2)\n\t\t\treturn 1;\n\t\telse\n\t\t\treturn 0;\n\t});\n}\n\n\n\r\n\r\n\r\nvar tl = document.getElementById(\"tagList\");\r\n\r\n\r\nvar table = document.getElementById(\"snippetList\");\r\n\r\nvar newItems = \"\";\r\n\r\nfor(i = 0; i < parsedData.length; i++)\r\n{\r\n\tvar item = parsedData[i];\r\n\r\n\tif(hiddenItems.indexOf(item.name) != -1)\r\n\t\tcontinue;\r\n\r\n\tnewItems += item.name + \"| \" + item.author + \" |\";\r\n\t\r\n\tif(i != state.snippetRoot.length - 1)\r\n\t\tnewItems += \"\\n\";\t\r\n}\r\n\r\ntable.setAttribute(\"items\", newItems);\r\n\ntable.addEventListener(\"select\", function()\n{\n\tvar data = parsedData[this.originalRow];\n\tdescription.innerText = data.description;\n});\n\nvar loadSnippet = document.bindCallback(\"loadSnippet\", function(fullPath, category)\n{\n\tConsole.print(\"LOAD SNIPPET: \" + fullPath + \" from category \" + category);\n});\n\nvar currentlyLoadedData = 0;\n\nvar loadFunction = function()\n{\n\tvar data = parsedData[this.originalRow];\n\tcurrentlyLoadedData = data;\n\t\n\tdocument.getElementById(\"editButton\").style.display = \"flex\";\n\t\n\t\n\tloadSnippet(data.HiseSnippet, data.category);\n};\n\ntable.addEventListener(\"dblclick\", loadFunction);\ntable.addEventListener(\"keydown\", loadFunction);\n\r\nvar description = document.getElementById(\"descriptionDisplay\");\r\ndescription.innerText = \"Please double click a snippet to load...\";\r\n\nif(state.snippetDirectory.length == 0)\n{\n\tdocument.navigate(1);\n}\n\nvar editButton = document.getElementById(\"editButton\");\neditButton.style.display = \"none\";\n\ndocument.clearEventListeners(\"mainEvents\");\n\ndocument.addEventListener(\"save\", function()\n{\n\ttable.setAttribute(\"items\", \"\");\n});\n\nrebuildTable();\n"
-        },
-        {
-          "Type": "TextInput",
-          "ID": "author",
-          "Style": "display: none;",
-          "Height": 80
+          "ID": "tableInitialiser",
+          "Code": "{BIND::rebuildTable}"
         }
       ],
       "Text": "",
@@ -253,10 +364,17 @@
             {
               "Type": "Button",
               "ID": "applyButton",
-              "Code": "document.navigate(0, false);",
               "Class": ".top-button",
               "NoLabel": true,
-              "UseInitValue": ""
+              "Trigger": true,
+              "Text": ""
+            },
+            {
+              "Type": "Skip",
+              "ID": "applyButton",
+              "EventTrigger": "OnCall",
+              "Target": 1,
+              "Visibility": "Hidden"
             }
           ],
           "Class": ".header-label"
@@ -399,9 +517,18 @@
             {
               "Type": "Button",
               "Text": "Download",
-              "ID": "ButtonId",
-              "Code": "document.navigate(0, true);",
-              "Class": ".download-button"
+              "ID": "downloadButton",
+              "Class": ".download-button",
+              "UseInitValue": "",
+              "Trigger": true
+            },
+            {
+              "Type": "Skip",
+              "ID": "downloadButton",
+              "EventTrigger": "OnCall",
+              "Target": 1,
+              "Visibility": "Hidden",
+              "CheckSubmit": true
             }
           ],
           "Class": ".download-box"
@@ -415,6 +542,11 @@
       "Type": "List",
       "Children": [
         {
+          "Type": "JavascriptFunction",
+          "ID": "initAddPage",
+          "Code": "{BIND::initAddPage}"
+        },
+        {
           "Type": "Column",
           "Children": [
             {
@@ -426,9 +558,17 @@
             {
               "Type": "Button",
               "ID": "closeButton",
-              "Code": "document.navigate(0, false);\n",
               "Class": ".top-button",
-              "NoLabel": true
+              "NoLabel": true,
+              "UseInitValue": "",
+              "Trigger": true
+            },
+            {
+              "Type": "Skip",
+              "ID": "closeButton",
+              "EventTrigger": "OnCall",
+              "Target": 1,
+              "Visibility": "Hidden"
             }
           ],
           "Class": ".header-label"
@@ -539,13 +679,14 @@
               "Type": "TextInput",
               "Text": "",
               "ID": "description",
-              "Code": " ",
+              "Code": "{BIND::updatePreview}",
               "Style": "flex-grow: 2;  font-family: monospace;vertical-align: top; font-size: 12px; padding-top: 8px; color: black;",
               "NoLabel": true,
               "Required": true,
               "Height": 80,
               "Multiline": true,
-              "CallOnTyping": true
+              "CallOnTyping": true,
+              "UseInitValue": ""
             },
             {
               "Type": "SimpleText",
@@ -563,35 +704,18 @@
               "Type": "Button",
               "Text": "Save file",
               "ID": "saveFileButton",
-              "Code": "document.navigate(0, true);",
+              "Code": "{BIND::saveSnippet}",
               "InitValue": "false",
               "UseInitValue": true,
               "ButtonType": "Toggle"
-            },
-            {
-              "Type": "JavascriptFunction",
-              "Code": "\ndocument.getElementById(\"editTitle\").innerText = state.newName.length > 0 ? \"Edit Snippet\" : \"Add Snippet\";\n\ndocument.getElementById(\"descriptionPreview\").innerText = \"\";\ndocument.getElementById(\"description\").addEventListener(\"change\", function()\n{\n\tConsole.print(\"VALUE: \" + this.value);\n\t\n\n\tdocument.getElementById(\"descriptionPreview\").innerText = this.value;\n});\n\n"
             }
           ],
           "Style": "border: 1px solid #222; padding: 15px; gap: 15px; flex-grow: 1;"
-        },
-        {
-          "Type": "JavascriptFunction",
-          "EventTrigger": "OnSubmit",
-          "Code": "function appendLine(key, value)\n{\n\tmd += \"\" + key + \": \";\n\t\n\tif(typeof(value) == \"object\")\n\t{\n\t\tfor(i = 0; i < value.length; i++)\n\t\t{\n\t\t\tmd += value[i];\n\t\t\tif(i != value.length -1)\n\t\t\t   md += \", \";\n\t\t}\n\t\t\n\t\tmd += \"\\n\";\n\t}\n\telse\n\t{\n\t\tmd += value + \"\\n\";\n\t}\n}\n\nvar exportSnippet = document.bindCallback(\"exportSnippet\", function()\n{\n\treturn \"This will be the snippet\";\n});\n\nif(state.newName.length > 0)\n{\n\tConsole.print(\"SAVE\");\n\t\n\t// Write the metadata\n\tvar md = \"\";\n\t\n\tmd += \"---\\n\";\n\t\n\tvar CATEGORIES = [\"All\", \"Modules\", \"MIDI\", \"Scripting\", \"Scriptnode\", \"UI\"];\n\t\t\n\tappendLine(\"author\", state.author);\n\tappendLine(\"category\", CATEGORIES[state.addCategory]);\n\tappendLine(\"tags\", state.addTagList);\n\tappendLine(\"active\", \"true\");\n\tappendLine(\"priority\", state.priority);\n\tappendLine(\"HiseSnippet\", exportSnippet());\n\t\n\tmd += \"---\\n\";\n\t\n\t// Write the file\n\tvar fileContent = md;\n\tfileContent += \"\\n\" + state.description;\n\tvar newFile = state.snippetDirectory + \"/\" + state.newName.trim() + \".md\";\n\tdocument.writeFile(newFile, fileContent);\n\tdocument.copyToClipboard(\"### \" + state.newName.trim() + \"\\n\\n```\\n\" + fileContent+ \"\\n```\");\n\t\n}\n\n\n"
         }
       ],
       "Text": "",
       "Style": "height: 100%;"
     }
   ],
-  "Assets": [
-    {
-      "Type": 3,
-      "ID": "loadBrowser",
-      "RelativePath": true,
-      "OperatingSystem": 0,
-      "Filename": "loadBrowser.js"
-    }
-  ]
+  "Assets": []
 }

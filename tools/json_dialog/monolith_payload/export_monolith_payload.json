@@ -1,0 +1,77 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Export Monolith Payload",
+    "Subtitle": "Subtitle",
+    "Image": "",
+    "ProjectName": "ExportMonolithPayload",
+    "Company": "HISE",
+    "Version": "1.0.0",
+    "BinaryName": "ExportMonolithPayload",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "",
+    "UseViewport": true,
+    "ConfirmClose": true,
+    "DialogWidth": 700,
+    "DialogHeight": 500
+  },
+  "GlobalState": {
+    "compressAssets": "1"
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "This will package all assets and the dialog info into a .dat file that can be loaded by a dynamic payload installer.\n\n___"
+        },
+        {
+          "Type": "FileSelector",
+          "Text": "Target File",
+          "ID": "targetFile",
+          "Required": true,
+          "Wildcard": "*.dat",
+          "SaveFile": true
+        },
+        {
+          "Type": "Button",
+          "Text": "Compress Assets",
+          "ID": "compressAssets",
+          "InitValue": "1",
+          "UseInitValue": true,
+          "Help": "If enabled, this will compress the assets. Disable this if the assets are already compressed."
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "Progress",
+          "ID": "LambdaTaskId",
+          "Function": "exportMonolith",
+          "EventTrigger": "OnSubmit"
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 10px;"
+    }
+  ],
+  "Assets": []
+}

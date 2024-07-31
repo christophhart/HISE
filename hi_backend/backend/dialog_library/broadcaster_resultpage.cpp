@@ -7,48 +7,7 @@ namespace multipage {
 namespace library {
 using namespace juce;
 
-inline var SnippetBrowser::loadSnippet(const var::NativeFunctionArgs& args)
-{
-    if(args.numArguments != 2)
-        return var();
 
-	auto snippet = args.arguments[0].toString();
-    auto category = args.arguments[1].toString();
-
-    auto am = bpe->getBackendProcessor()->getAssetManager();
-    am->initialise();
-	BackendCommandTarget::Actions::loadSnippet(bpe, snippet);
-	auto root = bpe->getRootFloatingTile();
-
-    
-
-    auto catIndex = SnippetBrowserHelpers::getCategoryNames().indexOf(category);
-
-    if(catIndex != -1)
-    {
-        auto c = (SnippetBrowserHelpers::Category)catIndex;
-	    auto foldState = hise::SnippetBrowserHelpers::getFoldConfiguration(c);
-
-		root->forEach<FloatingTileContent>([&](FloatingTileContent* t)
-		{
-			auto s = t->getParentShell()->getLayoutData().getKeyPressId();
-
-			if(s.isValid() && foldState.find(s) != foldState.end())
-			{
-				auto x = foldState[s];
-				t->getParentShell()->setFolded(x);
-			}
-					
-			return false;
-		});
-    
-		bpe->currentCategory = c;
-    }
-    
-    bpe->setCurrentlyActiveProcessor();
-	
-	return var();
-}
 
 
 var BroadcasterWizard::checkSelection(const var::NativeFunctionArgs& args)
