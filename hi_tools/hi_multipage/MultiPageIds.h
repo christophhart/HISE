@@ -80,14 +80,18 @@ namespace mpid
 	    static var getIdList();
     };
 
+    DECLARE_ID(ActionType);
+    DECLARE_ID(AllowDemo);
     DECLARE_ID(Assets);
     DECLARE_ID(Args);
     DECLARE_ID(Autofocus);
     DECLARE_ID(ButtonType);
     DECLARE_ID(BinaryName);
     DECLARE_ID(CallOnTyping);
+	DECLARE_ID(CheckSubmit);
     DECLARE_ID(Cleanup);
     DECLARE_ID(Class);
+    DECLARE_ID(CloseMessage);
     DECLARE_ID(ContentType);
     DECLARE_ID(ConfirmClose);
     DECLARE_ID(Code);
@@ -134,6 +138,8 @@ namespace mpid
     DECLARE_ID(RelativePath);
     DECLARE_ID(SaveFile);
     DECLARE_ID(SelectOnClick);
+    DECLARE_ID(SimulateFileAction);
+    DECLARE_ID(SerialNumber);
     DECLARE_ID(SkipIfNoSource);
     DECLARE_ID(SkipFirstFolder);
     DECLARE_ID(SkipIfTrue);
@@ -158,6 +164,7 @@ namespace mpid
     DECLARE_ID(UsePost);
     DECLARE_ID(UseProject);
     DECLARE_ID(UseTotalProgress);
+    DECLARE_ID(UserEmail);
     DECLARE_ID(UseViewport);
     DECLARE_ID(Value);
     DECLARE_ID(ValueMode);

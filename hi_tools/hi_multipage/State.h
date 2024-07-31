@@ -522,6 +522,7 @@ struct MonolithData
         MonolithBeginAssets,
         MonolithAssetJSONStart,
         MonolithAssetJSONEnd,
+        MonolithAssetNoCompressFlag,
         MonolithAssetStart,
         MonolithAssetEnd,
         MonolithEndAssets
@@ -533,7 +534,7 @@ struct MonolithData
     
     multipage::Dialog* create(State& state);
     
-    static Result exportMonolith(State& state, OutputStream* output);
+    static Result exportMonolith(State& state, OutputStream* output, bool compressAssets=true, State::Job* j=nullptr);
     var getJSON() const;
 
 private:

@@ -108,6 +108,7 @@ public:
         bool confirmClose = true;
         String styleSheet = "Dark";
         String additionalStyle;
+        String closeMessage = "Do you want to close this popup?";
         bool useViewport = true;
     } positionInfo;
 

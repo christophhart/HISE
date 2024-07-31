@@ -97,6 +97,12 @@ void Action::createBasicEditor(T& t, Dialog::PageInfo& rootList, const String& h
 		{ mpid::Help, "Whether the action should be skipped if the state value is false" }
 	});
 
+	css.addChild<TextInput>({
+        { mpid::ID, mpid::EmptyText.toString() },
+        { mpid::Text, mpid::EmptyText.toString() },
+        { mpid::Help, "The text that is displayed on the progress bar before the action is started (leave empty for `0%`)." },
+		{ mpid::Value, infoObject[mpid::EmptyText] }
+    });
 	
 #endif
 }
@@ -248,6 +254,40 @@ Skip::Skip(Dialog& r, int w, const var& obj):
 void Skip::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that simply skips the page that contains this element. This can be used in order to skip a page with a branch (eg. if one of the options doesn't require additional information.)");
+
+	StringArray sa;
+
+	sa.add("Default");
+
+	for(int i = 0; i < rootDialog.getNumPages(); i++)
+	{
+		String pn;
+		pn << "Page " + String(i+1);
+
+		auto id = rootDialog.getPageListVar()[i][mpid::ID].toString();
+
+		if(id.isNotEmpty())
+			pn << " (" << id << ")";
+
+		sa.add(pn);
+	}
+
+	rootList.addChild<Choice>({
+		{ mpid::ID, mpid::Target.toString()},
+		{ mpid::Text, mpid::Target.toString() },
+		{ mpid::Required, true },
+		{ mpid::ValueMode, "Index" },
+		{ mpid::Items, sa.joinIntoString("\n") },
+		{ mpid::Value, infoObject[mpid::ActionType].toString() },
+		{ mpid::Help, "The target page you want to call. Use Default if you want the normal behaviour defined by the next / previous buttons. Using this property to navigate to a certain page is only possible when using the `OnCall` EventTrigger mode" }
+	});
+	
+	rootList.addChild<Button>({
+		{ mpid::ID, mpid::CheckSubmit.toString()},
+		{ mpid::Text, mpid::CheckSubmit.toString() },
+		{ mpid::Value, infoObject[mpid::CheckSubmit] },
+		{ mpid::Help, "Whether the navigation should perform the submit actions before skipping the page. This is only working with a specified `Target`." }
+	});
 }
 #endif
 
@@ -255,7 +295,29 @@ Result Skip::onAction()
 {
 	auto rt = &rootDialog;
 	auto direction = rt->getCurrentNavigationDirection();
-        
+
+	int targetIndex = (int)infoObject.getProperty(mpid::Target, 0) - 1;
+
+	if(this->triggerType == Action::TriggerType::OnCall && isPositiveAndBelow(targetIndex, rootDialog.getNumPages()))
+	{
+		auto checkSubmit = (bool)infoObject[mpid::CheckSubmit];
+
+		if(checkSubmit)
+			targetIndex--;
+
+		rootDialog.getState().currentPageIndex = targetIndex;
+
+		MessageManager::callAsync([checkSubmit, rt]()
+		{
+			if(checkSubmit)
+			rt->navigate(true);
+		else
+			rt->refreshCurrentPage();
+		});
+
+		return Result::ok();
+	}
+
 	MessageManager::callAsync([rt, direction]()
 	{
 		rt->navigate(direction);
@@ -269,7 +331,13 @@ void JavascriptFunction::createEditor(Dialog::PageInfo& rootList)
 {
 	createBasicEditor(*this, rootList, "An action element that will perform a block of Javascript code. You can read / write data from the global state using the `state.variableName` syntax.");
 
-	
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Code.toString() },
+		{ mpid::Text, mpid::Code.toString() },
+        { mpid::Value, infoObject[mpid::Code] },
+        { mpid::Items, "{BIND::functionName}" },
+		{ mpid::Help, "The callback that is executed using the syntax `{BIND::myMethod}`" }
+	});
 }
 #endif
 
@@ -407,6 +475,23 @@ Result AppDataFileWriter::onAction()
 }
 
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+void ClipboardLoader::createEditor(Dialog::PageInfo& rootList)
+{
+	createBasicEditor(*this, rootList, "Loads the text from the clipboard and writes it to the given variable name");
+
+	rootList.addChild<TextInput>(
+	{
+		{ mpid::ID, "Target"},
+		{ mpid::Text, "Target" },
+		{ mpid::Required, true },
+		{ mpid::Value, infoObject[mpid::Target] },
+		{ mpid::Help, "The target variable (as plain ID without the `$id` syntax)" }
+	});
+	
+}
+#endif
+
 RelativeFileLoader::RelativeFileLoader(Dialog& r, int w, const var& obj):
 	ImmediateAction(r, w, obj)
 {}
@@ -464,7 +549,8 @@ StringArray RelativeFileLoader::getSpecialLocations()
 		"windowsSystemDirectory",
 #endif
 		"globalApplicationsDirectory",
-        "parentDirectory"
+        "parentDirectory",
+		"projectAppDataDirectory"
 	};
 }
 
@@ -479,8 +565,22 @@ Result RelativeFileLoader::onAction()
 	if(idx != -1)
 	{
         File f;
-        
-        if(locString == "parentDirectory")
+
+		if(locString == "projectAppDataDirectory")
+		{
+			auto company = rootDialog.getGlobalProperty(mpid::Company).toString();
+			auto product = rootDialog.getGlobalProperty(mpid::ProjectName).toString();
+			auto useGlobal = (bool)rootDialog.getGlobalProperty(mpid::UseGlobalAppData);
+
+			f = File::getSpecialLocation(useGlobal ? File::globalApplicationsDirectory : File::userApplicationDataDirectory);
+
+#if JUCE_MAC
+			f = f.getChildFile("Application Support");
+#endif
+
+			f = f.getChildFile(company).getChildFile(product);
+		}
+        else if(locString == "parentDirectory")
         {
     #if HISE_MULTIPAGE_INCLUDE_EDIT
             f = rootDialog.getState().currentRootDirectory;
@@ -524,6 +624,198 @@ Launch::Launch(Dialog& r, int w, const var& obj):
 	currentLaunchTarget = obj[mpid::Text].toString();
 	args = obj[mpid::Args].toString();
 }
+
+Result FileAction::onAction()
+{
+	auto at = infoObject[mpid::ActionType].toString();
+
+	auto idx = getFileActions().indexOf(at);
+
+	if(idx != -1)
+	{
+		auto ft = (FileActionType)idx;
+		auto simulate = (bool)infoObject[mpid::SimulateFileAction];
+		auto target = evaluate(mpid::Target);
+		auto source = evaluate(mpid::Source);
+
+		auto logIfSimulate = [&](const String& additionalMessage)
+		{
+			String message;
+
+			if(simulate)
+				message << "SIMULATE ";
+			else
+				message << "PERFORM ";
+
+			message << "File Action: " << at;
+
+			if(source.isNotEmpty())
+				message << ", Source: " << source;
+
+			if(target.isNotEmpty())
+				message << ", Target: " << target;
+
+			if(additionalMessage.isNotEmpty())
+				message << " - " << additionalMessage;
+
+			rootDialog.getState().logMessage(MessageType::ActionEvent, message);
+
+			if(simulate)
+			{
+				
+				return false;
+			}
+
+			return true;
+		};
+
+		switch(ft)
+		{
+		case CheckIfExists:
+		{
+			File f(source);
+
+			auto exists = f.existsAsFile() || f.isDirectory();
+
+			if(logIfSimulate(exists ? "File exists" : "File doesn't exist") && target.isNotEmpty())
+				rootDialog.getState().globalState.getDynamicObject()->setProperty(target, exists);
+			
+			break;
+		}
+		case DeleteFile:
+		{
+			File f(target);
+
+			if(logIfSimulate("File to delete: " + f.getFullPathName()) && target.isNotEmpty())
+			{
+				if(f.isDirectory())
+					f.deleteRecursively();
+				else
+					f.deleteFile();
+			}
+
+			break;
+		}
+		case CopyFile:
+		{
+			File sf(source);
+			File tf(target);
+
+			if(logIfSimulate("") && source.isNotEmpty() && target.isNotEmpty())
+			{
+				if(!sf.copyFileTo(tf))
+					return Result::fail("Couldn't copy file");
+			}
+			break;
+		}
+		case MoveFile:
+		{
+			File sf(source);
+			File tf(target);
+
+			if(logIfSimulate("") && source.isNotEmpty() && target.isNotEmpty())
+			{
+				if(!sf.moveFileTo(tf))
+					return Result::fail("Couldn't copy file");
+			}
+			break;
+		};
+		case LoadAsString:
+		{
+			File sf(source);
+
+			auto content = sf.loadFileAsString();
+
+			if(logIfSimulate(content) && target.isNotEmpty())
+			{
+				rootDialog.getState().globalState.getDynamicObject()->setProperty(target, content);
+			}
+
+			break;
+		};
+		case LoadAsObject:
+		{
+			File sf(source);
+
+			auto content = JSON::parse(sf);
+
+			if(logIfSimulate(JSON::toString(content, true)) && target.isNotEmpty())
+			{
+				rootDialog.getState().globalState.getDynamicObject()->setProperty(target, content);
+			}
+
+			break;
+		};
+		case WriteString:
+		{
+			File tf(target);
+			
+			if(logIfSimulate("") && source.isNotEmpty())
+			{
+				if(!tf.replaceWithText(source))
+					return Result::fail("Couldn't write file");
+			}
+
+			break;
+		};
+		case WriteObject:
+		{
+			File tf(target);
+			
+			if(logIfSimulate("") && source.isNotEmpty())
+			{
+				if(!tf.replaceWithText(JSON::toString(source, false)))
+					return Result::fail("Couldn't write file");
+			}
+		}
+		case numFileActionTypes: break;
+		default: ;
+		}
+	}
+
+	return Result::ok();
+}
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+void FileAction::createEditor(Dialog::PageInfo& rootList)
+{
+	createBasicEditor(*this, rootList, "Performs an action with a given file");
+
+	rootList.addChild<Choice>({
+		{ mpid::ID, mpid::ActionType.toString()},
+		{ mpid::Text, mpid::ActionType.toString() },
+		{ mpid::Required, true },
+		{ mpid::Items, getFileActions().joinIntoString("\n")},
+		{ mpid::Value, infoObject[mpid::ActionType].toString() },
+		{ mpid::Help, "The action to be performed" }
+	});
+
+	rootList.addChild<Button>({
+		{ mpid::ID, mpid::SimulateFileAction.toString()},
+		{ mpid::Text, mpid::SimulateFileAction.toString() },
+		{ mpid::Value, infoObject[mpid::SimulateFileAction] },
+		{ mpid::Help, "Whether the action should be simulated. Leave this on during development and it will just log to the console what it would do instead of performing the actual operation" }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Source.toString()},
+		{ mpid::Text, mpid::Source.toString() },
+		{ mpid::Value, infoObject[mpid::Source].toString() },
+		{ mpid::Help, "The source of the operation. What this is depends on the file action type and can be either a string or a file path" }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Target.toString()},
+		{ mpid::Text, mpid::Target.toString() },
+		{ mpid::Value, infoObject[mpid::Target].toString() },
+		{ mpid::Help, "The target of the operation. What this is depends on the file action type and can be either a variable ID or a file path" }
+	});
+}
+
+
+#endif
+
+
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
 void Launch::createEditor(Dialog::PageInfo& rootList)
@@ -1600,7 +1892,12 @@ Result CopyAsset::performTaskStatic(WaitJob& t)
 
 	if(auto a = t.getState().getAsset(t.getInfoObject(), mpid::Source))
 	{
-		auto fn = File(a->filename).getFileName();
+		String fn;
+
+		if(File::isAbsolutePath(a->filename))
+			fn = File(a->filename).getFileName();
+		else
+			fn = a->filename;
 
 		auto targetDir = t.getTargetFile();
 
@@ -2030,6 +2327,7 @@ void OperatingSystem::loadConstants()
 
 	setConstant("OS", (int)Asset::TargetOS::Windows);
 	setConstant("OS_String", "WIN");
+	setConstant("LINK_FILENAME", "LinkWindows");
 #elif JUCE_LINUX
     setConstant("WINDOWS", false);
 	setConstant("MAC_OS", false);
@@ -2041,6 +2339,7 @@ void OperatingSystem::loadConstants()
 
 	setConstant("OS", (int)Asset::TargetOS::Linux);
 	setConstant("OS_String", "LINUX");
+	setConstant("LINK_FILENAME", "LinkLinux");
 #elif JUCE_MAC
     setConstant("WINDOWS", false);
     setConstant("MAC_OS", true);
@@ -2052,6 +2351,7 @@ void OperatingSystem::loadConstants()
 
 	setConstant("OS", (int)Asset::TargetOS::macOS);
 	setConstant("OS_String", "OSX");
+	setConstant("LINK_FILENAME", "LinkOSX");
 #endif
 }
 
@@ -2315,6 +2615,156 @@ bool PersistentSettings::shouldUseJson() const
 {
 	return (bool)infoObject[mpid::ParseJSON];
 }
+
+HiseActivator::HiseActivator(Dialog& r, int w, const var& obj):
+	BackgroundTask(r, w, obj),
+	cp(r, w, obj),
+	fw(r, w, obj)
+{
+	setTask<HiseActivator>();
+}
+
+Result HiseActivator::performTaskStatic(WaitJob& t)
+{
+	if(auto a = dynamic_cast<HiseActivator*>(t.getFirstBackgroundTask()))
+	{
+		auto& state = a->rootDialog.getState();
+
+		auto tf = a->fw.targetFile;
+
+		if(tf.existsAsFile())
+		{
+			t.setMessage("Already activated");
+			state.logMessage(MessageType::ActionEvent, "Skip activation because license file already exists");
+			return Result::ok();
+		}
+		
+		t.setMessage("Checking credentials...");
+
+		auto company = a->rootDialog.getGlobalProperty(mpid::Company).toString();
+		auto productId = a->rootDialog.getGlobalProperty(mpid::ProjectName).toString();
+		auto version = a->rootDialog.getGlobalProperty(mpid::Version).toString();
+
+		auto email = a->evaluate(mpid::UserEmail).trim().toLowerCase();
+		auto serial = a->evaluate(mpid::SerialNumber).trim().toUpperCase();
+
+		auto emailOK = URL::isProbablyAnEmailAddress(email);
+		auto serialOK = RegexFunctions::matchesWildcard("[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}-[0-9A-Z]{4}", serial);
+
+		if(!emailOK)
+			return Result::fail("Email `" + email + "` is not valid");
+
+		if(!serialOK)
+			return Result::fail("Serial `" + serial + "` is not valid.  \n> The serial must have the format `1234-ABCD-1234-ABCD`.");
+
+		auto machineId = juce::OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()[0];
+		auto currentTime =  Time::getCurrentTime().toISO8601(true);
+
+		#if JUCE_WINDOWS
+		auto os =  "WIN";
+		#elif JUCE_LINUX
+		auto os =  "LINUX";
+		#else
+		auto os = "OSX";
+		#endif
+
+		StringPairArray sp;
+
+		sp.set("product", productId);
+		sp.set("vendor", company);
+		sp.set("version", version);
+		sp.set("email", email);
+		sp.set("serial", serial);
+		sp.set("machine_id", machineId);
+		sp.set("time_delta", "0");
+		sp.set("date", currentTime);
+		sp.set("os", os);
+
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		for(auto& k: sp.getAllKeys())
+		{
+			obj->setProperty(k, sp.getValue(k, ""));
+		}
+
+		t.setMessage("Checking internet connection...");
+
+		auto isOnline = []()
+		{
+			const char* urlsToTry[] = { "http://google.com/generate_204", "https://amazon.com", nullptr };
+
+			for (const char** url = urlsToTry; *url != nullptr; ++url)
+			{
+				URL u(*url);
+
+				auto ms = Time::getMillisecondCounter();
+				std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), 3000, nullptr));
+				
+				if (in != nullptr)
+					return true;
+			}
+
+			return false;
+		};
+
+		t.setMessage("Checking internet connection...");
+
+		if(!isOnline())
+			return Result::fail("No internet connection");
+
+		t.setMessage("Activate online...");
+		
+		state.logMessage(MessageType::ActionEvent, "Call activate server with parameters " + JSON::toString(var(obj.get()), true));
+		
+		URL url("https://activate.hise.dev/redeem/");
+		
+		url = url.withParameters(sp);
+
+		int statusCode = 0;
+
+		auto input = url.createInputStream(true, nullptr, nullptr, {}, 5000, nullptr, &statusCode);
+		auto response = url.readEntireTextStream(true);
+
+		if(!response.startsWith("Keyfile for"))
+			return Result::fail("Activation error: `" + response + "`");
+
+		if(tf.replaceWithText(response))
+			return Result::ok();
+		else
+			return Result::fail("Could not write key file");
+	}
+
+	return Result::ok();
+}
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+void HiseActivator::createEditor(Dialog::PageInfo& rootList)
+{
+	createBasicEditor(*this, rootList, "Writes the absolute path of a relative file reference into the state object");
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, "Text" },
+		{ mpid::Text, "Text" },
+		{ mpid::Help, "The label text that will be shown next to the progress bar." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::UserEmail.toString()},
+		{ mpid::Text, mpid::UserEmail.toString() },
+		{ mpid::Required, true },
+		{ mpid::Value, infoObject[mpid::UserEmail] },
+		{ mpid::Help, "The variable (using the `$variable` syntax) that holds the email address of the user." }
+	});
+
+	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::SerialNumber.toString()},
+		{ mpid::Text, mpid::SerialNumber.toString() },
+		{ mpid::Required, true },
+		{ mpid::Value, infoObject[mpid::UserEmail] },
+		{ mpid::Help, "The variable (using the `$variable` syntax) that holds the serial number as entered by the user." }
+	});
+}
+#endif
 
 Result PersistentSettings::checkGlobalState(var globalState)
 {

@@ -105,6 +105,14 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
         { mpid::Help, "Whether to initialise the state object with the init value" }
     });
 
+    vlist.addChild<TextInput>({
+		{ mpid::ID, mpid::Code.toString() },
+		{ mpid::Text, mpid::Code.toString() },
+        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Code) },
+        { mpid::Items, "{BIND::functionName}" },
+		{ mpid::Help, "The callback that is executed using the syntax `{BIND::myMethod}`" }
+	});
+
     auto& col = rootList;
 
     tlist.addChild<TextInput>({
@@ -323,7 +331,7 @@ void Button::buttonClicked(juce::Button* b)
 
 	    Component::callRecursive<Action>(&rootDialog, [thisId](Action* a)
 	    {
-		    if(a->getId() == thisId)
+		    if(a->getId().toString() == thisId.toString())
 		    {
 			    a->perform();
                 return true;
@@ -1151,7 +1159,7 @@ void TextInput::postInit()
     else
     {
 	    editor.setFont(Dialog::getDefaultFont(*this).first);
-		editor.setIndents(8, 8);
+		//editor.setIndents(8, 8);
 
         
     }
@@ -1187,6 +1195,8 @@ void TextInput::postInit()
         editor.selectAll();
 	    editor.grabKeyboardFocusAsync();
     }
+
+    editor.repaint();
 }
 
 Result TextInput::checkGlobalState(var globalState)
@@ -1350,9 +1360,11 @@ void TextInput::dismissAutocomplete()
 {
 	stopTimer();
 #if JUCE_DEBUG
-    currentAutocomplete->setVisible(false);
+    if(currentAutocomplete != nullptr)
+		currentAutocomplete->setVisible(false);
 #else
-	Desktop::getInstance().getAnimator().fadeOut(currentAutocomplete, 150);
+    if(currentAutocomplete != nullptr)
+		Desktop::getInstance().getAnimator().fadeOut(currentAutocomplete, 150);
 #endif
 	currentAutocomplete = nullptr;
 }
@@ -1624,7 +1636,7 @@ void Table::createEditor(Dialog::PageInfo& rootList)
 	rootList.addChild<TextInput>({
 		{ mpid::ID, mpid::Items.toString() },
 		{ mpid::Text, mpid::Items.toString() },
-		{ mpid::Help, "The list of rows - one per line using comma for separating cells" },
+		{ mpid::Help, "The list of rows - one per line using `|` for separating cells" },
 		{ mpid::Multiline, true },
 		{ mpid::Height, 80 },
 		{ mpid::Value, infoObject[mpid::Items] }
@@ -1649,11 +1661,20 @@ void Table::createEditor(Dialog::PageInfo& rootList)
         { mpid::Help, "The text that will be displayed if no table content is present." } 
 	});
 
+    rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Code.toString() },
+		{ mpid::Text, mpid::Code.toString() },
+        { mpid::Value, infoObject[mpid::Code] },
+        { mpid::Items, "{BIND::functionName}" },
+		{ mpid::Help, "The callback that is executed using the syntax `{BIND::myMethod}`" }
+	});
+
 	rootList.addChild<TextInput>({
 		{ mpid::ID, "FilterFunction" },
 		{ mpid::Text, "FilterFunction" },
 		{ mpid::Value, infoObject[mpid::FilterFunction] },
-        { mpid::Help, "A function in the root namespace that will be called to filter the items." } 
+        { mpid::Items, "{BIND::functionName}" },
+        { mpid::Help, "A function that will be called to filter the items" } 
 	});
 
     rootList.addChild<Button>({
@@ -1693,6 +1714,14 @@ void TagList::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Text, "ID" },
 		{ mpid::Value, infoObject[mpid::ID].toString() },
 		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
+	});
+
+    rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Code.toString() },
+		{ mpid::Text, mpid::Code.toString() },
+        { mpid::Value, infoObject[mpid::Code] },
+        { mpid::Items, "{BIND::functionName}" },
+		{ mpid::Help, "The callback that is executed using the syntax `{BIND::myMethod}`" }
 	});
 
 	rootList.addChild<TextInput>({

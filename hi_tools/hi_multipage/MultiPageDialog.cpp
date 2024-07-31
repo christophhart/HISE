@@ -534,8 +534,9 @@ void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject:
 
 		var::NativeFunctionArgs args(state->globalState, a, 2);
 
-		if(state->callNativeFunction(callbackName, args, nullptr))
-			return;
+		state->callNativeFunction(callbackName, args, nullptr);
+
+		return;
 	}
 
 	engine = state->createJavascriptEngine();
@@ -715,7 +716,8 @@ var Dialog::PositionInfo::toJSON() const
 	obj->setProperty(mpid::Style, additionalStyle);
     obj->setProperty(mpid::UseViewport, useViewport);
 	obj->setProperty(mpid::ConfirmClose, confirmClose);
-    
+	obj->setProperty(mpid::CloseMessage, closeMessage);
+
 	obj->setProperty("DialogWidth", fixedSize.getX());
 	obj->setProperty("DialogHeight", fixedSize.getY());
 	
@@ -730,6 +732,7 @@ void Dialog::PositionInfo::fromJSON(const var& obj)
     useViewport = obj.getProperty(mpid::UseViewport, useViewport);
 
 	confirmClose = obj.getProperty(mpid::ConfirmClose, confirmClose);
+	closeMessage = obj.getProperty(mpid::CloseMessage, closeMessage);
 
 	fixedSize.setX(obj.getProperty("DialogWidth", fixedSize.getX()));
 	fixedSize.setY(obj.getProperty("DialogHeight", fixedSize.getY()));
@@ -1124,7 +1127,7 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 			auto& root = *l;
 	        auto& md = root.addChild<factory::MarkdownText>();
-			md[mpid::Text] = "Do you want to close this popup?";
+			md[mpid::Text] = this->getPositionInfo({}).closeMessage;  ;
 
 			md.setCustomCheckFunction([this](PageBase*, var obj)
 			{
