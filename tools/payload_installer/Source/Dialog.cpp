@@ -13,7 +13,8 @@ Dialog* PayloadInstaller::createDialog(State& state)
 
 	if(payloadFile.existsAsFile())
 	{
-		return MonolithData(payloadFile).create(state);
+		FileInputStream fis(payloadFile);
+		return MonolithData(&fis).create(state);
 	}
 	else
 	{
@@ -27,11 +28,10 @@ Dialog* PayloadInstaller::createDialog(State& state)
 
 			if(f.getFileName() == payloadFile.getFileName())
 			{
-				return MonolithData(f).create(state);
+				FileInputStream fis(f);
+				return MonolithData(&fis).create(state);
 			}
 		}
-
-		
 	}
 
 	NativeMessageBox::showMessageBox(MessageBoxIconType::WarningIcon, "Can't find payload", "The installer payload could not be located. The application will terminate.");
