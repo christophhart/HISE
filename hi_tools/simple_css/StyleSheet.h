@@ -162,6 +162,8 @@ struct StyleSheet: public ReferenceCountedObject
 
 		Animator* animator = nullptr;
 
+		Array<std::pair<String, Font>> customFonts;
+
 		List list;
 	};
 

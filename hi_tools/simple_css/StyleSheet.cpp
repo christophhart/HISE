@@ -705,7 +705,9 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	        styleSheetLog = styleSheetLog.replace(elementSelectors[i], hierarchy[i]);
 	    }
 	}
-	
+
+	ptr->setCustomFonts(customFonts);
+
 	cachedMaps.add({ c, ptr, styleSheetLog });
 
 	jassert(animator != nullptr);
@@ -1039,8 +1041,6 @@ void StyleSheet::Collection::addCollectionForComponent(Component* c, const Colle
 
 Result StyleSheet::Collection::performAtRules(DataProvider* d)
 {
-	Array<std::pair<String, Font>> customFonts;
-
 	for(int i = 0; i < list.size(); i++)
 	{
 		auto l = list[i];
@@ -1053,7 +1053,7 @@ Result StyleSheet::Collection::performAtRules(DataProvider* d)
 			auto fontName = l->getPropertyValueString({"font-family", {}});
 			auto fToUse = d->loadFont(fontName, url);
 
-			customFonts.add({ fontName, fToUse });
+			customFonts.addIfNotAlreadyThere({ fontName, fToUse });
 		}
 		if(ar == "import")
 		{

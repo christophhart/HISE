@@ -220,7 +220,7 @@ struct FlexboxComponent: public Component,
         
         auto ss = childSheets[fc];
         
-        if(ss == nullptr)
+        if(ss == nullptr && parentToUse != nullptr)
         {
             childSheets[fc] = parentToUse->css.getForComponent(fc);
             ss = childSheets[fc];

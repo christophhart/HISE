@@ -327,6 +327,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 
 		if(!beforeArea.isEmpty())
 		{
+			ScopedValueSetter<PseudoElementType> svs(currentlyRenderedPseudoElement, PseudoElementType::Before);
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, beforeArea, ss, PseudoElementType::Before);
 
@@ -342,6 +343,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 		
 		if(!afterArea.isEmpty())
 		{
+			ScopedValueSetter<PseudoElementType> svs(currentlyRenderedPseudoElement, PseudoElementType::After);
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, afterArea, ss, PseudoElementType::After);
 
@@ -368,7 +370,8 @@ void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> a
 		if(isContent)
 			totalArea = ss->getArea(totalArea, { "padding", currentState });
 
-		totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
+		if(currentlyRenderedPseudoElement == PseudoElementType::None)
+			totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
 
 		g.setColour(Colours::black.withAlpha(ss->getOpacity(currentState.stateFlag)));
 

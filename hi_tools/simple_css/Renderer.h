@@ -252,6 +252,7 @@ private:
 
 	bool forceOverwriteState = false;
 	int pseudoClassState = 0;
+	PseudoElementType currentlyRenderedPseudoElement = PseudoElementType::None;
 	Component* currentComponent;
 	StateWatcher& state;
 };

@@ -1165,13 +1165,13 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 
 	if(css != newCss && !useFixStyleSheet)
 	{
+		css = newCss;
+
 		if(auto dp = createDataProvider())
 		{
-			newCss.performAtRules(dp);
+			css.performAtRules(dp);
 			delete dp;
 		}
-
-		css = newCss;
 
 		if(defaultProperties != nullptr)
 		{
