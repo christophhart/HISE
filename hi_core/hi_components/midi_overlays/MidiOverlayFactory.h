@@ -37,7 +37,7 @@ namespace hise {
 using namespace juce;
 
 
-class MidiOverlayFactory: public DeletedAtShutdown
+class MidiOverlayFactory
 {
 public:
 
