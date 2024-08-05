@@ -350,6 +350,8 @@ struct BackgroundTask: public Action
                 getState().globalState.getDynamicObject()->setProperty(id, newValue);
 	    }
 
+        var temporaryInfoObject;
+        
         bool aborted = false;
         std::function<Result(WaitJob&)> task;
     };
@@ -436,6 +438,21 @@ struct CommandLineTask: public BackgroundTask
 
     CREATE_EDITOR_OVERRIDE;
     
+};
+
+struct CoallascatedTask: public BackgroundTask
+{
+    HISE_MULTIPAGE_ID("CoallascatedTask");
+
+    CoallascatedTask(Dialog& r, int w, const var& obj);
+
+    static Result performTaskStatic(WaitJob& t);
+
+    String getDescription() const override { return "CoallascatedTask"; }
+
+    CREATE_EDITOR_OVERRIDE;
+
+    OwnedArray<Action> actions;
 };
 
 struct HttpRequest: public BackgroundTask

@@ -335,14 +335,27 @@ public:
 
         var getInfoObject() const { return localObj; }
 
+        void setInfoObject(const var& newInfoObject)
+        {
+            localObj = newInfoObject;
+        }
+
+        void setEnableProgressAndMessage(bool shouldEnable)
+        {
+            enableProgress = shouldEnable;
+        }
+
     protected:
-        
+
+        bool enableProgress = true;
+
         String message;
 
         virtual Result run() = 0;
         
         State& parent;
         double progress = 0.0;
+        double unusedProgess = 0.0;
         var localObj;
     };
 

@@ -699,10 +699,13 @@ bool State::Job::matches(const var& obj) const
 }
 
 double& State::Job::getProgress()
-{ return progress; }
+{ return enableProgress ? progress : unusedProgess; }
 
 void State::Job::setMessage(const String& newMessage)
 {
+	if(!enableProgress)
+		return;
+
 	message = newMessage;
 
 	parent.eventLogger.sendMessage(sendNotificationAsync, MessageType::ProgressMessage, newMessage);

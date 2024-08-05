@@ -375,9 +375,9 @@ AppDataFileWriter::AppDataFileWriter(Dialog& r, int w, const var& obj):
 {
 	auto company = rootDialog.getGlobalProperty(mpid::Company).toString();
 	auto product = rootDialog.getGlobalProperty(mpid::ProjectName).toString();
-	auto useGlobal = (bool)rootDialog.getGlobalProperty(mpid::UseGlobalAppData);
+	auto useGlobal = rootDialog.useGlobalAppDataDirectory();
 
-	auto f = File::getSpecialLocation(useGlobal ? File::globalApplicationsDirectory : File::userApplicationDataDirectory);
+	auto f = File::getSpecialLocation(useGlobal ? File::commonApplicationDataDirectory : File::userApplicationDataDirectory);
 
 #if JUCE_MAC
         f = f.getChildFile("Application Support");
@@ -570,7 +570,7 @@ Result RelativeFileLoader::onAction()
 		{
 			auto company = rootDialog.getGlobalProperty(mpid::Company).toString();
 			auto product = rootDialog.getGlobalProperty(mpid::ProjectName).toString();
-			auto useGlobal = (bool)rootDialog.getGlobalProperty(mpid::UseGlobalAppData);
+            auto useGlobal = rootDialog.useGlobalAppDataDirectory();
 
 			f = File::getSpecialLocation(useGlobal ? File::globalApplicationsDirectory : File::userApplicationDataDirectory);
 
@@ -941,10 +941,12 @@ Result BackgroundTask::WaitJob::run()
 			{
 				SafeAsyncCall::call<Dialog>(*d, [obj](Dialog& d)
 				{
-					auto bt = d.findPageBaseForInfoObject(obj);
-					bt->setFlexChildVisibility(2, false, true);
-					bt->setFlexChildVisibility(3, false, true);
-					bt->rebuildLayout();
+					if(auto bt = d.findPageBaseForInfoObject(obj))
+                    {
+                        bt->setFlexChildVisibility(2, false, true);
+                        bt->setFlexChildVisibility(3, false, true);
+                        bt->rebuildLayout();
+                    }
 				});
 			}
 			
@@ -1324,6 +1326,126 @@ void CommandLineTask::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Help, "The terminal command that should be executed." },
 		{ mpid::Code, infoObject[mpid::Code].toString() }
 	});
+}
+#endif
+
+CoallascatedTask::CoallascatedTask(Dialog& r, int w, const var& obj):
+    BackgroundTask(r, w, obj)
+{
+    setTask<CoallascatedTask>();
+    
+    auto children = obj[mpid::Children].getArray();
+    
+    if(children == nullptr)
+        obj.getDynamicObject()->setProperty(mpid::Children, var(Array<var>()));
+
+    children = obj[mpid::Children].getArray();
+ 
+    Factory f;
+    
+    int numChildren = getNumChildComponents();
+    
+    for(int i = 0; i < children->size(); i++)
+    {
+        var childData = children->getUnchecked(i);
+        
+        if(auto pd = f.create(childData))
+        {
+            ScopedPointer<PageBase> pb = pd->create(r, w);
+            
+            if(auto a = dynamic_cast<Action*>(pb.get()))
+            {
+				pb.release();
+				actions.add(a);
+                addFlexItem(*a);
+                setFlexChildVisibility (numChildren + i, false, true);
+            }
+        }
+    }
+}
+
+Result CoallascatedTask::performTaskStatic(WaitJob& t)
+{
+	auto ct = dynamic_cast<CoallascatedTask*>(t.getFirstBackgroundTask());
+
+	auto numActions = ct->actions.size();
+
+    for(int i = 0; i < numActions; i++)
+    {
+		t.getProgress() = (double)i / (double)numActions;
+
+		auto childAction = ct->actions[i];
+		auto id = childAction->getId();
+		auto message = childAction->getInfoObject()[mpid::Text].toString();
+
+		t.setMessage(message);
+
+		auto shouldRun = id.isNull();
+
+		if(!shouldRun)
+		{
+            if(ct->rootDialog.getState().globalState.hasProperty(id))
+            {
+		        auto value = (bool)ct->rootDialog.getState().globalState[id];
+			    auto skipIfTrue = (bool)childAction->getInfoObject()[mpid::SkipIfTrue];
+
+			    if(value != skipIfTrue)
+			        shouldRun = true;
+            }
+			else
+			{
+			    shouldRun = true;
+			}
+		}
+
+		if(!shouldRun)
+		{
+			ct->rootDialog.getState().logMessage (MessageType::ActionEvent, "Skip child action " + id);
+		    continue;
+		}
+
+		ct->rootDialog.getState().logMessage (MessageType::ActionEvent, "Perform child action " + id);
+
+        if(auto bt = dynamic_cast<BackgroundTask*>(childAction))
+        {
+			t.setEnableProgressAndMessage(false);
+			t.setInfoObject(childAction->getInfoObject());
+
+            auto ok = dynamic_cast<WaitJob*>(bt->job.get())->task(t);
+
+			t.setEnableProgressAndMessage(true);
+            t.setInfoObject(ct->getInfoObject());
+            
+			if(ok.failed())
+				return ok;
+        }
+		else
+		{
+			jassertfalse;
+		    MessageManagerLock mm;
+			childAction->perform();
+		}
+    }
+    
+    t.setMessage("Done");
+    
+    return Result::ok();
+}
+
+
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+void CoallascatedTask::createEditor(Dialog::PageInfo& rootList)
+{
+    createBasicEditor(*this, rootList, "An action element that coallascates multiple actions into a single progress bar)");
+
+    auto& col = rootList;
+    
+    col.addChild<TextInput>({
+        { mpid::ID, "Text" },
+        { mpid::Text, "Text" },
+        { mpid::Help, "The label text that will be shown next to the progress bar." }
+    });
+    
 }
 #endif
 
@@ -2288,9 +2410,14 @@ void CopyProtection::loadConstants()
 void PluginDirectories::loadConstants()
 {
 #if JUCE_MAC
-	auto auDir = File("~/Library/Audio/Plug-Ins/Components");
-	auto vstDir = File("~/Library/Audio/Plug-Ins/VST");
-	auto vst3Dir = File("~/Library/Audio/Plug-Ins/VST3");
+    
+    auto useGlobal = rootDialog.useGlobalAppDataDirectory();
+    
+    String prefix = useGlobal ? "" : "~";
+    
+	auto auDir = File(prefix + "/Library/Audio/Plug-Ins/Components");
+	auto vstDir = File(prefix + "/Library/Audio/Plug-Ins/VST");
+	auto vst3Dir = File(prefix + "/Library/Audio/Plug-Ins/VST3");
 	auto aaxDir = File("/Library/Application Support/Avid/Audio/Plug-Ins");
 
     vstDir.createDirectory();
@@ -2477,7 +2604,7 @@ File PersistentSettings::getSettingFile() const
 	if(c.isEmpty() || (p.isEmpty() && useProject))
 		return File();
 
-	auto useGlobal = (bool)rootDialog.getGlobalProperty(mpid::UseGlobalAppData);
+    auto useGlobal = rootDialog.useGlobalAppDataDirectory();
 	auto appDataDirectoryToUse = File::userApplicationDataDirectory;
 
 	if(useGlobal)
@@ -2729,7 +2856,10 @@ Result HiseActivator::performTaskStatic(WaitJob& t)
 			return Result::fail("Activation error: `" + response + "`");
 
 		if(tf.replaceWithText(response))
-			return Result::ok();
+        {
+            t.setMessage("Activation successful.");
+            return Result::ok();
+        }
 		else
 			return Result::fail("Could not write key file");
 	}

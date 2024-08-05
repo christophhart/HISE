@@ -1272,6 +1272,7 @@ Factory::Factory()
     registerPage<factory::TagList>();
 	registerPage<factory::DirectoryScanner>();
 	registerPage<factory::ClipboardLoader>();
+    registerPage<factory::CoallascatedTask>();
 }
 
 Dialog::PageInfo::Ptr Factory::create(const var& obj)

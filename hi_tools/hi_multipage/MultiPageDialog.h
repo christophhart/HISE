@@ -499,6 +499,15 @@ public:
         return *p;
     }
 
+    bool useGlobalAppDataDirectory() const
+    {
+#if JUCE_MAC
+        return (bool)getGlobalProperty(mpid::UseGlobalAppData);
+#else
+        return false;
+#endif
+    }
+
     Result getCurrentResult();
     void showFirstPage();
 	void setFinishCallback(const std::function<void()>& f);
