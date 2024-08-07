@@ -1235,9 +1235,22 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 				int w = (int)((float)content->getContentWidth()*scaleFactor);
 				int h = (int)((float)content->getContentHeight()*scaleFactor);
 
-				c->setSize(w, h);
-
 				c->setName("Interface Preview");
+
+				content->interfaceSizeBroadcaster.addListener(*c, [mc](Component& oc, int w, int h)
+				{
+					auto scaleFactor = dynamic_cast<GlobalSettingManager*>(mc)->getGlobalScaleFactor();
+
+					oc.getChildComponent(0)->setSize(w, h);
+
+					w = roundToInt((float)w * scaleFactor);
+					h = roundToInt((float)h * scaleFactor);
+
+					oc.setSize(w, h);
+					oc.resized();
+				});
+				
+				
 			}
 
 

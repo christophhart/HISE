@@ -6770,43 +6770,45 @@ void ScriptingApi::Content::beginInitialization()
 
 void ScriptingApi::Content::setHeight(int newHeight) noexcept
 {
-	if (!allowGuiCreation)
-	{
-		reportScriptError("the height can't be changed after onInit()");
-		return;
-	}
-
+	
 	if (newHeight > 800)
 	{
 		reportScriptError("Go easy on the height! (" + String(800) + "px is enough)");
 		return;
 	}
 
-	height = newHeight;
+	if(height != newHeight)
+	{
+		height = newHeight;
+
+		if(width != 0)
+			interfaceSizeBroadcaster.sendMessage(sendNotificationAsync, width, height);
+	}
 };
 
 void ScriptingApi::Content::setWidth(int newWidth) noexcept
 {
-	if (!allowGuiCreation)
-	{
-		reportScriptError("the width can't be changed after onInit()");
-		return;
-	}
-
 	if (newWidth > 1280)
 	{
 		reportScriptError("Go easy on the width! (1280px is enough)");
 		return;
 	}
 
-	width = newWidth;
-	
+	if(width != newWidth)
+	{
+		width = newWidth;
+
+		if(height != 0)
+			interfaceSizeBroadcaster.sendMessage(sendNotificationAsync, width, height);
+	}
 };
 
 void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
 {
     width = newWidth;
     height = newHeight;
+
+	interfaceSizeBroadcaster.sendMessage(sendNotificationAsync, width, height);
 
     dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
     

@@ -2520,7 +2520,8 @@ public:
     };
     
     LambdaBroadcaster<TextInputDataBase::Ptr> textInputBroadcaster;
-    
+
+	LambdaBroadcaster<int, int> interfaceSizeBroadcaster;
     
 	// ================================================================================================================
 
@@ -3035,7 +3036,8 @@ private:
 	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
 
 	bool allowGuiCreation;
-	int width, height;
+	int width = 0;
+	int height = 0;
 	ReferenceCountedArray<ScriptComponent> components; // This is ref counted to allow anonymous controls
 	Colour colour;
 	String name;

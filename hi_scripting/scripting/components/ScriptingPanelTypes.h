@@ -191,6 +191,11 @@ public:
 			g.fillRect(total);
 		}
 
+		static void onInterfaceResize(Editor& e, int w, int h)
+		{
+			e.refreshContent();
+		}
+
 		void buttonClicked(Button* b) override;
 
 		void updateUndoDescription() override;
@@ -263,6 +268,8 @@ public:
 		ComboBox* zoomSelector;
 		ComboBox* overlaySelector;
 		Slider* overlayAlphaSlider;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Editor);
 	};
 
 	void scriptWasCompiled(JavascriptProcessor *processor) override;
@@ -322,7 +329,50 @@ public:
 
 	void fillModuleList(StringArray& moduleList) override;
 
+	void contentChanged() override
+	{
+		PanelWithProcessorConnection::contentChanged();
+
+		updateInterfaceListener(dynamic_cast<ProcessorWithScriptingContent*>(getConnectedProcessor()));
+	}
+
+	void updateInterfaceListener(ProcessorWithScriptingContent* sp)
+	{
+		if(sp == nullptr)
+		{
+			if(auto editor = getContent<Editor>())
+			{
+				if(lastContent != nullptr)
+					lastContent->interfaceSizeBroadcaster.removeListener(*editor);
+
+				lastContent = nullptr;
+			}
+
+			return;
+		}
+
+		if (sp == dynamic_cast<ProcessorWithScriptingContent*>(getConnectedProcessor()))
+		{
+			auto content = sp->getScriptingContent();
+
+			if(auto editor = getContent<Editor>())
+			{
+				if(lastContent != nullptr)
+						lastContent->interfaceSizeBroadcaster.removeListener(*editor);
+
+				content->interfaceSizeBroadcaster.addListener(*editor, Editor::onInterfaceResize);
+
+				lastContent = content;
+				
+				resized();
+			}
+		}
+	}
+
+
 private:
+
+	WeakReference<ScriptingApi::Content> lastContent;
 
 	Factory pathFactory;
 
