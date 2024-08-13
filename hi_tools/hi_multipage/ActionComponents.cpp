@@ -572,7 +572,7 @@ Result RelativeFileLoader::onAction()
 			auto product = rootDialog.getGlobalProperty(mpid::ProjectName).toString();
             auto useGlobal = rootDialog.useGlobalAppDataDirectory();
 
-			f = File::getSpecialLocation(useGlobal ? File::globalApplicationsDirectory : File::userApplicationDataDirectory);
+			f = File::getSpecialLocation(useGlobal ? File::commonApplicationDataDirectory : File::userApplicationDataDirectory);
 
 #if JUCE_MAC
 			f = f.getChildFile("Application Support");
