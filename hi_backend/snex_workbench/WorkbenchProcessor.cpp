@@ -1026,6 +1026,8 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 										return c[scriptnode::PropertyIds::Value].toString() == path;
 									}
 								}
+                                
+                                return false;
 							});
 
 							if(found)
