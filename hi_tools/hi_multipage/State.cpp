@@ -1017,7 +1017,7 @@ var MonolithData::readJSON(int64 numToRead)
 
 multipage::Dialog* MonolithData::create(State& state, bool allowVersionMismatch)
 {
-    int64 numToRead = 0;
+    int64 numToRead = -1;
     
     try
     {
