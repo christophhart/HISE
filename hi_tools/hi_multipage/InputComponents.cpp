@@ -1549,21 +1549,17 @@ Result FileSelector::checkGlobalState(var globalState)
 {
     auto& fileSelector = getComponent<BetterFileSelector>();
 	auto f = fileSelector.getCurrentFile();
-
+    
     if(f == File() && !fileSelector.fileLabel.isEmpty())
     {
-	    f = File(fileSelector.fileLabel.getText());
-
-        if(isDirectory && !f.isDirectory())
-        {
-            auto i = rootDialog.createModalPopup<MarkdownText>({
-                { mpid::Text, "Do you want to create the directory  \n> " + String(f.getFullPathName()) }
-            });
-            
-	        rootDialog.showModalPopup(true, i);
-        }
+	    f = File(fileSelector.fileLabel.getText());    
     }
-
+    
+    if(isDirectory && !f.isDirectory() && f != File())
+    {
+        f.createDirectory();
+    }
+    
 	if(f != File() && !f.isRoot() && (f.isDirectory() || f.existsAsFile()))
 	{
         writeState(f.getFullPathName());

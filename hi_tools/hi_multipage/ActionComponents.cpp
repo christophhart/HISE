@@ -350,14 +350,22 @@ Result JavascriptFunction::onAction()
 	{
 		auto fn = code.fromFirstOccurrenceOf("{BIND::", false, false).upToLastOccurrenceOf("}", false, false);
 
-		var thisObj(new DynamicObject());
-		var args[2];
-		args[0] = infoObject[mpid::ID];
-		args[1] = rootDialog.getState().globalState;
-		var::NativeFunctionArgs a(thisObj, args, 2);
+        try
+        {
+            var thisObj(new DynamicObject());
+            var args[2];
+            args[0] = infoObject[mpid::ID];
+            args[1] = rootDialog.getState().globalState;
+            var::NativeFunctionArgs a(thisObj, args, 2);
 
-		rootDialog.getState().callNativeFunction(fn, a, nullptr);
-		return Result::ok();
+            rootDialog.getState().callNativeFunction(fn, a, nullptr);
+
+            return Result::ok();
+        }
+        catch(Result& e)
+        {
+            return e;
+        }
 	}
 
 	if(code.startsWith("${"))
@@ -2411,7 +2419,7 @@ void PluginDirectories::loadConstants()
 {
 #if JUCE_MAC
     
-    auto useGlobal = rootDialog.useGlobalAppDataDirectory();
+    auto useGlobal = (bool)infoObject[mpid::UseGlobalAppData];
     
     String prefix = useGlobal ? "" : "~";
     
@@ -2440,6 +2448,24 @@ void PluginDirectories::loadConstants()
 #endif
 }
 
+#if HISE_MULTIPAGE_INCLUDE_EDIT
+void PluginDirectories::createEditor(Dialog::PageInfo& rootList)
+{
+    rootList.addChild<Type>({
+        { mpid::ID, "Type"},
+        { mpid::Type, PluginDirectories::getStaticId().toString() },
+        { mpid::Help, "Adding this will load the plugin directories as constant" }
+    });
+        
+    rootList.addChild<Button>({
+        { mpid::ID, mpid::UseGlobalAppData.toString() },
+        { mpid::Text, mpid::UseGlobalAppData.toString() },
+        { mpid::Value, infoObject[mpid::UseGlobalAppData] },
+        { mpid::Help, "Whether to use the global or user plugin folder." }
+    });
+}
+#endif
+                                      
 void OperatingSystem::loadConstants()
 {
 	

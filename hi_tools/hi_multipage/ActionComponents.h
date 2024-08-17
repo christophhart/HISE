@@ -629,7 +629,7 @@ struct PluginDirectories: public Constants
 
     String getDescription() const override { return "Plugin Directories";}
 
-    
+    CREATE_EDITOR_OVERRIDE;
 
 	void loadConstants() override;
 };
