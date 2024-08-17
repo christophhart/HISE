@@ -36,6 +36,11 @@ namespace hise
 {
 using namespace juce;
 
+#define MULTIPAGE_MAJOR_VERSION 1
+#define MULTIPAGE_MINOR_VERSION 0
+#define MULTIPAGE_PATCH_VERSION 0
+
+
 #define HISE_MULTIPAGE_ID(x) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(x); };
 
 #define MULTIPAGE_ADD_ASSET_TO_LIST(x) list.add(Asset::fromMemory(std::move(MemoryBlock(x, sizeof(x))), x ## _Type, String(x ## _Filename), #x));
@@ -44,6 +49,9 @@ using namespace juce;
     static DefaultProperties getStaticDefaultProperties()
 
 namespace multipage {
+
+
+
 
 #define DECLARE_ID(x) static const Identifier x(#x);
 

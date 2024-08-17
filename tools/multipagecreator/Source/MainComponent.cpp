@@ -662,7 +662,7 @@ void MainComponent::createDialog(const File& f)
 
             FileInputStream fis(f);
             
-	        addAndMakeVisible(c = MonolithData(&fis).create(rt));
+	        addAndMakeVisible(c = MonolithData(&fis).create(rt, true));
         }
 	}
     else

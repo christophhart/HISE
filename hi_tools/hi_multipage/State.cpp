@@ -953,6 +953,8 @@ bool UndoableVarAction::undo()
 	default: ;
 	}
 
+	
+
 	return false;
 }
 
@@ -960,6 +962,7 @@ String MonolithData::getMarkerName(Markers m)
 {
 	switch(m)
 	{
+	case MonolithBeginVersion: return "Version Number";
 	case MonolithBeginJSON: return "MonolithBeginJSON";
 	case MonolithEndJSON: return "MonolithEndJSON";
 	case MonolithBeginAssets: return "MonolithBeginAssets";
@@ -1012,11 +1015,44 @@ var MonolithData::readJSON(int64 numToRead)
 	return obj;
 }
 
-multipage::Dialog* MonolithData::create(State& state)
+multipage::Dialog* MonolithData::create(State& state, bool allowVersionMismatch)
 {
-	
+    int64 numToRead = 0;
+    
+    try
+    {
+        expectFlag (Markers::MonolithBeginVersion);
 
-	auto numToRead = expectFlag(Markers::MonolithBeginJSON);
+        auto thisMajor = input->readInt();
+        auto thisMinor = input->readInt();
+        auto thisPatch = input->readInt();
+
+        std::array<int, 3> monoVersion = { thisMajor, thisMinor, thisPatch };
+
+        std::array<int, 3> buildVersion = { MULTIPAGE_MAJOR_VERSION, MULTIPAGE_MINOR_VERSION, MULTIPAGE_PATCH_VERSION };
+
+        SemanticVersionChecker svs(monoVersion, buildVersion);
+
+        if(!svs.isExactMatch())
+            throw String("Version mismatch. " + svs.getErrorMessage("Payload Build Version", "Installer version"));
+
+        expectFlag (Markers::MonolithEndVersion);
+    }
+    catch(String& s)
+    {
+        if(!allowVersionMismatch)
+        {
+            throw s;
+        }
+        else
+        {
+            numToRead = input->readInt64();
+        }
+    }
+
+    if(numToRead == -1)
+	    numToRead = expectFlag(Markers::MonolithBeginJSON);
+    
 	auto jsonData = readJSON(numToRead);
 	expectFlag(Markers::MonolithEndJSON);
 	expectFlag(Markers::MonolithBeginAssets);
@@ -1091,6 +1127,12 @@ Result MonolithData::exportMonolith(State& state, OutputStream* target, bool com
 	{
 		job->setMessage("Exporting monolith");
 	}
+
+	target->writeInt (Markers::MonolithBeginVersion);
+	target->writeInt(MULTIPAGE_MAJOR_VERSION);
+	target->writeInt(MULTIPAGE_MINOR_VERSION);
+	target->writeInt(MULTIPAGE_PATCH_VERSION);
+	target->writeInt(Markers::MonolithEndVersion);
 
 	target->writeInt(Markers::MonolithBeginJSON);
 	

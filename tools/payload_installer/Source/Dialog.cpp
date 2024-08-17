@@ -14,7 +14,18 @@ Dialog* PayloadInstaller::createDialog(State& state)
 	if(payloadFile.existsAsFile())
 	{
 		FileInputStream fis(payloadFile);
-		return MonolithData(&fis).create(state);
+        try
+        {
+            return MonolithData(&fis).create(state, false);
+        }
+        catch(String& s)
+        {
+            NativeMessageBox::showMessageBox(MessageBoxIconType::WarningIcon, "Error loading payload", s);
+            
+            JUCEApplication::getInstance()->systemRequestedQuit();
+            return nullptr;
+        }
+        
 	}
 	else
 	{
@@ -29,7 +40,18 @@ Dialog* PayloadInstaller::createDialog(State& state)
 			if(f.getFileName() == payloadFile.getFileName())
 			{
 				FileInputStream fis(f);
-				return MonolithData(&fis).create(state);
+                
+                try
+                {
+                    return MonolithData(&fis).create(state, false);
+                }
+                catch(String& s)
+                {
+                    NativeMessageBox::showMessageBox(MessageBoxIconType::WarningIcon, "Error loading payload", s);
+                    
+                    JUCEApplication::getInstance()->systemRequestedQuit();
+                    return nullptr;
+                }
 			}
 		}
 	}

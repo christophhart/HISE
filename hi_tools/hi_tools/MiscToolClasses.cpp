@@ -2947,6 +2947,19 @@ void Spectrum2D::Parameters::Editor::resized()
 	}	
 }
 
+SemanticVersionChecker::SemanticVersionChecker(const std::array<int, 3>& oldVersion_, const std::array<int, 3>& newVersion_)
+{
+    newVersion.majorVersion = newVersion_[0];
+	newVersion.minorVersion = newVersion_[1];
+	newVersion.patchVersion = newVersion_[2];
+	newVersion.validVersion = true;
+
+	oldVersion.majorVersion = oldVersion_[0];
+	oldVersion.minorVersion = oldVersion_[1];
+	oldVersion.patchVersion = oldVersion_[2];
+	oldVersion.validVersion = true;
+}
+
 SemanticVersionChecker::SemanticVersionChecker(const String& oldVersion_, const String& newVersion_)
 {
 	parseVersion(oldVersion, oldVersion_);

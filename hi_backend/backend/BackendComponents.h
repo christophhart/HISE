@@ -690,18 +690,33 @@ struct EncodedDialogBase: public Component,
 		MonolithData md(&mis);
 
 		state = new State(var());
-		addAndMakeVisible(dialog = md.create(*state));
+        
+        try
+        {
+            addAndMakeVisible(dialog = md.create(*state, true));
+        }
+        catch(String& e)
+        {
+            PresetHandler::showMessageWindow ("Error loading dialog", e, PresetHandler::IconType::Error);
+            
+            
+        }
+        
+        if(dialog != nullptr)
+        {
+            dialog->setFinishCallback([this]()
+            {
+                findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+            });
 
-		dialog->setFinishCallback([this]()
-		{
-			findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
-		});
+            bindCallbacks();
 
-		bindCallbacks();
+            setSize(dialog->getWidth(), dialog->getHeight());
 
-		setSize(dialog->getWidth(), dialog->getHeight());
+            dialog->showFirstPage();
+        }
+        
 
-		dialog->showFirstPage();
 	}
 
 	void setElementProperty(const String& listId, const Identifier& id, const var& newValue)
@@ -715,7 +730,8 @@ struct EncodedDialogBase: public Component,
 
 	void resized() override
 	{
-		dialog->setBounds(getLocalBounds());
+        if(dialog != nullptr)
+            dialog->setBounds(getLocalBounds());
 	}
 
 	void navigate(int pageIndex, bool shouldSubmit)

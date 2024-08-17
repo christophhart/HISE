@@ -538,14 +538,16 @@ struct MonolithData
         MonolithAssetNoCompressFlag,
         MonolithAssetStart,
         MonolithAssetEnd,
-        MonolithEndAssets
+        MonolithEndAssets,
+        MonolithBeginVersion,
+        MonolithEndVersion
     };
 
     static String getMarkerName(Markers m);
 
     MonolithData(InputStream* input);
     
-    multipage::Dialog* create(State& state);
+    multipage::Dialog* create(State& state, bool allowVersionMismatch);
     
     static Result exportMonolith(State& state, OutputStream* output, bool compressAssets=true, State::Job* j=nullptr);
     var getJSON() const;
