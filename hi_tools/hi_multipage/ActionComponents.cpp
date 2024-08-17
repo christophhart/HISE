@@ -2881,6 +2881,9 @@ Result HiseActivator::performTaskStatic(WaitJob& t)
 		if(!response.startsWith("Keyfile for"))
 			return Result::fail("Activation error: `" + response + "`");
 
+        if(!tf.getParentDirectory().isDirectory())
+            tf.getParentDirectory().createDirectory();
+        
 		if(tf.replaceWithText(response))
         {
             t.setMessage("Activation successful.");
