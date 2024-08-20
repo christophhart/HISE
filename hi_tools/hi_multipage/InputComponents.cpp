@@ -1436,7 +1436,26 @@ struct BetterFileSelector: public simple_css::FlexboxComponent,
                 FileChooser fc("Select directory", currentFile, wc, true);
 
 	            if(fc.browseForDirectory())
-                    setCurrentFile(fc.getResult(), sendNotificationAsync);
+                {
+                    auto dir = fc.getResult();
+                    
+                    while(dir.getNumberOfChildFiles(File::findFiles) > 0 || dir.containsSubDirectories())
+                    {
+                        if(NativeMessageBox::showOkCancelBox(MessageBoxIconType::QuestionIcon, "Use existing directory", "The directory you've selected is not empty. Press OK to continue anyway or cancel to choose an empty directory"))
+                            break;
+                                  
+                        if(fc.browseForDirectory())
+                        {
+                            dir = fc.getResult();
+                        }
+                        else
+                        {
+                            return;
+                        }
+                    }
+                    
+                    setCurrentFile(dir, sendNotificationAsync);
+                }
             }
             else
             {
