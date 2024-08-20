@@ -55,6 +55,38 @@ struct Animator: public Timer
 
 		bool timerCallback(double deltaMs);
 
+		void updateCurrentRange()
+		{
+			auto v = currentProgress;
+
+			if(!reverse)
+				v = 1.0 - v;
+
+			v = transitionData.f ? transitionData.f(v) : v;
+
+			if(!reverse)
+				v = 1.0 - v;
+
+			currentProgress = v;
+
+			if(reverse)
+			{
+				currentAnimationRange = { 0.0, v };
+			}
+			else
+			{
+				currentAnimationRange = { v, 1.0 };
+			}
+		}
+
+		void resetWaitCounter()
+		{
+			if(transitionData.delay != 0.0 && transitionData.duration != 0.0)
+			{
+				waitCounter = transitionData.delay / transitionData.duration;
+			}
+		}
+
 		Component::SafePointer<Component> target;
 
 		StyleSheet::Ptr css;
@@ -62,10 +94,15 @@ struct Animator: public Timer
 
 		PropertyKey startValue;
 		PropertyKey endValue;
-		
+
+		String intermediateStartValue;
 		double currentProgress = 0.0;
+		double speed = 1.0;
+		
+		Range<double> currentAnimationRange = { 0.0, 1.0 };
+		
 		bool reverse = false;
-		int waitCounter = 0;
+		double waitCounter = 0.0;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Item);
 	};
@@ -78,14 +115,18 @@ struct Animator: public Timer
 	OwnedArray<Item> items;
 };
 
+struct CSSRootComponent;
+
 struct StateWatcher
 {
 	using TextData = std::tuple<String, Justification, Rectangle<float>>;
 
-	StateWatcher(Animator& animator_):
-	  animator(animator_)
+	StateWatcher(CSSRootComponent* parent_, Animator& animator_):
+	  animator(animator_),
+	  parent(parent_)
 	{};
 
+	CSSRootComponent* parent;
 	Animator& animator;
 
 	struct Item
@@ -131,6 +172,19 @@ struct StateWatcher
 
 	void registerComponentToUpdate(Component* c);
 
+	void resetComponent(Component* c)
+	{
+		for(auto& i: updatedComponents)
+		{
+			if(i.target == c)
+			{
+				i.resetInitialisation();
+				c->repaint();
+				break;
+			}
+		}
+	}
+
 	Array<Item> items;
 	
 	struct UpdatedComponent
@@ -139,7 +193,9 @@ struct StateWatcher
 
 		Component::SafePointer<Component> target;
 
-		void update(StyleSheet::Ptr ss, int currentState);
+		void resetInitialisation() { initialised = false; }
+
+		void update(CSSRootComponent* cssRoot, StyleSheet::Ptr ss, int currentState);
 
 		bool initialised = false;
 	};

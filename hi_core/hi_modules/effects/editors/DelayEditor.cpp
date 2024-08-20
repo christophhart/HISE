@@ -49,6 +49,18 @@ DelayEditor::DelayEditor (ProcessorEditor *p)
     rightTimeSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     rightTimeSlider->addListener (this);
 
+    addAndMakeVisible (leftSyncTimeSlider = new HiSlider ("Left Time"));
+    leftSyncTimeSlider->setRange (0, 18, 1);
+    leftSyncTimeSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    leftSyncTimeSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
+    leftSyncTimeSlider->addListener (this);
+
+    addAndMakeVisible (rightSyncTimeSlider = new HiSlider ("Right Time"));
+    rightSyncTimeSlider->setRange (0, 18, 1);
+    rightSyncTimeSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    rightSyncTimeSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
+    rightSyncTimeSlider->addListener (this);
+
     addAndMakeVisible (leftFeedbackSlider = new HiSlider ("Left Feedback"));
     leftFeedbackSlider->setRange (0, 100, 1);
     leftFeedbackSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
@@ -78,21 +90,28 @@ DelayEditor::DelayEditor (ProcessorEditor *p)
 	tempoSyncButton->setup(getProcessor(), DelayEffect::TempoSync, "TempoSync");
 	tempoSyncButton->setNotificationType(sendNotification);
 
+    leftTimeSlider->setMode(HiSlider::Time);
 	leftTimeSlider->setup(getProcessor(), DelayEffect::DelayTimeLeft, "Left Delay");
-	leftTimeSlider->setMode(HiSlider::Time);
-
+    
+    rightTimeSlider->setMode(HiSlider::Time);
 	rightTimeSlider->setup(getProcessor(), DelayEffect::DelayTimeRight, "Right Delay");
-	rightTimeSlider->setMode(HiSlider::Time);
 
-
+    leftSyncTimeSlider->setMode(HiSlider::TempoSync);
+	leftSyncTimeSlider->setup(getProcessor(), DelayEffect::DelayTimeLeft, "Left Delay");
+    
+    rightSyncTimeSlider->setMode(HiSlider::TempoSync);
+	rightSyncTimeSlider->setup(getProcessor(), DelayEffect::DelayTimeRight, "Right Delay");
+	
+    leftFeedbackSlider->setMode(HiSlider::NormalizedPercentage);
 	leftFeedbackSlider->setup(getProcessor(), DelayEffect::FeedbackLeft, "Left Feedback");
-	leftFeedbackSlider->setMode(HiSlider::NormalizedPercentage);
 
+    rightFeedbackSlider->setMode(HiSlider::NormalizedPercentage);
 	rightFeedbackSlider->setup(getProcessor(), DelayEffect::FeedbackRight, "Right Feedback");
-	rightFeedbackSlider->setMode(HiSlider::NormalizedPercentage);
+	
 
+    mixSlider->setMode(HiSlider::NormalizedPercentage);
 	mixSlider->setup(getProcessor(), DelayEffect::Mix, "Mix");
-	mixSlider->setMode(HiSlider::NormalizedPercentage);
+	
 
 
 
@@ -113,6 +132,10 @@ DelayEditor::~DelayEditor()
 
     leftTimeSlider = nullptr;
     rightTimeSlider = nullptr;
+
+    leftSyncTimeSlider = nullptr;
+    rightSyncTimeSlider = nullptr;
+
     leftFeedbackSlider = nullptr;
     rightFeedbackSlider = nullptr;
     mixSlider = nullptr;
@@ -148,6 +171,8 @@ void DelayEditor::resized()
 
     leftTimeSlider->setBounds ((getWidth() / 2) + -145 - 128, 32, 128, 48);
     rightTimeSlider->setBounds ((getWidth() / 2) + 6 - 128, 32, 128, 48);
+    leftSyncTimeSlider->setBounds ((getWidth() / 2) + -145 - 128, 32, 128, 48);
+    rightSyncTimeSlider->setBounds ((getWidth() / 2) + 6 - 128, 32, 128, 48);
     leftFeedbackSlider->setBounds ((getWidth() / 2) + -145 - 128, 96, 128, 48);
     rightFeedbackSlider->setBounds ((getWidth() / 2) + 6 - 128, 96, 128, 48);
     mixSlider->setBounds ((getWidth() / 2) + 102 - (128 / 2), 32, 128, 48);

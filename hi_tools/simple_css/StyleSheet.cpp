@@ -36,6 +36,66 @@ namespace hise
 namespace simple_css
 {
 
+template <typename T> struct TransitionCalculator
+{
+	TransitionCalculator(const StyleSheet* ss_, Animator* animator_, const String& propertyName_, const TransitionValue& tv_):
+	  ss(ss_),
+	  animator(animator_),
+	  propertyName(propertyName_),
+	  tv(tv_)
+	{}
+
+	TransitionCalculator() = default;
+
+	const StyleSheet* ss;
+	Animator* animator;
+	String propertyName;
+	TransitionValue tv;
+
+	std::function<T(const String& v)> valueFunction;
+	std::function<T(const T&, const T&, float)> interpolator;
+	std::function<String(const T&)> toStringFunction;
+
+	T calculate() const
+	{
+		jassert(valueFunction);
+		jassert(interpolator);
+		jassert(toStringFunction);
+
+		if(tv.startValue.containsChar('~'))
+		{
+			auto t = StringArray::fromTokens(tv.startValue, "~", "");
+
+			jassert(t.size() == 3);
+
+			auto sv1 = valueFunction(t[0]);
+			auto sv2 = valueFunction(t[1]);
+			auto d = t[2].getFloatValue();
+
+			auto v1 = interpolator(sv1, sv2, d);
+
+			for(auto i: animator->items)
+			{
+				if(i->css == ss && i->startValue.name == propertyName)
+				{
+					i->intermediateStartValue = toStringFunction(v1);
+					//i->speed = d;
+					break;
+				}
+			}
+
+			auto v2 = valueFunction(tv.endValue);
+
+			return interpolator(v1, v2, tv.progress);
+		}
+		else
+		{
+			auto v1 = valueFunction(tv.startValue);
+			auto v2 = valueFunction(tv.endValue);
+			return interpolator(v1, v2, (float)tv.progress);
+		}
+	}
+};
 
 TransitionValue StyleSheet::getTransitionValue(const PropertyKey& key) const
 {
@@ -54,9 +114,13 @@ TransitionValue StyleSheet::getTransitionValue(const PropertyKey& key) const
 
 		if(i->startValue.name == key.name && i->startValue.state.matchesElement(key.state))
 		{
-			tv.startValue = getPropertyValueString(i->startValue);
-			tv.endValue = getPropertyValueString(i->endValue);
+			if(i->intermediateStartValue.isNotEmpty())
+				tv.startValue = i->intermediateStartValue;
+			else
+				tv.startValue = getPropertyValueString(i->startValue);
 
+			tv.endValue = getPropertyValueString(i->endValue);
+			
 			if(tv.startValue == tv.endValue)
 			{
 				continue;
@@ -65,7 +129,44 @@ TransitionValue StyleSheet::getTransitionValue(const PropertyKey& key) const
 			tv.progress = i->currentProgress;
 
 			if(i->transitionData.f)
-				tv.progress = i->transitionData.f(tv.progress);
+			{
+				if(i->currentAnimationRange.getLength() != 1.0 && !i->currentAnimationRange.isEmpty())
+				{
+					NormalisableRange<double> nr(i->currentAnimationRange);
+
+					auto v = nr.convertTo0to1(tv.progress);
+
+					if(i->reverse)
+						v = 1.0 - v;
+					
+					v = jlimit(0.0, 1.0, i->transitionData.f(v));
+					
+					
+					if(i->reverse)
+						v = (1.0 - v);
+
+					v = i->currentAnimationRange.getStart() + v * i->currentAnimationRange.getLength();
+					
+					tv.progress = v;
+				}
+				else
+				{
+					if(i->reverse)
+					{
+						auto v = 1.0 - tv.progress;
+						v = i->transitionData.f(v);
+						tv.progress = 1.0 - v;
+					}
+					else
+					{
+						tv.progress = i->transitionData.f(tv.progress);
+					}
+				}
+
+
+				
+			}
+				
 
 			tv.active = true;
 			break;
@@ -233,10 +334,17 @@ NonUniformBorderData StyleSheet::getNonUniformBorder(Rectangle<float> totalArea,
 
 		if(auto tv = getTransitionValue(k))
 		{
-			auto bs1 = ExpressionParser::evaluate(tv.startValue, {  useWidth, totalArea, defaultFontSize });
-			auto bs2 = ExpressionParser::evaluate(tv.endValue, {  useWidth, totalArea, defaultFontSize });
-			auto bs = Interpolator::interpolateLinear(bs1, bs2, (float)tv.progress);
-			nub.setBorderSize(borderType, bs);
+			TransitionCalculator<float> im(this, animator, k.name, tv);
+
+			ExpressionParser::Context<> ctx = { useWidth, totalArea, defaultFontSize };
+
+			im.valueFunction = [ctx](const String& v) { return ExpressionParser::evaluate(v, ctx); };
+			im.interpolator = Interpolator::interpolateLinear<float>;
+			im.toStringFunction = [](float v) { return String(v); };
+
+			auto v = im.calculate();
+			
+			nub.setBorderSize(borderType, v);
 		}
 		else if(auto pv = getPropertyValue(k))
 		{
@@ -287,6 +395,9 @@ StyleSheet::Collection::Collection(List l):
 
 void StyleSheet::Collection::setAnimator(Animator* a)
 {
+	jassert(a != nullptr);
+	animator = a;
+
 	forEach([a](Ptr p)
 	{
 		p->animator = a;
@@ -357,19 +468,22 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 
 	if(!useIsolatedCollections)
 	{
-		if(auto p = c->getParentComponent())
+		if(dynamic_cast<CSSRootComponent*>(c) == nullptr)
 		{
-			parentStyle = getForComponent(p);
-
-			auto tp = p;
-
-			while(tp != nullptr)
+			if(auto p = c->getParentComponent())
 			{
-				if(dynamic_cast<CSSRootComponent*>(tp))
-					break;
+				parentStyle = getForComponent(p);
 
-				pSelectors.addArray(ComplexSelector::getSelectorsForComponent(tp));
-				tp = tp->getParentComponent();
+				auto tp = p;
+
+				while(tp != nullptr)
+				{
+					if(dynamic_cast<CSSRootComponent*>(tp))
+						break;
+
+					pSelectors.addArray(ComplexSelector::getSelectorsForComponent(tp));
+					tp = tp->getParentComponent();
+				}
 			}
 		}
 	}
@@ -505,7 +619,11 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		ic << "}";
 		Parser p(ic);
 		p.parse();
-		auto is = p.getCSSValues().getWithAllStates(nullptr, elementSelector);
+
+		auto otherList = p.getCSSValues();
+		otherList.setAnimator(animator);
+
+		auto is = otherList.getWithAllStates(nullptr, elementSelector);
         
         if(is != nullptr)
             debugList.addIfNotAlreadyThere(is);
@@ -587,11 +705,13 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	        styleSheetLog = styleSheetLog.replace(elementSelectors[i], hierarchy[i]);
 	    }
 	}
-	
+
+	ptr->setCustomFonts(customFonts);
+
 	cachedMaps.add({ c, ptr, styleSheetLog });
 
-	if(auto root = CSSRootComponent::find(*c))
-		setAnimator(&root->animator);
+	jassert(animator != nullptr);
+	ptr->animator = animator;
 	
 	return ptr;
 
@@ -686,7 +806,7 @@ StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(Component* c, const Sel
 {
 	for(const auto& existing: cachedMapForAllStates)
 	{
-		if(existing.first.exactMatch(s))
+		if(existing.first.second.exactMatch(s) && existing.first.first == c)
 			return existing.second;
 	}
 
@@ -756,9 +876,11 @@ StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(Component* c, const Sel
 	for(auto m: matches)
 		ptr->copyPropertiesFrom(m, true);
 
-	cachedMapForAllStates.add({s, ptr});
+	cachedMapForAllStates.add({{c, s}, ptr});
 
-	ptr->animator = matches.getFirst()->animator;
+	jassert(animator != nullptr);
+
+	ptr->animator = animator;
 
 	return ptr;
 }
@@ -919,8 +1041,6 @@ void StyleSheet::Collection::addCollectionForComponent(Component* c, const Colle
 
 Result StyleSheet::Collection::performAtRules(DataProvider* d)
 {
-	Array<std::pair<String, Font>> customFonts;
-
 	for(int i = 0; i < list.size(); i++)
 	{
 		auto l = list[i];
@@ -933,7 +1053,7 @@ Result StyleSheet::Collection::performAtRules(DataProvider* d)
 			auto fontName = l->getPropertyValueString({"font-family", {}});
 			auto fToUse = d->loadFont(fontName, url);
 
-			customFonts.add({ fontName, fToUse });
+			customFonts.addIfNotAlreadyThere({ fontName, fToUse });
 		}
 		if(ar == "import")
 		{
@@ -976,7 +1096,7 @@ bool StyleSheet::Collection::sameOrParent(Component* possibleParent, Component* 
 {
 	while(componentToLookFor != nullptr)
 	{
-		if(componentToLookFor == componentToLookFor)
+		if(componentToLookFor == possibleParent)
 			return true;
 
 		if(dynamic_cast<CSSRootComponent*>(componentToLookFor) != nullptr)
@@ -1098,9 +1218,13 @@ float StyleSheet::getPixelValue(Rectangle<float> totalArea, const PropertyKey& k
 
 	if(auto tv = getTransitionValue(key))
 	{
-		auto v1 = getValueFromString(tv.startValue);
-		auto v2 = getValueFromString(tv.endValue);
-		return Interpolator::interpolateLinear(v1, v2, (float)tv.progress);
+		TransitionCalculator<float> im(this, animator, key.name, tv);
+
+		im.valueFunction = getValueFromString;
+		im.interpolator = Interpolator::interpolateLinear<float>;
+		im.toStringFunction = [](float v){ return String(v); };
+
+		return im.calculate();
 	}
 	if(auto v = getPropertyValue(key))
 	{
@@ -1220,9 +1344,16 @@ Rectangle<float> StyleSheet::getBounds(Rectangle<float> sourceArea, PseudoState 
 		if(auto tv = getTransitionValue(k))
 		{
 			rv.match = true;
-			auto v1 = ExpressionParser::evaluate(tv.startValue, { useWidth, sourceArea, defaultFontSize });
-			auto v2 = ExpressionParser::evaluate(tv.endValue, { useWidth, sourceArea, defaultFontSize });
-			rv.value = Interpolator::interpolateLinear(v1, v2, (float)tv.progress);
+
+			TransitionCalculator<float> im(this, animator, k.name, tv);
+
+			ExpressionParser::Context<> ctx = { useWidth, sourceArea, defaultFontSize };
+
+			im.valueFunction = [ctx](const String& v) { return ExpressionParser::evaluate(v, ctx); };
+			im.interpolator = Interpolator::interpolateLinear<float>;
+			im.toStringFunction = [](float v) { return String(v); };
+
+			rv.value = im.calculate();
 		}
 		else if(auto v = getPropertyValue(k))
 		{
@@ -1343,7 +1474,7 @@ public:
 		c->setColour(id, colour);
 	};
 
-	static void updateTableHeader(StyleSheet::Ptr ss, TableHeaderComponent* header, int currentState)
+	static void updateTableHeader(CSSRootComponent* root, StyleSheet::Ptr ss, TableHeaderComponent* header, int currentState)
 	{
 		auto parentTable = header->findParentComponentOfClass<TableListBox>();
 		jassert(parentTable != nullptr);
@@ -1355,7 +1486,22 @@ public:
 		parentTable->setHeaderHeight(jmax(height, height2));
 	}
 
-	static void updateTextEditor(StyleSheet::Ptr ss, TextEditor* te, int currentState)
+	static void updateListBox(CSSRootComponent* root, StyleSheet::Ptr ss, ListBox* lb, int currentState)
+	{
+		auto height = ss->getLocalBoundsFromText("M").getHeight();
+		lb->setRowHeight(height);
+
+		if(root != nullptr)
+		{
+			if(auto sbss = root->css.getWithAllStates(lb, Selector(ElementType::Scrollbar)))
+			{
+				auto thickness = sbss->getPixelValue({}, { "width", 0}, (float)lb->getViewport()->getScrollBarThickness());
+				lb->getViewport()->setScrollBarThickness(thickness);
+			}
+		}
+	}
+
+	static void updateTextEditor(CSSRootComponent* root, StyleSheet::Ptr ss, TextEditor* te, int currentState)
 	{
 		setColourIfDefined(te, ss, currentState, CaretComponent::ColourIds::caretColourId, "caret-color");
 		
@@ -1391,7 +1537,7 @@ public:
 		setColourIfDefined(te, ss, currentState, TextEditor::textColourId, "color");
 		te->applyColourToAllText(te->findColour(TextEditor::textColourId));
 
-		if(auto root = CSSRootComponent::find(*te))
+		if(root != nullptr)
 		{
 			if(auto selectionSheet = root->css.getWithAllStates(te, Selector(SelectorType::Class, "::selection")))
 			{
@@ -1404,17 +1550,20 @@ public:
 
 
 
-void StyleSheet::setupComponent(Component* c, int currentState)
+void StyleSheet::setupComponent(CSSRootComponent* cssRoot, Component* c, int currentState)
 {
 	if(auto te = dynamic_cast<TextEditor*>(c))
 	{
-		ComponentUpdaters::updateTextEditor(this, te, currentState);
+		ComponentUpdaters::updateTextEditor((cssRoot), this, te, currentState);
 	}
 	if(auto h = dynamic_cast<TableHeaderComponent*>(c))
 	{
-		ComponentUpdaters::updateTableHeader(this, h, currentState);
+		ComponentUpdaters::updateTableHeader((cssRoot), this, h, currentState);
 	}
-	
+	if(auto lb = dynamic_cast<ListBox*>(c))
+	{
+		ComponentUpdaters::updateListBox((cssRoot), this, lb, currentState);
+	}
 }
 
 Justification StyleSheet::getJustification(PseudoState currentState, int defaultXFlag, int defaultYFlag) const
@@ -1453,25 +1602,25 @@ Justification StyleSheet::getJustification(PseudoState currentState, int default
 
 float StyleSheet::getOpacity(int state) const
 {
+	auto getValueFromString = [](const String& v)
+	{
+		return ExpressionParser::evaluate(v, {});
+	};
+
 	if(auto tv = getTransitionValue({"opacity", state}))
 	{
-		auto v1 = tv.startValue.getFloatValue();
-		if(tv.startValue.endsWithChar('%'))
-			v1 *= 0.01f;
-            
-		auto v2 = tv.endValue.getFloatValue();
-		if(tv.endValue.endsWithChar('%'))
-			v2 *= 0.01f;
-            
-		return Interpolator::interpolateLinear(v1, v2, (float)tv.progress);
+		TransitionCalculator<float> im(this, animator, "opacity", tv);
+
+		im.valueFunction = getValueFromString;
+		im.interpolator = Interpolator::interpolateLinear<float>;
+		im.toStringFunction = [](float v){ return String(v); };
+
+		return im.calculate();
 	}
 	if(auto pv = getPropertyValue({"opacity", state}))
 	{
-		auto v = pv.getValue(varProperties).getFloatValue();
-		if(pv.getValue(varProperties).endsWithChar('%'))
-			v *= 0.01f;
-            
-		return v;
+		auto v = pv.getValue(varProperties);
+		return getValueFromString(v);
 	}
         
 	return 1.0f;
@@ -1507,7 +1656,7 @@ String StyleSheet::getText(const String& t, PseudoState currentState) const
 
 	if(auto v = getPropertyValue({ "content", currentState}))
 	{
-		textToUse = v.toString();
+		textToUse = getPropertyValueString({"content", currentState});
 	}
 
 	if(auto v = getPropertyValue({ "text-transform", currentState}))
@@ -1583,9 +1732,20 @@ std::vector<melatonin::ShadowParameters> StyleSheet::getShadow(Rectangle<float> 
 {
 	if(auto tv = getTransitionValue(key))
 	{
-		ShadowParser s1(tv.startValue, totalArea);
-		ShadowParser s2(tv.endValue, totalArea);
-		return s1.interpolate(s2, tv.progress, wantsInset);
+		using Type = ShadowParser::ShadowList;
+
+		TransitionCalculator<Type> im(this, animator, key.name, tv);
+
+		im.valueFunction = [totalArea, wantsInset](const String& v)
+		{
+			ShadowParser s(v, totalArea);
+			return s.getShadowParameters(wantsInset);
+		};
+
+		im.interpolator = ShadowParser::interpolateShadowList;
+		im.toStringFunction = ShadowParser::shadowListToString;
+
+		return im.calculate();
 	}
 	else if(auto v = getPropertyValue(key))
 	{
@@ -1649,25 +1809,37 @@ AffineTransform StyleSheet::getTransform(Rectangle<float> totalArea, PseudoState
 {
 	if(auto tv = getTransitionValue({ "transform", currentState}))
 	{
-		DBG(tv.progress);
-		TransformParser p1(keywords, tv.startValue);
-		TransformParser p2(keywords, tv.endValue);
+		using Type = std::vector<TransformParser::TransformData>;
 
-		auto l1 = p1.parse(totalArea);
-		auto l2 = p2.parse(totalArea);
+		TransitionCalculator<Type> im(this, animator, "transform", tv);
 
-		auto num = jmax(l1.size(), l2.size());
-
-		std::vector<TransformParser::TransformData> mix;
-		mix.reserve(num);
-
-		for(int i = 0; i < num; i++)
+		im.valueFunction = [&](const String& v)
 		{
-			auto t1 = isPositiveAndBelow(i, l1.size()) ? l1[i] : TransformParser::TransformData(l2[i].type);
-			auto t2 = isPositiveAndBelow(i, l2.size()) ? l2[i] : TransformParser::TransformData(l1[i].type);
+			TransformParser p1(keywords, v);
+			return p1.parse(totalArea);
+		};
 
-			mix.push_back(t1.interpolate(t2, (float)tv.progress));
-		}
+		im.interpolator = [](const Type& l1, const Type& l2, float alpha)
+		{
+			auto num = jmax(l1.size(), l2.size());
+
+			std::vector<TransformParser::TransformData> mix;
+			mix.reserve(num);
+
+			for(int i = 0; i < num; i++)
+			{
+				auto t1 = isPositiveAndBelow(i, l1.size()) ? l1[i] : TransformParser::TransformData(l2[i].type);
+				auto t2 = isPositiveAndBelow(i, l2.size()) ? l2[i] : TransformParser::TransformData(l1[i].type);
+
+				mix.push_back(t1.interpolate(t2, (float)alpha));
+			}
+
+			return mix;
+		};
+
+		im.toStringFunction = TransformParser::toString;
+
+		auto mix = im.calculate();
 
 		return TransformParser::TransformData::toTransform(mix, totalArea.getCentre());
 	}
@@ -1723,6 +1895,11 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
 			ColourGradientParser p(area, v.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false));
 			return std::pair(defaultColour, p.getGradient());
 		}
+		else if (v.startsWith("rgb"))
+		{
+			auto c = ColourParser(v).getColour();
+			return std::pair(c, ColourGradient());
+		}
 		else
 		{
 			auto c = Colour((uint32)v.getHexValue64());
@@ -1762,17 +1939,84 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
     
 	if(auto tv = getTransitionValue(key))
 	{
-		auto v1 = getValueFromString(tv.startValue);
-		auto v2 = getValueFromString(tv.endValue);
+		using Type = std::pair<Colour, ColourGradient>;
 
-		if(v1.second.getNumColours() > 0 || v2.second.getNumColours() > 0)
+		TransitionCalculator<Type> im(this, animator, key.name, tv);
+
+		im.valueFunction = getValueFromString;
+		im.interpolator = [](const Type& f1, const Type& f2, float alpha)
 		{
-			// Can't blend gradients (for now...)
-			jassertfalse;
-			return { defaultColour, ColourGradient() };
-		}
+			Type t;
 
-		return { v1.first.interpolatedWith(v2.first, tv.progress), ColourGradient() };
+			auto isGradient1 = f1.second.getNumColours() > 0;
+			auto isGradient2 = f2.second.getNumColours() > 0;
+
+			if(isGradient1 || isGradient2)
+			{
+				if(isGradient1 && isGradient2)
+				{
+					Line<float> l1 = { f1.second.point1, f2.second.point1 };
+					Line<float> l2 = { f1.second.point2, f2.second.point2 };
+					
+					t.second.point1 = l1.getPointAlongLineProportionally(alpha);
+					t.second.point2 = l2.getPointAlongLineProportionally(alpha);
+				}
+				else if (isGradient1)
+				{
+					t.second.point1 = f1.second.point1;
+					t.second.point2 = f1.second.point2;
+				}
+				else
+				{
+					t.second.point1 = f2.second.point1;
+					t.second.point2 = f2.second.point2;
+				}
+
+				auto numColours = jmax(f1.second.getNumColours(), f2.second.getNumColours());
+
+				auto useFirstAsPos = true;
+
+				if(f1.second.getNumColours() < f2.second.getNumColours())
+					useFirstAsPos = false;
+
+				for(int i = 0 ; i < numColours; i++)
+				{
+					Colour c1, c2;
+
+					auto pos1 = f1.second.getColourPosition(i);
+					auto pos2 = f2.second.getColourPosition(i);
+
+					auto posToUse = useFirstAsPos ? pos1 : pos2;
+
+					if(isGradient1)
+						c1 = f1.second.getColourAtPosition(posToUse);
+					else
+						c1 = f1.first;
+					
+					if(isGradient2)
+						c2 = f2.second.getColourAtPosition(posToUse);
+					else
+						c2 = f2.first;
+
+					auto mix = c1.interpolatedWith(c2, alpha);
+					t.second.addColour(posToUse, mix);
+				}
+			}
+			else
+				t.first = f1.first.interpolatedWith(f2.first, alpha);
+			
+			return t;
+		};
+
+		im.toStringFunction = [area](const Type& f)
+		{
+			if(f.second.getNumColours() > 0)
+				return ColourGradientParser::toString(area, f.second);
+			else
+				return String::toHexString((int64)f.first.getARGB());
+		};
+
+		return im.calculate();
 	}
 	if(auto v = getPropertyValue(key))
 	{

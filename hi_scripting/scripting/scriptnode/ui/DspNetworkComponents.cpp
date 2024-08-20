@@ -1641,7 +1641,7 @@ bool DspNetworkGraph::Actions::editNodeProperty(DspNetworkGraph& g)
 	}
 	else
 	{
-		auto nn = new PropertyEditor(g.network->getRootNode(), false, g.network->getValueTree(), {}, false);
+		auto nn = new PropertyEditor(g.network->getRootNode(), false, g.network->getValueTree(), {PropertyIds::ID, PropertyIds::FactoryPath}, false);
 
 		nn->setName("Edit Network Properties");
 
@@ -2305,8 +2305,11 @@ bool DspNetworkGraph::Actions::showParameterPopup(DspNetworkGraph& g)
 	if (b == nullptr)
 		b = &g;
 
-	ft->showComponentInRootPopup(s, b, {12, 24});
-
+	if(ft->setTogglePopupFlag(g, g.showParameters))
+	{
+		ft->showComponentInRootPopup(s, b, {12, 24});
+	}
+	
 	return true;
 }
 

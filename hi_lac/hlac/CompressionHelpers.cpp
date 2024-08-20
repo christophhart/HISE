@@ -1195,9 +1195,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		}
 	}
 
-	Array<File> parts;
-
-	sourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, sourceFile.getFileNameWithoutExtension() + ".*");
+    auto parts = getSourceFiles(sourceFile);
+    
 
 	const int numParts = parts.size();
 

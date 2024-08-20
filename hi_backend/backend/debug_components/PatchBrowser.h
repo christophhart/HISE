@@ -88,6 +88,8 @@ public:
 		ProcessorType type;
 
 		WeakReference<Processor> p;
+
+		bool clicked = false;
 	};
 
 	// ====================================================================================================================

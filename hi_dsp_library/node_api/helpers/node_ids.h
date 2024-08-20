@@ -55,6 +55,7 @@ namespace PropertyIds
 DECLARE_ID(Coallescated);
 DECLARE_ID(Network);
 DECLARE_ID(Node);
+DECLARE_ID(Name);
 DECLARE_ID(Nodes);
 DECLARE_ID(NodeColour);
 DECLARE_ID(Comment);

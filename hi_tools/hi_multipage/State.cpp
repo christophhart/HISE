@@ -323,7 +323,7 @@ Asset::Ptr Asset::fromVar(const var& obj, const File& currentRoot)
 	auto t = (Type)(int)obj[mpid::Type];
 	auto id = obj[mpid::ID].toString();
 
-	if(obj.hasProperty(mpid::Filename))
+	if(obj.hasProperty(mpid::Filename) && currentRoot.isDirectory())
 	{
 		auto filePath = obj[mpid::Filename].toString();
 
@@ -401,7 +401,9 @@ void State::run()
 			
 		}
 
-		completedJobs.addIfNotAlreadyThere(currentJob);
+		if(ok.wasOk())
+			completedJobs.addIfNotAlreadyThere(currentJob);
+
 		currentJob = nullptr;
 	
 		if(ok.failed())
@@ -697,10 +699,13 @@ bool State::Job::matches(const var& obj) const
 }
 
 double& State::Job::getProgress()
-{ return progress; }
+{ return enableProgress ? progress : unusedProgess; }
 
 void State::Job::setMessage(const String& newMessage)
 {
+	if(!enableProgress)
+		return;
+
 	message = newMessage;
 
 	parent.eventLogger.sendMessage(sendNotificationAsync, MessageType::ProgressMessage, newMessage);
@@ -750,7 +755,9 @@ void State::onFinish()
 	{
 		if(d != nullptr)
 		{
-			d->nextButton.setEnabled(d->currentErrorElement == nullptr);
+
+			d->nextButton.setEnabled(d->currentErrorElement == nullptr || 
+								     d->currentErrorElement->getInfoObject()[mpid::EventTrigger].toString() == "OnCall");
 			d->prevButton.setEnabled(true);
 			
 			if(navigateOnFinish)
@@ -840,7 +847,7 @@ void State::bindCallback(const String& functionName, const var::NativeFunction& 
 
 bool State::callNativeFunction(const String& functionName, const var::NativeFunctionArgs& args, var* returnValue)
 {
-	if(jsLambdas.find(functionName) != jsLambdas.end())
+	if(hasNativeFunction(functionName))
 	{
 		auto rv = jsLambdas[functionName](args);
 
@@ -848,6 +855,22 @@ bool State::callNativeFunction(const String& functionName, const var::NativeFunc
 			*returnValue = rv;
 
 		return true;
+	}
+	else
+	{
+		String message;
+		message << "Firing custom callback: " << functionName;
+		message << " - args: ";
+
+		for(int i = 0; i < args.numArguments; i++)
+		{
+			message << JSON::toString(args.arguments[i], true);
+
+			if(i != args.numArguments - 1)
+				message << ", ";
+		}
+
+		logMessage(MessageType::ActionEvent, message);
 	}
 
 	return false;
@@ -930,6 +953,8 @@ bool UndoableVarAction::undo()
 	default: ;
 	}
 
+	
+
 	return false;
 }
 
@@ -937,6 +962,7 @@ String MonolithData::getMarkerName(Markers m)
 {
 	switch(m)
 	{
+	case MonolithBeginVersion: return "Version Number";
 	case MonolithBeginJSON: return "MonolithBeginJSON";
 	case MonolithEndJSON: return "MonolithEndJSON";
 	case MonolithBeginAssets: return "MonolithBeginAssets";
@@ -949,23 +975,21 @@ String MonolithData::getMarkerName(Markers m)
 	}
 }
 
-MonolithData::MonolithData(const File& location_):
-	location(location_)
-{
-	    
-}
+MonolithData::MonolithData(InputStream* input_):
+	input(input_)
+{}
 
-int64 MonolithData::expectFlag(FileInputStream& fis, Markers m, bool throwIfMismatch)
+int64 MonolithData::expectFlag(Markers m, bool throwIfMismatch)
 {
 	static const Array<Markers> beginMarkers = { MonolithBeginJSON, MonolithAssetJSONStart, MonolithAssetStart };
 
 	auto isBeginMarker = beginMarkers.contains(m);
         
-	auto flag = fis.readInt();
+	auto flag = input->readInt();
 
 	if(flag == m)
 	{
-		return isBeginMarker ? fis.readInt64() : 0;
+		return isBeginMarker ? input->readInt64() : 0;
 	}
 	else if (throwIfMismatch)
 	{
@@ -975,10 +999,10 @@ int64 MonolithData::expectFlag(FileInputStream& fis, Markers m, bool throwIfMism
 		return 0;
 }
 
-var MonolithData::readJSON(FileInputStream& fis, int64 numToRead)
+var MonolithData::readJSON(int64 numToRead)
 {
 	MemoryBlock mb;
-	fis.readIntoMemoryBlock(mb, numToRead);
+	input->readIntoMemoryBlock(mb, numToRead);
 	String jsonString;
 	zstd::ZDefaultCompressor comp;
 	comp.expand(mb, jsonString);
@@ -991,50 +1015,103 @@ var MonolithData::readJSON(FileInputStream& fis, int64 numToRead)
 	return obj;
 }
 
-multipage::Dialog* MonolithData::create(State& state)
+multipage::Dialog* MonolithData::create(State& state, bool allowVersionMismatch)
 {
-	FileInputStream fis(location);
+    int64 numToRead = -1;
+    
+    try
+    {
+        expectFlag (Markers::MonolithBeginVersion);
 
-	auto numToRead = expectFlag(fis, Markers::MonolithBeginJSON);
-	auto jsonData = readJSON(fis, numToRead);
-	expectFlag(fis, Markers::MonolithEndJSON);
-	expectFlag(fis, Markers::MonolithBeginAssets);
+        auto thisMajor = input->readInt();
+        auto thisMinor = input->readInt();
+        auto thisPatch = input->readInt();
+
+        std::array<int, 3> monoVersion = { thisMajor, thisMinor, thisPatch };
+
+        std::array<int, 3> buildVersion = { MULTIPAGE_MAJOR_VERSION, MULTIPAGE_MINOR_VERSION, MULTIPAGE_PATCH_VERSION };
+
+        SemanticVersionChecker svs(monoVersion, buildVersion);
+
+        if(!svs.isExactMatch())
+            throw String("Version mismatch. " + svs.getErrorMessage("Payload Build Version", "Installer version"));
+
+        expectFlag (Markers::MonolithEndVersion);
+    }
+    catch(String& s)
+    {
+        if(!allowVersionMismatch)
+        {
+            throw s;
+        }
+        else
+        {
+            numToRead = input->readInt64();
+        }
+    }
+
+    if(numToRead == -1)
+	    numToRead = expectFlag(Markers::MonolithBeginJSON);
+    
+	auto jsonData = readJSON(numToRead);
+	expectFlag(Markers::MonolithEndJSON);
+	expectFlag(Markers::MonolithBeginAssets);
 
 	state.reset(jsonData);
         
-	while(auto metadataSize = expectFlag(fis, Markers::MonolithAssetJSONStart, false))
+	while(auto metadataSize = expectFlag(Markers::MonolithAssetJSONStart, false))
 	{
-		auto metadata = readJSON(fis, metadataSize);
-		expectFlag(fis, Markers::MonolithAssetJSONEnd);
+		auto metadata = readJSON(metadataSize);
+		expectFlag(Markers::MonolithAssetJSONEnd);
 
-		auto numBytesInData = expectFlag(fis, Markers::MonolithAssetStart);
+		auto flag = input->readInt();
 
+		bool isCompressed = true;
+
+		int64 numBytesInData = 0;
+
+		if(flag == Markers::MonolithAssetNoCompressFlag)
+		{
+			isCompressed = false;
+			numBytesInData = expectFlag(Markers::MonolithAssetStart);
+		}
+		else
+		{
+			numBytesInData = input->readInt64();
+		}
+		
 		MemoryBlock mb, mb2;
-		fis.readIntoMemoryBlock(mb, numBytesInData);
-		zstd::ZDefaultCompressor comp;
-		comp.expand(mb, mb2);
-            
+		input->readIntoMemoryBlock(mb, numBytesInData);
+
+		if(isCompressed)
+		{
+			zstd::ZDefaultCompressor comp;
+			comp.expand(mb, mb2);
+		}
+		else
+		{
+			std::swap(mb, mb2);
+		}
+		
 		metadata.getDynamicObject()->setProperty(mpid::Data, var(std::move(mb2)));
 		auto r = multipage::Asset::fromVar(metadata, state.currentRootDirectory);
 		state.assets.add(r);
 
-		expectFlag(fis, Markers::MonolithAssetEnd);
+		expectFlag(Markers::MonolithAssetEnd);
 	}
 
 	// caught by the last while loope
 	//expectFlag(fis, Markers::MonolithEndAssets);
 
-	if(fis.getPosition() != fis.getTotalLength())
+	if(input->getPosition() != input->getTotalLength())
 	{
 		throw String("Not EOF");
 	}
-
-        
-
+	
 	return new multipage::Dialog(jsonData, state);
 }
 
-Result MonolithData::exportMonolith(State& state, const File& target)
+Result MonolithData::exportMonolith(State& state, OutputStream* target, bool compressAssets, State::Job* job)
 {
 	// clear the state
 	auto json = state.getFirstDialog()->exportAsJSON();
@@ -1046,65 +1123,95 @@ Result MonolithData::exportMonolith(State& state, const File& target)
 	zstd::ZDefaultCompressor comp;
 	comp.compress(c, mb);
 
-	FileOutputStream fos(target);
-        
-	fos.writeInt(Markers::MonolithBeginJSON);
-	fos.writeInt64((int64)mb.getSize());
-	fos.write(mb.getData(), mb.getSize());
-	fos.writeInt(Markers::MonolithEndJSON);
+	if(job != nullptr)
+	{
+		job->setMessage("Exporting monolith");
+	}
 
-	fos.writeInt(Markers::MonolithBeginAssets);
+	target->writeInt (Markers::MonolithBeginVersion);
+	target->writeInt(MULTIPAGE_MAJOR_VERSION);
+	target->writeInt(MULTIPAGE_MINOR_VERSION);
+	target->writeInt(MULTIPAGE_PATCH_VERSION);
+	target->writeInt(Markers::MonolithEndVersion);
+
+	target->writeInt(Markers::MonolithBeginJSON);
+	
+	target->writeInt64((int64)mb.getSize());
+	target->write(mb.getData(), mb.getSize());
+	target->writeInt(Markers::MonolithEndJSON);
+	target->writeInt(Markers::MonolithBeginAssets);
 
 	for(auto s: state.assets)
 	{
 		if(!s->matchesOS())
 			continue;
 
+		if(job != nullptr)
+			job->setMessage("Exporting asset " + s->id);
+
 		auto assetJSON = s->toJSON(false, state.currentRootDirectory);
 		assetJSON.getDynamicObject()->removeProperty(mpid::Filename);
+
+		File assetFile(s->filename);
+
+		if(assetFile.existsAsFile())
+		{
+			assetJSON.getDynamicObject()->setProperty(mpid::Filename, assetFile.getFileName());
+		}
 
 		auto metadata = JSON::toString(assetJSON);
 
 		MemoryBlock mb2;
 		comp.compress(metadata, mb2);
 
-		fos.writeInt(Markers::MonolithAssetJSONStart);
-		fos.writeInt64(mb2.getSize());
-		fos.write(mb2.getData(), mb2.getSize());
-		fos.writeInt(Markers::MonolithAssetJSONEnd);
+		target->writeInt(Markers::MonolithAssetJSONStart);
+		target->writeInt64(mb2.getSize());
+		target->write(mb2.getData(), mb2.getSize());
+		target->writeInt(Markers::MonolithAssetJSONEnd);
 
-		fos.writeInt(Markers::MonolithAssetStart);
+		if(!compressAssets)
+			target->writeInt(Markers::MonolithAssetNoCompressFlag);
 
-		MemoryBlock mb3;
+		target->writeInt(Markers::MonolithAssetStart);
 
-		comp.compress(s->data, mb3);
+		bool ok;
 
-		fos.writeInt64(mb3.getSize());
-		auto ok = fos.write(mb3.getData(), mb3.getSize());
+		if(compressAssets)
+		{
+			MemoryBlock mb3;
 
+			comp.compress(s->data, mb3);
+
+			target->writeInt64(mb3.getSize());
+			ok = target->write(mb3.getData(), mb3.getSize());
+		}
+		else
+		{
+			target->writeInt64(s->data.getSize());
+			ok = target->write(s->data.getData(), s->data.getSize());
+		}
+		
 		if(!ok)
 			return Result::fail("Error writing asset " + s->id);
 
-		fos.writeInt(Markers::MonolithAssetEnd);
+		target->writeInt(Markers::MonolithAssetEnd);
 	}
 
-	fos.writeInt(Markers::MonolithEndAssets);
-	fos.flush();
+	target->writeInt(Markers::MonolithEndAssets);
+	target->flush();
 
 	return Result::ok();
 }
 
 var MonolithData::getJSON() const
 {
-	FileInputStream fis(location);
-
-	auto flag = fis.readInt();
+	auto flag = input->readInt();
 
 	if(flag == MonolithBeginJSON)
 	{
-		auto numToRead = fis.readInt64();
+		auto numToRead = input->readInt64();
 		MemoryBlock mb;
-		auto numRead = fis.readIntoMemoryBlock(mb, numToRead);
+		auto numRead = input->readIntoMemoryBlock(mb, numToRead);
 
 		if(numRead == numToRead)
 		{

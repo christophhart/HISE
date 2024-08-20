@@ -188,6 +188,39 @@ struct AppDataFileWriter: public ImmediateAction
     File targetFile;
 };
 
+struct ClipboardLoader: public ImmediateAction
+{
+	HISE_MULTIPAGE_ID("ClipboardLoader");
+
+	ClipboardLoader(Dialog& r, int w, const var& obj):
+      ImmediateAction(r, w, obj)
+	{}
+
+	bool skipIfStateIsFalse() const override { return false; }
+    
+    CREATE_EDITOR_OVERRIDE;
+
+    Result onAction() override
+    {
+        auto id = infoObject[mpid::Target].toString();
+
+        if(id.isNotEmpty())
+        {
+	        rootDialog.getState().globalState.getDynamicObject()->setProperty(Identifier(id), SystemClipboard::getTextFromClipboard());
+
+            if(auto pb = rootDialog.findPageBaseForID(id))
+            {
+	            pb->postInit();
+            }
+        }
+
+        return Result::ok();
+    }
+
+	String getDescription() const override { return "loadClipboard(" + infoObject[mpid::Target].toString() + ")"; };
+    
+};
+
 struct RelativeFileLoader: public ImmediateAction
 {
 	HISE_MULTIPAGE_ID("RelativeFileLoader");
@@ -206,6 +239,51 @@ struct RelativeFileLoader: public ImmediateAction
 
 	String getDescription() const override { return "FileLoader"; };
 };
+
+
+struct FileAction: public ImmediateAction
+{
+    enum FileActionType
+    {
+        CheckIfExists,
+	    DeleteFile,
+        CopyFile,
+        MoveFile,
+        LoadAsString,
+        LoadAsObject,
+        WriteString,
+        WriteObject,
+        numFileActionTypes
+    };
+
+    static StringArray getFileActions() {
+	    return {
+	        "CheckIfExists",
+		    "DeleteFile",
+	        "CopyFile",
+	        "MoveFile",
+	        "LoadAsString",
+	        "LoadAsObject",
+	        "WriteString",
+	        "WriteObject"
+	    };
+    }
+
+	HISE_MULTIPAGE_ID("FileAction");
+
+    FileAction(Dialog& r, int w, const var& obj):
+      ImmediateAction(r, w, obj)
+    {};
+    
+    static String getCategoryId() { return "Actions"; }
+
+    CREATE_EDITOR_OVERRIDE;
+    
+	Result onAction() override;
+
+    String getDescription() const override { return "FileAction"; };
+};
+
 
 struct Launch: public ImmediateAction
 {
@@ -272,6 +350,8 @@ struct BackgroundTask: public Action
                 getState().globalState.getDynamicObject()->setProperty(id, newValue);
 	    }
 
+        var temporaryInfoObject;
+        
         bool aborted = false;
         std::function<Result(WaitJob&)> task;
     };
@@ -358,6 +438,21 @@ struct CommandLineTask: public BackgroundTask
 
     CREATE_EDITOR_OVERRIDE;
     
+};
+
+struct CoallascatedTask: public BackgroundTask
+{
+    HISE_MULTIPAGE_ID("CoallascatedTask");
+
+    CoallascatedTask(Dialog& r, int w, const var& obj);
+
+    static Result performTaskStatic(WaitJob& t);
+
+    String getDescription() const override { return "CoallascatedTask"; }
+
+    CREATE_EDITOR_OVERRIDE;
+
+    OwnedArray<Action> actions;
 };
 
 struct HttpRequest: public BackgroundTask
@@ -534,7 +629,7 @@ struct PluginDirectories: public Constants
 
     String getDescription() const override { return "Plugin Directories";}
 
-    
+    CREATE_EDITOR_OVERRIDE;
 
 	void loadConstants() override;
 };
@@ -613,6 +708,24 @@ private:
 
     NamedValueSet defaultValues;
     NamedValueSet valuesFromFile;
+};
+
+struct HiseActivator: public BackgroundTask
+{
+	HISE_MULTIPAGE_ID("HiseActivator");
+
+	HiseActivator(Dialog& r, int w, const var& obj);;
+
+    static Result performTaskStatic(WaitJob& t);
+
+	String getDescription() const override { return "hiseActivate()"; }
+
+    
+    CopyProtection cp;
+    AppDataFileWriter fw;
+
+    CREATE_EDITOR_OVERRIDE;
+    
 };
 
 } // factory

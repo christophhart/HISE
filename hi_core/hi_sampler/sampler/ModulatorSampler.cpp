@@ -1313,7 +1313,18 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 			if (lockVelocity > 0)
 				m.setVelocity(lockVelocity);
 
-			getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, multiRRGroupState.getSingleGroupIndex(), &getSamplerDisplayValues().visibleGroups);
+			auto rrIndex = multiRRGroupState.getSingleGroupIndex();
+
+			jassert(rrIndex == getCurrentRRGroup());
+
+			if(isDisplayGroupFollowingRRGroup())
+			{
+				getSamplerDisplayValues().visibleGroups.clear();
+				getSamplerDisplayValues().visibleGroups.setBit(rrIndex-1);
+			}
+				
+
+			getSampleEditHandler()->groupBroadcaster.sendMessage(sendNotificationAsync, rrIndex, &getSamplerDisplayValues().visibleGroups);
 #endif
 		
 			samplerDisplayValues.currentGroup = multiRRGroupState.getSingleGroupIndex();

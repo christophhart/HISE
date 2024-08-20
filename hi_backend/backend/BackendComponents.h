@@ -662,7 +662,104 @@ public:
 
 };
 
+namespace multipage
+{
 
+#define MULTIPAGE_BIND_CPP(className, methodName) state->bindCallback(#methodName, BIND_MEMBER_FUNCTION_1(className::methodName));
+
+struct EncodedDialogBase: public Component,
+						  public QuasiModalComponent
+{
+	void writeState(const Identifier& id, const var& value)
+	{
+		state->globalState.getDynamicObject()->setProperty(id, value);
+	}
+
+	var readState(const Identifier& id) const
+	{
+		return state->globalState[id];
+	}
+
+	virtual void bindCallbacks() = 0;
+
+	void loadFrom(const String& d)
+	{
+		MemoryBlock mb;
+		mb.fromBase64Encoding(d);
+		MemoryInputStream mis(mb, false);
+		MonolithData md(&mis);
+
+		state = new State(var());
+        
+        try
+        {
+            addAndMakeVisible(dialog = md.create(*state, true));
+        }
+        catch(String& e)
+        {
+            PresetHandler::showMessageWindow ("Error loading dialog", e, PresetHandler::IconType::Error);
+            
+            
+        }
+        
+        if(dialog != nullptr)
+        {
+            dialog->setFinishCallback([this]()
+            {
+                findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+            });
+
+            bindCallbacks();
+
+            setSize(dialog->getWidth(), dialog->getHeight());
+
+            dialog->showFirstPage();
+        }
+        
+
+	}
+
+	void setElementProperty(const String& listId, const Identifier& id, const var& newValue)
+	{
+		if(auto pb = dialog->findPageBaseForID(listId))
+		{
+			pb->getInfoObject().getDynamicObject()->setProperty(id, newValue);
+			pb->updateInfoProperty(id);
+		}
+	}
+
+	void resized() override
+	{
+        if(dialog != nullptr)
+            dialog->setBounds(getLocalBounds());
+	}
+
+	void navigate(int pageIndex, bool shouldSubmit)
+	{
+		SafeAsyncCall::call<EncodedDialogBase>(*this, [pageIndex, shouldSubmit](EncodedDialogBase& db)
+		{
+			if(shouldSubmit)
+			{
+				db.state->currentPageIndex = pageIndex-1;
+				db.dialog->navigate(true);
+			}
+			else
+			{
+				db.state->currentPageIndex = pageIndex;
+				db.dialog->refreshCurrentPage();
+			}
+		});
+	}
+
+protected:
+
+	ScopedPointer<State> state;
+	ScopedPointer<Dialog> dialog;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(EncodedDialogBase);
+};
+
+} // namespace multipage
 } // namespace hise
 
 #endif  // BACKENDCOMPONENTS_H_INCLUDED

@@ -30,6 +30,7 @@
     "StyleSheet": "Dark",
     "Style": "#targetMetadata,\n#contextItems\n{\n\theight: 120px;\n}\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n\n\n#targetMetadata input,\n#contextItems input\n{\n\theight: 100%;\n\tfont-family: monospace;\n\tfont-size: 14px;\n\tvertical-align: top;\n\tpadding-top: 5px;\n}\n\nlabel\n{\n\tmin-width: 100px;\n}\n\n.button-selector\n{\n\tflex-wrap:wrap;\n\tgap:0px;\n}\n\n.button-selector div\n{\n\twidth: 33%;\n\tgap: 0px;\n\tpadding: 5px;\n}\n\n.button-selector label\n{\n\tdisplay: none;\n}\n\n.button-selector .toggle-button\n{\n\tbackground: #222;\n\tcolor: #ccc;\n\tborder-radius: 5px;\n\tfont-family: monospace;\n\tfont-size: 13px;\n\tmargin-right: 5px;\n}\n\n.button-selector button:checked\n{\n\tbackground: #aaa;\n\tcolor: #222;\n\tborder-radius: 5px;\n}\n\n.button-selector button::before,\n.button-selector button::after\n{\n\tdisplay: none;\n}\n\n\n",
     "UseViewport": true,
+    "ConfirmClose": true,
     "DialogWidth": 832,
     "DialogHeight": 716
   },
@@ -105,7 +106,6 @@
               "Text": "None",
               "ID": "attachType",
               "Help": "No event source. Use this option if you want to call the broadcaster manually or attach it to any other script callback slot (eg. TransportHandler callbacks).",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "InitValue": "true",
               "UseInitValue": true
             },
@@ -113,78 +113,67 @@
               "Type": "Button",
               "Text": "ComplexData",
               "ID": "attachType",
-              "Help": "An event of a complex data object (Tables, Slider Packs or AudioFiles). This can be either:\n\n- content changes (eg. when loading in a new sample)\n- a display index change (eg. if the table ruler is moved)",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "An event of a complex data object (Tables, Slider Packs or AudioFiles). This can be either:\n\n- content changes (eg. when loading in a new sample)\n- a display index change (eg. if the table ruler is moved)"
             },
             {
               "Type": "Button",
               "Text": "ComponentProperties",
               "ID": "attachType",
-              "Help": "Script properties of a UI component selection (eg. the `visible` property).",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "Script properties of a UI component selection (eg. the `visible` property)."
             },
             {
               "Type": "Button",
               "Text": "ComponentValue",
               "ID": "attachType",
-              "Help": "The value of a component. This will register the broadcaster as additional value callback that will be fired whenever the control callback will be executed.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "The value of a component. This will register the broadcaster as additional value callback that will be fired whenever the control callback will be executed."
             },
             {
               "Type": "Button",
               "Text": "ComponentVisibility",
               "ID": "attachType",
-              "Help": "The visibility of a UI component.\n\n>This also takes into account the visibility of parent components so it's a more reliable way than listen to the component's `visible` property.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "The visibility of a UI component.\n\n>This also takes into account the visibility of parent components so it's a more reliable way than listen to the component's `visible` property."
             },
             {
               "Type": "Button",
               "Text": "ContextMenu",
               "ID": "attachType",
-              "Help": "Adds a popup menu when the UI component is clicked.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "Adds a popup menu when the UI component is clicked."
             },
             {
               "Type": "Button",
               "Text": "EqEvents",
               "ID": "attachType",
-              "Help": "Listens to band add / delete, reset events of a parametriq EQ.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "Listens to band add / delete, reset events of a parametriq EQ."
             },
             {
               "Type": "Button",
               "Text": "ModuleParameters",
               "ID": "attachType",
-              "Help": "Listens to changes of a module attribute (when calling `setAttribute()`, eg. the **Reverb Width** or **Filter Frequency**",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "Listens to changes of a module attribute (when calling `setAttribute()`, eg. the **Reverb Width** or **Filter Frequency**"
             },
             {
               "Type": "Button",
               "Text": "MouseEvents",
               "ID": "attachType",
-              "Help": "Mouse events for a UI component selection",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "Mouse events for a UI component selection"
             },
             {
               "Type": "Button",
               "Text": "ProcessingSpecs",
               "ID": "attachType",
-              "Help": "Listens to changes of the processing specifications (eg. sample rate of audio buffer size)",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "Listens to changes of the processing specifications (eg. sample rate of audio buffer size)"
             },
             {
               "Type": "Button",
               "Text": "RadioGroup",
               "ID": "attachType",
-              "Help": "Listens to button clicks within a given radio group ID\\n> This is especially useful for implementing your page switch logic",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "Listens to button clicks within a given radio group ID\\n> This is especially useful for implementing your page switch logic"
             },
             {
               "Type": "Button",
               "Text": "RoutingMatrix",
               "ID": "attachType",
-              "Help": "Listens to changes of the routing matrix (the channel routing configuration) of a module.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "Listens to changes of the routing matrix (the channel routing configuration) of a module."
             }
           ],
           "Width": [
@@ -213,7 +202,6 @@
                   "Type": "TextInput",
                   "Text": "Arguments",
                   "ID": "noneArgs",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "Height": 80,
                   "Help": "This is a comma separated list of arguments and will define how many data slots the broadcaster will have. This property will also define how many arguments a listener callback is supposed to have."
                 }
@@ -251,7 +239,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -262,7 +249,6 @@
                   "EmptyText": "Enter Slot Index (zero based)",
                   "Required": true,
                   "Help": "The slot index of the complex data object that you want to listen to.\n\n> Some modules have multiple complex data objects (eg. the table envelope has two tables for the attack and release phase so if you want to listen to the release table, you need to pass in `1` here.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -272,7 +258,6 @@
                   "ID": "attachMetadata",
                   "EmptyText": "Enter metadata (optional)...",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -294,7 +279,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "Height": 80
                 },
                 {
@@ -306,7 +290,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "The property you want to listen to. You can also use a comma-separated list for multiple properties",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -316,7 +299,6 @@
                   "ID": "attachMetadata",
                   "EmptyText": "Enter metadata (optional)...",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -338,7 +320,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "Height": 80
                 },
                 {
@@ -347,7 +328,6 @@
                   "ID": "attachMetadata",
                   "EmptyText": "Enter metadata (optional)...",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -369,7 +349,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all components that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -379,7 +358,6 @@
                   "ID": "attachMetadata",
                   "EmptyText": "Enter metadata (optional)...",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -401,7 +379,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all components that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -412,7 +389,6 @@
                   "EmptyText": "Enter state function id...",
                   "Required": true,
                   "Help": "A function name that will be created by the template generator to query the active and ticked state of each context menu item. ",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -424,7 +400,6 @@
                   "Required": true,
                   "Help": "This will define the items that are shown in the list (one item per new line). You can use the markdown-like syntax to create sub menus, separators and headers known from the other Context menu builders in HISE (ScriptPanel, SubmenuCombobox)...",
                   "Multiline": true,
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "Style": "height: 150px;",
                   "Height": 80
                 },
@@ -460,7 +435,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -473,7 +447,8 @@
                   "Items": "BandAdded\nBandRemoved\nBandSelected\nFFTEnabled",
                   "Help": "Set the event type that the broadcaster should react too. This can be multiple items from this list:\n\n- `BandAdded`\n- `BandRemoved`\n- `BandSelected`\n- `FFTEnabled`",
                   "UseInitValue": "",
-                  "Height": 80
+                  "Height": 80,
+                  "ParseArray": true
                 },
                 {
                   "Type": "TextInput",
@@ -500,7 +475,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -543,7 +517,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all components that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -595,7 +568,6 @@
                   "Required": true,
                   "Items": "{DYNAMIC}",
                   "Help": "The radio group id as it was set as `radioGroup` script property to the buttons that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -624,7 +596,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -634,7 +605,6 @@
                   "ID": "attachMetadata",
                   "EmptyText": "Enter metadata (optional)...",
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -660,7 +630,6 @@
               "Text": "None",
               "ID": "targetType",
               "Help": "Skip the creation of a target callback.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "UseInitValue": ""
             },
             {
@@ -668,7 +637,6 @@
               "Text": "Callback",
               "ID": "targetType",
               "Help": "A script function that will be executed immediately when the event occurs.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "UseInitValue": ""
             },
             {
@@ -676,7 +644,6 @@
               "Text": "Callback (Delayed)",
               "ID": "targetType",
               "Help": "A script function that will be executed with a given delay after the event occurred.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "UseInitValue": ""
             },
             {
@@ -684,7 +651,6 @@
               "Text": "Component Property",
               "ID": "targetType",
               "Help": "This will change a component property based on a customizeable function that must calculate and return the value",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "UseInitValue": ""
             },
             {
@@ -692,7 +658,6 @@
               "Text": "Component Refresh",
               "ID": "targetType",
               "Help": "Simply sends out a component refresh method (eg. `repaint()`) to its registered components.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "UseInitValue": ""
             },
             {
@@ -700,15 +665,13 @@
               "Text": "Component Value",
               "ID": "targetType",
               "Help": "This sets the value of a component",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
               "UseInitValue": ""
             },
             {
               "Type": "Button",
               "Text": "Module Parameter",
               "ID": "targetType",
-              "Help": "This will sync the given module parameter to the last argument of the broadcaster.",
-              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n"
+              "Help": "This will sync the given module parameter to the last argument of the broadcaster."
             },
             {
               "Type": "List",
@@ -752,7 +715,6 @@
                   "ID": "thisTarget",
                   "EmptyText": "Enter this object...",
                   "Help": "You can specify any HiseScript expression that will be used as `this` object in the function.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -762,7 +724,6 @@
                   "ID": "targetFunctionId",
                   "EmptyText": "Enter function ID...",
                   "Help": "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -773,7 +734,6 @@
                   "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -792,7 +752,6 @@
                   "ID": "thisTarget",
                   "EmptyText": "Enter this object...",
                   "Help": "You can specify any HiseScript expression that will be used as `this` object in the function.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -840,7 +799,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -853,7 +811,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "The property you want to listen to. You can also use a comma-separated list for multiple properties",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -863,7 +820,6 @@
                   "ID": "targetFunctionId",
                   "EmptyText": "Enter function ID...",
                   "Help": "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -874,7 +830,6 @@
                   "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -896,7 +851,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -907,7 +861,6 @@
                   "ValueMode": "Text",
                   "Help": "The type of refresh message that should be sent:\n\n- `repaint`: causes a component repaint message (and if the component is a panel, it will also call its paint routine)\n- `changed`: causes a value change callback that will fire the component's `setValue()` callback\n- `updateValueFromProcessorConnection`: updates the component from the current processor's value (if it is connected via `processorId` and `parameterId`).\n- `loseFocus`: will lose the focus of the keyboard (if the component has currently the keyboard focus).\n- `resetValueToDefault`: will reset the component to its default (as defined by the `defaultValue` property). Basically the same as a double click.",
                   "Items": "repaint\nchanged\nupdateValueFromProcessorConnection\nloseFocus\nresetValueToDefault",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": ""
                 },
                 {
@@ -917,7 +870,6 @@
                   "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -939,7 +891,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A comma-separated list of all component IDs that you want to listen to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -949,7 +900,6 @@
                   "ID": "targetFunctionId",
                   "EmptyText": "Enter function ID...",
                   "Help": "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 },
@@ -960,7 +910,6 @@
                   "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }
@@ -982,7 +931,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "The ID of the module that you want to send the parameter change to.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "Height": 80
                 },
                 {
@@ -994,7 +942,6 @@
                   "ParseArray": true,
                   "Items": "{DYNAMIC}",
                   "Help": "A single parameter (either an integer or the parameter ID) that should be set for the given module",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "Height": 80
                 },
                 {
@@ -1004,7 +951,6 @@
                   "EmptyText": "Enter metadata (required)...",
                   "Required": true,
                   "Help": "The metadata that will be shown on the broadcaster map.",
-                  "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
                   "UseInitValue": "",
                   "Height": 80
                 }

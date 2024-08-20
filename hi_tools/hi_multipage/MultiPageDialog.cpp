@@ -48,7 +48,10 @@ struct Dialog::TabTraverser: public ComponentTraverser
 
     Dialog& parent;
     
-    Component* getDefaultComponent (Component* parentComponent) override { return &parent; }
+    Component* getDefaultComponent (Component* parentComponent) override
+    {
+		return &parent;
+    }
 
     Component* getNextComponent (Component* current) override
     {
@@ -310,7 +313,11 @@ void Dialog::PageBase::updateStyleSheetInfo(bool forceUpdate)
 
 		// rebuild to allow resizing...
 		if(!rootDialog.getSkipRebuildFlag())
+		{
+			rootDialog.css.setAnimator(&rootDialog.animator);
 			rootDialog.body.setCSS(rootDialog.css);
+		}
+			
 	}
 }
 
@@ -325,6 +332,85 @@ void Dialog::PageBase::forwardInlineStyleToChildren()
 
 		simple_css::FlexboxComponent::Helpers::writeInlineStyle(*this, "");
 	}
+}
+
+bool Dialog::PageBase::updateInfoProperty(const Identifier& pid)
+{
+	auto updateType = multipage::mpid::Helpers::getUpdateType(Identifier(pid));
+
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::FullRebuild)
+	{
+		findParentComponentOfClass<multipage::Dialog>()->refreshCurrentPage();
+		return true;
+	}
+
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::UpdateCSS)
+	{
+		updateStyleSheetInfo(true);
+		findParentComponentOfClass<multipage::Dialog>()->css.clearCache(this);
+		return true;
+	}
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::UpdateVisibility)
+	{
+		if(auto c = findParentComponentOfClass<multipage::factory::Container>())
+		{
+			c->updateChildVisibility();
+		}
+		return true;
+	}
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::ResizeParent)
+	{
+		if(auto p = findParentComponentOfClass<multipage::Dialog::PageBase>())
+		{
+			p->postInit();
+		}
+				
+		return true;
+	}
+	if(updateType == multipage::mpid::Helpers::RequiredUpdate::PostInit)
+	{
+		postInit();
+		resized();
+		repaint();
+		return true;
+	}
+
+	return false;
+}
+
+simple_css::FlexboxComponent::VisibleState Dialog::PageBase::getVisibility() const
+{
+	auto visibility = infoObject[mpid::Visibility].toString();
+
+	auto idx = getVisibilityNames().indexOf(visibility);
+
+	VisibleState s;
+
+	if(idx == 0) // default
+	{
+		s.mustBeHidden = false;
+		s.mustBeVisible = false;
+		s.usePlaceHolder = false;
+	}
+	if(idx == 1) // Hidden
+	{
+		s.mustBeHidden = true;
+		s.mustBeVisible = false;
+		s.usePlaceHolder = false;
+	}
+	if(idx == 2) // placeholder
+	{
+		s.mustBeHidden = true;
+		s.mustBeVisible = false;
+		s.usePlaceHolder = true;
+	}
+
+	return s;
+}
+
+StringArray Dialog::PageBase::getVisibilityNames()
+{
+	return { "Default", "Hidden", "Placeholder" };
 }
 
 var Dialog::PageBase::getPropertyFromInfoObject(const Identifier& id) const
@@ -448,8 +534,9 @@ void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject:
 
 		var::NativeFunctionArgs args(state->globalState, a, 2);
 
-		if(state->callNativeFunction(callbackName, args, nullptr))
-			return;
+		state->callNativeFunction(callbackName, args, nullptr);
+
+		return;
 	}
 
 	engine = state->createJavascriptEngine();
@@ -629,7 +716,8 @@ var Dialog::PositionInfo::toJSON() const
 	obj->setProperty(mpid::Style, additionalStyle);
     obj->setProperty(mpid::UseViewport, useViewport);
 	obj->setProperty(mpid::ConfirmClose, confirmClose);
-    
+	obj->setProperty(mpid::CloseMessage, closeMessage);
+
 	obj->setProperty("DialogWidth", fixedSize.getX());
 	obj->setProperty("DialogHeight", fixedSize.getY());
 	
@@ -644,6 +732,7 @@ void Dialog::PositionInfo::fromJSON(const var& obj)
     useViewport = obj.getProperty(mpid::UseViewport, useViewport);
 
 	confirmClose = obj.getProperty(mpid::ConfirmClose, confirmClose);
+	closeMessage = obj.getProperty(mpid::CloseMessage, closeMessage);
 
 	fixedSize.setX(obj.getProperty("DialogWidth", fixedSize.getX()));
 	fixedSize.setY(obj.getProperty("DialogHeight", fixedSize.getY()));
@@ -751,6 +840,7 @@ Dialog::ModalPopup::ModalPopup(Dialog& parent_, PageInfo::Ptr info_, bool addBut
 	okButton("OK"),
 	cancelButton("Cancel")
 {
+	setWantsKeyboardFocus(true);
 	setDefaultStyleSheet("position: absolute; background: rgba(128,128,128, 0.8);");
 	content.setDefaultStyleSheet("background: #161616;display:flex;width: 100%;flex-direction: column;margin: 120px 90px;padding: 20px;");
 	contentViewport.setDefaultStyleSheet("display: flex;flex-direction: row;width: 100%;flex-grow: 1;");
@@ -784,6 +874,11 @@ void Dialog::ModalPopup::init()
 	{
 		contentComponent = info->create(parent, parent.getWidth());
 		contentViewport.addFlexItem(*contentComponent);
+
+		auto s = info->stateObject;
+
+		ScopedValueSetter<var> stateSwitcher(parent.getState().globalState, s);
+
 		contentComponent->postInit();
 	}
 }
@@ -1032,7 +1127,7 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 			auto& root = *l;
 	        auto& md = root.addChild<factory::MarkdownText>();
-			md[mpid::Text] = "Do you want to close this popup?";
+			md[mpid::Text] = this->getPositionInfo({}).closeMessage;  ;
 
 			md.setCustomCheckFunction([this](PageBase*, var obj)
 			{
@@ -1280,9 +1375,20 @@ bool Dialog::keyPressed(const KeyPress& k)
 		
 		return true;
 	}
+	if(k.getKeyCode() == KeyPress::escapeKey)
+	{
+		if(popup != nullptr)
+		{
+			popup->dismiss();
+			return true;
+		}
+	}
 	if(k.getKeyCode() == KeyPress::returnKey)
 	{
-		if(nextButton.isEnabled())
+		if(this->popup != nullptr)
+			return this->popup->keyPressed(k);
+
+		if(nextButton.isEnabled() && nextButton.isVisible())
 		{
 			nextButton.triggerClick();
 			return true;

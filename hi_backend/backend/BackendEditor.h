@@ -392,8 +392,10 @@ private:
 		  ProcessorPeakMeter(p),
 		  ControlledObject(p->getMainController())
 		{
+			vuMeter->setTooltip("Click to show the Audio Analyser");
 			setRepaintsOnMouseActivity(true);
 			vuMeter->addMouseListener(this, true);
+			
 		}
 
 		void mouseEnter(const MouseEvent& event) override

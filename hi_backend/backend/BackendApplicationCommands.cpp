@@ -102,6 +102,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsCreateThirdPartyNode,
 		MenuFileExtractEmbeddeSnippetFiles,
 		MenuFileImportSnippet,
+		MenuExportSetupWizard,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
@@ -134,6 +135,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportValidateUserPresets,
 		MenuExportCheckAllSampleMaps,
 		MenuExportCheckUnusedImages,
+		MenuExportCleanDspNetworkFiles,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertSampleMapToWavetableBanks,
 		MenuToolsConvertAllSamplesToMonolith,
@@ -305,6 +307,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Create C++ third party node template", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuExportSetupWizard:
+		setCommandTarget(result, "Setup Export Wizard", true, false, 'X', false);
+		result.categoryName = "Export";
+		break;
     case MenuExportFileAsPlugin:
         setCommandTarget(result, "Export as Instrument (VSTi / AUi) plugin", true, false, 'X', false);
 		result.categoryName = "Export";
@@ -355,6 +361,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportCleanBuildDirectory:
 		setCommandTarget(result, "Clean Build directory", true, false, 'X', false);
+		result.categoryName = "Export";
+		break;
+	case MenuExportCleanDspNetworkFiles:
+		setCommandTarget(result, "Clean DSP network files", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuFileImportSnippet:
@@ -657,6 +667,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuExportRestoreToDefault:		Actions::restoreToDefault(bpe); return true;
 	case MenuExportCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
+	case MenuExportSetupWizard:			Actions::setupExportWizard(bpe); return true;
 	case MenuToolsShowDspNetworkDllInfo: Actions::showNetworkDllInfo(bpe); return true;
 	case MenuToolsForcePoolSearch:		Actions::toggleForcePoolSearch(bpe); updateCommands(); return true;
 	case MenuToolsConvertSampleMapToWavetableBanks:	Actions::convertSampleMapToWavetableBanks(bpe); return true;
@@ -670,6 +681,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuExportCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
     case MenuExportCheckPluginParameters:    Actions::checkPluginParameterSanity(bpe); return true;
+	case MenuExportCleanDspNetworkFiles: Actions::cleanDspNetworkFiles(bpe); return true;
     case MenuToolsCreateRnboTemplate:   Actions::createRnboTemplate(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
@@ -693,29 +705,17 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuViewGotoUndo: bpe->getBackendProcessor()->getLocationUndoManager()->undo(); updateCommands(); return true;
     case MenuViewGotoRedo:  bpe->getBackendProcessor()->getLocationUndoManager()->redo(); updateCommands(); return true;
 	case MenuExportFileAsPlugin:
-    {
-        CompileExporter exporter(bpe->getMainSynthChain());
-        exporter.exportMainSynthChainAsInstrument();
+		Actions::exportProject(bpe, (int)CompileExporter::BuildOption::AllPluginFormatsInstrument);
         return true;
-    }
 	case MenuExportFileAsEffectPlugin:
-    {
-        CompileExporter exporter(bpe->getMainSynthChain());
-        exporter.exportMainSynthChainAsFX();
+		Actions::exportProject(bpe, (int)CompileExporter::BuildOption::AllPluginFormatsFX);
         return true;
-    }
 	case MenuExportFileAsStandaloneApp:
-    {
-        CompileExporter exporter(bpe->getMainSynthChain());
-        exporter.exportMainSynthChainAsStandaloneApp();
+		Actions::exportProject(bpe, (int)CompileExporter::BuildOption::StandaloneLinux);
         return true;
-    }
 	case MenuExportFileAsMidiFXPlugin:
-    {
-        CompileExporter exporter(bpe->getMainSynthChain());
-        exporter.exportMainSynthChainAsMidiFx();
+    	Actions::exportProject(bpe, (int)CompileExporter::BuildOption::AllPluginFormatsMidiFX);
         return true;
-    }
 	case MenuExportCompileNetworksAsDll: Actions::compileNetworksToDll(bpe); return true;
     case MenuExportFileAsSnippet:        Actions::exportFileAsSnippet(bpe); return true;
 	case MenuExportProjectAsExpansion:				Actions::exportHiseProject(bpe); return true;
@@ -932,6 +932,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		}
 		else 
 		{
+			ADD_MENU_ITEM(MenuExportSetupWizard);
+
 			p.addSectionHeader("Export As");
 			ADD_MENU_ITEM(MenuExportFileAsPlugin);
 			ADD_MENU_ITEM(MenuExportFileAsEffectPlugin);
@@ -960,6 +962,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_MENU_ITEM(MenuExportUnloadAllSampleMaps);
 			ADD_MENU_ITEM(MenuExportUnloadAllAudioFiles);
 			ADD_MENU_ITEM(MenuExportCleanBuildDirectory);
+			ADD_MENU_ITEM(MenuExportCleanDspNetworkFiles);
 
 			p.addSeparator();
 
@@ -2452,6 +2455,16 @@ juce::Result BackendCommandTarget::Actions::createSampleArchive(BackendProcessor
 
 void BackendCommandTarget::Actions::compileNetworksToDll(BackendRootWindow* bpe)
 {
+	auto exportIsReady = (bool)bpe->getBackendProcessor()->getSettingsObject().getSetting(HiseSettings::Compiler::ExportSetup);
+
+	if(!exportIsReady)
+	{
+		if(PresetHandler::showYesNoWindow("System not configured", "Your system has not been setup for export. Do you want to launch the Export Setup wizard?"))
+			Actions::setupExportWizard(bpe);
+
+		return;
+	}
+
 	auto s = new DspNetworkCompileExporter(bpe, bpe->getBackendProcessor());
 	s->setModalBaseWindowComponent(bpe);
 }
@@ -3060,6 +3073,389 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 	nw->setCurrentlyActiveProcessor();
 	
+}
+
+namespace multipage
+{
+	
+struct CleanDspNetworkFiles: public EncodedDialogBase,
+						     public ControlledObject
+{
+	CleanDspNetworkFiles(MainController* mc):
+	  EncodedDialogBase(),
+	  ControlledObject(mc)
+	{
+		auto c = "1049.jNB..D.A........nT6K8CFTVz6G.XnJAhB3via.3zmojz2VMTRjOXG1C1J+abUa3xyKHd.7S4gT9PpjDlgxgapA5A.c.LG.QQynbqqZ88gITrP4phkIWr8ZprCEEqKKJayE6E5Yn3a4pxBAWWrtnTc8l52RkKKUWinxo0EqpJWvzb9FATrrprlbgREiAse9zy5BQI4ZBiA6LjZPfHHRZasHWZTy.toiABz+XGHiAepuAxLyNzfwfwOlommdMHyNzHP+WYWOABx7DskaJ8xnrp30I6Ennr38bxHxzWelQxJEQ6O6a8ZoVBAD3HaLy2sm1+4mhcfTvZMgYLjOU.RIgRRE0kWaCQmOiRNK5qzqIE87a8EZz3rvIZrRxyt8TJhGY8ReS4OZYXZrmY2V91t51OvMX1QemQ+1biXDYnf.3CpxQZR5O9W3KIE5Si5PWmzB5oMFZZNm9Uoc65oVy3bNpFp++GlYGJ1w8rICGZImajM1.l+7SikX910SO687u0y9x8M1yOrDADHimQpsYqyRnwiFO.+2u3FljaEwb8aimSYId59yWoGn2T..a3nho6eecuqjJ27oVyrA7E2XuWVh45dysU1uryQ+32oLB8mEjHNcQP+UN23hgkwCGLZPpeNeekDIYcQ1t5gu21VYJDJEQhDgRwiGbGU93AUEapRwXTYmMRhKvT0ZBiUicUHo1+kJ496Yy4OS4QaxI0k+V.nxfFblQgLTMjTBA.P.f..fQYP5FDlsBLppZXDegEjYyeJWcUzR8NF71YnNrAKlMsPh4NYR.9aYN1RWPIAxIFh5sBdwRHHVvMlLfWeero1E.SVjg53IKU1IyWICMgydirIBhqKjIs2BH6wFAnU61wL26XPHvPmr84VdfpXWHrqoj5Vrzs9PZGwKWDRqzAobqqHPlIY.Fsp36UPo.XOFIXNKMR0ePQdESHIPuoEA59rePDrxUTRCdPvc8jfZyYKqyR3U.NwLC0hEb6tnLsuQFVEstlqKQE94tI9U1JG3lEytkL+LgQfLrByQV+eHKDffbiCH9+k6XUd.WluREJwhTNL6SuTS3exnbPAiDc1IhXRAUCcDVTtMYBZY4hhJ6DhaKcf1Vewb1TzQ7NRbu2KYTFr2j4vd.Dh0QRbZ1aKx7YXssCBmqPwjWm.CIkrQ2Z4cI1k+nePRq.QHvnulgIAH3NelX0fgn0vQ3cxtwvLPQbrFSnEREpkg2Bo1J.8Ay5G1VX3AW9QtL4rhoq9EAguA8vps8fEDnjktAdE6hsJkmZzsf0rGU08v0GV0I1p8bsjV0B+kCCf2VnXS+iYTxZXjHwms3guRE6TbjfLxB7BQb2cnTGe70O.nClFLyHfWDxvTPYL6w+k4ymqt59uNow2fKOPoi...lNB..r5H...";
+		loadFrom(c);
+	}
+
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(CleanDspNetworkFiles, setItems);
+		MULTIPAGE_BIND_CPP(CleanDspNetworkFiles, clearFile);
+	}
+
+	BackendDllManager::FolderSubType getType(const var::NativeFunctionArgs& args)
+	{
+		auto id = args.arguments[0].toString();
+
+		id = id.replace("setItem", "");
+		id = id.replace("clear", "");
+
+		if(id == "Networks")
+		{
+			return BackendDllManager::FolderSubType::Networks;
+		}
+		if(id == "SNEX")
+		{
+			return BackendDllManager::FolderSubType::CodeLibrary;
+		}
+		if(id == "Faust")
+		{
+			return BackendDllManager::FolderSubType::FaustCode;
+		}
+		if(id == "Cpp")
+		{
+			return BackendDllManager::FolderSubType::ThirdParty;
+		}
+
+		return BackendDllManager::FolderSubType::numFolderSubTypes;
+	}
+
+	var setItems(const var::NativeFunctionArgs& args)
+	{
+		String wildcard = "*";
+		bool recursive = false;
+
+		auto ft = getType(args);
+
+		if(ft == BackendDllManager::FolderSubType::CodeLibrary)
+		{
+			recursive = true;
+		}
+
+		auto folder = BackendDllManager::getSubFolder(getMainController(), ft);
+		auto files = folder.findChildFiles(File::findFiles, recursive, wildcard);
+
+		Array<var> list;
+
+		Array<File> filesToSkip;
+
+		if(ft == BackendDllManager::FolderSubType::CodeLibrary)
+		{
+			// skip the faust files
+			filesToSkip = getFolder(BackendDllManager::FolderSubType::FaustCode).findChildFiles(File::findFiles, false, "*");
+
+			// skip the XML files...
+			auto parameterFiles = folder.findChildFiles(File::findFiles, true, "*.xml");
+
+			filesToSkip.addArray(parameterFiles);
+		}
+		if(ft == BackendDllManager::FolderSubType::ThirdParty)
+		{
+			// skip the CPP files created by faust
+			auto faustFiles = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::FaustCode).findChildFiles(File::findFiles, false, "*");
+
+			filesToSkip.add(folder.getChildFile("node_properties.json"));
+
+			for(auto ff: faustFiles)
+			{
+				auto cppFile = folder.getChildFile(ff.getFileNameWithoutExtension()).withFileExtension(".h");
+				filesToSkip.add(cppFile);
+			}
+		}
+
+		for(auto f: files)
+		{
+			auto fn = f.getRelativePathFrom(folder);
+
+			if(filesToSkip.contains(f))
+				continue;
+			
+			list.add(fn);
+		}
+
+
+		auto id = args.arguments[0].toString();
+
+		auto listId = id.replace("setItem", "list");
+
+		setElementProperty(listId, mpid::Items, list);
+
+		return var();
+	}
+
+	File getFolder(BackendDllManager::FolderSubType t)
+	{
+		return BackendDllManager::getSubFolder(getMainController(), t);
+	}
+
+	void removeNodeProperties(const Array<File>& filesToBeDeleted)
+	{
+		auto jsonFile = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("node_properties.json");
+
+		if(jsonFile.existsAsFile())
+		{
+			auto nodeProperties = JSON::parse(jsonFile);
+
+			if(auto obj = nodeProperties.getDynamicObject())
+			{
+				for(auto& f: filesToBeDeleted)
+				{
+					auto id = Identifier(f.getFileNameWithoutExtension());
+
+					obj->removeProperty(id);
+				}
+
+				jsonFile.replaceWithText(JSON::toString(obj));
+			}
+		}
+	}
+
+	var clearFile(const var::NativeFunctionArgs& args)
+	{
+		auto listId = args.arguments[0].toString().replace("clear", "list");
+
+		auto ft = getType(args);
+
+		auto values = dialog->getState().globalState.getDynamicObject()->getProperty(listId);
+
+		if(values.size() != 0)
+		{
+			auto root = BackendDllManager::getSubFolder(getMainController(), ft);
+
+			auto thirdParty = getFolder(BackendDllManager::FolderSubType::ThirdParty);
+
+			Array<File> filesToDelete;
+
+			String message;
+			message << "Press OK to delete the following files:\n";
+
+			for(auto& v: *values.getArray())
+			{
+				auto p = v.toString();
+
+				auto f = root.getChildFile(p);
+				filesToDelete.add(f);
+				message << "- `" << f.getFullPathName() << "`\n";
+
+				if(ft == BackendDllManager::FolderSubType::FaustCode)
+				{
+					auto f1 = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src_").getChildFile(f.getFileNameWithoutExtension()).withFileExtension(".cpp");
+					auto f2 = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src").getChildFile(f.getFileNameWithoutExtension()).withFileExtension(".cpp");
+					auto f3 = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile(f.getFileNameWithoutExtension()).withFileExtension(".h");
+
+					message << "- `" << f1.getFullPathName() << "`\n";
+					message << "- `" << f2.getFullPathName() << "`\n";
+					message << "- `" << f3.getFullPathName() << "`\n";
+
+					filesToDelete.add(f1);
+					filesToDelete.add(f2);
+					filesToDelete.add(f3);
+				}
+
+				if(ft == BackendDllManager::FolderSubType::CodeLibrary)
+				{
+					auto xmlFile = f.withFileExtension("xml");
+
+					if(xmlFile.existsAsFile())
+					{
+						message << "- `" << xmlFile.getFullPathName() << "`\n";
+						filesToDelete.add(xmlFile);
+					}
+				}
+			}
+
+			if(PresetHandler::showYesNoWindow("Confirm delete", message))
+			{
+				for(auto ff: filesToDelete)
+					ff.deleteFile();
+
+				if(ft == BackendDllManager::FolderSubType::ThirdParty)		
+					removeNodeProperties(filesToDelete);
+			}
+
+			values.getArray()->clear();
+		}
+
+		return var();
+	}
+};
+
+
+struct ExportSetupWizard: public EncodedDialogBase
+{
+	ExportSetupWizard():
+	  EncodedDialogBase()
+	{
+        auto c = "2704.jNB..fmB........nT6K8C1aqT2T.nFYPIQKvBYE2fZk8oTIuY8Ts9srVR7eYYBcitoBwNv2ZY6uP6ASUlOjRN9A8eP+W3gbeDPHAfQ.SuzEIh.YoZOrFbxSt4TOetXZ+XbKwqojPhV.KE0i90DZ+ntUScr1hZRpxR08vKd5uJ7QsR++MqOWc1kzFRPn4TDUVpr+A4dPzPrs3nDDJHRh9PYMe2YU+l2wZDMEMmUDYKO1fnIoIoKRGVo8GUOdjguKzUXVqwa7WMFtnZSFcRdp4YdTdDnD1412U6S8YnKhVpnZCeZOcJmnMrqCcMxXQFd0yptFgJVhvxDPDQKgwG2YsDpwjELSfYh1OtyniV7GwDWh3gIj.yDVtLwGp+HfXhHtLwGILhQBLWfPBK5me8fELXtfohDVtrTQzMO5Y7XMIIQkkJpGAVIIZAXPZWMoJ4JE7htERh7m0HZohdoiQzt65fFVpH9YMcr6qh10AMzjhRyFarPCUNUd9qBIZhhCmMTYOCqZ8uYZCNpbPWoLmKIF0uqncD972EVPYqcS1ZR3VkN7ujaXXd6aDu1mj6LicFUYeGsAcglMRN+8gxPPZB+T47Xasgbqsy98yE72utggUB0w1tG2zHuMHNCayt.IH6JsY+r21Z8e05u1UW5120cy61Yry1XjaqvrNen9qvd10IZWKzzWDlkYZJhLOvNioIInoqdLiFEhI6M5uTQbM7iIrrTdjv2imureoeIfnElPyokhyebVcRHKSVpo+OrTOVGCMgXojPOTVKAQfPgOf.EbPEv5HCDUvoBWlFyCxnCMeXgGwNbvPGVTwiSnJDZjNrPxw7AWl3EvH5P5IIA47fSGRfxr.CtLzINFoiJtTQVkMMyCLaqE3gqj5JhHxs0iju5fOKo8Gq3.yIT.QsOSp9xIQFN4V5Tht+Tpc7B9TlRrAIaJ0MJw9kPINNt4Dtkg1Coouv8AZpVDffL8aKd4+1zs51eXMpbitRIGX5gIKT7fWQFihFDrV4IAjrF8EcyqDn5CJ.Qf1CJhs7h.Tr8ox.JSlLYxGIm8T5GEM+R5w7pSufZRUPTnPUm+mYfPZZmYgUyoXK7cw18P4l1Zwxjk0gusuZi7VE9w91txcbtR12kXapUNlgZqfPnK1rnpkcIYZEGSlLoKN2WGi7WgzN66LtciwBzb6WoPLjbglMULsmb3PHMEVaMXajD8PMqsJMZOLGIGz1iGHsCHL9IjdUYPrC1vi8njy0.poAfM3PHUn1vWcNRWposL.OsqdLqBkPLNqT0u1fBEPP5a4XSUcN48gNUercTtV6qV14yqJ23nju3VNentDn80VaskwCafbq0lNw7es3ulI6kQXtI4l9oxclvQjn8WYMJeqgGQX.QRssnmI1UcT+uZJTCWcOAS+mTo4EcLdck4paOm4PPbVasu9ufulNkabG6rRVd6OITaeFBcXWdb9WLMSDQ9t1xts1Jmsb9F0k1fJPeI8eetm8Fc8lxasC4VaW6jrDjPjDQq8HxN6dIjairDpQ6eYYO8tJ2ak4NGvZyiElWg59uobZp+U6bVQlmMm56Apvd+Z+bbBal94WgBoujrFsmaj07ee8S1WIXbnJ8lPICoTDIh..ff.HDH.Pf3AyRj0r0CBCJPHNFDkTQLF..Hf.Pf..jfAfH..f..lFPXIiQfLMSPueHEpd05DXMIYtYa6fJi2EPx7CyRb3lFOeOqo1p.t63Me420zXmkuGsWWezW4EWGnihKTgd2S8f34Bfjt4EQ.exYTh943S9nS6RINKtasGNrOslldEEARB0iOJoDGbTUyRy3FkEIFvvkvpyRRB6TaPkHvIDHqXDqg5UgGoXBdos8MWrZ9fpxGm3wf5JhC.hOJMssAfE7GpWgD6A21BK3CqdBTpvjMMBg5DM6OAxIKnT0jkT+IGBL6sdGfIjIGrfkINZHCzWCxEiS5dIBS0YWJypdNSTsOz1sKS5v+V8sBZXa0091YzSh6WJptzCArBFVBNqebX.ppO0KUsIYMJ+AqkOagMVwIcpYwjtK17LmVIOvINn8BR2GieJzuomlsDRDC8FzHrXiuNSyHgkO9pQpybd1pENRcmO8ZP6sTxH3D2.f0qwJIcJM7rohvCnuSSlgjiJMK4ffQwHD40HUxnIiipjMBnFxixL9qDLdG7QE5nRoBw6LLkFkZ+HC0wtYLJSTfxAty+CjUH+3wvYu7b2Y8qwbhK67gfk5NcLEHeOSIiY34M8cX9US6CRdkazQZWgJn2PqCoUApQQ7XiZsL8oxUBJH3to11SjfKI+YIBQB+AYAPblmXGVPnSTAQNUYmXS11QxujtRM+4fvFKM.SmCqYjKkOEQbVy6pFUnBAWBfBrM28H.WjsVOIUtCEm9S8J4.bNhhdS3tfhM6fnxoRbGXzIWiLA1iB+Ar7lctbWrCqEGesOdpz9kjaK8lzxRDQF8GgRgLHszqpU1IPcqdpWBt.hf7DrSvtkqMX3Lc0Zj.42Z0+o8fZH0Dc6mWqav67CH4JO5iYpMt6yx3StXJDgUY6+f3jBVsYahwYDHzeYmDx7lGCdv2wOabRAocG+u.H9.nuQf7s.SnORhnTK7zgINl9ai7VlN+k70UoiumY6IclwofK3P4Ex5NgWW4vlQCHCzvrtelgR4.m1VU0AuomukFfiz..WIckWcK7XmH2ZC7sMClIaYji0sh8li5q.ZxE7oHLdtpQgCPiezTslpnmB2reKSBcjLGs1Y450C1gcoIBOeShwIrwFpibZJ+FIc5foYuMfLLoXlRFOqMpVinOIz.IWxPAYDRDniM3YPHSZtBEbfYyYrs5uWmnnBShXnKnJAGVfV8n8PLPlXQnkQm4HcdvT1wpnCFXg246dylQsLgCh5ydEKNn9OgnYBVawW6SIWr+mS8sj+6z4VpwBGUKpoVRnYqG2ay1+tUNXZUHXmJSUzsXZm+jIJX4CF1eWjalP.iV0lH.acRsrXvzdc2XwdzZasqMaIMiPsQjk8lH9PoBUCKsoFubhCibfYwou.sk4N6DwpHSnFfrO6O80R8mGKOIPZPHN.Y82huYN+.tHXFJwzrlSn.RFT58WePuOy0MRl6B5Gzfl.1NnWYjy47jX4g2eoDiCqoIxsrKze7yR+35mxcmVf2sXN9aMVlfwlm0XkMzVXA9F5BFU+TIlxzotxzKeGCv8TFH1Jqis.XvZIxL0L2bZBAYAYxJNkNXxoA7RWoshSsDPkrCG9DDIWdq4iXlNl5BEAbJjEhGDtlHA4Y0nTozk5xwNry7LFcQRGu.poP5gPLRrb.tlL3ZqzPjU0WkOBZfepFj6Auv34i.P6u5Zw4BwhJ01KQgrPLEZ8XONZBoRRVts6EyhVSnDOYnLeZBgyXaiBRanS8XtFAXe+4urBVrQE6POX7YcNknyj4cj4Tm6I8Clj8Q38ts7kO2PSUzoNFUItmRSh28f9j8wDQIuQzsPxe+IdyFIJvBikPxia4AzoOWdTSguVHTQ4YtXlg.1jluZN8IFtZWRdZerk4OiF.b7AEc2eGgBcRCRxhxwKBWRQ4UPW+wzljqxDBVyyle+tyQB1xgQQ.RCviA.u+lsxMe3NN+FFNentgOT5H..foi...qNB...";
+
+		loadFrom(c);
+	}
+
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, prevDownload);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, skipIfDesired);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkIDE);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkHisePath);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkSDK);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, onPost);
+	}
+
+	var checkHisePath(const var::NativeFunctionArgs& args)
+	{
+		auto exists = readState("HisePath").toString().isNotEmpty();
+
+		writeState("hisePathExists", exists);
+		writeState("hisePathExtract", !exists);
+		writeState("hisePathDownload", !exists);
+		writeState("hiseVersionMatches", true); // TODO: make a proper version check against the source code
+
+		return var();
+	}
+
+	var checkIDE(const var::NativeFunctionArgs& args)
+	{
+#if JUCE_WINDOWS
+
+		auto MSBuildPath = "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe";
+		writeState("msBuildExists", File(MSBuildPath).existsAsFile());
+
+		if(readState("UseIPP"))
+		{
+			auto IppPath = "C:/Program Files (x86)/Intel/oneAPI/ipp/latest/include/ipp.h";
+			writeState("ippExists", File(IppPath).existsAsFile());
+		}
+		else
+		{
+			writeState("ippExists", true);
+		}
+#elif JUCE_MAC
+        {
+            juce::ChildProcess xc;
+            xc.start("xcodebuild --help");
+            auto output = xc.readAllProcessOutput();
+            auto xcodeExists = xc.getExitCode() == 0;
+            writeState("xcodeExists", xcodeExists);
+        }
+        {
+            juce::ChildProcess xcp;
+            xcp.start("gem list");
+            auto output = xcp.readAllProcessOutput();
+            auto xcPrettyExists = output.contains("xcpretty");
+            writeState("xcPrettyExists", xcPrettyExists);
+        }
+#endif
+
+		return var();
+	}
+	
+	var checkSDK(const var::NativeFunctionArgs& args)
+	{
+		auto toolsDir = File(readState("HisePath").toString()).getChildFile("tools");
+		auto vst3sdk = toolsDir.getChildFile("SDK/VST3 SDK");
+
+#if JUCE_WINDOWS
+		auto projucer = toolsDir.getChildFile("projucer/Projucer.exe");
+
+		auto ok = projucer.startAsProcess("--help");
+#elif JUCE_MAC
+        
+        auto projucer = toolsDir.getChildFile("projucer/Projucer.app/Contents/MacOS/Projucer");
+        
+        jassert(projucer.existsAsFile());
+        
+        auto ok = projucer.startAsProcess("--help");
+        
+#else
+		auto ok = true;
+#endif
+
+		writeState("projucerWorks", ok);
+		writeState("sdkExists", vst3sdk.isDirectory());
+		writeState("sdkExtract", !vst3sdk.isDirectory());
+
+		return var();
+	}
+
+	var prevDownload(const var::NativeFunctionArgs& args)
+	{
+		auto id = args.arguments[0].toString();
+		String url;
+
+		url << "https://github.com/christophhart/HISE/archive/refs/tags/";
+		url << GlobalSettingManager::getHiseVersion();
+		url << ".zip";
+		
+		writeState("sourceURL", url);
+		return var();
+	}
+
+	var skipIfDesired(const var::NativeFunctionArgs& args)
+	{
+		if(readState("skipEverything"))
+			navigate(4, false);
+
+		return var();
+	}
+
+	var onPost(const var::NativeFunctionArgs& args)
+	{
+		writeState("ExportSetup", true);
+		
+		auto bp = findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
+
+		MessageManager::callAsync([bp]()
+		{
+			bp->getSettingsObject().loadSettingsFromFile(HiseSettings::SettingFiles::CompilerSettings);
+		});
+		
+		return var();
+	}
+};
+
+}
+
+
+void BackendCommandTarget::Actions::setupExportWizard(BackendRootWindow* bpe)
+{
+	auto np = new multipage::ExportSetupWizard();
+	np->setModalBaseWindowComponent(bpe);
+}
+
+void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int buildOption)
+{
+	auto exportIsReady = (bool)bpe->getBackendProcessor()->getSettingsObject().getSetting(HiseSettings::Compiler::ExportSetup);
+
+	if(!exportIsReady)
+	{
+		PresetHandler::showMessageWindow("System not configured", "This computer is not setup for export yet. Please run the Export Wizard (**Tools -> Setup Export Wizard**) in order to silence this message.");
+	}
+
+	CompileExporter exporter(bpe->getMainSynthChain());
+
+	switch((CompileExporter::BuildOption)buildOption)
+	{
+	case CompileExporter::BuildOption::AllPluginFormatsInstrument:
+		exporter.exportMainSynthChainAsInstrument();
+		break;
+	case CompileExporter::BuildOption::AllPluginFormatsFX:
+		exporter.exportMainSynthChainAsFX();
+		break;
+	case CompileExporter::BuildOption::AllPluginFormatsMidiFX:
+		exporter.exportMainSynthChainAsMidiFx();
+		break;
+	case CompileExporter::BuildOption::StandaloneLinux:
+		exporter.exportMainSynthChainAsStandaloneApp();
+		break;
+	}
+}
+
+void BackendCommandTarget::Actions::cleanDspNetworkFiles(BackendRootWindow* bpe)
+{
+	auto np = new multipage::CleanDspNetworkFiles(bpe->getBackendProcessor());
+	np->setModalBaseWindowComponent(bpe);
 }
 
 #undef REPLACE_WILDCARD

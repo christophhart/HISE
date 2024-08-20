@@ -12,6 +12,23 @@ struct HiseJavascriptEngine::RootObject::LiteralValue : public Expression
 	var value;
 };
 
+struct HiseJavascriptEngine::RootObject::ExpressionList : public Expression
+{
+	ExpressionList(const CodeLocation& l) noexcept : Expression(l) {}
+
+	var getResult(const Scope&) const override
+	{
+		jassertfalse;
+		return {};
+	}
+
+	bool isConstant() const override { return true; }
+
+	Statement* getChildStatement(int index) override { return children[index]; };
+
+	OwnedArray<Expression> children;
+};
+
 struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 {
 	UnqualifiedName(const CodeLocation& l, const Identifier& n, bool isFunction) noexcept : Expression(l), name(n), allowUnqualifiedDefinition(isFunction) {}

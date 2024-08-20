@@ -2057,7 +2057,7 @@ DropShadower* LookAndFeel_V2::createDropShadowerForComponent (Component*)
 }
 
 //==============================================================================
-void LookAndFeel_V2::drawStretchableLayoutResizerBar (Graphics& g, int w, int h,
+void LookAndFeel_V2::drawStretchableLayoutResizerBar (Graphics& g, Component&, int w, int h,
                                                       bool /*isVerticalBar*/,
                                                       bool isMouseOver,
                                                       bool isMouseDragging)

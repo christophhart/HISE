@@ -248,6 +248,13 @@ public:
     void onFinish();
     void run() override;
 
+    void clearCompletedJobs()
+    {
+        stopThread(1000);
+	    jobs.clear();
+        completedJobs.clear();
+    }
+
     struct StateProvider;
 
     void logStatusMessage(const String& message) override
@@ -328,18 +335,33 @@ public:
 
         var getInfoObject() const { return localObj; }
 
+        void setInfoObject(const var& newInfoObject)
+        {
+            localObj = newInfoObject;
+        }
+
+        void setEnableProgressAndMessage(bool shouldEnable)
+        {
+            enableProgress = shouldEnable;
+        }
+
     protected:
-        
+
+        bool enableProgress = true;
+
         String message;
 
         virtual Result run() = 0;
         
         State& parent;
         double progress = 0.0;
+        double unusedProgess = 0.0;
         var localObj;
     };
 
     using HardcodedLambda = std::function<var(Job&, const var&)>;
+
+    bool isFinished(Job::Ptr j) const { return completedJobs.contains(j); }
 
     Job::Ptr currentJob = nullptr;
     Job::Ptr getJob(const var& obj);
@@ -391,6 +413,11 @@ public:
     void bindCallback(const String& functionName, const var::NativeFunction& f);
 
     bool callNativeFunction(const String& functionName, const var::NativeFunctionArgs& args, var* returnValue);
+
+    bool hasNativeFunction(const String& functionName) const
+    {
+	    return jsLambdas.find(functionName) != jsLambdas.end();
+    }
 
     String currentEventGroup;
     
@@ -508,26 +535,29 @@ struct MonolithData
         MonolithBeginAssets,
         MonolithAssetJSONStart,
         MonolithAssetJSONEnd,
+        MonolithAssetNoCompressFlag,
         MonolithAssetStart,
         MonolithAssetEnd,
-        MonolithEndAssets
+        MonolithEndAssets,
+        MonolithBeginVersion,
+        MonolithEndVersion
     };
 
     static String getMarkerName(Markers m);
 
-    MonolithData(const File& location_);
-
-    multipage::Dialog* create(State& state);
+    MonolithData(InputStream* input);
     
-    static Result exportMonolith(State& state, const File& target);
+    multipage::Dialog* create(State& state, bool allowVersionMismatch);
+    
+    static Result exportMonolith(State& state, OutputStream* output, bool compressAssets=true, State::Job* j=nullptr);
     var getJSON() const;
 
 private:
 
-    int64 expectFlag(FileInputStream& fis, Markers m, bool throwIfMismatch=true);
-    var readJSON(FileInputStream& fis, int64 numToRead);
+    int64 expectFlag(Markers m, bool throwIfMismatch=true);
+    var readJSON(int64 numToRead);
 
-    File location;
+    InputStream* input;
 };
 
 struct HardcodedDialogWithState: public Component
