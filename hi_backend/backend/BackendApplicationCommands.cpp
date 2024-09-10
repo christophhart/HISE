@@ -97,6 +97,8 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuFileBrowseExamples,
 		MenuFileCreateRecoveryXml,
 		MenuProjectShowInFinder,
+		MenuFileShowHiseAppDataFolder,
+		MenuFileShowProjectAppDataFolder,
 		MenuFileSettings,
 		MenuExportCleanBuildDirectory,
 		MenuToolsCreateThirdPartyNode,
@@ -201,6 +203,14 @@ void BackendCommandTarget::createMenuBarNames()
 
 void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationCommandInfo &result)
 {
+#if JUCE_WINDOWS
+	static const String fileBrowserName = "Explorer";
+#elif JUCE_MAC
+	static const String fileBrowserName = "Finder";
+#else
+	static const String fileBrowserName = "File Browser";
+#endif
+
 	result.categoryName = "Hidden";
 
 	switch (commandID)
@@ -295,11 +305,17 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "File";
 		break;
 	case MenuProjectShowInFinder:
-#if JUCE_WINDOWS
-        setCommandTarget(result, "Show Project folder in Explorer",
-#else
-		setCommandTarget(result, "Show Project folder in Finder",
-#endif
+        setCommandTarget(result, "Show Project folder in " + fileBrowserName,
+        GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "File";
+		break;
+	case MenuFileShowHiseAppDataFolder:
+        setCommandTarget(result, "Show HISE App data folder folder in " + fileBrowserName,
+        GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
+		result.categoryName = "File";
+		break;
+	case MenuFileShowProjectAppDataFolder:
+        setCommandTarget(result, "Show Project App Data folder in " + fileBrowserName,
         GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		result.categoryName = "File";
 		break;
@@ -642,6 +658,8 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuProjectNew:				Actions::createNewProject(bpe); updateCommands();  return true;
 	case MenuProjectLoad:				Actions::loadProject(bpe); updateCommands(); return true;
 	case MenuProjectShowInFinder:		Actions::showProjectInFinder(bpe); return true;
+	case MenuFileShowProjectAppDataFolder:	Actions::showAppDataFolder(bpe, true); return true;
+	case MenuFileShowHiseAppDataFolder:		Actions::showAppDataFolder(bpe, false); return true;
 	case MenuFileBrowseExamples:		Actions::showExampleBrowser(bpe); return true;
 	case MenuFileCreateRecoveryXml:		Actions::createRecoveryXml(bpe); return true;
 	case MenuFileSettings:				Actions::showFileProjectSettings(bpe); return true;
@@ -791,8 +809,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			p.addSectionHeader("Project Management");
 			ADD_MENU_ITEM(MenuProjectNew);
 			ADD_MENU_ITEM(MenuProjectLoad);
+
 			
-			ADD_MENU_ITEM(MenuProjectShowInFinder);
+
 			
 
 			PopupMenu recentProjects;
@@ -832,6 +851,14 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			p.addSubMenu(menuTitle, recentProjects);
 
 			p.addSeparator();
+
+			ADD_MENU_ITEM(MenuProjectShowInFinder);
+			ADD_MENU_ITEM(MenuFileShowHiseAppDataFolder);
+			ADD_MENU_ITEM(MenuFileShowProjectAppDataFolder);
+
+			p.addSeparator();
+
+			
 
 			p.addSectionHeader("File Management");
 
@@ -2040,6 +2067,23 @@ void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWi
 	}
 }
 
+void BackendCommandTarget::Actions::showAppDataFolder(BackendRootWindow* bpe, bool getProjectAppData)
+{
+	if(!getProjectAppData)
+	{
+		ProjectHandler::getAppDataDirectory(bpe->getBackendProcessor()).revealToUser();
+	}
+	else
+	{
+		auto f = ProjectHandler::getAppDataRoot(bpe->getBackendProcessor());
+
+		auto company = GET_HISE_SETTING(bpe->getBackendProcessor()->getMainSynthChain(), HiseSettings::User::Company);
+		auto project = GET_HISE_SETTING(bpe->getBackendProcessor()->getMainSynthChain(), HiseSettings::Project::Name);
+
+		f = f.getChildFile(company.toString()).getChildFile(project.toString());
+		f.revealToUser();
+	}
+}
 
 
 void BackendCommandTarget::Actions::showProjectInFinder(BackendRootWindow *bpe)

@@ -82,6 +82,8 @@ public:
 		MenuProjectNew = 0x20000,
 		MenuProjectLoad,
 		MenuProjectShowInFinder,
+		MenuFileShowHiseAppDataFolder,
+		MenuFileShowProjectAppDataFolder,
 		MenuProjectRecentOffset,
 		// ------------------------
 		MenuSnippetFileNew = 0x22000,
@@ -331,9 +333,9 @@ public:
 
 		static void loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe);
 
-		
 
-		
+		static void showAppDataFolder(BackendRootWindow* bpe, bool getProjectAppData);
+
 		static void showProjectInFinder(BackendRootWindow *bpe);
 		
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
