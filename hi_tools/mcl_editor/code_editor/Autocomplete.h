@@ -34,6 +34,8 @@ public:
 
 	using Ptr = ReferenceCountedObjectPtr<TokenCollection>;
 
+	static Array<Range<int>> getSelectionFromFunctionArgs(const String& input);
+
 	/** A Token is the entry that is being used in the autocomplete popup (or any other IDE tools
 	    that might use that database. */
 	struct Token: public ReferenceCountedObject
@@ -51,7 +53,12 @@ public:
 
 		bool operator==(const Token& other) const;
 
-		virtual Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const;
+		
+
+		virtual Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const
+		{
+			return getSelectionFromFunctionArgs(getCodeToInsert(input));
+		}
 
 		virtual MarkdownLink getLink() const;;
 
@@ -252,6 +259,38 @@ struct SimpleDocumentTokenProvider : public TokenCollection::Provider,
 	void addTokens(TokenCollection::List& tokens) override;
 };
 
+/** A code snippet provider that lets you define custom code snippets from multiple JSON files */
+struct CodeSnippetProvider: public mcl::TokenCollection::Provider
+{
+	CodeSnippetProvider(const Array<File>& snippetFiles_, const Identifier& languageId_, const std::function<void(const String&)>& errorFunction_):
+	  Provider(),
+	  snippetFiles(snippetFiles_),
+	  languageId(languageId_),
+	  errorFunction(errorFunction_)
+	{}
+
+	virtual ~CodeSnippetProvider() {};
+
+	struct CodeSnippetToken;
+
+	void addTokens(mcl::TokenCollection::List& tokens) override;
+
+private:
+
+	Identifier getLanguageId() const { return languageId; }
+
+	Array<File> getSnippetFiles() { return snippetFiles; }
+
+	void reportParsingError(const String& errorMessage)
+	{
+		if(errorFunction)
+			errorFunction(errorMessage);
+	}
+
+	std::function<void(const String&)> errorFunction;
+	const Identifier languageId;
+	Array<File> snippetFiles;
+};
 
 class Autocomplete : public Component,
 	public KeyListener,
