@@ -284,23 +284,40 @@ className(className_)
 
 	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, name);
 
+	if(extendedHelp.isEmpty())
+	{
+		AttributedString help;
+
+		const String name = methodTree_.getProperty(Identifier("name")).toString();
+		const String arguments = methodTree_.getProperty(Identifier("arguments")).toString();
+		const String description = methodTree_.getProperty(Identifier("description")).toString().trim();
+		const String returnType = methodTree_.getProperty("returnType", "void");
+
+		extendedHelp << "`" << className_ << "." << name << arguments << "`  \n";
+
+		if(!returnType.isEmpty())
+			extendedHelp << "**Return Type**: `" << returnType << "`  \n";
+
+		extendedHelp << "> " << description << "  \n";
+		extendedHelp << "**[F1]** - open in docs **[Enter, Double-Click]** - paste in editor";
+	}
+
 	if (extendedHelp.isNotEmpty())
 	{
 		parser = new MarkdownRenderer(extendedHelp);
-		parser->setTextColour(Colours::white);
-		parser->setDefaultTextSize(15.0f);
-		parser->parse();
+
+		auto bd = MarkdownLayout::StyleData::createBrightStyle();
+		bd.fontSize = 14.0f;
+		parser->setStyleData(bd);
 	}
 
 	setWantsKeyboardFocus(true);
-
-	help = ValueTreeApiHelpers::createAttributedStringFromApi(methodTree, className, true, Colours::white);
 }
 
 
 
 
-void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent&)
+void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent& e)
 {
 	insertIntoCodeEditor();
 }
@@ -310,6 +327,18 @@ bool ApiCollection::MethodItem::keyPressed(const KeyPress& key)
 	if (key.isKeyCode(KeyPress::returnKey))
 	{
 		insertIntoCodeEditor();
+		return true;
+	}
+
+	if(key.isKeyCode(KeyPress::upKey))
+	{
+		findParentComponentOfClass<SearchableListComponent>()->selectNext(false, this);
+		return true;
+	}
+	if(key.isKeyCode(KeyPress::downKey))
+	{
+		findParentComponentOfClass<SearchableListComponent>()->selectNext(true, this);
+		
 		return true;
 	}
 
@@ -362,6 +391,8 @@ ApiCollection::ClassCollection::ClassCollection(const ValueTree &api) :
 classApi(api),
 name(api.getType().toString())
 {
+	setWantsKeyboardFocus(true);
+
 	for (int i = 0; i < api.getNumChildren(); i++)
 	{
 		items.add(new MethodItem(api.getChild(i), name));
@@ -375,8 +406,12 @@ name(api.getType().toString())
 void ApiCollection::ClassCollection::paint(Graphics &g)
 {
 	g.setColour(Colours::white.withAlpha(0.9f));
-	g.setFont(GLOBAL_MONOSPACE_FONT());
-	g.drawText(name, 10, 0, getWidth() - 10, COLLECTION_HEIGHT, Justification::centredLeft, true);
+
+	auto f = GLOBAL_MONOSPACE_FONT();
+	
+
+	g.setFont(GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight() * 1.2f));
+	g.drawText(name, 14, 0, getWidth() - 10, COLLECTION_HEIGHT, Justification::centredLeft, true);
 }
 
 ExtendedApiDocumentation::MethodDocumentation::MethodDocumentation(Identifier& className_, const Identifier& id) :

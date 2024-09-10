@@ -42,8 +42,11 @@ SearchableListComponent::SearchableListComponent(BackendRootWindow* window):
 {
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
 	fuzzySearchBox->addListener(this);
-    
-    
+
+	textClearButton = new SearchBoxClearComponent(*fuzzySearchBox);
+
+    setWantsKeyboardFocus(true);
+
     GlobalHiseLookAndFeel::setTextEditorColours(*fuzzySearchBox);
     
 	internalContainer = new InternalContainer();
@@ -71,7 +74,7 @@ void SearchableListComponent::resized()
     }
     
     b.removeFromLeft(b.getHeight());
-	
+
     fuzzySearchBox->setBounds(b.reduced(1));
 	viewport->setBounds(0, 26, getWidth(), getHeight() - 26);
 
@@ -294,34 +297,39 @@ void SearchableListComponent::InternalContainer::resized()
 
 void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
 {
-	if (event.mods.isRightButtonDown())
+	if (!usePopupMenu)
 	{
-		if (!usePopupMenu)
+		if(auto cp = findParentComponentOfClass<SearchableListComponent>()->currentPopup.get())
 		{
-			if (getPopupHeight() != 0)
+			if(cp->parent == this)
 			{
-				auto parent = TopLevelWindowWithOptionalOpenGL::findRoot(this);
+				clicksToClose++;
 
-				CallOutBox::launchAsynchronously(std::unique_ptr<PopupComponent>(new PopupComponent(this)), parent->getLocalArea(this, getLocalBounds()), parent);
+				if(clicksToClose > 1)
+				{
+					findParentComponentOfClass<SearchableListComponent>()->showPopup(nullptr);
+				}
 			}
 		}
-		else
-		{
-			PopupMenu m;
+		return;
+	}
 
-			m.setLookAndFeel(&laf);
+	if (event.mods.isRightButtonDown())
+	{
+		PopupMenu m;
 
-			fillPopupMenu(m);
+		m.setLookAndFeel(&laf);
 
-			PopupMenu::Options options;
-			
-			Point<int> mousePos(Desktop::getInstance().getMousePosition());
+		fillPopupMenu(m);
 
-			Point<int> pos2 = mousePos;
-			pos2.addXY(200, 500);
+		PopupMenu::Options options;
+		
+		Point<int> mousePos(Desktop::getInstance().getMousePosition());
 
-			m.showMenuAsync(options.withTargetScreenArea(Rectangle<int>(mousePos, mousePos)), new PopupCallback(this));
-		}
+		Point<int> pos2 = mousePos;
+		pos2.addXY(200, 500);
+
+		m.showMenuAsync(options.withTargetScreenArea(Rectangle<int>(mousePos, mousePos)), new PopupCallback(this));
 	}
 	else
 	{
@@ -356,12 +364,17 @@ void SearchableListComponent::Item::matchAgainstSearch(const String &stringToMat
 SearchableListComponent::Item::PopupComponent::PopupComponent(Item *p) :
 parent(p)
 {
-	setSize(p->getPopupWidth(), p->getPopupHeight());
-	setWantsKeyboardFocus(true);
+	parent->findParentComponentOfClass<SearchableListComponent>()->viewport->getVerticalScrollBar().addListener(this);
+	setWantsKeyboardFocus(false);
 }
 
 void SearchableListComponent::Item::PopupComponent::paint(Graphics& g)
 {
+	auto cornerSize = 3.0f;
+
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xffe0e0e0)));
+	g.fillRoundedRectangle(getLocalBounds().toFloat(), cornerSize);
+	
 	if (parent.getComponent() != nullptr) parent->paintPopupBox(g);
 }
 

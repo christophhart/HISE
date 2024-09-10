@@ -199,7 +199,7 @@ public:
 	{
 	public:
 
-		const int extendedWidth = 600;
+		const int extendedWidth = 500;
 
 		MethodItem(const ValueTree &methodTree_, const String &className_);
 
@@ -219,8 +219,9 @@ public:
 				return Item::getPopupWidth();
 		}
 
-		void focusGained(FocusChangeType) override
+		void focusGained(FocusChangeType ft) override
 		{
+			Item::focusGained(ft);
 			repaint();
 		}
 
@@ -231,8 +232,9 @@ public:
 			return { File(), s };
 		}
 
-		void focusLost(FocusChangeType ) override
+		void focusLost(FocusChangeType ft) override
 		{
+			Item::focusLost(ft);
 			repaint();
 		}
 
@@ -248,10 +250,12 @@ public:
 				auto bounds = Rectangle<float>(10.0f, 10.0f, 280.0f, (float)getPopupHeight() - 20);
 				help.draw(g, bounds);
 			}
-			
 		}
 
-		void mouseEnter(const MouseEvent&) override { repaint(); }
+		void mouseEnter(const MouseEvent&) override
+		{
+			repaint();
+		}
 		void mouseExit(const MouseEvent&) override { repaint(); }
 		void mouseDoubleClick(const MouseEvent&) override;
 

@@ -83,15 +83,31 @@ public:
 		*
 		*	It can be used to show additional information.
 		*/
-		class PopupComponent : public Component
+		class PopupComponent : public Component,
+							   public ScrollBar::Listener
 		{
 		public:
 
 			PopupComponent(Item *p);
 
+			~PopupComponent()
+			{
+				if(parent != nullptr)
+					parent->findParentComponentOfClass<SearchableListComponent>()->viewport->getVerticalScrollBar().removeListener(this);
+			}
+
+			void scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRangeStart) override
+			{
+				auto p = parent->findParentComponentOfClass<SearchableListComponent>();
+
+				MessageManager::callAsync([p]()
+				{
+					p->showPopup(nullptr);
+				});
+			}
+
 			void paint(Graphics& g) override;
 
-		private:
 
 			Component::SafePointer<Item> parent;
 		};
@@ -108,15 +124,26 @@ public:
 
         void paintItemBackground(Graphics& g, Rectangle<float> area)
         {
-            g.setGradientFill(ColourGradient(JUCE_LIVE_CONSTANT_OFF(Colour(0xff303030)), 0.0f, 0.0f,
-                JUCE_LIVE_CONSTANT_OFF(Colour(0xff282828)), 0.0f, (float)area.getHeight(), false));
-
-            g.fillRoundedRectangle(area, 2.0f);
-
-            g.setColour(Colours::white.withAlpha(0.1f));
-            g.drawRoundedRectangle(area.reduced(1.0f), 2.0f, 1.0f);
+            
         }
-        
+
+		void focusGained(FocusChangeType cause) override
+        {
+	        if(!usePopupMenu)
+	        {
+		        findParentComponentOfClass<SearchableListComponent>()->showPopup(this);
+				clicksToClose = 0;
+	        }
+        }
+
+		void focusLost(FocusChangeType cause) override
+        {
+	        if(!usePopupMenu)
+	        {
+		        findParentComponentOfClass<SearchableListComponent>()->showPopup(nullptr);
+	        }
+        }
+
 		void setUsePopupMenu(bool shouldUsePopupMenu) noexcept{ usePopupMenu = shouldUsePopupMenu; }
 
 		/** Overwrite this and return the height of the popup component. If you return 0 (default behaviour), the functionality is deactivated. */
@@ -139,6 +166,7 @@ public:
 
 	private:
 
+		int clicksToClose = 0;
 
 		PopupLookAndFeel laf;
 
@@ -154,13 +182,103 @@ public:
 				}
 			};
 
-		private:
-
 			Component::SafePointer<Item> parent;
 		};
+	};
 
-        
+	void showPopup(Item* item)
+	{
+		if(item == nullptr)
+		{
+			Desktop::getInstance().getAnimator().fadeOut(currentPopup, 150);
+			currentPopup = nullptr;
+			return;
+		}
+
+		if(currentPopup != nullptr)
+		{
+			currentPopup = nullptr;
+		}
 		
+		auto parent = TopLevelWindowWithOptionalOpenGL::findRoot(this);
+
+		currentPopup = new Item::PopupComponent(item);
+
+		currentPopup->setSize(item->getPopupWidth(), item->getPopupHeight());
+
+		
+
+		parent->addAndMakeVisible(currentPopup);
+		auto lb = parent->getLocalArea(item, item->getLocalBounds());
+
+		auto b = currentPopup->getLocalBounds();
+		b.setPosition(lb.getTopRight());
+
+		b = b.constrainedWithin(parent->getLocalBounds());
+
+		currentPopup->setBounds(b);
+	}
+
+	ScopedPointer<Item::PopupComponent> currentPopup;
+
+	struct SearchBoxClearComponent: public Component,
+									public TextEditor::Listener,
+								    public ComponentListener
+	{
+		SearchBoxClearComponent(TextEditor& te):
+		  editor(te)
+		{
+			static const unsigned char pathData[] = { 110,109,48,128,38,68,240,254,63,67,98,166,156,55,68,240,254,63,67,0,128,69,68,240,143,119,67,0,128,69,68,0,0,158,67,98,0,128,69,68,16,56,192,67,166,156,55,68,144,0,220,67,48,128,38,68,144,0,220,67,98,16,100,21,68,144,0,220,67,0,128,7,68,16,56,192,67,
+0,128,7,68,0,0,158,67,98,0,128,7,68,240,143,119,67,16,100,21,68,240,254,63,67,48,128,38,68,240,254,63,67,108,242,48,38,68,136,2,64,67,108,242,48,38,68,144,181,139,67,108,42,66,27,68,160,175,107,67,108,0,108,18,68,88,132,135,67,108,4,170,29,68,0,0,158,
+67,108,0,108,18,68,176,123,180,67,108,42,66,27,68,48,40,198,67,108,48,128,38,68,136,172,175,67,108,120,190,49,68,48,40,198,67,108,186,148,58,68,176,123,180,67,108,252,85,47,68,0,0,158,67,108,186,148,58,68,88,132,135,67,108,120,190,49,68,160,175,107,67,
+108,206,205,38,68,40,185,139,67,108,206,205,38,68,136,2,64,67,108,48,128,38,68,240,254,63,67,99,101,0,0 };
+
+			p.loadPathFromData(pathData, sizeof(pathData));
+
+			editor.getParentComponent()->addChildComponent(this);
+			editor.addComponentListener(this);
+			editor.addListener(this);
+			setRepaintsOnMouseActivity(true);
+		}
+
+		Path p;
+
+		~SearchBoxClearComponent()
+		{
+			editor.removeListener(this);
+			editor.removeComponentListener(this);
+		}
+
+		void componentMovedOrResized(Component& c, bool wasMoved, bool wasResized) override
+		{
+			auto b = c.getBoundsInParent();
+			b = b.removeFromRight(b.getHeight());
+			setBounds(b);
+			PathFactory::scalePath(p, b.toFloat().withZeroOrigin().reduced(5));
+		}
+
+		void mouseDown(const MouseEvent& e)
+		{
+			editor.setText("", sendNotificationAsync);
+		}
+
+		void paint(Graphics& g) override
+		{
+			float alpha = 0.4f;
+
+			if(isMouseOver(false))
+				alpha += 0.3f;
+
+			g.setColour(Colours::black.withAlpha(alpha));
+			g.fillPath(p);
+		}
+
+		void textEditorTextChanged(TextEditor&) override
+		{
+			setVisible(!editor.getText().isEmpty());
+		}
+
+		TextEditor& editor;
 	};
 
 	/** A Collection is the highest hierarchy level and contains multiple Items.
@@ -255,6 +373,8 @@ public:
 
 	void setSelectedItem(Item* /*item*/) noexcept{  };
 
+
+
 	void setFuzzyness(double newFuzzyness) { fuzzyness = newFuzzyness; };
 
 	void textEditorTextChanged(TextEditor& editor);
@@ -286,7 +406,54 @@ public:
 	void setShowEmptyCollections(bool emptyCollectionsShouldBeShown);;
 
 	BackendRootWindow* getRootWindow() { return rootWindow; }
-   
+
+	void selectNext(bool next, Item* thisItem)
+	{
+		
+
+		Array<Item*> list;
+		list.ensureStorageAllocated(2048);
+
+		callRecursive<Item>(this, [&](Item* i)
+		{
+			list.add(i);
+			return false;
+		});
+
+		auto thisIndex = list.indexOf(thisItem);
+
+		SafePointer<Item> c;
+
+		if(next)
+		{
+			if(isPositiveAndBelow(thisIndex +1, list.size()))
+				c = list[thisIndex + 1];
+		}
+		else
+		{
+			if(thisIndex > 1)
+				c = list[thisIndex - 1];
+		}
+
+		if(c == nullptr)
+			return;
+
+		Timer::callAfterDelay(30, [c]()
+		{
+			if (c == nullptr)
+				return;
+
+			c->findParentComponentOfClass<SearchableListComponent>()->currentPopup = nullptr;
+			c->findParentComponentOfClass<SearchableListComponent>()->ensureVisibility(c);
+			
+			c->grabKeyboardFocus();
+			c->repaint();
+			
+		});
+		
+		repaint();
+	}
+
 protected:
 	SearchableListComponent(BackendRootWindow* window);
 
@@ -317,6 +484,26 @@ protected:
 
 private:
 
+	
+
+	void ensureVisibility(Item* i)
+	{
+		auto lb = viewport->getViewedComponent()->getLocalArea(i, i->getLocalBounds()).getTopLeft();
+		auto va = viewport->getViewArea().reduced(-10, 30);
+
+		if(!va.contains(lb))
+		{
+			if(va.getY() > lb.getY())
+			{
+				viewport->setViewPosition({0, lb.getY() - 20 });
+			}
+			else
+			{
+				viewport->setViewPosition({0,  lb.getY() + i->getHeight() - va.getHeight()});
+			}
+		}
+	}
+
 	BackendRootWindow* rootWindow;
 
 	double fuzzyness;
@@ -326,6 +513,7 @@ private:
 	ScopedPointer<InternalContainer> internalContainer;
 	ScopedPointer<Viewport> viewport;
 	ScopedPointer<TextEditor> fuzzySearchBox;
+	ScopedPointer<SearchBoxClearComponent> textClearButton;
 
     ScrollbarFader sf;
     
