@@ -173,6 +173,8 @@ void TextEditor::setNewTokenCollectionForAllChildren(Component* any, const Ident
 			
 		return false;
 	}, false);
+
+	newCollection->signalRebuild();
 }
 
 void TextEditor::setReadOnly(bool shouldBeReadOnly)
