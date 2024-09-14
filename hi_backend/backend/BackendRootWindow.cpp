@@ -194,7 +194,6 @@ StringArray SnippetBrowserHelpers::getCategoryNames()
 {
 	funkytooltips.setLookAndFeel(&ttlaf);
 
-	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
 
 	Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
 
