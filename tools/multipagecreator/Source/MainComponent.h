@@ -1258,6 +1258,7 @@ public:
         FileCreateCSS,
         FileLoad,
         FileLoadMonolith,
+        FileLoadMonolithFromClipboard,
         FileSave,
         FileSaveAs,
         FileExportAsProjucerProject,

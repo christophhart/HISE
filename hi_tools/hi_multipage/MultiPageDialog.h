@@ -36,11 +36,12 @@ namespace hise {
 namespace multipage {
 using namespace juce;
 
-
+struct PlaceholderContentBase;
 
 namespace factory
 {
 	struct Container;
+    
 }
 
 struct ComponentWithSideTab
@@ -754,6 +755,14 @@ public:
     void loadStyleFromPositionInfo();
 
     bool& getSkipRebuildFlag() { return skipRebuild; }
+
+    using PlaceholderCreator = std::function<multipage::PlaceholderContentBase*(multipage::Dialog&, const var&)>;
+
+	Array<std::pair<Identifier, PlaceholderCreator>> placeholderFactory;
+
+	void registerPlaceholder(const Identifier& typeId, const PlaceholderCreator& pc);
+
+    PlaceholderContentBase* createDynamicPlaceholder(const var& infoObject);
 
 private:
 

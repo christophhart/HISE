@@ -1203,8 +1203,25 @@ LambdaTask::LambdaTask(Dialog& r, int w, const var& obj):
 
 Result LambdaTask::performTaskStatic(WaitJob& t)
 {
-	auto lambda = t.getInfoObject()[mpid::Function].getNativeFunction();
+	auto func = t.getInfoObject()[mpid::Function];
 
+	var::NativeFunction lambda;
+
+	if(func.isMethod())
+		lambda = func.getNativeFunction();
+	else
+	{
+		auto s = &t.getState();
+		auto fn = func.toString();
+
+		lambda = [s, fn](const var::NativeFunctionArgs& args)
+		{
+			var rv;
+			s->callNativeFunction(fn, args, &rv);
+			return rv;
+		};
+	}
+	
 	if(!lambda)
 	{
 		t.setMessage("Empty lambda, simulating...");

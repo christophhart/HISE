@@ -187,7 +187,9 @@ StringArray SnippetBrowserHelpers::getCategoryNames()
 		return TooltipWindow::getTipFor(component);
 	}
 
-	BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
+
+
+BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
 	AudioProcessorEditor(ownerProcessor),
 	BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 	owner(static_cast<BackendProcessor*>(ownerProcessor))
@@ -853,10 +855,24 @@ void BackendRootWindow::timerCallback()
 {
 	stopTimer();
 
-	if (!GET_PROJECT_HANDLER(mainEditor->getMainSynthChain()).isActive() && !projectIsBeingExtracted)
+	if(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Other::ShowWelcomeScreen))
 	{
-		owner->setChanged(false);
-		BackendCommandTarget::Actions::createNewProject(this);
+		if(!getBackendProcessor()->isSnippetBrowser())
+		{
+			auto wc = new multipage::library::WelcomeScreen(this);
+			wc->setModalBaseWindowComponent(this);
+		}
+		else
+		{
+			auto snippetSettings = ProjectHandler::getAppDataDirectory(getMainController()).getChildFile("snippetBrowser.xml");
+
+			if(!snippetSettings.existsAsFile())
+			{
+				auto wc = new multipage::library::WelcomeSnippetBrowserScreen(this);
+				wc->setModalBaseWindowComponent(this);
+			}
+		}
+		
 	}
 }
 

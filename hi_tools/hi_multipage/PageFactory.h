@@ -300,12 +300,19 @@ template <typename ContentType> struct Placeholder: public Dialog::PageBase
         static_assert(std::is_base_of<juce::Component, ContentType>(),
 					  "not a base of juce::Component");
 
-        content = new ContentType(r, d);
-
+        if(auto dynamicContent = r.createDynamicPlaceholder(d))
+        {
+	        content = dynamicContent;
+        }
+        else
+        {
+	        content = new ContentType(r, d);
+        }
+        
         Helpers::setFallbackStyleSheet(*this, "display:flex;min-height:32px;width:100%;");
-        Helpers::setFallbackStyleSheet(*content, "width:100%;height:100%;");
+        Helpers::setFallbackStyleSheet(*dynamic_cast<Component*>(content.get()), "width:100%;height:100%;");
 
-	    addFlexItem(*content);
+	    addFlexItem(*dynamic_cast<Component*>(content.get()));
         setSize(width, 0);
     };
 
@@ -334,7 +341,7 @@ private:
 
     var obj;
     float width = 0.0f;
-    ScopedPointer<ContentType> content;
+    ScopedPointer<PlaceholderContentBase> content;
 
     //MarkdownRenderer r;
 };

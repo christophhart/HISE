@@ -702,18 +702,20 @@ struct CountedProcessorId
 
 
 
-void ProjectHandler::createNewProject(File &workingDirectory, Component* )
+void ProjectHandler::createNewProject(const File &workingDirectory, Component* )
 {
-	if (workingDirectory.exists() && workingDirectory.isDirectory())
+	auto wd = workingDirectory;
+
+	if (wd.exists() && wd.isDirectory())
 	{
-		while (workingDirectory.getNumberOfChildFiles(File::findFilesAndDirectories) > 1)
+		while (wd.getNumberOfChildFiles(File::findFilesAndDirectories) > 1)
 		{
 			PresetHandler::showMessageWindow("Directory already exists", "The directory is not empty. Try another one...", PresetHandler::IconType::Warning);
             
             FileChooser fc("Create new project directory");
             
             if (fc.browseForDirectory())
-                workingDirectory = fc.getResult();
+                wd = fc.getResult();
             else
                 return;
 		}
@@ -721,7 +723,7 @@ void ProjectHandler::createNewProject(File &workingDirectory, Component* )
 
 	for (int i = 0; i < (int)SubDirectories::numSubDirectories; i++)
 	{
-		File subDirectory = workingDirectory.getChildFile(getIdentifier((SubDirectories)i));
+		File subDirectory = wd.getChildFile(getIdentifier((SubDirectories)i));
 		subDirectory.createDirectory();
 	}
 }

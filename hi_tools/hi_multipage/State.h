@@ -560,7 +560,16 @@ private:
     InputStream* input;
 };
 
-struct HardcodedDialogWithState: public Component
+struct HardcodedDialogWithStateBase
+{
+	virtual ~HardcodedDialogWithStateBase() {};
+
+    /** Override this method and return an item list for the autocomplete popup for the given id*/
+    virtual StringArray getAutocompleteItems(const Identifier& textEditorId) { return {}; };
+};
+
+struct HardcodedDialogWithState: public Component,
+								 public HardcodedDialogWithStateBase
 {
     HardcodedDialogWithState():
 	  state(var())
@@ -576,9 +585,6 @@ struct HardcodedDialogWithState: public Component
 		return state.globalState[id];
 	}
 
-    /** Override this method and return an item list for the autocomplete popup for the given id*/
-    virtual StringArray getAutocompleteItems(const Identifier& textEditorId) { return {}; };
-    
     void setOnCloseFunction(const std::function<void()>& f);
 
     /** Override this method and initialise all default values for the global state. */

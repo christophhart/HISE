@@ -1842,6 +1842,26 @@ void Dialog::loadStyleFromPositionInfo()
 	update(css);
 }
 
+void Dialog::registerPlaceholder(const Identifier& typeId, const PlaceholderCreator& pc)
+{
+	placeholderFactory.add({typeId, pc});
+}
+
+PlaceholderContentBase* Dialog::createDynamicPlaceholder(const var& infoObject)
+{
+	auto classId = Identifier(infoObject[mpid::ContentType].toString());
+
+	for(const auto& pf: placeholderFactory)
+	{
+		if(pf.first == classId)
+		{
+			return pf.second(*this, infoObject);
+		}
+	}
+
+	return nullptr;
+}
+
 
 bool Dialog::removeCurrentPage()
 {

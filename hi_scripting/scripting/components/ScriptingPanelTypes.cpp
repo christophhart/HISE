@@ -698,9 +698,13 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 
 	overlaySelector = new ComboBox("Zoom");
 
-	auto overlayDirectory = dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor())->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::SubDirectories::Images).getChildFile("overlays");
+	auto& handler = dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor())->getMainController()->getCurrentFileHandler();
 
-	currentOverlays = overlayDirectory.findChildFiles(File::findFiles, false, "*.png");
+	if(handler.getRootFolder().isDirectory())
+	{
+		auto overlayDirectory = handler.getSubDirectory(FileHandlerBase::SubDirectories::Images).getChildFile("overlays");
+		currentOverlays = overlayDirectory.findChildFiles(File::findFiles, false, "*.png");
+	}
 
 	overlaySelector->addItem("No overlay", 1);
 	overlaySelector->setTextWhenNothingSelected("Select overlay");

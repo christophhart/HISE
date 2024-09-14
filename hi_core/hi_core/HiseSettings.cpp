@@ -128,6 +128,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(FaustPath);
     ids.add(FaustExternalEditor);
     ids.add(EnableLoris);
+	ids.add(DefaultProjectFolder);
 
 	return ids;
 }
@@ -185,6 +186,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 	ids.add(ExternalEditorPath);
     ids.add(AutoShowWorkspace);
 	ids.add(EnableShaderLineNumbers);
+	ids.add(ShowWelcomeScreen);
 
 	return ids;
 }
@@ -528,6 +530,10 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("This is the path to the directory where the additional nodes are stored. If you want to use this feature, recompile HISE with the HI_ENABLE_CUSTOM_NODES flag.");
 		P_();
 
+		P(HiseSettings::Compiler::DefaultProjectFolder);
+		D("This folder will be selected as default root folder when loading or creating new projects.  \n> You can set it to the root folder of all your HISE work and it will speed up loading / creating new projects");
+		P_();
+
 		P(HiseSettings::Compiler::UseIPP);
 		D("If enabled, HISE uses the FFT routines from the Intel Performance Primitive library (which can be downloaded for free) in order ");
 		D("to speed up the convolution reverb");
@@ -560,8 +566,10 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("If enabled, then all SSE instructions are replaced by their native implementation. This can be used to compile a version that runs on legacy CPU models."); 
 		P_();
 
-        
-        
+        P(HiseSettings::Other::ShowWelcomeScreen);
+		D("If enabled, then HISE will show a welcome screen at startup."); 
+		P_();
+
 		P(HiseSettings::Compiler::RebuildPoolFiles);
 		D("If enabled, the pool files for SampleMaps, AudioFiles and Images are deleted and rebuild everytime you export a plugin.");
 		D("You can turn this off in order to speed up compilation times, however be aware that in this case you need to delete them manually");
@@ -948,6 +956,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
+		id == Other::ShowWelcomeScreen ||
 		id == Scripting::SaveConnectedFilesOnCompile ||
         id == Scripting::WarnIfUndefinedParameters ||
 		id == Scripting::EnableMousePositioning)
@@ -1069,6 +1078,7 @@ bool HiseSettings::Data::isFileId(const Identifier& id)
 		   id == Project::RedirectSampleFolder ||
 		   id == Compiler::CustomNodePath ||
 		   id == Compiler::FaustPath ||
+		   id == Compiler::DefaultProjectFolder || 
 		   id == Other::GlobalSamplePath ||
 		   id == Other::ExternalEditorPath ||
 		   id == Documentation::DocRepository;
@@ -1175,6 +1185,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
     else if (id == Other::AutoShowWorkspace)        return "Yes";
 	else if (id == Other::ExternalEditorPath)		return "";
+	else if (id == Other::ShowWelcomeScreen)	    return "Yes";
 	else if (id == Documentation::DocRepository)	return "";
 	else if (id == Documentation::RefreshOnStartup) return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;
@@ -1191,6 +1202,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Compiler::UseIPP)				return "Yes";
 	else if (id == Compiler::LegacyCPUSupport) 		return "No";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
+	else if (id == Compiler::DefaultProjectFolder)  return File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getChildFile("HISE Projects").getFullPathName();
 	else if (id == Compiler::Support32BitMacOS)		return "Yes";
     else if (id == Compiler::FaustExternalEditor)   return "No";
     else if (id == Compiler::EnableLoris)           return "No";

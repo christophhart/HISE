@@ -150,11 +150,14 @@ bool BackendDllManager::unloadDll()
 
 bool BackendDllManager::loadDll(bool forceUnload)
 {
+	if (forceUnload)
+		unloadDll();
+
 	if (!getMainController()->getCurrentFileHandler().getRootFolder().isDirectory())
 		return false;
 
-	if (forceUnload)
-		unloadDll();
+	if (!getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks).isDirectory())
+		return false;
 
 	if (projectDll == nullptr)
 	{
@@ -267,6 +270,9 @@ juce::File BackendDllManager::createIfNotDirectory(const File& f)
 juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubType t)
 {
 	auto f = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks);
+
+	if(!mc->getCurrentFileHandler().getRootFolder().isDirectory())
+		return File();
 
 	switch (t)
 	{

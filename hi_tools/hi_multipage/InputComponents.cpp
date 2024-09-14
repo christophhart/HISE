@@ -1337,7 +1337,7 @@ void TextInput::showAutocomplete(const String& currentText)
 {
     if(useDynamicAutocomplete)
     {
-        if(auto hd = findParentComponentOfClass<HardcodedDialogWithState>())
+        if(auto hd = findParentComponentOfClass<HardcodedDialogWithStateBase>())
             autocompleteItems = hd->getAutocompleteItems(id);
         else
             autocompleteItems = {};

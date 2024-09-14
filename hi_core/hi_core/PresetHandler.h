@@ -292,7 +292,7 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
-	void createNewProject(File &workingDirectory, Component* mainEditor);
+	void createNewProject(const File &workingDirectory, Component* mainEditor);
 
 	Result setWorkingProject(const File &workingDirectory, bool checkDirectories=true);
 

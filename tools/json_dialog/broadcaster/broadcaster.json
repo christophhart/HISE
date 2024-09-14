@@ -30,9 +30,10 @@
     "StyleSheet": "Dark",
     "Style": "#targetMetadata,\n#contextItems\n{\n\theight: 120px;\n}\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n\n\n#targetMetadata input,\n#contextItems input\n{\n\theight: 100%;\n\tfont-family: monospace;\n\tfont-size: 14px;\n\tvertical-align: top;\n\tpadding-top: 5px;\n}\n\nlabel\n{\n\tmin-width: 100px;\n}\n\n.button-selector\n{\n\tflex-wrap:wrap;\n\tgap:0px;\n}\n\n.button-selector div\n{\n\twidth: 33%;\n\tgap: 0px;\n\tpadding: 5px;\n}\n\n.button-selector label\n{\n\tdisplay: none;\n}\n\n.button-selector .toggle-button\n{\n\tbackground: #222;\n\tcolor: #ccc;\n\tborder-radius: 5px;\n\tfont-family: monospace;\n\tfont-size: 13px;\n\tmargin-right: 5px;\n}\n\n.button-selector button:checked\n{\n\tbackground: #aaa;\n\tcolor: #222;\n\tborder-radius: 5px;\n}\n\n.button-selector button::before,\n.button-selector button::after\n{\n\tdisplay: none;\n}\n\n\n",
     "UseViewport": true,
-    "ConfirmClose": true,
+    "ConfirmClose": false,
+    "CloseMessage": "Do you want to close this popup?",
     "DialogWidth": 832,
-    "DialogHeight": 716
+    "DialogHeight": 736
   },
   "GlobalState": {
     "colour": 0

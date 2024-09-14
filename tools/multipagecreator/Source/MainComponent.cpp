@@ -124,7 +124,7 @@ PopupMenu MainComponent::getMenuForIndex(int topLevelMenuIndex, const String&)
 
 		m.addItem(CommandId::FileLoad, "Load file");
         m.addItem(CommandId::FileLoadMonolith, "Load monolith");
-
+        m.addItem(CommandId::FileLoadMonolithFromClipboard, "Load monolith from Base64 clipboard");
 		PopupMenu r;
 		fileList.createPopupMenuItems(r, CommandId::FileRecentOffset, false, false);
 		m.addSubMenu("Recent files", r);
@@ -250,6 +250,32 @@ void MainComponent::menuItemSelected(int menuItemID, int)
 
 				break;
 			}
+		}
+	case FileLoadMonolithFromClipboard:
+		{
+            auto s = SystemClipboard::getTextFromClipboard();
+
+            MemoryBlock mb;
+
+            if(mb.fromBase64Encoding(s))
+            {
+	            auto tf = File::getSpecialLocation(File::SpecialLocationType::tempDirectory).getChildFile("Base64tmp.dat");
+                tf.replaceWithData(mb.getData(), mb.getSize());
+
+                try
+                {
+	                createDialog(tf);
+                }
+                catch(String& s)
+                {
+	                jassertfalse;
+                }
+
+                
+                tf.deleteFile();
+            }
+            
+			break;
 		}
 	case FileSave:
 		{
@@ -661,7 +687,10 @@ void MainComponent::createDialog(const File& f)
             hardcodedDialog = nullptr;
 
             FileInputStream fis(f);
-            
+
+            c = nullptr;
+		    hardcodedDialog = nullptr;
+
 	        addAndMakeVisible(c = MonolithData(&fis).create(rt, true));
         }
 	}

@@ -36,6 +36,7 @@
 namespace hise { using namespace juce;
 
 class BackendProcessorEditor;
+class BackendRootWindow;
 class ScriptContentContainer;
 
 
@@ -668,8 +669,22 @@ namespace multipage
 #define MULTIPAGE_BIND_CPP(className, methodName) state->bindCallback(#methodName, BIND_MEMBER_FUNCTION_1(className::methodName));
 
 struct EncodedDialogBase: public Component,
-						  public QuasiModalComponent
+						  public QuasiModalComponent,
+						  public multipage::HardcodedDialogWithStateBase,
+					      public ControlledObject
 {
+	EncodedDialogBase(BackendRootWindow* bpe_, bool addBorder=true);
+
+	struct Factory: public PathFactory
+	{
+		Path createPath(const String& url) const override
+		{
+			Path p;
+			LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+			return p;
+		}
+	} factory;
+
 	void writeState(const Identifier& id, const var& value)
 	{
 		state->globalState.getDynamicObject()->setProperty(id, value);
@@ -701,7 +716,9 @@ struct EncodedDialogBase: public Component,
             
             
         }
-        
+
+		
+
         if(dialog != nullptr)
         {
             dialog->setFinishCallback([this]()
@@ -711,12 +728,34 @@ struct EncodedDialogBase: public Component,
 
             bindCallbacks();
 
-            setSize(dialog->getWidth(), dialog->getHeight());
+            setSize(dialog->getWidth()+2*(int)addBorder, dialog->getHeight()+2*(int)addBorder);
 
             dialog->showFirstPage();
-        }
-        
 
+			Component::callRecursive<simple_css::FlexboxComponent>(this, [this](simple_css::FlexboxComponent* c)
+			{
+				auto id = simple_css::FlexboxComponent::Helpers::getIdSelectorFromComponentClass(c).name;
+
+				if(id == "header")
+				{
+					c->setInterceptsMouseClicks(true, true);
+					this->dragger = new WindowDragger(rootWindow, this, c);
+					return true;
+				}
+
+				return false;
+			});
+        }
+	}
+
+	void closeAndPerform(const std::function<void()>& f)
+	{
+		dialog->setFinishCallback(f);
+
+		MessageManager::callAsync([this]()
+		{
+			dialog->navigate(true);
+		});
 	}
 
 	void setElementProperty(const String& listId, const Identifier& id, const var& newValue)
@@ -728,10 +767,31 @@ struct EncodedDialogBase: public Component,
 		}
 	}
 
+	void paint(Graphics& g) override
+	{
+		
+
+		g.fillAll(Colour(0xFF333333));
+
+		if(addBorder)
+		{
+			g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF474747)));
+			g.drawRect(getLocalBounds(), 1);
+		}
+		
+	}
+
+	const bool addBorder = true;
+
 	void resized() override
 	{
+		auto b = getLocalBounds().reduced((int)addBorder);
+
         if(dialog != nullptr)
-            dialog->setBounds(getLocalBounds());
+            dialog->setBounds(b);
+
+		closeButton.setBounds(b.removeFromRight(34).removeFromTop(34).reduced(8));
+		closeButton.toFront(false);
 	}
 
 	void navigate(int pageIndex, bool shouldSubmit)
@@ -750,11 +810,66 @@ struct EncodedDialogBase: public Component,
 			}
 		});
 	}
-
+	
 protected:
 
 	ScopedPointer<State> state;
 	ScopedPointer<Dialog> dialog;
+
+	HiseShapeButton closeButton;
+
+private:
+
+	
+
+	struct WindowDragger: public MouseListener,
+					      public ComponentBoundsConstrainer
+	{
+		WindowDragger(Component* rw, Component* dialog_, Component* draggedComponent_):
+		  rootWindow(rw),
+		  dialog(dialog_),
+		  draggedComponent(draggedComponent_)
+		{
+			draggedComponent->addMouseListener(this, true);
+		};
+
+		~WindowDragger()
+		{
+			if(draggedComponent.getComponent() != nullptr)
+				draggedComponent->removeMouseListener(this);
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			dragger.startDraggingComponent(dialog, e);
+		}
+
+		void mouseDrag(const MouseEvent& e) override
+		{
+			dragger.dragComponent(dialog, e, this);
+		}
+
+		void checkBounds (Rectangle<int>& bounds,
+                              const Rectangle<int>& previousBounds,
+                              const Rectangle<int>& limits,
+                              bool isStretchingTop,
+                              bool isStretchingLeft,
+                              bool isStretchingBottom,
+                              bool isStretchingRight) override
+		{
+			bounds = bounds.constrainedWithin(rootWindow->getLocalBounds());
+		}
+
+		Component::SafePointer<Component> draggedComponent;
+		Component::SafePointer<Component> dialog;
+		Component::SafePointer<Component> rootWindow;
+		
+		ComponentDragger dragger;
+	};
+
+	ScopedPointer<WindowDragger> dragger;
+
+	Component* rootWindow;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(EncodedDialogBase);
 };
