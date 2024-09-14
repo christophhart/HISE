@@ -194,8 +194,8 @@ StringArray SnippetBrowserHelpers::getCategoryNames()
 {
 	funkytooltips.setLookAndFeel(&ttlaf);
 
-
-	Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
+	if(!owner->isSnippetBrowser())
+		Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
 
 	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
@@ -386,7 +386,7 @@ StringArray SnippetBrowserHelpers::getCategoryNames()
 
 	setOpaque(true);
 
-	startTimer(1000);
+	startTimer(200);
 
 	updateCommands();
 
