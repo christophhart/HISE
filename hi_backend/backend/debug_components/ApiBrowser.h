@@ -206,7 +206,7 @@ public:
 		int getPopupHeight() const override
 		{ 
 			if (parser != nullptr) 
-				return (int)parser->getHeightForWidth((float)extendedWidth) + 20;
+				return (int)parser->getHeightForWidth((float)extendedWidth);
 			else 
 				return 150; 
 		}
@@ -242,15 +242,19 @@ public:
 		{
 			if (parser != nullptr)
 			{
-				auto bounds = Rectangle<float>(10.0f, 10.0f, (float)extendedWidth, (float)getPopupHeight() - 20);
+				auto bounds = Rectangle<float>(10.0f, -8.0f, (float)extendedWidth, (float)getPopupHeight());
 				parser->draw(g, bounds);
 			}
 			else
 			{
-				auto bounds = Rectangle<float>(10.0f, 10.0f, 280.0f, (float)getPopupHeight() - 20);
+				auto bounds = Rectangle<float>(10.0f, -8.0f, 280.0f, (float)getPopupHeight());
 				help.draw(g, bounds);
 			}
+
+			
 		}
+
+		melatonin::DropShadow sh;
 
 		void mouseEnter(const MouseEvent&) override
 		{
@@ -279,13 +283,24 @@ public:
 		const ValueTree methodTree;
 	};
 
+	void onPopupClose(FocusChangeType ft) override
+	{
+		if(auto ed = getRootWindow()->getMainSynthChain()->getMainController()->getLastActiveEditor())
+		{
+			if(ft == FocusChangeType::focusChangedByMouseClick)
+				ed->grabKeyboardFocusAsync();
+		}
+	}
+
 	class ClassCollection : public SearchableListComponent::Collection
 	{
 	public:
-		ClassCollection(const ValueTree &api);;
+		ClassCollection(int index, const ValueTree &api);;
 
 		void paint(Graphics &g) override;
 	private:
+
+		String getSearchTermForCollection() const override { return name.toLowerCase(); }
 
 		String name;
 
@@ -296,7 +311,7 @@ public:
 
 	Collection *createCollection(int index) override
 	{
-		return new ClassCollection(apiTree.getChild(index));
+		return new ClassCollection(index, apiTree.getChild(index));
 	}
 
 	ValueTree apiTree;
@@ -381,7 +396,8 @@ public:
 
 	struct NodeCollection : public SearchableListComponent::Collection
 	{
-		NodeCollection(DspNetwork* network_) :
+		NodeCollection(DspNetwork* network_, int idx) :
+		    Collection(idx),
 			network(network_)
 		{};
 
@@ -417,22 +433,26 @@ public:
 	struct UsedNodes : public NodeCollection
 	{
 		UsedNodes(DspNetwork* network) :
-			NodeCollection(network)
+			NodeCollection(network, 0)
 		{
 			setName("Used Nodes");
 			addItems(network->getListOfUsedNodeIds());
 		}
+
+		String getSearchTermForCollection() const override { return "UsedNodes"; }
 	};
 
 	struct UnusedNodes : public NodeCollection
 	{
 		UnusedNodes(DspNetwork* network) :
-			NodeCollection(network)
+			NodeCollection(network, 1)
 		{
 			setName("Unused Nodes");
 			addItems(network->getListOfUnusedNodeIds());
 		};
-        
+
+		String getSearchTermForCollection() const override { return "UsedNodes"; }
+
         void mouseDown(const MouseEvent& e) override
         {
             if(e.mods.isRightButtonDown())

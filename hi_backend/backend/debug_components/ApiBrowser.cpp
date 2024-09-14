@@ -280,7 +280,7 @@ className(className_)
 {
     searchKeywords = searchKeywords.replaceCharacter('.', ';');
     
-	setSize(380 - 16 - 8 - 24, ITEM_HEIGHT);
+	setSize(410 - 16 - 8 - 24, ITEM_HEIGHT);
 
 	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, name);
 
@@ -293,13 +293,13 @@ className(className_)
 		const String description = methodTree_.getProperty(Identifier("description")).toString().trim();
 		const String returnType = methodTree_.getProperty("returnType", "void");
 
-		extendedHelp << "`" << className_ << "." << name << arguments << "`  \n";
+		extendedHelp << "#### `" << className_ << "." << name << arguments << "`  \n";
 
 		if(!returnType.isEmpty())
 			extendedHelp << "**Return Type**: `" << returnType << "`  \n";
 
 		extendedHelp << "> " << description << "  \n";
-		extendedHelp << "**[F1]** - open in docs **[Enter, Double-Click]** - paste in editor";
+		extendedHelp << "**[F1]** - open in docs **[Enter]** - paste in editor";
 	}
 
 	if (extendedHelp.isNotEmpty())
@@ -307,7 +307,7 @@ className(className_)
 		parser = new MarkdownRenderer(extendedHelp);
 
 		auto bd = MarkdownLayout::StyleData::createBrightStyle();
-		bd.fontSize = 14.0f;
+		bd.fontSize = 15.5f;
 		parser->setStyleData(bd);
 	}
 
@@ -319,7 +319,7 @@ className(className_)
 
 void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent& e)
 {
-	insertIntoCodeEditor();
+	
 }
 
 bool ApiCollection::MethodItem::keyPressed(const KeyPress& key)
@@ -327,6 +327,12 @@ bool ApiCollection::MethodItem::keyPressed(const KeyPress& key)
 	if (key.isKeyCode(KeyPress::returnKey))
 	{
 		insertIntoCodeEditor();
+		return true;
+	}
+
+	if (key.isKeyCode(KeyPress::escapeKey))
+	{
+		findParentComponentOfClass<ApiCollection>()->onPopupClose(FocusChangeType::focusChangedByMouseClick);
 		return true;
 	}
 
@@ -387,7 +393,8 @@ Array<ExtendedApiDocumentation::ClassDocumentation> ExtendedApiDocumentation::cl
 
 bool ExtendedApiDocumentation::inititalised = false;
 
-ApiCollection::ClassCollection::ClassCollection(const ValueTree &api) :
+ApiCollection::ClassCollection::ClassCollection(int index, const ValueTree &api) :
+Collection(index),
 classApi(api),
 name(api.getType().toString())
 {

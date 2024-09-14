@@ -376,7 +376,7 @@ struct GlobalCableCollection : public SearchableListComponent::Collection,
 	};
 
 	GlobalCableCollection(var m, MainController* mc) :
-		Collection(),
+		Collection(0),
 		ControlledObject(mc),
 		SimpleTimer(mc->getGlobalUIUpdater()),
 		manager(dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(m.getObject())),
@@ -400,6 +400,8 @@ struct GlobalCableCollection : public SearchableListComponent::Collection,
 			addAndMakeVisible(items.getLast());
 		}
 	};
+
+	String getSearchTermForCollection() const override { return "GlobalCables"; }
 
 	static void rebuildList(GlobalCableCollection& c, scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType t, StringArray idList)
 	{
@@ -494,7 +496,7 @@ SearchableListComponent::Collection * PatchBrowser::createCollection(int index)
 
 	jassert(index < synths.size());
 
-	return new PatchCollection(synths[index], hierarchies[index], showChains);
+	return new PatchCollection(index, synths[index], hierarchies[index], showChains);
 
 }
 
@@ -1189,9 +1191,11 @@ void PatchBrowser::ModuleDragTarget::drawDragStatus(Graphics &g, Rectangle<float
 
 // ====================================================================================================================
 
-PatchBrowser::PatchCollection::PatchCollection(ModulatorSynth *synth, int hierarchy_, bool showChains) :
-ModuleDragTarget(synth),
-hierarchy(hierarchy_)
+PatchBrowser::PatchCollection::PatchCollection(int index, ModulatorSynth *synth, int hierarchy_, bool showChains) :
+  Collection(index),
+  ModuleDragTarget(synth),
+  hierarchy(hierarchy_),
+  id(synth->getId())
 {
 	addAndMakeVisible(peak);
 	addAndMakeVisible(idLabel);
@@ -2547,7 +2551,7 @@ void AutomationDataBrowser::AutomationCollection::paint(Graphics& g)
 AutomationDataBrowser::AutomationCollection::AutomationCollection(MainController* mc, AutomationData::Ptr data_, int index_) :
 	ControlledObject(mc),
 	SimpleTimer(mc->getGlobalUIUpdater()),
-	Collection(),
+	Collection(1),
 	data(data_),
 	NEW_AUTOMATION_WITH_COMMA(listener(mc->getRootDispatcher(), *this, [this](int, double){ this->repaint();}))
 	index(index_)

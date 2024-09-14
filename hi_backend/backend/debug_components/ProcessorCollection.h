@@ -102,7 +102,7 @@ public:
 
 				MessageManager::callAsync([p]()
 				{
-					p->showPopup(nullptr);
+					p->showPopup(nullptr, FocusChangeType::focusChangedByTabKey);
 				});
 			}
 
@@ -131,7 +131,7 @@ public:
         {
 	        if(!usePopupMenu)
 	        {
-		        findParentComponentOfClass<SearchableListComponent>()->showPopup(this);
+		        findParentComponentOfClass<SearchableListComponent>()->showPopup(this, FocusChangeType::focusChangedDirectly);
 				clicksToClose = 0;
 	        }
         }
@@ -140,7 +140,7 @@ public:
         {
 	        if(!usePopupMenu)
 	        {
-		        findParentComponentOfClass<SearchableListComponent>()->showPopup(nullptr);
+		        findParentComponentOfClass<SearchableListComponent>()->showPopup(nullptr, FocusChangeType::focusChangedDirectly);
 	        }
         }
 
@@ -186,12 +186,17 @@ public:
 		};
 	};
 
-	void showPopup(Item* item)
+	virtual void onPopupClose(FocusChangeType ft) {};
+
+	void showPopup(Item* item, FocusChangeType ft)
 	{
 		if(item == nullptr)
 		{
-			Desktop::getInstance().getAnimator().fadeOut(currentPopup, 150);
+			Desktop::getInstance().getAnimator().fadeOut(currentPopup, 120);
 			currentPopup = nullptr;
+
+			onPopupClose(ft);
+
 			return;
 		}
 
@@ -206,13 +211,22 @@ public:
 
 		currentPopup->setSize(item->getPopupWidth(), item->getPopupHeight());
 
+		AffineTransform t;
+
+		if(auto la = dynamic_cast<mcl::FullEditor*>(getRootWindow()->getBackendProcessor()->getLastActiveEditor()))
+		{
+			t = AffineTransform::scale(la->editor.transform.getScaleFactor());
+		}
+
 		
+
+		currentPopup->setTransform(t);
 
 		parent->addAndMakeVisible(currentPopup);
 		auto lb = parent->getLocalArea(item, item->getLocalBounds());
 
 		auto b = currentPopup->getLocalBounds();
-		b.setPosition(lb.getTopRight());
+		b.setPosition(lb.getTopRight().transformedBy(t.inverted()));
 
 		b = b.constrainedWithin(parent->getLocalBounds());
 
@@ -260,6 +274,7 @@ public:
 		void mouseDown(const MouseEvent& e)
 		{
 			editor.setText("", sendNotificationAsync);
+			
 		}
 
 		void paint(Graphics& g) override
@@ -292,7 +307,7 @@ public:
 	{
 	public:
 
-		Collection();
+		Collection(int originalIndex);
 
 		void searchItems(const String &searchTerm, double fuzzyness);
 
@@ -335,12 +350,40 @@ public:
         {
             return items[index];
         }
-        
+		
+		int compareSortState(Collection* other, const String& searchTerm)
+		{
+			if(originalIndex == other->originalIndex)
+					return 0;
+
+			if(searchTerm.isEmpty())
+			{
+				return originalIndex < other->originalIndex ? -1 : 1;
+			}
+			else
+			{
+				auto st = getSearchTermForCollection().startsWith(searchTerm);
+				auto ost = other->getSearchTermForCollection().startsWith(searchTerm);
+
+				if(st == ost)
+					return originalIndex < other->originalIndex ? -1 : 1;
+				else if (st)
+					return -1;
+				else //if (ost)
+					return 1;
+				
+			}
+		}
+
+		virtual String getSearchTermForCollection() const = 0;
+
 	protected:
 
 		OwnedArray<SearchableListComponent::Item> items;
 
 	private:
+
+		const int originalIndex = -1;
 
 		int visibleItems;
 		bool folded;
@@ -357,11 +400,18 @@ public:
 
 		void setShowEmptyCollections(bool shouldBeShown) noexcept { showEmptyCollections = shouldBeShown; };
 
+		void setSortedCollections(const Array<Collection*>& sorted)
+		{
+			sortedCollections = sorted;
+			resized();
+		}
+
 	private:
 
 		friend class SearchableListComponent;
 
 		OwnedArray<Collection> collections;
+		Array<Collection*> sortedCollections;
 
 		bool showEmptyCollections;
 	};
@@ -416,9 +466,45 @@ public:
 
 		callRecursive<Item>(this, [&](Item* i)
 		{
-			list.add(i);
+			if(i->isShowing())
+				list.add(i);
+
 			return false;
 		});
+
+		
+
+		if(fuzzySearchBox->getText().isNotEmpty())
+		{
+			struct YSorter
+			{
+				YSorter(Component& parent):
+				 p(parent)
+				{};
+
+				int compareElements(Item* c1, Item* c2) const
+				{
+					auto y1 = p.getLocalArea(c1, c1->getLocalBounds()).getY();
+					auto y2 = p.getLocalArea(c2, c2->getLocalBounds()).getY();
+
+					if(y1 < y2)
+						return -1;
+					else if(y1 > y2)
+						return 1;
+					else 
+						return 0;
+
+				}
+
+				Component& p;
+			};
+
+			YSorter s(*this);
+
+			list.sort(s);
+		}
+		
+
 
 		auto thisIndex = list.indexOf(thisItem);
 
@@ -427,11 +513,18 @@ public:
 		if(next)
 		{
 			if(isPositiveAndBelow(thisIndex +1, list.size()))
+			{
 				c = list[thisIndex + 1];
+			}
+
+			if(c == nullptr)
+				return;
+
+				
 		}
 		else
 		{
-			if(thisIndex > 1)
+			if(thisIndex >= 1)
 				c = list[thisIndex - 1];
 		}
 
@@ -480,6 +573,12 @@ protected:
 	void addCustomButton(ShapeButton *button)
 	{
 		customButtons.add(button);
+	}
+
+	void setSortedCollections(const Array<Collection*>& sorted)
+	{
+		internalContainer->setSortedCollections(sorted);
+
 	}
 
 private:

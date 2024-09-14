@@ -122,6 +122,8 @@ void SearchableListComponent::refreshDisplayedItems()
 
 	const String searchTerm = fuzzySearchBox->getText().toLowerCase();
 
+	Array<Collection*> sortedCollections;
+
 	for (int i = 0; i < getNumCollections(); i++)
 	{
 		Collection *c = getCollection(i);
@@ -135,6 +137,9 @@ void SearchableListComponent::refreshDisplayedItems()
 			c->setBounds(0, height, internalContainer->getWidth()-8, c->getHeightForCollection());
 
 			height = c->getBottom();
+
+			if(searchTerm.isNotEmpty())
+				sortedCollections.add(c);
 		}
 		else
 		{
@@ -142,7 +147,30 @@ void SearchableListComponent::refreshDisplayedItems()
 		}
 	}
 
+	struct Sorter
+	{
+		Sorter(const String& searchTerm_):
+		  searchTerm(searchTerm_)
+		{};
+
+		int compareElements(Collection* c1, Collection* c2) const
+		{
+			return c1->compareSortState(c2, searchTerm);
+		}
+
+		String searchTerm;
+	};
+
+	Sorter s(searchTerm);
+
+	sortedCollections.sort(s, true);
+
+	internalContainer->setSortedCollections(sortedCollections);
+
+
 	internalContainer->setSize(getWidth(), height);
+
+	viewport->setViewPositionProportionately(0.0, 0.0);
 
 	repaintAllItems();
 }
@@ -198,8 +226,9 @@ void SearchableListComponent::setShowEmptyCollections(bool emptyCollectionsShoul
 	internalContainer->setShowEmptyCollections(emptyCollectionsShouldBeShown);
 }
 
-SearchableListComponent::Collection::Collection():
-folded(false)
+SearchableListComponent::Collection::Collection(int originalIndex_):
+  folded(false),
+  originalIndex(originalIndex_)
 {
 
 }
@@ -281,18 +310,33 @@ void SearchableListComponent::InternalContainer::resized()
 {
 	int h = 0;
 
-	for (int i = 0; i < collections.size(); i++)
+	if(sortedCollections.isEmpty())
 	{
-		Collection *c = collections[i];
-
-		if (!showEmptyCollections && !c->hasVisibleItems())
+		for (int i = 0; i < collections.size(); i++)
 		{
-			continue;
-		}
+			Collection *c =  collections[i];
 
-		c->setBounds(0, h, getWidth()-8, c->getHeightForCollection());
-		h += c->getHeight();
+			if (!showEmptyCollections && !c->hasVisibleItems())
+			{
+				continue;
+			}
+
+			c->setBounds(0, h, getWidth()-8, c->getHeightForCollection());
+			h += c->getHeight();
+		}
 	}
+	else
+	{
+		auto b = getLocalBounds();
+		b.removeFromRight(8);
+
+		for(auto c: sortedCollections)
+		{
+			c->setBounds(b.removeFromTop(c->getHeightForCollection()));
+		}
+	}
+
+	
 }
 
 void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
@@ -307,7 +351,8 @@ void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
 
 				if(clicksToClose > 1)
 				{
-					findParentComponentOfClass<SearchableListComponent>()->showPopup(nullptr);
+					findParentComponentOfClass<SearchableListComponent>()->showPopup(nullptr, FocusChangeType::focusChangedByMouseClick);
+					
 				}
 			}
 		}
