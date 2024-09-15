@@ -36,31 +36,7 @@ namespace dynamics {
 using namespace hise;
 using namespace juce;
 
-void envelope_follower::createParameters(ParameterDataList& data)
-{
-	{
-		DEFINE_PARAMETERDATA(envelope_follower, Attack);
-		p.setRange({ 0.0, 1000.0, 0.1 });
-		p.setSkewForCentre(50.0);
-		p.setDefaultValue(20.0);
-            
-		data.add(std::move(p));
-	}
-        
-	{
-		DEFINE_PARAMETERDATA(envelope_follower, Release);
-		p.setRange({ 0.0, 1000.0, 0.1 });
-		p.setSkewForCentre(50.0);
-		p.setDefaultValue(20.0);
-            
-		data.add(std::move(p));
-	}
-        
-	{
-		DEFINE_PARAMETERDATA(envelope_follower, ProcessSignal);
-		data.add(std::move(p));
-	}
-}
+
 
 void updown_comp::RMSDetector::prepare(PrepareSpecs ps)
 {

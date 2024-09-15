@@ -294,7 +294,8 @@ using comp = dynamics_wrapper<chunkware_simple::SimpleComp>;
 using limiter = dynamics_wrapper<chunkware_simple::SimpleLimit>;
 
     
-class envelope_follower: public data::display_buffer_base<true>
+template <int NV> class envelope_follower: public data::display_buffer_base<true>,
+                         public polyphonic_base
 {
 public:
 
@@ -316,8 +317,8 @@ public:
 	SN_NODE_ID("envelope_follower");
 	SN_GET_SELF_AS_OBJECT(envelope_follower);
 
-    envelope_follower() :
-      envelope(20.0, 50.0)
+    envelope_follower():
+      polyphonic_base(getStaticId(), false)
     {
         
     }
@@ -337,12 +338,14 @@ public:
     {
 		display_buffer_base<true>::prepare(ps);
 
-        envelope.setSampleRate(ps.sampleRate);
+        for(auto& envelope: envelopes)
+            envelope.setSampleRate(ps.sampleRate);
     }
     
 	void reset() noexcept
     {
-        envelope.reset();
+        for(auto& envelope: envelopes)
+            envelope.reset();
     }
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
@@ -362,7 +365,7 @@ public:
 		for (auto& s: data)
 			input = Math.max(Math.abs(s), input);
 
-		auto output = envelope.calculateValue(input);
+		auto output = envelopes.get().calculateValue(input);
 		
 		if (processSignal)
 		{
@@ -376,12 +379,14 @@ public:
 
 	void setAttack(double v)
     {
-        envelope.setAttackDouble(v);
+        for(auto& envelope: envelopes)
+            envelope.setAttackDouble(v);
     }
     
 	void setRelease(double v)
     {
-        envelope.setReleaseDouble(v);
+        for(auto& envelope: envelopes)
+            envelope.setReleaseDouble(v);
     }
 
 	void setProcessSignal(double v)
@@ -389,9 +394,33 @@ public:
 		processSignal = v > 0.5;
 	}
 
-	void createParameters(ParameterDataList& data);
+	void createParameters(ParameterDataList& data)
+    {
+        {
+            DEFINE_PARAMETERDATA(envelope_follower, Attack);
+            p.setRange({ 0.0, 1000.0, 0.1 });
+            p.setSkewForCentre(50.0);
+            p.setDefaultValue(20.0);
+                
+            data.add(std::move(p));
+        }
+            
+        {
+            DEFINE_PARAMETERDATA(envelope_follower, Release);
+            p.setRange({ 0.0, 1000.0, 0.1 });
+            p.setSkewForCentre(50.0);
+            p.setDefaultValue(20.0);
+                
+            data.add(std::move(p));
+        }
+            
+        {
+            DEFINE_PARAMETERDATA(envelope_follower, ProcessSignal);
+            data.add(std::move(p));
+        }
+    }
 
-	EnvelopeFollower::AttackRelease envelope;
+	PolyData<EnvelopeFollower::AttackRelease, NV> envelopes;
 
 	ModValue modValue;
 	int lastNumSamples = 0;
