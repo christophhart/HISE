@@ -312,6 +312,89 @@ var ExportSetupWizard::onPost(const var::NativeFunctionArgs& args)
 	return var();
 }
 
+var AboutWindow::initValues(const var::NativeFunctionArgs& args)
+{
+#define set(X) state->globalState.getDynamicObject()->setProperty(Identifier(#X), X);
+    
+    auto hiseRoot = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Compiler::HisePath).toString();
+    
+    
+    
+    if(hiseRoot.isNotEmpty() && File::isAbsolutePath(hiseRoot))
+    {
+        auto l = File(hiseRoot).getChildFile("currentGitHash.txt").loadFileAsString();
+        
+        if(l.isNotEmpty())
+        {
+            URL u("https://api.github.com/repos/christoph-hart/HISE/commits");
+            
+            auto s = u.readEntireTextStream();
+            
+            var json;
+            
+            auto ok = JSON::parse(s, json);
+            
+            if(auto list = json.getArray())
+            {
+                for(int i = 0; i < list->size(); i++)
+                {
+                    auto thisSha = list->getUnchecked(i)["sha"].toString();
+                    
+                    if(thisSha == l)
+                    {
+                        auto nextIndex = i-1;
+                        
+                        if(nextIndex >= 0 && isPositiveAndBelow(nextIndex, list->size()))
+                        {
+                            auto nextSHA = list->getUnchecked(nextIndex)["sha"].toString();
+                            
+                            auto shortHash = nextSHA.substring(0, 8);
+                            
+                            state->globalState.getDynamicObject()->setProperty("commitHash", shortHash);
+                            
+                            String link;
+                            link << "https://github.com/christophhart/HISE/commit/";
+                            link << nextSHA;
+                            
+                            commitLink = URL(link);
+                        }
+                        
+                        break;
+                    }
+                }
+
+            }
+        }
+    }
+    
+    String Version = hise::PresetHandler::getVersionString();
+    
+    set(JUCE_DEBUG);
+    set(Version);
+    set(USE_IPP);
+    set(HISE_INCLUDE_RLOTTIE);
+    set(HISE_INCLUDE_FAUST);
+    set(HISE_INCLUDE_RT_NEURAL);
+    set(NUM_POLYPHONIC_VOICES);
+    set(NUM_MAX_CHANNELS);
+    set(NUM_HARDCODED_FX_MODS);
+    set(NUM_HARDCODED_POLY_FX_MODS);
+    set(HISE_MAX_DELAY_TIME_SAMPLES);
+    set(HISE_USE_SVF_FOR_CURVE_EQ);
+    set(USE_MOD2_WAVETABLESIZE);
+    
+    return var();
+    
+#undef set
+}
+
+var AboutWindow::showCommit(const var::NativeFunctionArgs& args)
+{
+    commitLink.launchInDefaultBrowser();
+    
+    return var();
+}
+
 WelcomeScreen::WelcomeScreen(BackendRootWindow* bpe_):
 	EncodedDialogBase(bpe_),
 	bpe(bpe_)

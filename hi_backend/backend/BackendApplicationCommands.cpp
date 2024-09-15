@@ -1618,7 +1618,12 @@ void BackendCommandTarget::Actions::closeAllChains(BackendRootWindow *bpe)
 
 void BackendCommandTarget::Actions::showAboutPage(BackendRootWindow * bpe)
 {
-	bpe->getMainTopBar()->togglePopup(MainTopBar::PopupType::About, true);
+    auto ap = new multipage::library::AboutWindow(bpe);
+    
+    
+    ap->setModalBaseWindowComponent(bpe);
+    
+//	bpe->getMainTopBar()->togglePopup(MainTopBar::PopupType::About, true);
 
 	//bpe->mainEditor->aboutPage->showAboutPage();
 }

@@ -113,6 +113,26 @@ struct WelcomeScreen: public multipage::EncodedDialogBase
 	var startupSetter(const var::NativeFunctionArgs& args);
 };
 
+struct AboutWindow: public multipage::EncodedDialogBase
+{
+    AboutWindow(BackendRootWindow* bpe):
+      EncodedDialogBase(bpe)
+    {
+        loadFrom("2155.jNB..LEB........nT6K8C1EZzjP.ncYvJQKv5paaHOAbnDhHgLBkVao0lBmQuQtq3hETvTXZhKeBz4OZNw+4C5+f91QcSQ.lDfEAHR.OnZXqxhZlq2ziYTvZqpVGDd51RQdL1oYdYsagHw.nnjnYz9q1DTcr0asHfBrf.Zl+w+ys9M3m.dX3EAI3m+xbZcPYe8Q3EgK7hfTxwLOBg312eA7vAbB8Kb6k+LqI5m9oEjCKHTiaqbGBbnmp3TbeMUDpHRddKirFmdKby2vx1CusgdKdBY61GGtu+ponNh93Q+oWowglwgj6OxPOdgCLnZ.XoawbaawPQrLCIStLIBKW3W6tVVieMHpIUhnBUjuV1C6p1+RDTt.QDXpDwDJQ7av+EKQbgRDT30tJXpPwBlI3K2BhIUpPohDLSnnYbDmty2jUQEAiDMiC1BsnGNL.VGYQPjuUTAtb9DOb3+Bxglww+bJbnppA3BZFG6ubX2oWjCUCvEBXs5lXrbpmbOW1ZiTCDQ57psSRMaVwW50aUoE5s9gt9SW6aS565Y0ie7rTkslsNL8WsWw9.cHHiI5vgTmMYj.InPgh.zq14RcCXjuhd0l+uWAglA5OjWmE2MUhMlRDIZF1BsTk3x4UZFSablYoWtlcvsVjDb33pEjGhpBF1Hqld9FA5yM4Zhd9+yI7nIWM86sM2R+FAaSmugByE6p1WmO+F7HGXHSFNg9LwEt7MRM990bdd+VuIEOriVxszlfW1ffmF4PUHvwKWqsghxB6ghhAYtaaNG.pxV6UK0e8eqIc5mTmiTxUvR2sYK1XOdF+nCMwsFZYc7mvWuAjByDqEJ8muoYN45sECx+brMfUzLYu95ZgNLIhFP6hNlxa8qmVGeou9rHHpTwBnKpPiHRcp3yHRNPCnNbr5mqAO47KjbCn3hubqq35QeMW8tSpt4kuQwwhJH0.JHwoCGK1vACMdzHrb532a0rzs4VuwtMABPcBERimMjZflJh9uQ9wYpTiLT4esbmakrU6kTLW+2z2Vk0FYoxDQc17wBMHs4SHK7bgC.YwEjpHiPtMN4Pi.oAiL5DhzHt+2AgQmOiFYAHLL4WulA5yc8VZaPOE2XU6zKtHiHN.AxE+6Eb9fEJWr7vCdeM2HbjGdHiD9uVCRvpg9qayniAgMOhYMiu70lbm6sbrzpoNW+fgSo9x4RwZJxZOqwfQhxPCEj5vICPaB8gzVjgpaiNVkxxkcbTYWC8W43TpLE1M+oQ7m+WG..LD.IHApHUh.AWoYuFzROtsdq9V9WNZ8lzhnxlirW3Fb74RqIGZUyp0LE+G7YBMi5ngFFPZhCBvxCUfIwkhSKRjvJImjfTAFhUGedaiK7ApITt7uszy8pU4nuoWKiAGm+Di2bodwYayJ8z2ttBxUbME420X50NqPWoTvxe4T+dAcH0QCLxXCILrfBRTngnHxrW+WNt6Wiwb13uQmWqNX4RELTnjnOvfYBkIUzGTnHYhkI5iIWnj.gjFzRZjyx5JcUmk8Fmf9.pwmlredTS9sJYo6tq2pWLDtV5yYOj7fjK15cRpNbiecydtyk5C40ysXoVIhjLnVvCEnP4s716lKFeomlPi3l9Haxg5Kma5+QiHYGbakR45rT9EDHhnFXlxnTHBjA.C.AAwf..XrbPtrL.BBLNIKKFESALLA.f.EH.fAjnJbhDP.0.i0YXesANXvJBFu10zEvKvpQGnco96lI0PusoQZtIdDg5S.hN..nYPvLiHQK8Hm0yHLhylOpDMQ.sCGZMct8o3garLIzi6FLgCTJdszVcZdNXx.HMZaT5sbUVEbdOXodRLy.Hv5AP9S+nVyQhCVNsanUB7VHfpUsYAzl6C8Z.ASEKMffAi7ilFHkhjZi8V4g6kcGY+7OlQ6Ni5esc7+KpCnph0MRCRjb62hznbXCLHjzMMpB+FxY+9FUT3mu8CKBUfWTKd.A3o4eblfy2KMKeSJDJjoInUP4ZIIyboXMRyJyzgukrI8pLFUcaijkoqSsBEalPcPL2+4ojcP5p5Za1XPBSCs49sQjMdWolaYsuDMZl2vv0YcB0sRxHTiJLHieUaBhm5pF.8m3hG0VS.6ifE2YHYePlKKtLafRUK.kVRB2H18SvcQImC3Zs.wqxHmxlz5D6oIAlLjpKR4eQG8hSG5js501gztM5u0jZqFcsiIPSiNLSaCjx0+crBGkexuc3Bk2Q5nLdFrvxEAK0OQycUI5pM0yPIRKs+9uDoP8iEcvnvWWPT8InBz6zyXmI53KDsqqrAslRgYy6RCDXAlK4q6IOvJdUghxgofDAQzr0idbH3KnKwLWBf3iyVKTges.80CodqXbF06l4gHIBSSHUz1kjAyY7OPjBsRU+INXzJckGJXv1WWyOAZfE.zf1JpHqUpJBpf2s09DurPRJg8+NNcyJHjaLk7PQ8VJCIZc2SZ10D90RwWkI.fV35PxXHSx0A5KIme9ISUt8c4vUDA9Ub8yET+bsWzJm6DFOh09.bKh0.GF.ewxlAXi.JTLNEDv5vzcBY6uXFE69GORF8o0qCgWkYnjZMtjJjd3z3Ss.fhJi.opUYhjVHOtaoTzRidaRzZa1KDlzERBAfuTBqgsIWNIMB.yA9Sf8a+p0AMmIohd2IQjoRhHO8P6lM+f0TtBajbjv5nJuoii7igw4fPIRDCZE0sGYjf7Q0s8zznfYXMhMXg9PNnwRIwE3sCxWlNCiAV+TliIkPqEq6HiU4C884WVh3ESOUh9uQobdnw0u8E392wXqlDZiIIit2KjIIhpQ+r9BbnOpA8GfRCE0fNcwPq3TmPSInu4AjHwQmBD6LyWOEsifADSwjX6h3YMTd7GUkj5unnajPeuXsW5H..foi...rNB...");
+    }
+    
+    void bindCallbacks() override
+    {
+        MULTIPAGE_BIND_CPP(AboutWindow, initValues);
+        MULTIPAGE_BIND_CPP(AboutWindow, showCommit);
+    }
+
+    var initValues(const var::NativeFunctionArgs& args);
+    var showCommit(const var::NativeFunctionArgs& args);
+    
+    URL commitLink;
+};
+
 struct NewProjectCreator: public ImporterBase,
 						  public multipage::EncodedDialogBase
 					      
