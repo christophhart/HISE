@@ -322,48 +322,47 @@ var AboutWindow::initValues(const var::NativeFunctionArgs& args)
     
     if(hiseRoot.isNotEmpty() && File::isAbsolutePath(hiseRoot))
     {
-        auto l = File(hiseRoot).getChildFile("currentGitHash.txt").loadFileAsString().trim();
+        auto codeHash = File(hiseRoot).getChildFile("currentGitHash.txt").loadFileAsString().trim();
         
-        if(l.isNotEmpty())
+        String buildHash(PREVIOUS_HISE_COMMIT);
+        
+        URL u("https://api.github.com/repos/christoph-hart/HISE/commits");
+        
+        auto s = u.readEntireTextStream();
+        
+        var json;
+        
+        auto ok = JSON::parse(s, json);
+        
+        if(auto list = json.getArray())
         {
-            URL u("https://api.github.com/repos/christoph-hart/HISE/commits");
-            
-            auto s = u.readEntireTextStream();
-            
-            var json;
-            
-            auto ok = JSON::parse(s, json);
-            
-            if(auto list = json.getArray())
+            for(int i = 0; i < list->size(); i++)
             {
-                for(int i = 0; i < list->size(); i++)
+                auto thisSha = list->getUnchecked(i)["sha"].toString();
+                
+                if(thisSha == buildHash)
                 {
-                    auto thisSha = list->getUnchecked(i)["sha"].toString();
+                    auto nextIndex = i-1;
                     
-                    if(thisSha == l)
+                    if(nextIndex >= 0 && isPositiveAndBelow(nextIndex, list->size()))
                     {
-                        auto nextIndex = i-1;
+                        auto nextSHA = list->getUnchecked(nextIndex)["sha"].toString();
                         
-                        if(nextIndex >= 0 && isPositiveAndBelow(nextIndex, list->size()))
-                        {
-                            auto nextSHA = list->getUnchecked(nextIndex)["sha"].toString();
-                            
-                            auto shortHash = nextSHA.substring(0, 8);
-                            
-                            state->globalState.getDynamicObject()->setProperty("commitHash", shortHash);
-                            
-                            String link;
-                            link << "https://github.com/christophhart/HISE/commit/";
-                            link << nextSHA;
-                            
-                            commitLink = URL(link);
-                        }
+                        auto shortHash = nextSHA.substring(0, 8);
                         
-                        break;
+                        state->globalState.getDynamicObject()->setProperty("commitHash", shortHash);
+                        
+                        String link;
+                        link << "https://github.com/christophhart/HISE/commit/";
+                        link << nextSHA;
+                        
+                        commitLink = URL(link);
                     }
+                    
+                    break;
                 }
-
             }
+
         }
     }
     

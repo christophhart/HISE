@@ -63,6 +63,7 @@ If true, the backend processor will create a workbench editor instead of the HIS
 #define USE_WORKBENCH_EDITOR 0
 #endif
 
+#include "backend/currentGit.h"
 
 #include "backend/BackendProcessor.h"
 #include "backend/BackendComponents.h"
