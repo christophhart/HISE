@@ -322,7 +322,7 @@ var AboutWindow::initValues(const var::NativeFunctionArgs& args)
     
     if(hiseRoot.isNotEmpty() && File::isAbsolutePath(hiseRoot))
     {
-        auto l = File(hiseRoot).getChildFile("currentGitHash.txt").loadFileAsString();
+        auto l = File(hiseRoot).getChildFile("currentGitHash.txt").loadFileAsString().trim();
         
         if(l.isNotEmpty())
         {
