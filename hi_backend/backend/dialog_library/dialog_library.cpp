@@ -315,6 +315,7 @@ var ExportSetupWizard::onPost(const var::NativeFunctionArgs& args)
 var AboutWindow::initValues(const var::NativeFunctionArgs& args)
 {
 #define set(X) state->globalState.getDynamicObject()->setProperty(Identifier(#X), X);
+#define setXY(X, Y) state->globalState.getDynamicObject()->setProperty(Identifier(#X), Y);
     
     auto hiseRoot = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Compiler::HisePath).toString();
     
@@ -368,11 +369,22 @@ var AboutWindow::initValues(const var::NativeFunctionArgs& args)
     
     String Version = hise::PresetHandler::getVersionString();
     
-    set(JUCE_DEBUG);
+#if JUCE_DEBUG
+    setXY(JUCE_DEBUG, 1);
+#else
+    setXY(JUCE_DEBUG, 0);
+#endif
+    
+#if HISE_INCLUDE_FAUST
+    setXY(HISE_INCLUDE_FAUST, 1);
+#else
+    setXY(HISE_INCLUDE_FAUST, 0);
+#endif
+    
+
     set(Version);
     set(USE_IPP);
     set(HISE_INCLUDE_RLOTTIE);
-    set(HISE_INCLUDE_FAUST);
     set(HISE_INCLUDE_RT_NEURAL);
     set(NUM_POLYPHONIC_VOICES);
     set(NUM_MAX_CHANNELS);
@@ -385,6 +397,7 @@ var AboutWindow::initValues(const var::NativeFunctionArgs& args)
     return var();
     
 #undef set
+#undef setXY
 }
 
 var AboutWindow::showCommit(const var::NativeFunctionArgs& args)
