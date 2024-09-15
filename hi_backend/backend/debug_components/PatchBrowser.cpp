@@ -595,6 +595,7 @@ void PatchBrowser::paint(Graphics &g)
         }
     }
     
+#if HISE_PAINT_GLOBAL_MOD_CONNECTIONS
     struct GlobalModCablePin
     {
         Processor* p = nullptr;
@@ -665,6 +666,7 @@ void PatchBrowser::paint(Graphics &g)
         
         x += 2.0f;
     }
+#endif
 }
 
 void PatchBrowser::paintOverChildren(Graphics& g)
