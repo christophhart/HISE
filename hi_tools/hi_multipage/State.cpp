@@ -474,7 +474,7 @@ Font State::loadFont(String fontName) const
 	}
 
 
-	return Font(fontName, 13.0f, Font::plain);
+    return GLOBAL_FONT().withHeight(13.0f);
 }
 
 void State::onDestroy()
