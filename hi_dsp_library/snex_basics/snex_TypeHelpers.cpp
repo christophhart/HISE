@@ -411,7 +411,7 @@ snex::Types::ID Types::Helpers::getTypeFromStringValue(const juce::String& value
 {
 	if (value.contains("p"))
 		return Types::ID::Pointer;
-	if (value.contains("."))
+	if (value.containsChar('.') || value.containsChar('e'))
 	{
 		if (value.contains("f"))
 			return Types::ID::Float;

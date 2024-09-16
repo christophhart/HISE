@@ -96,11 +96,8 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
 	driveSlider->setMode(HiSlider::Decibel, 0.0, 60.0, 24.0, 0.1);
 	driveSlider->setIsUsingModulatedRing(true);
 
-	modeSelector->setup(getProcessor(), PolyshapeFX::SpecialParameters::Mode, "Mode");
-	modeSelector->clear(dontSendNotification);
+    modeSelector->clear(dontSendNotification);
 	auto sa = sfx->getShapeNames();
-
-
 
 	for (int i = 0; i < sa.size(); i++)
 	{
@@ -110,12 +107,13 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
 		}
 	}
 
+	modeSelector->setup(getProcessor(), PolyshapeFX::SpecialParameters::Mode, "Mode");
+	
+
 	overSampling->setup(getProcessor(), PolyshapeFX::SpecialParameters::Oversampling, "Oversampling");
 
+    bias->setMode(HiSlider::NormalizedPercentage);
 	bias->setup(getProcessor(), PolyshapeFX::SpecialParameters::Bias, "Bias");
-	bias->setMode(HiSlider::NormalizedPercentage);
-
-	
 
     //[/UserPreSize]
 

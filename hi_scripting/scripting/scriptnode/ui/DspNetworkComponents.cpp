@@ -175,9 +175,52 @@ static const unsigned char signalIcon[] = { 110,109,244,229,47,68,184,230,154,68
 	245,65,53,222,11,66,98,102,102,251,65,215,163,7,66,199,75,254,65,2,43,2,66,199,75,254,65,145,237,246,65,98,199,75,254,65,137,65,233,65,102,102,251,65,27,47,222,65,166,155,245,65,82,184,213,65,98,229,208,239,65,150,67,205,65,236,81,231,65,49,8,201,65,
 	184,30,220,65,49,8,201,65,98,133,235,208,65,49,8,201,65,188,116,200,65,248,83,205,65,94,186,194,65,133,235,213,65,98,0,0,189,65,18,131,222,65,209,34,186,65,227,165,233,65,209,34,186,65,236,81,247,65,98,209,34,186,65,250,126,2,66,207,247,188,65,201,246,
 	7,66,203,161,194,65,98,16,12,66,98,199,75,200,65,2,43,16,66,94,186,208,65,76,55,18,66,145,237,219,65,76,55,18,66,99,101,0,0 };
-
-
 }
+
+Array<PathFactory::Description> DspNetworkPathFactory::getDescription() const
+{
+	Array<Description> d;
+
+#define ADD_DESC(x) d.add({x, x});
+
+	ADD_DESC("probe");
+	ADD_DESC("colour");
+	ADD_DESC("cable");
+	ADD_DESC("fold");
+	ADD_DESC("foldunselected");
+	ADD_DESC("deselect");
+	ADD_DESC("undo");
+    ADD_DESC("eject");
+	ADD_DESC("redo");
+	ADD_DESC("rebuild");
+	ADD_DESC("goto");
+	ADD_DESC("properties");
+	ADD_DESC("bypass");
+	ADD_DESC("profile");
+	ADD_DESC("swap-orientation");
+	ADD_DESC("copy");
+	ADD_DESC("delete");
+	ADD_DESC("duplicate");
+	ADD_DESC("add");
+	ADD_DESC("zoom");
+	ADD_DESC("zoom-out");
+	ADD_DESC("zoom-fit");
+	ADD_DESC("zoom-sel");
+    ADD_DESC("signal");
+	ADD_DESC("error");
+	ADD_DESC("export");
+	ADD_DESC("wrap");
+	ADD_DESC("parameters");
+	ADD_DESC("surround");
+    ADD_DESC("save");
+    ADD_DESC("export");
+	ADD_DESC("debug");
+
+#undef ADD_DESC
+
+	return d;
+}
+
 
 juce::Path DspNetworkPathFactory::createPath(const String& url) const
 {
@@ -464,8 +507,24 @@ void drawBlockrateForCable(Graphics& g, Point<float> midPoint, Colour cableColou
 
 void DspNetworkGraph::paintOverChildren(Graphics& g)
 {
-	float HoverAlpha = 0.4f;
+	float HoverAlpha = 0.5f;
 
+    auto printLabel = [&g](const String& sourceName, Rectangle<float> end, Colour colourToUse)
+    {
+        g.setFont(GLOBAL_BOLD_FONT());
+        
+        String text = "from " + sourceName;
+        
+        auto ta = end.translated(0.0f, 20.0f).withSizeKeepingCentre(GLOBAL_BOLD_FONT().getStringWidthFloat(text) + 20.0f, 20.0f);
+        
+        g.setColour(colourToUse);
+        g.fillRoundedRectangle(ta, 10.0f);
+        
+        g.setColour(Colours::black.withAlpha(0.8f));
+        g.drawRoundedRectangle(ta, 10.0f, 2.0f);
+        g.drawText(text, ta, Justification::centred);
+    };
+    
 	if (Component::isMouseButtonDownAnywhere())
 		HoverAlpha += 0.1f;
 
@@ -654,8 +713,22 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 						addModSource(targetSlider);
 						addDragSource(targetSlider);
 					}
+                    
+                    bool shouldPrintLabel = false;
+                    
+                    if(!showCables && targetSlider->isMouseOverOrDragging(true))
+                    {
+                        thisAlpha = HoverAlpha;
+                        shouldPrintLabel = true;
+                    }
 					
 					GlobalHiseLookAndFeel::paintCable(g, start, end, colourToUse, thisAlpha, hc);
+                    
+                    if(shouldPrintLabel)
+                    {
+                        printLabel(sourceSlider->getTooltip(), end, colourToUse);
+                        
+                    }
 				}
 			}
 		}
@@ -691,6 +764,14 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				auto numOutputs = multiSource->getNumOutputs();
 				auto c = MultiOutputDragSource::getFadeColour(index, numOutputs).withAlpha(1.0f);
 
+                bool shouldPrintLabel = false;
+                
+                if(!showCables && s->isMouseOver(true))
+                {
+                    shouldPrintLabel = true;
+                    thisAlpha = HoverAlpha;
+                }
+                
 				Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 				auto midPoint = GlobalHiseLookAndFeel::paintCable(g, start, end, c, thisAlpha, hc, network->getCpuProfileFlag());
 
@@ -698,6 +779,11 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				{
 					drawBlockrateForCable(g, midPoint, c, thisAlpha, multiSource->getNode(), s->node);
 				}
+                
+                if(shouldPrintLabel)
+                {
+                    printLabel(multiSource->getNode()->getId() + "[" + String(index) + "]", end, c);
+                }
 			}
 		}
 	}
@@ -745,10 +831,23 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 						auto end = getCircle(s);
 
+                        bool shouldPrintLabel = false;
+                        
+                        if(!showCables && s->isMouseOver(true))
+                        {
+                            shouldPrintLabel = true;
+                            thisAlpha = HoverAlpha;
+                        }
+                        
 						Colour hc = s->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
 						auto midPoint = GlobalHiseLookAndFeel::paintCable(g, start, end, cableColour, thisAlpha, hc, network->getCpuProfileFlag());
 
+                        if(shouldPrintLabel)
+                        {
+                            printLabel(sourceNode->getId(), end, cableColour);
+                        }
+                        
 						if (!midPoint.isOrigin())
 						{
 							auto thisSource = ConnectionBase::Helpers::findRealSource(sourceNode);
@@ -1542,7 +1641,7 @@ bool DspNetworkGraph::Actions::editNodeProperty(DspNetworkGraph& g)
 	}
 	else
 	{
-		auto nn = new PropertyEditor(g.network->getRootNode(), false, g.network->getValueTree(), {}, false);
+		auto nn = new PropertyEditor(g.network->getRootNode(), false, g.network->getValueTree(), {PropertyIds::ID, PropertyIds::FactoryPath}, false);
 
 		nn->setName("Edit Network Properties");
 
@@ -2206,8 +2305,11 @@ bool DspNetworkGraph::Actions::showParameterPopup(DspNetworkGraph& g)
 	if (b == nullptr)
 		b = &g;
 
-	ft->showComponentInRootPopup(s, b, {12, 24});
-
+	if(ft->setTogglePopupFlag(g, g.showParameters))
+	{
+		ft->showComponentInRootPopup(s, b, {12, 24});
+	}
+	
 	return true;
 }
 
@@ -2521,6 +2623,10 @@ void KeyboardPopup::PopupList::Item::mouseDoubleClick(const MouseEvent& event)
 
 bool KeyboardPopup::PopupList::Item::keyPressed(const KeyPress& k)
 {
+	if(k == KeyPress::F1Key)
+	{
+		return findParentComponentOfClass<KeyboardPopup>()->keyPressed(k, this);
+	}
     if(k == KeyPress::upKey)
     {
         findParentComponentOfClass<PopupList>()->selectNext(false);

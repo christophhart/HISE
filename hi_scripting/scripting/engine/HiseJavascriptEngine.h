@@ -561,7 +561,7 @@ public:
 		// Variables
 
 		struct VarStatement;			struct LiteralValue; 		struct UnqualifiedName;
-		struct ArraySubscript;			struct Assignment;
+		struct ArraySubscript;			struct Assignment;			struct ExpressionList;
 		struct SelfAssignment;			struct PostAssignment;		struct AnonymousFunctionWithCapture;
 
 		// Function / Objects

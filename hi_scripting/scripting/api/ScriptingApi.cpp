@@ -142,6 +142,68 @@ KeyPress ApiHelpers::getKeyPress(const var& keyPressInformation, Result* r)
 	}
 }
 
+melatonin::ShadowParameters ApiHelpers::getShadowParameters(const var& shadowData, Result* r)
+{
+	if(auto obj = shadowData.getDynamicObject())
+	{
+		melatonin::ShadowParameters sp;
+		sp.color = getColourFromVar(shadowData.getProperty("Colour", var(0xFF000000)));
+
+		Array<var> zero;
+		zero.add(0); zero.add(0);
+
+		sp.offset = getPointFromVar(shadowData.getProperty("Offset", var(zero))).toInt();
+		sp.inner = shadowData.getProperty("Inner", false);
+		sp.radius = shadowData.getProperty("Radius", 0);
+		sp.spread = shadowData.getProperty("Spread", 0);
+
+		return sp;
+	}
+	else
+	{
+		if(r != nullptr)
+		{
+			*r = Result::fail("shadowData needs to be a JSON object with the shadow parameters");
+		}
+
+		return {};
+	}
+}
+
+var ApiHelpers::convertStyleSheetProperty(const var& value, const String& type)
+{
+	if(type == "path")
+	{
+		if(auto p = dynamic_cast<ScriptingObjects::PathObject*>(value.getObject()))
+			return var(p->toBase64());
+	}
+	else if(type == "color")
+	{
+		return var(String("#") + ApiHelpers::getColourFromVar(value).toDisplayString(true));
+	}
+
+	return value;
+}
+
+Colour ApiHelpers::getColourFromVar(const var& value)
+{
+	int64 colourValue = 0;
+
+	if (value.isInt64() || value.isInt())
+		colourValue = (int64)value;
+	else if (value.isString())
+	{
+		auto string = value.toString();
+
+		if (string.startsWith("0x"))
+			colourValue = string.getHexValue64();
+		else
+			colourValue = string.getLargeIntValue();
+	}
+
+	return Colour((uint32)colourValue);
+}
+
 Justification ApiHelpers::getJustification(const String& justificationName, Result* r/*=nullptr*/)
 {
 	static Array<Justification::Flags> justifications;
@@ -335,7 +397,7 @@ struct ScriptingApi::Message::Wrapper
 
 ScriptingApi::Message::Message(ProcessorWithScriptingContent *p) :
 ScriptingObject(p),
-ApiClass(2),
+ApiClass(11),
 messageHolder(nullptr),
 constMessageHolder(nullptr),
 allNotesOffCallback(p, nullptr, var(), 0)
@@ -343,6 +405,16 @@ allNotesOffCallback(p, nullptr, var(), 0)
 	addConstant("PITCH_BEND_CC", HiseEvent::PitchWheelCCNumber);
 	addConstant("AFTERTOUC_CC", HiseEvent::AfterTouchCCNumber);
 
+	addConstant("Empty ", (int)HiseEvent::Type::Empty );
+	addConstant("NoteOn", (int)HiseEvent::Type::NoteOn);
+	addConstant("NoteOff", (int)HiseEvent::Type::NoteOff);
+	addConstant("Controller", (int)HiseEvent::Type::Controller);
+	addConstant("PitchBend", (int)HiseEvent::Type::PitchBend);
+	addConstant("Aftertouch", (int)HiseEvent::Type::Aftertouch);
+	addConstant("AllNotesOff", (int)HiseEvent::Type::AllNotesOff);
+	addConstant("VolumeFade", (int)HiseEvent::Type::VolumeFade);
+	addConstant("PitchFade", (int)HiseEvent::Type::PitchFade);
+	
 	memset(artificialNoteOnIds, 0, sizeof(uint16) * 128);
 
 	ADD_TYPED_API_METHOD_1(setNoteNumber, VarTypeChecker::Number);
@@ -1991,10 +2063,16 @@ struct ScriptUndoableAction : public UndoableAction,
 
 			break;
 		}
+		case MainController::KillStateHandler::TargetThread::UnknownThread: break;
 		case MainController::KillStateHandler::TargetThread::MessageThread:
 		{
 			callback.call(args);
 		}
+		case MainController::KillStateHandler::TargetThread::AudioThread: break;
+		case MainController::KillStateHandler::TargetThread::AudioExportThread: break;
+		case MainController::KillStateHandler::TargetThread::numTargetThreads: break;
+		case MainController::KillStateHandler::TargetThread::Free: break;
+		default: ;
 		}
 	}
 
@@ -3706,30 +3784,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(setTimestretchOptions);
 	ADD_API_METHOD_0(getTimestretchOptions);
 
-	sampleIds.add(SampleIds::ID);
-	sampleIds.add(SampleIds::FileName);
-	sampleIds.add(SampleIds::Root);
-	sampleIds.add(SampleIds::HiKey);
-	sampleIds.add(SampleIds::LoKey);
-	sampleIds.add(SampleIds::LoVel);
-	sampleIds.add(SampleIds::HiVel);
-	sampleIds.add(SampleIds::RRGroup);
-	sampleIds.add(SampleIds::Volume);
-	sampleIds.add(SampleIds::Pan);
-	sampleIds.add(SampleIds::Normalized);
-	sampleIds.add(SampleIds::Pitch);
-	sampleIds.add(SampleIds::SampleStart);
-	sampleIds.add(SampleIds::SampleEnd);
-	sampleIds.add(SampleIds::SampleStartMod);
-	sampleIds.add(SampleIds::LoopStart);
-	sampleIds.add(SampleIds::LoopEnd);
-	sampleIds.add(SampleIds::LoopXFade);
-	sampleIds.add(SampleIds::LoopEnabled);
-	sampleIds.add(SampleIds::LowerVelocityXFade);
-	sampleIds.add(SampleIds::UpperVelocityXFade);
-	sampleIds.add(SampleIds::SampleState);
-	sampleIds.add(SampleIds::Reversed);
-    sampleIds.add(SampleIds::NumQuarters);
+	sampleIds = SampleIds::Helpers::getAllIds();
 
 	for (int i = 1; i < sampleIds.size(); i++)
 	{

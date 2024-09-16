@@ -415,6 +415,11 @@ Component* FlexboxComponent::addTextElement(const StringArray& selectors, const 
 void FlexboxComponent::addFlexItem(Component& c)
 {
 	addAndMakeVisible(c);
+
+	if(auto root = CSSRootComponent::find(*this))
+	{
+		childSheets[&c] = root->css.getForComponent(&c);
+	}
 }
 
 void FlexboxComponent::addDynamicFlexItem(Component& c)
@@ -432,8 +437,10 @@ void FlexboxComponent::changeClass(const Selector& s, bool add)
 {
 	// must be a class
 	jassert(s.type == SelectorType::Class);
-		
-	auto list = Helpers::getClassSelectorFromComponentClass(this);
+
+	auto c = invisibleWrapper ? getChildComponent(0) : this;
+
+	auto list = Helpers::getClassSelectorFromComponentClass(c);
 
 	// must not contain the selector...
 	jassert(add == !list.contains(s));
@@ -443,7 +450,9 @@ void FlexboxComponent::changeClass(const Selector& s, bool add)
 	else
 		list.removeAllInstancesOf(s);
 
-	Helpers::writeClassSelectors(*this, list, false);
+	
+
+	Helpers::writeClassSelectors(*c, list, false);
 
 	if(auto r = findParentComponentOfClass<CSSRootComponent>())
 	{
@@ -535,7 +544,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 minHeight = jmin(minHeight, child->getBoundsInParent().getY());
@@ -558,7 +567,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 minHeight = jmin(minHeight, child->getBoundsInParent().getY());
@@ -608,7 +617,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 
@@ -626,7 +635,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 if(auto ssChild = childSheets[child])
@@ -688,6 +697,18 @@ void FlexboxComponent::setIsInvisibleWrapper(bool shouldBeInvisibleWrapper)
 	}
 }
 
+void FlexboxComponent::setHiseShapeButtonColours(HiseShapeButton& b)
+{
+	if(auto css = childSheets[&b])
+	{
+		auto normal = css->getColourOrGradient({}, PropertyKey("background", PseudoClassType::None)).first;
+		auto hover = css->getColourOrGradient({}, PropertyKey("background", PseudoClassType::Hover)).first;
+		auto down = css->getColourOrGradient({}, PropertyKey("background", PseudoClassType::Checked)).first;
+
+		b.setColours(normal, hover, down);
+	}
+}
+
 std::pair<Component*, Component*> FlexboxComponent::getFirstLastComponents()
 {
 	struct Data
@@ -720,7 +741,7 @@ std::pair<Component*, Component*> FlexboxComponent::getFirstLastComponents()
 		d.indexInList = i;
 		d.order = -1;
 
-		if(!d.c->isVisible())
+		if(!isVisibleOrPlaceHolder(d.c))
 			continue;
 			
 		if(auto css = childSheets[d.c])
@@ -785,7 +806,7 @@ FlexboxComponent::PositionData FlexboxComponent::createPositionData()
 			auto isLast = c == flc.second;
 			auto isFirst = c == flc.first;
 
-			if(!c->isVisible())
+			if(!isVisibleOrPlaceHolder(c))
 				continue;
 
 			c->getProperties().set("first-child", isFirst);
@@ -1006,6 +1027,7 @@ HeaderContentFooter::HeaderContentFooter(bool useViewportContent):
 	body.addFlexItem(footer);
 
 	StyleSheet::Collection c;
+	c.setAnimator(&animator);
 	body.setCSS(c);
 }
 
@@ -1143,13 +1165,13 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 
 	if(css != newCss && !useFixStyleSheet)
 	{
+		css = newCss;
+
 		if(auto dp = createDataProvider())
 		{
-			newCss.performAtRules(dp);
+			css.performAtRules(dp);
 			delete dp;
 		}
-
-		css = newCss;
 
 		if(defaultProperties != nullptr)
 		{
@@ -1164,6 +1186,7 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 		styleSheetCollectionChanged();
 	}
 
+	css.setAnimator(&animator);
 	body.setCSS(css);
 }
 

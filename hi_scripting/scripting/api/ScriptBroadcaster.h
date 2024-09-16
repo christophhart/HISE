@@ -109,6 +109,8 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
         
 	void timerCallback() override;
 
+	Identifier getCallId() const override { return metadata.id; }
+
 	// =============================================================================== API Methods
 
 	/** Adds a listener that is notified when a message is send. The object can be either a JSON object, a script object or a simple string. */
@@ -126,6 +128,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Adds a listener that will cause a refresh message (eg. repaint(), changed()) to be send out to the given components. */
 	bool addComponentRefreshListener(var componentIds, String refreshType, var metadata);
 
+	/** Adds a listener that will sync module parameters from the attached module parameter source. */
+	bool addModuleParameterSyncer(String moduleId, var parameterIndex, var metadata);
+	
 	/** Removes the listener that was assigned with the given object. */
 	bool removeListener(var idFromMetadata);
 
@@ -168,6 +173,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Registers this broadcaster to be called when the value of the given components change. */
 	void attachToComponentValue(var componentIds, var optionalMetadata);
 
+	/** Registers the broadcaster to be notified when the interface size changes. */
+	void attachToInterfaceSize(var optionalMetadata);
+
 	/** Registers this broadcaster to be called when the visibility of one of the components (or one of its parent component) changes. */
 	void attachToComponentVisibility(var componentIds, var optionalMetadata);
 
@@ -197,6 +205,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 	/** Attaches this broadcaster to changes of the audio processing specs (samplerate / buffer size). */
 	void attachToProcessingSpecs(var optionalMetadata);
+
+	/** Attaches the broadcaster to events of a samplemap (loading, changing, adding samples). */
+	void attachToSampleMap(var samplerIds, var eventTypes, var optionalMetadata);
 
 	/** Calls a function after a short period of time. This is exclusive, so if you pass in a new function while another is pending, the first will be replaced. */
 	void callWithDelay(int delayInMilliseconds, var argArray, var function);
@@ -443,6 +454,26 @@ private:
 		ScopedPointer<WeakCallbackHolder> optionalCallback;
 	};
 
+	struct ModuleParameterSyncer: public TargetBase
+	{
+		ModuleParameterSyncer(ScriptBroadcaster* sb, const var& obj, const var& metadata, Processor* target_, int parameterIndex_):
+		  TargetBase(obj, {}, metadata),
+		  target(target_),
+		  parameterIndex(parameterIndex_)
+		{}
+
+		Identifier getItemId() const override { return "ModuleParameterSyncer"; }
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override {};
+
+		Array<var> createChildArray() const override { return {}; }
+
+		Result callSync(const Array<var>& args) override;
+
+		WeakReference<Processor> target;
+		int parameterIndex;
+	};
+
 	struct OtherBroadcasterTarget : public TargetBase
 	{
 		OtherBroadcasterTarget(ScriptBroadcaster* parent_, ScriptBroadcaster* target_, const var& transformFunction, bool async, const var& metadata);
@@ -555,6 +586,70 @@ private:
 		OwnedArray<MatrixListener> listeners;
 	};
 
+	struct SamplemapListener: public ListenerBase
+	{
+		enum class EventTypes
+		{
+			SampleMapChanged,
+			SamplesAddedOrRemoved,
+			SampleChanged,
+			numEventTypes
+		};
+
+		struct Event
+		{
+			Event() = default;
+
+			Event(const var& value)
+			{
+				if(value.isString())
+				{
+					if(value.toString() == "SampleMapChanged")
+						type = EventTypes::SampleMapChanged;
+					if(value.toString() == "SamplesAddedOrRemoved")
+						type = EventTypes::SamplesAddedOrRemoved;
+				}
+				else if (value.isInt())
+				{
+					auto ids = SampleIds::Helpers::getAllIds();
+					auto idx = (int)value;
+
+					if(isPositiveAndBelow(idx, ids.size()))
+					{
+						type = EventTypes::SampleChanged;
+						id = ids[idx];
+					}
+				}
+			}
+
+			operator bool() const { return type != EventTypes::numEventTypes; };
+
+			EventTypes type = EventTypes::numEventTypes;
+			Identifier id;
+		};
+
+		static Array<Event> getEventTypes(const var& eventTypes);
+
+		struct SamplemapListenerItem;
+
+		SamplemapListener(ScriptBroadcaster* b, const Array<WeakReference<ModulatorSampler>>& samplers, const Array<Event>& eventTypes, const var& metadata);
+
+		~SamplemapListener() { items.clear(); }
+
+		Array<var> createChildArray() const override;
+
+		Result callItem(TargetBase* n) override;
+
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
+		Identifier getItemId() const override;
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		ReferenceCountedArray<SamplemapListenerItem> items;
+	};
+
 	struct ScriptCallListener : public ListenerBase
 	{
 		struct ScriptCallItem;
@@ -650,6 +745,55 @@ private:
 		Array<Identifier> propertyIds;
 		Identifier illegalId;
 		OwnedArray<InternalListener> items;
+	};
+
+	struct InterfaceSizeListener : public ListenerBase
+	{
+		InterfaceSizeListener(ScriptBroadcaster* b, const var& metadata);
+
+		~InterfaceSizeListener()
+		{
+			if(auto sc = parent->getScriptProcessor()->getScriptingContent())
+			{
+				sc->interfaceSizeBroadcaster.removeListener(*this);
+			}
+		}
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("InterfaceSizeListener"); }
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override {}
+
+		int getNumInitialCalls() const override { return 1; }
+
+		static void onUpdate(InterfaceSizeListener& il, int w, int h)
+		{
+			il.sizeArray.set(0, w);
+			il.sizeArray.set(1, h);
+			il.parent->sendAsyncMessage(il.sizeArray);
+		}
+
+		Array<var> getInitialArgs(int callIndex) const override
+		{
+			Array<var> size;
+
+			auto sp = parent->getScriptProcessor();
+			size.add(sp->getScriptingContent()->getContentWidth());
+			size.add(sp->getScriptingContent()->getContentHeight());
+			
+			return size;
+		}
+
+		Result callItem(TargetBase* n) override
+		{
+			return n->callSync(sizeArray);
+		}
+
+		Array<var> createChildArray() const override { return sizeArray; }
+		
+		Array<var> sizeArray;
+		ScriptBroadcaster* parent;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(InterfaceSizeListener);
 	};
 
 	struct ComponentVisibilityListener : public ListenerBase

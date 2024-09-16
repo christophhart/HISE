@@ -1,0 +1,87 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false,
+    "buttonTabBackgroundColour": 570425344,
+    "buttonBgColour": 4289374890,
+    "buttonTextColour": 4280624421,
+    "modalPopupBackgroundColour": 4281545523,
+    "modalPopupOverlayColour": 3995214370,
+    "modalPopupOutlineColour": 4289374890,
+    "pageProgressColour": 2013265919
+  },
+  "Properties": {
+    "Header": "Global Properties",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0"
+  },
+  "LayoutData": {
+    "TopHeight": 50,
+    "ButtonTab": 40,
+    "ButtonMargin": 5,
+    "OuterPadding": 25,
+    "LabelWidth": 80.0,
+    "LabelHeight": 32,
+    "DialogWidth": 600,
+    "DialogHeight": 400,
+    "LabelPosition": "Default"
+  },
+  "GlobalState": {
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "FileSelector",
+          "Text": "HISE Path",
+          "ID": "hisePath",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "Required": true,
+          "Directory": true,
+          "Help": "The location to the HISE source code",
+          "Wildcard": "",
+          "SaveFile": false
+        },
+        {
+          "Type": "TextInput",
+          "Text": "Team ID",
+          "ID": "teamID",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "EmptyText": "",
+          "Required": false,
+          "ParseArray": false,
+          "Height": 80,
+          "Items": "",
+          "Help": "The macOS Developer ID for signing the compiled executable",
+          "Multiline": false
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    }
+  ],
+  "Assets": []
+}

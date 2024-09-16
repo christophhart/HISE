@@ -76,6 +76,8 @@ struct Action: public Dialog::PageBase
 	    };
     }
 
+    virtual bool skipIfStateIsFalse() const { return true; }
+    
     void setTriggerType()
     {
         if(infoObject.hasProperty("CallOnNext"))
@@ -123,7 +125,7 @@ struct ImmediateAction: public Action
 {
     ImmediateAction(Dialog& r,int w, const var& obj);;
 
-    virtual bool skipIfStateIsFalse() const = 0;
+
 
 	virtual Result onAction() = 0;
 };
@@ -150,11 +152,18 @@ struct JavascriptFunction: public ImmediateAction
 
     JavascriptFunction(Dialog& r, int w, const var& obj):
       ImmediateAction(r, w, obj)
-    {};
+    {
+	    if(!obj.hasProperty(mpid::Code))
+	    {
+		    obj.getDynamicObject()->setProperty(mpid::Code, "// Enter the code here...");
+	    }
+    }
 
     bool skipIfStateIsFalse() const override { return false; }
 
 	CREATE_EDITOR_OVERRIDE;
+
+    
 
 	Result onAction() override;
 
@@ -179,6 +188,39 @@ struct AppDataFileWriter: public ImmediateAction
     File targetFile;
 };
 
+struct ClipboardLoader: public ImmediateAction
+{
+	HISE_MULTIPAGE_ID("ClipboardLoader");
+
+	ClipboardLoader(Dialog& r, int w, const var& obj):
+      ImmediateAction(r, w, obj)
+	{}
+
+	bool skipIfStateIsFalse() const override { return false; }
+    
+    CREATE_EDITOR_OVERRIDE;
+
+    Result onAction() override
+    {
+        auto id = infoObject[mpid::Target].toString();
+
+        if(id.isNotEmpty())
+        {
+	        rootDialog.getState().globalState.getDynamicObject()->setProperty(Identifier(id), SystemClipboard::getTextFromClipboard());
+
+            if(auto pb = rootDialog.findPageBaseForID(id))
+            {
+	            pb->postInit();
+            }
+        }
+
+        return Result::ok();
+    }
+
+	String getDescription() const override { return "loadClipboard(" + infoObject[mpid::Target].toString() + ")"; };
+    
+};
+
 struct RelativeFileLoader: public ImmediateAction
 {
 	HISE_MULTIPAGE_ID("RelativeFileLoader");
@@ -197,6 +239,51 @@ struct RelativeFileLoader: public ImmediateAction
 
 	String getDescription() const override { return "FileLoader"; };
 };
+
+
+struct FileAction: public ImmediateAction
+{
+    enum FileActionType
+    {
+        CheckIfExists,
+	    DeleteFile,
+        CopyFile,
+        MoveFile,
+        LoadAsString,
+        LoadAsObject,
+        WriteString,
+        WriteObject,
+        numFileActionTypes
+    };
+
+    static StringArray getFileActions() {
+	    return {
+	        "CheckIfExists",
+		    "DeleteFile",
+	        "CopyFile",
+	        "MoveFile",
+	        "LoadAsString",
+	        "LoadAsObject",
+	        "WriteString",
+	        "WriteObject"
+	    };
+    }
+
+	HISE_MULTIPAGE_ID("FileAction");
+
+    FileAction(Dialog& r, int w, const var& obj):
+      ImmediateAction(r, w, obj)
+    {};
+    
+    static String getCategoryId() { return "Actions"; }
+
+    CREATE_EDITOR_OVERRIDE;
+    
+	Result onAction() override;
+
+    String getDescription() const override { return "FileAction"; };
+};
+
 
 struct Launch: public ImmediateAction
 {
@@ -225,8 +312,48 @@ struct BackgroundTask: public Action
         WaitJob(State& r, const var& obj);;
         
         Result run() override;
+
+        BackgroundTask* getFirstBackgroundTask()
+        {
+	        if(auto d = getState().getFirstDialog().get())
+                return dynamic_cast<BackgroundTask*>(d->findPageBaseForInfoObject(getInfoObject()));
+
+            return nullptr;
+        }
+
+        State& getState() { return parent; }
+        const State& getState() const { return parent; }
+
+        Result abort(const String& message);
+
+    	/** Returns the source as URL. */
+	    URL getSourceURL() const;
+
+        File getFileInternal(const Identifier& id) const;
+
+	    /** Returns the source as File. */
+	    File getSourceFile() const { return getFileInternal(mpid::Source); }
+
+	    /** Returns the target (directory) as file. */
+	    File getTargetFile() const { return getFileInternal(mpid::Target); }
+
+        String evaluate(const Identifier& id) const
+		{
+			return factory::MarkdownText::getString(getInfoObject()[id].toString(), getState());
+		}
+
+        void writeState(const var& newValue)
+	    {
+            auto id = getInfoObject()[mpid::ID].toString();
+
+            if(id.isNotEmpty())
+                getState().globalState.getDynamicObject()->setProperty(id, newValue);
+	    }
+
+        var temporaryInfoObject;
         
-        WeakReference<BackgroundTask> currentPage;
+        bool aborted = false;
+        std::function<Result(WaitJob&)> task;
     };
     
     Job::Ptr job;
@@ -237,17 +364,22 @@ struct BackgroundTask: public Action
     void resized() override;
     void postInit() override;
 
-    bool hasOnSubmitEvent() const override
+    template <typename T> void setTask()
     {
-	    return triggerType == TriggerType::OnSubmit && !finished;
+	    dynamic_cast<WaitJob*>(job.get())->task = T::performTaskStatic;
     }
 
-    virtual Result performTask(State::Job& t) = 0;
-
+    bool hasOnSubmitEvent() const override
+    {
+	    return triggerType == TriggerType::OnSubmit && !finished && active;
+    }
+    
     Result checkGlobalState(var globalState) override;
 
     void setActive(bool shouldBeActive) override
     {
+        active = shouldBeActive;
+
         if(!shouldBeActive)
             progress->setTextToDisplay("This step is inactive");
 
@@ -257,19 +389,10 @@ struct BackgroundTask: public Action
     
 protected:
 
+    bool active = true;
+
     void addSourceTargetEditor(Dialog::PageInfo& rootList);
-
-    /** Returns the source as URL. */
-    URL getSourceURL() const;
-
-    /** Returns the source as File. */
-    File getSourceFile() const { return getFileInternal(mpid::Source); }
-
-    /** Returns the target (directory) as file. */
-    File getTargetFile() const { return getFileInternal(mpid::Target); }
-
-    Result abort(const String& message);
-
+    
     String label;
     Component* textLabel;
     ScopedPointer<ProgressBar> progress;
@@ -285,7 +408,7 @@ private:
     String errorMessage;
     bool finished = false;
 
-    File getFileInternal(const Identifier& id) const;
+    
 
     JUCE_DECLARE_WEAK_REFERENCEABLE(BackgroundTask);
 };
@@ -296,14 +419,41 @@ struct LambdaTask: public BackgroundTask
 
     LambdaTask(Dialog& r, int w, const var& obj);;
 
-    Result performTask(State::Job& t) override;
+    static Result performTaskStatic(WaitJob& t);
 	String getDescription() const override;
 
     CREATE_EDITOR_OVERRIDE;
-
-    var::NativeFunction lambda;
+    
 };
 
+struct CommandLineTask: public BackgroundTask
+{
+	HISE_MULTIPAGE_ID("CommandLineTask");
+
+	CommandLineTask(Dialog& r, int w, const var& obj);;
+
+    static Result performTaskStatic(WaitJob& t);
+
+	String getDescription() const override { return "CommandLineTask"; }
+
+    CREATE_EDITOR_OVERRIDE;
+    
+};
+
+struct CoallascatedTask: public BackgroundTask
+{
+    HISE_MULTIPAGE_ID("CoallascatedTask");
+
+    CoallascatedTask(Dialog& r, int w, const var& obj);
+
+    static Result performTaskStatic(WaitJob& t);
+
+    String getDescription() const override { return "CoallascatedTask"; }
+
+    CREATE_EDITOR_OVERRIDE;
+
+    OwnedArray<Action> actions;
+};
 
 struct HttpRequest: public BackgroundTask
 {
@@ -311,17 +461,10 @@ struct HttpRequest: public BackgroundTask
 
     HttpRequest(Dialog& r, int w, const var& obj);;
 
-    Result performTask(State::Job& t) override;
+    static Result performTaskStatic(WaitJob& t);
 	String getDescription() const override { return "HttpRequest"; }
 
     CREATE_EDITOR_OVERRIDE;
-
-    URL url;
-    bool isPost;
-    bool parseJSON;
-    String extraHeaders;
-    String parameters;
-    String requestFunction;
 };
 
 struct DownloadTask: public BackgroundTask
@@ -332,18 +475,15 @@ struct DownloadTask: public BackgroundTask
 
     ~DownloadTask() override;
 
-    Result performTask(State::Job& t) override;
+    static Result performTaskStatic(WaitJob& t);
 
     CREATE_EDITOR_OVERRIDE;
 
     String getDescription() const override;
 
-    CriticalSection downloadLock;
+    
 
-    std::unique_ptr<URL::DownloadTask> dt;
-    ScopedPointer<TemporaryFile> tempFile;
-    String extraHeaders;
-    bool usePost = false;
+    
     
 };
 
@@ -355,13 +495,12 @@ struct UnzipTask: public BackgroundTask
 
     ~UnzipTask() {}
 
-    Result performTask(State::Job& t) override;
+    static Result performTaskStatic(WaitJob& t);
 
     CREATE_EDITOR_OVERRIDE;
 
     String getDescription() const override { return "Unzip Action"; }
-
-    bool overwrite = true;
+    
 };
 
 // TODO: Parses a install log from a file and then removes all files
@@ -383,15 +522,17 @@ struct CopyAsset: public BackgroundTask
 
     CopyAsset(Dialog& r, int w, const var& obj):
       BackgroundTask(r, w, obj)
-    {}
+    {
+	    setTask<CopyAsset>();
+    }
 
-    Result performTask(State::Job& t) override;
+    static Result performTaskStatic(WaitJob& t);
 
     CREATE_EDITOR_OVERRIDE;
 
     String getDescription() const override { return "CopyAsset"; }
 
-    bool overwrite = true;
+    
 };
 
 struct CopySiblingFile: public BackgroundTask
@@ -400,9 +541,11 @@ struct CopySiblingFile: public BackgroundTask
 
     CopySiblingFile(Dialog& r, int w, const var& obj):
       BackgroundTask(r, w, obj)
-    {}
+    {
+	    setTask<CopySiblingFile>();
+    }
 
-    Result performTask(State::Job& t) override;
+    static Result performTaskStatic(WaitJob& t);
 
     CREATE_EDITOR_OVERRIDE;
 
@@ -411,8 +554,7 @@ struct CopySiblingFile: public BackgroundTask
     bool overwrite = true;
 };
 
-struct HlacDecoder: public BackgroundTask,
-				    public hlac::HlacArchiver::Listener
+struct HlacDecoder: public BackgroundTask
 {
     HISE_MULTIPAGE_ID("HlacDecoder");
 
@@ -420,32 +562,13 @@ struct HlacDecoder: public BackgroundTask,
 
     ~HlacDecoder() override;
 
-    Result performTask(State::Job& t) override;
-
-    void logStatusMessage(const String& message) override;
-
-    void logVerboseMessage(const String& verboseMessage) override;;
-	void criticalErrorOccured(const String& message) override
-	{
-        rootDialog.logMessage(MessageType::Hlac, "ERROR: " + message);
-		r = Result::fail(message);
-	}
-
+    static Result performTaskStatic(WaitJob& t);
+    
     CREATE_EDITOR_OVERRIDE;
 
     String getDescription() const override;
-
-    State::Job::Ptr currentJob;
-
-    bool supportFullDynamics = false;
-
-    Result r;
-    Identifier sourceId;
-
-    bool useTotalProgress = true;
     
 };
-
 
 struct DummyWait: public BackgroundTask
 {
@@ -457,11 +580,8 @@ struct DummyWait: public BackgroundTask
 
     String getDescription() const override;
 
-    Result performTask(State::Job& t) override;
-
-    int waitTime = 30;
-    int numTodo = 100;
-    int failIndex = 101;
+    static Result performTaskStatic(WaitJob& t);
+    
 };
 
 
@@ -509,7 +629,7 @@ struct PluginDirectories: public Constants
 
     String getDescription() const override { return "Plugin Directories";}
 
-    
+    CREATE_EDITOR_OVERRIDE;
 
 	void loadConstants() override;
 };
@@ -588,6 +708,24 @@ private:
 
     NamedValueSet defaultValues;
     NamedValueSet valuesFromFile;
+};
+
+struct HiseActivator: public BackgroundTask
+{
+	HISE_MULTIPAGE_ID("HiseActivator");
+
+	HiseActivator(Dialog& r, int w, const var& obj);;
+
+    static Result performTaskStatic(WaitJob& t);
+
+	String getDescription() const override { return "hiseActivate()"; }
+
+    
+    CopyProtection cp;
+    AppDataFileWriter fw;
+
+    CREATE_EDITOR_OVERRIDE;
+    
 };
 
 } // factory

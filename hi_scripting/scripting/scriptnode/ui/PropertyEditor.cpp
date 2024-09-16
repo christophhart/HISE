@@ -52,7 +52,7 @@ juce::Path NodePopupEditor::Factory::createPath(const String& s) const
 
 NodePopupEditor::NodePopupEditor(NodeComponent* nc_) :
 	nc(nc_),
-	editor(nc->node.get(), false, nc->node->getValueTree(), { PropertyIds::Bypassed} ),
+	editor(nc->node.get(), false, nc->node->getValueTree(), { PropertyIds::Bypassed, PropertyIds::ID, PropertyIds::FactoryPath } ),
 	networkEditor(nc->node.get(), false, nc->node->getRootNetwork()->getValueTree(), { PropertyIds::ID }, false),
 	exportButton("export", this, factory),
 	wrapButton("wrap", this, factory),

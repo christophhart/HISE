@@ -561,24 +561,65 @@ void ModPlotter::refresh()
 		p.clear();
 		p.startNewSubPath(offset, offset + maxHeight);
 
-
-		for (float i = 0; i <= width; i += rectangleWidth)
+		if(!hasNegativeValues)
 		{
-			auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
+			auto thisRange = buffer.findMinMax(0, 0, buffer.getNumSamples());
+			hasNegativeValues = thisRange.getStart() < 0.0;
+		}
 
-			if (numThisTime <= 0)
-				break;
+		if(hasNegativeValues)
+		{
+			if(hasNegativeValues)
+			{
+				auto thisRange = buffer.findMinMax(0, 0, buffer.getNumSamples());
+				startRange = startRange.getUnionWith(thisRange);
+			}
 
-			float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, numThisTime));
-			FloatSanitizers::sanitizeFloatNumber(maxValue);
-			float height = maxValue * maxHeight;
-			float y = offset + maxHeight - height;
+			for (float i = 0; i <= width; i += rectangleWidth)
+			{
+				auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
 
-			sampleIndex += samplesPerPixel;
+				if (numThisTime <= 0)
+					break;
+				
+				auto range = buffer.findMinMax(0, sampleIndex, numThisTime);
 
-			p.lineTo(i + offset, maxHeight - height + offset);
+				auto maxValue = hmath::abs(range.getStart()) > hmath::abs(range.getEnd()) ? range.getStart() : range.getEnd();
 
-			rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
+				FloatSanitizers::sanitizeFloatNumber(maxValue);
+
+				maxValue = NormalisableRange<float>(startRange).convertTo0to1(maxValue);
+				
+				float height = maxValue * maxHeight;
+				float y = offset + maxHeight - height;
+
+				sampleIndex += samplesPerPixel;
+
+				p.lineTo(i + offset, maxHeight - height + offset);
+
+				rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
+			}
+		}
+		else
+		{
+			for (float i = 0; i <= width; i += rectangleWidth)
+			{
+				auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
+
+				if (numThisTime <= 0)
+					break;
+				
+				float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, numThisTime));
+				FloatSanitizers::sanitizeFloatNumber(maxValue);
+				float height = maxValue * maxHeight;
+				float y = offset + maxHeight - height;
+
+				sampleIndex += samplesPerPixel;
+
+				p.lineTo(i + offset, maxHeight - height + offset);
+
+				rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
+			}
 		}
 
 		p.lineTo(width + offset, offset + maxHeight);

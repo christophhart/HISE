@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_scripting
   vendor:           Hart Instruments
-  version:          2.0.0
+  version:          4.0.0
   name:             HISE Scripting Module
   description:      The scripting engine module for HISE
   website:          http://hise.audio

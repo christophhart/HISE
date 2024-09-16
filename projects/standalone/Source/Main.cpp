@@ -86,9 +86,7 @@ private:
 
 		throwErrorAndQuit("`" + s + "` is not a valid path");
 
-#if JUCE_DEBUG
-		return File();
-#endif
+		RETURN_IF_NO_THROW(File());
 	}
 
 public:
@@ -964,3 +962,5 @@ void MainContentComponent::requestQuit()
 //==============================================================================
 // This macro generates the main() routine that launches the app.
 START_JUCE_APPLICATION (HISEStandaloneApplication)
+
+

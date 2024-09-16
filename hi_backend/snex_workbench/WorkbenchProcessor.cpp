@@ -185,7 +185,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
     auto isUsingVs2017 = HelperClasses::isUsingVisualStudio2017(settings);
     auto vsString = isUsingVs2017 ? "VisualStudio2017" : "VisualStudio2022";
     auto vsVersion = isUsingVs2017 ? "15.0" : "17.0";
-	auto folder = currentExecutable.getFullPathName().contains(" with Faust") ? "Debug with Faust" : "Debug";
+	auto folder = currentExecutable.getFullPathName().contains(" with Faust") ? "Debug with Faust" : "Minimal Build";
 
 	debugExecutable = debugExecutable.getChildFile(vsString).getChildFile("x64").getChildFile(folder).getChildFile("App").getChildFile("HISE Debug.exe");
 
@@ -206,7 +206,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
 
 	jassert(debugExecutable.existsAsFile());
 
-	ldc->addTextElement(debugExecutable.getFullPathName());
+	ldc->addTextElement(debugExecutable.getFullPathName()) ;
 	
 	pg->addChildElement(ldc);
 	auto df = new XmlElement("DebuggerFlavor");
@@ -446,10 +446,20 @@ void DspNetworkCompileExporter::run()
 
 #if HISE_INCLUDE_FAUST_JIT
 	DBG("sourceDir: " + sourceDir.getFullPathName());
-	auto codeDestDir = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src");
+
+
+
+	auto codeDestDir = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src_");
 	auto codeDestDirPath = codeDestDir.getFullPathName().toStdString();
+
+	auto realCodeDestDir = getFolder(BackendDllManager::FolderSubType::ThirdParty).getChildFile("src");
+	
 	if (!codeDestDir.isDirectory())
 		codeDestDir.createDirectory();
+
+	if(!realCodeDestDir.isDirectory())
+		realCodeDestDir.createDirectory();
+
 	DBG("codeDestDirPath: " + codeDestDirPath);
 
 	auto boilerplateDestDirPath = codeDestDir.getParentDirectory().getFullPathName().toStdString();
@@ -486,7 +496,11 @@ void DspNetworkCompileExporter::run()
 			}
 		}
 
+
 		auto code_path = scriptnode::faust::faust_jit_helpers::genStaticInstanceCode(_classId, faustSourcePath, faustLibraryPaths, codeDestDirPath);
+		
+		auto ok = codeDestDir.getChildFile(code_path).copyFileTo(realCodeDestDir.getChildFile(code_path));
+
 		if (code_path.size() > 0)
 			DBG("Wrote code file to " + code_path);
 		else
@@ -617,8 +631,18 @@ void DspNetworkCompileExporter::run()
 	createIncludeFile(getSourceDirectory(true));
 	createIncludeFile(getSourceDirectory(false));
 
+
+	try
+	{
+		createMainCppFile(false);
+	}
+	catch(Result& r)
+	{
+		ok = ErrorCodes::CompileError;
+		errorMessage << r.getErrorMessage();
+		return;		
+	}
 	
-	createMainCppFile(false);
 
 	for (int i = 0; i < includedFiles.size(); i++)
 	{
@@ -861,6 +885,12 @@ void DspNetworkCompileExporter::createProjucerFile()
 	REPLACE_WILDCARD_WITH_STRING("%HISE_PATH%", hisePath.getFullPathName());
 	REPLACE_WILDCARD_WITH_STRING("%JUCE_PATH%", jucePath.getFullPathName());
 
+	String s = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::ExtraDefinitionsNetworkDll).toString();
+
+	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", s);
+	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", s);
+	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", s);
+
 	auto includeFaust = BackendDllManager::shouldIncludeFaust(getMainController());
 	REPLACE_WILDCARD_WITH_STRING("%HISE_INCLUDE_FAUST%", includeFaust ? "enabled" : "disabled");
 
@@ -930,9 +960,11 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
     Include(b, "JuceHeader.h");
     
     b.addEmptyLine();
-    
+
+	b << "#if !JUCE_WINDOWS";
     b << "#pragma clang diagnostic push";
     b << "#pragma clang diagnostic ignored \"-Wreturn-type-c-linkage\"";
+	b << "#endif";
     
 	b.addEmptyLine();
 
@@ -959,9 +991,80 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 				String def;
 
 				String nid;
-				nid << "project::" << includedThirdPartyFiles[i].getFileNameWithoutExtension();
 
-				def << "registerPolyNode<" << nid << "<1>, " << nid << "<NUM_POLYPHONIC_VOICES>>();";
+				auto tid = includedThirdPartyFiles[i].getFileNameWithoutExtension();
+
+				nid << "project::" << tid;
+
+				auto illegalPoly = true;
+
+				if(CustomNodeProperties::nodeHasProperty(tid, PropertyIds::AllowPolyphonic))
+					illegalPoly = false;
+				else
+				{
+					for(auto nf: includedFiles)
+					{
+						auto networkFile = getFolder(BackendDllManager::FolderSubType::Networks).getChildFile(nf.getFileNameWithoutExtension()).withFileExtension("xml");
+
+						if(auto xml = XmlDocument::parse(networkFile))
+						{
+							auto d = xml->createDocument("");
+							auto vt = ValueTree::fromXml(*xml);
+
+							auto path = includedThirdPartyFiles[i].getFileNameWithoutExtension();
+							auto fp = "project." + path;
+
+							auto found = valuetree::Helpers::forEach(vt, [path, fp](const ValueTree& c)
+							{
+								if(c[PropertyIds::FactoryPath].toString() == fp)
+									return true;
+
+								if(c.getType() == scriptnode::PropertyIds::Property)
+								{
+									if(c[PropertyIds::ID].toString() == "ClassId")
+									{
+										return c[scriptnode::PropertyIds::Value].toString() == path;
+									}
+								}
+                                
+                                return false;
+							});
+
+							if(found)
+							{
+								auto networkIsPolyphonic = (bool)vt[scriptnode::PropertyIds::AllowPolyphonic];
+
+								auto thisIllegal = !networkIsPolyphonic;
+
+								auto isCppNode = CustomNodeProperties::nodeHasProperty(tid, PropertyIds::IsPolyphonic);
+
+
+
+								if(networkIsPolyphonic && isCppNode)
+								{
+									// Otherwise this branch wouldn't get executed...
+									jassert(!CustomNodeProperties::nodeHasProperty(tid, PropertyIds::AllowPolyphonic));
+									throw Result::fail("The C++ node `" + nid + "` requires the `AllowPolyphonic` flag in node_properties.json because it is used in the polyphonic network `" + networkFile.getFileName() + "`");
+								}
+
+								// allow it being used in several places and set the flag to false
+								// as soon as one of them is allowing polyphonic compilation
+								illegalPoly &= thisIllegal;
+							}
+						}
+					}
+				}
+
+				if(illegalPoly)
+				{
+					def << "registerPolyNode<" << nid << "<1>, wrap::illegal_poly<" << nid << "<1>>>();";
+				}
+				else
+				{
+					def << "registerPolyNode<" << nid << "<1>, " << nid << "<NUM_POLYPHONIC_VOICES>>();";
+				}
+
+				
 				b << def;
 			}
 
@@ -1137,7 +1240,9 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 	}
 
     b.addEmptyLine();
+	b << "#if !JUCE_WINDOWS";
     b << "#pragma clang diagnostic pop";
+	b << "#endif";
     b.addEmptyLine();
     
 	f.replaceWithText(b.toString());

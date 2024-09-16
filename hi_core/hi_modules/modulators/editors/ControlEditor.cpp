@@ -17,6 +17,8 @@
   ==============================================================================
 */
 
+#include "hi_core/hi_modules/modulators/mods/ControlModulator.h"
+
 //[Headers] You can add your own extra header files here...
 namespace hise { using namespace juce;
 //[/Headers]
@@ -43,13 +45,13 @@ ControlEditorBody::ControlEditorBody (ProcessorEditor *p)
     addAndMakeVisible (midiTable = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<ControlModulator*>(getProcessor())->getTable(0)));
     midiTable->setName ("new component");
 
-    addAndMakeVisible (useTableButton = new ToggleButton ("new toggle button"));
+    addAndMakeVisible (useTableButton = new HiToggleButton ("new toggle button"));
     useTableButton->setTooltip (TRANS("Use a look up table to calculate the modulation value."));
     useTableButton->setButtonText (TRANS("UseTable"));
     useTableButton->addListener (this);
     useTableButton->setColour (ToggleButton::textColourId, Colours::white);
 
-    addAndMakeVisible (invertedButton = new ToggleButton ("new toggle button"));
+    addAndMakeVisible (invertedButton = new HiToggleButton ("new toggle button"));
     invertedButton->setTooltip (TRANS("Invert the range."));
     invertedButton->setButtonText (TRANS("Inverted"));
     invertedButton->addListener (this);
@@ -96,8 +98,9 @@ ControlEditorBody::ControlEditorBody (ProcessorEditor *p)
 	defaultSlider->setMode(HiSlider::Discrete, 0.0, 127.0);
 	defaultSlider->setRange(0.0, 127.0, 1.0);
 
-	getProcessor()->getMainController()->skin(*useTableButton);
-	getProcessor()->getMainController()->skin(*invertedButton);
+    useTableButton->setup(getProcessor(), ControlModulator::Parameters::UseTable, "UseTable");
+    invertedButton->setup(getProcessor(), ControlModulator::Parameters::Inverted, "Inverted");
+
 	getProcessor()->getMainController()->skin(*learnButton);
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
@@ -182,16 +185,14 @@ void ControlEditorBody::buttonClicked (Button* buttonThatWasClicked)
     {
         //[UserButtonCode_useTableButton] -- add your button handler code here..
 		tableUsed = useTableButton->getToggleState();
-
-		getProcessor()->setAttribute(ControlModulator::UseTable, tableUsed ? 1.0f : 0.0f, dontSendNotification);
-
+        
 		refreshBodySize();
         //[/UserButtonCode_useTableButton]
     }
     else if (buttonThatWasClicked == invertedButton)
     {
         //[UserButtonCode_invertedButton] -- add your button handler code here..
-		getProcessor()->setAttribute(ControlModulator::Inverted, (float)buttonThatWasClicked->getToggleState(), dontSendNotification);
+		
         //[/UserButtonCode_invertedButton]
     }
     else if (buttonThatWasClicked == learnButton)

@@ -34,9 +34,10 @@ namespace spectral {
 		std::vector<Sample> timeBuffer;
 		std::vector<Complex> freqBuffer;
 	public:
+
 		/// Returns a fast FFT size <= `size`
 		static int fastSizeAbove(int size, int divisor=1) {
-			return static_cast<int>(MRFFT::fastSizeAbove(static_cast<size_t>(size / divisor)))*static_cast<size_t>(divisor);
+			return static_cast<int>(MRFFT::fastSizeAbove(static_cast<size_t>(size / divisor)) * static_cast<size_t>(divisor)); 
 		}
 		/// Returns a fast FFT size >= `size`
 		static int fastSizeBelow(int size, int divisor=1) {

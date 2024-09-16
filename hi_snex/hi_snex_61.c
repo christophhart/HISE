@@ -2,10 +2,13 @@
 
 #if (defined (_WIN32) || defined (_WIN64))
 #pragma warning( push )
+#pragma warning( disable : 4005)
 #pragma warning( disable : 4018)
 #pragma warning( disable : 4090)
+#pragma warning( disable : 4101)
 #pragma warning( disable : 4130)
 #pragma warning( disable : 4152)
+#pragma warning( disable : 4189)
 #pragma warning( disable : 4204)
 #pragma warning( disable : 4214)
 #pragma warning( disable : 4267)
@@ -19,10 +22,16 @@
 #else
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wconversion"
+#pragma clang diagnostic ignored "-Wunguarded-availability-new"
+#pragma clang diagnostic ignored "-Wmacro-redefined"
+#pragma clang diagnostic ignored "-Wunused-variable"
+#pragma clang diagnostic ignored "-Wunused-function"
+
 #endif
 
 #if HISE_INCLUDE_SNEX
 #define MIR_NO_INTERP 1
+#define MIR_NO_IO 1
 #include "snex_mir/src/mir.c"
 #endif
 

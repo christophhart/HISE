@@ -374,6 +374,9 @@ ScriptnodeCallbacks::ID ScriptnodeCallbacks::getCallbackId(const NamespacedIdent
 	if (p.getIdentifier() == Identifier("handleModulation"))
 		return ScriptnodeCallbacks::ID::HandleModulation;
 
+	if(p.getIdentifier() == Identifier("getPlotValue"))
+		return ScriptnodeCallbacks::ID::GetPlotValue;
+
 	auto l = getIds(p.getParent());
 
 	for (int i = 0; i < l.size(); i++)
@@ -382,7 +385,7 @@ ScriptnodeCallbacks::ID ScriptnodeCallbacks::getCallbackId(const NamespacedIdent
 			return (ScriptnodeCallbacks::ID)i;
 	}
 
-	return ScriptnodeCallbacks::ID::numFunctions;
+	return ScriptnodeCallbacks::ID::OptionalOffset;
 }
 
 juce::Array<snex::NamespacedIdentifier> ScriptnodeCallbacks::getIds(const NamespacedIdentifier& p)
@@ -402,7 +405,7 @@ juce::Array<snex::jit::FunctionData> ScriptnodeCallbacks::getAllPrototypes(Compi
 {
 	Array<FunctionData> f;
 
-	for (int i = 0; i < numFunctions; i++)
+	for (int i = 0; i < OptionalOffset; i++)
 	{
 		f.add(getPrototype(c, (ID)i, numChannels));
 	}
@@ -487,6 +490,14 @@ snex::jit::FunctionData ScriptnodeCallbacks::getPrototype(Compiler* c, ID id, in
 		f.id = NamespacedIdentifier("handleModulation");
 		f.returnType = TypeInfo(Types::ID::Integer);
 		f.addArgs("value", TypeInfo(Types::ID::Double, false, true));
+		break;
+	}
+	case GetPlotValue:
+	{
+		f.id = NamespacedIdentifier("getPlotValue");
+		f.returnType = TypeInfo(Types::ID::Double);
+		f.addArgs("getMagnitude", TypeInfo(Types::ID::Integer));
+		f.addArgs("freqNormalised", TypeInfo(Types::ID::Double));
 		break;
 	}
 	case SetExternalDataFunction:

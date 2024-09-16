@@ -16,6 +16,8 @@ struct timestretch_engine_base
     virtual void reset() = 0;
     virtual void configure(int numChannels, double sourceSampleRate) = 0;
 
+    virtual void setFFTSize(int blockSamples, int intervalSamples) = 0;
+
     virtual void setTransposeSemitones(double semiTones, double tonality = 0.0) = 0;
     virtual void setTransposeFactor(double pitchFactor, double tonality = 0.0) = 0;
     virtual void setEnableOutput(bool shouldBeEnabled) = 0;
@@ -39,7 +41,9 @@ struct time_stretcher
     void configure(int numChannels, double sourceSampleRate);
     void setTransposeSemitones(double semiTones, double tonality=0.0);
     void setTransposeFactor(double pitchFactor, double tonality = 0.0);
-    
+
+    void setFFTSize(int blockSamples, int intervalSamples);
+
     void setResampleBuffer(double ratio, float* resampleBuffer_, int totalNumFloats);
 
     double skipLatency(float** input, double ratio);

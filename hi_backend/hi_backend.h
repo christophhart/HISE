@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_backend
   vendor:           Hart Instruments
-  version:          2.0.0
+  version:          4.0.0
   name:             HISE Backend Module
   description:      The backend application classes for HISE
   website:          http://hise.audio
@@ -63,6 +63,15 @@ If true, the backend processor will create a workbench editor instead of the HIS
 #define USE_WORKBENCH_EDITOR 0
 #endif
 
+/** Config: HISE_PAINT_GLOBAL_MOD_CONNECTIONS
+
+If true, then the patch browser will display global modulator connections.
+ */
+#ifndef HISE_PAINT_GLOBAL_MOD_CONNECTIONS
+#define HISE_PAINT_GLOBAL_MOD_CONNECTIONS 0
+#endif
+
+#include "backend/currentGit.h"
 
 #include "backend/BackendProcessor.h"
 #include "backend/BackendComponents.h"

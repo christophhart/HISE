@@ -1,0 +1,55 @@
+/* A toggle button with some transition. */
+
+button
+{
+	background: #555;
+	border-radius: 50vh;
+	margin: 20px;
+	color: #999;
+	vertical-align: top;
+	font-family: Roboto;
+	font-size: 14px;
+	box-shadow: inset 0px 3px 6px rgba(0, 0, 0, 0.6);
+	border: 2px solid #888;
+	padding-top: -18px;
+	text-align: center;
+}
+
+button:hover
+{
+	background: #383;
+	transition: background 0.1s;
+	color: white;
+	text-shadow: 0px 0px 7px rgba(255, 255, 255, 0.4);
+}
+
+button::before
+{
+	position: absolute;
+	width: 100vh;
+	background: #777;
+	margin: 3px;
+	border: 1px solid #888;
+	border-radius: 50vh;
+	transform:translate(0px, 0px);
+	box-shadow: 0px 4px 5px 1px rgba(0, 0, 0, 0.4);
+	transition: all 0.15s ease-in-out;
+	box-shadow: inset 0px 0px 4px rgba(255, 255, 255, 0.3);
+}
+
+button:hover::before
+{
+	background: #999;
+	transform:translate(30px, 0px);
+	border: 1px solid #999;
+}
+
+button::after
+{
+	width: 100px;
+	position: absolute;
+	margin: -3px;
+	border-radius: 50%;
+	border: 1px solid #887;
+	background: rgba(0, 0, 0, 0);
+}

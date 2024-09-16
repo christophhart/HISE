@@ -125,6 +125,8 @@ public:
             JUCEApplication::getInstance()->systemRequestedQuit();
         }
 
+		void addCodeEditor(const var& infoObject, const Identifier& codeId) override {}
+
         multipage::State* getMainState() override { return state; }
 
 		bool setSideTab(multipage::State* dialogState, multipage::Dialog* newDialog) override
@@ -154,7 +156,7 @@ START_JUCE_APPLICATION (MainWrapper)
 
 <JUCERPROJECT id="L2bkCQ" name="%PROJECT%" projectType="guiapp" cppLanguageStandard="17"
               displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
-              version="%VERSION%" bundleIdentifier="com.%COMPANY%.%PROJECT%" includeBinaryInAppConfig="1"
+              version="%VERSION%" bundleIdentifier="com.%COMPANY_TRIMMED%.%PROJECT_TRIMMED%" includeBinaryInAppConfig="1"
               companyCopyright="" headerPath="%HISE_PATH%"
               jucerFormatVersion="1">
   <MAINGROUP id="V5l5vh" name="%PROJECT%">
@@ -210,9 +212,9 @@ START_JUCE_APPLICATION (MainWrapper)
             extraDefs="HI_RUN_UNIT_TESTS=1&#10;USE_BACKEND=1" extraLinkerFlags="/MANIFESTUAC:level='requireAdministrator'" smallIcon="%ICON_REF%" bigIcon="%ICON_REF%">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" defines="PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1" 
-                       targetName="%BINARY_NAME%" binaryPath="../"/>
-        <CONFIGURATION isDebug="0" name="Release" optimisation="2" linkTimeOptimisation="0" 
-                       targetName="%BINARY_NAME%" binaryPath="../"/>
+                       targetName="%BINARY_NAME%" binaryPath="../" useRuntimeLibDLL="0"/>
+        <CONFIGURATION isDebug="0" name="Release" optimisation="2" linkTimeOptimisation="0"
+                       targetName="%BINARY_NAME%" binaryPath="../" useRuntimeLibDLL="0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_opengl" path="%HISE_PATH%\JUCE\modules"/>
@@ -297,6 +299,8 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 {
 	x << getNewLine();
 
+    auto companyTrimmed = company.removeCharacters("_ ./-:");
+    
 	if(t == FileType::BatchFile || t == FileType::ProjucerFile)
 	{
 		String temp(t == FileType::BatchFile ? Templates::BatchFile : Templates::Projucer_Xml);
@@ -304,6 +308,11 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 		temp = temp.replace("%PROJECT%", className);
 		temp = temp.replace("%ROOT_DIR%", rootDirectory.getChildFile("Binaries").getFullPathName());
 		temp = temp.replace("%COMPANY%", company);
+        
+        temp = temp.replace("%PROJECT_TRIMMED%", classNameTrimmed);
+        temp = temp.replace("%COMPANY_TRIMMED%", companyTrimmed);
+
+        
 		temp = temp.replace("%VERSION%", version);
 		temp = temp.replace("%HISE_PATH%", hisePath);
 		temp = temp.replace("%BINARY_NAME%", data[mpid::Properties][mpid::BinaryName].toString());
@@ -364,12 +373,12 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 
 		if(auto al = data[mpid::Assets].getArray())
 		{
-			x << getNewLine() << "namespace " << className << "_Assets {";
+			x << getNewLine() << "namespace " << classNameTrimmed << "_Assets {";
 
 			x << getNewLine() << "using namespace hise::multipage;";
 
 			x << getNewLine() << "Asset::List createAssets();";
-			x << getNewLine() << "} // namespace " << className << "_Assets";
+			x << getNewLine() << "} // namespace " << classNameTrimmed << "_Assets";
 			x << getNewLine();
 		}
 	}
@@ -378,7 +387,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 		if(auto al = data[mpid::Assets].getArray())
 		{
 			x << getNewLine() << "#include \"Assets.h\"";
-			x << getNewLine() << "namespace " << className << "_Assets {";
+			x << getNewLine() << "namespace " << classNameTrimmed << "_Assets {";
 			x << getNewLine() << "using namespace hise::multipage;";
 
 			{
@@ -409,7 +418,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 			}
 			x << getNewLine() << "}";
 
-			x << getNewLine() << "} // namespace " << className << "_Assets";
+			x << getNewLine() << "} // namespace " << classNameTrimmed << "_Assets";
 			x << getNewLine();
 		}
 	}
@@ -429,7 +438,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
         
 		x << getNewLine() << "using namespace juce;";
 
-		x << getNewLine() << "struct " << className << ": public HardcodedDialogWithState";
+		x << getNewLine() << "struct " << classNameTrimmed << ": public HardcodedDialogWithState";
         
         if(rawMode)
             x << "," << getNewLine() << "                                     public hise::QuasiModalComponent";
@@ -458,14 +467,14 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
             
 
             
-            x << getNewLine() << className << "()";
+            x << getNewLine() << classNameTrimmed << "()";
             x << getNewLine() << "{";
             
             {
                 ScopedTabSetter st(*this);
                 
                 if(rawMode)
-                    x << getNewLine() << "closeFunction = BIND_MEMBER_FUNCTION_0(" << className << "::destroy);";
+                    x << getNewLine() << "closeFunction = BIND_MEMBER_FUNCTION_0(" << classNameTrimmed << "::destroy);";
                       
 
                 
@@ -495,7 +504,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
         if(!rawMode)
         {
             x << getNewLine();
-            x << getNewLine() << "using DialogClass = hise::multipage::" << className << ";";
+            x << getNewLine() << "using DialogClass = hise::multipage::" << classNameTrimmed << ";";
         }
 	}
 	else if (t == FileType::DialogImplementation)
@@ -518,7 +527,7 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
         {
             for(const auto& lt: lambdaIds)
             {
-                x << getNewLine() << "var " << className << "::" << lt << "(State::Job& t, const var& state)";
+                x << getNewLine() << "var " << classNameTrimmed << "::" << lt << "(State::Job& t, const var& state)";
                 x << getNewLine() << "{";
                 
                 {
@@ -546,14 +555,14 @@ void CodeGenerator::write(OutputStream& x, FileType t, State::Job* job) const
 
         }
         
-		x << getNewLine() << "Dialog* " << className << "::createDialog(State& state)";
+		x << getNewLine() << "Dialog* " << classNameTrimmed << "::createDialog(State& state)";
 		x << getNewLine() << "{";
 
 		{
 			ScopedTabSetter t0(*this);
 
             if(!rawMode)
-                x << getNewLine() << "state.assets = " << className << "_Assets::createAssets();";
+                x << getNewLine() << "state.assets = " << classNameTrimmed << "_Assets::createAssets();";
 
 			x << getNewLine() << "DynamicObject::Ptr fullData = new DynamicObject();";
 
@@ -659,57 +668,16 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
     x << parentId << ".add" << itemType << "<" << typeId << ">({";
     
 	String cp;
-
-    NamedValueSet defaultValues;
-    defaultValues.set(mpid::Trigger, false);
-    defaultValues.set(mpid::Help, "");
-    defaultValues.set(mpid::Class, "");
-    defaultValues.set(mpid::Style, "");
-    defaultValues.set(mpid::Text, "LabelText");
-    defaultValues.set(mpid::UseInitValue, false);
-    defaultValues.set(mpid::InitValue, "");
-    defaultValues.set(mpid::Required, false);
-    defaultValues.set(mpid::UseOnValue, false);
-    defaultValues.set(mpid::Enabled, true);
-    defaultValues.set(mpid::Foldable, false);
-    defaultValues.set(mpid::Folded, false);
-    defaultValues.set(mpid::UseChildState, false);
-    defaultValues.set(mpid::EmptyText, "");
-    defaultValues.set(mpid::ParseArray, false);
-    defaultValues.set(mpid::Multiline, false);
-    defaultValues.set(mpid::EventTrigger, "OnPageLoad");
-    
-    static const Array<Identifier> deprecatedIds = { Identifier("Padding"),
-        Identifier("LabelPosition"),
-        Identifier("UseFilter"),
-        Identifier("Visible"),
-        Identifier("Comment"),
-        Identifier("ManualAction"),
-        Identifier("CallOnNext")};
-    
+	
 	for(auto& nv: prop)
 	{
 		if(nv.name == mpid::Type || nv.name == mpid::ContentType || nv.name == mpid::Children)
 			continue;
 
-        if(deprecatedIds.contains(nv.name))
-            continue;
-        
-		if(nv.value.toString().isEmpty())
+        if(nv.value.toString().isEmpty())
 			continue;
-
-        if(nv.name == mpid::Code)
-        {
-            if(prop.contains(mpid::UseOnValue) && !prop[mpid::UseOnValue])
-                continue;
-
-            
-        }
-        
-        if(defaultValues.contains(nv.name) && nv.value == defaultValues[nv.name])
-            continue;
-        
-		cp << getNewLine() << "  { mpid::" << nv.name << ", ";
+		
+        cp << getNewLine() << "  { mpid::" << nv.name << ", ";
 
 		if(nv.value.isString())
 		{
@@ -754,7 +722,7 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
 		
 		if(bindFunctionName.isNotEmpty())
 		{
-			x << "BIND_MEMBER_FUNCTION_2(" << className << "::" << bindFunctionName << ")";
+			x << "BIND_MEMBER_FUNCTION_2(" << classNameTrimmed << "::" << bindFunctionName << ")";
 		}
 		else
 		{
@@ -786,6 +754,176 @@ String CodeGenerator::createAddChild(const String& parentId, const var& childDat
 	return x;
 }
 
+void AllEditor::addRecursive(mcl::TokenCollection::List& tokens, const String& parentId, const var& obj)
+{
+	auto thisId = parentId;
 
+	if(obj.isMethod())
+		thisId << "(args)";
+
+	auto isState = thisId.startsWith("state");
+	auto isElement = thisId.startsWith("element");
+
+	auto prio = 100;
+
+	if(isState)
+		prio += 10;
+
+	if(isElement)
+		prio += 20;
+
+	auto stateToken = new mcl::TokenCollection::Token(thisId);
+	stateToken->c = isState ? Colour(0xFFBE6093) : isElement ? Colour(0xFF22BE84) : Colour(0xFF88BE14);
+
+	if(isState)
+		stateToken->markdownDescription << "Global state variable  \n> ";
+
+	stateToken->markdownDescription << "Value: `" << obj.toString() << "`";
+
+	auto apiObject = dynamic_cast<ApiObject*>(obj.getDynamicObject());
+
+	stateToken->priority = prio;
+	tokens.add(stateToken);
+
+	if(auto no = obj.getDynamicObject())
+	{
+		for(auto& nv: no->getProperties())
+		{
+			String p = parentId;
+			p << "." << nv.name;
+			addRecursive(tokens, p, nv.value);
+
+			if(apiObject != nullptr)
+				tokens.getLast()->markdownDescription = apiObject->getHelp(nv.name);
+		}
+	}
+	if(auto ar = obj.getArray())
+	{
+		int idx = 0;
+
+		for(auto& nv: *ar)
+		{
+			String p = parentId;
+			p << "[" << String(idx++) << "]";
+			addRecursive(tokens, p, nv);
+		}
+	}
+}
+
+void AllEditor::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
+{
+	if(p == nullptr)
+		return;
+
+	if(auto ms = p->findParentComponentOfClass<ComponentWithSideTab>())
+	{
+		auto* state = ms->getMainState();
+
+		if(engine == nullptr)
+			engine = state->createJavascriptEngine();
+
+		for(auto& nv: engine->getRootObjectProperties())
+		{
+			addRecursive(tokens, nv.name.toString(), nv.value);
+		}
+	}
+}
+
+
+AllEditor::AllEditor(const String& syntax_, const var& infoObject_):
+	codeDoc(doc),
+	syntax(syntax_),
+    infoObject(infoObject_),
+	editor(new mcl::TextEditor(codeDoc))
+{
+	if(syntax == "CSS")
+	{
+		editor->tokenCollection = new mcl::TokenCollection("CSS");
+		editor->tokenCollection->setUseBackgroundThread(false);
+		editor->setLanguageManager(new simple_css::LanguageManager(codeDoc));
+	}
+	else if(syntax == "HTML")
+	{
+		editor->setLanguageManager(new mcl::XmlLanguageManager());
+	}
+	else
+	{
+		editor->tokenCollection = new mcl::TokenCollection("Javascript");
+		editor->tokenCollection->setUseBackgroundThread(false);
+		editor->tokenCollection->addTokenProvider(new TokenProvider(this));
+	}
+            
+	addAndMakeVisible(editor);
+}
+
+AllEditor::~AllEditor()
+{
+	editor->tokenCollection = nullptr;
+	editor = nullptr;
+}
+
+Result AllEditor::compile(bool useCompileCallback)
+{
+	if(compileCallback && useCompileCallback)
+		return compileCallback();
+
+	auto code = doc.getAllContent();
+	auto* state = findParentComponentOfClass<ComponentWithSideTab>()->getMainState();
+
+	if(code.startsWith("${"))
+		code = state->loadText(code, true);
+
+	if(syntax == "CSS")
+	{
+		simple_css::Parser p(code);
+		auto ok = p.parse();
+		editor->clearWarningsAndErrors();
+		editor->setError(ok.getErrorMessage());
+
+		for(const auto& w: p.getWarnings())
+			editor->addWarning(w);
+
+		if(ok.wasOk())
+		{
+			if(auto d = state->getFirstDialog())
+			{
+				d->positionInfo.additionalStyle = code;
+				d->loadStyleFromPositionInfo();
+			}
+		}
+		else
+			state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
+	            
+		return ok;
+	}
+	else if (syntax == "HTML")
+	{
+		if(auto d = state->getFirstDialog())
+		{
+			d->refreshCurrentPage();
+		}
+
+		return Result::ok();
+	}
+	else
+	{
+        ApiObject::ScopedThisSetter sts(*state, new Element(*state, infoObject));
+        
+		auto e = state->createJavascriptEngine();
+		auto ok = e->execute(code);
+
+		editor->setError(ok.getErrorMessage());
+
+		if(!ok.wasOk())
+			state->eventLogger.sendMessage(sendNotificationSync, MessageType::Javascript, ok.getErrorMessage());
+
+		if(auto d = state->getFirstDialog())
+		{
+			d->refreshCurrentPage();
+		}
+
+		return ok;
+	}
+}
 } // multipage
 } // hise

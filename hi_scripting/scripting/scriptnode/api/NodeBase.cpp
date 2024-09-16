@@ -64,7 +64,10 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	if (!v_data.hasProperty(PropertyIds::Bypassed))
 		v_data.setProperty(PropertyIds::Bypassed, false, getUndoManager());
 
-	bypassListener.setCallback(data_, 
+    if(!v_data.hasProperty(PropertyIds::Name))
+        v_data.setProperty(PropertyIds::Name, v_data[PropertyIds::ID], getUndoManager());
+    
+	bypassListener.setCallback(data_,
 							   PropertyIds::Bypassed, 
 							   valuetree::AsyncMode::Synchronously, 
 							   BIND_MEMBER_FUNCTION_2(NodeBase::updateBypassState));

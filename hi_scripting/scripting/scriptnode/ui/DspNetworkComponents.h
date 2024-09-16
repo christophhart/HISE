@@ -564,12 +564,7 @@ public:
 
 
 
-struct DspNetworkPathFactory : public PathFactory
-{
-	String getId() const override { return {}; }
 
-	Path createPath(const String& url) const override;
-};
 
 
 
@@ -1016,6 +1011,8 @@ public:
 	ValueTree dataReference;
 
 	bool copyDraggedNode = false;
+
+	bool showParameters = false;
 
 	valuetree::RecursivePropertyListener cableRepainter;
 	valuetree::ChildListener rebuildListener;

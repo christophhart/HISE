@@ -73,6 +73,7 @@ struct BackendDllManager : public ReferenceCountedObject,
 		Tests,
 		CustomNodes,
 		CodeLibrary,
+		FaustCode,
 		AdditionalCode,
 		Binaries,
 		DllLocation,
@@ -140,6 +141,7 @@ struct BackendDllManager : public ReferenceCountedObject,
 
         Array<var> propList;
         propList.add(PropertyIds::IsPolyphonic.toString());
+		propList.add(PropertyIds::AllowPolyphonic.toString());
 
         obj->setProperty(Identifier(classId), var(propList));
 

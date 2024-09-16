@@ -121,6 +121,17 @@ void BackendProcessorEditor::removeContainer()
 	container = nullptr;
 }
 
+void BackendProcessorEditor::newHisePresetLoaded()
+{
+	auto rw = GET_BACKEND_ROOT_WINDOW(this);
+
+	if(auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getBackendProcessor()))
+	{
+		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rw, jsp);
+		BackendPanelHelpers::showWorkspace(rw, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
+	}
+}
+
 
 void BackendProcessorEditor::preloadStateChanged(bool isPreloading)
 {
@@ -314,8 +325,6 @@ void BackendProcessorEditor::clearPreset()
 {
 	setPluginPreviewWindow(nullptr);
 
-	
-
 	clearModuleList();
     container = nullptr;
 	isLoadingPreset = true;
@@ -327,14 +336,8 @@ void BackendProcessorEditor::clearPreset()
 
 	owner->killAndCallOnLoadingThread([rw](Processor* p) 
 	{
-		p->getMainController()->clearPreset(); 
-		auto jsp = dynamic_cast<BackendProcessor*>(p->getMainController())->createInterface(600, 500);
-
-		MessageManager::callAsync([rw, jsp]()
-		{
-			BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(rw, jsp);
-			BackendPanelHelpers::showWorkspace(rw, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
-		});
+		p->getMainController()->clearPreset(sendNotificationAsync); 
+		dynamic_cast<BackendProcessor*>(p->getMainController())->createInterface(600, 500);
 
 		return SafeFunctionCall::OK;
 	});
@@ -417,18 +420,6 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	pluginPreviewButton->setShape(f.createPath("Plugin Preview"), false, true, true);
 	pluginPreviewButton->addListener(this);
 
-	addAndMakeVisible(scriptingWorkSpaceButton = new HiseShapeButton("Scripting Workspace", this, f));
-	scriptingWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	scriptingWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceScript, true);
-
-	addAndMakeVisible(samplerWorkSpaceButton = new HiseShapeButton("Sampler Workspace", this, f));
-	samplerWorkSpaceButton->setTooltip("Show Sampler Workspace");
-	samplerWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceSampler, true);
-
-	addAndMakeVisible(customWorkSpaceButton = new HiseShapeButton("Custom Workspace", this, f));
-	customWorkSpaceButton->setTooltip("Show Scripting Workspace");
-	customWorkSpaceButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::WorkspaceCustom, true);
-	
 	addAndMakeVisible(peakMeter = new ClickablePeakMeter(getRootWindow()->getMainSynthChain()));
 
 	addAndMakeVisible(settingsButton = new ShapeButton("Audio Settings", Colours::white.withAlpha(0.6f), Colours::white.withAlpha(0.8f), Colours::white));
@@ -537,17 +528,6 @@ void MainTopBar::paintOverChildren(Graphics& g)
 21,67,31,165,7,67,104,177,37,67,31,165,7,67,98,254,244,103,67,31,165,7,67,113,157,192,67,31,165,7,67,113,157,192,67,31,165,7,67,108,113,157,192,67,240,167,160,66,108,80,77,1,68,86,110,37,67,108,113,157,192,67,180,136,122,67,108,113,157,192,67,141,55,
 67,67,98,113,157,192,67,141,55,67,67,12,130,103,67,141,55,67,67,43,103,37,67,141,55,67,67,99,101,0,0 };
 
-		static const unsigned char destination[] = { 110,109,164,176,141,67,70,246,138,66,98,82,216,144,67,231,251,113,66,123,116,148,67,18,131,80,66,80,125,152,67,180,72,50,66,98,227,133,167,67,162,69,131,65,135,214,187,67,240,167,70,62,94,154,208,67,0,0,0,0,98,207,199,208,67,0,0,0,0,63,245,208,67,0,0,
-0,0,176,34,209,67,0,0,0,0,98,8,60,239,67,78,98,144,62,4,70,6,68,215,163,14,66,127,58,13,68,45,178,180,66,98,182,243,18,68,160,90,7,67,193,34,19,68,174,199,62,67,244,157,13,68,92,143,108,67,98,113,29,8,68,219,25,141,67,18,67,250,67,94,90,158,67,225,58,
-225,67,195,101,163,67,98,76,71,199,67,131,160,168,67,248,3,171,67,248,131,160,67,129,197,151,67,184,14,142,67,98,78,34,149,67,43,135,139,67,133,171,146,67,203,209,136,67,63,101,144,67,162,245,133,67,108,27,207,160,67,66,192,118,67,98,246,24,175,67,217,
-254,139,67,117,83,198,67,88,169,148,67,20,110,220,67,66,144,144,67,98,121,233,245,67,233,214,139,67,12,194,5,68,162,101,108,67,51,171,7,68,182,19,55,67,98,41,76,9,68,59,159,9,67,162,69,4,68,172,92,178,66,127,58,245,67,0,128,119,66,98,180,216,234,67,199,
-203,60,66,72,65,222,67,84,99,28,66,133,123,209,67,125,63,27,66,98,195,53,209,67,94,58,27,66,0,240,208,67,88,57,27,66,61,170,208,67,94,58,27,66,98,16,24,189,67,188,244,27,66,213,216,169,67,184,158,106,66,244,253,157,67,143,2,181,66,108,164,176,141,67,
-70,246,138,66,99,109,184,30,237,65,119,222,70,67,98,100,59,174,65,119,222,70,67,10,215,99,65,250,190,67,67,96,229,10,65,223,47,62,67,98,59,223,71,64,6,161,56,67,0,0,0,0,10,23,49,67,0,0,0,0,160,58,41,67,98,0,0,0,0,94,58,41,67,0,0,0,0,29,58,41,67,0,0,0,
-0,219,57,41,67,98,0,0,0,0,111,178,24,67,102,102,86,65,199,75,11,67,164,112,239,65,199,75,11,67,98,209,98,192,66,199,75,11,67,76,119,121,67,199,75,11,67,76,119,121,67,199,75,11,67,108,76,119,121,67,63,245,167,66,108,246,184,190,67,254,20,41,67,108,76,
-119,121,67,158,47,126,67,108,76,119,121,67,119,222,70,67,98,76,119,121,67,119,222,70,67,113,125,191,66,119,222,70,67,184,30,237,65,119,222,70,67,99,109,78,18,174,67,231,123,222,66,98,119,30,182,67,109,231,180,66,240,183,194,67,47,29,154,66,152,222,208,
-67,47,29,154,66,98,254,36,233,67,47,29,154,66,94,218,252,67,45,242,232,66,94,218,252,67,37,6,37,67,98,94,218,252,67,242,146,85,67,254,36,233,67,113,253,124,67,152,222,208,67,113,253,124,67,98,250,94,196,67,113,253,124,67,63,21,185,67,127,138,114,67,143,
-18,177,67,168,198,97,67,108,61,250,219,67,170,113,42,67,108,78,18,174,67,231,123,222,66,99,101,0,0 };
-
 		Colour c1 = JUCE_LIVE_CONSTANT_OFF(Colour(0xEE383838));
 		Colour c2 = JUCE_LIVE_CONSTANT_OFF(Colour(0xEE404040));
 
@@ -641,10 +621,6 @@ void MainTopBar::resized()
 	
     layoutButton->setVisible(false);
     
-    scriptingWorkSpaceButton->setVisible(false);
-    samplerWorkSpaceButton->setVisible(false);
-    customWorkSpaceButton->setVisible(false);
-
     auto bWidth = getHeight() * 2;
     
     frontendArea = getLocalBounds().withSizeKeepingCentre(bWidth * 3, getHeight());
@@ -977,7 +953,8 @@ struct ToolkitPopup : public Component,
         sustainButton.setToggleModeWithColourChange(true);
         
 		keyboard.setUseVectorGraphics(true);
-        keyboard.setRange(24, 127);
+        keyboard.setRange(36, 127);
+		keyboard.setShowOctaveNumber(true);
 
         addAndMakeVisible(clockController);
         
@@ -1002,7 +979,7 @@ struct ToolkitPopup : public Component,
             auto l = keyboard.getRangeStart() + delta;
             auto h = jmin(127, keyboard.getRangeEnd() + delta);
             
-            if(l > 0)
+            if(l > 0 && l <= 64)
                 keyboard.setRange(l, h);
         }
 	}
@@ -1258,9 +1235,22 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 				int w = (int)((float)content->getContentWidth()*scaleFactor);
 				int h = (int)((float)content->getContentHeight()*scaleFactor);
 
-				c->setSize(w, h);
-
 				c->setName("Interface Preview");
+
+				content->interfaceSizeBroadcaster.addListener(*c, [mc](Component& oc, int w, int h)
+				{
+					auto scaleFactor = dynamic_cast<GlobalSettingManager*>(mc)->getGlobalScaleFactor();
+
+					oc.getChildComponent(0)->setSize(w, h);
+
+					w = roundToInt((float)w * scaleFactor);
+					h = roundToInt((float)h * scaleFactor);
+
+					oc.setSize(w, h);
+					oc.resized();
+				});
+				
+				
 			}
 
 
@@ -1335,29 +1325,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 void MainTopBar::applicationCommandInvoked(const ApplicationCommandTarget::InvocationInfo& info)
 {
 
-	switch (info.commandID)
-	{
-	case BackendCommandTarget::WorkspaceScript: 
-		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		break;
-	case BackendCommandTarget::WorkspaceSampler:
-		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-		customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		break;
-		
-	case BackendCommandTarget::WorkspaceCustom:
-		mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-		customWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-		break;
-	}
-
+	
 }
 
 MainTopBar::QuickPlayComponent::QuickPlayComponent(MainController* mc):

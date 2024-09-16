@@ -348,19 +348,18 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 		}
 
 		doc->fillMissingParameters(p);
+
+		
 		auto pList = header.getKeyList("parameters");
 
 		for (auto& parameter : doc->parameters)
 		{
-			if (parameter.helpText == "-")
-			{
-				auto pId = parameter.id.toString();
+			auto pId = parameter.id.toString();
 
-				for (const auto& possibleMatch : pList)
-				{
-					if (possibleMatch.startsWith(pId))
-						parameter.helpText = possibleMatch.fromFirstOccurrenceOf(":", false, false).trim();
-				}
+			for (const auto& possibleMatch : pList)
+			{
+				if (possibleMatch.startsWith(pId))
+					parameter.helpText = possibleMatch.fromFirstOccurrenceOf(":", false, false).trim();
 			}
 		}
 
@@ -533,6 +532,8 @@ hise::MarkdownDataBase::Item ItemGenerator::createRootItem(MarkdownDataBase& par
 
 	MainController::ScopedBadBabysitter sb(data->network->getScriptProcessor()->getMainController_());
 
+	ScopedPointer<NodeBase::Holder> s = new NodeBase::Holder();
+	
 	auto list = data->network->getListOfAvailableModulesAsTree();
 
 	MarkdownDataBase::Item lItem;
@@ -578,7 +579,7 @@ void ItemGenerator::addNodeItem(ValueTree nodeTree, MarkdownDataBase::Item& fact
 	
 	MessageManagerLock lock;
 
-	NodeBase::Ptr nb = dynamic_cast<NodeBase*>(data->network->create(path, "").getObject());;
+	NodeBase::Ptr nb = dynamic_cast<NodeBase*>(data->network->create(path, id).getObject());;
 
 	jassert(nb != nullptr);
 
@@ -614,7 +615,13 @@ juce::String Resolver::getContent(const MarkdownLink& url)
 
 			auto parameterDescriptions = header.getKeyList("parameters");
 			
-			NodeBase::Ptr node = dynamic_cast<NodeBase*>(data->network->get(nodeId).getObject());
+
+			data->network->clear(true, true);
+
+			auto factory = url.getParentUrl().toString(MarkdownLink::Format::UrlSubPath);
+			NodeBase::Ptr node = dynamic_cast<NodeBase*>(data->network->create(factory + "." + nodeId, nodeId).getObject());
+
+
 
 			if (node != nullptr)
 			{
@@ -625,10 +632,12 @@ juce::String Resolver::getContent(const MarkdownLink& url)
 
 				content << url.toString(MarkdownLink::Format::ContentHeader);
 
-				if(!inlineDocMode)
-					content << "> `" << tree[PropertyIds::FactoryPath].toString() << "`" << nl;
+				auto factory = tree[PropertyIds::FactoryPath].toString();
 
-				content << "![screen](/images/sn_screen_" << nodeId << ".png)";
+				if(!inlineDocMode)
+					content << "> `" << factory << "`" << nl;
+
+				content << "![screen](/images/sn_screen_" << factory.upToFirstOccurrenceOf(".", false, false) << "__" << nodeId << ".png)";
 
 				content << header.getKeyValue("summary") << nl;
 
@@ -696,9 +705,36 @@ hise::Image ScreenshotProvider::getImage(const MarkdownLink& url, float width)
 
 	if (imageFileURL.startsWith("sn_screen_"))
 	{
-		auto id = imageFileURL.fromFirstOccurrenceOf("sn_screen_", false, false);
+		auto f__id = imageFileURL.fromFirstOccurrenceOf("sn_screen_", false, false);
 
-		if (auto node = dynamic_cast<NodeBase*>(data->network->get(id).getObject()))
+		auto id = f__id.fromFirstOccurrenceOf("__", false, false);
+		auto factory = f__id.upToFirstOccurrenceOf("__", false, false);
+
+		auto rootDir = parent->getHolder()->getDatabaseRootDirectory();
+
+		if(rootDir.isDirectory())
+		{
+ 			auto snDir = rootDir.getChildFile("images/override/scriptnode/");
+
+			if(snDir.isDirectory())
+			{
+				auto of = snDir.getChildFile(id).withFileExtension(".png");
+
+				if(of.existsAsFile())
+				{
+					auto img = ImageFileFormat::loadFrom(of);
+
+					updateWidthFromURL(url, width);
+					return resizeImageToFit(img, width);
+				}
+			}
+		}
+
+		data->network->clear(true, true);
+
+		NodeBase::Ptr node = dynamic_cast<NodeBase*>(data->network->create(factory + "." + id, id).getObject());
+
+		if (node != nullptr)
 		{
 			MessageManagerLock mmlock;
 			ScopedPointer<Component> c = scriptnode::NodeComponentFactory::createComponent(node);

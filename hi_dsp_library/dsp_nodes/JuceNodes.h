@@ -218,7 +218,7 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 		this->sendCoefficientUpdateMessage();
 	}
 
-	std::pair<IIRCoefficients, int> getApproximateCoefficients() const override
+	FilterDataObject::CoefficientData getApproximateCoefficients() const override
 	{
         if(sr == 0)
             return {};

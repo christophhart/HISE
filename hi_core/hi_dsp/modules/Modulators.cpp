@@ -363,10 +363,19 @@ int VoiceModulation::PolyphonyManager::getCurrentVoice() const noexcept
 	return currentVoice;
 }
 
+#if JUCE_WINDOWS
+#pragma warning( push )
+#pragma warning( disable : 4589)
+#endif
+
 VoiceModulation::VoiceModulation(int numVoices, Modulation::Mode m):
 	Modulation(m),
 	polyManager(numVoices)
 {}
+
+#if JUCE_WINDOWS
+#pragma warning( pop)
+#endif
 
 void TimeModulation::applyTimeModulation(float* destinationBuffer, int startIndex, int samplesToCopy)
 {

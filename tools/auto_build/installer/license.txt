@@ -1,4 +1,4 @@
- Copyright 2022 Christoph Hart
+ Copyright 2024 Christoph Hart
 
  HISE is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -17,9 +17,9 @@
  available on request. Please visit the project's website to get more 
  information about commercial licensing:
 
- http://www.hise.audio/
+ https://www.hise.dev/
 
  HISE is based on the JUCE library, 
  which must be separately licensed for commercial applications:
 
- http://www.juce.com
+ https://www.juce.com

@@ -1441,6 +1441,11 @@ template <typename...Ps> struct LambdaBroadcaster final
 		return !listeners.isEmpty();
 	}
 
+	template <int P=0> auto getLastValue() const noexcept
+	{
+		return std::get<P>(lastValue);
+	}
+
 private:
     
 	void sendMessageInternal(NotificationType n, const std::tuple<Ps...>& value)
@@ -2374,7 +2379,13 @@ public:
 
     SemanticVersionChecker(const String& oldVersion_, const String& newVersion_);;
 
+	SemanticVersionChecker(const std::array<int, 3>& oldVersion_, const std::array<int, 3>& newVersion_);
+
     bool isUpdate() const;
+	bool isExactMatch() const
+	{
+		return newVersion.validVersion && newVersion == oldVersion;
+	}
 
     bool isMajorVersionUpdate() const;;
     bool isMinorVersionUpdate() const;;
@@ -2382,10 +2393,32 @@ public:
     bool oldVersionNumberIsValid() const;
     bool newVersionNumberIsValid() const;
 
+	String getErrorMessage(const String& oldVersionName, const String& newVersionName) const
+	{
+	    String m;
+		m << oldVersionName << ": " << oldVersion.toString();
+		m << ", " << newVersionName << ": " << newVersion.toString();
+		return m;
+	}
+
 private:
 
     struct VersionInfo
     {
+		bool operator== (const VersionInfo& other) const
+		{
+		    return majorVersion == other.majorVersion &&
+				   minorVersion == other.minorVersion &&
+				   patchVersion == other.patchVersion;
+		}
+
+		String toString() const
+		{
+		    String m;
+			m << String(majorVersion) << "." << String(minorVersion) << "." << String(patchVersion);
+			return m;
+		}
+
         bool validVersion = false;
         int majorVersion = 0;
         int minorVersion = 0;

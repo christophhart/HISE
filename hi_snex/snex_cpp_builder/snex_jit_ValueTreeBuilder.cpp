@@ -824,6 +824,10 @@ Node::Ptr ValueTreeBuilder::parseContainer(Node::Ptr u)
 			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::repitch"));
 			*u << "interpolators::dynamic";
 		}
+		if(useSpecialWrapper && realPath.startsWith("dynamic_blocksize"))
+		{
+			u = wrapNode(u, NamespacedIdentifier::fromString("wrap::dynamic_blocksize"));
+		}
 
         jassert(u->nodeTree.isValid());
 		jassert(!u->isFlushed());

@@ -154,7 +154,7 @@ Identifier MultiChannelFilter<FilterSubType>::getFilterTypeId()
 }
 
 template <class FilterSubType>
-std::pair<IIRCoefficients, int> MultiChannelFilter<FilterSubType>::getApproximateCoefficients() const
+FilterDataObject::CoefficientData MultiChannelFilter<FilterSubType>::getApproximateCoefficients() const
 {
 	auto cType = internalFilter.getCoefficientTypeList();
 
@@ -163,6 +163,13 @@ std::pair<IIRCoefficients, int> MultiChannelFilter<FilterSubType>::getApproximat
 	auto f_ = (double)targetFreq; //(double)frequency.getCurrentValue();
 	auto q_ = (double)targetQ; //(double)q.getCurrentValue();
 	auto g_ = (float)targetGain; //(float)gain.getCurrentValue();
+
+	auto fnorm = f_ / sampleRate;
+
+	FilterCoefficientData cd = internalFilter.getCoefficients(fnorm, q_, g_);
+
+	if(cd.hasCustomFunction())
+		return cd;
 
 	switch (m)
 	{
@@ -445,6 +452,38 @@ Array<hise::FilterHelpers::CoefficientType> SimpleOnePoleSubType::getCoefficient
 	return { FilterHelpers::LowPass, FilterHelpers::HighPass };
 }
 
+double SimpleOnePoleSubType::getPlotValue(void* obj, bool getMagnitude, double normX)
+{
+	auto typed = static_cast<FilterCoefficientData*>(obj);
+
+	auto freqNorm = typed->first.coefficients[0];
+	auto isLP = typed->first.coefficients[1] == 1.0;
+
+	const auto w = freqNorm;
+
+	freqNorm *= freqNorm;
+	normX *= normX;
+
+	if(isLP)
+	{
+		return 1.0 - w / std::sqrt(freqNorm + normX);
+	}
+	else
+	{
+		return w / std::sqrt(freqNorm + normX);
+	}
+}
+
+FilterCoefficientData SimpleOnePoleSubType::getCoefficients(double freqNorm, double, double) const
+{
+	FilterCoefficientData d;
+	d.first.coefficients[0] = freqNorm;
+	d.first.coefficients[1] = (float)(int)onePoleType;
+
+	d.customFunction = getPlotValue;
+	return d;
+}
+
 SimpleOnePoleSubType::SimpleOnePoleSubType()
 {
 	onePoleType = SimpleOnePoleSubType::LP;
@@ -463,10 +502,15 @@ void SimpleOnePoleSubType::reset(int numChannels)
 
 void SimpleOnePoleSubType::updateCoefficients(double sampleRate, double frequency, double /*q*/, double /*gain*/)
 {
-	const double x = exp(-2.0*double_Pi*frequency / sampleRate);
+	if(sampleRate > 0.0)
+	{
+		const double sr_inv = 1.0 / sampleRate;
+		const double x = exp(-2.0*double_Pi*frequency * sr_inv);
 
-	a0 = (float)(1.0 - x);
-	b1 = (float)-x;
+		a0 = (float)(1.0 - x);
+		b1 = (float)-x;
+	}
+	
 }
 
 void SimpleOnePoleSubType::processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples)
@@ -1027,7 +1071,7 @@ void StateVariableFilterSubType::processSamples(AudioSampleBuffer& buffer, int s
 			for (int i = 0; i < numSamples; ++i)
 			{
 				const float input = d[i];
-				const float HP = (input - x1 * z1_A[c] - v2[c]) / x2;
+				const float HP = (input - x1 * z1_A[c] - v2[c]) * x2;
 				const float BP = HP * gCoeff + z1_A[c];
 				const float LP = BP * gCoeff + v2[c];
 

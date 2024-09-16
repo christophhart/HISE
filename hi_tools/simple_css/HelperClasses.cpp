@@ -60,6 +60,32 @@ String PseudoState::getPseudoElementName(int idx)
 	return "Unknown";
 }
 
+int PseudoState::getPseudoClassIndex(const String& pseudoStateName)
+{
+	int state = 0;
+	
+	if(pseudoStateName.contains(":first-child"))
+		state |= (int)PseudoClassType::First;
+	if(pseudoStateName.contains(":last-child"))
+		state |= (int)PseudoClassType::Last;
+	if(pseudoStateName.contains(":root"))
+		state |= (int)PseudoClassType::Root;
+	if(pseudoStateName.contains(":hover"))
+		state |= (int)PseudoClassType::Hover;
+	if(pseudoStateName.contains(":active"))
+		state |= (int)PseudoClassType::Active;
+	if(pseudoStateName.contains(":focus"))
+		state |= (int)PseudoClassType::Focus;
+	if(pseudoStateName.contains(":disabled"))
+		state |= (int)PseudoClassType::Disabled;
+	if(pseudoStateName.contains(":hidden"))
+		state |= (int)PseudoClassType::Hidden;
+	if(pseudoStateName.contains(":checked"))
+		state |= (int)PseudoClassType::Checked;
+
+	return state;
+}
+
 String PseudoState::getPseudoClassName(int state)
 {
 	String c;
@@ -110,6 +136,7 @@ Selector::Selector(ElementType dt)
 	case ElementType::Headline3: name = "h3"; break;
 	case ElementType::Headline4: name = "h4"; break;
 	case ElementType::Label: name = "label"; break;
+	case ElementType::Scrollbar: name = "scrollbar"; break;
 	default: ;
 	}
 }
@@ -146,7 +173,12 @@ Selector::Selector(const String& s)
 Selector::Selector(SelectorType t, String n):
 	type(t),
 	name(n)
-{}
+{
+	if(t == SelectorType::Class && n.startsWithChar('.'))
+		name = name.substring(1);
+	if(t == SelectorType::ID && n.startsWithChar('#'))
+		name = name.substring(1);
+}
 
 String Selector::toString() const
 {
@@ -502,6 +534,28 @@ String PropertyValue::getValue(DynamicObject::Ptr variables)
 		else
 			return {};
 	}
+	else if(valueAsString.contains("var("))
+	{
+		if(variables != nullptr)
+		{
+			auto current = valueAsString;
+
+			while(current.contains("var(--"))
+			{
+				auto id = current.fromFirstOccurrenceOf("var(--", false, false);
+				id = id.upToFirstOccurrenceOf(")", false, false);
+				auto rp = variables->getProperty(Identifier(id)).toString();
+
+				auto bf = "var(--" + id + ")";
+
+				current = current.replace(bf, rp);
+			}
+
+			return current;
+		}
+		else
+			return {};
+	}
 	else
 	{
 		return valueAsString;
@@ -578,7 +632,21 @@ PropertyValue Property::getProperty(int stateFlag) const
 		}
 	}
 
-	return values[0].second;
+	// We didn't find the property, so now let's check if
+	// the default state is defined
+	if(stateFlag != 0)
+	{
+		for(auto& pv: values)
+		{
+			if(pv.first == 0)
+				return pv.second;
+		}
+	}
+
+	// default state not defined, return null...
+	return {};
+
+	//return values[0].second;
 }
 
 NonUniformBorderData::NonUniformBorderData(Rectangle<float> totalArea_, float defaultWidth_,

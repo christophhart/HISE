@@ -136,6 +136,8 @@ public:
 
 	void updateFromServer();
 
+	void createSnippetDatabase();
+
 	void databaseWasRebuild() override
 	{
 

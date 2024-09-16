@@ -276,7 +276,7 @@ void MainController::loadPresetFromFile(const File &f, Component* /*mainEditor*/
 #endif
 }
 
-void MainController::clearPreset()
+void MainController::clearPreset(NotificationType sendPresetLoadMessage)
 {
 	Processor::Iterator<Processor> iter(getMainSynthChain(), false);
 
@@ -292,7 +292,7 @@ void MainController::clearPreset()
         p->cleanRebuildFlagForThisAndParents();
     }
 
-	auto f = [](Processor* p)
+	auto f = [sendPresetLoadMessage](Processor* p)
 	{
 		auto mc = p->getMainController();
 		SUSPEND_GLOBAL_DISPATCH(mc, "reset main controller");
@@ -329,6 +329,8 @@ void MainController::clearPreset()
 
 		mc->getProcessorChangeHandler().sendProcessorChangeMessage(mc->getMainSynthChain(), ProcessorChangeHandler::EventType::RebuildModuleList, false);
 
+		mc->sendHisePresetLoadMessage(sendPresetLoadMessage);
+
 		return SafeFunctionCall::OK;
 	};
 
@@ -344,7 +346,7 @@ void MainController::loadPresetFromValueTree(const ValueTree &v, Component* /*ma
     const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
     const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::TargetThread::SampleLoadingThread;
     
-	jassert(isCommandLine || isSampleLoadingThread || !isInitialised());
+	jassert(isCommandLine || isSampleLoadingThread || !isInitialised() || isFlakyThreadingAllowed());
     ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 
@@ -380,13 +382,13 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
 			const bool isCommandLine = CompileExporter::isExportingFromCommandLine();
 			const bool isSampleLoadingThread = killStateHandler.getCurrentThread() == KillStateHandler::TargetThread::SampleLoadingThread;
 
-			jassert(!isInitialised() || isCommandLine || isSampleLoadingThread);
+			jassert(!isInitialised() || isCommandLine || isSampleLoadingThread || isFlakyThreadingAllowed());
 			ignoreUnused(isCommandLine, isSampleLoadingThread);
 #endif
 
 			getSampleManager().setCurrentPreloadMessage("Closing...");
 
-			clearPreset();
+			clearPreset(dontSendNotification);
 
 			getSampleManager().setShouldSkipPreloading(true);
 
@@ -454,20 +456,7 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
             getJavascriptThreadPool().getGlobalServer()->setInitialised();
 #endif
 
-			auto f = [](Dispatchable* obj)
-			{
-				auto p = static_cast<Processor*>(obj);
-			
-				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Building UI...");
-				p->sendRebuildMessage(true);
-				p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
-				p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
-
-				return Dispatchable::Status::OK;
-			};
-
-			if(USE_BACKEND || FullInstrumentExpansion::isEnabled(this))
-				getLockFreeDispatcher().callOnMessageThreadAfterSuspension(synthChain, f);
+			sendHisePresetLoadMessage(sendNotificationAsync);
 
             if(!isInitialised())
                 getSampleManager().clearPreloadFlag();
@@ -612,6 +601,32 @@ void MainController::sendToMidiOut(const HiseEvent& e)
 
 const AudioSampleBuffer& MainController::getMultiChannelBuffer() const
 { return getMainSynthChain()->internalBuffer; }
+
+void MainController::sendHisePresetLoadMessage(NotificationType n)
+{
+	if(n == dontSendNotification)
+		return;
+
+	auto f = [](Dispatchable* obj)
+	{
+		auto p = static_cast<Processor*>(obj);
+		
+		p->getMainController()->getSampleManager().setCurrentPreloadMessage("Building UI...");
+		p->sendRebuildMessage(true);
+		p->getMainController()->getSampleManager().setCurrentPreloadMessage("Done...");
+		p->getMainController()->getLockFreeDispatcher().sendPresetReloadMessage();
+
+		return Dispatchable::Status::OK;
+	};
+
+	if(USE_BACKEND || FullInstrumentExpansion::isEnabled(this))
+	{
+		if(n == sendNotificationSync)
+			f(getMainSynthChain());
+		else
+			getLockFreeDispatcher().callOnMessageThreadAfterSuspension(getMainSynthChain(), f);
+	}
+}
 
 bool MainController::refreshOversampling()
 {
@@ -1976,7 +1991,22 @@ void MainController::insertStringAtLastActiveEditor(const String &string, bool s
 	{
 		auto ed = dynamic_cast<PopupIncludeEditor::EditorType*>(lastActiveEditor.getComponent());
 
-#if !HISE_USE_NEW_CODE_EDITOR
+#if HISE_USE_NEW_CODE_EDITOR
+
+		auto selection = mcl::TokenCollection::getSelectionFromFunctionArgs(string);
+
+		auto firstDot = string.indexOfChar('.');
+
+		auto className = string.substring(0, firstDot);
+
+		StringArray fullClasses = { "Console", "Message", "Content", "Colours", "Engine", "Synth", "Server", "FileSystem", "Settings" };
+
+		if(!fullClasses.contains(className))
+			selection.insert(0, {0, firstDot });
+
+		ed->editor.insertCodeSnippet(string, selection);
+
+#else
 
 		ed->getDocument().deleteSection(ed->getSelectionStart(), ed->getSelectionEnd());
         ed->moveCaretTo(CodeDocument::Position(ed->getDocument(), lastCharacterPositionOfSelectedEditor), false);

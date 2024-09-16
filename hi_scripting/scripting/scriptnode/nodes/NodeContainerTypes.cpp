@@ -1510,6 +1510,98 @@ void FixedBlockXNode::setBypassed(bool shouldBeBypassed)
 	getRootNetwork()->runPostInitFunctions();
 }
 
+DynamicBlockSizeNode::DynamicBlockSizeNode(DspNetwork* network, ValueTree d):
+	SerialNode(network, d)
+{
+	initListeners(false);
+	addFixedParameters();
+	obj.initialise(this);
+}
+
+void DynamicBlockSizeNode::setBlockSize(double s)
+{
+	obj.setParameter<0>(s);
+
+	auto nb = obj.getBlockSize();
+
+	if(nb != blockSize)
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(getRootNetwork()->getConnectionLock());
+		blockSize = obj.getBlockSize();
+		prepare(lastSpecs);
+		getRootNetwork()->runPostInitFunctions();
+	}
+}
+
+void DynamicBlockSizeNode::process(ProcessDataDyn& data)
+{
+	NodeProfiler np(this, getBlockSizeForChildNodes());
+	ProcessDataPeakChecker pd(this, data);
+    TRACE_DSP();
+
+	obj.process(data);
+}
+
+void DynamicBlockSizeNode::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void DynamicBlockSizeNode::processMonoFrame(MonoFrameType& data)
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void DynamicBlockSizeNode::processStereoFrame(StereoFrameType& data)
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void DynamicBlockSizeNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	lastVoiceIndex = ps.voiceIndex;
+		
+	prepareNodes(ps);
+
+	if (isBypassed())
+		obj.getObject().prepare(ps);
+	else
+		obj.prepare(ps);
+
+	obj.prepare(ps);
+}
+
+void DynamicBlockSizeNode::reset()
+{
+	obj.reset();
+}
+
+void DynamicBlockSizeNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+ParameterDataList DynamicBlockSizeNode::createInternalParameterList()
+{
+	ParameterDataList data;
+
+	{
+		parameter::data p("BlockSize");
+
+		p.setParameterValueNames({ "1", "8", "16", "32", "64", "128", "256", "512"});
+		p.callback = parameter::inner<DynamicBlockSizeNode, 0>(*this);
+		p.info.index = 0;
+		p.setDefaultValue(4.0);
+		data.add(std::move(p));
+	}
+
+	return data;
+}
+
 NoMidiChainNode::NoMidiChainNode(DspNetwork* n, ValueTree t):
 	SerialNode(n, t)
 {

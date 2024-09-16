@@ -81,6 +81,7 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 	case ComponentType::SliderPack:			componentName = "SliderPack"; break;
 	case ComponentType::WebView:			componentName = "WebView"; break;
 	case ComponentType::FloatingTile:		componentName = "FloatingTile"; break;
+	case ComponentType::MultipageDialog:	componentName = "MultipageDialog"; break;
 	case ComponentType::duplicateComponent:
 	{
 		auto b = getScriptEditHandlerOverlay()->getScriptComponentEditBroadcaster();
@@ -139,6 +140,9 @@ void ScriptEditHandler::createNewComponent(ComponentType componentType, int x, i
 		break;
 	case hise::ScriptEditHandler::ComponentType::FloatingTile:
 		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptFloatingTile>(id, x, y);
+		break;
+	case hise::ScriptEditHandler::ComponentType::MultipageDialog:
+		newComponent = content->createNewComponent<ScriptingApi::Content::ScriptMultipageDialog>(id, x, y);
 		break;
 	case hise::ScriptEditHandler::ComponentType::duplicateComponent:
 		jassertfalse;
@@ -580,6 +584,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				restoreToData,
 				copySnapshot,
 				toggleLearnMode,
+				showCSSLog,
 				editComponentOffset = 20000,
 
 			};
@@ -602,6 +607,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 			m.addItem((int)ScriptEditHandler::ComponentType::SliderPack, "Add new SliderPack");
 			m.addItem((int)ScriptEditHandler::ComponentType::WebView, "Add new WebView");
 			m.addItem((int)ScriptEditHandler::ComponentType::FloatingTile, "Add new FloatingTile");
+			m.addItem((int)ScriptEditHandler::ComponentType::MultipageDialog, "Add new MultipageDialog");
 
 			auto components = b->getSelection();
 
@@ -633,6 +639,16 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 				m.addItem(toggleLearnMode, "Enable Connection Learn", learnable, b->getCurrentlyLearnedComponent() == b->getFirstFromSelection());
 
 				m.addSeparator();
+
+				if(auto f = draggers.getFirst())
+				{
+					auto t = f->getCSSLogForCurrentComponent();
+
+					if(!t.isEmpty())
+					{
+						m.addItem(showCSSLog, "Show CSS debugger for " + first->getName().toString());
+					}
+				}
 
 				m.addItem(showDefinition, "Goto first definition of " + first->getName().toString(), true);
 				m.addItem(showLookAndFeel, "Goto LookAndFeel for " + first->getName().toString(), first->getLookAndFeelObject().isObject());
@@ -728,6 +744,35 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 					DebugInformation::Ptr d = new DebugableObjectInformation(obj, "unused", DebugInformation::Type::Constant);
 					d->doubleClickCallback(e, this);
 				}
+			}
+			else if (result == showCSSLog)
+			{
+				auto d = draggers.getFirst();
+
+				if(auto p = dynamic_cast<ScriptingApi::Content::ScriptMultipageDialog*>(b->getFirstFromSelection()))
+				{
+					callRecursive<simple_css::HeaderContentFooter>(d->getDraggedComponent(), [&](simple_css::HeaderContentFooter* r)
+					{
+						r->showInfo(true);
+						return true;
+					});
+				}
+				else
+				{
+					auto log = d->getCSSLogForCurrentComponent();
+
+					JSONEditor* editor = new JSONEditor(log, new simple_css::LanguageManager::Tokeniser());
+
+					editor->setEditable(false);
+					
+					editor->setName("CSS Debugger");
+					editor->setSize(500, 600);
+
+					d->findParentComponentOfClass<FloatingTile>()->showComponentInRootPopup(editor, d, d->getLocalBounds().getCentre());
+				}
+
+				
+
 			}
 			else if (result >= editComponentOffset) // EDIT IN PANEL
 			{

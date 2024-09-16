@@ -686,7 +686,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			LOAD_EPATH_IF_URL("watch", BackendBinaryData::ToolbarIcons::viewPanel);
 			LOAD_PATH_IF_URL("clear", ColumnIcons::moveIcon);
 			LOAD_EPATH_IF_URL("error", ScriptnodeIcons::errorIcon);
-			LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+			LOAD_EPATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
 			LOAD_PATH_IF_URL("filter", ColumnIcons::filterIcon);
 			LOAD_PATH_IF_URL("tags", ScriptBroadcasterMapIcons::tagIcon);
 			LOAD_PATH_IF_URL("dim", ScriptBroadcasterMapIcons::dimIcon);
@@ -910,7 +910,7 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			b->enabledFunction = Actions::hasTags;
 		}
 
-		if (name == "showall")
+		if (name == "zoom-fit")
 		{
 			b->actionFunction = Actions::showAll;
 			b->setTooltip("Zoom to fit");

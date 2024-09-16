@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="3.6.2"
+<JUCERPROJECT id="TQ3pmU" name="HISE" projectType="audioplug" version="4.0.0"
               bundleIdentifier="com.hartinstruments.HISE" includeBinaryInAppConfig="1"
               buildVST="0" buildVST3="1" buildAU="1" buildRTAS="0" buildAAX="0"
               pluginName="HISE" pluginDesc="HISE" pluginManufacturer="Hart Instruments"

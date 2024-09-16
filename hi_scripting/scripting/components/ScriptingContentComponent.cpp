@@ -54,6 +54,8 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 	processor(p_),
 	p(dynamic_cast<Processor*>(p_))
 {
+	css.setUseIsolatedCollections(true);
+
 	processor->getScriptingContent()->addRebuildListener(this);
 	processor->getScriptingContent()->addScreenshotListener(this);
 
@@ -601,9 +603,7 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 
 	refreshMacroIndexes();
 	refreshContentButton();
-
-	if (getWidth() != 0) setSize(getWidth(), getContentHeight());
-
+	
 	updateContent();
     
     addMouseListenersForComponentWrappers();
@@ -629,6 +629,8 @@ void ScriptContentComponent::deleteAllScriptComponents()
 	}
 
 	componentWrappers.clear();
+
+	css.clearCache();
 }
 
 void ScriptContentComponent::refreshContentButton()

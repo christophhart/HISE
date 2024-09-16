@@ -840,6 +840,10 @@ Result DataLibraryBuilder::registerTypes()
 
 	c.registerExternalComplexType(st);
 
+	auto st2 = new StructType(fid.getChildId("filter_node_base"));
+	
+	c.registerExternalComplexType(st2);
+
 	return Result::ok();
 }
 

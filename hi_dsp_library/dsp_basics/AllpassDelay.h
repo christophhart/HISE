@@ -86,7 +86,7 @@ public:
 		*
 		*	You have to call setSampleRate before you can use it.
 		*/
-		AttackRelease(float attackTime, float releaseTime);;
+		AttackRelease(float attackTime=20.0, float releaseTime=50.0);;
 
 		/** Returns the envelope value. */
 		float calculateValue(float input);;

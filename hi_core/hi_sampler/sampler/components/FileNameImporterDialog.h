@@ -55,6 +55,29 @@ public:
 
 		int y = 64;
 
+		auto requiredHeight = tokens.size() * 50 + 80;
+
+		if(getHeight() < requiredHeight)
+		{
+			auto f = [this, requiredHeight]()
+			{
+				if(getParentComponent() == nullptr)
+					return;
+
+				auto parentHeight = getParentComponent()->getHeight();
+
+				auto sizeDiff = requiredHeight - getHeight();
+
+				setSize(getWidth(), requiredHeight);
+				getParentComponent()->setSize(getParentComponent()->getWidth(), parentHeight + sizeDiff);
+				
+			};
+
+			MessageManager::callAsync(f);
+
+			
+		}
+
 		for(int i = 0; i < tokens.size(); i++)
 		{
 			FileNamePartComponent *tp = new FileNamePartComponent(tokens[i]);

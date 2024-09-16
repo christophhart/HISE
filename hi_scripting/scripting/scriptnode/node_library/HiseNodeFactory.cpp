@@ -856,7 +856,7 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyModNode<dp<comp>, dp<wrap::illegal_poly<comp>>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<limiter>, dp<wrap::illegal_poly<limiter>>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<updown_comp>, dp<wrap::illegal_poly<updown_comp>>, updown_editor>();
-	registerModNode<dp<envelope_follower>, data::ui::displaybuffer_editor >();
+	registerPolyModNode<dp<envelope_follower<1>>, dp<envelope_follower<NUM_POLYPHONIC_VOICES>>, data::ui::displaybuffer_editor >();
 }
 
 }
@@ -1676,6 +1676,7 @@ Factory::Factory(DspNetwork* network) :
 	registerModNode<dp<global_mod>, data::ui::displaybuffer_editor>();
 	
 	registerModNode<dp<peak>, data::ui::displaybuffer_editor>();
+	registerModNode<dp<peak_unscaled>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<ramp<1, true>>, dp<ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();
 
 	registerPolyModNode<dp<clock_ramp<1, true>>, dp<clock_ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();

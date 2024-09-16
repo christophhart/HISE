@@ -285,7 +285,7 @@ bool Asset::writeToFile(const File& targetFile, ReferenceCountedObject* job_) co
 
 	for(int i = 0; i < numToWrite; i += 8192)
 	{
-		auto numThisTime = jmin<int>(8192, numToWrite - i);
+		auto numThisTime = jmin<int>(8192, (int)numToWrite - i);
 
 		auto ok = fos.writeFromInputStream(mis, numThisTime) == numThisTime;
 
@@ -323,7 +323,7 @@ Asset::Ptr Asset::fromVar(const var& obj, const File& currentRoot)
 	auto t = (Type)(int)obj[mpid::Type];
 	auto id = obj[mpid::ID].toString();
 
-	if(obj.hasProperty(mpid::Filename))
+	if(obj.hasProperty(mpid::Filename) && currentRoot.isDirectory())
 	{
 		auto filePath = obj[mpid::Filename].toString();
 
@@ -377,38 +377,57 @@ State::State(const var& obj, const File& currentRootDirectory_):
 
 State::~State()
 {
-	stopThread(1000);
+	onDestroy();
 
-	tempFiles.clear();
+	
 }
 
 void State::run()
 {
+	
 	for(int i = 0; i < jobs.size(); i++)
 	{
 		currentJob = jobs[i];
-		
-		auto ok = jobs[i]->runJob();
+		auto ok = Result::ok();
+
+
+		if(!completedJobs.contains(currentJob))
+		{
+			ok = jobs[i]->runJob();
+
+			if(threadShouldExit())
+				return;
+
+			
+		}
+
+		if(ok.wasOk())
+			completedJobs.addIfNotAlreadyThere(currentJob);
 
 		currentJob = nullptr;
-		
+	
 		if(ok.failed())
 		{
 			navigateOnFinish = false;
 			break;
 		}
-            
+
 		totalProgress = (double)i / (double)jobs.size();
 	}
-        
+    
 	jobs.clear();
-        
-	MessageManager::callAsync(BIND_MEMBER_FUNCTION_0(State::onFinish));
+
+	SafeAsyncCall::call<State>(*this, [](State& s){ s.onFinish(); });
 }
 
 void State::reset(const var& obj)
 {
+	stopThread(1000);
+
+
 	eventLogger.sendMessage(sendNotificationSync, MessageType::Clear, "");
+
+	onDestroy();
 
 	if(auto gs = obj[mpid::GlobalState].getDynamicObject())
 		globalState = var(gs->clone().get());
@@ -426,9 +445,10 @@ void State::reset(const var& obj)
 	}
 	
 	currentPageIndex = 0;
-	currentDialog = nullptr;
-	currentError = Result::ok();
-	currentJob = nullptr;
+
+	
+
+	
 }
 
 ApiProviderBase* State::getProviderBase()
@@ -454,7 +474,32 @@ Font State::loadFont(String fontName) const
 	}
 
 
-	return Font(fontName, 13.0f, Font::plain);
+    return GLOBAL_FONT().withHeight(13.0f);
+}
+
+void State::onDestroy()
+{
+	stopThread(1000);
+	currentJob = nullptr;
+	jobs.clear();
+	completedJobs.clear();
+	
+	var v[2] = { var(false), globalState };
+	var::NativeFunctionArgs args(var(), v, 2);
+	callNativeFunction("onFinish", args, nullptr);
+
+	for(auto d: currentDialogs)
+	{
+		if(d != nullptr)
+			d->onStateDestroy();
+	}
+
+	jsLambdas.clear();
+	currentDialogs.clear();
+	tempFiles.clear();
+
+	currentError = Result::ok();
+	
 }
 
 void State::addEventListener(const String& eventType, const var& functionObject)
@@ -654,17 +699,20 @@ bool State::Job::matches(const var& obj) const
 }
 
 double& State::Job::getProgress()
-{ return progress; }
+{ return enableProgress ? progress : unusedProgess; }
 
 void State::Job::setMessage(const String& newMessage)
 {
+	if(!enableProgress)
+		return;
+
 	message = newMessage;
 
 	parent.eventLogger.sendMessage(sendNotificationAsync, MessageType::ProgressMessage, newMessage);
 
-	if(parent.currentDialog != nullptr)
+	for(auto d: parent.currentDialogs)
 	{
-		SafeAsyncCall::repaint(parent.currentDialog.get());
+		SafeAsyncCall::repaint(d.get());
 	}
 }
 
@@ -677,6 +725,12 @@ void State::Job::updateProgressBar(ProgressBar* b) const
 State::Job::Ptr State::getJob(const var& obj)
 {
 	for(auto j: jobs)
+	{
+		if(j->matches(obj))
+			return j;
+	}
+
+	for(auto j: completedJobs)
 	{
 		if(j->matches(obj))
 			return j;
@@ -697,19 +751,21 @@ var State::getGlobalSubState(const Identifier& id)
 
 void State::onFinish()
 {
-	if(currentDialog.get() != nullptr)
+	for(auto d: currentDialogs)
 	{
-		currentDialog->nextButton.setEnabled(currentDialog->currentErrorElement == nullptr);
-		currentDialog->prevButton.setEnabled(true);
-
-		auto p = currentDialog->currentPage.get();
-		
-		if(navigateOnFinish)
+		if(d != nullptr)
 		{
-			currentDialog->navigate(true);
-			navigateOnFinish = false;
+
+			d->nextButton.setEnabled(d->currentErrorElement == nullptr || 
+								     d->currentErrorElement->getInfoObject()[mpid::EventTrigger].toString() == "OnCall");
+			d->prevButton.setEnabled(true);
+			
+			if(navigateOnFinish)
+				d->navigate(true);
 		}
 	}
+
+	navigateOnFinish = false;
 }
 
 Result State::Job::runJob()
@@ -717,25 +773,18 @@ Result State::Job::runJob()
 	try
 	{
 		auto ok = run();
-            
-		if(auto p = parent.currentDialog.get())
-		{
-			SafeAsyncCall::repaint(p);
-		}
 
+		for(auto d: parent.currentDialogs)
+			SafeAsyncCall::repaint(d.get());
+		
 		return ok;
 	}
 	catch(Result& r)
 	{
-		if(auto p = parent.currentDialog)
-		{
-			p->logMessage(MessageType::ProgressMessage, "ERROR: " + r.getErrorMessage());
+		parent.logMessage(MessageType::ProgressMessage, "ERROR: " + r.getErrorMessage());
 
-			MessageManager::callAsync([p]()
-			{
-				p->repaint();
-			});
-		}
+		for(auto d: parent.currentDialogs)
+			SafeAsyncCall::repaint(d.get());
 
 		return r;
 	}
@@ -743,23 +792,44 @@ Result State::Job::runJob()
 
 void State::addJob(Job::Ptr b, bool addFirst)
 {
-	if(addFirst)
-		jobs.insert(0, b);
-	else
-		jobs.add(b);
+	if(completedJobs.contains(b))
+		return;
+
+	if(!jobs.contains(b))
+	{
+		if(addFirst)
+			jobs.insert(0, b);
+		else
+			jobs.add(b);
+	}
         
 	if(!isThreadRunning())
 	{
-		if(currentDialog != nullptr)
+		for(auto d: currentDialogs)
 		{
-			currentDialog->setCurrentErrorPage(nullptr);
-			currentDialog->repaint();
-			currentDialog->nextButton.setEnabled(false);
-			currentDialog->prevButton.setEnabled(false);
+			d->setCurrentErrorPage(nullptr);
+			d->repaint();
+			d->nextButton.setEnabled(false);
+			d->prevButton.setEnabled(false);
 		}
             
 		startThread(6);
 	}
+}
+
+String State::getFileLog() const
+{
+	String log;
+	String nl = "\n";
+
+	for(auto& f: fileOperations)
+	{
+		log << (f.second ? '+' : '-');
+		log << f.first.getFullPathName();
+		log << nl;
+	}
+
+	return log;
 }
 
 void State::addFileToLog(const std::pair<File, bool>& fileOp)
@@ -769,12 +839,15 @@ void State::addFileToLog(const std::pair<File, bool>& fileOp)
 
 void State::bindCallback(const String& functionName, const var::NativeFunction& f)
 {
-	jsLambdas[functionName] = f;
+	if(!f)
+		jsLambdas.erase(functionName);
+	else
+		jsLambdas[functionName] = f;
 }
 
 bool State::callNativeFunction(const String& functionName, const var::NativeFunctionArgs& args, var* returnValue)
 {
-	if(jsLambdas.find(functionName) != jsLambdas.end())
+	if(hasNativeFunction(functionName))
 	{
 		auto rv = jsLambdas[functionName](args);
 
@@ -782,6 +855,22 @@ bool State::callNativeFunction(const String& functionName, const var::NativeFunc
 			*returnValue = rv;
 
 		return true;
+	}
+	else
+	{
+		String message;
+		message << "Firing custom callback: " << functionName;
+		message << " - args: ";
+
+		for(int i = 0; i < args.numArguments; i++)
+		{
+			message << JSON::toString(args.arguments[i], true);
+
+			if(i != args.numArguments - 1)
+				message << ", ";
+		}
+
+		logMessage(MessageType::ActionEvent, message);
 	}
 
 	return false;
@@ -846,7 +935,7 @@ bool UndoableVarAction::perform()
 	switch(actionType)
 	{
 	case Type::SetProperty: parent.getDynamicObject()->setProperty(key, newValue); return true;
-	case Type::RemoveProperty: parent.getDynamicObject()->removeProperty(key); true;
+	case Type::RemoveProperty: parent.getDynamicObject()->removeProperty(key); return true;
 	case Type::AddChild: parent.getArray()->insert(index, newValue); return true;
 	case Type::RemoveChild: return parent.getArray()->removeAllInstancesOf(oldValue) > 0;
 	default: return false;
@@ -864,7 +953,283 @@ bool UndoableVarAction::undo()
 	default: ;
 	}
 
+	
+
 	return false;
+}
+
+String MonolithData::getMarkerName(Markers m)
+{
+	switch(m)
+	{
+	case MonolithBeginVersion: return "Version Number";
+	case MonolithBeginJSON: return "MonolithBeginJSON";
+	case MonolithEndJSON: return "MonolithEndJSON";
+	case MonolithBeginAssets: return "MonolithBeginAssets";
+	case MonolithAssetJSONStart: return "MonolithAssetJSONStart";
+	case MonolithAssetJSONEnd: return "MonolithAssetJSONEnd";
+	case MonolithAssetStart: return "MonolithAssetStart";
+	case MonolithAssetEnd: return "MonolithAssetEnd";
+	case MonolithEndAssets: return "MonolithEndAssets";
+	default: return {};
+	}
+}
+
+MonolithData::MonolithData(InputStream* input_):
+	input(input_)
+{}
+
+int64 MonolithData::expectFlag(Markers m, bool throwIfMismatch)
+{
+	static const Array<Markers> beginMarkers = { MonolithBeginJSON, MonolithAssetJSONStart, MonolithAssetStart };
+
+	auto isBeginMarker = beginMarkers.contains(m);
+        
+	auto flag = input->readInt();
+
+	if(flag == m)
+	{
+		return isBeginMarker ? input->readInt64() : 0;
+	}
+	else if (throwIfMismatch)
+	{
+		throw String("Expected marker " + getMarkerName(m));
+	}
+	else
+		return 0;
+}
+
+var MonolithData::readJSON(int64 numToRead)
+{
+	MemoryBlock mb;
+	input->readIntoMemoryBlock(mb, numToRead);
+	String jsonString;
+	zstd::ZDefaultCompressor comp;
+	comp.expand(mb, jsonString);
+	var obj;
+	auto r = JSON::parse(jsonString, obj);
+
+	if(!r.wasOk())
+		throw r.getErrorMessage();
+
+	return obj;
+}
+
+multipage::Dialog* MonolithData::create(State& state, bool allowVersionMismatch)
+{
+    int64 numToRead = -1;
+    
+    try
+    {
+        expectFlag (Markers::MonolithBeginVersion);
+
+        auto thisMajor = input->readInt();
+        auto thisMinor = input->readInt();
+        auto thisPatch = input->readInt();
+
+        std::array<int, 3> monoVersion = { thisMajor, thisMinor, thisPatch };
+
+        std::array<int, 3> buildVersion = { MULTIPAGE_MAJOR_VERSION, MULTIPAGE_MINOR_VERSION, MULTIPAGE_PATCH_VERSION };
+
+        SemanticVersionChecker svs(monoVersion, buildVersion);
+
+        if(!svs.isExactMatch())
+            throw String("Version mismatch. " + svs.getErrorMessage("Payload Build Version", "Installer version"));
+
+        expectFlag (Markers::MonolithEndVersion);
+    }
+    catch(String& s)
+    {
+        if(!allowVersionMismatch)
+        {
+            throw s;
+        }
+        else
+        {
+            numToRead = input->readInt64();
+        }
+    }
+
+    if(numToRead == -1)
+	    numToRead = expectFlag(Markers::MonolithBeginJSON);
+    
+	auto jsonData = readJSON(numToRead);
+	expectFlag(Markers::MonolithEndJSON);
+	expectFlag(Markers::MonolithBeginAssets);
+
+	state.reset(jsonData);
+        
+	while(auto metadataSize = expectFlag(Markers::MonolithAssetJSONStart, false))
+	{
+		auto metadata = readJSON(metadataSize);
+		expectFlag(Markers::MonolithAssetJSONEnd);
+
+		auto flag = input->readInt();
+
+		bool isCompressed = true;
+
+		int64 numBytesInData = 0;
+
+		if(flag == Markers::MonolithAssetNoCompressFlag)
+		{
+			isCompressed = false;
+			numBytesInData = expectFlag(Markers::MonolithAssetStart);
+		}
+		else
+		{
+			numBytesInData = input->readInt64();
+		}
+		
+		MemoryBlock mb, mb2;
+		input->readIntoMemoryBlock(mb, numBytesInData);
+
+		if(isCompressed)
+		{
+			zstd::ZDefaultCompressor comp;
+			comp.expand(mb, mb2);
+		}
+		else
+		{
+			std::swap(mb, mb2);
+		}
+		
+		metadata.getDynamicObject()->setProperty(mpid::Data, var(std::move(mb2)));
+		auto r = multipage::Asset::fromVar(metadata, state.currentRootDirectory);
+		state.assets.add(r);
+
+		expectFlag(Markers::MonolithAssetEnd);
+	}
+
+	// caught by the last while loope
+	//expectFlag(fis, Markers::MonolithEndAssets);
+
+	if(input->getPosition() != input->getTotalLength())
+	{
+		throw String("Not EOF");
+	}
+	
+	return new multipage::Dialog(jsonData, state);
+}
+
+Result MonolithData::exportMonolith(State& state, OutputStream* target, bool compressAssets, State::Job* job)
+{
+	// clear the state
+	auto json = state.getFirstDialog()->exportAsJSON();
+	json.getDynamicObject()->removeProperty(mpid::GlobalState);
+	json.getDynamicObject()->removeProperty(mpid::Assets);
+
+	auto c = JSON::toString(json);
+	MemoryBlock mb;
+	zstd::ZDefaultCompressor comp;
+	comp.compress(c, mb);
+
+	if(job != nullptr)
+	{
+		job->setMessage("Exporting monolith");
+	}
+
+	target->writeInt (Markers::MonolithBeginVersion);
+	target->writeInt(MULTIPAGE_MAJOR_VERSION);
+	target->writeInt(MULTIPAGE_MINOR_VERSION);
+	target->writeInt(MULTIPAGE_PATCH_VERSION);
+	target->writeInt(Markers::MonolithEndVersion);
+
+	target->writeInt(Markers::MonolithBeginJSON);
+	
+	target->writeInt64((int64)mb.getSize());
+	target->write(mb.getData(), mb.getSize());
+	target->writeInt(Markers::MonolithEndJSON);
+	target->writeInt(Markers::MonolithBeginAssets);
+
+	for(auto s: state.assets)
+	{
+		if(!s->matchesOS())
+			continue;
+
+		if(job != nullptr)
+			job->setMessage("Exporting asset " + s->id);
+
+		auto assetJSON = s->toJSON(false, state.currentRootDirectory);
+		assetJSON.getDynamicObject()->removeProperty(mpid::Filename);
+
+		File assetFile(s->filename);
+
+		if(assetFile.existsAsFile())
+		{
+			assetJSON.getDynamicObject()->setProperty(mpid::Filename, assetFile.getFileName());
+		}
+
+		auto metadata = JSON::toString(assetJSON);
+
+		MemoryBlock mb2;
+		comp.compress(metadata, mb2);
+
+		target->writeInt(Markers::MonolithAssetJSONStart);
+		target->writeInt64(mb2.getSize());
+		target->write(mb2.getData(), mb2.getSize());
+		target->writeInt(Markers::MonolithAssetJSONEnd);
+
+		if(!compressAssets)
+			target->writeInt(Markers::MonolithAssetNoCompressFlag);
+
+		target->writeInt(Markers::MonolithAssetStart);
+
+		bool ok;
+
+		if(compressAssets)
+		{
+			MemoryBlock mb3;
+
+			comp.compress(s->data, mb3);
+
+			target->writeInt64(mb3.getSize());
+			ok = target->write(mb3.getData(), mb3.getSize());
+		}
+		else
+		{
+			target->writeInt64(s->data.getSize());
+			ok = target->write(s->data.getData(), s->data.getSize());
+		}
+		
+		if(!ok)
+			return Result::fail("Error writing asset " + s->id);
+
+		target->writeInt(Markers::MonolithAssetEnd);
+	}
+
+	target->writeInt(Markers::MonolithEndAssets);
+	target->flush();
+
+	return Result::ok();
+}
+
+var MonolithData::getJSON() const
+{
+	auto flag = input->readInt();
+
+	if(flag == MonolithBeginJSON)
+	{
+		auto numToRead = input->readInt64();
+		MemoryBlock mb;
+		auto numRead = input->readIntoMemoryBlock(mb, numToRead);
+
+		if(numRead == numToRead)
+		{
+			zstd::ZDefaultCompressor comp;
+			String jsonString;
+			comp.expand(mb, jsonString);
+
+			var obj;
+			auto r = JSON::parse(jsonString, obj);
+
+			if(r.wasOk())
+				return obj;
+			else
+				throw String(r.getErrorMessage());
+		}
+		else
+			throw String("Failed to read " + String(numToRead) + " bytes");
+	}
 }
 
 void HardcodedDialogWithState::setOnCloseFunction(const std::function<void()>& f)
@@ -879,17 +1244,21 @@ void HardcodedDialogWithState::resized()
 {
 	if(dialog == nullptr)
 	{
-		addAndMakeVisible(dialog = createDialog(state));
+		if(dialog = createDialog(state))
+		{
+			addAndMakeVisible(dialog);
 
-		postInit();
+			postInit();
 
-		dialog->setFinishCallback(closeFunction);
-		dialog->setEnableEditMode(false);
-		
-		dialog->showFirstPage();
+			dialog->setFinishCallback(closeFunction);
+			dialog->setEnableEditMode(false);
+			
+			dialog->showFirstPage();
+		}
 	}
 
-	dialog->setBounds(getLocalBounds());
+	if(dialog != nullptr)
+		dialog->setBounds(getLocalBounds());
 }
 }
 }

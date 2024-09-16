@@ -35,6 +35,8 @@ namespace simple_css
 {
 using namespace juce;
 
+
+
 /** A look and feel class that applies CSS styling to most stock JUCE controls.
  *
  *  Currently supported:
@@ -45,20 +47,21 @@ using namespace juce;
  *	- popup menus
  *
  */
-struct StyleSheetLookAndFeel: public LookAndFeel_V3
+struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel,
+							  public ScrollBar::LookAndFeelMethods
 {
+	ScrollbarFader::Laf fallback;
+
 	/** Creates a style sheet LAF using a compiled CSS collection and a state watcher that
 	 *  will track the pseudo class state of each component. */
-	StyleSheetLookAndFeel(CSSRootComponent& root_):
-	  root(root_)
-	{
-		setColour(PopupMenu::backgroundColourId, Colours::transparentBlack);
-	};
+	StyleSheetLookAndFeel(CSSRootComponent& root_);;
 
 	/** Uses the selector "button [#id]". */
 	void drawButtonBackground(Graphics& g, Button& tb, const Colour&, bool, bool) override;
 
 	bool drawButtonText(Graphics& g, Button* b);
+
+	bool drawImageOnComponent(Graphics& g, Component* c, const Image& img);
 
 	/** Uses the selector "button [#id]". */
 	void drawButtonText(Graphics& g, TextButton& tb, bool over, bool down) override;
@@ -68,8 +71,59 @@ struct StyleSheetLookAndFeel: public LookAndFeel_V3
 	/** Uses the selector "input [#id]". */
 	void fillTextEditorBackground (Graphics&, int width, int height, TextEditor&) override;
 
+	void drawLinearSlider(Graphics& g, int x, int y, int width, int height, float sliderPos, float minSliderPos,
+	                      float maxSliderPos, const Slider::SliderStyle sliderStyle, Slider&slider) override;
+
+
+	void drawRotarySlider(Graphics&graphics, int x, int y, int width, int height, float sliderPosProportional,
+	                      float rotaryStartAngle, float rotaryEndAngle, Slider&slider) override;
+
 	/** Uses the selector "input [#id]". */
-	void drawTextEditorOutline (Graphics&, int width, int height, TextEditor&) override {};
+	void drawTextEditorOutline (Graphics&, int width, int height, TextEditor&) override {}
+
+
+	/** Draws any generic component background. */
+	bool drawComponentBackground(Graphics& g, Component* c, Selector s = {});
+
+	/** Use this for drawing a listbox row by styling the `tr` element. */
+	bool drawListBoxRow(int rowNumber, Graphics& g, const String& text, Component* lb, int width, int height, bool rowIsSelected,
+	                 bool rowIsHovered);
+
+	void initComponent(Component* c, Selector s={});
+
+	void drawProgressBar(Graphics& g, ProgressBar& pb, int width, int height, double progress, const String& textToShow) override;
+
+	bool isProgressBarOpaque(ProgressBar& b) override { return false; }
+
+	void drawLabel(Graphics& g, Label& l) override;
+
+	Font getLabelFont(Label& label) override;
+
+	/** Uses the selector "select". */
+	void drawComboBox (Graphics& g, int width, int height, bool isButtonDown,
+	                   int buttonX, int buttonY, int buttonW, int buttonH,
+	                   ComboBox& cb) override;
+
+	Font getComboBoxFont (ComboBox&) override { return getPopupMenuFont(); }
+	void positionComboBoxText (ComboBox& cb, Label& label) override;
+	void drawComboBoxTextWhenNothingSelected (Graphics&, ComboBox&, Label&) override { }
+
+	void drawTableHeaderBackground (Graphics&, TableHeaderComponent&) override;
+
+    void drawTableHeaderColumn (Graphics&, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags) override;
+
+	void drawPopupMenuSectionHeaderWithOptions (Graphics& g, const Rectangle<int>& area,
+	                                            const String& sectionName,
+	                                            const PopupMenu::Options&) override;
+
+	StyleSheet::Ptr getBestPopupStyleSheet(bool getItem);
+
+	void getIdealPopupMenuItemSizeWithOptions (const String& text,
+	                                                   bool isSeparator,
+	                                                   int standardMenuItemHeight,
+	                                                   int& idealWidth,
+	                                                   int& idealHeight,
+	                                                   const PopupMenu::Options& options) override;
 
 	/** Uses the selector ".popup and .popup-item". */
 	Font getPopupMenuFont() override;
@@ -90,42 +144,38 @@ struct StyleSheetLookAndFeel: public LookAndFeel_V3
                                                const PopupMenu::Item& item,
                                                const PopupMenu::Options&) override;
 
-	void drawProgressBar(Graphics& g, ProgressBar& pb, int width, int height, double progress, const String& textToShow) override;
+	bool areScrollbarButtonsVisible() override { return false; }
+	ImageEffectFilter* getScrollbarEffect() override { return nullptr; }
+    void drawScrollbarButton (Graphics& ,ScrollBar& ,int , int ,int ,bool ,bool ,bool ) override {}
+	int getScrollbarButtonSize (ScrollBar&) override { return 0; }
 
-	bool isProgressBarOpaque(ProgressBar& b) override { return false; }
+    void drawScrollbar (Graphics& g, ScrollBar& scrollbar,
+                                int x, int y, int width, int height,
+                                bool isScrollbarVertical,
+                                int thumbStartPosition,
+                                int thumbSize,
+                                bool isMouseOver,
+                                bool isMouseDown) override;
 
-	StyleSheet::Ptr getBestPopupStyleSheet(bool getItem);
+	/** Returns the minimum length in pixels to use for a scrollbar thumb. */
+    int getMinimumScrollbarThumbSize (ScrollBar& sb) override
+	{
+		return jmin (sb.getWidth(), sb.getHeight()) * 2;
+	}
 
-	void getIdealPopupMenuItemSizeWithOptions (const String& text,
-	                                                   bool isSeparator,
-	                                                   int standardMenuItemHeight,
-	                                                   int& idealWidth,
-	                                                   int& idealHeight,
-	                                                   const PopupMenu::Options& options) override;
-
-	void drawPopupMenuSectionHeaderWithOptions (Graphics& g, const Rectangle<int>& area,
-	                                            const String& sectionName,
-	                                            const PopupMenu::Options&) override;
-
-	/** Uses the selector "select". */
-	void drawComboBox (Graphics& g, int width, int height, bool isButtonDown,
-	                   int buttonX, int buttonY, int buttonW, int buttonH,
-	                   ComboBox& cb) override;
-
-	Font getComboBoxFont (ComboBox&) override { return getPopupMenuFont(); }
-	void positionComboBoxText (ComboBox& cb, Label& label) override;
-	void drawComboBoxTextWhenNothingSelected (Graphics&, ComboBox&, Label&) override { }
-
-	void drawTableHeaderBackground (Graphics&, TableHeaderComponent&) override;
-
-    void drawTableHeaderColumn (Graphics&, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags) override;
-
-private:
+    /** Returns the default thickness to use for a scrollbar. */
+    int getDefaultScrollbarWidth() override { return 13; }
+	
+protected:
 
 	CSSRootComponent& root;
 
+private:
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StyleSheetLookAndFeel);
 };
+
+
 
 	
 } // namespace simple_css

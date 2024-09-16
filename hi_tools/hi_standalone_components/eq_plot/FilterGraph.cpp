@@ -112,6 +112,9 @@ void FilterGraph::refreshFilterPath()
 		}
 		traceMagnitude = 20 * log10 (traceMagnitude);
 		
+        tracePath.startNewSubPath(-3.0f, -3.0f);
+        tracePath.startNewSubPath((float)width+6.0f, (float)height+6.0f);
+        
 		if(drawType == Line)
 		{
 			tracePath.startNewSubPath (-3, height / 2);
@@ -140,7 +143,9 @@ void FilterGraph::refreshFilterPath()
 			}
 			traceMagnitude = 20 * log10 (traceMagnitude);
         
-			tracePath.lineTo (xPos, (height / 2) - (traceMagnitude * scaleFactor));
+            auto yValue = jlimit<float>(0.0f, (float)height, (height / 2) - (traceMagnitude * scaleFactor));
+            
+			tracePath.lineTo (xPos, yValue);
 		}
 
 		if(drawType == Line)
@@ -390,7 +395,7 @@ void FilterGraph::setCustom (int filterNum, double sampleRate, std::vector <doub
 	}
 }
 
-void FilterGraph::setCoefficients(int filterNum, double sampleRate, std::pair<IIRCoefficients, int> newCoefficients)
+void FilterGraph::setCoefficients(int filterNum, double sampleRate, FilterDataObject::CoefficientData newCoefficients)
 {
 	if (filterNum < filterVector.size())
 	{

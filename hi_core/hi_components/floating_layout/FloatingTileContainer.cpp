@@ -573,7 +573,12 @@ void FloatingTabComponent::fromDynamicObject(const var& objectData)
     
     if(t.isNotEmpty())
         cycleKeyId = Identifier(t);
-    
+
+	for(int i = 0; i < getNumComponents(); i++)
+	{
+		getComponent(i)->getLayoutData().setFoldState(0);
+	}
+
 	setCurrentTabIndex(getPropertyWithDefault(objectData, TabPropertyIds::CurrentTab));
 }
 

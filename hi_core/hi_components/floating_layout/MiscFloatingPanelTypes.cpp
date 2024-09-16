@@ -476,7 +476,10 @@ bool InterfaceContentPanel::connectToScript()
 			refreshButton->setVisible(false);
 		}
 
-		updateSize();
+		jsp->getScriptingContent()->interfaceSizeBroadcaster.addListener(*this, [](InterfaceContentPanel& ip, int, int)
+		{
+			ip.updateSize();
+		});
 
 		repaint();
 

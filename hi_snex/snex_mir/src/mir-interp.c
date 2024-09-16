@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2024 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 
    File contains MIR interpreter which is an obligatory part of MIR API.
 */
@@ -42,7 +42,7 @@ typedef struct func_desc {
   MIR_reg_t nregs;
   MIR_item_t func_item;
   MIR_val_t code[1];
-} * func_desc_t;
+} *func_desc_t;
 
 static void update_max_nreg (MIR_reg_t reg, MIR_reg_t *max_nreg) {
   if (*max_nreg < reg) *max_nreg = reg;
@@ -62,8 +62,9 @@ typedef enum {
   REP6 (IC_EL, LDU8, LDI16, LDU16, LDI32, LDU32, LDI64),
   REP3 (IC_EL, LDF, LDD, LDLD),
   REP7 (IC_EL, STI8, STU8, STI16, STU16, STI32, STU32, STI64),
-  REP3 (IC_EL, STF, STD, STLD),
-  REP7 (IC_EL, MOVI, MOVP, MOVF, MOVD, MOVLD, IMM_CALL, INSN_BOUND),
+  REP8 (IC_EL, STF, STD, STLD, MOVI, MOVP, MOVF, MOVD, MOVLD),
+  REP6 (IC_EL, IMM_CALL, IMM_JCALL, MOVFG, FMOVFG, DMOVFG, LDMOVFG),
+  REP5 (IC_EL, MOVTG, FMOVTG, DMOVTG, LDMOVTG, INSN_BOUND),
 } MIR_full_insn_code_t;
 #undef REP_SEP
 
@@ -85,6 +86,7 @@ struct interp_ctx {
 #if DIRECT_THREADED_DISPATCH
   void *dispatch_label_tab[IC_INSN_BOUND];
 #endif
+  MIR_val_t global_regs[MAX_HARD_REG + 1];
   VARR (MIR_val_t) * code_varr;
   VARR (MIR_insn_t) * branches;
   VARR (MIR_val_t) * arg_vals_varr;
@@ -94,6 +96,7 @@ struct interp_ctx {
 #endif
   void *(*bstart_builtin) (void);
   void (*bend_builtin) (void *);
+  void *jret_addr;
   VARR (MIR_val_t) * call_res_args_varr;
   MIR_val_t *call_res_args;
   VARR (_MIR_arg_desc_t) * call_arg_descs_varr;
@@ -102,8 +105,10 @@ struct interp_ctx {
 };
 
 #define dispatch_label_tab interp_ctx->dispatch_label_tab
+#define global_regs interp_ctx->global_regs
 #define code_varr interp_ctx->code_varr
 #define branches interp_ctx->branches
+#define jret_addr interp_ctx->jret_addr
 #define arg_vals_varr interp_ctx->arg_vals_varr
 #define arg_vals interp_ctx->arg_vals
 #define trace_insn_ident interp_ctx->trace_insn_ident
@@ -124,7 +129,8 @@ static void get_icode (struct interp_ctx *interp_ctx, MIR_val_t *v, int code) {
 #endif
 }
 
-static void push_insn_start (struct interp_ctx *interp_ctx, int code, MIR_insn_t original_insn) {
+static void push_insn_start (struct interp_ctx *interp_ctx, int code,
+                             MIR_insn_t original_insn MIR_UNUSED) {
   MIR_val_t v;
 
   get_icode (interp_ctx, &v, code);
@@ -170,6 +176,7 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
   int imm_call_p;
   MIR_func_t func = func_item->u.func;
   MIR_insn_t insn, label;
+  MIR_type_t type;
   MIR_val_t v;
   size_t i;
   MIR_reg_t max_nreg = 0;
@@ -216,12 +223,44 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
         v.a = item->addr;
         VARR_PUSH (MIR_val_t, code_varr, v);
       } else {
-        mir_assert (ops[1].mode == MIR_OP_REG);
-        push_insn_start (interp_ctx, code, insn);
-        v.i = get_reg (ops[0], &max_nreg);
-        VARR_PUSH (MIR_val_t, code_varr, v);
-        v.i = ops[1].u.reg;
-        VARR_PUSH (MIR_val_t, code_varr, v);
+        const char *hard_reg_name;
+      regreg:
+        mir_assert (ops[0].mode == MIR_OP_REG && ops[1].mode == MIR_OP_REG);
+        type = MIR_reg_type (ctx, ops[0].u.reg, func);
+        mir_assert (type == MIR_reg_type (ctx, ops[1].u.reg, func));
+        if ((hard_reg_name = MIR_reg_hard_reg_name (ctx, ops[0].u.reg, func)) != NULL) {
+          mir_assert (MIR_reg_hard_reg_name (ctx, ops[1].u.reg, func) == NULL);
+          push_insn_start (interp_ctx,
+                           type == MIR_T_F    ? IC_FMOVTG
+                           : type == MIR_T_D  ? IC_DMOVTG
+                           : type == MIR_T_LD ? IC_LDMOVTG
+                                              : IC_MOVTG,
+                           insn);
+          v.i = _MIR_get_hard_reg (ctx, hard_reg_name);
+          mir_assert (v.i <= MAX_HARD_REG);
+          VARR_PUSH (MIR_val_t, code_varr, v);
+          v.i = get_reg (ops[1], &max_nreg);
+          VARR_PUSH (MIR_val_t, code_varr, v);
+        } else if ((hard_reg_name = MIR_reg_hard_reg_name (ctx, ops[1].u.reg, func)) != NULL) {
+          mir_assert (MIR_reg_hard_reg_name (ctx, ops[0].u.reg, func) == NULL);
+          push_insn_start (interp_ctx,
+                           type == MIR_T_F    ? IC_FMOVFG
+                           : type == MIR_T_D  ? IC_DMOVFG
+                           : type == MIR_T_LD ? IC_LDMOVFG
+                                              : IC_MOVFG,
+                           insn);
+          v.i = get_reg (ops[0], &max_nreg);
+          VARR_PUSH (MIR_val_t, code_varr, v);
+          v.i = _MIR_get_hard_reg (ctx, hard_reg_name);
+          mir_assert (v.i <= MAX_HARD_REG);
+          VARR_PUSH (MIR_val_t, code_varr, v);
+        } else {
+          push_insn_start (interp_ctx, code, insn);
+          v.i = get_reg (ops[0], &max_nreg);
+          VARR_PUSH (MIR_val_t, code_varr, v);
+          v.i = get_reg (ops[1], &max_nreg);
+          VARR_PUSH (MIR_val_t, code_varr, v);
+        }
       }
       break;
     case MIR_FMOV:
@@ -242,12 +281,7 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
         v.f = ops[1].u.f;
         VARR_PUSH (MIR_val_t, code_varr, v);
       } else {
-        mir_assert (ops[1].mode == MIR_OP_REG);
-        push_insn_start (interp_ctx, code, insn);
-        v.i = get_reg (ops[0], &max_nreg);
-        VARR_PUSH (MIR_val_t, code_varr, v);
-        v.i = ops[1].u.reg;
-        VARR_PUSH (MIR_val_t, code_varr, v);
+        goto regreg;
       }
       break;
     case MIR_DMOV:
@@ -268,12 +302,7 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
         v.d = ops[1].u.d;
         VARR_PUSH (MIR_val_t, code_varr, v);
       } else {
-        mir_assert (ops[1].mode == MIR_OP_REG);
-        push_insn_start (interp_ctx, code, insn);
-        v.i = get_reg (ops[0], &max_nreg);
-        VARR_PUSH (MIR_val_t, code_varr, v);
-        v.i = ops[1].u.reg;
-        VARR_PUSH (MIR_val_t, code_varr, v);
+        goto regreg;
       }
       break;
     case MIR_LDMOV:
@@ -294,12 +323,7 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
         v.ld = ops[1].u.ld;
         VARR_PUSH (MIR_val_t, code_varr, v);
       } else {
-        mir_assert (ops[1].mode == MIR_OP_REG);
-        push_insn_start (interp_ctx, code, insn);
-        v.i = get_reg (ops[0], &max_nreg);
-        VARR_PUSH (MIR_val_t, code_varr, v);
-        v.i = ops[1].u.reg;
-        VARR_PUSH (MIR_val_t, code_varr, v);
+        goto regreg;
       }
       break;
     case MIR_LABEL: break;
@@ -309,6 +333,14 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
     case MIR_JMP:
       VARR_PUSH (MIR_insn_t, branches, insn);
       push_insn_start (interp_ctx, code, insn);
+      v.i = 0;
+      VARR_PUSH (MIR_val_t, code_varr, v);
+      break;
+    case MIR_LADDR:
+      VARR_PUSH (MIR_insn_t, branches, insn);
+      push_insn_start (interp_ctx, code, insn);
+      v.i = get_reg (ops[0], &max_nreg);
+      VARR_PUSH (MIR_val_t, code_varr, v);
       v.i = 0;
       VARR_PUSH (MIR_val_t, code_varr, v);
       break;
@@ -370,6 +402,27 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
       v.i = get_reg (ops[2], &max_nreg);
       VARR_PUSH (MIR_val_t, code_varr, v);
       break;
+    case MIR_BO:
+    case MIR_UBO:
+    case MIR_BNO:
+    case MIR_UBNO:
+      VARR_PUSH (MIR_insn_t, branches, insn);
+      push_insn_start (interp_ctx, code, insn);
+      v.i = 0;
+      VARR_PUSH (MIR_val_t, code_varr, v);
+      break;
+    case MIR_PRSET: break; /* just ignore */
+    case MIR_PRBEQ:        /* make jump if property is zero or ignore otherwise */
+      if (ops[2].mode == MIR_OP_INT && ops[2].u.i == 0) goto jump;
+      break;
+    case MIR_PRBNE: /* make jump if property is nonzero or ignore otherwise */
+      if (ops[2].mode != MIR_OP_INT || ops[2].u.i == 0) break;
+    jump:
+      VARR_PUSH (MIR_insn_t, branches, insn);
+      push_insn_start (interp_ctx, MIR_JMP, insn);
+      v.i = 0;
+      VARR_PUSH (MIR_val_t, code_varr, v); /* place for label */
+      break;
     default:
       imm_call_p = FALSE;
       if (MIR_call_code_p (code))
@@ -379,7 +432,7 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
                           || ops[1].u.ref->item_type == MIR_forward_item
                           || ops[1].u.ref->item_type == MIR_func_item));
       push_insn_start (interp_ctx,
-                       imm_call_p           ? IC_IMM_CALL
+                       imm_call_p           ? (code == MIR_JCALL ? IC_IMM_JCALL : IC_IMM_CALL)
                        : code == MIR_INLINE ? MIR_CALL
                                             : code,
                        insn);
@@ -417,7 +470,7 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
         } else if (MIR_call_code_p (code) && ops[i].mode == MIR_OP_MEM) {
           mir_assert (MIR_all_blk_type_p (ops[i].u.mem.type));
           v.i = ops[i].u.mem.base;
-          update_max_nreg (v.i, &max_nreg);
+          update_max_nreg ((MIR_reg_t) v.i, &max_nreg);
         } else {
           mir_assert (ops[i].mode == MIR_OP_REG);
           v.i = get_reg (ops[i], &max_nreg);
@@ -430,7 +483,10 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
     size_t start_label_nop = 0, bound_label_nop = 1, start_label_loc = 1, n;
 
     insn = VARR_GET (MIR_insn_t, branches, i);
-    if (insn->code == MIR_SWITCH) {
+    if (insn->code == MIR_LADDR) {
+      start_label_nop = 1;
+      bound_label_nop = 2;
+    } else if (insn->code == MIR_SWITCH) {
       start_label_nop = 1;
       bound_label_nop = start_label_nop + insn->nops - 1;
       start_label_loc++; /* we put nops for MIR_SWITCH */
@@ -451,6 +507,14 @@ static void generate_icode (MIR_context_t ctx, MIR_item_t func_item) {
     (*MIR_get_error_func (ctx)) (MIR_alloc_error, "no memory for interpreter code");
   memmove (func_desc->code, VARR_ADDR (MIR_val_t, code_varr),
            VARR_LENGTH (MIR_val_t, code_varr) * sizeof (MIR_val_t));
+  for (MIR_lref_data_t lref = func->first_lref; lref != NULL; lref = lref->next) {
+    if (lref->label2 == NULL)
+      *(void **) lref->load_addr
+        = (char *) (func_desc->code + (int64_t) lref->label->data) + lref->disp;
+    else
+      *(int64_t *) lref->load_addr
+        = (int64_t) lref->label->data - (int64_t) lref->label2->data + lref->disp;
+  }
   mir_assert (max_nreg < MIR_MAX_REG_NUM);
   func_desc->nregs = max_nreg + 1;
   func_desc->func_item = func_item;
@@ -485,7 +549,7 @@ static ALWAYS_INLINE int64_t *get_2iops (MIR_val_t *bp, code_t c, int64_t *p) {
 }
 
 static ALWAYS_INLINE int64_t *get_2isops (MIR_val_t *bp, code_t c, int32_t *p) {
-  *p = *get_iop (bp, c + 1);
+  *p = (int32_t) *get_iop (bp, c + 1);
   return get_iop (bp, c);
 }
 
@@ -496,8 +560,8 @@ static ALWAYS_INLINE int64_t *get_3iops (MIR_val_t *bp, code_t c, int64_t *p1, i
 }
 
 static ALWAYS_INLINE int64_t *get_3isops (MIR_val_t *bp, code_t c, int32_t *p1, int32_t *p2) {
-  *p1 = *get_iop (bp, c + 1);
-  *p2 = *get_iop (bp, c + 2);
+  *p1 = (int32_t) *get_iop (bp, c + 1);
+  *p2 = (int32_t) *get_iop (bp, c + 2);
   return get_iop (bp, c);
 }
 
@@ -508,8 +572,8 @@ static ALWAYS_INLINE uint64_t *get_3uops (MIR_val_t *bp, code_t c, uint64_t *p1,
 }
 
 static ALWAYS_INLINE uint64_t *get_3usops (MIR_val_t *bp, code_t c, uint32_t *p1, uint32_t *p2) {
-  *p1 = *get_uop (bp, c + 1);
-  *p2 = *get_uop (bp, c + 2);
+  *p1 = (uint32_t) *get_uop (bp, c + 1);
+  *p2 = (uint32_t) *get_uop (bp, c + 2);
   return get_uop (bp, c);
 }
 
@@ -568,11 +632,11 @@ static ALWAYS_INLINE int64_t *get_ldcmp_ops (MIR_val_t *bp, code_t c, long doubl
 
 static ALWAYS_INLINE int64_t get_mem_addr (MIR_val_t *bp, code_t c) { return bp[get_i (c)].i; }
 
-#define EXT(tp)                     \
-  do {                              \
-    int64_t *r = get_iop (bp, ops); \
-    tp s = *get_iop (bp, ops + 1);  \
-    *r = s;                         \
+#define EXT(tp)                          \
+  do {                                   \
+    int64_t *r = get_iop (bp, ops);      \
+    tp s = (tp) * get_iop (bp, ops + 1); \
+    *r = (int64_t) s;                    \
   } while (0)
 #define IOP2(op)                 \
   do {                           \
@@ -618,10 +682,10 @@ static ALWAYS_INLINE int64_t get_mem_addr (MIR_val_t *bp, code_t c) { return bp[
     int64_t op1 = *get_iop (bp, ops + 1), op2 = *get_iop (bp, ops + 2); \
     if (op1 op op2) pc = code + get_i (ops);                            \
   } while (0)
-#define BICMPS(op)                                                      \
-  do {                                                                  \
-    int32_t op1 = *get_iop (bp, ops + 1), op2 = *get_iop (bp, ops + 2); \
-    if (op1 op op2) pc = code + get_i (ops);                            \
+#define BICMPS(op)                                                                            \
+  do {                                                                                        \
+    int32_t op1 = (int32_t) * get_iop (bp, ops + 1), op2 = (int32_t) * get_iop (bp, ops + 2); \
+    if (op1 op op2) pc = code + get_i (ops);                                                  \
   } while (0)
 #define UOP3(op)                       \
   do {                                 \
@@ -667,10 +731,10 @@ static ALWAYS_INLINE int64_t get_mem_addr (MIR_val_t *bp, code_t c) { return bp[
     uint64_t op1 = *get_uop (bp, ops + 1), op2 = *get_uop (bp, ops + 2); \
     if (op1 op op2) pc = code + get_i (ops);                             \
   } while (0)
-#define BUCMPS(op)                                                       \
-  do {                                                                   \
-    uint32_t op1 = *get_uop (bp, ops + 1), op2 = *get_uop (bp, ops + 2); \
-    if (op1 op op2) pc = code + get_i (ops);                             \
+#define BUCMPS(op)                                                                               \
+  do {                                                                                           \
+    uint32_t op1 = (uint32_t) * get_uop (bp, ops + 1), op2 = (uint32_t) * get_uop (bp, ops + 2); \
+    if (op1 op op2) pc = code + get_i (ops);                                                     \
   } while (0)
 
 #define FOP2(op)                 \
@@ -754,11 +818,11 @@ static ALWAYS_INLINE int64_t get_mem_addr (MIR_val_t *bp, code_t c) { return bp[
     int64_t a = get_mem_addr (bp, ops + 1); \
     *r = *((mem_type *) a);                 \
   } while (0)
-#define ST(op, val_type, mem_type)          \
-  do {                                      \
-    val_type v = *get_##op (bp, ops);       \
-    int64_t a = get_mem_addr (bp, ops + 1); \
-    *((mem_type *) a) = v;                  \
+#define ST(op, val_type, mem_type)                \
+  do {                                            \
+    val_type v = (val_type) * get_##op (bp, ops); \
+    int64_t a = get_mem_addr (bp, ops + 1);       \
+    *((mem_type *) a) = (mem_type) v;             \
   } while (0)
 
 #if !MIR_INTERP_TRACE && defined(__GNUC__) && !defined(__clang__)
@@ -790,8 +854,10 @@ static void start_insn_trace (MIR_context_t ctx, const char *name, func_desc_t f
 
 static void finish_insn_trace (MIR_context_t ctx, MIR_full_insn_code_t code, code_t ops,
                                MIR_val_t *bp) {
+  struct interp_ctx *interp_ctx = ctx->interp_ctx;
   int out_p;
   MIR_op_mode_t op_mode = MIR_OP_UNDEF;
+  MIR_val_t *res = bp;
 
   switch (code) {
   case IC_LDI8:
@@ -802,12 +868,28 @@ static void finish_insn_trace (MIR_context_t ctx, MIR_full_insn_code_t code, cod
   case IC_LDU32:
   case IC_LDI64:
   case IC_MOVI:
+  case IC_MOVTG:
+    res = global_regs;
+    /* falls through */
+  case IC_MOVFG:
   case IC_MOVP: op_mode = MIR_OP_INT; break;
   case IC_LDF:
+  case IC_FMOVTG:
+    res = global_regs;
+    /* falls through */
+  case IC_FMOVFG:
   case IC_MOVF: op_mode = MIR_OP_FLOAT; break;
   case IC_LDD:
+  case IC_DMOVTG:
+    res = global_regs;
+    /* falls through */
+  case IC_DMOVFG:
   case IC_MOVD: op_mode = MIR_OP_DOUBLE; break;
   case IC_LDLD:
+  case IC_LDMOVTG:
+    res = global_regs;
+    /* falls through */
+  case IC_LDMOVFG:
   case IC_MOVLD: op_mode = MIR_OP_LDOUBLE; break;
   case IC_STI8:
   case IC_STU8:
@@ -820,6 +902,7 @@ static void finish_insn_trace (MIR_context_t ctx, MIR_full_insn_code_t code, cod
   case IC_STD:;
   case IC_STLD: break;
   case IC_IMM_CALL: break;
+  case IC_IMM_JCALL: break;
   default:
     op_mode = _MIR_insn_code_op_mode (ctx, (MIR_insn_code_t) code, 0, &out_p);
     if (op_mode == MIR_OP_BOUND || !out_p) op_mode = MIR_OP_UNDEF;
@@ -828,16 +911,16 @@ static void finish_insn_trace (MIR_context_t ctx, MIR_full_insn_code_t code, cod
   switch (op_mode) {
   case MIR_OP_INT:
   case MIR_OP_UINT:
-    fprintf (stderr, "\t# res = %" PRId64 " (%" PRIu64 "u, 0x%" PRIx64 ")", bp[ops[0].i].i,
-             bp[ops[0].i].u, bp[ops[0].i].u);
+    fprintf (stderr, "\t# res = %" PRId64 " (%" PRIu64 "u, 0x%" PRIx64 ")", res[ops[0].i].i,
+             res[ops[0].i].u, res[ops[0].i].u);
     break;
-  case MIR_OP_FLOAT: fprintf (stderr, "\t# res = %.*ef", FLT_DECIMAL_DIG, bp[ops[0].i].f); break;
+  case MIR_OP_FLOAT: fprintf (stderr, "\t# res = %.*ef", FLT_DECIMAL_DIG, res[ops[0].i].f); break;
   case MIR_OP_LDOUBLE:
 #ifndef _WIN32
-    fprintf (stderr, "\t# res = %.*Le", LDBL_DECIMAL_DIG, bp[ops[0].i].ld);
+    fprintf (stderr, "\t# res = %.*Le", LDBL_DECIMAL_DIG, res[ops[0].i].ld);
     break;
 #endif
-  case MIR_OP_DOUBLE: fprintf (stderr, "\t# res = %.*e", DBL_DECIMAL_DIG, bp[ops[0].i].d); break;
+  case MIR_OP_DOUBLE: fprintf (stderr, "\t# res = %.*e", DBL_DECIMAL_DIG, res[ops[0].i].d); break;
   default: assert (op_mode == MIR_OP_UNDEF);
   }
   fprintf (stderr, "\n");
@@ -855,7 +938,7 @@ static code_t call_insn_execute (MIR_context_t ctx, code_t pc, MIR_val_t *bp, co
 
   if (VARR_EXPAND (MIR_val_t, arg_vals_varr, nops)) arg_vals = VARR_ADDR (MIR_val_t, arg_vals_varr);
 
-  for (size_t i = start; i < nops + 3; i++) arg_vals[i - start] = bp[get_i (ops + i)];
+  for (size_t i = start; i < (size_t) nops + 3; i++) arg_vals[i - start] = bp[get_i (ops + i)];
 
 #if MIR_INTERP_TRACE
   trace_insn_ident += 2;
@@ -870,10 +953,16 @@ static code_t call_insn_execute (MIR_context_t ctx, code_t pc, MIR_val_t *bp, co
   return pc;
 }
 
+static int64_t addr_offset8, addr_offset16, addr_offset32;
+
 static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *bp,
                            MIR_val_t *results) {
   struct interp_ctx *interp_ctx = ctx->interp_ctx;
+  MIR_val_t *globals = global_regs;
   code_t pc, ops, code;
+  void *jmpi_val; /* where label thunk execution result will be: */
+  int64_t offset;
+  int signed_overflow_p = FALSE, unsigned_overflow_p = FALSE; /* to avoid uninitialized warnings */
 
 #if MIR_INTERP_TRACE
   MIR_full_insn_code_t trace_insn_code;
@@ -902,7 +991,8 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     REP6 (LAB_EL, MIR_EXT8, MIR_EXT16, MIR_EXT32, MIR_UEXT8, MIR_UEXT16, MIR_UEXT32);
     REP6 (LAB_EL, MIR_I2F, MIR_I2D, MIR_I2LD, MIR_UI2F, MIR_UI2D, MIR_UI2LD);
     REP8 (LAB_EL, MIR_F2I, MIR_D2I, MIR_LD2I, MIR_F2D, MIR_F2LD, MIR_D2F, MIR_D2LD, MIR_LD2F);
-    REP8 (LAB_EL, MIR_LD2D, MIR_NEG, MIR_NEGS, MIR_FNEG, MIR_DNEG, MIR_LDNEG, MIR_ADD, MIR_ADDS);
+    REP6 (LAB_EL, MIR_LD2D, MIR_NEG, MIR_NEGS, MIR_FNEG, MIR_DNEG, MIR_LDNEG);
+    REP6 (LAB_EL, MIR_ADDR, MIR_ADDR8, MIR_ADDR16, MIR_ADDR32, MIR_ADD, MIR_ADDS);
     REP8 (LAB_EL, MIR_FADD, MIR_DADD, MIR_LDADD, MIR_SUB, MIR_SUBS, MIR_FSUB, MIR_DSUB, MIR_LDSUB);
     REP8 (LAB_EL, MIR_MUL, MIR_MULS, MIR_FMUL, MIR_DMUL, MIR_LDMUL, MIR_DIV, MIR_DIVS, MIR_UDIV);
     REP8 (LAB_EL, MIR_UDIVS, MIR_FDIV, MIR_DDIV, MIR_LDDIV, MIR_MOD, MIR_MODS, MIR_UMOD, MIR_UMODS);
@@ -912,19 +1002,24 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     REP8 (LAB_EL, MIR_ULT, MIR_ULTS, MIR_FLT, MIR_DLT, MIR_LDLT, MIR_LE, MIR_LES, MIR_ULE);
     REP8 (LAB_EL, MIR_ULES, MIR_FLE, MIR_DLE, MIR_LDLE, MIR_GT, MIR_GTS, MIR_UGT, MIR_UGTS);
     REP8 (LAB_EL, MIR_FGT, MIR_DGT, MIR_LDGT, MIR_GE, MIR_GES, MIR_UGE, MIR_UGES, MIR_FGE);
-    REP8 (LAB_EL, MIR_DGE, MIR_LDGE, MIR_JMP, MIR_BT, MIR_BTS, MIR_BF, MIR_BFS, MIR_BEQ);
+    REP6 (LAB_EL, MIR_DGE, MIR_LDGE, MIR_ADDO, MIR_ADDOS, MIR_SUBO, MIR_SUBOS);
+    REP4 (LAB_EL, MIR_MULO, MIR_MULOS, MIR_UMULO, MIR_UMULOS);
+    REP6 (LAB_EL, MIR_JMP, MIR_BT, MIR_BTS, MIR_BF, MIR_BFS, MIR_BEQ);
     REP8 (LAB_EL, MIR_BEQS, MIR_FBEQ, MIR_DBEQ, MIR_LDBEQ, MIR_BNE, MIR_BNES, MIR_FBNE, MIR_DBNE);
     REP8 (LAB_EL, MIR_LDBNE, MIR_BLT, MIR_BLTS, MIR_UBLT, MIR_UBLTS, MIR_FBLT, MIR_DBLT, MIR_LDBLT);
     REP8 (LAB_EL, MIR_BLE, MIR_BLES, MIR_UBLE, MIR_UBLES, MIR_FBLE, MIR_DBLE, MIR_LDBLE, MIR_BGT);
     REP8 (LAB_EL, MIR_BGTS, MIR_UBGT, MIR_UBGTS, MIR_FBGT, MIR_DBGT, MIR_LDBGT, MIR_BGE, MIR_BGES);
     REP5 (LAB_EL, MIR_UBGE, MIR_UBGES, MIR_FBGE, MIR_DBGE, MIR_LDBGE);
-    REP4 (LAB_EL, MIR_CALL, MIR_INLINE, MIR_SWITCH, MIR_RET);
+    REP6 (LAB_EL, MIR_BO, MIR_UBO, MIR_BNO, MIR_UBNO, MIR_LADDR, MIR_JMPI);
+    REP6 (LAB_EL, MIR_CALL, MIR_INLINE, MIR_JCALL, MIR_SWITCH, MIR_RET, MIR_JRET);
     REP3 (LAB_EL, MIR_ALLOCA, MIR_BSTART, MIR_BEND);
     REP4 (LAB_EL, MIR_VA_ARG, MIR_VA_BLOCK_ARG, MIR_VA_START, MIR_VA_END);
     REP8 (LAB_EL, IC_LDI8, IC_LDU8, IC_LDI16, IC_LDU16, IC_LDI32, IC_LDU32, IC_LDI64, IC_LDF);
     REP8 (LAB_EL, IC_LDD, IC_LDLD, IC_STI8, IC_STU8, IC_STI16, IC_STU16, IC_STI32, IC_STU32);
     REP8 (LAB_EL, IC_STI64, IC_STF, IC_STD, IC_STLD, IC_MOVI, IC_MOVP, IC_MOVF, IC_MOVD);
-    REP2 (LAB_EL, IC_MOVLD, IC_IMM_CALL);
+    REP3 (LAB_EL, IC_MOVLD, IC_IMM_CALL, IC_IMM_JCALL);
+    REP4 (LAB_EL, IC_MOVFG, IC_FMOVFG, IC_DMOVFG, IC_LDMOVFG);
+    REP4 (LAB_EL, IC_MOVTG, IC_FMOVTG, IC_DMOVTG, IC_LDMOVTG);
     return;
   }
 #undef REP_SEP
@@ -971,6 +1066,14 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     switch (insn_code) {
 #endif
 
+#if 0
+    L_jmpi_finish :
+#endif
+  { /* jmpi thunk return */
+    pc = jmpi_val;
+    END_INSN;
+  }
+
   CASE (MIR_MOV, 2) {
     int64_t p, *r = get_2iops (bp, ops, &p);
     *r = p;
@@ -991,6 +1094,49 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     *r = p;
     END_INSN;
   }
+
+  CASE (IC_MOVFG, 2) {
+    int64_t l = get_i (ops), r = get_i (ops + 1);
+    bp[l].i = globals[r].i;
+    END_INSN;
+  }
+  CASE (IC_FMOVFG, 2) {
+    int64_t l = get_i (ops), r = get_i (ops + 1);
+    bp[l].f = globals[r].f;
+    END_INSN;
+  }
+  CASE (IC_DMOVFG, 2) {
+    int64_t l = get_i (ops), r = get_i (ops + 1);
+    bp[l].d = globals[r].d;
+    END_INSN;
+  }
+  CASE (IC_LDMOVFG, 2) {
+    int64_t l = get_i (ops), r = get_i (ops + 1);
+    bp[l].ld = globals[r].ld;
+    END_INSN;
+  }
+
+  CASE (IC_MOVTG, 2) {
+    int64_t l = get_i (ops), r = get_i (ops + 1);
+    globals[l].i = bp[r].i;
+    END_INSN;
+  }
+  CASE (IC_FMOVTG, 2) {
+    int64_t l = get_i (ops), r = get_i (ops + 1);
+    globals[l].f = bp[r].f;
+    END_INSN;
+  }
+  CASE (IC_DMOVTG, 2) {
+    int64_t l = get_i (ops), r = get_i (ops + 1);
+    globals[l].d = bp[r].d;
+    END_INSN;
+  }
+  CASE (IC_LDMOVTG, 2) {
+    int64_t l = get_i (ops), r = get_i (ops + 1);
+    globals[l].ld = bp[r].ld;
+    END_INSN;
+  }
+
   SCASE (MIR_EXT8, 2, EXT (int8_t));
   SCASE (MIR_EXT16, 2, EXT (int16_t));
   SCASE (MIR_EXT32, 2, EXT (int32_t));
@@ -1001,21 +1147,21 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     float *r = get_fop (bp, ops);
     int64_t i = *get_iop (bp, ops + 1);
 
-    *r = i;
+    *r = (float) i;
     END_INSN;
   }
   CASE (MIR_I2D, 2) {
     double *r = get_dop (bp, ops);
     int64_t i = *get_iop (bp, ops + 1);
 
-    *r = i;
+    *r = (double) i;
     END_INSN;
   }
   CASE (MIR_I2LD, 2) {
     long double *r = get_ldop (bp, ops);
     int64_t i = *get_iop (bp, ops + 1);
 
-    *r = i;
+    *r = (long double) i;
     END_INSN;
   }
 
@@ -1023,21 +1169,21 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     float *r = get_fop (bp, ops);
     uint64_t i = *get_iop (bp, ops + 1);
 
-    *r = i;
+    *r = (float) i;
     END_INSN;
   }
   CASE (MIR_UI2D, 2) {
     double *r = get_dop (bp, ops);
     uint64_t i = *get_iop (bp, ops + 1);
 
-    *r = i;
+    *r = (double) i;
     END_INSN;
   }
   CASE (MIR_UI2LD, 2) {
     long double *r = get_ldop (bp, ops);
     uint64_t i = *get_iop (bp, ops + 1);
 
-    *r = i;
+    *r = (long double) i;
     END_INSN;
   }
 
@@ -1045,21 +1191,21 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     int64_t *r = get_iop (bp, ops);
     float f = *get_fop (bp, ops + 1);
 
-    *r = f;
+    *r = (int64_t) f;
     END_INSN;
   }
   CASE (MIR_D2I, 2) {
     int64_t *r = get_iop (bp, ops);
     double d = *get_dop (bp, ops + 1);
 
-    *r = d;
+    *r = (int64_t) d;
     END_INSN;
   }
   CASE (MIR_LD2I, 2) {
     int64_t *r = get_iop (bp, ops);
     long double ld = *get_ldop (bp, ops + 1);
 
-    *r = ld;
+    *r = (int64_t) ld;
     END_INSN;
   }
 
@@ -1080,7 +1226,7 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     float *r = get_fop (bp, ops);
     double d = *get_dop (bp, ops + 1);
 
-    *r = d;
+    *r = (float) d;
     END_INSN;
   }
   CASE (MIR_D2LD, 2) {
@@ -1094,7 +1240,7 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     float *r = get_fop (bp, ops);
     long double ld = *get_ldop (bp, ops + 1);
 
-    *r = ld;
+    *r = (float) ld;
     END_INSN;
   }
 
@@ -1111,6 +1257,29 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
   SCASE (MIR_FNEG, 2, FOP2 (-));
   SCASE (MIR_DNEG, 2, DOP2 (-));
   SCASE (MIR_LDNEG, 2, LDOP2 (-));
+
+  CASE (MIR_ADDR8, 2) {
+    offset = addr_offset8;
+    goto common_addr;
+  }
+  CASE (MIR_ADDR16, 2) {
+    offset = addr_offset16;
+    goto common_addr;
+  }
+  CASE (MIR_ADDR32, 2) {
+    offset = addr_offset32;
+    goto common_addr;
+  }
+  CASE (MIR_ADDR, 2)
+  offset = 0;
+common_addr:;
+  {
+    int64_t *r = get_iop (bp, ops);
+    void **p = get_aop (bp, ops + 1);
+
+    *r = (int64_t) p + offset;
+    END_INSN;
+  }
 
   SCASE (MIR_ADD, 3, IOP3 (+));
   SCASE (MIR_ADDS, 3, IOP3S (+));
@@ -1201,6 +1370,80 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
   SCASE (MIR_DGE, 3, DCMP (>=));
   SCASE (MIR_LDGE, 3, LDCMP (>=));
 
+  CASE (MIR_ADDO, 3) {
+    int64_t *r = get_iop (bp, ops);
+    int64_t op1 = *get_iop (bp, ops + 1), op2 = *get_iop (bp, ops + 2);
+    unsigned_overflow_p = (uint64_t) op1 > UINT64_MAX - (uint64_t) op2;
+    signed_overflow_p = op2 >= 0 ? op1 > INT64_MAX - op2 : op1 < INT64_MIN - op2;
+    *r = op1 + op2;
+    END_INSN;
+  }
+
+  CASE (MIR_ADDOS, 3) {
+    int64_t *r = get_iop (bp, ops);
+    int32_t op1 = (int32_t) *get_iop (bp, ops + 1), op2 = (int32_t) *get_iop (bp, ops + 2);
+    unsigned_overflow_p = (uint32_t) op1 > UINT32_MAX - (uint32_t) op2;
+    signed_overflow_p = op2 >= 0 ? op1 > INT32_MAX - op2 : op1 < INT32_MIN - op2;
+    *r = op1 + op2;
+    END_INSN;
+  }
+
+  CASE (MIR_SUBO, 3) {
+    int64_t *r = get_iop (bp, ops);
+    int64_t op1 = *get_iop (bp, ops + 1), op2 = *get_iop (bp, ops + 2);
+    unsigned_overflow_p = (uint64_t) op1 < (uint64_t) op2;
+    signed_overflow_p = op2 < 0 ? op1 > INT64_MAX + op2 : op1 < INT64_MIN + op2;
+    *r = op1 - op2;
+    END_INSN;
+  }
+
+  CASE (MIR_SUBOS, 3) {
+    int64_t *r = get_iop (bp, ops);
+    int32_t op1 = (int32_t) *get_iop (bp, ops + 1), op2 = (int32_t) *get_iop (bp, ops + 2);
+    unsigned_overflow_p = (uint32_t) op1 < (uint32_t) op2;
+    signed_overflow_p = op2 < 0 ? op1 > INT32_MAX + op2 : op1 < INT32_MIN + op2;
+    *r = op1 - op2;
+    END_INSN;
+  }
+
+  CASE (MIR_MULO, 3) {
+    int64_t *r = get_iop (bp, ops);
+    int64_t op1 = *get_iop (bp, ops + 1), op2 = *get_iop (bp, ops + 2);
+    signed_overflow_p = (op1 == 0    ? FALSE
+                         : op1 == -1 ? op2 < -INT64_MAX
+                         : op1 > 0   ? (op2 > 0 ? INT64_MAX / op1 < op2 : INT64_MIN / op1 > op2)
+                                     : (op2 > 0 ? INT64_MIN / op1 < op2 : INT64_MAX / op1 > op2));
+    *r = op1 * op2;
+    END_INSN;
+  }
+
+  CASE (MIR_MULOS, 3) {
+    int64_t *r = get_iop (bp, ops);
+    int32_t op1 = (int32_t) *get_iop (bp, ops + 1), op2 = (int32_t) *get_iop (bp, ops + 2);
+    signed_overflow_p = (op1 == 0    ? FALSE
+                         : op1 == -1 ? op2 < -INT32_MAX
+                         : op1 > 0   ? (op2 > 0 ? INT32_MAX / op1 < op2 : INT32_MIN / op1 > op2)
+                                     : (op2 > 0 ? INT32_MIN / op1 < op2 : INT32_MAX / op1 > op2));
+    *r = op1 * op2;
+    END_INSN;
+  }
+
+  CASE (MIR_UMULO, 3) {
+    uint64_t *r = get_uop (bp, ops);
+    uint64_t op1 = *get_uop (bp, ops + 1), op2 = *get_uop (bp, ops + 2);
+    unsigned_overflow_p = op1 == 0 ? FALSE : UINT64_MAX / op1 < op2;
+    *r = op1 * op2;
+    END_INSN;
+  }
+
+  CASE (MIR_UMULOS, 3) {
+    uint64_t *r = get_uop (bp, ops);
+    uint32_t op1 = (uint32_t) *get_uop (bp, ops + 1), op2 = (uint32_t) *get_uop (bp, ops + 2);
+    unsigned_overflow_p = op1 == 0 ? FALSE : UINT32_MAX / op1 < op2;
+    *r = op1 * op2;
+    END_INSN;
+  }
+
   SCASE (MIR_JMP, 1, pc = code + get_i (ops));
   CASE (MIR_BT, 2) {
     int64_t cond = *get_iop (bp, ops + 1);
@@ -1215,13 +1458,13 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
     END_INSN;
   }
   CASE (MIR_BTS, 2) {
-    int32_t cond = *get_iop (bp, ops + 1);
+    int32_t cond = (int32_t) *get_iop (bp, ops + 1);
 
     if (cond) pc = code + get_i (ops);
     END_INSN;
   }
   CASE (MIR_BFS, 2) {
-    int32_t cond = *get_iop (bp, ops + 1);
+    int32_t cond = (int32_t) *get_iop (bp, ops + 1);
 
     if (!cond) pc = code + get_i (ops);
     END_INSN;
@@ -1265,6 +1508,34 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
   SCASE (MIR_DBGE, 3, BDCMP (>=));
   SCASE (MIR_LDBGE, 3, BLDCMP (>=));
 
+  CASE (MIR_BO, 1) {
+    if (signed_overflow_p) pc = code + get_i (ops);
+    END_INSN;
+  }
+  CASE (MIR_UBO, 1) {
+    if (unsigned_overflow_p) pc = code + get_i (ops);
+    END_INSN;
+  }
+  CASE (MIR_BNO, 1) {
+    if (!signed_overflow_p) pc = code + get_i (ops);
+    END_INSN;
+  }
+  CASE (MIR_UBNO, 1) {
+    if (!unsigned_overflow_p) pc = code + get_i (ops);
+    END_INSN;
+  }
+  CASE (MIR_LADDR, 2) {
+    void **r = get_aop (bp, ops);
+    *r = code + get_i (ops + 1);
+    END_INSN;
+  }
+
+  CASE (MIR_JMPI, 1) { /* jmpi thunk */
+    void **r = get_aop (bp, ops);
+    pc = *r;
+    END_INSN;
+  }
+
   CASE (MIR_CALL, 0) {
     int (*func_addr) (void *buf) = *get_aop (bp, ops + 4);
 
@@ -1306,6 +1577,23 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
 
   SCASE (MIR_INLINE, 0, mir_assert (FALSE));
 
+  CASE (MIR_JCALL, 0) {
+    int (*func_addr) (void *buf) = *get_aop (bp, ops + 4);
+    if (func_addr == setjmp_addr)
+      (*MIR_get_error_func (ctx)) (MIR_invalid_insn_error, "jcall of setjmp");
+    call_insn_execute (ctx, pc, bp, ops, FALSE);
+    pc = jret_addr;
+    END_INSN;
+  }
+  CASE (IC_IMM_JCALL, 0) {
+    int (*func_addr) (void *buf) = get_a (ops + 4);
+    if (func_addr == setjmp_addr)
+      (*MIR_get_error_func (ctx)) (MIR_invalid_insn_error, "jcall of setjmp");
+    call_insn_execute (ctx, pc, bp, ops, TRUE);
+    pc = jret_addr;
+    END_INSN;
+  }
+
   CASE (MIR_SWITCH, 0) {
     int64_t nops = get_i (ops); /* #ops */
     int64_t index = *get_iop (bp, ops + 1);
@@ -1317,9 +1605,14 @@ static void OPTIMIZE eval (MIR_context_t ctx, func_desc_t func_desc, MIR_val_t *
 
   CASE (MIR_RET, 0) {
     int64_t nops = get_i (ops); /* #ops */
-
     for (int64_t i = 0; i < nops; i++) results[i] = bp[get_i (ops + i + 1)];
     pc += nops + 1;
+    return;
+    END_INSN;
+  }
+
+  CASE (MIR_JRET, 0) {
+    jret_addr = bp[get_i (ops)].a; /* pc for continuation */
     return;
     END_INSN;
   }
@@ -1413,19 +1706,20 @@ static inline func_desc_t get_func_desc (MIR_item_t func_item) {
   return func_item->data;
 }
 
-static htab_hash_t ff_interface_hash (ff_interface_t i, void *arg) {
-  htab_hash_t h = mir_hash_step (mir_hash_init (0), i->nres);
-  h = mir_hash_step (h, i->nargs);
-  h = mir_hash_step (h, i->arg_vars_num);
-  h = mir_hash (i->res_types, sizeof (MIR_type_t) * i->nres, h);
+static htab_hash_t ff_interface_hash (ff_interface_t i, void *arg MIR_UNUSED) {
+  htab_hash_t h = (htab_hash_t) mir_hash_step (mir_hash_init (0), i->nres);
+  h = (htab_hash_t) mir_hash_step (h, i->nargs);
+  h = (htab_hash_t) mir_hash_step (h, i->arg_vars_num);
+  h = (htab_hash_t) mir_hash (i->res_types, sizeof (MIR_type_t) * i->nres, h);
   for (size_t n = 0; n < i->nargs; n++) {
-    h = mir_hash_step (h, i->arg_descs[n].type);
-    if (MIR_all_blk_type_p (i->arg_descs[n].type)) h = mir_hash_step (h, i->arg_descs[n].size);
+    h = (htab_hash_t) mir_hash_step (h, i->arg_descs[n].type);
+    if (MIR_all_blk_type_p (i->arg_descs[n].type))
+      h = (htab_hash_t) mir_hash_step (h, i->arg_descs[n].size);
   }
-  return mir_hash_finish (h);
+  return (htab_hash_t) mir_hash_finish (h);
 }
 
-static int ff_interface_eq (ff_interface_t i1, ff_interface_t i2, void *arg) {
+static int ff_interface_eq (ff_interface_t i1, ff_interface_t i2, void *arg MIR_UNUSED) {
   if (i1->nres != i2->nres || i1->nargs != i2->nargs || i1->arg_vars_num != i2->arg_vars_num)
     return FALSE;
   if (memcmp (i1->res_types, i2->res_types, sizeof (MIR_type_t) * i1->nres) != 0) return FALSE;
@@ -1438,11 +1732,11 @@ static int ff_interface_eq (ff_interface_t i1, ff_interface_t i2, void *arg) {
   return TRUE;
 }
 
-static void ff_interface_clear (ff_interface_t ffi, void *arg) { free (ffi); }
+static void ff_interface_clear (ff_interface_t ffi, void *arg MIR_UNUSED) { free (ffi); }
 
 static void *get_ff_interface (MIR_context_t ctx, size_t arg_vars_num, size_t nres,
                                MIR_type_t *res_types, size_t nargs, _MIR_arg_desc_t *arg_descs,
-                               int vararg_p) {
+                               int vararg_p MIR_UNUSED) {
   struct interp_ctx *interp_ctx = ctx->interp_ctx;
   struct ff_interface ffi_s;
   ff_interface_t tab_ffi, ffi;
@@ -1574,6 +1868,9 @@ static void call (MIR_context_t ctx, MIR_val_t *bp, MIR_op_t *insn_arg_ops, code
 static void interp_init (MIR_context_t ctx) {
   struct interp_ctx *interp_ctx;
 
+  addr_offset8 = _MIR_addr_offset (ctx, MIR_ADDR8);
+  addr_offset16 = _MIR_addr_offset (ctx, MIR_ADDR16);
+  addr_offset32 = _MIR_addr_offset (ctx, MIR_ADDR32);
   if ((interp_ctx = ctx->interp_ctx = malloc (sizeof (struct interp_ctx))) == NULL)
     MIR_get_error_func (ctx) (MIR_alloc_error, "Not enough memory for ctx");
 #if DIRECT_THREADED_DISPATCH

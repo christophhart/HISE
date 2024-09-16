@@ -1002,6 +1002,7 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_METHOD_WRAPPER_1(PathObject, getBounds);
 	API_METHOD_WRAPPER_0(PathObject, getLength);
 	API_METHOD_WRAPPER_0(PathObject, toString);
+	API_METHOD_WRAPPER_0(PathObject, toBase64);
 	API_VOID_METHOD_WRAPPER_1(PathObject, fromString);
 };
 
@@ -1034,6 +1035,7 @@ ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_0(getLength);
 	ADD_API_METHOD_2(createStrokedPath);
 	ADD_API_METHOD_0(toString);
+	ADD_API_METHOD_0(toBase64);
 	ADD_API_METHOD_1(fromString);
 }
 
@@ -1273,6 +1275,13 @@ juce::var ScriptingObjects::PathObject::createStrokedPath(var strokeData, var do
 String ScriptingObjects::PathObject::toString()
 {
 	return p.toString();
+}
+
+String ScriptingObjects::PathObject::toBase64()
+{
+	MemoryOutputStream mos;
+	p.writePathToStream(mos);
+	return mos.getMemoryBlock().toBase64Encoding();
 }
 
 void ScriptingObjects::PathObject::fromString(String stringPath)
@@ -1559,6 +1568,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, setFontWithSpacing);
 	API_VOID_METHOD_WRAPPER_2(GraphicsObject, drawText);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, drawAlignedText);
+	API_VOID_METHOD_WRAPPER_4(GraphicsObject, drawAlignedTextShadow);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawFittedText);
 	API_VOID_METHOD_WRAPPER_5(GraphicsObject, drawMultiLineText);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, drawMarkdownText);
@@ -1615,6 +1625,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_3(setFontWithSpacing);
 	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);
+	ADD_API_METHOD_4(drawAlignedTextShadow);
 	ADD_API_METHOD_5(drawFittedText);
 	ADD_API_METHOD_5(drawMultiLineText);
 	ADD_API_METHOD_1(drawMarkdownText);
@@ -1629,6 +1640,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_3(drawTriangle);
 	ADD_API_METHOD_2(fillTriangle);
 	ADD_API_METHOD_2(fillPath);
+	
 	ADD_API_METHOD_3(drawPath);
 	ADD_API_METHOD_2(rotate);
 	ADD_API_METHOD_2(drawFFTSpectrum);
@@ -1979,6 +1991,26 @@ void ScriptingObjects::GraphicsObject::drawAlignedText(String text, var area, St
 	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawText(text, r, just));
 }
 
+void ScriptingObjects::GraphicsObject::drawAlignedTextShadow(String text, var area, String alignment, var shadowData)
+{
+	Rectangle<float> r = getRectangleFromVar(area);
+
+	Result re = Result::ok();
+	auto just = ApiHelpers::getJustification(alignment, &re);
+
+	
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+
+	auto sp = ApiHelpers::getShadowParameters(shadowData, &re);
+
+	if (re.failed())
+		reportScriptError(re.getErrorMessage());
+
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawTextShadow(text, r, just, sp));
+}
+
 void ScriptingObjects::GraphicsObject::drawFittedText(String text, var area, String alignment, int maxLines, float scale)
 {
 	Result re = Result::ok();
@@ -2153,6 +2185,8 @@ void ScriptingObjects::GraphicsObject::drawDropShadowFromPath(var path, var area
 	auto r = getIntRectangleFromVar(area);
 	auto o = getPointFromVar(offset);
 	auto c = ScriptingApi::Content::Helpers::getCleanedObjectColour(colour);
+
+
 
 	if (auto p = dynamic_cast<ScriptingObjects::PathObject*>(path.getObject()))
 	{
@@ -2337,6 +2371,9 @@ struct ScriptingObjects::ScriptedLookAndFeel::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptedLookAndFeel, loadImage);
 	API_VOID_METHOD_WRAPPER_0(ScriptedLookAndFeel, unloadAllImages);
 	API_METHOD_WRAPPER_1(ScriptedLookAndFeel, isImageLoaded);
+	API_VOID_METHOD_WRAPPER_1(ScriptedLookAndFeel, setInlineStyleSheet);
+	API_VOID_METHOD_WRAPPER_1(ScriptedLookAndFeel, setStyleSheet);
+	API_VOID_METHOD_WRAPPER_3(ScriptedLookAndFeel, setStyleSheetProperty);
 };
 
 
@@ -2352,7 +2389,12 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 	ADD_API_METHOD_2(loadImage);
 	ADD_API_METHOD_0(unloadAllImages);
 	ADD_API_METHOD_1(isImageLoaded);
-
+	ADD_API_METHOD_1(setInlineStyleSheet);
+	ADD_API_METHOD_1(setStyleSheet);
+	ADD_API_METHOD_3(setStyleSheetProperty);
+	
+    additionalProperties = ValueTree("additionalProperties");
+    
 	if(isGlobal)
 		getScriptProcessor()->getMainController_()->setCurrentScriptLookAndFeel(this);
 }
@@ -2360,10 +2402,7 @@ ScriptingObjects::ScriptedLookAndFeel::ScriptedLookAndFeel(ProcessorWithScriptin
 ScriptingObjects::ScriptedLookAndFeel::~ScriptedLookAndFeel()
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(getMainController()->getJavascriptThreadPool().getLookAndFeelRenderLock());
-
-    functions = var();
-    graphics.clear();
-    loadedImages.clear();
+	clearScriptContext();
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::registerFunction(var functionName, var function)
@@ -2379,6 +2418,100 @@ void ScriptingObjects::ScriptedLookAndFeel::setGlobalFont(const String& fontName
 {
 	f = getScriptProcessor()->getMainController_()->getFontFromString(fontName, fontSize);
 }
+
+void ScriptingObjects::ScriptedLookAndFeel::setInlineStyleSheet(const String& cssCode)
+{
+	currentStyleSheetFile = "inline_";
+    currentStyleSheetFile << String(cssCode.hash());
+	setStyleSheetInternal(cssCode);
+}
+
+String ScriptingObjects::ScriptedLookAndFeel::loadStyleSheetFile(const String& fileName)
+{
+	if(!fileName.endsWith(".css"))
+		reportScriptError("the file must have the .css extension.");
+	
+#if true || USE_BACKEND
+
+	auto cssFile = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileName);
+	
+	auto ef = getMainController()->getExternalScriptFile(cssFile, false);
+
+	String content;
+
+	if(ef != nullptr)
+		content = ef->getFileDocument().getAllContent();
+	else if (cssFile.existsAsFile())
+		content = cssFile.loadFileAsString();
+	else
+    {
+        String s;
+        String nl = "\n";
+        
+        s << "*" << nl;
+        s << "{" << nl;
+        s << "    color: white;" << nl;
+        s << "}" << nl;
+        
+		content = s;
+
+		cssFile.getParentDirectory().createDirectory();
+
+		cssFile.replaceWithText(s);
+    }
+
+	if (auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor()))
+	{
+		ef = jp->addFileWatcher(cssFile);
+		
+		jp->getScriptEngine()->addShaderFile(cssFile);
+	}
+
+	
+
+	return content;
+#else
+	
+	return getMainController()->getExternalScriptFromCollection(fileName);
+#endif
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::setStyleSheetInternal(const String& cssCode)
+{
+	debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "\tThe CSS renderer is still experimental, so use with precaution.");
+
+	currentStyleSheet = cssCode;
+	simple_css::Parser p(cssCode);
+
+    
+
+	auto ok = p.parse();
+
+	if(!ok.wasOk())
+		reportScriptError(ok.getErrorMessage());
+
+	SimpleReadWriteLock::ScopedWriteLock sl(getMainController()->getJavascriptThreadPool().getLookAndFeelRenderLock());
+	graphics.clear();
+	css = p.getCSSValues();
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::setStyleSheet(const String& fileName)
+{
+	
+
+	currentStyleSheetFile = fileName;
+	auto content = loadStyleSheetFile(fileName);
+	setStyleSheetInternal(content);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::setStyleSheetProperty(const String& variableId, var value,
+	const String& type)
+{
+	value = ApiHelpers::convertStyleSheetProperty(value, type);
+	
+	additionalProperties.setProperty(Identifier(variableId), value, nullptr);
+}
+
 
 Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 {
@@ -2612,6 +2745,15 @@ var ScriptingObjects::ScriptedLookAndFeel::callDefinedFunction(const Identifier&
 	return {};
 }
 
+
+
+void ScriptingObjects::ScriptedLookAndFeel::clearScriptContext()
+{
+	functions = var();
+	graphics.clear();
+	loadedImages.clear();
+}
+
 hise::DebugableObjectBase::Location ScriptingObjects::ScriptedLookAndFeel::getLocation() const
 {
 	for (const auto& s : functions.getDynamicObject()->getProperties())
@@ -2654,6 +2796,507 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::setColourOrBlack(DynamicObject*
 		obj->setProperty(id, c.findColour(colourId).getARGB());
 	else
 		obj->setProperty(id, 0);
+}
+
+ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& data, const ValueTree& ad):
+	LafBase(),
+	StyleSheetLookAndFeel(*content),
+	parent(parent_),
+    dataCopy(data),
+    additionalDataCopy(ad),
+	componentToStyle(c)
+{
+	this->root.css.addIsolatedCollection(c, parent->currentStyleSheetFile, parent->css);
+	
+	simple_css::Selector id(simple_css::SelectorType::ID, data["id"].toString());
+
+	StringArray initIds;
+	initIds.add(id.toString());
+
+	initIds.addArray(StringArray::fromTokens(ad["class"].toString(), " ", ""));
+
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(*c, initIds);
+	
+	
+	if(auto ptr = root.css.getForComponent(c))
+	{
+		root.css.setAnimator(&root.animator);
+
+		Component::SafePointer<Component> safe(c);
+
+		auto updateProperty = [safe](Identifier v, var newValue)
+		{
+			if(safe.getComponent() != nullptr)
+			{
+				if(auto root = simple_css::CSSRootComponent::find(*safe.getComponent()))
+				{
+					if(auto ptr2 = root->css.getForComponent(safe.getComponent()))
+					{
+						if(v == Identifier("class"))
+						{
+							auto t = StringArray::fromTokens(newValue.toString(), " ", "");
+
+							Array<var> classIds;
+
+							for(auto& c: t)
+								classIds.add(var(c));
+
+							safe->getProperties().set(v, classIds);
+                            root->css.clearCache(safe);
+                            
+                            auto ptr3 = root->css.getForComponent(safe.getComponent());
+                            ptr3->copyVarProperties(ptr2);
+						}
+						else
+
+							ptr2->setPropertyVariable(v, newValue);
+						
+						safe->repaint();
+					}
+				}
+			}
+		};
+
+		additionalPropertyUpdater.setCallback(parent->additionalProperties, {}, valuetree::AsyncMode::Asynchronously, updateProperty);
+		additionalComponentPropertyUpdater.setCallback(additionalDataCopy, {}, valuetree::AsyncMode::Asynchronously, updateProperty);
+
+		colourUpdater.setCallback(dataCopy, { Identifier("bgColour"), Identifier("itemColour"), Identifier("itemColour2"), Identifier("textColour")}, 
+			valuetree::AsyncMode::Asynchronously, 
+			[safe](Identifier v, var newValue)
+		{
+			if(safe.getComponent() != nullptr)
+			{
+				String c;
+				c << "#" << ApiHelpers::getColourFromVar(newValue).toDisplayString(true);
+
+				if(auto root = simple_css::CSSRootComponent::find(*safe.getComponent()))
+				{
+					if(auto ptr = root->css.getForComponent(safe.getComponent()))
+					{
+						ptr->setPropertyVariable(v, c);
+
+						if(auto sp = dynamic_cast<SliderPack*>(safe.getComponent()))
+						{
+							copyPropertiesToChildComponents(*root, *sp);
+						}
+						if(auto lb = dynamic_cast<ListBox*>(safe.getComponent()))
+						{
+							copyPropertiesToElementSelector(*root, *lb, simple_css::Selector(simple_css::ElementType::TableRow));
+							copyPropertiesToElementSelector(*root, *lb, simple_css::Selector(simple_css::ElementType::Scrollbar));
+						}
+
+						safe->repaint();
+					}
+				}
+			}
+		});
+	}
+}
+
+ScriptingObjects::ScriptedLookAndFeel* ScriptingObjects::ScriptedLookAndFeel::CSSLaf::get()
+{ return parent.get(); }
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::updateMultipageDialog(multipage::Dialog& mp)
+{
+	simple_css::Parser p(parent->currentStyleSheet);
+	auto ok = p.parse();
+	auto css = p.getCSSValues();
+	mp.update(css);
+}
+
+Rectangle<float> ScriptingObjects::ScriptedLookAndFeel::CSSLaf::getTextLabelPopupArea(simple_css::StyleSheet::Ptr ss,
+	Rectangle<float> fullBounds, const String& text)
+{
+	auto area = ss->getLocalBoundsFromText(text);
+	auto j = ss->getJustification({});
+
+	fullBounds = ss->getArea(fullBounds, { "margin", {}});
+				
+	return j.appliedToRectangle(area, fullBounds);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::copyPropertiesToElementSelector(simple_css::CSSRootComponent& root,
+	Component& parent, simple_css::Selector s)
+{
+	auto source = root.css.getForComponent(&parent);
+	auto target = root.css.getWithAllStates(&parent, s);
+
+	if(source != nullptr && target != nullptr)
+	{
+		target->copyVarProperties(source);
+	}
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::copyPropertiesToChildComponents(simple_css::CSSRootComponent& root,
+	Component& parent)
+{
+	auto spss = root.css.getForComponent(&parent);
+
+	for(int i = 0; i < parent.getNumChildComponents(); i++)
+	{
+		auto c = parent.getChildComponent(i);
+
+		if(auto cs = root.css.getForComponent(c))
+		{
+			cs->copyVarProperties(spss);
+		}
+	}
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::setupSliderPack(SliderPack& s)
+{
+	using namespace simple_css;
+
+	if(s.getNumSliders() > 0)
+	{
+		auto firstSlider = s.getChildComponent(0);
+		auto classes = FlexboxComponent::Helpers::getClassSelectorFromComponentClass(firstSlider);
+
+		auto spss = root.css.getForComponent(&s);
+
+		if(classes.isEmpty())
+		{
+			Array<Selector> selectors = { Selector(SelectorType::Class, ".packslider") };
+
+			for(int i = 0; i < s.getNumSliders(); i++)
+			{
+				auto c = s.getChildComponent(i);
+				FlexboxComponent::Helpers::writeClassSelectors(*c, selectors, true);
+
+							
+			}
+						
+			copyPropertiesToChildComponents(root, s);
+
+			if(auto ss = root.css.getWithAllStates(&s, Selector(ElementType::Label)))
+			{
+				ss->copyVarProperties(spss);
+				auto newArea = getTextLabelPopupArea(ss, s.getLocalBounds().toFloat(), "1234123412341234");
+				s.setTextAreaPopup(newArea.toNearestInt());
+			}
+		}
+	}
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawSliderPackBackground(Graphics& g, SliderPack& s)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getForComponent(&s))
+	{
+		setupSliderPack(s);
+
+		Renderer r(&s, root.stateWatcher);
+					
+		auto currentState = Renderer::getPseudoClassFromComponent(&s);
+		root.stateWatcher.checkChanges(&s, ss, currentState);
+		r.drawBackground(g, s.getLocalBounds().toFloat(), ss);
+
+		return;
+	}
+
+	SliderPack::LookAndFeelMethods::drawSliderPackBackground(g, s);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawSliderPackFlashOverlay(Graphics& g, SliderPack& s,
+	int sliderIndex, Rectangle<int> sliderBounds, float intensity)
+{
+	using namespace simple_css; 
+				
+	if(auto c = s.getChildComponent(sliderIndex))
+	{
+		if(auto ss = root.css.getForComponent(c))
+		{
+			ss->setPropertyVariable("flash", String(intensity, 4));
+		}
+	}
+
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::setPathAsVariable(simple_css::StyleSheet::Ptr ss, const Path& p,
+	const Identifier& id)
+{
+	MemoryOutputStream mos;
+	p.writePathToStream(mos);
+	mos.flush();
+
+	ss->setPropertyVariable(id, mos.getMemoryBlock().toBase64Encoding());
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawSliderPackRightClickLine(Graphics& g, SliderPack& s,
+	Line<float> lineToDraw)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getWithAllStates(&s, Selector(SelectorType::Class, ".sliderpackline")))
+	{
+		Renderer r(&s, root.stateWatcher);
+
+		Path p;
+
+		auto fullBounds = s.getLocalBounds().toFloat();
+		p.startNewSubPath(fullBounds.getTopLeft());
+		p.startNewSubPath(fullBounds.getBottomRight());
+
+		auto thickness = ss->getPixelValue(fullBounds, { "border-size", 0});
+
+		p.addLineSegment(lineToDraw, thickness);
+
+		setPathAsVariable(ss, p, "linePath");
+					
+		r.drawBackground(g, fullBounds, ss);
+
+					
+		return;
+	}
+
+	SliderPack::LookAndFeelMethods::drawSliderPackRightClickLine(g, s, lineToDraw);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawSliderPackTextPopup(Graphics& g, SliderPack& s,
+	const String& textToDraw)
+{
+	using namespace simple_css;
+
+	if(drawValueLabel(g, s, s, textToDraw))
+		return;
+
+	SliderPack::LookAndFeelMethods::drawSliderPackTextPopup(g, s, textToDraw);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTablePath(Graphics& g, TableEditor& te, Path& p,
+	Rectangle<float> area, float lineThickness)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getForComponent(&te))
+	{
+		Renderer r(&te, root.stateWatcher);
+					
+		auto currentState = Renderer::getPseudoClassFromComponent(&te);
+		root.stateWatcher.checkChanges(&te, ss, currentState);
+
+		setPathAsVariable(ss, p, "tablePath");
+		r.drawBackground(g, te.getLocalBounds().toFloat(), ss);
+
+		return;
+	}
+
+	TableEditor::LookAndFeelMethods::drawTablePath(g, te, p, area, lineThickness);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTablePoint(Graphics& g, TableEditor& te,
+	Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getWithAllStates(&te, Selector(SelectorType::Class, ".tablepoint")))
+	{
+		Renderer r(&te, root.stateWatcher);
+
+		int state = 0;
+
+		if(isHover)
+			state |= (int)PseudoClassType::Hover;
+
+		if(isDragged)
+			state |= (int)PseudoClassType::Active;
+
+
+		r.setPseudoClassState(state, true);
+					
+		r.drawBackground(g, tablePoint, ss);
+		return;
+	}
+
+	TableEditor::LookAndFeelMethods::drawTablePoint(g, te, tablePoint, isEdge, isHover, isDragged);
+}
+
+bool ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawPlayhead(Graphics& g, Component& c, double position,
+	Rectangle<float> area)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getWithAllStates(&c, Selector(SelectorType::Class, ".playhead")))
+	{
+		Renderer r(&c, root.stateWatcher);
+
+		ss->setPropertyVariable("playhead", String(position, 4));
+		r.drawBackground(g, area, ss);
+
+		return true;
+	}
+
+	return false;
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area,
+	float lineThickness, double rulerPosition)
+{
+	if(drawPlayhead(g, te, rulerPosition, area))
+		return;
+
+	TableEditor::LookAndFeelMethods::drawTableRuler(g, te, area, lineThickness, rulerPosition);
+}
+
+Rectangle<float> ScriptingObjects::ScriptedLookAndFeel::CSSLaf::getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getWithAllStates(&attachedComponent, Selector(ElementType::Label)))
+	{
+		auto newArea = getTextLabelPopupArea(ss, {0.0f, 0.0f, 10000.0f, 10000.0f}, text);
+
+		return newArea.withZeroOrigin();
+	}
+
+	return {};
+}
+
+bool ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawValueLabel(Graphics& g, Component& valuePopup, Component& attachedComponent, const String& text,
+	bool useAlignment)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getWithAllStates(&attachedComponent, Selector(ElementType::Label)))
+	{
+		Renderer r(&valuePopup, root.stateWatcher);
+
+		auto bounds = useAlignment ? getTextLabelPopupArea(ss, valuePopup.getLocalBounds().toFloat(), text) : valuePopup.getLocalBounds().toFloat();
+
+		if(!useAlignment)
+			root.stateWatcher.checkChanges(&valuePopup, ss, 0);
+
+		r.drawBackground(g, bounds, ss);
+
+		r.renderText(g, bounds, text, ss, PseudoElementType::None, Justification::centred);
+		return true;
+	}
+
+	return false;
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTableValueLabel(Graphics& g, TableEditor& te, Font f,
+	const String& text, Rectangle<int> textBox)
+{
+	if(!te.shouldDrawTableValueLabel())
+		return;
+
+	if(drawValueLabel(g, te, te, text, true))
+		return;
+
+	TableEditor::LookAndFeelMethods::drawTableValueLabel(g, te, f, text, textBox);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th,
+	bool areaIsEnabled, Rectangle<int> area)
+{
+	using namespace simple_css;
+
+	auto c = th.findParentComponentOfClass<MultiChannelAudioBufferDisplay>();
+
+	if(auto ss = root.css.getForComponent(c))
+	{
+		return;
+	}
+
+	HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailBackground(g, th, areaIsEnabled, area);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th,
+	bool areaIsEnabled, const Path& path)
+{
+	using namespace simple_css;
+
+	auto c = th.findParentComponentOfClass<MultiChannelAudioBufferDisplay>();
+
+	if(auto ss = root.css.getForComponent(c))
+	{
+		Renderer r(c, root.stateWatcher);
+
+		auto state = r.getPseudoClassFromComponent(c);
+
+		if(!areaIsEnabled)
+			state |= (int)PseudoClassType::Disabled;
+
+		setPathAsVariable(ss, path, "waveformPath");
+
+		r.setPseudoClassState(state, true);
+
+		root.stateWatcher.checkChanges(c, ss, state);
+		r.drawBackground(g, path.getBounds(), ss);
+		return;
+	}
+
+	HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailPath(g, th, areaIsEnabled, path);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th,
+	bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList)
+{
+	HiseAudioThumbnail::LookAndFeelMethods::drawHiseThumbnailRectList(g, th, areaIsEnabled, rectList);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTextOverlay(Graphics& g, HiseAudioThumbnail& th,
+	const String& text, Rectangle<float> area)
+{
+	if(drawValueLabel(g, th, th, text, true))
+		return;
+
+	HiseAudioThumbnail::LookAndFeelMethods::drawTextOverlay(g, th, text, area);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te,
+	Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled)
+{
+				
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawStretchableLayoutResizerBar(Graphics& g, Component& resizer,
+	int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getWithAllStates(&resizer, Selector(SelectorType::Class, ".waveformedge")))
+	{
+		auto c = dynamic_cast<ResizableEdgeComponent*>(&resizer);
+
+		Renderer r(c, root.stateWatcher);
+
+		int state = 0;
+
+		if(c->getEdge() == ResizableEdgeComponent::Edge::leftEdge)
+			state |= (int)PseudoClassType::First;
+		else
+			state |= (int)PseudoClassType::Last;
+
+		if(isMouseOver || isMouseDragging)
+			state |= (int)PseudoClassType::Hover;
+
+		if(isMouseDragging)
+			state |= (int)PseudoClassType::Active;
+
+		r.setPseudoClassState(state, true);
+
+		root.stateWatcher.checkChanges(c, ss, state);
+		r.drawBackground(g, resizer.getLocalBounds().toFloat(), ss);
+		return;
+
+
+		return;
+	}
+	g.fillAll(Colours::red);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te,
+	int xPosition)
+{
+	auto normPos = (double)xPosition / (double)te.getLocalBounds().getWidth();
+
+	if(drawPlayhead(g, te, normPos, te.getLocalBounds().toFloat()))
+		return;
+
+	HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRuler(g, te, xPosition);
 }
 
 ScriptingObjects::ScriptedLookAndFeel::Laf::Laf(MainController* mc):

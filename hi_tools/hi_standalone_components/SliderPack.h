@@ -326,14 +326,13 @@ public:
             repaint(textArea);
     }
 
-	void setStepSequencerMode(bool shouldUseStepSequencerMode)
-    {
-	    toggleMaxMode = shouldUseStepSequencerMode;
-    }
-    
+	void setStepSequencerMode(bool shouldUseStepSequencerMode);
+
+	int getHoverStateForSlider(Slider* s) const;
+
 private:
 	
-    bool toggleMaxMode = true;
+    bool toggleMaxMode = false;
     Rectangle<int> textArea;
 
 	int lastDragIndex = -1;
@@ -344,6 +343,8 @@ private:
     double currentStepSequencerInputValue = 0.0;
 
 	void rebuildSliders();
+
+	void updateSliderColours();
 
 	int currentDisplayIndex = -1;
 

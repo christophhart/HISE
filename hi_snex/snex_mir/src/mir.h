@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2024 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 #ifndef MIR_H
@@ -21,7 +21,7 @@ extern "C" {
 #include "mir-varr.h"
 #include "mir-htab.h"
 
-#define MIR_API_VERSION 0.1
+#define MIR_API_VERSION 0.2
 
 #ifdef NDEBUG
 static inline int mir_assert (int cond) { return 0 && cond; }
@@ -34,20 +34,11 @@ static inline int mir_assert (int cond) { return 0 && cond; }
 
 /* Redefine MIR_NO_IO or/and MIR_NO_SCAN if you don't need the functionality they provide.  */
 #ifndef MIR_NO_IO
-#define MIR_NO_IO 1
+#define MIR_NO_IO 0
 #endif
 
 #ifndef MIR_NO_SCAN
 #define MIR_NO_SCAN 0
-#endif
-
-#ifndef MIR_PARALLEL_GEN
-#define MIR_PARALLEL_GEN 0
-#endif
-
-#if MIR_PARALLEL_GEN && defined(_WIN32) /* TODO: Win thread primitives ??? */
-#undef MIR_PARALLEL_GEN
-#define MIR_PARALLEL_GEN 0
 #endif
 
 #ifdef __GNUC__
@@ -69,10 +60,10 @@ static inline int mir_assert (int cond) { return 0 && cond; }
 #define ERR_EL(e) MIR_##e##_error
 typedef enum MIR_error_type {
   REP8 (ERR_EL, no, syntax, binary_io, alloc, finish, no_module, nested_module, no_func),
-  REP4 (ERR_EL, func, vararg_func, nested_func, wrong_param_value),
+  REP5 (ERR_EL, func, vararg_func, nested_func, wrong_param_value, hard_reg),
   REP5 (ERR_EL, reserved_name, import_export, undeclared_func_reg, repeated_decl, reg_type),
   REP6 (ERR_EL, wrong_type, unique_reg, undeclared_op_ref, ops_num, call_op, unspec_op),
-  REP6 (ERR_EL, ret, op_mode, out_op, invalid_insn, ctx_change, parallel)
+  REP6 (ERR_EL, wrong_lref, ret, op_mode, out_op, invalid_insn, ctx_change)
 } MIR_error_type_t;
 
 #ifdef __GNUC__
@@ -83,31 +74,6 @@ typedef enum MIR_error_type {
 
 typedef void MIR_NO_RETURN (*MIR_error_func_t) (MIR_error_type_t error_type, const char *format,
                                                 ...);
-
-#if MIR_PARALLEL_GEN
-#include <pthread.h>
-typedef pthread_mutex_t mir_mutex_t;
-typedef pthread_cond_t mir_cond_t;
-typedef pthread_attr_t mir_thread_attr_t;
-#define mir_thread_create(m, attr, f, arg) pthread_create (m, attr, f, arg)
-#define mir_thread_join(t, r) pthread_join (t, r)
-#define mir_mutex_init(m, a) pthread_mutex_init (m, a)
-#define mir_mutex_destroy(m) pthread_mutex_destroy (m)
-#define mir_mutex_lock(m) pthread_mutex_lock (m)
-#define mir_mutex_unlock(m) pthread_mutex_unlock (m)
-#define mir_cond_init(m, a) pthread_cond_init (m, a)
-#define mir_cond_destroy(m) pthread_cond_destroy (m)
-#define mir_cond_wait(c, m) pthread_cond_wait (c, m)
-#define mir_cond_signal(c) pthread_cond_signal (c)
-#define mir_cond_broadcast(c) pthread_cond_broadcast (c)
-#define mir_thread_attr_init(a) pthread_attr_init (a)
-#define mir_thread_attr_setstacksize(a, s) pthread_attr_setstacksize (a, s)
-#else
-#define mir_mutex_init(m, a) 0
-#define mir_mutex_destroy(m) 0
-#define mir_mutex_lock(m) 0
-#define mir_mutex_unlock(m) 0
-#endif
 
 #define INSN_EL(i) MIR_##i
 
@@ -131,6 +97,7 @@ typedef enum {
   REP3 (INSN_EL, F2I, D2I, LD2I),    /* Float or (long) double to integer conversion */
   REP6 (INSN_EL, F2D, F2LD, D2F, D2LD, LD2F, LD2D), /* Float, (long) double conversions */
   REP5 (INSN_EL, NEG, NEGS, FNEG, DNEG, LDNEG),     /* Changing sign */
+  REP4 (INSN_EL, ADDR, ADDR8, ADDR16, ADDR32), /* reg addr in natural mode or given integer mode */
   /* 3 operand insn: */
   REP5 (INSN_EL, ADD, ADDS, FADD, DADD, LDADD),              /* Addition */
   REP5 (INSN_EL, SUB, SUBS, FSUB, DSUB, LDSUB),              /* Subtraction */
@@ -145,6 +112,7 @@ typedef enum {
   REP7 (INSN_EL, LE, LES, ULE, ULES, FLE, DLE, LDLE),        /* Less or equal */
   REP7 (INSN_EL, GT, GTS, UGT, UGTS, FGT, DGT, LDGT),        /* Greater then */
   REP7 (INSN_EL, GE, GES, UGE, UGES, FGE, DGE, LDGE),        /* Greater or equal */
+  REP8 (INSN_EL, ADDO, ADDOS, SUBO, SUBOS, MULO, MULOS, UMULO, UMULOS), /* setting overflow flag */
   /* Unconditional (1 operand) and conditional (2 operands) branch
      insns.  The first operand is a label.  */
   REP5 (INSN_EL, JMP, BT, BTS, BF, BFS),
@@ -156,27 +124,34 @@ typedef enum {
   REP7 (INSN_EL, BLE, BLES, UBLE, UBLES, FBLE, DBLE, LDBLE),
   REP7 (INSN_EL, BGT, BGTS, UBGT, UBGTS, FBGT, DBGT, LDBGT),
   REP7 (INSN_EL, BGE, BGES, UBGE, UBGES, FBGE, DBGE, LDBGE),
+  REP2 (INSN_EL, BO, UBO),   /* branch on overflow: prev insn should be overflow add/sub */
+  REP2 (INSN_EL, BNO, UBNO), /* branch on not overflow: prev insn should be overflow add/sub */
+  INSN_EL (LADDR),           /* put label address (2nd op) into the 1st op */
+  INSN_EL (JMPI),            /* indirect jump to the label whose address stored in the 1st op */
   /* 1st operand is a prototype, 2nd one is ref or op containing func
      address, 3rd and subsequent ops are optional result (if result in
      the prototype is not of void type), call arguments. */
-  INSN_EL(CALL),
-  INSN_EL(INLINE),
+  REP3 (INSN_EL, CALL, INLINE, JCALL),
   /* 1st operand is an index, subsequent ops are labels to which goto
      according the index (1st label has index zero).  The insn
      behavior is undefined if there is no label for the index. */
   INSN_EL (SWITCH),
-  /* 1 operand insn: */
   INSN_EL (RET),
+  INSN_EL (JRET), /* return by jumping to address of the operand */
+  /* 1 operand insn: */
   INSN_EL (ALLOCA),             /* 2 operands: result address and size  */
   REP2 (INSN_EL, BSTART, BEND), /* block start: result addr; block end: addr from block start */
   /* Special insns: */
   INSN_EL (VA_ARG),       /* result is arg address, operands: va_list addr and memory */
-  INSN_EL (VA_BLOCK_ARG), /* result is arg address, operands: va_list addr and integer (size) */
+  INSN_EL (VA_BLOCK_ARG), /* result is arg address, operands: va_list addr, integer (size), and
+                             integer (block type) */
   INSN_EL (VA_START),
-  INSN_EL (VA_END), /* operand is va_list */
-  INSN_EL (LABEL),  /* One immediate operand is unique label number  */
-  INSN_EL (UNSPEC), /* First operand unspec code and the rest are args */
-  INSN_EL (PHI),    /* Used only internally in the generator, the first operand is output */
+  INSN_EL (VA_END),                    /* operand is va_list */
+  INSN_EL (LABEL),                     /* One immediate operand is unique label number  */
+  INSN_EL (UNSPEC),                    /* First operand unspec code and the rest are args */
+  REP3 (INSN_EL, PRSET, PRBEQ, PRBNE), /* work with properties */
+  INSN_EL (USE), /* Used only internally in the generator, all operands are input */
+  INSN_EL (PHI), /* Used only internally in the generator, the first operand is output */
   INSN_EL (INVALID_INSN),
   INSN_EL (INSN_BOUND), /* Should be the last  */
 } MIR_insn_code_t;
@@ -224,7 +199,7 @@ typedef int64_t MIR_disp_t; /* Address displacement in memory */
 typedef uint32_t MIR_reg_t;
 
 #define MIR_MAX_REG_NUM UINT32_MAX
-#define MIR_NON_HARD_REG MIR_MAX_REG_NUM
+#define MIR_NON_VAR MIR_MAX_REG_NUM
 
 /* Immediate in immediate moves.  */
 typedef union {
@@ -235,15 +210,19 @@ typedef union {
   long double ld;
 } MIR_imm_t;
 
-/* Memory: mem:type[base + index * scale + disp].  It also can be
-   memory with hard regs but such memory used only internally.  An
-   integer type memory value expands to int64_t value when the insn is
-   executed.  */
+typedef uint32_t MIR_alias_t; /* unique number of alias name */
+
+/* Memory: mem:type[base + index * scale + disp].  It also can be memory with vars
+   (regs and hard regs) but such memory used only internally.  An integer type memory
+   value expands to int64_t value when the insn is executed.  */
 typedef struct {
   MIR_type_t type : 8;
   MIR_scale_t scale;
-  /* 0 means no reg for memory.  MIR_NON_HARD_REG means no reg for
-     hard reg memory. */
+  MIR_alias_t alias;    /* 0 may alias any memory, memory with the same alias is aliased */
+  MIR_alias_t nonalias; /* 0 for ignoring, memory with the same nonalias is not aliased */
+  /* Used internally: mem operand with the same nonzero nloc always refers to the same memory */
+  uint32_t nloc;
+  /* 0 and MIR_NON_VAR means no reg for correspondingly for memory and var memory. */
   MIR_reg_t base, index;
   MIR_disp_t disp;
 } MIR_mem_t;
@@ -256,8 +235,8 @@ typedef const char *MIR_name_t;
 
 /* Operand mode */
 typedef enum {
-  REP8 (OP_EL, UNDEF, REG, HARD_REG, INT, UINT, FLOAT, DOUBLE, LDOUBLE),
-  REP6 (OP_EL, REF, STR, MEM, HARD_REG_MEM, LABEL, BOUND),
+  REP8 (OP_EL, UNDEF, REG, VAR, INT, UINT, FLOAT, DOUBLE, LDOUBLE),
+  REP6 (OP_EL, REF, STR, MEM, VAR_MEM, LABEL, BOUND),
 } MIR_op_mode_t;
 
 typedef struct MIR_item *MIR_item_t;
@@ -272,13 +251,13 @@ typedef struct MIR_str MIR_str_t;
 /* An insn operand */
 typedef struct {
   void *data; /* Aux data  */
-  MIR_op_mode_t mode;
+  MIR_op_mode_t mode : 8;
   /* Defined after MIR_func_finish.  Only MIR_OP_INT, MIR_OP_UINT,
      MIR_OP_FLOAT, MIR_OP_DOUBLE, MIR_OP_LDOUBLE: */
-  MIR_op_mode_t value_mode;
+  MIR_op_mode_t value_mode : 8;
   union {
     MIR_reg_t reg;
-    MIR_reg_t hard_reg; /* Used only internally */
+    MIR_reg_t var; /* Used only internally */
     int64_t i;
     uint64_t u;
     float f;
@@ -287,7 +266,7 @@ typedef struct {
     MIR_item_t ref; /* non-export/non-forward after simplification */
     MIR_str_t str;
     MIR_mem_t mem;
-    MIR_mem_t hard_reg_mem; /* Used only internally */
+    MIR_mem_t var_mem; /* Used only internally */
     MIR_label_t label;
   } u;
 } MIR_op_t;
@@ -324,14 +303,16 @@ typedef struct MIR_func {
   DLIST (MIR_insn_t) insns, original_insns;
   uint32_t nres, nargs, last_temp_num, n_inlines;
   MIR_type_t *res_types;
-  size_t num_bytes;
-  char vararg_p;           /* flag of variable number of arguments */
-  char expr_p;             /* flag of that the func can be used as a linker expression */
-  VARR (MIR_var_t) * vars; /* args and locals but temps */
-  void *machine_code;      /* address of generated machine code or NULL */
-  void *call_addr;         /* address to call the function, it can be the same as machine_code */
-  void *internal;          /* internal data structure */
-} * MIR_func_t;
+  char vararg_p;                  /* flag of variable number of arguments */
+  char expr_p;                    /* flag of that the func can be used as a linker expression */
+  char jret_p;                    /* flag of jcall/jret func, set up after MIR_func_finish */
+  VARR (MIR_var_t) * vars;        /* args and locals but temps */
+  VARR (MIR_var_t) * global_vars; /* can be NULL */
+  void *machine_code;             /* address of generated machine code or NULL */
+  void *call_addr; /* address to call the function, it can be the same as machine_code */
+  void *internal;  /* internal data structure */
+  struct MIR_lref_data *first_lref; /* label addr data of the func: defined by module load */
+} *MIR_func_t;
 
 typedef struct MIR_proto {
   const char *name;
@@ -339,7 +320,7 @@ typedef struct MIR_proto {
   MIR_type_t *res_types;   /* != MIR_T_UNDEF */
   char vararg_p;           /* flag of variable number of arguments */
   VARR (MIR_var_t) * args; /* args name can be NULL */
-} * MIR_proto_t;
+} *MIR_proto_t;
 
 typedef struct MIR_data {
   const char *name; /* can be NULL */
@@ -349,25 +330,35 @@ typedef struct MIR_data {
     long double d; /* for alignment of temporary literals */
     uint8_t els[1];
   } u;
-} * MIR_data_t;
+} *MIR_data_t;
 
 typedef struct MIR_ref_data {
   const char *name;    /* can be NULL */
   MIR_item_t ref_item; /* base */
   int64_t disp;        /* disp relative to base */
   void *load_addr;
-} * MIR_ref_data_t;
+} *MIR_ref_data_t;
+
+typedef struct MIR_lref_data { /* describing [name:]lref lab[,label2][,disp] = lab-lab2+disp */
+  const char *name;            /* can be NULL */
+  MIR_label_t label;           /* base */
+  MIR_label_t label2;          /* can be NULL */
+  MIR_label_t orig_label, orig_label2; /* used to restore original func lrefs */
+  int64_t disp;                        /* disp relative to base */
+  void *load_addr;                     /* where is the value placed */
+  struct MIR_lref_data *next;          /* next label addr related to the same func */
+} *MIR_lref_data_t;
 
 typedef struct MIR_expr_data {
   const char *name;     /* can be NULL */
   MIR_item_t expr_item; /* a special function can be called during linking */
   void *load_addr;
-} * MIR_expr_data_t;
+} *MIR_expr_data_t;
 
 typedef struct MIR_bss {
   const char *name; /* can be NULL */
   uint64_t len;
-} * MIR_bss_t;
+} *MIR_bss_t;
 
 typedef struct MIR_module *MIR_module_t;
 
@@ -377,8 +368,8 @@ DEF_DLIST_LINK (MIR_item_t);
 #define ITEM_EL(i) MIR_##i##_item
 
 typedef enum {
-  REP8 (ITEM_EL, func, proto, import, export, forward, data, ref_data, expr_data),
-  ITEM_EL (bss),
+  REP8 (ITEM_EL, func, proto, import, export, forward, data, ref_data, lref_data),
+  REP2 (ITEM_EL, expr_data, bss),
 } MIR_item_type_t;
 
 #undef ERR_EL
@@ -411,6 +402,7 @@ struct MIR_item {
     MIR_name_t forward_id;
     MIR_data_t data;
     MIR_ref_data_t ref_data;
+    MIR_lref_data_t lref_data;
     MIR_expr_data_t expr_data;
     MIR_bss_t bss;
   } u;
@@ -446,7 +438,7 @@ static inline int MIR_FP_branch_code_p (MIR_insn_code_t code) {
 }
 
 static inline int MIR_call_code_p (MIR_insn_code_t code) {
-  return code == MIR_CALL || code == MIR_INLINE;
+  return code == MIR_CALL || code == 168 || code == MIR_JCALL;
 }
 
 static inline int MIR_int_branch_code_p (MIR_insn_code_t code) {
@@ -455,11 +447,25 @@ static inline int MIR_int_branch_code_p (MIR_insn_code_t code) {
           || code == MIR_BLTS || code == MIR_UBLT || code == MIR_UBLTS || code == MIR_BLE
           || code == MIR_BLES || code == MIR_UBLE || code == MIR_UBLES || code == MIR_BGT
           || code == MIR_BGTS || code == MIR_UBGT || code == MIR_UBGTS || code == MIR_BGE
-          || code == MIR_BGES || code == MIR_UBGE || code == MIR_UBGES);
+          || code == MIR_BGES || code == MIR_UBGE || code == MIR_UBGES || code == MIR_BO
+          || code == MIR_UBO || code == MIR_BNO || code == MIR_UBNO);
 }
 
 static inline int MIR_branch_code_p (MIR_insn_code_t code) {
   return (code == MIR_JMP || MIR_int_branch_code_p (code) || MIR_FP_branch_code_p (code));
+}
+
+static inline int MIR_any_branch_code_p (MIR_insn_code_t code) {
+  return (MIR_branch_code_p (code) || code == MIR_JMPI || code == MIR_SWITCH);
+}
+
+static inline int MIR_addr_code_p (MIR_insn_code_t code) {
+  return (code == MIR_ADDR || code == MIR_ADDR8 || code == MIR_ADDR16 || code == MIR_ADDR32);
+}
+
+static inline int MIR_overflow_insn_code_p (MIR_insn_code_t code) {
+  return (code == MIR_ADDO || code == MIR_ADDOS || code == MIR_SUBO || code == MIR_SUBOS
+          || code == MIR_MULO || code == MIR_MULOS || code == MIR_UMULO || code == MIR_UMULOS);
 }
 
 extern double _MIR_get_api_version (void);
@@ -491,6 +497,9 @@ extern MIR_item_t MIR_new_string_data (MIR_context_t ctx, const char *name,
                                        MIR_str_t str); /* name can be NULL */
 extern MIR_item_t MIR_new_ref_data (MIR_context_t ctx, const char *name, MIR_item_t item,
                                     int64_t disp); /* name can be NULL */
+extern MIR_item_t MIR_new_lref_data (MIR_context_t ctx, const char *name, MIR_label_t label,
+                                     MIR_label_t label2,
+                                     int64_t disp); /* name and label2 can be NULL */
 extern MIR_item_t MIR_new_expr_data (MIR_context_t ctx, const char *name,
                                      MIR_item_t expr_item); /* name can be NULL */
 extern MIR_item_t MIR_new_proto_arr (MIR_context_t ctx, const char *name, size_t nres,
@@ -513,16 +522,22 @@ extern const char *MIR_item_name (MIR_context_t ctx, MIR_item_t item);
 extern MIR_func_t MIR_get_item_func (MIR_context_t ctx, MIR_item_t item);
 extern MIR_reg_t MIR_new_func_reg (MIR_context_t ctx, MIR_func_t func, MIR_type_t type,
                                    const char *name);
+extern MIR_reg_t MIR_new_global_func_reg (MIR_context_t ctx, MIR_func_t func, MIR_type_t type,
+                                          const char *name, const char *hard_reg_name);
 extern void MIR_finish_func (MIR_context_t ctx);
 extern void MIR_finish_module (MIR_context_t ctx);
 
 extern MIR_error_func_t MIR_get_error_func (MIR_context_t ctx);
 extern void MIR_set_error_func (MIR_context_t ctx, MIR_error_func_t func);
 
+extern int MIR_get_func_redef_permission_p (MIR_context_t ctx);
+extern void MIR_set_func_redef_permission (MIR_context_t ctx, int flag_p);
+
 extern MIR_insn_t MIR_new_insn_arr (MIR_context_t ctx, MIR_insn_code_t code, size_t nops,
                                     MIR_op_t *ops);
 extern MIR_insn_t MIR_new_insn (MIR_context_t ctx, MIR_insn_code_t code, ...);
 extern MIR_insn_t MIR_new_call_insn (MIR_context_t ctx, size_t nops, ...);
+extern MIR_insn_t MIR_new_jcall_insn (MIR_context_t ctx, size_t nops, ...);
 extern MIR_insn_t MIR_new_ret_insn (MIR_context_t ctx, size_t nops, ...);
 extern MIR_insn_t MIR_copy_insn (MIR_context_t ctx, MIR_insn_t insn);
 
@@ -535,6 +550,10 @@ extern MIR_insn_t MIR_new_label (MIR_context_t ctx);
 extern MIR_reg_t MIR_reg (MIR_context_t ctx, const char *reg_name, MIR_func_t func);
 extern MIR_type_t MIR_reg_type (MIR_context_t ctx, MIR_reg_t reg, MIR_func_t func);
 extern const char *MIR_reg_name (MIR_context_t ctx, MIR_reg_t reg, MIR_func_t func);
+extern const char *MIR_reg_hard_reg_name (MIR_context_t ctx, MIR_reg_t reg, MIR_func_t func);
+
+extern const char *MIR_alias_name (MIR_context_t ctx, MIR_alias_t alias);
+extern MIR_alias_t MIR_alias (MIR_context_t ctx, const char *name);
 
 extern MIR_op_t MIR_new_reg_op (MIR_context_t ctx, MIR_reg_t reg);
 extern MIR_op_t MIR_new_int_op (MIR_context_t ctx, int64_t v);
@@ -546,6 +565,9 @@ extern MIR_op_t MIR_new_ref_op (MIR_context_t ctx, MIR_item_t item);
 extern MIR_op_t MIR_new_str_op (MIR_context_t ctx, MIR_str_t str);
 extern MIR_op_t MIR_new_mem_op (MIR_context_t ctx, MIR_type_t type, MIR_disp_t disp, MIR_reg_t base,
                                 MIR_reg_t index, MIR_scale_t scale);
+extern MIR_op_t MIR_new_alias_mem_op (MIR_context_t ctx, MIR_type_t type, MIR_disp_t disp,
+                                      MIR_reg_t base, MIR_reg_t index, MIR_scale_t scale,
+                                      MIR_alias_t alias, MIR_alias_t noalias);
 extern MIR_op_t MIR_new_label_op (MIR_context_t ctx, MIR_label_t label);
 extern int MIR_op_eq_p (MIR_context_t ctx, MIR_op_t op1, MIR_op_t op2);
 extern htab_hash_t MIR_op_hash_step (MIR_context_t ctx, htab_hash_t h, MIR_op_t op);
@@ -563,6 +585,7 @@ extern void MIR_change_module_ctx (MIR_context_t old_ctx, MIR_module_t m, MIR_co
 extern MIR_insn_code_t MIR_reverse_branch_code (MIR_insn_code_t code);
 
 extern const char *MIR_type_str (MIR_context_t ctx, MIR_type_t tp);
+extern void MIR_output_str (MIR_context_t ctx, FILE *f, MIR_str_t str);
 extern void MIR_output_op (MIR_context_t ctx, FILE *f, MIR_op_t op, MIR_func_t func);
 extern void MIR_output_insn (MIR_context_t ctx, FILE *f, MIR_insn_t insn, MIR_func_t func,
                              int newline_p);
@@ -617,6 +640,8 @@ extern MIR_context_t _MIR_init (void);
 extern const char *_MIR_uniq_string (MIR_context_t ctx, const char *str);
 extern int _MIR_reserved_ref_name_p (MIR_context_t ctx, const char *name);
 extern int _MIR_reserved_name_p (MIR_context_t ctx, const char *name);
+extern int64_t _MIR_addr_offset (MIR_context_t ctx, MIR_insn_code_t code);
+extern void _MIR_free_insn (MIR_context_t ctx, MIR_insn_t insn);
 extern MIR_reg_t _MIR_new_temp_reg (MIR_context_t ctx, MIR_type_t type,
                                     MIR_func_t func); /* for internal use only */
 extern size_t _MIR_type_size (MIR_context_t ctx, MIR_type_t type);
@@ -629,19 +654,22 @@ extern void _MIR_register_unspec_insn (MIR_context_t ctx, uint64_t code, const c
 extern void _MIR_duplicate_func_insns (MIR_context_t ctx, MIR_item_t func_item);
 extern void _MIR_restore_func_insns (MIR_context_t ctx, MIR_item_t func_item);
 
+extern void _MIR_output_data_item_els (MIR_context_t ctx, FILE *f, MIR_item_t item, int c_p);
 extern void _MIR_get_temp_item_name (MIR_context_t ctx, MIR_module_t module, char *buff,
                                      size_t buff_len);
 
-extern MIR_op_t _MIR_new_hard_reg_op (MIR_context_t ctx, MIR_reg_t hard_reg);
+extern MIR_op_t _MIR_new_var_op (MIR_context_t ctx, MIR_reg_t var);
 
-extern MIR_op_t _MIR_new_hard_reg_mem_op (MIR_context_t ctx, MIR_type_t type, MIR_disp_t disp,
-                                          MIR_reg_t base, MIR_reg_t index, MIR_scale_t scale);
+extern MIR_op_t _MIR_new_var_mem_op (MIR_context_t ctx, MIR_type_t type, MIR_disp_t disp,
+                                     MIR_reg_t base, MIR_reg_t index, MIR_scale_t scale);
+extern MIR_op_t _MIR_new_alias_var_mem_op (MIR_context_t ctx, MIR_type_t type, MIR_disp_t disp,
+                                           MIR_reg_t base, MIR_reg_t index, MIR_scale_t scale,
+                                           MIR_alias_t alias, MIR_alias_t no_alias);
 
 extern MIR_item_t _MIR_builtin_proto (MIR_context_t ctx, MIR_module_t module, const char *name,
                                       size_t nres, MIR_type_t *res_types, size_t nargs, ...);
 extern MIR_item_t _MIR_builtin_func (MIR_context_t ctx, MIR_module_t module, const char *name,
                                      void *addr);
-
 extern void _MIR_flush_code_cache (void *start, void *bound);
 extern uint8_t *_MIR_publish_code (MIR_context_t ctx, const uint8_t *code, size_t code_len);
 extern uint8_t *_MIR_get_new_code_addr (MIR_context_t ctx, size_t size);
@@ -679,10 +707,20 @@ extern void *_MIR_get_ff_call (MIR_context_t ctx, size_t nres, MIR_type_t *res_t
                                _MIR_arg_desc_t *arg_descs, size_t arg_vars_num);
 extern void *_MIR_get_interp_shim (MIR_context_t ctx, MIR_item_t func_item, void *handler);
 extern void *_MIR_get_thunk (MIR_context_t ctx);
+extern void *_MIR_get_thunk_addr (MIR_context_t ctx, void *thunk);
 extern void _MIR_redirect_thunk (MIR_context_t ctx, void *thunk, void *to);
+extern void *_MIR_get_jmpi_thunk (MIR_context_t ctx, void **res_loc, void *res, void *cont);
 extern void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_address);
+extern void *_MIR_get_wrapper_end (MIR_context_t ctx);
+extern void *_MIR_get_bb_thunk (MIR_context_t ctx, void *bb_version, void *handler);
+extern void _MIR_replace_bb_thunk (MIR_context_t ctx, void *thunk, void *to);
+extern void *_MIR_get_bb_wrapper (MIR_context_t ctx, void *data, void *hook_address);
 
-extern void _MIR_dump_code (const char *name, int index, uint8_t *code, size_t code_len);
+extern int _MIR_name_char_p (MIR_context_t ctx, int ch, int first_p);
+extern void _MIR_dump_code (const char *name, uint8_t *code, size_t code_len);
+
+extern int _MIR_get_hard_reg (MIR_context_t ctx, const char *hard_reg_name);
+extern void *_MIR_get_module_global_var_hard_regs (MIR_context_t ctx, MIR_module_t module);
 
 #ifdef __cplusplus
 }

@@ -73,6 +73,12 @@ void ScriptingObjects::MidiList::assign(const int index, var newValue)			 { setV
 int ScriptingObjects::MidiList::getCachedIndex(const var &indexExpression) const { return (int)indexExpression; }
 var ScriptingObjects::MidiList::getAssignedValue(int index) const				 { return getValue(index); }
 
+DebugInformationBase* ScriptingObjects::MidiList::getChildElement(int index)
+{
+	IndexedValue i(this, index);
+	return new LambdaValueInformation(i, i.getId(), {}, DebugInformation::Type::Constant, getLocation());
+}
+
 void ScriptingObjects::MidiList::fill(int valueToFill)
 {
 	for (int i = 0; i < 128; i++)
@@ -6077,7 +6083,26 @@ int ScriptingObjects::ScriptedMidiPlayer::getNumTracks()
 }
 
 
+dispatch::DispatchType ApiHelpers::getDispatchType(const var& syncValue, bool getDontForFalse)
+{
+	using Type = dispatch::DispatchType;
 
+	if ((int)syncValue == SyncMagicNumber)
+		return Type::sendNotificationSync;
+
+	if ((int)syncValue == AsyncMagicNumber)
+		return Type::sendNotificationAsync;
+
+	if ((int)syncValue == AsyncHiPriorityMagicNumber)
+		return Type::sendNotificationAsyncHiPriority;
+
+	return (bool)syncValue ? Type::sendNotificationSync : (getDontForFalse ? Type::dontSendNotification : Type::sendNotificationAsync);
+}
+
+bool ApiHelpers::isSynchronous(const var& syncValue)
+{
+	return getDispatchType(syncValue, false) == dispatch::DispatchType::sendNotificationSync;
+}
 
 var ApiHelpers::getVarFromPoint(Point<float> pos)
 {
@@ -6172,6 +6197,12 @@ juce::ValueTree ApiHelpers::getApiTree()
 		v = ValueTree::readFromData(XmlApi::apivaluetree_dat, XmlApi::apivaluetree_datSize);
 
 	return v;
+}
+
+ScriptingObjects::ScriptBuffer::ScriptBuffer(ProcessorWithScriptingContent* p, int size):
+	ConstScriptingObject(p, 0)
+{
+	jassertfalse;
 }
 #endif
 

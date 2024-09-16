@@ -67,6 +67,7 @@ class BackendProcessorEditor: public FloatingTileContent,
 							  public Component,
 							  public GlobalScriptCompileListener,
                               public Label::Listener,
+							  public MainController::LockFreeDispatcher::PresetLoadListener,
 							  public MainController::SampleManager::PreloadListener
 {
 public:
@@ -95,7 +96,7 @@ public:
 
 	void removeContainer();
 
-	
+	void newHisePresetLoaded() override;
 
 	void preloadStateChanged(bool isPreloading) override;
 
@@ -391,8 +392,10 @@ private:
 		  ProcessorPeakMeter(p),
 		  ControlledObject(p->getMainController())
 		{
+			vuMeter->setTooltip("Click to show the Audio Analyser");
 			setRepaintsOnMouseActivity(true);
 			vuMeter->addMouseListener(this, true);
+			
 		}
 
 		void mouseEnter(const MouseEvent& event) override
@@ -440,11 +443,6 @@ private:
 	ScopedPointer<ShapeButton> presetBrowserButton;
     ScopedPointer<ShapeButton> customPopupButton;
     ScopedPointer<ShapeButton> keyboardPopupButton;
-
-	ScopedPointer<HiseShapeButton> mainWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> scriptingWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> samplerWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> customWorkSpaceButton;
 
 	struct QuickPlayComponent: public Component,
 							   public ControlledObject,

@@ -69,7 +69,7 @@ struct snex_node : public SnexSource
 		{
 			SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
 
-			for (int i = 0; i < ScriptnodeCallbacks::numFunctions; i++)
+			for (int i = 0; i < ScriptnodeCallbacks::OptionalOffset; i++)
 				f[i] = {};
 
 			ok = false;
@@ -77,7 +77,7 @@ struct snex_node : public SnexSource
 
 		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override
 		{
-			FunctionData nf[(int)ScriptnodeCallbacks::numFunctions+1];
+			FunctionData nf[(int)ScriptnodeCallbacks::numTotalFunctions-1];
 
 			auto ids = ScriptnodeCallbacks::getIds({});
 
@@ -90,7 +90,7 @@ struct snex_node : public SnexSource
 
 				if (!nf[i].isResolved())
 				{
-					for (int i = 0; i < (int)ScriptnodeCallbacks::numFunctions; i++)
+					for (int i = 0; i < (int)ScriptnodeCallbacks::OptionalOffset; i++)
 						f[i] = {};
 
 					return Result::fail(id.toString() + " wasn't found");
@@ -111,19 +111,50 @@ struct snex_node : public SnexSource
 				thisModDefined = true;
 			}
 
-			
+			bool thisPlotDefined = false;
 
+			auto plotFunction = getFunctionAsObjectCallback("getPlotValue", false);
+
+			if(plotFunction.isResolved())
+			{
+				auto code = parent.getWorkbench()->getCode();
+
+				if(!code.contains("data::filter_node_base"))
+				{
+					return Result::fail("You need to derive from data::filter_node_base if you want to use getPlotValue()");
+				}
+
+				if(!code.contains("SNEX_INIT_FILTER"))
+				{
+					return Result::fail("You need to call SNEX_INIT_FILTER(externalData, index) in your setExternalData() callback if you want to use getPlotValue()");
+				}
+
+				auto sigMatch = plotFunction.returnType == TypeInfo(Types::ID::Double);
+
+				if(!sigMatch)
+					return Result::fail("wrong signature for " + plotFunction.getSignature());
+
+				nf[ScriptnodeCallbacks::GetPlotValue - 1] = plotFunction;
+				thisPlotDefined = true;
+			}
+			
 			{
 				SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
 				
-				for (int i = 0; i < (int)ScriptnodeCallbacks::numFunctions+1; i++)
+				for (int i = 0; i < (int)ScriptnodeCallbacks::numTotalFunctions-1; i++)
 					f[i] = nf[i];
 
 				modDefined = thisModDefined;
+				plotDefined = thisPlotDefined;
+
+				if(plotDefined && filterHandler == nullptr)
+				{
+					auto obj = dynamic_cast<snex_node*>(&parent);
+					filterHandler = new data::filterT(obj);
+					
+				}
 
 				ok = r.wasOk();
-
-				
 			}
 
 			prepare(lastSpecs);
@@ -148,72 +179,6 @@ struct snex_node : public SnexSource
 		}
 		
 		bool runRootTest() const override { return true; };
-
-#if 0
-		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
-		{
-			auto wb = static_cast<snex::ui::WorkbenchManager*>(getNodeWorkbench(parent.getParentNode()));
-
-			if (auto rwb = wb->getRootWorkbench())
-			{
-				auto& td = rwb->getTestData();
-
-				td.processTestData(rwb, this);
-
-#if 0
-				if (td.testSourceData.getNumSamples() > 0)
-				{
-					auto& testData = td.testOutputData;
-
-					testData.makeCopyOf(td.testSourceData);
-
-					struct Test
-					{
-						Test(snex::ui::WorkbenchData::TestData& td) :
-							ps(td.getPrepareSpecs()),
-							pd(td.testOutputData.getArrayOfWritePointers(), td.testOutputData.getNumSamples(), td.testOutputData.getNumChannels()),
-							chunk(nullptr, 0, 0),
-							cd(pd)
-						{};
-
-						void next()
-						{
-							auto c = cd.getChunk(jmin(cd.getNumLeft(), ps.blockSize));
-							auto& d = c.toData();
-							chunk.referTo(d.getRawDataPointers(), d.getNumChannels(), d.getNumSamples());
-						}
-
-						PrepareSpecs ps;
-						ProcessDataDyn pd;
-						ProcessDataDyn chunk;
-						ChunkableProcessData<ProcessDataDyn> cd;
-					};
-
-
-					ScopedPointer<Test> t = new Test(td);
-					
-					prepare(t->ps);
-					resetFunc();
-
-					process(t->pd);
-
-
-					WeakReference<snex::ui::WorkbenchData> safeW(rwb.get());
-
-					auto f = [safeW]()
-					{
-						if (safeW.get() != nullptr)
-							safeW.get()->postPostCompile();
-					};
-
-					MessageManager::callAsync(f);
-				}
-#endif
-			}
-
-			return Result::ok();
-		}
-#endif
 
 #if SNEX_MIR_BACKEND
 #define CALL_SNEX_VOID callVoidUncheckedWithObject
@@ -266,15 +231,31 @@ struct snex_node : public SnexSource
 			}
 
 			return false;
-				
 		}
-		
-		FunctionData f[(int)ScriptnodeCallbacks::numFunctions+1];
+
+		data::filter_base* getFilterDataObject() const override { return filterHandler.get(); }
+
+		double getPlotValue(bool getMagnitude, double fNorm)
+		{
+			jassert(plotDefined);
+
+			if(auto s = ScopedCallbackChecker(*this))
+			{
+				return f[(int)ScriptnodeCallbacks::GetPlotValue - 1].callUncheckedWithObject<double>((int)getMagnitude, fNorm);
+			}
+			
+			return 0.0;
+		}
+
+		FunctionData f[(int)ScriptnodeCallbacks::numTotalFunctions-1];
 		
 		bool modDefined = false;
-
-
+		bool plotDefined = false;
+		
 		PrepareSpecs lastSpecs;
+
+		ScopedPointer<data::filterT> filterHandler;
+		
 
 	} callbacks;
 
@@ -300,6 +281,13 @@ struct snex_node : public SnexSource
 	{
 		rebuildCallbacksAfterChannelChange(ps.numChannels);
 		callbacks.prepare(ps);
+	}
+
+	static double getPlotValueStatic(void* obj, bool getMagnitude, double fNorm)
+	{
+		auto typed = static_cast<snex_node*>(obj);
+
+		return typed->callbacks.getPlotValue(getMagnitude, fNorm);
 	}
 
     /** This callback will be called whenever a HiseEvent (=MIDI event on steroids) should be executed. Note that the execution of HiseEvents depends on the surrounding context. */

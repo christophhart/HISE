@@ -62,8 +62,8 @@ struct EventDataEditor: public ProcessorEditorBody
 
 		addAndMakeVisible(defaultValue);
 		defaultValue.setup(getProcessor(), isEnvelope ?
-			EventDataEnvelope::Parameter::DefaultValue :
-			EventDataModulator::Parameter::DefaultValue, "DefaultValue");
+			(int)EventDataEnvelope::Parameter::DefaultValue :
+			(int)EventDataModulator::Parameter::DefaultValue, "DefaultValue");
 		defaultValue.setMode(HiSlider::NormalizedPercentage);
 		defaultValue.setTooltip (TRANS("The value if the event data hasn't been written"));
 	    defaultValue.setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
@@ -74,8 +74,8 @@ struct EventDataEditor: public ProcessorEditorBody
 
 		addAndMakeVisible(dataSlot);
 		dataSlot.setup(getProcessor(), isEnvelope ? 
-			EventDataEnvelope::Parameter::SlotIndex : 
-			EventDataModulator::Parameter::SlotIndex, "SlotIndex");
+			(int)EventDataEnvelope::Parameter::SlotIndex :
+			(int)EventDataModulator::Parameter::SlotIndex, "SlotIndex");
 		dataSlot.setMode(HiSlider::Discrete, 0.0, (double)AdditionalEventStorage::NumDataSlots, DBL_MAX,  1.0);
 
 		dataSlot.setTooltip (TRANS("Set the Slot index for the event data"));

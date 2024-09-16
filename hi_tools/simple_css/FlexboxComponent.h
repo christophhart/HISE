@@ -59,13 +59,14 @@ struct FlexboxComponent: public Component,
     {
         bool isVisible(bool displayValue) const
         {
-            displayValue |= mustBeVisible;
+			displayValue |= mustBeVisible;
             displayValue &= !mustBeHidden;
             return displayValue;
         }
 
         bool mustBeVisible = true;
         bool mustBeHidden = false;
+		bool usePlaceHolder = false;
     };
     
 	struct Helpers
@@ -76,6 +77,16 @@ struct FlexboxComponent: public Component,
 
 		static String dump(Component& c);
 
+
+		static void writeManualPseudoState(Component& c, int state)
+		{
+			c.getProperties().set("manualPseudoState", state);
+		}
+
+		static int getManualPseudoState(Component& c)
+		{
+			return (int)c.getProperties().getWithDefault("manualPseudoState", var(0));
+		}
 
 		static void writeSelectorsToProperties(Component& c, const StringArray& selectors);
 		static Selector getTypeSelectorFromComponentClass(Component* c);
@@ -91,8 +102,6 @@ struct FlexboxComponent: public Component,
 		{
 			return c.getProperties()["inline-style"].toString().trim();
 		}
-
-		
 
 		static void writeInlineStyle(Component& c, const String& inlineCode)
 		{
@@ -174,11 +183,32 @@ struct FlexboxComponent: public Component,
 	{
 		labelSelector = s;
 	}
-    
-    void setFlexChildVisibility(int childIndex, bool mustBeVisible, bool mustBeHidden)
+
+	void setFlexChildVisibility(int childIndex, bool mustBeVisible, bool mustBeHidden)
+	{
+		VisibleState s;
+		s.mustBeHidden = mustBeHidden;
+		s.mustBeVisible = mustBeVisible;
+		setFlexChildVisibility(childIndex, s);
+	}
+
+	bool isVisibleOrPlaceHolder(Component* c) const
+	{
+		if(visibleStates.find(c) != visibleStates.end())
+		{
+			if(visibleStates.at(c).usePlaceHolder)
+				return true;
+
+			return visibleStates.at(c).isVisible(c->isVisible());
+		}
+
+		return c->isVisible();
+	}
+
+    void setFlexChildVisibility(int childIndex, VisibleState newState)
     {
         auto c = getChildComponent(childIndex);
-        visibleStates[c] = { mustBeVisible, mustBeHidden };
+        visibleStates[c] = newState;
     }
 
 	void setIsInvisibleWrapper(bool shouldBeInvisibleWrapper);
@@ -187,10 +217,36 @@ struct FlexboxComponent: public Component,
     {
 		jassert(isInvisibleWrapper());
 		auto fc = getChildComponent(0);
-		return childSheets[fc]->getFlexItem(fc, fullArea);
+        
+        auto ss = childSheets[fc];
+        
+        if(ss == nullptr && parentToUse != nullptr)
+        {
+            childSheets[fc] = parentToUse->css.getForComponent(fc);
+            ss = childSheets[fc];
+        }
+        
+        if(ss != nullptr)
+        {
+            return childSheets[fc]->getFlexItem(fc, fullArea);
+        }
+        
+        return {};
     }
 
     bool isInvisibleWrapper() const { return invisibleWrapper; }
+
+	void setHiseShapeButtonColours(HiseShapeButton& b);
+
+	void setSelector(const Selector& s)
+	{
+		selector = s;
+
+		if(s.type != SelectorType::Type)
+			Helpers::writeSelectorsToProperties(*this, { s.toString() });
+
+		rebuildLayout();
+	}
 
 private:
 
@@ -297,6 +353,178 @@ struct CSSImage: public Component
 struct HeaderContentFooter: public Component,
 						    public CSSRootComponent
 {
+	struct InspectorData
+	{
+		Component::SafePointer<Component> c;
+		Rectangle<float> first;
+		String second;
+	};
+
+	struct CSSDebugger: public Component,
+                    public Timer,
+                    public PathFactory
+	{
+	    CSSDebugger(HeaderContentFooter& componentToDebug):
+	      root(&componentToDebug),
+	      codeDoc(doc),
+	      editor(codeDoc),
+	      powerButton("bypass", nullptr, *this)
+	    {
+	        doc.setDisableUndo(true);
+	        setName("CSS Inspector");
+	        addAndMakeVisible(editor);
+	        
+	        editor.tokenCollection = new mcl::TokenCollection("CSS");
+	        editor.tokenCollection->setUseBackgroundThread(false);
+	        editor.setLanguageManager(new simple_css::LanguageManager(codeDoc));
+	        editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(12.0f));
+	        setSize(450, 800);
+	        setOpaque(true);
+	        startTimer(1000);
+
+			GlobalHiseLookAndFeel::setDefaultColours(hierarchy);
+	        hierarchy.setLookAndFeel(&laf);
+	        addAndMakeVisible(hierarchy);
+	        addAndMakeVisible(powerButton);
+	        powerButton.setToggleModeWithColourChange(true);
+	        powerButton.setToggleStateAndUpdateIcon(true);
+	        hierarchy.setTextWhenNothingSelected("Select parent component");
+	        addAndMakeVisible(powerButton);
+
+	        hierarchy.onChange = [&]()
+	        {
+		        auto pd = parentData[hierarchy.getSelectedItemIndex()];
+	            updateWithInspectorData(pd);
+	        };
+
+	        powerButton.onClick = [this]()
+	        {
+	            if(powerButton.getToggleState())
+	                this->startTimer(1000);
+	            else
+	                this->stopTimer();
+	            
+	            clear();
+	        };
+	    }
+	    
+	    void clear()
+	    {
+	        if(root.getComponent() != nullptr)
+	            root->setCurrentInspectorData({});
+	    }
+	    
+	    HiseShapeButton powerButton;
+	    
+	    Path createPath(const String& url) const override
+	    {
+	        Path p;
+	        LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+	        return p;
+	    }
+	    
+	    ~CSSDebugger()
+	    {
+	        clear();
+	    }
+	    
+	    void paint(Graphics& g) override
+	    {
+	        g.fillAll(Colour(0xFF222222));
+	    }
+
+	    simple_css::HeaderContentFooter::InspectorData createInspectorData(Component* c)
+	    {
+		    auto b = root.getComponent()->getLocalArea(c, c->getLocalBounds()).toFloat();
+	        auto data = simple_css::FlexboxComponent::Helpers::dump(*c);
+
+	        simple_css::HeaderContentFooter::InspectorData id;
+	        id.first = b;
+	        id.second = data;
+	        id.c = c;
+
+	        return id;
+	    }
+
+	    void timerCallback() override
+	    {
+	        if(root.getComponent() == nullptr)
+	            return;
+	        
+	        auto* target = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+
+	        bool change = false;
+
+	        if(target != nullptr && target->findParentComponentOfClass<simple_css::CSSRootComponent>() == root.getComponent())
+	        {
+	            currentTarget = target;
+	            change = true;
+	        }
+	        
+	        if(currentTarget.getComponent() != nullptr && change)
+	        {
+	            auto id = createInspectorData(currentTarget.getComponent());
+	            auto tc = id.c.getComponent();
+
+	            StringArray items;
+
+	            parentData.clear();
+
+	            while(tc != nullptr)
+	            {
+	                if(dynamic_cast<CSSRootComponent*>(tc) != nullptr)
+	                    break;
+
+	                parentData.add(createInspectorData(tc));
+		            tc = tc->getParentComponent();
+	            }
+
+	            hierarchy.clear(dontSendNotification);
+
+	            int idx = 1;
+	            for(const auto& pd: parentData)
+	                hierarchy.addItem(pd.second, idx++);
+
+	            hierarchy.setText("", dontSendNotification);
+
+	            updateWithInspectorData(id);
+	        }
+	    }
+
+	    Array<simple_css::HeaderContentFooter::InspectorData> parentData;
+
+	    void updateWithInspectorData(const simple_css::HeaderContentFooter::InspectorData& id)
+	    {
+		    root->setCurrentInspectorData(id);
+	        auto s = root->css.getDebugLogForComponent(id.c.getComponent());
+	        
+	        if(doc.getAllContent() != s)
+	            doc.replaceAllContent(s);
+	    }
+	    
+	    Component::SafePointer<Component> currentTarget = nullptr;
+	    
+	    void resized() override
+	    {
+	        auto b = getLocalBounds();
+	        auto topArea = b.removeFromTop(24);
+
+	        powerButton.setBounds(topArea.removeFromLeft(topArea.getHeight()).reduced(2));
+	        hierarchy.setBounds(b.removeFromBottom(32));
+	        editor.setBounds(b);
+	    }
+
+	    juce::CodeDocument doc;
+	    mcl::TextDocument codeDoc;
+	    mcl::TextEditor editor;
+
+	    ComboBox hierarchy;
+
+	    hise::GlobalHiseLookAndFeel laf;
+
+	    Component::SafePointer<simple_css::HeaderContentFooter> root;
+	};
+
 	HeaderContentFooter(bool useViewportContent);
 
 	void setFixStyleSheet(StyleSheet::Collection& newCss);
@@ -316,12 +544,7 @@ struct HeaderContentFooter: public Component,
 
 	void paintOverChildren(Graphics& g) override;
 
-	struct InspectorData
-	{
-		Component::SafePointer<Component> c;
-		Rectangle<float> first;
-		String second;
-	};
+	
 
     void setCurrentInspectorData(const InspectorData& newData)
     {

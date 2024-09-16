@@ -78,6 +78,7 @@ public:
 
 	struct Header : public Component,
 		public ButtonListener,
+        public SettableTooltipClient,
 		public DragAndDropTarget
 	{
 		Header(NodeComponent& parent_);

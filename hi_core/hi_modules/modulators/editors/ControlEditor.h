@@ -52,6 +52,8 @@ public:
 	void updateGui() override
 	{
 		learnButton->setToggleState(dynamic_cast<ControlModulator*>(getProcessor())->learnModeActive(), dontSendNotification);
+
+
 	};
 
 	int getBodyHeight() const override
@@ -82,8 +84,8 @@ private:
     //==============================================================================
     ScopedPointer<Label> label;
     ScopedPointer<TableEditor> midiTable;
-    ScopedPointer<ToggleButton> useTableButton;
-    ScopedPointer<ToggleButton> invertedButton;
+    ScopedPointer<HiToggleButton> useTableButton;
+    ScopedPointer<HiToggleButton> invertedButton;
     ScopedPointer<HiSlider> controllerNumberSlider;
     ScopedPointer<HiSlider> smoothingSlider;
     ScopedPointer<ToggleButton> learnButton;

@@ -167,6 +167,14 @@ if (ss != nullptr)
 }
 }
 
+int Renderer::getPseudoClassState() const
+{
+	if(forceOverwriteState)
+		return pseudoClassState;
+
+	return currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
+}
+
 CodeGenerator::CodeGenerator(StyleSheet::Ptr ss_):
 	ss(ss_)
 {
@@ -198,10 +206,10 @@ Renderer::Renderer(Component* c, StateWatcher& state_):
 
 int Renderer::getPseudoClassFromComponent(Component* c)
 {
-	int state = 0;
-
 	if(c == nullptr)
 		return 0;
+
+	int state = FlexboxComponent::Helpers::getManualPseudoState(*c);
 
 	auto isHover = c->isMouseOverOrDragging(true);
 	auto isDown = c->isMouseButtonDown(false);
@@ -243,7 +251,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	if(ss == nullptr)
 		return;
 	
-	auto stateFlag = currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
+	auto stateFlag = getPseudoClassState();
 	auto defaultState = PseudoState(stateFlag).withElement(type);
 
 	if(ss->getPropertyValueString({ "display", defaultState}) == "none")
@@ -314,10 +322,12 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	
 	if(type == PseudoElementType::None)
 	{
-		auto beforeArea = ss->getPseudoArea(ma, stateFlag, PseudoElementType::Before);
+		auto beforeAbsolute = ss->getPropertyValue({"position", PseudoState(0).withElement(PseudoElementType::Before)}).toString() == "absolute";
+		auto beforeArea = ss->getPseudoArea(beforeAbsolute ? area : ma, stateFlag, PseudoElementType::Before);
 
 		if(!beforeArea.isEmpty())
 		{
+			ScopedValueSetter<PseudoElementType> svs(currentlyRenderedPseudoElement, PseudoElementType::Before);
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, beforeArea, ss, PseudoElementType::Before);
 
@@ -327,10 +337,13 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 				renderText(g, beforeArea, v, ss, PseudoElementType::Before);
 		}
 
-		auto afterArea = ss->getPseudoArea(ma, stateFlag, PseudoElementType::After);
-
+		auto afterAbsolute = ss->getPropertyValue({"position", PseudoState(0).withElement(PseudoElementType::After)}).toString() == "absolute";
+		
+		auto afterArea = ss->getPseudoArea(afterAbsolute ? area : ma, stateFlag, PseudoElementType::After);
+		
 		if(!afterArea.isEmpty())
 		{
+			ScopedValueSetter<PseudoElementType> svs(currentlyRenderedPseudoElement, PseudoElementType::After);
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, afterArea, ss, PseudoElementType::After);
 
@@ -357,7 +370,8 @@ void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> a
 		if(isContent)
 			totalArea = ss->getArea(totalArea, { "padding", currentState });
 
-		totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
+		if(currentlyRenderedPseudoElement == PseudoElementType::None)
+			totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
 
 		g.setColour(Colours::black.withAlpha(ss->getOpacity(currentState.stateFlag)));
 
@@ -460,7 +474,7 @@ void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> a
 	}
 }
 
-void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type)
+void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type, Justification jToUse)
 {
 	auto currentState = PseudoState(getPseudoClassState()).withElement(type);
 
@@ -477,7 +491,7 @@ void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text
 
 	auto textToDraw = ss->getText(text, currentState);
 
-	auto j = ss->getJustification(currentState);
+	auto j = jToUse.getFlags() ? jToUse : ss->getJustification(currentState);
 
 	state.renderShadow(g, std::make_tuple(textToDraw, j, totalArea), currentComponent, ss->getShadow(totalArea, { "text-shadow", currentState}, false), false);	
 
@@ -486,8 +500,9 @@ void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text
 	g.drawText(textToDraw, totalArea, j);
 }
 
-void Renderer::setPseudoClassState(int state)
+void Renderer::setPseudoClassState(int state, bool shouldForceOverwrite)
 {
+	forceOverwriteState |= shouldForceOverwrite;
 	pseudoClassState = state;
 }
 }

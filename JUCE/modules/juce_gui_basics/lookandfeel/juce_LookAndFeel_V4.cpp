@@ -1323,7 +1323,7 @@ void LookAndFeel_V4::drawCallOutBoxBackground (CallOutBox& box, Graphics& g,
 }
 
 //==============================================================================
-void LookAndFeel_V4::drawStretchableLayoutResizerBar (Graphics& g, int /*w*/, int /*h*/, bool /*isVerticalBar*/,
+void LookAndFeel_V4::drawStretchableLayoutResizerBar (Graphics& g, Component&, int /*w*/, int /*h*/, bool /*isVerticalBar*/,
                                       bool isMouseOver, bool isMouseDragging)
 {
     if (isMouseOver || isMouseDragging)

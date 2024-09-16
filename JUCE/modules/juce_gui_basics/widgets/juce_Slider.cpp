@@ -576,7 +576,7 @@ public:
             if (style == LinearBar || style == LinearBarVertical)
             {
                 valueBox->addMouseListener (&owner, false);
-                valueBox->setMouseCursor (MouseCursor::ParentCursor);
+                //valueBox->setMouseCursor (MouseCursor::ParentCursor);
             }
         }
         else

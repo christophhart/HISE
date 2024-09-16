@@ -115,7 +115,8 @@ Component* CodeEditorPanel::createContentComponent(int index)
             pe->getEditor()->editor.setScaleFactor(scaleFactor);
 #endif
 
-		pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
+		if(pe->isJavascript())
+			pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
 
 		if(auto ed = pe->getEditor())
 			getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
@@ -370,13 +371,7 @@ void ConsolePanel::resized()
 
 void ScriptContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
 {
-	if (processor == dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
-	{
-		
-		resized();
-		if (getContent<Editor>() != nullptr)
-			getContent<Editor>()->refreshContent();
-	}
+	updateInterfaceListener(dynamic_cast<ProcessorWithScriptingContent*>(processor));
 }
 
 var ScriptContentPanel::toDynamicObject() const
@@ -703,9 +698,13 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 
 	overlaySelector = new ComboBox("Zoom");
 
-	auto overlayDirectory = dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor())->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::SubDirectories::Images).getChildFile("overlays");
+	auto& handler = dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor())->getMainController()->getCurrentFileHandler();
 
-	currentOverlays = overlayDirectory.findChildFiles(File::findFiles, false, "*.png");
+	if(handler.getRootFolder().isDirectory())
+	{
+		auto overlayDirectory = handler.getSubDirectory(FileHandlerBase::SubDirectories::Images).getChildFile("overlays");
+		currentOverlays = overlayDirectory.findChildFiles(File::findFiles, false, "*.png");
+	}
 
 	overlaySelector->addItem("No overlay", 1);
 	overlaySelector->setTextWhenNothingSelected("Select overlay");
@@ -786,7 +785,7 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 
 void ScriptContentPanel::Editor::rebuildAfterContentChange()
 {
-	addButton("showall");
+	addButton("zoom-fit");
 
 	addCustomComponent(zoomSelector);
 
@@ -816,6 +815,7 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 	addSpacer(10);
 
 	addButton("edit-json");
+	addButton("debug-css");
 
 	addCustomComponent(overlaySelector);
 	addCustomComponent(overlayAlphaSlider);
@@ -848,13 +848,23 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		b->actionFunction = Actions::editJson;
 		b->setTooltip("Edits the raw property data object as JSON (Dangerzone!)");
 	}
+	if(name == "debug-css")
+	{
+		b->enabledFunction = [](Editor& e)
+		{
+			return callRecursive<simple_css::HeaderContentFooter>(&e, [](simple_css::HeaderContentFooter*){ return true; });
+		};
+
+		b->actionFunction = Actions::debugCSS;
+		b->setTooltip("Show the CSS debugger for the current dialog");
+	}
 	if(name == "suspend")
 	{
 		b->stateFunction = [](Editor& e){ return !dynamic_cast<ProcessorWithScriptingContent*>(e.getProcessor())->simulatedSuspensionState; };
 		b->setTooltip("Simulates the suspension of the UI timers (as if all interface would be closed).");
 		b->actionFunction = Actions::toggleSuspension;
 	}
-	if (name == "showall")
+	if (name == "zoom-fit")
 	{
 		b->actionFunction = [](Editor& e)
 		{
@@ -1457,7 +1467,7 @@ struct ServerController: public Component,
 		{
 			Path p;
 
-			LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+			LOAD_EPATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
 			LOAD_EPATH_IF_URL("clear", SampleMapIcons::deleteSamples);
 			LOAD_PATH_IF_URL("edit", ServerIcons::parameters);
 			LOAD_EPATH_IF_URL("web", MainToolbarIcons::web);
@@ -2215,7 +2225,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 	Path p;
 
-	LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+	LOAD_EPATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
 	LOAD_EPATH_IF_URL("edit", OverlayIcons::penShape);
 	LOAD_EPATH_IF_URL("editoff", OverlayIcons::lockShape);
 	LOAD_EPATH_IF_URL("lock", OverlayIcons::lockShape);
@@ -2230,6 +2240,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);
 	LOAD_PATH_IF_URL("horizontal-distribute", ColumnIcons::horizontalDistribute);
 	LOAD_EPATH_IF_URL("edit-json", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_PATH_IF_URL("debug-css", ColumnIcons::debugCSS);
 	LOAD_EPATH_IF_URL("suspend", EditorIcons::nightIcon);
 
 	return p;

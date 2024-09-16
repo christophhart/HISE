@@ -603,6 +603,15 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** Returns the machine ID that is encoded into the license file. This does not look in the encrypted blob, but just parses the header string. */
 		String getRegisteredMachineId();
 
+		/** Checks if the string contains the given substring. */
+		bool contains(String otherString)
+		{
+			if(unlocker.get() != nullptr)
+				return unlocker->contains(otherString);
+
+			return true;
+		}
+
 		WeakCallbackHolder pcheck;
 
 		struct Wrapper;

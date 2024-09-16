@@ -330,6 +330,8 @@ void MarkdownCodeComponentBase::initialiseEditor()
 {
 	usedDocument = ownedDoc;
 
+    MessageManagerLock mm;
+    
 	editor = new CodeEditorComponent(*usedDocument, tok);
 
 	if (syntax == Cpp)

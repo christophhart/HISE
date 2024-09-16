@@ -265,6 +265,11 @@ Image::~Image()
 {
 }
 
+#if JUCE_WINDOWS && !JUCE_DEBUG
+#pragma warning( push )
+#pragma warning( disable : 4723)
+#endif
+
 int Image::getReferenceCount() const noexcept           { return image == nullptr ? 0 : image->getSharedCount(); }
 int Image::getWidth() const noexcept                    { return image == nullptr ? 0 : image->width; }
 int Image::getHeight() const noexcept                   { return image == nullptr ? 0 : image->height; }
@@ -274,6 +279,12 @@ bool Image::isARGB() const noexcept                     { return getFormat() == 
 bool Image::isRGB() const noexcept                      { return getFormat() == RGB; }
 bool Image::isSingleChannel() const noexcept            { return getFormat() == SingleChannel; }
 bool Image::hasAlphaChannel() const noexcept            { return getFormat() != RGB; }
+
+#if JUCE_WINDOWS && !JUCE_DEBUG
+#pragma warning( push )
+#pragma warning( disable : 4589)
+#endif
+
 
 std::unique_ptr<LowLevelGraphicsContext> Image::createLowLevelContext() const
 {

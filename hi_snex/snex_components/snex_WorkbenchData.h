@@ -51,7 +51,7 @@ struct Node
 
 		auto callbackIds = Types::ScriptnodeCallbacks::getIds(fc->getClassName());
 
-		for (int i = 0; i < Types::ScriptnodeCallbacks::numFunctions; i++)
+		for (int i = 0; i < Types::ScriptnodeCallbacks::OptionalOffset; i++)
 		{
 			callbacks[i] = fc->getNonOverloadedFunction(callbackIds[i]);
 			callbacks[i].object = d.dataPointer;
@@ -85,7 +85,7 @@ struct Node
 
 	HeapBlock<uint8> data;
 
-	FunctionData callbacks[Types::ScriptnodeCallbacks::ID::numFunctions];
+	FunctionData callbacks[Types::ScriptnodeCallbacks::ID::OptionalOffset];
 };
 
 namespace ui

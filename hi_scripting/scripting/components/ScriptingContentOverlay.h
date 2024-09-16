@@ -65,6 +65,7 @@ public:
 		SliderPack,
 		WebView,
 		FloatingTile,
+		MultipageDialog,
 		duplicateComponent,
 		numComponentTypes
 	};
@@ -231,7 +232,28 @@ public:
 
 		static void learnComponentChanged(Dragger& d, ScriptComponent* newComponent);
 
+		Component* getDraggedComponent()
+		{
+			return draggedComponent.getComponent();
+		}
 
+		String getCSSLogForCurrentComponent()
+		{
+			String debugLog;
+
+			Component::callRecursive<simple_css::CSSRootComponent>(draggedComponent, [&](simple_css::CSSRootComponent* rc)
+			{
+				debugLog = rc->css.getDebugLogForComponent(draggedComponent);
+				return true;
+			});
+
+			if(debugLog.isNotEmpty())
+				return debugLog;
+
+			auto contentComponent = draggedComponent->findParentComponentOfClass<ScriptContentComponent>();
+			
+			return contentComponent->css.getDebugLogForComponent(draggedComponent.getComponent());
+		}
 
 	private:
 

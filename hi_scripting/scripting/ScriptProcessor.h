@@ -633,6 +633,7 @@ private:
 
 	Array<PreprocessorFunction> preprocessorFunctions;
 	friend class ProjectImporter;
+	friend class ImporterBase;
 	struct Helpers
 	{
 		struct ExternalScript

@@ -359,6 +359,9 @@ namespace ScriptingObjects
 		/** Creates a string representation of this path. */
 		String toString();
 
+		/** Creates a base64 encoded representation of the path. */
+		String toBase64();
+
 		/** Restores a path that has been converted into a string. */
 		void fromString(String stringPath);
 
@@ -500,7 +503,10 @@ namespace ScriptingObjects
 
 		/** Draws a text with the given alignment (see the Label alignment property). */
 		void drawAlignedText(String text, var area, String alignment);
-		
+
+		/** Renders a (blurred) shadow for the text. */
+		void drawAlignedTextShadow(String text, var area, String alignment, var shadowData);
+
 		/** Tries to draw a text string inside a given space. */
 		void drawFittedText(String text, var area, String alignment, int maxLines, float scale);
 
@@ -616,9 +622,71 @@ namespace ScriptingObjects
 	{
 	public:
 
-		
+		struct LafBase
+		{
+			virtual ~LafBase() {};
+
+			virtual ScriptedLookAndFeel* get() = 0;
+			
+		};
+
+		struct CSSLaf: public simple_css::StyleSheetLookAndFeel,
+					   public SliderPack::LookAndFeelMethods,
+					   public TableEditor::LookAndFeelMethods,
+					   public HiseAudioThumbnail::LookAndFeelMethods,
+					   public LafBase
+		{
+			CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree);;
+
+			ScriptedLookAndFeel* get() override;
+
+			void updateMultipageDialog(multipage::Dialog& mp);
+
+			static void copyPropertiesToElementSelector(simple_css::CSSRootComponent& root, Component& parent, simple_css::Selector s);
+			static void copyPropertiesToChildComponents(simple_css::CSSRootComponent& root, Component& parent);
+
+			void drawSliderPackBackground(Graphics& g, SliderPack& s) override;
+			void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity) override;
+			void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw) override;
+			void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw) override;
+
+			void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition) override {};
+			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
+			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
+			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+			void drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox) override;
+
+			void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
+			void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
+			void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override;
+			void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
+			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override;
+			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
+			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
+
+			Rectangle<float> getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text);
+			bool drawValueLabel(Graphics& g, Component& valuePopup, Component& attachedComponent, const String& text, bool useAlignment=true);
+
+		private:
+
+			Rectangle<float> getTextLabelPopupArea(simple_css::StyleSheet::Ptr ss, Rectangle<float> fullBounds, const String& text);
+			void setupSliderPack(SliderPack& s);
+			void setPathAsVariable(simple_css::StyleSheet::Ptr ss, const Path& p, const Identifier& id);
+			bool drawPlayhead(Graphics& g, Component& c, double position, Rectangle<float> area);
+			
+			WeakReference<ScriptedLookAndFeel> parent;
+			Component::SafePointer<Component> componentToStyle;
+
+            ValueTree dataCopy;
+            ValueTree additionalDataCopy;
+            
+			valuetree::PropertyListener colourUpdater;
+			valuetree::PropertyListener additionalPropertyUpdater;
+			valuetree::PropertyListener additionalComponentPropertyUpdater;
+		};
 
 		struct Laf : public GlobalHiseLookAndFeel,
+			public LafBase,
 			public PresetBrowserLookAndFeelMethods,
 			public TableEditor::LookAndFeelMethods,
             public HiseAudioThumbnail::LookAndFeelMethods,
@@ -639,11 +707,10 @@ namespace ScriptingObjects
 			Laf(MainController* mc);
 
 			virtual ~Laf();;
-
-			virtual ScriptedLookAndFeel* get();
-
+			
 			Font getFont();
 
+			ScriptedLookAndFeel* get() override;
 
 			void drawAlertBox(Graphics&, AlertWindow&, const Rectangle<int>& textArea, TextLayout&) override;
 
@@ -793,6 +860,15 @@ namespace ScriptingObjects
 		/** Set a global font. */
 		void setGlobalFont(const String& fontName, float fontSize);
 
+		/** Parses CSS code and switches the look and feel to use the CSS renderer. */
+		void setInlineStyleSheet(const String& cssCode);
+
+		/** Parses CSS code from a style sheet file in the scripts folder and switches the look and feel to use the CSS renderer. */
+		void setStyleSheet(const String& fileName);
+
+		/** Sets a variable that can be queried from a style sheet. */
+		void setStyleSheetProperty(const String& variableId, var value, const String& type);
+
 		/** Loads an image that can be used by the look and feel functions. */
 		void loadImage(String imageFile, String prettyName);
 
@@ -804,9 +880,17 @@ namespace ScriptingObjects
 
 		// ========================================================================================
 
+		bool isUsingCSS() const { return !currentStyleSheet.isEmpty(); }
+
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject, Component* c);
 
 		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
+
+		String loadStyleSheetFile(const String& filename);
+
+		void setStyleSheetInternal(const String& cssCode);
+
+		void clearScriptContext();
 
 		int getNumChildElements() const override;
 
@@ -828,7 +912,9 @@ namespace ScriptingObjects
         
         Array<GraphicsWithComponent> graphics;
         
-		
+		String currentStyleSheet;
+		String currentStyleSheetFile;
+		simple_css::StyleSheet::Collection css;
 
 		var functions;
 
@@ -844,6 +930,8 @@ namespace ScriptingObjects
 		Array<NamedImage> loadedImages;
 
 		Result lastResult;
+
+		ValueTree additionalProperties;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedLookAndFeel);
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptedLookAndFeel);

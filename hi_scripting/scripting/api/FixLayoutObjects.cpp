@@ -445,6 +445,8 @@ void Factory::setCompareFunction(var newCompareFunction)
 						if(isArray) compareFunction = ObjectReference::NumberComparator<float, true>(l->offset, l->elementSize);
 						else        compareFunction = ObjectReference::NumberComparator<float, false>(l->offset);
 						break;
+					case DataType::numTypes:
+						break;
 					}					
 
 					found = true;

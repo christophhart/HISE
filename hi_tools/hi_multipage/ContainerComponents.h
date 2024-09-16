@@ -51,6 +51,24 @@ struct Container: public Dialog::PageBase
     static void recalculateParentSize(PageBase* b);
 
     void postInit() override;
+
+    void updateChildVisibility()
+    {
+	    for(auto c: childItems)
+		{
+			for(int i = 0; i < getNumChildComponents(); i++)
+			{
+				if(getChildComponent(i) == c)
+				{
+					setFlexChildVisibility(i, c->getVisibility());
+					break;
+				}
+			}
+	    }
+
+        rebuildLayout();
+    }
+
     Result checkGlobalState(var globalState) override;
     
     void addChild(Dialog::PageInfo::Ptr info);

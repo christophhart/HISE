@@ -463,10 +463,10 @@ template <typename Sample> struct JuceFFTWrapper
 		FFTType complexFft;
 	public:
 		static size_t fastSizeAbove(size_t size) {
-			return FFTType::fastSizeAbove((static_cast<int>(size) + 1)/2)*2;
+			return (size_t)FFTType::fastSizeAbove((static_cast<int>(size) + 1)/2)*2;
 		}
 		static size_t fastSizeBelow(size_t size) {
-			return FFTType::fastSizeBelow(static_cast<int>(size)/2)*2;
+			return (size_t)FFTType::fastSizeBelow(static_cast<int>(size)/2)*2;
 		}
 
 		RealFFT(size_t size=0, int fastDirection=0) : complexFft(0) {

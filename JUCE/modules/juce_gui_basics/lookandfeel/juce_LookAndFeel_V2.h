@@ -302,7 +302,7 @@ public:
     DropShadower* createDropShadowerForComponent (Component*) override;
 
     //==============================================================================
-    void drawStretchableLayoutResizerBar (Graphics&, int w, int h, bool isVerticalBar,
+    void drawStretchableLayoutResizerBar (Graphics&, Component&, int w, int h, bool isVerticalBar,
                                           bool isMouseOver, bool isMouseDragging) override;
 
     //==============================================================================

@@ -1107,6 +1107,8 @@ template <class MatrixType> struct matrix
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
+		m.handleDisplayValues(true, data.template as<ProcessDataDyn>());
+
 		if constexpr (MatrixType::isFixedChannelMatrix())
 		{
 			constexpr auto SType = matrix_helpers::getSpecialType<MatrixType>();
@@ -1118,6 +1120,8 @@ template <class MatrixType> struct matrix
 		}
 		else
 			FrameConverters::forwardToFrame16(this, data);
+
+		m.handleDisplayValues(false, data.template as<ProcessDataDyn>());
 	}
 	
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
@@ -1183,6 +1187,9 @@ template <int N, typename SubType, bool HasSendChannels> struct static_matrix
 	virtual ~static_matrix() {};
 	static constexpr bool isFixedChannelMatrix() { return true; }
 	static constexpr bool hasSendChannels() { return HasSendChannels; }
+
+	static constexpr bool createDisplayValues() { return false; }
+	void handleDisplayValues(bool, ProcessDataDyn& ) {}
 
 	static constexpr int getChannel(int index) { return SubType::channels[index]; }
 

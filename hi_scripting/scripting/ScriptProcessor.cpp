@@ -465,7 +465,7 @@ ExternalScriptFile::Ptr FileChangeListener::addFileWatcher(const File &file)
 		reloader = new ExternalReloader(*this);
 #endif
 
-	watchers.add(p);
+	watchers.addIfNotAlreadyThere(p);
 
 	return p;
 }

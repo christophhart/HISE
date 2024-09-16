@@ -375,6 +375,9 @@ struct ModPlotter : public Component,
 	
 	void refresh() override;
 
+	bool hasNegativeValues = false;
+	Range<float> startRange = { 0.0f, 1.0f };
+
 	Path p;
 
 	RectangleList<float> rectangles;

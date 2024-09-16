@@ -620,7 +620,7 @@ ProcessorEditorBody *PolyFilterEffect::createEditor(ProcessorEditor *parentEdito
 #endif
 }
 
-std::pair<juce::IIRCoefficients, int> PolyFilterEffect::getCurrentCoefficients() const
+FilterDataObject::CoefficientData PolyFilterEffect::getCurrentCoefficients() const
 {
 	if (ownerSynthForCoefficients == nullptr)
 	{

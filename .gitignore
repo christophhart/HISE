@@ -120,3 +120,12 @@ tools/multipagecreator/Builds/
 tools/multipagecreator/JuceLibraryCode/
 tools/auto_build/installer/App/
 example_assets/
+tools/payload_installer/Builds/
+tools/payload_installer/JuceLibraryCode/
+extras/hise_dialogs/Binaries/
+extras/hise_dialogs/DspNetworks/
+extras/hise_dialogs/PooledResources/
+extras/hise_dialogs/AdditionalSourceCode/
+extras/hise_dialogs/expansion_info.xml
+extras/hise_dialogs/project_info.xml
+extras/hise_dialogs/user_info.xml

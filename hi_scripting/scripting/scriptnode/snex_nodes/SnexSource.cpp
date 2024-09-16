@@ -181,7 +181,7 @@ void SnexSource::rebuildCallbacksAfterChannelChange(int numChannelsToProcess)
 	}
 }
 
-void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset, bool addMod)
+void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset, bool addMod, bool addPlotValue)
 {
 	using namespace cppgen;
 
@@ -228,6 +228,15 @@ void SnexSource::addDummyNodeCallbacks(String& s, bool addEvent, bool addReset, 
 			{
 				StatementBlock sb(b, false);
 				b << "return instance.handleModulation(v);";
+			}
+		}
+
+		if(addPlotValue)
+		{
+			b << String("double getPlotValue(" + instanceType + "& instance, int m, double f)");
+			{
+				StatementBlock sb(b, false);
+				b << "return instance.getPlotValue(m, f);";
 			}
 		}
 	}
@@ -485,6 +494,7 @@ void SnexSource::ComplexDataHandler::dataAddedOrRemoved(ValueTree v, bool wasAdd
 
 	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::Table)) t = ExternalData::DataType::Table;
 	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::SliderPack)) t = ExternalData::DataType::SliderPack;
+	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::FilterCoefficients)) t = ExternalData::DataType::FilterCoefficients;
 	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::AudioFile)) t = ExternalData::DataType::AudioFile;
 	if (typeId == ExternalData::getDataTypeName(ExternalData::DataType::DisplayBuffer)) t = ExternalData::DataType::DisplayBuffer;
 
@@ -514,17 +524,43 @@ int SnexSource::ComplexDataHandler::getNumDataObjects(ExternalData::DataType t) 
 	switch (t)
 	{
 	case snex::ExternalData::DataType::Table:				return tables.size();
+	case snex::ExternalData::DataType::FilterCoefficients:	return filters.size();
 	case snex::ExternalData::DataType::AudioFile:			return audioFiles.size();
 	case snex::ExternalData::DataType::SliderPack:			return sliderPacks.size();
 	case snex::ExternalData::DataType::DisplayBuffer:		return displayBuffers.size();
-	case snex::ExternalData::DataType::FilterCoefficients:  return 0;
     default: return 0;
 	}
 }
 
 hise::FilterDataObject* SnexSource::ComplexDataHandler::getFilterData(int index) 
 {
-	return nullptr;
+	if (isPositiveAndBelow(index, filters.size()))
+	{
+		if (auto t = filters[index])
+			return t->getFilterData(0);
+
+		return nullptr;
+	}
+
+	auto n = new data::dynamic::filter(*this, index);
+	n->initialise(getNode());
+	filters.add(n);
+
+	WeakReference<SnexSource> safeThis(&parent);
+
+	MessageManager::callAsync([safeThis, index]()
+	{
+		if (safeThis != nullptr)
+		{
+			for (auto l : safeThis.get()->compileListeners)
+			{
+				if (l != nullptr)
+					l->complexDataAdded(ExternalData::DataType::FilterCoefficients, index);
+			}
+		}
+	});
+
+	return n->getFilterData(0);
 }
 
 hise::Table* SnexSource::ComplexDataHandler::getTable(int index)
@@ -653,6 +689,7 @@ bool SnexSource::ComplexDataHandler::removeDataObject(ExternalData::DataType t, 
 		case ExternalData::DataType::Table: pendingDelete = tables.removeAndReturn(index); break;
 		case ExternalData::DataType::SliderPack: pendingDelete = sliderPacks.removeAndReturn(index); break;
 		case ExternalData::DataType::AudioFile: pendingDelete = audioFiles.removeAndReturn(index); break;
+		case ExternalData::DataType::FilterCoefficients: pendingDelete = filters.removeAndReturn(index); break;
 		case ExternalData::DataType::DisplayBuffer: pendingDelete = displayBuffers.removeAndReturn(index); break;
         default: break;
 		}
@@ -670,6 +707,7 @@ snex::ExternalDataHolder* SnexSource::ComplexDataHandler::getDynamicDataHolder(s
 	case snex::ExternalData::DataType::Table: return tables[index];
 	case snex::ExternalData::DataType::SliderPack: return sliderPacks[index];
 	case snex::ExternalData::DataType::AudioFile: return audioFiles[index];
+	case snex::ExternalData::DataType::FilterCoefficients: return filters[index];	
 	case snex::ExternalData::DataType::DisplayBuffer: return displayBuffers[index];
     default: break;
 	}
@@ -699,6 +737,16 @@ SnexSource::SnexParameter::SnexParameter(SnexSource* n, NodeBase* parent, ValueT
 	case 6: p = parameter::inner<SnexSource::ParameterHandler, 6>(pHandler); break;
 	case 7: p = parameter::inner<SnexSource::ParameterHandler, 7>(pHandler); break;
 	case 8: p = parameter::inner<SnexSource::ParameterHandler, 8>(pHandler); break;
+	case 9: p = parameter::inner<SnexSource::ParameterHandler, 9>(pHandler); break;
+	case 10: p = parameter::inner<SnexSource::ParameterHandler, 10>(pHandler); break;
+	case 11: p = parameter::inner<SnexSource::ParameterHandler, 11>(pHandler); break;
+	case 12: p = parameter::inner<SnexSource::ParameterHandler, 12>(pHandler); break;
+	case 13: p = parameter::inner<SnexSource::ParameterHandler, 13>(pHandler); break;
+	case 14: p = parameter::inner<SnexSource::ParameterHandler, 14>(pHandler); break;
+	case 15: p = parameter::inner<SnexSource::ParameterHandler, 15>(pHandler); break;
+	case 16: p = parameter::inner<SnexSource::ParameterHandler, 16>(pHandler); break;
+	default:
+		jassertfalse;
 	}
 
 	auto ndb = new parameter::dynamic_base(p);
@@ -879,6 +927,16 @@ void SnexComplexDataDisplay::rebuildEditors()
 	{
 		auto d = dynamic_cast<data::pimpl::dynamic_base*>(dataHandler.getDynamicDataHolder(t, i));
 		auto e = new data::ui::sliderpack_editor_without_mod(updater, d);
+		addAndMakeVisible(e);
+		editors.add(e);
+	}
+
+	t = snex::ExternalData::DataType::FilterCoefficients;
+
+	for (int i = 0; i < dataHandler.getNumDataObjects(t); i++)
+	{
+		auto d = dynamic_cast<data::pimpl::dynamic_base*>(dataHandler.getDynamicDataHolder(t, i));
+		auto e = new data::ui::filter_editor(updater, d);
 		addAndMakeVisible(e);
 		editors.add(e);
 	}

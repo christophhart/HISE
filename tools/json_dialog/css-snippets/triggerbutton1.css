@@ -1,0 +1,63 @@
+
+select
+{
+	margin: 6px;
+
+	color: #aaa;
+	border-radius: 8px;
+	background: #f8f8f8;
+		box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px, rgba(0, 0, 0, 0.3) 0px 7px 13px -3px, rgba(0, 0, 0, 0.2) 0px -3px 0px inset;
+		
+		text-transform: uppercase;
+			letter-spacing: 2px;
+			border-radius: 15px;
+			font-family: Roboto;
+}
+
+select::after
+{
+	content: '';
+	width: 100vh;
+	background: #ddd;
+	background-image: "130.t0FRvdAQBUxlCw1++c.QBUxlCwF..ZBQnpC0CwF..VDQBUxlCwVYOUCQBUxlCwF..ZBQBslsCwFRvdAQBUxlCMVaHA6ED4phOMDa++2AD4phOMDa..nIDoq1fNDa..XQD4phOMDak8TMD4phOMDa..nIDY0BCNDaHA6ED4phOMzXkA";
+	position: absolute;
+	
+	margin: 11px;
+	
+}
+
+.popup-item
+{
+	background: #eee;
+}
+
+button
+{
+	margin: 6px;
+	
+	background: #f8f8f8;
+	box-shadow: rgba(0, 0, 0, 0.4) 0px 2px 4px, rgba(0, 0, 0, 0.3) 0px 7px 13px -3px, rgba(0, 0, 0, 0.2) 0px -3px 0px inset;
+	color: #aaa;
+	
+	text-transform: uppercase;
+	letter-spacing: 2px;
+	border-radius: 15px;
+	border: none;
+	font-family: Roboto;
+	cursor: pointer;
+}
+
+button:hover
+{
+	background: #f2f2f2;
+}
+
+button:active,
+select:active
+{
+	box-shadow: none;
+	transition: all 0.1s ease-in-out;
+	transform: translate(0px, 3px);
+	border: 2px solid #CCC;
+	
+}

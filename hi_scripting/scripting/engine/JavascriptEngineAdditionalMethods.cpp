@@ -298,7 +298,10 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 
 					if (constObject != nullptr)
 					{
+						auto numExpectedArgs = arguments.size();
+
 						constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
+						
 						isConstObjectApiFunction = true;
                         
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -306,7 +309,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 #endif
 
 						CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
-						CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+						CHECK_CONDITION_WITH_LOCATION(numArgs == numExpectedArgs, "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
 					}
 				}
 			}
@@ -339,6 +342,8 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 
 			if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
 			{
+				auto numExpectedArgs = arguments.size();
+
 				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
                 
 #if ENABLE_SCRIPTING_SAFE_CHECKS

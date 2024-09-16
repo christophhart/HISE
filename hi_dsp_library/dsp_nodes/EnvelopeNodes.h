@@ -1172,7 +1172,7 @@ struct voice_manager: public voice_manager_base
 {
 	SN_NODE_ID("voice_manager");
 	SN_GET_SELF_AS_OBJECT(voice_manager);
-	SN_DESCRIPTION("Sends a voice reset message when `Value > 0.5`");
+	SN_DESCRIPTION("Sends a voice reset message when `Value < 0.5`");
 
 	static constexpr bool isPolyphonic() { return false; }
 

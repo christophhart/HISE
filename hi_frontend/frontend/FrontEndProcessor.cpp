@@ -60,15 +60,16 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
 	zstd::ZCompressor<JavascriptDictionaryProvider> edec;
 	edec.expand(eBlock, externalFiles);
 
+	ScopedPointer<MemoryInputStream> uis = getEmbeddedData(FileHandlerBase::UserPresets);
+
+	UserPresetHelpers::extractUserPresets((const char*)uis->getData(), uis->getDataSize());
+
 	//ValueTree externalFiles =  hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true); 
 	LOG_START("Creating Frontend Processor")
 	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, imageData, impulseData, sampleMapData, midiData, &externalFiles, nullptr); 
-
-	ScopedPointer<MemoryInputStream> uis = getEmbeddedData(FileHandlerBase::UserPresets);
-
+	
     try
     {
-        UserPresetHelpers::extractUserPresets((const char*)uis->getData(), uis->getDataSize());
         AudioProcessorDriver::restoreSettings(fp);
         GlobalSettingManager::restoreGlobalSettings(fp);
         
@@ -392,7 +393,7 @@ FrontendProcessor::~FrontendProcessor()
 
 	setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
 	
-	clearPreset();
+	clearPreset(dontSendNotification);
 	
 	synthChain = nullptr;
 

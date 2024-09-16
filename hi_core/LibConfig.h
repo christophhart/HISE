@@ -121,6 +121,9 @@
 #define HISE_UNDO_INTERVAL 500
 #endif
 
+#ifndef USE_MOD2_WAVETABLESIZE
+#define USE_MOD2_WAVETABLESIZE 1
+#endif
 
 // Enable this if you want to use the old event notification system for HISE modules (aka hise::Processor)
 #define HISE_OLD_PROCESSOR_DISPATCH 0

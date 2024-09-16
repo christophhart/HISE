@@ -75,57 +75,68 @@ public:
 		Macros,
 		Keyboard,
 		Settings,
-		WorkspaceScript,
-		WorkspaceSampler,
-		WorkspaceCustom,
+		
 		numToolbarButtons,
-		MenuFileOffset = 0x20000,
 
-		MenuSnippetFileNew,
-		MenuSnippetFileImport,
-		MenuSnippetClose,
+		// FILE MENU
+		MenuProjectNew = 0x20000,
+		MenuProjectLoad,
+		MenuProjectShowInFinder,
+		MenuFileShowHiseAppDataFolder,
+		MenuFileShowProjectAppDataFolder,
+		MenuProjectRecentOffset,
+		// ------------------------
+		MenuSnippetFileNew = 0x22000,
 		MenuNewFile,
-		MenuOpenFile,
-		MenuFileBrowseExamples,
-		MenuOpenFileFromProjectOffset,
-		MenuSaveFile = 0x23000,
-		MenuSaveFileAs,
+		MenuOpenXmlBackup,
 		MenuSaveFileXmlBackup,
 		MenuSaveFileAsXmlBackup,
-		MenuOpenXmlBackup,
-        MenuFileXmlBackupMenuOffset,
-		MenuProjectNew = 0x24000,
-		MenuProjectLoad,
-		MenuCloseProject,
-		MenuFileImportProjectFromHXI,
+		MenuFileXmlBackupMenuOffset,
+		// --------------------------
+		MenuOpenFile = 0x23000,
+		MenuSaveFile,
+		MenuSaveFileAs,
+		MenuOpenFileFromProjectOffset,
+		// ---------------------------
+		MenuFileImportSnippet = 0x24000,
 		MenuFileExtractEmbeddeSnippetFiles,
 		MenuFileCreateRecoveryXml,
-		MenuProjectShowInFinder,
-		MenuProjectRecentOffset,
+		MenuSnippetClose,
+		// --------------------------------
+		MenuFileSettings,
+		MenuToolsEditShortcuts,
+		// --------------------------------
+		MenuFileQuit,
+		MenuFileImportProjectFromHXI,
 		
 		MenuRevertFile = 0x26000,
-        MenuFileSaveUserPreset,
-        MenuFileUserPresetMenuOffset,
-		MenuFileSettingsProject = 0x28000,
-		MenuFileSettingsPreset,
-		MenuFileSettings,
-		MenuFileSettingsCompiler,
-		MenuFileSettingsUser,
-		MenuFileSettingCheckSanity,
-		MenuFileSettingsCleanBuildDirectory,
-		MenuFileCreateThirdPartyNode,
-		MenuFileQuit,
-		MenuReplaceWithClipboardContent,
+        
+		// Export Menu
+		MenuExportSetupWizard,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
 		MenuExportFileAsStandaloneApp,
-		MenuExportProject,
-        MenuExportFileAsSnippet,
+		// ------------------------------------
+		MenuExportFileAsSnippet,
+		MenuExportProjectAsExpansion,
+        // --------------------------------------
+		MenuExportCheckAllSampleMaps,
+		MenuExportCheckPluginParameters,
+		MenuExportValidateUserPresets,
+		MenuExportCheckUnusedImages,
+		// --------------------------------------
+		MenuExportRestoreToDefault,
+		MenuExportUnloadAllSampleMaps,
+		MenuExportUnloadAllAudioFiles,
+		MenuExportCleanBuildDirectory,
+		MenuExportCleanDspNetworkFiles,
+		// --------------------------------------
 		MenuExportSampleDataForInstaller,
-		MenuExportWavetablesToMonolith,
 		MenuExportCompileFilesInPool,
 		MenuExportCompileNetworksAsDll,
+
+		// Edit Menu
 		MenuEditOffset = 0x30000,
 		MenuEditUndo,
 		MenuEditRedo,
@@ -135,75 +146,67 @@ public:
 		MenuEditMoveDown,
         MenuEditCopyAsSnippet,
         MenuEditPasteAsSnippet,
-		MenuViewShowSelectedProcessorInPopup,
         MenuEditPlotModulator,
 		MenuEditCreateScriptVariable,
 		MenuEditCreateBase64State,
         MenuEditCloseAllChains,
-		MenuViewRotate,
-        MenuViewFullscreen,
-		MenuViewReset,
-		MenuViewEnableGlobalLayoutMode,
-		MenuViewAddFloatingWindow,
-		MenuViewAddInterfacePreview,
-        MenuViewGotoUndo,
+
+		// View Menu
+		MenuViewGotoUndo,
         MenuViewGotoRedo,
+		// ----------------------
 		MenuViewToggleSnippetBrowser,
-		MenuOneColumn,
-		MenuTwoColumns,
-		MenuThreeColumns,
-		MenuViewShowPool,
-		MenuViewShowInspector,
-		MenuViewShowPluginPopupPreview,
-        MenuViewIncreaseCodeFontSize,
-        MenuViewDecreaseCodeFontSize,
+		MenuViewRotate,
+		MenuViewEnableGlobalLayoutMode,
+		// -----------------------------
+		WorkspaceScript,
+		WorkspaceSampler,
+		WorkspaceCustom,
+		MenuViewAddFloatingWindow,
+		// --------------------------------
+		MenuViewClearConsole,
 		MenuViewResetLookAndFeel,
-        MenuViewShowAllHiddenProcessors,
-		
+		MenuViewReset,
+
+		// Tools Menu
+		// Scripting Tools
 		MenuToolsRecompile = 0x50000,
-		
-		MenuToolsCreateInterface,
-        MenuToolsSanityCheck,
-        MenuToolsClearConsole,
-		MenuToolsEditShortcuts,
-		MenuToolsSetCompileTimeOut,
-		MenuToolsUseBackgroundThreadForCompile,
-		MenuToolsRecompileScriptsOnReload,
-		MenuToolsEnableCallStack,
 		MenuToolsCheckCyclicReferences,
+		MenuToolsConvertSVGToPathData,
 		MenuToolsBroadcasterWizard,
 		MenuToolsCreateExternalScriptFile,
-		MenuToolsConvertSVGToPathData,
-		MenuToolsRestoreToDefault,
-		MenuToolsValidateUserPresets,
-		MenuToolsExternalScriptFileOffset,
-		MenuToolsResolveMissingSamples = 0x60000,
-		MenuToolsDeleteMissingSamples,
-		MenuToolsGetMissingSampleList,
-		MenuToolsCheckAllSampleMaps,
+		
+		// ---------------------------------
+		// Sample Management
 		MenuToolsApplySampleMapProperties,
 		MenuToolsImportArchivedSamples,
-		MenuToolsCheckUnusedImages,
-		MenuToolsRedirectScriptFolder,
-		MenuToolsCheckPluginParameterSanity,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertAllSamplesToMonolith,
-		MenuToolsConvertSampleMapToWavetableBanks,
 		MenuToolsUpdateSampleMapIdsBasedOnFileName,
 		MenuToolsConvertSfzToSampleMaps,
-		MenuToolsRemoveAllSampleMaps,
-		MenuToolsUnloadAllAudioFiles,
-		MenuToolsCreateRSAKeys,
-		MenuToolsCreateDummyLicenseFile,
-		MenuToolsEnableAutoSaving,
+		// ----------------------------------
+		// Wavetable Tools
+		MenuToolsConvertSampleMapToWavetableBanks,
+		MenuToolsWavetablesToMonolith,
+		// ----------------------------------
+		// DSP Tools
 		MenuToolsEnableDebugLogging,
+		MenuToolsShowDspNetworkDllInfo,
 		MenuToolsRecordOneSecond,
 		MenuToolsSimulateChangingBufferSize,
-		MenuToolsShowDspNetworkDllInfo,
         MenuToolsCreateRnboTemplate,
-		MenuHelpShowAboutPage = 0x70000,
-		MenuHelpShowDocumentation,
-        MenuHelpCheckVersion,
+		MenuToolsCreateThirdPartyNode,
+		// ----------------------------------
+		// License Management
+		MenuToolsCreateRSAKeys,
+		MenuToolsCreateDummyLicenseFile,
+
+		// HELP Menu
+		MenuHelpShowDocumentation  = 0x70000,
+		MenuFileBrowseExamples,
+		MenuHelpCheckVersion,
+		MenuHelpShowAboutPage,
+        
 		numCommands
 	};
 
@@ -307,13 +310,11 @@ public:
 
 		static void createScriptVariableDeclaration(CopyPasteTarget *currentCopyPasteTarget);
 		static void recompileAllScripts(BackendRootWindow * bpe);
-		static void toggleFullscreen(BackendRootWindow * bpe);
 		static void resetLookAndFeel(BackendRootWindow* bpe);
 		static void closeAllChains(BackendRootWindow *bpe);
-		static void validatePluginParameters(BackendRootWindow *bpe);
+		
 		static void showAboutPage(BackendRootWindow * bpe);
 		static void checkVersion(BackendRootWindow *bpe);
-		static void setColumns(BackendRootWindow * bpe, BackendCommandTarget* target, ColumnMode columns);
 		static void plotModulator(CopyPasteTarget *currentCopyPasteTarget);
 		static void resolveMissingSamples(BackendRootWindow *bpe);
 		static void setCompileTimeOut(BackendRootWindow * bpe);
@@ -332,21 +333,18 @@ public:
 
 		static void loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe);
 
-		
 
-		static void closeProject(BackendRootWindow *bpe);
+		static void showAppDataFolder(BackendRootWindow* bpe, bool getProjectAppData);
+
 		static void showProjectInFinder(BackendRootWindow *bpe);
-		static void saveUserPreset(BackendRootWindow *bpe);
+		
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
 		static void saveFileXml(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
 		static String exportFileAsSnippet(BackendRootWindow* bpe, bool copyToClipboard=true);
-		static void showFilePresetSettings(BackendRootWindow * bpe);
+		
 		static void showFileProjectSettings(BackendRootWindow * bpe);
-		static void showFileUserSettings(BackendRootWindow * bpe);
-		static void showFileCompilerSettings(BackendRootWindow * bpe);
-		static void checkSettingSanity(BackendRootWindow * bpe);
 		static void togglePluginPopupWindow(BackendRootWindow * bpe);
 		static void changeCodeFontSize(BackendRootWindow *bpe, bool increase);
 		static void createRSAKeys(BackendRootWindow * bpe);
@@ -369,7 +367,6 @@ public:
 		static void createBase64State(CopyPasteTarget* target);
 		static void createUserInterface(BackendRootWindow * bpe);
 		static void checkUnusedImages(BackendRootWindow * bpe);
-		static void addInterfacePreview(BackendRootWindow * bpe);
 		static void updateSampleMapIds(BackendRootWindow * bpe);
 		static void toggleCallStackEnabled(BackendRootWindow * bpe);
 		static void testPlugin(const String& pluginToLoad);
@@ -400,6 +397,12 @@ public:
 		static void extractEmbeddedFilesFromSnippet(BackendRootWindow* bpe);
 
 		static void showExampleBrowser(BackendRootWindow* bpe);
+
+		static void setupExportWizard(BackendRootWindow* bpe);
+
+		static void exportProject(BackendRootWindow* bpe, int buildOption);
+
+		static void cleanDspNetworkFiles(BackendRootWindow* bpe);
 	};
 
 private:

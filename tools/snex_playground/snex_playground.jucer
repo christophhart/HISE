@@ -54,6 +54,8 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile">
@@ -83,6 +85,8 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
     <VS2017 targetFolder="Builds/VisualStudio2017" extraDefs="USE_IPP=1"
@@ -112,6 +116,8 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>
     <VS2019 targetFolder="Builds/VisualStudio2019" extraCompilerFlags="-msse4.1">
@@ -139,6 +145,8 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2019>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;">
@@ -166,6 +174,8 @@
         <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2022>
   </EXPORTFORMATS>
@@ -189,6 +199,9 @@
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+    <MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <LIVE_SETTINGS>
     <WINDOWS/>

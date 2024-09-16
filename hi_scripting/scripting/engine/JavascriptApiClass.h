@@ -471,7 +471,7 @@ public:
     *
     *   The JavascriptEngine uses this to resolve the function call into a function pointer at compile time.
     *   When the script is executed, this information will be used for blazing fast access to the methods.*/
-	void getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const;
+	bool getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const;
     
     /** Calls the function with the index and the argument data.
     *
@@ -560,19 +560,40 @@ private:
 
 	// ================================================================================================================
 
-	Identifier id0[NUM_API_FUNCTION_SLOTS];
-	Identifier id1[NUM_API_FUNCTION_SLOTS];
-	Identifier id2[NUM_API_FUNCTION_SLOTS];
-	Identifier id3[NUM_API_FUNCTION_SLOTS];
-	Identifier id4[NUM_API_FUNCTION_SLOTS];
-	Identifier id5[NUM_API_FUNCTION_SLOTS];
+    static constexpr int NumMaxArguments = 6;
+    static constexpr int NumSlots = NUM_API_FUNCTION_SLOTS;
 
-	call0 functions0[NUM_API_FUNCTION_SLOTS];
-	call1 functions1[NUM_API_FUNCTION_SLOTS];
-	call2 functions2[NUM_API_FUNCTION_SLOTS];
-	call3 functions3[NUM_API_FUNCTION_SLOTS];
-	call4 functions4[NUM_API_FUNCTION_SLOTS];
-	call5 functions5[NUM_API_FUNCTION_SLOTS];
+    std::array<std::array<Identifier, NumSlots>, NumMaxArguments> ids;
+    std::array<std::array<void*, NumSlots>, NumMaxArguments> functions;
+
+    template <int NumArgs> void addFunctionT(const Identifier &id, void* newFunction)
+	{
+#if JUCE_DEBUG
+        for(auto& idList: ids)
+        {
+	        for(auto& existingId: idList)
+	        {
+		        if(existingId == id)
+		        {
+			        jassertfalse;
+		        }
+	        }
+        }
+#endif
+
+
+		for(int i = 0; i < NumSlots; i++)
+		{
+			if(functions[NumArgs][i] == nullptr)
+			{
+				functions[NumArgs][i] = newFunction;
+				ids[NumArgs][i] = id;
+				return;
+			}
+		}
+		
+		jassertfalse;
+	}
 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
     struct ForcedParameterInfo

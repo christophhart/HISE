@@ -91,7 +91,8 @@ class ScriptContentComponent: public ComponentWithMiddleMouseDrag,
 							  public Processor::DeleteListener,
 							  public ScriptingApi::Content::ScreenshotListener,
 							  public DragAndDropContainer,
-							  public DragAndDropTarget
+							  public DragAndDropTarget,
+							  public simple_css::CSSRootComponent
 {
 public:
 

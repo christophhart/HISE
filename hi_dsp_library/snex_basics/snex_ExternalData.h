@@ -843,35 +843,53 @@ struct DataWriteLock : hise::SimpleReadWriteLock::ScopedWriteLock
 namespace data
 {
 
-struct filter_base : public data::base,
-	public FilterDataObject::Broadcaster
+struct filter_base : public base,
+					 public FilterDataObject::Broadcaster
 {
 	virtual ~filter_base() {};
 
-	virtual std::pair<IIRCoefficients, int> getApproximateCoefficients() const = 0;
+	virtual FilterDataObject::CoefficientData getApproximateCoefficients() const = 0;
 
 	void sendCoefficientUpdateMessage();
 
 	void setExternalData(const snex::ExternalData& d, int index) override;
 };
 
-inline void filter_base::sendCoefficientUpdateMessage()
+struct filterT: public filter_base,
+				public ComplexDataUIUpdaterBase::EventListener
 {
-	DataReadLock l(this);
+	template <typename T> filterT(T* obj_):
+	  obj(obj_),
+	  f(T::getPlotValueStatic)
+	{}
 
-	if (this->externalData.obj != nullptr)
-	{
-		auto typed = static_cast<FilterDataObject*>(this->externalData.obj);
-		typed->sendUpdateFromBroadcaster(this);
-	}
-}
+	~filterT() override;
 
-inline void filter_base::setExternalData(const snex::ExternalData& d, int index)
+	FilterDataObject::CoefficientData getApproximateCoefficients() const override;
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
+	void setExternalData(const snex::ExternalData& d, int index) override;
+
+	void* obj = nullptr;
+	FilterCoefficientData::PlotFunction f = nullptr;
+};
+
+// Use this macro in the SNEX setExternalCallback() function to init the filter in the (compiled) node
+#define SNEX_INIT_FILTER(d, index) filter_node_base::setExternalData(d, index);
+
+struct filter_node_base: public filterT
 {
-	deregisterAtObject(this->externalData.obj);
-	base::setExternalData(d, index);
-	registerAtObject(this->externalData.obj);
-}
+	filter_node_base():
+		filterT(this)
+	{}
+
+	~filter_node_base() override {};
+
+	static double getPlotValueStatic(void* obj, bool getMagnitude, double freqNorm);
+
+	virtual double getPlotValue(int getMagnitude, double freqNorm) = 0;
+};
+
+
 
 #define SNEX_THROW_IF_MULTIPLE_WRITERS 0
 
@@ -962,6 +980,8 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 	SimpleRingBuffer::Ptr rb = nullptr;
 	snex::Types::PrepareSpecs lastSpecs;
 };
+
+
 
 
 using namespace snex;

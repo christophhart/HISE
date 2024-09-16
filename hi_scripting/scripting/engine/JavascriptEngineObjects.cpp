@@ -28,19 +28,27 @@ struct HiseJavascriptEngine::RootObject::ArrayClass : public DynamicObject
 		static const Array<Identifier> scopedFunctions =
 		{
 			"find",
+			"findIndex",
 			"some",
 			"map",
-			"filter"
+			"filter",
+			"forEach",
+			"every",
+			"sort"
 		};
 
-		static constexpr int NumFunctionPointers = 4;
+		static constexpr int NumFunctionPointers = 8;
 
 		static const ScopedNativeFunction scopedFunctionPointers[NumFunctionPointers] =
 		{
 			ArrayClass::find,
+			ArrayClass::findIndex,
 			ArrayClass::some,
 			ArrayClass::map,
-			ArrayClass::filter
+			ArrayClass::filter,
+			ArrayClass::forEach,
+			ArrayClass::every,
+			ArrayClass::sort
 		};
 
 		auto idx = scopedFunctions.indexOf(id);
@@ -82,28 +90,7 @@ private:
 
 		return 0;
 	}
-
-	static var callScopedFunction(const var& f, const var::NativeFunctionArgs& args, const HiseJavascriptEngine::RootObject::Scope* parent, DynamicObject::Ptr scopeObject)
-	{
-		jassert(parent != nullptr);
-
-		if (f.isMethod())
-			return f.getNativeFunction()(args);
-
-		if (auto fo = dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(f.getObject()))
-		{
-			HiseJavascriptEngine::RootObject::Scope s(parent, parent != nullptr ? parent->root.get() : nullptr, scopeObject.get());
-			return fo->invokeWithoutAllocation(s, args, scopeObject.get());
-		}
-		if (auto ilf = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject()))
-		{
-			HiseJavascriptEngine::RootObject::Scope s(parent, parent != nullptr ? parent->root.get() : nullptr, scopeObject.get());
-			return ilf->performDynamically(s, args.arguments, args.numArguments);
-		}
-
-		return var();
-	}
-
+	
 public:
 	ArrayClass()
 	{
@@ -114,7 +101,6 @@ public:
 		setMethod("push", push);
 		setMethod("pushIfNotAlreadyThere", pushIfNotAlreadyThere);
 		setMethod("pop", pop);
-        setMethod("sort", sort);
         setMethod("sortNatural", sortNatural);
 		setMethod("insert", insert);
 		setMethod("concat", concat);
@@ -232,15 +218,72 @@ public:
 		return var();
 	}
 
-    static var sort(Args a)
+    static var sort(Args a, const Scope& parent)
     {
         if (Array<var>* array = a.thisObject.getArray())
         {
-            VariantComparator comparator;
-            array->sort(comparator);
+			auto sortFunction = get(a, 0);
+
+			if(sortFunction.isObject())
+			{
+				auto fo = dynamic_cast<FunctionObject*>(sortFunction.getObject());
+				auto ilf = dynamic_cast<InlineFunction::Object*>(sortFunction.getObject());
+
+				struct CustomComparator
+				{
+					CustomComparator(const Scope& parent_, FunctionObject* fo_, InlineFunction::Object* ifo_):
+					  parent(parent_),
+					  fo(fo_),
+					  ifo(ifo_),
+					  scopeObject(new DynamicObject())
+					{}
+
+					DynamicObject::Ptr scopeObject;
+
+					bool operator() (const var& a, const var& b)
+					{
+						var args_[2];
+
+						args_[0] = a;
+						args_[1] = b;
+
+						var::NativeFunctionArgs args(thisObject, args_, 2);
+
+						Scope thisScope(&parent, parent.root.get(), scopeObject.get());
+
+						if (fo)
+							return fo->invokeWithoutAllocation(thisScope, args, scopeObject.get()) < var(0);
+						if (ifo)
+							return ifo->performDynamically(thisScope, args.arguments, args.numArguments) < var(0);
+
+						return false;
+					};
+
+					var thisObject;
+					const Scope& parent;
+					FunctionObject* fo = nullptr;
+					InlineFunction::Object* ifo = nullptr;
+				};
+
+				CustomComparator comparator(parent, fo, ilf);
+				
+				try
+				{
+					std::stable_sort(array->begin(), array->end(), comparator);
+				}
+				catch(std::exception& e)
+				{
+					throw String(e.what());
+				}
+			}
+			else
+			{
+				VariantComparator comparator;
+				array->sort(comparator);
+			}
         }
         
-        return var();
+        return a.thisObject;
     }
 
     static var sortNatural(Args a)
@@ -251,186 +294,123 @@ public:
                [] (const String& a, const String& b) { return a.compareNatural (b) < 0; });
         }
         
-        return var();
+        return a.thisObject;
     }
-    
-	static var map(Args a, const Scope& parent)
+
+	
+
+	static var find(Args a, const Scope& parent)
 	{
-		if (Array<var>* array = a.thisObject.getArray())
+		return callForEach(a, parent, [](int index, const var& elementReturnValue, const var& elementValue, var* totalReturnValue)
 		{
-			auto f = get(a, 0);
-
-			if (isFunctionObject(f))
+			if(elementReturnValue)
 			{
-				int numArgs = getNumArgs(f);
-
-				Array<var> newArray;
-				auto thisObject = get(a, 1);
-				newArray.ensureStorageAllocated(array->size());
-
-				DynamicObject::Ptr scopeObject = new DynamicObject();
-
-				int index = 0;
-
-				for (const auto& element : *array)
-				{
-					if (element.isUndefined() || element.isVoid())
-						continue;
-
-					var arg[3];
-					arg[0] = element;
-					arg[1] = index++;
-					arg[2] = a.thisObject;
-
-					var::NativeFunctionArgs args(thisObject, arg, numArgs);
-					
-					auto mappedElement = callScopedFunction(f, args, &parent, scopeObject);
-					newArray.add(mappedElement);
-				}
-
-				return var(newArray);
+				*totalReturnValue = elementValue;
+				return true;
 			}
-			else
-			{
-				throw String("not a function");
-			}
-		}
-
-		return var();
+				
+			return false;
+		});
 	}
 
-	static var filter(Args a, const Scope& parent)
+	static var findIndex(Args a, const Scope& parent)
 	{
-		if (Array<var>* array = a.thisObject.getArray())
+		return callForEach(a, parent, [](int index, const var& elementReturnValue, const var& elementValue, var* totalReturnValue)
 		{
-			auto f = get(a, 0);
-
-			if (isFunctionObject(f))
+			if(elementReturnValue)
 			{
-				int numArgs = getNumArgs(f);
-
-				Array<var> newArray;
-				auto thisObject = get(a, 1);
-				newArray.ensureStorageAllocated(array->size());
-
-				DynamicObject::Ptr scopeObject = new DynamicObject();
-
-				int index = 0;
-
-				for (const auto& element : *array)
-				{
-					if (element.isUndefined() || element.isVoid())
-						continue;
-
-					var arg[3];
-					arg[0] = element;
-					arg[1] = index++;
-					arg[2] = a.thisObject;
-
-					var::NativeFunctionArgs args(thisObject, arg, numArgs);
-
-					if (callScopedFunction(f, args, &parent, scopeObject))
-						newArray.add(element);
-				}
-
-				return var(newArray);
+				*totalReturnValue = index;
+				return true;
 			}
-			else
-			{
-				throw String("not a function");
-			}
-		}
-
-		return var();
+				
+			return false;
+		});
 	}
 
 	static var some(Args a, const Scope& parent)
 	{
-		if (Array<var>* array = a.thisObject.getArray())
+		return callForEach(a, parent, [](int index, const var& elementReturnValue, const var& elementValue, var* totalReturnValue)
 		{
-			auto f = get(a, 0);
+			*totalReturnValue = false;
 
-			if (isFunctionObject(f))
+			if(elementReturnValue)
 			{
-				int numArgs = getNumArgs(f);
-
-				auto thisObject = get(a, 1);
-
-				DynamicObject::Ptr scopeObject = new DynamicObject();
-
-				int index = 0;
-
-				for (const auto& element : *array)
-				{
-					if (element.isUndefined() || element.isVoid())
-						continue;
-
-					var arg[3];
-					arg[0] = element;
-					arg[1] = index++;
-					arg[2] = a.thisObject;
-
-					var::NativeFunctionArgs args(thisObject, arg, numArgs);
-
-					if (callScopedFunction(f, args, &parent, scopeObject))
-						return true;
-				}
-
-				return var(false);
+				*totalReturnValue = true;
+				return true;
 			}
-			else
-			{
-				throw String("not a function");
-			}
-		}
-
-		return var();
+				
+			return false;
+		});
 	}
 
-	static var find(Args a, const Scope& parent)
+	static var map(Args a, const Scope& parent)
 	{
-		if (Array<var>* array = a.thisObject.getArray())
+		return callForEach(a, parent, [](int index, const var& elementReturnValue, const var& elementValue, var* totalReturnValue)
 		{
-			auto f = get(a, 0);
-
-			if (isFunctionObject(f))
+			if(!totalReturnValue->isArray())
 			{
-				int numArgs = getNumArgs(f);
-
-				auto thisObject = get(a, 1);
-
-				DynamicObject::Ptr scopeObject = new DynamicObject();
-
-				int index = 0;
-
-				for (const auto& element : *array)
-				{
-					if (element.isUndefined() || element.isVoid())
-						continue;
-
-					var arg[3];
-					arg[0] = element;
-					arg[1] = index++;
-					arg[2] = a.thisObject;
-
-					var::NativeFunctionArgs args(thisObject, arg, numArgs);
-
-					if (callScopedFunction(f, args, &parent, scopeObject))
-						return element;
-				}
-
-				return var();
+				*totalReturnValue = var(Array<var>());
 			}
-			else
-			{
-				throw String("not a function");
-			}
-		}
 
-		return var();
+			totalReturnValue->getArray()->add(elementReturnValue);
+	
+			return false;
+		});
 	}
 
+	
 
+	static var filter(Args a, const Scope& parent)
+	{
+		return callForEach(a, parent, [](int index, const var& elementReturnValue, const var& elementValue, var* totalReturnValue)
+		{
+			if(!totalReturnValue->isArray())
+			{
+				*totalReturnValue = var(Array<var>());
+			}
+
+			if(elementReturnValue)
+				totalReturnValue->getArray()->add(elementValue);
+	
+			return false;
+		});
+	}
+
+	static var forEach(Args a, const Scope& parent)
+	{
+		return callForEach(a, parent, [](int index, const var& elementReturnValue, const var& elementValue, var* totalReturnValue)
+		{
+
+			return false;
+		});
+	}
+
+	static var every(Args a, const Scope& parent)
+	{
+		return callForEach(a, parent, [&](int index, const var& elementReturnValue, const var& elementValue, var* totalReturnValue)
+		{
+			*totalReturnValue = true;
+
+			if(!elementReturnValue)
+			{
+				*totalReturnValue = false;
+				return true;
+			}
+			
+			return false;
+		});
+	}
+
+	static var reduce(Args a, const Scope& parent)
+	{
+		return callForEach(a, parent, [&](int index, const var& elementReturnValue, const var& elementValue, var* totalReturnValue)
+		{
+			*totalReturnValue = a.thisObject;
+			
+			return false;
+		});
+	}
+	
     static var reserve(Args a)
     {
         if (Array<var>* array = a.thisObject.getArray())
@@ -510,9 +490,72 @@ public:
         return get(a, 0).isArray();
     }
 
+private:
 
+	using ReturnFunction = std::function<bool(int index, const var& functionReturnValue, const var& elementValue, var* totalReturnValue)>;
 
-    
+	static var callForEach(Args a, const Scope& parent, const ReturnFunction& rf)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			auto f = get(a, 0);
+
+			if (isFunctionObject(f))
+			{
+				int numArgs = getNumArgs(f);
+
+				auto thisObject = get(a, 1);
+
+				DynamicObject::Ptr scopeObject = new DynamicObject();
+
+				static const Identifier thisIdent("this");
+				scopeObject->setProperty(thisIdent, thisObject);
+
+				var arg[3];
+				arg[2] = a.thisObject;
+
+				HiseJavascriptEngine::RootObject::Scope thisScope(&parent, parent.root.get(), scopeObject.get());
+
+				int numToExecute = array->size();
+
+				var::NativeFunctionArgs args(thisObject, arg, numArgs);
+
+				auto fo = dynamic_cast<HiseJavascriptEngine::RootObject::FunctionObject*>(f.getObject());
+				auto ilf = dynamic_cast<HiseJavascriptEngine::RootObject::InlineFunction::Object*>(f.getObject());
+
+				var totalReturnValue;
+
+				for (int i = 0; i < numToExecute; i++)
+				{
+					auto element = array->operator[](i);
+
+					if (element.isUndefined() || element.isVoid())
+						continue;
+					
+					arg[0] = element;
+					arg[1] = i;
+
+					var elementReturnValue;
+
+					if (fo)
+						elementReturnValue = fo->invokeWithoutAllocation(thisScope, args, scopeObject.get());
+					else if (ilf)
+						elementReturnValue = ilf->performDynamically(thisScope, args.arguments, args.numArguments);
+
+					if(rf(i, elementReturnValue, element, &totalReturnValue))
+						break;
+				}
+
+				return totalReturnValue;
+			}
+			else
+			{
+				throw String("not a function");
+			}
+		}
+
+		return var();
+	}
 };
 
 
@@ -536,7 +579,10 @@ public:
 
     /** Removes the element at the given position. */
     var removeElement(int index) { return {}; }
-    
+
+	/** Creates a deep copy of the array. */
+	var clone() { return {}; }
+
 	/** Joins the array into a string with the given separator. */
 	String join(var separatorString) { return String(); }
 
@@ -570,13 +616,22 @@ public:
 	/** Returns the value of the first element that passes the function test. */
 	var find(var testFunction, var optionalThisObject) { return var(); }
 
+	/** Returns the index of the first element that passes the function test. */
+	var findIndex(var testFunction, var optionalThisObject) { return var(); }
+
 	/** Creates a new array from calling a function for every array element. */
 	var map(var testFunction, var optionalThisObject) { return var(); }
 
-	/* Checks if any array elements pass a function test. */
+	/** Checks if any array elements pass a function test. */
 	var some(var testFunction, var optionalThisObject) { return var(); }
 
-	/* Creates a new array filled with elements that pass the function test. */
+	/** Checks if all array elements pass a function test. */
+	var every(var testFunction, var optionalThisObject) { return var(); }
+
+	/** Calls a function for each element. */
+	var forEach(var testFunction, var optionalThisObject) { return var(); }
+
+	/** Creates a new array filled with elements that pass the function test. */
 	var filter(var testFunction, var optionalThisObject) { return var(); }
 
 	/** Removes and returns the last element. */

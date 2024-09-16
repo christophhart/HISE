@@ -48,7 +48,7 @@ bool ResizableEdgeComponent::isVertical() const noexcept
 
 void ResizableEdgeComponent::paint (Graphics& g)
 {
-    getLookAndFeel().drawStretchableLayoutResizerBar (g, getWidth(), getHeight(), isVertical(),
+    getLookAndFeel().drawStretchableLayoutResizerBar (g, *this, getWidth(), getHeight(), isVertical(),
                                                       isMouseOver(), isMouseButtonDown());
 }
 

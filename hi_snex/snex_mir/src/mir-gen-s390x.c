@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2020-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2020-2024 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 */
 
 // ??? More patterns (ult, ugt, ule, uge w/o branches, multi-insn combining).
@@ -11,38 +11,16 @@ static void fancy_abort (int code) {
 #undef gen_assert
 #define gen_assert(c) fancy_abort (c)
 
+#define TARGET_EXPAND_UADDO
+#define TARGET_EXPAND_UADDOS
+#define TARGET_EXPAND_MULO
+#define TARGET_EXPAND_MULOS
+#define TARGET_EXPAND_UMULO
+#define TARGET_EXPAND_UMULOS
+
 #include <limits.h>
 
-#define HREG_EL(h) h##_HARD_REG
-#define REP_SEP ,
-enum {
-  REP8 (HREG_EL, R0, R1, R2, R3, R4, R5, R6, R7),
-  REP8 (HREG_EL, R8, R9, R10, R11, R12, R13, R14, R15),
-  REP8 (HREG_EL, F0, F1, F2, F3, F4, F5, F6, F7),
-  REP8 (HREG_EL, F8, F9, F10, F11, F12, F13, F14, F15),
-};
-#undef REP_SEP
-
-static const MIR_reg_t MAX_HARD_REG = F15_HARD_REG;
-static const MIR_reg_t SP_HARD_REG = R15_HARD_REG;
-static const MIR_reg_t FP_HARD_REG = R11_HARD_REG;
-
-static int target_locs_num (MIR_reg_t loc, MIR_type_t type) { return type == MIR_T_LD ? 2 : 1; }
-
-/* Hard regs not used in machinized code and for passing args, preferably call saved ones. */
-const MIR_reg_t TEMP_INT_HARD_REG1 = R8_HARD_REG, TEMP_INT_HARD_REG2 = R9_HARD_REG;
-const MIR_reg_t TEMP_FLOAT_HARD_REG1 = F8_HARD_REG, TEMP_FLOAT_HARD_REG2 = F10_HARD_REG;
-const MIR_reg_t TEMP_DOUBLE_HARD_REG1 = F8_HARD_REG, TEMP_DOUBLE_HARD_REG2 = F10_HARD_REG;
-const MIR_reg_t TEMP_LDOUBLE_HARD_REG1 = F8_HARD_REG;  //???
-const MIR_reg_t TEMP_LDOUBLE_HARD_REG2 = F10_HARD_REG;
-
-static inline int target_hard_reg_type_ok_p (MIR_reg_t hard_reg, MIR_type_t type) {
-  gen_assert (hard_reg <= MAX_HARD_REG);
-  if (type == MIR_T_LD) /* f0,f1,f4,f5,f8,f9,f12,f13 - pair starts */
-    return hard_reg >= F0_HARD_REG && (hard_reg - F0_HARD_REG) % 4 <= 1;
-  return MIR_fp_type_p (type) ? F0_HARD_REG <= hard_reg && hard_reg <= F15_HARD_REG
-                              : hard_reg < F0_HARD_REG;
-}
+#include "mir-s390x.h"
 
 static inline MIR_reg_t target_nth_loc (MIR_reg_t loc, MIR_type_t type, int n) {
   gen_assert (n == 0 || (type == MIR_T_LD && loc >= F0_HARD_REG && n == 1));
@@ -50,19 +28,7 @@ static inline MIR_reg_t target_nth_loc (MIR_reg_t loc, MIR_type_t type, int n) {
   return loc >= F15_HARD_REG ? loc + 1 : loc + 2; /* coupled fp reg */
 }
 
-static inline int target_fixed_hard_reg_p (MIR_reg_t hard_reg) {
-  gen_assert (hard_reg <= MAX_HARD_REG);
-  return (hard_reg == FP_HARD_REG
-          || hard_reg == SP_HARD_REG
-          /* don't bother to allocate R0 as it has special meaning for base and index reg: */
-          || hard_reg == R0_HARD_REG || hard_reg == TEMP_INT_HARD_REG1
-          || hard_reg == TEMP_INT_HARD_REG2 || hard_reg == TEMP_FLOAT_HARD_REG1
-          || hard_reg == TEMP_FLOAT_HARD_REG2 || hard_reg == TEMP_DOUBLE_HARD_REG1
-          || hard_reg == TEMP_DOUBLE_HARD_REG2 || hard_reg == TEMP_LDOUBLE_HARD_REG1
-          || hard_reg == TEMP_LDOUBLE_HARD_REG2);
-}
-
-static inline int target_call_used_hard_reg_p (MIR_reg_t hard_reg, MIR_type_t type) {
+static inline int target_call_used_hard_reg_p (MIR_reg_t hard_reg, MIR_type_t type MIR_UNUSED) {
   gen_assert (hard_reg <= MAX_HARD_REG);
   return ((R0_HARD_REG <= hard_reg && hard_reg <= R5_HARD_REG) || hard_reg == R14_HARD_REG
           || (F0_HARD_REG <= hard_reg && hard_reg <= F7_HARD_REG));
@@ -93,11 +59,11 @@ Originally SP(r15) and FP (r11) are the same but r15 can be changed by alloca */
 
 /* s390x has 3-ops insns */
 static const MIR_insn_code_t target_io_dup_op_insn_codes[]
-  = {MIR_ADD,  MIR_ADDS, MIR_FADD, MIR_DADD,      MIR_SUB,   MIR_SUBS,  MIR_FSUB, MIR_DSUB,
-     MIR_MUL,  MIR_MULS, MIR_FMUL, MIR_DMUL,      MIR_DIV,   MIR_DIVS,  MIR_UDIV, MIR_UDIVS,
-     MIR_FDIV, MIR_DDIV, MIR_MOD,  MIR_MODS,      MIR_UMOD,  MIR_UMODS, MIR_EQ,   MIR_EQS,
-     MIR_NE,   MIR_NES,  MIR_LSHS, MIR_RSHS,      MIR_URSHS, MIR_AND,   MIR_ANDS, MIR_OR,
-     MIR_ORS,  MIR_XOR,  MIR_XORS, MIR_INSN_BOUND};
+  = {MIR_ADD,   MIR_ADDS,  MIR_FADD, MIR_DADD,  MIR_SUB,  MIR_SUBS, MIR_SUBO, MIR_SUBOS,
+     MIR_ADDO,  MIR_ADDOS, MIR_FSUB, MIR_DSUB,  MIR_MUL,  MIR_MULS, MIR_FMUL, MIR_DMUL,
+     MIR_DIV,   MIR_DIVS,  MIR_UDIV, MIR_UDIVS, MIR_FDIV, MIR_DDIV, MIR_MOD,  MIR_MODS,
+     MIR_UMOD,  MIR_UMODS, MIR_EQ,   MIR_EQS,   MIR_NE,   MIR_NES,  MIR_LSHS, MIR_RSHS,
+     MIR_URSHS, MIR_AND,   MIR_ANDS, MIR_OR,    MIR_ORS,  MIR_XOR,  MIR_XORS, MIR_INSN_BOUND};
 
 static MIR_insn_code_t get_ext_code (MIR_type_t type) {
   switch (type) {
@@ -110,10 +76,6 @@ static MIR_insn_code_t get_ext_code (MIR_type_t type) {
   default: return MIR_INVALID_INSN;
   }
 }
-
-DEF_VARR (int);
-DEF_VARR (uint8_t);
-DEF_VARR (uint64_t);
 
 struct insn_pattern_info {
   int start, num;
@@ -133,17 +95,20 @@ DEF_VARR (const_ref_t);
 struct label_ref {
   int abs_addr_p;
   size_t label_val_disp;
-  MIR_label_t label;
+  union {
+    MIR_label_t label;
+    void *jump_addr; /* absolute addr for BBV */
+  } u;
 };
 
 typedef struct label_ref label_ref_t;
 DEF_VARR (label_ref_t);
 
-DEF_VARR (MIR_code_reloc_t);
-
 struct target_ctx {
   unsigned char alloca_p, leaf_p, stack_param_p, switch_p;
   size_t param_save_area_size, blk_ld_value_save_area_size;
+  MIR_insn_t temp_jump;
+  const char *temp_jump_replacement;
   VARR (int) * pattern_indexes;
   VARR (insn_pattern_info_t) * insn_pattern_info;
   VARR (uint8_t) * result_code;
@@ -161,6 +126,8 @@ struct target_ctx {
 #define switch_p gen_ctx->target_ctx->switch_p
 #define param_save_area_size gen_ctx->target_ctx->param_save_area_size
 #define blk_ld_value_save_area_size gen_ctx->target_ctx->blk_ld_value_save_area_size
+#define temp_jump gen_ctx->target_ctx->temp_jump
+#define temp_jump_replacement gen_ctx->target_ctx->temp_jump_replacement
 #define pattern_indexes gen_ctx->target_ctx->pattern_indexes
 #define insn_pattern_info gen_ctx->target_ctx->insn_pattern_info
 #define result_code gen_ctx->target_ctx->result_code
@@ -192,58 +159,57 @@ static void gen_blk_mov (gen_ctx_t gen_ctx, MIR_insn_t anchor, size_t to_disp,
   MIR_insn_t new_insn;
   MIR_op_t ops[5], freg_op, treg_op, treg_op2, treg_op3;
 
-  treg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+  treg_op = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
   if (qwords <= 16) {
     for (; qwords > 0; qwords--, to_disp += 8, from_disp += 8) {
       gen_mov (gen_ctx, anchor, MIR_MOV, treg_op,
-               MIR_new_mem_op (ctx, MIR_T_I64, from_disp, from_base_reg, 0, 1));
+               _MIR_new_var_mem_op (ctx, MIR_T_I64, from_disp, from_base_reg, MIR_NON_VAR, 1));
       gen_mov (gen_ctx, anchor, MIR_MOV,
-               _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, to_disp, to_base_hard_reg,
-                                         MIR_NON_HARD_REG, 1),
+               _MIR_new_var_mem_op (ctx, MIR_T_I64, to_disp, to_base_hard_reg, MIR_NON_VAR, 1),
                treg_op);
     }
     return;
   }
-  treg_op2 = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
-  treg_op3 = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+  treg_op2 = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+  treg_op3 = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
   /* Save arg regs: */
   if (save_regs > 0)
-    gen_mov (gen_ctx, anchor, MIR_MOV, treg_op, _MIR_new_hard_reg_op (ctx, R2_HARD_REG));
+    gen_mov (gen_ctx, anchor, MIR_MOV, treg_op, _MIR_new_var_op (ctx, R2_HARD_REG));
   if (save_regs > 1)
-    gen_mov (gen_ctx, anchor, MIR_MOV, treg_op2, _MIR_new_hard_reg_op (ctx, R3_HARD_REG));
+    gen_mov (gen_ctx, anchor, MIR_MOV, treg_op2, _MIR_new_var_op (ctx, R3_HARD_REG));
   if (save_regs > 2)
-    gen_mov (gen_ctx, anchor, MIR_MOV, treg_op3, _MIR_new_hard_reg_op (ctx, R4_HARD_REG));
+    gen_mov (gen_ctx, anchor, MIR_MOV, treg_op3, _MIR_new_var_op (ctx, R4_HARD_REG));
   /* call blk move: */
   proto_item = _MIR_builtin_proto (ctx, curr_func_item->module, BLK_MOV_P, 0, NULL, 3, MIR_T_I64,
                                    "to", MIR_T_I64, "from", MIR_T_I64, "nwords");
   func_import_item = _MIR_builtin_func (ctx, curr_func_item->module, BLK_MOV, mir_blk_mov);
-  freg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+  freg_op = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
   new_insn = MIR_new_insn (ctx, MIR_MOV, freg_op, MIR_new_ref_op (ctx, func_import_item));
   gen_add_insn_before (gen_ctx, anchor, new_insn);
   gen_add_insn_before (gen_ctx, anchor,
-                       MIR_new_insn (gen_ctx->ctx, MIR_ADD, _MIR_new_hard_reg_op (ctx, R2_HARD_REG),
-                                     _MIR_new_hard_reg_op (ctx, to_base_hard_reg),
+                       MIR_new_insn (gen_ctx->ctx, MIR_ADD, _MIR_new_var_op (ctx, R2_HARD_REG),
+                                     _MIR_new_var_op (ctx, to_base_hard_reg),
                                      MIR_new_int_op (ctx, to_disp)));
   gen_add_insn_before (gen_ctx, anchor,
-                       MIR_new_insn (gen_ctx->ctx, MIR_ADD, _MIR_new_hard_reg_op (ctx, R3_HARD_REG),
-                                     MIR_new_reg_op (ctx, from_base_reg),
+                       MIR_new_insn (gen_ctx->ctx, MIR_ADD, _MIR_new_var_op (ctx, R3_HARD_REG),
+                                     _MIR_new_var_op (ctx, from_base_reg),
                                      MIR_new_int_op (ctx, from_disp)));
-  gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, R4_HARD_REG),
+  gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, R4_HARD_REG),
            MIR_new_int_op (ctx, qwords));
   ops[0] = MIR_new_ref_op (ctx, proto_item);
   ops[1] = freg_op;
-  ops[2] = _MIR_new_hard_reg_op (ctx, R2_HARD_REG);
-  ops[3] = _MIR_new_hard_reg_op (ctx, R3_HARD_REG);
-  ops[4] = _MIR_new_hard_reg_op (ctx, R4_HARD_REG);
+  ops[2] = _MIR_new_var_op (ctx, R2_HARD_REG);
+  ops[3] = _MIR_new_var_op (ctx, R3_HARD_REG);
+  ops[4] = _MIR_new_var_op (ctx, R4_HARD_REG);
   new_insn = MIR_new_insn_arr (ctx, MIR_CALL, 5, ops);
   gen_add_insn_before (gen_ctx, anchor, new_insn);
   /* Restore arg regs: */
   if (save_regs > 0)
-    gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, R2_HARD_REG), treg_op);
+    gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, R2_HARD_REG), treg_op);
   if (save_regs > 1)
-    gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, R3_HARD_REG), treg_op2);
+    gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, R3_HARD_REG), treg_op2);
   if (save_regs > 2)
-    gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, R4_HARD_REG), treg_op3);
+    gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, R4_HARD_REG), treg_op3);
 }
 
 static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
@@ -270,9 +236,9 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     nargs = VARR_LENGTH (MIR_var_t, proto->args);
     arg_vars = VARR_ADDR (MIR_var_t, proto->args);
   }
-  if (call_insn->ops[1].mode != MIR_OP_REG && call_insn->ops[1].mode != MIR_OP_HARD_REG) {
+  if (call_insn->ops[1].mode != MIR_OP_VAR) {
     // ??? to optimize (can be immediate operand for func call)
-    temp_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+    temp_op = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
     new_insn = MIR_new_insn (ctx, MIR_MOV, temp_op, call_insn->ops[1]);
     call_insn->ops[1] = temp_op;
     gen_add_insn_before (gen_ctx, call_insn, new_insn);
@@ -285,7 +251,7 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
       type = proto->res_types[i - 2];
     } else if (i - start < nargs) {
       type = arg_vars[i - start].type;
-    } else if (arg_op.mode == MIR_OP_MEM) {
+    } else if (arg_op.mode == MIR_OP_VAR_MEM) {
       type = arg_op.u.mem.type;
       gen_assert (MIR_all_blk_type_p (type));
     } else {
@@ -301,7 +267,8 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     if (type == MIR_T_LD)
       call_blk_ld_value_area_size += 16;
     else if (MIR_blk_type_p (type)) {
-      gen_assert (arg_op.mode == MIR_OP_MEM && arg_op.u.mem.disp >= 0 && arg_op.u.mem.index == 0);
+      gen_assert (arg_op.mode == MIR_OP_VAR_MEM && arg_op.u.mem.disp >= 0
+                  && arg_op.u.mem.index == MIR_NON_VAR);
       call_blk_ld_value_area_size += (arg_op.u.mem.disp + 7) / 8 * 8;
     }
     if ((type == MIR_T_F || type == MIR_T_D) && n_fregs < 4) {
@@ -320,13 +287,13 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
   param_mem_size = n_fregs = n_iregs = 0;
   for (size_t i = 2; i < nops; i++) { /* process args and ???long double results: */
     arg_op = call_insn->ops[i];
-    gen_assert (arg_op.mode == MIR_OP_REG || arg_op.mode == MIR_OP_HARD_REG
-                || (arg_op.mode == MIR_OP_MEM && MIR_all_blk_type_p (arg_op.u.mem.type)));
+    gen_assert (arg_op.mode == MIR_OP_VAR
+                || (arg_op.mode == MIR_OP_VAR_MEM && MIR_all_blk_type_p (arg_op.u.mem.type)));
     if (i < start) {
       type = proto->res_types[i - 2];
     } else if (i - start < nargs) {
       type = arg_vars[i - start].type;
-    } else if (call_insn->ops[i].mode == MIR_OP_MEM) {
+    } else if (call_insn->ops[i].mode == MIR_OP_VAR_MEM) {
       type = call_insn->ops[i].u.mem.type;
       gen_assert (MIR_all_blk_type_p (type));
     } else {
@@ -338,25 +305,24 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     if (type != MIR_T_LD && i < start) continue;
     ext_insn = NULL;
     if ((ext_code = get_ext_code (type)) != MIR_INVALID_INSN) { /* extend arg if necessary */
-      temp_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+      temp_op = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
       ext_insn = MIR_new_insn (ctx, ext_code, temp_op, arg_op);
       call_insn->ops[i] = arg_op = temp_op;
     }
     if (type == MIR_T_LD || MIR_blk_type_p (type)) {
       if (i >= start) { /* put arg value in saved blk/ld value area: */
         if (type == MIR_T_LD) {
-          mem_op
-            = _MIR_new_hard_reg_mem_op (ctx, MIR_T_LD, blk_ld_value_disp + S390X_STACK_HEADER_SIZE,
-                                        FP_HARD_REG, MIR_NON_HARD_REG, 1);
+          mem_op = _MIR_new_var_mem_op (ctx, MIR_T_LD, blk_ld_value_disp + S390X_STACK_HEADER_SIZE,
+                                        SP_HARD_REG, MIR_NON_VAR, 1);
           gen_mov (gen_ctx, call_insn, MIR_LDMOV, mem_op, arg_op);
         } else {
           qwords = (arg_op.u.mem.disp + 7) / 8;
-          gen_blk_mov (gen_ctx, call_insn, S390X_STACK_HEADER_SIZE + blk_ld_value_disp, FP_HARD_REG,
+          gen_blk_mov (gen_ctx, call_insn, S390X_STACK_HEADER_SIZE + blk_ld_value_disp, SP_HARD_REG,
                        0, arg_op.u.mem.base, qwords, n_iregs);
         }
       }
-      arg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
-      new_insn = MIR_new_insn (ctx, MIR_ADD, arg_op, _MIR_new_hard_reg_op (ctx, FP_HARD_REG),
+      arg_op = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+      new_insn = MIR_new_insn (ctx, MIR_ADD, arg_op, _MIR_new_var_op (ctx, SP_HARD_REG),
                                MIR_new_int_op (ctx, S390X_STACK_HEADER_SIZE + blk_ld_value_disp));
       gen_add_insn_before (gen_ctx, call_insn, new_insn);
       blk_ld_value_disp += type == MIR_T_LD ? 16 : qwords * 8;
@@ -365,34 +331,34 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
     if ((type == MIR_T_F || type == MIR_T_D) && n_fregs < 4) {
       /* put arguments to argument hard regs: */
       if (ext_insn != NULL) gen_add_insn_before (gen_ctx, call_insn, ext_insn);
-      arg_reg_op = _MIR_new_hard_reg_op (ctx, F0_HARD_REG + n_fregs * 2);
+      arg_reg_op = _MIR_new_var_op (ctx, F0_HARD_REG + n_fregs * 2);
       gen_mov (gen_ctx, call_insn, type == MIR_T_F ? MIR_FMOV : MIR_DMOV, arg_reg_op, arg_op);
       call_insn->ops[i] = arg_reg_op;
       n_fregs++;
     } else if (type != MIR_T_F && type != MIR_T_D && n_iregs < 5) {
       if (ext_insn != NULL) gen_add_insn_before (gen_ctx, call_insn, ext_insn);
-      arg_reg_op = _MIR_new_hard_reg_op (ctx, R2_HARD_REG + n_iregs);
+      arg_reg_op = _MIR_new_var_op (ctx, R2_HARD_REG + n_iregs);
       if (type != MIR_T_RBLK) {
         gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, arg_op);
       } else {
-        assert (arg_op.mode == MIR_OP_MEM);
-        gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, MIR_new_reg_op (ctx, arg_op.u.mem.base));
-        arg_reg_op = _MIR_new_hard_reg_mem_op (ctx, MIR_T_RBLK, arg_op.u.mem.disp,
-                                               R2_HARD_REG + n_iregs, MIR_NON_HARD_REG, 1);
+        assert (arg_op.mode == MIR_OP_VAR_MEM);
+        gen_mov (gen_ctx, call_insn, MIR_MOV, arg_reg_op, _MIR_new_var_op (ctx, arg_op.u.mem.base));
+        arg_reg_op = _MIR_new_var_mem_op (ctx, MIR_T_RBLK, arg_op.u.mem.disp, R2_HARD_REG + n_iregs,
+                                          MIR_NON_VAR, 1);
       }
       if (i >= start) call_insn->ops[i] = arg_reg_op; /* don't change LD return yet */
       n_iregs++;
     } else { /* put arguments on the stack: */
       if (ext_insn != NULL) gen_add_insn_before (gen_ctx, call_insn, ext_insn);
       new_insn_code = (type == MIR_T_F ? MIR_FMOV : type == MIR_T_D ? MIR_DMOV : MIR_MOV);
-      mem_op = _MIR_new_hard_reg_mem_op (ctx, mem_type, param_mem_size + S390X_STACK_HEADER_SIZE,
-                                         SP_HARD_REG, MIR_NON_HARD_REG, 1);
+      mem_op = _MIR_new_var_mem_op (ctx, mem_type, param_mem_size + S390X_STACK_HEADER_SIZE,
+                                    SP_HARD_REG, MIR_NON_VAR, 1);
       if (type != MIR_T_RBLK) {
         gen_mov (gen_ctx, call_insn, new_insn_code, mem_op, arg_op);
       } else {
-        assert (arg_op.mode == MIR_OP_MEM);
+        assert (arg_op.mode == MIR_OP_VAR_MEM);
         gen_mov (gen_ctx, call_insn, new_insn_code, mem_op,
-                 MIR_new_reg_op (ctx, arg_op.u.mem.base));
+                 _MIR_new_var_op (ctx, arg_op.u.mem.base));
       }
       if (i >= start) call_insn->ops[i] = mem_op;
       param_mem_size += 8;
@@ -402,26 +368,26 @@ static void machinize_call (gen_ctx_t gen_ctx, MIR_insn_t call_insn) {
   blk_ld_value_disp = param_mem_size;
   for (size_t i = 0; i < proto->nres; i++) {
     ret_op = call_insn->ops[i + 2];
-    gen_assert (ret_op.mode == MIR_OP_REG || ret_op.mode == MIR_OP_HARD_REG);
+    gen_assert (ret_op.mode == MIR_OP_VAR);
     type = proto->res_types[i];
     if (type == MIR_T_LD) { /* returned by address */
       new_insn_code = MIR_LDMOV;
       call_res_op = ret_val_op
-        = _MIR_new_hard_reg_mem_op (ctx, MIR_T_LD, S390X_STACK_HEADER_SIZE + blk_ld_value_disp,
-                                    FP_HARD_REG, MIR_NON_HARD_REG, 1);
+        = _MIR_new_var_mem_op (ctx, MIR_T_LD, S390X_STACK_HEADER_SIZE + blk_ld_value_disp,
+                               SP_HARD_REG, MIR_NON_VAR, 1);
       if (n_iregs < 5) { /* use it as a call result to keep assignment to ld_n_iregs: */
-        call_res_op = _MIR_new_hard_reg_mem_op (ctx, MIR_T_LD, 0, R2_HARD_REG + ld_n_iregs,
-                                                MIR_NON_HARD_REG, 1);
+        call_res_op
+          = _MIR_new_var_mem_op (ctx, MIR_T_LD, 0, R2_HARD_REG + ld_n_iregs, MIR_NON_VAR, 1);
         ld_n_iregs++;
       }
       blk_ld_value_disp += 16;
     } else if ((type == MIR_T_F || type == MIR_T_D) && n_fregs < 4) {
       new_insn_code = type == MIR_T_F ? MIR_FMOV : MIR_DMOV;
-      call_res_op = ret_val_op = _MIR_new_hard_reg_op (ctx, F0_HARD_REG + n_fregs * 2);
+      call_res_op = ret_val_op = _MIR_new_var_op (ctx, F0_HARD_REG + n_fregs * 2);
       n_fregs++;
     } else if (type != MIR_T_F && type != MIR_T_D && n_iregs < 1) {
       new_insn_code = MIR_MOV;
-      call_res_op = ret_val_op = _MIR_new_hard_reg_op (ctx, R2_HARD_REG + n_iregs);
+      call_res_op = ret_val_op = _MIR_new_var_op (ctx, R2_HARD_REG + n_iregs);
       n_iregs++;
     } else {
       (*MIR_get_error_func (ctx)) (MIR_ret_error,
@@ -649,7 +615,7 @@ static int get_builtin (gen_ctx_t gen_ctx, MIR_insn_code_t code, MIR_item_t *pro
   }
 }
 
-static MIR_disp_t target_get_stack_slot_offset (gen_ctx_t gen_ctx, MIR_type_t type,
+static MIR_disp_t target_get_stack_slot_offset (gen_ctx_t gen_ctx, MIR_type_t type MIR_UNUSED,
                                                 MIR_reg_t slot) {
   /* slot is 0, 1, ... */
   return ((MIR_disp_t) slot * 8 + S390X_STACK_HEADER_SIZE + param_save_area_size
@@ -664,12 +630,17 @@ static void set_prev_sp_reg (gen_ctx_t gen_ctx, MIR_insn_t anchor, int *prev_sp_
   if (!*prev_sp_set_p) {
     *prev_sp_set_p = TRUE;
     *prev_sp_reg = gen_new_temp_reg (gen_ctx, MIR_T_I64, func);
-    gen_mov (gen_ctx, anchor, MIR_MOV, MIR_new_reg_op (ctx, *prev_sp_reg),
-             _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, 0, SP_HARD_REG, MIR_NON_HARD_REG, 1));
+    gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, *prev_sp_reg),
+             _MIR_new_var_mem_op (ctx, MIR_T_I64, 0, SP_HARD_REG, MIR_NON_VAR, 1));
   }
 }
 
-static int target_valid_mem_offset_p (gen_ctx_t gen_ctx, MIR_type_t type, MIR_disp_t offset) {
+static MIR_reg_t target_get_stack_slot_base_reg (gen_ctx_t gen_ctx MIR_UNUSED) {
+  return FP_HARD_REG;
+}
+
+static int target_valid_mem_offset_p (gen_ctx_t gen_ctx MIR_UNUSED, MIR_type_t type MIR_UNUSED,
+                                      MIR_disp_t offset MIR_UNUSED) {
   return TRUE;
 }
 
@@ -694,49 +665,49 @@ static void target_machinize (gen_ctx_t gen_ctx) {
     ld_addr_reg = gen_new_temp_reg (gen_ctx, MIR_T_I64, func);
     VARR_PUSH (uint64_t, ld_addr_regs, ld_addr_reg);
     if (int_arg_num < 5) {
-      gen_mov (gen_ctx, anchor, MIR_MOV, MIR_new_reg_op (ctx, ld_addr_reg),
-               _MIR_new_hard_reg_op (ctx, R2_HARD_REG + int_arg_num));
+      gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, ld_addr_reg),
+               _MIR_new_var_op (ctx, R2_HARD_REG + int_arg_num));
       int_arg_num++;
     } else {
       set_prev_sp_reg (gen_ctx, anchor, &prev_sp_set_p, &prev_sp_reg);
-      gen_mov (gen_ctx, anchor, MIR_MOV, MIR_new_reg_op (ctx, ld_addr_reg),
-               MIR_new_mem_op (ctx, MIR_T_I64, disp, prev_sp_reg, 0, 1));
+      gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, ld_addr_reg),
+               _MIR_new_var_mem_op (ctx, MIR_T_I64, disp, prev_sp_reg, MIR_NON_VAR, 1));
       disp += 8;
     }
   }
   for (i = 0; i < func->nargs; i++) { /* Prologue: generate arg_var = hard_reg|stack mem ... */
     /* Argument extensions is already done in simplify */
     type = VARR_GET (MIR_var_t, func->vars, i).type;
-    arg_var_op = MIR_new_reg_op (ctx, i + 1);
+    arg_var_op = _MIR_new_var_op (ctx, i + MAX_HARD_REG + 1);
     if ((type == MIR_T_F || type == MIR_T_D) && fp_arg_num < 4) {
-      arg_reg_op = _MIR_new_hard_reg_op (ctx, F0_HARD_REG + fp_arg_num * 2);
+      arg_reg_op = _MIR_new_var_op (ctx, F0_HARD_REG + fp_arg_num * 2);
       /* (f|d)mov arg, arg_hard_reg: */
       gen_mov (gen_ctx, anchor, type == MIR_T_F ? MIR_FMOV : MIR_DMOV, arg_var_op, arg_reg_op);
       fp_arg_num++;
     } else if (type == MIR_T_F || type == MIR_T_D) { /* (f|d)mov arg, arg_memory */
       set_prev_sp_reg (gen_ctx, anchor, &prev_sp_set_p, &prev_sp_reg);
       gen_mov (gen_ctx, anchor, type == MIR_T_F ? MIR_FMOV : MIR_DMOV, arg_var_op,
-               MIR_new_mem_op (ctx, type, disp + (type == MIR_T_F ? 4 : 0), prev_sp_reg, 0, 1));
+               _MIR_new_var_mem_op (ctx, type, disp + (type == MIR_T_F ? 4 : 0), prev_sp_reg,
+                                    MIR_NON_VAR, 1));
       disp += 8;
     } else if (int_arg_num < 5) { /* (ld)mov arg, arg_hard_reg */
       if (type != MIR_T_LD)
         gen_mov (gen_ctx, anchor, MIR_MOV, arg_var_op,
-                 _MIR_new_hard_reg_op (ctx, R2_HARD_REG + int_arg_num));
+                 _MIR_new_var_op (ctx, R2_HARD_REG + int_arg_num));
       else
         gen_mov (gen_ctx, anchor, MIR_LDMOV, arg_var_op,
-                 _MIR_new_hard_reg_mem_op (ctx, type, 0, R2_HARD_REG + int_arg_num,
-                                           MIR_NON_HARD_REG, 1));
+                 _MIR_new_var_mem_op (ctx, type, 0, R2_HARD_REG + int_arg_num, MIR_NON_VAR, 1));
       int_arg_num++;
     } else { /* (ld)mov arg, arg_memory */
       set_prev_sp_reg (gen_ctx, anchor, &prev_sp_set_p, &prev_sp_reg);
       if (type != MIR_T_LD) {
         gen_mov (gen_ctx, anchor, MIR_MOV, arg_var_op,
-                 MIR_new_mem_op (ctx, MIR_T_I64, disp, prev_sp_reg, 0, 1));
+                 _MIR_new_var_mem_op (ctx, MIR_T_I64, disp, prev_sp_reg, MIR_NON_VAR, 1));
       } else {
-        gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, R1_HARD_REG),
-                 MIR_new_mem_op (ctx, MIR_T_I64, disp, prev_sp_reg, 0, 1));
+        gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, R1_HARD_REG),
+                 _MIR_new_var_mem_op (ctx, MIR_T_I64, disp, prev_sp_reg, MIR_NON_VAR, 1));
         gen_mov (gen_ctx, anchor, MIR_MOV, arg_var_op,
-                 _MIR_new_hard_reg_mem_op (ctx, MIR_T_LD, 0, R1_HARD_REG, MIR_NON_HARD_REG, 1));
+                 _MIR_new_var_mem_op (ctx, MIR_T_LD, 0, R1_HARD_REG, MIR_NON_VAR, 1));
       }
       disp += 8;
     }
@@ -753,14 +724,13 @@ static void target_machinize (gen_ctx_t gen_ctx) {
     code = insn->code;
     if (code == MIR_LDBEQ || code == MIR_LDBNE || code == MIR_LDBLT || code == MIR_LDBGE
         || code == MIR_LDBGT || code == MIR_LDBLE) { /* split to cmp and branch */
-      temp_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
-      code = (code == MIR_LDBEQ
-                ? MIR_LDEQ
-                : code == MIR_LDBNE
-                    ? MIR_LDNE
-                    : code == MIR_LDBLT
-                        ? MIR_LDLT
-                        : code == MIR_LDBGE ? MIR_LDGE : code == MIR_LDBGT ? MIR_LDGT : MIR_LDLE);
+      temp_op = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+      code = (code == MIR_LDBEQ   ? MIR_LDEQ
+              : code == MIR_LDBNE ? MIR_LDNE
+              : code == MIR_LDBLT ? MIR_LDLT
+              : code == MIR_LDBGE ? MIR_LDGE
+              : code == MIR_LDBGT ? MIR_LDGT
+                                  : MIR_LDLE);
       new_insn = MIR_new_insn (ctx, code, temp_op, insn->ops[1], insn->ops[2]);
       gen_add_insn_before (gen_ctx, insn, new_insn);
       next_insn = MIR_new_insn (ctx, MIR_BT, insn->ops[0], temp_op);
@@ -776,10 +746,10 @@ static void target_machinize (gen_ctx_t gen_ctx) {
         MIR_op_t ops[6], func_reg_op, reg_op3;
         MIR_op_t res_reg_op = insn->ops[0], va_reg_op = insn->ops[1], op3 = insn->ops[2];
 
-        assert (res_reg_op.mode == MIR_OP_REG && va_reg_op.mode == MIR_OP_REG
-                && op3.mode == (code == MIR_VA_ARG ? MIR_OP_MEM : MIR_OP_REG));
-        func_reg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
-        reg_op3 = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+        assert (res_reg_op.mode == MIR_OP_VAR && va_reg_op.mode == MIR_OP_VAR
+                && op3.mode == (code == MIR_VA_ARG ? MIR_OP_VAR_MEM : MIR_OP_VAR));
+        func_reg_op = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+        reg_op3 = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
         next_insn = new_insn
           = MIR_new_insn (ctx, MIR_MOV, func_reg_op, MIR_new_ref_op (ctx, func_import_item));
         gen_add_insn_before (gen_ctx, insn, new_insn);
@@ -801,8 +771,8 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       } else { /* Use builtin: mov freg, func ref; call proto, freg, res_reg, op_reg[, op_reg2] */
         MIR_op_t freg_op, res_reg_op = insn->ops[0], op_reg_op = insn->ops[1], ops[5];
 
-        gen_assert (res_reg_op.mode == MIR_OP_REG && op_reg_op.mode == MIR_OP_REG);
-        freg_op = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
+        gen_assert (res_reg_op.mode == MIR_OP_VAR && op_reg_op.mode == MIR_OP_VAR);
+        freg_op = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, func));
         next_insn = new_insn
           = MIR_new_insn (ctx, MIR_MOV, freg_op, MIR_new_ref_op (ctx, func_import_item));
         gen_add_insn_before (gen_ctx, insn, new_insn);
@@ -817,20 +787,20 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       }
     } else if (code == MIR_VA_START) {
       MIR_op_t treg_op
-        = MIR_new_reg_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, curr_func_item->u.func));
+        = _MIR_new_var_op (ctx, gen_new_temp_reg (gen_ctx, MIR_T_I64, curr_func_item->u.func));
       MIR_op_t va_op = insn->ops[0];
       MIR_reg_t va_reg;
       int gpr_val = 0, fpr_val = 0;
-      size_t disp = 0;
       MIR_var_t var;
 
-      assert (func->vararg_p && (va_op.mode == MIR_OP_REG || va_op.mode == MIR_OP_HARD_REG));
-      for (uint32_t i = 0; i < func->nargs; i++)
+      disp = 0;
+      assert (func->vararg_p && (va_op.mode == MIR_OP_VAR));
+      for (i = 0; i < func->nargs; i++)
         if (func->res_types[i] == MIR_T_LD) {
           if (gpr_val > 5) disp += 8;
           gpr_val++;
         }
-      for (uint32_t i = 0; i < func->nargs; i++) {
+      for (i = 0; i < func->nargs; i++) {
         var = VARR_GET (MIR_var_t, func->vars, i);
         if (var.type == MIR_T_F || var.type == MIR_T_D) {
           if (fpr_val > 4) disp += 8;
@@ -840,24 +810,28 @@ static void target_machinize (gen_ctx_t gen_ctx) {
           gpr_val++;
         }
       }
-      va_reg = va_op.mode == MIR_OP_REG ? va_op.u.reg : va_op.u.hard_reg;
+      va_reg = va_op.u.var;
       /* Insns can be not simplified as soon as they match a machine insn.  */
       /* mem64[va_reg] = gpr_val; mem64[va_reg + 8] = fpr_val */
-      gen_mov (gen_ctx, insn, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 0, va_reg, 0, 1),
+      gen_mov (gen_ctx, insn, MIR_MOV,
+               _MIR_new_var_mem_op (ctx, MIR_T_I64, 0, va_reg, MIR_NON_VAR, 1),
                MIR_new_int_op (ctx, gpr_val));
       next_insn = DLIST_PREV (MIR_insn_t, insn);
-      gen_mov (gen_ctx, insn, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 8, va_reg, 0, 1),
+      gen_mov (gen_ctx, insn, MIR_MOV,
+               _MIR_new_var_mem_op (ctx, MIR_T_I64, 8, va_reg, MIR_NON_VAR, 1),
                MIR_new_int_op (ctx, fpr_val));
       /* reg_save_area: treg = mem64[sp]; mem64[va_reg+24] = treg: */
       gen_mov (gen_ctx, insn, MIR_MOV, treg_op,
-               _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, 0, SP_HARD_REG, MIR_NON_HARD_REG, 1));
-      gen_mov (gen_ctx, insn, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 24, va_reg, 0, 1), treg_op);
+               _MIR_new_var_mem_op (ctx, MIR_T_I64, 0, SP_HARD_REG, MIR_NON_VAR, 1));
+      gen_mov (gen_ctx, insn, MIR_MOV,
+               _MIR_new_var_mem_op (ctx, MIR_T_I64, 24, va_reg, MIR_NON_VAR, 1), treg_op);
       /* overflow_arg_area_reg: treg = treg_op+S390X_STACK_HEADER_SIZE + disp;
          mem64[va_reg+16] = treg: */
       new_insn = MIR_new_insn (ctx, MIR_ADD, treg_op, treg_op,
                                MIR_new_int_op (ctx, S390X_STACK_HEADER_SIZE + disp));
       gen_add_insn_before (gen_ctx, insn, new_insn);
-      gen_mov (gen_ctx, insn, MIR_MOV, MIR_new_mem_op (ctx, MIR_T_I64, 16, va_reg, 0, 1), treg_op);
+      gen_mov (gen_ctx, insn, MIR_MOV,
+               _MIR_new_var_mem_op (ctx, MIR_T_I64, 16, va_reg, MIR_NON_VAR, 1), treg_op);
       gen_delete_insn (gen_ctx, insn);
     } else if (code == MIR_VA_END) { /* do nothing */
       gen_delete_insn (gen_ctx, insn);
@@ -873,14 +847,14 @@ static void target_machinize (gen_ctx_t gen_ctx) {
       uint32_t n_gpregs = 0, n_fregs = 0, ld_addr_n = 0;
 
       gen_assert (func->nres == MIR_insn_nops (ctx, insn));
-      for (size_t i = 0; i < func->nres; i++) {
-        gen_assert (insn->ops[i].mode == MIR_OP_REG);
+      for (i = 0; i < func->nres; i++) {
+        gen_assert (insn->ops[i].mode == MIR_OP_VAR);
         res_type = func->res_types[i];
         if (res_type == MIR_T_LD) { /* ldmov f1,0(addr_reg);std f1,0(r2);std f3,8(r2): */
           ld_addr_reg = VARR_GET (uint64_t, ld_addr_regs, ld_addr_n);
-          gen_mov (gen_ctx, insn, MIR_LDMOV, _MIR_new_hard_reg_op (ctx, F1_HARD_REG), insn->ops[i]);
-          insn->ops[i] = MIR_new_mem_op (ctx, MIR_T_LD, 0, ld_addr_reg, 0, 1);
-          gen_mov (gen_ctx, insn, MIR_LDMOV, insn->ops[i], _MIR_new_hard_reg_op (ctx, F1_HARD_REG));
+          gen_mov (gen_ctx, insn, MIR_LDMOV, _MIR_new_var_op (ctx, F1_HARD_REG), insn->ops[i]);
+          insn->ops[i] = _MIR_new_var_mem_op (ctx, MIR_T_LD, 0, ld_addr_reg, MIR_NON_VAR, 1);
+          gen_mov (gen_ctx, insn, MIR_LDMOV, insn->ops[i], _MIR_new_var_op (ctx, F1_HARD_REG));
           ld_addr_n++;
           continue;
         }
@@ -895,7 +869,7 @@ static void target_machinize (gen_ctx_t gen_ctx) {
           (*MIR_get_error_func (ctx)) (MIR_ret_error,
                                        "s390x can not handle this combination of return values");
         }
-        ret_reg_op = _MIR_new_hard_reg_op (ctx, ret_reg);
+        ret_reg_op = _MIR_new_var_op (ctx, ret_reg);
         gen_mov (gen_ctx, insn, new_insn_code, ret_reg_op, insn->ops[i]);
         insn->ops[i] = ret_reg_op;
       }
@@ -905,15 +879,14 @@ static void target_machinize (gen_ctx_t gen_ctx) {
 
 static void isave (gen_ctx_t gen_ctx, MIR_insn_t anchor, int disp, MIR_reg_t hard_reg) {
   gen_mov (gen_ctx, anchor, MIR_MOV,
-           _MIR_new_hard_reg_mem_op (gen_ctx->ctx, MIR_T_I64, disp, SP_HARD_REG, MIR_NON_HARD_REG,
-                                     1),
-           _MIR_new_hard_reg_op (gen_ctx->ctx, hard_reg));
+           _MIR_new_var_mem_op (gen_ctx->ctx, MIR_T_I64, disp, SP_HARD_REG, MIR_NON_VAR, 1),
+           _MIR_new_var_op (gen_ctx->ctx, hard_reg));
 }
 
 static void fsave (gen_ctx_t gen_ctx, MIR_insn_t anchor, int disp, MIR_reg_t hard_reg) {
   gen_mov (gen_ctx, anchor, MIR_DMOV,
-           _MIR_new_hard_reg_mem_op (gen_ctx->ctx, MIR_T_D, disp, SP_HARD_REG, MIR_NON_HARD_REG, 1),
-           _MIR_new_hard_reg_op (gen_ctx->ctx, hard_reg));
+           _MIR_new_var_mem_op (gen_ctx->ctx, MIR_T_D, disp, SP_HARD_REG, MIR_NON_VAR, 1),
+           _MIR_new_var_op (gen_ctx->ctx, hard_reg));
 }
 
 static void target_make_prolog_epilog (gen_ctx_t gen_ctx, bitmap_t used_hard_regs,
@@ -941,23 +914,24 @@ static void target_make_prolog_epilog (gen_ctx_t gen_ctx, bitmap_t used_hard_reg
       if (i >= F0_HARD_REG) saved_fregs_num++;
     }
   if (leaf_p && !stack_param_p && !alloca_p && saved_regs_p == 0 && stack_slots_num == 0) return;
-  r0_reg_op = _MIR_new_hard_reg_op (ctx, R0_HARD_REG);
-  r11_reg_op = _MIR_new_hard_reg_op (ctx, R11_HARD_REG);
-  r14_reg_op = _MIR_new_hard_reg_op (ctx, R14_HARD_REG);
-  r15_reg_op = _MIR_new_hard_reg_op (ctx, R15_HARD_REG);
+  r0_reg_op = _MIR_new_var_op (ctx, R0_HARD_REG);
+  r11_reg_op = _MIR_new_var_op (ctx, R11_HARD_REG);
+  r14_reg_op = _MIR_new_var_op (ctx, R14_HARD_REG);
+  r15_reg_op = _MIR_new_var_op (ctx, R15_HARD_REG);
   /* Prologue: */
   frame_size = (param_save_area_size + S390X_STACK_HEADER_SIZE + blk_ld_value_save_area_size
                 + stack_slots_num * 8);
   start_saved_fregs_offset = frame_size;
   frame_size += saved_fregs_num * 8;
   gen_assert (frame_size % 8 == 0);
+  if (!func->jret_p)
+    gen_mov (gen_ctx, anchor, MIR_MOV,
+             _MIR_new_var_mem_op (ctx, MIR_T_I64, S390X_GP_REG_RSAVE_AREA_START + (14 - 2) * 8,
+                                  R15_HARD_REG, MIR_NON_VAR, 1),
+             r14_reg_op); /* mem[r15+112] = r14 */
   gen_mov (gen_ctx, anchor, MIR_MOV,
-           _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, S390X_GP_REG_RSAVE_AREA_START + (14 - 2) * 8,
-                                     R15_HARD_REG, MIR_NON_HARD_REG, 1),
-           r14_reg_op); /* mem[r15+112] = r14 */
-  gen_mov (gen_ctx, anchor, MIR_MOV,
-           _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, S390X_GP_REG_RSAVE_AREA_START + (11 - 2) * 8,
-                                     R15_HARD_REG, MIR_NON_HARD_REG, 1),
+           _MIR_new_var_mem_op (ctx, MIR_T_I64, S390X_GP_REG_RSAVE_AREA_START + (11 - 2) * 8,
+                                R15_HARD_REG, MIR_NON_VAR, 1),
            r11_reg_op);                        /* mem[r15+76] = r11 */
   for (i = R2_HARD_REG; i < R15_HARD_REG; i++) /* exclude r15 */
     if (!target_call_used_hard_reg_p (i, MIR_T_UNDEF) && bitmap_bit_p (used_hard_regs, i)
@@ -967,38 +941,39 @@ static void target_make_prolog_epilog (gen_ctx_t gen_ctx, bitmap_t used_hard_reg
   new_insn = MIR_new_insn (ctx, MIR_ADD, r15_reg_op, r15_reg_op, MIR_new_int_op (ctx, -frame_size));
   gen_add_insn_before (gen_ctx, anchor, new_insn); /* r15 -= frame_size */
   gen_mov (gen_ctx, anchor, MIR_MOV,
-           _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, 0, R15_HARD_REG, MIR_NON_HARD_REG, 1),
+           _MIR_new_var_mem_op (ctx, MIR_T_I64, 0, R15_HARD_REG, MIR_NON_VAR, 1),
            r0_reg_op); /* mem[r15] = r0 */
   for (n = 0, i = F0_HARD_REG; i <= MAX_HARD_REG; i++)
     if (!target_call_used_hard_reg_p (i, MIR_T_UNDEF) && bitmap_bit_p (used_hard_regs, i))
       fsave (gen_ctx, anchor, start_saved_fregs_offset + (n++) * 8, i);
   gen_mov (gen_ctx, anchor, MIR_MOV, r11_reg_op, r15_reg_op); /* r11 = r15 */
   /* Epilogue: */
-  anchor = DLIST_TAIL (MIR_insn_t, func->insns);
-  /* It might be infinite loop after CCP with dead code elimination: */
-  if (anchor->code == MIR_JMP) return;
-  gen_assert (anchor->code == MIR_RET);
+  for (anchor = DLIST_TAIL (MIR_insn_t, func->insns); anchor != NULL;
+       anchor = DLIST_PREV (MIR_insn_t, anchor))
+    if (anchor->code == MIR_RET || anchor->code == MIR_JRET) break;
+  if (anchor == NULL) return;
   /* Restoring fp hard registers: */
   for (n = 0, i = F0_HARD_REG; i <= MAX_HARD_REG; i++)
     if (!target_call_used_hard_reg_p (i, MIR_T_UNDEF) && bitmap_bit_p (used_hard_regs, i))
-      gen_mov (gen_ctx, anchor, MIR_DMOV, _MIR_new_hard_reg_op (ctx, i),
-               _MIR_new_hard_reg_mem_op (ctx, MIR_T_D, start_saved_fregs_offset + (n++) * 8,
-                                         R11_HARD_REG, MIR_NON_HARD_REG, 1));
+      gen_mov (gen_ctx, anchor, MIR_DMOV, _MIR_new_var_op (ctx, i),
+               _MIR_new_var_mem_op (ctx, MIR_T_D, start_saved_fregs_offset + (n++) * 8,
+                                    R11_HARD_REG, MIR_NON_VAR, 1));
   new_insn = MIR_new_insn (ctx, MIR_ADD, r15_reg_op, r11_reg_op, MIR_new_int_op (ctx, frame_size));
   gen_add_insn_before (gen_ctx, anchor, new_insn); /* r15 = r11 + frame_size */
   /* Restore saved gp regs (including r11 and excluding r15) and r14 */
   for (i = R2_HARD_REG; i < R15_HARD_REG; i++)
     if (!target_call_used_hard_reg_p (i, MIR_T_UNDEF) && bitmap_bit_p (used_hard_regs, i))
-      gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_hard_reg_op (ctx, i),
-               _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64,
-                                         S390X_GP_REG_RSAVE_AREA_START + (i - R2_HARD_REG) * 8,
-                                         SP_HARD_REG, MIR_NON_HARD_REG, 1));
+      gen_mov (gen_ctx, anchor, MIR_MOV, _MIR_new_var_op (ctx, i),
+               _MIR_new_var_mem_op (ctx, MIR_T_I64,
+                                    S390X_GP_REG_RSAVE_AREA_START + (i - R2_HARD_REG) * 8,
+                                    SP_HARD_REG, MIR_NON_VAR, 1));
   gen_mov (gen_ctx, anchor, MIR_MOV, r11_reg_op,
-           _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, S390X_GP_REG_RSAVE_AREA_START + (11 - 2) * 8,
-                                     R15_HARD_REG, MIR_NON_HARD_REG, 1)); /* restore r11 */
-  gen_mov (gen_ctx, anchor, MIR_MOV, r14_reg_op,
-           _MIR_new_hard_reg_mem_op (ctx, MIR_T_I64, S390X_GP_REG_RSAVE_AREA_START + (14 - 2) * 8,
-                                     R15_HARD_REG, MIR_NON_HARD_REG, 1)); /* restore r14 */
+           _MIR_new_var_mem_op (ctx, MIR_T_I64, S390X_GP_REG_RSAVE_AREA_START + (11 - 2) * 8,
+                                R15_HARD_REG, MIR_NON_VAR, 1)); /* restore r11 */
+  if (!func->jret_p)
+    gen_mov (gen_ctx, anchor, MIR_MOV, r14_reg_op,
+             _MIR_new_var_mem_op (ctx, MIR_T_I64, S390X_GP_REG_RSAVE_AREA_START + (14 - 2) * 8,
+                                  R15_HARD_REG, MIR_NON_VAR, 1)); /* restore r14 */
 }
 
 struct pattern {
@@ -1091,7 +1066,7 @@ struct pattern {
      sD<number> - displacement ([20..31]) used as shift
      SD<number> - displacement (low part [20..31], high part [32..39]) used as shift
      T - switch table displacement
-     Q - stack header + param_area
+     Q - stack header + param_area + block param area
   */
   const char *replacement;
 };
@@ -1199,6 +1174,20 @@ static const struct pattern patterns[] = {
   {MIR_SUB, "r 0 M3", "e3:09 r0 m"},  /* sg r0,m */
   {MIR_SUB, "r 0 Ms2", "e3:19 r0 m"}, /* sgf r0,m */
   // ??? changing sub imm to add imm
+
+  {MIR_ADDOS, "r 0 r", "1a* r0 R2"},   /* ar r0,r1 */
+  {MIR_ADDOS, "r 0 m2", "5a r0 m"},    /* a r0,m */
+  {MIR_ADDO, "r 0 r", "b908 r0 R2"},   /* agr r0,r1 */
+  {MIR_ADDO, "r 0 M2", "e3:5a r0 m"},  /* ay r0,m */
+  {MIR_ADDO, "r 0 M3", "e3:08 r0 m"},  /* ag r0,m */
+  {MIR_ADDO, "r 0 Ms2", "e3:18 r0 m"}, /* agf r0,m */
+
+  {MIR_SUBOS, "r 0 r", "1b* r0 R2"},   /* sr r0,r1 */
+  {MIR_SUBOS, "r 0 m2", "5b r0 m"},    /* s r0,m */
+  {MIR_SUBO, "r 0 r", "b909 r0 R2"},   /* sgr r0,r1 */
+  {MIR_SUBO, "r 0 M2", "e3:5b r0 m"},  /* sy r0,m */
+  {MIR_SUBO, "r 0 M3", "e3:09 r0 m"},  /* sg r0,m */
+  {MIR_SUBO, "r 0 Ms2", "e3:19 r0 m"}, /* sgf r0,m */
 
   {MIR_FSUB, "r 0 r", "b30b r0 R2"},  /* sebr r0,r1*/
   {MIR_DSUB, "r 0 r", "b31b r0 R2"},  /* sdbr r0,r1*/
@@ -1334,6 +1323,9 @@ static const struct pattern patterns[] = {
 
           {MIR_JMP, "L", SBRCL (15)}, /* bcril m15, l */
 
+  {MIR_LADDR, "r L", "c0:0* r0 L"}, /* lalr r,offset */
+  {MIR_JMPI, "r", "07* ma15 R0"},   /* br r */
+
   {MIR_BT, "L r", "b902 r1 R1" BRCL (6)}, /* ltgr r0,r0; bcril m8,l */
   {MIR_BF, "L r", "b902 r1 R1" BRCL (8)}, /* ltgr r1,r1; bcril m6,l */
   {MIR_BTS, "L r", "12* r1 R1" BRCL (6)}, /* ltr r0,r0; bcril m8,l */
@@ -1369,11 +1361,14 @@ static const struct pattern patterns[] = {
           BCMPU (MIR_UBLT, MIR_UBLTS, 4) BCMPU (MIR_UBGT, MIR_UBGTS, 2)
             BCMPU (MIR_UBLE, MIR_UBLES, 12) BCMPU (MIR_UBGE, MIR_UBGES, 10)
 
-              {MIR_NEG, "r r", "b903 r0 R1"}, /* lcgr r0,r1 */
-  {MIR_NEGS, "r r", "13* r0 R1"},             /* lcr r0,r1 */
-  {MIR_FNEG, "r r", "b303 r0 R1"},            /* lcebr r0,r1 */
-  {MIR_DNEG, "r r", "b313 r0 R1"},            /* lcdbr r0,r1 */
-                                              // ldneg is a builtin
+              {MIR_BO, "L", SBRCL (1)}, /* jo l */
+  {MIR_BNO, "L", SBRCL (14)},           /* jno l */
+
+  {MIR_NEG, "r r", "b903 r0 R1"},  /* lcgr r0,r1 */
+  {MIR_NEGS, "r r", "13* r0 R1"},  /* lcr r0,r1 */
+  {MIR_FNEG, "r r", "b303 r0 R1"}, /* lcebr r0,r1 */
+  {MIR_DNEG, "r r", "b313 r0 R1"}, /* lcdbr r0,r1 */
+                                   // ldneg is a builtin
 
   {MIR_LSH, "r r r", "eb:0d r0 R1 s2"}, /* sllg r0,r2,b3 */
   {MIR_LSH, "r r D", "eb:0d r0 R1 mD"}, /* sllg r0,r2,d */
@@ -1434,7 +1429,10 @@ static const struct pattern patterns[] = {
   {MIR_CALL, "X r $", "0d* h14 R1"}, /* basr h14,r0 */
   {MIR_RET, "$", "07* ma15 H14"},    /* bcr m15,14 */
 
-/* sgr h15,r0; lg h0,(h15,r0); stg h0,0(h15); lay r0,160+param_area_size(h15): */
+  {MIR_JCALL, "X r $", "07* ma15 R1"}, /* br r */
+  {MIR_JRET, "r $", "07* ma15 R0"},    /* br r */
+
+/* sgr h15,r0; lg h0,(h15,r0); stg h0,0(h15); lay r0,160+param_area_size+blkparamsize(h15): */
 #define ALLOCA_END "; b909 h15 R0; e3:04 h0 hs15 x0; e3:24 h0 hs15; e3:71 r0 Q hs15"
 
   /* la r0,7(r1);nill r0,0xfff8; ... : */
@@ -1453,7 +1451,7 @@ static const struct pattern patterns[] = {
 static void target_get_early_clobbered_hard_regs (MIR_insn_t insn, MIR_reg_t *hr1, MIR_reg_t *hr2) {
   MIR_insn_code_t code = insn->code;
 
-  *hr1 = *hr2 = MIR_NON_HARD_REG;
+  *hr1 = *hr2 = MIR_NON_VAR;
   if (code == MIR_DIV || code == MIR_DIVS || code == MIR_UDIV || code == MIR_UDIVS
       || code == MIR_MOD || code == MIR_MODS || code == MIR_UMOD || code == MIR_UMODS) {
     *hr1 = R0_HARD_REG;
@@ -1508,8 +1506,8 @@ static int nth_uint16_p (uint64_t u, int n) { return !(u & ~(((uint64_t) 0xffff)
 
 static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_insn_t insn) {
   MIR_context_t ctx = gen_ctx->ctx;
-  int nop, n;
-  size_t nops = MIR_insn_nops (ctx, insn);
+  int n;
+  size_t nop, nops = MIR_insn_nops (ctx, insn);
   const char *p;
   char ch, start_ch;
   MIR_op_mode_t mode;
@@ -1525,10 +1523,10 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
     switch (start_ch = *p) {
     case 'X': break;
     case 'r':
-      if (op.mode != MIR_OP_HARD_REG) return FALSE;
+      if (op.mode != MIR_OP_VAR) return FALSE;
       break;
     case 'h':
-      if (op.mode != MIR_OP_HARD_REG) return FALSE;
+      if (op.mode != MIR_OP_VAR) return FALSE;
       ch = *++p;
       gen_assert ('0' <= ch && ch <= '9');
       hr = ch - '0';
@@ -1538,14 +1536,14 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
       else
         --p;
       gen_assert (hr <= MAX_HARD_REG);
-      if (op.u.hard_reg != hr) return FALSE;
+      if (op.u.var != hr) return FALSE;
       break;
     case 'm':
     case 'M': {
       MIR_type_t type, type2, type3 = MIR_T_BOUND;
       int l_p = FALSE, u_p = TRUE, s_p = TRUE, index_p = TRUE;
 
-      if (op.mode != MIR_OP_HARD_REG_MEM) return FALSE;
+      if (op.mode != MIR_OP_VAR_MEM) return FALSE;
       ch = *++p;
       switch (ch) {
       case 'f':
@@ -1568,7 +1566,7 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
         u_p = ch == 'u';
         s_p = ch == 's';
         ch = *++p;
-        /* Fall through: */
+        /* fall through */
       default:
         gen_assert ('0' <= ch && ch <= '3');
         if (ch == '0') {
@@ -1592,18 +1590,16 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
 #endif
         }
       }
-      if (op.u.hard_reg_mem.type != type && op.u.hard_reg_mem.type != type2
-          && op.u.hard_reg_mem.type != type3)
+      if (op.u.var_mem.type != type && op.u.var_mem.type != type2 && op.u.var_mem.type != type3)
         return FALSE;
-      if ((!index_p && op.u.hard_reg_mem.base != MIR_NON_HARD_REG
-           && op.u.hard_reg_mem.index != MIR_NON_HARD_REG)
-          || (op.u.hard_reg_mem.index != MIR_NON_HARD_REG && op.u.hard_reg_mem.scale != 1)
-          || op.u.hard_reg_mem.base == R0_HARD_REG || op.u.hard_reg_mem.index == R0_HARD_REG
-          || !((start_ch == 'm' && uint12_p (op.u.hard_reg_mem.disp))
-               || (start_ch != 'm' && int20_p (op.u.hard_reg_mem.disp)))
+      if ((!index_p && op.u.var_mem.base != MIR_NON_VAR && op.u.var_mem.index != MIR_NON_VAR)
+          || (op.u.var_mem.index != MIR_NON_VAR && op.u.var_mem.scale != 1)
+          || op.u.var_mem.base == R0_HARD_REG || op.u.var_mem.index == R0_HARD_REG
+          || !((start_ch == 'm' && uint12_p (op.u.var_mem.disp))
+               || (start_ch != 'm' && int20_p (op.u.var_mem.disp)))
           || (l_p
-              && !((start_ch == 'm' && uint12_p (op.u.hard_reg_mem.disp + 8))
-                   || (start_ch != 'm' && int20_p (op.u.hard_reg_mem.disp + 8)))))
+              && !((start_ch == 'm' && uint12_p (op.u.var_mem.disp + 8))
+                   || (start_ch != 'm' && int20_p (op.u.var_mem.disp + 8)))))
         return FALSE;
       break;
     }
@@ -1655,16 +1651,16 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
     case '8':
     case '9':
       n = start_ch - '0';
-      gen_assert (n < nop);
+      gen_assert (n < (int) nop);
       original = insn->ops[n];
       mode = op.mode;
       if (mode == MIR_OP_UINT) mode = MIR_OP_INT;
       if (original.mode != mode && (original.mode != MIR_OP_UINT || mode != MIR_OP_INT))
         return FALSE;
-      gen_assert (mode == MIR_OP_HARD_REG || mode == MIR_OP_INT || mode == MIR_OP_FLOAT
-                  || mode == MIR_OP_DOUBLE || mode == MIR_OP_LDOUBLE || mode == MIR_OP_HARD_REG_MEM
+      gen_assert (mode == MIR_OP_VAR || mode == MIR_OP_INT || mode == MIR_OP_FLOAT
+                  || mode == MIR_OP_DOUBLE || mode == MIR_OP_LDOUBLE || mode == MIR_OP_VAR_MEM
                   || mode == MIR_OP_LABEL);
-      if (mode == MIR_OP_HARD_REG && op.u.hard_reg != original.u.hard_reg)
+      if (mode == MIR_OP_VAR && op.u.var != original.u.var)
         return FALSE;
       else if (mode == MIR_OP_INT && op.u.i != original.u.i)
         return FALSE;
@@ -1676,11 +1672,12 @@ static int pattern_match_p (gen_ctx_t gen_ctx, const struct pattern *pat, MIR_in
         return FALSE;
       else if (mode == MIR_OP_LABEL && op.u.label != original.u.label)
         return FALSE;
-      else if (mode == MIR_OP_HARD_REG_MEM && op.u.hard_reg_mem.type != original.u.hard_reg_mem.type
-               && op.u.hard_reg_mem.scale != original.u.hard_reg_mem.scale
-               && op.u.hard_reg_mem.base != original.u.hard_reg_mem.base
-               && op.u.hard_reg_mem.index != original.u.hard_reg_mem.index
-               && op.u.hard_reg_mem.disp != original.u.hard_reg_mem.disp)
+      else if (mode == MIR_OP_VAR_MEM
+               && (op.u.var_mem.type != original.u.var_mem.type
+                   || op.u.var_mem.scale != original.u.var_mem.scale
+                   || op.u.var_mem.base != original.u.var_mem.base
+                   || op.u.var_mem.index != original.u.var_mem.index
+                   || op.u.var_mem.disp != original.u.var_mem.disp))
         return FALSE;
       break;
     default: gen_assert (FALSE);
@@ -1810,7 +1807,8 @@ static void check_and_set_mask (uint64_t *binsn_mask, uint64_t mask, int start_b
   *binsn_mask |= place_field (mask, start_bit, len);
 }
 
-static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacement) {
+static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacement,
+                      void **jump_addrs) {
   MIR_context_t ctx = gen_ctx->ctx;
   size_t nops = MIR_insn_nops (ctx, insn);
   size_t offset;
@@ -1896,10 +1894,10 @@ static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacemen
       case 's':
       case 'n':
         ch2 = *++p;
-        gen_assert ('0' <= ch2 && ch2 <= '2' && ch2 - '0' < nops);
+        gen_assert ('0' <= ch2 && ch2 <= '2' && ch2 - '0' < (int) nops);
         op = insn->ops[ch2 - '0'];
-        gen_assert (op.mode == MIR_OP_HARD_REG);
-        reg = op.u.hard_reg;
+        gen_assert (op.mode == MIR_OP_VAR);
+        reg = op.u.var;
         gen_assert (ch != 'n' || reg >= F0_HARD_REG);
         if (start_ch == 'n') reg += 2;
         gen_assert (reg <= F15_HARD_REG);
@@ -1949,27 +1947,27 @@ static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacemen
           }
         } else {
           if (ch2 != 'n') p--;
-          if (insn->ops[0].mode == MIR_OP_HARD_REG_MEM) {
+          if (insn->ops[0].mode == MIR_OP_VAR_MEM) {
             op = insn->ops[0];
-          } else if (nops >= 2 && insn->ops[1].mode == MIR_OP_HARD_REG_MEM) {
+          } else if (nops >= 2 && insn->ops[1].mode == MIR_OP_VAR_MEM) {
             op = insn->ops[1];
-          } else if (nops >= 3 && insn->ops[2].mode == MIR_OP_HARD_REG_MEM) {
+          } else if (nops >= 3 && insn->ops[2].mode == MIR_OP_VAR_MEM) {
             op = insn->ops[2];
           } else {
             gen_assert (FALSE);
           }
           gen_assert (rs < 0 && rx < 0);
-          if (ch2 == 'n') op.u.hard_reg_mem.disp += 8;
-          gen_assert (op.u.hard_reg_mem.index == MIR_NON_HARD_REG || op.u.hard_reg_mem.scale == 1);
-          if (op.u.hard_reg_mem.base == MIR_NON_HARD_REG) {
-            if (op.u.hard_reg_mem.index != MIR_NON_HARD_REG) rs = op.u.hard_reg_mem.index;
+          if (ch2 == 'n') op.u.var_mem.disp += 8;
+          gen_assert (op.u.var_mem.index == MIR_NON_VAR || op.u.var_mem.scale == 1);
+          if (op.u.var_mem.base == MIR_NON_VAR) {
+            if (op.u.var_mem.index != MIR_NON_VAR) rs = op.u.var_mem.index;
           } else {
-            rs = op.u.hard_reg_mem.base;
-            if (op.u.hard_reg_mem.index != MIR_NON_HARD_REG) rx = op.u.hard_reg_mem.index;
+            rs = op.u.var_mem.base;
+            if (op.u.var_mem.index != MIR_NON_VAR) rx = op.u.var_mem.index;
           }
           gen_assert (d < 0 && dh < 0);
-          d = op.u.hard_reg_mem.disp & 0xfff;
-          dh = (op.u.hard_reg_mem.disp >> 12) & 0xff;
+          d = op.u.var_mem.disp & 0xfff;
+          dh = (op.u.var_mem.disp >> 12) & 0xff;
           if (dh == 0) dh = -1;
         }
         break;
@@ -1998,13 +1996,13 @@ static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacemen
         IMM = u & 0xffff;
         break;
       case 'I': {
-        uint64_t imm;
+        uint64_t imm_val;
 
         ch2 = *++p;
         gen_assert (ch2 == 'a');
         gen_assert (const_ref_num < 0);
-        imm = get_imm (gen_ctx, insn);
-        const_ref_num = setup_imm_addr (gen_ctx, imm);
+        imm_val = get_imm (gen_ctx, insn);
+        const_ref_num = setup_imm_addr (gen_ctx, imm_val);
         break;
       }
       case 'S':
@@ -2023,11 +2021,14 @@ static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacemen
         label_off /= 2;
         break;
       case 'L':
-        op = insn->ops[insn->code != MIR_CALL ? 0 : 1];
+        op = insn->ops[insn->code != MIR_CALL && insn->code != MIR_LADDR ? 0 : 1];
         gen_assert (op.mode == MIR_OP_LABEL);
         lr.abs_addr_p = FALSE;
         lr.label_val_disp = 0;
-        lr.label = op.u.label;
+        if (jump_addrs == NULL)
+          lr.u.label = op.u.label;
+        else
+          lr.u.jump_addr = jump_addrs[0];
         label_ref_num = VARR_LENGTH (label_ref_t, label_refs);
         VARR_PUSH (label_ref_t, label_refs, lr);
         break;
@@ -2036,7 +2037,7 @@ static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacemen
         switch_table_addr_p = TRUE;
         break;
       case 'Q': {
-        int64_t size = S390X_STACK_HEADER_SIZE + param_save_area_size;
+        int64_t size = S390X_STACK_HEADER_SIZE + param_save_area_size + blk_ld_value_save_area_size;
         gen_assert (d < 0 && dh < 0 && int20_p (size));
         d = (size) &0xfff;
         dh = ((size) >> 12) & 0xff;
@@ -2132,21 +2133,15 @@ static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacemen
       set_insn_field (&binsn, label_off, 16, 16);
       check_and_set_mask (&binsn_mask, 0xffff, 16, 16);
     }
-    if (const_ref_num >= 0)
-      VARR_ADDR (const_ref_t, const_refs)
-      [const_ref_num].insn_pc
-        = VARR_LENGTH (uint8_t, result_code);
-    if (label_ref_num >= 0)
-      VARR_ADDR (label_ref_t, label_refs)
-      [label_ref_num].label_val_disp
-        = VARR_LENGTH (uint8_t, result_code);
+    if (const_ref_num >= 0) VARR_ADDR (const_ref_t, const_refs)
+    [const_ref_num].insn_pc = VARR_LENGTH (uint8_t, result_code);
+    if (label_ref_num >= 0) VARR_ADDR (label_ref_t, label_refs)
+    [label_ref_num].label_val_disp = VARR_LENGTH (uint8_t, result_code);
 
     if (switch_table_addr_p) switch_table_addr_insn_start = VARR_LENGTH (uint8_t, result_code);
     VARR_PUSH_ARR (uint8_t, result_code, (uint8_t *) &binsn, len); /* output the machine insn */
-    if (const_ref_num >= 0)
-      VARR_ADDR (const_ref_t, const_refs)
-      [const_ref_num].next_insn_pc
-        = VARR_LENGTH (uint8_t, result_code);
+    if (const_ref_num >= 0) VARR_ADDR (const_ref_t, const_refs)
+    [const_ref_num].next_insn_pc = VARR_LENGTH (uint8_t, result_code);
 
     if (*p == 0) break;
   }
@@ -2161,21 +2156,53 @@ static void out_insn (gen_ctx_t gen_ctx, MIR_insn_t insn, const char *replacemen
     gen_assert (insn->ops[i].mode == MIR_OP_LABEL);
     lr.abs_addr_p = TRUE;
     lr.label_val_disp = VARR_LENGTH (uint8_t, result_code);
-    lr.label = insn->ops[i].u.label;
+    if (jump_addrs == NULL)
+      lr.u.label = insn->ops[i].u.label;
+    else
+      lr.u.jump_addr = jump_addrs[i - 1];
     VARR_PUSH (label_ref_t, label_refs, lr);
     /* reserve space for absolute label address: */
     VARR_PUSH_ARR (uint8_t, result_code, (uint8_t *) &zero64, sizeof (zero64));
   }
 }
 
+static int target_memory_ok_p (gen_ctx_t gen_ctx MIR_UNUSED, MIR_op_t *op_ref) {
+  if (op_ref->mode != MIR_OP_VAR_MEM) return FALSE;
+  if (((op_ref->u.var_mem.type != MIR_T_U64 && op_ref->u.var_mem.type != MIR_T_U64)
+       || op_ref->u.var_mem.base == MIR_NON_VAR || op_ref->u.var_mem.index == MIR_NON_VAR)
+      && (op_ref->u.var_mem.index == MIR_NON_VAR || op_ref->u.var_mem.scale == 1)
+      && int20_p (op_ref->u.var_mem.disp)
+      && (op_ref->u.var_mem.type != MIR_T_LD || int20_p (op_ref->u.var_mem.disp + 8)))
+    return TRUE;
+  return FALSE;
+}
+
 static int target_insn_ok_p (gen_ctx_t gen_ctx, MIR_insn_t insn) {
   return find_insn_pattern_replacement (gen_ctx, insn) != NULL;
 }
 
+static void add_consts (gen_ctx_t gen_ctx) {
+  while (VARR_LENGTH (uint8_t, result_code) % 16 != 0) /* Align the pool */
+    VARR_PUSH (uint8_t, result_code, 0);
+  for (size_t i = 0; i < VARR_LENGTH (const_ref_t, const_refs); i++) { /* Add pool constants */
+    const_ref_t cr = VARR_GET (const_ref_t, const_refs, i);
+    int64_t offset = VARR_LENGTH (uint8_t, result_code) - cr.insn_pc;
+    uint64_t zero64 = 0;
+
+    gen_assert (offset > 0 && offset % 2 == 0);
+    offset /= 2;
+    gen_assert ((offset >> 31) == 0);
+    set_int32 (VARR_ADDR (uint8_t, result_code) + cr.insn_pc + 2 /* start disp in LALR */, offset);
+    put_arr (gen_ctx, &VARR_ADDR (uint64_t, const_pool)[cr.const_num], 8);
+    put_arr (gen_ctx, &zero64, sizeof (zero64)); /* keep 16 bytes align */
+  }
+}
+
+static void target_split_insns (gen_ctx_t gen_ctx MIR_UNUSED) {}
+
 static uint8_t *target_translate (gen_ctx_t gen_ctx, size_t *len) {
   MIR_context_t ctx = gen_ctx->ctx;
   size_t i;
-  uint64_t zero64 = 0;
   MIR_insn_t insn, old_insn;
   const char *replacement;
 
@@ -2189,6 +2216,7 @@ static uint8_t *target_translate (gen_ctx_t gen_ctx, size_t *len) {
        insn = DLIST_NEXT (MIR_insn_t, insn)) {
     MIR_insn_code_t code = insn->code;
 
+    /* ???split/change */
     if ((code == MIR_RSH || code == MIR_LSH || code == MIR_URSH || code == MIR_RSHS
          || code == MIR_LSHS || code == MIR_URSHS)
         && (insn->ops[2].mode == MIR_OP_INT || insn->ops[2].mode == MIR_OP_UINT)) {
@@ -2219,7 +2247,7 @@ static uint8_t *target_translate (gen_ctx_t gen_ctx, size_t *len) {
     }
     if (insn->code == MIR_LABEL) {
       set_label_disp (gen_ctx, insn, VARR_LENGTH (uint8_t, result_code));
-    } else {
+    } else if (insn->code != MIR_USE) {
       replacement = find_insn_pattern_replacement (gen_ctx, insn);
       if (replacement == NULL) {
         fprintf (stderr, "fatal failure in matching insn:");
@@ -2227,7 +2255,7 @@ static uint8_t *target_translate (gen_ctx_t gen_ctx, size_t *len) {
         exit (1);
       } else {
         gen_assert (replacement != NULL);
-        out_insn (gen_ctx, insn, replacement);
+        out_insn (gen_ctx, insn, replacement, NULL);
       }
     }
   }
@@ -2237,10 +2265,10 @@ static uint8_t *target_translate (gen_ctx_t gen_ctx, size_t *len) {
 
     if (lr.abs_addr_p) {
       set_int64 (&VARR_ADDR (uint8_t, result_code)[lr.label_val_disp],
-                 (int64_t) get_label_disp (gen_ctx, lr.label));
+                 (int64_t) get_label_disp (gen_ctx, lr.u.label));
       VARR_PUSH (uint64_t, abs_address_locs, lr.label_val_disp);
     } else { /* 32-bit relative address */
-      int64_t offset = (int64_t) get_label_disp (gen_ctx, lr.label) - (int64_t) lr.label_val_disp;
+      int64_t offset = (int64_t) get_label_disp (gen_ctx, lr.u.label) - (int64_t) lr.label_val_disp;
       gen_assert (offset % 2 == 0);
       offset /= 2;
       gen_assert (((offset < 0 ? -offset : offset) & ~(int64_t) 0x7fffffff) == 0);
@@ -2248,19 +2276,7 @@ static uint8_t *target_translate (gen_ctx_t gen_ctx, size_t *len) {
         |= (offset & 0xffffffff);
     }
   }
-  while (VARR_LENGTH (uint8_t, result_code) % 16 != 0) /* Align the pool */
-    VARR_PUSH (uint8_t, result_code, 0);
-  for (i = 0; i < VARR_LENGTH (const_ref_t, const_refs); i++) { /* Add pool constants */
-    const_ref_t cr = VARR_GET (const_ref_t, const_refs, i);
-    int64_t offset = VARR_LENGTH (uint8_t, result_code) - cr.insn_pc;
-
-    gen_assert (offset > 0 && offset % 2 == 0);
-    offset /= 2;
-    gen_assert ((offset >> 31) == 0);
-    set_int32 (VARR_ADDR (uint8_t, result_code) + cr.insn_pc + 2 /* start disp in LALR */, offset);
-    put_arr (gen_ctx, &VARR_ADDR (uint64_t, const_pool)[cr.const_num], 8);
-    put_arr (gen_ctx, &zero64, sizeof (zero64)); /* keep 16 bytes align */
-  }
+  add_consts (gen_ctx);
   *len = VARR_LENGTH (uint8_t, result_code);
   return VARR_ADDR (uint8_t, result_code);
 }
@@ -2276,9 +2292,119 @@ static void target_rebase (gen_ctx_t gen_ctx, uint8_t *base) {
   }
   _MIR_update_code_arr (gen_ctx->ctx, base, VARR_LENGTH (MIR_code_reloc_t, relocs),
                         VARR_ADDR (MIR_code_reloc_t, relocs));
+  gen_setup_lrefs (gen_ctx, base);
+}
+
+static void target_change_to_direct_calls (MIR_context_t ctx MIR_UNUSED) {}
+
+struct target_bb_version {
+  uint8_t *base;
+  label_ref_t branch_ref; /* label cand used for jump to this bb version */
+};
+
+static void target_init_bb_version_data (target_bb_version_t data) {
+  data->base = NULL; /* we don't know origin branch */
+}
+
+static void target_bb_translate_start (gen_ctx_t gen_ctx) {
+  VARR_TRUNC (uint8_t, result_code, 0);
+  VARR_TRUNC (const_ref_t, const_refs, 0);
+  VARR_TRUNC (label_ref_t, label_refs, 0);
+  VARR_TRUNC (uint64_t, abs_address_locs, 0);
+}
+
+static void target_bb_insn_translate (gen_ctx_t gen_ctx, MIR_insn_t insn, void **jump_addrs) {
+  const char *replacement;
+  if (insn->code == MIR_LABEL) return;
+  replacement = find_insn_pattern_replacement (gen_ctx, insn);
+  gen_assert (replacement != NULL);
+  out_insn (gen_ctx, insn, replacement, jump_addrs);
+}
+
+static void target_output_jump (gen_ctx_t gen_ctx, void **jump_addrs) {
+  out_insn (gen_ctx, temp_jump, temp_jump_replacement, jump_addrs);
+}
+
+static uint8_t *target_bb_translate_finish (gen_ctx_t gen_ctx, size_t *len) {
+  add_consts (gen_ctx);
+  *len = VARR_LENGTH (uint8_t, result_code);
+  return VARR_ADDR (uint8_t, result_code);
+}
+
+static void setup_rel (gen_ctx_t gen_ctx, label_ref_t *lr, uint8_t *base, void *addr) {
+  MIR_context_t ctx = gen_ctx->ctx;
+  int64_t offset = (int64_t) addr - (int64_t) (base + lr->label_val_disp);
+  int32_t rel32 = offset;
+
+  gen_assert ((offset & 0x1) == 0);
+  offset >>= 1;
+  gen_assert (((offset < 0 ? -offset : offset) & ~(int64_t) 0x7fffffff) == 0);
+  /* check max 32-bit offset with possible branch conversion (see offset): */
+  if (lr->abs_addr_p || ((offset < 0 ? -offset : offset) & ~(int64_t) 0x7fffffff) != 0) {
+    fprintf (stderr, "too big offset (%lld) in setup_rel", (long long) offset);
+    exit (1);
+  }
+  /* ??? thread safe: */
+  uint32_t *insn_ptr = (uint32_t *) (base + lr->label_val_disp);
+  rel32 = offset & 0xffffffff;
+  _MIR_change_code (ctx, (uint8_t *) insn_ptr + 2, (uint8_t *) &rel32, 4);
+}
+
+static void target_bb_rebase (gen_ctx_t gen_ctx, uint8_t *base) {
+  MIR_context_t ctx = gen_ctx->ctx;
+  MIR_code_reloc_t reloc;
+
+  /* Setting up relative labels */
+  for (size_t i = 0; i < VARR_LENGTH (label_ref_t, label_refs); i++) {
+    label_ref_t lr = VARR_GET (label_ref_t, label_refs, i);
+    if (lr.abs_addr_p) {
+      _MIR_change_code (ctx, (uint8_t *) base + lr.label_val_disp, (uint8_t *) &lr.u.jump_addr, 8);
+    } else {
+      setup_rel (gen_ctx, &lr, base, lr.u.jump_addr);
+    }
+  }
+  VARR_TRUNC (MIR_code_reloc_t, relocs, 0);
+  for (size_t i = 0; i < VARR_LENGTH (uint64_t, abs_address_locs); i++) {
+    reloc.offset = VARR_GET (uint64_t, abs_address_locs, i);
+    reloc.value = base + get_int64 (base + reloc.offset);
+    VARR_PUSH (MIR_code_reloc_t, relocs, reloc);
+  }
+  _MIR_update_code_arr (gen_ctx->ctx, base, VARR_LENGTH (MIR_code_reloc_t, relocs),
+                        VARR_ADDR (MIR_code_reloc_t, relocs));
+}
+
+static void target_setup_succ_bb_version_data (gen_ctx_t gen_ctx, uint8_t *base) {
+  if (VARR_LENGTH (label_ref_t, label_refs)
+      != VARR_LENGTH (target_bb_version_t, target_succ_bb_versions))
+    /* We can have more one possible branch from original insn
+       (e.g. SWITCH, FBNE).  If it is so, we will make jumps only
+       through BB thunk. */
+    return;
+  for (size_t i = 0; i < VARR_LENGTH (target_bb_version_t, target_succ_bb_versions); i++) {
+    target_bb_version_t data = VARR_GET (target_bb_version_t, target_succ_bb_versions, i);
+    if (data == NULL) continue;
+    data->branch_ref = VARR_GET (label_ref_t, label_refs, i);
+    data->base = base;
+  }
+}
+
+static void target_redirect_bb_origin_branch (gen_ctx_t gen_ctx, target_bb_version_t data,
+                                              void *addr) {
+  MIR_context_t ctx = gen_ctx->ctx;
+
+  if (data->base == NULL) return;
+  if (data->branch_ref.abs_addr_p) {
+    _MIR_change_code (ctx, (uint8_t *) data->base + data->branch_ref.label_val_disp,
+                      (uint8_t *) &addr, 8);
+  } else {
+    setup_rel (gen_ctx, &data->branch_ref, data->base, addr);
+  }
+  data->base = NULL;
 }
 
 static void target_init (gen_ctx_t gen_ctx) {
+  MIR_context_t ctx = gen_ctx->ctx;
+
   gen_ctx->target_ctx = gen_malloc (gen_ctx, sizeof (struct target_ctx));
   VARR_CREATE (uint8_t, result_code, 0);
   VARR_CREATE (uint64_t, const_pool, 0);
@@ -2288,10 +2414,13 @@ static void target_init (gen_ctx_t gen_ctx) {
   VARR_CREATE (MIR_code_reloc_t, relocs, 0);
   VARR_CREATE (uint64_t, ld_addr_regs, 0);
   patterns_init (gen_ctx);
+  temp_jump = MIR_new_insn (ctx, MIR_JMP, MIR_new_label_op (ctx, NULL));
+  temp_jump_replacement = find_insn_pattern_replacement (gen_ctx, temp_jump);
 }
 
 static void target_finish (gen_ctx_t gen_ctx) {
   patterns_finish (gen_ctx);
+  _MIR_free_insn (gen_ctx->ctx, temp_jump);
   VARR_DESTROY (uint8_t, result_code);
   VARR_DESTROY (uint64_t, const_pool);
   VARR_DESTROY (const_ref_t, const_refs);

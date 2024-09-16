@@ -54,10 +54,17 @@ struct signal_smith_stretcher: public timestretch_engine_base
         stretcher.reset();
     }
 
+    void setFFTSize(int blockSamples_=4096, int intervalSamples_=512)
+    {
+	    blockSamples = blockSamples_;
+        intervalSamples = intervalSamples_;
+        configure(numChannels, 44100.0);
+    }
+
     void configure(int numChannels_, double sourceSampleRate) override
     {
         numChannels = numChannels_;
-        stretcher.configure(numChannels, 4096, 512);
+        stretcher.configure(numChannels, blockSamples, intervalSamples);
     }
 
     void setTransposeSemitones(double semiTones, double tonality = 0.0) override
@@ -82,6 +89,9 @@ struct signal_smith_stretcher: public timestretch_engine_base
 
     signalsmith::stretch::SignalsmithStretch<float> stretcher;
     int numChannels = 2;
+
+    int blockSamples = 4096;
+    int intervalSamples = 512;
 };
 
 #if HISE_ENABLE_RUBBERBAND
@@ -465,6 +475,12 @@ void time_stretcher::setTransposeSemitones(double semiTones, double tonality)
 {
     engine->setTransposeSemitones(semiTones, tonality);
 }
+
+void time_stretcher::setFFTSize(int blockSamples, int intervalSamples)
+{
+	engine->setFFTSize(blockSamples, intervalSamples);
+}
+
 
 void time_stretcher::setTransposeFactor(double pitchFactor, double tonality)
 {

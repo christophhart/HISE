@@ -395,6 +395,7 @@ struct HiseJavascriptEngine::RootObject::ScopedPrinter: public HiseJavascriptEng
 	ResultCode perform(const Scope& s, var*) const override
 	{
 		auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+		ignoreUnused(p);
 		debugToConsole(p, b1.toString());
 
 		return ResultCode::ok;
@@ -403,6 +404,7 @@ struct HiseJavascriptEngine::RootObject::ScopedPrinter: public HiseJavascriptEng
 	void cleanup(const Scope& s) const override
 	{
 		auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
+		ignoreUnused(p);
 		debugToConsole(p, b2.toString());
 	}
 
@@ -472,7 +474,12 @@ struct HiseJavascriptEngine::RootObject::BlockStatement : public Statement
 			String m;
 			m << sbs->location.getLocationString() << " - Error at scope cleanup: " << message;
 			auto p = dynamic_cast<Processor*>(s.root->hiseSpecialData.processor);
-			debugError(p, message);
+
+			ignoreUnused(p);
+			ignoreUnused(m);
+
+			debugError(p, m);
+			
 		};
 
 		for(int i = scopedBlockCounter ; i >= 0; i--)

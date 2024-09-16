@@ -296,7 +296,7 @@ private:
 		}
 	}
 
-	std::pair<IIRCoefficients, int> currentCoefficients;
+	FilterDataObject::CoefficientData currentCoefficients;
 
 };
 
@@ -1190,7 +1190,7 @@ void FilterDragOverlay::setEqAttribute(int bp, int filterIndex, float value)
 		um->perform(new MacroControlledObject::UndoableControlEvent(eq, idx, oldValue, value));
 	}
 	else
-		eq->setAttribute(idx, value, sendNotification);
+		eq->setAttribute(idx, value, sendNotificationAsync);
 }
 
 FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :

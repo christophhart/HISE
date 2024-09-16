@@ -658,6 +658,13 @@ Array<juce::var> ScriptBroadcaster::ComponentPropertyListener::createChildArray(
 	return list;
 }
 
+ScriptBroadcaster::InterfaceSizeListener::InterfaceSizeListener(ScriptBroadcaster* b, const var& metadata):
+    ListenerBase(metadata),
+	parent(b)
+{
+	b->getScriptProcessor()->getScriptingContent()->interfaceSizeBroadcaster.addListener(*this, InterfaceSizeListener::onUpdate);
+}
+
 ScriptBroadcaster::ComponentPropertyListener::ComponentPropertyListener(ScriptBroadcaster* b, var componentIds, const Array<Identifier>& propertyIds_, const var& metadata):
 	ListenerBase(metadata),
 	propertyIds(propertyIds_)
@@ -904,6 +911,19 @@ Result ScriptBroadcaster::DelayedItem::callSync(const Array<var>& args)
 
 	delayedFunction = new DelayedFunction(parent, f, parent->lastValues, ms, obj);
 	delayedFunction->trackIndex = pendingTrack;
+	return Result::ok();
+}
+
+Result ScriptBroadcaster::ModuleParameterSyncer::callSync(const Array<var>& args)
+{
+	auto v = (float)args.getLast();
+	FloatSanitizers::sanitizeFloatNumber(v);
+
+	if(target.get() != nullptr)
+	{
+		target->setAttribute(parameterIndex, v, sendNotificationAsync);
+	}
+
 	return Result::ok();
 }
 
@@ -1467,6 +1487,272 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 	return Result::ok();
 }
 
+Array<ScriptBroadcaster::SamplemapListener::Event> ScriptBroadcaster::SamplemapListener::getEventTypes(
+	const var& eventTypes)
+{
+	Array<Event> typeList;
+
+	if(eventTypes.isArray())
+	{
+		for(auto& e: *eventTypes.getArray())
+		{
+			if(auto ev = Event(e))
+				typeList.add(ev);
+			else
+				return {};
+		}
+	}
+	else
+	{
+		if(auto ev = Event(eventTypes))
+			typeList.add(ev);
+	}
+
+	return typeList;
+}
+
+struct ScriptBroadcaster::SamplemapListener::SamplemapListenerItem: public SampleMap::Listener,
+																    public ReferenceCountedObject
+{
+	SamplemapListenerItem(ScriptBroadcaster* b, SampleMap* m, const Array<Event>& eventTypes):
+	  sb(b),
+	  sampleMap(m),
+	  samplerId(m->getSampler()->getId())
+	{
+		for(auto& r: registeredEvents)
+			r = false;
+
+		auto allIds = SampleIds::Helpers::getAllIds();
+
+		for(auto& e: eventTypes)
+		{
+			registeredEvents[(int)e.type] = true;
+
+			if(e.type == EventTypes::SampleChanged)
+			{
+				auto pidx = allIds.indexOf(e.id);
+
+				if(pidx != -1)
+				{
+					propertyIds.add(e.id);
+					propertyIndexes.add(var(pidx));
+				}
+			}
+		}
+			
+		typeNames[(int)EventTypes::SampleMapChanged] = var("SampleMapChanged");
+		typeNames[(int)EventTypes::SampleChanged] = var("SampleChanged");
+		typeNames[(int)EventTypes::SamplesAddedOrRemoved] = var("SamplesAddedOrRemoved");
+
+		sampleMap->addListener(this);
+	}
+
+	~SamplemapListenerItem() override
+	{
+		if(sampleMap.get() != nullptr)
+			sampleMap->removeListener(this);
+	}
+
+	bool shouldCall(EventTypes t, const Identifier& id={}) const noexcept
+	{
+		return registeredEvents[(int)t] && (id.isNull() || propertyIds.contains(id));
+	}
+
+	void sampleMapWasChanged(PoolReference newSampleMap) override
+	{
+		callOnEvent(EventTypes::SampleMapChanged, newSampleMap.getReferenceString());
+	}
+
+	void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) override
+	{
+		if(shouldCall(EventTypes::SampleChanged, id))
+		{
+			auto soundRef = new ScriptingObjects::ScriptingSamplerSound(sb->getScriptProcessor(), sampleMap->getSampler(), s);
+
+			auto idx = propertyIds.indexOf(id);
+
+			jassert(isPositiveAndBelow(idx, propertyIndexes.size()));
+
+			auto pidx = propertyIndexes[idx];
+			
+			DynamicObject::Ptr obj = new DynamicObject();
+			obj->setProperty("sound", var(soundRef));
+			obj->setProperty("id", pidx);
+			obj->setProperty("value", newValue);
+
+			callOnEvent(EventTypes::SampleChanged, var(obj.get()));
+		}
+	};
+
+	void sampleAmountChanged() override
+	{
+		callOnEvent(EventTypes::SamplesAddedOrRemoved, sampleMap->getSampler()->getNumSounds());
+	}
+
+	void sampleMapCleared() override
+	{
+		callOnEvent(EventTypes::SampleMapChanged, "");
+	};
+	
+	void callOnEvent(EventTypes t, const var& obj)
+	{
+		if(sb != nullptr && shouldCall(t))
+		{
+			Array<var> args;
+			args.add(typeNames[(int)t]);
+			args.add(samplerId);
+			args.add(obj);
+
+			sb->sendAsyncMessage(var(args));
+		}
+	}
+	
+	var typeNames[(int)EventTypes::numEventTypes];
+	var samplerId;
+	WeakReference<SampleMap> sampleMap;
+
+	std::array<bool, (int)EventTypes::numEventTypes> registeredEvents;
+	WeakReference<ScriptBroadcaster> sb;
+
+	Array<Identifier> propertyIds;
+	Array<var> propertyIndexes;
+};
+
+ScriptBroadcaster::SamplemapListener::SamplemapListener(ScriptBroadcaster* b, const Array<WeakReference<ModulatorSampler>>& samplers,
+	const Array<Event>& eventTypes, const var& metadata):
+	ListenerBase(metadata)
+{
+	for(auto& s: samplers)
+	{
+		if(s.get() != nullptr)
+		{
+			items.add(new SamplemapListenerItem(b, s->getSampleMap(), eventTypes));
+		}
+	}
+}
+
+Array<var> ScriptBroadcaster::SamplemapListener::createChildArray() const
+{
+	Array<var> list;
+
+	for (auto i : items)
+	{
+		DynamicObject* d = new DynamicObject();
+		d->setProperty("processorId", i->samplerId);
+
+		Array<var> types;
+
+		int index = 0;
+
+		for(auto& r: i->registeredEvents)
+		{
+			if(r)
+				types.add(i->typeNames[index]);
+
+			index++;
+		}
+
+		if(types.size() == 1)
+			d->setProperty("events", types.getFirst());
+		else
+			d->setProperty("events", var(types));
+		
+		list.add(var(d));
+	}
+
+	return list;
+}
+
+Result ScriptBroadcaster::SamplemapListener::callItem(TargetBase* n)
+{
+	Array<var> args;
+	args.add("");
+	args.add("");
+	args.add("");
+	
+	for (auto p : items)
+	{
+		if(p->shouldCall(EventTypes::SampleMapChanged))
+		{
+			args.set(0, p->typeNames[(int)EventTypes::SampleMapChanged]);
+			args.set(1, p->samplerId);
+			args.set(2, p->sampleMap->getReference().getReferenceString());
+
+			auto r = n->callSync(args);
+
+			if (!r.wasOk())
+				return r;
+		}
+		
+		if(p->shouldCall(EventTypes::SamplesAddedOrRemoved))
+		{
+			args.set(0, p->typeNames[(int)EventTypes::SamplesAddedOrRemoved]);
+			args.set(1, p->samplerId);
+			args.set(2, p->sampleMap->getSampler()->getNumSounds());
+
+			auto r = n->callSync(args);
+
+			if (!r.wasOk())
+				return r;
+		}
+	}
+
+	return Result::ok();
+}
+
+int ScriptBroadcaster::SamplemapListener::getNumInitialCalls() const
+{
+	int numCalls = 0;
+
+	for(auto i: items)
+	{
+		if(i->shouldCall(EventTypes::SamplesAddedOrRemoved))
+			numCalls++;
+
+		if(i->shouldCall(EventTypes::SampleMapChanged))
+			numCalls++;
+	}
+
+	return numCalls;
+}
+
+Array<var> ScriptBroadcaster::SamplemapListener::getInitialArgs(int callIndex) const
+{
+	Array<var> args;
+
+	auto itemIndex = callIndex / 2;
+	auto isMapChange = callIndex % 2;
+
+	if (isPositiveAndBelow(itemIndex, items.size()))
+	{
+		if(isMapChange)
+			args.add(items[itemIndex]->typeNames[(int)EventTypes::SampleMapChanged]);
+		else
+			args.add(items[itemIndex]->typeNames[(int)EventTypes::SamplesAddedOrRemoved]);
+
+		args.add(items[itemIndex]->samplerId);
+
+		if(isMapChange)
+			args.add(items[itemIndex]->sampleMap->getReference().getReferenceString());
+		else
+			args.add(items[itemIndex]->sampleMap->getSampler()->getNumSounds());
+	}
+		
+
+	return args;
+}
+
+Identifier ScriptBroadcaster::SamplemapListener::getItemId() const
+{
+	RETURN_STATIC_IDENTIFIER("SampleMap");
+}
+
+void ScriptBroadcaster::SamplemapListener::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{
+	ListenerBase::registerSpecialBodyItems(factory);
+}
+
+
 struct ScriptBroadcaster::RoutingMatrixListener::MatrixListener : public SafeChangeListener
 {
 	MatrixListener(ScriptBroadcaster* b, Processor* p):
@@ -1577,6 +1863,8 @@ juce::Result ScriptBroadcaster::RoutingMatrixListener::callItem(TargetBase* n)
 
 	return Result::ok();
 }
+
+
 
 int ScriptBroadcaster::RoutingMatrixListener::getNumInitialCalls() const
 {
@@ -2856,6 +3144,7 @@ struct ScriptBroadcaster::Wrapper
 	API_METHOD_WRAPPER_4(ScriptBroadcaster, addComponentPropertyListener);
 	API_METHOD_WRAPPER_3(ScriptBroadcaster, addComponentValueListener);
 	API_METHOD_WRAPPER_3(ScriptBroadcaster, addComponentRefreshListener);
+	API_METHOD_WRAPPER_3(ScriptBroadcaster, addModuleParameterSyncer);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeListener);
 	API_METHOD_WRAPPER_1(ScriptBroadcaster, removeSource);
 	API_VOID_METHOD_WRAPPER_0(ScriptBroadcaster, removeAllListeners);
@@ -2877,6 +3166,8 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToEqEvents);
 	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToOtherBroadcaster);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToProcessingSpecs);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToInterfaceSize);
+	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToSampleMap);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setReplaceThisReference);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setEnableQueue);
@@ -2900,6 +3191,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_4(addComponentPropertyListener);
 	ADD_API_METHOD_3(addComponentValueListener);
 	ADD_API_METHOD_3(addComponentRefreshListener);
+	ADD_API_METHOD_3(addModuleParameterSyncer);
 	ADD_API_METHOD_1(removeListener);
 	ADD_API_METHOD_1(removeSource);
 	ADD_API_METHOD_0(removeAllListeners);
@@ -2914,6 +3206,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_2(attachToComponentValue);
 	ADD_API_METHOD_2(attachToComponentVisibility);
 	ADD_API_METHOD_2(attachToRoutingMatrix);
+	ADD_API_METHOD_1(attachToInterfaceSize);
 	ADD_API_METHOD_3(attachToModuleParameter);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
@@ -2921,6 +3214,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_5(attachToContextMenu);
 	ADD_API_METHOD_4(attachToOtherBroadcaster);
 	ADD_API_METHOD_1(attachToProcessingSpecs);
+	ADD_API_METHOD_3(attachToSampleMap);
 	ADD_API_METHOD_3(callWithDelay);
 	ADD_API_METHOD_1(setReplaceThisReference);
 	ADD_API_METHOD_1(setEnableQueue);
@@ -3207,6 +3501,47 @@ bool ScriptBroadcaster::addComponentRefreshListener(var componentIds, String ref
 	return true;
 }
 
+bool ScriptBroadcaster::addModuleParameterSyncer(String moduleId, var parameterIndex, var metadata)
+{
+	auto p = ProcessorHelpers::getFirstProcessorWithName(getScriptProcessor()->getMainController_()->getMainSynthChain(), moduleId);
+
+	if(p == nullptr)
+	{
+		reportScriptError("Can't find module with ID " + moduleId);
+		RETURN_IF_NO_THROW(false);
+	}
+
+	int pIndex = 0;
+
+	if(parameterIndex.isString())
+	{
+		pIndex = p->getParameterIndexForIdentifier(Identifier(parameterIndex.toString()));
+	}
+	else
+		pIndex = (int)parameterIndex;
+
+	if(isPositiveAndBelow(pIndex, p->getNumParameters()))
+	{
+		auto newObject = new ModuleParameterSyncer(this, {}, metadata, p, pIndex);
+
+		ScopedPointer<TargetBase> ni = newObject;
+		
+		initItem(ni);
+		
+		ItemBase::PrioritySorter sorter;
+		items.addSorted(sorter, ni.release());
+
+		setForceSynchronousExecution(true);
+	}
+	else
+	{
+		reportScriptError("Can't find parameter " + parameterIndex.toString());
+		RETURN_IF_NO_THROW(false);
+	}
+
+	return true;
+}
+
 bool ScriptBroadcaster::removeListener(var objectToRemove)
 {
 	for (auto i : items)
@@ -3404,7 +3739,8 @@ void ScriptBroadcaster::DelayedFunction::timerCallback()
 	if (bc != nullptr && !bc->bypassed)
 	{
         auto mc = bc->getScriptProcessor()->getMainController_();
-        
+
+		ignoreUnused(mc);
         jassert(!mc->getRootDispatcher().isHighPriorityFlushPending());
         
 		ScopedLock sl(bc->delayFunctionLock);
@@ -3516,6 +3852,21 @@ void ScriptBroadcaster::attachToComponentValue(var componentIds, var optionalMet
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
+void ScriptBroadcaster::attachToInterfaceSize(var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	attachedListeners.add(new InterfaceSizeListener(this, optionalMetadata));
+
+	if (defaultValues.size() != 2)
+	{
+		String e = "If you want to attach a broadcaster to visibility events, it needs two parameters (width and height)";
+		errorBroadcaster.sendMessage(sendNotificationAsync, attachedListeners.getLast(), e);
+		reportScriptError(e);
+	}
+
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
+}
 
 
 void ScriptBroadcaster::attachToComponentVisibility(var componentIds, var optionalMetadata)
@@ -3801,6 +4152,52 @@ void ScriptBroadcaster::attachToProcessingSpecs(var optionalMetadata)
 	attachedListeners.add(new ProcessingSpecSource(this, optionalMetadata));
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 	enableQueue = false;
+}
+
+void ScriptBroadcaster::attachToSampleMap(var samplerIds, var eventTypes, var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	if (defaultValues.size() != 3)
+	{
+		reportScriptError("If you want to attach a broadcaster to a samplemap, it needs three parameters (samplerId, eventType, data)");
+	}
+
+	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+
+	Array<WeakReference<ModulatorSampler>> processors;
+
+	if (samplerIds.isArray())
+	{
+		for (const auto& pId : *samplerIds.getArray())
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
+
+			if (auto ms = dynamic_cast<ModulatorSampler*>(p))
+				processors.add(ms);
+			else
+				reportScriptError("the modules must be samplers");
+		}
+	}
+	else
+	{
+		auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, samplerIds.toString());
+
+		if (auto ms = dynamic_cast<ModulatorSampler*>(p))
+			processors.add(ms);
+		else
+			reportScriptError("the modules must have a routing matrix");
+	}
+
+	auto et = SamplemapListener::getEventTypes(eventTypes);
+
+	if(et.isEmpty())
+		reportScriptError("unknown eventTypes: " + JSON::toString(eventTypes, true));
+
+	attachedListeners.add(new SamplemapListener(this, processors, et, optionalMetadata));
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
+
+	enableQueue = (processors.size() > 1) || (et.size() > 1) || (et[0].type == SamplemapListener::EventTypes::SampleChanged);
 }
 
 void ScriptBroadcaster::attachToComplexData(String dataTypeAndEvent, var moduleIds, var indexList, var optionalMetadata)

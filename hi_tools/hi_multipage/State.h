@@ -233,17 +233,45 @@ struct Asset: public ReferenceCountedObject
 };
 
 class State: public Thread,
-			 public ApiProviderBase::Holder
+			 public ApiProviderBase::Holder,
+			 public ReferenceCountedObject,
+			 public hlac::HlacArchiver::Listener
 {
 public:
 
+    using Ptr = ReferenceCountedObjectPtr<State>;
+    using WeakPtr = WeakReference<State>;
+    
     State(const var& obj, const File& currentRootDirectory=File());;
     ~State();
 
     void onFinish();
     void run() override;
 
+    void clearCompletedJobs()
+    {
+        stopThread(1000);
+	    jobs.clear();
+        completedJobs.clear();
+    }
+
     struct StateProvider;
+
+    void logStatusMessage(const String& message) override
+    {
+	    logMessage(MessageType::Hlac, message);
+    }
+
+    void logVerboseMessage(const String& verboseMessage) override
+    {
+	    logMessage(MessageType::Hlac, verboseMessage);
+    }
+
+	void criticalErrorOccured(const String& message) override
+	{
+        logMessage(MessageType::Hlac, message);
+        jassertfalse;
+	}
 
 	ScopedPointer<ApiProviderBase> stateProvider;
 
@@ -253,6 +281,8 @@ public:
 	ApiProviderBase* getProviderBase() override;
 
     Font loadFont(String fontName) const;
+
+    void onDestroy();
 
     void addEventListener(const String& eventType, const var& functionObject);
     void removeEventListener(const String& eventType, const var& functionObject);
@@ -303,18 +333,35 @@ public:
         void updateProgressBar(ProgressBar* b) const;
         Thread& getThread() const { return parent; }
 
+        var getInfoObject() const { return localObj; }
+
+        void setInfoObject(const var& newInfoObject)
+        {
+            localObj = newInfoObject;
+        }
+
+        void setEnableProgressAndMessage(bool shouldEnable)
+        {
+            enableProgress = shouldEnable;
+        }
+
     protected:
-        
+
+        bool enableProgress = true;
+
         String message;
 
         virtual Result run() = 0;
         
         State& parent;
         double progress = 0.0;
+        double unusedProgess = 0.0;
         var localObj;
     };
 
     using HardcodedLambda = std::function<var(Job&, const var&)>;
+
+    bool isFinished(Job::Ptr j) const { return completedJobs.contains(j); }
 
     Job::Ptr currentJob = nullptr;
     Job::Ptr getJob(const var& obj);
@@ -324,11 +371,21 @@ public:
     bool navigateOnFinish = false;
 
     double totalProgress = 0.0;
-    Job::List jobs;
+    
     Result currentError;
-    WeakReference<Dialog> currentDialog;
+    Array<WeakReference<Dialog>> currentDialogs;
+
+    WeakReference<Dialog> getFirstDialog() { return currentDialogs.getFirst(); }
+
     var globalState;
     int currentPageIndex = 0;
+
+    void logMessage(MessageType t, const String& m)
+    {
+	    auto isMessageThread = MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread();
+        auto n = isMessageThread ? sendNotificationSync : sendNotificationAsync;
+	    eventLogger.sendMessage(n, t, m);
+    }
 
     LambdaBroadcaster<MessageType, String> eventLogger;
 
@@ -349,20 +406,7 @@ public:
 
     Asset::List assets;
 
-    String getFileLog() const
-    {
-	    String log;
-        String nl = "\n";
-
-        for(auto& f: fileOperations)
-        {
-	        log << (f.second ? '+' : '-');
-            log << f.first.getFullPathName();
-            log << nl;
-        }
-
-        return log;
-    }
+    String getFileLog() const;
 
     void addFileToLog(const std::pair<File, bool>& fileOp);
 
@@ -370,11 +414,38 @@ public:
 
     bool callNativeFunction(const String& functionName, const var::NativeFunctionArgs& args, var* returnValue);
 
+    bool hasNativeFunction(const String& functionName) const
+    {
+	    return jsLambdas.find(functionName) != jsLambdas.end();
+    }
+
     String currentEventGroup;
     
     std::map<String, Array<std::pair<String, var>>> eventListeners;
-    
+
+    Asset::Ptr getAsset(const var& infoObjectToUse, const Identifier& id)
+    {
+	    auto assetId = infoObjectToUse[id].toString().trim();
+
+		if(assetId.startsWith("${"))
+		{
+			assetId = assetId.substring(2, assetId.length() - 1);
+
+			for(auto a: assets)
+			{
+				if(a->id == assetId)
+					return a;
+			}
+		}
+
+		return nullptr;
+    }
+
+
 private:
+
+    Job::List jobs;
+    Job::List completedJobs;
 
     std::unique_ptr<JavascriptEngine> javascriptEngine;
 
@@ -383,6 +454,7 @@ private:
 
     OwnedArray<TemporaryFile> tempFiles;
     JUCE_DECLARE_WEAK_REFERENCEABLE(State);
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(State);
 };
 
 
@@ -454,9 +526,50 @@ struct UndoableVarAction: public UndoableAction
 
 class Dialog;    
 
+struct MonolithData
+{
+    enum Markers
+    {
+	    MonolithBeginJSON = 9124,
+        MonolithEndJSON,
+        MonolithBeginAssets,
+        MonolithAssetJSONStart,
+        MonolithAssetJSONEnd,
+        MonolithAssetNoCompressFlag,
+        MonolithAssetStart,
+        MonolithAssetEnd,
+        MonolithEndAssets,
+        MonolithBeginVersion,
+        MonolithEndVersion
+    };
 
+    static String getMarkerName(Markers m);
 
-struct HardcodedDialogWithState: public Component
+    MonolithData(InputStream* input);
+    
+    multipage::Dialog* create(State& state, bool allowVersionMismatch);
+    
+    static Result exportMonolith(State& state, OutputStream* output, bool compressAssets=true, State::Job* j=nullptr);
+    var getJSON() const;
+
+private:
+
+    int64 expectFlag(Markers m, bool throwIfMismatch=true);
+    var readJSON(int64 numToRead);
+
+    InputStream* input;
+};
+
+struct HardcodedDialogWithStateBase
+{
+	virtual ~HardcodedDialogWithStateBase() {};
+
+    /** Override this method and return an item list for the autocomplete popup for the given id*/
+    virtual StringArray getAutocompleteItems(const Identifier& textEditorId) { return {}; };
+};
+
+struct HardcodedDialogWithState: public Component,
+								 public HardcodedDialogWithStateBase
 {
     HardcodedDialogWithState():
 	  state(var())
@@ -472,9 +585,6 @@ struct HardcodedDialogWithState: public Component
 		return state.globalState[id];
 	}
 
-    /** Override this method and return an item list for the autocomplete popup for the given id*/
-    virtual StringArray getAutocompleteItems(const Identifier& textEditorId) { return {}; };
-    
     void setOnCloseFunction(const std::function<void()>& f);
 
     /** Override this method and initialise all default values for the global state. */

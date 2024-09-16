@@ -165,7 +165,7 @@ private:
 
 	int numChannels = 0;
 	bool ok = false;
-	FunctionData callbacks[Types::ScriptnodeCallbacks::numFunctions];
+	FunctionData callbacks[Types::ScriptnodeCallbacks::OptionalOffset];
 
 	FunctionData setExternalDataFunction;
 

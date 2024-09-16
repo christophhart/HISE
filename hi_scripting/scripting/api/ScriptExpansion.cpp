@@ -611,8 +611,11 @@ void ScriptUserPresetHandler::updateSaveInPresetComponents(var obj)
 
 	for (auto c : v)
 	{
-		auto type = content->getComponentWithName(Identifier(c["id"]))->getScriptObjectProperty("type");
-		c.setProperty("type", type, nullptr);
+		if(auto sc =  content->getComponentWithName(Identifier(c["id"])))
+		{
+			auto type = sc->getScriptObjectProperty("type");
+			c.setProperty("type", type, nullptr);
+		}
 	}
 
 	content->restoreAllControlsFromPreset(v);
@@ -3181,6 +3184,7 @@ struct ScriptUnlocker::RefObject::Wrapper
 	API_METHOD_WRAPPER_1(RefObject, isValidKeyFile);
     API_METHOD_WRAPPER_0(RefObject, keyFileExists);
 	API_METHOD_WRAPPER_0(RefObject, getLicenseKeyFile);
+	API_METHOD_WRAPPER_1(RefObject, contains);
 };
 
 ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
@@ -3208,6 +3212,7 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(checkExpirationData);
     ADD_API_METHOD_0(keyFileExists);
 	ADD_API_METHOD_0(getLicenseKeyFile);
+	ADD_API_METHOD_1(contains);
 }
 
 ScriptUnlocker::RefObject::~RefObject()
