@@ -393,6 +393,7 @@ var AboutWindow::initValues(const var::NativeFunctionArgs& args)
     set(HISE_MAX_DELAY_TIME_SAMPLES);
     set(HISE_USE_SVF_FOR_CURVE_EQ);
     set(USE_MOD2_WAVETABLESIZE);
+	set(HISE_USE_WRONG_VOICE_RENDERING_ORDER);
     
     return var();
     
