@@ -152,11 +152,11 @@ public:
         var rv(true);
         var x = status[unlockedProp] && s.contains(otherString);
 
-        status.setProperty(unlockedProp, x, nullptr);
-
-	    if(status[unlockedProp] && !x)
+        if(status[unlockedProp] && !x)
             std::swap(x, rv);
 
+        status.setProperty(unlockedProp, x, nullptr);
+        
         return rv;
     }
 
