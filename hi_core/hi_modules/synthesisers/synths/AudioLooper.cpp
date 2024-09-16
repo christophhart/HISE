@@ -267,7 +267,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
-	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+	
 
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
@@ -288,6 +288,8 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 		looper->getBuffer().sendDisplayIndexMessage((float)samplePos);
 	}
+
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 
 	if (resetAfterBlock)
 		resetVoice();

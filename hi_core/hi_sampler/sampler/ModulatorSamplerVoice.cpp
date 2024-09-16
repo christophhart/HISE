@@ -211,7 +211,7 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		resetVoice();
 	}
 
-	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
+	
 
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
@@ -254,6 +254,8 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		else
 			jassertfalse;
 	}
+
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
 
 	if (sampler->isLastStartedVoice(this))
 	{

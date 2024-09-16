@@ -259,8 +259,6 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 		calculateNoFMBlock(startSample, numSamples);
 	}
 
-	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
-
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), modValues + startSample, numSamples);
@@ -273,6 +271,8 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), constantGain, numSamples);
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), constantGain, numSamples);
 	}
+
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
 };
 
 

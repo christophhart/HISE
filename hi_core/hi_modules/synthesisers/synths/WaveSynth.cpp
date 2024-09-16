@@ -559,7 +559,7 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 #endif
 
-	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+	
 
 	applyGainModulation(startIndex, samplesToCopy, false);
 
@@ -613,6 +613,8 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::addWithMultiply(leftSamples, tBuffer.getReadPointer(1, startIndex), balance2Left, samplesToCopy);
 		FloatVectorOperations::addWithMultiply(rightSamples, tBuffer.getReadPointer(1, startIndex), balance2Right, samplesToCopy);
 	}
+
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
 }
 
 
