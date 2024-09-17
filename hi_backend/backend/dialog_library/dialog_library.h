@@ -111,6 +111,8 @@ struct WelcomeScreen: public multipage::EncodedDialogBase
 	var createProject(const var::NativeFunctionArgs& args);
 	var loadPresetFile(const var::NativeFunctionArgs& args);
 	var startupSetter(const var::NativeFunctionArgs& args);
+
+	Array<File> fileList;
 };
 
 struct AboutWindow: public multipage::EncodedDialogBase

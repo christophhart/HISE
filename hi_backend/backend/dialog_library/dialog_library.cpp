@@ -414,7 +414,7 @@ WelcomeScreen::WelcomeScreen(BackendRootWindow* bpe_):
 {
 	setWantsBackdrop(true);
 
-	loadFrom("3213.sNB..D...............35H...oi...gw.........J09R+fI4F8JF.JFJHerBrJPN9H3ph2mjqppSC2ouTsfWI2bUS4U0OrTPGF2QMb28zBr+C5+B4+vz.pGv4And.9NTzzniENPcPbhzIBmDrwLutKhPqN4UiiC53EQINB4cCu4xb0Ac8U5oSA83TV6OADtHn1zj2PNuXV0.Y0Vcxh2DzpDCRBsSffnR0boCigTVDtLaln1JmBVtWQV7YuPDKEGuW1JS1qCxElUCHX.RGznEGVtDjPwnPxgfWlN1pwYk5rXSPP2zNEO6kQHDFzOcKkgUG+VfVcPo2nqNd+VD8gtllJ.AOGneL+5Vdtja.P7b.WK5wYL.je18hX9vWJfBfm+7ruGlubvAIfZTTmGG2DYwoz.QtFDDW988w6++4ECxaQweXd+b.WTuwFP.QQROGL9A0nG.HH3.7bfuu6eFT1+P7DvQvAj4c9yAo3cooF7i.NBZ.NB14K3sAT.FO19y4Qu+YOECofuxRrM9Rey3I0i45HnHHIdWa5ySR43xL8ZpVF71+KSJhyjk2e8+xoWAJ7xZ7z+O4L8ucNAyr96ykc+sfD77D.YyMNbi0e4RuroDICVFtNXsAw4wLWCIxP0UUjOChyMx6K3JqKJqoKDUWFnt9bxeqCWVTWX35cEhJpCHRjA6eSFppnpjPXfxe128p3kHHDR4NZuDHT6ydFXxwdH.3tmv.Jvi2mhYDd5eLjBdNnfOuunfmmmm.nAdNn.7Gay6zuWAOOAPCDnMJcvd2YDJLozwwo1viKGzqTEmI607xBZhCgatjsEfxS1jv6p5TcDsvJn3UZLBhbiJiWCMP63uSlERTwjt6rwk3BkB41XFFrsqqluTZrlX6TDBg0OYroyF4ZPBsVhhgrqxGqDYyaEIZ29zZbqNfIdgxb7dHAz0dofNf3wlh8VnqTrFYIRx835hZ2hzvswsogsOrvttVb6r89mfnkv.klEYUzH2aWhNP7RbX.0g6BDDl0ADCuKhMdwM16H1ltDq0dyVmNrDoCyZgjHbUpLhGxULCnVFdWUrkiSKAyp.BM8ZcRUqnGlbUA2Y0M+Jg9FXPja+MT5r1ITL2pzzIi2JekJ1KBFpX5uUXTK6kwANJp76CeGD3lkBJD2jTE6rXWVhX61kBDyZMkv2IqGGrWuGOvT0dFf5v1fTYzfUiNLNq6EMiaGjD0jHZbLPvr0IspqDjVk8108TLdizXrXuQpLz7WCLPSXuebSZ0K0ESfF5n88eLKiMUjPgTy7aKZYT3AJ1YCQaivKNtcrWxBiQ0KDDTWhPrNWLmFcIzLgP5vgCeeujihxye1a.J.AUlngViljnBqQYiMZMMTwUe4rcffchjQm+ZEwKSdQnyhdEsS6pCy125vsfxTmsRoE13OVwV2gjWK+cylXMUuIvc5FdNJpX7NYgik+F0wJ4xe0q0gUWBKmSQzrP1flFZ67NbmnjVfTQsKISZRV8ynCYGlMxUGtrJUQ6BJZywJx6lapQMks2MOLTweQbBxs2qItXEoER+8f8pydkR2npYF8t5pQXbraUqEcVN6iMJjZaaIlEh0g8UJiyB6kCkuql.G9sqxXiTB0x5FKRVQ+bYol6kMQ69DKjnuUI17ltbrI6AlpGErPYcXsrcmNQng71udUp5Jd6rpdRShDbME6piML1sPM43s5ho36bYucjzQU0fflIc0NILl1UJjP3UQ9aBQKfVoh0QXmIk0tJXvzDWn2D4nrKABTfjb0HkcaiCUOtVKNbofBLjiVa572pCIp1qkKQvpZ7MH2LcXVgB4lFMNQxERX1ENzn3V0.SH4kRoWBFILVG8t.sxaPAoKwiTLIOrB9qkd6KMSy1k2fRhSHKWqqeGxqjpBHpga4zpCHzYyhxnwLyd6vUcsrbDkPra7ZYXyI6r6KwZJjGVc1HeHMekrcHUGEHHrcChyfDaVkHNXffBRJbLT1D774MZbLAxaCIII0DBQ3HqVABCqEQQU4ON6qiFv9tDUJzIx1iuO5khSwhwKkgBc68ayvGVmCecZLwg1lwtNaVlBcYJpkUM7L4KR6H4lGZmEBNzjIg.PBB.FPJO9H8fPxm+derxS7CZ2KZ.m7ND5mSev+Bfm2fG4avYvvLvr44S59K662rFPPzn7D9fUnko+MOSvOal82cdqWj+z8wc9BFh2e98jo6Cgj.eem815+G+bwuT6+Lc.cfC.5wczIbfC77wWvaMdC9o+D4ex6lbs34tLu0klk4u42TuevOihcFbMd7a26+LzeqOunwedNy4WGDsOZtwmYDJwhLvANf4SBXvyANvCHGmIyIOmQjqMOe34x9iYJFci+p7j.B.ZmiIKF1e3c81m2nA+m8GLe4w5EyLlS9IetwS9Zd19+3y2mTvtYIdDgmLHtue78mzeYl7CG+L90nOdk6biD7cvA1srDM.30lU9fl4O3mD7Lm6ds.v72i+lO+LCN4HbzNHFOV6apgTlFYA3YO3VOVihNzHJJAw9FqsJP4YYu7wTO9e99bL5yYO8oa0x30g77o+66knY8jqqqIuAYy9td.9Lnuy24ON9a+0llYuX2WZvF+6eLLT5ncYiisaY6LbXZtTQT3f7lJwRU4ZbT0UajtWjUKKvIb5xgYyjRqbOHBYMdqNsRPhWTMyAQDRUjNQzZ8fLofsRzpHJBhqjkGeRc0JbeitDedoL5FuKgzV2tgYpEsOJivIHnCnJuZLPXNGBwLzHyL.X..xBF.EINPPPzrGHYbdjZNhgYT.C.B...SRB.Yg.B..rIA.Aa7N1Uh4XnS5l26Ms3RNd.f9Ttn9MMXWEiWfYmWeT3nwvdPj7CBAhCAc.YnIGuK.iYJsmjkPmC3sNWnGz5C3kkF3ie3kDHJjryC5HH01QdXfdRUDI6xbufFRjOQ3wR1xvTE6cZIB4Q1QVFoNL1w36fY1FyzvYS951S.VR6lxJohRUV9xx.Nricip7pCVDNwHuWzsaTrpDxGfi0ljvNsAS3zfTQe0CcCWcDJyJa+I6mAkqv8ovg6FDYE8QoJAR2tfLLeRvfHQvT9e9wD5wss2AckSf3V9JgiLt1OlPi6fBR8alUXzLQHofyQYv54MvpL+JQTHGNoY4TpQViPeFOnv.lQZlZYGXDiNBTLrkzoFfZ2ihJ.AwSZA74GTPjTg88f5hGTyGYC7CcSFdbFXRTKPH5gnOiSToQrI2jm2W9ghiuIOtoUyYKgYDI7kAgyC99hraFIKhkFcRaUunqAmBszopp1x4ZcFRp9Ybs+JrapXXD4snuURh31GWNx+usRRGIVrXETSX0jbT2RZN4L5R4Mi18bWYqMFkYjXC6xZjYaUnX.UivYJYHck+BX9.93HTOOAckFQ8v9ljQLHOdqHdm0S8CFcbGIaoPnGCUfBHTKlls9CwZPMpEBXvk1Xxqu1jqIsG.Xz.LA+vvxBcGfE35XZCqrD1k3YdExFNK0hHLIbzdlU1zZHOxNqs9eiK0.l9apt4uraCWwjIOiAh9CQSbujjBVn2oYRAN2kWjOgASKhK2+4v9QLvGm2acOBGW75ER8jy.nOB967yhL9SCzNgis2Uk4XuKCTk0Nrh4Ra5hZNr4yJ+sAfE7vwLhkaOc2Xa24gQNOggYDma0nxCrattEQqnSW7lvSffMwgUbUOG3enjuKV5Bq8yXkcusLmbse0yT4uA05OcrY0d905E1ieTsBP7q4QESneOCfPtHa63ct14lwumnFaHE5qha1om9XiLjphDRzcUhMCLinrHuku3gxQ+ZIes2EwhS8fAt0X3LGjffS77MWYrcpVoYd49G49c92LadUcQ28kcKErG9TtmSRSwUQ9FQTLLS9w1bIneJnoCGS6mSSMdDqwlOMizJs8iFnDObYgJ4Ba1+giIyed3QLXr4WDCu4EawZX0GL2gEeeQtrx.DD8GRCS+6YBH1hh585hs6o4NbogeNteLf14Hk+.ZEPvUqA6N8.vz9PHHoA1uhtK.DckiYlqg1n1ax0JCW33WLnFFMu8GHWnjr5+.9EJqFnTDiJOzv4CBMQ26fh7msHXw8bCH.yuh6Vl9OTj7PqBK+b0ttsvT+fP9cmH1Z.BDva..nLCR6Dl3Qppnt8jkWJNnXAFLtCauTyVafwzhIf9X0USnIdRYSQlm4XMwhiUjDFY2sYp.h08QLBFEdV0o6lEEJWZwDWI3TkzenqfrjEgy3+BGyowagXAnfzxhsEIdEDT7GCHg3jKCESnV9sqil.3ZjBgeUTTKofICXqrSN.xxLkgaK9kQQekNB..X5H...qi...");
+	loadFrom("3290.sNB..D...............35H...oi...tx.........J09R+fssGkTF.5NJlevBrHYv67FpDFw16VPzYuJZgk+EgBwsYkoYM2VOjyU8ZWDVJLkO6ryNSuePmI7d.xG.8A3uez.qm5O9PW73HTFPQbQfnDhxVkrvGcb2Dat5h2IafLCuIFwTDuZ38VGLtHLuwN84WGuxZ+KnvMQklV7tYyC9ndPzRqRkoyhYsxgJarVhhpN8ngKqwzCJaczHMsUPFxbwnvvydk.NBFdwrXnrWHhLHqGT3fDtnvLPraKLYlcQbSgtNcrcxlchylQEEcO6W5r2Fahxh9m6oGY0POFlUHW5N3pgWOFR+HLJJCR.MAMkzqa44wsCjfl.WC5wcP3iW18fb7vZFfAfm+7ruuIqIgDVPUHnNGF9Q5BzHBfb82Gdzyyi2++RMHj2ff+M4MMANndiQP.jjlnID9+zlH3666.zD78c2Cgw9Ohu.dBPPl24zDNw6QR82OA7Dn.dB1YM3sAX.GO19y4vteY+DKw.uwwrMVSe2fd5wbsTjTzDuqI8YKmb7Xmd8bRGr12KKBh67Hu+5ulxNCVz8vAs+o4NcucdAxr96yic+0fEPoFHStwa1XsWdrKSVY5v0ALDW6ObNLy0RjNXgYI4ye3ri7VC15Bq5hBKgE1gJrOn7+BA1UEFGtdakvpBQBE4utG0AKqJqoDGp7k8cuBpQJJwTNjtCA1n84NDH43tC3a2UX.F3w6RvrBz9GKw.ZBF74cFFPoTpAT.MACverMuO+cFPoFPAALV8v6jwDsghZclbWJ.wSmElDNgvd24DKHuDBRo9PjKHy6jEHJ6kDKioBDa9nIaMDksnUgyU0mZJS1T+.uSgTRjcfI7dvgYH+khzfhJmycHsMEXlWD0BevAa43p4akmKKVtEahx5kM9vYobOLYVGM4HxU4gXnn4uj.sZdSbbsPjApohL7hPQz0dqhPjHx9h8ZfaDrJcAJtEA6ZZ0j7rosoMAaibkgcu11Y68SIYhhCUdX7nZR4d4TDRheBTinPaZhhxrPhZzcS7wC9wdCy9zqXs1a9pDRFJbYWLpPYqV0ADQtlcvz1nCqhsaa5JY1EQlm2qxpZ0DgEr529Q8yGyFuirHQs+mKbVKkImq04okvqkGCF6UgCXH8WKr4EBPKp7aDOWzmVFCK.0pTA4rYXWfXq1s5KyZImvWpqHHr2tHQ3T0cGh3xzjfI7vkCtrsqqFciKWzTkEJS3bjjYqTSrtSQSrrWtd2hvqjlSF6kRswD+8PCSE1q2F0jplJCpuCgl78+LaiOXpbQbBo2Fz1vPDyrRGfVGaz.4FxdEMDJUuQQQbJ1jE5hA4fSgGpDSHPf366ifVLV9ycGvfDfwxDypjEEVYNFcrMqmaVb0WPaHJXoDav4uWT5xhWEBwnWM4lfwkY6Zg1XbghyVqlrwwODist2HduBjIh2DWEC26fSgmeJapw4TLo0sZYjZPajQJftT2MkgfKBuTY.c4uR8rwsrW8ZgbwoHSIEkIVIeLO2X45PbotbZPbQsW4wjkG0eiPhbYVJXg1dfodQSFZId2bxIUTY68SjCX72Dkeb6EihCZIlQzeQXw3r2oSspZmvNLtpTFHqV8hAmcyFQ6h3jscLyJ4Bw9N8.DC6ETkmqt.H9kq13yzB0w5mLSWR+73nl2kIM6dELpnuVJz5nvf74QDNVQLjoxBwlQ6RUlvi3se6vT0X51OpZJOJTvmrXWgnwwpsQKFdst3K9PX1anJbUUOJ3wBWkqRCpcUB2hx+yFSClXvXgrIjkwJGFNYS.Yn+HAYjSgBUehaUJicqCDVQtWLPnwvBNhgWe37WKDJp1aFMTxpd7ND0HgPh4hnlmIafhLlxrLf3Yw0xAmMh2Ki9JblvYcyKCyJ2QkDNEQNyl5xL3uWZMuyGdztbGWTTFk4dg8CIdqXYHQciV9zBgBb1GRc7P9vdCsYcutfHo.jK7dcXyE4raLv5ojHWbVJ+nIdLO1ap3tDEgsZQaGpXefgBjFJrP7BmSkUAOWdkBCWP75XZpRcgMIf7nhQRiKFRRV4ON6qgGvdNEXLDhhVDuu4sZaAiva0ACc60S6fWVHDdgbXAxjOgbb1GcLv8XQM.vBLvBPmx+etq6mMVho99N2s+iZ7GLjE7yjY+s.tzPuNBfl8z8QcXTtz1ATzkuRMdBN4vKYPQvmm8xdJMgbGLmzrqvDMiObWBkqCzQL3BbvAedbH8BGb.8i0f2Z7GLsStwTJ+RdmjqAK2i4sdjbL+I+j5MESCAK69dCtFG5s68eN5u0kZz3OO2ozq+Y1CI23xrBGb.IEAPfdvAzONtSmRdtCHWSVR44wNk7DatwdzxNFJBD.lcNmeFbSmx658t64yeze+xNkiWNrpgLiAko4xM1xWyer+Te9RO+5ji3PEn4ObeS8c54erSlxwzvu1j1MtyNVfWBIX0dnPA4ud8ZeLRMybJlpvfu72i+jzetAnLEtY+iiGOoS4tW+jZIimTTfusNrJIgvgjThE.6ar1l.iki8QJoN7S8n8O8ywlzx9IsaIIyS530a34RCLyZKdrl8t68HsnNPmrEVjDFiSb3.eeOdjji8eZB97mdXBFvmd2I8+bHMIBangeLLLJOBYx9th.e9y246rGG6s+ZRxrGr6GQXi+8eFmKglnQiisZO1c1x7bqnr.h38rhspx8.whq53by3Qcz.nMT2sL6ioSLWDfQWgWqxqEpzIU6f.TgyEmV.s1NIVLXs.sKjnj3NEHXHnJvVNPZNGBoPzHxL.X..hBF.EHMQYQW0CHYbbfVPhQYT.E.BF.H..X..BHA.JHvf.jDj5OPIq+pJd5RZ8ZQR66I3JTtR46+DxPlpKij7CgVc4NR12X+fKcyvUGHlGYE4UmQZ6ChGzT2pSE3qaNHO.deHYIVFWeZN9CvsVhLkkhHTbjREdFAH3FAJPdEARL2oeDx5A2xeuNLBknErvTqdNg76hoZjVNNwHcxFnBmBgSs7nPllotFjLmZTvTAGKelHHIORKmqHtfCj2imMfItPVRZHWFbj.AOeZnxamgaEgB7bPdWwHKipLWG0seMdJ.mwtsM9spXi+y8vhqqLaq9AQUpVFUmcywiv3faaH7Hi5GaLMFgN849WLeJFJ3D8PqK+SNy9igxM0oKANnXdblMW1ZmKCZR8Fm6ztajpVsAYD0CIPiJDsSALhTimf4cinpuvxIMl23ttAKfQ0z3oC3FXJjFjH+z8jUlpQaFNlC61gntNn+n+db3U6vU5PfCNGSh1JV2H6KF5hkpHlT.lTywaPqRprWFx+HxYOmV9nRY.IY3n20sBcPUSrbftSxZ5u2hbnKdQ466WocM4j.CaEcpyIzy28MBkz+.YqFe5xU9DSFyLlOA8Pk.GjSOFPvXuF7QsroAZ21+oM9rvtLYAltBHL.JnvouyD2ds4XSNK.sVSRl+Kf70rodrhnxWi0q4wUJWMMh9pDnjEAhZZ9eIGkvyes+mWwjGOW2RDY2vIGK.8qiZi+TUu5kFY3yHkmRiO5NvzMErJ.7t3rFTnhfyU5GR8oC0d64MYJ5xHf+UwVMa9w2TZN9ZbCF8cHx8r+DuvjIMXVt9KxDmhjLACZ5zTTMmSfE0f.h4RwkW8YK9HFNv4oq2SmCof7BSm7cM5TtujwyhF+SrcOrGCwpYarLVXLzqMEk4Wszgw7C6mD+sldQRv6rw5c8nPNcaUaG5gIBRBCyCm6znlEN2taA5PQ2P6FDl.zdygdXiNuhzEx2EP8jvdUzJCramaZwlcZj8EOJ0X.enkGlMHP0KYGAQ0pKVYM4vPR7aP.dx1XqkdgqHyr96IKUHNE5rhCaJv5syE3UgTknXzrpt7+Q4mCdRcgab5Kl7AP6yKN+CLP0yCmcP.hc0yOeOs8+tBs40nKt6w6e4elk3KgaM4s146+oZdN6bVrJ82Hnig29GSvKj+CWlFblRMmh.9HhwP7zf.TQ2uJf+ZnpEY3kklevPS.1D9icbLWcQrWCVrgQiE9fiNbpz6d4yF.gkesClz+Glwyxy0VzVuGbc2Cm6vplab7+Y.8vH56C3q.B5iQ.jCy.SeOTPR579K1aGBM23+ULSrWY6Mn690EY3+E.i2sy9+OGGIQ5xA9Y0rRSoHFLGVwaICkUW8DEU8a0RZ1rmC.2uwUuLsPBM4dTE.ebQSesvq+P89KsBqKC5XH8R.PKPfmvfYjvN9lLRRjvmoQftR1Lr2VYqamwDtIf+yprIXGuEtIAyyl2RW4s3xTivGD4g.NydtM1aq.PGzcDDo2CIuw1iOpZ7Ww9HKUB4V7ub1rZHhPb2EnEK.cJ4U.H7aOBwvosEntrr3L1cXMX2ZeEY8TSyPgtfj8RJYykU5riDC8Sxs9Poi...lNB..v5H...");
 }
 
 var WelcomeScreen::populateProjectSelector(const var::NativeFunctionArgs& args)
@@ -474,40 +474,45 @@ var WelcomeScreen::populateProjectSelector(const var::NativeFunctionArgs& args)
 
 			if(!xmlFiles.isEmpty())
 			{
-				items << "**Recent XML presets**" << "\n";
+				//items << "**Recent XML presets**" << "\n";
 
 				for(auto& i: xmlFiles)
 				{
+					fileList.add(i);
 					items << i.getFileName() << "\n";
 				}
 
-				items << "___\n";
+				//items << "___\n";
 			}
 
 			if(!hipFiles.isEmpty())
 			{
-				items << "**Recent HIP presets**" << "\n";
+				//items << "**Recent HIP presets**" << "\n";
 
 				for(auto& i: hipFiles)
 				{
+					fileList.add(i);
 					items << i.getFileName() << "\n";
 				}
 
-				items << "___\n";
+				//items << "___\n";
 			}
 		}
 
 			
 
 
-		items << "**Recent Projects**" << "\n";
+		//items << "**Recent Projects**" << "\n";
+
+		recentProjects.remove(0);
 
 		for(auto& i: recentProjects)
 		{
-			items << i << "\n";
+			fileList.add(File(i));
+			items << File(i).getFileName() + " (Switch Project)" << "\n";
 		}
 
-		setElementProperty("LoadFile", multipage::mpid::Items, items);
+		setElementProperty("LoadFile", multipage::mpid::Items, items.trim());
 	}
 
 	return var();
@@ -558,45 +563,51 @@ var WelcomeScreen::createProject(const var::NativeFunctionArgs& args)
 var WelcomeScreen::loadPresetFile(const var::NativeFunctionArgs& args)
 {
 	auto b = bpe;
-	auto fileToLoad = args.arguments[1].toString();
 
-	closeAndPerform([b, fileToLoad]()
+	DBG(JSON::toString(args.arguments[1]));
+
+	if(args.arguments[1]["eventType"] != "dblclick")
+		return var();
+
+	auto fileIndex = (int)args.arguments[1]["row"];
+
+	if(isPositiveAndBelow(fileIndex, fileList.size()))
 	{
-		b->clearModalComponent();
+		auto fileToLoad = fileList[fileIndex];
 
-		auto& handler = GET_PROJECT_HANDLER(b->getMainSynthChain());
-
-		if(File::isAbsolutePath(fileToLoad) && File(fileToLoad).isDirectory())
+		closeAndPerform([b, fileToLoad]()
 		{
-			auto r = handler.setWorkingProject(File(fileToLoad));
+			b->clearModalComponent();
 
-			if (r.failed())
+			auto& handler = GET_PROJECT_HANDLER(b->getMainSynthChain());
+
+			if(fileToLoad.isDirectory())
 			{
-				PresetHandler::showMessageWindow("Error loading project", r.getErrorMessage(), PresetHandler::IconType::Error);
+				auto r = handler.setWorkingProject(File(fileToLoad));
+
+				if (r.failed())
+				{
+					PresetHandler::showMessageWindow("Error loading project", r.getErrorMessage(), PresetHandler::IconType::Error);
+				}
+				else
+				{
+					b->getBackendProcessor()->getSettingsObject().refreshProjectData();
+					b->getBackendProcessor()->clearPreset(dontSendNotification);
+					BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(b);
+				}
 			}
-			else
+			else if (fileToLoad.hasFileExtension(".xml"))
 			{
-				b->getBackendProcessor()->getSettingsObject().refreshProjectData();
-				b->getBackendProcessor()->clearPreset(dontSendNotification);
-				BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(b);
+				BackendCommandTarget::Actions::openFileFromXml(b, fileToLoad);
 			}
-		}
-		else if (fileToLoad.endsWith(".xml"))
-		{
-			File presetToLoad = handler.getSubDirectory(FileHandlerBase::XMLPresetBackups).getChildFile(fileToLoad);
+			else if (fileToLoad.hasFileExtension(".hip"))
+			{
+				b->loadNewContainer(fileToLoad);
+			}
+		});
+	}
 
-			if(presetToLoad.existsAsFile())
-				BackendCommandTarget::Actions::openFileFromXml(b, presetToLoad);
-		        
-		}
-		else if (fileToLoad.endsWith(".hip"))
-		{
-			File presetToLoad = handler.getSubDirectory(FileHandlerBase::Presets).getChildFile(fileToLoad);
-
-			if(presetToLoad.existsAsFile())
-				b->loadNewContainer(presetToLoad);
-		}
-	});
+	
 		
 	return var();
 }
