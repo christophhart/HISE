@@ -2526,6 +2526,9 @@ namespace ScriptingObjects
 		/** Register a scripting callback to be executed when a OSC message that matches the subAddress is received. */
 		void addOSCCallback(String oscSubAddress, var callback);
 
+		/** Removes a OSC callback for the given address. */
+		bool removeOSCCallback(String oscSubAddress);
+
 		/** Send an OSC message to the output port. */
 		bool sendOSCMessage(String oscSubAddress, var data);
 
@@ -2607,6 +2610,9 @@ namespace ScriptingObjects
 		/** Registers a function that will be executed whenever a value is sent through the cable. */
 		void registerCallback(var callbackFunction, var synchronous);
 
+		/** Deregisteres a callback from the cable. */
+		bool deregisterCallback(var callbackFunction);
+		
 		/** Connects the cable to a macro control. */
 		void connectToMacroControl(int macroIndex, bool macroIsTarget, bool filterRepetitions);
 
