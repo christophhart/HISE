@@ -7695,7 +7695,7 @@ ScriptingObjects::GlobalRoutingManagerReference::GlobalRoutingManagerReference(P
 	ADD_API_METHOD_2(connectToOSC);
 	ADD_API_METHOD_2(sendOSCMessage);
 	ADD_API_METHOD_2(addOSCCallback);
-	ADD_API_METHOD_2(removeOSCCallback);
+	ADD_API_METHOD_1(removeOSCCallback);
 	ADD_API_METHOD_3(setEventData);
 	ADD_API_METHOD_2(getEventData);
 }
