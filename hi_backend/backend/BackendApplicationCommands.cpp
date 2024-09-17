@@ -1342,6 +1342,32 @@ void BackendCommandTarget::Actions::loadSnippet(BackendRootWindow* bpe, const St
 
 	if (v.isValid())
 	{
+		auto hash = v["Hash"].toString();
+
+		WeakReference<Processor> safeP(bpe->getMainSynthChain());
+
+		if(hash.isNotEmpty())
+		{
+			GitHashManager::checkHash(hash, [safeP](const var& commitObj)
+			{
+				String message;
+
+				auto hash = commitObj["sha"].toString();
+
+				auto date = commitObj["commit"]["author"]["date"].toString();
+
+				auto d = Time::fromISO8601(date);
+
+				message << "Snippet loaded that was created with git commit \n";
+				message << "> hash: " << hash.substring(0, 8) << "\n";
+				message << "> date: " << d.toString(true, true, false, true) << "\n";
+				message << "> message: " << commitObj["commit"]["message"].toString() << "\n";
+				message << "> url: " << "https://github.com/christophhart/HISE/commit/" << hash;
+				
+				debugToConsole(safeP, message);
+			});
+		}
+
 		bpe->loadNewContainer(v);
 	}
 }
@@ -1687,7 +1713,9 @@ String BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe
 	MainController::ScopedEmbedAllResources sd(bp);
     
 	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
-	
+
+	v.setProperty("Hash", String(PREVIOUS_HISE_COMMIT), nullptr);
+
 	auto scriptRootFolder = bp->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
 	auto snexRootFolder = BackendDllManager::getSubFolder(bp, BackendDllManager::FolderSubType::CodeLibrary);
 
@@ -3381,4 +3409,40 @@ String XmlBackupFunctions::getSanitiziedName(const String &id)
 	return id.removeCharacters(" .()");
 }
 
+void GitHashManager::checkHash(const String& hashToUse,
+	const std::function<void(const var&)>& finishCallbackWithNextHash)
+{
+	Thread::launch([hashToUse, finishCallbackWithNextHash]()
+	{
+		var json;
+
+		URL u("https://api.github.com/repos/christoph-hart/HISE/commits");
+    
+		auto s = u.readEntireTextStream();
+	    
+		auto ok = JSON::parse(s, json);
+		    
+		if(auto list = json.getArray())
+		{
+			for(int i = 0; i < list->size(); i++)
+			{
+				auto thisSha = list->getUnchecked(i)["sha"].toString();
+		            
+				if(thisSha == hashToUse)
+				{
+					auto nextIndex = i-1;
+		                
+					if(nextIndex >= 0 && isPositiveAndBelow(nextIndex, list->size()))
+					{
+						finishCallbackWithNextHash(list->getUnchecked(nextIndex));
+					}
+		                
+					break;
+				}
+			}
+		}
+	});
+
+	    
+}
 } // namespace hise

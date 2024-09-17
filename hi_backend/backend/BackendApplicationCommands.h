@@ -452,6 +452,11 @@ private:
 	static String getSanitiziedName(const String &id);
 };
 
+struct GitHashManager
+{
+	static void checkHash(const String& hashToUse, const std::function<void(const var&)>& finishCallbackWithNextHash);
+};
+
 } // namespace hise
 
 #endif  // BACKENDAPPLICATIONCOMMANDS_H_INCLUDED

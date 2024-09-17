@@ -133,6 +133,8 @@ struct AboutWindow: public multipage::EncodedDialogBase
     var showCommit(const var::NativeFunctionArgs& args);
     
     URL commitLink;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(AboutWindow);
 };
 
 struct NewProjectCreator: public ImporterBase,

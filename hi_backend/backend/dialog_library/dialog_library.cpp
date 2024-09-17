@@ -312,60 +312,45 @@ var ExportSetupWizard::onPost(const var::NativeFunctionArgs& args)
 	return var();
 }
 
+
+
 var AboutWindow::initValues(const var::NativeFunctionArgs& args)
 {
 #define set(X) state->globalState.getDynamicObject()->setProperty(Identifier(#X), X);
 #define setXY(X, Y) state->globalState.getDynamicObject()->setProperty(Identifier(#X), Y);
     
-    auto hiseRoot = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Compiler::HisePath).toString();
-    
-    
-    
-    if(hiseRoot.isNotEmpty() && File::isAbsolutePath(hiseRoot))
-    {
-        auto codeHash = File(hiseRoot).getChildFile("currentGitHash.txt").loadFileAsString().trim();
-        
-        String buildHash(PREVIOUS_HISE_COMMIT);
-        
-        URL u("https://api.github.com/repos/christoph-hart/HISE/commits");
-        
-        auto s = u.readEntireTextStream();
-        
-        var json;
-        
-        auto ok = JSON::parse(s, json);
-        
-        if(auto list = json.getArray())
-        {
-            for(int i = 0; i < list->size(); i++)
-            {
-                auto thisSha = list->getUnchecked(i)["sha"].toString();
-                
-                if(thisSha == buildHash)
-                {
-                    auto nextIndex = i-1;
-                    
-                    if(nextIndex >= 0 && isPositiveAndBelow(nextIndex, list->size()))
-                    {
-                        auto nextSHA = list->getUnchecked(nextIndex)["sha"].toString();
-                        
-                        auto shortHash = nextSHA.substring(0, 8);
-                        
-                        state->globalState.getDynamicObject()->setProperty("commitHash", shortHash);
-                        
-                        String link;
-                        link << "https://github.com/christophhart/HISE/commit/";
-                        link << nextSHA;
-                        
-                        commitLink = URL(link);
-                    }
-                    
-                    break;
-                }
-            }
+    String buildHash(PREVIOUS_HISE_COMMIT);
 
-        }
-    }
+	state->globalState.getDynamicObject()->setProperty("commitHash", "load current hash...");
+
+	WeakReference<AboutWindow> safeThis(this);
+
+	GitHashManager::checkHash(buildHash, [safeThis](const var& commitObj)
+	{
+		if(safeThis.get() != nullptr)
+		{
+			auto nextHash = commitObj["sha"].toString();
+			auto shortHash = nextHash.substring(0, 8);
+
+			safeThis->state->globalState.getDynamicObject()->setProperty("commitHash", shortHash);
+
+			if(auto pb = safeThis->dialog->findPageBaseForID("commitHash"))
+			{
+				MessageManagerLock mm;
+				pb->postInit();
+			}
+			
+            String link;
+            link << "https://github.com/christophhart/HISE/commit/";
+            link << nextHash;
+            
+            safeThis->commitLink = URL(link);
+		}
+	});
+
+    
+
+    
     
     String Version = hise::PresetHandler::getVersionString();
     
