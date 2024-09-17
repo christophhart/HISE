@@ -62,6 +62,7 @@ struct ColourGradientParser
 	ColourGradientParser(Rectangle<float> area, const String& items);
 
 	ColourGradient getGradient() const;
+	static String toString(Rectangle<float> area, const ColourGradient& second);
 
 private:
 
@@ -83,10 +84,63 @@ struct TransformParser
 
 		static AffineTransform toTransform(const std::vector<TransformData>& list, Point<float> center);
 		static String toCppCode(const std::vector<TransformData>& list, const String& pointName);
+
+		String toString() const
+		{
+			String m;
+
+			switch(type)
+			{
+			case TransformTypes::none: return "none";
+			case TransformTypes::matrix: return "none";
+			case TransformTypes::translate: 
+			case TransformTypes::translateX: 
+			case TransformTypes::translateY: 
+			case TransformTypes::translateZ: m << "translate"; break;
+			case TransformTypes::scale: 
+			case TransformTypes::scaleX: 
+			case TransformTypes::scaleY: 
+			case TransformTypes::scaleZ: m << "scale"; break;
+			case TransformTypes::rotate: 
+			case TransformTypes::rotateX: 
+			case TransformTypes::rotateY: 
+			case TransformTypes::rotateZ: m << "rotate"; break;
+			case TransformTypes::skew: 
+			case TransformTypes::skewX: 
+			case TransformTypes::skewY: m << "skew"; break;
+			case TransformTypes::numTransformTypes: break;
+			default: ;
+			}
+
+			m << '(';
+			m << String(values[0]);
+
+			if(numValues > 1)
+			{
+				m << ',';
+				m << String(values[1]);
+			}
+			
+			m << ')';
+
+			return m; 
+		}
 	};
 
 	TransformParser(KeywordDataBase* database_, const String& stackedTransforms);
 	std::vector<TransformData> parse(Rectangle<float> totalArea, float defaultSize=16.0);
+
+	static String toString(const std::vector<TransformData>& list)
+	{
+		String s;
+
+		for(const auto& d: list)
+		{
+			s << d.toString() << "\n";
+		}
+
+		return s;
+	}
 
 private:
 
@@ -104,8 +158,48 @@ public:
 	ShadowParser(const String& alreadyParsedString, Rectangle<float> totalArea);
 	ShadowParser() = default;
 
-	std::vector<melatonin::ShadowParameters> getShadowParameters(bool wantsInset) const;
-	std::vector<melatonin::ShadowParameters> interpolate(const ShadowParser& other, double alpha, int wantsInset) const;
+	using ShadowList = std::vector<melatonin::ShadowParameters>;
+
+	ShadowList getShadowParameters(bool wantsInset) const;
+	ShadowList interpolate(const ShadowParser& other, double alpha, int wantsInset) const;
+
+	static ShadowList interpolateShadowList(const ShadowList& l1, const ShadowList& l2, float alpha)
+	{
+		ShadowList list;
+
+		if(l1.size() == l2.size())
+		{
+			for(int i = 0; i < l1.size(); i++)
+			{
+				auto d1 = Data::fromShadowParameters(l1[i]);
+				auto d2 = Data::fromShadowParameters(l2[i]);
+
+				auto mix = d1.interpolate(d2, (double)alpha);
+				list.push_back(mix.toShadowParameter());
+			}
+		}
+
+		return list;
+	}
+
+	static String shadowListToString(const ShadowList& l1)
+	{
+		ShadowParser sd;
+
+		for(auto& l: l1)
+		{
+			auto nd = Data::fromShadowParameters(l);
+
+			nd.positions.add(String(nd.size[0]));
+			nd.positions.add(String(nd.size[1]));
+			nd.positions.add(String(nd.size[2]));
+			nd.positions.add(String(nd.size[3]));
+
+			sd.data.push_back(nd);
+		}
+
+		return sd.toParsedString();
+	}
 
 	String toParsedString() const;
 	
@@ -124,6 +218,20 @@ private:
 		operator bool() const { return somethingSet; }
 
 		melatonin::ShadowParameters toShadowParameter() const;
+
+		static Data fromShadowParameters(const melatonin::ShadowParameters& p)
+		{
+			Data nd;
+
+			nd.inset = p.inner;
+			nd.c = p.color;
+			nd.size[2] = p.radius;
+			nd.size[0] = p.offset.getX();
+			nd.size[1] = p.offset.getY();
+			nd.size[3] = p.spread;
+			
+			return nd;
+		}
 
 		Data interpolate(const Data& other, double alpha) const;
 
@@ -274,6 +382,7 @@ private:
 	static String getTokenName(TokenType t);
 	static String processValue(const String& value, ValueType t=ValueType::Undefined);
 	static String getTokenSuffix(PropertyType p, const String& keyword, String& token);
+	static bool hasVariable(const String& value) { return value.indexOf("var(--") != -1; }
 	static PropertyType getPropertyType(const String& p);
 	static std::function<double(double)> parseTimingFunction(const String& t);
 

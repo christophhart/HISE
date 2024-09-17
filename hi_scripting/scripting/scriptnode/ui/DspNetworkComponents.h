@@ -1012,6 +1012,8 @@ public:
 
 	bool copyDraggedNode = false;
 
+	bool showParameters = false;
+
 	valuetree::RecursivePropertyListener cableRepainter;
 	valuetree::ChildListener rebuildListener;
 	valuetree::RecursivePropertyListener resizeListener;

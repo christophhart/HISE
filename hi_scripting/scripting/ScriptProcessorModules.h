@@ -405,6 +405,11 @@ public:
 
 	void onVoiceReset(bool allVoices, int voiceIndex) final override;
 
+	bool isVoiceResetActive() const override
+	{
+		return true;
+	}
+
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	State* getState(int i);
@@ -458,6 +463,11 @@ public:
 	int getNumActiveVoices() const override;
 
 	void onVoiceReset(bool allVoices, int voiceIndex) final override;
+
+	bool isVoiceResetActive() const override
+	{
+		return true;
+	}
 
 	int getNumParameters() const override;
 
@@ -760,6 +770,11 @@ public:
     {
         return voiceData.voiceNoteOns.size();
     }
+
+	bool isVoiceResetActive() const override
+	{
+		return hasTail();
+	}
 
     void onVoiceReset(bool allVoices, int voiceIndex) override
     {

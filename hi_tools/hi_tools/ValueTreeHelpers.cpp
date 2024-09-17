@@ -342,10 +342,15 @@ void PropertyListener::sendMessageForAllProperties()
 		}
 		else
 		{
-			changedIds.addArray(ids);
+            for(int i = 0; i < v.getNumProperties(); i++)
+            {
+                auto id = v.getPropertyName(i);
+                
+                if(ids.contains(id))
+                    changedIds.add(id);
+            }
 		}
 
-		
 		triggerAsyncUpdate();
 		break;
 	}
@@ -369,7 +374,10 @@ void PropertyListener::handleAsyncUpdate()
 	ScopedLock sl(asyncLock);
 
 	for (auto id : changedIds)
-		f(id, v[id]);
+    {
+        jassert(v.hasProperty(id) || (id == Identifier("Coallescated")));
+        f(id, v[id]);
+    }
 
 	changedIds.clear();
 }

@@ -897,8 +897,11 @@ void ScrollbarFader::Laf::drawStretchableLayoutResizerBar(Graphics& g, int w, in
 
 void ScrollbarFader::scrollBarMoved(ScrollBar* sb, double)
 {
-	sb->setAlpha(1.0f);
-	startFadeOut();
+	if(sb->getRangeLimit() != sb->getCurrentRange())
+	{
+		sb->setAlpha(1.0f);
+		startFadeOut();
+	}
 }
 
 void ScrollbarFader::addScrollBarToAnimate(ScrollBar& b)
@@ -2942,6 +2945,19 @@ void Spectrum2D::Parameters::Editor::resized()
 		labels[i]->setBounds(r.removeFromLeft(128));
 		editors[i]->setBounds(r);
 	}	
+}
+
+SemanticVersionChecker::SemanticVersionChecker(const std::array<int, 3>& oldVersion_, const std::array<int, 3>& newVersion_)
+{
+    newVersion.majorVersion = newVersion_[0];
+	newVersion.minorVersion = newVersion_[1];
+	newVersion.patchVersion = newVersion_[2];
+	newVersion.validVersion = true;
+
+	oldVersion.majorVersion = oldVersion_[0];
+	oldVersion.minorVersion = oldVersion_[1];
+	oldVersion.patchVersion = oldVersion_[2];
+	oldVersion.validVersion = true;
 }
 
 SemanticVersionChecker::SemanticVersionChecker(const String& oldVersion_, const String& newVersion_)

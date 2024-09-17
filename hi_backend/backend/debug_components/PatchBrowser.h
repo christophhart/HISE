@@ -88,6 +88,8 @@ public:
 		ProcessorType type;
 
 		WeakReference<Processor> p;
+
+		bool clicked = false;
 	};
 
 	// ====================================================================================================================
@@ -358,9 +360,13 @@ private:
 	{
 	public:
 
-		PatchCollection(ModulatorSynth *synth, int hierarchy, bool showChains);
+		PatchCollection(int idx, ModulatorSynth *synth, int hierarchy, bool showChains);
 
 		~PatchCollection();
+
+		String getSearchTermForCollection() const override { return id; }
+
+		String id;
 
 		void mouseDown(const MouseEvent& e) override;
 		
@@ -599,7 +605,9 @@ public:
 		void paint(Graphics& g) override;
 
 		AutomationCollection(MainController* mc, AutomationData::Ptr data_, int index);
-		
+
+		String getSearchTermForCollection() const override { return "AutomationIds"; }
+
 		void checkIfChanged(bool rebuildIfChanged);
 
 		void timerCallback() override;
@@ -622,6 +630,8 @@ public:
 	Collection* createCollection(int index) override;
 
 	AutomationData::List filteredList;
+
+	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AutomationDataBrowser);
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AutomationDataBrowser);

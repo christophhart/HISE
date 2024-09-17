@@ -535,6 +535,14 @@ void MarkdownText::createEditor(Dialog::PageInfo& rootList)
     });
 
 	rootList.addChild<TextInput>({
+		{ mpid::ID, mpid::Code.toString() },
+		{ mpid::Text, mpid::Code.toString() },
+        { mpid::Value, infoObject[mpid::Code] },
+        { mpid::Items, "{BIND::functionName}" },
+		{ mpid::Help, "The callback that is executed using the syntax `{BIND::myMethod}`" }
+	});
+
+	rootList.addChild<TextInput>({
         { mpid::ID, mpid::Class.toString() },
         { mpid::Text, mpid::Class.toString() },
         { mpid::Help, "The CSS class that is applied to the action UI element (progress bar & label)." },
@@ -724,7 +732,7 @@ Table::Table(Dialog& parent, int w, const var& obj):
 	parent.stateWatcher.registerComponentToUpdate(&table.getHeader());
 
 
-	sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
+	//sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
 	table.getViewport()->setScrollBarThickness(13);
 
 }
@@ -824,13 +832,18 @@ void Table::rebuildColumns()
 	th.setStretchToFitActive(true);
 	th.resizeAllColumnsToFit(table.getWidth() - table.getViewport()->getScrollBarThickness());
 	table.setMultipleSelectionEnabled(infoObject[mpid::Multiline]);
-        
+
 	using namespace simple_css;
-        
+
+	rootDialog.stateWatcher.resetComponent(&th);
+
 	if(auto ss = rootDialog.css.getWithAllStates(this, Selector(ElementType::TableCell)))
 	{
+		
 		table.setRowHeight(ss->getLocalBoundsFromText("M").getHeight());
 	}
+
+	th.repaint();
 }
 
 String Table::getCellContent(int columnId, int rowNumber) const
@@ -938,31 +951,44 @@ void Table::rebuildRows()
 {
 	visibleItems.clear();
 
-	auto fid = getFilterFunctionId();
+	table.getViewport()->setScrollBarsShown(true, false);
 
-	if(fid.isValid())
+	auto fid = getFilterFunctionId().toString();
+
+	if(fid.isNotEmpty())
 	{
-		auto engine = rootDialog.getState().createJavascriptEngine();
-		int index = 0;
-		auto ok = Result::ok();
-		var args[2];
-		auto thisObj = var(new Element(rootDialog.getState(), infoObject));
-
-		auto filterFunction = engine->getRootObjectProperties()[fid];
-
-		for(auto v: items)
+		if(rootDialog.getState().hasNativeFunction(fid))
 		{
-			args[0] = index;
-			args[1] = v;
-			
-			auto shouldShow = engine->callFunctionObject(thisObj.getDynamicObject(), filterFunction, var::NativeFunctionArgs(thisObj, args, 2), &ok);
+			int index = 0;
+			auto ok = Result::ok();
+			var args[2];
+			var thisObj;
 
-			if(ok.wasOk() && (bool)shouldShow)
+			for(auto v: items)
 			{
-				visibleItems.add({index, v});
+				args[0] = index;
+				args[1] = v;
+
+				var rv;
+
+				auto wasCalled = rootDialog.getState().callNativeFunction(fid, var::NativeFunctionArgs(thisObj, args, 2), &rv);
+
+				if(!wasCalled || (bool)rv)
+				{
+					visibleItems.add({index, v});
+				}
+				
+				index++;
 			}
-			
-			index++;
+		}
+		else
+		{
+			int index = 0;
+
+			for(auto v: items)
+			{
+				visibleItems.add({index++, v});
+			}
 		}
 	}
 
@@ -1056,7 +1082,42 @@ void Table::paint(Graphics& g)
 	if(auto ss = rootDialog.css.getForComponent(&table))
 	{
 		simple_css::Renderer r(&table, rootDialog.stateWatcher);
-		r.drawBackground(g, table.getBoundsInParent().toFloat(), ss);
+
+		auto currentState = r.getPseudoClassState();
+
+		rootDialog.stateWatcher.checkChanges(&table, ss, currentState);
+
+		r.drawBackground(g, getLocalBounds().toFloat(), ss);
+
+		if(getNumRows() == 0)
+		{
+			auto et = infoObject[mpid::EmptyText].toString();
+
+			if(et.isNotEmpty())
+				r.renderText(g, getLocalBounds().toFloat(), et, ss);
+		}
+	}
+}
+
+void Table::resized()
+{
+	FlexboxComponent::resized();
+
+	table.getViewport()->getVerticalScrollBar().setAutoHide(false);
+
+	auto area = getLocalBounds().toFloat();
+
+	if(getParentComponent() != nullptr && !area.isEmpty())
+	{ 
+		using namespace simple_css;
+		
+		if(auto ss = rootDialog.css.getForComponent(&table))
+		{
+			area = ss->getArea(area, { "margin", 0});
+			area = ss->getArea(area, { "padding", 0});
+		}
+		
+		table.setBounds(area.toNearestInt());
 	}
 }
 
@@ -1119,7 +1180,23 @@ void Table::updateValue(EventType t, int row, int column)
 		writeState(row);
 	}
 
-	callOnValueChange(etype, toValue());
+	auto codeToExecute = infoObject[mpid::Code].toString();
+
+	if(codeToExecute.startsWith("{BIND::"))
+	{
+		auto callbackName = codeToExecute.fromFirstOccurrenceOf("{BIND::", false, false).upToLastOccurrenceOf("}", false, false);
+
+		var a[2];
+		a[0] = var(id.toString());
+		a[1] = var(toValue().get());
+
+		auto state = &rootDialog.getState();
+
+		var::NativeFunctionArgs args(state->globalState, a, 2);
+
+		state->callNativeFunction(callbackName, args, nullptr);
+	}
+	
 }
 
 void Table::TableRepainter::mouseMove(const MouseEvent& event)
@@ -1181,18 +1258,22 @@ Factory::Factory()
 	registerPage<factory::HttpRequest>();
 	registerPage<factory::CodeEditor>();
 	registerPage<factory::CopyProtection>();
+	registerPage<factory::FileAction>();
 	registerPage<factory::ProjectInfo>();
 	registerPage<factory::PluginDirectories>();
 	registerPage<factory::PersistentSettings>();
 	registerPage<factory::CopyAsset>();
     registerPage<factory::CopySiblingFile>();
 	registerPage<factory::OperatingSystem>();
+	registerPage<factory::HiseActivator>();
 	registerPage<factory::EventLogger>();
 	registerPage<factory::FileLogger>();
 	registerPage<factory::JavascriptFunction>();
     registerPage<factory::Table>();
     registerPage<factory::TagList>();
 	registerPage<factory::DirectoryScanner>();
+	registerPage<factory::ClipboardLoader>();
+    registerPage<factory::CoallascatedTask>();
 }
 
 Dialog::PageInfo::Ptr Factory::create(const var& obj)
@@ -1277,6 +1358,7 @@ StringArray Factory::getPopupMenuList() const
 	
 	return sa;
 }
+
 
 Colour Factory::getColourForCategory(const String& id) const
 {
@@ -1512,6 +1594,12 @@ static const unsigned char AppDataFileWriter[] = { 110,109,158,99,29,68,224,199,
 static const unsigned char HlacDecoder[] = { 110,109,228,9,35,68,216,234,165,67,108,228,9,35,68,168,31,223,67,108,100,134,7,68,72,27,194,67,108,100,134,7,68,128,230,136,67,108,228,9,35,68,216,234,165,67,99,109,64,252,41,68,216,234,165,67,108,0,128,69,68,128,230,136,67,108,0,128,69,68,152,167,196,
 67,108,64,252,41,68,120,172,225,67,108,64,252,41,68,216,234,165,67,99,109,64,222,37,68,32,167,52,67,108,200,60,68,68,240,164,114,67,108,64,222,37,68,104,81,152,67,108,0,128,7,68,240,164,114,67,108,64,222,37,68,32,167,52,67,99,101,0,0 };
 
+static const unsigned char HiseActivator[] = { 110,109,16,133,38,68,128,182,39,67,98,48,106,54,68,64,59,83,67,96,72,69,68,128,20,36,67,96,72,69,68,128,20,36,67,98,96,72,69,68,128,20,36,67,0,128,69,68,64,209,145,67,96,72,69,68,224,107,173,67,98,224,21,69,68,96,144,199,67,64,123,41,68,192,174,230,67,
+16,133,38,68,192,235,233,67,108,16,133,38,68,224,245,233,67,108,0,128,38,68,192,235,233,67,108,240,122,38,68,224,245,233,67,108,240,122,38,68,192,235,233,67,98,192,137,35,68,192,174,230,67,32,234,7,68,96,144,199,67,144,183,7,68,224,107,173,67,98,0,128,
+7,68,64,209,145,67,144,183,7,68,128,20,36,67,144,183,7,68,128,20,36,67,98,144,183,7,68,128,20,36,67,224,154,22,68,64,59,83,67,240,122,38,68,128,182,39,67,108,240,122,38,68,64,162,39,67,108,0,128,38,68,128,182,39,67,108,16,133,38,68,64,162,39,67,108,16,
+133,38,68,128,182,39,67,99,109,112,102,35,68,64,56,164,67,108,240,16,24,68,96,141,141,67,108,176,4,20,68,224,165,149,67,108,80,92,35,68,32,95,180,67,108,112,102,35,68,224,64,180,67,108,128,117,35,68,32,95,180,67,108,160,165,59,68,224,254,131,67,108,96,
+148,55,68,128,184,119,67,108,112,102,35,68,64,56,164,67,99,101,0,0 };
+
 
 static const unsigned char UnzipTask[] = { 110,109,240,160,44,68,40,158,33,67,108,208,154,68,68,216,194,128,67,98,136,45,69,68,72,232,129,67,0,128,69,68,132,118,131,67,0,128,69,68,172,21,133,67,108,0,128,69,68,20,222,230,67,98,0,128,69,68,148,62,234,67,120,33,68,68,68,251,236,67,56,113,66,68,
 68,251,236,67,108,152,142,10,68,68,251,236,67,98,88,222,8,68,68,251,236,67,0,128,7,68,148,62,234,67,0,128,7,68,20,222,230,67,108,0,128,7,68,152,68,42,67,98,0,128,7,68,216,130,35,67,88,222,8,68,112,9,30,67,152,142,10,68,112,9,30,67,108,136,119,42,68,112,
@@ -1557,6 +1645,17 @@ static const unsigned char CopyAsset[] = { 110,109,104,71,48,68,48,191,113,67,10
 67,104,165,65,68,208,220,28,67,35,65,64,68,208,220,28,67,98,18,62,53,68,208,220,28,67,152,184,28,68,208,220,28,67,152,184,28,68,208,220,28,67,108,152,184,28,68,208,88,73,67,99,101,0,0 };
 
 static const unsigned char FileLogger[] = { 110,109,0,128,7,68,204,103,173,67,108,198,112,13,68,204,103,173,67,108,198,112,13,68,96,63,104,67,98,198,112,13,68,24,48,97,67,106,223,14,68,0,118,91,67,11,163,16,68,0,118,91,67,108,154,107,21,68,0,118,91,67,108,154,107,21,68,8,151,116,67,108,130,219,
+27,68,8,151,116,67,108,130,219,27,68,0,118,91,67,108,72,84,35,68,0,118,91,67,108,72,84,35,68,8,151,116,67,108,48,196,41,68,8,151,116,67,108,48,196,41,68,0,118,91,67,108,0,61,49,68,0,118,91,67,108,0,61,49,68,8,151,116,67,108,223,172,55,68,8,151,116,67,
+108,223,172,55,68,0,118,91,67,108,245,92,60,68,0,118,91,67,98,150,32,62,68,0,118,91,67,57,143,63,68,24,48,97,67,57,143,63,68,96,63,104,67,108,57,143,63,68,210,185,212,67,98,57,143,63,68,176,64,216,67,150,32,62,68,190,29,219,67,245,92,60,68,190,29,219,
+67,108,11,163,16,68,190,29,219,67,98,106,223,14,68,190,29,219,67,198,112,13,68,176,64,216,67,198,112,13,68,210,185,212,67,108,198,112,13,68,192,153,173,67,108,0,128,7,68,192,153,173,67,108,0,128,7,68,210,185,212,67,98,0,128,7,68,166,207,222,67,24,152,
+11,68,212,255,230,67,11,163,16,68,212,255,230,67,98,11,163,16,68,212,255,230,67,245,92,60,68,212,255,230,67,245,92,60,68,212,255,230,67,98,231,103,65,68,212,255,230,67,0,128,69,68,166,207,222,67,0,128,69,68,210,185,212,67,98,0,128,69,68,210,185,212,67,
+0,128,69,68,96,63,104,67,0,128,69,68,96,63,104,67,98,0,128,69,68,188,19,84,67,231,103,65,68,92,179,67,67,245,92,60,68,92,179,67,67,108,223,172,55,68,92,179,67,67,108,223,172,55,68,84,0,42,67,108,0,61,49,68,84,0,42,67,108,0,61,49,68,92,179,67,67,108,48,
+196,41,68,92,179,67,67,108,48,196,41,68,84,0,42,67,108,72,84,35,68,84,0,42,67,108,72,84,35,68,92,179,67,67,108,130,219,27,68,92,179,67,67,108,130,219,27,68,84,0,42,67,108,154,107,21,68,84,0,42,67,108,154,107,21,68,92,179,67,67,108,11,163,16,68,92,179,
+67,67,98,24,152,11,68,92,179,67,67,0,128,7,68,188,19,84,67,0,128,7,68,96,63,104,67,108,0,128,7,68,204,103,173,67,99,109,176,74,58,68,140,144,204,67,108,176,74,58,68,44,1,189,67,108,137,156,18,68,44,1,189,67,108,137,156,18,68,140,144,204,67,108,176,74,
+58,68,140,144,204,67,99,109,176,74,58,68,210,14,178,67,108,176,74,58,68,114,127,162,67,108,137,156,18,68,114,127,162,67,108,137,156,18,68,210,14,178,67,108,176,74,58,68,210,14,178,67,99,109,176,74,58,68,136,206,150,67,108,176,74,58,68,38,63,135,67,108,
+137,156,18,68,38,63,135,67,108,137,156,18,68,136,206,150,67,108,176,74,58,68,136,206,150,67,99,101,0,0 };
+
+static const unsigned char ClipboardLoader[] = { 110,109,0,128,7,68,204,103,173,67,108,198,112,13,68,204,103,173,67,108,198,112,13,68,96,63,104,67,98,198,112,13,68,24,48,97,67,106,223,14,68,0,118,91,67,11,163,16,68,0,118,91,67,108,154,107,21,68,0,118,91,67,108,154,107,21,68,8,151,116,67,108,130,219,
 27,68,8,151,116,67,108,130,219,27,68,0,118,91,67,108,72,84,35,68,0,118,91,67,108,72,84,35,68,8,151,116,67,108,48,196,41,68,8,151,116,67,108,48,196,41,68,0,118,91,67,108,0,61,49,68,0,118,91,67,108,0,61,49,68,8,151,116,67,108,223,172,55,68,8,151,116,67,
 108,223,172,55,68,0,118,91,67,108,245,92,60,68,0,118,91,67,98,150,32,62,68,0,118,91,67,57,143,63,68,24,48,97,67,57,143,63,68,96,63,104,67,108,57,143,63,68,210,185,212,67,98,57,143,63,68,176,64,216,67,150,32,62,68,190,29,219,67,245,92,60,68,190,29,219,
 67,108,11,163,16,68,190,29,219,67,98,106,223,14,68,190,29,219,67,198,112,13,68,176,64,216,67,198,112,13,68,210,185,212,67,108,198,112,13,68,192,153,173,67,108,0,128,7,68,192,153,173,67,108,0,128,7,68,210,185,212,67,98,0,128,7,68,166,207,222,67,24,152,
@@ -1691,10 +1790,12 @@ Path Factory::createPath(const String& url) const
     LOAD_MULTIPAGE_PATH(DownloadTask);
     LOAD_MULTIPAGE_PATH(UnzipTask);
     LOAD_MULTIPAGE_PATH(HlacDecoder);
+	LOAD_MULTIPAGE_PATH(ClipboardLoader);
 	LOAD_MULTIPAGE_PATH(Image);
 	LOAD_MULTIPAGE_PATH(HtmlElement);
     LOAD_MULTIPAGE_PATH(AppDataFileWriter);
     LOAD_MULTIPAGE_PATH(RelativeFileLoader);
+	LOAD_MULTIPAGE_PATH(HiseActivator);
     LOAD_MULTIPAGE_PATH(HttpRequest);
     LOAD_MULTIPAGE_PATH(CodeEditor);
     LOAD_MULTIPAGE_PATH(CopyProtection);

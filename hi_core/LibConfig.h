@@ -104,6 +104,13 @@
 #define HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG 0
 #endif
 
+/** Annoyingly some sound generators (Waveform Generator, Sampler, Looper, Group) were rendering
+ *  the voice effects before the polyphonic gain modulation which causes the sound to be slightly different.
+ *	If you care about backwards compatibility of your existing user presets, you will have to enable this preprocessor. */
+#ifndef HISE_USE_WRONG_VOICE_RENDERING_ORDER
+#define HISE_USE_WRONG_VOICE_RENDERING_ORDER 0
+#endif
+
 #ifndef HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY
 #define HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY 1
 #endif
@@ -121,6 +128,9 @@
 #define HISE_UNDO_INTERVAL 500
 #endif
 
+#ifndef USE_MOD2_WAVETABLESIZE
+#define USE_MOD2_WAVETABLESIZE 1
+#endif
 
 // Enable this if you want to use the old event notification system for HISE modules (aka hise::Processor)
 #define HISE_OLD_PROCESSOR_DISPATCH 0

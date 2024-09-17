@@ -211,7 +211,11 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		resetVoice();
 	}
 
+#if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
+#endif
+
+	
 
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
@@ -254,6 +258,10 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		else
 			jassertfalse;
 	}
+
+#if !HISE_USE_WRONG_VOICE_RENDERING_ORDER
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
+#endif
 
 	if (sampler->isLastStartedVoice(this))
 	{
@@ -542,8 +550,10 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 		}
 	}
 
+#if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
-	
+#endif
+
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
 		for (int i = 0; i < wrappedVoices.size(); i++)
@@ -606,6 +616,10 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 		if (rGain != 1.0f)
 			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(2 * i + 1, startIndex), rGain, samplesInBlock);
 	}
+
+#if !HISE_USE_WRONG_VOICE_RENDERING_ORDER
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
+#endif
 
 	if (sampler->isLastStartedVoice(this))
 	{

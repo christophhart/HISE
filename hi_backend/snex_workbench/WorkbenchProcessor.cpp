@@ -631,8 +631,18 @@ void DspNetworkCompileExporter::run()
 	createIncludeFile(getSourceDirectory(true));
 	createIncludeFile(getSourceDirectory(false));
 
+
+	try
+	{
+		createMainCppFile(false);
+	}
+	catch(Result& r)
+	{
+		ok = ErrorCodes::CompileError;
+		errorMessage << r.getErrorMessage();
+		return;		
+	}
 	
-	createMainCppFile(false);
 
 	for (int i = 0; i < includedFiles.size(); i++)
 	{
@@ -981,9 +991,80 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 				String def;
 
 				String nid;
-				nid << "project::" << includedThirdPartyFiles[i].getFileNameWithoutExtension();
 
-				def << "registerPolyNode<" << nid << "<1>, " << nid << "<NUM_POLYPHONIC_VOICES>>();";
+				auto tid = includedThirdPartyFiles[i].getFileNameWithoutExtension();
+
+				nid << "project::" << tid;
+
+				auto illegalPoly = true;
+
+				if(CustomNodeProperties::nodeHasProperty(tid, PropertyIds::AllowPolyphonic))
+					illegalPoly = false;
+				else
+				{
+					for(auto nf: includedFiles)
+					{
+						auto networkFile = getFolder(BackendDllManager::FolderSubType::Networks).getChildFile(nf.getFileNameWithoutExtension()).withFileExtension("xml");
+
+						if(auto xml = XmlDocument::parse(networkFile))
+						{
+							auto d = xml->createDocument("");
+							auto vt = ValueTree::fromXml(*xml);
+
+							auto path = includedThirdPartyFiles[i].getFileNameWithoutExtension();
+							auto fp = "project." + path;
+
+							auto found = valuetree::Helpers::forEach(vt, [path, fp](const ValueTree& c)
+							{
+								if(c[PropertyIds::FactoryPath].toString() == fp)
+									return true;
+
+								if(c.getType() == scriptnode::PropertyIds::Property)
+								{
+									if(c[PropertyIds::ID].toString() == "ClassId")
+									{
+										return c[scriptnode::PropertyIds::Value].toString() == path;
+									}
+								}
+                                
+                                return false;
+							});
+
+							if(found)
+							{
+								auto networkIsPolyphonic = (bool)vt[scriptnode::PropertyIds::AllowPolyphonic];
+
+								auto thisIllegal = !networkIsPolyphonic;
+
+								auto isCppNode = CustomNodeProperties::nodeHasProperty(tid, PropertyIds::IsPolyphonic);
+
+
+
+								if(networkIsPolyphonic && isCppNode)
+								{
+									// Otherwise this branch wouldn't get executed...
+									jassert(!CustomNodeProperties::nodeHasProperty(tid, PropertyIds::AllowPolyphonic));
+									throw Result::fail("The C++ node `" + nid + "` requires the `AllowPolyphonic` flag in node_properties.json because it is used in the polyphonic network `" + networkFile.getFileName() + "`");
+								}
+
+								// allow it being used in several places and set the flag to false
+								// as soon as one of them is allowing polyphonic compilation
+								illegalPoly &= thisIllegal;
+							}
+						}
+					}
+				}
+
+				if(illegalPoly)
+				{
+					def << "registerPolyNode<" << nid << "<1>, wrap::illegal_poly<" << nid << "<1>>>();";
+				}
+				else
+				{
+					def << "registerPolyNode<" << nid << "<1>, " << nid << "<NUM_POLYPHONIC_VOICES>>();";
+				}
+
+				
 				b << def;
 			}
 

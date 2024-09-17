@@ -120,6 +120,7 @@ DECLARE_ID(FaustPath);
 DECLARE_ID(FaustExternalEditor);
 DECLARE_ID(EnableLoris);
 DECLARE_ID(ExportSetup);
+DECLARE_ID(DefaultProjectFolder);
 
 Array<Identifier> getAllIds();
 
@@ -166,6 +167,7 @@ namespace Other
 {
 DECLARE_ID(GlobalSamplePath);
 DECLARE_ID(UseOpenGL);
+DECLARE_ID(ShowWelcomeScreen);
 DECLARE_ID(EnableShaderLineNumbers);
 DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);

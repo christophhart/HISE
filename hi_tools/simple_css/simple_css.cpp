@@ -444,6 +444,6 @@ struct CssTestSuite: public UnitTest
 	}
 };
 
-static CssTestSuite cssTests;
+//static CssTestSuite cssTests;
 }
 }

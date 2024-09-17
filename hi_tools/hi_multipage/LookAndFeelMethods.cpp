@@ -84,7 +84,7 @@ h1, h2, h3, h4
 
 #content
 {
-    background: #333;
+    background: transparent;
 }
 
 #title
@@ -111,7 +111,7 @@ static const char* POPUP_MENU = R"(
 {
  background: linear-gradient(to bottom, #222, #161616);
  border: 1px solid #444;
- border-radius: 3px;
+ 
 }
 
 /** This CSS class defines the default popup menu item style. */
@@ -1248,8 +1248,6 @@ static const char* modalPopup = R"(
 /** Global properties (font, background, etc). */
 body
 {
-    border: 1px solid #555;
-   
     background: #333;
     
     /** This is used for all global containers to get a consistent padding. */
@@ -1426,6 +1424,13 @@ select::after:hover
     background: #ccc;
     
 }
+
+.no-label
+{
+ color: white;
+ width: 100%;
+}
+
 )";
 
 } // default_css

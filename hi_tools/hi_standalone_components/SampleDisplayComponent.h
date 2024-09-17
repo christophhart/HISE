@@ -369,7 +369,7 @@ public:
 		{
 			EdgeLookAndFeel(SampleArea *areaParent);;
 
-			void drawStretchableLayoutResizerBar (Graphics &g, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
+			void drawStretchableLayoutResizerBar (Graphics &g, Component&, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
 
 			const SampleArea *parentArea;
 		};

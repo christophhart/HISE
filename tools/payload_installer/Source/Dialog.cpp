@@ -13,7 +13,19 @@ Dialog* PayloadInstaller::createDialog(State& state)
 
 	if(payloadFile.existsAsFile())
 	{
-		return MonolithData(payloadFile).create(state);
+		FileInputStream fis(payloadFile);
+        try
+        {
+            return MonolithData(&fis).create(state, false);
+        }
+        catch(String& s)
+        {
+            NativeMessageBox::showMessageBox(MessageBoxIconType::WarningIcon, "Error loading payload", s);
+            
+            JUCEApplication::getInstance()->systemRequestedQuit();
+            return nullptr;
+        }
+        
 	}
 	else
 	{
@@ -27,11 +39,21 @@ Dialog* PayloadInstaller::createDialog(State& state)
 
 			if(f.getFileName() == payloadFile.getFileName())
 			{
-				return MonolithData(f).create(state);
+				FileInputStream fis(f);
+                
+                try
+                {
+                    return MonolithData(&fis).create(state, false);
+                }
+                catch(String& s)
+                {
+                    NativeMessageBox::showMessageBox(MessageBoxIconType::WarningIcon, "Error loading payload", s);
+                    
+                    JUCEApplication::getInstance()->systemRequestedQuit();
+                    return nullptr;
+                }
 			}
 		}
-
-		
 	}
 
 	NativeMessageBox::showMessageBox(MessageBoxIconType::WarningIcon, "Can't find payload", "The installer payload could not be located. The application will terminate.");

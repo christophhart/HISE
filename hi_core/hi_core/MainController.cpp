@@ -1991,7 +1991,22 @@ void MainController::insertStringAtLastActiveEditor(const String &string, bool s
 	{
 		auto ed = dynamic_cast<PopupIncludeEditor::EditorType*>(lastActiveEditor.getComponent());
 
-#if !HISE_USE_NEW_CODE_EDITOR
+#if HISE_USE_NEW_CODE_EDITOR
+
+		auto selection = mcl::TokenCollection::getSelectionFromFunctionArgs(string);
+
+		auto firstDot = string.indexOfChar('.');
+
+		auto className = string.substring(0, firstDot);
+
+		StringArray fullClasses = { "Console", "Message", "Content", "Colours", "Engine", "Synth", "Server", "FileSystem", "Settings" };
+
+		if(!fullClasses.contains(className))
+			selection.insert(0, {0, firstDot });
+
+		ed->editor.insertCodeSnippet(string, selection);
+
+#else
 
 		ed->getDocument().deleteSection(ed->getSelectionStart(), ed->getSelectionEnd());
         ed->moveCaretTo(CodeDocument::Position(ed->getDocument(), lastCharacterPositionOfSelectedEditor), false);

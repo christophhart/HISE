@@ -199,14 +199,14 @@ public:
 	{
 	public:
 
-		const int extendedWidth = 600;
+		const int extendedWidth = 500;
 
 		MethodItem(const ValueTree &methodTree_, const String &className_);
 
 		int getPopupHeight() const override
 		{ 
 			if (parser != nullptr) 
-				return (int)parser->getHeightForWidth((float)extendedWidth) + 20;
+				return (int)parser->getHeightForWidth((float)extendedWidth);
 			else 
 				return 150; 
 		}
@@ -219,8 +219,9 @@ public:
 				return Item::getPopupWidth();
 		}
 
-		void focusGained(FocusChangeType) override
+		void focusGained(FocusChangeType ft) override
 		{
+			Item::focusGained(ft);
 			repaint();
 		}
 
@@ -231,8 +232,9 @@ public:
 			return { File(), s };
 		}
 
-		void focusLost(FocusChangeType ) override
+		void focusLost(FocusChangeType ft) override
 		{
+			Item::focusLost(ft);
 			repaint();
 		}
 
@@ -240,18 +242,24 @@ public:
 		{
 			if (parser != nullptr)
 			{
-				auto bounds = Rectangle<float>(10.0f, 10.0f, (float)extendedWidth, (float)getPopupHeight() - 20);
+				auto bounds = Rectangle<float>(10.0f, -8.0f, (float)extendedWidth, (float)getPopupHeight());
 				parser->draw(g, bounds);
 			}
 			else
 			{
-				auto bounds = Rectangle<float>(10.0f, 10.0f, 280.0f, (float)getPopupHeight() - 20);
+				auto bounds = Rectangle<float>(10.0f, -8.0f, 280.0f, (float)getPopupHeight());
 				help.draw(g, bounds);
 			}
+
 			
 		}
 
-		void mouseEnter(const MouseEvent&) override { repaint(); }
+		melatonin::DropShadow sh;
+
+		void mouseEnter(const MouseEvent&) override
+		{
+			repaint();
+		}
 		void mouseExit(const MouseEvent&) override { repaint(); }
 		void mouseDoubleClick(const MouseEvent&) override;
 
@@ -275,13 +283,24 @@ public:
 		const ValueTree methodTree;
 	};
 
+	void onPopupClose(FocusChangeType ft) override
+	{
+		if(auto ed = getRootWindow()->getMainSynthChain()->getMainController()->getLastActiveEditor())
+		{
+			if(ft == FocusChangeType::focusChangedByMouseClick)
+				ed->grabKeyboardFocusAsync();
+		}
+	}
+
 	class ClassCollection : public SearchableListComponent::Collection
 	{
 	public:
-		ClassCollection(const ValueTree &api);;
+		ClassCollection(int index, const ValueTree &api);;
 
 		void paint(Graphics &g) override;
 	private:
+
+		String getSearchTermForCollection() const override { return name.toLowerCase(); }
 
 		String name;
 
@@ -292,7 +311,7 @@ public:
 
 	Collection *createCollection(int index) override
 	{
-		return new ClassCollection(apiTree.getChild(index));
+		return new ClassCollection(index, apiTree.getChild(index));
 	}
 
 	ValueTree apiTree;
@@ -336,7 +355,7 @@ public:
 		void labelTextChanged(Label*) override
 		{
 			if (node != nullptr)
-				node->setValueTreeProperty(PropertyIds::ID, label.getText());
+				node->setValueTreeProperty(PropertyIds::Name, label.getText());
 		}
 
 		void buttonClicked(Button* b) override
@@ -377,7 +396,8 @@ public:
 
 	struct NodeCollection : public SearchableListComponent::Collection
 	{
-		NodeCollection(DspNetwork* network_) :
+		NodeCollection(DspNetwork* network_, int idx) :
+		    Collection(idx),
 			network(network_)
 		{};
 
@@ -413,21 +433,50 @@ public:
 	struct UsedNodes : public NodeCollection
 	{
 		UsedNodes(DspNetwork* network) :
-			NodeCollection(network)
+			NodeCollection(network, 0)
 		{
 			setName("Used Nodes");
 			addItems(network->getListOfUsedNodeIds());
 		}
+
+		String getSearchTermForCollection() const override { return "UsedNodes"; }
 	};
 
 	struct UnusedNodes : public NodeCollection
 	{
 		UnusedNodes(DspNetwork* network) :
-			NodeCollection(network)
+			NodeCollection(network, 1)
 		{
 			setName("Unused Nodes");
 			addItems(network->getListOfUnusedNodeIds());
 		};
+
+		String getSearchTermForCollection() const override { return "UsedNodes"; }
+
+        void mouseDown(const MouseEvent& e) override
+        {
+            if(e.mods.isRightButtonDown())
+            {
+                PopupMenu m;
+                PopupLookAndFeel plaf;
+                m.setLookAndFeel(&plaf);
+                m.addItem(1, "Clear unused nodes");
+                
+                auto r = m.show();
+                
+                if(r == 1)
+                {
+                    network->clear(false, true);
+                    
+                    auto f = findParentComponentOfClass<SearchableListComponent>();
+                    
+                    MessageManager::callAsync([f]()
+                    {
+                        f->rebuildModuleList(true);
+                    });
+                }
+            }
+        }
 	};
 
 	struct Panel : public NetworkPanel

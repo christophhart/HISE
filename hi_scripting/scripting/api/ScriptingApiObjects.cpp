@@ -7677,6 +7677,7 @@ struct ScriptingObjects::GlobalRoutingManagerReference::Wrapper
 	API_METHOD_WRAPPER_2(GlobalRoutingManagerReference, connectToOSC);
 	API_METHOD_WRAPPER_2(GlobalRoutingManagerReference, sendOSCMessage);
 	API_VOID_METHOD_WRAPPER_2(GlobalRoutingManagerReference, addOSCCallback);
+	API_METHOD_WRAPPER_1(GlobalRoutingManagerReference, removeOSCCallback);
 	API_VOID_METHOD_WRAPPER_3(GlobalRoutingManagerReference, setEventData);
 	API_METHOD_WRAPPER_2(GlobalRoutingManagerReference, getEventData);
 };
@@ -7694,6 +7695,7 @@ ScriptingObjects::GlobalRoutingManagerReference::GlobalRoutingManagerReference(P
 	ADD_API_METHOD_2(connectToOSC);
 	ADD_API_METHOD_2(sendOSCMessage);
 	ADD_API_METHOD_2(addOSCCallback);
+	ADD_API_METHOD_1(removeOSCCallback);
 	ADD_API_METHOD_3(setEventData);
 	ADD_API_METHOD_2(getEventData);
 }
@@ -7856,6 +7858,23 @@ void ScriptingObjects::GlobalRoutingManagerReference::OSCCallback::callForMessag
 	callback.call(args, 2);
 }
 
+bool ScriptingObjects::GlobalRoutingManagerReference::removeOSCCallback(String oscSubAddress)
+{
+	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
+	{
+		for(auto c: callbacks)
+		{
+			if(c->subDomain == oscSubAddress)
+			{
+				callbacks.removeObject(c);
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void ScriptingObjects::GlobalRoutingManagerReference::addOSCCallback(String oscSubAddress, var callback)
 {
 	if (auto m = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(manager.getObject()))
@@ -7913,6 +7932,8 @@ ScriptingObjects::GlobalRoutingManagerReference::OSCCallback::OSCCallback(Global
 	subDomain(sd),
 	fullAddress("/*")
 {
+	args[0] = subDomain;
+
 	callback.incRefCount();
 	callback.setHighPriority();
 }
@@ -7927,6 +7948,7 @@ struct ScriptingObjects::GlobalCableReference::Wrapper
 	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, setRangeWithSkew);
 	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, setRangeWithStep);
 	API_VOID_METHOD_WRAPPER_2(GlobalCableReference, registerCallback);
+	API_METHOD_WRAPPER_1(GlobalCableReference, deregisterCallback);
 	API_VOID_METHOD_WRAPPER_3(GlobalCableReference, connectToMacroControl);
     API_VOID_METHOD_WRAPPER_2(GlobalCableReference, connectToGlobalModulator);
     API_VOID_METHOD_WRAPPER_3(GlobalCableReference, connectToModuleParameter);
@@ -7994,6 +8016,7 @@ ScriptingObjects::GlobalCableReference::GlobalCableReference(ProcessorWithScript
 	ADD_API_METHOD_3(setRangeWithSkew);
 	ADD_API_METHOD_3(setRangeWithStep);
 	ADD_API_METHOD_2(registerCallback);
+	ADD_API_METHOD_1(deregisterCallback);
 	ADD_API_METHOD_3(connectToMacroControl);
     ADD_API_METHOD_2(connectToGlobalModulator);
     ADD_API_METHOD_3(connectToModuleParameter);
@@ -8176,6 +8199,20 @@ void ScriptingObjects::GlobalCableReference::registerCallback(var callbackFuncti
 		auto nc = new Callback(*this, callbackFunction, isSync);
 		callbacks.add(nc);
 	}
+}
+
+bool ScriptingObjects::GlobalCableReference::deregisterCallback(var callbackFunction)
+{
+	for(auto c: callbacks)
+	{
+		if(c->callback.matches(callbackFunction))
+		{
+			callbacks.removeObject(c);
+			return true;
+		}
+	}
+
+	return false;
 }
 
 struct MacroCableTarget : public scriptnode::routing::GlobalRoutingManager::CableTargetBase,

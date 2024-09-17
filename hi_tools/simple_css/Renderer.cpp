@@ -206,10 +206,10 @@ Renderer::Renderer(Component* c, StateWatcher& state_):
 
 int Renderer::getPseudoClassFromComponent(Component* c)
 {
-	int state = 0;
-
 	if(c == nullptr)
 		return 0;
+
+	int state = FlexboxComponent::Helpers::getManualPseudoState(*c);
 
 	auto isHover = c->isMouseOverOrDragging(true);
 	auto isDown = c->isMouseButtonDown(false);
@@ -327,6 +327,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 
 		if(!beforeArea.isEmpty())
 		{
+			ScopedValueSetter<PseudoElementType> svs(currentlyRenderedPseudoElement, PseudoElementType::Before);
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, beforeArea, ss, PseudoElementType::Before);
 
@@ -342,6 +343,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 		
 		if(!afterArea.isEmpty())
 		{
+			ScopedValueSetter<PseudoElementType> svs(currentlyRenderedPseudoElement, PseudoElementType::After);
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, afterArea, ss, PseudoElementType::After);
 
@@ -368,7 +370,8 @@ void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> a
 		if(isContent)
 			totalArea = ss->getArea(totalArea, { "padding", currentState });
 
-		totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
+		if(currentlyRenderedPseudoElement == PseudoElementType::None)
+			totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
 
 		g.setColour(Colours::black.withAlpha(ss->getOpacity(currentState.stateFlag)));
 
@@ -471,7 +474,7 @@ void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> a
 	}
 }
 
-void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type)
+void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type, Justification jToUse)
 {
 	auto currentState = PseudoState(getPseudoClassState()).withElement(type);
 
@@ -488,7 +491,7 @@ void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text
 
 	auto textToDraw = ss->getText(text, currentState);
 
-	auto j = ss->getJustification(currentState);
+	auto j = jToUse.getFlags() ? jToUse : ss->getJustification(currentState);
 
 	state.renderShadow(g, std::make_tuple(textToDraw, j, totalArea), currentComponent, ss->getShadow(totalArea, { "text-shadow", currentState}, false), false);	
 

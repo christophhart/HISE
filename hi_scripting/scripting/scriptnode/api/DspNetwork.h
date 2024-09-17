@@ -811,7 +811,6 @@ private:
 
 	
 
-	valuetree::RecursivePropertyListener idUpdater;
 	valuetree::RecursiveTypedChildListener exceptionResetter;
 
     valuetree::RecursiveTypedChildListener sortListener;

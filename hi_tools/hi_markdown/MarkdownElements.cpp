@@ -961,6 +961,10 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	Component* createComponent(int maxWidth)
 	{
+#if !HISE_HEADLESS
+		MessageManagerLock mm;
+#endif
+
 		if (content == nullptr)
 			content = createEditor(maxWidth);
 

@@ -342,6 +342,11 @@ public:
 		return voiceStack.voiceNoteOns.size();
 	}
 
+	bool isVoiceResetActive() const override
+	{
+		return hasHardcodedTail();
+	}
+
 	void onVoiceReset(bool allVoices, int voiceIndex) override
 	{
 		if (allVoices)

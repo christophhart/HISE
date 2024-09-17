@@ -7,209 +7,6 @@ namespace multipage {
 namespace library {
 using namespace juce;
 
-inline var SnippetBrowser::loadSnippet(const var::NativeFunctionArgs& args)
-{
-    if(args.numArguments != 2)
-        return var();
-
-	auto snippet = args.arguments[0].toString();
-    auto category = args.arguments[1].toString();
-
-    auto am = bpe->getBackendProcessor()->getAssetManager();
-    am->initialise();
-	BackendCommandTarget::Actions::loadSnippet(bpe, snippet);
-	auto root = bpe->getRootFloatingTile();
-
-    
-
-    auto catIndex = SnippetBrowserHelpers::getCategoryNames().indexOf(category);
-
-    if(catIndex != -1)
-    {
-        auto c = (SnippetBrowserHelpers::Category)catIndex;
-	    auto foldState = hise::SnippetBrowserHelpers::getFoldConfiguration(c);
-
-		root->forEach<FloatingTileContent>([&](FloatingTileContent* t)
-		{
-			auto s = t->getParentShell()->getLayoutData().getKeyPressId();
-
-			if(s.isValid() && foldState.find(s) != foldState.end())
-			{
-				auto x = foldState[s];
-				t->getParentShell()->setFolded(x);
-			}
-					
-			return false;
-		});
-    
-		bpe->currentCategory = c;
-    }
-    
-    bpe->setCurrentlyActiveProcessor();
-	
-	return var();
-}
-
-
-var BroadcasterWizard::checkSelection(const var::NativeFunctionArgs& args)
-{
-	if(auto fe = dynamic_cast<mcl::FullEditor*>(bpe->getBackendProcessor()->getLastActiveEditor()))
-	{
-		auto s = fe->editor.getTextDocument().getSelection(0);
-        auto selection = fe->editor.getTextDocument().getSelectionContent(s);
-
-        if(selection.contains("Engine.createBroadcaster"))
-        {
-            addListenersOnly = true;
-
-            auto obj = selection.fromFirstOccurrenceOf("{", true, true).upToLastOccurrenceOf("}", true, true);
-
-            auto cid = selection.upToFirstOccurrenceOf("=", false, false).trim();
-
-            cid = cid.replace("const", "");
-            cid = cid.replace("reg", "");
-            cid = cid.replace("var", "");
-            cid = cid.replace("global", "");
-            cid = cid.trim();
-
-            auto p = JSON::parse(obj);
-
-            if(auto go = state.globalState.getDynamicObject())
-            {
-                go->setProperty("id", p["id"]);
-
-                String args;
-
-                if(p["args"].isArray())
-                {
-	                for(auto& a: *p["args"].getArray())
-                        args << a.toString() << ", ";
-                }
-
-                if(cid != p["id"].toString())
-                {
-	                customId = cid;
-                }
-
-                go->setProperty("noneArgs", args.upToLastOccurrenceOf(", ", false, false));
-            }
-
-	        return var(true);
-        }
-
-        
-	}
-    
-	//auto content = BackendCommandTarget::Actions::exportFileAsSnippet(bpe, false);
-        
-	return var(false);
-}
-
-StringArray BroadcasterWizard::getAutocompleteItems(const Identifier& textEditorId)
-{
-    using SourceIndex = CustomResultPage::SourceIndex;
-    
-    auto chain = findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor()->getMainSynthChain();
-    auto sp = ProcessorHelpers::getFirstProcessorWithType<ProcessorWithScriptingContent>(chain);
-    
-    if(textEditorId == Identifier("moduleIds"))
-    {
-        auto attachType = (SourceIndex)(int)getProperty("attachType");
-        
-        switch(attachType)
-        {
-            case SourceIndex::ComplexData:
-                return ProcessorHelpers::getAllIdsForType<ProcessorWithExternalData>(chain);
-            case SourceIndex::EqEvents:
-                return ProcessorHelpers::getAllIdsForType<CurveEq>(chain);
-            case SourceIndex::ModuleParameters:
-            {
-                auto sa = ProcessorHelpers::getAllIdsForType<Processor>(chain);
-                sa.removeDuplicates(false);
-                sa.sort(true);
-                return sa;
-            }
-			case SourceIndex::RoutingMatrix:
-                return ProcessorHelpers::getAllIdsForType<RoutableProcessor>(chain);
-        }
-    }
-    if(textEditorId == Identifier("moduleParameterIndexes"))
-    {
-        auto firstId = getProperty("moduleIds")[0].toString().trim();
-        
-        if(auto p = ProcessorHelpers::getFirstProcessorWithName(chain, firstId))
-        {
-            StringArray sa;
-            int numParameters = p->getNumParameters();
-            for(int i = 0; i < numParameters; i++)
-                sa.add(p->getIdentifierForParameterIndex(i).toString());
-
-            return sa;
-        }
-    }
-    if(textEditorId == Identifier("componentIds") ||
-       textEditorId == Identifier("targetComponentIds"))
-    {
-        StringArray sa;
-        
-        int numComponents = sp->getScriptingContent()->getNumComponents();
-
-        for(int i = 0; i < numComponents; i++)
-        {
-            sa.add(sp->getScriptingContent()->getComponent(i)->getId());
-        }
-
-        return sa;
-    }
-    if(textEditorId == Identifier("targetModuleId"))
-    {
-	    auto sa = ProcessorHelpers::getAllIdsForType<Processor>(chain);
-        sa.removeDuplicates(false);
-        sa.sort(true);
-        return sa;
-    }
-    if(textEditorId == Identifier("targetModuleParameter"))
-    {
-	    auto firstId = getProperty("targetModuleId")[0].toString().trim();
-        
-        if(auto p = ProcessorHelpers::getFirstProcessorWithName(chain, firstId))
-        {
-            StringArray sa;
-            int numParameters = p->getNumParameters();
-            for(int i = 0; i < numParameters; i++)
-                sa.add(p->getIdentifierForParameterIndex(i).toString());
-
-            return sa;
-        }
-    }
-    if(textEditorId == Identifier("propertyType") ||
-       textEditorId == Identifier("targetPropertyType"))
-    {
-        auto pToUse = textEditorId == Identifier("propertyType") ? "componentIds" : "targetComponentIds";
-
-        auto n = getProperty(pToUse);
-
-        StringArray sa;
-
-        if(n.isArray())
-        {
-	        auto name = n[0].toString().trim();
-
-	        if(auto sc = sp->getScriptingContent()->getComponentWithName(name.trim()))
-	        {
-		        auto numIds = sc->getNumIds();
-
-	            for(int i = 0; i < numIds; i++)
-		            sa.add(sc->getIdFor(i).toString());
-	        }
-        }
-
-        return sa;
-    }
-    
-    return {};
-}
-
 
 CustomResultPage::CustomResultPage(Dialog& r, const var& obj):
     PlaceholderContentBase(r, obj),
@@ -477,7 +274,7 @@ String CustomResultPage::getAttachLine(SourceIndex source, const var& state)
 
 String CustomResultPage::getVariableName() const
 {
-    auto br = findParentComponentOfClass<BroadcasterWizard>();
+    auto br = findParentComponentOfClass<EncodedBroadcasterWizard>();
     
     auto cid = Dialog::getGlobalState(*const_cast<CustomResultPage*>(this), "id", var()).toString();
     
@@ -492,7 +289,7 @@ void CustomResultPage::postInit()
     gs = Dialog::getGlobalState(*this, {}, var());
     String b;
 
-    auto listenersOnly = findParentComponentOfClass<BroadcasterWizard>()->addListenersOnly;
+    auto listenersOnly = findParentComponentOfClass<EncodedBroadcasterWizard>()->addListenersOnly;
 
     String nl = "\n";
 

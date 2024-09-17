@@ -97,6 +97,10 @@ void GlobalScriptCompileBroadcaster::restoreIncludedScriptFilesFromSnippet(const
 #if USE_BACKEND
 	auto mc = dynamic_cast<MainController*>(this);
 	auto scriptRootFolder = mc->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Scripts);
+
+	if(!scriptRootFolder.isDirectory())
+		return;
+
 	auto snexRootFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::CodeLibrary);
 
 	auto restoreFromChild = [&](const Identifier& id, const File& rootDirectory)

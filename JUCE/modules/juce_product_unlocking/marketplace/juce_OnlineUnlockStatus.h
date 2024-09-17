@@ -145,6 +145,21 @@ public:
     */
     inline var isUnlocked() const               { return status[unlockedProp]; }
 
+    inline var contains(const String& otherString)
+    {
+		auto s = getPublicKey().toString().fromFirstOccurrenceOf(",", false, false);
+
+        var rv(true);
+        var x = status[unlockedProp] && s.contains(otherString);
+
+        if(status[unlockedProp] && !x)
+            std::swap(x, rv);
+
+        status.setProperty(unlockedProp, x, nullptr);
+        
+        return rv;
+    }
+
     /** Returns the Time when the keyfile expires.
 
         If a the key file obtained has an expiry time, isUnlocked will return false and this

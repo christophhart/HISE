@@ -830,9 +830,10 @@ void AllEditor::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
 }
 
 
-AllEditor::AllEditor(const String& syntax_):
+AllEditor::AllEditor(const String& syntax_, const var& infoObject_):
 	codeDoc(doc),
 	syntax(syntax_),
+    infoObject(infoObject_),
 	editor(new mcl::TextEditor(codeDoc))
 {
 	if(syntax == "CSS")
@@ -906,6 +907,8 @@ Result AllEditor::compile(bool useCompileCallback)
 	}
 	else
 	{
+        ApiObject::ScopedThisSetter sts(*state, new Element(*state, infoObject));
+        
 		auto e = state->createJavascriptEngine();
 		auto ok = e->execute(code);
 

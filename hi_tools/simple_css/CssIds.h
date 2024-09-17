@@ -106,7 +106,8 @@ enum class ElementType
 	Headline2,
 	Headline3,
 	Headline4,
-	Progress
+	Progress,
+	Scrollbar
 };
 
 /** The positioning mode values. Currently there is only a distinction between absolute & fixed and the others. */

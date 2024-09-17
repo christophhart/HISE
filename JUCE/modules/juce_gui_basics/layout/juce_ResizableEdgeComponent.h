@@ -77,6 +77,8 @@ public:
 
     bool isVertical() const noexcept;
 
+    Edge getEdge() const noexcept { return edge; }
+
 protected:
     //==============================================================================
     /** @internal */

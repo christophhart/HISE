@@ -1,986 +1,185 @@
-// Put in the header definitions of every dialog here...
-
 #include "broadcaster_resultpage.cpp"
 
 namespace hise {
 namespace multipage {
 namespace library {
-using namespace juce;
-Dialog* BroadcasterWizard::createDialog(State& state)
-{
-	DynamicObject::Ptr fullData = new DynamicObject();
-	fullData->setProperty(mpid::LayoutData, JSON::parse(R"({"StyleSheet": "Dark", "Style": "#targetMetadata,\n#contextItems\n{\n\theight: 120px;\n}\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n\n\n#targetMetadata input,\n#contextItems input\n{\n\theight: 100%;\n\tfont-family: monospace;\n\tfont-size: 14px;\n\tvertical-align: top;\n\tpadding-top: 5px;\n}\n\nlabel\n{\n\tmin-width: 100px;\n}\n\n.button-selector\n{\n\tflex-wrap:wrap;\n\tgap:0px;\n}\n\n.button-selector div\n{\n\twidth: 33%;\n\tgap: 0px;\n\tpadding: 5px;\n}\n\n.button-selector label\n{\n\tdisplay: none;\n}\n\n.button-selector .toggle-button\n{\n\tbackground: #222;\n\tcolor: #ccc;\n\tborder-radius: 5px;\n\tfont-family: monospace;\n\tfont-size: 13px;\n\tmargin-right: 5px;\n}\n\n.button-selector button:checked\n{\n\tbackground: #aaa;\n\tcolor: #222;\n\tborder-radius: 5px;\n}\n\n.button-selector button::before,\n.button-selector button::after\n{\n\tdisplay: none;\n}\n\n\n", "UseViewport": true, "ConfirmClose": true, "DialogWidth": 832, "DialogHeight": 716})"));
-	fullData->setProperty(mpid::Properties, JSON::parse(R"({"Header": "Broadcaster Wizard", "Subtitle": "", "Image": "", "ProjectName": "BroadcasterWizard", "Company": "", "Version": "", "BinaryName": "", "UseGlobalAppData": false, "Icon": ""})"));
-	using namespace factory;
-	auto mp_ = new Dialog(var(fullData.get()), state, false);
-	auto& mp = *mp_;
-	auto& List_0 = mp.addPage<List>({
-	  { mpid::Style, "gap: 20px;" }
-	});
 
-	List_0.addChild<JavascriptFunction>({
-	  { mpid::ID, "JavascriptFunctionId" }, 
-	  { mpid::Code, R"(var f = document.bindCallback("checkSelection", function()
+EncodedBroadcasterWizard::EncodedBroadcasterWizard(BackendRootWindow* bpe_):
+	EncodedDialogBase(bpe_),
+	bpe(bpe_)
 {
-	return false;
-});
-
-if(f())
-{
-	document.navigate(3, false);
+	loadFrom("5771.sNB..D...............35H...oi...eYA........J09R+fQbosJK.5SJ3a.Cnrx31Pr5iaJBHIMbmVa4RVjTtMsMhsH38uWCLaedCBypjOnKY6Hv0gwKGO83EgWfzADZ.pFv9J9kw2VmxSMoB79JAsMwADDQDaPBX0sXajkFHgChPDR7fG.pY4dABzdstg9F8nB6GeN2fudB6KbW0P8lYQxsOrqaaz0Ab5+jSTW+nNUxLWpGJMRUw8.uPtTRB+sqz8fSWt1QoTtl0pHhHBEfUV7qcPdnRmGTFDT+TTtYrxTxZ9tl.C.IjPytPnJszs4gOT1iqekxT+At++4PI5W6lG3UhoNIaBrxCPn0OVggVV9.KUZXfdg0UU17laIrxDakxmGdtefP..AD+qwK9.TBrBDuqU1dNCbGP3iFDQr.rxGAsZz2A2AF3NbI8uvsRAbGSxOW4qZ7JjKeELAhGt7hW0HL+qmRInTmkOsVErzoYI.jIWxqEbutScfINaRsEUJmvqzI.Jkt.g8667vrb4E1G.c56oZksyBHXEHttuSasaCHH1vjLfXC5y8rbUZCi5MvBhvAQPQCbfxKakZjxqDfHhInXBHb5J0HnLm7c.ELvARPwDTDACn3+PeGz.Jb.CnvCdYS7fIXPCdfE5pURDwDSvfIVvChfAXEHtWyZKPNPP4AK.q.QuvhYBjC3YcJlGbNwT.KVaADDQrgIP5Ok.DrBjm6LffHhMfArBj7yKT1ziABhMfg.PpConghjLquZbTgWZf1yJ2PjrTMszyg+9gtvTR53FkwD4kgrFswUHNiTH9PkUQ0QxlQuqWEafNcsLL3DmiHnSi4mKth7yKr7XoCHwcJawYDbNcPZD7alitecMN83ms0M.pbOAKfvRONw1C8HijHP.D.AMGYTto.Ast2UkyZ6ybIptHU9epAUOU1FMTAm5cGYwa3GJqAwr2iuMFo1nMr8wekgT7DhW263SiuuLboe5xl5XNkNWEp6xMdGJ4vWNgbMpqVgB.F8QsThWj2zQN5aEXpXURpsrXcFHKWqJb59rOqqEi5aDv0xx2eRnJkLRw0LHdcLwm10OOKr7CeUxXpxbxsebo9CUGswzHrT29rfRAJTn3vXL8MILV6EWdM9BEEl4B2YPW+7hMV+L5Q2U0SiKV+k2GcgXh5uL2JbwIN0vImpQwoGG4TguNBPJNXhP79o5T3SidSeG0nGifdsK5UOxGYrMb7enbva5kGtTCHRlHQD8SnUSxRh7D4YgfD18d0IIxCNARGJSw.oiHLVZYwqCkmUompWnAfOnK0rZKqKWboCRs6g8.cmtR203D244ejOO4OfTjv3Nh5xEorQpTwm9UMN8Yg9SmxJDqIopSoRIuV7A0OeLoSWJx85rJsKzG.zWNn+6hSU9ruJy9ejfShfSsIF6gJnLQ+jgIN4h5+L3jLKVyfpGKyUIsNBRQcZDlYAYPdQ2yFOoiZpyidyit1ZlpgUoFCJYod5fsSuPDD+lgAxji9rhu+l.bwIpha7SzyfkKZTwDhfKvfS8M4FIJstvcPQBuOqTctmR0Wtfhj1s3fCOfP3N3NbI8U0Rg6G2zL0Ikb8CuOHEk61Cc+tzrBrBcq8TMYjOsoiPkg3AJ2LEGxkMbhxW9W2S.UfBTPjhSmEPbOYVfLgDSz.JP7.DJRbOHES4HnD59XcepwqUKTyvHkiJT1dVkVsiKtfPnCWn1qcIPRAzoOOOG7SGlpcC0eN3vjh0mETWFY3ZzAGPGJ3fC3jJd0yDA0+47IJ4zMT1a0Zv.XfVXcuJ8pqNbh9JSWHAfKNcbIfgEvvC0xjvD805wpF8iLC4obCScn5ZILQe.9EaGcW1d74WqTo2NKOfoeY6R+mR+PYsSi9jnma.PFZnBRrwydtRgEqi1fhDbkn5QJ0VltlZ8Ri7k2LP2U2FRPmBoeET7TsrVKW86KGntVGhaVxcvcvcnLmWuRTkRe8zBLCuqm8xG8hlC0Mw7LJBtbY6Lod7TIi+TcFp2LJRxfYVWxf4pAWpZwmMhaw0RsKC0WRzea3yhKNi3UxvJt3MrnRsiRVtbSj0Dqeze0m7E2J0WWJBtTo8Q2D2pj03UUMoJALcWcsOzINWfLYRr0eEfP48jo3I+Q+U2+E6GkjQRjm2rotLqNxg+qQeJxU2iRg+S1S4OI8BqT+9ySmok5vkjkNkL8hHnOwzO2kJIsXEs0CLMze8pQcMW0rp5mvibHggV2ykqQvLYd0SbsIx5Z8eUnrwVSoJQ0r9io9Pe5LRhShfMeCFChWHnzcwjHfBvDiW.zwdBoxqzhoZTljLVhva9NUg+Sp1F8VlLYZUpNbwdJFL3HiL3Nn.NohEmVDAcKnTX4yeKcezyVgeynq8RcZ5n3hUu+MP00HCfwygI5Te2LQ8WKoO9bwB9OpDPtmPiOZm1w4gAmvTN2HBhAlKQfsOGKAFtBpSkclZXNmRMz.....BLEX.fAKTwkIc5foKj5AyCj7gxHEOPLZDRNJ.iw.HJ..v..C.P.FfP..zPSsCLTQhf24CND+TJbJBj3WvMmxVs9kppwcbgdrLFLtQi.j2s0SpleZOtmXgG84U+vgw4AcqiFB1AbC2p6vMH4j4hD+5uRE1L6bzNH5wkZIRJjTn.LkBnJwA0ALMM6hx.+Hv3Kf3L3ptKkLphahip9f2k5RsTlMuJK0a8h7eY9tDKT9dB81Rwko5RpR4qmpxqRsf5pVK.L2HMkHtRdmttjZGhZTfeEPPIYkHEODpTMXOOBGJPPGGgGL7G.nZlBFTJ.kQxBZvOnnDfVb7+IWHjqL.LDUOT+ALEMAm67rggEw0LZ9KxH7Jz7jPTqfXxwhHm.PmI0H0Vm2Glts1SegNHrgL9u70p+7my1Hetk4msZHuIT4Ln4Pkz1AeDQrBXvA.eiGpp0Du9wuSn4gM.k9w2n5GoV.MS8P1L7P4B2IGq+Kqh50GAlCwyenfb6OSeTyCDFCfoX6SgSn7xf9O2gCKUNV88uNcA5G.tyKyXtS04KhCadddSb0Q3XGpsTJIdO7UqFwyXmv1h8u3Ni35p4hofKoydSSvDlWyet5HLUtz+Lg+j81Me9wCX1hLSVjzPoriECtBP9Z1rNjhRkbrzJjV1qiTExnd1Y8D09Sq6j5W2uZxgWg8endTvuD860Jhto0yIrkbaW.MEoECY1oPdesKva+.rkCaukTJ3o717JTnO.Gs0EHczZ0P5HAic1CKHk9cSL9zVGdAgcA6X05B01ZezAch1QPHnR59TSuZbRmVi4Bf84RsCNX4Q3ZObtxDQGewuM.2YY8hfrBxATeDgZ7lDOMPyfqSN7EkG9kkrZ9rMTDa4Bu0qJJa4BvqvVCf9EK5Bt11NDHJ7ZaK7xqNrhJOC865JOatPtp.sitkWQ87Cqg8vjgKYpmkZ10WYN32KTuVsBCoVoXafw2y.c6dcAQL5xmszgNRN2b4GKSpAvJI+ibMicMWNC6CsXMJ0z10MYy8xy.HOfK6UhedJdvo8ubhyD4+apCnD3bWuX1zTUQ7oqX+DLUK.ysPCugEuhnq8EIuP4vhDQu0pIMRL10KLgg8bJxjM1ASCi8hKsRBnCcU2XjgmCJ3Aj7J5ULdl2PzVoXVwDPVdoh63d+qjVMdGsP4+63fCNsJOMRzUfssJhd9OGSj33n3I00BQ2nSDM0opaQZPivvnDTEcjKG3hjUxq21fTgPfTA7Pb63h2.KOVkf7ty4S9Zm9DbXBKh9DH8Yj7FQALlHaW1xL0ZEnzEUsQNfw7IgXz.0ULOViVqzfXkrpBoas8PYN2Me6zFbyTdyskWs5DwqtBGVbz5QVmPOl1ACm6Xh2AupXfg9U8jlKAiAZp9nMZYlFWhxHN.0cukiLcrtiK9a748cJvBbZI0AKIoIvxq.M2lQaWmHqaqldM0TZO0e+0.AcEJEMXBkqRAqqPoBP7Dbir36qVZRIplSP7SunwEHK.Ql8iwTLmFKYEwZECFsmDl2b4DH2qjrzBRIBK9vReQnijO9FqyZpWQSvwjWSKXw92HFZN4tFoFZu+e7xl8BDA2flO8yieIADxJmq1igELMcSGpygVSF70WVI3v7uR9e.t9Rmp+rVS+73xMq3HaxKLTDFnZcTFVCkg8H.CoF1H0rIwvciRr9.suQYylDiPlods2OH.GivWDvjUzwERXeMAPafBnOBKrh9xPUbrpFceZ94DELg8S1EqkZF7IE6O7OoMof7wECbYTmGOJSW0BYYQXoqXDxZFoqBw447WTq9opA1huGVtvfjdZ+fSMjvgJ0mbHRAFyv8AiINrk54Enwxtyifc+e6QtNx9jHqNnvP.B.3y.CD61W8+QTWug9sH4fTYQYIWQTtVzZkbzp1WwyyMIvXoAvhZd7URS.1SfDKriWG9+f7I4dcTlK.P.10K6rtn4HnHwWVQj0RAAFPh0KO1owaMH8ACblnmHmfAEQJdgOczdSPnKFqU2OJWL0BbyaFsU5CwCGgv0RSriA8fwSR35hZC2eaP9hzpBC4eLg5wjHe3n97egB465EOCznw.QYVUpcFw7uJzH7+kN1dB1OSCFgHLE.gksbtcvJxThpH.mOea.icgl25yRsRB86ieDExMVDOm2.yQdk7+RlTLkPikcXOZjX9NiZjx3qVU8rcjK4WHXeprgKUwb3J.rjDkFKpi6GfgmKXRAoFa8bj+oYlx3BM5xBOA+oUuct5vfCiTM.beZTW6XabdU8eCyJl2YTGFJY5XFfz6.TaPjKWUD053tjrytpyC0TDM.LMb+6PHeVfh.Umws4zANiIwk9hZbm+2VfQM7W60qAshGRBL8mRVXXd0H90SMafntj4jkpcYbIj+LeEu0U4uamX9FVvaUhnm5Az+Vkz8hyzszGiHLzQlHuEHtVGJ0iowllj1pHZs3+w.Pk8w5bMHFLB3PRCb32hf6r0eiqSNOq3UePMc2e8pqpTCl4wGw55vkcqDq0dpsZE9OPl9ySSNFoKUZ.0FV2YBI162cnW3geaAoAKHJNRfEPWN5z6speDitIEsqltbt4Ihq8eyKObmEKQt6m6BR+mmyhEKoFHsnoZghmA5fDtqPieR7TkAJs0GSODxzV4XoL99SlPyLCH+CTvvQ1KdcICCidL82TqII80O9SLnxZyJHGxj2r1njh9NLf.Y75e4uHuKqavyeOemMPhKJZnqbzMYqE36Y392PtG9PRBPkD2+kIPBiG9kTQnna0RHDl6pszM+fwxEgxHh8oR7+S0+rEnzqsCIvEEYTwQaInxPD0MfSnmpRNBBkPUa9499mZiUqsQwiGSR++SD.tZn5Tp6FVoquNImxPmcC344U9WpHus2MisUGJcNvzy45DipvpQu2DBn9+SbOkInRVV4o6dBvJyV0k3VNjT5An7r9KqtDvGgnVEcDegiXiBT1uXOwrnmVXZRKfglvz.fSdQUuEHJUepDfUnC2pnpE.YtLeRpDuIioNVOLOvK3+OivV3hDEyDkEmKWvYvaB9Dj9u39kGgK3IUZLWuI9rfyZ.xEHYWfNLwEng28pyce791roF2nsu9ko93TE3ePqF6EM7KxF69r5dPk1fP1GiDIOS6Lxraujs7r6CfJZEBOVdDqQmH4Jmc81vMoADDckOCAOfACOZRRBX5n.iKzg7vIoiR31+kToFbszY66hqEvqsbIoQp4VvR1LNCpmgYeC32W6nLHtxqBNR2dDgVpiYKCoRdTHXYhLRa6E5bPz4WWAXJfeaMwNO7jWr2619BKzI.LPpJhk9hQVyScpPmRi5IUOdhBs.BpoVV5xj3wJIEWh8Z0OQXaALDXVwBeuovDMqU97WuA+x82aj0Sc6sVLyYSkbqELvLMUOQOP63EzZ+WE8rB78eQ7ntXENEKkRv8H.MpjRBktIJc3Imv7dRQP55WdJr+cbEjzXQzJ5EqxonL8kyvVlBdEvSU9xCNSx78346JKVY8NvKtvZjzH1AnL1JTUSNVvrL73GUyrZHrYvH1zPEdU9.vXFVwD9XRx+gyimQfGvrRnIty5k.KsveG7QMVrNON6b1Y3iPD.rv8eJD2dvQHw2tc9CCsLtgtFLUB3C8gerDFAl0rZ3c1v2AKVlOx7EyawZvRNYNFaoCxQI0+FDChRg3N4ALWH.zhSo7Uy8u1HhOR34dLsP5Pgx3VseoMHiuw2+QbnySXHs2u5qlAiJEetNyFvdtW4oDeo.dNIBnuA.aiaz5pPk6GxqEfZ.eTbaSdDFFdoyW.3hfOi06KMJnHCWrXX7Lzmjx18dcPAmjdN.oX2ImsSpreUyumEVdP2.oHObEkyoWXBrJHUP1EvF7M.vnJiLTkSb6b+ksFnfdnwsFsW7bz13emTmw9NLdd2ybHaZLMaM4DlB8ECGqEPLM9svYq8eGaanOEvFTYo5YGLIghVLulfsis+XKsPlB.sYibnz8Fg0x20oxfu8ubTslvfJukV2YABanFnIJTrdK2+omdYSzs2CCynHKdPDJ43PRDshx6GrU5vcoKyCUUJulabL+GoRzp8.2kR1MtcdmwIxp.rTBgu2X7SGkvtEf.GzoATJF2AkMWo9x1a97uKwMf03Gy5.EbBVxffM2aNSvQf3sbThwvUxyPlDvGlVZ3Qkn5XzstmO7MjrfXnsAKTeIlqT7oA3k7kKEdhVi9N+DE3fikP5VJx.L53jXJHsIksZfRZKGFvIXXsdPIBj1QZsQD5xwfR7gfHvMoQv4f4fed+Dt5JOMjXrwgrAd91Lf+ayY25u6xVyFYbj4rhnD5JF3xr1H9dLOkWa5.1gHh7nVh3ksylYuOx4pG6r1UPkwOAzam4SHuK7YFQOQiZNNzTWkLcQ182MEIxPBBYwIvjaS7hCXh.5Csdug2wWHWRPVRtdazhqlWYQHO+.SyxsePoda1X4eJ0ui0Da65q3NTCloQfEe2HoZwS3p7+IVMi1KVTHuvWauszUS464KmVtpcs2tcwhGmld9E6KbQKzLUTm..ZQ3iuwEg8oYC8TfdOeVVJ2HchOLzLA8oTLTiIKLwQcNgQ+1fTYBRMdbKym5MIyPL5YpBSzNI1iGwTjMEDRQQUvQCXI2QLBD23KRzcZfzlgnmJLou9mZtjZ1xzezNtwVHfNFojNtH2x7AoRohK4HkAw8N5JJmwzmWbxJuvNCxe6F9hB8RuUlxTFjJpjng5AdeoBO9M19ZbUoXjHfCFsvE1zzDrze4dgt138QIt4v7ktdVYsvMnLh27JkfpGUDL7lAX8fJZNwZVQ24rHIY7Atq.NftDO0thblWGebl1aYbTIaFFUg5U1f4APNxjDcg.OEYkFDWWeD9An0XW27OW6PW0UIgfOXqRJXzcR7HPJXpKqCpaw.twNW467Qz3b9grAsgUATx.jy+hoIlHaVfawjQP+d+ehfMcfvyZ7r2kLn.cPIvDmae+gjafVUHPQWLMuW20D9lZEji84KyF48A8SOYLsFl5MoXhvEgv8fmcSYhVaNdqkcJ0UYUmxiqYsH.xLdbEzTZXxF9nibUaFlk.QK+TUofFl1XyU87.92zf2fRdw2xSiId3MIoFihCxqDj92u5klseTwdvKyo8PhLv.Yso2d4D6lVr7echCgYhKQULj5rYrmt9DFetum+6xiPANLhT1eMDbCzdUO9Re0+tC3+KwWPrZDEKzgXQIvzCaApI0idFn4DnAcLgcoCiry+M3aaqEB.b754XFKehym2S2qv5G1cHk9Poi...lNB..v5H...");
 }
 
-)" }
-	});
-
-	List_0.addChild<MarkdownText>({
-	  { mpid::Text, "This wizard will take you through the steps of creating a broadcaster. You can specify every property and connection and it will create a script definition at the end of the process that you then can paste into your `onInit` callback." }
-	});
-
-	List_0.addChild<TextInput>({
-	  { mpid::Text, "Broadcaster ID" }, 
-	  { mpid::ID, "id" }, 
-	  { mpid::EmptyText, "Enter broadcaster ID..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "The ID will be used to create the script variable definition as well as act as a unique ID for every broadcaster of a single script processor. The name must be a valid HiseScript identifier." }
-	});
-
-	auto& List_4 = List_0.addChild<List>({
-	  { mpid::Text, "Additional Properties" }, 
-	  { mpid::Foldable, 1 }, 
-	  { mpid::Folded, 1 }
-	});
-
-	List_4.addChild<TextInput>({
-	  { mpid::Text, "Comment" }, 
-	  { mpid::ID, "comment" }, 
-	  { mpid::EmptyText, "Enter a comment..." }, 
-	  { mpid::Help, "A comment that is shown in the broadcaster map and helps with navigation & code organisation" }
-	});
-
-	List_4.addChild<TextInput>({
-	  { mpid::Text, "Tags" }, 
-	  { mpid::ID, "tags" }, 
-	  { mpid::EmptyText, "Enter tags" }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Help, "Enter a comma separated list of strings that will be used as tags for the broadcaster. This lets you filter which broadcaster you want to show on the broadcaster map and is useful for navigating complex projects" }
-	});
-
-	List_4.addChild<ColourChooser>({
-	  { mpid::Text, "Colour" }, 
-	  { mpid::ID, "colour" }, 
-	  { mpid::Help, "The colour of the broadcaster in the broadcaster map" }
-	});
-
-	// Custom callback for page List_0
-	List_0.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	
-	auto& List_8 = mp.addPage<List>({
-	});
-
-	List_8.addChild<MarkdownText>({
-	  { mpid::Text, R"(
-
-Please select the event type that you want to attach the broadcaster to. There are multiple event sources which can trigger a broadcaster message.
-
-This will create a script line calling one of the `attachToXXX()` functions that hook up the broadcaster to an event source.)" }
-	});
-
-	auto& Column_10 = List_8.addChild<Column>({
-	  { mpid::Width, "-0.65, -0.35" }, 
-	  { mpid::Class, ".button-selector" }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "None" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "No event source. Use this option if you want to call the broadcaster manually or attach it to any other script callback slot (eg. TransportHandler callbacks)." }, 
-	  { mpid::InitValue, "true" }, 
-	  { mpid::UseInitValue, 1 }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "ComplexData" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, R"(An event of a complex data object (Tables, Slider Packs or AudioFiles). This can be either:
-
-- content changes (eg. when loading in a new sample)
-- a display index change (eg. if the table ruler is moved))" }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "ComponentProperties" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "Script properties of a UI component selection (eg. the `visible` property)." }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "ComponentValue" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "The value of a component. This will register the broadcaster as additional value callback that will be fired whenever the control callback will be executed." }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "ComponentVisibility" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, R"(The visibility of a UI component.
-
->This also takes into account the visibility of parent components so it's a more reliable way than listen to the component's `visible` property.)" }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "ContextMenu" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "Adds a popup menu when the UI component is clicked." }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "EqEvents" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "Listens to band add / delete, reset events of a parametriq EQ." }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "ModuleParameters" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "Listens to changes of a module attribute (when calling `setAttribute()`, eg. the **Reverb Width** or **Filter Frequency**" }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "MouseEvents" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "Mouse events for a UI component selection" }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "ProcessingSpecs" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "Listens to changes of the processing specifications (eg. sample rate of audio buffer size)" }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "RadioGroup" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, R"(Listens to button clicks within a given radio group ID\n> This is especially useful for implementing your page switch logic)" }
-	});
-
-	Column_10.addChild<Button>({
-	  { mpid::Text, "RoutingMatrix" }, 
-	  { mpid::ID, "attachType" }, 
-	  { mpid::Help, "Listens to changes of the routing matrix (the channel routing configuration) of a module." }
-	});
-
-	// Custom callback for page List_8
-	List_8.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	
-	auto& List_23 = mp.addPage<List>({
-	});
-
-	auto& attachType_24 = List_23.addChild<Branch>({
-	  { mpid::ID, "attachType" }
-	});
-
-	auto& List_25 = attachType_24.addChild<List>({
-	});
-
-	List_25.addChild<MarkdownText>({
-	  { mpid::Text, R"(### No source
-
-You can use a broadcaster without attaching it to a event source. In this case, please add a comma separated list of argument IDs that you want this broadcaster to use.
-)" }
-	});
-
-	List_25.addChild<TextInput>({
-	  { mpid::Text, "Arguments" }, 
-	  { mpid::ID, "noneArgs" }, 
-	  { mpid::Height, 80 }, 
-	  { mpid::Help, "This is a comma separated list of arguments and will define how many data slots the broadcaster will have. This property will also define how many arguments a listener callback is supposed to have." }
-	});
-
-	auto& List_28 = attachType_24.addChild<List>({
-	});
-
-	List_28.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Complex Type
-
-Attaching a broadcaster to a complex data object lets you listen to table edit changes or playback position updates of one or multiple data sources. Please fill in the information below to proceed to the next step.)" }
-	});
-
-	List_28.addChild<Choice>({
-	  { mpid::Text, "DataType" }, 
-	  { mpid::ID, "complexDataType" }, 
-	  { mpid::ValueMode, "Text" }, 
-	  { mpid::Items, R"(Table
-SliderPack
-AudioFile)" }, 
-	  { mpid::Help, "The data type that you want to listen to" }
-	});
-
-	List_28.addChild<Choice>({
-	  { mpid::Text, "Event Type" }, 
-	  { mpid::ID, "complexEventType" }, 
-	  { mpid::ValueMode, "Text" }, 
-	  { mpid::Help, R"(The event type you want to listen to.
-
--**Content** events will be triggered whenever the data changes (so eg. loading a new sample or editing a table will trigger this event).
--**DisplayIndex** events will occur whenever the read position changes (so the playback position in the audio file or the table ruler in the table).)" }, 
-	  { mpid::Items, R"(Content
-DisplayIndex)" }
-	});
-
-	List_28.addChild<TextInput>({
-	  { mpid::Text, "Module IDs" }, 
-	  { mpid::ID, "moduleIds" }, 
-	  { mpid::EmptyText, "Enter module IDs as shown in the Patch Browser..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_28.addChild<TextInput>({
-	  { mpid::Text, "Slot Index" }, 
-	  { mpid::ID, "complexSlotIndex" }, 
-	  { mpid::EmptyText, "Enter Slot Index (zero based)" }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, R"(The slot index of the complex data object that you want to listen to.
-
-> Some modules have multiple complex data objects (eg. the table envelope has two tables for the attack and release phase so if you want to listen to the release table, you need to pass in `1` here.)" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_28.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_35 = attachType_24.addChild<List>({
-	});
-
-	List_35.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Component Properties
-
-Attaches the broadcaster to changes of the script properties like `enabled`, `text`, etc.
-
-> If you want to listen to visibility changes, take a look at the **ComponentVisibility** attachment mode, which also takes the visibility of parent components into account.)" }
-	});
-
-	List_35.addChild<TextInput>({
-	  { mpid::Text, "Component IDs" }, 
-	  { mpid::ID, "componentIds" }, 
-	  { mpid::EmptyText, "Enter component IDs as shown in the Component List..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A comma-separated list of all component IDs that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_35.addChild<TextInput>({
-	  { mpid::Text, "Property" }, 
-	  { mpid::ID, "propertyType" }, 
-	  { mpid::EmptyText, "Enter script property (text, enabled, etc)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The property you want to listen to. You can also use a comma-separated list for multiple properties" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_35.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_40 = attachType_24.addChild<List>({
-	});
-
-	List_40.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Component Value
-
-This attachment mode will register the broadcaster to control callbacks of a Component.)" }
-	});
-
-	List_40.addChild<TextInput>({
-	  { mpid::Text, "Component IDs" }, 
-	  { mpid::ID, "componentIds" }, 
-	  { mpid::EmptyText, "Enter component IDs as shown in the Component List..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A comma-separated list of all component IDs that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_40.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_44 = attachType_24.addChild<List>({
-	});
-
-	List_44.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Component Visibility
-
-This mode attaches the broadcaster to whether the component is actually shown on the interface, which also takes into account the parent visibility and whether its bounds are within the parent's dimension)" }
-	});
-
-	List_44.addChild<TextInput>({
-	  { mpid::Text, "Component IDs" }, 
-	  { mpid::ID, "componentIds" }, 
-	  { mpid::EmptyText, "Enter component IDs as shown in the Component List..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A comma-separated list of all components that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_44.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_48 = attachType_24.addChild<List>({
-	});
-
-	List_48.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Context Menu
-
-This attach mode will show a context menu when you click on the registered UI components and allow you to perform additional actions.)" }
-	});
-
-	List_48.addChild<TextInput>({
-	  { mpid::Text, "Component IDs" }, 
-	  { mpid::ID, "componentIds" }, 
-	  { mpid::EmptyText, "Enter component IDs as shown in the Component List..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A comma-separated list of all components that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_48.addChild<TextInput>({
-	  { mpid::Text, "State Function" }, 
-	  { mpid::ID, "contextStateFunctionId" }, 
-	  { mpid::EmptyText, "Enter state function id..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "A function name that will be created by the template generator to query the active and ticked state of each context menu item. " }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_48.addChild<TextInput>({
-	  { mpid::Text, "Item List" }, 
-	  { mpid::ID, "contextItems" }, 
-	  { mpid::EmptyText, "Enter items..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "This will define the items that are shown in the list (one item per new line). You can use the markdown-like syntax to create sub menus, separators and headers known from the other Context menu builders in HISE (ScriptPanel, SubmenuCombobox)..." }, 
-	  { mpid::Multiline, 1 }, 
-	  { mpid::Style, "height: 150px;" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_48.addChild<Button>({
-	  { mpid::Text, "Trigger on Left Click" }, 
-	  { mpid::ID, "contextLeftClick" }, 
-	  { mpid::Help, "If this is true, the context menu will be shown when you click on the UI element with the left mouse button, otherwise it will require a right click to show up." }
-	});
-
-	List_48.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }
-	});
-
-	auto& List_55 = attachType_24.addChild<List>({
-	});
-
-	List_55.addChild<MarkdownText>({
-	  { mpid::Text, R"(### EQ Events
-
-This attachment mode will register one or more Parametriq EQ modules to the broadcaster and will send events when EQ bands are added / removed.
-
-> This does not cover the band parameter changes, as this can be queried with the usual module parameter attachment mode.)" }
-	});
-
-	List_55.addChild<TextInput>({
-	  { mpid::Text, "Module IDs" }, 
-	  { mpid::ID, "moduleIds" }, 
-	  { mpid::EmptyText, "Enter module IDs as shown in the Patch Browser..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_55.addChild<TextInput>({
-	  { mpid::Text, "Event Types" }, 
-	  { mpid::ID, "eqEventTypes" }, 
-	  { mpid::EmptyText, "Enter event types (BandAdded, BandRemoved, etc)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Items, R"(BandAdded
-BandRemoved
-BandSelected
-FFTEnabled)" }, 
-	  { mpid::Help, R"(Set the event type that the broadcaster should react too. This can be multiple items from this list:
-
-- `BandAdded`
-- `BandRemoved`
-- `BandSelected`
-- `FFTEnabled`)" }, 
-	  { mpid::Height, 80 }, 
-	  { mpid::ParseArray, 1 }
-	});
-
-	List_55.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }
-	});
-
-	auto& List_60 = attachType_24.addChild<List>({
-	});
-
-	List_60.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Module Parameters
-
-Attaches the broadcaster to attribute changes of one or more modules.)" }
-	});
-
-	List_60.addChild<TextInput>({
-	  { mpid::Text, "Module IDs" }, 
-	  { mpid::ID, "moduleIds" }, 
-	  { mpid::EmptyText, "Enter module IDs as shown in the Patch Browser..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_60.addChild<TextInput>({
-	  { mpid::Text, "Parameters" }, 
-	  { mpid::ID, "moduleParameterIndexes" }, 
-	  { mpid::EmptyText, "Enter parameters..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The parameters that you want to listen to. This can be either the actual parameter names or the indexes of the parameters" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_60.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_65 = attachType_24.addChild<List>({
-	});
-
-	List_65.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Mouse Events
-
-This attachment mode will cause the broadcaster to fire at certain mouse callback events (just like the ScriptPanel's `mouseCallback`).)" }
-	});
-
-	List_65.addChild<TextInput>({
-	  { mpid::Text, "Component IDs" }, 
-	  { mpid::ID, "componentIds" }, 
-	  { mpid::EmptyText, "Enter component IDs as shown in the Component List..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A comma-separated list of all components that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_65.addChild<Choice>({
-	  { mpid::Text, "Callback Type" }, 
-	  { mpid::ID, "mouseCallbackType" }, 
-	  { mpid::ValueMode, "Text" }, 
-	  { mpid::Help, "The callback level that determines when the broadcaster will send a message" }, 
-	  { mpid::Items, R"(No Callbacks
-Context Menu
-Clicks Only
-Clicks & Hover
-Clicks, Hover & Dragging
-All Callbacks)" }
-	});
-
-	List_65.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }
-	});
-
-	auto& List_70 = attachType_24.addChild<List>({
-	});
-
-	List_70.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Processing specs
-
-This will attach the broadcaster to changes of the audio processing specs (sample rate, buffer size, etc).)" }
-	});
-
-	List_70.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }
-	});
-
-	auto& List_73 = attachType_24.addChild<List>({
-	});
-
-	List_73.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Radio Group
-
-This will attach the broadcaster to a radio group (a selection of multiple buttons that are mutually exclusive).
-
-> This is a great way of handling page logic by attaching a broadcaster to a button group and then use its callback to show and hide pages within an array.)" }
-	});
-
-	List_73.addChild<TextInput>({
-	  { mpid::Text, "Radio Group" }, 
-	  { mpid::ID, "radioGroupId" }, 
-	  { mpid::EmptyText, "Enter radio group ID..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The radio group id as it was set as `radioGroup` script property to the buttons that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_73.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }
-	});
-
-	auto& List_77 = attachType_24.addChild<List>({
-	});
-
-	List_77.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Routing Matrix
-
-This attaches the broadcaster to changes in a channel routing of one or more modules (either channel resizes or routing changes including send channel assignments).)" }
-	});
-
-	List_77.addChild<TextInput>({
-	  { mpid::Text, "Module IDs" }, 
-	  { mpid::ID, "moduleIds" }, 
-	  { mpid::EmptyText, "Enter module IDs as shown in the Patch Browser..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The ID of the module that you want to listen to. You can also listen to multiple modules at once, in this case just enter every ID separated by a comma" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_77.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "attachMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (optional)..." }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	// Custom callback for page List_23
-	List_23.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	
-	auto& List_81 = mp.addPage<List>({
-	});
-
-	List_81.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Target type
-
-Now you can add a target listener which will receive the events caused by the event source specified on the previous page.
-
-)" }
-	});
-
-	auto& Column_83 = List_81.addChild<Column>({
-	  { mpid::Width, "-0.65, -0.35" }, 
-	  { mpid::Class, ".button-selector" }, 
-	  { mpid::Style, "margin-top: 10px;" }
-	});
-
-	Column_83.addChild<Button>({
-	  { mpid::Text, "None" }, 
-	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "Skip the creation of a target callback." }
-	});
-
-	Column_83.addChild<Button>({
-	  { mpid::Text, "Callback" }, 
-	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "A script function that will be executed immediately when the event occurs." }
-	});
-
-	Column_83.addChild<Button>({
-	  { mpid::Text, "Callback (Delayed)" }, 
-	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "A script function that will be executed with a given delay after the event occurred." }
-	});
-
-	Column_83.addChild<Button>({
-	  { mpid::Text, "Component Property" }, 
-	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "This will change a component property based on a customizeable function that must calculate and return the value" }
-	});
-
-	Column_83.addChild<Button>({
-	  { mpid::Text, "Component Refresh" }, 
-	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "Simply sends out a component refresh method (eg. `repaint()`) to its registered components." }
-	});
-
-	Column_83.addChild<Button>({
-	  { mpid::Text, "Component Value" }, 
-	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "This sets the value of a component" }
-	});
-
-	Column_83.addChild<Button>({
-	  { mpid::Text, "Module Parameter" }, 
-	  { mpid::ID, "targetType" }, 
-	  { mpid::Help, "This will sync the given module parameter to the last argument of the broadcaster." }
-	});
-
-	Column_83.addChild<List>({
-	});
-
-	// Custom callback for page List_81
-	List_81.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	
-	auto& List_92 = mp.addPage<List>({
-	});
-
-	auto& targetType_93 = List_92.addChild<Branch>({
-	  { mpid::ID, "targetType" }
-	});
-
-	auto& List_94 = targetType_93.addChild<List>({
-	});
-
-	List_94.addChild<Skip>({
-	});
-
-	auto& List_96 = targetType_93.addChild<List>({
-	});
-
-	List_96.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Callback
-
-This will call a function with a customizeable `this` object.)" }
-	});
-
-	List_96.addChild<TextInput>({
-	  { mpid::Text, "This Object" }, 
-	  { mpid::ID, "thisTarget" }, 
-	  { mpid::EmptyText, "Enter this object..." }, 
-	  { mpid::Help, "You can specify any HiseScript expression that will be used as `this` object in the function." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_96.addChild<TextInput>({
-	  { mpid::Text, "Function" }, 
-	  { mpid::ID, "targetFunctionId" }, 
-	  { mpid::EmptyText, "Enter function ID..." }, 
-	  { mpid::Help, "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_96.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "targetMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (required)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_101 = targetType_93.addChild<List>({
-	});
-
-	List_101.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Delayed Callback
-
-This will call a script function with a delay.)" }
-	});
-
-	List_101.addChild<TextInput>({
-	  { mpid::Text, "This Object" }, 
-	  { mpid::ID, "thisTarget" }, 
-	  { mpid::EmptyText, "Enter this object..." }, 
-	  { mpid::Help, "You can specify any HiseScript expression that will be used as `this` object in the function." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_101.addChild<TextInput>({
-	  { mpid::Text, "Function" }, 
-	  { mpid::ID, "targetFunctionId" }, 
-	  { mpid::EmptyText, "Enter function ID..." }, 
-	  { mpid::Help, "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function." }
-	});
-
-	List_101.addChild<TextInput>({
-	  { mpid::Text, "Delay time" }, 
-	  { mpid::ID, "targetDelay" }, 
-	  { mpid::EmptyText, "Enter delay time (ms)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "The delay time in milliseconds" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_101.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "targetMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (required)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_107 = targetType_93.addChild<List>({
-	});
-
-	List_107.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Component Property
-
-This will set one or more component properties of one or more components to a given value. You can supply a custom function that will calculate a value for each target, otherwise the value of the broadcaster is used.
-
-> This is eg. useful if you just want to sync (forward) some property changes to other components.)" }
-	});
-
-	List_107.addChild<TextInput>({
-	  { mpid::Text, "Component IDs" }, 
-	  { mpid::ID, "targetComponentIds" }, 
-	  { mpid::EmptyText, "Enter component IDs as shown in the Component List..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A comma-separated list of all component IDs that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_107.addChild<TextInput>({
-	  { mpid::Text, "Property" }, 
-	  { mpid::ID, "targetPropertyType" }, 
-	  { mpid::EmptyText, "Enter script property (text, enabled, etc)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The property you want to listen to. You can also use a comma-separated list for multiple properties" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_107.addChild<TextInput>({
-	  { mpid::Text, "Function" }, 
-	  { mpid::ID, "targetFunctionId" }, 
-	  { mpid::EmptyText, "Enter function ID..." }, 
-	  { mpid::Help, "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_107.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "targetMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (required)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_113 = targetType_93.addChild<List>({
-	});
-
-	List_113.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Component Refresh
-
-This will send out an update message to the specified components)" }
-	});
-
-	List_113.addChild<TextInput>({
-	  { mpid::Text, "Component IDs" }, 
-	  { mpid::ID, "targetComponentIds" }, 
-	  { mpid::EmptyText, "Enter component IDs as shown in the Component List..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A comma-separated list of all component IDs that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_113.addChild<Choice>({
-	  { mpid::Text, "Refresh Type" }, 
-	  { mpid::ID, "targetRefreshType" }, 
-	  { mpid::ValueMode, "Text" }, 
-	  { mpid::Help, R"(The type of refresh message that should be sent:
-
-- `repaint`: causes a component repaint message (and if the component is a panel, it will also call its paint routine)
-- `changed`: causes a value change callback that will fire the component's `setValue()` callback
-- `updateValueFromProcessorConnection`: updates the component from the current processor's value (if it is connected via `processorId` and `parameterId`).
-- `loseFocus`: will lose the focus of the keyboard (if the component has currently the keyboard focus).
-- `resetValueToDefault`: will reset the component to its default (as defined by the `defaultValue` property). Basically the same as a double click.)" }, 
-	  { mpid::Items, R"(repaint
-changed
-updateValueFromProcessorConnection
-loseFocus
-resetValueToDefault)" }
-	});
-
-	List_113.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "targetMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (required)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_118 = targetType_93.addChild<List>({
-	});
-
-	List_118.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Component Value
-
-This will cause a value change alongside with a control callback for the given components. The value that is send to the components can be customized with a function, otherwise it will use the broadcaster's value (if applicable).)" }
-	});
-
-	List_118.addChild<TextInput>({
-	  { mpid::Text, "Component IDs" }, 
-	  { mpid::ID, "targetComponentIds" }, 
-	  { mpid::EmptyText, "Enter component IDs as shown in the Component List..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A comma-separated list of all component IDs that you want to listen to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_118.addChild<TextInput>({
-	  { mpid::Text, "Function" }, 
-	  { mpid::ID, "targetFunctionId" }, 
-	  { mpid::EmptyText, "Enter function ID..." }, 
-	  { mpid::Help, "This will use the given function as an ID. Leave this empty in order to create an inplace anonymous function." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_118.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "targetMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (required)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	auto& List_123 = targetType_93.addChild<List>({
-	});
-
-	List_123.addChild<MarkdownText>({
-	  { mpid::Text, R"(### Module Parameter
-
-Attaching this as listener will send the last argument of the broadcaster as parameter change to the given module.)" }
-	});
-
-	List_123.addChild<TextInput>({
-	  { mpid::Text, "Module ID" }, 
-	  { mpid::ID, "targetModuleId" }, 
-	  { mpid::EmptyText, "Enter module ID" }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "The ID of the module that you want to send the parameter change to." }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_123.addChild<TextInput>({
-	  { mpid::Text, "Parameter" }, 
-	  { mpid::ID, "targetModuleParameter" }, 
-	  { mpid::EmptyText, "Enter parameter ID" }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::ParseArray, 1 }, 
-	  { mpid::Items, "{DYNAMIC}" }, 
-	  { mpid::Help, "A single parameter (either an integer or the parameter ID) that should be set for the given module" }, 
-	  { mpid::Height, 80 }
-	});
-
-	List_123.addChild<TextInput>({
-	  { mpid::Text, "Metadata" }, 
-	  { mpid::ID, "targetMetadata" }, 
-	  { mpid::EmptyText, "Enter metadata (required)..." }, 
-	  { mpid::Required, 1 }, 
-	  { mpid::Help, "The metadata that will be shown on the broadcaster map." }, 
-	  { mpid::Height, 80 }
-	});
-
-	// Custom callback for page List_92
-	List_92.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	
-	auto& List_128 = mp.addPage<List>({
-	});
-
-	List_128.addChild<MarkdownText>({
-	  { mpid::Text, "Press Finished in order to copy the code below to the clipboard (you can make some manual adjustments before)." }
-	});
-
-	List_128.addChild<Placeholder<CustomResultPage>>({
-	  { mpid::Style, "height: 350px;" }
-	});
-
-	// Custom callback for page List_128
-	List_128.setCustomCheckFunction([](Dialog::PageBase* b, const var& obj){
-
-		return Result::ok();
-
-	});
-	
-	return mp_;
+var EncodedBroadcasterWizard::checkSelection(const var::NativeFunctionArgs& args)
+{
+	if(auto fe = dynamic_cast<mcl::FullEditor*>(bpe->getBackendProcessor()->getLastActiveEditor()))
+	{
+		auto s = fe->editor.getTextDocument().getSelection(0);
+        auto selection = fe->editor.getTextDocument().getSelectionContent(s);
+
+        if(selection.contains("Engine.createBroadcaster"))
+        {
+            addListenersOnly = true;
+
+            auto obj = selection.fromFirstOccurrenceOf("{", true, true).upToLastOccurrenceOf("}", true, true);
+
+            auto cid = selection.upToFirstOccurrenceOf("=", false, false).trim();
+
+            cid = cid.replace("const", "");
+            cid = cid.replace("reg", "");
+            cid = cid.replace("var", "");
+            cid = cid.replace("global", "");
+            cid = cid.trim();
+
+            auto p = JSON::parse(obj);
+
+            if(auto go = state->globalState.getDynamicObject())
+            {
+                go->setProperty("id", p["id"]);
+
+                String args;
+
+                if(p["args"].isArray())
+                {
+	                for(auto& a: *p["args"].getArray())
+                        args << a.toString() << ", ";
+                }
+
+                if(cid != p["id"].toString())
+                {
+	                customId = cid;
+                }
+
+                go->setProperty("noneArgs", args.upToLastOccurrenceOf(", ", false, false));
+            }
+
+	        return var(true);
+        }
+
+        
+	}
+    
+	//auto content = BackendCommandTarget::Actions::exportFileAsSnippet(bpe, false);
+        
+	return var(false);
 }
-} // namespace library
-} // namespace multipage
-} // namespace hise
+
+void EncodedBroadcasterWizard::bindCallbacks()
+{
+	dialog->registerPlaceholder("CustomResultPage", [](multipage::Dialog& r, const var& obj)
+	{
+		return new multipage::library::CustomResultPage(r, obj);
+	});
+
+	MULTIPAGE_BIND_CPP(EncodedBroadcasterWizard, checkSelection);
+}
+
+StringArray EncodedBroadcasterWizard::getAutocompleteItems(const Identifier& textEditorId)
+{
+	using SourceIndex = CustomResultPage::SourceIndex;
+	    
+	auto chain = findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor()->getMainSynthChain();
+	auto sp = ProcessorHelpers::getFirstProcessorWithType<ProcessorWithScriptingContent>(chain);
+	    
+	if(textEditorId == Identifier("moduleIds"))
+	{
+		auto attachType = (SourceIndex)(int)readState("attachType");
+	        
+		switch(attachType)
+		{
+		case SourceIndex::ComplexData:
+			return ProcessorHelpers::getAllIdsForType<ProcessorWithExternalData>(chain);
+		case SourceIndex::EqEvents:
+			return ProcessorHelpers::getAllIdsForType<CurveEq>(chain);
+		case SourceIndex::ModuleParameters:
+			{
+				auto sa = ProcessorHelpers::getAllIdsForType<Processor>(chain);
+				sa.removeDuplicates(false);
+				sa.sort(true);
+				return sa;
+			}
+		case SourceIndex::RoutingMatrix:
+			return ProcessorHelpers::getAllIdsForType<RoutableProcessor>(chain);
+		}
+	}
+	if(textEditorId == Identifier("moduleParameterIndexes"))
+	{
+		auto firstId = readState("moduleIds")[0].toString().trim();
+	        
+		if(auto p = ProcessorHelpers::getFirstProcessorWithName(chain, firstId))
+		{
+			StringArray sa;
+			int numParameters = p->getNumParameters();
+			for(int i = 0; i < numParameters; i++)
+				sa.add(p->getIdentifierForParameterIndex(i).toString());
+
+			return sa;
+		}
+	}
+	if(textEditorId == Identifier("componentIds") ||
+		textEditorId == Identifier("targetComponentIds"))
+	{
+		StringArray sa;
+	        
+		int numComponents = sp->getScriptingContent()->getNumComponents();
+
+		for(int i = 0; i < numComponents; i++)
+		{
+			sa.add(sp->getScriptingContent()->getComponent(i)->getId());
+		}
+
+		return sa;
+	}
+	if(textEditorId == Identifier("targetModuleId"))
+	{
+		auto sa = ProcessorHelpers::getAllIdsForType<Processor>(chain);
+		sa.removeDuplicates(false);
+		sa.sort(true);
+		return sa;
+	}
+	if(textEditorId == Identifier("targetModuleParameter"))
+	{
+		auto firstId = readState("targetModuleId")[0].toString().trim();
+	        
+		if(auto p = ProcessorHelpers::getFirstProcessorWithName(chain, firstId))
+		{
+			StringArray sa;
+			int numParameters = p->getNumParameters();
+			for(int i = 0; i < numParameters; i++)
+				sa.add(p->getIdentifierForParameterIndex(i).toString());
+
+			return sa;
+		}
+	}
+	if(textEditorId == Identifier("propertyType") ||
+		textEditorId == Identifier("targetPropertyType"))
+	{
+		auto pToUse = textEditorId == Identifier("propertyType") ? "componentIds" : "targetComponentIds";
+
+		auto n = readState(pToUse);
+
+		StringArray sa;
+
+		if(n.isArray())
+		{
+			auto name = n[0].toString().trim();
+
+			if(auto sc = sp->getScriptingContent()->getComponentWithName(name.trim()))
+			{
+				auto numIds = sc->getNumIds();
+
+				for(int i = 0; i < numIds; i++)
+					sa.add(sc->getIdFor(i).toString());
+			}
+		}
+
+		return sa;
+	}
+	    
+	return {};
+}
+
+}
+}
+}

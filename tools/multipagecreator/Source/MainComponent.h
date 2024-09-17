@@ -48,7 +48,7 @@ struct ComponentWithEdge: public Component,
 {
     struct LAF: public LookAndFeel_V4
     {
-        void drawStretchableLayoutResizerBar (Graphics &g, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override
+        void drawStretchableLayoutResizerBar (Graphics &g, Component& c, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override
         {
             
 
@@ -627,8 +627,10 @@ struct Tree: public Component,
 
             if(isAction())
             {
-                auto ab = (obj[mpid::EventTrigger].toString() == "OnSubmit") ? b.removeFromRight(b.getHeight()) : b.removeFromLeft(b.getHeight());
-	            auto ap = root.createPath("arrow");
+                auto eventTrigger = obj[mpid::EventTrigger].toString();
+
+                auto ab = (eventTrigger == "OnSubmit") ? b.removeFromRight(b.getHeight()) : b.removeFromLeft(b.getHeight());
+	            auto ap = root.createPath(eventTrigger == "OnCall" ? "sniper" : "arrow");
                 root.scalePath(ap, ab.toFloat().reduced(4));
                 g.fillPath(ap);
             }
@@ -755,11 +757,18 @@ struct Tree: public Component,
         static const unsigned char arrowData[] = { 110,109,0,128,7,68,16,41,174,67,108,0,128,7,68,96,215,141,67,108,148,229,37,68,96,215,141,67,108,148,229,37,68,200,168,95,67,108,1,128,69,68,64,0,158,67,108,148,229,37,68,168,43,204,67,108,148,229,37,68,16,41,174,67,108,0,128,7,68,16,41,174,67,99,101,
 		0,0 };
 
+        static const unsigned char sniperData[] = { 110,109,0,128,38,68,88,0,64,67,98,14,156,55,68,88,0,64,67,0,128,69,68,32,144,119,67,0,128,69,68,36,255,157,67,98,0,128,69,68,244,55,192,67,14,156,55,68,216,255,219,67,0,128,38,68,216,255,219,67,98,6,100,21,68,216,255,219,67,0,128,7,68,244,55,192,67,0,
+128,7,68,36,255,157,67,98,0,128,7,68,32,144,119,67,6,100,21,68,88,0,64,67,0,128,38,68,88,0,64,67,98,59,190,40,68,88,0,64,67,73,238,42,68,232,244,64,67,32,10,45,68,200,194,66,67,108,32,10,45,68,96,112,88,67,98,78,199,44,68,8,41,88,67,58,132,44,68,136,
+232,87,67,186,64,44,68,248,167,87,67,108,39,208,38,68,0,65,141,67,108,34,85,33,68,232,38,87,67,98,104,197,23,68,88,247,94,67,230,33,16,68,72,5,124,67,35,163,13,68,192,181,144,67,108,69,83,31,68,192,57,156,67,108,125,65,13,68,72,254,167,67,98,37,56,15,
+68,40,232,187,67,114,239,22,68,220,182,203,67,84,203,32,68,104,47,208,67,108,39,208,38,68,48,52,171,67,108,131,201,44,68,20,232,207,67,98,201,109,54,68,188,14,203,67,170,234,61,68,80,79,187,67,4,200,63,68,200,155,167,67,108,30,77,46,68,192,57,156,67,
+108,132,105,63,68,140,22,145,67,98,203,43,61,68,80,137,127,67,6,136,54,68,88,244,99,67,13,6,46,68,168,141,89,67,108,13,6,46,68,32,173,67,67,108,0,128,38,68,88,0,64,67,99,101,0,0 };
+
         LOAD_EPATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
         LOAD_EPATH_IF_URL("delete", EditorIcons::deleteIcon);
 
         LOAD_PATH_IF_URL("arrow", arrowData);
-        
+
+        LOAD_PATH_IF_URL("sniper", sniperData);
 
         return p;
     }
@@ -1249,10 +1258,13 @@ public:
         FileCreateCSS,
         FileLoad,
         FileLoadMonolith,
+        FileLoadMonolithFromClipboard,
         FileSave,
         FileSaveAs,
         FileExportAsProjucerProject,
         FileExportAsMonolith,
+        FileExportAsBase64,
+        FileCompressAudioFolder,
         FileQuit,
         EditUndo,
         EditRedo,
@@ -1639,7 +1651,7 @@ private:
             }
 
 	        VarCodeEditor(const var& infoObject_, const Identifier& id_, const String& infoPath_):
-              editor(getSyntax(id_)),
+              editor(getSyntax(id_), infoObject_),
               infoObject(infoObject_),
               id(id_),
               infoPath(infoPath_)
