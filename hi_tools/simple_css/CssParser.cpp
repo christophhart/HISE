@@ -260,97 +260,6 @@ ColourParser::ColourParser(const String& value)
 	}
 }
 
-String ColourGradientParser::toString(Rectangle<float> area, const ColourGradient& grad)
-{
-	Line<float> l(grad.point1, grad.point2);
-
-	auto ls = l.getStart();
-	auto le = l.getEnd();
-
-	auto tl = area.getTopLeft(); 
-	auto tr = area.getTopRight();
-	auto bl = area.getBottomLeft();
-	auto br = area.getBottomRight();
-
-	String s;
-
-	s << "linear-gradient(" ;
-
-	if(le == tl)
-	{
-		if(ls == bl)
-			s << "to top";
-		else if (ls == br)
-			s << "to left top";
-		else if(ls == tr)
-			s << "to left";
-		else
-		{
-			jassertfalse;
-			s << "to left";
-		}
-
-	}
-	else if(le == tr)
-	{
-		if(ls == tl)
-			s << "to right";
-		else if(ls == bl)
-			s << "to right top";
-		else if(ls == br)
-			s << "to top";
-		else
-		{
-			jassertfalse;
-			s << "to top";
-		}
-	}
-	else if(le == bl)
-	{
-		if(ls == tl)
-			s << "to bottom";
-		else if(ls == tr)
-			s << "to left bottom";
-		else if(ls == br)
-			s << "to left";
-		else
-		{
-			jassertfalse;
-			s << "to bottom";
-		}
-	}
-	else if(le == br)
-	{
-		if(ls == tl)
-			s << "to right bottom";
-		else if(ls == tr)
-			s << "to top";
-		else if(ls == bl)
-			s << "to right";
-		else
-		{
-			jassertfalse;
-			s << "to right";
-		}
-	}
-	else
-	{
-		auto deg = roundToInt(radiansToDegrees(l.getAngle()));
-		s << String(deg) << "deg";
-	}
-	
-	for(int i = 0; i < grad.getNumColours(); i++)
-	{
-		auto idx = grad.getColourPosition(i);
-		s << ", #" << grad.getColourAtPosition(idx).toString();
-
-	}
-
-	s << ")";
-
-	return s;
-}
-
 ColourGradientParser::ColourGradientParser(Rectangle<float> area, const String& items)
 {
 	auto tokens = StringArray::fromTokens(items, ",", "()");
@@ -529,15 +438,8 @@ TransformParser::TransformData TransformParser::TransformData::interpolate(const
 		copy.values[1] = values[0];
 
 	copy.numValues = jmax(numValues, other.numValues);
-
-	auto interpolate = [](float x1, float x2, float alpha)
-	{
-		const auto invDelta = 1.0f - alpha;
-		return invDelta * x1 + alpha * x2;
-	};
-
-	copy.values[0] = interpolate(copy.values[0], other.values[0], alpha);
-	copy.values[1] = interpolate(copy.values[1], other.values[1], alpha);
+	copy.values[0] = Interpolator::interpolateLinear(copy.values[0], other.values[0], alpha);
+	copy.values[1] = Interpolator::interpolateLinear(copy.values[1], other.values[1], alpha);
 
 	return copy;
 }
@@ -772,7 +674,6 @@ std::vector<melatonin::ShadowParameters> ShadowParser::getShadowParameters(bool 
 std::vector<melatonin::ShadowParameters> ShadowParser::interpolate(const ShadowParser& other, double alpha,
 	int wantsInset) const
 {
-	
 	std::vector<melatonin::ShadowParameters> list;
 
 	auto maxNum = jmax(data.size(), other.data.size());
@@ -1068,11 +969,6 @@ ExpressionParser::Node ExpressionParser::parseNode(String::CharPointerType& ptr,
 						typeIndex++;
 					}
 
-					if(node.type == ExpressionType::none)
-						throw Result::fail("Unknown expression type " + String(buffer));
-
-					bufferIndex = 0;
-
 					skipWhitespace(ptr, end);
 					match(ptr, end, '(');
 
@@ -1083,12 +979,11 @@ ExpressionParser::Node ExpressionParser::parseNode(String::CharPointerType& ptr,
 						if(ptr != end && *ptr == ')')
 						{
 							++ptr;
-							return node;
+							break;
 						}
 								
 						if(ptr != end)
 						{
-							skipWhitespace(ptr, end);
 							node.op = *ptr++;
 							skipWhitespace(ptr, end);
 						}
@@ -1135,22 +1030,16 @@ float ExpressionParser::evaluate(const String& expression, const Context<>& cont
 	if(!CharacterFunctions::isLetter(expression[0]))
 		return evaluateLiteral(expression, context);
 
+		
+
 	auto ptr = expression.begin();
 	auto end = expression.end();
 
-	try
-	{
-		Node root = parseNode(ptr, end);
-
-		auto value = root.evaluate(context);
-		FloatSanitizers::sanitizeFloatNumber(value);
-		return value;
-	}
-	catch(Result& r)
-	{
-		DBG(r.getErrorMessage());
-		return context.defaultFontSize;
-	}
+	Node root = parseNode(ptr, end);
+		
+	auto value = root.evaluate(context);
+	FloatSanitizers::sanitizeFloatNumber(value);
+	return value;
 }
 
 
@@ -1735,9 +1624,6 @@ String Parser::processValue(const String& value, ValueType t)
 		t = findValueType(value);
 	}
 
-	if(hasVariable(value))
-		return value;
-
 	switch(t)
 	{
 	case ValueType::Colour:
@@ -1852,69 +1738,6 @@ PropertyType Parser::getPropertyType(const String& p)
 std::function<double(double)> Parser::parseTimingFunction(const String& t)
 {
 	std::map<String, std::function<double(double)>> curves;
-
-	if(t.startsWith("steps"))
-	{
-		auto values = t.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false);
-
-		auto sa = StringArray::fromTokens(values, ",", "");
-		sa.trim();
-
-		auto numSteps = (float)sa[0].getIntValue();
-
-		if(numSteps > 0.0)
-		{
-			enum JumpMode
-			{
-				Ceil,
-				Floor,
-				Round
-			};
-
-			std::map<String, JumpMode> modes;
-			
-			modes["jump-start"] = JumpMode::Ceil;
-			modes["jump-end"] = JumpMode::Floor;
-			modes["jump-both"] = JumpMode::Round;
-			modes["jump-none"] = JumpMode::Round;
-			modes["start"] = JumpMode::Ceil;
-			modes["end"] = JumpMode::Floor;
-
-			JumpMode m = JumpMode::Round;
-
-			if(sa[1].isNotEmpty() && modes.find(sa[1]) != modes.end())
-				m = modes[sa[1]];
-
-			switch(m)
-			{
-			case Ceil: return [numSteps](double input) { return std::ceil(input * numSteps) / numSteps; };
-			case Floor: return [numSteps](double input) { return std::floor(input * numSteps) / numSteps; };
-			case Round: return [numSteps](double input) { return std::round(input * numSteps) / numSteps; };
-			default: ;
-			}
-		}
-	}
-
-	if(t.startsWith("cubic-bezier"))
-	{
-		auto values = t.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false);
-
-		auto sa = StringArray::fromTokens(values, ",", "");
-		sa.trim();
-
-		if(sa.size() == 4)
-		{
-			float values[4];
-
-			values[0] = sa[0].getFloatValue();
-			values[1] = sa[1].getFloatValue();
-			values[2] = sa[2].getFloatValue();
-			values[3] = sa[3].getFloatValue();
-
-			FloatSanitizers::sanitizeArray(values, 4);
-			return BezierCurve({(double)values[0], (double)values[1]}, { (double)values[2], (double)values[3]});
-		}
-	}
 
 	curves["ease"] = BezierCurve({0.25,0.1} ,{0.25,1});
 	curves["linear"] = [](double v){ return v; };
@@ -2097,11 +1920,11 @@ StyleSheet::Collection Parser::getCSSValues() const
 					t.duration = processValue(tokens[1], ValueType::Time).getDoubleValue();
 
 					if(tokens.size() > 2)
-						t.f = parseTimingFunction(tokens[2]);
-					
+						t.delay = processValue(tokens[2], ValueType::Time).getDoubleValue();
+
 					if(tokens.size() > 3)
-						t.delay = processValue(tokens[3], ValueType::Time).getDoubleValue();
-					
+						t.f = parseTimingFunction(tokens[3]);
+
 					if(transitionTarget == "all")
 					{
 						for(auto& l: thisStates)

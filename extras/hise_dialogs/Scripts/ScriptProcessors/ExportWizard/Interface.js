@@ -44,6 +44,26 @@ mp.add(firstPage, mp.types.JavascriptFunction, { Code: mp.bindCallback("prevDown
 
 mp.add(firstPage, mp.types.JavascriptFunction, { EventTrigger: "OnSubmit", Code: mp.bindCallback("skipIfDesired", skipIfDesired, SyncNotification)});
 
+/*
+mp.add(firstPage, mp.types.DownloadTask, {
+	ID: "downloadHise",
+	Source: "$sourceURL",
+	EventTrigger: "OnSubmit",
+	Target: "$HisePath/sub/master.zip",
+	Text: "Download HISE"
+});
+
+mp.add(firstPage, mp.types.UnzipTask, {
+	ID: "extractHise",
+	EventTrigger: "OnSubmit",
+	Source: "$HisePath/sub/master.zip",
+    Target: "$HisePath/sub",
+    Cleanup: "1",
+    SkipFirstFolder: true,
+    Text: "Extract"
+});
+*/
+
 const var laf = Content.createLocalLookAndFeel();
 
 laf.setInlineStyleSheet("
@@ -106,7 +126,7 @@ inline function checkIDE(id, state)
 {
 	if(state.WINDOWS)
 	{
-		local MSBuildPath = "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe";
+		local MSBuildPath = "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBu ild.exe";
 		state.msBuildExists =  FileSystem.fromAbsolutePath(MSBuildPath).isFile();
 		
 		if(state.UseIPP)
@@ -160,7 +180,7 @@ const var msBuildExists = mp.add(windowsIDE, mp.types.Button,
 { 
 	ID: "msBuildExists", 
 	Enabled: false, 
-	Text: "MS Build installed:", 
+	Text: "Checking MS Build", 
 	Class: ".checkbutton",
 	Help: "If this is not checked, please download Visual Studio 2022 Community Edition from [here](https://visualstudio.microsoft.com/de/thank-you-downloading-visual-studio/?sku=Community&channel=Release&version=VS2022&source=VSLandingPage&passive=false&cid=2030), then run the installer and make sure to include the C++ SDK in the install options.", 
 	Required: true
@@ -170,9 +190,9 @@ const var ippExists = mp.add(windowsIDE, mp.types.Button,
 {
 	ID: "ippExists", 
 	Enabled: false, 
-	Text: "IPP installed:",
+	Text: "Checking IPP",
 	Class: ".checkbutton",
-	Help: "If this is not checked, please download the IPP Community Edition from [here](https://www.intel.com/content/www/us/en/developer/articles/tool/oneapi-standalone-components.html#ipp)  \n> Alternatively you can just go into the Hise Settings and untick the `UseIPP` setting, but it's highly recommended to install IPP for optimal performance", 
+	Help: "If this is not checked, please download the IPP Community Edition from [here]()  \n> Alternatively you can just go into the Hise Settings and untick the `UseIPP` setting, but it's highly recommended to install IPP for optimal performance", 
 	Required: true
 })
 
@@ -209,8 +229,8 @@ mp.add(thirdPage, mp.types.JavascriptFunction, { Code: mp.bindCallback("checkHis
 const var hisePathExists = mp.add(thirdPage, mp.types.Button, 
 { 
 	ID: "hisePathExists", 
+	Text: "Checking HISE Path...",
 	Class: ".checkbutton",
-	Text: "HISE Path set:",
 	Enabled: false,
 	Help: "If this is not checked, then the wizard will download and extract the HISE path to the location you specify"
 });
@@ -218,8 +238,8 @@ const var hisePathExists = mp.add(thirdPage, mp.types.Button,
 const var hiseVersionMatches = mp.add(thirdPage, mp.types.Button, 
 { 
 	ID: "hiseVersionMatches", 
+	Text: "Checking Version...",
 	Class: ".checkbutton",
-	Text: "Version matches:",
 	Enabled: false,
 	Required: true,
 	Help: "If this is not checked, then the source code in the HISE path does not match the HISE version of this build. This will lead to unpredicted behaviour so make sure that you're using the exact source code that was used for compiling HISE"
@@ -267,8 +287,8 @@ mp.add(page4, mp.types.JavascriptFunction, { Code: mp.bindCallback("checkSDK", c
 
 const var projucerWorks = mp.add(page4, mp.types.Button, {
 	ID: "projucerWorks",
+	Text: "Check Projucer...",
 	Class: ".checkbutton",
-	Text: "Projucer works:",
 	Enabled: false,
 	Required: true,
 	Help: "If this is not checked, then your system cannot launch the Projucer from the HISE source code folder"
@@ -276,8 +296,8 @@ const var projucerWorks = mp.add(page4, mp.types.Button, {
 
 mp.add(page4, mp.types.Button, {
 	ID: "sdkExists",
+	Text: "Checking SDKs...",
 	Class: ".checkbutton",
-	Text: "SDKs extracted:",
 	Enabled: false,
 	Help: "The SDKs are necessary to compile VST3 and standalone apps with the ASIO driver"
 });
@@ -292,11 +312,6 @@ const var page5 = mp.addPage();
 
 mp.add(page5, mp.types.MarkdownText, { Text: "This concludes the export setup. Press finish to close this dialog and start exporting your projects!\n> If you have downloaded the source code you need to restart HISE before exporting."});
 
-mp.add(page5, mp.types.JavascriptFunction, {
-  Code: mp.bindCallback("onPost", function(){}, SyncNotification),
-  EventTrigger: "OnSubmit"
-});
-
 mp.add(page5, mp.types.PersistentSettings, { 
   ID: "CompilerSettings", 
   Filename: "compilerSettings", 
@@ -306,7 +321,10 @@ mp.add(page5, mp.types.PersistentSettings, {
   UseChildState: true
 });
 
-
+mp.add(page5, mp.types.JavascriptFunction, {
+  Code: mp.bindCallback("onPost", function(){}, SyncNotification),
+  EventTrigger: "OnSubmit"
+});
 
 Console.clear();
 

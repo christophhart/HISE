@@ -953,8 +953,7 @@ struct ToolkitPopup : public Component,
         sustainButton.setToggleModeWithColourChange(true);
         
 		keyboard.setUseVectorGraphics(true);
-        keyboard.setRange(36, 127);
-		keyboard.setShowOctaveNumber(true);
+        keyboard.setRange(24, 127);
 
         addAndMakeVisible(clockController);
         
@@ -979,7 +978,7 @@ struct ToolkitPopup : public Component,
             auto l = keyboard.getRangeStart() + delta;
             auto h = jmin(127, keyboard.getRangeEnd() + delta);
             
-            if(l > 0 && l <= 64)
+            if(l > 0)
                 keyboard.setRange(l, h);
         }
 	}
@@ -1235,22 +1234,9 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 				int w = (int)((float)content->getContentWidth()*scaleFactor);
 				int h = (int)((float)content->getContentHeight()*scaleFactor);
 
+				c->setSize(w, h);
+
 				c->setName("Interface Preview");
-
-				content->interfaceSizeBroadcaster.addListener(*c, [mc](Component& oc, int w, int h)
-				{
-					auto scaleFactor = dynamic_cast<GlobalSettingManager*>(mc)->getGlobalScaleFactor();
-
-					oc.getChildComponent(0)->setSize(w, h);
-
-					w = roundToInt((float)w * scaleFactor);
-					h = roundToInt((float)h * scaleFactor);
-
-					oc.setSize(w, h);
-					oc.resized();
-				});
-				
-				
 			}
 
 

@@ -294,8 +294,6 @@ void faust_jit_node_base::reinitFaustWrapper()
         resetParameters();
         
 		getRootNetwork()->getExceptionHandler().removeError(this);
-		
-		faust::FaustVersionChecker::checkFaustVersion();
 
 		std::string error_msg;
 		bool success = setupFaust(getFaustLibraryPaths(), error_msg);

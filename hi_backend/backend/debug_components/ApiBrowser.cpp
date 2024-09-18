@@ -66,9 +66,7 @@ DspNodeList::NodeItem::NodeItem(DspNetwork* parent, const String& id):
 	label(),
 	powerButton("on", this, f)
 {
-    auto vt = node->getValueTree();
-    
-	label.setText(vt[PropertyIds::Name].toString(), dontSendNotification);
+	label.setText(id, dontSendNotification);
 	usePopupMenu = false;
 
 	addAndMakeVisible(powerButton);
@@ -90,7 +88,7 @@ DspNodeList::NodeItem::NodeItem(DspNetwork* parent, const String& id):
             
 	powerButton.setToggleModeWithColourChange(true);
 
-	idListener.setCallback(node->getValueTree(), { PropertyIds::Name }, valuetree::AsyncMode::Asynchronously,
+	idListener.setCallback(node->getValueTree(), { PropertyIds::ID }, valuetree::AsyncMode::Asynchronously,
 	                       BIND_MEMBER_FUNCTION_2(NodeItem::updateId));
 
 	bypassListener.setCallback(node->getValueTree(), { PropertyIds::Bypassed }, valuetree::AsyncMode::Asynchronously,
@@ -280,46 +278,29 @@ className(className_)
 {
     searchKeywords = searchKeywords.replaceCharacter('.', ';');
     
-	setSize(410 - 16 - 8 - 24, ITEM_HEIGHT);
+	setSize(380 - 16 - 8 - 24, ITEM_HEIGHT);
 
 	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, name);
-
-	if(extendedHelp.isEmpty())
-	{
-		AttributedString help;
-
-		const String name = methodTree_.getProperty(Identifier("name")).toString();
-		const String arguments = methodTree_.getProperty(Identifier("arguments")).toString();
-		const String description = methodTree_.getProperty(Identifier("description")).toString().trim();
-		const String returnType = methodTree_.getProperty("returnType", "void");
-
-		extendedHelp << "#### `" << className_ << "." << name << arguments << "`  \n";
-
-		if(!returnType.isEmpty())
-			extendedHelp << "**Return Type**: `" << returnType << "`  \n";
-
-		extendedHelp << "> " << description << "  \n";
-		extendedHelp << "**[F1]** - open in docs **[Enter]** - paste in editor";
-	}
 
 	if (extendedHelp.isNotEmpty())
 	{
 		parser = new MarkdownRenderer(extendedHelp);
-
-		auto bd = MarkdownLayout::StyleData::createBrightStyle();
-		bd.fontSize = 15.5f;
-		parser->setStyleData(bd);
+		parser->setTextColour(Colours::white);
+		parser->setDefaultTextSize(15.0f);
+		parser->parse();
 	}
 
 	setWantsKeyboardFocus(true);
+
+	help = ValueTreeApiHelpers::createAttributedStringFromApi(methodTree, className, true, Colours::white);
 }
 
 
 
 
-void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent& e)
+void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent&)
 {
-	
+	insertIntoCodeEditor();
 }
 
 bool ApiCollection::MethodItem::keyPressed(const KeyPress& key)
@@ -327,24 +308,6 @@ bool ApiCollection::MethodItem::keyPressed(const KeyPress& key)
 	if (key.isKeyCode(KeyPress::returnKey))
 	{
 		insertIntoCodeEditor();
-		return true;
-	}
-
-	if (key.isKeyCode(KeyPress::escapeKey))
-	{
-		findParentComponentOfClass<ApiCollection>()->onPopupClose(FocusChangeType::focusChangedByMouseClick);
-		return true;
-	}
-
-	if(key.isKeyCode(KeyPress::upKey))
-	{
-		findParentComponentOfClass<SearchableListComponent>()->selectNext(false, this);
-		return true;
-	}
-	if(key.isKeyCode(KeyPress::downKey))
-	{
-		findParentComponentOfClass<SearchableListComponent>()->selectNext(true, this);
-		
 		return true;
 	}
 
@@ -393,13 +356,10 @@ Array<ExtendedApiDocumentation::ClassDocumentation> ExtendedApiDocumentation::cl
 
 bool ExtendedApiDocumentation::inititalised = false;
 
-ApiCollection::ClassCollection::ClassCollection(int index, const ValueTree &api) :
-Collection(index),
+ApiCollection::ClassCollection::ClassCollection(const ValueTree &api) :
 classApi(api),
 name(api.getType().toString())
 {
-	setWantsKeyboardFocus(true);
-
 	for (int i = 0; i < api.getNumChildren(); i++)
 	{
 		items.add(new MethodItem(api.getChild(i), name));
@@ -413,12 +373,8 @@ name(api.getType().toString())
 void ApiCollection::ClassCollection::paint(Graphics &g)
 {
 	g.setColour(Colours::white.withAlpha(0.9f));
-
-	auto f = GLOBAL_MONOSPACE_FONT();
-	
-
-	g.setFont(GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight() * 1.2f));
-	g.drawText(name, 14, 0, getWidth() - 10, COLLECTION_HEIGHT, Justification::centredLeft, true);
+	g.setFont(GLOBAL_MONOSPACE_FONT());
+	g.drawText(name, 10, 0, getWidth() - 10, COLLECTION_HEIGHT, Justification::centredLeft, true);
 }
 
 ExtendedApiDocumentation::MethodDocumentation::MethodDocumentation(Identifier& className_, const Identifier& id) :

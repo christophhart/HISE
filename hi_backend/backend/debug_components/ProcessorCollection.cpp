@@ -42,11 +42,8 @@ SearchableListComponent::SearchableListComponent(BackendRootWindow* window):
 {
 	addAndMakeVisible(fuzzySearchBox = new TextEditor());
 	fuzzySearchBox->addListener(this);
-
-	textClearButton = new SearchBoxClearComponent(*fuzzySearchBox);
-
-    setWantsKeyboardFocus(true);
-
+    
+    
     GlobalHiseLookAndFeel::setTextEditorColours(*fuzzySearchBox);
     
 	internalContainer = new InternalContainer();
@@ -74,7 +71,7 @@ void SearchableListComponent::resized()
     }
     
     b.removeFromLeft(b.getHeight());
-
+	
     fuzzySearchBox->setBounds(b.reduced(1));
 	viewport->setBounds(0, 26, getWidth(), getHeight() - 26);
 
@@ -122,8 +119,6 @@ void SearchableListComponent::refreshDisplayedItems()
 
 	const String searchTerm = fuzzySearchBox->getText().toLowerCase();
 
-	Array<Collection*> sortedCollections;
-
 	for (int i = 0; i < getNumCollections(); i++)
 	{
 		Collection *c = getCollection(i);
@@ -137,9 +132,6 @@ void SearchableListComponent::refreshDisplayedItems()
 			c->setBounds(0, height, internalContainer->getWidth()-8, c->getHeightForCollection());
 
 			height = c->getBottom();
-
-			if(searchTerm.isNotEmpty())
-				sortedCollections.add(c);
 		}
 		else
 		{
@@ -147,30 +139,7 @@ void SearchableListComponent::refreshDisplayedItems()
 		}
 	}
 
-	struct Sorter
-	{
-		Sorter(const String& searchTerm_):
-		  searchTerm(searchTerm_)
-		{};
-
-		int compareElements(Collection* c1, Collection* c2) const
-		{
-			return c1->compareSortState(c2, searchTerm);
-		}
-
-		String searchTerm;
-	};
-
-	Sorter s(searchTerm);
-
-	sortedCollections.sort(s, true);
-
-	internalContainer->setSortedCollections(sortedCollections);
-
-
 	internalContainer->setSize(getWidth(), height);
-
-	viewport->setViewPositionProportionately(0.0, 0.0);
 
 	repaintAllItems();
 }
@@ -226,9 +195,8 @@ void SearchableListComponent::setShowEmptyCollections(bool emptyCollectionsShoul
 	internalContainer->setShowEmptyCollections(emptyCollectionsShouldBeShown);
 }
 
-SearchableListComponent::Collection::Collection(int originalIndex_):
-  folded(false),
-  originalIndex(originalIndex_)
+SearchableListComponent::Collection::Collection():
+folded(false)
 {
 
 }
@@ -310,71 +278,50 @@ void SearchableListComponent::InternalContainer::resized()
 {
 	int h = 0;
 
-	if(sortedCollections.isEmpty())
+	for (int i = 0; i < collections.size(); i++)
 	{
-		for (int i = 0; i < collections.size(); i++)
+		Collection *c = collections[i];
+
+		if (!showEmptyCollections && !c->hasVisibleItems())
 		{
-			Collection *c =  collections[i];
-
-			if (!showEmptyCollections && !c->hasVisibleItems())
-			{
-				continue;
-			}
-
-			c->setBounds(0, h, getWidth()-8, c->getHeightForCollection());
-			h += c->getHeight();
+			continue;
 		}
-	}
-	else
-	{
-		auto b = getLocalBounds();
-		b.removeFromRight(8);
 
-		for(auto c: sortedCollections)
-		{
-			c->setBounds(b.removeFromTop(c->getHeightForCollection()));
-		}
+		c->setBounds(0, h, getWidth()-8, c->getHeightForCollection());
+		h += c->getHeight();
 	}
-
-	
 }
 
 void SearchableListComponent::Item::mouseDown(const MouseEvent& event)
 {
-	if (!usePopupMenu)
-	{
-		if(auto cp = findParentComponentOfClass<SearchableListComponent>()->currentPopup.get())
-		{
-			if(cp->parent == this)
-			{
-				clicksToClose++;
-
-				if(clicksToClose > 1)
-				{
-					findParentComponentOfClass<SearchableListComponent>()->showPopup(nullptr, FocusChangeType::focusChangedByMouseClick);
-					
-				}
-			}
-		}
-		return;
-	}
-
 	if (event.mods.isRightButtonDown())
 	{
-		PopupMenu m;
+		if (!usePopupMenu)
+		{
+			if (getPopupHeight() != 0)
+			{
+				auto parent = TopLevelWindowWithOptionalOpenGL::findRoot(this);
 
-		m.setLookAndFeel(&laf);
+				CallOutBox::launchAsynchronously(std::unique_ptr<PopupComponent>(new PopupComponent(this)), parent->getLocalArea(this, getLocalBounds()), parent);
+			}
+		}
+		else
+		{
+			PopupMenu m;
 
-		fillPopupMenu(m);
+			m.setLookAndFeel(&laf);
 
-		PopupMenu::Options options;
-		
-		Point<int> mousePos(Desktop::getInstance().getMousePosition());
+			fillPopupMenu(m);
 
-		Point<int> pos2 = mousePos;
-		pos2.addXY(200, 500);
+			PopupMenu::Options options;
+			
+			Point<int> mousePos(Desktop::getInstance().getMousePosition());
 
-		m.showMenuAsync(options.withTargetScreenArea(Rectangle<int>(mousePos, mousePos)), new PopupCallback(this));
+			Point<int> pos2 = mousePos;
+			pos2.addXY(200, 500);
+
+			m.showMenuAsync(options.withTargetScreenArea(Rectangle<int>(mousePos, mousePos)), new PopupCallback(this));
+		}
 	}
 	else
 	{
@@ -409,17 +356,12 @@ void SearchableListComponent::Item::matchAgainstSearch(const String &stringToMat
 SearchableListComponent::Item::PopupComponent::PopupComponent(Item *p) :
 parent(p)
 {
-	parent->findParentComponentOfClass<SearchableListComponent>()->viewport->getVerticalScrollBar().addListener(this);
-	setWantsKeyboardFocus(false);
+	setSize(p->getPopupWidth(), p->getPopupHeight());
+	setWantsKeyboardFocus(true);
 }
 
 void SearchableListComponent::Item::PopupComponent::paint(Graphics& g)
 {
-	auto cornerSize = 3.0f;
-
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xffe0e0e0)));
-	g.fillRoundedRectangle(getLocalBounds().toFloat(), cornerSize);
-	
 	if (parent.getComponent() != nullptr) parent->paintPopupBox(g);
 }
 

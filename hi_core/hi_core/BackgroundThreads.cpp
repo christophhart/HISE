@@ -520,13 +520,14 @@ void DialogWindowWithBackgroundThread::AdditionalRow::resized()
 
 ModalBaseWindow::ModalBaseWindow()
 {
-	s.colour = Colours::black.withAlpha(0.5f);
-	s.radius = 10;
+	s.colour = Colours::black;
+	s.radius = 20;
 	s.offset = Point<int>();
 }
 
 ModalBaseWindow::~ModalBaseWindow()
 {
+
 	shadow = nullptr;
 	clearModalComponent();
 }
@@ -543,21 +544,9 @@ void ModalBaseWindow::setModalComponent(Component *component, int fadeInTime/*=0
 	shadow = new DropShadower(s);
 	modalComponent = component;
 
-	if(backdrop == nullptr)
-	{
-		if(auto bw = dynamic_cast<QuasiModalComponent*>(modalComponent.get()))
-		{
-			if(bw->wantsBackdrop())
-			{
-				backdrop = new DarkBackdrop(*this);
-			}
-		}
-	}
 
 	if (fadeInTime == 0)
 	{
-		
-
 		dynamic_cast<Component*>(this)->addAndMakeVisible(modalComponent);
 		modalComponent->centreWithSize(component->getWidth(), component->getHeight());
 
@@ -582,7 +571,6 @@ bool ModalBaseWindow::isCurrentlyModal() const
 
 void ModalBaseWindow::clearModalComponent()
 {
-	backdrop = nullptr;
 	shadow = nullptr;
 	modalComponent = nullptr;
 }

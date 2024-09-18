@@ -50,7 +50,7 @@ LookAndFeel_V3::~LookAndFeel_V3() {}
 
 bool LookAndFeel_V3::areScrollbarButtonsVisible()        { return false; }
 
-void LookAndFeel_V3::drawStretchableLayoutResizerBar (Graphics& g, Component&, int /*w*/, int /*h*/, bool /*isVerticalBar*/,
+void LookAndFeel_V3::drawStretchableLayoutResizerBar (Graphics& g, int /*w*/, int /*h*/, bool /*isVerticalBar*/,
                                                       bool isMouseOver, bool isMouseDragging)
 {
     if (isMouseOver || isMouseDragging)

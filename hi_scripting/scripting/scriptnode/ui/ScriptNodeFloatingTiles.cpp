@@ -326,7 +326,7 @@ struct NodePropertyContent : public Component,
 
 		for (auto n : selection)
 		{
-            PropertyEditor* pe = new PropertyEditor(n, false, n->getValueTree(), {PropertyIds::ID, PropertyIds::FactoryPath, PropertyIds::Bypassed});
+			PropertyEditor* pe = new PropertyEditor(n, false, n->getValueTree());
 			editors.add(pe);
 			pe->setTopLeftPosition(0, y);
 			pe->setSize(content.getWidth(), pe->getHeight());

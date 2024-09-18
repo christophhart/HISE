@@ -497,7 +497,6 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 			return rhs.release();
 		}
 
-		if (matchIf(TokenTypes::arrow))				return parseArrowFunction(lhs);
 		if (matchIf(TokenTypes::question))          return parseTerneryOperator(lhs);
 		if (matchIf(TokenTypes::assign))            { ExpPtr rhs(parseExpression()); return new Assignment(location, lhs, rhs); }
 		if (matchIf(TokenTypes::plusEquals))        return parseInPlaceOpExpression<AdditionOp>(lhs);
@@ -1791,43 +1790,6 @@ private:
 		return s.release();
 	}
 
-	Expression* parseArrowFunction(ExpPtr lhs)
-	{
-		ScopedPointer<FunctionObject> fo = new FunctionObject();
-
-		fo->location.fileName = location.getCallbackName(true);
-		fo->location.charNumber = location.getCharIndex();
-
-		if(auto el = dynamic_cast<ExpressionList*>(lhs.get()))
-		{
-			for(auto c: el->children)
-			{
-				if(auto n = dynamic_cast<UnqualifiedName*>(c))
-				{
-					fo->parameters.add(n->name);
-				}
-			}
-		}
-		if(auto n = dynamic_cast<UnqualifiedName*>(lhs.get()))
-		{
-			fo->parameters.add(n->name);
-		}
-
-		if(matchIf(TokenTypes::openBrace))
-		{
-			fo->body = parseStatementList();
-			match(TokenTypes::closeBrace);
-		}
-		else
-		{
-			auto returnValue = parseExpression();
-			fo->body = new ReturnStatement(location, returnValue);
-		}
-		
-		ExpPtr nm(new UnqualifiedName(location, "unusedArrow", true)), value(new LiteralValue(location, var(fo.release())));
-		return new Assignment(location, nm, value);
-	}
-
 	var parseFunctionDefinition(Identifier& functionName)
 	{
 		
@@ -2002,34 +1964,8 @@ private:
 
 		if (matchIf(TokenTypes::plusplus))   return parsePostIncDec<AdditionOp>(input);
 		if (matchIf(TokenTypes::minusminus)) return parsePostIncDec<SubtractionOp>(input);
-		
+
 		return input.release();
-	}
-
-	Expression* parseCloseParen(Expression* ex)
-	{
-		ExpPtr e(ex);
-
-		ExpressionList* ne = nullptr;
-
-		while(!matchIf(TokenTypes::closeParen))
-		{
-			if(e == ex)
-			{
-				if(ne == nullptr)
-					ne = new ExpressionList(location);
-
-				ne->children.add(e.release());
-
-				e = ne;
-			}
-
-			match(TokenTypes::comma);
-
-			ne->children.add(parseExpression());
-		}
-
-		return e.release();
 	}
 
 	Expression* parseFactor(JavascriptNamespace* ns=nullptr)
@@ -2200,7 +2136,7 @@ private:
 
 		auto prevLocation = location;
 
-		if (matchIf(TokenTypes::openParen))        return parseSuffixes(parseCloseParen(parseExpression()));
+		if (matchIf(TokenTypes::openParen))        return parseSuffixes(matchCloseParen(parseExpression()));
 		if (matchIf(TokenTypes::true_))            return parseSuffixes(new LiteralValue(prevLocation, (int)1));
 		if (matchIf(TokenTypes::false_))           return parseSuffixes(new LiteralValue(prevLocation, (int)0));
 		if (matchIf(TokenTypes::null_))            return parseSuffixes(new LiteralValue(prevLocation, var()));

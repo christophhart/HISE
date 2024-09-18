@@ -36,11 +36,6 @@ namespace hise
 {
 using namespace juce;
 
-#define MULTIPAGE_MAJOR_VERSION 1
-#define MULTIPAGE_MINOR_VERSION 0
-#define MULTIPAGE_PATCH_VERSION 0
-
-
 #define HISE_MULTIPAGE_ID(x) static Identifier getStaticId() { RETURN_STATIC_IDENTIFIER(x); };
 
 #define MULTIPAGE_ADD_ASSET_TO_LIST(x) list.add(Asset::fromMemory(std::move(MemoryBlock(x, sizeof(x))), x ## _Type, String(x ## _Filename), #x));
@@ -49,9 +44,6 @@ using namespace juce;
     static DefaultProperties getStaticDefaultProperties()
 
 namespace multipage {
-
-
-
 
 #define DECLARE_ID(x) static const Identifier x(#x);
 
@@ -74,32 +66,17 @@ namespace mpid
     // ALWAYS COPY IT HERE TOO!
     struct Helpers
     {
-        enum RequiredUpdate
-		{
-			PostInit,
-			ResizeParent,
-            UpdateVisibility,
-			UpdateCSS,
-			FullRebuild
-		};
-
-        static RequiredUpdate getUpdateType(const Identifier& id);
-
 	    static var getIdList();
     };
 
-    DECLARE_ID(ActionType);
-    DECLARE_ID(AllowDemo);
     DECLARE_ID(Assets);
     DECLARE_ID(Args);
     DECLARE_ID(Autofocus);
     DECLARE_ID(ButtonType);
     DECLARE_ID(BinaryName);
     DECLARE_ID(CallOnTyping);
-	DECLARE_ID(CheckSubmit);
     DECLARE_ID(Cleanup);
     DECLARE_ID(Class);
-    DECLARE_ID(CloseMessage);
     DECLARE_ID(ContentType);
     DECLARE_ID(ConfirmClose);
     DECLARE_ID(Code);
@@ -109,7 +86,6 @@ namespace mpid
     DECLARE_ID(Custom);
     DECLARE_ID(Data);
     DECLARE_ID(Directory);
-    DECLARE_ID(DecodeFlac);
     DECLARE_ID(EmptyText);
     DECLARE_ID(Enabled);
     DECLARE_ID(EventTrigger);
@@ -146,11 +122,8 @@ namespace mpid
     DECLARE_ID(RelativePath);
     DECLARE_ID(SaveFile);
     DECLARE_ID(SelectOnClick);
-    DECLARE_ID(SimulateFileAction);
-    DECLARE_ID(SerialNumber);
     DECLARE_ID(SkipIfNoSource);
     DECLARE_ID(SkipFirstFolder);
-    DECLARE_ID(SkipIfTrue);
     DECLARE_ID(Source);
     DECLARE_ID(SpecialLocation);
 	DECLARE_ID(StyleData);
@@ -172,7 +145,6 @@ namespace mpid
     DECLARE_ID(UsePost);
     DECLARE_ID(UseProject);
     DECLARE_ID(UseTotalProgress);
-    DECLARE_ID(UserEmail);
     DECLARE_ID(UseViewport);
     DECLARE_ID(Value);
     DECLARE_ID(ValueMode);

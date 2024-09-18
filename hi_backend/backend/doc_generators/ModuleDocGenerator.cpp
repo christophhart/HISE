@@ -311,8 +311,6 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 			interfaces.add("TableProcessor");
 		if (dynamic_cast<RoutableProcessor*>(p) != nullptr)
 			interfaces.add("RoutingMatrix");
-		if(dynamic_cast<snex::Types::VoiceResetter*>(p) != nullptr)
-			interfaces.add("VoiceResetter");
 		
 		if (interfaces.size() > 0)
 		{
@@ -324,16 +322,7 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 			{
 				//s << iLink.getChildUrl(i).toString(MarkdownLink::FormattedLinkMarkdown);
 
-				if(i == "VoiceResetter")
-				{
-					s << "[`" << i << "`](/scriptnode/manual/glossary#voiceresetter)";
-				}
-				else
-				{
-					s << "[`" << i << "`](/scripting/scripting-api/" << MarkdownLink::Helpers::getSanitizedFilename(i) << ") ";
-				}
-
-				
+				s << "[`" << i << "`](/scripting/scripting-api/" << MarkdownLink::Helpers::getSanitizedFilename(i) << ") ";
 			}
 
 			s << " \n";

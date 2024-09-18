@@ -78,16 +78,6 @@ struct FlexboxComponent: public Component,
 		static String dump(Component& c);
 
 
-		static void writeManualPseudoState(Component& c, int state)
-		{
-			c.getProperties().set("manualPseudoState", state);
-		}
-
-		static int getManualPseudoState(Component& c)
-		{
-			return (int)c.getProperties().getWithDefault("manualPseudoState", var(0));
-		}
-
 		static void writeSelectorsToProperties(Component& c, const StringArray& selectors);
 		static Selector getTypeSelectorFromComponentClass(Component* c);
 		static Array<Selector> getClassSelectorFromComponentClass(Component* c);
@@ -217,21 +207,7 @@ struct FlexboxComponent: public Component,
     {
 		jassert(isInvisibleWrapper());
 		auto fc = getChildComponent(0);
-        
-        auto ss = childSheets[fc];
-        
-        if(ss == nullptr && parentToUse != nullptr)
-        {
-            childSheets[fc] = parentToUse->css.getForComponent(fc);
-            ss = childSheets[fc];
-        }
-        
-        if(ss != nullptr)
-        {
-            return childSheets[fc]->getFlexItem(fc, fullArea);
-        }
-        
-        return {};
+		return childSheets[fc]->getFlexItem(fc, fullArea);
     }
 
     bool isInvisibleWrapper() const { return invisibleWrapper; }

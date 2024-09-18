@@ -169,7 +169,6 @@ public:
 		AAXSDKMissing,
 		ASIOSDKMissing,
 		HISEPathNotSpecified,
-		HiseCodeMismatch,
 		numErrorCodes
 	};
 

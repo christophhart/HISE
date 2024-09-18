@@ -267,10 +267,7 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
-	
-#if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-#endif
 
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
@@ -291,10 +288,6 @@ void AudioLooperVoice::calculateBlock(int startSample, int numSamples)
 
 		looper->getBuffer().sendDisplayIndexMessage((float)samplePos);
 	}
-
-#if !HISE_USE_WRONG_VOICE_RENDERING_ORDER
-	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-#endif
 
 	if (resetAfterBlock)
 		resetVoice();

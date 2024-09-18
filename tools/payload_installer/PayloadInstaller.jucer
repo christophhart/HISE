@@ -18,13 +18,13 @@
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0&#10;PERFETTO=0&#10;USE_BACKEND=1"
                extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
-               xcodeValidArchs="arm64,x86_64" smallIcon="EFHAuU" bigIcon="EFHAuU"
+               xcodeValidArchs="x86_64" smallIcon="EFHAuU" bigIcon="EFHAuU"
                iosDevelopmentTeamID="">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
                        macOSDeploymentTarget="10.15" osxCompatibility="10.15 SDK" targetName="PayloadInstaller"/>
         <CONFIGURATION isDebug="0" name="Release" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
-                       headerPath="" libraryPath="" linkTimeOptimisation="1" optimisation="3"
+                       headerPath="" libraryPath="" linkTimeOptimisation="0" optimisation="2"
                        stripLocalSymbols="1" targetName="PayloadInstaller"/>
       </CONFIGURATIONS>
       <MODULEPATHS>

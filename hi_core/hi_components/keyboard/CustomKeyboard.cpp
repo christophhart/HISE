@@ -233,8 +233,6 @@ CustomKeyboard::CustomKeyboard(MainController* mc_) :
     narrowKeys(true),
     lowKey(12)
 {
-	setKeyPressBaseOctave(5);
-
 	state->addChangeListener(this);
    
 	setColour(whiteNoteColourId, Colours::black);
@@ -460,8 +458,10 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, Rectangle<fl
 
 	if (displayOctaveNumber && midiNoteNumber % 12 == 0)
 	{
-		g.setFont(GLOBAL_BOLD_FONT().withHeight((float)w / 1.5f));
-        g.setColour(Colours::darkgrey);
+		g.setFont(GLOBAL_BOLD_FONT().withHeight((float)w / 3.0f));
+		
+        g.setColour(Colours::grey);
+        
 		g.drawText(MidiMessage::getMidiNoteName(midiNoteNumber, true, true, 3), x, (h*3)/4, w, h / 4, Justification::centred);
 	}
 	

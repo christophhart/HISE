@@ -243,12 +243,12 @@ public:
 
 		ValuePopup(ScriptCreatedComponentWrapper& p):
 			parent(p),
-			shadow(new DropShadower({Colours::black.withAlpha(0.4f), 5,{ 0, 0 }}))
+			shadow({ Colours::black.withAlpha(0.4f), 5,{ 0, 0 } })
 		{
 			f = GLOBAL_BOLD_FONT();
 
-			shadow->setOwner(this);
-			
+			shadow.setOwner(this);
+
 			updateText();
 			startTimer(30);
 		}
@@ -279,7 +279,7 @@ public:
 
 		ScriptCreatedComponentWrapper& parent;
 
-		ScopedPointer<DropShadower> shadow;
+		DropShadower shadow;
 	};
 
 	struct AdditionalMouseCallback;
@@ -327,15 +327,7 @@ public:
 	static void repaintComponent(ScriptCreatedComponentWrapper& w, bool unused)
 	{
 		if (auto c = w.getComponent())
-		{
-			if(dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&c->getLookAndFeel()))
-			{
-				auto styleSheetPseudoState = w.getScriptComponent()->getStyleSheetPseudoState();
-				simple_css::FlexboxComponent::Helpers::writeManualPseudoState(*c, styleSheetPseudoState);
-			}
-
 			c->repaint();
-		}
 	}
 
     Processor *getProcessor();
@@ -742,102 +734,13 @@ public:
 		void updateColours();
 		void updateFont(ScriptingApi::Content::ScriptedViewport * vpc);
 
-		class ColumnListBoxModel : public ListBoxModel,
-								   public MouseListener
+		class ColumnListBoxModel : public ListBoxModel
 		{
 		public:
 			ColumnListBoxModel(ViewportWrapper* parent);
 
-			int prevHoverRow = -1;
-			int currentHoverRow = -1;
-
-			void initLookAndFeel()
-			{
-				auto c = parent->getComponent();
-
-				if(auto laf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&c->getLookAndFeel()))
-				{
-					laf->initComponent(c, simple_css::Selector(simple_css::ElementType::TableRow));
-
-
-					c->addMouseListener(this, true);
-				}
-			}
-
-
-			void mouseDown(const MouseEvent& e) override
-			{
-				auto lb = dynamic_cast<ListBox*>(parent->getComponent());
-				lb->repaintRow(currentHoverRow);
-			}
-
-			void mouseExit(const MouseEvent& e) override
-			{
-				auto lb = dynamic_cast<ListBox*>(parent->getComponent());
-
-				lb->repaintRow(prevHoverRow);
-				lb->repaintRow(currentHoverRow);
-
-				prevHoverRow = currentHoverRow;
-				currentHoverRow = -1;
-			}
-
-			void mouseMove(const MouseEvent& event) override
-			{
-				auto lb = dynamic_cast<ListBox*>(parent->getComponent());
-
-				lb->repaintRow(prevHoverRow);
-				lb->repaintRow(currentHoverRow);
-
-				if(dynamic_cast<ScrollBar*>(event.eventComponent))
-				{
-					prevHoverRow = currentHoverRow;
-					currentHoverRow = -1;
-					return;
-				}
-
-				auto e = event.getEventRelativeTo(lb);
-
-				prevHoverRow = currentHoverRow;
-				currentHoverRow = lb->getRowContainingPosition(e.getPosition().getX(), e.getPosition().getY());
-			}
-
 			int getNumRows() override;
 
-			struct Repainter: public Component
-			{
-				Repainter(ListBox& parent_): parent(parent_)
-				{
-					setInterceptsMouseClicks(false, false);
-					setRepaintsOnMouseActivity(true);
-				}
-
-				void mouseEnter(const MouseEvent& e) override
-				{
-					parent.repaintRow(rowNumber);
-				}
-
-				void mouseExit(const MouseEvent& e) override
-				{
-					parent.repaintRow(rowNumber);
-				}
-
-				ListBox& parent;
-				int rowNumber;
-			};
-
-			Component* refreshComponentForRow (int rowNumber, bool isRowSelected,
-                                               Component* existingComponentToUpdate) override
-			{
-				if(existingComponentToUpdate == nullptr)
-				{
-					existingComponentToUpdate = new Repainter(*dynamic_cast<ListBox*>(parent->getComponent()));
-				}
-
-				dynamic_cast<Repainter*>(existingComponentToUpdate)->rowNumber = rowNumber;
-				
-				return existingComponentToUpdate;
-			}
 
 			void listBoxItemClicked(int row, const MouseEvent &) override;
 			void paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected) override;

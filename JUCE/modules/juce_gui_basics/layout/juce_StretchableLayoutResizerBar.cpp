@@ -46,7 +46,6 @@ StretchableLayoutResizerBar::~StretchableLayoutResizerBar()
 void StretchableLayoutResizerBar::paint (Graphics& g)
 {
     getLookAndFeel().drawStretchableLayoutResizerBar (g,
-													  *this,
                                                       getWidth(), getHeight(),
                                                       isVertical,
                                                       isMouseOver(),

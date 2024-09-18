@@ -415,11 +415,6 @@ Component* FlexboxComponent::addTextElement(const StringArray& selectors, const 
 void FlexboxComponent::addFlexItem(Component& c)
 {
 	addAndMakeVisible(c);
-
-	if(auto root = CSSRootComponent::find(*this))
-	{
-		childSheets[&c] = root->css.getForComponent(&c);
-	}
 }
 
 void FlexboxComponent::addDynamicFlexItem(Component& c)
@@ -1027,7 +1022,6 @@ HeaderContentFooter::HeaderContentFooter(bool useViewportContent):
 	body.addFlexItem(footer);
 
 	StyleSheet::Collection c;
-	c.setAnimator(&animator);
 	body.setCSS(c);
 }
 
@@ -1165,13 +1159,13 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 
 	if(css != newCss && !useFixStyleSheet)
 	{
-		css = newCss;
-
 		if(auto dp = createDataProvider())
 		{
-			css.performAtRules(dp);
+			newCss.performAtRules(dp);
 			delete dp;
 		}
+
+		css = newCss;
 
 		if(defaultProperties != nullptr)
 		{
@@ -1186,7 +1180,6 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 		styleSheetCollectionChanged();
 	}
 
-	css.setAnimator(&animator);
 	body.setCSS(css);
 }
 

@@ -188,6 +188,18 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	setEnableUndoManager(enableUndo);
 
+	idUpdater.setCallback(data, { PropertyIds::ID }, valuetree::AsyncMode::Synchronously, 
+		[this](ValueTree v, Identifier id)
+	{
+		if (auto n = getNodeForValueTree(v))
+		{
+			auto oldId = n->getCurrentId();
+			auto newId = v[PropertyIds::ID].toString();
+
+			changeNodeId(data, oldId, newId, getUndoManager());
+		}
+	});
+
 	exceptionResetter.setTypeToWatch(PropertyIds::Nodes);
 	exceptionResetter.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasAdded)
 	{
@@ -2166,12 +2178,6 @@ String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 	case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 	case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
 	case Error::IllegalMonophony: return "Can't use this node in a monophonic network";
-	case Error::OldFaustVersion:  
-		s << "Your Faust version is too old (";
-		s << String(e.actual / 1000000) << "." << String((e.actual % 1000000) / 1000) << "." << String(e.actual % 1000) << "). ";
-		s << "Min required version: ";
-		s << String(e.expected / 1000000) << "." << String((e.expected % 1000000) / 1000) << "." << String(e.expected % 1000) << ". ";
-		return s;
 	case Error::IllegalFaustNode: return "Faust is disabled. Enable faust and recompile HISE.";
 	case Error::IllegalFaustChannelCount: 
 		s << "Faust node channel mismatch. Expected channels: `" << String(e.expected) << "`";

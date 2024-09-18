@@ -125,8 +125,6 @@ public:
 
 	void refreshLineWidth();
 
-	void insertCodeSnippet(const String& textToInsert, Array<Range<int>> selectRanges);
-
 	CodeDocument& getDocument();
 
 	TooltipWithArea::Data getTooltip(Point<float> position) override;

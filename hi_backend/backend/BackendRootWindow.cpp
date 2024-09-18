@@ -187,17 +187,16 @@ StringArray SnippetBrowserHelpers::getCategoryNames()
 		return TooltipWindow::getTipFor(component);
 	}
 
-
-
-BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
+	BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
 	AudioProcessorEditor(ownerProcessor),
 	BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 	owner(static_cast<BackendProcessor*>(ownerProcessor))
 {
 	funkytooltips.setLookAndFeel(&ttlaf);
 
-	if(!owner->isSnippetBrowser())
-		Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
+	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
+
+	Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
 
 	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
@@ -388,7 +387,7 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 	setOpaque(true);
 
-	startTimer(200);
+	startTimer(1000);
 
 	updateCommands();
 
@@ -855,24 +854,10 @@ void BackendRootWindow::timerCallback()
 {
 	stopTimer();
 
-	if(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Other::ShowWelcomeScreen))
+	if (!GET_PROJECT_HANDLER(mainEditor->getMainSynthChain()).isActive() && !projectIsBeingExtracted)
 	{
-		if(!getBackendProcessor()->isSnippetBrowser())
-		{
-			auto wc = new multipage::library::WelcomeScreen(this);
-			wc->setModalBaseWindowComponent(this);
-		}
-		else
-		{
-			auto snippetSettings = ProjectHandler::getAppDataDirectory(getMainController()).getChildFile("snippetBrowser.xml");
-
-			if(!snippetSettings.existsAsFile())
-			{
-				auto wc = new multipage::library::WelcomeSnippetBrowserScreen(this);
-				wc->setModalBaseWindowComponent(this);
-			}
-		}
-		
+		owner->setChanged(false);
+		BackendCommandTarget::Actions::createNewProject(this);
 	}
 }
 

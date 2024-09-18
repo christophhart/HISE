@@ -559,13 +559,11 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 #endif
 
-	
-
-#if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-#endif
 
 	applyGainModulation(startIndex, samplesToCopy, false);
+
+	
 
 	if (enableSecondOsc)
 	{
@@ -615,10 +613,6 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::addWithMultiply(leftSamples, tBuffer.getReadPointer(1, startIndex), balance2Left, samplesToCopy);
 		FloatVectorOperations::addWithMultiply(rightSamples, tBuffer.getReadPointer(1, startIndex), balance2Right, samplesToCopy);
 	}
-
-#if !HISE_USE_WRONG_VOICE_RENDERING_ORDER
-	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
-#endif
 }
 
 

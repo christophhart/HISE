@@ -1073,6 +1073,7 @@ void BorderPanel::paint(Graphics &g)
 		        {
 			        simple_css::Renderer r(this, root->stateWatcher);
 
+					r.getPseudoClassFromComponent(this);
 					root->stateWatcher.checkChanges(this, c, r.getPseudoClassState());
 
 					r.drawBackground(g, getLocalBounds().toFloat(), c);
@@ -1210,12 +1211,6 @@ void ImageComponentWithMouseCallback::paint(Graphics &g)
 {
 	if (image.isValid())
 	{
-		if(auto slaf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&getLookAndFeel()))
-		{
-			if(slaf->drawImageOnComponent(g, this, image))
-				return;
-		}
-
 		g.setOpacity(jmax<float>(0.0f, jmin<float>(1.0f, alpha)));
 
 		Rectangle<int> cropArea = Rectangle<int>(0,

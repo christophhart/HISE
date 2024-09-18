@@ -63,7 +63,7 @@ KeywordDataBase::KeywordDataBase()
 	
 	keywords[(int)KeywordType::PseudoClass] = { "hover", "active", "focus", "disabled", "hidden", "before", "after", "root", "checked", "first-child", "last-child" };
 	keywords[(int)KeywordType::AtRules] = { "@font-face", "@import" };
-	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "img", "input", "hr", "label", "table", "th", "tr", "td", "p", "progress", "scrollbar", "h1", "h2", "h3", "h4" };
+	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "img", "input", "hr", "label", "table", "th", "tr", "td", "p", "progress", "h1", "h2", "h3", "h4" };
 	keywords[(int)KeywordType::ExpressionKeywords] = { "calc", "clamp", "min", "max" };
 	keywords[(int)KeywordType::Property] = {
 		"::selection",
@@ -122,7 +122,7 @@ KeywordDataBase::KeywordDataBase()
 	functNames["transform"] = { "none", "matrix", "translate", "translateX", "translateY", "translateZ",
 								"scale", "scaleX", "scaleY", "scaleZ", "rotate", "rotateX", "rotateY", "rotateZ",
 								"skew", "skewX", "skewY" };
-    functNames["color"] = { "rgba", "rgb", "hsl", "linear-gradient", "color-mix" };
+    functNames["color"] = { "rgba", "rgb", "hsl", "linear-gradient" };
 }
 
 String KeywordDataBase::getKeywordName(KeywordType type)

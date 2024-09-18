@@ -313,7 +313,6 @@ private:
 	bool projectIsBeingExtracted = false;
 
 	friend class ProjectImporter;
-	friend class multipage::library::NewProjectCreator;
 
 	FloatingTabComponent* getCodeTabs();
 

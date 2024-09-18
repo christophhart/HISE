@@ -80,7 +80,7 @@ public:
     {
         virtual ~LookAndFeelMethods() = default;
 
-        virtual void drawStretchableLayoutResizerBar (Graphics&, Component&, int w, int h,
+        virtual void drawStretchableLayoutResizerBar (Graphics&, int w, int h,
                                                       bool isVerticalBar, bool isMouseOver, bool isMouseDragging) = 0;
     };
 

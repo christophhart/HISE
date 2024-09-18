@@ -153,17 +153,9 @@ AudioProcessorEditor(fp)
 	
 	startTimer(4125);
 
-	WeakReference<ScriptingApi::Content> content = jsp->getScriptingContent();
+	originalSizeX = getWidth();
+	originalSizeY = getHeight();
 
-	scaleFactor = (float)fp->getGlobalScaleFactor();
-
-	content->interfaceSizeBroadcaster.addListener(*this, [content](FrontendProcessorEditor& fp, int w, int h)
-	{
-		fp.originalSizeX = w;
-		fp.originalSizeY = h;
-		fp.setGlobalScaleFactor(fp.scaleFactor, true);
-	});
-	
 	const int availableHeight = Desktop::getInstance().getDisplays().getMainDisplay().userArea.getHeight();
 	const float displayScaleFactor = (float)Desktop::getInstance().getDisplays().getMainDisplay().scale;
 	const int unscaledInterfaceHeight = getHeight();
@@ -186,7 +178,10 @@ AudioProcessorEditor(fp)
 	{
 		setGlobalScaleFactor(0.85f);
 	}
-	
+	else
+	{
+        setGlobalScaleFactor((float)fp->getGlobalScaleFactor());
+	}
 #endif
         
 	if (FullInstrumentExpansion::isEnabled(getMainController()))
@@ -232,13 +227,8 @@ void FrontendProcessorEditor::newHisePresetLoaded()
 	{
 		if (auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController()))
 		{
-			jsp->getScriptingContent()->interfaceSizeBroadcaster.addListener(*this, [](FrontendProcessorEditor& fp, int w, int h)
-			{
-				fp.originalSizeX = w;
-				fp.originalSizeY = h;
-
-				fp.setGlobalScaleFactor(fp.scaleFactor, true);
-			});
+			originalSizeX = jsp->getScriptingContent()->getContentWidth();
+			originalSizeY = jsp->getScriptingContent()->getContentHeight();
 		}
 
 		setGlobalScaleFactor(scaleFactor, true);
@@ -268,12 +258,10 @@ void FrontendProcessorEditor::setGlobalScaleFactor(float newScaleFactor, bool fo
         {
             tl->setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
 			setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
-			resized();
         }
         else
         {
 			setSize((int)((float)originalSizeX * scaleFactor), (int)((float)originalSizeY * scaleFactor));
-			resized();
         }
     }
 }
@@ -286,8 +274,8 @@ void FrontendProcessorEditor::resized()
 	int width = originalSizeX != 0 ? originalSizeX : getWidth();
     int height = originalSizeY != 0 ? originalSizeY : getHeight();
 #else
-	int width = originalSizeX;
-	int height = originalSizeY;
+	int width = (int)((double)getWidth() / scaleFactor);
+	int height = (int)((double)getHeight() / scaleFactor);
 #endif
 
     container->setBounds(0, 0, width, height);

@@ -173,9 +173,6 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Registers this broadcaster to be called when the value of the given components change. */
 	void attachToComponentValue(var componentIds, var optionalMetadata);
 
-	/** Registers the broadcaster to be notified when the interface size changes. */
-	void attachToInterfaceSize(var optionalMetadata);
-
 	/** Registers this broadcaster to be called when the visibility of one of the components (or one of its parent component) changes. */
 	void attachToComponentVisibility(var componentIds, var optionalMetadata);
 
@@ -745,55 +742,6 @@ private:
 		Array<Identifier> propertyIds;
 		Identifier illegalId;
 		OwnedArray<InternalListener> items;
-	};
-
-	struct InterfaceSizeListener : public ListenerBase
-	{
-		InterfaceSizeListener(ScriptBroadcaster* b, const var& metadata);
-
-		~InterfaceSizeListener()
-		{
-			if(auto sc = parent->getScriptProcessor()->getScriptingContent())
-			{
-				sc->interfaceSizeBroadcaster.removeListener(*this);
-			}
-		}
-
-		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("InterfaceSizeListener"); }
-
-		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override {}
-
-		int getNumInitialCalls() const override { return 1; }
-
-		static void onUpdate(InterfaceSizeListener& il, int w, int h)
-		{
-			il.sizeArray.set(0, w);
-			il.sizeArray.set(1, h);
-			il.parent->sendAsyncMessage(il.sizeArray);
-		}
-
-		Array<var> getInitialArgs(int callIndex) const override
-		{
-			Array<var> size;
-
-			auto sp = parent->getScriptProcessor();
-			size.add(sp->getScriptingContent()->getContentWidth());
-			size.add(sp->getScriptingContent()->getContentHeight());
-			
-			return size;
-		}
-
-		Result callItem(TargetBase* n) override
-		{
-			return n->callSync(sizeArray);
-		}
-
-		Array<var> createChildArray() const override { return sizeArray; }
-		
-		Array<var> sizeArray;
-		ScriptBroadcaster* parent;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(InterfaceSizeListener);
 	};
 
 	struct ComponentVisibilityListener : public ListenerBase

@@ -27,13 +27,8 @@
 
 #include <string>
 #include <vector>
-#include <cstdint>
 
-#include "faust/export.h"
-
-
-
-
+#include <faust/export.h>
 
 #ifndef FAUSTFLOAT
 #define FAUSTFLOAT float
@@ -64,7 +59,7 @@ struct FAUST_API dsp_memory_manager {
      * Inform the Memory Manager with the number of expected memory zones.
      * @param count - the number of expected memory zones
      */
-    virtual void begin(size_t /*count*/) {}
+    virtual void begin(size_t count) {}
     
     /**
      * Give the Memory Manager information on a given memory zone.
@@ -72,8 +67,8 @@ struct FAUST_API dsp_memory_manager {
      * @param reads - the number of Read access to the zone used to compute one frame
      * @param writes - the number of Write access to the zone used to compute one frame
      */
-    virtual void info(size_t /*size*/, size_t /*reads*/, size_t /*writes*/) {}
-
+    virtual void info(size_t size, size_t reads, size_t writes) {}
+    
     /**
      * Inform the Memory Manager that all memory zones have been described,
      * to possibly start a 'compute the best allocation strategy' step.
@@ -132,14 +127,14 @@ class FAUST_API dsp {
         virtual void init(int sample_rate) = 0;
 
         /**
-         * Init instance state.
+         * Init instance state
          *
          * @param sample_rate - the sampling rate in Hz
          */
         virtual void instanceInit(int sample_rate) = 0;
     
         /**
-         * Init instance constant state.
+         * Init instance constant state
          *
          * @param sample_rate - the sampling rate in Hz
          */
@@ -159,52 +154,26 @@ class FAUST_API dsp {
         virtual dsp* clone() = 0;
     
         /**
-         * Trigger the Meta* m parameter with instance specific calls to 'declare' (key, value) metadata.
+         * Trigger the Meta* parameter with instance specific calls to 'declare' (key, value) metadata.
          *
          * @param m - the Meta* meta user
          */
         virtual void metadata(Meta* m) = 0;
     
         /**
-         * Read all controllers (buttons, sliders, etc.), and update the DSP state to be used by 'frame' or 'compute'.
-         * This method will be filled with the -ec (--external-control) option.
-         */
-        virtual void control() {}
-    
-        /**
-         * DSP instance computation to process one single frame.
-         *
-         * Note that by default inputs and outputs buffers are supposed to be distinct memory zones,
-         * so one cannot safely write frame(inputs, inputs).
-         * The -inpl option can be used for that, but only in scalar mode for now.
-         * This method will be filled with the -os (--one-sample) option.
-         *
-         * @param inputs - the input audio buffers as an array of FAUSTFLOAT samples (eiher float, double or quad)
-         * @param outputs - the output audio buffers as an array of FAUSTFLOAT samples (eiher float, double or quad)
-         */
-        virtual void frame(FAUSTFLOAT* inputs, FAUSTFLOAT* outputs) {}
-        
-        /**
-         * DSP instance computation to be called with successive in/out audio buffers.
-         *
-         * Note that by default inputs and outputs buffers are supposed to be distinct memory zones,
-         * so one cannot safely write compute(count, inputs, inputs).
-         * The -inpl compilation option can be used for that, but only in scalar mode for now.
+         * DSP instance computation, to be called with successive in/out audio buffers.
          *
          * @param count - the number of frames to compute
-         * @param inputs - the input audio buffers as an array of non-interleaved FAUSTFLOAT buffers
-         * (containing either float, double or quad samples)
-         * @param outputs - the output audio buffers as an array of non-interleaved FAUSTFLOAT buffers
-         * (containing either float, double or quad samples)
+         * @param inputs - the input audio buffers as an array of non-interleaved FAUSTFLOAT samples (eiher float, double or quad)
+         * @param outputs - the output audio buffers as an array of non-interleaved FAUSTFLOAT samples (eiher float, double or quad)
+         *
          */
         virtual void compute(int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) = 0;
     
         /**
-         * Alternative DSP instance computation method for use by subclasses, incorporating an additional `date_usec` parameter,
-         * which specifies the timestamp of the first sample in the audio buffers.
+         * DSP instance computation: alternative method to be used by subclasses.
          *
-         * @param date_usec - the timestamp in microsec given by audio driver. By convention timestamp of -1 means 'no timestamp conversion',
-         * events already have a timestamp expressed in frames.
+         * @param date_usec - the timestamp in microsec given by audio driver.
          * @param count - the number of frames to compute
          * @param inputs - the input audio buffers as an array of non-interleaved FAUSTFLOAT samples (either float, double or quad)
          * @param outputs - the output audio buffers as an array of non-interleaved FAUSTFLOAT samples (either float, double or quad)
@@ -240,13 +209,10 @@ class FAUST_API decorator_dsp : public dsp {
         virtual decorator_dsp* clone() { return new decorator_dsp(fDSP->clone()); }
         virtual void metadata(Meta* m) { fDSP->metadata(m); }
         // Beware: subclasses usually have to overload the two 'compute' methods
-        virtual void control() { fDSP->control(); }
-        virtual void frame(FAUSTFLOAT* inputs, FAUSTFLOAT* outputs) { fDSP->frame(inputs, outputs); }
         virtual void compute(int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) { fDSP->compute(count, inputs, outputs); }
         virtual void compute(double date_usec, int count, FAUSTFLOAT** inputs, FAUSTFLOAT** outputs) { fDSP->compute(date_usec, count, inputs, outputs); }
     
 };
-
 /**
  * DSP factory class, used with LLVM and Interpreter backends
  * to create DSP instances from a compiled DSP program.
@@ -261,39 +227,20 @@ class FAUST_API dsp_factory {
     
     public:
     
-        /* Return factory name */
         virtual std::string getName() = 0;
-    
-        /* Return factory SHA key */
         virtual std::string getSHAKey() = 0;
-    
-        /* Return factory expanded DSP code */
         virtual std::string getDSPCode() = 0;
-    
-        /* Return factory compile options */
         virtual std::string getCompileOptions() = 0;
-    
-        /* Get the Faust DSP factory list of library dependancies */
         virtual std::vector<std::string> getLibraryList() = 0;
-    
-        /* Get the list of all used includes */
         virtual std::vector<std::string> getIncludePathnames() = 0;
     
 #if !FAUST_NO_WARNING_MESSAGES
-        /* Get warning messages list for a given compilation */
         virtual std::vector<std::string> getWarningMessages() = 0;
 #endif
     
-        /* Create a new DSP instance, to be deleted with C++ 'delete' */
         virtual dsp* createDSPInstance() = 0;
     
-        /* Static tables initialization, possibly implemened in sub-classes*/
-        virtual void classInit(int sample_rate) {};
-    
-        /* Set a custom memory manager to be used when creating instances */
         virtual void setMemoryManager(dsp_memory_manager* manager) = 0;
-    
-        /* Return the currently set custom memory manager */
         virtual dsp_memory_manager* getMemoryManager() = 0;
     
 };
@@ -305,17 +252,14 @@ class FAUST_API ScopedNoDenormals {
     
     private:
     
-        intptr_t fpsr = 0;
+        intptr_t fpsr;
         
         void setFpStatusRegister(intptr_t fpsr_aux) noexcept
         {
         #if defined (__arm64__) || defined (__aarch64__)
-            asm volatile("msr fpcr, %0" : : "ri" (fpsr_aux));
+           asm volatile("msr fpcr, %0" : : "ri" (fpsr_aux));
         #elif defined (__SSE__)
-            // The volatile keyword here is needed to workaround a bug in AppleClang 13.0
-            // which aggressively optimises away the variable otherwise
-            volatile uint32_t fpsr_w = static_cast<uint32_t>(fpsr_aux);
-            _mm_setcsr(fpsr_w);
+            _mm_setcsr(static_cast<uint32_t>(fpsr_aux));
         #endif
         }
         
@@ -323,7 +267,7 @@ class FAUST_API ScopedNoDenormals {
         {
         #if defined (__arm64__) || defined (__aarch64__)
             asm volatile("mrs %0, fpcr" : "=r" (fpsr));
-        #elif defined (__SSE__)
+        #elif defined ( __SSE__)
             fpsr = static_cast<intptr_t>(_mm_getcsr());
         #endif
         }
@@ -334,14 +278,16 @@ class FAUST_API ScopedNoDenormals {
         {
         #if defined (__arm64__) || defined (__aarch64__)
             intptr_t mask = (1 << 24 /* FZ */);
-        #elif defined (__SSE__)
-        #if defined (__SSE2__)
-            intptr_t mask = 0x8040;
         #else
-            intptr_t mask = 0x8000;
-        #endif
-        #else
-            intptr_t mask = 0x0000;
+            #if defined(__SSE__)
+            #if defined(__SSE2__)
+                intptr_t mask = 0x8040;
+            #else
+                intptr_t mask = 0x8000;
+            #endif
+            #else
+                intptr_t mask = 0x0000;
+            #endif
         #endif
             getFpStatusRegister();
             setFpStatusRegister(fpsr | mask);
@@ -353,9 +299,8 @@ class FAUST_API ScopedNoDenormals {
         }
 
 };
-}
-#define AVOIDDENORMALS ScopedNoDenormals ftz_scope;
 
-#endif
+}
 
 /************************** END dsp.h **************************/
+#endif

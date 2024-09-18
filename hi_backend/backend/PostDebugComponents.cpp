@@ -474,6 +474,7 @@ void FloatingTileContent::Factory::registerBackendPanelTypes()
 
 	registerType<GenericPanel<ApiCollection>>(PopupMenuOptions::ApiCollection);
 	registerType<scriptnode::DspNodeList::Panel>(PopupMenuOptions::DspNodeList);
+	registerType<GenericPanel<ModuleBrowser>>(PopupMenuOptions::ModuleBrowser);
 	registerType<GenericPanel<PatchBrowser>>(PopupMenuOptions::PatchBrowser);
 	registerType<GenericPanel<AutomationDataBrowser>>(PopupMenuOptions::AutomationDataBrowser);
 	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
@@ -516,6 +517,7 @@ bool FloatingTileContent::Factory::handleBackendMenu(PopupMenuOptions r, Floatin
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); return true;
 	case PopupMenuOptions::AutomationDataBrowser: parent->setNewContent(GET_PANEL_NAME(GenericPanel<AutomationDataBrowser>)); return true;
 	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); return true;
+	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); return true;
 	case PopupMenuOptions::SamplePoolTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SamplePoolTable>)); return true;
 	}
 

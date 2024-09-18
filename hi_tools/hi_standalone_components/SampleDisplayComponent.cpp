@@ -912,8 +912,7 @@ void AudioDisplayComponent::SampleArea::setGamma(float newGamma)
 	repaint();
 }
 
-void AudioDisplayComponent::SampleArea::EdgeLookAndFeel::drawStretchableLayoutResizerBar (Graphics &g,
-																   Component& resizer,
+void AudioDisplayComponent::SampleArea::EdgeLookAndFeel::drawStretchableLayoutResizerBar (Graphics &g, 
 																   int w, int h, 
 																   bool isVerticalBar, 
 																   bool isMouseOver, 

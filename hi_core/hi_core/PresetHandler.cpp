@@ -702,20 +702,18 @@ struct CountedProcessorId
 
 
 
-void ProjectHandler::createNewProject(const File &workingDirectory, Component* )
+void ProjectHandler::createNewProject(File &workingDirectory, Component* )
 {
-	auto wd = workingDirectory;
-
-	if (wd.exists() && wd.isDirectory())
+	if (workingDirectory.exists() && workingDirectory.isDirectory())
 	{
-		while (wd.getNumberOfChildFiles(File::findFilesAndDirectories) > 1)
+		while (workingDirectory.getNumberOfChildFiles(File::findFilesAndDirectories) > 1)
 		{
 			PresetHandler::showMessageWindow("Directory already exists", "The directory is not empty. Try another one...", PresetHandler::IconType::Warning);
             
             FileChooser fc("Create new project directory");
             
             if (fc.browseForDirectory())
-                wd = fc.getResult();
+                workingDirectory = fc.getResult();
             else
                 return;
 		}
@@ -723,7 +721,7 @@ void ProjectHandler::createNewProject(const File &workingDirectory, Component* )
 
 	for (int i = 0; i < (int)SubDirectories::numSubDirectories; i++)
 	{
-		File subDirectory = wd.getChildFile(getIdentifier((SubDirectories)i));
+		File subDirectory = workingDirectory.getChildFile(getIdentifier((SubDirectories)i));
 		subDirectory.createDirectory();
 	}
 }
@@ -2175,7 +2173,60 @@ Processor *PresetHandler::loadProcessorFromFile(File fileName, Processor *parent
 
 
 
+void PresetHandler::buildProcessorDataBase(Processor *root)
+{
+	ignoreUnused(root);
 
+#if USE_BACKEND
+
+	if (CompileExporter::isExportingFromCommandLine())
+		return;
+
+	auto f = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("moduleEnums.xml");
+
+	if (f.existsAsFile()) return;
+
+	ScopedPointer<XmlElement> xml = new XmlElement("Parameters");
+	
+
+	ScopedPointer<FactoryType> t = new ModulatorSynthChainFactoryType(NUM_POLYPHONIC_VOICES, root);
+
+	
+
+	{
+		MainController::ScopedBadBabysitter sb(root->getMainController());
+
+		xml->addChildElement(buildFactory(t, "ModulatorSynths"));
+
+		t = new MidiProcessorFactoryType(root);
+		xml->addChildElement(buildFactory(t, "MidiProcessors"));
+
+
+		t = new VoiceStartModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
+		xml->addChildElement(buildFactory(t, "VoiceStartModulators"));
+
+		t = new TimeVariantModulatorFactoryType(Modulation::GainMode, root);
+
+		xml->addChildElement(buildFactory(t, "TimeVariantModulators"));
+
+		t = new EnvelopeModulatorFactoryType(NUM_POLYPHONIC_VOICES, Modulation::GainMode, root);
+
+		xml->addChildElement(buildFactory(t, "EnvelopeModulators"));
+
+		t = new EffectProcessorChainFactoryType(NUM_POLYPHONIC_VOICES, root);
+
+		xml->addChildElement(buildFactory(t, "Effects"));
+
+		t = nullptr;
+	}
+
+	
+
+	
+
+	xml->writeToFile(f, "");
+#endif
+}
 
 XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryName)
 {

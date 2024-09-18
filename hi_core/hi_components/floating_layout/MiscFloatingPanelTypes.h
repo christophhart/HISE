@@ -79,8 +79,6 @@ private:
 	ScopedPointer<ScriptContentComponent> content;
 
 	void updateSize();
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(InterfaceContentPanel);
 };
 
 

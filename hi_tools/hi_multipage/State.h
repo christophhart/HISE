@@ -248,13 +248,6 @@ public:
     void onFinish();
     void run() override;
 
-    void clearCompletedJobs()
-    {
-        stopThread(1000);
-	    jobs.clear();
-        completedJobs.clear();
-    }
-
     struct StateProvider;
 
     void logStatusMessage(const String& message) override
@@ -335,33 +328,18 @@ public:
 
         var getInfoObject() const { return localObj; }
 
-        void setInfoObject(const var& newInfoObject)
-        {
-            localObj = newInfoObject;
-        }
-
-        void setEnableProgressAndMessage(bool shouldEnable)
-        {
-            enableProgress = shouldEnable;
-        }
-
     protected:
-
-        bool enableProgress = true;
-
+        
         String message;
 
         virtual Result run() = 0;
         
         State& parent;
         double progress = 0.0;
-        double unusedProgess = 0.0;
         var localObj;
     };
 
     using HardcodedLambda = std::function<var(Job&, const var&)>;
-
-    bool isFinished(Job::Ptr j) const { return completedJobs.contains(j); }
 
     Job::Ptr currentJob = nullptr;
     Job::Ptr getJob(const var& obj);
@@ -413,11 +391,6 @@ public:
     void bindCallback(const String& functionName, const var::NativeFunction& f);
 
     bool callNativeFunction(const String& functionName, const var::NativeFunctionArgs& args, var* returnValue);
-
-    bool hasNativeFunction(const String& functionName) const
-    {
-	    return jsLambdas.find(functionName) != jsLambdas.end();
-    }
 
     String currentEventGroup;
     
@@ -535,21 +508,18 @@ struct MonolithData
         MonolithBeginAssets,
         MonolithAssetJSONStart,
         MonolithAssetJSONEnd,
-        MonolithAssetNoCompressFlag,
         MonolithAssetStart,
         MonolithAssetEnd,
-        MonolithEndAssets,
-        MonolithBeginVersion,
-        MonolithEndVersion
+        MonolithEndAssets
     };
 
     static String getMarkerName(Markers m);
 
     MonolithData(InputStream* input);
     
-    multipage::Dialog* create(State& state, bool allowVersionMismatch);
+    multipage::Dialog* create(State& state);
     
-    static Result exportMonolith(State& state, OutputStream* output, bool compressAssets=true, State::Job* j=nullptr);
+    static Result exportMonolith(State& state, OutputStream* output);
     var getJSON() const;
 
 private:
@@ -560,16 +530,7 @@ private:
     InputStream* input;
 };
 
-struct HardcodedDialogWithStateBase
-{
-	virtual ~HardcodedDialogWithStateBase() {};
-
-    /** Override this method and return an item list for the autocomplete popup for the given id*/
-    virtual StringArray getAutocompleteItems(const Identifier& textEditorId) { return {}; };
-};
-
-struct HardcodedDialogWithState: public Component,
-								 public HardcodedDialogWithStateBase
+struct HardcodedDialogWithState: public Component
 {
     HardcodedDialogWithState():
 	  state(var())
@@ -585,6 +546,9 @@ struct HardcodedDialogWithState: public Component,
 		return state.globalState[id];
 	}
 
+    /** Override this method and return an item list for the autocomplete popup for the given id*/
+    virtual StringArray getAutocompleteItems(const Identifier& textEditorId) { return {}; };
+    
     void setOnCloseFunction(const std::function<void()>& f);
 
     /** Override this method and initialise all default values for the global state. */

@@ -326,10 +326,11 @@ public:
             repaint(textArea);
     }
 
-	void setStepSequencerMode(bool shouldUseStepSequencerMode);
-
-	int getHoverStateForSlider(Slider* s) const;
-
+	void setStepSequencerMode(bool shouldUseStepSequencerMode)
+    {
+	    toggleMaxMode = shouldUseStepSequencerMode;
+    }
+    
 private:
 	
     bool toggleMaxMode = false;

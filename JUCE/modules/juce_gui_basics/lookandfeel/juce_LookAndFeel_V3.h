@@ -67,7 +67,7 @@ public:
 
     void drawTextEditorOutline (Graphics&, int width, int height, TextEditor&) override;
 
-    void drawStretchableLayoutResizerBar (Graphics&, Component&, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
+    void drawStretchableLayoutResizerBar (Graphics&, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
 
     bool areScrollbarButtonsVisible() override;
 

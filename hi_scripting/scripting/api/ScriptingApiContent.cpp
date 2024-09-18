@@ -239,7 +239,6 @@ struct ScriptingApi::Content::ScriptComponent::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptComponent, fadeComponent);
 	API_VOID_METHOD_WRAPPER_3(ScriptComponent, setStyleSheetProperty);
 	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setStyleSheetClass);
-	API_VOID_METHOD_WRAPPER_1(ScriptComponent, setStyleSheetPseudoState);
 	API_VOID_METHOD_WRAPPER_0(ScriptComponent, updateValueFromProcessorConnection);
 };
 
@@ -436,7 +435,6 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(updateValueFromProcessorConnection);
 	ADD_API_METHOD_3(setStyleSheetProperty);
 	ADD_API_METHOD_1(setStyleSheetClass);
-	ADD_API_METHOD_1(setStyleSheetPseudoState);
 
 	//setName(name_.toString());
 
@@ -840,20 +838,9 @@ void ScriptComponent::setStyleSheetClass(const String& classIds)
 	styleSheetProperties.setProperty("class", selfClass, nullptr);
 }
 
-void ScriptComponent::setStyleSheetPseudoState(const String& pseudoStateString)
-{
-	pseudoState = simple_css::PseudoState::getPseudoClassIndex(pseudoStateString);
-
-	sendRepaintMessage();
-}
-
 void ScriptComponent::setStyleSheetProperty(const String& variableId, const var& value, const String& type)
 {
 	auto v = ApiHelpers::convertStyleSheetProperty(value, type);
-
-	if(!styleSheetProperties.isValid())
-        styleSheetProperties = ValueTree("ComponentStyleSheetProperties");
-
 	styleSheetProperties.setProperty(variableId, v, nullptr);
 }
 
@@ -1737,23 +1724,10 @@ juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFee
 			if(!styleSheetProperties.isValid())
 			{
 				styleSheetProperties = ValueTree("ComponentStyleSheetProperties");
+				
+				simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
+				styleSheetProperties.setProperty("class", classType.toString(), nullptr);
 			}
-            
-            auto initProperty = [&](const Identifier& id)
-            {
-                if(!propertyTree.hasProperty(id))
-                    propertyTree.setProperty(id, defaultValues[id], nullptr);
-            };
-            
-            initProperty("bgColour");
-            initProperty("itemColour");
-            initProperty("itemColour2");
-            initProperty("textColour");
-            
-            removePropertyIfDefault = false;
-            
-            simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
-            styleSheetProperties.setProperty("class", classType.toString(), nullptr);
 			
 			return new ScriptingObjects::ScriptedLookAndFeel::CSSLaf(l, contentComponent, componentToRegister, this->propertyTree, this->styleSheetProperties);
 		}
@@ -1772,9 +1746,6 @@ void ScriptingApi::Content::ScriptComponent::setLocalLookAndFeel(var lafObject)
 {
 	if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(lafObject.getObject()))
 	{
-		if(l->currentStyleSheet.isNotEmpty())
-			setStyleSheetClass({});
-
 		localLookAndFeel = lafObject;
 
 		ChildIterator<ScriptComponent> iter(this);
@@ -5687,8 +5658,6 @@ struct ScriptingApi::Content::ScriptMultipageDialog::Wrapper
 	API_METHOD_WRAPPER_3(ScriptMultipageDialog, add);
 	API_METHOD_WRAPPER_2(ScriptMultipageDialog, navigate);
 	API_METHOD_WRAPPER_3(ScriptMultipageDialog, bindCallback);
-	API_METHOD_WRAPPER_0(ScriptMultipageDialog, addModalPage);
-	API_VOID_METHOD_WRAPPER_3(ScriptMultipageDialog, showModalPage);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, setOnFinishCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, setOnPageLoadCallback);
 	API_VOID_METHOD_WRAPPER_1(ScriptMultipageDialog, show);
@@ -5739,13 +5708,11 @@ ScriptingApi::Content::ScriptMultipageDialog::ScriptMultipageDialog(ProcessorWit
 	
 	ADD_API_METHOD_0(resetDialog);
 	ADD_API_METHOD_0(addPage);
-	ADD_API_METHOD_0(addModalPage);
 	ADD_API_METHOD_3(add);
 	ADD_API_METHOD_3(bindCallback);
 	ADD_API_METHOD_1(setOnFinishCallback);
 	ADD_API_METHOD_1(setOnPageLoadCallback);
 	ADD_API_METHOD_1(show);
-	ADD_API_METHOD_3(showModalPage);
 	ADD_API_METHOD_2(navigate);
 	ADD_API_METHOD_0(cancel);
 	ADD_API_METHOD_3(setElementProperty);
@@ -5870,11 +5837,6 @@ void ScriptingApi::Content::ScriptMultipageDialog::resetDialog()
 
 int ScriptingApi::Content::ScriptMultipageDialog::addPage()
 {
-	return addPageInternal(false);
-}
-
-int ScriptingApi::Content::ScriptMultipageDialog::addPageInternal(bool isModal)
-{
 	using namespace multipage;
 
 	DynamicObject::Ptr no = new DynamicObject();
@@ -5882,69 +5844,10 @@ int ScriptingApi::Content::ScriptMultipageDialog::addPageInternal(bool isModal)
 	no->setProperty(mpid::Type, "List");
 	no->setProperty(mpid::Children, Array<var>());
 
-	if(isModal)
-		modalPages.add(var(no.get()));
-	else
-		pages.add(var(no.get()));
+	pages.add(var(no.get()));
 
 	elementData.add(var(no.get()));
-
 	return elementData.size()-1;
-}
-
-int ScriptingApi::Content::ScriptMultipageDialog::addModalPage()
-{
-	return addPageInternal(true);
-	
-}
-
-void ScriptingApi::Content::ScriptMultipageDialog::showModalPage(int pageIndex, var modalState, var finishCallback)
-{
-	if(isPositiveAndBelow(pageIndex, elementData.size()))
-	{
-		auto v = elementData[pageIndex];
-
-		if(modalPages.contains(v))
-		{
-			onModalFinish = new ValueCallback(this, "onModalFinish", finishCallback, dispatch::DispatchType::sendNotificationAsync);
-
-			MessageManager::callAsync([v, modalState, pageIndex, this]()
-			{
-				multipage::Factory f;
-
-				if(auto x = f.create(v))
-				{
-					x->setStateObject(modalState);
-
-					x->setCustomCheckFunction([this, modalState, pageIndex](multipage::Dialog::PageBase*, const var& obj)
-					{
-						var thisObject;
-						var a[2];
-
-						a[0] = var(pageIndex);
-						a[1] = modalState;
-
-						var::NativeFunctionArgs args(thisObject, a, 2);
-						this->onModalFinish->operator()(args);
-						return Result::ok();
-					});
-
-					if(auto fd = getMultipageState()->getFirstDialog())
-						fd->showModalPopup(true, x);
-				}
-
-				
-				
-				
-
-				
-			});
-		}
-		else
-		{
-			reportScriptError(String(pageIndex) + " is not a modal page");
-		}
-	}
 }
 
 int ScriptingApi::Content::ScriptMultipageDialog::add(int parentIndex, String type, const var& properties)
@@ -6041,27 +5944,10 @@ void ScriptingApi::Content::ScriptMultipageDialog::setElementProperty(int elemen
 {
 	if(isPositiveAndBelow(elementId, elementData.size()))
 	{
-		
-
-		auto infoObject = elementData[elementId];
-		DynamicObject::Ptr obj = infoObject.getDynamicObject();
+		DynamicObject::Ptr obj = elementData[elementId].getDynamicObject();
 
 		obj->setProperty(propertyId, newValue);
-
-		auto pid = Identifier(propertyId);
-
-		for(auto c: getMultipageState()->currentDialogs)
-		{
-			SafeAsyncCall::call<multipage::Dialog>(*c, [infoObject, pid](multipage::Dialog& d)
-			{
-				if(auto pb = d.findPageBaseForInfoObject(infoObject))
-				{
-					if(pb->updateInfoProperty(pid))
-						return;
-				}
-			});
-		}
-
+		sendRepaintMessage();
 	}
 }
 
@@ -6771,45 +6657,43 @@ void ScriptingApi::Content::beginInitialization()
 
 void ScriptingApi::Content::setHeight(int newHeight) noexcept
 {
-	
+	if (!allowGuiCreation)
+	{
+		reportScriptError("the height can't be changed after onInit()");
+		return;
+	}
+
 	if (newHeight > 800)
 	{
 		reportScriptError("Go easy on the height! (" + String(800) + "px is enough)");
 		return;
 	}
 
-	if(height != newHeight)
-	{
-		height = newHeight;
-
-		if(width != 0)
-			interfaceSizeBroadcaster.sendMessage(sendNotificationAsync, width, height);
-	}
+	height = newHeight;
 };
 
 void ScriptingApi::Content::setWidth(int newWidth) noexcept
 {
+	if (!allowGuiCreation)
+	{
+		reportScriptError("the width can't be changed after onInit()");
+		return;
+	}
+
 	if (newWidth > 1280)
 	{
 		reportScriptError("Go easy on the width! (1280px is enough)");
 		return;
 	}
 
-	if(width != newWidth)
-	{
-		width = newWidth;
-
-		if(height != 0)
-			interfaceSizeBroadcaster.sendMessage(sendNotificationAsync, width, height);
-	}
+	width = newWidth;
+	
 };
 
 void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
 {
     width = newWidth;
     height = newHeight;
-
-	interfaceSizeBroadcaster.sendMessage(sendNotificationAsync, width, height);
 
     dynamic_cast<JavascriptMidiProcessor*>(getProcessor())->addToFront(true);
     

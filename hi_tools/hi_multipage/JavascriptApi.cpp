@@ -441,14 +441,6 @@ struct Element: public ApiObject
 				}
 			}
 		}
-        
-        ~StyleObject()
-        {
-            if(somethingChanged)
-                update();
-        }
-        
-        bool somethingChanged = false;
 
 		void update()
 		{
@@ -471,7 +463,7 @@ struct Element: public ApiObject
 		void setProperty(const Identifier& propertyName, const var& newValue) override
 		{
 			getProperties().set(propertyName, newValue);
-            somethingChanged = true;
+			update();
 		}
 		
 		WeakReference<Element> parent;
@@ -480,37 +472,23 @@ struct Element: public ApiObject
 	Element(State& s, const var& infoObject_):
 	  ApiObject(s),
 	  infoObject(infoObject_)
-    {
-        auto id = infoObject[mpid::ID];
-        getProperties().set(ElementIds::innerText, infoObject[mpid::Text]);
-        getProperties().set(ElementIds::id, id);
-        getProperties().set(ElementIds::value, s.globalState[Identifier(id.toString())]);
-        
-        setProperty(ElementIds::style, new StyleObject(s, this));
-        
-        setMethodWithHelp("addEventListener", BIND_MEMBER_FUNCTION_1(Element::addEventListener), "Adds an event listener to the element");
-        setMethodWithHelp("removeEventListener", BIND_MEMBER_FUNCTION_1(Element::removeEventListener), "Removes an event listener to the element");
-        setMethodWithHelp("appendChild", BIND_MEMBER_FUNCTION_1(Element::appendChild), "Appends a child to the element");
-        setMethodWithHelp("replaceChildren", BIND_MEMBER_FUNCTION_1(Element::replaceChildren), "Replaces all children with an array of new elements");
-        setMethodWithHelp("updateElement", BIND_MEMBER_FUNCTION_1(Element::updateElement), "Refreshes the element (call this after you change any property).");
-        setMethodWithHelp("setAttribute", BIND_MEMBER_FUNCTION_1(Element::setAttribute), "Sets an attribute (using HTML ids)");
-        setMethodWithHelp("getAttribute", BIND_MEMBER_FUNCTION_1(Element::getAttribute), "Returns an attribute (using HTML ids)");
-    }
+	{
+		auto id = infoObject[mpid::ID];
+		getProperties().set(ElementIds::innerText, infoObject[mpid::Text]);
+		getProperties().set(ElementIds::id, id);
+		getProperties().set(ElementIds::value, s.globalState[Identifier(id.toString())]);
 
-    ~Element() override
-    {
-        setProperty(ElementIds::style, var());
-        
-        if(somethingChanged)
-        {
-            var::NativeFunctionArgs a(var(), nullptr, 0);
-            updateElement(a);
-        }
-    }
-    
-    bool somethingChanged = false;
-    
-    
+		setProperty(ElementIds::style, new StyleObject(s, this));
+
+		setMethodWithHelp("addEventListener", BIND_MEMBER_FUNCTION_1(Element::addEventListener), "Adds an event listener to the element");
+		setMethodWithHelp("removeEventListener", BIND_MEMBER_FUNCTION_1(Element::removeEventListener), "Removes an event listener to the element");
+		setMethodWithHelp("appendChild", BIND_MEMBER_FUNCTION_1(Element::appendChild), "Appends a child to the element");
+		setMethodWithHelp("replaceChildren", BIND_MEMBER_FUNCTION_1(Element::replaceChildren), "Replaces all children with an array of new elements");
+		setMethodWithHelp("updateElement", BIND_MEMBER_FUNCTION_1(Element::updateElement), "Refreshes the element (call this after you change any property).");
+		setMethodWithHelp("setAttribute", BIND_MEMBER_FUNCTION_1(Element::setAttribute), "Sets an attribute (using HTML ids)");
+		setMethodWithHelp("getAttribute", BIND_MEMBER_FUNCTION_1(Element::getAttribute), "Returns an attribute (using HTML ids)");
+	}
+
 	 void writeAsJSON (OutputStream& os, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) override
 	{
 		infoObject.getDynamicObject()->writeAsJSON(os, indentLevel, allOnOneLine, maximumDecimalPlaces);
@@ -609,9 +587,6 @@ struct Element: public ApiObject
 
 		auto id = convertPropertyId(args.arguments[0]);
 		infoObject.getDynamicObject()->setProperty(id, HtmlParser::convertValue(id, args.arguments[1], true));
-        
-        somethingChanged = true;
-        
 		return var(0);
 	}
 
@@ -688,16 +663,13 @@ struct Element: public ApiObject
 		if(id == ElementIds::innerText)
 		{
 			infoObject.getDynamicObject()->setProperty(mpid::Text, newValue);
-            somethingChanged = true;
-            
-#if 0
+
 			updateWithLambda(infoObject, {}, [](Component* c)
 			{
 				dynamic_cast<Dialog::PageBase*>(c)->postInit();
 				auto d = c->findParentComponentOfClass<Dialog>();
 				d->body.rebuildLayout();
 			});
-#endif
 		}
 		else if (id == ElementIds::value)
 		{
@@ -716,7 +688,6 @@ struct Element: public ApiObject
 		else if (id == ElementIds::id)
 		{
 			infoObject.getDynamicObject()->setProperty(mpid::ID, newValue);
-            somethingChanged = true;
 		}
 		else if (id == ElementIds::innerHTML)
 		{
@@ -747,7 +718,10 @@ struct Element: public ApiObject
 		}
 		else if (id == ElementIds::style)
 		{
-			
+			if(dynamic_cast<StyleObject*>(newValue.getObject()) == nullptr)
+			{
+				throw "Can't set style property";
+			}
 		}
 
 		ApiObject::setProperty(id, newValue);
@@ -890,10 +864,7 @@ struct Dom: public ApiObject
 						if(s != nullptr && s.get()->getFirstDialog() != nullptr)
 						{
 							if(shouldCheck)
-                            {
-                                s->currentPageIndex--;
-                                dialog->navigate(true);
-                            }
+								dialog->navigate(true);
 							else
 								dialog->refreshCurrentPage();
 						}

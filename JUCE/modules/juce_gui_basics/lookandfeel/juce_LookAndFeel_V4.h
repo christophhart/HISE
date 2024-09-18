@@ -238,7 +238,7 @@ public:
     void drawCallOutBoxBackground (CallOutBox&, Graphics&, const Path&, Image&) override;
 
     //==============================================================================
-    void drawStretchableLayoutResizerBar (Graphics&, Component&, int, int, bool, bool, bool) override;
+    void drawStretchableLayoutResizerBar (Graphics&, int, int, bool, bool, bool) override;
 
 private:
     //==============================================================================

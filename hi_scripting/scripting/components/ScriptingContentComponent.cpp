@@ -603,7 +603,9 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 
 	refreshMacroIndexes();
 	refreshContentButton();
-	
+
+	if (getWidth() != 0) setSize(getWidth(), getContentHeight());
+
 	updateContent();
     
     addMouseListenersForComponentWrappers();

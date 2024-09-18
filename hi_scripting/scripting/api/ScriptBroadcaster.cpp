@@ -658,13 +658,6 @@ Array<juce::var> ScriptBroadcaster::ComponentPropertyListener::createChildArray(
 	return list;
 }
 
-ScriptBroadcaster::InterfaceSizeListener::InterfaceSizeListener(ScriptBroadcaster* b, const var& metadata):
-    ListenerBase(metadata),
-	parent(b)
-{
-	b->getScriptProcessor()->getScriptingContent()->interfaceSizeBroadcaster.addListener(*this, InterfaceSizeListener::onUpdate);
-}
-
 ScriptBroadcaster::ComponentPropertyListener::ComponentPropertyListener(ScriptBroadcaster* b, var componentIds, const Array<Identifier>& propertyIds_, const var& metadata):
 	ListenerBase(metadata),
 	propertyIds(propertyIds_)
@@ -3166,7 +3159,6 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToEqEvents);
 	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToOtherBroadcaster);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToProcessingSpecs);
-	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToInterfaceSize);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToSampleMap);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setReplaceThisReference);
@@ -3206,7 +3198,6 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_2(attachToComponentValue);
 	ADD_API_METHOD_2(attachToComponentVisibility);
 	ADD_API_METHOD_2(attachToRoutingMatrix);
-	ADD_API_METHOD_1(attachToInterfaceSize);
 	ADD_API_METHOD_3(attachToModuleParameter);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
@@ -3852,21 +3843,6 @@ void ScriptBroadcaster::attachToComponentValue(var componentIds, var optionalMet
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
-void ScriptBroadcaster::attachToInterfaceSize(var optionalMetadata)
-{
-	throwIfAlreadyConnected();
-
-	attachedListeners.add(new InterfaceSizeListener(this, optionalMetadata));
-
-	if (defaultValues.size() != 2)
-	{
-		String e = "If you want to attach a broadcaster to visibility events, it needs two parameters (width and height)";
-		errorBroadcaster.sendMessage(sendNotificationAsync, attachedListeners.getLast(), e);
-		reportScriptError(e);
-	}
-
-	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
-}
 
 
 void ScriptBroadcaster::attachToComponentVisibility(var componentIds, var optionalMetadata)

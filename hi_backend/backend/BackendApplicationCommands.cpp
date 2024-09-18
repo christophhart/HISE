@@ -97,8 +97,6 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuFileBrowseExamples,
 		MenuFileCreateRecoveryXml,
 		MenuProjectShowInFinder,
-		MenuFileShowHiseAppDataFolder,
-		MenuFileShowProjectAppDataFolder,
 		MenuFileSettings,
 		MenuExportCleanBuildDirectory,
 		MenuToolsCreateThirdPartyNode,
@@ -137,7 +135,6 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuExportValidateUserPresets,
 		MenuExportCheckAllSampleMaps,
 		MenuExportCheckUnusedImages,
-		MenuExportCleanDspNetworkFiles,
 		MenuToolsForcePoolSearch,
 		MenuToolsConvertSampleMapToWavetableBanks,
 		MenuToolsConvertAllSamplesToMonolith,
@@ -203,14 +200,6 @@ void BackendCommandTarget::createMenuBarNames()
 
 void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationCommandInfo &result)
 {
-#if JUCE_WINDOWS
-	static const String fileBrowserName = "Explorer";
-#elif JUCE_MAC
-	static const String fileBrowserName = "Finder";
-#else
-	static const String fileBrowserName = "File Browser";
-#endif
-
 	result.categoryName = "Hidden";
 
 	switch (commandID)
@@ -305,17 +294,11 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "File";
 		break;
 	case MenuProjectShowInFinder:
-        setCommandTarget(result, "Show Project folder in " + fileBrowserName,
-        GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
-		result.categoryName = "File";
-		break;
-	case MenuFileShowHiseAppDataFolder:
-        setCommandTarget(result, "Show HISE App data folder in " + fileBrowserName,
-        GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
-		result.categoryName = "File";
-		break;
-	case MenuFileShowProjectAppDataFolder:
-        setCommandTarget(result, "Show Project App Data folder in " + fileBrowserName,
+#if JUCE_WINDOWS
+        setCommandTarget(result, "Show Project folder in Explorer",
+#else
+		setCommandTarget(result, "Show Project folder in Finder",
+#endif
         GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive(), false, 'X', false);
 		result.categoryName = "File";
 		break;
@@ -377,10 +360,6 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportCleanBuildDirectory:
 		setCommandTarget(result, "Clean Build directory", true, false, 'X', false);
-		result.categoryName = "Export";
-		break;
-	case MenuExportCleanDspNetworkFiles:
-		setCommandTarget(result, "Clean DSP network files", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
 	case MenuFileImportSnippet:
@@ -658,8 +637,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuProjectNew:				Actions::createNewProject(bpe); updateCommands();  return true;
 	case MenuProjectLoad:				Actions::loadProject(bpe); updateCommands(); return true;
 	case MenuProjectShowInFinder:		Actions::showProjectInFinder(bpe); return true;
-	case MenuFileShowProjectAppDataFolder:	Actions::showAppDataFolder(bpe, true); return true;
-	case MenuFileShowHiseAppDataFolder:		Actions::showAppDataFolder(bpe, false); return true;
 	case MenuFileBrowseExamples:		Actions::showExampleBrowser(bpe); return true;
 	case MenuFileCreateRecoveryXml:		Actions::createRecoveryXml(bpe); return true;
 	case MenuFileSettings:				Actions::showFileProjectSettings(bpe); return true;
@@ -699,7 +676,6 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
 	case MenuExportCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
     case MenuExportCheckPluginParameters:    Actions::checkPluginParameterSanity(bpe); return true;
-	case MenuExportCleanDspNetworkFiles: Actions::cleanDspNetworkFiles(bpe); return true;
     case MenuToolsCreateRnboTemplate:   Actions::createRnboTemplate(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
 	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
@@ -708,7 +684,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsConvertSVGToPathData:	Actions::convertSVGToPathData(bpe); return true;
     case MenuToolsBroadcasterWizard:
     {
-        auto s = new multipage::library::EncodedBroadcasterWizard(bpe);//multipage::library::BroadcasterWizard(bpe);
+        auto s = new multipage::library::BroadcasterWizard(bpe);
         s->setModalBaseWindowComponent(bpe);
         return true;
     }
@@ -809,9 +785,8 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			p.addSectionHeader("Project Management");
 			ADD_MENU_ITEM(MenuProjectNew);
 			ADD_MENU_ITEM(MenuProjectLoad);
-
 			
-
+			ADD_MENU_ITEM(MenuProjectShowInFinder);
 			
 
 			PopupMenu recentProjects;
@@ -851,14 +826,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			p.addSubMenu(menuTitle, recentProjects);
 
 			p.addSeparator();
-
-			ADD_MENU_ITEM(MenuProjectShowInFinder);
-			ADD_MENU_ITEM(MenuFileShowHiseAppDataFolder);
-			ADD_MENU_ITEM(MenuFileShowProjectAppDataFolder);
-
-			p.addSeparator();
-
-			
 
 			p.addSectionHeader("File Management");
 
@@ -989,7 +956,6 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_MENU_ITEM(MenuExportUnloadAllSampleMaps);
 			ADD_MENU_ITEM(MenuExportUnloadAllAudioFiles);
 			ADD_MENU_ITEM(MenuExportCleanBuildDirectory);
-			ADD_MENU_ITEM(MenuExportCleanDspNetworkFiles);
 
 			p.addSeparator();
 
@@ -1342,32 +1308,6 @@ void BackendCommandTarget::Actions::loadSnippet(BackendRootWindow* bpe, const St
 
 	if (v.isValid())
 	{
-		auto hash = v["Hash"].toString();
-
-		WeakReference<Processor> safeP(bpe->getMainSynthChain());
-
-		if(hash.isNotEmpty())
-		{
-			GitHashManager::checkHash(hash, [safeP](const var& commitObj)
-			{
-				String message;
-
-				auto hash = commitObj["sha"].toString();
-
-				auto date = commitObj["commit"]["author"]["date"].toString();
-
-				auto d = Time::fromISO8601(date);
-
-				message << "Snippet loaded that was created with git commit \n";
-				message << "> hash: " << hash.substring(0, 8) << "\n";
-				message << "> date: " << d.toString(true, true, false, true) << "\n";
-				message << "> message: " << commitObj["commit"]["message"].toString() << "\n";
-				message << "> url: " << "https://github.com/christophhart/HISE/commit/" << hash;
-				
-				debugToConsole(safeP, message);
-			});
-		}
-
 		bpe->loadNewContainer(v);
 	}
 }
@@ -1644,12 +1584,7 @@ void BackendCommandTarget::Actions::closeAllChains(BackendRootWindow *bpe)
 
 void BackendCommandTarget::Actions::showAboutPage(BackendRootWindow * bpe)
 {
-    auto ap = new multipage::library::AboutWindow(bpe);
-    
-    
-    ap->setModalBaseWindowComponent(bpe);
-    
-//	bpe->getMainTopBar()->togglePopup(MainTopBar::PopupType::About, true);
+	bpe->getMainTopBar()->togglePopup(MainTopBar::PopupType::About, true);
 
 	//bpe->mainEditor->aboutPage->showAboutPage();
 }
@@ -1713,9 +1648,7 @@ String BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe
 	MainController::ScopedEmbedAllResources sd(bp);
     
 	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
-
-	v.setProperty("Hash", String(PREVIOUS_HISE_COMMIT), nullptr);
-
+	
 	auto scriptRootFolder = bp->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
 	auto snexRootFolder = BackendDllManager::getSubFolder(bp, BackendDllManager::FolderSubType::CodeLibrary);
 
@@ -2054,63 +1987,25 @@ void BackendCommandTarget::Actions::loadProject(BackendRootWindow *bpe)
 
 DialogWindowWithBackgroundThread* BackendCommandTarget::Actions::importProject(BackendRootWindow* bpe)
 {
-	auto importWindow = new multipage::library::NewProjectCreator(bpe); 
+	auto importWindow = new ProjectImporter(bpe);
 	importWindow->setModalBaseWindowComponent(bpe);
 
-	return nullptr;
+	return importWindow;
 }
-
-struct HeadlessImporter: public ImporterBase,
-						 public Thread
-{
-	HeadlessImporter(BackendRootWindow* bpe, const File& projectRoot):
-	  ImporterBase(bpe),
-	  Thread("Headless Import")
-	{};
-
-	File projectRoot;
-
-	File getProjectFolder() const override { return projectRoot; }
-	void showStatusMessageBase(const String& message) override
-	{
-		DBG(message);
-	}
-
-	void createNewProjectFromFolder(const File& folder)
-	{
-		projectRoot = folder;
-		auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
-
-		if(!projectRoot.isDirectory())
-			handler.createNewProject(getProjectFolder(), bpe);
-		handler.setWorkingProject(getProjectFolder(), true);
-	}
-
-	void import(const File& sourceFile)
-	{
-		extractHxi(sourceFile);
-		createProjectData();
-	}
-
-	void run() override
-	{
-		
-	}
-
-	DialogWindowWithBackgroundThread::LogData logData;
-
-	DialogWindowWithBackgroundThread::LogData* getLogData() override { return &logData; }
-	Thread* getThreadToUse() override { return this; }
-	double& getJobProgress() override { return progress; }
-
-	double progress = 0;
-};
 
 void BackendCommandTarget::Actions::extractProject(BackendRootWindow* bpe, const File& newProjectRoot, const File& sourceFile)
 {
-	HeadlessImporter imp(bpe, newProjectRoot);
+	auto importWindow = new ProjectImporter(bpe);
+	importWindow->setModalBaseWindowComponent(bpe);
 
-	imp.import(sourceFile);
+	jassert(newProjectRoot.isDirectory());
+	jassert(sourceFile.existsAsFile());
+
+	importWindow->newProjectFolder = newProjectRoot;
+	importWindow->sourceType = ProjectImporter::SourceType::Import;
+	importWindow->header->importFile = sourceFile;
+
+	importWindow->runThread();
 }
 
 void BackendCommandTarget::Actions::convertSVGToPathData(BackendRootWindow* bpe)
@@ -2138,63 +2033,13 @@ void BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(BackendRootWi
 	}
 }
 
-void revealFirstFile(const File& f)
-{
-	auto folders = f.findChildFiles(File::findDirectories, false, "*");
-	folders.sort();
-
-	if(!folders.isEmpty())
-	{
-		folders.getFirst().revealToUser();
-		return;
-	}
-		
-
-	auto files = f.findChildFiles(File::findFiles, false, "*");
-	files.sort();
-
-	if(!files.isEmpty())
-	{
-		files.getFirst().revealToUser();
-		return;
-	}
-		
-	if(f.isDirectory() || f.existsAsFile())
-	{
-		f.revealToUser();
-		return;
-	}
-	else
-	{
-		PresetHandler::showMessageWindow("File does not exist", "The file " + f.getFullPathName() + " does not exist", PresetHandler::IconType::Warning);
-	}
-	
-}
-
-void BackendCommandTarget::Actions::showAppDataFolder(BackendRootWindow* bpe, bool getProjectAppData)
-{
-	if(!getProjectAppData)
-	{
-		revealFirstFile(ProjectHandler::getAppDataDirectory(bpe->getBackendProcessor()));
-	}
-	else
-	{
-		auto f = ProjectHandler::getAppDataRoot(bpe->getBackendProcessor());
-
-		auto company = GET_HISE_SETTING(bpe->getBackendProcessor()->getMainSynthChain(), HiseSettings::User::Company);
-		auto project = GET_HISE_SETTING(bpe->getBackendProcessor()->getMainSynthChain(), HiseSettings::Project::Name);
-
-		f = f.getChildFile(company.toString()).getChildFile(project.toString());
-		revealFirstFile(f);
-	}
-}
 
 
 void BackendCommandTarget::Actions::showProjectInFinder(BackendRootWindow *bpe)
 {
 	if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
 	{
-		revealFirstFile(GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory());
+		GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory().revealToUser();
 	}
 }
 
@@ -3186,14 +3031,6 @@ void BackendCommandTarget::Actions::extractEmbeddedFilesFromSnippet(BackendRootW
 
 void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 {
-	if(!bpe->getBackendProcessor()->getCurrentFileHandler().getRootFolder().isDirectory())
-	{
-		auto f = File(GET_HISE_SETTING(bpe->getMainSynthChain(), HiseSettings::Compiler::DefaultProjectFolder).toString()).getChildFile("My first project");
-
-		HeadlessImporter hi(bpe, f);
-		hi.createNewProjectFromFolder(f);
-	}
-
 	auto dm = bpe->getBackendProcessor()->deviceManager;
 	auto cb = bpe->getBackendProcessor()->callback;
 
@@ -3233,18 +3070,211 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 namespace multipage
 {
-	
 
+#define MULTIPAGE_BIND_CPP(className, methodName) state->bindCallback(#methodName, BIND_MEMBER_FUNCTION_1(className::methodName));
+
+struct EncodedDialogBase: public Component,
+						  public QuasiModalComponent
+{
+	void writeState(const Identifier& id, const var& value)
+	{
+		state->globalState.getDynamicObject()->setProperty(id, value);
+	}
+
+	var readState(const Identifier& id) const
+	{
+		return state->globalState[id];
+	}
+
+	virtual void bindCallbacks() = 0;
+
+	void loadFrom(const String& d)
+	{
+		MemoryBlock mb;
+		mb.fromBase64Encoding(d);
+		MemoryInputStream mis(mb, false);
+		MonolithData md(&mis);
+
+		state = new State(var());
+		addAndMakeVisible(dialog = md.create(*state));
+
+		dialog->setFinishCallback([this]()
+		{
+			findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+		});
+
+		bindCallbacks();
+
+		setSize(dialog->getWidth(), dialog->getHeight());
+
+		dialog->showFirstPage();
+	}
+	
+	void resized() override
+	{
+		dialog->setBounds(getLocalBounds());
+	}
+
+	void navigate(int pageIndex, bool shouldSubmit)
+	{
+		SafeAsyncCall::call<EncodedDialogBase>(*this, [pageIndex, shouldSubmit](EncodedDialogBase& db)
+		{
+			if(shouldSubmit)
+			{
+				db.state->currentPageIndex = pageIndex-1;
+				db.dialog->navigate(true);
+			}
+			else
+			{
+				db.state->currentPageIndex = pageIndex;
+				db.dialog->refreshCurrentPage();
+			}
+		});
+	}
+
+protected:
+
+	ScopedPointer<State> state;
+	ScopedPointer<Dialog> dialog;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(EncodedDialogBase);
+};
+
+
+
+struct ExportSetupWizard: public EncodedDialogBase
+{
+	ExportSetupWizard():
+	  EncodedDialogBase()
+	{
+        auto c = "2628.jNB..vhB........nT6K8C1zpTQT.nXXTGQKv5LiafZwFcJQrY8PqhrrVxbrbSM5eCfUP5iXKrUmB9bggfSzoI7Ok9SS4+vhTD.FALQ.vIOImS+.Bio8mw8kWWc4RKfsh5QGaBseT+podVeUsUcODim9qBeUqz+m6BDVqgMIGQ9QBFMor7vVo8Onn+C4GYP9Qru3n7CIRfn7luaMqmy6XLjnjlSJh7kGafD0D0zCRGVosG0OdjgOKzUnVuwZ7X8E1tL5j7by07nrHvHrStus1m5yQUHsUR0F9zd5zNRiraCcMxYQFh0SqtBgGnXgBFIrzRX7wsVKgXPQoBlJTz9w8Ec7heKXhvBDXtTACkHv7i52hDXrDAFPRXrxkJQHwkL8ywffRkJQT4gKThXqjnbdz074hZ5xCakTKBzRhzBxfz1ZRUxVJ3E8LRj7mwPZqjdoagzt61PF1JI94Mcr6sj1sgLDUZOCqa8ygRiMrbPWobGLoE0usncD97WEYn70xI6MIbqRG9XRtrLucMhX6SxyXegk12Q6PUrgiTj+.Q4LllPPUQdru1Q901Z+BBC96W4tvJg5Ya2iaZj2NDqkwYWf7icmpvhyEq1O6suV+2s9qc0kx8cc2Yr01XTzVgZd9Q8Wg8ryiztUnouHTSCEkEsOv9BJpHroqdTyFElIaN5uURhZnGXnrUejv2imureoiIf3UksRj+Xs5jQTlrUS+gXq9rNNZJwVIgen7VBj9XBdjwDb.Ex3PiDTz4AQZ5JO3BN13QlNhd5bANxPwqyHJLRDNxL4U7PjlXEPKbL8llfh5nCGSgzxXgHMTpMDgCJhfBsGn9oHtH8wV0e3szXRdi1yMxa9uu9Iarlp8Aps0B7vURcCIDI29QxXcwmkz9iTbf4Dxggtioouv8AarVDf.M8iKh4+1Tt51f3MpjitRIGfBBJJS7fXQNahNDrV4IAjLFMFkyqDvxiIBQftiIhsDi.SvApx.GlLYxDPRV6cneNr4XSelWcJFbapFxAGppy+0L.HMs0pvt4zrE9pX6dnjaiBEJJqCebu0FYtJzi8sck63bkruKy3TqbTyZkwpYTEbYpaZXRlZswjIS5hy80wH+UHs09VSztwXAZQ6WoPKjTwFNVLsmaz.HMEV6MYbjH8vsKNKL5ObG4Fz9yGH0SHK9IjhU4PrCF4wdTJx2DpoyppMZvISFpcd9s.QhppSGNA.XjF.Yju5cj9CUSMskA3oc0iZUnDl0YmpNlFN3PHH8savwpNm71ROxODdr7X6nbs1XszCnWUxwQIi0YAQ8HPaLt9h6hG1.4VqMcl4+dweUi1KgvjSxMETk8LghLQ6uxaN7MFc.gAHI23htlXa0Q8GqovMb08DL8eh0lWzs30UVTk6YMGFh05q80OF70zoji6nmc5x2Z+IgOmQWFlG24iwzoIsPB46ZK69Zqr1Jx0nFc+WZGp.Mlz+84d1bTuo7V6QN72t1IY4GfLExV+Ijc18RnnMxR3Fs+kk8z6pbuUl8bfKtOUXhMp6+l1oo9asyIEZe3bpuGn1TXueseNJg94Xi.IBxEpROoDxTJEMin.....BgA.DNDYgoRJ95gz3QDRjAA4T.lAP.B..DI.B.PH.hf.fP.fZBPDMfvNz3jXSUX.sGzUlVdjNXCIpOzQaLAE+xHA5i7Zb+WfLOXSYFiyF6aZvQq2GG0WNITHZz5BQ1x3zOTbZIfJG6EEAe5c8gNyKSdqSnzDzEnrNAe3SZmX9IEHjQzeloprTQZeKSa4tn8WH3hX3dkUSgUF8fOUv48gLSSLJsYg6gLgDUCaLuHz6vXdlZOb2whFGFQwUgrtKwWOtX1mKRuvVvZTL68QajPRlVTRPOnbPSlQwYNVzA+U4JLNSl0OLRd9PF8WYLiqet1BGlMyJEbku3nFHRTUzuoP+Gr9iJcswKbSCihx28CjkV9g.TAaKgv4CtB2b0ma2WSYViNFhMmts1pD24mZvS5rooxN8lavvlv0k4t2ZmTsPnEICBRzB8JIBKrAZw4rUx22hqQ7LZoNYsR0KQz2NM+RQ7MlFD.t4JSkvjjRlRkFe.6E0cLhOdgM0BTixfqHlirxQaFjpmcBmaHOT9lfW9kGuoKj6AAUHWh0b1wTYIQwv9ZzwIHSCgKDiQx0peGw5YPV1VpEzXotK7QQqL3mG6aY9LIwLCjl0OVSYjBjO0wsPFWVEz+zMpnZPWoB+8ftfOgSkIh+97RUwPOP7KegCnvtjHVGP0jERayYEE+O3Fd0p2sRL9PGVF.BLRL3wFSS4oMGGbtrHoqpnbhjR02EQYJWR8RgJimKf4bh1PkqiqkEqbbbYUQMDTQ7uTPOY0fCrEgiRlc4VsLj0lrEc5ZPXvpd60mlN5Wxg1RhAZAVhXiKQuWMNwOsgtx1NFUW5kwfPm7+Dc0iJvLb8hIJhSeW8R44enUHQb56gWDkiMa6sykG+Wosmn6HfusyOSCCoQzDYmTPyYpDYXlBp7mFEg2u4E+2O2XiNDMZm1o2Wqro.LdPq9sYcn5ahpTK7TigEf9qLdIyrGFzcUvjcWB1ojkMaAdY8HWi5HFxbhijLHK0.5tOkAtwsmdVApTyC1M.yyb6YQqh.jDAjAr5T4fGa8mHBhsYaEGoVBIxhM9polIScAY4PDi+6QBWX4lJVzgyfeoCasrX6Zl6dUvbayN+ZpYFcOI7+Q0wvzT1ODUmZHKbP4p4NY2fM.l6cptRvCpTP29ivB0WXX5CUmqGKCZPKVJy3g1lQ3lRUqtO3jFthucj922hx.CglckY7N8NEPqgzkWuFSMVC8Su68H56Q55EppVLYqRJIrZ9AyfIrM+92we.yGifURFbz40z1+Sun.oGz1egHPQZ.FG9s9K15.31wfcH+twa6QeqaUptk7dn5jHs+t9+P21oZV2zdOm3xnNjYQNS.bxzWchXBLSJnfL6VESs7QdT04BhQcDWZYAQ9aL+G4h.wnvRy6BAwl7Vv6OSqdUmKRUFfCJHkfbpmn6qz5i.0S5rEF3wJPbvXMkfMcgJOelAp6nA+3zpbOxx4Ht40vwBbvNKfh1+2l6tKhkd.kvCam9UVV4yIfMqOPfcK4sjwFsPTRbdTM0lgsgbHVzuG3aSfbUTo1vI0EMMBuhoyNR78sFCB05F1KPJ.jPmI8b3NTB5Y0lUM3lXriEowtMF8Qhae42hhnP3avIC42mt6L53zWAOcl55yCaaFaa8cUfSA404OwDZxE99I3bSlwlB0hh8OVOcsvwu0G24ao83TuYleTPnRQCX+EQTFZfIowMnD.7aqmusgPDPxdV6lHEARNd0QBzXlX8.l7wjCfbf9hwd+xj0n36CmOXYmk5v+kmOMGXMs9nihGpSbp3+dAA5yn2GPiCRKJbPvL6w3J+Kbi+Jvlz7zH+IqKfTHXAoSBGqD9qwA.yqg5F92yzAIz3fVfbubNKc4UPdl1LNIGKLjBYrLdLQG3GbdTvDirSWGCzW7CtOMS6MT+az+78x28.kNB..X5H..vpi...";
+        
+		loadFrom(c);
+	}
+
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, prevDownload);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, skipIfDesired);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkIDE);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkHisePath);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, checkSDK);
+		MULTIPAGE_BIND_CPP(ExportSetupWizard, onPost);
+	}
+
+	var checkHisePath(const var::NativeFunctionArgs& args)
+	{
+		auto exists = readState("HisePath").toString().isNotEmpty();
+
+		writeState("hisePathExists", exists);
+		writeState("hisePathExtract", !exists);
+		writeState("hisePathDownload", !exists);
+		writeState("hiseVersionMatches", true); // TODO: make a proper version check against the source code
+
+		return var();
+	}
+
+	var checkIDE(const var::NativeFunctionArgs& args)
+	{
+#if JUCE_WINDOWS
+
+		auto MSBuildPath = "C:/Program Files/Microsoft Visual Studio/2022/Community/MSBuild/Current/Bin/MSBuild.exe";
+		writeState("msBuildExists", File(MSBuildPath).existsAsFile());
+
+		if(readState("UseIPP"))
+		{
+			auto IppPath = "C:/Program Files (x86)/Intel/oneAPI/ipp/latest/include/ipp.h";
+			writeState("ippExists", File(IppPath).existsAsFile());
+		}
+		else
+		{
+			writeState("ippExists", true);
+		}
+#elif JUCE_MAC
+        {
+            juce::ChildProcess xc;
+            xc.start("xcodebuild --help");
+            auto output = xc.readAllProcessOutput();
+            auto xcodeExists = xc.getExitCode() == 0;
+            writeState("xcodeExists", xcodeExists);
+        }
+        {
+            juce::ChildProcess xcp;
+            xcp.start("gem list");
+            auto output = xcp.readAllProcessOutput();
+            auto xcPrettyExists = output.contains("xcpretty");
+            writeState("xcPrettyExists", xcPrettyExists);
+        }
+#endif
+
+		return var();
+	}
+	
+	var checkSDK(const var::NativeFunctionArgs& args)
+	{
+		auto toolsDir = File(readState("HisePath").toString()).getChildFile("tools");
+		auto vst3sdk = toolsDir.getChildFile("SDK/VST3 SDK");
+
+#if JUCE_WINDOWS
+		auto projucer = toolsDir.getChildFile("projucer/Projucer.exe");
+
+		auto ok = projucer.startAsProcess("--help");
+#elif JUCE_MAC
+        
+        auto projucer = toolsDir.getChildFile("projucer/Projucer.app/Contents/MacOS/Projucer");
+        
+        jassert(projucer.existsAsFile());
+        
+        auto ok = projucer.startAsProcess("--help");
+        
+#else
+		auto ok = true;
+#endif
+
+		writeState("projucerWorks", ok);
+		writeState("sdkExists", vst3sdk.isDirectory());
+		writeState("sdkExtract", !vst3sdk.isDirectory());
+
+		return var();
+	}
+
+	var prevDownload(const var::NativeFunctionArgs& args)
+	{
+		auto id = args.arguments[0].toString();
+		String url;
+
+		url << "https://github.com/christophhart/HISE/archive/refs/tags/";
+		url << GlobalSettingManager::getHiseVersion();
+		url << ".zip";
+		
+		writeState("sourceURL", url);
+		return var();
+	}
+
+	var skipIfDesired(const var::NativeFunctionArgs& args)
+	{
+		if(readState("skipEverything"))
+			navigate(4, false);
+
+		return var();
+	}
+
+	var onPost(const var::NativeFunctionArgs& args)
+	{
+		auto bp = findParentComponentOfClass<BackendRootWindow>()->getBackendProcessor();
+		bp->getSettingsObject().loadSettingsFromFile(HiseSettings::SettingFiles::CompilerSettings);
+		
+		return var();
+	}
+};
 
 }
 
 
 void BackendCommandTarget::Actions::setupExportWizard(BackendRootWindow* bpe)
 {
-	auto np = new multipage::library::ExportSetupWizard(bpe);
+	auto np = new multipage::ExportSetupWizard();
 	np->setModalBaseWindowComponent(bpe);
-
-	
 }
 
 void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int buildOption)
@@ -3253,7 +3283,10 @@ void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int bu
 
 	if(!exportIsReady)
 	{
-		PresetHandler::showMessageWindow("System not configured", "This computer is not setup for export yet. Please run the Export Wizard (**Tools -> Setup Export Wizard**) in order to silence this message.");
+		if(PresetHandler::showYesNoWindow("System not configured", "Your system has not been setup for export. Do you want to launch the Export Setup wizard?"))
+			Actions::setupExportWizard(bpe);
+
+		return;
 	}
 
 	CompileExporter exporter(bpe->getMainSynthChain());
@@ -3273,12 +3306,6 @@ void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int bu
 		exporter.exportMainSynthChainAsStandaloneApp();
 		break;
 	}
-}
-
-void BackendCommandTarget::Actions::cleanDspNetworkFiles(BackendRootWindow* bpe)
-{
-	auto np = new multipage::library::CleanDspNetworkFiles(bpe);
-	np->setModalBaseWindowComponent(bpe);
 }
 
 #undef REPLACE_WILDCARD
@@ -3409,40 +3436,4 @@ String XmlBackupFunctions::getSanitiziedName(const String &id)
 	return id.removeCharacters(" .()");
 }
 
-void GitHashManager::checkHash(const String& hashToUse,
-	const std::function<void(const var&)>& finishCallbackWithNextHash)
-{
-	Thread::launch([hashToUse, finishCallbackWithNextHash]()
-	{
-		var json;
-
-		URL u("https://api.github.com/repos/christoph-hart/HISE/commits");
-    
-		auto s = u.readEntireTextStream();
-	    
-		auto ok = JSON::parse(s, json);
-		    
-		if(auto list = json.getArray())
-		{
-			for(int i = 0; i < list->size(); i++)
-			{
-				auto thisSha = list->getUnchecked(i)["sha"].toString();
-		            
-				if(thisSha == hashToUse)
-				{
-					auto nextIndex = i-1;
-		                
-					if(nextIndex >= 0 && isPositiveAndBelow(nextIndex, list->size()))
-					{
-						finishCallbackWithNextHash(list->getUnchecked(nextIndex));
-					}
-		                
-					break;
-				}
-			}
-		}
-	});
-
-	    
-}
 } // namespace hise

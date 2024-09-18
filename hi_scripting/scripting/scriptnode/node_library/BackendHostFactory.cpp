@@ -150,14 +150,11 @@ bool BackendDllManager::unloadDll()
 
 bool BackendDllManager::loadDll(bool forceUnload)
 {
-	if (forceUnload)
-		unloadDll();
-
 	if (!getMainController()->getCurrentFileHandler().getRootFolder().isDirectory())
 		return false;
 
-	if (!getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks).isDirectory())
-		return false;
+	if (forceUnload)
+		unloadDll();
 
 	if (projectDll == nullptr)
 	{
@@ -271,9 +268,6 @@ juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubTy
 {
 	auto f = mc->getCurrentFileHandler().getSubDirectory(FileHandlerBase::DspNetworks);
 
-	if(!mc->getCurrentFileHandler().getRootFolder().isDirectory())
-		return File();
-
 	switch (t)
 	{
 	case FolderSubType::Root:					return createIfNotDirectory(f);
@@ -282,7 +276,6 @@ juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubTy
 	case FolderSubType::CustomNodes:			return createIfNotDirectory(f.getChildFile("CustomNodes"));
 	case FolderSubType::AdditionalCode:			return createIfNotDirectory(f.getChildFile("AdditionalCode"));
 	case FolderSubType::CodeLibrary:			return createIfNotDirectory(f.getChildFile("CodeLibrary"));
-	case FolderSubType::FaustCode:				return createIfNotDirectory(f.getChildFile("CodeLibrary").getChildFile("faust"));
 	case FolderSubType::ThirdParty:				return createIfNotDirectory(f.getChildFile("ThirdParty"));
 	case FolderSubType::DllLocation:
 #if JUCE_WINDOWS

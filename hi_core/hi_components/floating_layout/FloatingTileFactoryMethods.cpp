@@ -428,6 +428,11 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 		break;
 	}
+	case FloatingTileContent::Factory::PopupMenuOptions::ModuleBrowser:
+	{
+		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::modulatorList)));
+		break;
+	}
 	case FloatingTileContent::Factory::PopupMenuOptions::PatchBrowser:
 	{
 		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::modulatorList)));
@@ -568,6 +573,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
 			addToPopupMenu(m, PopupMenuOptions::TablePanel, "Table Editor");
 			addToPopupMenu(m, PopupMenuOptions::PresetBrowser, "Preset Browser");
+			addToPopupMenu(m, PopupMenuOptions::ModuleBrowser, "Module Browser");
 
 			addToPopupMenu(m, PopupMenuOptions::PatchBrowser, "Patch Browser");
 			addToPopupMenu(m, PopupMenuOptions::FileBrowser, "File Browser");

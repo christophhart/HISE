@@ -271,11 +271,11 @@ struct RRDisplayComponent : public Component,
 			repaint();
 		};
 
-		midiButton.setToggleStateAndUpdateIcon(sampler->isDisplayGroupFollowingRRGroup());
-
 		midiButton.onClick = [this]()
 		{
-			sampler->setDisplayGroupFollowsRRGroup(midiButton.getToggleState());
+			auto isOn = midiButton.getToggleState();
+			auto idx = isOn ? sampler->getCurrentRRGroup() : -1;
+			sampler->setDisplayedGroup(idx, true, {}, sendNotificationSync);
 		};
 
 		sampler->getSampleEditHandler()->selectionBroadcaster.addListener(*this, setMainSelection);
@@ -308,7 +308,12 @@ struct RRDisplayComponent : public Component,
 	static void groupChanged(RRDisplayComponent& d, int rrGroup, BigInteger* visibleGroups)
 	{
 		if(visibleGroups != nullptr)
-				d.currentDisplayGroup = *visibleGroups;
+			d.currentDisplayGroup = *visibleGroups;
+
+		if (d.midiButton.getToggleState())
+		{
+			d.sampler->setDisplayedGroup(rrGroup-1, true, {}, dontSendNotification);
+		}
 
 		auto shouldLock = d.sampler->getMidiInputLockValue(SampleIds::RRGroup) != -1;
 		d.lockButton.setToggleStateAndUpdateIcon(shouldLock);
@@ -343,9 +348,6 @@ struct RRDisplayComponent : public Component,
 	{
 		void draw(Graphics& g) const
 		{
-			if(area.isEmpty())
-				return;
-
 			if (over)
 			{
 				g.setColour(Colours::white.withAlpha(0.05f));
@@ -383,7 +385,7 @@ struct RRDisplayComponent : public Component,
 		bool isActive = false;
 		bool isEmpty = false;
 		bool over = false;
-		
+
 		Rectangle<float> area;
 
 		
@@ -414,7 +416,7 @@ struct RRDisplayComponent : public Component,
 			auto r = m.showAt(this);
 
 			if(r != 0)
-				sampler->setDisplayedGroup(r-1, true, e.mods, sendNotificationSync);
+				sampler->setDisplayedGroup(r, true, e.mods, sendNotificationSync);
 
 			return;
 		}
@@ -520,23 +522,10 @@ struct RRDisplayComponent : public Component,
 
 		b.removeFromRight(getWidth() - firstComponent->getX());
 
-		auto requiredWidth = states.size() * getHeight();
+		b = b.removeFromRight(states.size() * getHeight());
 
-		int offset = 1;
-
-		if(requiredWidth > b.getWidth())
-		{
-			offset = jlimit<int>(1, states.size(), roundToInt((requiredWidth - b.getWidth()) / b.getHeight()));
-		}
-
-		b = b.removeFromRight(requiredWidth);
-
-
-		for(int i = states.size() - 1; i > states.size() - offset; i--)
-			states.getReference(i).area = {};
-
-		for(int i = states.size() - offset; i >= 0; i--)
-			states.getReference(i).area = b.removeFromRight(b.getHeight());
+		for (auto& s : states)
+			s.area = b.removeFromLeft(b.getHeight());
 
 		repaint();
 	}
@@ -554,6 +543,10 @@ struct RRDisplayComponent : public Component,
 
 	void paint(Graphics& g) override
 	{
+		auto b = getLocalBounds().toFloat().reduced(2.0f);
+
+		b = b.removeFromRight(states.size() * getHeight());
+
 		RectangleList<float> displayArea;
 
 		for (const auto& s : states)
@@ -568,7 +561,7 @@ struct RRDisplayComponent : public Component,
 			displayArea.clear();
 
 			auto limit = currentDisplayGroup.getHighestBit() + 1;
-			for (int i = 0; i <= limit; i++)
+			for (int i = 0; i < limit; i++)
 			{
 				if (currentDisplayGroup[i])
 					displayArea.addWithoutMerging(states[i].area);
@@ -837,11 +830,7 @@ void SampleMapEditor::resized()
     //[UserResized] Add your own custom resize handling here..
 
 	auto b = getLocalBounds().removeFromTop(24);
-
-	b.removeFromLeft(520);
-
-
-	newRRDisplay->setBounds(b);
+	newRRDisplay->setBounds(b.removeFromRight(300));
 
 	toolbar->setVisible(false);
 

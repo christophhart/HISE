@@ -60,32 +60,6 @@ String PseudoState::getPseudoElementName(int idx)
 	return "Unknown";
 }
 
-int PseudoState::getPseudoClassIndex(const String& pseudoStateName)
-{
-	int state = 0;
-	
-	if(pseudoStateName.contains(":first-child"))
-		state |= (int)PseudoClassType::First;
-	if(pseudoStateName.contains(":last-child"))
-		state |= (int)PseudoClassType::Last;
-	if(pseudoStateName.contains(":root"))
-		state |= (int)PseudoClassType::Root;
-	if(pseudoStateName.contains(":hover"))
-		state |= (int)PseudoClassType::Hover;
-	if(pseudoStateName.contains(":active"))
-		state |= (int)PseudoClassType::Active;
-	if(pseudoStateName.contains(":focus"))
-		state |= (int)PseudoClassType::Focus;
-	if(pseudoStateName.contains(":disabled"))
-		state |= (int)PseudoClassType::Disabled;
-	if(pseudoStateName.contains(":hidden"))
-		state |= (int)PseudoClassType::Hidden;
-	if(pseudoStateName.contains(":checked"))
-		state |= (int)PseudoClassType::Checked;
-
-	return state;
-}
-
 String PseudoState::getPseudoClassName(int state)
 {
 	String c;
@@ -136,7 +110,6 @@ Selector::Selector(ElementType dt)
 	case ElementType::Headline3: name = "h3"; break;
 	case ElementType::Headline4: name = "h4"; break;
 	case ElementType::Label: name = "label"; break;
-	case ElementType::Scrollbar: name = "scrollbar"; break;
 	default: ;
 	}
 }

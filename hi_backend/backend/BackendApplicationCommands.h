@@ -82,8 +82,6 @@ public:
 		MenuProjectNew = 0x20000,
 		MenuProjectLoad,
 		MenuProjectShowInFinder,
-		MenuFileShowHiseAppDataFolder,
-		MenuFileShowProjectAppDataFolder,
 		MenuProjectRecentOffset,
 		// ------------------------
 		MenuSnippetFileNew = 0x22000,
@@ -130,7 +128,6 @@ public:
 		MenuExportUnloadAllSampleMaps,
 		MenuExportUnloadAllAudioFiles,
 		MenuExportCleanBuildDirectory,
-		MenuExportCleanDspNetworkFiles,
 		// --------------------------------------
 		MenuExportSampleDataForInstaller,
 		MenuExportCompileFilesInPool,
@@ -333,9 +330,9 @@ public:
 
 		static void loadFirstXmlAfterProjectSwitch(BackendRootWindow * bpe);
 
+		
 
-		static void showAppDataFolder(BackendRootWindow* bpe, bool getProjectAppData);
-
+		
 		static void showProjectInFinder(BackendRootWindow *bpe);
 		
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
@@ -401,8 +398,6 @@ public:
 		static void setupExportWizard(BackendRootWindow* bpe);
 
 		static void exportProject(BackendRootWindow* bpe, int buildOption);
-
-		static void cleanDspNetworkFiles(BackendRootWindow* bpe);
 	};
 
 private:
@@ -450,11 +445,6 @@ struct XmlBackupFunctions
 private:
 
 	static String getSanitiziedName(const String &id);
-};
-
-struct GitHashManager
-{
-	static void checkHash(const String& hashToUse, const std::function<void(const var&)>& finishCallbackWithNextHash);
 };
 
 } // namespace hise

@@ -413,7 +413,14 @@ struct SnexLanguageManager : public mcl::LanguageManager,
 
 	mcl::FoldableLineRange::List createLineRange(const CodeDocument& doc) override;
 
-	void addTokenProviders(mcl::TokenCollection* t) override;
+	void addTokenProviders(mcl::TokenCollection* t) override
+	{
+		t->addTokenProvider(new debug::KeywordProvider());
+		t->addTokenProvider(new debug::SymbolProvider(doc));
+		t->addTokenProvider(new debug::TemplateProvider());
+		t->addTokenProvider(new debug::MathFunctionProvider());
+		t->addTokenProvider(new debug::PreprocessorMacroProvider(doc));
+	}
 
 	void setupEditor(mcl::TextEditor* e) override
 	{

@@ -1379,36 +1379,6 @@ void SliderPack::setCallbackOnMouseUp(bool shouldFireOnMouseUp)
 	callbackOnMouseUp = shouldFireOnMouseUp;
 }
 
-void SliderPack::setStepSequencerMode(bool shouldUseStepSequencerMode)
-{
-	toggleMaxMode = shouldUseStepSequencerMode;
-}
-
-int SliderPack::getHoverStateForSlider(Slider* s) const
-{
-	auto idx = sliders.indexOf(s);
-
-	int state = 0;
-
-#if !HISE_NO_GUI_TOOLS
-	if(currentlyDragged)
-	{
-		if(idx == currentlyDraggedSlider)
-		{
-			state |= (int)simple_css::PseudoClassType::Hover;
-			state |= (int)simple_css::PseudoClassType::Active;
-		}
-	}
-	else
-	{
-		if(idx == currentlyHoveredSlider)
-			state |= (int)simple_css::PseudoClassType::Hover;
-	}
-#endif
-	
-	return state;
-}
-
 void SliderPack::LookAndFeelMethods::drawSliderPackBackground(Graphics& g, SliderPack& s)
 {
 	Colour background = s.findColour(Slider::ColourIds::backgroundColourId);

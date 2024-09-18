@@ -105,14 +105,6 @@ template <typename T> void addBasicComponents(T& obj, Dialog::PageInfo& rootList
         { mpid::Help, "Whether to initialise the state object with the init value" }
     });
 
-    vlist.addChild<TextInput>({
-		{ mpid::ID, mpid::Code.toString() },
-		{ mpid::Text, mpid::Code.toString() },
-        { mpid::Value, obj.getPropertyFromInfoObject(mpid::Code) },
-        { mpid::Items, "{BIND::functionName}" },
-		{ mpid::Help, "The callback that is executed using the syntax `{BIND::myMethod}`" }
-	});
-
     auto& col = rootList;
 
     tlist.addChild<TextInput>({
@@ -331,7 +323,7 @@ void Button::buttonClicked(juce::Button* b)
 
 	    Component::callRecursive<Action>(&rootDialog, [thisId](Action* a)
 	    {
-		    if(a->getId().toString() == thisId.toString())
+		    if(a->getId() == thisId)
 		    {
 			    a->perform();
                 return true;
@@ -665,7 +657,7 @@ using EditorType = AllEditor;
 #else
 struct EditorType: public Component
 {
-    EditorType(const String& unused, var unused2) {};
+    EditorType(const String& unused) {};
     String syntax;
     Result compile() { return Result::fail("not implemented"); }
 	CodeDocument doc;
@@ -674,7 +666,7 @@ struct EditorType: public Component
 
 
 CodeEditor::CodeEditor(Dialog& r, int w, const var& obj):
-	LabelledComponent(r, w, obj, new EditorType(obj[mpid::Syntax].toString(), var()))
+	LabelledComponent(r, w, obj, new EditorType(obj[mpid::Syntax].toString()))
 {
 	Helpers::writeInlineStyle(getComponent<EditorType>(), "height: 360px;");
 	setSize(w, 360);
@@ -1159,7 +1151,7 @@ void TextInput::postInit()
     else
     {
 	    editor.setFont(Dialog::getDefaultFont(*this).first);
-		//editor.setIndents(8, 8);
+		editor.setIndents(8, 8);
 
         
     }
@@ -1192,11 +1184,8 @@ void TextInput::postInit()
 
     if(infoObject[mpid::Autofocus])
     {
-        editor.selectAll();
 	    editor.grabKeyboardFocusAsync();
     }
-
-    editor.repaint();
 }
 
 Result TextInput::checkGlobalState(var globalState)
@@ -1337,7 +1326,7 @@ void TextInput::showAutocomplete(const String& currentText)
 {
     if(useDynamicAutocomplete)
     {
-        if(auto hd = findParentComponentOfClass<HardcodedDialogWithStateBase>())
+        if(auto hd = findParentComponentOfClass<HardcodedDialogWithState>())
             autocompleteItems = hd->getAutocompleteItems(id);
         else
             autocompleteItems = {};
@@ -1360,11 +1349,9 @@ void TextInput::dismissAutocomplete()
 {
 	stopTimer();
 #if JUCE_DEBUG
-    if(currentAutocomplete != nullptr)
-		currentAutocomplete->setVisible(false);
+    currentAutocomplete->setVisible(false);
 #else
-    if(currentAutocomplete != nullptr)
-		Desktop::getInstance().getAnimator().fadeOut(currentAutocomplete, 150);
+	Desktop::getInstance().getAnimator().fadeOut(currentAutocomplete, 150);
 #endif
 	currentAutocomplete = nullptr;
 }
@@ -1436,26 +1423,7 @@ struct BetterFileSelector: public simple_css::FlexboxComponent,
                 FileChooser fc("Select directory", currentFile, wc, true);
 
 	            if(fc.browseForDirectory())
-                {
-                    auto dir = fc.getResult();
-                    
-                    while(dir.getNumberOfChildFiles(File::findFiles) > 0 || dir.containsSubDirectories())
-                    {
-                        if(NativeMessageBox::showOkCancelBox(MessageBoxIconType::QuestionIcon, "Use existing directory", "The directory you've selected is not empty. Press OK to continue anyway or cancel to choose an empty directory"))
-                            break;
-                                  
-                        if(fc.browseForDirectory())
-                        {
-                            dir = fc.getResult();
-                        }
-                        else
-                        {
-                            return;
-                        }
-                    }
-                    
-                    setCurrentFile(dir, sendNotificationAsync);
-                }
+                    setCurrentFile(fc.getResult(), sendNotificationAsync);
             }
             else
             {
@@ -1568,17 +1536,21 @@ Result FileSelector::checkGlobalState(var globalState)
 {
     auto& fileSelector = getComponent<BetterFileSelector>();
 	auto f = fileSelector.getCurrentFile();
-    
+
     if(f == File() && !fileSelector.fileLabel.isEmpty())
     {
-	    f = File(fileSelector.fileLabel.getText());    
+	    f = File(fileSelector.fileLabel.getText());
+
+        if(isDirectory && !f.isDirectory())
+        {
+            auto i = rootDialog.createModalPopup<MarkdownText>({
+                { mpid::Text, "Do you want to create the directory  \n> " + String(f.getFullPathName()) }
+            });
+            
+	        rootDialog.showModalPopup(true, i);
+        }
     }
-    
-    if(isDirectory && !f.isDirectory() && f != File())
-    {
-        f.createDirectory();
-    }
-    
+
 	if(f != File() && !f.isRoot() && (f.isDirectory() || f.existsAsFile()))
 	{
         writeState(f.getFullPathName());
@@ -1651,7 +1623,7 @@ void Table::createEditor(Dialog::PageInfo& rootList)
 	rootList.addChild<TextInput>({
 		{ mpid::ID, mpid::Items.toString() },
 		{ mpid::Text, mpid::Items.toString() },
-		{ mpid::Help, "The list of rows - one per line using `|` for separating cells" },
+		{ mpid::Help, "The list of rows - one per line using comma for separating cells" },
 		{ mpid::Multiline, true },
 		{ mpid::Height, 80 },
 		{ mpid::Value, infoObject[mpid::Items] }
@@ -1669,27 +1641,11 @@ void Table::createEditor(Dialog::PageInfo& rootList)
     rootList.addChild<factory::Button>(DefaultProperties::getForSetting(infoObject, mpid::Multiline,
         "Allows selection of multiple rows / cells"));
 
-    rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::EmptyText.toString() },
-		{ mpid::Text, mpid::EmptyText.toString() },
-		{ mpid::Value, infoObject[mpid::EmptyText] },
-        { mpid::Help, "The text that will be displayed if no table content is present." } 
-	});
-
-    rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Code.toString() },
-		{ mpid::Text, mpid::Code.toString() },
-        { mpid::Value, infoObject[mpid::Code] },
-        { mpid::Items, "{BIND::functionName}" },
-		{ mpid::Help, "The callback that is executed using the syntax `{BIND::myMethod}`" }
-	});
-
 	rootList.addChild<TextInput>({
 		{ mpid::ID, "FilterFunction" },
 		{ mpid::Text, "FilterFunction" },
 		{ mpid::Value, infoObject[mpid::FilterFunction] },
-        { mpid::Items, "{BIND::functionName}" },
-        { mpid::Help, "A function that will be called to filter the items" } 
+        { mpid::Help, "A function in the root namespace that will be called to filter the items." } 
 	});
 
     rootList.addChild<Button>({
@@ -1729,14 +1685,6 @@ void TagList::createEditor(Dialog::PageInfo& rootList)
 		{ mpid::Text, "ID" },
 		{ mpid::Value, infoObject[mpid::ID].toString() },
 		{ mpid::Help, "The ID for the element (used as key in the state `var`." }
-	});
-
-    rootList.addChild<TextInput>({
-		{ mpid::ID, mpid::Code.toString() },
-		{ mpid::Text, mpid::Code.toString() },
-        { mpid::Value, infoObject[mpid::Code] },
-        { mpid::Items, "{BIND::functionName}" },
-		{ mpid::Help, "The callback that is executed using the syntax `{BIND::myMethod}`" }
 	});
 
 	rootList.addChild<TextInput>({

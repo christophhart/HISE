@@ -158,8 +158,6 @@ private:
 
 	bool usesOpenGl;
 	OpenGLContext context;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(FrontendProcessorEditor);
 };
 
 

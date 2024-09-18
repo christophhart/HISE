@@ -371,7 +371,13 @@ void ConsolePanel::resized()
 
 void ScriptContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
 {
-	updateInterfaceListener(dynamic_cast<ProcessorWithScriptingContent*>(processor));
+	if (processor == dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
+	{
+		
+		resized();
+		if (getContent<Editor>() != nullptr)
+			getContent<Editor>()->refreshContent();
+	}
 }
 
 var ScriptContentPanel::toDynamicObject() const
@@ -698,13 +704,9 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 
 	overlaySelector = new ComboBox("Zoom");
 
-	auto& handler = dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor())->getMainController()->getCurrentFileHandler();
+	auto overlayDirectory = dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor())->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::SubDirectories::Images).getChildFile("overlays");
 
-	if(handler.getRootFolder().isDirectory())
-	{
-		auto overlayDirectory = handler.getSubDirectory(FileHandlerBase::SubDirectories::Images).getChildFile("overlays");
-		currentOverlays = overlayDirectory.findChildFiles(File::findFiles, false, "*.png");
-	}
+	currentOverlays = overlayDirectory.findChildFiles(File::findFiles, false, "*.png");
 
 	overlaySelector->addItem("No overlay", 1);
 	overlaySelector->setTextWhenNothingSelected("Select overlay");

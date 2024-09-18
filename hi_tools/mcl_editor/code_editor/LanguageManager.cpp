@@ -116,38 +116,6 @@ mcl::FoldableLineRange::List LanguageManager::createLineRange(const juce::CodeDo
             
             break;
         }
-        case '"':
-        {
-            auto lineNumber = it.getLine();
-
-
-            while ((c = it.nextChar()) != 0)
-            {
-                if (c == '"')
-                {
-                    auto thisLine = it.getLine();
-                    if (thisLine > lineNumber)
-                    {
-                        mcl::FoldableLineRange::Ptr newElement = new mcl::FoldableLineRange(doc, { lineNumber, it.getLine() });
-
-                        if (currentElement == nullptr)
-                        {
-                            lineRanges.add(newElement);
-                        }
-                        else
-                        {
-                            currentElement->children.add(newElement);
-                            newElement->parent = currentElement;
-                            //currentElement = newElement;
-                        }
-                    }
-
-                    break;
-                }
-            }
-            
-            break;
-        }
         case '{':
         {
             auto thisLine = it.getLine();
