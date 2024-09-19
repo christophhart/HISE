@@ -8696,7 +8696,9 @@ void ScriptingObjects::ScriptedMacroHandler::setFromCallbackArg(const var& obj)
 			if (fr.getRange().isEmpty())
 				fr = nr;
 
-			mm.getMacroChain()->getMacroControlData(mIndex)->addParameter(p, parameterIndex, pString, fr.rng, true, isCustomId, dontSendNotification);
+			auto converterString = obj["converter"].toString();
+
+			mm.getMacroChain()->getMacroControlData(mIndex)->addParameter(p, parameterIndex, pString, ValueToTextConverter::fromString(converterString), fr.rng, true, isCustomId, dontSendNotification);
 
 			auto pd = mm.getMacroChain()->getMacroControlData(mIndex)->getParameterWithProcessorAndIndex(p, parameterIndex);
 
