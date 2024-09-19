@@ -232,7 +232,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 				        "This is a description that will show up in the autocomplete textbox");
 		}
 		else
-		
+		{
 	
 
 			ADD_HS_SNIPPET("reg (...)", "reg $VAR_NAME$ = $VALUE$;", "A shortcut to a reg variable definition.");
@@ -287,6 +287,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 				           "A code snippet that will create a LAF class with an inline CSS style sheet that can be applied to a UI control using its id selector.  \n>Use `Ctrl+D` for selecting all `UI_CONTROL` tokens and rename it to the control ID");
 	
 #undef  ADD_HS_SNIPPET
+		}
 
 		return JSON::toString(var(list), false);
 	}

@@ -1481,6 +1481,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 	virtual float getHeightForWidth(float width)
 	{
+		MessageManagerLock mm;
 		createComponent((int)width);
 
 		return (float)content->getPreferredHeight();
