@@ -66,6 +66,11 @@ public:
 		}
 	}
 
+	ValueToTextConverter getValueToTextConverter() const override
+	{
+		return {};
+	}
+
 	NormalisableRange<double> getRange() const override
 	{
 		return NormalisableRange<double>(0.0, (double)(int)CurveEq::FilterType::numFilterTypes);

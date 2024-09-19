@@ -86,7 +86,12 @@ bool MacroControlledObject::checkLearnMode()
 
 	if(currentlyActiveLearnIndex != -1)
 	{
-		GET_MACROCHAIN()->addControlledParameter(currentlyActiveLearnIndex, getProcessor()->getId(), parameter, name, getRange());
+		String suffix;
+
+		if(auto asSlider = dynamic_cast<Slider*>(this))
+			suffix = asSlider->getTextValueSuffix();
+
+		GET_MACROCHAIN()->addControlledParameter(currentlyActiveLearnIndex, getProcessor()->getId(), parameter, name, getValueToTextConverter(), getRange());
 			
 		return true;
 	}
@@ -295,7 +300,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		if (!learningActive)
 		{
-			handler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, getMacroIndex());
+			handler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, getValueToTextConverter(), getMacroIndex());
 		}
 		else
 		{
@@ -337,7 +342,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		
 		mHandler->deactivateMidiLearning();
 		mHandler->removeMidiControlledParameter(processor, parameterToUse, sendNotificationAsync);
-		mHandler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, -1);
+		mHandler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, getValueToTextConverter(), -1);
 		mHandler->setUnlearndedMidiControlNumber(number, sendNotificationAsync);
 	}
 	else if (result >= ModulationOffset)
@@ -357,7 +362,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		if (customId.isValid())
 			nameToUse = customId.toString();
 
-		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->addParameter(getProcessor(), parameterToUse, nameToUse, rangeWithSkew, false, customId.isValid());
+		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->addParameter(getProcessor(), parameterToUse, nameToUse, getValueToTextConverter(), rangeWithSkew, false, customId.isValid());
 
 		initMacroControl(sendNotification);
 	}
@@ -764,12 +769,11 @@ void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 
 String HiSlider::getTextFromValue(double value)
 {
-	if(mode == Pan) setTextValueSuffix(getModeSuffix());
-
-	if (mode == Frequency) return getFrequencyString((float)value);
-	if(mode == TempoSync) return TempoSyncer::getTempoName((int)(value));
-	else if(mode == NormalizedPercentage) return String((int)(value * 100)) + "%";
-	else				  return Slider::getTextFromValue(value);
+	if (mode == Pan)				  return ValueToTextConverter::ConverterFunctions::Pan(value);
+	if (mode == Frequency)			  return ValueToTextConverter::ConverterFunctions::Frequency(value);
+	if (mode == TempoSync)			  return ValueToTextConverter::ConverterFunctions::TempoSync(value);
+	if (mode == NormalizedPercentage) return ValueToTextConverter::ConverterFunctions::NormalizedPercentage(value);
+	else							  return Slider::getTextFromValue(value);
 }
 
 void HiSlider::setup(Processor *p, int parameterIndex, const String &parameterName)
@@ -928,21 +932,8 @@ HiSlider::~HiSlider()
 	setLookAndFeel(nullptr);
 }
 
-String HiSlider::getFrequencyString(float input)
-{
-	if (input < 30.0f)
-	{
-		return String(input, 1) + " Hz";
-	}
-	if (input < 1000.0f)
-	{
-		return String(roundToInt(input)) + " Hz";
-	}
-	else
-	{
-		return String(input / 1000.0, 1) + " kHz";
-	}
-}
+
+
 
 double HiSlider::getFrequencyFromTextString(const String& t)
 {
@@ -1021,6 +1012,30 @@ void HiSlider::resized()
 {
 	Slider::resized();
 	numberTag->setBounds(getLocalBounds());
+}
+
+ValueToTextConverter HiSlider::getValueToTextConverter() const
+{
+	hise::ValueToTextConverter c;
+	c.active = true;
+	c.suffix = getTextValueSuffix();
+	c.stepSize = getRange().interval;
+
+#define FUNC(x) case x: c.valueToTextFunction = ValueToTextConverter::ConverterFunctions::x; c.textToValueFunction = ValueToTextConverter::InverterFunctions::x; break;
+
+	switch (mode)
+	{
+	FUNC(Frequency);
+	FUNC(Time);
+	FUNC(TempoSync);
+	FUNC(Pan);
+	FUNC(NormalizedPercentage);
+	default: break;
+	}
+
+#undef FUNC
+
+	return c;
 }
 
 

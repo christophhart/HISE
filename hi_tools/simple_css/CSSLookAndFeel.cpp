@@ -144,10 +144,15 @@ void StyleSheetLookAndFeel::drawLinearSlider(Graphics& g, int x, int y, int widt
 {
 	if(auto ss = root.css.getForComponent(&slider))
 	{
-		auto normPos = NormalisableRange<double>(slider.getRange()).convertTo0to1(slider.getValue());
+		auto nr = NormalisableRange<double>(slider.getRange());
+		nr.skew = slider.getSkewFactor();
+
+		auto normPos = nr.convertTo0to1(slider.getValue());
 			
 		ss->setPropertyVariable("value", String(normPos, 4));
-
+		
+		auto text = slider.getTextFromValue(slider.getValue());
+		
 		Renderer r(&slider, root.stateWatcher);
 
 		int currentState = 0;
@@ -163,6 +168,7 @@ void StyleSheetLookAndFeel::drawLinearSlider(Graphics& g, int x, int y, int widt
 		root.stateWatcher.checkChanges(&slider, ss, currentState);
 
 		r.drawBackground(g, slider.getLocalBounds().toFloat(), ss);
+		r.renderText(g, slider.getLocalBounds().toFloat(), text, ss, PseudoElementType::None, Justification(0), false);
 	}
 	else
 	{

@@ -229,7 +229,7 @@ struct Renderer: public Animator::ScopedComponentSetter
 	void drawImage(Graphics& g, const juce::Image& img, Rectangle<float> area, StyleSheet::Ptr ss, bool isContent);
 
 	/** Renders a text using the supplied style sheet. */
-	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type=PseudoElementType::None, Justification justificationToUse = Justification(0));
+	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type=PseudoElementType::None, Justification justificationToUse = Justification(0), bool truncateBeforeAfter=true);
 
 	/** Manually set the state flags for the renderer. this is useful for cases where the style flags can't be easily queried
 	 *  from the component hover states (eg. at popup menu items). */

@@ -1356,6 +1356,7 @@ int FrontendMacroPanel::getNumRows()
 	if (!getMainController()->getMacroManager().isMacroEnabledOnFrontend())
 	{
 		connectionList.clear();
+		numRows = connectionList.size();
 		return 0;
 	}
 
@@ -1377,6 +1378,7 @@ int FrontendMacroPanel::getNumRows()
 
 	newList.swapWith(connectionList);
 
+	numRows = connectionList.size();
 	return connectionList.size();
 }
 
@@ -1404,12 +1406,15 @@ bool FrontendMacroPanel::setRange(int rowIndex, NormalisableRange<double> newRan
 
 void FrontendMacroPanel::paint(Graphics& g)
 {
+	TableFloatingTileBase::paint(g);
+
 	if (!getMainController()->getMacroManager().isMacroEnabledOnFrontend())
 	{
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.setColour(Colour(0xFF682222));
 		g.drawText("Macros are not enabled on the Front Interface", getLocalBounds().toFloat(), Justification::centred);
 	}
+	
 }
 
 bool FrontendMacroPanel::isInverted(int rowIndex) const
@@ -1494,7 +1499,8 @@ void MidiLearnPanel::changeListenerCallback(SafeChangeBroadcaster*)
 
 int MidiLearnPanel::getNumRows()
 {
-	return handler.getNumActiveConnections();
+	numRows = handler.getNumActiveConnections();
+	return numRows;
 }
 
 void MidiLearnPanel::removeEntry(int rowIndex)
@@ -1612,7 +1618,7 @@ void TableFloatingTileBase::InvertedButton::buttonClicked(Button *b)
 TableFloatingTileBase::ValueSliderColumn::ValueSliderColumn(TableFloatingTileBase &table) :
 	owner(table)
 {
-	addAndMakeVisible(slider = new Slider());
+	addAndMakeVisible(slider = new RangeSlider());
 
 	laf.setFontForAll(table.font);
 
@@ -1695,8 +1701,8 @@ void TableFloatingTileBase::initTable()
 
 	auto fWidth = (int)font.getStringWidthFloat(first) + 20;
 
-	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, fWidth, fWidth);
-	table.getHeader().addColumn("Parameter", ParameterName, 70);
+	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, 30, -1, TableHeaderComponent::visible);
+	table.getHeader().addColumn("Parameter", ParameterName, 70, 30, -1);
 	table.getHeader().addColumn("Inverted", Inverted, 70, 70, 70);
 	table.getHeader().addColumn("Min", Minimum, 70, 70, 70);
 	table.getHeader().addColumn("Max", Maximum, 70, 70, 70);
@@ -1724,16 +1730,134 @@ void TableFloatingTileBase::fromDynamicObject(const var& object)
 	laf->textColour = textColour;
 }
 
-void TableFloatingTileBase::paintRowBackground(Graphics& g, int /*rowNumber*/, int /*width*/, int /*height*/, bool rowIsSelected)
+void TableFloatingTileBase::paintRowBackground(Graphics& g, int rowNumber, int width, int height, bool rowIsSelected)
 {
-	if (rowIsSelected)
+	using namespace simple_css;
+
+	auto& rootDialog = *CSSRootComponent::find(*this);
+
+	if(auto ss = rootDialog.css.getWithAllStates(this, (Selector(ElementType::TableRow))))
 	{
-		g.fillAll(Colours::white.withAlpha(0.2f));
+		Renderer r(nullptr, rootDialog.stateWatcher);
+
+		auto point = table.getMouseXYRelative();
+		auto hoverRow = table.getRowContainingPosition(point.getX(), point.getY());
+
+		int flags = 0;
+
+		if(rowNumber == hoverRow)
+		{
+			flags |= (int)PseudoClassType::Hover;
+
+			if(isMouseButtonDownAnywhere())
+			{
+				flags |= (int)PseudoClassType::Active;
+			}
+		}
+
+		if(rowIsSelected)
+			flags |= (int)PseudoClassType::Focus;
+
+		r.setPseudoClassState(flags);
+		r.drawBackground(g, {0.0f, 0.0f, (float)width, (float)height}, ss);
 	}
+	else
+	{
+		if (rowIsSelected)
+		{
+			g.fillAll(Colours::white.withAlpha(0.2f));
+		}
+	}
+	
 }
 
 void TableFloatingTileBase::resized()
 {
+	using namespace simple_css;
+
+	if(auto root = CSSRootComponent::find(*this))
+	{
+		int firstWidth = 0;
+
+		if(auto ss = root->css.getWithAllStates(this, Selector(ElementType::TableHeader)))
+		{
+			root->stateWatcher.registerComponentToUpdate(&table.getHeader());
+			root->stateWatcher.resetComponent(&table.getHeader());
+
+			auto id = table.getHeader().getColumnIdOfIndex(0, true);
+			auto name = table.getHeader().getColumnName(id);
+			
+			firstWidth = roundToInt(ss->getLocalBoundsFromText(name).getWidth());
+
+			for(int i = 2; i < table.getHeader().getNumColumns(true); i++)
+			{
+				id = table.getHeader().getColumnIdOfIndex(i, true);
+				name = table.getHeader().getColumnName(id);
+				auto w = roundToInt(ss->getLocalBoundsFromText(name).getWidth());
+
+				table.getHeader().setFixColumnWidth(id, w);
+			}
+
+			
+		}
+		
+		if(auto ss = root->css.getWithAllStates(this, Selector(ElementType::TableCell)))
+		{
+			table.setRowHeight(ss->getLocalBoundsFromText("M").getHeight());
+
+			float maxFirstColumn = firstWidth;
+
+			auto firstId = table.getHeader().getColumnIdOfIndex(0, true);
+
+			for(int i = 0; i < numRows; i++)
+			{
+				auto c1 = getCellText(i, firstId);
+				maxFirstColumn = jmax(maxFirstColumn, ss->getLocalBoundsFromText(c1).getWidth());
+			}
+
+			table.getHeader().setFixColumnWidth(firstId, maxFirstColumn);
+		}
+
+		if(auto ss = root->css.getWithAllStates(this, Selector(ElementType::Button)))
+		{
+			Rectangle<float> s(0, 0, getWidth(), 10.0f);
+			auto w = ss->getBounds(s, PseudoState(0)).getWidth();
+
+			auto buttonId = table.getHeader().getColumnIdOfIndex(2, true);
+
+			if(table.getHeader().getColumnWidth(buttonId) < w)
+				table.getHeader().setFixColumnWidth(buttonId, w);
+		}
+
+		if(auto ss = root->css.getWithAllStates(this, Selector(".range-slider")))
+		{
+			Rectangle<float> s(0, 0, getWidth(), 10.0f);
+			auto w = ss->getBounds(s, PseudoState(0)).getWidth();
+
+			auto sliderId1 = table.getHeader().getColumnIdOfIndex(3, true);
+			auto sliderId2 = table.getHeader().getColumnIdOfIndex(4, true);
+
+			if(table.getHeader().getColumnWidth(sliderId1) < w)
+				table.getHeader().setFixColumnWidth(sliderId1, w);
+			if(table.getHeader().getColumnWidth(sliderId2) < w)
+				table.getHeader().setFixColumnWidth(sliderId2, w);
+		}
+
+
+		if(auto ss = root->css.getWithAllStates(this, Selector(ElementType::Table)))
+		{
+			auto ma = ss->getArea(getLocalBounds().toFloat(), {"margin", 0});
+			ma = ss->getArea(ma, {"padding", 0} );
+			table.setBounds(ma.toNearestInt());
+			return;
+		}
+
+		
+
+	}
+
+	
+	
 	table.setBounds(getLocalBounds());
 }
 
@@ -1799,23 +1923,61 @@ Component* TableFloatingTileBase::refreshComponentForCell(int rowNumber, int col
 {
 	//auto data = handler.getDataFromIndex(rowNumber);
 
+	if(css_laf == nullptr)
+	{
+		if(auto root = simple_css::CSSRootComponent::find(*this))
+		{
+			css_laf = new simple_css::StyleSheetLookAndFeel(*root);
+
+			if(root->css.getWithAllStates(this, simple_css::Selector("th")) != nullptr)
+			{
+				table.getHeader().setLookAndFeel(css_laf);
+			}
+			else
+			{
+				table.getHeader().setLookAndFeel(laf);
+			}
+		}
+	}
+	
+
 	if (columnId == Minimum || columnId == Maximum)
 	{
 		ValueSliderColumn* slider = dynamic_cast<ValueSliderColumn*> (existingComponentToUpdate);
 
 		if (slider == nullptr)
+		{
 			slider = new ValueSliderColumn(*this);
 
+			auto& root = *simple_css::CSSRootComponent::find(*this);
+
+			if(auto ss = root.css.getWithAllStates(this, simple_css::Selector(".range-slider")))
+			{
+				simple_css::FlexboxComponent::Helpers::writeClassSelectors(*slider->slider, { simple_css::Selector(".range-slider")}, true);
+				slider->slider->setLookAndFeel(css_laf.get());
+				slider->slider->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
+				slider->slider->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
+			}
+		}
+		
 		auto pRange = getRange(rowNumber);
 		auto fullRange = getFullRange(rowNumber);
 
 		const double value = columnId == Maximum ? pRange.end : pRange.start;
 
+		slider->slider->setDoubleClickReturnValue(true, columnId == Maximum ? fullRange.end : fullRange.start);
+
 		slider->slider->setColour(Slider::ColourIds::backgroundColourId, Colours::transparentBlack);
 		slider->slider->setColour(Slider::ColourIds::thumbColourId, itemColour1);
 		slider->slider->setColour(Slider::ColourIds::textBoxTextColourId, textColour);
-
+		
 		slider->setRowAndColumn(rowNumber, (ColumnId)columnId, value, fullRange);
+
+		ValueToTextConverter vtc = getValueToTextConverter(rowNumber);
+		
+		slider->slider->textFromValueFunction = vtc;
+		slider->slider->valueFromTextFunction = vtc;
+
 
 		return slider;
 	}
@@ -1826,6 +1988,13 @@ Component* TableFloatingTileBase::refreshComponentForCell(int rowNumber, int col
 		if (b == nullptr)
 			b = new InvertedButton(*this);
 
+		auto& root = *simple_css::CSSRootComponent::find(*this);
+
+		if(css_laf != nullptr && root.css.getWithAllStates(this, simple_css::Selector("button")))
+		{
+			b->t->setLookAndFeel(css_laf.get());
+		}
+		
 		b->t->setColour(TextButton::buttonOnColourId, itemColour1);
 		b->t->setColour(TextButton::textColourOnId, textColour);
 		b->t->setColour(TextButton::buttonColourId, Colours::transparentBlack);
@@ -1843,13 +2012,33 @@ Component* TableFloatingTileBase::refreshComponentForCell(int rowNumber, int col
 	}
 }
 
-void TableFloatingTileBase::paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool /*rowIsSelected*/)
+void TableFloatingTileBase::paintCell(Graphics& g, int rowNumber, int columnId, int width, int height, bool rowIsSelected)
 {
-	g.setColour(textColour);
-	g.setFont(font);
+	using namespace simple_css;
+
+	auto& rootDialog = *CSSRootComponent::find(*this);
 	auto text = getCellText(rowNumber, columnId);
 
-	g.drawText(text, 2, 0, width - 4, height, Justification::centredLeft, true);
+	if(auto ss = rootDialog.css.getWithAllStates(this, Selector(ElementType::TableCell)))
+	{
+		Renderer r(nullptr, rootDialog.stateWatcher);
+		auto state = r.getPseudoClassFromComponent(this);
+                
+		if(rowIsSelected)
+			state |= (int)PseudoClassType::Focus;
+
+		Rectangle<float> b(0.0, 0.0, (float)width, (float)height);
+
+		r.setPseudoClassState(state);
+		r.drawBackground(g, b, ss);
+		r.renderText(g, b, text, ss);
+	}
+	else
+	{
+		g.setColour(textColour);
+		g.setFont(font);
+		g.drawText(text, 2, 0, width - 4, height, Justification::centredLeft, true);
+	}
 }
 
 } // namespace hise

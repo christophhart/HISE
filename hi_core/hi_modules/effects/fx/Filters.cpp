@@ -326,7 +326,7 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
 		{
 			auto freq = t->getAttribute(PolyFilterEffect::Parameters::Frequency);
 			auto v = jmap<float>(input, 20.0f, freq);
-			return HiSlider::getFrequencyString(v);
+			return ValueToTextConverter::ConverterFunctions::Frequency(v);
 		}
 
 		return Table::getDefaultTextValue(input);

@@ -67,6 +67,11 @@ public:
 	void restoreFromValueTree(const ValueTree &v) override;;
 
 	ValueTree exportAsValueTree() const override;;
+	
+	ValueToTextConverter getValueToTextConverter() const override
+	{
+		return {};
+	}
 
 #if USE_BACKEND
 

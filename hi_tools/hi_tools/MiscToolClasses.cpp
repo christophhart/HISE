@@ -1695,7 +1695,7 @@ hise::TempoSyncer::Tempo TempoSyncer::getTempoIndex(const String &t)
 {
 	for (int i = 0; i < numTempos; i++)
 	{
-		if(strcmp(t.getCharPointer().getAddress(), tempoNames[i]))
+		if(strcmp(t.getCharPointer().getAddress(), tempoNames[i]) == 0)
 			return (Tempo)i;
 	}
 	

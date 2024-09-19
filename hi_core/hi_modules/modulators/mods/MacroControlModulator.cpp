@@ -104,7 +104,7 @@ void MacroModulator::addToMacroController(int index)
 
 		macroChain->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 
-		if (macroIndex != -1) macroChain->addControlledParameter(index, getId(), MacroValue, "Macro Modulator", getRange());
+		if (macroIndex != -1) macroChain->addControlledParameter(index, getId(), MacroValue, "Macro Modulator", getValueToTextConverter(), getRange());
 	}
 }
 
