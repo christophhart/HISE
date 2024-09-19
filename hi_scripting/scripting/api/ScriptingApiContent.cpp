@@ -1751,9 +1751,12 @@ juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFee
             initProperty("textColour");
             
             removePropertyIfDefault = false;
-            
-            simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
-            styleSheetProperties.setProperty("class", classType.toString(), nullptr);
+
+			if(!styleSheetProperties.hasProperty("class"))
+			{
+				simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
+				styleSheetProperties.setProperty("class", classType.toString(), nullptr);
+			}
 			
 			return new ScriptingObjects::ScriptedLookAndFeel::CSSLaf(l, contentComponent, componentToRegister, this->propertyTree, this->styleSheetProperties);
 		}

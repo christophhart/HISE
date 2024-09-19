@@ -2844,8 +2844,11 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 							safe->getProperties().set(v, classIds);
                             root->css.clearCache(safe);
                             
-                            auto ptr3 = root->css.getForComponent(safe.getComponent());
-                            ptr3->copyVarProperties(ptr2);
+                            if(auto ptr3 = root->css.getForComponent(safe.getComponent()))
+                            {
+	                            ptr3->copyVarProperties(ptr2);
+                            }
+                            
 						}
 						else
 
