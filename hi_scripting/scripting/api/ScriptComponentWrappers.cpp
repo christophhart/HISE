@@ -791,10 +791,11 @@ void ScriptCreatedComponentWrapper::showValuePopup()
 
 	parentTile->addAndMakeVisible(currentPopup = new ValuePopup(*this));
 	
-	currentPopup->setFont(dynamic_cast<const Processor*>(parentTile->getScriptProcessor())->getMainController()->getFontFromString("Default", 14.0f));
-
-	
-
+    if(auto sp = dynamic_cast<const Processor*>(parentTile->getScriptProcessor()))
+    {
+        currentPopup->setFont(sp->getMainController()->getFontFromString("Default", 14.0f));
+    }
+    
 	currentPopup->setAlwaysOnTop(true);
 	
 	updatePopupPosition();
