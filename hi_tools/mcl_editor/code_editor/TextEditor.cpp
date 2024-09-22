@@ -1078,7 +1078,7 @@ void TextEditor::setScaleFactor(float newFactor)
 
 void TextEditor::insertCodeSnippet(const String& textToInsert, Array<Range<int>> selectRanges)
 {
-	auto textWithoutScope = textToInsert;
+    auto textWithoutScope = textToInsert;
     Array<Range<int>> rangesWithScope = selectRanges;
     
     auto lr = document.getFoldableLineRangeHolder();

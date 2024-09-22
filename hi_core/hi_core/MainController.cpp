@@ -2004,6 +2004,7 @@ void MainController::insertStringAtLastActiveEditor(const String &string, bool s
 		if(!fullClasses.contains(className))
 			selection.insert(0, {0, firstDot });
 
+        ed->editor.prepareExternalInsert();
 		ed->editor.insertCodeSnippet(string, selection);
 
 #else
