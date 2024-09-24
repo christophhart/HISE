@@ -776,6 +776,21 @@ public:
                                         Colours::lightgrey,
 										DocumentWindow::TitleBarButtons::closeButton | DocumentWindow::maximiseButton | DocumentWindow::TitleBarButtons::minimiseButton)
         {
+			auto sf = hise::ProjectHandler::getAppDataDirectory(nullptr).getChildFile("OtherSettings.xml");
+
+			if(auto xml = XmlDocument::parse(sf))
+			{
+				if(auto c = xml->getChildByName(HiseSettings::Other::GlobalHiseScaleFactor.toString()))
+				{
+					auto v = (double)c->getStringAttribute("value").getIntValue() / 100.0;
+
+					if(v >= 0.75 && v <= 1.5)
+					{
+						Desktop::getInstance().setGlobalScaleFactor(v);
+					}
+				}
+			}
+
             setContentOwned (new MainContentComponent(commandLine), true);
 
 #if JUCE_IOS

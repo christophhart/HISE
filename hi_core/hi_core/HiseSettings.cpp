@@ -187,6 +187,7 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
     ids.add(AutoShowWorkspace);
 	ids.add(EnableShaderLineNumbers);
 	ids.add(ShowWelcomeScreen);
+	ids.add(GlobalHiseScaleFactor);
 
 	return ids;
 }
@@ -675,6 +676,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("The interval for the autosaver in minutes. This must be a number between `1` and `30`.");
 		P_();
 
+		P(HiseSettings::Other::GlobalHiseScaleFactor);
+		D("This changes the global scale factor for all UI elements in HISE. Beware that this might result in a few glitches under certain conditions so if you experience some UI funkiness, revert it back to 100%.");
+	    D("> Note that this setting cannot be used in combination with the OpenGL renderer.");
+		P_();
+
         P(HiseSettings::Other::AutoShowWorkspace);
         D("If this is activated, clicking on a workspace icon (or loading a new patch) will ensure that the workspace is visible (so if it's folded, it will be unfolded.");
         D("> Disable this setting if you are using a custom workspace environment with a second window.");
@@ -966,6 +972,11 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 	if (id == Compiler::VisualStudioVersion)
 		return { "Visual Studio 2017", "Visual Studio 2022" };
 
+	if(id == Other::GlobalHiseScaleFactor)
+	{
+		return { "75%", "85%", "100%", "125%", "150%" };
+	}
+
 	if (id == Project::ExpansionType)
 	{
 		return { "Disabled", "FilesOnly", "Encrypted", "Full", "Custom" };
@@ -1186,6 +1197,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
     else if (id == Other::AutoShowWorkspace)        return "Yes";
 	else if (id == Other::ExternalEditorPath)		return "";
 	else if (id == Other::ShowWelcomeScreen)	    return "Yes";
+	else if (id == Other::GlobalHiseScaleFactor)    return "100%";
 	else if (id == Documentation::DocRepository)	return "";
 	else if (id == Documentation::RefreshOnStartup) return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;
@@ -1347,6 +1359,14 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		mc->getAutoSaver().updateAutosaving();
 	else if (id == Other::AudioThreadGuardEnabled)
 		mc->getKillStateHandler().enableAudioThreadGuard(newValue);
+	else if (id == Other::GlobalHiseScaleFactor)
+	{
+		auto v = (double)newValue.toString().getIntValue() / 100.0;
+
+		if(v >= 0.75 && v <= 1.5)
+			Desktop::getInstance().setGlobalScaleFactor(v);
+	}
+		
 	else if (id == Scripting::EnableOptimizations)
 		mc->compileAllScripts();
 	else if (id == Scripting::EnableDebugMode)
