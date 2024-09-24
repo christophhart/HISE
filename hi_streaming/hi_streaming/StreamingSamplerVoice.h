@@ -136,7 +136,37 @@ public:
 		nonRealtime = shouldBeNonRealtime;
 	}
 
+	
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+
+	StreamingSamplerSound::ReleasePlayState getReleasePlayState() const noexcept
+	{
+		return releasePlayState;
+	}
+
+	void setSeekToReleaseStart()
+	{
+		seekToReleaseStart = true;
+		releasePlayState = StreamingSamplerSound::ReleasePlayState::Playing;
+	}
+
+	
+
 private:
+
+	StreamingSamplerSound::ReleasePlayState releasePlayState = StreamingSamplerSound::ReleasePlayState::Inactive;
+	bool seekToReleaseStart = false;
+
+#else
+
+	static constexpr StreamingSamplerSound::ReleasePlayState getReleasePlayState()
+	{
+		return StreamingSamplerSound::ReleasePlayState::Inactive;
+	}
+
+private:
+#endif
 
 	bool nonRealtime = false;
 
@@ -320,7 +350,22 @@ public:
 		timestretchTonality = jlimit(0.0, 1.0, tonality);
 	}
 
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+
+	void jumpToRelease()
+	{
+		jumpToReleaseOnNextRender = true;
+	}
+	
 private:
+
+	int releaseFadeDuration = 0;
+	double releaseFadeCounter = 0.0;
+	bool jumpToReleaseOnNextRender = false;
+	float releaseGain = 1.0f;
+#else
+private:
+#endif
 
 	double timestretchTonality = 0.0;
 

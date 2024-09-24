@@ -238,6 +238,7 @@ struct SamplerTools
         SampleStartArea,
         LoopArea,
         LoopCrossfadeArea,
+		ReleaseStart,
         GainEnvelope,
         PitchEnvelope,
         FilterEnvelope,
@@ -337,6 +338,8 @@ public:
 	SamplerDisplayWithTimeline::Properties timeProperties;
 
 	AreaTypes currentClickArea = AreaTypes::numAreas;
+
+	bool releaseStartIsSelected = false;
 
     bool zeroCrossing = true;
     

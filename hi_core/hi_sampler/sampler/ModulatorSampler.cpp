@@ -370,6 +370,22 @@ bool ModulatorSampler::checkAndLogIsSoftBypassed(DebugLogger::Location location)
 	return const_cast<MainController*>(getMainController())->getDebugLogger().checkIsSoftBypassed(this, location);
 }
 
+void ModulatorSampler::refreshReleaseStartFlag()
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	ModulatorSampler::SoundIterator sIter(this);
+	jassert(sIter.canIterate());
+
+	soundsHaveReleaseStart = false;
+			
+	while (auto sound = sIter.getNextSound())
+	{
+		auto s = sound->getReferenceToSound();
+		soundsHaveReleaseStart |= s->isReleaseStartEnabled();
+	}
+#endif
+}
+
 void ModulatorSampler::refreshCrossfadeTables()
 {
 	ModulatorSynth::setVoiceLimit(realVoiceAmount * getNumActiveGroups());
@@ -1277,6 +1293,24 @@ void ModulatorSampler::noteOff(const HiseEvent &m)
 {
 	if (!oneShotEnabled)
 	{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		if(soundsHaveReleaseStart)
+		{
+			for (auto v : activeVoices)
+			{
+				if(v->getCurrentHiseEvent().getEventId() == m.getEventId())
+				{
+					auto s = static_cast<ModulatorSamplerSound*>(v->getCurrentlyPlayingSound().get());
+
+					if(s->getReferenceToSound()->isReleaseStartEnabled())
+					{
+						static_cast<ModulatorSamplerVoice*>(v)->wrappedVoice.jumpToRelease();
+					}
+				}
+			}
+		}
+#endif
+
 		ModulatorSynth::noteOff(m);
 	}
 }
@@ -1843,6 +1877,7 @@ bool ModulatorSampler::preloadAllSamples()
 		sound->setReversed(isReversed);
 	}
 
+	refreshReleaseStartFlag();
 	refreshMemoryUsage();
 	setShouldUpdateUI(true);
 	setHasPendingSampleLoad(false);

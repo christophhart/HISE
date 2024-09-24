@@ -3712,6 +3712,8 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapAsBase64);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setTimestretchRatio);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setTimestretchOptions);
+	API_METHOD_WRAPPER_0(Sampler, getReleaseStartOptions);
+	API_VOID_METHOD_WRAPPER_1(Sampler, setReleaseStartOptions);
 	API_METHOD_WRAPPER_0(Sampler, getTimestretchOptions);
 	API_METHOD_WRAPPER_1(Sampler, createSelection);
 	API_METHOD_WRAPPER_1(Sampler, createSelectionFromIndexes);
@@ -3783,6 +3785,8 @@ sampler(sampler_)
 	ADD_API_METHOD_1(setTimestretchRatio);
 	ADD_API_METHOD_1(setTimestretchOptions);
 	ADD_API_METHOD_0(getTimestretchOptions);
+	ADD_API_METHOD_0(getReleaseStartOptions);
+	ADD_API_METHOD_1(setReleaseStartOptions);
 
 	sampleIds = SampleIds::Helpers::getAllIds();
 
@@ -4659,6 +4663,40 @@ void ScriptingApi::Sampler::setTimestretchOptions(var newOptions)
 	ModulatorSampler::TimestretchOptions no;
 	no.fromJSON(newOptions);
 	s->setTimestretchOptions(no);
+}
+
+var ScriptingApi::Sampler::getReleaseStartOptions()
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	ModulatorSampler* s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+
+	return s->getSampleMap()->getReleaseStartOptions()->toJSON();
+#else
+	reportScriptError("HISE_SAMPLER_ALLOW_RELEASE_START is not enabled");
+	return var();
+#endif
+}
+
+void ScriptingApi::Sampler::setReleaseStartOptions(var data)
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	ModulatorSampler* s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+	StreamingHelpers::ReleaseStartOptions::Ptr newOptions = new StreamingHelpers::ReleaseStartOptions();
+
+	newOptions->fromJSON(data);
+
+	s->getSampleMap()->setReleaseStartOptions(newOptions);
+#else
+	reportScriptError("HISE_SAMPLER_ALLOW_RELEASE_START is not enabled");
+#endif
 }
 
 String ScriptingApi::Sampler::getAudioWaveformContentAsBase64(var presetObj)

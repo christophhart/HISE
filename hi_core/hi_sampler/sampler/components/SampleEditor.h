@@ -123,6 +123,7 @@ public:
         EnableSampleStartArea,
         EnableLoopArea,
         EnablePlayArea,
+		EnableReleaseArea,
         SelectWithMidi,
 		ApplyToMainOnly,
         NormalizeVolume,
@@ -133,6 +134,7 @@ public:
         ZeroCrossing,
 		ShowEnvelopePopup,
 		ImproveLoopPoints,
+		ShowReleaseStartOptions,
 		ShowScriptPopup,
 		ToggleFirstScriptButton,
         numCommands
@@ -337,6 +339,7 @@ private:
 	Component* analyseButton;
 	Component* externalButton;
 	Component* improveButton;
+	Component* showReleaseButton;
 	Component* scriptButton;
 
 	
@@ -352,6 +355,7 @@ private:
     ScopedPointer<ValueSettingComponent> loopStartSetter;
     ScopedPointer<ValueSettingComponent> loopEndSetter;
     ScopedPointer<ValueSettingComponent> loopCrossfadeSetter;
+	ScopedPointer<ValueSettingComponent> releaseStartSetter;
     ScopedPointer<ValueSettingComponent> startModulationSetter;
     ScopedPointer<ValueSettingComponent> panSetter;
 	ScopedPointer<ExternalFileChangeWatcher> externalWatcher;

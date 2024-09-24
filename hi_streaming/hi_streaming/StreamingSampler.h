@@ -73,6 +73,66 @@ public:
 
 struct StreamingHelpers
 {
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	struct ReleaseStartOptions: public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<ReleaseStartOptions>;
+
+		enum class GainMatchingMode
+		{
+			None,
+			Volume,
+			Offset,
+			numGainMatchingModes
+		};
+
+		bool operator==(const ReleaseStartOptions& other) const
+		{
+			return other.releaseFadeTime == releaseFadeTime;
+		}
+
+		bool operator!=(const ReleaseStartOptions& other) const
+		{
+			return !(*this == other);
+		}
+
+		var toJSON() const
+		{
+			static const StringArray modes({"None", "Volume", "Offset", "undefined"});
+
+			auto obj = new DynamicObject();
+
+			obj->setProperty("ReleaseFadeTime", releaseFadeTime);
+			obj->setProperty("FadeGamma", jlimit<float>(0.125f, 4.0f, fadeGamma));
+			obj->setProperty("UseAscendingZeroCrossing", useAscendingZeroCrossing);
+			obj->setProperty("GainMatchingMode", modes[(int)gainMatchingMode]);
+			obj->setProperty("PeakSmoothing", smoothing);
+
+			return var(obj);
+		}
+
+		void fromJSON(const var& data)
+		{
+			static const StringArray modes({"None", "Volume", "Offset", "undefined"});
+
+			releaseFadeTime = jlimit(0, 44100, (int)data.getProperty("ReleaseFadeTime", 4096));
+			fadeGamma = jlimit(0.0f, 2.0f, (float)data.getProperty("FadeGamma", 1.0f));
+			useAscendingZeroCrossing = (bool)data.getProperty("UseAscendingZeroCrossing", 1.0f);
+			smoothing = (float)data.getProperty("PeakSmoothing", 0.96f);
+			
+			auto idx = modes.indexOf(data.getProperty("GainMatchingMode", "None").toString());
+			if(idx != -1)
+				gainMatchingMode = (GainMatchingMode)idx;
+		}
+
+		int releaseFadeTime = 4096;
+		float fadeGamma = 1.0;
+		bool useAscendingZeroCrossing = false;
+		GainMatchingMode gainMatchingMode = GainMatchingMode::None;
+		float smoothing = 0.96f;
+	};
+#endif
+
 	/** This contains the minimal MIDI information that can be extracted from a SampleMap. */
 	struct BasicMappingData
 	{

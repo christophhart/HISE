@@ -137,6 +137,29 @@ struct AboutWindow: public multipage::EncodedDialogBase
 	JUCE_DECLARE_WEAK_REFERENCEABLE(AboutWindow);
 };
 
+
+
+struct ReleaseStartOptionDialog: public multipage::EncodedDialogBase
+					      
+{
+	ReleaseStartOptionDialog(hise::BackendRootWindow* bpe_, ModulatorSampler* sampler_);
+
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(ReleaseStartOptionDialog, initValues);
+		MULTIPAGE_BIND_CPP(ReleaseStartOptionDialog, onPropertyUpdate);
+		MULTIPAGE_BIND_CPP(ReleaseStartOptionDialog, onCreateScriptCode);
+		
+	}
+
+	var initValues(const var::NativeFunctionArgs& args);
+	var onPropertyUpdate(const var::NativeFunctionArgs& args);
+	var onCreateScriptCode(const var::NativeFunctionArgs& args);
+
+	WeakReference<ModulatorSampler> sampler;
+	Component* root;
+};
+
 struct NewProjectCreator: public ImporterBase,
 						  public multipage::EncodedDialogBase
 					      

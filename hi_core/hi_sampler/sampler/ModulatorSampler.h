@@ -766,7 +766,9 @@ public:
 	double getCurrentTimestretchRatio() const;
 
 	PolyHandler& getSyncVoiceHandler() { return syncVoiceHandler; }
-	
+
+	void refreshReleaseStartFlag();
+
 private:
 
 	scriptnode::PolyHandler syncVoiceHandler;
@@ -839,6 +841,7 @@ private:
 	bool crossfadeGroups;
 	bool purged;
 	bool deactivateUIUpdate;
+	bool soundsHaveReleaseStart = false;
 	int rrGroupAmount;
 	//int currentRRGroupIndex;
 

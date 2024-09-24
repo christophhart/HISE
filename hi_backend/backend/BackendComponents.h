@@ -736,7 +736,7 @@ struct EncodedDialogBase: public Component,
 			{
 				auto id = simple_css::FlexboxComponent::Helpers::getIdSelectorFromComponentClass(c).name;
 
-				if(id == "header")
+				if(id == "header" && c->isVisible())
 				{
 					c->setInterceptsMouseClicks(true, true);
 					this->dragger = new WindowDragger(rootWindow, this, c);

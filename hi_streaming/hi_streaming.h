@@ -93,6 +93,15 @@ Set this to true in order to use cubic interpolation for the sample playback.
 #define HISE_SAMPLER_CUBIC_INTERPOLATION 0
 #endif
 
+/** Config: HISE_SAMPLER_ALLOW_RELEASE_START
+
+Set this to false to disable the release start feature.
+
+*/
+#ifndef HISE_SAMPLER_ALLOW_RELEASE_START
+#define HISE_SAMPLER_ALLOW_RELEASE_START 1
+#endif
+
 
 #include "hi_streaming/lockfree_fifo/readerwriterqueue.h"
 #include "hi_streaming/lockfree_fifo/concurrentqueue.h"

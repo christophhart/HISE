@@ -338,6 +338,8 @@ public:
 		/** Returns the hardcoded colour depending on the AreaType. */
 		static Colour getAreaColour(AreaTypes a);
 
+		static Colour getReleaseStartColour() { return Colour(0xFF944891); }
+
 		bool leftEdgeClicked;
 
 		class AreaEdge : public ResizableEdgeComponent,

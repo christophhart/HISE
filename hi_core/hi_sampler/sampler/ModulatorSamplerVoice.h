@@ -158,6 +158,8 @@ protected:
 
 private:
 
+	friend class ModulatorSampler;
+
 	bool nonRealtime = false;
 	
 

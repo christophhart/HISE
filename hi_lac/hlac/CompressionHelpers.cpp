@@ -738,6 +738,16 @@ void CompressionHelpers::IntVectorOperations::add(int16* dst, const int16* src, 
 	}
 }
 
+void CompressionHelpers::IntVectorOperations::addWithGain(int16* dst, const int16* src, int numSamples, float gainFactor)
+{
+	for (int i = 0; i < numSamples; i++)
+	{
+		auto v = static_cast<float>(src[i]);
+		v *= gainFactor;
+		dst[i] += static_cast<int16>(v);
+	}
+}
+
 
 void CompressionHelpers::IntVectorOperations::mul(int16*dst, const int16 value, int numSamples)
 {

@@ -277,7 +277,7 @@ void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound *
     
 	double normPos = 0.0;
 
-	if (sound->isLoopEnabled() && sound->getLoopLength() != 0)
+	if (sound->isLoopEnabled() && sound->getLoopLength() != 0 && wrappedVoice.loader.getReleasePlayState() == StreamingSamplerSound::ReleasePlayState::Inactive)
 	{
 		int samplePosition = (int)voiceUptime;
 

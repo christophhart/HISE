@@ -393,6 +393,66 @@ var AboutWindow::showCommit(const var::NativeFunctionArgs& args)
     return var();
 }
 
+ReleaseStartOptionDialog::ReleaseStartOptionDialog(hise::BackendRootWindow* bpe_, ModulatorSampler* sampler_):
+	EncodedDialogBase(bpe_, false),
+	sampler(sampler_),
+	root(bpe_)
+{
+	setName("Release Start Options");
+	loadFrom("1934.sNB..D...............35H...oi...hc.........J09R+f09DEqC.ZeEBOrBzPiZCHtoMRIzRYB5R15NI4lNYHWubBXHMsE5DvqD9C3pS2rGYPtZV.x5q6Cf4.PM.Up7PlY0Q+AAhR4789sqdn6P6QB116LyjxbPd8dzdvg1CHbeP9yIgou+ObfHtny4foK+2MZyG8IMiHJmqALkiydPjb5oMWAkITlDQ6L7scL0pq4Zlznoa7pMCPZCiHrmeNwMv142Eg7e5uYg5xVI.W9eqyebDoCKjoOLkUqayBoPDUlnBFIlXalszMZaNCJUtf4Bk2tz8hkwQuLAFKSf.LTbASEKX9P1eBIvLgELfzL6BEWrHAEUrKWgfJWtX4RDTTwxK5LWCDGJSnHhcC7lE7vuciDXqaTvh4UbfHOkEgVIj9qYDIyD4a2AQxLy.vgLSD8UKV1zuIRlAfCQqY9VNsXmPdepjlaE4Bl77OW6RexkSxXrTtPMxoOLB+70nOgKy0TX1btM9yMxwnPgDXnXYec4nvT6aimvtTG7QWiwGxNgH8tV7ESOyXNLj6nCblLVrAFUvgc4Zfajoc7bigEXn5nCdG+TPsiBAHutoIbgdeKFGogBkOBh2KnP4REfblxVv.WB4nOUo+42pTF8ozs.BWMZO9o2Xj+4Nok6X.KzYZFPl4CYa1pZU8t+D8vZsdNyUVhHyrafgqRcPu8Fia5iju8mDDhixkJYlnewRRZtwVNJ668oNXquu8+ibjrLHH+mTIvd9YakWK04Ho1U+aNcLHv+oc7WeX6pIlyoYuZMyle9ys2Xr1ZVgfK+97iORINT1ajT5ZqJtZr9jvzkZOWFGsWnjyXZjegOOQnEYdGsGv19a6aDodUil0GrJ1izjsm+rcTolYH2IcHq.QMr4xhtTkbBzRfbBT98xqTSnlgwdy2J4r744actHb8TI+kVPfYqpOx4oayrTSHm4D+a96AB8mZZgwb67hpr41a+cosl9fIevQZf7ib2.G8u84IxIWpy1mKedq4959dNeOdFyom21V64qTWiy.nCA.CXfsbzL7MzrQo468gL7strABDp4egM+rqL+uk7EHOUC2e0sONe1+FhY5Cmr3i+Jz1DHUo+1MjaG9Yn6x0p5I3Se3mOXTIyz7+cNRZF5oMM9asvpWErAUz5dQ1ggQlJjk.TlLgh9vXSc4xbmjscI8kS7GBHf.hGp4ZWNo+t8UVTwTE66kU7yy5Sn7t21.htbLYR7ys4mT.Yj5oK74sDt1s+cJW62aieeibxjp2nF12S9t+d6C0IU81HHNJhG85Z5JhGoBga+5ckdkwfPntu3qhuGlpmFw1NaANIpQk4PJkglY..BB.A.w.Q.fwxIYbqARCMLIOMDyo.jAB.nB..Afv.RHyxCCz4kQhnpoZU0acRdhqEM0kJ8v8IiI2QGYWJUtOi1XfNGO1QaLuyflQ4ya9eL4OJzyAbXRu8zIyB9Bue14vwyIXFDEjynULa.oZfRJejxOD1yuqtQ1vZl8cDPXQ0feNxllnOU.p+lQlaTgxzRHHXFaB94f17iFhV5knvYRMy8hDTLrOWqFzbI7o+gv6juA1XRpXqxwnNlbmGsH29SG.k5SF+v5ara+53kMrwA7XA6IsCokfdYlpu45E0KGyTnbBg3CADFa6zYaEfqjx1V6FWfREUQUbGfonMfhyTHqVgwFOXRXQmAVnGerW1cnQoaBI4NDCbe80Kk+.iHbMXLkoweqUlaZtZqao8n.aqF.ZRxPHHFfeO2cj+Ye9pMwOWpS+dkHSSCv5kV+08LE1+8OAXT.oQBlmjDLkfQcOP+hQWmkTbiG2Pr.Fa5lN+zIEu..csy+FgsIjcEGKeoE5x7vR1029tSl6AiDJaNwWJYO6dnk1nGkbkP1gl4WVYUlzBmnPtvrS7ZvWg2Jl6nxRXUiEJHz.aQP3VyeBFISMss1juvrYTE.i7PIYWwhWHLrA1NPvIXjE6qCfXzN.zFI.v.C.7rim8O5vvvRjX3CEyGuaDCOEYGNqtQjNzasyV.ya3NnCFf2i2sl5.3rwzx3Px8xrQc0ChNJrsM6owL+Yb.CYc14tH0.etv+jWplWjEA0VdWThRv8OD56+TqxxxL1x8F.nQQciIf1OoRlBzafXaAQj5LrH3g5O+oCCCMOeoDhbth3xUPGvSAb3hmttMXTC0NRhhYoEzEv6sKHLPMWPFOFeGHsMewyOLuLBnvaIgXBp803PxmyqKYBPjXWi41goTKtoCbiwwOYc1XIkS7TcEEREkwMsPJw+J+YCrbT1Q8phY+pv3zjPVefK3Cx+n.DVvyA+kksec9CKNhFG7fIQTkJ6V2POupG+UZeLt50UAG2qwDH5bFN.iqSlExfN5JnA6P5B4nSXbTi1x47bC7eXLO0a8jZ5n1NHrQ++jf2RUV1YACt3VPYRtc0BTqS7eCROoEmZEO.Wv.b227vsNsqvEmPQ2wSrDHhrVTUQ86UAjYOJNdXu+riF4z.hQw2sxsrT7ff7Qy1tC2jN7zhHvQI61X.MAHEtJLenFcz9JDLwEXrUIV8Qlh9cJXGPoi...lNB..v5H...");
+}
+
+var ReleaseStartOptionDialog::initValues(const var::NativeFunctionArgs& args)
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	auto options = sampler->getSampleMap()->getReleaseStartOptions();
+
+	auto d = options->toJSON();
+
+	const auto& obj = d.getDynamicObject()->getProperties();
+
+	for(int i = 0; i < obj.size(); i++)
+	{
+		auto id = obj.getName(i);
+		auto value = obj.getValueAt(i);
+
+		state->globalState.getDynamicObject()->setProperty(id, value);
+	}
+#endif
+
+	return var();
+}
+
+var ReleaseStartOptionDialog::onPropertyUpdate(const var::NativeFunctionArgs& args)
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	StreamingHelpers::ReleaseStartOptions::Ptr newData = new StreamingHelpers::ReleaseStartOptions();
+	newData->fromJSON(state->globalState);
+	sampler->getSampleMap()->setReleaseStartOptions(newData);
+	
+	Component::callRecursive<SamplerSoundWaveform>(root, [](SamplerSoundWaveform* w)
+	{
+		w->repaint();
+		return false;
+	});
+#endif
+
+	return var();
+}
+
+var ReleaseStartOptionDialog::onCreateScriptCode(const var::NativeFunctionArgs& args)
+{
+	String code;
+
+	state->globalState.getDynamicObject()->removeProperty("CreateScriptCode");
+
+	code << "Synth.getSampler(" << sampler->getId().quoted() << ").setReleaseStartOptions(";
+	code << JSON::toString(state->globalState) << ");";
+	SystemClipboard::copyTextToClipboard(code);
+
+	return var();
+}
+
 WelcomeScreen::WelcomeScreen(BackendRootWindow* bpe_):
 	EncodedDialogBase(bpe_),
 	bpe(bpe_)
