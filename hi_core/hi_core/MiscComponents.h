@@ -619,7 +619,7 @@ public:
 
 	// ================================================================================================================
 
-	MultilineLabel(const String &name);;
+	MultilineLabel(const String &name={});;
 	~MultilineLabel() {};
 
 	void setMultiline(bool shouldBeMultiline);;

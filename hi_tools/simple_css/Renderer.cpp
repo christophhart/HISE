@@ -296,8 +296,12 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	{
 		auto hc = CSSRootComponent::find(*currentComponent);
 		ScopedPointer<StyleSheet::Collection::DataProvider> dp = hc->createDataProvider();
-		auto img = dp->loadImage(imageURL);
-		drawImage(g, img, area, ss, false);
+
+		if(dp != nullptr)
+		{
+			auto img = dp->loadImage(imageURL);
+			drawImage(g, img, area, ss, false);
+		}
 	}
 	else
 	{

@@ -202,6 +202,23 @@ struct ValueToTextConverter
 		return v.getDoubleValue();
 	}
 
+	static ValueToTextConverter createForMode(const String& modeString)
+	{
+		ValueToTextConverter vtc;
+		
+#define FUNC(x) if(modeString == #x) { vtc.active = true; vtc.valueToTextFunction = ConverterFunctions::x; vtc.textToValueFunction = InverterFunctions::x; }
+
+		FUNC(Frequency);
+		FUNC(Time);
+		FUNC(TempoSync);
+		FUNC(Pan);
+		FUNC(NormalizedPercentage);
+
+#undef FUNC
+
+		return vtc;
+	}
+
 	static ValueToTextConverter fromString(const String& converterString)
 	{
 		ValueToTextConverter vtc;

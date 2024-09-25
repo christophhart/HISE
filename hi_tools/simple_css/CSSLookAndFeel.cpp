@@ -203,6 +203,15 @@ void StyleSheetLookAndFeel::drawRotarySlider(Graphics& graphics, int x, int y, i
 	
 }
 
+void StyleSheetLookAndFeel::drawGenericComponentText(Graphics& g, const String& text, Component* c, Selector s)
+{
+	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
+	{
+		Renderer r(c, root.stateWatcher);
+		r.renderText(g, c->getLocalBounds().toFloat(), text, ss);
+	}
+}
+
 bool StyleSheetLookAndFeel::drawComponentBackground(Graphics& g, Component* c, Selector s)
 {
 	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
@@ -214,6 +223,8 @@ bool StyleSheetLookAndFeel::drawComponentBackground(Graphics& g, Component* c, S
 		r.drawBackground(g, c->getLocalBounds().toFloat(), ss);
 		return true;
 	}
+
+	return false;
 }
 
 bool StyleSheetLookAndFeel::drawListBoxRow(int rowNumber, Graphics& g, const String& text, Component* lb, int width,
