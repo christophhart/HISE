@@ -42,7 +42,7 @@
 
 
 #ifndef HISE_NUM_PLUGIN_CHANNELS
-#define HISE_NUM_PLUGIN_CHANNELS 2
+#define HISE_NUM_PLUGIN_CHANNELS 4
 #endif
 
 /** This is the amount of channels that your FX plugin will process.
@@ -68,6 +68,13 @@
 #define HISE_NUM_FX_PLUGIN_CHANNELS 2
 #endif
 
+/** Config: HISE_NUM_STANDALONE_OUTPUTS
+ 
+ This lets you define the number of outputs for the standalone HISE app (or exported standalone app).
+*/
+#ifndef HISE_NUM_STANDALONE_OUTPUTS
+#define HISE_NUM_STANDALONE_OUTPUTS HISE_NUM_PLUGIN_CHANNELS
+#endif
 
 #define NUM_GLOBAL_VARIABLES 128
 

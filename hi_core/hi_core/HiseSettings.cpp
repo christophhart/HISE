@@ -1410,8 +1410,11 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 				auto& original = config.outputChannels;
 
 				original.clear();
-				original.setBit(outputIndex * 2, 1);
-				original.setBit(outputIndex * 2 + 1, 1);
+                
+                for(int i = 0; i < HISE_NUM_STANDALONE_OUTPUTS; i++)
+                {
+                    original.setBit(outputIndex * 2 + i, 1);
+                }
 
 				config.useDefaultOutputChannels = false;
 

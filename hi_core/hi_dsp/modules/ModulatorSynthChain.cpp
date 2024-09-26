@@ -312,7 +312,9 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 #if FORCE_INPUT_CHANNELS
     if(isRoot)
     {
-        for(int i = 0; i < buffer.getNumChannels(); i++)
+        int numChannels = jmin(buffer.getNumChannels(), internalBuffer.getNumChannels());
+        
+        for(int i = 0; i < numChannels; i++)
         {
             FloatVectorOperations::copy(internalBuffer.getWritePointer(i),
                                         buffer.getReadPointer(i), numSamples);

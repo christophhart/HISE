@@ -1579,7 +1579,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	
 
 #if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
-	getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
+	getMainSynthChain()->getMatrix().setNumDestinationChannels(HISE_NUM_STANDALONE_OUTPUTS);
 #else
     
 #if HISE_IOS
@@ -2155,6 +2155,10 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
 {
     if(processingBufferSize.get() == -1)
         return;
+    
+#if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
+    numNewChannels = jmax(HISE_NUM_STANDALONE_OUTPUTS, numNewChannels);
+#endif
     
 	ScopedLock sl(processLock);
 
