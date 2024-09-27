@@ -42,7 +42,7 @@
 
 
 #ifndef HISE_NUM_PLUGIN_CHANNELS
-#define HISE_NUM_PLUGIN_CHANNELS 4
+#define HISE_NUM_PLUGIN_CHANNELS 2
 #endif
 
 /** This is the amount of channels that your FX plugin will process.
