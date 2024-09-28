@@ -103,7 +103,7 @@ private:
 	{
 		return noiseGenerator.nextFloat();
 	}
-	
+
 	static float getPulse(double voiceUptime, double uptimeDelta)
 	{
 		const double pulseWidth = 0.5;
@@ -116,7 +116,7 @@ private:
 		const double phase = fmod(voiceUptime, 1.0) * 1024.0;
 
 		int index = (int)phase;
-            
+
 		float v1 = sinTable[index & 2047];
 		float v2 = sinTable[(index +1) & 2047];
 
@@ -128,7 +128,7 @@ private:
 		return currentSample;
 	}
 
-	static float getBoxFilteredSaw(double phase, double kernelSize) 
+	static float getBoxFilteredSaw(double phase, double kernelSize)
 	{
 		double a, b;
 
@@ -220,10 +220,12 @@ public:
 	enum SpecialParameters
 	{
 		OctaveTranspose1 = ModulatorSynth::numModulatorSynthParameters, ///< -5 ... **0** ... 5 | The octave transpose factor for the first Oscillator.
+		SemiTones1, ///< -12 ... **0** ... 12 | The semitone transpose amount for the first Oscillator.
 		WaveForm1, ///< Sine, Triangle, **Saw**, Square, Noise | the waveform type
 		Detune1, ///< -100ct ... **0.0ct** ... 100ct | The pitch detune of the first oscillator in cent (100 cent = 1 semitone).
 		Pan1, ///< -100 ... **0** ... 100 | the stereo panning of the first oscillator
 		OctaveTranspose2, ///< -5 ... **0** ... 5 | the octave transpose factor for the first oscillator
+		SemiTones2, ///< -12 ... **0** ... 12 | The semitone transpose amount for the second Oscillator.
 		WaveForm2, ///< Sine, Triangle, **Saw**, Square, Noise | the waveform type
 		Detune2, ///< -100ct ... **0ct** ... 100ct | the pitch detune of the first oscillator in cent (100 cent = 1 semitone)
 		Pan2, ///< -100 ... **0** ... 100 | the stereo panning of the first oscillator
@@ -256,7 +258,7 @@ public:
 
 	const Processor *getChildProcessor(int processorIndex) const override;
 
-	
+
 	float getDefaultValue(int parameterIndex) const override;;
 
 	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
@@ -327,6 +329,7 @@ private:
 	AudioSampleBuffer tempBuffer;
 
 	int octaveTranspose1, octaveTranspose2;
+	int semiTones1, semiTones2;
 
 	float mix;
 

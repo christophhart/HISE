@@ -182,6 +182,17 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     pulseSlider2->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     pulseSlider2->addListener (this);
 
+    addAndMakeVisible (semiToneSlider1 = new HiSlider ("SemiTones 1"));
+    semiToneSlider1->setRange (-12, 12, 1);
+    semiToneSlider1->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    semiToneSlider1->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
+    semiToneSlider1->addListener (this);
+
+    addAndMakeVisible (semiToneSlider2 = new HiSlider ("SemiTones 2"));
+    semiToneSlider2->setRange (-12, 12, 1);
+    semiToneSlider2->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    semiToneSlider2->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
+    semiToneSlider2->addListener (this);
 
     //[UserPreSize]
 
@@ -218,6 +229,14 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 
 	pulseSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::PulseWidth2, "Pulse Width 2");
 	pulseSlider2->setMode(HiSlider::Mode::NormalizedPercentage);
+
+    semiToneSlider1->setup(getProcessor(), WaveSynth::SpecialParameters::SemiTones1, "SemiTones 1");
+    semiToneSlider1->setMode(HiSlider::Discrete, -12.0, 12.0);
+    semiToneSlider1->setRange(-12.0, 12.0, 1.0);
+
+    semiToneSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::SemiTones2, "SemiTones 2");
+    semiToneSlider2->setMode(HiSlider::Discrete, -12.0, 12.0);
+    semiToneSlider2->setRange(-12.0, 12.0, 1.0);
 
     voiceAmountEditor->setFont(GLOBAL_FONT());
     voiceAmountLabel->setFont(GLOBAL_FONT());
@@ -258,6 +277,8 @@ WaveSynthBody::~WaveSynthBody()
     enableSecondButton = nullptr;
     pulseSlider1 = nullptr;
     pulseSlider2 = nullptr;
+    semiToneSlider1 = nullptr;
+    semiToneSlider2 = nullptr;
 
 
     //[Destructor]. You can add your own custom destruction code here..
@@ -317,6 +338,8 @@ void WaveSynthBody::resized()
 	enableSyncButton->setBounds((getWidth() / 2) + -64, 166, 128, 28);
     pulseSlider1->setBounds (160, 132, 128, 48);
     pulseSlider2->setBounds (getWidth() - 161 - 128, 132, 128, 48);
+    semiToneSlider1->setBounds (158, 73, 128, 48);
+    semiToneSlider2->setBounds (getWidth() - 161 - 128, 73, 128, 48);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
@@ -371,6 +394,16 @@ void WaveSynthBody::sliderValueChanged (Slider* sliderThatWasMoved)
         //[UserSliderCode_pulseSlider2] -- add your slider handling code here..
         //[/UserSliderCode_pulseSlider2]
     }
+    else if (sliderThatWasMoved == semiToneSlider1)
+    {
+        //[UserSliderCode_semiToneSlider1] -- add your slider handling code here..
+        //[/UserSliderCode_semiToneSlider1]
+    }
+    else if (sliderThatWasMoved == semiToneSlider2)
+    {
+        //[UserSliderCode_semiToneSlider2] -- add your slider handling code here..
+        //[/UserSliderCode_semiToneSlider2]
+    }
 
     //[UsersliderValueChanged_Post]
     //[/UsersliderValueChanged_Post]
@@ -384,13 +417,13 @@ void WaveSynthBody::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
     if (comboBoxThatHasChanged == waveFormSelector)
     {
         //[UserComboBoxCode_waveFormSelector] -- add your combo box handling code here..
-		
+
         //[/UserComboBoxCode_waveFormSelector]
     }
     else if (comboBoxThatHasChanged == waveFormSelector2)
     {
         //[UserComboBoxCode_waveFormSelector2] -- add your combo box handling code here..
-		
+
         //[/UserComboBoxCode_waveFormSelector2]
     }
 
@@ -566,6 +599,16 @@ BEGIN_JUCER_METADATA
           int="0.010000000000000000208" style="RotaryHorizontalVerticalDrag"
           textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
           textBoxHeight="20" skewFactor="1" needsCallback="1"/>
+  <SLIDER name="SemiTones 1" id="c990fe6c1167b9cb" memberName="semiToneSlider1"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="158 73 128 48"
+          tooltip="The semitone detune for oscillator 1" min="-12" max="12" int="1" style="RotaryHorizontalVerticalDrag"
+          textBoxPos="TextBoxRight" textBoxEditable="1" textBoxWidth="40"
+          textBoxHeight="20" skewFactor="1"/>
+  <SLIDER name="SemiTones 2" id="321ac674521d8e28" memberName="semiToneSlider2"
+          virtualName="HiSlider" explicitFocusOrder="0" pos="161Rr 73 128 48"
+          tooltip="The semitone detune for oscillator 2" min="-12" max="12" int="1"
+          style="RotaryHorizontalVerticalDrag" textBoxPos="TextBoxRight"
+          textBoxEditable="1" textBoxWidth="40" textBoxHeight="20" skewFactor="1"/>
 </JUCER_COMPONENT>
 
 END_JUCER_METADATA
