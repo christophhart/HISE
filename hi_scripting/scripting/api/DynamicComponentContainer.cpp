@@ -83,11 +83,7 @@ template <typename ComponentType> struct WrapperBase: public Base
 		}
 	};
 
-
-
 	virtual ~WrapperBase() {};
-
-	SN_NODE_ID();
 
 	void resized() override
 	{
@@ -218,6 +214,11 @@ struct Slider: public WrapperBase<DynSlider>
 		simple_css::FlexboxComponent::Helpers::writeClassSelectors(this->component, { simple_css::Selector(".scriptslider") }, true);
 		this->component.setDoubleClickReturnValue(true, (double)this->dataTree[dcid::defaultValue]);
 		this->component.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+
+		this->component.onValueChange = [this]()
+		{
+			this->data->onValueChange (getId(), this->component.getValue(), this->useUndoManager());
+		};
 
 		initSpecialProperties({
 		 dcid::min, 
@@ -384,6 +385,10 @@ struct DragContainer: public Base
 	{
 		auto idSelector = String("#") + getId().toString();
 		getProperties().set(dcid::id, idSelector);
+
+		isVertical = v.getProperty(dcid::isVertical, true);
+		dragMargin = v.getProperty(dcid::dragMargin, 3);
+		animationSpeed = v.getProperty(dcid::animationSpeed, 150);
 	}
 
 	static Base* createComponent(Data::Ptr d, const ValueTree& v) { return new DragContainer(d, v); }
@@ -404,7 +409,7 @@ struct DragContainer: public Base
 
 	void rebuildPositions(bool writePositionsInValueTree)
 	{
-		auto b = getLocalBounds().reduced(2);
+		auto b = getLocalBounds().reduced(dragMargin);
 
 		for(auto& idx: currentIndexes)
 		{
@@ -421,14 +426,12 @@ struct DragContainer: public Base
 					continue;
 
 				if(writePositionsInValueTree)
-				{
 					dynamic_cast<Base*>(c)->writePositionInValueTree(tb, false);
-					c->setBounds(tb);
-				}
+
+				if(animationSpeed == 0)
+					c->setBounds (tb);
 				else
-				{
-					Desktop::getInstance().getAnimator().animateComponent(c, tb, 1.0, 200, false, 1.0, 0.3);
-				}
+                    Desktop::getInstance().getAnimator().animateComponent(c, tb, 1.0, 200, false, 1.0, 0.3);
 			}
 		}
 	}
@@ -501,7 +504,10 @@ struct DragContainer: public Base
 		void checkBounds (Rectangle<int>& bounds, const Rectangle<int>& previousBounds, const Rectangle<int>& limits, bool ,
                                bool, bool, bool) override
 		{
-			auto parentArea = parent.getLocalBounds().reduced(2,0);
+			auto x = parent.isVertical ? parent.dragMargin : 0;
+			auto y = parent.isVertical ? 0 : parent.dragMargin;
+
+			auto parentArea = parent.getLocalBounds().reduced(x, y);
 			bounds = bounds.constrainedWithin(parentArea);
 		}
 
@@ -548,37 +554,79 @@ struct DragContainer: public Base
 
 		struct Sorter
 		{
-			Sorter(bool isVertical_):
-			  isVertical(isVertical_)
+			Sorter(bool isVertical_, int maxValue_):
+			  isVertical(isVertical_),
+			  maxValue(maxValue_) 
 			{};
 
 			int compareElements(Component* c1, Component* c2) const
 			{
-				int pos1, pos2;
+				int pos1, pos2, b1, b2, l1, l2;
 
 				if(isVertical)
 				{
 					pos1 = c1->getY();
 					pos2 = c2->getY();
+					b1 = c1->getBottom();
+					b2 = c2->getBottom();
+					l1 = c1->getHeight();
+					l2 = c2->getHeight();
 				}
 				else
 				{
 					pos1 = c1->getX();
 					pos2 = c2->getX();
+					b1 = c1->getRight();
+					b2 = c2->getRight();
+					l1 = c1->getWidth();
+					l2 = c2->getWidth();
 				}
 
-				if(pos1 < pos2)
-					return -1;
-				if(pos1 > pos2)
-					return 1;
+				auto h1 = pos1 + l1/2;
+				auto h2 = pos2 + l2/2;
+
+				if(l1 == l2)
+				{
+				    if(pos1 < pos2)
+				        return -1;
+			        if(pos1 > pos2)
+				        return 1;
+				}
+				if(l1 < l2)
+				{
+				    if(h1 < h2)
+						return -1;
+                    if(h1 > h2)
+						return 1;
+				}
+				if(l1 > l2)
+				{
+					if(pos1 == 0 && pos2 != 0)
+						return -1;
+					if(pos2 == 0 && pos1 != 0)
+						return 1;
+
+					if(b1 == maxValue && b2 != maxValue)
+						return 1;
+					if(b1 == maxValue && b2 != maxValue)
+						return -1;
+
+				    if(h1 < h2)
+				        return -1;
+			        if(h1 > h2)
+				        return 1;
+				}
+
+				
 
 				return 0;
 			}
 
 			const bool isVertical;
+			const int maxValue;
 		};
 
-		Sorter s(isVertical);
+		Sorter s(isVertical, isVertical ? getHeight() : getWidth());
 
 		Array<Component*> sorted;
 		sorted.addArray(list);
@@ -595,6 +643,8 @@ struct DragContainer: public Base
 	}
 
 	bool isVertical = true;
+	double animationSpeed = 150.0;
+	int dragMargin = 3;
 	Array<var> currentIndexes;
 
 	OwnedArray<Dragger> draggers;
@@ -725,7 +775,7 @@ Base::Base(Data::Ptr d, const ValueTree& v):
 	dataTree(v),
 	valueReference(data->getValueTree(Data::TreeType::Values))
 {
-	basicPropertyListener.setCallback(dataTree, { dcid::enabled, dcid::visible}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateBasicProperties));
+	basicPropertyListener.setCallback(dataTree, { dcid::enabled, dcid::visible, dcid::class_, dcid::elementStyle}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateBasicProperties));
 	positionListener.setCallback(dataTree, { dcid::x, dcid::y, dcid::width, dcid::height}, valuetree::AsyncMode::Coallescated, BIND_MEMBER_FUNCTION_2(Base::updatePosition));
 
 	childListener.setCallback(dataTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateChild));
@@ -771,6 +821,26 @@ void Base::updateChild(const ValueTree& v, bool wasAdded)
 
 void Base::updateBasicProperties(const Identifier& id, const var& newValue)
 {
+    if(id == dcid::class_)
+    {
+		auto classes = StringArray::fromTokens(newValue.toString(), " ", "");
+
+		auto c = getCSSTarget();
+
+		auto existingClasses = simple_css::FlexboxComponent::Helpers::getClassSelectorFromComponentClass(c);
+
+		for(auto cl: existingClasses)
+			classes.add(cl.toString());
+
+		classes.removeDuplicates(false);
+		classes.removeEmptyStrings();
+		
+		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(*c, classes);
+    }
+	if(id == dcid::elementStyle)
+	{
+	    simple_css::FlexboxComponent::Helpers::writeInlineStyle (*getCSSTarget(), newValue.toString());
+	}
 	if(id == dcid::enabled)
 		setEnabled((bool)newValue);
 	if(id == dcid::visible)

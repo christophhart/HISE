@@ -31,22 +31,8 @@
 */
 
 #pragma once
-#include "hi_tools/simple_css/StyleSheet.h"
 
 
-/** TODO:
- *
- 
- * - implement all important properties:
- * - All: tooltip, useUndoManager, defaultValue OK
- * - Button: isMomentary, radioGroupId, setValueOnClick OK
- * - ComboBox: useCustomPopup OK
- * - Slider: min, max, middlePosition, stepSize, mode, suffix, style, showValuePopup
- * - add filmstrip logic
- * - Label: editable, multiline, updateEachKey
- * - move to scripting object
- *
- * */
 namespace hise {
 namespace dyncomp
 {
@@ -69,6 +55,9 @@ namespace dcid
 	DECLARE_ID(tooltip);
 	DECLARE_ID(defaultValue);
 	DECLARE_ID(useUndoManager);
+
+    static const Identifier class_("class");
+    DECLARE_ID(elementStyle);
 
 	DECLARE_ID(parentComponent);
 	DECLARE_ID(x);
@@ -94,13 +83,16 @@ namespace dcid
 	DECLARE_ID(stepSize);
 	DECLARE_ID(mode);
 	DECLARE_ID(suffix);
-	DECLARE_ID(style);
+    DECLARE_ID(style);
 	DECLARE_ID(showValuePopup);
 
 	DECLARE_ID(filmstripImage);
     DECLARE_ID(numStrips);
 	DECLARE_ID(isVertical);
 	DECLARE_ID(scaleFactor);
+
+    DECLARE_ID(animationSpeed);
+    DECLARE_ID(dragMargin);
 
 }
 
@@ -254,6 +246,8 @@ struct Base: public Component,
 
 protected:
 
+    virtual Component* getCSSTarget() { return this; }
+    
 	Data::Ptr data;
 	ValueTree dataTree;
 	ValueTree valueReference;
@@ -315,7 +309,7 @@ struct TestComponent: public Component
 		
 		cssEditor.tokenCollection = new mcl::TokenCollection("CSS");
 		cssEditor.setLanguageManager(new simple_css::LanguageManager(cssDoc));
-
+        
 		addAndMakeVisible(cssEditor);
 		addAndMakeVisible(jsonEditor);
 
@@ -380,14 +374,27 @@ struct TestComponent: public Component
 		{
 			auto refPath = ref.fromLastOccurrenceOf("}", false, false);
 
+#if JUCE_MAC
+            auto imgFile = File("/Users/christophhart/Development/HiseSnippets/Assets/Images").getChildFile(refPath);
+
+#else
 			auto imgFile = File("D:/Development/HISE Snippets/Assets/Images").getChildFile(refPath);
+#endif
 
 			PNGImageFormat iff;
 			return iff.loadFrom(imgFile);
 		}, [this](const String& fontName, const String& url)
 		{
 			auto refPath = url.fromLastOccurrenceOf("}", false, false);
-			auto fontFile = File("D:/Development/HISE Snippets/Assets/Images").getChildFile(refPath);
+            
+
+			
+#if JUCE_MAC
+            auto fontFile = File("/Users/christophhart/Development/HiseSnippets/Assets/Images").getChildFile(refPath);
+
+#else
+            auto fontFile = File("D:/Development/HISE Snippets/Assets/Images").getChildFile(refPath);
+#endif
 
 			MemoryBlock mb;
 
