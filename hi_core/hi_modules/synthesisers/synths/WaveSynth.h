@@ -103,7 +103,7 @@ private:
 	{
 		return noiseGenerator.nextFloat();
 	}
-       
+
 	static float getPulse(double voiceUptime, double uptimeDelta)
 	{
 		const double pulseWidth = 0.5;
@@ -116,7 +116,7 @@ private:
 		const double phase = fmod(voiceUptime, 1.0) * 1024.0;
 
 		int index = (int)phase;
-            
+
 		float v1 = sinTable[index & 2047];
 		float v2 = sinTable[(index +1) & 2047];
 
@@ -128,7 +128,7 @@ private:
 		return currentSample;
 	}
 
-	static float getBoxFilteredSaw(double phase, double kernelSize) 
+	static float getBoxFilteredSaw(double phase, double kernelSize)
 	{
 		double a, b;
 
@@ -258,7 +258,7 @@ public:
 
 	const Processor *getChildProcessor(int processorIndex) const override;
 
-       
+
 	float getDefaultValue(int parameterIndex) const override;;
 
 	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
