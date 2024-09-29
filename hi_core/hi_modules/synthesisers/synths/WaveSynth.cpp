@@ -95,7 +95,7 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 
 	for (int i = 0; i < numVoices; i++)
 		addVoice(new WaveSynthVoice(this));
-
+        
 	addSound(new WaveSound());
 }
 
@@ -376,7 +376,7 @@ WaveSynthVoice::WaveSynthVoice(ModulatorSynth *ownerSynth) :
 #else
 	octaveTransposeFactor2(1.0)
 #endif
-
+        
 {
 	setWaveForm(WaveformComponent::Saw, true);
 	setWaveForm(WaveformComponent::Saw, false);
@@ -406,7 +406,7 @@ void WaveSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthesis
 		rightGenerator.setFrequency(cyclesPerSecond * octaveTransposeFactor2);
 
 	leftGenerator.setStartOffset((double)getCurrentHiseEvent().getStartOffset());
-
+        
 	if(enableSecondOsc)
 		rightGenerator.setStartOffset((double)getCurrentHiseEvent().getStartOffset());
 
@@ -482,18 +482,18 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 			while (--numSamples >= 0)
 			{
 				auto leftDelta = (float)uptimeDelta;
-
+                                
 				if (voicePitchValues != nullptr)
 					leftDelta *= *voicePitchValues;
 
 				leftGenerator.setFreqModulationValue(leftDelta);
-
+                                
 
 				auto rightDelta = (float)uptimeDelta;
-
+                                
 				if (voicePitchValues != nullptr)
 					rightDelta *= *voicePitchValues;
-
+                                
 				if (secondPitchValues != nullptr)
 					rightDelta *= *secondPitchValues;
 
@@ -529,7 +529,7 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 				leftGenerator.setFreqModulationValue(leftDelta);
 
-
+                                
 				voicePitchValues++;
 
 				*outL = leftGenerator.getAndInc();
@@ -538,9 +538,9 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
+        
 
-
-
+        
 
 #else
 
@@ -577,7 +577,7 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 #endif
 
-
+        
 
 #if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
@@ -590,7 +590,7 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		auto leftSamples = voiceBuffer.getWritePointer(0, startIndex);
 		auto rightSamples = voiceBuffer.getWritePointer(1, startIndex);
 
-
+                
 
 		auto& tBuffer = wavesynth->getTempBufferForMixCalculation();
 
@@ -681,7 +681,7 @@ void WaveSynthVoice::setWaveForm(WaveformComponent::WaveformType type, bool left
 		break;
 	}
 
-
+        
 
 }
 

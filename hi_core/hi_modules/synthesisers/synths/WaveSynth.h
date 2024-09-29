@@ -103,7 +103,7 @@ private:
 	{
 		return noiseGenerator.nextFloat();
 	}
-
+        
 	static float getPulse(double voiceUptime, double uptimeDelta)
 	{
 		const double pulseWidth = 0.5;
