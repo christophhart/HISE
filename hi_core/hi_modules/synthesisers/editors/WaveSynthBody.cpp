@@ -318,28 +318,28 @@ void WaveSynthBody::resized()
     //[UserPreResize] Add your own custom resize code here..
     //[/UserPreResize]
 
-    octaveSlider->setBounds (158, 15, 128, 48);
-    waveFormSelector->setBounds (26, 65, 128, 24);
-    waveformDisplay->setBounds (26, 15, 128, 48);
+    octaveSlider->setBounds (160, 17, 128, 48);
+    waveFormSelector->setBounds (25, 42, 128, 24);
+    waveformDisplay->setBounds (25, 15, 128, 24);
     fadeTimeLabel->setBounds ((getWidth() / 2) + 7, 61, 79, 24);
     voiceAmountLabel->setBounds ((getWidth() / 2) + -69, 62, 79, 24);
     voiceAmountEditor->setBounds ((getWidth() / 2) + -30 - (68 / 2), 80, 68, 16);
     fadeTimeEditor->setBounds ((getWidth() / 2) + 12, 80, 51, 16);
     octaveSlider2->setBounds (getWidth() - 161 - 128, 15, 128, 48);
-    waveFormSelector2->setBounds (getWidth() - 26 - 128, 65, 128, 24);
-    waveformDisplay2->setBounds (getWidth() - 26 - 128, 15, 128, 48);
+    waveFormSelector2->setBounds (getWidth() - 26 - 128, 42, 128, 24);
+    waveformDisplay2->setBounds (getWidth() - 26 - 128, 15, 128, 24);
     mixSlider->setBounds ((getWidth() / 2) - (128 / 2), 13, 128, 48);
 
-    panSlider->setBounds (160, 73, 128, 48);
-    panSlider2->setBounds (getWidth() - 161 - 128, 73, 128, 48);
-    detuneSlider2->setBounds (getWidth() - 26 - 128, 94, 128, 48);
-    detuneSlider->setBounds (25, 96, 128, 48);
+    panSlider->setBounds (25, 133, 128, 48);
+    panSlider2->setBounds (getWidth() - 26 - 128, 134, 128, 48);
+    detuneSlider2->setBounds (getWidth() - 161 - 128, 134, 128, 48);
+    detuneSlider->setBounds (160, 134, 128, 48);
     enableSecondButton->setBounds ((getWidth() / 2) + -64, 136, 128, 28);
 	enableSyncButton->setBounds((getWidth() / 2) + -64, 166, 128, 28);
-    pulseSlider1->setBounds (160, 132, 128, 48);
-    pulseSlider2->setBounds (getWidth() - 161 - 128, 132, 128, 48);
-    semiToneSlider1->setBounds (158, 73, 128, 48);
-    semiToneSlider2->setBounds (getWidth() - 161 - 128, 73, 128, 48);
+    pulseSlider1->setBounds (25, 74, 128, 48);
+    pulseSlider2->setBounds (getWidth() - 26 - 128, 77, 128, 48);
+    semiToneSlider1->setBounds (160, 77, 128, 48);
+    semiToneSlider2->setBounds (getWidth() - 161 - 128, 77, 128, 48);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
 }
