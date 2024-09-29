@@ -220,12 +220,10 @@ public:
 	enum SpecialParameters
 	{
 		OctaveTranspose1 = ModulatorSynth::numModulatorSynthParameters, ///< -5 ... **0** ... 5 | The octave transpose factor for the first Oscillator.
-		SemiTones1, ///< -12 ... **0** ... 12 | The semitone transpose amount for the first Oscillator.
 		WaveForm1, ///< Sine, Triangle, **Saw**, Square, Noise | the waveform type
 		Detune1, ///< -100ct ... **0.0ct** ... 100ct | The pitch detune of the first oscillator in cent (100 cent = 1 semitone).
 		Pan1, ///< -100 ... **0** ... 100 | the stereo panning of the first oscillator
 		OctaveTranspose2, ///< -5 ... **0** ... 5 | the octave transpose factor for the first oscillator
-		SemiTones2, ///< -12 ... **0** ... 12 | The semitone transpose amount for the second Oscillator.
 		WaveForm2, ///< Sine, Triangle, **Saw**, Square, Noise | the waveform type
 		Detune2, ///< -100ct ... **0ct** ... 100ct | the pitch detune of the first oscillator in cent (100 cent = 1 semitone)
 		Pan2, ///< -100 ... **0** ... 100 | the stereo panning of the first oscillator
@@ -234,6 +232,8 @@ public:
 		PulseWidth1, ///< 0 ... **1** | Determines the first pulse width for waveforms that support this (eg. square)
 		PulseWidth2, ///< 0 ... **1** | Determines the second pulse width for waveforms that support this (eg. square)
 		HardSync, ///< **Off** ... On | Syncs the second oscillator to the first
+		SemiTones1, ///< -12 ... **0** ... 12 | The semitone transpose amount for the first Oscillator.
+		SemiTones2, ///< -12 ... **0** ... 12 | The semitone transpose amount for the second Oscillator.
 		numWaveSynthParameters
 	};
 
