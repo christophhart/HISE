@@ -90,7 +90,7 @@ public:
 			octaveSlider2->setEnabled(false);
 			detuneSlider2->setEnabled(false);
 			panSlider2->setEnabled(false);
-
+                       
 		}
 	};
 
@@ -108,8 +108,8 @@ public:
 	{
 		return h;
 	}
-
-
+       
+       
 
     //[/UserMethods]
 

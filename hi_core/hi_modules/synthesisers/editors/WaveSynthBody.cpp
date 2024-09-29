@@ -417,13 +417,13 @@ void WaveSynthBody::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
     if (comboBoxThatHasChanged == waveFormSelector)
     {
         //[UserComboBoxCode_waveFormSelector] -- add your combo box handling code here..
-
+               
         //[/UserComboBoxCode_waveFormSelector]
     }
     else if (comboBoxThatHasChanged == waveFormSelector2)
     {
         //[UserComboBoxCode_waveFormSelector2] -- add your combo box handling code here..
-
+               
         //[/UserComboBoxCode_waveFormSelector2]
     }
 
