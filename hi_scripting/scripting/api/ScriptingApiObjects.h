@@ -1811,6 +1811,12 @@ namespace ScriptingObjects
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
 		void setAttribute(int index, float value);
 
+		/** Sets the modulator to a bipolar range (if applicable). */
+		void setIsBipolar(bool shouldBeBipolar);
+
+		/** Returns true if the modulator works in bipolar mode. */
+		bool isBipolar() const;
+
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         

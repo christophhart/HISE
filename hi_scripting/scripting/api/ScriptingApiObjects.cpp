@@ -2612,6 +2612,8 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingModulator, isBypassed);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setIntensity);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getIntensity);
+	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setIsBipolar);
+	API_METHOD_WRAPPER_0(ScriptingModulator, isBipolar);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getCurrentLevel);
 	API_METHOD_WRAPPER_0(ScriptingModulator, exportState);
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, restoreState);
@@ -2659,6 +2661,8 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_0(isBypassed);
 	ADD_TYPED_API_METHOD_1(setIntensity, VarTypeChecker::Number);
 	ADD_API_METHOD_0(getIntensity);
+	ADD_TYPED_API_METHOD_1(setIsBipolar, VarTypeChecker::Number);
+	ADD_API_METHOD_0(isBipolar, VarTypeChecker::Number);
     ADD_TYPED_API_METHOD_1(getAttribute, VarTypeChecker::Number);
     ADD_TYPED_API_METHOD_1(getAttributeId, VarTypeChecker::Number);
     ADD_TYPED_API_METHOD_1(getAttributeIndex, VarTypeChecker::String);
@@ -2769,6 +2773,20 @@ void ScriptingObjects::ScriptingModulator::setAttribute(int index, float value)
 {
 	if (checkValidObject())
 		mod->setAttribute(index, value, ProcessorHelpers::getAttributeNotificationType());
+}
+
+void ScriptingObjects::ScriptingModulator::setIsBipolar(bool shouldBeBipolar)
+{
+	if (checkValidObject())
+		dynamic_cast<Modulation*>(mod.get())->setIsBipolar(shouldBeBipolar);
+}
+
+bool ScriptingObjects::ScriptingModulator::isBipolar() const
+{
+	if (checkValidObject())
+		return dynamic_cast<Modulation*>(mod.get())->isBipolar();
+
+	return false;
 }
 
 float ScriptingObjects::ScriptingModulator::getAttribute(int parameterIndex)
