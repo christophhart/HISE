@@ -843,8 +843,6 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 	if (sampleBuffer.getNumSamples() == samplesToCopy)
 		sampleBuffer.clearNormalisation({});
 
-	auto isEntireSampleWithLoopReleasePlay = entireSampleLoaded && isLoopEnabled() && isReleaseStartEnabled();
-
 	if (!fileReader.isUsed() && !isEntireSampleLoaded()) return;
 
 	int thisLoopStart = getLoopStart(isReversed());
@@ -865,7 +863,7 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 
 		if (smallLoopBuffer != nullptr)
 		{
-			int numSamplesBeforeFirstWrap = 0;
+			int numSamplesBeforeFirstWrap;
 
 			if (indexInLoop < 0)
 			{

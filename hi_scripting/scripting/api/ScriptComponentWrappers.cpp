@@ -3332,10 +3332,6 @@ void ScriptCreatedComponentWrapper::ValuePopup::updateText()
 {
 	auto thisText = parent.getTextForValuePopup();
 
-	auto sf = UnblurryGraphics::getScaleFactorForComponent(parent.getComponent(), false);
-
-	//setTransform(AffineTransform::scale(sf));
-
 	if(auto laf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::CSSLaf*>(&parent.getComponent()->getLookAndFeel()))
 	{
 		auto area = laf->getValueLabelSize(*this, *parent.getComponent(), thisText);

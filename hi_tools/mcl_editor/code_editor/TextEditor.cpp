@@ -153,8 +153,6 @@ void TextEditor::timerCallback()
 
 void TextEditor::setNewTokenCollectionForAllChildren(Component* any, const Identifier& languageId, TokenCollection::Ptr newCollection)
 {
-	return;
-
 	if(newCollection == nullptr)
 		newCollection = new TokenCollection(languageId);
 	

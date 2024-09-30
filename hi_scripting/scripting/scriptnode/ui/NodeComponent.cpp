@@ -38,34 +38,6 @@ using namespace hise;
 juce::String NodeComponent::Header::getPowerButtonId(bool getOff) const
 {
     return "on";
-    
-	auto path = parent.node->getValueTree()[PropertyIds::FactoryPath].toString();
-
-	if (path.startsWith("container."))
-	{
-		path = path.fromFirstOccurrenceOf("container.", false, false);
-
-		if (getOff)
-		{
-			if (path.contains("frame") ||
-				path.contains("oversample") ||
-				path.contains("midi") ||
-				path.startsWith("fix")) 
-				return "chain";
-			else
-				return "on";
-		}
-		else
-		{
-			if (path == "soft_bypass" ||
-				path == "offline")
-				return "on";
-
-			return path;
-		}
-	}
-		
-	return "on";
 }
 
 

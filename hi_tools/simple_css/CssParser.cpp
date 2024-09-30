@@ -1148,6 +1148,7 @@ float ExpressionParser::evaluate(const String& expression, const Context<>& cont
 	}
 	catch(Result& r)
 	{
+		ignoreUnused(r);
 		DBG(r.getErrorMessage());
 		return context.defaultFontSize;
 	}

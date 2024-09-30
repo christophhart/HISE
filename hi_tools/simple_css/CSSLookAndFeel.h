@@ -47,8 +47,7 @@ using namespace juce;
  *	- popup menus
  *
  */
-struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel,
-							  public ScrollBar::LookAndFeelMethods
+struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 {
 	ScrollbarFader::Laf fallback;
 

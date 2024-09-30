@@ -645,8 +645,6 @@ private:
 
 				lastValue = value;
 			}
-
-			int x = 5;
 		}
 
 		std::vector<std::pair<int, float>> zeroCrossingIndexes;

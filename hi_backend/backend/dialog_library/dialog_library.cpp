@@ -698,7 +698,6 @@ var NewProjectCreator::onTemplateSelector(const var::NativeFunctionArgs& args)
 
 var NewProjectCreator::initFolder(const var::NativeFunctionArgs& args)
 {
-	auto chain = bpe->getBackendProcessor()->getMainSynthChain();
 	auto& sd = dynamic_cast<GlobalSettingManager*>(bpe->getBackendProcessor())->getSettingsObject();
 	auto s = sd.getSetting(HiseSettings::Compiler::DefaultProjectFolder).toString();
 	jassert(s.isNotEmpty());

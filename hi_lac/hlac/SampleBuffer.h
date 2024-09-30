@@ -344,8 +344,6 @@ public:
 			applyGainRamp(channelIndex, startOffset, rampLength, startGain, endGain);
 		else
 		{
-			bool fadeIn = endGain > startGain;
-
 			jassert(getNumSamples() >= rampLength);
 			jassert(getNumChannels() == 2);
 			

@@ -347,6 +347,8 @@ bool PluginParameterAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
 	auto inputs = layouts.getMainInputChannels();
 	auto outputs = layouts.getMainOutputChannels();
 
+	ignoreUnused(inputs, outputs);
+
 #if HISE_MIDIFX_PLUGIN
 		return inputs == 0 && outputs == 0;
 #endif

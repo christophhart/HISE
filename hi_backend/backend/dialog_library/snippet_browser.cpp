@@ -55,8 +55,6 @@ var SnippetBrowser::rebuildTable(const var::NativeFunctionArgs& args)
 				auto kv = StringArray::fromTokens(ml[j], ":", "");
 				auto key = kv[0];
 
-				auto isDate = key == "date";
-
 				if(key.isEmpty())
 					continue;
 					
@@ -396,11 +394,7 @@ var SnippetBrowser::initAddPage(const var::NativeFunctionArgs& args)
 {
 	auto isEdit = (bool)readState("editButton");
 
-	
-
 	writeState("saveFileButton", 0);
-
-	auto originalIndex = (int)readState("snippetList");
 
 	if(!isEdit)
 	{

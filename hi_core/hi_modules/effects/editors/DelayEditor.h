@@ -49,7 +49,6 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
 	void updateGui()
 	{
-		const bool isSynced = leftTimeSlider->getRange().getRange() == HiSlider::getRangeForMode(HiSlider::Mode::TempoSync).getRange();
 		const bool shouldBeSynced = tempoSyncButton->getToggleState();
 
         

@@ -160,10 +160,12 @@ struct ReleaseStartOptionDialog: public multipage::EncodedDialogBase
 	Component* root;
 };
 
-struct NewProjectCreator: public ImporterBase,
+class NewProjectCreator: public ImporterBase,
 						  public multipage::EncodedDialogBase
 					      
 {
+public:
+
 	NewProjectCreator(hise::BackendRootWindow* bpe_);
 
 	void bindCallbacks() override

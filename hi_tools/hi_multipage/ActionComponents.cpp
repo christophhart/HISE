@@ -2035,8 +2035,6 @@ void UnzipTask::createEditor(Dialog::PageInfo& rootList)
 
 Result CopyAsset::performTaskStatic(WaitJob& t)
 {
-	bool overwrite = true;
-
 	if(auto a = t.getState().getAsset(t.getInfoObject(), mpid::Source))
 	{
 		String fn;
@@ -2867,8 +2865,7 @@ Result HiseActivator::performTaskStatic(WaitJob& t)
 			{
 				URL u(*url);
 
-				auto ms = Time::getMillisecondCounter();
-				std::unique_ptr<InputStream> in(u.createInputStream(false, nullptr, nullptr, String(), 3000, nullptr));
+				auto in = u.createInputStream(false, nullptr, nullptr, String(), 3000, nullptr);
 				
 				if (in != nullptr)
 					return true;

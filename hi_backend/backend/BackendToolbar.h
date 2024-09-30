@@ -53,8 +53,10 @@ private:
 
 };
 
-struct ImporterBase: public hlac::HlacArchiver::Listener
+class ImporterBase: public hlac::HlacArchiver::Listener
 {
+public:
+
 	ImporterBase(BackendRootWindow* bpe_):
 	  bpe(bpe_),
 	  ok(Result::ok())

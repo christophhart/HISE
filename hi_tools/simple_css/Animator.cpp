@@ -248,33 +248,19 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 							i->resetWaitCounter();
 
 							// just a switch between the start and end state
-							auto stateToggle = currentState == i->startValue.state.stateFlag ||
-							   (i->reverse && currentState == i->endValue.state.stateFlag);
+							auto tv = ss->getTransitionValue(i->endValue);
 
-							if(false)
-							{
-								i->reverse = !i->reverse;
-								i->updateCurrentRange();
+							i->currentProgress = 0.0;
+							i->reverse = false;
+							 
+							String m;
+							m << tv.startValue << "~" << tv.endValue << "~" << String(tv.progress, 3);
 
-								found = true;
-								break;
-							}
-							else
-							{
-								auto tv = ss->getTransitionValue(i->endValue);
-
-								i->currentProgress = 0.0;
-								i->reverse = false;
-								 
-								String m;
-								m << tv.startValue << "~" << tv.endValue << "~" << String(tv.progress, 3);
-
-								i->intermediateStartValue = m;
-								i->endValue.state.stateFlag = currentState;
-								i->transitionData = thisTransition;
-								found = true;
-								break;
-							}
+							i->intermediateStartValue = m;
+							i->endValue.state.stateFlag = currentState;
+							i->transitionData = thisTransition;
+							found = true;
+							break;
 						}
 					}
 

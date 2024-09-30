@@ -273,7 +273,7 @@ public:
 
 		void mouseDown(const MouseEvent& e)
 		{
-			editor.setText("", sendNotificationAsync);
+			editor.setText("", true);
 			
 		}
 
