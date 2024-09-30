@@ -529,6 +529,9 @@ void LanguageManager::CssTokens::addTokens(mcl::TokenCollection::List& tokens)
 
 void LanguageManager::setupEditor(mcl::TextEditor* editor)
 {
+	if(editor->tokenCollection == nullptr)
+		editor->tokenCollection = new mcl::TokenCollection("CSS");
+
 	addTokenProviders(editor->tokenCollection.get());
 }
 

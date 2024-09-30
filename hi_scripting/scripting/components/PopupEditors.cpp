@@ -116,7 +116,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	
 
 	Processor *p = dynamic_cast<Processor*>(jp.get());
-	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, t == FileTypes::Javascript);
+	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, t == FileTypes::Javascript || t == FileTypes::CSS);
 
     p->getMainController()->addScriptListener(this);
     
