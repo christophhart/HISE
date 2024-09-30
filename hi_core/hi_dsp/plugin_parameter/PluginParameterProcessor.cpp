@@ -315,8 +315,14 @@ AudioProcessor::BusesProperties PluginParameterAudioProcessor::getHiseBusPropert
 
 		auto busProp = BusesProperties();
 
+#ifdef HISE_SIDECHAIN_CHANNEL_LAYOUT
+        busProp = busProp.withInput("Input", AudioChannelSet::stereo())
+            .withInput("Sidechain", AudioChannelSet::stereo())
+            .withOutput("Output", AudioChannelSet::stereo());
+#else
 		for (int i = 0; i < numChannels; i += 2)
 			busProp = busProp.withInput("Input " + String(i+1), AudioChannelSet::stereo()).withOutput("Output " + String(i+1), AudioChannelSet::stereo());
+#endif
 
 		return busProp;
 		
