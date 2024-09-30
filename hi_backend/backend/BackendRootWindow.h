@@ -107,6 +107,11 @@ public:
 			TooltipWindow(nullptr, 900)
 		{};
 
+		float getDesktopScaleFactor() const override
+		{
+			return Component::getDesktopScaleFactor();
+		}
+
 		String getTipFor(Component&component) override;
 	};
 

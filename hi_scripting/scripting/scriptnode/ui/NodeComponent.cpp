@@ -163,7 +163,7 @@ void NodeComponent::Header::mouseDoubleClick(const MouseEvent& e)
 		return;
 	}
 
-	parent.dataReference.setProperty(PropertyIds::Folded, !parent.isFolded(), nullptr);
+	parent.dataReference.setProperty(PropertyIds::Folded, !parent.isFolded(), parent.node->getUndoManager());
 	parent.getParentComponent()->repaint();
 }
 

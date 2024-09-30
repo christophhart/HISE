@@ -970,8 +970,33 @@ void ParameterSlider::checkEnabledState()
 	{
 		auto ct = getConnectionSourceTree();
 		auto nt = valuetree::Helpers::findParentWithType(ct, PropertyIds::Node);
-		
-		tt << " - modulated by " << nt[PropertyIds::Name].toString();
+
+		StringArray path;
+
+		valuetree::Helpers::forEachParent(ct, [&](const ValueTree& p)
+		{
+			if(pTree.isAChildOf(p))
+				return true;
+
+			if(p.getType() == PropertyIds::Parameter || p.getType() == PropertyIds::Node)
+			{
+				auto id = p[PropertyIds::ID].toString();
+				auto nid = p[PropertyIds::Name].toString();
+				path.add(nid.isNotEmpty() ? nid : id);
+			}
+
+			return false;
+		});
+
+		tt << " - connected to: ";
+
+		for(int i = path.size()-1; i >= 0; i--)
+		{
+			tt << path[i];
+
+			if(i != 0)
+				tt << ".";
+		}
 	}
 
 	setTooltip(tt);
@@ -1387,9 +1412,11 @@ void ParameterSlider::mouseDoubleClick(const MouseEvent&)
 			}
 			else
 			{
+				auto um = node->getRootNetwork()->getUndoManager();
+
 				if(isConnectedToParentChain)
 				{
-					sourceNodeTree.setProperty(PropertyIds::ShowParameters, true, nullptr);
+					sourceNodeTree.setProperty(PropertyIds::ShowParameters, true, um);
 				}
 				else
 				{
@@ -1397,7 +1424,7 @@ void ParameterSlider::mouseDoubleClick(const MouseEvent&)
 					{
 						if(p.getType() == PropertyIds::Node)
 						{
-							p.setProperty(PropertyIds::Folded, false, nullptr);
+							p.setProperty(PropertyIds::Folded, false, um);
 						}
 
 						return false;

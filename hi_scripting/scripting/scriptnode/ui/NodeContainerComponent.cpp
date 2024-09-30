@@ -515,32 +515,35 @@ void ContainerComponent::rebuildNodes()
 	duplicateDisplay = nullptr;
 	childNodeComponents.clear();
 
-	if (auto container = dynamic_cast<NodeContainer*>(node.get()))
+	if(!node->getValueTree()[PropertyIds::Folded])
 	{
-		int index = 0;
-		int numHidden = 0;
-
-		for (auto n : container->nodes)
+		if (auto container = dynamic_cast<NodeContainer*>(node.get()))
 		{
-			if (auto cn = dynamic_cast<CloneNode*>(container))
+			int index = 0;
+			int numHidden = 0;
+
+			for (auto n : container->nodes)
 			{
-				if (!cn->shouldCloneBeDisplayed(index++))
+				if (auto cn = dynamic_cast<CloneNode*>(container))
 				{
-					numHidden++;
-					continue;
+					if (!cn->shouldCloneBeDisplayed(index++))
+					{
+						numHidden++;
+						continue;
+					}
 				}
+				
+				auto newNode = n->createComponent();
+
+				n->getHelpManager().addHelpListener(this);
+				addAndMakeVisible(newNode);
+				childNodeComponents.add(newNode);
 			}
 
-			auto newNode = n->createComponent();
-
-			n->getHelpManager().addHelpListener(this);
-			addAndMakeVisible(newNode);
-			childNodeComponents.add(newNode);
-		}
-
-		if (numHidden > 0 || (!node->getValueTree()[PropertyIds::ShowClones] && node->getValueTree().hasProperty(PropertyIds::DisplayedClones)))
-		{
-			addAndMakeVisible(duplicateDisplay = new DuplicateComponent(node.get(), numHidden));
+			if (numHidden > 0 || (!node->getValueTree()[PropertyIds::ShowClones] && node->getValueTree().hasProperty(PropertyIds::DisplayedClones)))
+			{
+				addAndMakeVisible(duplicateDisplay = new DuplicateComponent(node.get(), numHidden));
+			}
 		}
 	}
 

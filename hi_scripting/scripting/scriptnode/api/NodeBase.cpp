@@ -1400,7 +1400,7 @@ void HelpManager::render(Graphics& g, Rectangle<float> area)
 void HelpManager::addHelpListener(Listener* l)
 {
 	listeners.addIfNotAlreadyThere(l);
-	l->helpChanged(lastWidth + 30.0f, lastHeight + 20.0f);
+	//l->helpChanged(lastWidth + 30.0f, lastHeight + 20.0f);
 }
 
 void HelpManager::removeHelpListener(Listener* l)
