@@ -371,7 +371,7 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 
 	minWidth = jmax(UIValues::NodeWidth, minWidth);
 
-	auto titleWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(asNode()->getId());
+	auto titleWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(asNode()->getName());
 
 	minWidth = jmax<int>(minWidth, titleWidth + UIValues::HeaderHeight * 4);
 

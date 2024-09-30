@@ -380,6 +380,17 @@ public:
 	NodeBase* getParentNode() const;
 	ValueTree getValueTree() const;
 	String getId() const;
+
+	String getName() const
+	{
+		auto nid = getValueTree()[PropertyIds::Name].toString();
+
+		if(nid.isEmpty())
+			return getId();
+
+		return nid;
+	}
+
 	UndoManager* getUndoManager(bool returnIfPending=false) const;
     
 	Rectangle<int> getBoundsToDisplay(Rectangle<int> originalHeight) const;
