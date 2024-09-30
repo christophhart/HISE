@@ -2662,7 +2662,7 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_TYPED_API_METHOD_1(setIntensity, VarTypeChecker::Number);
 	ADD_API_METHOD_0(getIntensity);
 	ADD_TYPED_API_METHOD_1(setIsBipolar, VarTypeChecker::Number);
-	ADD_API_METHOD_0(isBipolar, VarTypeChecker::Number);
+	ADD_API_METHOD_0(isBipolar);
     ADD_TYPED_API_METHOD_1(getAttribute, VarTypeChecker::Number);
     ADD_TYPED_API_METHOD_1(getAttributeId, VarTypeChecker::Number);
     ADD_TYPED_API_METHOD_1(getAttributeIndex, VarTypeChecker::String);
