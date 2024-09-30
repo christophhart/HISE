@@ -103,6 +103,11 @@ public:
 
 	NormalisableRange<double> getRange() const final override { return NormalisableRange<double>(0.0, 1.0); };
 
+	void referenceShared(ExternalData::DataType, int) override
+    {
+        // no need to do anything...
+    }
+
 private:
 
 	// Do nothing, since the data is updated anyway...
