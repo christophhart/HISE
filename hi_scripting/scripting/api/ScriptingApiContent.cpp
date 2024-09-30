@@ -7594,7 +7594,7 @@ struct TextInputData: public ScriptingApi::Content::TextInputDataBase,
         
         inputLabel->setText(prop["text"].toString(), dontSendNotification);
         inputLabel->selectAll();
-        inputLabel->grabKeyboardFocus();
+        inputLabel->grabKeyboardFocusAsync();
     }
     
     void dismissAndCall(bool ok)
@@ -7604,7 +7604,11 @@ struct TextInputData: public ScriptingApi::Content::TextInputDataBase,
 
         var args[2] = {var(ok), var(inputLabel->getText())};
         
-        inputLabel->getParentComponent()->removeChildComponent(inputLabel);
+        if(auto pc = inputLabel->getParentComponent())
+        {
+            pc->removeChildComponent(inputLabel);
+        }
+        
         inputLabel = nullptr;
         
         if(callback)
