@@ -2455,6 +2455,9 @@ struct AdditionalEventStorage
 
 	std::pair<bool, double> getValue(uint16 eventId, uint8 slotIndex) const
 	{
+		if(eventId == 0)
+			return { false, 0.0 };
+
 		auto i1 = eventId & (NumEventSlots -1);
 		auto i2 = slotIndex & (NumDataSlots - 1);
 
@@ -2472,7 +2475,7 @@ struct AdditionalEventStorage
 	{
 		auto nv = getValue(eventId, slotIndex);
 
-		if(nv.first && nv.second != value)
+		if(nv.first)
 		{
 			value = nv.second;
 			return true;
