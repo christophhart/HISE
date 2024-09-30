@@ -325,18 +325,18 @@ void WaveSynthBody::resized()
     voiceAmountLabel->setBounds ((getWidth() / 2) + -69, 62, 79, 24);
     voiceAmountEditor->setBounds ((getWidth() / 2) + -30 - (68 / 2), 80, 68, 16);
     fadeTimeEditor->setBounds ((getWidth() / 2) + 12, 80, 51, 16);
-    octaveSlider2->setBounds (getWidth() - 161 - 128, 15, 128, 48);
+    octaveSlider2->setBounds (getWidth() - 161 - 128, 17, 128, 48);
     waveFormSelector2->setBounds (getWidth() - 26 - 128, 42, 128, 24);
     waveformDisplay2->setBounds (getWidth() - 26 - 128, 15, 128, 24);
     mixSlider->setBounds ((getWidth() / 2) - (128 / 2), 13, 128, 48);
 
-    panSlider->setBounds (25, 133, 128, 48);
+    panSlider->setBounds (25, 134, 128, 48);
     panSlider2->setBounds (getWidth() - 26 - 128, 134, 128, 48);
     detuneSlider2->setBounds (getWidth() - 161 - 128, 134, 128, 48);
     detuneSlider->setBounds (160, 134, 128, 48);
     enableSecondButton->setBounds ((getWidth() / 2) + -64, 136, 128, 28);
 	enableSyncButton->setBounds((getWidth() / 2) + -64, 166, 128, 28);
-    pulseSlider1->setBounds (25, 74, 128, 48);
+    pulseSlider1->setBounds (25, 77, 128, 48);
     pulseSlider2->setBounds (getWidth() - 26 - 128, 77, 128, 48);
     semiToneSlider1->setBounds (160, 77, 128, 48);
     semiToneSlider2->setBounds (getWidth() - 161 - 128, 77, 128, 48);
