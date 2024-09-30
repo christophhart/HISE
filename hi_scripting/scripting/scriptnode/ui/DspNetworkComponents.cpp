@@ -2457,8 +2457,16 @@ void KeyboardPopup::addNodeAndClose(String path)
 				var newNode;
 				auto network = container->getRootNetwork();
 
-				newNode = network->createFromValueTree(network->isPolyphonic(), newTree, true);
+				Array<DspNetwork::IdChange> changes;
+				newTree = network->cloneValueTreeWithNewIds(newTree, changes, false);
 
+				for(auto& c: changes)
+		            network->changeNodeId(newTree, c.oldId, c.newId, nullptr);
+
+				newNode = network->createFromValueTree(true, newTree, true);
+				
+			    network->runPostInitFunctions();
+				
 				auto as = dynamic_cast<AssignableObject*>(container);
 				as->assign(ap, newNode);
 
