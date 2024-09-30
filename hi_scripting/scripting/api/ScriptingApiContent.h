@@ -758,6 +758,13 @@ public:
 
 	private:
 
+		enum class AllCatchBehaviour
+		{
+			Inactive,
+			Exclusive,
+			NonExlusive
+		};
+
 		int pseudoState = 0;
 
 		void sendValueListenerMessage();
@@ -767,7 +774,7 @@ public:
 		MacroControlledObject::ModulationPopupData::Ptr modulationData;
 
         bool consumedCalled = false;
-		bool catchAllKeys = true;
+		AllCatchBehaviour catchAllKeys = AllCatchBehaviour::Exclusive;
 		Array<juce::KeyPress> registeredKeys;
 
 		WeakCallbackHolder keyboardCallback;
