@@ -1246,7 +1246,7 @@ void HardcodedDialogWithState::resized()
 {
 	if(dialog == nullptr)
 	{
-		if(dialog = createDialog(state))
+        if((dialog = createDialog(state)))
 		{
 			addAndMakeVisible(dialog);
 

@@ -1753,7 +1753,6 @@ std::vector<melatonin::ShadowParameters> StyleSheet::getShadow(Rectangle<float> 
 		{
 			auto full = v.getRawValueString();
 			auto ptr = full.begin();
-			auto token = ptr;
 			auto end = full.end();
 
 			char buffer[128];

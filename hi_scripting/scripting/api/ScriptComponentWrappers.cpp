@@ -3297,11 +3297,7 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::ColumnListBoxModel::paintL
 		if(auto laf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&c->getLookAndFeel()))
 		{
 			auto lb = dynamic_cast<ListBox*>(c);
-
 			auto rc = lb->getComponentForRowNumber(rowNumber);
-
-			auto pos = lb->getMouseXYRelative();
-
 			auto rowIsHovered = currentHoverRow == rowNumber;
 			
 			if(laf->drawListBoxRow(rowNumber, g, text, rc, width, height, rowIsSelected, rowIsHovered))

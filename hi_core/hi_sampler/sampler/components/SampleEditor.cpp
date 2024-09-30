@@ -770,6 +770,8 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	auto xc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopCrossfadeArea);
 	auto sc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::SampleStartArea);
 
+    ignoreUnused(sc);
+    
 #if HISE_SAMPLER_ALLOW_RELEASE_START
 	auto rc = AudioDisplayComponent::SampleArea::getReleaseStartColour();
 #else
