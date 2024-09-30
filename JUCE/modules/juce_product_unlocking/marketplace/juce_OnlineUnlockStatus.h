@@ -149,15 +149,12 @@ public:
     {
 		auto s = getPublicKey().toString().fromFirstOccurrenceOf(",", false, false);
 
-        var rv(true);
-        var x = status[unlockedProp] && s.contains(otherString);
+        var x = s.contains(otherString);
 
-        if(status[unlockedProp] && !x)
-            std::swap(x, rv);
-
-        status.setProperty(unlockedProp, x, nullptr);
+        if(!x)
+            status.setProperty(unlockedProp, false, nullptr);
         
-        return rv;
+        return x;
     }
 
     /** Returns the Time when the keyfile expires.

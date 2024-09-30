@@ -2552,10 +2552,12 @@ void KeyboardPopup::addNodeAndClose(String path)
 
 	std::function<void(Component*)> cleanup = [pc](Component* c)
 	{
+#if USE_BACKEND
 		if(pc)
 			c->findParentComponentOfClass<ZoomableViewport>()->setCurrentModalWindow(nullptr, {});
 		else
 			c->findParentComponentOfClass<BackendRootWindow>()->clearModalComponent();
+#endif
 	};
 
 	auto container = node.get();
