@@ -1000,7 +1000,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 			{
 				for(auto b: bypassList)
 				{
-					if(b->parent.node == sn)
+					if(b->parent.node.get() == sn)
 					{
 						NodeComponent* nb = &b->parent;
 
@@ -2026,9 +2026,56 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 
 			auto r = sp->getLocalArea(nc, midPoint.toNearestInt());
 
+			auto popupBounds = newPopup->getLocalBounds();
 
+			if(sp->getLocalBounds().reduced(-3).contains(popupBounds))
+			{
+				sp->setCurrentModalWindow(newPopup, r);
+			}
+			else
+			{
+				auto bpe = g.findParentComponentOfClass<BackendRootWindow>();
 
-			sp->setCurrentModalWindow(newPopup, r);
+				struct PopupWrapper: public Component,
+									 public ModalBaseWindow
+				{
+					PopupWrapper(KeyboardPopup* p):
+					  content(p)
+					{
+						p->parentIsViewport = false;
+						addAndMakeVisible(p);
+						setSize(p->getWidth(), p->getHeight());
+						setName("Add node");
+					}
+
+					void paint(Graphics& g) override
+					{
+						g.fillAll(Colour(0xFF222222));
+
+						auto b = getLocalBounds().toFloat();
+						b = b.removeFromTop(24);
+						g.setColour(Colours::white.withAlpha(0.8f));
+
+						g.setFont(GLOBAL_BOLD_FONT());
+						g.drawText(getName(), b, Justification::centred);
+					}
+
+					void resized() override
+					{
+						auto b = getLocalBounds();
+						b.removeFromTop(24);
+						content->setBounds(b);
+					}
+
+					ScopedPointer<KeyboardPopup> content;
+				};
+
+				auto w = new PopupWrapper(newPopup);
+
+				bpe->setModalComponent(w);
+			}
+
+			
 		}
 	}
 
@@ -2519,17 +2566,25 @@ void NetworkPanel::fillIndexList(StringArray& sa)
 
 void KeyboardPopup::addNodeAndClose(String path)
 {
-	auto sp = findParentComponentOfClass<ZoomableViewport>();
+	bool pc = parentIsViewport;
+
+	std::function<void(Component*)> cleanup = [pc](Component* c)
+	{
+		if(pc)
+			c->findParentComponentOfClass<ZoomableViewport>()->setCurrentModalWindow(nullptr, {});
+		else
+			c->findParentComponentOfClass<BackendRootWindow>()->clearModalComponent();
+	};
 
 	auto container = node.get();
 	auto ap = addPosition;
 
+	Component::SafePointer<Component> safeThis(this);
+
 	if (path.startsWith("ScriptNode"))
 	{
-		auto f = [sp, container, ap]()
+		auto f = [container, ap, cleanup, safeThis]()
 		{
-			sp->setCurrentModalWindow(nullptr, {});
-
 			auto clipboard = SystemClipboard::getTextFromClipboard();
 			auto data = clipboard.fromFirstOccurrenceOf("ScriptNode", false, false);
 			auto newTree = ValueTreeConverters::convertBase64ToValueTree(data, true);
@@ -2555,14 +2610,16 @@ void KeyboardPopup::addNodeAndClose(String path)
 				network->runPostInitFunctions();
 			}
 
-			sp->setCurrentModalWindow(nullptr, {});
+			if(safeThis != nullptr)
+				cleanup(safeThis.getComponent());
 		};
 
 		MessageManager::callAsync(f);
 	}
 	else
 	{
-		auto f = [sp, path, container, ap]()
+		
+		auto f = [path, container, ap, cleanup, safeThis]()
 		{
 			if (path.isNotEmpty())
 			{
@@ -2583,7 +2640,8 @@ void KeyboardPopup::addNodeAndClose(String path)
 				network->addToSelection(dynamic_cast<NodeBase*>(newNode.getObject()), ModifierKeys());
 			}
 
-			sp->setCurrentModalWindow(nullptr, {});
+			if(safeThis != nullptr)
+				cleanup(safeThis.getComponent());;
 		};
 
 		MessageManager::callAsync(f);

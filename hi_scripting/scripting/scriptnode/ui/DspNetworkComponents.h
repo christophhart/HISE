@@ -232,6 +232,8 @@ public:
 	ScopedPointer<OneLiner> oneLiner;
 	ScopedPointer<ImagePreviewCreator> currentPreview;
 
+	bool parentIsViewport = true;
+
 	KeyboardPopup(NodeBase* container, int addPosition_):
 		node(container),
 		network(node->getRootNetwork()),
