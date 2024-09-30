@@ -571,6 +571,8 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 	float alpha = showCables ? 1.0f : 0.1f;
 
 	Array<ParameterSlider*> sliderList;
+	Array<ParameterSlider*> connectedSliders;
+	
 	fillChildComponentList(sliderList, this);
 
 	Array<MultiOutputDragSource*> multiOutputList;
@@ -699,6 +701,8 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 					auto start = getCircle(sourceSlider);
 					auto end = getCircle(targetSlider);
 
+					connectedSliders.add(targetSlider);
+
 					Colour hc = targetSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
 					float thisAlpha = alpha;
@@ -756,6 +760,8 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 					addDragSource(s);
 					thisAlpha = HoverAlpha;
 				}
+
+				connectedSliders.add(s);
 
 				auto start = getCircle(multiSource->asComponent(), false);
 				auto end = getCircle(s);
@@ -828,6 +834,8 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 						{
 							addModSource(s);
 						}
+
+						connectedSliders.add(s);
 
 						auto end = getCircle(s);
 
@@ -956,7 +964,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 					{
 						auto start = getCircle(sourceSlider);
 						auto end = getCircle(&b->powerButton).translated(0.0, -60.0f);
-
+						
 						Colour hc = sourceSlider->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
 
 						GlobalHiseLookAndFeel::paintCable(g, start, end, c, alpha, hc);
@@ -965,6 +973,80 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 				}
 			}
 		}
+	}
+
+	for(auto s: sliderList)
+	{
+		if(!s->pTree[PropertyIds::Automated])
+			continue;
+
+		if(connectedSliders.contains(s))
+			continue;
+
+		auto area = getCircle(s);
+
+		auto hover = s->isMouseOver(true);
+
+		g.setColour(hover ? Colours::red : Colours::white);
+		g.fillEllipse(area);
+
+		if(hover)
+		{
+			auto ct = s->getConnectionSourceTree();
+
+			auto nt = valuetree::Helpers::findParentWithType(ct, PropertyIds::Node);
+
+			if(auto sn = network->getNodeForValueTree(nt))
+			{
+				for(auto b: bypassList)
+				{
+					if(b->parent.node == sn)
+					{
+						NodeComponent* nb = &b->parent;
+
+						auto notFolded = true;
+
+						while(notFolded)
+						{
+							auto nt = nb->node->getValueTree().getParent();
+
+							valuetree::Helpers::forEachParent(nt, [&](const ValueTree& p)
+							{
+								if(p.getType() == PropertyIds::Node)
+								{
+									notFolded &= !(bool)p[PropertyIds::Folded];
+								}
+
+								return false;
+							});
+
+							if(notFolded)
+								break;
+
+							nb = nb->findParentComponentOfClass<NodeComponent>();
+
+							if(nb == nullptr)
+								break;
+						}
+
+						if(nb != nullptr)
+						{
+							auto h = &nb->header;
+
+							auto sourceRect = getLocalArea(h, h->getLocalBounds());
+
+							g.setColour(Colours::red.withAlpha(0.2f));
+							g.fillRect(sourceRect);
+							
+						}
+
+						break;
+					}
+				}
+			}
+		}
+
+		
 	}
 
 	Array<cable::dynamic::editor*> sendList;
@@ -2465,13 +2547,12 @@ void KeyboardPopup::addNodeAndClose(String path)
 
 				newNode = network->createFromValueTree(true, newTree, true);
 				
-			    network->runPostInitFunctions();
-				
 				auto as = dynamic_cast<AssignableObject*>(container);
 				as->assign(ap, newNode);
 
 				network->deselectAll();
 				network->addToSelection(dynamic_cast<NodeBase*>(newNode.getObject()), ModifierKeys());
+				network->runPostInitFunctions();
 			}
 
 			sp->setCurrentModalWindow(nullptr, {});

@@ -962,6 +962,20 @@ void ParameterSlider::checkEnabledState()
 	modulationActive = parameterToControl != nullptr && parameterToControl->isModulated();
 	setEnabled(!modulationActive);
 
+	String tt;
+
+	tt << node->getId() + "." + getName();
+
+	if(modulationActive)
+	{
+		auto ct = getConnectionSourceTree();
+		auto nt = valuetree::Helpers::findParentWithType(ct, PropertyIds::Node);
+		
+		tt << " - modulated by " << nt[PropertyIds::Name].toString();
+	}
+
+	setTooltip(tt);
+
 	if (modulationActive)
 		start();
 	else
@@ -1338,12 +1352,59 @@ void ParameterSlider::mouseDoubleClick(const MouseEvent&)
 			}
 		}
 
-		parameterToControl->addConnectionFrom({});
+		auto ct = getConnectionSourceTree();
 
-		
-		auto v = parameterToControl->getValue();
-		
-		setValue(v, dontSendNotification);
+		if(ct.isValid())
+		{
+			
+
+			bool sourceIsVisible = true;
+
+			valuetree::Helpers::forEachParent(ct, [&](const ValueTree& p)
+			{
+				if(p.getType() == PropertyIds::Node)
+				{
+					sourceIsVisible &= !(bool)p[PropertyIds::Folded];
+				}
+
+				return false;
+			});
+
+			auto sourceNodeTree = valuetree::Helpers::findParentWithType(ct, PropertyIds::Node);
+
+			auto isConnectedToParentChain = pTree.isAChildOf(sourceNodeTree);
+
+			if(isConnectedToParentChain)
+			{
+				sourceIsVisible = (bool)sourceNodeTree[PropertyIds::ShowParameters];
+			}
+
+			if(sourceIsVisible)
+			{
+				parameterToControl->addConnectionFrom({});
+				auto v = parameterToControl->getValue();
+				setValue(v, dontSendNotification);
+			}
+			else
+			{
+				if(isConnectedToParentChain)
+				{
+					sourceNodeTree.setProperty(PropertyIds::ShowParameters, true, nullptr);
+				}
+				else
+				{
+					valuetree::Helpers::forEachParent(ct, [&](ValueTree& p)
+					{
+						if(p.getType() == PropertyIds::Node)
+						{
+							p.setProperty(PropertyIds::Folded, false, nullptr);
+						}
+
+						return false;
+					});
+				}
+			}
+		}
 	}
 }
 

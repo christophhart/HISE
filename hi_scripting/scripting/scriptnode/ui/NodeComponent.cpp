@@ -96,9 +96,16 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 
 	freezeButton.setToggleModeWithColourChange(true);
 
+	auto isContainer = dynamic_cast<NodeContainer*>(parent.node.get()) != nullptr;
+
 	parameterButton.setToggleModeWithColourChange(true);
 	parameterButton.setToggleStateAndUpdateIcon(parent.dataReference[PropertyIds::ShowParameters]);
-	parameterButton.setVisible(dynamic_cast<NodeContainer*>(parent.node.get()) != nullptr);
+	parameterButton.setVisible(isContainer);
+
+	if(isContainer)
+	{
+		parameterUpdater.setCallback(parent.node->getValueTree(), {PropertyIds::ShowParameters}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Header::updateConnectionButton));
+	}
 
 	freezeButton.setEnabled(parent.node->getRootNetwork()->canBeFrozen());
 
@@ -140,6 +147,11 @@ void NodeComponent::Header::updatePowerButtonState(Identifier id, var newValue)
 {
 	powerButton.setToggleStateAndUpdateIcon(!(bool)newValue);
 	repaint();
+}
+
+void NodeComponent::Header::updateConnectionButton(Identifier id, var newValue)
+{
+	parameterButton.setToggleStateAndUpdateIcon((bool)newValue);
 }
 
 void NodeComponent::Header::mouseDoubleClick(const MouseEvent& e)
