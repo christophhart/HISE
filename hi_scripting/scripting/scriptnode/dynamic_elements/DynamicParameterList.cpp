@@ -791,6 +791,7 @@ namespace ui
 			details->setProperty(PropertyIds::SwitchTarget, true);
 
 			container->startDragging(var(details), this, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
+			ZoomableViewport::checkDragScroll(e, false);
 			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}
 	}
@@ -799,6 +800,7 @@ namespace ui
 	{
 		CHECK_MIDDLE_MOUSE_UP(event);
 
+		ZoomableViewport::checkDragScroll(event, true);
 		findParentComponentOfClass<DspNetworkGraph>()->repaint();
 	}
 

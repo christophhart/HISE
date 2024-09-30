@@ -62,6 +62,7 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 	hBar(false),
 	vBar(true),
 	content(n),
+	dragScrollTimer(*this),
 	mouseWatcher(new MouseWatcher(*this))
 {
     sf.addScrollBarToAnimate(hBar);
@@ -106,6 +107,16 @@ ZoomableViewport::~ZoomableViewport()
 {
 	mouseWatcher = nullptr;
 	content = nullptr;
+}
+
+bool ZoomableViewport::checkDragScroll(const MouseEvent& e, bool isMouseUp)
+{
+	if(auto vp = e.eventComponent->findParentComponentOfClass<ZoomableViewport>())
+	{
+		vp->dragScrollTimer.setPosition(e, isMouseUp);
+	}
+
+	return false;
 }
 
 bool ZoomableViewport::checkViewportScroll(const MouseEvent& e, const MouseWheelDetails& wheel)
@@ -620,6 +631,80 @@ void SubmenuComboBox::rebuildPopupMenu()
 	createPopupMenu(menu, sa, activeIndexes);
 
 	refreshTickState();
+}
+
+void ZoomableViewport::DragScrollTimer::timerCallback()
+{
+	auto factor = JUCE_LIVE_CONSTANT_OFF(0.03);
+	auto expo = JUCE_LIVE_CONSTANT_OFF(1.2);
+	
+	auto dx = jlimit(-1.0, 1.0, (double)xDelta / (double)(parent.getWidth() / 5));
+	auto dy = jlimit(-1.0, 1.0, (double)yDelta / (double)(parent.getHeight() / 5));
+
+	dx = hmath::sign(dx) * std::pow(hmath::abs(dx), expo);
+	dy = hmath::sign(dy) * std::pow(hmath::abs(dy), expo);
+
+	auto a = JUCE_LIVE_CONSTANT_OFF(0.74);
+
+	dx = lx * a + dx * (1.0 - a);
+	dy = ly * a + dy * (1.0 - a);
+
+	lx = dx;
+	ly = dy;
+
+	dx *= factor;
+	dy *= factor;
+
+	parent.hBar.setCurrentRangeStart(jlimit(0.0, 1.0, parent.hBar.getCurrentRangeStart() + dx));
+	parent.vBar.setCurrentRangeStart(jlimit(0.0, 1.0, parent.vBar.getCurrentRangeStart() + dy));
+}
+
+void ZoomableViewport::DragScrollTimer::setPosition(const MouseEvent& e, bool isMouseUp)
+{
+	if(isMouseUp)
+	{
+		wasInCentre = false;
+		lx = 0.0;
+		ly = 0.0;
+		stopTimer();
+		return;
+	}
+
+	auto vpos = parent.getLocalPoint(e.eventComponent, e.getPosition());
+	auto vb = parent.getLocalBounds();
+	auto padding = jmin(vb.getWidth(), vb.getHeight()) / 6;
+
+	vb = vb.reduced(padding);
+
+	if(vpos.getX() > vb.getRight())
+		xDelta = vpos.getX() - vb.getRight();
+	else if (vpos.getX() < vb.getX())
+		xDelta = vpos.getX() - vb.getX();
+	else
+		xDelta = 0;
+
+	if(vpos.getY() > vb.getBottom())
+		yDelta = vpos.getY() - vb.getBottom();
+	else if (vpos.getY() < vb.getY())
+		yDelta = vpos.getY() - vb.getY();
+	else 
+		yDelta = 0;
+
+	if(xDelta == 0 && yDelta == 0)
+		wasInCentre = true;
+
+	auto shouldScroll = wasInCentre && (xDelta != 0 || yDelta != 0);
+
+	if(shouldScroll != isTimerRunning())
+	{
+		if(shouldScroll)
+			startTimer(30);
+		else
+		{
+			if(hmath::abs(lx) < 0.005 && hmath::abs(ly) < 0.005)
+				stopTimer();
+		}
+	}
 }
 
 ZoomableViewport::MouseWatcher::MouseWatcher(ZoomableViewport& p):

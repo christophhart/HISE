@@ -561,6 +561,7 @@ void ScriptingContentOverlay::mouseUp(const MouseEvent &e)
 	{
 		lasso.setVisible(false);
 		lasso.endLasso();
+		ZoomableViewport::checkDragScroll(e, true);
 		lassoActive = false;
 		repaint();
 	}
@@ -818,6 +819,7 @@ void ScriptingContentOverlay::mouseDrag(const MouseEvent& e)
 
 	if (lasso.isVisible())
 	{
+		ZoomableViewport::checkDragScroll(e, false);
 		lasso.dragLasso(e);
 		repaint();
 	}
@@ -983,7 +985,11 @@ void ScriptingContentOverlay::Dragger::mouseDrag(const MouseEvent& e)
     dragDistance = constrainer.getPosition().getTopLeft() - startBounds.getTopLeft();
     
 	if (e.eventComponent == this)
+	{
+		ZoomableViewport::checkDragScroll(e, false);
 		dragger.dragComponent(this, e, &constrainer);
+	}
+		
 
 	
 
@@ -1027,6 +1033,7 @@ void ScriptingContentOverlay::Dragger::mouseUp(const MouseEvent& e)
 	if (!parent->enableMouseDragging)
 		return;
 
+	ZoomableViewport::checkDragScroll(e, true);
 	findParentComponentOfClass<ScriptingContentOverlay>()->smw.endDragging();
 
 	snapShot = Image();

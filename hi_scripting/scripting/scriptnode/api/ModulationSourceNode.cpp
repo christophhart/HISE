@@ -197,6 +197,8 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent& e)
 
 		container->startDragging(var(details), this, ScaledImage(createDragImage()));
 
+		ZoomableViewport::checkDragScroll(e, false);
+
 		findParentComponentOfClass<DspNetworkGraph>()->dragOverlay.setEnabled(true);
 	}
 }
@@ -205,6 +207,8 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent& e)
 void ModulationSourceBaseComponent::mouseUp(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_UP(e);
+
+	ZoomableViewport::checkDragScroll(e, true);
 
 	findParentComponentOfClass<DspNetworkGraph>()->dragOverlay.setEnabled(false);
 }

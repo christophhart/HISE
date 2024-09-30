@@ -1770,6 +1770,11 @@ void MacroParameterSlider::mouseDrag(const MouseEvent& e)
 
 			container->startDragging(details, &slider, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
 
+			ZoomableViewport::checkDragScroll(e, false);
+
+			
+			
+
 			slider.repaintParentGraph();
 		}
 	}
@@ -1778,6 +1783,8 @@ void MacroParameterSlider::mouseDrag(const MouseEvent& e)
 void MacroParameterSlider::mouseUp(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_UP(e);
+
+	ZoomableViewport::checkDragScroll(e, true);
 
 	slider.repaintParentGraph();
 }

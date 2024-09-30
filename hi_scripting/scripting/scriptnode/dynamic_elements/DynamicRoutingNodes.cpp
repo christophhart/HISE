@@ -749,12 +749,16 @@ void dynamic::editor::mouseUp(const MouseEvent& e)
 			fc->repaint();
 		});
 
+	ZoomableViewport::checkDragScroll(e, true);
 	findParentComponentOfClass<DspNetworkGraph>()->repaint();
 }
 
 void dynamic::editor::mouseDrag(const MouseEvent& event)
 {
 	CHECK_MIDDLE_MOUSE_DRAG(event);
+
+	ZoomableViewport::checkDragScroll(event, false);
+
 	findParentComponentOfClass<DspNetworkGraph>()->repaint();
 }
 

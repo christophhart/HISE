@@ -635,6 +635,15 @@ public:
 			g.setColour(Colours::black.withAlpha(0.1f));
 
 			g.fillRoundedRectangle(b, 10.0f);
+
+			if(sliders.isEmpty())
+			{
+				auto f = GLOBAL_BOLD_FONT();
+				String t = "No parameters";
+				g.setColour(Colours::white.withAlpha(0.3f));
+				g.setFont(f);
+				g.drawText(t, getLocalBounds().toFloat(), Justification::centred);
+			}
 		}
 
 		ContainerComponent& parent;
