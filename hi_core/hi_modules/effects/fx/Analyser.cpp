@@ -97,14 +97,43 @@ Component* AudioAnalyserComponent::Panel::createContentComponent(int index)
 {
 	Component* c = nullptr;
 
-	switch (index)
+	if(dynamic_cast<hise::AnalyserEffect*>(getProcessor()) == nullptr)
 	{
-	case 0: c = new Goniometer(getProcessor()); break;
-	case 1: c = new Oscilloscope(getProcessor()); break;
-	case 2:	c = new FFTDisplay(getProcessor()); break;
-	default:
-		return nullptr;
+		if(auto ed = dynamic_cast<ProcessorWithExternalData*>(getProcessor()))
+		{
+			if(isPositiveAndBelow(index, ed->getNumDataObjects(ExternalData::DataType::DisplayBuffer)))
+			{
+				auto rb = ed->getDisplayBuffer(index);
+				jassert(rb != nullptr);
+
+				auto obj = rb->getPropertyObject();
+				auto editor = obj->createComponent();
+
+				editor->setComplexDataUIBase(rb);
+
+				
+
+				c = dynamic_cast<Component*>(editor);
+
+				c->setColour(0, findPanelColour(PanelColourId::bgColour));
+				c->setColour(1, findPanelColour(PanelColourId::itemColour1));
+				c->setColour(2, findPanelColour(PanelColourId::itemColour2));
+			}
+		}
 	}
+	else
+	{
+		switch (index)
+		{
+		case 0: c = new Goniometer(getProcessor()); break;
+		case 1: c = new Oscilloscope(getProcessor()); break;
+		case 2:	c = new FFTDisplay(getProcessor()); break;
+		default:
+			return nullptr;
+		}
+	}
+
+	
 
 	if (findPanelColour(FloatingTileContent::PanelColourId::bgColour).isOpaque())
 		c->setOpaque(true);
