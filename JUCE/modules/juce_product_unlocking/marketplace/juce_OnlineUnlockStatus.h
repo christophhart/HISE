@@ -179,6 +179,10 @@ public:
 	*/
 	bool unlockWithTime(Time verifiedTimeObject);
 
+#if JUCE_ALLOW_EXTERNAL_UNLOCK
+    inline void unlockExternal() { status.setProperty(unlockedProp, true, nullptr); };
+#endif
+
     /** Optionally allows the app to provide the user's email address if
         it is known.
         You don't need to call this, but if you do it may save the user
