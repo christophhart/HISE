@@ -72,8 +72,14 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 1. Install the dependencies: 
 ```
-sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libwebkit2gtk-4.0 libgtk-3-dev libjack-jackd2-dev
+sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libgtk-3-dev libjack-jackd2-dev libwebkit2gtk-4.0
 ```
+
+> If *libwebkit2gtk-4.0* is not available in your distro's repositories you can use *libwebkit2gtk-4.1* instead.
+
+> HISE can be compiled with GCC/G++ versions greater than 11, however there will be buggy behaviour with certain elements of the UI. Therefore it is advised to use GCC/G++ 11 or lower.
+
+> If your distro's repositories contain the *mold* linker you should absolutely use it as it will greatly reduce build times. Alias it to *gold* in .bashrc and you don't need to make any changes to HISE or Projucer to get the benefit.
 
 2. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
 
