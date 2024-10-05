@@ -196,6 +196,7 @@ public:
 		MenuToolsSimulateChangingBufferSize,
         MenuToolsCreateRnboTemplate,
 		MenuToolsCreateThirdPartyNode,
+		MenuToolsCreateGlobalCableCppCode,
 		// ----------------------------------
 		// License Management
 		MenuToolsCreateRSAKeys,
@@ -403,6 +404,8 @@ public:
 		static void exportProject(BackendRootWindow* bpe, int buildOption);
 
 		static void cleanDspNetworkFiles(BackendRootWindow* bpe);
+
+		static void createGlobalCableCppCode(BackendRootWindow* bpe);
 	};
 
 private:

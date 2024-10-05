@@ -465,10 +465,7 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
             
 			getUserPresetHandler().initDefaultPresetManager({});
             
-            Processor::Iterator<HardcodedSwappableEffect> rti(synthChain, false);
             
-            while(auto m = rti.getNextProcessor())
-                m->connectRuntimeTargets();
 		}
 		catch (String& errorMessage)
 		{

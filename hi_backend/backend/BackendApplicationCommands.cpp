@@ -153,6 +153,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
         MenuToolsCreateRnboTemplate,
+		MenuToolsCreateGlobalCableCppCode,
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewRotate,
@@ -553,6 +554,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuToolsCreateGlobalCableCppCode:
+		setCommandTarget(result, "Create C++ code for global cables", true, false, 'X', false);
+		result.categoryName = "Tools";
+		break;
 	case MenuToolsConvertSVGToPathData:
 		setCommandTarget(result, "Show SVG to Path Converter", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -739,6 +744,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportProjectAsExpansion:				Actions::exportHiseProject(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
 	case MenuToolsWavetablesToMonolith: Actions::exportWavetablesToMonolith(bpe); return true;
+	case MenuToolsCreateGlobalCableCppCode: Actions::createGlobalCableCppCode(bpe); return true;
 	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
 	case MenuViewResetLookAndFeel:		Actions::resetLookAndFeel(bpe); return true;
     case MenuViewClearConsole:         owner->getConsoleHandler().clearConsole(); return true;
@@ -1052,6 +1058,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_MENU_ITEM(MenuToolsSimulateChangingBufferSize);
 	        ADD_MENU_ITEM(MenuToolsCreateRnboTemplate);
 			ADD_MENU_ITEM(MenuToolsCreateThirdPartyNode);
+			ADD_MENU_ITEM(MenuToolsCreateGlobalCableCppCode);
 			p.addSeparator();
 			p.addSectionHeader("License Management");
 			ADD_MENU_ITEM(MenuToolsCreateRSAKeys);
@@ -3279,6 +3286,57 @@ void BackendCommandTarget::Actions::cleanDspNetworkFiles(BackendRootWindow* bpe)
 {
 	auto np = new multipage::library::CleanDspNetworkFiles(bpe);
 	np->setModalBaseWindowComponent(bpe);
+}
+
+void BackendCommandTarget::Actions::createGlobalCableCppCode(BackendRootWindow* bpe)
+{
+	auto rm = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(bpe->getBackendProcessor()->getGlobalRoutingManager());
+
+	auto cableList = rm->getIdList(scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
+
+	if(cableList.isEmpty())
+	{
+		PresetHandler::showYesNoWindow("No global cables present", "You need to add global cables before using this method", PresetHandler::IconType::Error);
+		return;
+	}
+
+	String code;
+
+	code << "// Use this enum to refer to the cables, eg. this->setGlobalCableValue<GlobalCables::" << cppgen::Helpers::getValidCppVariableName(cableList[0]) << ">(0.4)\n";
+	code << "enum class GlobalCables\n{\n";
+
+	for(int i = 0; i < cableList.size(); i++)
+	{
+		code << "\t" << cppgen::Helpers::getValidCppVariableName(cableList[i]) << " = " << String(i);
+
+		if(i != cableList.size()-1)
+			code << ',';
+
+		code << "\n";
+	}
+
+	code <<"};\n";
+
+	code << "// Subclass your node from this\n";
+	code << "using cable_manager_t = routing::global_cable_cpp_manager<";
+	String nl(",\n                                                          ");
+
+	for(int i = 0; i < cableList.size(); i++)
+	{
+		code << "SN_GLOBAL_CABLE(" << String(cableList[i].hashCode()) << ")";
+				
+		if(i != cableList.size()-1)
+			code << nl;
+	}
+
+	code << ">;\n";
+
+	SystemClipboard::copyTextToClipboard(code);
+
+	auto chain = bpe->getBackendProcessor()->getMainSynthChain();
+
+	debugToConsole(chain, "Copied code to clipboard:");
+	debugToConsole(chain, code);
 }
 
 #undef REPLACE_WILDCARD
