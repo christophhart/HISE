@@ -1221,18 +1221,17 @@ template <typename... Ts> struct global_cable_cpp_manager: private advanced_tupl
 {
 	virtual ~global_cable_cpp_manager()
 	{
-		connectToRuntimeTarget(false, {});
+		this->connectToRuntimeTarget(false, {});
 	}
 
 	void connectToRuntimeTarget(bool addConnection, const runtime_target::connection& c)
 	{
-		static constexpr int size = sizeof...(Ts);
 		reset_each(addConnection, c, this->getIndexSequence());
 	}
 
 	template <auto CableIndex> void setGlobalCableValue(double value)
 	{
-		this->get<(int)CableIndex>().setValue(value);
+		this->get<(int)CableIndex>().template setValue(value);
 	}
 
 private:

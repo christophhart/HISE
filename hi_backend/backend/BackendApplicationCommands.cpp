@@ -3292,11 +3292,17 @@ void BackendCommandTarget::Actions::createGlobalCableCppCode(BackendRootWindow* 
 {
 	auto rm = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(bpe->getBackendProcessor()->getGlobalRoutingManager());
 
+	if(rm == nullptr)
+	{
+		PresetHandler::showMessageWindow("No global cables present", "You need to add global cables before using this method", PresetHandler::IconType::Error);
+		return;
+	}
+
 	auto cableList = rm->getIdList(scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
 
 	if(cableList.isEmpty())
 	{
-		PresetHandler::showYesNoWindow("No global cables present", "You need to add global cables before using this method", PresetHandler::IconType::Error);
+		PresetHandler::showMessageWindow("No global cables present", "You need to add global cables before using this method", PresetHandler::IconType::Error);
 		return;
 	}
 
