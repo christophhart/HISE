@@ -1231,7 +1231,9 @@ template <typename... Ts> struct global_cable_cpp_manager: private advanced_tupl
 
 	template <auto CableIndex> void setGlobalCableValue(double value)
 	{
-		this->get<(int)CableIndex>().template setValue(value);
+        static constexpr int Idx = static_cast<int>(CableIndex);
+        auto& c = this->template get<Idx>();
+        c.setValue(value);
 	}
 
 private:
