@@ -1097,6 +1097,31 @@ namespace control
 		}
 	};
 
+	template <typename ParameterClass> struct unscaler : public mothernode,
+														   public pimpl::parameter_node_base<ParameterClass>,
+														   public pimpl::no_processing,
+												           public pimpl::no_mod_normalisation	
+	{
+		SN_NODE_ID("unscaler");
+		SN_GET_SELF_AS_OBJECT(unscaler);
+		SN_DESCRIPTION("forwards the raw parameter value");
+
+		SN_ADD_SET_VALUE(unscaler);
+
+		unscaler() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
+		    pimpl::no_mod_normalisation(getStaticId(), { "Value" }) 
+		{};
+
+		static constexpr bool isNormalisedModulation() { return false; }
+
+		void setValue(double input)
+		{
+			if (this->getParameter().isConnected())
+				this->getParameter().call(input);
+		}
+	};
+
     template <typename ParameterClass, typename ConverterClass>
         struct converter : public mothernode,
 						   public pimpl::templated_mode,
