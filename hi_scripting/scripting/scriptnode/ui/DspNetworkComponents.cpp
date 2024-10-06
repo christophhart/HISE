@@ -2018,15 +2018,19 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 				auto bpe = g.findParentComponentOfClass<BackendRootWindow>();
 
 				struct PopupWrapper: public Component,
-									 public ModalBaseWindow
+									 public ModalBaseWindow,
+									 public QuasiModalComponent
 				{
 					PopupWrapper(KeyboardPopup* p):
 					  content(p)
 					{
+						setWantsBackdrop(true, true);
+						
 						p->parentIsViewport = false;
 						addAndMakeVisible(p);
 						setSize(p->getWidth(), p->getHeight());
 						setName("Add node");
+						content->grabKeyboardFocusAsync();
 					}
 
 					void paint(Graphics& g) override

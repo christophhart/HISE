@@ -51,10 +51,17 @@ public:
 
 	bool wantsBackdrop() const { return backdrop; }
 
-	void setWantsBackdrop(bool shouldHaveBackdrop) { backdrop = shouldHaveBackdrop; }
+	bool shouldCloseOnBackdropClick() const { return closeOnClick; }
+
+	void setWantsBackdrop(bool shouldHaveBackdrop, bool shouldCloseOnClick = false)
+	{
+		backdrop = shouldHaveBackdrop;
+		closeOnClick = shouldCloseOnClick;
+	}
 
 private:
 
+	bool closeOnClick = false;
 	bool backdrop = false;
 
 	bool isQuasiModal = false;
@@ -87,9 +94,10 @@ public:
 	struct DarkBackdrop: public Component,
 						 public ComponentMovementWatcher
 	{
-		DarkBackdrop(ModalBaseWindow& parent_):
+		DarkBackdrop(ModalBaseWindow& parent_, bool closeOnClick_):
 		  ComponentMovementWatcher(dynamic_cast<Component*>(&parent_)),
-		  parent(parent_)
+		  parent(parent_),
+		  closeOnClick(closeOnClick_)
 		{
 			auto c = getComponent();
 			c->addAndMakeVisible(this);
@@ -113,12 +121,25 @@ public:
 			}
 		}
 
+		void mouseDown(const MouseEvent& e) override
+		{
+			if(closeOnClick)
+			{
+				auto p = &parent;
+				MessageManager::callAsync([p]()
+				{
+					p->clearModalComponent();
+				});
+			}
+		}
+
 		void paint(Graphics& g) override
 		{
 			g.fillAll(Colour(0xAA161616));
 		}
 
 		ModalBaseWindow& parent;
+		bool closeOnClick = false;
 	};
 };
 
