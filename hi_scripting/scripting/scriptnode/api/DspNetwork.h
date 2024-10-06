@@ -986,6 +986,8 @@ struct HostHelpers
 
 #if !USE_FRONTEND
 
+struct DspNetworkGraph;
+
 struct DspNetworkListeners
 {
 	struct MacroParameterDragListener: public MouseListener

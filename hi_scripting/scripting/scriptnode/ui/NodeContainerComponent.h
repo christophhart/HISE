@@ -93,8 +93,6 @@ struct MacroPropertyEditor : public Component,
 
 		void enableProperties(Identifier, var newValue)
 		{
-			bool shouldBeEnabled = newValue.toString().isEmpty();
-
 			auto rangeIds = RangeHelpers::getRangeIds();
 			findParentComponentOfClass<MacroPropertyEditor>()->resizeConnections();
 		}

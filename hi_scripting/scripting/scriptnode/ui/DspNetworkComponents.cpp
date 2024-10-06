@@ -1087,7 +1087,6 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		if(!dragSourceIsValid(currentComponent))
 			return;
 
-		auto globalPos = getLocalPoint(nullptr, Desktop::getInstance().getMainMouseSource().getLastMouseDownPosition()).toFloat();
 		auto currentPosition = getMouseXYRelative().toFloat();
 
 		auto start = getCircle(currentComponent, false);
