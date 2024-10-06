@@ -85,6 +85,7 @@ DECLARE_ID(ID);
 DECLARE_ID(Index);
 DECLARE_ID(NodeId);
 DECLARE_ID(NumClones);
+DECLARE_ID(LocalId);
 DECLARE_ID(ParameterId);
 DECLARE_ID(Type);
 DECLARE_ID(Folded);

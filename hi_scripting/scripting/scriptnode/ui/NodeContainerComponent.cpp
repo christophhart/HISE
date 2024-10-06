@@ -1218,7 +1218,7 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 
 		MessageManager::callAsync(func);
 	}
-	else
+	else if (b == &gotoButton)
 	{
 		if (auto targetNode = node->getRootNetwork()->getNodeWithId(data[PropertyIds::NodeId].toString()))
 		{

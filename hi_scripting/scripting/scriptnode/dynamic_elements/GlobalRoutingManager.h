@@ -40,6 +40,18 @@ using namespace hise;
 namespace routing
 {
 
+struct LocalCableHelpers
+{
+	static void replaceAllLocalCables(ValueTree& networkTree);
+	static void explode(ValueTree nodeTree, UndoManager* um);
+	static void create(DspNetwork* network, const ValueTree& connectionData);
+	static void showAllOccurrences(DspNetwork* network, const String& variableName);
+	static Array<ValueTree> getListOfConnectedNodeTrees(const ValueTree& networkTree, const String& variableName);
+	static Array<WeakReference<NodeBase>> getListOfConnectedNodes(DspNetwork* network, const ValueTree& nodeTreeToSkip, const String& variableName);
+	static StringArray getListOfLocalVariableNames(const ValueTree& networkTree);
+	
+};
+
 /* TODO: Ideas for routing:
 
 	- make popup that shows all routing destination / targets OK

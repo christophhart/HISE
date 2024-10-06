@@ -57,6 +57,7 @@ public:
 		CreateScreenShot,
 		EditProperties,
 		UnfreezeNode,
+		ExplodeLocalCables,
 		FreezeNode,
 		WrapIntoDspNetwork,
 		WrapIntoChain,

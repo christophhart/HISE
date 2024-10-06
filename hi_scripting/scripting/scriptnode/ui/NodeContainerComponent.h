@@ -48,27 +48,47 @@ struct MacroPropertyEditor : public Component,
 		
 
 		ConnectionEditor(NodeBase* b, ValueTree connectionData, bool showSourceInTitle) :
-			cEditor(b, true, connectionData, RangeHelpers::getHiddenIds()),
 			node(b),
 			deleteButton("delete", this, f),
 			gotoButton("goto", this, f),
+		    localButton("local", this, f),
 			data(connectionData),
 			showSource(showSourceInTitle)
 		{
-			if(auto targetNode = b->getRootNetwork()->getNodeWithId(connectionData[PropertyIds::NodeId].toString()))
-				c = PropertyHelpers::getColour(targetNode->getValueTree());
+			
+				
 
-			addAndMakeVisible(cEditor);
+			deleteButton.setTooltip("Delete connection");
+			gotoButton.setTooltip("Show target");
+			localButton.setTooltip("Replace connection with local cable node");
+
+			localButton.onClick = [this]()
+			{
+				auto d = data;
+				auto network = node->getRootNetwork();
+
+				MessageManager::callAsync([d, network]()
+				{
+					routing::local_cable_base::Helpers::create(network, d);
+				});
+			};
+
 			addAndMakeVisible(deleteButton);
 			addAndMakeVisible(gotoButton);
+			addAndMakeVisible(localButton);
+
+			if(auto targetNode = b->getRootNetwork()->getNodeWithId(connectionData[PropertyIds::NodeId].toString()))
+			{
+				localButton.setVisible(!targetNode->getPath().toString().contains("local_cable"));
+				c = PropertyHelpers::getColour(targetNode->getValueTree());
+			}
 
 			updateSize();
 		}
 
 		void updateSize()
 		{
-			cEditor.updateSize();
-			setSize(cEditor.getWidth(), cEditor.getHeight() + 24);
+			setSize(400, 24);
 		}
 
 		void enableProperties(Identifier, var newValue)
@@ -76,10 +96,7 @@ struct MacroPropertyEditor : public Component,
 			bool shouldBeEnabled = newValue.toString().isEmpty();
 
 			auto rangeIds = RangeHelpers::getRangeIds();
-			cEditor.enableProperties(rangeIds, shouldBeEnabled);
-
 			findParentComponentOfClass<MacroPropertyEditor>()->resizeConnections();
-
 		}
 
 		void buttonClicked(Button* b) override;
@@ -109,6 +126,11 @@ struct MacroPropertyEditor : public Component,
 
 				leftFill.removeFromLeft(20.0f);
 
+				if(localButton.isVisible())
+					leftFill.removeFromLeft(localButton.getWidth());
+
+				rightFill.removeFromRight(deleteButton.getWidth());
+
 				g.setColour(c);
 				g.fillRoundedRectangle(leftFill, 3.0f);
 				g.fillRoundedRectangle(rightFill, 3.0f);
@@ -127,11 +149,10 @@ struct MacroPropertyEditor : public Component,
 			auto b = getLocalBounds();
 			auto top = b.removeFromTop(24);
 
-			deleteButton.setBounds(top.removeFromRight(24).reduced(4));
+			deleteButton.setBounds(top.removeFromRight(24).reduced(2));
 
-			gotoButton.setBounds(2, 2, 16, 16);
-
-			cEditor.setBounds(b);
+			gotoButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(2));
+			localButton.setBounds(top.removeFromLeft(top.getHeight()).reduced(2));
 		}
 
 		Path icon;
@@ -143,7 +164,7 @@ struct MacroPropertyEditor : public Component,
 		NodeComponent::Factory f;
 		HiseShapeButton deleteButton;
 		HiseShapeButton gotoButton;
-		PropertyEditor cEditor;
+		HiseShapeButton localButton;
 		bool showSource = false;
 
 		valuetree::PropertyListener expressionEnabler;
@@ -455,7 +476,7 @@ public:
 		{
 			addAndMakeVisible(dragButton);
 
-			dragButton.setTooltip("Enable drag mode to draw connections between the parameters");
+			dragButton.setTooltip("Edit parameters");
 			addButton.setTooltip("Create a new parameter");
 
 			addAndMakeVisible(addButton);
@@ -468,8 +489,8 @@ public:
 			auto b = getLocalBounds();
 			auto bRow = b.removeFromLeft(b.getHeight() / 3);
 
-			addButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
-			dragButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(3));
+			addButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(5));
+			dragButton.setBounds(bRow.removeFromTop(bRow.getWidth()).reduced(5));
 		}
 
 		bool fixed = false;
@@ -514,7 +535,7 @@ public:
 				Path p;
 
 				LOAD_EPATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
-				LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
+				LOAD_EPATH_IF_URL("drag", EditorIcons::penShape);
 
 				return p;
 			}
@@ -545,7 +566,7 @@ public:
 			if(auto mt = dynamic_cast<ContainerComponent::MacroToolbar*>(leftTabComponent.get()))
 				mt->setFixedParameter(isFixedParameterComponent());
 			
-			setSize(500, UIValues::ParameterHeight);
+			setSize(500, UIValues::ParameterHeight + UIValues::MacroDragHeight);
 			rebuildParameters();
 		}
 
@@ -708,7 +729,15 @@ public:
 
 			if (!helpBounds.isEmpty())
 			{
-				helpBounds.setPosition(nc->getBounds().toFloat().getTopRight());
+				if(nc->node->getHelpManager().isHelpBelow())
+				{
+					helpBounds.setPosition(nc->getBounds().toFloat().getBottomLeft());
+				}
+				else
+				{
+					helpBounds.setPosition(nc->getBounds().toFloat().getTopRight());
+				}
+				
 				nc->node->getHelpManager().render(g, helpBounds);
 			}
 		}

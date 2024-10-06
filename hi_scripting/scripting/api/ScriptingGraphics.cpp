@@ -2431,7 +2431,7 @@ String ScriptingObjects::ScriptedLookAndFeel::loadStyleSheetFile(const String& f
 	if(!fileName.endsWith(".css"))
 		reportScriptError("the file must have the .css extension.");
 	
-#if true || USE_BACKEND
+#if USE_BACKEND
 
 	auto cssFile = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts).getChildFile(fileName);
 	

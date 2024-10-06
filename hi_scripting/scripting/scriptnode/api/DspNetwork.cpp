@@ -163,6 +163,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	loader = new DspFactory::LibraryLoader(dynamic_cast<Processor*>(p));
 
+	localCableManager = new routing::local_cable_base::Manager(this);
+
 	setRootNode(createFromValueTree(true, data.getChild(0), true));
 	networkParameterHandler.root = getRootNode();
 
@@ -328,7 +330,7 @@ void DspNetwork::createAllNodesOnce()
 	cppgen::CustomNodeProperties::setInitialised(true);
 }
 
-NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v)
+NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v, bool createIfDoesntExist)
 {
 	if (!v.isValid())
 		return {};
@@ -341,7 +343,7 @@ NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v)
 			return n;
 	}
 
-	if (currentNodeHolder != nullptr)
+	if (currentNodeHolder != nullptr && createIfDoesntExist)
 		return createFromValueTree(isPolyphonic(), v, true);
 
 	return nullptr;
@@ -414,6 +416,10 @@ juce::StringArray DspNetwork::getListOfUsedNodeIds() const
 	return sa;
 }
 
+juce::StringArray DspNetwork::getListOfLocalCableIds() const
+{
+	return routing::local_cable_base::Helpers::getListOfLocalVariableNames(getValueTree());
+}
 
 juce::StringArray DspNetwork::getListOfUnusedNodeIds() const
 {
@@ -930,6 +936,10 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 }
 
 
+Component* DspNetwork::createLocalCableListItem(const String& id) const
+{
+	return new routing::local_cable_base::ListItem(const_cast<DspNetwork*>(this), id);
+}
 
 bool DspNetwork::isInSignalPath(NodeBase* b) const
 {

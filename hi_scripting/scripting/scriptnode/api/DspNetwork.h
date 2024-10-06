@@ -441,7 +441,7 @@ public:
 	String getDebugName() const override { return "DspNetwork"; }
 	String getDebugValue() const override { return getId(); }
 	
-	NodeBase* getNodeForValueTree(const ValueTree& v);
+	NodeBase* getNodeForValueTree(const ValueTree& v, bool createIfDoesntExist=true);
 	NodeBase::List getListOfUnconnectedNodes() const;
 
 	ValueTree getListOfAvailableModulesAsTree() const;
@@ -449,6 +449,7 @@ public:
 	StringArray getListOfAllAvailableModuleIds() const;
 	StringArray getListOfUsedNodeIds() const;
 	StringArray getListOfUnusedNodeIds() const;
+	StringArray getListOfLocalCableIds() const;
 	StringArray getFactoryList() const;
 
 	void assign(const int, var newValue) override { reportScriptError("Can't assign to this expression"); };
@@ -554,6 +555,10 @@ public:
 	NodeBase* createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate=false);
 	bool isInSignalPath(NodeBase* b) const;
 
+	ReferenceCountedObject* getLocalCableManager() const { return localCableManager.getObject(); }
+
+	Component* createLocalCableListItem(const String& id) const;
+	
 	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && getPolyHandler()->getVoiceIndex() != -1; }
 
 	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || getPolyHandler()->getVoiceIndex() == 0; }
@@ -821,6 +826,8 @@ private:
 
 	float* currentData[NUM_MAX_CHANNELS];
 	friend class DspNetworkGraph;
+
+	var localCableManager;
 
 	struct Wrapper;
 

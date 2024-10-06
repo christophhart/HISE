@@ -3029,6 +3029,7 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoOversample4, "Wrap into 4x oversample container");
 
 			m.addItem((int)NodeComponent::MenuActions::UnfreezeNode, "Explode DSP Network", s != nullptr && s->getEmbeddedNetwork() != nullptr);
+			m.addItem((int)NodeComponent::MenuActions::ExplodeLocalCables, "Replace local cable connections");
 
 			int result = m.show();
 
