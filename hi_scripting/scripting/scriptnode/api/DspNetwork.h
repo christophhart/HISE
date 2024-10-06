@@ -988,6 +988,26 @@ struct HostHelpers
 
 struct DspNetworkListeners
 {
+	struct MacroParameterDragListener: public MouseListener
+	{
+		MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction);
+
+		~MacroParameterDragListener();
+
+		void initialise();
+		void mouseDrag(const MouseEvent& e) override;
+		void mouseUp(const MouseEvent& e) override;
+		void mouseDown(const MouseEvent& event) override;
+
+		static Component* findModulationDragComponent(DspNetworkGraph* g, const ValueTree& nodeTree);
+
+		static Component* findSliderComponent(DspNetworkGraph* g, int parameterIndex);
+
+		Component::SafePointer<Component> sliderToDrag;
+		Component::SafePointer<Component> c;
+		std::function<Component*(DspNetworkGraph*)> initFunction;
+	};
+
 	struct Base : public valuetree::AnyListener
 	{
 		template <bool AllowRootParameterChange> static bool isValueProperty(const ValueTree& v, const Identifier& id)

@@ -45,7 +45,7 @@ juce::String NodeComponent::Header::getPowerButtonId(bool getOff) const
 NodeComponent::Header::Header(NodeComponent& parent_) :
 	parent(parent_),
 	powerButton(getPowerButtonId(false), this, f, getPowerButtonId(true)),
-	deleteButton("delete", this, f),
+	deleteButton("close", this, f),
 	parameterButton("parameter", this, f),
 	freezeButton("freeze", this, f)
 {
@@ -421,7 +421,7 @@ void NodeComponent::paintOverChildren(Graphics& g)
 		b.removeFromTop(header.getHeight());
 
 		if (header.parameterButton.getToggleState())
-			b.removeFromTop(UIValues::ParameterHeight);
+			b.removeFromTop(UIValues::ParameterHeight + UIValues::MacroDragHeight);
 
 		auto hashMatches = node->getRootNetwork()->hashMatches();
 
@@ -624,6 +624,10 @@ void NodeComponent::handlePopupMenuResult(int result)
 	if (result == (int)MenuActions::UnfreezeNode)
 	{
 		DspNetworkGraph::Actions::unfreezeNode(node.get());
+	}
+	if( result == (int)MenuActions::ExplodeLocalCables)
+	{
+		routing::local_cable::Helpers::explode(node->getValueTree(), node->getUndoManager());
 	}
 	if (result == (int)MenuActions::FreezeNode)
 	{
@@ -933,7 +937,8 @@ juce::Path NodeComponentFactory::createPath(const String& id) const
 
 	LOAD_EPATH_IF_URL("on", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
 	LOAD_EPATH_IF_URL("fold", HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon);
-	LOAD_EPATH_IF_URL("delete", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+	LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
 	LOAD_PATH_IF_URL("move", ColumnIcons::moveIcon);
 	LOAD_PATH_IF_URL("goto", ColumnIcons::targetIcon);
 	LOAD_EPATH_IF_URL("parameter", HiBinaryData::SpecialSymbols::macros);
@@ -951,6 +956,8 @@ juce::Path NodeComponentFactory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("newnode", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 	LOAD_EPATH_IF_URL("oldnode", EditorIcons::swapIcon);
 	LOAD_EPATH_IF_URL("clone", SampleMapIcons::copySamples);
+	LOAD_PATH_IF_URL("local", ColumnIcons::localIcon);
+	LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
 
 	if (url.startsWith("fix"))
 		p.loadPathFromData(ScriptnodeIcons::fixIcon, ScriptnodeIcons::fixIcon_Size);

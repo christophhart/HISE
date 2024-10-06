@@ -346,8 +346,16 @@ juce::Rectangle<int> NodeBase::getBoundsToDisplay(Rectangle<int> originalHeight)
 
 	if (!helpBounds.isEmpty())
 	{
-		originalHeight.setWidth(originalHeight.getWidth() + helpBounds.getWidth());
-		originalHeight.setHeight(jmax<int>(originalHeight.getHeight(), helpBounds.getHeight()));
+		if(!helpManager.isHelpBelow())
+		{
+			originalHeight.setWidth(originalHeight.getWidth() + helpBounds.getWidth());
+			originalHeight.setHeight(jmax<int>(originalHeight.getHeight(), helpBounds.getHeight()));
+		}
+		else
+		{
+			originalHeight.setWidth(jmax<int>(originalHeight.getWidth(), helpBounds.getWidth()));
+			originalHeight.setHeight(originalHeight.getHeight() + helpBounds.getHeight());
+		}
 	}
 
 	if (getRootNetwork()->getExceptionHandler().getErrorMessage(this).isNotEmpty())
@@ -362,7 +370,12 @@ juce::Rectangle<int> NodeBase::getBoundsWithoutHelp(Rectangle<int> originalHeigh
 {
 	auto helpBounds = helpManager.getHelpSize().toNearestInt();
 
-	originalHeight.removeFromRight(helpBounds.getWidth());
+	auto isBelow = helpManager.isHelpBelow();
+
+	if(isBelow)
+		originalHeight.removeFromBottom(helpBounds.getHeight());
+	else
+		originalHeight.removeFromRight(helpBounds.getWidth());
 
 	if (v_data[PropertyIds::Folded])
 		return originalHeight.withHeight(UIValues::HeaderHeight);
@@ -1350,9 +1363,17 @@ juce::Array<NodeBase::Parameter*> NodeBase::Parameter::getConnectedMacroParamete
 	return list;
 }
 
-HelpManager::HelpManager(NodeBase* parent, ValueTree d) :
-	ControlledObject(parent->getScriptProcessor()->getMainController_())
+HelpManager::HelpManager(NodeBase* parent_, ValueTree d) :
+	ControlledObject(parent_->getScriptProcessor()->getMainController_()),
+	parent(*parent_),
+	commentButton("comment", nullptr, *this)
 {
+	commentButton.onClick = [this]()
+	{
+		this->setShowComments(true);
+		commentButton.findParentComponentOfClass<DspNetworkGraph>()->resizeNodes();
+	};
+
 	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour}, valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(HelpManager::update));
 }
@@ -1382,6 +1403,13 @@ void HelpManager::update(Identifier id, var newValue)
 	{
 		lastText = newValue.toString();
 
+		auto firstLine = lastText.upToFirstOccurrenceOf("\n", false, false);
+
+		if(lastText.length() != firstLine.length())
+			firstLine << " [...] (click to show full content)";
+
+		commentButton.setTooltip(firstLine);
+
 		auto f = GLOBAL_BOLD_FONT();
 
 		auto sa = StringArray::fromLines(lastText);
@@ -1399,10 +1427,25 @@ void HelpManager::render(Graphics& g, Rectangle<float> area)
 {
 	if (helpRenderer != nullptr && !area.isEmpty())
 	{
-		area.removeFromLeft(10.0f);
-		g.setColour(Colours::black.withAlpha(0.1f));
-		g.fillRoundedRectangle(area, 2.0f);
-		helpRenderer->draw(g, area.reduced(10.0f));
+		if(!showCommentButton())
+		{
+			if(!isHelpBelow())
+				area.removeFromLeft(UIValues::NodeMargin);
+			else
+				area.removeFromTop(UIValues::NodeMargin);
+
+			auto c = highlightColour == Colour(SIGNAL_COLOUR) ? Colours::black : highlightColour;
+			g.setColour(c.withAlpha(0.1f));
+			g.fillRoundedRectangle(area, 2.0f);
+			helpRenderer->draw(g, area.reduced(10.0f));
+		}
+		else
+		{
+			auto b = area.toNearestInt().reduced(3);
+
+			if(commentButton.getBoundsInParent() != b)
+				commentButton.setBounds(b);
+		}
 	}
 }
 
@@ -1417,13 +1460,49 @@ void HelpManager::removeHelpListener(Listener* l)
 	listeners.removeAllInstancesOf(l);
 }
 
+void HelpManager::initCommentButton(Component* parentComponent)
+{
+	if(auto pc = commentButton.getParentComponent())
+		pc->removeChildComponent(&commentButton);
+
+	if(lastText.isNotEmpty())
+	{
+		auto showComments = (bool)dynamic_cast<NodeComponent*>(parentComponent)->node->getRootNetwork()->getValueTree()[PropertyIds::ShowComments];
+		setShowComments(showComments);
+		parentComponent->addChildComponent(commentButton);
+	}
+			
+}
+
 juce::Rectangle<float> HelpManager::getHelpSize() const
 {
-	return { 0.0f, 0.0f, lastHeight > 0.0f ? lastWidth + 30.0f : 0.0f, lastHeight + 20.0f };
+	if(showCommentButton())
+	{
+		if(lastHeight != 0.0f || lastWidth != 0.0f)
+			return { 0.0f, 0.0f, 30.0f, 30.0f };
+
+		return {};
+	}
+	else
+	{
+		return { 0.0f, 0.0f, lastHeight > 0.0f ? lastWidth + 30.0f : 0.0f, lastHeight > 0.0f ? lastHeight + 20.0f : 0.0f };
+	}
+}
+
+bool HelpManager::isHelpBelow() const
+{
+	if(auto pn = dynamic_cast<SerialNode*>(parent.getParentNode()))
+	{
+		return !pn->isVertical.getValue();
+	}
+
+	return false;
 }
 
 void HelpManager::rebuild()
 {
+	commentButton.setVisible(showCommentButton());
+
 	if (lastText.isNotEmpty())
 	{
 		helpRenderer = new MarkdownRenderer(lastText);
@@ -1439,10 +1518,13 @@ void HelpManager::rebuild()
 		lastHeight = 0.0f;
 	}
 
-	for (auto l : listeners)
+	if(!showCommentButton())
 	{
-		if (l != nullptr)
-			l->helpChanged(lastWidth + 30.0f, lastHeight);
+		for (auto l : listeners)
+		{
+			if (l != nullptr)
+				l->helpChanged(lastWidth + 30.0f, lastHeight);
+		}
 	}
 }
 

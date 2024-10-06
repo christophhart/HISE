@@ -106,7 +106,7 @@ juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColu
 		int numParameters = getNumParameters();
 		int numRows = (int)std::ceil((float)numParameters / (float)numColumns);
 
-		h += numRows * (48 + 18);
+		h += numRows * (48 + 28) - 10;
 		w = jmin(numColumns * 100, numParameters * 100);
 	}
 

@@ -528,7 +528,7 @@ void GlobalHiseLookAndFeel::draw1PixelGrid(Graphics& g, Component* c, Rectangle<
     }
 }
 
-Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha /*= 1.0f*/, Colour holeColour /*= Colour(0xFFAAAAAA)*/, bool returnMidPoint /*= false*/, bool useHangingCable/*=true*/)
+Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha /*= 1.0f*/, Colour holeColour /*= Colour(0xFFAAAAAA)*/, bool returnMidPoint /*= false*/, bool useHangingCable/*=true*/, Point<float> velocity)
 {
 	if (start.getCentreY() > end.getCentreY())
 		std::swap(start, end);
@@ -569,6 +569,9 @@ Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> sta
 	if (useHangingCable)
 	{
 		Point<float> controlPoint(start.getX() + (end.getX() - start.getX()) / 2.0f, end.getY() + 100.0f);
+
+		controlPoint.setY(controlPoint.getY() - jmin(100.0f, hmath::abs(velocity.getDistanceFromOrigin()) * 4.0f));
+
 		p.quadraticTo(controlPoint, end.getCentre());
 		
 	}
@@ -582,6 +585,9 @@ Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> sta
 
 		Point<float> c1 = { cableAsLine.getPointAlongLineProportionally(0.2f).getX(), start.getCentreY() };
 		Point<float> c2 = { cableAsLine.getPointAlongLineProportionally(0.8f).getX(), end.getCentreY() };
+
+		c1 -= velocity;
+		c2 += velocity;
 
 		p.quadraticTo(c1, mid);
 		p.quadraticTo(c2, end.getCentre());

@@ -2547,6 +2547,131 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 
 
 #if USE_BACKEND
+DspNetworkListeners::MacroParameterDragListener::MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction_):
+	c(c_),
+	initFunction(initFunction_)
+{
+	c->addMouseListener(this, true);
+	c->setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
+}
+
+DspNetworkListeners::MacroParameterDragListener::~MacroParameterDragListener()
+{
+	c->removeMouseListener(this);
+}
+
+void DspNetworkListeners::MacroParameterDragListener::initialise()
+{
+	auto tc = c->getTopLevelComponent();
+	jassert(tc != nullptr);
+
+	Component::callRecursive<DspNetworkGraph>(tc, [&](DspNetworkGraph* g)
+	{
+		if(initFunction)
+			sliderToDrag = initFunction(g);
+		
+		return true;
+	});
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseDrag(const MouseEvent& e)
+{
+	if(sliderToDrag == nullptr)
+		initialise();
+
+	if(sliderToDrag != nullptr)
+	{
+		sliderToDrag->findParentComponentOfClass<DspNetworkGraph>()->externalDragComponent = sliderToDrag;
+		auto e2 = e.getEventRelativeTo(sliderToDrag);
+		sliderToDrag->mouseDrag(e2);
+	}
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseUp(const MouseEvent& e)
+{
+	if(sliderToDrag != nullptr)
+	{
+		sliderToDrag->findParentComponentOfClass<DspNetworkGraph>()->externalDragComponent = nullptr;
+		auto e2 = e.getEventRelativeTo(sliderToDrag);
+		sliderToDrag->mouseUp(e2);
+	}
+
+	if(auto hb = dynamic_cast<HiseShapeButton*>(this->c.getComponent()))
+	{
+		Colour offColour(Colours::white);
+		hb->setColours(offColour.withMultipliedAlpha(0.5f), offColour.withMultipliedAlpha(0.8f), offColour);
+		c->repaint();
+	}
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseDown(const MouseEvent& event)
+{
+	if(sliderToDrag == nullptr)
+		initialise();
+
+	if(auto hb = dynamic_cast<HiseShapeButton*>(this->c.getComponent()))
+	{
+		Colour onColour(SIGNAL_COLOUR);
+		hb->setColours(onColour.withAlpha(0.8f), onColour, onColour);
+		c->repaint();
+	}
+}
+
+Component* DspNetworkListeners::MacroParameterDragListener::findModulationDragComponent(DspNetworkGraph* g,
+	const ValueTree& nodeTree)
+{
+	auto copy = nodeTree;
+
+	bool wantsRebuild = false;
+
+	valuetree::Helpers::forEachParent(copy, [&](ValueTree& v)
+	{
+		if(v.getType() == PropertyIds::Node)
+		{
+			wantsRebuild |= (bool)v[PropertyIds::Folded];
+			v.setProperty(PropertyIds::Folded, false, g->network->getUndoManager());
+		}
+
+		return false;
+	});
+
+	if(wantsRebuild)
+	{
+		g->rebuildNodes();
+	}
+
+	ModulationSourceBaseComponent* c = nullptr;
+
+	Component::callRecursive<ModulationSourceBaseComponent>(g, [&](ModulationSourceBaseComponent* p)
+	{
+		if(p->findParentComponentOfClass<NodeComponent>()->node->getValueTree() == nodeTree)
+		{
+			c = p;
+			return true;
+		}
+			
+		return false;
+	});
+
+	return c;
+}
+
+Component* DspNetworkListeners::MacroParameterDragListener::findSliderComponent(DspNetworkGraph* g, int parameterIndex)
+{
+	g->root->node->getValueTree().setProperty(PropertyIds::ShowParameters, true, g->network->getUndoManager());
+
+	Array<MacroParameterSlider*> sliders;
+
+	Component::callRecursive<MacroParameterSlider>(g, [&](MacroParameterSlider* s)
+	{
+		sliders.addIfNotAlreadyThere(s);
+		return false;
+	});
+
+	return sliders[parameterIndex]->getDragComponent();
+}
+
+
 void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v)
 {
 	valuetree::Helpers::forEach(v, [v](ValueTree& c)

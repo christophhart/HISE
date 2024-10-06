@@ -75,6 +75,7 @@ DECLARE_ID(MaxValue);
 DECLARE_ID(UpperLimit);
 DECLARE_ID(SkewFactor);
 DECLARE_ID(ShowParameters);
+DECLARE_ID(ShowComments);
 DECLARE_ID(ShowClones);
 DECLARE_ID(DisplayedClones);
 DECLARE_ID(Bypassed);

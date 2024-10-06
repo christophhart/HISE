@@ -412,7 +412,9 @@ void DspNetworkCompileExporter::run()
 			}
 				
             showStatusMessage("Creating C++ file for Network " + id);
-            
+
+			scriptnode::routing::LocalCableHelpers::replaceAllLocalCables(v);
+
 			ValueTreeBuilder b(v, ValueTreeBuilder::Format::CppDynamicLibrary);
 
 			b.setCodeProvider(new BackendDllManager::FileCodeProvider(getMainController()));

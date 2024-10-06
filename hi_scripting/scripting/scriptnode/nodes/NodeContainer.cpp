@@ -383,7 +383,7 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 		h += UIValues::HeaderHeight; // the input
 
 		if (asNode()->getValueTree()[PropertyIds::ShowParameters])
-			h += UIValues::ParameterHeight;
+			h += UIValues::ParameterHeight + UIValues::MacroDragHeight;
 
 		h += PinHeight; // the "hole" for the cable
 
@@ -425,7 +425,7 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 		y += UIValues::PinHeight;
 
 		if (an->getValueTree()[PropertyIds::ShowParameters])
-			y += UIValues::ParameterHeight;
+			y += UIValues::ParameterHeight + UIValues::MacroDragHeight;
 
 		Point<int> startPos(UIValues::NodeMargin, y);
 

@@ -1026,6 +1026,9 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 	if (details.sourceComponent == this)
 		return false;
 
+	if(pTree[PropertyIds::Automated])
+		return false;
+
 	auto sourceNode = details.sourceComponent->findParentComponentOfClass<NodeComponent>()->node.get();
 
     if(dynamic_cast<NodeContainer*>(node.get()) != nullptr)
@@ -1607,11 +1610,42 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 	drawVectorRotaryKnob(g, b.toFloat(), modProportion, isBipolar, s.isMouseOverOrDragging(true) || ps->parameterToControl->isModulated(), s.isMouseButtonDown(), s.isEnabled(), modProportion);
 }
 
+void MacroParameterSlider::Dragger::mouseUp(const MouseEvent& e)
+{
+	parent.dragging = false;
+	ZoomableViewport::checkDragScroll(e, true);
+
+	parent.slider.repaintParentGraph();
+}
+
+void MacroParameterSlider::Dragger::mouseDrag(const MouseEvent& e)
+{
+	ZoomableViewport::checkDragScroll(e, false);
+	parent.slider.repaintParentGraph();
+
+	if(parent.dragging)
+		return;
+
+	if (auto container = DragAndDropContainer::findParentDragContainerFor(this))
+	{
+		parent.dragging = true;
+		auto details = DragHelpers::createDescription(parent.slider.node->getId(), parent.slider.parameterToControl->getId());
+		container->startDragging(details, this, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
+	}
+}
+
 MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
 	slider(node, index),
-    warningButton("warning", nullptr, *this)
+	dragger(*this),
+    warningButton("warning", nullptr, *this),
+	deleteButton("delete", nullptr, *this) 
 {
+	warningButton.setTooltip("Range mismatch. Click to resolve");
+	deleteButton.setTooltip("Remove this parameter");
+
 	addAndMakeVisible(slider);
+	addAndMakeVisible(dragger);
+	addChildComponent(deleteButton);
 	setWantsKeyboardFocus(true);
 
     addAndMakeVisible(warningButton);
@@ -1634,7 +1668,18 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
         slider.pTree.getChildWithName(PropertyIds::Connections),
         valuetree::AsyncMode::Asynchronously,
         BIND_MEMBER_FUNCTION_2(MacroParameterSlider::updateWarningOnConnectionChange));
-    
+
+	deleteButton.onClick = [this, node]()
+	{
+		auto treeToDelete = slider.pTree;
+		auto um = node->getUndoManager();
+
+		MessageManager::callAsync([treeToDelete, um]()
+		{
+			treeToDelete.getParent().removeChild(treeToDelete, um);
+		});
+	};
+
     warningButton.onClick = [this, node]()
     {
         auto firstConnection = slider.pTree.getChildWithName(PropertyIds::Connections).getChild(0);
@@ -1746,47 +1791,39 @@ Path MacroParameterSlider::createPath(const String& url) const
     Path p;
     
 	LOAD_EPATH_IF_URL("warning", EditorIcons::warningIcon);
-    
+    LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
+	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
     return p;
 }
 
 void MacroParameterSlider::resized()
 {
 	auto b = getLocalBounds();
-	b.removeFromBottom(10);
+
+	slider.getProperties().set("circleOffsetY", 12.0f);
+
+	dragger.setBounds(b.removeFromBottom(20));
 	slider.setBounds(b);
+
     warningButton.setBounds(b.removeFromRight(18).removeFromTop(18));
+	deleteButton.setBounds(b.removeFromLeft(18).removeFromTop(18));
+}
+
+void MacroParameterSlider::mouseDown(const MouseEvent& event)
+{
+	CHECK_MIDDLE_MOUSE_DOWN(event);
+	Component::mouseDown(event);
 }
 
 void MacroParameterSlider::mouseDrag(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_DRAG(e);
-    
-	if (editEnabled)
-	{
-		if (auto container = DragAndDropContainer::findParentDragContainerFor(this))
-		{
-			auto details = DragHelpers::createDescription(slider.node->getId(), slider.parameterToControl->getId());
-
-			container->startDragging(details, &slider, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
-
-			ZoomableViewport::checkDragScroll(e, false);
-
-			
-			
-
-			slider.repaintParentGraph();
-		}
-	}
 }
+
 
 void MacroParameterSlider::mouseUp(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_UP(e);
-
-	ZoomableViewport::checkDragScroll(e, true);
-
-	slider.repaintParentGraph();
 }
 
 void MacroParameterSlider::mouseEnter(const MouseEvent& e)
@@ -1808,19 +1845,8 @@ void MacroParameterSlider::paintOverChildren(Graphics& g)
 {
 	if (editEnabled)
 	{
-		Path p;
-		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
-
-		auto pa = getLocalBounds().toFloat().withSizeKeepingCentre(20.0f, 20.0f).translated(0.0, -8);
-
-		PathFactory::scalePath(p, pa);
-
-		g.setColour(Colours::white.withAlpha(0.3f));
-		g.fillPath(p);
-
 		auto b = getLocalBounds().reduced(2).toFloat();
-		b.removeFromBottom(8.0f);
-
+		
 		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.05f));
 		g.fillRoundedRectangle(b, 3);
 
@@ -1836,6 +1862,8 @@ void MacroParameterSlider::setEditEnabled(bool shouldBeEnabled)
 {
 	slider.setEnabled(!shouldBeEnabled);
 	editEnabled = shouldBeEnabled;
+
+	deleteButton.setVisible(shouldBeEnabled);
 
 	if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(slider.parameterToControl.get()))
 	{
@@ -1886,16 +1914,7 @@ bool MacroParameterSlider::keyPressed(const KeyPress& key)
 	}
 	if (key == KeyPress::deleteKey || key == KeyPress::backspaceKey)
 	{
-		auto treeToRemove = slider.parameterToControl->data;
-		auto um = slider.node->getUndoManager();
-
-		auto f = [treeToRemove, um]()
-		{
-			treeToRemove.getParent().removeChild(treeToRemove, um);
-		};
-
-		MessageManager::callAsync(f);
-
+		deleteButton.triggerClick();
 		return true;
 	}
 

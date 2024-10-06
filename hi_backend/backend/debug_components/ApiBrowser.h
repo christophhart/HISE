@@ -336,6 +336,187 @@ class DspNodeList : public SearchableListComponent,
 {
 public:
 
+	struct AddParameterItem: public SearchableListComponent::Item
+	{
+		AddParameterItem(DspNetwork* n):
+		  Item("addParameter"),
+		  network(n)
+		{
+			setRepaintsOnMouseActivity(true);
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			auto n = PresetHandler::getCustomName("Parameter", "Enter the name for the parameter");
+
+			if(!n.isEmpty())
+			{
+				auto parameters = network->getRootNode()->getParameterTree();
+
+				for(auto p: parameters)
+				{
+					if(p[PropertyIds::ID].toString() == n)
+					{
+						PresetHandler::showMessageWindow("Parameter already exists", "The parameter already exists", PresetHandler::IconType::Error);
+						return;
+					}
+				}
+
+				ValueTree p(PropertyIds::Parameter);
+
+				InvertableParameterRange rng;
+				RangeHelpers::storeDoubleRange(p, rng, nullptr);
+
+				p.setProperty(PropertyIds::ID, n, nullptr);
+				p.setProperty(PropertyIds::Value, 0.0, nullptr);
+
+				parameters.addChild(p, -1, network->getUndoManager());
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colours::white.withAlpha(0.03f));
+			g.fillRoundedRectangle(getLocalBounds().toFloat(), 3.0f);
+
+			g.setFont(GLOBAL_BOLD_FONT());
+			float alpha = 0.2f;
+
+			if(isMouseOver())
+				alpha += 0.4f;
+
+			g.setColour(Colours::white.withAlpha(alpha));
+			g.drawText("Add parameter", getLocalBounds().toFloat(), Justification::centred);
+		}
+
+		WeakReference<DspNetwork> network;
+	};
+
+	struct ParameterItem: public SearchableListComponent::Item,
+						  public PathFactory 
+						  
+	{
+		ParameterItem(DspNetwork* parent, int parameterIndex):
+		  Item(parent->getCurrentParameterHandler()->getParameterId(parameterIndex).toString()),
+		  ptree(parent->getRootNode()->getParameterTree().getChild(parameterIndex)),
+		  dragButton("drag", nullptr, *this),
+		  dragListener(&dragButton, [parameterIndex](DspNetworkGraph* g){ return DspNetworkListeners::MacroParameterDragListener::findSliderComponent(g, parameterIndex); })
+		{
+			pname.getTextValue().referTo(ptree.getPropertyAsValue(PropertyIds::ID, parent->getUndoManager()));
+			valueSlider.getValueObject().referTo(ptree.getPropertyAsValue(PropertyIds::Value, parent->getUndoManager()));
+
+			addAndMakeVisible(valueSlider);
+			addAndMakeVisible(dragButton);
+			addAndMakeVisible(pname);
+
+			valueSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+			valueSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, false, 0, 0);
+
+			valueSlider.setLookAndFeel(&laf);
+			valueSlider.setValue(ptree[PropertyIds::Value], dontSendNotification);
+
+			pname.setFont(GLOBAL_BOLD_FONT());
+			pname.setEditable(false, true);
+			pname.setColour(Label::textColourId, Colours::white.withAlpha(0.8f));
+			pname.setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+
+			rangeUpdater.setCallback(ptree, RangeHelpers::getRangeIds(false), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(ParameterItem::updateRange));
+		}
+
+		
+
+		struct SliderLookAndFeel: public LookAndFeel_V4
+		{
+			void drawLinearSlider(Graphics& g, int x, int y, int width, int height, float sliderPos, float minSliderPos, float maxSliderPos, const Slider::SliderStyle, Slider& s) override
+			{
+				float alpha = 0.4f;
+
+				if(s.isMouseButtonDown(true))
+					alpha += 0.3f;
+
+				if(s.isMouseOverOrDragging(true))
+					alpha += 0.2f;
+				
+				g.setColour(Colours::white.withAlpha(alpha));
+
+				auto b = s.getLocalBounds().toFloat();
+
+				g.drawRoundedRectangle(b.reduced(1.0f), b.getHeight() * 0.5f, 1.0f);
+
+				auto rng = s.getRange();
+				auto skew = s.getSkewFactor();
+				NormalisableRange<double> nr(rng.getStart(), rng.getEnd(), 0.0, skew);
+
+				auto nv = nr.convertTo0to1(s.getValue());
+
+				b = b.reduced(3.0f);
+
+				b = b.removeFromLeft(jmax<float>(b.getHeight(), (float)nv * b.getWidth()));
+
+				g.fillRoundedRectangle(b, b.getHeight() * 0.5f);
+			}
+		} laf;
+
+		void paint(Graphics& g) override
+		{
+			g.setColour(Colours::white.withAlpha(0.03f));
+			g.fillRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), 3.0f);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			dragButton.setBounds(b.removeFromRight(b.getHeight()).reduced(1));
+			valueSlider.setBounds(b.removeFromRight(64).reduced(3, 5));
+			pname.setBounds(b);
+		}
+
+		Path createPath(const String& url) const override
+		{
+			Path p;
+			LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
+			return p;
+		}
+
+		void updateRange(const Identifier& id, const var& newValue)
+		{
+			auto rng = RangeHelpers::getDoubleRange(ptree);
+
+			valueSlider.setRange(rng.rng.getRange(), rng.rng.interval);
+			valueSlider.setSkewFactor(rng.rng.skew);
+		}
+
+		valuetree::PropertyListener rangeUpdater;
+
+		ValueTree ptree;
+
+		Slider valueSlider;
+		HiseShapeButton dragButton;
+		Label pname;
+
+		DspNetworkGraph* ng;
+
+		DspNetworkListeners::MacroParameterDragListener dragListener;
+		
+	};
+
+	struct CableItem: public SearchableListComponent::Item
+	{
+		CableItem(DspNetwork* parent, const String& id_):
+		  Item(id_)
+		{
+			addAndMakeVisible(content = parent->createLocalCableListItem(id_));
+		}
+
+		void resized() override
+		{
+			content->setBounds(getLocalBounds());
+		}
+
+
+		ScopedPointer<Component> content;
+	};
+
 	struct NodeItem : public SearchableListComponent::Item,
 		public ButtonListener,
 		public Label::Listener
@@ -390,8 +571,11 @@ public:
 		NodeComponentFactory f;
 		NiceLabel label;
 		HiseShapeButton powerButton;
-        
+		HiseShapeButton dragButton;
+
         Rectangle<int> area;
+
+		ScopedPointer<DspNetworkListeners::MacroParameterDragListener> dragListener;
 	};
 
 	struct NodeCollection : public SearchableListComponent::Collection
@@ -403,7 +587,7 @@ public:
 
 		void paint(Graphics& g) override;
 
-		void addItems(const StringArray& idList);
+		void addItems(const StringArray& idList, bool isCable);
 
 	protected:
 
@@ -430,13 +614,73 @@ public:
 		}
 	};
 
+	struct Parameters: public NodeCollection
+	{
+		Parameters(DspNetwork* network):
+		  NodeCollection(network, 0),
+		  parameterTree(network->getRootNode()->getParameterTree())
+		{
+			setName("Parameters");
+
+			auto numParameters = parameterTree.getNumChildren();
+
+			for(int i = 0; i < numParameters; i++)
+			{
+				auto ni = new ParameterItem(network, i);
+				items.add(ni);
+				addAndMakeVisible(ni);
+			}
+
+			auto ni = new AddParameterItem(network);
+			items.add(ni);
+			addAndMakeVisible(ni);
+
+			parameterListener.setCallback(parameterTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Parameters::update));
+		}
+
+		void update(ValueTree v, bool wasAdded)
+		{
+			auto numParameters = parameterTree.getNumChildren();
+			auto numItems =  getNumChildComponents() - 1;
+
+			if(numParameters == numItems)
+				return;
+
+			if(auto b = findParentComponentOfClass<SearchableListComponent>())
+			{
+				MessageManager::callAsync([b]()
+				{
+					b->rebuildModuleList(true);
+				});
+			}
+		}
+
+		String getSearchTermForCollection() const override { return "Parameters"; }
+
+		ValueTree parameterTree;
+		valuetree::ChildListener parameterListener;
+	};
+
+	struct LocalCables: public NodeCollection
+	{
+		LocalCables(DspNetwork* network):
+		  NodeCollection(network, 0)
+		{
+			setName("Local cables");
+
+			addItems(network->getListOfLocalCableIds(), true);
+		}
+
+		String getSearchTermForCollection() const override { return "LocalCables"; }
+	};
+
 	struct UsedNodes : public NodeCollection
 	{
 		UsedNodes(DspNetwork* network) :
-			NodeCollection(network, 0)
+			NodeCollection(network, 1)
 		{
 			setName("Used Nodes");
-			addItems(network->getListOfUsedNodeIds());
+			addItems(network->getListOfUsedNodeIds(), false);
 		}
 
 		String getSearchTermForCollection() const override { return "UsedNodes"; }
@@ -445,10 +689,10 @@ public:
 	struct UnusedNodes : public NodeCollection
 	{
 		UnusedNodes(DspNetwork* network) :
-			NodeCollection(network, 1)
+			NodeCollection(network, 2)
 		{
 			setName("Unused Nodes");
-			addItems(network->getListOfUnusedNodeIds());
+			addItems(network->getListOfUnusedNodeIds(), false);
 		};
 
 		String getSearchTermForCollection() const override { return "UsedNodes"; }
@@ -493,11 +737,15 @@ public:
 		}
 	};
 
-	int getNumCollectionsToCreate() const override { return 2; }
+	int getNumCollectionsToCreate() const override { return 4; }
 
 	Collection* createCollection(int index) override
 	{
 		if (index == 0)
+			return new Parameters(parent);
+		if (index == 1)
+			return new LocalCables(parent);
+		else if (index == 2)
 			return new UsedNodes(parent);
 		else 
 			return new UnusedNodes(parent);

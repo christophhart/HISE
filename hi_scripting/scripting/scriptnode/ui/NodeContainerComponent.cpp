@@ -369,7 +369,7 @@ juce::Point<int> ContainerComponent::getStartPosition() const
 	y += UIValues::PinHeight;
 
 	if (dataReference[PropertyIds::ShowParameters])
-		y += UIValues::ParameterHeight;
+		y += UIValues::ParameterHeight + UIValues::MacroDragHeight;
 
 	return { UIValues::NodeMargin, y};
 }
@@ -536,6 +536,7 @@ void ContainerComponent::rebuildNodes()
 				auto newNode = n->createComponent();
 
 				n->getHelpManager().addHelpListener(this);
+				n->getHelpManager().initCommentButton(this);
 				addAndMakeVisible(newNode);
 				childNodeComponents.add(newNode);
 			}
@@ -619,8 +620,18 @@ void SerialNodeComponent::resized()
 
 		auto helpBounds = nc->node->getHelpManager().getHelpSize().toNearestInt();
 
-		auto widthWithHelp = bounds.getWidth() + helpBounds.getWidth();
-		auto heightWithHelp = jmax(bounds.getHeight(), helpBounds.getHeight());
+		int heightWithHelp, widthWithHelp;
+
+		if(nc->node->getHelpManager().isHelpBelow())
+		{
+			widthWithHelp = jmax<int>(bounds.getWidth(), helpBounds.getWidth());
+			heightWithHelp = bounds.getHeight() + helpBounds.getHeight();
+		}
+		else
+		{
+			widthWithHelp = bounds.getWidth() + helpBounds.getWidth();
+			heightWithHelp = jmax(bounds.getHeight(), helpBounds.getHeight());
+		}
 
 		auto x = (getWidth() - widthWithHelp) / 2;
 		nc->setTopLeftPosition(x, bounds.getY());
@@ -671,7 +682,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 	b2.removeFromTop(UIValues::HeaderHeight);
 
 	if (dataReference[PropertyIds::ShowParameters])
-		b2.removeFromTop(UIValues::ParameterHeight);
+		b2.removeFromTop(UIValues::ParameterHeight + UIValues::MacroDragHeight);
 
 	auto top = b2.removeFromTop(UIValues::PinHeight);
 	auto start = top.getCentre().toFloat().translated(xOffset, 0.0f);
@@ -908,7 +919,12 @@ void ParallelNodeComponent::resized()
 
 		nc->setBounds(bounds);
 
-		startPos = startPos.withX(bounds.getRight() + helpBounds.getWidth() + UIValues::NodeMargin);
+		auto x = bounds.getRight() + UIValues::NodeMargin;
+
+		if(!nc->node->getHelpManager().isHelpBelow())
+			x += helpBounds.getWidth();
+
+		startPos = startPos.withX(x);
 	}
 
 	if (duplicateDisplay != nullptr)
@@ -1003,7 +1019,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 	b2.removeFromTop(UIValues::HeaderHeight);
 
 	if (dataReference[PropertyIds::ShowParameters])
-		b2.removeFromTop(UIValues::ParameterHeight);
+		b2.removeFromTop(UIValues::ParameterHeight + UIValues::MacroDragHeight);
 
 	b2.removeFromTop(UIValues::NodeMargin / 2);
 	b2.removeFromBottom(UIValues::NodeMargin / 2);

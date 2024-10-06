@@ -704,7 +704,8 @@ struct SpecNode: public NodeBase
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
 	{
-		return { topLeft.getX(), topLeft.getY(), 256, 150 };
+		Rectangle<int> x = { topLeft.getX(), topLeft.getY(), 256, 150 };
+		return getBoundsToDisplay(x);
 	}
 
 	uint32 lastMs;
@@ -1131,8 +1132,7 @@ template <int NV> struct NeuralNode: public NodeBase
     
     Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
     {
-
-        return Rectangle<int>(topLeft, topLeft.translated(128, 100));
+        return getBoundsToDisplay(Rectangle<int>(topLeft, topLeft.translated(128, 100)));
     }
     
     void updateModel(Identifier, var value)

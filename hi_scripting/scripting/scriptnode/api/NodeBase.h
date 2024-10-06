@@ -45,8 +45,16 @@ class HardcodedNode;
 class RestorableNode;
 class NodeBase;
 
-struct HelpManager : ControlledObject
+struct HelpManager : ControlledObject,
+					 public PathFactory
 {
+	Path createPath(const String& id) const override
+	{
+		Path path;
+		path.loadPathFromData (ColumnIcons::commentIcon, sizeof(ColumnIcons::commentIcon));
+		return path;
+	}
+
 	HelpManager(NodeBase* parent, ValueTree d);
 
 	struct Listener
@@ -67,9 +75,26 @@ struct HelpManager : ControlledObject
 	void addHelpListener(Listener* l);
 	void removeHelpListener(Listener* l);
 
+	void initCommentButton(Component* parentComponent);
+
+	void setShowComments(bool shouldShowComments)
+	{
+		showButton = !shouldShowComments;
+		commentButton.setVisible(showButton);
+	}
+
 	Rectangle<float> getHelpSize() const;
 
+	bool isHelpBelow() const;
+
+	bool showCommentButton() const
+	{
+		return showButton;
+	}
+
 private:
+
+	bool showButton = false;
 
 	void rebuild();
 
@@ -79,10 +104,13 @@ private:
 	float lastWidth = 300.0f;
 	float lastHeight = 0.0f;
 
+	NodeBase& parent;
 	Array<WeakReference<HelpManager::Listener>> listeners;
 	ScopedPointer<hise::MarkdownRenderer> helpRenderer;
 	valuetree::PropertyListener commentListener;
 	valuetree::PropertyListener colourListener;
+
+	HiseShapeButton commentButton;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HelpManager);
 };

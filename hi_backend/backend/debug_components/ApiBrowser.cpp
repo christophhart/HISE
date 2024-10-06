@@ -64,12 +64,25 @@ DspNodeList::NodeItem::NodeItem(DspNetwork* parent, const String& id):
 	Item(id),
 	node(dynamic_cast<NodeBase*>(parent->get(id).getObject())),
 	label(),
-	powerButton("on", this, f)
+	powerButton("on", this, f),
+	dragButton("drag", nullptr, f) 
 {
     auto vt = node->getValueTree();
     
 	label.setText(vt[PropertyIds::Name].toString(), dontSendNotification);
 	usePopupMenu = false;
+
+	if(node->getValueTree().getChildWithName(PropertyIds::ModulationTargets).isValid())
+	{
+		auto ntree = node->getValueTree();
+
+		dragListener = new DspNetworkListeners::MacroParameterDragListener(&dragButton, [ntree](DspNetworkGraph* g)
+		{
+			return DspNetworkListeners::MacroParameterDragListener::findModulationDragComponent(g, ntree);
+		});
+
+		addAndMakeVisible(dragButton);
+	}
 
 	addAndMakeVisible(powerButton);
 	addAndMakeVisible(label);
@@ -185,9 +198,8 @@ void DspNodeList::NodeItem::paint(Graphics& g)
         
         for(auto p: pTree)
         {
-            if(p[PropertyIds::Automated])
+            if(p[PropertyIds::Automated] && !dragButton.isVisible())
             {
-                
                 auto copy = area.toFloat();
                 copy = copy.removeFromRight(copy.getHeight()).reduced(3.0f);
                 drawPlug(g, copy, colour);
@@ -221,6 +233,9 @@ void DspNodeList::NodeItem::resized()
 	b.removeFromLeft(getIntendation()*2);
 	area = b;
 	b.removeFromLeft(5);
+
+	if(dragButton.isVisible())
+		dragButton.setBounds(b.removeFromRight(b.getHeight()).reduced(1));
             
 	powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(2));
             
@@ -243,11 +258,20 @@ void DspNodeList::NodeCollection::paint(Graphics& g)
 	g.drawText(getName(), top.toFloat(), Justification::centred);
 }
 
-void DspNodeList::NodeCollection::addItems(const StringArray& idList)
+void DspNodeList::NodeCollection::addItems(const StringArray& idList, bool isCable)
 {
 	for (const auto& id : idList)
 	{
-		auto newItem = new NodeItem(network.get(), id);
+		SearchableListComponent::Item* newItem;
+		if(isCable)
+		{
+			newItem = new CableItem(network.get(), id);
+		}
+		else
+		{
+			newItem = new NodeItem(network.get(), id);
+		}
+
 		addAndMakeVisible(newItem);
 		items.add(newItem);
 	}
