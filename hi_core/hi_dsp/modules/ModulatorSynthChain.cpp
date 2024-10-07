@@ -239,10 +239,14 @@ void ModulatorSynthChain::compileAllScripts()
 			sp->compileScript();
 		}
 
-		Processor::Iterator<HardcodedSwappableEffect> rti(this, false);
+		Processor::Iterator<RuntimeTargetHolder> rti(this, false);
             
         while(auto m = rti.getNextProcessor())
-            m->connectRuntimeTargets();
+        {
+			m->disconnectRuntimeTargets(getMainController());
+	        m->connectRuntimeTargets(getMainController());
+        }
+            
 	}
 }
 

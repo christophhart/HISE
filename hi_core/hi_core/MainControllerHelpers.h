@@ -289,6 +289,15 @@ struct ValueToTextConverter
 	String suffix;
 };
 
+class RuntimeTargetHolder
+{
+public:
+
+	virtual ~RuntimeTargetHolder() {};
+	virtual void connectRuntimeTargets(MainController* mc) = 0;
+	virtual void disconnectRuntimeTargets(MainController* mc) = 0;
+};
+
 /** This handles the MIDI automation for the frontend plugin.
 *
 *	For faster performance, one CC value can only control one parameter.

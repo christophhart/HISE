@@ -482,28 +482,24 @@ HardcodedSwappableEffect::~HardcodedSwappableEffect()
 {
 	mc_->removeTempoListener(&tempoSyncer);
 
-	if (opaqueNode != nullptr)
-	{
-		factory->deinitOpaqueNode(opaqueNode);
-		opaqueNode = nullptr;
-	}
-
+	disconnectRuntimeTargets(mc_);
+	
 	factory = nullptr;
 }
 
-void HardcodedSwappableEffect::connectRuntimeTargets()
+void HardcodedSwappableEffect::connectRuntimeTargets(MainController* mc)
 {
     if(opaqueNode != nullptr)
     {
-        dynamic_cast<Processor*>(this)->getMainController()->connectToRuntimeTargets(*opaqueNode, true);
+        mc->connectToRuntimeTargets(*opaqueNode, true);
     }
 }
 
-void HardcodedSwappableEffect::disconnectRuntimeTargets()
+void HardcodedSwappableEffect::disconnectRuntimeTargets(MainController* mc)
 {
     if(opaqueNode != nullptr)
     {
-        dynamic_cast<Processor*>(this)->getMainController()->connectToRuntimeTargets(*opaqueNode, false);
+        mc->connectToRuntimeTargets(*opaqueNode, false);
         
         factory->deinitOpaqueNode(opaqueNode);
         opaqueNode = nullptr;
@@ -514,6 +510,11 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 {
 	if (factoryId == currentEffect)
 		return true;
+
+	if(opaqueNode != nullptr)
+	{
+		mc_->connectToRuntimeTargets(*opaqueNode, false);
+	}
 
 	auto idx = getModuleList().indexOf(factoryId);
 

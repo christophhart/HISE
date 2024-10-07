@@ -294,6 +294,8 @@ public:
 
 	virtual void processMonoFrame(MonoFrameType& data);
 
+	virtual void connectToRuntimeTarget(bool shouldConnect) {};
+
 	template <typename T> T* findParentNodeOfType() const
 	{
 		NodeBase* p = parentNode.get();

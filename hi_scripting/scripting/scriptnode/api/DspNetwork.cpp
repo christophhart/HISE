@@ -1401,6 +1401,28 @@ void DspNetwork::Holder::setProjectDll(dll::ProjectDll::Ptr pdll)
 	projectDll = pdll;
 }
 
+void DspNetwork::Holder::connectRuntimeTargets(MainController* mc)
+{
+	if(auto n = getActiveNetwork())
+	{
+		for(auto node: n->nodes)
+		{
+			node->connectToRuntimeTarget(true);
+		}
+	}
+}
+
+void DspNetwork::Holder::disconnectRuntimeTargets(MainController* mc)
+{
+	if(auto n = getActiveNetwork())
+	{
+		for(auto node: n->nodes)
+		{
+			node->connectToRuntimeTarget(false);
+		}
+	}
+}
+
 ExternalDataHolder* DspNetwork::Holder::getExternalDataHolder()
 {
 	return dataHolder;

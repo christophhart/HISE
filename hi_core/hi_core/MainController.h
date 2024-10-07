@@ -523,8 +523,20 @@ public:
 			}
 		}
 
+		void clearRoutingManagerAsync()
+		{
+			auto rm = mc->getGlobalRoutingManager();
+
+			if(rm != nullptr)
+			{
+				routingManagerToDelete = var(rm);
+				mc->setGlobalRoutingManager(nullptr);
+			}
+		}
+
 	private:
 
+		var routingManagerToDelete;
 		Array<WeakReference<PresetLoadListener>> presetLoadListeners;
 
 		struct Job

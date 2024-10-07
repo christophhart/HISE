@@ -170,7 +170,7 @@ public:
         String newId;
     };
     
-	class Holder
+	class Holder: public RuntimeTargetHolder
 	{
 	public:
 
@@ -200,6 +200,9 @@ public:
 		DspNetwork* getActiveNetwork() const;
 
 		void setProjectDll(dll::ProjectDll::Ptr pdll);
+
+		void connectRuntimeTargets(MainController* mc) override;
+		void disconnectRuntimeTargets(MainController* mc) override;
 
 		dll::ProjectDll::Ptr projectDll;
 

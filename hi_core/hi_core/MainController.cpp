@@ -286,8 +286,8 @@ void MainController::clearPreset(NotificationType sendPresetLoadMessage)
 
 	while (auto p = iter.getNextProcessor())
     {
-        if(auto sp = dynamic_cast<HardcodedSwappableEffect*>(p))
-            sp->disconnectRuntimeTargets();
+        if(auto sp = dynamic_cast<RuntimeTargetHolder*>(p))
+            sp->disconnectRuntimeTargets(this);
         
         p->cleanRebuildFlagForThisAndParents();
     }
@@ -310,12 +310,13 @@ void MainController::clearPreset(NotificationType sendPresetLoadMessage)
 		#endif
 
         mc->clearWebResources();
-		mc->setGlobalRoutingManager(nullptr);
 
 		BACKEND_ONLY(mc->getJavascriptThreadPool().getGlobalServer()->setInitialised());
 		mc->getMainSynthChain()->reset();
 		mc->globalVariableObject->clear();
 
+		mc->getLockFreeDispatcher().clearRoutingManagerAsync();
+		
 		for (int i = 0; i < 127; i++)
 		{
 			mc->setKeyboardCoulour(i, Colours::transparentBlack);
@@ -507,9 +508,14 @@ void MainController::compileAllScripts()
 	}
 
 	JavascriptProcessor *sp;
+
+	Processor* first = nullptr;
 		
 	while((sp = it.getNextProcessor()) != nullptr)
 	{
+		if(first == nullptr)
+			first = dynamic_cast<Processor*>(sp);
+
 		if (sp->isConnectedToExternalFile())
 		{
 			sp->reloadFromFile();
@@ -519,6 +525,24 @@ void MainController::compileAllScripts()
 			sp->compileScript();
 		}
 	}
+
+#if USE_BACKEND
+	if(first != nullptr)
+	{
+		getKillStateHandler().killVoicesAndCall(first, [](Processor* p)
+		{
+			Processor::Iterator<RuntimeTargetHolder> iter(p->getMainController()->getMainSynthChain());
+
+			while(auto rt = iter.getNextProcessor())
+			{
+				rt->disconnectRuntimeTargets(p->getMainController());
+				rt->connectRuntimeTargets(p->getMainController());
+			}
+
+			return SafeFunctionCall::OK;
+		}, MainController::KillStateHandler::TargetThread::ScriptingThread);
+	}
+#endif
 
 	getUserPresetHandler().initDefaultPresetManager({});
 };
