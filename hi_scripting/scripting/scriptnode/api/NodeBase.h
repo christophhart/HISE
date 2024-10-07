@@ -70,6 +70,10 @@ struct HelpManager : ControlledObject,
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
+	~HelpManager();
+
+	void setCommentTooltip();
+
 	void update(Identifier id, var newValue);
 	void render(Graphics& g, Rectangle<float> area);
 	void addHelpListener(Listener* l);
@@ -77,11 +81,7 @@ struct HelpManager : ControlledObject,
 
 	void initCommentButton(Component* parentComponent);
 
-	void setShowComments(bool shouldShowComments)
-	{
-		showButton = !shouldShowComments;
-		commentButton.setVisible(showButton);
-	}
+	void setShowComments(bool shouldShowComments);
 
 	Rectangle<float> getHelpSize() const;
 
@@ -110,7 +110,7 @@ private:
 	valuetree::PropertyListener commentListener;
 	valuetree::PropertyListener colourListener;
 
-	HiseShapeButton commentButton;
+	ScopedPointer<HiseShapeButton> commentButton;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(HelpManager);
 };

@@ -1365,17 +1365,29 @@ juce::Array<NodeBase::Parameter*> NodeBase::Parameter::getConnectedMacroParamete
 
 HelpManager::HelpManager(NodeBase* parent_, ValueTree d) :
 	ControlledObject(parent_->getScriptProcessor()->getMainController_()),
-	parent(*parent_),
-	commentButton("comment", nullptr, *this)
+	parent(*parent_)
 {
-	commentButton.onClick = [this]()
-	{
-		this->setShowComments(true);
-		commentButton.findParentComponentOfClass<DspNetworkGraph>()->resizeNodes();
-	};
-
 	commentListener.setCallback(d, { PropertyIds::Comment, PropertyIds::NodeColour}, valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(HelpManager::update));
+}
+
+HelpManager::~HelpManager()
+{
+	if(commentButton != nullptr && commentButton->getParentComponent() != nullptr)
+		commentButton->getParentComponent()->removeChildComponent(commentButton);
+
+	commentButton = nullptr;
+}
+
+void HelpManager::setCommentTooltip()
+{
+	auto firstLine = lastText.upToFirstOccurrenceOf("\n", false, false);
+
+	if(lastText.length() != firstLine.length())
+		firstLine << " [...] (click to show full content)";
+
+	if(commentButton != nullptr)
+		commentButton->setTooltip(firstLine);
 }
 
 void HelpManager::update(Identifier id, var newValue)
@@ -1403,12 +1415,7 @@ void HelpManager::update(Identifier id, var newValue)
 	{
 		lastText = newValue.toString();
 
-		auto firstLine = lastText.upToFirstOccurrenceOf("\n", false, false);
-
-		if(lastText.length() != firstLine.length())
-			firstLine << " [...] (click to show full content)";
-
-		commentButton.setTooltip(firstLine);
+		setCommentTooltip();
 
 		auto f = GLOBAL_BOLD_FONT();
 
@@ -1443,8 +1450,8 @@ void HelpManager::render(Graphics& g, Rectangle<float> area)
 		{
 			auto b = area.toNearestInt().reduced(3);
 
-			if(commentButton.getBoundsInParent() != b)
-				commentButton.setBounds(b);
+			if(commentButton != nullptr && commentButton->getBoundsInParent() != b)
+				commentButton->setBounds(b);
 		}
 	}
 }
@@ -1462,16 +1469,42 @@ void HelpManager::removeHelpListener(Listener* l)
 
 void HelpManager::initCommentButton(Component* parentComponent)
 {
-	if(auto pc = commentButton.getParentComponent())
-		pc->removeChildComponent(&commentButton);
-
+	if(commentButton != nullptr)
+	{
+		if(auto pc = commentButton->getParentComponent())
+		pc->removeChildComponent(commentButton);
+	}
+	
 	if(lastText.isNotEmpty())
 	{
 		auto showComments = (bool)dynamic_cast<NodeComponent*>(parentComponent)->node->getRootNetwork()->getValueTree()[PropertyIds::ShowComments];
-		setShowComments(showComments);
-		parentComponent->addChildComponent(commentButton);
-	}
+
+		if(commentButton == nullptr)
+		{
+			commentButton = new HiseShapeButton("comment", nullptr, *this);
+
+			setCommentTooltip();
+
+			commentButton->onClick = [this]()
+			{
+				setShowComments(true);
+				commentButton->findParentComponentOfClass<DspNetworkGraph>()->resizeNodes();
+			};
+		}
 			
+
+		parentComponent->addChildComponent(commentButton);
+
+		setShowComments(showComments);
+	}
+}
+
+void HelpManager::setShowComments(bool shouldShowComments)
+{
+	showButton = !shouldShowComments;
+
+	if(commentButton != nullptr)
+		commentButton->setVisible(showButton);
 }
 
 juce::Rectangle<float> HelpManager::getHelpSize() const
@@ -1501,7 +1534,8 @@ bool HelpManager::isHelpBelow() const
 
 void HelpManager::rebuild()
 {
-	commentButton.setVisible(showCommentButton());
+	if(commentButton != nullptr)
+		commentButton->setVisible(showCommentButton());
 
 	if (lastText.isNotEmpty())
 	{
