@@ -483,7 +483,13 @@ HardcodedSwappableEffect::~HardcodedSwappableEffect()
 	mc_->removeTempoListener(&tempoSyncer);
 
 	disconnectRuntimeTargets(mc_);
-	
+
+	if(opaqueNode != nullptr)
+	{
+		factory->deinitOpaqueNode(opaqueNode);
+		opaqueNode = nullptr;
+	}
+
 	factory = nullptr;
 }
 
@@ -500,9 +506,6 @@ void HardcodedSwappableEffect::disconnectRuntimeTargets(MainController* mc)
     if(opaqueNode != nullptr)
     {
         mc->connectToRuntimeTargets(*opaqueNode, false);
-        
-        factory->deinitOpaqueNode(opaqueNode);
-        opaqueNode = nullptr;
     }
 }
 
