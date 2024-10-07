@@ -1169,9 +1169,8 @@ void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateFont(ScriptComponent
 void ScriptCreatedComponentWrappers::ComboBoxWrapper::updateItems(HiComboBox * cb)
 {
 	cb->clear(dontSendNotification);
-    cb->rebuildPopupMenu();
-    
 	cb->addItemList(dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(getScriptComponent())->getItemList(), 1);
+    cb->rebuildPopupMenu();
     
     auto currentValue = (int)getScriptComponent()->getValue();
     cb->setSelectedId(currentValue, dontSendNotification);
