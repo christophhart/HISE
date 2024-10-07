@@ -510,6 +510,8 @@ void MainController::compileAllScripts()
 	JavascriptProcessor *sp;
 
 	Processor* first = nullptr;
+
+	saveAllExternalFiles();
 		
 	while((sp = it.getNextProcessor()) != nullptr)
 	{

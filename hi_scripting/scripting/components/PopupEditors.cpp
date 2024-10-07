@@ -607,17 +607,8 @@ File PopupIncludeEditor::getFile() const
 
 void PopupIncludeEditor::compileInternal()
 {
-	if (externalFile != nullptr)
-	{
-		if(externalFile->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet)
-		{
-			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Skip writing embedded file " + externalFile->getFile().getFileName() + " to disk...");
-		}
-		else
-		{
-            externalFile->saveFile();
-		}
-	}
+	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
+	mc->saveAllExternalFiles();
 
 	if(t == FileTypes::CSS)
 	{
