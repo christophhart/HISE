@@ -331,7 +331,7 @@ namespace parameter
 
 		p.setProperty(PropertyIds::ID, info.getId(), nullptr);
 		p.setProperty(PropertyIds::Value, info.defaultValue, nullptr);
-
+		p.setProperty(PropertyIds::DefaultValue, info.defaultValue, nullptr);
 		return p;
 	}
 

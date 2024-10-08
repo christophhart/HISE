@@ -213,6 +213,7 @@ struct ParameterSlider : public Slider,
 	valuetree::RecursiveTypedChildListener connectionListener;
 	
 	valuetree::PropertyListener valueListener;
+	valuetree::PropertyListener defaultValueListener;
 	valuetree::PropertyListener rangeListener;
 	valuetree::PropertyListener automationListener;
 

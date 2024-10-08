@@ -82,6 +82,7 @@ DECLARE_ID(Bypassed);
 DECLARE_ID(Debug);
 DECLARE_ID(NumParameters);
 DECLARE_ID(Value);
+DECLARE_ID(DefaultValue);	
 DECLARE_ID(ID);
 DECLARE_ID(Index);
 DECLARE_ID(NodeId);

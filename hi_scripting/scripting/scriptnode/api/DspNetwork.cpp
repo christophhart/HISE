@@ -2770,6 +2770,9 @@ bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 
 	removeIfDefined(v, PropertyIds::Value, PropertyIds::Automated);
 
+	if(v.hasProperty(PropertyIds::DefaultValue) && v[PropertyIds::DefaultValue] == v[PropertyIds::Value])
+		v.removeProperty(PropertyIds::DefaultValue, nullptr);
+
 	removeIfNoChildren(v.getChildWithName(PropertyIds::Bookmarks));
 	removeIfNoChildren(v.getChildWithName(PropertyIds::ModulationTargets));
 
