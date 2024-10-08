@@ -633,7 +633,15 @@ public:
 
 	void paint(Graphics& g) override;
 
+	void setJustificationForLabelAndTextEditor(Justification t)
+	{
+		alignmentForLabelAndEditor = t;
+		setJustificationType(t);
+	}
+
 private:
+
+	Justification alignmentForLabelAndEditor = Justification::centred;
 
 	bool usePasswordChar = false;
 	bool multiline;
