@@ -1043,7 +1043,7 @@ void ParameterSlider::updateRange(Identifier, var)
 	{
 		auto dv = pTree[PropertyIds::DefaultValue];
 
-		if(!(getRange().contains(dv) || getRange().getEnd() == dv))
+		if(!(getRange().contains((double)dv) || getRange().getEnd() == (double)dv))
 			setDoubleClickReturnValue(false, getRange().getStart());
 	}
 	
