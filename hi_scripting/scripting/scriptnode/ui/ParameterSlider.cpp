@@ -1039,8 +1039,14 @@ void ParameterSlider::updateRange(Identifier, var)
 	setRange(range.rng.getRange(), range.rng.interval);
 	setSkewFactor(range.rng.skew);
 
-	
+	if(pTree.hasProperty(PropertyIds::DefaultValue))
+	{
+		auto dv = pTree[PropertyIds::DefaultValue];
 
+		if(!(getRange().contains(dv) || getRange().getEnd() == dv))
+			setDoubleClickReturnValue(false, getRange().getStart());
+	}
+	
 	repaint();
 }
 
