@@ -1304,7 +1304,7 @@ void ModulatorSampler::noteOff(const HiseEvent &m)
 
 					if(s->getReferenceToSound()->isReleaseStartEnabled())
 					{
-						static_cast<ModulatorSamplerVoice*>(v)->wrappedVoice.jumpToRelease();
+						static_cast<ModulatorSamplerVoice*>(v)->jumpToRelease();
 					}
 				}
 			}

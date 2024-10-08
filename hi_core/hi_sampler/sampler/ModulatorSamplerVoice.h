@@ -63,6 +63,11 @@ public:
 	void calculateBlock(int startSample, int numSamples) override;
 	void resetVoice() override;
 
+	virtual void jumpToRelease()
+	{
+		wrappedVoice.jumpToRelease();
+	}
+
 	virtual void setNonRealtime(bool isNonRealtime)
 	{
 		nonRealtime = isNonRealtime;
@@ -207,6 +212,12 @@ public:
 	{
 		for(auto v: wrappedVoices)
 			v->loader.setIsNonRealtime(isNonRealtime);
+	}
+
+	void jumpToRelease() override
+	{
+		for(auto v: wrappedVoices)
+			v->jumpToRelease();
 	}
 
 	// ================================================================================================================
