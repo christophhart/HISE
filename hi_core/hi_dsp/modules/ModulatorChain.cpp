@@ -881,6 +881,25 @@ bool ModulatorChain::shouldBeProcessedAtAll() const noexcept
 	return !isBypassed() && handler.hasActiveMods();
 }
 
+void ModulatorChain::syncAfterDelayStart(bool waitForDelay, int voiceIndex)
+{
+	// We just want the envelopes to recalculate their value,
+	// constant modulators are constant (noice) and
+	// time variant modulators will have a continuous signal that can't be suspended
+	if(hasActiveEnvelopesAtAll())
+	{
+		ModIterator<EnvelopeModulator> iter2(this);
+
+		while (auto mod = iter2.next())
+			mod->syncAfterDelayStart(waitForDelay, voiceIndex);
+
+		ModIterator<MonophonicEnvelope> iter3(this);
+
+		while (auto mod = iter3.next())
+			mod->syncAfterDelayStart(waitForDelay, voiceIndex);
+	}
+}
+
 void ModulatorChain::reset(int voiceIndex)
 {
 	jassert(hasActiveEnvelopesAtAll());
@@ -1546,4 +1565,22 @@ bool ModBufferExpansion::expand(const float* modulationData, int startSample, in
 	}
 }
 
+int ModulatorChainFactoryType::fillPopupMenu(PopupMenu& menu, int startIndex)
+{
+	int index = startIndex;
+
+	PopupMenu voiceMenu;
+	index = voiceStartFactory->fillPopupMenu(voiceMenu, index);
+	menu.addSubMenu("VoiceStart", voiceMenu);
+
+	PopupMenu timeMenu;
+	index = timeVariantFactory->fillPopupMenu(timeMenu, index);
+	menu.addSubMenu("TimeVariant", timeMenu);
+
+	PopupMenu envelopes;
+	index = envelopeFactory->fillPopupMenu(envelopes, index);
+	menu.addSubMenu("Envelopes", envelopes);
+
+	return index;
+}
 } // namespace hise

@@ -127,7 +127,7 @@ void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
 
 void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
-	if (waitForPlayFromPurge.load())
+	if (waitForPlayFromPurge.load() || wrappedVoice.isWaitingForTimestretchSeek())
 	{
 		voiceBuffer.clear(startSample, numSamples);
 		return;
@@ -186,6 +186,11 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(0, startSample), true, samplesInBlock);
 	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(1, startSample), false, samplesInBlock);
+
+	if(wrappedVoice.isWaitingForTimestretchSeek())
+	{
+		return;
+	}
 
 	float envGain = 1.0f;
 
@@ -412,9 +417,8 @@ wrappedVoice(sampler->getBackgroundThreadPool())
 	auto ms = static_cast<ModulatorSampler*>(ownerSynth);
 
 	wrappedVoice.setTemporaryVoiceBuffer(ms->getTemporaryVoiceBuffer(), ms->getTemporaryStretchBuffer());
-	
 	wrappedVoice.setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());
-	
+	wrappedVoice.setSuspendOnDelayedStartFunction(std::bind(&ModulatorSynth::syncAfterDelayStart, ownerSynth, std::placeholders::_1, std::placeholders::_2), getVoiceIndex());
 };
 
 
@@ -434,6 +438,9 @@ ModulatorSamplerVoice(ownerSynth)
 		wrappedVoices.getLast()->setTemporaryVoiceBuffer(ms->getTemporaryVoiceBuffer(), ms->getTemporaryStretchBuffer());
 		wrappedVoices.getLast()->setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());
 	}
+
+	// just call this once...
+	wrappedVoices.getFirst()->setSuspendOnDelayedStartFunction(std::bind(&ModulatorSynth::syncAfterDelayStart, ownerSynth, std::placeholders::_1, std::placeholders::_2), getVoiceIndex());
 }
 
 void MultiMicModulatorSamplerVoice::startVoiceInternal(int midiNoteNumber, float velocity)
@@ -500,7 +507,7 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 {
 	ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::MultiMicSampleRendering);
 
-	if (waitForPlayFromPurge.load())
+	if (waitForPlayFromPurge.load() || wrappedVoices.getFirst()->isWaitingForTimestretchSeek())
 	{
 		voiceBuffer.clear(startSample, numSamples);
 		return;

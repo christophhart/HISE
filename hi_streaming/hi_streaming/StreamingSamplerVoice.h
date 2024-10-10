@@ -35,6 +35,7 @@
 
 namespace hise { using namespace juce;
 
+class StreamingSamplerVoice;
 
 /** This is a utility class that handles buffered sample streaming in a background thread.
 *
@@ -112,6 +113,10 @@ public:
 	/** Resets the loader (unloads the sound). */
 	void reset();
 
+	bool isWaitingForTimestretchSeek() const { return voiceToSeekTimestretchStart != nullptr; }
+
+	NotificationType waitForTimestretchSeek(StreamingSamplerVoice* v);
+
 	void clearLoader();
 
 	/** Calculates and returns the disk usage.
@@ -136,6 +141,7 @@ public:
 		nonRealtime = shouldBeNonRealtime;
 	}
 
+	bool isNonRealtime() const { return nonRealtime; }
 	
 
 #if HISE_SAMPLER_ALLOW_RELEASE_START
@@ -175,6 +181,10 @@ private:
 	// ============================================================================================ internal methods
 
 	int getNumSamplesForStreamingBuffers() const;
+
+	StreamingSamplerVoice* voiceToSeekTimestretchStart = nullptr;
+
+	bool seekTimestretchOnNextJob = false;
 
 	bool requestNewData();
 
@@ -255,6 +265,8 @@ public:
 
 	/** starts the streaming of the sound. */
 	void startNote(int midiNoteNumber, float velocity, SynthesiserSound* s, int /*currentPitchWheelPosition*/) override;
+
+	void skipTimestretchSilenceAtStart();
 
 	const StreamingSamplerSound *getLoadedSound();
 
@@ -340,9 +352,9 @@ public:
 		stretchRatio = jlimit(0.0625, 2.0, newRatio);
 	}
 
-	void setSkipLatency(bool shouldSkipLatency)
+	void setSkipLatency(NotificationType startOption)
 	{
-		skipLatency = shouldSkipLatency;
+		skipLatency = startOption;
 	}
 
 	void setTimestretchTonality(double tonality)
@@ -356,8 +368,28 @@ public:
 	{
 		jumpToReleaseOnNextRender = true;
 	}
-	
+
+	bool isWaitingForTimestretchSeek() const
+	{
+		return loader.isWaitingForTimestretchSeek();
+	}
+
+	NotificationType initStretcher(float pitchRatio);
+
+	void setSuspendOnDelayedStartFunction(const std::function<void(bool, int)>& f, int voiceIndexToUse_)
+	{
+		delayedStartFunction = f;
+		voiceIndexForDelayedStart = voiceIndexToUse_;
+	}
+
 private:
+
+	friend class SampleLoader;
+
+	int voiceIndexForDelayedStart = -1;
+	std::function<void(bool, int)> delayedStartFunction;
+
+	bool stretcherNeedsInitialisation = false;
 
 	int releaseFadeDuration = 0;
 	double releaseFadeCounter = 0.0;
@@ -369,7 +401,7 @@ private:
 
 	double timestretchTonality = 0.0;
 
-	bool skipLatency = false;
+	NotificationType skipLatency = NotificationType::sendNotificationAsync;
 
 	double pitchCounter = 0.0;
 

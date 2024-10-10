@@ -119,7 +119,7 @@ public:
 	virtual void setTimestretchOptions(const ModulatorSampler::TimestretchOptions& options)
 	{
 		wrappedVoice.setEnableTimestretch((bool)options, options.engineId);
-		wrappedVoice.setSkipLatency(options.skipStart);
+		wrappedVoice.setSkipLatency(options.synchronousSkip ? sendNotificationSync : sendNotificationAsync);
 		wrappedVoice.setTimestretchTonality(options.tonality);
 	}
 
@@ -229,7 +229,7 @@ public:
 		for (auto v : wrappedVoices)
 		{
 			v->setEnableTimestretch(options);
-			v->setSkipLatency(options.skipStart);
+			v->setSkipLatency(options.synchronousSkip ? sendNotificationSync : sendNotificationAsync);
 			v->setTimestretchTonality(options.tonality);
 		}
 	}

@@ -591,6 +591,12 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 
+	void syncAfterDelayStart(bool waitForDelay, int voiceIndex) override
+	{
+		if(!waitForDelay)
+			startVoice(voiceIndex);
+	}
+
 	ValueTree exportAsValueTree() const override;;
 
 	void restoreFromValueTree(const ValueTree &v) override;
