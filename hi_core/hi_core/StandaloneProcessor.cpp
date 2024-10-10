@@ -219,8 +219,29 @@ StandaloneProcessor::StandaloneProcessor()
 	ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
 
 #if USE_BACKEND
-	if(!CompileExporter::isExportingFromCommandLine()) 
+	if(!CompileExporter::isExportingFromCommandLine())
+	{
+		if(xml != nullptr)
+		{
+			BigInteger numOutputChannels;
+
+			numOutputChannels.parseString(xml->getStringAttribute("audioDeviceOutChans"), 2);
+
+			auto numOutputsInDeviceSetting = numOutputChannels.countNumberOfSetBits();
+
+			if(numOutputsInDeviceSetting != HISE_NUM_STANDALONE_OUTPUTS)
+			{
+				if(PresetHandler::showYesNoWindow("Channel amount mismatch", "The number of channels used in the audio device settings do not match the amount of channels defined by `HISE_NUM_STANDALONE_OUTPUTS`.  \nPress OK to remove the xml file and initialise the default value."))
+				{
+					AudioProcessorDriver::getDeviceSettingsFile().deleteFile();
+					xml = nullptr;
+				}
+			}
+		}
+
 		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
+	}
+		
 #else
 	
     auto apd = dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get());

@@ -160,7 +160,7 @@ void TextEditor::setNewTokenCollectionForAllChildren(Component* any, const Ident
 
 	Component::callRecursive<TextEditor>(top, [&](TextEditor* t)
 	{
-		if(t->languageManager->getLanguageId() == languageId)
+		if(t->languageManager->getLanguageId() == languageId && newCollection != nullptr)
 		{
 			t->tokenCollection = newCollection;
 			newCollection->addListener(t);
