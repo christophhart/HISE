@@ -67,7 +67,7 @@ void DefaultParameterNodeComponent::resized()
 	
 
 	int numPerRow = jlimit(1, jmax(sliders.size(), 1), b.getWidth() / 100);
-	int numColumns = jmax(1, b.getHeight() / rowHeight);
+	int numColumns = jmax(1, (b.getHeight() + 10) / rowHeight);
 
 	auto staticIntend = 0;
 
