@@ -787,6 +787,7 @@ TemplateNodeFactory::TemplateNodeFactory(DspNetwork* n) :
 	registerNodeRaw<node_templates::softbypass_switch<7>>();
 	registerNodeRaw<node_templates::softbypass_switch<8>>();
 
+#if USE_BACKEND
 	auto fileTemplates = BackendDllManager::getAllNodeTemplates(n->getScriptProcessor()->getMainController_());
 
 	for(auto v: fileTemplates)
@@ -810,6 +811,7 @@ TemplateNodeFactory::TemplateNodeFactory(DspNetwork* n) :
 			return newNode;
 		});
 	}
+#endif
 }
 
 int TemplateNodeFactory::Builder::addNode(int parent, const String& path, const String& id, int index)

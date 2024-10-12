@@ -1052,6 +1052,7 @@ void ParameterSlider::updateRange(Identifier, var)
 
 bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 {
+#if USE_BACKEND
 	if (details.sourceComponent == this)
 		return false;
 
@@ -1118,6 +1119,9 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 		return false;
 
 	return !isReadOnlyModulated;
+#else
+	return false;
+#endif
 }
 
 void ParameterSlider::paint(Graphics& g)

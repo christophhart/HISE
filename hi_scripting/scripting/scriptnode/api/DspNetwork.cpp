@@ -2438,11 +2438,13 @@ void HostHelpers::setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree
 	});
 }
 
+#if USE_BACKEND
 void DspNetworkListeners::DspNetworkGraphRootListener::onChangeStatic(DspNetworkGraphRootListener& l, NodeBase* n)
 {
 	if(n != nullptr)
 		l.onRootChange(n);
 }
+#endif
 
 bool OpaqueNetworkHolder::isPolyphonic() const
 { return false; }

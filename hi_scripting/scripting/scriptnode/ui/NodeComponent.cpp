@@ -921,7 +921,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 juce::Colour NodeComponent::getOutlineColour() const
 {
-	if (node->getRootNetwork()->getRootNode() == node)
+	if (node->getRootNetwork()->getRootNode() == node.get())
 		return dynamic_cast<const Processor*>(node->getScriptProcessor())->getColour();
 
 	auto& exceptionHandler = node->getRootNetwork()->getExceptionHandler();
