@@ -671,6 +671,8 @@ public:
 		OwnedArray<Component> sliders;
 	};
 
+	NodeComponentFactory nf;
+
 	ContainerComponent(NodeContainer* b);;
 	~ContainerComponent();
 
@@ -680,6 +682,8 @@ public:
 	void mouseDown(const MouseEvent& event) override;
 	void mouseDrag(const MouseEvent& event) override;
 	void mouseUp(const MouseEvent& e) override;
+
+	bool keyPressed(const KeyPress& k) override;
 
     void timerCallback() override { repaint(); }
 
@@ -750,24 +754,9 @@ public:
 
 	virtual Rectangle<float> getInsertRuler(int ) const { jassertfalse; return {}; }
 
-	void resized() override
-	{
-		NodeComponent::resized();
+	void resized() override;
 
-		Component* topComponent = parameters != nullptr ? parameters.get() : extraComponent.get();
-
-		jassert(topComponent != nullptr);
-
-		topComponent->setVisible(dataReference[PropertyIds::ShowParameters]);
-
-		auto b = getLocalBounds();
-		b.expand(-UIValues::NodeMargin, 0);
-		b.removeFromTop(UIValues::HeaderHeight);
-		topComponent->setSize(b.getWidth(), topComponent->getHeight());
-		topComponent->setTopLeftPosition(b.getTopLeft());
-	}
-
-	int getCurrentAddPosition() const { return addPosition; }
+    int getCurrentAddPosition() const { return addPosition; }
 
 	void setExtraComponent(Component* newExtraComponent)
 	{
@@ -799,7 +788,9 @@ protected:
 	ScopedPointer<Component> duplicateDisplay;
 
     float signalDotOffset = 0.0f;
-    
+
+	HiseShapeButton gotoButton;
+
 private:
 
 	struct Updater : public SafeChangeBroadcaster,

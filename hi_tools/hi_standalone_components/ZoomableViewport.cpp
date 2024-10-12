@@ -136,6 +136,12 @@ bool ZoomableViewport::checkViewportScroll(const MouseEvent& e, const MouseWheel
 
 bool ZoomableViewport::checkMiddleMouseDrag(const MouseEvent& e, MouseEventFlags type)
 {
+	if(e.mods.isX1ButtonDown())
+		return true;
+
+	if(e.mods.isX2ButtonDown())
+		return true;
+
 	if (e.mods.isMiddleButtonDown())
 	{
 		if (auto vp = e.eventComponent->findParentComponentOfClass<ZoomableViewport>())

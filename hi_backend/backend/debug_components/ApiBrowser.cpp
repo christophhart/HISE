@@ -150,9 +150,8 @@ void DspNodeList::NodeItem::paint(Graphics& g)
 {
     if (node != nullptr)
     {
-        bool selected = node->getRootNetwork()->isSelected(node);
-
-        
+		bool selected = node->getRootNetwork()->isSelected(node);
+		
         auto ca = area.withWidth(4);
         
         

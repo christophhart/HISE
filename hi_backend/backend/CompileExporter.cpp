@@ -533,7 +533,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 	String codeCommit = hisePath.getChildFile("currentGitHash.txt").loadFileAsString().trim();
 
-	if(buildCommit != codeCommit)
+	if(buildCommit != codeCommit && !isUsingCIMode())
 	{
 		auto confirmation = PresetHandler::getCustomName("", "The source code has a different commit hash than the HISE build. This will likely lead to undefined behaviour including compile errors or undetected errors. In order to proceed with the compilation, type in \"I know\" and click OK");
 

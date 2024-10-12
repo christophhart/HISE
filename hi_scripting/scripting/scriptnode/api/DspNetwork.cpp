@@ -923,10 +923,10 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 				StringArray sa;
 				auto newId = getNonExistentId(id, sa);
 				newNode->setValueTreeProperty(PropertyIds::ID, newId);
-				nodes.add(newNode);
+				nodes.addIfNotAlreadyThere(newNode);
 			}
 			else
-				currentNodeHolder->nodes.add(newNode);
+				currentNodeHolder->nodes.addIfNotAlreadyThere(newNode);
 			
 			return newNode.get();
 		}
@@ -2438,6 +2438,12 @@ void HostHelpers::setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree
 	});
 }
 
+void DspNetworkListeners::DspNetworkGraphRootListener::onChangeStatic(DspNetworkGraphRootListener& l, NodeBase* n)
+{
+	if(n != nullptr)
+		l.onRootChange(n);
+}
+
 bool OpaqueNetworkHolder::isPolyphonic() const
 { return false; }
 
@@ -2569,7 +2575,30 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 
 
 #if USE_BACKEND
-DspNetworkListeners::MacroParameterDragListener::MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction_):
+	void DspNetworkListeners::initRootListener(DspNetworkGraphRootListener* l)
+	{
+		auto asComponent = dynamic_cast<Component*>(l);
+		jassert(asComponent != nullptr);
+
+		Component::callRecursive<DspNetworkGraph>(asComponent->getTopLevelComponent(), [l](DspNetworkGraph* g)
+		{
+			g->rootBroadcaster.addListener(*l, DspNetworkGraphRootListener::onChangeStatic);
+			return true;
+		});
+	}
+
+	WeakReference<NodeBase> DspNetworkListeners::getSourceNodeFromComponentDrag(Component* component)
+	{
+		if(auto nc = component->findParentComponentOfClass<NodeComponent>())
+			return nc->node.get();
+
+		if(auto bc = dynamic_cast<DspNetworkGraph::BreadcrumbButton*>(component))
+			return bc->node;
+
+		return nullptr;
+	}
+
+	DspNetworkListeners::MacroParameterDragListener::MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction_):
 	c(c_),
 	initFunction(initFunction_)
 {
@@ -2628,8 +2657,7 @@ void DspNetworkListeners::MacroParameterDragListener::mouseUp(const MouseEvent& 
 
 void DspNetworkListeners::MacroParameterDragListener::mouseDown(const MouseEvent& event)
 {
-	if(sliderToDrag == nullptr)
-		initialise();
+	initialise();
 
 	if(auto hb = dynamic_cast<HiseShapeButton*>(this->c.getComponent()))
 	{
@@ -2680,17 +2708,29 @@ Component* DspNetworkListeners::MacroParameterDragListener::findModulationDragCo
 
 Component* DspNetworkListeners::MacroParameterDragListener::findSliderComponent(DspNetworkGraph* g, int parameterIndex)
 {
-	g->root->node->getValueTree().setProperty(PropertyIds::ShowParameters, true, g->network->getUndoManager());
-
-	Array<MacroParameterSlider*> sliders;
-
-	Component::callRecursive<MacroParameterSlider>(g, [&](MacroParameterSlider* s)
+	if(g->isShowingRootNode())
 	{
-		sliders.addIfNotAlreadyThere(s);
-		return false;
-	});
+		g->root->node->getValueTree().setProperty(PropertyIds::ShowParameters, true, g->network->getUndoManager());
 
-	return sliders[parameterIndex]->getDragComponent();
+		Array<MacroParameterSlider*> sliders;
+
+		Component::callRecursive<MacroParameterSlider>(g, [&](MacroParameterSlider* s)
+		{
+			sliders.addIfNotAlreadyThere(s);
+			return false;
+		});
+
+		return sliders[parameterIndex]->getDragComponent();
+	}
+	else
+	{
+		auto bc = g->breadcrumbs.getLast();
+
+		bc->setIsDraggingParameter(parameterIndex);
+		return bc;
+	}
+
+	
 }
 
 

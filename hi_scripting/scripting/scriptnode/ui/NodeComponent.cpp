@@ -65,7 +65,9 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
     tooltip << ", Type: " << d[PropertyIds::FactoryPath].toString();
     
     setTooltip(tooltip);
-    
+
+	setWantsKeyboardFocus(true);
+
 	powerButton.setToggleModeWithColourChange(true);
 	
 	powerButtonUpdater.setCallback(parent.node->getValueTree(), { PropertyIds::Bypassed},
@@ -96,7 +98,10 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 
 	freezeButton.setToggleModeWithColourChange(true);
 
-	auto isContainer = dynamic_cast<NodeContainer*>(parent.node.get()) != nullptr;
+	bool isContainer = false;
+
+	if(auto nc = dynamic_cast<NodeContainer*>(parent.node.get()))
+		isContainer = !nc->isLockedContainer();
 
 	parameterButton.setToggleModeWithColourChange(true);
 	parameterButton.setToggleStateAndUpdateIcon(parent.dataReference[PropertyIds::ShowParameters]);
@@ -180,8 +185,11 @@ void NodeComponent::Header::resized()
 	freezeButton.setBounds(deleteButton.getBounds());
 
 	powerButton.setVisible(!parent.isRoot());
+
+	
+
 	deleteButton.setVisible(!parent.isRoot());
-	freezeButton.setVisible(parent.isRoot());
+	freezeButton.setVisible(false);
 }
 
 void NodeComponent::Header::mouseDown(const MouseEvent& e)
@@ -254,6 +262,49 @@ bool NodeComponent::Header::isInterestedInDragSource(const SourceDetails& detail
 		return false;
 
 	return dynamic_cast<SoftBypassNode*>(parent.node.get()) != nullptr;
+}
+
+void NodeComponent::Header::setShowRenameLabel(bool shouldShow)
+{
+	auto isShowing = renameLabel != nullptr;
+
+	if(isShowing != shouldShow)
+	{
+		if(shouldShow)
+		{
+			addAndMakeVisible(renameLabel = new TextEditor());
+			renameLabel->setBounds(getLocalBounds());
+			renameLabel->setJustification(Justification::centred);
+			renameLabel->setFont(GLOBAL_BOLD_FONT());
+			renameLabel->grabKeyboardFocusAsync();
+			renameLabel->setText(parent.node->getName(), dontSendNotification);
+
+			auto f = [this]()
+			{
+				MessageManager::callAsync([this]()
+				{
+					auto newName = renameLabel->getText();
+					parent.node->getValueTree().setProperty(PropertyIds::Name, newName, parent.node->getUndoManager());
+					this->setShowRenameLabel(false);
+					findParentComponentOfClass<DspNetworkGraph>()->resizeNodes();
+				});
+			};;
+
+			renameLabel->onReturnKey = f;
+			renameLabel->onFocusLost = f;
+			renameLabel->onEscapeKey = f;
+
+			GlobalHiseLookAndFeel::setTextEditorColours(*renameLabel);
+		}
+		else
+		{
+			renameLabel = nullptr;
+		}
+
+		repaint();
+	}
+
+			
 }
 
 void NodeComponent::Header::paint(Graphics& g)
@@ -338,6 +389,9 @@ void NodeComponent::Header::paint(Graphics& g)
 		g.drawRect(powerButton.getBounds().expanded(3).toFloat(), 1.0f);
 	}
 
+	if(renameLabel != nullptr)
+		return;
+
 	textArea.removeFromLeft(jmax(leftMargin, rightMargin));
 	textArea.removeFromRight(jmax(leftMargin, rightMargin));
 
@@ -385,6 +439,61 @@ NodeComponent::~NodeComponent()
 	node = nullptr;
 }
 
+juce::Rectangle<int> NodeComponent::PositionHelpers::getPositionInCanvasForStandardSliders(const NodeBase* n,
+	Point<int> topLeft)
+{
+	auto numParameters = n->getNumParameters();
+
+	if (numParameters == 7)
+		return createRectangleForParameterSliders(n, 4).withPosition(topLeft);
+	else if (numParameters == 0)
+		return createRectangleForParameterSliders(n, 0).withPosition(topLeft);
+	else if (numParameters % 5 == 0)
+		return createRectangleForParameterSliders(n, 5).withPosition(topLeft);
+	else if (numParameters % 4 == 0)
+		return createRectangleForParameterSliders(n, 4).withPosition(topLeft);
+	else if (numParameters % 3 == 0)
+		return createRectangleForParameterSliders(n, 3).withPosition(topLeft);
+	else if (numParameters % 2 == 0)
+		return createRectangleForParameterSliders(n, 2).withPosition(topLeft);
+	else if (numParameters == 1)
+		return createRectangleForParameterSliders(n, 1).withPosition(topLeft);
+	else
+		return createRectangleForParameterSliders(n, 5).withPosition(topLeft);
+
+}
+
+
+juce::Rectangle<int> NodeComponent::PositionHelpers::createRectangleForParameterSliders(const NodeBase* n,
+                                                                                        int numColumns)
+{
+	int h = UIValues::HeaderHeight;
+		
+	if (n->getEmbeddedNetwork() != nullptr)
+		h += 24;
+
+	auto eb = n->getExtraComponentBounds();
+
+	h += eb.getHeight();
+	int w = 0;
+
+	if (numColumns == 0)
+		w = eb.getWidth() > 0 ? eb.getWidth() : UIValues::NodeWidth * 2;
+	else
+	{
+		int numParameters = n->getNumParameters();
+		int numRows = (int)std::ceil((float)numParameters / (float)numColumns);
+
+		h += numRows * (48 + 28) - 10;
+		w = jmin(numColumns * 100, numParameters * 100);
+	}
+
+
+	w = jmax(w, eb.getWidth());
+
+	auto b = Rectangle<int>(0, 0, w, h);
+	return b.expanded(UIValues::NodeMargin);
+}
 
 void NodeComponent::paint(Graphics& g)
 {
@@ -548,6 +657,7 @@ void NodeComponent::selectionChanged(const NodeBase::List& selection)
 void NodeComponent::fillContextMenu(PopupMenu& m)
 {
 	m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
+	m.addItem((int)MenuActions::ExportAsTemplate, "Export as template");
 	m.addItem((int)MenuActions::EditProperties, "Edit Properties");
 
 #if 0
@@ -620,6 +730,11 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 		SystemClipboard::copyTextToClipboard(data);
 		PresetHandler::showMessageWindow("Copied to clipboard", "The node was copied to the clipboard");
+	}
+	if(result == (int)MenuActions::ExportAsTemplate)
+	{
+		auto r = findParentComponentOfClass<BackendRootWindow>();
+		r->setModalComponent(new multipage::library::ScriptnodeTemplateExporter(r, node.get()));
 	}
 	if (result == (int)MenuActions::UnfreezeNode)
 	{
@@ -806,7 +921,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 juce::Colour NodeComponent::getOutlineColour() const
 {
-	if (isRoot())
+	if (node->getRootNetwork()->getRootNode() == node)
 		return dynamic_cast<const Processor*>(node->getScriptProcessor())->getColour();
 
 	auto& exceptionHandler = node->getRootNetwork()->getExceptionHandler();
@@ -842,6 +957,9 @@ void NodeComponent::drawTopBodyGradient(Graphics& g, Rectangle<float> b, float a
 
 bool NodeComponent::isRoot() const
 {
+	if(auto ng = findParentComponentOfClass<DspNetworkGraph>())
+		return ng->getCurrentRootNode() == node.get();
+
 	return node->getRootNetwork()->getRootNode() == node.get();
 }
 
@@ -940,6 +1058,7 @@ juce::Path NodeComponentFactory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
 	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
 	LOAD_PATH_IF_URL("move", ColumnIcons::moveIcon);
+	LOAD_EPATH_IF_URL("soft_bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
 	LOAD_PATH_IF_URL("goto", ColumnIcons::targetIcon);
 	LOAD_EPATH_IF_URL("parameter", HiBinaryData::SpecialSymbols::macros);
 	LOAD_EPATH_IF_URL("split", ScriptnodeIcons::splitIcon);
@@ -958,6 +1077,8 @@ juce::Path NodeComponentFactory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("clone", SampleMapIcons::copySamples);
 	LOAD_PATH_IF_URL("local", ColumnIcons::localIcon);
 	LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
+	LOAD_PATH_IF_URL("next", ColumnIcons::nextIcon);
+	LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
 
 	if (url.startsWith("fix"))
 		p.loadPathFromData(ScriptnodeIcons::fixIcon, ScriptnodeIcons::fixIcon_Size);

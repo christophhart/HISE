@@ -403,17 +403,23 @@ public:
 		  dragListener(&dragButton, [parameterIndex](DspNetworkGraph* g){ return DspNetworkListeners::MacroParameterDragListener::findSliderComponent(g, parameterIndex); })
 		{
 			pname.getTextValue().referTo(ptree.getPropertyAsValue(PropertyIds::ID, parent->getUndoManager()));
+
+			auto value = (double)ptree[PropertyIds::Value];
+			valueSlider.setValue(value, dontSendNotification);
+
 			valueSlider.getValueObject().referTo(ptree.getPropertyAsValue(PropertyIds::Value, parent->getUndoManager()));
 
 			addAndMakeVisible(valueSlider);
 			addAndMakeVisible(dragButton);
 			addAndMakeVisible(pname);
 
+			
+
 			valueSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
 			valueSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, false, 0, 0);
 
 			valueSlider.setLookAndFeel(&laf);
-			valueSlider.setValue(ptree[PropertyIds::Value], dontSendNotification);
+			
 
 			pname.setFont(GLOBAL_BOLD_FONT());
 			pname.setEditable(false, true);
@@ -554,6 +560,9 @@ public:
 
 		void mouseUp(const MouseEvent& event) override
 		{
+			if(!isEnabled())
+				return;
+
             if(event.mods.isShiftDown())
                 label.showEditor();
 			else if (node != nullptr)
@@ -572,6 +581,8 @@ public:
 		NiceLabel label;
 		HiseShapeButton powerButton;
 		HiseShapeButton dragButton;
+
+		bool currentlyVisible = true;
 
         Rectangle<int> area;
 
@@ -674,16 +685,96 @@ public:
 		String getSearchTermForCollection() const override { return "LocalCables"; }
 	};
 
-	struct UsedNodes : public NodeCollection
+	struct UsedNodes : public NodeCollection,
+					   public DspNetworkListeners::DspNetworkGraphRootListener	
 	{
 		UsedNodes(DspNetwork* network) :
 			NodeCollection(network, 1)
 		{
 			setName("Used Nodes");
 			addItems(network->getListOfUsedNodeIds(), false);
+			currentRoot = network->getRootNode();
+			refreshAlpha(false);
+
+			lockListener.setCallback(network->getValueTree(), { PropertyIds::Locked }, valuetree::AsyncMode::Asynchronously, [this](ValueTree v, const Identifier&)
+			{
+				this->refreshAlpha(true);
+			});
 		}
 
+		void refreshAlpha(bool fade)
+		{
+			auto vt = currentRoot->getValueTree();
+
+			callRecursive<NodeItem>(this, [vt, fade](NodeItem* ni)
+			{
+				auto nt = ni->node->getValueTree();
+				auto isVisible = nt == vt || nt.isAChildOf(vt);
+
+				ValueTree lockedParent;
+
+				valuetree::Helpers::forEachParent(nt, [&](const ValueTree& v)
+				{
+					if(v.getType() == PropertyIds::Node)
+					{
+						if(v[PropertyIds::Locked])
+						{
+							lockedParent = v;
+							return true;
+						}
+					}
+
+					return false;
+				});
+
+				if(lockedParent.isValid() && lockedParent != nt)
+					isVisible &= (vt == lockedParent || vt.isAChildOf(lockedParent));
+
+				auto alpha = isVisible ? 1.0f : 0.2f;
+
+				if(fade)
+					Desktop::getInstance().getAnimator().animateComponent(ni, ni->getBoundsInParent(), alpha, 500.0, false, 1.5, 1.0);
+				else
+					ni->setAlpha(alpha);
+
+				ni->setEnabled(alpha > 0.5f);
+
+				return false;
+			});
+		}
+
+		WeakReference<NodeBase> currentRoot;
+
+		void onRootChange(NodeBase* newRoot) override
+		{
+			if(currentRoot != newRoot)
+			{
+				currentRoot = newRoot;
+				refreshAlpha(true);
+			}
+		}
+
+		static void onRootChange(Component& c, NodeBase* n)
+		{
+			jassertfalse;
+		}
+
+		void resized() override
+		{
+			NodeCollection::resized();
+
+			if(!initialised)
+			{
+				DspNetworkListeners::initRootListener(this);
+				initialised = true;
+			}
+		}
+
+		bool initialised = false;
+
 		String getSearchTermForCollection() const override { return "UsedNodes"; }
+
+		valuetree::RecursivePropertyListener lockListener;
 	};
 
 	struct UnusedNodes : public NodeCollection

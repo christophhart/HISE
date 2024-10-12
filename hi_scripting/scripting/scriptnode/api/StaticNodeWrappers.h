@@ -533,6 +533,15 @@ public:
 		}
 	}
 
+	void registerNodeWithLambda(const Identifier& id, const CreateCallback& f)
+    {
+	    Item newItem;
+		newItem.cb = f;
+		newItem.id = id;
+
+		monoNodes.add(newItem);
+    }
+
     template <class T> void registerNodeRaw()
     {
         Item newItem;

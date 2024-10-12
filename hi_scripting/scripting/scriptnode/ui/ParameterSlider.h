@@ -220,7 +220,7 @@ struct ParameterSlider : public Slider,
 	/** Returns either the Connection or the ModulationTarget, or SwitchTarget tree if it's connected. */
 	ValueTree getConnectionSourceTree();
 
-	bool matchesConnection(ValueTree& c) const;
+	bool matchesConnection(const ValueTree& c) const;
 
 	void mouseDown(const MouseEvent& e) override;
 

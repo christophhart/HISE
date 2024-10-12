@@ -91,6 +91,7 @@ DECLARE_ID(LocalId);
 DECLARE_ID(ParameterId);
 DECLARE_ID(Type);
 DECLARE_ID(Folded);
+DECLARE_ID(Locked);
 DECLARE_ID(FactoryPath);
 DECLARE_ID(Frozen);
 DECLARE_ID(EmbeddedData);

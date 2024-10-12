@@ -54,6 +54,7 @@ public:
 		ExportAsCpp = 1,
 		ExportAsCppProject,
 		ExportAsSnippet,
+		ExportAsTemplate,
 		CreateScreenShot,
 		EditProperties,
 		UnfreezeNode,
@@ -93,6 +94,11 @@ public:
 
 		void paint(Graphics& g) override;
 		void resized() override;
+
+		bool keyPressed(const KeyPress& key) override
+		{
+			return parent.keyPressed(key);
+		}
 
 		void mouseDoubleClick(const MouseEvent& event) override;
 		void mouseDown(const MouseEvent& e) override;
@@ -144,6 +150,10 @@ public:
 			isHoveringOverBypass = false;
 			repaint();
 		}
+
+		void setShowRenameLabel(bool shouldShow);
+
+		ScopedPointer<TextEditor> renameLabel;
 
 		NodeComponent& parent;
 		Factory f;
@@ -205,9 +215,25 @@ public:
 	NodeComponent(NodeBase* b);;
 	virtual ~NodeComponent();
 
+	struct PositionHelpers
+	{
+		static juce::Rectangle<int> getPositionInCanvasForStandardSliders(const NodeBase* n, Point<int> topLeft);
+
+		static juce::Rectangle<int> createRectangleForParameterSliders(const NodeBase* n, int numColumns);
+	};
+
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 	void resized() override;
+
+	bool keyPressed(const KeyPress& key) override
+	{
+		if(key == KeyPress::F2Key)
+		{
+			header.setShowRenameLabel(true);
+			return true;
+		}
+	}
 
 	MarkdownLink getLink() const override;
 

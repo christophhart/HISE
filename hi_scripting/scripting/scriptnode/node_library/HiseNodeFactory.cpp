@@ -1314,6 +1314,8 @@ namespace control
 		
 		registerNoProcessNode<control::normaliser<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 		registerNoProcessNode<control::unscaler<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+		registerNoProcessNode<control::locked_mod<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+		registerNoProcessNode<control::locked_mod_unscaled<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
 		registerNoProcessNode<control::random<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 

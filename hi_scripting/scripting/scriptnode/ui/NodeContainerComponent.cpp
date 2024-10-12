@@ -114,8 +114,24 @@ ContainerComponent::ContainerComponent(NodeContainer* b) :
 	NodeComponent(b->asNode()),
     SimpleTimer(b->asNode()->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	updater(*this),
+	gotoButton("workspace", nullptr, nf),
 	parameters(new ParameterComponent(*this))
 {
+	addAndMakeVisible(gotoButton);
+
+	gotoButton.setTooltip("Show this container as root");
+
+	gotoButton.onClick = [this]()
+	{
+		auto ng = findParentComponentOfClass<DspNetworkGraph>();
+		auto n = node.get();
+
+		MessageManager::callAsync([ng, n]()
+		{
+			ng->setCurrentRootNode(n);
+		});
+	};
+
 	if (auto sn = dynamic_cast<SerialNode*>(b))
 	{
 		verticalValue.referTo(sn->getNodePropertyAsValue(PropertyIds::IsVertical));
@@ -211,6 +227,21 @@ void ContainerComponent::mouseUp(const MouseEvent& e)
 		lasso.endLasso();
 		findParentComponentOfClass<DspNetworkGraph>()->removeChildComponent(&lasso);
 	}
+}
+
+bool ContainerComponent::keyPressed(const KeyPress& k)
+{
+	if(NodeComponent::keyPressed(k))
+		return true;
+
+	if(k == KeyPress::F3Key)
+	{
+		gotoButton.triggerClick(sendNotificationAsync);
+		
+		return true;
+	}
+
+	return false;
 }
 
 void ContainerComponent::removeDraggedNode(NodeComponent* draggedNode)
@@ -322,6 +353,34 @@ void ContainerComponent::valueChanged(Value& v)
 				safeDnp.getComponent()->rebuildNodes();
 		});
 	}
+}
+
+void ContainerComponent::resized()
+{
+	NodeComponent::resized();
+		
+	Component* topComponent = parameters != nullptr ? parameters.get() : extraComponent.get();
+
+	jassert(topComponent != nullptr);
+
+	topComponent->setVisible(dataReference[PropertyIds::ShowParameters]);
+
+	auto b = getLocalBounds();
+	b.expand(-UIValues::NodeMargin, 0);
+	b.removeFromTop(UIValues::HeaderHeight);
+	topComponent->setSize(b.getWidth(), topComponent->getHeight());
+	topComponent->setTopLeftPosition(b.getTopLeft());
+
+	gotoButton.setSize(16,16);
+
+	if(auto ng = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		gotoButton.setVisible(ng->root != this);
+	}
+
+	auto pos = topComponent->isVisible() ? topComponent->getBounds().getBottomLeft() : topComponent->getPosition();
+
+	gotoButton.setTopLeftPosition(pos.translated(0, UIValues::NodeMargin));
 }
 
 void ContainerComponent::findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound, const Rectangle<int>& area)

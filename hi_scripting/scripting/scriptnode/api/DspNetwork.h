@@ -993,6 +993,24 @@ struct DspNetworkGraph;
 
 struct DspNetworkListeners
 {
+	struct DspNetworkGraphRootListener
+	{
+		virtual ~DspNetworkGraphRootListener()
+		{
+			
+		}
+
+		static void onChangeStatic(DspNetworkGraphRootListener& l, NodeBase* n);
+
+		virtual void onRootChange(NodeBase* newRoot) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkGraphRootListener);
+	};
+
+	static void initRootListener(DspNetworkGraphRootListener* l);
+
+	static WeakReference<NodeBase> getSourceNodeFromComponentDrag(Component* component);
+
 	struct MacroParameterDragListener: public MouseListener
 	{
 		MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction);

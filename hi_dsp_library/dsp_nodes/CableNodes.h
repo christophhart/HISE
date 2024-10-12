@@ -1122,6 +1122,50 @@ namespace control
 		}
 	};
 
+	template <typename ParameterClass> struct locked_mod: public mothernode,
+					   public pimpl::parameter_node_base<ParameterClass>,
+					   public pimpl::no_processing
+	{
+		SN_NODE_ID("locked_mod");
+		SN_GET_SELF_AS_OBJECT(locked_mod);
+		SN_DESCRIPTION("Adds a scaled modulation dragger to its immediate locked node container parent");
+		SN_ADD_SET_VALUE(locked_mod);
+
+		locked_mod() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId())
+		{};
+
+		void setValue(double input)
+		{
+			if (this->getParameter().isConnected())
+				this->getParameter().call(input);
+		}
+	};
+
+	template <typename ParameterClass> struct locked_mod_unscaled: public mothernode,
+					   public pimpl::parameter_node_base<ParameterClass>,
+					   public pimpl::no_processing,
+					   public pimpl::no_mod_normalisation	
+	{
+		SN_NODE_ID("locked_mod_unscaled");
+		SN_GET_SELF_AS_OBJECT(locked_mod_unscaled);
+		SN_DESCRIPTION("Adds a unscaled modulation dragger to its immediate locked node container parent");
+		SN_ADD_SET_VALUE(locked_mod_unscaled);
+
+		locked_mod_unscaled() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
+		    pimpl::no_mod_normalisation(getStaticId(), { "Value" }) 
+		{};
+
+		static constexpr bool isNormalisedModulation() { return false; }
+
+		void setValue(double input)
+		{
+			if (this->getParameter().isConnected())
+				this->getParameter().call(input);
+		}
+	};
+
     template <typename ParameterClass, typename ConverterClass>
         struct converter : public mothernode,
 						   public pimpl::templated_mode,

@@ -283,6 +283,8 @@ juce::File BackendDllManager::getSubFolder(const MainController* mc, FolderSubTy
 	case FolderSubType::AdditionalCode:			return createIfNotDirectory(f.getChildFile("AdditionalCode"));
 	case FolderSubType::CodeLibrary:			return createIfNotDirectory(f.getChildFile("CodeLibrary"));
 	case FolderSubType::FaustCode:				return createIfNotDirectory(f.getChildFile("CodeLibrary").getChildFile("faust"));
+	case FolderSubType::GlobalNodeTemplates:	return createIfNotDirectory(ProjectHandler::getAppDataDirectory(nullptr).getChildFile("node_templates"));
+	case FolderSubType::ProjectNodeTemplates:   return createIfNotDirectory(f.getChildFile("CodeLibrary").getChildFile("node_templates"));
 	case FolderSubType::ThirdParty:				return createIfNotDirectory(f.getChildFile("ThirdParty"));
 	case FolderSubType::DllLocation:
 #if JUCE_WINDOWS
