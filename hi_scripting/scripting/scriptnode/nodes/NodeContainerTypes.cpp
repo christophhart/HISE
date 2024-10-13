@@ -108,11 +108,11 @@ void SplitNode::prepare(PrepareSpecs ps)
 {
 	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
-
-	if (ps.blockSize > 1)
+	
+	if (ps.blockSize > 0)
 	{
-		DspHelpers::increaseBuffer(original, ps);
-		DspHelpers::increaseBuffer(workBuffer, ps);
+		DspHelpers::increaseBuffer(original, ps, false);
+		DspHelpers::increaseBuffer(workBuffer, ps, false);
 	}
 }
 
