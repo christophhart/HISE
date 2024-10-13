@@ -85,32 +85,11 @@ void WaveformComponent::setBypassed(bool shouldBeBypassed)
 	}
 }
 
-void WaveformComponent::setUseFlatDesign(bool shouldUseFlatDesign)
-{
-	useFlatDesign = shouldUseFlatDesign;
-	repaint();
-}
-
 void WaveformComponent::paint(Graphics &g)
 {
-	if (useFlatDesign)
-	{
-		g.setColour(findColour(bgColour));
-		g.fillAll();
-
-		g.setColour(findColour(fillColour));
-		g.fillPath(path);
-
-		g.setColour(findColour(lineColour));
-		g.strokePath(path, PathStrokeType(2.0f));
-	}
-	else
-	{
-		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
-
-		laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
-		laf->drawOscilloscopePath(g, *this, path);
-	}
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+	laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
+	laf->drawOscilloscopePath(g, *this, path);
 }
 
 void WaveformComponent::resized()
@@ -333,7 +312,6 @@ Component* WaveformComponent::Panel::createContentComponent(int index)
 
 	auto c = new WaveformComponent(getProcessor(), index);
 
-	c->setUseFlatDesign(true);
 	c->setColour(bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 	c->setColour(fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
 	c->setColour(lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
