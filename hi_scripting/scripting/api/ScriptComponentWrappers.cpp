@@ -3019,6 +3019,7 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 	{
 		const float min = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::min);
 		const float max = c->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::Properties::max);
+		vtc = newComponent->getValueToTextConverter();
 
 		range = NormalisableRange<float>(min, max);
 
@@ -3147,6 +3148,9 @@ String ScriptedControlAudioParameter::getLabel() const
 
 String ScriptedControlAudioParameter::getText(float value, int) const
 {
+	if(vtc.active)
+		return vtc.getTextForValue((double)value);
+
 	switch (type)
 	{
 	case ScriptedControlAudioParameter::Type::Slider:
@@ -3179,6 +3183,9 @@ String ScriptedControlAudioParameter::getText(float value, int) const
 
 float ScriptedControlAudioParameter::getValueForText(const String &text) const
 {
+	if(vtc.active)
+		return static_cast<float>(vtc.getValueForText(text));
+
 	switch (type)
 	{
 	case ScriptedControlAudioParameter::Type::Slider:

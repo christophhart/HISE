@@ -166,7 +166,7 @@ struct ValueToTextConverter
 		}
 	};
 
-	String operator()(double v) const
+	String getTextForValue(double v) const
 	{
 		if(!active)
 			return String(v, 0);
@@ -188,7 +188,13 @@ struct ValueToTextConverter
 		return valueString;
 	}
 
-	double operator()(const String& v)
+	String operator()(double v) const
+	{
+		return getTextForValue(v);
+		
+	}
+
+	double getValueForText(const String& v) const
 	{
 		if(!active)
 			return v.getDoubleValue();
@@ -200,6 +206,19 @@ struct ValueToTextConverter
 			return textToValueFunction(v);
 
 		return v.getDoubleValue();
+	}
+
+	double operator()(const String& v) const
+	{
+		return getValueForText(v);
+	}
+
+	static ValueToTextConverter createForOptions(const StringArray& options)
+	{
+		ValueToTextConverter vtc;
+		vtc.active = true;
+		vtc.itemList = options;
+		return vtc;
 	}
 
 	static ValueToTextConverter createForMode(const String& modeString)

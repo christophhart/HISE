@@ -340,6 +340,11 @@ public:
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
+		virtual ValueToTextConverter getValueToTextConverter() const
+		{
+			return {};
+		}
+
 		Location getLocation() const override
 		{
 			return location;
@@ -960,6 +965,12 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto m = getScriptObjectProperty(ScriptSlider::Properties::Mode).toString();
+			return ValueToTextConverter::createForMode(m);
+		}
+
 		Array<PropertyWithValue> getLinkProperties() const override;
 
 		// ======================================================================================================== API Methods
@@ -1060,6 +1071,11 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			return ValueToTextConverter::createForOptions({ "Off", "On" });
+		}
+
 		// ======================================================================================================== API Methods
 
 		/** Sets a FloatingTile that is used as popup. */
@@ -1132,6 +1148,13 @@ public:
 		void resetValueToDefault() override
 		{
 			setValue((int)getScriptObjectProperty(defaultValue));
+		}
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ValueToTextConverter::createForOptions(sa);
 		}
 
 		void handleDefaultDeactivatedProperties();
@@ -1933,6 +1956,13 @@ public:
 		void resetValueToDefault() override
 		{
 			setValue((int)getScriptObjectProperty(defaultValue));
+		}
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ValueToTextConverter::createForOptions(sa);
 		}
 
 		void setValue(var newValue) override;
