@@ -6774,13 +6774,6 @@ void ScriptingApi::Content::beginInitialization()
 
 void ScriptingApi::Content::setHeight(int newHeight) noexcept
 {
-	
-	if (newHeight > 800)
-	{
-		reportScriptError("Go easy on the height! (" + String(800) + "px is enough)");
-		return;
-	}
-
 	if(height != newHeight)
 	{
 		height = newHeight;
@@ -6792,12 +6785,6 @@ void ScriptingApi::Content::setHeight(int newHeight) noexcept
 
 void ScriptingApi::Content::setWidth(int newWidth) noexcept
 {
-	if (newWidth > 1280)
-	{
-		reportScriptError("Go easy on the width! (1280px is enough)");
-		return;
-	}
-
 	if(width != newWidth)
 	{
 		width = newWidth;
