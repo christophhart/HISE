@@ -832,6 +832,8 @@ namespace ScriptingObjects
 
 			static void setColourOrBlack(DynamicObject* obj, const Identifier& id, Component& c, int colourId);
 
+			static bool writeId(DynamicObject* obj, Component* c);
+
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Laf);
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Laf);
 		};

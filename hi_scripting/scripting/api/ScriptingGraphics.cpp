@@ -2798,6 +2798,34 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::setColourOrBlack(DynamicObject*
 		obj->setProperty(id, 0);
 }
 
+bool ScriptingObjects::ScriptedLookAndFeel::Laf::writeId(DynamicObject* obj, Component* c)
+{
+	auto id = c->getComponentID();
+
+	if(id.isNotEmpty())
+	{
+		obj->setProperty("id", id);
+		return true;
+	}
+
+	c = c->findParentComponentOfClass<FloatingTile>();
+
+	if(c != nullptr)
+	{
+		id = c->getComponentID();
+
+		if(id.isNotEmpty())
+		{
+			obj->setProperty("id", id);
+			return true;
+		}
+						
+	}
+
+	jassertfalse;
+	return false;
+}
+
 ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& data, const ValueTree& ad):
 	LafBase(),
 	StyleSheetLookAndFeel(*content),
@@ -3448,6 +3476,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFilterDragHandle(Graphics& 
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &o);
+		
 		obj->setProperty("area", ApiHelpers::getVarRectangle(o.getLocalBounds().toFloat()));
 		obj->setProperty("index", index);
 		obj->setProperty("handle", ApiHelpers::getVarRectangle(handleBounds));
@@ -3481,6 +3511,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFilterBackground(Graphics &
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &fg);
+
 		obj->setProperty("area", ApiHelpers::getVarRectangle(fg.getLocalBounds().toFloat()));
 
 		setColourOrBlack(obj, "bgColour", fg, FilterGraph::ColourIds::bgColour);
@@ -3502,6 +3534,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFilterPath(Graphics& g_, Fi
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &fg);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(fg.getLocalBounds().toFloat()));
 
 		auto sp = new ScriptingObjects::PathObject(get()->getScriptProcessor());
@@ -3531,6 +3564,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawFilterGridLines(Graphics &g
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &fg);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(fg.getLocalBounds().toFloat()));
 
 		auto sp = new ScriptingObjects::PathObject(get()->getScriptProcessor());
@@ -3558,9 +3592,11 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawOscilloscopeBackground(Grap
 	{
 		auto obj = new DynamicObject();
 
+		auto c = dynamic_cast<Component*>(&ac);
+		writeId(obj, c);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(areaToFill));
 
-		auto c = dynamic_cast<Component*>(&ac);
+		
 		setColourOrBlack(obj, "bgColour", *c, RingBufferComponentBase::ColourId::bgColour);
 		setColourOrBlack(obj, "itemColour1", *c, RingBufferComponentBase::ColourId::fillColour);
 		setColourOrBlack(obj, "itemColour2", *c, RingBufferComponentBase::ColourId::lineColour);
@@ -3578,6 +3614,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawOscilloscopePath(Graphics& 
 	{
 		auto obj = new DynamicObject();
 		auto c = dynamic_cast<Component*>(&ac);
+		writeId(obj, c);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(c->getLocalBounds().toFloat()));
 		auto sp = new ScriptingObjects::PathObject(get()->getScriptProcessor());
 		
@@ -3609,6 +3646,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAnalyserGrid(Graphics& g_, 
 	{
 		auto obj = new DynamicObject();
 		auto c = dynamic_cast<Component*>(&ac);
+		writeId(obj, c);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(c->getLocalBounds().toFloat()));
 		auto sp = new ScriptingObjects::PathObject(get()->getScriptProcessor());
 
@@ -3746,7 +3784,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawToggleButton(Graphics &g_, 
 	if (functionDefined("drawToggleButton"))
 	{
 		auto obj = new DynamicObject();
-		obj->setProperty("id", b.getComponentID());
+
+		writeId(obj, &b);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(b.getLocalBounds().toFloat()));
 		obj->setProperty("enabled", b.isEnabled());
 		obj->setProperty("text", b.getButtonText());
@@ -3777,7 +3816,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawRotarySlider(Graphics &g_, 
 
 		s.setTextBoxStyle(Slider::NoTextBox, false, -1, -1);
 
-		obj->setProperty("id", s.getComponentID());
+		writeId(obj, &s);
 		obj->setProperty("enabled", s.isEnabled());
 		obj->setProperty("text", s.getName());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(s.getLocalBounds().toFloat()));
@@ -3818,7 +3857,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 	{
 		auto obj = new DynamicObject();
 
-		obj->setProperty("id", slider.getComponentID());
+		writeId(obj, &slider);
 		obj->setProperty("enabled", slider.isEnabled());
 		obj->setProperty("text", slider.getName());
 
@@ -3906,6 +3945,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBox(Graphics& g_, int 
 	if (functionDefined("drawComboBox"))
 	{
 		auto obj = new DynamicObject();
+		writeId(obj, &cb);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(cb.getLocalBounds().toFloat()));
 
 		auto text = cb.getText();
@@ -3964,6 +4004,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawButtonBackground(Graphics& 
 	if (functionDefined("drawDialogButton"))
 	{
 		auto obj = new DynamicObject();
+		writeId(obj, &button);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(button.getLocalBounds().toFloat()));
 		obj->setProperty("text", button.getButtonText());
 		obj->setProperty("enabled", button.isEnabled());
@@ -4130,6 +4171,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableBackground(Graphics& g
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &te);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("id", te.getName());
 		obj->setProperty("position", rulerPosition);
@@ -4159,6 +4201,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePath(Graphics& g_, Tab
 
 		sp->getPath() = p;
 
+		writeId(obj, &te);
 		obj->setProperty("path", var(sp));
 
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
@@ -4185,6 +4228,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTablePoint(Graphics& g_, Ta
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &te);
 		obj->setProperty("tablePoint", ApiHelpers::getVarRectangle(tablePoint));
 		obj->setProperty("isEdge", isEdge);
 		obj->setProperty("hover", isHover);
@@ -4211,6 +4255,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableRuler(Graphics& g_, Ta
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &te);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("position", rulerPosition);
 		obj->setProperty("lineThickness", lineThickness);
@@ -4269,6 +4314,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrBackground(Graphics& g
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &graph);
 		obj->setProperty("enabled", graph.isEnabled());
 		obj->setProperty("area", ApiHelpers::getVarRectangle(graph.getBounds().toFloat()));
 		
@@ -4298,6 +4344,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrPathSection(Graphics& 
 
 		p->getPath() = s;
 
+		writeId(obj, &graph);
 		obj->setProperty("enabled", graph.isEnabled());
 		obj->setProperty("isActive", isActive);
 		obj->setProperty("path", keeper);
@@ -4324,6 +4371,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawAhdsrBallPosition(Graphics&
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &graph);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(graph.getLocalBounds().toFloat()));
 		obj->setProperty("position", ApiHelpers::getVarFromPoint(pos));
 		obj->setProperty("currentState", graph.getCurrentStateIndex());
@@ -4349,6 +4397,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMidiDropper(Graphics& g_, R
 	if (functionDefined("drawMidiDropper"))
 	{
 		auto obj = new DynamicObject();
+		writeId(obj, &d);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("hover", d.hover);
 		obj->setProperty("active", d.isActive());
@@ -4372,6 +4421,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailBackground(Gra
 	if (functionDefined("drawThumbnailBackground"))
 	{
 		auto obj = new DynamicObject();
+		writeId(obj, &th);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
 		obj->setProperty("enabled", areaIsEnabled);
 
@@ -4391,6 +4441,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawHiseThumbnailPath(Graphics&
 	{
 		auto obj = new DynamicObject();
 		auto area = path.getBounds();
+		writeId(obj, &th);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("enabled", areaIsEnabled);
 
@@ -4425,6 +4476,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRuler(Graphics& g_
 	{
 		auto obj = new DynamicObject();
 		auto area = th.getLocalBounds();
+		writeId(obj, &th);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area.toFloat()));
 		
 		obj->setProperty("xPosition", xPosition);
@@ -4489,6 +4541,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawThumbnailRange(Graphics& g_
 	if (functionDefined("drawThumbnailRange"))
 	{
 		auto obj = new DynamicObject();
+		writeId(obj, &th);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("rangeIndex", areaIndex);
 		obj->setProperty("rangeColour", c.getARGB());
@@ -4510,11 +4563,10 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTextOverlay(Graphics& g_, H
 	if (functionDefined("drawThumbnailText"))
 	{
 		auto obj = new DynamicObject();
+		writeId(obj, &th);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(area));
 		obj->setProperty("text", text);
-
 		
-
 		if (get()->callWithGraphics(g_, "drawThumbnailText", var(obj), &th))
 			return;
 	}
@@ -4818,7 +4870,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMatrixPeakMeter(Graphics& g
             if(maxPeaks != nullptr)
                 maxPeakArray.add(maxPeaks[numChannels]);
         }
-        
+
+		writeId(obj, c);
         obj->setProperty("area", ApiHelpers::getVarRectangle(c->getLocalBounds().toFloat()));
         
         obj->setProperty("numChannels", numChannels);
@@ -4852,6 +4905,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawWavetableBackground(Graphic
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &wc);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(wc.getLocalBounds().toFloat()));
 
 		obj->setProperty("isEmpty", isEmpty);
@@ -4879,6 +4933,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawWavetablePath(Graphics& g_,
 	{
 		auto obj = new DynamicObject();
 
+		writeId(obj, &wc);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(p.getBounds().toFloat()));
 
 		auto pat = new ScriptingObjects::PathObject(get()->getScriptProcessor());

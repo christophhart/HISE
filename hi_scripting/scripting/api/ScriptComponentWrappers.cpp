@@ -2881,6 +2881,7 @@ ScriptCreatedComponentWrappers::FloatingTileWrapper::FloatingTileWrapper(ScriptC
 	ft->setIsFloatingTileOnInterface();
 	component = ft;
 
+	ft->setComponentID(floatingTile->getName().toString());
 	ft->setName(floatingTile->name.toString());
 	ft->setOpaque(false);
 	ft->setContent(floatingTile->getContentData());
