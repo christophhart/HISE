@@ -98,6 +98,7 @@ struct WelcomeScreen: public multipage::EncodedDialogBase
 		MULTIPAGE_BIND_CPP(WelcomeScreen, populateProjectSelector);
 		MULTIPAGE_BIND_CPP(WelcomeScreen, browseSnippets);
 		MULTIPAGE_BIND_CPP(WelcomeScreen, createProject);
+		MULTIPAGE_BIND_CPP(WelcomeScreen, openProject);
 		MULTIPAGE_BIND_CPP(WelcomeScreen, loadPresetFile);
 		MULTIPAGE_BIND_CPP(WelcomeScreen, startupSetter);
 		MULTIPAGE_BIND_CPP(WelcomeScreen, setupExport);
@@ -106,9 +107,11 @@ struct WelcomeScreen: public multipage::EncodedDialogBase
 
 	var populateProjectSelector(const var::NativeFunctionArgs& args);
 	var setupExport(const var::NativeFunctionArgs& args);
+	
 	var showDocs(const var::NativeFunctionArgs& args);
 	var browseSnippets(const var::NativeFunctionArgs& args);
 	var createProject(const var::NativeFunctionArgs& args);
+	var openProject(const var::NativeFunctionArgs& args);
 	var loadPresetFile(const var::NativeFunctionArgs& args);
 	var startupSetter(const var::NativeFunctionArgs& args);
 
