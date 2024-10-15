@@ -653,7 +653,7 @@ void Operations::ThisPointer::process(BaseCompiler* compiler, BaseScope* scope)
 		{
 			auto thisType = dynamic_cast<StructType*>(type.get());
 
-			if(thisType != currentClass)
+			if(thisType != currentClass && !compiler->isProcessingInlineFunction())
 			{
 				// Apparently we need to allow different template parameters to go through
 				// here so we check the namespaced identifier
