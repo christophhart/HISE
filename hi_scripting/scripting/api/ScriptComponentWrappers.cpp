@@ -3149,7 +3149,15 @@ String ScriptedControlAudioParameter::getLabel() const
 String ScriptedControlAudioParameter::getText(float value, int) const
 {
 	if(vtc.active)
+	{
+		value = range.convertFrom0to1(value);
+
+		if(type == ScriptedControlAudioParameter::Type::ComboBox)
+			value -= 1.0;
+
 		return vtc.getTextForValue((double)value);
+	}
+		
 
 	switch (type)
 	{

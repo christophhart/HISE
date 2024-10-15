@@ -173,10 +173,8 @@ struct ValueToTextConverter
 
 		if(!itemList.isEmpty())
 		{
-			auto idx = roundToInt(v);
-
-			if(isPositiveAndBelow(idx, itemList.size()))
-				return itemList[idx];
+			auto idx = jlimit<int>(0, itemList.size(), roundToInt(v));
+			return itemList[idx];
 		}
 
 		if(valueToTextFunction)
