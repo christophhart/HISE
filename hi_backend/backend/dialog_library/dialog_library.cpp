@@ -685,6 +685,96 @@ var WelcomeScreen::startupSetter(const var::NativeFunctionArgs& args)
 	return var();
 }
 
+HiseAudioExporter::HiseAudioExporter(BackendRootWindow* bpe):
+	EncodedDialogBase(bpe)
+{
+	loadFrom("1351.sNB..D...............35H...oi...aT.........J09R+fYaCMhB.lpipl.uzliJMsIeyVRcLyRnboK.QHkJkN5rNRrVYTPlK3YjNfmAVrPnFoBvm.nI.vMiSspk4bNAJSm3sVOtzLO664uZKz9PWCDGRmcaLDW9gqlCqfZjM9zQOksVsPaDCJUvTQyAX1leNcw1l+LoxEMWl.WmtQruJ8BFMVvXflLWzTwhlGj8wbfFLVzPp42kLWrbPlFVmaYPkKWrbgRlJVfa9y4bUMQRFJ4FpMDNjBiX3FpfXqgRv87FHfBpusq0hze8CUtg5a+ApLyL.QxMT5qc12oODUlAHRjpCg7DQNxyeS627bKwubgqqWX9droK.YunM4NRPETjWsSWvwBcOFiyjIGfcwaDSlnwk+TtyBZYjw9zJ8O+VMka9oz6DiKnM5ONYPdTuavG5ZlVNCPzlbgRtA6croBZN6sU5ajVDBa6ct4j9zhr6E0hDoEEiK7xgZE7z2eAHfRaSyq3oN+2EKzu4mzOTVZZL7zJ+AAUdBpMOQxDITZmiAXka9FoBRbcg8lCuHYo4F2xl.3lK6sDeA8QMmd53AjC5VOmQdjmMi+mtM+FMxa++sFfZUd.kLVZQwJsnX19h1WUmCx0t0FSJTX+UuerXsXGiy9xU6sQnTP0x8XMbKj29vfbSl+uWUPyWPMKysmlwysm2FpjZRxF4HvdshSP+sVH2QyeRwsCbiasyuZ4c73e1G+vqu0BJIj5GOJ..iDPGWFgS6a1zYBOMHBGMFZE0RpDCLPlOsg6ChCoBE.oXfAx3Uy+uwlcn83O61d0nPha4QQ+yd+mglbslt82mVlakQ0TlL23TsTSu5ncNqZKTSAbutX3Eeukbvp2dHFWKGpkjh5EpqJS+ru2XeewOM2WLI3iPdzC0O51Wk1qG1wfXUiqls5MuJ5XvMmKoXa095aKiioC8r0PfPfZjcJECM0nIPQPBAw.XfjNpFdfrXCyBjB4bJPAf.HnBFH..Af7PBfPBJ3fdvfLUgQLTBSJUVx3rvOptAl98dNFlQBZnI3BoIIuNHcBFjn5ZZX4EJC2U91+y1aYC2CfPeXgnahFjosc3tk7FrUjERdEc1dlmoE4m3xKNO7uAdg1UKKxqqcg9YEWNOicsnwUPT4bFnADbj1hThD8Ig2Ms0hkSSIEG+4BLY97sMeII1BAf8b+VXhoGnIT2JYIvfCf9UP3oDKGluCrY78Ffi1Yb8MSftFZcx2UaCQ4HfD7rVICw5F76RCAV4lLiyjSCP0qFEi8iLSAAlFD80hMAYjtGfv6avNeHXoSZKiIp91yahCC1c5.glpCfRrt887MdW9v+tnGqz1sTlKDXAXgwp5PUPkDjFe4d8Uv7W4ZtZF.0BLgBdNDw.LfwC2msZA0ql80nrXOUMC5g8n+z.yvPxOgCnPiDFhHA8aibpfhr3E9CnTYUnNc023cWwvq54vjnFpTuI0dTowzgFSbdRqfcXcgzyA.CgAH.39lw+IM1DBEAHilBaHRNj4TLurooVfB67K+8VdqgV78K0YEh2gYuA2E3STW5O6.fQ+XGWfJ0zxta51CB4u3XydgPOkOOAmD+FwLZa.nwmrY2FNpRxUIqtov1acGG6TLF0qy9.21MMqAP3nwJQSBvq.KJ2o9CfZ4s.H2DCeXsFhIewCN1wfRjrLUy36+i7yhCixrop0+aLCYYQQZl16O2j+xFC5BimKx5R5BAwR5vaCm9N.2GtveFzA5.FC7JNKOB.FPVrJCzL4haA9QSQ+nHzW5H..foi...rNB...");
+}
+
+void HiseAudioExporter::recordStateChanged(Listener::RecordState isRecording)
+{
+	switch(isRecording)
+	{
+	case Idle: break;
+	case RecordingMidi:
+		recordStart = Time::getMillisecondCounter();
+		currentState = RecordState::RecordingMidi;
+		break;
+	case RecordingAudio: 
+		recordStart = Time::getMillisecondCounter();
+		currentState = RecordState::RecordingAudio;
+		break;
+	case Done: currentState = RecordState::WritingToDisk; break;
+	default: ;
+	}
+}
+
+var HiseAudioExporter::onComplete(const var::NativeFunctionArgs& args)
+{
+	if(readState("OpenInEditor"))
+	{
+		auto path = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Other::ExternalEditorPath).toString();
+
+		if(path.isNotEmpty() && File(path).existsAsFile())
+		{
+			auto fileToOpen = readState("Location").toString();
+			File(path).startAsProcess(fileToOpen);
+		}
+	}
+
+	return var();
+}
+
+var HiseAudioExporter::onExport(const var::NativeFunctionArgs& args)
+{
+	auto location = File(readState("Location").toString());
+	auto useNonRealtimeFlag = (bool)readState("Realtime");
+	auto length = readState("Length").toString();
+	auto midiInput = (bool)readState("MidiInput");
+
+	getMainController()->getDebugLogger().addListener(this);
+
+	currentState = RecordState::Waiting;
+
+	auto lengthInSeconds = length.getDoubleValue();
+
+	if(length.contains("bar"))
+	{
+		lengthInSeconds *= TempoSyncer::getTempoInMilliSeconds(getMainController()->getBpm(), TempoSyncer::Quarter) * 4.0 * 0.001;
+	}
+	
+	getMainController()->getDebugLogger().startRecording(lengthInSeconds, location, midiInput, useNonRealtimeFlag);
+
+	state->currentJob->setMessage("Waiting for MIDI note input...");
+
+	while(currentState != RecordState::WritingToDisk)
+	{
+		if(currentState == RecordState::RecordingMidi ||
+		   (!useNonRealtimeFlag && currentState == RecordState::RecordingAudio))
+		{
+			auto numMillisecondsSinceRecord = Time::getMillisecondCounter() - recordStart;
+			auto progress = numMillisecondsSinceRecord * 0.001 / lengthInSeconds;
+			state->currentJob->getProgress() = progress;
+			state->currentJob->setMessage(currentState == RecordState::RecordingMidi ? "Capture MIDI input" : "Rendering live audio...");
+		}
+		else if (useNonRealtimeFlag && currentState == RecordState::RecordingAudio)
+		{
+			state->currentJob->setMessage("Render offline audio...");
+		}
+		
+		Thread::getCurrentThread()->wait(100);
+	}
+	
+	return var();
+}
+
+ScriptnodeTemplateExporter::ScriptnodeTemplateExporter(BackendRootWindow* bpe, scriptnode::NodeBase* n):
+	EncodedDialogBase(bpe),
+	node(n)
+{
+	loadFrom("897.sNB..D...............35H...oi...UM.........J09R+fIsAcoA.lrVfl.tzniLwvJeGajdMaHDyvtUbuc0f4YTAhcBXdU3KQESTMhwnxL3b9Afb.LG.7Dthf6CiiV7DCJUtTICBWfYKOh6GHpJUYpnjb1xdX30VcIikKGjASUlJVx7k3+BBYtXIyG8CVgoxBBX1vYN1AUpprTQASEKRNG5bztnlfgBGxyZAQOIaUvrWKExf9FBljKjSisP8eAMoZl91eXRUUkHhpYZ+sCC6dqIUkHR.plu4ucruD2AzizgRfauUMcKLNeYenNjHcn4jkZtLV.be+CffoHWzq.tY9y7Hqmy6VPSXwXCv8xgPLocxseanlPMgR6uojynq23lyoShschGi8Pa29LA+2ewYw+Bia7qyU4Lu0W5wRNL42K4nKqXZDUkDw2C41ztKMimbJeo8ho+S8oJ4LnKRcv5iGUiIsSEBefbQDxd57o8+41L0gZ+8KlWhufgwsm07wwtK1fkYv2HNTT+HsG6ghpZzm8zPyg6qCCQc9F8Jl5u98Bhx4cp2YNYI3oC4rIehZlS9ROBB+xP.lzZIP.vHR3HgRQJJpl3pwwHsqQSmI9rQj21EmUSgl1Sdw2LIG3eYIGrl6gO9jXykzFwimbrbpDzgAcxUd8.wYNGCleHcPddh3rSGM2.8ahz6sCBWtd2zMIKZ1q7YR6nrd0M9mcS30BeKoU6fsqrb04uuOgtvjYTYX.njnFRmx3PJ0LkP..DP..jQ.XLipIHJUr.IUJqBpIyB.QjVejCv.hLcr3rADDVtawtHJEc6PFDSFDXlFZwkeYetmqttN7BArpkJdLolMZDl93Peki8rNALClo0C1RVk9eJTFyZbMxCn9nvdmgpB1GcyPQjaOsX8ZDs4dYEB4wLl248O.3r06wnQKTVBEAw17n8AOxnHi+o8+J4KKRPeitpLXq.BY62kwMsAwIAD.FnumFHgx0H1.XHsWTD2pehVnKAxnIgEGHuA3n+dufq+SGFwLxlzf73CurcPUcxa3VbNKWm.ZZ8novmexiRbZ+SPydVz8lBqtAjpu8fnjeTeWdRDxui7Xt1lph1OU0P1TQ9k+nHKZnODXREj+EoUhRDnQos1CtmTna.ho+AcK.z4gnfhQ9bmmHWI9kyJLfeY9C8hety6kNB..X5H...qi...");
+}
+
 NewProjectCreator::NewProjectCreator(hise::BackendRootWindow* bpe_):
 	EncodedDialogBase(bpe_),
 	ImporterBase(bpe_)

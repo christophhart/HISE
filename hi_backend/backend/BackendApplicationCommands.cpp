@@ -547,7 +547,7 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsRecordOneSecond:
-		setCommandTarget(result, "Record one second audio file", true, false, 'X', false);
+		setCommandTarget(result, "Render HISE output to disk", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsCreateRSAKeys:
@@ -707,7 +707,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportCleanDspNetworkFiles: Actions::cleanDspNetworkFiles(bpe); return true;
     case MenuToolsCreateRnboTemplate:   Actions::createRnboTemplate(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
-	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
+	case MenuToolsRecordOneSecond:		Actions::exportAudio(bpe); return true;
     case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(); updateCommands(); return true;
 	case MenuToolsApplySampleMapProperties: Actions::applySampleMapProperties(bpe); return true;
 	case MenuToolsConvertSVGToPathData:	Actions::convertSVGToPathData(bpe); return true;
@@ -756,6 +756,13 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	return false;
 }
 
+void BackendCommandTarget::updateCommands()
+{
+	mainCommandManager->commandStatusChanged();
+	createMenuBarNames();
+
+	menuItemsChanged();
+}
 
 
 PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const String &menuName)
@@ -3343,6 +3350,12 @@ void BackendCommandTarget::Actions::createGlobalCableCppCode(BackendRootWindow* 
 
 	debugToConsole(chain, "Copied code to clipboard:");
 	debugToConsole(chain, code);
+}
+
+void BackendCommandTarget::Actions::exportAudio(BackendRootWindow* bpe)
+{
+	auto n = new multipage::library::HiseAudioExporter(bpe);
+	bpe->setModalComponent(n);
 }
 
 #undef REPLACE_WILDCARD

@@ -1674,6 +1674,7 @@ public:
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
 	LambdaBroadcaster<double, int>& getSpecBroadcaster() { return specBroadcaster; }
+	LambdaBroadcaster<bool>& getNonRealtimeBroadcaster() { return realtimeBroadcaster; }
 
     const CriticalSection& getLock() const;
     
@@ -2110,6 +2111,8 @@ private:
 	LambdaBroadcaster<double, int> specBroadcaster;
 
     LambdaBroadcaster<int> blocksizeBroadcaster;
+
+	LambdaBroadcaster<bool> realtimeBroadcaster;
     
 	Array<WeakReference<ControlledObject>> registeredObjects;
 

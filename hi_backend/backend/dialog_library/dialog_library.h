@@ -2,8 +2,6 @@
 
 #pragma once
 
-
-
 namespace hise {
 namespace multipage {
 namespace library {
@@ -118,14 +116,43 @@ struct WelcomeScreen: public multipage::EncodedDialogBase
 	Array<File> fileList;
 };
 
+struct HiseAudioExporter: public EncodedDialogBase,
+						  public DebugLogger::Listener
+{
+	HiseAudioExporter(BackendRootWindow* bpe);
+
+	enum class RecordState
+	{
+		Idle,
+		Waiting,
+		RecordingMidi,
+		RecordingAudio,
+		WritingToDisk,
+		Done,
+		numRecordStates
+	};
+
+	RecordState currentState = RecordState::Idle;
+	uint32 recordStart = 0;
+
+	void recordStateChanged(Listener::RecordState isRecording) override;
+
+	void bindCallbacks() override
+    {
+        MULTIPAGE_BIND_CPP(HiseAudioExporter, onExport);
+		MULTIPAGE_BIND_CPP(HiseAudioExporter, onComplete);
+    }
+
+	var onComplete(const var::NativeFunctionArgs& args);
+
+	var onExport(const var::NativeFunctionArgs& args);
+};
+
+
+
 struct ScriptnodeTemplateExporter: public EncodedDialogBase
 {
-	ScriptnodeTemplateExporter(BackendRootWindow* bpe, scriptnode::NodeBase* n):
-	  EncodedDialogBase(bpe),
-	  node(n)
-	{
-		loadFrom("897.sNB..D...............35H...oi...UM.........J09R+fIsAcoA.lrVfl.tzniLwvJeGajdMaHDyvtUbuc0f4YTAhcBXdU3KQESTMhwnxL3b9Afb.LG.7Dthf6CiiV7DCJUtTICBWfYKOh6GHpJUYpnjb1xdX30VcIikKGjASUlJVx7k3+BBYtXIyG8CVgoxBBX1vYN1AUpprTQASEKRNG5bztnlfgBGxyZAQOIaUvrWKExf9FBljKjSisP8eAMoZl91eXRUUkHhpYZ+sCC6dqIUkHR.plu4ucruD2AzizgRfauUMcKLNeYenNjHcn4jkZtLV.be+CffoHWzq.tY9y7Hqmy6VPSXwXCv8xgPLocxseanlPMgR6uojynq23lyoShschGi8Pa29LA+2ewYw+Bia7qyU4Lu0W5wRNL42K4nKqXZDUkDw2C41ztKMimbJeo8ho+S8oJ4LnKRcv5iGUiIsSEBefbQDxd57o8+41L0gZ+8KlWhufgwsm07wwtK1fkYv2HNTT+HsG6ghpZzm8zPyg6qCCQc9F8Jl5u98Bhx4cp2YNYI3oC4rIehZlS9ROBB+xP.lzZIP.vHR3HgRQJJpl3pwwHsqQSmI9rQj21EmUSgl1Sdw2LIG3eYIGrl6gO9jXykzFwimbrbpDzgAcxUd8.wYNGCleHcPddh3rSGM2.8ahz6sCBWtd2zMIKZ1q7YR6nrd0M9mcS30BeKoU6fsqrb04uuOgtvjYTYX.njnFRmx3PJ0LkP..DP..jQ.XLipIHJUr.IUJqBpIyB.QjVejCv.hLcr3rADDVtawtHJEc6PFDSFDXlFZwkeYetmqttN7BArpkJdLolMZDl93Peki8rNALClo0C1RVk9eJTFyZbMxCn9nvdmgpB1GcyPQjaOsX8ZDs4dYEB4wLl248O.3r06wnQKTVBEAw17n8AOxnHi+o8+J4KKRPeitpLXq.BY62kwMsAwIAD.FnumFHgx0H1.XHsWTD2pehVnKAxnIgEGHuA3n+dufq+SGFwLxlzf73CurcPUcxa3VbNKWm.ZZ8novmexiRbZ+SPydVz8lBqtAjpu8fnjeTeWdRDxui7Xt1lph1OU0P1TQ9k+nHKZnODXREj+EoUhRDnQos1CtmTna.ho+AcK.z4gnfhQ9bmmHWI9kyJLfeY9C8hety6kNB..X5H...qi...");
-	}
+	ScriptnodeTemplateExporter(BackendRootWindow* bpe, scriptnode::NodeBase* n);
 
 	void bindCallbacks() override
     {

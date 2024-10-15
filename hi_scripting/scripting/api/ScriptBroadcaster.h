@@ -206,6 +206,9 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 	/** Attaches this broadcaster to changes of the audio processing specs (samplerate / buffer size). */
 	void attachToProcessingSpecs(var optionalMetadata);
 
+	/** Attaches this broadcaster to receive realtime / nonrealtime render change events. */
+	void attachToNonRealtimeChange(var optionalMetadata);
+
 	/** Attaches the broadcaster to events of a samplemap (loading, changing, adding samples). */
 	void attachToSampleMap(var samplerIds, var eventTypes, var optionalMetadata);
 
@@ -698,6 +701,33 @@ private:
 
 		Identifier typeId;
     };
+
+	struct NonRealtimeSource : public ListenerBase
+	{
+		NonRealtimeSource(ScriptBroadcaster* b, const var& metadata);
+
+		~NonRealtimeSource();
+
+		Identifier getItemId() const override { RETURN_STATIC_IDENTIFIER("NonRealtimeChangeEvent"); }
+
+		static void onNonRealtimeChange(NonRealtimeSource& n, bool isNonRealtime)
+		{
+			n.parent->sendSyncMessage(var(isNonRealtime));
+		}
+
+		void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory) override;
+
+		int getNumInitialCalls() const override;
+		Array<var> getInitialArgs(int callIndex) const override;
+
+		Array<var> createChildArray() const override;;
+
+		Result callItem(TargetBase* n) override;
+		
+		WeakReference<ScriptBroadcaster> parent;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(NonRealtimeSource);
+	};
 
 	struct ProcessingSpecSource : public ListenerBase
 	{

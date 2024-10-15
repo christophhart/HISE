@@ -1479,7 +1479,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     }
 
 #if USE_BACKEND
-	getDebugLogger().recordOutput(buffer);
+	getDebugLogger().recordOutput(midiMessages, buffer);
 #endif
 
 #if !HISE_MIDIFX_PLUGIN
@@ -2208,6 +2208,8 @@ void MainController::SampleManager::handleNonRealtimeState()
 			nrt->nonRealtimeModeChanged(isNonRealtime());
 
 		internalsSetToNonRealtime = isNonRealtime();
+
+		mc->getNonRealtimeBroadcaster().sendMessage(sendNotificationSync, isNonRealtime());
 	}
 }
 

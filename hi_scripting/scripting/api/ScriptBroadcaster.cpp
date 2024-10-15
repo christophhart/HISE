@@ -2062,6 +2062,34 @@ void ScriptBroadcaster::ComplexDataListener::registerSpecialBodyItems(ComponentW
 	factory.registerFunction(f);
 }
 
+ScriptBroadcaster::NonRealtimeSource::NonRealtimeSource(ScriptBroadcaster* b, const var& metadata):
+	ListenerBase(metadata),
+	parent(b)
+{
+	auto mc = b->getScriptProcessor()->getMainController_();
+	mc->getNonRealtimeBroadcaster().addListener(*this, onNonRealtimeChange);
+}
+
+ScriptBroadcaster::NonRealtimeSource::~NonRealtimeSource()
+{
+	if (parent != nullptr)
+	{
+		auto mc = parent->getScriptProcessor()->getMainController_();
+		mc->getNonRealtimeBroadcaster().removeListener(*this);
+	}
+}
+
+void ScriptBroadcaster::NonRealtimeSource::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{}
+
+juce::Result ScriptBroadcaster::NonRealtimeSource::callItem(TargetBase* n)
+{
+	auto rt = parent->getScriptProcessor()->getMainController_()->getSampleManager().isNonRealtime();
+	return n->callSync(var(rt));
+}
+
+
+
 ScriptBroadcaster::ProcessingSpecSource::ProcessingSpecSource(ScriptBroadcaster* b, const var& metadata):
 	ListenerBase(metadata),
 	parent(b)
@@ -3161,6 +3189,7 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRoutingMatrix);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToNonRealtimeChange);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRadioGroup);
     API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToComplexData);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToEqEvents);
@@ -3208,6 +3237,7 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_2(attachToRoutingMatrix);
 	ADD_API_METHOD_1(attachToInterfaceSize);
 	ADD_API_METHOD_3(attachToModuleParameter);
+	ADD_API_METHOD_1(attachToNonRealtimeChange);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
 	ADD_API_METHOD_3(attachToEqEvents);
@@ -4140,6 +4170,20 @@ void ScriptBroadcaster::attachToRoutingMatrix(var moduleIds, var metadata)
 	enableQueue = true;
 }
 
+void ScriptBroadcaster::attachToNonRealtimeChange(var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	if (defaultValues.size() != 1)
+	{
+		reportScriptError("If you want to attach a broadcaster to non realtime change events, it needs a single parameter (bool isNonRealtime)");
+	}
+
+	attachedListeners.add(new NonRealtimeSource(this, optionalMetadata));
+	setRealtimeMode(true);
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
+}
+
 void ScriptBroadcaster::attachToProcessingSpecs(var optionalMetadata)
 {
 	throwIfAlreadyConnected();
@@ -4920,6 +4964,15 @@ Identifier ScriptBroadcaster::ScriptCallListener::getItemId() const
 
 Identifier ScriptBroadcaster::ProcessingSpecSource::getItemId() const
 { RETURN_STATIC_IDENTIFIER("ProcessingSpecs"); }
+
+int ScriptBroadcaster::NonRealtimeSource::getNumInitialCalls() const
+{ return 0; }
+
+Array<var> ScriptBroadcaster::NonRealtimeSource::getInitialArgs(int callIndex) const
+{ return {}; }
+
+Array<var> ScriptBroadcaster::NonRealtimeSource::createChildArray() const
+{ return { var(parent->getScriptProcessor()->getMainController_()->getSampleManager().isNonRealtime())}; }
 
 int ScriptBroadcaster::ProcessingSpecSource::getNumInitialCalls() const
 { return 0; }
