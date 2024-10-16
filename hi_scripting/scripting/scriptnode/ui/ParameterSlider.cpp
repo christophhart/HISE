@@ -2000,6 +2000,11 @@ void ParameterKnobLookAndFeel::SliderLabel::updateText()
 		auto value = parent->getValue();
 		auto p = dynamic_cast<ParameterSlider*>(parent.getComponent())->parameterToControl;
 
+		if(p != nullptr && p->getValue() != value)
+		{
+			parent->setValue(p->getValue(), dontSendNotification);
+		}
+
 		if (!parent->isEnabled() && p != nullptr)
 			value = p->getValue();
 

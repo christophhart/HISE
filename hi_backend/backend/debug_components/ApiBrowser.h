@@ -393,43 +393,12 @@ public:
 	};
 
 	struct ParameterItem: public SearchableListComponent::Item,
-						  public PathFactory 
-						  
+						  public PathFactory,
+						  public PooledUIUpdater::SimpleTimer
 	{
-		ParameterItem(DspNetwork* parent, int parameterIndex):
-		  Item(parent->getCurrentParameterHandler()->getParameterId(parameterIndex).toString()),
-		  ptree(parent->getRootNode()->getParameterTree().getChild(parameterIndex)),
-		  dragButton("drag", nullptr, *this),
-		  dragListener(&dragButton, [parameterIndex](DspNetworkGraph* g){ return DspNetworkListeners::MacroParameterDragListener::findSliderComponent(g, parameterIndex); })
-		{
-			pname.getTextValue().referTo(ptree.getPropertyAsValue(PropertyIds::ID, parent->getUndoManager()));
+		ParameterItem(DspNetwork* parent, int parameterIndex);
 
-			auto value = (double)ptree[PropertyIds::Value];
-			valueSlider.setValue(value, dontSendNotification);
-
-			valueSlider.getValueObject().referTo(ptree.getPropertyAsValue(PropertyIds::Value, parent->getUndoManager()));
-
-			addAndMakeVisible(valueSlider);
-			addAndMakeVisible(dragButton);
-			addAndMakeVisible(pname);
-
-			
-
-			valueSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-			valueSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, false, 0, 0);
-
-			valueSlider.setLookAndFeel(&laf);
-			
-
-			pname.setFont(GLOBAL_BOLD_FONT());
-			pname.setEditable(false, true);
-			pname.setColour(Label::textColourId, Colours::white.withAlpha(0.8f));
-			pname.setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
-
-			rangeUpdater.setCallback(ptree, RangeHelpers::getRangeIds(false), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(ParameterItem::updateRange));
-		}
-
-		
+		void timerCallback();
 
 		struct SliderLookAndFeel: public LookAndFeel_V4
 		{
@@ -496,11 +465,13 @@ public:
 
 		ValueTree ptree;
 
+		int pIndex;
 		Slider valueSlider;
 		HiseShapeButton dragButton;
 		Label pname;
-
+		
 		DspNetworkGraph* ng;
+		DspNetwork* network;
 
 		DspNetworkListeners::MacroParameterDragListener dragListener;
 		

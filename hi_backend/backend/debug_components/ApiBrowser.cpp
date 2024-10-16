@@ -60,6 +60,53 @@ void drawPlug(Graphics& g, Rectangle<float> area, Colour c)
     
 }
 
+DspNodeList::ParameterItem::ParameterItem(DspNetwork* parent, int parameterIndex):
+	Item(parent->getCurrentParameterHandler()->getParameterId(parameterIndex).toString()),
+	SimpleTimer(parent->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+	ptree(parent->getRootNode()->getParameterTree().getChild(parameterIndex)),
+	dragButton("drag", nullptr, *this),
+	network(parent),
+	pIndex(parameterIndex),
+	dragListener(&dragButton, [parameterIndex](DspNetworkGraph* g){ return DspNetworkListeners::MacroParameterDragListener::findSliderComponent(g, parameterIndex); })
+{
+	pname.getTextValue().referTo(ptree.getPropertyAsValue(PropertyIds::ID, parent->getUndoManager()));
+
+	auto value = (double)ptree[PropertyIds::Value];
+	valueSlider.setValue(value, dontSendNotification);
+
+	valueSlider.getValueObject().referTo(ptree.getPropertyAsValue(PropertyIds::Value, parent->getUndoManager()));
+
+	addAndMakeVisible(valueSlider);
+	addAndMakeVisible(dragButton);
+	addAndMakeVisible(pname);
+
+			
+
+	valueSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+	valueSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, false, 0, 0);
+
+	valueSlider.setLookAndFeel(&laf);
+			
+
+	pname.setFont(GLOBAL_BOLD_FONT());
+	pname.setEditable(false, true);
+	pname.setColour(Label::textColourId, Colours::white.withAlpha(0.8f));
+	pname.setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+
+	rangeUpdater.setCallback(ptree, RangeHelpers::getRangeIds(false), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(ParameterItem::updateRange));
+
+	start();
+}
+
+void DspNodeList::ParameterItem::timerCallback()
+{
+	if(auto p = network->getRootNode()->getParameterFromIndex(pIndex))
+	{
+		if(p->getValue() != valueSlider.getValue())
+			valueSlider.setValue(p->getValue(), dontSendNotification);
+	}
+}
+
 DspNodeList::NodeItem::NodeItem(DspNetwork* parent, const String& id):
 	Item(id),
 	node(dynamic_cast<NodeBase*>(parent->get(id).getObject())),
