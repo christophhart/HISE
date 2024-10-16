@@ -507,7 +507,7 @@ bool ModPlotter::ModPlotterPropertyObject::validateInt(const Identifier& id, int
 		if (!wasPowerOfTwo)
 			v = nextPowerOfTwo(v);
 				
-		return SimpleRingBuffer::withinRange<4096, 32768 * 4>(v) && wasPowerOfTwo;
+		return SimpleRingBuffer::withinRange<4096, 32768 * 8>(v) && wasPowerOfTwo;
 	}
 
 	if (id == RingBufferIds::NumChannels)

@@ -145,20 +145,20 @@ public:
     */
     inline var isUnlocked() const               { return status[unlockedProp]; }
 
-    inline var contains(const String& otherString)
-    {
-		auto s = getPublicKey().toString().fromFirstOccurrenceOf(",", false, false);
+inline var contains(const String& otherString)
+{
+    auto s = getPublicKey().toString().fromFirstOccurrenceOf(",", false, false);
 
-        var rv(true);
-        var x = status[unlockedProp] && s.contains(otherString);
+    // Calculate if the key contains the string, set to false initially
+    var x = status[unlockedProp] && s.contains(otherString);
 
-        status.setProperty(unlockedProp, x, nullptr);
+    // Set the unlocked property status to the result of the check
+    status.setProperty(unlockedProp, x, nullptr);
 
-	    if(status[unlockedProp] && !x)
-            std::swap(x, rv);
+    // Directly return the result of the check without early true/false assumptions
+    return x;
+}
 
-        return rv;
-    }
 
     /** Returns the Time when the keyfile expires.
 

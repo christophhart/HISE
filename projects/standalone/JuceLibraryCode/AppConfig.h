@@ -90,6 +90,10 @@
  //#define USE_WORKBENCH_EDITOR 0
 #endif
 
+#ifndef    HISE_PAINT_GLOBAL_MOD_CONNECTIONS
+ //#define HISE_PAINT_GLOBAL_MOD_CONNECTIONS 0
+#endif
+
 //==============================================================================
 // hi_core flags:
 
