@@ -533,7 +533,8 @@ public:
 					name = PresetHandler::getCustomName("Parameter", "Enter a new parameter name");
 				}
 
-                pc->parent.node->getParameter(name);
+				if(name.isNotEmpty())
+					pc->parent.node->getParameter(name);
 			}
 			if (b == &dragButton)
 			{
