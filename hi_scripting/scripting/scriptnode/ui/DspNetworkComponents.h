@@ -767,7 +767,7 @@ public:
 
 	UndoManager rootUndoManager;
 
-	void setCurrentRootNode(NodeBase* newRoot, bool useUndo=true);
+	void setCurrentRootNode(NodeBase* newRoot, bool useUndo=true, bool allowAnimation=true);
 
 	NodeBase* getCurrentRootNode() const { return currentRootNode != nullptr ? currentRootNode.get() : network->getRootNode(); }
 

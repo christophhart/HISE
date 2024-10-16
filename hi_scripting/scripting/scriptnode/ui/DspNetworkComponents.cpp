@@ -566,7 +566,7 @@ struct RootUndoAction: public UndoableAction
 	WeakReference<NodeBase> prev, current;
 };
 
-void DspNetworkGraph::setCurrentRootNode(NodeBase* newRoot, bool useUndo)
+void DspNetworkGraph::setCurrentRootNode(NodeBase* newRoot, bool useUndo, bool allowAnimation)
 {
 	if(newRoot == network->getRootNode())
 		newRoot = nullptr;
@@ -611,7 +611,8 @@ void DspNetworkGraph::setCurrentRootNode(NodeBase* newRoot, bool useUndo)
 
 		auto zoomFactor = zoomIn ? 1.008f : JUCE_LIVE_CONSTANT_OFF(0.993f);
 
-		parent->makeSwapSnapshot(zoomFactor);
+		if(allowAnimation)
+			parent->makeSwapSnapshot(zoomFactor);
 
 		auto g = this;
 
@@ -626,7 +627,10 @@ void DspNetworkGraph::setCurrentRootNode(NodeBase* newRoot, bool useUndo)
 			g->grabKeyboardFocus();
 		};
 
-		Timer::callAfterDelay(JUCE_LIVE_CONSTANT_OFF(350), f);
+		if(allowAnimation)
+			Timer::callAfterDelay(JUCE_LIVE_CONSTANT_OFF(350), f);
+		else
+			f();
 	}
 }
 

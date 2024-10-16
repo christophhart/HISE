@@ -1295,21 +1295,79 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 	}
 	else if (b == &gotoButton)
 	{
-		if (auto targetNode = node->getRootNetwork()->getNodeWithId(data[PropertyIds::NodeId].toString()))
+		auto nodeToShow = node.get();
+
+		if(showSource)
+		{
+			nodeToShow = node->getRootNetwork()->getNodeForValueTree(valuetree::Helpers::findParentWithType(data, PropertyIds::Node));
+		}
+		else
+		{
+			auto nodeId = data[PropertyIds::NodeId].toString();
+			nodeToShow = node->getRootNetwork()->getNodeWithId(nodeId);
+		}
+		
+		if (nodeToShow != nullptr)
 		{
 			auto sp = findParentComponentOfClass<ZoomableViewport>();
 
-			auto gotoNode = [sp, targetNode]()
+			auto gotoNode = [sp, nodeToShow]()
 			{
+				auto nv = nodeToShow->getValueTree();
+				auto um = nodeToShow->getUndoManager();
+
+				ValueTree lockedContainer;
+
+				
+
+				
+
+				valuetree::Helpers::forEachParent(nv, [&](ValueTree& v)
+				{
+					if(v.getType() == PropertyIds::Node)
+					{
+						v.setProperty(PropertyIds::Folded, false, um);
+
+						if(v[PropertyIds::Locked])
+						{
+							lockedContainer = v;
+							return true;
+						}
+							
+					}
+						
+					return false;
+				});
+
 				sp->setCurrentModalWindow(nullptr, {});
 
-				if (auto nc = sp->getContent<DspNetworkGraph>()->getComponent(targetNode))
+				auto currentRootTree = sp->getContent<DspNetworkGraph>()->getCurrentRootNode()->getValueTree();
+
+				if(!lockedContainer.isValid() && !nodeToShow->getValueTree().isAChildOf(currentRootTree))
+				{
+					lockedContainer = nodeToShow->getValueTree();
+
+					if(lockedContainer.getParent().getType() == PropertyIds::Nodes)
+						lockedContainer = lockedContainer.getParent().getParent();
+				}
+
+				if(lockedContainer.isValid())
+				{
+					if(auto newRoot = nodeToShow->getRootNetwork()->getNodeForValueTree(lockedContainer, false))
+					{
+						sp->getContent<DspNetworkGraph>()->setCurrentRootNode(newRoot, true, false);
+					}
+				}
+
+				
+
+				if (auto nc = sp->getContent<DspNetworkGraph>()->getComponent(nodeToShow))
 				{
 					nc->grabKeyboardFocus();
 				}
 
-				targetNode->getRootNetwork()->deselectAll();
-				targetNode->getRootNetwork()->addToSelection(targetNode, ModifierKeys());
+				nodeToShow->getRootNetwork()->deselectAll();
+				nodeToShow->getRootNetwork()->addToSelection(nodeToShow, ModifierKeys());
 			};
 
 			MessageManager::callAsync(gotoNode);

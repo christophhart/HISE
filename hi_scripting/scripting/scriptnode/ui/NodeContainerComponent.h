@@ -289,15 +289,24 @@ struct MacroPropertyEditor : public Component,
 		addAndMakeVisible(connectionViewport);
 		connectionViewport.setViewedComponent(&connectionContent, false);
 
+		if(parameter != nullptr)
+		{
+			if(parameter->data[PropertyIds::Automated])
+			{
+				connectionArray.addIfNotAlreadyThere(parameter->getConnectionSourceTree(false));
+			}
+			else
+			{
+				addAndMakeVisible(connectionButton);
+				connectionButton.setLookAndFeel(&blaf);
+				connectionButton.addListener(this);
+			}
+		}
+
 		int height = jmin(700, connectionArray.isEmpty() ? 10 : (100 + (connectionArray.size() * 110)));
 
-		if (!containerMode)
-		{
+		if(connectionButton.isVisible())
 			height += 32;
-			addAndMakeVisible(connectionButton);
-			connectionButton.setLookAndFeel(&blaf);
-			connectionButton.addListener(this);
-		}
 
 		setSize(parameterProperties.getWidth() + connectionViewport.getScrollBarThickness(), parameterProperties.getHeight() + height);
 
@@ -331,7 +340,7 @@ struct MacroPropertyEditor : public Component,
 		auto b = getLocalBounds();
 		b.removeFromTop(y);
 
-		if(!containerMode)
+		if(connectionButton.isVisible())
 			connectionButton.setBounds(b.removeFromBottom(32));
 
 		connectionViewport.setBounds(b);
@@ -340,7 +349,7 @@ struct MacroPropertyEditor : public Component,
 		resizer.setBounds(getLocalBounds().removeFromRight(s).removeFromBottom(s));
 	}
 
-	static String getPathFromNode(bool showSource, ValueTree& data)
+	static String getPathFromNode(bool showSource, const ValueTree& data)
 	{
 		String text;
 
@@ -396,7 +405,15 @@ struct MacroPropertyEditor : public Component,
 				continue;
 			}
 
-			auto newEditor = new ConnectionEditor(node, c, !containerMode);
+			auto isSource = true;
+
+			if(parameter != nullptr && c.isAChildOf(parameter->data))
+				isSource = false;
+
+			if(parameter == nullptr)
+				isSource = false;
+			
+			auto newEditor = new ConnectionEditor(node, c, isSource);
 			connectionContent.addAndMakeVisible(newEditor);
 			connectionEditors.add(newEditor);
 		}
