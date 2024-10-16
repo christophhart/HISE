@@ -2439,6 +2439,84 @@ void HostHelpers::setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree
 }
 
 #if USE_BACKEND
+ValueTree DuplicateHelpers::findRoot(const ValueTree& v)
+{
+	auto p = v.getParent();
+        
+	if(!p.isValid())
+		return v;
+        
+	return findRoot(p);
+}
+
+void DuplicateHelpers::removeOutsideConnections(const Array<ValueTree>& newNodes,
+                                                const Array<DspNetwork::IdChange>& idChanges)
+{
+	for(auto& ct: newNodes)
+	{
+		Array<ValueTree> connectionsToRemove;
+
+		valuetree::Helpers::forEach(ct, [&](ValueTree& c)
+		{
+			if(c.getType() == PropertyIds::Connection)
+			{
+				auto thisTarget = c[PropertyIds::NodeId].toString();
+				auto found = false;
+
+				for(const auto& ch: idChanges)
+				{
+					found |= ch.newId == thisTarget;
+				}
+
+				if(!found)
+					connectionsToRemove.add(c);
+			}
+
+			return false;
+		});
+
+		for(const auto& c: connectionsToRemove)
+			c.getParent().removeChild(c, nullptr);
+	}
+}
+
+int DuplicateHelpers::getIndexInRoot(const ValueTree& v)
+{
+	auto p = findRoot(v);
+        
+	int index = 0;
+	auto iptr = &index;
+        
+	valuetree::Helpers::forEach(p, [&iptr, v](ValueTree& c)
+	{
+		*iptr = *iptr + 1;
+		return c == v;
+	});
+        
+	return index;
+}
+
+int DuplicateHelpers::compareElements(const WeakReference<NodeBase>& n1, const WeakReference<NodeBase>& n2)
+{
+	if(n1 == n2)
+		return 0;
+        
+	if(n1 != nullptr && n2 != nullptr)
+	{
+		auto i1 = getIndexInRoot(n1->getValueTree());
+		auto i2 = getIndexInRoot(n2->getValueTree());
+            
+		if(i1 < i2)
+			return 1;
+		if(i1 > i2)
+			return -1;
+	}
+        
+	jassertfalse;
+	return 0;
+}
+
+
 void DspNetworkListeners::DspNetworkGraphRootListener::onChangeStatic(DspNetworkGraphRootListener& l, NodeBase* n)
 {
 	if(n != nullptr)

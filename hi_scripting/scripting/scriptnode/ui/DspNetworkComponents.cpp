@@ -1582,12 +1582,28 @@ bool DspNetworkGraph::Actions::swapOrientation(DspNetworkGraph& g)
 
 	for (auto n : l)
 	{
-		if (auto sn = dynamic_cast<SerialNode*>(n.get()))
+		if(auto sn = dynamic_cast<SerialNode*>(n.get()))
+		{
 			sn->isVertical.storeValue(!sn->isVertical.getValue(), sn->getUndoManager());
+
+			auto dg = &g;
+
+			auto f = [sn, dg]()
+			{
+				if(auto b = dg->getComponent(sn))
+				{
+					auto cb = dg->getLocalArea(b, b->getLocalBounds());
+					dg->findParentComponentOfClass<ZoomableViewport>()->zoomToRectangle(cb);
+				}
+			};
+
+			MessageManager::callAsync(f);
+
+			return true;
+		}
 	}
 
-	g.setTransform({});
-	g.findParentComponentOfClass<ZoomableViewport>()->centerCanvas();
+	
 
 	return true;
 }
@@ -1711,99 +1727,6 @@ bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
 			MessageManager::callAsync(s);
 		}
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-#if 0
-	if (auto hc = node->getAsRestorableNode())
-	{
-		// Check if there is already a node that was unfrozen
-
-		for (auto n : node->getRootNetwork()->getListOfUnconnectedNodes())
-		{
-			if (n->getValueTree()[PropertyIds::FreezedId].toString() == node->getId())
-			{
-				auto newTree = n->getValueTree();
-				auto oldTree = node->getValueTree();
-				auto um = node->getUndoManager();
-
-				auto f = [oldTree, newTree, um]()
-				{
-					auto p = oldTree.getParent();
-
-					int position = p.indexOf(oldTree);
-					p.removeChild(oldTree, um);
-					p.addChild(newTree, position, um);
-				};
-
-				MessageManager::callAsync(f);
-
-				auto nw = node->getRootNetwork();
-
-				auto s = [newTree, nw]()
-				{
-					auto newNode = nw->getNodeForValueTree(newTree);
-					nw->deselectAll();
-					nw->addToSelection(newNode, ModifierKeys());
-				};
-
-				MessageManager::callAsync(s);
-
-				return true;
-			}
-		}
-
-		auto t = hc->getSnippetText();
-
-		if (t.isNotEmpty())
-		{
-			auto newTree = ValueTreeConverters::convertBase64ToValueTree(t, true);
-			newTree = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree);
-			newTree.setProperty(PropertyIds::FreezedPath, node->getValueTree()[PropertyIds::FactoryPath], nullptr);
-			newTree.setProperty(PropertyIds::FreezedId, node->getId(), nullptr);
-
-			{
-				auto oldTree = node->getValueTree();
-				auto um = node->getUndoManager();
-
-				auto newNode = node->getRootNetwork()->createFromValueTree(true, newTree, true);
-
-				auto f = [oldTree, newTree, um]()
-				{
-					auto p = oldTree.getParent();
-
-					int position = p.indexOf(oldTree);
-					p.removeChild(oldTree, um);
-					p.addChild(newTree, position, um);
-				};
-
-				MessageManager::callAsync(f);
-
-				auto nw = node->getRootNetwork();
-
-				auto s = [newNode, nw]()
-				{
-					nw->deselectAll();
-					nw->addToSelection(newNode, ModifierKeys());
-				};
-
-				MessageManager::callAsync(s);
-			}
-		}
-
-		return true;
-	}
-#endif
 
 	return false;
 }
@@ -2526,59 +2449,12 @@ bool DspNetworkGraph::Actions::showKeyboardPopup(DspNetworkGraph& g, KeyboardPop
 	return true;
 }
 
-struct DuplicateHelpers
-{
-    static ValueTree findRoot(const ValueTree& v)
-    {
-        auto p = v.getParent();
-        
-        if(!p.isValid())
-            return v;
-        
-        return findRoot(p);
-    }
-    
-    static int getIndexInRoot(const ValueTree& v)
-    {
-        auto p = findRoot(v);
-        
-        int index = 0;
-        auto iptr = &index;
-        
-        valuetree::Helpers::forEach(p, [&iptr, v](ValueTree& c)
-        {
-            *iptr = *iptr + 1;
-            return c == v;
-        });
-        
-        return index;
-    }
-    
-    // This sorts it reversed so that the index works when duplicating
-    static int compareElements(const WeakReference<NodeBase>& n1, const WeakReference<NodeBase>& n2)
-    {
-        if(n1 == n2)
-            return 0;
-        
-        if(n1 != nullptr && n2 != nullptr)
-        {
-            auto i1 = getIndexInRoot(n1->getValueTree());
-            auto i2 = getIndexInRoot(n2->getValueTree());
-            
-            if(i1 < i2)
-                return 1;
-            if(i1 > i2)
-                return -1;
-        }
-        
-        jassertfalse;
-        return 0;
-    }
-};
+
 
 
 bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
 {
+#if USE_BACKEND
 	int insertIndex = 0;
 
 	for (auto n : g.network->getSelection())
@@ -2586,9 +2462,7 @@ bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
 		auto tree = n->getValueTree();
 		insertIndex = jmax(insertIndex, tree.getParent().indexOf(tree) + 1);
 	}
-
-    
-    
+	
     Array<DspNetwork::IdChange> changes;
     
     struct TreeData
@@ -2598,7 +2472,6 @@ bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
     };
     
     auto sortedSelection = g.network->getSelection();
-    
     
     DuplicateHelpers h;
     
@@ -2623,14 +2496,25 @@ bool DspNetworkGraph::Actions::duplicateSelection(DspNetworkGraph& g)
         {
             g.network->changeNodeId(ct.newTree, c.oldId, c.newId, nullptr);
         }
-        
+	}
+
+	Array<ValueTree> newNodes;
+
+	for(auto& ct: clonedTrees)
+		newNodes.add(ct.newTree);
+
+	h.removeOutsideConnections(newNodes, changes);
+
+	for(auto& ct: clonedTrees)
+	{
 		g.network->createFromValueTree(true, ct.newTree, true);
 		ct.location.getParent().addChild(ct.newTree, insertIndex, g.network->getUndoManager());
         insertIndex = ct.location.getParent().indexOf(ct.newTree);
 	}
 
     g.network->runPostInitFunctions();
-    
+
+#endif
 	return true;
 }
 
@@ -3066,6 +2950,8 @@ void KeyboardPopup::addNodeAndClose(String path)
 
 				for(auto& c: changes)
 		            network->changeNodeId(newTree, c.oldId, c.newId, nullptr);
+
+				BACKEND_ONLY(DuplicateHelpers::removeOutsideConnections(newTree, changes));
 
 				newNode = network->createFromValueTree(true, newTree, true);
 				

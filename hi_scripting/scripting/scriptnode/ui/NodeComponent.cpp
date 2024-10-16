@@ -574,8 +574,7 @@ void NodeComponent::paintOverChildren(Graphics& g)
 	if (isBeingCopied())
 	{
 		Path p;
-		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon,
-			sizeof(HiBinaryData::ProcessorEditorHeaderIcons::addIcon));
+		p.loadPathFromData(HiBinaryData::ProcessorEditorHeaderIcons::addIcon, HiBinaryData::ProcessorEditorHeaderIcons::addIcon_Size);
 
 		auto b = getLocalBounds().toFloat().withSizeKeepingCentre(32, 32);
 

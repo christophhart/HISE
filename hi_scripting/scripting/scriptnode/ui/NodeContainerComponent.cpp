@@ -281,13 +281,15 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 	{
 		auto newTree = newNode->node->getValueTree();
 		auto container = dynamic_cast<NodeContainer*>(node.get());
-
-        
         
 		if (copyNode)
 		{
             Array<DspNetwork::IdChange> changes;
 			auto copy = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree, changes, true);
+
+
+			BACKEND_ONLY(DuplicateHelpers::removeOutsideConnections({ copy }, changes));
+			
 			node->getRootNetwork()->createFromValueTree(container->isPolyphonic(), copy, true);
 			container->getNodeTree().addChild(copy, insertPosition, node->getUndoManager());
 		}
@@ -1317,10 +1319,6 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 				auto um = nodeToShow->getUndoManager();
 
 				ValueTree lockedContainer;
-
-				
-
-				
 
 				valuetree::Helpers::forEachParent(nv, [&](ValueTree& v)
 				{

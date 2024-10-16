@@ -991,6 +991,18 @@ struct HostHelpers
 
 struct DspNetworkGraph;
 
+struct DuplicateHelpers
+{
+    static ValueTree findRoot(const ValueTree& v);
+
+    static void removeOutsideConnections(const Array<ValueTree>& newNodes, const Array<DspNetwork::IdChange>& idChanges);
+
+    static int getIndexInRoot(const ValueTree& v);
+
+    // This sorts it reversed so that the index works when duplicating
+    static int compareElements(const WeakReference<NodeBase>& n1, const WeakReference<NodeBase>& n2);
+};
+
 struct DspNetworkListeners
 {
 	struct DspNetworkGraphRootListener

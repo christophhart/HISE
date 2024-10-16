@@ -802,6 +802,7 @@ TemplateNodeFactory::TemplateNodeFactory(DspNetwork* n) :
 
 			Array<DspNetwork::IdChange> changes;
 			auto newTree = n->cloneValueTreeWithNewIds(v, changes, false);
+			DuplicateHelpers::removeOutsideConnections({ newTree }, changes );
 
 			for(auto& c: changes)
 	            n->changeNodeId(newTree, c.oldId, c.newId, nullptr);
