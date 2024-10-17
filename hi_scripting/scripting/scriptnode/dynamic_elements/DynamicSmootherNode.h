@@ -706,6 +706,8 @@ struct dynamic
         currentMode = (Mode)getConverterNames().indexOf(newValue.toString());
     }
 
+	static constexpr bool usesPrepareSpecs() { return true; }
+
     struct editor : public ScriptnodeExtraComponent<dynamic>,
                     public ComboBox::Listener
     {
