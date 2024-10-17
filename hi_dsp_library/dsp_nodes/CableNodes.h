@@ -1178,7 +1178,7 @@ namespace control
         SN_DESCRIPTION("converts a control value");
 
         SN_DEFAULT_INIT(ConverterClass);
-        SN_DEFAULT_PREPARE(ConverterClass);
+        
         SN_ADD_SET_VALUE(converter);
 
 		converter() :
@@ -1187,8 +1187,21 @@ namespace control
 			pimpl::parameter_node_base<ParameterClass>(getStaticId())
 		{};
 
+		void prepare(PrepareSpecs ps)
+		{
+			this->obj.prepare(ps);
+
+			if(lastInput.first)
+			{
+				setValue(lastInput.second);
+			}
+		}
+
         void setValue(double input)
         {
+			if constexpr (ConverterClass::usesPrepareSpecs())
+				lastInput = { true, input };
+
             auto v = obj.getValue(input);
 
             if (this->getParameter().isConnected())
@@ -1196,6 +1209,7 @@ namespace control
         }
 
         ConverterClass obj;
+		std::pair<bool, double> lastInput = { false, 0.0 };
     };
 
 	template <typename ParameterClass> struct random : public mothernode,

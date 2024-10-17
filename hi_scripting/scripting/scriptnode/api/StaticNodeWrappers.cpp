@@ -245,8 +245,9 @@ void InterpretedCableNode::prepare(PrepareSpecs ps)
 
 	try
 	{
-		ModulationSourceNode::prepare(ps);
 		this->obj.prepare(ps);
+		ModulationSourceNode::prepare(ps);
+		
 	}
 	catch (Error& s)
 	{
