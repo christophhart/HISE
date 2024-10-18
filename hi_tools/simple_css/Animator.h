@@ -39,14 +39,14 @@ struct Animator: public Timer
 {
 	struct ScopedComponentSetter
 	{
-		ScopedComponentSetter(Component* c);
+		ScopedComponentSetter(std::pair<Component*, int> c);
 		~ScopedComponentSetter();
 
-		Component::SafePointer<Component> prev;
+		std::pair<Component::SafePointer<Component>, int> prev;
 		Animator* a = nullptr;
 	};
 
-	Component::SafePointer<Component> currentlyRenderedComponent;
+	std::pair<Component::SafePointer<Component>, int> currentlyRenderedComponent;
 
 	struct Item
 	{
@@ -87,7 +87,7 @@ struct Animator: public Timer
 			}
 		}
 
-		Component::SafePointer<Component> target;
+		std::pair<Component::SafePointer<Component>, int> target;
 
 		StyleSheet::Ptr css;
 		Transition transitionData;
@@ -136,7 +136,7 @@ struct StateWatcher
 		void renderShadow(Graphics& g, const TextData& textData, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset);
 		void renderShadow(Graphics& g, const Path& p, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset);
 
-		Component::SafePointer<Component> c;
+		std::pair<Component::SafePointer<Component>, int> c;
 		int currentState = 0;
 		
 		melatonin::DropShadow dropShadow;
@@ -145,12 +145,12 @@ struct StateWatcher
 		melatonin::InnerShadow innerShadowText;
 	};
 
-	template <typename RenderObject> void renderShadow(Graphics& g, const RenderObject& p, Component* c, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset)
+	template <typename RenderObject> void renderShadow(Graphics& g, const RenderObject& p, std::pair<Component*, int> c, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset)
 	{
 		if(parameters.empty())
 			return;
 
-		if(c == nullptr)
+		if(c.first == nullptr)
 		{
 			noComponentItem.renderShadow(g, p, parameters, wantsInset);
 			return;
@@ -158,7 +158,7 @@ struct StateWatcher
 
 		for(auto& item: items)
 		{
-			if(item.c == c)
+			if(item.c.first == c.first && item.c.second == c.second)
 			{
 				item.renderShadow(g, p, parameters, wantsInset);
 				break;
@@ -166,9 +166,14 @@ struct StateWatcher
 		}
 	}
 
-	void checkChanges(Component* c, StyleSheet::Ptr ss, int currentState);
+	void checkChanges(std::pair<Component*, int> c, StyleSheet::Ptr ss, int currentState);
 
-	std::pair<bool, int> changed(Component* c, int stateFlag);
+	void checkChanges(Component* c, StyleSheet::Ptr ss, int currentState)
+	{
+		checkChanges(std::pair<Component*, int>(c, -1), ss, currentState);
+	}
+
+	std::pair<bool, int> changed(std::pair<Component*, int> c, int stateFlag);
 
 	void registerComponentToUpdate(Component* c);
 
@@ -176,11 +181,10 @@ struct StateWatcher
 	{
 		for(auto& i: updatedComponents)
 		{
-			if(i.target == c)
+			if(i.target.first == c)
 			{
 				i.resetInitialisation();
 				c->repaint();
-				break;
 			}
 		}
 	}
@@ -189,9 +193,9 @@ struct StateWatcher
 	
 	struct UpdatedComponent
 	{
-		bool operator==(const UpdatedComponent& other) const { return target.getComponent() == other.target.getComponent(); }
+		bool operator==(const UpdatedComponent& other) const { return target.first.getComponent() == other.target.first.getComponent() && target.second == other.target.second; }
 
-		Component::SafePointer<Component> target;
+		std::pair<Component::SafePointer<Component>, int> target;
 
 		void resetInitialisation() { initialised = false; }
 

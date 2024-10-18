@@ -900,9 +900,21 @@ ScriptingObjects::SVGObject::SVGObject(ProcessorWithScriptingContent* p, const S
 	});
 }
 
+void ScriptingObjects::SVGObject::draw(Graphics& g, Rectangle<float> r, float opacity)
+{
+	if(isValid() && currentBounds != r)
+	{
+		svg->setTransformToFit(r, RectanglePlacement::centred);
+		currentBounds = r;
+	}
+            
+	if(isValid())
+		svg->draw(g, opacity);
+}
+
 
 class PathPreviewComponent : public Component,
-							 public ComponentForDebugInformation
+                             public ComponentForDebugInformation
 {
 public:
 
@@ -3170,6 +3182,8 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTableRuler(Graphics& g, 
 	TableEditor::LookAndFeelMethods::drawTableRuler(g, te, area, lineThickness, rulerPosition);
 }
 
+
+
 Rectangle<float> ScriptingObjects::ScriptedLookAndFeel::CSSLaf::getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text)
 {
 	using namespace simple_css;
@@ -3328,6 +3342,177 @@ void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawThumbnailRuler(Graphics&
 		return;
 
 	HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRuler(g, te, xPosition);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawPresetBrowserBackground(Graphics& g, Component* p)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getForComponent(p))
+	{
+		Renderer r(p, root.stateWatcher);
+
+		int state = 0;
+
+		r.setPseudoClassState(state, true);
+
+		root.stateWatcher.checkChanges(p, ss, state);
+		r.drawBackground(g, p->getLocalBounds().toFloat(), ss);
+		return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(g, p);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawColumnBackground(Graphics& g, Component& column,
+	int columnIndex, Rectangle<int> listArea, const String& emptyText)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getForComponent(&column))
+	{
+		Renderer r(&column, root.stateWatcher);
+
+		int state = 0;
+
+		r.setPseudoClassState(state, true);
+
+		root.stateWatcher.checkChanges(&column, ss, state);
+		r.drawBackground(g, column.getLocalBounds().toFloat(), ss);
+
+		if(emptyText.isNotEmpty())
+			r.renderText(g, column.getLocalBounds().toFloat(), emptyText, ss);
+
+		return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawColumnBackground(g, column, columnIndex, listArea, emptyText);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking,
+                                                            bool active, bool selected, const String& name, Rectangle<int> position)
+{
+	using namespace simple_css;
+
+
+	if(auto ss = root.css.getForComponent(&tagButton))
+	{
+		Renderer r(&tagButton, root.stateWatcher);
+
+		int state = 0;
+
+		if(blinking)
+			state |= (int)PseudoClassType::Focus;
+
+		if(hover)
+			state |= (int)PseudoClassType::Hover;
+
+		if(active)
+			state |= (int)PseudoClassType::Active;
+
+		if(selected)
+			state |= (int)PseudoClassType::Checked;
+
+		r.setPseudoClassState(state, true);
+
+		root.stateWatcher.checkChanges(&tagButton, ss, state);
+		r.drawBackground(g, tagButton.getLocalBounds().toFloat(), ss);
+		r.renderText(g, tagButton.getLocalBounds().toFloat(), name, ss);
+
+		return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawTag(g, tagButton, hover, blinking, active, selected, name, position);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area,
+                                                                     Rectangle<int> labelArea, const String& title, const String& command)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getForComponent(&modalWindow))
+	{
+		Renderer r(&modalWindow, root.stateWatcher);
+
+		int state = 0;
+
+		r.setPseudoClassState(state, true);
+
+		auto b = area.toFloat();
+
+		root.stateWatcher.checkChanges(&modalWindow, ss, state);
+
+		auto pb = ss->expandArea(b, { "padding", {} });
+
+		r.drawBackground(g, pb, ss);
+
+		if(auto ts = root.css.getWithAllStates(&modalWindow, Selector("#modal-title")))
+		{
+			auto t = ts->getLocalBoundsFromText(title);
+
+			t = b.removeFromTop(t.getHeight());
+
+			r.drawBackground(g, t, ts);
+			r.renderText(g, t, title, ts);
+		}
+
+		if(auto ts = root.css.getWithAllStates(&modalWindow, Selector("#modal-text")))
+		{
+			r.drawBackground(g, b, ts);
+			r.renderText(g, b, command, ts);
+		}
+
+		return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawModalOverlay(g, modalWindow, area, labelArea, title, command);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawListItem(Graphics& g, Component& column, int columnIndex, int i,
+                                                                 const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getWithAllStates(&column, Selector("tr")))
+	{
+		Renderer r(&column, root.stateWatcher, i);
+
+		int state = 0;
+
+		if(hover)
+			state |= (int)PseudoClassType::Hover;
+
+		if(rowIsSelected)
+			state |= (int)PseudoClassType::Checked;
+
+		r.setPseudoClassState(state, true);
+
+		root.stateWatcher.checkChanges({ &column, i }, ss, state);
+
+		auto b = position.toFloat();
+
+		r.drawBackground(g, b, ss);
+		r.renderText(g, b, itemName, ss);
+
+		return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawListItem(g, column, columnIndex, i, itemName, position,
+	                                              rowIsSelected, deleteMode, hover);
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::CSSLaf::drawSearchBar(Graphics& g, Component& labelComponent,
+                                                                  Rectangle<int> area)
+{
+	using namespace simple_css;
+
+	if(auto ss = root.css.getForComponent(&labelComponent))
+	{
+		// the label will render itself...
+		return;
+	}
+
+	PresetBrowserLookAndFeelMethods::drawSearchBar(g, labelComponent, area);
 }
 
 ScriptingObjects::ScriptedLookAndFeel::Laf::Laf(MainController* mc):
@@ -4088,7 +4273,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPresetBrowserBackground(Gra
 	PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(g_, p);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawColumnBackground(Graphics& g_, int columnIndex, Rectangle<int> listArea, const String& emptyText)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawColumnBackground(Graphics& g_, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText)
 {
 	if (functionDefined("drawPresetBrowserColumnBackground"))
 	{
@@ -4105,10 +4290,10 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawColumnBackground(Graphics& 
 			return;
 	}
 
-	PresetBrowserLookAndFeelMethods::drawColumnBackground(g_, columnIndex, listArea, emptyText);
+	PresetBrowserLookAndFeelMethods::drawColumnBackground(g_, column, columnIndex, listArea, emptyText);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int columnIndex, int rowIndex, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, Component& column, int columnIndex, int rowIndex, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
 {
 	if (functionDefined("drawPresetBrowserListItem"))
 	{
@@ -4128,10 +4313,10 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawListItem(Graphics& g_, int 
 			return;
 	}
 
-	PresetBrowserLookAndFeelMethods::drawListItem(g_, columnIndex, rowIndex, itemName, position, rowIsSelected, deleteMode, hover);
+	PresetBrowserLookAndFeelMethods::drawListItem(g_, column, columnIndex, rowIndex, itemName, position, rowIsSelected, deleteMode, hover);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSearchBar(Graphics& g_, Rectangle<int> area)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSearchBar(Graphics& g_, Component& label, Rectangle<int> area)
 {
 	if (functionDefined("drawPresetBrowserSearchBar"))
 	{
@@ -4162,7 +4347,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawSearchBar(Graphics& g_, Rec
 			return;
 	}
 
-	PresetBrowserLookAndFeelMethods::drawSearchBar(g_, area);
+	PresetBrowserLookAndFeelMethods::drawSearchBar(g_, label, area);
 }
 
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableBackground(Graphics& g_, TableEditor& te, Rectangle<float> area, double rulerPosition)
@@ -5004,13 +5189,14 @@ juce::Image ScriptingObjects::ScriptedLookAndFeel::Laf::createIcon(PresetHandler
 	return img;
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTag(Graphics& g_, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTag(Graphics& g_, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
 {
 	if (functionDefined("drawPresetBrowserTag"))
 	{
 		auto obj = new DynamicObject();
 		obj->setProperty("area", ApiHelpers::getVarRectangle(position.toFloat()));
 		obj->setProperty("text", name);
+		obj->setProperty("hover", hover);
 		obj->setProperty("blinking", blinking);
 		obj->setProperty("value", active);
 		obj->setProperty("selected", selected);
@@ -5023,10 +5209,10 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTag(Graphics& g_, bool blin
 			return;
 	}
 
-	PresetBrowserLookAndFeelMethods::drawTag(g_, blinking, active, selected, name, position);
+	PresetBrowserLookAndFeelMethods::drawTag(g_, tagButton, hover, blinking, active, selected, name, position);
 }
 
-void ScriptingObjects::ScriptedLookAndFeel::Laf::drawModalOverlay(Graphics& g_, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
+void ScriptingObjects::ScriptedLookAndFeel::Laf::drawModalOverlay(Graphics& g_, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
 {
 	if (auto l = get())
 	{
@@ -5044,7 +5230,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawModalOverlay(Graphics& g_, 
 			return;
 	}
 
-	PresetBrowserLookAndFeelMethods::drawModalOverlay(g_, area, labelArea, title, command);
+	PresetBrowserLookAndFeelMethods::drawModalOverlay(g_, modalWindow, area, labelArea, title, command);
 }
 
 

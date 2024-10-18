@@ -172,7 +172,7 @@ int Renderer::getPseudoClassState() const
 	if(forceOverwriteState)
 		return pseudoClassState;
 
-	return currentComponent != nullptr ? getPseudoClassFromComponent(currentComponent) : pseudoClassState;
+	return currentComponent.first != nullptr ? getPseudoClassFromComponent(currentComponent.first) : pseudoClassState;
 }
 
 CodeGenerator::CodeGenerator(StyleSheet::Ptr ss_):
@@ -198,9 +198,9 @@ CodeGenerator::CodeGenerator(StyleSheet::Ptr ss_):
 	code << "};" << nl;
 }
 
-Renderer::Renderer(Component* c, StateWatcher& state_):
-	ScopedComponentSetter(c)  ,
-	currentComponent(c),
+Renderer::Renderer(Component* c, StateWatcher& state_, int subComponentIndex):
+	ScopedComponentSetter({c, subComponentIndex})  ,
+	currentComponent({c, subComponentIndex}),
 	state(state_)
 {}
 
@@ -294,7 +294,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 
 	if(imageURL.isNotEmpty())
 	{
-		auto hc = CSSRootComponent::find(*currentComponent);
+		auto hc = CSSRootComponent::find(*currentComponent.first);
 		ScopedPointer<StyleSheet::Collection::DataProvider> dp = hc->createDataProvider();
 
 		if(dp != nullptr)

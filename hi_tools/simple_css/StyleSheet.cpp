@@ -106,7 +106,8 @@ TransitionValue StyleSheet::getTransitionValue(const PropertyKey& key) const
 
 	for(const auto i: animator->items)
 	{
-		if(i->target != animator->currentlyRenderedComponent)
+		if(i->target.first != animator->currentlyRenderedComponent.first ||
+		   i->target.second != animator->currentlyRenderedComponent.second)
 			continue;
 
 		if(i->css != this)

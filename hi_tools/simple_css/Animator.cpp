@@ -34,12 +34,12 @@ namespace hise
 namespace simple_css
 {
 
-Animator::ScopedComponentSetter::ScopedComponentSetter(Component* c)
+Animator::ScopedComponentSetter::ScopedComponentSetter(std::pair<Component*, int> c)
 {
-	auto root = dynamic_cast<CSSRootComponent*>(c);
+	auto root = dynamic_cast<CSSRootComponent*>(c.first);
 
-	if(root == nullptr && c != nullptr)
-		root = c->findParentComponentOfClass<CSSRootComponent>();
+	if(root == nullptr && c.first != nullptr)
+		root = c.first->findParentComponentOfClass<CSSRootComponent>();
 
 	if(root != nullptr)
 	{
@@ -60,13 +60,13 @@ Animator::Item::Item(Animator& parent, StyleSheet::Ptr css_, Transition tr_):
 	transitionData(tr_),
 	target(parent.currentlyRenderedComponent)
 {
-	jassert(target != nullptr);
+	jassert(target.first != nullptr);
 	resetWaitCounter();
 }
 
 bool Animator::Item::timerCallback(double delta)
 {
-	if(target.getComponent() == nullptr)
+	if(target.first.getComponent() == nullptr)
 		return false;
 
 	auto d = delta * 0.001;
@@ -90,12 +90,12 @@ bool Animator::Item::timerCallback(double delta)
 	if(currentProgress > 1.0 || currentProgress < 0.0)
 	{
 		currentProgress = jlimit(0.0, 1.0, currentProgress);
-		target->repaint();
+		target.first->repaint();
 		return false;
 	}
 
-	if(target.getComponent() != nullptr)
-		target->repaint();
+	if(target.first.getComponent() != nullptr)
+		target.first->repaint();
 	else
 	{
 		return false;
@@ -175,7 +175,7 @@ void StateWatcher::Item::renderShadow(Graphics& g, const Path& p,
 	}
 }
 
-void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentState)
+void StateWatcher::checkChanges(std::pair<Component*, int> c, StyleSheet::Ptr ss, int currentState)
 {
 	auto stateChanged = changed(c, currentState);
 
@@ -183,13 +183,13 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 	{
 		auto& uc = updatedComponents.getReference(i);
 
-		if(uc.target == nullptr)
+		if(uc.target.first == nullptr)
 		{
 			updatedComponents.remove(i--);
 			continue;
 		}
 			
-		if(uc.target != c)
+		if(uc.target.first != c.first || uc.target.second != c.second)
 			continue;
 
 		if(!uc.initialised || stateChanged.first)
@@ -282,11 +282,12 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 	}
 }
 
-std::pair<bool, int> StateWatcher::changed(Component* c, int stateFlag)
+std::pair<bool, int> StateWatcher::changed(std::pair<Component*, int> c, int stateFlag)
 {
 	for(auto& i: items)
 	{
-		if(i.c == c)
+		if(i.c.first == c.first &&
+		   i.c.second == c.second)
 			return i.changed(stateFlag);
 	}
 
@@ -296,12 +297,12 @@ std::pair<bool, int> StateWatcher::changed(Component* c, int stateFlag)
 
 void StateWatcher::registerComponentToUpdate(Component* c)
 {
-	updatedComponents.addIfNotAlreadyThere({ c });
+	updatedComponents.addIfNotAlreadyThere({ {c, -1} });
 }
 
 void StateWatcher::UpdatedComponent::update(CSSRootComponent* cssRoot, StyleSheet::Ptr ss, int currentState)
 {
-	ss->setupComponent(cssRoot, target.getComponent(), currentState);
+	ss->setupComponent(cssRoot, target.first.getComponent(), currentState);
 	initialised = true;
 }
 }

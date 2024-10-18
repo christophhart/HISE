@@ -229,6 +229,19 @@ public:
 
 	Point<int> getMouseHoverInformation() const;
 
+	Component* getColumn(int columnIndex)
+	{
+		switch(columnIndex)
+		{
+		case -1: return expansionColumn->getListbox();
+		case 0: return bankColumn->getListbox();
+		case 1: return categoryColumn->getListbox();
+		case 2: return presetColumn->getListbox();
+		}
+
+		jassertfalse;
+		return nullptr;
+	}
 
 private:
 

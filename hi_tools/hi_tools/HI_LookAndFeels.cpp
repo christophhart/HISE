@@ -2219,7 +2219,7 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(Graphics& g, C
     }
 }
 
-void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, int columnIndex, Rectangle<int> listArea, const String& emptyText)
+void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText)
 {
     g.setColour(highlightColour.withAlpha(0.1f));
     g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
@@ -2232,7 +2232,7 @@ void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, int colu
     }
 }
 
-void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
+void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
 {
     float alpha = active ? 0.4f : 0.1f;
     alpha += (blinking ? 0.2f : 0.0f);
@@ -2242,7 +2242,7 @@ void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool a
     g.setColour(highlightColour.withAlpha(alpha));
     g.fillRoundedRectangle(ar, 2.0f);
     g.drawRoundedRectangle(ar, 2.0f, 1.0f);
-    g.setFont(font.withHeight(14.0f));
+    g.setFont(getTagFont(tagButton));
     g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
 
     // Wow, so professional, good bug fix.
@@ -2274,7 +2274,7 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics
 }
 
 
-void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
+void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, Component& column, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
 {
 #if !HISE_NO_GUI_TOOLS
     float alphaBoost = hover ? 0.1f : 0.0f;
@@ -2426,7 +2426,7 @@ Font BiPolarSliderLookAndFeel::getLabelFont(Label& label)
 }
 
 
-void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
+void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
 {
     g.setColour(modalBackgroundColour);
     g.fillAll();
@@ -2483,7 +2483,7 @@ juce::Path PresetBrowserLookAndFeelMethods::createPresetBrowserIcons(const Strin
 	return path;
 }
 
-void PresetBrowserLookAndFeelMethods::drawSearchBar(Graphics& g, Rectangle<int> area)
+void PresetBrowserLookAndFeelMethods::drawSearchBar(Graphics& g, Component& label, Rectangle<int> area)
 {
 	g.setColour(highlightColour);
 	g.drawRoundedRectangle(area.toFloat().reduced(1.0f), 2.0f, 1.0f);

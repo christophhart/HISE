@@ -214,7 +214,7 @@ private:
 struct Renderer: public Animator::ScopedComponentSetter
 {
 	/** Creates a renderer that will draw on the component using the state watcher. */
-	Renderer(Component* c, StateWatcher& state_);;
+	Renderer(Component* c, StateWatcher& state_, int subComponentIndex=-1);;
 
 	/** Tries to set the flags based on the component state (visible, enabled, hovered, etc). */
 	static int getPseudoClassFromComponent(Component* c);
@@ -246,6 +246,8 @@ struct Renderer: public Animator::ScopedComponentSetter
 		applyMargin = useMargin;
 	}
 
+	
+
 private:
 
 	bool applyMargin = true;
@@ -253,7 +255,7 @@ private:
 	bool forceOverwriteState = false;
 	int pseudoClassState = 0;
 	PseudoElementType currentlyRenderedPseudoElement = PseudoElementType::None;
-	Component* currentComponent;
+	std::pair<Component*, int> currentComponent;
 	StateWatcher& state;
 };
 
