@@ -185,6 +185,35 @@ var ApiHelpers::convertStyleSheetProperty(const var& value, const String& type)
 	return value;
 }
 
+StringArray ApiHelpers::getMouseCursorNames()
+{
+	static const StringArray iconIds =
+	{
+		"ParentCursor",               /**< Indicates that the component's parent's cursor should be used. */
+		"NoCursor",                       /**< An invisible cursor. */
+		"NormalCursor",                   /**< The standard arrow cursor. */
+		"WaitCursor",                     /**< The normal hourglass or spinning-beachball 'busy' cursor. */
+		"IBeamCursor",                    /**< A vertical I-beam for positioning within text. */
+		"CrosshairCursor",                /**< A pair of crosshairs. */
+		"CopyingCursor",                  /**< The normal arrow cursor, but with a "+" on it to indicate that you're dragging a copy of something. */
+		"PointingHandCursor",             /**< A hand with a pointing finger, for clicking on web-links. */
+		"DraggingHandCursor",             /**< An open flat hand for dragging heavy objects around. */
+		"LeftRightResizeCursor",          /**< An arrow pointing left and right. */
+		"UpDownResizeCursor",             /**< an arrow pointing up and down. */
+		"UpDownLeftRightResizeCursor",    /**< An arrow pointing up, down, left and right. */
+		"TopEdgeResizeCursor",            /**< A platform-specific cursor for resizing the top-edge of a window. */
+		"BottomEdgeResizeCursor",         /**< A platform-specific cursor for resizing the bottom-edge of a window. */
+		"LeftEdgeResizeCursor",           /**< A platform-specific cursor for resizing the left-edge of a window. */
+		"RightEdgeResizeCursor",          /**< A platform-specific cursor for resizing the right-edge of a window. */
+		"TopLeftCornerResizeCursor",      /**< A platform-specific cursor for resizing the top-left-corner of a window. */
+		"TopRightCornerResizeCursor",     /**< A platform-specific cursor for resizing the top-right-corner of a window. */
+		"BottomLeftCornerResizeCursor",   /**< A platform-specific cursor for resizing the bottom-left-corner of a window. */
+		"BottomRightCornerResizeCursor"  /**< A platform-specific cursor for resizing the bottom-right-corner of a window. */
+	};
+
+	return iconIds;
+}
+
 Colour ApiHelpers::getColourFromVar(const var& value)
 {
 	int64 colourValue = 0;

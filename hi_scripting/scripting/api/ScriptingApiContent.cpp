@@ -2451,6 +2451,7 @@ ScriptComponent(base, name)
 	ADD_SCRIPT_PROPERTY(i04, "isMomentary");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i06, "enableMidiLearn"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
     ADD_SCRIPT_PROPERTY(i07, "setValueOnClick"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	ADD_SCRIPT_PROPERTY(i08, "mouseCursor"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	handleDefaultDeactivatedProperties();
 
@@ -2466,6 +2467,7 @@ ScriptComponent(base, name)
 	setDefaultValue(ScriptButton::Properties::isMomentary, 0);
 	setDefaultValue(ScriptButton::Properties::enableMidiLearn, true);
     setDefaultValue(ScriptButton::Properties::setValueOnClick, false);
+	setDefaultValue(ScriptButton::Properties::mouseCursor, "ParentCursor");
 
 	initInternalPropertyFromValueTreeOrDefault(filmstripImage);
 
@@ -2519,6 +2521,8 @@ StringArray ScriptingApi::Content::ScriptButton::getOptionsFor(const Identifier 
 
 		return sa;
 	}
+	if(id == getIdFor(mouseCursor))
+		return ApiHelpers::getMouseCursorNames();
 
 	return ScriptComponent::getOptionsFor(id);
 }
@@ -4713,39 +4717,13 @@ void ScriptingApi::Content::ScriptPanel::setMouseCursor(var pathIcon, var colour
 	}
 	else if (pathIcon.isString())
 	{
-		static const StringArray iconIds =
-		{
-		"ParentCursor",               /**< Indicates that the component's parent's cursor should be used. */
-		"NoCursor",                       /**< An invisible cursor. */
-		"NormalCursor",                   /**< The standard arrow cursor. */
-		"WaitCursor",                     /**< The normal hourglass or spinning-beachball 'busy' cursor. */
-		"IBeamCursor",                    /**< A vertical I-beam for positioning within text. */
-		"CrosshairCursor",                /**< A pair of crosshairs. */
-		"CopyingCursor",                  /**< The normal arrow cursor, but with a "+" on it to indicate that you're dragging a copy of something. */
-		"PointingHandCursor",             /**< A hand with a pointing finger, for clicking on web-links. */
-		"DraggingHandCursor",             /**< An open flat hand for dragging heavy objects around. */
-		"LeftRightResizeCursor",          /**< An arrow pointing left and right. */
-		"UpDownResizeCursor",             /**< an arrow pointing up and down. */
-		"UpDownLeftRightResizeCursor",    /**< An arrow pointing up, down, left and right. */
-		"TopEdgeResizeCursor",            /**< A platform-specific cursor for resizing the top-edge of a window. */
-		"BottomEdgeResizeCursor",         /**< A platform-specific cursor for resizing the bottom-edge of a window. */
-		"LeftEdgeResizeCursor",           /**< A platform-specific cursor for resizing the left-edge of a window. */
-		"RightEdgeResizeCursor",          /**< A platform-specific cursor for resizing the right-edge of a window. */
-		"TopLeftCornerResizeCursor",      /**< A platform-specific cursor for resizing the top-left-corner of a window. */
-		"TopRightCornerResizeCursor",     /**< A platform-specific cursor for resizing the top-right-corner of a window. */
-		"BottomLeftCornerResizeCursor",   /**< A platform-specific cursor for resizing the bottom-left-corner of a window. */
-		"BottomRightCornerResizeCursor"  /**< A platform-specific cursor for resizing the bottom-right-corner of a window. */
-		};
+		auto r = Result::ok();
 
-		auto index = iconIds.indexOf(pathIcon.toString());
+		auto standardCursor = ApiHelpers::getMouseCursorFromString(pathIcon.toString(), &r);
+		mouseCursorPath = MouseCursorInfo(standardCursor);
 
-		if (isPositiveAndBelow(index, (MouseCursor::NumStandardCursorTypes)))
-		{
-			auto standardCursor = (MouseCursor::StandardCursorType)index;
-			mouseCursorPath = MouseCursorInfo(standardCursor);
-		}
-		else
-			reportScriptError("Unknown Cursor name. Use the JUCE enum as string");
+		if(r.failed())
+			reportScriptError(r.getErrorMessage());
 	}
 	else
 		reportScriptError("pathIcon is not a path");

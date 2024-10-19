@@ -1290,8 +1290,9 @@ void ScriptCreatedComponentWrappers::ButtonWrapper::updateComponent(int property
 		PROPERTY_CASE::ScriptButton::scaleFactor :		updateFilmstrip(b, sc); break;
 		PROPERTY_CASE::ScriptButton::radioGroup:		b->setRadioGroupId(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::radioGroup)); break;
 		PROPERTY_CASE::ScriptButton::isMomentary :		b->setIsMomentary(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::isMomentary)); break;
-            PROPERTY_CASE::ScriptButton::setValueOnClick: b->setTriggeredOnMouseDown(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::setValueOnClick)); break;
-			PROPERTY_CASE::ScriptSlider::numProperties :
+        PROPERTY_CASE::ScriptButton::setValueOnClick: b->setTriggeredOnMouseDown(getScriptComponent()->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::setValueOnClick)); break;
+		PROPERTY_CASE::ScriptButton::mouseCursor:	    b->setMouseCursor(MouseCursor(ApiHelpers::getMouseCursorFromString(newValue.toString(), nullptr))); break;
+		PROPERTY_CASE::ScriptSlider::numProperties :
 	default:
 		break;
 	}
