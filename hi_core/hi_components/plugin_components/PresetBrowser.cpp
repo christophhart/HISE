@@ -1073,6 +1073,10 @@ void PresetBrowser::setShowFavorites(bool shouldShowFavorites)
 	showFavoritesButton = shouldShowFavorites;
 }
 
+void PresetBrowser::setShowFullPathFavorites(bool shouldShowFullPathFavorites)
+{
+	fullPathFavorites = shouldShowFullPathFavorites;
+}
 void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 {
 	auto& lf = getPresetBrowserLookAndFeel();
@@ -1299,7 +1303,8 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setColumnRowPadding(newOptions.columnRowPadding);
 	setShowNotesLabel(newOptions.showNotesLabel);
 	setShowFavorites(newOptions.showFavoriteIcons);
-
+	setShowFullPathFavorites(newOptions.fullPathFavorites);
+	
 	if (expansionColumn != nullptr)
 		expansionColumn->update();
 

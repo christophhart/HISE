@@ -393,7 +393,10 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 
 		auto column = parent->getColumn(index);
 		jassert(dynamic_cast<ListBox*>(column)->getModel() == this);
-
+		
+    if (showFavoritesOnly && parent.getComponent()->shouldShowFullPathFavorites())
+			itemName = entries[rowNumber].getRelativePathFrom(totalRoot);
+    
 		getPresetBrowserLookAndFeel().drawListItem(g, *column, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
 	}
 }

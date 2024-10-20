@@ -92,6 +92,7 @@ public:
 		bool showSaveButtons = true;
 		bool showFolderButton = true;
 		bool showFavoriteIcons = true;
+		bool fullPathFavorites = false;
 		bool showExpansions = false;
 	};
 
@@ -182,6 +183,7 @@ public:
 	void labelTextChanged(Label* l) override;
 	void updateFavoriteButton();
 	bool shouldShowFavoritesButton() { return showFavoritesButton; }
+	bool shouldShowFullPathFavorites() { return fullPathFavorites; }
 
 	void lookAndFeelChanged() override;
 
@@ -248,6 +250,7 @@ private:
 	DefaultPresetBrowserLookAndFeel laf;
 
 	void setShowFavorites(bool shouldShowFavorites);
+	void setShowFullPathFavorites(bool shouldShowFullPathFavorites);
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 	void setNumColumns(int numColumns);
 
@@ -297,6 +300,7 @@ private:
 	int currentlyLoadedPreset = -1;
 
 	bool showFavoritesButton = true;
+	bool fullPathFavorites = false;
 	bool showOnlyPresets = false;
 	String currentWildcard = "*";
 	StringArray currentTagSelection;
