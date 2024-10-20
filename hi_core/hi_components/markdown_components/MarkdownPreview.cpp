@@ -76,7 +76,7 @@ DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool all
 
 		holder.addContentProcessor(crawler);
 
-		StringArray sa = { "Update local cached file", "Update docs from server" , "Create local HTML offline docs" };
+		StringArray sa = { "Update local cached file", "Update docs from server" , "Create local HTML offline docs", "Create Snippet database files" };
 
 		addComboBox("action", sa, "Action");
 
@@ -90,6 +90,7 @@ DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool all
 		help1 << "- You can create the cached files from the markdown files on your system" << nl;
 		help1 << "- You can choose to download the cached files from the server." << nl;
 		help1 << "- You can create an HTML version of your documentation using the supplied templates" << nl;
+		help1 << "- creates a list of markdown files from the HISE Snippet database" << nl;
 
 		helpButton1 = MarkdownHelpButton::createAndAddToComponent(getComboBoxComponent("action"), help1);
 
@@ -104,21 +105,21 @@ DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool all
 		help2 << "If you want it to work on your local computer, leave it empty to use the html link to your specified html folder:  " << nl;
 		help2 << "`file::///{PATH}/`  " << nl;
 		help2 << "otherwise just add your root URL for the online docs, eg.:  " << nl;
-		help2 << "`https://docs.hise.audio/`  " << nl;
+		help2 << "`https://docs.hise.dev/`  " << nl;
 		help2 << "> Important: The Base URL **must** end with a slash (`/`), otherwise the links won't work.  " << nl;
 		help2 << "Also your template header has to have this wildcard (which will be replaced before creating the HTML files...:  " << nl << nl;
 		help2 << "```" << nl;
 		help2 << "<base href=\"{BASE_URL}\"/>" << nl;
 		help2 << "```" << nl;
 
-		addTextEditor("baseURL", "", "Base URL");
+		addTextEditor("baseURL", "https://docs.hise.dev/", "Base URL");
 
 		helpButton2 = MarkdownHelpButton::createAndAddToComponent(getTextEditor("baseURL"), help2);
 
 		markdownRepository = new FilenameComponent("Markdown Repository", holder.getDatabaseRootDirectory(), false, true, false, {}, {}, "No markdown repository specified");
 		markdownRepository->setSize(400, 32);
 
-		auto htmlDir = holder.getDatabaseRootDirectory().getParentDirectory().getChildFile("html");
+		auto htmlDir = holder.getDatabaseRootDirectory().getParentDirectory().getChildFile("html_build");
 
 
 		htmlDirectory = new FilenameComponent("Target directory", htmlDir, true, true, true, {}, {}, "Select a HTML target directory");
@@ -226,7 +227,27 @@ void DocUpdater::run()
 		{
 			updateFromServer();
 		}
+		if(b->getSelectedItemIndex() == 3)
+		{
+#if USE_BACKEND
+			auto mc = GET_BACKEND_ROOT_WINDOW(this)->getBackendProcessor();
 
+			bool done = false;
+
+			mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), [&](Processor* p)
+			{
+				this->createSnippetDatabase();
+
+				done = true;
+				return SafeFunctionCall::OK;
+			}, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
+
+			while(!done)
+			{
+				wait(500);
+			}
+#endif
+		}
 
 	}
 }
@@ -268,6 +289,8 @@ void DocUpdater::threadFinished()
 		}
 	}
 }
+
+
 
 void DocUpdater::updateFromServer()
 {
@@ -338,6 +361,8 @@ void DocUpdater::updateFromServer()
 	holder.sendServerUpdateMessage(false, true);
 }
 
+
+
 juce::URL DocUpdater::getCacheUrl(CacheURLType type) const
 {
 	switch (type)
@@ -405,6 +430,271 @@ void DocUpdater::createLocalHtmlFiles()
 
 	DatabaseCrawler::createImagesInHtmlFolder(htmlDir, getHolder(), this, &getProgressCounter());
 	DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDir, getHolder(), this, &getProgressCounter());
+}
+
+void DocUpdater::createSnippetDatabase()
+{
+#if USE_BACKEND
+	showStatusMessage("Create Snippet database");
+
+	auto root = GET_BACKEND_ROOT_WINDOW(this);
+
+	auto am = dynamic_cast<BackendProcessor*>(root->getBackendProcessor())->getAssetManager();
+	am->initialise();
+
+	auto appDataFolder = NativeFileHandler::getAppDataDirectory(nullptr);
+
+	auto f = appDataFolder.getChildFile("snippetBrowser.xml");
+
+	String snippetDirectory;
+
+	if(auto xml = XmlDocument::parse(f))
+	{
+		if(auto c = xml->getChildByName("snippetDirectory"))
+			snippetDirectory = c->getStringAttribute("value");
+	}
+
+	if(snippetDirectory.isNotEmpty())
+	{
+		File snippetRoot(snippetDirectory);
+
+		auto snippetList = snippetRoot.findChildFiles(File::findFiles, false, "*.md");
+
+		struct Item
+		{
+			Item(const MarkdownLink& l, const String& name_):
+			  name(name_)
+			{
+				auto h = l.getHeaderFromFile({});
+
+				description = l.toString(MarkdownLink::Format::ContentWithoutHeader);
+				priority = h.getKeyValue("priority").getIntValue();
+
+				auto catIndex = getCategories().indexOf(h.getKeyValue("category"));
+
+				if(catIndex != -1)
+					cat = (Category)catIndex;
+
+				snippet = h.getKeyValue("HiseSnippet");
+			}
+
+			static StringArray getCategories()
+			{
+				return { "All", "Modules", "MIDI", "Scripting", "Scriptnode", "UI" };
+			}
+
+			enum class Category
+			{
+				All,
+				Modules,
+				Midi,
+				Scripting,
+				Scriptnode,
+				UI,
+				numCategories
+			};
+
+			Image createScreenshot(BackendRootWindow* rw) const
+			{
+				
+				if(cat == Category::Scriptnode)
+				{
+					MainController::ScopedBadBabysitter sbb(rw->getBackendProcessor());
+
+					{
+						MessageManagerLock mm;
+						BackendCommandTarget::Actions::loadSnippet(rw, snippet);
+					}
+					
+					Processor::Iterator<DspNetwork::Holder> iter(rw->getMainSynthChain(), false);
+
+					while(auto holder = iter.getNextProcessor())
+					{
+						if(auto nw = holder->getActiveNetwork())
+						{
+							MessageManagerLock mm;
+
+							ScopedPointer<DspNetworkGraphPanel> c;
+
+							c = new scriptnode::DspNetworkGraphPanel(rw->getRootFloatingTile());
+
+							c->setContentWithUndo(dynamic_cast<Processor*>(holder), 0);
+
+
+							
+
+							if(auto graph = c->getContent<WrapperWithMenuBarBase>()->canvas.getContent<juce::Component>())
+							{
+								auto comp = dynamic_cast<Component*>(graph);
+
+								while(comp != nullptr)
+								{
+									comp->setVisible(true);
+									comp = comp->getParentComponent();
+								}
+
+								auto img = graph->createComponentSnapshot(graph->getLocalBounds(), true);
+								return img;
+							}
+						}
+					}
+				}
+				else
+				{
+					SuspendHelpers::ScopedTicket ss(rw->getBackendProcessor());
+
+					MainController::ScopedBadBabysitter sbb(rw->getBackendProcessor());
+
+					{
+						MessageManagerLock mm;
+						BackendCommandTarget::Actions::loadSnippet(rw, snippet);
+					}
+
+					if(auto jmp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(rw->getBackendProcessor()))
+					{
+						auto cs = Point<int>(jmp->getScriptingContent()->getContentWidth(), jmp->getScriptingContent()->getContentHeight());
+
+						if(cs == Point<int>(600, 500) || jmp->getScriptingContent()->getNumComponents() == 0)
+						{
+							Thread::getCurrentThread()->wait(200);
+							// skip the interface if its the default value
+							return {};
+						}
+
+						MessageManagerLock mm;
+
+						ScriptContentComponent content(jmp);
+						content.setNewContent(jmp->getScriptingContent());
+
+						content.setSize(content.getContentWidth(), content.getContentHeight());
+
+						return content.createComponentSnapshot(content.getLocalBounds(), true);
+					}
+				}
+
+				return {};
+			}
+
+			String createMarkdown(bool includeImage) const
+			{
+				String s;
+				String nl = "\n";
+
+				s << "## " << name << nl << nl;
+
+				if(includeImage)
+				{
+					s << "![](/images/snippets/" << MarkdownLink::Helpers::getSanitizedFilename(name) + ".png)" << nl;
+				}
+
+				s << description << nl << nl;
+
+				s << "```" << nl;
+				s << snippet << nl;
+				s << "```" << nl << nl;
+
+				return s;
+			}
+
+			bool operator<(const Item& other) const { return priority > other.priority; }
+			bool operator>(const Item& other) const { return priority < other.priority; }
+			bool operator==(const Item& other) const { return priority == other.priority; }
+
+			Category cat;
+			String description;
+			String snippet;
+			int priority = 3;
+			String name;
+		};
+
+		std::map<Item::Category, std::vector<Item>> list;
+
+		for(int i = 0; i < (int)Item::Category::numCategories; i++)
+		{
+			list[(Item::Category)i] = {};
+		}
+
+		for(auto sn: snippetList)
+		{
+			MarkdownLink l(snippetRoot, sn.getFileName());
+
+			Item i(l, sn.getFileNameWithoutExtension());
+			list[i.cat].push_back(i);
+		}
+
+		String nl = "\n";
+
+		auto targetDirectory = holder.getDatabaseRootDirectory().getChildFile("tutorials/");
+		auto imgDirectory = holder.getDatabaseRootDirectory().getChildFile("images").getChildFile("snippets");
+
+		if(imgDirectory.isDirectory())
+			imgDirectory.deleteRecursively();
+
+		imgDirectory.createDirectory();
+
+		auto brw = GET_BACKEND_ROOT_WINDOW(this);
+
+		targetDirectory.createDirectory();
+
+		PNGImageFormat format;
+
+		int listIndex = 0;
+
+		StringArray ignoreNames({ "_Template", "SnippetDB", "README"});
+
+		for(auto& l: list)
+		{
+			String s;
+
+			auto catName = Item::getCategories()[(int)l.first];
+
+			s << "---" << nl;
+			s << "keywords: " << catName << " Snippets" << nl;
+			s << "summary: Examples in the category " << catName << nl;
+			s << "index: " << String(++listIndex) << nl;
+			s << "author: various" << nl;
+			s << "modified: 01.01.2024" << nl;
+			s << "---" << nl << nl;
+			
+			std::sort(l.second.begin(), l.second.end());
+
+			for(const auto& i: l.second)
+			{
+				if(ignoreNames.indexOf(i.name) != -1)
+					continue;
+
+				showStatusMessage("Create docs for " + i.name);
+
+				auto img = i.createScreenshot(brw);
+
+				if(threadShouldExit())
+					return;
+
+				if(img.isValid())
+				{
+					auto imageFile = imgDirectory.getChildFile(MarkdownLink::Helpers::getSanitizedFilename(i.name)).withFileExtension("png");
+
+					imageFile.deleteFile();
+
+					FileOutputStream fos(imageFile);
+					format.writeImageToStream(img, fos);
+				}
+
+				s << i.createMarkdown(img.isValid());
+			}
+
+			auto targetFile = targetDirectory.getChildFile(MarkdownLink::Helpers::getSanitizedFilename(catName)).getChildFile("readme.md");
+
+			targetFile.getParentDirectory().createDirectory();
+
+			targetFile.replaceWithText(s);
+		}
+	}
+	else
+	{
+		showStatusMessage("Can't find snippet directory");
+	}
+#endif
 }
 
 void DocUpdater::downloadAndTestFile(const String& targetFileName)

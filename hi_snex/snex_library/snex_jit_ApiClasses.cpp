@@ -173,6 +173,13 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::floor, double, "floor");	DESCRIPTION(double, floor);
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::round, double, "round");	DESCRIPTION(double, round);
 
+	HNODE_JIT_ADD_C_FUNCTION_1(int, hmath::isinf, double, "isinf");
+	setDescription("Returns true if the value is infinity", { "value" });
+	HNODE_JIT_ADD_C_FUNCTION_1(int, hmath::isnan, double, "isnan");
+	setDescription("Returns true if the value is NaN (invalid number)", { "value" });
+	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::sanitize, double, "sanitize");
+	setDescription("Sanitizes the number (inf & Nan => 0.0 / remove denormals", { "value" });
+
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fastsin, double, "fastsin");		FAST_DESCRIPTION("sin", -3.14, 3.14);
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fastsinh, double, "fastsinh");	FAST_DESCRIPTION("sinh", -5, 5.0);
 	HNODE_JIT_ADD_C_FUNCTION_1(double, hmath::fastcos,  double, "fastcos");		FAST_DESCRIPTION("cos", -3.14, 3.14);
@@ -234,6 +241,13 @@ MathFunctions::MathFunctions(bool addInlinedFunctions, ComplexType::Ptr blockTyp
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::ceil, float, "ceil");	DESCRIPTION(float, ceil);
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::floor, float, "floor");DESCRIPTION(float, floor);
 	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::round, float, "round");DESCRIPTION(float, round);
+
+	HNODE_JIT_ADD_C_FUNCTION_1(int, hmath::isinf, float, "isinf");
+	setDescription("Returns true if the value is infinity", { "value" });
+	HNODE_JIT_ADD_C_FUNCTION_1(int, hmath::isnan, float, "isnan");
+	setDescription("Returns true if the value is NaN (invalid number)", { "value" });
+	HNODE_JIT_ADD_C_FUNCTION_1(float, hmath::sanitize, float, "sanitize");
+	setDescription("Sanitizes the number (inf & Nan => 0.0 / remove denormals", { "value" });
 
 	HNODE_JIT_ADD_C_FUNCTION_2(float, hmath::pow, float, float, "pow");
 	setDescription("Calculates the power", { "base", "exponent" });

@@ -57,6 +57,8 @@ struct TimelineObjectBase : public ReferenceCountedObject
 
 	virtual Identifier getTypeId() const = 0;
 
+	virtual Result addEventsForBouncing(HiseEventBuffer& b, ExternalClockSimulator* clock) = 0;
+
 	virtual void process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart, ExternalClockSimulator* clock) { jassertfalse; }
 
 	virtual void draw(Graphics& g, Rectangle<float> bounds) = 0;
@@ -97,6 +99,8 @@ struct TimelineMetronome : public TimelineObjectBase
 
 	Colour getColour() const override { return Colours::transparentBlack; }
 
+	Result addEventsForBouncing(HiseEventBuffer& b, ExternalClockSimulator* clock) override { return Result::ok(); }
+	
 	double getPPQLength(double sampleRate, double bpm) const override
 	{
 		auto numSamples = loClick.getNumSamples();
@@ -133,6 +137,28 @@ public:
 
 	void prepareToPlay(double newSampleRate);
 
+	HiseEventBuffer getHiseEventBufferForBounce()
+	{
+        
+		HiseEventBuffer allEvents;
+
+        if(timelineObjects.isEmpty())
+            throw Result::fail("no MIDI clips to render.  Make sure to add a MIDI clip before trying to bounce audio.");
+        
+		for(auto to : timelineObjects)
+		{
+			auto ok = to->addEventsForBouncing(allEvents, this);
+
+			if(ok.failed())
+				throw ok;
+			//if(auto mb = dynamic_cast<)
+		}
+
+		return allEvents;
+	}
+
+	bool bypassed = false;
+
 	bool isLooping = false;
     bool isPlaying = false;
 	bool metronomeEnabled = false;
@@ -167,7 +193,10 @@ struct DAWClockController: public Component,
     
     DAWClockController(MainController* mc);
       
-    virtual ~DAWClockController() {};
+    virtual ~DAWClockController()
+    {
+	    exporter = nullptr;
+    };
     
     bool keyPressed(const KeyPress& k) override;
     
@@ -175,17 +204,60 @@ struct DAWClockController: public Component,
     
     void resized() override;
     
+    void paint(Graphics& g) override;
+    
     void sliderValueChanged(Slider* s) override;
     
     struct LAF: public LookAndFeel_V3
     {
         void drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int width, int height, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
     } laf;
-    
+
+	struct BackendAudioRenderer: public AudioRendererBase,
+                                 public AsyncUpdater
+	{
+		BackendAudioRenderer(DAWClockController& parent_):
+		  AudioRendererBase(parent_.getMainController()),
+		  parent(parent_)
+		{
+			
+		};
+
+		DAWClockController& parent;
+
+        AudioSampleBuffer buffer;
+        
+		bool init()
+		{
+            this->skipCallbacks = false;
+            this->sendArtificialTransportMessages = true;
+            
+			try
+			{
+				eventBuffers.add(new HiseEventBuffer(parent.clock->getHiseEventBufferForBounce()));
+				initAfterFillingEventBuffer();
+				return true;
+			}
+			catch(Result& r)
+			{
+				PresetHandler::showMessageWindow("Export failed", r.getErrorMessage(), PresetHandler::IconType::Error);
+				return false;
+			}
+		}
+
+        void handleAsyncUpdate() override;
+
+		void callUpdateCallback(bool isFinished, double progress) override;
+	};
+
+	float exportProgress = -1.0f;
+
+	ScopedPointer<BackendAudioRenderer> exporter;
+
     WeakReference<ExternalClockSimulator> clock;
     Icons f;
     
-    HiseShapeButton play, stop, loop, grid, rewind, metronome;
+    HiseShapeButton bypass, play, stop, loop, grid, rewind, metronome, exportButton;
     
     Slider bpm, nom, denom, length;
     

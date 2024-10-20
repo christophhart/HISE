@@ -611,7 +611,25 @@ struct SpecNode: public NodeBase
 					as.append(String(vr->getNumActiveVoices()) + "\n", f2, w2);
 				}
 			}
+            
+            as.append("Values: ", f1, w1);
+            
+            String valueString;
+            valueString << "[ ";
+            
+            auto peaks = dynamic_cast<SpecNode*>(node.get())->peaks;
+            
+            for(int i = 0; i < specs.numChannels; i++)
+            {
+                valueString << snex::Types::Helpers::getCppValueString(peaks[i]);
+                
+                if(i != specs.numChannels-1)
+                    valueString << ", ";
+            }
 
+            valueString << " ]\n";
+            as.append(valueString, f2, w2);
+            
 			auto b = getLocalBounds();
 			b.removeFromTop(header.getHeight());
 			b = b.reduced(UIValues::NodeMargin);
@@ -636,16 +654,32 @@ struct SpecNode: public NodeBase
 	void process(ProcessDataDyn& data) override
 	{
 		lastMs = Time::getMillisecondCounter();
+        
+        int idx = 0;
+        
+        for(auto& ch: data)
+        {
+            auto b = data.toChannelData(ch);
+            
+            auto r = FloatVectorOperations::findMinAndMax(b.begin(), b.size());
+            
+            if(hmath::abs(r.getStart()) > hmath::abs(r.getEnd()))
+                peaks[idx++] = r.getStart();
+            else
+                peaks[idx++] = r.getEnd();
+        }
 	}
 
 	void reset() override
 	{
-
+        FloatVectorOperations::clear(peaks.begin(), peaks.size());
 	};
 
 	void processFrame(FrameType& data) override
 	{
 		lastMs = Time::getMillisecondCounter();
+        
+        FloatVectorOperations::copy(peaks.begin(), data.begin(), data.size());
 	}
 
 	void prepare(PrepareSpecs ps) override
@@ -670,12 +704,15 @@ struct SpecNode: public NodeBase
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
 	{
-		return { topLeft.getX(), topLeft.getY(), 256, 130 };
+		Rectangle<int> x = { topLeft.getX(), topLeft.getY(), 256, 150 };
+		return getBoundsToDisplay(x);
 	}
 
 	uint32 lastMs;
 	PrepareSpecs lastSpecs;
 	bool processMidi = false;
+    
+    span<float, NUM_MAX_CHANNELS> peaks;
 };
 
 Factory::Factory(DspNetwork* network) :
@@ -696,13 +733,131 @@ namespace dynamics
 {
 template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 
+struct updown_editor: public ScriptnodeExtraComponent<data::pimpl::dynamic_base>
+{
+	struct viz: public simple_visualiser
+	{
+		viz(PooledUIUpdater* updater):
+		  simple_visualiser(nullptr, updater)
+		{};
+
+		void rebuildPath(Path& p) override
+		{
+			span<float, 100> x;
+			
+			for (int i = 0; i < 100; i++)
+				x[i] = (float)i / 100.0f;
+
+			thickness = 2.0f;
+
+			updown_comp copy;
+			
+			copy.setParameter<0>(getParameter(0));
+			copy.setParameter<1>(getParameter(1));
+			copy.setParameter<2>(getParameter(2));
+			copy.setParameter<3>(getParameter(3));
+			copy.setParameter<4>(getParameter(4));
+			copy.setParameter<7>(getParameter(7));
+
+			copy.calculateGraph(block(x));
+
+			FloatSanitizers::sanitizeArray(x.begin(), x.size());
+
+			p.startNewSubPath(0.0, 0.0);
+			p.startNewSubPath(1.0, 1.0);
+
+			p.startNewSubPath(0, 1.0f - jlimit(0.0f, 1.0f, x[0]));
+
+			for (int i = 1; i < 100; i++)
+			{
+				auto v = jlimit(0.0f, 1.0f, x[i]);
+				p.lineTo(i, 1.0f - v);
+			}
+				
+
+			gridPath.clear();
+
+			gridPath.startNewSubPath(0.25, 0.0); gridPath.lineTo(0.25, 1.0);
+			gridPath.startNewSubPath(0.5, 0.0); gridPath.lineTo(0.5, 1.0);
+			gridPath.startNewSubPath(0.75, 0.0); gridPath.lineTo(0.75, 1.0);
+
+			gridPath.startNewSubPath(0.0, 0.25); gridPath.lineTo(1.0, 0.25);
+			gridPath.startNewSubPath(0.0, 0.5); gridPath.lineTo(1.0, 0.5);
+			gridPath.startNewSubPath(0.0, 0.75); gridPath.lineTo(1.0, 0.75);
+
+			original.clear();
+			original.startNewSubPath(0.0, 1.0f);
+			original.lineTo(1.0, 0.0);
+
+		}
+	};
+
+	updown_editor(PooledUIUpdater* u, data::pimpl::dynamic_base* bPtr) :
+		ScriptnodeExtraComponent<data::pimpl::dynamic_base>(bPtr, u),
+		graph(u),
+	    editor(u)
+	{
+		addAndMakeVisible(graph);
+		addAndMakeVisible(editor);
+		
+		setSize(330 + 28, 330);
+	};
+
+	float gainRed = 0.0f;
+
+	void timerCallback() override
+	{
+		if(auto obj = getObject())
+		{
+			auto ptr = obj->getDisplayBuffer(0);
+
+			auto thisPeak = jlimit(0.0f, 1.0f, ptr->getReadBuffer().getMagnitude(0, 0, roundToInt(44100.0 * 0.03)));
+
+			if(hmath::abs(thisPeak) > hmath::abs(gainRed))
+				gainRed = thisPeak;
+			else
+				gainRed *= 0.97f;
+
+			repaint();
+		}
+	};
+
+	static Component* createExtraComponent(void* ptr, PooledUIUpdater* u)
+	{
+		auto bPtr = reinterpret_cast<data::pimpl::dynamic_base*>(ptr);
+		return new updown_editor(u, bPtr);
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = graph.getBoundsInParent().removeFromRight(18).translated(20, 0).toFloat();
+
+		g.setColour(Colours::black);
+		g.fillRect(b);
+		g.setColour(Colours::white);
+		g.fillRect(b.removeFromTop(b.getHeight() * gainRed));
+
+	}
+
+	void resized()
+	{
+		auto b = getLocalBounds();
+		editor.setBounds(b.removeFromBottom(28));
+		graph.setBounds(b.withSizeKeepingCentre(b.getHeight(), b.getHeight()).reduced(10));
+	}
+
+	viz graph;
+	ModulationSourceBaseComponent editor;
+};
+
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
 	registerPolyModNode<dp<gate>, dp<wrap::illegal_poly<gate>>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<comp>, dp<wrap::illegal_poly<comp>>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<limiter>, dp<wrap::illegal_poly<limiter>>, data::ui::displaybuffer_editor>();
-	registerModNode<dp<envelope_follower>, data::ui::displaybuffer_editor >();
+	registerPolyModNode<dp<updown_comp>, dp<wrap::illegal_poly<updown_comp>>, updown_editor>();
+	registerPolyModNode<dp<envelope_follower<1>>, dp<envelope_follower<NUM_POLYPHONIC_VOICES>>, data::ui::displaybuffer_editor >();
 }
 
 }
@@ -880,6 +1035,138 @@ Factory::Factory(DspNetwork* network) :
 
 namespace math
 {
+
+
+
+struct NeuralComp : public ScriptnodeExtraComponent<NodeBase>
+              
+{
+    NeuralComp(NodeBase* n, PooledUIUpdater* updater) :
+        ScriptnodeExtraComponent<NodeBase>(n, updater),
+        networkSelector("", PropertyIds::Model)
+    {
+#if HISE_INCLUDE_RT_NEURAL
+        auto& holder = n->getScriptProcessor()->getMainController_()->getNeuralNetworks();
+        networkSelector.initModes(holder.getIdList(), n);
+		addAndMakeVisible(networkSelector);
+#endif
+        
+        setSize(128, 32);
+    };
+
+    ComboBoxWithModeProperty networkSelector;
+
+    void resized() override
+    {
+        networkSelector.setBounds(getLocalBounds());
+    }
+
+    void timerCallback() override
+    {
+
+    }
+
+    void paint(Graphics& g) override
+    {
+#if !HISE_INCLUDE_RT_NEURAL
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("This node is disabled.", getLocalBounds().toFloat(), Justification::centredTop);
+		g.drawText("Recompile HISE with HISE_INCLUDE_RT_NEURAL.", getLocalBounds().toFloat(), Justification::centredBottom);
+#endif
+    }
+};
+
+template <int NV> struct NeuralNode: public NodeBase
+{
+    SN_NODE_ID("neural");
+    
+    NeuralNode(DspNetwork* root, const ValueTree& data):
+      NodeBase(root, data, 0),
+      networkId(PropertyIds::Model, "")
+    {
+        cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsFixRuntimeTarget);
+        
+        networkId.initialise(this);
+        networkId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(NeuralNode::updateModel), true);
+    }
+    
+    AttributedString getDescription() const override
+    {
+        return AttributedString(obj.getDescription());
+    }
+
+    NodeComponent* createComponent() override
+    {
+        auto n = new DefaultParameterNodeComponent(this);
+        n->setExtraComponent(new NeuralComp(this, getRootNetwork()->getMainController()->getGlobalUIUpdater()));
+        return n;
+    }
+
+    void reset() final
+    {
+        obj.reset();
+    }
+
+    void processFrame(FrameType& data) override
+    {
+        obj.processFrame(data);
+    }
+    
+    void process(ProcessDataDyn& data) override
+    {
+        obj.process(data);
+    }
+    
+    static NodeBase* createNode(DspNetwork* n, ValueTree v)
+    {
+        return new NeuralNode(n, v);
+    }
+
+    void prepare(PrepareSpecs ps) override
+    {
+        NodeBase::prepare(ps);
+
+        obj.prepare(ps);
+    }
+    
+    Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+    {
+        return getBoundsToDisplay(Rectangle<int>(topLeft, topLeft.translated(128, 100)));
+    }
+    
+    void updateModel(Identifier, var value)
+    {
+#if HISE_INCLUDE_RT_NEURAL
+        auto v = value.toString();
+
+        if(v.isNotEmpty())
+        {
+            auto newId = Identifier(value.toString());
+
+
+            auto nn = getScriptProcessor()->getMainController_()->getNeuralNetworks().getOrCreate(newId);
+            
+            // make sure it matches when connecting
+            obj.getIndex().currentHash = nn->getRuntimeHash();
+            obj.connectToRuntimeTarget(true, nn->createConnection());
+
+        }
+        else
+        {
+            if(auto nn = obj.getCurrentNetwork())
+            {
+                obj.connectToRuntimeTarget(false, nn->createConnection());
+            }
+        }
+#endif
+    }
+    
+    neural<NV, runtime_target::indexers::dynamic> obj;
+    
+    NodePropertyT<String> networkId;
+};
+
 struct map_editor : public simple_visualiser
 {
     map_editor(PooledUIUpdater* u) :
@@ -925,7 +1212,9 @@ Factory::Factory(DspNetwork* n) :
 #define REGISTER_MONO_MATH_NODE(x) registerNode<x<1>>();
     
     REGISTER_POLY_MATH_NODE(add);
+    REGISTER_MONO_MATH_NODE(fill1);
     REGISTER_POLY_MATH_NODE(tanh);
+	REGISTER_POLY_MATH_NODE(fmod);
     REGISTER_POLY_MATH_NODE(mul );
     REGISTER_POLY_MATH_NODE(sub );
     REGISTER_POLY_MATH_NODE(div );
@@ -935,13 +1224,26 @@ Factory::Factory(DspNetwork* n) :
     REGISTER_MONO_MATH_NODE(sin);
     REGISTER_MONO_MATH_NODE(pi);
     REGISTER_MONO_MATH_NODE(sig2mod);
+    REGISTER_MONO_MATH_NODE(mod2sig);
+    REGISTER_MONO_MATH_NODE(rect);
+    REGISTER_MONO_MATH_NODE(mod_inv);
+    REGISTER_MONO_MATH_NODE(inv);
     REGISTER_MONO_MATH_NODE(abs);
 	REGISTER_POLY_MATH_NODE(square);
 	REGISTER_POLY_MATH_NODE(sqrt);
 	REGISTER_POLY_MATH_NODE(pow);
+    REGISTER_POLY_MATH_NODE(intensity);
     
     registerNode<map, map_editor>();
     
+    registerNode<wrap::data<table, data::dynamic::table>, data::ui::table_editor_without_mod>();
+
+	
+
+    registerNode<wrap::data<pack, data::dynamic::sliderpack>, data::ui::sliderpack_editor_without_mod>();
+
+	registerPolyNodeRaw<NeuralNode<1>, NeuralNode<NUM_POLYPHONIC_VOICES>>();
+	
 #undef REGISTER_POLY_MATH_NODE
 #undef REGISTER_MONO_MATH_NODE
 
@@ -971,6 +1273,8 @@ namespace control
 	{
 
 		registerPolyNoProcessNode<control::bipolar<1, parameter::dynamic_base_holder>, control::bipolar<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, bipolar_editor>();
+
+		registerPolyNoProcessNode<control::blend<1, parameter::dynamic_base_holder>, control::blend<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, blend_editor>();
 
 		registerPolyNoProcessNode<control::intensity<1, parameter::dynamic_base_holder>, control::intensity<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, intensity_editor>();
 
@@ -1009,11 +1313,18 @@ namespace control
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
 		
 		registerNoProcessNode<control::normaliser<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+		registerNoProcessNode<control::unscaler<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+		registerNoProcessNode<control::locked_mod<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+		registerNoProcessNode<control::locked_mod_unscaled<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+
+		registerNoProcessNode<control::random<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
 		registerNoProcessNode<control::input_toggle<parameter::dynamic_base_holder>, input_toggle_editor>();
 
         registerNoProcessNode<conversion_logic::dynamic::NodeType, conversion_logic::dynamic::editor>();
-        
+
+		registerNoProcessNode<control::clone_forward<parameter::clone_holder>, ModulationSourceBaseComponent>();
+
 		registerNoProcessNode<duplilogic::dynamic::NodeType, duplilogic::dynamic::editor>();
 		registerNoProcessNode<dynamic_dupli_pack, data::ui::sliderpack_editor>();
 		registerNoProcessNode<faders::dynamic::NodeType, faders::dynamic::editor>();
@@ -1345,7 +1656,7 @@ Factory::Factory(DspNetwork* network) :
     
 	registerNode   <wrap::data<core::recorder,    data::dynamic::audiofile>, data::ui::audiofile_editor>();
 
-	registerPolyNode<gain, gain_poly>();
+	registerPolyNode<gain<1>, gain<NUM_POLYPHONIC_VOICES>>();
 
 	registerPolyNode<smoother<1>, smoother<NUM_POLYPHONIC_VOICES>>();
 
@@ -1368,6 +1679,7 @@ Factory::Factory(DspNetwork* network) :
 	registerModNode<dp<global_mod>, data::ui::displaybuffer_editor>();
 	
 	registerModNode<dp<peak>, data::ui::displaybuffer_editor>();
+	registerModNode<dp<peak_unscaled>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<ramp<1, true>>, dp<ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();
 
 	registerPolyModNode<dp<clock_ramp<1, true>>, dp<clock_ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();
@@ -1380,6 +1692,8 @@ Factory::Factory(DspNetwork* network) :
 		false>;
 
 	registerPolyNode<dp<core::oscillator<1>>, dp<core::oscillator<NUM_POLYPHONIC_VOICES>>, osc_display_>();
+	registerPolyNode<core::phasor<1>, core::phasor<NUM_POLYPHONIC_VOICES>>();
+	registerPolyNode<core::phasor_fm<1>, core::phasor_fm<NUM_POLYPHONIC_VOICES>>();
 	registerNode<wrap::data<granulator, data::dynamic::audiofile>, data::ui::xyz_audio_editor>();
 }
 }
@@ -1417,11 +1731,13 @@ template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 Factory::Factory(DspNetwork* network):
 	NodeFactory(network)
 {
-	registerNode<jchorus>();
+	registerPolyNode<jchorus, wrap::illegal_poly<jchorus>>();
 	registerNode<wrap::data<jlinkwitzriley, data::dynamic::filter>, data::ui::filter_editor>();
 
-	registerNode<jdelay>();
-
+	registerPolyNode<jdelay<1>, jdelay<NUM_POLYPHONIC_VOICES>>();
+	registerPolyNode<jdelay_thiran<1>, jdelay_thiran<NUM_POLYPHONIC_VOICES>>();
+	registerPolyNode<jdelay_cubic<1>, jdelay_cubic<NUM_POLYPHONIC_VOICES>>();
+	
 	registerPolyModNode<dp<jcompressor>, wrap::illegal_poly<dp<jcompressor>>, data::ui::displaybuffer_editor>();
 
 	registerPolyNode<jpanner<1>, jpanner<NUM_POLYPHONIC_VOICES>>();
@@ -1464,61 +1780,153 @@ Factory::Factory(DspNetwork* n) :
 namespace dll
 {
 
+
+struct UncompiledNode: public WrapperNode
+{
+	UncompiledNode(DspNetwork* n, ValueTree v):
+	  WrapperNode(n, v)
+	{
+		auto pl = createInternalParameterList();
+
+		for (auto p : pl)
+		{
+			auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.info.getId());
+			jassert(existingChild.isValid());
+			auto newP = new Parameter(this, existingChild);
+			addParameter(newP);
+		}
+	}
+
+	void* getObjectPtr() override { return nullptr; }
+
+	void prepare(PrepareSpecs ps) override
+	{
+		getRootNetwork()->getExceptionHandler().addCustomError(this, Error::ErrorCode::UncompiledThirdPartyNode, "Uncompiled third party node.");
+	}
+
+	void process(ProcessDataDyn& ) override
+	{
+		
+	}
+
+	void reset() override
+	{
+		
+	}
+
+	void processFrame(FrameType& data) override
+	{
+		
+	}
+};
+
 BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 	NodeFactory(n),
 	dllFactory(dll)
 {
-	auto networks = BackendDllManager::getNetworkFiles(n->getScriptProcessor()->getMainController_());
+	auto mc = n->getScriptProcessor()->getMainController_();
+	auto networks = BackendDllManager::getNetworkFiles(mc);
 	auto numNetworks = networks.size();
 
 	int numNodesInDll = dllFactory.getNumNodes();
 
 	int thirdPartyOffset = 0;
 
-	for (int i = 0; i < numNodesInDll; i++)
-	{
-		if (dllFactory.isThirdPartyNode(i))
-			thirdPartyOffset = i + 1;
-	}
+	Array<Identifier> idsFromJSON;
 
+	if(numNodesInDll == 0)
+	{
+		auto propFile = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::ThirdParty).getChildFile("node_properties.json");
+
+		NamespacedIdentifier rootId("project");
+
+		auto thirdPartyList = JSON::parse(propFile.loadFileAsString());
+
+		if(auto obj = thirdPartyList.getDynamicObject())
+		{
+			for(const auto& nv: obj->getProperties())
+			{
+				thirdPartyOffset++;
+				idsFromJSON.add(nv.name);
+
+				if(nv.value.isArray())
+				{
+					for(const auto& v: *nv.value.getArray())
+					{
+						cppgen::CustomNodeProperties::addNodeIdManually(nv.name, v.toString());
+					}
+				}
+			}
+		}
+	}
+	else
+	{
+		for (int i = 0; i < numNodesInDll; i++)
+		{
+			if (dllFactory.isThirdPartyNode(i))
+				thirdPartyOffset = i + 1;
+		}
+	}
+	
 	// Cater in the scenario where we have third party effects...
 	auto numNodesToCreate = jmax(numNetworks + thirdPartyOffset, numNodesInDll);
 
 	for (int i = 0; i < numNodesToCreate; i++)
 	{
-		auto isThirdPartyNode = dllFactory.isThirdPartyNode(i);
 
-		if (isThirdPartyNode)
+#if HISE_CREATE_DSP_NETWORKS_FOR_HARDCODED_NODES
+		// Create a network and toggle between frozen and interpreted state...
+		auto createHardcodedNodeOnly = dllFactory.isThirdPartyNode(i);
+#else
+		// Don't create a DSP network but treat it like a compiled third party node
+		auto createHardcodedNodeOnly = i < numNodesInDll || i < thirdPartyOffset;
+#endif
+
+		if (createHardcodedNodeOnly)
 		{
-			NodeFactory::Item item;
-			item.id = dllFactory.getId(i);
-
-			dll::FactoryBase* f = &dllFactory;
-
-			item.cb = [this, i, f](DspNetwork* p, ValueTree v)
+			if(numNodesInDll == 0)
 			{
-				auto isModNode = f->getWrapperType(i) == 1;
+				NodeFactory::Item item;
 
-				NodeBase* n;
-
-				if (isModNode)
+				item.id = idsFromJSON[i];
+				item.cb = [](DspNetwork* p, ValueTree v)
 				{
-					auto mn = new InterpretedModNode(p, v);
-					mn->initFromDll(f, i, true);
-					n = mn;
-				}
-				else
+					return new UncompiledNode(p, v);
+				};
+
+				monoNodes.add(item);
+			}
+			else
+			{
+				NodeFactory::Item item;
+				item.id = dllFactory.getId(i);
+
+				dll::FactoryBase* f = &dllFactory;
+
+				item.cb = [this, i, f](DspNetwork* p, ValueTree v)
 				{
-					auto in = new InterpretedNode(p, v);
-					in->initFromDll(f, i, false);
-					n = in;
-				}
+					auto isModNode = f->getWrapperType(i) == 1;
 
-				return n;
-			};
+					NodeBase* n;
 
-			monoNodes.add(item);
+					if (isModNode)
+					{
+						auto mn = new InterpretedModNode(p, v);
+						mn->initFromDll(f, i, true);
+						n = mn;
+					}
+					else
+					{
+						auto in = new InterpretedNode(p, v);
+						in->initFromDll(f, i, false);
+						n = in;
+					}
 
+					return n;
+				};
+
+				monoNodes.add(item);
+			}
 		}
 		else
 		{

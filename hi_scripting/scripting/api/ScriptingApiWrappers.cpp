@@ -71,6 +71,7 @@ struct ScriptingApi::Content::Wrapper
 	static var addSliderPack(const var::NativeFunctionArgs& args);
 	static var addWebView(const var::NativeFunctionArgs& args);
 	static var addFloatingTile(const var::NativeFunctionArgs& args);
+	static var addMultipageDialog(const var::NativeFunctionArgs& args);
 	static var getComponent(const var::NativeFunctionArgs& args);
 	static var getAllComponents(const var::NativeFunctionArgs& args);
 	static var set(const var::NativeFunctionArgs& args);
@@ -99,6 +100,9 @@ struct ScriptingApi::Content::Wrapper
 	static var setToolbarProperties(const var::NativeFunctionArgs& args);
 	static var setUseHighResolutionForPanels(const var::NativeFunctionArgs& args);
 	static var isCtrlDown(const var::NativeFunctionArgs& args);
+
+	static var setSuspendTimerCallback(const var::NativeFunctionArgs& args);
+	static var setKeyPressCallback(const var::NativeFunctionArgs& args);
 
 	static var getCurrentTooltip(const var::NativeFunctionArgs& args);
 
@@ -337,6 +341,17 @@ var ScriptingApi::Content::Wrapper::addFloatingTile(const var::NativeFunctionArg
 	return var();
 }
 
+var ScriptingApi::Content::Wrapper::addMultipageDialog(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("addMultipageDialog()", 3);
+		return thisObject->addMultipageDialog(Identifier(args.arguments[0]), args.arguments[1], args.arguments[2]);
+	}
+
+	return var();
+}
+
 
 var ScriptingApi::Content::Wrapper::getComponent(const var::NativeFunctionArgs& args)
 {
@@ -470,6 +485,31 @@ var ScriptingApi::Content::Wrapper::setContentTooltip (const var::NativeFunction
 };
 
 
+
+var ScriptingApi::Content::Wrapper::setSuspendTimerCallback(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("setSuspendTimerCallback()", 1);
+
+		thisObject->setSuspendTimerCallback(args.arguments[0]);
+	}
+
+	return var();
+}
+
+
+var ScriptingApi::Content::Wrapper::setKeyPressCallback(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("setKeyPressCallback()", 2);
+
+		thisObject->setKeyPressCallback(args.arguments[0], args.arguments[1]);
+	}
+
+	return var();
+}
 
 var ScriptingApi::Content::Wrapper::setUseHighResolutionForPanels(const var::NativeFunctionArgs& args)
 {

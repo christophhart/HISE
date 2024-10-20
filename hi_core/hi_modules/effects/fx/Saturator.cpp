@@ -54,6 +54,8 @@ SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
 	parameterNames.add("PreGain");
 	parameterNames.add("PostGain");
 
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("SaturationChainShown");
 
 	saturator.setSaturationAmount(0.0f);

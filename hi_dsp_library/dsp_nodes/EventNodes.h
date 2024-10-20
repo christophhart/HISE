@@ -82,7 +82,6 @@ public:
 		templated_mode(getStaticId(), "midi_logic")
 	{
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsProcessingHiseEvent);
-		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsOptionalSnexNode);
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::TemplateArgumentIsPolyphonic);
 	};
 	

@@ -95,6 +95,8 @@ public:
     /** Checks to see if a point lies within this glyph. */
     bool hitTest (float x, float y) const;
 
+    int getGlyphNumber() const noexcept { return glyph; }
+    
 private:
     //==============================================================================
     friend class GlyphArrangement;

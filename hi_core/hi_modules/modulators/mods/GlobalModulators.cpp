@@ -105,7 +105,7 @@ void GlobalModulator::connectIfPending()
 void GlobalModulator::processorChanged(EventType /*t*/, Processor* /*p*/)
 {
 	// Just send a regular update message to update the GUI
-	dynamic_cast<Processor*>(this)->sendChangeMessage();
+	dynamic_cast<Processor*>(this)->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Any);
 }
 
 bool isParent(Processor* p, Processor* possibleParent)
@@ -204,7 +204,12 @@ void GlobalModulator::disconnect()
 #if USE_BACKEND
     if(auto asP = dynamic_cast<Processor*>(this))
     {
-        asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#if USE_OLD_PROCESSOR_DISPATCH
+    asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#endif
+#if USE_NEW_PROCESSOR_DISPATCH
+	asP->dispatcher.setColour(Colours::black);
+#endif
     }
 #endif
 }
@@ -241,8 +246,15 @@ bool GlobalModulator::connectToGlobalModulator(const String &itemEntry)
 
 #if USE_BACKEND
         auto asP = dynamic_cast<Processor*>(this);
+		ignoreUnused(asP);
+#if USE_OLD_PROCESSOR_DISPATCH
+	    asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#endif
+#if USE_NEW_PROCESSOR_DISPATCH
+		asP->dispatcher.setColour(Colours::black);
+#endif
+
         
-        asP->getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(asP, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
 #endif
         
         // return false if the connection can't be established (yet)
@@ -292,6 +304,7 @@ GlobalModulator(mc)
 {
 	parameterNames.add("UseTable");
 	parameterNames.add("Inverted");
+	updateParameterSlots();
 }
 
 GlobalVoiceStartModulator::~GlobalVoiceStartModulator()
@@ -371,6 +384,7 @@ GlobalStaticTimeVariantModulator::GlobalStaticTimeVariantModulator(MainControlle
 {
 	parameterNames.add("UseTable");
 	parameterNames.add("Inverted");
+	updateParameterSlots();
 }
 
 
@@ -450,6 +464,7 @@ currentValue(1.0f)
 {
 	parameterNames.add("UseTable");
 	parameterNames.add("Inverted");
+	updateParameterSlots();
 }
 
 void GlobalTimeVariantModulator::restoreFromValueTree(const ValueTree &v)
@@ -562,7 +577,9 @@ GlobalEnvelopeModulator::GlobalEnvelopeModulator(MainController *mc, const Strin
 	Modulation(m),
 	GlobalModulator(mc)
 {
-
+	parameterNames.add("UseTable");
+	parameterNames.add("Inverted");
+	updateParameterSlots();
 }
 
 void GlobalEnvelopeModulator::restoreFromValueTree(const ValueTree &v)

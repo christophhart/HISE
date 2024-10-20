@@ -416,21 +416,24 @@ namespace details
 		return static_cast<size_t>(hash_32_or_64<sizeof(thread_id_converter<thread_id_t>::thread_id_hash_t)>::hash(
 			thread_id_converter<thread_id_t>::prehash(id)));
 	}
-	
-	template<typename T>
-	static inline bool circular_less_than(T a, T b)
-	{
-#ifdef _MSC_VER
+
+	#ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(disable: 4554)
 #endif
+
+	template<typename T>
+	static inline bool circular_less_than(T a, T b)
+	{
 		static_assert(std::is_integral<T>::value && !std::numeric_limits<T>::is_signed, "circular_less_than is intended to be used only with unsigned integer types");
 		return static_cast<T>(a - b) > static_cast<T>(static_cast<T>(1) << static_cast<T>(sizeof(T) * CHAR_BIT - 1));
+
+	}
+
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
-	}
-	
+
 	template<typename U>
 	static inline char* align_for(char* ptr)
 	{

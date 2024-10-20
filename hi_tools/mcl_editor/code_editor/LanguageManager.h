@@ -18,6 +18,20 @@ namespace mcl
 using namespace juce;
 
 
+#define DECLARE_ID(x) static const Identifier x(#x);
+
+namespace LanguageIds
+{
+	DECLARE_ID(XML);
+    DECLARE_ID(Markdown);
+    DECLARE_ID(HiseScript);
+    DECLARE_ID(SNEX);
+    DECLARE_ID(Faust);
+    DECLARE_ID(GLSL);
+}
+
+#undef DECLARE_ID
+
 /** This object will manage different properties of languages:
 
     - code tokeniser & colour scheme
@@ -37,11 +51,25 @@ public:
 
     struct InplaceDebugValue
     {
+        void init()
+        {
+	        if(!initialised)
+	        {
+		        location = CodeDocument::Position(*location.getOwner(), originalLineNumber, 99);
+                location.setPositionMaintained(true);
+                initialised = true;
+	        }
+        }
+
         int originalLineNumber;
+        bool initialised = false;
         CodeDocument::Position location;
         String value;
     };
-    
+
+    /** Used for coallascating the token providers. */
+    virtual Identifier getLanguageId() const = 0;
+
     virtual bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const;
 
     virtual void processBookmarkTitle(juce::String& bookmarkTitle) = 0;
@@ -51,6 +79,14 @@ public:
 
     /** Use this for additional setup. */
     virtual void setupEditor(TextEditor* editor);
+
+    /** Override this and check if the current line is commented. */
+    virtual bool isLineCommented(TextDocument& document, Selection s) const;
+
+    /** Overwrite this and toggle the line comment. */
+    virtual void toggleCommentForLine(TextEditor* editor, bool shouldBeCommented);
+
+    bool hashIsPreprocessor = true;
 };
 
 struct XmlLanguageManager: public LanguageManager
@@ -58,6 +94,8 @@ struct XmlLanguageManager: public LanguageManager
     CodeTokeniser* createCodeTokeniser() override;
 
     void processBookmarkTitle(juce::String& bookmarkTitle) override;
+
+    Identifier getLanguageId() const override { return LanguageIds::XML; }
 
     void addTokenProviders(mcl::TokenCollection*) override;;
 
@@ -73,10 +111,9 @@ struct MarkdownLanguageManager : public LanguageManager
         return new MarkdownParser::Tokeniser();
     }
 
-    void processBookmarkTitle(juce::String& bookmarkTitle) override
-    {
-        bookmarkTitle = bookmarkTitle.trimCharactersAtStart("#").trim();
-    }
+    void processBookmarkTitle(juce::String& bookmarkTitle) override;
+
+    Identifier getLanguageId() const override { return LanguageIds::Markdown; }
 
     void addTokenProviders(mcl::TokenCollection*) override {};
 
@@ -92,6 +129,8 @@ struct FaustLanguageManager: public LanguageManager
     CodeTokeniser* createCodeTokeniser() override;
 
     void processBookmarkTitle(juce::String& bookmarkTitle) {};
+    
+    Identifier getLanguageId() const override { return LanguageIds::Faust; }
 
     void setupEditor(mcl::TextEditor* e) override;
     

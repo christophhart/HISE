@@ -216,6 +216,17 @@ mcl::FoldableLineRange::List debug::SnexLanguageManager::createLineRange(const C
 	return lineRanges;
 }
 
+
+
+void debug::SnexLanguageManager::addTokenProviders(mcl::TokenCollection* t)
+{
+	t->addTokenProvider(new debug::KeywordProvider());
+	t->addTokenProvider(new debug::SymbolProvider(doc));
+	t->addTokenProvider(new debug::TemplateProvider());
+	t->addTokenProvider(new debug::MathFunctionProvider());
+	t->addTokenProvider(new debug::PreprocessorMacroProvider(doc));
+}
+
 struct LiveCodePopup::Data : public juce::DeletedAtShutdown
 {
 	static int64 getHash(const char* filename, int lineNumber)
@@ -368,7 +379,7 @@ struct LiveCodePopup::Data : public juce::DeletedAtShutdown
 			originalEditor.setColour(CodeEditorComponent::ColourIds::lineNumberTextId, Colours::white.withAlpha(0.3f));
 			originalEditor.getScrollbar(true).setVisible(false);
 
-			originalEditor.setScrollbarThickness(12);
+			originalEditor.setScrollbarThickness(13);
 
 			fader.addScrollBarToAnimate(originalEditor.getScrollbar(true));
 			fader.addScrollBarToAnimate(originalEditor.getScrollbar(false));

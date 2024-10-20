@@ -189,6 +189,21 @@ public:
 
 private:
 
+	template <typename T> bool ensurePosition(ReferenceCountedArray<T>& list, int newSize)
+	{
+		auto numToInsert = newSize - list.size();
+
+		if(numToInsert <= 1)
+			return false;
+
+		list.ensureStorageAllocated(newSize);
+
+		for(int i = 0; i < numToInsert; i++)
+			list.add(nullptr);
+
+		return true;
+	}
+
 	ReferenceCountedArray<SliderPackData> sliderPacks;
 	ReferenceCountedArray<Table> tables;
 	ReferenceCountedArray<MultiChannelAudioBuffer> audioFiles;
@@ -553,11 +568,17 @@ public:
 	/** a simple POD which contains the id and the name of a Processor type. */
 	struct ProcessorEntry
 	{
-		ProcessorEntry(const Identifier t, const String &n);;
+		ProcessorEntry(const Identifier t, const String &n):
+		  type(t),
+		  name(n),
+		  index(-1)
+		{}
+
 		ProcessorEntry() {};
 
 		Identifier type;
 		String name;
+		int index = 0;
 	};
 
 	// ================================================================================================================

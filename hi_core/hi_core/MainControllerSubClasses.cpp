@@ -77,7 +77,7 @@ void MainController::MacroManager::removeMacroControlsFor(Processor *p)
 		macroChain->getMacroControlData(i)->removeAllParametersWithProcessor(p);
 	}
 
-	macroChain->sendChangeMessage();
+	macroChain->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 }
 
 void MainController::MacroManager::removeMacroControlsFor(Processor *p, Identifier name)
@@ -95,13 +95,13 @@ void MainController::MacroManager::removeMacroControlsFor(Processor *p, Identifi
 			if (data->getParameter(j)->getParameterName() == name.toString() && data->getParameter(j)->getProcessor() == p)
 			{
 				data->removeParameter(j);
-				macroChain->sendChangeMessage();
+				macroChain->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 				return;
 			}
 		}
 	}
 
-	macroChain->sendChangeMessage();
+	macroChain->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 }
 
 MidiControllerAutomationHandler * MainController::MacroManager::getMidiControlAutomationHandler()

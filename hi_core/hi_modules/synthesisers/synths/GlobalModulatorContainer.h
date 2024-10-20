@@ -400,7 +400,9 @@ public:
 
 	ProcessorEditorBody* createEditor(ProcessorEditor *parentEditor) override;
 
-	void changeListenerCallback(SafeChangeBroadcaster *) { refreshList(); }
+	
+
+	//void changeListenerCallback(SafeChangeBroadcaster *) { refreshList(); }
 
 	void preStartVoice(int voiceIndex, const HiseEvent& e) final override;
 

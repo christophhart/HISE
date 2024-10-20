@@ -79,9 +79,8 @@ ScriptLorisManager::ScriptLorisManager(ProcessorWithScriptingContent* p):
 
 bool ScriptLorisManager::analyse(var file, double rootFrequency)
 {
-    if(lorisManager == nullptr)
-        reportScriptError("Loris is not available");
-    
+    initThreadController();
+
     if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(file.getObject()))
     {
         lorisManager->analyse({{sf->f, rootFrequency}});
@@ -93,36 +92,29 @@ bool ScriptLorisManager::analyse(var file, double rootFrequency)
 
 var ScriptLorisManager::synthesise(var file)
 {
-    if(lorisManager == nullptr)
-        reportScriptError("Loris is not available");
-    
+    initThreadController();
+
     if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(file.getObject()))
-    {
         return var(lorisManager->synthesise(sf->f));
-    }
     
     return {};
 }
 
 void ScriptLorisManager::process(var file, String command, var data)
 {
-    if(lorisManager == nullptr)
-        reportScriptError("Loris is not available");
-    
+    initThreadController();
+
     if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(file.getObject()))
-    {
         lorisManager->process(sf->f, command, JSON::toString(data));
-    }
 }
               
               
 void ScriptLorisManager::processCustom(var file, var processCallback)
 {
+    initThreadController();
+
     processFunction = WeakCallbackHolder(getScriptProcessor(), this, processCallback, 1);
-    
-    if(lorisManager == nullptr)
-        reportScriptError("Loris is not available");
-        
+
     if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(file.getObject()))
     {
         lorisManager->processCustom(sf->f, [&](LorisManager::CustomPOD& data)
@@ -140,24 +132,20 @@ void ScriptLorisManager::processCustom(var file, var processCallback)
     }
 }
 
-juce::var ScriptLorisManager::createEnvelopes(juce::var file, snex::jit::String parameter, int harmonicIndex)
+juce::var ScriptLorisManager::createEnvelopes(juce::var file, juce::String parameter, int harmonicIndex)
 {
-    if(lorisManager == nullptr)
-        reportScriptError("Loris is not available");
-    
+    initThreadController();
+
     if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(file.getObject()))
-    {
         return var(lorisManager->createEnvelope(sf->f, Identifier(parameter), harmonicIndex));
-    }
     
     return {};
 }
 
-juce::var ScriptLorisManager::createEnvelopePaths(juce::var file, snex::jit::String parameter, int harmonicIndex)
+juce::var ScriptLorisManager::createEnvelopePaths(juce::var file, juce::String parameter, int harmonicIndex)
 {
-    if(lorisManager == nullptr)
-        reportScriptError("Loris is not available");
-    
+    initThreadController();
+
     if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(file.getObject()))
     {
         auto envelopes = createEnvelopes(file, parameter, harmonicIndex);
@@ -183,22 +171,33 @@ juce::var ScriptLorisManager::createEnvelopePaths(juce::var file, snex::jit::Str
 
 var ScriptLorisManager::createSnapshot(juce::var file, String parameter, double time)
 {
-    if(lorisManager == nullptr)
-        reportScriptError("Loris is not available");
-    
+    initThreadController();
+
     if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(file.getObject()))
-    {
         return var(lorisManager->getSnapshot(sf->f, time, Identifier(parameter)));
-    }
     
     return {};
+}
+
+void ScriptLorisManager::initThreadController()
+{
+	if(lorisManager == nullptr)
+		reportScriptError("Loris is not available");
+
+	if(scriptThreadController == nullptr && Thread::getCurrentThread() != nullptr)
+	{
+		scriptThreadController = new ThreadController(Thread::getCurrentThread(), &progress, 500, lastTime);
+	}
+		
+
+	lorisManager->threadController = scriptThreadController;
+    progress = 0.0;
 }
 
 
 juce::var ScriptLorisManager::get(String optionId)
 {
-    if(lorisManager == nullptr)
-        reportScriptError("Loris is not available");
+    initThreadController();
     
     return var(lorisManager->get(optionId));
 }

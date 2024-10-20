@@ -67,6 +67,7 @@ class BackendProcessorEditor: public FloatingTileContent,
 							  public Component,
 							  public GlobalScriptCompileListener,
                               public Label::Listener,
+							  public MainController::LockFreeDispatcher::PresetLoadListener,
 							  public MainController::SampleManager::PreloadListener
 {
 public:
@@ -95,7 +96,7 @@ public:
 
 	void removeContainer();
 
-	
+	void newHisePresetLoaded() override;
 
 	void preloadStateChanged(bool isPreloading) override;
 
@@ -166,25 +167,7 @@ public:
 
 	void clearPopup();
 
-	void refreshContainer(Processor *selectedProcessor)
-	{
-		if (container != nullptr)
-		{
-			const int y = viewport->viewport->getViewPositionY();
-
-			setRootProcessor(container->getRootEditor()->getProcessor(), y);
-
-			ProcessorEditor::Iterator iter(getRootContainer()->getRootEditor());
-
-			while (ProcessorEditor *editor = iter.getNextEditor())
-			{
-				if (editor->getProcessor() == selectedProcessor)
-				{
-					editor->grabCopyAndPasteFocus();
-				}
-			}
-		}
-	}
+	void refreshContainer(Processor *selectedProcessor);
 
 	void scriptWasCompiled(JavascriptProcessor *sp) override;
 
@@ -320,6 +303,7 @@ public:
 		PresetBrowser,
         CustomPopup,
         Keyboard,
+		PeakMeter,
 		numPopupTypes
 	};
 
@@ -337,22 +321,7 @@ public:
 		return "/ui-components/floating-tiles/hise/maintopbar";
 	}
 
-	void timerCallback() override
-	{
-		auto newProgress = getMainController()->getSampleManager().getPreloadProgressConst();
-		auto m = getMainController()->getSampleManager().getPreloadMessage();
-		auto state = preloadState;
-
-		if (newProgress != preloadProgress ||
-			m != preloadMessage ||
-			state != preloadState)
-		{
-			preloadState = state;
-			preloadMessage = m;
-			preloadProgress = newProgress;
-			repaint();
-		}
-	}
+	void timerCallback() override;
 
 	bool showTitleInPresentationMode() const override
 	{
@@ -361,20 +330,7 @@ public:
 
 	void popupChanged(Component* newComponent) override;
 
-	void preloadStateChanged(bool isPreloading) override
-	{
-		preloadState = isPreloading;
-
-		if (isPreloading)
-			start();
-		else
-		{
-			timerCallback();
-			stop();
-		}
-        
-        repaint();
-	}
+	void preloadStateChanged(bool isPreloading) override;
 
 	void paint(Graphics& g) override;
 
@@ -385,6 +341,14 @@ public:
 		ComponentWithHelp::openHelp();
 	}
 
+	static void updateLearnConnection(MainTopBar& b, ScriptComponent* c)
+	{
+		auto n = c != nullptr ? c->getName().toString() : String();
+
+		b.currentlyLearnedScriptComponent = n;
+		b.repaint();
+	}
+
 	void buttonClicked(Button* b) override;
 
 	void resized() override;
@@ -393,38 +357,15 @@ public:
 
 	void togglePopup(PopupType t, bool shouldShow);
 
-	void applicationCommandInvoked(const ApplicationCommandTarget::InvocationInfo& info) override
-	{
-		switch (info.commandID)
-		{
-		case BackendCommandTarget::WorkspaceScript: 
-			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			break;
-		case BackendCommandTarget::WorkspaceSampler:
-			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-			customWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			break;
-		
-		case BackendCommandTarget::WorkspaceCustom:
-			mainWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			scriptingWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			samplerWorkSpaceButton->setToggleStateAndUpdateIcon(false);
-			customWorkSpaceButton->setToggleStateAndUpdateIcon(true);
-			break;
-		}
+	void applicationCommandInvoked(const ApplicationCommandTarget::InvocationInfo& info) override;
 
-	}
 
-	
 	void applicationCommandListChanged() {};
 	
 
 private:
+
+	String currentlyLearnedScriptComponent;
 
 	bool preloadState = false;
 	double preloadProgress = 0.0;
@@ -438,7 +379,62 @@ private:
 	ScopedPointer<ShapeButton> backButton;
 	ScopedPointer<ShapeButton> forwardButton;
 
-	ScopedPointer<ProcessorPeakMeter> peakMeter;
+	
+
+	struct ClickablePeakMeter: public ProcessorPeakMeter,
+							   public ControlledObject
+	{
+		struct PopupComponent;
+
+		
+
+		ClickablePeakMeter(Processor* p):
+		  ProcessorPeakMeter(p),
+		  ControlledObject(p->getMainController())
+		{
+			vuMeter->setTooltip("Click to show the Audio Analyser");
+			setRepaintsOnMouseActivity(true);
+			vuMeter->addMouseListener(this, true);
+			
+		}
+
+		void mouseEnter(const MouseEvent& event) override
+		{
+			hover = true;
+			repaint();
+		}
+
+		void mouseExit(const MouseEvent& event) override
+		{
+			hover = false;
+			repaint();
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			toggleState = !toggleState;
+			findParentComponentOfClass<MainTopBar>()->togglePopup(PopupType::PeakMeter, toggleState);
+			repaint();
+		}
+
+		void paintOverChildren(Graphics& g) override
+		{
+			if(hover)
+				g.fillAll(Colours::white.withAlpha(0.05f));
+
+			if(toggleState)
+			{
+				g.setColour(Colour(SIGNAL_COLOUR));
+				g.drawRect(getLocalBounds(), 2);
+				g.fillAll(Colour(SIGNAL_COLOUR).withAlpha(0.1f));
+			}
+		}
+
+		bool hover = false;
+		bool toggleState = false;
+	};
+
+	ScopedPointer<ClickablePeakMeter> peakMeter;
 	ScopedPointer<ShapeButton> settingsButton;
 	ScopedPointer<ShapeButton> layoutButton;
 
@@ -448,12 +444,36 @@ private:
     ScopedPointer<ShapeButton> customPopupButton;
     ScopedPointer<ShapeButton> keyboardPopupButton;
 
-	ScopedPointer<HiseShapeButton> mainWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> scriptingWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> samplerWorkSpaceButton;
-	ScopedPointer<HiseShapeButton> customWorkSpaceButton;
+	struct QuickPlayComponent: public Component,
+							   public ControlledObject,
+							   public SettableTooltipClient,
+							   public PooledUIUpdater::SimpleTimer
+	{
+		QuickPlayComponent(MainController* mc);
+
+		void setValue(bool shouldBeOn);
+		void timerCallback() override;
+		void paint(Graphics& g) override;
+		void mouseUp(const MouseEvent& e) override;
+		void setShouldPlayNote(bool v);
+		void mouseDown(const MouseEvent& e) override;
+		void resized() override;
+
+	private:
+
+		bool playNote = true;
+		bool toggle = false;
+		bool toggleState = false;
+		bool currentValue = false;
+		Path play[2];
+		Path note[2];
+		double startPos = 0.0;
+		int noteToPlay = 60;
+	} quickPlayButton;
 
     ScopedPointer<Drawable> hiseIcon;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MainTopBar);
 };
 
 

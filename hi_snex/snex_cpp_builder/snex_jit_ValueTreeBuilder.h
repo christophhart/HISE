@@ -46,16 +46,7 @@ struct ValueTreeIterator: public valuetree::Helpers
 	
 	
 
-	static bool fixCppIllegalCppKeyword(String& s)
-	{
-		if (s == "switch")
-		{
-			s = "switcher";
-			return true;
-		}
-
-		return false;
-	}
+	static bool fixCppIllegalCppKeyword(String& s);
 
 	static bool needsModulationWrapper(ValueTree& v);
 
@@ -69,6 +60,8 @@ struct ValueTreeIterator: public valuetree::Helpers
 
 	static bool isComplexDataNode(const ValueTree& nodeTree);
 
+    static bool isRuntimeTargetNode(const ValueTree& nodeTree);
+    
 	static int getNumDataTypes(const ValueTree& nodeTree, ExternalData::DataType t);
 
 	static int getMaxDataTypeIndex(const ValueTree& rootTree, ExternalData::DataType t);
@@ -85,7 +78,11 @@ struct ValueTreeIterator: public valuetree::Helpers
 
 	static ValueTree getTargetParameterTree(const ValueTree& connectionTree);
 
+    static int getFixRuntimeHash(const ValueTree& nodeTree);
+    
 	static int calculateChannelCount(const ValueTree& nodeTree, int numCurrentChannels);
+
+	static bool isContainerWithFixedParameters(const ValueTree& nodeTree);
 
 	static bool hasChildNodeWithProperty(const ValueTree& nodeTree, Identifier propId);
 
@@ -722,6 +719,8 @@ private:
 		Node::List getContainersWithParameter();
 
 		bool hasComplexTypes() const;
+        
+        bool hasRuntimeTargets() const;
 
 		ValueTreeBuilder& parent;
 		Format outputFormat;
@@ -830,6 +829,8 @@ private:
 
 	Node::Ptr getNode(const NamespacedIdentifier& id, bool allowZeroMatch) const;
 
+    Node::Ptr parseRuntimeTargetNode(Node::Ptr u);
+    
 	Node::Ptr parseFaustNode(Node::Ptr u);
 
 	Node::Ptr parseRoutingNode(Node::Ptr u);

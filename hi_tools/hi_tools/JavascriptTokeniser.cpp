@@ -38,7 +38,114 @@ JavascriptTokeniser::~JavascriptTokeniser() {}
 
 int JavascriptTokeniser::readNextToken (CodeDocument::Iterator& source)
 {
-    return JavascriptTokeniserFunctions::readNextToken (source);
+	if(!useScopeStatementParser)
+	{
+		return JavascriptTokeniserFunctions::readNextToken (source);
+	}
+
+	if(source.getPosition() == 0)
+		scopedBrackets.clearQuick();
+
+	source.skipWhitespace();
+
+	auto c = source.peekNextChar();
+
+	if(!scopedBrackets.isEmpty())
+	{
+		auto& current = scopedBrackets.getReference(scopedBrackets.size()-1);
+
+		if(current.parsingStatements)
+		{
+			if(c == '(')
+			{
+				if(!current.numOpenParen++)
+				{
+					source.skip();
+					source.skipWhitespace();
+					current.parsingArguments = true;
+					return JavascriptTokeniser::tokenType_scopedstatement;
+				}
+			}
+			if(c == ')')
+			{
+				if(--current.numOpenParen == 0)
+				{
+					source.skip();
+					source.skipWhitespace();
+					current.parsingArguments = false;
+
+					if(source.peekNextChar() == ':')
+					{
+						source.skip();
+						source.skipWhitespace();
+						auto t = JavascriptTokeniserFunctions::parseIdentifier(source, true);
+						return t;
+					}
+
+					return JavascriptTokeniser::tokenType_scopedstatement;
+				}
+			}
+			if(c == '.' && !current.parsingArguments)
+			{
+				source.skip();
+				source.skipWhitespace();
+				auto t = JavascriptTokeniserFunctions::parseIdentifier(source, true);
+				return t;
+			}
+			if(c == ';')
+			{
+				source.skip();
+				source.skipWhitespace();
+				current.parsingStatements = false;
+				return JavascriptTokeniser::tokenType_scopedstatement;
+			}
+		}
+
+		if(c == '}')
+		{
+			for(auto& b: scopedBrackets)
+				b.numOpenBrackets--;
+			
+			if(current.numOpenBrackets < 0)
+			{
+				scopedBrackets.removeLast();
+				source.skip();
+				source.skipWhitespace();
+				return JavascriptTokeniser::tokenType_bracket;
+			}
+		}
+	}
+	if(c == '{')
+	{
+		source.skip();
+		source.skipWhitespace();
+
+		if(!scopedBrackets.isEmpty())
+		{
+			scopedBrackets.getReference(scopedBrackets.size()-1).numOpenBrackets++;
+		}
+
+		checkDot = true;
+		return JavascriptTokeniser::tokenType_bracket;
+	}
+
+	if(checkDot && source.peekNextChar() == '.')
+	{
+		source.skip();
+		source.skipWhitespace();
+		scopedBrackets.add({});
+		return JavascriptTokeniserFunctions::parseIdentifier(source, true);
+	}
+
+    auto t = JavascriptTokeniserFunctions::readNextToken (source);
+    
+    if(t != tokenType_preprocessor &&
+       t != tokenType_comment)
+    {
+        checkDot = false;
+    }
+    
+    return t;
 }
 
 CodeEditorComponent::ColourScheme JavascriptTokeniser::getDefaultColourScheme()
@@ -62,6 +169,7 @@ CodeEditorComponent::ColourScheme JavascriptTokeniser::getDefaultColourScheme()
 		{ "Bracket", 0xffFFFFFF },
 		{ "Punctuation", 0xffCCCCCC },
 		{ "Preprocessor Text", 0xffCC7777 },
+		{ "ScopedStatement", 0xff88bec5 },
 		{ "Preprocessor Deactive", 0xFF444444 }
 	};
 

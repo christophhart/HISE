@@ -92,6 +92,14 @@ ComplexDataUIBase* ProcessorWithExternalData::createAndInit(ExternalData::DataTy
 	ComplexDataUIBase* d;
 
 	d = ExternalData::create(t);
+
+#if USE_BACKEND
+	if(auto af = dynamic_cast<SliderPackData*>(d))
+	{
+		// preallocate 128 sliders to avoid reallocating in the DLL heap
+		af->setUsePreallocatedLength(128);
+	}
+#endif
 		
 	if (auto af = dynamic_cast<MultiChannelAudioBuffer*>(d))
 		af->setProvider(new hise::PooledAudioFileDataProvider(mc_internal));
@@ -104,6 +112,7 @@ ComplexDataUIBase* ProcessorWithExternalData::createAndInit(ExternalData::DataTy
 
 void ProcessorWithExternalData::referenceShared(ExternalData::DataType type, int index)
 {
+	// if this hits, you need to overwrite the method and assign the table to the class member
 	jassertfalse;
 }
 
@@ -340,6 +349,8 @@ SliderPackData* ProcessorWithDynamicExternalData::getSliderPack(int index)
 
 	auto s = createAndInit(snex::ExternalData::DataType::SliderPack);
 
+	ensurePosition(sliderPacks, index);
+
 	sliderPacks.set(index, static_cast<SliderPackData*>(s));
 	return sliderPacks[index].get();
 }
@@ -350,6 +361,8 @@ Table* ProcessorWithDynamicExternalData::getTable(int index)
 		return d.get();
 
 	auto s = createAndInit(snex::ExternalData::DataType::Table);
+
+	ensurePosition(tables, index);
 
 	tables.set(index, static_cast<Table*>(s));
 	return tables[index].get();
@@ -362,6 +375,8 @@ MultiChannelAudioBuffer* ProcessorWithDynamicExternalData::getAudioFile(int inde
 
 	auto s = createAndInit(snex::ExternalData::DataType::AudioFile);
 
+	ensurePosition(audioFiles, index);
+
 	audioFiles.set(index, static_cast<MultiChannelAudioBuffer*>(s));
 	return audioFiles[index].get();
 }
@@ -373,6 +388,8 @@ SimpleRingBuffer* ProcessorWithDynamicExternalData::getDisplayBuffer(int index)
 
 	auto s = createAndInit(snex::ExternalData::DataType::DisplayBuffer);
 
+	ensurePosition(ringBuffers, index);
+
 	ringBuffers.set(index, static_cast<SimpleRingBuffer*>(s));
 	return ringBuffers[index].get();
 }
@@ -383,6 +400,8 @@ FilterDataObject* ProcessorWithDynamicExternalData::getFilterData(int index)
 		return d.get();
 
 	auto s = createAndInit(snex::ExternalData::DataType::FilterCoefficients);
+
+	ensurePosition(filterData, index);
 
 	filterData.set(index, static_cast<FilterDataObject*>(s));
 	return filterData[index].get();
@@ -586,11 +605,27 @@ int FactoryType::fillPopupMenu(PopupMenu &m, int startIndex /*= 1*/)
 {
 	Array<ProcessorEntry> types = getAllowedTypes();
 
+	for(int i = 0; i < types.size(); i++)
+	{
+		types.getReference(i).index = i;
+	}
+
+	struct Sorter
+	{
+		static int compareElements(const ProcessorEntry& p1, const ProcessorEntry& p2)
+		{
+			return p1.name.compareNatural(p2.name);
+		}
+	} sorter;
+
+	types.sort(sorter);
+
 	int index = startIndex;
 
 	for (int i = 0; i < types.size(); i++)
 	{
-		m.addItem(i + startIndex, types[i].name);
+		
+		m.addItem(types[i].index + startIndex, types[i].name);
 
 		index++;
 	}
@@ -684,12 +719,7 @@ FactoryType::Constrainer * FactoryType::getConstrainer()
 	return ownedConstrainer.get() != nullptr ? ownedConstrainer.get() : constrainer;
 }
 
-FactoryType::ProcessorEntry::ProcessorEntry(const Identifier t, const String &n) :
-type(t),
-name(n)
-{
-	
-}
+
 
 AudioSampleProcessor::AudioSampleProcessor(MainController* mc):
 	ProcessorWithSingleStaticExternalData(mc, ExternalData::DataType::AudioFile, 1)

@@ -53,6 +53,7 @@ class ScriptingEditor;
 class ScriptWatchTable      : public Component,
 public TableListBoxModel,
 public Timer,
+public SettableTooltipClient,
 public TextEditor::Listener,
 public Button::Listener,
 public ApiProviderBase::ApiComponentBase
@@ -90,7 +91,14 @@ public:
     void timerCallback();
     
     void setHolder(ApiProviderBase::Holder* h);
-    
+
+	bool useParentTooltips = false;
+
+	void setUseParentTooltipClient(bool shouldUseParentTooltips)
+	{
+		useParentTooltips = shouldUseParentTooltips;
+	}
+
 	void textEditorTextChanged(TextEditor& );
 
     void setResizeOnChange(bool shouldResize);
@@ -139,6 +147,15 @@ public:
 
     void mouseMove(const MouseEvent& e) override;
 
+    String getCellTooltip (int rowNumber, int columnId) override;
+    
+	void setRefreshRate(int refreshRate, int fullRefreshFactor_)
+	{
+		timerspeed = refreshRate;
+		fullRefreshFactor = fullRefreshFactor_;
+		startTimer(timerspeed);
+	}
+
 private:
     
 	struct TooltipInfo : public Timer
@@ -164,6 +181,8 @@ private:
     int timerspeed = 500;
 	int fullRefreshFactor = 0;
 	int fullRefreshCounter = 0;
+
+	
 
 	std::function<void(const String&)> logFunction;
 

@@ -50,7 +50,10 @@ namespace hise {
 		LOAD_EPATH_IF_URL("sample-start", ProcessorIcons::sampleStartIcon);
 		LOAD_EPATH_IF_URL("group-fade", ProcessorIcons::groupFadeIcon);
 		LOAD_EPATH_IF_URL("speaker", ProcessorIcons::speaker);
-		
+		LOAD_EPATH_IF_URL("fft", ProcessorIcons::fftIcon);
+		LOAD_EPATH_IF_URL("stereo", ProcessorIcons::stereoIcon);
+		LOAD_EPATH_IF_URL("osc", ProcessorIcons::pitchIcon);
+		LOAD_EPATH_IF_URL("cpu", ProcessorIcons::cpuIcon);
 		LOAD_EPATH_IF_URL("master-effects", HiBinaryData::SpecialSymbols::masterEffect);
 		LOAD_EPATH_IF_URL("script", HiBinaryData::SpecialSymbols::scriptProcessor);
 		LOAD_EPATH_IF_URL("polyphonic-effects", ProcessorIcons::polyFX);
@@ -134,6 +137,9 @@ namespace hise {
 
 	void PathFactory::scalePath(Path& p, Rectangle<float> f)
 	{
+		if(!isValid(p, f))
+			return;
+
 		p.scaleToFit(f.getX(), f.getY(), f.getWidth(), f.getHeight(), true);
 	}
 
@@ -141,6 +147,24 @@ namespace hise {
 	{
 		auto b = c->getBoundsInParent().toFloat().reduced(padding);
 		scalePath(p, b);
+	}
+
+	bool PathFactory::isValid(const Path& p, Rectangle<float> area)
+	{
+		auto isOk = [](float v)
+		{
+			auto v2 = v;
+			FloatSanitizers::sanitizeFloatNumber(v2);
+			return v2 == v;
+		};
+
+		auto pb = p.getBounds();
+
+		auto pathOk = isOk(pb.getX()) && isOk(pb.getY()) && isOk(pb.getWidth()) && isOk(pb.getHeight());
+
+		auto areaOk = area.isEmpty() || (isOk(area.getX()) && isOk(area.getY()) && isOk(area.getWidth()) && isOk(area.getHeight()));
+
+		return pathOk && areaOk;
 	}
 
 	PathFactory::PathFactory()

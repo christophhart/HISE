@@ -40,86 +40,9 @@ using namespace snex;
 
 namespace midi_logic
 {
-struct dynamic : public OptionalSnexSource
+struct dynamic
 {
 	using NodeType = control::midi<dynamic>;
-
-#if HISE_INCLUDE_SNEX
-	struct CustomMidiCallback : public SnexSource::CallbackHandlerBase
-	{
-		CustomMidiCallback(SnexSource& parent, SnexSource::HandlerBase::ObjectStorageType& o) :
-			CallbackHandlerBase(parent, o)
-		{};
-
-		void reset() override;
-
-		Result recompiledOk(snex::jit::ComplexType::Ptr objectClass) override;
-
-		void prepare(PrepareSpecs ps)
-		{
-			lastSpecs = ps;
-
-			if (auto c = ScopedCallbackChecker(*this))
-				prepareFunction.callVoid(&lastSpecs);
-		}
-
-		int getMidiValue(HiseEvent* e, double* v)
-		{
-			if (auto c = ScopedCallbackChecker(*this))
-				return midiFunction.call<int>(e, v);
-
-			return 0;
-		}
-
-		Result runTest(snex::ui::WorkbenchData::CompileResult& lastResult) override
-		{
-			auto wb = static_cast<snex::ui::WorkbenchManager*>(getNodeWorkbench(parent.getParentNode()));
-			
-			if (auto rwb = wb->getRootWorkbench())
-			{
-				auto& td = rwb->getTestData();
-
-				struct TestData
-				{
-					PrepareSpecs ps;
-					double d;
-					HiseEvent e;
-				};
-
-				// needs to be on the heap or it crashes in optimised mode...
-				ScopedPointer<TestData> data = new TestData();
-
-				data->ps = td.getPrepareSpecs();
-				data->d = 0.0;
-				data->e = {};
-
-				auto f = getFunctionAsObjectCallback("prepare");
-				f.callVoid(&data->ps);
-
-				auto m = getFunctionAsObjectCallback("getMidiValue");
-
-				for (int i = 0; i < td.getNumTestEvents(false); i++)
-				{
-					data->e = td.getTestHiseEvent(i);
-					m.call<int>(&data->e, &data->d);
-				}
-
-				return Result::ok();
-
-			}
-
-			jassertfalse;
-
-			return Result::ok();
-		}
-
-		PrepareSpecs lastSpecs;
-		snex::jit::FunctionData prepareFunction;
-		snex::jit::FunctionData midiFunction;
-	};
-#else
-	using CustomMidiCallback = OptionalSnexSource::DummyCallbackHandler;
-#endif
 
 	enum class Mode
 	{
@@ -127,22 +50,18 @@ struct dynamic : public OptionalSnexSource
 		Velocity,
 		NoteNumber,
 		Frequency,
-		Custom
+        Random
 	};
 
 	static StringArray getModes()
 	{
-		return { "Gate", "Velocity", "NoteNumber", "Frequency", "Custom" };
+		return { "Gate", "Velocity", "NoteNumber", "Frequency", "Random" };
 	}
-
-	String getEmptyText(const Identifier& id) const override;
 
 	dynamic();;
 
-#if HISE_INCLUDE_SNEX
 	class editor : public ScriptnodeExtraComponent<dynamic>,
-		public SnexSource::SnexSourceListener,
-		public Value::Listener
+                   public Value::Listener
 	{
 	public:
 
@@ -152,7 +71,6 @@ struct dynamic : public OptionalSnexSource
 		{
 			if (auto obj = getObject())
 			{
-				getObject()->removeCompileListener(this);
 				midiMode.mode.asJuceValue().removeListener(this);
 			}
 		}
@@ -167,35 +85,21 @@ struct dynamic : public OptionalSnexSource
 			return new editor(&typed->mType, updater);
 		}
 
-		void wasCompiled(bool ok) override {};
-		void parameterChanged(int snexParameterId, double newValue) override
-		{
-
-		}
-
-		void complexDataAdded(snex::ExternalData::DataType t, int index) override
-		{}
-
 		void resized() override;
 
 		void timerCallback() override;
 
-		SnexMenuBar menuBar;
-
-		SnexPathFactory f;
 		BlackTextButtonLookAndFeel blaf;
 		GlobalHiseLookAndFeel claf;
 
 		ComboBoxWithModeProperty midiMode;
-
 		ModulationSourceBaseComponent dragger;
 		VuMeterWithModValue meter;
 	};	
-#endif
 
 	void prepare(PrepareSpecs ps);
 
-	void initialise(NodeBase* n) override;
+	void initialise(NodeBase* n);
 
 	void setMode(Identifier id, var newValue);
 
@@ -203,19 +107,10 @@ struct dynamic : public OptionalSnexSource
 
 	bool getMidiValueWrapped(HiseEvent& e, double& v);
 
-	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("midi"); };
-
-
-	SnexTestBase* createTester() override
-	{
-		return new Tester<CustomMidiCallback>(*this);
-	}
-
+    NodeBase* parentNode = nullptr;
 	ModValue lastValue;
 	Mode currentMode = Mode::Gate;
 	NodePropertyT<String> mode;
-
-	CustomMidiCallback callbacks;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic);
 };

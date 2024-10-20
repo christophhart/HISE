@@ -42,7 +42,7 @@
 
 #include <regex>
 
-#include "scripting/HardcodedScriptProcessor.h"
+
 #include "scripting/hardcoded_modules/Arpeggiator.h"
 
 #include "scripting/scripting_audio_processor/ScriptDspModules.h"
@@ -60,7 +60,7 @@
 #include "scripting/api/ScriptBroadcaster.h"
 #include "scripting/api/ScriptModulationMatrix.h"
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
 #include "scripting/api/ScriptLorisManager.h"
 #endif
 
@@ -91,7 +91,7 @@
 #include "scripting/api/ScriptTableListModel.cpp"
 #include "scripting/api/ScriptingGraphics.cpp"
 #include "scripting/api/ScriptExpansion.cpp"
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
 #include "scripting/api/ScriptLorisManager.cpp"
 #endif
 #include "scripting/api/GlobalServer.cpp"

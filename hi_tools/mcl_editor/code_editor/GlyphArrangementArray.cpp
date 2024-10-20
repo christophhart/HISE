@@ -352,9 +352,37 @@ GlyphArrangement mcl::GlyphArrangementArray::getGlyphs(int index,
 		{
 			auto glyph = glyphSource.getGlyph(n);
 
-
-
-			glyph.moveBy(TEXT_INDENT, baseline);
+#if JUCE_WINDOWS
+			auto isItalicToken = false;
+#else
+            auto isItalicToken = token == JavascriptTokeniser::tokenType_comment;
+#endif
+            auto isBoldToken = token == JavascriptTokeniser::tokenType_preprocessor ||
+                               token == JavascriptTokeniser::tokenType_scopedstatement ||
+                               token == JavascriptTokeniser::tokenType_keyword;
+            
+            if(isBoldToken)
+            {
+                glyph = PositionedGlyph(font.boldened(),
+                                     glyph.getCharacter(),
+                                     glyph.getGlyphNumber(),
+                                     glyph.getLeft(),
+                                     glyph.getBaselineY(),
+                                     glyph.getBounds().getWidth(),
+                                     glyph.isWhitespace());
+            }
+            else if (isItalicToken)
+            {
+                glyph = PositionedGlyph(font.italicised(),
+                                     glyph.getCharacter(),
+                                     glyph.getGlyphNumber(),
+                                     glyph.getLeft(),
+                                     glyph.getBaselineY(),
+                                     glyph.getBounds().getWidth(),
+                                     glyph.isWhitespace());
+            }
+            
+            glyph.moveBy(TEXT_INDENT, baseline);
 
 			if(visibleRange.isEmpty() || visibleRange.expanded(glyph.getBounds().getWidth()).contains(glyph.getRight()))
 				glyphs.addGlyph(glyph);

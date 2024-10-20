@@ -76,37 +76,11 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 	registerType<PoolTableSubTypes::SampleMapPoolTable>(PopupMenuOptions::SampleMapPoolTable);
 
 #if USE_BACKEND
-	registerType<GenericPanel<MacroComponent>>(PopupMenuOptions::MacroControls);
-	registerType < GenericPanel<MacroParameterTable>>(PopupMenuOptions::MacroTable);
-
-	registerType<GenericPanel<ApiCollection>>(PopupMenuOptions::ApiCollection);
-	registerType<scriptnode::DspNodeList::Panel>(PopupMenuOptions::DspNodeList);
-	registerType<GenericPanel<ModuleBrowser>>(PopupMenuOptions::ModuleBrowser);
-	registerType<GenericPanel<PatchBrowser>>(PopupMenuOptions::PatchBrowser);
-	registerType<GenericPanel<AutomationDataBrowser>>(PopupMenuOptions::AutomationDataBrowser);
-	registerType<GenericPanel<FileBrowser>>(PopupMenuOptions::FileBrowser);
-	registerType<GenericPanel<SamplePoolTable>>(PopupMenuOptions::SamplePoolTable);
-	
-	registerType<MainTopBar>(PopupMenuOptions::MenuCommandOffset);
-	registerType<BackendProcessorEditor>(PopupMenuOptions::MenuCommandOffset);
-	registerType<ScriptWatchTablePanel>(PopupMenuOptions::ScriptWatchTable);
-	registerType<ConsolePanel>(PopupMenuOptions::Console);
-	registerType<ScriptComponentList::Panel>(PopupMenuOptions::ScriptComponentList);
-	registerType<MarkdownEditorPanel>(PopupMenuOptions::MarkdownEditor);
-
-	registerType<ComplexDataManager>(PopupMenuOptions::ComplexDataManager);
-	registerType<ServerControllerPanel>(PopupMenuOptions::ServerController);
-	registerType<scriptnode::DspNetworkGraphPanel>(PopupMenuOptions::DspNetworkGraph);
-	registerType<scriptnode::NodePropertyPanel>(PopupMenuOptions::DspNodeParameterEditor);
-    registerType<scriptnode::FaustEditorPanel>(PopupMenuOptions::DspFaustEditorPanel);
-
-	registerType<ScriptingObjects::ScriptBroadcasterPanel>(PopupMenuOptions::ScriptBroadcasterMap);
-
+	registerBackendPanelTypes();
 #endif
 
 	registerFrontendPanelTypes();
 
-	registerType<PopoutButtonPanel>(PopupMenuOptions::PopoutButton);
 	registerType<InterfaceContentPanel>(PopupMenuOptions::InterfaceContent);
 	registerType<SampleMapBrowser>(PopupMenuOptions::SampleMapBrowser);
 
@@ -121,26 +95,10 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 #endif
 
-#if USE_BACKEND
-	
-	registerType<SamplerTablePanel>(PopupMenuOptions::SamplerTable);
-	registerType<GlobalConnectorPanel<JavascriptProcessor>>(PopupMenuOptions::ScriptConnectorPanel);
-	registerType<CodeEditorPanel>(PopupMenuOptions::ScriptEditor);
-	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
-	registerType<OSCLogger>(PopupMenuOptions::OSCLogger);
-#endif
-
 	registerType<TableEditorPanel>(PopupMenuOptions::TablePanel);
 	registerType<SliderPackPanel>(PopupMenuOptions::SliderPackPanel);
-	
-	registerType<PlotterPanel>(PopupMenuOptions::Plotter);
-	
-#if USE_BACKEND
-	registerType<ScriptComponentEditPanel::Panel>(PopupMenuOptions::ScriptComponentEditPanel);
-	registerType<ApplicationCommandButtonPanel>(PopupMenuOptions::MenuCommandOffset);
-#endif
-
 }
+
 
 
 void FloatingTileContent::Factory::registerFrontendPanelTypes()
@@ -158,6 +116,7 @@ void FloatingTileContent::Factory::registerFrontendPanelTypes()
 	registerType<TooltipPanel>(PopupMenuOptions::TooltipPanel);
 	registerType<MidiLearnPanel>(PopupMenuOptions::MidiLearnPanel);
 	registerType<FrontendMacroPanel>(PopupMenuOptions::FrontendMacroPanel);
+	registerType<PlotterPanel>(PopupMenuOptions::Plotter);
 	registerType<AudioAnalyserComponent::Panel>(PopupMenuOptions::AudioAnalyser);
 	registerType<WaveformComponent::Panel>(PopupMenuOptions::WavetablePreview);
 	registerType<FilterGraph::Panel>(PopupMenuOptions::FilterGraphPanel);
@@ -469,11 +428,6 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 
 		break;
 	}
-	case FloatingTileContent::Factory::PopupMenuOptions::ModuleBrowser:
-	{
-		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::modulatorList)));
-		break;
-	}
 	case FloatingTileContent::Factory::PopupMenuOptions::PatchBrowser:
 	{
 		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::modulatorList, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::modulatorList)));
@@ -614,7 +568,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::AudioAnalyser, "Audio Analyser");
 			addToPopupMenu(m, PopupMenuOptions::TablePanel, "Table Editor");
 			addToPopupMenu(m, PopupMenuOptions::PresetBrowser, "Preset Browser");
-			addToPopupMenu(m, PopupMenuOptions::ModuleBrowser, "Module Browser");
 
 			addToPopupMenu(m, PopupMenuOptions::PatchBrowser, "Patch Browser");
 			addToPopupMenu(m, PopupMenuOptions::FileBrowser, "File Browser");
@@ -622,7 +575,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "SamplePoolTable");
 			addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
 			addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
-			addToPopupMenu(m, PopupMenuOptions::PopoutButton, "Popout Button");
+			addToPopupMenu(m, PopupMenuOptions::PerfettoViewer, "Perfetto Viewer");
 
 			addToPopupMenu(m, PopupMenuOptions::Note, "Note");
 			addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
@@ -705,6 +658,8 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 
 	PopupMenuOptions resultOption = (PopupMenuOptions)result;
 
+	if(handleBackendMenu(resultOption, parent))
+		return;
 
 
 	switch (resultOption)
@@ -739,11 +694,14 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
 	case PopupMenuOptions::OSCLogger:			parent->setNewContent(GET_PANEL_NAME(OSCLogger)); break;
-	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); break;
+
+	
+
+
 	case PopupMenuOptions::InterfaceContent:	parent->setNewContent(GET_PANEL_NAME(InterfaceContentPanel)); break;
 	case PopupMenuOptions::Plotter:				parent->setNewContent(GET_PANEL_NAME(PlotterPanel)); break;
 	case PopupMenuOptions::AudioAnalyser:		parent->setNewContent(GET_PANEL_NAME(AudioAnalyserComponent::Panel)); break;
-	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); break;
+	
         
     case PopupMenuOptions::MatrixPeakMeterPanel: parent->setNewContent(GET_PANEL_NAME(MatrixPeakMeter)); break;
 	case PopupMenuOptions::ComplexDataManager:  parent->setNewContent(GET_PANEL_NAME(ComplexDataManager)); break;
@@ -752,7 +710,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ScriptConnectorPanel:parent->setNewContent(GET_PANEL_NAME(GlobalConnectorPanel<JavascriptProcessor>)); break;
 	case PopupMenuOptions::Console:				parent->setNewContent(GET_PANEL_NAME(ConsolePanel)); break;
 	case PopupMenuOptions::PresetBrowser:		parent->setNewContent(GET_PANEL_NAME(PresetBrowserPanel)); break;
-	case PopupMenuOptions::PopoutButton:		parent->setNewContent(GET_PANEL_NAME(PopoutButtonPanel)); break;
 	case PopupMenuOptions::ActivityLed:		    parent->setNewContent(GET_PANEL_NAME(ActivityLedPanel)); break;
 	case PopupMenuOptions::PluginSettings:		parent->setNewContent(GET_PANEL_NAME(CustomSettingsWindowPanel)); break;
 	case PopupMenuOptions::PerformanceStatistics: parent->setNewContent(GET_PANEL_NAME(PerformanceLabelPanel)); break;
@@ -762,15 +719,10 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::MidiPlayerOverlay:	parent->setNewContent(GET_PANEL_NAME(MidiOverlayPanel)); break;
 	case PopupMenuOptions::TooltipPanel:		parent->setNewContent(GET_PANEL_NAME(TooltipPanel)); break;
 	case PopupMenuOptions::WavetableWaterfall:	parent->setNewContent(GET_PANEL_NAME(WaterfallComponent::Panel)); break;
-	case PopupMenuOptions::DspNodeList:			parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNodeList::Panel)); break;
+	
 	case PopupMenuOptions::DspNodeParameterEditor: parent->setNewContent(GET_PANEL_NAME(scriptnode::NodePropertyPanel)); break;
     case PopupMenuOptions::DspFaustEditorPanel: parent->setNewContent(GET_PANEL_NAME(scriptnode::FaustEditorPanel)); break;
-	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); break;
-	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); break;
-	case PopupMenuOptions::AutomationDataBrowser: parent->setNewContent(GET_PANEL_NAME(GenericPanel<AutomationDataBrowser>)); break;
-	case PopupMenuOptions::FileBrowser:			parent->setNewContent(GET_PANEL_NAME(GenericPanel<FileBrowser>)); break;
-	case PopupMenuOptions::ModuleBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ModuleBrowser>)); break;
-	case PopupMenuOptions::SamplePoolTable:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<SamplePoolTable>)); break;
+	
 	case PopupMenuOptions::SampleMapBrowser:	parent->setNewContent(GET_PANEL_NAME(SampleMapBrowser)); break;
 	case PopupMenuOptions::ServerController:	parent->setNewContent(GET_PANEL_NAME(ServerControllerPanel)); break;
 	case PopupMenuOptions::AboutPage:			parent->setNewContent(GET_PANEL_NAME(AboutPagePanel)); break;
@@ -780,6 +732,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::RLottieDevPanel:		parent->setNewContent(GET_PANEL_NAME(RLottieFloatingTile));
 		break;
 #endif
+    case PopupMenuOptions::PerfettoViewer:      parent->setNewContent(GET_PANEL_NAME(GenericPanel<PerfettoWebviewer>)); break;
 	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::AudioFilePoolTable)); break;
 	case PopupMenuOptions::SampleMapPoolTable:  parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::SampleMapPoolTable)); break;
 	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::ImageFilePoolTable)); break;
@@ -799,5 +752,6 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	
 #endif
 }
+
 
 } // namespace hise

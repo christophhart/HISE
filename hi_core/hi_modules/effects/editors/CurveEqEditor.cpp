@@ -35,6 +35,8 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 
 	dragOverlay->addListener(this);
 
+    
+
     addAndMakeVisible (enableBandButton = new HiToggleButton ("new toggle button"));
     enableBandButton->setButtonText (TRANS("Enable Band"));
     enableBandButton->addListener (this);
@@ -76,6 +78,43 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 
 	numFilters = 0;
 
+	freqSlider->setup(eq, -1, "");
+    gainSlider->setup(eq, -1, "");
+    qSlider->setup(eq, -1, "");
+    enableBandButton->setup(eq, -1, "");
+    typeSelector->setup(eq, -1, "");
+
+	addAndMakeVisible(fftEnableButton = new ToggleButton("Spectrum Analyser"));
+	fftEnableButton->addListener(this);
+	fftEnableButton->setTooltip("Enable FFT plotting");
+    
+    fftEnableButton->setToggleState(eq->getDisplayBuffer(0)->isActive(), dontSendNotification);
+	getProcessor()->getMainController()->skin(*fftEnableButton);
+
+    setSize (800, 320);
+
+
+	h = getHeight();
+
+    if(eq->getNumFilterBands() > 0)
+        dragOverlay->selectDragger(0);
+}
+
+CurveEqEditor::~CurveEqEditor()
+{
+    typeSelector = nullptr;
+    dragOverlay = nullptr;
+    enableBandButton = nullptr;
+    freqSlider = nullptr;
+    gainSlider = nullptr;
+    qSlider = nullptr;
+    label = nullptr;
+
+}
+
+void CurveEqEditor::filterSelectorChanged(FilterTypeSelector*)
+{
+    jassertfalse;
 	freqSlider->setup(getProcessor(), -1, "Frequency");
 	freqSlider->setMode(HiSlider::Frequency);
 
@@ -89,29 +128,11 @@ CurveEqEditor::CurveEqEditor (ProcessorEditor *p)
 
 	typeSelector->setup(getProcessor(), -1, "Type");
 
-	addAndMakeVisible(fftEnableButton = new ToggleButton("Spectrum Analyser"));
-	fftEnableButton->addListener(this);
-	fftEnableButton->setTooltip("Enable FFT plotting");
-    
-    fftEnableButton->setToggleState(eq->getDisplayBuffer(0)->isActive(), dontSendNotification);
-	getProcessor()->getMainController()->skin(*fftEnableButton);
-
-    setSize (800, 320);
-
-
-	h = getHeight();
-}
-
-CurveEqEditor::~CurveEqEditor()
-{
-    typeSelector = nullptr;
-    dragOverlay = nullptr;
-    enableBandButton = nullptr;
-    freqSlider = nullptr;
-    gainSlider = nullptr;
-    qSlider = nullptr;
-    label = nullptr;
-
+    freqSlider->setEnabled(true);
+    gainSlider->setEnabled(true);
+    qSlider->setEnabled(true);
+    enableBandButton->setEnabled(true);
+    typeSelector->setEnabled(true);
 }
 
 //==============================================================================

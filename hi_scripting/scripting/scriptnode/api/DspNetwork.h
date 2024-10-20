@@ -161,11 +161,16 @@ public:
 
     struct IdChange
     {
+		bool operator==(const IdChange& other) const
+		{
+			return oldId == other.oldId && newId == other.newId;
+		}
+
         String oldId;
         String newId;
     };
     
-	class Holder
+	class Holder: public RuntimeTargetHolder
 	{
 	public:
 
@@ -195,6 +200,9 @@ public:
 		DspNetwork* getActiveNetwork() const;
 
 		void setProjectDll(dll::ProjectDll::Ptr pdll);
+
+		void connectRuntimeTargets(MainController* mc) override;
+		void disconnectRuntimeTargets(MainController* mc) override;
 
 		dll::ProjectDll::Ptr projectDll;
 
@@ -376,12 +384,12 @@ public:
 		{
 			Entry(const Identifier& t, const File& targetFile, ProcessorWithScriptingContent* sp);
 
+			Entry(const Identifier& t, const ExternalScriptFile::Ptr& embeddedFile, ProcessorWithScriptingContent* sp);
+
 			const Identifier type;
 			const File parameterFile;
 
 			ScopedPointer<snex::ui::WorkbenchData::CodeProvider> cp;
-
-			
 
 			snex::ui::WorkbenchData::Ptr wb;
 
@@ -393,7 +401,27 @@ public:
 			
 		private:
 
+			ExternalScriptFile::ResourceType resourceType;
+
+			void init(snex::ui::WorkbenchData::CodeProvider* codeProvider, const ValueTree& pTree, ProcessorWithScriptingContent* sp)
+			{
+				cp = codeProvider;
+				wb = new snex::ui::WorkbenchData();
+				wb->setCodeProvider(cp, dontSendNotification);
+				wb->setCompileHandler(new SnexSourceCompileHandler(wb.get(), sp));
+
+				parameterTree = pTree;
+
+				if(!parameterTree.isValid())
+					parameterTree = ValueTree(PropertyIds::Parameters);
+
+				pListener.setCallback(parameterTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::parameterAddedOrRemoved));
+				propListener.setCallback(parameterTree, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::propertyChanged));
+			}
+
 			void updateFile();
+
+			ExternalScriptFile::Ptr parameterExternalFile;
 
 			valuetree::ChildListener pListener;
 			valuetree::RecursivePropertyListener propListener;
@@ -416,7 +444,7 @@ public:
 	String getDebugName() const override { return "DspNetwork"; }
 	String getDebugValue() const override { return getId(); }
 	
-	NodeBase* getNodeForValueTree(const ValueTree& v);
+	NodeBase* getNodeForValueTree(const ValueTree& v, bool createIfDoesntExist=true);
 	NodeBase::List getListOfUnconnectedNodes() const;
 
 	ValueTree getListOfAvailableModulesAsTree() const;
@@ -424,6 +452,7 @@ public:
 	StringArray getListOfAllAvailableModuleIds() const;
 	StringArray getListOfUsedNodeIds() const;
 	StringArray getListOfUnusedNodeIds() const;
+	StringArray getListOfLocalCableIds() const;
 	StringArray getFactoryList() const;
 
 	void assign(const int, var newValue) override { reportScriptError("Can't assign to this expression"); };
@@ -529,6 +558,10 @@ public:
 	NodeBase* createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate=false);
 	bool isInSignalPath(NodeBase* b) const;
 
+	ReferenceCountedObject* getLocalCableManager() const { return localCableManager.getObject(); }
+
+	Component* createLocalCableListItem(const String& id) const;
+	
 	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && getPolyHandler()->getVoiceIndex() != -1; }
 
 	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || getPolyHandler()->getVoiceIndex() == 0; }
@@ -561,10 +594,7 @@ public:
 
 	bool isSelected(NodeBase* node) const { return selection.isSelected(node); }
 
-	void deselect(NodeBase* node)
-	{
-		selection.deselect(node);
-	}
+	void deselect(NodeBase* node);
 
 	void deselectAll() { selection.deselectAll(); }
 
@@ -789,7 +819,6 @@ private:
 
 	
 
-	valuetree::RecursivePropertyListener idUpdater;
 	valuetree::RecursiveTypedChildListener exceptionResetter;
 
     valuetree::RecursiveTypedChildListener sortListener;
@@ -800,6 +829,8 @@ private:
 
 	float* currentData[NUM_MAX_CHANNELS];
 	friend class DspNetworkGraph;
+
+	var localCableManager;
 
 	struct Wrapper;
 
@@ -958,8 +989,60 @@ struct HostHelpers
 
 #if !USE_FRONTEND
 
+struct DspNetworkGraph;
+
+struct DuplicateHelpers
+{
+    static ValueTree findRoot(const ValueTree& v);
+
+    static void removeOutsideConnections(const Array<ValueTree>& newNodes, const Array<DspNetwork::IdChange>& idChanges);
+
+    static int getIndexInRoot(const ValueTree& v);
+
+    // This sorts it reversed so that the index works when duplicating
+    static int compareElements(const WeakReference<NodeBase>& n1, const WeakReference<NodeBase>& n2);
+};
+
 struct DspNetworkListeners
 {
+	struct DspNetworkGraphRootListener
+	{
+		virtual ~DspNetworkGraphRootListener()
+		{
+			
+		}
+
+		static void onChangeStatic(DspNetworkGraphRootListener& l, NodeBase* n);
+
+		virtual void onRootChange(NodeBase* newRoot) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkGraphRootListener);
+	};
+
+	static void initRootListener(DspNetworkGraphRootListener* l);
+
+	static WeakReference<NodeBase> getSourceNodeFromComponentDrag(Component* component);
+
+	struct MacroParameterDragListener: public MouseListener
+	{
+		MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction);
+
+		~MacroParameterDragListener();
+
+		void initialise();
+		void mouseDrag(const MouseEvent& e) override;
+		void mouseUp(const MouseEvent& e) override;
+		void mouseDown(const MouseEvent& event) override;
+
+		static Component* findModulationDragComponent(DspNetworkGraph* g, const ValueTree& nodeTree);
+
+		static Component* findSliderComponent(DspNetworkGraph* g, int parameterIndex);
+
+		Component::SafePointer<Component> sliderToDrag;
+		Component::SafePointer<Component> c;
+		std::function<Component*(DspNetworkGraph*)> initFunction;
+	};
+
 	struct Base : public valuetree::AnyListener
 	{
 		template <bool AllowRootParameterChange> static bool isValueProperty(const ValueTree& v, const Identifier& id)

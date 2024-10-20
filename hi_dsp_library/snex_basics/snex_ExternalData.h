@@ -415,6 +415,8 @@ struct ExternalData
 
     static void forEachType(const std::function<void(DataType)>& f);
 
+	bool isTypeOrEmpty(DataType t) const { return dataType == t || dataType == DataType::numDataTypes; }
+
     /** assigns a block container to the data type. If the external data is pointing to an audio file you can specify the channelIndex. */
 	void referBlockTo(block& b, int channelIndex) const;
 
@@ -456,7 +458,11 @@ struct ExternalData
     /** Returns true if there is no data associated with this object. */
 	bool isEmpty() const
 	{
-		return dataType == DataType::numDataTypes || numSamples == 0 || obj == nullptr || numChannels == 0 || data == nullptr;
+		return dataType == DataType::numDataTypes ||
+               numSamples == 0 ||
+               (obj == nullptr && data == nullptr) || // allow obj to be nullptr for embedded data tables
+               numChannels == 0 ||
+               data == nullptr;
 	}
 
 	bool isNotEmpty() const
@@ -737,7 +743,7 @@ struct base
 	virtual void setExternalData(const snex::ExternalData& d, int index)
 	{
 		// This function must always be called while the writer lock is active
-		jassert(d.isEmpty() || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
+		jassert(d.obj == nullptr || d.obj->getDataLock().writeAccessIsLocked() || d.obj->getDataLock().writeAccessIsSkipped());
 
 		
 
@@ -837,23 +843,53 @@ struct DataWriteLock : hise::SimpleReadWriteLock::ScopedWriteLock
 namespace data
 {
 
-struct filter_base : public data::base,
-	public FilterDataObject::Broadcaster
+struct filter_base : public base,
+					 public FilterDataObject::Broadcaster
 {
 	virtual ~filter_base() {};
 
-	virtual IIRCoefficients getApproximateCoefficients() const = 0;
+	virtual FilterDataObject::CoefficientData getApproximateCoefficients() const = 0;
 
-	void setExternalData(const snex::ExternalData& d, int index) override
-	{
-		deregisterAtObject(this->externalData.obj);
-		base::setExternalData(d, index);
-		registerAtObject(this->externalData.obj);
+	void sendCoefficientUpdateMessage();
 
-		if (auto o = dynamic_cast<FilterDataObject*>(d.obj))
-			o->setCoefficients(this, getApproximateCoefficients());
-	}
+	void setExternalData(const snex::ExternalData& d, int index) override;
 };
+
+struct filterT: public filter_base,
+				public ComplexDataUIUpdaterBase::EventListener
+{
+	template <typename T> filterT(T* obj_):
+	  obj(obj_),
+	  f(T::getPlotValueStatic)
+	{}
+
+	~filterT() override;
+
+	FilterDataObject::CoefficientData getApproximateCoefficients() const override;
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
+	void setExternalData(const snex::ExternalData& d, int index) override;
+
+	void* obj = nullptr;
+	FilterCoefficientData::PlotFunction f = nullptr;
+};
+
+// Use this macro in the SNEX setExternalCallback() function to init the filter in the (compiled) node
+#define SNEX_INIT_FILTER(d, index) filter_node_base::setExternalData(d, index);
+
+struct filter_node_base: public filterT
+{
+	filter_node_base():
+		filterT(this)
+	{}
+
+	~filter_node_base() override {};
+
+	static double getPlotValueStatic(void* obj, bool getMagnitude, double freqNorm);
+
+	virtual double getPlotValue(int getMagnitude, double freqNorm) = 0;
+};
+
+
 
 #define SNEX_THROW_IF_MULTIPLE_WRITERS 0
 
@@ -946,6 +982,8 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 };
 
 
+
+
 using namespace snex;
 
 namespace pimpl
@@ -990,7 +1028,7 @@ template <int Index, ExternalData::DataType DType> struct plain : index_type_bas
 
 	template <typename NodeType> void setExternalData(NodeType& n, const ExternalData& b, int index)
 	{
-		if (index == Index && b.dataType == DType)
+		if ((index == Index && b.dataType == DType) || b.dataType == ExternalData::DataType::numDataTypes)
 			n.setExternalData(b, 0);
 	}
 };

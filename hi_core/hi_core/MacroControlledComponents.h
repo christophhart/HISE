@@ -130,6 +130,7 @@ private:
 *	
 */
 class MacroControlledObject: public MacroControlBroadcaster::MacroConnectionListener,
+							 public dispatch::ListenerOwner,
 						     public Learnable
 {
 public:
@@ -213,6 +214,8 @@ public:
 	/** overwrite this method and return the range that the parameter can have. */
 	virtual NormalisableRange<double> getRange() const = 0;
 
+	virtual ValueToTextConverter getValueToTextConverter() const = 0;
+
 	bool isLocked();
 
 	/** Since the original setEnabled() is overwritten in the updateValue, use this method instead to enable / disable MacroControlledComponents. */
@@ -226,7 +229,12 @@ public:
 
 	void setModulationData(ModulationPopupData::Ptr modData);
 
+
+	void onAttributeChange(dispatch::library::Processor* p, uint8 index);
+
 protected:
+
+	ScopedPointer<dispatch::library::Processor::AttributeListener> valueListener;
 
     friend class SliderWithShiftTextBox;
     
@@ -274,8 +282,10 @@ private:
 	
 };
 
+
+
 /** A combobox which can be controlled by the macro system. */
-class HiComboBox: public ComboBox,
+class HiComboBox: public SubmenuComboBox,
 				  public ComboBox::Listener,
 				  public MacroControlledObject,
                   public TouchAndHoldComponent
@@ -301,6 +311,25 @@ public:
     void mouseDown(const MouseEvent &e) override;
 	void mouseDrag(const MouseEvent& e) override;
 
+	ValueToTextConverter getValueToTextConverter() const override
+	{
+		StringArray itemList;
+		itemList.add("Nothing");
+
+		for(int i = 0; i < getNumItems(); i++)
+			itemList.add(getItemText(i));
+
+		ValueToTextConverter c;
+		c.active = true;
+		c.itemList = itemList;
+
+		return c;
+	}
+
+	
+    
+    bool customPopup = false;
+    
 	NormalisableRange<double> getRange() const override;;
 	
 	Font font;
@@ -342,6 +371,14 @@ public:
 
 	void setNotificationType(NotificationType notify);
 
+	ValueToTextConverter getValueToTextConverter() const override
+	{
+		ValueToTextConverter c;
+		c.active = true;
+		c.itemList = { "Off", "On" };
+
+		return c;
+	}
 
 	void setPopupData(const var& newPopupData, Rectangle<int>& newPopupPosition);
 
@@ -444,8 +481,8 @@ public:
             {
                 case Action::TextInput:
                     return ModifierKeys::shiftModifier;
-                case Action::ResetToDefault:
-                    return doubleClickModifier;
+            case Action::ResetToDefault:
+                    return doubleClickModifier | ModifierKeys::altModifier;
                 case Action::FineTune:
                     return  ModifierKeys::commandModifier |
                             ModifierKeys::ctrlModifier |
@@ -538,7 +575,8 @@ public:
         }
         if(a == ModifierObject::Action::ContextMenu)
         {
-            dynamic_cast<MacroControlledObject*>(this)->enableMidiLearnWithPopup();
+            if(auto mco = dynamic_cast<MacroControlledObject*>(this))
+				mco->enableMidiLearnWithPopup();
             return true;
         }
         
@@ -613,7 +651,7 @@ public:
 
     ~HiSlider() override;
 
-	static String getFrequencyString(float input);
+	
 
 	static double getFrequencyFromTextString(const String& t);
 
@@ -634,6 +672,8 @@ public:
 	void setSendValueOnDrag(bool shouldSend) { sendValueOnDrag = shouldSend; }
 
 	void resized() override;
+
+	ValueToTextConverter getValueToTextConverter() const override;
 
 	String getModeId() const;
 

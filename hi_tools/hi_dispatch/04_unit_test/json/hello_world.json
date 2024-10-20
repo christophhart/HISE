@@ -1,0 +1,78 @@
+{
+	"description": "a simple test",
+	"duration": 500,
+	"samplerate": 44100,
+	"buffersize": 512,
+	"count": 2,
+	"objects": [
+		{
+			"type": "processor",
+			"events": [
+				{
+					"type": "add",
+					"ts": 0.2,
+					"thread": "audio",
+					"id": "first_test",
+					"num_parameters": 5
+				},
+				{
+					"type": "set_attribute",
+					"ts": 0.4,
+					"index": 2,
+					"thread": "audio"
+				},
+				{
+					"type": "set_attribute",
+					"ts": 0.5,
+					"index": 8,
+					"notify": "sync",
+					"thread": "ui",
+					"wait": 0.5
+				},
+				{
+					"type": "set_attribute",
+					"ts": 0.5,
+					"index": 8,
+					"thread": "ui"
+				},
+				{
+					"type": "set_attribute",
+					"ts": 0.5,
+					"index": 8,
+					"thread": "ui"
+				},
+				{
+					"type": "rem",
+					"ts": 0.6,
+					"thread": "audio"
+				}
+			]
+		},
+		{
+			"type": "processor_listener",
+			"events": [
+				{
+					"type": "add",
+					"source": "first_test",
+					"bypassed": false,
+					"notify": "sync",
+					"attributes": 8,
+					"ts": 0.35,
+					"thread": "ui",
+				},
+				{
+					"type": "count",
+					"thread": "ui",
+					"ts": 0.57,
+					"attributes": 2,
+					"bypassed": 0
+				},
+				{
+					"type": "rem",
+					"ts": 0.58,
+					"thread": "ui",
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,362 @@
+{
+  "StyleData": {
+    "Font": "Lato",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 16.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "New Project Wizard",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "",
+    "Company": "",
+    "Version": "",
+    "BinaryName": "",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "Dark",
+    "Style": "#title\n{\n\tfont-size: 1.5em;\n}\n\n.button-outline\n{\n\t\n\tmargin: 10px;\n\tpadding: 10px;\n\tborder-radius: 10px;\n\tborder: 1px solid #666;\n}\n\n#projectType\n{\n\theight: 120px;\n\tjustify-content: flex-end;\n\tgap:0px;\n}\n\n#projectType .toggle-button\n{\n\theight: 100%;\n\twidth: 100vh;\n\t\n\tbackground: transparent;\n}\n\n#projectType .toggle-button:hover\n{\n\tbackground: transparent;\n}\n\n#projectType button::before\n{\n\theight: 100%;\n\tdisplay: none;\n\tbackground: transparent;\n}\n\n#projectType label\n{\n\tdisplay: none;\n}\n\n.import-hxi button::after\n{\n\tbackground: #666;\n\tbackground-image:\n\t\"1103.t01jzd.QjSayCwlzsd.Q9YeyCwVZqd.QbUgyCIV+Md.Q3t8yCgvHHPjy7D8Py0PBD4LOQODadXGJD4LOQOjXTOWJD4LOQOzY0oBQfC5yC4XspPjZl17Pr00QvPDXUF5PhQ3gvPj5Z94Pf39KDwu+cNjZv6BQ76emCw1uG9.Q76emCIVBJ5.Q76emCcGhMPj5Z94POgTCDAVkgNDaAZ6ADoloMOjXFX6AD4ypMOjC0d.QP.ayCMIsGPD4z17Pi0F..d.QXmAsCwVHLn.QxJ+mCIV6mp.QvVxlCMLHMPDMSc4P+d3CDQyTWNDaOEjJDQyTWNDaOEjJD4cUONjXOEjJDgkoLNDgpjBQrfmhCsozmPDK3o3PrEy6IPDK3o3PhczkHPDK3o3P..3ADgkoLND..d.QdW0iCwF..d.QXmAsCMVaiuHNDYTdONjXiuHNDQ4wNNzYhgCQD.hiCs+F3PDDz13PhQbk1Pjles3PZrWLDwujCNTdN8BQ5.DfCIVOd7BQ339eCUg2tPDHU+2PPfpKDI.H.NjXNFmKDQWU.NzxO4BQFNLfCs7StPDG7D3Phs7StPDsqW3PK+jKDYM4ONzxO4BQl77jCI1xO4BQxUMkCIIitPjxLW4PBSuKDg+ZVNjXkfLLDgiMYNjg3WCQHNRnCIl12PjiDP5Phk592PDr2P5PAjBND4EPjNTnNgCQ9pAoCI1OzgCQdT+nCM9h3Pj5nN5PiuHNDwOUiNjXiuHNDQc2dNz3KhCQJBxjCM9h3PjQ483Pi0FaCsCQth1iCIFaCsCQJxniCovc6PD1713PW47NDQxMMNjXJtXODgsiJNDn5KDQNDjfCkv1DQDbF62Phgd9DQDsm42PeORQDA3U9MTlFUDQTxoeCI1yoUDQXGteCA.fEQDmv82P..XQDgkA.NjX..XQDALVDND..VDQZFAjCA.fEQDAiO4PhA.fEQj5mR4PrHUQDYXXUNTBDTDQLjckCIF4RMDQf5FlCMCr8PjZKD5Puk8ND4g1iNjX006NDYXAjNjVWtCQ7z.oCU3c6PDZsO5Ph85U6PjhNO5PrMzNDAOiiNDaCsCQDZznCIFaCsCQbExmCw1P6PjzpM4PrMzND4JZONzXsUjp3PDuBc0PhA+N4PDYFV0PGZfNDQlgUMjLXpCQ7JzUCIlCixCQ.lWWCEdVAQD0Ru1PCZxPDgHSwMjXsG0PDANzwMjeqMDQf7obC42ZCQDu4M2Ph42ZCQDgTQ2PsG0PDQoH0MzflLDQfbZcCI1POEDQ3DzdC4oZ7Pj0RT3P6SmNDAfCHNjXNfeNDgHyHNTZJkCQHxLhCwWy3PD.Nf3Phsd01PDIPT3PEpdLDQcI6MTHW.CQvdYcCI1qr+BQ.bQcCUA0uPDhNQ2PUP8KDwadyMjXUP8KDwQoxMzqr+BQnxcbCExEvPDwaE2Phg92wPD1su1P70oMDwzecMTQphCQ7JzUCMVY...\";\n}\n\n.empty-project button::after\n{\n\tbackground-image: \"551.t0lhzd.QvxWyCwl2sd.Qr4ayCwFiqd.QZ0cyCIlnMd.QjR5yCYvHHPDbFD8PE3PBDAmAQODaUcHJDAmAQOjX4TXJDAmAQOzcGpBQrl1yCc5wpPjKt07ProIWvPDLFE5PhkLmvPjrJ84P.K.LDAeqcND2D7BQv2ZmCwFlK9.Qv2ZmCIFpM5.Qv2ZmCo1hMPjrJ84P5rTCDAiQgNDaGY6AD4haMOjXxV6ADYvbMOjG0d.QXeWyCoHsGPDr707Pi0F..d.QNQ8rCwFcMn.QnJ5mCI1Kop.QlLslCg4HMPDq9a4PXt3CDwp+VNDacMkJDwp+VNDacMkJD4R+NNjXcMkJDIDSLNjs6jBQzyghC4y3mPD8bn3PrIA7IPD8bn3Pho4kHPD8bn3P..3ADIDSLND..d.QtzuiCwF..d.QNQ8rCMVaqjaNDQx7UMjXOjCPDQx7UMD..VDQz5vZCA.fEQDOGJ3PhA.fEQDHG93POjCPDgKEZNzJ4lCQ3RglCIlN4LCQ3RglCgj7sPDHG93PHIeKDwygBNjXHIeKDQqCqMjN4LCQjLeUCsRt4PDIyW0Pi0lJ8tCQL4OeCwlJ8tCQfybXCw1G0dCQfybXCw1G0dCQL4OeCw1vnCCQL4OeCw1vnCCQT8ngCw1G0dCQT8ngCw1G0dCQJfBkCwlJ8tCQJfBkCwlJ8tCQT8ngCwVgIJDQT8ngCwVgIJDQL4OeCwlJ8tCQL4OeCMVY...\";\n\tbackground: #666;\n}\n\n.rhapsody button::after\n{\n\tbackground: #666;\n\n\tbackground-image: \"755.t0Vlzd.QP3NyCw10sd.Qx9RyCwV5qd.QJ9TyCIl+Md.QZXwyCowHHPDW1A8Pe1PBDwkcPODaxnGJDwkcPOjXHdWJDwkcPOjM4oBQ5rsyCUVtpPjkey7Pr47RvPDsJC5Ph0+hvPjAP64PIJ+KD49LcNzsz6BQtOSmCwFnH9.QtOSmCIlyJ5.QtOSmC4QhMPjAP64PwiTCDQqxfNDaGZ6ADY42LOjXLX6ADoF4LODE0d.Q.kNyCkIsGPDDty7Pi0F..d.Q5.0rCw1YLn.QXexmCIVQnp.QXkklCAVHMPjAGZ4Pfh3CDYvgVNDaYTjJDYvgVNDaYTjJDoKhNNjXYTjJDAP1KNzKtjBQXpZhCAh0mPDlpl3PrM26IPDlpl3PhQ1kHPDlpl3P..3ADAP1KND..d.Q5hniCwF..d.Q5.0rCMVa9WOQDoNoGNjX..XQDoWjFND..VDQTKMgC4e8DQDY+N3PhAAdBQDeF12Pb.9NDgsIiMzeKkCQTOMVCIVlCjCQbR6UC8gn3PDPSb0PIyCNDAzDWMjX3a8MDAzDWMje0cCQbR6UCQgK2PD0Si0PhgjtzPDqgJ1PD4pKDwaz5MjY7vBQtzjfCIVwmtBQfZ2fCU7oqPj9XU3PlwCKDwlfFNjXW5rKDY4oKNDKiUCQlBMlCsG42PDKS24Pho.J3PDTY44PBKHNDgIodNjzgiCQXRpmCIV3.kCQXRpmCo4l4PDTY44Ps5cNDwxzcNjXpzDOD4s8XNj1KJDQXlGiC4e8DQj5jd3Pi0VlYqCQ7nVaCwFKTHDQdoRgCwFpQBDQT6BhCwle77CQT6BhCwV3i7CQp9EhCwVvK7CQT6BhCw1tzwCQT6BhCw1tzwCQrILjCwV4jjCQnG1kCwV4jjCQj7ChCwlU7PCQJoBhCw1OJdCQJ6YfCwlyLuCQ9GafCwVHThCQr+mcCwFL5DCQdMehCwFyV6BQjwRgCwFe7gCQXG7XCw12eqCQH+TaCwVlYqCQ7nVaCMVY...\";\n}\n\n#projectType button::after:hover\n{\n\tbackground-color: #777;\n}",
+    "UseViewport": true,
+    "DialogWidth": 700,
+    "DialogHeight": 600
+  },
+  "GlobalState": {
+    "projectType": true
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Welcome to the HISE new project wizard. This will guide you through the process of setting up a HISE project folder in order to start the development of your next HISE project.  \n\nFirst you need to select a folder where you want to store the project. Just select a preexistent empty folder or create a new folder using the file browser below.\n",
+          "Padding": 0,
+          "ID": "",
+          "Class": "",
+          "Style": ""
+        },
+        {
+          "Type": "FileSelector",
+          "Text": "Project Directory:",
+          "ID": "rootDirectory",
+          "LabelPosition": "Above",
+          "Help": "The directory that will be used for the HISE project assets. It will create subfolders for scripts, images, etc.\n\n> It's highly recommended to use a version control system like Git for the HISE project folder in order to track changes during your development",
+          "Directory": true,
+          "Wildcard": "",
+          "SaveFile": false,
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "InitValue": "",
+          "UseInitValue": "",
+          "Class": "",
+          "Style": "",
+          "Required": true,
+          "NoLabel": ""
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "Alternatively, you can just open the HISE playground where you can browse different example snippets and load them in a sandboxed environment with example assets.",
+          "ID": "",
+          "Class": "",
+          "Style": ""
+        },
+        {
+          "Type": "Button",
+          "Text": "Open HISE Playground",
+          "ID": "openPlayground",
+          "Enabled": true,
+          "Code": "Console.print(value);",
+          "InitValue": "",
+          "UseInitValue": false,
+          "Class": "",
+          "Style": "",
+          "NoLabel": false,
+          "Help": "",
+          "Required": false,
+          "ButtonType": "",
+          "Icon": "",
+          "Trigger": false,
+          "UseOnValue": false
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": "20",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Now please specify whether you want to start with a blank project, or start out with a template / import a project",
+          "Padding": 0
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "Button",
+                  "Text": "Empty Project",
+                  "ID": "projectType",
+                  "LabelPosition": "Default",
+                  "IconData": "",
+                  "Help": "Create a empty folder",
+                  "Required": false,
+                  "ButtonType": "",
+                  "Trigger": false,
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": ".empty-project",
+                  "Style": "",
+                  "NoLabel": false,
+                  "Icon": "",
+                  "UseOnValue": false
+                },
+                {
+                  "Type": "SimpleText",
+                  "Text": "Empty Project",
+                  "ID": "",
+                  "Class": "",
+                  "Style": ""
+                }
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false,
+              "Class": ".button-outline",
+              "UseChildState": false,
+              "Style": ""
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "Button",
+                  "Text": "Import from HXI",
+                  "ID": "projectType",
+                  "LabelPosition": "Default",
+                  "IconData": "",
+                  "Help": "Import a HISE project from a HXI file.\n\n> A HXI file is a compressed file format which contains all data for a given expansion and can be extracted back into a HISE project for editing / modifying.",
+                  "Required": false,
+                  "ButtonType": "",
+                  "Trigger": false,
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": ".import-hxi",
+                  "Style": "",
+                  "NoLabel": false,
+                  "Icon": "",
+                  "UseOnValue": false
+                },
+                {
+                  "Type": "SimpleText",
+                  "Text": "Import from HXI",
+                  "ID": "",
+                  "Class": "",
+                  "Style": ""
+                }
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false,
+              "Class": ".button-outline"
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "Button",
+                  "Text": "Download Rhapsody template",
+                  "ID": "projectType",
+                  "LabelPosition": "Default",
+                  "IconData": "",
+                  "Help": "Downloads the RHAPSODY Player expansion template that gives you a head start if you want to develop a RHAPSODY Player plugin",
+                  "Required": false,
+                  "ButtonType": "",
+                  "Trigger": false,
+                  "Enabled": true,
+                  "Code": "Console.print(value);",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "Class": ".rhapsody",
+                  "Style": "",
+                  "NoLabel": false,
+                  "Icon": "",
+                  "UseOnValue": false
+                },
+                {
+                  "Type": "SimpleText",
+                  "Text": "Rhapsody Template",
+                  "ID": "",
+                  "Class": "",
+                  "Style": ""
+                }
+              ],
+              "ID": "",
+              "Foldable": false,
+              "Folded": false,
+              "Class": ".button-outline",
+              "UseChildState": false,
+              "Style": ""
+            }
+          ],
+          "ID": "",
+          "Style": "gap:0px;",
+          "Class": "",
+          "UseChildState": false
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "Branch",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "Skip",
+                  "Text": "LabelText"
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "### Import HXI File\n\nPlease select the HXI file that you want to import.\n\n> The HXI file must be encoded with the dummy password `1234` in order to be imported into HISE!",
+                  "Padding": 0
+                },
+                {
+                  "Type": "FileSelector",
+                  "Text": "HXI File",
+                  "ID": "hxiDirectory",
+                  "LabelPosition": "Above",
+                  "Help": "",
+                  "Directory": false,
+                  "Wildcard": "",
+                  "SaveFile": false,
+                  "Enabled": true
+                },
+                {
+                  "Type": "LambdaTask",
+                  "Text": "Progress",
+                  "ID": "hxiImportTask",
+                  "CallOnNext": true,
+                  "LabelPosition": "Above",
+                  "Function": "NewProjectWizard::importHXIFile"
+                }
+              ],
+              "ID": "",
+              "Padding": "30",
+              "Foldable": false,
+              "Folded": false
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "### Rhapsody Player template\n\nThe template is being downloaded from the server location and extracted",
+                  "Padding": 0
+                },
+                {
+                  "Type": "DownloadTask",
+                  "Text": "Download Template",
+                  "ID": "downloadHXI",
+                  "CallOnNext": false,
+                  "LabelPosition": "Above",
+                  "Source": "https://docs.hise.audio/info.hxi",
+                  "Target": "$rootDirectory/info.hxi",
+                  "ExtraHeaders": "",
+                  "UsePost": false
+                },
+                {
+                  "Type": "LambdaTask",
+                  "Text": "Extract Template",
+                  "ID": "extractTemplateTask",
+                  "CallOnNext": false,
+                  "LabelPosition": "Above",
+                  "Function": "NewProjectWizard::importHXIFile"
+                }
+              ],
+              "ID": "",
+              "Padding": "30",
+              "Foldable": false,
+              "Folded": false
+            }
+          ],
+          "ID": "projectType"
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Press finish in order to close that wizard and enjoy your new project!",
+          "Padding": 0
+        },
+        {
+          "Type": "Launch",
+          "Text": "https://forum.hise.dev",
+          "ID": "openHiseForum",
+          "CallOnNext": true
+        },
+        {
+          "Type": "Button",
+          "Text": "Goto HISE Forum",
+          "ID": "openHiseForum",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Opens a webbrowser and goes to the HISE forum where you can start hammering your questions into the keyboard!",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        }
+      ]
+    }
+  ],
+  "Assets": []
+}

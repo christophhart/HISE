@@ -39,7 +39,7 @@ class CurveEq;
 
 class FilterDragOverlay : public Component,
 	public SettableTooltipClient,
-	public SafeChangeListener,
+	public Processor::OtherListener,
 	public Timer
 {
 public:
@@ -118,7 +118,13 @@ public:
 	FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ = false);
 	virtual ~FilterDragOverlay();
 
-	void changeListenerCallback(SafeChangeBroadcaster *b) override;
+	void otherChange(Processor* p) override
+	{
+		checkEnabledBands();
+		updateFilters();
+		updatePositions(true);
+	}
+
 	void checkEnabledBands();
 
 	void timerCallback() override;

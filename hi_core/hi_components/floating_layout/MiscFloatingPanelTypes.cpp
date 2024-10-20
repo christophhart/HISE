@@ -342,96 +342,6 @@ void VisibilityToggleBar::Icon::buttonClicked(Button*)
 	refreshColour();
 }
 
-PopoutButtonPanel::PopoutButtonPanel(FloatingTile* p):
-	FloatingTileContent(p)
-{
-	addAndMakeVisible(button = new TextButton("Unused"));
-	button->addListener(this);
-	button->setLookAndFeel(&blaf);
-		
-	button->setColour(TextButton::ColourIds::textColourOffId, Colours::white);
-	button->setColour(TextButton::ColourIds::textColourOnId, Colours::white);
-}
-
-PopoutButtonPanel::~PopoutButtonPanel()
-{
-	button = nullptr;
-}
-
-void PopoutButtonPanel::buttonClicked(Button* /*b*/)
-{
-	ScopedPointer<FloatingTile> popout = new FloatingTile(getMainController(), nullptr, popoutData);
-
-	popout->setSize(width, height);
-
-	popout->setName(popout->getLayoutData().getID().toString());
-
-	auto p = Point<int>(button->getLocalBounds().getCentreX(), button->getLocalBounds().getBottom());
-
-	getParentShell()->showComponentInRootPopup(popout.release(), button, p);
-}
-
-void PopoutButtonPanel::resized()
-{
-	button->setBounds(getParentShell()->getContentBounds());
-}
-
-var PopoutButtonPanel::toDynamicObject() const
-{
-	var obj = FloatingTileContent::toDynamicObject();
-
-	storePropertyInObject(obj, SpecialPanelIds::Text, button->getButtonText());
-	storePropertyInObject(obj, SpecialPanelIds::PopoutData, popoutData);
-	storePropertyInObject(obj, SpecialPanelIds::Width, width);
-	storePropertyInObject(obj, SpecialPanelIds::Height, height);
-		
-	return obj;
-}
-
-void PopoutButtonPanel::fromDynamicObject(const var& object)
-{
-	FloatingTileContent::fromDynamicObject(object);
-
-	button->setButtonText(getPropertyWithDefault(object, SpecialPanelIds::Text));
-
-	popoutData = getPropertyWithDefault(object, SpecialPanelIds::PopoutData);
-	width = getPropertyWithDefault(object, SpecialPanelIds::Width);
-	height = getPropertyWithDefault(object, SpecialPanelIds::Height);
-}
-
-int PopoutButtonPanel::getNumDefaultableProperties() const
-{
-	return SpecialPanelIds::numSpecialPanelIds;
-}
-
-Identifier PopoutButtonPanel::getDefaultablePropertyId(int index) const
-{
-	if (index < (int)PanelPropertyId::numPropertyIds)
-		return FloatingTileContent::getDefaultablePropertyId(index);
-
-	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Text, "ButtonText");
-	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Width, "Width");
-	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Height, "Height");
-	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::PopoutData, "PopoutData");
-
-	jassertfalse;
-	return{};
-}
-
-var PopoutButtonPanel::getDefaultProperty(int index) const
-{
-	if (index < (int)PanelPropertyId::numPropertyIds)
-		return FloatingTileContent::getDefaultProperty(index);
-
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Text, var("Popout Button"));
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Width, var(300));
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Height, var(300));
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::PopoutData, var());
-
-	jassertfalse;
-	return{};
-}
-
 
 InterfaceContentPanel::InterfaceContentPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
@@ -542,6 +452,12 @@ void InterfaceContentPanel::scaleFactorChanged(float /*newScaleFactor*/)
 	updateSize();
 }
 
+void InterfaceContentPanel::processorDeleted(Processor* deletedProcessor)
+{
+	if (FullInstrumentExpansion::isEnabled(getMainController()))
+		content = nullptr;
+}
+
 bool InterfaceContentPanel::connectToScript()
 {
 	if (content != nullptr)
@@ -549,6 +465,9 @@ bool InterfaceContentPanel::connectToScript()
 
 	if (auto jsp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(getMainController()))
 	{
+		if (FullInstrumentExpansion::isEnabled(getMainController()))
+			jsp->addDeleteListener(this);
+
 		addAndMakeVisible(content = new ScriptContentComponent(jsp));
 		connectedProcessor = jsp;
 		
@@ -557,7 +476,10 @@ bool InterfaceContentPanel::connectToScript()
 			refreshButton->setVisible(false);
 		}
 
-		updateSize();
+		jsp->getScriptingContent()->interfaceSizeBroadcaster.addListener(*this, [](InterfaceContentPanel& ip, int, int)
+		{
+			ip.updateSize();
+		});
 
 		repaint();
 
@@ -633,10 +555,17 @@ void ComplexDataEditorPanel::fillIndexList(StringArray& indexList)
 
 Component* PlotterPanel::createContentComponent(int)
 {
-	auto p = new Plotter();
+	auto p = new Plotter(getMainController()->getGlobalUIUpdater());
 	if (auto mod = dynamic_cast<Modulation*>(getConnectedProcessor()))
 	{
 		mod->setPlotter(p);
+
+		p->setColour(Plotter::backgroundColour , findPanelColour(PanelColourId::bgColour));
+		p->setColour(Plotter::pathColour , findPanelColour(PanelColourId::itemColour1));
+		p->setColour(Plotter::pathColour2, findPanelColour(PanelColourId::itemColour2));
+		p->setColour(Plotter::outlineColour , findPanelColour(PanelColourId::itemColour3));
+		p->setColour(Plotter::textColour, findPanelColour(PanelColourId::textColour));
+		p->setFont(getFont());
 	}
 
 	return p;

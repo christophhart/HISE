@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ContentProperties DeviceType="Desktop">
+  <Component type="ScriptMultipageDialog" id="MultipageDialog1" x="0.0" y="0.0"
+             width="800.0" height="700.0" DialogWidth="800.0" DialogHeight="700.0"
+             text="Export Setup Wizard" Font="Lato" FontSize="18"/>
+</ContentProperties>

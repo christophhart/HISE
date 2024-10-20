@@ -84,6 +84,7 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
 	ids.add(ExtraDefinitionsOSX);
 	ids.add(ExtraDefinitionsIOS);
     ids.add(ExtraDefinitionsLinux);
+	ids.add(ExtraDefinitionsNetworkDll);
 	ids.add(AppGroupID);
 	ids.add(RedirectSampleFolder);
 	ids.add(AAXCategoryFX);
@@ -106,6 +107,9 @@ Array<juce::Identifier> HiseSettings::Project::getAllIds()
     ids.add(UseGlobalAppDataFolderWindows);
     ids.add(UseGlobalAppDataFolderMacOS);
 	ids.add(DefaultUserPreset);
+	ids.add(CompileWithPerfetto);
+	ids.add(CompileWithDebugSymbols);
+	ids.add(IncludeLorisInFrontend);
 
 	return ids;
 }
@@ -124,6 +128,7 @@ Array<juce::Identifier> HiseSettings::Compiler::getAllIds()
 	ids.add(FaustPath);
     ids.add(FaustExternalEditor);
     ids.add(EnableLoris);
+	ids.add(DefaultProjectFolder);
 
 	return ids;
 }
@@ -181,6 +186,8 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 	ids.add(ExternalEditorPath);
     ids.add(AutoShowWorkspace);
 	ids.add(EnableShaderLineNumbers);
+	ids.add(ShowWelcomeScreen);
+	ids.add(GlobalHiseScaleFactor);
 
 	return ids;
 }
@@ -268,6 +275,16 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("the compiler will crash with an **out of heap space** error, so in this case you're better off not embedding them.");
 		P_();
 
+		P(HiseSettings::Project::CompileWithPerfetto);
+		D("If enabled, the project will be compiled with the Perfetto Tracing SDK.");
+		D("> This allows you to profile & track down issues and performance hotspots, during development or troubleshooting.");
+		P_();
+
+		P(HiseSettings::Project::CompileWithDebugSymbols);
+		D("If enabled, the project will be compiled with the debug symbols for better trouble shooting.");
+		D("> With this setting, the crash reports will contain valid source code locations which might be helpful for debugging crashes, but you obviously have to turn this off for a production release!.");
+		P_();
+
 		P(HiseSettings::Project::EmbedImageFiles);
 		D("If this is **enabled**, it will embed all audio files (impulse responses & loops) into the plugin.");
 		D("If it's **disabled**, it will use the resource files found in the app data directory and you need to make sure that your installer");
@@ -334,6 +351,16 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("```\n");
 		P_();
 
+		P(HiseSettings::Project::ExtraDefinitionsIOS);
+		D("This field can be used to add preprocessor definitions to the compiled network DLL. Use it to tailor the compile options for HISE for the project.");
+		D("#### Examples");
+		D("```javascript");
+		D("ENABLE_ALL_PEAK_METERS=0");
+		D("NUM_POLYPHONIC_VOICES=100");
+		D("```\n");
+		D("> Be aware that these fields are only added to the compiled network DLL. If you want to add them to the exported project, add every property to the other extra definitions.");
+		P_();
+
 		P(HiseSettings::Project::EmbedUserPresets);
 		D("If disabled, the user presets will not be part of the binary and are not extracted automatically on first plugin launch");
 		D("> This is useful if you're running your own preset management or the user preset collection gets too big to be embedded in the plugin");
@@ -372,6 +399,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("If you do not enable this, the expansion list in a compiled project will be empty unless you manually copy the Expansion folder from the project folder to the app data folder.");
 		D("> Be aware that this will only work on the development machine and has nothing to do with proper distribution of the expansions to the end user");
 		D("Be aware that this is a system-specific setting so if you load a project from another machine, make sure to tick / untick this box in order to create the expansion folder on this machine");
+		P_();
+
+		P(HiseSettings::Project::IncludeLorisInFrontend);
+		D("If enabled, this will include the Loris library in the compiled plugin.");
+		D("> Be aware that the Loris library is licensed under the GPL license, so you must not enable this flag in a proprietary project!");
 		P_();
 
 		P(HiseSettings::Project::RedirectSampleFolder);
@@ -499,6 +531,10 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("This is the path to the directory where the additional nodes are stored. If you want to use this feature, recompile HISE with the HI_ENABLE_CUSTOM_NODES flag.");
 		P_();
 
+		P(HiseSettings::Compiler::DefaultProjectFolder);
+		D("This folder will be selected as default root folder when loading or creating new projects.  \n> You can set it to the root folder of all your HISE work and it will speed up loading / creating new projects");
+		P_();
+
 		P(HiseSettings::Compiler::UseIPP);
 		D("If enabled, HISE uses the FFT routines from the Intel Performance Primitive library (which can be downloaded for free) in order ");
 		D("to speed up the convolution reverb");
@@ -509,6 +545,12 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("Set the path to your Faust installation here. ");
 		D("It will be used to look up the standard faust libraries on platforms which don't have a default path. ");
 		D("There should be at least the following directories inside: \"share\", \"lib\", \"include\"");
+		P_();
+
+		P(HiseSettings::Compiler::ExportSetup);
+		D("If this is ticked the system is ready for export.  ");
+		D("Starting with HISE 4.0.1 this will be deactivated by default until the export setup wizard has been executed once.");
+		D("> Nobody prevents you from ticking the box here in order to bypass the export wizard...");
 		P_();
 
         P(HiseSettings::Compiler::FaustExternalEditor);
@@ -525,8 +567,10 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("If enabled, then all SSE instructions are replaced by their native implementation. This can be used to compile a version that runs on legacy CPU models."); 
 		P_();
 
-        
-        
+        P(HiseSettings::Other::ShowWelcomeScreen);
+		D("If enabled, then HISE will show a welcome screen at startup."); 
+		P_();
+
 		P(HiseSettings::Compiler::RebuildPoolFiles);
 		D("If enabled, the pool files for SampleMaps, AudioFiles and Images are deleted and rebuild everytime you export a plugin.");
 		D("You can turn this off in order to speed up compilation times, however be aware that in this case you need to delete them manually");
@@ -630,6 +674,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 
 		P(HiseSettings::Other::AutosaveInterval);
 		D("The interval for the autosaver in minutes. This must be a number between `1` and `30`.");
+		P_();
+
+		P(HiseSettings::Other::GlobalHiseScaleFactor);
+		D("This changes the global scale factor for all UI elements in HISE. Beware that this might result in a few glitches under certain conditions so if you experience some UI funkiness, revert it back to 100%.");
+	    D("> Note that this setting cannot be used in combination with the OpenGL renderer.");
 		P_();
 
         P(HiseSettings::Other::AutoShowWorkspace);
@@ -892,6 +941,7 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Compiler::RebuildPoolFiles ||
 		id == Compiler::Support32BitMacOS ||
         id == Compiler::FaustExternalEditor ||
+		id == Compiler::ExportSetup ||
 		id == Project::SupportMonoFX ||
 		id == Project::EnableMidiInputFX ||
         id == Project::EnableMidiOut ||
@@ -906,16 +956,26 @@ juce::StringArray HiseSettings::Data::getOptionsFor(const Identifier& id)
 		id == Project::EnableGlobalPreprocessor ||
         id == Project::UseGlobalAppDataFolderWindows ||
         id == Project::UseGlobalAppDataFolderMacOS ||
+		id == Project::CompileWithPerfetto ||
+		id == Project::CompileWithDebugSymbols ||
+		id == Project::IncludeLorisInFrontend ||
 		id == Documentation::RefreshOnStartup ||
 		id == SnexWorkbench::PlayOnRecompile ||
 		id == SnexWorkbench::AddFade ||
+		id == Other::ShowWelcomeScreen ||
 		id == Scripting::SaveConnectedFilesOnCompile ||
         id == Scripting::WarnIfUndefinedParameters ||
 		id == Scripting::EnableMousePositioning)
+
 	    return { "Yes", "No" };
 
 	if (id == Compiler::VisualStudioVersion)
 		return { "Visual Studio 2017", "Visual Studio 2022" };
+
+	if(id == Other::GlobalHiseScaleFactor)
+	{
+		return { "75%", "85%", "100%", "125%", "150%" };
+	}
 
 	if (id == Project::ExpansionType)
 	{
@@ -1029,6 +1089,7 @@ bool HiseSettings::Data::isFileId(const Identifier& id)
 		   id == Project::RedirectSampleFolder ||
 		   id == Compiler::CustomNodePath ||
 		   id == Compiler::FaustPath ||
+		   id == Compiler::DefaultProjectFolder || 
 		   id == Other::GlobalSamplePath ||
 		   id == Other::ExternalEditorPath ||
 		   id == Documentation::DocRepository;
@@ -1120,17 +1181,23 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 		else if (id == Project::AdminPermissions) return "No";
 	else if (id == Project::VST3Support)			return "No";
 	else if (id == Project::UseRawFrontend)			return "No";
+	else if (id == Project::CompileWithPerfetto)	return "No";
+	else if (id == Compiler::ExportSetup)			return "No";
+	else if (id == Project::CompileWithDebugSymbols) return "No";
 	else if (id == Project::ExpansionType)			return "Disabled";
 	else if (id == Project::LinkExpansionsToProject)       return "No";
 	else if (id == Project::EnableGlobalPreprocessor)      return "No";
     else if (id == Project::UseGlobalAppDataFolderWindows) return "No";
     else if (id == Project::UseGlobalAppDataFolderMacOS)   return "No";
+	else if (id == Project::IncludeLorisInFrontend) return "No"; // return "Yes"; everybody straight to jail...
 	else if (id == Other::UseOpenGL)				return "No";
 	else if (id == Other::EnableAutosave)			return "Yes";
 	else if (id == Other::AutosaveInterval)			return 5;
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
     else if (id == Other::AutoShowWorkspace)        return "Yes";
 	else if (id == Other::ExternalEditorPath)		return "";
+	else if (id == Other::ShowWelcomeScreen)	    return "Yes";
+	else if (id == Other::GlobalHiseScaleFactor)    return "100%";
 	else if (id == Documentation::DocRepository)	return "";
 	else if (id == Documentation::RefreshOnStartup) return "Yes";
 	else if (id == Scripting::CodeFontSize)			return 17.0;
@@ -1147,6 +1214,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Compiler::UseIPP)				return "Yes";
 	else if (id == Compiler::LegacyCPUSupport) 		return "No";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
+	else if (id == Compiler::DefaultProjectFolder)  return File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getChildFile("HISE Projects").getFullPathName();
 	else if (id == Compiler::Support32BitMacOS)		return "Yes";
     else if (id == Compiler::FaustExternalEditor)   return "No";
     else if (id == Compiler::EnableLoris)           return "No";
@@ -1291,6 +1359,14 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		mc->getAutoSaver().updateAutosaving();
 	else if (id == Other::AudioThreadGuardEnabled)
 		mc->getKillStateHandler().enableAudioThreadGuard(newValue);
+	else if (id == Other::GlobalHiseScaleFactor)
+	{
+		auto v = (double)newValue.toString().getIntValue() / 100.0;
+
+		if(v >= 0.75 && v <= 1.5)
+			Desktop::getInstance().setGlobalScaleFactor(v);
+	}
+		
 	else if (id == Scripting::EnableOptimizations)
 		mc->compileAllScripts();
 	else if (id == Scripting::EnableDebugMode)
@@ -1334,8 +1410,11 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 				auto& original = config.outputChannels;
 
 				original.clear();
-				original.setBit(outputIndex * 2, 1);
-				original.setBit(outputIndex * 2 + 1, 1);
+                
+                for(int i = 0; i < HISE_NUM_STANDALONE_OUTPUTS; i++)
+                {
+                    original.setBit(outputIndex * 2 + i, 1);
+                }
 
 				config.useDefaultOutputChannels = false;
 

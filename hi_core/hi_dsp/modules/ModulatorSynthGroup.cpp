@@ -66,7 +66,7 @@ bool ModulatorSynthGroupVoice::canPlaySound(SynthesiserSound *)
 
 void ModulatorSynthGroupVoice::addChildSynth(ModulatorSynth *childSynth)
 {
-	LockHelpers::SafeLock sl(ownerSynth->getMainController(), LockHelpers::AudioLock);
+	LockHelpers::SafeLock sl(ownerSynth->getMainController(), LockHelpers::Type::AudioLock);
 
 	childSynths.add(ChildSynth(childSynth));
 }
@@ -76,7 +76,7 @@ void ModulatorSynthGroupVoice::removeChildSynth(ModulatorSynth *childSynth)
 {
 	LOCK_PROCESSING_CHAIN(ownerSynth);
 
-	//LockHelpers::SafeLock sl(ownerSynth->getMainController(), LockHelpers::AudioLock, getOwnerSynth()->isOnAir());
+	//LockHelpers::SafeLock sl(ownerSynth->getMainController(), LockHelpers::Type::AudioLock, getOwnerSynth()->isOnAir());
 
 	jassert(childSynth != nullptr);
 	jassert(childSynths.indexOf(childSynth) != -1);
@@ -259,7 +259,9 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 		calculateNoFMBlock(startSample, numSamples);
 	}
 
+#if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
+#endif
 
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
@@ -273,6 +275,10 @@ void ModulatorSynthGroupVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startSample), constantGain, numSamples);
 		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startSample), constantGain, numSamples);
 	}
+
+#if !HISE_USE_WRONG_VOICE_RENDERING_ORDER
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startSample, numSamples);
+#endif
 };
 
 
@@ -765,7 +771,7 @@ void ModulatorSynthGroupVoice::checkRelease()
 	ModulatorChain *ownerGainChain = static_cast<ModulatorChain*>(ownerSynth->getChildProcessor(ModulatorSynth::GainModulation));
 	//ModulatorChain *ownerPitchChain = static_cast<ModulatorChain*>(ownerSynth->getChildProcessor(ModulatorSynth::PitchModulation));
 
-	if (killThisVoice && (killFadeLevel < 0.001f))
+	if (killThisVoice && FloatSanitizers::isSilence(killFadeLevel))
 	{
 		resetVoice();
 	}
@@ -858,6 +864,8 @@ ModulatorSynthGroup::ModulatorSynthGroup(MainController *mc, const String &id, i
 	parameterNames.add("UnisonoSpread");
 	parameterNames.add("ForceMono");
 	parameterNames.add("KillSecondVoices");
+
+	updateParameterSlots();
 
 	allowStates.clear();
 
@@ -1438,7 +1446,7 @@ void ModulatorSynthGroup::checkFmState()
 		MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 }
 
 
@@ -1446,7 +1454,7 @@ void ModulatorSynthGroup::checkFmState()
 void ModulatorSynthGroup::checkFMStateInternally()
 {
 	LockHelpers::freeToGo(getMainController());
-	LockHelpers::SafeLock l(getMainController(), LockHelpers::AudioLock, isOnAir());
+	LockHelpers::SafeLock l(getMainController(), LockHelpers::Type::AudioLock, isOnAir());
 
 	auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
 
@@ -1485,6 +1493,15 @@ void ModulatorSynthGroup::checkFMStateInternally()
 void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcessor, Processor * /*siblingToInsertBefore*/)
 {
 	ModulatorSynth *m = dynamic_cast<ModulatorSynth*>(newProcessor);
+
+	if(getNumProcessors() >= 8)
+	{
+		debugError(m, "Can't add sound generator to synth group - exceeded max number of child synths (8).");
+
+		// usually this will be owned by the group but since this is an error
+		// we'll live with the memory leak of the processor...
+		return;
+	}
 
 	// Check incompatibilites with SynthGroups
 
@@ -1543,7 +1560,7 @@ void ModulatorSynthGroup::ModulatorSynthGroupHandler::add(Processor *newProcesso
 		group->checkFmState();
 	}
 
-	group->sendChangeMessage();
+	group->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 	notifyListeners(Listener::ProcessorAdded, newProcessor);
 }

@@ -175,16 +175,12 @@ ReadWriteLock& VarRegister::getLock(int index)
 ApiClass::ApiClass(int numConstants_) :
 numConstants(numConstants_)
 {
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
+	for(auto& flist: functions)
 	{
-		functions0[i] = nullptr;
-		functions1[i] = nullptr;
-		functions2[i] = nullptr;
-		functions3[i] = nullptr;
-		functions4[i] = nullptr;
-		functions5[i] = nullptr;
+		for(auto& f: flist)
+			f = nullptr;
 	}
-
+	
 	if (numConstants > 8)
 	{
 		constantBigStorage = Array<Constant>();
@@ -212,16 +208,11 @@ numConstants(numConstants_)
 
 ApiClass::~ApiClass()
 {
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
+	for(auto& flist: functions)
 	{
-		functions0[i] = nullptr;
-		functions1[i] = nullptr;
-		functions2[i] = nullptr;
-		functions3[i] = nullptr;
-		functions4[i] = nullptr;
-		functions5[i] = nullptr;
+		for(auto& f: flist)
+			f = nullptr;
 	}
-
 	
 	for (int i = 0; i < numConstants; i++)
 	{
@@ -275,137 +266,56 @@ Identifier ApiClass::getConstantName(int index) const
 
 void ApiClass::addFunction(const Identifier &id, call0 newFunction)
 {
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
-	{
-		if (functions0[i] == nullptr)
-		{
-			functions0[i] = newFunction;
-			id0[i] = id;
-			return;
-		}
-	}
-
-	jassertfalse;
+	addFunctionT<0>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction1(const Identifier &id, call1 newFunction)
 {
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
-	{
-		if (functions1[i] == nullptr)
-		{
-			functions1[i] = newFunction;
-			id1[i] = id;
-			return;
-		}
-	}
-
-	jassertfalse;
+	addFunctionT<1>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction2(const Identifier &id, call2 newFunction)
 {
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
-	{
-		if (functions2[i] == nullptr)
-		{
-			functions2[i] = newFunction;
-			id2[i] = id;
-			return;
-		}
-	}
-
-	jassertfalse;
+	addFunctionT<2>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction3(const Identifier &id, call3 newFunction)
 {
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
-	{
-		if (functions3[i] == nullptr)
-		{
-			functions3[i] = newFunction;
-			id3[i] = id;
-			return;
-		}
-	}
-
-	jassertfalse;
+	addFunctionT<3>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction4(const Identifier &id, call4 newFunction)
 {
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
-	{
-		if (functions4[i] == nullptr)
-		{
-			functions4[i] = newFunction;
-			id4[i] = id;
-			return;
-		}
-	}
-
-	jassertfalse;
+	addFunctionT<4>(id, reinterpret_cast<void*>(newFunction));
 }
 
 void ApiClass::addFunction5(const Identifier &id, call5 newFunction)
 {
-	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
-	{
-		if (functions5[i] == nullptr)
-		{
-			functions5[i] = newFunction;
-			id5[i] = id;
-			return;
-		}
-	}
-
-	jassertfalse;
+	addFunctionT<5>(id, reinterpret_cast<void*>(newFunction));
 }
 
-void ApiClass::getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const
+bool ApiClass::getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const
 {
 	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
 	{
-		if (id0[i] == id)
+		int thisIndex = 0;
+
+		for(auto& idList: ids)
 		{
-			index = i;
-			numArgs = 0;
-			return;
-		}
-		else if (id1[i] == id)
-		{
-			index = i;
-			numArgs = 1;
-			return;
-		}
-		else if (id2[i] == id)
-		{
-			index = i;
-			numArgs = 2;
-			return;
-		}
-		else if (id3[i] == id)
-		{
-			index = i;
-			numArgs = 3;
-			return;
-		}
-		else if (id4[i] == id)
-		{
-			index = i;
-			numArgs = 4;
-			return;
-		}
-		else if (id5[i] == id)
-		{
-			index = i;
-			numArgs = 5;
-			return;
+			if(idList[i] == id)
+			{
+				index = i;
+				numArgs = thisIndex;
+				return true;
+			}
+
+			thisIndex++;
 		}
 	}
+
 	index = -1;
 	numArgs = -1;
+	return false;
 }
 
 var ApiClass::callFunction(int index, var *args, int numArgs)
@@ -417,34 +327,33 @@ var ApiClass::callFunction(int index, var *args, int numArgs)
 
 	switch (numArgs)
 	{
-	case 0: { auto f = functions0[index]; return f(this); }
-	case 1: { auto f = functions1[index]; return f(this, args[0]); }
-	case 2: { auto f = functions2[index]; return f(this, args[0], args[1]); }
-	case 3: { auto f = functions3[index]; return f(this, args[0], args[1], args[2]); }
-	case 4: { auto f = functions4[index]; return f(this, args[0], args[1], args[2], args[3]); }
-	case 5: { auto f = functions5[index]; return f(this, args[0], args[1], args[2], args[3], args[4]); }
+	case 0: { auto f = reinterpret_cast<call0>(functions[numArgs][index]); return f(this); }
+	case 1: { auto f = reinterpret_cast<call1>(functions[numArgs][index]); return f(this, args[0]); }
+	case 2: { auto f = reinterpret_cast<call2>(functions[numArgs][index]); return f(this, args[0], args[1]); }
+	case 3: { auto f = reinterpret_cast<call3>(functions[numArgs][index]); return f(this, args[0], args[1], args[2]); }
+	case 4: { auto f = reinterpret_cast<call4>(functions[numArgs][index]); return f(this, args[0], args[1], args[2], args[3]); }
+	case 5: { auto f = reinterpret_cast<call5>(functions[numArgs][index]); return f(this, args[0], args[1], args[2], args[3], args[4]); }
 	}
 
 	return var();
 }
 
-void ApiClass::getAllFunctionNames(Array<Identifier> &ids) const
+void ApiClass::getAllFunctionNames(Array<Identifier> &listToFill) const
 {
-	ids.ensureStorageAllocated(NUM_API_FUNCTION_SLOTS * 5);
+	listToFill.ensureStorageAllocated(NUM_API_FUNCTION_SLOTS * NumMaxArguments);
 
 	for (int i = 0; i < NUM_API_FUNCTION_SLOTS; i++)
 	{
-		if (!id0[i].isNull()) ids.add(id0[i]);
-		if (!id1[i].isNull()) ids.add(id1[i]);
-		if (!id2[i].isNull()) ids.add(id2[i]);
-		if (!id3[i].isNull()) ids.add(id3[i]);
-		if (!id4[i].isNull()) ids.add(id4[i]);
-		if (!id5[i].isNull()) ids.add(id5[i]);
+		for(auto& idList: ids)
+		{
+			if(idList[i].isNull())
+				listToFill.add(idList[i]);
+		}
 	}
 
 	IdentifierComparator idComp;
 
-	ids.sort(idComp);
+	listToFill.sort(idComp);
 }
 
 void ApiClass::getAllConstants(Array<Identifier> &ids) const

@@ -41,7 +41,9 @@ void MarkdownParser::parse()
 	{
 		containsLinks = false;
 
-		if (it.getRestString().startsWith("---"))
+		auto rs = it.getRestString();
+
+		if (rs.startsWith("---"))
 		{
 			parseMarkdownHeader();
 		}
@@ -102,14 +104,9 @@ void MarkdownParser::parseHeadline()
 		headlineLevel++;
 	}
 
-	headlineLevel = jmin(4, headlineLevel);
+	headlineLevel = jlimit(1, 4, headlineLevel);
 
-	auto level = Headline::getSizeLevelForHeadline(headlineLevel);
-
-	auto fontSize = styleData.fontSize * 3.0f / 2.0f + (float)(7 * level);
-
-	if (headlineLevel == 4)
-		fontSize = 1.2f * styleData.fontSize;
+	auto fontSize = styleData.fontSize *  styleData.headlineFontSize[headlineLevel - 1];
 
 	currentFont = styleData.getBoldFont().withHeight(fontSize);
 
@@ -424,6 +421,12 @@ void MarkdownParser::parseText(bool stopAtEndOfLine)
 void MarkdownParser::parseBlock()
 {
 	juce_wchar c = it.peek();
+
+	if(c == '_' || c == '*' || c == '-')
+	{
+		if(parseHorizontalRuler())
+			return;
+	}
 
 	switch (c)
 	{
@@ -882,8 +885,18 @@ void MarkdownParser::parseMarkdownHeader()
 
 }
 
+bool MarkdownParser::parseHorizontalRuler()
+{
+	auto l = it.getRestString(3);
 
+	if(l == "---" || l == "___" || l == "***")
+	{
+		it.advanceLine();
+		elements.add(new MarkdownParser::HorizontalRuler(this, it.getLineNumber()));
+		return true;
+	}
 
-
+	return false;
+}
 }
 

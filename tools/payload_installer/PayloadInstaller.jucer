@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<JUCERPROJECT id="L2bkCQ" name="PayloadInstaller" projectType="guiapp" cppLanguageStandard="17"
+              displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
+              version="1.0.0" bundleIdentifier="com.HISE.PayloadInstaller"
+              includeBinaryInAppConfig="1" companyCopyright="" headerPath="D:\Development\HISE modules"
+              jucerFormatVersion="1">
+  <MAINGROUP id="V5l5vh" name="PayloadInstaller">
+    <GROUP id="{AC16B56A-5346-1AB4-D4BD-30CF29DD2DFA}" name="Source">
+      <GROUP id="{AE8C0D3C-F782-7C53-F11E-959CE393BF6B}" name="Source">
+        <FILE id="MOympr" name="Dialog.cpp" compile="1" resource="0" file="Source/Dialog.cpp"/>
+        <FILE id="ilgAKy" name="Dialog.h" compile="0" resource="0" file="Source/Dialog.h"/>
+        <FILE id="EFHAuU" name="icon_macos.png" compile="0" resource="1" file="Source/icon_macos.png"/>
+        <FILE id="VfEEh3" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
+      </GROUP>
+    </GROUP>
+  </MAINGROUP>
+  <EXPORTFORMATS>
+    <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0&#10;PERFETTO=0&#10;USE_BACKEND=1"
+               extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
+               xcodeValidArchs="arm64,x86_64" smallIcon="EFHAuU" bigIcon="EFHAuU"
+               iosDevelopmentTeamID="">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
+                       macOSDeploymentTarget="10.15" osxCompatibility="10.15 SDK" targetName="PayloadInstaller"/>
+        <CONFIGURATION isDebug="0" name="Release" enablePluginBinaryCopyStep="1" osxArchitecture="64BitIntel"
+                       headerPath="" libraryPath="" linkTimeOptimisation="1" optimisation="3"
+                       stripLocalSymbols="1" targetName="PayloadInstaller"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
+      </MODULEPATHS>
+    </XCODE_MAC>
+    <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive-"
+            extraDefs="HI_RUN_UNIT_TESTS=0&#10;USE_BACKEND=1" extraLinkerFlags="/MANIFESTUAC:level='requireAdministrator'"
+            smallIcon="EFHAuU" bigIcon="EFHAuU">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" defines="PERFETTO=0&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1"
+                       targetName="PayloadInstaller" useRuntimeLibDLL="0"/>
+        <CONFIGURATION isDebug="0" name="Release" optimisation="2" linkTimeOptimisation="0"
+                       targetName="PayloadInstaller" useRuntimeLibDLL="0"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_opengl" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE\modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE\modules"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE\modules"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
+      </MODULEPATHS>
+    </VS2022>
+  </EXPORTFORMATS>
+  <MODULES>
+    <MODULE id="hi_dsp_library" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_tools" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="hi_zstd" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_devices" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_formats" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_audio_processors" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_core" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_cryptography" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_data_structures" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_dsp" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_events" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_graphics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+    <MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+  </MODULES>
+  <LIVE_SETTINGS>
+    <WINDOWS/>
+    <OSX/>
+    <LINUX/>
+  </LIVE_SETTINGS>
+  <JUCEOPTIONS JUCE_LOAD_CURL_SYMBOLS_LAZILY="1" HI_EXPORT_DSP_LIBRARY="0" HISE_INCLUDE_RLOTTIE="0"
+               SNEX_STANDALONE_PLAYGROUND="0" HISE_INCLUDE_SNEX="0" HISE_INCLUDE_PERFETTO="0"
+               JUCE_USE_WIN_WEBVIEW2="0" JUCE_ENABLE_LIVE_CONSTANT_EDITOR="0"
+               HISE_INCLUDE_LORIS="0" JUCE_USE_BETTER_MACHINE_IDS="1"/>
+</JUCERPROJECT>

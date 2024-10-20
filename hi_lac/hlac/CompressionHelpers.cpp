@@ -488,7 +488,7 @@ void CompressionHelpers::dump(const AudioBufferInt16& b, String fileName)
 }
 
 
-void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
+void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName, double sampleRate, int bitDepth)
 {
 	WavAudioFormat afm;
     
@@ -498,7 +498,7 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 
 	if (File::isAbsolutePath(fileName))
 	{
-		dumpFile = File(fileName);
+		dumpFile = File(fileName);	
 	}
 	else
 	{
@@ -523,7 +523,7 @@ void CompressionHelpers::dump(const AudioSampleBuffer& b, String fileName)
 
 	FileOutputStream* fis = new FileOutputStream(dumpFile);
 	StringPairArray metadata;
-	ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, 44100, b.getNumChannels(), 16, metadata, 5);
+	ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, sampleRate, b.getNumChannels(), bitDepth, metadata, 5);
 
 	if (writer != nullptr)
 		writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
@@ -735,6 +735,16 @@ void CompressionHelpers::IntVectorOperations::add(int16* dst, const int16* src, 
 	for (int i = 0; i < numSamples; i++)
 	{
 		dst[i] += src[i];
+	}
+}
+
+void CompressionHelpers::IntVectorOperations::addWithGain(int16* dst, const int16* src, int numSamples, float gainFactor)
+{
+	for (int i = 0; i < numSamples; i++)
+	{
+		auto v = static_cast<float>(src[i]);
+		v *= gainFactor;
+		dst[i] += static_cast<int16>(v);
 	}
 }
 
@@ -1195,9 +1205,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		}
 	}
 
-	Array<File> parts;
-
-	sourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, sourceFile.getFileNameWithoutExtension() + ".*");
+    auto parts = getSourceFiles(sourceFile);
+    
 
 	const int numParts = parts.size();
 

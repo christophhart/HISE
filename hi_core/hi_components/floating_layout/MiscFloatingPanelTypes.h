@@ -41,6 +41,7 @@ class InterfaceContentPanel : public FloatingTileContent,
 							  public Component,
 							  public GlobalScriptCompileListener,
 							  public ButtonListener,
+							  public Processor::DeleteListener,
 							  public GlobalSettingManager::ScaleFactorListener,
 							  public ExpansionHandler::Listener,
 							  public MainController::LockFreeDispatcher::PresetLoadListener
@@ -64,6 +65,10 @@ public:
 
 	void scaleFactorChanged(float newScaleFactor) override;
 
+    void processorDeleted(Processor* deletedProcessor) override;
+        
+	void updateChildEditorList(bool forceUpdate) override {};
+
 private:
 
 	bool connectToScript();
@@ -74,68 +79,9 @@ private:
 	ScopedPointer<ScriptContentComponent> content;
 
 	void updateSize();
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(InterfaceContentPanel);
 };
-
-
-
-class PopoutButtonPanel : public Component,
-	public FloatingTileContent,
-	public Button::Listener
-{
-public:
-
-	enum SpecialPanelIds
-	{
-		Text = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
-		Width,
-		Height,
-		PopoutData,
-		numSpecialPanelIds
-	};
-
-	enum ColourIds
-	{
-		backgroundColourId,
-		textColourId,
-		buttonColourId,
-		numColourIds
-	};
-
-	SET_PANEL_NAME("PopupButton");
-
-	PopoutButtonPanel(FloatingTile* p);;
-	~PopoutButtonPanel() override;
-
-	void buttonClicked(Button* b) override;
-	void paint(Graphics& g) override
-	{
-		g.fillAll(Colours::black);
-	}
-
-	bool showTitleInPresentationMode() const override
-	{
-		return false;
-	}
-
-	void resized() override;
-	var toDynamicObject() const override;
-	void fromDynamicObject(const var& object) override;
-	int getNumDefaultableProperties() const override;
-	Identifier getDefaultablePropertyId(int index) const override;
-	var getDefaultProperty(int index) const override;
-
-private:
-
-	var popoutData;
-
-	int width;
-	int height;
-
-	BlackTextButtonLookAndFeel blaf;
-
-	ScopedPointer<TextButton> button;
-};
-
 
 
 
@@ -343,7 +289,11 @@ public:
 	PlotterPanel(FloatingTile* parent):
 		PanelWithProcessorConnection(parent)
 	{
-
+		setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
+		setDefaultPanelColour(PanelColourId::itemColour1, Colour(0x88ffffff));
+		setDefaultPanelColour(PanelColourId::itemColour2, Colour(0x44ffffff));
+		setDefaultPanelColour(PanelColourId::itemColour3, Colours::transparentWhite);
+		setDefaultPanelColour(PanelColourId::textColour, Colours::white);
 	}
 
 	SET_PANEL_NAME("Plotter");
@@ -372,7 +322,7 @@ public:
 	void resized() override;
 	void timerCallback() override;
 
-private:
+protected:
 
 	ScopedPointer<VuMeter> vuMeter;
 	WeakReference<Processor> processor;

@@ -189,6 +189,8 @@ public:
 		setOpaqueDataEditor(addDragger);
 		
 		postInit();
+		auto mc = asWrapperNode()->getScriptProcessor()->getMainController_();
+		mc->connectToRuntimeTargets(obj.getWrappedObject(), true);
 	}
 
 	virtual void postInit()
@@ -250,6 +252,11 @@ public:
 	void postInit() override
 	{
 		Base::postInit();
+	}
+
+	void connectToRuntimeTarget(bool shouldConnect) override
+	{
+		getScriptProcessor()->getMainController_()->connectToRuntimeTargets(obj.getWrappedObject(), shouldConnect);
 	}
 
     template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool UseNodeBaseAsUI> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
@@ -526,6 +533,15 @@ public:
 		}
 	}
 
+	void registerNodeWithLambda(const Identifier& id, const CreateCallback& f)
+    {
+	    Item newItem;
+		newItem.cb = f;
+		newItem.id = id;
+
+		monoNodes.add(newItem);
+    }
+
     template <class T> void registerNodeRaw()
     {
         Item newItem;
@@ -559,7 +575,9 @@ public:
 		void registerPolyNode()
     {
 		// enable this static_assert(std::is_base_of<PolyT, polyphonic_base>(), "not a base of scriptnode::polyphonic_base");
-		// or this jassert(std::is_base_of<PolyT, polyphonic_base>(), "not a base of scriptnode::polyphonic_base");
+		// or this
+		//
+		static_assert(std::is_base_of<polyphonic_base, typename PolyT::WrappedObjectType>(), "not a base of scriptnode::polyphonic_base");
 
         using WrappedPolyT = InterpretedNode;
         using WrappedMonoT = InterpretedNode;

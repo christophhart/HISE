@@ -53,11 +53,7 @@ public:
 	{
 		learnButton->setToggleState(dynamic_cast<ControlModulator*>(getProcessor())->learnModeActive(), dontSendNotification);
 
-		controllerNumberSlider->updateValue();
-		defaultSlider->updateValue();
-		smoothingSlider->updateValue();
-		useTableButton->setToggleState(cm->getAttribute(ControlModulator::UseTable) == 1.0f, dontSendNotification);
-		invertedButton->setToggleState(cm->getAttribute(ControlModulator::Inverted) == 1.0f, dontSendNotification);
+
 	};
 
 	int getBodyHeight() const override
@@ -88,8 +84,8 @@ private:
     //==============================================================================
     ScopedPointer<Label> label;
     ScopedPointer<TableEditor> midiTable;
-    ScopedPointer<ToggleButton> useTableButton;
-    ScopedPointer<ToggleButton> invertedButton;
+    ScopedPointer<HiToggleButton> useTableButton;
+    ScopedPointer<HiToggleButton> invertedButton;
     ScopedPointer<HiSlider> controllerNumberSlider;
     ScopedPointer<HiSlider> smoothingSlider;
     ScopedPointer<ToggleButton> learnButton;

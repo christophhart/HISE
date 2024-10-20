@@ -50,7 +50,7 @@ END_JUCE_MODULE_DECLARATION
 
 #pragma once
 
-#include "AppConfig.h"
+
 
 #include "../hi_tools/hi_tools.h"
 #include "../JUCE/modules/juce_core/juce_core.h"
@@ -205,7 +205,6 @@ Set this to 1 if you want to embed the libraries created with this module into y
 #include "dsp_nodes/EventNodes.h"
 #include "dsp_nodes/EnvelopeNodes.h"
 #include "dsp_nodes/DynamicsNode.h"
-#include "dsp_nodes/DynamicsNode.cpp"
 #include "dsp_nodes/AnalyserNodes.h"
 
 

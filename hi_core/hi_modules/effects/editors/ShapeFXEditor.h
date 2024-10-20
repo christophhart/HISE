@@ -59,18 +59,6 @@ public:
 
 	void updateGui() override
 	{
-		biasLeft->updateValue();
-		biasRight->updateValue();
-		modeSelector->updateValue();
-		highPass->updateValue();
-		gainSlider->updateValue();
-		reduceSlider->updateValue();
-		lowPass->updateValue();
-		mixSlider->updateValue();
-		oversampling->updateValue();
-		autoGain->updateValue();
-		limitButton->updateValue();
-
 		auto m = (ShapeFX::ShapeMode)(int)getProcessor()->getAttribute(ShapeFX::SpecialParameters::Mode);
 
 		table->setVisible(m == ShapeFX::Curve);
@@ -117,6 +105,8 @@ public:
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	int h;
+
+    ProcessorEditorBodyUpdater updater;
 
 #if HI_USE_SHAPE_FX_SCRIPTING
 	ScopedPointer<JavascriptTokeniser> tokeniser;

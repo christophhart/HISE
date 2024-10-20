@@ -48,7 +48,55 @@ void DAWClockController::LAF::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/
     g.drawText(String(v), s.getLocalBounds().toFloat(), Justification::centred);
 }
 
+void DAWClockController::BackendAudioRenderer::handleAsyncUpdate()
+{
+	if(PresetHandler::showYesNoWindow("Write audio file", "Do you want to write the exported audio data to a file"))
+	{
+		FileChooser fc("Select file", File(), "*.wav", true);
 
+		if(fc.browseForFileToSave(true))
+		{
+			auto targetFile = fc.getResult();
+
+			WavAudioFormat afm;
+    
+			targetFile.deleteFile();
+			targetFile.create();
+
+			FileOutputStream* fis = new FileOutputStream(targetFile);
+			StringPairArray metadata;
+			ScopedPointer<AudioFormatWriter> writer = afm.createWriterFor(fis, parent.getMainController()->getMainSynthChain()->getSampleRate(), buffer.getNumChannels(), 16, metadata, 5);
+
+			if (writer != nullptr)
+				writer->writeFromAudioSampleBuffer(buffer, 0, buffer.getNumSamples());
+
+			targetFile.revealToUser();
+		}
+	}
+    
+    parent.exportProgress = -1.0f;
+    parent.repaint();
+}
+
+void DAWClockController::BackendAudioRenderer::callUpdateCallback(bool isFinished, double progress)
+{
+	parent.exportProgress = progress;
+            
+	SafeAsyncCall::repaint(&parent);
+
+	if(isFinished)
+	{
+		int numChannels = this->channels.size();
+		auto numSamples = this->channels.getFirst()->size;
+
+		buffer.setSize(numChannels, numSamples);
+
+		for(int i = 0; i < numChannels; i++)
+			FloatVectorOperations::copy(buffer.getWritePointer(i), this->channels[i]->buffer.getReadPointer(0), numSamples);
+
+		triggerAsyncUpdate();
+	}
+}
 
 
 struct AudioTimelineObject : public TimelineObjectBase
@@ -66,32 +114,32 @@ struct AudioTimelineObject : public TimelineObjectBase
 
 	void initialise(double sampleRate) override
 	{
-		WavAudioFormat form;
+		AudioFormatManager afm;
+		afm.registerBasicFormats();
+		
+		ScopedPointer<AudioFormatReader> reader = afm.createReaderFor(f);
 
-		auto fis = new FileInputStream(f);
-		ScopedPointer<AudioFormatReader> reader = form.createReaderFor(fis, true);
-
-		content.setSize(2, (int)reader->lengthInSamples);
-
-		reader->read(&content, 0, (int)reader->lengthInSamples, 0, true, true);
-
-		if (sampleRate != reader->sampleRate)
+		if(reader != nullptr)
 		{
-			LagrangeInterpolator interpolator;
-			auto ratio = sampleRate / reader->sampleRate;
+			content.setSize(2, (int)reader->lengthInSamples);
 
-			AudioSampleBuffer newBuffer(2, reader->lengthInSamples * ratio);
+			reader->read(&content, 0, (int)reader->lengthInSamples, 0, true, true);
 
-			interpolator.process(ratio, content.getReadPointer(0), newBuffer.getWritePointer(0), newBuffer.getNumSamples());
-			interpolator.process(ratio, content.getReadPointer(1), newBuffer.getWritePointer(1), newBuffer.getNumSamples());
+			if (sampleRate != reader->sampleRate)
+			{
+				LagrangeInterpolator interpolators[2];
+				auto ratio = sampleRate / reader->sampleRate;
 
-			std::swap(content, newBuffer);
+				AudioSampleBuffer newBuffer(2, reader->lengthInSamples * ratio);
+				
+				interpolators[0].process(1.0 / ratio, content.getReadPointer(0), newBuffer.getWritePointer(0), newBuffer.getNumSamples());
+				interpolators[1].process(1.0 / ratio, content.getReadPointer(1), newBuffer.getWritePointer(1), newBuffer.getNumSamples());
+
+				std::swap(content, newBuffer);
+			}
+
 		}
-
-		
-
 		reader = nullptr;
-		
 	}
 
 	void draw(Graphics& g, Rectangle<float> bounds) override
@@ -101,6 +149,11 @@ struct AudioTimelineObject : public TimelineObjectBase
 
 		g.setColour(Colours::white.withAlpha(0.4f));
 		g.fillRectList(peaks);
+	}
+
+	Result addEventsForBouncing(HiseEventBuffer& , ExternalClockSimulator*) override
+	{
+		return Result::fail("Can't bounce audio clips. Use MIDI clips for this feature");
 	}
 
 	void process(AudioSampleBuffer& buffer, MidiBuffer& mb, double ppqOffsetFromStart, ExternalClockSimulator* clock) override
@@ -212,6 +265,8 @@ struct MidiTimelineObject : public TimelineObjectBase,
 		clearOnNextBuffer = true;
 	}
 
+	Result addEventsForBouncing(HiseEventBuffer& b, ExternalClockSimulator* clock) override;
+
 	Identifier getTypeId() const override { RETURN_STATIC_IDENTIFIER("Midi"); }
 
 	void initialise(double ) override
@@ -219,6 +274,18 @@ struct MidiTimelineObject : public TimelineObjectBase,
 		FileInputStream fis(f);
         
         content.readFrom(fis);
+
+		auto scaleFactor = 960.0 / jmax(1.0, (double)content.getTimeFormat());
+
+		content.setTicksPerQuarterNote(960);
+
+		if(auto t = content.getTrack(0))
+		{
+			for(auto e: *t)
+			{
+				e->message.setTimeStamp(e->message.getTimeStamp() * scaleFactor);
+			}
+		}
 	}
 
 	Colour getColour() const override
@@ -347,10 +414,39 @@ struct MidiTimelineObject : public TimelineObjectBase,
 	Rectangle<float> lastBounds;
 };
 
+Result MidiTimelineObject::addEventsForBouncing(HiseEventBuffer& b, ExternalClockSimulator* clock)
+{
+	if (auto t = content.getTrack(0))
+	{
+		auto ticksPerQuarter = (double)content.getTimeFormat();
+
+		auto idx = 0;
+			
+		for (int i = idx; i < t->getNumEvents(); i++)
+		{
+			auto e = t->getEventPointer(i);
+
+			const auto timestampPPQ = e->message.getTimeStamp() / ticksPerQuarter;
+			const auto timestampSamples = clock->getSamplesDelta(timestampPPQ);
+
+            if(b.size() == HISE_EVENT_BUFFER_SIZE-1)
+                return Result::ok();
+            
+            HiseEvent he(e->message);
+            he.setTimeStamp(timestampSamples);
+            
+            if(!he.isEmpty())
+                b.addEvent(he);
+		}
+	}
+    
+    return Result::ok();
+}
+
 
 struct DAWClockController::Ruler: public Component,
-								  public ControlledObject,
-								  public juce::FileDragAndDropTarget
+                                  public ControlledObject,
+                                  public juce::FileDragAndDropTarget
 {
 	struct DraggableObject: public Component
 	{
@@ -753,13 +849,16 @@ DAWClockController::DAWClockController(MainController* mc):
   SimpleTimer(mc->getGlobalUIUpdater()),
   ControlledObject(mc),
   clock(&dynamic_cast<BackendProcessor*>(mc)->externalClockSim),
+  bypass("bypass", nullptr, f),
   play("play", nullptr, f),
   stop("stop", nullptr, f),
   loop("loop", nullptr, f),
   grid("grid", nullptr, f),
   rewind("rewind", nullptr, f),
+  exportButton("export", nullptr, f),
   metronome("metronome", nullptr, f)
 {
+	addAndMakeVisible(bypass);
     addAndMakeVisible(play);
     addAndMakeVisible(stop);
     addAndMakeVisible(rewind);
@@ -769,11 +868,13 @@ DAWClockController::DAWClockController(MainController* mc):
     addAndMakeVisible(denom);
 	addAndMakeVisible(metronome);
     addAndMakeVisible(position);
+	addAndMakeVisible(exportButton);
     addAndMakeVisible(ruler = new Ruler(clock, mc));
     
     addAndMakeVisible(grid);
     addAndMakeVisible(length);
-    
+
+	bypass.setToggleModeWithColourChange(true);
     play.setToggleModeWithColourChange(true);
     stop.setToggleModeWithColourChange(true);
     loop.setToggleModeWithColourChange(true);
@@ -796,7 +897,12 @@ DAWClockController::DAWClockController(MainController* mc):
     length.setRange(1, 128.0, 1.0);
     
     length.setValue(dynamic_cast<Ruler*>(ruler.get())->numBars, dontSendNotification);
-    
+
+	bypass.onClick = [this]()
+	{
+		clock->bypassed = !clock->bypassed;
+	};
+
     play.onClick = [this]()
     {
         clock->isPlaying = true;
@@ -826,7 +932,13 @@ DAWClockController::DAWClockController(MainController* mc):
     {
         dynamic_cast<Ruler*>(ruler.get())->grid = grid.getToggleState();
     };
-    
+
+	exportButton.onClick = [this]()
+	{
+        exporter = new BackendAudioRenderer(*this);
+        exporter->init();
+	};
+
     grid.setToggleStateAndUpdateIcon(true);
     
     setupSlider(length);
@@ -837,7 +949,8 @@ DAWClockController::DAWClockController(MainController* mc):
     position.setEditable(false);
     position.setFont(GLOBAL_BOLD_FONT().withHeight(17.0f));
     position.setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(0.5f));
-    
+
+	bypass.setTooltip("Simulate the bypass state of the plugin");
     play.setTooltip("Start the external DAW playback simulator [Space]");
     stop.setTooltip("Stop the external DAW playback simulator [Space]");
     loop.setTooltip("Toggle the loop playback");
@@ -845,6 +958,7 @@ DAWClockController::DAWClockController(MainController* mc):
     rewind.setTooltip("Rewind to 1|1|0 [Backspace]");
     grid.setTooltip("Enable the magnetic grid for the playback ruler");
     length.setTooltip("Set the length of the playback ruler");
+	exportButton.setTooltip("Bounce the MIDI clips as audio to simulate offline bounce process");
 	metronome.setTooltip("Enable a metronome that plays a click on each beat");
 }
 
@@ -913,13 +1027,31 @@ void DAWClockController::timerCallback()
     posString << String(bars+1) << " | " << String(quarters+1) << " | " << String(ticks);
     
     position.setText(posString, dontSendNotification);
-    
+
+	
+	bypass.setToggleStateAndUpdateIcon(!clock->bypassed);
     play.setToggleStateAndUpdateIcon(clock->isPlaying);
     stop.setToggleStateAndUpdateIcon(!clock->isPlaying);
     loop.setToggleStateAndUpdateIcon(clock->isLooping);
 	metronome.setToggleStateAndUpdateIcon(clock->metronomeEnabled);
     
     ruler->repaint();
+}
+
+void DAWClockController::paint(Graphics& g)
+{
+    if(exportProgress != -1.0)
+    {
+		auto tb = exportButton.getBoundsInParent().toFloat().expanded(3.0f);
+
+        tb = tb.translated(-1.5f, 1.0f);
+        
+		Path p;
+        p.startNewSubPath(tb.getCentreX(), tb.getY());
+        p.addArc(tb.getX(), tb.getY(), tb.getWidth(), tb.getHeight(), 0.0, exportProgress * float_Pi * 2.0f);
+        g.setColour(Colours::white.withAlpha(0.3f));
+        g.strokePath(p, PathStrokeType(2.0f));
+    }
 }
 
 void DAWClockController::resized()
@@ -934,13 +1066,17 @@ void DAWClockController::resized()
     top.removeFromLeft(TopHeight);
     
     b.removeFromTop(5);
-    
+
+	bypass.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     play.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     stop.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     rewind.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
+    loop.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
 	metronome.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
     top.removeFromLeft(Margin);
-    loop.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
+    exportButton.setBounds(top.removeFromLeft(TopHeight).reduced(Margin));
+    top.removeFromLeft(Margin);
+
     bpm.setBounds(top.removeFromLeft(TopHeight * 2).reduced(Margin));
     
     auto ts = top.removeFromLeft(TopHeight);
@@ -949,6 +1085,8 @@ void DAWClockController::resized()
     denom.setBounds(ts);
     
     position.setBounds(top.removeFromLeft(TopHeight * 4));
+    
+
     
     auto r = b.removeFromLeft(TopHeight);
     
@@ -1137,6 +1275,8 @@ Path DAWClockController::Icons::createPath(const String& url) const
     LOAD_PATH_IF_URL("loopEnd", ClockIcons::loopEnd);
     LOAD_PATH_IF_URL("rewind", ClockIcons::rewind);
 	LOAD_PATH_IF_URL("metronome", ClockIcons::metronome);
+	LOAD_EPATH_IF_URL("export", HnodeIcons::exportIcon);
+	LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
 
     return p;
 }
@@ -1263,7 +1403,8 @@ int ExternalClockSimulator::getSamplesDelta(double ppqDelta) const
 
 void ExternalClockSimulator::sendLoopMessage()
 {
-	metronome->loopWrap();
+	if(metronome != nullptr)
+		metronome->loopWrap();
 
 	for (auto to : timelineObjects)
 		to->loopWrap();

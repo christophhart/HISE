@@ -595,7 +595,8 @@ bool ValueTreeConverters::isLikelyVarArray(const ValueTree& v)
 WeakCallbackHolder::WeakCallbackHolder(ProcessorWithScriptingContent* p, ApiClass* parentObject, const var& callback, int numExpectedArgs_) :
 	ScriptingObject(p),
 	r(Result::ok()),
-	numExpectedArgs(numExpectedArgs_)
+	numExpectedArgs(numExpectedArgs_),
+	trackIndex(0)
 {
 	if (parentObject != nullptr)
 		parentObject->addOptimizableFunction(callback);
@@ -631,7 +632,8 @@ WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
 	anonymousFunctionRef(copy.anonymousFunctionRef),
 	thisObject(copy.thisObject),
 	refCountedThisObject(copy.refCountedThisObject),
-	capturedLocals(copy.capturedLocals)
+	capturedLocals(copy.capturedLocals),
+	trackIndex(copy.trackIndex)
 {
 	args.addArray(copy.args);
 }
@@ -646,7 +648,8 @@ WeakCallbackHolder::WeakCallbackHolder(WeakCallbackHolder&& other):
 	engineToUse(other.engineToUse),
 	refCountedThisObject(other.refCountedThisObject),
 	thisObject(other.thisObject),
-	capturedLocals(other.capturedLocals)
+	capturedLocals(other.capturedLocals),
+	trackIndex(other.trackIndex)
 {
 	args.swapWith(other.args);
 }
@@ -668,8 +671,8 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	thisObject = other.thisObject;
 	capturedLocals = other.capturedLocals;
 	args.swapWith(other.args);
-
-
+	trackIndex = other.trackIndex;
+	
 	return *this;
 }
 
@@ -690,7 +693,8 @@ void WeakCallbackHolder::addAsSource(DebugableObjectBase* sourceObject, const St
 	if (weakCallback != nullptr)
 	{
 		auto id = sourceObject->getDebugName() + "." + callbackId;
-		weakCallback->addAsSource(sourceObject, Identifier(id));
+		cid = Identifier(id);
+		weakCallback->addAsSource(sourceObject, callbackId);
 	}
 }
 
@@ -760,7 +764,19 @@ void WeakCallbackHolder::call(const var::NativeFunctionArgs& args)
 				var::NativeFunctionArgs args_(var(), args.arguments, args.numArguments);
 				checkValidArguments(args_);
 			}
-			
+
+			if(trackIndex == 0)
+				trackIndex = getScriptProcessor()->getMainController_()->getRootDispatcher().bumpFlowCounter();
+
+			dispatch::StringBuilder b;
+
+			if(cid.isValid())
+				b << cid;
+			else
+				b << "callback";
+
+			TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(trackIndex));
+
 			auto t = highPriority ? JavascriptThreadPool::Task::HiPriorityCallbackExecution : JavascriptThreadPool::Task::LowPriorityCallbackExecution;
 			getScriptProcessor()->getMainController_()->getJavascriptThreadPool().addJob(t, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), copy);
 		}
@@ -777,12 +793,15 @@ void WeakCallbackHolder::call(const var::NativeFunctionArgs& args)
 
 Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValue)
 {
-	auto a = var::NativeFunctionArgs(getThisObject(), arguments, numArgs);
+    auto to = getThisObject();
+	auto a = var::NativeFunctionArgs(to, arguments, numArgs);
 	return callSync(a, returnValue);
 }
 
 Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* returnValue /*= nullptr*/)
 {
+	TRACE_EVENT("dispatch", "callback", perfetto::TerminatingFlow::ProcessScoped(trackIndex));
+
 	if (engineToUse.get() == nullptr || engineToUse->getRootObject() == nullptr)
 	{
 		clear();

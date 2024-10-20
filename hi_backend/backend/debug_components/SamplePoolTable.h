@@ -46,14 +46,7 @@ class SamplePoolTable      : public Component,
 {
 public:
 
-	enum ColumnId
-	{
-		FileName = 1,
-		Memory,
-		State,
-		References,
-		numColumns
-	};
+	using ColumnId = ModulatorSamplerSoundPool::ColumnId;
 
 	SamplePoolTable(BackendRootWindow *rootWindow) ;
 

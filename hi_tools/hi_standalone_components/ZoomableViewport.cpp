@@ -62,6 +62,7 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 	hBar(false),
 	vBar(true),
 	content(n),
+	dragScrollTimer(*this),
 	mouseWatcher(new MouseWatcher(*this))
 {
     sf.addScrollBarToAnimate(hBar);
@@ -108,6 +109,16 @@ ZoomableViewport::~ZoomableViewport()
 	content = nullptr;
 }
 
+bool ZoomableViewport::checkDragScroll(const MouseEvent& e, bool isMouseUp)
+{
+	if(auto vp = e.eventComponent->findParentComponentOfClass<ZoomableViewport>())
+	{
+		vp->dragScrollTimer.setPosition(e, isMouseUp);
+	}
+
+	return false;
+}
+
 bool ZoomableViewport::checkViewportScroll(const MouseEvent& e, const MouseWheelDetails& wheel)
 {
 	if (wheel.deltaX > 0.0 || wheel.deltaY > 0.0)
@@ -125,6 +136,12 @@ bool ZoomableViewport::checkViewportScroll(const MouseEvent& e, const MouseWheel
 
 bool ZoomableViewport::checkMiddleMouseDrag(const MouseEvent& e, MouseEventFlags type)
 {
+	if(e.mods.isX1ButtonDown())
+		return true;
+
+	if(e.mods.isX2ButtonDown())
+		return true;
+
 	if (e.mods.isMiddleButtonDown())
 	{
 		if (auto vp = e.eventComponent->findParentComponentOfClass<ZoomableViewport>())
@@ -297,7 +314,7 @@ void ZoomableViewport::paint(Graphics& g)
 {
 	g.fillAll(findColour(ColourIds::backgroundColourId));
 
-	if (!content->isVisible())
+	if (content != nullptr && !content->isVisible())
 	{
 		g.setColour(Colours::black.withAlpha(swapAlpha));
 		g.drawImage(swapImage, swapBounds);
@@ -404,6 +421,296 @@ bool ZoomableViewport::changeZoom(bool zoomIn)
 	}
 
 	return false;
+}
+
+struct PopupMenuParser
+{
+    enum SpecialItem
+    {
+        ItemEntry = 0,
+        Sub = 1,
+        Header = 2,
+        Deactivated = 4,
+        Separator = 8
+    };
+    
+    static int getSpecialItemType(const String& item)
+    {
+        int flags = SpecialItem::ItemEntry;
+        
+        if(item.contains("~~"))
+            flags = SpecialItem::Deactivated;
+        
+        if(item.contains("___") || item.contains("___"))
+            flags = SpecialItem::Separator;
+
+        if(item.contains("**"))
+            flags = SpecialItem::Header;
+        
+        if(item.contains("::"))
+            flags |= SpecialItem::Sub;
+        
+        return flags;
+    };
+    
+    static bool addToPopupMenu(PopupMenu& tm, int& menuIndex, const String& item, const Array<int>& activeIndexes)
+    {
+        if (item == "%SKIP%")
+        {
+            menuIndex++;
+            return false;
+        }
+        
+        auto isTicked = activeIndexes.contains(menuIndex-1);
+        
+        auto fl = getSpecialItemType(item);
+        
+        jassert((fl & SpecialItem::Sub) == 0);
+        
+        auto withoutSpecialChars = item;
+
+        if(fl & SpecialItem::Header)
+        {
+	        tm.addSectionHeader(item.removeCharacters("*"));
+			return false;
+		}
+        else if (fl & SpecialItem::Separator)
+        {
+	        tm.addSeparator();
+			return false;
+        }
+
+		PopupMenu::Item newItem;
+
+		newItem.text = item.removeCharacters("~|");
+		newItem.isEnabled = (fl & SpecialItem::Deactivated) == 0;
+		newItem.isTicked = isTicked;
+		newItem.itemID = menuIndex++;
+		newItem.shouldBreakAfter = item.getLastCharacter() == '|';
+
+        tm.addItem(newItem);
+
+        return isTicked;
+    };
+    
+    struct SubInfo
+    {
+        SubInfo() = default;
+        
+        PopupMenu sub;
+        bool ticked = false;
+        String name;
+        StringArray items;
+        
+        void flush(PopupMenu& m, int& firstId, const Array<int>& activeIndexes)
+        {
+            if(items.isEmpty() && children.isEmpty())
+                return;
+            
+            for(auto& s: items)
+            {
+                ticked |= addToPopupMenu(sub, firstId, s, activeIndexes);
+            }
+            
+            for(auto c: children)
+            {
+                c->flush(sub, firstId, activeIndexes);
+            }
+            
+            m.addSubMenu(name, sub, true, nullptr, ticked);
+            
+            items.clear();
+            children.clear();
+        }
+        
+        OwnedArray<SubInfo> children;
+        
+        JUCE_DECLARE_WEAK_REFERENCEABLE(SubInfo);
+        JUCE_DECLARE_NON_COPYABLE(SubInfo);
+    };
+    
+    static SubInfo* getSubMenuFromArray(OwnedArray<SubInfo>& list, const String& name)
+    {
+        auto thisName = name.upToFirstOccurrenceOf("::", false, false);
+        auto rest = name.fromFirstOccurrenceOf("::", false, false);
+        
+        for(auto s: list)
+        {
+            if(s->name == thisName)
+            {
+                if(rest.isEmpty())
+                    return s;
+                else
+                    return getSubMenuFromArray(s->children, rest);
+            }
+        }
+        
+        auto newInfo = new SubInfo();
+        newInfo->name = thisName;
+        list.add(newInfo);
+        
+        if(rest.isEmpty())
+            return newInfo;
+        else
+            return getSubMenuFromArray(newInfo->children, rest);
+    }
+    
+    SubInfo* getSubMenu(const String& name)
+    {
+        return getSubMenuFromArray(subMenus, name);
+    };
+    
+    OwnedArray<SubInfo> subMenus;
+};
+
+juce::PopupMenu SubmenuComboBox::parseFromStringArray(const StringArray& itemList, Array<int> activeIndexes,
+	LookAndFeel* laf)
+{
+	PopupMenu m;
+	m.setLookAndFeel(laf);
+
+    PopupMenuParser parser;
+
+	for (const auto& item: itemList)
+	{
+        auto fl = parser.getSpecialItemType(item);
+        
+        if (fl & PopupMenuParser::SpecialItem::Sub)
+		{
+			String subMenuName = item.upToLastOccurrenceOf("::", false, false);
+			String subMenuItem = item.fromLastOccurrenceOf("::", false, false);
+
+			if (subMenuName.isEmpty() || subMenuItem.isEmpty())
+                continue;
+
+            parser.getSubMenu(subMenuName)->items.add(subMenuItem);
+		}
+	}
+
+    int menuIndex = 1;
+
+    for(const auto& item: itemList)
+    {
+        auto fl = parser.getSpecialItemType(item);
+        auto isSubEntry = (fl & PopupMenuParser::SpecialItem::Sub) != 0;
+        
+        if(isSubEntry)
+        {
+            // We want to only get the first name so that it can
+            // flush its children
+            auto firstMenuName = item.upToFirstOccurrenceOf("::", false, false);
+            
+            parser.getSubMenu(firstMenuName)->flush(m, menuIndex, activeIndexes);
+        }
+        else
+            parser.addToPopupMenu(m, menuIndex, item, activeIndexes);
+    }
+    
+	return m;
+}
+
+void SubmenuComboBox::rebuildPopupMenu()
+{
+	if(!useCustomPopupMenu())
+		return;
+        
+	auto& menu = *getRootMenu();
+        
+	StringArray sa;
+	Array<int> activeIndexes;
+
+	Array<std::pair<int, String>> list;
+
+	for (PopupMenu::MenuItemIterator iterator (menu, true); iterator.next();)
+	{
+		auto& item = iterator.getItem();
+
+		if(item.isSectionHeader)
+			continue;
+
+		if(item.itemID == getSelectedId())
+			activeIndexes.add(item.itemID);
+            
+		sa.add(item.text);
+	}
+
+	createPopupMenu(menu, sa, activeIndexes);
+
+	refreshTickState();
+}
+
+void ZoomableViewport::DragScrollTimer::timerCallback()
+{
+	auto factor = JUCE_LIVE_CONSTANT_OFF(0.03);
+	auto expo = JUCE_LIVE_CONSTANT_OFF(1.2);
+	
+	auto dx = jlimit(-1.0, 1.0, (double)xDelta / (double)(parent.getWidth() / 5));
+	auto dy = jlimit(-1.0, 1.0, (double)yDelta / (double)(parent.getHeight() / 5));
+
+	dx = hmath::sign(dx) * std::pow(hmath::abs(dx), expo);
+	dy = hmath::sign(dy) * std::pow(hmath::abs(dy), expo);
+
+	auto a = JUCE_LIVE_CONSTANT_OFF(0.74);
+
+	dx = lx * a + dx * (1.0 - a);
+	dy = ly * a + dy * (1.0 - a);
+
+	lx = dx;
+	ly = dy;
+
+	dx *= factor;
+	dy *= factor;
+
+	parent.hBar.setCurrentRangeStart(jlimit(0.0, 1.0, parent.hBar.getCurrentRangeStart() + dx));
+	parent.vBar.setCurrentRangeStart(jlimit(0.0, 1.0, parent.vBar.getCurrentRangeStart() + dy));
+}
+
+void ZoomableViewport::DragScrollTimer::setPosition(const MouseEvent& e, bool isMouseUp)
+{
+	if(isMouseUp)
+	{
+		wasInCentre = false;
+		lx = 0.0;
+		ly = 0.0;
+		stopTimer();
+		return;
+	}
+
+	auto vpos = parent.getLocalPoint(e.eventComponent, e.getPosition());
+	auto vb = parent.getLocalBounds();
+	auto padding = jmin(vb.getWidth(), vb.getHeight()) / 6;
+
+	vb = vb.reduced(padding);
+
+	if(vpos.getX() > vb.getRight())
+		xDelta = vpos.getX() - vb.getRight();
+	else if (vpos.getX() < vb.getX())
+		xDelta = vpos.getX() - vb.getX();
+	else
+		xDelta = 0;
+
+	if(vpos.getY() > vb.getBottom())
+		yDelta = vpos.getY() - vb.getBottom();
+	else if (vpos.getY() < vb.getY())
+		yDelta = vpos.getY() - vb.getY();
+	else 
+		yDelta = 0;
+
+	if(xDelta == 0 && yDelta == 0)
+		wasInCentre = true;
+
+	auto shouldScroll = wasInCentre && (xDelta != 0 || yDelta != 0);
+
+	if(shouldScroll != isTimerRunning())
+	{
+		if(shouldScroll)
+			startTimer(30);
+		else
+		{
+			if(hmath::abs(lx) < 0.005 && hmath::abs(ly) < 0.005)
+				stopTimer();
+		}
+	}
 }
 
 ZoomableViewport::MouseWatcher::MouseWatcher(ZoomableViewport& p):

@@ -44,6 +44,7 @@ scriptnode::routing::GlobalRoutingManager::Ptr GlobalRoutingManager::Helpers::ge
 	if(newP == nullptr)
 	{
 		newP = new GlobalRoutingManager();
+		newP->additionalEventStorage.getBroadcaster().enableLockFreeUpdate(mc->getGlobalUIUpdater());
 		mc->setGlobalRoutingManager(newP.get());
 		mc->getProcessorChangeHandler().sendProcessorChangeMessage(mc->getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
 	}
@@ -55,6 +56,9 @@ scriptnode::routing::GlobalRoutingManager::Ptr GlobalRoutingManager::Helpers::ge
 
 juce::Colour GlobalRoutingManager::Helpers::getColourFromId(const String& id)
 {
+	if(id.isEmpty())
+		return Colours::transparentBlack;
+
 	auto h = static_cast<uint32>(id.hashCode());
 	return Colour(h).withSaturation(0.6f).withAlpha(1.0f).withBrightness(0.7f);
 }
@@ -1109,7 +1113,8 @@ void GlobalRoutingNodeBase::prepare(PrepareSpecs specs)
 
 juce::Rectangle<int> GlobalRoutingNodeBase::getPositionInCanvas(Point<int> topLeft) const
 {
-	return Rectangle<int>(topLeft.getX(), topLeft.getY(), 256, UIValues::HeaderHeight + UIValues::ParameterHeight + UIValues::NodeMargin + Editor::EditorHeight);
+	auto x = Rectangle<int>(topLeft.getX(), topLeft.getY(), 256, UIValues::HeaderHeight + UIValues::ParameterHeight + UIValues::NodeMargin + Editor::EditorHeight);
+	return getBoundsToDisplay(x);
 }
 
 scriptnode::NodeComponent* GlobalRoutingNodeBase::createComponent()
@@ -1339,7 +1344,8 @@ GlobalCableNode::GlobalCableNode(DspNetwork* n, ValueTree d) :
 	ModulationSourceNode(n, d),
 	slotId(PropertyIds::Connection, "")
 {
-	cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UncompileableNode);
+	cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsControlNode);
+    cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsFixRuntimeTarget);
 
 	globalRoutingManager = GlobalRoutingManager::Helpers::getOrCreate(n->getScriptProcessor()->getMainController_());
 
@@ -1473,7 +1479,9 @@ void GlobalCableNode::processFrame(FrameType& data)
 
 juce::Rectangle<int> GlobalCableNode::getPositionInCanvas(Point<int> topLeft) const
 {
-	return Rectangle<int>(topLeft.getX(), topLeft.getY(), 256, UIValues::HeaderHeight + UIValues::ParameterHeight + UIValues::NodeMargin + EditorHeight);
+	auto x = Rectangle<int>(topLeft.getX(), topLeft.getY(), 256, UIValues::HeaderHeight + UIValues::ParameterHeight + UIValues::NodeMargin + EditorHeight);
+
+	return getBoundsToDisplay(x);
 }
 
 void GlobalCableNode::sendValue(double v)

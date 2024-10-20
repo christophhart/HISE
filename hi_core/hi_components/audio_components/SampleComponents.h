@@ -38,8 +38,7 @@ using namespace juce;
 
 
 class WaveformComponent : public Component,
-	public RingBufferComponentBase,
-	public SafeChangeListener
+	public RingBufferComponentBase
 {
 public:
 
@@ -138,9 +137,10 @@ public:
 	WaveformComponent(Processor *p, int index = 0);
 	~WaveformComponent();
 
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override;
+	
+
 	void setBypassed(bool shouldBeBypassed);
-	void setUseFlatDesign(bool shouldUseFlatDesign);
+	
 
 	void paint(Graphics &g);
 	void resized() override;
@@ -174,7 +174,6 @@ private:
 	bool bypassed = false;
 	int index = 0;
 	Path path;
-	bool useFlatDesign = false;
 	WeakReference<Processor> processor;
 	float const *tableValues;
 	int tableLength;
@@ -238,6 +237,7 @@ struct SamplerTools
         SampleStartArea,
         LoopArea,
         LoopCrossfadeArea,
+		ReleaseStart,
         GainEnvelope,
         PitchEnvelope,
         FilterEnvelope,
@@ -263,7 +263,6 @@ struct SamplerTools
 */
 class SamplerSoundWaveform : public AudioDisplayComponent,
 	public Timer,
-	public SettableTooltipClient,
     public Processor::DeleteListener
 {
 public:
@@ -338,6 +337,8 @@ public:
 	SamplerDisplayWithTimeline::Properties timeProperties;
 
 	AreaTypes currentClickArea = AreaTypes::numAreas;
+
+	bool releaseStartIsSelected = false;
 
     bool zeroCrossing = true;
     

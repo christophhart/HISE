@@ -294,7 +294,7 @@ void SineSynthBody::buttonClicked (Button* buttonThatWasClicked)
 
 		}
 
-		getProcessor()->sendChangeMessage();
+		getProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
         //[/UserButtonCode_musicalRatio]
     }
 

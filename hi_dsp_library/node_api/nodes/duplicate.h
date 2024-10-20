@@ -145,17 +145,42 @@ template <typename T> struct cloned_node_reference
 		
 		return hn;
 	}
-    
+
+    /** Allows the connection of internal node modulation connections. */
+    auto& getParameter()
+	{
+        return *this;
+	}
+
+    auto& getWrappedObject() { return *this; }
+
+    /** Connects each child to the object from the Target instance.
+     *  The target instance is always a cloned_node_reference. */
+	template <int P, typename Target> void connect(Target& obj)
+	{
+        // must point to the same clone manager...
+        jassert(obj.cloneManager == cloneManager);
+
+        auto numVoices = cloneManager->getTotalNumClones();
+        
+        for(int i = 0; i < numVoices; i++)
+        {
+            auto src = getChild(i);
+            auto& p = src->getParameter();
+            auto& dst = obj[i];
+
+            p.connect<P>(dst);
+        }
+	}
+
     template <int P> void setParameter(double v)
     {
         auto numVoices = cloneManager->getNumClones();
         
-        auto obj = reinterpret_cast<uint64>(firstObj);
-        
         for(int i = 0; i < numVoices; i++)
         {
-            T::template setParameterStatic<P>(reinterpret_cast<void*>(obj), v);
-            obj += objectDelta;
+            auto ptr = getChild(i);
+            T::template setParameterStatic<P>(ptr, v);
         }
     }
     
@@ -163,15 +188,24 @@ template <typename T> struct cloned_node_reference
 	{
 		auto numVoices = cloneManager->getTotalNumClones();
 
-		auto obj = reinterpret_cast<uint64>(firstObj);
-
 		for (int i = 0; i < numVoices; i++)
 		{
-			auto typed = reinterpret_cast<T*>(obj);
-			typed->setExternalData(cd, index);
-			obj += objectDelta;
+			auto ptr = getChild(i);
+			ptr->setExternalData(cd, index);
 		}
 	}
+
+    T* getChild(const int index)
+	{
+		auto ptr = reinterpret_cast<uint8*>(firstObj);
+        ptr += objectDelta * index;
+        return reinterpret_cast<T*>(ptr);
+	}
+
+    T& operator[](const int index)
+    {
+	    return *getChild(index);
+    }
 
 	T* firstObj = nullptr;
 	scriptnode::wrap::clone_manager* cloneManager;
@@ -515,11 +549,11 @@ template <class ParameterClass> struct cloned
             sender->removeNumClonesListener(parentListener);
     }
     
-	void callEachClone(int index, double v)
+	void callEachClone(int index, double v, bool ignoreCurrentNumClones)
 	{
 		if (sender != nullptr)
 		{
-			jassert(isPositiveAndBelow(index, sender->getNumClones()));
+			jassert(ignoreCurrentNumClones || isPositiveAndBelow(index, sender->getNumClones()));
 
 			auto thisPtr = (uint8*)firstObj + index * objectDelta;
 
@@ -561,6 +595,7 @@ template <class ParameterClass> struct cloned
 			sender->addNumClonesListener(parentListener);
 	}
 
+    bool isNormalised = true;
 	WeakReference<SenderType> sender = nullptr;
 	void* firstObj = nullptr;
 	size_t objectDelta;
@@ -580,11 +615,11 @@ template <class... CloneParameters> struct clonechain : public advanced_tuple<Cl
 
 	void* getObjectPtr() { return this; }
 
-	tuple_iterator2(callEachClone, int, index, double, v);
+	tuple_iterator3(callEachClone, int, index, double, v, bool, ignore);
 
-	void callEachClone(int index, double v)
+	void callEachClone(int index, double v, bool ignore)
 	{
-		call_tuple_iterator2(callEachClone, index, v);
+		call_tuple_iterator3(callEachClone, index, v, ignore);
 	}
 
 	tuple_iterator1(setParentNumClonesListener, SenderType::Listener*, l);

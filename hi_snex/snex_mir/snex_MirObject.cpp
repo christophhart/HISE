@@ -31,7 +31,6 @@
 */
 
 
-
 #include "src/mir.h"
 #include "src/mir-gen.h"
 
@@ -398,8 +397,8 @@ snex::jit::FunctionCollectionBase* MirCompiler::compileMirCode(const String& cod
 		{
 			getFunctionClass()->modules.add(m);
 			MIR_load_module(ctx, m);
-			MIR_gen_init(ctx, 1);
-			MIR_gen_set_optimize_level(ctx, 1, 3);
+			MIR_gen_init(ctx);
+			MIR_gen_set_optimize_level(ctx, 3);
             //MIR_gen_set_debug_file(ctx, 1, dbgfile);
 			MIR_link(ctx, MIR_set_gen_interface, &MirCompiler::resolve);
             
@@ -451,12 +450,12 @@ snex::jit::FunctionCollectionBase* MirCompiler::compileMirCode(const String& cod
 							fd.addArgs(v.name, TypeInfo(MirHelpers::getTypeFromMirEnum(v.type)));
 						}
 
-						fd.function = MIR_gen(ctx, 0, main_func);
+						fd.function = MIR_gen(ctx, main_func);
 
 						if (fd.function != nullptr)
 							fd.function = main_func->u.func->machine_code;
 
-						fd.numBytes = main_func->u.func->num_bytes;
+						//fd.numBytes = main_func->u.func. u.func->num_bytes;
 
 						getFunctionClass()->functionMap.emplace(s, fd);
 					}
@@ -497,11 +496,6 @@ MirCompiler::~MirCompiler()
 {
 	
 }
-
-
-
-
-
 
 
 }

@@ -30,8 +30,7 @@
 *   ===========================================================================
 */
 
-#ifndef KEYMODULATOR_H_INCLUDED
-#define KEYMODULATOR_H_INCLUDED
+#pragma once
 
 namespace hise { using namespace juce;
 
@@ -75,6 +74,11 @@ public:
 		return 0.0f;
 	};
 
+	void referenceShared(ExternalData::DataType, int) override
+    {
+        // no need to do anything...
+    }
+
 	/** Calculates a new random value. If the table is used, it is converted to 7bit.*/
 	float calculateVoiceStartValue(const HiseEvent &m) override
 	{
@@ -83,7 +87,5 @@ public:
 };
 
 
-
 } // namespace hise
 
-#endif  // KEYMODULATOR_H_INCLUDED

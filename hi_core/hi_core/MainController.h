@@ -209,11 +209,13 @@ public:
 		*/
 		const ValueTree getLoadedSampleMap(const String &fileName) const;
 
-		NativeFileHandler &getProjectHandler() { return projectHandler; }
+		
+
+		NativeFileHandler &getProjectHandler();
 
 		void setDiskMode(DiskMode mode) noexcept;
 
-		const NativeFileHandler &getProjectHandler() const { return projectHandler; }
+		const NativeFileHandler &getProjectHandler() const;
 
 		bool isUsingHddMode() const noexcept{ return hddMode; };
 
@@ -257,7 +259,7 @@ public:
 
 		bool hasPendingFunction(Processor* p) const;
 
-		bool isNonRealtime()
+		bool isNonRealtime() const
 		{
 			return nonRealtime;
 		}
@@ -521,8 +523,20 @@ public:
 			}
 		}
 
+		void clearRoutingManagerAsync()
+		{
+			auto rm = mc->getGlobalRoutingManager();
+
+			if(rm != nullptr)
+			{
+				routingManagerToDelete = var(rm);
+				mc->setGlobalRoutingManager(nullptr);
+			}
+		}
+
 	private:
 
+		var routingManagerToDelete;
 		Array<WeakReference<PresetLoadListener>> presetLoadListeners;
 
 		struct Job
@@ -611,9 +625,27 @@ public:
             bool prevValue;
         };
         
-		
+#define USE_OLD_AUTOMATION_DISPATCH 0
+#define USE_NEW_AUTOMATION_DISPATCH 1
+
+#if USE_OLD_AUTOMATION_DISPATCH
+#define IF_OLD_AUTOMATION_DISPATCH(x) x
+#define OLD_AUTOMATION_WITH_COMMA(x) x,
+#else
+#define IF_OLD_AUTOMATION_DISPATCH(x)
+#define OLD_AUTOMATION_WITH_COMMA(x)
+#endif
+
+#if USE_NEW_AUTOMATION_DISPATCH
+#define IF_NEW_AUTOMATION_DISPATCH(x) x
+#define NEW_AUTOMATION_WITH_COMMA(x) x,
+#else
+#define IF_NEW_AUTOMATION_DISPATCH(x)
+#define NEW_AUTOMATION_WITH_COMMA(x)
+#endif
 
 		struct CustomAutomationData : public ReferenceCountedObject,
+			NEW_AUTOMATION_WITH_COMMA(public dispatch::SourceOwner)
 									  public ControlledObject
 		{
 			using WeakPtr = WeakReference<CustomAutomationData>;
@@ -621,8 +653,6 @@ public:
 			using List = ReferenceCountedArray<CustomAutomationData>;
 
 			CustomAutomationData(CustomAutomationData::List newList, MainController* mc, int index_, const var& d);
-
-			
 
 			void updateFromConnectionValue(int preferredIndex);
 
@@ -638,8 +668,11 @@ public:
 			Result r;
 			var args[2];
 
+#if USE_OLD_AUTOMATION_DISPATCH
 			LambdaBroadcaster<var*> syncListeners;
 			LambdaBroadcaster<int, float> asyncListeners;
+#endif
+			IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource dispatcher);
 
 			struct ConnectionBase: public ReferenceCountedObject
 			{
@@ -649,7 +682,7 @@ public:
 				virtual ~ConnectionBase() {};
 				
 				virtual bool isValid() const = 0;
-				virtual void call(float v) const = 0;
+				virtual void call(float v, dispatch::DispatchType n) const = 0;
 
 				virtual String getDisplayString() const = 0;
 
@@ -658,15 +691,15 @@ public:
 				operator bool() const { return isValid(); }
 			};
 
-			void call(float newValue, bool sendToListeners = true, const std::function<bool(ConnectionBase*)>& connectionFilter = {});
+			void call(float newValue, dispatch::DispatchType n, const std::function<bool(ConnectionBase*)>& connectionFilter = {});
 
 			ConnectionBase::Ptr parse(CustomAutomationData::List newList, MainController* mc, const var& jsonData);
 
 			struct MetaConnection : public ConnectionBase
 			{
-				void call(float v) const final override
+				void call(float v, dispatch::DispatchType n) const final override
 				{
-					target->call(v, true);
+					target->call(v, n);
 				}
 
 				bool isValid() const final override
@@ -706,7 +739,7 @@ public:
 
 				float getLastValue() const final override;
 
-				void call(float v) const final override;
+				void call(float v, dispatch::DispatchType n) const final override;
 			};
 
 			ConnectionBase::List connectionList;
@@ -718,9 +751,11 @@ public:
 		struct UndoableUserPresetLoad : public ControlledObject,
 										public UndoableAction
 		{
-			UndoableUserPresetLoad(MainController* mc, ValueTree newPreset_, ValueTree forcedOld=ValueTree()):
+			UndoableUserPresetLoad(MainController* mc, const File& oldFile_, const File& newFile_, ValueTree newPreset_, ValueTree forcedOld=ValueTree()):
 				ControlledObject(mc),
-				newPreset(newPreset_)
+				newPreset(newPreset_),
+			    oldFile(oldFile_),
+			    newFile(newFile_)
 			{
 				if (forcedOld.isValid())
 					oldPreset = forcedOld;
@@ -730,26 +765,28 @@ public:
 
 			bool perform() override
 			{
-				getMainController()->getUserPresetHandler().loadUserPreset(newPreset, false);
+				getMainController()->getUserPresetHandler().loadUserPresetFromValueTree(newPreset, oldFile, newFile, false);
 				return true;
 			}
 
 			bool undo() override
 			{
-				getMainController()->getUserPresetHandler().loadUserPreset(oldPreset, false);
+				getMainController()->getUserPresetHandler().loadUserPresetFromValueTree(oldPreset, newFile, oldFile, false);
 				return true;
 			}
 
 			UndoableAction* createCoalescedAction(UndoableAction* nextAction) override
 			{
 				if (auto upAction = dynamic_cast<UndoableUserPresetLoad*>(nextAction))
-					return new UndoableUserPresetLoad(getMainController(), upAction->newPreset, oldPreset);
+					return new UndoableUserPresetLoad(getMainController(), oldFile, upAction->newFile, upAction->newPreset, oldPreset);
 
 				return nullptr;
 			}
 
 			ValueTree oldPreset;
 			ValueTree newPreset;
+			File oldFile;
+			File newFile;
 		};
 
 		struct TagDataBase
@@ -833,8 +870,8 @@ public:
 		*/
 		void incPreset(bool next, bool stayInSameDirectory);
 
-		void loadUserPreset(const ValueTree& v, bool useUndoManagerIfEnabled=true);
-		void loadUserPreset(const File& f);
+		void loadUserPresetFromValueTree(const ValueTree& v, const File& oldFile, const File& newFile, bool useUndoManagerIfEnabled=true);
+		void loadUserPreset(const File& f, bool useUndoManagerIfEnabled=true);
 
 		
 
@@ -862,7 +899,7 @@ public:
 		File getCurrentlyLoadedFile() const;;
 
 		/** @internal */
-		void setCurrentlyLoadedFile(const File& f);
+		//void setCurrentlyLoadedFile(const File& f);
 
 		/** @internal */
 		void sendRebuildMessage();
@@ -1025,6 +1062,9 @@ public:
 
     private:
 
+		friend class UserPresetHelpers;
+		friend class FrontendProcessor;
+
 		uint32 timeOfLastPresetLoad = 0;
 
         bool processStateManager(bool shouldSave, ValueTree& presetRoot, const Identifier& stateId);
@@ -1077,6 +1117,7 @@ public:
 		MainController * mc;
 	};
 
+	// TODO before remove: implement add / remove listeners for dispatch::library::ProcessorHandler
 	class ProcessorChangeHandler : public AsyncUpdater
 	{
 	public:
@@ -1087,17 +1128,22 @@ public:
 		{
 			ProcessorAdded = 0,
 			ProcessorRemoved,
+			RebuildModuleList,
+			ClearBeforeRebuild,
+#if HISE_OLD_PROCESSOR_DISPATCH
 			ProcessorRenamed,
 			ProcessorColourChange,
 			ProcessorBypassed,
-			RebuildModuleList,
+#endif
 			numEventTypes
 		};
 
 		~ProcessorChangeHandler();
 
 		class Listener
+			: public dispatch::ListenerOwner
 		{
+			
 		public:
 			virtual void moduleListChanged(Processor* processorThatWasChanged, EventType type) = 0;
 
@@ -1201,7 +1247,7 @@ public:
 			numIllegalOps
 		};
 
-		enum TargetThread
+		enum class TargetThread
 		{
 			MessageThread = 0,
 			SampleLoadingThread,
@@ -1229,7 +1275,7 @@ public:
 		/** Returns false if there is a pending action somewhere that prevents clickless voice rendering. */
 		bool voiceStartIsDisabled() const;
 
-        bool isCurrentlyExporting() const { return threadIds[TargetThread::AudioExportThread] != nullptr; }
+        bool isCurrentlyExporting() const { return threadIds[(int)TargetThread::AudioExportThread] != nullptr; }
         
 		/** Call this in the processBlock method and it will check whether voice starts are allowed.
 		*
@@ -1255,6 +1301,13 @@ public:
 		/** This can be set by the Internal Preloader. */
 		void setSampleLoadingThreadId(void* newId);
 
+		void setScriptingThreadId(void* newId)
+		{
+			jassert(newId != nullptr);
+			jassert(threadIds[(int)TargetThread::ScriptingThread] == nullptr);
+			threadIds[(int)TargetThread::ScriptingThread].store(newId);
+		}
+
 		TargetThread getCurrentThread() const;
 
 		void addThreadIdToAudioThreadList();
@@ -1278,6 +1331,11 @@ public:
 
 		Array<MultithreadedQueueHelpers::PublicToken> createPublicTokenList(int producerFlags = AllProducers);
 
+		TargetThread getThreadThatLocks(LockHelpers::Type t)
+		{
+			return lockStates.threadsForLock[(int)t];
+		}
+
 		void setLockForCurrentThread(LockHelpers::Type t, bool lock) const;
 
 		bool currentThreadHoldsLock(LockHelpers::Type t) const noexcept;
@@ -1297,7 +1355,24 @@ public:
 		bool handleBufferDuringSuspension(AudioSampleBuffer& b);
 
         void setCurrentExportThread(void* exportThread);
-        
+
+		static LockHelpers::Type getLockTypeForThread(TargetThread t);
+
+		static TargetThread getThreadForLockType(LockHelpers::Type t);
+
+		void initFromProcessCallback()
+		{
+			addThreadIdToAudioThreadList();
+
+			if (!init)
+			{
+				if (currentState == WaitingForInitialisation)
+					currentState = State::InitialisedButNotActivated;
+				
+				init = true;
+			}
+		}
+
 	private:
 
 		friend class SuspendHelpers::ScopedTicket;
@@ -1312,14 +1387,14 @@ public:
 		{
 			LockStates()
 			{
-				threadsForLock[LockHelpers::MessageLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::AudioLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::SampleLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::IteratorLock] = TargetThread::Free;
-				threadsForLock[LockHelpers::ScriptLock] = TargetThread::Free;
+				threadsForLock[(int)LockHelpers::Type::MessageLock].store(TargetThread::Free);
+				threadsForLock[(int)LockHelpers::Type::AudioLock].store(TargetThread::Free);
+				threadsForLock[(int)LockHelpers::Type::SampleLock].store(TargetThread::Free);
+				threadsForLock[(int)LockHelpers::Type::IteratorLock].store(TargetThread::Free);
+				threadsForLock[(int)LockHelpers::Type::ScriptLock].store(TargetThread::Free);
 			}
 
-			std::atomic<TargetThread> threadsForLock[LockHelpers::Type::numLockTypes];
+			std::atomic<TargetThread> threadsForLock[(int)LockHelpers::Type::numLockTypes];
 		};
 
 		mutable LockStates lockStates;
@@ -1341,6 +1416,7 @@ public:
 		enum State
 		{
 			WaitingForInitialisation = 0,
+			InitialisedButNotActivated,
 			Clear,
 			VoiceKill,
 			WaitingForClearance,
@@ -1364,8 +1440,28 @@ public:
 		UnorderedStack<StackTrace<3, 6>, 32> stackTraces;
 
 		MainController* mc;
-		void* threadIds[(int)TargetThread::numTargetThreads];
-		Array<void*> audioThreads;
+		std::atomic<void*> threadIds[(int)TargetThread::numTargetThreads];
+        hise::SimpleReadWriteLock audioListLock;
+		UnorderedStack<void*, 32> audioThreads;
+	};
+
+	struct PluginBypassHandler: public PooledUIUpdater::SimpleTimer,
+								public ControlledObject
+	{
+		PluginBypassHandler(MainController* mc):
+		  ControlledObject(mc),
+		  SimpleTimer(mc->getGlobalUIUpdater())
+		{};
+
+		void timerCallback() override;
+
+		void bumpWatchDog();
+
+		uint32 lastProcessBlockTime = 0;
+		bool lastBypassFlag = false;
+		bool currentBypassState = false;
+		bool reactivateOnNextCall = false;
+		LambdaBroadcaster<bool> listeners;
 	};
 
 	MainController();
@@ -1382,6 +1478,9 @@ public:
 
 	AutoSaver &getAutoSaver() noexcept { return autoSaver; }
 	const AutoSaver &getAutoSaver() const noexcept { return autoSaver; }
+
+	PluginBypassHandler& getPluginBypassHandler() noexcept { return bypassHandler; }
+	const PluginBypassHandler& getPluginBypassHandler() const noexcept { return bypassHandler; }
 
 	DelayedRenderer& getDelayedRenderer() noexcept { return delayedRenderer; };
 	const DelayedRenderer& getDelayedRenderer() const noexcept { return delayedRenderer; };
@@ -1413,9 +1512,17 @@ public:
 	PooledUIUpdater* getGlobalUIUpdater() { return &globalUIUpdater; }
 	const PooledUIUpdater* getGlobalUIUpdater() const { return &globalUIUpdater; }
 
+	dispatch::RootObject& getRootDispatcher() { return rootDispatcher; }
+	const dispatch::RootObject& getRootDispatcher() const { return rootDispatcher; }
+
+	dispatch::library::CustomAutomationSourceManager& getCustomAutomationSourceManager() { return customAutomationSourceManager; }
+	const dispatch::library::CustomAutomationSourceManager& getCustomAutomationSourceManager() const { return customAutomationSourceManager; }
+
+	dispatch::library::ProcessorHandler& getProcessorDispatchHandler() { return processorHandler; }
+	const dispatch::library::ProcessorHandler& getProcessorDispatchHandler() const { return processorHandler; }
+
 	ProjectDocDatabaseHolder* getProjectDocHolder();
 	
-
 	void initProjectDocsWithURL(const String& projectDocURL);
 
 	GlobalHiseLookAndFeel& getGlobalLookAndFeel() const { return *mainLookAndFeel; }
@@ -1497,7 +1604,7 @@ public:
 
 	void loadPresetFromFile(const File &f, Component *mainEditor=nullptr);
 	void loadPresetFromValueTree(const ValueTree &v, Component *mainEditor=nullptr);
-    void clearPreset();
+    void clearPreset(NotificationType n);
     
 
 	/** Compiles all scripts in the main synth chain */
@@ -1546,6 +1653,8 @@ public:
 
 	void handleTransportCallbacks(const AudioPlayHead::CurrentPositionInfo& newInfo, const MasterClock::GridInfo& gi);
 
+	void sendArtificialTransportMessage(bool shouldBeOn);
+
 	/** skins the given component (applies the global look and feel to it). */
     void skin(Component &c);
 	
@@ -1565,6 +1674,7 @@ public:
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
 	LambdaBroadcaster<double, int>& getSpecBroadcaster() { return specBroadcaster; }
+	LambdaBroadcaster<bool>& getNonRealtimeBroadcaster() { return realtimeBroadcaster; }
 
     const CriticalSection& getLock() const;
     
@@ -1576,16 +1686,9 @@ public:
 	DebugLogger& getDebugLogger() { return debugLogger; }
 	const DebugLogger& getDebugLogger() const { return debugLogger; }
     
-	void addPreviewListener(BufferPreviewListener* l)
-	{
-		previewListeners.addIfNotAlreadyThere(l);
-		l->previewStateChanged(previewBufferIndex != -1, previewBuffer);
-	}
+	void addPreviewListener(BufferPreviewListener* l);
 
-	void removePreviewListener(BufferPreviewListener* l)
-	{
-		previewListeners.removeAllInstancesOf(l);
-	}
+	void removePreviewListener(BufferPreviewListener* l);
 
 	void stopBufferToPlay();
 
@@ -1595,6 +1698,8 @@ public:
 
 	int getPreviewBufferSize() const;
 
+    void connectToRuntimeTargets(scriptnode::OpaqueNode& opaqueNode, bool shouldAdd);
+    
 	void setKeyboardCoulour(int keyNumber, Colour colour);
 
 	CustomKeyboardState &getKeyboardState();
@@ -1716,7 +1821,9 @@ public:
 		return lastActiveEditor.getComponent();
 	}
 
-	
+#if HISE_INCLUDE_RT_NEURAL
+	NeuralNetwork::Holder& getNeuralNetworks() { return neuralNetworks; }
+#endif
 
 	/** This returns always true after the processor was initialised. */
 	bool isInitialised() const noexcept;;
@@ -1729,6 +1836,11 @@ public:
 	
 	void fillWithCustomFonts(StringArray &fontList);
 	juce::Typeface* getFont(const String &fontName) const;
+
+	float getStringWidthFloat(const Font& f, const String& name)
+	{
+		return getStringWidthFromEmbeddedFont(name, f.getTypefaceName(), f.getHeight(), f.getExtraKerningFactor());
+	}
 
 	float getStringWidthFromEmbeddedFont(const String& text, const String& fontName, float fontSize,
 	                                     float kerningFactor);
@@ -1766,12 +1878,16 @@ public:
 	}
 
     ReferenceCountedObject* getGlobalPreprocessor();
-    
+
+	bool isInsideAudioRendering() const;
+
 	bool shouldAbortMessageThreadOperation() const noexcept
 	{
 		return false;
 	}
-    
+
+	bool& getDeferNotifyHostFlag() { return deferNotifyHostFlag; }
+
 	LambdaBroadcaster<float> &getFontSizeChangeBroadcaster() { return codeFontChangeNotificator; };
     
 	
@@ -1833,7 +1949,7 @@ public:
 	}
 
 
-	void loadUserPresetAsync(const ValueTree& v);
+	void loadUserPresetAsync(const File& f);
 
 	UndoManager* getControlUndoManager() { return controlUndoManager; }
 
@@ -1876,13 +1992,20 @@ public:
 	RLottieManager::Ptr getRLottieManager();
 #endif
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
     LorisManager* getLorisManager() { return lorisManager.get(); }
 #endif
     
     LambdaBroadcaster<int>& getBlocksizeBroadcaster() { return blocksizeBroadcaster; }
     
+    /** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
+    void setBpm(double bpm_);
+    
 private: // Never call this directly, but wrap it through DelayedRenderer...
+
+	// except for the audio rendererbase as this does not need to use the outer interface
+	// (in order to avoid messing with the leftover sample logic from misbehFL!avinStudio!!1!g hosts...)
+	friend class AudioRendererBase;
 
 	/** This is the main processing loop that is shared among all subclasses. */
 	void processBlockCommon(AudioSampleBuffer &b, MidiBuffer &mb);
@@ -1895,9 +2018,6 @@ protected:
     void prepareToPlay(double sampleRate_, int samplesPerBlock);
     
 	bool deletePendingFlag = false;
-
-	/** sets the new BPM and sends a message to all registered tempo listeners if the tempo changed. */
-	void setBpm(double bpm_);
 
 	/** @brief Add this at the beginning of your processBlock() method to enable CPU measurement */
 	void startCpuBenchmark(int bufferSize);
@@ -1920,7 +2040,7 @@ protected:
 		}
 	};
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
     LorisManager::Ptr lorisManager;
 #endif
     
@@ -1961,7 +2081,13 @@ protected:
 	bool simulateDynamicBufferSize = false;
 #endif
 
+protected:
+
+	const AudioSampleBuffer& getMultiChannelBuffer() const;
+
 private:
+
+	void sendHisePresetLoadMessage(NotificationType n);
 
 	MasterClock masterClock;
 
@@ -1985,6 +2111,8 @@ private:
 	LambdaBroadcaster<double, int> specBroadcaster;
 
     LambdaBroadcaster<int> blocksizeBroadcaster;
+
+	LambdaBroadcaster<bool> realtimeBroadcaster;
     
 	Array<WeakReference<ControlledObject>> registeredObjects;
 
@@ -1992,6 +2120,11 @@ private:
 	bool embedAllResources = false;
 
 	PooledUIUpdater globalUIUpdater;
+	dispatch::RootObject rootDispatcher;
+	dispatch::library::ProcessorHandler processorHandler;
+	dispatch::library::CustomAutomationSourceManager customAutomationSourceManager;
+
+	PluginBypassHandler bypassHandler;
 
 	AudioSampleBuffer previewBuffer;
 	double previewBufferIndex = -1.0;
@@ -2002,6 +2135,10 @@ private:
 	bool flakyThreadingAllowed = false;
 
 	bool allowSoftBypassRamps = true;
+
+	// Apparrently calling ScriptComponent::changed() in order to update plugin parameters does not
+	// work if the notifyParameter() function is not deferred properly...
+	bool deferNotifyHostFlag = false;
 
 	void loadPresetInternal(const ValueTree& v);
 
@@ -2083,6 +2220,8 @@ private:
 	double originalSampleRate = 0.0;
 	
 	Array<CustomTypeFace> customTypeFaces;
+
+	CustomTypeFace defaultFont;
 	ValueTree customTypeFaceData;
 	ValueTree embeddedMarkdownDocs;
 
@@ -2166,18 +2305,22 @@ private:
 	bool enablePluginParameterUpdate = true;
 
     double globalPitchFactor;
-    
+
+	std::pair<bool, Thread::ThreadID> currentlyRenderingThread;
+
     std::atomic<double> bpm;
 
 	std::atomic<bool> hostIsPlaying;
 
 	Atomic<int> voiceAmount;
 	bool allNotesOffFlag;
-    
     bool changed;
-    
     bool midiInputFlag;
-	
+
+#if HISE_INCLUDE_RT_NEURAL
+	NeuralNetwork::Holder neuralNetworks;
+#endif
+
 	double processingSampleRate = 0.0;
     std::atomic<double> temp_usage;
 	int scrollY;

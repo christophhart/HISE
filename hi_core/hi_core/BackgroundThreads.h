@@ -49,7 +49,20 @@ public:
 	void showOnDesktop();
 	void destroy();
 
+	bool wantsBackdrop() const { return backdrop; }
+
+	bool shouldCloseOnBackdropClick() const { return closeOnClick; }
+
+	void setWantsBackdrop(bool shouldHaveBackdrop, bool shouldCloseOnClick = false)
+	{
+		backdrop = shouldHaveBackdrop;
+		closeOnClick = shouldCloseOnClick;
+	}
+
 private:
+
+	bool closeOnClick = false;
+	bool backdrop = false;
 
 	bool isQuasiModal = false;
 };
@@ -74,8 +87,60 @@ public:
 	virtual MainController* getMainControllerToUse() { return nullptr; }
 
 	ScopedPointer<Component> modalComponent;
+	ScopedPointer<Component> backdrop;
 	DropShadow s;
 	ScopedPointer<DropShadower> shadow;
+
+	struct DarkBackdrop: public Component,
+						 public ComponentMovementWatcher
+	{
+		DarkBackdrop(ModalBaseWindow& parent_, bool closeOnClick_):
+		  ComponentMovementWatcher(dynamic_cast<Component*>(&parent_)),
+		  parent(parent_),
+		  closeOnClick(closeOnClick_)
+		{
+			auto c = getComponent();
+			c->addAndMakeVisible(this);
+			setSize(c->getWidth(), c->getHeight());
+			toFront(false);
+		}
+
+		void componentPeerChanged() override {};
+		void componentVisibilityChanged() override {};
+
+		void componentMovedOrResized (bool wasMoved, bool wasResized) override
+		{
+			if(wasResized)
+			{
+				setSize(getComponent()->getWidth(), getComponent()->getHeight());
+
+				if(auto mc = parent.modalComponent.get())
+				{
+					mc->centreWithSize(mc->getWidth(), mc->getHeight());
+				}
+			}
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			if(closeOnClick)
+			{
+				auto p = &parent;
+				MessageManager::callAsync([p]()
+				{
+					p->clearModalComponent();
+				});
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			g.fillAll(Colour(0xAA161616));
+		}
+
+		ModalBaseWindow& parent;
+		bool closeOnClick = false;
+	};
 };
 
 

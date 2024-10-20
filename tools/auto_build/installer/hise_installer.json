@@ -1,0 +1,415 @@
+{
+  "StyleData": {
+    "Font": "Lato",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281479730,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "HISE Installer",
+    "Subtitle": "$version",
+    "Image": "",
+    "ProjectName": "HISE",
+    "Company": "HISE",
+    "Version": "4.0.0",
+    "BinaryName": "Hise Installer",
+    "UseGlobalAppData": false,
+    "Icon": "${icon}"
+  },
+  "LayoutData": {
+    "StyleSheet": "Dark",
+    "Style": "body\n{\n\t--global-padding: 25px;\n\t\n}\n\n#content\n{\n\tpadding-left: 70px;\n\tpadding-right: 70px;\n}\n\n#eula input\n{\n\theight: 100%;\n}\n\n#eula label\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n#title\n{\n\tfont-size: 1.5em;\n}\n\n.install-option\n{\n\tflex-grow: 0;\n\tflex-shrink: 0;\n\twidth: 180px;\n}\n\n.install-option button\n{\n\t\n\tcolor: #ddd;\n\ttext-align: left;\n}\n\n.install-option label\n{\n\tdisplay: none;\n}\n\n.install-target\n{\n\tflex-grow: 1;\n}\n\n.install-target label\n{\n\tdisplay: none;\n}\n\n.task label\n{\n\twidth: 160px;\n}\n",
+    "UseViewport": true,
+    "DialogWidth": 700,
+    "DialogHeight": 530
+  },
+  "GlobalState": {
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "ProjectInfo"
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "Welcome to the HISE installer. This will install the compiled versions of HISE $version.\n\n\n\n"
+        }
+      ],
+      "Text": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Please \"read\" and accept the EULA before proceeding..."
+        },
+        {
+          "Type": "RelativeFileLoader",
+          "ID": "standaloneTarget",
+          "SpecialLocation": "globalApplicationsDirectory"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "EULA",
+          "ID": "eula",
+          "InitValue": "${eula}",
+          "UseInitValue": true,
+          "Height": "180",
+          "Multiline": true,
+          "Style": "height: 200px; "
+        },
+        {
+          "Type": "Button",
+          "Text": "I've read and accepted the EULA",
+          "ID": "acceptTOC",
+          "InitValue": "false",
+          "UseInitValue": true,
+          "Required": true,
+          "Style": "color: white;",
+          "NoLabel": true
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 10px;"
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Please select which formats you want to install."
+        },
+        {
+          "Type": "OperatingSystem"
+        },
+        {
+          "Type": "PluginDirectories"
+        },
+        {
+          "Type": "Branch",
+          "ID": "OS",
+          "Children": [
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "// This is the placeholder for the zero value (the OS constant starts at 1 to match the value of the asset targetOS)"
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "RelativeFileLoader",
+                  "ID": "standaloneTarget",
+                  "SpecialLocation": "globalApplicationsDirectory",
+                  "RelativePath": "HISE"
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "RelativeFileLoader",
+                  "ID": "standaloneTarget",
+                  "SpecialLocation": "globalApplicationsDirectory"
+                },
+                {
+                  "Type": "Column",
+                  "Children": [
+                    {
+                      "Type": "Button",
+                      "ID": "installAU",
+                      "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                      "InitValue": "1",
+                      "UseInitValue": "1",
+                      "Class": ".install-option",
+                      "Text": "AU Plugin"
+                    },
+                    {
+                      "Type": "FileSelector",
+                      "ID": "auDirectory",
+                      "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+                      "Class": ".install-target",
+                      "UseInitValue": ""
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Children": []
+            }
+          ]
+        },
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "Button",
+              "ID": "installStandalone",
+              "InitValue": "1",
+              "UseInitValue": "1",
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "Class": ".install-option",
+              "Text": "Standalone App"
+            },
+            {
+              "Type": "FileSelector",
+              "ID": "standaloneTarget",
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "Class": ".install-target",
+              "UseInitValue": ""
+            }
+          ]
+        },
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "Button",
+              "ID": "installVST3",
+              "InitValue": "true",
+              "UseInitValue": "1",
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "Class": ".install-option",
+              "Text": "VST3 Plugin"
+            },
+            {
+              "Type": "FileSelector",
+              "ID": "vst3Directory",
+              "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+              "Class": ".install-target",
+              "UseInitValue": ""
+            }
+          ]
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 10px;"
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "FileLogger",
+          "Filename": "$standaloneWinTarget/InstallLog.txt"
+        },
+        {
+          "Type": "Branch",
+          "ID": "OS",
+          "Children": [
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "// This is the placeholder for the zero value (the OS constant starts at 1 to match the value of the asset targetOS)"
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "Installing Windows binaries..."
+                },
+                {
+                  "Type": "CopyAsset",
+                  "ID": "installStandalone",
+                  "Overwrite": "1",
+                  "Source": "${hise_win_standalone}",
+                  "Target": "$standaloneTarget",
+                  "Class": "task",
+                  "Text": "Standalone"
+                },
+                {
+                  "Type": "CopyAsset",
+                  "ID": "installStandalone",
+                  "Overwrite": "1",
+                  "Source": "${mpc_win}",
+                  "Target": "$standaloneTarget",
+                  "Class": "task",
+                  "Text": "Multipage Creator"
+                },
+                {
+                  "Type": "CopyAsset",
+                  "ID": "installVST3",
+                  "Overwrite": "1",
+                  "Source": "${hise_win_vst3}",
+                  "Target": "$vst3Directory",
+                  "Class": "task",
+                  "Text": "VST3 Plugin"
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "RelativeFileLoader",
+                  "ID": "dmgRoot",
+                  "SpecialLocation": "currentApplicationFile",
+                  "RelativePath": "../"
+                },
+                {
+                  "Type": "MarkdownText",
+                  "Text": "Installing macOS binaries..."
+                },
+                {
+                  "Type": "CopySiblingFile",
+                  "ID": "installStandalone",
+                  "Overwrite": "1",
+                  "Source": "$dmgRoot/HISE.app",
+                  "Target": "$standaloneTarget",
+                  "Class": "task",
+                  "Text": "Installing Standalone"
+                },
+                {
+                  "Type": "CopySiblingFile",
+                  "ID": "installStandalone",
+                  "Overwrite": "1",
+                  "Source": "$dmgRoot/multipagecreator.app",
+                  "Target": "$standaloneTarget",
+                  "Class": "task",
+                  "Text": "Install Multipage Creator"
+                },
+                {
+                  "Type": "CopySiblingFile",
+                  "ID": "installVST3",
+                  "Overwrite": "1",
+                  "Source": "$dmgRoot/HISE.vst3",
+                  "Target": "$vst3Directory",
+                  "Class": "task",
+                  "Text": "Install VST3 Plugin"
+                },
+                {
+                  "Type": "CopySiblingFile",
+                  "ID": "installAU",
+                  "Overwrite": "1",
+                  "Target": "$auDirectory",
+                  "Source": "$dmgRoot/HISE.component",
+                  "Class": "task",
+                  "Text": "Install AU"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "Text": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "OperatingSystem"
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "The installation was complete. Press finish to close the installer.",
+          "Style": "margin-bottom: 10px;"
+        },
+        {
+          "Type": "Button",
+          "Text": "Open HISE",
+          "ID": "launchHise",
+          "InitValue": "true",
+          "UseInitValue": true,
+          "Style": "color: white;",
+          "NoLabel": true
+        },
+        {
+          "Type": "Branch",
+          "Children": [
+            {
+              "Type": "List",
+              "Children": [],
+              "Text": ""
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "Launch",
+                  "Text": "$standaloneTarget/HISE.exe",
+                  "ID": "launchHise",
+                  "EventTrigger": "OnSubmit"
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "Launch",
+                  "Text": "$standaloneTarget/HISE.app",
+                  "ID": "launchHise",
+                  "EventTrigger": "OnSubmit"
+                }
+              ]
+            }
+          ],
+          "ID": "OS"
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 10px;"
+    }
+  ],
+  "Assets": [
+    {
+      "Type": 3,
+      "ID": "eula",
+      "RelativePath": true,
+      "OperatingSystem": 0,
+      "Filename": "license.txt"
+    },
+    {
+      "Type": 1,
+      "ID": "mpc_win",
+      "RelativePath": true,
+      "OperatingSystem": 1,
+      "Filename": "../../multipagecreator/Builds/VisualStudio2022/x64/Release/App/multipagecreator.exe"
+    },
+    {
+      "Type": 1,
+      "ID": "hise_win_standalone",
+      "RelativePath": true,
+      "OperatingSystem": 1,
+      "Filename": "../../../projects/standalone/Builds/VisualStudio2022/x64/Release/App/HISE.exe"
+    },
+    {
+      "Type": 1,
+      "ID": "hise_win_vst3",
+      "RelativePath": true,
+      "OperatingSystem": 1,
+      "Filename": "../../../projects/plugin/Builds/VisualStudio2022/x64/Release/VST/HISE x64.dll"
+    },
+    {
+      "Type": 0,
+      "ID": "icon",
+      "RelativePath": true,
+      "OperatingSystem": 0,
+      "Filename": "icon_macos.png"
+    }
+  ]
+}

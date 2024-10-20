@@ -52,12 +52,15 @@ END_JUCE_MODULE_DECLARATION
 
 #pragma once
 
-#include "AppConfig.h"
 
 #include "../JUCE/modules/juce_core/juce_core.h"
 #include "../JUCE/modules/juce_graphics/juce_graphics.h"
 #include "../JUCE/modules/juce_gui_basics/juce_gui_basics.h"
 #include "../hi_zstd/hi_zstd.h"
+
+#if HISE_INCLUDE_LORIS
+#include "../hi_loris/hi_loris.h"
+#endif
 
 /** Config: HISE_INCLUDE_RLOTTIE
 

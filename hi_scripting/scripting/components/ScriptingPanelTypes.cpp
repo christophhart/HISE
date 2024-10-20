@@ -36,6 +36,7 @@ CodeEditorPanel::CodeEditorPanel(FloatingTile* parent) :
 	PanelWithProcessorConnection(parent)
 {
 	tokeniser = new JavascriptTokeniser();
+	tokeniser->setUseScopeStatements(true);
 
 	getMainController()->addScriptListener(this);
 
@@ -74,6 +75,8 @@ Component* CodeEditorPanel::createContentComponent(int index)
 			pe->getEditor()->editor.setScaleFactor(scaleFactor);
 #endif
 
+		pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
+
 		pe->addMouseListener(this, true);
 		getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 		pe->grabKeyboardFocusAsync();
@@ -111,7 +114,10 @@ Component* CodeEditorPanel::createContentComponent(int index)
         if(scaleFactor != -1.0f)
             pe->getEditor()->editor.setScaleFactor(scaleFactor);
 #endif
-        
+
+		if(pe->isJavascript())
+			pe->getEditor()->editor.tokenCollection = BackendRootWindow::getJavascriptTokenCollection(this);
+
 		if(auto ed = pe->getEditor())
 			getProcessor()->getMainController()->setLastActiveEditor(pe->getEditor(), CodeDocument::Position());
 
@@ -263,9 +269,17 @@ void CodeEditorPanel::fillIndexList(StringArray& indexList)
 			indexList.add(p->getSnippet(i)->getCallbackName().toString());
 		}
 
+        auto scriptRoot = getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::SubDirectories::Scripts);
+        
 		for (int i = 0; i < p->getNumWatchedFiles(); i++)
 		{
-			indexList.add(p->getWatchedFile(i).getFileName());
+            auto f = p->getWatchedFile(i);
+			auto path = f.getRelativePathFrom(scriptRoot);
+
+			if(p->isEmbeddedSnippetFile(i))
+				path << " (embedded)";
+
+			indexList.add(path.replaceCharacter('\\', '/'));
 		}
 
 		if (auto h = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
@@ -357,13 +371,7 @@ void ConsolePanel::resized()
 
 void ScriptContentPanel::scriptWasCompiled(JavascriptProcessor *processor)
 {
-	if (processor == dynamic_cast<JavascriptProcessor*>(getConnectedProcessor()))
-	{
-		
-		resized();
-		if (getContent<Editor>() != nullptr)
-			getContent<Editor>()->refreshContent();
-	}
+	updateInterfaceListener(dynamic_cast<ProcessorWithScriptingContent*>(processor));
 }
 
 var ScriptContentPanel::toDynamicObject() const
@@ -431,6 +439,12 @@ struct ScriptContentPanel::Canvas : public ScriptEditHandler,
 		
 		overlay->setEditMode(shouldEdit);
 		overlay->setShowEditButton(false);
+	}
+
+	~Canvas()
+	{
+		overlay = nullptr;
+		content = nullptr;
 	}
 
 	static void overlayChanged(Canvas& c, const Image& img, float alpha)
@@ -573,6 +587,9 @@ private:
 
 void ScriptContentPanel::Canvas::paint(Graphics& g)
 {
+	if(overlay == nullptr || content == nullptr)
+		return;
+
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF1b1b1b)));
 
 	auto overlayBounds = FLOAT_RECTANGLE(getLocalArea(overlay, overlay->getLocalBounds()));
@@ -681,9 +698,13 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 
 	overlaySelector = new ComboBox("Zoom");
 
-	auto overlayDirectory = dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor())->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::SubDirectories::Images).getChildFile("overlays");
+	auto& handler = dynamic_cast<Processor*>(c->getScriptEditHandlerProcessor())->getMainController()->getCurrentFileHandler();
 
-	currentOverlays = overlayDirectory.findChildFiles(File::findFiles, false, "*.png");
+	if(handler.getRootFolder().isDirectory())
+	{
+		auto overlayDirectory = handler.getSubDirectory(FileHandlerBase::SubDirectories::Images).getChildFile("overlays");
+		currentOverlays = overlayDirectory.findChildFiles(File::findFiles, false, "*.png");
+	}
 
 	overlaySelector->addItem("No overlay", 1);
 	overlaySelector->setTextWhenNothingSelected("Select overlay");
@@ -764,7 +785,7 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 
 void ScriptContentPanel::Editor::rebuildAfterContentChange()
 {
-	addButton("showall");
+	addButton("zoom-fit");
 
 	addCustomComponent(zoomSelector);
 
@@ -782,6 +803,7 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 
 	addButton("lock");
 	addButton("move");
+	addButton("suspend");
 
 	addSpacer(10);
 
@@ -791,6 +813,9 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 	addButton("horizontal-distribute");
 
 	addSpacer(10);
+
+	addButton("edit-json");
+	addButton("debug-css");
 
 	addCustomComponent(overlaySelector);
 	addCustomComponent(overlayAlphaSlider);
@@ -817,7 +842,29 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		b->actionFunction = Actions::deselectAll;
 		b->setTooltip("Deselect current item (Escape)");
 	}
-	if (name == "showall")
+	if(name == "edit-json")
+	{
+		b->enabledFunction = isSelected;
+		b->actionFunction = Actions::editJson;
+		b->setTooltip("Edits the raw property data object as JSON (Dangerzone!)");
+	}
+	if(name == "debug-css")
+	{
+		b->enabledFunction = [](Editor& e)
+		{
+			return callRecursive<simple_css::HeaderContentFooter>(&e, [](simple_css::HeaderContentFooter*){ return true; });
+		};
+
+		b->actionFunction = Actions::debugCSS;
+		b->setTooltip("Show the CSS debugger for the current dialog");
+	}
+	if(name == "suspend")
+	{
+		b->stateFunction = [](Editor& e){ return !dynamic_cast<ProcessorWithScriptingContent*>(e.getProcessor())->simulatedSuspensionState; };
+		b->setTooltip("Simulates the suspension of the UI timers (as if all interface would be closed).");
+		b->actionFunction = Actions::toggleSuspension;
+	}
+	if (name == "zoom-fit")
 	{
 		b->actionFunction = [](Editor& e)
 		{
@@ -843,6 +890,7 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 	}
 	if (name == "learn")
 	{
+		b->setTooltip("Enable automatic parameter assignment mode");
 		b->actionFunction = [](Editor& e)
 		{
 			auto bc = e.getScriptComponentEditBroadcaster();
@@ -1109,7 +1157,7 @@ bool ScriptContentPanel::Editor::Actions::rebuildAndRecompile(Editor& e_)
     
 	auto p = e->getProcessor();
 
-	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::ScriptingThread);
+	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::TargetThread::ScriptingThread);
 
 	return true;
 }
@@ -1133,6 +1181,12 @@ bool ScriptContentPanel::Editor::Actions::toggleEditMode(Editor& e)
 	e.canvas.setScrollOnDragEnabled(shouldDrag);
 	e.canvas.setMouseWheelScrollEnabled(true);// !shouldDrag);
 
+	return true;
+}
+
+bool ScriptContentPanel::Editor::Actions::toggleSuspension(Editor& e)
+{
+	dynamic_cast<ProcessorWithScriptingContent*>(e.getProcessor())->toggleSuspension();
 	return true;
 }
 
@@ -1227,6 +1281,12 @@ bool ScriptContentPanel::Editor::Actions::undo(Editor* e, bool shouldUndo)
 	e->getScriptComponentEditBroadcaster()->undo(shouldUndo);
 	rebuild(*e);
 
+	return true;
+}
+
+bool ScriptContentPanel::Editor::Actions::editJson(Editor& e)
+{
+	e.getScriptComponentEditBroadcaster()->showJSONEditor(&e);
 	return true;
 }
 
@@ -1407,7 +1467,7 @@ struct ServerController: public Component,
 		{
 			Path p;
 
-			LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+			LOAD_EPATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
 			LOAD_EPATH_IF_URL("clear", SampleMapIcons::deleteSamples);
 			LOAD_PATH_IF_URL("edit", ServerIcons::parameters);
 			LOAD_EPATH_IF_URL("web", MainToolbarIcons::web);
@@ -2154,7 +2214,8 @@ Array<PathFactory::KeyMapping> ScriptContentPanel::Factory::getKeyMapping() cons
 	km.add({ "Zoom out", '-', ModifierKeys::commandModifier });
 	km.add({ "Undo", 'z', ModifierKeys::commandModifier });
 	km.add({ "Redo", 'y', ModifierKeys::commandModifier });
-
+	km.add({ "Edit JSON", 'j' });
+	
 	return km;
 }
 
@@ -2164,7 +2225,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	auto url = MarkdownLink::Helpers::getSanitizedFilename(id);
 	Path p;
 
-	LOAD_EPATH_IF_URL("showall", ScriptnodeIcons::zoomFit);
+	LOAD_EPATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
 	LOAD_EPATH_IF_URL("edit", OverlayIcons::penShape);
 	LOAD_EPATH_IF_URL("editoff", OverlayIcons::lockShape);
 	LOAD_EPATH_IF_URL("lock", OverlayIcons::lockShape);
@@ -2178,6 +2239,9 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	LOAD_PATH_IF_URL("horizontal-align", ColumnIcons::horizontalAlign);
 	LOAD_PATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);
 	LOAD_PATH_IF_URL("horizontal-distribute", ColumnIcons::horizontalDistribute);
+	LOAD_EPATH_IF_URL("edit-json", HiBinaryData::SpecialSymbols::scriptProcessor);
+	LOAD_PATH_IF_URL("debug-css", ColumnIcons::debugCSS);
+	LOAD_EPATH_IF_URL("suspend", EditorIcons::nightIcon);
 
 	return p;
 }
@@ -2374,7 +2438,7 @@ OSCLogger::OSCLogger(FloatingTile* parent) :
 	filterButton.setToggleModeWithColourChange(true);
 
 	fader.addScrollBarToAnimate(list.getVerticalScrollBar());
-	list.getViewport()->setScrollBarThickness(12);
+	list.getViewport()->setScrollBarThickness(13);
 }
 
 OSCLogger::~OSCLogger()

@@ -32,6 +32,66 @@
 
 namespace hise { using namespace juce;
 
+struct IndexComboBox: public SubmenuComboBox
+{
+    virtual bool useCustomPopupMenu() const { return useCustomPopup; }
+
+    virtual void createPopupMenu(PopupMenu& m, const StringArray& items, const Array<int>& indexList)
+    {
+        if(items.size() > 7)
+        {
+            StringArray fullArray;
+            StringArray newArray;
+            
+            fullArray.add("Disconnect");
+            
+            for(const auto& i: items)
+            {
+                if(i.startsWith("on"))
+                {
+                    fullArray.add("Callbacks::" + i);
+                }
+                else if (i == "Disconnect")
+                    continue;
+                else if (i.contains("/"))
+                {
+                    newArray.add(i.replace("/", "::"));
+                }
+                else
+                    newArray.add(i);
+            }
+            
+            newArray.sort(true);
+            
+            fullArray.addArray(newArray);
+            
+
+            
+            m = MouseCallbackComponent::parseFromStringArray(fullArray, indexList, &getLookAndFeel());
+
+#if 0
+            m.clear();
+            
+            PopupMenu callbacks;
+            
+            int index = 1;
+            
+            for(auto item: items)
+            {
+                if(item == "Disconnect")
+                    m.addItem(index++, item);
+                else if (item.startsWith("on"))
+                    callbacks.addItem(index++, item);
+            }
+            
+            m.addSubMenu("Callbacks", callbacks);
+#endif
+        }
+    }
+
+    bool useCustomPopup = true;
+};
+
 PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent) :
 	FloatingTileContent(parent),
 	showConnectionBar("showConnectionBar"),
@@ -51,7 +111,7 @@ PanelWithProcessorConnection::PanelWithProcessorConnection(FloatingTile* parent)
 	connectionSelector->setColour(HiseColourScheme::ComponentOutlineColourId, Colours::transparentBlack);
 	connectionSelector->setTextWhenNothingSelected("Disconnected");
 
-	addAndMakeVisible(indexSelector = new ComboBox());
+	addAndMakeVisible(indexSelector = new IndexComboBox());
 	indexSelector->addListener(this);
 	getMainSynthChain()->getMainController()->skin(*indexSelector);
 
@@ -233,6 +293,7 @@ hise::Processor* PanelWithProcessorConnection::createDummyProcessorForDocumentat
 
 void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainController::ProcessorChangeHandler::EventType type)
 {
+#if USE_OLD_PROCESSOR_DISPATCH
 	if (type == MainController::ProcessorChangeHandler::EventType::ProcessorBypassed ||
 		type == MainController::ProcessorChangeHandler::EventType::ProcessorColourChange)
 		return;
@@ -249,6 +310,7 @@ void PanelWithProcessorConnection::moduleListChanged(Processor* b, MainControlle
 		}
 	}
 	else
+#endif
 	{
 		refreshConnectionList();
 	}
@@ -362,14 +424,16 @@ void PanelWithProcessorConnection::comboBoxChanged(ComboBox* comboBoxThatHasChan
 
 		if (indexSelector->getSelectedId() != 1)
 		{
-			newIndex = indexSelector->getSelectedId() - 2;
-			setContentWithUndo(connectedProcessor.get(), newIndex);
+            newIndex = indexSelector->getSelectedId();
+            setContentWithUndo(connectedProcessor.get(), newIndex-2);
 		}
 		else
 		{
 			setConnectionIndex(newIndex);
 			refreshContent();
 		}
+        
+        indexSelector->refreshTickState();
 	}
 }
 
@@ -440,6 +504,7 @@ void PanelWithProcessorConnection::refreshSelectorValue(Processor* p, String cur
     {
         currentIndex = index;
         indexSelector->setSelectedId(index + 2, dontSendNotification);
+        indexSelector->refreshTickState();
         
         setCustomTitle(currentId);
         refreshTitle();
@@ -456,13 +521,35 @@ void PanelWithProcessorConnection::refreshIndexList()
 
 	fillIndexList(items);
 
+	
 	int index = items.indexOf(currentId);
 
 	indexSelector->addItem("Disconnect", 1);
 	indexSelector->addItemList(items, 2);
+    indexSelector->rebuildPopupMenu();
+    
+    auto menu = indexSelector->getRootMenu();
 
+	PopupMenu::MenuItemIterator it(*menu, true);
+
+	while(it.next())
+	{
+		auto& item = it.getItem();
+
+		for(int i = 0; i < items.size(); i++)
+		{
+			if(items[i].fromLastOccurrenceOf("/", false, false) == item.text)
+			{
+				item.itemID = i + 2;
+				break;
+			}
+		}
+	}
+	
 	if (index != -1)
 		indexSelector->setSelectedId(index + 2, dontSendNotification);
+
+	indexSelector->refreshTickState();
 }
 
 ModulatorSynthChain* PanelWithProcessorConnection::getMainSynthChain()
@@ -485,20 +572,41 @@ void PanelWithProcessorConnection::changeContentWithUndo(int newIndex)
 
 void PanelWithProcessorConnection::setContentWithUndo(Processor* newProcessor, int newIndex)
 {
+	if(setContentRecursion)
+		return;
+
 	StringArray indexes;
 	fillIndexList(indexes);
 
 	refreshIndexList();
-    
+
+	ScopedValueSetter<bool> svs(setContentRecursion, true);
+
 	ScopedPointer<ProcessorConnection> connection = new ProcessorConnection(this, newProcessor, newIndex, getAdditionalUndoInformation());
 
-	connection->perform();
-
-	connection = nullptr;
+	if(auto lum = getMainController()->getLocationUndoManager())
+	{
+		if(!lum->isPerformingUndoRedo())
+		{
+			lum->perform(connection.release());
+		}
+		else
+		{
+			connection->perform();
+			connection = nullptr;
+		}
+		
+	}
+	else
+	{
+		connection->perform();
+		connection = nullptr;
+	}
 
 	if (newIndex != -1)
 	{
 		indexSelector->setSelectedId(newIndex + 2, dontSendNotification);
+        indexSelector->refreshTickState();
 	}
 
 }
@@ -526,6 +634,7 @@ void PanelWithProcessorConnection::refreshContent()
 		connectionSelector->setSelectedId(1, dontSendNotification);
 
 	indexSelector->setSelectedId(currentIndex + 2, dontSendNotification);
+    indexSelector->refreshTickState();
 
 	if (getProcessor() == nullptr || (hasSubIndex() && currentIndex == -1))
 	{
@@ -578,7 +687,7 @@ bool PanelWithProcessorConnection::ProcessorConnection::perform()
 
 bool PanelWithProcessorConnection::ProcessorConnection::undo()
 {
-	if (panel.getComponent())
+	if (panel.getComponent() && oldProcessor != nullptr)
 	{
 		panel->currentIndex = oldIndex;
 		panel->setCurrentProcessor(oldProcessor.get());

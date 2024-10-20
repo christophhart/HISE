@@ -47,6 +47,8 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 	parameterNames.add("Attack");
 	parameterNames.add("Release");
 
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("AttackChainShown");
 	editorStateIdentifiers.add("ReleaseChainShown");
 
@@ -54,32 +56,7 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 
 	monophonicState = createSubclassedState(-1);
 
-	WeakReference<Processor> t = this;
-
-	auto attackConverter = [t](float input)
-	{
-		if (t != nullptr)
-		{
-			auto time = t->getAttribute(TableEnvelope::SpecialParameters::Attack);
-			return String(roundToInt(input * time)) + " ms";
-		}
-
-		return String();
-	};
-
-	auto releaseConverter = [t](float input)
-	{
-		if (t != nullptr)
-		{
-			auto time = t->getAttribute(TableEnvelope::SpecialParameters::Release);
-			return String(roundToInt(input * time)) + " ms";
-		}
-
-		return String();
-	};
-
-	attackTable->setXTextConverter(attackConverter);
-	releaseTable->setXTextConverter(releaseConverter);
+	updateTables();
 
 	attackChain->setIsVoiceStartChain(true);
 	releaseChain->setIsVoiceStartChain(true);
@@ -290,6 +267,39 @@ void TableEnvelope::handleHiseEvent(const HiseEvent& m)
 		releaseChain->handleHiseEvent(m);
 };
 
+void TableEnvelope::updateTables()
+{
+	WeakReference<Processor> t = this;
+
+	auto attackConverter = [t](float input)
+	{
+		if (t != nullptr)
+		{
+			auto time = t->getAttribute(TableEnvelope::SpecialParameters::Attack);
+			return String(roundToInt(input * time)) + " ms";
+		}
+
+		return String();
+	};
+
+	auto releaseConverter = [t](float input)
+	{
+		if (t != nullptr)
+		{
+			auto time = t->getAttribute(TableEnvelope::SpecialParameters::Release);
+			return String(roundToInt(input * time)) + " ms";
+		}
+
+		return String();
+	};
+
+	attackChain->setTableValueConverter(attackConverter);
+	releaseChain->setTableValueConverter(releaseConverter);
+
+	attackTable->setXTextConverter(attackConverter);
+	releaseTable->setXTextConverter(releaseConverter);
+}
+
 float TableEnvelope::calculateNewValue(int voiceIndex)
 {
 	jassert(voiceIndex < states.size());
@@ -316,7 +326,6 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 			else
 			{
 				state->current_state = TableEnvelopeState::SUSTAIN;
-				state->current_value = 1.0f;
 			}
 		}
 		break;

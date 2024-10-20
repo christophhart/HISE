@@ -810,7 +810,7 @@ void FileImportDialogWindow::run()
 	pool->setDeactivatePoolSearch(false);
 
 	sampler->getSampleMap()->getCurrentSamplePool()->sendChangeMessage();
-	sampler->sendChangeMessage();
+	sampler->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 }
 
 

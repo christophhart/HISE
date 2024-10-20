@@ -59,6 +59,21 @@ public:
 		bool operator==(const Location& other) { return other.charNumber == charNumber && fileName == other.fileName; }
 		String fileName = String();
 		int charNumber = 0;
+
+		String toGotoString() const
+		{
+			String loc;
+
+			loc << "goto ";
+			if(fileName.isEmpty())
+				loc << "onInit";
+			else
+				loc << fileName;
+
+			loc << "@" << charNumber;
+
+			return loc;
+		}
 	};
 
 	virtual ~DebugableObjectBase() {};
@@ -410,7 +425,7 @@ public:
 			~CompileDebugLock();
 
 			Holder& p;
-			bool prevValue = false;
+            ScopedValueSetter<bool> prevValue;
 
 			ScopedWriteLock sl;
 		};

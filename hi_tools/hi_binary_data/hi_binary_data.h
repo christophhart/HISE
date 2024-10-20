@@ -94,6 +94,9 @@ namespace HnodeIcons
 
 namespace ProcessorIcons
 {
+	DECLARE_DATA(cpuIcon, 510);
+	DECLARE_DATA(fftIcon, 225);
+	DECLARE_DATA(stereoIcon, 896);
 	DECLARE_DATA(midiIcon, 774);
 	DECLARE_DATA(gainIcon, 115);
 	DECLARE_DATA(pitchIcon, 532);
@@ -122,6 +125,9 @@ namespace MainToolbarIcons
 	DECLARE_DATA(help, 579);
 	DECLARE_DATA(comment, 157);
 	DECLARE_DATA(hise, 1219);
+
+	DECLARE_DATA(quicknote, 245);
+	DECLARE_DATA(quickplay, 239);
 }
 
 namespace ExpansionIcons
@@ -172,20 +178,21 @@ namespace SampleToolbarIcons
 	DECLARE_DATA(envelope, 458);
 	DECLARE_DATA(zoomIn, 435);
 	DECLARE_DATA(zoomOut, 354);
-	DECLARE_DATA(normaliseOn, 587);
+	DECLARE_DATA(normalise, 431);
 	DECLARE_DATA(toggleFirst, 1087);
-	DECLARE_DATA(normaliseOff, 587);
 	DECLARE_DATA(loopOff, 50);
 	DECLARE_DATA(loopOn, 286);
 	DECLARE_DATA(selectMidi, 495);
 	DECLARE_DATA(selectMouse, 68);
 	DECLARE_DATA(sampleStartArea, 1076);
+	DECLARE_DATA(releaseStart, 863);
 	DECLARE_DATA(playArea, 679);
 	DECLARE_DATA(loopArea, 351);
 	DECLARE_DATA(more, 334);
 	DECLARE_DATA(zero, 224);
 	DECLARE_DATA(smooth_loop, 696);
 	DECLARE_DATA(tabIcon, 123);
+	DECLARE_DATA(releaseStartOptions, 468);
 }
 
 namespace LoopIcons

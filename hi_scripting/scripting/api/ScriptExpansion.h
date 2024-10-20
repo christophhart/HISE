@@ -94,10 +94,14 @@ public:
 	void clearAttachedCallbacks();
 
 	/** Updates the given automation values and optionally sends out a message. */
-	void updateAutomationValues(var data, bool sendMessage, bool useUndoManager);
+	void updateAutomationValues(var data, var sendMessage, bool useUndoManager);
 
 	/** Returns the amount of seconds since the last preset has been loaded. */
 	double getSecondsSinceLastPresetLoad();
+
+	/** Loads the default user preset (if it's defined in the project). */
+	void resetToDefaultUserPreset();
+	
 
 	/** Creates an object containing the values for every automation ID. */
 	var createObjectForAutomationValues();
@@ -141,20 +145,24 @@ public:
 
 private:
 
-	struct AttachedCallback: public ReferenceCountedObject
+	struct AttachedCallback:	NEW_AUTOMATION_WITH_COMMA(public dispatch::ListenerOwner)
+								public ReferenceCountedObject
 	{
-		AttachedCallback(ScriptUserPresetHandler* parent, MainController::UserPresetHandler::CustomAutomationData::Ptr cData, var f, bool isSynchronous);
+		AttachedCallback(ScriptUserPresetHandler* parent, MainController::UserPresetHandler::CustomAutomationData::Ptr cData, var f, dispatch::DispatchType n);
 
 		~AttachedCallback();
 
-		WeakCallbackHolder customUpdateCallback;
-		WeakCallbackHolder customAsyncUpdateCallback;
-
 		static void onCallbackSync(AttachedCallback& c, var* args);
-
 		static void onCallbackAsync(AttachedCallback& c, int index, float newValue);
 
+		void onUpdate(int index, float value);
+
 		MainController::UserPresetHandler::CustomAutomationData::Ptr cData;
+		IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource::Listener listener);
+		WeakCallbackHolder customAsyncUpdateCallback;
+		WeakCallbackHolder customUpdateCallback;
+
+		dispatch::DispatchType n;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(AttachedCallback);
 	};
@@ -571,6 +579,9 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** If the unlocker has an expiration date, it will check it against the RSA encoded time string from the server. */
 		var checkExpirationData(const String& encodedTimeString);
 
+		/** If you use the MuseHub SDK this will try to activate the plugin using their SDK. */
+		void checkMuseHub(var resultCallback);
+
 		/** Sets a function that performs a product name check and expects to return true or false for a match. */
 		void setProductCheckFunction(var f);
 
@@ -595,7 +606,11 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** Returns the machine ID that is encoded into the license file. This does not look in the encrypted blob, but just parses the header string. */
 		String getRegisteredMachineId();
 
+		/** Checks if the string contains the given substring. */
+		bool contains(String otherString);
+
 		WeakCallbackHolder pcheck;
+		WeakCallbackHolder mcheck;
 
 		struct Wrapper;
 
@@ -613,11 +628,20 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 	URL getServerAuthenticationURL() override;
 	String readReplyFromWebserver(const String& email, const String& password) override;
 
+	void checkMuseHub();
+
+#if HISE_INCLUDE_MUSEHUB
+	ReferenceCountedObject* checkMuseHubInternal();
+	ReferenceCountedObjectPtr<ReferenceCountedObject> m;
+#endif
+
 	var loadKeyFile();
 	File getLicenseKeyFile();
 	WeakReference<RefObject> currentObject;
 
 	String registeredMachineId;
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnlocker);
 };

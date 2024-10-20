@@ -90,7 +90,9 @@ struct table: public scriptnode::data::base
 			{
 				for (auto& s : data.toChannelData(ch))
 				{
-					processFloat(s);
+					ignoreUnused(s);
+                    v = hmath::abs(v);
+					processFloat(v);
 				}
 			}
 
@@ -100,7 +102,7 @@ struct table: public scriptnode::data::base
 
 	void processFloat(float& s)
 	{
-		InterpolatorType ip(hmath::abs(s));
+		InterpolatorType ip(s);
 		s *= tableData[ip];
 	}
 
@@ -114,10 +116,17 @@ struct table: public scriptnode::data::base
 	{
 		DataReadLock l(this);
 
+        float v = 0.0f;
+        
 		if (!tableData.isEmpty())
 		{
 			for(auto& s: data)
-				processFloat(s);
+            {
+                v = hmath::abs(s);
+                processFloat(v);
+            }
+            
+            externalData.setDisplayedValue(v);
 		}
 	}
 
@@ -131,17 +140,27 @@ struct table: public scriptnode::data::base
 	JUCE_DECLARE_WEAK_REFERENCEABLE(table);
 };
 
-class peak: public data::display_buffer_base<true>
+
+
+template <bool Unscaled> class peak_base: public data::display_buffer_base<true>
 {
 public:
+	
+	SN_GET_SELF_AS_OBJECT(peak_base);
 
-	SN_NODE_ID("peak");
-	SN_GET_SELF_AS_OBJECT(peak);
-	SN_DESCRIPTION("create a modulation signal from the input peak");
+	~peak_base() override {};
 
 	SN_EMPTY_CREATE_PARAM;
 	SN_EMPTY_HANDLE_EVENT;
 	SN_EMPTY_INITIALISE;
+
+	void prepare(PrepareSpecs ps)
+	{
+		handler = ps.voiceIndex;
+
+		if(handler != nullptr && !handler->isEnabled())
+			handler = nullptr;
+	}
 
 	bool isPolyphonic() const { return false; }
 
@@ -151,35 +170,91 @@ public:
 		return true;
 	}
 
-	void reset() noexcept;;
+	void reset() noexcept
+	{
+		max = 0.0;
+	}
 
-	static constexpr bool isNormalisedModulation() { return true; }
+	static constexpr bool isNormalisedModulation() { return !Unscaled; }
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		max = 0.0f;
+		max = 0.0;
 
-		for (auto& ch : data)
+		if constexpr (Unscaled)
 		{
-			auto range = FloatVectorOperations::findMinAndMax(data.toChannelData(ch).begin(), data.getNumSamples());
-			max = jmax<float>(max, Math.abs(range.getStart()), Math.abs(range.getEnd()));
-		}
+			float thisMin = 0.0f;
+			float thisMax = 0.0f;
 
-		updateBuffer(max, data.getNumSamples());
+			for (auto& ch : data)
+			{
+				auto range = FloatVectorOperations::findMinAndMax(data.toChannelData(ch).begin(), data.getNumSamples());
+
+				thisMax = jmax(range.getEnd(), thisMax);
+				thisMin = jmin(range.getStart(), thisMin);
+			}
+
+			max = Math.abs(thisMin) > Math.abs(thisMax) ? thisMin : thisMax;
+		}
+		else
+		{
+			for (auto& ch : data)
+			{
+				auto range = FloatVectorOperations::findMinAndMax(data.toChannelData(ch).begin(), data.getNumSamples());
+				max = jmax<float>(max, Math.abs(range.getStart()), Math.abs(range.getEnd()));
+			}
+		}
+		
+		if(handler == nullptr || handler->getVoiceIndex() == 0)
+			updateBuffer(max, data.getNumSamples());
 	}
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
 		max = 0.0;
 
-		for (auto& s : data)
-			max = Math.max(max, Math.abs((double)s));
+		if constexpr (Unscaled)
+		{
+			float thisMin = 0.0f;
+			float thisMax = 0.0f;
 
-		updateBuffer(max, 1);
+			for (auto& s : data)
+			{
+				thisMax = Math.max(thisMax, s);
+				thisMin = Math.min(thisMin, s);
+			}
+
+			max = Math.abs(thisMin) > Math.abs(thisMax) ? thisMin : thisMax;
+		}
+		else
+		{
+			for (auto& s : data)
+			{
+				max = Math.max(max, Math.abs((double)s));
+			}
+		}
+
+		if(handler == nullptr || handler->getVoiceIndex() == 0)
+			updateBuffer(max, 1);
 	}
 
 	// This is no state variable, so we don't need it to be polyphonic...
 	double max = 0.0;
+
+	// This is used to figure out whether to send the value
+	PolyHandler* handler = nullptr;
+};
+
+struct peak: public peak_base<false>
+{
+	SN_NODE_ID("peak");
+	SN_DESCRIPTION("create a modulation signal from the (absolute) input magnitude");
+};
+
+struct peak_unscaled: public peak_base<true>
+{
+	SN_NODE_ID("peak_unscaled");
+	SN_DESCRIPTION("create a raw modulation signal from the input");
 };
 
 class recorder: public data::base
@@ -577,7 +652,8 @@ template <class ShaperType> struct snex_shaper
 	SN_EMPTY_CREATE_PARAM;
 };
 
-template <int NV, bool UseRingBuffer=false> class ramp : public data::display_buffer_base<UseRingBuffer>
+template <int NV, bool UseRingBuffer=false> class ramp : public data::display_buffer_base<UseRingBuffer>,
+														 public polyphonic_base
 {
 public:
 
@@ -595,11 +671,11 @@ public:
 	SN_GET_SELF_AS_OBJECT(ramp);
 	SN_DESCRIPTION("Creates a ramp signal that can be used as modulation source");
 
-	ramp()
+	ramp():
+	  polyphonic_base(getStaticId(), false)
 	{
 		setPeriodTime(100.0);
 
-		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsPolyphonic);
 		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::UseRingBuffer);
 	}
 
@@ -1042,7 +1118,209 @@ public:
 };
 
 
+template <int NV, bool useFM> class phasor_base: public polyphonic_base
+{
+public:
 
+	static constexpr int NumVoices = NV;
+
+	SN_REGISTER_CALLBACK(phasor_base);;
+
+	enum class Parameters
+	{
+		Gate,
+		Frequency,
+		FreqRatio,
+		Phase,
+		numParameters
+	};
+
+	SN_EMPTY_INITIALISE;
+
+	phasor_base(const Identifier& id): polyphonic_base(id) {}
+
+	constexpr bool isProcessingHiseEvent() const { return true; }
+
+	void reset()
+	{
+		for (auto& s : voiceData)
+			s.reset();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		sr = ps.sampleRate;
+		voiceData.prepare(ps);
+		sr = ps.sampleRate;
+		setFrequency(freqValue);
+		setFreqRatio(multiplier);
+	}
+	
+	template <typename ProcessDataType> void process(ProcessDataType& data)
+	{
+		currentVoiceData = &voiceData.get();
+
+		if(!currentVoiceData->enabled)
+			return;
+
+		for (auto& s : data[0])
+		{
+			auto asSpan = reinterpret_cast<span<float, 1>*>(&s);
+			processFrameInternal(*asSpan);
+		}
+		
+		currentVoiceData = nullptr;
+	}
+
+	int64_t bitwiseOrZero(const double &t) {
+		return static_cast<int64_t>(t) | 0;
+	}
+
+	template <typename FrameDataType> void processFrameInternal(FrameDataType& data)
+	{
+		jassert(currentVoiceData != nullptr);
+
+		auto phase =  currentVoiceData->tick();
+
+		if constexpr (useFM)
+		{
+			double delta = currentVoiceData->uptimeDelta * currentVoiceData->multiplier;
+			delta *= (double)data[0];
+			currentVoiceData->uptime += delta;
+		}
+			
+
+		phase -= bitwiseOrZero(phase);
+		data[0] = (float)phase;
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	{
+		currentVoiceData = &voiceData.get();
+		processFrameInternal(data);
+		currentVoiceData = nullptr;
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if (e.isNoteOn())
+			setFrequency(e.getFrequency());
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			DEFINE_PARAMETERDATA(phasor_base, Gate);
+			p.setRange({ 0.0, 1.0, 1.0 });
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(phasor_base, Frequency);
+			p.setRange({ 20.0, 20000.0, 0.1 });
+			p.setDefaultValue(220.0);
+			p.setSkewForCentre(1000.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Freq Ratio");
+			p.setRange({ 1.0, 16.0, 1.0 });
+			p.setDefaultValue(1.0);
+			registerCallback<(int)Parameters::FreqRatio>(p);
+			data.add(std::move(p));
+		}
+		{
+			DEFINE_PARAMETERDATA(phasor_base, Phase);
+			p.setRange({ 0.0, 1.0 });
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+	}
+
+	void setFrequency(double newFrequency)
+	{
+		freqValue = newFrequency;
+
+		if (sr > 0.0)
+		{
+			auto newUptimeDelta = (double)(newFrequency / sr);
+
+			for (auto& d : voiceData)
+				d.uptimeDelta = newUptimeDelta;
+		}
+	}
+
+	void setGate(double v)
+	{
+		auto shouldBeOn = (int)(v > 0.5);
+
+		for (auto& d : voiceData)
+		{
+			auto shouldReset = shouldBeOn && !d.enabled;
+
+			if (shouldReset)
+				d.uptime = 0.0;
+
+			d.enabled = shouldBeOn;
+		}
+	}
+
+	void setPhase(double v)
+	{
+		for (auto& s : voiceData)
+			s.phase = v;
+	}
+
+	void setFreqRatio(double newMultiplier)
+	{
+		multiplier = jlimit(0.001, 100.0, newMultiplier);
+
+		for (auto& d : voiceData)
+			d.multiplier = multiplier;
+	}
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(Gate, phasor_base);
+		DEF_PARAMETER(Frequency, phasor_base);
+		DEF_PARAMETER(FreqRatio, phasor_base);
+		DEF_PARAMETER(Phase, phasor_base);
+	}
+	SN_PARAMETER_MEMBER_FUNCTION;
+
+	double sr = 44100.0;
+	PolyData<OscData, NumVoices> voiceData;
+	OscData* currentVoiceData = nullptr;
+
+	double freqValue = 220.0;
+	double multiplier = 1.0;
+};
+
+template <int NV> class phasor: public phasor_base<NV, false>
+{
+public:
+
+	phasor(): phasor_base<NV, false>(getStaticId()) {};
+
+	constexpr static int NumVoices = NV;
+
+	SN_POLY_NODE_ID("phasor");
+	SN_GET_SELF_AS_OBJECT(phasor);
+	SN_DESCRIPTION("A oscillator that creates a naive ramp from 0...1");
+};
+
+template <int NV> class phasor_fm: public phasor_base<NV, true>
+{
+public:
+
+	constexpr static int NumVoices = NV;
+
+	phasor_fm(): phasor_base<NV, true>(getStaticId()) {};
+
+	SN_POLY_NODE_ID("phasor_fm");
+	SN_GET_SELF_AS_OBJECT(phasor_fm);
+	SN_DESCRIPTION("A ramp oscillator with FM modulation from the input signal");
+};
 
 template <int NV> class oscillator: public OscillatorDisplayProvider,
 								    public polyphonic_base
@@ -1103,6 +1381,8 @@ public:
 				processFrameInternal(*asSpan);
 			}
 		}
+
+		currentVoiceData = nullptr;
 	}
 
 	template <typename FrameDataType> void processFrameInternal(FrameDataType& data)
@@ -1129,16 +1409,15 @@ public:
 
 	template <typename FrameDataType> void processFrame(FrameDataType& data)
 	{
-		if (currentVoiceData == nullptr)
-		{
-			currentVoiceData = &voiceData.get();
-			currentNyquistGain = currentVoiceData->getNyquistAttenuationGain();
-		}
+		currentVoiceData = &voiceData.get();
+		currentNyquistGain = currentVoiceData->getNyquistAttenuationGain();
 
 		if (currentVoiceData->enabled == 0)
 			return;
 
 		processFrameInternal(data);
+
+		currentVoiceData = nullptr;
 	}
 
 	void handleHiseEvent(HiseEvent& e)
@@ -1698,7 +1977,8 @@ private:
 	SharedResourcePointer<SineLookupTable<2048>> sinTable;
 };
 
-template <int V> class gain_impl : public HiseDspBase
+template <int V> class gain : public HiseDspBase,
+								   public polyphonic_base
 {
 public:
 
@@ -1711,17 +1991,21 @@ public:
 
 	DEFINE_PARAMETERS
 	{
-		DEF_PARAMETER(Gain, gain_impl);
-		DEF_PARAMETER(Smoothing, gain_impl);
-		DEF_PARAMETER(ResetValue, gain_impl);
+		DEF_PARAMETER(Gain, gain);
+		DEF_PARAMETER(Smoothing, gain);
+		DEF_PARAMETER(ResetValue, gain);
 	}
 	SN_PARAMETER_MEMBER_FUNCTION;
 
 	static constexpr int NumVoices = V;
 
 	SN_POLY_NODE_ID("gain");
-	SN_GET_SELF_AS_OBJECT(gain_impl);
+	SN_GET_SELF_AS_OBJECT(gain);
 	SN_DESCRIPTION("A gain module with decibel range and parameter smoothing");
+
+	gain():
+	  polyphonic_base(getStaticId(), false)
+	{};
 
 	void prepare(PrepareSpecs ps)
 	{
@@ -1830,10 +2114,6 @@ public:
 
 	PolyData<sfloat, NumVoices> gainer;
 };
-
-DEFINE_EXTERN_NODE_TEMPLATE(gain, gain_poly, gain_impl);
-
-
 
 template <int NV> class smoother: public mothernode,
                                   public polyphonic_base

@@ -1,0 +1,61 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "The Snippet Browser",
+    "Subtitle": "Subtitle",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "#total-progress\n{\n\tdisplay:none;\n}\n\n#cancel\n{\n\tdisplay: none;\n}\n\n#next\n{\n\tcontent: 'Close';\n}",
+    "UseViewport": true,
+    "ConfirmClose": false,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 800,
+    "DialogHeight": 600
+  },
+  "GlobalState": {
+    "startupSetter": "1"
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Welcome to the HISE Snippet Browser.  \n\nThis window is a separate instance of HISE that lets you load different projects next to your main project in order to explore different concepts & best practices.\n\n1. Please choose a **Snippet Directory** on the left tab \n2. click on the **Download** button in order to fetch the latest examples from the [HISE snippet repository](https://github.com/qdr/HiseSnippetDB/).\n\n> In order to learn more about the Snippet browser and how to  contribute snippets check out the [documentation page](https://docs.hise.audio/tutorials/index.html#the-snippet-browser)"
+        },
+        {
+          "Type": "List",
+          "Children": [],
+          "Style": "flex-grow: 2",
+          "Text": ""
+        }
+      ],
+      "Text": "",
+      "Style": "height: 380px;"
+    }
+  ],
+  "Assets": []
+}

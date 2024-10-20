@@ -371,7 +371,7 @@ struct DesktopWindow::Pimpl
         {
             delegateClass = choc::objc::createDelegateClass ("NSResponder", "CHOCDesktopWindowDelegate_");
 
-            if (auto p = objc_getProtocol ("NSWindowDelegate"))
+            if (auto* p = objc_getProtocol ("NSWindowDelegate"))
                 class_addProtocol (delegateClass, p);
 
             class_addMethod (delegateClass, sel_registerName ("windowShouldClose:"),
@@ -752,7 +752,7 @@ private:
 } // namespace choc::ui
 
 #else
- #error "choc WebView only supports OSX, Windows or Linux!"
+ #error "choc DesktopWindow only supports OSX, Windows or Linux!"
 #endif
 
 namespace choc::ui

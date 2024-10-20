@@ -84,7 +84,14 @@ public:
     // =================================================================
     
 private:
-    
+
+    void initThreadController();
+
+    uint32 lastTime;
+    double progress = 0.0;
+
+    ThreadController::Ptr scriptThreadController;
+
     struct Wrapper;
     
     WeakCallbackHolder logFunction;

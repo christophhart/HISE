@@ -39,6 +39,59 @@ namespace hise { using namespace juce;
 
 class BackendProcessor;
 
+struct AnalyserInfo: public ReferenceCountedObject
+{
+	AnalyserInfo(SimpleRingBuffer::PropertyObject* o1, SimpleRingBuffer::PropertyObject* o2)
+	{
+		ringBuffer[0] = new SimpleRingBuffer();
+		ringBuffer[0]->setPropertyObject(o1);
+		ringBuffer[1] = new SimpleRingBuffer();
+		ringBuffer[1]->setPropertyObject(o2);
+	}
+	
+	using Ptr = ReferenceCountedObjectPtr<AnalyserInfo>;
+
+	SimpleRingBuffer::Ptr getAnalyserBuffer(bool getPost) const
+	{
+		return ringBuffer[(int)getPost];
+	}
+	
+	std::pair<WeakReference<Processor>, int> currentlyAnalysedProcessor = { nullptr, 0 };
+	int lastNoteNumber = -1;
+	double duration = 0.0;
+	SimpleRingBuffer::Ptr ringBuffer[2];
+};
+
+struct ExampleAssetManager: public ReferenceCountedObject,
+							public ProjectHandler
+						    
+{
+	ExampleAssetManager(MainController* mc):
+	  ProjectHandler(mc),
+	  mainProjectHandler(mc->getCurrentFileHandler())
+	{
+		
+	}
+
+	bool initialised = false;
+
+	void initialise();
+
+	FileHandlerBase& mainProjectHandler;
+
+	File getSubDirectory(SubDirectories dir) const override;
+
+	Array<SubDirectories> getSubDirectoryIds() const override;
+
+	File getRootFolder() const override
+	{
+		return rootDirectory;
+	}
+
+	File rootDirectory;
+
+	using Ptr = ReferenceCountedObjectPtr<ExampleAssetManager>;
+};
 
 /** This is the main audio processor for the backend application. 
 *
@@ -52,7 +105,8 @@ class BackendProcessor: public PluginParameterAudioProcessor,
 						public MainController,
 						public ProjectHandler::Listener,
 						public MarkdownDatabaseHolder,
-						public ExpansionHandler::Listener
+						public ExpansionHandler::Listener,
+						public SimpleRingBuffer::WriterBase
 {
 public:
 	BackendProcessor(AudioDeviceManager *deviceManager_=nullptr, AudioProcessorPlayer *callback_=nullptr);
@@ -63,28 +117,7 @@ public:
 
 	void refreshExpansionType();
 
-	void handleEditorData(bool save)
-	{
-#if IS_STANDALONE_APP
-		File jsonFile = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("editorData.json");
-
-		if (save)
-		{
-			if (editorInformation.isObject())
-				jsonFile.replaceWithText(JSON::toString(editorInformation));
-			else
-				jsonFile.deleteFile();
-		}
-		else
-		{
-			editorInformation = JSON::parse(jsonFile);
-		}
-#else
-		ignoreUnused(save);
-#endif
-
-		
-	}
+	void handleEditorData(bool save);
 
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
 	void releaseResources() 
@@ -214,11 +247,48 @@ public:
 	LambdaBroadcaster<Identifier, Processor*> workspaceBroadcaster;
 
     ExternalClockSimulator externalClockSim;
-    
+	
+	void pushToAnalyserBuffer(AnalyserInfo::Ptr info, bool post, const AudioSampleBuffer& buffer, int numSamples);
+
+	int getCurrentAnalyserNoteNumber() const
+	{
+		return currentNoteNumber;
+	}
+
+	AnalyserInfo::Ptr getAnalyserInfoForProcessor(Processor* p);
+
+	Result setAnalysedProcessor(AnalyserInfo::Ptr newInfo, bool add);
+
+	bool isSnippetBrowser() const
+	{
+		return isSnippet;
+	}
+
+	void setIsSnippetBrowser()
+	{
+		isSnippet = true;
+	}
+
+	ExampleAssetManager::Ptr getAssetManager()
+	{
+		if(assetManager == nullptr)
+			assetManager = new ExampleAssetManager(this);
+
+		return assetManager;
+	}
+
+	ExampleAssetManager::Ptr assetManager;
+
 private:
 
-    
-    
+	bool isSnippet = false;
+
+	int currentNoteNumber = -1;
+
+	mutable SimpleReadWriteLock postAnalyserLock;
+
+	ReferenceCountedArray<AnalyserInfo> currentAnalysers;
+	
 	File databaseRoot;
 
 	MemoryBlock tempLoadingData;
@@ -236,6 +306,43 @@ private:
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)
 };
+
+struct ScopedAnalyser
+{
+	ScopedAnalyser(MainController* mc, Processor* p, AudioSampleBuffer& b, int numSamples_):
+	  bp(static_cast<BackendProcessor*>(mc))
+	{
+		info = bp->getAnalyserInfoForProcessor(p);
+
+		if(info == nullptr)
+			return;
+
+		buffer = &b;
+		numSamples = numSamples_;
+
+		bp->pushToAnalyserBuffer(info, false, *buffer, numSamples);
+		milliSeconds = Time::getMillisecondCounterHiRes();
+	}
+
+	~ScopedAnalyser()
+	{
+		if(buffer != nullptr)
+		{
+			auto now = Time::getMillisecondCounterHiRes();
+
+			info->duration = now - milliSeconds;
+			bp->pushToAnalyserBuffer(info, true, *buffer, numSamples);
+		}
+	}
+
+	double milliSeconds = 0.0;
+	AnalyserInfo::Ptr info;
+	AudioSampleBuffer* buffer = nullptr;
+	int numSamples = -1;
+	BackendProcessor* bp;
+	
+};
+
 
 } // namespace hise
 

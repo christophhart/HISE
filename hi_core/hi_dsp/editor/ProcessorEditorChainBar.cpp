@@ -67,14 +67,15 @@ ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p):
 
 	}
 
+	updaters.clear();
+
 	for (int i = 0; i < p->getProcessor()->getNumInternalChains(); i++)
 	{
 		Processor *childProcessor = p->getProcessor()->getChildProcessor(i);
 
 		Chain *chain = dynamic_cast<Chain*>(childProcessor);
 
-		childProcessor->addChangeListener(this);
-		
+		updaters.add(new Updater(*this, childProcessor));
 
 		if(chain == nullptr)
 		{
@@ -149,18 +150,9 @@ ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p):
 
 ProcessorEditorChainBar::~ProcessorEditorChainBar()
 {
-	if(getProcessor() != nullptr)
-	{
-		for(int i = 0; i < getProcessor()->getNumInternalChains(); i++)
-		{
-			getProcessor()->getChildProcessor(i)->removeChangeListener(this);
-		}
-	}
-
-	chainButtons.clear();
-
+	updaters.clear();
 	
-
+	chainButtons.clear();
 }
 
 int ProcessorEditorChainBar::getActualHeight()
@@ -180,13 +172,7 @@ String ProcessorEditorChainBar::getShortName(const String identifier) const
 	else return identifier;
 }
 
-void ProcessorEditorChainBar::changeListenerCallback(SafeChangeBroadcaster*)
-{
-	for(int i = 1; i < chainButtons.size(); i++)
-	{
-		checkActiveChilds(i-1);
-	}
-}
+
 
 Chain* ProcessorEditorChainBar::getChainForButton(Component* checkComponent)
 {
@@ -258,120 +244,6 @@ void ProcessorEditorChainBar::checkActiveChilds(int chainToCheck)
 	repaint();
 }
 
-bool ProcessorEditorChainBar::isInterestedInDragSource(const SourceDetails & dragSourceDetails)
-{
-	ModuleBrowser::ModuleItem *dragSource = dynamic_cast<ModuleBrowser::ModuleItem*>(dragSourceDetails.sourceComponent.get());
-
-	if (dragSource == nullptr) return false;
-
-
-	String name = dragSourceDetails.description.toString().fromLastOccurrenceOf("::", false, false);
-	String id = dragSourceDetails.description.toString().upToFirstOccurrenceOf("::", false, false);
-
-	Component *targetComponent = getComponentAt(dragSourceDetails.localPosition);
-
-
-	bool interested = false;
-
-	if (dynamic_cast<TextButton*>(targetComponent) != nullptr)
-	{
-		Chain *c = getChainForButton(targetComponent);
-
-		if (c != nullptr)
-		{
-			interested = c->getFactoryType()->allowType(id);
-		}
-		else
-		{
-			return true;
-		}
-
-	}
-	else
-	{
-		return true; // hack or it is not enabled...
-	}
-
-	dragSource->setDragState(interested ? ModuleBrowser::ModuleItem::Legal : ModuleBrowser::ModuleItem::Illegal);
-
-	
-
-	return interested;
-}
-
-void ProcessorEditorChainBar::itemDragEnter(const SourceDetails &/*dragSourceDetails*/)
-{
-	itemDragging = true;
-
-	
-}
-
-void ProcessorEditorChainBar::itemDragExit(const SourceDetails &/*dragSourceDetails*/)
-{
-	setDragInsertPosition(-1);
-	itemDragging = false;
-	
-}
-
-void ProcessorEditorChainBar::itemDropped(const SourceDetails &dragSourceDetails)
-{
-	ModuleBrowser::ModuleItem *dragSource = dynamic_cast<ModuleBrowser::ModuleItem*>(dragSourceDetails.sourceComponent.get());
-
-
-	if (dragSource == nullptr) return;
-
-	String name = dragSourceDetails.description.toString().fromLastOccurrenceOf("::", false, false);
-	String id = dragSourceDetails.description.toString().upToFirstOccurrenceOf("::", false, false);
-
-	Component *targetComponent = getComponentAt(dragSourceDetails.localPosition);
-
-	if (dynamic_cast<TextButton*>(targetComponent) != nullptr)
-	{
-		Chain *c = getChainForButton(targetComponent);
-
-		if (c != nullptr)
-		{
-
-			if (c->getFactoryType()->allowType(id))
-			{
-				int index = chainButtons.indexOf(dynamic_cast<TextButton*>(targetComponent)) - 1;
-
-				ProcessorEditor *editorToUse = getEditor()->getPanel()->getChildEditor(index);
-
-				Processor *newProcessor = MainController::createProcessor(c->getFactoryType(), id, name);
-
-				c->getHandler()->add(newProcessor, nullptr);
-
-				dynamic_cast<Processor*>(c)->setEditorState(Processor::EditorState::Visible, true, sendNotification);
-
-				refreshPanel();
-				getEditor()->sendResizedMessage();
-
-				editorToUse->changeListenerCallback(editorToUse->getProcessor());
-
-				editorToUse->childEditorAmountChanged();
-			}
-		}
-	}
-		
-	dragSource->setDragState(ModuleBrowser::ModuleItem::Inactive);
-	
-	setDragInsertPosition(-1);
-	itemDragging = false;
-}
-
-void ProcessorEditorChainBar::itemDragMove(const SourceDetails& dragSourceDetails)
-{
-	ModuleBrowser::ModuleItem *dragSource = dynamic_cast<ModuleBrowser::ModuleItem*>(dragSourceDetails.sourceComponent.get());
-
-	if (dragSource == nullptr) return;
-
-	canBeDropped = dragSource->getDragState() == ModuleBrowser::ModuleItem::Legal;
-
-	int i = chainButtons.indexOf(dynamic_cast<TextButton*>(getComponentAt(dragSourceDetails.localPosition)));
-
-	setDragInsertPosition(i);
-}
 
 void ProcessorEditorChainBar::refreshPanel()
 {
@@ -514,7 +386,7 @@ void ProcessorEditorChainBar::paintOverChildren(Graphics &g)
 		if (chainButtons[i]->getWidth() != 0)
 		{
             auto c = Colours::white.withAlpha(0.5f);
-			numberRenderer.drawNumberTag(g, c, chainButtons[i]->getBounds(), 2, 14, numProcessorList[i - 1]);
+			numberRenderer.drawNumberTag(g, *this, c, chainButtons[i]->getBounds(), 2, 14, numProcessorList[i - 1]);
 		}
 
 		

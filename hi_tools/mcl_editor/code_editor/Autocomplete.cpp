@@ -97,6 +97,7 @@ void Autocomplete::Item::paint(Graphics& g)
 	g.setColour(token->c);
 	g.fillRect(bar);
 	
+	tBounds.removeFromLeft(3);
 
 	auto s = createDisplayText();
 	s.draw(g, tBounds);
@@ -104,13 +105,17 @@ void Autocomplete::Item::paint(Graphics& g)
 
 
 
-Autocomplete::Autocomplete(TokenCollection& tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_) :
+Autocomplete::Autocomplete(TokenCollection::Ptr tokenCollection_, const String& input, const String& previousToken, int lineNumber, TextEditor* editor_) :
 	tokenCollection(tokenCollection_),
 	scrollbar(true),
 	shadow(DropShadow(Colours::black.withAlpha(0.7f), 5, Point<int>())),
 	editor(editor_)
 {
+	currentList = tokenCollection->getTokens();
+	SimpleDocumentTokenProvider::addTokensStatic(currentList, editor->docRef);
+
 	addAndMakeVisible(scrollbar);
+	fader.addScrollBarToAnimate(scrollbar);
 	setInput(input, previousToken, lineNumber);
 	scrollbar.addListener(this);
 }
@@ -185,20 +190,37 @@ void Autocomplete::setInput(const String& input, const String& previousToken, in
 
 	viewIndex = 0;
 
-    tokenCollection.sortForInput(input);
-    
-	for (auto t : tokenCollection)
+	TokenCollection::List matches;
+	
+	matches.ensureStorageAllocated(8192);
+
+	for (auto t : currentList)
 	{
+		if(matches.size() > 8192)
+			break;
+
 		if (t->matches(input, previousToken, lineNumber))
 		{
-			if (t->tokenContent == currentlyDisplayedItem)
-				viewIndex = items.size();
-
-			items.add(createItem(t, currentInput));
-
-			addAndMakeVisible(items.getLast());
+			matches.add(t);
 		}
 	}
+
+	if(input.isNotEmpty())
+	{
+		TokenCollection::FuzzySorter sorter(input);
+		matches.sort(sorter);
+	}
+
+	for(auto t: matches)
+	{
+		if (t->tokenContent == currentlyDisplayedItem)
+				viewIndex = items.size();
+
+		items.add(createItem(t, currentInput));
+
+		addAndMakeVisible(items.getLast());
+	}
+
 
 	int numLinesFull = 7;
 
@@ -234,13 +256,15 @@ void Autocomplete::setInput(const String& input, const String& previousToken, in
 	{
 		auto maxWidth = 0;
 
-		auto nf = Font(Font::getDefaultMonospacedFontName(), 16.0f * getScaleFactor(), Font::plain);
+		auto nf = Font(GLOBAL_MONOSPACE_FONT().getTypefaceName(), 16.0f * getScaleFactor(), Font::plain);
 
 		for (auto& i : items)
 		{
 
-			maxWidth = jmax(maxWidth, nf.getStringWidth(i->token->tokenContent) + 20);
+			maxWidth = jmax(maxWidth, nf.getStringWidth(i->token->tokenContent) + 30);
 		}
+
+		maxWidth = jmax(JUCE_LIVE_CONSTANT_OFF(500), maxWidth);
 
 		setSize(maxWidth, h);
 		resized();
@@ -287,11 +311,11 @@ bool TokenCollection::Token::operator==(const Token& other) const
 	return equals(&other) && other.equals(this);
 }
 
-Array<Range<int>> TokenCollection::Token::getSelectionRangeAfterInsert(const String& input) const
+Array<Range<int>> TokenCollection::getSelectionFromFunctionArgs(const String& input)
 {
 	Array<Range<int>> parameterRanges;
 
-	auto code = getCodeToInsert(input);
+	auto code = input;
 
 	auto ptr = code.getCharPointer();
 	auto start = ptr;
@@ -350,17 +374,7 @@ MarkdownLink TokenCollection::Token::getLink() const
 String TokenCollection::Token::getCodeToInsert(const String& input) const
 { return tokenContent; }
 
-TokenCollection::Token* const* TokenCollection::begin() const
-{ return tokens.begin(); }
 
-TokenCollection::Token* const* TokenCollection::end() const
-{ return tokens.end(); }
-
-TokenCollection::Token** TokenCollection::begin()
-{ return tokens.begin(); }
-
-TokenCollection::Token** TokenCollection::end()
-{ return tokens.end(); }
 
 TokenCollection::Provider::~Provider()
 {}
@@ -380,21 +394,23 @@ void TokenCollection::Provider::signalClear(NotificationType n)
 TokenCollection::Listener::~Listener()
 {}
 
-void TokenCollection::setEnabled(bool shouldBeEnabled)
+void TokenCollection::setEnabled(bool shouldBeEnabled, bool isDirty)
 {
 	if (shouldBeEnabled != enabled)
 	{
 		enabled = shouldBeEnabled;
 
-		if (enabled && !buildLock.writeAccessIsLocked())
+		if (enabled && !buildLock.writeAccessIsLocked() && isDirty)
 			signalRebuild();
 	}
 }
 
 void TokenCollection::signalRebuild()
 {
-	if (!enabled)
+	if (!enabled || rebuildPending || !useBackgroundThread)
 		return;
+
+	rebuildPending = true;
 
 	stopThread(1000);
 	startThread();
@@ -402,10 +418,12 @@ void TokenCollection::signalRebuild()
 
 void TokenCollection::signalClear(NotificationType n)
 {
-	SimpleReadWriteLock::ScopedWriteLock sl(buildLock);
-	dirty = false;
-	tokens.clear();
-	cancelPendingUpdate();
+	{
+		SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
+		dirty = false;
+		tokens.clearQuick();
+		cancelPendingUpdate();
+	}
         
 	for(auto l: listeners)
 	{
@@ -416,26 +434,46 @@ void TokenCollection::signalClear(NotificationType n)
 
 void TokenCollection::run()
 {
+	rebuildPending = false;
+
+	if(useBackgroundThread)
+		PerfettoHelpers::setCurrentThreadName("TokenRebuildThread");
+
+	TRACE_EVENT("scripting", "rebuild autocomplete tokens");
+
 	dirty = true;
+
+	for(auto l: listeners)
+		l->threadStateChanged(true);
+
 	rebuild();
+
+	for(auto l: listeners)
+		l->threadStateChanged(false);
+
+	
 }
 
 void TokenCollection::clearTokenProviders()
 {
+	SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
 	tokenProviders.clear();
+	tokens.clear();
 }
 
 void TokenCollection::addTokenProvider(Provider* ownedProvider)
 {
-	if (tokenProviders.isEmpty())
+	if (tokenProviders.isEmpty() && useBackgroundThread)
 		startThread();
 
+	SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
 	tokenProviders.add(ownedProvider);
 	ownedProvider->assignedCollection = this;
 }
 
-TokenCollection::TokenCollection():
-	Thread("TokenRebuildThread", HISE_DEFAULT_STACK_SIZE)
+TokenCollection::TokenCollection(const Identifier& languageId_):
+	Thread("TokenRebuildThread", HISE_DEFAULT_STACK_SIZE),
+	languageId(languageId_)
 {
 
 }
@@ -498,17 +536,41 @@ int64 TokenCollection::getHashFromTokens(const List& l)
 
 void TokenCollection::rebuild()
 {
+	if(useBackgroundThread)
+		PerfettoHelpers::setCurrentThreadName("Token Rebuild Thread");
+    
 	if (dirty)
 	{
-		SimpleReadWriteLock::ScopedWriteLock sl(buildLock);
+        TRACE_EVENT("scripting", "get build lock");
+        
+		SimpleReadWriteLock::ScopedMultiWriteLock sl(buildLock);
 
+
+        
 		List newTokens;
 
-		for (auto tp : tokenProviders)
-			tp->addTokens(newTokens);
+        {
+            TRACE_EVENT("scripting", "rebuild tokens");
+            
+            for (auto tp : tokenProviders)
+                tp->addTokens(newTokens);
+        }
 
-		Sorter ts;
-		newTokens.sort(ts);
+        TRACE_EVENT_BEGIN("scripting", "sorting tokens");
+        
+        try
+        {
+            Sorter ts(*this);
+            SortFunctionConverter<Sorter> converter (ts);
+            std::sort(newTokens.begin(), newTokens.end(), converter);
+            newTokens.sort(ts);
+        }
+        catch(Sorter::AbortException&)
+        {
+            
+        }
+        
+        TRACE_EVENT_END("scripting");
 
 		auto newHash = getHashFromTokens(newTokens);
 
@@ -525,8 +587,11 @@ void TokenCollection::rebuild()
 bool TokenCollection::isEnabled() const
 { return enabled; }
 
-int TokenCollection::Sorter::compareElements(Token* first, Token* second)
+int TokenCollection::Sorter::compareElements(Token* first, Token* second) const
 {
+    if(parent.shouldAbort())
+        throw AbortException();
+    
 	if (first->priority > second->priority)
 		return -1;
 
@@ -555,7 +620,12 @@ int TokenCollection::FuzzySorter::compareElements(Token* first, Token* second) c
             
 	if(!exactMatch1 && exactMatch2)
 		return 1;
-            
+
+	if(first->priority == -100 && second->priority != -100)
+		return 1;
+	if(first->priority != -100 && second->priority == -100)
+		return -1;
+
 	auto startsWith1 = s1.startsWith(exactSearchTerm);
 	auto startsWith2 = s2.startsWith(exactSearchTerm);
             
@@ -597,15 +667,21 @@ void SimpleDocumentTokenProvider::codeChanged(bool cond, int i, int i1)
 
 void SimpleDocumentTokenProvider::addTokens(TokenCollection::List& tokens)
 {
+	addTokensStatic(tokens, lambdaDoc);
+}
+
+void SimpleDocumentTokenProvider::addTokensStatic(TokenCollection::List& tokens, const CodeDocument& lambdaDoc)
+{
 	CodeDocument::Iterator it(lambdaDoc);
 	String currentString;
+	StringArray existingTokens;
+
+	int numChars = 0;
 
 	while (!it.isEOF())
 	{
 		auto c = it.nextChar();
-
-		int numChars = 0;
-
+		
 		if (CharacterFunctions::isLetter(c) || (c == '_') || (currentString.isNotEmpty() && CharacterFunctions::isLetterOrDigit(c)))
 		{
 			currentString << c;
@@ -613,24 +689,115 @@ void SimpleDocumentTokenProvider::addTokens(TokenCollection::List& tokens)
 		}
 		else
 		{
-			if (numChars > 2 && numChars < 60)
+			if (numChars > 2 && numChars < 60 && !existingTokens.contains(currentString))
 			{
-				bool found = false;
+				existingTokens.add(currentString);
 
-				for (auto& t : tokens)
-				{
-					if (t->tokenContent == currentString)
-					{
-						found = true;
-						break;
-					}
-				}
-
-				if(!found)
-					tokens.add(new TokenCollection::Token(currentString));
+				auto nt = new TokenCollection::Token(currentString);
+				nt->priority = -100;
+				nt->c = Colours::grey;
+				nt->markdownDescription << "local token, first occurrence at `Line " + String(it.getLine()+1) + "`";
+				tokens.add(nt);
 			}
-					
+
+			numChars = 0;
 			currentString = {};
+		}
+	}
+}
+
+struct CodeSnippetProvider::CodeSnippetToken: public mcl::TokenCollection::Token
+{
+	CodeSnippetToken(const var& jsonData):
+	  Token(jsonData["name"])
+	{
+		priority = jsonData["priority"];
+		markdownDescription = jsonData["description"];
+		c = Colours::yellow;
+		snippetCode = jsonData["code"];
+
+		
+
+		auto start = snippetCode.begin();
+		auto end = snippetCode.end();
+		auto ptr = start;
+
+		Array<int> indexes;
+		codeToInsert.preallocateBytes(snippetCode.length());
+
+		while(ptr != end)
+		{
+			if(*ptr == '$')
+			{
+				indexes.add(static_cast<int>((ptr - start)) - indexes.size());
+			}
+			else
+			{
+				codeToInsert << *ptr;
+			}
+
+			ptr++;
+		}
+
+		if(!indexes.isEmpty())
+		{
+			for(int i = 0; i < indexes.size(); i += 2)
+			{
+				selectionRange.add(Range<int>(indexes[i] , indexes[i+1]));
+			}
+		}
+	}
+
+	Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const override
+	{
+		return selectionRange;
+	}
+
+	/** Override this method if you want to customize the code that is about to be inserted. */
+	String getCodeToInsert(const String& input) const override
+	{
+		return codeToInsert;
+	}
+
+	Array<Range<int>> selectionRange;
+	String snippetCode;
+	String codeToInsert;
+};
+
+void CodeSnippetProvider::addTokens(mcl::TokenCollection::List& tokens)
+{
+	for(auto f: getSnippetFiles())
+	{
+		var list;
+		auto ok = JSON::parse(f.loadFileAsString(), list);
+
+		if(ok.failed())
+		{
+			String em;
+			em << "Error parsing JSON file " << f.getFileName() << ": " << ok.getErrorMessage();
+			reportParsingError(em);
+			break;
+		}
+
+		if(list.isArray())
+		{
+			for(const auto& v: *list.getArray())
+			{
+				auto lid = v["language"].toString();
+
+				if(lid.isNotEmpty() && Identifier(lid) != getLanguageId())
+					continue;
+
+				auto ct = new CodeSnippetToken(v);
+
+				if(ct->tokenContent.isEmpty())
+					reportParsingError("Missing name for token " + JSON::toString(v));
+
+				if(ct->codeToInsert.isEmpty())
+					reportParsingError("Empty content for token " + JSON::toString(v));
+
+				tokens.add(ct);
+			}
 		}
 	}
 }
@@ -652,12 +819,13 @@ Selection Autocomplete::ParameterSelection::getSelection() const
 }
 
 Autocomplete::HelpPopup::HelpPopup(Autocomplete* p):
-	ac(p),
-	corner(this, nullptr)
+	ac(p)
 {
 	addAndMakeVisible(display);
+
+	display.setResizeToFit(true);
+
 	p->addComponentListener(this);
-	addAndMakeVisible(corner);
 }
 
 Autocomplete::HelpPopup::~HelpPopup()
@@ -692,7 +860,7 @@ void Autocomplete::HelpPopup::refreshText()
 void Autocomplete::HelpPopup::resized()
 {
 	display.setBounds(getLocalBounds().reduced(10));
-	corner.setBounds(getLocalBounds().removeFromRight(10).removeFromBottom(10));
+	
 }
 
 void Autocomplete::HelpPopup::paint(Graphics& g)
@@ -853,7 +1021,7 @@ void Autocomplete::paint(Graphics& g)
 void Autocomplete::paintOverChildren(Graphics& g)
 {
 	auto b = getLocalBounds();
-	g.setColour(Colour(0xFF222222));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff434343)));
 	g.drawRect(b.toFloat(), 1.0f);
 }
 

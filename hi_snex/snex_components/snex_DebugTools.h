@@ -117,7 +117,15 @@ struct FourColourScheme
 	}
 };
 
-struct MathFunctionProvider : public TokenCollection::Provider
+struct SnexTokenProvider: public TokenCollection::Provider
+{
+    bool shouldAbortTokenRebuild(Thread* t) const override
+    {
+        return t != nullptr && t->threadShouldExit();
+    }
+};
+
+struct MathFunctionProvider : public SnexTokenProvider
 {
 	struct MathFunction : public TokenCollection::Token
 	{
@@ -145,8 +153,10 @@ struct MathFunctionProvider : public TokenCollection::Provider
 	void addTokens(TokenCollection::List& tokens);
 };
 
-struct KeywordProvider : public TokenCollection::Provider
+struct KeywordProvider : public SnexTokenProvider
 {
+    
+    
 	struct KeywordToken : public TokenCollection::Token
 	{
 		KeywordToken(const String& s, int priority_=100) :
@@ -185,7 +195,7 @@ struct KeywordProvider : public TokenCollection::Provider
 	}
 };
 
-struct TemplateProvider : public TokenCollection::Provider
+struct TemplateProvider : public SnexTokenProvider
 {
 	struct TemplateToken : public TokenCollection::Token
 	{
@@ -222,14 +232,14 @@ struct TemplateProvider : public TokenCollection::Provider
 	void addTokens(TokenCollection::List& tokens);
 };
 
-struct ComplexTypeProvider : public TokenCollection::Provider
+struct ComplexTypeProvider : public SnexTokenProvider
 {
 	
 
 	
 };
 
-struct PreprocessorMacroProvider : public TokenCollection::Provider
+struct PreprocessorMacroProvider : public SnexTokenProvider
 {
 	PreprocessorMacroProvider(CodeDocument& d) :
 		doc(d)
@@ -282,7 +292,7 @@ struct PreprocessorMacroProvider : public TokenCollection::Provider
 	CodeDocument& doc;
 };
 
-struct SymbolProvider : public TokenCollection::Provider
+struct SymbolProvider : public SnexTokenProvider
 {
 	struct ComplexMemberToken : public TokenCollection::Token
 	{
@@ -355,6 +365,8 @@ struct SnexLanguageManager : public mcl::LanguageManager,
 		debugValues.clear();
 	}
 
+	Identifier getLanguageId() const override { return mcl::LanguageIds::SNEX; }
+
 	void logMessage(int level, const juce::String& s) override
 	{
 		if (s.startsWith("Line"))
@@ -401,17 +413,12 @@ struct SnexLanguageManager : public mcl::LanguageManager,
 
 	mcl::FoldableLineRange::List createLineRange(const CodeDocument& doc) override;
 
-	void addTokenProviders(mcl::TokenCollection* t) override
-	{
-		t->addTokenProvider(new debug::KeywordProvider());
-		t->addTokenProvider(new debug::SymbolProvider(doc));
-		t->addTokenProvider(new debug::TemplateProvider());
-		t->addTokenProvider(new debug::MathFunctionProvider());
-		t->addTokenProvider(new debug::PreprocessorMacroProvider(doc));
-	}
+	void addTokenProviders(mcl::TokenCollection* t) override;
 
-	void setupEditor(mcl::TextEditor* editor) override
+	void setupEditor(mcl::TextEditor* e) override
 	{
+		e->tokenCollection = new mcl::TokenCollection(getLanguageId());
+		addTokenProviders(e->tokenCollection.get());
 	}
 
 	CodeDocument& doc;

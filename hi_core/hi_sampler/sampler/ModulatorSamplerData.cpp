@@ -43,6 +43,9 @@ SampleMap::SampleMap(ModulatorSampler *sampler_):
 	sampleMapId(Identifier()),
 	data("samplemap"),
 	mode(data, Identifier("SaveMode"), nullptr, 0)
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	, releaseStartOptions(new StreamingHelpers::ReleaseStartOptions())
+#endif
 {
 	data.addListener(this);
 
@@ -145,7 +148,7 @@ void SampleMap::clear(NotificationType n)
 
 	if (sampler != nullptr)
 	{
-		sampler->sendChangeMessage();
+		sampler->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 		getCurrentSamplePool()->sendChangeMessage();
 	}
 
@@ -391,7 +394,7 @@ void SampleMap::parseValueTree(const ValueTree &v)
 	if(!sampler->isRoundRobinEnabled()) sampler->refreshRRMap();
 	
 	sampler->refreshMemoryUsage();
-	
+	sampler->refreshReleaseStartFlag();
 };
 
 const ValueTree SampleMap::getValueTree() const
@@ -472,6 +475,37 @@ void SampleMap::saveAndReloadMap()
 	changeWatcher = new ChangeWatcher(data);
 }
 
+void SampleMap::suspendInternalTimers(bool shouldBeSuspended)
+{
+	notifier.asyncUpdateCollector.suspend(shouldBeSuspended);
+}
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+void SampleMap::setReleaseStartOptions(StreamingHelpers::ReleaseStartOptions::Ptr newOptions)
+{
+	if(releaseStartOptions != newOptions)
+	{
+		releaseStartOptions = newOptions;
+		ModulatorSampler::SoundIterator iter(getSampler());
+
+		while(auto s = iter.getNextSound())
+		{
+			auto numMultimics = s->getNumMultiMicSamples();
+
+			if(numMultimics == 1)
+			{
+				s->getReferenceToSound()->setReleaseStartOptions(newOptions);
+			}
+			else
+			{
+				for(int i = 0; i < numMultimics; i++)
+					s->getReferenceToSound(i)->setReleaseStartOptions(newOptions);
+			}
+		}
+	}
+}
+#endif
+
 void SampleMap::valueTreePropertyChanged(ValueTree& treeWhosePropertyHasChanged, const Identifier& property)
 {
 	if (treeWhosePropertyHasChanged == data)
@@ -525,7 +559,7 @@ void SampleMap::addSampleFromValueTree(ValueTree childWhichHasBeenAdded)
 	auto newSound = new ModulatorSamplerSound(map, childWhichHasBeenAdded, map->currentMonolith.get());
 
 	{
-		LockHelpers::SafeLock sl(sampler->getMainController(), LockHelpers::SampleLock);
+		LockHelpers::SafeLock sl(sampler->getMainController(), LockHelpers::Type::SampleLock);
 		sampler->addSound(newSound);
 	}
 
@@ -552,7 +586,7 @@ void SampleMap::sendSampleAddedMessage()
 
 		ModulatorSamplerSoundPool* pool = sampler->getSampleMap()->getCurrentSamplePool();
 		pool->sendChangeMessage();
-		sampler->sendChangeMessage();
+		sampler->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 		sampler->getSampleMap()->notifier.sendSampleAmountChangeMessage(sendNotificationAsync);
 
@@ -1878,7 +1912,7 @@ void SampleMap::Notifier::handleHeavyweightPropertyChanges()
 {
 	auto f = [this](Processor* /*p*/)
 	{
-		LockHelpers::SafeLock sl(parent.getSampler()->getMainController(), LockHelpers::SampleLock);
+		LockHelpers::SafeLock sl(parent.getSampler()->getMainController(), LockHelpers::Type::SampleLock);
 
 		Array<AsyncPropertyChange, CriticalSection> changesThisTime;
 

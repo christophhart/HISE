@@ -351,11 +351,12 @@ public:
 
 		data[position] = std::move(elementTypeToInsert);
 
-		position = jmin<int>(position + 1, SIZE - 1);
-		return true;
+		auto np = position + 1;
+		position = jmin<int>(np, SIZE - 1);
+		return np < SIZE;
 	}
 
-	void insertWithoutSearch(const ElementType& elementTypeToInsert)
+	bool insertWithoutSearch(const ElementType& elementTypeToInsert)
 	{
 		Lock sl(lock);
 
@@ -363,7 +364,9 @@ public:
 
 		data[position] = elementTypeToInsert;
 
-		position = jmin<int>(position + 1, SIZE - 1);
+		auto np = position + 1;
+		position = jmin<int>(np, SIZE - 1);
+		return np < SIZE;
 	}
 
 	/** Removes the given element and puts the last element into its slot. */
@@ -524,7 +527,7 @@ private:
  
     This is more or less a drop in replacement of the BigInteger class without the dynamic reallocation.
 */
-template <int NV, typename DataType=uint32> class VoiceBitMap
+template <int NV, typename DataType=uint32, bool ThrowOnOutOfBounds=false> class VoiceBitMap
 {
     constexpr static int getElementSize() { return sizeof(DataType) * 8; }
     constexpr static int getNumElements() { return NV / getElementSize(); };
@@ -543,26 +546,46 @@ public:
         clear();
     }
 
+	explicit VoiceBitMap(const void* externalByteData, size_t numBytes=getNumBytes())
+    {
+	    jassert(numBytes == getNumBytes());
+		memcpy(data.data(), externalByteData, numBytes);
+		checkEmpty();
+    }
+	
     void clear()
     {
-        memset(data.data(), 0, sizeof(data));
+        memset(data.data(), 0, getNumBytes());
+		empty = true;
     }
 
     void setBit(int voiceIndex, bool value)
     {
-        auto dIndex = voiceIndex / getElementSize();
-        auto bIndex = voiceIndex % getElementSize();
+		if(isPositiveAndBelow(voiceIndex, getNumBits()))
+		{
+			auto dIndex = voiceIndex / getElementSize();
+	        auto bIndex = voiceIndex % getElementSize();
 
-        if (value)
-        {
-            auto mask = 1 << bIndex;
-            data[dIndex] |= mask;
-        }
-        else
-        {
-            auto mask = 1 << bIndex;
-            data[dIndex] &= ~mask;
-        }
+			if (value)
+	        {
+	            auto mask = 1 << bIndex;
+	            data[dIndex] |= mask;
+				empty = false;
+	        }
+	        else
+	        {
+	            auto mask = 1 << bIndex;
+	            data[dIndex] &= ~mask;
+				checkEmpty();
+	        }
+
+			return;
+		}
+
+		if constexpr (ThrowOnOutOfBounds)
+		{
+			throw std::out_of_range("out of bounds");
+		}
     }
 
     String toBase64() const
@@ -571,13 +594,15 @@ public:
         return mb.toBase64Encoding();
     }
     
-    bool fromBase64(const String& b64) const
+    bool fromBase64(const String& b64)
     {
         MemoryBlock mb;
         
         if(mb.fromBase64Encoding(b64) && mb.getSize() == sizeof(data))
         {
-            memcpy(data, mb.getData(), sizeof(data));
+			memcpy(data, mb.getData(), mb.getSize());
+			checkEmpty();
+			
             return true;
         }
         
@@ -586,21 +611,73 @@ public:
     
     bool operator[](int index) const
     {
-        if(isPositiveAndBelow(index, getNumElements()))
+		if(empty)
+			return false;
+
+        if(isPositiveAndBelow(index, getNumBits()))
         {
             auto bIndex = index % getElementSize();
             auto dIndex = index / getElementSize();
-            
             DataType mask = 1 << bIndex;
-
             return (data[dIndex] & mask);
         }
-        
-        return false;
+
+		if constexpr (ThrowOnOutOfBounds)
+		{
+			throw std::out_of_range("out of bounds");
+		}
+		else
+		{
+			return false;
+		}
     }
-    
+
+	static constexpr size_t getNumBytes() { return sizeof(data); };
+
+	const void* getData() const
+    {
+	    return data.data();
+    }
+
+	static constexpr size_t getNumBits() { return getNumBytes() * 8; }
+
+	size_t getHighestSetBit() const
+	{
+		size_t rv = 0;
+
+		for(int i = getNumElements() - 1; i >= 0; --i)
+		{
+			auto v = data[i];
+			if(v != 0)
+			{
+				for (int j = getElementSize() - 1; j >= 0; --j)
+	            {
+	                DataType mask = 1 << j;
+					auto match = ((v & mask) != 0) && (rv == 0);
+					rv += static_cast<size_t>(match) * (i * getElementSize() + j);
+	            }
+			}
+		}
+
+		return rv;
+	}
+
+	void setAll(bool shouldBeSet)
+	{
+		if(!shouldBeSet)
+			clear();
+		else
+		{
+			memset(data.data(), std::numeric_limits<DataType>::max(), getNumBytes());
+			empty = false;
+		}
+	}
+
     int getFirstFreeBit() const
     {
+		if(empty)
+			return -1;
+
         for (int i = 0; i < getNumElements(); i++)
         {
             if (data[i] != getMaxValue())
@@ -618,19 +695,49 @@ public:
         return -1;
     }
 
-    VoiceBitMap<NV>& operator|=(const VoiceBitMap<NV>& other)
+    VoiceBitMap& operator|=(const VoiceBitMap& other)
     {
-        for (int i = 0; i < getNumElements(); i++)
+		if(other.empty)
+			return *this;
+
+		for (int i = 0; i < getNumElements(); i++)
             data[i] |= other.data[i];
 
         return *this;
     }
 
+	bool hasSomeBitsAs(const VoiceBitMap& other) const
+    {
+		if(empty)
+			return false;
+
+	    for(int i = 0; i < getNumElements(); i++)
+	    {
+		    if(data[i] & other.data[i])
+				return true;
+	    }
+
+		return false;
+    }
+
+	bool isEmpty() const noexcept { return empty; }
+
 private:
+
+	void checkEmpty()
+	{
+        auto thisEmpty = true;
+
+		for(int i = 0; i < getNumElements(); i++)
+            thisEmpty &= (data[i] == DataType(0));
+        
+        empty = thisEmpty;
+	}
 
     static constexpr int NumElements = getNumElements();
 
     std::array<DataType, NumElements> data;
+    bool empty = {true};
 };
 
 
@@ -693,21 +800,44 @@ template <int BSize, int Alignment> struct ObjectStorage
 		return objPtr;
 	}
 
-	void setSize(size_t newSize)
+    void ensureAllocated(size_t numToAllocate, bool copyOldContent=false)
+    {
+        if(numToAllocate > allocatedSize)
+            setSize(numToAllocate, copyOldContent);
+    }
+    
+	void setSize(size_t newSize, bool copyOldContent=false)
 	{
 		if (newSize != allocatedSize)
 		{
-			allocatedSize = newSize;
-
-			if (allocatedSize >= (SmallBufferSize))
+            if (newSize >= (SmallBufferSize))
 			{
-				bigBuffer.allocate(newSize + Alignment, true);
+                HeapBlock<uint8> newBuffer;
+                
+				newBuffer.allocate(newSize + Alignment, !copyOldContent);
+                
+                if(copyOldContent && allocatedSize > 0)
+                    memcpy(newBuffer.get() + Alignment, getObjectPtr(), allocatedSize);
+                
+                std::swap(newBuffer, bigBuffer);
 				objPtr = bigBuffer.get();
+
+				newBuffer.free();
+                allocatedSize = newSize;
 			}
 			else
 			{
-				bigBuffer.free();
+                if(copyOldContent && allocatedSize > SmallBufferSize)
+                {
+					jassert(isPositiveAndBelow(newSize, SmallBufferSize));
+                    memcpy(&smallBuffer + Alignment, bigBuffer.get() + Alignment, newSize);
+                }
+
+				if(allocatedSize > SmallBufferSize)
+					bigBuffer.free();
+				
 				objPtr = &smallBuffer;
+                allocatedSize = newSize;
 			}
 
 			if constexpr (Alignment != 0)

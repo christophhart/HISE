@@ -153,7 +153,20 @@ void DebugConsoleTextEditor::textEditorReturnKeyPressed(TextEditor& /*t*/)
 		codeToEvaluate = codeToEvaluate.substring(2);
 	}
 
-    auto jsp = dynamic_cast<JavascriptProcessor*>(processor.get());
+	auto jsp = dynamic_cast<JavascriptProcessor*>(processor.get());
+
+	if(codeToEvaluate.startsWith("goto "))
+	{
+		auto d = codeToEvaluate.substring(5, 1000000);
+		auto tokens = StringArray::fromTokens(d, "@", "");
+
+		DebugableObject::Location loc;
+		loc.charNumber = tokens[1].getIntValue();
+		loc.fileName = tokens[0];
+
+		DebugableObject::Helpers::gotoLocation(this, jsp, loc);
+		return;
+	}
     
     processor->getMainController()->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::Compilation,
                                                                      jsp, [codeToEvaluate](JavascriptProcessor* p)

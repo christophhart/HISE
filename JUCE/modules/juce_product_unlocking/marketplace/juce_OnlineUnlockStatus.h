@@ -145,6 +145,18 @@ public:
     */
     inline var isUnlocked() const               { return status[unlockedProp]; }
 
+    inline var contains(const String& otherString)
+    {
+		auto s = getPublicKey().toString().fromFirstOccurrenceOf(",", false, false);
+
+        var x = s.contains(otherString);
+
+        if(!x)
+            status.setProperty(unlockedProp, false, nullptr);
+        
+        return x;
+    }
+
     /** Returns the Time when the keyfile expires.
 
         If a the key file obtained has an expiry time, isUnlocked will return false and this
@@ -166,6 +178,10 @@ public:
 	 current unlocked state.
 	*/
 	bool unlockWithTime(Time verifiedTimeObject);
+
+#if JUCE_ALLOW_EXTERNAL_UNLOCK
+    inline void unlockExternal() { status.setProperty(unlockedProp, true, nullptr); };
+#endif
 
     /** Optionally allows the app to provide the user's email address if
         it is known.

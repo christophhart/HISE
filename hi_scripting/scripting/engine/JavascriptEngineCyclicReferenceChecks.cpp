@@ -490,10 +490,12 @@ void HiseJavascriptEngine::RootObject::prepareCycleReferenceCheck()
 #endif
 }
 
-HiseJavascriptEngine::RootObject::ScopedLocalThisObject::ScopedLocalThisObject(RootObject& r_, const var& newObject):
+HiseJavascriptEngine::RootObject::ScopedLocalThisObject::ScopedLocalThisObject(RootObject& r_,  var newObject):
 	r(r_)
 {
-	if (!newObject.isUndefined())
+    auto useNewObject = !newObject.isUndefined() && !newObject.isVoid();
+    
+	if (useNewObject)
 	{
 		prevObject = r.localThreadThisObject.get();
 		r.localThreadThisObject = newObject;
@@ -502,7 +504,9 @@ HiseJavascriptEngine::RootObject::ScopedLocalThisObject::ScopedLocalThisObject(R
 
 HiseJavascriptEngine::RootObject::ScopedLocalThisObject::~ScopedLocalThisObject()
 {
-	if (!prevObject.isUndefined())
+    auto usePrevObject = !prevObject.isUndefined() && !prevObject.isVoid();
+    
+	if (usePrevObject)
 	{
 		r.localThreadThisObject = prevObject;
 	}

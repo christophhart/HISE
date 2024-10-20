@@ -102,6 +102,8 @@ filterCollection(1)
     parameterNames.add("Quality");
 	parameterNames.add("BipolarIntensity");
 
+	updateParameterSlots();
+
 	setMode((int)getDefaultValue(MonoFilterEffect::Mode));
 }
 
@@ -324,7 +326,7 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
 		{
 			auto freq = t->getAttribute(PolyFilterEffect::Parameters::Frequency);
 			auto v = jmap<float>(input, 20.0f, freq);
-			return HiSlider::getFrequencyString(v);
+			return ValueToTextConverter::ConverterFunctions::Frequency(v);
 		}
 
 		return Table::getDefaultTextValue(input);
@@ -358,6 +360,8 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
     parameterNames.add("Mode");
     parameterNames.add("Quality");
 	parameterNames.add("BipolarIntensity");
+
+	updateParameterSlots();
 
 	voiceFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Mode));
 	monoFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Mode));
@@ -410,18 +414,40 @@ float PolyFilterEffect::getAttribute(int parameterIndex) const
 
 void PolyFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 {
-	auto& filterBankToUse = hasPolyMods() ? voiceFilters : monoFilters;
-
 	switch (parameterIndex)
 	{
-	case PolyFilterEffect::Gain:		gain = newValue;
-										filterBankToUse.setGain(Decibels::decibelsToGain(newValue));			  break;
-	case PolyFilterEffect::Frequency:	frequency = newValue;
-										filterBankToUse.setFrequency(newValue); break;
-	case PolyFilterEffect::Q:			q = newValue;
-										filterBankToUse.setQ(newValue); break;
-	case PolyFilterEffect::Mode:		mode = (FilterBank::FilterMode)(int)newValue;
-										filterBankToUse.setMode(mode); break;
+	case PolyFilterEffect::Gain:		
+		gain = newValue;
+		monoFilters.setGain(Decibels::decibelsToGain(newValue));
+
+		if(hasPolyMods())
+			voiceFilters.setGain(Decibels::decibelsToGain(newValue));
+
+		break;
+	case PolyFilterEffect::Frequency:	
+		frequency = newValue;
+		monoFilters.setFrequency(newValue);
+
+		if(hasPolyMods())
+			voiceFilters.setFrequency(newValue);
+
+		break;
+	case PolyFilterEffect::Q:			
+		q = newValue;
+		monoFilters.setQ(newValue);
+
+		if(hasPolyMods())
+			voiceFilters.setQ(newValue);
+
+		break;
+	case PolyFilterEffect::Mode:		
+		mode = (FilterBank::FilterMode)(int)newValue;
+		monoFilters.setMode(mode);
+
+		if(hasPolyMods())
+			voiceFilters.setMode(mode);
+
+		break;
     case PolyFilterEffect::Quality:		setRenderQuality((int)newValue); break;
 	case PolyFilterEffect::BipolarIntensity: bipolarParameterValue = jlimit<float>(-1.0f, 1.0f, newValue);
 										bipolarIntensity.setTargetValue(bipolarParameterValue); break;
@@ -594,7 +620,7 @@ ProcessorEditorBody *PolyFilterEffect::createEditor(ProcessorEditor *parentEdito
 #endif
 }
 
-juce::IIRCoefficients PolyFilterEffect::getCurrentCoefficients() const
+FilterDataObject::CoefficientData PolyFilterEffect::getCurrentCoefficients() const
 {
 	if (ownerSynthForCoefficients == nullptr)
 	{

@@ -375,6 +375,13 @@ private:
 	ScopedPointer<MainWindow> mainWindow;
 };
 
+struct ScopedAnalyser
+{
+	ScopedAnalyser(MainController*, Processor*, const AudioSampleBuffer&, int)
+	{}
+
+};
+
 } // namespace hise
 
 #endif  // FRONTENDPROCESSOR_H_INCLUDED

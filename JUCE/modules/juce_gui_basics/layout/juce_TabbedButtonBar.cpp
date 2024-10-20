@@ -333,24 +333,68 @@ StringArray TabbedButtonBar::getTabNames() const
     return names;
 }
 
-void TabbedButtonBar::setCurrentTabIndex (int newIndex, bool shouldSendChangeMessage)
+struct TabButtonUndoAction: public UndoableAction
+{
+    TabButtonUndoAction(TabbedButtonBar& b, int newIndex_, bool sendChangeMessage):
+      bar(&b),
+      newIndex(newIndex_),
+      oldIndex(b.getCurrentTabIndex()),
+      sendMessage(sendChangeMessage)
+    {}
+
+	bool undo() override
+	{
+		if(bar != nullptr)
+		{
+			bar->setCurrentTabIndex(oldIndex, sendMessage, false);
+            return true;
+		}
+
+        return false;
+	}
+
+    bool perform() override
+	{
+		if(bar != nullptr)
+		{
+			bar->setCurrentTabIndex(newIndex, sendMessage, false);
+            return true;
+		}
+
+        return false;
+	}
+    
+    WeakReference<TabbedButtonBar> bar;
+    const int newIndex;
+    const int oldIndex;
+	const bool sendMessage;
+};
+
+void TabbedButtonBar::setCurrentTabIndex (int newIndex, bool shouldSendChangeMessage, bool useUndoManager)
 {
     if (currentTabIndex != newIndex)
     {
-        if (! isPositiveAndBelow (newIndex, tabs.size()))
-            newIndex = -1;
+        if(useUndoManager && um != nullptr && !um->isPerformingUndoRedo())
+	    {
+	        um->perform(new TabButtonUndoAction(*this, newIndex, shouldSendChangeMessage));
+	    }
+        else
+        {
+	        if (! isPositiveAndBelow (newIndex, tabs.size()))
+	            newIndex = -1;
 
-        currentTabIndex = newIndex;
+	        currentTabIndex = newIndex;
 
-        for (int i = 0; i < tabs.size(); ++i)
-            tabs.getUnchecked(i)->button->setToggleState (i == newIndex, dontSendNotification);
+	        for (int i = 0; i < tabs.size(); ++i)
+	            tabs.getUnchecked(i)->button->setToggleState (i == newIndex, dontSendNotification);
 
-        resized();
+	        resized();
 
-        if (shouldSendChangeMessage)
-            sendChangeMessage();
+	        if (shouldSendChangeMessage)
+	            sendChangeMessage();
 
-        currentTabChanged (newIndex, getCurrentTabName());
+	        currentTabChanged (newIndex, getCurrentTabName());
+        }
     }
 }
 

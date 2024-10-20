@@ -1,0 +1,158 @@
+{
+  "StyleData": {
+    "Font": "Lato",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 16.0,
+    "bgColour": 4279834905,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4289901234,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Export Projucer Project",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "ProjectExporter",
+    "Company": "HISE",
+    "Version": "1.0.0",
+    "BinaryName": "",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "#header\n{\n\n\tdisplay: flex;\n}\n",
+    "UseViewport": true,
+    "DialogWidth": 700,
+    "DialogHeight": 400
+  },
+  "GlobalState": {
+    "HisePath": "/Users/christophhart/HISE",
+    "VisualStudioVersion": "Visual Studio 2017",
+    "UseIPP": "0",
+    "LegacyCPUSupport": "No",
+    "RebuildPoolFiles": "0",
+    "Support32BitMacOS": "Yes",
+    "CustomNodePath": "",
+    "FaustPath": "/Users/christophhart/HISE/tools/faust",
+    "FaustExternalEditor": "0",
+    "EnableLoris": "1",
+    "teamID": ""
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "PersistentSettings",
+          "Text": "LabelText",
+          "ID": "CompilerSettings",
+          "Filename": "compilerSettings",
+          "UseChildState": true,
+          "Items": "HisePath: \"\"",
+          "UseProject": false,
+          "ParseJSON": false
+        },
+        {
+          "Type": "FileSelector",
+          "Text": "HISE Path",
+          "ID": "HisePath",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "Required": true,
+          "Help": "The path to the HISE source code repository folder (the root directory with the `hi_xxx` subdirectories).",
+          "Directory": true,
+          "Wildcard": "",
+          "SaveFile": false,
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "Class": "",
+          "Style": "",
+          "NoLabel": false,
+          "UseOnValue": false
+        },
+        {
+          "Type": "TextInput",
+          "Text": "Team ID",
+          "ID": "teamID",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "EmptyText": "Enter Team Development ID ",
+          "Required": false,
+          "ParseArray": false,
+          "Height": 80,
+          "Items": "",
+          "Help": "The macOS Team Development ID for signing the compiled binary.",
+          "Multiline": false,
+          "Enabled": true,
+          "Code": "// initialisation, will be called on page load\nConsole.print(\"init\");\n\nelement.onValue = function(value)\n{\n\t// Will be called whenever the value changes\n\tConsole.print(value);\n}\n",
+          "Class": "",
+          "Style": ""
+        },
+        {
+          "Type": "Spacer",
+          "Text": "LabelText",
+          "Padding": "30"
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "Export Progress",
+          "ID": "export",
+          "CallOnNext": true,
+          "LabelPosition": "Default",
+          "Function": "exportProjucerProject"
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false,
+      "Style": "gap: 15px;",
+      "UseChildState": false,
+      "Class": ""
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "The project was created successfully. Do you want to launch the projucer to continue building the dialog binary?",
+          "Padding": 0
+        },
+        {
+          "Type": "Button",
+          "Text": "Open Projucer",
+          "ID": "openProjucer",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false,
+          "Enabled": true
+        },
+        {
+          "Type": "Launch",
+          "Text": "$hisePath/tools/Projucer.exe",
+          "ID": "openProjucer",
+          "CallOnNext": true,
+          "Args": "\"$projectDirectory/$projectName.jucer\""
+        }
+      ]
+    }
+  ],
+  "Assets": []
+}

@@ -95,6 +95,8 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	parameterNames.add(Identifier("PhaseOffset"));
 	parameterNames.add(Identifier("SyncToMasterClock"));
     parameterNames.add(Identifier("IgnoreNoteOn"));
+	
+	updateParameterSlots();
 
 	frequencyUpdater.setManualCountLimit(4096/HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 
@@ -104,6 +106,19 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 
 	frequencyChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 	intensityChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
+
+	WeakReference<LfoModulator> safeThis(this);
+
+	intensityChain->setTableValueConverter([safeThis](float input)
+	{
+		if(safeThis != nullptr)
+		{
+			input = safeThis->getIntensity() * input;
+			return String(roundToInt(input*100.0f)) + "%";
+		}
+
+		return String();
+	});
 
 	WaveformLookupTables::init();
 
@@ -140,6 +155,8 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	};
 
 	getTableUnchecked(0)->setXTextConverter(f);
+
+	frequencyChain->setTableValueConverter(f);
 };
 
 LfoModulator::~LfoModulator()

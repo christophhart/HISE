@@ -67,6 +67,13 @@ class ExternalScriptFile : public ReferenceCountedObject
 {
 public:
 
+	enum class ResourceType
+	{
+		EmbeddedInSnippet,
+		FileBased,
+		numResourceTypes
+	};
+
 	struct RuntimeError
 	{
 		using Broadcaster = LambdaBroadcaster<Array<RuntimeError>*>;
@@ -102,6 +109,19 @@ public:
 
 	ExternalScriptFile(const File&file);
 
+	ExternalScriptFile(const File& rootDirectory, const ValueTree& v):
+	  resourceType(ResourceType::EmbeddedInSnippet),
+	  file(rootDirectory.getChildFile(v["filename"].toString())),
+	  currentResult(Result::ok())
+	{
+
+#if USE_BACKEND
+		content.replaceAllContent(v["content"]);
+		content.setSavePoint();
+		content.clearUndoHistory();
+#endif
+	}
+
 	~ExternalScriptFile();
 
 	void setResult(Result r);
@@ -110,7 +130,43 @@ public:
 
 	Result getResult() const;
 
+	void reloadIfChanged()
+	{
+#if USE_BACKEND
+
+		if(resourceType == ResourceType::EmbeddedInSnippet)
+			return;
+
+		auto thisLast = getFile().getLastModificationTime();
+
+		if(thisLast > lastEditTime)
+		{
+			getFileDocument().replaceAllContent(getFile().loadFileAsString());
+            getFileDocument().setSavePoint();
+			lastEditTime = thisLast;
+		}
+#endif
+	}
+
+	void saveFile()
+	{
+		getFile().replaceWithText(getFileDocument().getAllContent());
+		lastEditTime = getFile().getLastModificationTime();
+        getFileDocument().setSavePoint();
+	}
+
 	File getFile() const;
+
+	ValueTree toEmbeddableValueTree(const File& rootDirectory) const
+	{
+		auto fn = getFile();
+		auto name =  fn.getRelativePathFrom(rootDirectory);
+		
+		ValueTree c("file");
+		c.setProperty("filename", name.replaceCharacter('\\', '/'), nullptr);
+		c.setProperty("content", content.getAllContent(), nullptr);
+		return c;
+	}
 
 	typedef ReferenceCountedObjectPtr<ExternalScriptFile> Ptr;
 
@@ -118,7 +174,18 @@ public:
 
 	RuntimeError::Broadcaster& getRuntimeErrorBroadcaster();
 
+	ResourceType getResourceType() const
+	{
+		return resourceType;
+	}
+
+	bool extractEmbedded();
+
 private:
+
+	Time lastEditTime;
+
+	ResourceType resourceType;
 
 	RuntimeError::Broadcaster runtimeErrorBroadcaster;
 
@@ -179,11 +246,15 @@ public:
 
 	int getNumExternalScriptFiles() const;
 
-	ExternalScriptFile::Ptr getExternalScriptFile(const File& fileToInclude);
+	ExternalScriptFile::Ptr getExternalScriptFile(const File& fileToInclude, bool createIfNotFound);
 
 	ExternalScriptFile::Ptr getExternalScriptFile(int index) const;
 
 	void clearIncludedFiles();
+
+	void restoreIncludedScriptFilesFromSnippet(const ValueTree& snippetTree);
+
+	ValueTree collectIncludedScriptFilesForSnippet(const Identifier& id, const File& root) const;
 
 	ScriptComponentEditBroadcaster* getScriptComponentEditBroadcaster();
 
@@ -208,6 +279,8 @@ public:
 	Array<Identifier> getAllWebViewIds() const;
 
 	void setWebViewRoot(File newRoot);
+
+	void saveAllExternalFiles();
 
 private:
 	

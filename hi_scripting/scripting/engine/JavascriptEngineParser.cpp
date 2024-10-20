@@ -316,6 +316,8 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 	{
 		ScopedPointer<BlockStatement> b(new BlockStatement(location));
 
+		bool allowScopedBlockStatements = true;
+
 		while (currentType != TokenTypes::closeBrace && currentType != TokenTypes::eof)
 		{
 #if ENABLE_SCRIPTING_BREAKPOINTS
@@ -366,14 +368,27 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 			ScopedPointer<Statement> s = parseStatement();
 #endif
 
-			if (LockStatement* ls = dynamic_cast<LockStatement*>(s.get()))
+			if (auto sbs = dynamic_cast<ScopedBlockStatement*>(s.get()))
 			{
-				b->lockStatements.add(ls);
-				s.release();
+				if(!allowScopedBlockStatements)
+				{
+					location.throwError("Scoped block statements must be added at the scope start.");
+				}
+
+				if(auto shouldBeUsed = (USE_BACKEND || !sbs->isDebugStatement()))
+				{
+					b->scopedBlockStatements.add(sbs);
+					s.release();
+				}
+				else
+				{
+					s = nullptr;
+				}
 			}
 			else
 			{
 				b->statements.add(s.release());
+				allowScopedBlockStatements = false;
 			}
 		}
 
@@ -482,6 +497,7 @@ struct HiseJavascriptEngine::RootObject::ExpressionTreeBuilder : private TokenIt
 			return rhs.release();
 		}
 
+		if (matchIf(TokenTypes::arrow))				return parseArrowFunction(lhs);
 		if (matchIf(TokenTypes::question))          return parseTerneryOperator(lhs);
 		if (matchIf(TokenTypes::assign))            { ExpPtr rhs(parseExpression()); return new Assignment(location, lhs, rhs); }
 		if (matchIf(TokenTypes::plusEquals))        return parseInPlaceOpExpression<AdditionOp>(lhs);
@@ -549,6 +565,7 @@ private:
 
 	Statement* parseStatement()
 	{
+		if (matchIf(TokenTypes::dot))			   return parseScopedBlockStatement();
 		if (matchIf(TokenTypes::include_))		   return parseExternalFile();
 		if (matchIf(TokenTypes::inline_))		   return parseInlineFunction(getCurrentNamespace());
 
@@ -572,8 +589,6 @@ private:
 		if (matchIf(TokenTypes::semicolon))        return new Statement(location);
 		if (matchIf(TokenTypes::plusplus))         return parsePreIncDec<AdditionOp>();
 		if (matchIf(TokenTypes::minusminus))       return parsePreIncDec<SubtractionOp>();
-		if (matchIf(TokenTypes::rLock_))		   return parseLockStatement(true);
-		if (matchIf(TokenTypes::wLock_))		   return parseLockStatement(false);
 
 		if (matchesAny(TokenTypes::openParen, TokenTypes::openBracket))
 			return matchEndOfStatement(parseFactor());
@@ -586,6 +601,174 @@ private:
 
 		throwError("Found " + getTokenName(currentType) + " when expecting a statement");
 		return nullptr;
+	}
+
+	Statement* parseScopedBlockStatement()
+	{
+		ExpPtr condition;
+
+		if(matchIf(TokenTypes::if_))
+		{
+			match(TokenTypes::openParen);
+			condition = parseExpression();
+			match(TokenTypes::closeParen);
+			match(TokenTypes::colon);
+		}
+
+		auto typeId = parseIdentifier();
+		
+		if(typeId == ScopedSetter::getStaticId())
+		{
+			ScopedPointer<ScopedSetter> n = new ScopedSetter(location, condition);
+
+			match(TokenTypes::openParen);
+			n->lhs = parseExpression();
+			match(TokenTypes::comma);
+			n->rhs = parseExpression();
+			match(TokenTypes::closeParen);
+
+			return n.release();
+		}
+		else if(typeId == ScopedSuspender::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto name = Identifier(currentValue.toString());
+			dispatch::HashedCharPtr p(name);
+
+			try
+			{
+				auto path = dispatch::HashedPath(p);
+				match(TokenTypes::literal);
+				match(TokenTypes::closeParen);
+				return new ScopedSuspender(location, condition, path);
+			}
+			catch(Result& r)
+			{
+				location.throwError(r.getErrorMessage());
+			}
+		}
+		else if(typeId == ScopedBypasser::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto b = parseExpression();
+			match(TokenTypes::closeParen);
+
+			return new ScopedBypasser(location, condition, b);
+		}
+		else if(typeId == ScopedTracer::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto name = currentValue.toString();
+			match(TokenTypes::literal);
+			match(TokenTypes::closeParen);
+
+			return new ScopedTracer(location, condition, name);
+		}
+		else if(typeId == ScopedProfiler::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto name = currentValue.toString();
+			match(TokenTypes::literal);
+			match(TokenTypes::closeParen);
+
+			return new ScopedProfiler(location, condition, name);
+		}
+		else if(typeId == ScopedCounter::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto name = currentValue.toString();
+			match(TokenTypes::literal);
+			match(TokenTypes::closeParen);
+
+			return new ScopedCounter(location, condition, name);
+		}
+		else if(typeId == ScopedDumper::getStaticId())
+		{
+			match(TokenTypes::openParen);
+
+			OwnedArray<Expression> expressions;
+
+			while(true)
+			{
+				if(matchIf(TokenTypes::closeParen))
+					break;
+				if(matchIf(TokenTypes::eof))
+					break;
+
+				expressions.add(parseExpression());
+				matchIf(TokenTypes::comma);
+			}
+
+			if(expressions.isEmpty())
+				location.throwError("expected expressions");
+
+			auto n = new ScopedDumper(location, condition);
+			n->dumpObjects.swapWith(expressions);
+			return n;
+		}
+		else if (typeId == ScopedNoop::getStaticId())
+		{
+			match(TokenTypes::openParen);
+
+			while(true)
+			{
+				if(matchIf(TokenTypes::closeParen))
+					break;
+				if(matchIf(TokenTypes::eof))
+					break;
+
+				ExpPtr unused = parseExpression();
+				matchIf(TokenTypes::comma);
+			}
+
+			matchIf(TokenTypes::closeParen);
+
+			return new ScopedNoop(location, condition);
+		}
+		else if(typeId == ScopedPrinter::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto name = currentValue.toString();
+			match(TokenTypes::literal);
+			match(TokenTypes::closeParen);
+
+			return new ScopedPrinter(location, condition, name);
+		}
+		else if(typeId == ScopedLocker::getStaticId())
+		{
+			match(TokenTypes::openParen);
+			auto l = (int)parseExpression()->getResult(Scope(nullptr, nullptr, nullptr));
+			match(TokenTypes::closeParen);
+
+			return new ScopedLocker(location, condition, (LockHelpers::Type)l);
+		}
+		else if(typeId == ScopedBefore::getStaticId())
+		{
+			ScopedPointer<ScopedBefore> n = new ScopedBefore(location, condition);
+
+			match(TokenTypes::openParen);
+			n->expected = parseExpression();
+			match(TokenTypes::comma);
+			n->actual = parseExpression();
+			match(TokenTypes::closeParen);
+
+			return n.release();
+		}
+		else if(typeId == ScopedAfter::getStaticId())
+		{
+			ScopedPointer<ScopedAfter> n = new ScopedAfter(location, condition);
+
+			match(TokenTypes::openParen);
+			n->expected = parseExpression();
+			match(TokenTypes::comma);
+			n->actual = parseExpression();
+			match(TokenTypes::closeParen);
+
+			return n.release();
+		}
+
+		location.throwError("unknown scope statement type " + typeId.toString());
+		RETURN_IF_NO_THROW(nullptr);
 	}
 
 	String getFileContent(const String &fileNameInScript, String &refFileName, bool allowMultipleIncludes = false)
@@ -618,9 +801,18 @@ private:
 		File f(refFileName);
 		const String shortFileName = f.getFileName();
 
-		if (!f.existsAsFile())
-			throwError("File " + refFileName + " not found");
+		auto mc = dynamic_cast<Processor*>(hiseSpecialData->processor)->getMainController();
+		auto ef = mc->getExternalScriptFile(f, false);
 
+		String code;
+
+		if(ef != nullptr)
+			code = ef->getFileDocument().getAllContent();
+		else if (f.existsAsFile())
+			code = f.loadFileAsString();
+		else
+			throwError("File " + refFileName + " not found");
+		
 		if (!allowMultipleIncludes)
 		{
 			for (int i = 0; i < hiseSpecialData->includedFiles.size(); i++)
@@ -633,7 +825,7 @@ private:
 			}
 		}
 
-		return f.loadFileAsString();
+		return code;
 
 #else
 
@@ -929,22 +1121,7 @@ private:
 			return s.release();
 		}
 	}
-
-	Statement* parseLockStatement(bool isReadLock)
-	{
 	
-		ScopedPointer<LockStatement> ls = new LockStatement(location, isReadLock);
-
-		match(TokenTypes::openParen);
-
-		ls->lockedObj = parseFactor();
-
-		match(TokenTypes::closeParen);
-		match(TokenTypes::semicolon);
-
-		return ls.release();
-	}
-
 	Statement* parseGlobalAssignment()
 	{
 		ScopedPointer<GlobalVarStatement> s(new GlobalVarStatement(location));
@@ -1057,6 +1234,10 @@ private:
 	{
         auto prevLoc = location;
 		Identifier namespaceId = parseIdentifier();
+
+		dispatch::StringBuilder b;
+		b << "parse namespace " << namespaceId;
+		TRACE_SCRIPTING(DYNAMIC_STRING_BUILDER(b));
 
         static const Array<Identifier> illegalIds =
         {
@@ -1610,6 +1791,43 @@ private:
 		return s.release();
 	}
 
+	Expression* parseArrowFunction(ExpPtr lhs)
+	{
+		ScopedPointer<FunctionObject> fo = new FunctionObject();
+
+		fo->location.fileName = location.getCallbackName(true);
+		fo->location.charNumber = location.getCharIndex();
+
+		if(auto el = dynamic_cast<ExpressionList*>(lhs.get()))
+		{
+			for(auto c: el->children)
+			{
+				if(auto n = dynamic_cast<UnqualifiedName*>(c))
+				{
+					fo->parameters.add(n->name);
+				}
+			}
+		}
+		if(auto n = dynamic_cast<UnqualifiedName*>(lhs.get()))
+		{
+			fo->parameters.add(n->name);
+		}
+
+		if(matchIf(TokenTypes::openBrace))
+		{
+			fo->body = parseStatementList();
+			match(TokenTypes::closeBrace);
+		}
+		else
+		{
+			auto returnValue = parseExpression();
+			fo->body = new ReturnStatement(location, returnValue);
+		}
+		
+		ExpPtr nm(new UnqualifiedName(location, "unusedArrow", true)), value(new LiteralValue(location, var(fo.release())));
+		return new Assignment(location, nm, value);
+	}
+
 	var parseFunctionDefinition(Identifier& functionName)
 	{
 		
@@ -1686,7 +1904,8 @@ private:
 
 	Expression* parseApiCall(ApiClass *apiClass, const Identifier &functionName)
 	{
-		int functionIndex, numArgs;
+		int functionIndex = 0;
+		int numArgs = 0;
 		apiClass->getIndexAndNumArgsForFunction(functionName, functionIndex, numArgs);
 
 		const String prettyName = apiClass->getObjectName() + "." + functionName.toString();
@@ -1783,8 +2002,34 @@ private:
 
 		if (matchIf(TokenTypes::plusplus))   return parsePostIncDec<AdditionOp>(input);
 		if (matchIf(TokenTypes::minusminus)) return parsePostIncDec<SubtractionOp>(input);
-
+		
 		return input.release();
+	}
+
+	Expression* parseCloseParen(Expression* ex)
+	{
+		ExpPtr e(ex);
+
+		ExpressionList* ne = nullptr;
+
+		while(!matchIf(TokenTypes::closeParen))
+		{
+			if(e == ex)
+			{
+				if(ne == nullptr)
+					ne = new ExpressionList(location);
+
+				ne->children.add(e.release());
+
+				e = ne;
+			}
+
+			match(TokenTypes::comma);
+
+			ne->children.add(parseExpression());
+		}
+
+		return e.release();
 	}
 
 	Expression* parseFactor(JavascriptNamespace* ns=nullptr)
@@ -1955,7 +2200,7 @@ private:
 
 		auto prevLocation = location;
 
-		if (matchIf(TokenTypes::openParen))        return parseSuffixes(matchCloseParen(parseExpression()));
+		if (matchIf(TokenTypes::openParen))        return parseSuffixes(parseCloseParen(parseExpression()));
 		if (matchIf(TokenTypes::true_))            return parseSuffixes(new LiteralValue(prevLocation, (int)1));
 		if (matchIf(TokenTypes::false_))           return parseSuffixes(new LiteralValue(prevLocation, (int)0));
 		if (matchIf(TokenTypes::null_))            return parseSuffixes(new LiteralValue(prevLocation, var()));
@@ -2072,7 +2317,7 @@ private:
 	Expression* parseNewOperator()
 	{
 		location.throwError("new is not supported anymore");
-		return nullptr;
+		RETURN_IF_NO_THROW(nullptr);
 	}
 
 	Expression* parseIsDefined()
@@ -2205,6 +2450,10 @@ private:
 void HiseJavascriptEngine::RootObject::ExpressionTreeBuilder::preprocessCode(const String& codeToPreprocess, const String& externalFileName)
 {
 	if (codeToPreprocess.isEmpty()) return;
+
+	dispatch::StringBuilder b;
+	b << "preprocess " << externalFileName;
+	TRACE_SCRIPTING(DYNAMIC_STRING_BUILDER(b));
 
 	static const var undeclared("undeclared");
 
@@ -2480,12 +2729,23 @@ void HiseJavascriptEngine::RootObject::execute(const String& code, bool allowCon
 
 	tb.setupApiData(hiseSpecialData, allowConstDeclarations ? code : String());
 
-	auto sl = ScopedPointer<BlockStatement>(tb.parseStatementList());
+	ScopedPointer<BlockStatement> sl;
+
+	{
+		TRACE_SCRIPTING("parse script");
+		sl = tb.parseStatementList();
+	}
+	
 	
 	if(shouldUseCycleCheck)
 		prepareCycleReferenceCheck();
 
-	sl->perform(Scope(nullptr, this, this), nullptr);
+	{
+		TRACE_SCRIPTING("run onInit callback");
+		sl->perform(Scope(nullptr, this, this), nullptr);
+	}
+
+	
 
 	Array<OptimizationPass::OptimizationResult> results;
 

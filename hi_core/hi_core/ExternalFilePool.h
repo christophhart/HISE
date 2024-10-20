@@ -268,7 +268,7 @@ struct PoolHelpers
          and return already cached data.
          */
         int64 getHashCode() const;
-        bool isValid() const;
+        bool isValid(bool allowNonExistentAbsolutePaths=false) const;
         
         /** Returns the data type. A Reference has the data type baked in it (because you hardly want to load images into a convolution reverb).
          */
@@ -756,6 +756,9 @@ struct PooledAudioFileDataProvider : public hise::MultiChannelAudioBuffer::DataP
 	PooledAudioFileDataProvider(MainController* mc);
 
 	MultiChannelAudioBuffer::SampleReference::Ptr loadFile(const String& ref) override;
+
+    File parseFileReference(const String& b64) const override;
+
 
 	File getRootDirectory() override;
 

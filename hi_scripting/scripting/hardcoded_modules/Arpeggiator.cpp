@@ -35,9 +35,10 @@ namespace hise { using namespace juce;
 #define LOG_ARP(x)
 
 Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms) :
-	HardcodedScriptProcessor(mc, id, ms)
+	HardcodedScriptProcessor(mc, id, ms),
+	hise::Processor::BypassListener(mc->getRootDispatcher())
 {
-	addBypassListener(this);
+	addBypassListener(this, dispatch::sendNotificationSync);
 
 	ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher());
 
@@ -334,6 +335,8 @@ void Arpeggiator::onInit()
 	sustainHold->set("tooltip", "Holds the sequence if the sustain pedal is pressed");
 	inputMidiChannel->set("tooltip", "The MIDI channel that is fed into the arpeggiator.");
 	outputMidiChannel->set("tooltip", "The MIDI channel that is used for the arpeggiated notes");
+
+	updateParameterSlots();
 }
 
 void Arpeggiator::onNoteOn()

@@ -38,6 +38,9 @@ callbackLevels(getCallbackLevels()),
 constrainer(new RectangleConstrainer())
 {
 	initMacroControl(dontSendNotification);
+
+	for(int i = 0; i < (int)Action::Nothing; i++)
+		clickInformation[i] = new DynamicObject();
 }
 
 
@@ -101,125 +104,11 @@ void MouseCallbackComponent::setPopupMenuItems(const StringArray &newItemList)
 	itemList.addArray(newItemList);
 }
 
+
+
 juce::PopupMenu MouseCallbackComponent::parseFromStringArray(const StringArray& itemList, Array<int> activeIndexes, LookAndFeel* laf)
 {
-	PopupMenu m;
-
-	
-	m.setLookAndFeel(laf);
-
-	std::vector<MouseCallbackComponent::SubMenuList> subMenus;
-
-	for (int i = 0; i < itemList.size(); i++)
-	{
-		if (itemList[i].contains("::"))
-		{
-			String subMenuName = itemList[i].upToFirstOccurrenceOf("::", false, false);
-			String subMenuItem = itemList[i].fromFirstOccurrenceOf("::", false, false);
-
-			if (subMenuName.isEmpty() || subMenuItem.isEmpty()) continue;
-
-			bool subMenuExists = false;
-
-			for (size_t j = 0; j < subMenus.size(); j++)
-			{
-				if (std::get<0>(subMenus[j]) == subMenuName)
-				{
-					std::get<1>(subMenus[j]).add(subMenuItem);
-					subMenuExists = true;
-					break;
-				}
-			}
-
-			if (!subMenuExists)
-			{
-				StringArray sa;
-				sa.add(subMenuItem);
-				MouseCallbackComponent::SubMenuList item(subMenuName, sa);
-				subMenus.push_back(item);
-			}
-		}
-	}
-	if (subMenus.size() != 0)
-	{
-		int menuIndex = 1;
-
-		for (size_t i = 0; i < subMenus.size(); i++)
-		{
-			PopupMenu sub;
-
-			StringArray sa = std::get<1>(subMenus[i]);
-
-			bool subIsTicked = false;
-
-			for (int j = 0; j < sa.size(); j++)
-			{
-				if (sa[j].startsWith("**") && sa[j].endsWith("**"))
-				{
-					sub.addSectionHeader(sa[j].replace("**", ""));
-					continue;
-				}
-
-				if (sa[j] == "___")
-				{
-					sub.addSeparator();
-					continue;
-				}
-
-				if (sa[j] == "%SKIP%")
-				{
-					menuIndex++;
-					continue;
-				}
-
-				const bool isDeactivated = sa[j].startsWith("~~") && sa[j].endsWith("~~");
-				const String itemText = isDeactivated ? sa[j].replace("~~", "") : sa[j];
-
-				const bool isTicked = activeIndexes.contains((menuIndex - 1));
-
-				if (isTicked) subIsTicked = true;
-
-				sub.addItem(menuIndex, itemText, !isDeactivated, isTicked);
-
-
-				menuIndex++;
-			}
-
-			m.addSubMenu(std::get<0>(subMenus[i]), sub, true, nullptr, subIsTicked);
-		}
-	}
-	else
-	{
-		int menuIndex = 0;
-
-		for (int i = 0; i < itemList.size(); i++)
-		{
-			if (itemList[i] == "%SKIP%")
-			{
-				menuIndex++;
-				continue;
-			}
-
-			if (itemList[i].startsWith("**") && itemList[i].endsWith("**"))
-			{
-				m.addSectionHeader(itemList[i].replace("**", ""));
-				continue;
-			}
-
-			if (itemList[i] == "___")
-			{
-				m.addSeparator();
-				continue;
-			}
-
-			const bool isDeactivated = itemList[i].startsWith("~~") && itemList[i].endsWith("~~");
-			const String itemText = isDeactivated ? itemList[i].replace("~~", "") : itemList[i];
-			m.addItem(menuIndex + 1, itemText, !isDeactivated, activeIndexes.contains(menuIndex));
-			menuIndex++;
-		}
-	}
-
-	return m;
+	return SubmenuComboBox::parseFromStringArray(itemList, activeIndexes, laf);
 }
 
 void MouseCallbackComponent::setUseRightClickForPopup(bool shouldUseRightClickForPopup)
@@ -574,11 +463,16 @@ void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<in
 
 
 
-juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const MouseEvent& event, CallbackLevel callbackLevel, Action action, EnterState state)
+void MouseCallbackComponent::fillMouseCallbackObject(var& clickInformation, Component* c, const MouseEvent& event, CallbackLevel callbackLevel, Action action, EnterState state)
 {
-	auto e = new DynamicObject();
-	var clickInformation(e);
+	auto e = clickInformation.getDynamicObject();
 
+	if(e == nullptr)
+	{
+		auto e = new DynamicObject();
+		clickInformation = var(e);
+	}
+	
 	static const Identifier x("x");
 	static const Identifier y("y");
 	static const Identifier clicked("clicked");
@@ -602,7 +496,7 @@ juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const Mou
 	{
 		e->setProperty(clicked, action == Action::Clicked);
 		e->setProperty(doubleClick, action == Action::DoubleClicked);
-		e->setProperty(rightClick, ((action == Action::Clicked || action == Action::Dragged) && event.mods.isRightButtonDown()) ||
+		e->setProperty(rightClick, ((action == Action::Clicked || action == Action::Dragged || action == Action::DoubleClicked) && event.mods.isRightButtonDown()) ||
 			(action == Action::MouseUp && event.mods.isRightButtonDown()));
 		e->setProperty(mouseUp, action == Action::MouseUp);
 		e->setProperty(mouseDownX, event.getMouseDownX());
@@ -630,8 +524,6 @@ juce::var MouseCallbackComponent::getMouseCallbackObject(Component* c, const Mou
 		e->setProperty(dragX, event.getDistanceFromDragStartX());
 		e->setProperty(dragY, event.getDistanceFromDragStartY());
 	}
-
-	return clickInformation;
 }
 
 void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, EnterState state)
@@ -639,7 +531,16 @@ void MouseCallbackComponent::sendMessage(const MouseEvent &e, Action action, Ent
 	if (callbackLevel == CallbackLevel::NoCallbacks) 
 		return;
 
-	sendToListeners(getMouseCallbackObject(this, e, callbackLevel, action, state));
+	dispatch::StringBuilder n;
+
+	n << "panel mouse callback for " << Component::getName() << ": [" << getCallbackLevelAsIdentifier(callbackLevel) << ", " << getActionAsIdentifier(action) << "]";
+	
+	TRACE_EVENT("component", DYNAMIC_STRING_BUILDER(n));
+
+	fillMouseCallbackObject(clickInformation[(int)action], this, e, callbackLevel, action, state);
+
+	sendToListeners(clickInformation[(int)action]);
+	repaint();
 }
 
 void MouseCallbackComponent::sendToListeners(var clickInformation)
@@ -676,8 +577,8 @@ void DrawActions::ActionBase::setCachedImage(Image& actionImage_, Image& mainIma
 void DrawActions::ActionBase::setScaleFactor(float sf)
 { scaleFactor = sf; }
 
-DrawActions::MarkdownAction::MarkdownAction():
-	renderer("")
+DrawActions::MarkdownAction::MarkdownAction(const MarkdownLayout::StringWidthFunction& f):
+	renderer("", f)
 {}
 
 void DrawActions::MarkdownAction::perform(Graphics& g)
@@ -774,17 +675,25 @@ void DrawActions::NoiseMapManager::drawNoiseMap(Graphics& g, Rectangle<int> area
 {
 	auto originalArea = area;
 
+    //scale *= scaleFactor;
+    
 	if(scale != 1.0f)
 		area = area.transformed(AffineTransform::scale(scale));
 
 	const auto& m = getNoiseMap(area, monochrom);
 
+    g.saveState();
+    
 	g.setColour(Colours::black.withAlpha(alpha));
 
+    g.setImageResamplingQuality(Graphics::ResamplingQuality::lowResamplingQuality);
+    
 	if (scale != 1.0f)
 		g.drawImageWithin(m.img, originalArea.getX(), originalArea.getY(), originalArea.getWidth(), originalArea.getHeight(), RectanglePlacement::stretchToFit);
 	else
 		g.drawImageAt(m.img, area.getX(), area.getY());
+    
+    g.restoreState();
 }
 
 DrawActions::NoiseMapManager::NoiseMap& DrawActions::NoiseMapManager::getNoiseMap(Rectangle<int> area, bool monochrom)
@@ -800,6 +709,11 @@ DrawActions::NoiseMapManager::NoiseMap& DrawActions::NoiseMapManager::getNoiseMa
 		}
 	}
 
+    dispatch::StringBuilder n;
+    n << "create noisemap [" << area.getWidth() << ", " << area.getHeight() << "]";
+    
+    TRACE_EVENT("drawactions", DYNAMIC_STRING_BUILDER(n));
+    
 	maps.add(new NoiseMap(area, monochrom));
 
 	return *maps.getLast();
@@ -882,7 +796,7 @@ void DrawActions::Handler::addDrawAction(ActionBase* newDrawAction)
 		currentActions.add(newDrawAction);
 }
 
-void DrawActions::Handler::flush()
+void DrawActions::Handler::flush(uint64_t perfettoTrackId)
 {
 	{
 		SpinLock::ScopedLockType sl(lock);
@@ -891,6 +805,9 @@ void DrawActions::Handler::flush()
 		currentActions.clear();
 		layerStack.clear();
 	}
+
+	if(perfettoTrackId != 0)
+		flowManager.continueFlow(perfettoTrackId, "flush draw handler");
 
 	triggerAsyncUpdate();
 }
@@ -925,10 +842,12 @@ DrawActions::NoiseMapManager* DrawActions::Handler::getNoiseMapManager()
 
 void DrawActions::Handler::handleAsyncUpdate()
 {
+	auto x = flowManager.flushAllButLastOne("flush draw handler", {});
+
 	for (auto l : listeners)
 	{
 		if (l != nullptr)
-			l->newPaintActionsAvailable();
+			l->newPaintActionsAvailable(x);
 	}
 }
 
@@ -1022,8 +941,11 @@ void BorderPanel::openGLContextClosing()
 {
 }
 
-void BorderPanel::newPaintActionsAvailable()
-{ repaint(); }
+void BorderPanel::newPaintActionsAvailable(uint64_t flowId)
+{
+	flowManager.continueFlow(flowId, "repaint request");
+	repaint();
+}
 
 void BorderPanel::registerToTopLevelComponent()
 {
@@ -1100,9 +1022,20 @@ struct GraphicHelpers
 
 void BorderPanel::paint(Graphics &g)
 {
+
+	dispatch::StringBuilder n;
+
+	bool hasOpenGL = false;
+
+	if(auto c = TopLevelWindowWithOptionalOpenGL::findRoot(this))
+		hasOpenGL = dynamic_cast<TopLevelWindowWithOptionalOpenGL*>(c)->isOpenGLEnabled();
 	
+	n << Component::getName() << "::paint()";
+	TRACE_EVENT("component", DYNAMIC_STRING_BUILDER(n));
+	PerfettoHelpers::setCurrentThreadName(!hasOpenGL ? "UI Render Thread (Software)" : "UI Render Thread (Open GL)");
 
-
+	flowManager.flushAll("juce::Component paint routine");
+	
 	registerToTopLevelComponent();
 
 	
@@ -1110,6 +1043,7 @@ void BorderPanel::paint(Graphics &g)
 #if HISE_INCLUDE_RLOTTIE
 	if (animation != nullptr)
 	{
+		TRACE_EVENT("component", "rendering lottie");
 		animation->render(g, { 0, 0 });
 		return;
 	}
@@ -1117,6 +1051,8 @@ void BorderPanel::paint(Graphics &g)
 
 	if (isUsingCustomImage)
 	{
+		TRACE_EVENT("component", "rendering script draw actions");
+
         SET_IMAGE_RESAMPLING_QUALITY();
 		
 		if (isOpaque())
@@ -1129,7 +1065,31 @@ void BorderPanel::paint(Graphics &g)
 	}
 	else
 	{
-        
+        if(auto laf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&getLookAndFeel()))
+        {
+			if(auto root = simple_css::CSSRootComponent::find(*this))
+			{
+				if(auto c = root->css.getForComponent(this))
+		        {
+			        simple_css::Renderer r(this, root->stateWatcher);
+
+					root->stateWatcher.checkChanges(this, c, r.getPseudoClassState());
+
+					r.drawBackground(g, getLocalBounds().toFloat(), c);
+
+					auto t = c->getText({}, simple_css::PseudoState(r.getPseudoClassState()).withElement(simple_css::PseudoElementType::None));
+
+					if(!t.isEmpty())
+					{
+						r.renderText(g, getLocalBounds().toFloat(), t, c);
+					}
+
+					return;
+		        }
+			}
+
+	        
+        }
 		
 		Rectangle<float> fillR(borderSize, borderSize, getWidth() - 2 * borderSize, getHeight() - 2 * borderSize);
 
@@ -1180,7 +1140,7 @@ MultilineLabel::MultilineLabel(const String &name) :
 Label(name),
 multiline(false)
 {
-
+	simple_css::FlexboxComponent::Helpers::setCustomType(*this, simple_css::Selector("label"));
 }
 
 void MultilineLabel::setMultiline(bool shouldBeMultiline)
@@ -1193,6 +1153,13 @@ TextEditor * MultilineLabel::createEditorComponent()
 	TextEditor *textEditor = Label::createEditorComponent();
 
 	textEditor->setMultiLine(multiline, true);
+
+	textEditor->setJustification(alignmentForLabelAndEditor);
+
+	if(auto root = simple_css::CSSRootComponent::find(*this))
+		root->stateWatcher.registerComponentToUpdate(textEditor);
+
+	textEditor->setLookAndFeel(&getLookAndFeel());
 
 	textEditor->setReturnKeyStartsNewLine(multiline);
 	
@@ -1245,6 +1212,12 @@ void ImageComponentWithMouseCallback::paint(Graphics &g)
 {
 	if (image.isValid())
 	{
+		if(auto slaf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&getLookAndFeel()))
+		{
+			if(slaf->drawImageOnComponent(g, this, image))
+				return;
+		}
+
 		g.setOpacity(jmax<float>(0.0f, jmin<float>(1.0f, alpha)));
 
 		Rectangle<int> cropArea = Rectangle<int>(0,
@@ -1463,6 +1436,11 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 
 	handler->setGlobalBounds(gb, tc->getLocalBounds(), sf);
 
+    auto zoomFactor = UnblurryGraphics::getScaleFactorForComponent(c, false);
+    
+    handler->getNoiseMapManager()->setScaleFactor(zoomFactor);
+
+    
 	if (wantsCachedImage())
 	{
 		// We are creating one master image before the loop
@@ -1485,6 +1463,12 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 
 		while (auto action = getNextAction())
 		{
+#if PERFETTO
+			dispatch::StringBuilder b;
+			b << "g." << action->getDispatchId() << "()";
+			TRACE_EVENT("drawactions", DYNAMIC_STRING_BUILDER(b));
+#endif
+
 			if (action->wantsCachedImage())
 			{
 				Image actionImage;
@@ -1517,7 +1501,16 @@ void DrawActions::Handler::Iterator::render(Graphics& g, Component* c)
 	else
 	{
 		while (auto action = getNextAction())
+		{
+#if PERFETTO
+			dispatch::StringBuilder b;
+			b << "g." << action->getDispatchId() << "()";
+			TRACE_EVENT("drawactions", DYNAMIC_STRING_BUILDER(b));
+#endif
+
 			action->perform(g);
+		}
+			
 	}
 }
 

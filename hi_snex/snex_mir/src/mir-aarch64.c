@@ -16,6 +16,8 @@
    o empty struct args are ignored
 */
 
+#include "mir-aarch64.h"
+
 /* Any small BLK type (less or equal to two quadwords) args are passed in
    *fully* regs or on stack (w/o address), otherwise it is put
    somewhere on stack and its address passed instead. First RBLK arg
@@ -672,7 +674,7 @@ void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_ad
   size_t len = sizeof (save_insns) + sizeof (restore_insns); /* initial code length */
   VARR (uint8_t) * code;
 
-  mir_mutex_lock (&code_mutex);
+  //mir_mutex_lock (&code_mutex);
   VARR_CREATE (uint8_t, code, 128);
   for (;;) { /* dealing with moving code to another page */
     curr_addr = base_addr = _MIR_get_new_code_addr (ctx, len);
@@ -694,6 +696,6 @@ void *_MIR_get_wrapper (MIR_context_t ctx, MIR_item_t called_func, void *hook_ad
     if (res_code != NULL) break;
   }
   VARR_DESTROY (uint8_t, code);
-  mir_mutex_unlock (&code_mutex);
+  //mir_mutex_unlock (&code_mutex);
   return res_code;
 }

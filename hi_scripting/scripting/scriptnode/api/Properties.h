@@ -61,9 +61,11 @@ namespace UIValues
 {
 static constexpr int HeaderHeight = 24;
 static constexpr int ParameterHeight = 48 + 18 + 20;
+static constexpr int MacroDragHeight = 20;	
 static constexpr int NodeWidth = 128;
 static constexpr int NodeHeight = 48;
 static constexpr int NodeMargin = 10;
+static constexpr int ZoomOffset = 60;	
 static constexpr int DuplicateSize = 128;
 static constexpr int PinHeight = 24;
 }

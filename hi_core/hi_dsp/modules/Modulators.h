@@ -143,21 +143,21 @@ public:
 
 	struct PitchConverters
 	{
-		static inline float octaveRangeToSignedNormalisedRange(float octaveValue);
+		static float octaveRangeToSignedNormalisedRange(float octaveValue);
 
 		/** [-1 ... 1] => [0.5 ... 2.0] */
-		static inline float normalisedRangeToPitchFactor(float range);
+		static float normalisedRangeToPitchFactor(float range);
 
 		/** [0.5 ... 2.0] => [-1 ... 1] */
-		static inline float pitchFactorToNormalisedRange(float pitchFactor);
+		static float pitchFactorToNormalisedRange(float pitchFactor);
 
-		static inline float octaveRangeToPitchFactor(float octaveValue);
+		static float octaveRangeToPitchFactor(float octaveValue);
 
-		static inline void octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues);
+		static void octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues);
 
 		static void normalisedRangeToPitchFactor(float* rangeValues, int numValues);
 
-		static inline void octaveRangeToPitchFactor(float* octaveValues, int numValues);
+		static void octaveRangeToPitchFactor(float* octaveValues, int numValues);
 	};
 
 	public:
@@ -229,7 +229,9 @@ public:
 
 	/**	Creates a new modulator with the given Identifier. */
 	Modulator(MainController *m, const String &id, int numVoices);
-	virtual ~Modulator();;
+	virtual ~Modulator();
+
+	float getValueForTextConverter(float valueToConvert) const;;
 
 
 	// ====================================================================================================
@@ -589,6 +591,12 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 
+	void syncAfterDelayStart(bool waitForDelay, int voiceIndex) override
+	{
+		if(!waitForDelay)
+			startVoice(voiceIndex);
+	}
+
 	ValueTree exportAsValueTree() const override;;
 
 	void restoreFromValueTree(const ValueTree &v) override;
@@ -707,7 +715,7 @@ class VoiceStartModulatorFactoryType: public FactoryType
 		globalStaticTimeVariantModulator,
 		arrayModulator,
 		scriptVoiceStartModulator,
-
+		eventDataStartModulator
 	};
 
 public:
@@ -752,7 +760,8 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		scriptEnvelope,
 		mpeModulator,
 		voiceKillEnvelope,
-		globalEnvelope
+		globalEnvelope,
+		eventDataEnvelope
 	};
 
 public:

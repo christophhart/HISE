@@ -83,9 +83,9 @@ public:
 	void setExternalData(const ExternalData& d, int index) override
 	{
 		if (this->externalData.obj != nullptr)
-			d.obj->getUpdater().removeEventListener(this);
+			this->externalData.obj->getUpdater().removeEventListener(this);
 
-		jassert(d.dataType == ExternalData::DataType::FilterCoefficients);
+		jassert(d.isTypeOrEmpty(ExternalData::DataType::FilterCoefficients));
 
 		filter_base::setExternalData(d, index);
 
@@ -98,7 +98,7 @@ public:
 		}
 	}
 
-	IIRCoefficients getApproximateCoefficients() const override;
+	FilterDataObject::CoefficientData getApproximateCoefficients() const override;
 
 	void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue) override;
 
@@ -118,15 +118,7 @@ public:
 		if(enabled)
 			filter.get().processFrame(data.begin(), data.size());
 	}
-
-	void sendCoefficientUpdateMessage()
-	{
-		DataReadLock l(this);
-
-		if (this->externalData.obj != nullptr)
-			this->externalData.obj->getUpdater().sendContentChangeMessage(sendNotificationAsync, 0);
-	}
-
+	
 	void setFrequency(double newFrequency);
 	void setGain(double newGain);
 	void setQ(double newQ);

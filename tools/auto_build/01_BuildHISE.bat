@@ -40,6 +40,7 @@ echo Setting version number %versionPoint%
 
 %projucerPath% --resave %standalone_projucer_project%
 %projucerPath% --resave %plugin_projucer_project%
+%projucerPath% --resave %multipagecreator_projucer_project%
 
 REM ===========================================================
 REM Compiling
@@ -58,6 +59,7 @@ if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling. Aborting...
 	cd tools\auto_build
+	pause
 	exit 1
 )
 
@@ -65,17 +67,23 @@ echo OK
 
 echo Compiling 64bit Standalone App...
 
-"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
+"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MsBuild.exe"  %standalone_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
 
 echo Compiling 64bit VST plugin
 
-"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\MSBuild\15.0\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
+"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MsBuild.exe"  %plugin_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
+
+echo Compiling multipage creator
+
+"C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MsBuild.exe"  %multipagecreator_project% /t:Build /p:Configuration="Release";Platform=x64 /v:m
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================
 	echo Error at compiling. Aborting...
 	cd tools\auto_build
+	pause
 	exit 1
 )
 
 echo "OK"
+pause

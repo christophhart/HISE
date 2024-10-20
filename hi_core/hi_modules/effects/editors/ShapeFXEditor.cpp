@@ -30,7 +30,8 @@ using namespace juce;
 
 //==============================================================================
 ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
-    : ProcessorEditorBody(p)
+    : ProcessorEditorBody(p),
+      updater(*this)
 {
     //[Constructor_pre] You can add your own custom stuff here..
 	auto sfx = dynamic_cast<ShapeFX*>(getProcessor());
@@ -184,8 +185,10 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
 	START_TIMER();
 
 	oversampling->setup(getProcessor(), ShapeFX::SpecialParameters::Oversampling, "Oversampling");
+
+    mixSlider->setMode(HiSlider::NormalizedPercentage);
 	mixSlider->setup(getProcessor(), ShapeFX::SpecialParameters::Mix, "Mix");
-	mixSlider->setMode(HiSlider::NormalizedPercentage);
+	
 
 	autoGain->setup(getProcessor(), ShapeFX::SpecialParameters::Autogain, "Autogain");
 
@@ -206,6 +209,18 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
 
 	lowPass->setup(getProcessor(), ShapeFX::SpecialParameters::LowPass, "Low Pass");
 	lowPass->setMode(HiSlider::Frequency, 200.0, 20000.0, 1500.0, 1.0);
+
+    modeSelector->clear(dontSendNotification);
+
+	auto sa = sfx->getShapeNames();
+
+	for (int i = 0; i < sa.size(); i++)
+	{
+		if (sa[i] != "unused")
+		{
+			modeSelector->addItem(sa[i], i);
+		}
+	}
 
 	modeSelector->setup(getProcessor(), ShapeFX::SpecialParameters::Mode , "Mode");
 
@@ -228,17 +243,7 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
 	outMeter->setColour(VuMeter::ledColour, Colours::lightgrey);
 	outMeter->setColour(VuMeter::outlineColour, Colour(0x45FFFFFF));
 
-	modeSelector->clear(dontSendNotification);
-
-	auto sa = sfx->getShapeNames();
-
-	for (int i = 0; i < sa.size(); i++)
-	{
-		if (sa[i] != "unused")
-		{
-			modeSelector->addItem(sa[i], i);
-		}
-	}
+	
 
     //[/UserPreSize]
 

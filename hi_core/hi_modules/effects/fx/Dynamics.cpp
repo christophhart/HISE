@@ -42,7 +42,7 @@ DynamicsEffect::DynamicsEffect(MainController *mc, const String &uid) :
 	parameterNames.add("LimiterReduction");
 	parameterNames.add("LimiterMakeup");
 
-	
+	updateParameterSlots();
 }
 
 void DynamicsEffect::setInternalAttribute(int parameterIndex, float newValue)

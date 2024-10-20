@@ -22,6 +22,7 @@
 #include <hi_faust_lib/hi_faust_lib.h>
 #include <hi_faust_types/hi_faust_types.h>
 #include <hi_lac/hi_lac.h>
+#include <hi_loris/hi_loris.h>
 #include <hi_rlottie/hi_rlottie.h>
 #include <hi_scripting/hi_scripting.h>
 #include <hi_snex/hi_snex.h>
@@ -44,6 +45,7 @@
 #include <juce_opengl/juce_opengl.h>
 #include <juce_osc/juce_osc.h>
 #include <juce_product_unlocking/juce_product_unlocking.h>
+#include <melatonin_blur/melatonin_blur.h>
 
 #include "BinaryData.h"
 
@@ -67,7 +69,7 @@ namespace ProjectInfo
 {
     const char* const  projectName    = "HISE Standalone";
     const char* const  companyName    = "Hart Instruments";
-    const char* const  versionString  = "3.6.2";
-    const int          versionNumber  = 0x30602;
+    const char* const  versionString  = "4.0.0";
+    const int          versionNumber  = 0x40000;
 }
 #endif

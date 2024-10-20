@@ -247,7 +247,7 @@ struct SignalsmithStretch {
 	
 private:
 	using Complex = std::complex<Sample>;
-	static constexpr Sample noiseFloor{1e-15};
+	static constexpr Sample noiseFloor{ (Sample)1e-15 };
 	static constexpr Sample maxCleanStretch{2}; // time-stretch ratio before we start randomising phases
 	int silenceCounter = 0;
 	bool silenceFirst = true;

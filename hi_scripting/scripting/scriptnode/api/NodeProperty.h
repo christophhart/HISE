@@ -153,9 +153,28 @@ protected:
 		object(t)
 	{};
 
+	Colour getHeaderColour() const
+	{
+		if (auto nc = findParentComponentOfClass<NodeComponent>())
+		{
+			return nc->getHeaderColour();
+		}
+
+		return Colours::transparentBlack;
+	}
+
 private:
 
 	WeakReference<ObjectType> object;
+};
+
+struct DspNetworkPathFactory : public PathFactory
+{
+	String getId() const override { return "Scriptnode Toolbar"; }
+
+	Path createPath(const String& url) const override;
+	Array<Description> getDescription() const override;
+	
 };
 
 struct NodeComponentFactory : public PathFactory

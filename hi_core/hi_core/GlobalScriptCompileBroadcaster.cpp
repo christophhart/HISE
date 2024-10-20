@@ -92,6 +92,94 @@ void GlobalScriptCompileBroadcaster::clearIncludedFiles()
 	includedFiles.clear();
 }
 
+void GlobalScriptCompileBroadcaster::restoreIncludedScriptFilesFromSnippet(const ValueTree& snippetTree)
+{
+#if USE_BACKEND
+	auto mc = dynamic_cast<MainController*>(this);
+	auto scriptRootFolder = mc->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Scripts);
+
+	if(!scriptRootFolder.isDirectory())
+		return;
+
+	auto snexRootFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::CodeLibrary);
+
+	auto restoreFromChild = [&](const Identifier& id, const File& rootDirectory)
+	{
+		auto v = snippetTree.getChildWithName(id);
+		jassert(v.isValid());
+		
+		auto chain = dynamic_cast<const MainController*>(this)->getMainSynthChain();
+
+		for(auto c: v)
+		{
+			debugToConsole(const_cast<ModulatorSynthChain*>(chain), "loaded embedded file " + c["filename"].toString() + " from HISE snippet");
+			auto n = new ExternalScriptFile(rootDirectory, c);
+			includedFiles.add(n);
+		}
+	};
+	
+	restoreFromChild("embeddedScripts", scriptRootFolder);
+	restoreFromChild("embeddedSnexFiles", snexRootFolder);
+#endif
+}
+
+ValueTree GlobalScriptCompileBroadcaster::collectIncludedScriptFilesForSnippet(const Identifier& id, const File& root) const
+{
+#if USE_BACKEND
+	ValueTree d(id);
+	
+	auto chain = dynamic_cast<const MainController*>(this)->getMainSynthChain();
+
+	auto scriptProcessorList = ProcessorHelpers::getListOfAllProcessors<JavascriptProcessor>(chain);
+
+	for(auto f: includedFiles)
+	{
+		if(!f->getFile().isAChildOf(root))
+			continue;
+
+		bool included = false;
+
+		auto extension = f->getFile().getFileExtension();
+
+		// Include faust & snex files but check the others
+		// whether they are actually used or "(detached)"
+		if(extension == ".dsp" || extension == ".h" || extension == ".xml")
+			included = true;
+
+		for(auto jp: scriptProcessorList)
+		{
+			for(int i = 0; i < jp->getNumWatchedFiles(); i++)
+			{
+				if(jp->getWatchedFile(i) == f->getFile())
+				{
+					included = true;
+					break;
+				}
+			}
+
+			if(included)
+				break;
+		}
+
+		auto c = f->toEmbeddableValueTree(root);
+
+		if(!included)
+		{
+			debugToConsole(const_cast<ModulatorSynthChain*>(chain), "skip detached file " + c["filename"].toString() + " from embedding into HISE snippet");
+			continue;
+		}
+		
+		debugToConsole(const_cast<ModulatorSynthChain*>(chain), "embedded " + c["filename"].toString() + " into HISE snippet");
+		d.addChild(c, -1, nullptr);
+	}
+
+	return d;
+#else
+	jassertfalse;
+	return {};
+#endif
+}
+
 ScriptComponentEditBroadcaster* GlobalScriptCompileBroadcaster::getScriptComponentEditBroadcaster()
 {
 	return globalEditBroadcaster;
@@ -124,6 +212,22 @@ void GlobalScriptCompileBroadcaster::clearWebResources()
 void GlobalScriptCompileBroadcaster::setWebViewRoot(File newRoot)
 {
 	webViewRoot = newRoot;
+}
+
+void GlobalScriptCompileBroadcaster::saveAllExternalFiles()
+{
+	for(int i = 0; i < getNumExternalScriptFiles(); i++)
+	{
+		auto ef = getExternalScriptFile(i);
+
+		if(ef->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet)
+		{
+			debugToConsole(dynamic_cast<MainController*>(this)->getMainSynthChain(), "Skip writing embedded file " + ef->getFile().getFileName() + " to disk...");
+			continue;
+		}
+			
+		ef->saveFile();
+	}
 }
 
 
@@ -234,7 +338,7 @@ String GlobalScriptCompileBroadcaster::getExternalScriptFromCollection(const Str
 	return String();
 }
 
-ExternalScriptFile::Ptr GlobalScriptCompileBroadcaster::getExternalScriptFile(const File& fileToInclude)
+ExternalScriptFile::Ptr GlobalScriptCompileBroadcaster::getExternalScriptFile(const File& fileToInclude, bool createIfNotFound)
 {
 	for (int i = 0; i < includedFiles.size(); i++)
 	{
@@ -242,9 +346,10 @@ ExternalScriptFile::Ptr GlobalScriptCompileBroadcaster::getExternalScriptFile(co
 			return includedFiles[i];
 	}
 
-	includedFiles.add(new ExternalScriptFile(fileToInclude));
+	if(createIfNotFound)
+		return includedFiles.add(new ExternalScriptFile(fileToInclude));
 
-	return includedFiles.getLast();
+	return nullptr;
 }
 
 juce::ValueTree GlobalScriptCompileBroadcaster::exportWebViewResources()
@@ -400,8 +505,11 @@ ExternalScriptFile::RuntimeError::RuntimeError() = default;
 
 ExternalScriptFile::ExternalScriptFile(const File& file):
 	file(file),
+	resourceType(ResourceType::FileBased),
 	currentResult(Result::ok())
 {
+	lastEditTime = getFile().getLastModificationTime();
+
 #if USE_BACKEND
 	content.replaceAllContent(file.loadFileAsString());
 	content.setSavePoint();
@@ -430,4 +538,20 @@ File ExternalScriptFile::getFile() const
 
 ExternalScriptFile::RuntimeError::Broadcaster& ExternalScriptFile::getRuntimeErrorBroadcaster()
 { return runtimeErrorBroadcaster; }
+
+bool ExternalScriptFile::extractEmbedded()
+{
+	if(resourceType == ResourceType::EmbeddedInSnippet)
+	{
+		if(!file.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite local file", "The file " + getFile().getFileName() + " from the snippet already exists. Do you want to overwrite your local file?"))
+		{
+			file.getParentDirectory().createDirectory();
+			file.replaceWithText(content.getAllContent());
+			resourceType = ResourceType::FileBased;
+			return true;
+		}
+	}
+
+	return false;
+}
 } // namespace hise

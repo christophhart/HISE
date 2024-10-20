@@ -1,0 +1,197 @@
+{
+  "StyleData": {
+    "Font": "Lato",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "About HISE",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "AboutHise",
+    "Company": "HISE",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "#total-progress\n{\n\tdisplay:none;\n}\n\n#next\n{\n\tcontent: 'OK';\n}\n\n#cancel\n{\n\tdisplay: none;\n}\n\np\n{\n\twidth: 100%;\n\ttext-align: left;\n}\n\n.value-label\n{\n\tbackground: rgba(0, 0, 0, 0.2);\n\tpadding: 5px;\n\tfont-family: monospace;\n}\n\nlabel\n{\n\twidth: 280px;\n}\n\ninput\n{\n\tfont-family: monospace;\n\ttext-align: right;\n}",
+    "UseViewport": true,
+    "ConfirmClose": false,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 800,
+    "DialogHeight": 600
+  },
+  "GlobalState": {
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "JavascriptFunction",
+          "ID": "initValues",
+          "Code": "{BIND::initValues}"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "Version",
+          "ID": "Version",
+          "Enabled": false,
+          "InitValue": "1.0.0",
+          "Height": 80
+        },
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "TextInput",
+              "Text": "Git commit hash",
+              "ID": "commitHash",
+              "Enabled": false,
+              "InitValue": "1.0.0",
+              "Height": 80
+            },
+            {
+              "Type": "Button",
+              "Text": "Show commit on GitHub",
+              "ID": "showCommit",
+              "Code": "{BIND::showCommit}",
+              "Style": "width: 500px;",
+              "NoLabel": true,
+              "ButtonType": "Text"
+            }
+          ]
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "Build configuration",
+          "Style": "font-weight: bold; font-size: 1.4em; margin-top: 30px; margin-bottom: 10px; border-bottom: 1px solid #444;"
+        },
+        {
+          "Type": "Button",
+          "Text": "JUCE_DEBUG",
+          "ID": "JUCE_DEBUG",
+          "Enabled": false,
+          "Help": "If that flag is set, then HISE is built without optimizations and with debug symbols.\n\n> This is only useful if you intend to debug HISE. If not, then make sure to compile the release build for optimal performance"
+        },
+        {
+          "Type": "Button",
+          "Text": "HISE_INCLUDE_FAUST",
+          "ID": "HISE_INCLUDE_FAUST",
+          "Enabled": false,
+          "Help": "Whether HISE was build with Faust support.\n\n> If you want to enable Faust, you will have to recompile HISE and follow the instructions from this [forum topic](https://forum.hise.audio/topic/6746/updated-build-instructions)."
+        },
+        {
+          "Type": "Button",
+          "Text": "USE_IPP",
+          "ID": "USE_IPP",
+          "Enabled": false,
+          "Help": "Whether HISE was build with the IPP library (only available on Windows)."
+        },
+        {
+          "Type": "Button",
+          "Text": "HISE_INCLUDE_RLOTTIE",
+          "ID": "HISE_INCLUDE_RLOTTIE",
+          "Enabled": false,
+          "Help": "Whether HISE was build with the RLottie library"
+        },
+        {
+          "Type": "Button",
+          "Text": "HISE_INCLUDE_RT_NEURAL",
+          "ID": "HISE_INCLUDE_RT_NEURAL",
+          "Enabled": false,
+          "Help": "Whether HISE was build with the RTNeural library"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "NUM_POLYPHONIC_VOICES",
+          "ID": "NUM_POLYPHONIC_VOICES",
+          "Enabled": false,
+          "InitValue": "256",
+          "Height": 80,
+          "Help": "The amount of voices that HISE will allocate per sound generator"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "NUM_MAX_CHANNELS",
+          "ID": "NUM_MAX_CHANNELS",
+          "Enabled": false,
+          "InitValue": "32",
+          "Height": 80,
+          "Help": "The maximum channel amount that HISE will use. "
+        },
+        {
+          "Type": "TextInput",
+          "Text": "NUM_HARDCODED_FX_MODS",
+          "ID": "NUM_HARDCODED_FX_MODS",
+          "Enabled": false,
+          "InitValue": "0",
+          "Height": 80,
+          "Help": "The amount of modulation slots that will be available in HardcodedFX modules"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "NUM_HARDCODED_POLY_FX_MODS",
+          "ID": "NUM_HARDCODED_POLY_FX_MODS",
+          "Enabled": false,
+          "InitValue": "0",
+          "Height": 80,
+          "Help": "The amount of modulation slots that will be available in PolyphonicHardcodedFX modules"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "HISE_MAX_DELAY_TIME_SAMPLES",
+          "ID": "HISE_MAX_DELAY_TIME_SAMPLES",
+          "Enabled": false,
+          "InitValue": "65536",
+          "Height": 80,
+          "Help": "Set the max delay time for the hise delay line class in samples. It must be a power of two. \n\nBy default this means that the max delay time at 44kHz is ~1.5 seconds, so if you have long delay times from a tempo synced delay at 1/1, the delay time will get capped and the delay looses its synchronisation.\n\nIf that happens on your project, just raise that to a bigger power of two value (131072, 262144, 524288, 1048576) in the ExtraDefinitions field of your project settings."
+        },
+        {
+          "Type": "TextInput",
+          "Text": "HISE_USE_SVF_FOR_CURVE_EQ",
+          "ID": "HISE_USE_SVF_FOR_CURVE_EQ",
+          "Enabled": false,
+          "InitValue": "1",
+          "Height": 80,
+          "Help": "By default it uses the stock biquad filters from JUCE for backward-compatibility but this value might be changed some time in the future\n\nRead more about this on the relevant [forum topic](https://forum.hise.audio/topic/7420/parametric-eq-hise_use_svf_for_curve_eq/6#)"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "USE_MOD2_WAVETABLESIZE",
+          "ID": "USE_MOD2_WAVETABLESIZE",
+          "Enabled": false,
+          "InitValue": "1",
+          "Height": 80,
+          "Help": "If this is true (which is the default), then the wavetable synthesizer will expect a wavetable size that is a power of two. Disable this if you want to use .hwt files that you have created with an ancient HISE version (something below 3.5.0)",
+          "UseInitValue": ""
+        },
+        {
+          "Type": "TextInput",
+          "Text": "HISE_USE_WRONG_VOICE_RENDERING_ORDER",
+          "ID": "HISE_USE_WRONG_VOICE_RENDERING_ORDER",
+          "Enabled": false,
+          "InitValue": "1",
+          "Height": 80,
+          "Help": "Annoyingly some sound generators (Waveform Generator, Sampler, Looper, Group) were rendering the voice effects before the polyphonic gain modulation which causes the sound to be slightly different. If you care about backwards compatibility of your existing user presets, you will have to enable this preprocessor."
+        }
+      ],
+      "Text": ""
+    }
+  ],
+  "Assets": []
+}

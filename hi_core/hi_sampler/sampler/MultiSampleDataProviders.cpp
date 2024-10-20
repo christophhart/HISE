@@ -160,9 +160,15 @@ XYZSampleMapProvider::FileBasedDataProvider::FileBasedDataProvider(XYZSampleMapP
 
 hise::MultiChannelAudioBuffer::SampleReference::Ptr XYZSampleMapProvider::FileBasedDataProvider::loadFile(const String& referenceString)
 {
-	PoolReference r(parent->getMainController(), referenceString, FileHandlerBase::Samples);
-	return loadAbsoluteFile(r.getFile(), referenceString);
+	return loadAbsoluteFile(parseFileReference(referenceString), referenceString);
 }
+
+File XYZSampleMapProvider::FileBasedDataProvider::parseFileReference(const String& b64) const
+{
+	PoolReference r(parent->getMainController(), b64, FileHandlerBase::Samples);
+	return r.getFile();
+}
+
 
 XYZSampleMapProvider::XYZSampleMapProvider(MainController* mc) :
 	XYZProviderBase(mc->getXYZPool()),

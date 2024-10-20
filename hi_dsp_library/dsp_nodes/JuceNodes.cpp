@@ -128,23 +128,8 @@ void jlinkwitzriley::createParameters(ParameterDataList& d)
 
 
 
-void jdelay::createParameters(ParameterDataList& d)
-{
-	{
-		parameter::data p("Limit", { 0.0, 1000.0 });
-		registerCallback<0>(p);
-		p.setSkewForCentre(100.0);
-		p.setDefaultValue(1000.0);
-		d.add(p);
-	}
-	{
-		parameter::data p("DelayTime", { 0.0, 1000.0 });
-		registerCallback<1>(p);
-		p.setSkewForCentre(100.0);
-		p.setDefaultValue(0.0);
-		d.add(p);
-	}
-}
+
+
 
 } // namespace scriptnode
 

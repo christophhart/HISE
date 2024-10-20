@@ -32,6 +32,7 @@
 
 #ifndef PROCESSOREDITORHEADER_H_INCLUDED
 #define PROCESSOREDITORHEADER_H_INCLUDED
+#include "hi_core/hi_dsp/Processor.h"
 
 namespace hise { using namespace juce;
 
@@ -47,6 +48,7 @@ class VuMeter;
 class ProcessorEditorHeader  : public ProcessorEditorChildComponent,
                                public SliderListener,
 							   public LabelListener,
+							   public Processor::BypassListener,
                                public ButtonListener,
 							   public GlobalScriptCompileListener,
 							   public Timer
@@ -62,7 +64,11 @@ public:
 	void update(bool force);
 	void createProcessorFromPopup(Processor *insertBeforeSibling=nullptr);
 
-	void timerCallback() override;
+    void updateIdAndColour(dispatch::library::Processor* p);
+
+    void bypassStateChanged(Processor* p, bool state) override;
+
+    void timerCallback() override;
 
 	void refreshShapeButton(ShapeButton *b);
 
@@ -105,6 +111,9 @@ public:
 	bool isHeaderOfEmptyChain() const;
 
     void paint (Graphics& g) override;
+
+    void paintOverChildren(Graphics& g) override;
+
     void resized() override;
     void sliderValueChanged (Slider* sliderThatWasMoved) override;
 
@@ -126,6 +135,8 @@ public:
 	void setupButton(DrawableButton *b, ButtonShapes::Symbol s);
 
 private:
+
+	dispatch::library::ProcessorHandler::NameAndColourListener idAndNameListener;
 
 	void addProcessor(Processor *processorToBeAdded, Processor *insertBeforeSibling);
 
@@ -157,13 +168,9 @@ private:
 
 	ScopedPointer<ProcessorEditorHeaderLookAndFeel> luf;
 	PopupLookAndFeel plaf;
-
 	VUSliderLookAndFeel vulaf;
-
 	BalanceButtonLookAndFeel bbluf;
-
 	BiPolarSliderLookAndFeel bpslaf;
-
 	WeakReference<Processor> parentProcessor;
 
     //==============================================================================
@@ -182,7 +189,6 @@ private:
 	ScopedPointer<ShapeButton> workspaceButton;
 	ScopedPointer<ShapeButton> monophonicButton;
 	ScopedPointer<ShapeButton> retriggerButton;
-
     ScopedPointer<IntensitySlider> intensitySlider;
 	ScopedPointer<ShapeButton> bipolarModButton;
 

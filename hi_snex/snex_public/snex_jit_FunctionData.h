@@ -407,7 +407,7 @@ struct FunctionData
 		f_(object, ps...);
 	}
 
-	template <typename ReturnType, typename... Parameters> ReturnType callUncheckedWithObj5ect(Parameters... ps) const
+	template <typename ReturnType, typename... Parameters> ReturnType callUncheckedWithObject(Parameters... ps) const
 	{
 		jassert(object != nullptr);
 		jassert(function != nullptr);

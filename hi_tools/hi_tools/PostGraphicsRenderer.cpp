@@ -35,7 +35,13 @@
 
 #if USE_IPP
 #include <ipp.h>
+
+#if IPP_VERSION_MAJOR >= 2021 && IPP_VERSION_MINOR >= 10
+#include <ipp/ippcv.h>
+#else
 #include <ippcv.h>
+#endif
+
 #endif
 
 namespace hise {

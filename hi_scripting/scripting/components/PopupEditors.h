@@ -193,8 +193,19 @@ public:
 	ExternalScriptFile::Ptr externalFile;
 
 	ScopedPointer<EditorBottomBar> bottomBar;
-    
+
+	bool isJavascript() const { return t == FileTypes::Javascript; }
+
 private:
+
+	enum class FileTypes
+	{
+		Javascript = 0,
+		GLSL,
+		CSS
+	};
+
+	FileTypes t = FileTypes::Javascript;
 
     void checkUnreferencedExternalFile()
     {

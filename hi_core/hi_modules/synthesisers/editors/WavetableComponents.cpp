@@ -84,8 +84,7 @@ void SampleMapToWavetableConverter::Preview::paint(Graphics& g)
 
 	if (spectrumImage.isValid())
 	{
-		g.drawImageWithin(spectrumImage, 0, 0, getWidth(), getHeight(), RectanglePlacement::stretchToFit);
-		g.setColour(Colours::white.withAlpha(0.5f));
+        Spectrum2D::draw(g, spectrumImage, getLocalBounds(), Graphics::ResamplingQuality::lowResamplingQuality);
 		g.drawRect(getLocalBounds().toFloat(), 1.0f);
 
 		if (previewPosition >= 0.0)

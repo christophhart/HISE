@@ -30,8 +30,17 @@
 *   ===========================================================================
 */
 
-#include <AppConfig.h>
+#pragma warning( push )
+#pragma warning( disable : 4389 )
+#pragma warning( disable : 4267 )
+#pragma warning( disable : 4996 )
+#pragma warning( disable : 4459 )
+#pragma warning( disable : 4065 )
+#pragma warning( disable : 4706 )
 
 #if PERFETTO
-#include <perfetto.cc>
+#include "../tools/SDK/perfetto/perfetto.cc"
 #endif
+
+// Some code
+#pragma warning( pop )

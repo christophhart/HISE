@@ -104,6 +104,12 @@ public:
 	MidiMetronome(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid)
 	{
+		parameterNames.add("Enabled");
+	    parameterNames.add("Volume");
+	    parameterNames.add("NoiseAmount");
+
+		updateParameterSlots();
+
 		finaliseModChains();
 	};
 
@@ -266,7 +272,7 @@ public:
 	void connectToPlayer(MidiPlayer* p)
 	{
 		player = p;
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 	}
 
 	void connectToPlayer(const String& playerId)

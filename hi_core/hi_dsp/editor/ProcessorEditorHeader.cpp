@@ -36,8 +36,13 @@ namespace hise { using namespace juce;
 
 ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	ProcessorEditorChildComponent(p),
+	BypassListener(p->getProcessor()->getMainController()->getRootDispatcher()),
+	idAndNameListener(p->getProcessor()->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_1(ProcessorEditorHeader::updateIdAndColour)),
 	isSoloHeader(false)
 {
+	p->getProcessor()->addNameAndColourListener(&idAndNameListener);
+	p->getProcessor()->addBypassListener(this, dispatch::sendNotificationAsync);
+
 	setLookAndFeel();
 
 	p->getProcessor()->getMainController()->addScriptListener(this);
@@ -55,11 +60,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	valueMeter->setColour (VuMeter::ledColour, Colours::lightgrey);
 	valueMeter->setColour (VuMeter::outlineColour, drawColour.withAlpha(0.5f));
 	
-	#if JUCE_DEBUG
-	startTimer(150);
-#else
 	startTimer(30);
-#endif
 
     addAndMakeVisible (idLabel = new Label ("ID Label",
                                             TRANS("ModulatorName")));
@@ -302,10 +303,18 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 	deleteButton->setWantsKeyboardFocus(false);
 	addButton->setWantsKeyboardFocus(false);
 	bypassButton->setWantsKeyboardFocus(false);
+
+	bypassStateChanged(getProcessor(), getProcessor()->isBypassed());
 }
 
 ProcessorEditorHeader::~ProcessorEditorHeader()
 {
+	if(auto p = getProcessor())
+	{
+		p->removeNameAndColourListener(&idAndNameListener);
+		p->removeBypassListener(this);
+	}
+
 	getProcessor()->getMainController()->removeScriptListener(this);
 
     valueMeter = nullptr;
@@ -480,6 +489,29 @@ void ProcessorEditorHeader::paint (Graphics& g)
 		g.drawText("from " + parentName, 0, 10, getWidth() - 6, getHeight(), Justification::topRight);
 	}
     
+}
+
+void ProcessorEditorHeader::paintOverChildren(Graphics& g)
+{
+	if(isHeaderOfModulator())
+	{
+		auto mod = dynamic_cast<Modulator*>(getProcessor());
+		auto mc = dynamic_cast<ModulatorChain*>(mod);
+
+		if(mc == nullptr)
+			mc = dynamic_cast<ModulatorChain*>(getProcessor()->getParentProcessor(false));
+
+		if(mc != nullptr)
+		{
+			float outputValue = mod->getValueForTextConverter(mod->getOutputValue());
+			auto v = mc->getTableValueConverter()(outputValue);
+
+			g.setColour(Colours::white.withAlpha(0.35f));
+
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(v, valueMeter->getBoundsInParent().toFloat(), Justification::centred);
+		}
+	}
 }
 
 void ProcessorEditorHeader::resized()
@@ -753,14 +785,9 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
         
 		bool shouldBeBypassed = bypassButton->getToggleState();
 		getProcessor()->setBypassed(shouldBeBypassed, sendNotification);
-		bypassButton->setToggleState(!shouldBeBypassed, dontSendNotification);
+		//bypassButton->setToggleState(!shouldBeBypassed, dontSendNotification);
 		
-		ProcessorEditorPanel *panel = getEditor()->getPanel();
-
-		for(int i = 0; i < panel->getNumChildEditors(); i++)
-		{
-			panel->getChildEditor(i)->setEnabled(!shouldBeBypassed);
-		}
+		
         
         PresetHandler::setChanged(getProcessor());
         
@@ -769,13 +796,13 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
 	{
 		const bool newValue = !retriggerButton->getToggleState();
 
-		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Retrigger, newValue ? 1.0f : 0.f, sendNotification);
+		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Retrigger, newValue ? 1.0f : 0.f, sendNotificationAsync);
 	}
 	else if (buttonThatWasClicked == monophonicButton)
 	{
 		const bool newValue = !monophonicButton->getToggleState();
 
-		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Monophonic, newValue ? 1.0f : 0.f, sendNotification);
+		getProcessor()->setAttribute(EnvelopeModulator::Parameters::Monophonic, newValue ? 1.0f : 0.f, sendNotificationAsync);
 
 	}
     else if (buttonThatWasClicked == foldButton)
@@ -864,10 +891,12 @@ void ProcessorEditorHeader::update(bool force)
 {
 	Processor *p = getProcessor();
 
+#if HISE_OLD_PROCESSOR_DISPATCH
 	bypassButton->setToggleState(!p->isBypassed(), dontSendNotification);
 
 	if(!idLabel->isBeingEdited() && force)
 		idLabel->setText(p->getId(), dontSendNotification);
+#endif
 
 	if(isHeaderOfModulator())
 	{
@@ -954,6 +983,13 @@ void ProcessorEditorHeader::checkSoloLabel()
 void ProcessorEditorHeader::createProcessorFromPopup(Processor *insertBeforeSibling)
 {
     ProcessorEditor::createProcessorFromPopup(getEditor(), getProcessor(), insertBeforeSibling);
+}
+
+void ProcessorEditorHeader::updateIdAndColour(dispatch::library::Processor* p)
+{
+	NEW_PROCESSOR_DISPATCH(idLabel->setText(p->getOwner<hise::Processor>().getId(), dontSendNotification));
+	repaint();
+	// skip colour, it's a icon colour (ideally the modulator synth should be a listener that updates the icon colour itself)
 };
 
 
@@ -961,6 +997,19 @@ void ProcessorEditorHeader::addProcessor(Processor *processorToBeAdded, Processo
 {
 	
 
+}
+
+void ProcessorEditorHeader::bypassStateChanged(Processor* p, bool state)
+{
+	bypassButton->setToggleState(!state, dontSendNotification);
+
+	if(auto panel = getEditor()->getPanel())
+	{
+		for(int i = 0; i < panel->getNumChildEditors(); i++)
+		{
+			panel->getChildEditor(i)->setEnabled(!state);
+		}
+	}
 }
 
 void ProcessorEditorHeader::timerCallback()
@@ -992,9 +1041,6 @@ void ProcessorEditorHeader::timerCallback()
 			{
 				valueMeter->setPeak(outputValue, -1.0f);
 			}
-
-			
-			
 		}
 		else
 		{

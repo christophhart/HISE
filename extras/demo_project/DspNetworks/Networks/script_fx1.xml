@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Network ID="script_fx1" Version="0.0.0">
+  <Node FactoryPath="container.chain" ID="script_fx1" Bypassed="1" Name="script_fx1"
+        ShowParameters="0">
+    <Nodes>
+      <Node ID="xfader1" FactoryPath="control.xfader" Bypassed="0" Name="xfader1">
+        <Properties>
+          <Property ID="NumParameters" Value="2"/>
+          <Property ID="Mode" Value="Switch"/>
+        </Properties>
+        <SwitchTargets>
+          <SwitchTarget>
+            <Connections/>
+          </SwitchTarget>
+          <SwitchTarget>
+            <Connections/>
+          </SwitchTarget>
+        </SwitchTargets>
+        <Parameters>
+          <Parameter MinValue="0.0" MaxValue="1.0" ID="Value" Value="0.0"/>
+        </Parameters>
+      </Node>
+    </Nodes>
+    <Parameters>
+      <Parameter ID="Parameter" MinValue="0.0" MaxValue="1.0" Value="1.0">
+        <Connections/>
+      </Parameter>
+    </Parameters>
+  </Node>
+  <Bookmarks>
+    <Bookmark ID="funky" Value="sig2mod;add;peak"/>
+    <Bookmark ID="pure Osc" Value="oscillator"/>
+  </Bookmarks>
+</Network>

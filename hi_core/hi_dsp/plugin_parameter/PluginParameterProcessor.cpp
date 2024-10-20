@@ -34,24 +34,42 @@
 namespace hise { using namespace juce;
 
 
-struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
+struct CustomAutomationParameter : NEW_AUTOMATION_WITH_COMMA(public dispatch::ListenerOwner)
+								   public juce::AudioProcessorParameterWithID
 {
 	using Data = MainController::UserPresetHandler::CustomAutomationData;
 
 	CustomAutomationParameter(Data::Ptr data_) :
 		AudioProcessorParameterWithID(data_->id, data_->id),
+		NEW_AUTOMATION_WITH_COMMA(autoListener(data_->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_2(CustomAutomationParameter::onUpdate)))
 		data(data_)
 	{
-		data->syncListeners.addListener(*this, update, false);
+
+		IF_OLD_AUTOMATION_DISPATCH(data->syncListeners.addListener(*this, update, false));
+		IF_NEW_AUTOMATION_DISPATCH(data->dispatcher.addValueListener(&autoListener, false, dispatch::DispatchType::sendNotificationSync));
 	};
+
+	~CustomAutomationParameter()
+	{
+		if(data != nullptr)
+		{
+			IF_NEW_AUTOMATION_DISPATCH(data->dispatcher.removeValueListener(&autoListener, dispatch::DispatchType::sendNotificationSync));
+		}
+	}
+
+	void onUpdate(int index, float v)
+	{
+		FloatSanitizers::sanitizeFloatNumber(v);
+		v = data->range.convertTo0to1(v);
+		ScopedValueSetter<bool> svs(recursive, true);
+		setValueNotifyingHost(v);
+	}
 
 	static void update(CustomAutomationParameter& d, var* args)
 	{
 		auto v = (float)args[1];
 
 		FloatSanitizers::sanitizeFloatNumber(v);
-
-
 		v = d.data->range.convertTo0to1(v);
 
 		ScopedValueSetter<bool> svs(d.recursive, true);
@@ -71,7 +89,7 @@ struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
 
 		newValue = data->range.convertFrom0to1(newValue);
 
-		data->call(newValue, true);
+		data->call(newValue, dispatch::DispatchType::sendNotificationSync);
 	}
 
 	float getValueForText(const String& text) const override
@@ -98,6 +116,8 @@ struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID
 	Data::Ptr data;
 
 	bool recursive = false;
+
+	IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource::Listener autoListener);
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(CustomAutomationParameter);
 };
@@ -126,9 +146,6 @@ struct MacroPluginParameter: public juce::HostedAudioProcessorParameter,
 		checkMacro();
 
 		auto n = md->getMacroName();
-
-		if (md->getNumParameters() == 1)
-			n = md->getParameter(0)->getParameterName();
 
 		if (isPositiveAndBelow(n, maximumStringLength))
 			return n;
@@ -298,8 +315,14 @@ AudioProcessor::BusesProperties PluginParameterAudioProcessor::getHiseBusPropert
 
 		auto busProp = BusesProperties();
 
+#ifdef HISE_SIDECHAIN_CHANNEL_LAYOUT
+        busProp = busProp.withInput("Input", AudioChannelSet::stereo())
+            .withInput("Sidechain", AudioChannelSet::stereo())
+            .withOutput("Output", AudioChannelSet::stereo());
+#else
 		for (int i = 0; i < numChannels; i += 2)
 			busProp = busProp.withInput("Input " + String(i+1), AudioChannelSet::stereo()).withOutput("Output " + String(i+1), AudioChannelSet::stereo());
+#endif
 
 		return busProp;
 		
@@ -311,12 +334,12 @@ AudioProcessor::BusesProperties PluginParameterAudioProcessor::getHiseBusPropert
 	if (getWrapperTypeBeingCreated() == wrapperType_AAX || FORCE_INPUT_CHANNELS)
 		busProp = busProp.withInput("Input", AudioChannelSet::stereo());
 		
-#if IS_STANDALONE_FRONTEND
-		constexpr int numChannels = 2;
+#if IS_STANDALONE_FRONTEND || IS_STANDALONE_APP
+    constexpr int numChannels = HISE_NUM_STANDALONE_OUTPUTS;
 #else
 	constexpr int numChannels = HISE_NUM_PLUGIN_CHANNELS;
 #endif
-
+    
 	for (int i = 0; i < numChannels; i += 2)
 		busProp = busProp.withOutput("Channel " + String(i + 1) + "+" + String(i + 2), AudioChannelSet::stereo());
 
@@ -329,6 +352,8 @@ bool PluginParameterAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
 {
 	auto inputs = layouts.getMainInputChannels();
 	auto outputs = layouts.getMainOutputChannels();
+
+	ignoreUnused(inputs, outputs);
 
 #if HISE_MIDIFX_PLUGIN
 		return inputs == 0 && outputs == 0;
@@ -347,9 +372,14 @@ bool PluginParameterAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
 		return inputs == 2 && outputs == 2;
 #endif
 #else
+    
+#if IS_STANDALONE_FRONTEND || IS_STANDALONE_APP
+    return outputs == 2 || outputs == HISE_NUM_STANDALONE_OUTPUTS;
+#else
 	bool isStereo = (inputs == 2 || inputs == 0) && outputs == 2;
 	bool isMultiChannel = (inputs == HISE_NUM_PLUGIN_CHANNELS || inputs == 0) && (outputs == HISE_NUM_PLUGIN_CHANNELS);
 	return isStereo || isMultiChannel;
+#endif
 #endif
 }
 

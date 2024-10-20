@@ -357,6 +357,8 @@ public:
 
 	bool shouldBeProcessedAtAll() const noexcept;
 
+	void syncAfterDelayStart(bool waitForDelay, int voiceIndex) override;
+
 	/** Wraps the handlers method. */
 	int getNumChildProcessors() const override;;
 
@@ -598,24 +600,7 @@ public:
 		typeNames.addArray(envelopeFactory->getAllowedTypes());
 	}
 	
-	int fillPopupMenu(PopupMenu &menu, int startIndex=1) override
-	{
-		int index = startIndex;
-
-		PopupMenu voiceMenu;
-		index = voiceStartFactory->fillPopupMenu(voiceMenu, index);
-		menu.addSubMenu("VoiceStart", voiceMenu);
-
-		PopupMenu timeMenu;
-		index = timeVariantFactory->fillPopupMenu(timeMenu, index);
-		menu.addSubMenu("TimeVariant", timeMenu);
-
-		PopupMenu envelopes;
-		index = envelopeFactory->fillPopupMenu(envelopes, index);
-		menu.addSubMenu("Envelopes", envelopes);
-
-		return index;
-	}
+	int fillPopupMenu(PopupMenu &menu, int startIndex=1) override;
 
 	/** Returns the desired FactoryType. Use this for popup menus. */
 	FactoryType *getSubFactory(Factories f)

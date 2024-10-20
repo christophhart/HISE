@@ -60,15 +60,16 @@ FrontendProcessor* FrontendFactory::createPluginWithAudioFiles(AudioDeviceManage
 	zstd::ZCompressor<JavascriptDictionaryProvider> edec;
 	edec.expand(eBlock, externalFiles);
 
+	ScopedPointer<MemoryInputStream> uis = getEmbeddedData(FileHandlerBase::UserPresets);
+
+	UserPresetHelpers::extractUserPresets((const char*)uis->getData(), uis->getDataSize());
+
 	//ValueTree externalFiles =  hise::PresetHandler::loadValueTreeFromData(PresetData::externalFiles, PresetData::externalFilesSize, true); 
 	LOG_START("Creating Frontend Processor")
 	auto fp = new hise::FrontendProcessor(presetData, deviceManager, callback, imageData, impulseData, sampleMapData, midiData, &externalFiles, nullptr); 
-
-	ScopedPointer<MemoryInputStream> uis = getEmbeddedData(FileHandlerBase::UserPresets);
-
+	
     try
     {
-        UserPresetHelpers::extractUserPresets((const char*)uis->getData(), uis->getDataSize());
         AudioProcessorDriver::restoreSettings(fp);
         GlobalSettingManager::restoreGlobalSettings(fp);
         
@@ -95,6 +96,8 @@ void FrontendProcessor::processBlock (AudioSampleBuffer& buffer, MidiBuffer& mid
 #if USE_COPY_PROTECTION
 	if (!keyFileCorrectlyLoaded || (((unlockCounter++ & 1023) == 0) && !unlocker.isUnlocked()))
     {
+		getKillStateHandler().initFromProcessCallback();
+
         buffer.clear();
         midiMessages.clear();
         return;
@@ -256,7 +259,7 @@ updater(*this)
 	GlobalSettingManager::initData(this);
 	GlobalSettingManager::restoreGlobalSettings(this, false);
     
-#if HISE_ENABLE_LORIS_ON_FRONTEND
+#if HISE_INCLUDE_LORIS
     auto f = FrontendHandler::getAppDataDirectory(this).getChildFile("loris_library");
     
     lorisManager = new LorisManager(f, [this](String m)
@@ -374,6 +377,8 @@ updater(*this)
 
 FrontendProcessor::~FrontendProcessor()
 {
+	getRootDispatcher().setState(dispatch::HashedPath(dispatch::CharPtr::Type::Wildcard), dispatch::State::Shutdown);
+
 	numInstances--;
 
 	notifyShutdownToRegisteredObjects();
@@ -388,7 +393,7 @@ FrontendProcessor::~FrontendProcessor()
 
 	setEnabledMidiChannels(synthChain->getActiveChannelData()->exportData());
 	
-	clearPreset();
+	clearPreset(dontSendNotification);
 	
 	synthChain = nullptr;
 
@@ -420,7 +425,7 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 
 	{
 		LOG_START("Compiling all scripts");
-		LockHelpers::SafeLock sl(this, LockHelpers::ScriptLock);
+		LockHelpers::SafeLock sl(this, LockHelpers::Type::ScriptLock);
 		synthChain->compileAllScripts();
 	}
 
@@ -599,7 +604,7 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 	if (userPresetName.isNotEmpty())
 	{
-		getUserPresetHandler().setCurrentlyLoadedFile(File(userPresetName));
+		getUserPresetHandler().currentlyLoadedFile = (File(userPresetName));
 	}
 
 	if (getUserPresetHandler().isUsingCustomDataModel())

@@ -32,13 +32,14 @@
 
 namespace hise { using namespace juce;
 
+
+
 Component * MidiKeyboardFocusTraverser::getDefaultComponent(Component *parentComponent)
 {
 #if USE_BACKEND
-	if (FileBrowser *browser = parentComponent->findParentComponentOfClass<FileBrowser>())						return browser;
-	if (SamplerBody *samplerBody = parentComponent->findParentComponentOfClass<SamplerBody>())					return samplerBody;
-	else if (ScriptingContentOverlay::Dragger* dragger = parentComponent->findParentComponentOfClass<ScriptingContentOverlay::Dragger>()) return dragger;
-	else if (MacroParameterTable *table = parentComponent->findParentComponentOfClass<MacroParameterTable>())	return table;
+
+	if (auto p = parentComponent->findParentComponentOfClass<ParentWithKeyboardFocus>())						
+		return dynamic_cast<Component*>(p);
 
 	if (dynamic_cast<CopyPasteTarget*>(parentComponent))
 	{
@@ -232,6 +233,8 @@ CustomKeyboard::CustomKeyboard(MainController* mc_) :
     narrowKeys(true),
     lowKey(12)
 {
+	setKeyPressBaseOctave(5);
+
 	state->addChangeListener(this);
    
 	setColour(whiteNoteColourId, Colours::black);
@@ -457,10 +460,8 @@ void CustomKeyboard::drawWhiteNote(int midiNoteNumber, Graphics &g, Rectangle<fl
 
 	if (displayOctaveNumber && midiNoteNumber % 12 == 0)
 	{
-		g.setFont(GLOBAL_BOLD_FONT().withHeight((float)w / 3.0f));
-		
-        g.setColour(Colours::grey);
-        
+		g.setFont(GLOBAL_BOLD_FONT().withHeight((float)w / 1.5f));
+        g.setColour(Colours::darkgrey);
 		g.drawText(MidiMessage::getMidiNoteName(midiNoteNumber, true, true, 3), x, (h*3)/4, w, h / 4, Justification::centred);
 	}
 	

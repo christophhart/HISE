@@ -170,7 +170,7 @@ void FloatingTilePopup::paint(Graphics &g)
 {
 #if USE_BACKEND
     
-	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xf4242424)));
+	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff242424)));
 	g.fillPath(boxPath);
 		
 	g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF222222)));
@@ -1677,6 +1677,40 @@ Component* FloatingTile::wrapInViewport(Component* c, bool shouldBeMaximised)
 	auto vp = new ResizableViewport(maxHeight, shouldBeMaximised);
 	vp->setComponent(c);
 	return vp;
+}
+
+void FloatingTile::callToggleCallback()
+{
+	if(auto c = togglePopupCallbackComponent.getComponent())
+	{
+		if(toggleFlag != nullptr)
+		{
+			*toggleFlag = false;
+		}
+
+		c->repaint();
+
+		toggleFlag = nullptr;
+		togglePopupCallbackComponent = {};
+	}
+}
+
+bool FloatingTile::setTogglePopupFlag(Component& c, bool& shouldClose)
+{
+	if(shouldClose)
+	{
+		callToggleCallback();
+		showComponentInRootPopup(nullptr, nullptr, {});
+		return false;
+	}
+	else
+	{
+		callToggleCallback();
+		shouldClose = true;
+		toggleFlag = &shouldClose;
+		togglePopupCallbackComponent = &c;
+		return true;
+	}
 }
 
 FloatingTilePopup* FloatingTile::showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool shouldWrapInViewport, bool maximiseViewport)

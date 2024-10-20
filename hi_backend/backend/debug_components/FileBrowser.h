@@ -32,6 +32,7 @@
 
 #ifndef FILEBROWSER_H_INCLUDED
 #define FILEBROWSER_H_INCLUDED
+#include "hi_tools/hi_markdown/MarkdownRenderer.h"
 
 namespace hise { using namespace juce;
 
@@ -69,6 +70,7 @@ private:
 class BackendProcessorEditor;
 
 class FileBrowser : public Component,
+					public MidiKeyboardFocusTraverser::ParentWithKeyboardFocus,
 					public DragAndDropContainer,
 					public ApplicationCommandTarget,
 					public TextEditor::Listener,
@@ -152,6 +154,8 @@ public:
 	void paint(Graphics &g);
 
 	void previewFile(const File& f);
+
+	void resetToRoot();
 
 	void textEditorTextChanged(TextEditor& editor) override;
 
@@ -267,7 +271,7 @@ private:
 				file.getFileName() == "LinkOSX" ||
 #endif
 				isAudioFile(file) || isImageFile(file) || isXmlFile(file) ||
-                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file);
+                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file) || isCSSFile(file);
         }
         
 		bool isImageFile(const File& file) const
@@ -284,7 +288,12 @@ private:
         {
             return file.hasFileExtension("mid");
         }
-        
+
+		bool isCSSFile(const File& file) const
+        {
+	        return file.hasFileExtension("css");
+        }
+
 		bool isXmlFile(const File& file) const
 		{
 			return file.hasFileExtension("xml");
@@ -395,6 +404,7 @@ private:
 
     JUCE_DECLARE_WEAK_REFERENCEABLE(FileBrowser);
 };
+
 
 } // namespace hise
 

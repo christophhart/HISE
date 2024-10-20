@@ -38,8 +38,6 @@ namespace hise { using namespace juce;
 
 class ProcessorEditorChainBar  : public ProcessorEditorChildComponent,
 								 public ButtonListener,
-								 public SafeChangeListener,
-								 public DragAndDropTarget,
 								 public Timer
 {
 public:
@@ -56,16 +54,32 @@ public:
 
     /** Checks if the hidden Chain contains childs and paints it red if yes. */
 	void checkActiveChilds(int chainToCheck);
+
+	struct Updater: public Processor::OtherListener
+	{
+		Updater(ProcessorEditorChainBar& parent_, Processor* p):
+		  OtherListener(p, dispatch::library::ProcessorChangeEvent::Children),
+		  parent(parent_)
+		{};
+
+		void otherChange(Processor* ) override
+		{
+			parent.refresh();
+		}
+
+		ProcessorEditorChainBar& parent;
+	};
+
+	OwnedArray<Updater> updaters;
+
+	void refresh()
+	{
+		for(int i = 1; i < chainButtons.size(); i++)
+		{
+			checkActiveChilds(i-1);
+		}
+	}
 	
-	void changeListenerCallback(SafeChangeBroadcaster *) override;
-
-    bool isInterestedInDragSource(const SourceDetails & 	dragSourceDetails) override;
-
-	void itemDragEnter(const SourceDetails &dragSourceDetails) override;
-	void itemDragExit(const SourceDetails &dragSourceDetails) override;
-	void itemDropped(const SourceDetails &dragSourceDetails) override;
-	void itemDragMove(const SourceDetails& dragSourceDetails) override;;
-
 	void refreshPanel();
 
     void resized() override;

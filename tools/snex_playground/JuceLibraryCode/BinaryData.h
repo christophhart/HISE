@@ -8,15 +8,6 @@
 
 namespace BinaryData
 {
-    extern const char*   balanceKnob_200_png;
-    const int            balanceKnob_200_pngSize = 14976;
-
-    extern const char*   FrontendKnob_Bipolar_png;
-    const int            FrontendKnob_Bipolar_pngSize = 7253;
-
-    extern const char*   FrontendKnob_Unipolar_png;
-    const int            FrontendKnob_Unipolar_pngSize = 6717;
-
     extern const char*   infoError_png;
     const int            infoError_pngSize = 3915;
 
@@ -28,15 +19,6 @@ namespace BinaryData
 
     extern const char*   infoWarning_png;
     const int            infoWarning_pngSize = 2843;
-
-    extern const char*   knobEmpty_200_png;
-    const int            knobEmpty_200_pngSize = 27940;
-
-    extern const char*   knobModulated_200_png;
-    const int            knobModulated_200_pngSize = 9941;
-
-    extern const char*   knobUnmodulated_200_png;
-    const int            knobUnmodulated_200_pngSize = 16137;
 
     extern const char*   logo_mini_png;
     const int            logo_mini_pngSize = 3429;
@@ -53,11 +35,8 @@ namespace BinaryData
     extern const char*   oxygen_regular_ttf;
     const int            oxygen_regular_ttfSize = 48092;
 
-    extern const char*   toggle_200_png;
-    const int            toggle_200_pngSize = 2427;
-
     // Number of elements in the namedResourceList and originalFileNames arrays.
-    const int namedResourceListSize = 16;
+    const int namedResourceListSize = 9;
 
     // Points to the start of a list of resource names.
     extern const char* namedResourceList[];

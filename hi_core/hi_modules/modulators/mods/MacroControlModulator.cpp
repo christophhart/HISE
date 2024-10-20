@@ -48,6 +48,8 @@ targetValue(1.0f)
 	parameterNames.add("UseTable");
 	parameterNames.add("MacroValue");
 
+	updateParameterSlots();
+
 	setup(this, MacroValue, id);
 }
 
@@ -80,7 +82,7 @@ Path MacroModulator::getSpecialSymbol() const
 {
 	Path path;
 
-	path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, sizeof(HiBinaryData::SpecialSymbols::macros));
+	path.loadPathFromData(HiBinaryData::SpecialSymbols::macros, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::macros));
 
 	return path;
 }
@@ -100,9 +102,9 @@ void MacroModulator::addToMacroController(int index)
 
 		}
 
-		macroChain->sendChangeMessage();
+		macroChain->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Macro);
 
-		if (macroIndex != -1) macroChain->addControlledParameter(index, getId(), MacroValue, "Macro Modulator", getRange());
+		if (macroIndex != -1) macroChain->addControlledParameter(index, getId(), MacroValue, "Macro Modulator", getValueToTextConverter(), getRange());
 	}
 }
 
@@ -181,7 +183,7 @@ void MacroModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void MacroModulator::calculateBlock(int startSample, int numSamples)
 {
-	const bool smoothThisBlock = fabsf(targetValue - currentValue) > 0.001f;
+    const bool smoothThisBlock = FloatSanitizers::isNotSilence(targetValue - currentValue);
 
 	if (smoothThisBlock)
 	{

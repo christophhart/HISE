@@ -117,7 +117,7 @@ ScriptComponentEditPanel::ScriptComponentEditPanel(MainController* mc_, Processo
 
     auto& sb = panel->getViewport().getVerticalScrollBar();
     
-    panel->getViewport().setScrollBarThickness(14);
+    panel->getViewport().setScrollBarThickness(13);
     
     sf.addScrollBarToAnimate(sb);
     

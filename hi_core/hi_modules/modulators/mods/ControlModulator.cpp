@@ -59,6 +59,8 @@ ControlModulator::ControlModulator(MainController *mc, const String &id, Modulat
 	parameterNames.add("SmoothTime");
 	parameterNames.add("DefaultValue");
 
+	updateParameterSlots();
+
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
 };
 
@@ -185,7 +187,7 @@ void ControlModulator::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 void ControlModulator::calculateBlock(int startSample, int numSamples)
 {
-	const bool smoothThisBlock = fabsf(targetValue - currentValue) > 0.001f;
+    const bool smoothThisBlock = FloatSanitizers::isNotSilence(targetValue - currentValue);
 
 	if (smoothThisBlock)
 	{
@@ -210,10 +212,8 @@ void ControlModulator::calculateBlock(int startSample, int numSamples)
 
 float ControlModulator::calculateNewValue()
 {
-	currentValue = (fabsf(targetValue - currentValue) < 0.001) ? targetValue : smoother.smooth(targetValue);
+	currentValue = FloatSanitizers::isSilence(targetValue - currentValue) ? targetValue : smoother.smooth(targetValue);
 	
-	
-
 	return currentValue;
 }
 

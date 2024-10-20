@@ -103,6 +103,7 @@ struct LayoutBase
 		static DataType getTypeFromVar(const var& value, Result* r);
 		static int getElementSizeFromVar(const var& value, Result* r);
 		static uint32 getTypeSize(DataType type);
+		static int createHash(MemoryLayoutItem::List list);
 	};
 
 	virtual ~LayoutBase();;
@@ -111,6 +112,8 @@ struct LayoutBase
 
 	Allocator::Ptr allocator;
 	MemoryLayoutItem::List layout;
+
+	int typeHash = 0;
 
 protected:
 
@@ -129,13 +132,110 @@ protected:
 };
 
 class ObjectReference : public LayoutBase,
-	public ReferenceCountedObject,
-	public DebugableObjectBase
+						public ReferenceCountedObject,
+						public DebugableObjectBase,
+						public ObjectWithJSONConverter
 {
 public:
 
+	
+
 	using Ptr = ReferenceCountedObjectPtr<ObjectReference>;
 	using CompareFunction = std::function<int(Ptr, Ptr)>;
+
+	template <typename T, bool IsArray> struct NumberComparator
+	{
+		NumberComparator(size_t offset_, int elementSize_=1):
+		  offset(offset_),
+		  elementSize(elementSize_)
+		{};
+
+		int operator()(Ptr p1, Ptr p2) const
+		{
+			auto t1 = reinterpret_cast<T*>(p1->data + offset);
+			auto t2 = reinterpret_cast<T*>(p2->data + offset);
+
+			if(*t1 < *t2)
+				return -1;
+			if(*t1 > *t2)
+				return 1;
+
+			if constexpr (IsArray)
+			{
+				for(int i = 1; i < elementSize; i++)
+				{
+					if(t1[i] < t2[i])
+						return -1;
+					if(t1[i] > t2[i])
+						return 1;
+				}
+			}
+
+			return 0;
+		}
+
+		size_t offset = 0;
+		int elementSize = 1;
+	};
+
+	template <int NumItems> struct MultiComparator
+	{
+		struct Item
+		{
+			Item() = default;
+
+			Item(MemoryLayoutItem* p):
+			  offset(p->offset),
+			  t((uint8)p->type),
+			  elementSize(p->elementSize)
+			{};
+			
+			uint16 offset = 0;
+			uint8 t = 0;
+			uint8 elementSize = 0;
+		};
+
+		MultiComparator(const void* data)
+		{
+			memcpy(items.data(), data, sizeof(items));
+		}
+
+		int operator()(Ptr p1, Ptr p2) const
+		{
+			int result = 0;
+
+			for(auto& d: items)
+			{
+				auto dt = (DataType)d.t;
+				auto isArray = d.elementSize > 1;
+
+				switch(dt)
+				{
+				case DataType::Boolean:
+					result = isArray ? ObjectReference::NumberComparator<bool, true>(d.offset, d.elementSize)(p1, p2) :
+									   ObjectReference::NumberComparator<bool, false>(d.offset)(p1, p2);
+					break;
+				case DataType::Integer:
+					result = isArray ? ObjectReference::NumberComparator<int, true>(d.offset, d.elementSize)(p1, p2) :
+									   ObjectReference::NumberComparator<int, false>(d.offset)(p1, p2);
+					break;
+				case DataType::Float:
+					result = isArray ? ObjectReference::NumberComparator<float, true>(d.offset, d.elementSize)(p1, p2) :
+									   ObjectReference::NumberComparator<float, false>(d.offset)(p1, p2);
+					break;
+				case DataType::numTypes:
+				default: break;
+				}
+
+				if(result != 0)
+					return result;
+			}
+
+			return result;
+		}
+
+		std::array<Item, NumItems> items;
+	};
 
 	ObjectReference();
 	ObjectReference& operator=(const ObjectReference& other);
@@ -206,10 +306,12 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(MemberReference);
 	};
 
+	void writeAsJSON (OutputStream& out, const int indentLevel, const bool allOnOneLine, int maximumDecimalPlaces) override;
+
 	MemberReference::Ptr operator[](const Identifier& id) const;
 
 	void init(LayoutBase* referencedLayout, uint8* preallocatedData, bool resetToDefault);
-
+	
 	size_t elementSize = 0;
 	uint8* data = nullptr;
 
@@ -220,6 +322,7 @@ public:
 
 struct Array : public LayoutBase,
 	public AssignableObject,
+	public ObjectWithJSONConverter,
 	public ConstScriptingObject
 {
 	ObjectReference::CompareFunction compareFunction;
@@ -254,16 +357,28 @@ struct Array : public LayoutBase,
 	/** Returns the index of the first element that matches the given object. */
 	int indexOf(var obj) const;
 
+	/** checks if the array contains the object. */
+	bool contains(var obj) const;
+
 	/** Copies the property from each element into a buffer (or array). */
 	bool copy(String propertyName, var target);
+
+	/** Exports the memory region of the entire array as Base64 encoded string. */
+	String toBase64() const;
+
+	/** Restores an array from a previously exported state. */
+	bool fromBase64(const String& b64);
 
 	/** Returns the size of the array. */
 	virtual int size() const;
 
-	/** checks if the array contains the object. */
-	bool contains(var obj) const;
+	/** Sorts the array with the given compare function. */
+	void sort();
 
 	// =======================================================================================================
+
+	void writeAsJSON(OutputStream& out, const int indentLevel, const bool allOnOneLine,
+	                 int maximumDecimalPlaces) override;
 
 protected:
 
@@ -280,11 +395,15 @@ protected:
 
 struct Stack : public Array
 {
+	struct Viewer;
+
 	struct Wrapper;
 
 	Stack(ProcessorWithScriptingContent* s, int numElements);;
 
-	Identifier getObjectName();
+	Identifier getObjectName() const override;
+
+	Component* createPopupComponent(const MouseEvent& e, Component* parent) override;
 
 	// =======================================================================================================
 
@@ -308,6 +427,9 @@ struct Stack : public Array
 
 	/** Checks whether the stack is empty. */
 	bool isEmpty() const;
+
+	/** Replaces the object if it exists or inserts it at the end. */
+	bool set(var obj);
 
 	// =======================================================================================================
 
@@ -336,8 +458,14 @@ struct Factory : public LayoutBase,
 	/** Creates an unordered stack. */
 	var createStack(int numElements);
 
-	/** Registers a function that will be used for comparison. */
+	/** Registers a function that will be used for comparison. If you pass in a string it will only compare the given property. */
 	void setCompareFunction(var newCompareFunction);
+
+	/** Returns the hash code for the memory layout which factors in member IDs, order and type. */
+	int getTypeHash() const
+	{
+		return typeHash;
+	}
 
 	// ============================================================================================================
 

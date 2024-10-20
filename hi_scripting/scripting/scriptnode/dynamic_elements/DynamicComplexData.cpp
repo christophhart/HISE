@@ -338,7 +338,7 @@ namespace pimpl
 		DynamicObject::Ptr dynObj = new DynamicObject();
 
 		for (auto& nv : pObj->properties)
-			dynObj->setProperty(nv.name, nv.value);
+			dynObj->setProperty(nv.first, nv.second);
 
 		
 
@@ -559,6 +559,8 @@ namespace pimpl
 		g.excludeClipRegion(b.removeFromTop(4));
 		g.excludeClipRegion(b.removeFromBottom(4));
 
+		
+
 		g.setColour(c.withAlpha(0.1f));
 		g.fillPath(p);
 		g.setColour(c);
@@ -732,6 +734,9 @@ namespace pimpl
 
 	juce::Colour complex_ui_laf::getNodeColour(Component* comp)
 	{
+		if(!nodeColour.isTransparent())
+			return nodeColour;
+
 		auto c = Colour(0xFFDADADA);
 
 		if (auto nc = comp->findParentComponentOfClass<NodeComponent>())

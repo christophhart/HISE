@@ -54,6 +54,8 @@ MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount
 	parameterNames.add("DefaultValue");
 	parameterNames.add("SmoothedIntensity");
 
+	updateParameterSlots();
+
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().sendAmountChangeMessage();
 
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().addListener(this);
@@ -85,7 +87,7 @@ void MPEModulator::mpeModeChanged(bool isEnabled)
 
 	setBypassed(shouldBeBypassed);
 
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 }
 
 void MPEModulator::mpeModulatorAssigned(MPEModulator* m, bool wasAssigned)
@@ -95,7 +97,7 @@ void MPEModulator::mpeModulatorAssigned(MPEModulator* m, bool wasAssigned)
 		const bool shouldBeBypassed = !isActive || !wasAssigned;
 
 		setBypassed(shouldBeBypassed, sendNotification);
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
 	}
 }
 
@@ -149,6 +151,7 @@ void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
 		switch (getMode())
 		{
 		case Modulation::GainMode:	defaultValue = jlimit<float>(0.0f, 1.0f, newValue); break;
+		case Modulation::GlobalMode:defaultValue = jlimit<float>(0.0f, 1.0f, newValue); break;
 		case Modulation::PitchMode: defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 24.0f + 0.5f); break;
 		case Modulation::PanMode:	defaultValue = jlimit<float>(0.0f, 1.0f, newValue / 200.0f + 0.5f); break;
         default: jassertfalse; break;
@@ -218,7 +221,7 @@ void MPEModulator::resetToDefault()
 	smoothedIntensity = getDefaultValue(SpecialParameters::SmoothedIntensity);
 	setIntensity(smoothedIntensity);
 	table->reset();
-	sendChangeMessage();
+	sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 }
 
 float MPEModulator::getAttribute(int parameterIndex) const

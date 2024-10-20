@@ -83,7 +83,7 @@ protected:
 	Rectangle<int> getExtraComponentBounds() const;
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
-	Rectangle<int> createRectangleForParameterSliders(int numColumns) const;
+	
 
 	virtual void* getObjectPtr() = 0;
 	

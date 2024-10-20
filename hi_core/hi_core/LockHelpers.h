@@ -60,15 +60,29 @@ public:
 	the SampleLock is equal, which means you can't acquire one of those while
 	holding the other (there's no situation where you need both of those locks).
 	*/
-	enum Type
+	enum class Type
 	{
 		MessageLock = 0,
 		ScriptLock, ///< This lock will be held whenever a script is executed or compiled
 		SampleLock, ///< This lock will be held whenever samples are added / removed.
 		IteratorLock, ///< This lock will be held whenver you add / remove a processor to the chain or when the iterator is constructed.
 		AudioLock, ///< This lock will be held during the audio callback.
-		numLockTypes
+		numLockTypes,
+		unused
 	};
+
+	static Identifier getLockName(Type t)
+	{
+		switch (t)
+		{
+		case Type::MessageLock: return Identifier("MessageLock");
+		case Type::ScriptLock: return Identifier("ScriptLock");
+		case Type::SampleLock: return Identifier("SampleLock");
+		case Type::IteratorLock: return Identifier("IteratorLock");
+		case Type::AudioLock: return Identifier("AudioLock");
+		default: return Identifier();;
+		}
+	}
 
 	struct SafeLock
 	{
@@ -83,13 +97,49 @@ public:
 		CriticalSection const* lock;
 	};
 
-	struct BadLockException 
+	struct BadLockException
 	{
-		BadLockException(Type t_) :
-			t(t_)
+		enum class ErrorCode
+		{
+			LockedBySameThread,
+			WhyULockMessageThread,
+			MessageThreadIsLocked,
+			PossibleDeadlock,
+			SampleLockWhileIterating,
+			numErrorCodes
+		};
+
+		String getErrorMessage() const
+		{
+			String m;
+
+			m << "Error at acquiring ";
+
+			m << getLockName(t);
+
+			m << ": ";
+
+			switch(c)
+			{
+			case ErrorCode::LockedBySameThread: m << "LockedBySameThread"; break;
+			case ErrorCode::WhyULockMessageThread: m << "WhyULockMessageThread"; break;
+			case ErrorCode::MessageThreadIsLocked: m << "MessageThreadIsLocked"; break;
+			case ErrorCode::PossibleDeadlock: m << "PossibleDeadlock"; break;
+			case ErrorCode::SampleLockWhileIterating: m << "SampleLockWhileIterating"; break;
+			case ErrorCode::numErrorCodes: break;
+			default: break;
+			}
+
+			return m;
+		}
+
+		BadLockException(Type t_, ErrorCode c_) :
+			t(t_),
+		    c(c_)
 		{};
 
 		Type t;
+		ErrorCode c;
 	};
 
 	static bool freeToGo(MainController* mc);

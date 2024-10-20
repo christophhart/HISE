@@ -37,7 +37,7 @@ namespace hise {
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
     X(openParen,     "(")        X(closeParen,   ")")       X(openBrace,    "{")    X(closeBrace, "}") \
     X(openBracket,   "[")        X(closeBracket, "]")       X(colon,        ":")    X(question,   "?") \
-    X(typeEquals,    "===")      X(equals,       "==")      X(assign,       "=") \
+    X(typeEquals,    "===")      X(equals,       "==")      X(arrow,        "=>")   X(assign,       "=")     \
     X(typeNotEquals, "!==")      X(notEquals,    "!=")      X(logicalNot,   "!") \
     X(plusEquals,    "+=")       X(plusplus,     "++")      X(plus,         "+") \
     X(minusEquals,   "-=")       X(minusminus,   "--")      X(minus,        "-") \
@@ -54,7 +54,7 @@ X(rightShiftUnsigned, ">>>") X(rightShiftEquals, ">>=") X(rightShift,   ">>")   
     X(function, "function") X(return_, "return") X(true_,  "true")   X(false_,    "false")    X(new_,      "new") \
     X(typeof_,  "typeof")	X(switch_, "switch") X(case_, "case")	 X(default_,  "default")  X(register_var, "reg") \
 	X(in, 		"in")		X(inline_, "inline") X(const_, "const")	 X(global_,   "global")	  X(local_,	   "local") \
-	X(include_,  "include") X(rLock_,   "readLock") X(wLock_,"writeLock") 	X(extern_, "extern") X(namespace_, "namespace") \
+	X(include_,  "include") X(extern_, "extern") X(namespace_, "namespace") \
 	X(isDefined_, "isDefined");
 
 namespace TokenTypes
@@ -1451,6 +1451,9 @@ struct HiseJavascriptEngine::TokenProvider::ObjectMethodToken : public TokenWith
 		s << MarkdownLink::Helpers::getSanitizedFilename(methodTree["name"].toString()) << "/";
 
 		link = { File(), s };
+		link.setType(MarkdownLink::Type::Folder);
+
+		markdownDescription << "  \n[Doc Reference](https://docs.hise.audio/" + link.toString(MarkdownLink::FormattedLinkHtml) + ")";
 	}
 
 	
@@ -1509,11 +1512,16 @@ struct HiseJavascriptEngine::TokenProvider::ApiToken : public TokenWithDot
 
 		String s;
 		s << "scripting/scripting-api/";
-		s << MarkdownLink::Helpers::getSanitizedFilename(classId);
+		s << MarkdownLink::Helpers::getSanitizedFilename(id.toString());
 		s << "#";
 		s << MarkdownLink::Helpers::getSanitizedFilename(mTree["name"].toString()) << "/";
 
 		link = { File(), s };
+
+		link.setType(MarkdownLink::Type::Folder);
+
+		markdownDescription << "  \n[Doc Reference](https://docs.hise.audio/" + link.toString(MarkdownLink::FormattedLinkHtml) + ")";
+
 	}
 
 	MarkdownLink getLink() const override
@@ -1590,7 +1598,11 @@ struct HiseJavascriptEngine::TokenProvider::DebugInformationToken : public Token
 		
 		if (isGlobalClass)
 		{
-			markdownDescription << "Global API class `" << s << "`  \n> Press F1 to open the documentation";
+			if(link.isValid())
+			{
+				link.setType(MarkdownLink::Type::Folder);
+				markdownDescription << " [Doc Reference](https://docs.hise.audio/"  + link.toString(MarkdownLink::FormattedLinkHtml) + ")";
+			}
 		}
 		else
 		{
@@ -1676,11 +1688,10 @@ struct TokenHelpers
 		if (auto slaf = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(ptr->getObject()))
 		{
 			auto l = ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames();
-
+			
 			for (auto id : l)
 				tokens.add(new LookAndFeelToken(ptr->getTextForName(), id));
-
-			return true;
+			
 		}
 
 
@@ -1785,14 +1796,20 @@ struct TokenHelpers
 	}
 };
 
-
-
+bool HiseJavascriptEngine::TokenProvider::shouldAbortTokenRebuild(Thread* t) const
+{
+    return (t != nullptr && t->threadShouldExit()) ||
+           (jp == nullptr) ||
+           (jp != nullptr && jp->shouldReleaseDebugLock());
+}
 
 
 void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& tokens)
 {
 	if (jp != nullptr)
 	{
+		LockHelpers::SafeLock ssl(dynamic_cast<Processor*>(jp.get())->getMainController(), LockHelpers::Type::ScriptLock);
+
 		File scriptFolder = dynamic_cast<Processor*>(jp.get())->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
 		auto scriptFiles = scriptFolder.findChildFiles(File::findFiles, true, "*.js");
 
@@ -1824,7 +1841,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 		}
 		
 
-		ScopedReadLock sl(jp->getDebugLock());
+		//ScopedReadLock sl(jp->getDebugLock());
 
 		auto holder = dynamic_cast<ApiProviderBase::Holder*>(jp.get());
 
@@ -1869,7 +1886,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 
 			for (int i = 0; i < numObjects; i++)
 			{
-				if (Thread::currentThreadShouldExit() || jp->shouldReleaseDebugLock())
+				if (shouldAbortTokenRebuild(Thread::getCurrentThread()))
 					return;
 
 				if (e == nullptr)
@@ -1902,7 +1919,7 @@ void HiseJavascriptEngine::TokenProvider::addTokens(mcl::TokenCollection::List& 
 
 						for (auto methodTree : classTree)
 						{
-							if (Thread::currentThreadShouldExit() || jp->shouldReleaseDebugLock())
+							if (shouldAbortTokenRebuild(Thread::getCurrentThread()))
 								return;
 
 							tokens.add(new ApiToken(cid, methodTree));

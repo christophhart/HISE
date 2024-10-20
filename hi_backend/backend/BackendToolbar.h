@@ -53,7 +53,72 @@ private:
 
 };
 
+class ImporterBase: public hlac::HlacArchiver::Listener
+{
+public:
 
+	ImporterBase(BackendRootWindow* bpe_):
+	  bpe(bpe_),
+	  ok(Result::ok())
+	{}
+
+protected:
+	
+	~ImporterBase() {};
+
+	void logStatusMessage(const String& message) override;
+	void logVerboseMessage(const String& verboseMessage) override;;
+	void criticalErrorOccured(const String& message) override;
+
+	virtual File getProjectFolder() const = 0;
+	virtual void showStatusMessageBase(const String& message) = 0;
+	virtual DialogWindowWithBackgroundThread::LogData* getLogData() = 0;
+	virtual Thread* getThreadToUse() = 0;
+	virtual double& getJobProgress() = 0;
+
+	void createSubDirectories();
+	void extractPools();
+	void extractFonts();
+	void extractNetworks();
+	void extractScripts();
+	void createProjectSettings();
+	void extractPreset();
+	void extractUserPresets();
+	void extractWebResources();
+	void extractHxi(const File& archive);
+	void createProjectData();
+
+	template <typename DataType, typename PoolType> void writePool(PoolType& pool, const std::function<void(File, const DataType&, const var&)>& fileOp)
+	{
+		auto id = pool.getFileTypeName();
+
+		showStatusMessageBase("Extract " + id + " Pool...");
+
+		auto type = FileHandlerBase::getSubDirectoryForIdentifier(id);
+		auto poolRoot = e->getRootFolder().getChildFile(e->getIdentifier(type));
+		pool.loadAllFilesFromDataProvider();
+
+		for (int i = 0; i < pool.getNumLoadedFiles(); i++)
+		{
+			if (auto ptr = pool.loadFromReference(pool.getReference(i), PoolHelpers::LoadAndCacheWeak))
+			{
+				getJobProgress() = (double)i / (double)pool.getNumLoadedFiles();
+
+				auto target = ptr->ref.resolveFile(e, type);
+
+				target.getParentDirectory().createDirectory();
+				target.deleteFile();
+
+				fileOp(target, ptr->data, ptr->additionalData);
+			}
+		}
+	}
+
+	BackendRootWindow* bpe;
+	ScopedPointer<FullInstrumentExpansion> e = nullptr;
+	Result ok;
+	Array<File> sampleArchives;
+};
 
 } // namespace hise
 

@@ -51,6 +51,16 @@ END_JUCE_MODULE_DECLARATION
 #ifndef HI_SAMPLER_INCLUDED
 #define HI_SAMPLER_INCLUDED
 
+/** If this is set to true, then the sampler crossfade modulation will use a -80dB threshold to determine
+    whether to use a constant modulation value or the full modulation signal.
+ 
+    Disabling this will increase the performance a little bit but it will decrease subtle artifacts when crossfading
+    between Sampler groups.
+*/
+#ifndef HISE_ENABLE_CROSSFADE_MODULATION_THRESHOLD
+#define HISE_ENABLE_CROSSFADE_MODULATION_THRESHOLD 1
+#endif
+
 /** @defgroup sampler Sampler
 	@ingroup dsp
 	

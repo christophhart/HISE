@@ -37,12 +37,11 @@ MainController::KillStateHandler::KillStateHandler(MainController* mc_) :
 	mc(mc_),
 	currentState(State::WaitingForInitialisation)
 {
-	audioThreads.ensureStorageAllocated(16);
-
-	threadIds[TargetThread::AudioThread] = nullptr;
-	threadIds[TargetThread::SampleLoadingThread] = mc->getSampleManager().getGlobalSampleThreadPool()->getThreadId();
-	threadIds[TargetThread::ScriptingThread] = mc->javascriptThreadPool->getThreadId();
-	threadIds[TargetThread::MessageThread] = nullptr;
+	threadIds[(int)TargetThread::AudioThread] = nullptr;
+	threadIds[(int)TargetThread::SampleLoadingThread] = mc->getSampleManager().getGlobalSampleThreadPool()->getThreadId();
+	threadIds[(int)TargetThread::ScriptingThread] = nullptr;
+	threadIds[(int)TargetThread::MessageThread] = nullptr;
+	jassert(threadIds[(int)TargetThread::SampleLoadingThread] != nullptr);
 
 	setCurrentExportThread(nullptr);
 }
@@ -131,7 +130,7 @@ bool MainController::KillStateHandler::handleKillState()
 		}
 
 		// Let the audio export thread through...
-		if (threadIds[TargetThread::AudioExportThread] == Thread::getCurrentThreadId())
+		if (threadIds[(int)TargetThread::AudioExportThread] == Thread::getCurrentThreadId())
 			return true;
 
 		return false;
@@ -222,6 +221,9 @@ void MainController::KillStateHandler::requestQuit()
 
 bool MainController::KillStateHandler::allowGracefulExit() const noexcept
 {
+	if(currentState == State::InitialisedButNotActivated)
+		return false;
+
 #if JUCE_WINDOWS && IS_STANDALONE_APP
 	const bool formatAllowsGracefulExit = true;
 #else
@@ -233,7 +235,7 @@ bool MainController::KillStateHandler::allowGracefulExit() const noexcept
 
 void MainController::KillStateHandler::quit()
 {
-	LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+	LockHelpers::SafeLock sl(mc, LockHelpers::Type::AudioLock);
 
 	mc->getJavascriptThreadPool().deactivateSleepUntilCompilation();
 	mc->getMainSynthChain()->resetAllVoices();
@@ -254,13 +256,13 @@ void MainController::KillStateHandler::deferToThread(Processor* p, const Process
 {
 	switch (t)
 	{
-	case SampleLoadingThread:
+	case TargetThread::SampleLoadingThread:
 	{
 		mc->getSampleManager().addDeferredFunction(p, f);
 		break;
 	}
 	
-	case ScriptingThread:
+	case TargetThread::ScriptingThread:
 	{
 		auto sf = [f](JavascriptProcessor* jp)
 		{
@@ -273,12 +275,12 @@ void MainController::KillStateHandler::deferToThread(Processor* p, const Process
 
 		break;
 	}
-	case AudioThread:
+	case TargetThread::AudioThread:
 	{
         jassertfalse;
         break;
 	}
-	case MessageThread:
+	case TargetThread::MessageThread:
 	default:
 	{
 		jassertfalse;
@@ -289,18 +291,21 @@ void MainController::KillStateHandler::deferToThread(Processor* p, const Process
 
 bool MainController::KillStateHandler::isAudioRunning() const noexcept
 {
+	if(currentState == State::InitialisedButNotActivated)
+		return false;
+
 	return initialised() && currentState < State::Suspended;
 }
 
 void MainController::KillStateHandler::setLockForCurrentThread(LockHelpers::Type t, bool lock) const
 {
 	auto id = lock ? getCurrentThread() : TargetThread::Free;
-	lockStates.threadsForLock[t].store(id);
+	lockStates.threadsForLock[(int)t].store(id);
 }
 
 bool MainController::KillStateHandler::currentThreadHoldsLock(LockHelpers::Type t) const noexcept
 {
-	return getCurrentThread() == lockStates.threadsForLock[t];
+	return getCurrentThread() == lockStates.threadsForLock[(int)t];
 }
 
 bool MainController::KillStateHandler::initialised() const noexcept
@@ -315,11 +320,9 @@ void MainController::KillStateHandler::deinitialise()
 
 bool MainController::KillStateHandler::invalidateTicket(uint16 ticket)
 {
-	//DBG("Invalidate Ticket " + String(ticket));
-
-	jassert(mc->isBeingDeleted() || currentState == Suspended);
-
-	//stackTraces.remove(StackTrace<3, 6>(ticket, false));
+	jassert(mc->isBeingDeleted() || 
+			currentState == Suspended || 
+			currentState == InitialisedButNotActivated);
 
 	{
 		SimpleReadWriteLock::ScopedWriteLock sl(ticketLock);
@@ -380,7 +383,7 @@ bool MainController::KillStateHandler::checkForClearance() const noexcept
 bool MainController::KillStateHandler::isSuspendableThread() const noexcept
 {
 	auto c = getCurrentThread();
-	return c == ScriptingThread || c == SampleLoadingThread;
+	return c == TargetThread::ScriptingThread || c == TargetThread::SampleLoadingThread;
 }
 
 bool MainController::KillStateHandler::voicesAreKilled() const
@@ -414,7 +417,7 @@ bool MainController::KillStateHandler::killVoicesAndCall(Processor* p, const Pro
 		return true;
 	}
 
-	jassert(targetThread != MessageThread);
+	jassert(targetThread != TargetThread::MessageThread);
 
 	const bool sameThread = getCurrentThread() == targetThread;
 
@@ -538,7 +541,7 @@ juce::Array<MultithreadedQueueHelpers::PublicToken> MainController::KillStateHan
 
 	MultithreadedQueueHelpers::PublicToken audioThreadToken;
 	audioThreadToken.canBeProducer = producerFlags & QueueProducerFlags::AudioThreadIsProducer;
-	audioThreadToken.threadIds.insertArray(0, audioThreads.getRawDataPointer(), audioThreads.size());
+	audioThreadToken.threadIds.insertArray(0, audioThreads.begin(), audioThreads.size());
 	audioThreadToken.threadName = "AudioThread";
 
 	MultithreadedQueueHelpers::PublicToken messageThreadToken;
@@ -566,7 +569,7 @@ bool MainController::KillStateHandler::voiceStartIsDisabled() const
 #if HI_RUN_UNIT_TESTS
 	return false;
 #else
-	return currentState > State::Clear && threadIds[TargetThread::AudioExportThread] == nullptr;
+	return currentState != State::Clear && !isCurrentlyExporting();
 #endif
 }
 
@@ -583,46 +586,79 @@ void MainController::KillStateHandler::setSampleLoadingThreadId(void* newId)
 
 MainController::KillStateHandler::TargetThread MainController::KillStateHandler::getCurrentThread() const
 {
+	// These must be set during the constructor of MainController
 	jassert(threadIds[(int)TargetThread::SampleLoadingThread] != nullptr);
+	jassert(threadIds[(int)TargetThread::ScriptingThread] != nullptr);
 
 	auto threadId = Thread::getCurrentThreadId();
 
 	if (audioThreads.contains(threadId))
 		return TargetThread::AudioThread;
-	else if (threadId == threadIds[(int)TargetThread::SampleLoadingThread])
+	else if (threadId == threadIds[(int)TargetThread::SampleLoadingThread].load())
 		return TargetThread::SampleLoadingThread;
-	else if (threadId == threadIds[(int)TargetThread::ScriptingThread])
+	else if (threadId == threadIds[(int)TargetThread::ScriptingThread].load())
 		return TargetThread::ScriptingThread;
 
 	if (auto mm = MessageManager::getInstanceWithoutCreating())
 	{
 		if (mm->isThisTheMessageThread())
-			return MessageThread;
+			return TargetThread::MessageThread;
 	}
 
 #if JUCE_LINUX && !IS_STANDALONE_APP
 	// Linux appears to be using multiple message threads, so this is the best bet...
-	return MessageThread;
+	return TargetThread::MessageThread;
 #else
-	return UnknownThread;
+	return TargetThread::UnknownThread;
 #endif
 }
 
 
 void MainController::KillStateHandler::setCurrentExportThread(void* exportThread)
 {
-    auto& currentExportThread = threadIds[TargetThread::AudioExportThread];
+    auto& currentExportThread = threadIds[(int)TargetThread::AudioExportThread];
     
     if(currentExportThread != exportThread)
     {
         if(currentExportThread != nullptr)
-            audioThreads.removeAllInstancesOf(currentExportThread);
+            audioThreads.remove(currentExportThread);
         
         currentExportThread = exportThread;
         
         if(currentExportThread != nullptr)
-            audioThreads.addIfNotAlreadyThere(currentExportThread);
+            audioThreads.insert(currentExportThread);
     }
+}
+
+LockHelpers::Type MainController::KillStateHandler::getLockTypeForThread(TargetThread t)
+{
+	switch(t)
+	{
+	case TargetThread::MessageThread: 		return LockHelpers::Type::MessageLock;
+	case TargetThread::ScriptingThread: 	return LockHelpers::Type::ScriptLock;
+	case TargetThread::SampleLoadingThread: return LockHelpers::Type::SampleLock;
+	case TargetThread::AudioThread: 		return LockHelpers::Type::AudioLock;
+	case TargetThread::AudioExportThread: 	return LockHelpers::Type::AudioLock;
+	case TargetThread::UnknownThread:		return LockHelpers::Type::numLockTypes;
+	case TargetThread::Free:				return LockHelpers::Type::unused;
+	default:								jassertfalse; return LockHelpers::Type::numLockTypes;
+	}
+}
+
+MainController::KillStateHandler::TargetThread MainController::KillStateHandler::getThreadForLockType(
+	LockHelpers::Type t)
+{
+	switch(t)
+	{
+	case LockHelpers::Type::MessageLock:				return TargetThread::MessageThread;
+	case LockHelpers::Type::ScriptLock:					return TargetThread::ScriptingThread;
+	case LockHelpers::Type::SampleLock:					return TargetThread::SampleLoadingThread;
+	case LockHelpers::Type::IteratorLock: jassertfalse; return TargetThread::UnknownThread;
+	case LockHelpers::Type::AudioLock:					return TargetThread::AudioThread;
+	case LockHelpers::Type::numLockTypes: jassertfalse; return TargetThread::UnknownThread;
+	case LockHelpers::Type::unused:						return TargetThread::Free;
+	default:											return TargetThread::UnknownThread;
+	}
 }
 
 void MainController::KillStateHandler::addThreadIdToAudioThreadList()
@@ -632,7 +668,7 @@ void MainController::KillStateHandler::addThreadIdToAudioThreadList()
     
 	auto threadId = Thread::getCurrentThreadId();
 
-	audioThreads.addIfNotAlreadyThere(threadId);
+	audioThreads.insert(threadId);
 }
 
 void MainController::KillStateHandler::removeThreadIdFromAudioThreadList()
@@ -642,12 +678,17 @@ void MainController::KillStateHandler::removeThreadIdFromAudioThreadList()
 
 	auto threadId = Thread::getCurrentThreadId();
 
-	audioThreads.removeAllInstancesOf(threadId);
+	audioThreads.remove(threadId);
 }
 
 void MainController::KillStateHandler::initAudioThreadId()
 {
 	addThreadIdToAudioThreadList();
+
+	if (currentState == State::InitialisedButNotActivated)
+	{
+		currentState = State::Clear;
+	}
 
 	if (!init)
 	{

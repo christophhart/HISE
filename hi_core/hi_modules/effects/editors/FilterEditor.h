@@ -82,11 +82,14 @@ public:
 
 	void updateNameLabel(bool forceUpdate=false);
 
-	bool sameCoefficients(IIRCoefficients c1, IIRCoefficients c2)
+	bool sameCoefficients(FilterDataObject::CoefficientData c1, FilterDataObject::CoefficientData c2)
 	{
+		if(c1.second != c2.second)
+			return false;
+
 		for(int i = 0; i < 5; i++)
 		{
-			if(c1.coefficients[i] != c2.coefficients[i]) return false;
+			if(c1.first.coefficients[i] != c2.first.coefficients[i]) return false;
 		}
 
 		return true;
@@ -111,11 +114,13 @@ public:
 private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 
+	ProcessorEditorBodyUpdater updater;
+
 	int h;
 
 	bool isPoly = true;
 
-	IIRCoefficients currentCoefficients;
+	FilterDataObject::CoefficientData currentCoefficients;
 
     //[/UserVariables]
 

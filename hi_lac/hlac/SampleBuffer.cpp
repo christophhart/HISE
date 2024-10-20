@@ -285,7 +285,7 @@ bool HiseSampleBuffer::usesNormalisation() const noexcept
 	return normaliser.infos.size() != 0;
 }
 
-void HiseSampleBuffer::burnNormalisation()
+void HiseSampleBuffer::burnNormalisation(bool useFloatBuffer)
 {
 	if (isFloatingPoint())
 		return;
@@ -293,16 +293,29 @@ void HiseSampleBuffer::burnNormalisation()
 	if (getNumSamples() == 0)
 		return;
 
-	AudioSampleBuffer fb(getNumChannels(), getNumSamples());
-	convertToFloatWithNormalisation(fb.getArrayOfWritePointers(), getNumChannels(), 0, getNumSamples());
+	AudioSampleBuffer fb;
+	AudioSampleBuffer* toUse;
+
+	if(useFloatBuffer)
+	{
+		floatBuffer.setSize(getNumChannels(), getNumSamples(), true, false, true);
+		toUse = &floatBuffer;
+	}
+	else
+	{
+		fb.setSize(getNumChannels(), getNumSamples());
+		toUse = &fb;
+	}
+	
+	convertToFloatWithNormalisation(toUse->getArrayOfWritePointers(), getNumChannels(), 0, getNumSamples());
 
 	auto l = leftIntBuffer.getWritePointer(0);
 	auto r = getNumChannels() > 1 ? rightIntBuffer.getWritePointer(0) : nullptr;
 
-	auto lr = fb.getReadPointer(0);
-	auto rr = getNumChannels() > 1 ? fb.getReadPointer(1) : nullptr;
+	auto lr = toUse->getReadPointer(0);
+	auto rr = getNumChannels() > 1 ? toUse->getReadPointer(1) : nullptr;
 
-	for (int i = 0; i < fb.getNumSamples(); i++)
+	for (int i = 0; i < toUse->getNumSamples(); i++)
 	{
 		l[i] = (int16)(int)(lr[i] * INT16_MAX);
 
@@ -398,6 +411,55 @@ void HiseSampleBuffer::add(HiseSampleBuffer& dst, const HiseSampleBuffer& source
 				dst.floatBuffer.addFrom(1, startSampleDst, source.floatBuffer, 1, startSampleSource, numSamples);
 			else
 				dst.floatBuffer.addFrom(1, startSampleDst, source.floatBuffer, 0, startSampleSource, numSamples);
+		}
+	}
+	else if (!source.isFloatingPoint() && !dst.isFloatingPoint())
+	{
+		auto ld = dst.leftIntBuffer.getWritePointer(startSampleDst);
+		auto ls = source.leftIntBuffer.getReadPointer(startSampleSource);
+
+		CompressionHelpers::IntVectorOperations::add(ld, ls, numSamples);
+
+		if (dst.hasSecondChannel())
+		{
+			if (source.hasSecondChannel())
+			{
+				auto ld2 = dst.rightIntBuffer.getWritePointer(startSampleDst);
+				auto ls2 = source.rightIntBuffer.getReadPointer(startSampleSource);
+
+				CompressionHelpers::IntVectorOperations::add(ld2, ls2, numSamples);
+			}
+			else
+			{
+				auto ld2 = dst.rightIntBuffer.getWritePointer(startSampleDst);
+				auto ls2 = source.leftIntBuffer.getReadPointer(startSampleSource);
+
+				CompressionHelpers::IntVectorOperations::add(ld2, ls2, numSamples);
+			}
+		}
+	}
+	else
+	{
+		// Data type mismatch!
+		jassertfalse;
+	}
+}
+
+void HiseSampleBuffer::addWithGain(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples, float gainFactor)
+{
+	if (numSamples <= 0)
+		return;
+
+	if (source.isFloatingPoint() && dst.isFloatingPoint())
+	{
+		dst.floatBuffer.addFrom(0, startSampleDst, source.floatBuffer, 0, startSampleSource, numSamples, gainFactor);
+
+		if (dst.hasSecondChannel())
+		{
+			if (source.hasSecondChannel())
+				dst.floatBuffer.addFrom(1, startSampleDst, source.floatBuffer, 1, startSampleSource, numSamples, gainFactor);
+			else
+				dst.floatBuffer.addFrom(1, startSampleDst, source.floatBuffer, 0, startSampleSource, numSamples, gainFactor);
 		}
 	}
 	else if (!source.isFloatingPoint() && !dst.isFloatingPoint())

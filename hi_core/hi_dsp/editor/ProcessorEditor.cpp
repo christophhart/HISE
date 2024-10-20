@@ -35,14 +35,13 @@ namespace hise { using namespace juce;
 // ====================================================================================================================== BETTER STUFF
 
 ProcessorEditor::ProcessorEditor(ProcessorEditorContainer *rootContainer_, int intendationLevel_, Processor *p, ProcessorEditor *parentEditor_):
+Processor::OtherListener(p, dispatch::library::ProcessorChangeEvent::Any), // TODO: check if it should be removed
 rootContainer(rootContainer_),
 intendationLevel(intendationLevel_),
 processor(p),
 parentEditor(parentEditor_),
 isPopupMode(false)
 {
-	processor->addChangeListener(this);
-
 	addAndMakeVisible(header = new ProcessorEditorHeader(this));
  	addAndMakeVisible(body = p->createEditor(this));
 	
@@ -67,11 +66,6 @@ ProcessorEditor::~ProcessorEditor()
 {
 	// The Editor must be destroyed before the Processor!
 	jassert(processor != nullptr);
-
-	if (processor != nullptr)
-	{
-		processor->removeChangeListener(this);
-	}
 
 	header = nullptr;
 	body = nullptr;
@@ -204,166 +198,10 @@ ProcessorEditor* ProcessorEditor::Iterator::getNextEditor()
 }
 
 
-void ProcessorEditor::changeListenerCallback(SafeChangeBroadcaster *b)
+void ProcessorEditor::otherChange(Processor* p)
 {
-	// the ChangeBroadcaster must be the connected Processor!
-
-	if (b != getProcessor())
-	{
-		jassertfalse;
-		return;
-	}
-
 	if (header != nullptr) header->update(false);
 	if (body != nullptr)  body->updateGui();
-}
-
-
-bool ProcessorEditor::isInterestedInDragSource(const SourceDetails & dragSourceDetails)
-{	
-#if USE_BACKEND
-
-	if (File::isAbsolutePath(dragSourceDetails.description.toString()))
-	{
-		return File(dragSourceDetails.description).getFileExtension() == ".hip";
-	}
-
-	return false;
-
-#else
-
-	return false;
-
-#endif
-}
-
-void ProcessorEditor::itemDragEnter(const SourceDetails &dragSourceDetails)
-{
-	
-
-	
-
-	if (isInterestedInDragSource(dragSourceDetails))
-	{
-
-		Chain *chain = getProcessorAsChain();
-
-		if (chain == nullptr)
-		{
-			chain = getParentEditor()->getProcessorAsChain();
-		}
-
-		jassert(chain != nullptr);
-
-		int size = chain->getHandler()->getNumProcessors();
-		int position = INT_MAX;
-
-		for (int i = 0; i < size; i++)
-		{
-			if (chain->getHandler()->getProcessor(i) == getProcessor())
-			{
-				position = i;
-				break;
-			}
-		}
-
-		getDragChainPanel()->setInsertPosition(position);
-		
-		
-		
-
-	}
-	else
-	{
-		getDragChainPanel()->setInsertPosition(-1);
-		
-	}
-}
-
-void ProcessorEditor::itemDragExit(const SourceDetails &dragSourceDetails)
-{
-	ModuleBrowser::ModuleItem *dragSource = dynamic_cast<ModuleBrowser::ModuleItem*>(dragSourceDetails.sourceComponent.get());
-
-	if (dragSource != nullptr)
-	{
-		dragSource->setDragState(ModuleBrowser::ModuleItem::Inactive);
-	
-	}
-
-	getDragChainPanel()->setInsertPosition(-1);
-}
-
-void ProcessorEditor::itemDropped(const SourceDetails &dragSourceDetails)
-{
-	Chain *chain = getProcessorAsChain();
-
-	ProcessorEditor *editorToUse = this;
-
-	if (chain == nullptr)
-	{
-		editorToUse = getParentEditor();
-		chain = editorToUse->getProcessorAsChain();
-
-		
-	}
-
-	ModuleBrowser::ModuleItem *dragSource = dynamic_cast<ModuleBrowser::ModuleItem*>(dragSourceDetails.sourceComponent.get());
-
-	Processor *newProcessor = nullptr;
-
-	if (dragSource != nullptr)
-	{
-		String name = dragSourceDetails.description.toString().fromLastOccurrenceOf("::", false, false);
-		String id = dragSourceDetails.description.toString().upToFirstOccurrenceOf("::", false, false);
-
-		newProcessor = getProcessor()->getMainController()->createProcessor(chain->getFactoryType(), id, name);
-
-		dragSource->setDragState(ModuleBrowser::ModuleItem::Inactive);
-	}
-	else
-	{
-		const bool isMainSynthChain = getProcessor() == getProcessor()->getMainController()->getMainSynthChain();
-
-		Component *targetComponent = getComponentAt(dragSourceDetails.localPosition);
-
-		const bool isHeader = (dynamic_cast<ProcessorEditorHeader*>(targetComponent) != nullptr) || (targetComponent->findParentComponentOfClass<ProcessorEditorHeader>() != nullptr);
-
-		if (isMainSynthChain && isHeader)
-		{
-			if (PresetHandler::showYesNoWindow("Replace Root Container", "Do you want to replace the root container with the preset?"))
-				findParentComponentOfClass<BackendProcessorEditor>()->loadNewContainer(File(dragSourceDetails.description.toString()));
-			
-			return;
-		}
-		else
-		{
-			newProcessor = PresetHandler::loadProcessorFromFile(File(dragSourceDetails.description.toString()), editorToUse->getProcessor());
-		}
-	}
-
-	if (newProcessor != nullptr)
-	{
-		chain->getHandler()->add(newProcessor, editorToUse == this ? nullptr : getProcessor());
-
-		editorToUse->changeListenerCallback(editorToUse->getProcessor());
-
-		editorToUse->childEditorAmountChanged();
-
-		editorToUse->getPanel()->setInsertPosition(-1);
-	}
-	else
-	{
-		PresetHandler::showMessageWindow("Error at loading preset file", "The preset can't be dropped here.", PresetHandler::IconType::Error);
-	}
-
-	
-	
-}
-
-ProcessorEditorPanel * ProcessorEditor::getDragChainPanel()
-{
-	if (getProcessorAsChain() != nullptr) return panel;
-	else return getParentEditor()->getPanel();
 }
 
 int ProcessorEditor::getActualHeight() const
@@ -526,7 +364,7 @@ void ProcessorEditor::pasteAction()
 						return SafeFunctionCall::OK;
 					};
 
-					getProcessor()->getMainController()->getKillStateHandler().killVoicesAndCall(getProcessor(), f, MainController::KillStateHandler::SampleLoadingThread);
+					getProcessor()->getMainController()->getKillStateHandler().killVoicesAndCall(getProcessor(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 				}
 			}
 		}
@@ -771,7 +609,7 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
             
             if(editor != nullptr)
             {
-                editor->changeListenerCallback(editor->getProcessor());
+                editor->otherChange(editor->getProcessor());
                 editor->childEditorAmountChanged();
             }
            
@@ -783,7 +621,7 @@ void ProcessorEditor::createProcessorFromPopup(Component* editorIfPossible, Proc
         return SafeFunctionCall::OK;
     };
 
-    processorToBeAdded->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::SampleLoadingThread);
+    processorToBeAdded->getMainController()->getKillStateHandler().killVoicesAndCall(processorToBeAdded, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
     
     return;
 }
@@ -796,6 +634,7 @@ void ProcessorEditor::showContextMenu(Component* c, Processor* p)
 		InsertBefore,
 		CloseAllChains,
 		ViewXml,
+        DumpParameters,
 		CheckForDuplicate,
 		CreateGenericScriptReference,
 		CreateTableProcessorScriptReference,
@@ -826,6 +665,7 @@ void ProcessorEditor::showContextMenu(Component* c, Processor* p)
 
 	m.addItem(Copy, "Copy " + p->getId() + " to Clipboard");
 	m.addItem(ViewXml, "Show XML data");
+    m.addItem(DumpParameters, "Dump parameter ID & values");
 
 	if ((dynamic_cast<Chain*>(p) == nullptr || dynamic_cast<ModulatorSynth*>(p)) && !isMainSynthChain)
 	{
@@ -891,6 +731,21 @@ void ProcessorEditor::showContextMenu(Component* c, Processor* p)
 	{
 		PresetHandler::checkProcessorIdsForDuplicates(p, false);
 	}
+    else if (result == DumpParameters)
+    {
+        String s;
+        
+        s << "(" << p->getType() << ") - Parameter dump: \n";
+        
+        for(int i = 0; i < p->getNumAttributes(); i++)
+        {
+            s << "\t[" << String(i) << "]: " << p->getIdentifierForParameterIndex(i).toString().quoted() << " | " << String(p->getAttribute(i), 2) << "\n";
+        }
+        
+        debugToConsole(p, s);
+        
+
+    }
 	else if (result == CreateGenericScriptReference)
 		ProcessorHelpers::getScriptVariableDeclaration(p);
 	else if (result == CreateAudioSampleProcessorScriptReference)

@@ -48,6 +48,7 @@ namespace prototypes
 	typedef void(*destruct)(void*);
 	typedef int(*handleModulation)(void*, double*);
 	typedef void(*setExternalData)(void*, const ExternalData*, int);
+    typedef void(*connectRuntimeTarget)(void*, bool, const runtime_target::connection&);
 
 	template <typename ProcessDataType> using process = void(*)(void*, ProcessDataType*);
 	template <typename FrameDataType> using processFrame = void(*)(void*, FrameDataType*);
@@ -152,6 +153,15 @@ namespace prototypes
 		public:
 			enum { value = sizeof(test<T>(0)) == sizeof(char) };
 		};
+    
+        template <typename T> class connectToRuntimeTarget
+        {
+            typedef char one; struct two { char x[2]; };
+            template <typename C> static one test(decltype(&C::connectToRuntimeTarget));
+            template <typename C> static two test(...);
+        public:
+            enum { value = sizeof(test<T>(0)) == sizeof(char) };
+        };
 
 		template <typename T> class getDescription
 		{
@@ -236,6 +246,8 @@ namespace prototypes
 		static void initialise(void* obj, NodeBase* n) { static_cast<T*>(obj)->initialise(n); };
 		static int handleModulation(void* obj, double* modValue) { return (int)static_cast<T*>(obj)->handleModulation(*modValue); }
 		static void setExternalData(void* obj, const ExternalData* d, int index) { static_cast<T*>(obj)->setExternalData(*d, index); }
+        
+        static void connectToRuntimeTarget(void* obj, bool add, const runtime_target::connection& c) { static_cast<T*>(obj)->connectToRuntimeTarget(add, c); }
 	};
 
 	struct noop

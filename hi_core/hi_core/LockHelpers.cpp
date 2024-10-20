@@ -128,7 +128,7 @@ bool LockHelpers::isMessageThreadBeyondInitialisation(const MainController* mc)
 
 bool LockHelpers::isLockedBySameThread(const MainController* mc, Type lockToCheck)
 {
-	if (lockToCheck == MessageLock)
+	if (lockToCheck == Type::MessageLock)
 		return MessageManager::getInstance()->currentThreadHasLockedMessageManager();
 	else
 		return mc->getKillStateHandler().currentThreadHoldsLock(lockToCheck);
@@ -164,15 +164,15 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 	{
 		// The reentrant case should be handled before acquiring the lock.
 		jassertfalse;
-		throw BadLockException(lockType);
+		throw BadLockException(lockType, BadLockException::ErrorCode::LockedBySameThread);
 	}
 
-	if (lockType == MessageLock)
+	if (lockType == Type::MessageLock)
 	{
 		// The message thread is not locked by a critical section, 
 		//so calling this is stupid and you should be ashamed.
 		jassertfalse;
-		throw BadLockException(lockType);
+		throw BadLockException(lockType, BadLockException::ErrorCode::WhyULockMessageThread);
 	}
 
 #if !JUCE_LINUX
@@ -181,13 +181,13 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 		// You can't acquire any lock from another thread than the message thread
 		// while holding the message lock.
 		jassertfalse;
-		throw BadLockException(lockType);
+		throw BadLockException(lockType, BadLockException::ErrorCode::MessageThreadIsLocked);
 	}
 #endif
 
-	if (lockType != IteratorLock)
+	if (lockType != Type::IteratorLock)
 	{
-		for (int i = (int)lockType + 1; i < Type::numLockTypes; i++)
+		for (int i = (int)lockType + 1; i < (int)Type::numLockTypes; i++)
 		{
 			Type t = (Type)i;
 
@@ -197,16 +197,16 @@ const juce::CriticalSection& LockHelpers::getLockChecked(const MainController* m
 				// to acquire a lock with a lower priority after a lock
 				// with higher priority. This might cause deadlocks
 				jassertfalse;
-				throw BadLockException(lockType);
+				throw BadLockException(lockType, BadLockException::ErrorCode::PossibleDeadlock);
 			}
 		}
 	}
 	
-	if (lockType == IteratorLock && isLockedBySameThread(mc, SampleLock))
+	if (lockType == Type::IteratorLock && isLockedBySameThread(mc, Type::SampleLock))
 	{
 		// You can't hold the sample lock while trying to acquire the iterator lock
 		jassertfalse;
-		throw BadLockException(lockType);
+		throw BadLockException(lockType, BadLockException::ErrorCode::SampleLockWhileIterating);
 	}
 
 	// All checks passed, return the lock you wanted...
@@ -219,10 +219,10 @@ const juce::CriticalSection& LockHelpers::getLockUnchecked(const MainController*
 
 	switch (lockType)
 	{
-	case AudioLock:		return mc->getLockNew();
-	case ScriptLock:	return mc->getJavascriptThreadPool().getLock();
-	case SampleLock:	return mc->getSampleManager().getSampleLock();
-	case IteratorLock:	return mc->getIteratorLock();
+	case Type::AudioLock:		return mc->getLockNew();
+	case Type::ScriptLock:		return mc->getJavascriptThreadPool().getLock();
+	case Type::SampleLock:		return mc->getSampleManager().getSampleLock();
+	case Type::IteratorLock:	return mc->getIteratorLock();
 	default:
 		break;
 	}
@@ -253,6 +253,11 @@ LockHelpers::SafeLock::SafeLock(const MainController* mc_, Type t, bool useRealL
 
 			if (lock != nullptr)
 			{
+#if PERFETTO
+				dispatch::StringBuilder n;
+				n << "waiting for " << getLockName(t);
+				TRACE_EVENT("scripting", DYNAMIC_STRING_BUILDER(n));
+#endif
 				lock->enter();
 				mc->getKillStateHandler().setLockForCurrentThread(type, true);
 				holdsLock = true;

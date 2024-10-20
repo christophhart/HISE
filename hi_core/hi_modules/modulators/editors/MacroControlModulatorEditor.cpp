@@ -26,7 +26,8 @@ namespace hise { using namespace juce;
 
 //==============================================================================
 MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEditor *p)
-    : ProcessorEditorBody(p)
+    : ProcessorEditorBody(p),
+      updater(*this)
 {
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
@@ -64,7 +65,7 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
     macroSelector->addItem (TRANS("Not connected"), 1);
 
 	for (int i = 0; i < HISE_NUM_MACROS; i++)
-		macroSelector->addItem("Macro " + String(i + 1), i + 1);
+		macroSelector->addItem("Macro " + String(i + 1), i + 2);
 
     macroSelector->addListener (this);
 

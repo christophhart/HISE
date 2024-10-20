@@ -35,8 +35,11 @@ public:
     virtual var getParameterProperties() const = 0;
 };
 
+
+
 class HardcodedSwappableEffect : public HotswappableProcessor,
-							     public ProcessorWithExternalData
+							     public ProcessorWithExternalData,
+								 public RuntimeTargetHolder
 {
 public:
 
@@ -51,7 +54,7 @@ public:
 	FilterDataObject* getFilterData(int index) override { return getOrCreate<FilterDataObject>(filterData, index);; }
 	SimpleRingBuffer* getDisplayBuffer(int index) override { return getOrCreate<SimpleRingBuffer>(displayBuffers, index); }
 
-	
+	LambdaBroadcaster<String> errorBroadcaster;
 
 	// ===================================================================================== Custom hardcoded API calls
 
@@ -88,6 +91,9 @@ public:
 	bool hasHardcodedTail() const;
 
     var getParameterProperties() const override;
+    
+    void disconnectRuntimeTargets(MainController* mc) override;
+    void connectRuntimeTargets(MainController* mc) override;
     
 protected:
 	
@@ -157,8 +163,17 @@ protected:
 
 	String currentEffect = "No network";
 
-	float lastParameters[OpaqueNode::NumMaxParameters];
+	float* getParameterPtr(int index) const
+	{
+		if(isPositiveAndBelow(index, numParameters))
+			return static_cast<float*>(lastParameters.getObjectPtr()) + index;
+		return
+			nullptr;
+	}
 
+	int numParameters = 0;
+	ObjectStorage<sizeof(float) * OpaqueNode::NumMaxParameters, 8> lastParameters;
+	
 	snex::Types::ModValue modValue;
 	snex::Types::DllBoundaryTempoSyncer tempoSyncer;
 	scriptnode::PolyHandler polyHandler;
@@ -166,7 +181,7 @@ protected:
 	ScopedPointer<scriptnode::OpaqueNode> opaqueNode;
 	ScopedPointer<scriptnode::dll::FactoryBase> factory;
 
-	virtual void prepareOpaqueNode(OpaqueNode* n);
+	virtual Result prepareOpaqueNode(OpaqueNode* n);
 
 	bool channelCountMatches = false;
 
@@ -275,10 +290,17 @@ public:
 
 	bool isSuspendedOnSilence() const final override;
 
-	Processor *getChildProcessor(int processorIndex) override { return nullptr; };
-	const Processor *getChildProcessor(int processorIndex) const override { return nullptr; };
-	int getNumChildProcessors() const override { return 0; };
-	int getNumInternalChains() const override { return 0; };
+#if NUM_HARDCODED_POLY_FX_MODS
+	Processor *getChildProcessor(int processorIndex) override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_POLY_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
+    const Processor *getChildProcessor(int processorIndex) const override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_POLY_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
+#else
+	Processor *getChildProcessor(int ) override { return nullptr; };
+	const Processor *getChildProcessor(int ) const override { return nullptr; };
+#endif
+
+	
+	int getNumChildProcessors() const override { return NUM_HARDCODED_POLY_FX_MODS; };
+	int getNumInternalChains() const override { return NUM_HARDCODED_POLY_FX_MODS; };
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -302,17 +324,8 @@ public:
 		voiceStack.reset(voiceIndex);
 	}
 	
-	void handleHiseEvent(const HiseEvent &m) override
-	{
-        // Already handled...
-        if(m.isNoteOn())
-            return;
-        
-		if (opaqueNode != nullptr)
-			voiceStack.handleHiseEvent(*opaqueNode, polyHandler, m);
-	}
+	void handleHiseEvent(const HiseEvent &m) override;
 
-	
 
 	void connectionChanged() override
 	{
@@ -324,14 +337,16 @@ public:
 	void numDestinationChannelsChanged() override {};
 
 	/** renders a voice and applies the effect on the voice. */
-	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override
-	{
-		applyEffect(voiceIndex, b, startSample, numSamples);
-	}
+	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) override;
 
 	int getNumActiveVoices() const override
 	{
 		return voiceStack.voiceNoteOns.size();
+	}
+
+	bool isVoiceResetActive() const override
+	{
+		return hasHardcodedTail();
 	}
 
 	void onVoiceReset(bool allVoices, int voiceIndex) override
@@ -344,6 +359,9 @@ public:
 
 	VoiceDataStack voiceStack;
 
+#if NUM_HARDCODED_POLY_FX_MODS
+	ModulatorChain* paramModulation[NUM_HARDCODED_POLY_FX_MODS];
+#endif
 };
 
 class HardcodedTimeVariantModulator: public TimeVariantModulator,
@@ -377,7 +395,7 @@ public:
     
     void calculateBlock(int startSample, int numSamples) override;
     
-    void prepareOpaqueNode(OpaqueNode* n) override;
+    Result prepareOpaqueNode(OpaqueNode* n) override;
 };
 
 
@@ -489,7 +507,7 @@ public:
 
 		AudioThreadGuard guard(&getMainController()->getKillStateHandler());
 		AudioThreadGuard::Suspender sp(isOnAir());
-		LockHelpers::SafeLock sl(getMainController(), LockHelpers::AudioLock);
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
 
 		MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 		wrappedEffect->prepareToPlay(sampleRate, samplesPerBlock); 

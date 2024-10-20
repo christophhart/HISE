@@ -44,6 +44,10 @@ void Processor::debugProcessor(const String &t)
 
 Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 	ControlledObject(m),
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher(m->getProcessorDispatchHandler(), *this, dispatch::HashedCharPtr(id_)),
+#endif
+	otherBroadcaster(*this),
 	id(id_),
 	consoleEnabled(false),
 	bypassed(false),
@@ -72,7 +76,7 @@ Processor::Processor(MainController *m, const String &id_, int numVoices_) :
 		idAsIdentifier = Identifier(id);
 	}
 
-	enablePooledUpdate(getMainController()->getGlobalUIUpdater());
+	otherBroadcaster.enablePooledUpdate(getMainController()->getGlobalUIUpdater());
 
 	//enableAllocationFreeMessages(50);
 }
@@ -81,9 +85,11 @@ Processor::~Processor()
 {
 	WARN_IF_AUDIO_THREAD(true, MainController::KillStateHandler::ProcessorDestructor);
 
+	otherBroadcaster.removeAllChangeListeners();
+
 	getMainController()->getMacroManager().removeMacroControlsFor(this);
 
-	removeAllChangeListeners();
+	
 
 	masterReference.clear();
 }
@@ -190,10 +196,21 @@ const Path Processor::getSymbol() const
 void Processor::setSymbol(Path newSymbol)
 {symbol = newSymbol;	}
 
-void Processor::setAttribute(int parameterIndex, float newValue, juce::NotificationType notifyEditor)
+void Processor::setAttribute(int parameterIndex, float newValue, dispatch::DispatchType notifyEditor)
 {
 	setInternalAttribute(parameterIndex, newValue);
-	if(notifyEditor == sendNotification) sendPooledChangeMessage();
+
+#if HISE_OLD_PROCESSOR_DISPATCH
+	if(notifyEditor == dispatch::DispatchType::sendNotification)
+	{
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Attribute, notifyEditor);
+	}
+#endif
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.setAttribute(parameterIndex, newValue, notifyEditor);
+#endif
+
+	
 }
 
 float Processor::getDefaultValue(int) const
@@ -234,11 +251,18 @@ void Processor::setId(const String& newId, NotificationType notifyChangeHandler)
 		idAsIdentifier = Identifier();
 	}
 
-	sendChangeMessage();
+#if HISE_OLD_PROCESSOR_DISPATCH
+	otherBroadcaster.sendChangeMessage();
 
 	if (notifyChangeHandler)
 		getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, 
 			MainController::ProcessorChangeHandler::EventType::ProcessorRenamed, false);
+#endif
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.setId(dispatch::HashedCharPtr(newId));
+#endif
+
+
 }
 
 const Identifier& Processor::getIDAsIdentifier() const
@@ -253,10 +277,17 @@ void Processor::setBypassed(bool shouldBeBypassed, NotificationType notifyChange
 		bypassed = shouldBeBypassed;
 		currentValues.clear();
 
+#if HISE_OLD_PROCESSOR_DISPATCH
+#if 0
 		sendSynchronousBypassChangeMessage();
 
 		if (notifyChangeHandler)
 			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorBypassed, false);
+#endif
+#endif
+#if HISE_NEW_PROCESSOR_DISPATCH
+		dispatcher.setBypassed(shouldBeBypassed, (dispatch::DispatchType)notifyChangeHandler);
+#endif
 	}		
 }
 
@@ -282,6 +313,25 @@ double Processor::getSampleRate() const
 int Processor::getLargestBlockSize() const
 {   
 	return largestBlockSize;
+}
+
+void Processor::sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent eventType, dispatch::DispatchType t)
+{
+	#if HISE_OLD_PROCESSOR_DISPATCH
+	if(t == sendNotificationSync)
+		otherBroadcaster.sendSynchronousChangeMessage();
+	else
+		otherBroadcaster.sendChangeMessage();
+	#endif
+	#if HISE_NEW_PROCESSOR_DISPATCH
+
+	if(eventType > dispatch::library::ProcessorChangeEvent::numProcessorChangeEvents)
+	{
+		return;
+	}
+
+	dispatcher.sendChangeMessage(eventType, t);
+	#endif
 }
 
 float Processor::getOutputValue() const
@@ -368,8 +418,17 @@ void Processor::DisplayValues::clear()
 Processor::DisplayValues Processor::getDisplayValues() const
 { return currentValues;}
 
+Processor::BypassListener::BypassListener(dispatch::RootObject& r)
+  NEW_PROCESSOR_DISPATCH(:dispatcher(r, *this, BIND_MEMBER_FUNCTION_2(BypassListener::onBypassUpdate)))
+{}
+
 Processor::BypassListener::~BypassListener()
 {}
+
+void Processor::BypassListener::onBypassUpdate(dispatch::library::Processor* p, bool state)
+{
+    NEW_PROCESSOR_DISPATCH(bypassStateChanged(&p->getOwner<hise::Processor>(), state));
+}
 
 String Processor::getDescriptionForParameters(int parameterIndex)
 {
@@ -412,22 +471,33 @@ void Processor::removeDeleteListener(DeleteListener* listener)
 	deleteListeners.removeAllInstancesOf(listener);
 }
 
-void Processor::addBypassListener(BypassListener* l)
+void Processor::addBypassListener(BypassListener* l, dispatch::DispatchType n)
 {
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.addBypassListener(&l->dispatcher, n);
+#endif
+#if HISE_OLD_PROCESSOR_DISPATCH
 	bypassListeners.addIfNotAlreadyThere(l);
+#endif
 }
 
 void Processor::removeBypassListener(BypassListener* l)
 {
+#if HISE_NEW_PROCESSOR_DISPATCH
+	dispatcher.removeBypassListener(&l->dispatcher);
+#endif
+#if HISE_OLD_PROCESSOR_DISPATCH
 	bypassListeners.removeAllInstancesOf(l);
+#endif
+	
 }
 
 void Processor::setParentProcessor(Processor* newParent)
 {
 	// You must call setParentProcessor before locking and inserting to the processing chain
 	jassert(!isOnAir());
-	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
-	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::IteratorLock));
+	jassert(!LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::AudioLock));
 
 	parentProcessor = newParent;
 
@@ -452,7 +522,7 @@ void Processor::setInputValue(float newValue, NotificationType notify)
 
 	if(notify == sendNotification)
 	{
-		sendPooledChangeMessage();
+		//otherBroadcaster.sendPooledChangeMessage();
 	}
 };
 
@@ -512,8 +582,8 @@ int Processor::getNumParameters() const
 void Processor::setIsOnAir(bool shouldBeOnAir)
 {
 	// This should be called only with a locked iterator lock during insertion...
-	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::IteratorLock));
-	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::AudioLock));
+	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::IteratorLock));
+	jassert(!shouldBeOnAir || LockHelpers::isLockedBySameThread(getMainController(), LockHelpers::Type::AudioLock));
 
 	// You must call setIsOnAir after setParentProcessor
 	isValidAndInitialised(false);
@@ -653,8 +723,8 @@ bool Chain::restoreChain(const ValueTree &v)
 
 	if(thisAsProcessor->isOnAir() != wasOnAir)
 	{
-		LockHelpers::SafeLock itLock(thisAsProcessor->getMainController(), LockHelpers::IteratorLock);
-		LockHelpers::SafeLock audioLock(thisAsProcessor->getMainController(), LockHelpers::AudioLock);
+		LockHelpers::SafeLock itLock(thisAsProcessor->getMainController(), LockHelpers::Type::IteratorLock);
+		LockHelpers::SafeLock audioLock(thisAsProcessor->getMainController(), LockHelpers::Type::AudioLock);
 
 		thisAsProcessor->setIsOnAir(wasOnAir);
 	}
@@ -858,7 +928,7 @@ juce::NotificationType ProcessorHelpers::getAttributeNotificationType()
 #if USE_FRONTEND && HI_DONT_SEND_ATTRIBUTE_UPDATES
         return dontSendNotification;
 #else
-	return sendNotification;
+	return sendNotificationAsync;
 #endif
 }
 

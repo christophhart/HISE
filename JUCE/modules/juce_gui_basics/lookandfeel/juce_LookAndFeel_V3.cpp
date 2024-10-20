@@ -50,7 +50,7 @@ LookAndFeel_V3::~LookAndFeel_V3() {}
 
 bool LookAndFeel_V3::areScrollbarButtonsVisible()        { return false; }
 
-void LookAndFeel_V3::drawStretchableLayoutResizerBar (Graphics& g, int /*w*/, int /*h*/, bool /*isVerticalBar*/,
+void LookAndFeel_V3::drawStretchableLayoutResizerBar (Graphics& g, Component&, int /*w*/, int /*h*/, bool /*isVerticalBar*/,
                                                       bool isMouseOver, bool isMouseDragging)
 {
     if (isMouseOver || isMouseDragging)
@@ -338,7 +338,7 @@ void LookAndFeel_V3::drawTreeviewPlusMinusBox (Graphics& g, const Rectangle<floa
     Path p;
     p.addTriangle (0.0f, 0.0f, 1.0f, isOpen ? 0.0f : 0.5f, isOpen ? 0.5f : 0.0f, 1.0f);
 
-    g.setColour (backgroundColour.contrasting().withAlpha (isMouseOver ? 0.5f : 0.3f));
+    g.setColour (Colour(0xFF888888).withMultipliedBrightness(isMouseOver ? 1.1f : 1.0f));
     g.fillPath (p, p.getTransformToScaleToFit (area.reduced (2, area.getHeight() / 4), true));
 }
 

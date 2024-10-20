@@ -13,7 +13,8 @@ namespace hise { using namespace juce;
 #include "SlotFXEditor.h"
 
 SlotFXEditor::SlotFXEditor(ProcessorEditor* parentEditor) :
-	ProcessorEditorBody(parentEditor)
+	ProcessorEditorBody(parentEditor),
+    updater(*this)
 {
 	addAndMakeVisible(effectSelector = new ComboBox());
 
@@ -36,7 +37,7 @@ void SlotFXEditor::comboBoxChanged(ComboBox* /*comboBoxThatHasChanged*/)
 
 	auto p = getProcessor();
 
-	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::SampleLoadingThread);
+	p->getMainController()->getKillStateHandler().killVoicesAndCall(p, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	
 }
 

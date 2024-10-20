@@ -207,6 +207,7 @@ public:
     bool operator!= (const Type&) const;
 
     //==============================================================================
+    static Type createVoid()            { return Type (MainType::void_); }
     static Type createInt32()           { return Type (MainType::int32); }
     static Type createInt64()           { return Type (MainType::int64); }
     static Type createFloat32()         { return Type (MainType::float32); }
@@ -588,6 +589,14 @@ public:
     void visitObjectMembers (Visitor&&) const;
 
     //==============================================================================
+    /// Performs a comparison between two values, where only a bit-for-bit match is
+    /// considered to be true.
+    bool operator== (const ValueView&) const;
+    /// Performs a comparison between two values, where only a bit-for-bit match is
+    /// considered to be true.
+    bool operator!= (const ValueView&) const;
+
+    //==============================================================================
     /// Gets a pointer to the string dictionary that the view is using, or nullptr
     /// if it doesn't have one.
     StringDictionary* getDictionary() const     { return stringDictionary; }
@@ -813,6 +822,15 @@ public:
     /// will return a view onto a range of its elements.
     /// Throws an error exception if the object is not a vector or the range is invalid.
     ValueView getElementRange (uint32_t startIndex, uint32_t length) const      { return value.getElementRange (startIndex, length); }
+
+    //==============================================================================
+    /// Performs a comparison between two values, where only a bit-for-bit match is
+    /// considered to be true.
+    bool operator== (const ValueView& other) const                      { return value == other; }
+
+    /// Performs a comparison between two values, where only a bit-for-bit match is
+    /// considered to be true.
+    bool operator!= (const ValueView& other) const                      { return value != other; }
 
     //==============================================================================
     /// Iterating a Value is only valid for an array, vector or object.
@@ -1573,6 +1591,21 @@ inline void Type::modifyNumElements (uint32_t newNumElements)
         content.vector.numElements = newNumElements;
     else if (isType (MainType::primitiveArray))
         content.primitiveArray.numElements = newNumElements;
+    else if (isType (MainType::complexArray))
+    {
+        uint32_t previousElements = 0;
+
+        for (auto& group : content.complexArray->groups)
+        {
+            if (previousElements + group.repetitions >= newNumElements)
+            {
+                group.repetitions = newNumElements - previousElements;
+                break;
+            }
+
+            previousElements += group.repetitions;
+        }
+    }
     else
         throwError ("This type is not a uniform array or vector");
 }
@@ -2347,6 +2380,15 @@ struct ValueView::Iterator
 inline ValueView::Iterator ValueView::begin() const   { return ValueView::Iterator (*this); }
 
 //==============================================================================
+inline bool ValueView::operator== (const ValueView& other) const
+{
+    return type == other.type
+             && (isVoid() || std::memcmp (getRawData(), other.getRawData(), type.getValueDataSize()) == 0);
+}
+
+inline bool ValueView::operator!= (const ValueView& other) const { return ! operator== (other); }
+
+//==============================================================================
 inline Value SerialisedData::deserialise() const        { auto i = getInputData(); return Value::deserialise (i); }
 inline InputData SerialisedData::getInputData() const   { return { data.data(), data.data() + data.size() }; }
 
@@ -2472,10 +2514,10 @@ inline void ValueView::updateStringHandles (StringDictionary& oldDic, StringDict
 {
     if (type.isType (Type::MainType::string, Type::MainType::object, Type::MainType::primitiveArray, Type::MainType::complexArray))
     {
-        type.visitStringHandles (0, [&oldDic, &newDic, data = this->data] (size_t offset)
+        type.visitStringHandles (0, [&oldDic, &newDic, d = this->data] (size_t offset)
         {
-            auto oldHandle = StringDictionary::Handle { readUnaligned<decltype(StringDictionary::Handle::handle)> (data + offset) };
-            writeUnaligned (data + offset, newDic.getHandleForString (oldDic.getStringForHandle (oldHandle)).handle);
+            auto oldHandle = StringDictionary::Handle { readUnaligned<decltype(StringDictionary::Handle::handle)> (d + offset) };
+            writeUnaligned (d + offset, newDic.getHandleForString (oldDic.getStringForHandle (oldHandle)).handle);
         });
     }
 }

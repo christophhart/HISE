@@ -394,6 +394,8 @@ struct VoiceResetter
 	virtual void onVoiceReset(bool allVoices, int voiceIndex) = 0;
 	virtual int getNumActiveVoices() const = 0;
 
+	virtual bool isVoiceResetActive() const = 0;
+
 	int skipResetIndex = -1;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(VoiceResetter);
@@ -495,6 +497,9 @@ struct DllBoundaryTempoSyncer: public hise::TempoListener
 
 	// Oh boy, what a disgrace...
 	ModValue* publicModValue = nullptr;
+
+	// And now we don't even care anymore about tucking stuff in here...
+	hise::AdditionalEventStorage* additionalEventStorage = nullptr;
 
 	/** @internal This can be used to temporarily change the pointer to the mod value.
 		The OpaqueNetworkHolder uses this abomination of a class in the prepare

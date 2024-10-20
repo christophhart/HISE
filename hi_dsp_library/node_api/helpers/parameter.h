@@ -188,6 +188,8 @@ struct empty
 		
 	}
 
+	void* getObjectPtr() { return reinterpret_cast<void*>(this); }
+
 	static void callStatic(void*, double) {};
 
 	bool isConnected() const { return true; }
@@ -519,6 +521,12 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
     
 	PARAMETER_SPECS(ParameterType::Chain, 1);
 
+	chain()
+	{
+		for(auto& c: connectBits)
+			c = false;
+	}
+
 	template <int P> auto& getParameter()
 	{
 		return *this;
@@ -529,10 +537,9 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 		static_cast<chain*>(obj)->call(value);
 	}
 
-	constexpr bool isConnected() const
+	bool isConnected() const noexcept
 	{
-		// there's no way a compile time chain can have an unconnected element
-		return true;
+		return connected;
 	}
 
 	void* getObjectPtr() { return this; }
@@ -556,8 +563,17 @@ template <class InputRange, class... Others> struct chain: public advanced_tuple
 
 	template <int Index, class Target> void connect(Target& t)
 	{
+		connectBits[Index] = true;
 		this->template get<Index>().template connect<0>(t);
+
+		connected = true;
+
+		for(const auto& x: connectBits)
+			connected &= x;
 	}
+
+	std::array<bool, sizeof...(Others)> connectBits;
+	bool connected = false;
 };
 
 

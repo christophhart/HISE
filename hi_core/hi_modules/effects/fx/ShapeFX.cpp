@@ -94,6 +94,8 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid) :
 	parameterNames.add("Mix");
 	parameterNames.add("BypassFilters");
 
+	updateParameterSlots();
+
 #if HI_USE_SHAPE_FX_SCRIPTING
 	setupApi();
 #endif
@@ -660,6 +662,8 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	parameterNames.add("Mode");
 	parameterNames.add("Oversampling");
 	parameterNames.add("Bias");
+
+	updateParameterSlots();
 
 	recalculateDisplayTable();
 }

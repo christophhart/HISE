@@ -61,6 +61,82 @@ namespace control
 		control::multilogic::logic_op lastData;
 	};
 
+	struct blend_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::blend>>
+	{
+		using LogicBase = pimpl::combined_parameter_base<multilogic::blend>;
+
+		blend_editor(LogicBase* b, PooledUIUpdater* u):
+		  ScriptnodeExtraComponent<LogicBase>(b, u),
+		  dragger(u)
+		{
+			addAndMakeVisible(dragger);
+
+			setSize(256, 50);
+		};
+
+		void paint(Graphics& g) override
+		{
+			auto alpha = (float)lastData.alpha * 2.0f - 1.0f;
+
+			auto b = getLocalBounds().removeFromRight((getWidth() * 2) / 3).toFloat();
+
+			auto area = b.reduced(JUCE_LIVE_CONSTANT(40), 15).toFloat();
+
+			ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, true);
+
+			
+
+			area = area.reduced(4);
+
+			auto w = (area.getWidth() - area.getHeight()) * 0.5f;
+
+			auto tb = area.translated(0, 20);
+
+			area = area.withSizeKeepingCentre(area.getHeight(), area.getHeight());
+
+			area = area.translated(alpha * w, 0);
+
+			g.setColour(getHeaderColour());
+
+			g.fillEllipse(area);
+
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			g.drawText(String(lastData.getValue(), 2), tb, Justification::centred);
+		}
+
+		void timerCallback() override
+		{
+			auto thisData = getObject()->getUIData();
+
+			if (!(thisData == lastData))
+			{
+				lastData = thisData;
+				repaint();
+			}
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+
+
+			dragger.setBounds(b.removeFromLeft(getWidth()/3).withSizeKeepingCentre(32, 32));
+
+
+		}
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<mothernode*>(obj);
+			return new blend_editor(dynamic_cast<LogicBase*>(typed), updater);
+		}
+
+		ModulationSourceBaseComponent dragger;
+
+		control::multilogic::blend lastData;
+	};
+
 	struct intensity_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::intensity>>
 	{
 		using IntensityBase = pimpl::combined_parameter_base<multilogic::intensity>;
@@ -572,6 +648,7 @@ struct dynamic
 		Pitch2Cent,
 		Cent2Pitch,
         Midi2Freq,
+		Freq2Norm,
         Gain2dB,
         dB2Gain,
         numModes
@@ -586,7 +663,7 @@ struct dynamic
     static StringArray getConverterNames()
     {
         return { "Ms2Freq", "Freq2Ms", "Freq2Samples", "Ms2Samples", "Samples2Ms", "Ms2BPM",
-                 "Pitch2St", "St2Pitch", "Pitch2Cent", "Cent2Pitch", "Midi2Freq", "Gain2dB", "db2Gain" };
+                 "Pitch2St", "St2Pitch", "Pitch2Cent", "Cent2Pitch", "Midi2Freq", "Freq2Norm", "Gain2dB", "db2Gain" };
     }
     
     void initialise(NodeBase* n)
@@ -617,6 +694,7 @@ struct dynamic
 			case Mode::Pitch2Cent: return pitch2cent().getValue(input);
 			case Mode::Cent2Pitch: return cent2pitch().getValue(input);
             case Mode::Midi2Freq:  return midi2freq().getValue(input);
+			case Mode::Freq2Norm:  return freq2norm().getValue(input);
             case Mode::Gain2dB:    return gain2db().getValue(input);
             case Mode::dB2Gain:    return db2gain().getValue(input);
             default: return input;
@@ -627,6 +705,8 @@ struct dynamic
     {
         currentMode = (Mode)getConverterNames().indexOf(newValue.toString());
     }
+
+	static constexpr bool usesPrepareSpecs() { return true; }
 
     struct editor : public ScriptnodeExtraComponent<dynamic>,
                     public ComboBox::Listener
@@ -683,6 +763,7 @@ struct dynamic
 				case Mode::Cent2Pitch: inputDomain = "ct"; outputDomain = ""; break;
 				case Mode::Pitch2Cent: inputDomain = ""; outputDomain = "ct"; break;
                 case Mode::Midi2Freq:  inputDomain = ""; outputDomain = "Hz"; break;
+				case Mode::Freq2Norm:  inputDomain = "Hz"; outputDomain = ""; break;
                 case Mode::Gain2dB: inputDomain = ""; outputDomain = "dB"; break;
                 case Mode::dB2Gain: inputDomain = "dB"; outputDomain = ""; break;
                 default: break;
@@ -712,6 +793,7 @@ struct dynamic
 				case Mode::Pitch2Cent: setRange({ 0.5, 2.0 }, 1.0); break;
 				case Mode::Cent2Pitch: setRange({ -100.0, 100.0, 0.0 }); break;
                 case Mode::Midi2Freq:  setRange({0, 127.0, 1.0}); break;
+				case Mode::Freq2Norm:  setRange({0.0, 20000.0}); break;
                 case Mode::Gain2dB: setRange({0.0, 1.0, 0.0}); break;
                 case Mode::dB2Gain: setRange({-100.0, 0.0, 0.1}, -12.0); break;
                 default: break;

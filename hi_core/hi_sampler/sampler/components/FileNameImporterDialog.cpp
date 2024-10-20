@@ -259,24 +259,13 @@ void FileNameImporterDialog::restoreFromXml(const String& xmlData)
 	{
 		separatorEditor->setText(settings->getStringAttribute("Separator", "_"), sendNotification);
 
-		if (tokenPanels.size() == settings->getNumChildElements())
-		{
-			for (int i = 0; i < settings->getNumChildElements(); i++)
-				tokenPanels[i]->importSettings(*settings->getChildElement(i));
-		}
-		else
-		{
-			if (PresetHandler::showYesNoWindow("Token amount mismatch", "The settings you are about to load have a different amount of tokens. Press OK to load it anyway."))
-			{
-				for (int i = 0; i < tokenPanels.size(); i++)
-				{
-					if (i < settings->getNumChildElements())
-					{
-						tokenPanels[i]->importSettings(*settings->getChildElement(i));
-					}
-				}
-			}
-		}
+        for (int i = 0; i < tokenPanels.size(); i++)
+        {
+            if (i < settings->getNumChildElements())
+            {
+                tokenPanels[i]->importSettings(*settings->getChildElement(i));
+            }
+        }
 	}
 	else
 	{

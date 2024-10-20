@@ -29,7 +29,8 @@ namespace hise { using namespace juce;
 
 //==============================================================================
 LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
-    : ProcessorEditorBody(p)
+    : ProcessorEditorBody(p),
+      updater(*this)
 {
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
@@ -176,8 +177,9 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 	stepPanel->setVisible(false);
 	stepPanel->setStepSize(0.01);
 
+    phaseSlider->setMode(HiSlider::NormalizedPercentage);
 	phaseSlider->setup(getProcessor(), LfoModulator::Parameters::PhaseOffset, "Phase Offset");
-	phaseSlider->setMode(HiSlider::NormalizedPercentage);
+	
 
     tableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
     stepsUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Steps;

@@ -186,8 +186,7 @@ struct jcompressor : public jdsp::base::jwrapper<juce::dsp::Compressor<float>, 1
 };
 
 struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<float>, 1>,
-						public data::filter_base,
-						public hise::ComplexDataUIUpdaterBase::EventListener
+						public data::filter_base
 {
 	SNEX_NODE(jlinkwitzriley);
 
@@ -195,6 +194,12 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 	{
 		sr = ps.sampleRate;
 		JuceBaseType::prepare(ps);
+
+		if (auto fd = dynamic_cast<FilterDataObject*>(this->externalData.obj))
+		{
+			if (sr > 0.0)
+				fd->setSampleRate(sr);
+		}
 	}
 
 	template <int P> void setParameter(double v)
@@ -203,17 +208,17 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 		{
 			if (P == 0)
 			{
-				if(std::isfinite(v) && v > 20.0)
+				if(std::isfinite(v) && v > 20.0 && v < 20000.0)
 					o.setCutoffFrequency(v);
 			}
 			if (P == 1)
 				o.setType((JuceDspType::Type)(int)v);
 		}
 
-		sendCoefficientUpdateMessage();
+		this->sendCoefficientUpdateMessage();
 	}
 
-	IIRCoefficients getApproximateCoefficients() const override
+	FilterDataObject::CoefficientData getApproximateCoefficients() const override
 	{
         if(sr == 0)
             return {};
@@ -222,52 +227,22 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 
 		switch (o.getType())
 		{
-		case JuceDspType::Type::allpass: return IIRCoefficients::makeAllPass(sr, objects.getFirst().getCutoffFrequency(), 1.0);
-		case JuceDspType::Type::lowpass: return IIRCoefficients::makeLowPass(sr, objects.getFirst().getCutoffFrequency(), 1.0);
-		case JuceDspType::Type::highpass: return IIRCoefficients::makeHighPass(sr, objects.getFirst().getCutoffFrequency(), 1.0);
+		case JuceDspType::Type::allpass:  return { IIRCoefficients::makeAllPass(sr, objects.getFirst().getCutoffFrequency(), 1.0), 1 };
+		case JuceDspType::Type::lowpass:  return { IIRCoefficients::makeLowPass(sr, objects.getFirst().getCutoffFrequency(), 1.0), 1 };
+		case JuceDspType::Type::highpass: return { IIRCoefficients::makeHighPass(sr, objects.getFirst().getCutoffFrequency(), 1.0), 1 };
 		}
 
-		return IIRCoefficients();
-	}
-
-	void onComplexDataEvent(hise::ComplexDataUIUpdaterBase::EventType e, var newValue) override
-	{
-		if (e == ComplexDataUIUpdaterBase::EventType::ContentChange)
-		{
-			if (auto fd = dynamic_cast<FilterDataObject*>(this->externalData.obj))
-			{
-				if (sr > 0.0)
-					fd->setSampleRate(sr);
-
-				fd->setCoefficients(this, getApproximateCoefficients());
-			}
-		}
-	}
-
-	void sendCoefficientUpdateMessage()
-	{
-		DataReadLock l(this);
-
-		if (this->externalData.obj != nullptr)
-			this->externalData.obj->getUpdater().sendContentChangeMessage(sendNotificationAsync, 0);
+		return { IIRCoefficients(), 1 };
 	}
 
 	void setExternalData(const ExternalData& d, int index) override
 	{
-		if (this->externalData.obj != nullptr)
-		{
-			d.obj->getUpdater().removeEventListener(this);
-			
-		}
-
-		jassert(d.dataType == ExternalData::DataType::FilterCoefficients);
+		jassert(d.isEmpty() || d.dataType == ExternalData::DataType::FilterCoefficients);
 
 		filter_base::setExternalData(d, index);
 
 		if (auto fd = dynamic_cast<FilterDataObject*>(d.obj))
 		{
-			fd->getUpdater().addEventListener(this);
-
 			if (sr > 0.0)
 				fd->setSampleRate(sr);
 		}
@@ -278,14 +253,14 @@ struct jlinkwitzriley : public base::jwrapper<juce::dsp::LinkwitzRileyFilter<flo
 	void createParameters(ParameterDataList& d) override;
 };
 
-template <int NV> struct jpanner : public base::jwrapper<juce::dsp::Panner<float>, NV>
+template <int NV> struct jpanner : public base::jwrapper<juce::dsp::Panner<float>, NV>,
+							       public polyphonic_base
 {
 	SNEX_NODE(jpanner);
 
-    jpanner()
-    {
-        cppgen::CustomNodeProperties::addNodeIdManually(getStaticId(), PropertyIds::IsPolyphonic);
-    }
+    jpanner():
+	  polyphonic_base(getStaticId(), false)
+    {}
     
 	template <int P> void setParameter(double v)
 	{
@@ -316,19 +291,45 @@ template <int NV> struct jpanner : public base::jwrapper<juce::dsp::Panner<float
 	}
 };
 
-struct jdelay : public base::jwrapper<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, 1>
-{
-	SNEX_NODE(jdelay);
+using LinearDelay = juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>;
+using ThiranDelay = juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Thiran>;
+using CubicDelay = juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd>;
 
-	jdelay()
+template <typename DT, int NV> struct jdelay_base : public base::jwrapper<DT, NV>,
+													public polyphonic_base
+{
+	static Identifier getStaticId()
 	{
-		for (auto& obj : objects)
+		if constexpr (std::is_same<DT, LinearDelay>()) { RETURN_STATIC_IDENTIFIER("jdelay"); }
+		else if constexpr (std::is_same<DT, ThiranDelay>()) { RETURN_STATIC_IDENTIFIER("jdelay_thiran"); }
+		else if constexpr (std::is_same<DT, CubicDelay>())  { RETURN_STATIC_IDENTIFIER("jdelay_cubic"); }
+		else return "";
+	};;
+
+	SN_GET_SELF_AS_OBJECT(jdelay_base);
+	SN_FORWARD_PARAMETER_TO_MEMBER(jdelay_base);
+	SN_EMPTY_INITIALISE;;
+
+	static constexpr bool isPolyphonic() { return NV > 1; }
+
+	static juce::String getDescription()
+	{
+		if constexpr (std::is_same<DT, LinearDelay>()) return "A linear interpolating delay line with low computational cost and a low-pass filtering effect.";
+		else if constexpr (std::is_same<DT, ThiranDelay>()) return "A delay line using the thiran interpolation. Good performance, flat amplitude response but not suitable for fast modulation";
+		else if constexpr (std::is_same<DT, CubicDelay>())  return "A delay line using a 3rd order Lagrange interpolator. Flat amplitude response, modulatable but the highest CPU usage";
+		else return "";
+	};
+
+	jdelay_base():
+	  polyphonic_base(getStaticId(), false)
+	{
+		for (auto& obj : this->objects)
 			obj.setMaxDelaySamples(1024);
 	}
 
 	void prepare(PrepareSpecs ps) override
 	{
-		JuceBaseType::prepare(ps);
+		base::jwrapper<DT, NV>::prepare(ps);
 		sr = ps.sampleRate;
 
 		if (sr > 0.0)
@@ -363,7 +364,7 @@ struct jdelay : public base::jwrapper<juce::dsp::DelayLine<float, juce::dsp::Del
 
 		FloatSanitizers::sanitizeFloatNumber(sampleValue);
 
-		for (auto& obj : objects)
+		for (auto& obj : this->objects)
 		{
 			if constexpr (P == 0)
 				obj.setMaxDelaySamples(roundToInt(sampleValue));
@@ -372,12 +373,37 @@ struct jdelay : public base::jwrapper<juce::dsp::DelayLine<float, juce::dsp::Del
 		}
 	}
 
-	void createParameters(ParameterDataList& d) override;
+	void createParameters(ParameterDataList& d) override
+	{
+		auto isPoly = NV > 1;
+		InvertableParameterRange nr(0.0, 1000.0);
+		nr.setSkewForCentre(100.0);
+
+		if(isPoly)
+			nr = InvertableParameterRange(0.0, 30.0);
+
+		{
+			parameter::data p("Limit", nr);
+			registerCallback<0>(p);
+			p.setDefaultValue(nr.rng.end);
+			d.add(p);
+		}
+		{
+			parameter::data p("DelayTime", nr);
+			registerCallback<1>(p);
+			p.setDefaultValue(0.0);
+			d.add(p);
+		}
+	}
 
 	double sr = 0.0;
 	double maxSize = -1.0;
     double currentSize = -1.0;
 };
+
+template <int NV> using jdelay = jdelay_base<LinearDelay, NV>;
+template <int NV> using jdelay_thiran = jdelay_base<ThiranDelay, NV>;
+template <int NV> using jdelay_cubic = jdelay_base<CubicDelay, NV>;
 
 struct jchorus: public base::jwrapper<juce::dsp::Chorus<float>, 1>
 {

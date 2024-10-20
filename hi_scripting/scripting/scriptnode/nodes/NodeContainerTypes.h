@@ -519,7 +519,71 @@ public:
 	wrap::oversample<OversampleFactor, SerialNode::DynamicSerialProcessor> obj;
 };
 
+class RepitchNode : public SerialNode
+{
+public:
 
+    
+    
+    SCRIPTNODE_FACTORY(RepitchNode, "repitch");
+
+    String getNodeDescription() const override { return "Resamples the audio signal and processes its child nodes with a different sample rate"; }
+
+    RepitchNode(DspNetwork* network, ValueTree d);
+
+	enum Parameters
+    {
+        RepitchFactor,
+        Interpolation,
+        numParameters
+    };
+
+    DEFINE_PARAMETERS
+    {
+        DEF_PARAMETER(RepitchFactor, RepitchNode);
+        DEF_PARAMETER(Interpolation, RepitchNode);
+    }
+
+    SN_PARAMETER_MEMBER_FUNCTION;
+    
+    void setRepitchFactor(double s)
+    {
+        obj.setParameter<0>(s);
+    }
+    
+    void setInterpolation(double s)
+    {
+        obj.setParameter<1>(s);
+    }
+    
+    void process(ProcessDataDyn& data) final;
+
+    void processFrame(FrameType& data) noexcept final override
+    {
+        
+    }
+
+    void processMonoFrame(MonoFrameType& data) override;
+
+    void processStereoFrame(StereoFrameType& data);
+
+    void prepare(PrepareSpecs ps) final;
+
+    void reset() final;
+
+    void handleHiseEvent(HiseEvent& e) final;
+
+    void setBypassed(bool shouldBeBypassed) override
+    {
+        
+    }
+
+    virtual bool hasFixedParameters() const { return true; }
+    
+    ParameterDataList createInternalParameterList() override;
+
+    wrap::repitch<DynamicSerialProcessor, wrap::interpolators::dynamic> obj;
+};
 
 template <int B> class FixedBlockNode : public SerialNode
 {
@@ -644,6 +708,54 @@ public:
 	wrap::fix_blockx<DynamicSerialProcessor, DynamicBlockProperty> obj;
 };
 
+class DynamicBlockSizeNode : public SerialNode
+{
+public:
+    
+    SCRIPTNODE_FACTORY(DynamicBlockSizeNode, "dynamic_blocksize");
+
+    String getNodeDescription() const override { return "A container that processes its childnode with a dynamic buffer size"; }
+
+    DynamicBlockSizeNode(DspNetwork* network, ValueTree d);
+
+	enum Parameters
+    {
+        BlockSize,
+        numParameters
+    };
+
+    DEFINE_PARAMETERS
+    {
+        DEF_PARAMETER(BlockSize, DynamicBlockSizeNode);
+    }
+
+    SN_PARAMETER_MEMBER_FUNCTION;
+    
+    void setBlockSize(double s);
+
+    void process(ProcessDataDyn& data) final;
+    void processFrame(FrameType& data) noexcept final;
+    void processMonoFrame(MonoFrameType& data) override;
+    void processStereoFrame(StereoFrameType& data) override;
+
+    int getBlockSizeForChildNodes() const override
+	{
+		return (isBypassed() || originalBlockSize == 1) ? originalBlockSize : obj.getBlockSize();
+	}
+
+    void prepare(PrepareSpecs ps) final;
+    void reset() final;
+    void handleHiseEvent(HiseEvent& e) final;
+    void setBypassed(bool shouldBeBypassed) override {}
+    bool hasFixedParameters() const override { return true; }
+    
+    ParameterDataList createInternalParameterList() override;
+
+private:
+
+    int blockSize = 64;
+	wrap::dynamic_blocksize<DynamicSerialProcessor> obj;
+};
 
 class SplitNode : public ParallelNode
 {
@@ -732,6 +844,48 @@ public:
 
 	float* currentChannelData[NUM_MAX_CHANNELS];
 	Range<int> channelRanges[NUM_MAX_CHANNELS];
+};
+
+class BranchNode : public ParallelNode
+{
+public:
+
+	BranchNode(DspNetwork* root, ValueTree data);;
+
+	SCRIPTNODE_FACTORY(BranchNode, "branch");
+
+	void updateIndexLimit(ValueTree, bool wasAdded);
+
+	String getNodeDescription() const override { return "Processes a single child based on the branch index"; }
+
+	enum Parameters
+    {
+        Index,
+		numParameters
+    };
+
+    DEFINE_PARAMETERS
+    {
+        DEF_PARAMETER(Index, BranchNode);
+    }
+
+    SN_PARAMETER_MEMBER_FUNCTION;
+    
+    void setIndex(double s);
+
+	void prepare(PrepareSpecs ps) final override;
+	void reset() final override;
+	void handleHiseEvent(HiseEvent& e) override;
+	void processFrame(FrameType& data) final override;
+	void process(ProcessDataDyn& d) final override;
+
+	virtual bool hasFixedParameters() const override { return true; }
+    
+    ParameterDataList createInternalParameterList() override;
+
+	valuetree::ChildListener indexRangeUpdater;
+
+	int currentIndex = 0;
 };
 
 class SingleSampleBlockX : public SerialNode

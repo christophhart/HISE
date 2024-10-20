@@ -36,6 +36,8 @@ public:
 
 private:
 
+	ProcessorEditorBodyUpdater updater;
+
 	ScopedPointer<ComboBox> effectSelector;
 
 };

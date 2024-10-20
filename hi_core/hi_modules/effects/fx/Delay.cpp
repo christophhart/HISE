@@ -57,6 +57,8 @@ DelayEffect::DelayEffect(MainController *mc, const String &id) :
 	parameterNames.add("Mix");
 	parameterNames.add("TempoSync");
 
+	updateParameterSlots();
+
 	mc->addTempoListener(this);
 
 	enableConsoleOutput(true);

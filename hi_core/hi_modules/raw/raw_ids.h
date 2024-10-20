@@ -51,24 +51,24 @@ namespace Threads
 {
 
 /** The audio thread. This might actually be more than one thread, but it is guaranteed to be a realtime thread. */
-constexpr int Audio = MainController::KillStateHandler::AudioThread;
+constexpr int Audio = (int)MainController::KillStateHandler::TargetThread::AudioThread;
 
 /** The main message thread. */
-constexpr int Message = MainController::KillStateHandler::MessageThread;
+constexpr int Message = (int)MainController::KillStateHandler::TargetThread::MessageThread;
 
 /** This is the background worker thread that is used for all tasks that take a bit longer. It is also used by the streaming engine to
 fetch new samples, so it has a almost real time priority.
 
 Normally you will offload all tasks to this thread, it has a lock free queue that will be processed regularly.
 */
-constexpr int Loading = MainController::KillStateHandler::SampleLoadingThread;
+constexpr int Loading = (int)MainController::KillStateHandler::TargetThread::SampleLoadingThread;
 
 /** The thread which executes all calls to the scripting engine - compilation, callback execution (with the exception of MIDI callbacks, which are
 happening directly in the audio thread), and even quasi-UI related functions like panel repaints / timer callbacks.
 
 It has an internal prioritisation (compilation > callbacks > UI tasks), so it makes sure that eg. multiple UI calls do not clog more important tasks.
 */
-constexpr int Script = MainController::KillStateHandler::ScriptingThread;
+constexpr int Script = (int)MainController::KillStateHandler::TargetThread::ScriptingThread;
 }
 
 /** This namespace contains the most important chain indexes used by the Builder object to figure out where to put the processor. */

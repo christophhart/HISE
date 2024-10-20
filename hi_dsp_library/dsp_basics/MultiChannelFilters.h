@@ -82,6 +82,7 @@ public:
 		LowShelf,
 		HighShelf,
 		AllPass,
+		Ladder24db,
 		numCoefficientTypes
 	};
 
@@ -153,7 +154,7 @@ public:
 	int getType() const;
 
 	static Identifier getFilterTypeId();
-	IIRCoefficients getApproximateCoefficients() const;
+	FilterDataObject::CoefficientData getApproximateCoefficients() const;
 
 	void reset(int unused = 0);
 	void processFrame(float* frameData, int channels);
@@ -171,6 +172,7 @@ private:
 	void update(FilterHelpers::RenderData& renderData);
 
 	bool dirty = false;
+	bool processed = false;
 
 	double smoothingTimeSeconds = 0.03;
 	double sampleRate = 44100.0;
@@ -212,6 +214,8 @@ public:
 	StringArray getModes() const;;
 
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;
+
+	FilterCoefficientData getCoefficients(double , double, double) const { return {}; }
 
 	void setType(int type);
 	void reset(int numChannels);
@@ -282,6 +286,8 @@ public:
 
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;
 
+	FilterCoefficientData getCoefficients(double f, double q, double) const { return {}; }
+	
 	void reset(int numChannels);
 	void setMode(int newMode);;
 	void setType(int /*t*/);;
@@ -345,6 +351,9 @@ public:
 
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;
 
+	static double getPlotValue(void* obj, bool getMagnitude, double normX);
+
+	FilterCoefficientData getCoefficients(double freqNorm, double, double) const;
 
 	SimpleOnePoleSubType();
 
@@ -382,6 +391,8 @@ public:
 	void processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples);
 	void processFrame(float* frameData, int numChannels);
 
+	FilterCoefficientData getCoefficients(double, double, double) const { return {}; }
+
 private:
 
 	double uptimeDelta = 0.0;
@@ -415,6 +426,8 @@ public:
 
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;
 
+	FilterCoefficientData getCoefficients(double, double, double) const { return {}; }
+
 	void setType(int newType);
 	void reset(int numNewChannels);
 	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples);
@@ -442,6 +455,8 @@ public:
 	static Identifier getStaticId();
 	StringArray getModes() const;
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;
+
+	FilterCoefficientData getCoefficients(double, double, double) const { return {}; }
 
 	void processSamples(AudioSampleBuffer& b, int startSample, int numSamples);
 	void processFrame(float* frameData, int numChannels);
@@ -506,6 +521,8 @@ public:
 
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;
 
+	FilterCoefficientData getCoefficients(double fnorm, double q, double) const { return {}; }
+
 	StringArray getModes() const;
 
 	void reset(int newNumChannels);
@@ -548,6 +565,8 @@ public:
 	static FilterHelpers::FilterSubType getFilterType();
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;;
 	StringArray getModes() const;
+
+	FilterCoefficientData getCoefficients(double, double, double) const { return {}; }
 
 	void reset(int newNumChannels);
 	void setType(int newType);
@@ -623,6 +642,8 @@ public:
 	StringArray getModes() const;
 
 	Array<FilterHelpers::CoefficientType> getCoefficientTypeList() const;
+
+	FilterCoefficientData getCoefficients(double, double, double) const { return {}; }
 
 	StateVariableFilterSubType();
 

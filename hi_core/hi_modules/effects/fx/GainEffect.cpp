@@ -62,6 +62,8 @@ smoothedGainR(1.0f)
 	parameterNames.add("Balance");
 	parameterNames.add("InvertPolarity");
 
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("GainChainShown");
     editorStateIdentifiers.add("DelayChainShown");
     editorStateIdentifiers.add("WidthChainShown");

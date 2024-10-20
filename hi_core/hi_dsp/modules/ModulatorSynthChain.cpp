@@ -65,14 +65,16 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 	effectChain->getFactoryType()->setConstrainer(constrainer, false);
 	effectChain->setForceMonophonicProcessingOfPolyphonicEffects(true);
 
+	updateParameterSlots();
+
 	disableChain(PitchModulation, true);
 }
 
 ModulatorSynthChain::~ModulatorSynthChain()
 {
-	modChains.clear();
-
 	getHandler()->clear();
+
+	modChains.clear();
 
 	effectChain = nullptr;
 	midiProcessorChain = nullptr;
@@ -236,6 +238,15 @@ void ModulatorSynthChain::compileAllScripts()
 			sp->getContent()->resetContentProperties();
 			sp->compileScript();
 		}
+
+		Processor::Iterator<RuntimeTargetHolder> rti(this, false);
+            
+        while(auto m = rti.getNextProcessor())
+        {
+			m->disconnectRuntimeTargets(getMainController());
+	        m->connectRuntimeTargets(getMainController());
+        }
+            
 	}
 }
 
@@ -310,7 +321,9 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 #if FORCE_INPUT_CHANNELS
     if(isRoot)
     {
-        for(int i = 0; i < buffer.getNumChannels(); i++)
+        int numChannels = jmin(buffer.getNumChannels(), internalBuffer.getNumChannels());
+        
+        for(int i = 0; i < numChannels; i++)
         {
             FloatVectorOperations::copy(internalBuffer.getWritePointer(i),
                                         buffer.getReadPointer(i), numSamples);
@@ -321,9 +334,13 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
     }
 #endif
 
+	ScopedAnalyser sa(getMainController(), this, internalBuffer, buffer.getNumSamples());
+
 	// Process the Synths and add store their output in the internal buffer
 	for (int i = 0; i < synths.size(); i++)
     {
+		ScopedAnalyser sa(getMainController(), synths[i], internalBuffer, internalBuffer.getNumSamples());
+
         if (!synths[i]->isSoftBypassed())
             synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
     }
@@ -417,12 +434,11 @@ void ModulatorSynthChain::reset()
 	}
 #endif
 	
-
-    this->getHandler()->clearAsync(nullptr);
-    
     midiProcessorChain->getHandler()->clearAsync(midiProcessorChain);
     gainChain->getHandler()->clearAsync(gainChain);
     effectChain->getHandler()->clearAsync(effectChain);
+	this->getHandler()->clearAsync(nullptr);
+
     getMatrix().resetToDefault();
     getMatrix().setNumSourceChannels(2);
 
@@ -453,7 +469,7 @@ void ModulatorSynthChain::reset()
         setAttribute(i, getDefaultValue(i), dontSendNotification);
     }
     
-    sendChangeMessage();
+    sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Preset);
 }
 
 int ModulatorSynthChain::getNumActiveVoices() const
@@ -576,8 +592,13 @@ void ModulatorSynthChain::setUseUniformVoiceHandler(bool shouldUseVoiceHandler, 
         auto cs = dynamic_cast<ModulatorSynth*>(getHandler()->getProcessor(i));
         cs->setUseUniformVoiceHandler(shouldUseVoiceHandler, externalVoiceHandler);
     }
-    
+
+#if USE_OLD_PROCESSOR_DISPATCH
     getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
+#endif
+#if USE_NEW_PROCESSOR_DISPATCH
+	dispatcher.setColour(Colours::black);
+#endif
 }
 
 
@@ -736,9 +757,17 @@ void ModulatorSynthChain::ModulatorSynthChainHandler::clear()
 {
 	notifyListeners(Listener::Cleared, nullptr);
 
-	ScopedLock sl(synth->getMainController()->getLock());
+	auto root = synth->getMainController()->getMainSynthChain();
 
-	synth->synths.clear();
+	if(root == nullptr || root == synth)
+	{
+		ScopedLock sl(synth->getMainController()->getLock());
+		synth->synths.clear();
+	}
+	else
+	{
+		clearAsync(synth);
+	}
 }
 
 

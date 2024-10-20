@@ -59,6 +59,8 @@ AhdsrEnvelope::AhdsrEnvelope(MainController *mc, const String &id, int voiceAmou
 	parameterNames.add("DecayCurve");
 	parameterNames.add("EcoMode");
 
+	updateParameterSlots();
+
 	displayBuffer = new SimpleRingBuffer();
 	displayBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 
@@ -246,7 +248,7 @@ void AhdsrEnvelope::calculateBlock(int startSample, int numSamples)
 		const float thisSustainValue = sustain * state->modValues[SustainLevelChain];
 		const float lastSustainValue = state->lastSustainValue;
 		
-		if (std::abs(thisSustainValue - lastSustainValue) > 0.001f)
+		if (FloatSanitizers::isNotSilence(thisSustainValue - lastSustainValue))
 		{
 			const float stepSize = (thisSustainValue - lastSustainValue) / (float)numSamples;
 			float* bufferPointer = internalBuffer.getWritePointer(0, startSample);

@@ -36,6 +36,7 @@ namespace hise { using namespace juce;
 
 struct ScriptTableListModel : public juce::TableListBoxModel,
 							  public ReferenceCountedObject,
+						      public DebugableObjectBase,
 							  public PooledUIUpdater::SimpleTimer,
 							  public AsyncUpdater
 {
@@ -121,6 +122,9 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
 	void setup(juce::TableListBox* t);
 
+	/** Override this and return the class id of this object. */
+	virtual Identifier getObjectName() const { RETURN_STATIC_IDENTIFIER("TableModel"); }
+
 	CellType getCellType(int columnId) const;
 
 	void setTableColumnData(var cd);
@@ -179,8 +183,20 @@ struct ScriptTableListModel : public juce::TableListBoxModel,
 
     var getRowData() const;
 
+	String getCellTooltip (int, int) override
+	{
+		return tooltip;
+	}
+
+	void setTooltip(const String& newTooltip)
+	{
+		tooltip = newTooltip;
+	}
 
 private:
+
+	String tooltip;
+
 
 	bool shouldSendCallOnDrag() const
 	{

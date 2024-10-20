@@ -42,7 +42,7 @@ class SaturatorEffect : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("Saturator", "Saturator", "deprecated")
+	SET_PROCESSOR_NAME("Saturator", "Saturator", "Applies a simple saturation effect")
 
 	enum InternalChains
 	{

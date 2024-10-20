@@ -91,6 +91,7 @@ struct Helpers
 			initProperties({
 				"BufferLength",
 				"WindowType",
+				"Overlap",
 				"DecibelRange",
 				"UsePeakDecay",
 				"UseDecibelScale",
@@ -103,16 +104,15 @@ struct Helpers
 		void initProperties(const StringArray& ids)
 		{
 			for (auto& s : ids)
-			{
-				Identifier id(s);
-				properties.set(id, getProperty(id));
-			}
+				properties.add({s, getProperty(s)});
 		}
 
 		void initialiseRingBuffer(SimpleRingBuffer* b) override
 		{
 			PropertyObject::initialiseRingBuffer(b);
-			b->setRingBufferSize(1, properties["BufferLength"]);
+
+			fftBufferSize = getPropertyInternal("BufferLength", 8192);
+			refreshFFTSize();
 		}
 
 		RingBufferComponentBase* createComponent();
@@ -121,7 +121,9 @@ struct Helpers
 
 		void setProperty(const Identifier& id, const var& newValue) override
 		{
-			if (id.toString() == "WindowType")
+			auto key = id.toString();
+
+			if (key == "WindowType")
 			{
 				auto wt = newValue.toString();
 				auto types = FFTHelpers::getAvailableWindowTypes();
@@ -133,13 +135,21 @@ struct Helpers
 						if (currentWindow != types[i])
 						{
 							currentWindow = types[i];
-							buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+
+							if(buffer != nullptr)
+								buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+
 							refreshWindow();
 						}
 					}
 				}
 			}
-			if (id.toString() == "DecibelRange")
+			if(key == "Overlap")
+			{
+				overlap = jlimit(0.0, 0.875, (double)newValue);
+				refreshFFTSize();
+			}
+			if (key == "DecibelRange")
 			{
 				if (auto ar = newValue.isArray())
 				{
@@ -148,45 +158,67 @@ struct Helpers
 					if (newRange != dbRange)
 					{
 						dbRange = newRange;
-						buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+
+						if(buffer != nullptr)
+							buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
 					}
 				}
 
 			}
-			if (id.toString() == "UsePeakDecay")
+			if (key == "UsePeakDecay")
 			{
 				usePeakDecay = (bool)newValue;
 			}
-			if (id.toString() == "UseDecibelScale")
+			if (key == "UseDecibelScale")
 			{
 				auto shouldUse = (bool)newValue;
 
 				if (useDb != shouldUse)
 				{
 					useDb = shouldUse;
-					buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+
+					if(buffer != nullptr)
+						buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
 				}
 			}
-			if (id.toString() == "YGamma")
+			if (key == "YGamma")
 			{
 				yGamma = jlimit(0.1f, 32.0f, (float)newValue);
 			}
-			if (id.toString() == "Decay")
+			if (key == "Decay")
 			{
 				decay = jlimit(0.0f, 0.99999f, (float)newValue);
 			}
-			if (id.toString() == "UseLogarithmicFreqAxis")
+			if (key == "UseLogarithmicFreqAxis")
 			{
 				auto shouldUseLogX = (bool)newValue;
 
 				if (useLogX != shouldUseLogX)
 				{
 					useLogX = shouldUseLogX;
-					buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
+
+					if(buffer != nullptr)
+						buffer->getUpdater().sendContentChangeMessage(sendNotificationAsync, -1);
 				}
 			}
-
+			if ((key == "BufferLength"))
+			{
+				setPropertyInternal(key, newValue);
+				fftBufferSize = (int)newValue;
+				refreshFFTSize();
+				return;
+			}
+			
 			PropertyObject::setProperty(id, newValue);
+		}
+
+		void refreshFFTSize()
+		{
+			if(buffer == nullptr)
+				return;
+
+			if(auto numActual = addOverlap(fftBufferSize))
+				buffer->setRingBufferSize(1, numActual);
 		}
 
 		var getProperty(const Identifier& id) const override
@@ -195,8 +227,10 @@ struct Helpers
 			{
 				if (buffer == nullptr)
 					return 8192;
-				return buffer->getReadBuffer().getNumSamples();
+				return removeOverlap(buffer->getReadBuffer().getNumSamples());
 			}
+			if(id.toString() == "Overlap")
+				return var(overlap);
 			if (id.toString() == "Decay")
 			{
 				return var(decay);
@@ -213,7 +247,6 @@ struct Helpers
 			{
 				return var(FFTHelpers::getWindowType(currentWindow));
 			}
-
 			if (id.toString() == "UseLogarithmicFreqAxis")
 			{
 				return var(useLogX);
@@ -233,17 +266,32 @@ struct Helpers
 			return PropertyObject::getProperty(id);
 		}
 
+		int addOverlap(int bufferSizeWithoutOverlap) const
+		{
+			jassert(isPowerOfTwo(bufferSizeWithoutOverlap));
+			return roundToInt((double)bufferSizeWithoutOverlap * (1.0 + overlap));
+		}
+
+		int removeOverlap(int bufferSizeWithOverlap) const
+		{
+			auto num = roundToInt((double)bufferSizeWithOverlap / (1.0 + overlap));
+			jassert(isPowerOfTwo(num));
+			return num;
+		}
+
 		void resizeBuffers(int requiredSize)
 		{
-			if (lastBuffer.getNumSamples() != requiredSize)
+			auto windowSize = removeOverlap(requiredSize);
+
+			if (lastBuffer.getNumSamples() != windowSize)
 			{
-				lastBuffer.setSize(1, requiredSize, true, true, true);
+				lastBuffer.setSize(1, windowSize, true, true, true);
 				lastBuffer.clear();
 			}
 
-			if (windowBuffer.getNumSamples() / 2 != requiredSize)
+			if (windowBuffer.getNumSamples() / 2 != windowSize)
 			{
-				windowBuffer.setSize(1, requiredSize * 2);
+				windowBuffer.setSize(1, windowSize * 2);
 				refreshWindow();
 			}
 		}
@@ -261,9 +309,11 @@ struct Helpers
 		{
 			if (id == RingBufferIds::BufferLength)
 			{
-				auto capped = jlimit<int>(1024, 32768, desiredSize);
-				auto ns = nextPowerOfTwo(capped);
+				auto x = removeOverlap (desiredSize);
 
+				auto capped = jlimit<int>(1024.0, 32768.0, x);
+				auto ns = roundToInt(addOverlap(capped));
+				
 				if (ns != desiredSize)
 				{
 					desiredSize = ns;
@@ -284,9 +334,11 @@ struct Helpers
 
 		bool useLogX = true;
 		bool useDb = true;
-		Range<float> dbRange = { -50.0f, 0.0 };
+		Range<float> dbRange = { -100.0f, 0.0 };
 		float yGamma = 1.0f;
 		float decay = 0.7f;
+		float overlap = 0.0f;
+		int fftBufferSize = 0;
 
 		mutable AudioSampleBuffer windowBuffer;
 		mutable AudioSampleBuffer lastBuffer;
@@ -413,15 +465,8 @@ public:
 		if(isProcessingHiseEvent() && rb != nullptr && e.isNoteOn())
 		{
 			auto sr = rb->getSamplerate();
-			
 			auto numSamplesForCycle = 1.0 / e.getFrequency() * sr;
-
-			while (numSamplesForCycle < 128.0 && numSamplesForCycle != 0.0)
-				numSamplesForCycle *= 2.0;
-
-			syncSamples = roundToInt(numSamplesForCycle);
-
-			triggerAsyncUpdate();
+			rb->setMaxLength(numSamplesForCycle);
 		}
 	}
 
@@ -518,10 +563,13 @@ struct simple_gon_display : public hise::GoniometerBase,
 							public ComponentWithDefinedSize
 {
 	simple_gon_display() = default;
-
+	
 	Colour getColourForAnalyserBase(int colourId) override
 	{
-		return Helpers::getColourBase(colourId);
+		if(useCustomColours)
+			return findColour(colourId, false);
+		else
+			return Helpers::getColourBase(colourId);
 	}
 
 	Rectangle<int> getFixedBounds() const override { return { 0, 0, 256, 256 }; }

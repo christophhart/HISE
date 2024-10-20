@@ -52,7 +52,6 @@ END_JUCE_MODULE_DECLARATION
 
 #pragma once
 
-#include "AppConfig.h"
 
 
 
@@ -97,14 +96,12 @@ END_JUCE_MODULE_DECLARATION
 #endif
 
 
-/** Config: HISE_ENABLE_LORIS_ON_FRONTEND
+/** Config: HISE_INCLUDE_RT_NEURAL
  
- Includes the Loris Manager for compiled plugins. Be aware that the Loris library is only licensed under
- the GPLv3 license, so you must not enable this flag for proprietary products!.
- 
- */
-#ifndef HISE_ENABLE_LORIS_ON_FRONTEND
-#define HISE_ENABLE_LORIS_ON_FRONTEND 0
+   Includes the neural network framework RTNeural for inferencing networks in realtime.
+*/
+#ifndef HISE_INCLUDE_RT_NEURAL
+#define HISE_INCLUDE_RT_NEURAL 1
 #endif
 
 /** Config: HISE_USE_EXTENDED_TEMPO_VALUES
@@ -136,8 +133,13 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "../JUCE/modules/juce_gui_extra/juce_gui_extra.h"
 #include "../JUCE/modules/juce_opengl/juce_opengl.h"
 #include "../hi_rlottie/hi_rlottie.h"
+#include "../melatonin_blur/melatonin_blur.h"
 #endif
 
+// Include at least the thread controller to avoid compile errors...
+#if !HISE_INCLUDE_LORIS
+#include "../hi_loris/wrapper/ThreadController.h"
+#endif
 
 #include "../hi_streaming/hi_streaming.h"
 
@@ -207,7 +209,9 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_tools/PathFactory.h"
 #include "hi_tools/HI_LookAndFeels.h"
 
-#if USE_BACKEND || HISE_ENABLE_LORIS_ON_FRONTEND
+#include "hi_dispatch/hi_dispatch.h"
+
+#if HISE_INCLUDE_LORIS
 #include "hi_tools/LorisManager.h"
 #endif
 
@@ -217,6 +221,8 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_tools/Tables.h"
 
 #include "hi_tools/ValueTreeHelpers.h"
+
+#include "hi_tools/runtime_target.h"
 
 #if USE_IPP
 
@@ -256,6 +262,9 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_standalone_components/ScriptWatchTable.h"
 #include "hi_standalone_components/ComponentWithPreferredSize.h"
 #include "hi_standalone_components/ZoomableViewport.h"
+#if USE_BACKEND
+#include "hi_standalone_components/PerfettoWebViewer.h"
+#endif
 #else
 using ComponentWithMiddleMouseDrag = juce::Component;
 #define CHECK_MIDDLE_MOUSE_DOWN(e) ignoreUnused(e);
@@ -270,9 +279,10 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 #include "hi_standalone_components/RLottieDevComponent.h"
 #endif
 
-#include "hi_standalone_components/Plotter.h"
+
 
 #include "hi_standalone_components/RingBuffer.h"
+#include "hi_standalone_components/Plotter.h"
 
 #include "hi_standalone_components/SliderPack.h"
 #include "hi_standalone_components/TableEditor.h"
@@ -288,4 +298,15 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 
 
 
+#if HISE_INCLUDE_RT_NEURAL
+#include "hi_neural/hi_neural.h"
+#endif
 
+#if !HISE_NO_GUI_TOOLS
+
+#include "simple_css/simple_css.h"
+#endif
+
+#if !HISE_NO_GUI_TOOLS
+#include "hi_multipage/multipage.h"
+#endif

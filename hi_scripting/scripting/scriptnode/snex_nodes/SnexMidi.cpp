@@ -38,68 +38,20 @@ using namespace hise;
 namespace midi_logic
 {
 
-using namespace snex;
-
-String dynamic::getEmptyText(const Identifier& id) const
-{
-#if HISE_INCLUDE_SNEX
-	cppgen::Base c(cppgen::Base::OutputType::AddTabs);
-
-	
-
-	cppgen::Struct s(c, id, {}, {TemplateParameter(NamespacedIdentifier("NumVoices"), 0, false)});
-
-	addSnexNodeId(c, id);
-
-	c << "void prepare(PrepareSpecs ps)";
-
-	{
-		cppgen::StatementBlock sb(c);
-	}
-	
-	c.addComment("Return 1 and set value if you want to process this event", snex::cppgen::Base::CommentType::Raw);
-	c << "int getMidiValue(HiseEvent& e, double& value)";
-	{
-		cppgen::StatementBlock sb(c);
-		c << "return 0;";
-	}
-
-	String pf;
-	c.addEmptyLine();
-	addDefaultParameterFunction(pf);
-	c << pf;
-
-	s.flushIfNot();
-
-	return c.toString();
-#else
-	return {};
-#endif
-}
-
 dynamic::dynamic() :
-	OptionalSnexSource(),
-	callbacks(*this, object),
 	mode(PropertyIds::Mode, "Gate")
-{
-	setCallbackHandler(&callbacks);
-}
-
-
+{}
 
 void dynamic::prepare(PrepareSpecs ps)
 {
-	ScriptnodeExceptionHandler::validateMidiProcessingContext(getParentNode());
-
-	if (currentMode == Mode::Custom)
-		callbacks.prepare(ps);
+    if(parentNode != nullptr)
+        ScriptnodeExceptionHandler::validateMidiProcessingContext(parentNode);
 }
 
 
 void dynamic::initialise(NodeBase* n)
 {
-	OptionalSnexSource::initialise(n);
-
+    parentNode = n;
 	mode.initialise(n);
 	mode.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(dynamic::setMode), true);
 }
@@ -130,50 +82,34 @@ bool dynamic::getMidiValue(HiseEvent& e, double& v)
 
 bool dynamic::getMidiValueWrapped(HiseEvent& e, double& v)
 {
-	switch (currentMode)
-	{
-	case Mode::Gate:
-		return gate<0>().getMidiValue(e, v);
-	case Mode::Velocity:
-		return velocity<0>().getMidiValue(e, v);
-	case Mode::NoteNumber:
-		return notenumber<0>().getMidiValue(e, v);
-	case Mode::Frequency:
-		return frequency<0>().getMidiValue(e, v);
-
-	case Mode::Custom:
-	{
-#if HISE_INCLUDE_SNEX
-		HiseEvent* eptr = &e;
-		double* s = &v;
-		return callbacks.getMidiValue(eptr, s);
-#else
-		jassertfalse;
-		return 1.0f;
-#endif
-	}
-	}
-
-	return false;
+    switch (currentMode)
+    {
+        case Mode::Gate:
+            return gate<0>().getMidiValue(e, v);
+        case Mode::Velocity:
+            return velocity<0>().getMidiValue(e, v);
+        case Mode::NoteNumber:
+            return notenumber<0>().getMidiValue(e, v);
+        case Mode::Frequency:
+            return frequency<0>().getMidiValue(e, v);
+        case Mode::Random:
+            return random<0>().getMidiValue(e, v);
+    }
+    
+    return false;
 }
 
-
-
-#if HISE_INCLUDE_SNEX
+    
 dynamic::editor::editor(dynamic* t, PooledUIUpdater* updater) :
 	ScriptnodeExtraComponent<dynamic>(t, updater),
-	menuBar(t),
 	dragger(updater),
 	midiMode("Gate"),
 	meter(updater)
 {
-	t->addCompileListener(this);
-
-	midiMode.initModes(dynamic::getModes(), t->getParentNode());
+	midiMode.initModes(dynamic::getModes(), t->parentNode);
 
 	meter.setModValue(t->lastValue);
 
-	
 	addAndMakeVisible(midiMode);
 
 	midiMode.mode.asJuceValue().addListener(this);
@@ -182,10 +118,9 @@ dynamic::editor::editor(dynamic* t, PooledUIUpdater* updater) :
     
 	valueChanged(v);
 
-	addAndMakeVisible(menuBar);
 	this->addAndMakeVisible(meter);
 	this->addAndMakeVisible(dragger);
-	this->setSize(256, 100);
+	this->setSize(256, 100 - 24 - 18);
 }
 
 void dynamic::editor::valueChanged(Value& value)
@@ -200,8 +135,6 @@ void dynamic::editor::paint(Graphics& g)
 	g.setColour(Colours::white.withAlpha(0.2f));
 	g.setFont(GLOBAL_BOLD_FONT());
 
-	b.removeFromTop(menuBar.getHeight());
-
 	g.drawText("Normalised MIDI Value", b.removeFromTop(18).toFloat(), Justification::left);
 	b.removeFromTop(meter.getHeight());
 
@@ -212,11 +145,7 @@ void dynamic::editor::paint(Graphics& g)
 
 void dynamic::editor::resized()
 {
-	auto b = this->getLocalBounds();
-	menuBar.setBounds(b.removeFromTop(24));
-
-	b.removeFromTop(18);
-
+    auto b = getLocalBounds();
 	meter.setBounds(b.removeFromTop(8));
 	b.removeFromTop(18);
 	auto r = b.removeFromTop(24);
@@ -238,41 +167,9 @@ void dynamic::editor::timerCallback()
 
 		meter.setColour(VuMeter::ledColour, c2);
 	}
-
-	auto snexEnabled = getObject()->currentMode == Mode::Custom;
-	menuBar.setAlpha(snexEnabled ? 1.0f : 0.1f);
 }
 
 
-void dynamic::CustomMidiCallback::reset()
-{
-	SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
-
-	ok = false;
-	prepareFunction = {};
-	midiFunction = {};
-}
-
-Result dynamic::CustomMidiCallback::recompiledOk(snex::jit::ComplexType::Ptr objectClass)
-{
-	auto newGetMidiFunc = getFunctionAsObjectCallback("getMidiValue");
-	auto newPrepareFunc = getFunctionAsObjectCallback("prepare");
-
-	auto r = newGetMidiFunc.validateWithArgs("int", {"HiseEvent&", "double&"});
-
-	if (r.wasOk())
-		r = newPrepareFunc.validateWithArgs("void", {"PrepareSpecs"});
-
-	{
-		SimpleReadWriteLock::ScopedWriteLock l(getAccessLock());
-		ok = r.wasOk();
-		std::swap(midiFunction, newGetMidiFunc);
-		std::swap(prepareFunction, newPrepareFunc);
-	}
-
-	return r;
-}
-#endif
 
 }
 

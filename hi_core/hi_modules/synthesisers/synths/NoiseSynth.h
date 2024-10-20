@@ -149,7 +149,7 @@ public:
 
 	void checkRelease() override
 	{
-		if (killThisVoice && (killFadeLevel < 0.001f))
+		if (killThisVoice && FloatSanitizers::isSilence(killFadeLevel))
 		{
 			resetVoice();
 			return;

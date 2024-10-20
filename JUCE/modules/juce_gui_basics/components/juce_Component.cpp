@@ -1248,9 +1248,11 @@ void Component::sendMovedResizedMessages (bool wasMoved, bool wasResized)
         });
     }
 
+#if 0
     if ((wasMoved || wasResized) && ! checker.shouldBailOut())
         if (auto* handler = getAccessibilityHandler())
             notifyAccessibilityEventInternal (*handler, InternalAccessibilityEvent::elementMovedOrResized);
+#endif
 }
 
 void Component::setSize (int w, int h)                  { setBounds (getX(), getY(), w, h); }
@@ -2018,6 +2020,14 @@ void Component::paintComponentAndChildren (Graphics& g)
             paint (g);
     }
 
+    paintChildComponents(g, clipBounds);
+
+    Graphics::ScopedSaveState ss (g);
+    paintOverChildren (g);
+}
+
+void Component::paintChildComponents(Graphics& g, Rectangle<int> clipBounds)
+{
     for (int i = 0; i < childComponentList.size(); ++i)
     {
         auto& child = *childComponentList.getUnchecked (i);
@@ -2025,46 +2035,43 @@ void Component::paintComponentAndChildren (Graphics& g)
         if (child.isVisible())
         {
             if (child.affineTransform != nullptr)
-            {
-                Graphics::ScopedSaveState ss (g);
+		    {
+		        Graphics::ScopedSaveState ss (g);
 
-                g.addTransform (*child.affineTransform);
+		        g.addTransform (*child.affineTransform);
 
-                if ((child.flags.dontClipGraphicsFlag && ! g.isClipEmpty()) || g.reduceClipRegion (child.getBounds()))
-                    child.paintWithinParentContext (g);
-            }
-            else if (clipBounds.intersects (child.getBounds()))
-            {
-                Graphics::ScopedSaveState ss (g);
+		        if ((child.flags.dontClipGraphicsFlag && ! g.isClipEmpty()) || g.reduceClipRegion (child.getBounds()))
+		            child.paintWithinParentContext (g);
+		    }
+		    else if (clipBounds.intersects (child.getBounds()))
+		    {
+		        Graphics::ScopedSaveState ss (g);
 
-                if (child.flags.dontClipGraphicsFlag)
-                {
-                    child.paintWithinParentContext (g);
-                }
-                else if (g.reduceClipRegion (child.getBounds()))
-                {
-                    bool nothingClipped = true;
+		        if (child.flags.dontClipGraphicsFlag)
+		        {
+		            child.paintWithinParentContext (g);
+		        }
+		        else if (g.reduceClipRegion (child.getBounds()))
+		        {
+		            bool nothingClipped = true;
 
-                    for (int j = i + 1; j < childComponentList.size(); ++j)
-                    {
-                        auto& sibling = *childComponentList.getUnchecked (j);
+		            for (int j = i + 1; j < childComponentList.size(); ++j)
+		            {
+		                auto& sibling = *childComponentList.getUnchecked (j);
 
-                        if (sibling.flags.opaqueFlag && sibling.isVisible() && sibling.affineTransform == nullptr)
-                        {
-                            nothingClipped = false;
-                            g.excludeClipRegion (sibling.getBounds());
-                        }
-                    }
+		                if (sibling.flags.opaqueFlag && sibling.isVisible() && sibling.affineTransform == nullptr)
+		                {
+		                    nothingClipped = false;
+		                    g.excludeClipRegion (sibling.getBounds());
+		                }
+		            }
 
-                    if (nothingClipped || ! g.isClipEmpty())
-                        child.paintWithinParentContext (g);
-                }
-            }
+		            if (nothingClipped || ! g.isClipEmpty())
+		                child.paintWithinParentContext (g);
+		        }
+		    }
         }
     }
-
-    Graphics::ScopedSaveState ss (g);
-    paintOverChildren (g);
 }
 
 void Component::paintEntireComponent (Graphics& g, bool ignoreAlphaLevel)

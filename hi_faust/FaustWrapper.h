@@ -9,6 +9,22 @@ using namespace std::chrono_literals;
 namespace scriptnode {
 namespace faust {
 
+struct FaustVersionChecker
+{
+	static void checkFaustVersion()
+	{
+		static constexpr int faustVersion = FAUSTMAJORVERSION * 1000000 + FAUSTMINORVERSION * 1000 + FAUSTPATCHVERSION;
+
+		// 2.74.6 is required from now on...
+		static constexpr int minFaustVersion = 2 * 1000000 + 74 * 1000 + 6;
+
+		if(faustVersion < minFaustVersion)
+		{
+			scriptnode::Error::throwError(Error::OldFaustVersion, minFaustVersion, faustVersion);
+		}
+	}
+};
+
 /** wrapper struct for faust types to avoid name-clash.
 
 	This is the base class for every faust node - statically compiled C++ faust nodes
@@ -100,6 +116,8 @@ template <int NV, class ParameterClass> struct faust_base_wrapper
 			_nFramesMax = specs.blockSize;
 			resizeBuffer();
 		}
+
+		FaustVersionChecker::checkFaustVersion();
 
 		// recompile if sample rate changed
 		int newSampleRate = (int)specs.sampleRate;

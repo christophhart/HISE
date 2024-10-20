@@ -181,6 +181,8 @@ public:
 
 		virtual bool onDragAction(DragAction a, ScriptComponent* source, var& data) { return false; }
 
+		virtual void suspendStateChanged(bool isSuspended) {};
+
 	private:
 
 		friend class WeakReference<RebuildListener>;
@@ -210,6 +212,7 @@ public:
 		public ConstScriptingObject,
 		public AssignableObject,
 		public SafeChangeBroadcaster,
+		NEW_AUTOMATION_WITH_COMMA(dispatch::ListenerOwner)
 		public UpdateDispatcher::Listener
 	{
 		using Ptr = ReferenceCountedObjectPtr<ScriptComponent>;
@@ -337,6 +340,11 @@ public:
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
+		virtual ValueToTextConverter getValueToTextConverter() const
+		{
+			return {};
+		}
+
 		Location getLocation() const override
 		{
 			return location;
@@ -379,8 +387,11 @@ public:
 		var getNonDefaultScriptObjectProperties() const;
 
 		String getScriptObjectPropertiesAsJSON() const;
-		
-		
+
+		void updateAutomation(int, float newValue)
+		{
+			setValue(newValue);
+		}
 
 		bool isPropertyDeactivated(Identifier &id) const;
 		bool hasProperty(const Identifier& id) const;
@@ -525,6 +536,9 @@ public:
 		/** Adds a callback to react on key presses (when this component is focused). */
 		void setKeyPressCallback(var keyboardFunction);
 
+		/** Registers a selection of key presses to be consumed by this component. */
+		void setConsumedKeyPresses(var listOfKeys);
+
 		/** Call this method in order to give away the focus for this component. */
 		void loseFocus();
 
@@ -546,6 +560,15 @@ public:
 		/** Updates the value from the processor connection. Call this method whenever the module state has changed and you want
 			to refresh the knob value to show the current state. */
 		void updateValueFromProcessorConnection();
+
+		/** Sets a variable for this component that can be queried from a style sheet. */
+		void setStyleSheetProperty(const String& variableId, const var& value, const String& type);
+
+		/** Sets the given class selectors for the component stylesheet. */
+		void setStyleSheetClass(const String& classIds);
+
+		/** Programatically sets a pseudo state (:hover, :active, :checked, :focus, :disabled) that will be used by the CSS renderer. */
+		void setStyleSheetPseudoState(const String& pseudoState);
 
 		// End of API Methods ============================================================================================
 
@@ -579,7 +602,7 @@ public:
 		Content *parent;
 		bool skipRestoring;
 
-		
+		ValueTree styleSheetProperties;
 
 		WeakReference<WeakCallbackHolder::CallableObject> valueListener;
 		
@@ -641,7 +664,7 @@ public:
 		void handleScriptPropertyChange(const Identifier& id);
 
 		/** Returns a local look and feel if it was registered before. */
-		LookAndFeel* createLocalLookAndFeel();
+		LookAndFeel* createLocalLookAndFeel(ScriptContentComponent* contentComponent, Component* componentToRegister);
 
 		static Array<Identifier> numberPropertyIds;
 		static bool numbersInitialised;
@@ -677,7 +700,22 @@ public:
 
 		MacroControlledObject::ModulationPopupData::Ptr getModulationData() const { return modulationData; }
 
+		int getStyleSheetPseudoState() const { return pseudoState; }
+
 	protected:
+
+		String getCSSFromLocalLookAndFeel()
+		{
+			if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(localLookAndFeel.getObject()))
+			{
+				if(l->isUsingCSS())
+				{
+					return l->currentStyleSheet;
+				}
+			}
+
+			return {};
+		}
 
 		bool isCorrectlyInitialised(int p) const
 		{
@@ -725,11 +763,24 @@ public:
 
 	private:
 
+		enum class AllCatchBehaviour
+		{
+			Inactive,
+			Exclusive,
+			NonExlusive
+		};
+
+		int pseudoState = 0;
+
 		void sendValueListenerMessage();
 
 		var localLookAndFeel;
 
 		MacroControlledObject::ModulationPopupData::Ptr modulationData;
+
+        bool consumedCalled = false;
+		AllCatchBehaviour catchAllKeys = AllCatchBehaviour::Exclusive;
+		Array<juce::KeyPress> registeredKeys;
 
 		WeakCallbackHolder keyboardCallback;
 
@@ -775,6 +826,8 @@ public:
 		ValueTree propertyTree;
 
 		Array<Identifier> scriptChangedProperties;
+
+		IF_NEW_AUTOMATION_DISPATCH(dispatch::library::CustomAutomationSource::Listener automationListener);
 
         struct SubComponentNotifier: public AsyncUpdater
         {
@@ -912,6 +965,12 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto m = getScriptObjectProperty(ScriptSlider::Properties::Mode).toString();
+			return ValueToTextConverter::createForMode(m);
+		}
+
 		Array<PropertyWithValue> getLinkProperties() const override;
 
 		// ======================================================================================================== API Methods
@@ -993,6 +1052,7 @@ public:
 			isMomentary,
 			enableMidiLearn,
             setValueOnClick,
+			mouseCursor,
 			numProperties
 		};
 
@@ -1011,6 +1071,11 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 
 		void handleDefaultDeactivatedProperties() override;
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			return ValueToTextConverter::createForOptions({ "Off", "On" });
+		}
 
 		// ======================================================================================================== API Methods
 
@@ -1062,6 +1127,7 @@ public:
 			FontStyle,
 			enableMidiLearn,
             popupAlignment,
+            useCustomPopup,
 			numProperties
 		};
 
@@ -1083,6 +1149,13 @@ public:
 		void resetValueToDefault() override
 		{
 			setValue((int)getScriptObjectProperty(defaultValue));
+		}
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ValueToTextConverter::createForOptions(sa);
 		}
 
 		void handleDefaultDeactivatedProperties();
@@ -1303,6 +1376,7 @@ public:
 			ShowValueOverlay,
 			SliderPackIndex,
 			CallbackOnMouseUpOnly,
+			StepSequencerMode,
 			numProperties
 		};
 
@@ -1395,6 +1469,7 @@ public:
 			showFileName,
 			sampleIndex,
 			enableRange,
+			loadWithLeftClick,
 			numProperties
 		};
 
@@ -1687,7 +1762,7 @@ public:
 		void setPopupData(var jsonData, var position);
         
         /** Sets a new value, stores this action in the undo manager and calls the control callbacks. */
-        void setValueWithUndo(var oldValue, var newValue, var actionName);
+        void setPanelValueWithUndo(var oldValue, var newValue, var actionName);
         
 		/** Opens the panel as popup. */
 		void showAsPopup(bool closeOtherPopups);
@@ -1781,6 +1856,8 @@ public:
 
 		String fileDropExtension;
 		String fileDropLevel;
+
+		dispatch::AccumulatedFlowManager flowManager;
 
 	private:
 
@@ -1880,6 +1957,13 @@ public:
 		void resetValueToDefault() override
 		{
 			setValue((int)getScriptObjectProperty(defaultValue));
+		}
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ValueToTextConverter::createForOptions(sa);
 		}
 
 		void setValue(var newValue) override;
@@ -2064,6 +2148,380 @@ public:
 		// ========================================================================================================
 	};
 
+	/*
+
+		TODO:
+
+		- implement all other callbacks
+		- remove all Broadcaster stuff again OK
+		- add export & import from .dat file && Base64
+		- remove all floating tile stuff OK
+		- fix hiding of backdrop when opening new window OK
+		- fix recompilation while function is in progress OK
+		- add font, text colour & other colour properties OK
+		- append to Stylesheet content, not replace
+		- big todo: make debugger in scriptwatchtable popup (or even as floating tile?)
+		- big todo: remove Javascript API altogether?
+		- add API for handling modal popups within dialog
+		- add mp.navigate(index, bool submitCurrentPage)
+		- add mp.refresh() individual
+		- fix stopped tasks being repeated & stuck when stopped & reloaded window OK
+		- add mp.exportAsJSON(file)
+	 */
+	struct ScriptMultipageDialog: public ScriptComponent
+	{
+		enum Properties
+		{
+			Font  = ScriptComponent::Properties::numProperties,
+			FontSize,
+			EnableConsoleOutput,
+			DialogWidth,
+			DialogHeight,
+			UseViewport,
+			StyleSheet,
+			ConfirmClose,
+			numProperties
+		};
+
+		// ========================================================================================================
+
+		ScriptMultipageDialog(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);
+		~ScriptMultipageDialog() override;;
+
+		// ========================================================================================================
+
+		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
+
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptMultipageDialog"); }
+		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
+
+		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		StringArray getOptionsFor(const Identifier &id) override;
+		
+		void handleDefaultDeactivatedProperties() override;
+
+		void setValue(var newValue) override {};
+
+		var getValue() const override { return var(); }
+
+		// ========================================================================================================
+
+		/** Clears the dialog. */
+		void resetDialog();
+
+		/** Adds a page to the dialog and returns the element index of the page. */
+		int addPage();
+
+		/** Adds a modal page to the dialog that can be populated like a normal page and shown using showModalPage(). */
+		int addModalPage();
+
+		/** Shows a modal page with the given index and the state object. */
+		void showModalPage(int pageIndex, var modalState, var finishCallback);
+
+		/** Adds an element to the parent with the given type and properties. */
+		int add(int parentIndex, String type, const var& properties);
+
+		/** Registers a callable object to the dialog and returns the codestring that calls it from within the dialogs Javascript engine. */
+		String bindCallback(String id, var callback, var notificationType);
+
+		/** Registers a function that will be called when the dialog is finished. */
+		void setOnFinishCallback(var onFinish);
+
+		/** Registers a function that will be called when the dialog shows a new page. */
+		void setOnPageLoadCallback(var onPageLoad);
+
+		/** Shows the dialog (with optionally clearing the state. */
+		void show(bool clearState);
+
+		/** Navigates to the given page index. */
+		bool navigate(int pageIndex, bool submitCurrentPage)
+		{
+			getMultipageState()->currentPageIndex = pageIndex;
+
+			if(submitCurrentPage && getMultipageState()->getFirstDialog() != nullptr)
+			{
+				SafeAsyncCall::call<multipage::State>(*getMultipageState(), [pageIndex](multipage::State& s)
+				{
+					s.currentPageIndex = pageIndex - 1;
+					s.getFirstDialog()->navigate(true);
+				});
+				
+				return true;
+			}
+			else
+			{
+				SafeAsyncCall::call<multipage::State>(*getMultipageState(), [pageIndex](multipage::State& s)
+				{
+					s.currentPageIndex = pageIndex;
+
+					for(auto f: s.currentDialogs)
+						f->refreshCurrentPage();
+					
+				});
+
+				return true;
+			}
+		}
+
+		/** Closes the dialog (as if the user pressed the cancel button). */
+		void cancel();
+
+		/** Sets the property for the given element ID and updates the dialog. */
+		void setElementProperty(int elementId, String propertyId, const var& newValue);
+
+		/** Sets the value of the given element ID and calls the callback. */
+		void setElementValue(int elementId, var value);
+
+		/** Returns the value for the given element ID. */
+		var getElementProperty(int elementId, String propertyId) const;
+
+		/** returns the state object for the dialog. */
+		var getState();
+
+		/** Loads the dialog from a file (on the disk). */
+		void loadFromDataFile(var fileObject);
+
+		/** Exports the entire dialog. */
+		String exportAsMonolith(var optionalFile);
+
+		// ========================================================================================================
+
+		void sendRepaintMessage() override
+		{
+			if(backdropBroadcaster.getLastValue<0>() != Backdrop::MessageType::Hide)
+				backdropBroadcaster.sendMessage(sendNotificationAsync, Backdrop::MessageType::RefreshDialog);
+		}
+
+		void preRecompileCallback() override;
+
+		static void onMultipageLog(ScriptMultipageDialog& m, multipage::MessageType mt, const String& message);
+
+		multipage::State::Ptr getMultipageState()
+		{
+			if(multiState == nullptr)
+			{
+				multiState = new multipage::State(dialogData, {});
+
+#if USE_BACKEND
+				multiState->eventLogger.addListener(*this, onMultipageLog);
+#endif
+			}
+				
+
+			return multiState;
+		}
+
+		struct Backdrop: public Component
+		{
+			enum class MessageType
+			{
+				Hide,
+				Show,
+				RefreshDialog,
+				numBackdropMessages
+			};
+
+			Backdrop(ScriptMultipageDialog* d):
+			  dialogData(d)
+			{
+				setInterceptsMouseClicks(true, true);
+			};
+
+			void mouseDown(const MouseEvent& e)
+			{
+				if(closeOnClick)
+					dialogData->cancel();
+			}
+			
+			void create(const String& cssToUse={})
+			{
+				destroy();
+
+				if(dialogData != nullptr)
+				{
+					auto state = dialogData->getMultipageState();
+					auto data = dialogData->createDialogData(cssToUse);
+
+					
+					addAndMakeVisible(currentDialog = new multipage::Dialog(data, *state.get(), true));
+
+
+					currentDialog->setFinishCallback(BIND_MEMBER_FUNCTION_0(Backdrop::onFinish));
+
+					currentDialog->loadStyleFromPositionInfo();
+					currentDialog->refreshCurrentPage();
+
+					closeOnClick = !dialogData->getScriptObjectProperty(Properties::ConfirmClose);
+						
+					setVisible(true);
+					resized();
+				}
+
+			}
+
+			void onFinish()
+			{
+				if(dialogData.get())
+					dialogData->cancel();
+				//dialogData->backdropBroadcaster.sendMessage(sendNotificationSync, MessageType::Hide);
+			}
+
+			void paint(Graphics& g)
+			{
+				g.fillAll(juce::Colours::black.withAlpha(0.9f));
+			}
+
+			void destroy()
+			{
+				if(currentDialog != nullptr)
+				{
+					MessageManagerLock mm;
+					currentDialog = nullptr;
+				}
+			}
+
+			static void onMessage(Backdrop& bp, MessageType mt)
+			{
+				if(mt == MessageType::Show)
+				{
+					bp.create();
+				}
+				if(mt == MessageType::Hide)
+				{
+					bp.destroy();
+				}
+				if(mt == MessageType::RefreshDialog)
+				{
+					auto colour = bp.dialogData->getScriptObjectProperty(ScriptComponent::Properties::bgColour);
+
+					bp.bgColour = ApiHelpers::getColourFromVar(colour);
+					bp.repaint(); 
+
+					if(bp.currentDialog != nullptr)
+						bp.currentDialog->refreshCurrentPage();
+				}
+			}
+
+			void resized() override
+			{
+				if(currentDialog != nullptr && !getLocalBounds().isEmpty())
+				{
+					auto size = currentDialog->getPositionInfo({}).fixedSize;
+					currentDialog->centreWithSize(size.getX(), size.getY());
+				}
+			}
+
+			bool closeOnClick = false;
+			Colour bgColour;
+			WeakReference<ScriptMultipageDialog> dialogData;
+			ScopedPointer<multipage::Dialog> currentDialog;
+			JUCE_DECLARE_WEAK_REFERENCEABLE(Backdrop);
+		};
+
+		Backdrop* createBackdrop()
+		{
+			auto bp = new Backdrop(this);
+			backdropBroadcaster.addListener(*bp, Backdrop::onMessage, false);
+			
+			if(isDialogVisible())
+				bp->create();
+
+			return bp;
+		}
+
+	private:
+
+		File monolithFile;
+
+		static void handleVisibility(ScriptMultipageDialog& d, Backdrop::MessageType t)
+		{
+			auto isVisible = (bool)d.getScriptObjectProperty(ScriptComponent::Properties::visible);
+			auto shouldBeVisible = t != Backdrop::MessageType::Hide;
+
+			if(isVisible != shouldBeVisible)
+			{
+				ScopedPropertyEnabler sds(&d);
+				d.set("visible", shouldBeVisible);
+
+				if(!shouldBeVisible)
+				{
+					d.getMultipageState()->onDestroy();
+				}
+			}
+		}
+
+		struct ValueCallback
+		{
+			ValueCallback(ScriptMultipageDialog* p, String name_, const var& functionToCall, dispatch::DispatchType n_):
+			  callback(p->getScriptProcessor(), p, functionToCall, 2),
+			  name(name_),
+			  n(n_)
+			{
+				callback.incRefCount();
+				callback.setThisObject(p);
+				args[0] = var(name);
+			};
+
+			var operator()(const var::NativeFunctionArgs& a);
+
+			String name;
+			var args[2];
+			WeakCallbackHolder callback;
+			const dispatch::DispatchType n;
+		};
+
+		ScopedPointer<ValueCallback> onModalFinish;
+
+		OwnedArray<ValueCallback> valueCallbacks;
+
+		var createDialogData(String cssToUse={});
+
+		int addPageInternal(bool isModal);
+
+		Array<var> modalPages;
+		Array<var> pages;
+		Array<var> elementData;
+		
+		LambdaBroadcaster<Backdrop::MessageType> backdropBroadcaster;
+
+		bool isDialogVisible() const
+		{
+			return backdropBroadcaster.getLastValue<0>() != Backdrop::MessageType::Hide;
+		}
+
+		var dialogData;
+
+		void clearState()
+		{
+			if(multiState != nullptr)
+			{
+				multiState->stopThread(1000);
+
+				MessageManagerLock mm;
+
+				Array<WeakReference<multipage::Dialog>> dialogCopy;
+				dialogCopy.addArray(multiState->currentDialogs);
+
+				for(auto d: dialogCopy)
+				{
+					if(d != nullptr)
+						d->onStateDestroy(sendNotificationSync);
+				}
+			}
+
+			multiState = nullptr;
+		}
+
+		struct Wrapper;
+
+		multipage::State::Ptr multiState;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptMultipageDialog);
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptMultipageDialog);
+
+		// ========================================================================================================
+	};
 
 	using ScreenshotListener = hise::ScreenshotListener;
 
@@ -2100,7 +2558,8 @@ public:
     };
     
     LambdaBroadcaster<TextInputDataBase::Ptr> textInputBroadcaster;
-    
+
+	LambdaBroadcaster<int, int> interfaceSizeBroadcaster;
     
 	// ================================================================================================================
 
@@ -2156,6 +2615,9 @@ public:
 
 	/** Adds a floating layout component. */
 	ScriptFloatingTile* addFloatingTile(Identifier floatingTileName, int x, int y);
+
+	/** Adds a multipage dialog component. */
+	ScriptMultipageDialog* addMultipageDialog(Identifier dialogId, int x, int y);
 
 	/** Returns the reference to the given component. */
 	var getComponent(var name);
@@ -2250,7 +2712,41 @@ public:
 	/** Returns the ID of the component under the mouse. */
 	String getComponentUnderDrag();
 
+	/** Sets a callback that will be notified whenever the UI timers are suspended. */
+	void setSuspendTimerCallback(var suspendFunction);
+
+	/** Adds a callback that will be performed asynchronously when the key is pressed. */
+	void setKeyPressCallback(const var& keyPress, var keyPressCallback);
+
 	// ================================================================================================================
+
+	static var createKeyboardCallbackObject(const KeyPress& k)
+	{
+		auto obj = new DynamicObject();
+		var args(obj);
+
+		obj->setProperty("isFocusChange", false);
+
+		auto c = k.getTextCharacter();
+
+		auto printable    = CharacterFunctions::isPrintable(c);
+		auto isWhitespace = CharacterFunctions::isWhitespace(c);
+		auto isLetter     = CharacterFunctions::isLetter(c);
+		auto isDigit      = CharacterFunctions::isDigit(c);
+		
+		obj->setProperty("character", printable ? String::charToString(c) : "");
+		obj->setProperty("specialKey", !printable);
+		obj->setProperty("isWhitespace", isWhitespace);
+		obj->setProperty("isLetter", isLetter);
+		obj->setProperty("isDigit", isDigit);
+		obj->setProperty("keyCode", k.getKeyCode());
+		obj->setProperty("description", k.getTextDescription());
+		obj->setProperty("shift", k.getModifiers().isShiftDown());
+		obj->setProperty("cmd", k.getModifiers().isCommandDown() || k.getModifiers().isCtrlDown());
+		obj->setProperty("alt", k.getModifiers().isAltDown());
+
+		return args;
+	}
 
 	// Restores the content and sets the attributes so that the macros and the control callbacks gets executed.
 	void restoreAllControlsFromPreset(const ValueTree &preset);
@@ -2432,6 +2928,8 @@ public:
 
 		asyncRebuildBroadcaster.notify();
 
+		updateParameterSlots();
+
 		return newComponent;
 	}
 
@@ -2454,9 +2952,36 @@ public:
 
 	Array<VisualGuide> guides;
 
+	bool hasKeyPressCallbacks() const { return !registeredKeyPresses.isEmpty(); }
+
+	bool handleKeyPress(const KeyPress& k)
+	{
+		auto k1 = k.getKeyCode();
+		auto m1 = k.getModifiers();
+
+		for(auto& rkp: registeredKeyPresses)
+		{
+			auto k2 = rkp.first.getKeyCode();
+			auto m2 = rkp.first.getModifiers();
+			
+			if(k1 == k2 && m1 == m2)
+			{
+				auto obj = createKeyboardCallbackObject(k);
+				WeakCallbackHolder f(getScriptProcessor(), nullptr, rkp.second, 1);
+				f.call1(obj);
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 private:
 
 	WeakCallbackHolder dragCallback;
+	WeakCallbackHolder suspendCallback;
+
+	Array<std::pair<KeyPress, var>> registeredKeyPresses;
 
 	struct AsyncRebuildMessageBroadcaster : public AsyncUpdater
 	{
@@ -2525,13 +3050,14 @@ private:
 
 		components.add(t);
 
+		updateParameterSlots();
+		
 		restoreSavedValue(name);
-
 		
 		return t;
 	}
 
-	
+	void updateParameterSlots();
 
 	void restoreSavedValue(const Identifier& id);
 
@@ -2548,7 +3074,8 @@ private:
 	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
 
 	bool allowGuiCreation;
-	int width, height;
+	int width = 0;
+	int height = 0;
 	ReferenceCountedArray<ScriptComponent> components; // This is ref counted to allow anonymous controls
 	Colour colour;
 	String name;

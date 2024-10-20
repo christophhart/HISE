@@ -30,10 +30,6 @@
 *   ===========================================================================
 */
 
-#if !HISE_NO_GUI_TOOLS
-#include "../JuceLibraryCode/BinaryData.h"
-#endif
-
 namespace hise { using namespace juce;
 
 	FilmstripLookAndFeel::FilmstripLookAndFeel():
@@ -292,10 +288,6 @@ void GlobalHiseLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool
 {
 	drawHiBackground(g, 0, 0, b.getWidth(), b.getHeight() - 2, &b, isMouseOverButton);
 
-	const int filmStripHeight = cachedImage_toggle_png.getHeight() / 2;
-
-	Image clip = Image(cachedImage_toggle_png.getClippedImage(Rectangle<int>(0, b.getToggleState() ? filmStripHeight: 0, filmStripHeight, filmStripHeight)));
-
 	g.setColour (b.getToggleState() ? Colours::white.withAlpha(0.9f) : Colours::white.withAlpha(0.4f));
 	g.setFont (GLOBAL_FONT());
 
@@ -308,17 +300,13 @@ void GlobalHiseLookAndFeel::drawToggleButton (Graphics &g, ToggleButton &b, bool
 		g.drawText(text, textArea, Justification::centredLeft, true);
 	}
 	
-	g.setColour (Colours::black.withAlpha( (b.isEnabled() ? 1.0f : 0.5f) ));
-	g.drawImage(clip, 7, (b.getHeight() - 16) / 2, 16, 16, 0, 0, filmStripHeight, filmStripHeight);
-}
+	auto area = b.getLocalBounds().removeFromLeft(b.getHeight()).withSizeKeepingCentre(16, 16).toFloat().reduced(JUCE_LIVE_CONSTANT_OFF(1.0f));
 
-#ifndef INCLUDE_STOCK_FILMSTRIPS
-#if HISE_IOS
-#define INCLUDE_STOCK_FILMSTRIPS 0
-#else
-#define INCLUDE_STOCK_FILMSTRIPS 1
-#endif
-#endif
+	g.setColour(Colours::black.withAlpha(0.5f));
+	g.fillEllipse(area);
+	g.setColour(Colours::white.withAlpha(b.getToggleState() ? 0.8f : 0.2f));
+	g.fillEllipse(area.reduced(JUCE_LIVE_CONSTANT_OFF(3.0f)));
+}
 
 GlobalHiseLookAndFeel::GlobalHiseLookAndFeel()
 {
@@ -331,22 +319,6 @@ GlobalHiseLookAndFeel::GlobalHiseLookAndFeel()
 
 	ring2.startNewSubPath(0.5f, 1.0f);
 	ring2.addArc(0.0f, 0.0f, 1.0f, 1.0f, -float_Pi * 0.75f - 0.04f, float_Pi * 0.75f + 0.04f, true);
-
-#if INCLUDE_STOCK_FILMSTRIPS & !HISE_NO_GUI_TOOLS
-	cachedImage_smalliKnob_png = ImageProvider::getImage(ImageProvider::ImageType::KnobEmpty); // ImageCache::getFromMemory(BinaryData::knob_empty_png, BinaryData::knob_empty_pngSize);
-	cachedImage_knobRing_png = ImageProvider::getImage(ImageProvider::ImageType::KnobUnmodulated); // ImageCache::getFromMemory(BinaryData::ring_unmodulated_png, BinaryData::ring_unmodulated_pngSize);
-	ring_modulated = ImageProvider::getImage(ImageProvider::ImageType::KnobModulated); //ImageCache::getFromMemory(BinaryData::ring_modulated_png, BinaryData::ring_modulated_pngSize);
-
-	//ring_red = ImageCache::getFromMemory(BinaryData::_1_red_png, BinaryData::_1_red_pngSize);
-	//ring_yellow = ImageCache::getFromMemory(BinaryData::_2_yellow_png, BinaryData::_2_yellow_pngSize);
-	//ring_blue = ImageCache::getFromMemory(BinaryData::_4_blue_png, BinaryData::_4_blue_pngSize);
-	//ring_green = ImageCache::getFromMemory(BinaryData::_3_green_png, BinaryData::_3_green_pngSize);
-
-	cachedImage_toggle_png = ImageProvider::getImage(ImageProvider::ImageType::ToggleButton); // ImageCache::getFromMemory(toggle_png, toggle_pngSize);
-	cachedImage_slider_strip2_png = ImageCache::getFromMemory (slider_strip2_png, slider_strip2_pngSize);
-	cachedImage_slider2_bipolar_png = ImageCache::getFromMemory (slider2_bipolar_png, slider2_bipolar_pngSize);
-#endif
-    
     
 	setColour(PopupMenu::highlightedBackgroundColourId, Colour(SIGNAL_COLOUR));
 
@@ -494,6 +466,11 @@ void GlobalHiseLookAndFeel::setDefaultColours(Component& c)
 
 void GlobalHiseLookAndFeel::fillPathHiStyle(Graphics &g, const Path &p, int, int, bool drawBorders /*= true*/)
 {
+	if(!PathFactory::isValid(p))
+		return;
+	
+
+
 	if (drawBorders)
 	{
 		g.setColour(Colours::lightgrey.withAlpha(0.8f));
@@ -551,7 +528,7 @@ void GlobalHiseLookAndFeel::draw1PixelGrid(Graphics& g, Component* c, Rectangle<
     }
 }
 
-Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha /*= 1.0f*/, Colour holeColour /*= Colour(0xFFAAAAAA)*/, bool returnMidPoint /*= false*/, bool useHangingCable/*=true*/)
+Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha /*= 1.0f*/, Colour holeColour /*= Colour(0xFFAAAAAA)*/, bool returnMidPoint /*= false*/, bool useHangingCable/*=true*/, Point<float> velocity)
 {
 	if (start.getCentreY() > end.getCentreY())
 		std::swap(start, end);
@@ -592,6 +569,9 @@ Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> sta
 	if (useHangingCable)
 	{
 		Point<float> controlPoint(start.getX() + (end.getX() - start.getX()) / 2.0f, end.getY() + 100.0f);
+
+		controlPoint.setY(controlPoint.getY() - jmin(100.0f, hmath::abs(velocity.getDistanceFromOrigin()) * 4.0f));
+
 		p.quadraticTo(controlPoint, end.getCentre());
 		
 	}
@@ -605,6 +585,9 @@ Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> sta
 
 		Point<float> c1 = { cableAsLine.getPointAlongLineProportionally(0.2f).getX(), start.getCentreY() };
 		Point<float> c2 = { cableAsLine.getPointAlongLineProportionally(0.8f).getX(), end.getCentreY() };
+
+		c1 -= velocity;
+		c2 += velocity;
 
 		p.quadraticTo(c1, mid);
 		p.quadraticTo(c2, end.getCentre());
@@ -624,7 +607,7 @@ Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> sta
 void GlobalHiseLookAndFeel::setTextEditorColours(TextEditor& ed)
 {
 	ed.setColour(TextEditor::ColourIds::textColourId, Colours::black);
-	ed.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.25f));
+	ed.setColour(TextEditor::ColourIds::backgroundColourId, Colours::white.withAlpha(0.45f));
 	ed.setColour(TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR));
 	ed.setColour(Label::ColourIds::outlineWhenEditingColourId, Colour(SIGNAL_COLOUR));
 	ed.setColour(TextEditor::ColourIds::outlineColourId, Colours::black.withAlpha(0.8f));
@@ -707,26 +690,6 @@ void GlobalHiseLookAndFeel::drawVectorRotaryKnob(Graphics& g, Rectangle<float> a
 		g.drawEllipse(area.reduced(ringWidth * 2.9), ringWidth * 1.6);
 	}
 }
-
-#if !HISE_NO_GUI_TOOLS
-const char* GlobalHiseLookAndFeel::smalliKnob_png =  (const char*) HiBinaryData::LookAndFeelBinaryData::knob_mod_bg_png;
-const int GlobalHiseLookAndFeel::smalliKnob_pngSize = 16277;
-
-const char* GlobalHiseLookAndFeel::knobRing_png =  (const char*) HiBinaryData::LookAndFeelBinaryData::knob_mod_ring_png;
-const int GlobalHiseLookAndFeel::knobRing_size = 17983;
-
-const char* GlobalHiseLookAndFeel::toggle_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_toggle_png;
-const int GlobalHiseLookAndFeel::toggle_pngSize = 1758;
-
-const char* GlobalHiseLookAndFeel::slider_strip2_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_slider_strip2_png;
-const int GlobalHiseLookAndFeel::slider_strip2_pngSize = 97907;
-
-const char* GlobalHiseLookAndFeel::slider2_bipolar_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Background_slider2_bipolar_png;
-const int GlobalHiseLookAndFeel::slider2_bipolar_pngSize = 87929;
-
-const char* BalanceButtonLookAndFeel::balanceKnob_png = (const char*) HiBinaryData::LookAndFeelBinaryData::resource_Button_balanceKnob_png;
-const int BalanceButtonLookAndFeel::balanceKnob_pngSize = 5215;
-#endif
 
 void MacroKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, int /*width*/, int /*height*/, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s)
 {
@@ -823,10 +786,6 @@ void MacroKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, i
 	
 }
 
-#if !HISE_NO_GUI_TOOLS
-const char* MacroKnobLookAndFeel::macroKnob_png = (const char*)HiBinaryData::LookAndFeelBinaryData::resource_Background_macroKnob2_png;
-const int MacroKnobLookAndFeel::macroKnob_pngSize = 241928;
-#endif
 
 
 ImageProvider::DisplayScaleFactor ImageProvider::getScaleFactor()
@@ -842,38 +801,7 @@ ImageProvider::DisplayScaleFactor ImageProvider::getScaleFactor()
 
 Image ImageProvider::getImage(ImageType type)
 {
-	
-
-#if HISE_NO_GUI_TOOLS
 	return {};
-#else
-	switch (type)
-	{
-	case ImageProvider::KnobEmpty:
-
-
-
-	case ImageProvider::KnobUnmodulated:
-
-
-	case ImageProvider::KnobModulated:
-
-
-	case ImageProvider::MacroKnob:
-
-
-	case ImageProvider::BalanceKnob:
-		return {};
-	case ImageProvider::ImageType::ToggleButton:
-		
-		return ImageCache::getFromMemory(BinaryData::toggle_200_png, BinaryData::toggle_200_pngSize);
-
-	default:
-		jassertfalse;
-		return Image();
-		break;
-	}
-#endif
 }
 
 Path HiToolbarIcons::createSettingsPath()
@@ -910,7 +838,7 @@ Path HiToolbarIcons::createSettingsPath()
 NumberTag::LookAndFeelMethods::~LookAndFeelMethods()
 {}
 
-void NumberTag::LookAndFeelMethods::drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size,
+void NumberTag::LookAndFeelMethods::drawNumberTag(Graphics& g, Component& comp, Colour& c, Rectangle<int> area, int offset, int size,
 	int number)
 {
 	if (number > 0)
@@ -952,7 +880,7 @@ void NumberTag::paint(Graphics& g)
 		return;
 
 	if (auto l = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
-		l->drawNumberTag(g, c, getLocalBounds(), roundToInt(offset), roundToInt(size), number);
+		l->drawNumberTag(g, *this, c, getLocalBounds(), roundToInt(offset), roundToInt(size), number);
 }
 
 void NumberTag::setNumber(int newNumber)
@@ -2046,38 +1974,41 @@ void AlertWindowLookAndFeel::drawAlertBox(Graphics &g, AlertWindow &alert, const
 
 BalanceButtonLookAndFeel::BalanceButtonLookAndFeel()
 {
-#if !HISE_NO_GUI_TOOLS
-	cachedImage_balanceKnob_png = ImageCache::getFromMemory (balanceKnob_png, balanceKnob_pngSize);
-#endif
 }
 
-void BalanceButtonLookAndFeel::drawRotarySlider(Graphics& g, int i, int i1, int i2, int i3, float x, float x1, float x2,
-	Slider& s)
+void BalanceButtonLookAndFeel::drawRotarySlider(Graphics& g, int x, int y, int width, int height,
+	float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, Slider& s)
 {
-	float alphaValue = 1.0f;
+	auto area = Rectangle<int>(x, y, width, height).toFloat();
+	area.removeFromBottom(JUCE_LIVE_CONSTANT_OFF(3.0f));
+	auto size = jmin(area.getWidth(), area.getHeight());
 
-	if(!s.isEnabled()) alphaValue *= 0.4f;
+	if(s.isMouseButtonDown())
+		size -= 1.0f;
 
-		
-		
+	area = area.withSizeKeepingCentre(size, size);
 
-	const double value = s.getValue();
+	float alpha = 0.5f;
 
-	if(value == 0.0) alphaValue *= 0.66f;
+	if(s.isMouseOverOrDragging())
+		alpha += 0.3f;
 
-	const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
-	const double proportion = pow(normalizedValue, s.getSkewFactor());
-	const int stripIndex = (int) (proportion * 63);
+	if(s.isMouseButtonDown(true))
+		alpha += 0.2f;
 
-	const int offset = stripIndex * 28;
-	Image clip = cachedImage_balanceKnob_png.getClippedImage(Rectangle<int>(0, offset, 28, 28));
+	Path track, thumb;
 
-	g.setColour (Colours::black.withAlpha(alphaValue));
-	g.drawImage (clip, 0, 0, 24, 24, 0, 0, 28, 28); 
+	float radius = JUCE_LIVE_CONSTANT_OFF(0.6f);
 
-		
+	track.addPieSegment(area, -2.7f, 2.7f, radius);
+	thumb.addPieSegment(area, 0.0f, -2.7f + (2.7f * 2.0f * sliderPosProportional), radius);
 
+	g.setColour(Colours::black.withAlpha(sliderPosProportional != 0.5 ? 0.3f : 0.15f));
+	g.fillPath(track);
+	g.setColour(Colour(0xFF111111).withAlpha(alpha));
+	g.fillPath(thumb);
 }
+
 
 void ChainBarButtonLookAndFeel::drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
 {
@@ -2288,7 +2219,7 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(Graphics& g, C
     }
 }
 
-void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, int columnIndex, Rectangle<int> listArea, const String& emptyText)
+void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText)
 {
     g.setColour(highlightColour.withAlpha(0.1f));
     g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
@@ -2301,7 +2232,7 @@ void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, int colu
     }
 }
 
-void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
+void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
 {
     float alpha = active ? 0.4f : 0.1f;
     alpha += (blinking ? 0.2f : 0.0f);
@@ -2311,7 +2242,7 @@ void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool a
     g.setColour(highlightColour.withAlpha(alpha));
     g.fillRoundedRectangle(ar, 2.0f);
     g.drawRoundedRectangle(ar, 2.0f, 1.0f);
-    g.setFont(font.withHeight(14.0f));
+    g.setFont(getTagFont(tagButton));
     g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
 
     // Wow, so professional, good bug fix.
@@ -2343,7 +2274,7 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics
 }
 
 
-void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
+void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, Component& column, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
 {
 #if !HISE_NO_GUI_TOOLS
     float alphaBoost = hover ? 0.1f : 0.0f;
@@ -2495,7 +2426,7 @@ Font BiPolarSliderLookAndFeel::getLabelFont(Label& label)
 }
 
 
-void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
+void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
 {
     g.setColour(modalBackgroundColour);
     g.fillAll();
@@ -2552,7 +2483,7 @@ juce::Path PresetBrowserLookAndFeelMethods::createPresetBrowserIcons(const Strin
 	return path;
 }
 
-void PresetBrowserLookAndFeelMethods::drawSearchBar(Graphics& g, Rectangle<int> area)
+void PresetBrowserLookAndFeelMethods::drawSearchBar(Graphics& g, Component& label, Rectangle<int> area)
 {
 	g.setColour(highlightColour);
 	g.drawRoundedRectangle(area.toFloat().reduced(1.0f), 2.0f, 1.0f);

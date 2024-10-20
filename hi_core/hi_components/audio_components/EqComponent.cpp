@@ -41,7 +41,6 @@ Just connect it to a PolyphonicFilterEffect or a CurveEQ and it will automatical
 the filter graph.
 */
 class FilterGraph::Panel : public PanelWithProcessorConnection,
-	public SafeChangeListener,
 	public Timer
 {
 public:
@@ -55,7 +54,7 @@ public:
 
 	SET_PANEL_NAME("FilterDisplay");
 
-	Panel(FloatingTile* parent) :
+	Panel(FloatingTile* parent):
 		PanelWithProcessorConnection(parent)
 	{
 		setDefaultPanelColour(FloatingTileContent::PanelColourId::bgColour, Colour(0xFF333333));
@@ -67,10 +66,7 @@ public:
 
 	~Panel()
 	{
-		if (auto p = getProcessor())
-		{
-			p->removeChangeListener(this);
-		}
+		updater = nullptr;
 	}
 
 	int getNumDefaultableProperties() const override
@@ -135,13 +131,6 @@ public:
 		return PolyFilterEffect::getClassType();
 	}
 
-
-
-	void changeListenerCallback(SafeChangeBroadcaster* /*b*/) override
-	{
-		updateCoefficients();
-	}
-
 	void timerCallback() override
 	{
 		if (auto filter = dynamic_cast<FilterEffect*>(getProcessor()))
@@ -150,9 +139,9 @@ public:
 			{
 				filterGraph->setBypassed(getProcessor()->isBypassed());
 
-				IIRCoefficients c = filter->getCurrentCoefficients();
+				auto c = filter->getCurrentCoefficients();
 
-				if (!sameCoefficients(c, currentCoefficients))
+				if (!sameCoefficients(c.first, currentCoefficients.first) || c.second != currentCoefficients.second)
 				{
 					currentCoefficients = c;
 
@@ -162,14 +151,30 @@ public:
 		}
 	}
 
+	struct Updater: public Processor::OtherListener
+	{
+		Updater(FilterGraph::Panel& parent_, Processor* p):
+		  OtherListener(p, dispatch::library::ProcessorChangeEvent::Custom),
+		  parent(parent_)
+		{};
 
+		void otherChange(Processor* p) override
+		{
+			parent.updateCoefficients();
+		}
+
+		FilterGraph::Panel& parent;
+	};
+
+	ScopedPointer<Updater> updater;
 
 	Component* createContentComponent(int index) override
 	{
 		if (auto p = getProcessor())
 		{
-			p->addChangeListener(this);
+			updater = nullptr;
 
+			
 			auto c = new FilterGraph(1);
 
 			c->useFlatDesign = true;
@@ -200,7 +205,9 @@ public:
 					c->setComplexDataUIBase(f);
 				}
 			}
-			
+
+			updater = new Updater(*this, p);
+
 			return c;
 		}
 
@@ -244,7 +251,7 @@ private:
 
 				for (int i = 0; i < c->getNumFilterBands(); i++)
 				{
-					IIRCoefficients ic = c->getCoefficients(i);
+					auto ic = c->getCoefficients(i);
 
 					filterGraph->enableBand(i, c->getFilterBand(i)->isEnabled());
 					filterGraph->setCoefficients(i, getProcessor()->getSampleRate(), ic);
@@ -289,7 +296,7 @@ private:
 		}
 	}
 
-	IIRCoefficients currentCoefficients;
+	FilterDataObject::CoefficientData currentCoefficients;
 
 };
 
@@ -438,6 +445,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 };
 
 FilterDragOverlay::FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ /*= false*/) :
+	OtherListener(eq_, dispatch::library::ProcessorChangeEvent::Custom),
 	eq(eq_),
 	fftAnalyser(*this),
 	filterGraph(eq_->getNumFilterBands()),
@@ -470,13 +478,10 @@ FilterDragOverlay::FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ /*= fa
 	updatePositions(true);
 
 	startTimer(50);
-	eq->addChangeListener(this);
 }
 
 FilterDragOverlay::~FilterDragOverlay()
 {
-	if(eq.get() != nullptr)
-		eq->removeChangeListener(this);
 }
 
 void FilterDragOverlay::paint(Graphics &g)
@@ -542,13 +547,6 @@ void FilterDragOverlay::paintOverChildren(Graphics& g)
 
 	if (selected != nullptr)
 		draw(selected);
-}
-
-void FilterDragOverlay::changeListenerCallback(SafeChangeBroadcaster *)
-{
-	checkEnabledBands();
-	updateFilters();
-	updatePositions(true);
 }
 
 void FilterDragOverlay::checkEnabledBands()
@@ -634,7 +632,7 @@ void FilterDragOverlay::updateCoefficients()
 
 	for (int i = 0; i < eq->getNumFilterBands(); i++)
 	{
-		IIRCoefficients ic = eq->getCoefficients(i);
+		auto ic = eq->getCoefficients(i);
 		filterGraph.setCoefficients(i, eq->getSampleRate(), ic);
 	}
 }
@@ -988,6 +986,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 			auto v = parent.eq->getAttribute(ei);
 			parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 1 - v);
 			parent.repaint();
+            parent.checkEnabledBands();
 		}
 	}
 	else
@@ -995,6 +994,10 @@ void FilterDragOverlay::FilterDragComponent::mouseDown(const MouseEvent& e)
 		down = true;
 		parent.selectDragger(index);
 		dragger.startDraggingComponent(this, e);
+        
+        parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 1.0f);
+        parent.repaint();
+        parent.checkEnabledBands();
 	}
 }
 
@@ -1114,6 +1117,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDoubleClick(const MouseEvent& 
 	{
 		parent.setEqAttribute(CurveEq::BandParameter::Gain, index, 0.0f);
 		parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, 0.0f);
+        parent.checkEnabledBands();
 	}
 	else
 	{
@@ -1123,6 +1127,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDoubleClick(const MouseEvent& 
 		auto enableIndex = parent.eq->getParameterIndex(index, CurveEq::BandParameter::Enabled);
 		auto v = 1.0f - parent.eq->getAttribute(enableIndex);
 		parent.setEqAttribute(CurveEq::BandParameter::Enabled, index, v);
+        parent.checkEnabledBands();
 	}
 
 	
@@ -1185,7 +1190,7 @@ void FilterDragOverlay::setEqAttribute(int bp, int filterIndex, float value)
 		um->perform(new MacroControlledObject::UndoableControlEvent(eq, idx, oldValue, value));
 	}
 	else
-		eq->setAttribute(idx, value, sendNotification);
+		eq->setAttribute(idx, value, sendNotificationAsync);
 }
 
 FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :

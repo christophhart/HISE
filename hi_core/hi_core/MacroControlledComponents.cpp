@@ -86,7 +86,12 @@ bool MacroControlledObject::checkLearnMode()
 
 	if(currentlyActiveLearnIndex != -1)
 	{
-		GET_MACROCHAIN()->addControlledParameter(currentlyActiveLearnIndex, getProcessor()->getId(), parameter, name, getRange());
+		String suffix;
+
+		if(auto asSlider = dynamic_cast<Slider*>(this))
+			suffix = asSlider->getTextValueSuffix();
+
+		GET_MACROCHAIN()->addControlledParameter(currentlyActiveLearnIndex, getProcessor()->getId(), parameter, name, getValueToTextConverter(), getRange());
 			
 		return true;
 	}
@@ -134,9 +139,12 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	PopupMenu m;
 
 	auto mc = getProcessor()->getMainController();
-	auto& plaf = mc->getGlobalLookAndFeel();
+	LookAndFeel* plaf = &mc->getGlobalLookAndFeel();
 
-	m.setLookAndFeel(&plaf);
+	if(auto css = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&asComponent()->getLookAndFeel()))
+		plaf = css;
+
+	m.setLookAndFeel(plaf);
 
 	auto ccName = handler->getCCName();
 
@@ -220,16 +228,38 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 
 		if (mm.isMacroEnabledOnFrontend())
 		{
-			m.addSectionHeader("Assign Macro");
+			
 
+#if HISE_MACROS_ARE_PLUGIN_PARAMETERS
+			auto title = "Assign Automation";
+#else
+			auto title = "Assign Macro";
+#endif
+
+			PopupMenu sub;
+			auto mToUse = &m;
+
+			static constexpr bool useSubMenu = HISE_NUM_MACROS > 8;
+
+			if constexpr (useSubMenu)
+				mToUse = &sub;
+			else
+				m.addSectionHeader(title);
+				
 			for (int i = 0; i < HISE_NUM_MACROS; i++)
 			{
 				auto name = macroChain->getMacroControlData(i)->getMacroName();
 
 				if (name.isNotEmpty())
 				{
-					m.addItem((int)AddMacroControlOffset + i, "Connect to " + name);
+					mToUse->addItem((int)AddMacroControlOffset + i, "Connect to " + name);
 				}
+			}
+
+			if constexpr (useSubMenu)
+			{
+				m.addSeparator();
+				m.addSubMenu(title, sub);
 			}
 		}
 	}
@@ -270,7 +300,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 	{
 		if (!learningActive)
 		{
-			handler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, getMacroIndex());
+			handler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, getValueToTextConverter(), getMacroIndex());
 		}
 		else
 		{
@@ -312,7 +342,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		
 		mHandler->deactivateMidiLearning();
 		mHandler->removeMidiControlledParameter(processor, parameterToUse, sendNotificationAsync);
-		mHandler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, -1);
+		mHandler->addMidiControlledParameter(processor, parameterToUse, rangeWithSkew, getValueToTextConverter(), -1);
 		mHandler->setUnlearndedMidiControlNumber(number, sendNotificationAsync);
 	}
 	else if (result >= ModulationOffset)
@@ -332,7 +362,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		if (customId.isValid())
 			nameToUse = customId.toString();
 
-		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->addParameter(getProcessor(), parameterToUse, nameToUse, rangeWithSkew, false, customId.isValid());
+		getProcessor()->getMainController()->getMacroManager().getMacroChain()->getMacroControlData(macroIndex)->addParameter(getProcessor(), parameterToUse, nameToUse, getValueToTextConverter(), rangeWithSkew, false, customId.isValid());
 
 		initMacroControl(sendNotification);
 	}
@@ -400,6 +430,12 @@ MacroControlledObject::~MacroControlledObject()
     
 	if (auto p = getProcessor())
 	{
+		if(valueListener != nullptr)
+		{
+			p->removeAttributeListener(valueListener);
+			valueListener = nullptr;
+		}
+
 		p->getMainController()->getMainSynthChain()->removeMacroConnectionListener(this);
 	}
 }
@@ -419,9 +455,22 @@ bool MacroControlledObject::isConnectedToModulator() const
 
 void MacroControlledObject::setup(Processor *p, int parameter_, const String &name_)
 {
+	if(valueListener != nullptr)
+	{
+		p->removeAttributeListener(valueListener);
+		valueListener = nullptr;
+	}
+
 	processor = p;
-	parameter = parameter_;
 	name = name_;
+
+	if(parameter_ != -1)
+	{
+		valueListener = new dispatch::library::ProcessorHandler::AttributeListener(p->getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_2(MacroControlledObject::onAttributeChange));
+		parameter = parameter_;
+		auto a = (uint16)parameter;
+		p->addAttributeListener(valueListener, &a, 1, dispatch::DispatchType::sendNotificationAsync);
+	}
 
 	initMacroControl(dontSendNotification);
 
@@ -439,6 +488,7 @@ void MacroControlledObject::setup(Processor *p, int parameter_, const String &na
 
 	p->getMainController()->getMainSynthChain()->addMacroConnectionListener(this);
 
+    updateValue(sendNotificationSync);
 	
 }
 
@@ -502,6 +552,20 @@ bool SliderWithShiftTextBox::onShiftClick(const MouseEvent& e)
 	if (asSlider()->getWidth() > 25 && enableShiftTextInput)
 	{
 		asSlider()->addAndMakeVisible(inputLabel = new TextEditor());
+
+		if(auto root = simple_css::CSSRootComponent::find(*asSlider()))
+		{
+			if(auto ss = root->css.getForComponent(inputLabel))
+			{
+				root->stateWatcher.registerComponentToUpdate(inputLabel);
+				inputLabel->setBounds(asSlider()->getLocalBounds());
+				inputLabel->addListener(this);
+				inputLabel->setText(asSlider()->getTextFromValue(asSlider()->getValue()), dontSendNotification);
+				inputLabel->selectAll();
+				inputLabel->grabKeyboardFocus();
+				return true;
+			}
+		}
 
 		inputLabel->centreWithSize(asSlider()->getWidth(), 20);
 		inputLabel->addListener(this);
@@ -613,7 +677,7 @@ void HiSlider::sliderValueChanged(Slider *s)
 		{
 			modeValues[mode] = s->getValue();
 
-			getProcessor()->setAttribute(parameter, (float)s->getValue(), dontSendNotification);
+			getProcessor()->setAttribute(parameter, (float)s->getValue(), sendNotificationAsync);
 		}
 	}
 }
@@ -681,7 +745,9 @@ bool HiSlider::callWhenSingleMacro(const std::function<bool(AudioProcessor* p, i
 
 void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 {
-
+	if(getProcessor() == nullptr)
+		return;
+	
 	const bool enabled = !isLocked();
 
 	setEnabled(enabled);
@@ -703,12 +769,11 @@ void HiSlider::updateValue(NotificationType /*sendAttributeChange*/)
 
 String HiSlider::getTextFromValue(double value)
 {
-	if(mode == Pan) setTextValueSuffix(getModeSuffix());
-
-	if (mode == Frequency) return getFrequencyString((float)value);
-	if(mode == TempoSync) return TempoSyncer::getTempoName((int)(value));
-	else if(mode == NormalizedPercentage) return String((int)(value * 100)) + "%";
-	else				  return Slider::getTextFromValue(value);
+	if (mode == Pan)				  return ValueToTextConverter::ConverterFunctions::Pan(value);
+	if (mode == Frequency)			  return ValueToTextConverter::ConverterFunctions::Frequency(value);
+	if (mode == TempoSync)			  return ValueToTextConverter::ConverterFunctions::TempoSync(value);
+	if (mode == NormalizedPercentage) return ValueToTextConverter::ConverterFunctions::NormalizedPercentage(value);
+	else							  return Slider::getTextFromValue(value);
 }
 
 void HiSlider::setup(Processor *p, int parameterIndex, const String &parameterName)
@@ -722,7 +787,8 @@ void HiSlider::setup(Processor *p, int parameterIndex, const String &parameterNa
 		modeValues[i] = 0.0;
 	}
 
-	setDoubleClickReturnValue(true, (double)p->getDefaultValue(parameterIndex));
+	if(parameterIndex != -1)
+		setDoubleClickReturnValue(true, (double)p->getDefaultValue(parameterIndex), ModifierKeys());
 
 	setName(parameterName);
 }
@@ -866,21 +932,8 @@ HiSlider::~HiSlider()
 	setLookAndFeel(nullptr);
 }
 
-String HiSlider::getFrequencyString(float input)
-{
-	if (input < 30.0f)
-	{
-		return String(input, 1) + " Hz";
-	}
-	if (input < 1000.0f)
-	{
-		return String(roundToInt(input)) + " Hz";
-	}
-	else
-	{
-		return String(input / 1000.0, 1) + " kHz";
-	}
-}
+
+
 
 double HiSlider::getFrequencyFromTextString(const String& t)
 {
@@ -961,6 +1014,30 @@ void HiSlider::resized()
 	numberTag->setBounds(getLocalBounds());
 }
 
+ValueToTextConverter HiSlider::getValueToTextConverter() const
+{
+	hise::ValueToTextConverter c;
+	c.active = true;
+	c.suffix = getTextValueSuffix();
+	c.stepSize = getRange().interval;
+
+#define FUNC(x) case x: c.valueToTextFunction = ValueToTextConverter::ConverterFunctions::x; c.textToValueFunction = ValueToTextConverter::InverterFunctions::x; break;
+
+	switch (mode)
+	{
+	FUNC(Frequency);
+	FUNC(Time);
+	FUNC(TempoSync);
+	FUNC(Pan);
+	FUNC(NormalizedPercentage);
+	default: break;
+	}
+
+#undef FUNC
+
+	return c;
+}
+
 
 String HiSlider::getModeId() const
 {
@@ -1017,6 +1094,8 @@ void HiSlider::setMode(Mode m, double min, double max, double mid, double stepSi
 	{
 		setModeRange(min, max, mid, stepSize);
 	}
+    
+    updateValue(sendNotificationSync);
 }
 
 HiSlider::Mode HiSlider::getMode() const
@@ -1124,7 +1203,7 @@ void HiToggleButton::mouseUp(const MouseEvent& e)
 }
 
 HiComboBox::HiComboBox(const String& name):
-	ComboBox(name),
+	SubmenuComboBox(name),
 	MacroControlledObject()
 {
 	addChildComponent(numberTag);
@@ -1403,6 +1482,17 @@ void HiToggleButton::buttonClicked(Button *b)
 		{
 			numberTag->setNumber(newMacroIndex+1);
 			numberTag->setVisible(true);
+            
+            if(auto asComponent = dynamic_cast<Component*>(this))
+            {
+#define SET_COLOUR(x) numberTag->setColour(x, asComponent->findColour(x));
+                SET_COLOUR(HiseColourScheme::ComponentOutlineColourId);
+                SET_COLOUR(HiseColourScheme::ComponentFillTopColourId);
+                SET_COLOUR(HiseColourScheme::ComponentFillBottomColourId);
+                SET_COLOUR(HiseColourScheme::ComponentTextColourId);
+#undef SET_COLOUR
+            }
+            
 			macroIndex = newMacroIndex;
 		}
 	}
@@ -1430,6 +1520,19 @@ void HiToggleButton::buttonClicked(Button *b)
 		modulationData = modData;
 	}
 
+	void MacroControlledObject::onAttributeChange(dispatch::library::Processor* p, uint8 index)
+	{
+#if HISE_NEW_PROCESSOR_DISPATCH
+		if(&p->getOwner<hise::Processor>() == getProcessor())
+		{
+			if(index == getParameter())
+			{
+				updateValue(sendNotificationSync);
+			}
+		}
+#endif
+	}
+
 	Processor* MacroControlledObject::getProcessor()
 	{return processor.get(); }
 
@@ -1449,7 +1552,7 @@ bool MacroControlledObject::UndoableControlEvent::perform()
 {
 	if (processor.get() != nullptr)
 	{
-		processor->setAttribute(parameterIndex, newValue, sendNotification);
+		processor->setAttribute(parameterIndex, newValue, sendNotificationAsync);
 		return true;
 	}
 	else return false;
@@ -1459,7 +1562,7 @@ bool MacroControlledObject::UndoableControlEvent::undo()
 {
 	if (processor.get() != nullptr)
 	{
-		processor->setAttribute(parameterIndex, oldValue, sendNotification);
+		processor->setAttribute(parameterIndex, oldValue, sendNotificationAsync);
 		return true;
 	}
 	else return false;

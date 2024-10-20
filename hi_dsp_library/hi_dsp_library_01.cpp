@@ -33,7 +33,6 @@
 /* HI Module */
 
 
-#include "AppConfig.h"
 
 // Import the files here when not building a library (see comment in hi_dsp_library.h)
 #if HI_EXPORT_DSP_LIBRARY
@@ -77,9 +76,11 @@
 
 #include "dsp_basics/ConvolutionBase.cpp"
 
+#if HI_RUN_UNIT_TESTS
 #include "unit_test/wrapper_tests.cpp"
 #include "unit_test/node_tests.cpp"
 #include "unit_test/container_tests.cpp"
+#endif
 
 #include "dsp_nodes/CoreNodes.cpp"
 #include "dsp_nodes/DelayNode.cpp"
@@ -93,6 +94,7 @@
 #include "dsp_nodes/EnvelopeNodes.cpp"
 #include "dsp_nodes/AnalyserNodes.cpp"
 #include "dsp_nodes/ConvolutionNode.cpp"
+#include "dsp_nodes/DynamicsNode.cpp"
 
 namespace hise
 {

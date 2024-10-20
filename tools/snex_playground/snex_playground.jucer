@@ -12,23 +12,11 @@
             file="Source/MainComponent.cpp"/>
       <FILE id="bZ3Z3T" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
-    <FILE id="nwvlKs" name="balanceKnob_200.png" compile="0" resource="1"
-          file="../../hi_core/hi_images/balanceKnob_200.png"/>
-    <FILE id="dfNkg4" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
-          file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
-    <FILE id="ekkcWq" name="FrontendKnob_Unipolar.png" compile="0" resource="1"
-          file="../../hi_core/hi_images/FrontendKnob_Unipolar.png"/>
     <FILE id="xlypKj" name="infoError.png" compile="0" resource="1" file="../../hi_core/hi_images/infoError.png"/>
     <FILE id="L6eYUT" name="infoInfo.png" compile="0" resource="1" file="../../hi_core/hi_images/infoInfo.png"/>
     <FILE id="Vr71I1" name="infoQuestion.png" compile="0" resource="1"
           file="../../hi_core/hi_images/infoQuestion.png"/>
     <FILE id="Hzhc4A" name="infoWarning.png" compile="0" resource="1" file="../../hi_core/hi_images/infoWarning.png"/>
-    <FILE id="z8esQJ" name="knobEmpty_200.png" compile="0" resource="1"
-          file="../../hi_core/hi_images/knobEmpty_200.png"/>
-    <FILE id="hpgWO5" name="knobModulated_200.png" compile="0" resource="1"
-          file="../../hi_core/hi_images/knobModulated_200.png"/>
-    <FILE id="ORCZBr" name="knobUnmodulated_200.png" compile="0" resource="1"
-          file="../../hi_core/hi_images/knobUnmodulated_200.png"/>
     <FILE id="fuMUEf" name="logo_mini.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_mini.png"/>
     <FILE id="oyEuP0" name="logo_new.png" compile="0" resource="1" file="../../hi_core/hi_images/logo_new.png"/>
     <FILE id="YwymsG" name="oxygen.bold.ttf" compile="0" resource="1" file="../../hi_core/hi_images/oxygen.bold.ttf"/>
@@ -36,7 +24,6 @@
           file="../../hi_core/hi_images/oxygen.mono.regular.otf"/>
     <FILE id="MOmapG" name="oxygen.regular.ttf" compile="0" resource="1"
           file="../../hi_core/hi_images/oxygen.regular.ttf"/>
-    <FILE id="tPXHhn" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
   </MAINGROUP>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
@@ -67,6 +54,8 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </XCODE_MAC>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile">
@@ -96,6 +85,8 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </LINUX_MAKE>
     <VS2017 targetFolder="Builds/VisualStudio2017" extraDefs="USE_IPP=1"
@@ -125,6 +116,8 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2017>
     <VS2019 targetFolder="Builds/VisualStudio2019" extraCompilerFlags="-msse4.1">
@@ -152,6 +145,8 @@
         <MODULEPATH id="hi_dsp_library" path="../../"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2019>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot;">
@@ -179,6 +174,8 @@
         <MODULEPATH id="hi_rlottie" path="../../"/>
         <MODULEPATH id="hi_lac" path="../../"/>
         <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../../HISE modules"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
       </MODULEPATHS>
     </VS2022>
   </EXPORTFORMATS>
@@ -202,6 +199,9 @@
     <MODULE id="juce_gui_basics" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_gui_extra" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_opengl" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
+    <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
+            useGlobalPath="0"/>
+    <MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <LIVE_SETTINGS>
     <WINDOWS/>

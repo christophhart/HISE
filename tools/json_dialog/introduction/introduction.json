@@ -1,0 +1,516 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false,
+    "buttonTabBackgroundColour": 570425344,
+    "buttonBgColour": 4289374890,
+    "buttonTextColour": 4280624421,
+    "modalPopupBackgroundColour": 4281545523,
+    "modalPopupOverlayColour": 3995214370,
+    "modalPopupOutlineColour": 4289374890,
+    "pageProgressColour": 2013265919
+  },
+  "Properties": {
+    "Header": "Welcome to the Dialog Builder",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0"
+  },
+  "LayoutData": {
+    "TopHeight": 56,
+    "ButtonTab": 40,
+    "ButtonMargin": 5,
+    "OuterPadding": 50,
+    "LabelWidth": 140.0,
+    "LabelHeight": 32,
+    "DialogWidth": 1003,
+    "DialogHeight": 869,
+    "LabelPosition": "Default"
+  },
+  "GlobalState": {
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Welcome to the dialog builder. This application lets you create standalone applications with multiple dialog pages as well as JSON metadata that can be loaded into a FloatingTile inside HISE.\n\nThe concept of this system is a no-code solution to the most common tasks (plugin installation, sample content extraction, activation)\n\nIn this example we're taking a look at each UI element as well as the general concept to get you up and running in no time.\n\nPress the Next button to continue...",
+          "Padding": 0
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "As you can see, you've entered a new page. The inbuilt navigation between pages allows you to break down your task into multiple chunks to keep things simple.\n\nOn the left side you can see a list of all pages with all elements. The current page is highlighted so you know where you are in the dialog.\n\nYou can add and remove pages with the two buttons at the bottom of the left side-tab.\n\nBelow this dialog you can see a console that will log almost any event that occurs which helps with debugging and understanding the logic.\n\nPress next to continue...",
+          "Padding": 0
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "During the creation of your process dialog you can switch between \"Preview\" and \"Edit\" mode (just like with the HISE interface designer). Press F4 (or choose **Edit -> Toggle Edit Mode**) in order to toggle between the modes.\n\n> The edit mode has a few layout guides & outlines so you can adjust any positioning.\n\nIn order to create new elements, click on the bottom button (or right click on any container element in the left side-tab), then choose whatever element you want to add.\n\nOn the next pages we'll introduce the different element types, starting with Layout containers.",
+          "Padding": 0,
+          "Comment": false
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "### Layout\n\nThe layout elements allow you to define the positioning of its child elements using a grid-based system. Every page is a list of rows that can be divided into columns to create 2-dimensional arrangements of UI elements (like you can see below).\n\n> In addition to the container elements there are other (non-functional) UI elements in this category like a Markdown text box (this here) or a spacer (see below).",
+          "Padding": 0
+        },
+        {
+          "Type": "Spacer",
+          "Text": "LabelText",
+          "Padding": "50"
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "TextInput",
+                  "Text": "LabelText",
+                  "ID": "TextInputId",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "LabelPosition": "Default",
+                  "EmptyText": "",
+                  "Required": false,
+                  "ParseArray": false,
+                  "Items": "",
+                  "Visible": true,
+                  "Enabled": true
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "LabelText",
+                  "ID": "TextInputId",
+                  "InitValue": "",
+                  "UseInitValue": "",
+                  "LabelPosition": "Default",
+                  "EmptyText": "",
+                  "Required": false,
+                  "ParseArray": false,
+                  "Items": "",
+                  "Visible": true,
+                  "Enabled": true
+                }
+              ]
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "TextInput",
+                  "Text": "LabelText",
+                  "ID": "TextInputId",
+                  "Visible": true,
+                  "Enabled": true
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "LabelText",
+                  "ID": "TextInputId",
+                  "Visible": true,
+                  "Enabled": true
+                },
+                {
+                  "Type": "TextInput",
+                  "Text": "LabelText",
+                  "ID": "TextInputId",
+                  "Visible": true,
+                  "Enabled": true
+                }
+              ]
+            }
+          ],
+          "ID": "",
+          "Padding": "30",
+          "Width": [
+            "-0.4",
+            "-0.6"
+          ]
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "Press Next to continue...",
+          "Padding": 0
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "CopyProtection",
+          "Text": "LabelText"
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "### Constants\n\nThe next element category are constants. They are grouped semantically and will load up \"constant\" values that are unique to the users system.\n\n> Constants are not a visible UI element (unless you're in edit mode), but they still belong to a page as they will be loaded whenever you enter the page.\n\nOn this page there is a `CopyProtection` constant, which loads a few constants required for activating the ScriptUnlocker (but there are many more constant elements for different purposes). Did you see how it added a few rows in the **State Variable** table on the right?\n\nThis is a good segway into the data model of this system: there are global variables that you can reference by using a bash-script like syntax (prepend a dollar sign before the variable name and it will parse and display the value). Here is your system ID:\n\n### $systemID\n\nPress Next to continue...",
+          "Padding": 0,
+          "Comment": false
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": "20",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "### UI Elements\n\nThe UI elements lets you gather user input and will store the value using their `ID` (as well as log that value change to the console). Below you can find a selection of the available UI elements. Feel free to click on any UI element on the left side-tab to see a popup where you can adjust all the properties.",
+          "Padding": 0,
+          "Comment": false
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "TextInput",
+                  "Text": "Some text input",
+                  "ID": "textInput",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "LabelPosition": "Default",
+                  "EmptyText": "Please enter some text",
+                  "Required": false,
+                  "ParseArray": false,
+                  "Items": "Autocomplete 1\nAnother Autocomplete\nAs I said, Autocomplete!",
+                  "Help": "This lets the user input any text that will be stored as he types. You can also offer a few suggestions by populating the `Items` property. Start typing `A` here to see how it looks",
+                  "Multiline": false,
+                  "Visible": true,
+                  "Enabled": true
+                },
+                {
+                  "Type": "Choice",
+                  "Text": "Choice",
+                  "ID": "comboBoxValue",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "LabelPosition": "Default",
+                  "Custom": false,
+                  "ValueMode": "Text",
+                  "Help": "A combobox element with a predefined list of values",
+                  "EmptyText": "Nothing selected",
+                  "Items": "Item 1\nItem 2\nItem 3",
+                  "Visible": true,
+                  "Enabled": true
+                },
+                {
+                  "Type": "FileSelector",
+                  "Text": "Location",
+                  "ID": "fileId",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "LabelPosition": "Default",
+                  "Required": false,
+                  "Help": "A file browser element that lets you open the native OS file browser to select a file or directory.",
+                  "Directory": true,
+                  "Wildcard": "",
+                  "SaveFile": false,
+                  "Visible": true,
+                  "Enabled": true
+                }
+              ],
+              "ID": "",
+              "Padding": "10",
+              "Foldable": false,
+              "Folded": false
+            },
+            {
+              "Type": "List",
+              "Text": "LabelText",
+              "Children": [
+                {
+                  "Type": "Button",
+                  "Text": "Radio 1",
+                  "ID": "radioId",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "LabelPosition": "Default",
+                  "IconData": "",
+                  "Help": "If a button shares its ID with another button on the same page, they will form a radio group and the state variable will be the index of the button on the page.",
+                  "Required": false,
+                  "ButtonType": "",
+                  "Trigger": false,
+                  "Visible": true,
+                  "Enabled": true
+                },
+                {
+                  "Type": "Button",
+                  "Text": "Radio 2",
+                  "ID": "radioId",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "LabelPosition": "Default",
+                  "IconData": "",
+                  "Help": "",
+                  "Required": false,
+                  "ButtonType": "",
+                  "Trigger": false,
+                  "Visible": true,
+                  "Enabled": true
+                },
+                {
+                  "Type": "Button",
+                  "Text": "Toggle",
+                  "ID": "toggleId",
+                  "InitValue": "",
+                  "UseInitValue": false,
+                  "LabelPosition": "Default",
+                  "IconData": "",
+                  "Help": "If a button has a unique ID, it will act as toggle button and the state variable will be `true` or `false`",
+                  "Required": false,
+                  "ButtonType": "",
+                  "Trigger": false,
+                  "Visible": true,
+                  "Enabled": true
+                }
+              ],
+              "ID": "",
+              "Padding": "10",
+              "Foldable": false,
+              "Folded": false
+            }
+          ],
+          "ID": "",
+          "Padding": "30",
+          "Width": [
+            "-0.5",
+            "-0.5"
+          ]
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "You can also make UI elements non-optional by setting the `Required` flag. The button below has that flag enabled, so if you try to go to the next page, it will popup an error message.  This is useful for eg. accepting TOC (if it's a button) or making sure that the user has actually selected a directory (if it's a file selector).",
+          "Padding": 0
+        },
+        {
+          "Type": "Button",
+          "Text": "CLICK ME!!!",
+          "ID": "requiredButton",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Required": true,
+          "Help": "",
+          "ButtonType": "",
+          "Trigger": false,
+          "Visible": true,
+          "Enabled": true
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "### Actions\n\nNow it gets interesting. Until now the dialog was just a glorified powerpoint presentation, but by adding Action elements you can implement the logic that will perform the task you want.\n\nAn action element is an invisible element on a page (just like the constant) that will perform its task on either one of two events:\n\n1. on page load.\n2. when you click the next button.\n\nThis is determined by the `CallOnNext` property of each action. This means an action can start right away when a page is loaded or wait until you click next and it's up to you to decide what's a better UX for your use case.\n\nThe second common principle of actions is that their execution can be conditional if they have assigned a ID. In that case it will fetch the value from the global state and only perform the action if the value is true. The most easiest way to make use of this concept is by having a button with the same ID as an action.\n\nThis page has a button called `openGoogle` and an action with the same ID that will, well, open Google in your web browser (also the action is set to `CallOnNext` so that you can use the button to actually control this). Depending on whether the button is ticked or not, the dialog will open Google if you press Next. How cool is that?",
+          "Padding": 0,
+          "Comment": false
+        },
+        {
+          "Type": "Button",
+          "Text": "Open Google",
+          "ID": "openGoogle",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false,
+          "Visible": true,
+          "Enabled": true
+        },
+        {
+          "Type": "Launch",
+          "Text": "https://google.com",
+          "ID": "openGoogle",
+          "CallOnNext": true,
+          "Args": ""
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "> If you land on this page without being redirected to Google, it might also be possible that you've found the second way to disable actions: if you're in edit mode, any action will be skipped (so that you don't start accidentally extracting GBs of samples while you build your installer).\n\nOpening a website is super nice, but since we're here to make installers, let's make it extract files somewhere.\n\nIn order to extract something, you need a source and a target. There are three possible sources:\n\n1. A file that is relative to the installer. Might be finnicky to ensure that this works on the end user system so let's not do that.\n2. A file that is downloaded using a `DownloadTask`.\n3. A file that is embedded into the binary data of the installer as **Asset**. This will increase the binary size of the installer (and you cannot use it with large files as it will blow up the compiler), but for medium sized files like our example archive we're good.\n\nOn the right tab below the state variable table you can see the list of embedded assets. This can be any file, images or fonts that need a **unique** ID. This project includes a small ZIP archive with the HISE demo project that we will use for demonstrating the extract process.\n\nPress Next to continue...\n",
+          "Padding": 0
+        }
+      ]
+    },
+    {
+      "Type": "List",
+      "Padding": "30",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "### Extracting Zip files\n\nOn this page we're about to extract the embedded asset `DemoArchive` to a user-definable location. For this we need a `FileSelector` UI element and a `UnzipTask` action.\n\nAs you might have realized, the Unzip task is not invisible anymore, but has a progress bar waiting to be filled. This is because the Unzip task is a heavyweight operation that will be performed on background task (there are some actions that can be executed immediately and some which might take longer and require some kind of process indication).\n\n> Before you proceed, please go into edit mode and take a look at the properties of the unzip task. We have set the `Source` and `Target` properties to match the file selector and asset reference (please note the subtle difference between referencing state variables and asset IDs).",
+          "Padding": 0
+        },
+        {
+          "Type": "FileSelector",
+          "Text": "Target",
+          "ID": "unzipTarget",
+          "InitValue": "",
+          "UseInitValue": false,
+          "LabelPosition": "Default",
+          "Required": true,
+          "Directory": true,
+          "Help": "The target directory where we will extract the demo archive",
+          "Wildcard": "",
+          "SaveFile": false,
+          "Visible": true,
+          "Enabled": true
+        },
+        {
+          "Type": "UnzipTask",
+          "Text": "Progress",
+          "ID": "UnzipTaskId",
+          "CallOnNext": true,
+          "LabelPosition": "Default",
+          "Overwrite": true,
+          "Source": "${DemoArchive}",
+          "Target": "$unzipTarget"
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "### Javascript\n\nWow that was fast. Alright, as last chapter in our introduction, let's take a look at how to further customize things using vanilla JS code snippets.\n\n> Be aware that this is using the stock Javascript interpreter from JUCE without all the HiseScript additions.\n\nThere are two options of using Javascript snippets:\n\n1. as an action that will be performed either on page load or if you click next\n2. as an UI element callback that will be performed whenever the user clicks or changes the value of a UI element\n\nIn this example, we'll use the first option and execute a script that checks whether you've clicked the button on this page in order to display a message on the next page.\n\nChoose one of the buttons and press Next.",
+          "Padding": 0,
+          "Comment": false
+        },
+        {
+          "Type": "Column",
+          "Text": "LabelText",
+          "Children": [
+            {
+              "Type": "Button",
+              "Text": "Option 1",
+              "ID": "jsOption",
+              "Visible": true,
+              "Enabled": true,
+              "InitValue": "",
+              "UseInitValue": false,
+              "LabelPosition": "Default",
+              "Help": "",
+              "Required": false,
+              "ButtonType": "",
+              "Trigger": false,
+              "Code": ""
+            },
+            {
+              "Type": "Button",
+              "Text": "Option 2",
+              "ID": "jsOption",
+              "Visible": true,
+              "Enabled": true,
+              "InitValue": "",
+              "UseInitValue": "",
+              "LabelPosition": "Default"
+            }
+          ],
+          "ID": ""
+        },
+        {
+          "Type": "JavascriptFunction",
+          "Text": "LabelText",
+          "ID": "JavascriptFunctionId",
+          "CallOnNext": true,
+          "Code": "// Access / change state values with the state object\nif(state.jsOption == 1)\n\tstate.textToShow = \"You've selected the second option. Good choice!\";\nelse if (state.jsOption == 0)\n\tstate.textToShow = \"You've selected the first option. A very good choice!\";\n"
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    },
+    {
+      "Type": "List",
+      "Padding": 10,
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Oh it looks like we've got a message from the last page:\n\n> $textToShow\n\nThat little magic trick concludes our introduction project. If you want to see a real world project, I suggest you check out the HISE installer project.\n\n`HISE source folder/tools/auto_build/installer/hise_installer.json`\n\nIt covers a few more advanced topics (branching based on OS, download management etc)...",
+          "Padding": 0,
+          "Comment": false
+        }
+      ]
+    }
+  ],
+  "Assets": [
+    {
+      "Type": 4,
+      "ID": "DemoArchive",
+      "RelativePath": true,
+      "OperatingSystem": 0,
+      "Filename": "Demo.zip"
+    }
+  ]
+}

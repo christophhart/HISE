@@ -85,6 +85,7 @@ void LorisManager::CustomPOD::writeJSON(const var& obj_)
 
 void* LorisManager::getFunction(const String& name) const
 {
+#if HISE_USE_LORIS_DLL
 	if(dll != nullptr)
 	{
 		if(auto f = dll->getFunction(name))
@@ -101,6 +102,38 @@ void* LorisManager::getFunction(const String& name) const
 		else
 			errorFunction("Can't find function pointer for " + name + "()");
 	}
+#elif HISE_INCLUDE_LORIS
+
+    if (state != nullptr)
+    {
+        LorisLibrary::setThreadController(state, threadController.get());
+    }
+    
+#define RETURN_STATIC_FUNCTION(x) if(name == #x) return (void*)LorisLibrary::x;
+
+    RETURN_STATIC_FUNCTION(createLorisState);
+	RETURN_STATIC_FUNCTION(destroyLorisState);
+	RETURN_STATIC_FUNCTION(getLibraryVersion);
+	RETURN_STATIC_FUNCTION(getLorisVersion);
+	RETURN_STATIC_FUNCTION(loris_analyze);
+	RETURN_STATIC_FUNCTION(loris_process);
+	RETURN_STATIC_FUNCTION(loris_process_custom);
+	RETURN_STATIC_FUNCTION(loris_set);
+	RETURN_STATIC_FUNCTION(loris_get);
+	RETURN_STATIC_FUNCTION(getRequiredBytes);
+	RETURN_STATIC_FUNCTION(loris_synthesize);
+	RETURN_STATIC_FUNCTION(loris_create_envelope);
+	RETURN_STATIC_FUNCTION(loris_snapshot);
+	RETURN_STATIC_FUNCTION(loris_prepare);
+	RETURN_STATIC_FUNCTION(getLastMessage);
+	RETURN_STATIC_FUNCTION(getIdList);
+	RETURN_STATIC_FUNCTION(getLastError);
+	RETURN_STATIC_FUNCTION(setThreadController);
+    jassertfalse;
+
+#undef RETURN_STATIC_FUNCTION
+    
+#endif
         
 	return nullptr;
 }
@@ -108,9 +141,11 @@ void* LorisManager::getFunction(const String& name) const
 LorisManager::LorisManager(const File& hiseRoot_, const std::function<void(String)>& errorFunction_):
 	lastError(Result::ok()),
 	hiseRoot(hiseRoot_),
-	dll(new DynamicLibrary()),
 	errorFunction(errorFunction_)
 {
+#if HISE_USE_LORIS_DLL
+    dll = new DynamicLibrary();
+
 	auto dllFile = getLorisDll();
         
 	if(!dllFile.existsAsFile())
@@ -160,6 +195,16 @@ LorisManager::LorisManager(const File& hiseRoot_, const std::function<void(Strin
 	{
 		errorFunction("Can't open Loris DLL...");
 	}
+#elif HISE_INCLUDE_LORIS
+
+    lorisVersion = ((GetLorisVersion)getFunction("getLorisVersion"))();
+    state = ((LorisCreateFunction)getFunction("createLorisState"))();
+    
+#else
+    
+    errorFunction("Loris is disabled");
+
+#endif
 }
 
 File LorisManager::getRedirectedFolder() const
@@ -384,9 +429,11 @@ LorisManager::~LorisManager()
 			state = nullptr;
 		}
 	}
-        
+
+#if HISE_USE_LORIS_DLL
 	dll->close();
 	dll = nullptr;
+#endif
 }
 
 Array<juce::var> LorisManager::createEnvelope(const juce::File &audioFile, const juce::Identifier &parameter, int index)

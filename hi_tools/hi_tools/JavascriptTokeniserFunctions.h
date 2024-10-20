@@ -52,33 +52,25 @@ struct JavascriptTokeniserFunctions
                 || c == '_' || c == '@';
     }
 
-    static bool isReservedKeyword (String::CharPointerType token, const int tokenLength) noexcept
+    static bool isScopedBlockType(String::CharPointerType token, const int tokenLength) noexcept
     {
         static const char* const keywords2Char[] =
-            { "if", "in", "do", "or", nullptr };
+            { "if", nullptr };
 
         static const char* const keywords3Char[] =
-            { "for", "reg", "let", "int", "new", "try", "var", "NaN", nullptr };
+            { "set", nullptr };
 
         static const char* const keywords4Char[] =
-            { "void", "this", "true", "long", "else", "char",
-              "enum", "case", "goto", "byte", "eval", "null", "with", "JSON", nullptr };
+            { "lock", "dump", "noop", nullptr };
 
         static const char* const keywords5Char[] =
-            { "Synth", "float", "const", "while", "break", "false", "catch", "class",
-              "final", "catch", "yield", "Array", "local", nullptr };
+            { "count", "print", "defer", "after", "trace", nullptr };
 
         static const char* const keywords6Char[] =
-            { "string", "Engine", "return","delete", "double", "export", "public", "static",
-              "switch", "global","typeof", "inline", "object", "number", nullptr };
+            { "before", "bypass", nullptr };
 
         static const char* const keywords7Char[] =
-            { "Message", "Console", "Content", "default", "finally", "private",
-              nullptr };
-
-        static const char* const keywordsOther[] =
-		{ "continue", "protected", "volatile", "undefined",
-              "function", "readLock", "writeLock", "namespace", "isDefined", nullptr };
+            { "profile", nullptr };
 
         const char* const* k;
 
@@ -90,9 +82,62 @@ struct JavascriptTokeniserFunctions
             case 5:     k = keywords5Char; break;
             case 6:     k = keywords6Char; break;
             case 7:     k = keywords7Char; break;
+            default:
+                return false;
+        }
+
+        for (int i = 0; k[i] != 0; ++i)
+            if (token.compare (CharPointer_ASCII (k[i])) == 0)
+                return true;
+
+        return false;
+    }
+
+    static bool isReservedKeyword (String::CharPointerType token, const int tokenLength) noexcept
+    {
+        static const char* const keywords2Char[] =
+            { "if", "in", "do", "or", nullptr };
+
+        static const char* const keywords3Char[] =
+            { "for", "reg", "let", "int", "new", "try", "var", "NaN", nullptr };
+
+        static const char* const keywords4Char[] =
+            { "void", "this", "true", "JSON", "long", "else", "char", "Math",
+              "enum", "case", "goto", "byte", "eval", "null", "with", "JSON", nullptr };
+
+        static const char* const keywords5Char[] =
+            { "Synth", "float", "const", "while", "break", "false", "class",
+              "catch", "Array", "trace", "local", nullptr };
+
+        static const char* const keywords6Char[] =
+            { "string", "Engine", "return","delete", "Buffer", "double", "export", "public", "static",
+              "switch", "global","typeof", "inline", "object", "Synth", "number", nullptr };
+
+        static const char* const keywords7Char[] =
+            { "Console", "Content", "Colours", "default", "finally", "Message", "private", "Sampler", "Server", "Threads",
+              nullptr };
+        
+        static const char* const keywords8Char[] =
+          { "continue", "function", "parseInt", "Settings", nullptr
+          };
+        
+        static const char* const keywordsOther[] =
+		{ "FileSystem", "namespace", "protected", "undefined", "isDefined", nullptr };
+
+        const char* const* k;
+
+        switch (tokenLength)
+        {
+            case 2:     k = keywords2Char; break;
+            case 3:     k = keywords3Char; break;
+            case 4:     k = keywords4Char; break;
+            case 5:     k = keywords5Char; break;
+            case 6:     k = keywords6Char; break;
+            case 7:     k = keywords7Char; break;
+            case 8:     k = keywords8Char; break;
 
             default:
-                if (tokenLength < 2 || tokenLength > 16)
+                if (tokenLength < 2 || tokenLength > 11)
                     return false;
 
                 k = keywordsOther;
@@ -107,7 +152,7 @@ struct JavascriptTokeniserFunctions
     }
 
     template <typename Iterator>
-    static int parseIdentifier (Iterator& source) noexcept
+    static int parseIdentifier (Iterator& source, bool expectScopedId=false) noexcept
     {
         int tokenLength = 0;
         String::CharPointerType::CharType possibleIdentifier [100];
@@ -127,6 +172,13 @@ struct JavascriptTokeniserFunctions
         {
             possible.writeNull();
 
+            if(expectScopedId)
+            {
+	            if(isScopedBlockType(String::CharPointerType (possibleIdentifier), tokenLength))
+                    return JavascriptTokeniser::tokenType_scopedstatement;
+                else
+                    return JavascriptTokeniser::tokenType_error;
+            }
             if (isReservedKeyword (String::CharPointerType (possibleIdentifier), tokenLength))
                 return JavascriptTokeniser::tokenType_keyword;
         }

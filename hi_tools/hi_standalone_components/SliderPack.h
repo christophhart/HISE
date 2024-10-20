@@ -192,6 +192,7 @@ class SliderPack : public Component,
 				   public Slider::Listener,
 				   public SliderPackData::Listener,
 				   public Timer,
+				   public SettableTooltipClient,
 				   public ComplexDataUIBase::EditorBase
 {
 public:
@@ -232,6 +233,11 @@ public:
 
 	void timerCallback() override;
 
+    void setTextAreaPopup(Rectangle<int> bounds)
+    {
+        textArea = bounds;
+    }
+    
 	/** Sets the number of sliders shown. This clears all values. */
 	void setNumSliders(int numSliders);
 
@@ -307,14 +313,38 @@ public:
 
 	void setCallbackOnMouseUp(bool shouldFireOnMouseUp);
 
+    void setToggleMaxMode(bool shouldToggleMax)
+    {
+        toggleMaxMode = shouldToggleMax;
+    }
+    
+    void repaintWithTextBox(Rectangle<int> dirtyArea)
+    {
+        repaint(dirtyArea);
+        
+        if(!textArea.isEmpty())
+            repaint(textArea);
+    }
+
+	void setStepSequencerMode(bool shouldUseStepSequencerMode);
+
+	int getHoverStateForSlider(Slider* s) const;
+
 private:
+	
+    bool toggleMaxMode = false;
+    Rectangle<int> textArea;
 
 	int lastDragIndex = -1;
 	float lastDragValue = -1.0f;
 
 	bool slidersNeedRebuild = false;
 
+    double currentStepSequencerInputValue = 0.0;
+
 	void rebuildSliders();
+
+	void updateSliderColours();
 
 	int currentDisplayIndex = -1;
 
@@ -331,9 +361,13 @@ private:
 
 	bool currentlyDragged;
 
+	bool showOverlayOnMove = false;
+
 	bool callbackOnMouseUp = false;
 
 	int currentlyDraggedSlider;
+
+	int currentlyHoveredSlider = -1;
 
 	double currentlyDraggedSliderValue;
 

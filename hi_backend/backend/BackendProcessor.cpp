@@ -50,8 +50,80 @@ void printData()
 namespace hise { using namespace juce;
 
 
+	
 
-BackendProcessor::BackendProcessor(AudioDeviceManager *deviceManager_/*=nullptr*/, AudioProcessorPlayer *callback_/*=nullptr*/) :
+	void ExampleAssetManager::initialise()
+	{
+		if(!initialised)
+		{
+			initialised = true;
+
+			setWorkingProject(mainProjectHandler.getRootFolder());
+
+			auto snippetSettings = getAppDataDirectory(getMainController()).getChildFile("snippetBrowser.xml");
+
+			if(auto xml = XmlDocument::parse(snippetSettings))
+			{
+				if(auto sd = xml->getChildByName("snippetDirectory"))
+				{
+					auto snippetDirectory = sd->getStringAttribute("value");
+
+					if(File::isAbsolutePath(snippetDirectory))
+					{
+						auto assetDirectory = File(snippetDirectory).getChildFile("Assets");
+
+						if(!assetDirectory.getChildFile("SampleMaps").isDirectory())
+						{
+							debugError(getMainController()->getMainSynthChain(), "Uninitialised assets, please download the assets and reload the snippet");
+							initialised = false;
+							return;
+						}
+
+						if(assetDirectory.isDirectory())
+						{
+							rootDirectory = assetDirectory;
+
+							for(auto d: getSubDirectoryIds())
+								rootDirectory.getChildFile(getIdentifier(d)).createDirectory();
+
+							checkSubDirectories();
+
+							pool->getAudioSampleBufferPool().loadAllFilesFromProjectFolder();
+							pool->getImagePool().loadAllFilesFromProjectFolder();
+							pool->getMidiFilePool().loadAllFilesFromProjectFolder();
+							pool->getSampleMapPool().loadAllFilesFromProjectFolder();
+							return;
+						}
+					}
+				}
+			}
+
+			debugError(getMainController()->getMainSynthChain(), "You need to download the assets using the snippet browser");
+		}
+	}
+
+	File ExampleAssetManager::getSubDirectory(SubDirectories dir) const
+	{
+		auto redirected = getSubDirectoryIds();
+
+		if(redirected.contains(dir))
+			return ProjectHandler::getSubDirectory(dir);
+		else
+			return mainProjectHandler.getSubDirectory(dir);
+	}
+
+	Array<FileHandlerBase::SubDirectories> ExampleAssetManager::getSubDirectoryIds() const
+	{
+		return {
+			FileHandlerBase::SubDirectories::AudioFiles,
+			FileHandlerBase::SubDirectories::SampleMaps,
+			FileHandlerBase::SubDirectories::Samples,
+			FileHandlerBase::SubDirectories::Images,
+			FileHandlerBase::SubDirectories::MidiFiles
+		};
+	}
+
+	BackendProcessor::BackendProcessor(AudioDeviceManager *deviceManager_/*=nullptr*/, AudioProcessorPlayer *callback_/*=nullptr*/) :
 MainController(),
 AudioProcessorDriver(deviceManager_, callback_),
 scriptUnlocker(this)
@@ -96,7 +168,7 @@ scriptUnlocker(this)
 		getAutoSaver().updateAutosaving();
 	}
 	
-	clearPreset();
+	clearPreset(dontSendNotification);
 	getSampleManager().getProjectHandler().addListener(this);
 
 	createInterface(600, 500);
@@ -113,13 +185,23 @@ scriptUnlocker(this)
 			return SafeFunctionCall::OK;
 		};
 
-		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+		getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
     
     externalClockSim.bpm = dynamic_cast<GlobalSettingManager*>(this)->globalBPM;
-    
+
+#if HISE_INCLUDE_LORIS && !HISE_USE_LORIS_DLL
+
+	lorisManager = new LorisManager(File(), [this](String message)
+    {
+        this->getConsoleHandler().writeToConsole(message, 1, getMainSynthChain(), Colour(HISE_ERROR_COLOUR));
+    });
+
+#else
+
     if(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Compiler::EnableLoris))
     {
+#if HISE_USE_LORIS_DLL
         auto f = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("loris_library");
         
         if(f.isDirectory())
@@ -137,6 +219,7 @@ scriptUnlocker(this)
                 f.revealToUser();
             }
         }
+#endif
     }
     else
     {
@@ -145,7 +228,8 @@ scriptUnlocker(this)
         if(f.isDirectory())
             debugToConsole(getMainSynthChain(), "You seem to have installed the loris library, but you need to enable the setting `EnableLoris` in the HISE preferences");
     }
-    
+
+#endif
     
 }
 
@@ -160,6 +244,10 @@ BackendProcessor::~BackendProcessor()
 	AudioThreadGuard::setHandler(nullptr);
 #endif
 
+    getJavascriptThreadPool().stopThread(1000);
+	getJavascriptThreadPool().getGlobalServer()->cleanup();
+
+
 	getSampleManager().cancelAllJobs();
 
 	getSampleManager().getProjectHandler().removeListener(this);
@@ -167,7 +255,7 @@ BackendProcessor::~BackendProcessor()
 
 	deletePendingFlag = true;
 
-	clearPreset();
+	clearPreset(dontSendNotification);
 
 	synthChain = nullptr;
 
@@ -190,7 +278,7 @@ void BackendProcessor::projectChanged(const File& /*newRootDirectory*/)
 		return SafeFunctionCall::OK;
 	};
 
-	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 	refreshExpansionType();
 	
@@ -239,10 +327,41 @@ void BackendProcessor::refreshExpansionType()
 	getExpansionHandler().resetAfterProjectSwitch();
 }
 
+void BackendProcessor::handleEditorData(bool save)
+{
+#if IS_STANDALONE_APP
+	File jsonFile = NativeFileHandler::getAppDataDirectory(nullptr).getChildFile("editorData.json");
+
+	if (save)
+	{
+		if (editorInformation.isObject())
+			jsonFile.replaceWithText(JSON::toString(editorInformation));
+		else
+			jsonFile.deleteFile();
+	}
+	else
+	{
+		editorInformation = JSON::parse(jsonFile);
+	}
+#else
+		ignoreUnused(save);
+#endif
+
+		
+}
+
 void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiMessages)
 {
     TRACE_DSP();
-    
+
+	if(externalClockSim.bypassed)
+	{
+		processBlockBypassed(buffer, midiMessages);
+		return;
+	}
+
+	
+	
 #if !HISE_BACKEND_AS_FX
 	buffer.clear();
 #endif
@@ -331,8 +450,10 @@ void BackendProcessor::processBlock(AudioSampleBuffer& buffer, MidiBuffer& midiM
 		externalClockSim.addTimelineData(buffer, midiMessages);
 #endif
 
-		getDelayedRenderer().processWrapped(buffer, midiMessages);
+		ScopedAnalyser sa(this, nullptr, buffer, buffer.getNumSamples());
 
+		getDelayedRenderer().processWrapped(buffer, midiMessages);
+		
 #if IS_STANDALONE_APP
 		externalClockSim.addPostTimelineData(buffer, midiMessages);
 #endif
@@ -347,7 +468,6 @@ void BackendProcessor::processBlockBypassed(AudioSampleBuffer& buffer, MidiBuffe
 {
 	buffer.clear();
 	midiMessages.clear();
-	//allNotesOff();
 }
 
 void BackendProcessor::handleControllersForMacroKnobs(const MidiBuffer &/*midiMessages*/)
@@ -426,7 +546,7 @@ void BackendProcessor::setStateInformation(const void *data, int sizeInBytes)
 		return SafeFunctionCall::OK;
 	};
 
-	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	getKillStateHandler().killVoicesAndCall(getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 AudioProcessorEditor* BackendProcessor::createEditor()
@@ -440,20 +560,7 @@ AudioProcessorEditor* BackendProcessor::createEditor()
 #endif
 }
 
-void BackendProcessor::registerItemGenerators()
-{
-	AutogeneratedDocHelpers::addItemGenerators(*this);
-}
 
-void BackendProcessor::registerContentProcessor(MarkdownContentProcessor* processor)
-{
-	AutogeneratedDocHelpers::registerContentProcessor(processor);
-}
-
-juce::File BackendProcessor::getCachedDocFolder() const
-{
-	return AutogeneratedDocHelpers::getCachedDocFolder();
-}
 
 juce::File BackendProcessor::getDatabaseRootDirectory() const
 {
@@ -517,6 +624,92 @@ void BackendProcessor::setEditorData(var editorState)
 
 
 
+
+
+void BackendProcessor::pushToAnalyserBuffer(AnalyserInfo::Ptr info, bool post, const AudioSampleBuffer& buffer, int numSamples)
+{
+	jassert(info != nullptr);
+
+	if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(postAnalyserLock))
+	{
+		auto rb = info->ringBuffer[(int)post];
+
+		if(rb != nullptr)
+		{
+			if(!post)
+			{
+				for(int i = 0; i < 127; i++)
+				{
+					if(getKeyboardState().isNoteOn(1, i))
+					{
+						currentNoteNumber = i;
+						break;
+					}
+				}
+			}
+
+			if(!post && (bool)rb->getPropertyObject()->getProperty(scriptnode::PropertyIds::IsProcessingHiseEvent))
+			{
+				if(currentNoteNumber != -1 && currentNoteNumber != info->lastNoteNumber)
+				{
+					info->lastNoteNumber = currentNoteNumber;
+					auto midiFreq = MidiMessage::getMidiNoteInHertz(info->lastNoteNumber);
+					auto cycleLength = getMainSynthChain()->getSampleRate() / midiFreq;
+					info->ringBuffer[0]->setMaxLength(cycleLength);
+					info->ringBuffer[1]->setMaxLength(cycleLength);
+				}
+			}
+
+			if(rb->getPropertyObject()->getProperty("ShowCpuUsage"))
+			{
+				auto numMsForBuffer = ((double)buffer.getNumSamples() / getMainSynthChain()->getSampleRate()) * 1000.0;
+				auto usage = jlimit(0.0, 1.0, info->duration / numMsForBuffer);
+
+				rb->write(post ? usage : (getCpuUsage() * 0.01), numSamples);
+			}
+			else
+			{
+				jassert(isPositiveAndBelow(info->currentlyAnalysedProcessor.second * 2, buffer.getNumChannels()+1));
+				const float* data[2] = { buffer.getReadPointer(info->currentlyAnalysedProcessor.second * 2), buffer.getReadPointer(info->currentlyAnalysedProcessor.second * 2 +1) };
+				rb->write(data, 2, buffer.getNumSamples());
+			}
+		}
+	}
+}
+
+AnalyserInfo::Ptr BackendProcessor::getAnalyserInfoForProcessor(Processor* p)
+{
+	if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(postAnalyserLock))
+	{
+		for(auto i: currentAnalysers)
+		{
+			if(i->currentlyAnalysedProcessor.first == p)
+				return i;
+		}
+	}
+
+	return nullptr;
+}
+
+Result BackendProcessor::setAnalysedProcessor(AnalyserInfo::Ptr newInfo, bool add)
+{
+	SimpleReadWriteLock::ScopedWriteLock sl(postAnalyserLock);
+
+	if(add)
+	{
+		for(auto i: currentAnalysers)
+		{
+			if(i->currentlyAnalysedProcessor.first == newInfo->currentlyAnalysedProcessor.first)
+				return Result::fail("Another analyser is already assigned to the module " + i->currentlyAnalysedProcessor.first->getId());
+		}
+		currentAnalysers.add(newInfo);
+	}
+			
+	else
+		currentAnalysers.removeObject(newInfo);
+
+	return Result::ok();
+}
 } // namespace hise
 
 

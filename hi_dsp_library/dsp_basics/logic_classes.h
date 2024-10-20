@@ -38,6 +38,8 @@ namespace conversion_logic
 {
 struct ms2freq
 {
+    static constexpr bool usesPrepareSpecs() { return true; }
+
     double getValue(double input) const
     {
         if(input == 0.0)
@@ -49,6 +51,8 @@ struct ms2freq
 
 struct freq2ms
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
     double getValue(double input) const
     {
         if(input == 0.0)
@@ -60,6 +64,8 @@ struct freq2ms
 
 struct ms2samples
 {
+    static constexpr bool usesPrepareSpecs() { return true; }
+
     double getValue(double input) const
     {
         return input * 0.001 * sampleRate;
@@ -75,6 +81,8 @@ struct ms2samples
 
 struct freq2samples
 {
+    static constexpr bool usesPrepareSpecs() { return true; }
+
     double getValue(double input) const
     {
         return input > 0.001f  ? sampleRate / input : 0.0f;
@@ -90,6 +98,8 @@ struct freq2samples
 
 struct ms2bpm
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
     double getValue(double input) const
     {
         return 60 / (hmath::max(input, 1.0) * 0.001);
@@ -98,6 +108,8 @@ struct ms2bpm
 
 struct samples2ms
 {
+    static constexpr bool usesPrepareSpecs() { return true; }
+
     double getValue(double input) const
     {
         if(sampleRate == 0.0)
@@ -116,6 +128,8 @@ struct samples2ms
 
 struct pitch2st
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
     double getValue(double input) const
     {
         return std::log2(input) * 12.0;
@@ -124,6 +138,8 @@ struct pitch2st
 
 struct st2pitch
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
     double getValue(double input) const
     {
         return pow(2.0, input / 12.0);
@@ -132,6 +148,8 @@ struct st2pitch
 
 struct cent2pitch
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
 	double getValue(double input) const
 	{
 		return pow(2.0, input / 1200.0);
@@ -140,6 +158,8 @@ struct cent2pitch
 
 struct pitch2cent
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
 	double getValue(double input) const
 	{
 		return std::log2(input) * 1200.0;
@@ -148,14 +168,29 @@ struct pitch2cent
 
 struct midi2freq
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
     double getValue(double input) const
     {
         return MidiMessage::getMidiNoteInHertz(hmath::round(input*127.0));
     }
 };
 
+struct freq2norm
+{
+    static constexpr bool usesPrepareSpecs() { return false; }
+
+    double getValue(double input) const
+    {
+        static constexpr double factor = 1.0 / 20000.0;
+        return input * factor;
+    }
+};
+
 struct db2gain
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
     double getValue(double input) const
     {
         return hmath::db2gain(input);
@@ -164,6 +199,8 @@ struct db2gain
 
 struct gain2db
 {
+    static constexpr bool usesPrepareSpecs() { return false; }
+
     double getValue(double input) const
     {
         return hmath::gain2db(input);
@@ -191,6 +228,25 @@ template <int Unused> struct gate
 
         return false;
     }
+};
+
+template <int Unused> struct random
+{
+    SN_EMPTY_PREPARE;
+    SN_EMPTY_INITIALISE;
+
+    bool getMidiValue(HiseEvent& e, double& v)
+    {
+        if (e.isNoteOn())
+        {
+            v = r.nextDouble();
+            return true;
+        }
+
+        return false;
+    }
+    
+    Random r;
 };
 
 template <int Unused> struct velocity
@@ -251,8 +307,25 @@ template <int Unused> struct frequency
 namespace duplilogic
 {
 
+struct Helpers
+{
+	static bool shouldUpdateNumClones(const String& mode)
+	{
+        // Keep this list up to date with all nodes that return false
+        // at shouldUpdateNumClones();
+		static const StringArray staticModes = 
+        {
+            "toggle"
+		};
+
+        return !staticModes.contains(mode);
+	}
+};
+
 struct spread
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         if (numUsed == 1)
@@ -275,6 +348,8 @@ struct spread
 
 struct triangle
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         if (numUsed == 1)
@@ -300,6 +375,8 @@ struct triangle
 
 struct harmonics: public midi_logic::frequency<0>
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         return (double)(index + 1) * inputValue;
@@ -308,6 +385,8 @@ struct harmonics: public midi_logic::frequency<0>
 
 struct nyquist: public midi_logic::frequency<0>
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         auto hvalue = harmonics().getValue(index, numUsed, inputValue, gamma);
@@ -317,6 +396,8 @@ struct nyquist: public midi_logic::frequency<0>
 
 struct fixed: public midi_logic::frequency<0>
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int /*index*/, int /*numUsed*/, double inputValue, double /*gamma*/)
     {
         return inputValue;
@@ -325,6 +406,8 @@ struct fixed: public midi_logic::frequency<0>
 
 struct ducker
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int /*index*/, int numUsed, double /*inputValue*/, double gamma)
     {
         auto v = 1.0 / jmax(1.0, (double)numUsed);
@@ -338,8 +421,22 @@ struct ducker
     }
 };
 
+
+struct toggle
+{
+    static constexpr bool shouldUpdateNumClones() { return false; }
+
+    double getValue(int index, int numUsed, double inputValue, double /*gamma*/)
+    {
+        auto thisIndex = (double)index / (double)numUsed;
+        return (double)(thisIndex <= inputValue);
+    }
+};
+
 struct random
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     Random r;
 
 	static constexpr bool IsProcessingHiseEvent() { return true; }
@@ -370,6 +467,8 @@ struct random
 
 struct scale
 {
+    static constexpr bool shouldUpdateNumClones() { return true; }
+
     double getValue(int index, int numUsed, double inputValue, double gamma)
     {
         if (numUsed == 1)
@@ -776,7 +875,7 @@ private:
 			if (isSmoothing)
 			{
 				auto thisValue = s.smooth(target);
-				isSmoothing = std::abs(thisValue - target) > 0.001f;
+                isSmoothing = FloatSanitizers::isNotSilence(thisValue - target);
 				lastValue = thisValue;
 				return thisValue;
 			}

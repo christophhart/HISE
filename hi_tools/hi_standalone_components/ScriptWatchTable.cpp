@@ -641,8 +641,19 @@ void ScriptWatchTable::mouseExit(const MouseEvent& e)
 	}
 }
 
+String ScriptWatchTable::getCellTooltip (int rowNumber, int columnId)
+{
+    if(useParentTooltips)
+        return getTextForColumn((ColumnId)columnId, filteredFlatList[rowNumber], true);
+    else
+        return {};
+}
+
 void ScriptWatchTable::mouseMove(const MouseEvent& e)
 {
+    if(useParentTooltips)
+        return;
+    
 	auto ee = e.getEventRelativeTo(table);
 	auto p = ee.getPosition();
 	auto r = table->getRowContainingPosition(p.getX(), p.getY());
@@ -670,12 +681,19 @@ void ScriptWatchTable::mouseMove(const MouseEvent& e)
 
 			auto w = GLOBAL_MONOSPACE_FONT().withHeight((float)table->getRowHeight() * 0.7f).getStringWidth(s);
 
-			if ((pos.getWidth() - 30) < w)
+            if(useParentTooltips)
+            {
+                
+
+                setTooltip(s);
+                return;
+            }
+			else if ((pos.getWidth() - 30) < w)
 			{
-				currentTooltip = new TooltipInfo(*this);
-				currentTooltip->cellPos = getLocalArea(table, pos);
-				currentTooltip->tablePos = { c, r };
-				currentTooltip->t = s;
+                currentTooltip = new TooltipInfo(*this);
+                currentTooltip->cellPos = getLocalArea(table, pos);
+                currentTooltip->tablePos = { c, r };
+                currentTooltip->t = s;
 			}
 
 			repaint();

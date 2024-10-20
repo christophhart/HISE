@@ -1137,7 +1137,7 @@ struct TemplateSelector : public Component,
 		if (b == &ok)
 		{
 			jp->autoCompleteTemplates.add({ l.getText(), Identifier(cb.getText()) });
-			ed->getEditor()->editor.tokenCollection.signalRebuild();
+			ed->getEditor()->editor.tokenCollection->signalRebuild();
 		}
 #endif
 
@@ -1351,7 +1351,7 @@ bool JavascriptProcessor::performPopupMenuAction(int menuId, Component* c)
 		if (PresetHandler::showYesNoWindow("Clear autocomplete templates", "Do you want to clear all autocomplete templates?"))
 		{
 			autoCompleteTemplates.clear();
-			CommonEditorFunctions::as(c)->editor.tokenCollection.signalRebuild();
+			CommonEditorFunctions::as(c)->editor.tokenCollection->signalRebuild();
 		}
 #endif
 

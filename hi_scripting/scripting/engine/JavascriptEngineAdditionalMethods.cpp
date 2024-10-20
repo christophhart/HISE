@@ -269,6 +269,7 @@ hiseSpecialData(this)
 
     // These are not constants so if you're evil you can change them...
     setProperty("AsyncNotification", ApiHelpers::AsyncMagicNumber);
+	setProperty("AsyncHiPriorityNotification", ApiHelpers::AsyncHiPriorityMagicNumber);
     setProperty("SyncNotification", ApiHelpers::SyncMagicNumber);
 }
 
@@ -277,82 +278,6 @@ hiseSpecialData(this)
 #pragma warning (push)
 #pragma warning (disable : 4702)
 #endif
-
-
-HiseJavascriptEngine::RootObject::Statement::ResultCode HiseJavascriptEngine::RootObject::LockStatement::perform(const Scope& /*s*/, var*) const
-{
-	if (RegisterName* r = dynamic_cast<RegisterName*>(lockedObj.get()))
-	{
-		currentLock = &r->rootRegister->getLock(r->indexInRegister);
-		return ResultCode::ok;
-	}
-	else if (ConstReference* cr = dynamic_cast<ConstReference*>(lockedObj.get()))
-	{
-		var* constObj = cr->ns->constObjects.getVarPointerAt(cr->index);
-
-		if (ApiClass* api = dynamic_cast<ApiClass*>(constObj->getObject()))
-		{
-			currentLock = &api->apiClassLock;
-			return ResultCode::ok;
-		}
-		else
-		{
-			currentLock = nullptr;
-			location.throwError("Can't lock this object");
-			return Statement::ok;
-		}
-	}
-	else
-	{
-		currentLock = nullptr;
-		location.throwError("Can't lock this object");
-		return Statement::ok;
-	}
-}
-
-#if JUCE_MSVC
-#pragma warning (pop)
-#endif
-
-
-
-void HiseJavascriptEngine::RootObject::ArraySubscript::cacheIndex(AssignableObject *instance, const Scope &s) const
-{
-	if (cachedIndex == -1)
-	{
-		if (dynamic_cast<LiteralValue*>(index.get()) != nullptr ||
-			dynamic_cast<ConstReference*>(index.get()) != nullptr ||
-			dynamic_cast<DotOperator*>(index.get()) ||
-			dynamic_cast<ApiConstant*>(index.get()))
-		{
-			if (DotOperator* dot = dynamic_cast<DotOperator*>(index.get()))
-			{
-				if (dynamic_cast<ConstReference*>(dot->parent.get()) != nullptr)
-				{
-					if (ConstScriptingObject* cso = dynamic_cast<ConstScriptingObject*>(dot->parent->getResult(s).getObject()))
-					{
-						int constantIndex = cso->getConstantIndex(dot->child);
-						var possibleIndex = cso->getConstantValue(constantIndex);
-						if (possibleIndex.isInt() || possibleIndex.isInt64())
-						{
-							cachedIndex = (int)possibleIndex;
-						}
-						else location.throwError("[]- access only possible with int values");
-					}
-					else location.throwError("[]-access using dot operator only valid with const objects as parent");
-				}
-				else location.throwError("[]-access using dot operator only valid with const objects as parent");
-			}
-			else
-			{
-				const var i = index->getResult(s);
-				cachedIndex = instance->getCachedIndex(i);
-
-				if (cachedIndex == -1) location.throwError("Property " + i.toString() + " not found");
-			}
-		}
-	}
-}
 
 
 var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) const
@@ -373,7 +298,10 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 
 					if (constObject != nullptr)
 					{
+						auto numExpectedArgs = arguments.size();
+
 						constObject->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
+						
 						isConstObjectApiFunction = true;
                         
 #if ENABLE_SCRIPTING_SAFE_CHECKS
@@ -381,7 +309,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 #endif
 
 						CHECK_CONDITION_WITH_LOCATION(functionIndex != -1, "function not found");
-						CHECK_CONDITION_WITH_LOCATION(numArgs == arguments.size(), "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
+						CHECK_CONDITION_WITH_LOCATION(numArgs == numExpectedArgs, "argument amount mismatch: " + String(arguments.size()) + ", Expected: " + String(numArgs));
 					}
 				}
 			}

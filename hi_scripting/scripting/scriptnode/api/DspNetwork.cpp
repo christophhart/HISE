@@ -70,6 +70,19 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	tempoSyncer.publicModValue = &networkModValue;
 
+	auto mc_ = p->getMainController_();
+
+	addPostInitFunction([mc_, this]()
+	{
+		if(auto rm = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(mc_->getGlobalRoutingManager()))
+		{
+			tempoSyncer.additionalEventStorage = &rm->additionalEventStorage;
+			return true;
+		}
+		
+		return false;
+	});
+	
 	polyHandler.setTempoSyncer(&tempoSyncer);
 	getScriptProcessor()->getMainController_()->addTempoListener(&tempoSyncer);
 
@@ -150,6 +163,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	loader = new DspFactory::LibraryLoader(dynamic_cast<Processor*>(p));
 
+	localCableManager = new routing::local_cable_base::Manager(this);
+
 	setRootNode(createFromValueTree(true, data.getChild(0), true));
 	networkParameterHandler.root = getRootNode();
 
@@ -174,18 +189,6 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	selectionUpdater = new SelectionUpdater(*this);
 
 	setEnableUndoManager(enableUndo);
-
-	idUpdater.setCallback(data, { PropertyIds::ID }, valuetree::AsyncMode::Synchronously, 
-		[this](ValueTree v, Identifier id)
-	{
-		if (auto n = getNodeForValueTree(v))
-		{
-			auto oldId = n->getCurrentId();
-			auto newId = v[PropertyIds::ID].toString();
-
-			changeNodeId(data, oldId, newId, getUndoManager());
-		}
-	});
 
 	exceptionResetter.setTypeToWatch(PropertyIds::Nodes);
 	exceptionResetter.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasAdded)
@@ -245,8 +248,6 @@ DspNetwork::~DspNetwork()
 	selectionUpdater = nullptr;
 	nodes.clear();
     nodeFactories.clear();
-	
-	
 
 	getMainController()->removeTempoListener(&tempoSyncer);
 }
@@ -329,7 +330,7 @@ void DspNetwork::createAllNodesOnce()
 	cppgen::CustomNodeProperties::setInitialised(true);
 }
 
-NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v)
+NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v, bool createIfDoesntExist)
 {
 	if (!v.isValid())
 		return {};
@@ -342,7 +343,7 @@ NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v)
 			return n;
 	}
 
-	if (currentNodeHolder != nullptr)
+	if (currentNodeHolder != nullptr && createIfDoesntExist)
 		return createFromValueTree(isPolyphonic(), v, true);
 
 	return nullptr;
@@ -415,6 +416,10 @@ juce::StringArray DspNetwork::getListOfUsedNodeIds() const
 	return sa;
 }
 
+juce::StringArray DspNetwork::getListOfLocalCableIds() const
+{
+	return routing::local_cable_base::Helpers::getListOfLocalVariableNames(getValueTree());
+}
 
 juce::StringArray DspNetwork::getListOfUnusedNodeIds() const
 {
@@ -918,10 +923,10 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 				StringArray sa;
 				auto newId = getNonExistentId(id, sa);
 				newNode->setValueTreeProperty(PropertyIds::ID, newId);
-				nodes.add(newNode);
+				nodes.addIfNotAlreadyThere(newNode);
 			}
 			else
-				currentNodeHolder->nodes.add(newNode);
+				currentNodeHolder->nodes.addIfNotAlreadyThere(newNode);
 			
 			return newNode.get();
 		}
@@ -931,6 +936,10 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 }
 
 
+Component* DspNetwork::createLocalCableListItem(const String& id) const
+{
+	return new routing::local_cable_base::ListItem(const_cast<DspNetwork*>(this), id);
+}
 
 bool DspNetwork::isInSignalPath(NodeBase* b) const
 {
@@ -1005,6 +1014,11 @@ Result DspNetwork::checkBeforeCompilation()
 #endif
 
 	return Result::ok();
+}
+
+void DspNetwork::deselect(NodeBase* node)
+{
+	selection.deselect(node);
 }
 
 void DspNetwork::addToSelection(NodeBase* node, ModifierKeys mods)
@@ -1139,6 +1153,10 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 	StringArray sa;
 	for (auto n : nodes)
 		sa.add(n->getId());
+
+	// Also add the new IDs from the changes
+	for(const auto& c: changes)
+		sa.add(c.newId);
 
 	auto saRef = &sa;
 	auto changeRef = &changes;
@@ -1339,6 +1357,9 @@ void DspNetwork::Holder::setActiveNetwork(DspNetwork* n)
 {
 	SimpleReadWriteLock::ScopedWriteLock l(getNetworkLock());
 	activeNetwork = n;
+
+	if(auto p = dynamic_cast<Processor*>(this))
+		p->updateParameterSlots();
 }
 
 ScriptParameterHandler* DspNetwork::Holder::getCurrentNetworkParameterHandler(
@@ -1378,6 +1399,28 @@ DspNetwork* DspNetwork::Holder::getActiveNetwork() const
 void DspNetwork::Holder::setProjectDll(dll::ProjectDll::Ptr pdll)
 {
 	projectDll = pdll;
+}
+
+void DspNetwork::Holder::connectRuntimeTargets(MainController* mc)
+{
+	if(auto n = getActiveNetwork())
+	{
+		for(auto node: n->nodes)
+		{
+			node->connectToRuntimeTarget(true);
+		}
+	}
+}
+
+void DspNetwork::Holder::disconnectRuntimeTargets(MainController* mc)
+{
+	if(auto n = getActiveNetwork())
+	{
+		for(auto node: n->nodes)
+		{
+			node->connectToRuntimeTarget(false);
+		}
+	}
 }
 
 ExternalDataHolder* DspNetwork::Holder::getExternalDataHolder()
@@ -1537,10 +1580,45 @@ void DspNetwork::Holder::saveNetworks(ValueTree& d) const
 
 			if (embedResources)
 			{
-				// Include all SNEX files here
+				auto mc = dynamic_cast<const ControlledObject*>(this)->getMainController();
+				auto snexRootFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::CodeLibrary);
 
-				// implement me...
-				jassertfalse;
+				valuetree::Helpers::forEach(c, [snexRootFolder, mc](ValueTree& v)
+				{
+					if(v.getType() == PropertyIds::Node)
+					{
+						auto props = v.getChildWithName(PropertyIds::Properties);
+
+						auto ct = props.getChildWithProperty(PropertyIds::ID, PropertyIds::ClassId.toString());
+
+						if(ct.isValid())
+						{
+							auto fileName = ct[PropertyIds::Value].toString();
+							auto rootDir = v[PropertyIds::FactoryPath].toString().fromFirstOccurrenceOf(".", false, false);
+
+							auto extension = rootDir == "faust" ? ".dsp" : ".h";
+
+							auto f = snexRootFolder.getChildFile(rootDir).getChildFile(fileName).withFileExtension(extension);
+							jassert(f.existsAsFile());
+
+							auto path = f.getRelativePathFrom(snexRootFolder);
+							auto content = f.loadFileAsString();
+
+							// just add it so it will be embedded into the snippet
+							const_cast<MainController*>(mc)->getExternalScriptFile(f, true);
+
+							auto pfile = f.withFileExtension(".xml");
+
+							if(pfile.existsAsFile())
+							{
+								// add the parameter metadata file too...
+								const_cast<MainController*>(mc)->getExternalScriptFile(pfile, true);
+							}
+
+						}
+					}
+					return false;
+				});
 			}
 			else
             {
@@ -1772,8 +1850,14 @@ snex::ui::WorkbenchData::Ptr DspNetwork::CodeManager::getOrCreate(const Identifi
 	}
 
 	auto targetFile = getCodeFolder().getChildFile(typeId.toString()).getChildFile(classId.toString()).withFileExtension("h");
-	entries.add(new Entry(typeId, targetFile, parent.getScriptProcessor()));
-	return entries.getLast()->wb;
+
+	auto ef = parent.getMainController()->getExternalScriptFile(targetFile, false);
+
+	if(ef != nullptr)
+		return entries.add(new Entry(typeId, ef, parent.getScriptProcessor()))->wb;
+	else
+		return entries.add(new Entry(typeId, targetFile, parent.getScriptProcessor()))->wb;
+	
 }
 
 ValueTree DspNetwork::CodeManager::getParameterTree(const Identifier& typeId, const Identifier& classId)
@@ -1807,22 +1891,58 @@ StringArray DspNetwork::CodeManager::getClassList(const Identifier& id, const St
 
 DspNetwork::CodeManager::Entry::Entry(const Identifier& t, const File& targetFile, ProcessorWithScriptingContent* sp):
 	type(t),
-	parameterFile(targetFile.withFileExtension("xml"))
+	parameterFile(targetFile.withFileExtension("xml")),
+	resourceType(ExternalScriptFile::ResourceType::FileBased)
 {
 	targetFile.create();
 
-	cp = new snex::ui::WorkbenchData::DefaultCodeProvider(wb.get(), targetFile);
-	wb = new snex::ui::WorkbenchData();
-	wb->setCodeProvider(cp, dontSendNotification);
-	wb->setCompileHandler(new SnexSourceCompileHandler(wb.get(), sp));
+	ValueTree pTree;
 
 	if (auto xml = XmlDocument::parse(parameterFile))
-		parameterTree = ValueTree::fromXml(*xml);
-	else
-		parameterTree = ValueTree(PropertyIds::Parameters);
+		pTree = ValueTree::fromXml(*xml);
+	
+	init(new snex::ui::WorkbenchData::DefaultCodeProvider(wb.get(), targetFile), pTree, sp);
+}
 
-	pListener.setCallback(parameterTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::parameterAddedOrRemoved));
-	propListener.setCallback(parameterTree, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::propertyChanged));
+struct EmbeddedSnippetCodeProvider: public snex::ui::WorkbenchData::CodeProvider
+{
+	EmbeddedSnippetCodeProvider(ExternalScriptFile::Ptr ef_):
+	  CodeProvider(nullptr),
+	  ef(ef_)
+	{
+		
+	}
+
+	String loadCode() const override
+	{
+		return ef->getFileDocument().getAllContent();
+	};
+
+	bool saveCode(const String& s) override
+	{
+        ef->getFileDocument().replaceAllContent(s);
+		return true;
+	}
+
+	/** Override this method and return the instance id. This will be used to find the main class in nodes. */
+	virtual Identifier getInstanceId() const override { return ef->getFile().getFileNameWithoutExtension(); }
+
+	ExternalScriptFile::Ptr ef;
+};
+
+DspNetwork::CodeManager::Entry::Entry(const Identifier& t, const ExternalScriptFile::Ptr& embeddedFile, 
+	ProcessorWithScriptingContent* sp):
+	type(t),
+    resourceType(ExternalScriptFile::ResourceType::EmbeddedInSnippet)
+{
+	parameterExternalFile = sp->getMainController_()->getExternalScriptFile(embeddedFile->getFile().withFileExtension(".xml"), true);
+
+	ValueTree pTree;
+
+	if(auto xml = XmlDocument::parse(parameterExternalFile->getFileDocument().getAllContent()))
+		pTree = ValueTree::fromXml(*xml);
+
+	init(new EmbeddedSnippetCodeProvider(embeddedFile), pTree, sp);
 }
 
 void DspNetwork::CodeManager::Entry::parameterAddedOrRemoved(ValueTree, bool)
@@ -1838,7 +1958,16 @@ void DspNetwork::CodeManager::Entry::propertyChanged(ValueTree, Identifier)
 void DspNetwork::CodeManager::Entry::updateFile()
 {
 	auto xml = parameterTree.createXml();
-	parameterFile.replaceWithText(xml->createDocument(""));
+	auto c = xml->createDocument("");
+
+	if(resourceType == ExternalScriptFile::ResourceType::FileBased)
+	{
+		parameterFile.replaceWithText(c);
+	}
+	else
+	{
+		parameterExternalFile->getFileDocument().replaceAllContent(c);
+	}
 }
 
 DspNetwork::CodeManager::SnexSourceCompileHandler::SnexSourceCompileHandler(snex::ui::WorkbenchData* d, ProcessorWithScriptingContent* sp_) :
@@ -1871,8 +2000,8 @@ bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
-	if (currentThread == MainController::KillStateHandler::SampleLoadingThread ||
-		currentThread == MainController::KillStateHandler::ScriptingThread)
+	if (currentThread == MainController::KillStateHandler::TargetThread::SampleLoadingThread ||
+		currentThread == MainController::KillStateHandler::TargetThread::ScriptingThread)
 	{
 		getParent()->handleCompilation();
 		return true;
@@ -2065,8 +2194,16 @@ String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 	case Error::NoMatchingParent:	 return "Can't find suitable parent node";
 	case Error::RingBufferMultipleWriters: return "Buffer used multiple times";
 	case Error::NodeDebuggerEnabled: return "Node is being debugged";
+	case Error::NoGlobalManager: return "No global routing manager present.";
 	case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 	case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
+	case Error::IllegalMonophony: return "Can't use this node in a monophonic network";
+	case Error::OldFaustVersion:  
+		s << "Your Faust version is too old (";
+		s << String(e.actual / 1000000) << "." << String((e.actual % 1000000) / 1000) << "." << String(e.actual % 1000) << "). ";
+		s << "Min required version: ";
+		s << String(e.expected / 1000000) << "." << String((e.expected % 1000000) / 1000) << "." << String(e.expected % 1000) << ". ";
+		return s;
 	case Error::IllegalFaustNode: return "Faust is disabled. Enable faust and recompile HISE.";
 	case Error::IllegalFaustChannelCount: 
 		s << "Faust node channel mismatch. Expected channels: `" << String(e.expected) << "`";
@@ -2077,6 +2214,7 @@ String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 	case Error::CloneMismatch:	return "Clone container must have equal child nodes";
 	case Error::IllegalCompilation: return "Can't compile networks with this node. Uncheck the `AllowCompilation` flag to remove the error.";
 	case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
+	case Error::UncompiledThirdPartyNode: s << "Uncompiled Third Party Node. Export the DLL and restart HISE to load this node."; return s;
 	case Error::UnscaledModRangeMismatch: s << "Unscaled mod range mismatch.  \n> Copy range to source"; return s;
 	default:
 		break;
@@ -2300,6 +2438,92 @@ void HostHelpers::setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree
 	});
 }
 
+#if USE_BACKEND
+ValueTree DuplicateHelpers::findRoot(const ValueTree& v)
+{
+	auto p = v.getParent();
+        
+	if(!p.isValid())
+		return v;
+        
+	return findRoot(p);
+}
+
+void DuplicateHelpers::removeOutsideConnections(const Array<ValueTree>& newNodes,
+                                                const Array<DspNetwork::IdChange>& idChanges)
+{
+	for(auto& ct: newNodes)
+	{
+		Array<ValueTree> connectionsToRemove;
+
+		valuetree::Helpers::forEach(ct, [&](ValueTree& c)
+		{
+			if(c.getType() == PropertyIds::Connection)
+			{
+				auto thisTarget = c[PropertyIds::NodeId].toString();
+				auto found = false;
+
+				for(const auto& ch: idChanges)
+				{
+					found |= ch.newId == thisTarget;
+				}
+
+				if(!found)
+					connectionsToRemove.add(c);
+			}
+
+			return false;
+		});
+
+		for(const auto& c: connectionsToRemove)
+			c.getParent().removeChild(c, nullptr);
+	}
+}
+
+int DuplicateHelpers::getIndexInRoot(const ValueTree& v)
+{
+	auto p = findRoot(v);
+        
+	int index = 0;
+	auto iptr = &index;
+        
+	valuetree::Helpers::forEach(p, [&iptr, v](ValueTree& c)
+	{
+		*iptr = *iptr + 1;
+		return c == v;
+	});
+        
+	return index;
+}
+
+int DuplicateHelpers::compareElements(const WeakReference<NodeBase>& n1, const WeakReference<NodeBase>& n2)
+{
+	if(n1 == n2)
+		return 0;
+        
+	if(n1 != nullptr && n2 != nullptr)
+	{
+		auto i1 = getIndexInRoot(n1->getValueTree());
+		auto i2 = getIndexInRoot(n2->getValueTree());
+            
+		if(i1 < i2)
+			return 1;
+		if(i1 > i2)
+			return -1;
+	}
+        
+	jassertfalse;
+	return 0;
+}
+
+
+void DspNetworkListeners::DspNetworkGraphRootListener::onChangeStatic(DspNetworkGraphRootListener& l, NodeBase* n)
+{
+	if(n != nullptr)
+		l.onRootChange(n);
+}
+#endif
+
 bool OpaqueNetworkHolder::isPolyphonic() const
 { return false; }
 
@@ -2407,9 +2631,16 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 		auto pp = b->getParentNode();
 		auto isInMidiChain = b->getRootNetwork()->isPolyphonic();
 
-		while (pp != nullptr && !isInMidiChain)
+		while (pp != nullptr)
 		{
 			isInMidiChain |= pp->getValueTree()[PropertyIds::FactoryPath].toString().contains("midichain");
+
+			if(pp->getValueTree()[PropertyIds::FactoryPath].toString().contains("no_midi"))
+			{
+				isInMidiChain = false;
+				break;
+			}
+
 			pp = pp->getParentNode();
 		}
 
@@ -2424,6 +2655,165 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 
 
 #if USE_BACKEND
+	void DspNetworkListeners::initRootListener(DspNetworkGraphRootListener* l)
+	{
+		auto asComponent = dynamic_cast<Component*>(l);
+		jassert(asComponent != nullptr);
+
+		Component::callRecursive<DspNetworkGraph>(asComponent->getTopLevelComponent(), [l](DspNetworkGraph* g)
+		{
+			g->rootBroadcaster.addListener(*l, DspNetworkGraphRootListener::onChangeStatic);
+			return true;
+		});
+	}
+
+	WeakReference<NodeBase> DspNetworkListeners::getSourceNodeFromComponentDrag(Component* component)
+	{
+		if(auto nc = component->findParentComponentOfClass<NodeComponent>())
+			return nc->node.get();
+
+		if(auto bc = dynamic_cast<DspNetworkGraph::BreadcrumbButton*>(component))
+			return bc->node;
+
+		return nullptr;
+	}
+
+	DspNetworkListeners::MacroParameterDragListener::MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction_):
+	c(c_),
+	initFunction(initFunction_)
+{
+	c->addMouseListener(this, true);
+	c->setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
+}
+
+DspNetworkListeners::MacroParameterDragListener::~MacroParameterDragListener()
+{
+	c->removeMouseListener(this);
+}
+
+void DspNetworkListeners::MacroParameterDragListener::initialise()
+{
+	auto tc = c->getTopLevelComponent();
+	jassert(tc != nullptr);
+
+	Component::callRecursive<DspNetworkGraph>(tc, [&](DspNetworkGraph* g)
+	{
+		if(initFunction)
+			sliderToDrag = initFunction(g);
+		
+		return true;
+	});
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseDrag(const MouseEvent& e)
+{
+	if(sliderToDrag == nullptr)
+		initialise();
+
+	if(sliderToDrag != nullptr)
+	{
+		sliderToDrag->findParentComponentOfClass<DspNetworkGraph>()->externalDragComponent = sliderToDrag;
+		auto e2 = e.getEventRelativeTo(sliderToDrag);
+		sliderToDrag->mouseDrag(e2);
+	}
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseUp(const MouseEvent& e)
+{
+	if(sliderToDrag != nullptr)
+	{
+		sliderToDrag->findParentComponentOfClass<DspNetworkGraph>()->externalDragComponent = nullptr;
+		auto e2 = e.getEventRelativeTo(sliderToDrag);
+		sliderToDrag->mouseUp(e2);
+	}
+
+	if(auto hb = dynamic_cast<HiseShapeButton*>(this->c.getComponent()))
+	{
+		Colour offColour(Colours::white);
+		hb->setColours(offColour.withMultipliedAlpha(0.5f), offColour.withMultipliedAlpha(0.8f), offColour);
+		c->repaint();
+	}
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseDown(const MouseEvent& event)
+{
+	initialise();
+
+	if(auto hb = dynamic_cast<HiseShapeButton*>(this->c.getComponent()))
+	{
+		Colour onColour(SIGNAL_COLOUR);
+		hb->setColours(onColour.withAlpha(0.8f), onColour, onColour);
+		c->repaint();
+	}
+}
+
+Component* DspNetworkListeners::MacroParameterDragListener::findModulationDragComponent(DspNetworkGraph* g,
+	const ValueTree& nodeTree)
+{
+	auto copy = nodeTree;
+
+	bool wantsRebuild = false;
+
+	valuetree::Helpers::forEachParent(copy, [&](ValueTree& v)
+	{
+		if(v.getType() == PropertyIds::Node)
+		{
+			wantsRebuild |= (bool)v[PropertyIds::Folded];
+			v.setProperty(PropertyIds::Folded, false, g->network->getUndoManager());
+		}
+
+		return false;
+	});
+
+	if(wantsRebuild)
+	{
+		g->rebuildNodes();
+	}
+
+	ModulationSourceBaseComponent* c = nullptr;
+
+	Component::callRecursive<ModulationSourceBaseComponent>(g, [&](ModulationSourceBaseComponent* p)
+	{
+		if(p->findParentComponentOfClass<NodeComponent>()->node->getValueTree() == nodeTree)
+		{
+			c = p;
+			return true;
+		}
+			
+		return false;
+	});
+
+	return c;
+}
+
+Component* DspNetworkListeners::MacroParameterDragListener::findSliderComponent(DspNetworkGraph* g, int parameterIndex)
+{
+	if(g->isShowingRootNode())
+	{
+		g->root->node->getValueTree().setProperty(PropertyIds::ShowParameters, true, g->network->getUndoManager());
+
+		Array<MacroParameterSlider*> sliders;
+
+		Component::callRecursive<MacroParameterSlider>(g, [&](MacroParameterSlider* s)
+		{
+			sliders.addIfNotAlreadyThere(s);
+			return false;
+		});
+
+		return sliders[parameterIndex]->getDragComponent();
+	}
+	else
+	{
+		auto bc = g->breadcrumbs.getLast();
+
+		bc->setIsDraggingParameter(parameterIndex);
+		return bc;
+	}
+
+	
+}
+
+
 void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v)
 {
 	valuetree::Helpers::forEach(v, [v](ValueTree& c)
@@ -2499,6 +2889,9 @@ bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 		removeIfDefault(v, id, PropertyIds::Helpers::getDefaultValue(id));
 
 	removeIfDefined(v, PropertyIds::Value, PropertyIds::Automated);
+
+	if(v.hasProperty(PropertyIds::DefaultValue) && v[PropertyIds::DefaultValue] == v[PropertyIds::Value])
+		v.removeProperty(PropertyIds::DefaultValue, nullptr);
 
 	removeIfNoChildren(v.getChildWithName(PropertyIds::Bookmarks));
 	removeIfNoChildren(v.getChildWithName(PropertyIds::ModulationTargets));
@@ -2634,7 +3027,7 @@ void DspNetwork::FaustManager::sendCompileMessage(const File& f, NotificationTyp
 	
 
 	processor->getMainController()->getKillStateHandler().killVoicesAndCall(processor, pf, 
-		MainController::KillStateHandler::SampleLoadingThread);
+		MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 

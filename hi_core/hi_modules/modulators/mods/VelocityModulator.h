@@ -68,6 +68,8 @@ public:
 		parameterNames.add("Inverted");
 		parameterNames.add("UseTable");
         parameterNames.add("DecibelMode");
+
+		updateParameterSlots();
 	};
 
     void referenceShared(ExternalData::DataType, int) override

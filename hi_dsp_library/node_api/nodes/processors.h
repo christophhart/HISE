@@ -41,6 +41,61 @@ using namespace snex;
 using namespace snex::Types;
 
 
+namespace interpolators
+{
+
+using linear = juce::Interpolators::Linear;
+using cubic = juce::Interpolators::CatmullRom;
+using none = juce::Interpolators::ZeroOrderHold;
+
+struct dynamic
+{
+    enum class Types
+    {
+        Cubic,
+        Linear,
+        None,
+        numTypes
+    };
+    
+    void process(double ratio, float* inp, float* out, int numOut, int numIn, bool wrap)
+    {
+        switch(currentType)
+        {
+            case Types::Cubic: c.process(ratio, inp, out, numOut, numIn, false); break;
+            case Types::Linear: l.process(ratio, inp, out, numOut, numIn, false); break;
+            case Types::None: n.process(ratio, inp, out, numOut, numIn, false); break;
+            case Types::numTypes:
+            default: break;
+        }
+    }
+    
+    void setType(Types nt)
+    {
+        currentType = nt;
+        reset();
+    }
+    
+    void reset()
+    {
+        switch(currentType)
+        {
+            case Types::Cubic: c.reset(); break;
+            case Types::Linear: l.reset(); break;
+            case Types::None: n.reset(); break;
+            case Types::numTypes:
+            default: break;
+        }
+    }
+    
+    Types currentType = Types::Cubic;
+    
+    cubic c;
+    linear l;
+    none n;
+};
+
+}
 
 namespace scriptnode_initialisers
 {
@@ -710,6 +765,159 @@ protected:
 };
 
 
+
+
+template <class T, class InterpolatorType> class repitch
+{
+	static constexpr int MaxDownsampleFactor = 2;
+    
+    InterpolatorType up[2];
+    InterpolatorType down[2];
+    
+public:
+    
+    repitch()
+    {};
+    
+    SN_SELF_AWARE_WRAPPER(repitch, T);
+  
+    // Forward the get calls to the wrapped container
+    template <int arg> constexpr auto& get() noexcept { return this->obj.template get<arg>(); }
+    template <int arg> constexpr const auto& get() const noexcept { return this->obj.template get<arg>(); }
+
+    template <int P> void setParameter(double newValue)
+    {
+        if constexpr(P == 0)
+            this->setRepitchFactor(newValue);
+        if constexpr(P == 1)
+            this->setInterpolation(newValue);
+    }
+    SN_FORWARD_PARAMETER_TO_MEMBER(repitch);
+    
+    void setRepitchFactor(double newRatio)
+    {
+        SimpleReadWriteLock::ScopedMultiWriteLock sl(lock);
+        ratio = jlimit(0.5, 2.0, newRatio);
+        invRatio = 1.0 / ratio;
+    }
+    
+    void setInterpolation(double newValue)
+    {
+        if constexpr(std::is_same<InterpolatorType, interpolators::dynamic>())
+        {
+            SimpleReadWriteLock::ScopedMultiWriteLock sl(lock);
+            auto t = (interpolators::dynamic::Types)(int)newValue;
+            
+            up[0].setType(t);
+            up[1].setType(t);
+            down[0].setType(t);
+            down[1].setType(t);
+        }
+    }
+    
+    template <int C> void processFixed(ProcessData<C>& data)
+    {
+        int numInternalSamples = (int)hmath::round((double)data.getNumSamples() / ratio);
+
+		double realRatio = (double)numInternalSamples / (double)data.getNumSamples();
+		auto invRealRatio = 1.0 / realRatio;
+
+        auto d = ProcessDataHelpers<C>::makeChannelData(buffer, numInternalSamples);
+        ProcessData<C> internalData(d.begin(), numInternalSamples);
+
+        for(int i = 0; i < C; i++)
+        {
+            auto inp = data[i];
+            auto out = internalData[i];
+            down[i].process(invRealRatio, inp.begin(), out.begin(), out.size(), inp.size(), false);
+        }
+        
+        this->obj.process(internalData);
+        
+        for(int i = 0; i < C; i++)
+        {
+            auto inp = internalData[i];
+            auto out = data[i];
+            up[i].process(realRatio, inp.begin(), out.begin(), out.size(), inp.size(), false);
+        }
+    }
+    
+    template <typename ProcessDataType> void process(ProcessDataType& data)
+    {
+        if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+        {
+			if constexpr (ProcessDataType::hasCompileTimeSize())
+			{
+				if constexpr (data.getNumChannels() == 1)
+	                processFixed<1>(data);
+	            if constexpr (data.getNumChannels() == 2)
+	                processFixed<2>(data);
+			}
+			else
+			{
+				if(data.getNumChannels() == 1)
+                processFixed<1>(data.template as<ProcessData<1>>());
+	            if(data.getNumChannels() == 2)
+	                processFixed<2>(data.template as<ProcessData<2>>());
+			}
+
+            
+        }
+    }
+
+    template <typename FrameDataType> void processFrame(FrameDataType& t)
+    {
+        jassertfalse;
+    }
+    
+    void prepare(PrepareSpecs ps)
+    {
+        ps.blockSize *= MaxDownsampleFactor;
+        obj.prepare(ps);
+        
+        if(ps.blockSize == 2)
+        {
+            buffer.setSize(0);
+            return;
+        }
+        
+        auto numChannels = ps.numChannels;
+        auto numSamples = ps.blockSize + 3;
+        auto numElements = numChannels * numSamples;
+
+        if (numElements > buffer.size())
+            buffer.setSize(numElements);
+    }
+    
+    void reset()
+    {
+        {
+            hise::SimpleReadWriteLock::ScopedReadLock sl(lock);
+            
+            up[0].reset();
+            down[0].reset();
+            
+            up[1].reset();
+            down[1].reset();
+        }
+        
+        this->obj.reset();
+    }
+    
+    SN_DEFAULT_INIT(T);
+    SN_DEFAULT_MOD(T);
+    SN_DEFAULT_HANDLE_EVENT(T);
+    
+private:
+        
+    SimpleReadWriteLock lock;
+    
+    double ratio = 1.0;
+    double invRatio = 1.0;
+    T obj;
+    heap<float> buffer;
+};
+
 template <int OversamplingFactor, class T, class InitFunctionClass=scriptnode_initialisers::oversample> class oversample: public oversample_base
 {
 public:
@@ -1025,6 +1233,124 @@ template <int BlockSize, class T> struct fix_block: public fix_blockx<T, static_
 {
 };
 
+template <class T> struct dynamic_blocksize
+{
+	SN_SELF_AWARE_WRAPPER(dynamic_blocksize, T);
+	
+    // A oversample node is never polyphonic
+    static constexpr bool isPolyphonic() { return false; }
+    
+	// Forward the get calls to the wrapped container
+	template <int arg> constexpr auto& get() noexcept { return this->obj.template get<arg>(); }
+	template <int arg> constexpr const auto& get() const noexcept { return this->obj.template get<arg>(); }
+
+    template <int P> void setParameter(double newValue)
+    {
+		static_assert(P == 0, "illegal parameter index");
+
+        if constexpr(P == 0)
+            this->setBlockSize(newValue);
+    }
+	SN_FORWARD_PARAMETER_TO_MEMBER(dynamic_blocksize);
+
+	forcedinline void reset() noexcept 
+	{
+		obj.reset();
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		lastSpecs = ps;
+		
+		ps.blockSize = jmin(ps.blockSize, currentBlockSize);
+		obj.prepare(ps);
+	}
+
+	void initialise(NodeBase* n)
+	{
+		obj.initialise(n);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		obj.handleHiseEvent(e);
+	}
+
+	template <typename FrameDataType> void processFrame(FrameDataType& data) noexcept
+	{
+		obj.processFrame(data);
+	}
+	
+	template <typename ProcessDataType>  void process(ProcessDataType& data)
+	{
+#define BLOCKSIZE_CASE(x) case x: static_functions::fix_block<x>::process(&obj, prototypes::static_wrappers<T>::template process<ProcessDataType>, data); break;
+
+		if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(lock))
+		{
+ 			switch(currentBlockSize)
+ 			{
+ 			case 1:
+ 			{
+ 				constexpr int C = ProcessDataType::getNumFixedChannels();
+
+				if constexpr (ProcessDataType::hasCompileTimeSize())
+					FrameConverters::processFix<C>(&obj, data);
+				else
+					FrameConverters::forwardToFrame16(&obj, data);
+
+ 				break;
+ 			}
+ 			BLOCKSIZE_CASE(8);
+			BLOCKSIZE_CASE(16);
+			BLOCKSIZE_CASE(32);
+			BLOCKSIZE_CASE(64);
+			BLOCKSIZE_CASE(128);
+			BLOCKSIZE_CASE(256);
+			BLOCKSIZE_CASE(512);
+ 			}
+		}
+#undef BLOCKSIZE_CASE	
+	}
+
+	void setBlockSize(double newBlockSize)
+	{
+		static const std::array<int, 8> BlockSizes = { 1, 8, 16, 32, 64, 128, 256, 512 };
+
+		auto idx = roundToInt(newBlockSize);
+
+		if(isPositiveAndBelow(idx, BlockSizes.size()))
+		{
+			auto nb = BlockSizes[idx];
+
+			if(nb != currentBlockSize)
+			{
+				currentBlockSize = nb;
+				SimpleReadWriteLock::ScopedWriteLock sl(lock);
+				this->prepare(lastSpecs);
+			}
+		}
+	}
+
+	int getBlockSize() const { return currentBlockSize; }
+
+private:
+
+	PrepareSpecs lastSpecs;
+
+	int currentBlockSize = 64;
+
+	static_functions::fix_block<8> b8;
+	static_functions::fix_block<16> b16;
+	static_functions::fix_block<32> b32;
+	static_functions::fix_block<64> b64;
+	static_functions::fix_block<128> b128;
+	static_functions::fix_block<256> b256;
+	static_functions::fix_block<512> b512;
+
+	T obj;
+
+	hise::SimpleReadWriteLock lock;
+};
 
 
 /** Downsamples the incoming signal with the HISE_EVENT_RASTER value
@@ -1239,9 +1565,14 @@ private:
 };
 
 
-template <typename T> struct illegal_poly: public scriptnode::data::base
+template <typename T> struct illegal_poly: public scriptnode::data::base,
+										   public polyphonic_base
 {
 	SN_GET_SELF_AS_OBJECT(illegal_poly);
+
+	illegal_poly():
+	  polyphonic_base("illegal_poly", false)
+	{};
 
 	static Identifier getStaticId() { return T::getStaticId(); }
 
@@ -1400,6 +1731,12 @@ template <class T> struct node : public scriptnode::data::base
 		if constexpr (prototypes::check::setExternalData<T>::value)
 			obj.setExternalData(d, index);
 	}
+    
+    void connectToRuntimeTarget(bool add, const runtime_target::connection& c)
+    {
+        if constexpr (prototypes::check::connectToRuntimeTarget<T>::value)
+            obj.connectToRuntimeTarget(add, c);
+    }
 
 	void createParameters(ParameterDataList& data)
 	{

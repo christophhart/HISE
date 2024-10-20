@@ -37,6 +37,49 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
+namespace parameter
+{
+
+template <int N> struct branch_index
+{
+	static constexpr int NumElements = N;
+
+	PARAMETER_SPECS(parameter::ParameterType::Single, 0);
+
+	void call(double v)
+	{
+		currentIndex = jlimit<uint8>(0, N-1, roundToInt(v));
+	}
+
+	static void callStatic(void*, double)
+	{
+		
+	};
+
+	bool isConnected() const { return true; }
+
+	void addToList(ParameterDataList& d)
+	{
+		data p("Index");
+		p.callback.referTo(this, callStatic);
+		d.add(p);
+	}
+
+	template <int P> auto& getParameter()
+	{
+		return *this;
+	}
+
+	template <int P> NormalisableRange<double> createParameterRange()
+	{
+		static_assert(P == 0, "not zero");
+		return NormalisableRange<double>();
+	}
+
+	uint8 currentIndex = 0;
+};
+}
+
 namespace container
 {
 
@@ -137,8 +180,6 @@ template <class ParameterClass, typename... Processors> struct chain: public con
 	using FrameType = snex::Types::span<float, NumChannels>;
 	using FrameProcessor = chainprocessor::Frame<FrameType>;
 
-	
-
 	SN_GET_SELF_AS_OBJECT(chain);
 
 	chain() = default;
@@ -176,8 +217,89 @@ private:
 
 	tuple_iterator_op(process, BlockProcessor);
 	tuple_iterator_op(processFrame, FrameProcessor);
-
 };
+
+#define CASE(idx, function, arg) case idx: this->template get<jmin(NumElements-1, idx)>().function(arg); break
+#define CASE_16(function, arg) CASE(0, function, arg); \
+							   CASE(1, function, arg); \
+							   CASE(2, function, arg); \
+							   CASE(3, function, arg); \
+							   CASE(4, function, arg); \
+							   CASE(5, function, arg); \
+							   CASE(6, function, arg); \
+							   CASE(7, function, arg); \
+							   CASE(8, function, arg); \
+							   CASE(9, function, arg); \
+							   CASE(10, function, arg); \
+							   CASE(11, function, arg); \
+							   CASE(12, function, arg); \
+							   CASE(13, function, arg); \
+							   CASE(14, function, arg); \
+							   CASE(15, function, arg); \
+							   CASE(16, function, arg);
+
+template <typename Unused, typename... Processors> struct branch: public container_base<parameter::branch_index<sizeof...(Processors)>, Processors...>
+{
+    using Type = container_base<parameter::branch_index<sizeof...(Processors)>, Processors...>;
+    
+    static constexpr int NumElements = sizeof...(Processors);
+    static constexpr int NumChannels = Helpers::getNumChannelsOfFirstElement<Processors...>();
+    static constexpr int getNumChannels() { return NumChannels; }
+
+    using BlockType = snex::Types::ProcessData<NumChannels>;
+    using FrameType = snex::Types::span<float, NumChannels>;
+
+    SN_GET_SELF_AS_OBJECT(branch);
+
+	int getCurrentIndex() const noexcept
+	{
+		return this->parameters.currentIndex;
+	}
+
+    branch() = default;
+    branch(const branch& other) = default;
+    ~branch() override {};
+    
+    /** prepares all child nodes with the same specs. */
+    void prepare(PrepareSpecs ps)
+    {
+		static_assert(NumElements <= 16, "max branch child node amount is 16");
+
+        call_tuple_iterator1(prepare, ps);
+    }
+
+    /** Processes all child nodes. */
+    void process(BlockType& d)
+    {
+		switch(getCurrentIndex())
+		{
+			CASE_16(process, d);
+		}
+    }
+
+    /** Process all child nodes one frame at a time. */
+    void processFrame(FrameType& d)
+    {
+		switch(getCurrentIndex())
+		{
+			CASE_16(processFrame, d)	
+		}
+    }
+
+	SN_EMPTY_SET_EXTERNAL_DATA;
+
+    /** Calls `handleHiseEvent` for all child nodes. */
+    void handleHiseEvent(HiseEvent& e)
+    {
+		switch(getCurrentIndex())
+		{
+			CASE_16(handleHiseEvent, e);
+		}
+    }
+};
+
+#undef CASE
+#undef CASE_16
 
 }
 

@@ -70,6 +70,8 @@ public:
 		parameterNames.add("Width");
 		parameterNames.add("FreezeMode");
 
+		updateParameterSlots();
+
 		parameters.damping = 0.6f;
 		parameters.roomSize = 0.8f;
 		parameters.wetLevel = 0.2f;

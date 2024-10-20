@@ -108,11 +108,11 @@ void SplitNode::prepare(PrepareSpecs ps)
 {
 	NodeBase::prepare(ps);
 	NodeContainer::prepareNodes(ps);
-
-	if (ps.blockSize > 1)
+	
+	if (ps.blockSize > 0)
 	{
-		DspHelpers::increaseBuffer(original, ps);
-		DspHelpers::increaseBuffer(workBuffer, ps);
+		DspHelpers::increaseBuffer(original, ps, false);
+		DspHelpers::increaseBuffer(workBuffer, ps, false);
 	}
 }
 
@@ -497,6 +497,15 @@ void MultiChannelNode::channelLayoutChanged(NodeBase* nodeThatCausedLayoutChange
 		return;
 }
 
+BranchNode::BranchNode(DspNetwork* root, ValueTree data):
+	ParallelNode(root, data)
+{
+	initListeners(false);
+	addFixedParameters();
+
+	indexRangeUpdater.setCallback(getNodeTree(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(BranchNode::updateIndexLimit));
+}
+
 void MultiChannelNode::prepare(PrepareSpecs ps)
 {
 	auto numNodes = this->nodes.size();
@@ -591,6 +600,75 @@ void MultiChannelNode::process(ProcessDataDyn& d)
 
 		channelIndex += numChannelsThisTime;
 	}
+}
+
+void BranchNode::updateIndexLimit(ValueTree, bool wasAdded)
+{
+	auto numChildren = getNodeTree().getNumChildren();
+
+	if(numChildren > 1)
+	{
+		auto p = getParameterFromIndex(0);
+		p->data.setProperty(scriptnode::PropertyIds::MaxValue, numChildren-1, getUndoManager());
+
+		if(p->getValue() > numChildren-1)
+			p->setValueSync((double)(numChildren-1));
+	}
+}
+
+void BranchNode::setIndex(double s)
+{
+	currentIndex = roundToInt(s);
+}
+
+void BranchNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareContainer(ps);
+	NodeContainer::prepareNodes(ps);
+}
+
+void BranchNode::reset()
+{
+	for(auto n: nodes)
+		n->reset();
+}
+
+void BranchNode::handleHiseEvent(HiseEvent& e)
+{
+	if(auto n = nodes[currentIndex])
+		n->handleHiseEvent(e);
+}
+
+void BranchNode::processFrame(FrameType& data)
+{
+	if(auto n = nodes[currentIndex])
+		n->processFrame(data);
+}
+
+void BranchNode::process(ProcessDataDyn& d)
+{
+	if(isBypassed())
+		return;
+	
+	if(auto n = nodes[currentIndex])
+		n->process(d);
+}
+
+ParameterDataList BranchNode::createInternalParameterList()
+{
+	ParameterDataList data;
+
+	{
+		parameter::data p("Index");
+		p.setRange({0.0, 10.0, 1.0});
+		p.callback = parameter::inner<BranchNode, 0>(*this);
+		p.info.index = 0;
+		p.setDefaultValue(0.0);
+		data.add(std::move(p));
+	}
+        
+	return data;
 }
 
 SingleSampleBlockX::SingleSampleBlockX(DspNetwork* n, ValueTree d) :
@@ -800,61 +878,7 @@ struct CloneOptionComponent : public Component,
 		setSize(24, 90);
 	}
 
-	void buttonClicked(Button* b) override
-	{
-		if (b == &hideButton)
-		{
-			parent->getValueTree().setProperty(PropertyIds::ShowClones, hideButton.getToggleState(), parent->getUndoManager());
-		}
-		if (b == &deleteButton)
-		{
-			
-			auto network = parent->getRootNetwork();
-			parent->getValueTree().removeProperty(PropertyIds::DisplayedClones, parent->getUndoManager());
-
-			SimpleReadWriteLock::ScopedWriteLock sl(network->getConnectionLock());
-
-			auto nt = dynamic_cast<NodeContainer*>(parent.get())->getNodeTree();
-			StringArray nodesToRemove;
-
-			while (nt.getNumChildren() > 1)
-			{
-				nodesToRemove.add(nt.getChild(1)[PropertyIds::ID].toString());
-				nt.removeChild(1, nullptr);
-			}
-
-			MessageManager::callAsync([nodesToRemove, network]()
-			{
-				for (auto nid : nodesToRemove)
-					network->deleteIfUnused(nid);
-			});
-
-		}
-		if (b == &duplicateButton)
-		{
-			auto parentNode = parent.get();
-
-			deleteButton.triggerClick(sendNotificationSync);
-
-			auto numToCloneString = PresetHandler::getCustomName("NumClones", "Enter the number of clones you want to create");
-
-			SimpleReadWriteLock::ScopedWriteLock sl(parentNode->getRootNetwork()->getConnectionLock());
-
-            Array<DspNetwork::IdChange> changes;
-            
-			auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
-
-			while (numToAdd > 1)
-			{
-				auto nt = dynamic_cast<NodeContainer*>(parentNode)->getNodeTree();
-
-				auto copy = parentNode->getRootNetwork()->cloneValueTreeWithNewIds(nt.getChild(0), changes, true);
-				parentNode->getRootNetwork()->createFromValueTree(true, copy, true);
-				nt.addChild(copy, -1, parentNode->getUndoManager());
-				numToAdd--;
-			}
-		}
-	}
+	void buttonClicked(Button* b) override;
 
 	Path createPath(const String& url) const override
 	{
@@ -887,6 +911,77 @@ struct CloneOptionComponent : public Component,
 	HiseShapeButton hideButton, duplicateButton, deleteButton;
 };
 
+
+void CloneOptionComponent::buttonClicked(Button* b)
+{
+	if (b == &hideButton)
+	{
+		parent->getValueTree().setProperty(PropertyIds::ShowClones, hideButton.getToggleState(), parent->getUndoManager());
+	}
+	if (b == &deleteButton)
+	{
+			
+		auto network = parent->getRootNetwork();
+		parent->getValueTree().removeProperty(PropertyIds::DisplayedClones, parent->getUndoManager());
+
+		SimpleReadWriteLock::ScopedWriteLock sl(network->getConnectionLock());
+
+		auto nt = dynamic_cast<NodeContainer*>(parent.get())->getNodeTree();
+		StringArray nodesToRemove;
+
+		while (nt.getNumChildren() > 1)
+		{
+			nodesToRemove.add(nt.getChild(1)[PropertyIds::ID].toString());
+			nt.removeChild(1, nullptr);
+		}
+
+		MessageManager::callAsync([nodesToRemove, network]()
+		{
+			for (auto nid : nodesToRemove)
+				network->deleteIfUnused(nid);
+		});
+
+	}
+	if (b == &duplicateButton)
+	{
+		auto parentNode = parent.get();
+
+		deleteButton.triggerClick(sendNotificationSync);
+
+		auto numToCloneString = PresetHandler::getCustomName("NumClones", "Enter the number of clones you want to create");
+
+		SimpleReadWriteLock::ScopedWriteLock sl(parentNode->getRootNetwork()->getConnectionLock());
+
+		auto numToAdd = jlimit(1, 128, numToCloneString.getIntValue());
+			
+		auto network = parentNode->getRootNetwork();
+
+		auto firstChild = dynamic_cast<NodeContainer*>(parentNode)->getNodeTree().getChild(0);
+
+		Array<DspNetwork::IdChange> allChanges;
+		Array<DspNetwork::IdChange> prevChanges;
+
+		while(numToAdd > 1)
+		{
+			// We must create the tree but not update the internal automation connections yet
+			auto newTree = network->cloneValueTreeWithNewIds(firstChild, allChanges, false);
+
+			// Now we only apply the new ID changes to the node ID to prevent the connections
+			// all being wired to the first sibling (because it's the first node ID change)...
+			for(const auto& c: allChanges)
+			{
+				if(!prevChanges.contains(c))
+					network->changeNodeId(newTree, c.oldId, c.newId, nullptr);
+			}
+				
+			network->createFromValueTree(true, newTree, true);
+			firstChild.getParent().addChild(newTree, -1,parentNode->getUndoManager());
+
+			prevChanges = allChanges;
+			numToAdd--;
+		}
+	}
+}
 
 CloneNode::CloneIterator::CloneIterator(CloneNode& n, const ValueTree& v, bool skipOriginal) :
 	cn(n),
@@ -1265,6 +1360,74 @@ bool CloneNode::shouldCloneBeDisplayed(int index) const
 	return displayedCloneState[index];
 }
 
+RepitchNode::RepitchNode(DspNetwork* network, ValueTree d):
+	SerialNode(network, d)
+{
+	initListeners(false);
+	addFixedParameters();
+	obj.initialise(this);
+}
+
+void RepitchNode::process(ProcessDataDyn& data)
+{
+	NodeProfiler np(this, data.getNumSamples());
+    ProcessDataPeakChecker pd(this, data);
+    TRACE_DSP();
+
+	obj.process(data);
+}
+
+void RepitchNode::processMonoFrame(MonoFrameType& data)
+{
+	obj.processFrame(data);
+}
+
+void RepitchNode::processStereoFrame(StereoFrameType& data)
+{
+	obj.processFrame(data);
+}
+
+void RepitchNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	NodeContainer::prepareNodes(ps);
+	obj.prepare(ps);
+}
+
+void RepitchNode::reset()
+{
+	obj.reset();
+}
+
+void RepitchNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+ParameterDataList RepitchNode::createInternalParameterList()
+{
+	ParameterDataList data;
+
+	{
+		parameter::data p("RepitchFactor");
+		p.setRange({0.5, 2.0});
+		p.callback = parameter::inner<RepitchNode, 0>(*this);
+		p.info.index = 0;
+		p.setSkewForCentre(1.0);
+		p.setDefaultValue(1.0);
+		data.add(std::move(p));
+	}
+	{
+		parameter::data p("Interpolation");
+		p.setParameterValueNames({"Cubic", "Linear", "None"});
+		p.callback = parameter::inner<RepitchNode, 1>(*this);
+		p.info.index = 1;
+		data.add(std::move(p));
+	}
+
+	return data;
+}
+
 FixedBlockXNode::FixedBlockXNode(DspNetwork* network, ValueTree d) :
 	SerialNode(network, d)
 {
@@ -1345,6 +1508,98 @@ void FixedBlockXNode::setBypassed(bool shouldBeBypassed)
 	prepare(ps);
 
 	getRootNetwork()->runPostInitFunctions();
+}
+
+DynamicBlockSizeNode::DynamicBlockSizeNode(DspNetwork* network, ValueTree d):
+	SerialNode(network, d)
+{
+	initListeners(false);
+	addFixedParameters();
+	obj.initialise(this);
+}
+
+void DynamicBlockSizeNode::setBlockSize(double s)
+{
+	obj.setParameter<0>(s);
+
+	auto nb = obj.getBlockSize();
+
+	if(nb != blockSize)
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(getRootNetwork()->getConnectionLock());
+		blockSize = obj.getBlockSize();
+		prepare(lastSpecs);
+		getRootNetwork()->runPostInitFunctions();
+	}
+}
+
+void DynamicBlockSizeNode::process(ProcessDataDyn& data)
+{
+	NodeProfiler np(this, getBlockSizeForChildNodes());
+	ProcessDataPeakChecker pd(this, data);
+    TRACE_DSP();
+
+	obj.process(data);
+}
+
+void DynamicBlockSizeNode::processFrame(FrameType& data) noexcept
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void DynamicBlockSizeNode::processMonoFrame(MonoFrameType& data)
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void DynamicBlockSizeNode::processStereoFrame(StereoFrameType& data)
+{
+	FrameDataPeakChecker fd(this, data.begin(), data.size());
+	obj.processFrame(data);
+}
+
+void DynamicBlockSizeNode::prepare(PrepareSpecs ps)
+{
+	NodeBase::prepare(ps);
+	lastVoiceIndex = ps.voiceIndex;
+		
+	prepareNodes(ps);
+
+	if (isBypassed())
+		obj.getObject().prepare(ps);
+	else
+		obj.prepare(ps);
+
+	obj.prepare(ps);
+}
+
+void DynamicBlockSizeNode::reset()
+{
+	obj.reset();
+}
+
+void DynamicBlockSizeNode::handleHiseEvent(HiseEvent& e)
+{
+	obj.handleHiseEvent(e);
+}
+
+ParameterDataList DynamicBlockSizeNode::createInternalParameterList()
+{
+	ParameterDataList data;
+
+	{
+		parameter::data p("BlockSize");
+
+		p.setParameterValueNames({ "1", "8", "16", "32", "64", "128", "256", "512"});
+		p.callback = parameter::inner<DynamicBlockSizeNode, 0>(*this);
+		p.info.index = 0;
+		p.setDefaultValue(4.0);
+		data.add(std::move(p));
+	}
+
+	return data;
 }
 
 NoMidiChainNode::NoMidiChainNode(DspNetwork* n, ValueTree t):

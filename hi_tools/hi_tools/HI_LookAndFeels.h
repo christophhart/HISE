@@ -80,7 +80,7 @@ public:
 	{
         virtual ~LookAndFeelMethods();;
         
-		virtual void drawNumberTag(Graphics& g, Colour& c, Rectangle<int> area, int offset, int size, int number);
+		virtual void drawNumberTag(Graphics& g, Component& comp, Colour& c, Rectangle<int> area, int offset, int size, int number);
 	};
 
 	struct DefaultLookAndFeel : public LookAndFeel_V3,
@@ -310,11 +310,14 @@ public:
 	virtual Path createPresetBrowserIcons(const String& id);
 
 	virtual void drawPresetBrowserBackground(Graphics& g, Component* p);
-	virtual void drawColumnBackground(Graphics& g, int columnIndex, Rectangle<int> listArea, const String& emptyText);
-	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
-	virtual void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
-	virtual void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover);
-	virtual void drawSearchBar(Graphics& g, Rectangle<int> area);
+	virtual void drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText);
+
+	virtual Font getTagFont(Component& tagButton) { return font.withHeight(14.0f); }
+
+	virtual void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
+	virtual void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
+	virtual void drawListItem(Graphics& g, Component& column, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover);
+	virtual void drawSearchBar(Graphics& g, Component& labelComponent, Rectangle<int> area);
 
 	Font getFont(bool fontForTitle);
 
@@ -550,7 +553,7 @@ public:
     static void draw1PixelGrid(Graphics& g, Component* c, Rectangle<int> bounds, Colour lineColour=Colours::white);
     
     
-	static Point<float> paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha = 1.0f, Colour holeColour = Colour(0xFFAAAAAA), bool returnMidPoint = false, bool useHangingCable=true);;
+	static Point<float> paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha = 1.0f, Colour holeColour = Colour(0xFFAAAAAA), bool returnMidPoint = false, bool useHangingCable=true, Point<float> velocity={});;
 
 	static void setTextEditorColours(TextEditor& ed);
 
@@ -565,39 +568,11 @@ public:
 	
 
 	void drawToggleButton (Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
-
-#if !HISE_NO_GUI_TOOLS
-	static const char* smalliKnob_png;
-    static const int smalliKnob_pngSize;
-
-	static const char* knobRing_png;
-	static const int knobRing_size;
-
-	static const char* toggle_png;
-    static const int toggle_pngSize;
-	static const char* slider_strip2_png;
-    static const int slider_strip2_pngSize;
-	static const char* slider2_bipolar_png;
-    static const int slider2_bipolar_pngSize;
-#endif
     
 	static void setDefaultColours(Component& c);
 
 private:
     
-
-    Image cachedImage_smalliKnob_png;
-	Image cachedImage_knobRing_png;
-	Image cachedImage_toggle_png;
-	Image cachedImage_slider_strip2_png;
-	Image cachedImage_slider2_bipolar_png;
-	
-	Image ring_red;
-	Image ring_green;
-	Image ring_yellow;
-	Image ring_blue;
-	Image ring_modulated;
-
 	Path ring, ring2;
 
 };
@@ -637,16 +612,10 @@ public:
 
 	BalanceButtonLookAndFeel();
 
-	void drawRotarySlider (Graphics &g, int /*x*/, int /*y*/, int /*width*/, int /*height*/, float /*sliderPosProportional*/, float /*rotaryStartAngle*/, float /*rotaryEndAngle*/, Slider &s) override;
+	void drawRotarySlider (Graphics& g, int x, int y, int width, int height,
+                           float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle,
+                           Slider& s) override;
 
-private:
-	Image cachedImage_balanceKnob_png;
-
-
-#if !HISE_NO_GUI_TOOLS
-	static const char* balanceKnob_png;
-    static const int balanceKnob_pngSize;
-#endif
 };
 
 class ChainBarButtonLookAndFeel: public LookAndFeel_V3

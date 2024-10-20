@@ -292,7 +292,7 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
-	void createNewProject(File &workingDirectory, Component* mainEditor);
+	void createNewProject(const File &workingDirectory, Component* mainEditor);
 
 	Result setWorkingProject(const File &workingDirectory, bool checkDirectories=true);
 
@@ -533,7 +533,7 @@ public:
 
     static void loadUserPreset(ModulatorSynthChain *chain, const File &fileToLoad);
 
-	static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
+	//static void loadUserPreset(ModulatorSynthChain* chain, const ValueTree &v);
     
 	static Identifier getAutomationIndexFromOldVersion(const String& oldVersion, int oldIndex);
 
@@ -695,8 +695,6 @@ public:
 	static var writeValueTreeToMemoryBlock(const ValueTree &v, bool compressData=false);
 
 	static void writeSampleMapsToValueTree(ValueTree &sampleMapTree, ValueTree &preset);
-
-	static void buildProcessorDataBase(Processor *root);
 
 	static XmlElement *buildFactory(FactoryType *t, const String &factoryName);
 

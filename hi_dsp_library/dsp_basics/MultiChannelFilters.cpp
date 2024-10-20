@@ -106,21 +106,21 @@ template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::setFrequency(double newFrequency)
 {
 	targetFreq = FilterLimits::limitFrequency(newFrequency);
-	frequency.setValue(targetFreq);
+	frequency.setValue(targetFreq, !processed);
 }
 
 template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::setQ(double newQ)
 {
 	targetQ = FilterLimits::limitQ(newQ);
-	q.setValue(targetQ);
+	q.setValue(targetQ, !processed);
 }
 
 template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::setGain(double newGain)
 {
 	targetGain = FilterLimits::limitGain(newGain);
-	gain.setValue(targetGain);
+	gain.setValue(targetGain, !processed);
 }
 
 template <class FilterSubType>
@@ -154,7 +154,7 @@ Identifier MultiChannelFilter<FilterSubType>::getFilterTypeId()
 }
 
 template <class FilterSubType>
-IIRCoefficients MultiChannelFilter<FilterSubType>::getApproximateCoefficients() const
+FilterDataObject::CoefficientData MultiChannelFilter<FilterSubType>::getApproximateCoefficients() const
 {
 	auto cType = internalFilter.getCoefficientTypeList();
 
@@ -164,17 +164,25 @@ IIRCoefficients MultiChannelFilter<FilterSubType>::getApproximateCoefficients() 
 	auto q_ = (double)targetQ; //(double)q.getCurrentValue();
 	auto g_ = (float)targetGain; //(float)gain.getCurrentValue();
 
+	auto fnorm = f_ / sampleRate;
+
+	FilterCoefficientData cd = internalFilter.getCoefficients(fnorm, q_, g_);
+
+	if(cd.hasCustomFunction())
+		return cd;
+
 	switch (m)
 	{
-	case FilterHelpers::AllPass: return IIRCoefficients::makeAllPass(sampleRate, f_, q_);
-	case FilterHelpers::LowPassReso: return IIRCoefficients::makeLowPass(sampleRate, f_, q_);
-	case FilterHelpers::LowPass: return IIRCoefficients::makeLowPass(sampleRate, f_);
-	case FilterHelpers::BandPass: return IIRCoefficients::makeBandPass(sampleRate, f_);
-	case FilterHelpers::LowShelf: return IIRCoefficients::makeLowShelf(sampleRate, f_, q_, g_);
-	case FilterHelpers::HighShelf: return IIRCoefficients::makeHighShelf(sampleRate, f_, q_, g_);
-	case FilterHelpers::Peak: return IIRCoefficients::makePeakFilter(sampleRate, f_, q_, g_);
-	case FilterHelpers::HighPass: return IIRCoefficients::makeHighPass(sampleRate, f_, q_);
-	default:	return IIRCoefficients::makeLowPass(sampleRate, f_);
+	case FilterHelpers::AllPass:		return { IIRCoefficients::makeAllPass(sampleRate, f_, q_), 1 };
+	case FilterHelpers::LowPassReso:	return { IIRCoefficients::makeLowPass(sampleRate, f_, q_), 1 };
+	case FilterHelpers::Ladder24db:	    return { IIRCoefficients::makeLowPass(sampleRate, f_, q_), 2 };
+	case FilterHelpers::LowPass:		return { IIRCoefficients::makeLowPass(sampleRate, f_), 1 };
+	case FilterHelpers::BandPass:		return { IIRCoefficients::makeBandPass(sampleRate, f_), 1 };
+	case FilterHelpers::LowShelf:		return { IIRCoefficients::makeLowShelf(sampleRate, f_, q_, g_), 1 };
+	case FilterHelpers::HighShelf:		return { IIRCoefficients::makeHighShelf(sampleRate, f_, q_, g_), 1 };
+	case FilterHelpers::Peak:			return { IIRCoefficients::makePeakFilter(sampleRate, f_, q_, g_), 1 };
+	case FilterHelpers::HighPass:		return { IIRCoefficients::makeHighPass(sampleRate, f_, q_), 1 };
+	default:							return { IIRCoefficients::makeLowPass(sampleRate, f_), 1 };
 	}
 }
 
@@ -186,6 +194,8 @@ void MultiChannelFilter<FilterSubType>::reset(int unused/*=0*/)
 	gain.setValueWithoutSmoothing(targetGain);
 	q.setValueWithoutSmoothing(targetQ);
 
+	processed = false;
+
 	internalFilter.reset(numChannels);
 }
 
@@ -193,6 +203,7 @@ template <class FilterSubType>
 void MultiChannelFilter<FilterSubType>::processFrame(float* frameData, int channels)
 {
 	jassert(channels == numChannels);
+	processed = true;
 
 	if (--frameCounter <= 0)
 	{
@@ -218,6 +229,8 @@ void MultiChannelFilter<FilterSubType>::render(FilterHelpers::RenderData& r)
 	{
 		setNumChannels(r.b.getNumChannels());
 	}
+
+	processed = true;
 
 	internalFilter.processSamples(r.b, r.startSample, r.numSamples);
 }
@@ -341,7 +354,7 @@ juce::StringArray MoogFilterSubType::getModes() const
 
 Array<hise::FilterHelpers::CoefficientType> MoogFilterSubType::getCoefficientTypeList() const
 {
-	return { FilterHelpers::LowPassReso, FilterHelpers::LowPassReso, FilterHelpers::LowPassReso };
+	return { FilterHelpers::LowPass, FilterHelpers::LowPassReso, FilterHelpers::Ladder24db };
 }
 
 void MoogFilterSubType::reset(int numChannels)
@@ -439,6 +452,38 @@ Array<hise::FilterHelpers::CoefficientType> SimpleOnePoleSubType::getCoefficient
 	return { FilterHelpers::LowPass, FilterHelpers::HighPass };
 }
 
+double SimpleOnePoleSubType::getPlotValue(void* obj, bool getMagnitude, double normX)
+{
+	auto typed = static_cast<FilterCoefficientData*>(obj);
+
+	auto freqNorm = typed->first.coefficients[0];
+	auto isLP = typed->first.coefficients[1] == 1.0;
+
+	const auto w = freqNorm;
+
+	freqNorm *= freqNorm;
+	normX *= normX;
+
+	if(isLP)
+	{
+		return 1.0 - w / std::sqrt(freqNorm + normX);
+	}
+	else
+	{
+		return w / std::sqrt(freqNorm + normX);
+	}
+}
+
+FilterCoefficientData SimpleOnePoleSubType::getCoefficients(double freqNorm, double, double) const
+{
+	FilterCoefficientData d;
+	d.first.coefficients[0] = freqNorm;
+	d.first.coefficients[1] = (float)(int)onePoleType;
+
+	d.customFunction = getPlotValue;
+	return d;
+}
+
 SimpleOnePoleSubType::SimpleOnePoleSubType()
 {
 	onePoleType = SimpleOnePoleSubType::LP;
@@ -457,10 +502,15 @@ void SimpleOnePoleSubType::reset(int numChannels)
 
 void SimpleOnePoleSubType::updateCoefficients(double sampleRate, double frequency, double /*q*/, double /*gain*/)
 {
-	const double x = exp(-2.0*double_Pi*frequency / sampleRate);
+	if(sampleRate > 0.0)
+	{
+		const double sr_inv = 1.0 / sampleRate;
+		const double x = exp(-2.0*double_Pi*frequency * sr_inv);
 
-	a0 = (float)(1.0 - x);
-	b1 = (float)-x;
+		a0 = (float)(1.0 - x);
+		b1 = (float)-x;
+	}
+	
 }
 
 void SimpleOnePoleSubType::processSamples(AudioSampleBuffer& buffer, int startSample, int numSamples)
@@ -803,7 +853,7 @@ juce::Identifier LadderSubType::getStaticId()
 
 Array<hise::FilterHelpers::CoefficientType> LadderSubType::getCoefficientTypeList() const
 {
-	return { FilterHelpers::LowPassReso };
+	return { FilterHelpers::Ladder24db };
 }
 
 juce::StringArray LadderSubType::getModes() const
@@ -1021,7 +1071,7 @@ void StateVariableFilterSubType::processSamples(AudioSampleBuffer& buffer, int s
 			for (int i = 0; i < numSamples; ++i)
 			{
 				const float input = d[i];
-				const float HP = (input - x1 * z1_A[c] - v2[c]) / x2;
+				const float HP = (input - x1 * z1_A[c] - v2[c]) * x2;
 				const float BP = HP * gCoeff + z1_A[c];
 				const float LP = BP * gCoeff + v2[c];
 

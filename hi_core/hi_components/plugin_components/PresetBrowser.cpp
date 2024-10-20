@@ -228,6 +228,8 @@ private:
 PresetBrowser::ModalWindow::ModalWindow(PresetBrowser* p) :
 	PresetBrowserChildComponentBase(p)
 {
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(*this, { ".modal"} );
+
 	alaf = PresetHandler::createAlertWindowLookAndFeel();
 
 	addAndMakeVisible(inputLabel = new BetterLabel(p));
@@ -274,7 +276,7 @@ void PresetBrowser::ModalWindow::paint(Graphics& g)
 	auto title = getTitleText();
 	auto command = getCommand();
 
-	getPresetBrowserLookAndFeel().drawModalOverlay(g, area, labelArea, title, command);
+	getPresetBrowserLookAndFeel().drawModalOverlay(g, *this, area, labelArea, title, command);
 }
 
 juce::String PresetBrowser::ModalWindow::getCommand() const
@@ -516,6 +518,9 @@ expHandler(mc->getExpansionHandler())
 	addAndMakeVisible(searchBar = new PresetBrowserSearchBar(this));
 	addChildComponent(closeButton = new ShapeButton("Close", Colours::white.withAlpha(0.5f), Colours::white.withAlpha(0.8f), Colours::white));
 
+	
+	
+
 	addAndMakeVisible(noteLabel = new BetterLabel(this));
 	noteLabel->addListener(this);
 
@@ -535,6 +540,15 @@ expHandler(mc->getExpansionHandler())
 
 	addAndMakeVisible(modalInputWindow = new ModalWindow(this));
 	modalInputWindow->setVisible(false);
+
+	{
+		using namespace simple_css;
+		FlexboxComponent::Helpers::writeSelectorsToProperties(*this, { ".preset-browser" });
+		FlexboxComponent::Helpers::writeSelectorsToProperties(*getColumn(0), { "#bank", ".column" });
+		FlexboxComponent::Helpers::writeSelectorsToProperties(*getColumn(1), { "#category", ".column" });
+		FlexboxComponent::Helpers::writeSelectorsToProperties(*getColumn(2), { "#preset", ".column" });
+		FlexboxComponent::Helpers::writeSelectorsToProperties(*noteLabel, { ".notes" });
+	}
 
 	closeButton->addListener(this);
 	Path closeShape;
@@ -1069,6 +1083,11 @@ void PresetBrowser::setShowSearchBar(bool shouldBeShown)
 	}
 }
 
+void PresetBrowser::setShowFullPathFavorites(bool shouldShowFullPathFavorites)
+{
+	fullPathFavorites = shouldShowFullPathFavorites;
+}
+
 void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 {
 	auto& lf = getPresetBrowserLookAndFeel();
@@ -1296,7 +1315,8 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setColumnRowPadding(newOptions.columnRowPadding);
 	setShowNotesLabel(newOptions.showNotesLabel);
 	setShowFavorites(newOptions.showFavoriteIcons);
-
+	setShowFullPathFavorites(newOptions.fullPathFavorites);
+	
 	if (expansionColumn != nullptr)
 		expansionColumn->update();
 
@@ -1560,8 +1580,12 @@ void PresetBrowser::buttonClicked(Button* b)
 	{
 		PopupMenu p;
 
-		auto& plaf = getMainController()->getGlobalLookAndFeel();
-		p.setLookAndFeel(&plaf);
+		LookAndFeel* plaf = &getMainController()->getGlobalLookAndFeel();
+
+		if(auto laf = dynamic_cast<LookAndFeel*>(&getPresetBrowserLookAndFeel()))
+			plaf = laf;
+
+		p.setLookAndFeel(plaf);
 
 		enum ID
 		{

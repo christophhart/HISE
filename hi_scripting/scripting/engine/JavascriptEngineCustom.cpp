@@ -83,6 +83,8 @@ struct HiseJavascriptEngine::RootObject::RegisterName : public Expression
 		*data = newValue;
 	}
 
+	Identifier getVariableName() const override { return name; }
+
 	Statement* getChildStatement(int ) override { return nullptr; };
 
 	VarRegister* rootRegister;
@@ -481,6 +483,8 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 
 		String getComment() const override { return commentDoc; }
 
+		Identifier getCallId() const override { return name; }
+
 		int getNumChildElements() const override
 		{
 			return ENABLE_SCRIPTING_BREAKPOINTS * 2;
@@ -576,14 +580,26 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
             
 			setFunctionCall(dynamicFunctionCall);
 
-			for (int i = 0; i < numArgs; i++)
+#if ENABLE_SCRIPTING_BREAKPOINTS && 0
+			if(numArgs != dynamicFunctionCall->parameterResults.size())
+			{
+				String e;
+				e << "argument amount mismatch: " << String(dynamicFunctionCall->parameterResults.size()) << " (expected: " << String(numArgs) << ")";
+				auto error = RootObject::Error::fromLocation(body->location, e);
+				throw error;
+			}
+#endif
+
+			auto numToSet = jmin(numArgs, dynamicFunctionCall->parameterResults.size());
+
+			for (int i = 0; i < numToSet; i++)
 			{
 				dynamicFunctionCall->parameterResults.setUnchecked(i, args[i]);
 			}
 
 			Statement::ResultCode c = body->perform(s, &lastReturnValue.get());
 
-            for (int i = 0; i < numArgs; i++)
+            for (int i = 0; i < numToSet; i++)
             {
                 dynamicFunctionCall->parameterResults.setUnchecked(i, {});
             }
@@ -612,7 +628,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				var nObj(n.get());
 
 				{
-					SimpleReadWriteLock::ScopedWriteLock sl(debugLock);
+					SimpleReadWriteLock::ScopedMultiWriteLock sl(debugLock);
 					std::swap(nObj, debugLocalProperties);
 				}
 			}
@@ -629,7 +645,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 				var nObj(obj.get());
 
 				{
-					SimpleReadWriteLock::ScopedWriteLock sl(debugLock);
+					SimpleReadWriteLock::ScopedMultiWriteLock sl(debugLock);
 					std::swap(nObj, debugArgumentProperties);
 				}
 			}
@@ -831,8 +847,7 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 			else
 			{
 				location.throwError("Accessing parameter reference outside the function call");
-				
-				RETURN_DEBUG_ONLY(var());
+				RETURN_IF_NO_THROW({});
 			}
 		}
 
@@ -984,6 +999,9 @@ struct HiseJavascriptEngine::RootObject::CallbackLocalReference : public Express
 		parentCallback->localProperties.set(name, newValue);
 	}
 
+	Identifier getVariableName() const override { return name; }
+
+
 	Statement* getChildStatement(int) override { return nullptr; };
 
 	Callback* parentCallback;
@@ -1066,7 +1084,7 @@ struct BlockRemover : public HiseJavascriptEngine::RootObject::OptimizationPass
 	{
 		if (auto sb = dynamic_cast<HiseJavascriptEngine::RootObject::BlockStatement*>(statementToOptimize))
 		{
-			if (sb->lockStatements.isEmpty())
+			if (sb->scopedBlockStatements.isEmpty())
 			{
 				if (sb->statements.isEmpty())
 					return nullptr;

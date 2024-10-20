@@ -72,6 +72,8 @@ private:
 	ScopedPointer<HiComboBox> bufferSize;
 	ScopedPointer<AudioAnalyserComponent> analyser;
 
+	ProcessorEditorBodyUpdater updater;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AnalyserEditor)
 };

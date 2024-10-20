@@ -220,6 +220,16 @@ public:
 		void setForceFoldButton(bool shouldBeShown);
 		bool mustShowFoldButton() const;
 
+		Identifier getKeyPressId() const
+		{
+			auto s = getPropertyWithDefault(layoutDataObject, LayoutDataIds::FoldKeyPress).toString();
+
+			if(s.isNotEmpty())
+				return Identifier(s);
+
+			return {};
+		}
+
 	private:
 
 		struct CachedValues
@@ -435,6 +445,13 @@ public:
 
 	void editJSON();
 
+	Component::SafePointer<Component> togglePopupCallbackComponent;
+	bool* toggleFlag = nullptr;
+
+	void callToggleCallback();
+
+	bool setTogglePopupFlag(Component& c, bool& shouldClose);
+
 	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport=false, bool maximiseViewport=false);
 
 	FloatingTilePopup* showComponentAsDetachedPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport = false);
@@ -532,6 +549,12 @@ public:
 	void removePopup(FloatingTilePopup* p);
 	void detachCurrentPopupAsync();
 	void toggleDetachPopup(FloatingTilePopup* p);
+
+	void clearAllPopups()
+	{
+		showComponentInRootPopup(nullptr, nullptr, {});
+		detachedPopups.clear();
+	}
 
 private:
 

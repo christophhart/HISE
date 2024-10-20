@@ -368,7 +368,9 @@ struct complex_ui_laf : public ScriptnodeComboBoxLookAndFeel,
 	void drawAhdsrBackground(Graphics& g, AhdsrGraph& graph) override;
 	void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
 	void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
-	
+
+	Colour nodeColour;
+
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(complex_ui_laf);
 };
 
@@ -493,6 +495,13 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 		{
 			m.addSeparator();
 			m.addItem(9000, "Edit Properties");
+			m.addItem(9001, "Show in big popup");
+		}
+
+		if constexpr (std::is_same<DynamicDataType, data::dynamic::filter>())
+		{
+			m.addSeparator();
+			m.addItem(9001, "Show in big popup");
 		}
 
 		if (auto r = m.show())
@@ -504,6 +513,94 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 					showProperties(obj, &externalButton);
 				}
 
+				return;
+			}
+			if(r == 9001)
+			{
+#if USE_BACKEND
+				if(auto obj = dynamic_cast<FilterDataObject*>(getObject()->currentlyUsedData))
+				{
+					struct ResizableFilterGraph: public Component
+					{
+						ResizableFilterGraph(const String& name, FilterDataObject* obj, Colour nColour):
+						  resizer(this, nullptr)
+						{
+							setName("Filter Graph: " + name);
+
+							fg.setComplexDataUIBase(obj);
+
+							auto laf = new complex_ui_laf();
+							laf->nodeColour = nColour;
+							fg.setSpecialLookAndFeel(laf, true);
+
+							addAndMakeVisible(fg);
+							addAndMakeVisible(resizer);
+
+							setSize(768, 400);
+						}
+
+						void resized() override
+						{
+							auto b = getLocalBounds();
+							fg.setBounds(b.reduced(10));
+							resizer.setBounds(b.removeFromRight(10).removeFromBottom(10));
+						}
+
+						FilterGraph fg;
+						ResizableCornerComponent resizer;
+					};
+
+					auto pc = findParentComponentOfClass<NodeComponent>();
+					auto nColour = pc != nullptr ? getColourFromNodeComponent(pc) : Colours::white;
+
+					auto fg = new ResizableFilterGraph(getObject()->parentNode->getId(), obj, nColour);
+					
+					auto rt = GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile();
+
+					rt->showComponentInRootPopup(fg, this, {});
+				}
+
+
+				if (auto obj = dynamic_cast<SimpleRingBuffer*>(getObject()->currentlyUsedData))
+				{
+					struct ResizableModPlotter: public Component
+					{
+						ResizableModPlotter(const String& name, SimpleRingBuffer* obj, Colour c):
+						  Component(name),
+						  resizer(this, nullptr)
+						{
+							addAndMakeVisible(m);
+							addAndMakeVisible(resizer);
+							m.setComplexDataUIBase(obj);
+							m.setColour(ModPlotter::backgroundColour, Colour(0xFF333333));
+							m.setColour(ModPlotter::ColourIds::pathColour, c);
+							auto laf = new complex_ui_laf();
+							laf->nodeColour = c;
+							m.setSpecialLookAndFeel(laf, true);
+							
+							setSize(768, 300);
+						};
+
+						void resized() override
+						{
+							auto b = getLocalBounds();
+							m.setBounds(b.reduced(10));
+							resizer.setBounds(b.removeFromRight(10).removeFromBottom(10));
+						}
+
+						ModPlotter m;
+						ResizableCornerComponent resizer;
+					};
+
+					auto pc = findParentComponentOfClass<NodeComponent>();
+					auto nColour = pc != nullptr ? getColourFromNodeComponent(pc) : Colours::white;
+
+					auto n = new ResizableModPlotter("Plotter: " + getObject()->parentNode->getId(), obj, nColour);
+					auto rt = GET_BACKEND_ROOT_WINDOW(this)->getRootFloatingTile();
+
+					rt->showComponentInRootPopup(n, this, {});
+				}
+#endif
 				return;
 			}
 

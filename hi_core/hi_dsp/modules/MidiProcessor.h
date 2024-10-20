@@ -176,6 +176,8 @@ public:
 
 	void addArtificialEvent(const HiseEvent& m);
 
+	void setFixNoteOnAfterNoteOff(bool shouldBeFixed);
+
 	bool setArtificialTimestamp(uint16 eventId, int newTimestamp);
 
 	void sendAllNoteOffEvent();;
@@ -215,11 +217,116 @@ public:
 		MidiProcessorChain *chain;
 	};
 
+	bool attachNote(uint16 originalId, uint16 artificialId)
+	{
+		if(attachedNoteBuffer != nullptr)
+		{
+			return attachedNoteBuffer->attachNote(originalId, artificialId);
+		}
+
+		return false;
+	}
+
+	bool hasAttachedNoteBuffer() const noexcept { return attachedNoteBuffer != nullptr; }
+	
 private:
+
+	struct AttachedNoteBuffer
+	{
+		static constexpr int NumAttachableEvents = 15;
+
+		struct Data
+		{
+			Data()
+			{
+				memset(attached.data(), 0, sizeof(attached));
+			}
+
+			bool operator==(const Data& other) const { return originalId == other.originalId; };
+
+			std::array<uint16, NumAttachableEvents> attached;
+			uint16 originalId = 0;
+		};
+
+		bool processNoteOff(const HiseEvent& e, HiseEventBuffer& b)
+		{
+			if(!e.isNoteOff() || e.isIgnored())
+				return false;
+
+			auto id = e.getEventId();
+			
+			int idx = 0;
+			
+			for(auto& s: attachableEvents)
+			{
+				if(s.originalId == id)
+				{
+					auto copy = HiseEvent(e);
+
+					for(auto& a: s.attached)
+					{
+						if(a == 0)
+							break;
+
+						copy.setEventId(a);
+						copy.setArtificial();
+						b.addEvent(copy);
+					}
+
+					attachableEvents.removeElement(idx);
+					return true;
+				}
+
+				idx++;
+			}
+
+			return false;
+		}
+
+		bool hasAttachedNotes() const noexcept { return !attachableEvents.isEmpty(); }
+
+		void reset()
+		{
+			attachableEvents.clearQuick();
+		}
+
+		bool attachNote(uint16 original, uint16 artificial)
+		{
+			for(auto& s: attachableEvents)
+			{
+				if(s.originalId == original)
+				{
+					for(auto& a: s.attached)
+					{
+						if(a == 0)
+						{
+							a = artificial;
+							return true;
+						}
+					}
+
+					return false;
+				}
+			}
+
+			Data d;
+			d.originalId = original;
+			d.attached[0] = artificial;
+			return attachableEvents.insertWithoutSearch(std::move(d));
+		}
+
+	private:
+
+		hise::UnorderedStack<Data, NUM_POLYPHONIC_VOICES> attachableEvents;
+	};
+
+	bool fixNoteOnAfterNoteOff = false;
 
 	friend class MidiPlayer;
 
 	bool allNotesOffAtNextBuffer;
+
+	ScopedPointer<AttachedNoteBuffer> attachedNoteBuffer;
 	ScopedPointer<FactoryType> midiProcessorFactory;
 
 	Processor* parentProcessor;
@@ -232,9 +339,7 @@ private:
 
 	Array<WeakReference<MidiProcessor>> wholeBufferProcessors;
 
-	HiseEventBuffer futureEventBuffer;
 	HiseEventBuffer artificialEvents;
-
 };
 
 class HardcodedScriptFactoryType;

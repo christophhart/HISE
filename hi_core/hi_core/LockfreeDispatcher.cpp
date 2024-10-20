@@ -58,6 +58,9 @@ void MainController::LockFreeDispatcher::clearQueueWithoutCalling()
 	};
 
 	pendingTasks.clear(f);
+
+	if(routingManagerToDelete.isObject())
+		routingManagerToDelete = var();
 }
 
 bool MainController::LockFreeDispatcher::isIdle() const
@@ -119,6 +122,9 @@ void MainController::LockFreeDispatcher::timerCallback()
 		};
 
 		pendingTasks.clear(f);
+
+		if(routingManagerToDelete.isObject())
+			routingManagerToDelete = var();
 	}
 }
 
@@ -129,7 +135,7 @@ bool MainController::LockFreeDispatcher::isMessageThread() const noexcept
 
 bool MainController::LockFreeDispatcher::isLoadingThread() const noexcept
 {
-	return mc->getKillStateHandler().getCurrentThread() == KillStateHandler::SampleLoadingThread;
+	return mc->getKillStateHandler().getCurrentThread() == KillStateHandler::TargetThread::SampleLoadingThread;
 }
 
 

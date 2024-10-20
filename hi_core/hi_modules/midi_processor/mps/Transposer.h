@@ -56,6 +56,11 @@ public:
 		mc->getEventHandler().addChokeListener(this);
 
 		parameterNames.add("ChokeGroup");
+		parameterNames.add("LoKey");
+		parameterNames.add("HiKey");
+		parameterNames.add("KillVoice");
+
+		updateParameterSlots();
 	};
 
 	~ChokeGroupProcessor()
@@ -161,6 +166,7 @@ public:
 		transposeAmount(0)
 	{
 		parameterNames.add("TransposeAmount");
+		updateParameterSlots();
 	};
 
 

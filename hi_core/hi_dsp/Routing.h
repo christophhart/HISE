@@ -203,6 +203,8 @@ private:
 	int rightSourceChannel;
 	int leftTargetChannel;
 	int rightTargetChannel;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(RoutableProcessor);
 };
 
 

@@ -504,7 +504,7 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 		if (newMod)
 		{
 			currentTable.setEditedTable(newMod->getTable(0));
-			addAndMakeVisible(currentPlotter = new Plotter());
+			addAndMakeVisible(currentPlotter = new Plotter(getMainController()->getGlobalUIUpdater()));
 
 			newMod->setPlotter(currentPlotter);
 
@@ -517,7 +517,8 @@ void MPEPanel::setCurrentMod(MPEModulator* newMod)
 			currentTable.setColour(TableEditor::ColourIds::bgColour, laf.fillColour.withAlpha(0.05f));
 		}
 
-        ProcessorHelpers::connectTableEditor(currentTable, newMod);
+		if(newMod != nullptr)
+			ProcessorHelpers::connectTableEditor(currentTable, newMod);
         
 		repaint();
 		resized();
@@ -555,7 +556,7 @@ void MPEPanel::buttonClicked(Button* b)
 		return SafeFunctionCall::OK;
 	};
 
-	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 }
 
@@ -640,13 +641,13 @@ void MPEPanel::Model::deleteKeyPressed(int lastRowSelected)
 			if (auto m = dynamic_cast<MPEModulator*>(p))
 			{
 				m->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeConnection(m);
-				m->sendChangeMessage();
+				m->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 			}
 
 			return SafeFunctionCall::OK;
 		};
 
-		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
+		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
 
 	parent.setCurrentMod(nullptr);
@@ -701,7 +702,7 @@ void MPEPanel::Model::listBoxItemClicked(int row, const MouseEvent& e)
 		else if (result == 3)
 		{
 			mod->getTable(0)->restoreData(clipboardContent);
-			mod->sendChangeMessage();
+			mod->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 		}
 		else if (result == 4)
@@ -718,7 +719,7 @@ void MPEPanel::Model::listBoxItemClicked(int row, const MouseEvent& e)
 				ValueTree v = ValueTree::fromXml(*xml);
 
 				mod->restoreFromValueTree(v);
-				mod->sendChangeMessage();
+				mod->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 			}
 			else
 			{
@@ -814,12 +815,13 @@ void MPEPanel::Model::LastRow::buttonClicked(Button*)
 				return SafeFunctionCall::OK;
 			};
 
-			mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
+			mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 		}
 	}
 }
 
 MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
+	OtherListener(mod_, dispatch::library::ProcessorChangeEvent::Custom),
 	mod(mod_),
 	curvePreview(nullptr, mod->getTable(0)),
 	deleteButton("Delete", Colours::white, Colours::white, Colours::white),
@@ -850,6 +852,7 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 		modeSelector.addItem("Legato Bipolar", 5);
 		modeSelector.addItem("Retrigger Bipolar", 6);
 	}
+
 
 
 	MPEPanel::Factory f;
@@ -894,6 +897,11 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 		intensity.setMode(HiSlider::Pan);
 		defaultValue.setMode(HiSlider::Pan);
 	}
+	else if (mode == Modulation::GlobalMode)
+	{
+		intensity.setMode(HiSlider::NormalizedPercentage);
+		defaultValue.setMode(HiSlider::NormalizedPercentage);
+	}
 
 	smoothingTime.setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
 	intensity.setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
@@ -916,8 +924,6 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	smoothingTime.setScrollWheelEnabled(false);
 
 	modeSelector.addListener(this);
-
-	mod->addChangeListener(this);
 
     ProcessorHelpers::connectTableEditor(curvePreview, mod);
 
@@ -945,22 +951,16 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	modeSelector.setLookAndFeel(&laf_);
 	defaultValue.setLookAndFeel(&laf_);
 
-	changeListenerCallback(nullptr);
+	otherChange(mod);
 }
 
 
 MPEPanel::Model::Row::~Row()
 {
-	if (mod != nullptr)
-	{
-		mod->removeChangeListener(this);
-	}
 }
 
 void MPEPanel::Model::Row::resized()
 {
-
-
 	auto ar = getLocalBounds();
 
 	int buttonWidth = getHeight();
@@ -1016,15 +1016,6 @@ void MPEPanel::Model::Row::updateEnableState()
 }
 
 
-void MPEPanel::Model::Row::changeListenerCallback(SafeChangeBroadcaster* /*b*/)
-{
-	smoothingTime.updateValue();
-	selector.updateValue();
-	intensity.updateValue();
-	defaultValue.updateValue();
-	updateEnableState();
-}
-
 void MPEPanel::Model::Row::paint(Graphics& g)
 {
 	auto ar = getLocalBounds();
@@ -1069,17 +1060,17 @@ void MPEPanel::Model::Row::comboBoxChanged(ComboBox* comboBoxThatHasChanged)
 
 	if (result == 0)
 	{
-		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, false, sendNotification);
+		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, false, sendNotificationSync);
 	}
 	else if (result == 1)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, true, dontSendNotification);
-		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, false, sendNotification);
+		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, false, sendNotificationSync);
 	}
 	else if (result == 2)
 	{
 		mod->setAttribute(EnvelopeModulator::Parameters::Monophonic, true, dontSendNotification);
-		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, true, sendNotification);
+		mod->setAttribute(EnvelopeModulator::Parameters::Retrigger, true, sendNotificationSync);
 	}
 }
 
@@ -1103,7 +1094,7 @@ void MPEPanel::Model::Row::deleteThisRow()
 			if (auto m = dynamic_cast<MPEModulator*>(p))
 			{
 				m->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().removeConnection(m);
-				m->sendChangeMessage();
+				m->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 			}
 
 			return SafeFunctionCall::OK;
@@ -1111,7 +1102,7 @@ void MPEPanel::Model::Row::deleteThisRow()
 
 		findParentComponentOfClass<MPEPanel>()->setCurrentMod(nullptr);
 
-		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::SampleLoadingThread);
+		mod->getMainController()->getKillStateHandler().killVoicesAndCall(mod, f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 	}
 }
 

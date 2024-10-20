@@ -84,7 +84,7 @@ const MarkdownLayout& MarkdownRenderer::LayoutCache::getLayout(const AttributedS
 
 
 MarkdownRenderer::LayoutCache::Layout::Layout(const AttributedString& s, float w):
-	l(s, w)
+	l(s, w, {})
 {
 	hashCode = s.getText().hashCode64();
 	width = w;
@@ -92,11 +92,20 @@ MarkdownRenderer::LayoutCache::Layout::Layout(const AttributedString& s, float w
 
 
 
-MarkdownParser::MarkdownParser(const String& markdownCode_) :
+MarkdownParser::MarkdownParser(const String& markdownCode_, const MarkdownLayout::StringWidthFunction& f) :
 	markdownCode(markdownCode_.replace("\r\n", "\n")),
 	it(markdownCode),
+	stringWidthFunction(f),
 	currentParseResult(Result::fail("Nothing parsed yet"))
 {
+	if(!stringWidthFunction)
+	{
+		stringWidthFunction = [](const Font& f, const String& word)
+        {
+             return f.getStringWidthFloat(word);
+        };
+	}
+
 	setImageProvider(new ImageProvider(this));
 	
 	setLinkResolver(new DefaultLinkResolver(this));
@@ -696,7 +705,7 @@ void MarkdownParser::Element::searchInStringInternal(const AttributedString& tex
 
 	if (ranges.size() > 0)
 	{
-		MarkdownLayout searchLayout(textToSearch, lastWidth, true);
+		MarkdownLayout searchLayout(textToSearch, lastWidth, stringWidthFunction, true);
 		searchLayout.addYOffset((float)getTopMargin());
 
 		for (auto r : ranges)
@@ -830,12 +839,21 @@ void MarkdownParser::Iterator::skipWhitespace()
 	}
 }
 
-juce::String MarkdownParser::Iterator::getRestString() const
+juce::String MarkdownParser::Iterator::getRestString(int maxLength) const
 {
 	if (it.isEmpty())
 		return {};
 
-	return String(it);
+	if(maxLength == -1)
+	{
+		return String(it);
+	}
+	else
+	{
+		maxLength = jmin(maxLength, (int)(text.end() - it));
+		return String(it, it+maxLength);
+	}
+	
 }
 
 

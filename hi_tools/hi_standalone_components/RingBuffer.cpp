@@ -80,43 +80,64 @@ int SimpleRingBuffer::read(AudioSampleBuffer& b)
 	if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getDataLock()))
 	{
 		while (isBeingWritten.load()) // busy wait, but OK
-			;
+		{
 
-		bool shortBuffer = internalBuffer.getNumSamples() < 4096;
-
-		int thisWriteIndex = shortBuffer ? 0 : writeIndex.load();
-		int numBeforeIndex = thisWriteIndex;
-		int offsetBeforeIndex = internalBuffer.getNumSamples() - numBeforeIndex;
-
-		jassert(b.getNumSamples() == internalBuffer.getNumSamples() && b.getNumChannels() == internalBuffer.getNumChannels());
+		}
 
 		int numSamples = b.getNumSamples();
 		int numChannels = b.getNumChannels();
 
-		for (int i = 0; i < numChannels; i++)
+		if(maxLength != -1.0)
 		{
-			auto buffer = internalBuffer.getReadPointer(i);
-			auto dst = b.getWritePointer(i);
-
-			if (shortBuffer)
-			{
-				FloatVectorOperations::copy(dst, buffer, offsetBeforeIndex);
-				//FloatVectorOperations::multiply(dst, 0.5f, b.getNumSamples());
-				//FloatVectorOperations::addWithMultiply(dst, buffer, 0.5f, offsetBeforeIndex);
-			}
-			else
-			{
-				FloatVectorOperations::copy(dst + offsetBeforeIndex, buffer, numBeforeIndex);
-				FloatVectorOperations::copy(dst, buffer + thisWriteIndex, offsetBeforeIndex);
-			}
-
+			numSamples = getMaxLengthInSamples();
 			
-			FloatSanitizers::sanitizeArray(dst, numSamples);
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto buffer = internalBuffer.getReadPointer(i);
+				auto dst = b.getWritePointer(i);
+				
+				FloatVectorOperations::copy(dst, buffer, numSamples);
+			}
+		
+			interpolatedReadIndex = hmath::fmod(interpolatedReadIndex + maxLength, (double)internalBuffer.getNumSamples());
+			
 		}
+		else
+		{
+			bool shortBuffer = internalBuffer.getNumSamples() < 4096;
 
-		int numToReturn = numAvailable;
-		numAvailable = 0;
-		return numToReturn;
+			int thisWriteIndex = shortBuffer ? 0 : writeIndex.load();
+			
+			int numBeforeIndex = thisWriteIndex;
+			int offsetBeforeIndex = internalBuffer.getNumSamples() - numBeforeIndex;
+
+			jassert(b.getNumSamples() == internalBuffer.getNumSamples() && b.getNumChannels() == internalBuffer.getNumChannels());
+
+			for (int i = 0; i < numChannels; i++)
+			{
+				auto buffer = internalBuffer.getReadPointer(i);
+				auto dst = b.getWritePointer(i);
+
+				if (shortBuffer)
+				{
+					FloatVectorOperations::copy(dst, buffer, offsetBeforeIndex);
+					//FloatVectorOperations::multiply(dst, 0.5f, b.getNumSamples());
+					//FloatVectorOperations::addWithMultiply(dst, buffer, 0.5f, offsetBeforeIndex);
+				}
+				else
+				{
+					FloatVectorOperations::copy(dst + offsetBeforeIndex, buffer, numBeforeIndex);
+					FloatVectorOperations::copy(dst, buffer + thisWriteIndex, offsetBeforeIndex);
+				}
+
+				
+				FloatSanitizers::sanitizeArray(dst, numSamples);
+			}
+
+			int numToReturn = numAvailable;
+			numAvailable = 0;
+			return numToReturn;
+		}
 	}
 
 	return 0;
@@ -196,35 +217,65 @@ void SimpleRingBuffer::write(const float** data, int numChannels, int numSamples
 		{
 			int numChannelsToWrite = jmin(numChannels, internalBuffer.getNumChannels());
 
-			int numBeforeWrap = jmin(numSamples, internalBuffer.getNumSamples() - writeIndex);
-
-			if (numBeforeWrap > 0)
+			if(maxLength != -1.0)
 			{
-				for (int i = 0; i < numChannelsToWrite; i++)
+				auto upperLimit = maxLength;
+				auto numToWrite = (double)numSamples;
+
+				while(numToWrite > 0)
 				{
-					auto buffer = internalBuffer.getWritePointer(i);
-					FloatVectorOperations::copy(buffer + writeIndex, data[i], numBeforeWrap);
+					auto numThisTime = jmin(upperLimit, (double)numToWrite);
+
+					auto numBeforeWrap = jlimit(0.0, jmin(numToWrite, upperLimit), upperLimit - interpolatedWriteIndex);
+					auto numAfterWrap = jmax(0.0, numThisTime - numBeforeWrap);
+
+					for(int i = 0; i < numChannelsToWrite; i++)
+					{
+						auto buffer = internalBuffer.getWritePointer(i);
+
+						FloatVectorOperations::copy(buffer + roundToInt(interpolatedWriteIndex), data[i], roundToInt(numBeforeWrap));
+						FloatVectorOperations::copy(buffer, data[i] + roundToInt(numBeforeWrap), roundToInt(numAfterWrap));
+					}
+
+					interpolatedWriteIndex = hmath::fmod(interpolatedWriteIndex + numThisTime, maxLength);
+
+					numToWrite -= numThisTime;
 				}
+
+				
 			}
-
-			writeIndex += numBeforeWrap;
-
-			int numAfterWrap = numSamples - numBeforeWrap;
-
-			if(numAfterWrap > 0)
+			else
 			{
-				auto numThisTime = jmin(internalBuffer.getNumSamples(), numAfterWrap);
+				
+				int numBeforeWrap = jmin(numSamples, internalBuffer.getNumSamples() - writeIndex);
 
-				for (int i = 0; i < numChannelsToWrite; i++)
+				if (numBeforeWrap > 0)
 				{
-					auto buffer = internalBuffer.getWritePointer(i);
-					FloatVectorOperations::copy(buffer, data[i] + numBeforeWrap, numThisTime);
+					for (int i = 0; i < numChannelsToWrite; i++)
+					{
+						auto buffer = internalBuffer.getWritePointer(i);
+						FloatVectorOperations::copy(buffer + writeIndex, data[i], numBeforeWrap);
+					}
 				}
 
-				writeIndex = (writeIndex + numAfterWrap) % internalBuffer.getNumSamples();
-			}
+				writeIndex += numBeforeWrap;
+				int numAfterWrap = numSamples - numBeforeWrap;
 
-			numAvailable += numSamples;
+				if(numAfterWrap > 0)
+				{
+					auto numThisTime = jmin(internalBuffer.getNumSamples(), numAfterWrap);
+
+					for (int i = 0; i < numChannelsToWrite; i++)
+					{
+						auto buffer = internalBuffer.getWritePointer(i);
+						FloatVectorOperations::copy(buffer, data[i] + numBeforeWrap, numThisTime);
+					}
+
+					writeIndex = (writeIndex + numAfterWrap) % internalBuffer.getNumSamples();
+				}
+
+				numAvailable += numSamples;
+			}
 		}
 
 		isBeingWritten = false;
@@ -304,13 +355,13 @@ void SimpleRingBuffer::setPropertyObject(PropertyObject* newObject)
 
 	if (ns == 0 && properties->getPropertyList().contains(RingBufferIds::BufferLength))
 	{
-		ns = (int)properties->properties[RingBufferIds::BufferLength];
+		ns = (int)properties->getPropertyInternal(RingBufferIds::BufferLength.toString());
 		updateBuffer = true;
 	}
 
 	if (nc == 0 && properties->getPropertyList().contains(RingBufferIds::NumChannels))
 	{
-		nc = (int)properties->properties[RingBufferIds::NumChannels];
+		nc = (int)properties->getPropertyInternal(RingBufferIds::NumChannels.toString());
 		updateBuffer = true;
 	}
 		
@@ -510,24 +561,65 @@ void ModPlotter::refresh()
 		p.clear();
 		p.startNewSubPath(offset, offset + maxHeight);
 
-
-		for (float i = 0; i <= width; i += rectangleWidth)
+		if(!hasNegativeValues)
 		{
-			auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
+			auto thisRange = buffer.findMinMax(0, 0, buffer.getNumSamples());
+			hasNegativeValues = thisRange.getStart() < 0.0;
+		}
 
-			if (numThisTime <= 0)
-				break;
+		if(hasNegativeValues)
+		{
+			if(hasNegativeValues)
+			{
+				auto thisRange = buffer.findMinMax(0, 0, buffer.getNumSamples());
+				startRange = startRange.getUnionWith(thisRange);
+			}
 
-			float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, numThisTime));
-			FloatSanitizers::sanitizeFloatNumber(maxValue);
-			float height = maxValue * maxHeight;
-			float y = offset + maxHeight - height;
+			for (float i = 0; i <= width; i += rectangleWidth)
+			{
+				auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
 
-			sampleIndex += samplesPerPixel;
+				if (numThisTime <= 0)
+					break;
+				
+				auto range = buffer.findMinMax(0, sampleIndex, numThisTime);
 
-			p.lineTo(i + offset, maxHeight - height + offset);
+				auto maxValue = hmath::abs(range.getStart()) > hmath::abs(range.getEnd()) ? range.getStart() : range.getEnd();
 
-			rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
+				FloatSanitizers::sanitizeFloatNumber(maxValue);
+
+				maxValue = NormalisableRange<float>(startRange).convertTo0to1(maxValue);
+				
+				float height = maxValue * maxHeight;
+				float y = offset + maxHeight - height;
+
+				sampleIndex += samplesPerPixel;
+
+				p.lineTo(i + offset, maxHeight - height + offset);
+
+				rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
+			}
+		}
+		else
+		{
+			for (float i = 0; i <= width; i += rectangleWidth)
+			{
+				auto numThisTime = jmin(samplesPerPixel, buffer.getNumSamples() - sampleIndex);
+
+				if (numThisTime <= 0)
+					break;
+				
+				float maxValue = jlimit(0.0f, 1.0f, buffer.getMagnitude(0, sampleIndex, numThisTime));
+				FloatSanitizers::sanitizeFloatNumber(maxValue);
+				float height = maxValue * maxHeight;
+				float y = offset + maxHeight - height;
+
+				sampleIndex += samplesPerPixel;
+
+				p.lineTo(i + offset, maxHeight - height + offset);
+
+				rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
+			}
 		}
 
 		p.lineTo(width + offset, offset + maxHeight);
@@ -867,8 +959,11 @@ void SimpleRingBuffer::PropertyObject::initialiseRingBuffer(SimpleRingBuffer* b)
 
 var SimpleRingBuffer::PropertyObject::getProperty(const Identifier& id) const
 {
-	jassert(properties.contains(id));
-
+	jassert(std::any_of(properties.begin(), properties.end(), [id](const std::pair<String, var>& v)
+	{
+		return v.first == id.toString();
+	}));
+	
 	if (buffer != nullptr)
 	{
 		if (id.toString() == "BufferLength")
@@ -878,12 +973,12 @@ var SimpleRingBuffer::PropertyObject::getProperty(const Identifier& id) const
 			return var(buffer->internalBuffer.getNumChannels());
 	}
 
-	return {};
+	return getPropertyInternal(id.toString());
 }
 
 void SimpleRingBuffer::PropertyObject::setProperty(const Identifier& id, const var& newValue)
 {
-	properties.set(id, newValue);
+	setPropertyInternal(id.toString(), newValue);
 
 	if (buffer != nullptr)
 	{
@@ -903,9 +998,9 @@ Array<Identifier> SimpleRingBuffer::PropertyObject::getPropertyList() const
 {
 	Array<Identifier> ids;
 
-	for (const auto& nv : properties)
-		ids.add(nv.name);
-
+	for(int i = 0; i < properties.size(); i++)
+		ids.add(properties[i].first);
+	
 	return ids;
 }
 
@@ -1002,6 +1097,14 @@ SimpleRingBuffer::ScopedPropertyCreator::~ScopedPropertyCreator()
 
 CriticalSection& SimpleRingBuffer::getReadBufferLock()
 { return readBufferLock; }
+
+int SimpleRingBuffer::getMaxLengthInSamples() const
+{
+	if(maxLength != -1.0) 
+		return jmin(internalBuffer.getNumSamples(), roundToInt(maxLength));
+	else 
+		return internalBuffer.getNumSamples();
+}
 
 void SimpleRingBuffer::refreshPropertyObject()
 {

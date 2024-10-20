@@ -68,6 +68,8 @@ public:
 		modSelector->clear(dontSendNotification);
 		carrierSelector->clear(dontSendNotification);
 
+        
+
 		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
 
 		carrierSelector->addItem("Enable All Synths", -1);
@@ -78,18 +80,8 @@ public:
 			carrierSelector->addItem(getProcessor()->getChildProcessor(i)->getId(), i - offset + 1);
 		}
 
-		modSelector->updateValue();
-		carrierSelector->updateValue();
-
-		fmButton->updateValue();
-
 		fadeTimeEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::KillFadeTime)), dontSendNotification);
 		voiceAmountEditor->setText(String((int)getProcessor()->getAttribute(ModulatorSynth::VoiceLimit)), dontSendNotification);
-
-		unisonoSlider->updateValue();
-		detuneSlider->updateValue();
-		spreadSlider->updateValue();
-		forceMonoButton->updateValue();
 	};
 
     //[/UserMethods]
@@ -107,6 +99,8 @@ private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	int h;
     //[/UserVariables]
+
+    ProcessorEditorBodyUpdater updater;
 
     //==============================================================================
     ScopedPointer<Label> fadeTimeLabel;

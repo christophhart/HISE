@@ -154,9 +154,7 @@ ChainIcon::ChainIcon(Processor *p_)
 	{
 		chainType = Filter;
 		addAndMakeVisible(filterGraph = new FilterGraph(0, FilterGraph::Icon));
-		p->addChangeListener(filterGraph);
-
-
+		
 	}
 	else if (dynamic_cast<const MasterEffectProcessor*>(p) != nullptr)
 	{
@@ -203,10 +201,6 @@ ChainIcon::ChainIcon(Processor *p_)
 
 ChainIcon::~ChainIcon()
 {
-	if (filterGraph != nullptr)
-	{
-		p->removeChangeListener(filterGraph);
-	}
 }
 
 class ColourSelectorWithRecentList: public ColourSelector

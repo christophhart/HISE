@@ -228,7 +228,23 @@ public:
 
 	ModulatorState *createSubclassedState(int voiceIndex) const override {return new TableEnvelopeState(voiceIndex); };
 
+	void referenceShared(ExternalData::DataType dt, int index) override
+    {
+        if(index == 0)
+        {
+	        attackTable = getTableUnchecked(index);
+        }
+		if(index == 1)
+        {
+	        releaseTable = getTableUnchecked(index);
+        }
+
+		updateTables();
+    }
+
 private:
+
+	void updateTables();
 
 	hise::ExecutionLimiter<DummyCriticalSection> uiUpdater;
 

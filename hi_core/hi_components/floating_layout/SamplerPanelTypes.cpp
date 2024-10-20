@@ -54,7 +54,7 @@ SamplerBasePanel::~SamplerBasePanel()
 {
 	if (getProcessor())
 	{
-		getProcessor()->removeChangeListener(this);
+		//getProcessor()->removeChangeListener(this);
 	}
 }
 
@@ -79,7 +79,7 @@ void SamplerBasePanel::contentChanged()
 {
 	if (getProcessor())
 	{
-		getProcessor()->addChangeListener(this);
+		//getProcessor()->addChangeListener(this);
 	}
 }
 

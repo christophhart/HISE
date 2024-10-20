@@ -34,6 +34,73 @@
 
 namespace hise { using namespace juce;
 
+double FilterCoefficientData::getFilterPlotValueForIIRCoefficients(const void* obj, bool getMagnitude,
+	double xAxisNormalised)
+{
+	auto typed = static_cast<const FilterCoefficientData*>(obj);
+	
+	std::complex <double> normalisedFrequency (0, (2 * double_Pi * xAxisNormalised));
+	std::complex <double> z = pow (MathConstants<double>::euler, normalisedFrequency);
+    
+	std::complex <double> num (0, 0);
+	std::complex <double> den (0, 0);
+
+	double numeratorCoeffs[3];
+	double denominatorCoeffs[3];
+
+	int numNumeratorCoeffs = 3;
+	int numDenominatorCoeffs = 3;
+
+	// zero coeffs
+	for (int numOrder = 0; numOrder < numNumeratorCoeffs; numOrder++)
+	{
+		numeratorCoeffs [numOrder] = 0;
+	}
+    
+	for (int denOrder = 1; denOrder < numDenominatorCoeffs; denOrder++)
+	{
+		denominatorCoeffs [denOrder] = 0;
+	}
+    
+	denominatorCoeffs [0] = 1;
+
+	// convert coefficients to array
+	for (int numOrder = 0; numOrder < 3; numOrder++)
+	{
+		numeratorCoeffs [numOrder] = typed->first.coefficients[numOrder];
+	}
+        
+	for (int denOrder = 1; denOrder < 3; denOrder++)
+	{
+		denominatorCoeffs [denOrder] = typed->first.coefficients [denOrder + 2];
+	}
+
+	// calcualate 
+	for (int numOrder = 0; numOrder < numNumeratorCoeffs; numOrder++)
+	{
+		num += numeratorCoeffs [numOrder] / pow (z, numOrder);
+	}
+    
+	for (int denOrder = 0; denOrder < numDenominatorCoeffs; denOrder++)
+	{
+		den += denominatorCoeffs [denOrder] / pow (z, denOrder);
+	}
+    
+	std::complex <double> transferFunction = num / den;
+
+	if(getMagnitude)
+	{
+		auto mag = abs(transferFunction);
+		mag = std::pow(mag, (float)typed->second);
+		return mag;
+	}
+	else
+	{
+		auto phase = arg(transferFunction);
+		return phase;
+	}
+}
+
 //==============================================================================
 FilterResponse::FilterResponse (double magnitudeInit, double phaseInit)
 {
@@ -79,6 +146,15 @@ void FilterInfo::setGain (double gain)
 
 FilterResponse FilterInfo::getResponse (double inputFrequency) const
 {
+    auto normalisedFrequency = inputFrequency / fs;
+
+    auto m = cd.getFilterPlotValue(true, normalisedFrequency);
+    auto p = cd.getFilterPlotValue(false, normalisedFrequency);
+
+    return { m * gainValue, p };
+
+#if 0
+    FilterResponse(m, p);
 
     std::complex <double> normalisedFrequency (0, (2 * double_Pi * inputFrequency / fs));
     std::complex <double> z = pow (double_E, normalisedFrequency);
@@ -97,8 +173,15 @@ FilterResponse FilterInfo::getResponse (double inputFrequency) const
     }
     
     std::complex <double> transferFunction = num / den;
-    
-    return FilterResponse (abs (transferFunction) * gainValue, arg (transferFunction));
+
+    auto mag = abs(transferFunction);
+
+    mag = std::pow(mag, (float)order);
+
+    auto phase = arg(transferFunction);
+
+    return FilterResponse (mag * gainValue, phase);
+#endif
 }
 
 void FilterInfo::zeroCoeffs()
@@ -116,26 +199,29 @@ void FilterInfo::zeroCoeffs()
     denominatorCoeffs [0] = 1;
 }
  
-bool FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, IIRCoefficients newCoefficients)
+bool FilterInfo::setCoefficients(int /*filterNum*/, double /*sampleRate*/, FilterCoefficientData newCoefficients)
 {
+    cd = newCoefficients;
+
 	numNumeratorCoeffs = 3;
     numDenominatorCoeffs = 3;
         
     numeratorCoeffs.resize (3, 0);
     denominatorCoeffs.resize (3, 0);
 
-	coefficients = newCoefficients;
+	coefficients = newCoefficients.first;
+    order = newCoefficients.second;
         
     zeroCoeffs();
 
 	for (int numOrder = 0; numOrder < 3; numOrder++)
     {
-        numeratorCoeffs [numOrder] = newCoefficients.coefficients[numOrder];
+        numeratorCoeffs [numOrder] = newCoefficients.first.coefficients[numOrder];
     }
         
     for (int denOrder = 1; denOrder < 3; denOrder++)
     {
-        denominatorCoeffs [denOrder] = newCoefficients.coefficients [denOrder + 2];
+        denominatorCoeffs [denOrder] = newCoefficients.first.coefficients [denOrder + 2];
     }
     
     gainValue = 1;
@@ -248,7 +334,8 @@ bool FilterDataObject::Broadcaster::registerAtObject(ComplexDataUIBase* obj)
 		InternalData d;
 		d.broadcaster = this;
 		f->internalData.insert(d);
-		return true;
+        f->getUpdater().sendDisplayChangeMessage(f->internalData.size()-1, sendNotificationAsync, true);
+        return true;
 	}
 	
 	return false;
@@ -278,38 +365,16 @@ bool FilterDataObject::Broadcaster::deregisterAtObject(ComplexDataUIBase* obj)
 FilterDataObject::FilterDataObject() :
 	ComplexDataUIBase()
 {
-
+    getUpdater().addEventListener(this);
 }
 
 FilterDataObject::~FilterDataObject()
 {
+    getUpdater().removeEventListener(this);
 	internalData.clear();
 }
 
-void FilterDataObject::setCoefficients(Broadcaster* b, IIRCoefficients newCoefficients)
-{
-	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
-
-	auto isMessageThread = MessageManager::getInstance()->isThisTheMessageThread();
-
-	bool found = false;
-
-	for (auto& d : internalData)
-	{
-		if (d.broadcaster == b)
-		{
-			d.coefficients = newCoefficients;
-			found = true;
-			break;
-		}
-	}
-
-	if (sampleRate > 0.0 && found)
-		getUpdater().sendDisplayChangeMessage(sampleRate, isMessageThread ? sendNotificationSync : sendNotificationAsync, true);
-}
-
-
-juce::IIRCoefficients FilterDataObject::getCoefficients(int index) const
+FilterDataObject::CoefficientData FilterDataObject::getCoefficients(int index) const
 {
 	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 
@@ -317,7 +382,7 @@ juce::IIRCoefficients FilterDataObject::getCoefficients(int index) const
 	return internalData[index].coefficients;
 }
 
-juce::IIRCoefficients FilterDataObject::getCoefficientsForBroadcaster(Broadcaster* b) const
+FilterDataObject::CoefficientData FilterDataObject::getCoefficientsForBroadcaster(Broadcaster* b) const
 {
 	SimpleReadWriteLock::ScopedReadLock sl(getDataLock());
 
@@ -337,4 +402,17 @@ int FilterDataObject::getNumCoefficients() const
 	return internalData.size();
 }
 
+void FilterDataObject::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	if(t == ComplexDataUIUpdaterBase::EventType::DisplayIndex)
+	{
+		for(auto& d: internalData)
+		{
+			if(auto f = dynamic_cast<scriptnode::data::filter_base*>(d.broadcaster.get()))
+			{
+                d.coefficients = f->getApproximateCoefficients();
+			}
+		}
+	}
+}
 } // namespace hise

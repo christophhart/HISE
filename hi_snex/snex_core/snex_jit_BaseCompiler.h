@@ -250,7 +250,14 @@ public:
 
 	bool useCodeSnippetInErrorMessage() const { return useCodeSnippet; }
 
+	bool& isProcessingInlineFunction()
+	{
+		return inlineProcessFlag;
+	}
+
 private:
+
+	bool inlineProcessFlag = false;
 
 	bool useCodeSnippet = false;
 

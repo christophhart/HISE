@@ -144,16 +144,7 @@ void minmax_editor::paint(Graphics& g)
 	g.setColour(Colours::white);
 	g.drawText(s, pathArea.reduced(UIValues::NodeMargin), lastData.range.rng.skew < 1.0 ? Justification::centredTop : Justification::centredBottom);
 
-	auto c = Colours::white.withAlpha(0.8f);
-
-	if (auto nc = findParentComponentOfClass<NodeComponent>())
-	{
-		auto c2 = nc->header.colour;
-		if (!c2.isTransparent())
-			c = c2;
-	}
-
-	g.setColour(c);
+	g.setColour(getHeaderColour());
 
 	Path dst;
 

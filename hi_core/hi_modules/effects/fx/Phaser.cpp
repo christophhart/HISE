@@ -57,7 +57,7 @@ mix(1.0f)
 
 			float v = input * (freq2 - freq1) + freq1;
 
-			return HiSlider::getFrequencyString(v);
+			return ValueToTextConverter::ConverterFunctions::Frequency(v);
 		}
 
 		return Table::getDefaultTextValue(input);
@@ -69,7 +69,9 @@ mix(1.0f)
     parameterNames.add("Frequency2");
     parameterNames.add("Feedback");
     parameterNames.add("Mix");
-    
+
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("PhaseModulationChainShown");
 
 }

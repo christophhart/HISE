@@ -48,8 +48,12 @@ hise::MultiChannelAudioBuffer& convolution::getImpulseBufferBase()
 void convolution::setExternalData(const snex::ExternalData& d, int index)
 {
 	base::setExternalData(d, index);
-	getImpulseBufferBase().setDisabledXYZProviders({ Identifier("SampleMap"), Identifier("SFZ") });
-	setImpulse(sendNotificationSync);
+
+	if(!d.isEmpty())
+	{
+		getImpulseBufferBase().setDisabledXYZProviders({ Identifier("SampleMap"), Identifier("SFZ") });
+		setImpulse(sendNotificationSync);
+	}
 }
 
 void convolution::prepare(PrepareSpecs specs)

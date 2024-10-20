@@ -1,0 +1,104 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 0,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Recompile all scripts",
+    "Subtitle": ""
+  },
+  "LayoutData": {
+    "TopHeight": 56,
+    "ButtonTab": 40,
+    "ButtonMargin": 5,
+    "OuterPadding": 50,
+    "LabelWidth": 160.0,
+    "LabelHeight": 32,
+    "LabelPosition": "Default"
+  },
+  "GlobalState": {
+    "clearGlobals": false,
+    "clearFonts": false,
+    "clearAudioFiles": false,
+    "clearImages": false
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Padding": "20",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "Recompile all script processors and optionally reset some data objects.\n\n### Data to clear:",
+          "Padding": 0
+        },
+        {
+          "Type": "Button",
+          "Text": "Global Variables",
+          "ID": "clearGlobals",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Clears all global variable data slots (usually they are persistent across script compilations).",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        },
+        {
+          "Type": "Button",
+          "Text": "Fonts",
+          "ID": "clearFonts",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Clear all fonts that are loaded with `Engine.loadFont()`",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        },
+        {
+          "Type": "Button",
+          "Text": "Audio Files",
+          "ID": "clearAudioFiles",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Clears all loaded AudioFiles from the pool.",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        },
+        {
+          "Type": "Button",
+          "Text": "Images",
+          "ID": "clearImages",
+          "LabelPosition": "Default",
+          "IconData": "",
+          "Help": "Clears all images from the Pool",
+          "Required": false,
+          "ButtonType": "",
+          "Trigger": false
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "Progress",
+          "ID": "",
+          "CallOnNext": true
+        }
+      ],
+      "ID": "",
+      "Text": "",
+      "Foldable": false,
+      "Folded": false
+    }
+  ]
+}

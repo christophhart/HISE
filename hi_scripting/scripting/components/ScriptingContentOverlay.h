@@ -65,6 +65,7 @@ public:
 		SliderPack,
 		WebView,
 		FloatingTile,
+		MultipageDialog,
 		duplicateComponent,
 		numComponentTypes
 	};
@@ -181,6 +182,7 @@ public:
 	void mouseDrag(const MouseEvent& e) override;
 
 	class Dragger : public Component,
+				    public MidiKeyboardFocusTraverser::ParentWithKeyboardFocus,
 					public ComponentWithDocumentation
 	{
 	public:
@@ -230,7 +232,28 @@ public:
 
 		static void learnComponentChanged(Dragger& d, ScriptComponent* newComponent);
 
+		Component* getDraggedComponent()
+		{
+			return draggedComponent.getComponent();
+		}
 
+		String getCSSLogForCurrentComponent()
+		{
+			String debugLog;
+
+			Component::callRecursive<simple_css::CSSRootComponent>(draggedComponent, [&](simple_css::CSSRootComponent* rc)
+			{
+				debugLog = rc->css.getDebugLogForComponent(draggedComponent);
+				return true;
+			});
+
+			if(debugLog.isNotEmpty())
+				return debugLog;
+
+			auto contentComponent = draggedComponent->findParentComponentOfClass<ScriptContentComponent>();
+			
+			return contentComponent->css.getDebugLogForComponent(draggedComponent.getComponent());
+		}
 
 	private:
 
@@ -518,6 +541,8 @@ public:
 	ScopedPointer<ShapeButton> dragModeButton;
 
 	LassoComponent<ScriptComponent*> lasso;
+
+	bool lassoActive = false;
 
 	ScriptEditHandler* handler;
 };

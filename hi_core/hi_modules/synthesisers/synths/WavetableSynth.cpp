@@ -34,9 +34,7 @@
 
 namespace hise { using namespace juce;
 
-#ifndef USE_MOD2_WAVETABLESIZE
-#define USE_MOD2_WAVETABLESIZE 1
-#endif
+
 
 WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices)
@@ -57,12 +55,14 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 	parameterNames.add("TableIndexValue");
 	parameterNames.add("RefreshMipmap");
 
+	updateParameterSlots();
+
 	editorStateIdentifiers.add("TableIndexChainShown");
 
 	for (int i = 0; i < numVoices; i++) 
 		addVoice(new WavetableSynthVoice(this));
 
-	tableIndexChain->setColour(JUCE_LIVE_CONSTANT(Colour(0xff4D54B3)));
+	tableIndexChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff4D54B3)));
 	tableIndexBipolarChain->setColour(Colour(0xff4D54B3));
 }
 
@@ -183,13 +183,8 @@ juce::StringArray WavetableSynth::getWavetableList() const
 	return sa;
 }
 
-void WavetableSynth::loadWavetableFromIndex(int index)
+void WavetableSynth::loadWavetableInternal()
 {
-	if (currentBankIndex != index)
-	{
-		currentBankIndex = index;
-	}
-
 	if (currentBankIndex == 0)
 	{
 		clearSounds();
@@ -218,7 +213,7 @@ void WavetableSynth::loadWavetableFromIndex(int index)
         ignoreUnused(dataSize);
 		
 
-		auto itemToLoad = headers[index - 1];
+		auto itemToLoad = headers[currentBankIndex - 1];
 
 		if (itemToLoad.name.isEmpty())
 		{
@@ -251,9 +246,9 @@ void WavetableSynth::loadWavetableFromIndex(int index)
 		dir.findChildFiles(wavetables, File::findFiles, true, "*.hwt");
 		wavetables.sort();
 
-		if (wavetables[index - 1].existsAsFile())
+		if (wavetables[currentBankIndex - 1].existsAsFile())
 		{
-			FileInputStream fis(wavetables[index - 1]);
+			FileInputStream fis(wavetables[currentBankIndex - 1]);
 
 			ValueTree v = ValueTree::readFromStream(fis);
 
@@ -264,6 +259,25 @@ void WavetableSynth::loadWavetableFromIndex(int index)
 			clearSounds();
 		}
 	}
+}
+
+void WavetableSynth::loadWavetableFromIndex(int index)
+{
+	if (currentBankIndex != index)
+	{
+		currentBankIndex = index;
+
+		getMainController()->getKillStateHandler().killVoicesAndCall(this, [](Processor* p)
+		{
+			auto ws = static_cast<WavetableSynth*>(p);
+
+			ws->loadWavetableInternal();
+
+			return SafeFunctionCall::OK;
+		}, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
+	}
+	
+	
 }
 
 float WavetableSynth::getDisplayTableValue() const
@@ -489,7 +503,7 @@ WavetableSound::WavetableSound(const ValueTree &wavetableData, Processor* parent
         midiNotes.setRange(l, h - l+1, true);
     }
     
-	wavetableSize = numSamples / wavetableAmount;
+	wavetableSize = wavetableAmount > 0 ? numSamples / wavetableAmount : 0;
 
 #if USE_MOD2_WAVETABLESIZE
 

@@ -259,6 +259,12 @@ void ExternalData::forEachType(const std::function<void(DataType)>& f)
 
 void ExternalData::referBlockTo(block& b, int channelIndex) const
 {
+	if(isEmpty())
+	{
+		b.referToNothing();
+		return;
+	}
+
 	if (dataType == DataType::AudioFile || dataType == DataType::DisplayBuffer)
 	{
 		channelIndex = jmin(channelIndex, numChannels-1);
@@ -518,4 +524,69 @@ juce::Path ExternalData::Factory::createPath(const String& url) const
 	return p;
 }
 
+}
+
+namespace scriptnode {
+namespace data
+{
+
+void filter_base::sendCoefficientUpdateMessage()
+{
+	DataReadLock l(this);
+
+	if (this->externalData.obj != nullptr)
+	{
+		auto typed = static_cast<FilterDataObject*>(this->externalData.obj);
+		typed->sendUpdateFromBroadcaster(this);
+	}
+}
+
+void filter_base::setExternalData(const snex::ExternalData& d, int index)
+{
+	deregisterAtObject(this->externalData.obj);
+	base::setExternalData(d, index);
+	registerAtObject(this->externalData.obj);
+}
+
+filterT::~filterT()
+{
+	setExternalData({}, 0);
+}
+
+FilterDataObject::CoefficientData filterT::getApproximateCoefficients() const
+{
+	FilterCoefficientData cd;
+
+	// Ensure that this is not empty so that the filter graph will update it
+	cd.first.coefficients[0] = Random::getSystemRandom().nextFloat();
+	cd.customFunction = f;
+	cd.obj = obj;
+
+	return cd;
+}
+
+void filterT::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+		
+}
+
+void filterT::setExternalData(const snex::ExternalData& d, int index)
+{
+	if (this->externalData.obj != nullptr)
+		this->externalData.obj->getUpdater().removeEventListener(this);
+
+	jassert(d.isTypeOrEmpty(snex::ExternalData::DataType::FilterCoefficients));
+
+	filter_base::setExternalData(d, index);
+
+	if (auto fd = dynamic_cast<FilterDataObject*>(d.obj))
+		fd->getUpdater().addEventListener(this);
+}
+
+double filter_node_base::getPlotValueStatic(void* obj, bool getMagnitude, double freqNorm)
+{
+	auto typed = static_cast<filter_node_base*>(obj);
+	return typed->getPlotValue(static_cast<int>(getMagnitude), freqNorm);
+}
+}	
 }

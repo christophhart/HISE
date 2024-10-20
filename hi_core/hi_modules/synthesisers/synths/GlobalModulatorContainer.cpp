@@ -110,6 +110,8 @@ ModulatorSynth(mc, id, numVoices)
 	disableChain(PitchModulation, true);
 	disableChain(ModulatorSynth::EffectChain, true);
 
+	updateParameterSlots();
+
 	gainChain->setColour(Colour(0xFF88A3A8));
 	gainChain->getFactoryType()->setConstrainer(new NoGlobalsConstrainer());
 	gainChain->setId("Global Modulators");
@@ -468,7 +470,7 @@ void GlobalModulatorContainerVoice::checkRelease()
 
 	ModulatorChain *g = static_cast<ModulatorChain*>(gc->getChildProcessor(ModulatorSynth::GainModulation));
 
-	if (killThisVoice && (killFadeLevel < 0.001f))
+	if (killThisVoice && FloatSanitizers::isSilence(killFadeLevel))
 	{
 		resetVoice();
 		return;

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="3.6.2"
+<JUCERPROJECT id="jUHBuI" name="HISE Standalone" projectType="guiapp" version="4.0.0"
               bundleIdentifier="com.hartinstruments.HISEStandalone" includeBinaryInAppConfig="1"
               companyName="Hart Instruments" companyWebsite="http://hise.audio"
               companyCopyright="Hart Instruments" displaySplashScreen="0" reportAppUsage="0"
@@ -20,63 +20,48 @@
       <FILE id="rNV4cu" name="infoQuestion.png" compile="0" resource="1"
             file="../../hi_core/hi_images/infoQuestion.png"/>
       <FILE id="X7hemd" name="infoWarning.png" compile="0" resource="1" file="../../hi_core/hi_images/infoWarning.png"/>
-      <FILE id="EfOrgJ" name="FrontendKnob_Bipolar.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/FrontendKnob_Bipolar.png"/>
-      <FILE id="hJJvHU" name="FrontendKnob_Unipolar.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/FrontendKnob_Unipolar.png"/>
-      <FILE id="BPrHyu" name="balanceKnob_200.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/balanceKnob_200.png"/>
-      <FILE id="OSpRCj" name="knobEmpty_200.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/knobEmpty_200.png"/>
-      <FILE id="u4ioUB" name="knobModulated_200.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/knobModulated_200.png"/>
-      <FILE id="R0Hdz6" name="knobUnmodulated_200.png" compile="0" resource="1"
-            file="../../hi_core/hi_images/knobUnmodulated_200.png"/>
-      <FILE id="hSh2fs" name="toggle_200.png" compile="0" resource="1" file="../../hi_core/hi_images/toggle_200.png"/>
       <FILE id="OAAVOx" name="MainComponent.cpp" compile="1" resource="0"
             file="Source/MainComponent.cpp"/>
       <FILE id="h7HW4R" name="MainComponent.h" compile="0" resource="0" file="Source/MainComponent.h"/>
       <FILE id="btXzOW" name="Main.cpp" compile="1" resource="0" file="Source/Main.cpp"/>
     </GROUP>
-    <FILE id="OLb0nc" name="knob_without_arrow.png" compile="0" resource="1"
-          file="../../hi_core/hi_images/knob_without_arrow.png"/>
   </MAINGROUP>
   <EXPORTFORMATS>
     <XCODE_MAC targetFolder="Builds/MacOSX" smallIcon="ho3qQy" bigIcon="ho3qQy"
                customPList="&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?&gt;&#10;&lt;!DOCTYPE plist PUBLIC &quot;-//Apple//DTD PLIST 1.0//EN&quot; &quot;http://www.apple.com/DTDs/PropertyList-1.0.dtd&quot;&gt;&#10;&lt;plist version=&quot;1.0&quot;&gt;&#10;&lt;dict&gt;&#10;&lt;key&gt;NSAppTransportSecurity&lt;/key&gt; &#10;&lt;dict&gt; &#10;&lt;key&gt;NSAllowsArbitraryLoads&lt;/key&gt;&lt;true/&gt;&#10;&lt;/dict&gt;&#10;&lt;/dict&gt;&#10;&lt;/plist&gt;"
-               extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000"
+               extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
                extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -faligned-allocation -Wno-switch"
                xcodeValidArchs="arm64,arm64e,x86_64" extraLinkerFlags="-rpath $(SRCROOT)/../../../../tools/faust/lib "
-               externalLibraries="faust">
+               externalLibraries="faust" iosDevelopmentTeamID="">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxCompatibility="10.13 SDK" isDebug="1" optimisation="1"
                        targetName="HISE Debug" linkTimeOptimisation="0" cppLanguageStandard="c++11"
                        cppLibType="libc++" enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"
-                       libraryPath="../../../../tools/faust/fakelib"/>
+                       libraryPath="../../../../tools/faust/fakelib" defines="PERFETTO=1"/>
         <CONFIGURATION name="Release" osxCompatibility="11.0 SDK" isDebug="0" optimisation="3"
                        targetName="HISE" linkTimeOptimisation="1" cppLibType="libc++"
-                       enablePluginBinaryCopyStep="1" macOSDeploymentTarget="11.0" libraryPath="../../../../tools/faust/fakelib"/>
+                       enablePluginBinaryCopyStep="1" macOSDeploymentTarget="11.0" libraryPath="../../../../tools/faust/fakelib"
+                       defines="PERFETTO=1"/>
         <CONFIGURATION name="CI" osxCompatibility="10.13 SDK" isDebug="0" optimisation="4"
                        targetName="HISE" linkTimeOptimisation="0" cppLibType="libc++"
-                       enablePluginBinaryCopyStep="1" stripLocalSymbols="1" defines="HISE_CI=1&#10;HI_RUN_UNIT_TESTS=1"
+                       enablePluginBinaryCopyStep="1" stripLocalSymbols="1" defines="HISE_CI=1&#10;HI_RUN_UNIT_TESTS=1&#10;PERFETTO=0"
                        macOSDeploymentTarget="10.13" libraryPath="../../../../tools/faust/fakelib&#10;"/>
         <CONFIGURATION name="Release with Faust" osxCompatibility="10.13 SDK" isDebug="0"
                        optimisation="3" targetName="HISE" linkTimeOptimisation="1" cppLibType="libc++"
                        enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"
                        libraryPath="../../../../tools/faust/lib" binaryPath="Builds/MacOSX/build/Release"
-                       headerPath="../../../../tools/faust/include" defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"/>
-        <CONFIGURATION name="Release with Perfetto" osxCompatibility="10.13 SDK" isDebug="0"
-                       optimisation="3" targetName="HISE" linkTimeOptimisation="0" cppLibType="libc++"
-                       enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"
-                       libraryPath="../../../../tools/faust/lib" binaryPath="Builds/MacOSX/build/Release"
-                       headerPath="../../../../tools/faust/include&#10;../../../../tools/SDK/perfetto"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"/>
+                       headerPath="../../../../tools/faust/include" defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"/>
         <CONFIGURATION name="Debug with Faust" osxCompatibility="10.13 SDK" isDebug="1"
                        optimisation="1" targetName="HISE Debug" linkTimeOptimisation="0"
                        cppLibType="libc++" enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"
                        headerPath="../../../../tools/faust/include" libraryPath="../../../../tools/faust/lib"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"
+                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"
                        binaryPath="Builds/MacOSX/build/Debug"/>
+        <CONFIGURATION name="Minimal Build" osxCompatibility="10.13 SDK" isDebug="1"
+                       optimisation="1" targetName="HISE Debug" linkTimeOptimisation="0"
+                       cppLanguageStandard="c++11" cppLibType="libc++" enablePluginBinaryCopyStep="1"
+                       macOSDeploymentTarget="10.13" libraryPath="../../../../tools/faust/fakelib"
+                       defines="HISE_INCLUDE_FAUST=0&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=0&#10;PERFETTO=0&#10;HISE_INCLUDE_LORIS=0&#10;HISE_INCLUDE_RLOTTIE=0&#10;HISE_INCLUDE_RT_NEURAL=0"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
@@ -100,7 +85,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -109,119 +93,48 @@
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_loris" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </XCODE_MAC>
-    <VS2017 targetFolder="Builds/VisualStudio2017" smallIcon="ho3qQy" bigIcon="ho3qQy"
-            useIPP="Sequential" IPPLibrary="" windowsTargetPlatformVersion="10.0.16299.0"
-            extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=0"
-            extraCompilerFlags="/bigobj  /cgthreads8 /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive- /vmg&#10;&#10; "
-            IPP1ALibrary="">
-      <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" generateManifest="1" winArchitecture="x64" isDebug="1"
-                       optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
-                       useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0" defines="HI_RUN_UNIT_TESTS=1"/>
-        <CONFIGURATION name="Release" generateManifest="1" winArchitecture="x64" isDebug="0"
-                       targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
-                       useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1"/>
-        <CONFIGURATION name="CI" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" optimisation="2" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
-                       useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0" linkTimeOptimisation="0" defines="HISE_CI=1&#10;HI_RUN_UNIT_TESTS=1"/>
-        <CONFIGURATION name="Debug with Faust" generateManifest="1" winArchitecture="x64"
-                       isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;C:\Program Files\Faust\include"
-                       useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0" libraryPath="C:\Program Files\Faust\lib"
-                       postbuildCommand="copy /Y &quot;C:\Program Files\Faust\lib\faust.dll&quot;  &quot;$(TargetDir)faust.dll&quot;"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"/>
-        <CONFIGURATION name="Release with Faust" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;C:\Program Files\Faust\include"
-                       useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1" libraryPath="C:\Program Files\Faust\lib"
-                       postbuildCommand="copy /Y &quot;C:\Program Files\Faust\lib\faust.dll&quot;  &quot;$(TargetDir)faust.dll&quot;"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"/>
-        <CONFIGURATION name="Release Perfetto" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;../../../../tools/SDK/perfetto&#10;C:\Program Files\Faust\include"
-                       useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="0" libraryPath="C:\Program Files\Faust\lib"
-                       postbuildCommand="copy /Y &quot;C:\Program Files\Faust\lib\faust.dll&quot;  &quot;$(TargetDir)faust.dll&quot;"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1"/>
-      </CONFIGURATIONS>
-      <MODULEPATHS>
-        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_scripting" path="../../"/>
-        <MODULEPATH id="hi_dsp_library" path="../../"/>
-        <MODULEPATH id="hi_core" path="../../"/>
-        <MODULEPATH id="hi_backend" path="../../"/>
-        <MODULEPATH id="hi_lac" path="../../"/>
-        <MODULEPATH id="hi_streaming" path="../../"/>
-        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
-        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
-        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_snex" path="../../"/>
-        <MODULEPATH id="hi_rlottie" path="../../"/>
-        <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
-        <MODULEPATH id="hi_faust" path="../../"/>
-        <MODULEPATH id="hi_faust_jit" path="../../"/>
-        <MODULEPATH id="hi_faust_lib" path="../../"/>
-        <MODULEPATH id="hi_faust_types" path="../../"/>
-      </MODULEPATHS>
-    </VS2017>
     <VS2022 targetFolder="Builds/VisualStudio2022" smallIcon="ho3qQy" bigIcon="ho3qQy"
-            useIPP="Sequential" IPPLibrary="" extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=1"
+            useIPP="Sequential" IPPLibrary="" extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=1&#10;PERFETTO=0&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1"
             extraCompilerFlags="/bigobj  /cgthreads8 /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive- /vmg&#10;&#10; "
             IPP1ALibrary="Static_Library">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" generateManifest="1" winArchitecture="x64" isDebug="1"
                        optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0"/>
+                       enablePluginBinaryCopyStep="0" defines="PERFETTO=1"/>
         <CONFIGURATION name="Release" generateManifest="1" winArchitecture="x64" isDebug="0"
                        targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1"/>
+                       linkTimeOptimisation="1" defines="PERFETTO=1"/>
         <CONFIGURATION name="CI" winWarningLevel="4" generateManifest="1" winArchitecture="x64"
                        isDebug="0" optimisation="2" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
                        useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
-                       enablePluginBinaryCopyStep="0" linkTimeOptimisation="0" defines="HISE_CI=1&#10;HI_RUN_UNIT_TESTS=1"/>
+                       enablePluginBinaryCopyStep="0" linkTimeOptimisation="0" defines="PERFETTO=0&#10;HISE_CI=1&#10;HI_RUN_UNIT_TESTS=1"/>
         <CONFIGURATION name="Debug with Faust" generateManifest="1" winArchitecture="x64"
                        isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;C:\Program Files\Faust\include"
                        useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
                        enablePluginBinaryCopyStep="0" libraryPath="C:\Program Files\Faust\lib"
                        postbuildCommand="copy /Y &quot;C:\Program Files\Faust\lib\faust.dll&quot;  &quot;$(TargetDir)faust.dll&quot;"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"/>
+                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"/>
         <CONFIGURATION name="Release with Faust" generateManifest="1" winArchitecture="x64"
                        isDebug="0" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;C:\Program Files\Faust\include"
                        useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
                        debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
                        linkTimeOptimisation="1" libraryPath="C:\Program Files\Faust\lib"
                        postbuildCommand="copy /Y &quot;C:\Program Files\Faust\lib\faust.dll&quot;  &quot;$(TargetDir)faust.dll&quot;"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"/>
-        <CONFIGURATION name="Release Perfetto" generateManifest="1" winArchitecture="x64"
-                       isDebug="0" targetName="HISE" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;../../../../tools/SDK/perfetto&#10;C:\Program Files\Faust\include"
-                       useRuntimeLibDLL="0" enableIncrementalLinking="1" alwaysGenerateDebugSymbols="1"
-                       debugInformationFormat="ProgramDatabase" enablePluginBinaryCopyStep="0"
-                       linkTimeOptimisation="1" libraryPath="C:\Program Files\Faust\lib"
-                       postbuildCommand="copy /Y &quot;C:\Program Files\Faust\lib\faust.dll&quot;  &quot;$(TargetDir)faust.dll&quot;"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1"/>
+                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"/>
+        <CONFIGURATION name="Minimal Build" generateManifest="1" winArchitecture="x64"
+                       isDebug="1" optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common&#10;C:\Program Files\Faust\include"
+                       useRuntimeLibDLL="0" debugInformationFormat="ProgramDatabase"
+                       enablePluginBinaryCopyStep="0" libraryPath="C:\Program Files\Faust\lib"
+                       defines="HISE_INCLUDE_FAUST=0&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=0&#10;PERFETTO=0&#10;HISE_INCLUDE_LORIS=0&#10;HISE_INCLUDE_RLOTTIE=0&#10;HISE_INCLUDE_RT_NEURAL=0&#10;JUCE_ALLOW_EXTERNAL_UNLOCK=1"
+                       enableIncrementalLinking="1" usePrecompiledHeaderFile="0" precompiledHeaderFile="pch.h"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
@@ -245,7 +158,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -254,17 +166,18 @@
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_loris" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </VS2022>
-    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;"
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;PERFETTO=1"
                 smallIcon="bfBEgJ" bigIcon="bfBEgJ" linuxExtraPkgConfig="x11 xinerama xext"
                 extraLinkerFlags="-no-pie&#10;" extraCompilerFlags="-fpermissive">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"
                        linkTimeOptimisation="1"/>
-        <CONFIGURATION name="TravisCI" isDebug="1" optimisation="1" targetName="HISE Standalone"
-                       defines="TRAVIS_CI=1"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
@@ -288,7 +201,6 @@
         <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
         <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_zstd" path="../../"/>
-        <MODULEPATH id="hi_tools" path="../../"/>
         <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
         <MODULEPATH id="hi_snex" path="../../"/>
         <MODULEPATH id="hi_rlottie" path="../../"/>
@@ -297,6 +209,9 @@
         <MODULEPATH id="hi_faust_jit" path="../../"/>
         <MODULEPATH id="hi_faust_lib" path="../../"/>
         <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_loris" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
       </MODULEPATHS>
     </LINUX_MAKE>
   </EXPORTFORMATS>
@@ -309,6 +224,7 @@
     <MODULE id="hi_faust_lib" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_faust_types" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_lac" showAllCode="1" useLocalCopy="0"/>
+    <MODULE id="hi_loris" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_rlottie" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="hi_scripting" showAllCode="1" useLocalCopy="0"/>
     <MODULE id="hi_snex" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
@@ -332,6 +248,7 @@
     <MODULE id="juce_osc" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
     <MODULE id="juce_product_unlocking" showAllCode="1" useLocalCopy="0"
             useGlobalPath="0"/>
+    <MODULE id="melatonin_blur" showAllCode="1" useLocalCopy="0" useGlobalPath="0"/>
   </MODULES>
   <JUCEOPTIONS USE_IPP="0" USE_BACKEND="1" USE_FRONTEND="0" USE_RAW_FRONTEND="0"
                IS_STANDALONE_APP="1" USE_COPY_PROTECTION="0" HI_EXPORT_DSP_LIBRARY="0"
@@ -340,7 +257,8 @@
                ENABLE_ALL_PEAK_METERS="1" JUCE_ASIO="1" JUCE_DIRECTSOUND="1"
                JUCE_USE_DIRECTWRITE="1" JUCE_JACK="1" HISE_ENABLE_EXPANSIONS="1"
                HISE_ENABLE_MIDI_INPUT_FOR_FX="1" JUCE_STRICT_REFCOUNTEDPOINTER="1"
-               HISE_INCLUDE_RLOTTiE="1" HISE_INCLUDE_SNEX="1"/>
+               HISE_INCLUDE_RLOTTiE="1" HISE_INCLUDE_SNEX="1" HISE_INCLUDE_LORIS="1"
+               HISE_USE_LORIS_DLL="0"/>
   <LIVE_SETTINGS>
     <OSX/>
     <WINDOWS/>

@@ -51,7 +51,7 @@ hise::raw::Reference<ProcessorType>::Reference(MainController* mc, const String&
 	jassert(processor != nullptr);
 
 	if (addAsListener && processor != nullptr)
-		processor->addChangeListener(this);
+		updater = new Updater(*this, processor);
 }
 
 template <class ProcessorType>
@@ -66,8 +66,7 @@ void hise::raw::Reference<ProcessorType>::addParameterToWatch(int parameterIndex
 template <class ProcessorType>
 hise::raw::Reference<ProcessorType>::~Reference()
 {
-	if (processor != nullptr)
-		processor->removeChangeListener(this);
+	updater = nullptr;
 }
 
 template <class ProcessorType>
@@ -78,7 +77,7 @@ ProcessorType* hise::raw::Reference<ProcessorType>::getProcessor() const noexcep
 
 
 template <class ProcessorType>
-void hise::raw::Reference<ProcessorType>::changeListenerCallback(SafeChangeBroadcaster *)
+void hise::raw::Reference<ProcessorType>::refresh()
 {
 	for (auto& p : watchedParameters)
 	{
@@ -98,15 +97,10 @@ template <class ComponentType, typename ValueType>
 hise::raw::UIConnection::Base<ComponentType, ValueType>::Base(ComponentType* c, MainController* mc, const String& id) :
 	Data<ValueType>(id),
 	ControlledObject(mc),
-	component(c),
-	processor(ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), id))
+	OtherListener(ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), id), dispatch::library::ProcessorChangeEvent::Any),
+	component(c)
 {
-	// You definitely need a valid connection here...
-	jassert(processor != nullptr);
-
 	c->addListener(this);
-	processor->addChangeListener(this);
-
 	//setData<Data<ValueType>::Dummy>();
 }
 
@@ -116,17 +110,14 @@ hise::raw::UIConnection::Base<ComponentType, ValueType>::~Base()
 {
 	if (component.getComponent() != nullptr)
 		component->removeListener(this);
-
-	if (processor.get() != nullptr)
-		processor->removeChangeListener(this);
 }
 
 template <class ComponentType, typename ValueType>
-void hise::raw::UIConnection::Base<ComponentType, ValueType>::changeListenerCallback(SafeChangeBroadcaster* )
+void hise::raw::UIConnection::Base<ComponentType, ValueType>::otherChange(Processor* p)
 {
 	if (saveFunction)
 	{
-		auto newValue = static_cast<ValueType>(saveFunction(processor));
+		auto newValue = static_cast<ValueType>(saveFunction(p));
 
 		if (newValue != lastValue)
 		{

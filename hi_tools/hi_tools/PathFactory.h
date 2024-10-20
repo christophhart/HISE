@@ -46,6 +46,8 @@ using namespace juce;
 
 		static void scalePath(Path& p, Component* c, float padding);
 
+		static bool isValid(const Path& p, Rectangle<float> area = {});
+
 		struct KeyMapping
 		{
 			KeyMapping(const String& name, int keyCode, ModifierKeys::Flags mods=ModifierKeys::noModifiers);

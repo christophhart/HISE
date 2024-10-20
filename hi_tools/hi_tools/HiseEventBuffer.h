@@ -371,6 +371,9 @@ public:
 	bool isAftertouch() const noexcept { return type == Type::Aftertouch; };
 
 	/** Copied from MidiMessage. */
+	int getAfterTouchNumber() const noexcept { return (uint8)number; };
+
+	/** Copied from MidiMessage. */
 	int getAfterTouchValue() const noexcept { return (uint8)value; };
 
 	/** Copied from MidiMessage. */
@@ -676,6 +679,9 @@ public:
 
 	/** Adds the artificial event to the internal stack array. */
 	void pushArtificialNoteOn(HiseEvent& noteOnEvent) noexcept;
+
+	/** Reintroduces a previously killed note on message. */
+	void reinsertArtificialNoteOn(HiseEvent& noteOnEvent) noexcept;
 
 	/** Searches all active note on events and returns the one with the given event id. */
 	HiseEvent popNoteOnFromEventId(uint16 eventId);

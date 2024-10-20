@@ -39,6 +39,7 @@ using namespace juce;
 
 MidiPlayerEditor::MidiPlayerEditor(ProcessorEditor* p) :
 	ProcessorEditorBody(p),
+	updater(*this),
 	currentSequence("Current Sequence"),
 	currentTrack("Current Track"),
 	playButton("Start", this, factory),
@@ -176,9 +177,6 @@ void MidiPlayerEditor::timerCallback()
 void MidiPlayerEditor::updateGui()
 {
 	updateLabel();
-	currentSequence.updateValue(dontSendNotification);
-	currentTrack.updateValue(dontSendNotification);
-	loopButton.updateValue(dontSendNotification);
 }
 
 void MidiPlayerEditor::buttonClicked(Button* b)

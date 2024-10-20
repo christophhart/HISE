@@ -53,8 +53,6 @@ WaveformComponent::WaveformComponent(Processor* p, int index_) :
 
 	if (p != nullptr)
 	{
-		p->addChangeListener(this);
-
 		if (auto b = dynamic_cast<Broadcaster*>(p))
 		{
 			b->addWaveformListener(this);
@@ -62,8 +60,6 @@ WaveformComponent::WaveformComponent(Processor* p, int index_) :
 		}
 		else
 			jassertfalse; // You have to subclass the processor...
-
-
 	}
 
 	setBufferedToImage(true);
@@ -76,14 +72,8 @@ WaveformComponent::~WaveformComponent()
 	if (processor.get() != nullptr)
 	{
 		dynamic_cast<Broadcaster*>(processor.get())->removeWaveformListener(this);
-		processor->removeChangeListener(this);
 	}
 
-}
-
-void WaveformComponent::changeListenerCallback(SafeChangeBroadcaster*)
-{
-	setBypassed(processor->isBypassed());
 }
 
 void WaveformComponent::setBypassed(bool shouldBeBypassed)
@@ -95,32 +85,11 @@ void WaveformComponent::setBypassed(bool shouldBeBypassed)
 	}
 }
 
-void WaveformComponent::setUseFlatDesign(bool shouldUseFlatDesign)
-{
-	useFlatDesign = shouldUseFlatDesign;
-	repaint();
-}
-
 void WaveformComponent::paint(Graphics &g)
 {
-	if (useFlatDesign)
-	{
-		g.setColour(findColour(bgColour));
-		g.fillAll();
-
-		g.setColour(findColour(fillColour));
-		g.fillPath(path);
-
-		g.setColour(findColour(lineColour));
-		g.strokePath(path, PathStrokeType(2.0f));
-	}
-	else
-	{
-		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
-
-		laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
-		laf->drawOscilloscopePath(g, *this, path);
-	}
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+	laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
+	laf->drawOscilloscopePath(g, *this, path);
 }
 
 void WaveformComponent::resized()
@@ -343,7 +312,6 @@ Component* WaveformComponent::Panel::createContentComponent(int index)
 
 	auto c = new WaveformComponent(getProcessor(), index);
 
-	c->setUseFlatDesign(true);
 	c->setColour(bgColour, findPanelColour(FloatingTileContent::PanelColourId::bgColour));
 	c->setColour(fillColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
 	c->setColour(lineColour, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
@@ -826,9 +794,47 @@ void SamplerSoundWaveform::paintOverChildren(Graphics &g)
 {
 	AudioDisplayComponent::paintOverChildren(g);
 
+	#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(currentSound != nullptr)
+	{
+		auto rs = (int)currentSound->getSampleProperty(SampleIds::ReleaseStart);
+
+		if(rs != 0)
+		{
+			auto xOffset = roundToInt((double)getWidth() * (rs) / (double)getTotalSampleAmount());
+			auto rc = SampleArea::getReleaseStartColour();
+
+			g.setColour(rc.withAlpha(0.7f));
+			g.drawVerticalLine(xOffset, 0.0f, (float)getHeight());
+			g.fillRect((float)xOffset, 0.0f, 30.0f, JUCE_LIVE_CONSTANT_OFF(7.0f));
+
+			auto options = sampler->getSampleMap()->getReleaseStartOptions();
+
+			g.setColour(rc.withAlpha(0.2f));
+
+			auto fadeWidth = roundToInt((double)getWidth() * (double)options->releaseFadeTime / (double)getTotalSampleAmount());
+			Rectangle<float> fadeArea((float)xOffset, 0.0f, (float)fadeWidth, (float)getHeight());
+			g.fillRect(fadeArea.toFloat());
+
+			Path p;
+
+			p.startNewSubPath(0.0f, 0.0f);
+			p.quadraticTo(0.5f, std::pow(0.5f, options->fadeGamma), 1.0f, 1.0f);
+			p.scaleToFit(fadeArea.getX(), fadeArea.getY(), fadeArea.getWidth(), fadeArea.getHeight(), false);
+			g.setColour(rc.withAlpha(0.7f));
+			g.strokePath(p, PathStrokeType(1.0f));
+		}
+
+	}
+	#endif
+
 	if (xPos != -1)
 	{
-		if (previewHover)
+		if(releaseStartIsSelected)
+		{
+			g.setColour(SampleArea::getReleaseStartColour());
+		}
+		else if (previewHover)
 		{
 			g.setColour(Colours::white.withAlpha(0.2f));
 			g.drawVerticalLine(xPos, 0.0f, (float)getHeight());
@@ -937,7 +943,33 @@ void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
 	if (onInterface)
 		return;
 
+	
+
 #if USE_BACKEND
+
+	if(releaseStartIsSelected)
+	{
+		auto n = (double)e.getPosition().getX() / (double)getWidth();
+        
+        auto value = roundToInt(timeProperties.sampleLength * n);
+        
+        if(zeroCrossing)
+        {
+            value = getThumbnail()->getNextZero(value);
+        }
+        
+		if (currentSound == nullptr)
+			return;
+
+        auto r = currentSound->getPropertyRange(SampleIds::ReleaseStart);
+
+		if (!r.contains(value))
+			return;
+		
+        currentSound->setSampleProperty(SampleIds::ReleaseStart, value, true);
+        return;
+	}
+
 	if (e.mods.isAnyModifierKeyDown())
 	{
 		auto numSamples = getTotalSampleAmount();
@@ -968,13 +1000,13 @@ void SamplerSoundWaveform::mouseDown(const MouseEvent& e)
         {
             value = getThumbnail()->getNextZero(value);
         }
-
-		if (propId == SampleIds::SampleStartMod)
-			value -= (int)currentSound->getSampleProperty(SampleIds::SampleStart);
         
 		if (currentSound == nullptr)
 			return;
 
+        if (propId == SampleIds::SampleStartMod)
+            value -= (int)currentSound->getSampleProperty(SampleIds::SampleStart);
+        
         auto r = currentSound->getPropertyRange(propId);
 
 		if (!r.contains(value))
@@ -1010,16 +1042,39 @@ void SamplerSoundWaveform::mouseMove(const MouseEvent& e)
 
 		auto timeString = SamplerDisplayWithTimeline::getText(timeProperties, n);
 
-		previewHover = e.mods.isAnyModifierKeyDown();
 
+
+		previewHover = !releaseStartIsSelected && e.mods.isAnyModifierKeyDown();
+
+		if(releaseStartIsSelected)
+		{
+			setTooltip("Click to set release start offset from " + timeString);
+
+			setMouseCursor(MouseCursor::CrosshairCursor);
+			xPos = e.getPosition().getX();
+
+			if(zeroCrossing)
+			{
+				auto n = (double)xPos / (double)getWidth();
+				auto value = roundToInt(timeProperties.sampleLength * n);
+				value = getThumbnail()->getNextZero(value);
+				n = (double)value / timeProperties.sampleLength;
+				xPos = roundToInt(n * (double)getWidth());
+			}
+			
+			repaint();
+			return;
+		}
 		if (previewHover)
 		{
 			setTooltip("Click to preview from " + timeString);
 			
 			Image icon(Image::ARGB, 30, 30, true);
 			Graphics g(icon);
+
+			
 			Path p;
-			p.loadPathFromData(LoopIcons::preview, sizeof(LoopIcons::preview));
+			p.loadPathFromData(LoopIcons::preview, SIZE_OF_PATH(LoopIcons::preview));
 			PathFactory::scalePath(p, { 0.0f, 0.0f, 30.0f, 30.0f });
 			g.setColour(Colours::white);
 			g.fillPath(p);

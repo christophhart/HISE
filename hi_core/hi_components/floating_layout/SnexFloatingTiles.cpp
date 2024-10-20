@@ -34,69 +34,7 @@
 namespace hise {
 using namespace juce;
 
-var SnexTileBase::toDynamicObject() const
-{
-	var obj = FloatingTileContent::toDynamicObject();
-	storePropertyInObject(obj, SpecialPanelIds::FileName, currentFile.getFullPathName(), String());
-	return obj;
-}
 
-void SnexTileBase::setCurrentFile(const File& f)
-{
-	currentFile = f;
-
-	auto nh = SnexWorkbenchEditor::getNetworkHolderForNewFile(getMainController(), false);
-
-	auto df = new hise::DspNetworkCodeProvider(nullptr, getMainController(), nh, f);
-
-	auto wb = dynamic_cast<BackendProcessor*>(getMainController())->workbenches.getWorkbenchDataForCodeProvider(df, true);
-
-	
-
-	wb->setCompileHandler(new hise::DspNetworkCompileHandler(wb.get(), getMainController(), nh));
-
-	//wb->setCompileHandler(new snex::JitNodeCompileThread(wb, getMainController()->getGlobalUIUpdater()));
-
-	workbenchChanged(wb);
-
-	setCustomTitle(f.getFileName());
-
-	getParentShell()->refreshRootLayout();
-
-	resized();
-}
-
-void SnexTileBase::fromDynamicObject(const var& object)
-{
-	FloatingTileContent::fromDynamicObject(object);
-
-	auto fileName = getPropertyWithDefault(object, SpecialPanelIds::FileName).toString();
-
-	if (fileName.isNotEmpty())
-		setCurrentFile(File(fileName));
-}
-
-Identifier SnexTileBase::getDefaultablePropertyId(int index) const
-{
-	if (index < (int)PanelPropertyId::numPropertyIds)
-		return FloatingTileContent::getDefaultablePropertyId(index);
-
-	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FileName, "FileName");
-
-	jassertfalse;
-	return{};
-}
-
-var SnexTileBase::getDefaultProperty(int index) const
-{
-	if (index < (int)PanelPropertyId::numPropertyIds)
-		return FloatingTileContent::getDefaultProperty(index);
-
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FileName, var(""));
-
-	jassertfalse;
-	return{};
-}
 
 
 SnexEditorPanel::SnexEditorPanel(FloatingTile* parent) :
@@ -143,13 +81,7 @@ void SnexEditorPanel::setWorkbenchData(snex::ui::WorkbenchData::Ptr newWorkbench
 
 void SnexEditorPanel::recompiled(snex::ui::WorkbenchData::Ptr)
 {
-	if (auto dnp = dynamic_cast<DspNetworkCodeProvider*>(wb->getCodeProvider()))
-	{
-		if (dnp->source == DspNetworkCodeProvider::SourceMode::InterpretedNode)
-		{
-			//playground->updateTextFromCodeProvider();
-		}
-	}
+	
 }
 
 void SnexEditorPanel::resized()

@@ -52,8 +52,12 @@ bool snex_node::preprocess(String& code)
 	}
 
 	SnexSource::preprocess(code);
-	SnexSource::addDummyProcessFunctions(code);
-	SnexSource::addDummyNodeCallbacks(code);
+	SnexSource::addDummyProcessFunctions(code, true);
+
+	auto addMod = code.indexOf("handleModulation(") != -1;
+	auto addPlot = code.indexOf("getPlotValue(") != -1;
+
+	SnexSource::addDummyNodeCallbacks(code, true, true, addMod, addPlot);
 
 	return true;
 }

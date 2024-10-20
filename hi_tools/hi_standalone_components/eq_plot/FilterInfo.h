@@ -37,6 +37,37 @@
 
 namespace hise { using namespace juce;
 
+struct FilterCoefficientData
+{
+	typedef double (*PlotFunction)(void*, bool, double);
+
+	IIRCoefficients first;
+	int second;
+
+	bool hasCustomFunction() const
+	{
+		return customFunction != nullptr;
+	}
+
+	double getFilterPlotValue(bool getMagnitude, double xAxisNormalised) const
+	{
+		if(hasCustomFunction())
+		{
+			if(obj == nullptr)
+				return customFunction(const_cast<FilterCoefficientData*>(this), getMagnitude, xAxisNormalised);
+			else
+				return customFunction(obj, getMagnitude, xAxisNormalised);
+		}
+
+		return getFilterPlotValueForIIRCoefficients(this, getMagnitude, xAxisNormalised);
+	}
+
+	static double getFilterPlotValueForIIRCoefficients(const void* obj, bool getMagnitude, double xAxisNormalised);
+
+	void* obj = nullptr;
+	PlotFunction customFunction = nullptr;
+};
+
 #ifndef double_E
 #define double_E 2.71828183
 #endif
@@ -83,7 +114,7 @@ public:
     
     void setCustom (std::vector <double> numCoeffs, std::vector <double> denCoeffs);
 
-	bool setCoefficients(int filterNum, double sampleRate, IIRCoefficients newCoefficients);
+	bool setCoefficients(int filterNum, double sampleRate, FilterCoefficientData newCoefficients);
 
 	Array<double> toDoubleArray() const;
 	void fromDoubleArray(Array<double>& d);
@@ -100,6 +131,10 @@ public:
     
 private:
 
+	FilterCoefficientData cd;
+
+	int order = 1;
+
     double fs;
     int numNumeratorCoeffs, numDenominatorCoeffs;
 
@@ -111,9 +146,13 @@ private:
 };
 
 /** This data object holds a number of IIR coefficients and manages the notification / external management. */
-struct FilterDataObject : public ComplexDataUIBase
+struct FilterDataObject : public ComplexDataUIBase,
+						  public ComplexDataUIUpdaterBase::EventListener
 {
 public:
+
+
+	using CoefficientData = FilterCoefficientData;
 
 	struct Broadcaster
 	{
@@ -131,7 +170,7 @@ public:
 	{
 		bool operator==(const InternalData& other) const { return broadcaster == other.broadcaster; }
 		WeakReference<Broadcaster> broadcaster;
-		IIRCoefficients coefficients;
+		CoefficientData coefficients;
 	};
 
 	using Ptr = ReferenceCountedObjectPtr<FilterDataObject>;
@@ -143,8 +182,6 @@ public:
 	bool fromBase64String(const String& b64) override { return true; };
 	String toBase64String() const override { return ""; };
 
-	void setCoefficients(Broadcaster* b, IIRCoefficients newCoefficients);
-
 	void setSampleRate(double sr)
 	{
 		if (sampleRate != sr)
@@ -154,16 +191,33 @@ public:
 		}
 	}
 
-	IIRCoefficients getCoefficients(int index) const;
+	CoefficientData getCoefficients(int index) const;
 
-	IIRCoefficients getCoefficientsForBroadcaster(Broadcaster* b) const;
+	CoefficientData getCoefficientsForBroadcaster(Broadcaster* b) const;
+
+	void sendUpdateFromBroadcaster(Broadcaster* b)
+	{
+		float idx = 0.0f;
+		for(const auto& d: internalData)
+		{
+			if(d.broadcaster == b)
+			{
+				getUpdater().sendDisplayChangeMessage(idx, sendNotificationAsync, true);
+				return;
+			}
+
+			idx += 1.0f;
+		}
+	}
 
 	double getSamplerate() const { return sampleRate; }
 
 	int getNumCoefficients() const;
 
-private:
+	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data) override;
 
+private:
+	
 	double sampleRate = -1.0;
 
 	UnorderedStack<InternalData> internalData;

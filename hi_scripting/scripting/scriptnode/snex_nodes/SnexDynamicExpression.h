@@ -49,6 +49,8 @@ struct dynamic_expression : public snex::DebugHandler
 
 	static Identifier getId() { RETURN_STATIC_IDENTIFIER("expr"); };
 
+    static String getDescription() { return "A JIT compiled math expression using SNEX."; }
+    
 	struct graph : public simple_visualiser
 	{
 		graph(PooledUIUpdater* u, dynamic_expression* e);;

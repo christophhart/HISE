@@ -76,6 +76,7 @@ DECLARE_ID(ExtraDefinitionsWindows);
 DECLARE_ID(ExtraDefinitionsOSX);
 DECLARE_ID(ExtraDefinitionsIOS);
 DECLARE_ID(ExtraDefinitionsLinux);
+DECLARE_ID(ExtraDefinitionsNetworkDll);
 DECLARE_ID(AppGroupID);
 DECLARE_ID(RedirectSampleFolder);
 DECLARE_ID(AAXCategoryFX);
@@ -98,6 +99,9 @@ DECLARE_ID(OverwriteOldUserPresets);
 DECLARE_ID(UseGlobalAppDataFolderWindows);
 DECLARE_ID(UseGlobalAppDataFolderMacOS);
 DECLARE_ID(DefaultUserPreset);
+DECLARE_ID(CompileWithPerfetto);
+DECLARE_ID(CompileWithDebugSymbols);
+DECLARE_ID(IncludeLorisInFrontend);
 
 Array<Identifier> getAllIds();
 
@@ -115,6 +119,8 @@ DECLARE_ID(CustomNodePath);
 DECLARE_ID(FaustPath);
 DECLARE_ID(FaustExternalEditor);
 DECLARE_ID(EnableLoris);
+DECLARE_ID(ExportSetup);
+DECLARE_ID(DefaultProjectFolder);
 
 Array<Identifier> getAllIds();
 
@@ -161,6 +167,8 @@ namespace Other
 {
 DECLARE_ID(GlobalSamplePath);
 DECLARE_ID(UseOpenGL);
+DECLARE_ID(ShowWelcomeScreen);
+DECLARE_ID(GlobalHiseScaleFactor);
 DECLARE_ID(EnableShaderLineNumbers);
 DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);

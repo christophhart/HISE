@@ -49,11 +49,6 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
 	void updateGui() override
 	{
-		driveSlider->updateValue();
-		overSampling->updateValue();
-		modeSelector->updateValue();
-		bias->updateValue();
-
 		auto mode = getProcessor()->getAttribute(PolyshapeFX::SpecialParameters::Mode);
 
 		table->setVisible(mode == ShapeFX::ShapeMode::Curve);
@@ -82,6 +77,8 @@ private:
     //[UserVariables]   -- You can add your own custom variables in this section.
 	int h;
     //[/UserVariables]
+
+    ProcessorEditorBodyUpdater updater;
 
     //==============================================================================
     ScopedPointer<WaveformComponent> shapeDisplay;

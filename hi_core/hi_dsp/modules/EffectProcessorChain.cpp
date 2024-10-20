@@ -134,8 +134,13 @@ void EffectProcessorChain::renderNextBlock(AudioSampleBuffer& buffer, int startS
 		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
 	}
 
-	FOR_ALL_EFFECTS(renderNextBlock(buffer, startSample, numSamples));
-
+	for(auto fx: allEffects)
+	{
+		if(!fx->isBypassed())
+		{
+			fx->renderNextBlock(buffer, startSample, numSamples);
+		}
+	}
 }
 
 bool EffectProcessorChain::hasTailingMasterEffects() const noexcept
@@ -262,7 +267,13 @@ void EffectProcessorChain::renderMasterEffects(AudioSampleBuffer &b)
 
 	ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::MasterEffectRendering);
 
-	FOR_EACH_MASTER_EFFECT(renderWholeBuffer(b));
+	for(auto mfx: masterEffects)
+	{
+		ScopedAnalyser sa(getMainController(), mfx, b, b.getNumSamples());
+
+		if(!mfx->isSoftBypassed())
+			mfx->renderWholeBuffer(b);
+	};
 
 	const auto prev = resetCounter;
 
@@ -313,8 +324,6 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(GainEffect);
 	ADD_NAME_TO_TYPELIST(ConvolutionEffect);
 	ADD_NAME_TO_TYPELIST(DelayEffect);
-	ADD_NAME_TO_TYPELIST(MdaLimiterEffect);
-	ADD_NAME_TO_TYPELIST(MdaDegradeEffect);
 	ADD_NAME_TO_TYPELIST(ChorusEffect);
     ADD_NAME_TO_TYPELIST(PhaseFX);
 	ADD_NAME_TO_TYPELIST(RouteEffect);
@@ -350,8 +359,6 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case simpleReverb:					return new SimpleReverbEffect(m, id);
 	case simpleGain:					return new GainEffect(m, id);
 	case delay:							return new DelayEffect(m, id);
-	case limiter:						return new MdaLimiterEffect(m, id);
-	case degrade:						return new MdaDegradeEffect(m, id);
 	case chorus:						return new ChorusEffect(m, id);
     case phaser:                        return new PhaseFX(m, id);
 	case routeFX:						return new RouteEffect(m, id);
@@ -454,8 +461,8 @@ void EffectProcessorChain::EffectChainHandler::remove(Processor *processorToBeRe
 
 		LOCK_PROCESSING_CHAIN(chain);
 
-		LockHelpers::SafeLock sl2(mc, LockHelpers::IteratorLock);
-		LockHelpers::SafeLock sl(mc, LockHelpers::AudioLock);
+		LockHelpers::SafeLock sl2(mc, LockHelpers::Type::IteratorLock);
+		LockHelpers::SafeLock sl(mc, LockHelpers::Type::AudioLock);
 		
 		jassert(dynamic_cast<EffectProcessor*>(processorToBeRemoved) != nullptr);
 

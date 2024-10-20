@@ -51,6 +51,8 @@ AudioSampleProcessor(mc)
 	parameterNames.add("HiCut");
 	parameterNames.add("Damping");
 	parameterNames.add("FFTType");
+
+	updateParameterSlots();
 }
 
 ConvolutionEffect::~ConvolutionEffect()

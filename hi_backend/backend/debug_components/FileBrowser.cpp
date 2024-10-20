@@ -244,13 +244,14 @@ FileBrowser::FileBrowser(BackendRootWindow* rootWindow_) :
 
     auto vp = fileTreeComponent->getViewport();
     
-    vp->setScrollBarThickness(14);
+    vp->setScrollBarThickness(13);
     
     sf.addScrollBarToAnimate(vp->getVerticalScrollBar());
 
 #if HISE_IOS
 #else
-    goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
+
+	resetToRoot();
 #endif
 
 	browseUndoManager->clearUndoHistory();
@@ -354,8 +355,7 @@ bool FileBrowser::perform(const InvocationInfo &info)
 	{
 	case ShowFavoritePopup:
 	{
-		goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
-
+		resetToRoot();
 		return true;
 	}
 	case HardDisks:
@@ -738,6 +738,12 @@ void FileBrowser::previewFile(const File& f)
         auto c = new mcl::XmlEditor(f);
         content = c;
 	}
+	else if (ff->isCSSFile(f))
+	{
+        auto c = new mcl::XmlEditor(f);
+        content = c;
+		c->editor.editor.setLanguageManager(new simple_css::LanguageManager(c->editor.editor.getTextDocument()));
+	}
     else if (ff->isAudioFile(f))
     {
         auto c = new AudioPreviewComponent(rootWindow->getBackendProcessor(), f);
@@ -760,6 +766,14 @@ void FileBrowser::previewFile(const File& f)
 	}
 
 	rootWindow->getRootFloatingTile()->showComponentInRootPopup(content, fileTreeComponent, bounds.getCentre(), wrapInViewport);
+}
+
+void FileBrowser::resetToRoot()
+{
+	if(auto am = rootWindow->getBackendProcessor()->assetManager)
+		goToDirectory(am->getRootFolder());
+	else
+		goToDirectory(GET_PROJECT_HANDLER(rootWindow->getMainSynthChain()).getWorkDirectory());
 }
 
 FileBrowser::~FileBrowser()
@@ -875,6 +889,10 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 		rw->getMainPanel()->loadNewContainer(newRoot);
 	}
     else if (newRoot.getFileExtension() == ".xml")
+    {
+        previewFile(newRoot);
+    }
+	else if (newRoot.getFileExtension() == ".css")
     {
         previewFile(newRoot);
     }
@@ -1021,5 +1039,6 @@ bool FileBrowser::HiseFileBrowserFilter::isDirectorySuitable(const File& directo
 
 	return true;
 }
+
 
 } // namespace hise

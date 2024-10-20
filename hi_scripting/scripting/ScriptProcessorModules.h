@@ -94,6 +94,11 @@ public:
 		return getContentParameterIdentifierIndex(id);
 	}
 
+	int getNumAttributes() const override
+	{
+		return getContentParameterAmount();
+	}
+
 	void addToFront(bool addToFront_) noexcept;;
 	bool isFront() const;;
 
@@ -216,6 +221,11 @@ public:
 	/** When the startNote function is called, a previously calculated value (by the handleMidiMessage function) is stored using the supplied voice index. */
 	virtual float startVoice(int voiceIndex) override;;
 
+	int getNumAttributes() const override
+	{
+		return getContentParameterAmount();
+	}
+
 	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
 	{
 		return getContentParameterIdentifier(parameterIndex);
@@ -302,7 +312,15 @@ public:
 		else
 			return contentParameterHandler.getParameterIndexForIdentifier(id);
 	}
-	
+
+	int getNumAttributes() const override
+	{
+		if (auto n = getActiveOrDebuggedNetwork())
+			return n->networkParameterHandler.getNumParameters();
+		else
+			return contentParameterHandler.getNumParameters();
+	}
+
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
@@ -387,6 +405,11 @@ public:
 
 	void onVoiceReset(bool allVoices, int voiceIndex) final override;
 
+	bool isVoiceResetActive() const override
+	{
+		return true;
+	}
+
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	State* getState(int i);
@@ -441,6 +464,11 @@ public:
 
 	void onVoiceReset(bool allVoices, int voiceIndex) final override;
 
+	bool isVoiceResetActive() const override
+	{
+		return true;
+	}
+
 	int getNumParameters() const override;
 
 	void setInternalAttribute(int index, float newValue) override;
@@ -455,6 +483,14 @@ public:
 			return n->networkParameterHandler.getParameterIndexForIdentifier(id);
 		else
 			return contentParameterHandler.getParameterIndexForIdentifier(id);
+	}
+
+	int getNumAttributes() const override
+	{
+		if (auto n = getActiveOrDebuggedNetwork())
+			return n->networkParameterHandler.getNumParameters();
+		else
+			return contentParameterHandler.getNumParameters();
 	}
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
@@ -591,6 +627,14 @@ public:
 			return contentParameterHandler.getParameterIndexForIdentifier(id);
 	}
 
+	int getNumAttributes() const override
+	{
+		if (auto n = getActiveOrDebuggedNetwork())
+			return n->networkParameterHandler.getNumParameters();
+		else
+			return contentParameterHandler.getNumParameters();
+	}
+
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
@@ -692,6 +736,14 @@ public:
 			return contentParameterHandler.getParameterIndexForIdentifier(id);
 	}
 
+	int getNumAttributes() const override
+	{
+		if (auto n = getActiveOrDebuggedNetwork())
+			return n->networkParameterHandler.getNumParameters();
+		else
+			return contentParameterHandler.getNumParameters();
+	}
+
 	int getControlCallbackIndex() const override { return (int)Callback::onControl; };
 
 	void renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples) final override;
@@ -718,6 +770,11 @@ public:
     {
         return voiceData.voiceNoteOns.size();
     }
+
+	bool isVoiceResetActive() const override
+	{
+		return hasTail();
+	}
 
     void onVoiceReset(bool allVoices, int voiceIndex) override
     {
@@ -772,7 +829,7 @@ public:
 		bool isVoiceStart = false;
 	};
 	
-	SET_PROCESSOR_NAME("ScriptSynth", "Scriptnode Syntesiser", "A polyphonic scriptable synthesiser.");
+	SET_PROCESSOR_NAME("ScriptSynth", "Scriptnode Synthesiser", "A polyphonic scriptable synthesiser.");
 
 	enum class Callback
 	{
@@ -837,6 +894,14 @@ public:
 			return n->networkParameterHandler.getParameterIndexForIdentifier(id);
 		else
 			return contentParameterHandler.getParameterIndexForIdentifier(id);
+	}
+
+	int getNumAttributes() const override
+	{
+		if (auto n = getActiveOrDebuggedNetwork())
+			return n->networkParameterHandler.getNumParameters();
+		else
+			return contentParameterHandler.getNumParameters();
 	}
 
 	int getControlCallbackIndex() const override;;

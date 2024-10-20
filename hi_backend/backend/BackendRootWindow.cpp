@@ -32,6 +32,103 @@
 
 namespace hise { using namespace juce;
 
+#define DECLARE_FOLD_ID(x) static const Identifier x(#x);
+
+namespace fold_ids
+{
+	DECLARE_FOLD_ID(editor);
+	DECLARE_FOLD_ID(watch);
+	DECLARE_FOLD_ID(map);
+	DECLARE_FOLD_ID(console);
+	DECLARE_FOLD_ID(interface);
+	DECLARE_FOLD_ID(list);
+	DECLARE_FOLD_ID(properties);
+	DECLARE_FOLD_ID(browser);
+}
+
+#undef DECLARE_FOLD_ID
+
+void SuspendedOverlay::paint(Graphics& g)
+{
+	g.fillAll(JUCE_LIVE_CONSTANT_OFF(Colour(0xEE222222)));
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.setFont(GLOBAL_BOLD_FONT());
+	g.drawText("This instance is currently suspended. Click to activate the audio rendering for this instance...", getLocalBounds().toFloat(), Justification::centred);
+}
+
+void SuspendedOverlay::mouseDown(const MouseEvent& event)
+{
+	auto bpe = findParentComponentOfClass<BackendRootWindow>();
+	bpe->setCurrentlyActiveProcessor();
+}
+
+std::map<Identifier, bool> SnippetBrowserHelpers::getFoldConfiguration(Category c)
+{
+	std::map<Identifier, bool> map;
+
+	switch(c)
+	{
+	case Category::Undefined: break;
+	case Category::Modules:
+		map[fold_ids::editor] = false;
+		map[fold_ids::console] = true;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = false;
+		break;
+	case Category::MIDI:
+		map[fold_ids::editor] = false;
+		map[fold_ids::console] = false;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = false;
+		break;
+	case Category::ScriptingApi:
+		map[fold_ids::editor] = false;
+		map[fold_ids::console] = false;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = true;
+		break;
+	case Category::Scriptnode:
+		map[fold_ids::editor] = true;
+		map[fold_ids::console] = false;
+		map[fold_ids::interface] = false;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = true;
+		break;
+	case Category::UI:
+		map[fold_ids::editor] = false;
+		map[fold_ids::console] = false;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = true;
+		break;
+	case Category::numCategories:
+		map[fold_ids::editor] = true;
+		map[fold_ids::console] = true;
+		map[fold_ids::interface] = true;
+		map[fold_ids::list] = true;
+		map[fold_ids::properties] = true;
+		map[fold_ids::browser] = true;
+		break;
+	default: ;
+	}
+
+	return map;
+}
+
+StringArray SnippetBrowserHelpers::getCategoryNames()
+{
+	return { "All", "Modules", "MIDI", "Scripting", "Scriptnode", "UI" };
+}
+
+
 	TextLayout BackendRootWindow::TooltipLookAndFeel::layoutTooltipText(const String& text, Colour colour) noexcept
 	{
 		const int maxToolTipWidth = 400;
@@ -90,22 +187,25 @@ namespace hise { using namespace juce;
 		return TooltipWindow::getTipFor(component);
 	}
 
-	BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
+
+
+BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorState) :
 	AudioProcessorEditor(ownerProcessor),
 	BackendCommandTarget(static_cast<BackendProcessor*>(ownerProcessor)),
 	owner(static_cast<BackendProcessor*>(ownerProcessor))
 {
 	funkytooltips.setLookAndFeel(&ttlaf);
 
-	PresetHandler::buildProcessorDataBase(owner->getMainSynthChain());
-
-	Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
+	if(!owner->isSnippetBrowser())
+		Desktop::getInstance().setDefaultLookAndFeel(&globalLookAndFeel);
 
 	addAndMakeVisible(floatingRoot = new FloatingTile(owner, nullptr));
 
-	
+	dynamic_cast<MainController*>(ownerProcessor)->addScriptListener(this, false);
 
 	loadKeyPressMap();
+
+	allWindowsAndBrowsers.add(this);
 
 	bool loadedCorrectly = true;
 	bool objectFound = editorState.isObject();
@@ -288,7 +388,7 @@ namespace hise { using namespace juce;
 
 	setOpaque(true);
 
-	startTimer(1000);
+	startTimer(200);
 
 	updateCommands();
 
@@ -330,13 +430,48 @@ namespace hise { using namespace juce;
 
 BackendRootWindow::~BackendRootWindow()
 {
-	saveKeyPressMap();
+	auto isSnippetBrowser = owner->isSnippetBrowser();
 
-	saveInterfaceData();
-    
+	if(!isSnippetBrowser)
+	{
+		for(auto w: allWindowsAndBrowsers)
+		{
+			if(w.getComponent() == nullptr)
+				continue;
+
+			if(w != this)
+				w->deleteThisSnippetInstance(true);
+		}
+
+		saveKeyPressMap();
+		saveInterfaceData();
+	}
+	else
+	{
+#if JUCE_MAC
+        for(auto w: allWindowsAndBrowsers)
+        {
+            auto brw = w.getComponent();
+            
+            if(brw != nullptr && brw != this &&
+               !brw->getBackendProcessor()->isSnippetBrowser())
+            {
+                MenuBarModel::setMacMainMenu(nullptr);
+                MenuBarModel::setMacMainMenu(brw);
+                brw->updateCommands();
+                break;
+            }
+        }
+#endif
+        
+		// I know what I'm doing...
+		saved = true;
+	}
+	
 	popoutWindows.clear();
 
 	getMainController()->getLockFreeDispatcher().removePresetLoadListener(this);
+	getMainController()->removeScriptListener(this);
 
     GET_PROJECT_HANDLER(getMainController()->getMainSynthChain()).removeListener(this);
     
@@ -359,7 +494,8 @@ BackendRootWindow::~BackendRootWindow()
 	// Remove the menu
 
 #if JUCE_MAC && IS_STANDALONE_APP
-	MenuBarModel::setMacMainMenu(nullptr);
+    if(!getBackendProcessor()->isSnippetBrowser())
+    	MenuBarModel::setMacMainMenu(nullptr);
 #else
 	menuBar->setModel(nullptr);
 	menuBar = nullptr;
@@ -370,8 +506,6 @@ BackendRootWindow::~BackendRootWindow()
 	mainEditor = nullptr;
 
 	detachOpenGl();
-    
-    
 }
 
 bool BackendRootWindow::isFullScreenMode() const
@@ -389,6 +523,94 @@ bool BackendRootWindow::isFullScreenMode() const
 #endif
 }
 
+void BackendRootWindow::deleteThisSnippetInstance(bool sync)
+{
+	removeFromDesktop();
+
+	if(!sync)
+	{
+		for(auto w: allWindowsAndBrowsers)
+		{
+			if(w != this)
+				w->setCurrentlyActiveProcessor();
+		}
+	}
+		
+
+	auto f = [this]()
+	{
+		auto o = this->owner;
+		delete this;
+		delete o;
+	};
+
+	if(sync)
+		f();
+	else
+		MessageManager::callAsync(f);
+}
+
+void BackendRootWindow::toggleSnippetBrowser()
+{
+	if(snippetBrowser == nullptr)
+	{
+		addAndMakeVisible(snippetBrowser = new multipage::library::SnippetBrowser(this));
+	}
+	else
+	{
+		snippetBrowser->setVisible(!snippetBrowser->isVisible());
+	}
+
+	resized();
+}
+
+mcl::TokenCollection::Ptr BackendRootWindow::getJavascriptTokenCollection(Component* any)
+{
+	auto cw = any->findParentComponentOfClass<ComponentWithBackendConnection>();
+        
+	if(cw == nullptr)
+		return nullptr;
+        
+	if(auto brw = cw->getBackendRootWindow())
+	{
+		if(brw->javascriptTokens == nullptr)
+			brw->javascriptTokens = new mcl::TokenCollection(mcl::LanguageIds::HiseScript);
+
+		return brw->javascriptTokens;
+	}
+
+	return nullptr;
+}
+
+void BackendRootWindow::rebuildTokenProviders(const Identifier& languageId)
+{
+	if(languageId == mcl::LanguageIds::HiseScript)
+	{
+		if(javascriptTokens == nullptr)
+			javascriptTokens = new mcl::TokenCollection(languageId);
+		else
+			javascriptTokens->clearTokenProviders();
+	}
+	
+	mcl::TextEditor::setNewTokenCollectionForAllChildren(this, languageId, javascriptTokens);
+
+	for(auto p: popoutWindows)
+	{
+		mcl::TextEditor::setNewTokenCollectionForAllChildren(p, languageId, javascriptTokens);
+	}
+}
+
+void BackendRootWindow::scriptWasCompiled(JavascriptProcessor* processor)
+{
+	if(currentWorkspaceProcessor == dynamic_cast<Processor*>(processor))
+	{
+		SafeAsyncCall::call<BackendRootWindow>(*this, [](BackendRootWindow& r)
+		{
+			r.rebuildTokenProviders("HiseScript");;
+		});
+	}
+}
+
 File BackendRootWindow::getKeyPressSettingFile() const
 {
 	return ProjectHandler::getAppDataDirectory(nullptr).getChildFile("KeyPressMapping.xml");
@@ -400,6 +622,10 @@ void BackendRootWindow::initialiseAllKeyPresses()
 
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_browser, "Fold Browser Tab", KeyPress(KeyPress::F2Key, ModifierKeys::shiftModifier, 0));
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_editor, "Fold Code Editor", KeyPress(KeyPress::F3Key, ModifierKeys::shiftModifier, 0));
+
+	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::save_hip, "Save as .HIP", KeyPress('s', ModifierKeys::commandModifier, 's'));
+	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::save_xml, "Save as .XML", KeyPress('s', ModifierKeys::commandModifier | ModifierKeys::shiftModifier, 's'));
+
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_interface, "Fold Interface Designer", KeyPress(KeyPress::F4Key, ModifierKeys::shiftModifier, 0));
 
 	addShortcut(this, "Workspaces", FloatingTileKeyPressIds::fold_watch, "Fold Script Variable Watch Table", KeyPress('q', ModifierKeys::commandModifier, 'q'));
@@ -466,8 +692,6 @@ void BackendRootWindow::initialiseAllKeyPresses()
 void BackendRootWindow::paint(Graphics& g)
 {
 	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
-
-	//g.fillAll(Colour(0xFF333333));
 }
 
 void BackendRootWindow::setScriptProcessorForWorkspace(JavascriptProcessor* jsp)
@@ -493,7 +717,7 @@ void BackendRootWindow::setScriptProcessorForWorkspace(JavascriptProcessor* jsp)
 
 	if (editorOfChain != nullptr)
 	{
-		editorOfChain->changeListenerCallback(editorOfChain->getProcessor());
+		editorOfChain->otherChange(editorOfChain->getProcessor());
 		editorOfChain->childEditorAmountChanged();
 	}
 }
@@ -579,14 +803,32 @@ void BackendRootWindow::resized()
 	}
 #endif
 
-	progressOverlay->setBounds(0, 0, getWidth(), getHeight());
+	auto b = getLocalBounds();
+
+	if(snippetBrowser != nullptr && snippetBrowser->isVisible())
+	{
+        auto sb = b.removeFromLeft(400);
+        
+#if JUCE_MAC
+        sb.setTop(-20);
+#endif
+        
+		snippetBrowser->setBounds(sb);
+	}
+
+	if(suspendedOverlay != nullptr)
+	{
+		suspendedOverlay->setBounds(b);
+	}
+
+	progressOverlay->setBounds(b);
 
 	const int menuBarOffset = menuBar == nullptr ? 0 : 20;
 
 	if (menuBarOffset != 0)
-		menuBar->setBounds(getLocalBounds().withHeight(menuBarOffset));
+		menuBar->setBounds(b.removeFromTop(menuBarOffset));
 
-	floatingRoot->setBounds(0, menuBarOffset, getWidth(), getHeight() - menuBarOffset);
+	floatingRoot->setBounds(b);
 
 #if IS_STANDALONE_APP
 
@@ -613,10 +855,24 @@ void BackendRootWindow::timerCallback()
 {
 	stopTimer();
 
-	if (!GET_PROJECT_HANDLER(mainEditor->getMainSynthChain()).isActive() && !projectIsBeingExtracted)
+	if(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Other::ShowWelcomeScreen))
 	{
-		owner->setChanged(false);
-		BackendCommandTarget::Actions::createNewProject(this);
+		if(!getBackendProcessor()->isSnippetBrowser())
+		{
+			auto wc = new multipage::library::WelcomeScreen(this);
+			wc->setModalBaseWindowComponent(this);
+		}
+		else
+		{
+			auto snippetSettings = ProjectHandler::getAppDataDirectory(getMainController()).getChildFile("snippetBrowser.xml");
+
+			if(!snippetSettings.existsAsFile())
+			{
+				auto wc = new multipage::library::WelcomeSnippetBrowserScreen(this);
+				wc->setModalBaseWindowComponent(this);
+			}
+		}
+		
 	}
 }
 
@@ -657,14 +913,35 @@ bool BackendRootWindow::toggleRotate()
 
 void BackendRootWindow::loadNewContainer(ValueTree & v)
 {
-	FloatingTile::Iterator<PanelWithProcessorConnection> iter(getRootFloatingTile());
+	getBackendProcessor()->getJavascriptThreadPool().cancelAllJobs(false);
 
-	while (auto p = iter.getNextPanel())
+	// Avoid the token collectio thread keeping alive some objects that should be deleted.
+	callRecursive<mcl::TextEditor>(this, [](mcl::TextEditor* editor)
+	{
+		if(editor->tokenCollection != nullptr)
+		{
+			editor->tokenCollection->stopThread(1000);
+			editor->tokenCollection->clearTokenProviders();
+		}
+		
+		return false;
+	});
+
+	// Clear all panels with a processor connection
+	callRecursive<PanelWithProcessorConnection>(this, [](PanelWithProcessorConnection* p)
+	{
 		p->setContentWithUndo(nullptr, 0);
-
-	mainEditor->loadNewContainer(v);
-
+		return false;
+	});
 	
+	// Make sure the items in the patch browser that refer to the module are deleted before the module.
+	callRecursive<PatchBrowser>(this, [](PatchBrowser* b)
+	{
+		b->clearCollections();
+		return false;
+	});
+	
+	mainEditor->loadNewContainer(v);
 }
 
 void BackendRootWindow::loadNewContainer(const File &f)
@@ -679,11 +956,37 @@ void BackendRootWindow::loadNewContainer(const File &f)
 
 void BackendRootWindow::newHisePresetLoaded()
 {
-	if (auto jsp = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getMainSynthChain()))
+	JavascriptProcessor* p = nullptr;
+
+	switch((SnippetBrowserHelpers::Category)currentCategory)
 	{
-		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
-		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotificationSync);
+	case SnippetBrowserHelpers::Category::Scriptnode: 
+		p = ProcessorHelpers::getFirstProcessorWithType<JavascriptMasterEffect>(getMainSynthChain());
+		break;
+	default:
+		p = ProcessorHelpers::getFirstProcessorWithType<JavascriptMidiProcessor>(getMainSynthChain());
+		break;
 	}
+
+	if (p != nullptr)
+	{
+		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, p);
+		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotificationSync);
+
+		SafeAsyncCall::callWithDelay<BackendRootWindow>(*this, [](BackendRootWindow& r)
+		{
+			r.rebuildTokenProviders("HiseScript");;
+		}, 500);
+	}
+
+	if(currentCategory == SnippetBrowserHelpers::Category::UI)
+		{
+		Component::callRecursive<MainTopBar>(this, [](MainTopBar* t)
+		{
+			t->togglePopup(MainTopBar::PopupType::PluginPreview, true);
+			return true;
+		});
+		}
 }
 
 void BackendRootWindow::gotoIfWorkspace(Processor* p)
@@ -695,6 +998,11 @@ void BackendRootWindow::gotoIfWorkspace(Processor* p)
         BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, jsp);
         BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotification);
 
+		SafeAsyncCall::call<BackendRootWindow>(*this, [](BackendRootWindow& r)
+		{
+			r.rebuildTokenProviders("HiseScript");;
+		});
+		
     }
     else if (auto sampler = dynamic_cast<ModulatorSampler*>(p))
     {
@@ -734,38 +1042,6 @@ void BackendRootWindow::showWorkspace(int workspace)
 }
 
 
-MarkdownPreview* BackendRootWindow::createOrShowDocWindow(const MarkdownLink& link)
-{
-	if (docWindow == nullptr)
-	{
-		docWindow = new FloatingTileDocumentWindow(this);
-		docWindow->setName("HISE Documentation");
-		docWindow->setSize(1300, 900);
-
-		AutogeneratedDocHelpers::createDocFloatingTile(docWindow->getRootFloatingTile(), link);
-
-		docWindow->getRootFloatingTile()->setVital(true);
-	}
-	else
-	{
-		docWindow->toFront(true);
-
-		auto preview = FloatingTileHelpers::findTileWithId<MarkdownPreviewPanel>(docWindow->getRootFloatingTile(), "Preview");
-
-		preview->initPanel();
-		preview->preview->renderer.gotoLink(link);
-	}
-		
-	auto p = FloatingTileHelpers::findTileWithId<MarkdownPreviewPanel>(docWindow->getRootFloatingTile(), "Preview");
-	
-	p->initPanel();
-
-	return p->preview;;
-
-	
-	
-}
-
 void BackendRootWindow::paintOverChildren(Graphics& g)
 {
 	if (learnMode)
@@ -801,6 +1077,47 @@ void BackendRootWindow::paintOverChildren(Graphics& g)
 			g.fillPath(p);
 		}
 	}
+}
+
+void BackendRootWindow::userTriedToCloseWindow()
+{
+	jassert(owner->isSnippetBrowser());
+	deleteThisSnippetInstance(false);
+}
+
+void BackendRootWindow::setCurrentlyActiveProcessor()
+{
+	for(int i = 0; i < allWindowsAndBrowsers.size(); i++)
+	{
+		if(allWindowsAndBrowsers[i].getComponent() == nullptr)
+			allWindowsAndBrowsers.remove(i--);
+	}
+
+	for(auto w: allWindowsAndBrowsers)
+	{
+		auto isActive = this == w;
+
+		if(isActive)
+		{
+			Desktop::getInstance().getAnimator().fadeOut(suspendedOverlay, 300);
+			suspendedOverlay = nullptr;
+			w->getBackendProcessor()->callback->setProcessor(w->getBackendProcessor());
+			w->getBackendProcessor()->allNotesOff(true);
+			resized();
+		}
+		else
+		{
+			w->addAndMakeVisible(w->suspendedOverlay = new SuspendedOverlay());
+			w->suspendedOverlay->toFront(false);
+			w->resized();
+		}
+	}
+		
+		
+#if JUCE_MAC
+        MenuBarModel::setMacMainMenu(this);
+#endif
+		
 }
 
 hise::FloatingTabComponent* BackendRootWindow::getCodeTabs()

@@ -84,7 +84,7 @@ public:
 	virtual void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
 
 	void enableLearnMode() { learnMode = true; };
-	void disableLearnMode() { learnMode = false; sendChangeMessage(); }
+	void disableLearnMode() { learnMode = false; sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom); }
 	bool learnModeActive() const { return learnMode; }
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;

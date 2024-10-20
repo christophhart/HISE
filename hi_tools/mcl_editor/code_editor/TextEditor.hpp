@@ -39,6 +39,7 @@ class TextEditor : public juce::Component,
 				   public TooltipWithArea::Client,
 				   public SearchBoxComponent::Listener,
 				   public ComponentWithDocumentation,
+				   public TokenCollection::Listener,
 				   public Timer
 {
 public:
@@ -69,6 +70,8 @@ public:
 	void scrollToLine(float centerLine, bool roundToLine);
 
 	void timerCallback() override;
+
+	static void setNewTokenCollectionForAllChildren(Component* any, const Identifier& languageId, TokenCollection::Ptr newCollection);
 
 	void setReadOnly(bool shouldBeReadOnly);
 
@@ -122,14 +125,24 @@ public:
 
 	void refreshLineWidth();
 
+	void insertCodeSnippet(const String& textToInsert, Array<Range<int>> selectRanges);
+
 	CodeDocument& getDocument();
 
 	TooltipWithArea::Data getTooltip(Point<float> position) override;
 
 	void updateAutocomplete(bool forceShow = false);
 
+    void prepareExternalInsert()
+    {
+        autocompleteSelection = document.getSelection(0);
+    }
+    
 	bool gotoDefinition(Selection s1 = {});
 
+	void tokenListWasRebuild() override {};
+
+	void threadStateChanged(bool isRunning) override;
 
 	void codeDocumentTextInserted(const String& newText, int insertIndex) override;
 	
@@ -178,7 +191,7 @@ public:
 	CodeEditorComponent::ColourScheme colourScheme;
 	juce::AffineTransform transform;
 
-	TokenCollection tokenCollection;
+	TokenCollection::Ptr tokenCollection;
 
 	void setTokenTooltipFunction(const TokenTooltipFunction& f);
 
@@ -202,6 +215,29 @@ public:
 	TextDocument& getTextDocument();
 
 	bool insert(const juce::String& content);
+
+	bool remove(TextDocument::Target target, TextDocument::Direction direction)
+	{
+		const auto& s = document.getSelections().getLast();
+
+		auto l = document.getCharacter(s.head.translated(0, -1));
+		auto r = document.getCharacter(s.head);
+		
+		if (lastInsertWasDouble && ActionHelpers::isMatchingClosure(l, r))
+		{
+			document.navigateSelections(TextDocument::Target::character, TextDocument::Direction::backwardCol, Selection::Part::tail);
+			document.navigateSelections(TextDocument::Target::character, TextDocument::Direction::forwardCol, Selection::Part::head);
+			
+			insert({});
+			return true;
+		}
+
+		if (s.isSingular())
+			expandBack(target, direction);
+
+		insert({});
+		return true;
+	};
 
 	bool enableLiveParsing = true;
 	bool enablePreprocessorParsing = true;
@@ -284,7 +320,8 @@ private:
 	TooltipWithArea tooltipManager;
     
     ScrollbarFader sf;
-    
+
+	bool tokenRebuildPending = false;
 	
 	bool skipTextUpdate = false;
 	Selection autocompleteSelection;

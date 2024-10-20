@@ -38,6 +38,7 @@ namespace hise {
 using namespace juce;
 
 
+#if 0
 
 snex::ui::WorkbenchData::CompileResult DspNetworkCompileHandler::compile(const String& codeToCompile)
 {
@@ -335,7 +336,7 @@ void DspNetworkCodeProvider::anythingChanged(valuetree::AnyListener::CallbackTyp
         return SafeFunctionCall::OK;
 	};
 
-	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::SampleLoadingThread);
+	getMainController()->getKillStateHandler().killVoicesAndCall(getMainController()->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 namespace RoutingIcons
@@ -607,5 +608,7 @@ void WorkbenchInfoComponent::resized()
 	scriptnodeButton.setBounds(b.removeFromRight(b.getHeight()).reduced(4));
 	parameterButton.setBounds(b.removeFromRight(b.getHeight()).reduced(4));
 }
+
+#endif
 
 }

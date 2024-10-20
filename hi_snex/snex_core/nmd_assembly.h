@@ -7145,6 +7145,8 @@ NMD_ASSEMBLY_API size_t nmd_x86_ldisasm(const void* const buffer, size_t buffer_
 	/* Calculate the number of prefixes based on how much the iterator moved */
 	const size_t num_prefixes = (uint8_t)((ptrdiff_t)(b)-(ptrdiff_t)(buffer));
 
+	ignoreUnused(num_prefixes);
+
 	/* Opcode byte. This variable is used because 'op' is simpler than 'instruction->opcode' */
 	uint8_t op;
 	_NMD_READ_BYTE(b, buffer_size, op);

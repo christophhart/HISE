@@ -116,6 +116,8 @@ public:
 
 		bool isFolded(int lineNumber) const;
 
+		
+
 		void addToFlatList(List& flatList, const List& nestedList);
 
 		void setRanges(FoldableLineRange::List newRanges);
@@ -123,10 +125,13 @@ public:
 		CodeDocument& doc;
 
 		BigInteger lineStates;
+		BigInteger scopeStates;
 		Array<WeakReference<Listener>> listeners;
 
 		List all;
 		List roots;
+
+		
 	};
 
 
@@ -154,7 +159,16 @@ public:
 
 	int getNearestLineStart(int lineNumber);
 
+	void setScoped(bool shouldBeScoped)
+	{
+		scoped = shouldBeScoped;
+	}
+
+	bool isScoped() const noexcept { return scoped; }
+
 private:
+
+	bool scoped = false;
 
 	CodeDocument::Position start, end;
 
@@ -214,7 +228,7 @@ public:
 
 		bool undo() override;
 
-		TextDocument& doc;
+		WeakReference<TextDocument> doc;
 		Array<Selection> before;
 		Array<Selection> now;
 	};
@@ -462,6 +476,8 @@ private:
 	Array<WeakReference<Selection::Listener>> selectionListeners;
 
 	juce::Array<Selection> selections;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(TextDocument);
 };
 
 class TokenCollection;

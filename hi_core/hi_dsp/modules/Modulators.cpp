@@ -235,7 +235,21 @@ void Modulation::setPlotter(Plotter *targetPlotter)
 	if (attachedPlotter != nullptr)
 	{
 		attachedPlotter->setMode((Plotter::Mode)(int)getMode()); // ugly as f***
-		
+
+		WeakReference<Processor> safeThis(dynamic_cast<Processor*>(this));
+
+		attachedPlotter->setCleanupFunction([safeThis](Plotter* p)
+		{
+			if(safeThis.get() != nullptr)
+			{
+				auto mod = dynamic_cast<Modulation*>(safeThis.get());
+				auto tp = mod->attachedPlotter.getComponent();
+
+				if(tp == p)
+					mod->setPlotter(nullptr);
+			}
+		});
+
 		auto modChain = dynamic_cast<ModulatorChain*>(this);
 
 		if (modChain == nullptr)
@@ -272,6 +286,29 @@ Modulator::~Modulator()
 	
 
 	masterReference.clear();
+}
+
+float Modulator::getValueForTextConverter(float valueToConvert) const
+{
+	auto outputValue = valueToConvert;
+	auto asMod = dynamic_cast<const Modulation*>(this);
+
+	switch(asMod->getMode())
+	{
+	case Modulation::Mode::PanMode:		
+		outputValue = outputValue * 2.0f - 1.0f;
+		outputValue = asMod->calcIntensityValue(outputValue);
+		break;
+	case Modulation::Mode::PitchMode:
+		// The intensity is already in the output value
+		outputValue = hmath::log(outputValue) / hmath::log(2.0f);
+		break;
+	default:
+		outputValue = asMod->calcIntensityValue(outputValue);
+		break;
+	}
+
+	return outputValue;
 }
 
 int Modulator::getNumChildProcessors() const
@@ -326,10 +363,19 @@ int VoiceModulation::PolyphonyManager::getCurrentVoice() const noexcept
 	return currentVoice;
 }
 
+#if JUCE_WINDOWS
+#pragma warning( push )
+#pragma warning( disable : 4589)
+#endif
+
 VoiceModulation::VoiceModulation(int numVoices, Modulation::Mode m):
 	Modulation(m),
 	polyManager(numVoices)
 {}
+
+#if JUCE_WINDOWS
+#pragma warning( pop)
+#endif
 
 void TimeModulation::applyTimeModulation(float* destinationBuffer, int startIndex, int samplesToCopy)
 {
@@ -715,7 +761,6 @@ void TimeModulation::applyPanModulation(float * calculatedModValues, float * des
 VoiceStartModulator::VoiceStartModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m) :
 		VoiceModulation(numVoices, m),
 		Modulator(mc, id, numVoices),
-		Modulation(m),
 		unsavedValue(1.0f)
 {
 	voiceValues.insertMultiple(0, 1.0f, numVoices);
@@ -851,6 +896,7 @@ Processor *VoiceStartModulatorFactoryType::createProcessor(int typeIndex, const 
 		case globalStaticTimeVariantModulator: return new GlobalStaticTimeVariantModulator(m, id, numVoices, mode);
 		case arrayModulator:	return new ArrayModulator(m, id, numVoices, mode);
 		case scriptVoiceStartModulator:	return new JavascriptVoiceStartModulator(m, id, numVoices, mode);
+		case eventDataStartModulator: return new EventDataModulator(m, id, numVoices, mode);
 		default: jassertfalse; return nullptr;
 	}
 };
@@ -886,6 +932,7 @@ Processor *EnvelopeModulatorFactoryType::createProcessor(int typeIndex, const St
 	case mpeModulator:		return new MPEModulator(m, id, numVoices, mode);
 	case voiceKillEnvelope: return new ScriptnodeVoiceKiller(m, id, numVoices);
 	case globalEnvelope:	return new GlobalEnvelopeModulator(m, id, mode, numVoices);
+	case eventDataEnvelope: return new EventDataEnvelope(m, id, numVoices, mode);
 	default: jassertfalse;	return nullptr;
 	}
 };
@@ -937,8 +984,7 @@ float TimeVariantModulator::getLastConstantValue() const noexcept
 
 TimeVariantModulator::TimeVariantModulator(MainController* mc, const String& id, Modulation::Mode m):
 	Modulator(mc, id, 1),
-	TimeModulation(m),
-	Modulation(m)
+	TimeModulation(m)
 {
 	lastConstantValue = getInitialValue();
 	smoothedIntensity.setValueWithoutSmoothing(0);

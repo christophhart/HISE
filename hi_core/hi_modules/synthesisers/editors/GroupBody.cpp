@@ -29,7 +29,8 @@ namespace hise { using namespace juce;
 
 //==============================================================================
 GroupBody::GroupBody (ProcessorEditor *p)
-    : ProcessorEditorBody(p)
+    : ProcessorEditorBody(p),
+      updater(*this)
 {
     //[Constructor_pre] You can add your own custom stuff here..
     //[/Constructor_pre]
@@ -172,6 +173,7 @@ GroupBody::GroupBody (ProcessorEditor *p)
 	spreadSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoSpread, "Spread");
 	spreadSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 	spreadSlider->setRange(0.0, 2.0, 0.01);
+    spreadSlider->setValue(getProcessor()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoSpread), dontSendNotification);
 
 	spreadSlider->setIsUsingModulatedRing(true);
 	detuneSlider->setIsUsingModulatedRing(true);
@@ -308,7 +310,7 @@ void GroupBody::comboBoxChanged (ComboBox* comboBoxThatHasChanged)
     }
 
     //[UsercomboBoxChanged_Post]
-	getProcessor()->sendChangeMessage();
+	getProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
     //[/UsercomboBoxChanged_Post]
 }
 
@@ -320,7 +322,7 @@ void GroupBody::buttonClicked (Button* buttonThatWasClicked)
     if (buttonThatWasClicked == fmButton)
     {
         //[UserButtonCode_fmButton] -- add your button handler code here..
-		getProcessor()->sendChangeMessage();
+		getProcessor()->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
         //[/UserButtonCode_fmButton]
     }
     else if (buttonThatWasClicked == forceMonoButton)

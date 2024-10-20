@@ -115,10 +115,10 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
-	MarkdownRenderer(const String& text, LayoutCache* c = nullptr) :
-		MarkdownParser(text),
+	MarkdownRenderer(const String& text, const MarkdownLayout::StringWidthFunction& f={}, LayoutCache* c = nullptr) :
+		MarkdownParser(text, f),
 		layoutCache(c),
-		uncachedLayout({}, 0.0f)
+		uncachedLayout({}, 0.0f, f)
 	{
 		history.add(markdownCode);
 		historyIndex = 0;
@@ -237,6 +237,13 @@ public:
 	void setText(const String& text);
 
 	void resized() override;
+
+	void setResizeToFit(bool shouldResizeToFit)
+	{
+		resizeToFit = shouldResizeToFit;
+	}
+
+	bool resizeToFit = false;
 
 	MarkdownRenderer r;
 	float totalHeight = 0.0;
@@ -607,6 +614,7 @@ public:
 		MarkdownPreview& parent;
 		MarkdownDataBase* db = nullptr;
 		MarkdownLink pendingLink;
+        ScrollbarFader sf;
 	};
 
 

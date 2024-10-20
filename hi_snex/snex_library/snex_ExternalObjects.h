@@ -72,9 +72,11 @@ struct ScriptnodeCallbacks
 		HandleEventFunction,
 		ProcessFunction,
 		ProcessFrameFunction,
-		numFunctions,
+		OptionalOffset, // Use this as array length to exlude the optional callbacks below
 		HandleModulation,
-		SetExternalDataFunction
+		SetExternalDataFunction,
+		GetPlotValue,
+		numTotalFunctions
 	};
 
 	static ID getCallbackId(const NamespacedIdentifier& p);

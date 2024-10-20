@@ -170,7 +170,7 @@ public:
 #endif
 	};
 
-	IIRCoefficients getCoefficients(int filterIndex)
+	FilterDataObject::CoefficientData getCoefficients(int filterIndex)
 	{
 		return filterBands[filterIndex]->getApproximateCoefficients();
 	};
@@ -226,7 +226,9 @@ public:
 		
 		sendBroadcasterMessage("BandAdded", insertIndex == -1 ? filterBands.size() - 1 : insertIndex);
 
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
+
+		updateParameterSlots();
 	}
 
 	void removeFilterBand(int filterIndex)
@@ -240,7 +242,9 @@ public:
 		
 		sendBroadcasterMessage("BandRemoved", filterIndex == -1 ? filterBands.size() - 1 : filterIndex);
 
-		sendChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
+
+		updateParameterSlots();
 	}
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
@@ -311,7 +315,9 @@ public:
 
 		enableSpectrumAnalyser(v.getProperty("FFTEnabled", false));
 
-		sendSynchronousChangeMessage();
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Preset);
+
+		updateParameterSlots();
 	}
 
 	struct AlignedDouble
@@ -323,6 +329,8 @@ public:
 	bool hasTail() const override {return false;};
 
 	int getNumChildProcessors() const override { return 0; };
+
+	int getNumAttributes() const override { return BandParameter::numBandParameters * filterBands.size(); }
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 

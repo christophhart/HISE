@@ -46,6 +46,11 @@ public:
     int readNextToken (CodeDocument::Iterator&) override;
     CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
 
+    void setUseScopeStatements(bool shouldUse)
+    {
+	    useScopeStatementParser = shouldUse;
+    }
+
     static bool isReservedKeyword (const String& token) noexcept;
 
     enum TokenType
@@ -61,12 +66,25 @@ public:
         tokenType_bracket,
         tokenType_punctuation,
         tokenType_preprocessor,
+        tokenType_scopedstatement,
         tokenType_deactivated
     };
 
 private:
     //==============================================================================
     JUCE_LEAK_DETECTOR (JavascriptTokeniser)
+
+    struct ScopedBrackets
+    {
+	    bool parsingStatements = true;
+        bool parsingArguments = false;
+        int numOpenParen = 0;
+        int numOpenBrackets = 0;
+    };
+
+    Array<ScopedBrackets> scopedBrackets;
+    bool checkDot = false;
+    bool useScopeStatementParser = false;
 };
 
 } // namespace hise

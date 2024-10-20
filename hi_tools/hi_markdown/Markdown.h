@@ -164,7 +164,7 @@ public:
 	class URLImageProvider;		class FileBasedImageProvider;	class GlobalPathProvider;
 	class PathDescriptionResolver;
 	
-	MarkdownParser(const String& markdownCode);
+	MarkdownParser(const String& markdownCode, const MarkdownLayout::StringWidthFunction& f={});
 
 	virtual ~MarkdownParser();
 
@@ -278,7 +278,7 @@ protected:
 
 		virtual void draw(Graphics& g, Rectangle<float> area) = 0;
 		virtual float getHeightForWidth(float width) = 0;
-		virtual int getTopMargin() const = 0;
+		virtual float getTopMargin() const = 0;
 		virtual Component* createComponent(int maxWidth)
 		{ 
 			ignoreUnused(maxWidth);
@@ -330,6 +330,8 @@ protected:
 
 	protected:
 
+		MarkdownLayout::StringWidthFunction stringWidthFunction;
+
 		virtual String generateHtml() const { return {}; }
 
 		static Array<Range<int>> getMatchRanges(const String& fullText, const String& searchString, bool countNewLines);
@@ -345,7 +347,7 @@ protected:
 
 	struct TextBlock;	struct Headline;		struct BulletPointList;		struct Comment;
 	struct CodeBlock;	struct MarkdownTable;	struct ImageElement;		struct EnumerationList;
-	struct ActionButton; struct LiveCodeBlock;	struct ContentFooter;
+	struct ActionButton; struct LiveCodeBlock;	struct ContentFooter;       struct HorizontalRuler;
 
 	struct CellContent
 	{
@@ -394,7 +396,7 @@ private:
 		bool match(juce_wchar expected);
 		bool matchIf(juce_wchar expected);
 		void skipWhitespace();
-		String getRestString() const;
+		String getRestString(int maxLength=-1) const;
 		String advanceLine();
 
 		int getLineNumber() const { return currentLine; }
@@ -423,6 +425,7 @@ private:
 
 	void parseText(bool stopAtEndOfLine=true);
 	void parseMarkdownHeader();
+	bool parseHorizontalRuler();
 	void parseBlock();
 	void parseJavascriptBlock();
 	void parseTable();
@@ -456,7 +459,8 @@ private:
 	Font currentFont;
 
 	MarkdownLayout::StyleData styleData;
-	
+	MarkdownLayout::StringWidthFunction stringWidthFunction;
+
 	Iterator it;
 	Result currentParseResult;
 	OwnedArray<ImageProvider> imageProviders;
@@ -465,7 +469,7 @@ private:
 	
 	OwnedArray<LinkResolver> linkResolvers;
 	
-	
+	bool headerWasParsed = false;
 	
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MarkdownParser);

@@ -131,8 +131,7 @@ public:
 	basic JUCE widgets (Slider, ComboBox, Button)
 
 	*/
-template <class ProcessorType> class Reference : public ControlledObject,
-												 private SafeChangeListener
+template <class ProcessorType> class Reference : public ControlledObject
 {
 public:
 
@@ -156,7 +155,24 @@ public:
 
 private:
 
-	void changeListenerCallback(SafeChangeBroadcaster *) override;
+	struct Updater: public Processor::OtherListener
+	{
+		Updater(Reference& parent_, Processor* p):
+		  OtherListener(p, dispatch::library::ProcessorChangeEvent::Any),
+		  parent(parent_)
+		{};
+
+		void otherChange(Processor *) override
+		{
+			parent.refresh();
+		}
+
+		Reference<ProcessorType>& parent;
+	};
+
+	ScopedPointer<Updater> updater;
+
+	void refresh();
 
 	struct ParameterValue
 	{
@@ -542,7 +558,7 @@ public:
 	class Base : public Data<ValueType>,
 				 public ControlledObject,
 				 public ComponentType::Listener,
-				 public SafeChangeListener
+				 public Processor::OtherListener
 	{
 	public:
 
@@ -634,8 +650,8 @@ public:
 		/** Returns a reference to the component. It is safe to assume that it's not deleted in the UI callbacks. */
 		ComponentType& getComponent() { return *component.getComponent(); }
 
-		void changeListenerCallback(SafeChangeBroadcaster* b) override;
-
+		void otherChange(Processor* p) override;
+		
 	private:
 
 		UndoManager* undoManager = nullptr;

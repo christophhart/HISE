@@ -50,10 +50,12 @@ class ScriptContentComponent;
 *	the plotter only writes something if new data is added.
 */
 class Plotter    : public Component,
-				   public SettableTooltipClient,
-				   public Timer
+				   public RingBufferComponentBase,
+				   public SettableTooltipClient
 {
 public:
+
+	using CleanupFunction = std::function<void(Plotter* p)>;
 
 	enum Mode
 	{
@@ -63,7 +65,7 @@ public:
 		numModes
 	};
 
-	Plotter();
+	Plotter(PooledUIUpdater* updater);
     ~Plotter();
 
 	enum ColourIds
@@ -81,8 +83,6 @@ public:
 
 	void pushLockFree(const float* buffer, int startSample, int numSamples);
 
-	void timerCallback() override;
-
 	void mouseDown(const MouseEvent& m) override;
 
 	void mouseMove(const MouseEvent& m) override;
@@ -93,14 +93,29 @@ public:
 
 	void setFont(const Font& f);
 
-
 	void setYConverter(const Table::ValueTextConverter& newYConverter);
 
+	void setCleanupFunction(const CleanupFunction& cf)
+	{
+		cleanupFunction = cf;
+	}
+
+	virtual void refresh() override
+	{
+		rebuildPath();
+	}
+
 private:
+	
+	hise::SimpleReadWriteLock deleteLock;
+
+	CleanupFunction cleanupFunction;
 
 	Font font;
 
 	void rebuildPath();
+
+	AudioSampleBuffer displayBuffer;
 
 	Path drawPath;
 
@@ -111,17 +126,7 @@ private:
 
 	Mode currentMode;
 
-	void popLockFree(float* destination, int numSamples);
-
-
-	void addValues(const float* buffer, int startSample, int numSamples);
-
-	AbstractFifo abstractFifo;
-	float tempBuffer[8192];
-
 	bool active = true;
-
-	AudioSampleBuffer displayBuffer;
 	int position = 0;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Plotter)

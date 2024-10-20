@@ -525,6 +525,17 @@ void SliderPack::updateSliderRange()
 	repaint();
 }
 
+void SliderPack::updateSliderColours()
+{
+	for(auto s: sliders)
+	{
+		s->setColour(Slider::backgroundColourId, findColour(Slider::backgroundColourId));
+		s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
+		s->setColour(Slider::thumbColourId, findColour(Slider::thumbColourId));
+		s->setColour(Slider::trackColourId, findColour(Slider::trackColourId));
+	}
+}
+
 void SliderPack::updateSliders()
 {
 	for (int i = 0; i < sliders.size(); i++)
@@ -575,6 +586,8 @@ void SliderPack::resized()
 {
 	int w = getWidth();
 
+    setTextAreaPopup(getLocalBounds().removeFromRight(100).removeFromTop(40));
+    
     if(data != nullptr && (sliderWidths.isEmpty() || getNumSliders()+1 != (sliderWidths.size())))
     {
         float widthPerSlider = (float)w / (float)data->getNumSliders();
@@ -644,8 +657,17 @@ void SliderPack::sliderValueChanged(Slider *s)
 		n = dontSendNotification;
 		useUndo = false;
 	}
-	
-	data->setValue(index, (float)s->getValue(), n, useUndo);
+
+    auto currentValue = (float)s->getValue();
+    
+	if(this->toggleMaxMode)
+	{
+		data->setValue(index, currentStepSequencerInputValue, n, useUndo);
+	}
+	else
+	{
+		data->setValue(index, currentValue, n, useUndo);
+	}
 }
 
 void SliderPack::mouseDown(const MouseEvent &e)
@@ -661,6 +683,35 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 	if(callbackOnMouseUp)
 		n = dontSendNotification;
+
+	if(toggleMaxMode)
+	{
+        int sliderIndex = getSliderIndexForMouseEvent(e);
+        
+        if(isPositiveAndBelow(sliderIndex, data->getNumSliders()))
+        {
+			auto rng = sliders[sliderIndex]->getRange();
+			auto thisValue = sliders[sliderIndex]->getValue();
+
+			auto useGhostNoteValue = e.mods.isAnyModifierKeyDown();
+			auto ghostNoteValue = rng.getStart() + 0.5 * rng.getLength();
+
+			if(thisValue == rng.getStart())
+			{
+				if(useGhostNoteValue)
+					currentStepSequencerInputValue = ghostNoteValue;
+				else
+					currentStepSequencerInputValue = rng.getEnd();
+			}
+			else
+			{
+				if(useGhostNoteValue == (thisValue == ghostNoteValue))
+					currentStepSequencerInputValue = rng.getStart();
+				else
+					currentStepSequencerInputValue = useGhostNoteValue ? ghostNoteValue : rng.getEnd();
+			}
+        }
+	}
 
 	if (e.mods.isRightButtonDown() || e.mods.isCommandDown())
 	{
@@ -685,7 +736,7 @@ void SliderPack::mouseDown(const MouseEvent &e)
 
 		double normalizedValue = (double)(getHeight() - y) / (double)getHeight();
 
-		double value = s->proportionOfLengthToValue(normalizedValue);
+		double value = toggleMaxMode ? currentStepSequencerInputValue : s->proportionOfLengthToValue(normalizedValue);
 
 		currentlyDragged = true;
 		currentlyDraggedSlider = sliderIndex;
@@ -730,9 +781,11 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 			if (x < 0) x = 0;
 		}
 
-		rightClickLine.setEnd((float)x, (float)y);
+		repaintWithTextBox(Rectangle<float>(rightClickLine.getStart(), rightClickLine.getEnd()).toNearestInt().expanded(5));
 
-		repaint();
+		rightClickLine.setEnd((float)x, e.mods.isShiftDown() ? rightClickLine.getStartY() : (float)y);
+
+        repaintWithTextBox(Rectangle<float>(rightClickLine.getStart(), rightClickLine.getEnd()).toNearestInt().expanded(5));
 	}
 	else
 	{
@@ -756,7 +809,10 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 		{
 			double normalizedValue = (double)(getHeight() - y) / (double)getHeight();
 
-			double value = s->proportionOfLengthToValue(normalizedValue);
+			double value = toggleMaxMode ? currentStepSequencerInputValue : s->proportionOfLengthToValue(normalizedValue);
+
+			if(isPositiveAndBelow(currentlyDraggedSlider, sliders.size()))
+                repaintWithTextBox(sliders[currentlyDraggedSlider]->getBoundsInParent());
 
 			currentlyDragged = true;
 			currentlyDraggedSlider = sliderIndex;
@@ -766,7 +822,8 @@ void SliderPack::mouseDrag(const MouseEvent &e)
 
 			currentlyDraggedSliderValue = s->getValue();
 
-			repaint();
+			if(isPositiveAndBelow(currentlyDraggedSlider, sliders.size()))
+                repaintWithTextBox(sliders[currentlyDraggedSlider]->getBoundsInParent());
 		}
 
 		if (std::abs(sliderIndex - lastDragIndex) > 1)
@@ -828,7 +885,9 @@ void SliderPack::mouseExit(const MouseEvent &)
 {
 	if (!isEnabled()) return;
 
+	showOverlayOnMove = false;
 	currentlyDragged = false;
+	currentlyHoveredSlider = -1;
 	repaint();
 }
 
@@ -885,7 +944,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 			l->drawSliderPackRightClickLine(g, *this, rightClickLine);
 	}
 
-	else if (currentlyDragged && data->isValueOverlayShown())
+	else if ((currentlyDragged || showOverlayOnMove) && data->isValueOverlayShown())
 	{
 		const double logFromStepSize = log10(data->getStepSize());
 		const int unit = -roundToInt(logFromStepSize);
@@ -927,9 +986,11 @@ void SliderPack::setValuesFromLine()
 
 	data->setFromFloatArray(newValues, sendNotificationAsync, true);
 	
+	repaint();
+
 	rightClickLine = Line<float>(0.0f, 0.0f, 0.0f, 0.0f);
 
-	repaint();
+	
 }
 
 void SliderPack::displayedIndexChanged(SliderPackData* d, int newIndex)
@@ -985,7 +1046,8 @@ void SliderPack::timerCallback()
 
 void SliderPack::mouseDoubleClick(const MouseEvent &e)
 {
-	if (!isEnabled()) return;
+	if (!isEnabled() || toggleMaxMode) 
+		return;
 
 	if (e.mods.isShiftDown())
 	{
@@ -1036,8 +1098,7 @@ void SliderPack::setColourForSliders(int colourId, Colour c)
 	// when the sliderpack gets updated, it fetches the colour from here...
 	setColour(colourId, c);
 
-	sliders.clear();
-	rebuildSliders();
+	updateSliderColours();
 }
 
 void SliderPack::setShowValueOverlay(bool shouldShowValueOverlay)
@@ -1085,14 +1146,11 @@ void SliderPack::rebuildSliders()
 			s->addListener(this);
 			s->setSliderStyle(Slider::SliderStyle::LinearBarVertical);
 			s->setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
-
 			s->setRange(data->getRange().getStart(), data->getRange().getEnd(), data->getStepSize());
-			s->setColour(Slider::backgroundColourId, findColour(Slider::backgroundColourId));
-			s->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
-			s->setColour(Slider::thumbColourId, findColour(Slider::thumbColourId));
-			s->setColour(Slider::trackColourId, findColour(Slider::trackColourId));
 		}
 
+		updateSliderColours();
+		
 		updateSliders();
 	}
 }
@@ -1248,7 +1306,34 @@ void SliderPack::setComplexDataUIBase(ComplexDataUIBase* newData)
 }
 
 void SliderPack::mouseMove(const MouseEvent& mouseEvent)
-{ repaint(); }
+{
+	auto thisIndex = getSliderIndexForMouseEvent(mouseEvent);
+
+	showOverlayOnMove = mouseEvent.mods.isShiftDown();
+
+	if(showOverlayOnMove)
+	{
+		currentlyDraggedSlider = thisIndex;
+
+		if(auto s = sliders[currentlyDraggedSlider])
+		{
+			currentlyDraggedSliderValue = s->getValue();
+		}
+		
+		repaint();
+	}
+	
+	if(thisIndex != currentlyHoveredSlider)
+	{
+		if(isPositiveAndBelow(currentlyHoveredSlider, sliders.size()))
+            repaintWithTextBox(sliders[currentlyHoveredSlider]->getBoundsInParent());
+
+		currentlyHoveredSlider = thisIndex;
+
+		if(isPositiveAndBelow(currentlyHoveredSlider, sliders.size()))
+            repaintWithTextBox(sliders[currentlyHoveredSlider]->getBoundsInParent());
+	}
+}
 
 void SliderPack::notifyListeners(int index, NotificationType n)
 {
@@ -1292,6 +1377,36 @@ void SliderPack::removeListener(Listener* listener)
 void SliderPack::setCallbackOnMouseUp(bool shouldFireOnMouseUp)
 {
 	callbackOnMouseUp = shouldFireOnMouseUp;
+}
+
+void SliderPack::setStepSequencerMode(bool shouldUseStepSequencerMode)
+{
+	toggleMaxMode = shouldUseStepSequencerMode;
+}
+
+int SliderPack::getHoverStateForSlider(Slider* s) const
+{
+	auto idx = sliders.indexOf(s);
+
+	int state = 0;
+
+#if !HISE_NO_GUI_TOOLS
+	if(currentlyDragged)
+	{
+		if(idx == currentlyDraggedSlider)
+		{
+			state |= (int)simple_css::PseudoClassType::Hover;
+			state |= (int)simple_css::PseudoClassType::Active;
+		}
+	}
+	else
+	{
+		if(idx == currentlyHoveredSlider)
+			state |= (int)simple_css::PseudoClassType::Hover;
+	}
+#endif
+	
+	return state;
 }
 
 void SliderPack::LookAndFeelMethods::drawSliderPackBackground(Graphics& g, SliderPack& s)

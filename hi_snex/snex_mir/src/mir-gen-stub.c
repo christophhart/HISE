@@ -1,5 +1,5 @@
 /* This file is a part of MIR project.
-   Copyright (C) 2018-2023 Vladimir Makarov <vmakarov.gcc@gmail.com>.
+   Copyright (C) 2018-2024 Vladimir Makarov <vmakarov.gcc@gmail.com>.
 
    Stub for MIR generator machine dependent file.  It contains
    definitions used by MIR generator.  You can use this file for
@@ -90,6 +90,7 @@ static void target_get_early_clobbered_hard_regs (MIR_insn_t insn, MIR_reg_t *hr
 static int target_insn_ok_p (MIR_context_t ctx, MIR_insn_t insn) { return FALSE; }
 static uint8_t *target_translate (MIR_context_t ctx, size_t *len) { return NULL; }
 static void target_rebase (MIR_context_t ctx, uint8_t *base) {}
+static void target_change_to_direct_calls (MIR_context_t ctx) {}
 
 static void target_init (MIR_context_t ctx) {
   fprintf (stderr, "Your generator target dependent file is just a stub!\n");

@@ -1783,6 +1783,9 @@ void TextEditor::paintOverChildren (Graphics& g)
                                    viewport->getWidth() - leftIndent,
                                    getHeight() - topIndent);
 
+
+        textBounds = getBorder().subtractedFrom(textBounds);
+        
         if (! textBounds.isEmpty())
             g.drawText (textToShowWhenEmpty, textBounds, justification, true);
     }

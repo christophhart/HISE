@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_backend
   vendor:           Hart Instruments
-  version:          2.0.0
+  version:          4.0.0
   name:             HISE Backend Module
   description:      The backend application classes for HISE
   website:          http://hise.audio
@@ -63,32 +63,34 @@ If true, the backend processor will create a workbench editor instead of the HIS
 #define USE_WORKBENCH_EDITOR 0
 #endif
 
+/** Config: HISE_PAINT_GLOBAL_MOD_CONNECTIONS
+
+If true, then the patch browser will display global modulator connections.
+ */
+#ifndef HISE_PAINT_GLOBAL_MOD_CONNECTIONS
+#define HISE_PAINT_GLOBAL_MOD_CONNECTIONS 0
+#endif
+
+#include "backend/currentGit.h"
 
 #include "backend/BackendProcessor.h"
 #include "backend/BackendComponents.h"
 #include "backend/BackendToolbar.h"
+#include "backend/dialog_library/dialog_library.h"
 #include "backend/BackendApplicationCommands.h"
 #include "backend/BackendEditor.h"
 #include "backend/BackendRootWindow.h"
 #include "backend/CompileExporter.h"
 
-#include "backend/debug_components/SamplePoolTable.h"
-#include "backend/debug_components/MacroEditTable.h"
-#include "backend/debug_components/ScriptComponentEditPanel.h"
-#include "backend/debug_components/ScriptComponentPropertyPanels.h"
-#include "backend/debug_components/ProcessorCollection.h"
-#include "backend/debug_components/ApiBrowser.h"
-#include "backend/debug_components/ScriptComponentList.h"
-#include "backend/debug_components/ModuleBrowser.h"
-#include "backend/debug_components/PatchBrowser.h"
-#include "backend/debug_components/FileBrowser.h"
 
-#include "backend/doc_generators/ApiMarkdownGenerator.h"
-#include "backend/doc_generators/ModuleDocGenerator.h"
-#include "backend/doc_generators/UiComponentDocGenerator.h"
-#include "backend/doc_generators/MenuReferenceGenerator.h"
 
+
+
+#if HISE_INCLUDE_SNEX
 #include "snex_workbench/DspNetworkWorkbench.h"
+#endif
 #include "snex_workbench/WorkbenchProcessor.h"
+
+
 
 #endif   // HI_BACKEND_INCLUDED

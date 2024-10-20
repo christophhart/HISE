@@ -47,7 +47,7 @@ struct DspHelpers
 	/** Increases the buffer size to match the process specs. */
 	static void increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& ps);
 
-	static void increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& ps);
+	static void increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& ps, bool clearForFrame=true);
 
 	using ParameterCallback = std::function<void(double)>;
 

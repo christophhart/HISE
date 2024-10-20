@@ -66,6 +66,11 @@ public:
 		}
 	}
 
+	ValueToTextConverter getValueToTextConverter() const override
+	{
+		return {};
+	}
+
 	NormalisableRange<double> getRange() const override
 	{
 		return NormalisableRange<double>(0.0, (double)(int)CurveEq::FilterType::numFilterTypes);
@@ -204,12 +209,9 @@ public:
 
     //==============================================================================
 
-	void filterSelectorChanged(FilterTypeSelector *) override
-	{
+	void filterSelectorChanged(FilterTypeSelector * t) override;
 
-	}
-
-	void updateGui() override
+    void updateGui() override
 	{
 		CurveEq *eq = dynamic_cast<CurveEq*>(getProcessor());
 
