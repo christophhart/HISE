@@ -97,6 +97,10 @@ void GlobalScriptCompileBroadcaster::restoreIncludedScriptFilesFromSnippet(const
 #if USE_BACKEND
 	auto mc = dynamic_cast<MainController*>(this);
 	auto scriptRootFolder = mc->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Scripts);
+
+	if(!scriptRootFolder.isDirectory())
+		return;
+
 	auto snexRootFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::CodeLibrary);
 
 	auto restoreFromChild = [&](const Identifier& id, const File& rootDirectory)
@@ -208,6 +212,22 @@ void GlobalScriptCompileBroadcaster::clearWebResources()
 void GlobalScriptCompileBroadcaster::setWebViewRoot(File newRoot)
 {
 	webViewRoot = newRoot;
+}
+
+void GlobalScriptCompileBroadcaster::saveAllExternalFiles()
+{
+	for(int i = 0; i < getNumExternalScriptFiles(); i++)
+	{
+		auto ef = getExternalScriptFile(i);
+
+		if(ef->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet)
+		{
+			debugToConsole(dynamic_cast<MainController*>(this)->getMainSynthChain(), "Skip writing embedded file " + ef->getFile().getFileName() + " to disk...");
+			continue;
+		}
+			
+		ef->saveFile();
+	}
 }
 
 
@@ -518,4 +538,20 @@ File ExternalScriptFile::getFile() const
 
 ExternalScriptFile::RuntimeError::Broadcaster& ExternalScriptFile::getRuntimeErrorBroadcaster()
 { return runtimeErrorBroadcaster; }
+
+bool ExternalScriptFile::extractEmbedded()
+{
+	if(resourceType == ResourceType::EmbeddedInSnippet)
+	{
+		if(!file.existsAsFile() || PresetHandler::showYesNoWindow("Overwrite local file", "The file " + getFile().getFileName() + " from the snippet already exists. Do you want to overwrite your local file?"))
+		{
+			file.getParentDirectory().createDirectory();
+			file.replaceWithText(content.getAllContent());
+			resourceType = ResourceType::FileBased;
+			return true;
+		}
+	}
+
+	return false;
+}
 } // namespace hise

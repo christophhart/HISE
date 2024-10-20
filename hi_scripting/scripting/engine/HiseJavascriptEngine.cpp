@@ -37,7 +37,7 @@ namespace hise {
     X(semicolon,     ";")        X(dot,          ".")       X(comma,        ",") \
     X(openParen,     "(")        X(closeParen,   ")")       X(openBrace,    "{")    X(closeBrace, "}") \
     X(openBracket,   "[")        X(closeBracket, "]")       X(colon,        ":")    X(question,   "?") \
-    X(typeEquals,    "===")      X(equals,       "==")      X(assign,       "=") \
+    X(typeEquals,    "===")      X(equals,       "==")      X(arrow,        "=>")   X(assign,       "=")     \
     X(typeNotEquals, "!==")      X(notEquals,    "!=")      X(logicalNot,   "!") \
     X(plusEquals,    "+=")       X(plusplus,     "++")      X(plus,         "+") \
     X(minusEquals,   "-=")       X(minusminus,   "--")      X(minus,        "-") \

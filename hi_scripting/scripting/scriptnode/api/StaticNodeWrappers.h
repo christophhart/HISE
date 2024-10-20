@@ -189,6 +189,8 @@ public:
 		setOpaqueDataEditor(addDragger);
 		
 		postInit();
+		auto mc = asWrapperNode()->getScriptProcessor()->getMainController_();
+		mc->connectToRuntimeTargets(obj.getWrappedObject(), true);
 	}
 
 	virtual void postInit()
@@ -250,6 +252,11 @@ public:
 	void postInit() override
 	{
 		Base::postInit();
+	}
+
+	void connectToRuntimeTarget(bool shouldConnect) override
+	{
+		getScriptProcessor()->getMainController_()->connectToRuntimeTargets(obj.getWrappedObject(), shouldConnect);
 	}
 
     template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool UseNodeBaseAsUI> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
@@ -525,6 +532,15 @@ public:
 			monoNodes.add(newItem);
 		}
 	}
+
+	void registerNodeWithLambda(const Identifier& id, const CreateCallback& f)
+    {
+	    Item newItem;
+		newItem.cb = f;
+		newItem.id = id;
+
+		monoNodes.add(newItem);
+    }
 
     template <class T> void registerNodeRaw()
     {

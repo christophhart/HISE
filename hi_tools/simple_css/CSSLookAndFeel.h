@@ -49,6 +49,8 @@ using namespace juce;
  */
 struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 {
+	ScrollbarFader::Laf fallback;
+
 	/** Creates a style sheet LAF using a compiled CSS collection and a state watcher that
 	 *  will track the pseudo class state of each component. */
 	StyleSheetLookAndFeel(CSSRootComponent& root_);;
@@ -57,6 +59,8 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 	void drawButtonBackground(Graphics& g, Button& tb, const Colour&, bool, bool) override;
 
 	bool drawButtonText(Graphics& g, Button* b);
+
+	bool drawImageOnComponent(Graphics& g, Component* c, const Image& img);
 
 	/** Uses the selector "button [#id]". */
 	void drawButtonText(Graphics& g, TextButton& tb, bool over, bool down) override;
@@ -74,7 +78,19 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 	                      float rotaryStartAngle, float rotaryEndAngle, Slider&slider) override;
 
 	/** Uses the selector "input [#id]". */
-	void drawTextEditorOutline (Graphics&, int width, int height, TextEditor&) override {};
+	void drawTextEditorOutline (Graphics&, int width, int height, TextEditor&) override {}
+
+
+	/** Draws any generic component background. */
+	bool drawComponentBackground(Graphics& g, Component* c, Selector s = {});
+
+	void drawGenericComponentText(Graphics& g, const String& text, Component* c, Selector s = {});
+
+	/** Use this for drawing a listbox row by styling the `tr` element. */
+	bool drawListBoxRow(int rowNumber, Graphics& g, const String& text, Component* lb, int width, int height, bool rowIsSelected,
+	                 bool rowIsHovered);
+
+	void initComponent(Component* c, Selector s={});
 
 	void drawProgressBar(Graphics& g, ProgressBar& pb, int width, int height, double progress, const String& textToShow) override;
 
@@ -129,6 +145,28 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
                                                const PopupMenu::Item& item,
                                                const PopupMenu::Options&) override;
 
+	bool areScrollbarButtonsVisible() override { return false; }
+	ImageEffectFilter* getScrollbarEffect() override { return nullptr; }
+    void drawScrollbarButton (Graphics& ,ScrollBar& ,int , int ,int ,bool ,bool ,bool ) override {}
+	int getScrollbarButtonSize (ScrollBar&) override { return 0; }
+
+    void drawScrollbar (Graphics& g, ScrollBar& scrollbar,
+                                int x, int y, int width, int height,
+                                bool isScrollbarVertical,
+                                int thumbStartPosition,
+                                int thumbSize,
+                                bool isMouseOver,
+                                bool isMouseDown) override;
+
+	/** Returns the minimum length in pixels to use for a scrollbar thumb. */
+    int getMinimumScrollbarThumbSize (ScrollBar& sb) override
+	{
+		return jmin (sb.getWidth(), sb.getHeight()) * 2;
+	}
+
+    /** Returns the default thickness to use for a scrollbar. */
+    int getDefaultScrollbarWidth() override { return 13; }
+	
 protected:
 
 	CSSRootComponent& root;

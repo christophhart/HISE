@@ -415,6 +415,11 @@ Component* FlexboxComponent::addTextElement(const StringArray& selectors, const 
 void FlexboxComponent::addFlexItem(Component& c)
 {
 	addAndMakeVisible(c);
+
+	if(auto root = CSSRootComponent::find(*this))
+	{
+		childSheets[&c] = root->css.getForComponent(&c);
+	}
 }
 
 void FlexboxComponent::addDynamicFlexItem(Component& c)
@@ -539,7 +544,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 minHeight = jmin(minHeight, child->getBoundsInParent().getY());
@@ -562,7 +567,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 minHeight = jmin(minHeight, child->getBoundsInParent().getY());
@@ -612,7 +617,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 
@@ -630,7 +635,7 @@ float FlexboxComponent::getAutoHeightForWidth(float fullWidth)
             {
                 auto child = getChildComponent(i);
 
-                if(!child->isVisible())
+                if(!isVisibleOrPlaceHolder(child))
                     continue;
 
                 if(auto ssChild = childSheets[child])
@@ -736,7 +741,7 @@ std::pair<Component*, Component*> FlexboxComponent::getFirstLastComponents()
 		d.indexInList = i;
 		d.order = -1;
 
-		if(!d.c->isVisible())
+		if(!isVisibleOrPlaceHolder(d.c))
 			continue;
 			
 		if(auto css = childSheets[d.c])
@@ -801,7 +806,7 @@ FlexboxComponent::PositionData FlexboxComponent::createPositionData()
 			auto isLast = c == flc.second;
 			auto isFirst = c == flc.first;
 
-			if(!c->isVisible())
+			if(!isVisibleOrPlaceHolder(c))
 				continue;
 
 			c->getProperties().set("first-child", isFirst);
@@ -1022,6 +1027,7 @@ HeaderContentFooter::HeaderContentFooter(bool useViewportContent):
 	body.addFlexItem(footer);
 
 	StyleSheet::Collection c;
+	c.setAnimator(&animator);
 	body.setCSS(c);
 }
 
@@ -1159,13 +1165,13 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 
 	if(css != newCss && !useFixStyleSheet)
 	{
+		css = newCss;
+
 		if(auto dp = createDataProvider())
 		{
-			newCss.performAtRules(dp);
+			css.performAtRules(dp);
 			delete dp;
 		}
-
-		css = newCss;
 
 		if(defaultProperties != nullptr)
 		{
@@ -1180,6 +1186,7 @@ void HeaderContentFooter::update(simple_css::StyleSheet::Collection& newCss)
 		styleSheetCollectionChanged();
 	}
 
+	css.setAnimator(&animator);
 	body.setCSS(css);
 }
 

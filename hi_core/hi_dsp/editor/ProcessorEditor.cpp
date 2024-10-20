@@ -634,6 +634,7 @@ void ProcessorEditor::showContextMenu(Component* c, Processor* p)
 		InsertBefore,
 		CloseAllChains,
 		ViewXml,
+        DumpParameters,
 		CheckForDuplicate,
 		CreateGenericScriptReference,
 		CreateTableProcessorScriptReference,
@@ -664,6 +665,7 @@ void ProcessorEditor::showContextMenu(Component* c, Processor* p)
 
 	m.addItem(Copy, "Copy " + p->getId() + " to Clipboard");
 	m.addItem(ViewXml, "Show XML data");
+    m.addItem(DumpParameters, "Dump parameter ID & values");
 
 	if ((dynamic_cast<Chain*>(p) == nullptr || dynamic_cast<ModulatorSynth*>(p)) && !isMainSynthChain)
 	{
@@ -729,6 +731,21 @@ void ProcessorEditor::showContextMenu(Component* c, Processor* p)
 	{
 		PresetHandler::checkProcessorIdsForDuplicates(p, false);
 	}
+    else if (result == DumpParameters)
+    {
+        String s;
+        
+        s << "(" << p->getType() << ") - Parameter dump: \n";
+        
+        for(int i = 0; i < p->getNumAttributes(); i++)
+        {
+            s << "\t[" << String(i) << "]: " << p->getIdentifierForParameterIndex(i).toString().quoted() << " | " << String(p->getAttribute(i), 2) << "\n";
+        }
+        
+        debugToConsole(p, s);
+        
+
+    }
 	else if (result == CreateGenericScriptReference)
 		ProcessorHelpers::getScriptVariableDeclaration(p);
 	else if (result == CreateAudioSampleProcessorScriptReference)

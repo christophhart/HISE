@@ -192,6 +192,7 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 	case CompileExporter::AAXSDKMissing: return "AAX SDK is missing";
 	case CompileExporter::ASIOSDKMissing: return "ASIO SDK is missing";
 	case CompileExporter::HISEPathNotSpecified: return "HISE path not set";
+	case CompileExporter::HiseCodeMismatch: return "The git commit hash of the HISE build doesn't match the source code hash.";
 	case CompileExporter::CorruptedPoolFiles:	return "Pooled binary resources are corrupt. Clean build folder and retry.";
 	case CompileExporter::numErrorCodes: return "OK";
 		
@@ -493,6 +494,10 @@ CompileExporter::BuildOption CompileExporter::getBuildOptionFromCommandLine(Stri
 
 CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, BuildOption option)
 {
+	
+
+	
+
 	const auto& data = dynamic_cast<GlobalSettingManager*>(chainToExport->getMainController())->getSettingsObject();
 
 	if (!useIpp) useIpp = data.getSetting(HiseSettings::Compiler::UseIPP);
@@ -521,6 +526,20 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 	
 	if (!hisePath.isDirectory()) 
 		return ErrorCodes::HISEPathNotSpecified;
+
+
+
+	String buildCommit(PREVIOUS_HISE_COMMIT);
+
+	String codeCommit = hisePath.getChildFile("currentGitHash.txt").loadFileAsString().trim();
+
+	if(buildCommit != codeCommit && !isUsingCIMode())
+	{
+		auto confirmation = PresetHandler::getCustomName("", "The source code has a different commit hash than the HISE build. This will likely lead to undefined behaviour including compile errors or undetected errors. In order to proceed with the compilation, type in \"I know\" and click OK");
+
+		if(confirmation != "I know")
+			return ErrorCodes::HiseCodeMismatch;
+	}
 
 	if (!checkSanity(type, option)) return ErrorCodes::SanityCheckFailed;
 
@@ -1851,10 +1870,10 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 #if JUCE_MAC
     auto macOSVersion = SystemStats::getOperatingSystemType();
     
-    // deactivate copy step on Sonoma to avoid the cycle dependencies error...
-    if(macOSVersion == SystemStats::MacOS_14)
+    // deactivate copy step on Sonoma (or later) to avoid the cycle dependencies error...
+    if(macOSVersion >= SystemStats::MacOS_14)
     {
-        PresetHandler::showMessageWindow("Copystep diabled", "macOS Sonoma will cause a compile error if the copy step is enabled, so you have to copy the plugin files into the plugin folders manually after compilation");
+        PresetHandler::showMessageWindow("Copystep diabled", "macOS Sonoma (or later) will cause a compile error if the copy step is enabled, so you have to copy the plugin files into the plugin folders manually after compilation");
         copyPlugin = false;
     }
 #endif

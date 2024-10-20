@@ -310,11 +310,14 @@ public:
 	virtual Path createPresetBrowserIcons(const String& id);
 
 	virtual void drawPresetBrowserBackground(Graphics& g, Component* p);
-	virtual void drawColumnBackground(Graphics& g, int columnIndex, Rectangle<int> listArea, const String& emptyText);
-	virtual void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
-	virtual void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
-	virtual void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover);
-	virtual void drawSearchBar(Graphics& g, Rectangle<int> area);
+	virtual void drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText);
+
+	virtual Font getTagFont(Component& tagButton) { return font.withHeight(14.0f); }
+
+	virtual void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position);
+	virtual void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command);
+	virtual void drawListItem(Graphics& g, Component& column, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover);
+	virtual void drawSearchBar(Graphics& g, Component& labelComponent, Rectangle<int> area);
 
 	Font getFont(bool fontForTitle);
 
@@ -550,7 +553,7 @@ public:
     static void draw1PixelGrid(Graphics& g, Component* c, Rectangle<int> bounds, Colour lineColour=Colours::white);
     
     
-	static Point<float> paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha = 1.0f, Colour holeColour = Colour(0xFFAAAAAA), bool returnMidPoint = false, bool useHangingCable=true);;
+	static Point<float> paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha = 1.0f, Colour holeColour = Colour(0xFFAAAAAA), bool returnMidPoint = false, bool useHangingCable=true, Point<float> velocity={});;
 
 	static void setTextEditorColours(TextEditor& ed);
 

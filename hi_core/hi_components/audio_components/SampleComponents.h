@@ -140,7 +140,7 @@ public:
 	
 
 	void setBypassed(bool shouldBeBypassed);
-	void setUseFlatDesign(bool shouldUseFlatDesign);
+	
 
 	void paint(Graphics &g);
 	void resized() override;
@@ -174,7 +174,6 @@ private:
 	bool bypassed = false;
 	int index = 0;
 	Path path;
-	bool useFlatDesign = false;
 	WeakReference<Processor> processor;
 	float const *tableValues;
 	int tableLength;
@@ -238,6 +237,7 @@ struct SamplerTools
         SampleStartArea,
         LoopArea,
         LoopCrossfadeArea,
+		ReleaseStart,
         GainEnvelope,
         PitchEnvelope,
         FilterEnvelope,
@@ -337,6 +337,8 @@ public:
 	SamplerDisplayWithTimeline::Properties timeProperties;
 
 	AreaTypes currentClickArea = AreaTypes::numAreas;
+
+	bool releaseStartIsSelected = false;
 
     bool zeroCrossing = true;
     

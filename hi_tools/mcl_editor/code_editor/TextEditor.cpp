@@ -160,7 +160,7 @@ void TextEditor::setNewTokenCollectionForAllChildren(Component* any, const Ident
 
 	Component::callRecursive<TextEditor>(top, [&](TextEditor* t)
 	{
-		if(t->languageManager->getLanguageId() == languageId)
+		if(t->languageManager->getLanguageId() == languageId && newCollection != nullptr)
 		{
 			t->tokenCollection = newCollection;
 			newCollection->addListener(t);
@@ -173,6 +173,8 @@ void TextEditor::setNewTokenCollectionForAllChildren(Component* any, const Ident
 			
 		return false;
 	}, false);
+
+	newCollection->signalRebuild();
 }
 
 void TextEditor::setReadOnly(bool shouldBeReadOnly)
@@ -1074,6 +1076,101 @@ void TextEditor::setScaleFactor(float newFactor)
     translateView(0.0f, -dy);
 }
 
+void TextEditor::insertCodeSnippet(const String& textToInsert, Array<Range<int>> selectRanges)
+{
+    auto textWithoutScope = textToInsert;
+    Array<Range<int>> rangesWithScope = selectRanges;
+    
+    auto lr = document.getFoldableLineRangeHolder();
+    if(auto n = lr.getRangeContainingLine(autocompleteSelection.head.x))
+    {
+        auto scopeId = n->getBookmark().name.replace("namespace ", "").upToFirstOccurrenceOf("(", false, false) + ".";
+        
+        if(textToInsert.startsWith(scopeId))
+        {
+            textWithoutScope = textToInsert.fromFirstOccurrenceOf(scopeId, false, false);
+            
+            auto lengthToSubtract = scopeId.length();
+            
+            rangesWithScope.clear();
+            
+            for(auto& sr: selectRanges)
+                rangesWithScope.add(sr - (int)lengthToSubtract);
+        }
+    }
+    
+    if(textWithoutScope.contains("\n"))
+    {
+        // Intend
+        auto start = autocompleteSelection.head;
+        auto end = autocompleteSelection.head;
+        document.navigate(start, TextDocument::Target::line, TextDocument::Direction::backwardCol);
+        document.navigate(end, TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol);
+
+        Selection emptyBeforeText(end, start);
+
+        auto ws = document.getSelectionContent(emptyBeforeText);
+        
+        if(ws.isNotEmpty())
+        {
+            rangesWithScope.clear();
+            textWithoutScope = textWithoutScope.replace("\n", "\n" + ws);
+        }
+    }
+    
+	ScopedValueSetter<bool> svs(skipTextUpdate, true);
+	document.setSelections({ autocompleteSelection }, false);
+
+	insert(textWithoutScope);
+
+	auto s = document.getSelection(0).oriented();
+	CodeDocument::Position insertStart(document.getCodeDocument(), s.tail.x, s.tail.y);
+
+	refreshLineWidth();
+
+	document.rebuildRowPositions();
+
+	updateViewTransform();
+	translateView(0.0f, 0.0f);
+
+	auto l = textWithoutScope.length();
+
+	if (currentParameterSelection.size() == 0)
+		setParameterSelectionInternal(currentParameterSelection, nullptr, true);
+
+	if (currentParameter == nullptr)
+	{
+		clearParameters(true);
+
+		if (!rangesWithScope.isEmpty())
+		{
+			Action::List newList;
+
+			for (auto sr : rangesWithScope)
+			{
+				auto copy = insertStart;
+
+				auto ps = new Autocomplete::ParameterSelection(document,
+					insertStart.getPosition() - l + sr.getStart(),
+					insertStart.getPosition() - l + sr.getEnd());
+
+				newList.add(ps);
+			}
+
+			if (!newList.isEmpty())
+				setParameterSelectionInternal(newList, newList.getFirst(), true);
+		}
+
+		postParameterPos = insertStart;
+		postParameterPos.setPositionMaintained(true);
+	}
+	
+	if (currentParameter != nullptr)
+	{
+		document.setSelections({ currentParameter->getSelection() }, false);
+	}
+}
+
 void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array<Range<int>> selectRanges)
 {
 	if (!autocompleteEnabled)
@@ -1098,97 +1195,7 @@ void TextEditor::closeAutocomplete(bool async, const String& textToInsert, Array
 
 			if (textToInsert.isNotEmpty())
 			{
-                auto textWithoutScope = textToInsert;
-                Array<Range<int>> rangesWithScope = selectRanges;
-                
-                auto lr = document.getFoldableLineRangeHolder();
-                if(auto n = lr.getRangeContainingLine(autocompleteSelection.head.x))
-                {
-                    auto scopeId = n->getBookmark().name.replace("namespace ", "").upToFirstOccurrenceOf("(", false, false) + ".";
-                    
-                    if(textToInsert.startsWith(scopeId))
-                    {
-                        textWithoutScope = textToInsert.fromFirstOccurrenceOf(scopeId, false, false);
-                        
-                        auto lengthToSubtract = scopeId.length();
-                        
-                        rangesWithScope.clear();
-                        
-                        for(auto& sr: selectRanges)
-                            rangesWithScope.add(sr - (int)lengthToSubtract);
-                    }
-                }
-                
-                if(textWithoutScope.contains("\n"))
-                {
-                    // Intend
-                    auto start = autocompleteSelection.head;
-                    auto end = autocompleteSelection.head;
-                    document.navigate(start, TextDocument::Target::line, TextDocument::Direction::backwardCol);
-                    document.navigate(end, TextDocument::Target::firstnonwhitespace, TextDocument::Direction::backwardCol);
-
-                    Selection emptyBeforeText(end, start);
-
-                    auto ws = document.getSelectionContent(emptyBeforeText);
-                    
-                    if(ws.isNotEmpty())
-                    {
-                        rangesWithScope.clear();
-                        textWithoutScope = textWithoutScope.replace("\n", "\n" + ws);
-                    }
-                }
-                
-				ScopedValueSetter<bool> svs(skipTextUpdate, true);
-				document.setSelections({ autocompleteSelection }, false);
-
-				insert(textWithoutScope);
-
-				auto s = document.getSelection(0).oriented();
-				CodeDocument::Position insertStart(document.getCodeDocument(), s.tail.x, s.tail.y);
-
-				refreshLineWidth();
-
-				document.rebuildRowPositions();
-
-				updateViewTransform();
-				translateView(0.0f, 0.0f);
-
-				auto l = textWithoutScope.length();
-
-				if (currentParameterSelection.size() == 0)
-					setParameterSelectionInternal(currentParameterSelection, nullptr, true);
-
-				if (currentParameter == nullptr)
-				{
-					clearParameters(true);
-
-					if (!rangesWithScope.isEmpty())
-					{
-						Action::List newList;
-
-						for (auto sr : rangesWithScope)
-						{
-							auto copy = insertStart;
-
-							auto ps = new Autocomplete::ParameterSelection(document,
-								insertStart.getPosition() - l + sr.getStart(),
-								insertStart.getPosition() - l + sr.getEnd());
-
-							newList.add(ps);
-						}
-
-						if (!newList.isEmpty())
-							setParameterSelectionInternal(newList, newList.getFirst(), true);
-					}
-
-					postParameterPos = insertStart;
-					postParameterPos.setPositionMaintained(true);
-				}
-				
-				if (currentParameter != nullptr)
-				{
-					document.setSelections({ currentParameter->getSelection() }, false);
-				}
+                insertCodeSnippet(textToInsert, selectRanges);
 			}
 
 			autocompleteSelection = {};

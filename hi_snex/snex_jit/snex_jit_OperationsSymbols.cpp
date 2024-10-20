@@ -645,6 +645,29 @@ void Operations::ThisPointer::process(BaseCompiler* compiler, BaseScope* scope)
 {
 	processBaseWithoutChildren(compiler, scope);
 
+	COMPILER_PASS(BaseCompiler::ResolvingSymbols)
+	{
+		auto cScope = scope->getParentScopeOfType<ClassScope>();
+
+		if(auto currentClass = dynamic_cast<StructType*>(cScope->typePtr.get()))
+		{
+			auto thisType = dynamic_cast<StructType*>(type.get());
+
+			if(thisType != currentClass && !compiler->isProcessingInlineFunction())
+			{
+				// Apparently we need to allow different template parameters to go through
+				// here so we check the namespaced identifier
+				auto differentClass = thisType->id != currentClass->id;
+
+				if(differentClass)
+					location.throwError("Can't access outer member from inner class");
+			}
+		}
+		
+
+		
+	}
+
 #if SNEX_ASMJIT_BACKEND
 	COMPILER_PASS(BaseCompiler::CodeGeneration)
 	{

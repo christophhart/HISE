@@ -1,0 +1,73 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Export node as template",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "#total-progress\n{\n\tdisplay: none;\n}\n\n#next\n{\n\tcontent: 'Save';\n}",
+    "UseViewport": true,
+    "ConfirmClose": true,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 500,
+    "DialogHeight": 400
+  },
+  "GlobalState": {
+    "Location": 0
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "SimpleText",
+          "Text": "Location\n"
+        },
+        {
+          "Type": "Button",
+          "Text": "Global",
+          "ID": "Location",
+          "Help": "This will save the template to the global HISE folder so it can be used by multiple projects.\n\n> Note that the global node templates are only available on this system and you have to transfer them manually to another system."
+        },
+        {
+          "Type": "Button",
+          "Text": "Project",
+          "ID": "Location",
+          "Help": "This will save the template in the project folder (under `DspNetworks/CodeLibrary/templates`, so you can reuse it in this project."
+        },
+        {
+          "Type": "JavascriptFunction",
+          "ID": "Create",
+          "EventTrigger": "OnSubmit",
+          "Code": "{BIND::onCreate}"
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 10px;"
+    }
+  ],
+  "Assets": []
+}

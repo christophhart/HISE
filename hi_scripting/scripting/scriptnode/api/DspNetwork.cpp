@@ -163,6 +163,8 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 
 	loader = new DspFactory::LibraryLoader(dynamic_cast<Processor*>(p));
 
+	localCableManager = new routing::local_cable_base::Manager(this);
+
 	setRootNode(createFromValueTree(true, data.getChild(0), true));
 	networkParameterHandler.root = getRootNode();
 
@@ -187,18 +189,6 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	selectionUpdater = new SelectionUpdater(*this);
 
 	setEnableUndoManager(enableUndo);
-
-	idUpdater.setCallback(data, { PropertyIds::ID }, valuetree::AsyncMode::Synchronously, 
-		[this](ValueTree v, Identifier id)
-	{
-		if (auto n = getNodeForValueTree(v))
-		{
-			auto oldId = n->getCurrentId();
-			auto newId = v[PropertyIds::ID].toString();
-
-			changeNodeId(data, oldId, newId, getUndoManager());
-		}
-	});
 
 	exceptionResetter.setTypeToWatch(PropertyIds::Nodes);
 	exceptionResetter.setCallback(data, valuetree::AsyncMode::Synchronously, [this](ValueTree v, bool wasAdded)
@@ -340,7 +330,7 @@ void DspNetwork::createAllNodesOnce()
 	cppgen::CustomNodeProperties::setInitialised(true);
 }
 
-NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v)
+NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v, bool createIfDoesntExist)
 {
 	if (!v.isValid())
 		return {};
@@ -353,7 +343,7 @@ NodeBase* DspNetwork::getNodeForValueTree(const ValueTree& v)
 			return n;
 	}
 
-	if (currentNodeHolder != nullptr)
+	if (currentNodeHolder != nullptr && createIfDoesntExist)
 		return createFromValueTree(isPolyphonic(), v, true);
 
 	return nullptr;
@@ -426,6 +416,10 @@ juce::StringArray DspNetwork::getListOfUsedNodeIds() const
 	return sa;
 }
 
+juce::StringArray DspNetwork::getListOfLocalCableIds() const
+{
+	return routing::local_cable_base::Helpers::getListOfLocalVariableNames(getValueTree());
+}
 
 juce::StringArray DspNetwork::getListOfUnusedNodeIds() const
 {
@@ -929,10 +923,10 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 				StringArray sa;
 				auto newId = getNonExistentId(id, sa);
 				newNode->setValueTreeProperty(PropertyIds::ID, newId);
-				nodes.add(newNode);
+				nodes.addIfNotAlreadyThere(newNode);
 			}
 			else
-				currentNodeHolder->nodes.add(newNode);
+				currentNodeHolder->nodes.addIfNotAlreadyThere(newNode);
 			
 			return newNode.get();
 		}
@@ -942,6 +936,10 @@ NodeBase* DspNetwork::createFromValueTree(bool createPolyIfAvailable, ValueTree 
 }
 
 
+Component* DspNetwork::createLocalCableListItem(const String& id) const
+{
+	return new routing::local_cable_base::ListItem(const_cast<DspNetwork*>(this), id);
+}
 
 bool DspNetwork::isInSignalPath(NodeBase* b) const
 {
@@ -1401,6 +1399,28 @@ DspNetwork* DspNetwork::Holder::getActiveNetwork() const
 void DspNetwork::Holder::setProjectDll(dll::ProjectDll::Ptr pdll)
 {
 	projectDll = pdll;
+}
+
+void DspNetwork::Holder::connectRuntimeTargets(MainController* mc)
+{
+	if(auto n = getActiveNetwork())
+	{
+		for(auto node: n->nodes)
+		{
+			node->connectToRuntimeTarget(true);
+		}
+	}
+}
+
+void DspNetwork::Holder::disconnectRuntimeTargets(MainController* mc)
+{
+	if(auto n = getActiveNetwork())
+	{
+		for(auto node: n->nodes)
+		{
+			node->connectToRuntimeTarget(false);
+		}
+	}
 }
 
 ExternalDataHolder* DspNetwork::Holder::getExternalDataHolder()
@@ -2178,6 +2198,12 @@ String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 	case Error::DeprecatedNode:		 return DeprecationChecker::getErrorMessage(e.actual);
 	case Error::IllegalPolyphony: return "Can't use this node in a polyphonic network";
 	case Error::IllegalMonophony: return "Can't use this node in a monophonic network";
+	case Error::OldFaustVersion:  
+		s << "Your Faust version is too old (";
+		s << String(e.actual / 1000000) << "." << String((e.actual % 1000000) / 1000) << "." << String(e.actual % 1000) << "). ";
+		s << "Min required version: ";
+		s << String(e.expected / 1000000) << "." << String((e.expected % 1000000) / 1000) << "." << String(e.expected % 1000) << ". ";
+		return s;
 	case Error::IllegalFaustNode: return "Faust is disabled. Enable faust and recompile HISE.";
 	case Error::IllegalFaustChannelCount: 
 		s << "Faust node channel mismatch. Expected channels: `" << String(e.expected) << "`";
@@ -2412,6 +2438,92 @@ void HostHelpers::setNumDataObjectsFromValueTree(OpaqueNode& on, const ValueTree
 	});
 }
 
+#if USE_BACKEND
+ValueTree DuplicateHelpers::findRoot(const ValueTree& v)
+{
+	auto p = v.getParent();
+        
+	if(!p.isValid())
+		return v;
+        
+	return findRoot(p);
+}
+
+void DuplicateHelpers::removeOutsideConnections(const Array<ValueTree>& newNodes,
+                                                const Array<DspNetwork::IdChange>& idChanges)
+{
+	for(auto& ct: newNodes)
+	{
+		Array<ValueTree> connectionsToRemove;
+
+		valuetree::Helpers::forEach(ct, [&](ValueTree& c)
+		{
+			if(c.getType() == PropertyIds::Connection)
+			{
+				auto thisTarget = c[PropertyIds::NodeId].toString();
+				auto found = false;
+
+				for(const auto& ch: idChanges)
+				{
+					found |= ch.newId == thisTarget;
+				}
+
+				if(!found)
+					connectionsToRemove.add(c);
+			}
+
+			return false;
+		});
+
+		for(const auto& c: connectionsToRemove)
+			c.getParent().removeChild(c, nullptr);
+	}
+}
+
+int DuplicateHelpers::getIndexInRoot(const ValueTree& v)
+{
+	auto p = findRoot(v);
+        
+	int index = 0;
+	auto iptr = &index;
+        
+	valuetree::Helpers::forEach(p, [&iptr, v](ValueTree& c)
+	{
+		*iptr = *iptr + 1;
+		return c == v;
+	});
+        
+	return index;
+}
+
+int DuplicateHelpers::compareElements(const WeakReference<NodeBase>& n1, const WeakReference<NodeBase>& n2)
+{
+	if(n1 == n2)
+		return 0;
+        
+	if(n1 != nullptr && n2 != nullptr)
+	{
+		auto i1 = getIndexInRoot(n1->getValueTree());
+		auto i2 = getIndexInRoot(n2->getValueTree());
+            
+		if(i1 < i2)
+			return 1;
+		if(i1 > i2)
+			return -1;
+	}
+        
+	jassertfalse;
+	return 0;
+}
+
+
+void DspNetworkListeners::DspNetworkGraphRootListener::onChangeStatic(DspNetworkGraphRootListener& l, NodeBase* n)
+{
+	if(n != nullptr)
+		l.onRootChange(n);
+}
+#endif
+
 bool OpaqueNetworkHolder::isPolyphonic() const
 { return false; }
 
@@ -2543,6 +2655,165 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 
 
 #if USE_BACKEND
+	void DspNetworkListeners::initRootListener(DspNetworkGraphRootListener* l)
+	{
+		auto asComponent = dynamic_cast<Component*>(l);
+		jassert(asComponent != nullptr);
+
+		Component::callRecursive<DspNetworkGraph>(asComponent->getTopLevelComponent(), [l](DspNetworkGraph* g)
+		{
+			g->rootBroadcaster.addListener(*l, DspNetworkGraphRootListener::onChangeStatic);
+			return true;
+		});
+	}
+
+	WeakReference<NodeBase> DspNetworkListeners::getSourceNodeFromComponentDrag(Component* component)
+	{
+		if(auto nc = component->findParentComponentOfClass<NodeComponent>())
+			return nc->node.get();
+
+		if(auto bc = dynamic_cast<DspNetworkGraph::BreadcrumbButton*>(component))
+			return bc->node;
+
+		return nullptr;
+	}
+
+	DspNetworkListeners::MacroParameterDragListener::MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction_):
+	c(c_),
+	initFunction(initFunction_)
+{
+	c->addMouseListener(this, true);
+	c->setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
+}
+
+DspNetworkListeners::MacroParameterDragListener::~MacroParameterDragListener()
+{
+	c->removeMouseListener(this);
+}
+
+void DspNetworkListeners::MacroParameterDragListener::initialise()
+{
+	auto tc = c->getTopLevelComponent();
+	jassert(tc != nullptr);
+
+	Component::callRecursive<DspNetworkGraph>(tc, [&](DspNetworkGraph* g)
+	{
+		if(initFunction)
+			sliderToDrag = initFunction(g);
+		
+		return true;
+	});
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseDrag(const MouseEvent& e)
+{
+	if(sliderToDrag == nullptr)
+		initialise();
+
+	if(sliderToDrag != nullptr)
+	{
+		sliderToDrag->findParentComponentOfClass<DspNetworkGraph>()->externalDragComponent = sliderToDrag;
+		auto e2 = e.getEventRelativeTo(sliderToDrag);
+		sliderToDrag->mouseDrag(e2);
+	}
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseUp(const MouseEvent& e)
+{
+	if(sliderToDrag != nullptr)
+	{
+		sliderToDrag->findParentComponentOfClass<DspNetworkGraph>()->externalDragComponent = nullptr;
+		auto e2 = e.getEventRelativeTo(sliderToDrag);
+		sliderToDrag->mouseUp(e2);
+	}
+
+	if(auto hb = dynamic_cast<HiseShapeButton*>(this->c.getComponent()))
+	{
+		Colour offColour(Colours::white);
+		hb->setColours(offColour.withMultipliedAlpha(0.5f), offColour.withMultipliedAlpha(0.8f), offColour);
+		c->repaint();
+	}
+}
+
+void DspNetworkListeners::MacroParameterDragListener::mouseDown(const MouseEvent& event)
+{
+	initialise();
+
+	if(auto hb = dynamic_cast<HiseShapeButton*>(this->c.getComponent()))
+	{
+		Colour onColour(SIGNAL_COLOUR);
+		hb->setColours(onColour.withAlpha(0.8f), onColour, onColour);
+		c->repaint();
+	}
+}
+
+Component* DspNetworkListeners::MacroParameterDragListener::findModulationDragComponent(DspNetworkGraph* g,
+	const ValueTree& nodeTree)
+{
+	auto copy = nodeTree;
+
+	bool wantsRebuild = false;
+
+	valuetree::Helpers::forEachParent(copy, [&](ValueTree& v)
+	{
+		if(v.getType() == PropertyIds::Node)
+		{
+			wantsRebuild |= (bool)v[PropertyIds::Folded];
+			v.setProperty(PropertyIds::Folded, false, g->network->getUndoManager());
+		}
+
+		return false;
+	});
+
+	if(wantsRebuild)
+	{
+		g->rebuildNodes();
+	}
+
+	ModulationSourceBaseComponent* c = nullptr;
+
+	Component::callRecursive<ModulationSourceBaseComponent>(g, [&](ModulationSourceBaseComponent* p)
+	{
+		if(p->findParentComponentOfClass<NodeComponent>()->node->getValueTree() == nodeTree)
+		{
+			c = p;
+			return true;
+		}
+			
+		return false;
+	});
+
+	return c;
+}
+
+Component* DspNetworkListeners::MacroParameterDragListener::findSliderComponent(DspNetworkGraph* g, int parameterIndex)
+{
+	if(g->isShowingRootNode())
+	{
+		g->root->node->getValueTree().setProperty(PropertyIds::ShowParameters, true, g->network->getUndoManager());
+
+		Array<MacroParameterSlider*> sliders;
+
+		Component::callRecursive<MacroParameterSlider>(g, [&](MacroParameterSlider* s)
+		{
+			sliders.addIfNotAlreadyThere(s);
+			return false;
+		});
+
+		return sliders[parameterIndex]->getDragComponent();
+	}
+	else
+	{
+		auto bc = g->breadcrumbs.getLast();
+
+		bc->setIsDraggingParameter(parameterIndex);
+		return bc;
+	}
+
+	
+}
+
+
 void DspNetworkListeners::PatchAutosaver::removeDanglingConnections(ValueTree& v)
 {
 	valuetree::Helpers::forEach(v, [v](ValueTree& c)
@@ -2618,6 +2889,9 @@ bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 		removeIfDefault(v, id, PropertyIds::Helpers::getDefaultValue(id));
 
 	removeIfDefined(v, PropertyIds::Value, PropertyIds::Automated);
+
+	if(v.hasProperty(PropertyIds::DefaultValue) && v[PropertyIds::DefaultValue] == v[PropertyIds::Value])
+		v.removeProperty(PropertyIds::DefaultValue, nullptr);
 
 	removeIfNoChildren(v.getChildWithName(PropertyIds::Bookmarks));
 	removeIfNoChildren(v.getChildWithName(PropertyIds::ModulationTargets));

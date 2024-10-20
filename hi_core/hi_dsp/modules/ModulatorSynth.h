@@ -274,6 +274,24 @@ public:
 	void disableChain(InternalChains chainToDisable, bool shouldBeDisabled);
 	bool isChainDisabled(InternalChains chain) const;;
 
+	void syncAfterDelayStart(bool waitForDelay, int voiceIndex) override
+	{
+		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock, isOnAir());
+
+		for(auto& mb: modChains)
+		{
+			if(!waitForDelay)
+			{
+				mb.resetVoice(voiceIndex);
+				mb.getChain()->syncAfterDelayStart(waitForDelay, voiceIndex);
+			}
+		}
+
+		effectChain->syncAfterDelayStart(waitForDelay, voiceIndex);
+
+		
+	}
+
 	// ===================================================================================================================
 
 	

@@ -3035,6 +3035,29 @@ String ScriptUnlocker::readReplyFromWebserver(const String& email, const String&
 	return {};
 }
 
+void ScriptUnlocker::checkMuseHub()
+{
+#if USE_BACKEND
+	WeakReference<ScriptUnlocker> safeRef(this);
+
+	Timer::callAfterDelay(2000, [safeRef]()
+	{
+		auto ok = var(Random::getSystemRandom().nextFloat() > 0.5f);
+
+#if JUCE_ALLOW_EXTERNAL_UNLOCK
+		if(ok)
+			safeRef->unlockExternal();
+#endif
+
+		if(safeRef != nullptr && safeRef->currentObject != nullptr)
+			safeRef->currentObject->mcheck.call1(ok);
+	});
+
+#elif HISE_INCLUDE_MUSEHUB
+	m = checkMuseHubInternal();
+#endif
+}
+
 juce::var ScriptUnlocker::loadKeyFile()
 {
 	if (isUnlocked())
@@ -3184,6 +3207,8 @@ struct ScriptUnlocker::RefObject::Wrapper
 	API_METHOD_WRAPPER_1(RefObject, isValidKeyFile);
     API_METHOD_WRAPPER_0(RefObject, keyFileExists);
 	API_METHOD_WRAPPER_0(RefObject, getLicenseKeyFile);
+	API_METHOD_WRAPPER_1(RefObject, contains);
+	API_VOID_METHOD_WRAPPER_1(RefObject, checkMuseHub);
 };
 
 ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
@@ -3191,7 +3216,8 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 #if USE_BACKEND || USE_COPY_PROTECTION
 	unlocker(dynamic_cast<ScriptUnlocker*>(p->getMainController_()->getLicenseUnlocker())),
 #endif
-	pcheck(p, nullptr, var(), 1)
+	pcheck(p, nullptr, var(), 1),
+	mcheck(p, nullptr, var(), 1)
 {
 	if (unlocker->getLicenseKeyFile().existsAsFile())
 	{
@@ -3211,6 +3237,8 @@ ScriptUnlocker::RefObject::RefObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(checkExpirationData);
     ADD_API_METHOD_0(keyFileExists);
 	ADD_API_METHOD_0(getLicenseKeyFile);
+	ADD_API_METHOD_1(contains);
+	ADD_API_METHOD_1(checkMuseHub);
 }
 
 ScriptUnlocker::RefObject::~RefObject()
@@ -3270,6 +3298,15 @@ juce::var ScriptUnlocker::RefObject::checkExpirationData(const String& encodedTi
 	}
 }
 
+void ScriptUnlocker::RefObject::checkMuseHub(var resultCallback)
+{
+	if(unlocker.get() != nullptr)
+	{
+		mcheck = WeakCallbackHolder(getScriptProcessor(), this, resultCallback, 1);
+		unlocker->checkMuseHub();
+	}
+}
+
 void ScriptUnlocker::RefObject::setProductCheckFunction(var f)
 {
 	pcheck = WeakCallbackHolder(getScriptProcessor(), this, f, 1);
@@ -3326,6 +3363,11 @@ String ScriptUnlocker::RefObject::getRegisteredMachineId()
 	return unlocker->registeredMachineId;
 }
 
+bool ScriptUnlocker::RefObject::contains(String otherString)
+{
+	if(unlocker.get() != nullptr)
+		return unlocker->contains(otherString);
 
-
+	return true;
+}
 } // namespace hise

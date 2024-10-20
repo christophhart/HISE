@@ -990,6 +990,12 @@ public:
 		/** Sets the timestretching options from a JSON object. */
 		void setTimestretchOptions(var newOptions);
 
+		/** Returns the current release start options as JSON object. */
+		var getReleaseStartOptions();
+
+		/** Sets the options for the release start behaviour. */
+		void setReleaseStartOptions(var newOptions);
+
 		/** Converts the user preset data of a audio waveform to a base 64 samplemap. */
 		String getAudioWaveformContentAsBase64(var presetObj);
 

@@ -311,11 +311,11 @@ bool TokenCollection::Token::operator==(const Token& other) const
 	return equals(&other) && other.equals(this);
 }
 
-Array<Range<int>> TokenCollection::Token::getSelectionRangeAfterInsert(const String& input) const
+Array<Range<int>> TokenCollection::getSelectionFromFunctionArgs(const String& input)
 {
 	Array<Range<int>> parameterRanges;
 
-	auto code = getCodeToInsert(input);
+	auto code = input;
 
 	auto ptr = code.getCharPointer();
 	auto start = ptr;
@@ -702,6 +702,102 @@ void SimpleDocumentTokenProvider::addTokensStatic(TokenCollection::List& tokens,
 
 			numChars = 0;
 			currentString = {};
+		}
+	}
+}
+
+struct CodeSnippetProvider::CodeSnippetToken: public mcl::TokenCollection::Token
+{
+	CodeSnippetToken(const var& jsonData):
+	  Token(jsonData["name"])
+	{
+		priority = jsonData["priority"];
+		markdownDescription = jsonData["description"];
+		c = Colours::yellow;
+		snippetCode = jsonData["code"];
+
+		
+
+		auto start = snippetCode.begin();
+		auto end = snippetCode.end();
+		auto ptr = start;
+
+		Array<int> indexes;
+		codeToInsert.preallocateBytes(snippetCode.length());
+
+		while(ptr != end)
+		{
+			if(*ptr == '$')
+			{
+				indexes.add(static_cast<int>((ptr - start)) - indexes.size());
+			}
+			else
+			{
+				codeToInsert << *ptr;
+			}
+
+			ptr++;
+		}
+
+		if(!indexes.isEmpty())
+		{
+			for(int i = 0; i < indexes.size(); i += 2)
+			{
+				selectionRange.add(Range<int>(indexes[i] , indexes[i+1]));
+			}
+		}
+	}
+
+	Array<Range<int>> getSelectionRangeAfterInsert(const String& input) const override
+	{
+		return selectionRange;
+	}
+
+	/** Override this method if you want to customize the code that is about to be inserted. */
+	String getCodeToInsert(const String& input) const override
+	{
+		return codeToInsert;
+	}
+
+	Array<Range<int>> selectionRange;
+	String snippetCode;
+	String codeToInsert;
+};
+
+void CodeSnippetProvider::addTokens(mcl::TokenCollection::List& tokens)
+{
+	for(auto f: getSnippetFiles())
+	{
+		var list;
+		auto ok = JSON::parse(f.loadFileAsString(), list);
+
+		if(ok.failed())
+		{
+			String em;
+			em << "Error parsing JSON file " << f.getFileName() << ": " << ok.getErrorMessage();
+			reportParsingError(em);
+			break;
+		}
+
+		if(list.isArray())
+		{
+			for(const auto& v: *list.getArray())
+			{
+				auto lid = v["language"].toString();
+
+				if(lid.isNotEmpty() && Identifier(lid) != getLanguageId())
+					continue;
+
+				auto ct = new CodeSnippetToken(v);
+
+				if(ct->tokenContent.isEmpty())
+					reportParsingError("Missing name for token " + JSON::toString(v));
+
+				if(ct->codeToInsert.isEmpty())
+					reportParsingError("Empty content for token " + JSON::toString(v));
+
+				tokens.add(ct);
+			}
 		}
 	}
 }

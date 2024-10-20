@@ -722,6 +722,18 @@ LockfreeAsyncUpdater::LockfreeAsyncUpdater() :
 int LockfreeAsyncUpdater::instanceCount = 0;
 
 
+bool FloatSanitizers::isSilence(const float value)
+{
+	static const float Silence = std::pow(10.0f, (float)HISE_SILENCE_THRESHOLD_DB * -0.05f);
+	static const float MinusSilence = -1.0f * Silence;
+	return value < Silence && value > MinusSilence;
+}
+
+bool FloatSanitizers::isNotSilence(const float value)
+{
+	return !isSilence(value);
+}
+
 void FloatSanitizers::sanitizeArray(float* data, int size)
 {
 	uint32* dataAsInt = reinterpret_cast<uint32*>(data);
@@ -753,7 +765,35 @@ float FloatSanitizers::sanitizeFloatNumber(float& input)
 	return input;
 }
 
+double FloatSanitizers::sanitizeDoubleNumber(double& input)
+{
+	uint64_t* valueAsInt = reinterpret_cast<uint64_t*>(&input);
+	const uint64_t exponent = *valueAsInt & 0x7FF0000000000000;
+
+	const int aNaN = exponent < 0x7FF0000000000000;
+	const int aDen = exponent > 0;
+
+	const uint64_t sanitized = *valueAsInt * (aNaN & aDen);
+
+	input = *reinterpret_cast<const double*>(&sanitized);
+
+	return input;
+}
+
+FloatSanitizers::Test::Test():
+	UnitTest("Testing float sanitizer")
+{
+
+}
+
 void FloatSanitizers::Test::runTest()
+{
+	testSingleSanitizer<float>();
+	testSingleSanitizer<double>();
+	testArray();
+}
+
+void FloatSanitizers::Test::testArray()
 {
 	beginTest("Testing array method");
 
@@ -775,28 +815,7 @@ void FloatSanitizers::Test::runTest()
 	expectEquals<float>(d[4], 24.0f, "Normal Number");
 	expectEquals<float>(d[5], 0.0052f, "Small Number");
 
-	beginTest("Testing single method");
-
-	float d0 = INFINITY;
-	float d1 = FLT_MIN / 20.0f;
-	float d2 = FLT_MIN / -14.0f;
-	float d3 = NAN;
-	float d4 = 24.0f;
-	float d5 = 0.0052f;
-
-	sanitizeFloatNumber(d0);
-	sanitizeFloatNumber(d1);
-	sanitizeFloatNumber(d2);
-	sanitizeFloatNumber(d3);
-	sanitizeFloatNumber(d4);
-	sanitizeFloatNumber(d5);
-
-	expectEquals<float>(d0, 0.0f, "Single Infinity");
-	expectEquals<float>(d1, 0.0f, "Single Denormal");
-	expectEquals<float>(d2, 0.0f, "Single Negative Denormal");
-	expectEquals<float>(d3, 0.0f, "Single NaN");
-	expectEquals<float>(d4, 24.0f, "Single Normal Number");
-	expectEquals<float>(d5, 0.0052f, "Single Small Number");
+			
 }
 
 
@@ -897,8 +916,11 @@ void ScrollbarFader::Laf::drawStretchableLayoutResizerBar(Graphics& g, int w, in
 
 void ScrollbarFader::scrollBarMoved(ScrollBar* sb, double)
 {
-	sb->setAlpha(1.0f);
-	startFadeOut();
+	if(sb->getRangeLimit() != sb->getCurrentRange())
+	{
+		sb->setAlpha(1.0f);
+		startFadeOut();
+	}
 }
 
 void ScrollbarFader::addScrollBarToAnimate(ScrollBar& b)
@@ -1692,7 +1714,7 @@ hise::TempoSyncer::Tempo TempoSyncer::getTempoIndex(const String &t)
 {
 	for (int i = 0; i < numTempos; i++)
 	{
-		if(strcmp(t.getCharPointer().getAddress(), tempoNames[i]))
+		if(strcmp(t.getCharPointer().getAddress(), tempoNames[i]) == 0)
 			return (Tempo)i;
 	}
 	
@@ -2942,6 +2964,19 @@ void Spectrum2D::Parameters::Editor::resized()
 		labels[i]->setBounds(r.removeFromLeft(128));
 		editors[i]->setBounds(r);
 	}	
+}
+
+SemanticVersionChecker::SemanticVersionChecker(const std::array<int, 3>& oldVersion_, const std::array<int, 3>& newVersion_)
+{
+    newVersion.majorVersion = newVersion_[0];
+	newVersion.minorVersion = newVersion_[1];
+	newVersion.patchVersion = newVersion_[2];
+	newVersion.validVersion = true;
+
+	oldVersion.majorVersion = oldVersion_[0];
+	oldVersion.minorVersion = oldVersion_[1];
+	oldVersion.patchVersion = oldVersion_[2];
+	oldVersion.validVersion = true;
 }
 
 SemanticVersionChecker::SemanticVersionChecker(const String& oldVersion_, const String& newVersion_)

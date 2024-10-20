@@ -36,6 +36,7 @@
 namespace hise { using namespace juce;
 
 class BackendProcessorEditor;
+class BackendRootWindow;
 class ScriptContentContainer;
 
 
@@ -662,7 +663,218 @@ public:
 
 };
 
+namespace multipage
+{
 
+#define MULTIPAGE_BIND_CPP(className, methodName) state->bindCallback(#methodName, BIND_MEMBER_FUNCTION_1(className::methodName));
+
+struct EncodedDialogBase: public Component,
+						  public QuasiModalComponent,
+						  public multipage::HardcodedDialogWithStateBase,
+					      public ControlledObject
+{
+	EncodedDialogBase(BackendRootWindow* bpe_, bool addBorder=true);
+
+	struct Factory: public PathFactory
+	{
+		Path createPath(const String& url) const override
+		{
+			Path p;
+			LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+			return p;
+		}
+	} factory;
+
+	void writeState(const Identifier& id, const var& value)
+	{
+		state->globalState.getDynamicObject()->setProperty(id, value);
+	}
+
+	var readState(const Identifier& id) const
+	{
+		return state->globalState[id];
+	}
+
+	virtual void bindCallbacks() = 0;
+
+	void loadFrom(const String& d)
+	{
+		MemoryBlock mb;
+		mb.fromBase64Encoding(d);
+		MemoryInputStream mis(mb, false);
+		MonolithData md(&mis);
+
+		state = new State(var());
+        
+        try
+        {
+            addAndMakeVisible(dialog = md.create(*state, true));
+        }
+        catch(String& e)
+        {
+            PresetHandler::showMessageWindow ("Error loading dialog", e, PresetHandler::IconType::Error);
+            
+            
+        }
+
+		
+
+        if(dialog != nullptr)
+        {
+            dialog->setFinishCallback([this]()
+            {
+                findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+            });
+
+            bindCallbacks();
+
+            setSize(dialog->getWidth()+2*(int)addBorder, dialog->getHeight()+2*(int)addBorder);
+
+            dialog->showFirstPage();
+
+			Component::callRecursive<simple_css::FlexboxComponent>(this, [this](simple_css::FlexboxComponent* c)
+			{
+				auto id = simple_css::FlexboxComponent::Helpers::getIdSelectorFromComponentClass(c).name;
+
+				if(id == "header" && c->isVisible())
+				{
+					c->setInterceptsMouseClicks(true, true);
+					this->dragger = new WindowDragger(rootWindow, this, c);
+					return true;
+				}
+
+				return false;
+			});
+        }
+	}
+
+	void closeAndPerform(const std::function<void()>& f)
+	{
+		dialog->setFinishCallback(f);
+
+		MessageManager::callAsync([this]()
+		{
+			dialog->navigate(true);
+		});
+	}
+
+	void setElementProperty(const String& listId, const Identifier& id, const var& newValue)
+	{
+		if(auto pb = dialog->findPageBaseForID(listId))
+		{
+			pb->getInfoObject().getDynamicObject()->setProperty(id, newValue);
+			pb->updateInfoProperty(id);
+		}
+	}
+
+	void paint(Graphics& g) override
+	{
+		
+
+		g.fillAll(Colour(0xFF333333));
+
+		if(addBorder)
+		{
+			g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xFF474747)));
+			g.drawRect(getLocalBounds(), 1);
+		}
+		
+	}
+
+	const bool addBorder = true;
+
+	void resized() override
+	{
+		auto b = getLocalBounds().reduced((int)addBorder);
+
+        if(dialog != nullptr)
+            dialog->setBounds(b);
+
+		closeButton.setBounds(b.removeFromRight(34).removeFromTop(34).reduced(8));
+		closeButton.toFront(false);
+	}
+
+	void navigate(int pageIndex, bool shouldSubmit)
+	{
+		SafeAsyncCall::call<EncodedDialogBase>(*this, [pageIndex, shouldSubmit](EncodedDialogBase& db)
+		{
+			if(shouldSubmit)
+			{
+				db.state->currentPageIndex = pageIndex-1;
+				db.dialog->navigate(true);
+			}
+			else
+			{
+				db.state->currentPageIndex = pageIndex;
+				db.dialog->refreshCurrentPage();
+			}
+		});
+	}
+	
+protected:
+
+	ScopedPointer<State> state;
+	ScopedPointer<Dialog> dialog;
+
+	HiseShapeButton closeButton;
+
+private:
+
+	
+
+	struct WindowDragger: public MouseListener,
+					      public ComponentBoundsConstrainer
+	{
+		WindowDragger(Component* rw, Component* dialog_, Component* draggedComponent_):
+		  rootWindow(rw),
+		  dialog(dialog_),
+		  draggedComponent(draggedComponent_)
+		{
+			draggedComponent->addMouseListener(this, true);
+		};
+
+		~WindowDragger()
+		{
+			if(draggedComponent.getComponent() != nullptr)
+				draggedComponent->removeMouseListener(this);
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			dragger.startDraggingComponent(dialog, e);
+		}
+
+		void mouseDrag(const MouseEvent& e) override
+		{
+			dragger.dragComponent(dialog, e, this);
+		}
+
+		void checkBounds (Rectangle<int>& bounds,
+                              const Rectangle<int>& previousBounds,
+                              const Rectangle<int>& limits,
+                              bool isStretchingTop,
+                              bool isStretchingLeft,
+                              bool isStretchingBottom,
+                              bool isStretchingRight) override
+		{
+			bounds = bounds.constrainedWithin(rootWindow->getLocalBounds());
+		}
+
+		Component::SafePointer<Component> draggedComponent;
+		Component::SafePointer<Component> dialog;
+		Component::SafePointer<Component> rootWindow;
+		
+		ComponentDragger dragger;
+	};
+
+	ScopedPointer<WindowDragger> dragger;
+
+	Component* rootWindow;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(EncodedDialogBase);
+};
+
+} // namespace multipage
 } // namespace hise
 
 #endif  // BACKENDCOMPONENTS_H_INCLUDED

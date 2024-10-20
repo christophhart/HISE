@@ -107,6 +107,11 @@ public:
 			TooltipWindow(nullptr, 900)
 		{};
 
+		float getDesktopScaleFactor() const override
+		{
+			return Component::getDesktopScaleFactor();
+		}
+
 		String getTipFor(Component&component) override;
 	};
 
@@ -313,6 +318,7 @@ private:
 	bool projectIsBeingExtracted = false;
 
 	friend class ProjectImporter;
+	friend class multipage::library::NewProjectCreator;
 
 	FloatingTabComponent* getCodeTabs();
 

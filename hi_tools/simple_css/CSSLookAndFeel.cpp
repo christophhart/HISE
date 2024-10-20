@@ -44,21 +44,20 @@ void StyleSheetLookAndFeel::drawButtonBackground(Graphics& g, Button& tb, const 
 {
 	if(auto ed = tb.findParentComponentOfClass<CSSRootComponent>())
 	{
-		Renderer r(&tb, root.stateWatcher);
-		
 		if(auto ss = root.css.getForComponent(&tb))
 		{
+			Renderer r(&tb, root.stateWatcher);
 			ss->setDefaultColour("background-color", tb.findColour(TextButton::buttonColourId));
 
 			auto currentState = Renderer::getPseudoClassFromComponent(&tb);
 			ed->stateWatcher.checkChanges(&tb, ss, currentState);
 			r.drawBackground(g, tb.getLocalBounds().toFloat(), ss);
-		}
-		else
-		{
-			GlobalHiseLookAndFeel::drawButtonBackground(g, tb, colour, cond, cond1);
+
+			return;
 		}
 	}
+
+	GlobalHiseLookAndFeel::drawButtonBackground(g, tb, colour, cond, cond1);
 }
 
 bool StyleSheetLookAndFeel::drawButtonText(Graphics& g, Button* b)
@@ -73,6 +72,22 @@ bool StyleSheetLookAndFeel::drawButtonText(Graphics& g, Button* b)
 			return true;
 		}
 		
+	}
+
+	return false;
+}
+
+bool StyleSheetLookAndFeel::drawImageOnComponent(Graphics& g, Component* c, const Image& img)
+{
+	if(auto ss = root.css.getWithAllStates(c, Selector(ElementType::Image)))
+	{
+		Renderer r(c, root.stateWatcher);
+
+		auto state = r.getPseudoClassFromComponent(c);
+		root.stateWatcher.checkChanges(c, ss, state);
+			
+		r.drawImage(g, img, c->getLocalBounds().toFloat(), ss, true);
+		return true;
 	}
 
 	return false;
@@ -129,16 +144,31 @@ void StyleSheetLookAndFeel::drawLinearSlider(Graphics& g, int x, int y, int widt
 {
 	if(auto ss = root.css.getForComponent(&slider))
 	{
-		auto normPos = NormalisableRange<double>(slider.getRange()).convertTo0to1(slider.getValue());
+		auto nr = NormalisableRange<double>(slider.getRange());
+		nr.skew = slider.getSkewFactor();
+
+		auto normPos = nr.convertTo0to1(slider.getValue());
 			
 		ss->setPropertyVariable("value", String(normPos, 4));
-
+		
+		auto text = slider.getTextFromValue(slider.getValue());
+		
 		Renderer r(&slider, root.stateWatcher);
 
-		auto currentState = Renderer::getPseudoClassFromComponent(&slider);
+		int currentState = 0;
+
+		if(auto sp = slider.findParentComponentOfClass<SliderPack>())
+		{
+			currentState = sp->getHoverStateForSlider(&slider);
+			r.setPseudoClassState(currentState, true);
+		}
+		else
+			currentState = Renderer::getPseudoClassFromComponent(&slider);
+
 		root.stateWatcher.checkChanges(&slider, ss, currentState);
 
 		r.drawBackground(g, slider.getLocalBounds().toFloat(), ss);
+		r.renderText(g, slider.getLocalBounds().toFloat(), text, ss, PseudoElementType::None, Justification(0), false);
 	}
 	else
 	{
@@ -171,6 +201,70 @@ void StyleSheetLookAndFeel::drawRotarySlider(Graphics& graphics, int x, int y, i
 	                                        rotaryEndAngle, slider);
 	}
 	
+}
+
+void StyleSheetLookAndFeel::drawGenericComponentText(Graphics& g, const String& text, Component* c, Selector s)
+{
+	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
+	{
+		Renderer r(c, root.stateWatcher);
+		r.renderText(g, c->getLocalBounds().toFloat(), text, ss);
+	}
+}
+
+bool StyleSheetLookAndFeel::drawComponentBackground(Graphics& g, Component* c, Selector s)
+{
+	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
+	{
+		Renderer r(c, root.stateWatcher);
+
+		auto state = r.getPseudoClassFromComponent(c);
+		root.stateWatcher.checkChanges(c, ss, state);
+		r.drawBackground(g, c->getLocalBounds().toFloat(), ss);
+		return true;
+	}
+
+	return false;
+}
+
+bool StyleSheetLookAndFeel::drawListBoxRow(int rowNumber, Graphics& g, const String& text, Component* lb, int width,
+	int height, bool rowIsSelected, bool rowIsHovered)
+{
+	if(lb == nullptr)
+		return false;
+
+	if(auto ss = root.css.getWithAllStates(lb, Selector(ElementType::TableRow)))
+	{
+
+		Renderer r(lb, root.stateWatcher);
+
+		int state = 0;
+
+		if(rowIsSelected)
+			state |= (int)PseudoClassType::Checked;
+
+		if(rowIsHovered)
+			state |= (int)PseudoClassType::Hover;
+
+		if(auto lbParent = lb->findParentComponentOfClass<ListBox>())
+		{
+			if(rowIsHovered && lbParent->isMouseButtonDown(true))
+				state |= (int)PseudoClassType::Active;
+		}
+				
+		r.setPseudoClassState(state, true);
+			
+		root.stateWatcher.checkChanges(lb, ss, state);
+
+		Rectangle<float> bounds(0.0f, 0.0f, (float)width, (float)height);
+
+		r.drawBackground(g, bounds, ss);
+		r.renderText(g, bounds, text, ss);
+
+		return true;
+	}
+
+	return false;
 }
 
 Font StyleSheetLookAndFeel::getPopupMenuFont()
@@ -265,8 +359,49 @@ void StyleSheetLookAndFeel::drawPopupMenuItemWithOptions(Graphics& g, const Rect
 	}
 }
 
+void StyleSheetLookAndFeel::drawScrollbar(Graphics& g, ScrollBar& scrollbar, int x, int y, int width, int height,
+	bool isScrollbarVertical, int thumbStartPosition, int thumbSize, bool isMouseOver, bool isMouseDown)
+{
+	if(auto ss = root.css.getWithAllStates(&scrollbar, Selector(ElementType::Scrollbar)))
+	{
+		Renderer r(&scrollbar, root.stateWatcher);
+
+		int state = 0;
+
+		if(isMouseOver || isMouseDown)
+			state |= (int)PseudoClassType::Hover;
+
+		if(isMouseDown)
+			state |= (int)PseudoClassType::Active;
+			
+		r.setPseudoClassState(state, true);
+
+		root.stateWatcher.checkChanges(&scrollbar, ss, state);
+
+		Rectangle<float> b;
+
+		if(isScrollbarVertical)
+			b = { (float)x, (float)(y + thumbStartPosition), (float)width, (float)thumbSize };
+		else
+			b = { (float)(x + thumbStartPosition), (float)y, (float)thumbSize, (float)height };
+
+		r.drawBackground(g, b, ss);
+		return;
+	}
+
+	fallback.drawScrollbar(g, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
+}
+
+void StyleSheetLookAndFeel::initComponent(Component* c, Selector s)
+{
+	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
+	{
+		ss->setupComponent(&root, c, 0);
+	}
+}
+
 void StyleSheetLookAndFeel::drawProgressBar(Graphics& g, ProgressBar& progressBar, int width, int height,
-	double progress, const String& textToShow)
+                                            double progress, const String& textToShow)
 {
 	if(auto ss = root.css.getForComponent(&progressBar))
 	{

@@ -255,6 +255,8 @@ struct CompressionHelpers
 		/** Adds the values from src to dst. */
 		static void add(int16* dst, const int16* src, int numSamples);
 
+		static void addWithGain(int16* dst, const int16* src, int numSamples, float gainFactor);
+		
 		static void mul(int16*dst, const int16 value, int numSamples);
 
 		static void div(int16* dst, const int16 value, int numSamples);
@@ -429,6 +431,15 @@ struct HlacArchiver
 	/** Extracts the compressed data from the given file. */
 	bool extractSampleData(const DecompressData& data);
 
+    static Array<File> getSourceFiles(const File& firstSourceFile)
+    {
+        Array<File> parts;
+
+        firstSourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, firstSourceFile.getFileNameWithoutExtension() + ".*");
+
+        return parts;
+    }
+    
 	/** Compressed the given data using the supplied Thread. */
 	void compressSampleData(const CompressData& data);
 

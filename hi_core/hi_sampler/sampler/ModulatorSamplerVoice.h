@@ -63,6 +63,11 @@ public:
 	void calculateBlock(int startSample, int numSamples) override;
 	void resetVoice() override;
 
+	virtual void jumpToRelease()
+	{
+		wrappedVoice.jumpToRelease();
+	}
+
 	virtual void setNonRealtime(bool isNonRealtime)
 	{
 		nonRealtime = isNonRealtime;
@@ -114,7 +119,7 @@ public:
 	virtual void setTimestretchOptions(const ModulatorSampler::TimestretchOptions& options)
 	{
 		wrappedVoice.setEnableTimestretch((bool)options, options.engineId);
-		wrappedVoice.setSkipLatency(options.skipStart);
+		wrappedVoice.setSkipLatency(options.synchronousSkip ? sendNotificationSync : sendNotificationAsync);
 		wrappedVoice.setTimestretchTonality(options.tonality);
 	}
 
@@ -157,6 +162,8 @@ protected:
 	std::atomic<bool> waitForPlayFromPurge = { false };
 
 private:
+
+	friend class ModulatorSampler;
 
 	bool nonRealtime = false;
 	
@@ -207,6 +214,12 @@ public:
 			v->loader.setIsNonRealtime(isNonRealtime);
 	}
 
+	void jumpToRelease() override
+	{
+		for(auto v: wrappedVoices)
+			v->jumpToRelease();
+	}
+
 	// ================================================================================================================
 
 	void startVoiceInternal(int midiNoteNumber, float velocity) override;
@@ -216,7 +229,7 @@ public:
 		for (auto v : wrappedVoices)
 		{
 			v->setEnableTimestretch(options);
-			v->setSkipLatency(options.skipStart);
+			v->setSkipLatency(options.synchronousSkip ? sendNotificationSync : sendNotificationAsync);
 			v->setTimestretchTonality(options.tonality);
 		}
 	}

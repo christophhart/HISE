@@ -73,20 +73,7 @@ public:
 	static constexpr int AsyncMagicNumber = 912;
 	static constexpr int AsyncHiPriorityMagicNumber = 913;
 
-	static var getDispatchTypeMagicNumber(dispatch::DispatchType n)
-	{
-		using Type = dispatch::DispatchType;
-
-		switch(n)
-		{
-		case dispatch::dontSendNotification: return var(false);
-		case dispatch::sendNotification: return var(true);
-		case dispatch::sendNotificationSync: return var(SyncMagicNumber);
-		case dispatch::sendNotificationAsync: return var(AsyncMagicNumber);;
-		case dispatch::sendNotificationAsyncHiPriority: return var(AsyncHiPriorityMagicNumber);
-		default: return var(false);
-		}
-	}
+	static var getDispatchTypeMagicNumber(dispatch::DispatchType n);
 
 	static dispatch::DispatchType getDispatchType(const var& syncValue, bool getDontForFalse);
 
@@ -115,8 +102,10 @@ public:
 	static Colour getColourFromVar(const var& value);
 
 	static var convertStyleSheetProperty(const var& value, const String& type);
-	
-	
+
+	static StringArray getMouseCursorNames();
+
+	static MouseCursor::StandardCursorType getMouseCursorFromString(const String& name, Result* r = nullptr);
 
 	static Array<Identifier> getGlobalApiClasses();
 
@@ -1811,6 +1800,12 @@ namespace ScriptingObjects
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
 		void setAttribute(int index, float value);
 
+		/** Sets the modulator to a bipolar range (if applicable). */
+		void setIsBipolar(bool shouldBeBipolar);
+
+		/** Returns true if the modulator works in bipolar mode. */
+		bool isBipolar() const;
+
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
         
@@ -2526,6 +2521,9 @@ namespace ScriptingObjects
 		/** Register a scripting callback to be executed when a OSC message that matches the subAddress is received. */
 		void addOSCCallback(String oscSubAddress, var callback);
 
+		/** Removes a OSC callback for the given address. */
+		bool removeOSCCallback(String oscSubAddress);
+
 		/** Send an OSC message to the output port. */
 		bool sendOSCMessage(String oscSubAddress, var data);
 
@@ -2607,6 +2605,9 @@ namespace ScriptingObjects
 		/** Registers a function that will be executed whenever a value is sent through the cable. */
 		void registerCallback(var callbackFunction, var synchronous);
 
+		/** Deregisteres a callback from the cable. */
+		bool deregisterCallback(var callbackFunction);
+		
 		/** Connects the cable to a macro control. */
 		void connectToMacroControl(int macroIndex, bool macroIsTarget, bool filterRepetitions);
 

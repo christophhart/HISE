@@ -48,7 +48,12 @@ public:
 	void threadFinished() override;
 
 	void run() override;
-	
+
+	void resized() override
+	{
+		lookAndFeelChanged();
+	}
+
 private:
 	
 	ScopedPointer<FileNameImporterDialog> fid;

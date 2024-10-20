@@ -114,8 +114,24 @@ ContainerComponent::ContainerComponent(NodeContainer* b) :
 	NodeComponent(b->asNode()),
     SimpleTimer(b->asNode()->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
 	updater(*this),
+	gotoButton("workspace", nullptr, nf),
 	parameters(new ParameterComponent(*this))
 {
+	addAndMakeVisible(gotoButton);
+
+	gotoButton.setTooltip("Show this container as root");
+
+	gotoButton.onClick = [this]()
+	{
+		auto ng = findParentComponentOfClass<DspNetworkGraph>();
+		auto n = node.get();
+
+		MessageManager::callAsync([ng, n]()
+		{
+			ng->setCurrentRootNode(n);
+		});
+	};
+
 	if (auto sn = dynamic_cast<SerialNode*>(b))
 	{
 		verticalValue.referTo(sn->getNodePropertyAsValue(PropertyIds::IsVertical));
@@ -213,6 +229,21 @@ void ContainerComponent::mouseUp(const MouseEvent& e)
 	}
 }
 
+bool ContainerComponent::keyPressed(const KeyPress& k)
+{
+	if(NodeComponent::keyPressed(k))
+		return true;
+
+	if(k == KeyPress::F3Key)
+	{
+		gotoButton.triggerClick(sendNotificationAsync);
+		
+		return true;
+	}
+
+	return false;
+}
+
 void ContainerComponent::removeDraggedNode(NodeComponent* draggedNode)
 {
 	int removeIndex = childNodeComponents.indexOf(draggedNode);
@@ -250,13 +281,15 @@ void ContainerComponent::insertDraggedNode(NodeComponent* newNode, bool copyNode
 	{
 		auto newTree = newNode->node->getValueTree();
 		auto container = dynamic_cast<NodeContainer*>(node.get());
-
-        
         
 		if (copyNode)
 		{
             Array<DspNetwork::IdChange> changes;
 			auto copy = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree, changes, true);
+
+
+			BACKEND_ONLY(DuplicateHelpers::removeOutsideConnections({ copy }, changes));
+			
 			node->getRootNetwork()->createFromValueTree(container->isPolyphonic(), copy, true);
 			container->getNodeTree().addChild(copy, insertPosition, node->getUndoManager());
 		}
@@ -324,6 +357,34 @@ void ContainerComponent::valueChanged(Value& v)
 	}
 }
 
+void ContainerComponent::resized()
+{
+	NodeComponent::resized();
+		
+	Component* topComponent = parameters != nullptr ? parameters.get() : extraComponent.get();
+
+	jassert(topComponent != nullptr);
+
+	topComponent->setVisible(dataReference[PropertyIds::ShowParameters]);
+
+	auto b = getLocalBounds();
+	b.expand(-UIValues::NodeMargin, 0);
+	b.removeFromTop(UIValues::HeaderHeight);
+	topComponent->setSize(b.getWidth(), topComponent->getHeight());
+	topComponent->setTopLeftPosition(b.getTopLeft());
+
+	gotoButton.setSize(16,16);
+
+	if(auto ng = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		gotoButton.setVisible(ng->root != this);
+	}
+
+	auto pos = topComponent->isVisible() ? topComponent->getBounds().getBottomLeft() : topComponent->getPosition();
+
+	gotoButton.setTopLeftPosition(pos.translated(0, UIValues::NodeMargin));
+}
+
 void ContainerComponent::findLassoItemsInArea(Array<NodeBase::Ptr>& itemsFound, const Rectangle<int>& area)
 {
 	Array<NodeComponent*> nodeComponents;
@@ -369,7 +430,7 @@ juce::Point<int> ContainerComponent::getStartPosition() const
 	y += UIValues::PinHeight;
 
 	if (dataReference[PropertyIds::ShowParameters])
-		y += UIValues::ParameterHeight;
+		y += UIValues::ParameterHeight + UIValues::MacroDragHeight;
 
 	return { UIValues::NodeMargin, y};
 }
@@ -515,32 +576,36 @@ void ContainerComponent::rebuildNodes()
 	duplicateDisplay = nullptr;
 	childNodeComponents.clear();
 
-	if (auto container = dynamic_cast<NodeContainer*>(node.get()))
+	if(!node->getValueTree()[PropertyIds::Folded])
 	{
-		int index = 0;
-		int numHidden = 0;
-
-		for (auto n : container->nodes)
+		if (auto container = dynamic_cast<NodeContainer*>(node.get()))
 		{
-			if (auto cn = dynamic_cast<CloneNode*>(container))
+			int index = 0;
+			int numHidden = 0;
+
+			for (auto n : container->nodes)
 			{
-				if (!cn->shouldCloneBeDisplayed(index++))
+				if (auto cn = dynamic_cast<CloneNode*>(container))
 				{
-					numHidden++;
-					continue;
+					if (!cn->shouldCloneBeDisplayed(index++))
+					{
+						numHidden++;
+						continue;
+					}
 				}
+				
+				auto newNode = n->createComponent();
+
+				n->getHelpManager().addHelpListener(this);
+				n->getHelpManager().initCommentButton(this);
+				addAndMakeVisible(newNode);
+				childNodeComponents.add(newNode);
 			}
 
-			auto newNode = n->createComponent();
-
-			n->getHelpManager().addHelpListener(this);
-			addAndMakeVisible(newNode);
-			childNodeComponents.add(newNode);
-		}
-
-		if (numHidden > 0 || (!node->getValueTree()[PropertyIds::ShowClones] && node->getValueTree().hasProperty(PropertyIds::DisplayedClones)))
-		{
-			addAndMakeVisible(duplicateDisplay = new DuplicateComponent(node.get(), numHidden));
+			if (numHidden > 0 || (!node->getValueTree()[PropertyIds::ShowClones] && node->getValueTree().hasProperty(PropertyIds::DisplayedClones)))
+			{
+				addAndMakeVisible(duplicateDisplay = new DuplicateComponent(node.get(), numHidden));
+			}
 		}
 	}
 
@@ -616,8 +681,18 @@ void SerialNodeComponent::resized()
 
 		auto helpBounds = nc->node->getHelpManager().getHelpSize().toNearestInt();
 
-		auto widthWithHelp = bounds.getWidth() + helpBounds.getWidth();
-		auto heightWithHelp = jmax(bounds.getHeight(), helpBounds.getHeight());
+		int heightWithHelp, widthWithHelp;
+
+		if(nc->node->getHelpManager().isHelpBelow())
+		{
+			widthWithHelp = jmax<int>(bounds.getWidth(), helpBounds.getWidth());
+			heightWithHelp = bounds.getHeight() + helpBounds.getHeight();
+		}
+		else
+		{
+			widthWithHelp = bounds.getWidth() + helpBounds.getWidth();
+			heightWithHelp = jmax(bounds.getHeight(), helpBounds.getHeight());
+		}
 
 		auto x = (getWidth() - widthWithHelp) / 2;
 		nc->setTopLeftPosition(x, bounds.getY());
@@ -668,7 +743,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 	b2.removeFromTop(UIValues::HeaderHeight);
 
 	if (dataReference[PropertyIds::ShowParameters])
-		b2.removeFromTop(UIValues::ParameterHeight);
+		b2.removeFromTop(UIValues::ParameterHeight + UIValues::MacroDragHeight);
 
 	auto top = b2.removeFromTop(UIValues::PinHeight);
 	auto start = top.getCentre().toFloat().translated(xOffset, 0.0f);
@@ -905,7 +980,12 @@ void ParallelNodeComponent::resized()
 
 		nc->setBounds(bounds);
 
-		startPos = startPos.withX(bounds.getRight() + helpBounds.getWidth() + UIValues::NodeMargin);
+		auto x = bounds.getRight() + UIValues::NodeMargin;
+
+		if(!nc->node->getHelpManager().isHelpBelow())
+			x += helpBounds.getWidth();
+
+		startPos = startPos.withX(x);
 	}
 
 	if (duplicateDisplay != nullptr)
@@ -1000,7 +1080,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 	b2.removeFromTop(UIValues::HeaderHeight);
 
 	if (dataReference[PropertyIds::ShowParameters])
-		b2.removeFromTop(UIValues::ParameterHeight);
+		b2.removeFromTop(UIValues::ParameterHeight + UIValues::MacroDragHeight);
 
 	b2.removeFromTop(UIValues::NodeMargin / 2);
 	b2.removeFromBottom(UIValues::NodeMargin / 2);
@@ -1215,23 +1295,77 @@ void MacroPropertyEditor::ConnectionEditor::buttonClicked(Button* b)
 
 		MessageManager::callAsync(func);
 	}
-	else
+	else if (b == &gotoButton)
 	{
-		if (auto targetNode = node->getRootNetwork()->getNodeWithId(data[PropertyIds::NodeId].toString()))
+		auto nodeToShow = node.get();
+
+		if(showSource)
+		{
+			nodeToShow = node->getRootNetwork()->getNodeForValueTree(valuetree::Helpers::findParentWithType(data, PropertyIds::Node));
+		}
+		else
+		{
+			auto nodeId = data[PropertyIds::NodeId].toString();
+			nodeToShow = node->getRootNetwork()->getNodeWithId(nodeId);
+		}
+		
+		if (nodeToShow != nullptr)
 		{
 			auto sp = findParentComponentOfClass<ZoomableViewport>();
 
-			auto gotoNode = [sp, targetNode]()
+			auto gotoNode = [sp, nodeToShow]()
 			{
+				auto nv = nodeToShow->getValueTree();
+				auto um = nodeToShow->getUndoManager();
+
+				ValueTree lockedContainer;
+
+				valuetree::Helpers::forEachParent(nv, [&](ValueTree& v)
+				{
+					if(v.getType() == PropertyIds::Node)
+					{
+						v.setProperty(PropertyIds::Folded, false, um);
+
+						if(v[PropertyIds::Locked])
+						{
+							lockedContainer = v;
+							return true;
+						}
+							
+					}
+						
+					return false;
+				});
+
 				sp->setCurrentModalWindow(nullptr, {});
 
-				if (auto nc = sp->getContent<DspNetworkGraph>()->getComponent(targetNode))
+				auto currentRootTree = sp->getContent<DspNetworkGraph>()->getCurrentRootNode()->getValueTree();
+
+				if(!lockedContainer.isValid() && !nodeToShow->getValueTree().isAChildOf(currentRootTree))
+				{
+					lockedContainer = nodeToShow->getValueTree();
+
+					if(lockedContainer.getParent().getType() == PropertyIds::Nodes)
+						lockedContainer = lockedContainer.getParent().getParent();
+				}
+
+				if(lockedContainer.isValid())
+				{
+					if(auto newRoot = nodeToShow->getRootNetwork()->getNodeForValueTree(lockedContainer, false))
+					{
+						sp->getContent<DspNetworkGraph>()->setCurrentRootNode(newRoot, true, false);
+					}
+				}
+
+				
+
+				if (auto nc = sp->getContent<DspNetworkGraph>()->getComponent(nodeToShow))
 				{
 					nc->grabKeyboardFocus();
 				}
 
-				targetNode->getRootNetwork()->deselectAll();
-				targetNode->getRootNetwork()->addToSelection(targetNode, ModifierKeys());
+				nodeToShow->getRootNetwork()->deselectAll();
+				nodeToShow->getRootNetwork()->addToSelection(nodeToShow, ModifierKeys());
 			};
 
 			MessageManager::callAsync(gotoNode);

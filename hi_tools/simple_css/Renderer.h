@@ -80,7 +80,7 @@ struct CSSRootComponent
 	};
 
 	CSSRootComponent():
-	  stateWatcher(animator)
+	  stateWatcher(this, animator)
 	{
 		css.setAnimator(&animator);
 	};
@@ -214,7 +214,7 @@ private:
 struct Renderer: public Animator::ScopedComponentSetter
 {
 	/** Creates a renderer that will draw on the component using the state watcher. */
-	Renderer(Component* c, StateWatcher& state_);;
+	Renderer(Component* c, StateWatcher& state_, int subComponentIndex=-1);;
 
 	/** Tries to set the flags based on the component state (visible, enabled, hovered, etc). */
 	static int getPseudoClassFromComponent(Component* c);
@@ -229,7 +229,7 @@ struct Renderer: public Animator::ScopedComponentSetter
 	void drawImage(Graphics& g, const juce::Image& img, Rectangle<float> area, StyleSheet::Ptr ss, bool isContent);
 
 	/** Renders a text using the supplied style sheet. */
-	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type=PseudoElementType::None);
+	void renderText(Graphics& g, Rectangle<float> area, const String& text, StyleSheet::Ptr ss, PseudoElementType type=PseudoElementType::None, Justification justificationToUse = Justification(0), bool truncateBeforeAfter=true);
 
 	/** Manually set the state flags for the renderer. this is useful for cases where the style flags can't be easily queried
 	 *  from the component hover states (eg. at popup menu items). */
@@ -246,13 +246,16 @@ struct Renderer: public Animator::ScopedComponentSetter
 		applyMargin = useMargin;
 	}
 
+	
+
 private:
 
 	bool applyMargin = true;
 
 	bool forceOverwriteState = false;
 	int pseudoClassState = 0;
-	Component* currentComponent;
+	PseudoElementType currentlyRenderedPseudoElement = PseudoElementType::None;
+	std::pair<Component*, int> currentComponent;
 	StateWatcher& state;
 };
 

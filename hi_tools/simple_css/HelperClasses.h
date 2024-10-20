@@ -46,6 +46,7 @@ struct PseudoState
 
 	static String getPseudoElementName(int idx);
     static String getPseudoClassName(int state);
+	static int getPseudoClassIndex(const String& stateName);
 
 	bool isPseudoElement() const { return element != PseudoElementType::None; }
 	bool hasState() const { return stateFlag != 0; };

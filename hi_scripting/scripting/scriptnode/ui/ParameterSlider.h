@@ -213,13 +213,14 @@ struct ParameterSlider : public Slider,
 	valuetree::RecursiveTypedChildListener connectionListener;
 	
 	valuetree::PropertyListener valueListener;
+	valuetree::PropertyListener defaultValueListener;
 	valuetree::PropertyListener rangeListener;
 	valuetree::PropertyListener automationListener;
 
 	/** Returns either the Connection or the ModulationTarget, or SwitchTarget tree if it's connected. */
 	ValueTree getConnectionSourceTree();
 
-	bool matchesConnection(ValueTree& c) const;
+	bool matchesConnection(const ValueTree& c) const;
 
 	void mouseDown(const MouseEvent& e) override;
 
@@ -280,21 +281,68 @@ struct ParameterSlider : public Slider,
 struct MacroParameterSlider : public Component,
                               public PathFactory
 {
+	struct Dragger: public Component,
+				    public SettableTooltipClient
+	{
+		Dragger(MacroParameterSlider& p_):
+		  parent(p_),
+		  targetIcon(parent.createPath("drag"))
+		{
+			setTooltip("Drag to control other sliders");
+			setRepaintsOnMouseActivity(true);
+			setMouseCursor(ModulationSourceBaseComponent::createMouseCursor());
+		};
+
+		void paint(Graphics& g) override
+		{
+			auto c = isMouseButtonDown() ? Colour(SIGNAL_COLOUR) : Colours::white;
+
+			float alpha = 0.3f;
+
+			if(isMouseOverOrDragging())
+				alpha += 0.2f;
+
+			if(isMouseButtonDown())
+				alpha += 0.5f;
+			
+			g.setColour(c.withAlpha(alpha));
+			g.fillPath(targetIcon);
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds().toFloat();
+			b = b.removeFromTop(16.0f);
+			b = b.withSizeKeepingCentre(b.getHeight(), b.getHeight());
+			parent.scalePath(targetIcon, b);
+		}
+		void mouseDown(const MouseEvent& e) override
+		{
+			
+		}
+
+		Component* getCircleComponent() { return static_cast<Component*>(&parent.slider); }
+
+		void mouseUp(const MouseEvent& e) override;
+
+		void mouseDrag(const MouseEvent& e) override;
+
+		MacroParameterSlider& parent;
+		Path targetIcon;
+		
+	};
+
     MacroParameterSlider(NodeBase* node, int index);
 
     Path createPath(const String& url) const override;
     
 	void resized() override;
 
-    void mouseDown(const MouseEvent& event) override
-    {
-		CHECK_MIDDLE_MOUSE_DOWN(event);
-	    Component::mouseDown(event);
-    }
+    void mouseDown(const MouseEvent& event) override;
 
     void mouseDrag(const MouseEvent& event) override;
 
-	void mouseUp(const MouseEvent& e) override;
+    void mouseUp(const MouseEvent& e) override;
 
 	void mouseEnter(const MouseEvent& e) override;
 	void mouseExit(const MouseEvent& e) override;
@@ -312,6 +360,9 @@ struct MacroParameterSlider : public Component,
 	void focusLost(FocusChangeType) override { repaint(); }
 
 	bool editEnabled = false;
+	bool dragging = false;
+
+	Component* getDragComponent() { return &dragger; }
 
 private:
 
@@ -324,7 +375,10 @@ private:
 	ParameterSlider slider;
     
     HiseShapeButton warningButton;
-    
+	HiseShapeButton deleteButton;
+
+	Dragger dragger;
+
     valuetree::RecursivePropertyListener rangeWatcher;
     valuetree::PropertyListener sourceRangeWatcher;
     valuetree::ChildListener sourceConnectionWatcher;

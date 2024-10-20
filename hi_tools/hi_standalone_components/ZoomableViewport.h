@@ -167,6 +167,29 @@ struct ZoomableViewport : public Component,
 	public Timer,
 	public DragAnimator::Listener
 {
+	struct DragScrollTimer: public Timer
+	{
+		DragScrollTimer(ZoomableViewport& parent_):
+		  parent(parent_)
+		{};
+
+		void timerCallback() override;
+
+		void setPosition(const MouseEvent& e, bool isMouseUp);
+
+		bool wasInCentre = false;
+		int xDelta = 0;
+		int yDelta = 0;
+
+		double lx = 0.0;
+		double ly = 0.0;
+
+		ZoomableViewport& parent;
+
+	} dragScrollTimer;
+
+	
+
 	enum ColourIds
 	{
 		backgroundColourId = 9000
@@ -197,6 +220,8 @@ struct ZoomableViewport : public Component,
 	ZoomableViewport(Component* contentComponent);
 
 	virtual ~ZoomableViewport();
+
+	static bool checkDragScroll(const MouseEvent& e, bool isMouseUp);
 
 	static bool checkViewportScroll(const MouseEvent& e, const MouseWheelDetails& details);
 

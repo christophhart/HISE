@@ -170,7 +170,7 @@ public:
         String newId;
     };
     
-	class Holder
+	class Holder: public RuntimeTargetHolder
 	{
 	public:
 
@@ -200,6 +200,9 @@ public:
 		DspNetwork* getActiveNetwork() const;
 
 		void setProjectDll(dll::ProjectDll::Ptr pdll);
+
+		void connectRuntimeTargets(MainController* mc) override;
+		void disconnectRuntimeTargets(MainController* mc) override;
 
 		dll::ProjectDll::Ptr projectDll;
 
@@ -441,7 +444,7 @@ public:
 	String getDebugName() const override { return "DspNetwork"; }
 	String getDebugValue() const override { return getId(); }
 	
-	NodeBase* getNodeForValueTree(const ValueTree& v);
+	NodeBase* getNodeForValueTree(const ValueTree& v, bool createIfDoesntExist=true);
 	NodeBase::List getListOfUnconnectedNodes() const;
 
 	ValueTree getListOfAvailableModulesAsTree() const;
@@ -449,6 +452,7 @@ public:
 	StringArray getListOfAllAvailableModuleIds() const;
 	StringArray getListOfUsedNodeIds() const;
 	StringArray getListOfUnusedNodeIds() const;
+	StringArray getListOfLocalCableIds() const;
 	StringArray getFactoryList() const;
 
 	void assign(const int, var newValue) override { reportScriptError("Can't assign to this expression"); };
@@ -554,6 +558,10 @@ public:
 	NodeBase* createFromValueTree(bool createPolyIfAvailable, ValueTree d, bool forceCreate=false);
 	bool isInSignalPath(NodeBase* b) const;
 
+	ReferenceCountedObject* getLocalCableManager() const { return localCableManager.getObject(); }
+
+	Component* createLocalCableListItem(const String& id) const;
+	
 	bool isCurrentlyRenderingVoice() const noexcept { return isPolyphonic() && getPolyHandler()->getVoiceIndex() != -1; }
 
 	bool isRenderingFirstVoice() const noexcept { return !isPolyphonic() || getPolyHandler()->getVoiceIndex() == 0; }
@@ -811,7 +819,6 @@ private:
 
 	
 
-	valuetree::RecursivePropertyListener idUpdater;
 	valuetree::RecursiveTypedChildListener exceptionResetter;
 
     valuetree::RecursiveTypedChildListener sortListener;
@@ -822,6 +829,8 @@ private:
 
 	float* currentData[NUM_MAX_CHANNELS];
 	friend class DspNetworkGraph;
+
+	var localCableManager;
 
 	struct Wrapper;
 
@@ -980,8 +989,60 @@ struct HostHelpers
 
 #if !USE_FRONTEND
 
+struct DspNetworkGraph;
+
+struct DuplicateHelpers
+{
+    static ValueTree findRoot(const ValueTree& v);
+
+    static void removeOutsideConnections(const Array<ValueTree>& newNodes, const Array<DspNetwork::IdChange>& idChanges);
+
+    static int getIndexInRoot(const ValueTree& v);
+
+    // This sorts it reversed so that the index works when duplicating
+    static int compareElements(const WeakReference<NodeBase>& n1, const WeakReference<NodeBase>& n2);
+};
+
 struct DspNetworkListeners
 {
+	struct DspNetworkGraphRootListener
+	{
+		virtual ~DspNetworkGraphRootListener()
+		{
+			
+		}
+
+		static void onChangeStatic(DspNetworkGraphRootListener& l, NodeBase* n);
+
+		virtual void onRootChange(NodeBase* newRoot) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkGraphRootListener);
+	};
+
+	static void initRootListener(DspNetworkGraphRootListener* l);
+
+	static WeakReference<NodeBase> getSourceNodeFromComponentDrag(Component* component);
+
+	struct MacroParameterDragListener: public MouseListener
+	{
+		MacroParameterDragListener(Component* c_, const std::function<Component*(DspNetworkGraph*)>& initFunction);
+
+		~MacroParameterDragListener();
+
+		void initialise();
+		void mouseDrag(const MouseEvent& e) override;
+		void mouseUp(const MouseEvent& e) override;
+		void mouseDown(const MouseEvent& event) override;
+
+		static Component* findModulationDragComponent(DspNetworkGraph* g, const ValueTree& nodeTree);
+
+		static Component* findSliderComponent(DspNetworkGraph* g, int parameterIndex);
+
+		Component::SafePointer<Component> sliderToDrag;
+		Component::SafePointer<Component> c;
+		std::function<Component*(DspNetworkGraph*)> initFunction;
+	};
+
 	struct Base : public valuetree::AnyListener
 	{
 		template <bool AllowRootParameterChange> static bool isValueProperty(const ValueTree& v, const Identifier& id)

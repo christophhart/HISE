@@ -338,6 +338,8 @@ public:
 		/** Returns the hardcoded colour depending on the AreaType. */
 		static Colour getAreaColour(AreaTypes a);
 
+		static Colour getReleaseStartColour() { return Colour(0xFF944891); }
+
 		bool leftEdgeClicked;
 
 		class AreaEdge : public ResizableEdgeComponent,
@@ -369,7 +371,7 @@ public:
 		{
 			EdgeLookAndFeel(SampleArea *areaParent);;
 
-			void drawStretchableLayoutResizerBar (Graphics &g, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
+			void drawStretchableLayoutResizerBar (Graphics &g, Component&, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
 
 			const SampleArea *parentArea;
 		};

@@ -353,7 +353,6 @@ public:
 			ScriptBroadcasterMap,
 			PerfettoViewer,
 			ExpansionEditBar,
-			ModuleBrowser,
 			PatchBrowser,
 			AutomationDataBrowser,
 			FileBrowser,

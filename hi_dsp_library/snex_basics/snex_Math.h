@@ -235,6 +235,8 @@ return b1; \
 	static forcedinline float fasttan (float a) noexcept { return juce::dsp::FastMathApproximations::tan(a); }
 	static forcedinline float fastexp (float a) noexcept { return juce::dsp::FastMathApproximations::exp(a); }
 
+	
+
 	static constexpr	double sig2mod(double v) { return v * 0.5 + 0.5; };
 	static constexpr	double mod2sig(double v) { return v * 2.0 - 1.0; };
 	static constexpr	double norm(double v, double minValue, double maxValue) { return (v - minValue) / (maxValue - minValue); }
@@ -260,6 +262,10 @@ return b1; \
 	static forcedinline double db2gain(double a) { return Decibels::decibelsToGain(a); }
 	static forcedinline double gain2db(double a) { return Decibels::gainToDecibels(a); }
 	static forcedinline double fmod(double x, double y) { return std::fmod(x, y); };
+
+	static forcedinline int isinf(double a) { return std::isinf(a); }
+    static forcedinline int isnan(double a) { return std::isnan(a); }
+    static forcedinline double sanitize(double a) { FloatSanitizers::sanitizeDoubleNumber(a); return a; }
 
 	static forcedinline float smoothstep(float input, float lower, float upper)
 	{
@@ -298,6 +304,10 @@ return b1; \
 		auto r = FloatVectorOperations::findMinAndMax(b.begin(), b.size());
 		return max(abs(r.getStart()), abs(r.getEnd()));
 	}
+
+	static forcedinline int isinf(float a) { return std::isinf(a); }
+    static forcedinline int isnan(float a) { return std::isnan(a); }
+    static forcedinline float sanitize(float a) { FloatSanitizers::sanitizeFloatNumber(a); return a; }
 
 	struct wrapped
 	{

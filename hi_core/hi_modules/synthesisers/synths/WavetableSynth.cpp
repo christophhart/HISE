@@ -34,9 +34,7 @@
 
 namespace hise { using namespace juce;
 
-#ifndef USE_MOD2_WAVETABLESIZE
-#define USE_MOD2_WAVETABLESIZE 1
-#endif
+
 
 WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices)

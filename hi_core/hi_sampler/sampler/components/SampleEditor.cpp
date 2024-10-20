@@ -661,6 +661,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     addAndMakeVisible (loopStartSetter = new ValueSettingComponent(s));
     addAndMakeVisible (loopEndSetter = new ValueSettingComponent(s));
     addAndMakeVisible (loopCrossfadeSetter = new ValueSettingComponent(s));
+	addAndMakeVisible (releaseStartSetter = new ValueSettingComponent(s));
     addAndMakeVisible (startModulationSetter = new ValueSettingComponent(s));
     
 	addAndMakeVisible(overview);
@@ -726,12 +727,14 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	addButton(SampleMapCommands::EnablePlayArea, true);
 	addButton(SampleMapCommands::EnableSampleStartArea, true);
 	addButton(SampleMapCommands::EnableLoopArea, true);
+	addButton(SampleMapCommands::EnableReleaseArea, true);
 	envelopeButton = dynamic_cast<HiseShapeButton*>(addButton(SampleMapCommands::ShowEnvelopePopup, false));
 	scriptButton = addButton(SampleMapCommands::ShowScriptPopup, false);
 	addButton(SampleMapCommands::ToggleFirstScriptButton, true);
 
     addButton(SampleMapCommands::ZeroCrossing, false);
     improveButton = addButton(SampleMapCommands::ImproveLoopPoints, false);
+	showReleaseButton = addButton(SampleMapCommands::ShowReleaseStartOptions, false);
     
     externalButton = addButton(SampleMapCommands::ExternalEditor, false);
     
@@ -761,15 +764,24 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 	loopStartSetter->setPropertyType(SampleIds::LoopStart);
 	loopEndSetter->setPropertyType(SampleIds::LoopEnd);
 	loopCrossfadeSetter->setPropertyType(SampleIds::LoopXFade);
+	releaseStartSetter->setPropertyType(SampleIds::ReleaseStart);
 
 	auto lc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopArea);
 	auto xc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::LoopCrossfadeArea);
 	auto sc = AudioDisplayComponent::SampleArea::getAreaColour(AudioDisplayComponent::AreaTypes::SampleStartArea);
 
+    ignoreUnused(sc);
+    
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	auto rc = AudioDisplayComponent::SampleArea::getReleaseStartColour();
+#else
+	auto rc = Colour(0xFF666666);
+#endif
+
 	loopStartSetter->setLabelColour(lc, Colours::white);
 	loopEndSetter->setLabelColour(lc, Colours::white);
 	loopCrossfadeSetter->setLabelColour(xc, Colours::white);
-	startModulationSetter->setLabelColour(sc, Colours::white);
+	releaseStartSetter->setLabelColour(rc, Colours::white);
 
 	sampler->getSampleMap()->addListener(this);
 
@@ -785,6 +797,7 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
     loopEndSetter->addChangeListener(this);
     loopCrossfadeSetter->addChangeListener(this);
     startModulationSetter->addChangeListener(this);
+	releaseStartSetter->addChangeListener(this);
 
 	currentWaveForm->addAreaListener(this);
     currentWaveForm->setColour(AudioDisplayComponent::ColourIds::bgColour, Colour(0xff1d1d1d));
@@ -803,12 +816,15 @@ SampleEditor::SampleEditor (ModulatorSampler *s, SamplerBody *b):
 
     handler->toolBroadcaster.broadcaster.addListener(*currentWaveForm, [](SamplerSoundWaveform& wf, SamplerTools::Mode m)
     {
+    	wf.releaseStartIsSelected = m == SamplerTools::Mode::ReleaseStart;
+
         switch(m)
         {
             case SamplerTools::Mode::PlayArea: wf.setClickArea(SamplerSoundWaveform::PlayArea); break;
             case SamplerTools::Mode::LoopArea: wf.setClickArea(SamplerSoundWaveform::LoopArea); break;
             case SamplerTools::Mode::LoopCrossfadeArea: wf.setClickArea(SamplerSoundWaveform::LoopCrossfadeArea); break;
             case SamplerTools::Mode::SampleStartArea: wf.setClickArea(SamplerSoundWaveform::SampleStartArea); break;
+			case SamplerTools::Mode::ReleaseStart: wf.setClickArea(SamplerSoundWaveform::numAreas); break;
             default:    wf.setClickArea(SamplerSoundWaveform::AreaTypes::numAreas); break;
         }
     });
@@ -854,7 +870,8 @@ String SampleEditor::getNameForCommand(SampleMapCommands c, bool on)
         case SampleMapCommands::EnablePlayArea: return on ? "play-area" : "";
         case SampleMapCommands::EnableSampleStartArea: return on ? "samplestart-area" : "";
         case SampleMapCommands::EnableLoopArea: return on ? "loop-area" : "";
-        case SampleMapCommands::NormalizeVolume: return on ? "normalise-on" : "normalise-off";
+		case SampleMapCommands::EnableReleaseArea: return on ? "release-start" : "";
+        case SampleMapCommands::NormalizeVolume: return on ? "normalise" : "";
         case SampleMapCommands::LoopEnabled: return on ? "loop-on" : "loop-on";
         case SampleMapCommands::ExternalEditor: return on ? "external" : "";
         case SampleMapCommands::ZeroCrossing: return on ? "zero" : "";
@@ -863,6 +880,7 @@ String SampleEditor::getNameForCommand(SampleMapCommands c, bool on)
 		case SampleMapCommands::PreviewCurrentSound: return on ? "preview" : "";
 		case SampleMapCommands::ShowEnvelopePopup: return on ? "envelope" : "";
 		case SampleMapCommands::ShowScriptPopup: return on ? "script-popup" : "";
+		case SampleMapCommands::ShowReleaseStartOptions: return on ? "release-start-options" : "";
 		case SampleMapCommands::ToggleFirstScriptButton: return on ? "toggle-first" : "";
         default: return "";
     }
@@ -890,6 +908,7 @@ String SampleEditor::getTooltipForCommand(SampleMapCommands c)
         case SampleMapCommands::EnablePlayArea:         return "Enable Sample range editing";
         case SampleMapCommands::EnableSampleStartArea:  return "Enable SampleStartMod editing";
         case SampleMapCommands::EnableLoopArea:         return "Enable loop range editing";
+		case SampleMapCommands::EnableReleaseArea:      return "Enable release start offset";
         case SampleMapCommands::NormalizeVolume:        return "Normalise selected samples";
         case SampleMapCommands::LoopEnabled:            return "Enable looping for selection";
 		case SampleMapCommands::PreviewCurrentSound:    return "Preview the current sound";
@@ -897,6 +916,7 @@ String SampleEditor::getTooltipForCommand(SampleMapCommands c)
         case SampleMapCommands::ZeroCrossing:           return "Enable zero crossing";
 		case SampleMapCommands::ApplyToMainOnly:		return "Enable single selection cycling with tab key";
 		case SampleMapCommands::ImproveLoopPoints:		return "Open the Loop Finder Popup";
+    case SampleMapCommands::ShowReleaseStartOptions:	return "Show the options for the release start mode";
 		case SampleMapCommands::ShowEnvelopePopup:		return "Show the gain / pitch / filter envelope";
 		case SampleMapCommands::ShowScriptPopup:		return "Show the interface of the first script processor";
 		case SampleMapCommands::ToggleFirstScriptButton: return "Toggle the first button of the first script processor (F9)";
@@ -918,6 +938,7 @@ bool SampleEditor::getState(SampleMapCommands c) const
         case SampleMapCommands::EnablePlayArea: return currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::PlayArea;
         case SampleMapCommands::EnableSampleStartArea: return currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::SampleStartArea;
         case SampleMapCommands::EnableLoopArea: return currentWaveForm->currentClickArea == SamplerSoundWaveform::AreaTypes::LoopArea;
+        case SampleMapCommands::EnableReleaseArea: return currentWaveForm->releaseStartIsSelected;
         case SampleMapCommands::NormalizeVolume: return isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::Normalized);
         case SampleMapCommands::LoopEnabled:    return isSelected && (int)selection.getLast()->getSampleProperty(SampleIds::LoopEnabled);
 		case SampleMapCommands::ApplyToMainOnly: return handler->applyToMainSelection;
@@ -926,6 +947,7 @@ bool SampleEditor::getState(SampleMapCommands c) const
         case SampleMapCommands::ExternalEditor: return false;
         case SampleMapCommands::ZeroCrossing:   return currentWaveForm->zeroCrossing;
 		case SampleMapCommands::ImproveLoopPoints: return false;
+		case SampleMapCommands::ShowReleaseStartOptions: return false;
 		case SampleMapCommands::ShowEnvelopePopup: return false;
 		case SampleMapCommands::ShowScriptPopup:   return false;
 		case SampleMapCommands::ToggleFirstScriptButton:
@@ -1638,6 +1660,9 @@ void SampleEditor::perform(SampleMapCommands c)
     case SampleMapCommands::EnablePlayArea:
         handler->toolBroadcaster.toggleMode(SamplerTools::Mode::PlayArea);
         return;
+    case SampleMapCommands::EnableReleaseArea:
+        handler->toolBroadcaster.toggleMode(SamplerTools::Mode::ReleaseStart);
+        return;
     case SampleMapCommands::ZeroCrossing:
         currentWaveForm->zeroCrossing = !currentWaveForm->zeroCrossing;
         return;
@@ -1662,12 +1687,22 @@ void SampleEditor::perform(SampleMapCommands c)
         findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, analyseButton, {8, 16});
         return;
     }
+    case SampleMapCommands::ShowReleaseStartOptions:
+	{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		auto bpe = GET_BACKEND_ROOT_WINDOW(this);
+		auto n = new multipage::library::ReleaseStartOptionDialog(bpe, sampler);
+		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, showReleaseButton, {8, 16});
+#else
+		PresetHandler::showMessageWindow("Release start is disabled", "You need to compile HISE with the preprocessor flag `HISE_SAMPLER_ALLOW_RELEASE_START=1` in order to use this feature.", PresetHandler::IconType::Error);
+#endif
+
+		return;
+	}
 	case SampleMapCommands::ImproveLoopPoints:
 	{
         auto n = new LoopImproveWindow(const_cast<ModulatorSamplerSound*>(currentWaveForm->getCurrentSound()), sampler);
-        
         handler->selectionBroadcaster.addListener(*n, LoopImproveWindow::selectionChanged);
-        
         findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, improveButton, {8, 16});
         
         return;
@@ -1781,6 +1816,7 @@ SampleEditor::~SampleEditor()
     loopEndSetter = nullptr;
     loopCrossfadeSetter = nullptr;
     startModulationSetter = nullptr;
+	releaseStartSetter = nullptr;
     panSetter = nullptr;
 }
 
@@ -1887,7 +1923,7 @@ void SampleEditor::resized()
 	int width = 150;
     
     if(isInWorkspace())
-        width = jmin(b.getWidth() / 8, 150);
+        width = jmin(b.getWidth() / 9, 150);
     
 	int halfWidth = width / 2;
 	static constexpr int Margin = 5;
@@ -1896,7 +1932,7 @@ void SampleEditor::resized()
 	{
 		b.removeFromBottom(12);
 		auto bottom = b.removeFromBottom(setterHeight);
-		bottom = bottom.withSizeKeepingCentre(width * 8, bottom.getHeight());
+		bottom = bottom.withSizeKeepingCentre(width * 9, bottom.getHeight());
 
 		volumeSetter->setBounds(bottom.removeFromLeft(width - Margin));
 		bottom.removeFromLeft(Margin);
@@ -1923,6 +1959,9 @@ void SampleEditor::resized()
 		bottom.removeFromLeft(Margin);
 
 		loopCrossfadeSetter->setBounds(bottom.removeFromLeft(width - Margin));
+		bottom.removeFromLeft(Margin);
+
+		releaseStartSetter->setBounds(bottom.removeFromLeft(width - Margin));
 		bottom.removeFromLeft(Margin);
 	}
 	else
@@ -1960,6 +1999,8 @@ void SampleEditor::resized()
 
 		loopCrossfadeSetter->setBounds(r1.removeFromLeft(width - Margin));
 		r1.removeFromLeft(Margin);
+
+		
 	}
 
 	b.removeFromBottom(12);
@@ -2029,6 +2070,14 @@ Component* SampleEditor::addButton(SampleMapCommands commandId, bool hasState)
 		newButton->offColour = lc.withBrightness(0.7f);
 		newButton->refreshButtonColours();
 	}
+	if(commandId == SampleMapCommands::EnableReleaseArea)
+	{
+		auto lc = AudioDisplayComponent::SampleArea::getReleaseStartColour();
+
+		newButton->onColour = lc.withMultipliedBrightness(1.5f);
+		newButton->offColour = lc.withBrightness(0.7f);
+		newButton->refreshButtonColours();
+	}
 
 	if (commandId == SampleMapCommands::EnableSampleStartArea)
 	{
@@ -2060,6 +2109,11 @@ bool SampleEditor::keyPressed(const KeyPress& key)
 	if (key == KeyPress('s', {}, 's'))
 	{
 		perform(SampleMapCommands::EnableSampleStartArea);
+		return true;
+	}
+	if (key == KeyPress('r', {}, 'r'))
+	{
+		perform(SampleMapCommands::EnableReleaseArea);
 		return true;
 	}
 	if (key == KeyPress::spaceKey)
@@ -2172,7 +2226,7 @@ void SampleEditor::soundsSelected(int numSelected)
 	loopStartSetter->setCurrentSelection(selectionToUse);
 	loopEndSetter->setCurrentSelection(selectionToUse);
 	loopCrossfadeSetter->setCurrentSelection(selectionToUse);
-
+	releaseStartSetter->setCurrentSelection(selectionToUse);
 	
 	updateWaveform();
 }

@@ -60,14 +60,76 @@ void drawPlug(Graphics& g, Rectangle<float> area, Colour c)
     
 }
 
+DspNodeList::ParameterItem::ParameterItem(DspNetwork* parent, int parameterIndex):
+	Item(parent->getCurrentParameterHandler()->getParameterId(parameterIndex).toString()),
+	SimpleTimer(parent->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+	ptree(parent->getRootNode()->getParameterTree().getChild(parameterIndex)),
+	dragButton("drag", nullptr, *this),
+	network(parent),
+	pIndex(parameterIndex),
+	dragListener(&dragButton, [parameterIndex](DspNetworkGraph* g){ return DspNetworkListeners::MacroParameterDragListener::findSliderComponent(g, parameterIndex); })
+{
+	pname.getTextValue().referTo(ptree.getPropertyAsValue(PropertyIds::ID, parent->getUndoManager()));
+
+	auto value = (double)ptree[PropertyIds::Value];
+	valueSlider.setValue(value, dontSendNotification);
+
+	valueSlider.getValueObject().referTo(ptree.getPropertyAsValue(PropertyIds::Value, parent->getUndoManager()));
+
+	addAndMakeVisible(valueSlider);
+	addAndMakeVisible(dragButton);
+	addAndMakeVisible(pname);
+
+			
+
+	valueSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
+	valueSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, false, 0, 0);
+
+	valueSlider.setLookAndFeel(&laf);
+			
+
+	pname.setFont(GLOBAL_BOLD_FONT());
+	pname.setEditable(false, true);
+	pname.setColour(Label::textColourId, Colours::white.withAlpha(0.8f));
+	pname.setColour(TextEditor::ColourIds::textColourId, Colours::white.withAlpha(0.8f));
+
+	rangeUpdater.setCallback(ptree, RangeHelpers::getRangeIds(false), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(ParameterItem::updateRange));
+
+	start();
+}
+
+void DspNodeList::ParameterItem::timerCallback()
+{
+	if(auto p = network->getRootNode()->getParameterFromIndex(pIndex))
+	{
+		if(p->getValue() != valueSlider.getValue())
+			valueSlider.setValue(p->getValue(), dontSendNotification);
+	}
+}
+
 DspNodeList::NodeItem::NodeItem(DspNetwork* parent, const String& id):
 	Item(id),
 	node(dynamic_cast<NodeBase*>(parent->get(id).getObject())),
 	label(),
-	powerButton("on", this, f)
+	powerButton("on", this, f),
+	dragButton("drag", nullptr, f) 
 {
-	label.setText(id, dontSendNotification);
+    auto vt = node->getValueTree();
+    
+	label.setText(vt[PropertyIds::Name].toString(), dontSendNotification);
 	usePopupMenu = false;
+
+	if(node->getValueTree().getChildWithName(PropertyIds::ModulationTargets).isValid())
+	{
+		auto ntree = node->getValueTree();
+
+		dragListener = new DspNetworkListeners::MacroParameterDragListener(&dragButton, [ntree](DspNetworkGraph* g)
+		{
+			return DspNetworkListeners::MacroParameterDragListener::findModulationDragComponent(g, ntree);
+		});
+
+		addAndMakeVisible(dragButton);
+	}
 
 	addAndMakeVisible(powerButton);
 	addAndMakeVisible(label);
@@ -88,7 +150,7 @@ DspNodeList::NodeItem::NodeItem(DspNetwork* parent, const String& id):
             
 	powerButton.setToggleModeWithColourChange(true);
 
-	idListener.setCallback(node->getValueTree(), { PropertyIds::ID }, valuetree::AsyncMode::Asynchronously,
+	idListener.setCallback(node->getValueTree(), { PropertyIds::Name }, valuetree::AsyncMode::Asynchronously,
 	                       BIND_MEMBER_FUNCTION_2(NodeItem::updateId));
 
 	bypassListener.setCallback(node->getValueTree(), { PropertyIds::Bypassed }, valuetree::AsyncMode::Asynchronously,
@@ -135,9 +197,8 @@ void DspNodeList::NodeItem::paint(Graphics& g)
 {
     if (node != nullptr)
     {
-        bool selected = node->getRootNetwork()->isSelected(node);
-
-        
+		bool selected = node->getRootNetwork()->isSelected(node);
+		
         auto ca = area.withWidth(4);
         
         
@@ -183,9 +244,8 @@ void DspNodeList::NodeItem::paint(Graphics& g)
         
         for(auto p: pTree)
         {
-            if(p[PropertyIds::Automated])
+            if(p[PropertyIds::Automated] && !dragButton.isVisible())
             {
-                
                 auto copy = area.toFloat();
                 copy = copy.removeFromRight(copy.getHeight()).reduced(3.0f);
                 drawPlug(g, copy, colour);
@@ -219,6 +279,9 @@ void DspNodeList::NodeItem::resized()
 	b.removeFromLeft(getIntendation()*2);
 	area = b;
 	b.removeFromLeft(5);
+
+	if(dragButton.isVisible())
+		dragButton.setBounds(b.removeFromRight(b.getHeight()).reduced(1));
             
 	powerButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(2));
             
@@ -241,11 +304,20 @@ void DspNodeList::NodeCollection::paint(Graphics& g)
 	g.drawText(getName(), top.toFloat(), Justification::centred);
 }
 
-void DspNodeList::NodeCollection::addItems(const StringArray& idList)
+void DspNodeList::NodeCollection::addItems(const StringArray& idList, bool isCable)
 {
 	for (const auto& id : idList)
 	{
-		auto newItem = new NodeItem(network.get(), id);
+		SearchableListComponent::Item* newItem;
+		if(isCable)
+		{
+			newItem = new CableItem(network.get(), id);
+		}
+		else
+		{
+			newItem = new NodeItem(network.get(), id);
+		}
+
 		addAndMakeVisible(newItem);
 		items.add(newItem);
 	}
@@ -278,29 +350,46 @@ className(className_)
 {
     searchKeywords = searchKeywords.replaceCharacter('.', ';');
     
-	setSize(380 - 16 - 8 - 24, ITEM_HEIGHT);
+	setSize(410 - 16 - 8 - 24, ITEM_HEIGHT);
 
 	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, name);
+
+	if(extendedHelp.isEmpty())
+	{
+		AttributedString help;
+
+		const String name = methodTree_.getProperty(Identifier("name")).toString();
+		const String arguments = methodTree_.getProperty(Identifier("arguments")).toString();
+		const String description = methodTree_.getProperty(Identifier("description")).toString().trim();
+		const String returnType = methodTree_.getProperty("returnType", "void");
+
+		extendedHelp << "#### `" << className_ << "." << name << arguments << "`  \n";
+
+		if(!returnType.isEmpty())
+			extendedHelp << "**Return Type**: `" << returnType << "`  \n";
+
+		extendedHelp << "> " << description << "  \n";
+		extendedHelp << "**[F1]** - open in docs **[Enter]** - paste in editor";
+	}
 
 	if (extendedHelp.isNotEmpty())
 	{
 		parser = new MarkdownRenderer(extendedHelp);
-		parser->setTextColour(Colours::white);
-		parser->setDefaultTextSize(15.0f);
-		parser->parse();
+
+		auto bd = MarkdownLayout::StyleData::createBrightStyle();
+		bd.fontSize = 15.5f;
+		parser->setStyleData(bd);
 	}
 
 	setWantsKeyboardFocus(true);
-
-	help = ValueTreeApiHelpers::createAttributedStringFromApi(methodTree, className, true, Colours::white);
 }
 
 
 
 
-void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent&)
+void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent& e)
 {
-	insertIntoCodeEditor();
+	
 }
 
 bool ApiCollection::MethodItem::keyPressed(const KeyPress& key)
@@ -308,6 +397,24 @@ bool ApiCollection::MethodItem::keyPressed(const KeyPress& key)
 	if (key.isKeyCode(KeyPress::returnKey))
 	{
 		insertIntoCodeEditor();
+		return true;
+	}
+
+	if (key.isKeyCode(KeyPress::escapeKey))
+	{
+		findParentComponentOfClass<ApiCollection>()->onPopupClose(FocusChangeType::focusChangedByMouseClick);
+		return true;
+	}
+
+	if(key.isKeyCode(KeyPress::upKey))
+	{
+		findParentComponentOfClass<SearchableListComponent>()->selectNext(false, this);
+		return true;
+	}
+	if(key.isKeyCode(KeyPress::downKey))
+	{
+		findParentComponentOfClass<SearchableListComponent>()->selectNext(true, this);
+		
 		return true;
 	}
 
@@ -356,10 +463,13 @@ Array<ExtendedApiDocumentation::ClassDocumentation> ExtendedApiDocumentation::cl
 
 bool ExtendedApiDocumentation::inititalised = false;
 
-ApiCollection::ClassCollection::ClassCollection(const ValueTree &api) :
+ApiCollection::ClassCollection::ClassCollection(int index, const ValueTree &api) :
+Collection(index),
 classApi(api),
 name(api.getType().toString())
 {
+	setWantsKeyboardFocus(true);
+
 	for (int i = 0; i < api.getNumChildren(); i++)
 	{
 		items.add(new MethodItem(api.getChild(i), name));
@@ -373,8 +483,12 @@ name(api.getType().toString())
 void ApiCollection::ClassCollection::paint(Graphics &g)
 {
 	g.setColour(Colours::white.withAlpha(0.9f));
-	g.setFont(GLOBAL_MONOSPACE_FONT());
-	g.drawText(name, 10, 0, getWidth() - 10, COLLECTION_HEIGHT, Justification::centredLeft, true);
+
+	auto f = GLOBAL_MONOSPACE_FONT();
+	
+
+	g.setFont(GLOBAL_MONOSPACE_FONT().withHeight(f.getHeight() * 1.2f));
+	g.drawText(name, 14, 0, getWidth() - 10, COLLECTION_HEIGHT, Justification::centredLeft, true);
 }
 
 ExtendedApiDocumentation::MethodDocumentation::MethodDocumentation(Identifier& className_, const Identifier& id) :

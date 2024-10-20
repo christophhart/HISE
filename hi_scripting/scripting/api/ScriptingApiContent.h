@@ -340,6 +340,11 @@ public:
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
+		virtual ValueToTextConverter getValueToTextConverter() const
+		{
+			return {};
+		}
+
 		Location getLocation() const override
 		{
 			return location;
@@ -562,6 +567,9 @@ public:
 		/** Sets the given class selectors for the component stylesheet. */
 		void setStyleSheetClass(const String& classIds);
 
+		/** Programatically sets a pseudo state (:hover, :active, :checked, :focus, :disabled) that will be used by the CSS renderer. */
+		void setStyleSheetPseudoState(const String& pseudoState);
+
 		// End of API Methods ============================================================================================
 
 		var getLookAndFeelObject();
@@ -692,6 +700,8 @@ public:
 
 		MacroControlledObject::ModulationPopupData::Ptr getModulationData() const { return modulationData; }
 
+		int getStyleSheetPseudoState() const { return pseudoState; }
+
 	protected:
 
 		String getCSSFromLocalLookAndFeel()
@@ -753,6 +763,15 @@ public:
 
 	private:
 
+		enum class AllCatchBehaviour
+		{
+			Inactive,
+			Exclusive,
+			NonExlusive
+		};
+
+		int pseudoState = 0;
+
 		void sendValueListenerMessage();
 
 		var localLookAndFeel;
@@ -760,7 +779,7 @@ public:
 		MacroControlledObject::ModulationPopupData::Ptr modulationData;
 
         bool consumedCalled = false;
-		bool catchAllKeys = true;
+		AllCatchBehaviour catchAllKeys = AllCatchBehaviour::Exclusive;
 		Array<juce::KeyPress> registeredKeys;
 
 		WeakCallbackHolder keyboardCallback;
@@ -946,6 +965,12 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto m = getScriptObjectProperty(ScriptSlider::Properties::Mode).toString();
+			return ValueToTextConverter::createForMode(m);
+		}
+
 		Array<PropertyWithValue> getLinkProperties() const override;
 
 		// ======================================================================================================== API Methods
@@ -1027,6 +1052,7 @@ public:
 			isMomentary,
 			enableMidiLearn,
             setValueOnClick,
+			mouseCursor,
 			numProperties
 		};
 
@@ -1045,6 +1071,11 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 
 		void handleDefaultDeactivatedProperties() override;
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			return ValueToTextConverter::createForOptions({ "Off", "On" });
+		}
 
 		// ======================================================================================================== API Methods
 
@@ -1118,6 +1149,13 @@ public:
 		void resetValueToDefault() override
 		{
 			setValue((int)getScriptObjectProperty(defaultValue));
+		}
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ValueToTextConverter::createForOptions(sa);
 		}
 
 		void handleDefaultDeactivatedProperties();
@@ -1921,6 +1959,13 @@ public:
 			setValue((int)getScriptObjectProperty(defaultValue));
 		}
 
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ValueToTextConverter::createForOptions(sa);
+		}
+
 		void setValue(var newValue) override;
 
 		// ============================================================================ API Methods
@@ -2168,11 +2213,17 @@ public:
 		/** Adds a page to the dialog and returns the element index of the page. */
 		int addPage();
 
+		/** Adds a modal page to the dialog that can be populated like a normal page and shown using showModalPage(). */
+		int addModalPage();
+
+		/** Shows a modal page with the given index and the state object. */
+		void showModalPage(int pageIndex, var modalState, var finishCallback);
+
 		/** Adds an element to the parent with the given type and properties. */
 		int add(int parentIndex, String type, const var& properties);
 
 		/** Registers a callable object to the dialog and returns the codestring that calls it from within the dialogs Javascript engine. */
-		String bindCallback(String id, var callback);
+		String bindCallback(String id, var callback, var notificationType);
 
 		/** Registers a function that will be called when the dialog is finished. */
 		void setOnFinishCallback(var onFinish);
@@ -2182,6 +2233,36 @@ public:
 
 		/** Shows the dialog (with optionally clearing the state. */
 		void show(bool clearState);
+
+		/** Navigates to the given page index. */
+		bool navigate(int pageIndex, bool submitCurrentPage)
+		{
+			getMultipageState()->currentPageIndex = pageIndex;
+
+			if(submitCurrentPage && getMultipageState()->getFirstDialog() != nullptr)
+			{
+				SafeAsyncCall::call<multipage::State>(*getMultipageState(), [pageIndex](multipage::State& s)
+				{
+					s.currentPageIndex = pageIndex - 1;
+					s.getFirstDialog()->navigate(true);
+				});
+				
+				return true;
+			}
+			else
+			{
+				SafeAsyncCall::call<multipage::State>(*getMultipageState(), [pageIndex](multipage::State& s)
+				{
+					s.currentPageIndex = pageIndex;
+
+					for(auto f: s.currentDialogs)
+						f->refreshCurrentPage();
+					
+				});
+
+				return true;
+			}
+		}
 
 		/** Closes the dialog (as if the user pressed the cancel button). */
 		void cancel();
@@ -2199,13 +2280,10 @@ public:
 		var getState();
 
 		/** Loads the dialog from a file (on the disk). */
-		void loadFromDataFile(var fileObject)
-		{
-			if(auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(fileObject.getObject()))
-			{
-				monolithFile = sf->f;
-			}
-		}
+		void loadFromDataFile(var fileObject);
+
+		/** Exports the entire dialog. */
+		String exportAsMonolith(var optionalFile);
 
 		// ========================================================================================================
 
@@ -2375,30 +2453,33 @@ public:
 
 		struct ValueCallback
 		{
-			ValueCallback(ScriptMultipageDialog* p, String name_, const var& functionToCall):
+			ValueCallback(ScriptMultipageDialog* p, String name_, const var& functionToCall, dispatch::DispatchType n_):
 			  callback(p->getScriptProcessor(), p, functionToCall, 2),
-			  name(name_)
+			  name(name_),
+			  n(n_)
 			{
 				callback.incRefCount();
 				callback.setThisObject(p);
 				args[0] = var(name);
 			};
 
-			var operator()(const var::NativeFunctionArgs& a)
-			{
-				callback.call(a);
-				return var();
-			}
+			var operator()(const var::NativeFunctionArgs& a);
 
 			String name;
 			var args[2];
 			WeakCallbackHolder callback;
+			const dispatch::DispatchType n;
 		};
+
+		ScopedPointer<ValueCallback> onModalFinish;
 
 		OwnedArray<ValueCallback> valueCallbacks;
 
 		var createDialogData(String cssToUse={});
 
+		int addPageInternal(bool isModal);
+
+		Array<var> modalPages;
 		Array<var> pages;
 		Array<var> elementData;
 		
@@ -2477,7 +2558,8 @@ public:
     };
     
     LambdaBroadcaster<TextInputDataBase::Ptr> textInputBroadcaster;
-    
+
+	LambdaBroadcaster<int, int> interfaceSizeBroadcaster;
     
 	// ================================================================================================================
 
@@ -2992,7 +3074,8 @@ private:
 	ScopedPointer<ValueTreeUpdateWatcher> updateWatcher;
 
 	bool allowGuiCreation;
-	int width, height;
+	int width = 0;
+	int height = 0;
 	ReferenceCountedArray<ScriptComponent> components; // This is ref counted to allow anonymous controls
 	Colour colour;
 	String name;

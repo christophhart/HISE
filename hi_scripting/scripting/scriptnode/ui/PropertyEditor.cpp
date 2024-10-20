@@ -52,7 +52,7 @@ juce::Path NodePopupEditor::Factory::createPath(const String& s) const
 
 NodePopupEditor::NodePopupEditor(NodeComponent* nc_) :
 	nc(nc_),
-	editor(nc->node.get(), false, nc->node->getValueTree(), { PropertyIds::Bypassed} ),
+	editor(nc->node.get(), false, nc->node->getValueTree(), { PropertyIds::Bypassed, PropertyIds::ID, PropertyIds::FactoryPath } ),
 	networkEditor(nc->node.get(), false, nc->node->getRootNetwork()->getValueTree(), { PropertyIds::ID }, false),
 	exportButton("export", this, factory),
 	wrapButton("wrap", this, factory),
@@ -170,6 +170,7 @@ void NodePopupEditor::buttonClicked(Button* b)
 			m.addItem((int)NodeComponent::MenuActions::ExportAsCpp, "Export as custom CPP class");
 			m.addItem((int)NodeComponent::MenuActions::ExportAsCppProject, "Export as project CPP class");
 			m.addItem((int)NodeComponent::MenuActions::ExportAsSnippet, "Export as Base64 snippet");
+			m.addItem((int)NodeComponent::MenuActions::ExportAsTemplate, "Export as template");
 			m.addItem((int)NodeComponent::MenuActions::CreateScreenShot, "Create screenshot");
 		}
 		else if (mode == 1)

@@ -48,6 +48,7 @@ DefaultParameterNodeComponent::DefaultParameterNodeComponent(NodeBase* node) :
 
 void DefaultParameterNodeComponent::resized()
 {
+	auto rowHeight = 48 + 28;
 	NodeComponent::resized();
 
 	auto b = getLocalBounds();
@@ -66,7 +67,7 @@ void DefaultParameterNodeComponent::resized()
 	
 
 	int numPerRow = jlimit(1, jmax(sliders.size(), 1), b.getWidth() / 100);
-	int numColumns = jmax(1, b.getHeight() / 50);
+	int numColumns = jmax(1, (b.getHeight() + 10) / rowHeight);
 
 	auto staticIntend = 0;
 
@@ -82,10 +83,10 @@ void DefaultParameterNodeComponent::resized()
 
 	auto rowIndex = 0;
 
-    auto row = b.removeFromTop(48 + 18);
+    auto row = b.removeFromTop(rowHeight);
     row.removeFromLeft(staticIntend);
     row.removeFromRight(staticIntend);
-    
+	
     for(auto s: sliders)
     {
         auto sliderBounds = row.removeFromLeft(100);
@@ -93,7 +94,7 @@ void DefaultParameterNodeComponent::resized()
         if(sliderBounds.getWidth() < 100)
         {
             rowIndex++;
-            row = b.removeFromTop(48 + 18);
+            row = b.removeFromTop(rowHeight);
         
             auto intend = staticIntend;
             
@@ -102,11 +103,14 @@ void DefaultParameterNodeComponent::resized()
             
             row.removeFromLeft(intend);
             row.removeFromRight(staticIntend);
-            
+			
             sliderBounds = row.removeFromLeft(100);
         }
-        
-        s->setBounds(sliderBounds);
+
+		if(b.getHeight() > 0)
+			sliderBounds.removeFromBottom(10);
+
+		s->setBounds(sliderBounds);
     }
 }
 

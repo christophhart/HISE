@@ -166,7 +166,7 @@ struct MultiColumnPropertyPanel : public Component
 
 struct PropertyEditor : public Component
 {
-	PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds = {}, bool includeProperties=true);
+	PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, Array<Identifier> hiddenIds, bool includeProperties=true);
 
 	void updateSize()
 	{

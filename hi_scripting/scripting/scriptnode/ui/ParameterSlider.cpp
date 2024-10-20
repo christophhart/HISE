@@ -694,6 +694,7 @@ struct ParameterSlider::RangeComponent : public ComponentWithMiddleMouseDrag,
 			m.addSeparator();
 			m.addItem(5, "Invert range", true, RangeHelpers::isInverted(getParent().pTree));
 			m.addItem(7, "Copy range to source", connectionSource.isValid());
+			m.addItem(8, "Set as default value");
 
 			auto r = m.show();
 
@@ -749,6 +750,11 @@ struct ParameterSlider::RangeComponent : public ComponentWithMiddleMouseDrag,
 				{
 					RangeHelpers::storeDoubleRange(ptree, cr, getParent().node->getUndoManager());
 				}
+			}
+			if(r == 8)
+			{
+				auto p = getParent().pTree;
+				p.setProperty(PropertyIds::DefaultValue, p[PropertyIds::Value], getParent().node->getUndoManager());
 			}
 			if (r > 9000)
 			{
@@ -918,6 +924,23 @@ ParameterSlider::ParameterSlider(NodeBase* node_, int index_) :
 		repaint();
 	});
 
+	if(!pTree.hasProperty(PropertyIds::DefaultValue))
+		pTree.setProperty(PropertyIds::DefaultValue, pTree[PropertyIds::Value], node->getUndoManager());
+
+	defaultValueListener.setCallback(pTree, { PropertyIds::DefaultValue }, valuetree::AsyncMode::Asynchronously, [this](const Identifier&, const var& newValue)
+	{
+		auto nv = (double)newValue;
+
+		if(getRange().contains(nv) || getRange().getEnd() == nv)
+		{
+			setDoubleClickReturnValue(true, nv);
+		}
+		else
+		{
+			setDoubleClickReturnValue(false, 0.0);
+		}
+	});
+
 	automationListener.setCallback(pTree, {PropertyIds::Automated}, valuetree::AsyncMode::Asynchronously,
 	[this](const Identifier& id, var newValue)
 	{
@@ -962,6 +985,45 @@ void ParameterSlider::checkEnabledState()
 	modulationActive = parameterToControl != nullptr && parameterToControl->isModulated();
 	setEnabled(!modulationActive);
 
+	String tt;
+
+	tt << node->getId() + "." + getName();
+
+	if(modulationActive)
+	{
+		auto ct = getConnectionSourceTree();
+		auto nt = valuetree::Helpers::findParentWithType(ct, PropertyIds::Node);
+
+		StringArray path;
+
+		valuetree::Helpers::forEachParent(ct, [&](const ValueTree& p)
+		{
+			if(pTree.isAChildOf(p))
+				return true;
+
+			if(p.getType() == PropertyIds::Parameter || p.getType() == PropertyIds::Node)
+			{
+				auto id = p[PropertyIds::ID].toString();
+				auto nid = p[PropertyIds::Name].toString();
+				path.add(nid.isNotEmpty() ? nid : id);
+			}
+
+			return false;
+		});
+
+		tt << " - connected to: ";
+
+		for(int i = path.size()-1; i >= 0; i--)
+		{
+			tt << path[i];
+
+			if(i != 0)
+				tt << ".";
+		}
+	}
+
+	setTooltip(tt);
+
 	if (modulationActive)
 		start();
 	else
@@ -977,18 +1039,28 @@ void ParameterSlider::updateRange(Identifier, var)
 	setRange(range.rng.getRange(), range.rng.interval);
 	setSkewFactor(range.rng.skew);
 
-	
+	if(pTree.hasProperty(PropertyIds::DefaultValue))
+	{
+		auto dv = pTree[PropertyIds::DefaultValue];
 
+		if(!(getRange().contains((double)dv) || getRange().getEnd() == (double)dv))
+			setDoubleClickReturnValue(false, getRange().getStart());
+	}
+	
 	repaint();
 }
 
 bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 {
+#if USE_BACKEND
 	if (details.sourceComponent == this)
 		return false;
 
-	auto sourceNode = details.sourceComponent->findParentComponentOfClass<NodeComponent>()->node.get();
+	if(pTree[PropertyIds::Automated])
+		return false;
 
+	WeakReference<NodeBase> sourceNode = DspNetworkListeners::getSourceNodeFromComponentDrag(details.sourceComponent);
+	
     if(dynamic_cast<NodeContainer*>(node.get()) != nullptr)
     {
         if(valuetree::Helpers::isParent(sourceNode->getValueTree(), node->getValueTree()))
@@ -1017,7 +1089,7 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 		return false;
 	}
 	
-    if(auto modSource = dynamic_cast<ModulationSourceNode*>(sourceNode))
+    if(auto modSource = dynamic_cast<ModulationSourceNode*>(sourceNode.get()))
     {
         auto h = modSource->getParameterHolder();
 
@@ -1047,6 +1119,9 @@ bool ParameterSlider::isInterestedInDragSource(const SourceDetails& details)
 		return false;
 
 	return !isReadOnlyModulated;
+#else
+	return false;
+#endif
 }
 
 void ParameterSlider::paint(Graphics& g)
@@ -1194,7 +1269,7 @@ juce::ValueTree ParameterSlider::getConnectionSourceTree()
 	return parameterToControl->getConnectionSourceTree(true);
 }
 
-bool ParameterSlider::matchesConnection(ValueTree& c) const
+bool ParameterSlider::matchesConnection(const ValueTree& c) const
 {
 	if (parameterToControl == nullptr)
 		return false;
@@ -1322,7 +1397,7 @@ void ParameterSlider::mouseExit(const MouseEvent& e)
 	Slider::mouseExit(e);
 }
 
-void ParameterSlider::mouseDoubleClick(const MouseEvent&)
+void ParameterSlider::mouseDoubleClick(const MouseEvent& e)
 {
 	if (!isEnabled())
 	{
@@ -1338,12 +1413,65 @@ void ParameterSlider::mouseDoubleClick(const MouseEvent&)
 			}
 		}
 
-		parameterToControl->addConnectionFrom({});
+		auto ct = getConnectionSourceTree();
 
-		
-		auto v = parameterToControl->getValue();
-		
-		setValue(v, dontSendNotification);
+		if(ct.isValid())
+		{
+			
+
+			bool sourceIsVisible = true;
+
+			valuetree::Helpers::forEachParent(ct, [&](const ValueTree& p)
+			{
+				if(p.getType() == PropertyIds::Node)
+				{
+					sourceIsVisible &= !(bool)p[PropertyIds::Folded];
+				}
+
+				return false;
+			});
+
+			auto sourceNodeTree = valuetree::Helpers::findParentWithType(ct, PropertyIds::Node);
+
+			auto isConnectedToParentChain = pTree.isAChildOf(sourceNodeTree);
+
+			if(isConnectedToParentChain)
+			{
+				sourceIsVisible = (bool)sourceNodeTree[PropertyIds::ShowParameters];
+			}
+
+			if(sourceIsVisible)
+			{
+				parameterToControl->addConnectionFrom({});
+				auto v = parameterToControl->getValue();
+				setValue(v, dontSendNotification);
+			}
+			else
+			{
+				auto um = node->getRootNetwork()->getUndoManager();
+
+				if(isConnectedToParentChain)
+				{
+					sourceNodeTree.setProperty(PropertyIds::ShowParameters, true, um);
+				}
+				else
+				{
+					valuetree::Helpers::forEachParent(ct, [&](ValueTree& p)
+					{
+						if(p.getType() == PropertyIds::Node)
+						{
+							p.setProperty(PropertyIds::Folded, false, um);
+						}
+
+						return false;
+					});
+				}
+			}
+		}
+	}
+	else
+	{
+		Slider::mouseDoubleClick(e);
 	}
 }
 
@@ -1519,11 +1647,42 @@ void ParameterKnobLookAndFeel::drawRotarySlider(Graphics& g, int , int , int wid
 	drawVectorRotaryKnob(g, b.toFloat(), modProportion, isBipolar, s.isMouseOverOrDragging(true) || ps->parameterToControl->isModulated(), s.isMouseButtonDown(), s.isEnabled(), modProportion);
 }
 
+void MacroParameterSlider::Dragger::mouseUp(const MouseEvent& e)
+{
+	parent.dragging = false;
+	ZoomableViewport::checkDragScroll(e, true);
+
+	parent.slider.repaintParentGraph();
+}
+
+void MacroParameterSlider::Dragger::mouseDrag(const MouseEvent& e)
+{
+	ZoomableViewport::checkDragScroll(e, false);
+	parent.slider.repaintParentGraph();
+
+	if(parent.dragging)
+		return;
+
+	if (auto container = DragAndDropContainer::findParentDragContainerFor(this))
+	{
+		parent.dragging = true;
+		auto details = DragHelpers::createDescription(parent.slider.node->getId(), parent.slider.parameterToControl->getId());
+		container->startDragging(details, this, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
+	}
+}
+
 MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
 	slider(node, index),
-    warningButton("warning", nullptr, *this)
+	dragger(*this),
+    warningButton("warning", nullptr, *this),
+	deleteButton("delete", nullptr, *this) 
 {
+	warningButton.setTooltip("Range mismatch. Click to resolve");
+	deleteButton.setTooltip("Remove this parameter");
+
 	addAndMakeVisible(slider);
+	addAndMakeVisible(dragger);
+	addChildComponent(deleteButton);
 	setWantsKeyboardFocus(true);
 
     addAndMakeVisible(warningButton);
@@ -1546,7 +1705,18 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
         slider.pTree.getChildWithName(PropertyIds::Connections),
         valuetree::AsyncMode::Asynchronously,
         BIND_MEMBER_FUNCTION_2(MacroParameterSlider::updateWarningOnConnectionChange));
-    
+
+	deleteButton.onClick = [this, node]()
+	{
+		auto treeToDelete = slider.pTree;
+		auto um = node->getUndoManager();
+
+		MessageManager::callAsync([treeToDelete, um]()
+		{
+			treeToDelete.getParent().removeChild(treeToDelete, um);
+		});
+	};
+
     warningButton.onClick = [this, node]()
     {
         auto firstConnection = slider.pTree.getChildWithName(PropertyIds::Connections).getChild(0);
@@ -1658,40 +1828,39 @@ Path MacroParameterSlider::createPath(const String& url) const
     Path p;
     
 	LOAD_EPATH_IF_URL("warning", EditorIcons::warningIcon);
-    
+    LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
+	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
     return p;
 }
 
 void MacroParameterSlider::resized()
 {
 	auto b = getLocalBounds();
-	b.removeFromBottom(10);
+
+	slider.getProperties().set("circleOffsetY", 12.0f);
+
+	dragger.setBounds(b.removeFromBottom(20));
 	slider.setBounds(b);
+
     warningButton.setBounds(b.removeFromRight(18).removeFromTop(18));
+	deleteButton.setBounds(b.removeFromLeft(18).removeFromTop(18));
+}
+
+void MacroParameterSlider::mouseDown(const MouseEvent& event)
+{
+	CHECK_MIDDLE_MOUSE_DOWN(event);
+	Component::mouseDown(event);
 }
 
 void MacroParameterSlider::mouseDrag(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_DRAG(e);
-    
-	if (editEnabled)
-	{
-		if (auto container = DragAndDropContainer::findParentDragContainerFor(this))
-		{
-			auto details = DragHelpers::createDescription(slider.node->getId(), slider.parameterToControl->getId());
-
-			container->startDragging(details, &slider, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
-
-			slider.repaintParentGraph();
-		}
-	}
 }
+
 
 void MacroParameterSlider::mouseUp(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_UP(e);
-
-	slider.repaintParentGraph();
 }
 
 void MacroParameterSlider::mouseEnter(const MouseEvent& e)
@@ -1713,19 +1882,8 @@ void MacroParameterSlider::paintOverChildren(Graphics& g)
 {
 	if (editEnabled)
 	{
-		Path p;
-		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
-
-		auto pa = getLocalBounds().toFloat().withSizeKeepingCentre(20.0f, 20.0f).translated(0.0, -8);
-
-		PathFactory::scalePath(p, pa);
-
-		g.setColour(Colours::white.withAlpha(0.3f));
-		g.fillPath(p);
-
 		auto b = getLocalBounds().reduced(2).toFloat();
-		b.removeFromBottom(8.0f);
-
+		
 		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.05f));
 		g.fillRoundedRectangle(b, 3);
 
@@ -1741,6 +1899,8 @@ void MacroParameterSlider::setEditEnabled(bool shouldBeEnabled)
 {
 	slider.setEnabled(!shouldBeEnabled);
 	editEnabled = shouldBeEnabled;
+
+	deleteButton.setVisible(shouldBeEnabled);
 
 	if (auto mp = dynamic_cast<NodeContainer::MacroParameter*>(slider.parameterToControl.get()))
 	{
@@ -1791,16 +1951,7 @@ bool MacroParameterSlider::keyPressed(const KeyPress& key)
 	}
 	if (key == KeyPress::deleteKey || key == KeyPress::backspaceKey)
 	{
-		auto treeToRemove = slider.parameterToControl->data;
-		auto um = slider.node->getUndoManager();
-
-		auto f = [treeToRemove, um]()
-		{
-			treeToRemove.getParent().removeChild(treeToRemove, um);
-		};
-
-		MessageManager::callAsync(f);
-
+		deleteButton.triggerClick();
 		return true;
 	}
 
@@ -1848,6 +1999,11 @@ void ParameterKnobLookAndFeel::SliderLabel::updateText()
 	{
 		auto value = parent->getValue();
 		auto p = dynamic_cast<ParameterSlider*>(parent.getComponent())->parameterToControl;
+
+		if(p != nullptr && p->getValue() != value)
+		{
+			parent->setValue(p->getValue(), dontSendNotification);
+		}
 
 		if (!parent->isEnabled() && p != nullptr)
 			value = p->getValue();

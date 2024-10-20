@@ -125,12 +125,19 @@ public:
 
 	void refreshLineWidth();
 
+	void insertCodeSnippet(const String& textToInsert, Array<Range<int>> selectRanges);
+
 	CodeDocument& getDocument();
 
 	TooltipWithArea::Data getTooltip(Point<float> position) override;
 
 	void updateAutocomplete(bool forceShow = false);
 
+    void prepareExternalInsert()
+    {
+        autocompleteSelection = document.getSelection(0);
+    }
+    
 	bool gotoDefinition(Selection s1 = {});
 
 	void tokenListWasRebuild() override {};

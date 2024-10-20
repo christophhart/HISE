@@ -704,7 +704,8 @@ struct SpecNode: public NodeBase
 
 	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
 	{
-		return { topLeft.getX(), topLeft.getY(), 256, 150 };
+		Rectangle<int> x = { topLeft.getX(), topLeft.getY(), 256, 150 };
+		return getBoundsToDisplay(x);
 	}
 
 	uint32 lastMs;
@@ -856,7 +857,7 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyModNode<dp<comp>, dp<wrap::illegal_poly<comp>>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<limiter>, dp<wrap::illegal_poly<limiter>>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<updown_comp>, dp<wrap::illegal_poly<updown_comp>>, updown_editor>();
-	registerModNode<dp<envelope_follower>, data::ui::displaybuffer_editor >();
+	registerPolyModNode<dp<envelope_follower<1>>, dp<envelope_follower<NUM_POLYPHONIC_VOICES>>, data::ui::displaybuffer_editor >();
 }
 
 }
@@ -1131,8 +1132,7 @@ template <int NV> struct NeuralNode: public NodeBase
     
     Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
     {
-
-        return Rectangle<int>(topLeft, topLeft.translated(128, 100));
+        return getBoundsToDisplay(Rectangle<int>(topLeft, topLeft.translated(128, 100)));
     }
     
     void updateModel(Identifier, var value)
@@ -1313,6 +1313,9 @@ namespace control
 		registerNoProcessNode<dynamic_cable_table, data::ui::table_editor>();
 		
 		registerNoProcessNode<control::normaliser<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+		registerNoProcessNode<control::unscaler<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+		registerNoProcessNode<control::locked_mod<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
+		registerNoProcessNode<control::locked_mod_unscaled<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
 		registerNoProcessNode<control::random<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 

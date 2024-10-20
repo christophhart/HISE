@@ -2379,7 +2379,13 @@ public:
 
     SemanticVersionChecker(const String& oldVersion_, const String& newVersion_);;
 
+	SemanticVersionChecker(const std::array<int, 3>& oldVersion_, const std::array<int, 3>& newVersion_);
+
     bool isUpdate() const;
+	bool isExactMatch() const
+	{
+		return newVersion.validVersion && newVersion == oldVersion;
+	}
 
     bool isMajorVersionUpdate() const;;
     bool isMinorVersionUpdate() const;;
@@ -2387,10 +2393,32 @@ public:
     bool oldVersionNumberIsValid() const;
     bool newVersionNumberIsValid() const;
 
+	String getErrorMessage(const String& oldVersionName, const String& newVersionName) const
+	{
+	    String m;
+		m << oldVersionName << ": " << oldVersion.toString();
+		m << ", " << newVersionName << ": " << newVersion.toString();
+		return m;
+	}
+
 private:
 
     struct VersionInfo
     {
+		bool operator== (const VersionInfo& other) const
+		{
+		    return majorVersion == other.majorVersion &&
+				   minorVersion == other.minorVersion &&
+				   patchVersion == other.patchVersion;
+		}
+
+		String toString() const
+		{
+		    String m;
+			m << String(majorVersion) << "." << String(minorVersion) << "." << String(patchVersion);
+			return m;
+		}
+
         bool validVersion = false;
         int majorVersion = 0;
         int minorVersion = 0;
@@ -2427,6 +2455,9 @@ struct AdditionalEventStorage
 
 	std::pair<bool, double> getValue(uint16 eventId, uint8 slotIndex) const
 	{
+		if(eventId == 0)
+			return { false, 0.0 };
+
 		auto i1 = eventId & (NumEventSlots -1);
 		auto i2 = slotIndex & (NumDataSlots - 1);
 
@@ -2444,7 +2475,7 @@ struct AdditionalEventStorage
 	{
 		auto nv = getValue(eventId, slotIndex);
 
-		if(nv.first && nv.second != value)
+		if(nv.first)
 		{
 			value = nv.second;
 			return true;

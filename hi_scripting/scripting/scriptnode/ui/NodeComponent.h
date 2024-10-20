@@ -54,9 +54,11 @@ public:
 		ExportAsCpp = 1,
 		ExportAsCppProject,
 		ExportAsSnippet,
+		ExportAsTemplate,
 		CreateScreenShot,
 		EditProperties,
 		UnfreezeNode,
+		ExplodeLocalCables,
 		FreezeNode,
 		WrapIntoDspNetwork,
 		WrapIntoChain,
@@ -78,6 +80,7 @@ public:
 
 	struct Header : public Component,
 		public ButtonListener,
+        public SettableTooltipClient,
 		public DragAndDropTarget
 	{
 		Header(NodeComponent& parent_);
@@ -87,9 +90,15 @@ public:
 		String getPowerButtonId(bool getOff) const;
 
 		void updatePowerButtonState(Identifier id, var newValue);
+		void updateConnectionButton(Identifier id, var newValue);
 
 		void paint(Graphics& g) override;
 		void resized() override;
+
+		bool keyPressed(const KeyPress& key) override
+		{
+			return parent.keyPressed(key);
+		}
 
 		void mouseDoubleClick(const MouseEvent& event) override;
 		void mouseDown(const MouseEvent& e) override;
@@ -142,6 +151,10 @@ public:
 			repaint();
 		}
 
+		void setShowRenameLabel(bool shouldShow);
+
+		ScopedPointer<TextEditor> renameLabel;
+
 		NodeComponent& parent;
 		Factory f;
 
@@ -150,6 +163,7 @@ public:
 		valuetree::RecursiveTypedChildListener dynamicPowerUpdater;
 
 		valuetree::PropertyListener powerButtonUpdater;
+		valuetree::PropertyListener parameterUpdater;
 		valuetree::PropertyListener colourUpdater;
 		HiseShapeButton powerButton;
 		HiseShapeButton deleteButton;
@@ -201,9 +215,25 @@ public:
 	NodeComponent(NodeBase* b);;
 	virtual ~NodeComponent();
 
+	struct PositionHelpers
+	{
+		static juce::Rectangle<int> getPositionInCanvasForStandardSliders(const NodeBase* n, Point<int> topLeft);
+
+		static juce::Rectangle<int> createRectangleForParameterSliders(const NodeBase* n, int numColumns);
+	};
+
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 	void resized() override;
+
+	bool keyPressed(const KeyPress& key) override
+	{
+		if(key == KeyPress::F2Key)
+		{
+			header.setShowRenameLabel(true);
+			return true;
+		}
+	}
 
 	MarkdownLink getLink() const override;
 

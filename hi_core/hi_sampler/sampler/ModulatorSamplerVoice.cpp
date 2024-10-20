@@ -127,7 +127,7 @@ void ModulatorSamplerVoice::stopNote(float velocity, bool allowTailoff)
 
 void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 {
-	if (waitForPlayFromPurge.load())
+	if (waitForPlayFromPurge.load() || wrappedVoice.isWaitingForTimestretchSeek())
 	{
 		voiceBuffer.clear(startSample, numSamples);
 		return;
@@ -187,6 +187,11 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(0, startSample), true, samplesInBlock);
 	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(1, startSample), false, samplesInBlock);
 
+	if(wrappedVoice.isWaitingForTimestretchSeek())
+	{
+		return;
+	}
+
 	float envGain = 1.0f;
 
 	if (auto gEnv = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::GainMode))
@@ -211,7 +216,11 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 		resetVoice();
 	}
 
+#if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
+#endif
+
+	
 
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
@@ -255,6 +264,10 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 			jassertfalse;
 	}
 
+#if !HISE_USE_WRONG_VOICE_RENDERING_ORDER
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
+#endif
+
 	if (sampler->isLastStartedVoice(this))
 	{
 		handlePlaybackPosition(sound);
@@ -269,7 +282,7 @@ void ModulatorSamplerVoice::handlePlaybackPosition(const StreamingSamplerSound *
     
 	double normPos = 0.0;
 
-	if (sound->isLoopEnabled() && sound->getLoopLength() != 0)
+	if (sound->isLoopEnabled() && sound->getLoopLength() != 0 && wrappedVoice.loader.getReleasePlayState() == StreamingSamplerSound::ReleasePlayState::Inactive)
 	{
 		int samplePosition = (int)voiceUptime;
 
@@ -404,9 +417,8 @@ wrappedVoice(sampler->getBackgroundThreadPool())
 	auto ms = static_cast<ModulatorSampler*>(ownerSynth);
 
 	wrappedVoice.setTemporaryVoiceBuffer(ms->getTemporaryVoiceBuffer(), ms->getTemporaryStretchBuffer());
-	
 	wrappedVoice.setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());
-	
+	wrappedVoice.setSuspendOnDelayedStartFunction(std::bind(&ModulatorSynth::syncAfterDelayStart, ownerSynth, std::placeholders::_1, std::placeholders::_2), getVoiceIndex());
 };
 
 
@@ -426,6 +438,9 @@ ModulatorSamplerVoice(ownerSynth)
 		wrappedVoices.getLast()->setTemporaryVoiceBuffer(ms->getTemporaryVoiceBuffer(), ms->getTemporaryStretchBuffer());
 		wrappedVoices.getLast()->setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());
 	}
+
+	// just call this once...
+	wrappedVoices.getFirst()->setSuspendOnDelayedStartFunction(std::bind(&ModulatorSynth::syncAfterDelayStart, ownerSynth, std::placeholders::_1, std::placeholders::_2), getVoiceIndex());
 }
 
 void MultiMicModulatorSamplerVoice::startVoiceInternal(int midiNoteNumber, float velocity)
@@ -492,7 +507,7 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 {
 	ADD_GLITCH_DETECTOR(getOwnerSynth(), DebugLogger::Location::MultiMicSampleRendering);
 
-	if (waitForPlayFromPurge.load())
+	if (waitForPlayFromPurge.load() || wrappedVoices.getFirst()->isWaitingForTimestretchSeek())
 	{
 		voiceBuffer.clear(startSample, numSamples);
 		return;
@@ -542,8 +557,10 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 		}
 	}
 
+#if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
-	
+#endif
+
 	if (auto modValues = getOwnerSynth()->getVoiceGainValues())
 	{
 		for (int i = 0; i < wrappedVoices.size(); i++)
@@ -606,6 +623,10 @@ void MultiMicModulatorSamplerVoice::calculateBlock(int startSample, int numSampl
 		if (rGain != 1.0f)
 			FloatVectorOperations::multiply(voiceBuffer.getWritePointer(2 * i + 1, startIndex), rGain, samplesInBlock);
 	}
+
+#if !HISE_USE_WRONG_VOICE_RENDERING_ORDER
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesInBlock);
+#endif
 
 	if (sampler->isLastStartedVoice(this))
 	{

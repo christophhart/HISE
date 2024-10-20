@@ -34,12 +34,12 @@ namespace hise
 namespace simple_css
 {
 
-Animator::ScopedComponentSetter::ScopedComponentSetter(Component* c)
+Animator::ScopedComponentSetter::ScopedComponentSetter(std::pair<Component*, int> c)
 {
-	auto root = dynamic_cast<CSSRootComponent*>(c);
+	auto root = dynamic_cast<CSSRootComponent*>(c.first);
 
-	if(root == nullptr && c != nullptr)
-		root = c->findParentComponentOfClass<CSSRootComponent>();
+	if(root == nullptr && c.first != nullptr)
+		root = c.first->findParentComponentOfClass<CSSRootComponent>();
 
 	if(root != nullptr)
 	{
@@ -60,12 +60,13 @@ Animator::Item::Item(Animator& parent, StyleSheet::Ptr css_, Transition tr_):
 	transitionData(tr_),
 	target(parent.currentlyRenderedComponent)
 {
-	jassert(target != nullptr);
+	jassert(target.first != nullptr);
+	resetWaitCounter();
 }
 
 bool Animator::Item::timerCallback(double delta)
 {
-	if(target.getComponent() == nullptr)
+	if(target.first.getComponent() == nullptr)
 		return false;
 
 	auto d = delta * 0.001;
@@ -73,20 +74,28 @@ bool Animator::Item::timerCallback(double delta)
 	if(transitionData.duration > 0.0)
 		d /= transitionData.duration;
 
+	if(waitCounter > 0.0)
+	{
+		waitCounter -= d;
+
+		if(waitCounter > 0.0)
+			return true;
+	}
+
 	if(reverse)
 		d *= -1.0;
 
-	currentProgress += d;
+	currentProgress += d / speed;
 
 	if(currentProgress > 1.0 || currentProgress < 0.0)
 	{
 		currentProgress = jlimit(0.0, 1.0, currentProgress);
-		target->repaint();
+		target.first->repaint();
 		return false;
 	}
 
-	if(target.getComponent() != nullptr)
-		target->repaint();
+	if(target.first.getComponent() != nullptr)
+		target.first->repaint();
 	else
 	{
 		return false;
@@ -166,7 +175,7 @@ void StateWatcher::Item::renderShadow(Graphics& g, const Path& p,
 	}
 }
 
-void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentState)
+void StateWatcher::checkChanges(std::pair<Component*, int> c, StyleSheet::Ptr ss, int currentState)
 {
 	auto stateChanged = changed(c, currentState);
 
@@ -174,18 +183,18 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 	{
 		auto& uc = updatedComponents.getReference(i);
 
-		if(uc.target == nullptr)
+		if(uc.target.first == nullptr)
 		{
 			updatedComponents.remove(i--);
 			continue;
 		}
 			
-		if(uc.target != c)
+		if(uc.target.first != c.first || uc.target.second != c.second)
 			continue;
 
 		if(!uc.initialised || stateChanged.first)
 		{
-			uc.update(ss, currentState);
+			uc.update(parent, ss, currentState);
 		}
 
 	}
@@ -202,20 +211,30 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 			auto f1 = findPropertyValue(stateChanged.second);
 			auto f2 = findPropertyValue(currentState);
 				
-			if( f1 || f2)
+			if( (f1 || f2) && (f1.getRawValueString() != f2.getRawValueString()))
 			{
+				
+
 				auto pt = ss->getTransitionOrDefault(t, f1.transition);
 				auto ct = ss->getTransitionOrDefault(t, f2.transition);
-					
+
+				Transition thisTransition;
+
 				if(pt || ct)
 				{
-					auto thisTransition = ct ? ct : pt;
+					thisTransition = ct ? ct : pt;
+				}
+				else
+				{
+					thisTransition = findPropertyValue(0).transition;
+				}
+
+				if(thisTransition)
+				{
+					
 
 					PropertyKey thisStartValue(p.name, PseudoState(stateChanged.second).withElement(t));
 					PropertyKey thisEndValue(p.name, PseudoState(currentState).withElement(t));
-                    
-                    
-
                     
 					bool found = false;
 
@@ -226,21 +245,22 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 							i->startValue.name == p.name &&
 							i->startValue.state.matchesElement(t))
 						{
-							if(currentState == i->startValue.state.stateFlag)
-							{
-								i->reverse = !i->reverse;
-								found = true;
-								break;
-							}
-							else
-							{
-								i->currentProgress = 0.0;
-								i->startValue.state = i->endValue.state;
-								i->endValue.state.stateFlag = currentState;
-								i->transitionData = thisTransition;
-								found = true;
-								break;
-							}
+							i->resetWaitCounter();
+
+							// just a switch between the start and end state
+							auto tv = ss->getTransitionValue(i->endValue);
+
+							i->currentProgress = 0.0;
+							i->reverse = false;
+							 
+							String m;
+							m << tv.startValue << "~" << tv.endValue << "~" << String(tv.progress, 3);
+
+							i->intermediateStartValue = m;
+							i->endValue.state.stateFlag = currentState;
+							i->transitionData = thisTransition;
+							found = true;
+							break;
 						}
 					}
 
@@ -262,11 +282,12 @@ void StateWatcher::checkChanges(Component* c, StyleSheet::Ptr ss, int currentSta
 	}
 }
 
-std::pair<bool, int> StateWatcher::changed(Component* c, int stateFlag)
+std::pair<bool, int> StateWatcher::changed(std::pair<Component*, int> c, int stateFlag)
 {
 	for(auto& i: items)
 	{
-		if(i.c == c)
+		if(i.c.first == c.first &&
+		   i.c.second == c.second)
 			return i.changed(stateFlag);
 	}
 
@@ -276,12 +297,12 @@ std::pair<bool, int> StateWatcher::changed(Component* c, int stateFlag)
 
 void StateWatcher::registerComponentToUpdate(Component* c)
 {
-	updatedComponents.addIfNotAlreadyThere({ c });
+	updatedComponents.addIfNotAlreadyThere({ {c, -1} });
 }
 
-void StateWatcher::UpdatedComponent::update(StyleSheet::Ptr ss, int currentState)
+void StateWatcher::UpdatedComponent::update(CSSRootComponent* cssRoot, StyleSheet::Ptr ss, int currentState)
 {
-	ss->setupComponent(target.getComponent(), currentState);
+	ss->setupComponent(cssRoot, target.first.getComponent(), currentState);
 	initialised = true;
 }
 }

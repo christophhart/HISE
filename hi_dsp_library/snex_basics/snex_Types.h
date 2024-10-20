@@ -394,6 +394,8 @@ struct VoiceResetter
 	virtual void onVoiceReset(bool allVoices, int voiceIndex) = 0;
 	virtual int getNumActiveVoices() const = 0;
 
+	virtual bool isVoiceResetActive() const = 0;
+
 	int skipResetIndex = -1;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(VoiceResetter);

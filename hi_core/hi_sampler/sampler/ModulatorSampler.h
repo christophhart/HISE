@@ -275,7 +275,7 @@ public:
 
 		TimestretchMode mode = TimestretchMode::Disabled;
 		double tonality = 0.0;
-		bool skipStart = false;
+		bool synchronousSkip = false;
 		double numQuarters = 0.0;
 		Identifier engineId;
 
@@ -283,7 +283,7 @@ public:
 		{
 			mode = TimestretchMode::Disabled;
 			tonality = 0.0;
-			skipStart = false;
+			synchronousSkip = false;
 			numQuarters = 0.0;
 			engineId = {};
 		}
@@ -294,7 +294,7 @@ public:
 
 			const DynamicObject::Ptr obj = new DynamicObject();
 			obj->setProperty("Tonality", tonality);
-			obj->setProperty("SkipLatency", skipStart);
+			obj->setProperty("SkipLatency", synchronousSkip);
 			obj->setProperty("Mode", modes[static_cast<int>(mode)]);
 			obj->setProperty("NumQuarters", numQuarters);
 			obj->setProperty("PreferredEngine", engineId.toString());
@@ -307,7 +307,7 @@ public:
 			static const StringArray modes = { "Disabled", "VoiceStart", "TimeVariant", "TempoSynced" };
 
 			tonality = jlimit(0.0, 1.0, static_cast<double>(json.getProperty("Tonality", 0.0)));
-			skipStart = json.getProperty("SkipLatency", false);
+			synchronousSkip = json.getProperty("SkipLatency", false);
 			mode = static_cast<TimestretchMode>(modes.indexOf(json.getProperty("Mode", "Disabled").toString()));
 			numQuarters = json.getProperty("NumQuarters", 0.0);
 
@@ -517,6 +517,21 @@ public:
 
 	int getMidiInputLockValue(const Identifier& id) const;
 	void toggleMidiInputLock(const Identifier& propertyId, int lockValue);
+
+	void setDisplayGroupFollowsRRGroup(bool shouldFollow)
+	{
+		if(shouldFollow != displayGroupFollowsRRGroup)
+		{
+			displayGroupFollowsRRGroup = shouldFollow;
+
+			if(shouldFollow)
+				setDisplayedGroup(getCurrentRRGroup()-1, true, {}, sendNotificationAsync);
+		}
+	}
+
+	bool isDisplayGroupFollowingRRGroup() const { return displayGroupFollowsRRGroup; }
+
+	bool displayGroupFollowsRRGroup = false;
 
 	CriticalSection &getSamplerLock() {	return lock; }
 
@@ -751,7 +766,9 @@ public:
 	double getCurrentTimestretchRatio() const;
 
 	PolyHandler& getSyncVoiceHandler() { return syncVoiceHandler; }
-	
+
+	void refreshReleaseStartFlag();
+
 private:
 
 	scriptnode::PolyHandler syncVoiceHandler;
@@ -824,6 +841,7 @@ private:
 	bool crossfadeGroups;
 	bool purged;
 	bool deactivateUIUpdate;
+	bool soundsHaveReleaseStart = false;
 	int rrGroupAmount;
 	//int currentRRGroupIndex;
 

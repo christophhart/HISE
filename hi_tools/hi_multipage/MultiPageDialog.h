@@ -36,11 +36,12 @@ namespace hise {
 namespace multipage {
 using namespace juce;
 
-
+struct PlaceholderContentBase;
 
 namespace factory
 {
 	struct Container;
+    
 }
 
 struct ComponentWithSideTab
@@ -108,6 +109,7 @@ public:
         bool confirmClose = true;
         String styleSheet = "Dark";
         String additionalStyle;
+        String closeMessage = "Do you want to close this popup?";
         bool useViewport = true;
     } positionInfo;
 
@@ -134,7 +136,11 @@ public:
 
         void forwardInlineStyleToChildren();
 
-        
+        bool updateInfoProperty(const Identifier& pid);
+
+        VisibleState getVisibility() const;
+
+        static StringArray getVisibilityNames();
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
         virtual void createEditor(PageInfo& infoList) {}
@@ -494,6 +500,15 @@ public:
         return *p;
     }
 
+    bool useGlobalAppDataDirectory() const
+    {
+#if JUCE_MAC
+        return (bool)getGlobalProperty(mpid::UseGlobalAppData);
+#else
+        return false;
+#endif
+    }
+
     Result getCurrentResult();
     void showFirstPage();
 	void setFinishCallback(const std::function<void()>& f);
@@ -740,6 +755,14 @@ public:
     void loadStyleFromPositionInfo();
 
     bool& getSkipRebuildFlag() { return skipRebuild; }
+
+    using PlaceholderCreator = std::function<multipage::PlaceholderContentBase*(multipage::Dialog&, const var&)>;
+
+	Array<std::pair<Identifier, PlaceholderCreator>> placeholderFactory;
+
+	void registerPlaceholder(const Identifier& typeId, const PlaceholderCreator& pc);
+
+    PlaceholderContentBase* createDynamicPlaceholder(const var& infoObject);
 
 private:
 

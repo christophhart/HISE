@@ -116,7 +116,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	
 
 	Processor *p = dynamic_cast<Processor*>(jp.get());
-	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, t == FileTypes::Javascript);
+	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, t == FileTypes::Javascript || t == FileTypes::CSS);
 
     p->getMainController()->addScriptListener(this);
     
@@ -208,10 +208,119 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 		
 	}
 
+	String getDefaultScriptCodeSnippets(bool getDefault)
+	{
+		Array<var> list;
+
+		static const Identifier name_("name");
+		static const Identifier language_("language");
+		static const Identifier code_("code");
+		static const Identifier description_("description");
+		static const Identifier priority_("priority");
+
+#define ADD_HS_SNIPPET(name, code, description); { DynamicObject::Ptr p = new DynamicObject(); p->setProperty(name_, name); \
+	                                                                p->setProperty(language_, "HiseScript"); p->setProperty(code_, code); \
+																	p->setProperty(description_, description); p->setProperty(priority_, 100); \
+														            list.add(var(p.get())); }
+			
+
+		if(!getDefault)
+		{
+			DynamicObject::Ptr p = new DynamicObject();
+
+			ADD_HS_SNIPPET("userSnippet", "This is a $SNIPPET$ from the user snippet list", 
+				        "This is a description that will show up in the autocomplete textbox");
+		}
+		else
+		{
+	
+
+			ADD_HS_SNIPPET("reg (...)", "reg $VAR_NAME$ = $VALUE$;", "A shortcut to a reg variable definition.");
+			ADD_HS_SNIPPET("const (...)", "const var $VAR_NAME$ = $VALUE$;", "A shortcut to a const variable definition.");
+			ADD_HS_SNIPPET("local (...)", "local $VAR_NAME$ = $VALUE$;", "A shortcut to a local variable definition.");
+			ADD_HS_SNIPPET("var (...)", "var $VAR_NAME$ = $VALUE$;", "A shortcut to a standard variable definition.");
+			ADD_HS_SNIPPET("for (...)", "for($LOOP_VAR$ = 0; $LOOP_VAR$ < 10; $LOOP_VAR$++)\n{\n\t$// loop body$\n}",
+				           "A simple for loop");
+			ADD_HS_SNIPPET("tr (...)", "Console.print(trace($data$));", "A shortcut for printing something to the console using `trace`");
+
+			ADD_HS_SNIPPET("inline1 (...)", "inline function $functionName$($args1$)\n{\n\t$// body$\n};",
+				           "A shortcut for a inline function definition with a single argument");
+
+			ADD_HS_SNIPPET("inline2 (...)", "inline function $functionName$($args1$, $args2$)\n{\n\t$// body$\n};",
+				           "A shortcut for a inline function definition with two arguments");
+
+			ADD_HS_SNIPPET("inline3 (...)", "inline function $functionName$($args1$, $args2$, $args3$)\n{\n\t$// body$\n};",
+				           "A shortcut for a inline function definition with 3 argument");
+
+			ADD_HS_SNIPPET("inline4 (...)", "inline function $functionName$($args1$, $args2$, $args3$, $args4$)\n{\n\t$// body$\n};",
+				           "A shortcut for a inline function definition with 4 arguments");
+
+			ADD_HS_SNIPPET("inline5 (...)", "inline function $functionName$($args1$, $args2$, $args3$, $args4$, $args5$)\n{\n\t$// body$\n};",
+				           "A shortcut for a inline function definition with a 5 arguments");
+
+			ADD_HS_SNIPPET("JSON1 (...)", "{\n  \"$key1$\": $v1$ }", 
+				           "A shortcut for a JSON object definition with a single property");
+
+			ADD_HS_SNIPPET("JSON2 (...)", "{\n  \"$key1$\": $v1$,\n  \"$key2$\": $v2$\n}", 
+				           "A shortcut for a JSON object definition with two properties");
+
+			ADD_HS_SNIPPET("JSON3 (...)", "{\n  \"$key1$\": $v1$,\n  \"$key2$\": $v2$,\n  \"$key3$\": $v3$\n}", 
+				           "A shortcut for a JSON object definition with a 3 properties");
+
+			ADD_HS_SNIPPET("JSON4 (...)", "{\n  \"$key1$\": $v1$,\n  \"$key2$\": $v2$,\n  \"$key3$\": $v4$,\n  \"$key4$\": $v3$\n}", 
+				           "A shortcut for a JSON object definition with a 4 properties");
+
+			ADD_HS_SNIPPET("broadcaster1 (...)", "const var $BROADCASTER_ID$ = Engine.createBroadcaster({\n  id: \"$BROADCASTER_ID$\",\n  args: [\"$a1$\"]\n});", 
+				           "A broadcaster definition with a single argument");
+		    ADD_HS_SNIPPET("broadcaster2 (...)", "const var $BROADCASTER_ID$ = Engine.createBroadcaster({\n  id: \"$BROADCASTER_ID$\",\n  args: [\"$a1$\", \"$a2$\"]\n});", 
+				           "A broadcaster definition with a two arguments");
+			ADD_HS_SNIPPET("broadcaster3 (...)", "const var $BROADCASTER_ID$ = Engine.createBroadcaster({\n  id: \"$BROADCASTER_ID$\",\n  args: [\"$a1$\", \"$a2$\", \"$a3$\"]\n});", 
+				           "A broadcaster definition with a two arguments");
+
+			ADD_HS_SNIPPET("onControl (...)", "inline function on$UI_CONTROL$Control(component, value)\n{\n\t$Console.print(value);$\n};\nContent.getComponent(\"$UI_CONTROL$\").setControlCallback(on$UI_CONTROL$Control);",
+						   "A code template for a control callback.  \n>Use Ctrl+D for selecting all `UI_CONTROL` tokens and rename it to the control ID");
+
+		    ADD_HS_SNIPPET("timer (...)", "const var $TIMER_VAR$ = Engine.createTimerObject();\n\n$TIMER_VAR$.setTimerCallback(function()\n{\n\t$// timer callback$\n});\n\n$TIMER_VAR$.startTimer($30$);\n",
+                           "A code snippet that will create a UI timer definition with a callback and a default period of 30Hz");
+
+		    ADD_HS_SNIPPET("css_inline (...)", "const var $UI_CONTROL$_laf = Content.createLocalLookAndFeel();\n$UI_CONTROL$_laf.setInlineStyleSheet(\"#$UI_CONTROL$ {\n  background-color: blue;\n  color: white;\n}\n\n#$UI_CONTROL$:hover {\n  background-color: red;\n}\");\n\nContent.getComponent(\"$UI_CONTROL$\").setLocalLookAndFeel($UI_CONTROL$_laf);\n",
+				           "A code snippet that will create a LAF class with an inline CSS style sheet that can be applied to a UI control using its id selector.  \n>Use `Ctrl+D` for selecting all `UI_CONTROL` tokens and rename it to the control ID");
+	
+#undef  ADD_HS_SNIPPET
+		}
+
+		return JSON::toString(var(list), false);
+	}
+
 	/** Add all token providers you want to use for this language. */
 	void addTokenProviders(mcl::TokenCollection* t)
 	{
 		t->addTokenProvider(new HiseJavascriptEngine::TokenProvider(jp));
+
+		if(auto p = jp.get())
+		{
+			auto mc = dynamic_cast<Processor*>(p)->getMainController();
+
+			Array<File> fileList;
+			
+			auto appDataFolder = ProjectHandler::getAppDataDirectory(mc);
+
+			fileList.add(appDataFolder.getChildFile("hiseCodeSnippets.json"));
+
+			fileList[0].replaceWithText(getDefaultScriptCodeSnippets(true));
+			
+			fileList.add(appDataFolder.getChildFile("userCodeSnippets.json"));
+
+			if(!fileList[1].existsAsFile())
+			{
+				fileList[1].replaceWithText(getDefaultScriptCodeSnippets(false));
+			}
+
+			t->addTokenProvider(new mcl::CodeSnippetProvider(fileList, "HiseScript", [mc](const String& m)
+			{
+				mc->getConsoleHandler().writeToConsole(m, 2, mc->getMainSynthChain(), Colours::red);
+			}));
+		}
 	}
 
 	/** Use this for additional setup. */
@@ -498,17 +607,8 @@ File PopupIncludeEditor::getFile() const
 
 void PopupIncludeEditor::compileInternal()
 {
-	if (externalFile != nullptr)
-	{
-		if(externalFile->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet)
-		{
-			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Skip writing embedded file " + externalFile->getFile().getFileName() + " to disk...");
-		}
-		else
-		{
-            externalFile->saveFile();
-		}
-	}
+	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
+	mc->saveAllExternalFiles();
 
 	if(t == FileTypes::CSS)
 	{
@@ -532,9 +632,9 @@ void PopupIncludeEditor::compileInternal()
 		else
 		{
 			auto top = getTopLevelComponent();
-
 			auto css = p.getCSSValues();
-			auto fileName = getFile().getFileName();
+			auto scriptFolder = dynamic_cast<Processor*>(getScriptProcessor())->getMainController()->getActiveFileHandler()->getSubDirectory(FileHandlerBase::Scripts);
+			auto fileName = getFile().getRelativePathFrom(scriptFolder).replaceCharacter('\\', '/');
 
 			Component::callRecursive<ScriptContentComponent>(top, [&](ScriptContentComponent* c)
 			{

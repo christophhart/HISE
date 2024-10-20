@@ -445,6 +445,13 @@ public:
 
 	void editJSON();
 
+	Component::SafePointer<Component> togglePopupCallbackComponent;
+	bool* toggleFlag = nullptr;
+
+	void callToggleCallback();
+
+	bool setTogglePopupFlag(Component& c, bool& shouldClose);
+
 	FloatingTilePopup* showComponentInRootPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport=false, bool maximiseViewport=false);
 
 	FloatingTilePopup* showComponentAsDetachedPopup(Component* newComponent, Component* attachedComponent, Point<int> localPoint, bool wrapInViewport = false);

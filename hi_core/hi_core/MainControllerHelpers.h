@@ -90,6 +90,231 @@ public:
 
 #define HI_NUM_MIDI_AUTOMATION_SLOTS 8
 
+struct ValueToTextConverter
+{
+	struct ConverterFunctions
+	{
+		static String Frequency(double input)
+		{
+			if (input < 30.0f)
+				return String(input, 1) + " Hz";
+			else if (input < 1000.0f)
+				return String(roundToInt(input)) + " Hz";
+			else
+				return String(input / 1000.0, 1) + " kHz";
+		}
+
+		static String Time(double v)
+		{
+			if(v > 1000.0)
+				return String(v * 0.001, 1) + "s";
+			else
+				return String(roundToInt(v)) + "ms";
+		}
+
+		static String TempoSync(double v)
+		{
+			return TempoSyncer::getTempoName(roundToInt(v));
+		}
+
+		static String Pan(double v)
+		{
+			return String(roundToInt(std::abs(v*100.0))) + (v > 0 ? "R" : "L");
+		}
+
+		static String NormalizedPercentage(double v)
+		{
+			return String(roundToInt(v * 100.0)) + "%";
+		}
+	};
+
+	struct InverterFunctions
+	{
+		static double Frequency(const String& input)
+		{
+			if(input.containsChar('k'))
+			{
+				return input.getDoubleValue() * 1000.0;
+			}
+			else
+			{
+				return input.getDoubleValue();
+			}
+		}
+
+		static double Time(const String& input)
+		{
+			if(input.containsChar('s') && !input.containsChar('m'))
+				return input.getDoubleValue() * 1000.0;
+			else
+				return input.getDoubleValue();
+		}
+
+		static double TempoSync(const String& input)
+		{
+			return (double)TempoSyncer::getTempoIndex(input);
+		}
+
+		static double Pan(const String& input)
+		{
+			return input.getDoubleValue() * 0.01;
+		}
+
+		static double NormalizedPercentage(const String& input)
+		{
+			return input.getDoubleValue() * 0.01;
+		}
+	};
+
+	String getTextForValue(double v) const
+	{
+		if(!active)
+			return String(v, 0);
+
+		if(!itemList.isEmpty())
+		{
+			auto idx = jlimit<int>(0, itemList.size(), roundToInt(v));
+			return itemList[idx];
+		}
+
+		if(valueToTextFunction)
+			return valueToTextFunction(v);
+
+		auto numDecimalPlaces = jlimit(0, 4, roundToInt(log10(stepSize) * -1.0));
+		String valueString(v, numDecimalPlaces);
+		valueString << suffix;
+		return valueString;
+	}
+
+	String operator()(double v) const
+	{
+		return getTextForValue(v);
+		
+	}
+
+	double getValueForText(const String& v) const
+	{
+		if(!active)
+			return v.getDoubleValue();
+
+		if(!itemList.isEmpty())
+			return (double)itemList.indexOf(v);
+
+		if(textToValueFunction)
+			return textToValueFunction(v);
+
+		return v.getDoubleValue();
+	}
+
+	double operator()(const String& v) const
+	{
+		return getValueForText(v);
+	}
+
+	static ValueToTextConverter createForOptions(const StringArray& options)
+	{
+		ValueToTextConverter vtc;
+		vtc.active = true;
+		vtc.itemList = options;
+		return vtc;
+	}
+
+	static ValueToTextConverter createForMode(const String& modeString)
+	{
+		ValueToTextConverter vtc;
+		
+#define FUNC(x) if(modeString == #x) { vtc.active = true; vtc.valueToTextFunction = ConverterFunctions::x; vtc.textToValueFunction = InverterFunctions::x; }
+
+		FUNC(Frequency);
+		FUNC(Time);
+		FUNC(TempoSync);
+		FUNC(Pan);
+		FUNC(NormalizedPercentage);
+
+#undef FUNC
+
+		return vtc;
+	}
+
+	static ValueToTextConverter fromString(const String& converterString)
+	{
+		ValueToTextConverter vtc;
+
+		if(converterString.isNotEmpty())
+		{
+			zstd::ZDefaultCompressor comp;
+
+			MemoryBlock mb;
+			mb.fromBase64Encoding(converterString);
+			ValueTree v;
+
+			comp.expand(mb, v);
+
+			vtc.active = (bool)v["active"];
+
+			vtc.itemList = StringArray::fromLines(v["items"].toString().trim());
+			vtc.itemList.removeEmptyStrings();
+
+#define FUNC(x) if(v.getProperty("function", "").toString() == #x) { vtc.valueToTextFunction = ConverterFunctions::x; vtc.textToValueFunction = InverterFunctions::x; }
+			FUNC(Frequency);
+			FUNC(Time);
+			FUNC(TempoSync);
+			FUNC(Pan);
+			FUNC(NormalizedPercentage);
+#undef FUNC
+		}
+		
+		return vtc;
+	}
+
+	String toString() const
+	{
+		ValueTree v("ValueConverter");
+
+		if(!itemList.isEmpty())
+			v.setProperty("items", itemList.joinIntoString("\n"), nullptr);
+
+		v.setProperty("active", active, nullptr);
+
+		if(suffix.isNotEmpty())
+			v.setProperty("suffix", suffix, nullptr);
+		
+#define FUNC(x) if(valueToTextFunction == ConverterFunctions::x) v.setProperty("function", #x, nullptr);
+
+		FUNC(Frequency);
+		FUNC(Time);
+		FUNC(TempoSync);
+		FUNC(Pan);
+		FUNC(NormalizedPercentage);
+
+#undef FUNC
+
+		MemoryBlock mb;
+		zstd::ZDefaultCompressor comp;
+		comp.compress(v, mb);
+		return mb.toBase64Encoding();
+	};
+
+	typedef String(*CF)(double);
+	typedef double(*ICF)(const String&);
+
+	bool active = false;
+	CF valueToTextFunction = nullptr;
+	ICF textToValueFunction = nullptr;
+	StringArray itemList;
+	double stepSize = 0.01;
+	String suffix;
+};
+
+class RuntimeTargetHolder
+{
+public:
+
+	virtual ~RuntimeTargetHolder() {};
+	virtual void connectRuntimeTargets(MainController* mc) = 0;
+	virtual void disconnectRuntimeTargets(MainController* mc) = 0;
+};
+
 /** This handles the MIDI automation for the frontend plugin.
 *
 *	For faster performance, one CC value can only control one parameter.
@@ -102,7 +327,7 @@ public:
 
 	MidiControllerAutomationHandler(MainController *mc_);
 
-	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex);
+	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, const ValueToTextConverter& converter, int macroIndex);
 	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners);
 
 	
@@ -271,6 +496,7 @@ public:
 		int ccNumber = -1;
 		bool inverted = false;
 		bool used;
+		ValueToTextConverter textConverter;
 	};
 
 	/** Returns a copy of the automation data for the given index. */

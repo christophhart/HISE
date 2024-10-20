@@ -350,6 +350,25 @@ void CachedViewport::InternalViewport::paint(Graphics &g)
 	}
 }
 
+multipage::EncodedDialogBase::EncodedDialogBase(BackendRootWindow* bpe_, bool addBorder_):
+	ControlledObject(bpe_->getBackendProcessor()),
+	rootWindow(bpe_),
+	closeButton("close", nullptr, factory),
+	addBorder(addBorder_)
+{
+	addAndMakeVisible(closeButton);
+
+	closeButton.onClick = [this]()
+	{
+		if(dialog != nullptr)
+		{
+			dialog->cancel();
+		}
+	};
+
+	closeButton.setVisible(addBorder);
+}
+
 BreadcrumbComponent::BreadcrumbComponent(ProcessorEditorContainer* container_) :
 	ControlledObject(container_->getRootEditor()->getProcessor()->getMainController()),
 	container(container_)

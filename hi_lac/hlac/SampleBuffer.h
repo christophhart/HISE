@@ -317,7 +317,7 @@ public:
 	bool usesNormalisation() const noexcept;
 
 	/** Bakes in the normalisation values. This is not lossless and the operation will allocate a temporary float buffer. */
-	void burnNormalisation();
+	void burnNormalisation(bool useFloatBuffer=false);
 
 	void copyNormalisationRanges(const HiseSampleBuffer& otherBuffset, int startOffsetInBuffer);
 
@@ -327,6 +327,8 @@ public:
 	/** Adds the samples from the source to the destination. The buffers must have the same data type. */
 	static void add(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples);
 
+	static void addWithGain(HiseSampleBuffer& dst, const HiseSampleBuffer& source, int startSampleDst, int startSampleSource, int numSamples, float gainFactor);
+
 	/** returns a write pointer to the given position. Unlike it's AudioSampleBuffer counterpart, it returns a void*, so you have to cast it yourself using isFloatingPoint(). */
 	void* getWritePointer(int channel, int startSample);
 
@@ -334,6 +336,47 @@ public:
 	const void* getReadPointer(int channel, int startSample=0) const;
 
 	void applyGainRamp(int channelIndex, int startOffset, int rampLength, float startGain, float endGain);
+
+	void applyGainRampWithGamma(int channelIndex, int startOffset, int rampLength, float startGain, float endGain,
+	                            float gamma)
+	{
+		if(gamma == 1.0f)
+			applyGainRamp(channelIndex, startOffset, rampLength, startGain, endGain);
+		else
+		{
+			jassert(getNumSamples() >= rampLength);
+			jassert(getNumChannels() == 2);
+			
+			bool isFloat = isFloatingPoint();
+
+			auto l = (float*)getWritePointer(0, 0);
+			auto r = (float*)getWritePointer(1, 0);
+
+			auto lInt = (int16*)getWritePointer(0, 0);
+			auto rInt = (int16*)getWritePointer(1, 0);
+
+			float gainFactor = 0.0f;
+
+			for (int i = 0; i < rampLength; i++)
+			{
+				float indexToUse = (float)i / (float)rampLength;
+				auto g = startGain + indexToUse * (endGain - startGain);
+
+				gainFactor = std::pow(g, gamma);
+
+				if (isFloat)
+				{
+					l[i] *= gainFactor;
+					r[i] *= gainFactor;
+				}
+				else
+				{
+					lInt[i] = (int16)((float)lInt[i] * gainFactor);
+					rInt[i] = (int16)((float)rInt[i] * gainFactor);
+				}
+			}
+		}
+	}
 
 	/** Returns the internal AudioSampleBuffer for convenient usage with AudioFormatReader classes. */
 	AudioSampleBuffer* getFloatBufferForFileReader();
@@ -347,6 +390,27 @@ public:
 	bool useOneMap = false;
 
 	void minimizeNormalisationInfo();
+
+	float getMagnitude(int startOffset, int numSamples) const
+	{
+		if(isFloatingPoint())
+			return floatBuffer.getMagnitude(startOffset, numSamples);
+		else
+		{
+			int maxValue = 0;
+
+			auto l = leftIntBuffer.getReadPointer(0);
+			auto r = rightIntBuffer.getReadPointer(0);
+
+			for(int i = startOffset; i < numSamples; i++)
+			{
+				jmax<int>(maxValue, std::abs((int)l[i]), std::abs((int)r[i]));
+			}
+
+			auto g = (float)maxValue / (float)INT16_MAX;
+			return g;
+		}
+	}
 
 private:
 

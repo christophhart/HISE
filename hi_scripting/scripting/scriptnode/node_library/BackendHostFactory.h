@@ -73,6 +73,9 @@ struct BackendDllManager : public ReferenceCountedObject,
 		Tests,
 		CustomNodes,
 		CodeLibrary,
+		FaustCode,
+		ProjectNodeTemplates,
+		GlobalNodeTemplates,
 		AdditionalCode,
 		Binaries,
 		DllLocation,
@@ -121,7 +124,32 @@ struct BackendDllManager : public ReferenceCountedObject,
     {
         return getSubFolder(mc, FolderSubType::ThirdParty).getChildFile("src").getChildFile("rnbo");
     }
-    
+
+	static Array<ValueTree> getAllNodeTemplates(MainController* mc)
+    {
+	    auto globalFolder = getSubFolder(mc, FolderSubType::GlobalNodeTemplates);
+		auto localFolder = getSubFolder(mc, FolderSubType::ProjectNodeTemplates);
+
+		Array<File> files;
+
+		files.addArray(globalFolder.findChildFiles(File::findFiles, false, "*.xml"));
+		files.addArray(localFolder.findChildFiles(File::findFiles, false, "*.xml"));
+
+		files.sort();
+
+		Array<ValueTree> list;
+
+		for(auto f: files)
+		{
+			if(auto xml = XmlDocument::parse(f))
+			{
+				list.add(ValueTree::fromXml(*xml));
+			}
+		}
+
+		return list;
+    }
+
     static void addNodePropertyToJSONFile(const MainController* mc, const String& classId, const Identifier& property)
     {
         auto thirdPartyFolder = getSubFolder(mc, FolderSubType::ThirdParty);
@@ -140,6 +168,7 @@ struct BackendDllManager : public ReferenceCountedObject,
 
         Array<var> propList;
         propList.add(PropertyIds::IsPolyphonic.toString());
+		propList.add(PropertyIds::AllowPolyphonic.toString());
 
         obj->setProperty(Identifier(classId), var(propList));
 

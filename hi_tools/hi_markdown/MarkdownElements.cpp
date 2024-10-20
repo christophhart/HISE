@@ -961,6 +961,10 @@ struct MarkdownParser::CodeBlock : public MarkdownParser::Element
 
 	Component* createComponent(int maxWidth)
 	{
+#if !HISE_HEADLESS
+		MessageManagerLock mm;
+#endif
+
 		if (content == nullptr)
 			content = createEditor(maxWidth);
 
@@ -1477,6 +1481,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 	virtual float getHeightForWidth(float width)
 	{
+		MessageManagerLock mm;
 		createComponent((int)width);
 
 		return (float)content->getPreferredHeight();

@@ -1835,7 +1835,7 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::EnvInfo::calculate(const Au
 	
 	span<float, 2> frame;
 
-	dynamics::envelope_follower follower[2];
+	dynamics::envelope_follower<1> follower[2];
 
 	follower[0].setAttack(0.0);
 	follower[0].setRelease(12.0);

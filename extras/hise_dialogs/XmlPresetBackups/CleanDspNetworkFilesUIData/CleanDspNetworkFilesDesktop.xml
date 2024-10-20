@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<ContentProperties DeviceType="Desktop">
+  <Component type="ScriptMultipageDialog" id="mp" x="0" y="0" width="700"
+             height="650" DialogWidth="700" DialogHeight="650" text="Clean DSP network files"
+             Font="Lato" FontSize="19"/>
+</ContentProperties>

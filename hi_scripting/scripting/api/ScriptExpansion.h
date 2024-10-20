@@ -579,6 +579,9 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** If the unlocker has an expiration date, it will check it against the RSA encoded time string from the server. */
 		var checkExpirationData(const String& encodedTimeString);
 
+		/** If you use the MuseHub SDK this will try to activate the plugin using their SDK. */
+		void checkMuseHub(var resultCallback);
+
 		/** Sets a function that performs a product name check and expects to return true or false for a match. */
 		void setProductCheckFunction(var f);
 
@@ -603,7 +606,11 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 		/** Returns the machine ID that is encoded into the license file. This does not look in the encrypted blob, but just parses the header string. */
 		String getRegisteredMachineId();
 
+		/** Checks if the string contains the given substring. */
+		bool contains(String otherString);
+
 		WeakCallbackHolder pcheck;
+		WeakCallbackHolder mcheck;
 
 		struct Wrapper;
 
@@ -621,11 +628,20 @@ struct ScriptUnlocker : public juce::OnlineUnlockStatus,
 	URL getServerAuthenticationURL() override;
 	String readReplyFromWebserver(const String& email, const String& password) override;
 
+	void checkMuseHub();
+
+#if HISE_INCLUDE_MUSEHUB
+	ReferenceCountedObject* checkMuseHubInternal();
+	ReferenceCountedObjectPtr<ReferenceCountedObject> m;
+#endif
+
 	var loadKeyFile();
 	File getLicenseKeyFile();
 	WeakReference<RefObject> currentObject;
 
 	String registeredMachineId;
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptUnlocker);
 };

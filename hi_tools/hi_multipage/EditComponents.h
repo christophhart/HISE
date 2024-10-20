@@ -222,7 +222,7 @@ struct AllEditor: public Component
         JavascriptEngine* engine = nullptr;
     };
 
-    AllEditor(const String& syntax);
+    AllEditor(const String& syntax, const var& infoObject);
 
     ~AllEditor();
 
@@ -252,6 +252,7 @@ struct AllEditor: public Component
 
     String syntax;
     juce::CodeDocument doc;
+    var infoObject;
     mcl::TextDocument codeDoc;
     ScopedPointer<mcl::TextEditor> editor;
 };

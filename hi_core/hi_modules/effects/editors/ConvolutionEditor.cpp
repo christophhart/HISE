@@ -101,20 +101,25 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 
     label->setFont(GLOBAL_BOLD_FONT().withHeight(26.0f));
 
+    drySlider->setMode(HiSlider::Decibel);
 	drySlider->setup(getProcessor(), ConvolutionEffect::DryGain, "Dry Level");
-	drySlider->setMode(HiSlider::Decibel);
+	
 
+    wetSlider->setMode(HiSlider::Decibel);
 	wetSlider->setup(getProcessor(), ConvolutionEffect::WetGain, "Wet Level");
-	wetSlider->setMode(HiSlider::Decibel);
+	
 
+    dampingSlider->setMode(HiSlider::Decibel);
 	dampingSlider->setup(getProcessor(), ConvolutionEffect::Damping, "Damping");
-	dampingSlider->setMode(HiSlider::Decibel);
+	
 
+    predelaySlider->setMode(HiSlider::Time, 0.0, 200.0, 50.0, 0.1);
 	predelaySlider->setup(getProcessor(), ConvolutionEffect::Predelay, "Predelay");
-	predelaySlider->setMode(HiSlider::Time, 0.0, 200.0, 50.0, 0.1);
+	
 
+    hiCutSlider->setMode(HiSlider::Frequency);
 	hiCutSlider->setup(getProcessor(), ConvolutionEffect::HiCut, "IR High Cut");
-	hiCutSlider->setMode(HiSlider::Frequency);
+	
 
 	dryMeter->setType(VuMeter::Type::StereoHorizontal);
 	wetMeter->setType(VuMeter::Type::StereoHorizontal);

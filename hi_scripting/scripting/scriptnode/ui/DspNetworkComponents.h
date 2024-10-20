@@ -232,6 +232,8 @@ public:
 	ScopedPointer<OneLiner> oneLiner;
 	ScopedPointer<ImagePreviewCreator> currentPreview;
 
+	bool parentIsViewport = true;
+
 	KeyboardPopup(NodeBase* container, int addPosition_):
 		node(container),
 		network(node->getRootNetwork()),
@@ -568,9 +570,9 @@ public:
 
 
 
-
 class DspNetworkGraph : public ComponentWithMiddleMouseDrag,
 	public AsyncUpdater,
+	public DragAndDropContainer,
 	public DspNetwork::SelectionListener
 {
 public:
@@ -599,116 +601,7 @@ public:
 			repaint();
 		}
 	};
-
-#if USE_BACKEND
-	struct BreadcrumbComponent: public Component
-	{
-		struct NetworkButton : public TextButton
-		{
-			NetworkButton(DspNetwork* n, bool current_);
-
-			void requestClose()
-			{
-				if (changeWarning != nullptr && changeWarning->isChanged())
-				{
-					if (PresetHandler::showYesNoWindow("Change detected", "The DSP Network " + network->getId() + " has changed. Do you want to save the changes to the file?"))
-					{
-						currentSaver->closeAndDelete(true);
-
-						PresetHandler::showMessageWindow("Saved " + network->getId(), "The nested network was saved. Make sure to reload the root network if you used this network multiple times");
-					}
-				}
-
-				changeWarning = nullptr;
-				currentSaver = nullptr;
-			}
-
-			~NetworkButton()
-			{
-				
-			}
-
-			void click();
-
-
-
-			void paintButton(Graphics& g, bool isOver, bool isDown)
-			{
-				g.setFont(GLOBAL_BOLD_FONT());
-
-				float alpha = 0.5f;
-
-				if (isOver)
-					alpha += 0.2f;
-
-				if (isDown)
-					alpha += 0.2f;
-
-				if (current)
-					alpha = 0.8f;
-
-				auto showWarning = false;
-
-				if (changeWarning != nullptr && changeWarning->isChanged())
-				{
-					showWarning = true;
-				}
-
-				auto s = getName();
-
-				if (showWarning)
-					s << "*";
-
-				g.setColour(Colours::white.withAlpha(alpha));
-				g.drawText(s, getLocalBounds().toFloat().reduced(10.0f, 0), Justification::left);
-
-				if (!current)
-				{
-					g.setColour(Colours::white.withAlpha(0.2f));
-					g.drawText(">", getLocalBounds().removeFromRight(20).toFloat(), Justification::centred);
-				}
-			}
-
-			const bool current;
-			int w = 0;
-			WeakReference<DspNetwork> network;
-
-			ScopedPointer<DspNetworkListeners::LambdaAtNetworkChange> changeWarning;
-			ScopedPointer<DspNetworkListeners::PatchAutosaver> currentSaver;
-			
-		};
-
-		BreadcrumbComponent(DspNetwork* n)
-		{
-			bool current = true;
-			int w = 0;
-
-			while (n != nullptr)
-			{
-				buttons.add(new NetworkButton(n, current));
-				addAndMakeVisible(buttons.getLast());
-				n = n->getParentNetwork();
-				current = false;
-				w += buttons.getLast()->w;
-			}
-
-			setSize(w, 24);
-		}
-
-		void resized() override
-		{
-			auto b = getLocalBounds();
-			for (auto nb : buttons)
-			{
-				nb->setBounds(b.removeFromRight(nb->w));
-			}
-		}
-
-		OwnedArray<NetworkButton> buttons;
-
-	};
-#endif
-
+	
 	struct WrapperWithMenuBar : public WrapperWithMenuBarBase
 	{
 		static bool selectionEmpty(DspNetworkGraph& g)
@@ -730,22 +623,7 @@ public:
             return Actions::addBookMark(n.get());
         }
         
-		virtual void bookmarkUpdated(const StringArray& idsToShow)
-		{
-			n->deselectAll();
-
-			NodeBase::List newSelection;
-
-			for (const auto& s : idsToShow)
-			{
-				auto nv = n->get(s);
-
-				if (auto no = dynamic_cast<NodeBase*>(nv.getObject()))
-					n->addToSelection(no, ModifierKeys::shiftModifier);
-			}
-
-			Actions::foldUnselectedNodes(*canvas.getContent<DspNetworkGraph>());
-		}
+		virtual void bookmarkUpdated(const StringArray& idsToShow);
 
 		virtual ValueTree getBookmarkValueTree()
 		{
@@ -774,7 +652,9 @@ public:
         
 		static bool toggleDebug(DspNetworkGraph& g);
 
-        static bool eject(DspNetworkGraph& g);
+		static bool lockContainer(DspNetworkGraph& g);
+
+		static bool eject(DspNetworkGraph& g);
 
 		static bool showParameterPopup(DspNetworkGraph& g);
 
@@ -782,6 +662,7 @@ public:
         
 		static bool copyToClipboard(DspNetworkGraph& g);
 		static bool toggleCableDisplay(DspNetworkGraph& g);
+		static bool toggleComments(DspNetworkGraph& g);
 		static bool toggleCpuProfiling(DspNetworkGraph& g);
 		static bool editNodeProperty(DspNetworkGraph& g);
 		static bool foldSelection(DspNetworkGraph& g);
@@ -810,6 +691,68 @@ public:
 		
 	}
 
+	struct RootUndoButtons: public Component,
+						    public PathFactory,
+						    public Button::Listener
+	{
+		RootUndoButtons(DspNetworkGraph& parent_):
+		  parent(parent_),
+		  undo("undo", this, *this),
+		  redo("redo", this, *this)
+		{
+			addAndMakeVisible(undo);
+			addAndMakeVisible(redo);
+			parent.addMouseListener(this, true);
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			if(e.mods.isX1ButtonDown())
+				undo.triggerClick();
+			if(e.mods.isX2ButtonDown())
+				redo.triggerClick();
+		}
+
+		void buttonClicked(Button* b) override
+		{
+			if(b == &undo)
+				parent.rootUndoManager.undo();
+			else
+				parent.rootUndoManager.redo();
+		}
+
+		Path createPath(const String& id) const override
+		{
+			static const unsigned char pathData[] = { 110,109,0,128,38,68,40,0,64,67,98,2,156,55,68,40,0,64,67,0,128,69,68,24,144,119,67,0,128,69,68,120,255,157,67,98,0,128,69,68,200,55,192,67,2,156,55,68,240,255,219,67,0,128,38,68,240,255,219,67,98,253,99,21,68,240,255,219,67,0,128,7,68,200,55,192,67,0,
+			128,7,68,120,255,157,67,98,0,128,7,68,24,144,119,67,253,99,21,68,40,0,64,67,0,128,38,68,40,0,64,67,99,109,186,222,15,68,32,246,169,67,108,58,10,44,68,32,246,169,67,108,58,10,44,68,160,46,192,67,108,70,33,61,68,120,255,157,67,108,58,10,44,68,72,164,119,
+			67,108,58,10,44,68,80,10,146,67,108,186,222,15,68,80,10,146,67,108,186,222,15,68,32,246,169,67,99,101,0,0 };
+
+			Path path;
+			path.loadPathFromData (pathData, sizeof (pathData));
+
+			if(id == "undo")
+				path.applyTransform(AffineTransform::rotation(float_Pi));
+
+			return path;
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds().reduced(4);
+			undo.setBounds(b.removeFromLeft(b.getWidth() / 2).reduced(3));
+			redo.setBounds(b.reduced(3));
+
+			undo.setEnabled(parent.rootUndoManager.canUndo());
+			redo.setEnabled(parent.rootUndoManager.canRedo());
+
+			undo.setTooltip(parent.rootUndoManager.getUndoDescription());
+			redo.setTooltip(parent.rootUndoManager.getRedoDescription());
+		}
+
+		DspNetworkGraph& parent;
+		HiseShapeButton undo, redo;
+	} rootUndoButtons;
+
 	DspNetworkGraph(DspNetwork* n);
 	~DspNetworkGraph();
 
@@ -821,6 +764,16 @@ public:
 	void finishDrag();
 	void paint(Graphics& g) override;
 	void resized() override;
+
+	UndoManager rootUndoManager;
+
+	void setCurrentRootNode(NodeBase* newRoot, bool useUndo=true, bool allowAnimation=true);
+
+	NodeBase* getCurrentRootNode() const { return currentRootNode != nullptr ? currentRootNode.get() : network->getRootNode(); }
+
+	bool isShowingRootNode() const { return getCurrentRootNode() == network->getRootNode(); }
+
+	WeakReference<NodeBase> currentRootNode;
 
 	template <class T> static void fillChildComponentList(Array<T*>& list, Component* c)
 	{
@@ -845,6 +798,158 @@ public:
 			}
 
 			fillChildComponentList(list, child);
+		}
+	}
+
+	LambdaBroadcaster<NodeBase*> rootBroadcaster;
+
+	struct BreadcrumbButton: public Component,
+							 public SettableTooltipClient
+	{
+		BreadcrumbButton(NodeBase* n, bool isLast_):
+		  node(n),
+		  isLast(isLast_),
+		  f(GLOBAL_BOLD_FONT())
+		{
+			setMouseCursor(MouseCursor::PointingHandCursor);
+
+			icon = nf.createPath(node->getPath().id.toString());
+			next = nf.createPath("next");
+
+			auto w = f.getStringWidth(node->getName()) + 2 * 32 + 2 * UIValues::NodeMargin;
+			setSize(w, 32);
+			setRepaintsOnMouseActivity(true);
+			setTooltip("Show " + node->getName() + " as root node");
+		}
+
+		void mouseDrag(const MouseEvent& e) override
+		{
+			ZoomableViewport::checkDragScroll(e, false);
+
+			if(draggingIndex != -1)
+			{
+				auto ng = findParentComponentOfClass<DspNetworkGraph>();
+
+				DynamicObject::Ptr details = new DynamicObject();
+
+				details->setProperty(PropertyIds::Automated, false);
+				details->setProperty(PropertyIds::ID, ng->network->getRootNode()->getId());
+				details->setProperty(PropertyIds::ParameterId, ng->network->getParameterIdentifier(draggingIndex).toString());
+				
+				ng->startDragging(var(details.get()), this, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
+				ng->repaint();
+			}
+				
+		}
+
+		void mouseUp(const MouseEvent& e) override
+		{
+			ZoomableViewport::checkDragScroll(e, true);
+
+			auto g = findParentComponentOfClass<DspNetworkGraph>();
+
+			if(draggingIndex != -1)
+			{
+				draggingIndex = -1;
+				g->repaint();
+				return;
+			}
+			
+			auto n = node.get();
+
+			MessageManager::callAsync([g, n]()
+			{
+				g->setCurrentRootNode(n);
+			});
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto nc = node->getColour();
+
+			if(nc == Colours::transparentBlack)
+				nc = Colour(0xFF999999);
+
+			auto hover = isMouseOver();
+
+			g.setColour(nc.withAlpha(hover ? 0.2f : 0.1f));
+
+			auto area = getLocalBounds().toFloat();
+			area.removeFromRight(area.getHeight());
+
+			g.fillRect(area.reduced(5.0f));
+			g.setColour(nc);
+			g.drawRoundedRectangle(area.reduced(2.0f), 3.0f, 2.0f);
+
+			auto n = node->getName();
+
+			float alpha = 0.5f;
+
+			if(isMouseOver())
+				alpha += 0.1f;
+
+			if(isMouseButtonDown())
+				alpha += 0.3f;
+
+			g.setColour(Colours::white.withAlpha(alpha));
+			g.setFont(f);
+			auto b = getLocalBounds().toFloat();
+			b.removeFromLeft(b.getHeight());
+			g.drawText(n, b, Justification::left);
+			g.setColour(nc);
+			g.fillPath(icon);
+
+			if(!isLast)
+			{
+				g.setColour(Colours::white.withAlpha(0.2f));
+				g.fillPath(next);
+			}
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+
+			getProperties().set("circleOffsetY", 5);
+			getProperties().set("circleOffsetX", -1 * (b.getWidth() / 2) + UIValues::NodeMargin);
+
+			nf.scalePath(icon, b.removeFromLeft(getHeight()).reduced(8).toFloat());
+			nf.scalePath(next, b.removeFromRight(getHeight()).reduced(10).toFloat());
+		}
+
+		void setIsDraggingParameter(int parameterIndex)
+		{
+			draggingIndex = parameterIndex;
+		}
+
+		int draggingIndex = -1;
+
+		Path icon;
+		Path next;
+		bool isLast;
+		NodeComponentFactory nf;
+		WeakReference<NodeBase> node;
+		Font f;
+	};
+
+	OwnedArray<BreadcrumbButton> breadcrumbs;
+
+	void rebuildBreadCrumbs()
+	{
+		breadcrumbs.clear();
+
+		if(!isShowingRootNode())
+		{
+			auto n = getCurrentRootNode();
+
+			while(n != nullptr)
+			{
+				
+				auto b = new BreadcrumbButton(n, n == getCurrentRootNode());
+				addAndMakeVisible(b);
+				breadcrumbs.add(b);
+				n = n->getParentNode();
+			}
 		}
 	}
 
@@ -916,7 +1021,7 @@ public:
 		{
 			float width = 6.0f;
 			float height = 6.0f;
-			float y = getKnobCircle ? 66.0f : (c->getHeight());
+			float y = getKnobCircle ? 64.0f : (c->getHeight());
 
 			float offsetY = (float)c->getProperties()["circleOffsetY"];
 			float offsetX = (float)c->getProperties()["circleOffsetX"];
@@ -1012,12 +1117,17 @@ public:
 
 	bool copyDraggedNode = false;
 
+	bool showParameters = false;
+
+	Point<float> lastMousePos;
 	valuetree::RecursivePropertyListener cableRepainter;
+	valuetree::RecursivePropertyListener lockListener;
 	valuetree::ChildListener rebuildListener;
 	valuetree::RecursivePropertyListener resizeListener;
 
 	valuetree::RecursiveTypedChildListener macroListener;
 
+	Component* externalDragComponent = nullptr;
 	ScopedPointer<NodeComponent> root;
 
 	ScopedPointer<PeriodicRepainter> periodicRepainter;

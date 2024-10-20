@@ -658,6 +658,13 @@ Array<juce::var> ScriptBroadcaster::ComponentPropertyListener::createChildArray(
 	return list;
 }
 
+ScriptBroadcaster::InterfaceSizeListener::InterfaceSizeListener(ScriptBroadcaster* b, const var& metadata):
+    ListenerBase(metadata),
+	parent(b)
+{
+	b->getScriptProcessor()->getScriptingContent()->interfaceSizeBroadcaster.addListener(*this, InterfaceSizeListener::onUpdate);
+}
+
 ScriptBroadcaster::ComponentPropertyListener::ComponentPropertyListener(ScriptBroadcaster* b, var componentIds, const Array<Identifier>& propertyIds_, const var& metadata):
 	ListenerBase(metadata),
 	propertyIds(propertyIds_)
@@ -2055,6 +2062,34 @@ void ScriptBroadcaster::ComplexDataListener::registerSpecialBodyItems(ComponentW
 	factory.registerFunction(f);
 }
 
+ScriptBroadcaster::NonRealtimeSource::NonRealtimeSource(ScriptBroadcaster* b, const var& metadata):
+	ListenerBase(metadata),
+	parent(b)
+{
+	auto mc = b->getScriptProcessor()->getMainController_();
+	mc->getNonRealtimeBroadcaster().addListener(*this, onNonRealtimeChange);
+}
+
+ScriptBroadcaster::NonRealtimeSource::~NonRealtimeSource()
+{
+	if (parent != nullptr)
+	{
+		auto mc = parent->getScriptProcessor()->getMainController_();
+		mc->getNonRealtimeBroadcaster().removeListener(*this);
+	}
+}
+
+void ScriptBroadcaster::NonRealtimeSource::registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory)
+{}
+
+juce::Result ScriptBroadcaster::NonRealtimeSource::callItem(TargetBase* n)
+{
+	auto rt = parent->getScriptProcessor()->getMainController_()->getSampleManager().isNonRealtime();
+	return n->callSync(var(rt));
+}
+
+
+
 ScriptBroadcaster::ProcessingSpecSource::ProcessingSpecSource(ScriptBroadcaster* b, const var& metadata):
 	ListenerBase(metadata),
 	parent(b)
@@ -3154,11 +3189,13 @@ struct ScriptBroadcaster::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToComponentValue);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRoutingMatrix);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToModuleParameter);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToNonRealtimeChange);
 	API_VOID_METHOD_WRAPPER_2(ScriptBroadcaster, attachToRadioGroup);
     API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToComplexData);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToEqEvents);
 	API_VOID_METHOD_WRAPPER_4(ScriptBroadcaster, attachToOtherBroadcaster);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToProcessingSpecs);
+	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, attachToInterfaceSize);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, attachToSampleMap);
 	API_VOID_METHOD_WRAPPER_3(ScriptBroadcaster, callWithDelay);
 	API_VOID_METHOD_WRAPPER_1(ScriptBroadcaster, setReplaceThisReference);
@@ -3198,7 +3235,9 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 	ADD_API_METHOD_2(attachToComponentValue);
 	ADD_API_METHOD_2(attachToComponentVisibility);
 	ADD_API_METHOD_2(attachToRoutingMatrix);
+	ADD_API_METHOD_1(attachToInterfaceSize);
 	ADD_API_METHOD_3(attachToModuleParameter);
+	ADD_API_METHOD_1(attachToNonRealtimeChange);
 	ADD_API_METHOD_2(attachToRadioGroup);
     ADD_API_METHOD_4(attachToComplexData);
 	ADD_API_METHOD_3(attachToEqEvents);
@@ -3843,6 +3882,21 @@ void ScriptBroadcaster::attachToComponentValue(var componentIds, var optionalMet
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
+void ScriptBroadcaster::attachToInterfaceSize(var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	attachedListeners.add(new InterfaceSizeListener(this, optionalMetadata));
+
+	if (defaultValues.size() != 2)
+	{
+		String e = "If you want to attach a broadcaster to visibility events, it needs two parameters (width and height)";
+		errorBroadcaster.sendMessage(sendNotificationAsync, attachedListeners.getLast(), e);
+		reportScriptError(e);
+	}
+
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
+}
 
 
 void ScriptBroadcaster::attachToComponentVisibility(var componentIds, var optionalMetadata)
@@ -4114,6 +4168,20 @@ void ScriptBroadcaster::attachToRoutingMatrix(var moduleIds, var metadata)
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 
 	enableQueue = true;
+}
+
+void ScriptBroadcaster::attachToNonRealtimeChange(var optionalMetadata)
+{
+	throwIfAlreadyConnected();
+
+	if (defaultValues.size() != 1)
+	{
+		reportScriptError("If you want to attach a broadcaster to non realtime change events, it needs a single parameter (bool isNonRealtime)");
+	}
+
+	attachedListeners.add(new NonRealtimeSource(this, optionalMetadata));
+	setRealtimeMode(true);
+	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }
 
 void ScriptBroadcaster::attachToProcessingSpecs(var optionalMetadata)
@@ -4896,6 +4964,15 @@ Identifier ScriptBroadcaster::ScriptCallListener::getItemId() const
 
 Identifier ScriptBroadcaster::ProcessingSpecSource::getItemId() const
 { RETURN_STATIC_IDENTIFIER("ProcessingSpecs"); }
+
+int ScriptBroadcaster::NonRealtimeSource::getNumInitialCalls() const
+{ return 0; }
+
+Array<var> ScriptBroadcaster::NonRealtimeSource::getInitialArgs(int callIndex) const
+{ return {}; }
+
+Array<var> ScriptBroadcaster::NonRealtimeSource::createChildArray() const
+{ return { var(parent->getScriptProcessor()->getMainController_()->getSampleManager().isNonRealtime())}; }
 
 int ScriptBroadcaster::ProcessingSpecSource::getNumInitialCalls() const
 { return 0; }

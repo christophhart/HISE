@@ -97,6 +97,11 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 
 	sound = s;
 
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	releasePlayState = StreamingSamplerSound::ReleasePlayState::Inactive;
+	s->resetReleaseData();
+#endif
+
 	sampleStartModValue = (int)startTime;
 
 	auto localReadBuffer = &s->getPreloadBuffer();
@@ -129,6 +134,10 @@ void SampleLoader::startNote(StreamingSamplerSound const *s, int startTime)
 
 void SampleLoader::reset()
 {
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	releasePlayState = StreamingSamplerSound::ReleasePlayState::Inactive;
+#endif
+
 	const StreamingSamplerSound *currentSound = sound.get();
 
 	if (currentSound != nullptr)
@@ -160,6 +169,20 @@ void SampleLoader::reset()
 	}
 	else
 		clearLoader();
+}
+
+NotificationType SampleLoader::waitForTimestretchSeek(StreamingSamplerVoice* v)
+{
+	voiceToSeekTimestretchStart = v;
+
+	if(v != nullptr)
+	{
+		requestNewData();
+		auto isSynchronous = isNonRealtime();
+		return isSynchronous ? dontSendNotification : sendNotificationAsync;
+	}
+
+	return dontSendNotification;
 }
 
 void SampleLoader::clearLoader()
@@ -308,16 +331,50 @@ StereoChannelData SampleLoader::fillVoiceBuffer(hlac::HiseSampleBuffer &voiceBuf
 	else
 	{
 		const int index = (int)readIndexDouble;
-		StereoChannelData returnData;
-		returnData.b = localReadBuffer;
-		returnData.offsetInBuffer = index;
 
+		StereoChannelData returnData;
+
+		if(entireSampleIsLoaded && getLoadedSound()->isReleaseStartEnabled() && getLoadedSound()->isLoopEnabled())
+		{
+			getLoadedSound()->fillSampleBuffer(voiceBuffer, (int)(numSamples) + 2, index, getReleasePlayState());
+			returnData.b = &voiceBuffer;
+			returnData.offsetInBuffer = 0;
+		}
+		else
+		{
+			returnData.b = localReadBuffer;
+			returnData.offsetInBuffer = index;
+		}
+		
 		return returnData;
 	}
 }
 
 bool SampleLoader::advanceReadIndex(double uptime)
 {
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(seekToReleaseStart)
+	{
+		seekToReleaseStart = false;
+
+		if(entireSampleIsLoaded)
+		{
+			readIndexDouble = uptime;
+			return true;
+		}
+		else
+		{
+			readBuffer = sound.get()->getReleaseStartBuffer();
+			writeBuffer = &b1;
+
+			lastSwapPosition = sound.get()->getReleaseStart() - sound.get()->getSampleStart();
+			readIndexDouble = uptime - lastSwapPosition;
+			positionInSampleFile = lastSwapPosition + readBuffer.get()->getNumSamples();
+			return requestNewData();
+		}
+	}
+#endif
+
 	int numSamplesInBuffer = readBuffer.get()->getNumSamples();
 	readIndexDouble = uptime - lastSwapPosition;
 
@@ -368,7 +425,7 @@ bool SampleLoader::requestNewData()
 	}
 
 #if KILL_VOICES_WHEN_STREAMING_IS_BLOCKED
-	if (this->isQueued())
+	if (this->isQueued() && !isWaitingForTimestretchSeek())
 	{
 		writeBuffer.get()->clear();
 
@@ -390,6 +447,22 @@ bool SampleLoader::requestNewData()
 
 SampleThreadPoolJob::JobStatus SampleLoader::runJob()
 {
+	if(isWaitingForTimestretchSeek())
+	{
+		voiceToSeekTimestretchStart->skipTimestretchSilenceAtStart();
+
+		const auto& f = voiceToSeekTimestretchStart->delayedStartFunction;
+
+		if(f)
+			f(false, voiceToSeekTimestretchStart->voiceIndexForDelayedStart);
+
+		voiceToSeekTimestretchStart = nullptr;
+
+		
+
+		return SampleThreadPoolJob::jobHasFinished;
+	}
+
 	if (cancelled)
 	{
 		return SampleThreadPoolJob::jobHasFinished;
@@ -441,14 +514,14 @@ void SampleLoader::fillInactiveBuffer()
 	{
 		if (localSound->hasEnoughSamplesForBlock(positionInSampleFile + getNumSamplesForStreamingBuffers()))
 		{
-			localSound->fillSampleBuffer(*writeBuffer.get(), getNumSamplesForStreamingBuffers(), (int)positionInSampleFile);
+			localSound->fillSampleBuffer(*writeBuffer.get(), getNumSamplesForStreamingBuffers(), (int)positionInSampleFile, getReleasePlayState());
 		}
 		else if (localSound->hasEnoughSamplesForBlock(positionInSampleFile))
 		{
 			const int numSamplesToFill = (int)localSound->getSampleLength() - positionInSampleFile;
 			const int numSamplesToClear = getNumSamplesForStreamingBuffers() - numSamplesToFill;
 
-			localSound->fillSampleBuffer(*writeBuffer.get(), numSamplesToFill, (int)positionInSampleFile);
+			localSound->fillSampleBuffer(*writeBuffer.get(), numSamplesToFill, (int)positionInSampleFile, getReleasePlayState());
 
 			writeBuffer.get()->clear(numSamplesToFill, numSamplesToClear);
 		}
@@ -504,6 +577,25 @@ void SampleLoader::refreshBufferSizes()
 bool SampleLoader::swapBuffers()
 {
 	auto localReadBuffer = readBuffer.get();
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(localReadBuffer == sound.get()->getReleaseStartBuffer())
+	{
+		readBuffer = writeBuffer.get();
+
+		if(readBuffer.get() == &b1)
+		{
+			writeBuffer = &b2;
+			DBG("READ IS B1");
+		}
+			
+		else
+		{
+			writeBuffer = &b1;
+			DBG("READ IS B2");
+		}
+	}
+#endif
 
 	if (localReadBuffer == &b1)
 	{
@@ -562,42 +654,42 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 
 		constUptimeDelta = uptimeDelta;
 
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		jumpToReleaseOnNextRender = false;
+		releaseFadeDuration = 0;
+		releaseFadeCounter = 0;
+		releaseGain = 1.0f;
+#endif
+
 		isActive = true;
 
-		if (stretcher.isEnabled())
-		{
-			stretcher.configure(sound->isStereo() ? 2 : 1, sound->getSampleRate());
-			stretcher.setResampleBuffer(1.0, nullptr, 0);
-
-			if(skipLatency)
-			{
-				auto numBeforeOutput = stretcher.getLatency(stretchRatio);
-
-				StereoChannelData data = loader.fillVoiceBuffer(*getTemporaryVoiceBuffer(), numBeforeOutput);
-
-				auto outL = (float*)alloca(sizeof(float*) * numBeforeOutput);
-				auto outR = (float*)alloca(sizeof(float*) * numBeforeOutput);
-
-				interpolateFromStereoData(0, outL, outR, numBeforeOutput, nullptr, 1.0, 0.0, data, numBeforeOutput);
-
-				float* inp[2] = { outL, outR };
-
-				voiceUptime += stretcher.skipLatency(inp, stretchRatio);
-
-				if (!loader.advanceReadIndex(voiceUptime))
-				{
-					jassertfalse;
-					resetVoice();
-				}
-			}
-			else
-			{
-				stretcher.reset();
-			}
-		}
+		if(stretcher.isEnabled())
+			stretcherNeedsInitialisation = true;
 	}
 	else
 	{
+		resetVoice();
+	}
+}
+
+void StreamingSamplerVoice::skipTimestretchSilenceAtStart()
+{
+	auto numBeforeOutput = stretcher.getLatency(stretchRatio);
+
+	StereoChannelData data = loader.fillVoiceBuffer(*getTemporaryVoiceBuffer(), numBeforeOutput);
+
+	auto outL = (float*)alloca(sizeof(float*) * numBeforeOutput);
+	auto outR = (float*)alloca(sizeof(float*) * numBeforeOutput);
+
+	interpolateFromStereoData(0, outL, outR, numBeforeOutput, nullptr, 1.0, 0.0, data, numBeforeOutput);
+
+	float* inp[2] = { outL, outR };
+
+	voiceUptime += stretcher.skipLatency(inp, stretchRatio);
+
+	if (!loader.advanceReadIndex(voiceUptime))
+	{
+		jassertfalse;
 		resetVoice();
 	}
 }
@@ -869,8 +961,29 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 				thisUptimeDelta *= pitchData[0];
 
 			auto pitchSt = std::log2(thisUptimeDelta) * 12.0;
-			stretcher.setTransposeSemitones(pitchSt, timestretchTonality);
-			
+
+			if(stretcherNeedsInitialisation)
+			{
+				auto isDelayed = initStretcher(pitchSt);
+
+				if(isDelayed == sendNotificationAsync)
+				{
+					jassert(delayedStartFunction);
+					delayedStartFunction(true, voiceIndexForDelayedStart);
+				}
+
+				stretcherNeedsInitialisation = false;
+			}
+			else
+				stretcher.setTransposeSemitones(pitchSt, timestretchTonality);
+
+
+			if(loader.isWaitingForTimestretchSeek())
+			{
+				DBG("WAIT UNTIL SEEK");
+				return;
+			}
+
 			pitchDataToUse = nullptr;
 			thisUptimeDelta = 1.0;
 			
@@ -892,9 +1005,78 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 		// Copy the not resampled values into the voice buffer.
 		StereoChannelData data = loader.fillVoiceBuffer(*tempVoiceBuffer, pitchCounter + startAlpha);
-
 		
+		bool applyReleaseGainToFullBuffer = true;
 
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		if(jumpToReleaseOnNextRender || releaseFadeCounter > 0)
+		{
+			auto options = loader.getLoadedSound()->getReleaseStartOptions();
+
+			jassert(options != nullptr);
+
+			if(jumpToReleaseOnNextRender)
+			{
+				if(options->gainMatchingMode == StreamingHelpers::ReleaseStartOptions::GainMatchingMode::Volume)
+				{
+					releaseGain = loader.getLoadedSound()->getReleaseAttenuation();
+				}
+
+				releaseFadeDuration = options->releaseFadeTime;
+				releaseFadeCounter = releaseFadeDuration;
+				jumpToReleaseOnNextRender = false;
+			}
+
+			auto numToFadeIn = std::ceil(pitchCounter + startAlpha) + 2;
+
+			if(data.b != tempVoiceBuffer)
+			{
+				hlac::HiseSampleBuffer::copy(*tempVoiceBuffer, *data.b, 0, data.offsetInBuffer, numToFadeIn);
+				data.b = tempVoiceBuffer;
+				data.offsetInBuffer = 0;
+			}
+
+			tempVoiceBuffer->burnNormalisation(true);
+
+			auto startGain = jmax(0.0, (double)releaseFadeCounter) / (double)releaseFadeDuration;
+			auto endGain = jmax(0.0, ((double)releaseFadeCounter - numToFadeIn) / (double)releaseFadeDuration);
+
+			tempVoiceBuffer->applyGainRampWithGamma(0, 0, numToFadeIn, startGain, endGain, options->fadeGamma);
+			tempVoiceBuffer->applyGainRampWithGamma(1, 0, numToFadeIn, startGain, endGain, options->fadeGamma);
+
+			auto rb = sound->getReleaseStartBuffer();
+
+			auto offsetInBuffer = releaseFadeDuration - releaseFadeCounter;
+
+
+			auto numToCopy = jmin(rb->getNumSamples() - offsetInBuffer - numToFadeIn, numToFadeIn);
+
+			if(releaseGain != 1.0f)
+			{
+				hlac::HiseSampleBuffer::addWithGain(*tempVoiceBuffer, *rb, 0, offsetInBuffer, numToCopy, releaseGain);
+				applyReleaseGainToFullBuffer = false;
+			}
+			else
+			{
+				hlac::HiseSampleBuffer::add(*tempVoiceBuffer, *rb, 0, offsetInBuffer, numToCopy);
+			}
+
+			releaseFadeCounter -= (pitchCounter + startAlpha);
+
+			if(releaseFadeCounter <= 0.0)
+			{
+				voiceUptime = (double)(sound->getReleaseStart() - sound->getSampleStart());
+
+				voiceUptime += releaseFadeDuration;
+				voiceUptime += (-1) * releaseFadeCounter;
+				voiceUptime -= pitchCounter;
+				
+				releaseFadeCounter = 0.0;
+				loader.setSeekToReleaseStart();
+			}
+		}
+#endif
+		
 		auto samplesAvailable = data.b->getNumSamples() - data.offsetInBuffer;
 
 		const int startFixed = startSample;
@@ -907,6 +1089,21 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 		interpolateFromStereoData(startSample, outL, outR, numSamplesToCalculate, pitchDataToUse, thisUptimeDelta, startAlpha,
 		                          data, samplesAvailable);
 
+		
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		if(releaseGain != 1.0f && applyReleaseGainToFullBuffer)
+		{
+			outputBuffer.applyGain(startSample, numSamples, releaseGain);
+		}
+		else
+		{
+			loader.getLoadedSound()->calculateReleasePeak(outL, numSamplesToCalculate);
+		}
+#endif
+
+		
+		
 #if USE_SAMPLE_DEBUG_COUNTER 
 
 		for (int i = startDebug; i < numDebug; i++)
@@ -959,7 +1156,13 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			return;
 		}
 
-		const bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime));// +numSamples * MAX_SAMPLER_PITCH));
+		bool enoughSamples = sound->hasEnoughSamplesForBlock((int)(voiceUptime));// +numSamples * MAX_SAMPLER_PITCH));
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		if(loader.getReleasePlayState() == StreamingSamplerSound::ReleasePlayState::Playing && voiceUptime > sound->getSampleLength())
+			enoughSamples = false;
+#endif
+
 
 #if LOG_SAMPLE_RENDERING
 		logger->checkSampleData(nullptr, DebugLogger::Location::SampleVoiceBufferFillPost, true, outputBuffer.getReadPointer(0, startFixed), numSamplesFixed);
@@ -1003,6 +1206,12 @@ void StreamingSamplerVoice::prepareToPlay(double sampleRate, int samplesPerBlock
 
 void StreamingSamplerVoice::resetVoice()
 {
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	releaseFadeDuration = 0;
+	releaseFadeCounter = 0;
+	jumpToReleaseOnNextRender = false;
+#endif
+
 	voiceUptime = 0.0;
 	uptimeDelta = 0.0;
 	isActive = false;
@@ -1047,6 +1256,34 @@ void StreamingSamplerVoice::initTemporaryVoiceBuffer(hlac::HiseSampleBuffer* buf
 void StreamingSamplerVoice::setStreamingBufferDataType(bool shouldBeFloat)
 {
 	loader.setStreamingBufferDataType(shouldBeFloat);
+}
+
+NotificationType StreamingSamplerVoice::initStretcher(float pitchSt)
+{
+	jassert(stretcher.isEnabled());
+
+	auto sound = const_cast<StreamingSamplerSound*>(loader.getLoadedSound());
+	stretcher.configure(sound->isStereo() ? 2 : 1, sound->getSampleRate());
+	stretcher.setResampleBuffer(1.0, nullptr, 0);
+	stretcher.setTransposeSemitones(pitchSt, timestretchTonality);
+
+	if(skipLatency == NotificationType::sendNotificationSync || loader.isNonRealtime())
+	{
+		loader.waitForTimestretchSeek(nullptr);
+		skipTimestretchSilenceAtStart();
+		return dontSendNotification;
+	}
+	else if (skipLatency == NotificationType::sendNotificationAsync)
+	{
+		return loader.waitForTimestretchSeek(this);
+	}
+	else
+	{
+		stretcher.reset();
+	}
+		
+	stretcherNeedsInitialisation = false;
+	return dontSendNotification;
 }
 
 void SampleLoader::Unmapper::setLoader(SampleLoader *loader_)
