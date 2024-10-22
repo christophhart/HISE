@@ -233,6 +233,8 @@ public:
 			header.setShowRenameLabel(true);
 			return true;
 		}
+
+		return false;
 	}
 
 	MarkdownLink getLink() const override;

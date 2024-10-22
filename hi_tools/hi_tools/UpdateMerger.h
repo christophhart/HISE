@@ -81,7 +81,6 @@ struct FloatSanitizers
 			FloatType d1 = std::numeric_limits<FloatType>::min() / static_cast<FloatType>(20.0);
 			FloatType d2 = std::numeric_limits<FloatType>::min() / static_cast<FloatType>(-14.0);
 			FloatType d3 = std::numeric_limits<FloatType>::quiet_NaN();
-			FloatType d3b = std::numeric_limits<FloatType>::signaling_NaN();
 			FloatType d4 = static_cast<FloatType>(24.0);
 			FloatType d5 = static_cast<FloatType>(0.0052);
 

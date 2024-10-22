@@ -524,7 +524,6 @@ void DspNetworkGraph::resized()
 		if(!isShowingRootNode())
 		{
 			auto& hm = getCurrentRootNode()->getHelpManager();
-			auto hb = hm.getHelpSize();
 
 			if(!hm.isHelpBelow())
 			{
@@ -1350,9 +1349,6 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 							{
 								auto start = getCircle(dynamic_cast<Component*>(m), false);
 								auto end = getCircle(c, false);
-
-								auto t = network->getNodeWithId(ev[PropertyIds::NodeId].toString());
-
 								auto c = MultiOutputDragSource::getFadeColour(connectionIndex, m->getNumOutputs()).withAlpha(1.0f);
 								
 								GlobalHiseLookAndFeel::paintCable(g, start, end, c, alpha * 0.5f);
@@ -1491,11 +1487,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 		delta.setX(cd.clipValue(currentPosition.getX() - lastMousePos.getX()));
 		delta.setY(cd.clipValue(currentPosition.getY() - lastMousePos.getY()));
 
-		auto fadeAlpha = jlimit(0.0f, 1.0f, 1.0f - delta.getDistanceFromOrigin() / 30.0f);
-
 		auto c = c2;
-
-		
 
 		GlobalHiseLookAndFeel::paintCable(g, start, end, c, alpha, c, false, hanging, delta);
 
