@@ -70,12 +70,10 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
 
 	parameterNames.add("OctaveTranspose1");
-	parameterNames.add("SemiTones1");
 	parameterNames.add("WaveForm1");
 	parameterNames.add("Detune1");
 	parameterNames.add("Pan1");
 	parameterNames.add("OctaveTranspose2");
-	parameterNames.add("SemiTones2");
 	parameterNames.add("WaveForm2");
 	parameterNames.add("Detune2");
 	parameterNames.add("Pan2");
@@ -84,6 +82,8 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("PulseWidth1");
 	parameterNames.add("PulseWidth2");
 	parameterNames.add("HardSync");
+    parameterNames.add("SemiTones1");
+    parameterNames.add("SemiTones2");
 
 	updateParameterSlots();
 
