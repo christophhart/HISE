@@ -33,7 +33,7 @@ namespace snex
 		VariableStorage(double d);
 		VariableStorage(int s);
 		VariableStorage(const block& b);
-		VariableStorage(HiseEvent& m);
+		VariableStorage(const HiseEvent& m);
 
 		VariableStorage(void* ptr)
 		{
@@ -166,9 +166,11 @@ return *this;
 		Types::ID getType() const noexcept
 		{
 			auto t = getTypeValue();
-
+			
 			if (t == 0)
 				return Types::ID::Void;
+			else if((int)t < (int)HiseEvent::Type::numTypes)
+				return Types::ID::Event;
 			else
 				return (Types::ID)t;
 		}
@@ -190,21 +192,25 @@ return *this;
                 return toDouble();
             if(t == ID::Integer)
                 return toInt();
+			if(t == ID::Event)
+				return toEvent();
             
             return *this;
         }
         
 		template <ID TypeID> auto toType() const
 		{
-			if (TypeID == ID::Float)
+			if constexpr (TypeID == ID::Float)
 				return toFloat();
-			else if (TypeID == ID::Double)
+			else if constexpr (TypeID == ID::Double)
 				return toDouble();
-		else if(TypeID == ID::Integer)
+		else if constexpr (TypeID == ID::Integer)
 		return toInt();
-		else if(TypeID == ID::Block)
+		else if constexpr (TypeID == ID::Block)
 		return toBlock();
-		else if(TypeID == ID::Pointer)
+		else if constexpr (TypeID == ID::Event)
+			return toEvent();
+		else if constexpr (TypeID == ID::Pointer)
 		return toPtr();
 
 		return 0;
