@@ -352,6 +352,41 @@ void ZoomableViewport::timerCallback()
 	repaint();
 }
 
+void ZoomableViewport::scrollToRectangle(Rectangle<int> areaToShow, bool skipIfVisible, bool animate)
+{
+	auto tBounds = getLocalBounds().toDouble();
+	auto aBounds = areaToShow.toDouble();
+
+	auto areaInViewport = getLocalArea(content, areaToShow).toDouble();
+
+	auto centerPositionInGraph = areaToShow.getCentre().toDouble();
+	auto cBounds = getLocalArea(content, content->getLocalBounds()).toDouble();
+
+	auto visibleArea = cBounds.getIntersection(tBounds);
+
+	if(!skipIfVisible || !visibleArea.contains(areaInViewport))
+	{
+		auto centerX = centerPositionInGraph.getX() * zoomFactor;
+		auto centerY = centerPositionInGraph.getY() * zoomFactor;
+
+		auto offsetX = getLocalBounds().getWidth() / 2 - centerX;
+		auto offsetY = getLocalBounds().getHeight() / 2 - centerY;
+
+		auto normX = Helpers::pixelToNorm(offsetX, cBounds.getWidth(), tBounds.getWidth());
+		auto normY = Helpers::pixelToNorm(offsetY, cBounds.getHeight(), tBounds.getHeight());
+
+		if(animate)
+		{
+			dragScrollTimer.scrollToPosition({normX, normY});
+		}
+		else
+		{
+			hBar.setCurrentRangeStart(normX, sendNotificationSync);
+			vBar.setCurrentRangeStart(normY, sendNotificationSync);
+		}
+	}
+}
+
 void ZoomableViewport::zoomToRectangle(Rectangle<int> areaToShow)
 {
 	auto tBounds = getLocalBounds().toFloat();
@@ -641,6 +676,27 @@ void SubmenuComboBox::rebuildPopupMenu()
 
 void ZoomableViewport::DragScrollTimer::timerCallback()
 {
+	if(scrollAnimationCounter != -1)
+	{
+		auto numFrames = JUCE_LIVE_CONSTANT_OFF(30);
+		auto alpha = (double)scrollAnimationCounter++ / (double)(numFrames);
+		alpha = hmath::pow(alpha, 6.0);
+
+		auto newX = Interpolator::interpolateLinear(scrollAnimationStart.getX(), scrollAnimationTarget.getX(), alpha);
+		auto newY = Interpolator::interpolateLinear(scrollAnimationStart.getY(), scrollAnimationTarget.getY(), alpha);
+
+		parent.hBar.setCurrentRangeStart(newX, sendNotificationSync);
+		parent.vBar.setCurrentRangeStart(newY, sendNotificationSync);
+
+		if(scrollAnimationCounter > numFrames)
+		{
+			scrollAnimationCounter = -1;
+			stopTimer();
+			scrollAnimationStart = {};
+			scrollAnimationTarget = {};
+		}
+	}
+
 	auto factor = JUCE_LIVE_CONSTANT_OFF(0.03);
 	auto expo = JUCE_LIVE_CONSTANT_OFF(1.2);
 	
@@ -672,9 +728,14 @@ void ZoomableViewport::DragScrollTimer::setPosition(const MouseEvent& e, bool is
 		wasInCentre = false;
 		lx = 0.0;
 		ly = 0.0;
-		stopTimer();
+
+		if(scrollAnimationCounter == -1)
+			stopTimer();
 		return;
 	}
+
+	if(scrollAnimationCounter != -1)
+		return;
 
 	auto vpos = parent.getLocalPoint(e.eventComponent, e.getPosition());
 	auto vb = parent.getLocalBounds();

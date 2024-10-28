@@ -184,6 +184,22 @@ struct ZoomableViewport : public Component,
 		double lx = 0.0;
 		double ly = 0.0;
 
+		void scrollToPosition(Point<double> normalisedTargetPosition)
+		{
+			wasInCentre = false;
+			lx = 0.0;
+			ly = 0.0;
+			scrollAnimationStart = { parent.hBar.getCurrentRangeStart(), parent.vBar.getCurrentRangeStart() };
+			scrollAnimationTarget = normalisedTargetPosition;
+			scrollAnimationCounter = 0;
+			startTimer(15);
+		}
+
+		Point<double> scrollAnimationStart;
+		Point<double> scrollAnimationTarget;
+		int scrollAnimationCounter = -1;
+		
+
 		ZoomableViewport& parent;
 
 	} dragScrollTimer;
@@ -221,6 +237,8 @@ struct ZoomableViewport : public Component,
 
 	virtual ~ZoomableViewport();
 
+	
+
 	static bool checkDragScroll(const MouseEvent& e, bool isMouseUp);
 
 	static bool checkViewportScroll(const MouseEvent& e, const MouseWheelDetails& details);
@@ -250,6 +268,8 @@ struct ZoomableViewport : public Component,
 	void clearSwapSnapshot();
 
 	void zoomToRectangle(Rectangle<int> areaToShow);
+
+	void scrollToRectangle(Rectangle<int> areaToShow, bool skipIfVisible, bool animate=true);
 
 	void setZoomFactor(float newZoomFactor, Point<float> centerPositionInGraph);
 
