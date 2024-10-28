@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_core
   vendor:           Hart Instruments
-  version:          4.0.0
+  version:          4.1.0
   name:             HISE Core module
   description:      The core classes for HISE
   website:          http://hise.audio

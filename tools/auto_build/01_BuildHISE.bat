@@ -38,6 +38,10 @@ cd ..
 
 echo Setting version number %versionPoint%
 
+%projucerPath% --set-version %versionPoint% %standalone_projucer_project%
+%projucerPath% --set-version %versionPoint% %plugin_projucer_project%
+%projucerPath% --set-version %versionPoint% %multipagecreator_projucer_project%
+
 %projucerPath% --resave %standalone_projucer_project%
 %projucerPath% --resave %plugin_projucer_project%
 %projucerPath% --resave %multipagecreator_projucer_project%
