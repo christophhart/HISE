@@ -326,6 +326,14 @@ void ScriptCreatedComponentWrapper::sourceHasChanged(ComplexDataUIBase*, Complex
 
 bool ScriptCreatedComponentWrapper::setMouseCursorFromParentPanel(ScriptComponent* sc, MouseCursor& c)
 {
+	if(auto sb = dynamic_cast<ScriptingApi::Content::ScriptButton*>(sc))
+	{
+		auto mouseCursor = sb->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::mouseCursor).toString();
+
+		if(mouseCursor != "ParentCursor")
+			return false;
+	}
+
 	if (sc == nullptr)
 		return false;
 
