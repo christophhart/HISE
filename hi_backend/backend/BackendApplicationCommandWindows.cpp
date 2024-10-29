@@ -2076,6 +2076,8 @@ public:
 			{
 				apply(id, f);
 			}
+
+			propertyData.removeProperty(id, nullptr);
 		}
 
 		void apply(const Identifier& id, File& fileToUse)
@@ -2290,7 +2292,6 @@ public:
 				}
 			}
 
-			propertyData.removeProperty(id, nullptr);
 			hlac::CompressionHelpers::dump(ob, fileToUse.getFullPathName(), sampleRate, bitDepth);
 		}
 
