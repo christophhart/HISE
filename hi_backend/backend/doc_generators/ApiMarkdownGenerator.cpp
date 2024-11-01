@@ -248,13 +248,27 @@ juce::String ScriptingApiDatabase::Resolver::createMethodText(ValueTree& mv)
 	String className = mv.getParent().getType().toString();
 	String methodName = mv.getProperty("name").toString();
 
-	s << "## `" << methodName << "`\n";
+	s << "## `" << methodName;
+	
+	s << "`\n";
 
-	s << "> " << mv.getProperty("description").toString().trim() << "\n";
+	s << "> " << mv.getProperty("description").toString().trim();
+
+	auto fileLink = rootURL.getChildUrl(className).getChildUrl(methodName);
+	auto docFile = fileLink.getMarkdownFile(rootURL.getRoot());
+
+	if(rootURL.getRoot().isDirectory() && (!docFile.existsAsFile() || docFile.loadFileAsString().isEmpty()))
+	{
+		if(!docFile.existsAsFile())
+			docFile.create();
+
+		s << fileLink.getEditLinkOnGitHub(false);
+	}
+
+	s << "\n";
 
 	s << "```javascript\n" << className << "." << methodName << mv.getProperty("arguments").toString() << "```  \n";
 
-	auto fileLink = rootURL.getChildUrl(className).getChildUrl(methodName);
 	s << fileLink.toString(MarkdownLink::ContentWithoutHeader, rootURL.getRoot());
 	s << "  \n";
 

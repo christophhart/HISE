@@ -255,7 +255,11 @@ struct MarkdownCodeComponentBase : public Component,
 
 	Factory f;
 
-	virtual ~MarkdownCodeComponentBase() {};
+	virtual ~MarkdownCodeComponentBase()
+	{
+		MessageManagerLock mm;
+		editor = nullptr;
+	};
 
 	virtual void addImageLinks(Array<MarkdownLink>& sa)
 	{
