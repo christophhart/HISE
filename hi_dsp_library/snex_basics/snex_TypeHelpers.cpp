@@ -34,7 +34,7 @@ snex::Types::ID Types::Helpers::getTypeFromTypeName(const juce::String& cppTypeN
     if (cppTypeName == "pointer") return Types::ID::Pointer;
 	if (cppTypeName == "any")     return Types::ID::Dynamic;
 	
-	return Types::ID::Void;
+	return Types::ID::Dynamic;
 }
 
 snex::Types::ID Types::Helpers::getTypeFromVariableName(const juce::String& name)
