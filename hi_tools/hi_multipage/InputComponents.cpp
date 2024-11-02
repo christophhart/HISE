@@ -759,272 +759,7 @@ void ColourChooser::createEditor(Dialog::PageInfo& info)
 }
 #endif
 
-struct TextInput::Autocomplete: public Component,
-                                public ScrollBar::Listener,
-                                public ComponentMovementWatcher
-{
-    struct Item
-    {
-        String displayString;
-    };
-    
-    ScrollBar sb;
-    ScrollbarFader fader;
-       
-    static constexpr int ItemHeight = 28;
-    
-    void mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& details)
-    {
-        sb.mouseWheelMove(e, details);
-    }
-    
-    void scrollBarMoved (ScrollBar* scrollBarThatHasMoved,
-                                 double newRangeStart) override
-    {
-        repaint();
-    }
-    
-    Font f;
-    
-    void componentMovedOrResized (bool wasMoved, bool wasResized) override
-    {
-        dismiss();
-    }
 
-    /** This callback happens when the component's top-level peer is changed. */
-    void componentPeerChanged() {};
-
-    /** This callback happens when the component's visibility state changes, possibly due to
-        one of its parents being made visible or invisible.
-    */
-    void componentVisibilityChanged() override
-    {
-        if(getComponent()->isShowing())
-            dismiss();
-    }
-    
-    Autocomplete(TextInput& p):
-      ComponentMovementWatcher(&p),
-      parent(&p),
-      sb(true)
-    {
-        f = Dialog::getDefaultFont(*parent).first;
-        
-        sb.addListener(this);
-        addAndMakeVisible(sb);
-        fader.addScrollBarToAnimate(sb);
-
-        for(auto& i: p.autocompleteItems)
-            allItems.add({i});
-
-        sb.setSingleStepSize(0.2);
-        
-        auto& ed = parent->getComponent<TextEditor>();
-        
-        update(ed.getText());
-        
-        setSize(ed.getWidth() + 20, ItemHeight * 4 + 5 + 20);
-        
-        setWantsKeyboardFocus(true);
-
-        auto top = TopLevelWindowWithOptionalOpenGL::findRoot(parent);
-
-        if(top == nullptr)
-            top = parent->getTopLevelComponent();
-
-        top->addChildComponent(this);
-        auto topLeft = ed.getTopLevelComponent()->getLocalArea(&ed, ed.getLocalBounds()).getTopLeft();
-        
-        setTopLeftPosition(topLeft.getX() - 10, topLeft.getY() + ed.getHeight());
-
-#if JUCE_DEBUG
-        setVisible(true);
-#else
-        Desktop::getInstance().getAnimator().fadeIn(this, 150);
-#endif
-        
-    }
-    
-    ~Autocomplete()
-    {
-        setComponentEffect(nullptr);
-    }
-    
-    int selectedIndex = 0;
-    
-    void mouseDown(const MouseEvent& e) override
-    {
-        auto newIndex = sb.getCurrentRangeStart() + (e.getPosition().getY() - 15) / ItemHeight;
-        
-        if(isPositiveAndBelow(newIndex, items.size()))
-            setSelectedIndex(newIndex);
-    }
-    
-    void mouseDoubleClick(const MouseEvent& e) override
-    {
-        setAndDismiss();
-    }
-    
-    bool inc(bool next)
-    {
-        auto newIndex = selectedIndex + (next ? 1 : -1);
-        
-        if(isPositiveAndBelow(newIndex, items.size()))
-        {
-            setSelectedIndex(newIndex);
-            return true;
-        }
-        
-        return false;
-    }
-    
-    bool keyPressed(const KeyPress& k)
-    {
-        if(k == KeyPress::upKey)
-            return inc(false);
-        if(k == KeyPress::downKey)
-            return inc(true);
-        if(k == KeyPress::escapeKey)
-            return dismiss();
-        if(k == KeyPress::returnKey ||
-           k == KeyPress::tabKey)
-            return setAndDismiss();
-        
-        return false;
-    }
-    
-    void setSelectedIndex(int index)
-    {
-
-        
-        selectedIndex = index;
-        
-        if(!sb.getCurrentRange().contains(selectedIndex))
-        {
-            if(sb.getCurrentRange().getStart() > selectedIndex)
-                sb.setCurrentRangeStart(selectedIndex);
-            else
-                sb.setCurrentRangeStart(selectedIndex - 3);
-        }
-        
-        repaint();
-    }
-    
-    void resized() override
-    {
-        sb.setBounds(getLocalBounds().reduced(10).removeFromRight(16).reduced(1));
-    }
-    
-    void paint(Graphics& g) override
-    {
-        auto b = getLocalBounds().toFloat();
-         
-        b = b.reduced(10.0f);
-        
-        DropShadow sh;
-        sh.colour = Colours::black.withAlpha(0.7f);
-        sh.radius = 10;
-        sh.drawForRectangle(g, b.toNearestInt());
-            
-        b.reduced(2.0f);
-        g.setColour(Colour(0xFF222222));
-        g.fillRoundedRectangle(b, 5.0f);
-        g.setColour(Colours::white.withAlpha(0.3f));
-        g.drawRoundedRectangle(b, 5.0f, 2.0f);
-        
-        auto r = sb.getCurrentRange();
-        
-        b.reduced(5.0f);
-        b.removeFromLeft(10.0f);
-        b.removeFromRight(sb.getWidth());
-
-        b.removeFromTop(2.5f);
-        
-        g.setFont(f);
-        
-        if(items.isEmpty())
-        {
-            g.setColour(Colours::white.withAlpha(0.1f));
-            g.drawText("No items found", getLocalBounds().toFloat(), Justification::centred);
-        }
-        else
-        {
-            for(int i = 0; i < 4; i++)
-            {
-                g.setColour(Colours::white.withAlpha(0.6f));
-                auto tb = b.removeFromTop(ItemHeight);
-                
-                auto idx = i + roundToInt(r.getStart());
-                
-                if(idx == selectedIndex)
-                {
-                    g.fillRoundedRectangle(tb.withX(10.0f).reduced(3.0f, 1.0f), 3.0f);
-                    g.setColour(Colours::black.withAlpha(0.8f));
-                }
-                    
-                g.drawText(items[idx].displayString, tb, Justification::left);
-            }
-        }
-    }
-    
-    bool setAndDismiss()
-    {
-        auto newTextAfterComma = items[selectedIndex].displayString;
-        auto& ed = parent->getComponent<TextEditor>();
-        
-        String nt = ed.getText();
-            
-        if(nt.containsChar(','))
-        {
-            nt = nt.upToLastOccurrenceOf(",", false, false);
-            nt << ", " << newTextAfterComma;
-        }
-        else
-            nt = newTextAfterComma;
-        
-        ed.setText(nt, true);
-        
-        return dismiss();
-    }
-    
-    bool dismiss()
-    {
-        SafeAsyncCall::call<TextInput>(*parent, [](TextInput& ti)
-        {
-            ti.dismissAutocomplete();
-            ti.getComponent<TextEditor>().grabKeyboardFocusAsync();
-        });
-        
-        return true;
-    }
-    
-    void update(const String& currentText)
-    {
-        auto search = currentText.fromLastOccurrenceOf(",", false, false).toLowerCase().trim();
-        
-        items.clear();
-        
-        for(const auto& i: allItems)
-        {
-            if(search.isEmpty() || i.displayString.toLowerCase().contains(search))
-            {
-                items.add(i);
-            }
-        }
-        
-        sb.setRangeLimits(0.0, (double)items.size());
-        sb.setCurrentRange(0.0, 4.0);
-        setSelectedIndex(0);
-        
-        if(items.isEmpty())
-            dismiss();
-    }
-    
-    Array<Item> allItems;
-    Array<Item> items;
-    
-    WeakReference<TextInput> parent;
-};
 
 
 
@@ -1033,19 +768,12 @@ void TextInput::timerCallback()
     if(callOnEveryChange)   
         callOnValueChange("change");
 
-	if(Component::getCurrentlyFocusedComponent() == &getComponent<TextEditor>())
-		showAutocomplete(getComponent<TextEditor>().getText());
-        
-	stopTimer();
+    TextEditorWithAutocompleteComponent::timerCallback();
 }
 
 void TextInput::textEditorReturnKeyPressed(TextEditor& e)
 {
-	if(currentAutocomplete != nullptr)
-		currentAutocomplete->setAndDismiss();
-
-    
-
+    TextEditorWithAutocompleteComponent::textEditorReturnKeyPressed(e);
     rootDialog.grabKeyboardFocusAsync();
 
     callOnValueChange("submit");
@@ -1053,28 +781,21 @@ void TextInput::textEditorReturnKeyPressed(TextEditor& e)
 
 void TextInput::textEditorTextChanged(TextEditor& e)
 {
-    //check(MultiPageDialog::getGlobalState(*this, id, var()));
-
     if(parseInputAsArray)
         writeState(Dialog::parseCommaList(e.getText()));
     else
 		writeState(e.getText());
         
-	startTimer(400);
+	TextEditorWithAutocompleteComponent::textEditorTextChanged(e);
 }
 
-void TextInput::textEditorEscapeKeyPressed(TextEditor& e)
-{
-	if(currentAutocomplete != nullptr)
-		dismissAutocomplete();
-	else
-		currentAutocomplete = new Autocomplete(*this);
-}
+
 
 TextInput::TextInput(Dialog& r, int width, const var& obj):
-	LabelledComponent(r, width, obj, new TextEditor()),
-    navigator(*this)
+	LabelledComponent(r, width, obj, new TextEditor())
 {
+    initEditor();
+
     parseInputAsArray = obj[mpid::ParseArray];
 
     auto& editor = getComponent<TextEditor>();
@@ -1088,7 +809,7 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
 
     setWantsKeyboardFocus(false);
 
-    editor.addKeyListener(&navigator);
+    
     editor.setSelectAllWhenFocused(false);
     editor.setIgnoreUpDownKeysWhenSingleLine(true);
     editor.setTabKeyUsedAsCharacter(false);
@@ -1107,29 +828,6 @@ TextInput::TextInput(Dialog& r, int width, const var& obj):
         resized();
 }
 
-bool TextInput::AutocompleteNavigator::keyPressed(const KeyPress& k, Component* originatingComponent)
-{
-    if(k == KeyPress::tabKey)
-    {
-        if(parent.currentAutocomplete != nullptr)
-			parent.dismissAutocomplete();
-
-	    parent.getComponent<TextEditor>().moveKeyboardFocusToSibling(true);
-        return true;
-    }
-
-    if(parent.currentAutocomplete == nullptr)
-		return false;
-        
-	if(k == KeyPress::upKey)
-		return parent.currentAutocomplete->inc(false);
-	if(k == KeyPress::downKey)
-		return parent.currentAutocomplete->inc(true);
-
-    
-        
-	return false;
-}
 
 void TextInput::postInit()
 {
@@ -1333,41 +1031,6 @@ Result TextInput::loadFromInfoObject(const var& obj)
     return ok;
 }
 
-void TextInput::showAutocomplete(const String& currentText)
-{
-    if(useDynamicAutocomplete)
-    {
-        if(auto hd = findParentComponentOfClass<HardcodedDialogWithStateBase>())
-            autocompleteItems = hd->getAutocompleteItems(id);
-        else
-            autocompleteItems = {};
-    }
-    
-	if(!autocompleteItems.isEmpty() && currentAutocomplete == nullptr && currentText.isNotEmpty())
-	{
-		currentAutocomplete = new Autocomplete(*this);
-	}
-	else
-	{
-		if(currentText.isEmpty())
-			currentAutocomplete = nullptr;
-		else if (currentAutocomplete != nullptr)
-			currentAutocomplete->update(currentText);
-	}
-}
-
-void TextInput::dismissAutocomplete()
-{
-	stopTimer();
-#if JUCE_DEBUG
-    if(currentAutocomplete != nullptr)
-		currentAutocomplete->setVisible(false);
-#else
-    if(currentAutocomplete != nullptr)
-		Desktop::getInstance().getAnimator().fadeOut(currentAutocomplete, 150);
-#endif
-	currentAutocomplete = nullptr;
-}
 
 
 #if HISE_MULTIPAGE_INCLUDE_EDIT
