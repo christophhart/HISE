@@ -69,6 +69,7 @@ class DocUpdater : public DialogWindowWithBackgroundThread,
 {
 public:
 
+#if USE_BACKEND
 	struct SnippetCreator
 	{
 		SnippetCreator(MarkdownDatabaseHolder& holder_, BackendRootWindow* rootWindow, Thread* t):
@@ -93,6 +94,7 @@ public:
 		MarkdownDatabaseHolder& holder;
 		Component* rootWindow;
 	};
+#endif
 
 	enum CacheURLType
 	{

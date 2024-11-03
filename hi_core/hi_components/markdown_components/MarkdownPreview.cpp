@@ -60,6 +60,7 @@ static bool areMajorWebsitesAvailable()
 	return false;
 }
 
+#if USE_BACKEND
 void DocUpdater::SnippetCreator::createSnippetDatabase()
 {
 	showStatusMessage("Create Snippet database");
@@ -322,6 +323,7 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 		showStatusMessage("Can't find snippet directory");
 	}
 }
+#endif
 
 DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool allowEdit) :
 	MarkdownContentProcessor(holder_),
@@ -700,10 +702,9 @@ void DocUpdater::createLocalHtmlFiles()
 	DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDir, getHolder(), this, &getProgressCounter());
 }
 
-
-
 void DocUpdater::createSnippetDatabase()
 {
+#if USE_BACKEND
 	SnippetCreator sc(getHolder(), GET_BACKEND_ROOT_WINDOW(this), getCurrentThread());
 
 	sc.logger = [this](const String& message)
@@ -712,6 +713,7 @@ void DocUpdater::createSnippetDatabase()
 	};
 
 	sc.createSnippetDatabase();
+#endif
 }
 
 void DocUpdater::downloadAndTestFile(const String& targetFileName)
