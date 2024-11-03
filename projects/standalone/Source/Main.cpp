@@ -516,8 +516,12 @@ public:
         crawler.createImageTree();
         
         print("Writing data files");
-        
-        crawler.createDataFiles(docRoot.getChildFile("cached"), true);
+
+		auto cacheFolder = docRoot.getChildFile("cached");
+
+        crawler.createDataFiles(cacheFolder, true);
+
+		bp->customDocCacheFolder = cacheFolder;
 
 		auto htmlDir = getFilePathArgument(args, {}, "-h:");
 
