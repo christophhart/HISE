@@ -523,6 +523,8 @@ public:
 
 		if(htmlDir != File())
 		{
+			print("Creating HTML files");
+
 			htmlDir.createDirectory();
 			String htmlBaseLink = "https://docs.hise.dev/";
 
@@ -537,8 +539,19 @@ public:
 			headerContent = headerContent.replace("{BASE_URL}", htmlBaseLink);
 			headerFile.replaceWithText(headerContent);
 
-			DatabaseCrawler::createImagesInHtmlFolder(htmlDir, *bp, nullptr, nullptr);
-			DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDir, *bp, nullptr, nullptr);
+			struct Logger: public DatabaseCrawler::Logger
+			{
+				void logMessage(const String& message) override
+				{
+					print(message);
+				}
+			};
+
+			double progress;
+			Logger l;
+
+			DatabaseCrawler::createImagesInHtmlFolder(htmlDir, *bp, &l, &progress);
+			DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDir, *bp, &l, &progress);
 		}
     }
     
