@@ -704,7 +704,7 @@ namespace ScriptingObjects
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setEnableInverseFFT);
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setSpectrum2DParameters);
 			API_METHOD_WRAPPER_0(ScriptFFT, getSpectrum2DParameters);
-			API_METHOD_WRAPPER_2(ScriptFFT, dumpSpectrum);
+			API_METHOD_WRAPPER_4(ScriptFFT, dumpSpectrum);
 		};
 
 		ScriptFFT(ProcessorWithScriptingContent* pwsc);
@@ -753,7 +753,7 @@ namespace ScriptingObjects
 		var getSpectrum2DParameters() const;
 
 		/** Dumps the spectrum image to the given file (as PNG image). */
-		bool dumpSpectrum(var file, bool output);
+		bool dumpSpectrum(var file, bool output, int numFreqPixels, int numTimePixels);
 
 		// ======================================================================================================= End of API Methods
 

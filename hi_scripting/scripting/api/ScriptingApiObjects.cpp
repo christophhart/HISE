@@ -7235,7 +7235,7 @@ ScriptingObjects::ScriptFFT::ScriptFFT(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(setEnableInverseFFT);
 	ADD_API_METHOD_1(setSpectrum2DParameters);
 	ADD_API_METHOD_0(getSpectrum2DParameters);
-	ADD_API_METHOD_2(dumpSpectrum);
+	ADD_API_METHOD_4(dumpSpectrum);
 	
 	spectrumParameters = new Spectrum2D::Parameters();
 }
@@ -7553,7 +7553,7 @@ var ScriptingObjects::ScriptFFT::getSpectrum2DParameters() const
 	return d;
 }
 
-bool ScriptingObjects::ScriptFFT::dumpSpectrum(var file, bool output)
+bool ScriptingObjects::ScriptFFT::dumpSpectrum(var file, bool output, int numFreqPixels, int numTimePixels)
 {
 	auto img = output ? outputSpectrum : spectrum;
 
@@ -7563,7 +7563,26 @@ bool ScriptingObjects::ScriptFFT::dumpSpectrum(var file, bool output)
 		FileOutputStream fos(sf->f);
 		
 		PNGImageFormat f;
-		return f.writeImageToStream(img, fos);
+
+		auto thisImg = img.rescaled(numFreqPixels, numTimePixels, Graphics::ResamplingQuality::highResamplingQuality);
+
+		Image rotated(Image::PixelFormat::RGB, thisImg.getHeight(), thisImg.getWidth(), false);
+
+		Image::BitmapData r(rotated, Image::BitmapData::writeOnly);
+
+		for(int y = 0; y < rotated.getHeight(); y++)
+		{
+			auto line = r.getLinePointer(y);
+
+			for(int x = 0;  x < rotated.getWidth(); x++)
+			{
+				//line[x] = thisImg.getPixelAt(rotated.getHeight() - y - 1, x);
+				rotated.setPixelAt(x, y, thisImg.getPixelAt(rotated.getHeight() - y - 1, x));
+				//line[x] = roundToInt(thisImg.getPixelAt(rotated.getHeight() - y, x).getBrightness() * 255.0f);
+			}
+		}
+
+		return f.writeImageToStream(rotated, fos);
 	}
 
 	return false;
