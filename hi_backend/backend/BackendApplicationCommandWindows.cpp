@@ -2072,11 +2072,16 @@ public:
 
 		void apply(const Identifier& id)
 		{
+			auto value = propertyData.getProperty(id);
+
+			if (id == SampleIds::SampleStart)
+				addDelta(-int(value), { SampleIds::SampleEnd, SampleIds::LoopStart, SampleIds::LoopEnd });
+
 			for (auto f : sampleFiles)
-			{
+			{									
 				apply(id, f);
 			}
-
+			
 			propertyData.removeProperty(id, nullptr);
 		}
 
@@ -2133,8 +2138,6 @@ public:
 				for (int i = 0; i < numChannels; i++)
 					FloatVectorOperations::copy(nb.getWritePointer(i), ob.getReadPointer(i, offset), nb.getNumSamples());
 
-				addDelta(-offset, { SampleIds::SampleEnd, SampleIds::LoopStart, SampleIds::LoopEnd });
-
 				std::swap(nb, ob);
 			}
 			else if (id == SampleIds::LoopXFade)
@@ -2151,7 +2154,6 @@ public:
 
 				for (int i = 0; i < numChannels; i++)
 					ob.addFromWithRamp(i, fadeOutStart, ob.getReadPointer(i, fadeInStart), xfadeSize, 0.0f, 1.0f);
-
 			}
 			else if (id == SampleIds::SampleEnd)
 			{
