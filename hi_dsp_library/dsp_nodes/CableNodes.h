@@ -1187,9 +1187,15 @@ namespace control
 			pimpl::parameter_node_base<ParameterClass>(getStaticId())
 		{};
 
+		static constexpr bool usesPrepareSpecs()
+		{
+			return prototypes::check::prepare<ConverterClass>::value;
+		}
+
 		void prepare(PrepareSpecs ps)
 		{
-			this->obj.prepare(ps);
+			if constexpr (usesPrepareSpecs())
+				this->obj.prepare(ps);
 
 			if(lastInput.first)
 			{
@@ -1199,7 +1205,7 @@ namespace control
 
         void setValue(double input)
         {
-			if constexpr (ConverterClass::usesPrepareSpecs())
+			if constexpr (usesPrepareSpecs())
 				lastInput = { true, input };
 
             auto v = obj.getValue(input);

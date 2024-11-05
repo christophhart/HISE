@@ -38,8 +38,6 @@ namespace conversion_logic
 {
 struct ms2freq
 {
-    static constexpr bool usesPrepareSpecs() { return true; }
-
     double getValue(double input) const
     {
         if(input == 0.0)
@@ -51,8 +49,6 @@ struct ms2freq
 
 struct freq2ms
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
     double getValue(double input) const
     {
         if(input == 0.0)
@@ -64,8 +60,6 @@ struct freq2ms
 
 struct ms2samples
 {
-    static constexpr bool usesPrepareSpecs() { return true; }
-
     double getValue(double input) const
     {
         return input * 0.001 * sampleRate;
@@ -81,8 +75,6 @@ struct ms2samples
 
 struct freq2samples
 {
-    static constexpr bool usesPrepareSpecs() { return true; }
-
     double getValue(double input) const
     {
         return input > 0.001f  ? sampleRate / input : 0.0f;
@@ -98,8 +90,6 @@ struct freq2samples
 
 struct ms2bpm
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
     double getValue(double input) const
     {
         return 60 / (hmath::max(input, 1.0) * 0.001);
@@ -108,8 +98,6 @@ struct ms2bpm
 
 struct samples2ms
 {
-    static constexpr bool usesPrepareSpecs() { return true; }
-
     double getValue(double input) const
     {
         if(sampleRate == 0.0)
@@ -128,8 +116,6 @@ struct samples2ms
 
 struct pitch2st
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
     double getValue(double input) const
     {
         return std::log2(input) * 12.0;
@@ -138,8 +124,6 @@ struct pitch2st
 
 struct st2pitch
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
     double getValue(double input) const
     {
         return pow(2.0, input / 12.0);
@@ -148,8 +132,6 @@ struct st2pitch
 
 struct cent2pitch
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
 	double getValue(double input) const
 	{
 		return pow(2.0, input / 1200.0);
@@ -158,8 +140,6 @@ struct cent2pitch
 
 struct pitch2cent
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
 	double getValue(double input) const
 	{
 		return std::log2(input) * 1200.0;
@@ -168,8 +148,6 @@ struct pitch2cent
 
 struct midi2freq
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
     double getValue(double input) const
     {
         return MidiMessage::getMidiNoteInHertz(hmath::round(input*127.0));
@@ -178,8 +156,6 @@ struct midi2freq
 
 struct freq2norm
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
     double getValue(double input) const
     {
         static constexpr double factor = 1.0 / 20000.0;
@@ -189,8 +165,6 @@ struct freq2norm
 
 struct db2gain
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
     double getValue(double input) const
     {
         return hmath::db2gain(input);
@@ -199,8 +173,6 @@ struct db2gain
 
 struct gain2db
 {
-    static constexpr bool usesPrepareSpecs() { return false; }
-
     double getValue(double input) const
     {
         return hmath::gain2db(input);

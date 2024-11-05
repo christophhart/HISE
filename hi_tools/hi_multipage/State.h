@@ -560,12 +560,12 @@ private:
     InputStream* input;
 };
 
-struct HardcodedDialogWithStateBase
+struct HardcodedDialogWithStateBase: public TextEditorWithAutocompleteComponent::Parent
 {
 	virtual ~HardcodedDialogWithStateBase() {};
 
     /** Override this method and return an item list for the autocomplete popup for the given id*/
-    virtual StringArray getAutocompleteItems(const Identifier& textEditorId) { return {}; };
+    StringArray getAutocompleteItems(const Identifier& textEditorId) override { return {}; };
 };
 
 struct HardcodedDialogWithState: public Component,

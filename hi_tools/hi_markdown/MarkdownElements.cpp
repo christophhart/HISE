@@ -1453,12 +1453,9 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 		ContentFooter::ContentLinks links = ContentFooter::createContentLinks(parent);
 
-		auto forumLink = links.forumLink;
+		auto githubLink = links.thisLink.getEditLinkOnGitHub(true);
 
-		if (forumLink.isInvalid())
-			forumLink = { {}, "https://forum.hise.audio" };
-
-		auto fl = g.surroundWithTag("Join Discussion", "a", "href=\"" + forumLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
+		auto fl = g.surroundWithTag("Edit on GitHub", "a", "href=\"" + githubLink + "\"");
 
 		auto nextString = "Next: " + g.surroundWithTag(links.nextName, "a", "href=\"" + links.nextLink.toString(MarkdownLink::FormattedLinkHtml) + "\"");
 
@@ -1527,6 +1524,7 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 				LOAD_EPATH_IF_URL("next", MainToolbarIcons::forward);
 				LOAD_EPATH_IF_URL("discussion", MainToolbarIcons::comment);
+				LOAD_EPATH_IF_URL("edit", EditorIcons::penShape);
 
 				return p;
 			}
@@ -1541,11 +1539,11 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 				if(isButtonDown)
 					g.fillAll(Colours::grey.withAlpha(0.1f));
 
-				bool isNextLink = button.getButtonText() != "Discussion";
+				bool isNextLink = button.getButtonText() != "Edit on GitHub";
 				auto bounds = button.getLocalBounds();
 				auto pathBounds = isNextLink ? bounds.removeFromRight(h) : bounds.removeFromLeft(h);
 				auto pb = pathBounds.reduced(pathBounds.getHeight() / 8, pathBounds.getHeight() / 8).toFloat();
-				auto p = f.createPath(button.getButtonText());
+				auto p = f.createPath(isNextLink ? button.getButtonText() : "edit");
 				p.scaleToFit(pb.getX(), pb.getY(), pb.getWidth(), pb.getHeight(), true);
 				g.setColour(textColour.withAlpha(button.isEnabled() ? 1.0f : 0.1f));
 				g.fillPath(p);
@@ -1553,16 +1551,16 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 
 			void drawButtonText(Graphics& g, TextButton& button, bool /*isMouseOverButton*/, bool /*isButtonDown*/)
 			{
-				bool isNextLink = button.getButtonText() != "Discussion";
+				bool isNextLink = button.getButtonText() != "Edit on GitHub";
 				
-
 				auto bounds = button.getLocalBounds();
+
 				isNextLink ? bounds.removeFromRight(h) : bounds.removeFromLeft(h);
 
 				g.setFont(font);
 				g.setColour(textColour.withAlpha(button.isEnabled() ? 1.0f : 0.1f));
 
-				String text = "Next: " + nextLink;
+				String text = isNextLink ? "Next: " + nextLink : button.getButtonText();
 				g.drawText(text, bounds.toFloat().reduced(5.0f), isNextLink ? Justification::centredRight : Justification::centredLeft);
 			}
 
@@ -1576,26 +1574,34 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 		Content(ContentFooter& parent_, const MarkdownLink& currentPage_, const MarkdownLink& nextLink_, const String& nextName_):
 			parent(parent_),
 			nextButton("Next"),
+			editButton("Edit on GitHub"),
 			nextLink(nextLink_),
 			currentPage(currentPage_),
 			nextName(nextName_)
 		{
 			addAndMakeVisible(nextButton);
-
 			nextButton.addListener(this);
-			
 			nextButton.setEnabled(nextLink.isValid());
+
+			addAndMakeVisible(editButton);
+			editButton.addListener(this);
 
 			blaf.textColour = parent.getTextColour();
 			blaf.nextLink = nextName;
 			blaf.font = parent.getFont();
 
 			nextButton.setLookAndFeel(&blaf);
-
+			editButton.setLookAndFeel(&blaf);
 		}
 
 		void buttonClicked(Button* b) override
 		{
+			if (b == &editButton)
+			{
+				auto link = currentPage.getEditLinkOnGitHub(true);
+				URL u(link);
+				u.launchInDefaultBrowser();
+			}
 			if (b == &nextButton)
 			{
 				WeakReference<MarkdownParser> p = parent.getParser();
@@ -1646,13 +1652,15 @@ struct MarkdownParser::ContentFooter : public MarkdownParser::Element
 			auto top = bounds.removeFromTop(getButtonHeight());
 
 			int nextWidth = blaf.font.getStringWidth(nextName) + getButtonHeight() * 3;
+			auto editWidth = blaf.font.getStringWidth(editButton.getButtonText()) + getButtonHeight() * 3;
 
 			nextButton.setBounds(top.removeFromRight(nextWidth));
+			editButton.setBounds(top.removeFromLeft(editWidth));
 		}
 
 		ButtonLookAndFeel blaf;
 		
-		TextButton nextButton;
+		TextButton nextButton, editButton;
 
 		MarkdownLink forumLink;
 		String nextName;

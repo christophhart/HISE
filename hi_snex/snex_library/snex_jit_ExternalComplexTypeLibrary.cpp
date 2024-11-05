@@ -1643,6 +1643,12 @@ juce::Result InbuiltTypeLibraryBuilder::registerTypes()
 
 	REGISTER_ORIGINAL_CPP_CLASS(c, ModValueJit, ModValue);
 
+	c.registerExternalComplexType(new StructType(NamespacedIdentifier("ExternalFunctionMap")));
+
+	REGISTER_ORIGINAL_CPP_CLASS(c, ExternalFunctionJIT, ExternalFunction);
+
+	
+
 	auto eventType = c.getComplexType(NamespacedIdentifier("HiseEvent"));
 	auto eventBufferType = new DynType(TypeInfo(eventType));
 	eventBufferType->setAlias(NamespacedIdentifier("HiseEventBuffer"));

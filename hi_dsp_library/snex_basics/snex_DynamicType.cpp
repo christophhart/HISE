@@ -202,7 +202,7 @@ VariableStorage::operator void*() const
 
 void* VariableStorage::toPtr() const
 {
-	jassert(isVoid());
+	jassert(!isVoid());
 
 	return data.p.data;
 }

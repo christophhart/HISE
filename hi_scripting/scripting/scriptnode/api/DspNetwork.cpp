@@ -2000,8 +2000,13 @@ bool DspNetwork::CodeManager::SnexSourceCompileHandler::triggerCompilation()
 
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
-	if (currentThread == MainController::KillStateHandler::TargetThread::SampleLoadingThread ||
-		currentThread == MainController::KillStateHandler::TargetThread::ScriptingThread)
+	auto shouldBeSync = currentThread == MainController::KillStateHandler::TargetThread::SampleLoadingThread ||
+		currentThread == MainController::KillStateHandler::TargetThread::ScriptingThread;
+
+	if(getMainController()->isFlakyThreadingAllowed())
+		shouldBeSync = true;
+
+	if (shouldBeSync)
 	{
 		getParent()->handleCompilation();
 		return true;

@@ -279,6 +279,8 @@ public:
 
 	ExampleAssetManager::Ptr assetManager;
 
+	File customDocCacheFolder;
+
 private:
 
 	bool isSnippet = false;

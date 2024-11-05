@@ -1012,6 +1012,12 @@ void Parameter::setDynamicParameter(parameter::dynamic_base::Ptr ownedNew)
 {
 	// We don't need to lock if the network isn't active yet...
 	bool useLock = parent->isActive(true) && parent->getRootNetwork()->isInitialised();
+
+	auto ph = parent->getRootNetwork()->getParentHolder();
+
+	if(ph == nullptr)
+		return;
+
 	SimpleReadWriteLock::ScopedWriteLock sl(parent->getRootNetwork()->getConnectionLock(), useLock);
 
 	dynamicParameter = ownedNew;
