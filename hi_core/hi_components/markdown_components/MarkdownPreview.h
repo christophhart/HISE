@@ -78,7 +78,7 @@ public:
 		  threadToUse(t)
 		{}
 
-		Component::SafePointer<BackendRootWindow> root;
+		BackendRootWindow* root;
 		std::function<void(const String&)> logger;
 		String snippetDirectory;
 		Thread* threadToUse = nullptr;

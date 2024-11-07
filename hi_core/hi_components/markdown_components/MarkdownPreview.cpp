@@ -294,7 +294,7 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 
 				showStatusMessage("Create docs for " + i.name);
 
-				auto img = i.createScreenshot(root.getComponent());
+				auto img = i.createScreenshot(root);
 
 				if(threadToUse != nullptr && threadToUse->threadShouldExit())
 					return;
