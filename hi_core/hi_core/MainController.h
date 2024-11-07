@@ -1974,10 +1974,9 @@ public:
 		defaultPresetHandler = ownedHandler;
 	}
 
-	MarkdownContentProcessor* getCurrentMarkdownPreview()
-	{
-		return currentPreview;
-	}
+	ONNXLoader::Ptr getONNXLoader();
+
+	MarkdownContentProcessor* getCurrentMarkdownPreview();
 
 	MultiChannelAudioBuffer::XYZPool* getXYZPool()
 	{
@@ -2284,6 +2283,8 @@ private:
 	AutoSaver autoSaver;
 
 	DebugLogger debugLogger;
+
+	hise::ONNXLoader::Ptr onnxLoader;
 
 #if USE_BACKEND
 	Component::SafePointer<ScriptWatchTable> scriptWatchTable;

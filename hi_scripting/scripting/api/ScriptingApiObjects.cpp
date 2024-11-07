@@ -212,6 +212,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsString);
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsObject);
 	API_METHOD_WRAPPER_0(ScriptFile, loadAsAudioFile);
+	API_METHOD_WRAPPER_0(ScriptFile, loadAsBase64String);
 	API_METHOD_WRAPPER_0(ScriptFile, getNonExistentSibling);
 	API_METHOD_WRAPPER_0(ScriptFile, deleteFileOrDirectory);
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
@@ -276,6 +277,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_1(loadEncryptedObject);
 	ADD_API_METHOD_0(loadMidiMetadata);
     ADD_API_METHOD_0(loadAudioMetadata);
+	ADD_API_METHOD_0(loadAsBase64String);
 	ADD_API_METHOD_1(rename);
 	ADD_API_METHOD_1(move);
 	ADD_API_METHOD_1(copy);
@@ -726,6 +728,13 @@ bool ScriptingObjects::ScriptFile::writeEncryptedObject(var jsonData, String key
 	bf.encrypt(out);
 
 	return f.replaceWithText(out.toBase64Encoding());
+}
+
+String ScriptingObjects::ScriptFile::loadAsBase64String() const
+{
+	MemoryBlock mb;
+	f.loadFileAsData(mb);
+	return mb.toBase64Encoding();
 }
 
 String ScriptingObjects::ScriptFile::loadAsString() const
@@ -2220,6 +2229,7 @@ ScriptingObjects::ScriptingSamplerSound::ScriptingSamplerSound(ProcessorWithScri
 	sampleIds.add(SampleIds::LoopEnd);
 	sampleIds.add(SampleIds::LoopXFade);
 	sampleIds.add(SampleIds::LoopEnabled);
+	sampleIds.add(SampleIds::ReleaseStart);
 	sampleIds.add(SampleIds::LowerVelocityXFade);
 	sampleIds.add(SampleIds::UpperVelocityXFade);
 	sampleIds.add(SampleIds::SampleState);
@@ -5009,6 +5019,8 @@ struct ScriptingObjects::ScriptNeuralNetwork::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, loadTensorFlowModel);
 	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, loadPytorchModel);
 	API_METHOD_WRAPPER_1(ScriptNeuralNetwork, createModelJSONFromTextFile);
+	API_METHOD_WRAPPER_2(ScriptNeuralNetwork, loadOnnxModel);
+	API_METHOD_WRAPPER_3(ScriptNeuralNetwork, processFFTSpectrum);
 };
 
 ScriptingObjects::ScriptNeuralNetwork::ScriptNeuralNetwork(ProcessorWithScriptingContent* p, const String& name):
@@ -5023,6 +5035,8 @@ ScriptingObjects::ScriptNeuralNetwork::ScriptNeuralNetwork(ProcessorWithScriptin
 	ADD_API_METHOD_1(loadTensorFlowModel);
 	ADD_API_METHOD_1(loadPytorchModel);
 	ADD_API_METHOD_0(getModelJSON);
+	ADD_API_METHOD_2(loadOnnxModel);
+	ADD_API_METHOD_3(processFFTSpectrum);
 
 #if HISE_INCLUDE_RT_NEURAL
 	nn = p->getMainController_()->getNeuralNetworks().getOrCreate(Identifier(name));
@@ -5241,6 +5255,62 @@ void ScriptingObjects::ScriptNeuralNetwork::loadPytorchModel(const var& modelJSO
 #else
 	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
 #endif
+}
+
+bool ScriptingObjects::ScriptNeuralNetwork::loadOnnxModel(const var& base64Data, int numOutputs)
+{
+	if(onnx == nullptr)
+		onnx = getScriptProcessor()->getMainController_()->getONNXLoader();
+
+	onnxOutput.resize(numOutputs);
+
+	for(auto& v: onnxOutput)
+		v = 0.0f;
+
+	MemoryBlock mb;
+	mb.fromBase64Encoding(base64Data.toString());
+	auto ok = onnx->loadModel(mb);
+
+	if(ok.failed())
+	{
+		reportScriptError(ok.getErrorMessage());
+		RETURN_IF_NO_THROW(false);
+	}
+
+	return true;
+}
+
+var ScriptingObjects::ScriptNeuralNetwork::processFFTSpectrum(var fftObject, int numFreqPixels, int numTimePixels)
+{
+	if(auto fft = dynamic_cast<ScriptFFT*>(fftObject.getObject()))
+	{
+		if(onnx != nullptr)
+		{
+			auto img = fft->getRescaledAndRotatedSpectrum(false, numFreqPixels, numTimePixels);
+
+			auto parameters = fft->getSpectrum2DParameters();
+			auto isGreyscale = (int)parameters["ColourScheme"] == 0;
+
+			onnx->run(img, onnxOutput, isGreyscale);
+
+			Array<var> outputValues;
+
+			for(auto& v: onnxOutput)
+				outputValues.add(v);
+
+			return var(outputValues);
+		}
+		else
+		{
+			reportScriptError("ONNX model is not loaded. use loadOnnxModel() before calling this method");
+		}
+	}
+	else
+	{
+		reportScriptError("fftObject is not a FFT object.");
+	}
+
+	RETURN_IF_NO_THROW(var(Array<var>()));
 }
 
 var ScriptingObjects::ScriptNeuralNetwork::getModelJSON()
@@ -7553,6 +7623,21 @@ var ScriptingObjects::ScriptFFT::getSpectrum2DParameters() const
 	return d;
 }
 
+Image ScriptingObjects::ScriptFFT::getRescaledAndRotatedSpectrum(bool getOutput, int numFreqPixels, int numTimePixels)
+{
+	auto thisImg = getSpectrum(getOutput).rescaled(numFreqPixels, numTimePixels, Graphics::ResamplingQuality::highResamplingQuality);
+	Image rotated(Image::PixelFormat::RGB, thisImg.getHeight(), thisImg.getWidth(), false);
+	Image::BitmapData r(rotated, Image::BitmapData::writeOnly);
+
+	for(int y = 0; y < rotated.getHeight(); y++)
+	{
+		for(int x = 0;  x < rotated.getWidth(); x++)
+			rotated.setPixelAt(x, y, thisImg.getPixelAt(rotated.getHeight() - y - 1, x));
+	}
+
+	return rotated;
+}
+
 bool ScriptingObjects::ScriptFFT::dumpSpectrum(var file, bool output, int numFreqPixels, int numTimePixels)
 {
 	auto img = output ? outputSpectrum : spectrum;
@@ -7561,27 +7646,8 @@ bool ScriptingObjects::ScriptFFT::dumpSpectrum(var file, bool output, int numFre
 	{
 		sf->f.deleteFile();
 		FileOutputStream fos(sf->f);
-		
+		auto rotated = getRescaledAndRotatedSpectrum(output, numFreqPixels, numTimePixels);
 		PNGImageFormat f;
-
-		auto thisImg = img.rescaled(numFreqPixels, numTimePixels, Graphics::ResamplingQuality::highResamplingQuality);
-
-		Image rotated(Image::PixelFormat::RGB, thisImg.getHeight(), thisImg.getWidth(), false);
-
-		Image::BitmapData r(rotated, Image::BitmapData::writeOnly);
-
-		for(int y = 0; y < rotated.getHeight(); y++)
-		{
-			auto line = r.getLinePointer(y);
-
-			for(int x = 0;  x < rotated.getWidth(); x++)
-			{
-				//line[x] = thisImg.getPixelAt(rotated.getHeight() - y - 1, x);
-				rotated.setPixelAt(x, y, thisImg.getPixelAt(rotated.getHeight() - y - 1, x));
-				//line[x] = roundToInt(thisImg.getPixelAt(rotated.getHeight() - y, x).getBrightness() * 255.0f);
-			}
-		}
-
 		return f.writeImageToStream(rotated, fos);
 	}
 

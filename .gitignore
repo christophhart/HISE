@@ -129,3 +129,7 @@ extras/hise_dialogs/AdditionalSourceCode/
 extras/hise_dialogs/expansion_info.xml
 extras/hise_dialogs/project_info.xml
 extras/hise_dialogs/user_info.xml
+tools/onnx_lib/Builds/
+tools/onnx_lib/JuceLibraryCode/
+tools/onnx_lib/Source/lib/
+tools/onnx_lib/onnx_hise_library.dll

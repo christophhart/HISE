@@ -374,6 +374,9 @@ namespace ScriptingObjects
 		/** Loads the track (zero-based) of the MIDI file. If successful, it returns an object containing the time signature and a list of all events. */
 		var loadAsMidiFile(int trackIndex);
 
+		/** Loads the binary file, compresses it with zstd and returns a Base64 string. */
+		String loadAsBase64String() const;
+		
 		/** Replaces the file content with the given text. */
 		bool writeString(String text);
 
@@ -758,6 +761,8 @@ namespace ScriptingObjects
 		// ======================================================================================================= End of API Methods
 
 		Image getSpectrum(bool getOutput) const { return getOutput ? outputSpectrum : spectrum; }
+
+		Image getRescaledAndRotatedSpectrum(bool getOutput, int numFreqPixels, int numTimePixels);
 
 	private:
 
@@ -1589,6 +1594,12 @@ namespace ScriptingObjects
 		/** Loads the model layout and weights from a Pytorch model JSON. */
 		void loadPytorchModel(const var& modelJSON);
 
+		/** Loads the ONNX runtime model for spectral analysis. */
+		bool loadOnnxModel(const var& base64Data, int numOutputValues);
+
+		/** Processes the FFT spectrum and returns the output tensor as array of float numbers. */
+		var processFFTSpectrum(var fftObject, int numFreqPixels, int numTimePixels);
+
 		/** Returns the model JSON. */
 		var getModelJSON();
 
@@ -1617,6 +1628,9 @@ namespace ScriptingObjects
 #if HISE_INCLUDE_RT_NEURAL
 		NeuralNetwork::Ptr nn;
 #endif
+
+		ONNXLoader::Ptr onnx;
+		std::vector<float> onnxOutput;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptNeuralNetwork);
 	};
