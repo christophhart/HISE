@@ -64,7 +64,7 @@ private:
 
 	template <typename Func> Func getFunction(const String& name)
 	{
-		if(auto f = static_cast<Func>(dll->getFunction(name)))
+		if(auto f = reinterpret_cast<Func>(dll->getFunction(name)))
 			return f;
 		else
 		{
