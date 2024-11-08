@@ -2510,8 +2510,6 @@ void Spectrum2D::LookupTable::setColourScheme(ColourScheme cs)
 Spectrum2D::LookupTable::LookupTable()
 {
 	setColourScheme(ColourScheme::violetToOrange);
-
-	
 }
 
 Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
@@ -2533,6 +2531,24 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 			pp->set(lutValue);
 		}
 	}
+
+	Image::BitmapData cd(newImage, 0, 0, newImage.getWidth(), newImage.getHeight());
+
+	for(int x = 0; x < cd.width; x++)
+    {
+        for(int y = 0; y < cd.height; y++)
+        {
+            auto c = cd.getPixelColour(x, y);
+            
+            auto r = (int)c.getRed();
+            auto g = (int)c.getGreen();
+            auto b = (int)c.getBlue();
+            auto a = c.getAlpha();
+            
+            int funky = 5;
+        }
+    }
+
 
     return newImage;
 }

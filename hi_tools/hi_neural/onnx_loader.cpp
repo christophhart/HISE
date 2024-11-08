@@ -97,10 +97,17 @@ bool ONNXLoader::run(const Image& img, std::vector<float>& outputValues, bool is
 			PNGImageFormat().writeImageToStream(img, mos);
 			mos.flush();
 
+			MemoryInputStream mis(mos.getMemoryBlock());
+
+			Image tf = PNGImageFormat().loadFrom(mis);
+
+			Spectrum2D::testImage(tf, true, "after PNG conversion");
+			
 			if(f(currentModel, mos.getData(), mos.getDataSize(), outputValues.size(), isGreyscale))
 			{
 				if(auto w = getFunction<getOutput_f>("getOutput"))
 				{
+					
 					w(currentModel, outputValues.data());
 				}
 			}

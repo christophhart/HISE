@@ -5291,6 +5291,8 @@ var ScriptingObjects::ScriptNeuralNetwork::processFFTSpectrum(var fftObject, int
 			auto parameters = fft->getSpectrum2DParameters();
 			auto isGreyscale = (int)parameters["ColourScheme"] == 0;
 
+			Spectrum2D::testImage(img, true, "processFFTSpectrum");
+
 			onnx->run(img, onnxOutput, isGreyscale);
 
 			Array<var> outputValues;
@@ -7624,9 +7626,14 @@ var ScriptingObjects::ScriptFFT::getSpectrum2DParameters() const
 	return d;
 }
 
+
+
 Image ScriptingObjects::ScriptFFT::getRescaledAndRotatedSpectrum(bool getOutput, int numFreqPixels, int numTimePixels)
 {
 	auto thisImg = getSpectrum(getOutput).rescaled(numFreqPixels, numTimePixels, Graphics::ResamplingQuality::highResamplingQuality);
+
+	Spectrum2D::testImage(thisImg, false, "before rotation");
+
 	Image rotated(Image::PixelFormat::ARGB, thisImg.getHeight(), thisImg.getWidth(), false);
 	Image::BitmapData r(rotated, Image::BitmapData::writeOnly);
 
@@ -7638,6 +7645,8 @@ Image ScriptingObjects::ScriptFFT::getRescaledAndRotatedSpectrum(bool getOutput,
 			rotated.setPixelAt(x, y, p.withAlpha(1.0f));
 		}
 	}
+
+	Spectrum2D::testImage(rotated, true, "after rotation");
 
 	return rotated;
 }
