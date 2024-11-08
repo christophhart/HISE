@@ -708,6 +708,7 @@ namespace ScriptingObjects
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setSpectrum2DParameters);
 			API_METHOD_WRAPPER_0(ScriptFFT, getSpectrum2DParameters);
 			API_METHOD_WRAPPER_4(ScriptFFT, dumpSpectrum);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setUseFallbackEngine);
 		};
 
 		ScriptFFT(ProcessorWithScriptingContent* pwsc);
@@ -758,6 +759,12 @@ namespace ScriptingObjects
 		/** Dumps the spectrum image to the given file (as PNG image). */
 		bool dumpSpectrum(var file, bool output, int numFreqPixels, int numTimePixels);
 
+		/** This forces the FFT object to use the fallback engine. */
+		void setUseFallbackEngine(bool shouldUseFallback)
+		{
+			useFallback = shouldUseFallback;
+		}
+
 		// ======================================================================================================= End of API Methods
 
 		Image getSpectrum(bool getOutput) const { return getOutput ? outputSpectrum : spectrum; }
@@ -765,6 +772,8 @@ namespace ScriptingObjects
 		Image getRescaledAndRotatedSpectrum(bool getOutput, int numFreqPixels, int numTimePixels);
 
 	private:
+
+		bool useFallback = false;
 
 		AudioSampleBuffer windowBuffer;
 

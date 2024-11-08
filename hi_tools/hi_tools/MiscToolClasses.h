@@ -2395,7 +2395,7 @@ struct Spectrum2D
 
 	bool useAlphaChannel = false;
 
-    AudioSampleBuffer createSpectrumBuffer();
+    AudioSampleBuffer createSpectrumBuffer(bool useFallback);
 };
 
 /** A interface class that can attach mouse events to the JSON object provided in the mouse event callback of a broadcaster. */

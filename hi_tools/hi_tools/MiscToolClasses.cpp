@@ -2532,22 +2532,7 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 		}
 	}
 
-	Image::BitmapData cd(newImage, 0, 0, newImage.getWidth(), newImage.getHeight());
-
-	for(int x = 0; x < cd.width; x++)
-    {
-        for(int y = 0; y < cd.height; y++)
-        {
-            auto c = cd.getPixelColour(x, y);
-            
-            auto r = (int)c.getRed();
-            auto g = (int)c.getGreen();
-            auto b = (int)c.getBlue();
-            auto a = c.getAlpha();
-            
-            int funky = 5;
-        }
-    }
+	testImage(newImage, false, "after creation");
 
 
     return newImage;
@@ -2555,10 +2540,10 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 
 
 
-AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
+AudioSampleBuffer Spectrum2D::createSpectrumBuffer(bool useFallback)
 {
 	TRACE_EVENT("scripting", "create spectrum buffer");
-    auto fft = juce::dsp::FFT(parameters->order);
+    auto fft = juce::dsp::FFT(parameters->order, useFallback);
 
     auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / parameters->Spectrum2DSize * parameters->oversamplingFactor - 1);
 

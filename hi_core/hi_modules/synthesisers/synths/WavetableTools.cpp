@@ -1396,7 +1396,7 @@ juce::AudioSampleBuffer SampleMapToWavetableConverter::getPreviewBuffers(bool or
 
 		s2d.parameters = getParameters();
 		
-		auto lb = s2d.createSpectrumBuffer();
+		auto lb = s2d.createSpectrumBuffer(false);
 
 		originalSpectrum = s2d.createSpectrumImage(lb);
 		spectrumBroadcaster.sendMessage(sendNotificationAsync, &originalSpectrum);

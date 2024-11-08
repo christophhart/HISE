@@ -1356,7 +1356,7 @@ void MainTopBar::ClickablePeakMeter::PopupComponent::Spec2DInfo::calculate(const
 	parameters->oversamplingFactor = rbo->getProperty("Oversampling");
 
 	spectrum.useAlphaChannel = true;
-	auto sb = spectrum.createSpectrumBuffer();
+	auto sb = spectrum.createSpectrumBuffer(false);
 	
 	auto newImage = spectrum.createSpectrumImage(sb);
 

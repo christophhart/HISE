@@ -7308,6 +7308,7 @@ ScriptingObjects::ScriptFFT::ScriptFFT(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(setSpectrum2DParameters);
 	ADD_API_METHOD_0(getSpectrum2DParameters);
 	ADD_API_METHOD_4(dumpSpectrum);
+	ADD_API_METHOD_1(setUseFallbackEngine);
 	
 	spectrumParameters = new Spectrum2D::Parameters();
 }
@@ -7457,7 +7458,7 @@ void ScriptingObjects::ScriptFFT::prepare(int powerOfTwoSize, int maxNumChannels
 			
 		SimpleReadWriteLock::ScopedWriteLock sl(lock);
 
-		fft = new juce::dsp::FFT(log2(maxNumSamples));
+		fft = new juce::dsp::FFT(log2(maxNumSamples), useFallback);
 	}
 	else
 	{
@@ -7492,7 +7493,7 @@ var ScriptingObjects::ScriptFFT::process(var dataToProcess)
 		Spectrum2D fb(this, fullBuffer);
 		fb.parameters = spectrumParameters;
 		fb.useAlphaChannel = false;
-		auto b = fb.createSpectrumBuffer();
+		auto b = fb.createSpectrumBuffer(useFallback);
 
 		if (b.getNumSamples() > 0)
 		{
@@ -7582,7 +7583,7 @@ var ScriptingObjects::ScriptFFT::process(var dataToProcess)
 			{
 				Spectrum2D fb(this, bToUse->buffer);
 				fb.parameters = spectrumParameters;
-				auto b = fb.createSpectrumBuffer();
+				auto b = fb.createSpectrumBuffer(useFallback);
 
 				if (b.getNumSamples() > 0)
 					outputSpectrum = fb.createSpectrumImage(b);
@@ -7630,9 +7631,15 @@ var ScriptingObjects::ScriptFFT::getSpectrum2DParameters() const
 
 Image ScriptingObjects::ScriptFFT::getRescaledAndRotatedSpectrum(bool getOutput, int numFreqPixels, int numTimePixels)
 {
+	if(fft == nullptr)
+		reportScriptError("FFT engine is not initialised");
+
+	if(!useFallback || !fft->isFallbackEngine())
+		reportScriptError("You must use the fallback engine if you want to dump FFT images");
+
 	auto thisImg = getSpectrum(getOutput).rescaled(numFreqPixels, numTimePixels, Graphics::ResamplingQuality::highResamplingQuality);
 
-	Spectrum2D::testImage(thisImg, false, "before rotation");
+	Spectrum2D::testImage(thisImg, false, "after rescaling");
 
 	Image rotated(Image::PixelFormat::ARGB, thisImg.getHeight(), thisImg.getWidth(), false);
 	Image::BitmapData r(rotated, Image::BitmapData::writeOnly);
@@ -7653,8 +7660,6 @@ Image ScriptingObjects::ScriptFFT::getRescaledAndRotatedSpectrum(bool getOutput,
 
 bool ScriptingObjects::ScriptFFT::dumpSpectrum(var file, bool output, int numFreqPixels, int numTimePixels)
 {
-	auto img = output ? outputSpectrum : spectrum;
-
 	if(auto sf = dynamic_cast<ScriptFile*>(file.getObject()))
 	{
 		sf->f.deleteFile();
