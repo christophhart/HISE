@@ -302,7 +302,7 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 #include "hi_neural/hi_neural.h"
 #endif
 
-#include "hi_neural/onnx_loader.h";
+#include "hi_neural/onnx_loader.h"
 
 #if !HISE_NO_GUI_TOOLS
 

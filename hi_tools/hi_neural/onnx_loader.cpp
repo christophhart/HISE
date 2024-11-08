@@ -40,7 +40,13 @@ ONNXLoader::ONNXLoader(const String& rootDir):
 	{
 		auto dllFile = File(rootDir);
 
+#if JUCE_DEBUG
+#if JUCE_WINDOWS
 		dllFile = dllFile.getChildFile("Builds/VisualStudio2022/x64/Debug/Dynamic Library");
+#else
+        dllFile = dllFile.getChildFile("Builds/MacOSX/build/Debug");
+#endif
+#endif
 
 #if JUCE_WINDOWS
 		dllFile = dllFile.getChildFile("onnx_hise_library.dll");

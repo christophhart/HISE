@@ -87,6 +87,8 @@ struct TextEditorWithAutocompleteComponent: public Timer,
 
 	struct LookAndFeelMethods
     {
+        virtual ~LookAndFeelMethods() {};
+        
 	    virtual void drawAutocompleteBackground(Graphics& g, TextEditor& te, Rectangle<float> b, const StringArray& itemToShow, int selectedIndex)
 	    {
 	        b = b.reduced(10.0f);
@@ -102,12 +104,8 @@ struct TextEditorWithAutocompleteComponent: public Timer,
 	        g.setColour(Colours::white.withAlpha(0.3f));
 	        g.drawRoundedRectangle(b, 5.0f, 2.0f);
 	        
-	        
-	        
 	        b.reduced(5.0f);
 	        b.removeFromLeft(10.0f);
-	        
-
 	        b.removeFromTop(2.5f);
 	        
 	        g.setFont(te.getFont());
