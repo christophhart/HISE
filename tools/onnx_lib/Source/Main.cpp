@@ -94,9 +94,7 @@ struct ONNXRuntime::Pimpl
 	        Ort::Value input_tensor = Ort::Value::CreateTensor<float>(
 	            memory_info, input_data.data(), input_data.size(), input_shape.data(), input_shape.size());
 
-			auto copy = image;
-
-			Image::BitmapData bp(copy, 0, 0, image.getWidth(), image.getHeight(), Image::BitmapData::ReadWriteMode::readOnly);
+			Image::BitmapData bp(image, 0, 0, image.getWidth(), image.getHeight());
 
 			auto v = input_data.data();
 
@@ -109,7 +107,10 @@ struct ONNXRuntime::Pimpl
 				for(int y = 0; y < bp.height; y++)
 				{
 					for(int x = 0; x < bp.width; x++)
-						*v++ = bp.getPixelColour(x, y).getBrightness();
+					{
+                        auto c = bp.getPixelColour(x, y);
+						*v++ = c.getBrightness();
+					}
 				}
 			}
 
@@ -316,7 +317,12 @@ struct Data
     {
         outputValues.resize(numOutputs);
         auto image = ImageFileFormat::loadFrom(imageData, numBytes);
-	    ok = rt.run(image, outputValues, isGreyScale);
+
+        if(image.getFormat() == Image::PixelFormat::ARGB)
+            ok = rt.run(image, outputValues, isGreyScale);
+        else
+            ok = Result::fail("Image must have pixel format ARGB");
+	    
         return ok.wasOk();
     }
     

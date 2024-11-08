@@ -7626,13 +7626,16 @@ var ScriptingObjects::ScriptFFT::getSpectrum2DParameters() const
 Image ScriptingObjects::ScriptFFT::getRescaledAndRotatedSpectrum(bool getOutput, int numFreqPixels, int numTimePixels)
 {
 	auto thisImg = getSpectrum(getOutput).rescaled(numFreqPixels, numTimePixels, Graphics::ResamplingQuality::highResamplingQuality);
-	Image rotated(Image::PixelFormat::RGB, thisImg.getHeight(), thisImg.getWidth(), false);
+	Image rotated(Image::PixelFormat::ARGB, thisImg.getHeight(), thisImg.getWidth(), false);
 	Image::BitmapData r(rotated, Image::BitmapData::writeOnly);
 
 	for(int y = 0; y < rotated.getHeight(); y++)
 	{
 		for(int x = 0;  x < rotated.getWidth(); x++)
-			rotated.setPixelAt(x, y, thisImg.getPixelAt(rotated.getHeight() - y - 1, x));
+		{
+			auto p = thisImg.getPixelAt(rotated.getHeight() - y - 1, x);
+			rotated.setPixelAt(x, y, p.withAlpha(1.0f));
+		}
 	}
 
 	return rotated;

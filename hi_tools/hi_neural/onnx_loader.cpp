@@ -40,6 +40,8 @@ ONNXLoader::ONNXLoader(const String& rootDir):
 	{
 		auto dllFile = File(rootDir);
 
+		dllFile = dllFile.getChildFile("Builds/VisualStudio2022/x64/Debug/Dynamic Library");
+
 #if JUCE_WINDOWS
 		dllFile = dllFile.getChildFile("onnx_hise_library.dll");
 #elif JUCE_MAC
@@ -85,6 +87,12 @@ bool ONNXLoader::run(const Image& img, std::vector<float>& outputValues, bool is
 	{
 		if(auto f = getFunction<run_f>("runModel"))
 		{
+			if(img.getFormat() != Image::ARGB)
+			{
+				ok = Result::fail("The image must have ARGB pixel format to be consistent between Windows / macOS");
+				return false;
+			}
+
 			MemoryOutputStream mos;
 			PNGImageFormat().writeImageToStream(img, mos);
 			mos.flush();
