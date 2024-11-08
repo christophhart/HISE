@@ -2229,7 +2229,7 @@ struct Spectrum2D
 
 		static constexpr int LookupTableSize = 512;
 
-		PixelRGB getColouredPixel(float normalisedInput);
+		PixelARGB getColouredPixel(float normalisedInput, bool useAlphaValue);
 
 		LookupTable();
 

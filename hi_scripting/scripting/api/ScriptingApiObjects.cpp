@@ -7489,6 +7489,7 @@ var ScriptingObjects::ScriptFFT::process(var dataToProcess)
 
 		Spectrum2D fb(this, fullBuffer);
 		fb.parameters = spectrumParameters;
+		fb.useAlphaChannel = false;
 		auto b = fb.createSpectrumBuffer();
 
 		if (b.getNumSamples() > 0)
