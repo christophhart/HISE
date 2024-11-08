@@ -7637,8 +7637,8 @@ Image ScriptingObjects::ScriptFFT::getRescaledAndRotatedSpectrum(bool getOutput,
 	if(!useFallback || !fft->isFallbackEngine())
 		reportScriptError("You must use the fallback engine if you want to dump FFT images");
 
-	auto thisImg = getSpectrum(getOutput).rescaled(numFreqPixels, numTimePixels, Graphics::ResamplingQuality::highResamplingQuality);
-
+	auto thisImg = gin::applyResize(getSpectrum(getOutput), numFreqPixels, numTimePixels);
+	
 	Spectrum2D::testImage(thisImg, false, "after rescaling");
 
 	Image rotated(Image::PixelFormat::ARGB, thisImg.getHeight(), thisImg.getWidth(), false);
