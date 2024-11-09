@@ -728,18 +728,13 @@ bool MainController::shouldUseSoftBypassRamps() const noexcept
 
 ONNXLoader::Ptr MainController::getONNXLoader()
 {
-	if(onnxLoader == nullptr)
-	{
-#if USE_BACKEND || 1
-		File libraryPath(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Compiler::HisePath).toString());
-		libraryPath = libraryPath.getChildFile("tools/onnx_lib");
+#if USE_BACKEND
+	File libraryPath(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Compiler::HisePath).toString());
+	libraryPath = libraryPath.getChildFile("tools/onnx_lib");
 #else
-		auto libraryPath = FrontendHandler::getAppDataDirectory(this);
+	auto libraryPath = FrontendHandler::getAppDataDirectory(this);
 #endif
-		onnxLoader = new ONNXLoader(libraryPath.getFullPathName());
-	}
-
-	return onnxLoader;
+	return new ONNXLoader(libraryPath.getFullPathName());
 }
 
 MarkdownContentProcessor* MainController::getCurrentMarkdownPreview()

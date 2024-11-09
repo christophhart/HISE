@@ -60,12 +60,14 @@ public:
 
 private:
 
+	void unloadModel();
+
 	void setLastError();
 
 	template <typename Func> Func getFunction(const String& name)
 	{
         
-		if(auto f = reinterpret_cast<Func>(dll->getFunction(name)))
+		if(auto f = reinterpret_cast<Func>(data->dll->getFunction(name)))
 			return f;
 		else
 		{
@@ -74,7 +76,20 @@ private:
 		}
 	}
 
-	ScopedPointer<DynamicLibrary> dll{};
+	struct SharedData
+	{
+		SharedData();
+
+		~SharedData();
+
+		Result initialise(const String& rootDir);
+
+		Result ok;
+		ScopedPointer<DynamicLibrary> dll;
+	};
+
+	SharedResourcePointer<SharedData> data;
+	
 	Result ok;
 	void* currentModel = nullptr;
 

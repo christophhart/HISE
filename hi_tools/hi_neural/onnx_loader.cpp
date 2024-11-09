@@ -36,55 +36,12 @@ using namespace juce;
 ONNXLoader::ONNXLoader(const String& rootDir):
 	ok(Result::fail("dll could not open"))
 {
-	if(File::isAbsolutePath(rootDir) && File(rootDir).isDirectory())
-	{
-		auto dllFile = File(rootDir);
-
-#if JUCE_DEBUG
-#if JUCE_WINDOWS
-		dllFile = dllFile.getChildFile("Builds/VisualStudio2022/x64/Debug/Dynamic Library");
-#else
-        dllFile = dllFile.getChildFile("Builds/MacOSX/build/Debug");
-#endif
-#endif
-
-#if JUCE_WINDOWS
-		dllFile = dllFile.getChildFile("onnx_hise_library.dll");
-#elif JUCE_MAC
-		dllFile = dllFile.getChildFile("onnx_hise_library.dylib");
-#elif JUCE_LINUX
-		// DAVID!!!!
-		jassertfalse;
-#endif
-
-		if(!dllFile.existsAsFile())
-		{
-			ok = Result::fail("Missing dynamic library " + dllFile.getFullPathName());
-		}
-		else
-		{
-			dll = new DynamicLibrary();
-
-			if(dll->open(dllFile.getFullPathName()))
-				ok = Result::ok();
-			else
-				dll = nullptr;
-		}
-	}
+	ok = data->initialise(rootDir);
 }
 
 ONNXLoader::~ONNXLoader()
 {
-	if(currentModel != nullptr)
-	{
-		jassert(dll != nullptr);
-
-		if(auto f = getFunction<destroyModel_f>("destroyModel"))
-			f(currentModel);
-
-		currentModel = nullptr;
-		dll = nullptr;
-	}
+	unloadModel();
 }
 
 bool ONNXLoader::run(const Image& img, std::vector<float>& outputValues, bool isGreyscale)
@@ -127,7 +84,9 @@ bool ONNXLoader::run(const Image& img, std::vector<float>& outputValues, bool is
 
 Result ONNXLoader::loadModel(const MemoryBlock& mb)
 {
-	if(dll != nullptr)
+	unloadModel();
+
+	if(data->dll != nullptr)
 	{
 		if(auto f = getFunction<loadModel_f>("loadModel"))
 		{
@@ -149,6 +108,20 @@ Result ONNXLoader::getLastError() const
 	return ok;
 }
 
+void ONNXLoader::unloadModel()
+{
+	if(currentModel != nullptr)
+	{
+		jassert(data->dll != nullptr);
+
+		if(auto f = getFunction<destroyModel_f>("destroyModel"))
+			f(currentModel);
+
+		currentModel = nullptr;
+			
+	}
+}
+
 void ONNXLoader::setLastError()
 {
 	if(auto f = getFunction<getError_f>("getError"))
@@ -165,4 +138,56 @@ void ONNXLoader::setLastError()
 	}
 }
 
+ONNXLoader::SharedData::SharedData():
+	ok(Result::ok())
+{}
+
+ONNXLoader::SharedData::~SharedData()
+{
+	dll = nullptr;
+}
+
+Result ONNXLoader::SharedData::initialise(const String& rootDir)
+{
+	if(dll != nullptr)
+		return ok;
+
+	if(File::isAbsolutePath(rootDir) && File(rootDir).isDirectory())
+	{
+		auto dllFile = File(rootDir);
+
+#if JUCE_DEBUG
+#if JUCE_WINDOWS
+		dllFile = dllFile.getChildFile("Builds/VisualStudio2022/x64/Debug/Dynamic Library");
+#else
+		        dllFile = dllFile.getChildFile("Builds/MacOSX/build/Debug");
+#endif
+#endif
+
+#if JUCE_WINDOWS
+		dllFile = dllFile.getChildFile("onnx_hise_library.dll");
+#elif JUCE_MAC
+				dllFile = dllFile.getChildFile("onnx_hise_library.dylib");
+#elif JUCE_LINUX
+				// DAVID!!!!
+				jassertfalse;
+#endif
+
+		if(!dllFile.existsAsFile())
+		{
+			ok = Result::fail("Missing dynamic library " + dllFile.getFullPathName());
+		}
+		else
+		{
+			dll = new DynamicLibrary();
+
+			if(dll->open(dllFile.getFullPathName()))
+				ok = Result::ok();
+			else
+				dll = nullptr;
+		}
+	}
+
+	return ok;
+}
 } // namespace hise
