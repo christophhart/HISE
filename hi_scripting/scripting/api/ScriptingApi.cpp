@@ -2374,7 +2374,7 @@ void ScriptingApi::Engine::setLatencySamples(int latency)
 
 int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 {
-	for (int i = 0; i < 127; i++)
+	for (int i = 0; i < 128; i++)
 	{
 		if (getMidiNoteName(i) == midiNoteName)
 			return i;
@@ -6258,7 +6258,7 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 {
 	if (channel > 0 && channel <= 16)
 	{
-		if (noteNumber >= 0 && noteNumber < 127)
+		if (noteNumber >= 0 && noteNumber <= 127)
 		{
 			if (timeStampSamples >= 0)
 			{

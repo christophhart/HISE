@@ -316,7 +316,7 @@ void SampleEditHandler::updateMainSound(SampleEditHandler& s, ModulatorSamplerSo
 
 bool SampleEditHandler::newKeysPressed(const uint8 *currentNotes)
 {
-	for (int i = 0; i < 127; i++)
+	for (int i = 0; i < 128; i++)
 	{
 		if (currentNotes[i] != 0) return true;
 	}

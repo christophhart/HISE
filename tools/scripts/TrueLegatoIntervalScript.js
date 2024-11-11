@@ -7,7 +7,7 @@ VelocityCC = Content.addComboBox("VelocityCC", 10, 10);
 
 VelocityCC.addItem("Velocity");
 
-for(i = 0; i < 127; i++)
+for(i = 0; i < 128; i++)
 {
 	VelocityCC.addItem("CC " + (i+1));
 }

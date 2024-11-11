@@ -494,7 +494,7 @@ CustomKeyboardState::CustomKeyboardState():
 	MidiKeyboardState(),
 	lowestKey(40)
 {
-	for (int i = 0; i < 127; i++)
+	for (int i = 0; i < 128; i++)
 	{
 		setColourForSingleKey(i, Colours::transparentBlack);
 	}
@@ -512,7 +512,7 @@ bool CustomKeyboardState::isColourDefinedForKey(int noteNumber) const
 
 void CustomKeyboardState::setColourForSingleKey(int noteNumber, Colour colour)
 {
-	if (noteNumber >= 0 && noteNumber < 127)
+	if (noteNumber >= 0 && noteNumber <= 127)
 	{
 		noteColours[noteNumber] = colour;
 	}

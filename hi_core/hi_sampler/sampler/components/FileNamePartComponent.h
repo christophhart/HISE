@@ -241,7 +241,7 @@ private:
 						String cleanedToken = token.toUpperCase().removeCharacters(" ");
 
 
-						for(int i = 0; i < 127; i++)
+						for(int i = 0; i < 128; i++)
 							if(MidiMessage::getMidiNoteName(i, true, true, 3) == cleanedToken)
 								return i;
 						}
