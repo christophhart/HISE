@@ -399,8 +399,46 @@ struct ZoomableViewport : public Component,
 
 	std::function<void(Component*)> contentFunction;
 
+	bool keyPressed(const KeyPress& key) override
+	{
+        return WASDScroller::checkWASD(key);
+	}
+
+	bool keyStateChanged (bool isKeyDown) override
+    {
+        return scroller.keyChangedWASD(isKeyDown, getContent<Component>());
+    }
+
+	/** Set a function that will return true or false based on the currently focused component. */
+	void setEnableWASD(const std::function<bool(Component*)>& checkFunction)
+	{
+		scroller.checkFunction = checkFunction;
+	}
+
 private:
-	
+
+	struct WASDScroller: public juce::Timer
+    {
+		WASDScroller(ZoomableViewport& parent_):
+		  parent(parent_)
+		{}
+
+        void timerCallback() override;
+
+		void setDelta(Point<float> delta);
+
+		static bool checkWASD(const KeyPress & key);
+
+		bool keyChangedWASD(bool isKeyDown, Component* c);
+
+		ZoomableViewport& parent;
+
+		std::function<bool(Component*)> checkFunction;
+        Point<float> currentVelocity;
+        Point<float> currentDelta;
+        
+    } scroller;
+
     float maxZoomFactor = 3.0f;
 
 	bool dragToScroll = false;

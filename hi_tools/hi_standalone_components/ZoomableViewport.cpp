@@ -63,7 +63,8 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 	vBar(true),
 	content(n),
 	dragScrollTimer(*this),
-	mouseWatcher(new MouseWatcher(*this))
+	mouseWatcher(new MouseWatcher(*this)),
+	scroller(*this)
 {
     sf.addScrollBarToAnimate(hBar);
     sf.addScrollBarToAnimate(vBar);
@@ -1027,6 +1028,100 @@ void ZoomableViewport::setScrollOnDragEnabled(bool shouldBeEnabled)
 void ZoomableViewport::setMouseWheelScrollEnabled(bool shouldBeEnabled)
 {
 	mouseWheelScroll = shouldBeEnabled;
+}
+
+void ZoomableViewport::WASDScroller::timerCallback()
+{
+	if(currentDelta.isOrigin())
+	{
+		currentVelocity *= JUCE_LIVE_CONSTANT_OFF(0.8f);
+                
+		if(currentVelocity.getDistanceFromOrigin() < 0.01f)
+		{
+			currentVelocity = {};
+			stopTimer();
+		}
+	}
+	else
+	{
+		currentVelocity += currentDelta;
+                
+		currentVelocity.x = jlimit(-1.0f, 1.0f, currentVelocity.x);
+		currentVelocity.y = jlimit(-1.0f, 1.0f, currentVelocity.y);
+	}
+
+	auto f = currentVelocity;
+
+	f *= JUCE_LIVE_CONSTANT_OFF(-0.1f);
+
+	auto x = parent.hBar.getCurrentRangeStart();
+	x += f.x;
+	parent.hBar.setCurrentRangeStart(x, sendNotificationAsync);
+
+	auto y = parent.vBar.getCurrentRangeStart();
+	y += f.y;
+	parent.vBar.setCurrentRangeStart(y, sendNotificationAsync);
+}
+
+void ZoomableViewport::WASDScroller::setDelta(Point<float> delta)
+{
+	currentDelta = delta;
+            
+	if(currentVelocity.isOrigin() && !delta.isOrigin())
+		startTimer(15);
+}
+
+bool ZoomableViewport::WASDScroller::checkWASD(const KeyPress& key)
+{
+	if(key == KeyPress('w', ModifierKeys(), 'w'))
+		return true;
+	if(key == KeyPress('a', ModifierKeys(), 'a'))
+		return true;
+	if(key == KeyPress('s', ModifierKeys(), 's'))
+		return true;
+	if(key == KeyPress('d', ModifierKeys(), 'd'))
+		return true;
+	        
+	return false;
+}
+
+bool ZoomableViewport::WASDScroller::keyChangedWASD(bool isKeyDown, Component* c)
+{
+	auto fc = c->getCurrentlyFocusedComponent();
+
+	if(checkFunction && checkFunction(fc)) // make better check function
+	{
+		auto u = KeyPress::isKeyCurrentlyDown('w');
+		auto d = KeyPress::isKeyCurrentlyDown('s');
+		auto l = KeyPress::isKeyCurrentlyDown('a');
+		auto r = KeyPress::isKeyCurrentlyDown('d');
+
+		auto turbo = ModifierKeys::getCurrentModifiers().isShiftDown();
+
+		Point<float> delta;
+
+		if(u)
+			delta.y += 1.0f;
+		if(d)
+			delta.y -= 1.0f;
+
+		if(l)
+			delta.x += 1.0f;
+		if(r)
+			delta.x -= 1.0f;
+	            
+		delta *= JUCE_LIVE_CONSTANT(0.1);
+		delta *= 0.05f;
+
+		if(turbo)
+			delta *= JUCE_LIVE_CONSTANT_OFF(3.0f);
+
+		setDelta(delta);
+	            
+		return !delta.isOrigin();
+	}
+	        
+	return false;
 }
 
 Point<float> ZoomableViewport::MouseWatcher::getDeltaAfterResize()
