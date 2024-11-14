@@ -304,10 +304,18 @@ AudioProcessor::BusesProperties PluginParameterAudioProcessor::getHiseBusPropert
 
 #if FRONTEND_IS_PLUGIN
 #if HI_SUPPORT_MONO_CHANNEL_LAYOUT
+
+		auto m2s = BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::stereo());
+		auto s2s = BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());	
+
 #if HI_SUPPORT_MONO_TO_STEREO
-		return BusesProperties().withInput("Input", AudioChannelSet::mono()).withOutput("Output", AudioChannelSet::stereo());
+		// FL Studio is at it again...
+		if(!PluginHostType().isFruityLoops())
+			return m2s;
+		else
+			return s2s;
 #else
-		return BusesProperties().withInput("Input", AudioChannelSet::stereo()).withOutput("Output", AudioChannelSet::stereo());		
+		return s2s;
 #endif
 #else
 
