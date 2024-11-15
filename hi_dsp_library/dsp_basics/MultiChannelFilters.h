@@ -37,12 +37,12 @@ namespace hise { using namespace juce;
 
 
 #ifndef MIN_FILTER_FREQ
-#define MIN_FILTER_FREQ 20.0
+#define MIN_FILTER_FREQ 5.0
 #endif
 
 namespace FilterLimitValues
 {
-	constexpr double lowFrequency = 20.0f;
+	constexpr double lowFrequency = 5.0f;
 	constexpr double highFrequency = 20000.0f;
 
 	constexpr double lowQ = 0.3;

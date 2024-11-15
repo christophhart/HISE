@@ -136,7 +136,7 @@ void FilterNodeBase<FilterType, NV>::createParameters(ParameterDataList& paramet
 {
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Frequency);
-		p.setRange({ 20.0, 20000.0});
+		p.setRange({ 5.0, 20000.0});
 		p.setSkewForCentre(1000.0);
 		p.setDefaultValue(1000.0);
 		parameters.add(std::move(p));

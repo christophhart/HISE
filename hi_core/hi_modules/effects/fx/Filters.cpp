@@ -60,7 +60,7 @@ filterCollection(1)
 		if (t != nullptr)
 		{
 			auto freq = t->getAttribute(MonoFilterEffect::Parameters::Frequency);
-			auto v = jmap<float>(input , 20.0f, freq);
+			auto v = jmap<float>(input , 5.0f, freq);
 			return HiSlider::getFrequencyString(v);
 		}
 
@@ -325,7 +325,7 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
 		if (t != nullptr)
 		{
 			auto freq = t->getAttribute(PolyFilterEffect::Parameters::Frequency);
-			auto v = jmap<float>(input, 20.0f, freq);
+			auto v = jmap<float>(input, 5.0f, freq);
 			return ValueToTextConverter::ConverterFunctions::Frequency(v);
 		}
 
