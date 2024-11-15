@@ -239,7 +239,7 @@ var ExportSetupWizard::checkIDE(const var::NativeFunctionArgs& args)
         }
         {
             juce::ChildProcess xcp;
-            xcp.start("gem list");
+            xcp.start("gem list xcpretty");
             auto output = xcp.readAllProcessOutput();
             auto xcPrettyExists = output.contains("xcpretty");
             writeState("xcPrettyExists", xcPrettyExists);
@@ -312,60 +312,45 @@ var ExportSetupWizard::onPost(const var::NativeFunctionArgs& args)
 	return var();
 }
 
+
+
 var AboutWindow::initValues(const var::NativeFunctionArgs& args)
 {
 #define set(X) state->globalState.getDynamicObject()->setProperty(Identifier(#X), X);
 #define setXY(X, Y) state->globalState.getDynamicObject()->setProperty(Identifier(#X), Y);
     
-    auto hiseRoot = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Compiler::HisePath).toString();
-    
-    
-    
-    if(hiseRoot.isNotEmpty() && File::isAbsolutePath(hiseRoot))
-    {
-        auto codeHash = File(hiseRoot).getChildFile("currentGitHash.txt").loadFileAsString().trim();
-        
-        String buildHash(PREVIOUS_HISE_COMMIT);
-        
-        URL u("https://api.github.com/repos/christoph-hart/HISE/commits");
-        
-        auto s = u.readEntireTextStream();
-        
-        var json;
-        
-        auto ok = JSON::parse(s, json);
-        
-        if(auto list = json.getArray())
-        {
-            for(int i = 0; i < list->size(); i++)
-            {
-                auto thisSha = list->getUnchecked(i)["sha"].toString();
-                
-                if(thisSha == buildHash)
-                {
-                    auto nextIndex = i-1;
-                    
-                    if(nextIndex >= 0 && isPositiveAndBelow(nextIndex, list->size()))
-                    {
-                        auto nextSHA = list->getUnchecked(nextIndex)["sha"].toString();
-                        
-                        auto shortHash = nextSHA.substring(0, 8);
-                        
-                        state->globalState.getDynamicObject()->setProperty("commitHash", shortHash);
-                        
-                        String link;
-                        link << "https://github.com/christophhart/HISE/commit/";
-                        link << nextSHA;
-                        
-                        commitLink = URL(link);
-                    }
-                    
-                    break;
-                }
-            }
+    String buildHash(PREVIOUS_HISE_COMMIT);
 
-        }
-    }
+	state->globalState.getDynamicObject()->setProperty("commitHash", "load current hash...");
+
+	WeakReference<AboutWindow> safeThis(this);
+
+	GitHashManager::checkHash(buildHash, [safeThis](const var& commitObj)
+	{
+		if(safeThis.get() != nullptr)
+		{
+			auto nextHash = commitObj["sha"].toString();
+			auto shortHash = nextHash.substring(0, 8);
+
+			safeThis->state->globalState.getDynamicObject()->setProperty("commitHash", shortHash);
+
+			if(auto pb = safeThis->dialog->findPageBaseForID("commitHash"))
+			{
+				MessageManagerLock mm;
+				pb->postInit();
+			}
+			
+            String link;
+            link << "https://github.com/christophhart/HISE/commit/";
+            link << nextHash;
+            
+            safeThis->commitLink = URL(link);
+		}
+	});
+
+    
+
+    
     
     String Version = hise::PresetHandler::getVersionString();
     
@@ -393,6 +378,7 @@ var AboutWindow::initValues(const var::NativeFunctionArgs& args)
     set(HISE_MAX_DELAY_TIME_SAMPLES);
     set(HISE_USE_SVF_FOR_CURVE_EQ);
     set(USE_MOD2_WAVETABLESIZE);
+	set(HISE_USE_WRONG_VOICE_RENDERING_ORDER);
     
     return var();
     
@@ -407,13 +393,73 @@ var AboutWindow::showCommit(const var::NativeFunctionArgs& args)
     return var();
 }
 
+ReleaseStartOptionDialog::ReleaseStartOptionDialog(hise::BackendRootWindow* bpe_, ModulatorSampler* sampler_):
+	EncodedDialogBase(bpe_, false),
+	sampler(sampler_),
+	root(bpe_)
+{
+	setName("Release Start Options");
+	loadFrom("1934.sNB..D...............35H...oi...hc.........J09R+f09DEqC.ZeEBOrBzPiZCHtoMRIzRYB5R15NI4lNYHWubBXHMsE5DvqD9C3pS2rGYPtZV.x5q6Cf4.PM.Up7PlY0Q+AAhR4789sqdn6P6QB116LyjxbPd8dzdvg1CHbeP9yIgou+ObfHtny4foK+2MZyG8IMiHJmqALkiydPjb5oMWAkITlDQ6L7scL0pq4Zlznoa7pMCPZCiHrmeNwMv142Eg7e5uYg5xVI.W9eqyebDoCKjoOLkUqayBoPDUlnBFIlXalszMZaNCJUtf4Bk2tz8hkwQuLAFKSf.LTbASEKX9P1eBIvLgELfzL6BEWrHAEUrKWgfJWtX4RDTTwxK5LWCDGJSnHhcC7lE7vuciDXqaTvh4UbfHOkEgVIj9qYDIyD4a2AQxLy.vgLSD8UKV1zuIRlAfCQqY9VNsXmPdepjlaE4Bl77OW6RexkSxXrTtPMxoOLB+70nOgKy0TX1btM9yMxwnPgDXnXYec4nvT6aimvtTG7QWiwGxNgH8tV7ESOyXNLj6nCblLVrAFUvgc4Zfajoc7bigEXn5nCdG+TPsiBAHutoIbgdeKFGogBkOBh2KnP4REfblxVv.WB4nOUo+42pTF8ozs.BWMZO9o2Xj+4Nok6X.KzYZFPl4CYa1pZU8t+D8vZsdNyUVhHyrafgqRcPu8Fia5iju8mDDhixkJYlnewRRZtwVNJ668oNXquu8+ibjrLHH+mTIvd9YakWK04Ho1U+aNcLHv+oc7WeX6pIlyoYuZMyle9ys2Xr1ZVgfK+97iORINT1ajT5ZqJtZr9jvzkZOWFGsWnjyXZjegOOQnEYdGsGv19a6aDodUil0GrJ1izjsm+rcTolYH2IcHq.QMr4xhtTkbBzRfbBT98xqTSnlgwdy2J4r744actHb8TI+kVPfYqpOx4oayrTSHm4D+a96AB8mZZgwb67hpr41a+cosl9fIevQZf7ib2.G8u84IxIWpy1mKedq4959dNeOdFyom21V64qTWiy.nCA.CXfsbzL7MzrQo468gL7strABDp4egM+rqL+uk7EHOUC2e0sONe1+FhY5Cmr3i+Jz1DHUo+1MjaG9Yn6x0p5I3Se3mOXTIyz7+cNRZF5oMM9asvpWErAUz5dQ1ggQlJjk.TlLgh9vXSc4xbmjscI8kS7GBHf.hGp4ZWNo+t8UVTwTE66kU7yy5Sn7t21.htbLYR7ys4mT.Yj5oK74sDt1s+cJW62aieeibxjp2nF12S9t+d6C0IU81HHNJhG85Z5JhGoBga+5ckdkwfPntu3qhuGlpmFw1NaANIpQk4PJkglY..BB.A.w.Q.fwxIYbqARCMLIOMDyo.jAB.nB..Afv.RHyxCCz4kQhnpoZU0acRdhqEM0kJ8v8IiI2QGYWJUtOi1XfNGO1QaLuyflQ4ya9eL4OJzyAbXRu8zIyB9Bue14vwyIXFDEjynULa.oZfRJejxOD1yuqtQ1vZl8cDPXQ0feNxllnOU.p+lQlaTgxzRHHXFaB94f17iFhV5knvYRMy8hDTLrOWqFzbI7o+gv6juA1XRpXqxwnNlbmGsH29SG.k5SF+v5ara+53kMrwA7XA6IsCokfdYlpu45E0KGyTnbBg3CADFa6zYaEfqjx1V6FWfREUQUbGfonMfhyTHqVgwFOXRXQmAVnGerW1cnQoaBI4NDCbe80Kk+.iHbMXLkoweqUlaZtZqao8n.aqF.ZRxPHHFfeO2cj+Ye9pMwOWpS+dkHSSCv5kV+08LE1+8OAXT.oQBlmjDLkfQcOP+hQWmkTbiG2Pr.Fa5lN+zIEu..csy+FgsIjcEGKeoE5x7vR1029tSl6AiDJaNwWJYO6dnk1nGkbkP1gl4WVYUlzBmnPtvrS7ZvWg2Jl6nxRXUiEJHz.aQP3VyeBFISMss1juvrYTE.i7PIYWwhWHLrA1NPvIXjE6qCfXzN.zFI.v.C.7rim8O5vvvRjX3CEyGuaDCOEYGNqtQjNzasyV.ya3NnCFf2i2sl5.3rwzx3Px8xrQc0ChNJrsM6owL+Yb.CYc14tH0.etv+jWplWjEA0VdWThRv8OD56+TqxxxL1x8F.nQQciIf1OoRlBzafXaAQj5LrH3g5O+oCCCMOeoDhbth3xUPGvSAb3hmttMXTC0NRhhYoEzEv6sKHLPMWPFOFeGHsMewyOLuLBnvaIgXBp803PxmyqKYBPjXWi41goTKtoCbiwwOYc1XIkS7TcEEREkwMsPJw+J+YCrbT1Q8phY+pv3zjPVefK3Cx+n.DVvyA+kksec9CKNhFG7fIQTkJ6V2POupG+UZeLt50UAG2qwDH5bFN.iqSlExfN5JnA6P5B4nSXbTi1x47bC7eXLO0a8jZ5n1NHrQ++jf2RUV1YACt3VPYRtc0BTqS7eCROoEmZEO.Wv.b227vsNsqvEmPQ2wSrDHhrVTUQ86UAjYOJNdXu+riF4z.hQw2sxsrT7ff7Qy1tC2jN7zhHvQI61X.MAHEtJLenFcz9JDLwEXrUIV8Qlh9cJXGPoi...lNB..v5H...");
+}
+
+var ReleaseStartOptionDialog::initValues(const var::NativeFunctionArgs& args)
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	auto options = sampler->getSampleMap()->getReleaseStartOptions();
+
+	auto d = options->toJSON();
+
+	const auto& obj = d.getDynamicObject()->getProperties();
+
+	for(int i = 0; i < obj.size(); i++)
+	{
+		auto id = obj.getName(i);
+		auto value = obj.getValueAt(i);
+
+		state->globalState.getDynamicObject()->setProperty(id, value);
+	}
+#endif
+
+	return var();
+}
+
+var ReleaseStartOptionDialog::onPropertyUpdate(const var::NativeFunctionArgs& args)
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	StreamingHelpers::ReleaseStartOptions::Ptr newData = new StreamingHelpers::ReleaseStartOptions();
+	newData->fromJSON(state->globalState);
+	sampler->getSampleMap()->setReleaseStartOptions(newData);
+	
+	Component::callRecursive<SamplerSoundWaveform>(root, [](SamplerSoundWaveform* w)
+	{
+		w->repaint();
+		return false;
+	});
+#endif
+
+	return var();
+}
+
+var ReleaseStartOptionDialog::onCreateScriptCode(const var::NativeFunctionArgs& args)
+{
+	String code;
+
+	state->globalState.getDynamicObject()->removeProperty("CreateScriptCode");
+
+	code << "Synth.getSampler(" << sampler->getId().quoted() << ").setReleaseStartOptions(";
+	code << JSON::toString(state->globalState) << ");";
+	SystemClipboard::copyTextToClipboard(code);
+
+	return var();
+}
+
 WelcomeScreen::WelcomeScreen(BackendRootWindow* bpe_):
 	EncodedDialogBase(bpe_),
 	bpe(bpe_)
 {
 	setWantsBackdrop(true);
 
-	loadFrom("3213.sNB..D...............35H...oi...gw.........J09R+fI4F8JF.JFJHerBrJPN9H3ph2mjqppSC2ouTsfWI2bUS4U0OrTPGF2QMb28zBr+C5+B4+vz.pGv4And.9NTzzniENPcPbhzIBmDrwLutKhPqN4UiiC53EQINB4cCu4xb0Ac8U5oSA83TV6OADtHn1zj2PNuXV0.Y0Vcxh2DzpDCRBsSffnR0boCigTVDtLaln1JmBVtWQV7YuPDKEGuW1JS1qCxElUCHX.RGznEGVtDjPwnPxgfWlN1pwYk5rXSPP2zNEO6kQHDFzOcKkgUG+VfVcPo2nqNd+VD8gtllJ.AOGneL+5Vdtja.P7b.WK5wYL.je18hX9vWJfBfm+7ruGlubvAIfZTTmGG2DYwoz.QtFDDW988w6++4ECxaQweXd+b.WTuwFP.QQROGL9A0nG.HH3.7bfuu6eFT1+P7DvQvAj4c9yAo3cooF7i.NBZ.NB14K3sAT.FO19y4Qu+YOECofuxRrM9Rey3I0i45HnHHIdWa5ySR43xL8ZpVF71+KSJhyjk2e8+xoWAJ7xZ7z+O4L8ucNAyr96ykc+sfD77D.YyMNbi0e4RuroDICVFtNXsAw4wLWCIxP0UUjOChyMx6K3JqKJqoKDUWFnt9bxeqCWVTWX35cEhJpCHRjA6eSFppnpjPXfxe128p3kHHDR4NZuDHT6ydFXxwdH.3tmv.Jvi2mhYDd5eLjBdNnfOuunfmmmm.nAdNn.7Gay6zuWAOOAPCDnMJcvd2YDJLozwwo1viKGzqTEmI607xBZhCgatjsEfxS1jv6p5TcDsvJn3UZLBhbiJiWCMP63uSlERTwjt6rwk3BkB41XFFrsqqluTZrlX6TDBg0OYroyF4ZPBsVhhgrqxGqDYyaEIZ29zZbqNfIdgxb7dHAz0dofNf3wlh8VnqTrFYIRx835hZ2hzvswsogsOrvttVb6r89mfnkv.klEYUzH2aWhNP7RbX.0g6BDDl0ADCuKhMdwM16H1ltDq0dyVmNrDoCyZgjHbUpLhGxULCnVFdWUrkiSKAyp.BM8ZcRUqnGlbUA2Y0M+Jg9FXPja+MT5r1ITL2pzzIi2JekJ1KBFpX5uUXTK6kwANJp76CeGD3lkBJD2jTE6rXWVhX61kBDyZMkv2IqGGrWuGOvT0dFf5v1fTYzfUiNLNq6EMiaGjD0jHZbLPvr0IspqDjVk8108TLdizXrXuQpLz7WCLPSXuebSZ0K0ESfF5n88eLKiMUjPgTy7aKZYT3AJ1YCQaivKNtcrWxBiQ0KDDTWhPrNWLmFcIzLgP5vgCeeujihxye1a.J.AUlngViljnBqQYiMZMMTwUe4rcffchjQm+ZEwKSdQnyhdEsS6pCy125vsfxTmsRoE13OVwV2gjWK+cylXMUuIvc5FdNJpX7NYgik+F0wJ4xe0q0gUWBKmSQzrP1flFZ67NbmnjVfTQsKISZRV8ynCYGlMxUGtrJUQ6BJZywJx6lapQMks2MOLTweQbBxs2qItXEoER+8f8pydkR2npYF8t5pQXbraUqEcVN6iMJjZaaIlEh0g8UJiyB6kCkuql.G9sqxXiTB0x5FKRVQ+bYol6kMQ69DKjnuUI17ltbrI6AlpGErPYcXsrcmNQng71udUp5Jd6rpdRShDbME6piML1sPM43s5ho36bYucjzQU0fflIc0NILl1UJjP3UQ9aBQKfVoh0QXmIk0tJXvzDWn2D4nrKABTfjb0HkcaiCUOtVKNbofBLjiVa572pCIp1qkKQvpZ7MH2LcXVgB4lFMNQxERX1ENzn3V0.SH4kRoWBFILVG8t.sxaPAoKwiTLIOrB9qkd6KMSy1k2fRhSHKWqqeGxqjpBHpga4zpCHzYyhxnwLyd6vUcsrbDkPra7ZYXyI6r6KwZJjGVc1HeHMekrcHUGEHHrcChyfDaVkHNXffBRJbLT1D774MZbLAxaCIII0DBQ3HqVABCqEQQU4ON6qiFv9tDUJzIx1iuO5khSwhwKkgBc68ayvGVmCecZLwg1lwtNaVlBcYJpkUM7L4KR6H4lGZmEBNzjIg.PBB.FPJO9H8fPxm+derxS7CZ2KZ.m7ND5mSev+Bfm2fG4avYvvLvr44S59K662rFPPzn7D9fUnko+MOSvOal82cdqWj+z8wc9BFh2e98jo6Cgj.eem815+G+bwuT6+Lc.cfC.5wczIbfC77wWvaMdC9o+D4ex6lbs34tLu0klk4u42TuevOihcFbMd7a26+LzeqOunwedNy4WGDsOZtwmYDJwhLvANf4SBXvyANvCHGmIyIOmQjqMOe34x9iYJFci+p7j.B.ZmiIKF1e3c81m2nA+m8GLe4w5EyLlS9IetwS9Zd19+3y2mTvtYIdDgmLHtue78mzeYl7CG+L90nOdk6biD7cvA1srDM.30lU9fl4O3mD7Lm6ds.v72i+lO+LCN4HbzNHFOV6apgTlFYA3YO3VOVihNzHJJAw9FqsJP4YYu7wTO9e99bL5yYO8oa0x30g77o+66knY8jqqqIuAYy9td.9Lnuy24ON9a+0llYuX2WZvF+6eLLT5ncYiisaY6LbXZtTQT3f7lJwRU4ZbT0UajtWjUKKvIb5xgYyjRqbOHBYMdqNsRPhWTMyAQDRUjNQzZ8fLofsRzpHJBhqjkGeRc0JbeitDedoL5FuKgzV2tgYpEsOJivIHnCnJuZLPXNGBwLzHyL.X..xBF.EINPPPzrGHYbdjZNhgYT.C.B...SRB.Yg.B..rIA.Aa7N1Uh4XnS5l26Ms3RNd.f9Ttn9MMXWEiWfYmWeT3nwvdPj7CBAhCAc.YnIGuK.iYJsmjkPmC3sNWnGz5C3kkF3ie3kDHJjryC5HH01QdXfdRUDI6xbufFRjOQ3wR1xvTE6cZIB4Q1QVFoNL1w36fY1FyzvYS951S.VR6lxJohRUV9xx.Nricip7pCVDNwHuWzsaTrpDxGfi0ljvNsAS3zfTQe0CcCWcDJyJa+I6mAkqv8ovg6FDYE8QoJAR2tfLLeRvfHQvT9e9wD5wss2AckSf3V9JgiLt1OlPi6fBR8alUXzLQHofyQYv54MvpL+JQTHGNoY4TpQViPeFOnv.lQZlZYGXDiNBTLrkzoFfZ2ihJ.AwSZA74GTPjTg88f5hGTyGYC7CcSFdbFXRTKPH5gnOiSToQrI2jm2W9ghiuIOtoUyYKgYDI7kAgyC99hraFIKhkFcRaUunqAmBszopp1x4ZcFRp9Ybs+JrapXXD4snuURh31GWNx+usRRGIVrXETSX0jbT2RZN4L5R4Mi18bWYqMFkYjXC6xZjYaUnX.UivYJYHck+BX9.93HTOOAckFQ8v9ljQLHOdqHdm0S8CFcbGIaoPnGCUfBHTKlls9CwZPMpEBXvk1Xxqu1jqIsG.Xz.LA+vvxBcGfE35XZCqrD1k3YdExFNK0hHLIbzdlU1zZHOxNqs9eiK0.l9apt4uraCWwjIOiAh9CQSbujjBVn2oYRAN2kWjOgASKhK2+4v9QLvGm2acOBGW75ER8jy.nOB967yhL9SCzNgis2Uk4XuKCTk0Nrh4Ra5hZNr4yJ+sAfE7vwLhkaOc2Xa24gQNOggYDma0nxCrattEQqnSW7lvSffMwgUbUOG3enjuKV5Bq8yXkcusLmbse0yT4uA05OcrY0d905E1ieTsBP7q4QESneOCfPtHa63ct14lwumnFaHE5qha1om9XiLjphDRzcUhMCLinrHuku3gxQ+ZIes2EwhS8fAt0X3LGjffS77MWYrcpVoYd49G49c92LadUcQ28kcKErG9TtmSRSwUQ9FQTLLS9w1bIneJnoCGS6mSSMdDqwlOMizJs8iFnDObYgJ4Ba1+giIyed3QLXr4WDCu4EawZX0GL2gEeeQtrx.DD8GRCS+6YBH1hh585hs6o4NbogeNteLf14Hk+.ZEPvUqA6N8.vz9PHHoA1uhtK.DckiYlqg1n1ax0JCW33WLnFFMu8GHWnjr5+.9EJqFnTDiJOzv4CBMQ26fh7msHXw8bCH.yuh6Vl9OTj7PqBK+b0ttsvT+fP9cmH1Z.BDva..nLCR6Dl3Qppnt8jkWJNnXAFLtCauTyVafwzhIf9X0USnIdRYSQlm4XMwhiUjDFY2sYp.h08QLBFEdV0o6lEEJWZwDWI3TkzenqfrjEgy3+BGyowagXAnfzxhsEIdEDT7GCHg3jKCESnV9sqil.3ZjBgeUTTKofICXqrSN.xxLkgaK9kQQekNB..X5H...qi...");
+	loadFrom("3428.sNB..D...............35H...oi...3z.........J09R+fMSH0kF.JfJZfvBrJQv63ApDFw16VvHHtSqyHsaWf31O5D9gkIyITTbnSlw7T.9mR+oCd2goAve.8Gf+AzYqUZgM9iWr0cH48xe6rIVS0c7ervowGLdh5h7L4yDNJYiN75tHBu5jWMNOniWDk3Ij2M7laCVWD1WomNEziWYs+DjbQTsoIugbdQGUCjVaUJLdUPqTLPIzVIJpJkSltLFSNlvsYyD0V8T.yEaxhO6MhXo33EydgxdePtvrZPhgHcQiXdX4RXBMyBImDuMcrUiyN0YynhhtocKd1Kivnrne5dxQVc7aAZ8gkdit538agzOBihx.E.gfFx7qa44RNDf.BAtVzi2b.H+r6E07gyL.C.O+4YeOLmAADVP0nnNON1Q5xS4AhbMHHt766i2++yLGj2hh+v7FBAtndiOP.jjlfPX7CpQO.PPPD.gfuu6eGT1+Q7EvUvAj4cNDBo3cooF7q.tBZ.tB14L3sAXfFO19y4Qu+YOEGwfuxxrMNSey.J0i4ZoHonIdWa5yUR43xM8Zp1F71+KSJh23Hu+5elSOCT34nAT+Ck2z+14DLy5uOW18WCV.DzAxlab3Fq+xkdYSJSFtLfc3ZChyiYtNhjAKLKIeFDmaj2YvVWXUWTXHrvLTg88j+WGvtpvzv0aKDVUGPjHC1+nLXYUYMgvPk+ru6UwLRQHlxezdIPn1m8Nvji8P.vcOgAXfGuOEyRf5ebDCfPvfOuuv.HHHnCz.PHX.9is4c52y.HnCz.whwakgBc68ayvW1mCeeZT4gVmwtNqiME5bnnVV4v2jwHsijadncWRdvYSBZiSGr2cFgBSKedbpM.45A8NY4gxdMwvfl3PXmLYagnbkMJ7tpNUOQKrBJdmFmfH23x30PCzO9KkYgDUMo6OabIvPsPtM5PC110Uy2JNWUrcJBix5mL5zYmbMLgVKQ0P1U4iWlr4ujDsaeZMtVGxDyTYNdOjH5ZuUQGP.YawdKzUJVktDI4ffcQsaRb3131zvVHWYX2Ktc1d+TQzRXnhyBGUzI2aWhOQ7SdXD8gKSTTl8QDCuKhNdwN16XVmNEq0dyWmOvLoK6ZAkIb0pMhGx0LCnVFdXUrkiSSIypHBM8dcVUqnGpfUA2Npc9WB8MxhH29crzYsTnZtVooUFuV9KWrWIFtX5uVXzqCdTT4WH9tHvMLETHtQoJ1YyvtDw1saEXl0ZNguTWPNXudPfnop8LD0ksE4xngqFcYbW2LZF2tnopJSz3ZhjYqTZV2oHMK6sq6oX7Jo0fwdmTYn4uFXflvd+3nzpYpKn.M7Q66+YVFctPwBol42Vzxn.DzryFh1FgYdb+XujEFkp2nnntDgYetXOM5RvgBwzgCG99doGEkm+rGBLPAWpngVkpjvJqQYiMZMMTwUe8reHwRQxnyeul3kIuR9rnWQ6zv5xr8sObKrPEX2xL0hVHkS7botgmihJFuTX7b4uR8rRt7W8Zeb0k.yI0DMajNnog1NuCWJKoEHUT6TbLUwQ8y3CYWlcB1GNGWph1EVzliVj2M2TqhJaucfX3h+h3DjauXTbQKRLjcJNXw5r2ozsp5lQOrtpTlG6V8ZQGjMKjZaaYlMx0g8cxgmE1qmJeWMAO7aWkQmoDpk0NXltj94xRM2Kah18IxzX4CCOpnZ4EN6EGQq1WbCa2r7q3JZYZrIohKgUL2amkl3aQFlKOvhkRroSn0PuTFshpAY+nxFQ0zBJ5qUhMOJrGcb.QiEjBXprOrX1tTmH3Pd6WuKU8EusiplhShDbME65iMM1sPM4305hs3+fYuenzUU4HgSktZGEFT6pExHbqI+NgnEPubw9H7SkxZ2EMYZhKzcjdT1kPREHIWcRY213fEj60hCYJnPC43UmN+05Php8hIyjrJGeCxMyGlWrPtwQiSjbwTlcwCNJtVMzDRdsT5onYBm0QuKPq7FUQ5R.IMaxKqf+do29RcvY6xaXIwYDl6E1+C4khUAD0vsbp0AIcVGRa3X5vd+vYcutdHkPra7dYXyI6raLwZZDHWc1I+HM+EG6vpNKaQbFnXcbYxCFRTPZgqoxlfmOuRiiIPdaLMQolPHhGNpWhv3ZgjjU9iy95nAruKwkBelrA46idq3TD..K3.L.zT9+ydd+rxSLjuuyd6eoF2A+XAY+s.tPiedD.T9S2K0iQ4S6FOQV.O23JHUC+bAzA744urGBg7FL2DsKQSuXxkAnRrHCjfD.5wezI7wYvaMtCFpatwPS9m7tIWKdtKyacoYY9a9M0aHLzn3Y22Yv03wucu+yQ+s9LiF+O+5fn8QyutciOyRRPBLgRfCfRPBf.43MaN44MlmPPloXzM9C5reAJAB.zNWyOKx658t+4yczf+yNjlu7XMiYFigB6f6dHNRWjq+lZO4Rt74FW4q4N1eHe9BkB1MKwiRfxf39Fx2gR+kaxPbLz3WiB4UtyMVvGBHX2bjnAxf8505nDBMygvPIL.L+83uIzOyvSdBGsCpwi01bt60uoNRY5jE.bqGqRRGZHIgHAw9FqsJP4YYuDxTO9g9f5enOGiBc1Sg5VSyr1FuNj2q4SCPy5Jdbl8t6+LsnPvlrEVjDFiQX.AfeOtzji8eHD74N8QDL.P8ta5+4OZyCBgF+XXXT9Cxl8c8.7YPemuyeb7GBLMydwtu7fM92+ZY13N1a3x3bqln3A4Mkhspx47vpq1HcuvQsrfmPpKWl0wT5k6Awnqwq04UBT7jpaNHZSUjVQzZ8hTof0RzpPZBh6DFHIr2uuot5EtuQWhO+TFci2kXZqGffHgp7Z4Hw4bJjBMCHy.fA.HKZ.TfzDAc8J9fHwoAhAQLLDCn..A..P...f...P...A.vfGjL.Lw3n5MVcktCt95R1O8V3n2UxFv2tLDu6ldR.gvHtrWDyLaLfCY.zLrPrEYEsWmQ6zmJOLLdMWElAmYc1TLnUPkMMWOZlIO.ITIGj+Rcnl6nhiKIX9GEE.NpSPY9qeVYzCX9Oay9DZP0MoEnWpMUml86Br1URZdZsR2thBrYLsnEcgHh5uFA.N0bx.dwN5elkLYJRatq.1HmK51I0GmFv.AQ9lhIu02n5tSzqBE0GcowqjMm362YjkrbX3lnHUWDki29nbsSpkg8eOGSb4rYu7CpPV+oRt5.vwKtKPXlcqmB2bOhPKNIoHzPuiTy+GD3bZiPqf+Aky9lg17fSmHbSVdT1sZ7ZWGEvTY0b5cdjNzhIUjBRj.MUHJSEfWUMdV+cGs4lupLn7JgkOZWGPu8bIvMG3qNZhg95dBRn5bHyFmguEmqhzA1IzGvEQ2617kiPrYzXIWMnDJnMcydKuN+C6wkbmVUgpr77HYUJB8ul7+m9Q+.K8iEpFeQmGMUybZJZJLXxTk2MiMvsXetYRDMliR02i5wmwzvQyhWWnBPEbkwykZnlF7VsOczTD.fad1qIFxAI6bhNO4H8NsQrn9Kgks74Aqjf36YoozwzeJAZORmKfv2bIq86.t4MXSvmjxiB2hfK.sWDAAcEET71Ptjfyrhja.XTc6NE5AXppeqm6yNJnM1QT5HNuUoGhqBlEpUDS7zCpet8UBlw+MZ4aXcy.CQCWCrDS+1p1W0TBF6oHRuCixXJkdnmjnCJXBA3YwYYnfcSy85Gx8oQYz2V2j35RbuBcmtv9lFZSWydv5ZkI1UMxDR+MdgdZocnSDZctjEIo3TnDmFLdU4BunOAAL2sTdzO6ZU8GMtIpJNWb4JInmVO4qAk96ft7neV98mJ6learBg.fxuXEyxNyuZ22a9PFe52uspWPjlcJCHkwuOw06Su+VIPG6cq4AWOd8e2feWfUbZ8QrByKdH8N+7mbXe1mExLmJ71mhgak+Jto5RN3vf0Jp4PcrXeO5tlaxNQhakGl5so4ajxRR6h.MtxOzVQJaqyIU.O4Yx7qegcfmkKZSQU1EKfrhZktHslh7.m9FA.G2Hsku47ZcLT76I59qtPCo3kT4COZwyqp4QIxyezpqCHQISg.scmYT.e6nOJmupeibwc9.CBRfCmrC1Eo54U+zcK5txf4UZ2h6Qpezxrz7UcugzsNAixOs54jPY1UsWGQZODP9Xl8Rqea1zq7z64zS1iMFygSKon5V+XB1tFxZwn8htweVnILtS7iTOFXvhFFu7tC9oe9facHPni2EvNfFR+SGLs2eXKuYCm1hL48tec22i6PJMWdYU5.Pavz2GDVDD.1pA1CkF5dGBb41j9B68LfvyeLSyd26R6Qz0G0EK50G7C4C996A+VdNNqfe7lUMKcRl4iZQlNfRuaJnn8xVbOxZtObfooyUGMaEBZWHp55+0IPm2vC9NR+xwAqWI5HX0GPBxPQHvDQjB+xhvTCJMAT3G0Y1vXOKyVbCigEP.sxJflFIt1xlfY9y1KJ.g0MRMh2fABQf33kbfkOeSiq6PLcHthgYJFhU81eW.f7AAJMzey3b1.jSvNWv0e4yUhDlAEedEGJm9Pv41mneccCV.+lLHJmEAjMzTfu7j8hCwRjGNJ+vOpf4Soi...lNB..v5H...");
 }
 
 var WelcomeScreen::populateProjectSelector(const var::NativeFunctionArgs& args)
@@ -473,40 +519,45 @@ var WelcomeScreen::populateProjectSelector(const var::NativeFunctionArgs& args)
 
 			if(!xmlFiles.isEmpty())
 			{
-				items << "**Recent XML presets**" << "\n";
+				//items << "**Recent XML presets**" << "\n";
 
 				for(auto& i: xmlFiles)
 				{
+					fileList.add(i);
 					items << i.getFileName() << "\n";
 				}
 
-				items << "___\n";
+				//items << "___\n";
 			}
 
 			if(!hipFiles.isEmpty())
 			{
-				items << "**Recent HIP presets**" << "\n";
+				//items << "**Recent HIP presets**" << "\n";
 
 				for(auto& i: hipFiles)
 				{
+					fileList.add(i);
 					items << i.getFileName() << "\n";
 				}
 
-				items << "___\n";
+				//items << "___\n";
 			}
 		}
 
 			
 
 
-		items << "**Recent Projects**" << "\n";
+		//items << "**Recent Projects**" << "\n";
+
+		recentProjects.remove(0);
 
 		for(auto& i: recentProjects)
 		{
-			items << i << "\n";
+			fileList.add(File(i));
+			items << File(i).getFileName() + " (Switch Project)" << "\n";
 		}
 
-		setElementProperty("LoadFile", multipage::mpid::Items, items);
+		setElementProperty("LoadFile", multipage::mpid::Items, items.trim());
 	}
 
 	return var();
@@ -554,48 +605,67 @@ var WelcomeScreen::createProject(const var::NativeFunctionArgs& args)
 	return var();
 }
 
+var WelcomeScreen::openProject(const var::NativeFunctionArgs& args)
+{
+	auto b = bpe;
+
+	closeAndPerform([b]()
+	{
+		b->clearModalComponent();
+		BackendCommandTarget::Actions::loadProject(b);
+	});
+
+	return var();
+}
+
 var WelcomeScreen::loadPresetFile(const var::NativeFunctionArgs& args)
 {
 	auto b = bpe;
-	auto fileToLoad = args.arguments[1].toString();
 
-	closeAndPerform([b, fileToLoad]()
+	DBG(JSON::toString(args.arguments[1]));
+
+	if(args.arguments[1]["eventType"] != "dblclick")
+		return var();
+
+	auto fileIndex = (int)args.arguments[1]["row"];
+
+	if(isPositiveAndBelow(fileIndex, fileList.size()))
 	{
-		b->clearModalComponent();
+		auto fileToLoad = fileList[fileIndex];
 
-		auto& handler = GET_PROJECT_HANDLER(b->getMainSynthChain());
-
-		if(File::isAbsolutePath(fileToLoad) && File(fileToLoad).isDirectory())
+		closeAndPerform([b, fileToLoad]()
 		{
-			auto r = handler.setWorkingProject(File(fileToLoad));
+			b->clearModalComponent();
 
-			if (r.failed())
+			auto& handler = GET_PROJECT_HANDLER(b->getMainSynthChain());
+
+			if(fileToLoad.isDirectory())
 			{
-				PresetHandler::showMessageWindow("Error loading project", r.getErrorMessage(), PresetHandler::IconType::Error);
+				auto r = handler.setWorkingProject(File(fileToLoad));
+
+				if (r.failed())
+				{
+					PresetHandler::showMessageWindow("Error loading project", r.getErrorMessage(), PresetHandler::IconType::Error);
+				}
+				else
+				{
+					b->getBackendProcessor()->getSettingsObject().refreshProjectData();
+					b->getBackendProcessor()->clearPreset(dontSendNotification);
+					BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(b);
+				}
 			}
-			else
+			else if (fileToLoad.hasFileExtension(".xml"))
 			{
-				b->getBackendProcessor()->getSettingsObject().refreshProjectData();
-				b->getBackendProcessor()->clearPreset(dontSendNotification);
-				BackendCommandTarget::Actions::loadFirstXmlAfterProjectSwitch(b);
+				BackendCommandTarget::Actions::openFileFromXml(b, fileToLoad);
 			}
-		}
-		else if (fileToLoad.endsWith(".xml"))
-		{
-			File presetToLoad = handler.getSubDirectory(FileHandlerBase::XMLPresetBackups).getChildFile(fileToLoad);
+			else if (fileToLoad.hasFileExtension(".hip"))
+			{
+				b->loadNewContainer(fileToLoad);
+			}
+		});
+	}
 
-			if(presetToLoad.existsAsFile())
-				BackendCommandTarget::Actions::openFileFromXml(b, presetToLoad);
-		        
-		}
-		else if (fileToLoad.endsWith(".hip"))
-		{
-			File presetToLoad = handler.getSubDirectory(FileHandlerBase::Presets).getChildFile(fileToLoad);
-
-			if(presetToLoad.existsAsFile())
-				b->loadNewContainer(presetToLoad);
-		}
-	});
+	
 		
 	return var();
 }
@@ -613,6 +683,96 @@ var WelcomeScreen::startupSetter(const var::NativeFunctionArgs& args)
 	sf.replaceWithText(xml->createDocument(""));
 
 	return var();
+}
+
+HiseAudioExporter::HiseAudioExporter(BackendRootWindow* bpe):
+	EncodedDialogBase(bpe)
+{
+	loadFrom("1351.sNB..D...............35H...oi...aT.........J09R+fYaCMhB.lpipl.uzliJMsIeyVRcLyRnboK.QHkJkN5rNRrVYTPlK3YjNfmAVrPnFoBvm.nI.vMiSspk4bNAJSm3sVOtzLO664uZKz9PWCDGRmcaLDW9gqlCqfZjM9zQOksVsPaDCJUvTQyAX1leNcw1l+LoxEMWl.WmtQruJ8BFMVvXflLWzTwhlGj8wbfFLVzPp42kLWrbPlFVmaYPkKWrbgRlJVfa9y4bUMQRFJ4FpMDNjBiX3FpfXqgRv87FHfBpusq0hze8CUtg5a+ApLyL.QxMT5qc12oODUlAHRjpCg7DQNxyeS627bKwubgqqWX9droK.YunM4NRPETjWsSWvwBcOFiyjIGfcwaDSlnwk+TtyBZYjw9zJ8O+VMka9oz6DiKnM5ONYPdTuavG5ZlVNCPzlbgRtA6croBZN6sU5ajVDBa6ct4j9zhr6E0hDoEEiK7xgZE7z2eAHfRaSyq3oN+2EKzu4mzOTVZZL7zJ+AAUdBpMOQxDITZmiAXka9FoBRbcg8lCuHYo4F2xl.3lK6sDeA8QMmd53AjC5VOmQdjmMi+mtM+FMxa++sFfZUd.kLVZQwJsnX19h1WUmCx0t0FSJTX+UuerXsXGiy9xU6sQnTP0x8XMbKj29vfbSl+uWUPyWPMKysmlwysm2FpjZRxF4HvdshSP+sVH2QyeRwsCbiasyuZ4c73e1G+vqu0BJIj5GOJ..iDPGWFgS6a1zYBOMHBGMFZE0RpDCLPlOsg6ChCoBE.oXfAx3Uy+uwlcn83O61d0nPha4QQ+yd+mglbslt82mVlakQ0TlL23TsTSu5ncNqZKTSAbutX3Eeukbvp2dHFWKGpkjh5EpqJS+ru2XeewOM2WLI3iPdzC0O51Wk1qG1wfXUiqls5MuJ5XvMmKoXa095aKiioC8r0PfPfZjcJECM0nIPQPBAw.XfjNpFdfrXCyBjB4bJPAf.HnBFH..Af7PBfPBJ3fdvfLUgQLTBSJUVx3rvOptAl98dNFlQBZnI3BoIIuNHcBFjn5ZZX4EJC2U91+y1aYC2CfPeXgnahFjosc3tk7FrUjERdEc1dlmoE4m3xKNO7uAdg1UKKxqqcg9YEWNOicsnwUPT4bFnADbj1hThD8Ig2Ms0hkSSIEG+4BLY97sMeII1BAf8b+VXhoGnIT2JYIvfCf9UP3oDKGluCrY78Ffi1Yb8MSftFZcx2UaCQ4HfD7rVICw5F76RCAV4lLiyjSCP0qFEi8iLSAAlFD80hMAYjtGfv6avNeHXoSZKiIp91yahCC1c5.glpCfRrt887MdW9v+tnGqz1sTlKDXAXgwp5PUPkDjFe4d8Uv7W4ZtZF.0BLgBdNDw.LfwC2msZA0ql80nrXOUMC5g8n+z.yvPxOgCnPiDFhHA8aibpfhr3E9CnTYUnNc023cWwvq54vjnFpTuI0dTowzgFSbdRqfcXcgzyA.CgAH.39lw+IM1DBEAHilBaHRNj4TLurooVfB67K+8VdqgV78K0YEh2gYuA2E3STW5O6.fQ+XGWfJ0zxta51CB4u3XydgPOkOOAmD+FwLZa.nwmrY2FNpRxUIqtov1acGG6TLF0qy9.21MMqAP3nwJQSBvq.KJ2o9CfZ4s.H2DCeXsFhIewCN1wfRjrLUy36+i7yhCixrop0+aLCYYQQZl16O2j+xFC5BimKx5R5BAwR5vaCm9N.2GtveFzA5.FC7JNKOB.FPVrJCzL4haA9QSQ+nHzW5H..foi...rNB...");
+}
+
+void HiseAudioExporter::recordStateChanged(Listener::RecordState isRecording)
+{
+	switch(isRecording)
+	{
+	case Idle: break;
+	case RecordingMidi:
+		recordStart = Time::getMillisecondCounter();
+		currentState = RecordState::RecordingMidi;
+		break;
+	case RecordingAudio: 
+		recordStart = Time::getMillisecondCounter();
+		currentState = RecordState::RecordingAudio;
+		break;
+	case Done: currentState = RecordState::WritingToDisk; break;
+	default: ;
+	}
+}
+
+var HiseAudioExporter::onComplete(const var::NativeFunctionArgs& args)
+{
+	if(readState("OpenInEditor"))
+	{
+		auto path = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Other::ExternalEditorPath).toString();
+
+		if(path.isNotEmpty() && File(path).existsAsFile())
+		{
+			auto fileToOpen = readState("Location").toString();
+			File(path).startAsProcess(fileToOpen);
+		}
+	}
+
+	return var();
+}
+
+var HiseAudioExporter::onExport(const var::NativeFunctionArgs& args)
+{
+	auto location = File(readState("Location").toString());
+	auto useNonRealtimeFlag = (bool)readState("Realtime");
+	auto length = readState("Length").toString();
+	auto midiInput = (bool)readState("MidiInput");
+
+	getMainController()->getDebugLogger().addListener(this);
+
+	currentState = RecordState::Waiting;
+
+	auto lengthInSeconds = length.getDoubleValue();
+
+	if(length.contains("bar"))
+	{
+		lengthInSeconds *= TempoSyncer::getTempoInMilliSeconds(getMainController()->getBpm(), TempoSyncer::Quarter) * 4.0 * 0.001;
+	}
+	
+	getMainController()->getDebugLogger().startRecording(lengthInSeconds, location, midiInput, useNonRealtimeFlag);
+
+	state->currentJob->setMessage("Waiting for MIDI note input...");
+
+	while(currentState != RecordState::WritingToDisk)
+	{
+		if(currentState == RecordState::RecordingMidi ||
+		   (!useNonRealtimeFlag && currentState == RecordState::RecordingAudio))
+		{
+			auto numMillisecondsSinceRecord = Time::getMillisecondCounter() - recordStart;
+			auto progress = numMillisecondsSinceRecord * 0.001 / lengthInSeconds;
+			state->currentJob->getProgress() = progress;
+			state->currentJob->setMessage(currentState == RecordState::RecordingMidi ? "Capture MIDI input" : "Rendering live audio...");
+		}
+		else if (useNonRealtimeFlag && currentState == RecordState::RecordingAudio)
+		{
+			state->currentJob->setMessage("Render offline audio...");
+		}
+		
+		Thread::getCurrentThread()->wait(100);
+	}
+	
+	return var();
+}
+
+ScriptnodeTemplateExporter::ScriptnodeTemplateExporter(BackendRootWindow* bpe, scriptnode::NodeBase* n):
+	EncodedDialogBase(bpe),
+	node(n)
+{
+	loadFrom("897.sNB..D...............35H...oi...UM.........J09R+fIsAcoA.lrVfl.tzniLwvJeGajdMaHDyvtUbuc0f4YTAhcBXdU3KQESTMhwnxL3b9Afb.LG.7Dthf6CiiV7DCJUtTICBWfYKOh6GHpJUYpnjb1xdX30VcIikKGjASUlJVx7k3+BBYtXIyG8CVgoxBBX1vYN1AUpprTQASEKRNG5bztnlfgBGxyZAQOIaUvrWKExf9FBljKjSisP8eAMoZl91eXRUUkHhpYZ+sCC6dqIUkHR.plu4ucruD2AzizgRfauUMcKLNeYenNjHcn4jkZtLV.be+CffoHWzq.tY9y7Hqmy6VPSXwXCv8xgPLocxseanlPMgR6uojynq23lyoShschGi8Pa29LA+2ewYw+Bia7qyU4Lu0W5wRNL42K4nKqXZDUkDw2C41ztKMimbJeo8ho+S8oJ4LnKRcv5iGUiIsSEBefbQDxd57o8+41L0gZ+8KlWhufgwsm07wwtK1fkYv2HNTT+HsG6ghpZzm8zPyg6qCCQc9F8Jl5u98Bhx4cp2YNYI3oC4rIehZlS9ROBB+xP.lzZIP.vHR3HgRQJJpl3pwwHsqQSmI9rQj21EmUSgl1Sdw2LIG3eYIGrl6gO9jXykzFwimbrbpDzgAcxUd8.wYNGCleHcPddh3rSGM2.8ahz6sCBWtd2zMIKZ1q7YR6nrd0M9mcS30BeKoU6fsqrb04uuOgtvjYTYX.njnFRmx3PJ0LkP..DP..jQ.XLipIHJUr.IUJqBpIyB.QjVejCv.hLcr3rADDVtawtHJEc6PFDSFDXlFZwkeYetmqttN7BArpkJdLolMZDl93Peki8rNALClo0C1RVk9eJTFyZbMxCn9nvdmgpB1GcyPQjaOsX8ZDs4dYEB4wLl248O.3r06wnQKTVBEAw17n8AOxnHi+o8+J4KKRPeitpLXq.BY62kwMsAwIAD.FnumFHgx0H1.XHsWTD2pehVnKAxnIgEGHuA3n+dufq+SGFwLxlzf73CurcPUcxa3VbNKWm.ZZ8novmexiRbZ+SPydVz8lBqtAjpu8fnjeTeWdRDxui7Xt1lph1OU0P1TQ9k+nHKZnODXREj+EoUhRDnQos1CtmTna.ho+AcK.z4gnfhQ9bmmHWI9kyJLfeY9C8hety6kNB..X5H...qi...");
 }
 
 NewProjectCreator::NewProjectCreator(hise::BackendRootWindow* bpe_):
@@ -641,7 +801,6 @@ var NewProjectCreator::onTemplateSelector(const var::NativeFunctionArgs& args)
 
 var NewProjectCreator::initFolder(const var::NativeFunctionArgs& args)
 {
-	auto chain = bpe->getBackendProcessor()->getMainSynthChain();
 	auto& sd = dynamic_cast<GlobalSettingManager*>(bpe->getBackendProcessor())->getSettingsObject();
 	auto s = sd.getSetting(HiseSettings::Compiler::DefaultProjectFolder).toString();
 	jassert(s.isNotEmpty());

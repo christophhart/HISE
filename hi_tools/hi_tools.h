@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_tools
   vendor:           Hart Instruments
-  version:          1.6.0
+  version:          4.1.0
   name:             HISE Tools module
   description:      Contains all dependency free general purpose tool classes used in HISE
   website:          http://hise.audio
@@ -301,6 +301,8 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 #if HISE_INCLUDE_RT_NEURAL
 #include "hi_neural/hi_neural.h"
 #endif
+
+#include "hi_neural/onnx_loader.h"
 
 #if !HISE_NO_GUI_TOOLS
 

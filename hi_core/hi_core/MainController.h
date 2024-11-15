@@ -523,8 +523,20 @@ public:
 			}
 		}
 
+		void clearRoutingManagerAsync()
+		{
+			auto rm = mc->getGlobalRoutingManager();
+
+			if(rm != nullptr)
+			{
+				routingManagerToDelete = var(rm);
+				mc->setGlobalRoutingManager(nullptr);
+			}
+		}
+
 	private:
 
+		var routingManagerToDelete;
 		Array<WeakReference<PresetLoadListener>> presetLoadListeners;
 
 		struct Job
@@ -1662,6 +1674,7 @@ public:
 	ApplicationCommandManager *getCommandManager() { return mainCommandManager; };
 
 	LambdaBroadcaster<double, int>& getSpecBroadcaster() { return specBroadcaster; }
+	LambdaBroadcaster<bool>& getNonRealtimeBroadcaster() { return realtimeBroadcaster; }
 
     const CriticalSection& getLock() const;
     
@@ -1961,10 +1974,9 @@ public:
 		defaultPresetHandler = ownedHandler;
 	}
 
-	MarkdownContentProcessor* getCurrentMarkdownPreview()
-	{
-		return currentPreview;
-	}
+	ONNXLoader::Ptr getONNXLoader();
+
+	MarkdownContentProcessor* getCurrentMarkdownPreview();
 
 	MultiChannelAudioBuffer::XYZPool* getXYZPool()
 	{
@@ -2098,6 +2110,8 @@ private:
 	LambdaBroadcaster<double, int> specBroadcaster;
 
     LambdaBroadcaster<int> blocksizeBroadcaster;
+
+	LambdaBroadcaster<bool> realtimeBroadcaster;
     
 	Array<WeakReference<ControlledObject>> registeredObjects;
 
@@ -2269,6 +2283,8 @@ private:
 	AutoSaver autoSaver;
 
 	DebugLogger debugLogger;
+
+	hise::ONNXLoader::Ptr onnxLoader;
 
 #if USE_BACKEND
 	Component::SafePointer<ScriptWatchTable> scriptWatchTable;

@@ -40,7 +40,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_zstd
   vendor:           Facebook
-  version:          1.3.5
+  version:          4.0.0
   name:             ZSTD compression module
   description:      a wrapper around Facebook's zstd compression algorithm
   website:          https://github.com/facebook/zstd

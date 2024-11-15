@@ -997,7 +997,7 @@ void ScriptModulationMatrix::ModulatorTargetData::updateValue()
     }
 	else if(targetMode == TargetMode::FrequencyMode)
     {
-		processor->setAttribute(PolyFilterEffect::Parameters::Frequency, componentValue, sendNotification);
+		processor->setAttribute(PolyFilterEffect::Parameters::Frequency, componentValue, sendNotificationAsync);
 	}
 }
 
@@ -1412,7 +1412,7 @@ void ScriptModulationMatrix::ModulatorTargetData::init(const var& json)
 		auto defaultMode = ValueModeHelpers::getMode(json[MatrixIds::Mode]);
 
 		// make sure the bipolar mod is cranked up fully.
-		processor->setAttribute(PolyFilterEffect::Parameters::BipolarIntensity, 1.0, sendNotification);
+		processor->setAttribute(PolyFilterEffect::Parameters::BipolarIntensity, 1.0, sendNotificationSync);
 
 		if (defaultMode == ValueMode::Undefined)
 			defaultMode = ValueMode::Scale;
@@ -1648,7 +1648,7 @@ void ScriptModulationMatrix::ParameterTargetData::updateValue()
 	if (valueToSend != lastParameterValue)
 	{
 		lastParameterValue = valueToSend;
-		processor->setAttribute(subIndex, valueToSend, sendNotification);
+		processor->setAttribute(subIndex, valueToSend, sendNotificationAsync);
 		dynamic_cast<ScriptComponent*>(sc.getObject())->sendRepaintMessage();
 	}
 }

@@ -124,6 +124,11 @@ public:
 		if(sampleRate != -1.0) setInternalAttribute(SmoothTime, smoothTime);
 	};
 
+	void referenceShared(ExternalData::DataType, int) override
+    {
+        // no need to do anything...
+    }
+
 private:
 
 	bool mpeEnabled = false;

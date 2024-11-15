@@ -72,8 +72,8 @@ private:
 
 
 struct TextInput: public LabelledComponent,
-                  public TextEditor::Listener,
-                  public Timer
+				  public TextEditorWithAutocompleteComponent
+                  
 {
     DEFAULT_PROPERTIES(TextInput)
     {
@@ -89,22 +89,14 @@ struct TextInput: public LabelledComponent,
 
     TextInput(Dialog& r, int width, const var& obj);;
 
-    struct AutocompleteNavigator: public KeyListener
-    {
-        AutocompleteNavigator(TextInput& parent_):
-          parent(parent_)
-        {}
-	    bool keyPressed (const KeyPress& key,
-                             Component* originatingComponent) override;
-
-        TextInput& parent;
-    } navigator;
-
     void timerCallback() override;
 
     void textEditorReturnKeyPressed(TextEditor& e);
     void textEditorTextChanged(TextEditor& e);
-    void textEditorEscapeKeyPressed(TextEditor& e);
+
+    TextEditor* getTextEditor() override { return &getComponent<TextEditor>(); }
+
+    Identifier getIdForAutocomplete() const override { return id; }
 
     void postInit() override;
     Result checkGlobalState(var globalState) override;
@@ -114,19 +106,9 @@ struct TextInput: public LabelledComponent,
 
 private:
 
-    bool useDynamicAutocomplete = false;
-
     bool callOnEveryChange = false;
 
     String emptyText;
-
-    void showAutocomplete(const String& currentText);
-    void dismissAutocomplete();
-
-    struct Autocomplete;
-
-    ScopedPointer<Autocomplete> currentAutocomplete;
-    StringArray autocompleteItems;
     bool parseInputAsArray = false;
 
     JUCE_DECLARE_WEAK_REFERENCEABLE(TextInput);

@@ -732,7 +732,7 @@ Table::Table(Dialog& parent, int w, const var& obj):
 	parent.stateWatcher.registerComponentToUpdate(&table.getHeader());
 
 
-	sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
+	//sf.addScrollBarToAnimate(table.getViewport()->getVerticalScrollBar());
 	table.getViewport()->setScrollBarThickness(13);
 
 }
@@ -839,6 +839,7 @@ void Table::rebuildColumns()
 
 	if(auto ss = rootDialog.css.getWithAllStates(this, Selector(ElementType::TableCell)))
 	{
+		
 		table.setRowHeight(ss->getLocalBoundsFromText("M").getHeight());
 	}
 

@@ -214,6 +214,8 @@ public:
 	/** overwrite this method and return the range that the parameter can have. */
 	virtual NormalisableRange<double> getRange() const = 0;
 
+	virtual ValueToTextConverter getValueToTextConverter() const = 0;
+
 	bool isLocked();
 
 	/** Since the original setEnabled() is overwritten in the updateValue, use this method instead to enable / disable MacroControlledComponents. */
@@ -309,7 +311,20 @@ public:
     void mouseDown(const MouseEvent &e) override;
 	void mouseDrag(const MouseEvent& e) override;
 
-	
+	ValueToTextConverter getValueToTextConverter() const override
+	{
+		StringArray itemList;
+		itemList.add("Nothing");
+
+		for(int i = 0; i < getNumItems(); i++)
+			itemList.add(getItemText(i));
+
+		ValueToTextConverter c;
+		c.active = true;
+		c.itemList = itemList;
+
+		return c;
+	}
 
 	
     
@@ -356,6 +371,14 @@ public:
 
 	void setNotificationType(NotificationType notify);
 
+	ValueToTextConverter getValueToTextConverter() const override
+	{
+		ValueToTextConverter c;
+		c.active = true;
+		c.itemList = { "Off", "On" };
+
+		return c;
+	}
 
 	void setPopupData(const var& newPopupData, Rectangle<int>& newPopupPosition);
 
@@ -552,7 +575,8 @@ public:
         }
         if(a == ModifierObject::Action::ContextMenu)
         {
-            dynamic_cast<MacroControlledObject*>(this)->enableMidiLearnWithPopup();
+            if(auto mco = dynamic_cast<MacroControlledObject*>(this))
+				mco->enableMidiLearnWithPopup();
             return true;
         }
         
@@ -627,7 +651,7 @@ public:
 
     ~HiSlider() override;
 
-	static String getFrequencyString(float input);
+	
 
 	static double getFrequencyFromTextString(const String& t);
 
@@ -648,6 +672,8 @@ public:
 	void setSendValueOnDrag(bool shouldSend) { sendValueOnDrag = shouldSend; }
 
 	void resized() override;
+
+	ValueToTextConverter getValueToTextConverter() const override;
 
 	String getModeId() const;
 

@@ -340,6 +340,11 @@ public:
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
+		virtual ValueToTextConverter getValueToTextConverter() const
+		{
+			return {};
+		}
+
 		Location getLocation() const override
 		{
 			return location;
@@ -758,6 +763,13 @@ public:
 
 	private:
 
+		enum class AllCatchBehaviour
+		{
+			Inactive,
+			Exclusive,
+			NonExlusive
+		};
+
 		int pseudoState = 0;
 
 		void sendValueListenerMessage();
@@ -767,7 +779,7 @@ public:
 		MacroControlledObject::ModulationPopupData::Ptr modulationData;
 
         bool consumedCalled = false;
-		bool catchAllKeys = true;
+		AllCatchBehaviour catchAllKeys = AllCatchBehaviour::Exclusive;
 		Array<juce::KeyPress> registeredKeys;
 
 		WeakCallbackHolder keyboardCallback;
@@ -953,6 +965,12 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto m = getScriptObjectProperty(ScriptSlider::Properties::Mode).toString();
+			return ValueToTextConverter::createForMode(m);
+		}
+
 		Array<PropertyWithValue> getLinkProperties() const override;
 
 		// ======================================================================================================== API Methods
@@ -1034,6 +1052,7 @@ public:
 			isMomentary,
 			enableMidiLearn,
             setValueOnClick,
+			mouseCursor,
 			numProperties
 		};
 
@@ -1052,6 +1071,11 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 
 		void handleDefaultDeactivatedProperties() override;
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			return ValueToTextConverter::createForOptions({ "Off", "On" });
+		}
 
 		// ======================================================================================================== API Methods
 
@@ -1125,6 +1149,13 @@ public:
 		void resetValueToDefault() override
 		{
 			setValue((int)getScriptObjectProperty(defaultValue));
+		}
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ValueToTextConverter::createForOptions(sa);
 		}
 
 		void handleDefaultDeactivatedProperties();
@@ -1926,6 +1957,13 @@ public:
 		void resetValueToDefault() override
 		{
 			setValue((int)getScriptObjectProperty(defaultValue));
+		}
+
+		ValueToTextConverter getValueToTextConverter() const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ValueToTextConverter::createForOptions(sa);
 		}
 
 		void setValue(var newValue) override;

@@ -229,6 +229,8 @@ struct SyntaxTreeInlineData : public InlineData
 
 		for (int i = 0; i <= currentStatement->currentPass; i++)
 		{
+			ScopedValueSetter<bool> ip(c->isProcessingInlineFunction(), true);
+
 			auto thisPass = (BaseCompiler::Pass)i;
 			BaseCompiler::ScopedPassSwitcher svs(c, thisPass);
 			c->executePass(thisPass, s, e.get());

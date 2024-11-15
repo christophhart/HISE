@@ -351,9 +351,10 @@ void VoiceCpuBpmComponent::preloadStateChanged(bool isPreloading)
 	repaint();
 }
 
-void VoiceCpuBpmComponent::recordStateChanged(bool state)
+void VoiceCpuBpmComponent::recordStateChanged(DebugLogger::Listener::RecordState state)
 {
-	isRecording = state;
+	isRecording = state == DebugLogger::Listener::RecordState::RecordingMidi ||
+		          state == DebugLogger::Listener::RecordState::RecordingAudio;
 	repaint();
 }
 

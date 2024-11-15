@@ -144,3 +144,5 @@
 #if HISE_INCLUDE_RT_NEURAL
 #include "hi_neural/hi_neural.cpp"
 #endif
+
+#include "hi_neural/onnx_loader.cpp";

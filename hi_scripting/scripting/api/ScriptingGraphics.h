@@ -237,18 +237,8 @@ namespace ScriptingObjects
         
         bool isValid() const { return svg != nullptr; }
         
-        void draw(Graphics& g, Rectangle<float> r, float opacity=1.0f)
-        {
-            if(isValid() && currentBounds != r)
-            {
-                svg->setTransformToFit(r, RectanglePlacement::centred);
-                currentBounds = r;
-            }
-            
-            if(isValid())
-                svg->draw(g, opacity);
-        }
-        
+        void draw(Graphics& g, Rectangle<float> r, float opacity=1.0f);
+
     private:
         
         Rectangle<float> currentBounds;
@@ -634,6 +624,7 @@ namespace ScriptingObjects
 					   public SliderPack::LookAndFeelMethods,
 					   public TableEditor::LookAndFeelMethods,
 					   public HiseAudioThumbnail::LookAndFeelMethods,
+					   public PresetBrowserLookAndFeelMethods,
 					   public LafBase
 		{
 			CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree);;
@@ -663,6 +654,26 @@ namespace ScriptingObjects
 			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override;
 			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
 			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
+
+			void drawPresetBrowserBackground(Graphics& g, Component* p) override;
+			void drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText) override;
+			void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
+
+			Font getTagFont(Component& tagButton) override
+			{
+				using namespace simple_css;
+
+				if(auto ss = root.css.getWithAllStates(&tagButton, Selector(".tag-button")))
+				{
+					return ss->getFont({}, tagButton.getLocalBounds().toFloat());
+				}
+
+				return PresetBrowserLookAndFeelMethods::getTagFont(tagButton);
+			}
+
+			void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
+			void drawListItem(Graphics& g, Component& column, int columnIndex, int i, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override;
+			void drawSearchBar(Graphics& g, Component& labelComponent, Rectangle<int> area) override;
 
 			Rectangle<float> getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text);
 			bool drawValueLabel(Graphics& g, Component& valuePopup, Component& attachedComponent, const String& text, bool useAlignment=true);
@@ -757,11 +768,11 @@ namespace ScriptingObjects
 
 			Path createPresetBrowserIcons(const String& id) override;
 			void drawPresetBrowserBackground(Graphics& g, Component* p) override;
-			void drawColumnBackground(Graphics& g, int columnIndex, Rectangle<int> listArea, const String& emptyText) override;
-			void drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
-			void drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
-			void drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override;
-			void drawSearchBar(Graphics& g, Rectangle<int> area) override;
+			void drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText) override;
+			void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
+			void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
+			void drawListItem(Graphics& g, Component& column, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override;
+			void drawSearchBar(Graphics& g, Component& label, Rectangle<int> area) override;
 
 			void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition) override;
 			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
@@ -831,6 +842,8 @@ namespace ScriptingObjects
 			static bool addParentFloatingTile(Component& c, DynamicObject* obj);
 
 			static void setColourOrBlack(DynamicObject* obj, const Identifier& id, Component& c, int colourId);
+
+			static bool writeId(DynamicObject* obj, Component* c);
 
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Laf);
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Laf);

@@ -164,6 +164,7 @@ namespace Types
 enum ID
 {
 	Void =			0b00000000,
+	Event =         0b00000111,
 	Pointer =		0b10001111,
 	Float =			0b00010000,
 	Double =		0b00100000,
@@ -171,9 +172,6 @@ enum ID
 	Block =			0b10000000,
 	Dynamic =		0b11111111
 };
-
-
-
 
 template <typename T> ID getTypeFromTypeId()
 {
@@ -183,6 +181,8 @@ template <typename T> ID getTypeFromTypeId()
 		return ID::Double;
 	if (std::is_integral<T>() || std::is_same<typename std::remove_pointer<T>::type, int>())
 		return ID::Integer;
+	if (std::is_same<T, hise::HiseEvent>())
+		return ID::Event;
 	if (std::is_same<T, void*>())
 		return ID::Pointer;
 	
@@ -393,6 +393,8 @@ struct VoiceResetter
 	virtual ~VoiceResetter() {};
 	virtual void onVoiceReset(bool allVoices, int voiceIndex) = 0;
 	virtual int getNumActiveVoices() const = 0;
+
+	virtual bool isVoiceResetActive() const = 0;
 
 	int skipResetIndex = -1;
 

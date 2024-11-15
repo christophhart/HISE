@@ -286,8 +286,8 @@ void MainController::clearPreset(NotificationType sendPresetLoadMessage)
 
 	while (auto p = iter.getNextProcessor())
     {
-        if(auto sp = dynamic_cast<HardcodedSwappableEffect*>(p))
-            sp->disconnectRuntimeTargets();
+        if(auto sp = dynamic_cast<RuntimeTargetHolder*>(p))
+            sp->disconnectRuntimeTargets(this);
         
         p->cleanRebuildFlagForThisAndParents();
     }
@@ -310,12 +310,13 @@ void MainController::clearPreset(NotificationType sendPresetLoadMessage)
 		#endif
 
         mc->clearWebResources();
-		mc->setGlobalRoutingManager(nullptr);
 
 		BACKEND_ONLY(mc->getJavascriptThreadPool().getGlobalServer()->setInitialised());
 		mc->getMainSynthChain()->reset();
 		mc->globalVariableObject->clear();
 
+		mc->getLockFreeDispatcher().clearRoutingManagerAsync();
+		
 		for (int i = 0; i < 127; i++)
 		{
 			mc->setKeyboardCoulour(i, Colours::transparentBlack);
@@ -465,10 +466,7 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
             
 			getUserPresetHandler().initDefaultPresetManager({});
             
-            Processor::Iterator<HardcodedSwappableEffect> rti(synthChain, false);
             
-            while(auto m = rti.getNextProcessor())
-                m->connectRuntimeTargets();
 		}
 		catch (String& errorMessage)
 		{
@@ -510,9 +508,16 @@ void MainController::compileAllScripts()
 	}
 
 	JavascriptProcessor *sp;
+
+	Processor* first = nullptr;
+
+	saveAllExternalFiles();
 		
 	while((sp = it.getNextProcessor()) != nullptr)
 	{
+		if(first == nullptr)
+			first = dynamic_cast<Processor*>(sp);
+
 		if (sp->isConnectedToExternalFile())
 		{
 			sp->reloadFromFile();
@@ -522,6 +527,24 @@ void MainController::compileAllScripts()
 			sp->compileScript();
 		}
 	}
+
+#if USE_BACKEND
+	if(first != nullptr)
+	{
+		getKillStateHandler().killVoicesAndCall(first, [](Processor* p)
+		{
+			Processor::Iterator<RuntimeTargetHolder> iter(p->getMainController()->getMainSynthChain());
+
+			while(auto rt = iter.getNextProcessor())
+			{
+				rt->disconnectRuntimeTargets(p->getMainController());
+				rt->connectRuntimeTargets(p->getMainController());
+			}
+
+			return SafeFunctionCall::OK;
+		}, MainController::KillStateHandler::TargetThread::ScriptingThread);
+	}
+#endif
 
 	getUserPresetHandler().initDefaultPresetManager({});
 };
@@ -701,6 +724,22 @@ bool MainController::shouldUseSoftBypassRamps() const noexcept
 #else
 	return allowSoftBypassRamps;
 #endif
+}
+
+ONNXLoader::Ptr MainController::getONNXLoader()
+{
+#if USE_BACKEND
+	File libraryPath(GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Compiler::HisePath).toString());
+	libraryPath = libraryPath.getChildFile("tools/onnx_lib");
+#else
+	auto libraryPath = FrontendHandler::getAppDataDirectory(this);
+#endif
+	return new ONNXLoader(libraryPath.getFullPathName());
+}
+
+MarkdownContentProcessor* MainController::getCurrentMarkdownPreview()
+{
+	return currentPreview;
 }
 
 void callOnAllChildren(Component* c, const std::function<void(Component*)>& f)
@@ -1456,7 +1495,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     }
 
 #if USE_BACKEND
-	getDebugLogger().recordOutput(buffer);
+	getDebugLogger().recordOutput(midiMessages, buffer);
 #endif
 
 #if !HISE_MIDIFX_PLUGIN
@@ -1579,7 +1618,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	
 
 #if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
-	getMainSynthChain()->getMatrix().setNumDestinationChannels(2);
+	getMainSynthChain()->getMatrix().setNumDestinationChannels(HISE_NUM_STANDALONE_OUTPUTS);
 #else
     
 #if HISE_IOS
@@ -2004,6 +2043,7 @@ void MainController::insertStringAtLastActiveEditor(const String &string, bool s
 		if(!fullClasses.contains(className))
 			selection.insert(0, {0, firstDot });
 
+        ed->editor.prepareExternalInsert();
 		ed->editor.insertCodeSnippet(string, selection);
 
 #else
@@ -2155,6 +2195,10 @@ void MainController::updateMultiChannelBuffer(int numNewChannels)
     if(processingBufferSize.get() == -1)
         return;
     
+#if IS_STANDALONE_APP || IS_STANDALONE_FRONTEND
+    numNewChannels = jmax(HISE_NUM_STANDALONE_OUTPUTS, numNewChannels);
+#endif
+    
 	ScopedLock sl(processLock);
 
 	// Updates the channel amount
@@ -2180,6 +2224,8 @@ void MainController::SampleManager::handleNonRealtimeState()
 			nrt->nonRealtimeModeChanged(isNonRealtime());
 
 		internalsSetToNonRealtime = isNonRealtime();
+
+		mc->getNonRealtimeBroadcaster().sendMessage(sendNotificationSync, isNonRealtime());
 	}
 }
 

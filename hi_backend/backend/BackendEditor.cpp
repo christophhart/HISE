@@ -1231,10 +1231,6 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 				ft->setSize(content->getContentWidth(), content->getContentHeight());
 
 				c = new OwningComponent(ft);
-
-				int w = (int)((float)content->getContentWidth()*scaleFactor);
-				int h = (int)((float)content->getContentHeight()*scaleFactor);
-
 				c->setName("Interface Preview");
 
 				content->interfaceSizeBroadcaster.addListener(*c, [mc](Component& oc, int w, int h)
@@ -1249,11 +1245,7 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 					oc.setSize(w, h);
 					oc.resized();
 				});
-				
-				
 			}
-
-
 		}
 		else
 		{

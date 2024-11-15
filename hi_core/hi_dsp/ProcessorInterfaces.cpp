@@ -112,6 +112,7 @@ ComplexDataUIBase* ProcessorWithExternalData::createAndInit(ExternalData::DataTy
 
 void ProcessorWithExternalData::referenceShared(ExternalData::DataType type, int index)
 {
+	// if this hits, you need to overwrite the method and assign the table to the class member
 	jassertfalse;
 }
 

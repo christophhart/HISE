@@ -71,7 +71,7 @@ public:
 	public:
 
 		/** Creates a new Parameter data object. */
-		MacroControlledParameterData(Processor *p, int  parameter_, const String &parameterName_, NormalisableRange<double> range_, bool readOnly=true);
+		MacroControlledParameterData(Processor *p, int  parameter_, const String &parameterName_, const ValueToTextConverter& converter, NormalisableRange<double> range_, bool readOnly=true);
 
         MacroControlledParameterData(MainController* mc);
         
@@ -104,6 +104,8 @@ public:
 		/** Returns the min and max values for the parameter range. This is determined by the Controls that are
 		*	connected to the parameter. */
 		NormalisableRange<double> getTotalRange() const;;
+
+		ValueToTextConverter getValueToTextConverter() const { return textConverter; }
 
 		/** Returns the actual limit of the range.
 		*
@@ -155,6 +157,8 @@ public:
 		int parameter;
 
         String parameterName;
+
+		ValueToTextConverter textConverter;
 
 		WeakReference<Processor> controlledProcessor;
 
@@ -233,7 +237,7 @@ public:
 		bool hasParameter(Processor *p, int parameterIndex);
 
 		/** adds the parameter to the parameter list and renames the macro if it is the only parameter. */
-		void addParameter(Processor *p, int parameterId, const String &parameterName, NormalisableRange<double> range, bool readOnly=true, bool isUsingCustomData=false, NotificationType n = sendNotificationSync);
+		void addParameter(Processor *p, int parameterId, const String &parameterName, const ValueToTextConverter& converter, NormalisableRange<double> range, bool readOnly=true, bool isUsingCustomData=false, NotificationType n = sendNotificationSync);
 
 		/** Removes the parameter. */
 		void removeParameter(int parameterIndex, NotificationType n = sendNotificationAsync);
@@ -310,6 +314,7 @@ public:
 								const String &processorId, 
 								int parameterId, 
 								const String &parameterName,
+							    const ValueToTextConverter& converter,
 								NormalisableRange<double> range,
 								bool readOnly=true);
 

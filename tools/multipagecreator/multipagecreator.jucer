@@ -2,7 +2,7 @@
 
 <JUCERPROJECT id="L2bkCQ" name="multipagecreator" projectType="guiapp" cppLanguageStandard="17"
               displaySplashScreen="0" reportAppUsage="0" splashScreenColour="Dark"
-              version="1.0.0" bundleIdentifier="com.hise.multipagecreator"
+              version="4.1.0" bundleIdentifier="com.hise.multipagecreator"
               includeBinaryInAppConfig="1" companyCopyright="" jucerFormatVersion="1">
   <MAINGROUP id="V5l5vh" name="multipagecreator">
     <GROUP id="{AC16B56A-5346-1AB4-D4BD-30CF29DD2DFA}" name="Source">
@@ -65,7 +65,7 @@
     </XCODE_MAC>
     <VS2022 targetFolder="Builds/VisualStudio2022" extraCompilerFlags="/bigobj /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive-"
             extraDefs="HI_RUN_UNIT_TESTS=0&#10;USE_BACKEND=1&#10;HISE_MULTIPAGE_INCLUDE_EDIT=1"
-            IPP1ALibrary="Static_Library" extraLinkerFlags="/MANIFESTUAC:level='requireAdministrator'">
+            IPP1ALibrary="Static_Library">
       <CONFIGURATIONS>
         <CONFIGURATION isDebug="1" name="Debug" defines="PERFETTO=1&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1"
                        targetName="multipagecreator"/>

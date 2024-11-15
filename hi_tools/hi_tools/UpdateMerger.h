@@ -49,31 +49,58 @@ struct FloatSanitizers
     }
 
     /** Returns the silence threshold as gain factor. Uses the HISE_SILENCE_THRESHOLD_DB preprocessor. */
-    static bool isSilence(const float value)
-    {
-        static const float Silence = std::pow(10.0f, (float)HISE_SILENCE_THRESHOLD_DB * -0.05f);
-        static const float MinusSilence = -1.0f * Silence;
-        return value < Silence && value > MinusSilence;
-    }
-    
-    static bool isNotSilence(const float value)
-    {
-        return !isSilence(value);
-    }
-    
+    static bool isSilence(const float value);
+
+    static bool isNotSilence(const float value);
+
     static void sanitizeArray(float* data, int size);;
 
     static float sanitizeFloatNumber(float& input);;
 
+	static double sanitizeDoubleNumber(double& input);
+
     struct Test : public UnitTest
     {
-        Test() :
-            UnitTest("Testing float sanitizer")
-        {
-
-        };
+        Test();;
 
         void runTest() override;
+
+		template <typename FloatType> void testSingleSanitizer()
+		{
+			auto san = [](FloatType& v)
+			{
+				if constexpr(std::is_same<double, FloatType>())
+					FloatSanitizers::sanitizeDoubleNumber(v);
+				else
+					FloatSanitizers::sanitizeFloatNumber(v);
+			};
+
+			beginTest("Testing single method");
+
+			FloatType d0 = std::numeric_limits<FloatType>::infinity();
+			FloatType d1 = std::numeric_limits<FloatType>::min() / static_cast<FloatType>(20.0);
+			FloatType d2 = std::numeric_limits<FloatType>::min() / static_cast<FloatType>(-14.0);
+			FloatType d3 = std::numeric_limits<FloatType>::quiet_NaN();
+			FloatType d4 = static_cast<FloatType>(24.0);
+			FloatType d5 = static_cast<FloatType>(0.0052);
+
+			san(d0);
+			san(d1);
+			san(d2);
+			san(d3);
+			san(d3);
+			san(d4);
+			san(d5);
+
+			expectEquals<FloatType>(d0, static_cast<FloatType>(0.0), "Single Infinity");
+			expectEquals<FloatType>(d1, static_cast<FloatType>(0.0), "Single Denormal");
+			expectEquals<FloatType>(d2, static_cast<FloatType>(0.0), "Single Negative Denormal");
+			expectEquals<FloatType>(d3, static_cast<FloatType>(0.0), "Single NaN");
+			expectEquals<FloatType>(d4, static_cast<FloatType>(24.0), "Single Normal Number");
+			expectEquals<FloatType>(d5, static_cast<FloatType>(0.0052), "Single Small Number");
+		}
+
+		void testArray();
     };
 };
 

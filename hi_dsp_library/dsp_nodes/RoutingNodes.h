@@ -728,12 +728,6 @@ template <typename CableType> struct send: public base
 	CableType cable;
 };
 
-}
-
-
-namespace routing
-{
-
 struct ms_encode: public HiseDspBase
 {
 	SN_NODE_ID("ms_encode");
@@ -1206,6 +1200,51 @@ template <int N, typename SubType, bool HasSendChannels> struct static_matrix
 
 	static constexpr int getNumChannels() { return N; }
 };
+
+#ifndef SN_GLOBAL_CABLE
+#define SN_GLOBAL_CABLE(hash) routing::global_cable<runtime_target::indexers::fix_hash<hash>, parameter::empty>
+#endif
+
+/** A interface class that can be used to send values back to HISE through a global cable.
+ 
+    In order to use this class
+    - create a type definition from this template class with the hash codes of the
+      global cable IDs using the SN_GLOBAL_CABLE() macro.
+    - subclass your node from this the type definition
+    - call setGlobalCableValue(0.33) from anywhere in your node
+
+    Note: it's recommended to use the function in HISE that will create the code snippet
+          (Tools -> Create C++ code for global cables) which will autogenerate
+          the relevant code bits from all available global cables
+*/
+template <typename... Ts> struct global_cable_cpp_manager: private advanced_tuple<Ts...>
+{
+	virtual ~global_cable_cpp_manager()
+	{
+		this->connectToRuntimeTarget(false, {});
+	}
+
+	void connectToRuntimeTarget(bool addConnection, const runtime_target::connection& c)
+	{
+		reset_each(addConnection, c, this->getIndexSequence());
+	}
+
+	template <auto CableIndex> void setGlobalCableValue(double value)
+	{
+        static constexpr int Idx = static_cast<int>(CableIndex);
+        auto& c = this->template get<Idx>();
+        c.setValue(value);
+	}
+
+private:
+
+	template <std::size_t ...Ns> void reset_each(bool addConnection, const runtime_target::connection& c, std::index_sequence<Ns...>)
+	{
+		using swallow = int[]; (void)swallow { 1, ( std::get<Ns>(this->elements).connectToRuntimeTarget(addConnection, c) , void(), int{})... };
+	};
+};
+
+
 
 }
 

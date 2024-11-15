@@ -1097,6 +1097,75 @@ namespace control
 		}
 	};
 
+	template <typename ParameterClass> struct unscaler : public mothernode,
+														   public pimpl::parameter_node_base<ParameterClass>,
+														   public pimpl::no_processing,
+												           public pimpl::no_mod_normalisation	
+	{
+		SN_NODE_ID("unscaler");
+		SN_GET_SELF_AS_OBJECT(unscaler);
+		SN_DESCRIPTION("forwards the raw parameter value");
+
+		SN_ADD_SET_VALUE(unscaler);
+
+		unscaler() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
+		    pimpl::no_mod_normalisation(getStaticId(), { "Value" }) 
+		{};
+
+		static constexpr bool isNormalisedModulation() { return false; }
+
+		void setValue(double input)
+		{
+			if (this->getParameter().isConnected())
+				this->getParameter().call(input);
+		}
+	};
+
+	template <typename ParameterClass> struct locked_mod: public mothernode,
+					   public pimpl::parameter_node_base<ParameterClass>,
+					   public pimpl::no_processing
+	{
+		SN_NODE_ID("locked_mod");
+		SN_GET_SELF_AS_OBJECT(locked_mod);
+		SN_DESCRIPTION("Adds a scaled modulation dragger to its immediate locked node container parent");
+		SN_ADD_SET_VALUE(locked_mod);
+
+		locked_mod() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId())
+		{};
+
+		void setValue(double input)
+		{
+			if (this->getParameter().isConnected())
+				this->getParameter().call(input);
+		}
+	};
+
+	template <typename ParameterClass> struct locked_mod_unscaled: public mothernode,
+					   public pimpl::parameter_node_base<ParameterClass>,
+					   public pimpl::no_processing,
+					   public pimpl::no_mod_normalisation	
+	{
+		SN_NODE_ID("locked_mod_unscaled");
+		SN_GET_SELF_AS_OBJECT(locked_mod_unscaled);
+		SN_DESCRIPTION("Adds a unscaled modulation dragger to its immediate locked node container parent");
+		SN_ADD_SET_VALUE(locked_mod_unscaled);
+
+		locked_mod_unscaled() :
+			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
+		    pimpl::no_mod_normalisation(getStaticId(), { "Value" }) 
+		{};
+
+		static constexpr bool isNormalisedModulation() { return false; }
+
+		void setValue(double input)
+		{
+			if (this->getParameter().isConnected())
+				this->getParameter().call(input);
+		}
+	};
+
     template <typename ParameterClass, typename ConverterClass>
         struct converter : public mothernode,
 						   public pimpl::templated_mode,
@@ -1109,7 +1178,7 @@ namespace control
         SN_DESCRIPTION("converts a control value");
 
         SN_DEFAULT_INIT(ConverterClass);
-        SN_DEFAULT_PREPARE(ConverterClass);
+        
         SN_ADD_SET_VALUE(converter);
 
 		converter() :
@@ -1118,8 +1187,27 @@ namespace control
 			pimpl::parameter_node_base<ParameterClass>(getStaticId())
 		{};
 
+		static constexpr bool usesPrepareSpecs()
+		{
+			return prototypes::check::prepare<ConverterClass>::value;
+		}
+
+		void prepare(PrepareSpecs ps)
+		{
+			if constexpr (usesPrepareSpecs())
+				this->obj.prepare(ps);
+
+			if(lastInput.first)
+			{
+				setValue(lastInput.second);
+			}
+		}
+
         void setValue(double input)
         {
+			if constexpr (usesPrepareSpecs())
+				lastInput = { true, input };
+
             auto v = obj.getValue(input);
 
             if (this->getParameter().isConnected())
@@ -1127,6 +1215,7 @@ namespace control
         }
 
         ConverterClass obj;
+		std::pair<bool, double> lastInput = { false, 0.0 };
     };
 
 	template <typename ParameterClass> struct random : public mothernode,

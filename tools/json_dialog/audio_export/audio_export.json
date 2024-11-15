@@ -1,0 +1,128 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Audio Exporter",
+    "Subtitle": "Subtitle",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "#total-progress\n{\n\tdisplay: none;\n}\n\n\nlabel\n{\n\tmin-width: 150px;\n}\n\n",
+    "UseViewport": true,
+    "ConfirmClose": true,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 800,
+    "DialogHeight": 600
+  },
+  "GlobalState": {
+    "OpenInEditor": "1",
+    "Location": "C:\\Users\\chris\\Desktop\\HiseExport.wav",
+    "Length": "1 second"
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "This will render the live output of HISE to a file on the disk."
+        },
+        {
+          "Type": "RelativeFileLoader",
+          "ID": "Location",
+          "SpecialLocation": "userDesktopDirectory",
+          "RelativePath": "HiseExport.wav"
+        },
+        {
+          "Type": "FileSelector",
+          "Text": "Location",
+          "ID": "Location",
+          "UseInitValue": true,
+          "Style": "margin-bottom: 30px;",
+          "Required": true,
+          "Wildcard": ".wav",
+          "SaveFile": true,
+          "Help": "The location of the wave file"
+        },
+        {
+          "Type": "Choice",
+          "Text": "Render Length",
+          "ID": "Length",
+          "InitValue": "1 second",
+          "UseInitValue": true,
+          "ValueMode": "Text",
+          "Help": "The length of the audio that you want to export\n",
+          "Items": "1 second\n2 seconds\n4 seconds\n8 seconds\n16 seconds\n1 bar\n2 bars\n4 bars"
+        },
+        {
+          "Type": "Button",
+          "Text": "Render offline",
+          "ID": "Realtime",
+          "Help": "If this is true, it will record the MIDI input for the given duration, then use a background thread to render the audio offline.\n\n\n> You can use this in order to simulate the behaviour of the host when bouncing to disk.\n\n"
+        },
+        {
+          "Type": "Button",
+          "Text": "Wait for MIDI",
+          "ID": "MidiInput",
+          "Help": "If enabled, it will start the recording on the first MIDI input, so that the file aligns with the note start."
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "Export process",
+          "ID": "ExportFunction",
+          "EventTrigger": "OnSubmit",
+          "Function": "onExport"
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 15px; padding: 0px 80px;"
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "The recording was completed and the file was written to the specified location."
+        },
+        {
+          "Type": "Button",
+          "Text": "Open in editor",
+          "ID": "OpenInEditor",
+          "InitValue": "1",
+          "UseInitValue": true,
+          "Help": "Open the file in the audio editor that you have specified in the HISE settings \n\n> **Other settings -> External Editor Path**"
+        },
+        {
+          "Type": "JavascriptFunction",
+          "ID": "completeFunction",
+          "EventTrigger": "OnSubmit",
+          "Code": "{BIND::onComplete}"
+        }
+      ],
+      "Text": "",
+      "Style": "padding: 50px 80px;"
+    }
+  ],
+  "Assets": []
+}

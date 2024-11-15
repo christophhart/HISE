@@ -55,7 +55,10 @@ struct StyleSheet: public ReferenceCountedObject
 		bool operator==(const Collection& other) const { return list.getFirst() == other.list.getFirst(); }
 		bool operator!=(const Collection& other) const { return !(*this == other); }
 
-		operator bool() const { return !list.isEmpty(); }
+		operator bool() const
+		{
+			return useIsolatedCollections ? !isolatedStyleSheetFileNames.isEmpty() : !list.isEmpty();
+		}
 
 		void setAnimator(Animator* a);
 

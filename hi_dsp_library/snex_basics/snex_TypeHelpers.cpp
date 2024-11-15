@@ -27,13 +27,14 @@ snex::Types::ID Types::Helpers::getTypeFromTypeName(const juce::String& cppTypeN
 	if (cppTypeName == "float") return Types::ID::Float;
 	if (cppTypeName == "int") return Types::ID::Integer;
 	if (cppTypeName == "bool") return Types::ID::Integer;
+	if (cppTypeName == "HiseEvent") return Types::ID::Event;
 	if (cppTypeName == "block") return Types::ID::Block;
 	if (cppTypeName == "void") return Types::ID::Void;
     if (cppTypeName == "void*") return Types::ID::Pointer;
     if (cppTypeName == "pointer") return Types::ID::Pointer;
 	if (cppTypeName == "any")     return Types::ID::Dynamic;
 	
-	return Types::ID::Void;
+	return Types::ID::Dynamic;
 }
 
 snex::Types::ID Types::Helpers::getTypeFromVariableName(const juce::String& name)
@@ -47,6 +48,7 @@ snex::Types::ID Types::Helpers::getTypeFromVariableName(const juce::String& name
 	case 'd':	return Types::ID::Double;
 	case 'i':	return Types::ID::Integer;
 	case 'a':	return Types::ID::Dynamic;
+	case 'e':   return Types::ID::Event;
 	default:	jassertfalse; return Types::ID::Void;
 	}
 }
@@ -67,6 +69,7 @@ juce::String Types::Helpers::getTypeName(ID id)
 	case Types::ID::Integer:		return "int";
 	case Types::ID::Float:			return "float";
 	case Types::ID::Double:			return "double";
+	case Types::ID::Event:		    return "HiseEvent";
 	case Types::ID::Block:			return "block";
 	case Types::ID::Pointer:		return "pointer";
 	case Types::ID::Dynamic:		return "any";
@@ -88,6 +91,7 @@ Colour Types::Helpers::getColourForType(ID type)
 	{
 	case Types::ID::Void:			return Colours::white;
 	case Types::ID::Integer:		return Colour(0xffbe952c);
+	case Types::ID::Event:	        return Colour(0xFFC65638);
 	case Types::ID::Float:			
     case Types::ID::Double:			return Colour(0xff3a6666);
 	case Types::ID::Block:			return Colour(0xff7559a4);
@@ -170,6 +174,7 @@ String Types::Helpers::getStringFromDataPtr(Types::ID type, void* data)
 	{
 	case Types::ID::Integer: v = var(*reinterpret_cast<int*>(data)); break;
 	case Types::ID::Double: v = var(*reinterpret_cast<double*>(data)); break;
+	case Types::ID::Event: jassertfalse; return "";
 	case Types::ID::Float: v = var(*reinterpret_cast<float*>(data)); break;
 	case Types::ID::Pointer: v = var(*reinterpret_cast<int64*>(data)); break;
 	default: jassertfalse;
@@ -186,6 +191,7 @@ juce::String Types::Helpers::getTypeIDName(ID type)
 	case Types::ID::Integer:		return "Types::ID::Integer";
 	case Types::ID::Float:			return "Types::ID::Float";
 	case Types::ID::Double:			return "Types::ID::Double";
+	case Types::ID::Event:			return "Types::ID::Event";
 	case Types::ID::Block:			return "Types::ID::Block";
 	case Types::ID::Dynamic:		return "Types::ID::Dynamic";
 	case Types::ID::Pointer:		return "Types::ID::Pointer";
@@ -201,6 +207,7 @@ size_t Types::Helpers::getSizeForType(ID type)
 	case Types::ID::Integer: return sizeof(int);
 	case Types::ID::Float: return sizeof(float);
 	case Types::ID::Double: return sizeof(double);
+	case Types::ID::Event: return sizeof(HiseEvent);
 	case Types::ID::Block: return sizeof(block);
 	case Types::ID::Pointer: return sizeof(int*);
     default: return 0;
@@ -377,6 +384,20 @@ juce::String Types::Helpers::getCppValueString(const VariableStorage& v)
 
 		return value;
 	}
+	else if (type == Types::ID::Event)
+	{
+		String s;
+		s << "HiseEvent(HiseEvent::Type";
+		
+		auto e = v.toEvent();
+		s << String(e.getTypeAsString());
+		s << "," << String(e.getNoteNumber());
+		s << "," << String(e.getVelocity());
+		s << "," << String(e.getChannel());
+		s << ")";
+
+		return s;
+	}
 	else if (type == Types::ID::Pointer)
 	{
 		return "p0x" + juce::String::toHexString(reinterpret_cast<uint64_t>(v.getDataPointer())).toUpperCase() + "";
@@ -444,6 +465,7 @@ bool Types::Helpers::isFixedType(ID type)
 	return  type == ID::Block ||
 			type == ID::Integer ||
 			type == ID::Float ||
+		    type == ID::Event ||
 			type == ID::Void ||
 			type == ID::Double ||
 			type == ID::Pointer;

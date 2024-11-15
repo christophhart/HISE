@@ -79,9 +79,19 @@ struct InstructionParsers
 				if (v.getType() == InstructionIds::FunctionCall)
 				{
 					auto sig = v[InstructionPropertyIds::Signature].toString();
-
+					
 					if (!MirCompiler::isExternalFunction(sig))
-						return false;
+					{
+						// Check if there is a type agnostic external function with a void* argument
+						auto sd = TypeConverters::String2FunctionData(sig);
+						auto sig2 = sd.getSignature({}, false);
+
+						if(MirCompiler::isExternalFunction(sig2))
+							sig = sig2;
+						else
+							return false;
+					}
+						
 
 					if (v[InstructionPropertyIds::CallType].toString() == "MemberFunction")
 					{

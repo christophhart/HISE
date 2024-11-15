@@ -104,6 +104,8 @@ private:
 
 	// ================================================================================================================
 
+	ValueToTextConverter vtc;
+
 	bool deactivated;
 	const Identifier id;
 	NormalisableRange<float> range;

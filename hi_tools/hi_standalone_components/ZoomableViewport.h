@@ -167,6 +167,45 @@ struct ZoomableViewport : public Component,
 	public Timer,
 	public DragAnimator::Listener
 {
+	struct DragScrollTimer: public Timer
+	{
+		DragScrollTimer(ZoomableViewport& parent_):
+		  parent(parent_)
+		{};
+
+		void timerCallback() override;
+
+		void setPosition(const MouseEvent& e, bool isMouseUp);
+
+		bool wasInCentre = false;
+		int xDelta = 0;
+		int yDelta = 0;
+
+		double lx = 0.0;
+		double ly = 0.0;
+
+		void scrollToPosition(Point<double> normalisedTargetPosition)
+		{
+			wasInCentre = false;
+			lx = 0.0;
+			ly = 0.0;
+			scrollAnimationStart = { parent.hBar.getCurrentRangeStart(), parent.vBar.getCurrentRangeStart() };
+			scrollAnimationTarget = normalisedTargetPosition;
+			scrollAnimationCounter = 0;
+			startTimer(15);
+		}
+
+		Point<double> scrollAnimationStart;
+		Point<double> scrollAnimationTarget;
+		int scrollAnimationCounter = -1;
+		
+
+		ZoomableViewport& parent;
+
+	} dragScrollTimer;
+
+	
+
 	enum ColourIds
 	{
 		backgroundColourId = 9000
@@ -198,6 +237,10 @@ struct ZoomableViewport : public Component,
 
 	virtual ~ZoomableViewport();
 
+	
+
+	static bool checkDragScroll(const MouseEvent& e, bool isMouseUp);
+
 	static bool checkViewportScroll(const MouseEvent& e, const MouseWheelDetails& details);
 
 	static bool checkMiddleMouseDrag(const MouseEvent& e, MouseEventFlags type);
@@ -225,6 +268,8 @@ struct ZoomableViewport : public Component,
 	void clearSwapSnapshot();
 
 	void zoomToRectangle(Rectangle<int> areaToShow);
+
+	void scrollToRectangle(Rectangle<int> areaToShow, bool skipIfVisible, bool animate=true);
 
 	void setZoomFactor(float newZoomFactor, Point<float> centerPositionInGraph);
 

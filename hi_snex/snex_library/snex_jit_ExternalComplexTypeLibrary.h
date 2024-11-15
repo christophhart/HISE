@@ -176,6 +176,36 @@ struct ExternalDataJIT : public ExternalData
 	static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
 };
 
+struct ExternalFunctionJIT: public ExternalFunction
+{
+    struct Wrapper
+    {
+	    static void init(void* obj, void* map, int index)
+	    {
+            if(auto t = static_cast<ExternalFunction*>(obj))
+            {
+                if(auto m = static_cast<ExternalFunctionMap*>(map))
+					t->init(*m, index);
+            }
+	    }
+
+		static void pingVoid(void* r, void* value)
+	    {
+			// This needs to convert it to an VariableStorage explicitely
+		    auto t = static_cast<ExternalFunction*>(r);
+			t->ping(VariableStorage(value));
+	    }
+
+        template <typename T> static void ping(void* r, T value)
+	    {
+			auto t = static_cast<ExternalFunction*>(r);
+	    	t->ping(value);
+	    }
+    };
+
+    static ComplexType::Ptr createComplexType(Compiler& c, const Identifier& id);
+};
+
 struct ModValueJit : public ModValue
 {
 	struct Wrapper

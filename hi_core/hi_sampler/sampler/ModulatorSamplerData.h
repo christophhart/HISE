@@ -234,10 +234,7 @@ public:
 
 	void saveAndReloadMap();
 
-	void suspendInternalTimers(bool shouldBeSuspended)
-	{
-		notifier.asyncUpdateCollector.suspend(shouldBeSuspended);
-	}
+	void suspendInternalTimers(bool shouldBeSuspended);
 
 	bool& getSyncEditModeFlag() { return syncEditMode; }
 
@@ -260,6 +257,12 @@ public:
 
 		SampleMap& parent;
 	};
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	void setReleaseStartOptions(StreamingHelpers::ReleaseStartOptions::Ptr newOptions);
+
+	StreamingHelpers::ReleaseStartOptions::Ptr getReleaseStartOptions() { return releaseStartOptions; }
+#endif
 
 private:
 
@@ -439,6 +442,10 @@ private:
 	void parseValueTree(const ValueTree &v);
 
 	PooledSampleMap sampleMapData;
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	StreamingHelpers::ReleaseStartOptions::Ptr releaseStartOptions;
+#endif
 
 	ValueTree data;
 

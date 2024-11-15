@@ -21,7 +21,7 @@
     "Image": "",
     "ProjectName": "HISE",
     "Company": "HISE",
-    "Version": "4.0.0",
+    "Version": "4.1.0",
     "BinaryName": "Hise Installer",
     "UseGlobalAppData": false,
     "Icon": "${icon}"

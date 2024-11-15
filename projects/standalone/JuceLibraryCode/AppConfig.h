@@ -45,7 +45,7 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60103
+#define JUCE_PROJUCER_VERSION 0x60104
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                  1
@@ -406,6 +406,10 @@
 
 #ifndef    HISE_SAMPLER_CUBIC_INTERPOLATION
  //#define HISE_SAMPLER_CUBIC_INTERPOLATION 0
+#endif
+
+#ifndef    HISE_SAMPLER_ALLOW_RELEASE_START
+ //#define HISE_SAMPLER_ALLOW_RELEASE_START 1
 #endif
 
 //==============================================================================

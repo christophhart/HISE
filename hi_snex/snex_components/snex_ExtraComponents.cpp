@@ -787,8 +787,6 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
 
 	auto order = jlimit(8, 13, (int)log2(nextPowerOfTwo(numSamplesToCheck)));
 
-    
-    
 	if (logScaleButton->getToggleState())
 		order = jmin(15, order + 2);
 
@@ -797,7 +795,7 @@ void Graph::processFFT(const AudioSampleBuffer& originalSource)
         hise::Spectrum2D options(&internalGraph, originalSource);
         options.parameters->currentWindowType = currentWindowType;
         
-        auto b = options.createSpectrumBuffer();
+        auto b = options.createSpectrumBuffer(false);
         
         Spectrum2DSize = options.parameters->Spectrum2DSize;
         

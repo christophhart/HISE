@@ -144,10 +144,15 @@ void StyleSheetLookAndFeel::drawLinearSlider(Graphics& g, int x, int y, int widt
 {
 	if(auto ss = root.css.getForComponent(&slider))
 	{
-		auto normPos = NormalisableRange<double>(slider.getRange()).convertTo0to1(slider.getValue());
+		auto nr = NormalisableRange<double>(slider.getRange());
+		nr.skew = slider.getSkewFactor();
+
+		auto normPos = nr.convertTo0to1(slider.getValue());
 			
 		ss->setPropertyVariable("value", String(normPos, 4));
-
+		
+		auto text = slider.getTextFromValue(slider.getValue());
+		
 		Renderer r(&slider, root.stateWatcher);
 
 		int currentState = 0;
@@ -163,6 +168,7 @@ void StyleSheetLookAndFeel::drawLinearSlider(Graphics& g, int x, int y, int widt
 		root.stateWatcher.checkChanges(&slider, ss, currentState);
 
 		r.drawBackground(g, slider.getLocalBounds().toFloat(), ss);
+		r.renderText(g, slider.getLocalBounds().toFloat(), text, ss, PseudoElementType::None, Justification(0), false);
 	}
 	else
 	{
@@ -197,6 +203,15 @@ void StyleSheetLookAndFeel::drawRotarySlider(Graphics& graphics, int x, int y, i
 	
 }
 
+void StyleSheetLookAndFeel::drawGenericComponentText(Graphics& g, const String& text, Component* c, Selector s)
+{
+	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
+	{
+		Renderer r(c, root.stateWatcher);
+		r.renderText(g, c->getLocalBounds().toFloat(), text, ss);
+	}
+}
+
 bool StyleSheetLookAndFeel::drawComponentBackground(Graphics& g, Component* c, Selector s)
 {
 	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
@@ -208,6 +223,8 @@ bool StyleSheetLookAndFeel::drawComponentBackground(Graphics& g, Component* c, S
 		r.drawBackground(g, c->getLocalBounds().toFloat(), ss);
 		return true;
 	}
+
+	return false;
 }
 
 bool StyleSheetLookAndFeel::drawListBoxRow(int rowNumber, Graphics& g, const String& text, Component* lb, int width,

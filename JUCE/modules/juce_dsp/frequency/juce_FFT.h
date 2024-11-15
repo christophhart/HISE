@@ -48,7 +48,7 @@ public:
     /** Initialises an object for performing forward and inverse FFT with the given size.
         The number of points the FFT will operate on will be 2 ^ order.
     */
-    FFT (int order);
+    FFT (int order, bool forceFallback=false);
 
     /** Move constructor. */
     FFT (FFT&&) noexcept;
@@ -104,6 +104,8 @@ public:
 
     /** Returns the number of data points that this FFT was created to work with. */
     int getSize() const noexcept            { return size; }
+
+    bool isFallbackEngine() const noexcept;
 
     //==============================================================================
    #ifndef DOXYGEN

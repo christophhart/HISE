@@ -53,9 +53,9 @@ void DspHelpers::increaseBuffer(AudioSampleBuffer& b, const PrepareSpecs& specs)
 	}
 }
 
-void DspHelpers::increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& specs)
+void DspHelpers::increaseBuffer(snex::Types::heap<float>& b, const PrepareSpecs& specs, bool clearForFrame)
 {
-    if(specs.blockSize == 1)
+    if(specs.blockSize == 1 && clearForFrame)
     {
         b.setSize(0);
         return;

@@ -60,6 +60,7 @@ public:
 #endif
 
 
+
 class DocUpdater : public DialogWindowWithBackgroundThread,
 				   public MarkdownContentProcessor,
 				   public DatabaseCrawler::Logger,
@@ -67,6 +68,33 @@ class DocUpdater : public DialogWindowWithBackgroundThread,
 				   public ComboBox::Listener
 {
 public:
+
+#if USE_BACKEND
+	struct SnippetCreator
+	{
+		SnippetCreator(MarkdownDatabaseHolder& holder_, BackendRootWindow* rootWindow, Thread* t):
+		  holder(holder_),
+		  root(rootWindow),
+		  threadToUse(t)
+		{}
+
+		BackendRootWindow* root;
+		std::function<void(const String&)> logger;
+		String snippetDirectory;
+		Thread* threadToUse = nullptr;
+
+		void showStatusMessage(const String& message)
+		{
+			if(logger)
+				logger(message);
+		}
+
+		void createSnippetDatabase();
+
+		MarkdownDatabaseHolder& holder;
+		Component* rootWindow;
+	};
+#endif
 
 	enum CacheURLType
 	{
@@ -125,10 +153,7 @@ public:
 		showStatusMessage(message);
 	}
 
-	static void runSilently(MarkdownDatabaseHolder& holder)
-	{
-		new DocUpdater(holder, true, false);
-	}
+	static void runSilently(MarkdownDatabaseHolder& holder);
 
 	void run() override;
 

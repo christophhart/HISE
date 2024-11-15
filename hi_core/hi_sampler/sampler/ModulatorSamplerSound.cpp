@@ -42,6 +42,7 @@ void ModulatorSamplerSound::clipRangeProperties(const Identifier& id, int value,
 		auto sampleEnd = getPropertyValueWithDefault(SampleIds::SampleEnd);
 		auto loopEnd = getPropertyValueWithDefault(SampleIds::LoopEnd);
 		auto xfade = getPropertyValueWithDefault(SampleIds::LoopXFade);
+		auto releaseStart = getPropertyValueWithDefault(SampleIds::ReleaseStart);
 
 		if (id == SampleIds::SampleStart)
 		{
@@ -61,6 +62,9 @@ void ModulatorSamplerSound::clipRangeProperties(const Identifier& id, int value,
 
 			if (value > loopEnd)
 				setSampleProperty(SampleIds::LoopEnd, value, useUndo);
+
+			if(value > releaseStart && releaseStart != 0)
+				setSampleProperty(SampleIds::ReleaseStart, value, useUndo);
 		}
 
 		if (id == SampleIds::SampleEnd)
@@ -70,6 +74,9 @@ void ModulatorSamplerSound::clipRangeProperties(const Identifier& id, int value,
 
 			if (loopStart > value)
 				setSampleProperty(SampleIds::LoopStart, value, useUndo);
+
+			if(releaseStart > value)
+				setSampleProperty(SampleIds::ReleaseStart, value, useUndo);
 		}
 	}
 }
@@ -165,6 +172,9 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 
 	for (auto s : soundArray)
 	{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		s->setReleaseStartOptions(parent->getReleaseStartOptions());
+#endif
 		s->setDelayPreloadInitialisation(true);
 		s->setCrossfadeGammaValue(gv);
 	}
@@ -194,7 +204,7 @@ ModulatorSamplerSound::~ModulatorSamplerSound()
 bool ModulatorSamplerSound::isAsyncProperty(const Identifier& id)
 {
 	return id == SampleIds::SampleStart || id == SampleIds::SampleEnd || id == SampleIds::LoopStart || id == SampleIds::LoopEnabled ||
-		id == SampleIds::SampleStartMod || id == SampleIds::LoopEnd || id == SampleIds::LoopXFade || id == SampleIds::SampleState;
+		id == SampleIds::SampleStartMod || id == SampleIds::LoopEnd || id == SampleIds::LoopXFade || id == SampleIds::SampleState || id == SampleIds::ReleaseStart;
 }
 
 juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) const
@@ -224,7 +234,7 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 	else if( id == SampleIds::Pitch)		return Range<int>(-100, 100);
 	else if (id == SampleIds::LoopEnabled)			return Range<int>(0, 1);
 	else if (id == SampleIds::SampleStart || id == SampleIds::SampleEnd ||
-		id == SampleIds::LoopStart || id == SampleIds::LoopEnd ||
+		id == SampleIds::LoopStart || id == SampleIds::LoopEnd || id == SampleIds::ReleaseStart ||
 		id == SampleIds::SampleStartMod || id == SampleIds::LoopXFade)
 	{
 		// get all interesting properties with a sensible default
@@ -273,6 +283,11 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 			minValue = 0;
 			maxValue = jmin(loopEnd - loopStart,
 				loopStart - sampleStart);
+		}
+		if(id == SampleIds::ReleaseStart)
+		{
+			minValue = sampleStart;
+			maxValue = sampleEnd;
 		}
 
 		return { minValue, maxValue };
@@ -828,6 +843,15 @@ void ModulatorSamplerSound::updateAsyncInternalData(const Identifier& id, int ne
 	else if (id == SampleIds::LoopEnd)
 	{
 		FOR_EVERY_SOUND(setLoopEnd(newValue));
+	}
+	else if (id == SampleIds::ReleaseStart)
+	{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		FOR_EVERY_SOUND(setReleaseStart(newValue));
+
+		if(auto m = parentMap.get())
+			m->getSampler()->refreshReleaseStartFlag();
+#endif
 	}
 	else if (id == SampleIds::LoopXFade)
 	{

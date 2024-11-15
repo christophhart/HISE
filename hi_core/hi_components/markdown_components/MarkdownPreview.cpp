@@ -60,6 +60,271 @@ static bool areMajorWebsitesAvailable()
 	return false;
 }
 
+#if USE_BACKEND
+void DocUpdater::SnippetCreator::createSnippetDatabase()
+{
+	showStatusMessage("Create Snippet database");
+
+	auto am = dynamic_cast<BackendProcessor*>(&holder)->getAssetManager();
+	am->initialise();
+
+	auto appDataFolder = NativeFileHandler::getAppDataDirectory(nullptr);
+
+	if(snippetDirectory.isEmpty())
+	{
+		auto f = appDataFolder.getChildFile("snippetBrowser.xml");
+
+		if(auto xml = XmlDocument::parse(f))
+		{
+			if(auto c = xml->getChildByName("snippetDirectory"))
+				snippetDirectory = c->getStringAttribute("value");
+		}
+	}
+
+	if(snippetDirectory.isNotEmpty())
+	{
+		File snippetRoot(snippetDirectory);
+
+		auto snippetList = snippetRoot.findChildFiles(File::findFiles, false, "*.md");
+
+		struct Item
+		{
+			Item(const MarkdownLink& l, const String& name_):
+				name(name_)
+			{
+				auto h = l.getHeaderFromFile({});
+
+				description = l.toString(MarkdownLink::Format::ContentWithoutHeader);
+				priority = h.getKeyValue("priority").getIntValue();
+
+				auto catIndex = getCategories().indexOf(h.getKeyValue("category"));
+
+				if(catIndex != -1)
+					cat = (Category)catIndex;
+
+				snippet = h.getKeyValue("HiseSnippet");
+			}
+
+			static StringArray getCategories()
+			{
+				return { "All", "Modules", "MIDI", "Scripting", "Scriptnode", "UI" };
+			}
+
+			enum class Category
+			{
+				All,
+				Modules,
+				Midi,
+				Scripting,
+				Scriptnode,
+				UI,
+				numCategories
+			};
+
+			Image createScreenshot(BackendRootWindow* rw) const
+			{
+						
+				if(cat == Category::Scriptnode)
+				{
+					MainController::ScopedBadBabysitter sbb(rw->getBackendProcessor());
+
+					{
+						MessageManagerLock mm;
+						BackendCommandTarget::Actions::loadSnippet(rw, snippet);
+					}
+							
+					Processor::Iterator<DspNetwork::Holder> iter(rw->getMainSynthChain(), false);
+
+					while(auto holder = iter.getNextProcessor())
+					{
+						if(auto nw = holder->getActiveNetwork())
+						{
+							MessageManagerLock mm;
+
+							ScopedPointer<DspNetworkGraphPanel> c;
+
+							c = new scriptnode::DspNetworkGraphPanel(rw->getRootFloatingTile());
+
+							c->setContentWithUndo(dynamic_cast<Processor*>(holder), 0);
+
+
+									
+
+							if(auto graph = c->getContent<WrapperWithMenuBarBase>()->canvas.getContent<juce::Component>())
+							{
+								auto comp = dynamic_cast<Component*>(graph);
+
+								while(comp != nullptr)
+								{
+									comp->setVisible(true);
+									comp = comp->getParentComponent();
+								}
+
+								auto img = graph->createComponentSnapshot(graph->getLocalBounds(), true);
+								return img;
+							}
+						}
+					}
+				}
+				else
+				{
+					SuspendHelpers::ScopedTicket ss(rw->getBackendProcessor());
+
+					MainController::ScopedBadBabysitter sbb(rw->getBackendProcessor());
+
+					{
+						MessageManagerLock mm;
+						BackendCommandTarget::Actions::loadSnippet(rw, snippet);
+					}
+
+					if(auto jmp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(rw->getBackendProcessor()))
+					{
+						auto cs = Point<int>(jmp->getScriptingContent()->getContentWidth(), jmp->getScriptingContent()->getContentHeight());
+
+						if(cs == Point<int>(600, 500) || jmp->getScriptingContent()->getNumComponents() == 0)
+						{
+							auto t = Thread::getCurrentThread();
+
+							if(t != nullptr)
+								t->wait(200);
+							
+							// skip the interface if its the default value
+							return {};
+						}
+
+						MessageManagerLock mm;
+
+						ScriptContentComponent content(jmp);
+						content.setNewContent(jmp->getScriptingContent());
+						content.setSize(content.getContentWidth(), content.getContentHeight());
+						return content.createComponentSnapshot(content.getLocalBounds(), true);
+					}
+				}
+
+				return {};
+			}
+
+			String createMarkdown(bool includeImage) const
+			{
+				String s;
+				String nl = "\n";
+
+				s << "## " << name << nl << nl;
+
+				if(includeImage)
+				{
+					s << "![](/images/snippets/" << MarkdownLink::Helpers::getSanitizedFilename(name) + ".png)" << nl;
+				}
+
+				s << description << nl << nl;
+
+				s << "```" << nl;
+				s << snippet << nl;
+				s << "```" << nl << nl;
+
+				return s;
+			}
+
+			bool operator<(const Item& other) const { return priority > other.priority; }
+			bool operator>(const Item& other) const { return priority < other.priority; }
+			bool operator==(const Item& other) const { return priority == other.priority; }
+
+			Category cat;
+			String description;
+			String snippet;
+			int priority = 3;
+			String name;
+		};
+
+		std::map<Item::Category, std::vector<Item>> list;
+
+		for(int i = 0; i < (int)Item::Category::numCategories; i++)
+		{
+			list[(Item::Category)i] = {};
+		}
+
+		for(auto sn: snippetList)
+		{
+			MarkdownLink l(snippetRoot, sn.getFileName());
+
+			Item i(l, sn.getFileNameWithoutExtension());
+			list[i.cat].push_back(i);
+		}
+
+		String nl = "\n";
+
+		auto targetDirectory = holder.getDatabaseRootDirectory().getChildFile("tutorials/");
+		auto imgDirectory = holder.getDatabaseRootDirectory().getChildFile("images").getChildFile("snippets");
+
+		if(imgDirectory.isDirectory())
+			imgDirectory.deleteRecursively();
+
+		imgDirectory.createDirectory();
+
+				
+
+		targetDirectory.createDirectory();
+
+		PNGImageFormat format;
+
+		int listIndex = 0;
+
+		StringArray ignoreNames({ "_Template", "SnippetDB", "README"});
+
+		for(auto& l: list)
+		{
+			String s;
+
+			auto catName = Item::getCategories()[(int)l.first];
+
+			s << "---" << nl;
+			s << "keywords: " << catName << " Snippets" << nl;
+			s << "summary: Examples in the category " << catName << nl;
+			s << "index: " << String(++listIndex) << nl;
+			s << "author: various" << nl;
+			s << "modified: 01.01.2024" << nl;
+			s << "---" << nl << nl;
+					
+			std::sort(l.second.begin(), l.second.end());
+
+			for(const auto& i: l.second)
+			{
+				if(ignoreNames.indexOf(i.name) != -1)
+					continue;
+
+				showStatusMessage("Create docs for " + i.name);
+
+				auto img = i.createScreenshot(root);
+
+				if(threadToUse != nullptr && threadToUse->threadShouldExit())
+					return;
+
+				if(img.isValid())
+				{
+					auto imageFile = imgDirectory.getChildFile(MarkdownLink::Helpers::getSanitizedFilename(i.name)).withFileExtension("png");
+
+					imageFile.deleteFile();
+
+					FileOutputStream fos(imageFile);
+					format.writeImageToStream(img, fos);
+				}
+
+				s << i.createMarkdown(img.isValid());
+			}
+
+			auto targetFile = targetDirectory.getChildFile(MarkdownLink::Helpers::getSanitizedFilename(catName)).getChildFile("readme.md");
+
+			targetFile.getParentDirectory().createDirectory();
+			targetFile.replaceWithText(s);
+		}
+	}
+	else
+	{
+		showStatusMessage("Can't find snippet directory");
+	}
+}
+#endif
+
 DocUpdater::DocUpdater(MarkdownDatabaseHolder& holder_, bool fastMode_, bool allowEdit) :
 	MarkdownContentProcessor(holder_),
 	DialogWindowWithBackgroundThread("Update documentation", false),
@@ -167,6 +432,11 @@ DocUpdater::~DocUpdater()
 
 }
 
+
+void DocUpdater::runSilently(MarkdownDatabaseHolder& holder)
+{
+	new DocUpdater(holder, true, false);
+}
 
 void DocUpdater::run()
 {
@@ -435,265 +705,14 @@ void DocUpdater::createLocalHtmlFiles()
 void DocUpdater::createSnippetDatabase()
 {
 #if USE_BACKEND
-	showStatusMessage("Create Snippet database");
+	SnippetCreator sc(getHolder(), GET_BACKEND_ROOT_WINDOW(this), getCurrentThread());
 
-	auto root = GET_BACKEND_ROOT_WINDOW(this);
-
-	auto am = dynamic_cast<BackendProcessor*>(root->getBackendProcessor())->getAssetManager();
-	am->initialise();
-
-	auto appDataFolder = NativeFileHandler::getAppDataDirectory(nullptr);
-
-	auto f = appDataFolder.getChildFile("snippetBrowser.xml");
-
-	String snippetDirectory;
-
-	if(auto xml = XmlDocument::parse(f))
+	sc.logger = [this](const String& message)
 	{
-		if(auto c = xml->getChildByName("snippetDirectory"))
-			snippetDirectory = c->getStringAttribute("value");
-	}
+		this->showStatusMessage(message);
+	};
 
-	if(snippetDirectory.isNotEmpty())
-	{
-		File snippetRoot(snippetDirectory);
-
-		auto snippetList = snippetRoot.findChildFiles(File::findFiles, false, "*.md");
-
-		struct Item
-		{
-			Item(const MarkdownLink& l, const String& name_):
-			  name(name_)
-			{
-				auto h = l.getHeaderFromFile({});
-
-				description = l.toString(MarkdownLink::Format::ContentWithoutHeader);
-				priority = h.getKeyValue("priority").getIntValue();
-
-				auto catIndex = getCategories().indexOf(h.getKeyValue("category"));
-
-				if(catIndex != -1)
-					cat = (Category)catIndex;
-
-				snippet = h.getKeyValue("HiseSnippet");
-			}
-
-			static StringArray getCategories()
-			{
-				return { "All", "Modules", "MIDI", "Scripting", "Scriptnode", "UI" };
-			}
-
-			enum class Category
-			{
-				All,
-				Modules,
-				Midi,
-				Scripting,
-				Scriptnode,
-				UI,
-				numCategories
-			};
-
-			Image createScreenshot(BackendRootWindow* rw) const
-			{
-				
-				if(cat == Category::Scriptnode)
-				{
-					MainController::ScopedBadBabysitter sbb(rw->getBackendProcessor());
-
-					{
-						MessageManagerLock mm;
-						BackendCommandTarget::Actions::loadSnippet(rw, snippet);
-					}
-					
-					Processor::Iterator<DspNetwork::Holder> iter(rw->getMainSynthChain(), false);
-
-					while(auto holder = iter.getNextProcessor())
-					{
-						if(auto nw = holder->getActiveNetwork())
-						{
-							MessageManagerLock mm;
-
-							ScopedPointer<DspNetworkGraphPanel> c;
-
-							c = new scriptnode::DspNetworkGraphPanel(rw->getRootFloatingTile());
-
-							c->setContentWithUndo(dynamic_cast<Processor*>(holder), 0);
-
-
-							
-
-							if(auto graph = c->getContent<WrapperWithMenuBarBase>()->canvas.getContent<juce::Component>())
-							{
-								auto comp = dynamic_cast<Component*>(graph);
-
-								while(comp != nullptr)
-								{
-									comp->setVisible(true);
-									comp = comp->getParentComponent();
-								}
-
-								auto img = graph->createComponentSnapshot(graph->getLocalBounds(), true);
-								return img;
-							}
-						}
-					}
-				}
-				else
-				{
-					SuspendHelpers::ScopedTicket ss(rw->getBackendProcessor());
-
-					MainController::ScopedBadBabysitter sbb(rw->getBackendProcessor());
-
-					{
-						MessageManagerLock mm;
-						BackendCommandTarget::Actions::loadSnippet(rw, snippet);
-					}
-
-					if(auto jmp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(rw->getBackendProcessor()))
-					{
-						auto cs = Point<int>(jmp->getScriptingContent()->getContentWidth(), jmp->getScriptingContent()->getContentHeight());
-
-						if(cs == Point<int>(600, 500) || jmp->getScriptingContent()->getNumComponents() == 0)
-						{
-							Thread::getCurrentThread()->wait(200);
-							// skip the interface if its the default value
-							return {};
-						}
-
-						MessageManagerLock mm;
-
-						ScriptContentComponent content(jmp);
-						content.setNewContent(jmp->getScriptingContent());
-
-						content.setSize(content.getContentWidth(), content.getContentHeight());
-
-						return content.createComponentSnapshot(content.getLocalBounds(), true);
-					}
-				}
-
-				return {};
-			}
-
-			String createMarkdown(bool includeImage) const
-			{
-				String s;
-				String nl = "\n";
-
-				s << "## " << name << nl << nl;
-
-				if(includeImage)
-				{
-					s << "![](/images/snippets/" << MarkdownLink::Helpers::getSanitizedFilename(name) + ".png)" << nl;
-				}
-
-				s << description << nl << nl;
-
-				s << "```" << nl;
-				s << snippet << nl;
-				s << "```" << nl << nl;
-
-				return s;
-			}
-
-			bool operator<(const Item& other) const { return priority > other.priority; }
-			bool operator>(const Item& other) const { return priority < other.priority; }
-			bool operator==(const Item& other) const { return priority == other.priority; }
-
-			Category cat;
-			String description;
-			String snippet;
-			int priority = 3;
-			String name;
-		};
-
-		std::map<Item::Category, std::vector<Item>> list;
-
-		for(int i = 0; i < (int)Item::Category::numCategories; i++)
-		{
-			list[(Item::Category)i] = {};
-		}
-
-		for(auto sn: snippetList)
-		{
-			MarkdownLink l(snippetRoot, sn.getFileName());
-
-			Item i(l, sn.getFileNameWithoutExtension());
-			list[i.cat].push_back(i);
-		}
-
-		String nl = "\n";
-
-		auto targetDirectory = holder.getDatabaseRootDirectory().getChildFile("tutorials/");
-		auto imgDirectory = holder.getDatabaseRootDirectory().getChildFile("images").getChildFile("snippets");
-
-		if(imgDirectory.isDirectory())
-			imgDirectory.deleteRecursively();
-
-		imgDirectory.createDirectory();
-
-		auto brw = GET_BACKEND_ROOT_WINDOW(this);
-
-		targetDirectory.createDirectory();
-
-		PNGImageFormat format;
-
-		int listIndex = 0;
-
-		StringArray ignoreNames({ "_Template", "SnippetDB", "README"});
-
-		for(auto& l: list)
-		{
-			String s;
-
-			auto catName = Item::getCategories()[(int)l.first];
-
-			s << "---" << nl;
-			s << "keywords: " << catName << " Snippets" << nl;
-			s << "summary: Examples in the category " << catName << nl;
-			s << "index: " << String(++listIndex) << nl;
-			s << "author: various" << nl;
-			s << "modified: 01.01.2024" << nl;
-			s << "---" << nl << nl;
-			
-			std::sort(l.second.begin(), l.second.end());
-
-			for(const auto& i: l.second)
-			{
-				if(ignoreNames.indexOf(i.name) != -1)
-					continue;
-
-				showStatusMessage("Create docs for " + i.name);
-
-				auto img = i.createScreenshot(brw);
-
-				if(threadShouldExit())
-					return;
-
-				if(img.isValid())
-				{
-					auto imageFile = imgDirectory.getChildFile(MarkdownLink::Helpers::getSanitizedFilename(i.name)).withFileExtension("png");
-
-					imageFile.deleteFile();
-
-					FileOutputStream fos(imageFile);
-					format.writeImageToStream(img, fos);
-				}
-
-				s << i.createMarkdown(img.isValid());
-			}
-
-			auto targetFile = targetDirectory.getChildFile(MarkdownLink::Helpers::getSanitizedFilename(catName)).getChildFile("readme.md");
-
-			targetFile.getParentDirectory().createDirectory();
-
-			targetFile.replaceWithText(s);
-		}
-	}
-	else
-	{
-		showStatusMessage("Can't find snippet directory");
-	}
+	sc.createSnippetDatabase();
 #endif
 }
 

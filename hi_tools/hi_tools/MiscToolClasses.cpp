@@ -722,6 +722,18 @@ LockfreeAsyncUpdater::LockfreeAsyncUpdater() :
 int LockfreeAsyncUpdater::instanceCount = 0;
 
 
+bool FloatSanitizers::isSilence(const float value)
+{
+	static const float Silence = std::pow(10.0f, (float)HISE_SILENCE_THRESHOLD_DB * -0.05f);
+	static const float MinusSilence = -1.0f * Silence;
+	return value < Silence && value > MinusSilence;
+}
+
+bool FloatSanitizers::isNotSilence(const float value)
+{
+	return !isSilence(value);
+}
+
 void FloatSanitizers::sanitizeArray(float* data, int size)
 {
 	uint32* dataAsInt = reinterpret_cast<uint32*>(data);
@@ -753,7 +765,35 @@ float FloatSanitizers::sanitizeFloatNumber(float& input)
 	return input;
 }
 
+double FloatSanitizers::sanitizeDoubleNumber(double& input)
+{
+	uint64_t* valueAsInt = reinterpret_cast<uint64_t*>(&input);
+	const uint64_t exponent = *valueAsInt & 0x7FF0000000000000;
+
+	const int aNaN = exponent < 0x7FF0000000000000;
+	const int aDen = exponent > 0;
+
+	const uint64_t sanitized = *valueAsInt * (aNaN & aDen);
+
+	input = *reinterpret_cast<const double*>(&sanitized);
+
+	return input;
+}
+
+FloatSanitizers::Test::Test():
+	UnitTest("Testing float sanitizer")
+{
+
+}
+
 void FloatSanitizers::Test::runTest()
+{
+	testSingleSanitizer<float>();
+	testSingleSanitizer<double>();
+	testArray();
+}
+
+void FloatSanitizers::Test::testArray()
 {
 	beginTest("Testing array method");
 
@@ -775,28 +815,7 @@ void FloatSanitizers::Test::runTest()
 	expectEquals<float>(d[4], 24.0f, "Normal Number");
 	expectEquals<float>(d[5], 0.0052f, "Small Number");
 
-	beginTest("Testing single method");
-
-	float d0 = INFINITY;
-	float d1 = FLT_MIN / 20.0f;
-	float d2 = FLT_MIN / -14.0f;
-	float d3 = NAN;
-	float d4 = 24.0f;
-	float d5 = 0.0052f;
-
-	sanitizeFloatNumber(d0);
-	sanitizeFloatNumber(d1);
-	sanitizeFloatNumber(d2);
-	sanitizeFloatNumber(d3);
-	sanitizeFloatNumber(d4);
-	sanitizeFloatNumber(d5);
-
-	expectEquals<float>(d0, 0.0f, "Single Infinity");
-	expectEquals<float>(d1, 0.0f, "Single Denormal");
-	expectEquals<float>(d2, 0.0f, "Single Negative Denormal");
-	expectEquals<float>(d3, 0.0f, "Single NaN");
-	expectEquals<float>(d4, 24.0f, "Single Normal Number");
-	expectEquals<float>(d5, 0.0052f, "Single Small Number");
+			
 }
 
 
@@ -1695,7 +1714,7 @@ hise::TempoSyncer::Tempo TempoSyncer::getTempoIndex(const String &t)
 {
 	for (int i = 0; i < numTempos; i++)
 	{
-		if(strcmp(t.getCharPointer().getAddress(), tempoNames[i]))
+		if(strcmp(t.getCharPointer().getAddress(), tempoNames[i]) == 0)
 			return (Tempo)i;
 	}
 	
@@ -2426,7 +2445,7 @@ float FFTHelpers::getPixelValueForLogXAxis(float freq, float width)
 	return (width - 5) * (log(freq / lowFreq) / log(highFreq / lowFreq)) + 2.5f;
 }
 
-juce::PixelRGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput)
+juce::PixelARGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput, bool useAlphaValue)
 {
 	auto lutValue = data[jlimit(0, LookupTableSize - 1, roundToInt(normalisedInput * (float)LookupTableSize))];
 	float a = JUCE_LIVE_CONSTANT_OFF(0.3f);
@@ -2434,10 +2453,8 @@ juce::PixelRGB Spectrum2D::LookupTable::getColouredPixel(float normalisedInput)
 	auto r = (float)lutValue.getRed() * v;
 	auto g = (float)lutValue.getGreen() * v;
 	auto b = (float)lutValue.getBlue() * v;
-
-	PixelRGB returnValue;
-	returnValue.setARGB(255, (uint8)r, (uint8)g, (uint8)b);
-	return returnValue;
+	
+	return PixelARGB(useAlphaValue ? jmax(r, g, b) : 255, (uint8)r, (uint8)g, (uint8)b);
 }
 
 void Spectrum2D::LookupTable::setColourScheme(ColourScheme cs)
@@ -2493,15 +2510,13 @@ void Spectrum2D::LookupTable::setColourScheme(ColourScheme cs)
 Spectrum2D::LookupTable::LookupTable()
 {
 	setColourScheme(ColourScheme::violetToOrange);
-
-	
 }
 
 Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 {
 	TRACE_EVENT("scripting", "create spectrum image");
 
-    auto newImage = Image(useAlphaChannel ? Image::ARGB : Image::RGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels(), true);
+    auto newImage = Image(Image::ARGB, lastBuffer.getNumSamples(), lastBuffer.getNumChannels(), true);
 
 	Image::BitmapData bd(newImage, Image::BitmapData::writeOnly);
 	
@@ -2511,58 +2526,24 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 		
 		for(int x = 0; x < lastBuffer.getNumSamples(); x++)
 		{
-			auto lutValue = parameters->lut->getColouredPixel(src[x]);
-
-			if(useAlphaChannel)
-			{
-				auto r = lutValue.getRed();
-				auto g = lutValue.getGreen();
-				auto b = lutValue.getBlue();
-				auto a = jmax(r, g, b);
-
-				auto pp = (PixelARGB*)(bd.getPixelPointer(x, y));
-				pp->set(PixelARGB(a, r, g, b));
-			}
-			else
-			{
-				auto pp = (PixelRGB*)(bd.getPixelPointer(x, y));
-				pp->set(lutValue);
-			}
-				
+			auto lutValue = parameters->lut->getColouredPixel(src[x], useAlphaChannel);
+			auto pp = (PixelARGB*)(bd.getPixelPointer(x, y));
+			pp->set(lutValue);
 		}
 	}
 
-#if 0
-    for (int x = 0; x < s2dHalf; x++)
-    {
-        auto skewedProportionY = holder->getYPosition((float)x / (float)s2dHalf);
-        auto fftDataIndex = jlimit(0, s2dHalf-1, (int)(skewedProportionY * (int)s2dHalf));
+	testImage(newImage, false, "after creation");
 
-        for (int i = 0; i < lastBuffer.getNumSamples(); i++)
-        {
-            auto s = lastBuffer.getSample(fftDataIndex, i);
-            s *= (1.0f / gf);
-
-            auto alpha = jlimit(0.0f, 1.0f, s);
-
-            alpha = holder->getXPosition(alpha);
-            alpha = std::pow(alpha, parameters->gamma);
-
-			auto lutValue = parameters->lut->getColouredPixel(alpha);
-            newImage.setPixelAt(x, i, lutValue);
-        }
-    }
-#endif
 
     return newImage;
 }
 
 
 
-AudioSampleBuffer Spectrum2D::createSpectrumBuffer()
+AudioSampleBuffer Spectrum2D::createSpectrumBuffer(bool useFallback)
 {
 	TRACE_EVENT("scripting", "create spectrum buffer");
-    auto fft = juce::dsp::FFT(parameters->order);
+    auto fft = juce::dsp::FFT(parameters->order, useFallback);
 
     auto numSamplesToFill = jmax(0, originalSource.getNumSamples() / parameters->Spectrum2DSize * parameters->oversamplingFactor - 1);
 
@@ -2925,7 +2906,7 @@ void Spectrum2D::Parameters::Editor::paint(Graphics& g)
 	for (int i = 0; i < specArea.getWidth(); i+= 2)
 	{
 		auto ninput = (float)i / (float)specArea.getWidth();
-		auto p = param->lut->getColouredPixel(ninput);
+		auto p = param->lut->getColouredPixel(ninput, true);
 
 		Colour c(p.getNativeARGB());
 		g.setColour(c);

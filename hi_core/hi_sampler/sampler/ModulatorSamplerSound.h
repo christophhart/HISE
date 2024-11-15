@@ -138,6 +138,7 @@ DECLARE_ID(LoopStart);
 DECLARE_ID(LoopEnd);
 DECLARE_ID(LoopXFade);
 DECLARE_ID(LoopEnabled);
+DECLARE_ID(ReleaseStart);
 DECLARE_ID(LowerVelocityXFade);
 DECLARE_ID(UpperVelocityXFade);
 DECLARE_ID(SampleState);
@@ -184,7 +185,7 @@ struct Helpers
 	static const Array<Identifier>& getAudioIds()
 	{
 		static const Array<Identifier> ids = { SampleStart,  SampleEnd,  SampleStartMod,  
-			LoopEnabled,  LoopStart,  LoopEnd,  LoopXFade };
+			LoopEnabled,  LoopStart,  LoopEnd,  LoopXFade, ReleaseStart };
 
 		return ids;
 	}
@@ -198,7 +199,7 @@ struct Helpers
 	static bool isAudioProperty(const Identifier& id)
 	{
 		return id == SampleStart || id == SampleEnd || id == SampleStartMod || id == LoopEnabled ||
-			id == LoopStart || id == LoopEnd || id == LoopXFade;
+			id == LoopStart || id == LoopEnd || id == LoopXFade || id == ReleaseStart;
 	}
 
 	static Array<Identifier> getAllIds()
@@ -223,6 +224,7 @@ struct Helpers
 			LoopEnd,
 			LoopXFade,
 			LoopEnabled,
+			ReleaseStart,
 			LowerVelocityXFade,
 			UpperVelocityXFade,
 			SampleState,
@@ -278,6 +280,7 @@ public:
 		LoopEnd, ///< the loop end in samples. This is independent from the sample start / end, but it checks the bounds.
 		LoopXFade, ///< the loop crossfade at the end of the loop (using a precalculated buffer)
 		LoopEnabled, ///< true if the sample should be looped
+		ReleaseStart, ///< the offset in the sample that will jump to when the note is released
 		LowerVelocityXFade, ///< the length of the velocity crossfade (0 if there is no crossfade). If the crossfade starts at the bottom, it will have negative values.
 		UpperVelocityXFade, ///< the length of the velocity crossfade (0 if there is no crossfade). If the crossfade starts at the bottom, it will have negative values.
 		SampleState, ///< this property allows to set the state of samples between 'Normal', 'Disabled' and 'Purged'

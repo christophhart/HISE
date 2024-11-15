@@ -738,6 +738,12 @@ void FileBrowser::previewFile(const File& f)
         auto c = new mcl::XmlEditor(f);
         content = c;
 	}
+	else if (ff->isCSSFile(f))
+	{
+        auto c = new mcl::XmlEditor(f);
+        content = c;
+		c->editor.editor.setLanguageManager(new simple_css::LanguageManager(c->editor.editor.getTextDocument()));
+	}
     else if (ff->isAudioFile(f))
     {
         auto c = new AudioPreviewComponent(rootWindow->getBackendProcessor(), f);
@@ -883,6 +889,10 @@ void FileBrowser::mouseDoubleClick(const MouseEvent& )
 		rw->getMainPanel()->loadNewContainer(newRoot);
 	}
     else if (newRoot.getFileExtension() == ".xml")
+    {
+        previewFile(newRoot);
+    }
+	else if (newRoot.getFileExtension() == ".css")
     {
         previewFile(newRoot);
     }

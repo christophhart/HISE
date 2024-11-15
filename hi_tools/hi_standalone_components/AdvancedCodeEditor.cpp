@@ -34,6 +34,332 @@ namespace hise {
 using namespace juce;
 
 
+struct TextEditorWithAutocompleteComponent::Autocomplete: public Component,
+                                public ScrollBar::Listener,
+                                public ComponentMovementWatcher
+{
+    struct Item
+    {
+        String displayString;
+    };
+    
+    ScrollBar sb;
+    ScrollbarFader fader;
+       
+    
+    
+    void mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& details)
+    {
+        sb.mouseWheelMove(e, details);
+    }
+    
+    void scrollBarMoved (ScrollBar* scrollBarThatHasMoved,
+                                 double newRangeStart) override
+    {
+        repaint();
+    }
+    
+    Font f;
+    
+    void componentMovedOrResized (bool wasMoved, bool wasResized) override
+    {
+        dismiss();
+    }
+
+    /** This callback happens when the component's top-level peer is changed. */
+    void componentPeerChanged() {};
+
+    /** This callback happens when the component's visibility state changes, possibly due to
+        one of its parents being made visible or invisible.
+    */
+    void componentVisibilityChanged() override
+    {
+        if(getComponent()->isShowing())
+            dismiss();
+    }
+    
+    Autocomplete(TextEditorWithAutocompleteComponent& p):
+      ComponentMovementWatcher(dynamic_cast<Component*>(&p)),
+      parent(&p),
+      sb(true)
+    {
+        f = parent->getTextEditor()->getFont();
+        
+        sb.addListener(this);
+        addAndMakeVisible(sb);
+        fader.addScrollBarToAnimate(sb);
+
+        for(auto& i: p.autocompleteItems)
+            allItems.add({i});
+
+        sb.setSingleStepSize(0.2);
+        
+        auto& ed = *parent->getTextEditor();
+        
+        update(ed.getText());
+        
+        setSize(jmax(300, ed.getWidth() + 20), TextEditorWithAutocompleteComponent::ItemHeight * 4 + 5 + 20);
+        
+        setWantsKeyboardFocus(true);
+
+		Component* top = dynamic_cast<Component*>(getParentAsComponent()->findParentComponentOfClass<Parent>());
+
+        if(top == nullptr)
+			top = TopLevelWindowWithOptionalOpenGL::findRoot(getParentAsComponent());
+
+        if(top == nullptr)
+            top = getParentAsComponent()->getTopLevelComponent();
+
+        top->addChildComponent(this);
+        auto topLeft = top->getLocalArea(&ed, ed.getLocalBounds()).getTopLeft();
+        
+        setTopLeftPosition(topLeft.getX() - 10, topLeft.getY() + ed.getHeight());
+
+#if JUCE_DEBUG
+        setVisible(true);
+#else
+        Desktop::getInstance().getAnimator().fadeIn(this, 150);
+#endif
+        
+    }
+    
+    ~Autocomplete()
+    {
+        setComponentEffect(nullptr);
+    }
+    
+    int selectedIndex = 0;
+    
+    void mouseDown(const MouseEvent& e) override
+    {
+        auto newIndex = sb.getCurrentRangeStart() + (e.getPosition().getY() - 15) / ItemHeight;
+        
+        if(isPositiveAndBelow(newIndex, items.size()))
+            setSelectedIndex(newIndex);
+    }
+    
+    void mouseDoubleClick(const MouseEvent& e) override
+    {
+        setAndDismiss();
+    }
+    
+    bool inc(bool next)
+    {
+        auto newIndex = selectedIndex + (next ? 1 : -1);
+        
+        if(isPositiveAndBelow(newIndex, items.size()))
+        {
+            setSelectedIndex(newIndex);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    bool keyPressed(const KeyPress& k)
+    {
+        if(k == KeyPress::upKey)
+            return inc(false);
+        if(k == KeyPress::downKey)
+            return inc(true);
+        if(k == KeyPress::escapeKey)
+            return dismiss();
+        if(k == KeyPress::returnKey ||
+           k == KeyPress::tabKey)
+            return setAndDismiss();
+        
+        return false;
+    }
+    
+    void setSelectedIndex(int index)
+    {
+
+        
+        selectedIndex = index;
+        
+        if(!sb.getCurrentRange().contains(selectedIndex))
+        {
+            if(sb.getCurrentRange().getStart() > selectedIndex)
+                sb.setCurrentRangeStart(selectedIndex);
+            else
+                sb.setCurrentRangeStart(selectedIndex - 3);
+        }
+        
+        repaint();
+    }
+    
+    void resized() override
+    {
+        sb.setBounds(getLocalBounds().reduced(10).removeFromRight(16).reduced(1));
+    }
+
+	
+
+	LookAndFeelMethods laf;
+
+    void paint(Graphics& g) override
+    {
+        auto r = sb.getCurrentRange();
+		auto offset = roundToInt(r.getStart());
+		auto thisIndex = selectedIndex - offset;
+
+		StringArray thisItems;
+
+		if(!items.isEmpty())
+		{
+			for(int i = 0; i < 4; i++)
+			{
+				thisItems.add(items[i + offset].displayString);
+			}
+		}
+
+		laf.drawAutocompleteBackground(g, *parent->getTextEditor(), getLocalBounds().toFloat(), thisItems, thisIndex);
+    }
+    
+    bool setAndDismiss()
+    {
+        auto newTextAfterComma = items[selectedIndex].displayString;
+        auto ed = parent->getTextEditor();
+        
+        String nt = ed->getText();
+            
+        if(nt.containsChar(','))
+        {
+            nt = nt.upToLastOccurrenceOf(",", false, false);
+            nt << ", " << newTextAfterComma;
+        }
+        else
+            nt = newTextAfterComma;
+        
+        ed->setText(nt, true);
+        
+        return dismiss();
+    }
+    
+    bool dismiss()
+    {
+        SafeAsyncCall::call<TextEditorWithAutocompleteComponent>(*parent, [](TextEditorWithAutocompleteComponent& ti)
+        {
+            ti.dismissAutocomplete();
+            ti.getTextEditor()->grabKeyboardFocusAsync();
+        });
+        
+        return true;
+    }
+
+    Component* getParentAsComponent()
+    {
+	    return dynamic_cast<Component*>(parent.get());
+    }
+
+    void update(const String& currentText)
+    {
+        auto search = currentText.fromLastOccurrenceOf(",", false, false).toLowerCase().trim();
+        
+        items.clear();
+        
+        for(const auto& i: allItems)
+        {
+            if(search.isEmpty() || i.displayString.toLowerCase().contains(search))
+            {
+                items.add(i);
+            }
+        }
+        
+        sb.setRangeLimits(0.0, (double)items.size());
+        sb.setCurrentRange(0.0, 4.0);
+        setSelectedIndex(0);
+        
+        if(items.isEmpty())
+            dismiss();
+    }
+    
+    Array<Item> allItems;
+    Array<Item> items;
+    
+    WeakReference<TextEditorWithAutocompleteComponent> parent;
+};
+
+void TextEditorWithAutocompleteComponent::textEditorReturnKeyPressed(TextEditor& e)
+{
+	if(auto ac = getCurrentAutocomplete())
+		ac->setAndDismiss();
+}
+
+void TextEditorWithAutocompleteComponent::textEditorEscapeKeyPressed(TextEditor& e)
+{
+	if(currentAutocomplete != nullptr)
+		dismissAutocomplete();
+	else
+		currentAutocomplete = new Autocomplete(*this);
+}
+
+bool TextEditorWithAutocompleteComponent::AutocompleteNavigator::keyPressed(const KeyPress& k, Component* originatingComponent)
+{
+    if(k == KeyPress::tabKey)
+    {
+        if(parent.currentAutocomplete != nullptr)
+			parent.dismissAutocomplete();
+
+	    parent.getTextEditor()->moveKeyboardFocusToSibling(true);
+        return true;
+    }
+
+    if(parent.currentAutocomplete == nullptr)
+		return false;
+
+	if(auto ac = parent.getCurrentAutocomplete())
+	{
+		if(k == KeyPress::upKey)
+			return ac->inc(false);
+		if(k == KeyPress::downKey)
+			return ac->inc(true);
+	}
+        
+	return false;
+}
+
+TextEditorWithAutocompleteComponent::Autocomplete* TextEditorWithAutocompleteComponent::getCurrentAutocomplete()
+{
+	return dynamic_cast<Autocomplete*>(currentAutocomplete.get());
+}
+
+void TextEditorWithAutocompleteComponent::showAutocomplete(const String& currentText)
+{
+    if(useDynamicAutocomplete)
+    {
+        if(auto hd = dynamic_cast<Component*>(this)->findParentComponentOfClass<Parent>())
+            autocompleteItems = hd->getAutocompleteItems(getIdForAutocomplete());
+        else
+            autocompleteItems = {};
+    }
+    
+	if(!autocompleteItems.isEmpty() && currentAutocomplete == nullptr)
+	{
+		currentAutocomplete = new Autocomplete(*this);
+	}
+	else
+	{
+		if(currentText.isEmpty())
+			currentAutocomplete = nullptr;
+		else if (auto ac = getCurrentAutocomplete())
+			ac->update(currentText);
+	}
+}
+
+void TextEditorWithAutocompleteComponent::dismissAutocomplete()
+{
+	stopTimer();
+#if JUCE_DEBUG
+    if(currentAutocomplete != nullptr)
+		currentAutocomplete->setVisible(false);
+#else
+    if(currentAutocomplete != nullptr)
+		Desktop::getInstance().getAnimator().fadeOut(currentAutocomplete, 150);
+#endif
+	currentAutocomplete = nullptr;
+}
+
 JavascriptCodeEditor::JavascriptCodeEditor(CodeDocument &document, CodeTokeniser *codeTokeniser, ApiProviderBase::Holder *holder, const Identifier& snippetId_) :
 	CodeEditorComponent(document, codeTokeniser),
 	ApiComponentBase(holder),

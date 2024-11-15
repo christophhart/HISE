@@ -68,7 +68,7 @@ public:
 
 	void preloadStateChanged(bool isPreloading) override;
 
-	void recordStateChanged(bool state) override;
+	void recordStateChanged(DebugLogger::Listener::RecordState state) override;
 
 	void mouseDown(const MouseEvent& e) override;
 

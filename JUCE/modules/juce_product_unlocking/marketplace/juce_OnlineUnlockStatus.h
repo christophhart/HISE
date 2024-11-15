@@ -149,16 +149,13 @@ inline var contains(const String& otherString)
 {
     auto s = getPublicKey().toString().fromFirstOccurrenceOf(",", false, false);
 
-    // Calculate if the key contains the string, set to false initially
-    var x = status[unlockedProp] && s.contains(otherString);
+        var x = s.contains(otherString);
 
-    // Set the unlocked property status to the result of the check
-    status.setProperty(unlockedProp, x, nullptr);
-
-    // Directly return the result of the check without early true/false assumptions
-    return x;
-}
-
+        if(!x)
+            status.setProperty(unlockedProp, false, nullptr);
+        
+        return x;
+    }
 
     /** Returns the Time when the keyfile expires.
 
@@ -181,6 +178,10 @@ inline var contains(const String& otherString)
 	 current unlocked state.
 	*/
 	bool unlockWithTime(Time verifiedTimeObject);
+
+#if JUCE_ALLOW_EXTERNAL_UNLOCK
+    inline void unlockExternal() { status.setProperty(unlockedProp, true, nullptr); };
+#endif
 
     /** Optionally allows the app to provide the user's email address if
         it is known.

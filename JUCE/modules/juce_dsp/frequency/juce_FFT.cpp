@@ -50,8 +50,19 @@ struct FFT::Engine
     virtual FFT::Instance* create (int order) const = 0;
 
     //==============================================================================
-    static FFT::Instance* createBestEngineForPlatform (int order)
+    static FFT::Instance* createBestEngineForPlatform (int order, bool forceFallback)
     {
+        if(forceFallback)
+        {
+	        for(auto* e: getEngines())
+	        {
+		        if(e->enginePriority == -1)
+                    return e->create(order);
+	        }
+
+            jassertfalse;
+        }
+
         for (auto* engine : getEngines())
             if (auto* instance = engine->create (order))
                 return instance;
@@ -951,8 +962,8 @@ FFT::EngineImpl<IntelPerformancePrimitivesFFT> intelPerformancePrimitivesFFT;
 
 //==============================================================================
 //==============================================================================
-FFT::FFT (int order)
-    : engine (FFT::Engine::createBestEngineForPlatform (order)),
+FFT::FFT (int order, bool forceFallback)
+    : engine (FFT::Engine::createBestEngineForPlatform (order, forceFallback)),
       size (1 << order)
 {
 }
@@ -979,6 +990,11 @@ void FFT::performRealOnlyInverseTransform (float* inputOutputData) const noexcep
 {
     if (engine != nullptr)
         engine->performRealOnlyInverseTransform (inputOutputData);
+}
+
+bool FFT::isFallbackEngine () const noexcept
+{
+	return dynamic_cast<FFTFallback*>(engine.get()) != nullptr;
 }
 
 void FFT::performFrequencyOnlyForwardTransform (float* inputOutputData) const noexcept

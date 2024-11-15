@@ -68,6 +68,8 @@ public:
 		modSelector->clear(dontSendNotification);
 		carrierSelector->clear(dontSendNotification);
 
+        
+
 		auto offset = (int)ModulatorSynthGroup::InternalChains::numInternalChains;
 
 		carrierSelector->addItem("Enable All Synths", -1);

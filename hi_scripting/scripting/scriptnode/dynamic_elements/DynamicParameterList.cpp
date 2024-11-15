@@ -451,6 +451,7 @@ juce::Path ui::Factory::createPath(const String& url) const
 	Path p;
 	LOAD_EPATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
+	LOAD_PATH_IF_URL("local", ColumnIcons::localIcon);
 	LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
 	LOAD_PATH_IF_URL("edit", ColumnIcons::moveIcon);
 
@@ -466,21 +467,32 @@ namespace ui
 	{
 		ConnectionEditor(NodeBase* n_, ValueTree connectionTree, int index_, int numParameters_) :
 			deleteButton("delete", this, f),
+		    localButton("local", this, f),
 			n(n_),
-			editor(n_, true, connectionTree, RangeHelpers::getHiddenIds()),
 			c(connectionTree),
 			index(index_),
 			numParameters(numParameters_)
 		{
 			addAndMakeVisible(deleteButton);
-			addAndMakeVisible(editor);
+			addAndMakeVisible(localButton);
 
-			setSize(editor.getWidth(), editor.p.getTotalContentHeight() + 24);
+			deleteButton.setTooltip("Remove connection");
+			localButton.setTooltip("Replace connection with local cable node");
+
+			if(auto targetNode = n->getRootNetwork()->getNodeWithId(connectionTree[PropertyIds::NodeId].toString()))
+			{
+				localButton.setVisible(!targetNode->getPath().toString().contains("local_cable"));
+			}
+
+			setSize(400, 24);
 		}
 
 		void buttonClicked(Button* b) override
 		{
-			c.getParent().removeChild(c, n->getUndoManager());
+			if(b == &deleteButton)
+				c.getParent().removeChild(c, n->getUndoManager());
+			else
+				routing::local_cable_base::Helpers::create(n->getRootNetwork(), c);
 		}
 
 		void paint(Graphics& g) override
@@ -502,8 +514,9 @@ namespace ui
 			auto b = getLocalBounds();
 
 			auto top = b.removeFromTop(24);
+			top.removeFromLeft(top.getHeight());
 			deleteButton.setBounds(top.removeFromRight(24).reduced(2));
-			editor.setBounds(b);
+			localButton.setBounds(top.removeFromLeft(24).reduced(2));
 		}
 
 		int index;
@@ -512,8 +525,7 @@ namespace ui
 		NodeBase::Ptr n;
 		Factory f;
 		ValueTree c;
-		PropertyEditor editor;
-		HiseShapeButton deleteButton;
+		HiseShapeButton deleteButton, localButton;
 	};
 
 	struct dynamic_list_editor::MultiConnectionEditor::OutputEditor : public Component
@@ -791,6 +803,7 @@ namespace ui
 			details->setProperty(PropertyIds::SwitchTarget, true);
 
 			container->startDragging(var(details), this, ScaledImage(ModulationSourceBaseComponent::createDragImageStatic(false)));
+			ZoomableViewport::checkDragScroll(e, false);
 			findParentComponentOfClass<DspNetworkGraph>()->repaint();
 		}
 	}
@@ -799,6 +812,7 @@ namespace ui
 	{
 		CHECK_MIDDLE_MOUSE_UP(event);
 
+		ZoomableViewport::checkDragScroll(event, true);
 		findParentComponentOfClass<DspNetworkGraph>()->repaint();
 	}
 

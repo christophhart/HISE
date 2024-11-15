@@ -944,7 +944,11 @@ template <typename T> struct heap
 	{
 		if (numElements != size())
 		{
-			data.allocate(numElements, true);
+			if(numElements == 0)
+				data.free();
+			else
+				data.allocate(numElements, true);
+
 			size_ = numElements;
 		}
 	}

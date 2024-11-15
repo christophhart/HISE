@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_streaming
   vendor:           Hart Instruments
-  version:          4.0.0
+  version:          4.1.0
   name:             HISE Streaming module
   description:      The streaming sampler classes for HISE
   website:          http://hise.audio
@@ -91,6 +91,15 @@ Set this to true in order to use cubic interpolation for the sample playback.
 */
 #ifndef HISE_SAMPLER_CUBIC_INTERPOLATION
 #define HISE_SAMPLER_CUBIC_INTERPOLATION 0
+#endif
+
+/** Config: HISE_SAMPLER_ALLOW_RELEASE_START
+
+Set this to false to disable the release start feature.
+
+*/
+#ifndef HISE_SAMPLER_ALLOW_RELEASE_START
+#define HISE_SAMPLER_ALLOW_RELEASE_START 1
 #endif
 
 

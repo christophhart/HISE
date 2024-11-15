@@ -1,0 +1,203 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 16.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Create New Project",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "label\n{\n\tdisplay: none;\n}\n\n\n\n.top-label\n{\n\tcolor: #ddd;\n\twidth: 100%;\n\ttext-align: left;\n}\n\n.toggle-button\n{\n\tcolor: #ccc;\n\ttext-align: left;\n\tpadding-left: 10px;\n\t\n\t\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n#title\n{\n\ttext-align: left;\n\tpadding-left: 10px;\n\twidth: 100%;\n}\n\n#cancel\n{\n\torder: 1;\n}\n\n#next\n{\n\torder: 1;\n\tcontent: \"Create\";\n}\n\nprogress\n{\n\tmargin-right: 30px;\n\tcolor: #999;\n}",
+    "UseViewport": true,
+    "ConfirmClose": false,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 1000,
+    "DialogHeight": 720
+  },
+  "GlobalState": {
+    "DefaultProjectFolder": "",
+    "UseDefault": "1",
+    "Template": "0"
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "JavascriptFunction",
+          "ID": "folderInitialiser",
+          "Code": "{BIND::initFolder}"
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "Project Name",
+          "Class": ".top-label"
+        },
+        {
+          "Type": "TextInput",
+          "Text": "Project Name",
+          "ID": "ProjectName",
+          "Height": 80,
+          "Code": "{BIND::onProjectNameUpdate}",
+          "Help": "The name of the project folder that you are about to create.\n\n> Every new project will be created as subfolder of this directory.",
+          "CallOnTyping": true,
+          "EmptyText": "Enter a project name",
+          "Required": true
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "Location",
+          "Class": ".top-label"
+        },
+        {
+          "Type": "FileSelector",
+          "Text": "Location",
+          "ID": "DefaultProjectFolder",
+          "UseInitValue": true,
+          "Help": "Choose a folder that will be used as your HISE work folder.\n\n> Every project will be created as a subfolder of this directory.",
+          "Code": "{BIND::onProjectNameUpdate}",
+          "Required": true,
+          "Directory": true
+        },
+        {
+          "Type": "Button",
+          "Text": "Use as default location",
+          "ID": "UseDefault",
+          "InitValue": "1",
+          "UseInitValue": true,
+          "Help": "You can choose to set this location as default folder for all projects.\n\n> This setting can also be changed in the **Development Settings** as `DefaultFolderPath`."
+        },
+        {
+          "Type": "JavascriptFunction",
+          "ID": "writeDefaultLocation",
+          "EventTrigger": "OnSubmit",
+          "Code": "{BIND::writeDefaultLocation}"
+        },
+        {
+          "Type": "Column",
+          "Children": []
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "The project folder will be created at:  \n$DefaultProjectFolder/$ProjectName",
+          "Style": "color: #999;",
+          "ID": "folderPreview"
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "Project Template",
+          "Class": ".top-label",
+          "Style": "margin-top: 30px;"
+        },
+        {
+          "Type": "Choice",
+          "Text": "Project Template",
+          "ID": "Template",
+          "InitValue": "0",
+          "UseInitValue": true,
+          "ValueMode": "Index",
+          "Items": "Empty Project\nImport HXI\nRhapsody Template",
+          "Help": "You can choose different options for creating the project:\n\n- Empty project will create a blank project\n- Import HXI lets you import a previously exported project or Rhapsody expansion\n- Rhapsody template will create a project with the default Rhapsody Player layout",
+          "Code": "{BIND::onTemplateSelector}"
+        },
+        {
+          "Type": "Branch",
+          "Children": [
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "LambdaTask",
+                  "ID": "createEmptyProject",
+                  "EventTrigger": "OnSubmit",
+                  "Function": "createEmptyProject",
+                  "Visibility": "Placeholder"
+                }
+              ],
+              "Text": ""
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "SimpleText",
+                  "Text": "File to import",
+                  "Class": ".top-label"
+                },
+                {
+                  "Type": "FileSelector",
+                  "ID": "hxiFile",
+                  "Visibility": "Default",
+                  "Wildcard": "*.hxi,*.lwc",
+                  "Help": "Select the .hxi (or .lwc) file that contains the project you want to extract",
+                  "UseInitValue": ""
+                },
+                {
+                  "Type": "LambdaTask",
+                  "ID": "importHxiTask",
+                  "EventTrigger": "OnSubmit",
+                  "EmptyText": "Click Create to extract the project archive...",
+                  "Function": "importHxiTask"
+                }
+              ],
+              "Text": ""
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "CoallascatedTask",
+                  "ID": "RhapsodyTask",
+                  "EventTrigger": "OnSubmit",
+                  "Children": [
+                    {
+                      "Type": "DownloadTask",
+                      "Text": "Downloading Rhapsody...",
+                      "ID": "DownloadRhapsody",
+                      "Source": "https://docs.hise.audio/info.hxi",
+                      "Target": "$DefaultProjectFolder/$ProjectName/info.hxi"
+                    },
+                    {
+                      "Type": "LambdaTask",
+                      "Text": "Extract Rhapsody template...",
+                      "ID": "extractRhapsody",
+                      "Function": "extractRhapsody"
+                    }
+                  ],
+                  "Text": "",
+                  "EmptyText": "Click Create to download & extract the Rhapsody template"
+                }
+              ],
+              "Text": ""
+            }
+          ],
+          "ID": "Template"
+        }
+      ],
+      "Text": "",
+      "Style": "gap:10px; width: 65%"
+    }
+  ],
+  "Assets": []
+}

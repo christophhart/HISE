@@ -1205,7 +1205,7 @@ PatchBrowser::PatchCollection::PatchCollection(int index, ModulatorSynth *synth,
 
 	foldButton->setVisible(true);
 
-    setTooltip("Show " + synth->getId() + " editor");
+    setTooltip(synth->getId() + ", Type: " + synth->getType().toString());
     
 	idLabel.setFont(GLOBAL_BOLD_FONT().withHeight(JUCE_LIVE_CONSTANT_OFF(16.0f)));
 
@@ -1554,7 +1554,7 @@ lastId(String()),
 hierarchy(hierarchy_),
 lastMouseDown(0)
 {
-    setTooltip("Show " + p->getId() + " editor");
+    setTooltip(p->getId() + ", Type: " + p->getType());
     
 	addAndMakeVisible(closeButton);
 	addAndMakeVisible(createButton);
@@ -1855,9 +1855,23 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 
 	g.setColour(Colour(0xFF222222));
 
+	if(auto rv = dynamic_cast<snex::Types::VoiceResetter*>(p.get()))
+	{
+		if(!rv->isVoiceResetActive())
+			g.setColour(Colour(0x44222222));
+
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("!", iconSpace.translated(0.0f, -1.0f), Justification::centred);
+		g.drawEllipse(iconSpace.reduced(JUCE_LIVE_CONSTANT_OFF(3.0f)), 1.5f);
+
+		g.setColour(Colour(0xFF222222));
+	}
+
 	g.drawRoundedRectangle(iconSpace, 2.0f, 2.0f);
 
 	g.setColour(ProcessorHelpers::is<Chain>(p.get()) ? Colours::black.withAlpha(0.6f) : Colours::black);
+
+	
 
 	auto ds = getDragState();
 

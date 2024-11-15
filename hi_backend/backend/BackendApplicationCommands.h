@@ -196,6 +196,7 @@ public:
 		MenuToolsSimulateChangingBufferSize,
         MenuToolsCreateRnboTemplate,
 		MenuToolsCreateThirdPartyNode,
+		MenuToolsCreateGlobalCableCppCode,
 		// ----------------------------------
 		// License Management
 		MenuToolsCreateRSAKeys,
@@ -276,13 +277,7 @@ public:
 
 	bool perform(const InvocationInfo &info) override;
 	
-	void updateCommands()
-	{
-		mainCommandManager->commandStatusChanged();
-		createMenuBarNames();
-
-		menuItemsChanged();
-	}
+	void updateCommands();
 
 	void setCopyPasteTarget(CopyPasteTarget *newTarget);
 
@@ -357,7 +352,6 @@ public:
 		static Result exportInstrumentExpansion(BackendProcessor* bp);
 		static Result createSampleArchive(BackendProcessor* bp);
 
-
 		static void compileNetworksToDll(BackendRootWindow* bpe);
 		static void cleanBuildDirectory(BackendRootWindow * bpe);
 		static void convertAllSamplesToMonolith(BackendRootWindow * bpe);
@@ -403,6 +397,10 @@ public:
 		static void exportProject(BackendRootWindow* bpe, int buildOption);
 
 		static void cleanDspNetworkFiles(BackendRootWindow* bpe);
+
+		static void createGlobalCableCppCode(BackendRootWindow* bpe);
+
+		static void exportAudio(BackendRootWindow* bpe);
 	};
 
 private:
@@ -450,6 +448,11 @@ struct XmlBackupFunctions
 private:
 
 	static String getSanitiziedName(const String &id);
+};
+
+struct GitHashManager
+{
+	static void checkHash(const String& hashToUse, const std::function<void(const var&)>& finishCallbackWithNextHash);
 };
 
 } // namespace hise

@@ -62,6 +62,7 @@ ZoomableViewport::ZoomableViewport(Component* n) :
 	hBar(false),
 	vBar(true),
 	content(n),
+	dragScrollTimer(*this),
 	mouseWatcher(new MouseWatcher(*this))
 {
     sf.addScrollBarToAnimate(hBar);
@@ -108,6 +109,16 @@ ZoomableViewport::~ZoomableViewport()
 	content = nullptr;
 }
 
+bool ZoomableViewport::checkDragScroll(const MouseEvent& e, bool isMouseUp)
+{
+	if(auto vp = e.eventComponent->findParentComponentOfClass<ZoomableViewport>())
+	{
+		vp->dragScrollTimer.setPosition(e, isMouseUp);
+	}
+
+	return false;
+}
+
 bool ZoomableViewport::checkViewportScroll(const MouseEvent& e, const MouseWheelDetails& wheel)
 {
 	if (wheel.deltaX > 0.0 || wheel.deltaY > 0.0)
@@ -125,6 +136,12 @@ bool ZoomableViewport::checkViewportScroll(const MouseEvent& e, const MouseWheel
 
 bool ZoomableViewport::checkMiddleMouseDrag(const MouseEvent& e, MouseEventFlags type)
 {
+	if(e.mods.isX1ButtonDown())
+		return true;
+
+	if(e.mods.isX2ButtonDown())
+		return true;
+
 	if (e.mods.isMiddleButtonDown())
 	{
 		if (auto vp = e.eventComponent->findParentComponentOfClass<ZoomableViewport>())
@@ -333,6 +350,41 @@ void ZoomableViewport::timerCallback()
 	}
 
 	repaint();
+}
+
+void ZoomableViewport::scrollToRectangle(Rectangle<int> areaToShow, bool skipIfVisible, bool animate)
+{
+	auto tBounds = getLocalBounds().toDouble();
+	auto aBounds = areaToShow.toDouble();
+
+	auto areaInViewport = getLocalArea(content, areaToShow).toDouble();
+
+	auto centerPositionInGraph = areaToShow.getCentre().toDouble();
+	auto cBounds = getLocalArea(content, content->getLocalBounds()).toDouble();
+
+	auto visibleArea = cBounds.getIntersection(tBounds);
+
+	if(!skipIfVisible || !visibleArea.contains(areaInViewport))
+	{
+		auto centerX = centerPositionInGraph.getX() * zoomFactor;
+		auto centerY = centerPositionInGraph.getY() * zoomFactor;
+
+		auto offsetX = getLocalBounds().getWidth() / 2 - centerX;
+		auto offsetY = getLocalBounds().getHeight() / 2 - centerY;
+
+		auto normX = Helpers::pixelToNorm(offsetX, cBounds.getWidth(), tBounds.getWidth());
+		auto normY = Helpers::pixelToNorm(offsetY, cBounds.getHeight(), tBounds.getHeight());
+
+		if(animate)
+		{
+			dragScrollTimer.scrollToPosition({normX, normY});
+		}
+		else
+		{
+			hBar.setCurrentRangeStart(normX, sendNotificationSync);
+			vBar.setCurrentRangeStart(normY, sendNotificationSync);
+		}
+	}
 }
 
 void ZoomableViewport::zoomToRectangle(Rectangle<int> areaToShow)
@@ -620,6 +672,106 @@ void SubmenuComboBox::rebuildPopupMenu()
 	createPopupMenu(menu, sa, activeIndexes);
 
 	refreshTickState();
+}
+
+void ZoomableViewport::DragScrollTimer::timerCallback()
+{
+	if(scrollAnimationCounter != -1)
+	{
+		auto numFrames = JUCE_LIVE_CONSTANT_OFF(30);
+		auto alpha = (double)scrollAnimationCounter++ / (double)(numFrames);
+		alpha = hmath::pow(alpha, 6.0);
+
+		auto newX = Interpolator::interpolateLinear(scrollAnimationStart.getX(), scrollAnimationTarget.getX(), alpha);
+		auto newY = Interpolator::interpolateLinear(scrollAnimationStart.getY(), scrollAnimationTarget.getY(), alpha);
+
+		parent.hBar.setCurrentRangeStart(newX, sendNotificationSync);
+		parent.vBar.setCurrentRangeStart(newY, sendNotificationSync);
+
+		if(scrollAnimationCounter > numFrames)
+		{
+			scrollAnimationCounter = -1;
+			stopTimer();
+			scrollAnimationStart = {};
+			scrollAnimationTarget = {};
+		}
+	}
+
+	auto factor = JUCE_LIVE_CONSTANT_OFF(0.03);
+	auto expo = JUCE_LIVE_CONSTANT_OFF(1.2);
+	
+	auto dx = jlimit(-1.0, 1.0, (double)xDelta / (double)(parent.getWidth() / 5));
+	auto dy = jlimit(-1.0, 1.0, (double)yDelta / (double)(parent.getHeight() / 5));
+
+	dx = hmath::sign(dx) * std::pow(hmath::abs(dx), expo);
+	dy = hmath::sign(dy) * std::pow(hmath::abs(dy), expo);
+
+	auto a = JUCE_LIVE_CONSTANT_OFF(0.74);
+
+	dx = lx * a + dx * (1.0 - a);
+	dy = ly * a + dy * (1.0 - a);
+
+	lx = dx;
+	ly = dy;
+
+	dx *= factor;
+	dy *= factor;
+
+	parent.hBar.setCurrentRangeStart(jlimit(0.0, 1.0, parent.hBar.getCurrentRangeStart() + dx));
+	parent.vBar.setCurrentRangeStart(jlimit(0.0, 1.0, parent.vBar.getCurrentRangeStart() + dy));
+}
+
+void ZoomableViewport::DragScrollTimer::setPosition(const MouseEvent& e, bool isMouseUp)
+{
+	if(isMouseUp)
+	{
+		wasInCentre = false;
+		lx = 0.0;
+		ly = 0.0;
+
+		if(scrollAnimationCounter == -1)
+			stopTimer();
+		return;
+	}
+
+	if(scrollAnimationCounter != -1)
+		return;
+
+	auto vpos = parent.getLocalPoint(e.eventComponent, e.getPosition());
+	auto vb = parent.getLocalBounds();
+	auto padding = jmin(vb.getWidth(), vb.getHeight()) / 6;
+
+	vb = vb.reduced(padding);
+
+	if(vpos.getX() > vb.getRight())
+		xDelta = vpos.getX() - vb.getRight();
+	else if (vpos.getX() < vb.getX())
+		xDelta = vpos.getX() - vb.getX();
+	else
+		xDelta = 0;
+
+	if(vpos.getY() > vb.getBottom())
+		yDelta = vpos.getY() - vb.getBottom();
+	else if (vpos.getY() < vb.getY())
+		yDelta = vpos.getY() - vb.getY();
+	else 
+		yDelta = 0;
+
+	if(xDelta == 0 && yDelta == 0)
+		wasInCentre = true;
+
+	auto shouldScroll = wasInCentre && (xDelta != 0 || yDelta != 0);
+
+	if(shouldScroll != isTimerRunning())
+	{
+		if(shouldScroll)
+			startTimer(30);
+		else
+		{
+			if(hmath::abs(lx) < 0.005 && hmath::abs(ly) < 0.005)
+				stopTimer();
+		}
+	}
 }
 
 ZoomableViewport::MouseWatcher::MouseWatcher(ZoomableViewport& p):

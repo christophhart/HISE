@@ -69,9 +69,14 @@ private:
 
 	
 
-	static File getFilePathArgument(const StringArray& args, const File& root = File())
+	static File getFilePathArgument(const StringArray& args, const File& root = File(), const String& wildcard="-p:")
 	{
-		auto s = getArgument(args, "-p:");
+		if(wildcard.isNotEmpty())
+		{
+			jassert(wildcard.startsWithChar('-') && wildcard.endsWithChar(':'));
+		}
+
+		auto s = getArgument(args, wildcard);
 
 		if (s.isNotEmpty() && File::isAbsolutePath(s))
 			return File(s);
@@ -84,9 +89,14 @@ private:
 				return rel;
 		}
 
-		throwErrorAndQuit("`" + s + "` is not a valid path");
+		// other wildcards are optional
+		if(wildcard == "-p:")
+		{
+			throwErrorAndQuit("`" + s + "` is not a valid path");
+			RETURN_IF_NO_THROW(File());
+		}
 
-		RETURN_IF_NO_THROW(File());
+		return File();
 	}
 
 public:
@@ -157,8 +167,9 @@ public:
 		print("If you want to include VST2 and or VST3 plugins, specify the version.");
 		print("If no VST flag is set, then the VST2 plugin is included as default");
         print("");
-        print("create-docs -p:PATH");
-        print("Creates the HISE documentation files from the markdown files in the given directory.");
+        print("create-docs -p:PATH -h:PATH -s:PATH");
+        print("Creates the HISE documentation files from the markdown files in the given directory (-p) to the given di.");
+		print("to the HTML directory specified by -h (and optionally rebuilding the snippet examples from -s)");
 		print("load -p:PATH");
 		print("");
 		print("Loads the given file (either .xml file or .hip file) and returns the status code");
@@ -428,10 +439,13 @@ public:
     {
         auto args = getCommandLineArgs(commandLine);
         auto docRoot = getFilePathArgument(args);
-        
+
+		
+		auto snippetRoot = getFilePathArgument(args, {}, "-s:");
+		
         if(!docRoot.isDirectory())
             throwErrorAndQuit("Not a valid directory");
-        
+		
         print("Create HISE instance");
         
         CompileExporter::setExportingFromCommandLine();
@@ -441,12 +455,53 @@ public:
         ScopedPointer<Component> ed = sp.createEditor();
         
         auto bp = dynamic_cast<BackendProcessor*>(sp.getCurrentProcessor());
-        
+
+		bp->setDatabaseRootDirectory(docRoot);
+
+		print("Create tutorials from HISE Snippet database");
+
+		if(snippetRoot != File())
+		{
+			bp->prepareToPlay(44100, 512);
+			snippetRoot.createDirectory();
+
+			
+
+			struct CreatorThread: public Thread
+			{
+				CreatorThread(MarkdownDatabaseHolder& holder, BackendRootWindow* rootWindow, const File& snippetRoot):
+				  Thread("Creating snippets"),
+				  sc(holder, rootWindow, nullptr)
+				{
+					sc.logger = [](const String& message)
+					{
+						print(message);
+					};
+
+					sc.snippetDirectory = snippetRoot.getFullPathName();
+				}
+
+				void run() override
+				{
+					sc.createSnippetDatabase();
+				}
+
+				bool finished = false;
+				DocUpdater::SnippetCreator sc;
+			};
+
+			CreatorThread sc(*bp, dynamic_cast<BackendRootWindow*>(ed.get()), snippetRoot);
+
+			sc.run();
+		}
+
         hise::DatabaseCrawler crawler(*bp);
-        
+
+
+
         print("Rebuild database");
         
-        bp->setDatabaseRootDirectory(docRoot);
+        
         
         bp->setForceCachedDataUse(false);
         crawler.clearResolvers();
@@ -461,8 +516,47 @@ public:
         crawler.createImageTree();
         
         print("Writing data files");
-        
-        crawler.createDataFiles(docRoot.getChildFile("cached"), true);
+
+		auto cacheFolder = docRoot.getChildFile("cached");
+
+        crawler.createDataFiles(cacheFolder, true);
+
+		bp->customDocCacheFolder = cacheFolder;
+
+		auto htmlDir = getFilePathArgument(args, {}, "-h:");
+
+		if(htmlDir != File())
+		{
+			print("Creating HTML files");
+
+			htmlDir.createDirectory();
+			String htmlBaseLink = "https://docs.hise.dev/";
+
+			auto templateDir = docRoot.getChildFile("template");
+			auto templateTarget = htmlDir.getChildFile("template");
+			templateDir.copyDirectoryTo(templateTarget);
+
+			auto headerFile = templateTarget.getChildFile("header.html");
+
+			auto headerContent = headerFile.loadFileAsString();
+			
+			headerContent = headerContent.replace("{BASE_URL}", htmlBaseLink);
+			headerFile.replaceWithText(headerContent);
+
+			struct Logger: public DatabaseCrawler::Logger
+			{
+				void logMessage(const String& message) override
+				{
+					print(message);
+				}
+			};
+
+			double progress;
+			Logger l;
+
+			DatabaseCrawler::createImagesInHtmlFolder(htmlDir, *bp, &l, &progress);
+			DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDir, *bp, &l, &progress);
+		}
     }
     
 	static void setHiseFolder(const String& commandLine)
@@ -776,6 +870,21 @@ public:
                                         Colours::lightgrey,
 										DocumentWindow::TitleBarButtons::closeButton | DocumentWindow::maximiseButton | DocumentWindow::TitleBarButtons::minimiseButton)
         {
+			auto sf = hise::ProjectHandler::getAppDataDirectory(nullptr).getChildFile("OtherSettings.xml");
+
+			if(auto xml = XmlDocument::parse(sf))
+			{
+				if(auto c = xml->getChildByName(HiseSettings::Other::GlobalHiseScaleFactor.toString()))
+				{
+					auto v = (double)c->getStringAttribute("value").getIntValue() / 100.0;
+
+					if(v >= 0.75 && v <= 1.5)
+					{
+						Desktop::getInstance().setGlobalScaleFactor(v);
+					}
+				}
+			}
+
             setContentOwned (new MainContentComponent(commandLine), true);
 
 #if JUCE_IOS

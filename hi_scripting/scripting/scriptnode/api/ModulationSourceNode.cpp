@@ -182,7 +182,16 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent& e)
 	if (getSourceNodeFromParent() == nullptr)
 		return;
 
-	if (auto container = dynamic_cast<DragAndDropContainer*>(findParentComponentOfClass<DspNetworkGraph>()->root.get()))
+	auto ng = findParentComponentOfClass<DspNetworkGraph>();
+
+	DragAndDropContainer* container = nullptr;
+
+	if(ng->isShowingRootNode())
+		container = dynamic_cast<DragAndDropContainer*>(ng->root.get());
+	else
+		container = ng;
+
+	if (container != nullptr)
 	{
 		// We need to be able to drag it anywhere...
 		//while (auto pc = DragAndDropContainer::findParentDragContainerFor(dynamic_cast<Component*>(container)))
@@ -197,6 +206,8 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent& e)
 
 		container->startDragging(var(details), this, ScaledImage(createDragImage()));
 
+		ZoomableViewport::checkDragScroll(e, false);
+
 		findParentComponentOfClass<DspNetworkGraph>()->dragOverlay.setEnabled(true);
 	}
 }
@@ -205,6 +216,8 @@ void ModulationSourceBaseComponent::mouseDrag(const MouseEvent& e)
 void ModulationSourceBaseComponent::mouseUp(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_UP(e);
+
+	ZoomableViewport::checkDragScroll(e, true);
 
 	findParentComponentOfClass<DspNetworkGraph>()->dragOverlay.setEnabled(false);
 }
@@ -250,7 +263,10 @@ scriptnode::ModulationSourceNode* ModulationSourceBaseComponent::getSourceNodeFr
 	{
 		if (auto pc = findParentComponentOfClass<NodeComponent>())
 		{
-			sourceNode = dynamic_cast<ModulationSourceNode*>(pc->node.get());
+			if(auto container = dynamic_cast<NodeContainer*>(pc->node.get()))
+				sourceNode = container->getLockedModNode();
+			else
+				sourceNode = dynamic_cast<ModulationSourceNode*>(pc->node.get());
 		}
 	}
 

@@ -366,6 +366,34 @@ snex::jit::ComplexType::Ptr ExternalDataJIT::createComplexType(Compiler& c, cons
 	return st;
 }
 
+ComplexType::Ptr ExternalFunctionJIT::createComplexType(Compiler& c, const Identifier& id)
+{
+	ExternalFunction s;
+
+	auto obj = new StructType(NamespacedIdentifier(id));
+
+	ADD_SNEX_PRIVATE_MEMBER(obj, s, unused);
+	ADD_SNEX_PRIVATE_MEMBER(obj, s, index);
+
+	obj->addMember("parent",	   TypeInfo(Types::ID::Pointer, true));
+	obj->setVisibility("parent",   NamespaceHandler::Visibility::Private);
+	obj->setDefaultValue("parent", InitialiserList::makeSingleList(VariableStorage(nullptr, 0)));
+
+	obj->addExternalMemberFunction("init", ExternalFunctionJIT::Wrapper::init);
+	SET_SNEX_PARAMETER_IDS(obj, "map", "index");
+
+	obj->addExternalMemberFunction("ping", ExternalFunctionJIT::Wrapper::ping<float>);
+	SET_SNEX_PARAMETER_IDS(obj, "value");
+	obj->addExternalMemberFunction("ping", ExternalFunctionJIT::Wrapper::ping<int>);
+	SET_SNEX_PARAMETER_IDS(obj, "value");
+	obj->addExternalMemberFunction("ping", ExternalFunctionJIT::Wrapper::ping<double>);
+	SET_SNEX_PARAMETER_IDS(obj, "value");
+	obj->addExternalMemberFunction("ping", ExternalFunctionJIT::Wrapper::pingVoid);
+	SET_SNEX_PARAMETER_IDS(obj, "value");
+	        
+	return obj->finaliseAndReturn();
+}
+
 
 ScriptnodeCallbacks::ID ScriptnodeCallbacks::getCallbackId(const NamespacedIdentifier& p)
 {

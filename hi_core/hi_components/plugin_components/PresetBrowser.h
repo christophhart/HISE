@@ -79,6 +79,7 @@ public:
 		bool showAddButton = true;
 		bool showRenameButton = true;
 		bool showDeleteButton = true;
+		bool showSearchBar = true;
 		bool buttonsInsideBorder = false;
 		int editButtonOffset = 10;
 		Array<var> listAreaOffset;
@@ -92,6 +93,7 @@ public:
 		bool showSaveButtons = true;
 		bool showFolderButton = true;
 		bool showFavoriteIcons = true;
+		bool fullPathFavorites = false;
 		bool showExpansions = false;
 	};
 
@@ -182,6 +184,7 @@ public:
 	void labelTextChanged(Label* l) override;
 	void updateFavoriteButton();
 	bool shouldShowFavoritesButton() { return showFavoritesButton; }
+	bool shouldShowFullPathFavorites() { return fullPathFavorites; }
 
 	void lookAndFeelChanged() override;
 
@@ -229,12 +232,26 @@ public:
 
 	Point<int> getMouseHoverInformation() const;
 
+	Component* getColumn(int columnIndex)
+	{
+		switch(columnIndex)
+		{
+		case -1: return expansionColumn->getListbox();
+		case 0: return bankColumn->getListbox();
+		case 1: return categoryColumn->getListbox();
+		case 2: return presetColumn->getListbox();
+		}
+
+		jassertfalse;
+		return nullptr;
+	}
 
 private:
 
 	DefaultPresetBrowserLookAndFeel laf;
 
 	void setShowFavorites(bool shouldShowFavorites);
+	void setShowFullPathFavorites(bool shouldShowFullPathFavorites);
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 	void setNumColumns(int numColumns);
 
@@ -242,6 +259,7 @@ private:
 	void setShowButton(int buttonId, bool newValue);
 	void setShowNotesLabel(bool shouldBeShown);
 	void setShowEditButtons(int buttonId, bool showEditButtons);
+	void setShowSearchBar(bool shouldBeShown);
 	void setButtonsInsideBorder(bool inside);
 	void setEditButtonOffset(int offset);
 	void setListAreaOffset(Array<var> offset);
@@ -284,6 +302,7 @@ private:
 	int currentlyLoadedPreset = -1;
 
 	bool showFavoritesButton = true;
+	bool fullPathFavorites = false;
 	bool showOnlyPresets = false;
 	String currentWildcard = "*";
 	StringArray currentTagSelection;

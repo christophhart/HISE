@@ -153,6 +153,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
         MenuToolsCreateRnboTemplate,
+		MenuToolsCreateGlobalCableCppCode,
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewRotate,
@@ -546,11 +547,15 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsRecordOneSecond:
-		setCommandTarget(result, "Record one second audio file", true, false, 'X', false);
+		setCommandTarget(result, "Render HISE output to disk", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsCreateRSAKeys:
 		setCommandTarget(result, "Create RSA Key pair", true, false, 'X', false);
+		result.categoryName = "Tools";
+		break;
+	case MenuToolsCreateGlobalCableCppCode:
+		setCommandTarget(result, "Create C++ code for global cables", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsConvertSVGToPathData:
@@ -702,7 +707,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportCleanDspNetworkFiles: Actions::cleanDspNetworkFiles(bpe); return true;
     case MenuToolsCreateRnboTemplate:   Actions::createRnboTemplate(bpe); return true;
 	case MenuToolsImportArchivedSamples: Actions::importArchivedSamples(bpe); return true;
-	case MenuToolsRecordOneSecond:		bpe->owner->getDebugLogger().startRecording(); return true;
+	case MenuToolsRecordOneSecond:		Actions::exportAudio(bpe); return true;
     case MenuToolsEnableDebugLogging:	bpe->owner->getDebugLogger().toggleLogging(); updateCommands(); return true;
 	case MenuToolsApplySampleMapProperties: Actions::applySampleMapProperties(bpe); return true;
 	case MenuToolsConvertSVGToPathData:	Actions::convertSVGToPathData(bpe); return true;
@@ -739,6 +744,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportProjectAsExpansion:				Actions::exportHiseProject(bpe); return true;
 	case MenuExportSampleDataForInstaller: Actions::exportSampleDataForInstaller(bpe); return true;
 	case MenuToolsWavetablesToMonolith: Actions::exportWavetablesToMonolith(bpe); return true;
+	case MenuToolsCreateGlobalCableCppCode: Actions::createGlobalCableCppCode(bpe); return true;
 	case MenuExportCompileFilesInPool:	Actions::exportCompileFilesInPool(bpe); return true;
 	case MenuViewResetLookAndFeel:		Actions::resetLookAndFeel(bpe); return true;
     case MenuViewClearConsole:         owner->getConsoleHandler().clearConsole(); return true;
@@ -750,6 +756,13 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	return false;
 }
 
+void BackendCommandTarget::updateCommands()
+{
+	mainCommandManager->commandStatusChanged();
+	createMenuBarNames();
+
+	menuItemsChanged();
+}
 
 
 PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const String &menuName)
@@ -1052,6 +1065,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_MENU_ITEM(MenuToolsSimulateChangingBufferSize);
 	        ADD_MENU_ITEM(MenuToolsCreateRnboTemplate);
 			ADD_MENU_ITEM(MenuToolsCreateThirdPartyNode);
+			ADD_MENU_ITEM(MenuToolsCreateGlobalCableCppCode);
 			p.addSeparator();
 			p.addSectionHeader("License Management");
 			ADD_MENU_ITEM(MenuToolsCreateRSAKeys);
@@ -1342,6 +1356,32 @@ void BackendCommandTarget::Actions::loadSnippet(BackendRootWindow* bpe, const St
 
 	if (v.isValid())
 	{
+		auto hash = v["Hash"].toString();
+
+		WeakReference<Processor> safeP(bpe->getMainSynthChain());
+
+		if(hash.isNotEmpty())
+		{
+			GitHashManager::checkHash(hash, [safeP](const var& commitObj)
+			{
+				String message;
+
+				auto hash = commitObj["sha"].toString();
+
+				auto date = commitObj["commit"]["author"]["date"].toString();
+
+				auto d = Time::fromISO8601(date);
+
+				message << "Snippet loaded that was created with git commit \n";
+				message << "> hash: " << hash.substring(0, 8) << "\n";
+				message << "> date: " << d.toString(true, true, false, true) << "\n";
+				message << "> message: " << commitObj["commit"]["message"].toString() << "\n";
+				message << "> url: " << "https://github.com/christophhart/HISE/commit/" << hash;
+				
+				debugToConsole(safeP, message);
+			});
+		}
+
 		bpe->loadNewContainer(v);
 	}
 }
@@ -1687,7 +1727,9 @@ String BackendCommandTarget::Actions::exportFileAsSnippet(BackendRootWindow* bpe
 	MainController::ScopedEmbedAllResources sd(bp);
     
 	ValueTree v = bp->getMainSynthChain()->exportAsValueTree();
-	
+
+	v.setProperty("Hash", String(PREVIOUS_HISE_COMMIT), nullptr);
+
 	auto scriptRootFolder = bp->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Scripts);
 	auto snexRootFolder = BackendDllManager::getSubFolder(bp, BackendDllManager::FolderSubType::CodeLibrary);
 
@@ -3253,6 +3295,69 @@ void BackendCommandTarget::Actions::cleanDspNetworkFiles(BackendRootWindow* bpe)
 	np->setModalBaseWindowComponent(bpe);
 }
 
+void BackendCommandTarget::Actions::createGlobalCableCppCode(BackendRootWindow* bpe)
+{
+	auto rm = dynamic_cast<scriptnode::routing::GlobalRoutingManager*>(bpe->getBackendProcessor()->getGlobalRoutingManager());
+
+	if(rm == nullptr)
+	{
+		PresetHandler::showMessageWindow("No global cables present", "You need to add global cables before using this method", PresetHandler::IconType::Error);
+		return;
+	}
+
+	auto cableList = rm->getIdList(scriptnode::routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
+
+	if(cableList.isEmpty())
+	{
+		PresetHandler::showMessageWindow("No global cables present", "You need to add global cables before using this method", PresetHandler::IconType::Error);
+		return;
+	}
+
+	String code;
+
+	code << "// Use this enum to refer to the cables, eg. this->setGlobalCableValue<GlobalCables::" << cppgen::Helpers::getValidCppVariableName(cableList[0]) << ">(0.4)\n";
+	code << "enum class GlobalCables\n{\n";
+
+	for(int i = 0; i < cableList.size(); i++)
+	{
+		code << "\t" << cppgen::Helpers::getValidCppVariableName(cableList[i]) << " = " << String(i);
+
+		if(i != cableList.size()-1)
+			code << ',';
+
+		code << "\n";
+	}
+
+	code <<"};\n";
+
+	code << "// Subclass your node from this\n";
+	code << "using cable_manager_t = routing::global_cable_cpp_manager<";
+	String nl(",\n                                                          ");
+
+	for(int i = 0; i < cableList.size(); i++)
+	{
+		code << "SN_GLOBAL_CABLE(" << String(cableList[i].hashCode()) << ")";
+				
+		if(i != cableList.size()-1)
+			code << nl;
+	}
+
+	code << ">;\n";
+
+	SystemClipboard::copyTextToClipboard(code);
+
+	auto chain = bpe->getBackendProcessor()->getMainSynthChain();
+
+	debugToConsole(chain, "Copied code to clipboard:");
+	debugToConsole(chain, code);
+}
+
+void BackendCommandTarget::Actions::exportAudio(BackendRootWindow* bpe)
+{
+	auto n = new multipage::library::HiseAudioExporter(bpe);
+	bpe->setModalComponent(n);
+}
+
 #undef REPLACE_WILDCARD
 #undef REPLACE_WILDCARD_WITH_STRING
 
@@ -3381,4 +3486,40 @@ String XmlBackupFunctions::getSanitiziedName(const String &id)
 	return id.removeCharacters(" .()");
 }
 
+void GitHashManager::checkHash(const String& hashToUse,
+	const std::function<void(const var&)>& finishCallbackWithNextHash)
+{
+	Thread::launch([hashToUse, finishCallbackWithNextHash]()
+	{
+		var json;
+
+		URL u("https://api.github.com/repos/christoph-hart/HISE/commits");
+    
+		auto s = u.readEntireTextStream();
+	    
+		auto ok = JSON::parse(s, json);
+		    
+		if(auto list = json.getArray())
+		{
+			for(int i = 0; i < list->size(); i++)
+			{
+				auto thisSha = list->getUnchecked(i)["sha"].toString();
+		            
+				if(thisSha == hashToUse)
+				{
+					auto nextIndex = i-1;
+		                
+					if(nextIndex >= 0 && isPositiveAndBelow(nextIndex, list->size()))
+					{
+						finishCallbackWithNextHash(list->getUnchecked(nextIndex));
+					}
+		                
+					break;
+				}
+			}
+		}
+	});
+
+	    
+}
 } // namespace hise

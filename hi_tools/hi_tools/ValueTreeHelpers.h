@@ -88,7 +88,10 @@ public:
 	Base()
 	{};
 
-	virtual ~Base() {};
+	virtual ~Base()
+	{
+		cancelPendingUpdate();
+	};
 
 	void setHighPriorityListener(Base* listenerToPriorise)
 	{
@@ -131,6 +134,11 @@ struct AnyListener : private Base,
 	};
 
 	AnyListener(AsyncMode mode_ = AsyncMode::Asynchronously);
+
+	~AnyListener()
+	{
+		stopTimer();
+	}
 
 	void setMillisecondsBetweenUpdate(int milliSeconds);
 

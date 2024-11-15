@@ -1,0 +1,149 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Welcome to HISE",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "Dark",
+    "Style": "label\n{\n\tdisplay: none;\n}\n\n.top-label\n{\n\tcolor: #ddd;\n\twidth: 100%;\n\ttext-align: left;\n}\n\n.toggle-button\n{\n\tcolor: #ccc;\n\ttext-align: left;\n\tpadding-left: 10px;\n\t\n\t\n}\n\n\n.text-button\n{\n\t\n\n\ttext-align: left;\n\tpadding-left: 70vh;\n\theight: 40px;\n}\n\n.text-button::before\n{\n\tcontent: '';\n\tbackground-color: #ccc;\n\twidth: 100vh;\n\tmargin: 8px;\n\t\n}\n\n\n\n#OpenDocs button::before\n{\n\tbackground-image: \"339.t0FcPhCQHoXJCwFchCAQHoXJCI1lyt.QHoXJCA.fGPDSXoyP..3ADQ1DOMDa..3ADomSROjX..3ADAw1WODJZh.QL2R2CsFjJPD3YD9PhgpgLPDcFT9PZ+xCDwsNmOTI1GAQbqy4CwF..VDQbqy4CwF..VDQfU2UCwVSZ3CQfU2UCwVSZ3CQN5j2CIVSZ3CQN5j2CgrOfPjiN48PRWtDD4nSdOjXyiSDD4nSdOjpc9.Q9mO2CglaNPjTap8PhwxOMPjo7f8PQSICDwhAUOTzTx.Q.xZzCwVzTx.QHqXzCIVzTx.QrviyCgNOMPjvPr7PjflCDYhtHOjXfM4CDQ3XFOzNoDAQ9MQwCoFzRPjeST7PrQGj3PjeST7PrQGj3PDRJlxPi0FcPhCQPEfyCwlHpHAQPEfyCwlHpHAQ5BV0CwFcPhCQ5BV0CwFcPhCQPEfyCMVY\";\n\t\n}\n\n#SetupExport button::before\n{\n\tbackground-image: \"666.t0183qBQHxaPCI1zAfBQ...PC0h+jPD...zPJbfHDgHuAMDawK+GDglcsMjXUYvGDAtrtMz2d3AQPFCbCM3OcPDBwG2PrMGCTPDZki0PhESoQPD5M.1P5M3CDALknMTV41.QPGibCwlP7OAQH72hCIVYLNAQ.2SiCkKKSPD6K73Pa1sDDAd4PNDag79ADQgCUNjX..3ADgE+ZND..d.QrKPnCEx6GPD7wa5PrsY2RPDYYr5PhkKKSPDVyy5Pkw3DDQXvtNjP7OAQ.AHrCwVV41.QfYtvCIldC9.QfV6wCESoQPDC4u7Pyw.EDAUiOODaC9SGDw2ACOjXe6gGDwm4COTUF7AQTZJwCEu7ePDDDU7ProvAhPDvgr8Ph0h+jPD..v8PSG.JDA..bOz83qBQ.Gx1CwVrLzBQPPTwCIFq42BQTZJwCML3tPDelO7P9A7KDw2ACODaMNONDAUiOOjXOq0NDwP9KOjg70CQfV6wCgpQ+PDXlK7Pr86.4PDP.B6Phs4b4PDgA65PHMcNDg07rNTYhnCQjkwpCw12PTDQvGuoCIF..VDQrKPnCA.fEQDV7q4PeCQQDQgCUNDakIhNDAd4PNjXHMcNDw9BONzlykCQ.2SiC86.4PDB+s3PrgpQ+PDzwH2PhYHe8PDvTh1POq0NDgdCfMTiyiCQnUNVCwle.+BQHDebCI1vf6BQPFCbCwZ9sPD3x51PwxPKDglcsMDa2iuJDgHuAMzXsE8elPD61s3PhMWmqPD61s3PJR7KDgQwSNjhD+BQj9emCIlhD+BQnqCpCMWmqPDEIB6PQ+mIDQQhvNjXMJVHDQQhvNzc6zAQnqCpCc2NcPDo+24Phc2NcPDFEO4PMJVHDwtcKNTz+YBQra2hCMVY\";\n\t\n}\n\n#CreateProject button::before\n{\n\tbackground-image: \"500.t0F..d.Q7GLYCIF..d.QJ8fWCU11HPjWhh0PuenBD4knXMDajERGD4knXMDaJTYIDU2O.NDa..XQDU2O.NDa..XQD4flIOjX..XQDYrMKOj.tTDQ7KLyCg9lDQjnl27PhQgBDQj0J77P5OzPDIsqOOjm0IDQR65yCIleNfCQR65yC8+5UPjzt97PZ.uBDIsqOOjXHnPBDIsqOOD..d.QNqIyCA.fGPDcNi7PrA.fGPD+AS1Pi0FAyKBQL4HnCwFPwoAQL4HnCIla1kAQL4HnCUrpXPjfkH5PEqJFDA1FjNDaEqJFDgOMqNjXEqJFDYsJsNja1kAQLHrqCATbZPDCB65PrQv7hPDCB65PrQv7hPjkE+6PhQv7hPjb6F7PK56HDopTCOjd4RBQpJ0vCwliFgBQpJ0vCIlMAkBQpJ0vCYQCpPjb6F7PVzfJDYYw+NDaVzfJDwfvtNDaT5nLDwfvtNjXCl3LDwfvtNjGUQCQVqRqC4QUzPD9zr5Pr4QUzPDXaP5Ph4QUzPjfkH5PCl3LDwjifNDkNJCQL4HnCwlEMnBQL4HnCwlEMnBQBq3iCIlEMnBQlSYiCYSPoPjq8u3PNZDJD4Z+KNDa5kKID4Z+KNjXK56HD4Z+KNDAyKBQlSYiCQv7hPjvJ93PrQv7hPDSNB5PiUF\";\n\t\n}\n\n#OpenProject button::before\n{\n\tbackground-image: \"148.t0lVJd.QlKMwCwF..d.QlKMwCwF..d.Qe0rfCw1yDd.Qe0rfCw1yDd.QRpgaCwlJYZAQRpgaCwFcByAQe0rfCwlSnaCQe0rfCwlSnaCQfYEjCwFsaiAQfYEjCwlVJd.QlKMwCMVa..XQDYCtXNDaNgtMDgq7DODaNYpCDgq7DODa.3SGDYCtXNDa..XQDYCtXNzXkA\";\n\t\n}\n\n#BrowseSnippets button::before\n{\n\tbackground-image: \"307.t01ZvCCQLpCWCIl1vGCQPnxWCQr4xPDFxI1Pl67LDApDlMjXNKDODQF7CNDxA0CQ9ShmC4Ny1PDQ9D6PrA.fEQjZj57Prgn39PDndu8PrY2KvPDe346PhMsnlPj5hs7PhiXFDgCYIOz9TDAQjzGtCIV..d.Q1IUoCE.fGPj+yX3P6SQDDApDlMjXfyXFDwvLDMT3uZBQ7JDPCceOvPDpAo0PrceOvPD7xZ3PhEghuPD+fP3PxTpKDgisANDoN1BQnNweCIV1rcBQHrnYCQ1ccPDBKZ1P8T0EDg5D+MjXVLSDDgVyKNjEyDAQRg6mC0SUWPDn7u5PhQ1ccPD7.g6PYy1IDAOP3NDoN1BQfx+pCIFlyHCQ5JqnC4DUyPjJET4PqAOLDwmlINDaqAOLDwnNbMzXkA\";\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n#title\n{\n\ttext-align: left;\n\tpadding-left: 10px;\n\twidth: 100%;\n}\n\n#cancel\n{\n\tdisplay: none;\n}\n\n#next\n{\n\torder: 1;\n\tcontent: \"Close\";\n}\n\nprogress\n{\n\tmargin-right: 30px;\n\tcolor: #999;\n}\n\n\n\nth\n{\n\tdisplay: none;\n\tcolor: #ddd;\n\tpadding: 10px 0px;\n\tfont-size: 18px;\n\t\n}\n\ntr\n{\n\tborder: 0px solid;\n}\n\n.toggle-button,\n.toggle-button:hover\n{\n\tbackground: transparent;\n}\n\ntd\n{\n\tborder: 0px solid;\n\tbackground: #282828;\n\tcolor: #aaa;\n\tfont-size: 0.95em;\n}\n\ntd:hover\n{\n\tbackground: #353535;\n\tcolor: #aaa;\n}\n\n\nscrollbar\n{\n\tdisplay: none;\n}\n",
+    "UseViewport": true,
+    "ConfirmClose": false,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 800,
+    "DialogHeight": 600
+  },
+  "GlobalState": {
+    "ShowAtStartup": "1",
+    "LoadFile": 4
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "MarkdownText",
+                  "Text": "Get started"
+                },
+                {
+                  "Type": "Button",
+                  "Text": "Create a new project",
+                  "ID": "CreateProject",
+                  "ButtonType": "Text",
+                  "Code": "{BIND::createProject}",
+                  "Help": "Start with an empty HISE project or download the Rhapsody Player template",
+                  "UseInitValue": ""
+                },
+                {
+                  "Type": "Button",
+                  "Text": "Open existing project",
+                  "ID": "OpenProject",
+                  "ButtonType": "Text",
+                  "Code": "{BIND::openProject}",
+                  "Help": "Load a project folder of an existing HISE project"
+                },
+                {
+                  "Type": "Button",
+                  "Text": "Browse example projects",
+                  "ID": "BrowseSnippets",
+                  "ButtonType": "Text",
+                  "Code": "{BIND::browseSnippets}",
+                  "Help": "Check out a diverse collection of example projects to get to know HISE!\n\n> You can always open the Snippet browser using the menu command **Help -> Browse example snippets**",
+                  "UseInitValue": ""
+                },
+                {
+                  "Type": "Button",
+                  "Text": "Read the manual",
+                  "ID": "OpenDocs",
+                  "ButtonType": "Text",
+                  "Code": "{BIND::showDocs}",
+                  "Help": "Read the documentation in the inbuilt doc browser.",
+                  "UseInitValue": ""
+                },
+                {
+                  "Type": "Button",
+                  "Text": "Setup the export toolchain",
+                  "ID": "SetupExport",
+                  "ButtonType": "Text",
+                  "Code": "{BIND::setupExport}",
+                  "Help": "Go through a list of steps to setup the compile toolchain in order to export plugins with HISE on this computer.\n\n> This tool is also available at **Export -> Setup Export Wizard**.",
+                  "UseInitValue": ""
+                },
+                {
+                  "Type": "Column",
+                  "Children": [],
+                  "Style": "gap: 30px;"
+                },
+                {
+                  "Type": "Column",
+                  "Children": [],
+                  "Style": "gap: 30px;"
+                }
+              ],
+              "Style": "padding-right: 30px; height: 270px;"
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "Table",
+                  "ID": "LoadFile",
+                  "ValueMode": "Row",
+                  "Columns": "name: Load recent project; width: 100px;",
+                  "Items": "Funky\nNudel\nX.xml\nDuedel.hip\nNoice (Switch Project)\n\n",
+                  "Code": "{BIND::loadPresetFile}"
+                }
+              ],
+              "Style": "height: 270px;",
+              "Text": ""
+            }
+          ]
+        },
+        {
+          "Type": "JavascriptFunction",
+          "ID": "populateProjectSelector",
+          "Code": "{BIND::populateProjectSelector}"
+        },
+        {
+          "Type": "Button",
+          "Text": "Show at startup",
+          "ID": "ShowAtStartup",
+          "Code": "{BIND::startupSetter}",
+          "InitValue": "1",
+          "UseInitValue": true
+        }
+      ],
+      "Text": "",
+      "Style": "width: 100%; "
+    }
+  ],
+  "Assets": []
+}

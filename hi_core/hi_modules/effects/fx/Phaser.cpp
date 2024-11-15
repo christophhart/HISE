@@ -57,7 +57,7 @@ mix(1.0f)
 
 			float v = input * (freq2 - freq1) + freq1;
 
-			return HiSlider::getFrequencyString(v);
+			return ValueToTextConverter::ConverterFunctions::Frequency(v);
 		}
 
 		return Table::getDefaultTextValue(input);

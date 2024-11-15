@@ -47,8 +47,7 @@ using namespace juce;
  *	- popup menus
  *
  */
-struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel,
-							  public ScrollBar::LookAndFeelMethods
+struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 {
 	ScrollbarFader::Laf fallback;
 
@@ -84,6 +83,8 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel,
 
 	/** Draws any generic component background. */
 	bool drawComponentBackground(Graphics& g, Component* c, Selector s = {});
+
+	void drawGenericComponentText(Graphics& g, const String& text, Component* c, Selector s = {});
 
 	/** Use this for drawing a listbox row by styling the `tr` element. */
 	bool drawListBoxRow(int rowNumber, Graphics& g, const String& text, Component* lb, int width, int height, bool rowIsSelected,

@@ -73,6 +73,16 @@ struct NodeContainer : public AssignableObject
 
 	void resetNodes();
 
+	bool forceNoLock = false;
+
+	bool isLockedContainer() const
+	{
+		if(forceNoLock)
+			return false;
+
+		return (bool)asNode()->getValueTree()[PropertyIds::Locked];
+	}
+
 	ParameterDataList createInternalParametersForMacros();
 
 	NodeBase* asNode();
@@ -128,6 +138,36 @@ struct NodeContainer : public AssignableObject
 	const NodeBase::List& getNodeList() const { return nodes; }
 
 	Rectangle<int> getContainerPosition(bool isVerticalContainer, Point<int> topLeft) const;
+
+	ModulationSourceNode* getLockedModNode() const
+	{
+		for(auto n: getNodeList())
+		{
+			auto p = n->getPath().toString();
+
+			if(p.contains("locked_mod"))
+			{
+				return dynamic_cast<ModulationSourceNode*>(n.get());
+			}
+		}
+
+		return nullptr;
+	}
+
+	Rectangle<int> getLockedExtraComponentBounds() const
+	{
+		if(isLockedContainer())
+		{
+			if(getLockedModNode() != nullptr)
+				return { 0, 0, 256, 22 + 2 * UIValues::NodeMargin + 28};
+			else
+				return { 0, 0, UIValues::NodeWidth, 22 + UIValues::NodeMargin };
+		}
+		else
+		{
+			return {};
+		}
+	}
 
 protected:
 
@@ -223,10 +263,12 @@ public:
 		return NodeContainer::addMacroConnection(source, targetParameter);
 	}
 
-	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	Rectangle<int> getExtraComponentBounds() const override
 	{
-		return getBoundsToDisplay(getContainerPosition(isVertical.getValue(), topLeft));
+		return getLockedExtraComponentBounds();
 	}
+
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override;
 
 	NodePropertyT<bool> isVertical;
 };
@@ -243,6 +285,11 @@ public:
 	var addModulationConnection(var source, Parameter* targetParameter) override
 	{
 		return NodeContainer::addMacroConnection(source, targetParameter);
+	}
+
+	Rectangle<int> getExtraComponentBounds() const override
+	{
+		return getLockedExtraComponentBounds();
 	}
 
 	bool forEach(const std::function<bool(NodeBase::Ptr)>& f) override

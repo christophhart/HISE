@@ -167,7 +167,9 @@ public:
 		Tag(TagList& parent_, const String& name_) :
 			parent(parent_),
 			name(name_)
-		{}
+		{
+			simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(*this, { ".tag-button" });
+		}
 
 		int getTagWidth() const;
 
@@ -513,6 +515,8 @@ public:
 	{
 		addButton->setVisible(true && shouldShowAddButton);
 	}
+
+	Component* getListbox() { return listbox.get(); }
 
 private:
 

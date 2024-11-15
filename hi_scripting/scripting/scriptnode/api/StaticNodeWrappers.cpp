@@ -63,61 +63,12 @@ scriptnode::NodeComponent* WrapperNode::createComponent()
 	return nc;
 }
 
+
 juce::Rectangle<int> WrapperNode::getPositionInCanvas(Point<int> topLeft) const
 {
-	int numParameters = getNumParameters();
-
-	if (numParameters == 7)
-		return createRectangleForParameterSliders(4).withPosition(topLeft);
-	else if (numParameters == 0)
-		return createRectangleForParameterSliders(0).withPosition(topLeft);
-	else if (numParameters % 5 == 0)
-		return createRectangleForParameterSliders(5).withPosition(topLeft);
-	else if (numParameters % 4 == 0)
-		return createRectangleForParameterSliders(4).withPosition(topLeft);
-	else if (numParameters % 3 == 0)
-		return createRectangleForParameterSliders(3).withPosition(topLeft);
-	else if (numParameters % 2 == 0)
-		return createRectangleForParameterSliders(2).withPosition(topLeft);
-	else if (numParameters == 1)
-		return createRectangleForParameterSliders(1).withPosition(topLeft);
-    else
-        return createRectangleForParameterSliders(5).withPosition(topLeft);
+	auto b = NodeComponent::PositionHelpers::getPositionInCanvasForStandardSliders(this, topLeft);
+	return getBoundsToDisplay(b);
 }
-
-juce::Rectangle<int> WrapperNode::createRectangleForParameterSliders(int numColumns) const
-{
-	int h = UIValues::HeaderHeight;
-	
-	if (getEmbeddedNetwork() != nullptr)
-		h += 24;
-
-	auto eb = getExtraComponentBounds();
-
-	h += eb.getHeight();
-	
-
-	int w = 0;
-
-	if (numColumns == 0)
-		w = eb.getWidth() > 0 ? eb.getWidth() : UIValues::NodeWidth * 2;
-	else
-	{
-		int numParameters = getNumParameters();
-		int numRows = (int)std::ceil((float)numParameters / (float)numColumns);
-
-		h += numRows * (48 + 18);
-		w = jmin(numColumns * 100, numParameters * 100);
-	}
-
-
-	w = jmax(w, eb.getWidth());
-
-	auto b = Rectangle<int>(0, 0, w, h);
-	return getBoundsToDisplay(b.expanded(UIValues::NodeMargin));
-}
-
-
 
 void InterpretedNode::reset()
 {
@@ -294,8 +245,9 @@ void InterpretedCableNode::prepare(PrepareSpecs ps)
 
 	try
 	{
-		ModulationSourceNode::prepare(ps);
 		this->obj.prepare(ps);
+		ModulationSourceNode::prepare(ps);
+		
 	}
 	catch (Error& s)
 	{
@@ -835,7 +787,33 @@ TemplateNodeFactory::TemplateNodeFactory(DspNetwork* n) :
 	registerNodeRaw<node_templates::softbypass_switch<6>>();
 	registerNodeRaw<node_templates::softbypass_switch<7>>();
 	registerNodeRaw<node_templates::softbypass_switch<8>>();
-	
+
+#if USE_BACKEND
+	auto fileTemplates = BackendDllManager::getAllNodeTemplates(n->getScriptProcessor()->getMainController_());
+
+	for(auto v: fileTemplates)
+	{
+		auto name = v[PropertyIds::Name].toString();
+		if(name.isEmpty())
+			name = v[PropertyIds::ID].toString();
+
+		registerNodeWithLambda(name, [v](DspNetwork* n, ValueTree dummy)
+		{
+			dummy.setProperty(PropertyIds::ID, "AAARG", nullptr);
+
+			Array<DspNetwork::IdChange> changes;
+			auto newTree = n->cloneValueTreeWithNewIds(v, changes, false);
+			DuplicateHelpers::removeOutsideConnections({ newTree }, changes );
+
+			for(auto& c: changes)
+	            n->changeNodeId(newTree, c.oldId, c.newId, nullptr);
+
+			auto newNode = n->createFromValueTree(n->isPolyphonic(), newTree, true);
+
+			return newNode;
+		});
+	}
+#endif
 }
 
 int TemplateNodeFactory::Builder::addNode(int parent, const String& path, const String& id, int index)

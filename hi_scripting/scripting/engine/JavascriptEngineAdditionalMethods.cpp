@@ -342,8 +342,6 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 
 			if (ConstScriptingObject* c = dynamic_cast<ConstScriptingObject*>(thisObject.getObject()))
 			{
-				auto numExpectedArgs = arguments.size();
-
 				c->getIndexAndNumArgsForFunction(dot->child, functionIndex, numArgs);
                 
 #if ENABLE_SCRIPTING_SAFE_CHECKS

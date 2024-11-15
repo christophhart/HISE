@@ -357,8 +357,7 @@ juce::Path SampleEditorToolbarFactory::Factory::createPath(const String& url) co
 	LOAD_EPATH_IF_URL("analyse", SampleToolbarIcons::more);
 	LOAD_EPATH_IF_URL("zoom-in", SampleToolbarIcons::zoomIn);
 	LOAD_EPATH_IF_URL("zoom-out", SampleToolbarIcons::zoomOut);
-	LOAD_EPATH_IF_URL("normalise-on", SampleToolbarIcons::normaliseOn);
-	LOAD_EPATH_IF_URL("normalise-off", SampleToolbarIcons::normaliseOff);
+	LOAD_EPATH_IF_URL("normalise", SampleToolbarIcons::normalise);
 	LOAD_EPATH_IF_URL("loop-on", SampleToolbarIcons::loopOn);
 	LOAD_EPATH_IF_URL("loop-off", SampleToolbarIcons::loopOff);
 	LOAD_EPATH_IF_URL("select-midi", SampleToolbarIcons::selectMidi);
@@ -366,9 +365,11 @@ juce::Path SampleEditorToolbarFactory::Factory::createPath(const String& url) co
 	LOAD_EPATH_IF_URL("samplestart-area", SampleToolbarIcons::sampleStartArea);
 	LOAD_EPATH_IF_URL("play-area", SampleToolbarIcons::playArea);
 	LOAD_EPATH_IF_URL("loop-area", SampleToolbarIcons::loopArea);
+	LOAD_EPATH_IF_URL("release-start", SampleToolbarIcons::releaseStart);
 	LOAD_PATH_IF_URL("external", ColumnIcons::openWorkspaceIcon);
     LOAD_EPATH_IF_URL("zero", SampleToolbarIcons::zero);
     LOAD_EPATH_IF_URL("improve-loop", SampleToolbarIcons::smooth_loop);
+	LOAD_EPATH_IF_URL("release-start-options", SampleToolbarIcons::releaseStartOptions);
 	LOAD_EPATH_IF_URL("main-only", SampleToolbarIcons::tabIcon);
 	LOAD_EPATH_IF_URL("preview", LoopIcons::preview);
 	LOAD_EPATH_IF_URL("envelope", SampleToolbarIcons::envelope);

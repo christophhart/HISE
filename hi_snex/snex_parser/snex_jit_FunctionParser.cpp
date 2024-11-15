@@ -479,6 +479,8 @@ juce::Result SyntaxTreeInlineParser::flush()
 
 	try
 	{
+		ScopedValueSetter<bool> svs(d->expression->currentCompiler->isProcessingInlineFunction(), true);
+
 		if (d->expression->currentCompiler == nullptr)
 			d->location.throwError("Internal compiler error");
 

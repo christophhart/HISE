@@ -74,6 +74,17 @@ public:
 		String errorDescription;
 	};
 
+
+	enum class ReleasePlayState
+	{
+		Inactive,
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		Playing,
+#endif
+		numReleasePlayStates
+	};
+
+
 	// ==============================================================================================================================================
 
 	/** Creates a new StreamingSamplerSound.
@@ -175,7 +186,54 @@ public:
 	void setBasicMappingData(const StreamingHelpers::BasicMappingData& data);
 
 	bool isEntireSampleLoaded() const noexcept { return entireSampleLoaded; };
+	
+	
 
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+
+	bool isReleaseStartEnabled() const noexcept { return releaseStart != 0; }
+
+	/** Sets the point where the sample should seek to if the note is released (0 = disabled). */
+	void setReleaseStart(int newReleaseStart);
+
+	int getReleaseStart() const { return releaseStart; }
+
+	StreamingHelpers::ReleaseStartOptions::Ptr getReleaseStartOptions() const noexcept { return releaseStartOptions; }
+
+	void setReleaseStartOptions(StreamingHelpers::ReleaseStartOptions::Ptr newOptions)
+	{
+		if(releaseStartOptions != newOptions)
+		{
+			releaseStartOptions = newOptions;
+			rebuildReleaseStartBuffer();
+		}
+	}
+
+	const hlac::HiseSampleBuffer *getReleaseStartBuffer() const { return releaseStartData != nullptr ? &releaseStartData->preloadBuffer : nullptr; }
+
+	float getReleaseAttenuation() const
+	{
+		return releaseStartData != nullptr ? releaseStartData->getReleaseAttenuation() : 1.0f;
+	}
+
+	void resetReleaseData() const
+	{
+		if(releaseStartData != nullptr)
+			releaseStartData->resetReleaseData();
+	}
+
+	void calculateReleasePeak(float* calculatedValues, int numSamples) const
+	{
+		if(releaseStartData != nullptr)
+			releaseStartData->calculateReleasePeak(calculatedValues, numSamples, releaseStartOptions);
+	}
+
+#else
+
+	static constexpr bool isReleaseStartEnabled() { return false; }
+
+#endif
+	
 	// ==============================================================================================================================================
 
 	/** Set the preload size.
@@ -468,10 +526,10 @@ private:
 	*	It copies the samples either from the preload buffer or reads it directly from the file, so don't call this method from the
 	*	audio thread, but use the SampleLoader class which handles the background thread stuff.
 	*/
-	void fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const;
+	void fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, ReleasePlayState releaseState) const;
 
 	// used to wrap the read process for looping
-	void fillInternal(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, int offsetInBuffer = 0) const;
+	void fillInternal(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, ReleasePlayState releaseState, int offsetInBuffer = 0) const;
 
 	// ==============================================================================================================================================
 
@@ -516,11 +574,94 @@ private:
 	ScopedPointer<hlac::HiseSampleBuffer> loopBuffer;
 	ScopedPointer<hlac::HiseSampleBuffer> smallLoopBuffer;
 
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+
+	int releaseStart = 0;
+
+	struct ReleaseStartData
+	{
+		ReleaseStartData(bool isFloat, int numSamples):
+		  preloadBuffer(isFloat, 2, numSamples)
+		{
+			preloadBuffer.clear();
+		}
+
+		float getReleaseAttenuation() const
+		{
+			if(releasePreloadPeak != 0.0f)
+				return jlimit(0.0f, 4.0f, currentAttenuationPeak / releasePreloadPeak);
+
+			return 1.0f;
+		}
+
+		void calculateReleasePeak(float* calculatedValues, int numSamples, StreamingHelpers::ReleaseStartOptions::Ptr options)
+		{
+			auto thisRange = FloatVectorOperations::findMinAndMax(calculatedValues, numSamples);
+			auto thisMax = jmax(std::abs(thisRange.getStart()), std::abs(thisRange.getEnd()));
+
+
+			if(thisMax > currentAttenuationPeak)
+				currentAttenuationPeak = thisMax;
+			else
+			{
+				float alpha = options->smoothing;
+				currentAttenuationPeak = thisMax * alpha + currentAttenuationPeak * (1.0f - alpha);
+			}
+		}
+
+		void resetReleaseData()
+		{
+			currentAttenuationPeak = 0.0f;
+		}
+
+		void calculateZeroCrossings()
+		{
+			float lastValue = 0.0f;
+			int lastIndex = 0;
+
+			for(int i = 0; i < preloadBuffer.getNumSamples(); i++)
+			{
+				float value;
+
+				if(preloadBuffer.isFloatingPoint())
+					value = *((float*)preloadBuffer.getReadPointer(0, i));
+				else
+					value = static_cast<float>(*((int16*)preloadBuffer.getReadPointer(0, i))) / (float)INT_MAX;
+
+				if(lastValue < 0.0f && value > 0.0f)
+				{
+					auto delta = i - lastIndex;
+
+					float cyclePeak = 0.0f;
+
+					if(delta > 0)
+					{
+						cyclePeak = preloadBuffer.getMagnitude(lastIndex, delta);
+					}
+
+					zeroCrossingIndexes.push_back({i, cyclePeak});
+					lastIndex = i;
+				}
+
+				lastValue = value;
+			}
+		}
+
+		std::vector<std::pair<int, float>> zeroCrossingIndexes;
+		hlac::HiseSampleBuffer preloadBuffer;
+		float releasePreloadPeak = 0.0f;
+		float currentAttenuationPeak = 0.0f;
+	};
+
+	void rebuildReleaseStartBuffer();
+	
+	StreamingHelpers::ReleaseStartOptions::Ptr releaseStartOptions;
+	ScopedPointer<ReleaseStartData> releaseStartData;
+#endif
+
 	// ==============================================================================================================================================
 
-	friend class WeakReference < StreamingSamplerSound >;
-	WeakReference<StreamingSamplerSound>::Master masterReference;
-
+	JUCE_DECLARE_WEAK_REFERENCEABLE(StreamingSamplerSound);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(StreamingSamplerSound)
 };
 

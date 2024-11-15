@@ -116,7 +116,7 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 	
 
 	Processor *p = dynamic_cast<Processor*>(jp.get());
-	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, t == FileTypes::Javascript);
+	externalFile = p->getMainController()->getExternalScriptFile(fileToEdit, t == FileTypes::Javascript || t == FileTypes::CSS);
 
     p->getMainController()->addScriptListener(this);
     
@@ -232,7 +232,7 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 				        "This is a description that will show up in the autocomplete textbox");
 		}
 		else
-		
+		{
 	
 
 			ADD_HS_SNIPPET("reg (...)", "reg $VAR_NAME$ = $VALUE$;", "A shortcut to a reg variable definition.");
@@ -283,10 +283,11 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 		    ADD_HS_SNIPPET("timer (...)", "const var $TIMER_VAR$ = Engine.createTimerObject();\n\n$TIMER_VAR$.setTimerCallback(function()\n{\n\t$// timer callback$\n});\n\n$TIMER_VAR$.startTimer($30$);\n",
                            "A code snippet that will create a UI timer definition with a callback and a default period of 30Hz");
 
-		    ADD_HS_SNIPPET("css_inline (...)", "const var $UI_CONTROL$_laf = Content.createLocalLookAndFeel();\n\$UI_CONTROL$_laf.setInlineStyleSheet(\"#$UI_CONTROL$ {\n  background-color: blue;\n  color: white;\n}\n\n#$UI_CONTROL$:hover {\n  background-color: red;\n}\");\n\nContent.getComponent(\"$UI_CONTROL$\").setLocalLookAndFeel($UI_CONTROL$_laf);\n",
+		    ADD_HS_SNIPPET("css_inline (...)", "const var $UI_CONTROL$_laf = Content.createLocalLookAndFeel();\n$UI_CONTROL$_laf.setInlineStyleSheet(\"#$UI_CONTROL$ {\n  background-color: blue;\n  color: white;\n}\n\n#$UI_CONTROL$:hover {\n  background-color: red;\n}\");\n\nContent.getComponent(\"$UI_CONTROL$\").setLocalLookAndFeel($UI_CONTROL$_laf);\n",
 				           "A code snippet that will create a LAF class with an inline CSS style sheet that can be applied to a UI control using its id selector.  \n>Use `Ctrl+D` for selecting all `UI_CONTROL` tokens and rename it to the control ID");
 	
 #undef  ADD_HS_SNIPPET
+		}
 
 		return JSON::toString(var(list), false);
 	}
@@ -606,17 +607,8 @@ File PopupIncludeEditor::getFile() const
 
 void PopupIncludeEditor::compileInternal()
 {
-	if (externalFile != nullptr)
-	{
-		if(externalFile->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet)
-		{
-			debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Skip writing embedded file " + externalFile->getFile().getFileName() + " to disk...");
-		}
-		else
-		{
-            externalFile->saveFile();
-		}
-	}
+	auto mc = dynamic_cast<Processor*>(getScriptProcessor())->getMainController();
+	mc->saveAllExternalFiles();
 
 	if(t == FileTypes::CSS)
 	{

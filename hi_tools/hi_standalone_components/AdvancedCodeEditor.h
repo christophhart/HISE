@@ -35,8 +35,130 @@
 namespace hise {
 using namespace juce;
 
+/** A interface class for a component that has a text editor that should show a autocomplete popup. */
+struct TextEditorWithAutocompleteComponent: public Timer,
+											public TextEditor::Listener
+{
+	static constexpr int ItemHeight = 28;
 
+    /** This is the main top level component (or any other component) that will show the autocomplete. */
+    struct Parent
+    {
+	    virtual ~Parent() {};
 
+        /** Overwrite this and return a dynamic list of autocomplete items. */
+        virtual StringArray getAutocompleteItems(const Identifier& id) = 0;
+    };
+
+    TextEditorWithAutocompleteComponent():
+      navigator(*this)
+    {};
+
+    /** Call this from your subclass. */
+    void initEditor()
+    {
+	    getTextEditor()->addListener(this);
+		getTextEditor()->addKeyListener(&navigator);
+    }
+    
+    virtual ~TextEditorWithAutocompleteComponent() {};
+
+    /** Overwrite this and return the text editor that should be used by the autocomplete popup. */
+	virtual TextEditor* getTextEditor() = 0;
+
+    void timerCallback() override
+    {
+		if(Component::getCurrentlyFocusedComponent() == getTextEditor())
+			showAutocomplete(getTextEditor()->getText());
+        
+		stopTimer();
+    }
+
+    struct AutocompleteNavigator: public KeyListener
+    {
+        AutocompleteNavigator(TextEditorWithAutocompleteComponent& parent_):
+          parent(parent_)
+        {}
+	    bool keyPressed (const KeyPress& key,
+                             Component* originatingComponent) override;
+
+        TextEditorWithAutocompleteComponent& parent;
+    } navigator;
+
+	struct LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {};
+        
+	    virtual void drawAutocompleteBackground(Graphics& g, TextEditor& te, Rectangle<float> b, const StringArray& itemToShow, int selectedIndex)
+	    {
+	        b = b.reduced(10.0f);
+	        
+	        DropShadow sh;
+	        sh.colour = Colours::black.withAlpha(0.7f);
+	        sh.radius = 10;
+	        sh.drawForRectangle(g, b.toNearestInt());
+	            
+	        b.reduced(2.0f);
+	        g.setColour(Colour(0xFF222222));
+	        g.fillRoundedRectangle(b, 5.0f);
+	        g.setColour(Colours::white.withAlpha(0.3f));
+	        g.drawRoundedRectangle(b, 5.0f, 2.0f);
+	        
+	        b.reduced(5.0f);
+	        b.removeFromLeft(10.0f);
+	        b.removeFromTop(2.5f);
+	        
+	        g.setFont(te.getFont());
+	        
+	        if(itemToShow.isEmpty())
+	        {
+	            g.setColour(Colours::white.withAlpha(0.1f));
+	            g.drawText("No items found", b, Justification::centred);
+	        }
+	        else
+	        {
+	            for(int i = 0; i < 4; i++)
+	            {
+	                g.setColour(Colours::white.withAlpha(0.6f));
+	                auto tb = b.removeFromTop(ItemHeight);
+
+	                if(i == selectedIndex)
+	                {
+	                    g.fillRoundedRectangle(tb.withX(10.0f).reduced(3.0f, 1.0f), 3.0f);
+	                    g.setColour(Colours::black.withAlpha(0.8f));
+	                }
+	                    
+	                g.drawText(itemToShow[i], tb, Justification::left);
+	            }
+	        }
+	    }
+    };
+
+    void textEditorTextChanged(TextEditor&) override
+    {
+	    startTimer(400);
+    }
+
+    void textEditorReturnKeyPressed(TextEditor& e) override;
+
+    void textEditorEscapeKeyPressed(TextEditor& e) override;
+
+    void showAutocomplete(const String& currentText);
+    void dismissAutocomplete();
+
+    virtual Identifier getIdForAutocomplete() const = 0;
+
+    struct Autocomplete;
+
+    Autocomplete* getCurrentAutocomplete();
+
+    ScopedPointer<Component> currentAutocomplete;
+    StringArray autocompleteItems;
+
+    bool useDynamicAutocomplete = false;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(TextEditorWithAutocompleteComponent);
+};
 
 
 /** A subclass of CodeEditorComponent which improves working with Javascript scripts.

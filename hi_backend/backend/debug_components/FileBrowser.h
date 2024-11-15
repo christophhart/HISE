@@ -271,7 +271,7 @@ private:
 				file.getFileName() == "LinkOSX" ||
 #endif
 				isAudioFile(file) || isImageFile(file) || isXmlFile(file) ||
-                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file);
+                isScriptFile(file) || isUserPresetFile(file) || isMidiFile(file) || isCSSFile(file);
         }
         
 		bool isImageFile(const File& file) const
@@ -288,7 +288,12 @@ private:
         {
             return file.hasFileExtension("mid");
         }
-        
+
+		bool isCSSFile(const File& file) const
+        {
+	        return file.hasFileExtension("css");
+        }
+
 		bool isXmlFile(const File& file) const
 		{
 			return file.hasFileExtension("xml");

@@ -496,12 +496,14 @@ public:
 		ShowAddButton,
 		ShowRenameButton,
 		ShowDeleteButton,
+    ShowSearchBar,
 		ButtonsInsideBorder,
 		ColumnRowPadding,
 		SearchBarBounds,
 		SaveButtonBounds,
 		MoreButtonBounds,
 		FavoriteButtonBounds,
+    FullPathFavorites,
 		numSpecialProperties
 	};
 
@@ -717,6 +719,8 @@ public:
 	virtual bool isUsed(int rowIndex) const = 0;
 	virtual bool isInverted(int rowIndex) const = 0;
 	virtual NormalisableRange<double> getFullRange(int rowIndex) const = 0;
+	virtual ValueToTextConverter getValueToTextConverter(int rowIndex) const = 0;
+
 	virtual void setInverted(int rowIndex, bool value) = 0;
 
 	virtual String getIndexName() const = 0;
@@ -724,6 +728,26 @@ public:
 	
 	void paintCell(Graphics& g, int rowNumber, int columnId,
 		int width, int height, bool /*rowIsSelected*/) override;
+
+	void paint(Graphics& g) override
+	{
+		if(css_laf != nullptr)
+		{
+			using namespace simple_css;
+
+			auto& root = *CSSRootComponent::find(*this);
+
+			if(auto ss = root.css.getWithAllStates(this, Selector(ElementType::Table)))
+			{
+				Renderer r(this, root.stateWatcher);
+				root.stateWatcher.checkChanges(this, ss, r.getPseudoClassState());
+
+				auto b = getLocalBounds().toFloat();
+				//b = ss->getBounds(b, PseudoState(r.getPseudoClassState()));
+				r.drawBackground(g, b, ss);
+			}
+		}
+	}
 
 protected:
 
@@ -736,11 +760,34 @@ protected:
 	{
 	public:
 
+		struct RangeSlider: public Slider,
+						    public SliderWithShiftTextBox
+		{
+			
+			void mouseDoubleClick(const MouseEvent &e) override
+			{
+			    if(performModifierAction(e, true))
+					return;
+
+				Slider::mouseDoubleClick(e);
+			}
+
+			void mouseDown(const MouseEvent &e) override
+			{
+			    if(performModifierAction(e, false))
+			    {
+			        return;
+			    }
+
+				Slider::mouseDown(e);
+			}
+		};
+
 		ValueSliderColumn(TableFloatingTileBase &table);
 		void resized();
 		void setRowAndColumn(const int newRow, int column, double value, NormalisableRange<double> range);
 
-		ScopedPointer<Slider> slider;
+		ScopedPointer<RangeSlider> slider;
 
 	private:
 
@@ -782,6 +829,7 @@ protected:
 	Font font;
 	int numRows;            // The number of rows of data we've got
 	ScopedPointer<TableHeaderLookAndFeel> laf;
+	ScopedPointer<simple_css::StyleSheetLookAndFeel> css_laf;
 };
 
 
@@ -806,6 +854,18 @@ public:
 
 	NormalisableRange<double> getFullRange(int rowIndex) const override;
 	NormalisableRange<double> getRange(int rowIndex) const override;
+
+	ValueToTextConverter getValueToTextConverter(int rowIndex) const override
+	{
+		auto data = handler.getDataFromIndex(rowIndex);
+
+		if(data.used)
+		{
+			return data.textConverter;
+		}
+
+		return {};
+	}
 
 	bool isUsed(int rowIndex) const;
 	void setInverted(int row, bool value);
@@ -841,10 +901,21 @@ struct FrontendMacroPanel : public TableFloatingTileBase,
 	bool isInverted(int rowIndex) const override;
 	NormalisableRange<double> getFullRange(int rowIndex) const override;
 	NormalisableRange<double> getRange(int rowIndex) const override;
+
+	ValueToTextConverter getValueToTextConverter(int rowIndex) const override
+	{
+		if (auto data = connectionList[rowIndex].get())
+		{
+			return data->getValueToTextConverter();
+		}
+			
+		return {};
+	}
+
 	bool isUsed(int rowIndex) const;
 	void setInverted(int row, bool value);
 	String getCellText(int rowNumber, int columnId) const override;
-
+	
 	mutable hise::SimpleReadWriteLock connectionLock;
 	Array<WeakReference<MacroControlBroadcaster::MacroControlledParameterData>> connectionList;
 

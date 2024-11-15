@@ -412,7 +412,9 @@ void DspNetworkCompileExporter::run()
 			}
 				
             showStatusMessage("Creating C++ file for Network " + id);
-            
+
+			scriptnode::routing::LocalCableHelpers::replaceAllLocalCables(v);
+
 			ValueTreeBuilder b(v, ValueTreeBuilder::Format::CppDynamicLibrary);
 
 			b.setCodeProvider(new BackendDllManager::FileCodeProvider(getMainController()));
@@ -501,10 +503,14 @@ void DspNetworkCompileExporter::run()
 		
 		auto ok = codeDestDir.getChildFile(code_path).copyFileTo(realCodeDestDir.getChildFile(code_path));
 
-		if (code_path.size() > 0)
+		if (code_path.size() > 0 && ok)
+		{
 			DBG("Wrote code file to " + code_path);
+		}
 		else
+		{
 			DBG("Writing generated code failed.");
+		}
 	}
 
 #endif // HISE_INCLUDE_FAUST_JIT

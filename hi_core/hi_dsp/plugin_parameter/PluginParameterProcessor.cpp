@@ -315,8 +315,14 @@ AudioProcessor::BusesProperties PluginParameterAudioProcessor::getHiseBusPropert
 
 		auto busProp = BusesProperties();
 
+#ifdef HISE_SIDECHAIN_CHANNEL_LAYOUT
+        busProp = busProp.withInput("Input", AudioChannelSet::stereo())
+            .withInput("Sidechain", AudioChannelSet::stereo())
+            .withOutput("Output", AudioChannelSet::stereo());
+#else
 		for (int i = 0; i < numChannels; i += 2)
 			busProp = busProp.withInput("Input " + String(i+1), AudioChannelSet::stereo()).withOutput("Output " + String(i+1), AudioChannelSet::stereo());
+#endif
 
 		return busProp;
 		
@@ -328,12 +334,12 @@ AudioProcessor::BusesProperties PluginParameterAudioProcessor::getHiseBusPropert
 	if (getWrapperTypeBeingCreated() == wrapperType_AAX || FORCE_INPUT_CHANNELS)
 		busProp = busProp.withInput("Input", AudioChannelSet::stereo());
 		
-#if IS_STANDALONE_FRONTEND
-		constexpr int numChannels = 2;
+#if IS_STANDALONE_FRONTEND || IS_STANDALONE_APP
+    constexpr int numChannels = HISE_NUM_STANDALONE_OUTPUTS;
 #else
 	constexpr int numChannels = HISE_NUM_PLUGIN_CHANNELS;
 #endif
-
+    
 	for (int i = 0; i < numChannels; i += 2)
 		busProp = busProp.withOutput("Channel " + String(i + 1) + "+" + String(i + 2), AudioChannelSet::stereo());
 
@@ -346,6 +352,8 @@ bool PluginParameterAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
 {
 	auto inputs = layouts.getMainInputChannels();
 	auto outputs = layouts.getMainOutputChannels();
+
+	ignoreUnused(inputs, outputs);
 
 #if HISE_MIDIFX_PLUGIN
 		return inputs == 0 && outputs == 0;
@@ -364,9 +372,14 @@ bool PluginParameterAudioProcessor::isBusesLayoutSupported(const BusesLayout& la
 		return inputs == 2 && outputs == 2;
 #endif
 #else
+    
+#if IS_STANDALONE_FRONTEND || IS_STANDALONE_APP
+    return outputs == 2 || outputs == HISE_NUM_STANDALONE_OUTPUTS;
+#else
 	bool isStereo = (inputs == 2 || inputs == 0) && outputs == 2;
 	bool isMultiChannel = (inputs == HISE_NUM_PLUGIN_CHANNELS || inputs == 0) && (outputs == HISE_NUM_PLUGIN_CHANNELS);
 	return isStereo || isMultiChannel;
+#endif
 #endif
 }
 

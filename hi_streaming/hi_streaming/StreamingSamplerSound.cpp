@@ -82,7 +82,6 @@ StreamingSamplerSound::StreamingSamplerSound(HlacMonolithInfo::Ptr info, int cha
 
 StreamingSamplerSound::~StreamingSamplerSound()
 {
-	masterReference.clear();
 	fileReader.closeFileHandles();
 }
 
@@ -241,11 +240,9 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 			loopEnd = jmin(loopEnd, sampleEnd);
 		}
 	}
-
 	
-
-	bool applyLoopToPreloadBuffer = (loopEnd - sampleStart) < internalPreloadSize;
-
+	bool applyLoopToPreloadBuffer = ((loopEnd - sampleStart) < internalPreloadSize) && !isReleaseStartEnabled();
+	
 	if (isReversed())
 		applyLoopToPreloadBuffer = getLoopEnd(true) < internalPreloadSize;
 
@@ -305,6 +302,11 @@ void StreamingSamplerSound::setPreloadSize(int newPreloadSize, bool forceReload)
 	}
 
 	rebuildCrossfadeBuffer();
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	rebuildReleaseStartBuffer();
+#endif
+
 	applyCrossfadeToInternalBuffers();
 }
 
@@ -612,8 +614,8 @@ void StreamingSamplerSound::applyCrossfadeToInternalBuffers()
 			fadePos = sampleEnd - loopStart - crossfadeArea.getLength();
 
 		auto numInBuffer = preloadBuffer.getNumSamples();
-        
-		if (fadePos < numInBuffer)
+		
+		if (fadePos < numInBuffer && !isReleaseStartEnabled())
 		{
 			preloadBuffer.burnNormalisation();
 
@@ -700,56 +702,68 @@ void applyCrossfade(float gammaValue, hlac::HiseSampleBuffer& buffer, bool fadeI
 {
 	gammaValue = jlimit<float>(1.0f / 32.0f, 32.0f, gammaValue);
 
-	if(gammaValue == 1.0f)
+	if(fadeIn)
 	{
-		if (fadeIn)
-		{
-			buffer.applyGainRamp(0, 0, numToCopy, 0.0f, 1.0f);
-			buffer.applyGainRamp(1, 0, numToCopy, 0.0f, 1.0f);
-		}
-		else
-		{
-			buffer.applyGainRamp(0, 0, numToCopy, 1.0f, 0.0f);
-			buffer.applyGainRamp(1, 0, numToCopy, 1.0f, 0.0f);
-		}
+		buffer.applyGainRampWithGamma(0, 0, numToCopy, 0.0f, 1.0f, gammaValue);
+		buffer.applyGainRampWithGamma(1, 0, numToCopy, 0.0f, 1.0f, gammaValue);
 	}
 	else
 	{
-		jassert(buffer.getNumSamples() >= numToCopy);
-		jassert(buffer.getNumChannels() == 2);
-		
-		bool isFloat = buffer.isFloatingPoint();
-
-		auto l = (float*)buffer.getWritePointer(0, 0);
-		auto r = (float*)buffer.getWritePointer(1, 0);
-
-		auto lInt = (int16*)buffer.getWritePointer(0, 0);
-		auto rInt = (int16*)buffer.getWritePointer(1, 0);
-
-		float gainFactor = 0.0f;
-
-		for (int i = 0; i < numToCopy; i++)
-		{
-			float indexToUse = (float)i / (float)numToCopy;
-
-			if (!fadeIn)
-				indexToUse = 1.0f - indexToUse;
-
-			gainFactor = std::pow(indexToUse, gammaValue);
-
-			if (isFloat)
-			{
-				l[i] *= gainFactor;
-				r[i] *= gainFactor;
-			}
-			else
-			{
-				lInt[i] = (int16)((float)lInt[i] * gainFactor);
-				rInt[i] = (int16)((float)rInt[i] * gainFactor);
-			}
-		}
+		buffer.applyGainRampWithGamma(0, 0, numToCopy, 1.0f, 0.0f, gammaValue);
+		buffer.applyGainRampWithGamma(1, 0, numToCopy, 1.0f, 0.0f, gammaValue);
 	}
 }
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+
+void StreamingSamplerSound::setReleaseStart(int newReleaseStart)
+{
+	if(releaseStart != newReleaseStart)
+	{
+		releaseStart = jlimit(0, sampleEnd, newReleaseStart);
+		lengthChanged();
+	}
+}
+
+void StreamingSamplerSound::rebuildReleaseStartBuffer()
+{
+	if(releaseStart > 0)
+	{
+		if(releaseStartOptions == nullptr)
+			releaseStartOptions = new StreamingHelpers::ReleaseStartOptions();
+
+		auto reloadBufferSize = jmax(releaseStartOptions->releaseFadeTime + 4096, isEntireSampleLoaded() ? 8192 : preloadBuffer.getNumSamples());
+
+		auto isHlac = fileReader.isMonolithic();
+
+		releaseStartData = new ReleaseStartData(!isHlac, reloadBufferSize);
+
+		auto& rb = releaseStartData->preloadBuffer;
+
+		fileReader.readFromDisk(rb, 0, reloadBufferSize, releaseStart, false);
+		rb.burnNormalisation();
+
+		if(releaseStartOptions->gainMatchingMode == StreamingHelpers::ReleaseStartOptions::GainMatchingMode::Volume)
+		{
+			releaseStartData->releasePreloadPeak = rb.getMagnitude(0, releaseStartOptions->releaseFadeTime);
+		}
+
+		if(releaseStartOptions->useAscendingZeroCrossing)
+		{
+			releaseStartData->calculateZeroCrossings();
+		}
+
+
+		rb.applyGainRampWithGamma(0, 0, releaseStartOptions->releaseFadeTime, 0.0f, 1.0f, releaseStartOptions->fadeGamma);
+		rb.applyGainRampWithGamma(1, 0, releaseStartOptions->releaseFadeTime, 0.0f, 1.0f, releaseStartOptions->fadeGamma);
+	}
+	else
+	{
+		releaseStartData = nullptr;
+	}
+}
+
+#endif
 
 void StreamingSamplerSound::rebuildCrossfadeBuffer()
 {
@@ -822,14 +836,14 @@ float StreamingSamplerSound::calculatePeakValue()
 	return fileReader.calculatePeakValue();
 }
 
-void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime) const
+void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, ReleasePlayState releaseState) const
 {
 	ScopedLock sl(getSampleLock());
 
 	if (sampleBuffer.getNumSamples() == samplesToCopy)
 		sampleBuffer.clearNormalisation({});
 
-	if (!fileReader.isUsed()) return;
+	if (!fileReader.isUsed() && !isEntireSampleLoaded()) return;
 
 	int thisLoopStart = getLoopStart(isReversed());
 	int thisLoopEnd = getLoopEnd(isReversed());
@@ -839,7 +853,7 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 		uptime += sampleStart;
 	}
 	
-	const bool wrapLoop = (uptime + samplesToCopy) > thisLoopEnd;
+	const bool wrapLoop = (uptime + samplesToCopy) > thisLoopEnd && releaseState == ReleasePlayState::Inactive;
 
 	if (loopEnabled && getLoopLength() > 0 && wrapLoop)
 	{
@@ -849,13 +863,13 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 
 		if (smallLoopBuffer != nullptr)
 		{
-			int numSamplesBeforeFirstWrap = 0;
+			int numSamplesBeforeFirstWrap;
 
 			if (indexInLoop < 0)
 			{
 				numSamplesBeforeFirstWrap = jmin<int>(samplesToCopy, thisLoopStart - uptime);
 
-				fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, uptime, 0);
+				fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, uptime, releaseState, 0);
 			}
 			else
 			{
@@ -896,22 +910,22 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 			int startSample = numSamplesBeforeFirstWrap;
 
 			const int indexToUse = indexInLoop > 0 ? ((int)indexInLoop + (int)thisLoopStart) : uptime;
-			fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, indexToUse, 0);
+			fillInternal(sampleBuffer, numSamplesBeforeFirstWrap, indexToUse, releaseState,0);
 
 			while (numSamples > (int)getLoopLength())
 			{
-				fillInternal(sampleBuffer, getLoopLength(), (int)thisLoopStart, startSample);
+				fillInternal(sampleBuffer, getLoopLength(), (int)thisLoopStart, releaseState, startSample);
 				numSamples -= getLoopLength();
 				startSample += getLoopLength();
 			}
 
-			fillInternal(sampleBuffer, numSamples, (int)thisLoopStart, startSample);
+			fillInternal(sampleBuffer, numSamples, (int)thisLoopStart, releaseState, startSample);
 		}
 
 		// loop is bigger than streaming buffers and does not get wrapped
 		else if (numSamplesInThisLoop > samplesToCopy)
 		{
-			fillInternal(sampleBuffer, samplesToCopy, (int)(thisLoopStart + indexInLoop));
+			fillInternal(sampleBuffer, samplesToCopy, (int)(thisLoopStart + indexInLoop), releaseState);
 		}
 
 		// loop is bigger than streaming buffers and needs some wrapping
@@ -920,19 +934,32 @@ void StreamingSamplerSound::fillSampleBuffer(hlac::HiseSampleBuffer &sampleBuffe
 			const int numSamplesBeforeWrap = numSamplesInThisLoop;
 			const int numSamplesAfterWrap = samplesToCopy - numSamplesBeforeWrap;
 
-			fillInternal(sampleBuffer, numSamplesBeforeWrap, (int)(thisLoopStart + indexInLoop), 0);
-			fillInternal(sampleBuffer, numSamplesAfterWrap, (int)thisLoopStart, numSamplesBeforeWrap);
+			fillInternal(sampleBuffer, numSamplesBeforeWrap, (int)(thisLoopStart + indexInLoop), releaseState,  0);
+			fillInternal(sampleBuffer, numSamplesAfterWrap, (int)thisLoopStart, releaseState, numSamplesBeforeWrap);
 		}
 	}
 	else
 	{
-		jassert((uptime + samplesToCopy) <= sampleEnd);
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		bool isReleasePlaying = releaseState == ReleasePlayState::Playing;
+#else
+		bool isReleasePlaying = false;
+#endif
 
-		fillInternal(sampleBuffer, samplesToCopy, uptime);
+		if(isReleasePlaying)
+		{
+			samplesToCopy = jmin(samplesToCopy, sampleEnd - uptime);
+			fillInternal(sampleBuffer, samplesToCopy, uptime, releaseState);
+		}
+		else
+		{
+			jassert((uptime + samplesToCopy) <= sampleEnd);
+			fillInternal(sampleBuffer, samplesToCopy, uptime, releaseState);
+		}
 	}
 };
 
-void StreamingSamplerSound::fillInternal(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, int offsetInBuffer/*=0*/) const
+void StreamingSamplerSound::fillInternal(hlac::HiseSampleBuffer &sampleBuffer, int samplesToCopy, int uptime, ReleasePlayState releaseState, int offsetInBuffer/*=0*/) const
 {
 	jassert(uptime + samplesToCopy <= sampleEnd);
 
@@ -947,10 +974,15 @@ void StreamingSamplerSound::fillInternal(hlac::HiseSampleBuffer &sampleBuffer, i
 
 		if (numSamplesBeforeCrossfade > 0)
 		{
-			fillInternal(sampleBuffer, numSamplesBeforeCrossfade, uptime, 0);
+			fillInternal(sampleBuffer, numSamplesBeforeCrossfade, uptime, releaseState, 0);
 		}
 
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+		const int numSamplesInCrossfade = releaseState == ReleasePlayState::Playing ? 0 : jmin(samplesToCopy - numSamplesBeforeCrossfade, crossfadeArea.getLength());
+#else
 		const int numSamplesInCrossfade = jmin(samplesToCopy - numSamplesBeforeCrossfade, crossfadeArea.getLength());
+#endif
+		
 
 		if (numSamplesInCrossfade > 0)
 		{

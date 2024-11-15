@@ -549,7 +549,7 @@ void ModalBaseWindow::setModalComponent(Component *component, int fadeInTime/*=0
 		{
 			if(bw->wantsBackdrop())
 			{
-				backdrop = new DarkBackdrop(*this);
+				backdrop = new DarkBackdrop(*this, bw->shouldCloseOnBackdropClick());
 			}
 		}
 	}

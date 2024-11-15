@@ -45,7 +45,7 @@ ccName("MIDI CC")
 	clear(sendNotification);
 }
 
-void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, int macroIndex)
+void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, const ValueToTextConverter& converter, int macroIndex)
 {
 	ScopedLock sl(mc->getLock());
 
@@ -54,8 +54,8 @@ void MidiControllerAutomationHandler::addMidiControlledParameter(Processor *inte
 	unlearnedData.parameterRange = parameterRange;
 	unlearnedData.fullRange = parameterRange;
 	unlearnedData.macroIndex = macroIndex;
+	unlearnedData.textConverter = converter;
 	unlearnedData.used = true;
-
 }
 
 bool MidiControllerAutomationHandler::isLearningActive() const
@@ -190,7 +190,8 @@ parameterRange(NormalisableRange<double>()),
 fullRange(NormalisableRange<double>()),
 macroIndex(-1),
 used(false),
-inverted(false)
+inverted(false),
+textConverter({})
 {
 
 }
@@ -207,6 +208,7 @@ void MidiControllerAutomationHandler::AutomationData::clear()
 	ccNumber = -1;
 	inverted = false;
 	used = false;
+	textConverter = {};
 }
 
 
@@ -288,6 +290,8 @@ void MidiControllerAutomationHandler::AutomationData::restoreFromValueTree(const
 	double skew = v.getProperty("Skew", parameterRange.skew);
 	double interval = v.getProperty("Interval", parameterRange.interval);
 
+	textConverter = ValueToTextConverter::fromString(v.getProperty("Converter", ""));
+
 	auto fullStart = v.getProperty("FullStart", start);
 	auto fullEnd = v.getProperty("FullEnd", end);
 
@@ -311,6 +315,7 @@ juce::ValueTree MidiControllerAutomationHandler::AutomationData::exportAsValueTr
 	cc.setProperty("FullEnd", fullRange.end, nullptr);
 	cc.setProperty("Skew", parameterRange.skew, nullptr);
 	cc.setProperty("Interval", parameterRange.interval, nullptr);
+	cc.setProperty("Converter", textConverter.toString(), nullptr);
 
 	if (auto ap = processor->getMainController()->getUserPresetHandler().getCustomAutomationData(attribute))
 	{

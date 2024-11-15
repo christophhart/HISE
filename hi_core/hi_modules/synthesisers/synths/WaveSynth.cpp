@@ -41,6 +41,8 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
 	octaveTranspose1((int)getDefaultValue(OctaveTranspose1)),
 	octaveTranspose2((int)getDefaultValue(OctaveTranspose2)),
+	semiTones1((int)getDefaultValue(SemiTones1)),
+	semiTones2((int)getDefaultValue(SemiTones2)),
 	detune1(getDefaultValue(Detune1)),
 	detune2(getDefaultValue(Detune2)),
 	pan1(getDefaultValue(Pan1)),
@@ -80,6 +82,8 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("PulseWidth1");
 	parameterNames.add("PulseWidth2");
 	parameterNames.add("HardSync");
+    parameterNames.add("SemiTones1");
+    parameterNames.add("SemiTones2");
 
 	updateParameterSlots();
 
@@ -91,7 +95,7 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 
 	for (int i = 0; i < numVoices; i++)
 		addVoice(new WaveSynthVoice(this));
-	
+        
 	addSound(new WaveSound());
 }
 
@@ -100,7 +104,9 @@ void WaveSynth::restoreFromValueTree(const ValueTree &v)
 	ModulatorSynth::restoreFromValueTree(v);
 
 	loadAttribute(OctaveTranspose1, "OctaveTranspose1");
+	loadAttribute(SemiTones1, "SemiTones1");
 	loadAttribute(OctaveTranspose2, "OctaveTranspose2");
+	loadAttribute(SemiTones2, "SemiTones2");
 	loadAttribute(Detune1, "Detune1");
 	loadAttribute(Detune2, "Detune2");
 	loadAttribute(WaveForm1, "WaveForm1");
@@ -119,7 +125,9 @@ ValueTree WaveSynth::exportAsValueTree() const
 	ValueTree v = ModulatorSynth::exportAsValueTree();
 
 	saveAttribute(OctaveTranspose1, "OctaveTranspose1");
+	saveAttribute(SemiTones1, "SemiTones1");
 	saveAttribute(OctaveTranspose2, "OctaveTranspose2");
+	saveAttribute(SemiTones2, "SemiTones2");
 	saveAttribute(Detune1, "Detune1");
 	saveAttribute(Detune2, "Detune2");
 	saveAttribute(WaveForm1, "WaveForm1");
@@ -174,10 +182,12 @@ float WaveSynth::getDefaultValue(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case OctaveTranspose1:		return 0.0f;
+	case SemiTones1:			return 0.0f;
 	case WaveForm1:				return (float)WaveformComponent::WaveformType::Saw;
 	case Detune1:				return 0.0f;
 	case Pan1:					return 0.0f;
 	case OctaveTranspose2:		return 0.0f;
+	case SemiTones2:			return 0.0f;
 	case WaveForm2:				return (float)WaveformComponent::WaveformType::Saw;
 	case Detune2:				return 0.0f;
 	case Pan2:					return 0.0f;
@@ -229,10 +239,12 @@ float WaveSynth::getAttribute(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case OctaveTranspose1:		return (float)octaveTranspose1;
+	case SemiTones1:			return (float)semiTones1;
 	case WaveForm1:				return (float)waveForm1;
 	case Detune1:				return detune1;
 	case Pan1:					return pan1;
 	case OctaveTranspose2:		return (float)octaveTranspose2;
+	case SemiTones2:			return (float)semiTones2;
 	case WaveForm2:				return (float)waveForm2;
 	case Detune2:				return detune2;
 	case Pan2:					return pan2;
@@ -258,7 +270,13 @@ void WaveSynth::setInternalAttribute(int parameterIndex, float newValue)
 	case OctaveTranspose1:		octaveTranspose1 = (int)newValue;
 		refreshPitchValues(true);
 		break;
+	case SemiTones1:			semiTones1 = (int)newValue;
+		refreshPitchValues(true);
+		break;
 	case OctaveTranspose2:		octaveTranspose2 = (int)newValue;
+		refreshPitchValues(false);
+		break;
+	case SemiTones2:			semiTones2 = (int)newValue;
 		refreshPitchValues(false);
 		break;
 	case Detune1:				detune1 = newValue;
@@ -331,11 +349,11 @@ void WaveSynth::refreshPulseWidth(bool left)
 
 double WaveSynth::getPitchValue(bool getLeftValue)
 {
-	const double octaveValue = pow(2.0, (double)getLeftValue ? octaveTranspose1 : octaveTranspose2);
-
+	const double octaveValue = pow(2.0, (double)(getLeftValue ? octaveTranspose1 : octaveTranspose2));
+	const double semiToneValue = pow(2.0, (double)(getLeftValue ? semiTones1 : semiTones2) / 12.0);
 	const double detuneValue = pow(2.0, (getLeftValue ? detune1 : detune2) / 1200.0);
 
-	return octaveValue * detuneValue;
+	return octaveValue * semiToneValue * detuneValue;
 }
 
 
@@ -358,7 +376,7 @@ WaveSynthVoice::WaveSynthVoice(ModulatorSynth *ownerSynth) :
 #else
 	octaveTransposeFactor2(1.0)
 #endif
-	
+        
 {
 	setWaveForm(WaveformComponent::Saw, true);
 	setWaveForm(WaveformComponent::Saw, false);
@@ -388,7 +406,7 @@ void WaveSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthesis
 		rightGenerator.setFrequency(cyclesPerSecond * octaveTransposeFactor2);
 
 	leftGenerator.setStartOffset((double)getCurrentHiseEvent().getStartOffset());
-	
+        
 	if(enableSecondOsc)
 		rightGenerator.setStartOffset((double)getCurrentHiseEvent().getStartOffset());
 
@@ -464,18 +482,18 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 			while (--numSamples >= 0)
 			{
 				auto leftDelta = (float)uptimeDelta;
-				
+                                
 				if (voicePitchValues != nullptr)
 					leftDelta *= *voicePitchValues;
 
 				leftGenerator.setFreqModulationValue(leftDelta);
-				
+                                
 
 				auto rightDelta = (float)uptimeDelta;
-				
+                                
 				if (voicePitchValues != nullptr)
 					rightDelta *= *voicePitchValues;
-				
+                                
 				if (secondPitchValues != nullptr)
 					rightDelta *= *secondPitchValues;
 
@@ -511,7 +529,7 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 				leftGenerator.setFreqModulationValue(leftDelta);
 
-				
+                                
 				voicePitchValues++;
 
 				*outL = leftGenerator.getAndInc();
@@ -520,9 +538,9 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
-	
+        
 
-	
+        
 
 #else
 
@@ -559,18 +577,20 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 
 #endif
 
+        
+
+#if HISE_USE_WRONG_VOICE_RENDERING_ORDER
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+#endif
 
 	applyGainModulation(startIndex, samplesToCopy, false);
-
-	
 
 	if (enableSecondOsc)
 	{
 		auto leftSamples = voiceBuffer.getWritePointer(0, startIndex);
 		auto rightSamples = voiceBuffer.getWritePointer(1, startIndex);
 
-		
+                
 
 		auto& tBuffer = wavesynth->getTempBufferForMixCalculation();
 
@@ -613,6 +633,10 @@ void WaveSynthVoice::calculateBlock(int startSample, int numSamples)
 		FloatVectorOperations::addWithMultiply(leftSamples, tBuffer.getReadPointer(1, startIndex), balance2Left, samplesToCopy);
 		FloatVectorOperations::addWithMultiply(rightSamples, tBuffer.getReadPointer(1, startIndex), balance2Right, samplesToCopy);
 	}
+
+#if !HISE_USE_WRONG_VOICE_RENDERING_ORDER
+	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+#endif
 }
 
 
@@ -635,7 +659,7 @@ void WaveSynthVoice::setWaveForm(WaveformComponent::WaveformType type, bool left
 {
 	switch ((int)type)
 	{
-	case hise::WaveformComponent::Sine: 
+	case hise::WaveformComponent::Sine:
 		left ? leftGenerator.setWaveform(mf::PolyBLEP::SINE) : rightGenerator.setWaveform(mf::PolyBLEP::SINE); break;
 	case hise::WaveformComponent::Triangle:
 		left ? leftGenerator.setWaveform(mf::PolyBLEP::TRIANGLE) : rightGenerator.setWaveform(mf::PolyBLEP::TRIANGLE); break;
@@ -657,7 +681,7 @@ void WaveSynthVoice::setWaveForm(WaveformComponent::WaveformType type, bool left
 		break;
 	}
 
-	
+        
 
 }
 

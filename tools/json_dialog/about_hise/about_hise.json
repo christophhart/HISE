@@ -177,7 +177,17 @@
           "Enabled": false,
           "InitValue": "1",
           "Height": 80,
-          "Help": "If this is true (which is the default), then the wavetable synthesizer will expect a wavetable size that is a power of two. Disable this if you want to use .hwt files that you have created with an ancient HISE version (something below 3.5.0)"
+          "Help": "If this is true (which is the default), then the wavetable synthesizer will expect a wavetable size that is a power of two. Disable this if you want to use .hwt files that you have created with an ancient HISE version (something below 3.5.0)",
+          "UseInitValue": ""
+        },
+        {
+          "Type": "TextInput",
+          "Text": "HISE_USE_WRONG_VOICE_RENDERING_ORDER",
+          "ID": "HISE_USE_WRONG_VOICE_RENDERING_ORDER",
+          "Enabled": false,
+          "InitValue": "1",
+          "Height": 80,
+          "Help": "Annoyingly some sound generators (Waveform Generator, Sampler, Looper, Group) were rendering the voice effects before the polyphonic gain modulation which causes the sound to be slightly different. If you care about backwards compatibility of your existing user presets, you will have to enable this preprocessor."
         }
       ],
       "Text": ""

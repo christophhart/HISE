@@ -35,8 +35,11 @@ public:
     virtual var getParameterProperties() const = 0;
 };
 
+
+
 class HardcodedSwappableEffect : public HotswappableProcessor,
-							     public ProcessorWithExternalData
+							     public ProcessorWithExternalData,
+								 public RuntimeTargetHolder
 {
 public:
 
@@ -89,9 +92,8 @@ public:
 
     var getParameterProperties() const override;
     
-    void disconnectRuntimeTargets();
-    
-    void connectRuntimeTargets();
+    void disconnectRuntimeTargets(MainController* mc) override;
+    void connectRuntimeTargets(MainController* mc) override;
     
 protected:
 	
@@ -340,6 +342,11 @@ public:
 	int getNumActiveVoices() const override
 	{
 		return voiceStack.voiceNoteOns.size();
+	}
+
+	bool isVoiceResetActive() const override
+	{
+		return hasHardcodedTail();
 	}
 
 	void onVoiceReset(bool allVoices, int voiceIndex) override

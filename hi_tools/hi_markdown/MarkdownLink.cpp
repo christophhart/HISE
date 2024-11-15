@@ -469,6 +469,23 @@ bool MarkdownLink::fileExists(const File& rootDirectory) const noexcept
 	return getMarkdownFile(rootDirectory).existsAsFile();
 }
 
+String MarkdownLink::getEditLinkOnGitHub(bool rawLink) const
+{
+	String s;
+
+	auto editLink = getHtmlStringForBaseURL("https://github.com/christophhart/hise_documentation/edit/master/");
+
+	editLink = editLink.replace("index.html", "Readme.md");
+	editLink = editLink.replace(".html", ".md");
+
+	if(rawLink)
+		return editLink;
+
+	s << " [Edit on GitHub](" << editLink << ")";
+
+	return s;
+}
+
 String MarkdownLink::getHtmlStringForBaseURL(const String& baseURL) const
 {
 	String u;

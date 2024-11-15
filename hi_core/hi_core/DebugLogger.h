@@ -149,13 +149,21 @@ public:
 
 	struct Listener
 	{
+		enum RecordState
+		{
+			Idle,
+			RecordingMidi,
+			RecordingAudio,
+			Done
+		};
+
 		virtual ~Listener();;
 
 		virtual void logStarted();;
 		virtual void logEnded();;
 		virtual void errorDetected();;
 
-		virtual void recordStateChanged(bool isRecording);;
+		virtual void recordStateChanged(RecordState isRecording);;
 
 	private:
 
@@ -224,17 +232,21 @@ public:
 
 	void addSorted(Array<Message*>& list, Message* m);
 
-	void startRecording();
+	void startRecording(double numberOfSeconds=1.0, const File& outputFile_=File(), bool waitForInput_=false, bool renderOffline_=false);
 
-	void recordOutput(AudioSampleBuffer& bufferToRecord);
+	void recordOutput(MidiBuffer& mb, AudioSampleBuffer& bufferToRecord);
 
 private:
+
+	void startRecordingInternal();
 
 	struct RecordDumper : public AsyncUpdater
 	{
 		RecordDumper(DebugLogger& parent_);
 
 		void handleAsyncUpdate() override;
+
+		void onOfflineRender(const AudioSampleBuffer& b);
 
 		DebugLogger& parent;
 	};
@@ -243,8 +255,15 @@ private:
 
 	std::atomic<int> recordUptime;
 	AudioSampleBuffer debugRecorder;
+	HiseEventBuffer eventBuffer;
 	RecordDumper dumper;
 
+	double numSecondsToRecord = 1.0;
+	File outputFile;
+	bool waitForInput = false;
+	bool renderOffline = false;
+
+	ScopedPointer<Thread> currentExportThread;
 
 	mutable String messageCallbackStackBacktrace;
 

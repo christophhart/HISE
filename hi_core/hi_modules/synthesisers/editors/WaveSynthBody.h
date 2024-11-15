@@ -60,6 +60,9 @@ public:
 		octaveSlider->updateValue();
 		octaveSlider2->updateValue();
 
+		semiToneSlider1->updateValue();
+		semiToneSlider2->updateValue();
+
 		detuneSlider->updateValue();
 		detuneSlider2->updateValue();
 
@@ -87,7 +90,7 @@ public:
 			octaveSlider2->setEnabled(false);
 			detuneSlider2->setEnabled(false);
 			panSlider2->setEnabled(false);
-			
+                        
 		}
 	};
 
@@ -105,8 +108,8 @@ public:
 	{
 		return h;
 	}
-	
-	
+        
+        
 
     //[/UserMethods]
 
@@ -144,6 +147,8 @@ private:
 	ScopedPointer<HiToggleButton> enableSyncButton;
     ScopedPointer<HiSlider> pulseSlider1;
     ScopedPointer<HiSlider> pulseSlider2;
+    ScopedPointer<HiSlider> semiToneSlider1;
+    ScopedPointer<HiSlider> semiToneSlider2;
 
 
     //==============================================================================

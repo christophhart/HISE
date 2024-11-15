@@ -53,13 +53,14 @@ PresetBrowserSearchBar::PresetBrowserSearchBar(PresetBrowser* p):
 	inputLabel->setColour(CaretComponent::ColourIds::caretColourId, Colours::white);
 
 	inputLabel->setColour(TextEditor::ColourIds::focusedOutlineColourId, Colours::transparentBlack);
+
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(*inputLabel, { ".search" });
+
 }
 
 void PresetBrowserSearchBar::paint(Graphics &g)
 {
-	getPresetBrowserLookAndFeel().drawSearchBar(g, getLocalBounds());
-
-	
+	getPresetBrowserLookAndFeel().drawSearchBar(g, *inputLabel, getLocalBounds());
 }
 
 
@@ -67,7 +68,9 @@ void PresetBrowserSearchBar::paint(Graphics &g)
 
 int TagList::Tag::getTagWidth() const
 {
-	return (int)parent.getPresetBrowserLookAndFeel().font.getStringWidthFloat(name) + 20;
+	auto f = parent.getPresetBrowserLookAndFeel().getTagFont(*const_cast<Tag*>(this));
+
+	return (int)f.getStringWidthFloat(name) + 20;
 }
 
 
@@ -80,7 +83,7 @@ void TagList::Tag::paint(Graphics& g)
 {
 	auto position = getLocalBounds();
 	
-	parent.getPresetBrowserLookAndFeel().drawTag(g, parent.on, active, selected, name, position);
+	parent.getPresetBrowserLookAndFeel().drawTag(g, *this, isMouseOver(), parent.on, active, selected, name, position);
 }
 
 TagList::TagList(MainController* mc_, PresetBrowser* p) :
@@ -388,7 +391,13 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 		auto itemName = entries[rowNumber].getFileNameWithoutExtension();
 		auto position = Rectangle<int>(0, 1, width, height - 2);
 
-		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
+		auto column = parent->getColumn(index);
+		jassert(dynamic_cast<ListBox*>(column)->getModel() == this);
+		
+    if (showFavoritesOnly && parent.getComponent()->shouldShowFullPathFavorites())
+			itemName = entries[rowNumber].getRelativePathFrom(totalRoot);
+    
+		getPresetBrowserLookAndFeel().drawListItem(g, *column, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
 	}
 }
 
@@ -733,9 +742,9 @@ void PresetBrowserColumn::paint(Graphics& g)
 	columnArea = {0, 0, getWidth(), getHeight()};
 
 	if (!buttonsInsideBorder)
-		getPresetBrowserLookAndFeel().drawColumnBackground(g, index, listArea, emptyText);
+		getPresetBrowserLookAndFeel().drawColumnBackground(g, *parent->getColumn(index), index, listArea, emptyText);
 	else
-		getPresetBrowserLookAndFeel().drawColumnBackground(g, index, columnArea, emptyText);	
+		getPresetBrowserLookAndFeel().drawColumnBackground(g, *parent->getColumn(index), index, columnArea, emptyText);	
 	
 }
 
@@ -897,7 +906,7 @@ void PresetBrowserColumn::ExpansionColumnModel::paintListBoxItem(int rowNumber, 
 	if (rowNumber < entries.size())
 	{
 		auto position = Rectangle<int>(0, 1, width, height - 2);
-		getPresetBrowserLookAndFeel().drawListItem(g, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
+		getPresetBrowserLookAndFeel().drawListItem(g, *parent->getColumn(index), index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
 	}
 }
 

@@ -729,7 +729,7 @@ struct CodeSnippetProvider::CodeSnippetToken: public mcl::TokenCollection::Token
 		{
 			if(*ptr == '$')
 			{
-				indexes.add((ptr - start) - indexes.size());
+				indexes.add(static_cast<int>((ptr - start)) - indexes.size());
 			}
 			else
 			{

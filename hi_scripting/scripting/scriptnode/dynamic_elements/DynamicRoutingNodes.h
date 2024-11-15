@@ -355,6 +355,286 @@ using dynamic_receive = routing::receive<cable::dynamic>;
 
 namespace routing
 {
+
+struct local_cable_base :
+	public mothernode,
+	public control::pimpl::parameter_node_base<parameter::dynamic_base_holder>,
+
+	public control::pimpl::no_processing
+{
+	struct Manager: public ReferenceCountedObject
+	{
+		using Ptr = ReferenceCountedObjectPtr<Manager>;
+
+		Manager(DspNetwork* n):
+		  um(n->getUndoManager())
+		{
+			updater.enableLockFreeUpdate(n->getScriptProcessor()->getMainController_()->getGlobalUIUpdater());
+		}
+
+		~Manager()
+		{
+			registeredCables.clear();
+		}
+
+		void registerCable(WeakReference<local_cable_base> c);
+		void deregisterCable(WeakReference<local_cable_base> c);
+
+		void refreshAllConnections(const String& v);
+
+		struct Item
+		{
+			Item(Manager& p, local_cable_base* c);
+
+			void updateRanges(const Identifier& id, const var& newValue);
+
+			void updateId(const Identifier&, const var& newValue);
+
+			Manager& parent;
+			WeakReference<local_cable_base> cable;
+			ValueTree propTree, paramTree;
+			valuetree::PropertyListener idListener;
+			valuetree::PropertyListener rangeListener;
+
+			int variableIndex = -1;
+		};
+
+		static constexpr int NumVariableSlots = 64;
+
+		double getCurrentVariableValue(const String& id) const
+		{
+			auto idx = variables.indexOf(id);
+
+			if(isPositiveAndBelow(idx, NumVariableSlots))
+				return variableValues[idx];
+
+			return 0.0;
+		}
+
+		void setVariableValue(int variableIndex, double value)
+		{
+			if(isPositiveAndBelow(variableIndex, NumVariableSlots))
+				variableValues[variableIndex] = value;
+
+			updater.sendMessage(sendNotificationAsync, variableIndex);
+		}
+
+		LambdaBroadcaster<int> updater;
+
+		StringArray variables;
+
+		span<double, NumVariableSlots> variableValues;
+
+		CriticalSection lock;
+
+		OwnedArray<Item> registeredCables;
+		UndoManager* um;
+	};
+
+	struct editor: public ScriptnodeExtraComponent<local_cable_base>,
+				   public GlobalRoutingManager::RoutingIcons
+	{
+		editor(local_cable_base* obj, PooledUIUpdater* u);
+
+		void resized() override;
+		void timerCallback() override;
+
+		static Component* createExtraComponent(void* obj, PooledUIUpdater* u);
+
+		int counter = 0;
+
+		ModulationSourceBaseComponent dragger;
+		ComboBoxWithModeProperty name;
+		HiseShapeButton newButton, viewButton;
+	};
+
+	local_cable_base(const Identifier& id):
+	  control::pimpl::parameter_node_base<scriptnode::parameter::dynamic_base_holder>(id),
+	  currentId(PropertyIds::LocalId, {})
+	{
+		
+	}
+
+	using Helpers = LocalCableHelpers;
+
+	~local_cable_base()
+	{
+		getManager()->deregisterCable(this);
+	}
+
+	void setValue(double v);
+
+	
+
+	struct ListItem: public Component
+	{
+		ListItem(DspNetwork* network_, const String& id):
+		  network(network_)
+		{
+			setName(id);
+			connections = Helpers::getListOfConnectedNodes(network, {}, id);
+			auto mn = static_cast<Manager*>(network->getLocalCableManager());
+			mn->updater.addListener(*this, update);
+
+		}
+
+		static void update(ListItem& item, int index)
+		{
+			item.repaint();
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			if(e.mods.isRightButtonDown())
+			{
+				PopupLookAndFeel plaf;
+
+				PopupMenu m;
+				m.setLookAndFeel(&plaf);
+
+				m.addItem(1, "Replace local cable with direct connections");
+
+				auto r = m.show();
+
+				if(r == 1)
+				{
+					Helpers::explode(connections.getFirst()->getValueTree(), connections.getFirst()->getUndoManager());
+				}
+
+				return;
+			}
+			else
+			{
+				Helpers::showAllOccurrences(network.get(), getName());
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			auto b = getLocalBounds().toFloat();
+
+			 
+
+			auto selection = network->getSelection();
+
+			auto isSelected = false;
+
+			for(auto c: connections)
+			{
+				for(auto s: selection)
+				{
+					isSelected |= c == s;
+					if(isSelected)
+						break;
+				}
+
+				if(isSelected)
+					break;
+			}
+
+			if(auto c = connections.getFirst())
+			{
+				auto cl = GlobalRoutingManager::Helpers::getColourFromId(getName());
+
+				g.setColour(cl.withAlpha(0.1f));
+				g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
+
+				if(isSelected)
+				{
+					g.setColour(Colour(SIGNAL_COLOUR));
+					g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
+				}
+
+				auto rng = RangeHelpers::getDoubleRange(c->getParameterFromIndex(0)->data);
+
+				auto mn = static_cast<Manager*>(network->getLocalCableManager());
+				auto v = mn->getCurrentVariableValue(getName());
+				auto normValue = rng.convertTo0to1(v, false);
+
+				g.setColour(cl);
+
+				auto l = b.removeFromLeft(b.getHeight()).reduced(JUCE_LIVE_CONSTANT_OFF(5.0f));
+
+				g.drawEllipse(l, 1.0f);
+				g.setColour(cl.withAlpha(jlimit<float>(0.0f, 1.0f, normValue)));
+				g.fillEllipse(l.reduced(2.0f));
+				g.setColour(Colours::white.withAlpha(0.8f));
+
+				String text;
+				text << getName() << " (" << String(connections.size()) << "x)";
+
+				b.removeFromLeft(5.0f);
+
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.drawText(text, b, Justification::left);
+			}
+		}
+
+		
+
+		Array<WeakReference<NodeBase>> connections;
+		WeakReference<DspNetwork> network;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ListItem);
+	};
+
+	void initialise(NodeBase* n);
+
+	Manager::Ptr getManager() const;
+
+	void sendValue(double v);
+
+	void refreshConnection(int newVariableIndex);
+
+	String getVariableId() const { return currentId.getValue(); }
+
+	virtual void createParameters(ParameterDataList&) = 0;
+
+private:
+
+	int variableIndex = -1;
+
+	NodePropertyT<String> currentId;
+	WeakReference<NodeBase> node;
+
+	hise::SimpleReadWriteLock lock;
+
+	Array<WeakReference<NodeBase>> connections;
+
+	bool recursion = false;
+	
+	JUCE_DECLARE_WEAK_REFERENCEABLE(local_cable_base);
+};
+
+struct local_cable: public local_cable_base
+{
+	SN_NODE_ID("local_cable");
+	SN_GET_SELF_AS_OBJECT(local_cable);
+
+	SN_ADD_SET_VALUE(local_cable);
+
+	local_cable() :
+	  local_cable_base(getStaticId())
+	{};;
+};
+
+struct local_cable_unscaled: public local_cable_base,
+						     public control::pimpl::no_mod_normalisation
+{
+	SN_NODE_ID("local_cable_unscaled");
+	SN_GET_SELF_AS_OBJECT(local_cable_unscaled);
+
+	SN_ADD_SET_VALUE(local_cable_unscaled);
+
+	local_cable_unscaled() :
+	  local_cable_base(getStaticId()),
+	  no_mod_normalisation(getStaticId(), { "Value" })
+	{};
+
+	static constexpr bool isNormalisedModulation() { return false; }
+};
+
+
 struct dynamic_matrix : public RoutableProcessor
 {
 	static constexpr bool isFixedChannelMatrix() { return false; }
@@ -377,26 +657,7 @@ struct dynamic_matrix : public RoutableProcessor
 		getMatrix().setNumDestinationChannels(specs.numChannels);
 	}
 
-	void updateData()
-	{
-		if (recursion)
-			return;
-
-		ScopedValueSetter<bool> svs(recursion, true);
-
-		auto matrixData = ValueTreeConverters::convertValueTreeToBase64(getMatrix().exportAsValueTree(), true);
-
-		internalData.storeValue(matrixData, um);
-
-		memset(channelRouting, -1, NUM_MAX_CHANNELS);
-		memset(sendRouting, -1, NUM_MAX_CHANNELS);
-
-		for (int i = 0; i < getMatrix().getNumSourceChannels(); i++)
-		{
-			channelRouting[i] = (int8)getMatrix().getConnectionForSourceChannel(i);
-			sendRouting[i] = (int8)getMatrix().getSendForSourceChannel(i);
-		}
-	}
+	void updateData();
 
 	static constexpr bool createDisplayValues() { return true; }
 
@@ -415,8 +676,6 @@ struct dynamic_matrix : public RoutableProcessor
 
 	void initialise(NodeBase* n)
 	{
-		
-
 		um = n->getUndoManager();
 
 		getMatrix().init(dynamic_cast<Processor*>(n->getScriptProcessor()));

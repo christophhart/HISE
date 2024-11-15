@@ -185,6 +185,35 @@ var ApiHelpers::convertStyleSheetProperty(const var& value, const String& type)
 	return value;
 }
 
+StringArray ApiHelpers::getMouseCursorNames()
+{
+	static const StringArray iconIds =
+	{
+		"ParentCursor",               /**< Indicates that the component's parent's cursor should be used. */
+		"NoCursor",                       /**< An invisible cursor. */
+		"NormalCursor",                   /**< The standard arrow cursor. */
+		"WaitCursor",                     /**< The normal hourglass or spinning-beachball 'busy' cursor. */
+		"IBeamCursor",                    /**< A vertical I-beam for positioning within text. */
+		"CrosshairCursor",                /**< A pair of crosshairs. */
+		"CopyingCursor",                  /**< The normal arrow cursor, but with a "+" on it to indicate that you're dragging a copy of something. */
+		"PointingHandCursor",             /**< A hand with a pointing finger, for clicking on web-links. */
+		"DraggingHandCursor",             /**< An open flat hand for dragging heavy objects around. */
+		"LeftRightResizeCursor",          /**< An arrow pointing left and right. */
+		"UpDownResizeCursor",             /**< an arrow pointing up and down. */
+		"UpDownLeftRightResizeCursor",    /**< An arrow pointing up, down, left and right. */
+		"TopEdgeResizeCursor",            /**< A platform-specific cursor for resizing the top-edge of a window. */
+		"BottomEdgeResizeCursor",         /**< A platform-specific cursor for resizing the bottom-edge of a window. */
+		"LeftEdgeResizeCursor",           /**< A platform-specific cursor for resizing the left-edge of a window. */
+		"RightEdgeResizeCursor",          /**< A platform-specific cursor for resizing the right-edge of a window. */
+		"TopLeftCornerResizeCursor",      /**< A platform-specific cursor for resizing the top-left-corner of a window. */
+		"TopRightCornerResizeCursor",     /**< A platform-specific cursor for resizing the top-right-corner of a window. */
+		"BottomLeftCornerResizeCursor",   /**< A platform-specific cursor for resizing the bottom-left-corner of a window. */
+		"BottomRightCornerResizeCursor"  /**< A platform-specific cursor for resizing the bottom-right-corner of a window. */
+	};
+
+	return iconIds;
+}
+
 Colour ApiHelpers::getColourFromVar(const var& value)
 {
 	int64 colourValue = 0;
@@ -3712,6 +3741,8 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_0(Sampler, getSampleMapAsBase64);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setTimestretchRatio);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setTimestretchOptions);
+	API_METHOD_WRAPPER_0(Sampler, getReleaseStartOptions);
+	API_VOID_METHOD_WRAPPER_1(Sampler, setReleaseStartOptions);
 	API_METHOD_WRAPPER_0(Sampler, getTimestretchOptions);
 	API_METHOD_WRAPPER_1(Sampler, createSelection);
 	API_METHOD_WRAPPER_1(Sampler, createSelectionFromIndexes);
@@ -3783,6 +3814,8 @@ sampler(sampler_)
 	ADD_API_METHOD_1(setTimestretchRatio);
 	ADD_API_METHOD_1(setTimestretchOptions);
 	ADD_API_METHOD_0(getTimestretchOptions);
+	ADD_API_METHOD_0(getReleaseStartOptions);
+	ADD_API_METHOD_1(setReleaseStartOptions);
 
 	sampleIds = SampleIds::Helpers::getAllIds();
 
@@ -4661,6 +4694,40 @@ void ScriptingApi::Sampler::setTimestretchOptions(var newOptions)
 	s->setTimestretchOptions(no);
 }
 
+var ScriptingApi::Sampler::getReleaseStartOptions()
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	ModulatorSampler* s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+
+	return s->getSampleMap()->getReleaseStartOptions()->toJSON();
+#else
+	reportScriptError("HISE_SAMPLER_ALLOW_RELEASE_START is not enabled");
+	return var();
+#endif
+}
+
+void ScriptingApi::Sampler::setReleaseStartOptions(var data)
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	ModulatorSampler* s = dynamic_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+		reportScriptError("Invalid sampler call");
+
+	StreamingHelpers::ReleaseStartOptions::Ptr newOptions = new StreamingHelpers::ReleaseStartOptions();
+
+	newOptions->fromJSON(data);
+
+	s->getSampleMap()->setReleaseStartOptions(newOptions);
+#else
+	reportScriptError("HISE_SAMPLER_ALLOW_RELEASE_START is not enabled");
+#endif
+}
+
 String ScriptingApi::Sampler::getAudioWaveformContentAsBase64(var presetObj)
 {
 	auto fileName = presetObj.getProperty("data", "").toString();
@@ -5344,7 +5411,7 @@ void ScriptingApi::Synth::playNoteFromUI(int channel, int noteNumber, int veloci
 {
     CustomKeyboardState& state = getScriptProcessor()->getMainController_()->getKeyboardState();
     
-    state.injectMessage(MidiMessage::noteOn(channel, noteNumber, (float)velocity * 127.0f));
+    state.injectMessage(MidiMessage::noteOn(channel, noteNumber, (uint8)velocity));
 }
 
 void ScriptingApi::Synth::noteOffFromUI(int channel, int noteNumber)

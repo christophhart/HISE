@@ -420,7 +420,6 @@ public:
     /** Can be overridden for more control over the pop-up menu behaviour. */
     virtual void showColumnChooserMenu (int columnIdClicked);
 
-private:
     struct ColumnInfo
     {
         String name;
@@ -430,6 +429,27 @@ private:
         bool isVisible() const;
     };
 
+    void setFixColumnWidth(int columnId, int newWidth)
+    {
+	    for(auto c: columns)
+	    {
+		    if(c->id == columnId)
+		    {
+			    c->maximumWidth = newWidth;
+                c->minimumWidth = newWidth;
+                c->width = newWidth;
+                c->lastDeliberateWidth = newWidth;
+
+                repaint();
+				columnsResized = true;
+				triggerAsyncUpdate();
+                break;
+		    }
+	    }
+    }
+
+private:
+    
     OwnedArray<ColumnInfo> columns;
     Array<Listener*> listeners;
     std::unique_ptr<Component> dragOverlayComp;

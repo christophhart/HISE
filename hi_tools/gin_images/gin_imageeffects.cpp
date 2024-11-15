@@ -5,6 +5,8 @@
 
  ==============================================================================*/
 
+#include "avir/avir.h"
+
 namespace gin {
 
 #if JUCE_INTEL
@@ -713,9 +715,6 @@ void applyHueSaturationLightness (juce::Image& img, float hue, float saturation,
 
 juce::Image applyResize (const juce::Image& src, int width, int height)
 {
-	jassertfalse;
-	return src;
-#if 0
     juce::Image dst (src.getFormat(), width, height, true);
 
     juce::Image::BitmapData srcData (src, juce::Image::BitmapData::readOnly);
@@ -741,7 +740,7 @@ juce::Image applyResize (const juce::Image& src, int width, int height)
                 srcData.getLinePointer (y),
                 (size_t) (src.getWidth() * channels));
 
-   #if GIN_USE_SSE
+   #if 0 && GIN_USE_SSE
     avir::CImageResizer<avir::fpclass_float4> imageResizer (8);
     imageResizer.resizeImage (rawSrc, src.getWidth(), src.getHeight(), 0,
                                 rawDst, dst.getWidth(), dst.getHeight(), channels, 0);
@@ -757,7 +756,6 @@ juce::Image applyResize (const juce::Image& src, int width, int height)
                 (size_t) (dst.getWidth() * channels));
 
     return dst;
-#endif
 }
 
 juce::Image applyResize (const juce::Image& src, float factor)

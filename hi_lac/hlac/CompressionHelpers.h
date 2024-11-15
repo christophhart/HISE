@@ -255,6 +255,8 @@ struct CompressionHelpers
 		/** Adds the values from src to dst. */
 		static void add(int16* dst, const int16* src, int numSamples);
 
+		static void addWithGain(int16* dst, const int16* src, int numSamples, float gainFactor);
+		
 		static void mul(int16*dst, const int16 value, int numSamples);
 
 		static void div(int16* dst, const int16 value, int numSamples);

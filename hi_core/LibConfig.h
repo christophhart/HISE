@@ -68,6 +68,13 @@
 #define HISE_NUM_FX_PLUGIN_CHANNELS 2
 #endif
 
+/** Config: HISE_NUM_STANDALONE_OUTPUTS
+ 
+ This lets you define the number of outputs for the standalone HISE app (or exported standalone app).
+*/
+#ifndef HISE_NUM_STANDALONE_OUTPUTS
+#define HISE_NUM_STANDALONE_OUTPUTS HISE_NUM_PLUGIN_CHANNELS
+#endif
 
 #define NUM_GLOBAL_VARIABLES 128
 
@@ -102,6 +109,13 @@
 
 #ifndef HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG
 #define HISE_USE_SQUARED_TIMEVARIANT_MOD_VALUES_BUG 0
+#endif
+
+/** Annoyingly some sound generators (Waveform Generator, Sampler, Looper, Group) were rendering
+ *  the voice effects before the polyphonic gain modulation which causes the sound to be slightly different.
+ *	If you care about backwards compatibility of your existing user presets, you will have to enable this preprocessor. */
+#ifndef HISE_USE_WRONG_VOICE_RENDERING_ORDER
+#define HISE_USE_WRONG_VOICE_RENDERING_ORDER 0
 #endif
 
 #ifndef HISE_PLAY_ALL_CROSSFADE_GROUPS_WHEN_EMPTY

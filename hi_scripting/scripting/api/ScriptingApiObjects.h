@@ -73,20 +73,7 @@ public:
 	static constexpr int AsyncMagicNumber = 912;
 	static constexpr int AsyncHiPriorityMagicNumber = 913;
 
-	static var getDispatchTypeMagicNumber(dispatch::DispatchType n)
-	{
-		using Type = dispatch::DispatchType;
-
-		switch(n)
-		{
-		case dispatch::dontSendNotification: return var(false);
-		case dispatch::sendNotification: return var(true);
-		case dispatch::sendNotificationSync: return var(SyncMagicNumber);
-		case dispatch::sendNotificationAsync: return var(AsyncMagicNumber);;
-		case dispatch::sendNotificationAsyncHiPriority: return var(AsyncHiPriorityMagicNumber);
-		default: return var(false);
-		}
-	}
+	static var getDispatchTypeMagicNumber(dispatch::DispatchType n);
 
 	static dispatch::DispatchType getDispatchType(const var& syncValue, bool getDontForFalse);
 
@@ -115,8 +102,10 @@ public:
 	static Colour getColourFromVar(const var& value);
 
 	static var convertStyleSheetProperty(const var& value, const String& type);
-	
-	
+
+	static StringArray getMouseCursorNames();
+
+	static MouseCursor::StandardCursorType getMouseCursorFromString(const String& name, Result* r = nullptr);
 
 	static Array<Identifier> getGlobalApiClasses();
 
@@ -385,6 +374,9 @@ namespace ScriptingObjects
 		/** Loads the track (zero-based) of the MIDI file. If successful, it returns an object containing the time signature and a list of all events. */
 		var loadAsMidiFile(int trackIndex);
 
+		/** Loads the binary file, compresses it with zstd and returns a Base64 string. */
+		String loadAsBase64String() const;
+		
 		/** Replaces the file content with the given text. */
 		bool writeString(String text);
 
@@ -715,7 +707,8 @@ namespace ScriptingObjects
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setEnableInverseFFT);
 			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setSpectrum2DParameters);
 			API_METHOD_WRAPPER_0(ScriptFFT, getSpectrum2DParameters);
-			API_METHOD_WRAPPER_2(ScriptFFT, dumpSpectrum);
+			API_METHOD_WRAPPER_4(ScriptFFT, dumpSpectrum);
+			API_VOID_METHOD_WRAPPER_1(ScriptFFT, setUseFallbackEngine);
 		};
 
 		ScriptFFT(ProcessorWithScriptingContent* pwsc);
@@ -764,13 +757,23 @@ namespace ScriptingObjects
 		var getSpectrum2DParameters() const;
 
 		/** Dumps the spectrum image to the given file (as PNG image). */
-		bool dumpSpectrum(var file, bool output);
+		bool dumpSpectrum(var file, bool output, int numFreqPixels, int numTimePixels);
+
+		/** This forces the FFT object to use the fallback engine. */
+		void setUseFallbackEngine(bool shouldUseFallback)
+		{
+			useFallback = shouldUseFallback;
+		}
 
 		// ======================================================================================================= End of API Methods
 
 		Image getSpectrum(bool getOutput) const { return getOutput ? outputSpectrum : spectrum; }
 
+		Image getRescaledAndRotatedSpectrum(bool getOutput, int numFreqPixels, int numTimePixels);
+
 	private:
+
+		bool useFallback = false;
 
 		AudioSampleBuffer windowBuffer;
 
@@ -1600,6 +1603,12 @@ namespace ScriptingObjects
 		/** Loads the model layout and weights from a Pytorch model JSON. */
 		void loadPytorchModel(const var& modelJSON);
 
+		/** Loads the ONNX runtime model for spectral analysis. */
+		bool loadOnnxModel(const var& base64Data, int numOutputValues);
+
+		/** Processes the FFT spectrum and returns the output tensor as array of float numbers. */
+		var processFFTSpectrum(var fftObject, int numFreqPixels, int numTimePixels);
+
 		/** Returns the model JSON. */
 		var getModelJSON();
 
@@ -1628,6 +1637,9 @@ namespace ScriptingObjects
 #if HISE_INCLUDE_RT_NEURAL
 		NeuralNetwork::Ptr nn;
 #endif
+
+		ONNXLoader::Ptr onnx;
+		std::vector<float> onnxOutput;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptNeuralNetwork);
 	};
@@ -1810,6 +1822,12 @@ namespace ScriptingObjects
 		
 		/** Sets the attribute of the Modulator. You can look up the specific parameter indexes in the manual. */
 		void setAttribute(int index, float value);
+
+		/** Sets the modulator to a bipolar range (if applicable). */
+		void setIsBipolar(bool shouldBeBipolar);
+
+		/** Returns true if the modulator works in bipolar mode. */
+		bool isBipolar() const;
 
         /** Returns the attribute with the given index. */
         float getAttribute(int index);
@@ -2526,6 +2544,9 @@ namespace ScriptingObjects
 		/** Register a scripting callback to be executed when a OSC message that matches the subAddress is received. */
 		void addOSCCallback(String oscSubAddress, var callback);
 
+		/** Removes a OSC callback for the given address. */
+		bool removeOSCCallback(String oscSubAddress);
+
 		/** Send an OSC message to the output port. */
 		bool sendOSCMessage(String oscSubAddress, var data);
 
@@ -2607,6 +2628,9 @@ namespace ScriptingObjects
 		/** Registers a function that will be executed whenever a value is sent through the cable. */
 		void registerCallback(var callbackFunction, var synchronous);
 
+		/** Deregisteres a callback from the cable. */
+		bool deregisterCallback(var callbackFunction);
+		
 		/** Connects the cable to a macro control. */
 		void connectToMacroControl(int macroIndex, bool macroIsTarget, bool filterRepetitions);
 

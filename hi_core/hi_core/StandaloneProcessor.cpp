@@ -219,8 +219,29 @@ StandaloneProcessor::StandaloneProcessor()
 	ScopedPointer<XmlElement> xml = AudioProcessorDriver::getSettings();
 
 #if USE_BACKEND
-	if(!CompileExporter::isExportingFromCommandLine()) 
+	if(!CompileExporter::isExportingFromCommandLine())
+	{
+		if(xml != nullptr)
+		{
+			BigInteger numOutputChannels;
+
+			numOutputChannels.parseString(xml->getStringAttribute("audioDeviceOutChans"), 2);
+
+			auto numOutputsInDeviceSetting = numOutputChannels.countNumberOfSetBits();
+
+			if(numOutputsInDeviceSetting != HISE_NUM_STANDALONE_OUTPUTS)
+			{
+				if(PresetHandler::showYesNoWindow("Channel amount mismatch", "The number of channels used in the audio device settings do not match the amount of channels defined by `HISE_NUM_STANDALONE_OUTPUTS`.  \nPress OK to remove the xml file and initialise the default value."))
+				{
+					AudioProcessorDriver::getDeviceSettingsFile().deleteFile();
+					xml = nullptr;
+				}
+			}
+		}
+
 		dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get())->initialiseAudioDriver(xml);
+	}
+		
 #else
 	
     auto apd = dynamic_cast<AudioProcessorDriver*>(wrappedProcessor.get());
@@ -291,7 +312,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 
 	if (deviceData != nullptr && deviceData->hasTagName("DEVICESETUP"))
 	{
-		String errorMessage = deviceManager->initialise(0, 2, deviceData, true);
+		String errorMessage = deviceManager->initialise(0, HISE_NUM_STANDALONE_OUTPUTS, deviceData, true);
 
 		if (errorMessage.isNotEmpty() || deviceManager->getCurrentAudioDevice() == nullptr)
 		{
@@ -299,7 +320,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 
 			logger.logMessage("Audio Driver Default Initialisation");
 
-			const String error = deviceManager->initialiseWithDefaultDevices(0, 2);
+			const String error = deviceManager->initialiseWithDefaultDevices(0, HISE_NUM_STANDALONE_OUTPUTS);
 
 			if (error.isNotEmpty())
 				logger.logMessage("Error initialising with default settings: " + error);
@@ -309,7 +330,7 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 	{
 		logger.logMessage("Audio Driver Default Initialisation");
 
-		const String error = deviceManager->initialiseWithDefaultDevices(0, 2);
+		const String error = deviceManager->initialiseWithDefaultDevices(0, HISE_NUM_STANDALONE_OUTPUTS);
 
 		if (error.isNotEmpty())
 			logger.logMessage("Error initialising with default settings: " + error);

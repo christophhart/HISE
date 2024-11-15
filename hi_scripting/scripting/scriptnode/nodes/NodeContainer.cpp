@@ -371,7 +371,7 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 
 	minWidth = jmax(UIValues::NodeWidth, minWidth);
 
-	auto titleWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(asNode()->getId());
+	auto titleWidth = GLOBAL_BOLD_FONT().getStringWidthFloat(asNode()->getName());
 
 	minWidth = jmax<int>(minWidth, titleWidth + UIValues::HeaderHeight * 4);
 
@@ -383,7 +383,7 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 		h += UIValues::HeaderHeight; // the input
 
 		if (asNode()->getValueTree()[PropertyIds::ShowParameters])
-			h += UIValues::ParameterHeight;
+			h += UIValues::ParameterHeight + UIValues::MacroDragHeight;
 
 		h += PinHeight; // the "hole" for the cable
 
@@ -425,7 +425,7 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 		y += UIValues::PinHeight;
 
 		if (an->getValueTree()[PropertyIds::ShowParameters])
-			y += UIValues::ParameterHeight;
+			y += UIValues::ParameterHeight + UIValues::MacroDragHeight;
 
 		Point<int> startPos(UIValues::NodeMargin, y);
 
@@ -482,9 +482,169 @@ SerialNode::SerialNode(DspNetwork* root, ValueTree data) :
 	isVertical.initialise(this);
 }
 
+struct LockedContainerExtraComponent: public ScriptnodeExtraComponent<NodeBase>,
+								      public PathFactory
+{
+	LockedContainerExtraComponent(NodeBase* nc):
+	  ScriptnodeExtraComponent<scriptnode::NodeBase>(nc, nc->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()),
+	  gotoButton("goto", nullptr, *this),
+	  lockIcon(createPath("lock"))
+	{
+		gotoButton.onClick = [this]()
+		{
+			findParentComponentOfClass<DspNetworkGraph>()->setCurrentRootNode(this->getObject());
+		};
+
+		addAndMakeVisible(gotoButton);
+		stop();
+		
+
+		
+		initConnections();
+
+		auto w = 128;
+		auto h = 22;
+
+		if(wantsModulationDragger())
+		{
+			addAndMakeVisible(dragger = new ModulationSourceBaseComponent(nc->getScriptProcessor()->getMainController_()->getGlobalUIUpdater()));
+			w += 128;
+			h += 28 + UIValues::NodeMargin;
+		}
+
+		setSize(w, h);
+	}
+
+	ScopedPointer<ModulationSourceBaseComponent> dragger;
+
+	bool wantsModulationDragger() const
+	{
+		return dynamic_cast<NodeContainer*>(getObject())->getLockedModNode() != nullptr;
+	}
+
+	void timerCallback() override
+	{
+		
+	}
+
+	Array<ValueTree> externalConnections;
+
+	void initConnections()
+	{
+		auto vt = getObject()->getValueTree();
+		auto root = vt.getRoot();
+
+		struct Con
+		{
+			String node;
+			String parameter;
+		};
+
+		Array<Con> connections;
+
+		valuetree::Helpers::forEach(vt, [&](const ValueTree& v)
+		{
+			if(v.getType() == PropertyIds::Parameter && v[PropertyIds::Automated])
+			{
+				if(v.getParent().getParent() == vt)
+					return false;
+
+				connections.add({ v.getParent().getParent()[PropertyIds::ID].toString(), v[PropertyIds::ID].toString()});
+			}
+
+			return false;
+		});
+
+		for(const auto& c: connections)
+		{
+			valuetree::Helpers::forEach(root, [&](const ValueTree& v)
+			{
+				if(v.getType() == PropertyIds::Connection)
+				{
+					auto match = v[PropertyIds::NodeId].toString() == c.node && 
+						         v[PropertyIds::ParameterId].toString() == c.parameter;
+
+					if(match && !v.isAChildOf(vt))
+					{
+						DBG(v.createXml()->createDocument(""));
+						externalConnections.add(v);
+					}
+						
+				}
+
+				return false;
+			});
+		}
+	}
+
+	void paint(Graphics& g) override
+	{
+		auto b = getLocalBounds();
+
+		if(dragger != nullptr)
+			b.removeFromBottom(dragger->getHeight() + UIValues::NodeMargin);
+
+		b.removeFromLeft(b.getHeight() * 2);
+		b.removeFromRight(b.getHeight() * 2);
+
+		String text = "Locked " + getObject()->getPath().toString();
+
+		auto w = GLOBAL_FONT().getStringWidth(text) + 10.0f;
+
+		g.setColour(Colours::white.withAlpha(0.2f));
+
+		if(w < b.getWidth())
+		{
+			g.setFont(GLOBAL_FONT());
+			g.drawText(text, b.toFloat(), Justification::centred);
+		}
+
+		g.fillPath(lockIcon);
+		
+	}
+
+	Path createPath(const String& url) const override
+	{
+		Path p;
+
+		LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
+		LOAD_PATH_IF_URL("lock", ColumnIcons::lockIcon);
+
+		return p;
+	}
+
+	void resized() override
+	{
+		auto b = getLocalBounds();
+
+		if(dragger != nullptr)
+		{
+			dragger->setBounds(b.removeFromBottom(28));
+			b.removeFromBottom(UIValues::NodeMargin);
+		}
+			
+
+		gotoButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(3));
+
+		scalePath(lockIcon, b.removeFromRight(b.getHeight()).reduced(5).toFloat());
+
+		getProperties().set("circleOffsetX", -1 * getWidth() / 2 + b.getHeight() + UIValues::NodeMargin);
+		getProperties().set("circleOffsetY", -1 * getHeight() + JUCE_LIVE_CONSTANT_OFF(9));
+	}
+
+	HiseShapeButton gotoButton;
+	Path lockIcon;
+};
 
 scriptnode::NodeComponent* SerialNode::createComponent()
 {
+	if(isLockedContainer())
+	{
+		auto s = new DefaultParameterNodeComponent(this);
+		s->setExtraComponent(new LockedContainerExtraComponent(this));
+		return s;
+	}
+
 	if (!isVertical.getValue())
 		return new ParallelNodeComponent(this);
 	else
@@ -525,6 +685,17 @@ void SerialNode::DynamicSerialProcessor::prepare(PrepareSpecs)
 }
 
 
+Rectangle<int> SerialNode::getPositionInCanvas(Point<int> topLeft) const
+{
+	if(isLockedContainer())
+	{
+		auto b = getBoundsToDisplay(NodeComponent::PositionHelpers::getPositionInCanvasForStandardSliders(this, topLeft));
+		return b;
+	}
+	else
+		return getBoundsToDisplay(getContainerPosition(isVertical.getValue(), topLeft));
+}
+
 ParallelNode::ParallelNode(DspNetwork* root, ValueTree data) :
 	NodeBase(root, data, 0)
 {
@@ -538,7 +709,14 @@ NodeComponent* ParallelNode::createComponent()
 
 juce::Rectangle<int> ParallelNode::getPositionInCanvas(Point<int> topLeft) const
 {
-	return getBoundsToDisplay(getContainerPosition(false, topLeft));
+	if(isLockedContainer())
+	{
+		auto b = getBoundsToDisplay(NodeComponent::PositionHelpers::getPositionInCanvasForStandardSliders(this, topLeft));
+		return b;
+	}
+		
+	else
+		return getBoundsToDisplay(getContainerPosition(false, topLeft));
 }
 
 

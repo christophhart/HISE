@@ -528,7 +528,7 @@ void GlobalHiseLookAndFeel::draw1PixelGrid(Graphics& g, Component* c, Rectangle<
     }
 }
 
-Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha /*= 1.0f*/, Colour holeColour /*= Colour(0xFFAAAAAA)*/, bool returnMidPoint /*= false*/, bool useHangingCable/*=true*/)
+Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> start, Rectangle<float> end, Colour c, float alpha /*= 1.0f*/, Colour holeColour /*= Colour(0xFFAAAAAA)*/, bool returnMidPoint /*= false*/, bool useHangingCable/*=true*/, Point<float> velocity)
 {
 	if (start.getCentreY() > end.getCentreY())
 		std::swap(start, end);
@@ -569,6 +569,9 @@ Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> sta
 	if (useHangingCable)
 	{
 		Point<float> controlPoint(start.getX() + (end.getX() - start.getX()) / 2.0f, end.getY() + 100.0f);
+
+		controlPoint.setY(controlPoint.getY() - jmin(100.0f, hmath::abs(velocity.getDistanceFromOrigin()) * 4.0f));
+
 		p.quadraticTo(controlPoint, end.getCentre());
 		
 	}
@@ -582,6 +585,9 @@ Point<float> GlobalHiseLookAndFeel::paintCable(Graphics& g, Rectangle<float> sta
 
 		Point<float> c1 = { cableAsLine.getPointAlongLineProportionally(0.2f).getX(), start.getCentreY() };
 		Point<float> c2 = { cableAsLine.getPointAlongLineProportionally(0.8f).getX(), end.getCentreY() };
+
+		c1 -= velocity;
+		c2 += velocity;
 
 		p.quadraticTo(c1, mid);
 		p.quadraticTo(c2, end.getCentre());
@@ -2213,7 +2219,7 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserBackground(Graphics& g, C
     }
 }
 
-void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, int columnIndex, Rectangle<int> listArea, const String& emptyText)
+void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText)
 {
     g.setColour(highlightColour.withAlpha(0.1f));
     g.drawRoundedRectangle(listArea.toFloat(), 2.0f, 2.0f);
@@ -2226,7 +2232,7 @@ void PresetBrowserLookAndFeelMethods::drawColumnBackground(Graphics& g, int colu
     }
 }
 
-void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
+void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position)
 {
     float alpha = active ? 0.4f : 0.1f;
     alpha += (blinking ? 0.2f : 0.0f);
@@ -2236,7 +2242,7 @@ void PresetBrowserLookAndFeelMethods::drawTag(Graphics& g, bool blinking, bool a
     g.setColour(highlightColour.withAlpha(alpha));
     g.fillRoundedRectangle(ar, 2.0f);
     g.drawRoundedRectangle(ar, 2.0f, 1.0f);
-    g.setFont(font.withHeight(14.0f));
+    g.setFont(getTagFont(tagButton));
     g.setColour(Colours::white.withAlpha(selected ? 0.9f : 0.6f));
 
     // Wow, so professional, good bug fix.
@@ -2268,7 +2274,7 @@ void PresetBrowserLookAndFeelMethods::drawPresetBrowserButtonBackground(Graphics
 }
 
 
-void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
+void PresetBrowserLookAndFeelMethods::drawListItem(Graphics& g, Component& column, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover)
 {
 #if !HISE_NO_GUI_TOOLS
     float alphaBoost = hover ? 0.1f : 0.0f;
@@ -2420,7 +2426,7 @@ Font BiPolarSliderLookAndFeel::getLabelFont(Label& label)
 }
 
 
-void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
+void PresetBrowserLookAndFeelMethods::drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command)
 {
     g.setColour(modalBackgroundColour);
     g.fillAll();
@@ -2477,7 +2483,7 @@ juce::Path PresetBrowserLookAndFeelMethods::createPresetBrowserIcons(const Strin
 	return path;
 }
 
-void PresetBrowserLookAndFeelMethods::drawSearchBar(Graphics& g, Rectangle<int> area)
+void PresetBrowserLookAndFeelMethods::drawSearchBar(Graphics& g, Component& label, Rectangle<int> area)
 {
 	g.setColour(highlightColour);
 	g.drawRoundedRectangle(area.toFloat().reduced(1.0f), 2.0f, 1.0f);

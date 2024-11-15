@@ -265,8 +265,25 @@ scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTre
 	
 	r.rng.start = minValue;
 	r.rng.end = maxValue;
-	r.rng.interval = jlimit(0.0, 1.0, (double)PropertyIds::Helpers::getWithDefault(t, ri(set, RangeIdentifier::StepSize)));
-	r.rng.skew = jlimit(0.001, 100.0, (double)PropertyIds::Helpers::getWithDefault(t, ri(set, RangeIdentifier::SkewFactor)));
+
+	auto skewId = ri(set, RangeIdentifier::SkewFactor);
+	auto stepId = ri(set, RangeIdentifier::StepSize);
+
+	if(t.hasProperty(stepId))
+		r.rng.interval = jlimit(0.0, 1.0, (double)t[stepId]);
+
+	if(t.hasProperty(skewId))
+	{
+		if(set == IdSet::ScriptComponents)
+		{
+			r.rng.setSkewForCentre(jlimit(r.rng.start, r.rng.end, (double)t[skewId]));
+		}
+		else
+		{
+			r.rng.skew = jlimit(0.001, 100.0, (double)t[skewId]);
+		}
+	}
+		
 
 	return r;
 }
@@ -314,7 +331,7 @@ namespace parameter
 
 		p.setProperty(PropertyIds::ID, info.getId(), nullptr);
 		p.setProperty(PropertyIds::Value, info.defaultValue, nullptr);
-
+		p.setProperty(PropertyIds::DefaultValue, info.defaultValue, nullptr);
 		return p;
 	}
 

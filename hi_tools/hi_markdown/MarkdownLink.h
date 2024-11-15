@@ -198,6 +198,8 @@ public:
 
 	String getHtmlStringForBaseURL(const String& baseURL) const;
 
+	String getEditLinkOnGitHub(bool rawLink) const;
+	
 private:
 
 	String createHtmlLink() const noexcept;

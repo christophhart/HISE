@@ -76,6 +76,10 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		ADD_INLINEABLE_API_METHOD_2(to0To1);
 		ADD_INLINEABLE_API_METHOD_3(skew);
 
+		ADD_INLINEABLE_API_METHOD_1(isinf);
+		ADD_INLINEABLE_API_METHOD_1(isnan);
+		ADD_INLINEABLE_API_METHOD_1(sanitize);
+
 		addConstant("PI", double_Pi);
 		addConstant("E", exp(1.0));
 		addConstant("SQRT2", sqrt(2.0));
@@ -126,6 +130,10 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 		API_METHOD_WRAPPER_3(MathClass, skew);
 		API_METHOD_WRAPPER_2(MathClass, from0To1);
 		API_METHOD_WRAPPER_2(MathClass, to0To1);
+
+		API_METHOD_WRAPPER_1(MathClass, isinf);
+		API_METHOD_WRAPPER_1(MathClass, isnan);
+		API_METHOD_WRAPPER_1(MathClass, sanitize);
 	};
 
 	/** Returns a random number between 0.0 and 1.0. */
@@ -152,6 +160,25 @@ struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 	{
 		return value.isInt() ? var(roundToInt((int)value)) :
 			var(roundToInt((double)value));
+	}
+
+	/** Checks for infinity. */
+	var isinf(var value)
+	{
+		return var(std::isinf((double)value));
+	}
+
+	/** Checks for NaN (invalid floating point value). */
+	var isnan(var value)
+	{
+		return var(std::isnan((double)value));
+	}
+
+	/** Sets infinity & NaN floating point numbers to zero. */
+	var sanitize(var value)
+	{
+		auto v = (double)value;
+		return var(hmath::sanitize(v));
 	}
 
 	/** Returns the sign of the value. */

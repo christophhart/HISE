@@ -390,7 +390,19 @@ public:
     
     /** Sets the sample rate and the block size. */
     virtual void prepareToPlay(double sampleRate_, int samplesPerBlock_);
-    
+
+    /** Overwrite this and perform some operations when a voice is supposed to be delayed for a short time.
+     *
+     *  This happens either because the purge from play function is enabled or the time stretcher is prewarming
+     *  the stretching engine on the sample thread.
+     *
+     *  Usually you'll use this to reset the modulation curves for eg. envelopes). The function is called once
+     *  on the audio thread and once on the sample thread when it's finished.
+     */
+    virtual void syncAfterDelayStart(bool waitForDelay, int voiceIndex)
+	{
+	}
+
     /** Returns the sample rate. */
     double getSampleRate() const;;
     
