@@ -1289,7 +1289,7 @@ namespace control
 
 		registerPolyNoProcessNode<control::bang<1, parameter::dynamic_base_holder>, control::bang<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
-		
+		registerPolyNoProcessNode<control::compare<1, parameter::dynamic_base_holder>, control::compare<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, compare_editor>();
 
 		registerPolyNoProcessNode<control::change<1, parameter::dynamic_base_holder>, control::change<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
         

@@ -61,6 +61,29 @@ namespace control
 		control::multilogic::logic_op lastData;
 	};
 
+    struct compare_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::compare>>
+	{
+		using CompareBase = pimpl::combined_parameter_base<multilogic::compare>;
+
+		compare_editor(CompareBase* b, PooledUIUpdater* u);
+
+        void paint (Graphics& g) override;
+
+        void timerCallback () override;
+
+        void resized () override;
+
+        static Component* createExtraComponent(void* obj, PooledUIUpdater* updater)
+		{
+			auto typed = static_cast<mothernode*>(obj);
+			return new compare_editor(dynamic_cast<CompareBase*>(typed), updater);
+		}
+
+		ModulationSourceBaseComponent dragger;
+
+		control::multilogic::compare lastData;
+	};
+
 	struct blend_editor : public ScriptnodeExtraComponent<pimpl::combined_parameter_base<multilogic::blend>>
 	{
 		using LogicBase = pimpl::combined_parameter_base<multilogic::blend>;

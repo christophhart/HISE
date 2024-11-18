@@ -105,9 +105,90 @@ void logic_op_editor::resized()
 	dragger.setBounds(b);
 }
 
+compare_editor::compare_editor (CompareBase* b, PooledUIUpdater* u):
+                                                                 ScriptnodeExtraComponent<CompareBase>(b, u),
+                                                                 dragger(u)
+{
+    setSize(256, 60);
+    addAndMakeVisible(dragger);
+}
+
+void compare_editor::paint (Graphics& g)
+{
+    auto b = getLocalBounds();
+    auto l = b.removeFromLeft(getWidth() / 3).toFloat().withSizeKeepingCentre(16.0f, 16.0f);
+    auto r = b.removeFromLeft(getWidth() / 3).toFloat().withSizeKeepingCentre(16.0f, 16.0f);
+    auto m = dragger.getBounds().toFloat(); m.removeFromLeft(m.getWidth() / 2.0f);
+    m = m.withSizeKeepingCentre(16.0f, 16.0f);
+	        
+    ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, l.getUnion(r).expanded(6.0f, 6.0f), true);
+
+    g.setColour(Colours::white.withAlpha(0.9f));
+    g.drawEllipse(l, 2.0f);
+    g.drawEllipse(r, 2.0f);
+    g.drawEllipse(m, 2.0f);
+
+    g.setFont(GLOBAL_MONOSPACE_FONT().withHeight(l.getHeight() - 1.0f));
+
+    using Comp = multilogic::compare::Comparator;
+
+    String w;
+
+    switch (lastData.comparator)
+    {
+        case Comp::EQ: w = "==";
+            break;
+        case Comp::NEQ: w = "!=";
+            break;
+        case Comp::GT: w = ">";
+            break;
+        case Comp::LT: w = "<";
+            break;
+        case Comp::GET: w = ">=";
+            break;
+        case Comp::LET: w = "<=";
+            break;
+        case Comp::MIN: w = "min";
+            break;
+        case Comp::MAX: w = "max";
+            break;
+        case Comp::numComparators:
+            break;
+        default: ;
+    }
+
+    g.drawText(w, l.getUnion(r), Justification::centred);
+
+    g.fillEllipse(l.reduced(3.0f + 5.0f * (1.0 - lastData.leftValue)));
+    g.fillEllipse(r.reduced(3.0f + 5.0f * (1.0 - lastData.rightValue)));
+
+	g.fillEllipse(m.reduced(3.0f + 5.0f * (1.0 - lastData.getValue())));
+}
+
+void compare_editor::timerCallback ()
+{
+    auto thisData = getObject()->getUIData();
+
+    if (!(thisData == lastData))
+    {
+        lastData = thisData;
+        repaint();
+    }
+}
+
+void compare_editor::resized ()
+{
+    auto b = getLocalBounds();
+
+    b = b.removeFromRight(getWidth() / 3);
+    b = b.withSizeKeepingCentre(28 * 2, 28);
+
+    dragger.setBounds(b);
+}
+
 minmax_editor::minmax_editor(MinMaxBase* b, PooledUIUpdater* u) :
-	ScriptnodeExtraComponent<MinMaxBase>(b, u),
-	dragger(u)
+                                                                ScriptnodeExtraComponent<MinMaxBase>(b, u),
+                                                                dragger(u)
 {
 	addAndMakeVisible(rangePresets);
 	addAndMakeVisible(dragger);
