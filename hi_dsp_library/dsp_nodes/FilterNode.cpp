@@ -84,8 +84,7 @@ void FilterNodeBase<FilterType, NV>::setFrequency(double newFrequency)
 template <class FilterType, int NV>
 void FilterNodeBase<FilterType, NV>::setEnabled(double isEnabled)
 {
-	enabled = isEnabled;
-
+	enabled = isEnabled > 0.5;
 	this->sendCoefficientUpdateMessage();
 }
 

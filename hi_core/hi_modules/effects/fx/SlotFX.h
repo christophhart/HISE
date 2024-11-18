@@ -43,6 +43,12 @@ class HardcodedSwappableEffect : public HotswappableProcessor,
 {
 public:
 
+	static Identifier getSanitizedParameterId(const String& id)
+	{
+		auto sanitized = id.removeCharacters(" \t\n/-+.,");
+		return Identifier(sanitized);
+	}
+
 	virtual ~HardcodedSwappableEffect();
 
 	// ===================================================================================== Complex Data API calls

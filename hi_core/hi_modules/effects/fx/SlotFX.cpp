@@ -810,7 +810,8 @@ void HardcodedSwappableEffect::restoreHardcodedData(const ValueTree& v)
 
 		for (const auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
 		{
-			auto value = v.getProperty(p.info.getId(), p.info.defaultValue);
+			auto id = getSanitizedParameterId(p.info.getId());
+			auto value = v.getProperty(id, p.info.defaultValue);
 			setHardcodedAttribute(p.info.index, value);
 		}
 	}
@@ -835,7 +836,7 @@ ValueTree HardcodedSwappableEffect::writeHardcodedData(ValueTree& v) const
 	{
 		for (const auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
 		{
-			auto id = p.info.getId();
+			auto id = getSanitizedParameterId(p.info.getId());
 
 			if(auto ptr = getParameterPtr(p.info.index))
 				v.setProperty(id, *ptr, nullptr);
