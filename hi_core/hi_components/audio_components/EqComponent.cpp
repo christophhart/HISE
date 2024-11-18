@@ -1022,7 +1022,7 @@ void FilterDragOverlay::FilterDragComponent::mouseDrag(const MouseEvent& e)
 		if (parent.eq->getAttribute(parent.eq->getParameterIndex(index, CurveEq::BandParameter::Gain)) < 0.0f)
 			deltaNormalised *= -1.0;
 
-		auto qRange = NormalisableRange<double>(0.3, 9.0);
+		auto qRange = NormalisableRange<double>(0.1, 9.0);
 		qRange.setSkewForCentre(1.0);
 
 		auto start = qRange.convertTo0to1(dragQStart);

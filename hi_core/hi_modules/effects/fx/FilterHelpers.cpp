@@ -298,7 +298,7 @@ FilterDataObject::CoefficientData FilterEffect::getDisplayCoefficients(FilterBan
 
 	frequency = jlimit<double>(5.0, srToUse / 2.0, frequency);
 	gain = jlimit<float>(0.01f, 32.0f, gain);
-	q = jlimit<double>(0.3, 8.0, q);
+	q = jlimit<double>(0.1, 8.0, q);
 
 	switch (m)
 	{

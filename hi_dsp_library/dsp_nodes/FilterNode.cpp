@@ -144,7 +144,7 @@ void FilterNodeBase<FilterType, NV>::createParameters(ParameterDataList& paramet
 	{
 		DEFINE_PARAMETERDATA(FilterNodeBase, Q);
 
-		p.setRange({ 0.3, 9.9});
+		p.setRange({ 0.1, 9.9});
 		p.setSkewForCentre(1.0);
 		p.setDefaultValue(1.0);
 		parameters.add(std::move(p));
