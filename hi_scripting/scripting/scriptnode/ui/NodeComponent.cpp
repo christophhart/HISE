@@ -205,6 +205,7 @@ void NodeComponent::Header::mouseDown(const MouseEvent& e)
 void NodeComponent::Header::mouseUp(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_UP(e);
+	ZoomableViewport::checkDragScroll(e, true);
 
 	if (e.mods.isRightButtonDown())
 	{
@@ -225,6 +226,8 @@ void NodeComponent::Header::mouseUp(const MouseEvent& e)
 void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_DRAG(e);
+
+	ZoomableViewport::checkDragScroll(e, false);
 
 	if (isDragging)
 	{
