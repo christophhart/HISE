@@ -69,11 +69,28 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 6. Hit compile and wait...
 
 ### Linux
+> [!NOTE]
+> HISE should be compiled with gcc/g++ 11. Debian Bullseye is a good option for this.
 
-1. Install the dependencies: 
-```
-sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libwebkit2gtk-4.0 libgtk-3-dev libjack-jackd2-dev
-```
+1. Install the dependencies:
+  
+    Debian:
+    
+    ```
+    sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libwebkit2gtk-4.0 libgtk-3-dev libjack-jackd2-dev
+    ```
+    
+    Ubuntu: 
+    
+    ```
+    sudo apt install -y install build-essential pkg-config libasound2-dev libfreetype6-dev libxext-dev libwebkit2gtk-4.0-dev libjack-dev libcurl4-gnutls-dev
+    ```
+    
+    Fedora:
+    
+    ```
+    sudo dnf install git g++ alsa-lib-devel libXext-devel webkit2gtk4.0-devel jack-audio-connection-kit-devel libcurl-devel
+    ```
 
 2. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
 
