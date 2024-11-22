@@ -16,6 +16,11 @@ namespace RTNEURAL_NAMESPACE
  * To ensure that the recurrent state is initialized to zero,
  * please make sure to call `reset()` before your first call to
  * the `forward()` method.
+ *
+ * Compared to TensorFlow's LSTM implementation, this layer will
+ * behave by default as if the parameter `stateful=True`. A "stateless"
+ * GRU can be achieved by calling the `reset()` function in between
+ * calls to `forward()`.
  */
 template <typename T, typename MathsProvider = DefaultMathsProvider>
 class LSTMLayer : public Layer<T>
@@ -110,6 +115,11 @@ private:
  * To ensure that the recurrent state is initialized to zero,
  * please make sure to call `reset()` before your first call to
  * the `forward()` method.
+ *
+ * Compared to TensorFlow's LSTM implementation, this layer will
+ * behave by default as if the parameter `stateful=True`. A "stateless"
+ * GRU can be achieved by calling the `reset()` function in between
+ * calls to `forward()`.
  */
 template <typename T, int in_sizet, int out_sizet,
     SampleRateCorrectionMode sampleRateCorr = SampleRateCorrectionMode::None,

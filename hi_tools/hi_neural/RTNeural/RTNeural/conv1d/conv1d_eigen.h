@@ -42,6 +42,19 @@ public:
     /** Returns the name of this layer. */
     std::string getName() const noexcept override { return "conv1d"; }
 
+    /** Performs a stride step for this layer. */
+    RTNEURAL_REALTIME inline void skip(const T* input)
+    {
+        // insert input into a circular buffer
+        state.col(state_ptr) = Eigen::Map<const Eigen::Vector<T, Eigen::Dynamic>,
+            RTNeuralEigenAlignment>(input, Layer<T>::in_size);
+
+        // set state pointers to the particular columns of the buffer
+        setStatePointers();
+
+        state_ptr = (state_ptr == state_size - 1 ? 0 : state_ptr + 1); // iterate state pointer forwards
+    }
+
     /** Performs forward propagation for this layer. */
     RTNEURAL_REALTIME inline void forward(const T* input, T* h) noexcept override
     {
@@ -52,7 +65,7 @@ public:
         // set state pointers to the particular columns of the buffer
         setStatePointers();
 
-        if (groups == 1)
+        if(groups == 1)
         {
             // copy selected columns to a helper variable
             for(int k = 0; k < kernel_size; ++k)
@@ -174,8 +187,20 @@ public:
     /** Resets the layer state. */
     RTNEURAL_REALTIME void reset();
 
+    /** Performs a stride step for this layer. */
+    RTNEURAL_REALTIME inline void skip(const Eigen::Matrix<T, in_size, 1>& ins)
+    {
+        // insert input into a circular buffer
+        state.col(state_ptr) = ins;
+
+        // set state pointers to the particular columns of the buffer
+        setStatePointers();
+
+        state_ptr = (state_ptr == state_size - 1 ? 0 : state_ptr + 1); // iterate state pointer forwards
+    }
+
     /** Performs forward propagation for this layer. */
-    template<int _groups = groups, std::enable_if_t<_groups == 1, bool> = true>
+    template <int _groups = groups, std::enable_if_t<_groups == 1, bool> = true>
     RTNEURAL_REALTIME inline void forward(const Eigen::Matrix<T, in_size, 1>& ins) noexcept
     {
         // insert input into a circular buffer
@@ -196,7 +221,7 @@ public:
     }
 
     /** Performs forward propagation for this layer (groups > 1). */
-    template<int _groups = groups, std::enable_if_t<_groups != 1, bool> = true>
+    template <int _groups = groups, std::enable_if_t<_groups != 1, bool> = true>
     RTNEURAL_REALTIME inline void forward(const Eigen::Matrix<T, in_size, 1>& ins) noexcept
     {
         // insert input into a circular buffer

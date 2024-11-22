@@ -4,9 +4,9 @@
 #include "../Layer.h"
 #include "../common.h"
 #include "../config.h"
+#include <iostream>
 #include <numeric>
 #include <vector>
-#include <iostream>
 
 namespace RTNEURAL_NAMESPACE
 {
@@ -45,6 +45,18 @@ public:
     /** Returns the name of this layer. */
     std::string getName() const noexcept override { return "conv1d"; }
 
+    /** Performs a stride step for this layer. */
+    RTNEURAL_REALTIME inline void skip(const T* input)
+    {
+        // insert input into a circular buffer
+        vCopy(input, state[state_ptr].data(), Layer<T>::in_size);
+
+        // set state pointers to particular columns of the buffer
+        setStatePointers();
+
+        state_ptr = (state_ptr == state_size - 1 ? 0 : state_ptr + 1); // iterate state pointer forwards
+    }
+
     /** Performs forward propagation for this layer. */
     RTNEURAL_REALTIME inline void forward(const T* input, T* h) noexcept override
     {
@@ -54,7 +66,7 @@ public:
         // set state pointers to particular columns of the buffer
         setStatePointers();
 
-        if (groups == 1)
+        if(groups == 1)
         {
             // copy selected columns to a helper variable
             for(int k = 0; k < kernel_size; ++k)
@@ -194,6 +206,18 @@ public:
     /** Resets the layer state. */
     RTNEURAL_REALTIME void reset();
 
+    /** Performs a stride step for this layer. */
+    RTNEURAL_REALTIME inline void skip(const v_type (&ins)[v_in_size])
+    {
+        // insert input into a circular buffer
+        std::copy(std::begin(ins), std::end(ins), state[state_ptr].begin());
+
+        // set state pointers to particular columns of the buffer
+        setStatePointers();
+
+        state_ptr = (state_ptr == state_size - 1 ? 0 : state_ptr + 1); // iterate state pointer forwards
+    }
+
     /** Performs forward propagation for this layer. */
     template <int G = groups>
     RTNEURAL_REALTIME inline typename std::enable_if<(G > 1), void>::type
@@ -220,10 +244,10 @@ public:
                 {
                     // copy selected columns to a helper variable
                     // @TODO: I'm not sure the reinterpret_casts are 100% safe here, but they seem to work in testing!
-                    const auto& column = reinterpret_cast<std::array<T, in_size>&> (state[state_ptrs[j]]);
+                    const auto& column = reinterpret_cast<std::array<T, in_size>&>(state[state_ptrs[j]]);
                     const auto column_begin = column.begin() + ii;
                     const auto column_end = column_begin + filters_per_group;
-                    std::copy(column_begin, column_end, reinterpret_cast<std::array<T, filters_per_group>&> (state_cols[j]).begin());
+                    std::copy(column_begin, column_end, reinterpret_cast<std::array<T, filters_per_group>&>(state_cols[j]).begin());
 
                     accum += std::inner_product(
                         subWeights[j].begin(),

@@ -25,7 +25,8 @@ Conv1D<T>::Conv1D(int in_size, int out_size, int kernel_size, int dilation, int 
 
 template <typename T>
 Conv1D<T>::Conv1D(std::initializer_list<int> sizes)
-    : Conv1D<T>(*sizes.begin(), *(sizes.begin() + 1), *(sizes.begin() + 2), *(sizes.begin() + 3))
+    : Conv1D<T>(*sizes.begin(), *(sizes.begin() + 1), *(sizes.begin() + 2),
+        *(sizes.begin() + 3), *(sizes.begin() + 4))
 {
 }
 

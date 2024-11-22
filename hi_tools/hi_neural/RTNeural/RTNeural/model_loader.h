@@ -42,7 +42,7 @@ namespace json_parser
         for(auto& w : denseWeights)
             w.resize(dense.in_size, (T)0);
 
-        auto layerWeights = weights.at(0);
+        const auto& layerWeights = weights.at(0);
         for(size_t i = 0; i < layerWeights.size(); ++i)
         {
             auto lw = layerWeights.at(i);
@@ -53,8 +53,14 @@ namespace json_parser
         dense.setWeights(denseWeights);
 
         // load biases
-        std::vector<T> denseBias = weights.at(1).get<std::vector<T>>();
-        dense.setBias(denseBias.data());
+        RTNEURAL_IF_CONSTEXPR(DenseType::dense_has_bias)
+        {
+            if(weights.size() >= 2)
+            {
+                std::vector<T> denseBias = weights.at(1).get<std::vector<T>>();
+                dense.setBias(denseBias.data());
+            }
+        }
     }
 
     /** Creates a Dense layer from a json representation of the layer weights. */
@@ -318,10 +324,10 @@ namespace json_parser
     }
 
     /** Creates a GRULayer from a json representation of the layer weights. */
-    template <typename T>
-    std::unique_ptr<GRULayer<T>> createGRU(int in_size, int out_size, const nlohmann::json& weights)
+    template <typename T, typename MathsProvider = DefaultMathsProvider>
+    std::unique_ptr<GRULayer<T, MathsProvider>> createGRU(int in_size, int out_size, const nlohmann::json& weights)
     {
-        auto gru = std::make_unique<GRULayer<T>>(in_size, out_size);
+        auto gru = std::make_unique<GRULayer<T, MathsProvider>>(in_size, out_size);
         loadGRU<T>(*gru.get(), weights);
         return std::move(gru);
     }
@@ -385,10 +391,10 @@ namespace json_parser
     }
 
     /** Creates a LSTMLayer from a json representation of the layer weights. */
-    template <typename T>
-    std::unique_ptr<LSTMLayer<T>> createLSTM(int in_size, int out_size, const nlohmann::json& weights)
+    template <typename T, typename MathsProvider = DefaultMathsProvider>
+    std::unique_ptr<LSTMLayer<T, MathsProvider>> createLSTM(int in_size, int out_size, const nlohmann::json& weights)
     {
-        auto lstm = std::make_unique<LSTMLayer<T>>(in_size, out_size);
+        auto lstm = std::make_unique<LSTMLayer<T, MathsProvider>>(in_size, out_size);
         loadLSTM<T>(*lstm.get(), weights);
         return std::move(lstm);
     }
@@ -560,24 +566,24 @@ namespace json_parser
     }
 
     /** Creates an activation layer of a given type. */
-    template <typename T>
+    template <typename T, typename MathsProvider = DefaultMathsProvider>
     std::unique_ptr<Activation<T>>
     createActivation(const std::string& activationType, int dims)
     {
         if(activationType == "tanh")
-            return std::make_unique<TanhActivation<T>>(dims);
+            return std::make_unique<TanhActivation<T, MathsProvider>>(dims);
 
         if(activationType == "relu")
             return std::make_unique<ReLuActivation<T>>(dims);
 
         if(activationType == "sigmoid")
-            return std::make_unique<SigmoidActivation<T>>(dims);
+            return std::make_unique<SigmoidActivation<T, MathsProvider>>(dims);
 
         if(activationType == "softmax")
-            return std::make_unique<SoftmaxActivation<T>>(dims);
+            return std::make_unique<SoftmaxActivation<T, MathsProvider>>(dims);
 
         if(activationType == "elu")
-            return std::make_unique<ELuActivation<T>>(dims);
+            return std::make_unique<ELuActivation<T, MathsProvider>>(dims);
 
         return {};
     }
@@ -602,7 +608,7 @@ namespace json_parser
     }
 
     /** Creates a neural network model from a json stream. */
-    template <typename T>
+    template <typename T, typename MathsProvider = DefaultMathsProvider>
     std::unique_ptr<Model<T>> parseJson(const nlohmann::json& parent, const bool debug = false)
     {
         auto shape = parent.at("in_shape");
@@ -639,7 +645,7 @@ namespace json_parser
                     if(!activationType.empty())
                     {
                         debug_print("  activation: " + activationType, debug);
-                        auto activation = createActivation<T>(activationType, layerDims);
+                        auto activation = createActivation<T, MathsProvider>(activationType, layerDims);
                         _model->addLayer(activation.release());
                     }
                 }
@@ -683,12 +689,12 @@ namespace json_parser
             }
             else if(type == "gru")
             {
-                auto gru = createGRU<T>(model->getNextInSize(), layerDims, weights);
+                auto gru = createGRU<T, MathsProvider>(model->getNextInSize(), layerDims, weights);
                 model->addLayer(gru.release());
             }
             else if(type == "lstm")
             {
-                auto lstm = createLSTM<T>(model->getNextInSize(), layerDims, weights);
+                auto lstm = createLSTM<T, MathsProvider>(model->getNextInSize(), layerDims, weights);
                 model->addLayer(lstm.release());
             }
             else if(type == "prelu")
