@@ -239,7 +239,7 @@ public:
 	/** Creates an HiseSampleBuffer from an array of data pointers. */
 	HiseSampleBuffer(int16** sampleData, int numChannels_, int numSamples):
 		leftIntBuffer(sampleData[0], numSamples),
-		rightIntBuffer(numChannels_ > 1 ? sampleData[0] : nullptr, numSamples),
+		rightIntBuffer(numChannels_ > 1 ? sampleData[1] : nullptr, numSamples),
 		isFloat(false),
 		size(numSamples),
 		numChannels(numChannels_),
