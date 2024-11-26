@@ -5058,7 +5058,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMatrixPeakMeter(Graphics& g
             peaks.add(peakValues[i]);
             
             if(maxPeaks != nullptr)
-                maxPeakArray.add(maxPeaks[numChannels]);
+								maxPeakArray.add(maxPeaks[i]);
         }
 
 		writeId(obj, c);
