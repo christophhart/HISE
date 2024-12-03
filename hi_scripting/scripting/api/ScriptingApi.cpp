@@ -5688,43 +5688,42 @@ double ScriptingApi::Synth::getTimerInterval() const
 	}
 }
 
-void ScriptingApi::Synth::sendController(int controllerNumber, int controllerValue)
+void ScriptingApi::Synth::sendController(int number, int value)
 {
-	if (parentMidiProcessor != nullptr)
+	if (parentMidiProcessor == nullptr)
+		return reportScriptError("Only valid in MidiProcessors");
+	
+	if (number < 0)
+		return reportScriptError("CC number must be positive");
+
+	bool isPitchBend = number == HiseEvent::PitchWheelCCNumber;
+	
+	if (!isPitchBend && (value < 0 || value > 127))
+		return reportScriptError("CC value must be between 0 and 127");
+
+	if (isPitchBend && (value < -8192 || value > 8192))
+		return reportScriptError("CC value must be between -8192 and 8192");
+		
+	HiseEvent e;
+
+	if (isPitchBend)
 	{
-		if (controllerNumber > 0)
-		{
-			if (controllerValue >= 0)
-			{
-                HiseEvent e;
-
-                if(controllerNumber == HiseEvent::PitchWheelCCNumber)
-                {
-                    e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0);
-                    e.setPitchWheelValue(controllerValue);
-                }
-				else if (controllerNumber == HiseEvent::AfterTouchCCNumber)
-				{
-					e = HiseEvent(HiseEvent::Type::Aftertouch, 0, controllerValue);
-				}
-                else
-                {
-                    e = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue);
-                }
-
-
-				if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
-				{
-					e.setTimeStamp((int)current->getTimeStamp());
-				}
-
-				parentMidiProcessor->addHiseEventToBuffer(e);
-			}
-			else reportScriptError("CC value must be positive");
-		}
-		else reportScriptError("CC number must be positive");
+		e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0);
+		e.setPitchWheelValue(value);
 	}
-	else reportScriptError("Only valid in MidiProcessors");
+	else if (number == HiseEvent::AfterTouchCCNumber)
+	{
+		e = HiseEvent(HiseEvent::Type::Aftertouch, 0, value);
+	}
+	else
+	{
+		e = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value);
+	}
+
+	if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
+		e.setTimeStamp((int)ce->getTimeStamp());
+
+	parentMidiProcessor->addHiseEventToBuffer(e);
 };
 
 void ScriptingApi::Synth::sendControllerToChildSynths(int controllerNumber, int controllerValue)
@@ -6296,40 +6295,49 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 void ScriptingApi::Synth::addController(int channel, int number, int value, int timeStampSamples)
 {
-	if (channel > 0 && channel <= 16)
+	if (channel < 0 || channel > 16)
+		return reportScriptError("Channel must be between 1 and 16.");
+
+	if (parentMidiProcessor == nullptr)
+		return reportScriptError("Only valid in MidiProcessors");
+
+	if (number < 0)
+		return reportScriptError("CC number must be positive");
+
+	bool isPitchBend = number == HiseEvent::PitchWheelCCNumber;
+	
+	if (!isPitchBend && (value < 0 || value > 127))
+		return reportScriptError("CC value must be between 0 and 127");
+
+	if (isPitchBend && (value < -8192 || value > 8192))
+		return reportScriptError("CC value must be between -8192 and 8192");
+	
+	if (timeStampSamples < 0)
+		return reportScriptError("Timestamp must be > 0");
+	
+	HiseEvent e;
+
+	if (isPitchBend)
 	{
-		if (number >= 0 && number <= 127)
-		{
-			if (value >= 0 && value <= 127)
-			{
-				if (timeStampSamples >= 0)
-				{
-					if (parentMidiProcessor != nullptr)
-					{
-						HiseEvent m = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value, (uint8)channel);
-
-						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
-						{
-							m.setTimeStamp((int)ce->getTimeStamp() + timeStampSamples);
-						}
-						else
-						{
-							m.setTimeStamp(timeStampSamples);
-						}
-
-						m.setArtificial();
-
-						parentMidiProcessor->addHiseEventToBuffer(m);
-					}
-
-				}
-				else reportScriptError("Timestamp must be > 0");
-			}
-			else reportScriptError("CC Value must be between 0 and 127");
-		}
-		else reportScriptError("CC number must be between 0 and 127");
+		e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0, (uint8)channel);
+		e.setPitchWheelValue(value);
 	}
-	else reportScriptError("Channel must be between 1 and 16.");
+	else if (number == HiseEvent::AfterTouchCCNumber)
+	{
+		e = HiseEvent(HiseEvent::Type::Aftertouch, 0, value, (uint8)channel);
+	}
+	else
+	{
+		e = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value, (uint8)channel);
+	}
+
+	if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
+		e.setTimeStamp((int)ce->getTimeStamp() + timeStampSamples);
+	else
+		e.setTimeStamp(timeStampSamples);
+
+	e.setArtificial();
+	parentMidiProcessor->addHiseEventToBuffer(e);
 }
 
 void ScriptingApi::Synth::setClockSpeed(int clockSpeed)
