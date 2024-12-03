@@ -5701,8 +5701,8 @@ void ScriptingApi::Synth::sendController(int number, int value)
 	if (!isPitchBend && (value < 0 || value > 127))
 		return reportScriptError("CC value must be between 0 and 127");
 
-	if (isPitchBend && (value < -8192 || value > 8192))
-		return reportScriptError("CC value must be between -8192 and 8192");
+	if (isPitchBend && (value < 0 || value > 16383))
+		return reportScriptError("CC value must be between 0 and 16383");
 		
 	HiseEvent e;
 
@@ -6309,8 +6309,8 @@ void ScriptingApi::Synth::addController(int channel, int number, int value, int 
 	if (!isPitchBend && (value < 0 || value > 127))
 		return reportScriptError("CC value must be between 0 and 127");
 
-	if (isPitchBend && (value < -8192 || value > 8192))
-		return reportScriptError("CC value must be between -8192 and 8192");
+	if (isPitchBend && (value < 0 || value > 16383))
+		return reportScriptError("CC value must be between 0 and 16383");
 	
 	if (timeStampSamples < 0)
 		return reportScriptError("Timestamp must be > 0");
