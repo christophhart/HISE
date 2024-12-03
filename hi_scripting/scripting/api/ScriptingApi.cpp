@@ -6295,7 +6295,7 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 void ScriptingApi::Synth::addController(int channel, int number, int value, int timeStampSamples)
 {
-	if (channel < 0 || channel > 16)
+	if (channel <= 0 || channel > 16)
 		return reportScriptError("Channel must be between 1 and 16.");
 
 	if (parentMidiProcessor == nullptr)
