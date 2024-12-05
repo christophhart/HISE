@@ -81,7 +81,7 @@ sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-
 
 4. Open the Projucer (a precompiled Linux binary can be found at `tools/projucer`). Load the project `projects/standalone/HISE Standalone.jucer`.
    
-5. Click `Linix Makefile` and in `Extra Preprocessor Definitions` add `USE_LINUX_FONT_HANDLER=1` on a new line.
+5. Under `Linux Makefile`, click `Release`, and in `Preprocessor Definitions` add `USE_LINUX_FONT_HANDLER=1` on a new line.
    
 6. Save the project with ctrl+s or file > save (this will generate the Makefile with correct Linux paths).
 
