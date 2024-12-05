@@ -3106,6 +3106,9 @@ void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
 
 struct ScriptingApi::Content::ScriptTable::Wrapper
 {
+	API_VOID_METHOD_WRAPPER_0(ScriptTable, reset);
+	API_VOID_METHOD_WRAPPER_2(ScriptTable, addTablePoint);
+	API_VOID_METHOD_WRAPPER_4(ScriptTable, setTablePoint);
 	API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setTablePopupFunction);
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
@@ -3135,6 +3138,9 @@ ComplexDataScriptComponent(base, name, snex::ExternalData::DataType::Table)
 
 	updateCachedObjectReference();
 
+	ADD_API_METHOD_0(reset);
+	ADD_API_METHOD_2(addTablePoint);
+	ADD_API_METHOD_4(setTablePoint);
 	ADD_API_METHOD_1(getTableValue);
 	ADD_API_METHOD_2(connectToOtherTable);
 	ADD_API_METHOD_1(setSnapValues);
@@ -3151,6 +3157,24 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createCompon
 {
 	return new ScriptCreatedComponentWrappers::TableWrapper(content, this, index);
 }
+
+void ScriptingApi::Content::ScriptTable::reset()
+{
+	if (auto t = getCachedTable())
+		t->reset();
+}
+
+void ScriptingApi::Content::ScriptTable::addTablePoint(float x, float y)
+{
+	if (auto t = getCachedTable())
+		t->addTablePoint(x, y);
+};
+
+void ScriptingApi::Content::ScriptTable::setTablePoint(int pointIndex, float x, float y, float curve)
+{
+	if (auto t = getCachedTable())
+		t->setTablePoint(pointIndex, x, y, curve);
+};
 
 float ScriptingApi::Content::ScriptTable::getTableValue(float inputValue)
 {
