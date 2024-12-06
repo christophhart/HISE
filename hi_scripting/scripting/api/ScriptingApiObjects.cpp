@@ -3675,12 +3675,16 @@ int ScriptingObjects::ScriptRoutingMatrix::getNumSourceChannels()
 {
 	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
 		return r->getMatrix().getNumSourceChannels();
+		
+	return 0;
 }
 
 int ScriptingObjects::ScriptRoutingMatrix::getNumDestinationChannels()
 {
 	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
 		return r->getMatrix().getNumDestinationChannels();
+		
+	return 0;
 }
 
 bool ScriptingObjects::ScriptRoutingMatrix::addConnection(int sourceIndex, int destinationIndex)
