@@ -887,7 +887,7 @@ bool NodeBase::setComplexDataIndex(String dataType, int dataSlot, int indexValue
 	if(!v.isValid())
 		return false;
         
-	v.setProperty(PropertyIds::Index, dataSlot, getUndoManager());
+	v.setProperty(PropertyIds::Index, indexValue, getUndoManager());
         
 	return true;
 }
