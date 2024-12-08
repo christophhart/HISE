@@ -80,6 +80,7 @@ struct ScriptingApi::Content::Wrapper
 	static var setRange(const var::NativeFunctionArgs& args);
 	static var setMode(const var::NativeFunctionArgs& args);
 	static var setStyle(const var::NativeFunctionArgs& args);
+	static var componentExists(const var::NativeFunctionArgs& args);
 	static var setPropertiesFromJSON(const var::NativeFunctionArgs& args);
 	static var setValuePopupData(const var::NativeFunctionArgs& args);
 	static var storeAllControlsAsPreset(const var::NativeFunctionArgs& args);
@@ -596,6 +597,18 @@ var ScriptingApi::Content::Wrapper::makeFullScreenInterface(const var::NativeFun
 	return var();
 };
 
+
+var ScriptingApi::Content::Wrapper::componentExists(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("componentExists()", 1);
+
+		return thisObject->componentExists(Identifier(args.arguments[0]));
+	}
+
+	return var();
+}
 
 
 var ScriptingApi::Content::Wrapper::setPropertiesFromJSON (const var::NativeFunctionArgs& args)
