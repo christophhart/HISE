@@ -1860,10 +1860,10 @@ private:
 		/** Linear interpolation between two colours. */
 		int mix(var colour1, var colour2, float alpha);
 		
-		/** Converts a colour to a [h, s, l] array. */
+		/** Converts a colour to a [h, s, l, a] array. */
 		var toHsl(var colour);
 
-		/** Converts a colour from a [h, s, l] float array to a uint32 value. */
+		/** Converts a colour from a [h, s, l, a] float array to a uint32 value. */
 		int fromHsl(var hsl);
 
 		// ============================================================================================================
