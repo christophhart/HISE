@@ -4480,6 +4480,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, Scr
 		else
 			thumbArea = Rectangle<int>(x + thumbStartPosition, y, thumbSize, height).toFloat();
 
+		writeId(obj, &scrollbar);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(fullArea));
 		obj->setProperty("handle", ApiHelpers::getVarRectangle(thumbArea));
 		obj->setProperty("vertical", isScrollbarVertical);
