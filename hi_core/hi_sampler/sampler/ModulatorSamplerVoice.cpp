@@ -437,6 +437,8 @@ ModulatorSamplerVoice(ownerSynth)
 		wrappedVoices.getLast()->setLoaderBufferSize((int)getOwnerSynth()->getAttribute(ModulatorSampler::BufferSize));
 		wrappedVoices.getLast()->setTemporaryVoiceBuffer(ms->getTemporaryVoiceBuffer(), ms->getTemporaryStretchBuffer());
 		wrappedVoices.getLast()->setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());
+        
+        wrappedVoices.getLast()->setSuspendOnDelayedStartFunction(std::bind(&ModulatorSynth::syncAfterDelayStart, ownerSynth, std::placeholders::_1, std::placeholders::_2), getVoiceIndex());
 	}
 
 	// just call this once...
