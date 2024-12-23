@@ -1776,106 +1776,102 @@ void BackendCommandTarget::Actions::createRnboTemplate(BackendRootWindow* bpe)
 
 void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 {
-	if (PresetHandler::showYesNoWindow("Save XML", "This will save the current XML file"))
+	if (!PresetHandler::showYesNoWindow("Save XML", "This will save the current XML file"))
+		return;
+	
+	bpe->owner->getUserPresetHandler().initDefaultPresetManager({});
+	
+	const String mainSynthChainId = bpe->owner->getMainSynthChain()->getId();
+	const bool hasDefaultName = mainSynthChainId == "Master Chain";
+	
+	if (hasDefaultName)
 	{
-		bpe->owner->getUserPresetHandler().initDefaultPresetManager({});
-
-		const String mainSynthChainId = bpe->owner->getMainSynthChain()->getId();
-		const bool hasDefaultName = mainSynthChainId == "Master Chain";
-
-		if (!hasDefaultName)
-		{
-			File f = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups).getChildFile(mainSynthChainId + ".xml");
-
-			if (GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
-			{
-				if (f.existsAsFile())
-				{
-					if (PresetHandler::showYesNoWindow("Overwrite " + mainSynthChainId, "Overwrite the existing XML?"))
-					{
-						ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
-
-			            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
-			            
-						auto xml = v.createXml();
-						
-						XmlBackupFunctions::removeEditorStatesFromXml(*xml);
-						
-						Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
-
-						while (auto s = siter.getNextProcessor())
-						{
-							if (s->getSampleMap()->hasUnsavedChanges())
-								s->getSampleMap()->saveAndReloadMap();
-						}
-
-						File originalScriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
-
-						File scriptDirectory = originalScriptDirectory.getSiblingFile("TempScriptDirectory");
-
-						Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
-
-						scriptDirectory.deleteRecursively();
-
-						scriptDirectory.createDirectory();
-
-						String interfaceId = "";
-
-						while (JavascriptProcessor *sp = iter.getNextProcessor())
-						{
-							if (sp->isConnectedToExternalFile())
-								continue;
-
-							String content;
-
-							if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
-							{
-								if (jmp->isFront())
-									interfaceId = jmp->getId();
-							}
-
-							sp->mergeCallbacksToScript(content);
-
-							File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), scriptDirectory, dynamic_cast<Processor*>(sp)->getId());
-
-							scriptFile.replaceWithText(content);
-						}
-
-						XmlBackupFunctions::removeAllScripts(*xml);
-
-						if(interfaceId.isNotEmpty())
-							XmlBackupFunctions::extractContentData(*xml, interfaceId, f);
-
-						f.replaceWithText(xml->createDocument(""));
-
-						debugToConsole(bpe->owner->getMainSynthChain(), "Save " + mainSynthChainId + " to " + f.getFullPathName());
-			            
-						if (originalScriptDirectory.deleteRecursively())
-						{
-							scriptDirectory.moveFileTo(originalScriptDirectory);
-						}
-						else
-						{
-							PresetHandler::showMessageWindow("Error at writing script file",
-								"The embedded script files could not be saved (probably because the file is opened somewhere else).\nPress OK to show the folder and move it manually", PresetHandler::IconType::Error);
-
-							scriptDirectory.revealToUser();
-						}
-					}
-				}
-				else
-				{
-					debugToConsole(bpe->owner->getMainSynthChain(), "Master Chain name is not default but no corresponding XML found, please create XML first");
-					Actions::saveFileAsXml(bpe);
-				}
-			}
-		}
-		else
-		{
-			debugToConsole(bpe->owner->getMainSynthChain(), "This project has never been saved as XML, please create XML first");
-			Actions::saveFileAsXml(bpe);
-		}
+		debugToConsole(bpe->owner->getMainSynthChain(), "This project has never been saved as XML, please create XML first");
+		Actions::saveFileAsXml(bpe);
+		return;		
 	}
+	
+	File f = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getSubDirectory(ProjectHandler::SubDirectories::XMLPresetBackups).getChildFile(mainSynthChainId + ".xml");
+
+	if (!GET_PROJECT_HANDLER(bpe->getMainSynthChain()).isActive())
+		return;
+		
+	if (!f.existsAsFile())
+	{
+		debugToConsole(bpe->owner->getMainSynthChain(), "Master Chain name is not default but no corresponding XML found, please create XML first");
+		Actions::saveFileAsXml(bpe);
+		return;
+	}
+	
+	if (!PresetHandler::showYesNoWindow("Overwrite " + mainSynthChainId, "Overwrite the existing XML?"))
+		return;
+	
+	ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
+	v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
+	
+	auto xml = v.createXml();
+			
+	XmlBackupFunctions::removeEditorStatesFromXml(*xml);
+	
+	Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());	            
+
+	while (auto s = siter.getNextProcessor())
+	{
+		if (s->getSampleMap()->hasUnsavedChanges())
+			s->getSampleMap()->saveAndReloadMap();
+	}
+						
+	File originalScriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());			
+						
+	File scriptDirectory = originalScriptDirectory.getSiblingFile("TempScriptDirectory");					
+						
+	Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
+
+	scriptDirectory.deleteRecursively();
+	scriptDirectory.createDirectory();
+	
+	String interfaceId = "";
+
+	while (JavascriptProcessor *sp = iter.getNextProcessor())
+	{
+		if (sp->isConnectedToExternalFile())
+			continue;
+
+		String content;
+
+		if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
+		{
+			if (jmp->isFront())
+				interfaceId = jmp->getId();
+		}
+
+		sp->mergeCallbacksToScript(content);
+
+		File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), scriptDirectory, dynamic_cast<Processor*>(sp)->getId());
+
+		scriptFile.replaceWithText(content);
+	}
+	
+	XmlBackupFunctions::removeAllScripts(*xml);				
+
+	if(interfaceId.isNotEmpty())
+		XmlBackupFunctions::extractContentData(*xml, interfaceId, f);					
+
+	f.replaceWithText(xml->createDocument(""));
+	
+	debugToConsole(bpe->owner->getMainSynthChain(), "Save " + mainSynthChainId + " to " + f.getFullPathName());
+
+	if (originalScriptDirectory.deleteRecursively())
+	{
+		scriptDirectory.moveFileTo(originalScriptDirectory);
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Error at writing script file",
+			"The embedded script files could not be saved (probably because the file is opened somewhere else).\nPress OK to show the folder and move it manually", PresetHandler::IconType::Error);
+
+		scriptDirectory.revealToUser();
+	}	
 }
 
 void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
