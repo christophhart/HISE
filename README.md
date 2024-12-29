@@ -72,19 +72,24 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 1. Install the dependencies: 
 ```
-sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libwebkit2gtk-4.0 libgtk-3-dev libjack-jackd2-dev
+sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libwebkit2gtk-4.0-dev libgtk-3-dev libjack-jackd2-dev
 ```
 
 2. Clone this repository. It also includes the (slightly modified) JUCE source code, so it might take a while.
 
 3. Extract the contents of `tools/SDK/sdk.zip` to `tools/SDK`. Your `tools` folder should now contain folders named `ASIOSDK2.3` and `VST3 SDK`.
 
-4. Open the Projucer (a precompiled Linux binary can be found at `tools/projucer`). Load the project `projects/standalone/HISE Standalone.jucer` and resave the project (this will generate the Makefile with correct Linux paths).
+4. Open the Projucer (a precompiled Linux binary can be found at `tools/projucer`). Load the project `projects/standalone/HISE Standalone.jucer`.
+   
+5. Under `Linux Makefile`, click `Release`, and in `Preprocessor Definitions` add `USE_LINUX_FONT_HANDLER=1` on a new line.
+   
+6. Save the project with ctrl+s or file > save (this will generate the Makefile with correct Linux paths).
 
-5. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
+7. Open the terminal and navigate to this subdirectory: `projects/standalone/Builds/LinuxMakefile`
 
-6. Type `make CONFIG=Release` and wait. If you need the debug version (that is slower but allows you to jump around in the source code, use `make CONFIG=Debug`.
+8. Type `make CONFIG=Release` and wait. If you need the debug version (that is slower but allows you to jump around in the source code, use `make CONFIG=Debug`.
 
+If it is not already installed, install the font [Source Code Pro](https://github.com/adobe-fonts/source-code-pro/releases)
 
 ## License
 
