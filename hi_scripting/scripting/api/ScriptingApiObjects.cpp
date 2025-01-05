@@ -220,6 +220,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
 	API_METHOD_WRAPPER_1(ScriptFile, move);
 	API_METHOD_WRAPPER_1(ScriptFile, copy);
+	API_METHOD_WRAPPER_1(ScriptFile, copyDirectoryTo);
 	API_METHOD_WRAPPER_2(ScriptFile, isChildOf);
 	API_METHOD_WRAPPER_1(ScriptFile, isSameFileAs);
 	API_METHOD_WRAPPER_1(ScriptFile, toReferenceString);
@@ -281,6 +282,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
 	ADD_API_METHOD_1(rename);
 	ADD_API_METHOD_1(move);
 	ADD_API_METHOD_1(copy);
+	ADD_API_METHOD_1(copyDirectoryTo);
 	ADD_API_METHOD_0(show);
 	ADD_API_METHOD_2(isChildOf);
 	ADD_API_METHOD_1(isSameFileAs);
@@ -797,6 +799,23 @@ bool ScriptingObjects::ScriptFile::copy(var target)
 		return f.copyFileTo(sf->f);
 	else
 		reportScriptError("target is not a file");
+
+	RETURN_IF_NO_THROW(false);
+}
+
+bool ScriptingObjects::ScriptFile::copyDirectoryTo(var target)
+{	
+	if (auto sf = dynamic_cast<ScriptFile*>(target.getObject()))
+	{
+		if (!sf->f.isDirectory())
+			reportScriptError("target is not a directory");
+			
+		return f.copyDirectoryTo(sf->f);
+	}
+	else
+	{
+		reportScriptError("target is not a directory");
+	}
 
 	RETURN_IF_NO_THROW(false);
 }
