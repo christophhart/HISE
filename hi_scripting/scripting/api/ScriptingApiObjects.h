@@ -402,7 +402,7 @@ namespace ScriptingObjects
 		bool copy(var target);
 
 		/** Recursively copies the directory. The target is the actual directory to create, not the directory into which the new one should be placed. */
-		bool copyDirectoryTo(var target);
+		bool copyDirectory(var target);
 
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;
