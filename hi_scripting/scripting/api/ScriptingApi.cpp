@@ -7247,6 +7247,13 @@ int64 ScriptingApi::FileSystem::getBytesFreeOnVolume(var folder)
 
 void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isDirectory, String wildcard, var callback)
 {
+	static bool fileChooserIsOpen = false;
+
+	if (fileChooserIsOpen)
+			return;
+
+	fileChooserIsOpen = true;
+
 	auto p_ = p;
 
 	WeakCallbackHolder wc(p_, this, callback, 1);
@@ -7283,6 +7290,8 @@ void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isD
 		{
 			wc.call(&a, 1);
 		}
+		
+		fileChooserIsOpen = false;
 	};
 
 	MessageManager::callAsync(cb);
