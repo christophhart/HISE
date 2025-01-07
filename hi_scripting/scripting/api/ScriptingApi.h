@@ -556,6 +556,9 @@ public:
 		/** Returns the current preload message if there is one. */
 		String getPreloadMessage();
 
+		/** Sets the preload message. */
+		void setPreloadMessage(String message);
+
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
 
