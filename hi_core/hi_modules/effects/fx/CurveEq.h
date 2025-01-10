@@ -315,7 +315,7 @@ public:
 
 		enableSpectrumAnalyser(v.getProperty("FFTEnabled", false));
 
-		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Preset);
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 
 		updateParameterSlots();
 	}
