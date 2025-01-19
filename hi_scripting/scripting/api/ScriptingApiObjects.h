@@ -395,11 +395,14 @@ namespace ScriptingObjects
 		/** Renames the file. */
 		bool rename(String newName);
 
-		/** Moves the file. */
+		/** Moves the file. The target isn't the directory to put it in, it's the actual file to create. */
 		bool move(var target);
 
-		/** Copies the file. */
+		/** Copies the file. The target isn't the directory to put it in, it's the actual file to create. */
 		bool copy(var target);
+
+		/** Recursively copies the directory. The target is the actual directory to create, not the directory into which the new one should be placed. */
+		bool copyDirectory(var target);
 
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;
