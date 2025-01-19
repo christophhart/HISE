@@ -6794,6 +6794,8 @@ struct ScriptingApi::Colours::Wrapper
 	API_METHOD_WRAPPER_1(Colours, fromVec4);
 	API_METHOD_WRAPPER_1(Colours, toVec4);
 	API_METHOD_WRAPPER_3(Colours, mix);
+	API_METHOD_WRAPPER_1(Colours, toHsl);
+	API_METHOD_WRAPPER_1(Colours, fromHsl);
 };
 
 ScriptingApi::Colours::Colours() :
@@ -6949,6 +6951,8 @@ ApiClass(139)
 	ADD_INLINEABLE_API_METHOD_3(mix);
 	ADD_INLINEABLE_API_METHOD_1(toVec4);
 	ADD_INLINEABLE_API_METHOD_1(fromVec4);
+	ADD_INLINEABLE_API_METHOD_1(toHsl);
+	ADD_INLINEABLE_API_METHOD_1(fromHsl);
 }
 
 int ScriptingApi::Colours::withAlpha(var colour, float alpha)
@@ -7017,6 +7021,30 @@ int ScriptingApi::Colours::fromVec4(var vec4)
 
 		return Colour(r, g, b, a).getARGB();
 	}
+
+	return 0;
+}
+
+var ScriptingApi::Colours::toHsl(var colour)
+{
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
+
+  float hue, saturation, lightness;
+	c.getHSL(hue, saturation, lightness);
+
+	Array<var> hsl;
+	hsl.add(hue);
+	hsl.add(saturation);
+	hsl.add(lightness);
+	hsl.add(c.getFloatAlpha());
+
+	return hsl;
+}
+
+int ScriptingApi::Colours::fromHsl(var hsl)
+{
+	if (hsl.isArray() && hsl.size() == 4)
+		return Colour().fromHSL(hsl[0], hsl[1], hsl[2], hsl[3]).getARGB();
 
 	return 0;
 }
