@@ -1747,6 +1747,7 @@ var ScriptingApi::Engine::getSystemStats()
 	obj->setProperty("CpuVendor", SystemStats::getCpuVendor());
 	obj->setProperty("CpuModel", SystemStats::getCpuModel());
 	obj->setProperty("MemorySizeInMegabytes", SystemStats::getMemorySizeInMegabytes());
+	obj->setProperty("isDarkMode", Desktop::getInstance().isDarkModeActive());
 
 	return obj;
 }
