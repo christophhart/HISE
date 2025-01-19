@@ -2664,6 +2664,9 @@ public:
     /** Opens a text input box with the given properties and executes the callback when finished. */
     void showModalTextInput(var properties, var callback);
     
+		/** Returns an array containing the width and height of the interface. */
+		var getInterfaceSize();
+		
     /** Sets this script as main interface with the given size. */
     void makeFrontInterface(int width, int height);
     

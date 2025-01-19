@@ -91,6 +91,7 @@ struct ScriptingApi::Content::Wrapper
 	static var setWidth(const var::NativeFunctionArgs& args);
     static var showModalTextInput(const var::NativeFunctionArgs& args);
 	static var setName(const var::NativeFunctionArgs& args);
+	static var getInterfaceSize(const var::NativeFunctionArgs& args);
     static var makeFrontInterface(const var::NativeFunctionArgs& args);
 	static var makeFullScreenInterface(const var::NativeFunctionArgs& args);
 	static var addItem(const var::NativeFunctionArgs& args);
@@ -572,11 +573,23 @@ var ScriptingApi::Content::Wrapper::setName (const var::NativeFunctionArgs& args
 	return var();
 };
 
+var ScriptingApi::Content::Wrapper::getInterfaceSize (const var::NativeFunctionArgs& args)
+{
+    if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+    {
+				CHECK_ARGUMENTS("getInterfaceSize()", 0);
+
+				return thisObject->getInterfaceSize();
+    }
+    
+    return var();
+};
+
 var ScriptingApi::Content::Wrapper::makeFrontInterface (const var::NativeFunctionArgs& args)
 {
     if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
     {
-        CHECK_ARGUMENTS("setName()", 2);
+        CHECK_ARGUMENTS("makeFrontInterface()", 2);
         
         thisObject->makeFrontInterface((int)args.arguments[0], (int)args.arguments[1]);
     }

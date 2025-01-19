@@ -6504,6 +6504,7 @@ colour(Colour(0xff777777))
 	setMethod("setWidth", Wrapper::setWidth);
 	setMethod("createScreenshot", Wrapper::createScreenshot);
 	setMethod("addVisualGuide", Wrapper::addVisualGuide);
+	setMethod("getInterfaceSize", Wrapper::getInterfaceSize);
     setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
     setMethod("showModalTextInput", Wrapper::showModalTextInput);
@@ -6769,7 +6770,6 @@ void ScriptingApi::Content::beginInitialization()
 	registeredKeyPresses.clear();
 }
 
-
 void ScriptingApi::Content::setHeight(int newHeight) noexcept
 {
 	if(height != newHeight)
@@ -6790,6 +6790,16 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 		if(height != 0)
 			interfaceSizeBroadcaster.sendMessage(sendNotificationAsync, width, height);
 	}
+};
+
+var ScriptingApi::Content::getInterfaceSize()
+{
+	Array<var> result;
+
+	result.add(width);
+	result.add(height);
+	
+	return var(result);
 };
 
 void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
@@ -6815,7 +6825,6 @@ void ScriptingApi::Content::setToolbarProperties(const var &/*toolbarProperties*
 {
 	reportScriptError("2017...");
 }
-
 
 void ScriptingApi::Content::setUseHighResolutionForPanels(bool shouldUseDoubleResolution)
 {
