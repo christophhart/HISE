@@ -1335,6 +1335,15 @@ public:
 
 		void connectToOtherTable(String processorId, int index);
 
+		/** Resets the table with the given index to a 0..1 line. */
+		void reset();
+		
+		/** Adds a new table point (x and y are normalized coordinates). */
+		void addTablePoint(float x, float y);
+		
+		/** Sets the point with the given index to the values. */
+		void setTablePoint(int pointIndex, float x, float y, float curve);
+
 		/** Returns the table value from 0.0 to 1.0 according to the input value from 0.0 to 1.0. */
 		float getTableValue(float inputValue);
 
