@@ -505,7 +505,7 @@ XmlElement *SampleImporter::createXmlDescriptionForFile(const File &f, int index
 
 	int root = -1;
 
-	for(int i = 0; i < 127; i++)
+	for(int i = 0; i < 128; i++)
 	{
 		if(properties[Root] == MidiMessage::getMidiNoteName(i, true, true, 3))
 		{

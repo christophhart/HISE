@@ -282,7 +282,7 @@ void ValueSettingComponent::labelTextChanged (Label* labelThatHasChanged)
 
 		if(valueLabel->getText().containsAnyOf("CDEFGAB#"))
 		{
-			for(int i = 0; i < 127; i++)
+			for(int i = 0; i < 128; i++)
 			{
 				if(MidiMessage::getMidiNoteName(i, true, true, 3) == valueLabel->getText())
 				{

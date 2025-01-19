@@ -1428,7 +1428,7 @@ void MainTopBar::QuickPlayComponent::mouseDown(const MouseEvent& e)
 
 		int NoteOffset = 900;
 
-		for(int i = 0; i < 127; i++)
+		for(int i = 0; i < 128; i++)
 		{
 			String n;
 			n << MidiMessage::getMidiNoteName(i, true, true, 3);

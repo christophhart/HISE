@@ -685,7 +685,7 @@ void SamplerSoundMap::paintOverChildren(Graphics &g)
 			g.fillPath(p);
 		}
 
-		for (int i = 0; i < 127; i++)
+		for (int i = 0; i < 128; i++)
 		{
 			if (pressedKeys[i] != 0)
 			{

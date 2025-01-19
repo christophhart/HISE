@@ -169,7 +169,7 @@ syncVoiceHandler(false)
 	sampleStartChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff5e8127)));
 	crossFadeChain->setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0xff884b29)));
 
-	for (int i = 0; i < 127; i++) 
+	for (int i = 0; i < 128; i++) 
 		samplerDisplayValues.currentNotes[i] = 0;
 
 	setVoiceAmount(numVoices);

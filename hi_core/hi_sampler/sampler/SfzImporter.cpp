@@ -95,7 +95,7 @@ int getNoteNumberFromNameOrNumber(const String &data)
     {
         const String noteName = data.toUpperCase();
         
-        for(int i = 0; i < 127; i++)
+        for(int i = 0; i < 128; i++)
         {
             if(noteName.contains(MidiMessage::getMidiNoteName(i, true, true, 3)))
             {
