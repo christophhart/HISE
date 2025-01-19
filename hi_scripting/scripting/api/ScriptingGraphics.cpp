@@ -3980,7 +3980,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawToggleButton(Graphics &g_, 
 		obj->setProperty("enabled", b.isEnabled());
 		obj->setProperty("text", b.getButtonText());
 		obj->setProperty("over", isMouseOverButton);
-		obj->setProperty("down", isButtonDown);
+		obj->setProperty("down", b.isMouseButtonDown(true));
 		obj->setProperty("value", b.getToggleState());
 
 		setColourOrBlack(obj, "bgColour", b, HiseColourScheme::ComponentOutlineColourId);
@@ -4152,6 +4152,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBox(Graphics& g_, int 
 		obj->setProperty("active", cb.getSelectedId() != 0);
 		obj->setProperty("enabled", cb.isEnabled() && cb.getNumItems() > 0);
 		obj->setProperty("hover", cb.isMouseOver(true) || cb.isMouseButtonDown(true) || cb.isPopupActive());
+		obj->setProperty("down", cb.isMouseButtonDown(true));
 
 		setColourOrBlack(obj, "bgColour",    cb, HiseColourScheme::ComponentOutlineColourId);
 		setColourOrBlack(obj, "itemColour1", cb, HiseColourScheme::ComponentFillTopColourId);
