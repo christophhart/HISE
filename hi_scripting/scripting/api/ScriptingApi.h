@@ -1184,7 +1184,7 @@ public:
 
 
 		/** Sends a controller event to the synth. */
-		void sendController(int controllerNumber, int controllerValue);
+		void sendController(int number, int value);
 
 		/** The same as sendController (for backwards compatibility) */
 		void sendControllerToChildSynths(int controllerNumber, int controllerValue);
