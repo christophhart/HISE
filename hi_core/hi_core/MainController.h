@@ -275,6 +275,11 @@ public:
 		{
 			return currentPreloadMessage;
 		}
+		
+		void setPreloadMessage(String message) const
+		{
+			currentPreloadMessage = message;
+		}
 
 	private:
 

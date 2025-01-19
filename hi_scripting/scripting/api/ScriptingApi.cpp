@@ -1204,6 +1204,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, reloadAllSamples);
 	API_METHOD_WRAPPER_0(Engine, getPreloadProgress);
 	API_METHOD_WRAPPER_0(Engine, getPreloadMessage);
+	API_VOID_METHOD_WRAPPER_1(Engine, setPreloadMessage);
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
@@ -1359,6 +1360,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(isPlugin);
 	ADD_API_METHOD_0(getPreloadProgress);
 	ADD_API_METHOD_0(getPreloadMessage);
+	ADD_API_METHOD_1(setPreloadMessage);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_1(setZoomLevel);
 	ADD_API_METHOD_1(setDiskMode);
@@ -1823,6 +1825,11 @@ double ScriptingApi::Engine::getPreloadProgress()
 String ScriptingApi::Engine::getPreloadMessage()
 {
 	return getScriptProcessor()->getMainController_()->getSampleManager().getPreloadMessage();
+}
+
+void ScriptingApi::Engine::setPreloadMessage(String message)
+{
+	getScriptProcessor()->getMainController_()->getSampleManager().setPreloadMessage(message);
 }
 
 var ScriptingApi::Engine::getZoomLevel() const
