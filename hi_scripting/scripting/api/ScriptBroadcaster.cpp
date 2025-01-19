@@ -955,10 +955,11 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 			return ok;
 
 		if (rv.isArray())
-		{
 			target->sendMessageInternal(rv, async);
-			return target->lastResult;
-		}
+		else
+			target->sendMessageInternal(var(args), async);
+
+		return target->lastResult;
 	}
 	else
 	{
@@ -966,7 +967,7 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 		return target->lastResult;
 	}
     
-    return Result::ok();
+  return Result::ok();
 }
 
 struct ScriptBroadcaster::EqListener::InternalListener
