@@ -2114,6 +2114,12 @@ namespace ScriptingObjects
 
 		/** Sets the amount of channels (if the matrix is resizeable). */
 		void setNumChannels(int numSourceChannels);
+		
+		/** Gets the amount of source channels. */
+		int getNumSourceChannels();
+		
+		/** Gets the amount of destination channels. */
+		int getNumDestinationChannels();
 
 		/** adds a connection to the given channels. */
 		bool addConnection(int sourceIndex, int destinationIndex);

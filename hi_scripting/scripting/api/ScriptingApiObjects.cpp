@@ -3634,6 +3634,8 @@ struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
 	API_VOID_METHOD_WRAPPER_0(ScriptRoutingMatrix, clear);
 	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceGainValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptRoutingMatrix, setNumChannels);
+	API_METHOD_WRAPPER_0(ScriptRoutingMatrix, getNumSourceChannels);
+	API_METHOD_WRAPPER_0(ScriptRoutingMatrix, getNumDestinationChannels);
 	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getSourceChannelsForDestination);
 	API_METHOD_WRAPPER_1(ScriptRoutingMatrix, getDestinationChannelForSource);
 };
@@ -3649,6 +3651,8 @@ ScriptingObjects::ScriptRoutingMatrix::ScriptRoutingMatrix(ProcessorWithScriptin
 	ADD_API_METHOD_0(clear);
 	ADD_API_METHOD_1(getSourceGainValue);
 	ADD_API_METHOD_1(setNumChannels);
+	ADD_API_METHOD_0(getNumSourceChannels);
+	ADD_API_METHOD_0(getNumDestinationChannels);
 	ADD_API_METHOD_1(getSourceChannelsForDestination);
 	ADD_API_METHOD_1(getDestinationChannelForSource);
 
@@ -3684,6 +3688,22 @@ void ScriptingObjects::ScriptRoutingMatrix::setNumChannels(int numSourceChannels
 		r->getMatrix().setNumSourceChannels(numSourceChannels);
 		r->getMatrix().setNumAllowedConnections(numSourceChannels);
 	}
+}
+
+int ScriptingObjects::ScriptRoutingMatrix::getNumSourceChannels()
+{
+	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		return r->getMatrix().getNumSourceChannels();
+		
+	return 0;
+}
+
+int ScriptingObjects::ScriptRoutingMatrix::getNumDestinationChannels()
+{
+	if (auto r = dynamic_cast<RoutableProcessor*>(rp.get()))
+		return r->getMatrix().getNumDestinationChannels();
+		
+	return 0;
 }
 
 bool ScriptingObjects::ScriptRoutingMatrix::addConnection(int sourceIndex, int destinationIndex)
