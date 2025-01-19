@@ -249,10 +249,12 @@ void ZoomableViewport::mouseWheelMove(const MouseEvent& e, const MouseWheelDetai
 {
 	if (e.mods.isCommandDown())
 	{
+		const float zoomSpeed = e.mods.isShiftDown() ? 1.03f : 1.15f;
+
 		if (wheel.deltaY > 0)
-			zoomFactor *= 1.15f;
+			zoomFactor *= zoomSpeed;
 		else
-			zoomFactor /= 1.15f;
+			zoomFactor /= zoomSpeed;
 
 		zoomFactor = jlimit(0.25f, maxZoomFactor, zoomFactor);
 
