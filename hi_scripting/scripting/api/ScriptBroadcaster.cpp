@@ -953,12 +953,9 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 
 		if (!ok.wasOk())
 			return ok;
-
-		if (rv.isArray())
-		{
-			target->sendMessageInternal(rv, async);
-			return target->lastResult;
-		}
+	
+		target->sendMessageInternal(var(args), async);
+		return target->lastResult;
 	}
 	else
 	{
