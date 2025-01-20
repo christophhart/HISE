@@ -290,7 +290,9 @@ struct snex_timer : public OptionalSnexSource
 	/** Initialises the processing. */
 	void prepare(PrepareSpecs ps)
 	{
+#if HISE_INCLUDE_SNEX
 		rebuildCallbacksAfterChannelChange(ps.numChannels);
+#endif
 		
 		callbacks.prepare(ps);
 		toggleTimer.prepare(ps);
