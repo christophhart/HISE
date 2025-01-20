@@ -276,9 +276,9 @@ public:
 			return currentPreloadMessage;
 		}
 		
-		void setPreloadMessage(String message) const
+		void setPreloadMessage(const String& newMessage)
 		{
-			currentPreloadMessage = message;
+			currentPreloadMessage = newMessage;
 		}
 
 	private:
