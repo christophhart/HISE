@@ -102,6 +102,7 @@ bool snex_timer::preprocess(String& code)
 {
 	OptionalSnexSource::preprocess(code);
 
+#if HISE_INCLUDE_SNEX
 	using namespace cppgen;
 
 	Base b(Base::OutputType::AddTabs);
@@ -138,7 +139,7 @@ bool snex_timer::preprocess(String& code)
 	auto x = b.toString();
 	code << x;
 
-	DBG(code);
+#endif
 
 	return true;
 }
