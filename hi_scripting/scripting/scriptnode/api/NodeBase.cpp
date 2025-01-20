@@ -1674,8 +1674,9 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 
 		n->getRootNetwork()->getExceptionHandler().removeError(tn, Error::UnscaledModRangeMismatch);
 
-
 		parameter::dynamic_base::Ptr p;
+
+		auto targetIsMacro = dynamic_cast<NodeContainer*>(tn) != nullptr;
 
 		if (pId == PropertyIds::Bypassed.toString())
 		{
@@ -1693,13 +1694,23 @@ scriptnode::parameter::dynamic_base::Ptr ConnectionBase::createParameterFromConn
 		{
 			p = param->getDynamicParameter();
 
+			if(auto dh = dynamic_cast<parameter::dynamic_base_holder*>(p.get()))
+			{
+				dh->setAllowForwardToParameter(false);
+				dh->updateRange(param->data);
+			}
+
 			isUnscaledTarget = cppgen::CustomNodeProperties::isUnscaledParameter(param->data);
 		}
 		else
 			return nullptr;
 
+		auto targetNodeType = tn->getPath().toString();
+		auto isCableValueParameter = targetNodeType.contains("local_cable") || targetNodeType.contains("global_cable");
 
-		if (numConnections == 1)
+		
+		
+		if (numConnections == 1 && !isCableValueParameter && !targetIsMacro)
 		{
 			auto sameRange = RangeHelpers::equalsWithError(p->getRange(), inputRange, 0.001);
 			
