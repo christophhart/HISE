@@ -77,7 +77,7 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	colourUpdater.setCallback(parent.node->getValueTree(), { PropertyIds::NodeColour }, valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(NodeComponent::Header::updateColour));
 
-	dynamicPowerUpdater.setTypesToWatch({ PropertyIds::Nodes, PropertyIds::Connections });
+	dynamicPowerUpdater.setTypesToWatch({ PropertyIds::Nodes, PropertyIds::Connections, PropertyIds::ModulationTargets });
 
 	dynamicPowerUpdater.setCallback(parent.node->getRootNetwork()->getValueTree(), valuetree::AsyncMode::Asynchronously, [this](ValueTree v, bool wasAdded)
 	{

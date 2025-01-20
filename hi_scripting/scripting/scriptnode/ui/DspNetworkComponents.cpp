@@ -1091,10 +1091,9 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 		if (connection.isNotEmpty())
 		{
-			
-
 			if (connection.contains("["))
 			{
+				// Multi mod source
 				auto nodeId = connection.upToFirstOccurrenceOf("[", false, false);
 				auto slotIndex = connection.fromFirstOccurrenceOf("[", false, false).getIntValue();
 
@@ -1119,8 +1118,10 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 					}
 				}
 			}
-			else
+			else if (connection.containsChar('.'))
 			{
+				// Parameter
+
 				auto nodeId = connection.upToFirstOccurrenceOf(".", false, false);
 				auto pId = connection.fromFirstOccurrenceOf(".", false, false);
 
@@ -1146,6 +1147,33 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 						GlobalHiseLookAndFeel::paintCable(g, start, end, c, alpha, hc);
 						break;
+					}
+				}
+			}
+			else
+			{
+				// Single Mod source
+
+				for(auto m: modSourceList)
+				{
+					
+
+					if(auto mn = m->getSourceNodeFromParent())
+					{
+						if(mn->getId() == connection)
+						{
+							auto c = n->isBypassed() ? Colours::grey : Colour(SIGNAL_COLOUR).withAlpha(0.8f);
+
+							c = getSpecialColour(m, c);
+
+							auto start = getCircle(m, false);
+							auto end = getCircle(&b->powerButton).translated(0.0, -60.0f);
+							
+							Colour hc = m->isMouseOver(true) ? Colours::red : Colour(0xFFAAAAAA);
+
+							GlobalHiseLookAndFeel::paintCable(g, start, end, c, alpha, hc);
+							break;
+						}
 					}
 				}
 			}

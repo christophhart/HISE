@@ -1237,6 +1237,7 @@ struct DragHelpers
 void NodeBase::connectToBypass(var dragDetails)
 {
 	auto sourceParameterTree = DragHelpers::getValueTreeOfSourceParameter(this, dragDetails);
+	auto modNode = DragHelpers::getModulationSource(this, dragDetails);
 
 	if (sourceParameterTree.isValid())
 	{
@@ -1244,11 +1245,18 @@ void NodeBase::connectToBypass(var dragDetails)
 		newC.setProperty(PropertyIds::NodeId, getId(), nullptr);
 		newC.setProperty(PropertyIds::ParameterId, PropertyIds::Bypassed.toString(), nullptr);
 
-		String connectionId = DragHelpers::getSourceNodeId(dragDetails) + "." + 
-							  DragHelpers::getSourceParameterId(dragDetails);
-
 		ValueTree connectionTree = sourceParameterTree.getChildWithName(PropertyIds::Connections);
 		connectionTree.addChild(newC, -1, getUndoManager());
+		return;
+	}
+	else if (modNode != nullptr)
+	{
+		ValueTree newC(PropertyIds::Connection);
+		newC.setProperty(PropertyIds::NodeId, getId(), nullptr);
+		newC.setProperty(PropertyIds::ParameterId, PropertyIds::Bypassed.toString(), nullptr);
+
+		modNode->getModulationTargetTree().addChild(newC, -1, getUndoManager());
+		return;
 	}
 	else
 	{
@@ -1279,6 +1287,20 @@ void NodeBase::connectToBypass(var dragDetails)
 				auto slotIndex = src.fromFirstOccurrenceOf("[", false, false).getIntValue();
 
 				for (auto c : stree.getChild(slotIndex).getChildWithName(PropertyIds::Connections))
+				{
+					if (c[PropertyIds::NodeId] == getId() && c[PropertyIds::ParameterId].toString() == "Bypassed")
+					{
+						c.getParent().removeChild(c, getUndoManager());
+						return;
+					}
+				}
+			}
+		}
+		else
+		{
+			if (auto modNode = dynamic_cast<ModulationSourceNode*>(getRootNetwork()->getNodeWithId(src)))
+			{
+				for(auto c: modNode->getModulationTargetTree())
 				{
 					if (c[PropertyIds::NodeId] == getId() && c[PropertyIds::ParameterId].toString() == "Bypassed")
 					{
