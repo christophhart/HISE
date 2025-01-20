@@ -35,9 +35,7 @@
 
 namespace hise { using namespace juce;
 
-#ifndef HISE_NUM_MODULATORS_PER_CHAIN
-#define HISE_NUM_MODULATORS_PER_CHAIN 32
-#endif
+
 
 /** A chain of Modulators that can be processed serially.
 *
