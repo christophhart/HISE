@@ -821,6 +821,7 @@ private:
     ScopedPointer<PageBase> currentPage;
     Rectangle<int> top, bottom, center;
     std::function<void()> finishCallback;
+    bool pendingClose = false;
     
     WeakReference<PageBase> currentErrorElement;
     //ErrorComponent errorComponent;

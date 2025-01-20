@@ -1117,7 +1117,8 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 	nextButton.onClick = [this]()
 	{
-		navigate(true);
+		if(!pendingClose)
+			navigate(true);
 	};
         
 	prevButton.onClick = [this]()
@@ -2112,7 +2113,11 @@ bool Dialog::navigate(bool forward)
 			getState().callNativeFunction("onFinish", args, nullptr);
 
 			if(!editMode && finishCallback)
+			{
+				pendingClose = true;
 				Timer::callAfterDelay(600, finishCallback);
+			}
+				
 				
 			return true;
 		}
