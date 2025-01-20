@@ -690,6 +690,17 @@ struct EncodedDialogBase: public Component,
 		state->globalState.getDynamicObject()->setProperty(id, value);
 	}
 
+	bool keyPressed(const KeyPress& key) override
+	{
+		if(key == KeyPress::escapeKey && closeOnEscape)
+		{
+			destroy();
+			return true;
+		}
+
+		return false;
+	}
+
 	var readState(const Identifier& id) const
 	{
 		return state->globalState[id];
@@ -817,6 +828,8 @@ protected:
 	ScopedPointer<Dialog> dialog;
 
 	HiseShapeButton closeButton;
+
+	bool closeOnEscape = true;
 
 private:
 
