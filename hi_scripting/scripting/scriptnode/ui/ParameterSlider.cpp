@@ -1754,7 +1754,14 @@ MacroParameterSlider::MacroParameterSlider(NodeBase* node, int index) :
 void MacroParameterSlider::checkAllParametersForWarning(const Identifier& , const var& )
 {
     auto nTree = slider.pTree.getParent().getParent().getChildWithName(PropertyIds::Nodes);
- 
+
+	if(slider.pTree.getChildWithName(PropertyIds::Connections).getNumChildren() == 0)
+	{
+		warningButton.setVisible(false);
+		return;
+	}
+		
+
     jassert(nTree.isValid());
     
     ScriptingApi::Content::Helpers::callRecursive(nTree, [&](ValueTree& v)
