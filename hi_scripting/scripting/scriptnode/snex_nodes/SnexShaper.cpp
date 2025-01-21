@@ -147,6 +147,8 @@ namespace waveshapers
 
 	void dynamic::editor::timerCallback()
 	{
+		rebuild |= getObject()->getParameterHandler().hasAnyParameterChanged();
+
 		if (rebuild)
 			getObject()->getMainDisplayBuffer()->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationSync, true);
 		
