@@ -187,7 +187,7 @@ String CompileExporter::getCompileResult(ErrorCodes result)
 	case CompileExporter::UserAbort: return "User Abort";
 	case CompileExporter::MissingArguments: return "Missing arguments";
 	case CompileExporter::BuildOptionInvalid: return "Invalid build options";
-	case CompileExporter::CompileError: return "Compilation error";
+	case CompileExporter::CompileError: return "Compilation error. Check the compiler output.";
 	case CompileExporter::VSTSDKMissing: return "VST SDK is missing";
 	case CompileExporter::AAXSDKMissing: return "AAX SDK is missing";
 	case CompileExporter::ASIOSDKMissing: return "ASIO SDK is missing";
@@ -1153,9 +1153,9 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 }
 
 
-CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOption, TargetTypes types)
+CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOption, TargetTypes types, ChildProcessManager* manager)
 {
-	BatchFileCreator::createBatchFile(this, buildOption, types);
+	BatchFileCreator::createBatchFile(this, buildOption, types, manager != nullptr);
 
 	File batchFile = BatchFileCreator::getBatchFile(this);
     
@@ -1200,11 +1200,72 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 
 	if (!isUsingCIMode())
 	{
-		int returnType = system(command.getCharPointer());
-
-		if (returnType != 0)
+		if(manager != nullptr)
 		{
-			return ErrorCodes::CompileError;
+			ChildProcess cp;
+
+			cp.start(command);
+
+			String currentLine;
+
+			bool shouldAbort = false;
+
+			manager->killFunction = [&]()
+			{
+				cp.kill();
+				shouldAbort = true;
+			};
+
+			String thisLine;
+
+			while(!shouldAbort && cp.isRunning())
+			{
+				char buffer;
+
+				auto numRead = cp.readProcessOutput(&buffer, 1, 400);
+				
+				if(numRead != 0)
+				{
+					
+
+					if(buffer == '\n')
+					{
+						manager->logMessage(thisLine);
+						thisLine = {};
+					}
+					else
+					{
+						thisLine << buffer;
+					}
+				}
+			}	
+
+			if(thisLine.isNotEmpty())
+				manager->logMessage(thisLine);
+			
+			if(shouldAbort)
+			{
+				manager->killFunction = {};
+				return ErrorCodes::UserAbort;
+			}
+
+			manager->killFunction = {};
+
+			auto returnType = cp.getExitCode();
+
+			if (returnType != 0)
+			{
+				return ErrorCodes::CompileError;
+			}
+		}
+		else
+		{
+			int returnType = system(command.getCharPointer());
+
+			if (returnType != 0)
+			{
+				return ErrorCodes::CompileError;
+			}
 		}
 	}
 
@@ -2400,7 +2461,7 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 
 #define ADD_LINE(x) (batchContent << x << NewLine::getDefault())
 
-void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types)
+void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types, bool hasChildProcessManager)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
     ignoreUnused(chainToExport);
@@ -2519,7 +2580,7 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 		ADD_LINE("echo Project was exported succesfully. Open the VS2017 Solution file found in Binaries/Builds/VS2017");
 	}
 
-	if (!CompileExporter::isExportingFromCommandLine())
+	if (!CompileExporter::isExportingFromCommandLine() && !hasChildProcessManager)
 		ADD_LINE("pause");
 	
     batchFile.replaceWithText(batchContent);

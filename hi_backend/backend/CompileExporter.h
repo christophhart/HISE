@@ -255,7 +255,7 @@ public:
     
 	struct BatchFileCreator
 	{
-		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types);
+		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types, bool hasChildProcessManager=false);
 		static File getBatchFile(CompileExporter* exporter);
 	};
 
@@ -288,7 +288,9 @@ protected:
 
 	BuildOption showCompilePopup(TargetTypes type);
 
-	ErrorCodes compileSolution(BuildOption buildOption, TargetTypes types);
+	
+
+	ErrorCodes compileSolution(BuildOption buildOption, TargetTypes types, ChildProcessManager* childProcessManager=nullptr);
 
 	ErrorCodes createPluginDataHeaderFile(const String &solutionDirectory, const String &publicKey, bool iOSAUv3);
 

@@ -1,0 +1,92 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Compile Networks",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "Dark",
+    "Style": ".description\n{\n\ttext-align: left;\n\twidth: 100%;\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n.status\n{\n\tfont-family: monospace;\n\tfont-size: 12px;\n\tcolor: black;\n\t\n}",
+    "UseViewport": true,
+    "ConfirmClose": true,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 800,
+    "DialogHeight": 780
+  },
+  "GlobalState": {
+    "CompileOutput": "asdasdasd\nasda\nsasd\nasd\nas\nd\nasd",
+    "NetworkList": "Funky, wasGeht, noice"
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "JavascriptFunction",
+          "ID": "onInit",
+          "Code": "{BIND::onInit}"
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "Networks to compile:  \n\n> `Funky, wasGeht, noice`",
+          "ID": "nodeList"
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "Status:",
+          "Class": ".description"
+        },
+        {
+          "Type": "TextInput",
+          "ID": "CompileOutput",
+          "Enabled": false,
+          "Class": ".status",
+          "NoLabel": true,
+          "Height": "180",
+          "Multiline": true
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "",
+          "ID": "compileTask",
+          "EventTrigger": "OnSubmit",
+          "Function": "compileTask"
+        }
+      ],
+      "Text": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "The compilation was successful. Press Finish to reload the DLL.\n\n> You don't need to restart HISE anymore, all effects from the previous DLL will be automatically reloaded!\n\n"
+        }
+      ],
+      "Text": ""
+    }
+  ],
+  "Assets": []
+}

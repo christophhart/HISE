@@ -114,14 +114,11 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProces
     
 	if (getNetwork() == nullptr)
 	{
-		if (PresetHandler::showYesNoWindow("No DSP Network detected", "You need an active DspNetwork for the compilation process.  \n> Press OK to create a Script FX with an empty embedded Network"))
-		{
-			raw::Builder builder(bp);
-			MainController::ScopedBadBabysitter sb(bp);
+		raw::Builder builder(bp);
+		MainController::ScopedBadBabysitter sb(bp);
 
-			auto jmp = builder.create<JavascriptMasterEffect>(bp->getMainSynthChain(), raw::IDs::Chains::FX);
-			jmp->getOrCreate("internal_dsp");
-		}
+		auto jmp = builder.create<JavascriptMasterEffect>(bp->getMainSynthChain(), raw::IDs::Chains::FX);
+		jmp->getOrCreate("internal_dsp");
 	}
 
 	if (auto n = getNetwork())
@@ -154,10 +151,18 @@ DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProces
 	s << "Nodes to compile:\n";
 
 	for (auto f : bp->dllManager->getThirdPartyFiles(bp, false))
-		s << " - " << f.getFileNameWithoutExtension() << " [external C++]\n";
+	{
+		String t = f.getFileNameWithoutExtension();
+		cppFilesToCompile.add(t);
+		s << " - " << t << + " [external C++]\n";
+	}
 
 	for (auto f : bp->dllManager->getNetworkFiles(bp, false))
-		s << " - " << f.getFileNameWithoutExtension() << "\n";
+	{
+		String t = f.getFileNameWithoutExtension();
+		nodesToCompile.add(t);
+		s << " - " << t << "\n";
+	}
 
 	s = s.upToLastOccurrenceOf(", ", false, false);
 
@@ -174,12 +179,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
     auto projectName = settings.getSetting(HiseSettings::Project::Name).toString();
     auto debugExecutable = File(hisePath).getChildFile("projects/standalone/Builds/");
     
-	
-
-	
-	
 	auto currentExecutable = File::getSpecialLocation(File::currentExecutableFile);
-
 
 #if JUCE_WINDOWS
     auto isUsingVs2017 = HelperClasses::isUsingVisualStudio2017(settings);
@@ -239,8 +239,6 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
         solutionFile.revealToUser();
     }
 #endif
-    
-	
 }
 
 hise::DspNetworkCompileExporter::CppFileLocationType DspNetworkCompileExporter::getLocationType(const File& f) const
@@ -284,6 +282,9 @@ scriptnode::DspNetwork* DspNetworkCompileExporter::getNetwork()
 void DspNetworkCompileExporter::run()
 {
 	auto n = getNetwork();
+
+	if(managerToUse != nullptr)
+		managerToUse->setProgress(0.25);
 
 	if (n == nullptr)
 	{
@@ -682,18 +683,24 @@ void DspNetworkCompileExporter::run()
 	showStatusMessage("Compiling dll plugin");
 
 	configurationName = getComboBoxComponent("build")->getText();
-	
+
+	if(managerToUse != nullptr)
+		managerToUse->setProgress(0.5);
+
 #if JUCE_LINUX
 	ok = ErrorCodes::OK;
 #else
-	ok = compileSolution(o, CompileExporter::TargetTypes::numTargetTypes);
+	ok = compileSolution(o, CompileExporter::TargetTypes::numTargetTypes, managerToUse);
 #endif
+
+	if(managerToUse != nullptr)
+		managerToUse->setProgress(1.0);
 }
 
 void DspNetworkCompileExporter::threadFinished()
 {
 #if JUCE_LINUX
-	ok = compileSolution(CompileExporter::VSTLinux, CompileExporter::TargetTypes::numTargetTypes);
+	ok = compileSolution(CompileExporter::VSTLinux, CompileExporter::TargetTypes::numTargetTypes, managerToUse);
 #endif
 
 	if (ok == ErrorCodes::OK)
@@ -710,15 +717,20 @@ void DspNetworkCompileExporter::threadFinished()
 
 		
 #if JUCE_LINUX
-		PresetHandler::showMessageWindow("Project creation OK", "Please run the makefile, then press OK to reload the dynamic library");
+		if(managerToUse == nullptr)
+			PresetHandler::showMessageWindow("Project creation OK", "Please run the makefile, then press OK to reload the dynamic library");
 #else
-		PresetHandler::showMessageWindow("Compilation OK", "Press OK to reload the DLL and refresh all compiled effect instances.");
+		if(managerToUse == nullptr)
+			PresetHandler::showMessageWindow("Compilation OK", "Press OK to reload the DLL and refresh all compiled effect instances.");
 		getDllManager()->loadDll(true);
 #endif
 		
 	}
-	else 
-		PresetHandler::showMessageWindow("Compilation Error", errorMessage, PresetHandler::IconType::Error);
+	else
+	{
+		if(managerToUse == nullptr)
+			PresetHandler::showMessageWindow("Compilation Error", errorMessage, PresetHandler::IconType::Error);
+	}
 }
 
 juce::File DspNetworkCompileExporter::getBuildFolder() const

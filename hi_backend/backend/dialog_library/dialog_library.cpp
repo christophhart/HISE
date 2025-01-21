@@ -900,6 +900,91 @@ void NewProjectCreator::threadFinished()
 		bpe->loadNewContainer(presetToLoad);
 	}
 }
+
+NetworkCompiler::NetworkCompiler(BackendRootWindow* bpe_):
+	EncodedDialogBase(bpe_, false),
+	bpe(bpe_)  
+{
+	auto dn = new DspNetworkCompileExporter(bpe, bpe->getBackendProcessor());
+	dn->setAdditionalLogFunction(BIND_MEMBER_FUNCTION_1(NetworkCompiler::logMessage));
+	dn->managerToUse = this;
+
+	compileExporter = dn;
+
+	setWantsBackdrop(true);
+	loadFrom("996.sNB..D...............35H...oi...3N.........J09R+f8DB00A.V5Bim.Ns3F.UIVatD1rdEVRZLKsOI3hUR9Fo65ifX.E3Xv.NYIILCmwXfcH.9APf.zue1RedQzI6FPSgbFjeWsrpoZX4RlKaPHCDi6sN99HcYZyjzrw3VhFZwSY1fIyAazLs4BlMOI8mAgMYvrAT7AmzLgAAMNzX90AWllvLYQyELypCcNZVRUzXoK4UsP1a1UFPibkBXP2AJQSFV0ZLV+4OQKUzGcHh1c2.LYoh3m6zvtuJZ2.LIzWrj5QmC933LC9nmUe9oUncziKUGCkzGFk1SMeJM.xu+CDOg.IIKK01i8Bkvm0vkJp8frA+GwOLI9Qzeu7MunMVEJQflbmu6spu5c7mnKorAHa4vHh1tIGeRUjpXI5O5r2nKxcTvwU7WsHZLmmH3+dqZEEzzC8cEaCeRNmCMHidnTFRU0PI2qpw7XH80yiKkeqifxgVJcfBYWXWJR5LhgbLPSlhnSnn5TgGGLowbN+K5I5cthUH3Q3InuV1kgG8DC913HoIyl1qkPRhCMGxuNLHqRWtz21uWq+6G4Pa06VuCk1TzTGxga9xhcc9SWFpea.5hgVK0zg9EIxKcIOZBAvIA.h.Xc206YN+q71VKD9Bszp+FomRNelsz+pyx5EB4kROcttHuOT4Qh8m7Sw5NteAQGaqdGU97oyuXrC64F8EePrTZOuXq.qYTZecUoK2aY.BmUsJZgl1alwG6Qd.Dkyfwr33Oc7AeOrRgjFKQv1h+3Uf0PKN9vWs3qAfmhZbYFDDQ0HjDPPpH..LFAPwppL.xBNFJQNGBh.FZ.HfBFj.PX4wIL7vnvn7VgO4wZUmTGQEWdEdGjMKsG0Fmab0q2Be2B+ds0GWBtNz1D4gFqcClQtC.VKOnoHb12r.X1y2z2yJEqrAYVhsnmKIhpqqZwFlds5rUsLp+eV.B00Il9L19CLuQajY3xDA1HJdPNeSOSSDLXB7RI6qJPiOG3nRXwYhU4AqSi0K0aplHMn+T.ZhSbGIQjLW4AE3949zq4mU.2zfwPLQyCXYBInz98759CjBd0YcrCFLOJJhZ0f5MYtVvsaJVvTOYHFfLZK5lqITttvn7fV7ADRqlncNheAfpsoaFSY+OEZLUXm9CYs0PNFmj..s0TltQ9DvIkcz40jRn0ZiiP0.CFjr9vflCL31kpr2lkTcmpCBwUjpF2O10PNjhd87WH4SCRGwxsX5rX3M00AU2r+QjSMCHWYUcsntoEXSBTfyKOlzautIdxPQIgdv3.Qnea78kNB..X5H...qi...");
+
+	dialog->setFinishCallback([this]()
+	{
+		dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->threadFinished();
+		findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+	});
+}
+
+NetworkCompiler::~NetworkCompiler()
+{
+	if(killFunction)
+		killFunction();
+
+	state->clearCompletedJobs();
+
+	dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->managerToUse = nullptr;
+	
+	compileExporter = nullptr;
+
+}
+
+var NetworkCompiler::onInit(const var::NativeFunctionArgs& args)
+{
+	String s;
+
+	const auto& nodes = dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->nodesToCompile;
+	const auto& cpp = dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->cppFilesToCompile;
+
+	if(!nodes.isEmpty())
+	{
+		s << "DSP Networks to compile:  \n> `";
+
+		for(auto& n: nodes)
+			s << n << ", ";
+		
+		s = s.upToLastOccurrenceOf(", ", false, false);
+		s << "`\n";
+	}
+
+	if(!cpp.isEmpty())
+	{
+		s << "\nC++ files to compile:  \n> `";
+
+		for(auto& n: cpp)
+			s << n << ", ";
+		
+		s = s.upToLastOccurrenceOf(", ", false, false);
+		s << "`\n";
+	}
+
+	setElementProperty("nodeList", mpid::Text, s);
+
+	return var();
+
+}
+
+var NetworkCompiler::compileTask(const var::NativeFunctionArgs& args)
+{
+	auto nc = dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get());
+
+	nc->run();
+
+	auto ok = nc->getErrorCode();
+
+	if(ok != CompileExporter::OK)
+	{
+		auto errorMessage = CompileExporter::getCompileResult(ok);
+		throw Result::fail(errorMessage);
+	}
+
+	return var();
+}
 }	
 }	
 }

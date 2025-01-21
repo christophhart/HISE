@@ -2627,8 +2627,11 @@ void BackendCommandTarget::Actions::compileNetworksToDll(BackendRootWindow* bpe)
 		return;
 	}
 
-	auto s = new DspNetworkCompileExporter(bpe, bpe->getBackendProcessor());
+	auto s = new multipage::library::NetworkCompiler(bpe);
 	s->setModalBaseWindowComponent(bpe);
+
+	//auto s = new DspNetworkCompileExporter(bpe, bpe->getBackendProcessor());
+	//s->setModalBaseWindowComponent(bpe);
 }
 
 void BackendCommandTarget::Actions::cleanBuildDirectory(BackendRootWindow * bpe)

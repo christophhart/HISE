@@ -115,6 +115,13 @@ public:
 
 	File getBuildFolder() const override;
 
+	ChildProcessManager* managerToUse = nullptr;
+
+	ErrorCodes getErrorCode() const { return ok; }
+
+	StringArray nodesToCompile;
+	StringArray cppFilesToCompile;
+
 private:
 
 	enum CppFileLocationType

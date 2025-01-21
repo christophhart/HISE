@@ -3,6 +3,20 @@
 #pragma once
 
 namespace hise {
+
+class ChildProcessManager
+{
+public:
+
+	virtual ~ChildProcessManager() {};
+
+	virtual void logMessage(const String& message) = 0;
+
+	virtual void setProgress(double progress) = 0;
+
+	std::function<void()> killFunction;
+};
+
 namespace multipage {
 namespace library {
 using namespace juce;
@@ -269,6 +283,46 @@ public:
 	DialogWindowWithBackgroundThread::LogData logData;
 };
 
+struct NetworkCompiler: public EncodedDialogBase,
+						public ChildProcessManager 
+{
+	NetworkCompiler(BackendRootWindow* bpe_);
+
+	~NetworkCompiler();
+
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(NetworkCompiler, compileTask);
+		MULTIPAGE_BIND_CPP(NetworkCompiler, onInit);
+	}
+
+	void setProgress(double progress) override
+	{
+		if(auto j = state->currentJob.get())
+		{
+			j->getProgress() = progress;
+		}
+	}
+
+	void logMessage(const String& message) override
+	{
+		auto m = readState("CompileOutput").toString();
+		m << "\n" << message;
+		writeState("CompileOutput", m);
+
+		if(auto md = dialog->findPageBaseForID("CompileOutput"))
+		{
+			MessageManagerLock mm;
+			md->postInit();
+		}
+	}
+
+	var onInit(const var::NativeFunctionArgs& args);
+	var compileTask(const var::NativeFunctionArgs& args);
+
+	BackendRootWindow* bpe;
+	ScopedPointer<ControlledObject> compileExporter;
+};
 
 struct SnippetBrowser: public EncodedDialogBase
 {
