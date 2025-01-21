@@ -31,9 +31,9 @@ bool ChildProcess::isRunning() const
     return activeProcess != nullptr && activeProcess->isRunning();
 }
 
-int ChildProcess::readProcessOutput (void* dest, int numBytes)
+int ChildProcess::readProcessOutput (void* dest, int numBytes, int timeoutMs)
 {
-    return activeProcess != nullptr ? activeProcess->read (dest, numBytes) : 0;
+    return activeProcess != nullptr ? activeProcess->read (dest, numBytes, timeoutMs) : 0;
 }
 
 bool ChildProcess::kill()
