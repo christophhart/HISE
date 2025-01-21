@@ -245,5 +245,7 @@ struct BackendDllManager : public ReferenceCountedObject,
 	}
 
 	scriptnode::dll::ProjectDll::Ptr projectDll;
+
+	LambdaBroadcaster<std::pair<scriptnode::dll::ProjectDll*, scriptnode::dll::ProjectDll*>> reloadBroadcaster;
 };
 }

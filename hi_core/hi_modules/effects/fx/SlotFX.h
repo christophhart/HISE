@@ -62,6 +62,10 @@ public:
 
 	LambdaBroadcaster<String> errorBroadcaster;
 
+#if USE_BACKEND
+	static void onDllReload(HardcodedSwappableEffect& fx, const std::pair<scriptnode::dll::ProjectDll*, scriptnode::dll::ProjectDll*>& update);
+#endif
+
 	// ===================================================================================== Custom hardcoded API calls
 
 	Processor* getCurrentEffect() { return dynamic_cast<Processor*>(this); }

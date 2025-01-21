@@ -48,20 +48,10 @@ FrontendHostFactory::FrontendHostFactory(DspNetwork* n) :
 			{
 				if (staticFactory->isInterpretedNetwork(i))
 				{
-					zstd::ZDefaultCompressor comp;
-					ValueTree cv;
-					MemoryBlock mb;
-					mb.fromBase64Encoding(staticFactory->items[i].networkData);
-					comp.expand(mb, cv);
-
-					jassert(cv.isValid());
-
-					auto useMod = staticFactory->items[i].isModNode;
-
-					if (useMod)
-						return scriptnode::HostHelpers::initNodeWithNetwork<InterpretedModNode>(p, v, cv, useMod);
-					else
-						return scriptnode::HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, cv, useMod);
+					// This functionality is removed...
+					jassertfalse;
+					NodeBase* n = nullptr;
+					return n;
 				}
 				else
 				{

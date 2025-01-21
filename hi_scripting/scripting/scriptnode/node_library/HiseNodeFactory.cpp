@@ -1928,41 +1928,6 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 				monoNodes.add(item);
 			}
 		}
-		else
-		{
-			auto networkIndex = i - thirdPartyOffset;
-
-			auto f = networks[networkIndex];
-			NodeFactory::Item item;
-			item.id = f.getFileNameWithoutExtension();
-			item.cb = [this, i, f](DspNetwork* p, ValueTree v)
-			{
-				auto nodeId = f.getFileNameWithoutExtension();
-				auto networkFile = f;
-
-				if (networkFile.existsAsFile())
-				{
-					if (auto xml = XmlDocument::parse(networkFile.loadFileAsString()))
-					{
-						auto nv = ValueTree::fromXml(*xml);
-
-						auto useMod = cppgen::ValueTreeIterator::hasChildNodeWithProperty(nv, PropertyIds::IsPublicMod);
-
-						if (useMod)
-							return HostHelpers::initNodeWithNetwork<InterpretedModNode>(p, v, nv, useMod);
-						else
-							return HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, nv, useMod);
-					}
-				}
-
-				jassertfalse;
-				NodeBase* n = nullptr;
-				return n;
-			};
-
-			monoNodes.add(item);
-		}
-
 	}
 }
 }

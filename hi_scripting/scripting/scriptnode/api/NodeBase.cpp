@@ -528,28 +528,6 @@ bool NodeBase::isClone() const
 	return findParentNodeOfType<CloneNode>() != nullptr;
 }
 
-void NodeBase::setEmbeddedNetwork(NodeBase::Holder* n)
-{
-	embeddedNetwork = n;
-
-	if (getEmbeddedNetwork()->canBeFrozen())
-	{
-		setDefaultValue(PropertyIds::Frozen, true);
-		frozenListener.setCallback(v_data, { PropertyIds::Frozen }, valuetree::AsyncMode::Synchronously,
-			BIND_MEMBER_FUNCTION_2(NodeBase::updateFrozenState));
-	}
-}
-
-scriptnode::DspNetwork* NodeBase::getEmbeddedNetwork()
-{
-	return static_cast<DspNetwork*>(embeddedNetwork.get());
-}
-
-const scriptnode::DspNetwork* NodeBase::getEmbeddedNetwork() const
-{
-	return static_cast<const DspNetwork*>(embeddedNetwork.get());
-}
-
 ValueTree findBypassConnectionTree(const ValueTree& v, const String& nodeId)
 {
 	if (v.getType() == PropertyIds::Connection)
@@ -615,22 +593,6 @@ String NodeBase::getDynamicBypassSource(bool forceUpdate /*= true*/) const
 	}
 
 	return dynamicBypassId;
-}
-
-void NodeBase::updateFrozenState(Identifier id, var newValue)
-{
-	if (auto n = getEmbeddedNetwork())
-	{
-		try
-		{
-			if (n->canBeFrozen())
-				n->setUseFrozenNode((bool)newValue);
-		}
-		catch (Error& e)
-		{
-			getRootNetwork()->getExceptionHandler().addError(this, e);
-		}
-	}
 }
 
 Colour NodeBase::getColour() const

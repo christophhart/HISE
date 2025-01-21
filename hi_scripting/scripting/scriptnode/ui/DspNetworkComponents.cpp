@@ -724,9 +724,6 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 	if (Component::isMouseButtonDownAnywhere())
 		HoverAlpha += 0.1f;
 
-	if (network->isFrozen())
-		return;
-
 	Array<ParameterSlider*> targetSlidersWithCable;
 
 	if (dragOverlay.alpha != 0.0f)
@@ -1628,129 +1625,6 @@ bool DspNetworkGraph::Actions::swapOrientation(DspNetworkGraph& g)
 	return true;
 }
 
-bool DspNetworkGraph::Actions::freezeNode(NodeBase::Ptr node)
-{
-#if 0
-	auto freezedId = node->getValueTree()[PropertyIds::FreezedId].toString();
-
-	if (freezedId.isNotEmpty())
-	{
-		if (auto fn = dynamic_cast<NodeBase*>(node->getRootNetwork()->get(freezedId).getObject()))
-		{
-			node->getRootNetwork()->deselect(fn);
-
-			auto newTree = fn->getValueTree();
-			auto oldTree = node->getValueTree();
-			auto um = node->getUndoManager();
-
-			auto f = [oldTree, newTree, um]()
-			{
-				auto p = oldTree.getParent();
-
-				int position = p.indexOf(oldTree);
-				p.removeChild(oldTree, um);
-				p.addChild(newTree, position, um);
-			};
-
-			MessageManager::callAsync(f);
-
-			auto nw = node->getRootNetwork();
-			auto s = [newTree, nw]()
-			{
-				auto newNode = nw->getNodeForValueTree(newTree);
-				nw->deselectAll();
-				nw->addToSelection(newNode, ModifierKeys());
-			};
-
-			MessageManager::callAsync(s);
-		}
-
-		return true;
-	}
-
-	auto freezedPath = node->getValueTree()[PropertyIds::FreezedPath].toString();
-
-	if (freezedPath.isNotEmpty())
-	{
-		auto newNode = node->getRootNetwork()->create(freezedPath, node->getId() + "_freezed");
-
-		if (auto nn = dynamic_cast<NodeBase*>(newNode.getObject()))
-		{
-			auto newTree = nn->getValueTree();
-			auto oldTree = node->getValueTree();
-			auto um = node->getUndoManager();
-
-			auto f = [oldTree, newTree, um]()
-			{
-				auto p = oldTree.getParent();
-
-				int position = p.indexOf(oldTree);
-				p.removeChild(oldTree, um);
-				p.addChild(newTree, position, um);
-			};
-
-			MessageManager::callAsync(f);
-
-			auto nw = node->getRootNetwork();
-			auto s = [newTree, nw]()
-			{
-				auto newNode = nw->getNodeForValueTree(newTree);
-				nw->deselectAll();
-				nw->addToSelection(newNode, ModifierKeys());
-			};
-
-			MessageManager::callAsync(s);
-		}
-
-		return true;
-	}
-#endif
-
-	return false;
-}
-
-bool DspNetworkGraph::Actions::unfreezeNode(NodeBase::Ptr node)
-{
-	if (auto fn = node->getEmbeddedNetwork())
-	{
-		auto newTree = fn->getRootNode()->getValueTree();
-        
-        Array<DspNetwork::IdChange> changes;
-        
-		newTree = node->getRootNetwork()->cloneValueTreeWithNewIds(newTree, changes, true);
-
-		{
-			auto oldTree = node->getValueTree();
-			auto um = node->getUndoManager();
-
-			auto newNode = node->getRootNetwork()->createFromValueTree(true, newTree, true);
-
-			auto f = [oldTree, newTree, um]()
-			{
-				auto p = oldTree.getParent();
-
-				int position = p.indexOf(oldTree);
-				p.removeChild(oldTree, um);
-				p.addChild(newTree, position, um);
-			};
-
-			MessageManager::callAsync(f);
-
-			auto nw = node->getRootNetwork();
-
-			auto s = [newNode, nw]()
-			{
-				nw->deselectAll();
-				nw->addToSelection(newNode, ModifierKeys());
-			};
-
-			MessageManager::callAsync(s);
-		}
-	}
-
-	return false;
-}
-
 bool DspNetworkGraph::Actions::toggleBypass(DspNetworkGraph& g)
 {
 	auto selection = g.network->getSelection();
@@ -1787,42 +1661,6 @@ bool DspNetworkGraph::Actions::toggleSignalDisplay(DspNetworkGraph& g)
     
     return true;
 }
-
-bool DspNetworkGraph::Actions::toggleFreeze(DspNetworkGraph& g)
-{
-	auto selection = g.network->getSelection();
-
-	if (selection.isEmpty())
-	{
-		if (g.network->canBeFrozen())
-			g.network->setUseFrozenNode(!g.network->isFrozen());
-
-		g.repaint();
-
-		return true;
-	}
-	else
-	{
-		auto f = selection.getFirst();
-
-
-		if (auto fn = f->getEmbeddedNetwork())
-		{
-			if (fn->canBeFrozen())
-			{
-				auto state = !fn->isFrozen();
-
-				for (auto s : selection)
-					s->setValueTreeProperty(PropertyIds::Frozen, state);
-			}
-		}
-
-		return true;
-	}
-		
-	return false;
-}
-
 
 
 bool DspNetworkGraph::Actions::save(DspNetworkGraph& g)
@@ -3228,9 +3066,6 @@ void DspNetworkGraph::WrapperWithMenuBar::rebuildAfterContentChange()
 	auto id = n->getId();
 
     //addButton("debug");
-    
-	if(n->canBeFrozen())
-		addButton("export");
 
 	addButton("zoom");
 
@@ -3362,39 +3197,6 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 		b->stateFunction = [](DspNetworkGraph& g) { return (bool)g.dataReference[PropertyIds::ShowComments]; };
 		b->setTooltip("Show / Hide comments");
 	}
-	if (name == "export")
-	{
-		b->actionFunction = Actions::toggleFreeze;
-		b->enabledFunction = [](DspNetworkGraph& g) 
-		{
-			auto s = g.network->getSelection();
-
-			if (s.isEmpty())
-				return g.network->canBeFrozen();
-			else
-			{
-				if (auto fn = s.getFirst()->getEmbeddedNetwork())
-					return fn->canBeFrozen();
-
-				return false;
-			}
-		};
-
-		b->stateFunction = [](DspNetworkGraph& g)
-		{
-			auto s = g.network->getSelection();
-
-			if (s.isEmpty())
-				return g.network->isFrozen();
-			else
-			{
-				if (auto fn = s.getFirst()->getEmbeddedNetwork())
-					return fn->isFrozen();
-
-				return false;
-			}
-		};
-	}
 	if (name == "swap-orientation")
 	{
 		b->actionFunction = Actions::swapOrientation;
@@ -3453,7 +3255,6 @@ void DspNetworkGraph::WrapperWithMenuBar::addButton(const String& name)
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoSoftBypass, "Wrap into soft bypass container");
 			m.addItem((int)NodeComponent::MenuActions::WrapIntoOversample4, "Wrap into 4x oversample container");
 
-			m.addItem((int)NodeComponent::MenuActions::UnfreezeNode, "Explode DSP Network", s != nullptr && s->getEmbeddedNetwork() != nullptr);
 			m.addItem((int)NodeComponent::MenuActions::ExplodeLocalCables, "Replace local cable connections");
 
 			int result = m.show();

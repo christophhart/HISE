@@ -307,10 +307,8 @@ void DspNetworkCompileExporter::run()
 
 	
 
-	showStatusMessage("Unload DLL");
-
-	
-	getDllManager()->unloadDll();
+	//showStatusMessage("Unload DLL");
+	//getDllManager()->unloadDll();
 
 	showStatusMessage("Create files");
 
@@ -470,6 +468,19 @@ void DspNetworkCompileExporter::run()
 	auto codeLibDir = getFolder(BackendDllManager::FolderSubType::CodeLibrary).getChildFile("faust");
 	auto codeLibDirPath = codeLibDir.getFullPathName().toStdString();
 	DBG("codeLibDirPath: " + codeLibDirPath);
+
+	auto faustFileList = codeLibDir.findChildFiles(File::findFiles, false, "*.dsp");
+
+	for(auto f: faustFileList)
+	{
+		auto fp = f.getFileNameWithoutExtension();
+
+		if(faustClassIds.find(fp) == faustClassIds.end())
+		{
+			faustClassIds.insert(fp);
+		}
+	}
+		
 
 	// create all necessary files before thirdPartyFiles
 	for (const auto& classId : faustClassIds)
@@ -699,9 +710,10 @@ void DspNetworkCompileExporter::threadFinished()
 
 		
 #if JUCE_LINUX
-		PresetHandler::showMessageWindow("Project creation OK", "Please run the makefile, then restart HISE when the compilation is finished");
+		PresetHandler::showMessageWindow("Project creation OK", "Please run the makefile, then press OK to reload the dynamic library");
 #else
-		PresetHandler::showMessageWindow("Compilation OK", "Please restart HISE in order to load the new binary");
+		PresetHandler::showMessageWindow("Compilation OK", "Press OK to reload the DLL and refresh all compiled effect instances.");
+		getDllManager()->loadDll(true);
 #endif
 		
 	}
@@ -1063,7 +1075,7 @@ void DspNetworkCompileExporter::createMainCppFile(bool isDllMainFile)
 
 				if(illegalPoly)
 				{
-					def << "registerPolyNode<" << nid << "<1>, wrap::illegal_poly<" << nid << "<1>>>();";
+					def << "registerPolyNode<" << nid << "<1>, scriptnode::wrap::illegal_poly<" << nid << "<1>>>();";
 				}
 				else
 				{

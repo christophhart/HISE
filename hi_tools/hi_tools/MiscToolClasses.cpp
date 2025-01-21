@@ -2532,9 +2532,6 @@ Image Spectrum2D::createSpectrumImage(AudioSampleBuffer& lastBuffer)
 		}
 	}
 
-	testImage(newImage, false, "after creation");
-
-
     return newImage;
 }
 

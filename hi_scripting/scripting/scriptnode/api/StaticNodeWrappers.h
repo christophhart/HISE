@@ -112,7 +112,14 @@ struct OpaqueNodeDataHolder: public data::base,
 	JUCE_DECLARE_WEAK_REFERENCEABLE(OpaqueNodeDataHolder);
 };
 
-template <class WType> class InterpretedNodeBase
+class NodeWithFactoryConnection
+{
+public:
+	virtual ~NodeWithFactoryConnection() {};
+	virtual void reloadFromDll(dll::FactoryBase* newFactory) = 0;
+};
+
+template <class WType> class InterpretedNodeBase: public NodeWithFactoryConnection
 {
 public:
 
@@ -179,9 +186,43 @@ public:
 		return nullptr;
 	}
 
+
+	void reloadFromDll(dll::FactoryBase* newFactory) override
+	{
+#if USE_BACKEND
+		auto on = dynamic_cast<OpaqueNode*>(&obj.getWrappedObject());
+		jassert(on != nullptr);
+
+		if (nodeFactory != nullptr)
+		{
+			auto mc = asWrapperNode()->getScriptProcessor()->getMainController_();
+			mc->connectToRuntimeTargets(*on, false);
+			nodeFactory->deinitOpaqueNode(on);
+		}
+
+		for(int i = 0; i < newFactory->getNumNodes(); i++)
+		{
+			if(newFactory->getId(i) == reloadData.id)
+			{
+				initFromDll(newFactory, i, reloadData.addDragger);
+				break;
+			}
+		}
+#else
+		ignoreUnused(newFactory);
+#endif
+	}
+
 	void initFromDll(dll::FactoryBase* f, int index, bool addDragger)
 	{
 		nodeFactory = f;
+
+#if USE_BACKEND
+
+		reloadData.addDragger = addDragger;
+		reloadData.id = f->getId(index);
+
+#endif
 
 		f->initOpaqueNode(&obj.getWrappedObject(), index, asWrapperNode()->getRootNetwork()->isPolyphonic());
 		this->obj.initialise(asWrapperNode());
@@ -203,11 +244,11 @@ public:
 
 	WrapperType& getWrapperType() { return obj; }
 
-	
-
 protected:
 
 	WrapperType obj;
+
+	dll::FactoryBase* nodeFactory = nullptr;
 
 	void* getObjectPtrFromWrapper()
 	{
@@ -226,7 +267,14 @@ protected:
 
 private:
 
-	dll::FactoryBase* nodeFactory = nullptr;
+#if USE_BACKEND
+	struct ReloadData
+	{
+		int index = -1;
+		String id;
+		bool addDragger = false;
+	} reloadData;
+#endif
 
 	ScopedPointer<OpaqueNodeDataHolder> opaqueDataHolder;
 

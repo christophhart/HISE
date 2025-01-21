@@ -1497,13 +1497,6 @@ void ParameterSlider::sliderValueChanged(Slider*)
 	if (parameterToControl != nullptr)
 	{
         auto value = getValue();
-        
-        if(isControllingFrozenNode())
-		{
-			auto n = parameterToControl->parent->getRootNetwork();
-			n->getCurrentParameterHandler()->setParameter(index, value);
-		}
-		
 		parameterToControl->data.setProperty(PropertyIds::Value, value, parameterToControl->parent->getUndoManager());
 	}
 
@@ -1550,31 +1543,11 @@ double ParameterSlider::getValueToDisplay() const
     double v;
     
 	if (parameterToControl != nullptr)
-	{
-		if (isControllingFrozenNode())
-			v = getValue();
-        else
-            v = parameterToControl->getValue();
-	}
+        v = parameterToControl->getValue();
 	else
-	{
 		v = getValue();
-	}
 	
     return v;
-}
-
-bool ParameterSlider::isControllingFrozenNode() const
-{
-	if (parameterToControl != nullptr)
-	{
-		auto n = parameterToControl->parent->getRootNetwork();
-
-		return n->getRootNode() == parameterToControl->parent &&
-			n->isFrozen();
-	}
-	
-	return false;
 }
 
 void ParameterSlider::repaintParentGraph()

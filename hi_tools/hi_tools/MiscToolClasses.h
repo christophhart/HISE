@@ -2209,60 +2209,6 @@ struct FFTHelpers
 
 struct Spectrum2D
 {
-	static void testImage(const Image& test, bool invertAxis, const String& m)
-	{
-		Image::BitmapData cd(test, 0, 0, test.getWidth(), test.getHeight());
-
-		String t;
-		t << m << ": ";
-		int i = 0;
-
-		if(invertAxis)
-		{
-			for(int x = 0; x < cd.width; x++)
-	        {
-	            auto c = cd.getPixelColour(x, cd.height - 1);
-	            
-	            auto r = (int)c.getRed();
-	            auto g = (int)c.getGreen();
-	            auto b = (int)c.getBlue();
-	            auto a = c.getAlpha();
-
-				t << "p[" << String(i++) << "]: " << String(r) << ", ";
-
-				if(i >= 5)
-				{
-					DBG(t);
-					return;
-				}
-					
-	            int funky = 5;
-	        }
-		}
-		else
-		{
-			for(int y = 0; y < cd.height; y++)
-	        {
-	            auto c = cd.getPixelColour(0, y);
-	            
-	            auto r = (int)c.getRed();
-	            auto g = (int)c.getGreen();
-	            auto b = (int)c.getBlue();
-	            auto a = c.getAlpha();
-
-				t << "p[" << String(i++) << "]: " << String(r) << ", ";
-
-				if(i >= 5)
-				{
-					DBG(t);
-					return;
-				}
-					
-	            int funky = 5;
-	        }
-		}
-	}
-
 	struct LookupTable: public ReferenceCountedObject
 	{
 		using Ptr = ReferenceCountedObjectPtr<LookupTable>;

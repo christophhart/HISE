@@ -471,11 +471,6 @@ public:
 
 	bool isClone() const;
 
-	void setEmbeddedNetwork(NodeBase::Holder* n);
-
-	DspNetwork* getEmbeddedNetwork();
-	const DspNetwork* getEmbeddedNetwork() const;
-
 	bool& getPreserveAutomationFlag();
 
 	int getCurrentChannelAmount() const;;
@@ -508,16 +503,12 @@ private:
 	
 	mutable String dynamicBypassId;
 
-	void updateFrozenState(Identifier id, var newValue);
-
 	bool containsNetwork = false;
 
-	valuetree::PropertyListener frozenListener;
 	valuetree::PropertyListener bypassListener;
 
 	bool bypassState = false;
 
-	WeakReference<NodeBase::Holder> embeddedNetwork;
 	WeakReference<NodeBase::Holder> parent;
 	WeakReference<NodeBase::Holder> subHolder;
 	

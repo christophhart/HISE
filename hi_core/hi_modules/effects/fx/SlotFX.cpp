@@ -472,6 +472,7 @@ HardcodedSwappableEffect::HardcodedSwappableEffect(MainController* mc, bool isPo
 #if USE_BACKEND
 	auto dllManager = dynamic_cast<BackendProcessor*>(mc)->dllManager.get();
 	dllManager->loadDll(false);
+	dllManager->reloadBroadcaster.addListener(*this, onDllReload, false);
 	factory = new scriptnode::dll::DynamicLibraryHostFactory(dllManager->projectDll);
 #else
 	factory = scriptnode::DspNetwork::createStaticFactory();
@@ -1001,6 +1002,39 @@ int HardcodedSwappableEffect::getNumDataObjects(ExternalData::DataType t) const
 	default: jassertfalse; return 0;
 	}
 }
+
+#if USE_BACKEND
+void HardcodedSwappableEffect::onDllReload(HardcodedSwappableEffect& fx, const std::pair<scriptnode::dll::ProjectDll*,
+	scriptnode::dll::ProjectDll*>& update)
+{
+	auto dllManager = dynamic_cast<BackendProcessor*>(fx.asProcessor().getMainController())->dllManager.get();
+
+	auto thisId = fx.currentEffect;
+
+	auto prevNumParameters = fx.numParameters;
+
+	HeapBlock<float> parametersToRetain;
+
+	parametersToRetain.allocate(prevNumParameters, false);
+	memcpy(parametersToRetain.get(), fx.lastParameters.getObjectPtr(), sizeof(float) * prevNumParameters);
+
+	fx.setEffect("", true);
+	fx.factory = new scriptnode::dll::DynamicLibraryHostFactory(update.second);
+	fx.setEffect(thisId, true);
+
+	debugToConsole(dynamic_cast<Processor*>(&fx), "Reloading FX " + thisId);
+
+	if(fx.numParameters == prevNumParameters)
+	{
+		for(int i = 0; i < prevNumParameters; i++)
+			fx.setHardcodedAttribute(i, parametersToRetain[i]);
+	}
+	else
+	{
+		debugToConsole(dynamic_cast<Processor*>(&fx), "Parameter amount changed, ignoring previous values");
+	}
+}
+#endif
 
 juce::StringArray HardcodedSwappableEffect::getModuleList() const
 {
