@@ -1167,7 +1167,7 @@ public:
         return ! WIFSIGNALED (childState);
     }
 
-    int read (void* dest, int numBytes) noexcept
+    int read (void* dest, int numBytes, int timeoutMs) noexcept
     {
         jassert (dest != nullptr && numBytes > 0);
 
