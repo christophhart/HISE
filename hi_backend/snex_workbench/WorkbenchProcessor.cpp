@@ -221,7 +221,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
     
 	auto hasThirdPartyFiles = includedThirdPartyFiles.isEmpty();
 
-    if (hasThirdPartyFiles && PresetHandler::showYesNoWindow("Quit HISE", "Do you want to quit HISE and show VS solution for debugging the DLL?  \n> Double click on the solution file, then run the VS debugger and it will open HISE with the ability to set VS breakpoints in your C++ nodes"))
+    if (hasThirdPartyFiles && managerToUse == nullptr && PresetHandler::showYesNoWindow("Quit HISE", "Do you want to quit HISE and show VS solution for debugging the DLL?  \n> Double click on the solution file, then run the VS debugger and it will open HISE with the ability to set VS breakpoints in your C++ nodes"))
     {
         solutionFile.revealToUser();
         JUCEApplication::quit();
@@ -234,7 +234,7 @@ void DspNetworkCompileExporter::writeDebugFileAndShowSolution()
     solutionFolder = solutionFolder.getChildFile("MacOSX");
     auto solutionFile = solutionFolder.getChildFile(projectName).withFileExtension("xcodeproj");
     
-    if (PresetHandler::showYesNoWindow("Show XCode Project", "Do you want to show the Xcode Project file?  \n> Double click on the file to open XCode, then choose `Debug->Attach to Process->HISE Debug` in order to run your C++ node in the Xcode Debugger"))
+    if (managerToUse == nullptr && PresetHandler::showYesNoWindow("Show XCode Project", "Do you want to show the Xcode Project file?  \n> Double click on the file to open XCode, then choose `Debug->Attach to Process->HISE Debug` in order to run your C++ node in the Xcode Debugger"))
     {
         solutionFile.revealToUser();
     }

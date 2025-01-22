@@ -2627,7 +2627,7 @@ void BackendCommandTarget::Actions::compileNetworksToDll(BackendRootWindow* bpe)
 		return;
 	}
 
-#if JUCE_WINDOWS
+#if JUCE_WINDOWS || JUCE_MAC
 	auto s = new multipage::library::NetworkCompiler(bpe);
 	s->setModalBaseWindowComponent(bpe);
 #else

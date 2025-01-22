@@ -1157,7 +1157,7 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 {
 	BatchFileCreator::createBatchFile(this, buildOption, types, manager != nullptr);
 
-	File batchFile = BatchFileCreator::getBatchFile(this);
+	File batchFile = BatchFileCreator::getBatchFile(this, manager);
     
 #if JUCE_WINDOWS
     
@@ -1178,8 +1178,7 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
     
     String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
     system(permissionCommand.getCharPointer());
-    
-    	String command = "open \"" + batchFile.getFullPathName() + "\"";
+    String command = manager != nullptr ? ("sh " + batchFile.getFullPathName()) : ("open " + batchFile.getFullPathName().quoted());
 
 #endif
     
@@ -2613,6 +2612,12 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
     
 	const String projucerPath = exporter->hisePath.getChildFile("tools/Projucer/Projucer.app/Contents/MacOS/Projucer").getFullPathName();
 
+    if(hasChildProcessManager)
+    {
+        ADD_LINE("#!/bin/bash");
+        ADD_LINE("PATH=\"/usr/local/bin:$PATH\"");
+    }
+    
     ADD_LINE("chmod +x \"" << projucerPath << "\"");
     
     ADD_LINE("cd \"`dirname \"$0\"`\"");
@@ -2664,14 +2669,14 @@ void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporte
 
 #undef ADD_LINE
 
-File CompileExporter::BatchFileCreator::getBatchFile(CompileExporter* exporter)
+File CompileExporter::BatchFileCreator::getBatchFile(CompileExporter* exporter, ChildProcessManager* manager)
 {
 #if JUCE_WINDOWS
 	return exporter->getBuildFolder().getChildFile("batchCompile.bat");
 #elif JUCE_LINUX
 	return exporter->getBuildFolder().getChildFile("batchCompileLinux.sh");
 #else
-    return exporter->getBuildFolder().getChildFile("batchCompileOSX");
+    return exporter->getBuildFolder().getChildFile("batchCompileOSX").withFileExtension(manager != nullptr ? ".sh" : "");
 #endif
 }
 

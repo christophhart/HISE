@@ -284,7 +284,8 @@ public:
 };
 
 struct NetworkCompiler: public EncodedDialogBase,
-						public ChildProcessManager 
+						public ChildProcessManager,
+                        public AsyncUpdater
 {
 	NetworkCompiler(BackendRootWindow* bpe_);
 
@@ -304,18 +305,33 @@ struct NetworkCompiler: public EncodedDialogBase,
 		}
 	}
 
+    void handleAsyncUpdate() override
+    {
+        auto m = readState("CompileOutput").toString();
+        
+        {
+            SimpleReadWriteLock::ScopedReadLock sl(logLock);
+            m << "\n" << currentMessage;
+            currentMessage = {};
+        }
+        
+        writeState("CompileOutput", m);
+
+        if(auto md = dialog->findPageBaseForID("CompileOutput"))
+        {
+            md->postInit();
+        }
+    }
+    
 	void logMessage(const String& message) override
 	{
-		auto m = readState("CompileOutput").toString();
-		m << "\n" << message;
-		writeState("CompileOutput", m);
-
-		if(auto md = dialog->findPageBaseForID("CompileOutput"))
-		{
-			MessageManagerLock mm;
-			md->postInit();
-		}
+        SimpleReadWriteLock::ScopedWriteLock sl(logLock);
+        currentMessage << message;
+        triggerAsyncUpdate();
 	}
+    
+    SimpleReadWriteLock logLock;
+    String currentMessage;
 
 	var onInit(const var::NativeFunctionArgs& args);
 	var compileTask(const var::NativeFunctionArgs& args);
