@@ -46,6 +46,8 @@ public:
 
 	void requestQuit();
 
+    bool makeFullscreenOnLaunch = false;
+
 private:
 
 	ScopedPointer<AudioProcessorEditor> editor;
