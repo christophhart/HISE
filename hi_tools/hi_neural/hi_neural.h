@@ -173,6 +173,9 @@ struct NeuralNetwork: public ReferenceCountedObject,
 	/** Loads a model with trained weights from Pytorch. */
 	Result loadPytorchModel(const var& jsonData);
 
+	/** Loads a model from a NAM file. */
+	Result loadNAMModel(const var& jsonData);
+
 	/** Build a model from the JSON layout. */
 	Result build(const var& modelJSON);
 

@@ -1606,6 +1606,9 @@ namespace ScriptingObjects
 		/** Loads the model layout and weights from a Pytorch model JSON. */
 		void loadPytorchModel(const var& modelJSON);
 
+		/** Loads the model from a NAM file. */
+		void loadNAMModel(const var& modelJSON); 
+
 		/** Loads the ONNX runtime model for spectral analysis. */
 		bool loadOnnxModel(const var& base64Data, int numOutputValues);
 

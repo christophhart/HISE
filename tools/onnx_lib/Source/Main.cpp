@@ -13,11 +13,7 @@
 #define DLL_EXPORT extern "C" __attribute__((visibility("default")))
 #endif
 
-#if JUCE_DEBUG
 #include "include/onnxruntime_cxx_api.h"
-#else
-#include "include_rel/onnxruntime_cxx_api.h"
-#endif
 
 using namespace juce;
 

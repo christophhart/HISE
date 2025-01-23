@@ -5057,6 +5057,7 @@ struct ScriptingObjects::ScriptNeuralNetwork::Wrapper
 	API_METHOD_WRAPPER_0(ScriptNeuralNetwork, getModelJSON);
 	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, loadTensorFlowModel);
 	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, loadPytorchModel);
+	API_VOID_METHOD_WRAPPER_1(ScriptNeuralNetwork, loadNAMModel);
 	API_METHOD_WRAPPER_1(ScriptNeuralNetwork, createModelJSONFromTextFile);
 	API_METHOD_WRAPPER_2(ScriptNeuralNetwork, loadOnnxModel);
 	API_METHOD_WRAPPER_3(ScriptNeuralNetwork, processFFTSpectrum);
@@ -5073,6 +5074,7 @@ ScriptingObjects::ScriptNeuralNetwork::ScriptNeuralNetwork(ProcessorWithScriptin
 	ADD_API_METHOD_1(createModelJSONFromTextFile);
 	ADD_API_METHOD_1(loadTensorFlowModel);
 	ADD_API_METHOD_1(loadPytorchModel);
+	ADD_API_METHOD_1(loadNAMModel);
 	ADD_API_METHOD_0(getModelJSON);
 	ADD_API_METHOD_2(loadOnnxModel);
 	ADD_API_METHOD_3(processFFTSpectrum);
@@ -5290,6 +5292,16 @@ void ScriptingObjects::ScriptNeuralNetwork::loadPytorchModel(const var& modelJSO
 {
 #if HISE_INCLUDE_RT_NEURAL
 	nn->loadPytorchModel(modelJSON);
+	postBuild();
+#else
+	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");
+#endif
+}
+
+void ScriptingObjects::ScriptNeuralNetwork::loadNAMModel(const var& modelJSON)
+{
+#if HISE_INCLUDE_RT_NEURAL
+	nn->loadNAMModel(modelJSON);
 	postBuild();
 #else
 	reportScriptError("You must enable HISE_INCLUDE_RT_NEURAL");

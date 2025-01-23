@@ -662,7 +662,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 		if (wType == 2)
 		{
-			auto id = node->getId();
+			auto name = snex::cppgen::Helpers::getValidCppVariableName(node->getName());
 
 			struct ConnectionState
 			{
@@ -724,23 +724,23 @@ void NodeComponent::handlePopupMenuResult(int result)
 				c.removeOldConnection(node.get());
 			}
 
-			if (id == node->getPath().getIdentifier().toString())
+			if (name == node->getPath().getIdentifier().toString())
 			{
-				id = PresetHandler::getCustomName(id, "Enter a customized name for the node");
+				name = PresetHandler::getCustomName(name, "Enter a customized name for the node");
 			}
 
-			String newId = id + "_";
+			String newId = name + "_";
 
 			node->setValueTreeProperty(PropertyIds::ID, newId);
 
-			PopupHelpers::wrapIntoChain(node.get(), MenuActions::WrapIntoChain, id);
+			PopupHelpers::wrapIntoChain(node.get(), MenuActions::WrapIntoChain, name);
 
 			auto pn = node->getParentNode();
 			pn->getValueTree().setProperty(PropertyIds::ShowParameters, true, node->getUndoManager());
 
 			if (auto modNode = dynamic_cast<ModulationSourceNode*>(node.get()))
 			{
-				String pmodId = id + "_pm";
+				String pmodId = name + "_pm";
 				var pmodvar = node->getRootNetwork()->create("routing.public_mod", pmodId);
 
 				auto pmod = dynamic_cast<NodeBase*>(pmodvar.getObject());
@@ -1035,7 +1035,9 @@ void NodeComponent::PopupHelpers::wrapIntoNetwork(NodeBase* node, bool makeCompi
 	for (int i = 0; i < rootTree.getNumProperties(); i++)
 		nData.setProperty(rootTree.getPropertyName(i), rootTree.getProperty(rootTree.getPropertyName(i)), nullptr);
 
-	nData.setProperty(PropertyIds::ID, node->getId(), nullptr);
+	auto name = snex::cppgen::Helpers::getValidCppVariableName(node->getName());
+
+	nData.setProperty(PropertyIds::ID, name, nullptr);
 	nData.addChild(node->getValueTree().createCopy(), -1, nullptr);
 
 	auto ndir = BackendDllManager::getSubFolder(node->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
@@ -1121,15 +1123,8 @@ void NodeComponent::PopupHelpers::wrapIntoChain(NodeBase* node, MenuActions resu
 			auto parent = selection.getFirst()->getValueTree().getParent();
 			auto nIndex = parent.indexOf(selection.getFirst()->getValueTree());
 
-            
-            
 			for (auto n : selection)
-			{
                 n->setParent(newContainer, -1);
-                
-				//n->getValueTree().getParent().removeChild(n->getValueTree(), um);
-				//containerTree.getChildWithName(PropertyIds::Nodes).addChild(n->getValueTree(), -1, um);
-			}
 
 			parent.addChild(containerTree, nIndex, um);
 		}
