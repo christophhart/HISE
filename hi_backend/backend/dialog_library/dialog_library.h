@@ -488,7 +488,25 @@ struct CompileProjectDialog: public EncodedDialogBase,
 	ScopedPointer<ControlledObject> compileExporter;
 };
 
+struct ScriptModuleReplacer: public EncodedDialogBase
+{
+	ScriptModuleReplacer(BackendRootWindow* bpe_);
 
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(ScriptModuleReplacer, onInit);
+		MULTIPAGE_BIND_CPP(ScriptModuleReplacer, onReplace);
+		MULTIPAGE_BIND_CPP(ScriptModuleReplacer, selectAll);
+	}
+
+	Array<var> allValues;
+
+	var onInit(const var::NativeFunctionArgs& args);
+	var onReplace(const var::NativeFunctionArgs& args);
+	var selectAll(const var::NativeFunctionArgs& args);
+
+	BackendRootWindow* bpe;
+};
 
 struct SnippetBrowser: public EncodedDialogBase
 {

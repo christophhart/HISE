@@ -61,6 +61,16 @@ currentColumnMode(OneColumn)
 }
 
 
+void BackendCommandTarget::setCommandTarget(ApplicationCommandInfo& result, const String& name, bool active,
+	bool ticked, char shortcut, bool useShortCut, ModifierKeys mod)
+{
+	result.setInfo(name, name, "Unused", 0);
+	result.setActive(active); 
+	result.setTicked(ticked);
+
+	if (useShortCut) result.addDefaultKeypress(shortcut, mod);
+}
+
 void BackendCommandTarget::setEditor(BackendRootWindow *editor)
 {
 	bpe = dynamic_cast<BackendRootWindow*>(editor);
@@ -153,6 +163,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsApplySampleMapProperties,
 		MenuToolsSimulateChangingBufferSize,
 		MenuToolsShowDspNetworkDllInfo,
+		MenuToolsReplaceScriptFXWithHardcodedFX,
         MenuToolsCreateRnboTemplate,
 		MenuToolsCreateGlobalCableCppCode,
 		MenuViewResetLookAndFeel,
@@ -563,6 +574,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		setCommandTarget(result, "Create C++ code for global cables", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
+	case MenuToolsReplaceScriptFXWithHardcodedFX:
+		setCommandTarget(result, "Replace Scriptnode modules with Hardcoded modules", true, false, 'X', false);
+		result.categoryName = "Tools";
+		break;
 	case MenuToolsConvertSVGToPathData:
 		setCommandTarget(result, "Show SVG to Path Converter", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -756,6 +771,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     case MenuViewClearConsole:         owner->getConsoleHandler().clearConsole(); return true;
 	case MenuHelpShowAboutPage:			Actions::showAboutPage(bpe); return true;
     case MenuHelpCheckVersion:          Actions::checkVersion(bpe); return true;
+	case MenuToolsReplaceScriptFXWithHardcodedFX: Actions::replaceScriptModules(bpe); return true;
 	case MenuHelpShowDocumentation:		Actions::showDocWindow(bpe); return true;
 	}
 
@@ -1070,6 +1086,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			p.addSectionHeader("DSP Tools");
 
 			ADD_MENU_ITEM(MenuToolsShowDspNetworkDllInfo);
+			ADD_MENU_ITEM(MenuToolsReplaceScriptFXWithHardcodedFX);
 			ADD_MENU_ITEM(MenuToolsRecordOneSecond);
 			ADD_MENU_ITEM(MenuToolsSimulateChangingBufferSize);
 	        ADD_MENU_ITEM(MenuToolsCreateRnboTemplate);
@@ -3376,6 +3393,12 @@ void BackendCommandTarget::Actions::exportAudio(BackendRootWindow* bpe)
 {
 	auto n = new multipage::library::HiseAudioExporter(bpe);
 	bpe->setModalComponent(n);
+}
+
+void BackendCommandTarget::Actions::replaceScriptModules(BackendRootWindow* bpe)
+{
+	auto b = new multipage::library::ScriptModuleReplacer(bpe);
+	bpe->setModalComponent(b);		
 }
 
 #undef REPLACE_WILDCARD

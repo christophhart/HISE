@@ -8,6 +8,170 @@ namespace hise {
 namespace multipage {
 namespace library {
 
+struct ScriptReplaceHelpers
+{
+	static StringArray getListOfAllConvertableScriptModules(MainController* mc)
+	{
+		Processor::Iterator<DspNetwork::Holder> iter(mc->getMainSynthChain());
+
+		StringArray sa;
+		
+		while(auto h = iter.getNextProcessor())
+		{
+			if(auto an = h->getActiveNetwork())
+			{
+				auto isCompileable = an->getValueTree()[scriptnode::PropertyIds::AllowCompilation];
+
+				if(isCompileable)
+				{
+					auto id = dynamic_cast<Processor*>(h)->getId();
+					sa.add(id);
+				}
+			}
+		}
+
+		return sa;
+	}
+
+	static void replace(MainController* mc, const StringArray& sa={}, NotificationType rebuild=sendNotification)
+	{
+		std::map<Identifier, Identifier> converters;
+
+		converters[JavascriptMasterEffect::getClassType()] = HardcodedMasterFX::getClassType();
+		converters[JavascriptPolyphonicEffect::getClassType()] = HardcodedPolyphonicFX::getClassType();
+		converters[JavascriptTimeVariantModulator::getClassType()] = HardcodedTimeVariantModulator::getClassType();
+
+		for(auto& idToReplace: sa)
+		{
+			auto p = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), idToReplace);
+			auto type = p->getType();
+
+			auto parent = p->getParentProcessor(false);
+			auto chain = dynamic_cast<Chain*>(parent);
+
+			int index = 0;
+
+			while(index < chain->getHandler()->getNumProcessors())
+			{
+				if(chain->getHandler()->getProcessor(index) == p)
+					break;
+
+				index++;
+			}
+
+			auto typeToCreate = converters[type];
+
+			raw::Builder b(mc);
+
+			auto np = b.create(parent, typeToCreate, raw::IDs::Chains::Direct);
+
+			chain->getHandler()->moveProcessor(np, index - chain->getHandler()->getNumProcessors());
+
+			SaveData sd;
+			sd.save(p);
+			
+			sd.restore(np);
+			p->setIsOnAir(false);
+
+			chain->getHandler()->remove(p, false);
+			mc->getGlobalAsyncModuleHandler().removeAsync(p, {});
+
+			if(rebuild != dontSendNotification)
+				mc->getProcessorChangeHandler().sendProcessorChangeMessage(np, MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
+		}
+
+		if(rebuild != dontSendNotification)
+		{
+			{
+				Processor::Iterator<JavascriptMidiProcessor> iter(mc->getMainSynthChain());
+
+				while(auto jmp = iter.getNextProcessor())
+					jmp->getContent()->resetContentProperties();
+			}
+
+			mc->compileAllScripts();
+		}
+	}
+
+	struct SaveData
+	{
+		Array<float> parameters;
+		String id;
+		String effect;
+		bool bypassed;
+
+		struct ExternalDataStorage
+		{
+			ExternalData::DataType dt;
+			int index;
+			String b64;
+		};
+
+		Array<ExternalDataStorage> externalDataStorage;
+
+		ValueTree routing;
+
+		void save(Processor* p)
+		{
+			id = p->getId();
+			bypassed = p->isBypassed();
+
+			for(int i = 0; i < p->getNumParameters(); i++)
+				parameters.add(p->getAttribute(i));
+
+			if(auto rp = dynamic_cast<RoutableProcessor*>(p))
+				routing = rp->getMatrix().exportAsValueTree();
+
+			if(auto h = dynamic_cast<DspNetwork::Holder*>(p))
+			{
+				if(auto an = h->getActiveNetwork())
+					effect = an->getId();
+			}
+
+			if(auto eh = dynamic_cast<ExternalDataHolder*>(p))
+			{
+				ExternalData::forEachType([&](ExternalData::DataType dt)
+				{
+					if(auto numObjects = eh->getNumDataObjects(dt))
+					{
+						for(int i = 0; i < numObjects; i++)
+						{
+							auto obj = eh->getData(dt, i).obj;
+							auto s = obj->toBase64String();
+							externalDataStorage.add({ dt, i, s});
+						}
+					}
+				});
+			}
+		}
+
+		void restore(Processor* p)
+		{
+			p->setId(id);
+			p->setBypassed(bypassed);
+
+			if(auto rp = dynamic_cast<RoutableProcessor*>(p))
+				rp->getMatrix().restoreFromValueTree(routing);
+
+			if(auto s = dynamic_cast<HardcodedSwappableEffect*>(p))
+				s->setEffect(effect, false);
+
+			for(int i = 0; i < parameters.size(); i++)
+				p->setAttribute(i, parameters[i], sendNotificationAsync);
+
+			if(auto eh = dynamic_cast<ExternalDataHolder*>(p))
+			{
+				for(const auto& ed: externalDataStorage)
+				{
+					auto obj = eh->getData(ed.dt, ed.index).obj;
+					jassert(obj != nullptr);
+					obj->fromBase64String(ed.b64);
+				}
+			}
+		}
+	};
+};
+
 CleanDspNetworkFiles::CleanDspNetworkFiles(BackendRootWindow* bpe):
   EncodedDialogBase(bpe)
 {
@@ -1020,6 +1184,8 @@ int CompileProjectDialog::getBuildFlag() const
 }
 
 
+
+
 var CompileProjectDialog::onInit(const var::NativeFunctionArgs& args)
 {
 	auto type = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::ProjectType).toString();
@@ -1035,7 +1201,19 @@ var CompileProjectDialog::onInit(const var::NativeFunctionArgs& args)
 var CompileProjectDialog::compileTask(const var::NativeFunctionArgs& args)
 {
 	CompileExporter ep(bpe->getBackendProcessor()->getMainSynthChain());
-	
+
+	auto modulesToReplace = ScriptReplaceHelpers::getListOfAllConvertableScriptModules(bpe->getBackendProcessor());
+
+	if(!modulesToReplace.isEmpty())
+	{
+		logMessage("> Converting compileable script modules to hardcoded modules");
+
+		for(auto m: modulesToReplace)
+			logMessage("  " + m);
+
+		ScriptReplaceHelpers::replace(bpe->getBackendProcessor(), modulesToReplace, dontSendNotification);
+	}
+
 	ep.manager = this;
 
 	CompileExporter::ErrorCodes ok = CompileExporter::ErrorCodes::UserAbort;
@@ -1261,7 +1439,7 @@ NetworkCompiler::NetworkCompiler(BackendRootWindow* bpe_):
 
 	setWantsBackdrop(true);
 	
-	loadFrom("1048.sNB..D...............35H...oi...rO.........J09R+fQcCU7A.Fs5fm.Nk5F.kAXzIouY2zs7srMdeccSSVqdo658jLCc6XFxHLQLFKBgAQvG.1A.b.rwLdhw0LlnpPYcPEVFa3xaXYLiDUkUkDkgKCA2Z1pJVTpXfkkJKJJVuG9qbfUEJVbjwtxREkCrz.C8LCnppnTMYghBsya+xlFoIVldWP7HQLEzhTFKpJWrDfs2PAPzs613Kd9uYfdWPuzc.58du.H4cAs+hg6OOFz6E.Iw6ZSFgvc9R9kdl.xRFPRZ5cs4gwNH7Zb+tjawdidOjdPhzCoG+YjlUY3jBflcS2hdg9y7Fruy+rYfxlSF5Ui2O.89PWYrAoIRSljdrRYM9H2OSvsT7YbHaKWDP8GeMcXUNTuyyT73NN47KUN9Td5TKfJgq8p0AuZby+xd9+d41404edNlZkmfqdegiF0jbG8o9rCG03o6Wi7vs16Rq4ZjjqC1tlNTdW+lsHuoYMaG80XyIaaMuKp2dlmI0z6hGIVQfy1Y0kNWG4VsnW5Zc+90IUV5x20msm0HrVY5lSmQ899a44YJYP.PIA7AEm5hwB0vsYp15leWELkgsugy11hqMOyaK45BCEQz.ILz+nLBoK83mI6pqHqDSuq4tEf1W6VGlyLtiZOBH3xGLzkXhXhCGvjd.Ry4YBmEcJ.4EI63PNzcBnZc6KWdXL3dxEwtTiYlevnClB63lKRVp.gjzFaduQLKLC.nynFaHAgPDMBM..5.LF.TrppJ.RhKHFQOFjTATJA.PS.MgvfIp.BPIBhCfH.gaIUyM3O5nYqXsgeG0ilMAYdXNbziz3lZmbK4.nNEXfC+olUz1+okCABVoVZI0M.ZvXPyLWnUadVXHQB6tcfN7NdtLDvXYE2a7FNyOirxlksbjPBiGWPpwVova1Q8orAoG4e6oy6OaB+vkWMlOdOCC.4XM8tPjkhMhlMqg2dXd7kyBYvbm.tM9c5i1KhGo0jjaPwkYAjPPFOQl3sX3uh735PLuBjBsSiUicfD5bsbajERmyhi0LTXBrdvqErKPqW.IAn5CrJkc6+EtmelKWF.HQyLf3DhUkDQ.eTKObPKKkc9Uyi2m4cJEzgHV1Maz3KaFm1CsWF1Grt88XsQRwA1C6MpixNFGl7.w03aCSrKXbIgkDfn7OBFmSR8NKiEAHY5QhayeZOF1JfAu9JLg0Qnhp9yxVmMY7tNePaRSGiTJ.Zx5QSikOV4jVA89EskzBmrC9seCSZ+FPjicrKtZVOMVJ4tPIVDWwqZe9QOB4xhL8W.+GlABSikYg7yB2cZ.BH9yU.EmGFnOXJzEucWA.e+AwJhw+emCkMgkYT35n+AmF+wm4U5H..foi...rNB...");
+	loadFrom("1267.sNB..D...............35H...oi...GS.........J09R+f0HDsWB.Faanm.MksM.iJXKmJJyXEp8jzWGMwtvMu.h3h97n6QfGWnNqfb0L3OL.ZzI.QB.l.fsZSPA+2OZCzbDoW5YKTF9hZdmI+dIGcIFTmvS3RBtuKNBhmZbAiFLbPPC2Ona4LteerfohSkEI6VVBFNZqzvIilC3rohClLbdS7qAANZxvYj9Aq1TkAgMNvN+5.LUUYptrASF4lC8NXirTYyE0hhK4AZAROIChxrWPJ3ftCFPIW3FFmg5+9gRsn91gfRUUCvD0hZ+0CCO8fnTM.ShGFh57k85k5u98VR27Sp6YN4J3oC6nIejZdS9ROVhea7x8mTLwvoF+OJM1CtQ+qbQsxd2qDk9oA4QKbiZJZoRsv5myswu4u8KA5SZQIvs2p0oEFmO2KpEYRKZNYIlKiTf66u.FPE2hNFv04OyYf9M+z9g5JFa.tibXDT5I41OGrTwRkKs+lRdiS8dpBs0h+hEItxW8pIcRRNpvsejT9m7S58PDxR38EgZdK4Eck0duNR+9z9+aNzh.ADPNwxxiES3fIry+WOQ6s+9qdatjrTD.Uz+KpUbwH8ysEhX7hgORZAEz45C14smItzADe7Iu.0hBApYpBe8bKBQozkb2HxsBJJ+7AqLmKrikINDCiZOPs1Fz6Leb7THOXoC9x5XYilLrGKgEKbf4v8E.mDvGXtFYtgV2Hs8SUF0JC62h+1ErjcPOCC1Yg4elb2+5TSLz0avkDUxOqsSlDIOYYTtQI6Xme4jxW1+JoshAHOjrYZ10KqjBgqFpB4jgaNWS6.BU4qEF4Lp74im3l5XNNM4iF4588l16kAeyZQGxjf0O4limKKuX2DUHfw1e1OMx+bgCnWDRmgzJ+EShDqNRA.H9nFWnxnTnZlMjfhB.vPD.HGqr5HKxjvj3LFoxfff.QnfQlnIPj3DmR.hC.pP5whlxXc74+EjxBNYFbLfdaew8PPFxGHyjwEGSEUlFdrzNrXD1H0b.uneR3JAcOUx9Dx0CLrK+Rsr7PXYfTcAobm+whQz0QOfMJggbZODbdp5kUV.Jo7wt7R36PbAaaVDAFCM8iy.c9RxjXFwSVHACo4sznxN3ocOYWC4EZ2Ngv2kLuSQqB4Sx2mTzZeNPq10rSAtIj9Vlayp+agwLc5sfbb.fu22Q52xOzXWTZKkMs4BBWYtrdOijVsH6AZF7g.ANVvBhoSPlEIfalYqy7c.zmZgntDv581OSCR3WuzIicOyI3uN1uJoMB74zc5Xd5xIGPkO10lQmON1KjvkKMlOdtQSibSrZ1HuRwl1nYMSeuX2T0Yicv3NYU6LryNZ2wG6sjU8fRThM0jTSequ6WMiSmvrHIR81Z0pgRbgysRca.SuXUfyH6zj7iitvJCTth0PfOzkwF8q7l+.arK0IDqKAQsB0TS8.ILeOTa81Mq50FSse33ZRntqdtMwoqjFTOl5sKxiVto6wxbH7T+SBXuvB27GinGG1Ksia0oJsUncrweAhVqEMwQNylSSYz8ZJNoUB+V2ffWXpxGAidXdpKUY3AMmZzML2L4JJUG72BQjUBYPpe7eymPWZbvEgyTrxoGHfXM06QxQ5EBCf85TzNjLHnDqBUI4aRc8fGI.mbzKD29Q3s+dS8T5H..foi...rNB...");
 
 	state.get()->dynamicComponentFactory = [this](const String& id)
 	{
@@ -1271,6 +1449,18 @@ NetworkCompiler::NetworkCompiler(BackendRootWindow* bpe_):
 	dialog->setFinishCallback([this]()
 	{
 		dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->threadFinished();
+
+		if(readState("replaceScriptModules"))
+		{
+			logMessage("> Replacing ScriptFX modules...");
+			auto list = ScriptReplaceHelpers::getListOfAllConvertableScriptModules(bpe->getBackendProcessor());
+
+			for(auto l: list)
+				logMessage("  convert " + l + " to hardcoded module");
+
+			ScriptReplaceHelpers::replace(bpe->getBackendProcessor(), list);
+		}
+
 		findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
 	});
 }
@@ -1356,10 +1546,64 @@ var NetworkCompiler::compileTask(const var::NativeFunctionArgs& args)
 		throw Result::fail(errorMessage);
 	}
 
+	
+
 	return var();
 }
 
+ScriptModuleReplacer::ScriptModuleReplacer(BackendRootWindow* bpe_):
+	EncodedDialogBase(bpe_),
+	bpe(bpe_)
+{
+	setWantsBackdrop(true);
 
+	loadFrom("1019.sNB..D...............35H...oi...OO.........J09R+fUTBs3A.l0Bhl.NsnSAhkjdCJoSuM5jYaV+3tgmOuSDKp.Cfziy.r2yYvLLLMem.CBfd.XG.ZNjBoQYJYir5AqOqUqZiWPoxkJYJ3B6zEa6mmoJTYnlfqS2GV9iRcIikKDjACUlJVx7gr+kBxbwRFP8iovPYo.LKrN2hfJTTVnnfohE3ly9lqOSSvPYE4UgfGO3VMPr0pCbruf.RPk2t1JR+UORoFou8FjxLSIijZjzW4rrnuRJSIiTnbyEkNmXbiXiNuIC97n2M3CcsP6CiQMGFrs2oFQJqEetmiliQZNhwEd4PsAX88O.Ajz1zbJX04+tXU+lKR8HYooo.qeb1gTDT62zjoITZ+EgKFhZUKy2HJhLUh2Z+3Ry5v+6+rUEWdy4Y45790dPqpbsTVaqHtuGtA.2eyTnRgmsmAcOfqV6oqU0Y2xOsL2JWPTrLBB5g9swrdX+5RQLqVuWy7eSyuShPOQiFRmCpOjXuVxPUmGxuWHbyJWrO6WFgIyuPVDxZQGxcffZDw2pIxhMVnieXallJ.65sOLMg8tWFWNqONInkwG1mVo+42Z..ijzAAs+x9rU0SH88BBCfhpEp6Sl5YT6tNV8VTAQgfRpQy+A52ETynnQCMGh.0aMDy1+RkzwFqX7utyFuXjFMbjnyBi37Mv855A48i5wkvfPzlnHH0DhYEhb5z9+aKn4Urm2pNai8McLRZxlowWaAk6GNcheuYKuo9pKCYYAhA.XtnFXlBwPjIXFPhRD..Q..wpxJ.HJzjb33XLMCLy.EHAPPZIjP.oRBCyPHo6HKlEwE.Pub6I+tTiPjFjqHk4NuLLz4Rp7yEZbolfFBuPfSeiE898bVw.IjZV0ZIyflBe1j1Ij2Pv9gYnBAh5YywmeHd4g3Wlw7bsqPMWfayN.xyZ3d5IVuNupQ7p5OFykAhXYhB0XIOsS2V8meCUX2YwR4GfUDPJxZ22H824TwoZ+Pw55Eju3mDHqNwxVLrpAGnqohFEAdsC8oF0sCGL7MCDmCDUz+I.ewV46upZdZXXv9Rv.oYWwZvUVu4TUhhr80bU+IcUkERAGMjjJVFeoZwqLniMuuShoK+09O8Y0yGAdPqOhInAD6AFw24JmjFsgRySBV1KP1XE5fCCQxAcdP0zimAM5DHrK1kskDEMEqiMsRPfLWEsAD1Bzx1B13rD8owCjf+rwB6UHUC9RRL4Y9A5c3.PhaZUA4OBZjQTHz+e844MZaDHTAnwko6jiIfFJcCrx8KAri5utt5tW.ROYAsr3KjE6VexFy4U08MN3i0g96MySoi...lNB..v5H...");
+
+	dialog->setFinishCallback([this]()
+	{
+		findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+	});
+}
+
+var ScriptModuleReplacer::onInit(const var::NativeFunctionArgs& args)
+{
+	auto sa = ScriptReplaceHelpers::getListOfAllConvertableScriptModules(bpe->getBackendProcessor());
+
+	for(auto s: sa)
+		allValues.add(s);
+
+	setElementProperty("moduleList", mpid::Items, sa.joinIntoString("\n"));
+
+	return var();
+}
+
+var ScriptModuleReplacer::onReplace(const var::NativeFunctionArgs& args)
+{
+	auto values = readState("moduleList");
+
+	if(auto ar = values.getArray())
+	{
+		StringArray sa;
+
+		for(auto v: *ar)
+			sa.add(v.toString());
+
+		ScriptReplaceHelpers::replace(bpe->getBackendProcessor(), sa);
+
+	}
+
+	return var();
+}
+
+var ScriptModuleReplacer::selectAll(const var::NativeFunctionArgs& args)
+{
+	writeState("moduleList", var(allValues));
+
+	if(auto b = dialog->findPageBaseForID("moduleList"))
+		b->postInit();
+
+	return var();
+}
 }	
 }	
 }

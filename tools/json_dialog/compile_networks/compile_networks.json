@@ -28,7 +28,7 @@
   },
   "LayoutData": {
     "StyleSheet": "ModalPopup",
-    "Style": ".description\n{\n\ttext-align: left;\n\twidth: 100%;\n}\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n.status\n{\n\tfont-family: monospace;\n\tfont-size: 12px;\n\tcolor: black;\n\t\n}\n\n.list-label\n{\n\twidth: 100%;\n\t\n\theight: 40px;\n\ttext-align: left;\n\tfont-weight: bold;\n}\n\n.column\n{\n\talign-self: flex-start;\n}",
+    "Style": "#total-progress\n{\n\tdisplay: none;\n}\n\n#content\n{\n\tpadding: 50px 80px;\n}\n\nlabel\n{\n\tmin-width: 180px;\n}\n\n.top\n{\n\talign-items: flex-start;\n}",
     "UseViewport": true,
     "ConfirmClose": true,
     "CloseMessage": "Do you want to close this popup?",
@@ -36,7 +36,8 @@
     "DialogHeight": 780
   },
   "GlobalState": {
-    "clearDLL": "true"
+    "clearDLL": "true",
+    "ButtonId": 1
   },
   "Children": [
     {
@@ -94,12 +95,31 @@
               "Class": ".column"
             }
           ],
-          "Style": "gap: 10px;"
+          "Style": "gap: 10px;",
+          "Class": ".top"
         },
         {
           "Type": "JavascriptFunction",
           "ID": "onInit",
           "Code": "{BIND::onInit}"
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "___\n"
+        },
+        {
+          "Type": "Button",
+          "Text": "Link time optimization",
+          "ID": "enableLTO",
+          "Class": ".nolabel",
+          "Help": "Enable this if you want to test the final performance of the compiled effect. This enables Link Time Optimization (the last step in the compilation stage).\n\nIf you want to decrease the compilation time during development, you can untick this box to speed up the DLL compilation."
+        },
+        {
+          "Type": "Button",
+          "Text": "Replace script FX modules",
+          "ID": "replaceScriptModules",
+          "Class": ".nolabel",
+          "Help": "Tick this box if you want to replace all script FX modules which have a compileable DSP network with their hardcoded counterpart. This preserves all parameter values and complex data connections."
         }
       ],
       "Text": ""

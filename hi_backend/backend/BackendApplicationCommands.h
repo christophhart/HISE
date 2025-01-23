@@ -193,6 +193,7 @@ public:
 		// DSP Tools
 		MenuToolsEnableDebugLogging,
 		MenuToolsShowDspNetworkDllInfo,
+		MenuToolsReplaceScriptFXWithHardcodedFX,
 		MenuToolsRecordOneSecond,
 		MenuToolsSimulateChangingBufferSize,
         MenuToolsCreateRnboTemplate,
@@ -260,13 +261,8 @@ public:
 
    
     
-	void setCommandTarget(ApplicationCommandInfo &result, const String &name, bool active, bool ticked, char shortcut, bool useShortCut=true, ModifierKeys mod=ModifierKeys::commandModifier) {
-		result.setInfo(name, name, "Unused", 0);
-		result.setActive(active); 
-		result.setTicked(ticked);
-
-		if (useShortCut) result.addDefaultKeypress(shortcut, mod);
-	};
+	void setCommandTarget(ApplicationCommandInfo &result, const String &name, bool active, bool ticked, char shortcut, bool useShortCut=true, ModifierKeys mod=ModifierKeys::commandModifier);
+	;
 
 	bool clipBoardNotEmpty() const { return SystemClipboard::getTextFromClipboard().isNotEmpty(); }
     
@@ -404,6 +400,8 @@ public:
 		static void createGlobalCableCppCode(BackendRootWindow* bpe);
 
 		static void exportAudio(BackendRootWindow* bpe);
+
+		static void replaceScriptModules(BackendRootWindow* bpe);
 	};
 
 private:
