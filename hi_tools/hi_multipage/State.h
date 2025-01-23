@@ -272,6 +272,8 @@ public:
         logMessage(MessageType::Hlac, message);
         jassertfalse;
 	}
+    
+    std::function<Component*(const String&)> dynamicComponentFactory;
 
 	ScopedPointer<ApiProviderBase> stateProvider;
 
