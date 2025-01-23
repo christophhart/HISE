@@ -387,6 +387,7 @@ bool OpaqueNodeDataHolder::removeDataObject(ExternalData::DataType t, int index)
 
 void UncompiledNode::ReloadComponent::mouseDown(const MouseEvent& e)
 {
+#if USE_BACKEND
 	if(!reloaded)
 	{
 		// show the compile menu...
@@ -432,8 +433,8 @@ void UncompiledNode::ReloadComponent::mouseDown(const MouseEvent& e)
 
 		MessageManager::callAsync(f);
 	}
+#endif
 }
-
 
 OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u, bool addDragger) :
 	ScriptnodeExtraComponent<OpaqueNodeDataHolder>(obj, u),
