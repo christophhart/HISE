@@ -358,8 +358,7 @@ void ZoomableViewport::timerCallback()
 void ZoomableViewport::scrollToRectangle(Rectangle<int> areaToShow, bool skipIfVisible, bool animate)
 {
 	auto tBounds = getLocalBounds().toDouble();
-	auto aBounds = areaToShow.toDouble();
-
+	
 	auto areaInViewport = getLocalArea(content, areaToShow).toDouble();
 
 	auto centerPositionInGraph = areaToShow.getCentre().toDouble();

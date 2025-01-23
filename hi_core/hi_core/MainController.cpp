@@ -1274,7 +1274,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			for (int i = 0; i < osOutput.getNumChannels(); i++)
 				data[i] = osOutput.getChannelPointer(i);
 
-			AudioSampleBuffer thisMultiChannelBufferOs(data, osOutput.getNumChannels(), osOutput.getNumSamples());
+			AudioSampleBuffer thisMultiChannelBufferOs(data, (int)osOutput.getNumChannels(), (int)osOutput.getNumSamples());
 			synthChain->renderNextBlockWithModulators(thisMultiChannelBufferOs, masterEventBuffer);
 			oversampler->processSamplesDown(osInput);
 		}

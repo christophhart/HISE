@@ -661,8 +661,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				auto printExportedFiles = [this](MainController* mc, const Array<PoolReference>& files, ProjectHandler::SubDirectories d)
 				{
 					String name = ProjectHandler::getIdentifier(d);
-					NewLine nl;
-
+					
 					logMessage("Exported " + name + " resources: ");
 
 					auto& handler = mc->getCurrentFileHandler();

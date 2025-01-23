@@ -1007,8 +1007,6 @@ int HardcodedSwappableEffect::getNumDataObjects(ExternalData::DataType t) const
 void HardcodedSwappableEffect::onDllReload(HardcodedSwappableEffect& fx, const std::pair<scriptnode::dll::ProjectDll*,
 	scriptnode::dll::ProjectDll*>& update)
 {
-	auto dllManager = dynamic_cast<BackendProcessor*>(fx.asProcessor().getMainController())->dllManager.get();
-
 	auto thisId = fx.currentEffect;
 
 	auto prevNumParameters = fx.numParameters;
