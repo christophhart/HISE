@@ -48,7 +48,7 @@ public:
 #elif JUCE_WINDOWS
             if(message.contains("warning"))
                 currentMessage << "\t";
-            if((message.contains("error"))
+            if(message.contains("error"))
                 currentMessage << "!";
 #endif
             auto isLinkerMessage = message.contains("Generating code") ||

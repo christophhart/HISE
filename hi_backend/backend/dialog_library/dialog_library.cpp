@@ -1038,7 +1038,7 @@ var CompileProjectDialog::compileTask(const var::NativeFunctionArgs& args)
 	
 	ep.manager = this;
 
-	CompileExporter::ErrorCodes ok;
+	CompileExporter::ErrorCodes ok = CompileExporter::ErrorCodes::UserAbort;
 
 	auto flags = getBuildFlag();
 

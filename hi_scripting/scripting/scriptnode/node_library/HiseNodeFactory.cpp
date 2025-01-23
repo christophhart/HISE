@@ -1781,51 +1781,14 @@ namespace dll
 {
 
 
-struct UncompiledNode: public WrapperNode
-{
-	UncompiledNode(DspNetwork* n, ValueTree v):
-	  WrapperNode(n, v)
-	{
-		auto pl = createInternalParameterList();
 
-		for (auto p : pl)
-		{
-			auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.info.getId());
-			jassert(existingChild.isValid());
-			auto newP = new Parameter(this, existingChild);
-			addParameter(newP);
-		}
-	}
-
-	void* getObjectPtr() override { return nullptr; }
-
-	void prepare(PrepareSpecs ps) override
-	{
-		getRootNetwork()->getExceptionHandler().addCustomError(this, Error::ErrorCode::UncompiledThirdPartyNode, "Uncompiled third party node.");
-	}
-
-	void process(ProcessDataDyn& ) override
-	{
-		
-	}
-
-	void reset() override
-	{
-		
-	}
-
-	void processFrame(FrameType& data) override
-	{
-		
-	}
-};
 
 BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 	NodeFactory(n),
 	dllFactory(dll)
 {
 	auto mc = n->getScriptProcessor()->getMainController_();
-	auto networks = BackendDllManager::getNetworkFiles(mc);
+	auto networks = BackendDllManager::getNetworkFiles(mc, false);
 	auto numNetworks = networks.size();
 
 	int numNodesInDll = dllFactory.getNumNodes();
@@ -1927,6 +1890,29 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 
 				monoNodes.add(item);
 			}
+		}
+		else
+		{
+			NodeFactory::Item item;
+
+			if(i < thirdPartyOffset)
+			{
+				jassert(isPositiveAndBelow(i, idsFromJSON.size()));
+				item.id = idsFromJSON[i];
+			}
+			else
+			{
+				auto networkIndex = i - thirdPartyOffset;
+				jassert(isPositiveAndBelow(networkIndex, networks.size()));
+				item.id = networks[networkIndex].getFileNameWithoutExtension();
+			}
+			
+			item.cb = [](DspNetwork* p, ValueTree v)
+			{
+				return new UncompiledNode(p, v);
+			};
+
+			monoNodes.add(item);
 		}
 	}
 }

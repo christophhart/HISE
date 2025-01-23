@@ -273,6 +273,11 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 	dragOverlay(*this),
 	rootUndoButtons(*this)
 {
+	n->getParentHolder()->dllRebuildBroadcaster.addListener(*this, [](DspNetworkGraph& g, DspNetwork::Holder*)
+	{
+		g.rebuildNodes();
+	});
+
 	addChildComponent(rootUndoButtons);
 	network->addSelectionListener(this);
 	rebuildNodes();

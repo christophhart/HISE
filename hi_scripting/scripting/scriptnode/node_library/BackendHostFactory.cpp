@@ -166,7 +166,7 @@ bool BackendDllManager::loadDll(bool forceUnload)
 		{
 			projectDll = new scriptnode::dll::ProjectDll(dllFile);
 
-			if(oldDll != nullptr && projectDll != nullptr && oldDll->getDllFile() != projectDll->getDllFile())
+			if(projectDll != nullptr && (oldDll == nullptr || oldDll->getDllFile() != projectDll->getDllFile()))
 			{
 				reloadBroadcaster.sendMessage(sendNotificationSync, { oldDll.get(), projectDll.get() });
 			}

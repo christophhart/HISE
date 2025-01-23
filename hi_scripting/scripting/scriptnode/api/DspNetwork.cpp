@@ -1418,6 +1418,8 @@ void DspNetwork::Holder::onDllReload(Holder& h, const std::pair<dll::ProjectDll*
 	{
 		n->onDllReload(update);
 	}
+
+	h.dllRebuildBroadcaster.sendMessage(sendNotificationAsync, &h);
 }
 
 void DspNetwork::Holder::unload()

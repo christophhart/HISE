@@ -221,6 +221,8 @@ public:
 
 		dll::ProjectDll::Ptr projectDll;
 
+		LambdaBroadcaster<Holder*> dllRebuildBroadcaster;
+
 	protected:
 
 		SimpleReadWriteLock connectLock;
