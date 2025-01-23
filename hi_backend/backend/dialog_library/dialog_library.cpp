@@ -926,6 +926,8 @@ CompileProjectDialog::~CompileProjectDialog()
 	if(killFunction)
 		killFunction();
 
+    dialog = nullptr;
+    
 	state->clearCompletedJobs();
 
 }
@@ -1025,7 +1027,7 @@ var CompileProjectDialog::onInit(const var::NativeFunctionArgs& args)
 	if(type.isNotEmpty())
 		writeState("projectType", type);
 
-	setElementProperty("OutputFile", mpid::Text, getTargetFile().getFullPathName());
+    refreshOutputFile();
 
 	return var();
 }
@@ -1062,7 +1064,7 @@ var CompileProjectDialog::onPluginType(const var::NativeFunctionArgs& args)
 {
 	auto flags = getBuildFlag();
 
-	setElementProperty("OutputFile", mpid::Text, getTargetFile().getFullPathName());
+    refreshOutputFile();
 
 	if(IS_FLAG(isAAX))
 	{
@@ -1097,29 +1099,45 @@ var CompileProjectDialog::onShowPluginFolder(const var::NativeFunctionArgs& args
 {
 	auto flags = getBuildFlag();
 
-	File folder;
+	
 
+#if JUCE_WINDOWS
+    File folder = File::getSpecialLocation(File::SpecialLocationType::globalApplicationsDirectory);
+#elif JUCE_MAC
+    File folder = File::getSpecialLocation(File::SpecialLocationType::commonApplicationDataDirectory).getChildFile("Audio/Plug-Ins");
+#endif
+    
 	if(IS_FLAG(isVST))
 	{
 		auto isVST3 = (bool)GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::VST3Support);
 
-		folder = File::getSpecialLocation(File::SpecialLocationType::globalApplicationsDirectory);
-
+#if JUCE_WINDOWS
 		if(isVST3)
-		{
 			folder = folder.getChildFile("Common Files").getChildFile("VST3");
-		}
 		else
 		{
 			// not a real default folder, but hey...
 			folder = folder.getChildFile("VSTPlugins");
 		}
+#elif JUCE_MAC
+        folder = folder.getChildFile(isVST3 ? "VST3" : "VST");
+#else
+        // DAVID...
+        jassertfalse;
+#endif
 	}
 	if(IS_FLAG(isAAX))
 	{
-		folder = File::getSpecialLocation(File::SpecialLocationType::globalApplicationsDirectory);
+#if JUCE_WINDOWS
 		folder = folder.getChildFile("Common Files").getChildFile("Avid").getChildFile("Audio").getChildFile("Plug-Ins");
+#elif JUCE_MAC
+        folder = File("/Library/Application Support/Avid/Audio/Plug-Ins");
+#endif
 	}
+    if(IS_FLAG(isAU))
+    {
+        folder = folder.getChildFile("Components");
+    }
 
 	if(folder.isDirectory())
 	{
@@ -1166,20 +1184,46 @@ File CompileProjectDialog::getTargetFile() const
 
 	if(IS_FLAG(isStandalone))
 	{
+#if JUCE_WINDOWS
 		auto compiledFile = binaries.getChildFile("Compiled").getChildFile("App");
 		return compiledFile.getChildFile(filename).withFileExtension(".exe");
+#elif JUCE_MAC
+        auto compiledFile = binaries.getChildFile("Compiled");
+        return compiledFile.getChildFile(filename).withFileExtension(".app");
+#else
+        // David...
+        return File();
+#endif
 	}
 	if(IS_FLAG(isVST))
-	{
+    {
 		auto isVST3 = (bool)GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::VST3Support);
 
+#if JUCE_WINDOWS
 		auto compiledFile = binaries.getChildFile("Compiled").getChildFile(isVST3 ? "VST3" : "VST");
 		return compiledFile.getChildFile(filename).withFileExtension(isVST3 ? ".vst3" : ".dll");
+#elif JUCE_MAC
+        auto compiledFile = binaries.getChildFile("Builds/MacOSX/build/Release");
+        return compiledFile.getChildFile(filename).withFileExtension(isVST3 ? ".vst3" : ".vst");
+#else
+        // David...
+        return File();
+#endif
 	}
+    if(IS_FLAG(isAU))
+    {
+        auto compiledFile = binaries.getChildFile("Builds/MacOSX/build/Release");
+        return compiledFile.getChildFile(filename).withFileExtension(".component");
+    }
 	if(IS_FLAG(isAAX))
 	{
+#if JUCE_WINDOWS
 		auto compiledFile = binaries.getChildFile("Compiled").getChildFile("AAX");
 		return compiledFile.getChildFile(filename).withFileExtension(".aaxplugin");
+#elif JUCE_MAC
+        auto compiledFile = binaries.getChildFile("Builds/MacOSX/build/Release");
+        return compiledFile.getChildFile(filename).withFileExtension(".aaxplugin");
+#endif
 	}
 
 	return File();
@@ -1196,7 +1240,7 @@ var CompileProjectDialog::onExportType(const var::NativeFunctionArgs& args)
 	setElementProperty("projectType", mpid::Enabled, !enabled);
 	setElementProperty("pluginType", mpid::Enabled, !enabled);
 
-	setElementProperty("OutputFile", mpid::Text, getTargetFile().getFullPathName());
+    refreshOutputFile();
 
 	return var();
 }

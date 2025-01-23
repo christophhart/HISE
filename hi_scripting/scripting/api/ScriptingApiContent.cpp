@@ -6171,6 +6171,7 @@ void ScriptingApi::Content::ScriptMultipageDialog::onMultipageLog(ScriptMultipag
 	{
 		auto p = m.getScriptProcessor()->getMainController_()->getMainSynthChain();
 		debugToConsole(p, message);
+        ignoreUnused(p);
 	}
 }
 

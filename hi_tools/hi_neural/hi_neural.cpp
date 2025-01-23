@@ -516,8 +516,6 @@ struct NAMModel: public NeuralNetwork::ModelBase
 	#endif
 	};
 
-	using Dilations = wavenet::Dilations<1, 2, 4, 8, 16, 32, 64, 128, 256, 512>;
-
 	NAMModel(const var& data_):
 	  ModelBase(),
 	  jsonData(data_)
@@ -564,6 +562,8 @@ struct NAMModel: public NeuralNetwork::ModelBase
 		{
 			return Result::fail(e.what());
 		}
+        
+        return Result::ok();
 	};
 
 	wavenet::Wavenet_Model<float,

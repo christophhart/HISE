@@ -818,7 +818,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		setProgress(0.5);
 
-		logMessage("> Launch system compi");
+		logMessage("> Launch system compiler...");
 
 		result = compileSolution(option, type, manager);
 
@@ -1175,7 +1175,7 @@ CompileExporter::BuildOption CompileExporter::showCompilePopup(TargetTypes type)
 
 CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOption, TargetTypes types, ChildProcessManager* manager)
 {
-	BatchFileCreator::createBatchFile(this, buildOption, types, manager != nullptr);
+	BatchFileCreator::createBatchFile(this, buildOption, types, manager);
 
 	File batchFile = BatchFileCreator::getBatchFile(this, manager);
     
@@ -2480,13 +2480,15 @@ int CppBuilder::exportValueTreeAsCpp(const File &sourceDirectory, const File &de
 
 #define ADD_LINE(x) (batchContent << x << NewLine::getDefault())
 
-void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types, bool hasChildProcessManager)
+void CompileExporter::BatchFileCreator::createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types, ChildProcessManager* manager)
 {
 	ModulatorSynthChain* chainToExport = exporter->chainToExport;
     ignoreUnused(chainToExport);
 
-	File batchFile = getBatchFile(exporter);
+	File batchFile = getBatchFile(exporter, manager);
 
+    auto hasChildProcessManager = manager != nullptr;
+    
 	if (!exporter->shouldBeSilent() && batchFile.existsAsFile())
 	{
 		if (!PresetHandler::showYesNoWindow("Batch File already found", "Do you want to rewrite the batch file for the compile process?"))

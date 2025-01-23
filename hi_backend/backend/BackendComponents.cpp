@@ -369,6 +369,8 @@ multipage::EncodedDialogBase::EncodedDialogBase(BackendRootWindow* bpe_, bool ad
 
 	addChildComponent(minimizeButton);
 
+    minimizeButton.setTooltip("Minimize this task to the status bar");
+    
 	minimizeButton.onClick = [this]()
 	{
 		findParentComponentOfClass<BackendRootWindow>()->minimizeModalComponent(true, state.get());

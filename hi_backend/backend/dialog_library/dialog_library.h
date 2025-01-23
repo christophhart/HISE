@@ -27,15 +27,31 @@ public:
 		currentMessage = {};
 	}
 
-	void logMessage(const String& message)
+	void logMessage(String message)
 	{
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(logLock);
 
-			if(message.contains("error"))
-				currentMessage << "!";
-
-			auto isLinkerMessage = message.contains("Generating code") ||
+#if JUCE_MAC
+            if(message.contains("[!]"))
+            {
+                message = message.fromFirstOccurrenceOf("[!]", false, false);
+                
+                auto isWarning = message.contains("[-W") ||
+                                 message.contains("was built for newer macOS version"); // AAX linker warning
+                
+                if(isWarning)
+                    currentMessage << "\t";
+                else
+                    currentMessage << "!";
+            }
+#elif JUCE_WINDOWS
+            if(message.contains("warning"))
+                currentMessage << "\t";
+            if((message.contains("error"))
+                currentMessage << "!";
+#endif
+            auto isLinkerMessage = message.contains("Generating code") ||
 								   message.contains("Linking ");
 
 			if(isLinkerMessage)
@@ -43,10 +59,7 @@ public:
 				currentMessage << "> ";
 				setProgress(0.8);
 			}
-
-			if(message.contains("warning"))
-				currentMessage << "\t";
-
+               
 			currentMessage << message;
 			if(!message.containsChar('\n'))
 				currentMessage << '\n';
@@ -441,6 +454,22 @@ struct CompileProjectDialog: public EncodedDialogBase,
 		}
 	}
 
+    void refreshOutputFile()
+    {
+        auto targetFile = getTargetFile();
+        auto content = targetFile.getFullPathName();
+        
+        auto w = GLOBAL_BOLD_FONT().getStringWidth(content);
+        
+        if(w > 480)
+        {
+            auto root = getMainController()->getActiveFileHandler()->getRootFolder();
+            content = targetFile.getRelativePathFrom(root);
+        }
+            
+        setElementProperty("OutputFile", mpid::Text, content);
+    }
+    
 	var onInit(const var::NativeFunctionArgs& args);
 	var compileTask(const var::NativeFunctionArgs& args);
 	var onExportType(const var::NativeFunctionArgs& args);

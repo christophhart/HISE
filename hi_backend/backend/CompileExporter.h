@@ -257,7 +257,7 @@ public:
     
 	struct BatchFileCreator
 	{
-		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types, bool hasChildProcessManager=false);
+		static void createBatchFile(CompileExporter* exporter, BuildOption buildOption, TargetTypes types, ChildProcessManager* m=nullptr);
 		static File getBatchFile(CompileExporter* exporter, ChildProcessManager* m=nullptr);
 	};
 
