@@ -154,6 +154,14 @@ private:
 
 	static bool isInterpretedDataFile(const File& f);
 
+	void logMessage(const String& m)
+	{
+		if(managerToUse != nullptr)
+			managerToUse->logMessage("> " + m + "\n");
+		else
+			showStatusMessage(m);
+	}
+
 	void createIncludeFile(const File& sourceDir);
 
 	void createProjucerFile();

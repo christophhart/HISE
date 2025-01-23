@@ -707,6 +707,7 @@ public:
     void showModalPopup(bool addButtons, PageInfo::Ptr p);
     Result checkCurrentPage();
     void setCurrentErrorPage(PageBase* b);
+    void clearIfCurrentErrorPage(PageBase* b);
     bool keyPressed(const KeyPress& k) override;
     var exportAsJSON() const;
     void scrollBarMoved (ScrollBar*, double) override { repaint(); }

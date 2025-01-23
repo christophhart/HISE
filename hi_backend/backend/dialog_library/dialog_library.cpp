@@ -901,10 +901,314 @@ void NewProjectCreator::threadFinished()
 	}
 }
 
+CompileProjectDialog::CompileProjectDialog(BackendRootWindow* bpe_):
+	EncodedDialogBase(bpe_, false),
+	bpe(bpe_)
+{
+	setMinimizable(true);
+	setWantsBackdrop(true);
+	loadFrom("1439.sNB..D...............35H...oi...yU.........J09R+fE8DMsB.1hOpm.uz1F.pzjUdAato4DZeNh5VnqnrSsqwodTd1zBh87MxZVfmApbvqIJ.ZBPm.DQFKwEm4oc5iJpVMQs5N11ewreyz1ll8iJ63KoXZjcCnmNOx4mUGq5oETpfohFCv3NtwZ36CUkKZtPIaG2OztHlhQiELEnIyEMUrngBRSwXfFLVz3A74WxbwhAYXncuUAUtbwxEJYpXYaSx56+lKQTSxPYaScHupDF8jckjIjqPv4OCDLIYud0UrOk+LssIJ76Ls6tAHx1lXJyo8RzpocCPjbPlJBrMGr9xKOrXQzZjVmnhD3Ka.JJJaCi5djdz3SZMa2D+0wQ5wlB3sH12NVBDU9QPZfNp8sAudNK4fl9vHsM46uE7ozpHIsec8zIM7gaqD6w4yMms75kQINSe5HvPGjYAIRUv1tfOmiiTQfgnvlJ.LDLDASwZ7ovY2S6FqhV+R7mIqXbAmE8tCSaIICeTSnlPA9uorunDjKUDvPwMiNvPyrl5IBJrypR5Lts06w1vAGb.I8NOjbDSw3BaCemcPlVAhBU04KF4cUcJXnEepD36RxY61n8kjAsTPZPsGydUSiPevViiDdXPj18abd3XAqc3OXHlOMZoyeXanxfA650OPQgw067iiBwc9vnq09zkBYRa8KsOm4rinmuuIS9FA6pjtsIR86hLYxHPksMqOGKkHam7uPgR.LR.azoxsjdrJZ6SRM7B9fP1ZtvFizFqK8sdX8hSLVfibz19aj0VxctBe51evXq6upIr3rENwlvDuNZNaKq5bmLIqsw.ssHeY4wjAwNQY7mKV1F1Kam+Xs0Fx955I8VD+4k3RAOnMNI+hhuRwI6aZW+mkgYU+2rAH8jRd.qcBEeu+n4DJTaSagglYxeDkcJV2yXAKV.FBT0Ed33IA9BpQGhLEMi.MA.AAEPPL..GLGDZcGfbnxRhyQAgwoT...IvPn.HX...IJoBwBvfFXHnwfzMstpqZd0rxG6vpNKPeYYIAc4xDVFQIZeBpiiCafx31AEYBhKliMnF3PYgM.0vLUppq+3EdQhn0RK+cYAOSw5bOW.MOR0aij3K.OSLS.dIPz.ilEhLupjmvCESyJWPSvkJgi0JmdlJZT2sxzHXcbA6g0CBViGJS6JiUvtBO05BkM8ljvQ9PssqjNqIymBpsXSp40ZBGX5JnR+JDSw201fESZHPKxbKK92NPNhDVhQ55EIxTp350dquLH0NWyoa0NpBKVxrjWgDzoSjb0KWABMDfiThnfKROrdERSHe1vl2922UXbr9GhMabAEgZf+Smoqr9Upv4aesMI0YrvFr6fjwlH9ymMcXEtgyB0aljLhJDzpcH.lRWTvGteiKG2iPn4gKEuTHJ83CJhQMfJtMSFinQ7mW0Xx1HXFXNne.lIOOLAJTy6QNVUhQhwRs2fGku8jkP7rbIGsoC1ySfsskekaw.KeugZfqSKIxXqm7iakTIE5s2fYRfIAY8RBzgXOebquwhtGz6gzjrNlz2roJef8djCpNzaSLdgNKuAC7BYfMJi0ZlPW0zOIE1Gjh+j682s4jBr2bkrAIvfMDMaI7a8sbkIyqObUYctepEO.UBPXBTBrqFoX5oa+eBYFHWIkKvtBnpcoUGHUm0C1kkMozWzgOrVdP1rBHr+7GD27br5GhMYeGn2WPbcdmc3vnnQJ+lvdGu+bpYDRRvgsLCY0ws.OroyBjsmmwV3CfXY4ESDOtAYSJ8mKUDHdqQLFgLHnbBMyes+JwPF+paWEZxumu0nyHmYRveDTiLhB88+OLjfpw.jviUL8X46KsWDDEnvmaNYS3v8xn8CQmxA3xyVDWawCNYBJt0oD6EOtFNe726Beoi...lNB..v5H...");
+
+	state.get()->dynamicComponentFactory = [this](const String& id)
+	{
+		return new CompileLogger(this);
+	};
+
+	dialog->setFinishCallback([this]()
+	{
+		//dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->threadFinished();
+		findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
+	});
+}
+
+CompileProjectDialog::~CompileProjectDialog()
+{
+	if(killFunction)
+		killFunction();
+
+	state->clearCompletedJobs();
+
+}
+
+	/** 0xABCD
+	*
+	*	A = OS (0 = Linux / 1 = Windows / 2 = OSX / 4 = iPad, 8=iPhone, 12 = iPad/iPhone)
+	*	B = type (1 = Standalone, 2 = Instrument, 4 = Effect, 8 = MidiFX)
+	*	C = platform (0 = void, 1 = VST, 2 = AU, 4 = VST / AU, 8 = AAX);
+	*	D = bit (1 = 32bit, 2 = 64bit, 4 = both) 
+	*/
+
+#if JUCE_WINDOWS
+#define OS_FLAG 0x1000
+#elif JUCE_MAC
+#define OS_FLAG 0x2000
+#else
+#define OS_FLAG 0x0000
+#endif
+
+#define IS_FLAG(functionName) CompileExporter::BuildOptionHelpers::functionName((CompileExporter::BuildOption)flags)
+#define TEST_FLAG(functionName) jassert(IS_FLAG(functionName))
+
+	
+
+int CompileProjectDialog::getBuildFlag() const
+{
+	auto exportType = (int)readState("ExportType");
+	auto pluginType = readState("pluginType").toString();
+
+	if(pluginType.isEmpty())
+		pluginType = "VST";
+
+	auto projectType = readState("projectType").toString();
+
+	int flags = OS_FLAG;
+	
+	flags |= 0x0002; // always 64 bit now
+
+	if(exportType == 1) // plugin
+	{
+		flags |= 0x0100;
+		TEST_FLAG(isStandalone);
+	}
+	else
+	{
+		if(projectType == "Instrument")
+		{
+			flags |= 0x0200;
+			TEST_FLAG(isInstrument);
+		}
+			
+		if(projectType == "FX plugin")
+		{
+			flags |= 0x0400;
+			TEST_FLAG(isEffect);
+		}
+			
+		if(projectType == "MIDI plugin")
+		{
+			flags |= 0x0800;
+			TEST_FLAG(isMidiEffect);
+		}
+
+		if(pluginType == "VST")
+		{
+			flags |= 0x0010;
+			TEST_FLAG(isVST);
+		}
+		if(pluginType == "AU")
+		{
+			flags |= 0x0020;
+			TEST_FLAG(isAU);
+		}
+		if(pluginType == "AAX")
+		{
+			flags |= 0x0080;
+			TEST_FLAG(isAAX);
+		}
+		if(pluginType == "All Platforms")
+		{
+			flags |= 0x10000;
+			TEST_FLAG(isVST);
+			TEST_FLAG(isAU);
+			TEST_FLAG(isAAX);
+		}
+	}
+
+	return flags;
+}
+
+
+var CompileProjectDialog::onInit(const var::NativeFunctionArgs& args)
+{
+	auto type = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::ProjectType).toString();
+
+	if(type.isNotEmpty())
+		writeState("projectType", type);
+
+	setElementProperty("OutputFile", mpid::Text, getTargetFile().getFullPathName());
+
+	return var();
+}
+
+var CompileProjectDialog::compileTask(const var::NativeFunctionArgs& args)
+{
+	CompileExporter ep(bpe->getBackendProcessor()->getMainSynthChain());
+	
+	ep.manager = this;
+
+	CompileExporter::ErrorCodes ok;
+
+	auto flags = getBuildFlag();
+
+	if(IS_FLAG(isStandalone))
+		ok = ep.exportMainSynthChainAsStandaloneApp((CompileExporter::BuildOption)flags);
+	if(IS_FLAG(isInstrument))
+		ok = ep.exportMainSynthChainAsInstrument((CompileExporter::BuildOption)flags);
+	if(IS_FLAG(isEffect))
+		ok = ep.exportMainSynthChainAsFX((CompileExporter::BuildOption)flags);
+	if(IS_FLAG(isMidiEffect))
+		ok = ep.exportMainSynthChainAsMidiFx((CompileExporter::BuildOption)flags);
+
+	if(ok != CompileExporter::OK)
+	{
+		auto error = CompileExporter::getCompileResult(ok);
+		throw Result::fail(error);
+	}
+
+	return var();
+}
+
+var CompileProjectDialog::onPluginType(const var::NativeFunctionArgs& args)
+{
+	auto flags = getBuildFlag();
+
+	setElementProperty("OutputFile", mpid::Text, getTargetFile().getFullPathName());
+
+	if(IS_FLAG(isAAX))
+	{
+		auto hiseDirectory = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Compiler::HisePath).toString();
+        const File aaxSDK = File(hiseDirectory).getChildFile("tools/SDK/AAX/Libs");
+        
+        if(!aaxSDK.isDirectory())
+            throw Result::fail("AAX SDK not found.  \n> You need to get the AAX SDK from Avid and copy it to '%HISE_SDK%/tools/SDK/AAX/'");
+	}
+
+#if JUCE_WINDOWS || JUCE_LINUX
+	if(IS_FLAG(isAU) && !(flags & 0x10000))
+	{
+		throw Result::fail("The AU plugin format is only supported on macOS.  \n> You need to compile this project on a macOS system to support this plugin format.");
+	}
+#endif
+
+	return var();
+}
+
+var CompileProjectDialog::onComplete(const var::NativeFunctionArgs& args)
+{
+	auto flags = getBuildFlag();
+
+	auto enabled = IS_FLAG(isStandalone);
+
+	setElementProperty("showPluginFolder", mpid::Enabled, enabled);
+	return var();
+}
+
+var CompileProjectDialog::onShowPluginFolder(const var::NativeFunctionArgs& args)
+{
+	auto flags = getBuildFlag();
+
+	File folder;
+
+	if(IS_FLAG(isVST))
+	{
+		auto isVST3 = (bool)GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::VST3Support);
+
+		folder = File::getSpecialLocation(File::SpecialLocationType::globalApplicationsDirectory);
+
+		if(isVST3)
+		{
+			folder = folder.getChildFile("Common Files").getChildFile("VST3");
+		}
+		else
+		{
+			// not a real default folder, but hey...
+			folder = folder.getChildFile("VSTPlugins");
+		}
+	}
+	if(IS_FLAG(isAAX))
+	{
+		folder = File::getSpecialLocation(File::SpecialLocationType::globalApplicationsDirectory);
+		folder = folder.getChildFile("Common Files").getChildFile("Avid").getChildFile("Audio").getChildFile("Plug-Ins");
+	}
+
+	if(folder.isDirectory())
+	{
+		auto firstChild = folder.findChildFiles(File::findFilesAndDirectories, false, "*").getFirst();
+
+		if(firstChild.exists())
+			firstChild.revealToUser();
+		else
+			folder.revealToUser();
+	}
+		
+	else
+		throw Result::fail("Can't find default plugin folder `" + folder.getFullPathName() + "`");
+
+	return var();
+}
+
+var CompileProjectDialog::onShowCompiledFile(const var::NativeFunctionArgs& args)
+{
+	auto compiledFile = getTargetFile();
+
+	if(compiledFile.exists())
+		compiledFile.revealToUser();
+	else
+		throw Result::fail("Can't find file `" + compiledFile.getFullPathName() + "`");
+
+	return var();
+}
+
+var CompileProjectDialog::onCopyToClipboard(const var::NativeFunctionArgs& args)
+{
+	SystemClipboard::copyTextToClipboard(log.getAllContent());
+	PresetHandler::showMessageWindow("Copied", "The console output was copied to the clipboard");
+	return var();
+}
+
+File CompileProjectDialog::getTargetFile() const
+{
+	auto flags = getBuildFlag();
+
+	auto binaries = getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::SubDirectories::Binaries);
+
+	auto filename = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Name).toString();
+
+	if(IS_FLAG(isStandalone))
+	{
+		auto compiledFile = binaries.getChildFile("Compiled").getChildFile("App");
+		return compiledFile.getChildFile(filename).withFileExtension(".exe");
+	}
+	if(IS_FLAG(isVST))
+	{
+		auto isVST3 = (bool)GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::VST3Support);
+
+		auto compiledFile = binaries.getChildFile("Compiled").getChildFile(isVST3 ? "VST3" : "VST");
+		return compiledFile.getChildFile(filename).withFileExtension(isVST3 ? ".vst3" : ".dll");
+	}
+	if(IS_FLAG(isAAX))
+	{
+		auto compiledFile = binaries.getChildFile("Compiled").getChildFile("AAX");
+		return compiledFile.getChildFile(filename).withFileExtension(".aaxplugin");
+	}
+
+	return File();
+}
+
+#undef OS_FLAG
+#undef IS_FLAG
+#undef TEST_FLAG
+
+var CompileProjectDialog::onExportType(const var::NativeFunctionArgs& args)
+{
+	auto enabled = (bool)readState("ExportType");
+
+	setElementProperty("projectType", mpid::Enabled, !enabled);
+	setElementProperty("pluginType", mpid::Enabled, !enabled);
+
+	setElementProperty("OutputFile", mpid::Text, getTargetFile().getFullPathName());
+
+	return var();
+}
+
+
+
 NetworkCompiler::NetworkCompiler(BackendRootWindow* bpe_):
 	EncodedDialogBase(bpe_, false),
-	bpe(bpe_)  
+	bpe(bpe_)
 {
+	setMinimizable(true);
+
 	auto dn = new DspNetworkCompileExporter(bpe, bpe->getBackendProcessor());
 	dn->setAdditionalLogFunction(BIND_MEMBER_FUNCTION_1(NetworkCompiler::logMessage));
 	dn->managerToUse = this;
@@ -912,7 +1216,13 @@ NetworkCompiler::NetworkCompiler(BackendRootWindow* bpe_):
 	compileExporter = dn;
 
 	setWantsBackdrop(true);
-	loadFrom("996.sNB..D...............35H...oi...3N.........J09R+f8DB00A.V5Bim.Ns3F.UIVatD1rdEVRZLKsOI3hUR9Fo65ifX.E3Xv.NYIILCmwXfcH.9APf.zue1RedQzI6FPSgbFjeWsrpoZX4RlKaPHCDi6sN99HcYZyjzrw3VhFZwSY1fIyAazLs4BlMOI8mAgMYvrAT7AmzLgAAMNzX90AWllvLYQyELypCcNZVRUzXoK4UsP1a1UFPibkBXP2AJQSFV0ZLV+4OQKUzGcHh1c2.LYoh3m6zvtuJZ2.LIzWrj5QmC933LC9nmUe9oUncziKUGCkzGFk1SMeJM.xu+CDOg.IIKK01i8Bkvm0vkJp8frA+GwOLI9Qzeu7MunMVEJQflbmu6spu5c7mnKorAHa4vHh1tIGeRUjpXI5O5r2nKxcTvwU7WsHZLmmH3+dqZEEzzC8cEaCeRNmCMHidnTFRU0PI2qpw7XH80yiKkeqifxgVJcfBYWXWJR5LhgbLPSlhnSnn5TgGGLowbN+K5I5cthUH3Q3InuV1kgG8DC913HoIyl1qkPRhCMGxuNLHqRWtz21uWq+6G4Pa06VuCk1TzTGxga9xhcc9SWFpea.5hgVK0zg9EIxKcIOZBAvIA.h.Xc206YN+q71VKD9Bszp+FomRNelsz+pyx5EB4kROcttHuOT4Qh8m7Sw5NteAQGaqdGU97oyuXrC64F8EePrTZOuXq.qYTZecUoK2aY.BmUsJZgl1alwG6Qd.Dkyfwr33Oc7AeOrRgjFKQv1h+3Uf0PKN9vWs3qAfmhZbYFDDQ0HjDPPpH..LFAPwppL.xBNFJQNGBh.FZ.HfBFj.PX4wIL7vnvn7VgO4wZUmTGQEWdEdGjMKsG0Fmab0q2Be2B+ds0GWBtNz1D4gFqcClQtC.VKOnoHb12r.X1y2z2yJEqrAYVhsnmKIhpqqZwFlds5rUsLp+eV.B00Il9L19CLuQajY3xDA1HJdPNeSOSSDLXB7RI6qJPiOG3nRXwYhU4AqSi0K0aplHMn+T.ZhSbGIQjLW4AE3949zq4mU.2zfwPLQyCXYBInz98759CjBd0YcrCFLOJJhZ0f5MYtVvsaJVvTOYHFfLZK5lqITttvn7fV7ADRqlncNheAfpsoaFSY+OEZLUXm9CYs0PNFmj..s0TltQ9DvIkcz40jRn0ZiiP0.CFjr9vflCL31kpr2lkTcmpCBwUjpF2O10PNjhd87WH4SCRGwxsX5rX3M00AU2r+QjSMCHWYUcsntoEXSBTfyKOlzautIdxPQIgdv3.Qnea78kNB..X5H...qi...");
+	
+	loadFrom("1048.sNB..D...............35H...oi...rO.........J09R+fQcCU7A.Fs5fm.Nk5F.kAXzIouY2zs7srMdeccSSVqdo658jLCc6XFxHLQLFKBgAQvG.1A.b.rwLdhw0LlnpPYcPEVFa3xaXYLiDUkUkDkgKCA2Z1pJVTpXfkkJKJJVuG9qbfUEJVbjwtxREkCrz.C8LCnppnTMYghBsya+xlFoIVldWP7HQLEzhTFKpJWrDfs2PAPzs613Kd9uYfdWPuzc.58du.H4cAs+hg6OOFz6E.Iw6ZSFgvc9R9kdl.xRFPRZ5cs4gwNH7Zb+tjawdidOjdPhzCoG+YjlUY3jBflcS2hdg9y7Fruy+rYfxlSF5Ui2O.89PWYrAoIRSljdrRYM9H2OSvsT7YbHaKWDP8GeMcXUNTuyyT73NN47KUN9Td5TKfJgq8p0AuZby+xd9+d41404edNlZkmfqdegiF0jbG8o9rCG03o6Wi7vs16Rq4ZjjqC1tlNTdW+lsHuoYMaG80XyIaaMuKp2dlmI0z6hGIVQfy1Y0kNWG4VsnW5Zc+90IUV5x20msm0HrVY5lSmQ899a44YJYP.PIA7AEm5hwB0vsYp15leWELkgsugy11hqMOyaK45BCEQz.ILz+nLBoK83mI6pqHqDSuq4tEf1W6VGlyLtiZOBH3xGLzkXhXhCGvjd.Ry4YBmEcJ.4EI63PNzcBnZc6KWdXL3dxEwtTiYlevnClB63lKRVp.gjzFaduQLKLC.nynFaHAgPDMBM..5.LF.TrppJ.RhKHFQOFjTATJA.PS.MgvfIp.BPIBhCfH.gaIUyM3O5nYqXsgeG0ilMAYdXNbziz3lZmbK4.nNEXfC+olUz1+okCABVoVZI0M.ZvXPyLWnUadVXHQB6tcfN7NdtLDvXYE2a7FNyOirxlksbjPBiGWPpwVova1Q8orAoG4e6oy6OaB+vkWMlOdOCC.4XM8tPjkhMhlMqg2dXd7kyBYvbm.tM9c5i1KhGo0jjaPwkYAjPPFOQl3sX3uh735PLuBjBsSiUicfD5bsbajERmyhi0LTXBrdvqErKPqW.IAn5CrJkc6+EtmelKWF.HQyLf3DhUkDQ.eTKObPKKkc9Uyi2m4cJEzgHV1Maz3KaFm1CsWF1Grt88XsQRwA1C6MpixNFGl7.w03aCSrKXbIgkDfn7OBFmSR8NKiEAHY5QhayeZOF1JfAu9JLg0Qnhp9yxVmMY7tNePaRSGiTJ.Zx5QSikOV4jVA89EskzBmrC9seCSZ+FPjicrKtZVOMVJ4tPIVDWwqZe9QOB4xhL8W.+GlABSikYg7yB2cZ.BH9yU.EmGFnOXJzEucWA.e+AwJhw+emCkMgkYT35n+AmF+wm4U5H..foi...rNB...");
+
+	state.get()->dynamicComponentFactory = [this](const String& id)
+	{
+		return new CompileLogger(this);
+	};
 
 	dialog->setFinishCallback([this]()
 	{
@@ -927,7 +1237,7 @@ NetworkCompiler::~NetworkCompiler()
 		killFunction();
 
 	state->clearCompletedJobs();
-
+	dialog = nullptr;
 	dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->managerToUse = nullptr;
 	
 	compileExporter = nullptr;
@@ -936,34 +1246,47 @@ NetworkCompiler::~NetworkCompiler()
 
 var NetworkCompiler::onInit(const var::NativeFunctionArgs& args)
 {
-	String s;
+	String ns, cs, fs;
 
 	const auto& nodes = dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->nodesToCompile;
 	const auto& cpp = dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->cppFilesToCompile;
 
+	auto faustDir = BackendDllManager::getSubFolder(getMainController(), BackendDllManager::FolderSubType::FaustCode);
+	auto faust = faustDir.findChildFiles(File::findFiles, false, "*.dsp");
+
 	if(!nodes.isEmpty())
 	{
-		s << "DSP Networks to compile:  \n> `";
-
 		for(auto& n: nodes)
-			s << n << ", ";
-		
-		s = s.upToLastOccurrenceOf(", ", false, false);
-		s << "`\n";
+			ns << "- `" << n << "`\n";
+	}
+	else
+	{
+		ns << "No networks";
+	}
+
+	if(!faust.isEmpty())
+	{
+		for(auto& n: faust)
+			fs << "- `" << n.getFileNameWithoutExtension() << "`\n";
+	}
+	else
+	{
+		fs << "No faust files";
 	}
 
 	if(!cpp.isEmpty())
 	{
-		s << "\nC++ files to compile:  \n> `";
-
 		for(auto& n: cpp)
-			s << n << ", ";
-		
-		s = s.upToLastOccurrenceOf(", ", false, false);
-		s << "`\n";
+			cs << "- `" << n << "`\n";
+	}
+	else
+	{
+		cs << "No C++ files";
 	}
 
-	setElementProperty("nodeList", mpid::Text, s);
+	setElementProperty("nodeList", mpid::Text, ns);
+	setElementProperty("cppList", mpid::Text, cs);
+	setElementProperty("faustList", mpid::Text, fs);
 
 	return var();
 
@@ -972,8 +1295,14 @@ var NetworkCompiler::onInit(const var::NativeFunctionArgs& args)
 var NetworkCompiler::compileTask(const var::NativeFunctionArgs& args)
 {
 	auto nc = dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get());
-
+	
 	nc->run();
+
+	{
+		MessageManagerLock mm;
+		findParentComponentOfClass<ModalBaseWindow>()->minimizeModalComponent(false, state.get());
+	}
+	
 
 	auto ok = nc->getErrorCode();
 
@@ -985,6 +1314,8 @@ var NetworkCompiler::compileTask(const var::NativeFunctionArgs& args)
 
 	return var();
 }
+
+
 }	
 }	
 }

@@ -78,6 +78,26 @@ public:
 	bool isCurrentlyModal() const;
 	void clearModalComponent();
 
+	bool isMinimized = false;
+
+	void minimizeModalComponent(bool shouldBeMinimized, multipage::State* state)
+	{
+		if(isMinimized != shouldBeMinimized)
+		{
+			isMinimized = shouldBeMinimized;
+
+			if(backdrop != nullptr)
+				backdrop->setVisible(!isMinimized);
+
+			if(modalComponent != nullptr)
+				modalComponent->setVisible(!isMinimized);
+
+			minimizeBroadcaster.sendMessage(sendNotificationSync, isMinimized, state);
+		}
+	}
+
+	LambdaBroadcaster<bool, multipage::State*> minimizeBroadcaster;
+
 	/** This returns the main controller depending on the project type. */
 	const MainController* getMainController() const;
 

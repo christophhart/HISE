@@ -357,8 +357,11 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	SimpleTimer(parent->getMainController()->getGlobalUIUpdater()),
 	PreloadListener(parent->getMainController()->getSampleManager()),
 	ComponentWithHelp(parent->getBackendRootWindow()),
-	quickPlayButton(parent->getMainController())
+	quickPlayButton(parent->getMainController()),
+	minimizeBar()
 {
+	addChildComponent(minimizeBar);
+
 	parent->getMainController()->getScriptComponentEditBroadcaster()->getLearnBroadcaster().addListener(*this, updateLearnConnection);
 
     {
@@ -617,6 +620,7 @@ void MainTopBar::buttonClicked(Button* b)
 
 void MainTopBar::resized()
 {
+	minimizeBar.initialise();
     hiseButton->setVisible(false);
 	
     layoutButton->setVisible(false);
@@ -628,7 +632,10 @@ void MainTopBar::resized()
     auto b = getLocalBounds();
     
     customPopupButton->setBounds(b.removeFromLeft(getHeight()).reduced(8));
-                                 
+
+	if(minimizeBar.isVisible())
+		minimizeBar.setBounds(b.removeFromLeft(getWidth() / 4).reduced(8));
+
     macroButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
     pluginPreviewButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));
     presetBrowserButton->setBounds(frontendArea.removeFromLeft(bWidth).reduced(7));

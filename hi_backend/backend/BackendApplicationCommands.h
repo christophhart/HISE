@@ -113,6 +113,7 @@ public:
         
 		// Export Menu
 		MenuExportSetupWizard,
+		MenuExportCompileProject,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
@@ -318,6 +319,8 @@ public:
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
 		static DialogWindowWithBackgroundThread* importProject(BackendRootWindow* bpe);
+
+		static void compileProject(BackendRootWindow* bpe);
 
 		static void extractProject(BackendRootWindow* bpe, const File& newProjectRoot, const File& sourceFile);
 

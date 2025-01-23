@@ -311,7 +311,7 @@ void DspNetworkCompileExporter::run()
 	//showStatusMessage("Unload DLL");
 	//getDllManager()->unloadDll();
 
-	showStatusMessage("Create files");
+	logMessage("Create files");
 
 	auto buildFolder = getFolder(BackendDllManager::FolderSubType::Binaries);
 
@@ -325,7 +325,7 @@ void DspNetworkCompileExporter::run()
 	for (auto s : unsortedList)
 		unsortedListU.removeAllInstancesOf(s);
 
-	showStatusMessage("Sorting include dependencies");
+	logMessage("Sorting include dependencies");
 
 	Array<File> list, ulist;
 
@@ -410,7 +410,7 @@ void DspNetworkCompileExporter::run()
 				return;
 			}
 				
-            showStatusMessage("Creating C++ file for Network " + id);
+            logMessage("Creating C++ file for Network " + id);
 
 			scriptnode::routing::LocalCableHelpers::replaceAllLocalCables(v);
 
@@ -531,7 +531,7 @@ void DspNetworkCompileExporter::run()
 
 	if (!thirdPartyFiles.isEmpty())
 	{
-		showStatusMessage("Copying third party files");
+		logMessage("Copying third party files");
 
 		for (auto tpf : thirdPartyFiles)
 		{
@@ -541,7 +541,7 @@ void DspNetworkCompileExporter::run()
 
 	if (!externalSamples.isEmpty())
 	{
-        showStatusMessage("Writing embedded audio data file");
+        logMessage("Writing embedded audio data file");
         
 		auto eadFile = getSourceDirectory(true).getChildFile("embedded_audiodata.h");
 		eadFile.deleteFile();
@@ -680,7 +680,7 @@ void DspNetworkCompileExporter::run()
 	BuildOption o = CompileExporter::VSTLinux;
 #endif
 
-	showStatusMessage("Compiling dll plugin");
+	logMessage("Compiling dll plugin");
 
 	configurationName = getComboBoxComponent("build")->getText();
 

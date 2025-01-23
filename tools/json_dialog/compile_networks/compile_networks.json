@@ -27,8 +27,8 @@
     "Icon": ""
   },
   "LayoutData": {
-    "StyleSheet": "Dark",
-    "Style": ".description\n{\n\ttext-align: left;\n\twidth: 100%;\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n.status\n{\n\tfont-family: monospace;\n\tfont-size: 12px;\n\tcolor: black;\n\t\n}",
+    "StyleSheet": "ModalPopup",
+    "Style": ".description\n{\n\ttext-align: left;\n\twidth: 100%;\n}\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n#subtitle\n{\n\tdisplay: none;\n}\n\n.status\n{\n\tfont-family: monospace;\n\tfont-size: 12px;\n\tcolor: black;\n\t\n}\n\n.list-label\n{\n\twidth: 100%;\n\t\n\theight: 40px;\n\ttext-align: left;\n\tfont-weight: bold;\n}\n\n.column\n{\n\talign-self: flex-start;\n}",
     "UseViewport": true,
     "ConfirmClose": true,
     "CloseMessage": "Do you want to close this popup?",
@@ -36,43 +36,70 @@
     "DialogHeight": 780
   },
   "GlobalState": {
-    "CompileOutput": "asdasdasd\nasda\nsasd\nasd\nas\nd\nasd",
-    "NetworkList": "Funky, wasGeht, noice"
+    "clearDLL": "true"
   },
   "Children": [
     {
       "Type": "List",
       "Children": [
         {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "SimpleText",
+                  "Text": "Networks to compile:",
+                  "Class": ".list-label"
+                },
+                {
+                  "Type": "MarkdownText",
+                  "Text": "- `Noice.xml`\n- `ScriptFX1.xml`\n- `Noice.xml`\n- `ScriptFX1.xml`\n- `Noice.xml`\n- `ScriptFX1.xml`\n- `Noice.xml`\n- `ScriptFX1.xml`\n- `Noice.xml`\n- `ScriptFX1.xml`",
+                  "ID": "nodeList"
+                }
+              ],
+              "Class": ".column"
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "SimpleText",
+                  "Text": "C++ files to compile:",
+                  "Class": ".list-label"
+                },
+                {
+                  "Type": "MarkdownText",
+                  "Text": "- `Noice.cpp`\n- `ScriptFX1.cpp`",
+                  "ID": "cppList"
+                }
+              ],
+              "Class": ".column"
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "SimpleText",
+                  "Text": "Faust files to compile:",
+                  "Class": ".list-label"
+                },
+                {
+                  "Type": "MarkdownText",
+                  "Text": "- `Noice.cpp`\n- `ScriptFX1.cpp`",
+                  "ID": "faustList"
+                }
+              ],
+              "Class": ".column"
+            }
+          ],
+          "Style": "gap: 10px;"
+        },
+        {
           "Type": "JavascriptFunction",
           "ID": "onInit",
           "Code": "{BIND::onInit}"
-        },
-        {
-          "Type": "MarkdownText",
-          "Text": "Networks to compile:  \n\n> `Funky, wasGeht, noice`",
-          "ID": "nodeList"
-        },
-        {
-          "Type": "SimpleText",
-          "Text": "Status:",
-          "Class": ".description"
-        },
-        {
-          "Type": "TextInput",
-          "ID": "CompileOutput",
-          "Enabled": false,
-          "Class": ".status",
-          "NoLabel": true,
-          "Height": "180",
-          "Multiline": true
-        },
-        {
-          "Type": "LambdaTask",
-          "Text": "",
-          "ID": "compileTask",
-          "EventTrigger": "OnSubmit",
-          "Function": "compileTask"
         }
       ],
       "Text": ""
@@ -81,11 +108,25 @@
       "Type": "List",
       "Children": [
         {
-          "Type": "MarkdownText",
-          "Text": "The compilation was successful. Press Finish to reload the DLL.\n\n> You don't need to restart HISE anymore, all effects from the previous DLL will be automatically reloaded!\n\n"
+          "Type": "SimpleText",
+          "Text": "Compilation Log:",
+          "Class": ".description"
+        },
+        {
+          "Type": "Placeholder",
+          "ID": "CompileOutput",
+          "ContentType": "Logger",
+          "Style": "height: 450px;"
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "",
+          "ID": "compileTask",
+          "Function": "compileTask"
         }
       ],
-      "Text": ""
+      "Text": "",
+      "Style": "gap: 20px;"
     }
   ],
   "Assets": []

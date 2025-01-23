@@ -4,16 +4,63 @@
 
 namespace hise {
 
-class ChildProcessManager
+class ChildProcessManager: public AsyncUpdater
 {
 public:
 
-	virtual ~ChildProcessManager() {};
+	ChildProcessManager()
+	{
+		log.setDisableUndo(true);
+	}
 
-	virtual void logMessage(const String& message) = 0;
+	virtual ~ChildProcessManager() {};
 
 	virtual void setProgress(double progress) = 0;
 
+	void handleAsyncUpdate() override
+	{
+		CodeDocument::Position pos(log, log.getNumCharacters());
+
+		log.insertText(pos, currentMessage);
+		
+		SimpleReadWriteLock::ScopedReadLock sl(logLock);
+		currentMessage = {};
+	}
+
+	void logMessage(const String& message)
+	{
+		{
+			SimpleReadWriteLock::ScopedWriteLock sl(logLock);
+
+			if(message.contains("error"))
+				currentMessage << "!";
+
+			auto isLinkerMessage = message.contains("Generating code") ||
+								   message.contains("Linking ");
+
+			if(isLinkerMessage)
+			{
+				currentMessage << "> ";
+				setProgress(0.8);
+			}
+
+			if(message.contains("warning"))
+				currentMessage << "\t";
+
+			currentMessage << message;
+			if(!message.containsChar('\n'))
+				currentMessage << '\n';
+		}
+        
+        triggerAsyncUpdate();
+	}
+
+	SimpleReadWriteLock logLock;
+    String currentMessage;
+
+	CodeDocument log;
+
+	//std::function<void(const String&)> logFunction;
 	std::function<void()> killFunction;
 };
 
@@ -283,9 +330,61 @@ public:
 	DialogWindowWithBackgroundThread::LogData logData;
 };
 
+struct CompileLogger: public Component,
+					  public CodeDocument::Listener
+{
+	Console::ConsoleTokeniser tokeniser; 
+
+	CompileLogger(ChildProcessManager* manager):
+	  parent(manager),
+	  console(manager->log, &tokeniser)
+	{
+		tokeniser.errorIsWholeLine = true;
+
+		parent->log.addListener(this);
+
+		console.setReadOnly(true);
+		console.setLineNumbersShown(false);
+		console.setColour(CodeEditorComponent::ColourIds::defaultTextColourId, Colour(0xFF999999));
+		console.setColour(CodeEditorComponent::ColourIds::backgroundColourId, Colour(0xFF222222));
+		console.setColour(CodeEditorComponent::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+		addAndMakeVisible(console);
+	}
+
+	~CompileLogger()
+	{
+		parent->log.removeListener(this);
+	}
+
+	void codeDocumentTextDeleted(int startIndex, int endIndex) override {};
+
+	void codeDocumentTextInserted(const String& newText, int insertIndex) override
+	{
+		auto numLines = parent->log.getNumLines();
+		console.scrollToKeepLinesOnScreen({numLines - 1, numLines});
+	}
+
+	void resized() override
+	{
+		console.setBounds(getLocalBounds());
+	}
+
+	void paint(Graphics& g) override
+	{
+		
+	}
+
+	
+
+	ChildProcessManager* parent;
+	
+	CodeEditorComponent console;
+
+	
+};
+
 struct NetworkCompiler: public EncodedDialogBase,
-						public ChildProcessManager,
-                        public AsyncUpdater
+						public ChildProcessManager
 {
 	NetworkCompiler(BackendRootWindow* bpe_);
 
@@ -305,40 +404,62 @@ struct NetworkCompiler: public EncodedDialogBase,
 		}
 	}
 
-    void handleAsyncUpdate() override
-    {
-        auto m = readState("CompileOutput").toString();
-        
-        {
-            SimpleReadWriteLock::ScopedReadLock sl(logLock);
-            m << "\n" << currentMessage;
-            currentMessage = {};
-        }
-        
-        writeState("CompileOutput", m);
+	var onInit(const var::NativeFunctionArgs& args);
+	var compileTask(const var::NativeFunctionArgs& args);
 
-        if(auto md = dialog->findPageBaseForID("CompileOutput"))
-        {
-            md->postInit();
-        }
-    }
-    
-	void logMessage(const String& message) override
+	
+	BackendRootWindow* bpe;
+	ScopedPointer<ControlledObject> compileExporter;
+};
+
+struct CompileProjectDialog: public EncodedDialogBase,
+						public ChildProcessManager
+{
+	CompileProjectDialog(BackendRootWindow* bpe_);
+
+	~CompileProjectDialog();
+
+	void bindCallbacks() override
 	{
-        SimpleReadWriteLock::ScopedWriteLock sl(logLock);
-        currentMessage << message;
-        triggerAsyncUpdate();
+		MULTIPAGE_BIND_CPP(CompileProjectDialog, compileTask);
+		MULTIPAGE_BIND_CPP(CompileProjectDialog, onInit);
+		MULTIPAGE_BIND_CPP(CompileProjectDialog, onExportType);
+		MULTIPAGE_BIND_CPP(CompileProjectDialog, onPluginType);
+
+		MULTIPAGE_BIND_CPP(CompileProjectDialog, onComplete);
+		MULTIPAGE_BIND_CPP(CompileProjectDialog, onShowPluginFolder);
+		MULTIPAGE_BIND_CPP(CompileProjectDialog, onShowCompiledFile);
+
+		MULTIPAGE_BIND_CPP(CompileProjectDialog, onCopyToClipboard);
 	}
-    
-    SimpleReadWriteLock logLock;
-    String currentMessage;
+
+	void setProgress(double progress) override
+	{
+		if(auto j = state->currentJob.get())
+		{
+			j->getProgress() = progress;
+		}
+	}
 
 	var onInit(const var::NativeFunctionArgs& args);
 	var compileTask(const var::NativeFunctionArgs& args);
+	var onExportType(const var::NativeFunctionArgs& args);
+	var onPluginType(const var::NativeFunctionArgs& args);
+
+	var onComplete(const var::NativeFunctionArgs& args);
+	var onShowPluginFolder(const var::NativeFunctionArgs& args);
+	var onShowCompiledFile(const var::NativeFunctionArgs& args);
+	var onCopyToClipboard(const var::NativeFunctionArgs& args);
+
+	File getTargetFile() const;
+
+	int getBuildFlag() const;
 
 	BackendRootWindow* bpe;
 	ScopedPointer<ControlledObject> compileExporter;
 };
+
+
 
 struct SnippetBrowser: public EncodedDialogBase
 {

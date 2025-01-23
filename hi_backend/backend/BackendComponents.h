@@ -681,6 +681,16 @@ struct EncodedDialogBase: public Component,
 		{
 			Path p;
 			LOAD_EPATH_IF_URL("close", HiBinaryData::ProcessorEditorHeaderIcons::closeIcon);
+
+			if(url == "minimize")
+			{
+				static const unsigned char pathData[] = { 110,109,47,128,38,68,0,0,64,67,98,2,156,55,68,0,0,64,67,0,128,69,68,248,143,119,67,0,128,69,68,216,255,157,67,98,0,128,69,68,176,55,192,67,2,156,55,68,254,255,219,67,47,128,38,68,254,255,219,67,98,254,99,21,68,254,255,219,67,0,128,7,68,176,55,192,67,
+				0,128,7,68,216,255,157,67,98,0,128,7,68,248,143,119,67,254,99,21,68,0,0,64,67,47,128,38,68,0,0,64,67,99,109,157,219,60,68,16,109,125,67,108,147,36,54,68,80,145,98,67,108,167,136,45,68,48,128,130,67,108,74,76,39,68,196,15,108,67,108,74,76,39,68,118,102,
+				156,67,108,14,124,58,68,118,102,156,67,108,177,63,52,68,42,238,143,67,108,157,219,60,68,16,109,125,67,99,109,67,219,22,68,4,183,202,67,108,47,119,31,68,98,127,185,67,108,5,179,37,68,176,247,197,67,108,5,179,37,68,28,153,159,67,108,241,131,18,68,28,153,
+				159,67,108,24,192,24,68,106,17,172,67,108,84,36,16,68,12,73,189,67,108,67,219,22,68,4,183,202,67,99,101,0,0 };
+				p.loadPathFromData (pathData, sizeof (pathData));
+			}
+
 			return p;
 		}
 	} factory;
@@ -803,6 +813,12 @@ struct EncodedDialogBase: public Component,
 
 		closeButton.setBounds(b.removeFromRight(34).removeFromTop(34).reduced(8));
 		closeButton.toFront(false);
+
+		if(minimizeButton.isVisible())
+		{
+			minimizeButton.toFront(false);
+			minimizeButton.setBounds(b.removeFromLeft(34).removeFromTop(34).reduced(8));
+		}
 	}
 
 	void navigate(int pageIndex, bool shouldSubmit)
@@ -821,13 +837,20 @@ struct EncodedDialogBase: public Component,
 			}
 		});
 	}
-	
+
+	void setMinimizable(bool isMinimizable)
+	{
+		minimizeButton.setVisible(isMinimizable);
+		resized();
+	}
+
 protected:
 
 	ScopedPointer<State> state;
 	ScopedPointer<Dialog> dialog;
 
 	HiseShapeButton closeButton;
+	HiseShapeButton minimizeButton;
 
 	bool closeOnEscape = true;
 

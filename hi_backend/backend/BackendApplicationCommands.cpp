@@ -105,6 +105,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuFileExtractEmbeddeSnippetFiles,
 		MenuFileImportSnippet,
 		MenuExportSetupWizard,
+		MenuExportCompileProject,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
@@ -326,6 +327,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		break;
 	case MenuExportSetupWizard:
 		setCommandTarget(result, "Setup Export Wizard", true, false, 'X', false);
+		result.categoryName = "Export";
+		break;
+	case MenuExportCompileProject:
+		setCommandTarget(result, "Compile project", true, false, 'X', false);
 		result.categoryName = "Export";
 		break;
     case MenuExportFileAsPlugin:
@@ -687,6 +692,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuToolsRecompile:            Actions::recompileAllScripts(bpe); return true;
 	case MenuToolsCheckCyclicReferences:Actions::checkCyclicReferences(bpe); return true;
 	case MenuToolsCreateExternalScriptFile:	Actions::createExternalScriptFile(bpe); updateCommands(); return true;
+	case MenuExportCompileProject: Actions::compileProject(bpe); return true;
 	case MenuExportValidateUserPresets:	Actions::validateUserPresets(bpe); return true;
 	case MenuExportRestoreToDefault:		Actions::restoreToDefault(bpe); return true;
 	case MenuExportCheckUnusedImages:	Actions::checkUnusedImages(bpe); return true;
@@ -974,7 +980,10 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 		{
 			ADD_MENU_ITEM(MenuExportSetupWizard);
 
+			ADD_MENU_ITEM(MenuExportCompileProject);
+
 			p.addSectionHeader("Export As");
+
 			ADD_MENU_ITEM(MenuExportFileAsPlugin);
 			ADD_MENU_ITEM(MenuExportFileAsEffectPlugin);
 			ADD_MENU_ITEM(MenuExportFileAsMidiFXPlugin);
@@ -2074,8 +2083,14 @@ DialogWindowWithBackgroundThread* BackendCommandTarget::Actions::importProject(B
 	return nullptr;
 }
 
+void BackendCommandTarget::Actions::compileProject(BackendRootWindow* bpe)
+{
+	auto cw = new multipage::library::CompileProjectDialog(bpe);
+	cw->setModalBaseWindowComponent(bpe);
+}
+
 struct HeadlessImporter: public ImporterBase,
-						 public Thread
+                         public Thread
 {
 	HeadlessImporter(BackendRootWindow* bpe, const File& projectRoot):
 	  ImporterBase(bpe),
