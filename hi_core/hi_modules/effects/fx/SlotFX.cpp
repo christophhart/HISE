@@ -330,7 +330,7 @@ public:
 			g.setColour(Colours::white.withAlpha(0.5f));
 			g.setFont(GLOBAL_BOLD_FONT());
 
-			auto ta = body.toFloat();
+			auto ta = selector.getBoundsInParent().translated(0, 20);
 			
 			g.drawText("ERROR: " + errorMessage, ta, Justification::centred);
 		}
@@ -342,26 +342,41 @@ public:
 		currentEditors.clear();
 		currentParameters.clear();
 
+#if 0
 		if(!getErrorMessage().isEmpty())
 			return;
+#endif
+
+		std::function<int(ExternalData::DataType)> numObjectsFunction;
 
 		if (auto on = getEffect()->opaqueNode.get())
 		{
-			ExternalData::forEachType([&](ExternalData::DataType dt)
-				{
-					int numObjects = on->numDataObjects[(int)dt];
+			numObjectsFunction = [on](ExternalData::DataType dt) { return on->numDataObjects[(int)dt]; };
 
-					for (int i = 0; i < numObjects; i++)
-					{
-						auto f = ExternalData::createEditor(getEffect()->getComplexBaseType(dt, i));
+		}
+		else if (getEffect()->hasLoadedButUncompiledEffect())
+		{
+			numObjectsFunction = [this](ExternalData::DataType dt){ return getEffect()->getNumDataObjects(dt); };
+		}
 
-						auto c = dynamic_cast<Component*>(f);
+		ExternalData::forEachType([&](ExternalData::DataType dt)
+		{
+			int numObjects = numObjectsFunction(dt);
 
-						currentEditors.add(f);
-						addAndMakeVisible(c);
-					}
-				});
+			for (int i = 0; i < numObjects; i++)
+			{
+				auto f = ExternalData::createEditor(getEffect()->getComplexBaseType(dt, i));
 
+				auto c = dynamic_cast<Component*>(f);
+
+				currentEditors.add(f);
+				addAndMakeVisible(c);
+			}
+		});
+
+
+		if (auto on = getEffect()->opaqueNode.get())
+		{
 			for(const auto& p: OpaqueNode::ParameterIterator(*on))
 			{
 				auto pData = p.info;
@@ -372,6 +387,27 @@ public:
 
 				s->setRange(pData.min, pData.max, jmax<double>(0.001, pData.interval));
 				s->setSkewFactor(pData.skew);
+				s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
+				s->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
+				s->setColour(Slider::thumbColourId, Colour(0x80666666));
+				s->setColour(Slider::textBoxTextColourId, Colours::white);
+
+				currentParameters.add(s);
+			}
+		}
+		else if (getEffect()->hasLoadedButUncompiledEffect())
+		{
+			auto& p = getEffect()->asProcessor();
+			for(int i = 0; i < p.getNumAttributes(); i++)
+			{
+				auto id = p.getIdentifierForParameterIndex(i);
+				auto s = new HiSlider(id.toString());
+				addAndMakeVisible(s);
+				s->setup(getProcessor(), i, id.toString());
+
+				auto v = (double)p.getAttribute(i);
+				
+				s->setRange(jmin(0.0, v), jmax(1.0, v), 0.01);
 				s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 				s->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
 				s->setColour(Slider::thumbColourId, Colour(0x80666666));
@@ -607,14 +643,21 @@ bool HardcodedSwappableEffect::setEffect(const String& factoryId, bool /*unused*
 	}
 	else
 	{
-		currentEffect = {};
+		if(factory == nullptr || factory->getNumNodes() == 0)
+		{
+			// just set the effect so it will be exported properly
+			currentEffect = factoryId;
+		}
+		else
+		{
+			currentEffect = {};
+			effectUpdater.sendMessage(sendNotificationAsync, currentEffect, true, 0);
+		}
 
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(lock);
 			std::swap(newNode, opaqueNode);
 		}
-
-		effectUpdater.sendMessage(sendNotificationAsync, currentEffect, true, 0);
 	}
 
 	if (newNode != nullptr)
@@ -634,11 +677,16 @@ bool HardcodedSwappableEffect::swap(HotswappableProcessor* other)
 		if (otherFX->isPolyphonic() != isPolyphonic())
 			return false;
 
+#if USE_BACKEND
 		std::swap(previouslySavedTree, otherFX->previouslySavedTree);
+#endif
 		std::swap(currentEffect, otherFX->currentEffect);
 
 		auto& ap = asProcessor();
 		auto& op = otherFX->asProcessor();
+
+		unloadedParameters.swapWith(otherFX->unloadedParameters);
+		std::swap(numParameters, otherFX->numParameters);
 
 		ap.parameterNames.swapWith(op.parameterNames);
 		tables.swapWith(otherFX->tables);
@@ -648,10 +696,7 @@ bool HardcodedSwappableEffect::swap(HotswappableProcessor* other)
 		displayBuffers.swapWith(otherFX->displayBuffers);
 		listeners.swapWith(otherFX->listeners);
 
-		for (int i = 0; i < OpaqueNode::NumMaxParameters; i++)
-		{
-			std::swap(lastParameters, otherFX->lastParameters);
-		}
+		std::swap(lastParameters, otherFX->lastParameters);
 
 		{
 			SimpleReadWriteLock::ScopedWriteLock sl(lock);
@@ -686,18 +731,12 @@ bool HardcodedSwappableEffect::swap(HotswappableProcessor* other)
 
 juce::Result HardcodedSwappableEffect::sanityCheck()
 {
+#if USE_BACKEND
 	String errorMessage;
 
 	errorMessage << dynamic_cast<Processor*>(this)->getId();
 	errorMessage << ":  > ";
 
-	if (!properlyLoaded)
-	{
-		errorMessage << "Can't find effect in DLL";
-
-		return Result::fail(errorMessage);
-	}
-	
 	if (opaqueNode != nullptr)
 	{
 		for (const auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
@@ -711,7 +750,8 @@ juce::Result HardcodedSwappableEffect::sanityCheck()
 			}
 		}
 	}
-
+#endif
+	
 	return Result::ok();
 }
 
@@ -759,23 +799,30 @@ hise::ProcessorEditorBody* HardcodedSwappableEffect::createHardcodedEditor(Proce
 
 void HardcodedSwappableEffect::restoreHardcodedData(const ValueTree& v)
 {
-	previouslySavedTree = v.createCopy();
-
 	auto effect = v.getProperty("Network", "").toString();
-
-	if (factory->getNumNodes() == 0 && effect.isNotEmpty())
-	{
-		properlyLoaded = false;
-		return;
-	}
-
-	
 
 	setEffect(effect, false);
 
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
-	if (opaqueNode != nullptr)
+	std::function<int(ExternalData::DataType)> numDataObjectFunction;
+
+	// First check which complex data objects to restore
+	if(hasLoadedButUncompiledEffect())
+	{
+		numDataObjectFunction = [v](ExternalData::DataType dt)
+		{
+			auto parentId = Identifier(ExternalData::getDataTypeName(dt, true));
+			return v.getChildWithName(parentId).getNumChildren();
+		};
+	}
+	else if(opaqueNode != nullptr)
+	{
+		auto on = opaqueNode.get();
+		numDataObjectFunction = [on](ExternalData::DataType dt) { return on->numDataObjects[(int)dt]; };
+	}
+
+	if(numDataObjectFunction)
 	{
 		ExternalData::forEachType([&](ExternalData::DataType dt)
 		{
@@ -784,10 +831,9 @@ void HardcodedSwappableEffect::restoreHardcodedData(const ValueTree& v)
 				return;
 
 			auto parentId = Identifier(ExternalData::getDataTypeName(dt, true));
-
 			auto dataTree = v.getChildWithName(parentId);
 
-			jassert(dataTree.getNumChildren() == opaqueNode->numDataObjects[(int)dt]);
+			jassert(dataTree.getNumChildren() == numDataObjectFunction(dt));
 
 			int index = 0;
 			for (auto d : dataTree)
@@ -808,7 +854,58 @@ void HardcodedSwappableEffect::restoreHardcodedData(const ValueTree& v)
 				index++;
 			}
 		});
+	}
 
+
+	if(hasLoadedButUncompiledEffect())
+	{
+#if USE_BACKEND
+		previouslySavedTree = v.createCopy();
+
+		unloadedParameters.clear();
+		DBG(v.createXml()->createDocument(""));
+
+		int propertyOffset = -1;
+
+		for(int i = 0; i < v.getNumProperties(); i++)
+		{
+			if(v.getPropertyName(i) == scriptnode::PropertyIds::Network)
+			{
+				propertyOffset = i + 1;
+				break;
+			}
+		}
+
+		jassert(propertyOffset == 4);
+
+		numParameters = jmax(0, v.getNumProperties() - propertyOffset);
+
+		if(numParameters > 0)
+		{
+			lastParameters.setSize(numParameters);
+
+			Array<Identifier> up;
+
+			for(int i = 0; i < numParameters; i++)
+			{
+				up.add(v.getPropertyName(i + propertyOffset));
+			}
+
+			preallocateUnloadedParameters(up);
+
+			for(int i = 0; i < numParameters; i++)
+			{
+				if(auto ptr = getParameterPtr(i))
+				{
+					auto value = (float)v[up.getLast()];
+					*ptr = value;
+				}
+			}
+		}
+#endif
+	}
+	else if (opaqueNode != nullptr)
+	{
 		for (const auto& p : OpaqueNode::ParameterIterator(*opaqueNode))
 		{
 			auto id = getSanitizedParameterId(p.info.getId());
@@ -816,22 +913,15 @@ void HardcodedSwappableEffect::restoreHardcodedData(const ValueTree& v)
 			setHardcodedAttribute(p.info.index, value);
 		}
 	}
-	else
-	{
-		properlyLoaded = effect.isEmpty();
-	}
 }
 
 ValueTree HardcodedSwappableEffect::writeHardcodedData(ValueTree& v) const
 {
-	if (!properlyLoaded)
-	{
-		return previouslySavedTree;
-	}
-
 	v.setProperty("Network", currentEffect, nullptr);
 	
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+	std::function<int(ExternalData::DataType)> numObjectsFunction;
 
 	if (opaqueNode != nullptr)
 	{
@@ -842,14 +932,30 @@ ValueTree HardcodedSwappableEffect::writeHardcodedData(ValueTree& v) const
 			if(auto ptr = getParameterPtr(p.info.index))
 				v.setProperty(id, *ptr, nullptr);
 		}
-		
+
+		auto on = opaqueNode.get();
+		numObjectsFunction = [on](ExternalData::DataType dt) { return on->numDataObjects[(int)dt]; };
+	}
+	else if (hasLoadedButUncompiledEffect())
+	{
+		for(int i = 0; i < unloadedParameters.size(); i++)
+		{
+			if(auto ptr = getParameterPtr(i))
+				v.setProperty(unloadedParameters[i], *ptr, nullptr);
+		}
+
+		numObjectsFunction = [this](ExternalData::DataType dt) { return getNumDataObjects(dt); };
+	}
+
+	if(numObjectsFunction)
+	{
 		ExternalData::forEachType([&](ExternalData::DataType dt)
 		{
 			if (dt == ExternalData::DataType::DisplayBuffer ||
 				dt == ExternalData::DataType::FilterCoefficients)
 				return;
 
-			int numObjects = opaqueNode->numDataObjects[(int)dt];
+			int numObjects = numObjectsFunction(dt);
 
 			ValueTree dataTree(ExternalData::getDataTypeName(dt, true));
 

@@ -8,6 +8,30 @@ class ChildProcessManager: public AsyncUpdater
 {
 public:
 
+	struct ScopedLogger: public juce::Logger
+	{
+		ScopedLogger(ChildProcessManager& cm_):
+		 cm(cm_),
+		 prevLogger(Logger::getCurrentLogger()) 
+		{
+			Logger::setCurrentLogger(this);
+		}
+
+		~ScopedLogger()
+		{
+			Logger::setCurrentLogger(prevLogger);
+		}
+
+		Logger* prevLogger;
+
+		void logMessage(const String& message) override
+		{
+			cm.logMessage(message);
+		}
+
+		ChildProcessManager& cm;
+	};
+
 	ChildProcessManager()
 	{
 		log.setDisableUndo(true);
@@ -469,7 +493,9 @@ struct CompileProjectDialog: public EncodedDialogBase,
             
         setElementProperty("OutputFile", mpid::Text, content);
     }
-    
+
+	ScopedPointer<DialogWindowWithBackgroundThread> dllCompiler;
+
 	var onInit(const var::NativeFunctionArgs& args);
 	var compileTask(const var::NativeFunctionArgs& args);
 	var onExportType(const var::NativeFunctionArgs& args);

@@ -19,7 +19,7 @@ static const unsigned char projectDllTemplate_jucer_lines[] =
 "						alwaysGenerateDebugSymbols = \"0\" optimisation = \"2\"\r\n"
 "						linkTimeOptimisation = \"0\" useRuntimeLibDLL=\"0\"/>\r\n"
 "        <CONFIGURATION isDebug=\"0\" name=\"Release\" targetName=\"%RELEASE_DLL_NAME%\" headerPath =\"%FAUST_HEADER_PATH%\" binaryPath=\"dll\"\r\n"
-"                       alwaysGenerateDebugSymbols=\"1\" useRuntimeLibDLL=\"0\"/>\r\n"
+"                       alwaysGenerateDebugSymbols=\"1\" linkTimeOptimisation = \"0\" useRuntimeLibDLL=\"0\"/>\r\n"
 
 "      </CONFIGURATIONS>\r\n"
 "      <MODULEPATHS>\r\n"

@@ -1609,7 +1609,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	if (logger == nullptr)
 	{
 		logger = new ConsoleLogger(getMainSynthChain());
-		Logger::setCurrentLogger(logger);
+		//Logger::setCurrentLogger(logger);
 	}
 
 #endif

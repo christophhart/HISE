@@ -107,7 +107,7 @@ public:
 		UninitialisedProperties
 	};
 
-	DspNetworkCompileExporter(Component* editor, BackendProcessor* bp);
+	DspNetworkCompileExporter(Component* editor, BackendProcessor* bp, bool skipCompilation_=false);
 
 	void run() override;
 
@@ -121,6 +121,8 @@ public:
 
 	StringArray nodesToCompile;
 	StringArray cppFilesToCompile;
+
+	bool skipCompilation = false;
 
 private:
 

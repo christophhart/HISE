@@ -100,30 +100,34 @@ struct IncludeSorter
 	};
 };
 
-DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProcessor* bp) :
+DspNetworkCompileExporter::DspNetworkCompileExporter(Component* e, BackendProcessor* bp, bool skipCompilation_) :
 	DialogWindowWithBackgroundThread("Compile DSP networks"),
 	ControlledObject(bp),
 	CompileExporter(bp->getMainSynthChain()),
-	editor(e)
+	editor(e),
+	skipCompilation(skipCompilation_) 
 {
 	addComboBox("build", { "Debug", "CI", "Release" }, "Build Configuration");
 
 #if !JUCE_DEBUG
     getComboBoxComponent("build")->setText("Release", dontSendNotification);
 #endif
-    
-	if (getNetwork() == nullptr)
-	{
-		raw::Builder builder(bp);
-		MainController::ScopedBadBabysitter sb(bp);
 
-		auto jmp = builder.create<JavascriptMasterEffect>(bp->getMainSynthChain(), raw::IDs::Chains::FX);
-		jmp->getOrCreate("internal_dsp");
+	if(!skipCompilation)
+	{
+		if (getNetwork() == nullptr)
+		{
+			raw::Builder builder(bp);
+			MainController::ScopedBadBabysitter sb(bp);
+
+			auto jmp = builder.create<JavascriptMasterEffect>(bp->getMainSynthChain(), raw::IDs::Chains::FX);
+			jmp->getOrCreate("internal_dsp");
+		}
 	}
 
 	if (auto n = getNetwork())
 		n->createAllNodesOnce();
-
+	
 	auto customProperties = bp->dllManager->getSubFolder(getMainController(), BackendDllManager::FolderSubType::ThirdParty).getChildFile("node_properties.json");
 
 	if (customProperties.existsAsFile())
@@ -283,10 +287,10 @@ void DspNetworkCompileExporter::run()
 {
 	auto n = getNetwork();
 
-	if(managerToUse != nullptr)
+	if(managerToUse != nullptr && !skipCompilation)
 		managerToUse->setProgress(0.25);
 
-	if (n == nullptr)
+	if (n == nullptr && !skipCompilation)
 	{
 		ok = (ErrorCodes)(int)DspNetworkErrorCodes::NoNetwork;
 		errorMessage << "You need at least one active network for the export process.  \n";
@@ -684,17 +688,20 @@ void DspNetworkCompileExporter::run()
 
 	configurationName = getComboBoxComponent("build")->getText();
 
-	if(managerToUse != nullptr)
-		managerToUse->setProgress(0.5);
+	if(!skipCompilation)
+	{
+		if(managerToUse != nullptr)
+			managerToUse->setProgress(0.5);
 
 #if JUCE_LINUX
-	ok = ErrorCodes::OK;
+		ok = ErrorCodes::OK;
 #else
-	ok = compileSolution(o, CompileExporter::TargetTypes::numTargetTypes, managerToUse);
+		ok = compileSolution(o, CompileExporter::TargetTypes::numTargetTypes, managerToUse);
 #endif
 
-	if(managerToUse != nullptr)
-		managerToUse->setProgress(1.0);
+		if(managerToUse != nullptr)
+			managerToUse->setProgress(1.0);
+	}
 }
 
 void DspNetworkCompileExporter::threadFinished()

@@ -96,6 +96,7 @@ struct ScriptReplaceHelpers
 	struct SaveData
 	{
 		Array<float> parameters;
+		Array<Identifier> parameterIds;
 		String id;
 		String effect;
 		bool bypassed;
@@ -117,7 +118,10 @@ struct ScriptReplaceHelpers
 			bypassed = p->isBypassed();
 
 			for(int i = 0; i < p->getNumParameters(); i++)
+			{
 				parameters.add(p->getAttribute(i));
+				parameterIds.add(p->getIdentifierForParameterIndex(i));
+			}
 
 			if(auto rp = dynamic_cast<RoutableProcessor*>(p))
 				routing = rp->getMatrix().exportAsValueTree();
@@ -154,10 +158,13 @@ struct ScriptReplaceHelpers
 				rp->getMatrix().restoreFromValueTree(routing);
 
 			if(auto s = dynamic_cast<HardcodedSwappableEffect*>(p))
+			{
 				s->setEffect(effect, false);
+				s->preallocateUnloadedParameters(parameterIds);
+			}
 
 			for(int i = 0; i < parameters.size(); i++)
-				p->setAttribute(i, parameters[i], sendNotificationAsync);
+				p->setAttribute(i, parameters[i], dontSendNotification);
 
 			if(auto eh = dynamic_cast<ExternalDataHolder*>(p))
 			{
@@ -1080,9 +1087,18 @@ CompileProjectDialog::CompileProjectDialog(BackendRootWindow* bpe_):
 
 	dialog->setFinishCallback([this]()
 	{
-		//dynamic_cast<DspNetworkCompileExporter*>(compileExporter.get())->threadFinished();
+		dllCompiler = nullptr;
 		findParentComponentOfClass<ModalBaseWindow>()->clearModalComponent();
 	});
+
+	auto dllManager = bpe->getBackendProcessor()->dllManager;
+
+	if(!dllManager->isDllLoaded() && dllManager->hasFilesToCompile())
+	{
+		dllCompiler = new DspNetworkCompileExporter(bpe, bpe->getBackendProcessor(), true);
+		dllCompiler->setAdditionalLogFunction(BIND_MEMBER_FUNCTION_1(NetworkCompiler::logMessage));
+		dynamic_cast<DspNetworkCompileExporter*>(dllCompiler.get())->managerToUse = this;
+	}
 }
 
 CompileProjectDialog::~CompileProjectDialog()
@@ -1200,6 +1216,13 @@ var CompileProjectDialog::onInit(const var::NativeFunctionArgs& args)
 
 var CompileProjectDialog::compileTask(const var::NativeFunctionArgs& args)
 {
+
+	
+
+	if(dllCompiler != nullptr)
+		dllCompiler->run();
+	
+
 	CompileExporter ep(bpe->getBackendProcessor()->getMainSynthChain());
 
 	auto modulesToReplace = ScriptReplaceHelpers::getListOfAllConvertableScriptModules(bpe->getBackendProcessor());
@@ -1219,6 +1242,8 @@ var CompileProjectDialog::compileTask(const var::NativeFunctionArgs& args)
 	CompileExporter::ErrorCodes ok = CompileExporter::ErrorCodes::UserAbort;
 
 	auto flags = getBuildFlag();
+
+	ChildProcessManager::ScopedLogger sl(*this);
 
 	if(IS_FLAG(isStandalone))
 		ok = ep.exportMainSynthChainAsStandaloneApp((CompileExporter::BuildOption)flags);

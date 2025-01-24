@@ -104,9 +104,37 @@ public:
     
     void disconnectRuntimeTargets(MainController* mc) override;
     void connectRuntimeTargets(MainController* mc) override;
-    
+
+#if USE_BACKEND
+	void preallocateUnloadedParameters(Array<Identifier> unloadedParameters_)
+	{
+		if(hasLoadedButUncompiledEffect())
+		{
+			unloadedParameters = unloadedParameters_;
+			numParameters = unloadedParameters.size();
+			lastParameters.setSize(numParameters, false);
+
+			asProcessor().parameterNames.clear();
+
+			for(auto p: unloadedParameters)
+				asProcessor().parameterNames.add(p);
+
+			asProcessor().updateParameterSlots();
+		}
+	}
+#endif
+
 protected:
-	
+
+	bool hasLoadedButUncompiledEffect() const
+	{
+#if USE_BACKEND
+		return currentEffect.isNotEmpty() && factory == nullptr || factory->getNumNodes() == 0;
+#else
+		return false;
+#endif
+	}
+
 	HardcodedSwappableEffect(MainController* mc, bool isPolyphonic);
 
 	struct DataWithListener : public ComplexDataUIUpdaterBase::EventListener
@@ -168,8 +196,9 @@ protected:
 	ReferenceCountedArray<SimpleRingBuffer> displayBuffers;
 	ReferenceCountedArray<FilterDataObject> filterData;
 
+#if USE_BACKEND
 	ValueTree previouslySavedTree;
-	bool properlyLoaded = true;
+#endif
 
 	String currentEffect = "No network";
 
@@ -201,7 +230,8 @@ protected:
 	int hash = -1;
 
     Array<scriptnode::InvertableParameterRange> parameterRanges;
-    
+	Array<Identifier> unloadedParameters;
+
 private:
 
 	MainController* mc_;

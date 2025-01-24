@@ -638,7 +638,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 
 		setProgress(0.3);
 
-		if (rawMode || (alreadyExported && data.getSetting(HiseSettings::Compiler::RebuildPoolFiles)))
+		if (rawMode || !alreadyExported || data.getSetting(HiseSettings::Compiler::RebuildPoolFiles))
 		{
 			iof.deleteFile();
 			sof.deleteFile();
@@ -694,11 +694,6 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			alreadyExported = true;
 		}
 
-		if (!alreadyExported)
-		{
-			handler.exportAllPoolsToTemporaryDirectory(chainToExport, nullptr);
-		}
-
 		setProgress(0.4);
 
 		File imageOutputFile, sampleOutputFile, samplemapFile, midiFile;
@@ -733,7 +728,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				else
 					return ErrorCodes::CorruptedPoolFiles;
 			}
-			else if (PresetHandler::showYesNoWindow("Copy Audio files to app data directory?",
+			else if (manager != nullptr || PresetHandler::showYesNoWindow("Copy Audio files to app data directory?",
 				"Do you want to copy the audio pool file to your project's app data directory?"))
 			{
 				sampleOutputFile = projectFolder.getChildFile(sof.getFileName());
@@ -749,7 +744,7 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 				else
 					return ErrorCodes::CorruptedPoolFiles;
 			}
-			else if (PresetHandler::showYesNoWindow("Copy Image files to app data directory?",
+			else if (manager != nullptr || PresetHandler::showYesNoWindow("Copy Image files to app data directory?",
 				"Do you want to copy the image pool file to your project's app data directory?"))
 			{
 				imageOutputFile = projectFolder.getChildFile(iof.getFileName());
