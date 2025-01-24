@@ -129,7 +129,7 @@ protected:
 	bool hasLoadedButUncompiledEffect() const
 	{
 #if USE_BACKEND
-		return currentEffect.isNotEmpty() && factory == nullptr || factory->getNumNodes() == 0;
+		return currentEffect.isNotEmpty() && (factory == nullptr || factory->getNumNodes() == 0);
 #else
 		return false;
 #endif

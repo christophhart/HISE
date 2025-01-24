@@ -1190,9 +1190,13 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 	}
 #else
     
-    String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
-    system(permissionCommand.getCharPointer());
-    String command = manager != nullptr ? ("sh " + batchFile.getFullPathName()) : ("open " + batchFile.getFullPathName().quoted());
+    if(manager != nullptr)
+    {
+        String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
+        system(permissionCommand.getCharPointer());
+    }
+    
+    String command = manager != nullptr ? batchFile.getFullPathName() : ("open " + batchFile.getFullPathName().quoted());
 
 #endif
     
@@ -1200,7 +1204,6 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 #if JUCE_MAC
 	if (globalCommandLineExport)
 	{
-		Logger::writeToLog("Execute" + permissionCommand);
 		Logger::writeToLog("Call " + command + " in order to compile the project");
 
 		return ErrorCodes::OK;
@@ -1217,7 +1220,14 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 		{
 			ChildProcess cp;
 
-			cp.start(command);
+#if JUCE_MAC
+            StringArray com;
+            com.add("sh");
+            com.add(command);
+            cp.start(com);
+#else
+            cp.start(command);
+#endif
 
 			String currentLine;
 
@@ -2019,6 +2029,7 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const Hi
 
 	auto shouldUseVS2017 = !(bool)HISE_USE_VS2022;
 
+#if JUCE_WINDOWS
 	if (isUsingVisualStudio2017 != shouldUseVS2017)
 	{
 		auto buildVersion = shouldUseVS2017 ? "VS2017" : "VS2022";
@@ -2032,6 +2043,7 @@ void CompileExporter::ProjectTemplateHelpers::handleVisualStudioVersion(const Hi
 
 		PresetHandler::showMessageWindow("VS Version mismatch detected", message, PresetHandler::IconType::Warning);
 	}
+#endif
 	
 	if (isUsingVisualStudio2017)
 	{
