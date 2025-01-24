@@ -1951,17 +1951,6 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 
     auto copyPlugin = !isUsingCIMode();
     
-#if JUCE_MAC
-    auto macOSVersion = SystemStats::getOperatingSystemType();
-    
-    // deactivate copy step on Sonoma (or later) to avoid the cycle dependencies error...
-    if(macOSVersion >= SystemStats::MacOS_14)
-    {
-        PresetHandler::showMessageWindow("Copystep diabled", "macOS Sonoma (or later) will cause a compile error if the copy step is enabled, so you have to copy the plugin files into the plugin folders manually after compilation");
-        copyPlugin = false;
-    }
-#endif
-    
 	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", copyPlugin ? "1" : "0");
 
 #if JUCE_MAC
