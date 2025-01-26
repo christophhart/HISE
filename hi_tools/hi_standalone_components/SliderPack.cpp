@@ -906,9 +906,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 		{
 			if (displayAlphas[i] > 0.0f)
 			{
-				const bool biPolar = sliders[i]->getMinimum() < 0;
-
-				
+				const bool biPolar = sliders[i]->getMinimum() < 0 && sliders[i]->getMaximum() > 0;
 
 				auto v = (int)sliders[i]->getPositionOfValue(sliders[i]->getValue());
 
@@ -921,10 +919,15 @@ void SliderPack::paintOverChildren(Graphics &g)
 
 				if (biPolar)
 				{
-					int h_half = sliders[i]->getHeight() / 2;
+					float max = (float)sliders[i]->getMaximum();
+					float min = (float)sliders[i]->getMinimum();
 
-					y = v < h_half ? v : h_half;
-					h = v < h_half ? (h_half - y) : (v - h_half);
+					float value = 1.0f - (sliders[i]->getValue() - min) / (max - min);
+					float origin = 1.0f - (-1.0f * min) / (max - min);
+
+					y = value < origin ? value * sliders[i]->getHeight() : origin * sliders[i]->getHeight();
+
+					h = fabs(origin - value) * sliders[i]->getHeight();
 				}
 				else
 				{
@@ -1197,10 +1200,11 @@ void SliderPack::SliderLookAndFeel::drawLinearSlider(Graphics &g, int /*x*/, int
 
 		if (isBiPolar)
 		{
-			const float value = (-1.0f * (float)s.getValue() - min) / (max - min);
+			const float value = 1.0f - ((float)s.getValue() - min) / (max - min);
+			float origin = 1.0f - (-1.0f * min) / (max - min);
 
-			leftY = (value < 0.5f ? value * (float)(height) : 0.5f * (float)(height));
-			actualHeight = fabs(0.5f - value) * (float)(height);
+			leftY = value < origin ? value * (float)(height) : origin * (float)(height);
+			actualHeight = fabs(origin - value) * (float)(height);
 		}
 		else
 		{
