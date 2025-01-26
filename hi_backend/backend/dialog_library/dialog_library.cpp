@@ -1308,6 +1308,8 @@ var CompileProjectDialog::onShowPluginFolder(const var::NativeFunctionArgs& args
     File folder = File::getSpecialLocation(File::SpecialLocationType::globalApplicationsDirectory);
 #elif JUCE_MAC
     File folder = File::getSpecialLocation(File::SpecialLocationType::commonApplicationDataDirectory).getChildFile("Audio/Plug-Ins");
+#elif JUCE_LINUX
+		File folder = File::getSpecialLocation(File::SpecialLocationType::userHomeDirectory);
 #endif
     
 	if(IS_FLAG(isVST))
@@ -1323,10 +1325,9 @@ var CompileProjectDialog::onShowPluginFolder(const var::NativeFunctionArgs& args
 			folder = folder.getChildFile("VSTPlugins");
 		}
 #elif JUCE_MAC
-        folder = folder.getChildFile(isVST3 ? "VST3" : "VST");
+      folder = folder.getChildFile(isVST3 ? "VST3" : "VST");
 #else
-        // DAVID...
-        jassertfalse;
+	folder = folder.getChildFile(isVST3 ? ".vst3" : ".vst");
 #endif
 	}
 	if(IS_FLAG(isAAX))
