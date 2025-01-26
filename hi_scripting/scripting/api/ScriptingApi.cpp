@@ -3761,6 +3761,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_2(Sampler, importSamples);
 	API_METHOD_WRAPPER_0(Sampler, clearSampleMap);
 	API_METHOD_WRAPPER_1(Sampler, parseSampleFile);
+	API_METHOD_WRAPPER_2(Sampler, setAllowReleaseStart);
 	API_VOID_METHOD_WRAPPER_2(Sampler, setGUISelection);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setSortByRRGroup);
 };
@@ -3818,6 +3819,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(loadSampleMapFromJSON);
 	ADD_API_METHOD_1(loadSampleMapFromBase64);
 	ADD_API_METHOD_0(getSampleMapAsBase64);
+	ADD_API_METHOD_2(setAllowReleaseStart);
 	ADD_API_METHOD_1(getAudioWaveformContentAsBase64);
 	ADD_API_METHOD_1(setTimestretchRatio);
 	ADD_API_METHOD_1(setTimestretchOptions);
@@ -3941,6 +3943,19 @@ void ScriptingApi::Sampler::setRRGroupVolume(int groupIndex, int gainInDecibels)
 	}
 
 	s->setRRGroupVolume(groupIndex, Decibels::decibelsToGain((float)gainInDecibels));
+}
+
+bool ScriptingApi::Sampler::setAllowReleaseStart(int eventId, bool shouldBeAllowed)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setAllowReleaseStart() only works with Samplers.");
+		return false;
+	}
+
+	return s->setAllowReleaseStart(eventId, shouldBeAllowed);
 }
 
 

@@ -892,6 +892,9 @@ public:
 		/** Sets the volume of a particular group (use -1 for active group). Only works with disabled crossfade tables. */
 		void setRRGroupVolume(int groupIndex, int gainInDecibels);
 
+		/** Enable / disables the release start feature for the given event. */
+		bool setAllowReleaseStart(int eventId, bool shouldBeAllowed);
+
 		/** Returns the currently (single) active RR group. */
 		int getActiveRRGroup();
 

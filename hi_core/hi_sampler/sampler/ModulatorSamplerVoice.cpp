@@ -105,8 +105,11 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	{
 		startVoiceInternal(midiNoteNumber, velocity);
 	}
-	
-	
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(allowReleaseStart == ReleaseStartState::DisabledOnce)
+		allowReleaseStart = ReleaseStartState::Enabled;
+#endif
 	
 	if (auto fEnve = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::PanMode))
 	{
@@ -487,7 +490,10 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 	midiNoteNumber += transposeAmount;
 
-	
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(allowReleaseStart == ReleaseStartState::DisabledOnce)
+		allowReleaseStart = ReleaseStartState::Enabled;
+#endif
 
 	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
 

@@ -342,6 +342,90 @@ void ModulatorSampler::setNumChannels(int numNewChannels)
 
 }
 
+bool ModulatorSampler::setAllowReleaseStart(int eventId, bool shouldAllow)
+{
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(eventId == -1)
+	{
+		for(auto v: voices)
+		{
+			auto s = shouldAllow ? ModulatorSamplerVoice::ReleaseStartState::Enabled :
+								   ModulatorSamplerVoice::ReleaseStartState::AlwaysDisabled;
+
+			static_cast<ModulatorSamplerVoice*>(v)->setAllowReleaseStart(s);
+		}
+
+		return true;
+	}
+
+	for(auto av: activeVoices)
+	{
+		if(av->getCurrentHiseEvent().getEventId() == eventId)
+		{
+			auto s = shouldAllow ? ModulatorSamplerVoice::ReleaseStartState::Enabled :
+								   ModulatorSamplerVoice::ReleaseStartState::DisabledOnce;
+
+			static_cast<ModulatorSamplerVoice*>(av)->setAllowReleaseStart(s);
+			return true;
+		}
+	}
+#endif
+
+	return false;
+}
+
+void ModulatorSampler::handleSustainPedal(int midiChannel, bool isDown)
+{
+	ModulatorSynth::handleSustainPedal(midiChannel, isDown);
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(!isDown)
+	{
+		if(soundsHaveReleaseStart)
+		{
+			for (auto v : activeVoices)
+			{
+				if (!v->isPlayingChannel (midiChannel))
+					continue;
+
+                if ((v->isKeyDown() || v->isSostenutoPedalDown()))
+					continue;
+
+                auto s = static_cast<ModulatorSamplerSound*>(v->getCurrentlyPlayingSound().get());
+
+				if(s->getReferenceToSound()->isReleaseStartEnabled())
+					static_cast<ModulatorSamplerVoice*>(v)->jumpToRelease();
+			}
+		}
+	}
+#endif
+}
+
+const ModulatorSampler::ChannelData& ModulatorSampler::getChannelData(int index) const
+{
+	if (index >= 0 && index < getNumMicPositions())
+	{
+		return channelData[index];
+	}
+	else
+	{
+		jassertfalse;
+		return channelData[0];
+	}
+		
+}
+
+void ModulatorSampler::setMicEnabled(int channelIndex, bool channelIsEnabled) noexcept
+{
+	if (channelIndex >= NUM_MIC_POSITIONS || channelIndex < 0) return;
+
+	if(channelData[channelIndex].enabled != channelIsEnabled)
+	{
+		channelData[channelIndex].enabled = channelIsEnabled;
+		asyncPurger.triggerAsyncUpdate(); // will call refreshChannelsForSound asynchronously
+	}
+}
+
 int ModulatorSampler::getNumActiveGroups() const
 {
 	if (crossfadeGroups)
@@ -1300,6 +1384,9 @@ void ModulatorSampler::noteOff(const HiseEvent &m)
 			{
 				if(v->getCurrentHiseEvent().getEventId() == m.getEventId())
 				{
+					if(v->isSostenutoPedalDown() || v->isSustainPedalDown())
+						continue;
+
 					auto s = static_cast<ModulatorSamplerSound*>(v->getCurrentlyPlayingSound().get());
 
 					if(s->getReferenceToSound()->isReleaseStartEnabled())
