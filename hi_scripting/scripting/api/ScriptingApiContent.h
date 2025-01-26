@@ -604,7 +604,7 @@ public:
 
 		ValueTree styleSheetProperties;
 
-		WeakReference<WeakCallbackHolder::CallableObject> valueListener;
+		Array<WeakReference<WeakCallbackHolder::CallableObject>> valueListeners;
 		
 		Array<MouseListenerData> mouseListeners;
 

@@ -2398,7 +2398,7 @@ struct ScriptBroadcaster::RadioGroupListener::InternalListener
 	InternalListener(ScriptBroadcaster* b, ScriptComponent* sc) :
 		radioButton(sc)
 	{
-		radioButton->valueListener = b;
+		radioButton->valueListeners.add(b);
 	}
 
 	WeakReference<ScriptComponent> radioButton;
