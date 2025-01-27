@@ -1747,7 +1747,7 @@ public:
 		void setLoadingCallback(var loadingCallback);
 
 		/** Disables the paint routine and just uses the given (clipped) image. */
-		void setImage(String imageName, int xOffset, int yOffset);
+		void setImage(String imageName, bool isHorizontal, int offset);
 
 		/** Starts dragging an external file (or a number of files). */
 		bool startExternalFileDrag(var fileOrFilesToDrag, bool moveOriginalFiles, var finishCallback);
