@@ -1190,11 +1190,8 @@ CompileExporter::ErrorCodes CompileExporter::compileSolution(BuildOption buildOp
 	}
 #else
     
-    if(manager != nullptr)
-    {
-        String permissionCommand = "chmod +x \"" + batchFile.getFullPathName() + "\"";
-        system(permissionCommand.getCharPointer());
-    }
+    String permissionCommand = "chmod +x " + batchFile.getFullPathName().quoted();
+	system(permissionCommand.getCharPointer());
     
     String command = manager != nullptr ? batchFile.getFullPathName() : ("open " + batchFile.getFullPathName().quoted());
 
