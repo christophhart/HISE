@@ -245,16 +245,39 @@ namespace control
 		AnalyserType analyser;
 	};
 
-	template <typename ParameterClass> struct input_toggle : public pimpl::parameter_node_base<ParameterClass>,
-														     public pimpl::no_mod_normalisation,
-															 public pimpl::no_processing
+	struct input_toggle_base: public mothernode
 	{
-		SN_NODE_ID("input_toggle");
+		virtual ~input_toggle_base() {};
+
+		struct Data
+		{
+			bool useValue1 = false;
+			double v1 = 0.0;
+			double v2 = 0.0;
+		};
+
+		virtual const Data& getUIData() const = 0;
+
+	private:
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(input_toggle_base);
+	};
+
+	template <int NV, typename ParameterClass> struct input_toggle : public input_toggle_base,
+																	 public pimpl::parameter_node_base<ParameterClass>,
+																     public pimpl::no_mod_normalisation,
+																	 public polyphonic_base,
+																	 public pimpl::no_processing
+	{
+		static constexpr int NumVoices = NV;
+
+		SN_POLY_NODE_ID("input_toggle");
 		SN_GET_SELF_AS_OBJECT(input_toggle);
 
 		input_toggle() :
 			pimpl::parameter_node_base<ParameterClass>(getStaticId()),
-			pimpl::no_mod_normalisation(getStaticId(), {"Value1", "Value2" })
+			pimpl::no_mod_normalisation(getStaticId(), {"Value1", "Value2" }),
+		    polyphonic_base(getStaticId(), false)
 		{};
 
 		SN_DESCRIPTION("Switch between two input values as modulation signal");
@@ -274,36 +297,49 @@ namespace control
 		};
 		SN_PARAMETER_MEMBER_FUNCTION;
 
-		
-
 		void setInput(double input)
 		{
-			useValue1 = input < 0.5;
+			for(auto& d: data)
+			{
+				d.useValue1 = input < 0.5;
 
-			if (this->getParameter().isConnected())
-				this->getParameter().call(useValue1 ? v1 : v2);
+				if (this->getParameter().isConnected())
+					this->getParameter().call(d.useValue1 ? d.v1 : d.v2);
+			}
+			
 		}
 
 		void setValue1(double input)
 		{
-			v1 = input;
-
-			if (useValue1)
+			for(auto& d: data)
 			{
-				if (this->getParameter().isConnected())
-					this->getParameter().call(v1);
+				d.v1 = input;
+
+				if (d.useValue1)
+				{
+					if (this->getParameter().isConnected())
+						this->getParameter().call(d.v1);
+				}
 			}
 		}
 
 		void setValue2(double input)
 		{
-			v2 = input;
-
-			if (!useValue1)
+			for(auto& d: data)
 			{
-				if (this->getParameter().isConnected())
-					this->getParameter().call(v2);
+				d.v2 = input;
+
+				if (!d.useValue1)
+				{
+					if (this->getParameter().isConnected())
+						this->getParameter().call(d.v2);
+				}
 			}
+		}
+
+		void prepare(PrepareSpecs ps) override
+		{
+			data.prepare(ps);
 		}
 
 		void createParameters(ParameterDataList& data)
@@ -328,9 +364,9 @@ namespace control
 			}
 		}
 
-		bool useValue1 = false;
-		double v1 = 0.0;
-		double v2 = 0.0;
+		const Data& getUIData() const override { return data.getFirst(); }
+
+		PolyData<Data, NV> data;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(input_toggle);
 	};

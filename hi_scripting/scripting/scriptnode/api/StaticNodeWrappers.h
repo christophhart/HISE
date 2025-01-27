@@ -617,6 +617,8 @@ struct InterpretedCableNode : public ModulationSourceNode,
 		this->obj.handleHiseEvent(e);
 	}
 
+	bool isPolyphonic() const override { return this->obj.isPolyphonic(); }
+
 private:
 
 	typedef parameter::dynamic_base_holder*(*getParamFunc)(void*);

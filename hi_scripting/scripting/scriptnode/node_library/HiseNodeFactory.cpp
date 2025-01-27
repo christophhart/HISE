@@ -49,9 +49,9 @@ namespace scriptnode
 namespace control
 {
 
-struct input_toggle_editor : public ScriptnodeExtraComponent<input_toggle<parameter::dynamic_base_holder>>
+struct input_toggle_editor : public ScriptnodeExtraComponent<input_toggle_base>
 {
-	using ObjType = input_toggle<parameter::dynamic_base_holder>;
+	using ObjType = input_toggle_base;
 
 	input_toggle_editor(ObjType* t, PooledUIUpdater* u) :
 		ScriptnodeExtraComponent<ObjType>(t, u),
@@ -93,12 +93,10 @@ struct input_toggle_editor : public ScriptnodeExtraComponent<input_toggle<parame
 		if (c == Colours::transparentBlack)
 			c = Colour(0xFFADADAD);
 
-		g.setColour(c.withAlpha(getObject()->useValue1 ? 1.0f : 0.2f));
+		g.setColour(c.withAlpha(getObject()->getUIData().useValue1 ? 1.0f : 0.2f));
 		g.fillRoundedRectangle(l, l.getHeight() / 2.0f);
-		g.setColour(c.withAlpha(!getObject()->useValue1 ? 1.0f : 0.2f));
+		g.setColour(c.withAlpha(!getObject()->getUIData().useValue1 ? 1.0f : 0.2f));
 		g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
-
-		
 	}
 
 	ModulationSourceBaseComponent dragger;
@@ -1319,7 +1317,7 @@ namespace control
 
 		registerNoProcessNode<control::random<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
-		registerNoProcessNode<control::input_toggle<parameter::dynamic_base_holder>, input_toggle_editor>();
+		registerPolyNoProcessNode<control::input_toggle<1, parameter::dynamic_base_holder>, control::input_toggle<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, input_toggle_editor>();
 
         registerNoProcessNode<conversion_logic::dynamic::NodeType, conversion_logic::dynamic::editor>();
 
