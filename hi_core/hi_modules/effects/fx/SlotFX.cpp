@@ -359,22 +359,24 @@ public:
 			numObjectsFunction = [this](ExternalData::DataType dt){ return getEffect()->getNumDataObjects(dt); };
 		}
 
-		ExternalData::forEachType([&](ExternalData::DataType dt)
+		if(numObjectsFunction)
 		{
-			int numObjects = numObjectsFunction(dt);
-
-			for (int i = 0; i < numObjects; i++)
+			ExternalData::forEachType([&](ExternalData::DataType dt)
 			{
-				auto f = ExternalData::createEditor(getEffect()->getComplexBaseType(dt, i));
+				int numObjects = numObjectsFunction(dt);
 
-				auto c = dynamic_cast<Component*>(f);
+				for (int i = 0; i < numObjects; i++)
+				{
+					auto f = ExternalData::createEditor(getEffect()->getComplexBaseType(dt, i));
 
-				currentEditors.add(f);
-				addAndMakeVisible(c);
-			}
-		});
+					auto c = dynamic_cast<Component*>(f);
 
-
+					currentEditors.add(f);
+					addAndMakeVisible(c);
+				}
+			});
+		}
+		
 		if (auto on = getEffect()->opaqueNode.get())
 		{
 			for(const auto& p: OpaqueNode::ParameterIterator(*on))

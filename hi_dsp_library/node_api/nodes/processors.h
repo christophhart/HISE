@@ -681,6 +681,8 @@ struct oversample_base
 
 	using Oversampler = juce::dsp::Oversampling<float>;
 
+	using FilterType = Oversampler::FilterType;
+
 	oversample_base(int factor) :
 		oversamplingFactor(jmax(1, factor))
 	{};
@@ -699,7 +701,7 @@ struct oversample_base
 
         ScopedPointer<Oversampler> newOverSampler;
         
-        newOverSampler = new Oversampler(numChannels, (int)std::log2(oversamplingFactor), Oversampler::FilterType::filterHalfBandPolyphaseIIR, false);
+        newOverSampler = new Oversampler(numChannels, (int)std::log2(oversamplingFactor), filterType, false);
 
         if (originalBlockSize > 0)
             newOverSampler->initProcessing(originalBlockSize);
@@ -747,6 +749,28 @@ struct oversample_base
 		if(originalSpecs)
 			prepare(originalSpecs);
     }
+
+	FilterType getFilterType() const { return filterType; }
+
+	void setFilterType(int nt)
+    {
+		span<FilterType, 2> types = {
+			FilterType::filterHalfBandPolyphaseIIR,
+			FilterType::filterHalfBandFIREquiripple
+		};
+
+		auto newType = types[jlimit(0, 1, nt)];
+
+	    if(newType != filterType)
+	    {
+			SimpleReadWriteLock::ScopedWriteLock sl(this->lock);
+
+		    filterType = newType;
+
+			if(originalSpecs)
+				prepare(originalSpecs);
+	    }
+    }
     
 protected:
 
@@ -757,7 +781,9 @@ protected:
     int oversamplingFactor = 0;
     int originalBlockSize = 0;
     int numChannels = 0;
-	
+
+	FilterType filterType = FilterType::filterHalfBandPolyphaseIIR;
+
 	void* pObj = nullptr;
 	prototypes::prepare prepareFunc;
 
@@ -940,10 +966,15 @@ public:
 
     template <int P> void setParameter(double newValue)
     {
-		static_assert(P == 0, "illegal parameter index");
+		static_assert(P == 0 || P == 1, "illegal parameter index");
+		static_assert(OversamplingFactor == 0 || P == 0, "wrong filter type index for static oversampling");
 
-        if constexpr(P == 0)
-            this->setOversamplingFactor((int)newValue);
+		if constexpr(P == 0 && OversamplingFactor == 0)
+			this->setOversamplingFactor((int)newValue);
+        else
+			this->setFilterType((int)newValue);
+            
+		
     }
 	SN_FORWARD_PARAMETER_TO_MEMBER(oversample);
 
