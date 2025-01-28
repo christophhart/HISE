@@ -2059,13 +2059,13 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 		
 		if (newValue == "Use default skin" || newValue == "")
 		{
-			setScriptObjectProperty(filmstripImage, "Use default skin");
+			setScriptObjectProperty(filmstripImage, "Use default skin", sendNotification);
 
 			image.clear();
 		}
 		else
 		{
-			setScriptObjectProperty(filmstripImage, newValue);
+			setScriptObjectProperty(filmstripImage, newValue, sendNotification);
 
 			PoolReference ref(getProcessor()->getMainController(), newValue.toString(), ProjectHandler::SubDirectories::Images);
 
