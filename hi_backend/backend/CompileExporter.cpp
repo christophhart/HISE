@@ -1948,6 +1948,14 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 
     auto copyPlugin = !isUsingCIMode();
     
+#if JUCE_MAC
+    auto macOSVersion = SystemStats::getOperatingSystemType();
+    
+    // deactivate copy step on Sonoma (or later) to avoid the cycle dependencies error...
+    if(macOSVersion >= SystemStats::MacOS_14)
+        copyPlugin = false;
+#endif
+    
 	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", copyPlugin ? "1" : "0");
 
 #if JUCE_MAC
