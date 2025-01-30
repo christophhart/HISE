@@ -45,7 +45,7 @@
 
 #define JUCE_USE_DARK_SPLASH_SCREEN 1
 
-#define JUCE_PROJUCER_VERSION 0x60103
+#define JUCE_PROJUCER_VERSION 0x60104
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                  1
@@ -689,7 +689,7 @@
 // juce_product_unlocking flags:
 
 #ifndef    JUCE_USE_BETTER_MACHINE_IDS
- //#define JUCE_USE_BETTER_MACHINE_IDS 0
+ #define   JUCE_USE_BETTER_MACHINE_IDS 1
 #endif
 
 //==============================================================================

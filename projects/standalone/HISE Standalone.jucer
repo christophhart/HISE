@@ -37,25 +37,25 @@
         <CONFIGURATION name="Debug" osxCompatibility="10.13 SDK" isDebug="1" optimisation="1"
                        targetName="HISE Debug" linkTimeOptimisation="0" cppLanguageStandard="c++11"
                        cppLibType="libc++" enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"
-                       libraryPath="../../../../tools/faust/fakelib" defines="PERFETTO=1"/>
+                       libraryPath="../../../../tools/faust/fakelib" defines="PERFETTO=1&#10;"/>
         <CONFIGURATION name="Release" osxCompatibility="11.0 SDK" isDebug="0" optimisation="3"
                        targetName="HISE" linkTimeOptimisation="1" cppLibType="libc++"
                        enablePluginBinaryCopyStep="1" macOSDeploymentTarget="11.0" libraryPath="../../../../tools/faust/fakelib"
-                       defines="PERFETTO=1"/>
+                       defines="PERFETTO=1&#10;"/>
         <CONFIGURATION name="CI" osxCompatibility="10.13 SDK" isDebug="0" optimisation="4"
                        targetName="HISE" linkTimeOptimisation="0" cppLibType="libc++"
-                       enablePluginBinaryCopyStep="1" stripLocalSymbols="1" defines="HISE_CI=1&#10;HI_RUN_UNIT_TESTS=1&#10;PERFETTO=0"
+                       enablePluginBinaryCopyStep="1" stripLocalSymbols="1" defines="HISE_CI=1&#10;HI_RUN_UNIT_TESTS=1&#10;PERFETTO=0&#10;"
                        macOSDeploymentTarget="10.13" libraryPath="../../../../tools/faust/fakelib&#10;"/>
         <CONFIGURATION name="Release with Faust" osxCompatibility="10.13 SDK" isDebug="0"
                        optimisation="3" targetName="HISE" linkTimeOptimisation="1" cppLibType="libc++"
                        enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"
                        libraryPath="../../../../tools/faust/lib" binaryPath="Builds/MacOSX/build/Release"
-                       headerPath="../../../../tools/faust/include" defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"/>
+                       headerPath="../../../../tools/faust/include" defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1&#10;"/>
         <CONFIGURATION name="Debug with Faust" osxCompatibility="10.13 SDK" isDebug="1"
                        optimisation="1" targetName="HISE Debug" linkTimeOptimisation="0"
                        cppLibType="libc++" enablePluginBinaryCopyStep="1" macOSDeploymentTarget="10.13"
                        headerPath="../../../../tools/faust/include" libraryPath="../../../../tools/faust/lib"
-                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1"
+                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1&#10;PERFETTO=1&#10;"
                        binaryPath="Builds/MacOSX/build/Debug"/>
         <CONFIGURATION name="Minimal Build" osxCompatibility="10.13 SDK" isDebug="1"
                        optimisation="1" targetName="HISE Debug" linkTimeOptimisation="0"
@@ -101,7 +101,7 @@
     <VS2022 targetFolder="Builds/VisualStudio2022" smallIcon="ho3qQy" bigIcon="ho3qQy"
             useIPP="Sequential" IPPLibrary="" extraDefs="HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;HISE_USE_VS2022=1&#10;PERFETTO=0&#10;NOMINMAX=1 &#10;WIN32_LEAN_AND_MEAN=1"
             extraCompilerFlags="/bigobj  /cgthreads8 /wd&quot;4100&quot; /wd&quot;4661&quot; /wd&quot;4456&quot; /wd&quot;4244&quot; /wd&quot;4457&quot; /wd&quot;4458&quot; /wd&quot;4127&quot; /Zc:__cplusplus /permissive- /vmg&#10;&#10; "
-            IPP1ALibrary="Static_Library">
+            IPP1ALibrary="true">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" generateManifest="1" winArchitecture="x64" isDebug="1"
                        optimisation="1" targetName="HISE Debug" headerPath="../../../../tools/SDK/ASIOSDK2.3/common"
@@ -258,7 +258,7 @@
                JUCE_USE_DIRECTWRITE="1" JUCE_JACK="1" HISE_ENABLE_EXPANSIONS="1"
                HISE_ENABLE_MIDI_INPUT_FOR_FX="1" JUCE_STRICT_REFCOUNTEDPOINTER="1"
                HISE_INCLUDE_RLOTTiE="1" HISE_INCLUDE_SNEX="1" HISE_INCLUDE_LORIS="1"
-               HISE_USE_LORIS_DLL="0"/>
+               HISE_USE_LORIS_DLL="0" JUCE_USE_BETTER_MACHINE_IDS="1"/>
   <LIVE_SETTINGS>
     <OSX/>
     <WINDOWS/>
