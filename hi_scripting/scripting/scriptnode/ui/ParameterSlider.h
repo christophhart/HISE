@@ -250,11 +250,7 @@ struct ParameterSlider : public Slider,
 
 	double getValueToDisplay() const;
 
-	bool isControllingFrozenNode() const;
-
 	void repaintParentGraph();
-
-
 
 	int macroHoverIndex = -1;
 	double lastModValue = 0.0f;

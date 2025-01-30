@@ -297,7 +297,7 @@ int Console::ConsoleTokeniser::readNextToken(CodeDocument::Iterator& source)
     }
         
 
-    if(tokenIndex == 5)
+    if(tokenIndex == 5 || ((tokenIndex == 2 || tokenIndex == 4) && errorIsWholeLine))
     {
 	    source.skipToEndOfLine();
         return tokenIndex;

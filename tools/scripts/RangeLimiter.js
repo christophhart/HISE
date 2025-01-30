@@ -2,7 +2,7 @@
 lowerLimit = Content.addComboBox("lowerLimit", 0, 0);
 upperLimit = Content.addComboBox("upperLimit", 150, 0);
 
-for(i = 0; i < 127; i++)
+for(i = 0; i < 128; i++)
 {
 	lowerLimit.addItem(Engine.getMidiNoteName(i));
 	upperLimit.addItem(Engine.getMidiNoteName(i));

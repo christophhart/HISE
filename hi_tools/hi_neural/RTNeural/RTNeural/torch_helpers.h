@@ -21,6 +21,29 @@ namespace torch_helpers
             }
         }
 
+        /** Reverses the channel order for 1D convolutional layer weights */
+        template <typename T>
+        std::vector<std::vector<std::vector<T>>>
+        reverseChannels(std::vector<std::vector<std::vector<T>>>& conv_weights)
+        {
+            std::vector<std::vector<std::vector<T>>> aux { conv_weights[0].size() };
+
+            // Reverse channels in auxiliary variable
+            for(size_t j = 0; j < conv_weights[0].size(); j++)
+            {
+                aux[j].resize(conv_weights.size());
+                for(size_t i = 0; i < conv_weights.size(); i++)
+                {
+                    aux[j][i].resize(conv_weights[i][j].size());
+                    std::copy(conv_weights[i][j].begin(),
+                        conv_weights[i][j].end(),
+                        aux[j][i].begin());
+                }
+            }
+
+            return aux;
+        }
+
         /** Transposes the rows and columns of a matrix stored as a 2D vector. */
         template <typename T>
         std::vector<std::vector<T>> transpose(const std::vector<std::vector<T>>& x)
@@ -54,15 +77,38 @@ namespace torch_helpers
         const std::vector<std::vector<T>> dense_weights = modelJson.at(layerPrefix + "weight");
         dense.setWeights(dense_weights);
 
+        RTNEURAL_IF_CONSTEXPR(DenseType::dense_has_bias)
+        {
+            if(hasBias)
+            {
+                const std::vector<T> dense_bias = modelJson.at(layerPrefix + "bias");
+                dense.setBias(dense_bias.data());
+            }
+            else
+            {
+                const std::vector<T> dense_bias((size_t)dense.out_size, (T)0);
+                dense.setBias(dense_bias.data());
+            }
+        }
+    }
+
+    /** Loads a ConvTranspose1D layer from a JSON object containing a PyTorch state_dict. */
+    template <typename T, typename Conv1DType>
+    void loadConvTranspose1D(const nlohmann::json& modelJson, const std::string& layerPrefix, Conv1DType& conv, bool hasBias = true)
+    {
+        std::vector<std::vector<std::vector<T>>> conv_weights = modelJson.at(layerPrefix + "weight");
+        conv_weights = detail::reverseChannels<T>(conv_weights);
+        conv.setWeights(conv_weights);
+
         if(hasBias)
         {
-            const std::vector<T> dense_bias = modelJson.at(layerPrefix + "bias");
-            dense.setBias(dense_bias.data());
+            std::vector<T> conv_bias = modelJson.at(layerPrefix + "bias");
+            conv.setBias(conv_bias);
         }
         else
         {
-            const std::vector<T> dense_bias((size_t)dense.out_size, (T)0);
-            dense.setBias(dense_bias.data());
+            std::vector<T> conv_bias((size_t)conv.out_size, (T)0);
+            conv.setBias(conv_bias);
         }
     }
 
@@ -86,19 +132,23 @@ namespace torch_helpers
         }
     }
 
-    /** Loads a GRU layer from a JSON object containing a PyTorch state_dict. */
+    /**
+     * Loads a GRU layer from a JSON object containing a PyTorch state_dict.
+     * If your PyTorch GRU has num_layers > 1, you must call this method once
+     * for each layer, with the correct layer object and layer_index.
+     */
     template <typename T, typename GRUType>
-    void loadGRU(const nlohmann::json& modelJson, const std::string& layerPrefix, GRUType& gru, bool hasBias = true)
+    void loadGRU(const nlohmann::json& modelJson, const std::string& layerPrefix, GRUType& gru, bool hasBias = true, int layer_index = 0)
     {
         // For the kernel and recurrent weights, PyTorch stores the weights similar to the
         // Tensorflow format, but transposed, and with the "r" and "z" indexes swapped.
 
-        const std::vector<std::vector<T>> gru_ih_weights = modelJson.at(layerPrefix + "weight_ih_l0");
+        const std::vector<std::vector<T>> gru_ih_weights = modelJson.at(layerPrefix + "weight_ih_l" + std::to_string(layer_index));
         auto wVals = detail::transpose(gru_ih_weights);
         detail::swap_rz(wVals, gru.out_size);
         gru.setWVals(wVals);
 
-        const std::vector<std::vector<T>> gru_hh_weights = modelJson.at(layerPrefix + "weight_hh_l0");
+        const std::vector<std::vector<T>> gru_hh_weights = modelJson.at(layerPrefix + "weight_hh_l" + std::to_string(layer_index));
         auto uVals = detail::transpose(gru_hh_weights);
         detail::swap_rz(uVals, gru.out_size);
         gru.setUVals(uVals);
@@ -108,8 +158,8 @@ namespace torch_helpers
 
         if(hasBias)
         {
-            const std::vector<T> gru_ih_bias = modelJson.at(layerPrefix + "bias_ih_l0");
-            const std::vector<T> gru_hh_bias = modelJson.at(layerPrefix + "bias_hh_l0");
+            const std::vector<T> gru_ih_bias = modelJson.at(layerPrefix + "bias_ih_l" + std::to_string(layer_index));
+            const std::vector<T> gru_hh_bias = modelJson.at(layerPrefix + "bias_hh_l" + std::to_string(layer_index));
             std::vector<std::vector<T>> gru_bias { gru_ih_bias, gru_hh_bias };
             detail::swap_rz(gru_bias, gru.out_size);
             gru.setBVals(gru_bias);
@@ -123,20 +173,24 @@ namespace torch_helpers
         }
     }
 
-    /** Loads a LSTM layer from a JSON object containing a PyTorch state_dict. */
+    /**
+     * Loads a LSTM layer from a JSON object containing a PyTorch state_dict.
+     * If your PyTorch LSTM has num_layers > 1, you must call this method once
+     * for each layer, with the correct layer object and layer_index.
+     */
     template <typename T, typename LSTMType>
-    void loadLSTM(const nlohmann::json& modelJson, const std::string& layerPrefix, LSTMType& lstm, bool hasBias = true)
+    void loadLSTM(const nlohmann::json& modelJson, const std::string& layerPrefix, LSTMType& lstm, bool hasBias = true, int layer_index = 0)
     {
-        const std::vector<std::vector<T>> lstm_weights_ih = modelJson.at(layerPrefix + "weight_ih_l0");
+        const std::vector<std::vector<T>> lstm_weights_ih = modelJson.at(layerPrefix + "weight_ih_l" + std::to_string(layer_index));
         lstm.setWVals(detail::transpose(lstm_weights_ih));
 
-        const std::vector<std::vector<T>> lstm_weights_hh = modelJson.at(layerPrefix + "weight_hh_l0");
+        const std::vector<std::vector<T>> lstm_weights_hh = modelJson.at(layerPrefix + "weight_hh_l" + std::to_string(layer_index));
         lstm.setUVals(detail::transpose(lstm_weights_hh));
 
         if(hasBias)
         {
-            std::vector<T> lstm_bias_ih = modelJson.at(layerPrefix + "bias_ih_l0");
-            std::vector<T> lstm_bias_hh = modelJson.at(layerPrefix + "bias_hh_l0");
+            std::vector<T> lstm_bias_ih = modelJson.at(layerPrefix + "bias_ih_l" + std::to_string(layer_index));
+            std::vector<T> lstm_bias_hh = modelJson.at(layerPrefix + "bias_hh_l" + std::to_string(layer_index));
             for(size_t i = 0; i < lstm_bias_ih.size(); ++i)
                 lstm_bias_hh[i] += lstm_bias_ih[i];
             lstm.setBVals(lstm_bias_hh);

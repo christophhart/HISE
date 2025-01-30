@@ -575,7 +575,9 @@ public:
 
 	void setNumChannels(int numChannels);
 
+	bool setAllowReleaseStart(int eventId, bool shouldAllow);
 
+	void handleSustainPedal(int midiChannel, bool isDown) override;
 
 	struct ChannelData: RestorableObject
 	{
@@ -608,30 +610,9 @@ public:
 		String suffix;
 	};
 
-	const ChannelData &getChannelData(int index) const
-	{
-		if (index >= 0 && index < getNumMicPositions())
-		{
-			return channelData[index];
-		}
-		else
-		{
-			jassertfalse;
-			return channelData[0];
-		}
-		
-	}
+	const ChannelData &getChannelData(int index) const;
 
-	void setMicEnabled(int channelIndex, bool channelIsEnabled) noexcept
-	{
-		if (channelIndex >= NUM_MIC_POSITIONS || channelIndex < 0) return;
-
-        if(channelData[channelIndex].enabled != channelIsEnabled)
-        {
-            channelData[channelIndex].enabled = channelIsEnabled;
-            asyncPurger.triggerAsyncUpdate(); // will call refreshChannelsForSound asynchronously
-        }
-	}
+	void setMicEnabled(int channelIndex, bool channelIsEnabled) noexcept;
 
 	void refreshChannelsForSounds()
 	{

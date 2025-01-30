@@ -102,6 +102,7 @@ DECLARE_ID(DefaultUserPreset);
 DECLARE_ID(CompileWithPerfetto);
 DECLARE_ID(CompileWithDebugSymbols);
 DECLARE_ID(IncludeLorisInFrontend);
+DECLARE_ID(ProjectType);
 
 Array<Identifier> getAllIds();
 

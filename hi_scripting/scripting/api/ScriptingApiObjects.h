@@ -395,11 +395,14 @@ namespace ScriptingObjects
 		/** Renames the file. */
 		bool rename(String newName);
 
-		/** Moves the file. */
+		/** Moves the file. The target isn't the directory to put it in, it's the actual file to create. */
 		bool move(var target);
 
-		/** Copies the file. */
+		/** Copies the file. The target isn't the directory to put it in, it's the actual file to create. */
 		bool copy(var target);
+
+		/** Recursively copies the directory. The target is the actual directory to create, not the directory into which the new one should be placed. */
+		bool copyDirectory(var target);
 
 		/** Loads the given file as audio file. */
 		var loadAsAudioFile() const;
@@ -1603,6 +1606,9 @@ namespace ScriptingObjects
 		/** Loads the model layout and weights from a Pytorch model JSON. */
 		void loadPytorchModel(const var& modelJSON);
 
+		/** Loads the model from a NAM file. */
+		void loadNAMModel(const var& modelJSON); 
+
 		/** Loads the ONNX runtime model for spectral analysis. */
 		bool loadOnnxModel(const var& base64Data, int numOutputValues);
 
@@ -2111,6 +2117,12 @@ namespace ScriptingObjects
 
 		/** Sets the amount of channels (if the matrix is resizeable). */
 		void setNumChannels(int numSourceChannels);
+		
+		/** Gets the amount of source channels. */
+		int getNumSourceChannels();
+		
+		/** Gets the amount of destination channels. */
+		int getNumDestinationChannels();
 
 		/** adds a connection to the given channels. */
 		bool addConnection(int sourceIndex, int destinationIndex);

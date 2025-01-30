@@ -966,9 +966,10 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 			{
 				auto isDelayed = initStretcher(pitchSt);
 
-				if(isDelayed == sendNotificationAsync)
+                jassert(delayedStartFunction);
+                
+				if(delayedStartFunction && isDelayed == sendNotificationAsync)
 				{
-					jassert(delayedStartFunction);
 					delayedStartFunction(true, voiceIndexForDelayedStart);
 				}
 

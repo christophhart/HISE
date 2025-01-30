@@ -134,11 +134,6 @@ int BackendDllManager::getHashForNetworkFile(MainController* mc, const String& i
 
 bool BackendDllManager::unloadDll()
 {
-	if (auto fh = ProcessorHelpers::getFirstProcessorWithType<scriptnode::DspNetwork::Holder>(getMainController()->getMainSynthChain()))
-	{
-		fh->setProjectDll(nullptr);
-	}
-
 	if (projectDll != nullptr)
 	{
 		projectDll = nullptr;
@@ -150,6 +145,8 @@ bool BackendDllManager::unloadDll()
 
 bool BackendDllManager::loadDll(bool forceUnload)
 {
+	scriptnode::dll::ProjectDll::Ptr oldDll = projectDll;
+
 	if (forceUnload)
 		unloadDll();
 
@@ -168,6 +165,13 @@ bool BackendDllManager::loadDll(bool forceUnload)
 		if (dllFile.existsAsFile())
 		{
 			projectDll = new scriptnode::dll::ProjectDll(dllFile);
+
+			if(projectDll != nullptr && (oldDll == nullptr || oldDll->getDllFile() != projectDll->getDllFile()))
+			{
+				reloadBroadcaster.sendMessage(sendNotificationSync, { oldDll.get(), projectDll.get() });
+			}
+
+			oldDll = nullptr;
 
 			return *projectDll;
 		}

@@ -154,6 +154,7 @@ public:
 			lastValues[index] = v;
 			SimpleReadWriteLock::ScopedReadLock sl(getAccessLock());
 			pFunctions[index].callVoid(v);
+			changeFlag[index] = true;
 		}
 
 		template <int P> static void setParameterStatic(void* obj, double v)
@@ -162,11 +163,35 @@ public:
 			typed->setParameterDynamic(P, v);
 		}
 
+		bool hasParameterChanged(int index)
+		{
+			if(changeFlag[index])
+			{
+				changeFlag[index] = false;
+				return true;
+			}
+
+			return false;
+		}
+
+		bool hasAnyParameterChanged()
+		{
+			bool changed = false;
+
+			for(int i = 0; i < numParameters; i++)
+			{
+				changed |= hasParameterChanged(i);
+			}
+
+			return changed;
+		}
+
 	protected:
 
 		int numParameters = 0;
 		span<snex::jit::FunctionData, OpaqueNode::NumMaxParameters> pFunctions;
 		double lastValues[OpaqueNode::NumMaxParameters];
+		bool changeFlag[OpaqueNode::NumMaxParameters];
 	};
 
 	virtual SnexTestBase* createTester() = 0;

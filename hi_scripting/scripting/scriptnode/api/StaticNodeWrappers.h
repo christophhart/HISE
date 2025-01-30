@@ -112,7 +112,102 @@ struct OpaqueNodeDataHolder: public data::base,
 	JUCE_DECLARE_WEAK_REFERENCEABLE(OpaqueNodeDataHolder);
 };
 
-template <class WType> class InterpretedNodeBase
+class NodeWithFactoryConnection
+{
+public:
+	virtual ~NodeWithFactoryConnection() {};
+	virtual void reloadFromDll(dll::FactoryBase* newFactory) = 0;
+};
+
+struct UncompiledNode: public WrapperNode,
+					   public NodeWithFactoryConnection	 	
+{
+	struct ReloadComponent: public Component
+	{
+		ReloadComponent(bool reloaded_):
+			reloaded(reloaded_)
+		{
+			setMouseCursor(MouseCursor::PointingHandCursor);
+			setSize(256, 72);
+		}
+
+		void mouseDown(const MouseEvent& e) override;
+
+		bool reloaded = false;
+
+		void paint(Graphics& g) override
+		{
+			auto area = getLocalBounds().toFloat().reduced(UIValues::NodeMargin);
+			ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, area, false);
+
+			if(isMouseOver())
+			{
+				g.setColour(Colours::white.withAlpha(0.03f));
+				g.fillRect(area);
+			}
+
+			auto x = UIValues::NodeMargin;
+			auto w = getWidth() - 2 * UIValues::NodeMargin;
+			g.setColour(reloaded ? Colours::white.withAlpha(0.8f) : Colour(HISE_WARNING_COLOUR));
+			g.setFont(GLOBAL_BOLD_FONT());
+
+			String text;
+
+			if(reloaded)
+				text = "Click to reload the network with the compiled node";
+			else
+				text = "Click to compile the DLL with all effects in order to use this node...";
+
+			g.drawMultiLineText(text, x, x * 3, w, Justification::centred);
+		}
+	};
+
+	UncompiledNode(DspNetwork* n, ValueTree v):
+	  WrapperNode(n, v)
+	{
+		extraComponentFunction = [this](void* obj, PooledUIUpdater* updater)
+		{
+			return new ReloadComponent(reloaded);
+		};
+
+		for (auto p : getParameterTree())
+		{
+			auto newP = new Parameter(this, p);
+			newP->setDynamicParameter(new parameter::dynamic_base_holder());
+			addParameter(newP);
+		}
+	}
+
+	bool reloaded = false;
+
+	void reloadFromDll(dll::FactoryBase* newFactory) override
+	{
+		reloaded = true;
+		getRootNetwork()->getExceptionHandler().removeError(this);
+	}
+	
+	void* getObjectPtr() override { return nullptr; }
+
+	void prepare(PrepareSpecs ps) override
+	{}
+
+	void process(ProcessDataDyn& ) override
+	{
+		
+	}
+
+	void reset() override
+	{
+		
+	}
+
+	void processFrame(FrameType& data) override
+	{
+		
+	}
+};
+
+template <class WType> class InterpretedNodeBase: public NodeWithFactoryConnection
 {
 public:
 
@@ -179,9 +274,63 @@ public:
 		return nullptr;
 	}
 
+
+	void reloadFromDll(dll::FactoryBase* newFactory) override
+	{
+#if USE_BACKEND
+		auto on = dynamic_cast<OpaqueNode*>(&obj.getWrappedObject());
+		jassert(on != nullptr);
+
+		if (nodeFactory != nullptr)
+		{
+			auto mc = asWrapperNode()->getScriptProcessor()->getMainController_();
+			mc->connectToRuntimeTargets(*on, false);
+			nodeFactory->deinitOpaqueNode(on);
+		}
+
+		for(int i = 0; i < newFactory->getNumNodes(); i++)
+		{
+			if(newFactory->getId(i) == reloadData.id)
+			{
+				auto asNode = dynamic_cast<NodeBase*>(this);
+
+				Array<std::pair<String, double>> parameterValues;
+
+				while(asNode->getNumParameters() > 0)
+				{
+					auto p = asNode->getParameterFromIndex(0);
+					parameterValues.add({ p->getId(), p->getValue() });
+					asNode->removeParameter(0);
+				}
+				
+				initFromDll(newFactory, i, reloadData.addDragger);
+
+				for(int i = 0; i < asNode->getNumParameters(); i++)
+				{
+					auto p = asNode->getParameterFromIndex(i);
+
+					if(p->getId() == parameterValues[i].first)
+						p->setValueAsync(parameterValues[i].second);
+				}
+
+				break;
+			}
+		}
+#else
+		ignoreUnused(newFactory);
+#endif
+	}
+
 	void initFromDll(dll::FactoryBase* f, int index, bool addDragger)
 	{
 		nodeFactory = f;
+
+#if USE_BACKEND
+
+		reloadData.addDragger = addDragger;
+		reloadData.id = f->getId(index);
+
+#endif
 
 		f->initOpaqueNode(&obj.getWrappedObject(), index, asWrapperNode()->getRootNetwork()->isPolyphonic());
 		this->obj.initialise(asWrapperNode());
@@ -203,11 +352,11 @@ public:
 
 	WrapperType& getWrapperType() { return obj; }
 
-	
-
 protected:
 
 	WrapperType obj;
+
+	dll::FactoryBase* nodeFactory = nullptr;
 
 	void* getObjectPtrFromWrapper()
 	{
@@ -226,7 +375,14 @@ protected:
 
 private:
 
-	dll::FactoryBase* nodeFactory = nullptr;
+#if USE_BACKEND
+	struct ReloadData
+	{
+		int index = -1;
+		String id;
+		bool addDragger = false;
+	} reloadData;
+#endif
 
 	ScopedPointer<OpaqueNodeDataHolder> opaqueDataHolder;
 
@@ -460,6 +616,8 @@ struct InterpretedCableNode : public ModulationSourceNode,
 	{
 		this->obj.handleHiseEvent(e);
 	}
+
+	bool isPolyphonic() const override { return this->obj.isPolyphonic(); }
 
 private:
 

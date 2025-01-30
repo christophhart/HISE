@@ -357,7 +357,7 @@ private:
 
 		b.clear();
 
-		for (uint8 i = 0; i < 127; i++)
+		for (uint8 i = 0; i < 128; i++)
 		{
 
 			HiseEvent e(HiseEvent::Type::NoteOn, i, 50, 1);

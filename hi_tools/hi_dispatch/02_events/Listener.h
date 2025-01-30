@@ -139,6 +139,8 @@ private:
 	sigslot::signal<const EventData&> sig;
 };
 
+
+
 // A listener object that receives notifications about events of the SerialisedTree
 // Features:
 // - adding & removing listeners is a lockfree operation
@@ -260,7 +262,7 @@ public:
 		}
 	};
 
-	hise::UnorderedStack<std::pair<ListenerQueue*, Connection>, 32> currentConnection;
+	hise::UnorderedStack<std::pair<ListenerQueue*, Connection>, HISE_NUM_LISTENER_SLOTS> currentConnection;
 
 	void onSigSlot(const ListenerQueue::EventData& f)
 	{
@@ -269,17 +271,6 @@ public:
 			c.second.call(f);
 		}
 	}
-
-#if 0
-	void addListenerToRawQueue(ListenerQueue* q, uint8 slotIndex, DispatchType n)
-	{
-		Connection info(nullptr, this);
-		info.listenerType = EventType::ListenerAnySlot;
-		info.slotIndex = slotIndex;
-		info.n = n;
-		addToQueueInternal(q, info);
-	}
-#endif
 
 	/** Registers the listener to all slot changes of a subset of source slots. */
 	void addListenerToSingleSource(Source* source, uint8* slotIndexes, uint8 numSlots, DispatchType n);
@@ -306,33 +297,14 @@ private:
 
 	void addToQueueInternal(ListenerQueue* q, const Connection& con)
 	{
-		jassert(currentConnection.size() < 31);
+		jassert(currentConnection.size() < (HISE_NUM_LISTENER_SLOTS-1));
 		currentConnection.insertWithoutSearch({q, con});
 		q->addListener(this);
 	}
 
-	/*
-	struct ConnectionType
-	{
-		bool operator==(const ConnectionType& other) const
-		{
-			return q == other.q;
-		}
-
-		ListenerQueue* q = nullptr;
-		sigslot::connection con;
-	};
-	*/
-
 	ListenerOwner& owner;
 	bool removed = true;
-
-	static constexpr int NumMaxConnections = 256;
-
-	/*
-	hise::UnorderedStack<ConnectionType, NumMaxConnections> connections;
-	*/
-
+	
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Listener);
 };
 

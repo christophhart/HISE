@@ -165,19 +165,10 @@ void SnexSource::rebuildCallbacksAfterChannelChange(int numChannelsToProcess)
 
 	if (wb != nullptr)
 	{
-		
 		wb->setNumChannels(currentChannelCount);
 
 		if (wasZero)
 			wb->triggerRecompile();
-
-#if 0
-		if (auto objPtr = wb->getLastResult().mainClassPtr)
-		{
-			if (lastResult.wasOk())
-				lastResult = getCallbackHandler().recompiledOk(objPtr);
-		}
-#endif
 	}
 }
 

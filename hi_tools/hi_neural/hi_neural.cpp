@@ -2,8 +2,11 @@
 #define RTNEURAL_USE_XSIMD 1
 
 #include "hi_neural.h"
+#include "hi_neural.h"
 
 #include "RTNeural/RTNeural/RTNeural.h"
+#include "RTNeural/modules/math_approx/math_approx.hpp"
+#include "RTNeural/RTNeural/wavenet/wavenet_model.hpp"
 
 namespace hise
 {
@@ -486,6 +489,115 @@ Result NeuralNetwork::loadPytorchModel(const var& fullJson)
 		return ok;
 
 	return loadWeights(weightData);
+}
+
+
+
+struct NAMModel: public NeuralNetwork::ModelBase
+{
+	using Dilations = wavenet::Dilations<1, 2, 4, 8, 16, 32, 64, 128, 256, 512>;
+
+	struct NAMMathsProvider
+	{
+	#if RTNEURAL_USE_EIGEN
+	    template <typename Matrix>
+	    static auto tanh (const Matrix& x)
+	    {
+	        // See: math_approx::tanh<3>
+	        const auto x_poly = x.array() * (1.0f + 0.183428244899f * x.array().square());
+	        return x_poly.array() * (x_poly.array().square() + 1.0f).array().rsqrt();
+	    }
+	#elif RTNEURAL_USE_XSIMD
+	    template <typename T>
+	    static T tanh (const T& x)
+	    {
+	        return math_approx::tanh<3> (x);
+	    }
+	#endif
+	};
+
+	NAMModel(const var& data_):
+	  ModelBase(),
+	  jsonData(data_)
+	{
+		auto s = JSON::toString(jsonData, true);
+		loadWeights(s);
+	};
+
+	void reset() final
+	{
+		obj.prewarm();
+	};
+
+	void process(const float* input, float* output) final
+	{
+		*output = obj.forward(*input);
+	};
+
+	int getNumInputs() const final
+	{
+		return 1;
+	};
+
+	int getNumOutputs() const final
+	{
+		return 1;
+	};
+
+	ModelBase* clone() final
+	{
+		return new NAMModel(jsonData);
+	};
+
+	Result loadWeights(const String& jsonData) final
+	{
+		nlohmann::json model_json {};
+		auto j = nlohmann::json::parse(jsonData.toStdString());
+
+		try
+		{
+			obj.load_weights(j);
+		}
+		catch(std::exception& e)
+		{
+			return Result::fail(e.what());
+		}
+        
+        return Result::ok();
+	};
+
+	wavenet::Wavenet_Model<float,
+                           1,
+                           wavenet::Layer_Array<float, 1, 1, 8, 16, 3, Dilations, false, NAMMathsProvider>,
+                           wavenet::Layer_Array<float, 16, 1, 1, 8, 3, Dilations, true, NAMMathsProvider>>
+
+	obj;
+
+	var jsonData;
+};
+
+Result NeuralNetwork::loadNAMModel(const var& jsonData)
+{
+	OwnedArray<ModelBase> nm;
+
+	try
+	{
+		nm.add(new NAMModel(jsonData));
+
+		for(int i = 1; i < getNumNetworks(); i++)
+			nm.add(nm.getFirst()->clone());
+	}
+	catch(Result& r)
+	{
+		return r;
+	}
+
+	{
+		SimpleReadWriteLock::ScopedMultiWriteLock sl(lock);
+		currentModels.swapWith(nm);
+	}
+	
+	return Result::ok();
 }
 
 void NeuralNetwork::clearModel()

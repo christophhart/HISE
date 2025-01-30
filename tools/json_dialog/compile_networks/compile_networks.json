@@ -1,0 +1,153 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Compile Networks",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "#total-progress\n{\n\tdisplay: none;\n}\n\n#content\n{\n\tpadding: 50px 80px;\n}\n\nlabel\n{\n\tmin-width: 180px;\n}\n\n.top\n{\n\talign-items: flex-start;\n}",
+    "UseViewport": true,
+    "ConfirmClose": true,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 800,
+    "DialogHeight": 780
+  },
+  "GlobalState": {
+    "clearDLL": "true",
+    "ButtonId": 1
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "SimpleText",
+                  "Text": "Networks to compile:",
+                  "Class": ".list-label"
+                },
+                {
+                  "Type": "MarkdownText",
+                  "Text": "- `Noice.xml`\n- `ScriptFX1.xml`\n- `Noice.xml`\n- `ScriptFX1.xml`\n- `Noice.xml`\n- `ScriptFX1.xml`\n- `Noice.xml`\n- `ScriptFX1.xml`\n- `Noice.xml`\n- `ScriptFX1.xml`",
+                  "ID": "nodeList"
+                }
+              ],
+              "Class": ".column"
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "SimpleText",
+                  "Text": "C++ files to compile:",
+                  "Class": ".list-label"
+                },
+                {
+                  "Type": "MarkdownText",
+                  "Text": "- `Noice.cpp`\n- `ScriptFX1.cpp`",
+                  "ID": "cppList"
+                }
+              ],
+              "Class": ".column"
+            },
+            {
+              "Type": "List",
+              "Children": [
+                {
+                  "Type": "SimpleText",
+                  "Text": "Faust files to compile:",
+                  "Class": ".list-label"
+                },
+                {
+                  "Type": "MarkdownText",
+                  "Text": "- `Noice.cpp`\n- `ScriptFX1.cpp`",
+                  "ID": "faustList"
+                }
+              ],
+              "Class": ".column"
+            }
+          ],
+          "Style": "gap: 10px;",
+          "Class": ".top"
+        },
+        {
+          "Type": "JavascriptFunction",
+          "ID": "onInit",
+          "Code": "{BIND::onInit}"
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "___\n"
+        },
+        {
+          "Type": "Button",
+          "Text": "Link time optimization",
+          "ID": "enableLTO",
+          "Class": ".nolabel",
+          "Help": "Enable this if you want to test the final performance of the compiled effect. This enables Link Time Optimization (the last step in the compilation stage).\n\nIf you want to decrease the compilation time during development, you can untick this box to speed up the DLL compilation."
+        },
+        {
+          "Type": "Button",
+          "Text": "Replace script FX modules",
+          "ID": "replaceScriptModules",
+          "Class": ".nolabel",
+          "Help": "Tick this box if you want to replace all script FX modules which have a compileable DSP network with their hardcoded counterpart. This preserves all parameter values and complex data connections."
+        }
+      ],
+      "Text": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "SimpleText",
+          "Text": "Compilation Log:",
+          "Class": ".description"
+        },
+        {
+          "Type": "Placeholder",
+          "ID": "CompileOutput",
+          "ContentType": "Logger",
+          "Style": "height: 450px;"
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "",
+          "ID": "compileTask",
+          "Function": "compileTask"
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 20px;"
+    }
+  ],
+  "Assets": []
+}

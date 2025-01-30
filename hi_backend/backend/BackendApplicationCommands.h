@@ -113,6 +113,7 @@ public:
         
 		// Export Menu
 		MenuExportSetupWizard,
+		MenuExportCompileProject,
 		MenuExportFileAsPlugin,
 		MenuExportFileAsEffectPlugin,
 		MenuExportFileAsMidiFXPlugin,
@@ -192,6 +193,7 @@ public:
 		// DSP Tools
 		MenuToolsEnableDebugLogging,
 		MenuToolsShowDspNetworkDllInfo,
+		MenuToolsReplaceScriptFXWithHardcodedFX,
 		MenuToolsRecordOneSecond,
 		MenuToolsSimulateChangingBufferSize,
         MenuToolsCreateRnboTemplate,
@@ -259,13 +261,8 @@ public:
 
    
     
-	void setCommandTarget(ApplicationCommandInfo &result, const String &name, bool active, bool ticked, char shortcut, bool useShortCut=true, ModifierKeys mod=ModifierKeys::commandModifier) {
-		result.setInfo(name, name, "Unused", 0);
-		result.setActive(active); 
-		result.setTicked(ticked);
-
-		if (useShortCut) result.addDefaultKeypress(shortcut, mod);
-	};
+	void setCommandTarget(ApplicationCommandInfo &result, const String &name, bool active, bool ticked, char shortcut, bool useShortCut=true, ModifierKeys mod=ModifierKeys::commandModifier);
+	;
 
 	bool clipBoardNotEmpty() const { return SystemClipboard::getTextFromClipboard().isNotEmpty(); }
     
@@ -318,6 +315,8 @@ public:
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
 		static DialogWindowWithBackgroundThread* importProject(BackendRootWindow* bpe);
+
+		static void compileProject(BackendRootWindow* bpe);
 
 		static void extractProject(BackendRootWindow* bpe, const File& newProjectRoot, const File& sourceFile);
 
@@ -401,6 +400,8 @@ public:
 		static void createGlobalCableCppCode(BackendRootWindow* bpe);
 
 		static void exportAudio(BackendRootWindow* bpe);
+
+		static void replaceScriptModules(BackendRootWindow* bpe);
 	};
 
 private:

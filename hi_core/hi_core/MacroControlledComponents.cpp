@@ -154,7 +154,7 @@ void MacroControlledObject::enableMidiLearnWithPopup()
 		{
 			auto value = handler->getMidiControllerNumber(processor, parameterToUse);
 
-			for (int i = 1; i < 127; i++)
+			for (int i = 0; i < 128; i++)
 			{
 				if (handler->shouldAddControllerToPopup(i))
 					mToUse.addItem(i + MidiOffset, handler->getControllerName(i), handler->isMappable(i), i == value);

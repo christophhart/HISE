@@ -641,11 +641,7 @@ public:
 
 		static bool swapOrientation(DspNetworkGraph& g);
 
-		static bool freezeNode(NodeBase::Ptr node);
-		static bool unfreezeNode(NodeBase::Ptr node);
-
 		static bool toggleBypass(DspNetworkGraph& g);
-		static bool toggleFreeze(DspNetworkGraph& g);
 
 		static bool toggleProbe(DspNetworkGraph& g);
 		static bool setRandomColour(DspNetworkGraph& g);

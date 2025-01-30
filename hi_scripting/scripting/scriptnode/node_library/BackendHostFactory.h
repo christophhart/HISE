@@ -99,6 +99,17 @@ struct BackendDllManager : public ReferenceCountedObject,
 
 	static int getHashForNetworkFile(MainController* mc, const String& id);
 
+	bool isDllLoaded() const { return projectDll != nullptr; }
+
+	bool hasFilesToCompile()
+	{
+		auto hasCpp = !getThirdPartyFiles(getMainController(), false).isEmpty();
+		auto hasNetworks = !getNetworkFiles(getMainController(), false).isEmpty();
+		auto hasFaustFiles = getSubFolder(getMainController(), FolderSubType::FaustCode).getNumberOfChildFiles(File::findFiles, "*.dsp") != 0;
+
+		return hasCpp || hasNetworks || hasFaustFiles;
+	}
+
 	bool unloadDll();
 	bool loadDll(bool forceUnload);
 
@@ -245,5 +256,7 @@ struct BackendDllManager : public ReferenceCountedObject,
 	}
 
 	scriptnode::dll::ProjectDll::Ptr projectDll;
+
+	LambdaBroadcaster<std::pair<scriptnode::dll::ProjectDll*, scriptnode::dll::ProjectDll*>> reloadBroadcaster;
 };
 }

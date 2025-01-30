@@ -3103,8 +3103,8 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 
 	ScopedPointer<Logger> outputLogger = new ConsoleLogger(chain);
 
-	if(!CompileExporter::isExportingFromCommandLine())
-		Logger::setCurrentLogger(outputLogger);
+	//if(!CompileExporter::isExportingFromCommandLine())
+	//Logger::setCurrentLogger(outputLogger);
 
 	auto* progress = logData != nullptr ? &logData->progress : nullptr;
 
@@ -3137,7 +3137,7 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 	if (logData != nullptr) logData->logFunction("Export MIDI files");
 	chain->getMainController()->getCurrentMidiFilePool()->getDataProvider()->writePool(new FileOutputStream(midiOutputFile), progress);
 
-    Logger::setCurrentLogger(previousLogger);
+    //Logger::setCurrentLogger(previousLogger);
 
 	outputLogger = nullptr;
 #else

@@ -46,8 +46,7 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	parent(parent_),
 	powerButton(getPowerButtonId(false), this, f, getPowerButtonId(true)),
 	deleteButton("close", this, f),
-	parameterButton("parameter", this, f),
-	freezeButton("freeze", this, f)
+	parameterButton("parameter", this, f)
 {
     String tooltip;
     
@@ -77,7 +76,7 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	colourUpdater.setCallback(parent.node->getValueTree(), { PropertyIds::NodeColour }, valuetree::AsyncMode::Synchronously,
 		BIND_MEMBER_FUNCTION_2(NodeComponent::Header::updateColour));
 
-	dynamicPowerUpdater.setTypesToWatch({ PropertyIds::Nodes, PropertyIds::Connections });
+	dynamicPowerUpdater.setTypesToWatch({ PropertyIds::Nodes, PropertyIds::Connections, PropertyIds::ModulationTargets });
 
 	dynamicPowerUpdater.setCallback(parent.node->getRootNetwork()->getValueTree(), valuetree::AsyncMode::Asynchronously, [this](ValueTree v, bool wasAdded)
 	{
@@ -94,9 +93,6 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 	addAndMakeVisible(powerButton);
 	addAndMakeVisible(deleteButton);
 	addAndMakeVisible(parameterButton);
-	addAndMakeVisible(freezeButton);
-
-	freezeButton.setToggleModeWithColourChange(true);
 
 	bool isContainer = false;
 
@@ -112,13 +108,6 @@ NodeComponent::Header::Header(NodeComponent& parent_) :
 		parameterUpdater.setCallback(parent.node->getValueTree(), {PropertyIds::ShowParameters}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Header::updateConnectionButton));
 	}
 
-	freezeButton.setEnabled(parent.node->getRootNetwork()->canBeFrozen());
-
-	freezeButton.setToggleStateAndUpdateIcon(parent.node->getRootNetwork()->isFrozen());
-	
-	if (!freezeButton.isEnabled())
-		freezeButton.setAlpha(0.1f);
-    
     setRepaintsOnMouseActivity(true);
 }
 
@@ -135,11 +124,6 @@ void NodeComponent::Header::buttonClicked(Button* b)
 
 		parent.dataReference.getParent().removeChild(
 			parent.dataReference, parent.node->getUndoManager());
-	}
-	if (b == &freezeButton)
-	{
-		parent.node->getRootNetwork()->setUseFrozenNode(b->getToggleState());
-		parent.repaint();
 	}
 	if (b == &parameterButton)
 	{
@@ -178,18 +162,11 @@ void NodeComponent::Header::resized()
 	auto b = getLocalBounds();
 
 	powerButton.setBounds(b.removeFromLeft(getHeight()).reduced(3));
-
 	parameterButton.setBounds(b.removeFromLeft(getHeight()).reduced(3));
-
 	deleteButton.setBounds(b.removeFromRight(getHeight()).reduced(3));
-	freezeButton.setBounds(deleteButton.getBounds());
-
 	powerButton.setVisible(!parent.isRoot());
 
-	
-
 	deleteButton.setVisible(!parent.isRoot());
-	freezeButton.setVisible(false);
 }
 
 void NodeComponent::Header::mouseDown(const MouseEvent& e)
@@ -197,14 +174,13 @@ void NodeComponent::Header::mouseDown(const MouseEvent& e)
 	CHECK_MIDDLE_MOUSE_DOWN(e);
 
 	if (e.mods.isRightButtonDown())
-	{
 		parent.handlePopupMenuResult((int)MenuActions::EditProperties);
-	}
 }
 
 void NodeComponent::Header::mouseUp(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_UP(e);
+	ZoomableViewport::checkDragScroll(e, true);
 
 	if (e.mods.isRightButtonDown())
 	{
@@ -225,6 +201,8 @@ void NodeComponent::Header::mouseUp(const MouseEvent& e)
 void NodeComponent::Header::mouseDrag(const MouseEvent& e)
 {
 	CHECK_MIDDLE_MOUSE_DRAG(e);
+
+	ZoomableViewport::checkDragScroll(e, false);
 
 	if (isDragging)
 	{
@@ -347,10 +325,6 @@ void NodeComponent::Header::paint(Graphics& g)
 	if(parameterButton.isVisible())
 		leftMargin += textArea.getHeight();
 
-	if(freezeButton.isVisible())
-		rightMargin += textArea.getHeight();
-
-
 	auto ar = getLocalBounds().toFloat();
 	ar.removeFromRight(ar.getHeight());
 
@@ -405,11 +379,6 @@ NodeComponent::NodeComponent(NodeBase* b) :
 	node(b),
 	header(*this)
 {
-	if (auto en = node->getEmbeddedNetwork())
-	{
-		addAndMakeVisible(embeddedNetworkBar = new EmbeddedNetworkBar(b));
-	}
-
 	node->getRootNetwork()->addSelectionListener(this);
 
 	setName(b->getId());
@@ -468,9 +437,6 @@ juce::Rectangle<int> NodeComponent::PositionHelpers::createRectangleForParameter
                                                                                         int numColumns)
 {
 	int h = UIValues::HeaderHeight;
-		
-	if (n->getEmbeddedNetwork() != nullptr)
-		h += 24;
 
 	auto eb = n->getExtraComponentBounds();
 
@@ -524,45 +490,6 @@ void NodeComponent::paint(Graphics& g)
 
 void NodeComponent::paintOverChildren(Graphics& g)
 {
-	if (isRoot() && node->getRootNetwork()->isFrozen())
-	{
-		auto b = getLocalBounds().reduced(1);
-		b.removeFromTop(header.getHeight());
-
-		if (header.parameterButton.getToggleState())
-			b.removeFromTop(UIValues::ParameterHeight + UIValues::MacroDragHeight);
-
-		auto hashMatches = node->getRootNetwork()->hashMatches();
-
-		g.setColour(hashMatches ? Colour(0xEE171717) : Colour(0xEE221111));
-		g.fillRect(b);
-
-		g.setFont(GLOBAL_BOLD_FONT());
-
-		if (!hashMatches)
-		{
-			g.setColour(Colours::white);
-			g.setFont(GLOBAL_BOLD_FONT());
-			g.drawText("The compiled node doesn't match the interpreted network. Recompile this node in order to ensure consistent behaviour", b.toFloat(), Justification::centred);
-		}
-
-		Path fp;
-		fp.loadPathFromData(HnodeIcons::freezeIcon, SIZE_OF_PATH(HnodeIcons::freezeIcon));
-		auto pSize = jmin(200, getWidth(), getHeight());
-		auto bl = b.withSizeKeepingCentre(pSize, pSize).toFloat();
-		PathFactory::scalePath(fp, bl);
-
-		g.setColour(Colours::white.withAlpha(0.1f));
-		g.strokePath(fp, PathStrokeType(4.0f));
-		g.fillPath(fp);
-		
-		auto tb = bl.removeFromBottom(24.0f).translated(0.0f, 40.0f);
-		g.setColour(Colours::white.withAlpha(0.5f));
-		g.drawText("Using the project DLL node", tb, Justification::centred);
-
-
-	}
-
 	if (isSelected())
 	{
 		UnblurryGraphics ug(g, *this, true);
@@ -616,11 +543,7 @@ void NodeComponent::paintOverChildren(Graphics& g)
 void NodeComponent::resized()
 {
 	auto b = getLocalBounds();
-
 	header.setBounds(b.removeFromTop(24));
-
-	if (embeddedNetworkBar != nullptr)
-		embeddedNetworkBar->setBounds(b.removeFromTop(24));
 }
 
 
@@ -658,19 +581,7 @@ void NodeComponent::fillContextMenu(PopupMenu& m)
 	m.addItem((int)MenuActions::ExportAsSnippet, "Export as snippet");
 	m.addItem((int)MenuActions::ExportAsTemplate, "Export as template");
 	m.addItem((int)MenuActions::EditProperties, "Edit Properties");
-
-#if 0
-	if (auto hc = node.get()->getAsRestorableNode())
-	{
-		m.addItem((int)MenuActions::UnfreezeNode, "Unfreeze hardcoded node");
-	}
-	else if (node->getValueTree().hasProperty(PropertyIds::FreezedId) ||
-		node->getValueTree().hasProperty(PropertyIds::FreezedPath))
-	{
-		m.addItem((int)MenuActions::FreezeNode, "Replace with hardcoded version");
-	}
-#endif
-
+	
 	m.addSectionHeader("Wrap into container");
 	m.addItem((int)MenuActions::WrapIntoChain, "Chain");
 	m.addItem((int)MenuActions::WrapIntoSplit, "Split");
@@ -735,17 +646,9 @@ void NodeComponent::handlePopupMenuResult(int result)
 		auto r = findParentComponentOfClass<BackendRootWindow>();
 		r->setModalComponent(new multipage::library::ScriptnodeTemplateExporter(r, node.get()));
 	}
-	if (result == (int)MenuActions::UnfreezeNode)
-	{
-		DspNetworkGraph::Actions::unfreezeNode(node.get());
-	}
 	if( result == (int)MenuActions::ExplodeLocalCables)
 	{
 		routing::local_cable::Helpers::explode(node->getValueTree(), node->getUndoManager());
-	}
-	if (result == (int)MenuActions::FreezeNode)
-	{
-		DspNetworkGraph::Actions::freezeNode(node.get());
 	}
 	if (result == (int)MenuActions::WrapIntoDspNetwork)
 	{
@@ -759,7 +662,7 @@ void NodeComponent::handlePopupMenuResult(int result)
 
 		if (wType == 2)
 		{
-			auto id = node->getId();
+			auto name = snex::cppgen::Helpers::getValidCppVariableName(node->getName());
 
 			struct ConnectionState
 			{
@@ -821,23 +724,23 @@ void NodeComponent::handlePopupMenuResult(int result)
 				c.removeOldConnection(node.get());
 			}
 
-			if (id == node->getPath().getIdentifier().toString())
+			if (name == node->getPath().getIdentifier().toString())
 			{
-				id = PresetHandler::getCustomName(id, "Enter a customized name for the node");
+				name = PresetHandler::getCustomName(name, "Enter a customized name for the node");
 			}
 
-			String newId = id + "_";
+			String newId = name + "_";
 
 			node->setValueTreeProperty(PropertyIds::ID, newId);
 
-			PopupHelpers::wrapIntoChain(node.get(), MenuActions::WrapIntoChain, id);
+			PopupHelpers::wrapIntoChain(node.get(), MenuActions::WrapIntoChain, name);
 
 			auto pn = node->getParentNode();
 			pn->getValueTree().setProperty(PropertyIds::ShowParameters, true, node->getUndoManager());
 
 			if (auto modNode = dynamic_cast<ModulationSourceNode*>(node.get()))
 			{
-				String pmodId = id + "_pm";
+				String pmodId = name + "_pm";
 				var pmodvar = node->getRootNetwork()->create("routing.public_mod", pmodId);
 
 				auto pmod = dynamic_cast<NodeBase*>(pmodvar.getObject());
@@ -1088,81 +991,6 @@ juce::Path NodeComponentFactory::createPath(const String& id) const
 	return p;
 }
 
-
-
-juce::Path NodeComponent::EmbeddedNetworkBar::Factory::createPath(const String& url) const
-{
-	Path p;
-	LOAD_EPATH_IF_URL("freeze", HnodeIcons::freezeIcon);
-	LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
-	LOAD_EPATH_IF_URL("warning", EditorIcons::warningIcon);
-	return p;
-}
-
-NodeComponent::EmbeddedNetworkBar::EmbeddedNetworkBar(NodeBase* n) :
-	parentNode(n),
-	embeddedNetwork(n->getEmbeddedNetwork()),
-	warningButton("warning", this, f),
-	freezeButton("freeze", this, f),
-	gotoButton("goto", this, f)
-{
-	jassert(embeddedNetwork != nullptr);
-
-	addAndMakeVisible(warningButton);
-
-	warningButton.setVisible(!n->getEmbeddedNetwork()->hashMatches() & embeddedNetwork->canBeFrozen());
-
-	addAndMakeVisible(gotoButton);
-	addAndMakeVisible(freezeButton);
-
-	if (!embeddedNetwork->canBeFrozen())
-	{
-		freezeButton.setEnabled(false);
-		freezeButton.setAlpha(0.1f);
-	}
-	else
-	{
-		freezeUpdater.setCallback(parentNode->getValueTree(), { PropertyIds::Frozen }, valuetree::AsyncMode::Asynchronously,
-			BIND_MEMBER_FUNCTION_2(EmbeddedNetworkBar::updateFreezeState));
-	}
-	
-	freezeButton.setToggleModeWithColourChange(true);
-	freezeButton.setToggleStateAndUpdateIcon(parentNode->getValueTree()[PropertyIds::Frozen]);
-
-	setSize(100, 24);
-}
-
-void NodeComponent::EmbeddedNetworkBar::buttonClicked(Button* b)
-{
-	if (b == &warningButton)
-	{
-
-	}
-	if (b == &freezeButton)
-	{
-		parentNode->setValueTreeProperty(PropertyIds::Frozen, b->getToggleState());
-	}
-	if (b == &gotoButton)
-	{
-		findParentComponentOfClass<ZoomableViewport>()->setNewContent(new DspNetworkGraph(embeddedNetwork), getParentComponent());
-	}
-}
-
-void NodeComponent::EmbeddedNetworkBar::resized()
-{
-	auto b = getLocalBounds();
-	freezeButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
-	if (warningButton.isVisible())
-		warningButton.setBounds(b.removeFromRight(b.getHeight()).reduced(2));
-
-	gotoButton.setBounds(b.removeFromLeft(b.getHeight()).reduced(4));
-}
-
-void NodeComponent::EmbeddedNetworkBar::updateFreezeState(const Identifier& id, const var& newValue)
-{
-	freezeButton.setToggleStateAndUpdateIcon((bool)newValue);
-}
-
 int NodeComponent::PopupHelpers::isWrappable(NodeBase* n)
 {
 	if (n == nullptr)
@@ -1207,7 +1035,9 @@ void NodeComponent::PopupHelpers::wrapIntoNetwork(NodeBase* node, bool makeCompi
 	for (int i = 0; i < rootTree.getNumProperties(); i++)
 		nData.setProperty(rootTree.getPropertyName(i), rootTree.getProperty(rootTree.getPropertyName(i)), nullptr);
 
-	nData.setProperty(PropertyIds::ID, node->getId(), nullptr);
+	auto name = snex::cppgen::Helpers::getValidCppVariableName(node->getName());
+
+	nData.setProperty(PropertyIds::ID, name, nullptr);
 	nData.addChild(node->getValueTree().createCopy(), -1, nullptr);
 
 	auto ndir = BackendDllManager::getSubFolder(node->getScriptProcessor()->getMainController_(), BackendDllManager::FolderSubType::Networks);
@@ -1293,15 +1123,8 @@ void NodeComponent::PopupHelpers::wrapIntoChain(NodeBase* node, MenuActions resu
 			auto parent = selection.getFirst()->getValueTree().getParent();
 			auto nIndex = parent.indexOf(selection.getFirst()->getValueTree());
 
-            
-            
 			for (auto n : selection)
-			{
                 n->setParent(newContainer, -1);
-                
-				//n->getValueTree().getParent().removeChild(n->getValueTree(), um);
-				//containerTree.getChildWithName(PropertyIds::Nodes).addChild(n->getValueTree(), -1, um);
-			}
 
 			parent.addChild(containerTree, nIndex, um);
 		}

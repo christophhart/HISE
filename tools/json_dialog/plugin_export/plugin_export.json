@@ -1,0 +1,193 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "<Sans-Serif>",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Compile Project",
+    "Subtitle": "",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n.toggle-button\n{\n\tcolor: white;\n\ttext-align: left;\n}\n\n#ExportType label\n{\n\tdisplay: none;\n}\n\n#showCompiledFile label\n{\n\tdisplay: none;\n}\n\n.description\n{\n\twidth: 100%;\n\ttext-align: left;\n}\n\nlabel\n{\n\tmin-width: 120px;\n}\n\n#OutputFile\n{\n\twidth: 100%;\n\ttext-align: left;\n\n\tbackground: #282828;\n\tpadding: 10px 15px;\n\tborder-radius: 2px;\n\tcolor: #888;\n}",
+    "UseViewport": true,
+    "ConfirmClose": true,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 800,
+    "DialogHeight": 780
+  },
+  "GlobalState": {
+    "showCompiledFile": true,
+    "showPluginFolder": true,
+    "ExportType": 0,
+    "projectType": "Instrument",
+    "pluginType": "VST",
+    "Clipboard": true
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "JavascriptFunction",
+          "ID": "JavascriptFunctionId",
+          "Code": "{BIND::onInit}"
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "Export Target:",
+          "Style": "width: 100%; text-align: left; margin-top: 80px;"
+        },
+        {
+          "Type": "Button",
+          "Text": "Plugin",
+          "ID": "ExportType",
+          "Code": "{BIND::onExportType}",
+          "InitValue": "0",
+          "UseInitValue": true,
+          "Style": "margin-top: 10px;",
+          "ButtonType": "Toggle"
+        },
+        {
+          "Type": "Button",
+          "Text": "Standalone App",
+          "ID": "ExportType",
+          "Code": "{BIND::onExportType}",
+          "UseInitValue": ""
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "___"
+        },
+        {
+          "Type": "Choice",
+          "Text": "Project Type",
+          "ID": "projectType",
+          "InitValue": "Instrument",
+          "UseInitValue": true,
+          "ValueMode": "Text",
+          "Items": "Instrument\nFX plugin\nMIDI plugin"
+        },
+        {
+          "Type": "Choice",
+          "Text": "Plugin Type",
+          "ID": "pluginType",
+          "InitValue": "VST",
+          "UseInitValue": true,
+          "ValueMode": "Text",
+          "Items": "VST\nAU\nAAX\nAll Platforms",
+          "Code": "{BIND::onPluginType}"
+        },
+        {
+          "Type": "MarkdownText",
+          "Text": "___\nOutput File:"
+        },
+        {
+          "Type": "SimpleText",
+          "Text": "C:\\Development\\Funky.exe",
+          "ID": "OutputFile"
+        }
+      ],
+      "Text": ""
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "SimpleText",
+              "Text": "Compilation Log:",
+              "Class": ".description"
+            },
+            {
+              "Type": "Button",
+              "Text": "Copy to clipboard",
+              "ID": "Clipboard",
+              "Code": "{BIND::onCopyToClipboard}",
+              "Style": "width: 350px;",
+              "NoLabel": true,
+              "ButtonType": "Text",
+              "Trigger": true
+            }
+          ]
+        },
+        {
+          "Type": "Placeholder",
+          "ID": "CompileOutput",
+          "ContentType": "Logger",
+          "Style": "height: 450px;"
+        },
+        {
+          "Type": "LambdaTask",
+          "Text": "",
+          "ID": "compileTask",
+          "Function": "compileTask"
+        }
+      ],
+      "Text": "",
+      "Style": "gap: 20px;"
+    },
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "MarkdownText",
+          "Text": "The compilation was successful.\n\n> On macOS you will have to manually copy this file to the plugin folder for the DAWs to pick it up when scanning for new plugins.\n\n___\n"
+        },
+        {
+          "Type": "JavascriptFunction",
+          "ID": "JavascriptFunctionId",
+          "Code": "{BIND::onComplete}"
+        },
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "Button",
+              "Text": "Show compiled file",
+              "ID": "showCompiledFile",
+              "Code": "{BIND::onShowCompiledFile}",
+              "InitValue": "true",
+              "UseInitValue": true,
+              "Trigger": true,
+              "ButtonType": "Text"
+            },
+            {
+              "Type": "Button",
+              "Text": "Show plugin folder",
+              "ID": "showPluginFolder",
+              "UseInitValue": "",
+              "NoLabel": true,
+              "ButtonType": "Text",
+              "Trigger": true,
+              "Code": "{BIND::onShowPluginFolder}"
+            }
+          ]
+        }
+      ],
+      "Text": ""
+    }
+  ],
+  "Assets": []
+}

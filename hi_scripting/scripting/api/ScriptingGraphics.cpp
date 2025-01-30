@@ -3980,7 +3980,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawToggleButton(Graphics &g_, 
 		obj->setProperty("enabled", b.isEnabled());
 		obj->setProperty("text", b.getButtonText());
 		obj->setProperty("over", isMouseOverButton);
-		obj->setProperty("down", isButtonDown);
+		obj->setProperty("down", b.isMouseButtonDown(true));
 		obj->setProperty("value", b.getToggleState());
 
 		setColourOrBlack(obj, "bgColour", b, HiseColourScheme::ComponentOutlineColourId);
@@ -4152,6 +4152,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawComboBox(Graphics& g_, int 
 		obj->setProperty("active", cb.getSelectedId() != 0);
 		obj->setProperty("enabled", cb.isEnabled() && cb.getNumItems() > 0);
 		obj->setProperty("hover", cb.isMouseOver(true) || cb.isMouseButtonDown(true) || cb.isPopupActive());
+		obj->setProperty("down", cb.isMouseButtonDown(true));
 
 		setColourOrBlack(obj, "bgColour",    cb, HiseColourScheme::ComponentOutlineColourId);
 		setColourOrBlack(obj, "itemColour1", cb, HiseColourScheme::ComponentFillTopColourId);
@@ -4480,6 +4481,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, Scr
 		else
 			thumbArea = Rectangle<int>(x + thumbStartPosition, y, thumbSize, height).toFloat();
 
+		writeId(obj, &scrollbar);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(fullArea));
 		obj->setProperty("handle", ApiHelpers::getVarRectangle(thumbArea));
 		obj->setProperty("vertical", isScrollbarVertical);
@@ -5058,7 +5060,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMatrixPeakMeter(Graphics& g
             peaks.add(peakValues[i]);
             
             if(maxPeaks != nullptr)
-                maxPeakArray.add(maxPeaks[numChannels]);
+								maxPeakArray.add(maxPeaks[i]);
         }
 
 		writeId(obj, c);

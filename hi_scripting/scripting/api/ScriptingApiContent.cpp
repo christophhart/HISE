@@ -2059,13 +2059,13 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 		
 		if (newValue == "Use default skin" || newValue == "")
 		{
-			setScriptObjectProperty(filmstripImage, "Use default skin");
+			setScriptObjectProperty(filmstripImage, "Use default skin", sendNotification);
 
 			image.clear();
 		}
 		else
 		{
-			setScriptObjectProperty(filmstripImage, newValue);
+			setScriptObjectProperty(filmstripImage, newValue, sendNotification);
 
 			PoolReference ref(getProcessor()->getMainController(), newValue.toString(), ProjectHandler::SubDirectories::Images);
 
@@ -3106,6 +3106,9 @@ void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
 
 struct ScriptingApi::Content::ScriptTable::Wrapper
 {
+	API_VOID_METHOD_WRAPPER_0(ScriptTable, reset);
+	API_VOID_METHOD_WRAPPER_2(ScriptTable, addTablePoint);
+	API_VOID_METHOD_WRAPPER_4(ScriptTable, setTablePoint);
 	API_METHOD_WRAPPER_1(ScriptTable, getTableValue);
 	API_VOID_METHOD_WRAPPER_1(ScriptTable, setTablePopupFunction);
 	API_VOID_METHOD_WRAPPER_2(ScriptTable, connectToOtherTable);
@@ -3135,6 +3138,9 @@ ComplexDataScriptComponent(base, name, snex::ExternalData::DataType::Table)
 
 	updateCachedObjectReference();
 
+	ADD_API_METHOD_0(reset);
+	ADD_API_METHOD_2(addTablePoint);
+	ADD_API_METHOD_4(setTablePoint);
 	ADD_API_METHOD_1(getTableValue);
 	ADD_API_METHOD_2(connectToOtherTable);
 	ADD_API_METHOD_1(setSnapValues);
@@ -3151,6 +3157,24 @@ ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptTable::createCompon
 {
 	return new ScriptCreatedComponentWrappers::TableWrapper(content, this, index);
 }
+
+void ScriptingApi::Content::ScriptTable::reset()
+{
+	if (auto t = getCachedTable())
+		t->reset();
+}
+
+void ScriptingApi::Content::ScriptTable::addTablePoint(float x, float y)
+{
+	if (auto t = getCachedTable())
+		t->addTablePoint(x, y);
+};
+
+void ScriptingApi::Content::ScriptTable::setTablePoint(int pointIndex, float x, float y, float curve)
+{
+	if (auto t = getCachedTable())
+		t->setTablePoint(pointIndex, x, y, curve);
+};
 
 float ScriptingApi::Content::ScriptTable::getTableValue(float inputValue)
 {
@@ -3303,7 +3327,7 @@ void ScriptingApi::Content::ScriptSliderPack::setSliderAtIndex(int index, double
 	if (auto d = getCachedSliderPack())
 	{
 		value = index;
-		d->setValue(index, (float)newValue, dontSendNotification);
+		d->setValue(index, (float)newValue, allValueChangeCausesCallback ? sendNotificationAsync : dontSendNotification);
 
 		if(allValueChangeCausesCallback)
 			d->getUpdater().sendDisplayChangeMessage((float)index, sendNotificationAsync);
@@ -6147,6 +6171,7 @@ void ScriptingApi::Content::ScriptMultipageDialog::onMultipageLog(ScriptMultipag
 	{
 		auto p = m.getScriptProcessor()->getMainController_()->getMainSynthChain();
 		debugToConsole(p, message);
+        ignoreUnused(p);
 	}
 }
 
@@ -6504,12 +6529,14 @@ colour(Colour(0xff777777))
 	setMethod("setWidth", Wrapper::setWidth);
 	setMethod("createScreenshot", Wrapper::createScreenshot);
 	setMethod("addVisualGuide", Wrapper::addVisualGuide);
+	setMethod("getInterfaceSize", Wrapper::getInterfaceSize);
     setMethod("makeFrontInterface", Wrapper::makeFrontInterface);
 	setMethod("makeFullScreenInterface", Wrapper::makeFullScreenInterface);
     setMethod("showModalTextInput", Wrapper::showModalTextInput);
 	setMethod("setName", Wrapper::setName);
 	setMethod("getComponent", Wrapper::getComponent);
 	setMethod("getAllComponents", Wrapper::getAllComponents);
+	setMethod("componentExists", Wrapper::componentExists);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("setValuePopupData", Wrapper::setValuePopupData);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
@@ -6748,7 +6775,18 @@ void ScriptingApi::Content::setPropertiesFromJSON(const Identifier &componentNam
 	}
 }
 
+bool ScriptingApi::Content::componentExists(const Identifier &componentName)
+{
+	Identifier componentId(componentName);
 
+	for (int i = 0; i < components.size(); i++)
+	{
+		if (components[i]->getName() == componentId)
+			return true;
+	}
+
+	return false;
+}
 
 void ScriptingApi::Content::endInitialization()
 {
@@ -6768,7 +6806,6 @@ void ScriptingApi::Content::beginInitialization()
 	guides.clear();
 	registeredKeyPresses.clear();
 }
-
 
 void ScriptingApi::Content::setHeight(int newHeight) noexcept
 {
@@ -6790,6 +6827,16 @@ void ScriptingApi::Content::setWidth(int newWidth) noexcept
 		if(height != 0)
 			interfaceSizeBroadcaster.sendMessage(sendNotificationAsync, width, height);
 	}
+};
+
+var ScriptingApi::Content::getInterfaceSize()
+{
+	Array<var> result;
+
+	result.add(width);
+	result.add(height);
+	
+	return var(result);
 };
 
 void ScriptingApi::Content::makeFrontInterface(int newWidth, int newHeight)
@@ -6815,7 +6862,6 @@ void ScriptingApi::Content::setToolbarProperties(const var &/*toolbarProperties*
 {
 	reportScriptError("2017...");
 }
-
 
 void ScriptingApi::Content::setUseHighResolutionForPanels(bool shouldUseDoubleResolution)
 {
@@ -7410,7 +7456,6 @@ var ScriptingApi::Content::createShader(const String& fileName)
 
 	return var(f);
 }
-
 
 void ScriptingApi::Content::createScreenshot(var area, var directory, String name)
 {

@@ -1204,6 +1204,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_0(Engine, reloadAllSamples);
 	API_METHOD_WRAPPER_0(Engine, getPreloadProgress);
 	API_METHOD_WRAPPER_0(Engine, getPreloadMessage);
+	API_VOID_METHOD_WRAPPER_1(Engine, setPreloadMessage);
 	API_METHOD_WRAPPER_0(Engine, getDeviceType);
 	API_METHOD_WRAPPER_0(Engine, getDeviceResolution);
 	API_METHOD_WRAPPER_0(Engine, getZoomLevel);
@@ -1359,6 +1360,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(isPlugin);
 	ADD_API_METHOD_0(getPreloadProgress);
 	ADD_API_METHOD_0(getPreloadMessage);
+	ADD_API_METHOD_1(setPreloadMessage);
 	ADD_API_METHOD_0(getZoomLevel);
 	ADD_API_METHOD_1(setZoomLevel);
 	ADD_API_METHOD_1(setDiskMode);
@@ -1745,6 +1747,7 @@ var ScriptingApi::Engine::getSystemStats()
 	obj->setProperty("CpuVendor", SystemStats::getCpuVendor());
 	obj->setProperty("CpuModel", SystemStats::getCpuModel());
 	obj->setProperty("MemorySizeInMegabytes", SystemStats::getMemorySizeInMegabytes());
+	obj->setProperty("isDarkMode", Desktop::getInstance().isDarkModeActive());
 
 	return obj;
 }
@@ -1823,6 +1826,11 @@ double ScriptingApi::Engine::getPreloadProgress()
 String ScriptingApi::Engine::getPreloadMessage()
 {
 	return getScriptProcessor()->getMainController_()->getSampleManager().getPreloadMessage();
+}
+
+void ScriptingApi::Engine::setPreloadMessage(String message)
+{
+	getScriptProcessor()->getMainController_()->getSampleManager().setPreloadMessage(message);
 }
 
 var ScriptingApi::Engine::getZoomLevel() const
@@ -2374,7 +2382,7 @@ void ScriptingApi::Engine::setLatencySamples(int latency)
 
 int ScriptingApi::Engine::getMidiNoteFromName(String midiNoteName) const
 {
-	for (int i = 0; i < 127; i++)
+	for (int i = 0; i < 128; i++)
 	{
 		if (getMidiNoteName(i) == midiNoteName)
 			return i;
@@ -3753,6 +3761,7 @@ struct ScriptingApi::Sampler::Wrapper
 	API_METHOD_WRAPPER_2(Sampler, importSamples);
 	API_METHOD_WRAPPER_0(Sampler, clearSampleMap);
 	API_METHOD_WRAPPER_1(Sampler, parseSampleFile);
+	API_METHOD_WRAPPER_2(Sampler, setAllowReleaseStart);
 	API_VOID_METHOD_WRAPPER_2(Sampler, setGUISelection);
 	API_VOID_METHOD_WRAPPER_1(Sampler, setSortByRRGroup);
 };
@@ -3810,6 +3819,7 @@ sampler(sampler_)
 	ADD_API_METHOD_1(loadSampleMapFromJSON);
 	ADD_API_METHOD_1(loadSampleMapFromBase64);
 	ADD_API_METHOD_0(getSampleMapAsBase64);
+	ADD_API_METHOD_2(setAllowReleaseStart);
 	ADD_API_METHOD_1(getAudioWaveformContentAsBase64);
 	ADD_API_METHOD_1(setTimestretchRatio);
 	ADD_API_METHOD_1(setTimestretchOptions);
@@ -3933,6 +3943,19 @@ void ScriptingApi::Sampler::setRRGroupVolume(int groupIndex, int gainInDecibels)
 	}
 
 	s->setRRGroupVolume(groupIndex, Decibels::decibelsToGain((float)gainInDecibels));
+}
+
+bool ScriptingApi::Sampler::setAllowReleaseStart(int eventId, bool shouldBeAllowed)
+{
+	ModulatorSampler *s = static_cast<ModulatorSampler*>(sampler.get());
+
+	if (s == nullptr)
+	{
+		reportScriptError("setAllowReleaseStart() only works with Samplers.");
+		return false;
+	}
+
+	return s->setAllowReleaseStart(eventId, shouldBeAllowed);
 }
 
 
@@ -5688,43 +5711,42 @@ double ScriptingApi::Synth::getTimerInterval() const
 	}
 }
 
-void ScriptingApi::Synth::sendController(int controllerNumber, int controllerValue)
+void ScriptingApi::Synth::sendController(int number, int value)
 {
-	if (parentMidiProcessor != nullptr)
+	if (parentMidiProcessor == nullptr)
+		return reportScriptError("Only valid in MidiProcessors");
+	
+	if (number < 0)
+		return reportScriptError("CC number must be positive");
+
+	bool isPitchBend = number == HiseEvent::PitchWheelCCNumber;
+	
+	if (!isPitchBend && (value < 0 || value > 127))
+		return reportScriptError("CC value must be between 0 and 127");
+
+	if (isPitchBend && (value < 0 || value > 16383))
+		return reportScriptError("CC value must be between 0 and 16383");
+		
+	HiseEvent e;
+
+	if (isPitchBend)
 	{
-		if (controllerNumber > 0)
-		{
-			if (controllerValue >= 0)
-			{
-                HiseEvent e;
-
-                if(controllerNumber == HiseEvent::PitchWheelCCNumber)
-                {
-                    e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0);
-                    e.setPitchWheelValue(controllerValue);
-                }
-				else if (controllerNumber == HiseEvent::AfterTouchCCNumber)
-				{
-					e = HiseEvent(HiseEvent::Type::Aftertouch, 0, controllerValue);
-				}
-                else
-                {
-                    e = HiseEvent(HiseEvent::Type::Controller, (uint8)controllerNumber, (uint8)controllerValue);
-                }
-
-
-				if (const HiseEvent* current = parentMidiProcessor->getCurrentHiseEvent())
-				{
-					e.setTimeStamp((int)current->getTimeStamp());
-				}
-
-				parentMidiProcessor->addHiseEventToBuffer(e);
-			}
-			else reportScriptError("CC value must be positive");
-		}
-		else reportScriptError("CC number must be positive");
+		e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0);
+		e.setPitchWheelValue(value);
 	}
-	else reportScriptError("Only valid in MidiProcessors");
+	else if (number == HiseEvent::AfterTouchCCNumber)
+	{
+		e = HiseEvent(HiseEvent::Type::Aftertouch, 0, value);
+	}
+	else
+	{
+		e = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value);
+	}
+
+	if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
+		e.setTimeStamp((int)ce->getTimeStamp());
+
+	parentMidiProcessor->addHiseEventToBuffer(e);
 };
 
 void ScriptingApi::Synth::sendControllerToChildSynths(int controllerNumber, int controllerValue)
@@ -6187,7 +6209,7 @@ int ScriptingApi::Synth::internalAddNoteOn(int channel, int noteNumber, int velo
 {
 	if (channel > 0 && channel <= 16)
 	{
-		if (noteNumber >= 0 && noteNumber < 127)
+		if (noteNumber >= 0 && noteNumber <= 127)
 		{
 			if (velocity >= 0 && velocity <= 127)
 			{
@@ -6258,7 +6280,7 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 {
 	if (channel > 0 && channel <= 16)
 	{
-		if (noteNumber >= 0 && noteNumber < 127)
+		if (noteNumber >= 0 && noteNumber <= 127)
 		{
 			if (timeStampSamples >= 0)
 			{
@@ -6296,40 +6318,49 @@ void ScriptingApi::Synth::addNoteOff(int channel, int noteNumber, int timeStampS
 
 void ScriptingApi::Synth::addController(int channel, int number, int value, int timeStampSamples)
 {
-	if (channel > 0 && channel <= 16)
+	if (channel <= 0 || channel > 16)
+		return reportScriptError("Channel must be between 1 and 16.");
+
+	if (parentMidiProcessor == nullptr)
+		return reportScriptError("Only valid in MidiProcessors");
+
+	if (number < 0)
+		return reportScriptError("CC number must be positive");
+
+	bool isPitchBend = number == HiseEvent::PitchWheelCCNumber;
+	
+	if (!isPitchBend && (value < 0 || value > 127))
+		return reportScriptError("CC value must be between 0 and 127");
+
+	if (isPitchBend && (value < 0 || value > 16383))
+		return reportScriptError("CC value must be between 0 and 16383");
+	
+	if (timeStampSamples < 0)
+		return reportScriptError("Timestamp must be > 0");
+	
+	HiseEvent e;
+
+	if (isPitchBend)
 	{
-		if (number >= 0 && number <= 127)
-		{
-			if (value >= 0 && value <= 127)
-			{
-				if (timeStampSamples >= 0)
-				{
-					if (parentMidiProcessor != nullptr)
-					{
-						HiseEvent m = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value, (uint8)channel);
-
-						if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
-						{
-							m.setTimeStamp((int)ce->getTimeStamp() + timeStampSamples);
-						}
-						else
-						{
-							m.setTimeStamp(timeStampSamples);
-						}
-
-						m.setArtificial();
-
-						parentMidiProcessor->addHiseEventToBuffer(m);
-					}
-
-				}
-				else reportScriptError("Timestamp must be > 0");
-			}
-			else reportScriptError("CC Value must be between 0 and 127");
-		}
-		else reportScriptError("CC number must be between 0 and 127");
+		e = HiseEvent(HiseEvent::Type::PitchBend, 0, 0, (uint8)channel);
+		e.setPitchWheelValue(value);
 	}
-	else reportScriptError("Channel must be between 1 and 16.");
+	else if (number == HiseEvent::AfterTouchCCNumber)
+	{
+		e = HiseEvent(HiseEvent::Type::Aftertouch, 0, value, (uint8)channel);
+	}
+	else
+	{
+		e = HiseEvent(HiseEvent::Type::Controller, (uint8)number, (uint8)value, (uint8)channel);
+	}
+
+	if (auto ce = parentMidiProcessor->getCurrentHiseEvent())
+		e.setTimeStamp((int)ce->getTimeStamp() + timeStampSamples);
+	else
+		e.setTimeStamp(timeStampSamples);
+
+	e.setArtificial();
+	parentMidiProcessor->addHiseEventToBuffer(e);
 }
 
 void ScriptingApi::Synth::setClockSpeed(int clockSpeed)
@@ -6787,6 +6818,8 @@ struct ScriptingApi::Colours::Wrapper
 	API_METHOD_WRAPPER_1(Colours, fromVec4);
 	API_METHOD_WRAPPER_1(Colours, toVec4);
 	API_METHOD_WRAPPER_3(Colours, mix);
+	API_METHOD_WRAPPER_1(Colours, toHsl);
+	API_METHOD_WRAPPER_1(Colours, fromHsl);
 };
 
 ScriptingApi::Colours::Colours() :
@@ -6942,6 +6975,8 @@ ApiClass(139)
 	ADD_INLINEABLE_API_METHOD_3(mix);
 	ADD_INLINEABLE_API_METHOD_1(toVec4);
 	ADD_INLINEABLE_API_METHOD_1(fromVec4);
+	ADD_INLINEABLE_API_METHOD_1(toHsl);
+	ADD_INLINEABLE_API_METHOD_1(fromHsl);
 }
 
 int ScriptingApi::Colours::withAlpha(var colour, float alpha)
@@ -7010,6 +7045,30 @@ int ScriptingApi::Colours::fromVec4(var vec4)
 
 		return Colour(r, g, b, a).getARGB();
 	}
+
+	return 0;
+}
+
+var ScriptingApi::Colours::toHsl(var colour)
+{
+	auto c = Content::Helpers::getCleanedObjectColour(colour);
+
+  float hue, saturation, lightness;
+	c.getHSL(hue, saturation, lightness);
+
+	Array<var> hsl;
+	hsl.add(hue);
+	hsl.add(saturation);
+	hsl.add(lightness);
+	hsl.add(c.getFloatAlpha());
+
+	return hsl;
+}
+
+int ScriptingApi::Colours::fromHsl(var hsl)
+{
+	if (hsl.isArray() && hsl.size() == 4)
+		return Colour().fromHSL(hsl[0], hsl[1], hsl[2], hsl[3]).getARGB();
 
 	return 0;
 }
@@ -7247,6 +7306,13 @@ int64 ScriptingApi::FileSystem::getBytesFreeOnVolume(var folder)
 
 void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isDirectory, String wildcard, var callback)
 {
+	static bool fileChooserIsOpen = false;
+
+	if (fileChooserIsOpen)
+			return;
+
+	fileChooserIsOpen = true;
+
 	auto p_ = p;
 
 	WeakCallbackHolder wc(p_, this, callback, 1);
@@ -7283,6 +7349,8 @@ void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isD
 		{
 			wc.call(&a, 1);
 		}
+		
+		fileChooserIsOpen = false;
 	};
 
 	MessageManager::callAsync(cb);

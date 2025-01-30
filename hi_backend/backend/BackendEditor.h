@@ -307,6 +307,88 @@ public:
 		numPopupTypes
 	};
 
+	struct MinimizeBar: public Component
+	{
+		MinimizeBar()
+		{
+			setMouseCursor(MouseCursor::PointingHandCursor);
+		}
+
+		bool initialised = false;
+
+		void initialise()
+		{
+			if(!initialised)
+			{
+				if(auto mbw = findParentComponentOfClass<ModalBaseWindow>())
+				{
+					initialised = true;
+					mbw->minimizeBroadcaster.addListener(*this, onMinimize);
+				}
+			}
+		}
+
+		static void onMinimize(MinimizeBar& b, bool shouldBeVisible, multipage::State* state)
+		{
+			b.setVisible(shouldBeVisible);
+			b.state = state;
+
+			if(shouldBeVisible)
+			{
+				b.text = state->getFirstDialog()->getGlobalProperty(multipage::mpid::Header).toString();
+				if(auto j = state->currentJob)
+				{
+					b.addAndMakeVisible(b.bar = new ProgressBar(j->getProgress()));
+					b.resized();
+				}
+			}
+			
+
+			if(auto mb = b.findParentComponentOfClass<MainTopBar>())
+				mb->resized();
+		}
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			findParentComponentOfClass<ModalBaseWindow>()->minimizeModalComponent(false, state);
+		}
+
+		void resized() override
+		{
+			if(bar != nullptr)
+			{
+				auto f = GLOBAL_BOLD_FONT();
+				auto w = f.getStringWidth(text) + 20;
+				auto b = getLocalBounds();
+				b.removeFromLeft(w);
+				bar->setBounds(b.reduced(4));
+			}
+		}
+
+		void paint(Graphics& g) override
+		{
+			if(isMouseOver(true))
+			{
+				g.setColour(Colours::white.withAlpha(0.1f));
+				g.fillRoundedRectangle(getLocalBounds().toFloat(), 3.0f);
+			}
+				
+
+			g.setColour(Colours::white.withAlpha(0.8f));
+			
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(text, getLocalBounds().toFloat().reduced(5.0f), Justification::left);
+		}
+
+		String text;
+
+		ScopedPointer<juce::ProgressBar> bar;
+
+		WeakReference<multipage::State> state;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(MinimizeBar);
+	} minimizeBar;
+
 	MainTopBar(FloatingTile* parent);
 
 	~MainTopBar();

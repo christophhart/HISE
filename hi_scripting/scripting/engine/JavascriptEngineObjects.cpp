@@ -101,6 +101,7 @@ public:
 		setMethod("push", push);
 		setMethod("pushIfNotAlreadyThere", pushIfNotAlreadyThere);
 		setMethod("pop", pop);
+		setMethod("shift", shift);
         setMethod("sortNatural", sortNatural);
 		setMethod("insert", insert);
 		setMethod("concat", concat);
@@ -196,6 +197,16 @@ public:
 			auto v = array->getLast();
 			array->removeLast();
 			return v;
+		}
+
+		return var();
+	}
+	
+	static var shift(Args a)
+	{
+		if (Array<var>* array = a.thisObject.getArray())
+		{
+			return array->removeAndReturn(0);
 		}
 
 		return var();
@@ -636,6 +647,9 @@ public:
 
 	/** Removes and returns the last element. */
 	var pop() { return var(); }
+	
+	/** Removes and returns the first element. */
+	var shift() { return var(); }
 };
 
 

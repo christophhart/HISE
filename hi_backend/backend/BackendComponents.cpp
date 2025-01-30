@@ -354,6 +354,7 @@ multipage::EncodedDialogBase::EncodedDialogBase(BackendRootWindow* bpe_, bool ad
 	ControlledObject(bpe_->getBackendProcessor()),
 	rootWindow(bpe_),
 	closeButton("close", nullptr, factory),
+	minimizeButton("minimize", nullptr, factory),
 	addBorder(addBorder_)
 {
 	addAndMakeVisible(closeButton);
@@ -364,6 +365,15 @@ multipage::EncodedDialogBase::EncodedDialogBase(BackendRootWindow* bpe_, bool ad
 		{
 			dialog->cancel();
 		}
+	};
+
+	addChildComponent(minimizeButton);
+
+    minimizeButton.setTooltip("Minimize this task to the status bar");
+    
+	minimizeButton.onClick = [this]()
+	{
+		findParentComponentOfClass<BackendRootWindow>()->minimizeModalComponent(true, state.get());
 	};
 
 	closeButton.setVisible(addBorder);

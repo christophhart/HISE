@@ -49,7 +49,7 @@ public:
 
 private:
     const int in_size;
-    T bias;
+    T bias {};
 
     T* weights;
 };
@@ -63,6 +63,8 @@ template <typename T>
 class Dense final : public Layer<T>
 {
 public:
+    static constexpr bool dense_has_bias = true;
+
     /** Constructs a dense layer for a given input and output size. */
     Dense(int in_size, int out_size)
         : Layer<T>(in_size, out_size)
@@ -157,7 +159,7 @@ private:
  * Static implementation of a fully-connected (dense) layer,
  * with no activation.
  */
-template <typename T, int in_sizet, int out_sizet>
+template <typename T, int in_sizet, int out_sizet, bool has_bias = true>
 class DenseT
 {
     static constexpr auto weights_size = in_sizet * out_sizet;
@@ -165,6 +167,7 @@ class DenseT
 public:
     static constexpr auto in_size = in_sizet;
     static constexpr auto out_size = out_sizet;
+    static constexpr bool dense_has_bias = has_bias;
 
     DenseT()
     {
@@ -188,10 +191,19 @@ public:
     RTNEURAL_REALTIME void reset() { }
 
     /** Performs forward propagation for this layer. */
-    RTNEURAL_REALTIME inline void forward(const T (&ins)[in_size]) noexcept
+    template <bool b = has_bias>
+    RTNEURAL_REALTIME inline typename std::enable_if<b>::type forward(const T (&ins)[in_size]) noexcept
     {
         for(int i = 0; i < out_size; ++i)
-            outs[i] = std::inner_product(ins, ins + in_size, &weights[i * in_size], (T)0) + bias[i];
+            outs[i] = std::inner_product(ins, ins + in_size, &weights[i * in_size], bias[i]);
+    }
+
+    /** Performs forward propagation for this layer (no bias). */
+    template <bool b = has_bias>
+    RTNEURAL_REALTIME inline typename std::enable_if<!b>::type forward(const T (&ins)[in_size]) noexcept
+    {
+        for(int i = 0; i < out_size; ++i)
+            outs[i] = std::inner_product(ins, ins + in_size, &weights[i * in_size], (T)0);
     }
 
     /**

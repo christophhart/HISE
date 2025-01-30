@@ -279,15 +279,16 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 
 			const int workspace = editorState.getDynamicObject()->getProperty("CurrentWorkspace");
 
-
+#if JUCE_WINDOWS
+			auto makeFullScreenOnLaunch = (bool)editorState.getProperty("isFullScreen", false);
+			getProperties().set("FullScreen", makeFullScreenOnLaunch);
+#endif
 
 			if(workspace > 0)
 				showWorkspace(workspace);
             
             setEditor(this);
 		}
-
-		
 	}
 
 	if (!loadedCorrectly)
@@ -758,6 +759,12 @@ void BackendRootWindow::saveInterfaceData()
 			position.add(getHeight());
 
 			obj->setProperty("Position", position);
+
+			if(auto rw = findParentComponentOfClass<ResizableWindow>())
+			{
+				auto isFullScreen = rw->isFullScreen();
+				obj->setProperty("isFullScreen", isFullScreen);
+			}
 
 			obj->setProperty("CurrentWorkspace", currentWorkspace);
 		}

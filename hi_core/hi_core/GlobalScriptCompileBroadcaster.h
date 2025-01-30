@@ -251,6 +251,7 @@ public:
 	ExternalScriptFile::Ptr getExternalScriptFile(int index) const;
 
 	void clearIncludedFiles();
+	void removeIncludedFile(int index);
 
 	void restoreIncludedScriptFilesFromSnippet(const ValueTree& snippetTree);
 

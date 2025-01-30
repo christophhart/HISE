@@ -638,7 +638,7 @@ void BackendProcessor::pushToAnalyserBuffer(AnalyserInfo::Ptr info, bool post, c
 		{
 			if(!post)
 			{
-				for(int i = 0; i < 127; i++)
+				for(int i = 0; i < 128; i++)
 				{
 					if(getKeyboardState().isNoteOn(1, i))
 					{

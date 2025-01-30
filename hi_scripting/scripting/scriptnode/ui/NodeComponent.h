@@ -57,9 +57,7 @@ public:
 		ExportAsTemplate,
 		CreateScreenShot,
 		EditProperties,
-		UnfreezeNode,
 		ExplodeLocalCables,
-		FreezeNode,
 		WrapIntoDspNetwork,
 		WrapIntoChain,
 		WrapIntoSplit,
@@ -168,48 +166,12 @@ public:
 		HiseShapeButton powerButton;
 		HiseShapeButton deleteButton;
 		HiseShapeButton parameterButton;
-		HiseShapeButton freezeButton;
-		
+
 		bool isDragging = false;
 
 		ComponentDragger d;
 
 		bool isHoveringOverBypass = false;
-	};
-
-	struct EmbeddedNetworkBar : public Component,
-							    public ButtonListener
-	{
-		EmbeddedNetworkBar(NodeBase* n);
-
-		void paint(Graphics& g) override
-		{
-			g.setColour(Colour(0x1e000000));
-			auto b = getLocalBounds().reduced(1, 0);
-			g.fillRect(b);
-			g.setColour(Colours::white.withAlpha(0.1f));
-			g.drawHorizontalLine(getHeight(), 1.0f, (float)getWidth() - 2.0f);
-		}
-
-		void buttonClicked(Button* b) override;
-
-		void resized() override;
-
-		struct Factory : public PathFactory
-		{
-			Path createPath(const String& url) const override;
-		} f;
-
-		void updateFreezeState(const Identifier& id, const var& newValue);
-
-		HiseShapeButton gotoButton;
-		HiseShapeButton freezeButton;
-		HiseShapeButton warningButton;
-
-		valuetree::PropertyListener freezeUpdater;
-
-		WeakReference<NodeBase> parentNode;
-		WeakReference<DspNetwork> embeddedNetwork;
 	};
 
 	NodeComponent(NodeBase* b);;
@@ -289,7 +251,6 @@ public:
 
 	ReferenceCountedObjectPtr<NodeBase> node;
 	Header header;
-	ScopedPointer<EmbeddedNetworkBar> embeddedNetworkBar;
 
 	valuetree::PropertyListener repaintListener;
 

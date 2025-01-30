@@ -107,13 +107,22 @@ public:
 		UninitialisedProperties
 	};
 
-	DspNetworkCompileExporter(Component* editor, BackendProcessor* bp);
+	DspNetworkCompileExporter(Component* editor, BackendProcessor* bp, bool skipCompilation_=false);
 
 	void run() override;
 
 	void threadFinished() override;
 
 	File getBuildFolder() const override;
+
+	ChildProcessManager* managerToUse = nullptr;
+
+	ErrorCodes getErrorCode() const { return ok; }
+
+	StringArray nodesToCompile;
+	StringArray cppFilesToCompile;
+
+	bool skipCompilation = false;
 
 private:
 
@@ -146,6 +155,14 @@ private:
 	}
 
 	static bool isInterpretedDataFile(const File& f);
+
+	void logMessage(const String& m)
+	{
+		if(managerToUse != nullptr)
+			managerToUse->logMessage("> " + m + "\n");
+		else
+			showStatusMessage(m);
+	}
 
 	void createIncludeFile(const File& sourceDir);
 

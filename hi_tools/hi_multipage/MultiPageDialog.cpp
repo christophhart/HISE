@@ -540,7 +540,16 @@ void Dialog::PageBase::callOnValueChange(const String& eventType, DynamicObject:
 
 		var::NativeFunctionArgs args(state->globalState, a, 2);
 
-		state->callNativeFunction(callbackName, args, nullptr);
+		try
+		{
+			rootDialog.clearIfCurrentErrorPage(this);
+			state->callNativeFunction(callbackName, args, nullptr);
+		}
+		catch(Result& r)
+		{
+			setModalHelp(r.getErrorMessage());
+			rootDialog.setCurrentErrorPage(this);
+		}
 
 		return;
 	}
@@ -1117,7 +1126,8 @@ Dialog::Dialog(const var& obj, State& rt, bool addEmptyPage):
 
 	nextButton.onClick = [this]()
 	{
-		navigate(true);
+		if(!pendingClose)
+			navigate(true);
 	};
         
 	prevButton.onClick = [this]()
@@ -1365,6 +1375,17 @@ void Dialog::setCurrentErrorPage(PageBase* b)
 		currentErrorElement->changeClass(simple_css::Selector(".error"), true);
 	
 	repaint();
+}
+
+void Dialog::clearIfCurrentErrorPage(PageBase* b)
+{
+	if(currentErrorElement == b)
+	{
+		setCurrentErrorPage(nullptr);
+
+		if(b != nullptr)
+			b->setModalHelp({});
+	}
 }
 
 bool Dialog::keyPressed(const KeyPress& k)
@@ -2112,7 +2133,11 @@ bool Dialog::navigate(bool forward)
 			getState().callNativeFunction("onFinish", args, nullptr);
 
 			if(!editMode && finishCallback)
+			{
+				pendingClose = true;
 				Timer::callAfterDelay(600, finishCallback);
+			}
+				
 				
 			return true;
 		}

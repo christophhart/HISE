@@ -539,5 +539,16 @@ private:
 #define HI_RASTER_SIZE 10
 #endif
 
+/** This is the maximum amount of modulators that a chain can have. Raise this if you need more. */
+#ifndef HISE_NUM_MODULATORS_PER_CHAIN
+#define HISE_NUM_MODULATORS_PER_CHAIN 64
+#endif
+
+/** This is the maximum amount of listener slots. This needs to be at least HISE_NUM_MODULATORS_PER_CHAIN but you can increase it manually
+ *  if you hit that limitation.
+ */
+#ifndef HISE_NUM_LISTENER_SLOTS
+#define HISE_NUM_LISTENER_SLOTS HISE_NUM_MODULATORS_PER_CHAIN
+#endif
 
 } // namespace hise

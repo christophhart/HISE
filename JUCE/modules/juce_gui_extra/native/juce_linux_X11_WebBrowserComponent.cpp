@@ -196,9 +196,30 @@ private:
                             makeSymbolBinding (juce_g_signal_connect_data,   "g_signal_connect_data"));
     }
 
+    struct WebKitAndDependencyLibraryNames
+    {
+        const char* webkitLib;
+    };
+
+    bool openWebKitAndDependencyLibraries (const WebKitAndDependencyLibraryNames& names)
+    {
+        if (webkitLib.open (names.webkitLib) )
+            return true;
+
+        for (auto* l : { &webkitLib })
+            l->close();
+
+        return false;
+    }
+
     //==============================================================================
-    DynamicLibrary gtkLib { "libgtk-3.so" }, webkitLib { "libwebkit2gtk-4.0.so" };
-    const bool webKitIsAvailable = loadWebkitSymbols() && loadGtkSymbols();
+    
+    DynamicLibrary webkitLib;
+    DynamicLibrary gtkLib { "libgtk-3.so" };
+        
+	const bool webKitIsAvailable = (openWebKitAndDependencyLibraries ({"libwebkit2gtk-4.1.so"}) || openWebKitAndDependencyLibraries ({"libwebkit2gtk-4.0.so"})
+                                   && loadWebkitSymbols()
+                                   && loadGtkSymbols());
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WebKitSymbols)
 };

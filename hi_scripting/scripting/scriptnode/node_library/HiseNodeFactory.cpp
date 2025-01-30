@@ -49,9 +49,9 @@ namespace scriptnode
 namespace control
 {
 
-struct input_toggle_editor : public ScriptnodeExtraComponent<input_toggle<parameter::dynamic_base_holder>>
+struct input_toggle_editor : public ScriptnodeExtraComponent<input_toggle_base>
 {
-	using ObjType = input_toggle<parameter::dynamic_base_holder>;
+	using ObjType = input_toggle_base;
 
 	input_toggle_editor(ObjType* t, PooledUIUpdater* u) :
 		ScriptnodeExtraComponent<ObjType>(t, u),
@@ -93,12 +93,10 @@ struct input_toggle_editor : public ScriptnodeExtraComponent<input_toggle<parame
 		if (c == Colours::transparentBlack)
 			c = Colour(0xFFADADAD);
 
-		g.setColour(c.withAlpha(getObject()->useValue1 ? 1.0f : 0.2f));
+		g.setColour(c.withAlpha(getObject()->getUIData().useValue1 ? 1.0f : 0.2f));
 		g.fillRoundedRectangle(l, l.getHeight() / 2.0f);
-		g.setColour(c.withAlpha(!getObject()->useValue1 ? 1.0f : 0.2f));
+		g.setColour(c.withAlpha(!getObject()->getUIData().useValue1 ? 1.0f : 0.2f));
 		g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
-
-		
 	}
 
 	ModulationSourceBaseComponent dragger;
@@ -1289,7 +1287,7 @@ namespace control
 
 		registerPolyNoProcessNode<control::bang<1, parameter::dynamic_base_holder>, control::bang<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
-		
+		registerPolyNoProcessNode<control::compare<1, parameter::dynamic_base_holder>, control::compare<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, compare_editor>();
 
 		registerPolyNoProcessNode<control::change<1, parameter::dynamic_base_holder>, control::change<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
         
@@ -1319,7 +1317,7 @@ namespace control
 
 		registerNoProcessNode<control::random<parameter::dynamic_base_holder>, ModulationSourceBaseComponent>();
 
-		registerNoProcessNode<control::input_toggle<parameter::dynamic_base_holder>, input_toggle_editor>();
+		registerPolyNoProcessNode<control::input_toggle<1, parameter::dynamic_base_holder>, control::input_toggle<NUM_POLYPHONIC_VOICES, parameter::dynamic_base_holder>, input_toggle_editor>();
 
         registerNoProcessNode<conversion_logic::dynamic::NodeType, conversion_logic::dynamic::editor>();
 
@@ -1781,51 +1779,14 @@ namespace dll
 {
 
 
-struct UncompiledNode: public WrapperNode
-{
-	UncompiledNode(DspNetwork* n, ValueTree v):
-	  WrapperNode(n, v)
-	{
-		auto pl = createInternalParameterList();
 
-		for (auto p : pl)
-		{
-			auto existingChild = getParameterTree().getChildWithProperty(PropertyIds::ID, p.info.getId());
-			jassert(existingChild.isValid());
-			auto newP = new Parameter(this, existingChild);
-			addParameter(newP);
-		}
-	}
-
-	void* getObjectPtr() override { return nullptr; }
-
-	void prepare(PrepareSpecs ps) override
-	{
-		getRootNetwork()->getExceptionHandler().addCustomError(this, Error::ErrorCode::UncompiledThirdPartyNode, "Uncompiled third party node.");
-	}
-
-	void process(ProcessDataDyn& ) override
-	{
-		
-	}
-
-	void reset() override
-	{
-		
-	}
-
-	void processFrame(FrameType& data) override
-	{
-		
-	}
-};
 
 BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 	NodeFactory(n),
 	dllFactory(dll)
 {
 	auto mc = n->getScriptProcessor()->getMainController_();
-	auto networks = BackendDllManager::getNetworkFiles(mc);
+	auto networks = BackendDllManager::getNetworkFiles(mc, false);
 	auto numNetworks = networks.size();
 
 	int numNodesInDll = dllFactory.getNumNodes();
@@ -1930,39 +1891,27 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 		}
 		else
 		{
-			auto networkIndex = i - thirdPartyOffset;
-
-			auto f = networks[networkIndex];
 			NodeFactory::Item item;
-			item.id = f.getFileNameWithoutExtension();
-			item.cb = [this, i, f](DspNetwork* p, ValueTree v)
+
+			if(i < thirdPartyOffset)
 			{
-				auto nodeId = f.getFileNameWithoutExtension();
-				auto networkFile = f;
-
-				if (networkFile.existsAsFile())
-				{
-					if (auto xml = XmlDocument::parse(networkFile.loadFileAsString()))
-					{
-						auto nv = ValueTree::fromXml(*xml);
-
-						auto useMod = cppgen::ValueTreeIterator::hasChildNodeWithProperty(nv, PropertyIds::IsPublicMod);
-
-						if (useMod)
-							return HostHelpers::initNodeWithNetwork<InterpretedModNode>(p, v, nv, useMod);
-						else
-							return HostHelpers::initNodeWithNetwork<InterpretedNode>(p, v, nv, useMod);
-					}
-				}
-
-				jassertfalse;
-				NodeBase* n = nullptr;
-				return n;
+				jassert(isPositiveAndBelow(i, idsFromJSON.size()));
+				item.id = idsFromJSON[i];
+			}
+			else
+			{
+				auto networkIndex = i - thirdPartyOffset;
+				jassert(isPositiveAndBelow(networkIndex, networks.size()));
+				item.id = networks[networkIndex].getFileNameWithoutExtension();
+			}
+			
+			item.cb = [](DspNetwork* p, ValueTree v)
+			{
+				return new UncompiledNode(p, v);
 			};
 
 			monoNodes.add(item);
 		}
-
 	}
 }
 }

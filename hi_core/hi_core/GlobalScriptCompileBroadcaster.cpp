@@ -92,6 +92,11 @@ void GlobalScriptCompileBroadcaster::clearIncludedFiles()
 	includedFiles.clear();
 }
 
+void GlobalScriptCompileBroadcaster::removeIncludedFile(int index)
+{
+	includedFiles.remove(index);
+}
+
 void GlobalScriptCompileBroadcaster::restoreIncludedScriptFilesFromSnippet(const ValueTree& snippetTree)
 {
 #if USE_BACKEND
@@ -217,8 +222,14 @@ void GlobalScriptCompileBroadcaster::setWebViewRoot(File newRoot)
 void GlobalScriptCompileBroadcaster::saveAllExternalFiles()
 {
 	for(int i = 0; i < getNumExternalScriptFiles(); i++)
-	{
+	{		
 		auto ef = getExternalScriptFile(i);
+
+		if (!ef->getFile().exists())
+		{
+				removeIncludedFile(i);
+				continue;
+		}
 
 		if(ef->getResourceType() == ExternalScriptFile::ResourceType::EmbeddedInSnippet)
 		{

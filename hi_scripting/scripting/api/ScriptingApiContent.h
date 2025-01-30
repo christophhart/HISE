@@ -1335,6 +1335,15 @@ public:
 
 		void connectToOtherTable(String processorId, int index);
 
+		/** Resets the table with the given index to a 0..1 line. */
+		void reset();
+		
+		/** Adds a new table point (x and y are normalized coordinates). */
+		void addTablePoint(float x, float y);
+		
+		/** Sets the point with the given index to the values. */
+		void setTablePoint(int pointIndex, float x, float y, float curve);
+
 		/** Returns the table value from 0.0 to 1.0 according to the input value from 0.0 to 1.0. */
 		float getTableValue(float inputValue);
 
@@ -2628,6 +2637,9 @@ public:
 	/** Returns an array of all components that match the given regex. */
     var getAllComponents(String regex);
 
+	/** Checks if the component exists. */
+	bool componentExists(const Identifier &name);
+
 	/** Restore the Component from a JSON object. */
 	void setPropertiesFromJSON(const Identifier &name, const var &jsonData);
 
@@ -2664,6 +2676,9 @@ public:
     /** Opens a text input box with the given properties and executes the callback when finished. */
     void showModalTextInput(var properties, var callback);
     
+		/** Returns an array containing the width and height of the interface. */
+		var getInterfaceSize();
+		
     /** Sets this script as main interface with the given size. */
     void makeFrontInterface(int width, int height);
     

@@ -385,7 +385,56 @@ bool OpaqueNodeDataHolder::removeDataObject(ExternalData::DataType t, int index)
 	return false;
 }
 
+void UncompiledNode::ReloadComponent::mouseDown(const MouseEvent& e)
+{
+#if USE_BACKEND
+	if(!reloaded)
+	{
+		// show the compile menu...
+		if(auto bpe = findParentComponentOfClass<BackendRootWindow>())
+		{
+			BackendCommandTarget::Actions::compileNetworksToDll(bpe);
+		}
+	}
+	else
+	{
+		// reload the network to use the proper node
+		auto n = findParentComponentOfClass<DspNetworkGraph>()->network;
 
+		auto currentData = n->getValueTree().createCopy();
+		auto holder = n->getParentHolder();
+
+		auto bpe = findParentComponentOfClass<BackendRootWindow>();
+
+		auto f = [holder, currentData, bpe]()
+		{
+			ValueTree p1("p1");
+			ValueTree p2("Networks");
+
+			p1.addChild(p2, -1, nullptr);
+			p2.addChild(currentData, -1, nullptr);
+			
+			holder->clearAllNetworks();
+			holder->restoreNetworks(p1);
+
+			auto p = dynamic_cast<Processor*>(holder);
+
+			auto an = holder->getActiveNetwork();
+
+			auto numChannels = dynamic_cast<RoutableProcessor*>(p)->getMatrix().getNumSourceChannels();
+
+			an->setNumChannels(numChannels);
+			an->prepareToPlay(p->getSampleRate(), p->getLargestBlockSize());
+
+			holder->getActiveNetwork()->prepareToPlay(p->getSampleRate(), p->getLargestBlockSize());
+
+			bpe->gotoIfWorkspace(p);
+		};
+
+		MessageManager::callAsync(f);
+	}
+#endif
+}
 
 OpaqueNodeDataHolder::Editor::Editor(OpaqueNodeDataHolder* obj, PooledUIUpdater* u, bool addDragger) :
 	ScriptnodeExtraComponent<OpaqueNodeDataHolder>(obj, u),

@@ -885,7 +885,8 @@ public:
 				}
 			}
 
-            setContentOwned (new MainContentComponent(commandLine), true);
+			auto mc = new MainContentComponent(commandLine);
+            setContentOwned (mc, true);
 
 #if JUCE_IOS
             
@@ -899,9 +900,10 @@ public:
 
 			setUsingNativeTitleBar(true);
 
-
-            
-            centreWithSize (getWidth(), getHeight() - 28);
+			if(mc->makeFullscreenOnLaunch)
+				setFullScreen(true);
+			else
+				centreWithSize (getWidth(), getHeight() - 28);
             
 #endif
             
@@ -968,7 +970,7 @@ MainContentComponent::MainContentComponent(const String &commandLine)
 
     setSize(editor->getWidth(), editor->getHeight());
 
-    
+    makeFullscreenOnLaunch = (bool)editor->getProperties()["FullScreen"];
 
     handleCommandLineArguments(commandLine);
 }

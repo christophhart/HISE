@@ -1501,6 +1501,27 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 	}
 	else
 	{
+		if(!shortBuffer.isEmpty())
+		{
+			MidiBuffer::Iterator it(midiMessages);
+
+			delayedMidiBuffer.clear();
+
+			MidiMessage m;
+			int pos;
+
+			for (auto& e : shortBuffer)
+				delayedMidiBuffer.addEvent(e.toMidiMesage(), e.getTimeStamp());
+
+			while (it.getNextEvent(m, pos))
+				delayedMidiBuffer.addEvent(m, jmin(pos + lastBlockSizeForShortBuffer, buffer.getNumSamples()));
+
+			delayedMidiBuffer.swapWith(midiMessages);
+
+			shortBuffer.clear();
+			lastBlockSizeForShortBuffer = 0;
+		}
+
 		mc->processBlockCommon(buffer, midiMessages);
 	}
 }

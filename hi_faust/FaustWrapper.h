@@ -67,7 +67,7 @@ template <int NV, class ParameterClass> struct faust_base_wrapper
 	}
 
 	// std::string code;
-	int sampleRate;
+	int sampleRate = 0;
 
 	// This contains a faust instance for each voice
 	PolyData<::faust::dsp*, NumVoices> faustDsp;
@@ -111,9 +111,10 @@ template <int NV, class ParameterClass> struct faust_base_wrapper
             return;
         
 		if (_nChannels != specs.numChannels || _nFramesMax != specs.blockSize) {
-			DBG("Faust: Resizing buffers: nChannels=" << _nChannels << ", blockSize=" << _nFramesMax);
+			
 			_nChannels = specs.numChannels;
 			_nFramesMax = specs.blockSize;
+			DBG("Faust: Resizing buffers: nChannels=" << _nChannels << ", blockSize=" << _nFramesMax);
 			resizeBuffer();
 		}
 
@@ -144,6 +145,9 @@ template <int NV, class ParameterClass> struct faust_base_wrapper
 				// the error system expects a single integer as "expected value", so we need
 				// to encode both input and output channels into a single integer using a magic trick
 				auto encodedChannelCount = 1000 * numInputs + numOutputs;
+
+				// Reset the sample rate so that it will be initialised the next prepare() call
+				sampleRate = 0;
 
 				scriptnode::Error::throwError(Error::IllegalFaustChannelCount, numHiseChannels, encodedChannelCount);
 			}

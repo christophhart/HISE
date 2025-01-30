@@ -118,8 +118,18 @@ struct ValueToTextConverter
 		}
 
 		static String Pan(double v)
-		{
-			return String(roundToInt(std::abs(v*100.0))) + (v > 0 ? "R" : "L");
+		{		
+			if (v == 0)
+				return "C";
+			
+			String result = String(roundToInt(std::abs(v)));
+						
+			if (v > 0)
+				result += "R";
+			else if (v < 0)
+				result += "L";
+
+			return result;
 		}
 
 		static String NormalizedPercentage(double v)

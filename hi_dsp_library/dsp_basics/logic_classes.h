@@ -247,7 +247,7 @@ template <int Unused> struct notenumber
     {
         if (e.isNoteOn())
         {
-            v = (double)e.getNoteNumber() / 127.0;
+            v = (double)e.getNoteNumberIncludingTransposeAmount() / 127.0;
             return true;
         }
 

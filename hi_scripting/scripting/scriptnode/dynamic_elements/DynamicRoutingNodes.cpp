@@ -216,14 +216,10 @@ void local_cable_base::Manager::refreshAllConnections(const String& v)
 
 	for(auto con: registeredCables)
 	{
-		
-
 		if(con->cable->getVariableId() == v || v.isEmpty())
-		{
 			con->variableIndex = variables.indexOf(con->cable->getVariableId());
-			con->cable->refreshConnection(con->variableIndex);
-		}
-			
+
+		con->cable->refreshConnection(con->variableIndex);
 	}
 }
 

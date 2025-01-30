@@ -63,8 +63,7 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 #if HISE_INCLUDE_SNEX
 	codeManager(*this),
 #endif
-	parentHolder(dynamic_cast<Holder*>(p)),
-	projectNodeHolder(*this)
+	parentHolder(dynamic_cast<Holder*>(p))
 {
 	jassert(data.getType() == PropertyIds::Network);
 
@@ -130,32 +129,14 @@ DspNetwork::DspNetwork(hise::ProcessorWithScriptingContent* p, ValueTree data_, 
 	if (auto ah = dynamic_cast<Holder*>(p))
 	{
         if(!getScriptProcessor()->getMainController_()->isFlakyThreadingAllowed())
-        {
             ownedFactories.add(new dll::BackendHostFactory(this, ah->projectDll));
-
-            if (ah->projectDll != nullptr)
-                projectNodeHolder.init(ah->projectDll);
-        }
 	}
 
 	ownedFactories.add(new TemplateNodeFactory(this));
 
 #else
 	if (auto ah = dynamic_cast<Holder*>(p))
-	{
-		auto nf = new hise::FrontendHostFactory(this);
-
-		ownedFactories.add(nf);
-
-		String selfId = "project." + getId();
-
-		if (nf->getModuleList().contains(selfId))
-		{
-			// This network is supposed to be frozen
-			projectNodeHolder.init(nf->staticFactory.get());
-			projectNodeHolder.setEnabled(true);
-		}
-	}
+		ownedFactories.add(new hise::FrontendHostFactory(this));
 #endif
 
 	for (auto nf : ownedFactories)
@@ -484,6 +465,45 @@ void DspNetwork::registerOwnedFactory(NodeFactory* ownedFactory)
 	nodeFactories.addIfNotAlreadyThere(ownedFactory);
 }
 
+void DspNetwork::onDllReload(const std::pair<dll::ProjectDll*, dll::ProjectDll*>& update)
+{
+#if USE_BACKEND
+	SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock());
+
+	ScopedPointer<NodeFactory> toBeDeleted;
+
+	for(auto f: ownedFactories)
+	{
+		if(dynamic_cast<dll::BackendHostFactory*>(f) != nullptr)
+		{
+			toBeDeleted = f;
+			ownedFactories.removeObject(f, false);
+			break;
+		}
+	}
+
+	if(toBeDeleted != nullptr)
+	{
+		nodeFactories.removeAllInstancesOf(toBeDeleted.get());
+
+		ownedFactories.add(new dll::BackendHostFactory(this, update.second));
+		nodeFactories.add(ownedFactories.getLast());
+
+		
+	}
+
+	for(auto n: nodes)
+	{
+		if(auto nwfc = dynamic_cast<NodeWithFactoryConnection*>(n))
+		{
+			nwfc->reloadFromDll(&dynamic_cast<dll::BackendHostFactory*>(ownedFactories.getLast())->dllFactory);
+		}
+	}
+
+	toBeDeleted = nullptr;
+#endif
+}
+
 NodeBase::List DspNetwork::getListOfNodesWithPath(const NamespacedIdentifier& id, bool includeUnusedNodes)
 {
 	NodeBase::List list;
@@ -502,19 +522,14 @@ NodeBase::List DspNetwork::getListOfNodesWithPath(const NamespacedIdentifier& id
 void DspNetwork::reset()
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(getConnectionLock());
-	
-	if (projectNodeHolder.isActive())
-		projectNodeHolder.n.reset();
-	else if (auto rn = getRootNode())
+
+	if (auto rn = getRootNode())
 		rn->reset();
 }
 
 void DspNetwork::handleHiseEvent(HiseEvent& e)
 {
-	if (projectNodeHolder.isActive())
-		projectNodeHolder.n.handleHiseEvent(e);
-	else
-		getRootNode()->handleHiseEvent(e);
+	getRootNode()->handleHiseEvent(e);
 }
 
 void DspNetwork::process(AudioSampleBuffer& b, HiseEventBuffer* e)
@@ -531,12 +546,6 @@ void DspNetwork::process(ProcessDataDyn& data)
     
     if(!isInitialised())
         return;
-    
-	if (projectNodeHolder.isActive())
-	{
-		projectNodeHolder.process(data);
-		return;
-	}
 
 	if (auto s = SimpleReadWriteLock::ScopedTryReadLock(getConnectionLock()))
 	{
@@ -557,10 +566,7 @@ bool DspNetwork::isSuspendedOnSilence() const
 
 bool DspNetwork::handleModulation(double& v)
 {
-	if (isFrozen())
-		return projectNodeHolder.handleModulation(v);
-	else
-		return networkModValue.getChangedValue(v);
+	return networkModValue.getChangedValue(v);
 }
 
 juce::Identifier DspNetwork::getParameterIdentifier(int parameterIndex)
@@ -598,13 +604,8 @@ void DspNetwork::prepareToPlay(double sampleRate, double blockSize)
 				currentSpecs.voiceIndex = getPolyHandler();
 
 				getRootNode()->prepare(currentSpecs);
-
 				runPostInitFunctions();
-
 				getRootNode()->reset();
-
-				if (projectNodeHolder.isActive())
-					projectNodeHolder.prepare(currentSpecs);
 			}
             
             initialised = true;
@@ -773,6 +774,11 @@ void DspNetwork::clear(bool removeNodesFromSignalChain, bool removeUnusedNodes)
 bool DspNetwork::undo()
 {
 	return getUndoManager(true)->undo();
+}
+
+bool DspNetwork::isBeingDebugged() const
+{
+	return parentHolder->getDebuggedNetwork() == this;
 }
 
 var DspNetwork::createTest(var testData)
@@ -983,33 +989,6 @@ Result DspNetwork::checkBeforeCompilation()
 
 		if (mustBeWrapped)
 			return Result::fail(id + " needs to be wrapped into a compileable DSP network.  \n> If you've already compiled the network try using a Hardcoded module instead of `" + dynamic_cast<Processor*>(getScriptProcessor())->getId() + "` to avoid the scriptnode module overhead.");
-	}
-
-	if (projectNodeHolder.dll != nullptr)
-	{
-		auto dll = projectNodeHolder.dll;
-		auto fileList = BackendDllManager::getNetworkFiles(getScriptProcessor()->getMainController_(), false);
-
-		for (auto nId : fileList)
-		{
-			auto id = nId.getFileNameWithoutExtension();
-			auto prHash = BackendDllManager::getHashForNetworkFile(getScriptProcessor()->getMainController_(), id);
-			bool found = false;
-
-			for (int i = 0; i < dll->getNumNodes(); i++)
-			{
-				if (dll->getNodeId(i) == id)
-				{
-					found = true;
-
-					if (prHash != dll->getHash(i))
-						return Result::fail(id + " hash mismatch");
-				}
-			}
-
-			if (!found)
-				return Result::fail(id + " is not compiled");
-		}
 	}
 #endif
 
@@ -1252,49 +1231,19 @@ UndoManager* DspNetwork::getUndoManager(bool returnIfPending)
 		return &um;
 }
 
-void DspNetwork::setUseFrozenNode(bool shouldBeEnabled)
-{
-	if (projectNodeHolder.isActive() == shouldBeEnabled)
-		return;
-
-	if (shouldBeEnabled && currentSpecs)
-		projectNodeHolder.prepare(currentSpecs);
-
-	projectNodeHolder.setEnabled(shouldBeEnabled);
-	reset();
-}
-
-bool DspNetwork::hashMatches()
-{
-	return projectNodeHolder.hashMatches;
-}
-
-void DspNetwork::setExternalData(const snex::ExternalData& d, int index)
-{
-	projectNodeHolder.n.setExternalData(d, index);
-}
 
 hise::ScriptParameterHandler* DspNetwork::getCurrentParameterHandler()
 {
-	if (projectNodeHolder.isActive())
-		return &projectNodeHolder;
-	else
-		return &networkParameterHandler;
+	return &networkParameterHandler;
 }
 
 PolyHandler* DspNetwork::getPolyHandler()
 {
-	if (auto pn = getParentNetwork())
-		return pn->getPolyHandler();
-
 	return &polyHandler;
 }
 
 const PolyHandler* DspNetwork::getPolyHandler() const
 {
-	if (auto pn = getParentNetwork())
-		return pn->getPolyHandler();
-
 	return &polyHandler;
 }
 
@@ -1368,13 +1317,7 @@ ScriptParameterHandler* DspNetwork::Holder::getCurrentNetworkParameterHandler(
 	if (auto n = getActiveOrDebuggedNetwork())
 	{
 		if (n->isForwardingControlsToParameters())
-		{
-			if(n->projectNodeHolder.isActive())
-				return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->projectNodeHolder));
-			else
-				return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->networkParameterHandler));
-					
-		}
+			return const_cast<ScriptParameterHandler*>(static_cast<const ScriptParameterHandler*>(&n->networkParameterHandler));
 	}
 
 	return const_cast<ScriptParameterHandler*>(contentHandler);
@@ -1396,10 +1339,7 @@ DspNetwork* DspNetwork::Holder::getActiveNetwork() const
 	return activeNetwork.get();
 }
 
-void DspNetwork::Holder::setProjectDll(dll::ProjectDll::Ptr pdll)
-{
-	projectDll = pdll;
-}
+
 
 void DspNetwork::Holder::connectRuntimeTargets(MainController* mc)
 {
@@ -1447,15 +1387,6 @@ void DspNetwork::Holder::setVoiceKillerToUse(snex::Types::VoiceResetter* vk_)
 SimpleReadWriteLock& DspNetwork::Holder::getNetworkLock()
 { return connectLock; }
 
-DspNetwork* DspNetwork::Holder::addEmbeddedNetwork(DspNetwork* parent, const ValueTree& v,
-	ExternalDataHolder* holderToUse)
-{
-	auto n = new DspNetwork(parent->getScriptProcessor(), v, parent->isPolyphonic(), holderToUse);
-	embeddedNetworks.add(n);
-	n->setParentNetwork(parent);
-	return n;
-}
-
 DspNetwork* DspNetwork::Holder::getDebuggedNetwork()
 { return debuggedNetwork.get(); }
 
@@ -1469,13 +1400,33 @@ void DspNetwork::Holder::toggleDebug()
 	std::swap(debuggedNetwork, activeNetwork);
 }
 
+void DspNetwork::Holder::initialiseProjectDll(MainController* mc)
+{
+#if USE_BACKEND
+	auto dllManager = dynamic_cast<BackendProcessor*>(mc)->dllManager;
+	dllManager->loadDll(false);
+	dllManager->reloadBroadcaster.addListener(*this, onDllReload, false);
+	projectDll = dllManager->projectDll;
+#endif
+}
+
+void DspNetwork::Holder::onDllReload(Holder& h, const std::pair<dll::ProjectDll*, dll::ProjectDll*>& update)
+{
+	h.projectDll = update.second;
+
+	for(auto n: h.networks)
+	{
+		n->onDllReload(update);
+	}
+
+	h.dllRebuildBroadcaster.sendMessage(sendNotificationAsync, &h);
+}
+
 void DspNetwork::Holder::unload()
 {
 #if USE_BACKEND
     auto& manager = dynamic_cast<BackendProcessor*>(dynamic_cast<ControlledObject*>(this)->getMainController())->workbenches;
-
     manager.setCurrentWorkbench(nullptr, false);
-    embeddedNetworks.clear();
     networks.clear();
     setActiveNetwork(nullptr);
 #endif
@@ -1955,6 +1906,23 @@ void DspNetwork::CodeManager::Entry::propertyChanged(ValueTree, Identifier)
 	updateFile();
 }
 
+void DspNetwork::CodeManager::Entry::init(snex::ui::WorkbenchData::CodeProvider* codeProvider, const ValueTree& pTree,
+	ProcessorWithScriptingContent* sp)
+{
+	cp = codeProvider;
+	wb = new snex::ui::WorkbenchData();
+	wb->setCodeProvider(cp, dontSendNotification);
+	wb->setCompileHandler(new SnexSourceCompileHandler(wb.get(), sp));
+
+	parameterTree = pTree;
+
+	if(!parameterTree.isValid())
+		parameterTree = ValueTree(PropertyIds::Parameters);
+
+	pListener.setCallback(parameterTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::parameterAddedOrRemoved));
+	propListener.setCallback(parameterTree, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Entry::propertyChanged));
+}
+
 void DspNetwork::CodeManager::Entry::updateFile()
 {
 	auto xml = parameterTree.createXml();
@@ -2263,158 +2231,6 @@ scriptnode::NodeBase::Ptr DspNetwork::AnonymousNodeCloner::clone(NodeBase::Ptr p
 	return parent.createFromValueTree(parent.isPolyphonic(), p->getValueTree(), false);
 }
 
-DspNetwork::ProjectNodeHolder::ProjectNodeHolder(DspNetwork& parent):
-	network(parent)
-{
-
-}
-
-Identifier DspNetwork::ProjectNodeHolder::getParameterId(int index) const
-{ return network.networkParameterHandler.getParameterId(index); }
-
-int DspNetwork::ProjectNodeHolder::getNumParameters() const
-{ return n.numParameters; }
-
-void DspNetwork::ProjectNodeHolder::setParameter(int index, float newValue)
-{
-	if (auto p = n.getParameter(index))
-	{
-		parameterValues[index] = newValue;
-		p->callback.call(newValue);
-	}
-}
-
-float DspNetwork::ProjectNodeHolder::getParameter(int index) const
-{ 
-	if(isPositiveAndBelow(index, 16))
-		return parameterValues[index]; 
-
-	return 0.0f;
-}
-
-bool DspNetwork::ProjectNodeHolder::isActive() const
-{ return forwardToNode; }
-
-void DspNetwork::ProjectNodeHolder::prepare(PrepareSpecs ps)
-{
-	if(dll != nullptr)
-		dll->clearError();
-
-	n.prepare(ps);
-
-	if (dll != nullptr)
-	{
-		auto e = dll->getError();
-
-		if (!e.isOk())
-			throw e;
-	}
-
-	n.reset();
-}
-
-bool DspNetwork::ProjectNodeHolder::handleModulation(double& modValue)
-{
-	return n.handleModulation(modValue);
-}
-
-void DspNetwork::ProjectNodeHolder::setEnabled(bool shouldBeEnabled)
-{
-	if (!loaded)
-		return;
-
-	if (shouldBeEnabled != forwardToNode)
-	{
-		forwardToNode = shouldBeEnabled;
-
-		auto s1 = static_cast<ScriptParameterHandler*>(&network.networkParameterHandler);
-		auto s2 = static_cast<ScriptParameterHandler*>(this);
-
-		auto oh = forwardToNode ? s1 : s2;
-		auto nh = forwardToNode ? s2 : s1;
-
-		if (forwardToNode && network.currentSpecs)
-		{
-			prepare(network.currentSpecs);
-			n.reset();
-		}
-
-		for (int i = 0; i < nh->getNumParameters(); i++)
-			nh->setParameter(i, oh->getParameter(i));
-	}
-}
-
-DspNetwork::ProjectNodeHolder::~ProjectNodeHolder()
-{
-	if (loaded && dll != nullptr)
-	{
-		dll->deInitOpaqueNode(&n);
-	}
-}
-
-void DspNetwork::ProjectNodeHolder::process(ProcessDataDyn& data)
-{
-	NodeProfiler np(network.getRootNode(), data.getNumSamples());
-
-	n.process(data);
-}
-
-void DspNetwork::ProjectNodeHolder::init(dll::ProjectDll::Ptr dllToUse)
-{
-	dll = dllToUse;
-
-	int getNumNodes = dll->getNumNodes();
-
-	for (int i = 0; i < getNumNodes; i++)
-	{
-		auto dllId = dll->getNodeId(i);
-
-		if (dllId == network.getId())
-		{
-			dll->initOpaqueNode(&n, i, network.isPolyphonic());
-			loaded = true;
-		}
-	}
-
-#if USE_BACKEND
-	if (network.data[PropertyIds::AllowCompilation])
-	{
-		auto fileHash = BackendDllManager::getHashForNetworkFile(network.getScriptProcessor()->getMainController_(), network.getId());
-
-		if (dll != nullptr)
-		{
-			auto numNodes = dll->getNumNodes();
-
-			for (int i = 0; i < numNodes; i++)
-			{
-				auto nid = dll->getNodeId(i);
-
-				if (nid == network.getId())
-				{
-					auto dllHash = dll->getHash(i);
-
-					hashMatches = dllHash == fileHash;
-					return;
-				}
-			}
-		}
-	}
-#endif
-}
-
-void DspNetwork::ProjectNodeHolder::init(dll::StaticLibraryHostFactory* staticLibrary)
-{
-	int numNodes = staticLibrary->getNumNodes();
-
-	for (int i = 0; i < numNodes; i++)
-	{
-		if (network.getId() == staticLibrary->getId(i))
-		{
-			loaded = staticLibrary->initOpaqueNode(&n, i, network.isPolyphonic());
-		}
-	}
-}
-
 int HostHelpers::getNumMaxDataObjects(const ValueTree& v, snex::ExternalData::DataType t)
 {
 	auto id = Identifier(snex::ExternalData::getDataTypeName(t, false));
@@ -2529,105 +2345,6 @@ void DspNetworkListeners::DspNetworkGraphRootListener::onChangeStatic(DspNetwork
 }
 #endif
 
-bool OpaqueNetworkHolder::isPolyphonic() const
-{ return false; }
-
-OpaqueNetworkHolder::OpaqueNetworkHolder()
-{
-
-}
-
-OpaqueNetworkHolder::~OpaqueNetworkHolder()
-{
-	ownedNetwork = nullptr;
-}
-
-void OpaqueNetworkHolder::handleHiseEvent(HiseEvent& e)
-{
-	ownedNetwork->handleHiseEvent(e);
-}
-
-bool OpaqueNetworkHolder::handleModulation(double& modValue)
-{
-	return ownedNetwork->handleModulation(modValue);
-}
-
-void OpaqueNetworkHolder::process(ProcessDataDyn& d)
-{
-	ownedNetwork->process(d);
-}
-
-void OpaqueNetworkHolder::reset()
-{
-	ownedNetwork->reset();
-}
-
-void OpaqueNetworkHolder::prepare(PrepareSpecs ps)
-{
-	snex::Types::DllBoundaryTempoSyncer::ScopedModValueChange smvs(*ps.voiceIndex->getTempoSyncer(), ownedNetwork->getNetworkModValue());
-	ownedNetwork->setNumChannels(ps.numChannels);
-	ownedNetwork->prepareToPlay(ps.sampleRate, ps.blockSize);
-}
-
-DspNetwork* OpaqueNetworkHolder::getNetwork()
-{
-	return ownedNetwork.get();
-}
-
-void OpaqueNetworkHolder::createParameters(ParameterDataList& l)
-{
-	if (ownedNetwork != nullptr)
-	{
-		auto pTree = ownedNetwork->getRootNode()->getValueTree().getChildWithName(PropertyIds::Parameters);
-
-		for (auto c : pTree)
-		{
-			parameter::data p;
-			p.info = parameter::pod(c);
-			setCallback(p, pTree.indexOf(c));
-			l.add(std::move(p));
-		}
-	}
-}
-
-void OpaqueNetworkHolder::setCallback(parameter::data& d, int index)
-{
-	if (index == 0) d.callback = parameter::inner<OpaqueNetworkHolder, 0>(*this);
-	if (index == 1) d.callback = parameter::inner<OpaqueNetworkHolder, 1>(*this);
-	if (index == 2) d.callback = parameter::inner<OpaqueNetworkHolder, 2>(*this);
-	if (index == 3) d.callback = parameter::inner<OpaqueNetworkHolder, 3>(*this);
-	if (index == 4) d.callback = parameter::inner<OpaqueNetworkHolder, 4>(*this);
-	if (index == 5) d.callback = parameter::inner<OpaqueNetworkHolder, 5>(*this);
-	if (index == 6) d.callback = parameter::inner<OpaqueNetworkHolder, 6>(*this);
-	if (index == 7) d.callback = parameter::inner<OpaqueNetworkHolder, 7>(*this);
-	if (index == 8) d.callback = parameter::inner<OpaqueNetworkHolder, 8>(*this);
-	if (index == 9) d.callback = parameter::inner<OpaqueNetworkHolder, 9>(*this);
-	if (index == 10) d.callback = parameter::inner<OpaqueNetworkHolder, 10>(*this);
-	if (index == 11) d.callback = parameter::inner<OpaqueNetworkHolder, 11>(*this);
-	if (index == 12) d.callback = parameter::inner<OpaqueNetworkHolder, 12>(*this);
-}
-
-void OpaqueNetworkHolder::setNetwork(DspNetwork* n)
-{
-	ownedNetwork = n;
-
-	for (const auto& d : deferredData)
-	{
-		if (d.d.obj != nullptr)
-		{
-			SimpleReadWriteLock::ScopedWriteLock sl(d.d.obj->getDataLock());
-			ownedNetwork->setExternalData(d.d, d.index);
-		}
-	}
-}
-
-void OpaqueNetworkHolder::setExternalData(const ExternalData& d, int index)
-{
-	if (ownedNetwork != nullptr)
-		ownedNetwork->setExternalData(d, index);
-	else
-		deferredData.add({ d, index });
-}
 
 void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 {
@@ -2657,6 +2374,7 @@ void ScriptnodeExceptionHandler::validateMidiProcessingContext(NodeBase* b)
 		}
 	}
 }
+
 
 
 #if USE_BACKEND

@@ -498,7 +498,7 @@ public:
 		ccSelector = Content.addComboBox("ccSelector", 309, 15);
 		
 
-		for (int i = 1; i < 127; i++)
+		for (int i = 0; i < 128; i++)
 		{
 			ccSelector->addItem("CC " + String(i));
 		}

@@ -105,8 +105,11 @@ void ModulatorSamplerVoice::startNote(int midiNoteNumber,
 	{
 		startVoiceInternal(midiNoteNumber, velocity);
 	}
-	
-	
+
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(allowReleaseStart == ReleaseStartState::DisabledOnce)
+		allowReleaseStart = ReleaseStartState::Enabled;
+#endif
 	
 	if (auto fEnve = currentlyPlayingSamplerSound->getEnvelope(Modulation::Mode::PanMode))
 	{
@@ -437,6 +440,8 @@ ModulatorSamplerVoice(ownerSynth)
 		wrappedVoices.getLast()->setLoaderBufferSize((int)getOwnerSynth()->getAttribute(ModulatorSampler::BufferSize));
 		wrappedVoices.getLast()->setTemporaryVoiceBuffer(ms->getTemporaryVoiceBuffer(), ms->getTemporaryStretchBuffer());
 		wrappedVoices.getLast()->setDebugLogger(&ownerSynth->getMainController()->getDebugLogger());
+        
+        wrappedVoices.getLast()->setSuspendOnDelayedStartFunction(std::bind(&ModulatorSynth::syncAfterDelayStart, ownerSynth, std::placeholders::_1, std::placeholders::_2), getVoiceIndex());
 	}
 
 	// just call this once...
@@ -485,7 +490,10 @@ void MultiMicModulatorSamplerVoice::startNote(int midiNoteNumber, float velocity
 
 	midiNoteNumber += transposeAmount;
 
-	
+#if HISE_SAMPLER_ALLOW_RELEASE_START
+	if(allowReleaseStart == ReleaseStartState::DisabledOnce)
+		allowReleaseStart = ReleaseStartState::Enabled;
+#endif
 
 	currentlyPlayingSamplerSound = static_cast<ModulatorSamplerSound*>(s);
 

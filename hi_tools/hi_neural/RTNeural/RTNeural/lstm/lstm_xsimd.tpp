@@ -189,7 +189,7 @@ LSTMLayerT<T, in_sizet, out_sizet, sampleRateCorr, MathsProvider>::prepare(T del
 template <typename T, int in_sizet, int out_sizet, SampleRateCorrectionMode sampleRateCorr, typename MathsProvider>
 void LSTMLayerT<T, in_sizet, out_sizet, sampleRateCorr, MathsProvider>::reset()
 {
-    if constexpr(sampleRateCorr != SampleRateCorrectionMode::None)
+    RTNEURAL_IF_CONSTEXPR(sampleRateCorr != SampleRateCorrectionMode::None)
     {
         for(auto& x : ct_delayed)
             std::fill(x.begin(), x.end(), v_type {});

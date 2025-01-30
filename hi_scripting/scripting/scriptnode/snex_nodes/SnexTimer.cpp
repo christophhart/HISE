@@ -39,64 +39,110 @@ using namespace snex;
 
 namespace control
 {
-	String snex_timer::getEmptyText(const Identifier& id) const
-	{
+String snex_timer::getEmptyText(const Identifier& id) const
+{
 #if HISE_INCLUDE_SNEX
-		cppgen::Base c(cppgen::Base::OutputType::AddTabs);
+	cppgen::Base c(cppgen::Base::OutputType::AddTabs);
 
-		cppgen::Struct s(c, id, {}, { TemplateParameter(NamespacedIdentifier("NumVoices"), 0, false) });
+	cppgen::Struct s(c, id, {}, { TemplateParameter(NamespacedIdentifier("NumVoices"), 0, false) });
 
-		addSnexNodeId(c, id);
+	addSnexNodeId(c, id);
 
-		c.addComment("Calculate a new timer value here", snex::cppgen::Base::CommentType::Raw);
-		c << "double getTimerValue()\n";
-		c << "{\n    return 0.0;\n}\n";
+	c.addComment("Calculate a new timer value here", snex::cppgen::Base::CommentType::Raw);
+	c << "double getTimerValue()\n";
+	c << "{\n    return 0.0;\n}\n";
 
-		c.addComment("Reset any state here", snex::cppgen::Base::CommentType::Raw);
-		c << "void reset()\n";
-		c << "{\n    \n}\n";
+	c.addComment("Reset any state here", snex::cppgen::Base::CommentType::Raw);
+	c << "void reset()\n";
+	c << "{\n    \n}\n";
 
-		c.addComment("Initialise the processing", snex::cppgen::Base::CommentType::Raw);
-		c << "void prepare(PrepareSpecs ps)\n";
-		c << "{\n    \n}\n";
+	c.addComment("Initialise the processing", snex::cppgen::Base::CommentType::Raw);
+	c << "void prepare(PrepareSpecs ps)\n";
+	c << "{\n    \n}\n";
 
-		String pf;
-		c.addEmptyLine();
-		addDefaultParameterFunction(pf);
-		c << pf;
+	String pf;
+	c.addEmptyLine();
+	addDefaultParameterFunction(pf);
+	c << pf;
 
-		s.flushIfNot();
+	s.flushIfNot();
 
-		return c.toString();
+	return c.toString();
 #else
-		return {};
+	return {};
 #endif
+}
+
+double snex_timer::getTimerValue()
+{
+	double v;
+
+	switch (currentMode)
+	{
+	case TimerMode::Ping:   v = pingTimer.getTimerValue(); break;
+
+	case TimerMode::Custom: 
+#if HISE_INCLUDE_SNEX
+		v = callbacks.getTimerValue(); 
+#else
+		jassertfalse;
+        v = 0.0;
+#endif
+		break;
+	case TimerMode::Toggle: v = toggleTimer.getTimerValue(); break;
+	case TimerMode::Random: v = randomTimer.getTimerValue(); break;
+    default:                v = 0.0f; break;
 	}
 
-	double snex_timer::getTimerValue()
-	{
-		double v;
+	lastValue.setModValue(v);
+	return v;
+}
 
-		switch (currentMode)
-		{
-		case TimerMode::Ping:   v = pingTimer.getTimerValue(); break;
+bool snex_timer::preprocess(String& code)
+{
+	OptionalSnexSource::preprocess(code);
 
-		case TimerMode::Custom: 
 #if HISE_INCLUDE_SNEX
-			v = callbacks.getTimerValue(); 
-#else
-			jassertfalse;
-            v = 0.0;
-#endif
-			break;
-		case TimerMode::Toggle: v = toggleTimer.getTimerValue(); break;
-		case TimerMode::Random: v = randomTimer.getTimerValue(); break;
-        default:                v = 0.0f; break;
-		}
+	using namespace cppgen;
 
-		lastValue.setModValue(v);
-		return v;
+	Base b(Base::OutputType::AddTabs);
+
+	auto NV = String(getParentNode()->isPolyphonic() ? NUM_POLYPHONIC_VOICES : 1);
+
+	String instanceType = getCurrentClassId().toString() + "<" + NV + ">";
+
+
+	b << String("void prepare(" + instanceType + "& instance, PrepareSpecs ps)");
+	{
+		StatementBlock sb(b, false);
+		b << "instance.prepare(ps);";
 	}
+
+	b << String("void setExternalData(" + instanceType + "& instance, ExternalData& d, int index)");
+    {
+        StatementBlock sb(b, false);
+        b << "instance.setExternalData(d, index);";
+    }
+
+	b << String("void reset(" + instanceType + "& instance)");
+	{
+		StatementBlock sb(b, false);
+		b << "instance.reset();";
+	}
+
+	b << String("double getTimerValue(" + instanceType + "& instance)");
+	{
+		StatementBlock sb(b, false);
+		b << "return instance.getTimerValue();";
+	}
+
+	auto x = b.toString();
+	code << x;
+
+#endif
+
+	return true;
+}
 
 #if HISE_INCLUDE_SNEX
 	snex_timer::editor::editor(snex_timer* t, PooledUIUpdater* updater) :

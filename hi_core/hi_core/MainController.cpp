@@ -1274,7 +1274,7 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 			for (int i = 0; i < osOutput.getNumChannels(); i++)
 				data[i] = osOutput.getChannelPointer(i);
 
-			AudioSampleBuffer thisMultiChannelBufferOs(data, osOutput.getNumChannels(), osOutput.getNumSamples());
+			AudioSampleBuffer thisMultiChannelBufferOs(data, (int)osOutput.getNumChannels(), (int)osOutput.getNumSamples());
 			synthChain->renderNextBlockWithModulators(thisMultiChannelBufferOs, masterEventBuffer);
 			oversampler->processSamplesDown(osInput);
 		}
@@ -1609,7 +1609,7 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 	if (logger == nullptr)
 	{
 		logger = new ConsoleLogger(getMainSynthChain());
-		Logger::setCurrentLogger(logger);
+		//Logger::setCurrentLogger(logger);
 	}
 
 #endif

@@ -1388,6 +1388,7 @@ int SliderPack::getHoverStateForSlider(Slider* s) const
 {
 	auto idx = sliders.indexOf(s);
 
+	ignoreUnused(idx);
 	int state = 0;
 
 #if !HISE_NO_GUI_TOOLS

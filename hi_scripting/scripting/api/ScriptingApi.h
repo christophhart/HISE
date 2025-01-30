@@ -556,6 +556,9 @@ public:
 		/** Returns the current preload message if there is one. */
 		String getPreloadMessage();
 
+		/** Sets the preload message. */
+		void setPreloadMessage(String message);
+
 		/** Returns the current Zoom Level. */
 		var getZoomLevel() const;
 
@@ -889,6 +892,9 @@ public:
 		/** Sets the volume of a particular group (use -1 for active group). Only works with disabled crossfade tables. */
 		void setRRGroupVolume(int groupIndex, int gainInDecibels);
 
+		/** Enable / disables the release start feature for the given event. */
+		bool setAllowReleaseStart(int eventId, bool shouldBeAllowed);
+
 		/** Returns the currently (single) active RR group. */
 		int getActiveRRGroup();
 
@@ -1181,7 +1187,7 @@ public:
 
 
 		/** Sends a controller event to the synth. */
-		void sendController(int controllerNumber, int controllerValue);
+		void sendController(int number, int value);
 
 		/** The same as sendController (for backwards compatibility) */
 		void sendControllerToChildSynths(int controllerNumber, int controllerValue);
@@ -1859,6 +1865,12 @@ private:
 
 		/** Linear interpolation between two colours. */
 		int mix(var colour1, var colour2, float alpha);
+		
+		/** Converts a colour to a [h, s, l, a] array. */
+		var toHsl(var colour);
+
+		/** Converts a colour from a [h, s, l, a] float array to a uint32 value. */
+		int fromHsl(var hsl);
 
 		// ============================================================================================================
 

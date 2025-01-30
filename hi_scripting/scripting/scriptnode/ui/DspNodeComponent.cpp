@@ -55,9 +55,6 @@ void DefaultParameterNodeComponent::resized()
 	b = b.reduced(UIValues::NodeMargin);
 	b.removeFromTop(UIValues::HeaderHeight);
 
-	if (embeddedNetworkBar != nullptr)
-		b.removeFromTop(24);
-
 	if (extraComponent != nullptr)
 	{
 		extraComponent->setBounds(b.removeFromTop(extraComponent->getHeight()));

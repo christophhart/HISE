@@ -442,9 +442,12 @@ public:
         return WaitForSingleObject (processInfo.hProcess, 0) != WAIT_OBJECT_0;
     }
 
-    int read (void* dest, int numNeeded) const noexcept
+    int read (void* dest, int numNeeded, int timeoutMs=0) const noexcept
     {
         int total = 0;
+
+        auto start = Time::getMillisecondCounter();
+        int counter = 0;
 
         while (ok && numNeeded > 0)
         {
@@ -455,12 +458,26 @@ public:
 
             const int numToDo = jmin ((int) available, numNeeded);
 
+            
+
             if (available == 0)
             {
                 if (! isRunning())
                     break;
 
                 Thread::sleep (1);
+
+                if(timeoutMs > 0 && ++counter == 10)
+                {
+                    auto now = Time::getMillisecondCounter();
+
+                    if((int)(now - start) > timeoutMs)
+                    {
+	                    return total;
+                    }
+
+	                counter = 0;
+                }
             }
             else
             {

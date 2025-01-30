@@ -170,9 +170,7 @@ void ModulationSourceBaseComponent::drawDragArea(Graphics& g, Rectangle<float> b
 
 juce::MouseCursor ModulationSourceBaseComponent::createMouseCursor()
 {
-	auto c = createDragImageStatic(true);
-	MouseCursor mc(c, 14, 14);
-	return mc;
+	return MouseCursor(MouseCursor::CrosshairCursor);
 }
 
 void ModulationSourceBaseComponent::mouseDrag(const MouseEvent& e)
