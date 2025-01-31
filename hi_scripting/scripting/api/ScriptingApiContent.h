@@ -1457,7 +1457,7 @@ public:
 
 	private:
 
-		bool allValueChangeCausesCallback = true;
+		bool allValueChangeCausesCallback = false;
 
 		const SliderPackData* getCachedSliderPack() const { return static_cast<const SliderPackData*>(getCachedDataObject()); };
 		SliderPackData* getCachedSliderPack() { return static_cast<SliderPackData*>(getCachedDataObject()); };
