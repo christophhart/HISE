@@ -23,6 +23,12 @@
 namespace juce
 {
 
+#include "juce_core/juce_core.h"
+#include "juce_core/system/juce_SystemStats.h"
+#include "juce_core/memory/juce_MemoryBlock.h"
+#include <algorithm>                                //neede for std::min
+
+
 #if JUCE_MSVC && ! defined (__INTEL_COMPILER)
  #pragma intrinsic (__cpuid)
  #pragma intrinsic (__rdtsc)
@@ -587,7 +593,7 @@ String SystemStats::getDisplayLanguage()
     return languagesBuffer.data();
 }
 
-static constexpr DWORD generateProviderID (const char* string)
+static constexpr DWORD generateProviderID(const char* string)
 {
     return (DWORD) string[0] << 0x18
          | (DWORD) string[1] << 0x10
@@ -595,19 +601,18 @@ static constexpr DWORD generateProviderID (const char* string)
          | (DWORD) string[3] << 0x00;
 }
 
-static std::optional<std::vector<std::byte>> readSMBIOSData()
+static juce::MemoryBlock readSMBIOSData()
 {
-    const auto sig = generateProviderID ("RSMB");
-    const auto  id = generateProviderID ("RSDT");
+    const auto sig = generateProviderID("RSMB");
+    const auto id = generateProviderID("RSDT");
 
-    if (const auto bufLen = GetSystemFirmwareTable (sig, id, nullptr, 0); bufLen > 0)
+    DWORD bufLen = GetSystemFirmwareTable(sig, id, nullptr, 0);
+    if (bufLen > 0)
     {
-        std::vector<std::byte> buffer;
+        juce::MemoryBlock buffer(bufLen, true);
 
-        buffer.resize (bufLen);
-
-        if (GetSystemFirmwareTable (sig, id, buffer.data(), bufLen) == buffer.size())
-            return std::make_optional (std::move (buffer));
+        if (GetSystemFirmwareTable(sig, id, buffer.getData(), bufLen) == buffer.getSize())
+            return buffer;
     }
 
     return {};
@@ -615,16 +620,17 @@ static std::optional<std::vector<std::byte>> readSMBIOSData()
 
 String getLegacyUniqueDeviceID()
 {
-    if (const auto dump = readSMBIOSData())
+    juce::MemoryBlock dump = readSMBIOSData();
+    if (dump.getSize() > 0)
     {
-        uint64_t hash = 0;
-        const auto start = dump->data();
-        const auto end   = start + jmin (1024, (int) dump->size());
+        uint64 hash = 0;
+        auto* start = static_cast<const uint8*>(dump.getData());
+        auto* end = start + jmin(1024, (int) dump.getSize());
 
-        for (auto dataPtr = start; dataPtr != end; ++dataPtr)
-            hash = hash * (uint64_t) 101 + (uint8_t) *dataPtr;
+        for (auto* dataPtr = start; dataPtr != end; ++dataPtr)
+            hash = hash * (uint64) 101 + *dataPtr;
 
-        return String (hash);
+        return String(hash);
     }
 
     return {};
@@ -632,182 +638,160 @@ String getLegacyUniqueDeviceID()
 
 String SystemStats::getUniqueDeviceID()
 {
-    if (const auto smbiosBuffer = readSMBIOSData())
+    juce::MemoryBlock smbiosBuffer = readSMBIOSData();
+
+    if (smbiosBuffer.getSize() == 0)
+        return {};
+
+    #pragma pack (push, 1)
+    struct RawSMBIOSData
     {
-        #pragma pack (push, 1)
-        struct RawSMBIOSData
-        {
-            uint8_t unused[4];
-            uint32_t length;
-        };
+        uint8 unused[4];
+        uint32 length;
+    };
 
-        struct SMBIOSHeader
-        {
-            uint8_t  id;
-            uint8_t  length;
-            uint16_t handle;
-        };
-        #pragma pack (pop)
+    struct SMBIOSHeader
+    {
+        uint8 id;
+        uint8 length;
+        uint16 handle;
+    };
+    #pragma pack (pop)
 
-        if (smbiosBuffer->size() < sizeof (RawSMBIOSData))
-        {
-            // Malformed buffer; not enough room for RawSMBIOSData instance
-            jassertfalse;
-            return {};
-        }
-
-        String uuid;
-        const auto* asRawSMBIOSData = unalignedPointerCast<const RawSMBIOSData*> (smbiosBuffer->data());
-
-        if (smbiosBuffer->size() < sizeof (RawSMBIOSData) + static_cast<size_t> (asRawSMBIOSData->length))
-        {
-            // Malformed buffer; declared length is longer than the buffer we were given
-            jassertfalse;
-            return {};
-        }
-
-        Span<const std::byte> content (smbiosBuffer->data() + sizeof (RawSMBIOSData), asRawSMBIOSData->length);
-
-        while (! content.empty())
-        {
-            if (content.size() < sizeof (SMBIOSHeader))
-            {
-                // Malformed buffer; not enough room for header
-                jassertfalse;
-                break;
-            }
-
-            const auto* header = unalignedPointerCast<const SMBIOSHeader*> (content.data());
-
-            if (content.size() < header->length)
-            {
-                // Malformed buffer; declared length is longer than the buffer we were given
-                jassertfalse;
-                break;
-            }
-
-            std::vector<std::string_view> strings;
-
-            // Each table comprises a struct and a varying number of null terminated
-            // strings. The string section is delimited by a pair of null terminators.
-            // Some fields in the header are indices into the string table.
-
-            const auto endOfStringTable = [&header, &strings, &content]
-            {
-                const auto* dataTable = unalignedPointerCast<const char*> (content.data());
-                size_t stringOffset = header->length;
-
-                while (stringOffset < content.size())
-                {
-                    const auto* str = dataTable + stringOffset;
-                    const auto maxLength = content.size() - stringOffset;
-                    const auto n = strnlen (str, maxLength);
-
-                    if (n == 0)
-                        break;
-
-                    strings.emplace_back (str, n);
-                    stringOffset += std::min (n + 1, maxLength);
-                }
-
-                const auto lengthAfterHeader = jmax ((size_t) header->length + 2, stringOffset + 1);
-                return jmin (lengthAfterHeader, content.size());
-            }();
-
-            const auto stringFromOffset = [&content, &strings] (size_t byteOffset) -> String
-            {
-                if (! isPositiveAndBelow (byteOffset, content.size()))
-                    return std::string{};
-
-                const auto index = std::to_integer<size_t> (content[byteOffset]);
-
-                if (index <= 0 || strings.size() < index)
-                    return std::string{};
-
-                const auto view = strings[index - 1];
-                return std::string { view };
-            };
-
-            enum
-            {
-                systemManufacturer      = 0x04,
-                systemProductName       = 0x05,
-                systemSerialNumber      = 0x07,
-                systemUUID              = 0x08, // 16byte UUID. Can be all 0xFF or all 0x00. Might be user changeable.
-                systemSKU               = 0x19,
-                systemFamily            = 0x1a,
-
-                baseboardManufacturer   = 0x04,
-                baseboardProduct        = 0x05,
-                baseboardVersion        = 0x06,
-                baseboardSerialNumber   = 0x07,
-                baseboardAssetTag       = 0x08,
-
-                processorManufacturer   = 0x07,
-                processorVersion        = 0x10,
-                processorAssetTag       = 0x21,
-                processorPartNumber     = 0x22
-            };
-
-            switch (header->id)
-            {
-                case 1: // System
-                {
-                    uuid += stringFromOffset (systemManufacturer);
-                    uuid += "\n";
-                    uuid += stringFromOffset (systemProductName);
-                    uuid += "\n";
-
-                    char hexBuf[(16 * 2) + 1]{};
-
-                    if (systemUUID + 16 < content.size())
-                    {
-                        const auto* src = content.data() + systemUUID;
-
-                        for (auto i = 0; i != 16; ++i)
-                            snprintf (hexBuf + 2 * i, 3, "%02hhX", std::to_integer<uint8_t> (src[i]));
-                    }
-
-                    uuid += hexBuf;
-                    uuid += "\n";
-                    break;
-                }
-
-                case 2: // Baseboard
-                    uuid += stringFromOffset (baseboardManufacturer);
-                    uuid += "\n";
-                    uuid += stringFromOffset (baseboardProduct);
-                    uuid += "\n";
-                    uuid += stringFromOffset (baseboardVersion);
-                    uuid += "\n";
-                    uuid += stringFromOffset (baseboardSerialNumber);
-                    uuid += "\n";
-                    uuid += stringFromOffset (baseboardAssetTag);
-                    uuid += "\n";
-                    break;
-
-                case 4: // Processor
-                    uuid += stringFromOffset (processorManufacturer);
-                    uuid += "\n";
-                    uuid += stringFromOffset (processorVersion);
-                    uuid += "\n";
-                    uuid += stringFromOffset (processorAssetTag);
-                    uuid += "\n";
-                    uuid += stringFromOffset (processorPartNumber);
-                    uuid += "\n";
-                    break;
-            }
-
-            content = Span (content.data() + endOfStringTable, content.size() - endOfStringTable);
-        }
-
-        return String (uuid.hashCode64());
+    if (smbiosBuffer.getSize() < sizeof(RawSMBIOSData))
+    {
+        jassertfalse;
+        return {};
     }
 
-    // Please tell someone at JUCE if this occurs
+    String uuid;
+    auto* asRawSMBIOSData = static_cast<const RawSMBIOSData*>(smbiosBuffer.getData());
+
+    if (smbiosBuffer.getSize() < sizeof(RawSMBIOSData) + asRawSMBIOSData->length)
+    {
+        jassertfalse;
+        return {};
+    }
+
+    const uint8* content = static_cast<const uint8*>(smbiosBuffer.getData()) + sizeof(RawSMBIOSData);
+    size_t contentSize = asRawSMBIOSData->length;
+
+    while (contentSize > 0)
+    {
+        if (contentSize < sizeof(SMBIOSHeader))
+        {
+            jassertfalse;
+            break;
+        }
+
+        auto* header = reinterpret_cast<const SMBIOSHeader*>(content);
+
+        if (contentSize < header->length)
+        {
+            jassertfalse;
+            break;
+        }
+
+        const char* dataTable = reinterpret_cast<const char*>(content);
+        std::vector<String> strings;
+        size_t stringOffset = header->length;
+
+        while (stringOffset < contentSize)
+        {
+            const char* str = dataTable + stringOffset;
+            size_t n = strlen(str);
+
+            if (n == 0)
+                break;
+
+            strings.emplace_back(String(str));
+            stringOffset += n + 1;
+        }
+
+        auto stringFromOffset = [&content, &contentSize, &strings](size_t byteOffset) -> String
+        {
+            if (byteOffset >= contentSize)
+                return {};
+
+            size_t index = content[byteOffset];
+
+            if (index <= 0 || index > strings.size())
+                return {};
+
+            return strings[index - 1];
+        };
+
+        enum
+        {
+            systemManufacturer = 0x04,
+            systemProductName = 0x05,
+            systemSerialNumber = 0x07,
+            systemUUID = 0x08,
+            systemSKU = 0x19,
+            systemFamily = 0x1a,
+
+            baseboardManufacturer = 0x04,
+            baseboardProduct = 0x05,
+            baseboardVersion = 0x06,
+            baseboardSerialNumber = 0x07,
+            baseboardAssetTag = 0x08,
+
+            processorManufacturer = 0x07,
+            processorVersion = 0x10,
+            processorAssetTag = 0x21,
+            processorPartNumber = 0x22
+        };
+
+        switch (header->id)
+        {
+            case 1: // System
+            {
+                uuid += stringFromOffset(systemManufacturer) + "\n";
+                uuid += stringFromOffset(systemProductName) + "\n";
+
+                char hexBuf[(16 * 2) + 1]{};
+
+                if (systemUUID + 16 < contentSize)
+                {
+                    auto* src = content + systemUUID;
+                    for (int i = 0; i != 16; ++i)
+                        snprintf(hexBuf + 2 * i, 3, "%02X", src[i]);
+                }
+
+                uuid += hexBuf;
+                uuid += "\n";
+                break;
+            }
+
+            case 2: // Baseboard
+                uuid += stringFromOffset(baseboardManufacturer) + "\n";
+                uuid += stringFromOffset(baseboardProduct) + "\n";
+                uuid += stringFromOffset(baseboardVersion) + "\n";
+                uuid += stringFromOffset(baseboardSerialNumber) + "\n";
+                uuid += stringFromOffset(baseboardAssetTag) + "\n";
+                break;
+
+            case 4: // Processor
+                uuid += stringFromOffset(processorManufacturer) + "\n";
+                uuid += stringFromOffset(processorVersion) + "\n";
+                uuid += stringFromOffset(processorAssetTag) + "\n";
+                uuid += stringFromOffset(processorPartNumber) + "\n";
+                break;
+        }
+
+        size_t endOfStringTable = std::min(static_cast<size_t>(header->length) + 2,
+            static_cast<size_t>(stringOffset) + 1);
+
+        content += endOfStringTable;
+        contentSize -= endOfStringTable;
+    }
+
+    if (uuid.isNotEmpty())
+        return String(uuid.hashCode64());
+
+    // This shouldn't happen
     jassertfalse;
     return {};
 }
-
 
 } // namespace juce

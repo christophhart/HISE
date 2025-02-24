@@ -327,19 +327,14 @@ StringArray OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()
                | SystemStats::MachineIdFlags::legacyUniqueId
                | SystemStats::MachineIdFlags::uniqueId;
     auto identifiers = SystemStats::getMachineIdentifiers (flags);
-
-    for (auto& identifier : identifiers)
-        identifier = getEncodedIDString (identifier);
-
-    return identifiers;
 #else
     auto identifiers = SystemStats::getDeviceIdentifiers();
+#endif
 
     for (auto& identifier : identifiers)
         identifier = getEncodedIDString (identifier);
 
     return identifiers;
-#endif
 }
 
 StringArray OnlineUnlockStatus::getLocalMachineIDs()
