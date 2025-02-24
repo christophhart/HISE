@@ -145,9 +145,9 @@ public:
     */
     inline var isUnlocked() const               { return status[unlockedProp]; }
 
-inline var contains(const String& otherString)
-{
-    auto s = getPublicKey().toString().fromFirstOccurrenceOf(",", false, false);
+    inline var contains(const String& otherString)
+    {
+		auto s = getPublicKey().toString().fromFirstOccurrenceOf(",", false, false);
 
         var x = s.contains(otherString);
 
