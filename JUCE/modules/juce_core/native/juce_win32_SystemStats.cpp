@@ -23,6 +23,12 @@
 namespace juce
 {
 
+#include "juce_core/juce_core.h"
+#include "juce_core/system/juce_SystemStats.h"
+#include "juce_core/memory/juce_MemoryBlock.h"
+#include <algorithm>                                //neede for std::min
+
+
 #if JUCE_MSVC && ! defined (__INTEL_COMPILER)
  #pragma intrinsic (__cpuid)
  #pragma intrinsic (__rdtsc)
@@ -587,31 +593,203 @@ String SystemStats::getDisplayLanguage()
     return languagesBuffer.data();
 }
 
-String SystemStats::getUniqueDeviceID()
+static constexpr DWORD generateProviderID(const char* string)
 {
-    #define PROVIDER(string) (DWORD) (string[0] << 24 | string[1] << 16 | string[2] << 8 | string[3])
+    return (DWORD) string[0] << 0x18
+         | (DWORD) string[1] << 0x10
+         | (DWORD) string[2] << 0x08
+         | (DWORD) string[3] << 0x00;
+}
 
-    auto bufLen = GetSystemFirmwareTable (PROVIDER ("RSMB"), PROVIDER ("RSDT"), nullptr, 0);
+static juce::MemoryBlock readSMBIOSData()
+{
+    const auto sig = generateProviderID("RSMB");
+    const auto id = generateProviderID("RSDT");
 
+    DWORD bufLen = GetSystemFirmwareTable(sig, id, nullptr, 0);
     if (bufLen > 0)
     {
-        HeapBlock<uint8_t> buffer { bufLen };
-        GetSystemFirmwareTable (PROVIDER ("RSMB"), PROVIDER ("RSDT"), (void*) buffer.getData(), bufLen);
+        juce::MemoryBlock buffer(bufLen, true);
 
-        return [&]
-        {
-            uint64_t hash = 0;
-            const auto start = buffer.getData();
-            const auto end = start + jmin (1024, (int) bufLen);
-
-            for (auto dataPtr = start; dataPtr != end; ++dataPtr)
-                hash = hash * (uint64_t) 101 + *dataPtr;
-
-            return String (hash);
-        }();
+        if (GetSystemFirmwareTable(sig, id, buffer.getData(), bufLen) == buffer.getSize())
+            return buffer;
     }
 
-    // Please tell someone at JUCE if this occurs
+    return {};
+}
+
+String getLegacyUniqueDeviceID()
+{
+    juce::MemoryBlock dump = readSMBIOSData();
+    if (dump.getSize() > 0)
+    {
+        uint64 hash = 0;
+        auto* start = static_cast<const uint8*>(dump.getData());
+        auto* end = start + jmin(1024, (int) dump.getSize());
+
+        for (auto* dataPtr = start; dataPtr != end; ++dataPtr)
+            hash = hash * (uint64) 101 + *dataPtr;
+
+        return String(hash);
+    }
+
+    return {};
+}
+
+String SystemStats::getUniqueDeviceID()
+{
+    juce::MemoryBlock smbiosBuffer = readSMBIOSData();
+
+    if (smbiosBuffer.getSize() == 0)
+        return {};
+
+    #pragma pack (push, 1)
+    struct RawSMBIOSData
+    {
+        uint8 unused[4];
+        uint32 length;
+    };
+
+    struct SMBIOSHeader
+    {
+        uint8 id;
+        uint8 length;
+        uint16 handle;
+    };
+    #pragma pack (pop)
+
+    if (smbiosBuffer.getSize() < sizeof(RawSMBIOSData))
+    {
+        jassertfalse;
+        return {};
+    }
+
+    String uuid;
+    auto* asRawSMBIOSData = static_cast<const RawSMBIOSData*>(smbiosBuffer.getData());
+
+    if (smbiosBuffer.getSize() < sizeof(RawSMBIOSData) + asRawSMBIOSData->length)
+    {
+        jassertfalse;
+        return {};
+    }
+
+    const uint8* content = static_cast<const uint8*>(smbiosBuffer.getData()) + sizeof(RawSMBIOSData);
+    size_t contentSize = asRawSMBIOSData->length;
+
+    while (contentSize > 0)
+    {
+        if (contentSize < sizeof(SMBIOSHeader))
+        {
+            jassertfalse;
+            break;
+        }
+
+        auto* header = reinterpret_cast<const SMBIOSHeader*>(content);
+
+        if (contentSize < header->length)
+        {
+            jassertfalse;
+            break;
+        }
+
+        const char* dataTable = reinterpret_cast<const char*>(content);
+        std::vector<String> strings;
+        size_t stringOffset = header->length;
+
+        while (stringOffset < contentSize)
+        {
+            const char* str = dataTable + stringOffset;
+            size_t n = strlen(str);
+
+            if (n == 0)
+                break;
+
+            strings.emplace_back(String(str));
+            stringOffset += n + 1;
+        }
+
+        auto stringFromOffset = [&content, &contentSize, &strings](size_t byteOffset) -> String
+        {
+            if (byteOffset >= contentSize)
+                return {};
+
+            size_t index = content[byteOffset];
+
+            if (index <= 0 || index > strings.size())
+                return {};
+
+            return strings[index - 1];
+        };
+
+        enum
+        {
+            systemManufacturer = 0x04,
+            systemProductName = 0x05,
+            systemSerialNumber = 0x07,
+            systemUUID = 0x08,
+            systemSKU = 0x19,
+            systemFamily = 0x1a,
+
+            baseboardManufacturer = 0x04,
+            baseboardProduct = 0x05,
+            baseboardVersion = 0x06,
+            baseboardSerialNumber = 0x07,
+            baseboardAssetTag = 0x08,
+
+            processorManufacturer = 0x07,
+            processorVersion = 0x10,
+            processorAssetTag = 0x21,
+            processorPartNumber = 0x22
+        };
+
+        switch (header->id)
+        {
+            case 1: // System
+            {
+                uuid += stringFromOffset(systemManufacturer) + "\n";
+                uuid += stringFromOffset(systemProductName) + "\n";
+
+                char hexBuf[(16 * 2) + 1]{};
+
+                if (systemUUID + 16 < contentSize)
+                {
+                    auto* src = content + systemUUID;
+                    for (int i = 0; i != 16; ++i)
+                        snprintf(hexBuf + 2 * i, 3, "%02X", src[i]);
+                }
+
+                uuid += hexBuf;
+                uuid += "\n";
+                break;
+            }
+
+            case 2: // Baseboard
+                uuid += stringFromOffset(baseboardManufacturer) + "\n";
+                uuid += stringFromOffset(baseboardProduct) + "\n";
+                uuid += stringFromOffset(baseboardVersion) + "\n";
+                uuid += stringFromOffset(baseboardSerialNumber) + "\n";
+                uuid += stringFromOffset(baseboardAssetTag) + "\n";
+                break;
+
+            case 4: // Processor
+                uuid += stringFromOffset(processorManufacturer) + "\n";
+                uuid += stringFromOffset(processorVersion) + "\n";
+                uuid += stringFromOffset(processorAssetTag) + "\n";
+                uuid += stringFromOffset(processorPartNumber) + "\n";
+                break;
+        }
+
+        size_t endOfStringTable = std::min(static_cast<size_t>(header->length) + 2,
+            static_cast<size_t>(stringOffset) + 1);
+
+        content += endOfStringTable;
+        contentSize -= endOfStringTable;
+    }
+
+    if (uuid.isNotEmpty())
+        return String(uuid.hashCode64());
+
+    // This shouldn't happen
     jassertfalse;
     return {};
 }

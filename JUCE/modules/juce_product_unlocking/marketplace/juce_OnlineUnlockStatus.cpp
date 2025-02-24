@@ -322,15 +322,19 @@ String OnlineUnlockStatus::MachineIDUtilities::getUniqueMachineID()
 StringArray OnlineUnlockStatus::MachineIDUtilities::getLocalMachineIDs()
 {
 #if JUCE_USE_BETTER_MACHINE_IDS
-    return { getUniqueMachineID() };
+    auto flags = SystemStats::MachineIdFlags::macAddresses
+               | SystemStats::MachineIdFlags::fileSystemId
+               | SystemStats::MachineIdFlags::legacyUniqueId
+               | SystemStats::MachineIdFlags::uniqueId;
+    auto identifiers = SystemStats::getMachineIdentifiers (flags);
 #else
     auto identifiers = SystemStats::getDeviceIdentifiers();
+#endif
 
     for (auto& identifier : identifiers)
         identifier = getEncodedIDString (identifier);
 
     return identifiers;
-#endif
 }
 
 StringArray OnlineUnlockStatus::getLocalMachineIDs()
