@@ -20,6 +20,11 @@
   ==============================================================================
 */
 
+#include <type_traits>   // Must be included before <optional>
+#include <optional>      // For std::optional
+#include <vector>        // For std::vector
+#include <cstddef>       // For std::byte
+
 namespace juce
 {
 
@@ -105,29 +110,29 @@ String SystemStats::getCpuModel()
 
 static int findNumberOfPhysicalCores() noexcept
 {
-   #if JUCE_MINGW
-    // Not implemented in MinGW
-    jassertfalse;
-
-    return 1;
-   #else
-
-    int numPhysicalCores = 0;
     DWORD bufferSize = 0;
-    GetLogicalProcessorInformation (nullptr, &bufferSize);
+    GetLogicalProcessorInformation(nullptr, &bufferSize);
 
-    if (auto numBuffers = (size_t) (bufferSize / sizeof (SYSTEM_LOGICAL_PROCESSOR_INFORMATION)))
+    const auto numBuffers = (size_t)(bufferSize / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
+
+    if (numBuffers == 0)
     {
-        HeapBlock<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> buffer (numBuffers);
+        jassertfalse;
+        return 0;
+    };
 
-        if (GetLogicalProcessorInformation (buffer, &bufferSize))
-            for (size_t i = 0; i < numBuffers; ++i)
-                if (buffer[i].Relationship == RelationProcessorCore)
-                    ++numPhysicalCores;
+    HeapBlock<SYSTEM_LOGICAL_PROCESSOR_INFORMATION> buffer(numBuffers);
+
+    if (!GetLogicalProcessorInformation(buffer, &bufferSize))
+    {
+        jassertfalse;
+        return 0;
     }
 
-    return numPhysicalCores;
-   #endif // JUCE_MINGW
+    return (int)std::count_if(buffer.get(), buffer.get() + numBuffers, [](const auto& info)
+        {
+            return info.Relationship == RelationProcessorCore;
+        });
 }
 
 //==============================================================================
@@ -587,28 +592,221 @@ String SystemStats::getDisplayLanguage()
     return languagesBuffer.data();
 }
 
+static constexpr DWORD generateProviderID(const char* string)
+{
+    return (DWORD)string[0] << 0x18
+        | (DWORD)string[1] << 0x10
+        | (DWORD)string[2] << 0x08
+        | (DWORD)string[3] << 0x00;
+}
+
+static std::optional<std::vector<std::byte>> readSMBIOSData()
+{
+    const auto sig = generateProviderID("RSMB");
+    const auto  id = generateProviderID("RSDT");
+
+    if (const auto bufLen = GetSystemFirmwareTable(sig, id, nullptr, 0); bufLen > 0)
+    {
+        std::vector<std::byte> buffer;
+
+        buffer.resize(bufLen);
+
+        if (GetSystemFirmwareTable(sig, id, buffer.data(), bufLen) == buffer.size())
+            return std::make_optional(std::move(buffer));
+    }
+
+    return {};
+}
+
+String getLegacyUniqueDeviceID()
+{
+    if (const auto dump = readSMBIOSData())
+    {
+        uint64_t hash = 0;
+        const auto start = dump->data();
+        const auto end = start + jmin(1024, (int)dump->size());
+
+        for (auto dataPtr = start; dataPtr != end; ++dataPtr)
+            hash = hash * (uint64_t)101 + (uint8_t)*dataPtr;
+
+        return String(hash);
+    }
+
+    return {};
+}
+
 String SystemStats::getUniqueDeviceID()
 {
-    #define PROVIDER(string) (DWORD) (string[0] << 24 | string[1] << 16 | string[2] << 8 | string[3])
-
-    auto bufLen = GetSystemFirmwareTable (PROVIDER ("RSMB"), PROVIDER ("RSDT"), nullptr, 0);
-
-    if (bufLen > 0)
+    if (const auto smbiosBuffer = readSMBIOSData())
     {
-        HeapBlock<uint8_t> buffer { bufLen };
-        GetSystemFirmwareTable (PROVIDER ("RSMB"), PROVIDER ("RSDT"), (void*) buffer.getData(), bufLen);
-
-        return [&]
+#pragma pack (push, 1)
+        struct RawSMBIOSData
         {
-            uint64_t hash = 0;
-            const auto start = buffer.getData();
-            const auto end = start + jmin (1024, (int) bufLen);
+            uint8_t unused[4];
+            uint32_t length;
+        };
 
-            for (auto dataPtr = start; dataPtr != end; ++dataPtr)
-                hash = hash * (uint64_t) 101 + *dataPtr;
+        struct SMBIOSHeader
+        {
+            uint8_t  id;
+            uint8_t  length;
+            uint16_t handle;
+        };
+#pragma pack (pop)
 
-            return String (hash);
-        }();
+        if (smbiosBuffer->size() < sizeof(RawSMBIOSData))
+        {
+            // Malformed buffer; not enough room for RawSMBIOSData instance
+            jassertfalse;
+            return {};
+        }
+
+        String uuid;
+        const auto* asRawSMBIOSData = unalignedPointerCast<const RawSMBIOSData*>(smbiosBuffer->data());
+
+        if (smbiosBuffer->size() < sizeof(RawSMBIOSData) + static_cast<size_t> (asRawSMBIOSData->length))
+        {
+            // Malformed buffer; declared length is longer than the buffer we were given
+            jassertfalse;
+            return {};
+        }
+
+        Span<const std::byte> content(smbiosBuffer->data() + sizeof(RawSMBIOSData), asRawSMBIOSData->length);
+
+        while (!content.empty())
+        {
+            if (content.size() < sizeof(SMBIOSHeader))
+            {
+                // Malformed buffer; not enough room for header
+                jassertfalse;
+                break;
+            }
+
+            const auto* header = unalignedPointerCast<const SMBIOSHeader*>(content.data());
+
+            if (content.size() < header->length)
+            {
+                // Malformed buffer; declared length is longer than the buffer we were given
+                jassertfalse;
+                break;
+            }
+
+            std::vector<std::string_view> strings;
+
+            // Each table comprises a struct and a varying number of null terminated
+            // strings. The string section is delimited by a pair of null terminators.
+            // Some fields in the header are indices into the string table.
+
+            const auto endOfStringTable = [&header, &strings, &content]
+                {
+                    const auto* dataTable = unalignedPointerCast<const char*>(content.data());
+                    size_t stringOffset = header->length;
+
+                    while (stringOffset < content.size())
+                    {
+                        const auto* str = dataTable + stringOffset;
+                        const auto maxLength = content.size() - stringOffset;
+                        const auto n = strnlen(str, maxLength);
+
+                        if (n == 0)
+                            break;
+
+                        strings.emplace_back(str, n);
+                        stringOffset += std::min(n + 1, maxLength);
+                    }
+
+                    const auto lengthAfterHeader = jmax((size_t)header->length + 2, stringOffset + 1);
+                    return jmin(lengthAfterHeader, content.size());
+                }();
+
+            const auto stringFromOffset = [&content, &strings](size_t byteOffset) -> String
+                {
+                    if (!isPositiveAndBelow(byteOffset, content.size()))
+                        return std::string{};
+
+                    const auto index = std::to_integer<size_t>(content[byteOffset]);
+
+                    if (index <= 0 || strings.size() < index)
+                        return std::string{};
+
+                    const auto view = strings[index - 1];
+                    return std::string{ view };
+                };
+
+            enum
+            {
+                systemManufacturer = 0x04,
+                systemProductName = 0x05,
+                systemSerialNumber = 0x07,
+                systemUUID = 0x08, // 16byte UUID. Can be all 0xFF or all 0x00. Might be user changeable.
+                systemSKU = 0x19,
+                systemFamily = 0x1a,
+
+                baseboardManufacturer = 0x04,
+                baseboardProduct = 0x05,
+                baseboardVersion = 0x06,
+                baseboardSerialNumber = 0x07,
+                baseboardAssetTag = 0x08,
+
+                processorManufacturer = 0x07,
+                processorVersion = 0x10,
+                processorAssetTag = 0x21,
+                processorPartNumber = 0x22
+            };
+
+            switch (header->id)
+            {
+            case 1: // System
+            {
+                uuid += stringFromOffset(systemManufacturer);
+                uuid += "\n";
+                uuid += stringFromOffset(systemProductName);
+                uuid += "\n";
+
+                char hexBuf[(16 * 2) + 1]{};
+
+                if (systemUUID + 16 < content.size())
+                {
+                    const auto* src = content.data() + systemUUID;
+
+                    for (auto i = 0; i != 16; ++i)
+                        snprintf(hexBuf + 2 * i, 3, "%02hhX", std::to_integer<uint8_t>(src[i]));
+                }
+
+                uuid += hexBuf;
+                uuid += "\n";
+                break;
+            }
+
+            case 2: // Baseboard
+                uuid += stringFromOffset(baseboardManufacturer);
+                uuid += "\n";
+                uuid += stringFromOffset(baseboardProduct);
+                uuid += "\n";
+                uuid += stringFromOffset(baseboardVersion);
+                uuid += "\n";
+                uuid += stringFromOffset(baseboardSerialNumber);
+                uuid += "\n";
+                uuid += stringFromOffset(baseboardAssetTag);
+                uuid += "\n";
+                break;
+
+            case 4: // Processor
+                uuid += stringFromOffset(processorManufacturer);
+                uuid += "\n";
+                uuid += stringFromOffset(processorVersion);
+                uuid += "\n";
+                uuid += stringFromOffset(processorAssetTag);
+                uuid += "\n";
+                uuid += stringFromOffset(processorPartNumber);
+                uuid += "\n";
+                break;
+            }
+
+            content = Span(content.data() + endOfStringTable, content.size() - endOfStringTable);
+        }
+
+        return String(uuid.hashCode64());
     }
 
     // Please tell someone at JUCE if this occurs

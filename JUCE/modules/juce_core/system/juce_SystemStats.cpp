@@ -58,28 +58,68 @@ String SystemStats::getJUCEVersion()
  static JuceVersionPrinter juceVersionPrinter;
 #endif
 
-StringArray SystemStats::getDeviceIdentifiers()
-{
-    StringArray ids;
+ StringArray SystemStats::getDeviceIdentifiers()
+ {
+     for (const auto flag : { MachineIdFlags::fileSystemId, MachineIdFlags::macAddresses })
+         if (auto ids = getMachineIdentifiers(flag); !ids.isEmpty())
+             return ids;
 
-   #if JUCE_WINDOWS
-    File f (File::getSpecialLocation (File::windowsSystemDirectory));
-   #else
-    File f ("~");
-   #endif
-    if (auto num = f.getFileIdentifier())
-    {
-        ids.add (String::toHexString ((int64) num));
-    }
-    else
-    {
-        for (auto& address : MACAddress::getAllAddresses())
-            ids.add (address.toString());
-    }
+     jassertfalse; // Failed to create any IDs!
+     return {};
+ }
 
-    jassert (! ids.isEmpty()); // Failed to create any IDs!
-    return ids;
-}
+ String getLegacyUniqueDeviceID();
+
+ StringArray SystemStats::getMachineIdentifiers(MachineIdFlags flags)
+ {
+     auto macAddressProvider = [](StringArray& arr)
+         {
+             for (const auto& mac : MACAddress::getAllAddresses())
+                 arr.add(mac.toString());
+         };
+
+     auto fileSystemProvider = [](StringArray& arr)
+         {
+#if JUCE_WINDOWS
+             File f(File::getSpecialLocation(File::windowsSystemDirectory));
+#else
+             File f("~");
+#endif
+             if (auto num = f.getFileIdentifier())
+                 arr.add(String::toHexString((int64)num));
+         };
+
+     auto legacyIdProvider = []([[maybe_unused]] StringArray& arr)
+         {
+#if JUCE_WINDOWS
+             arr.add(getLegacyUniqueDeviceID());
+#endif
+         };
+
+     auto uniqueIdProvider = [](StringArray& arr)
+         {
+             arr.add(getUniqueDeviceID());
+         };
+
+     struct Provider { MachineIdFlags flag; void (*func) (StringArray&); };
+     static const Provider providers[] =
+     {
+         { MachineIdFlags::macAddresses,   macAddressProvider },
+         { MachineIdFlags::fileSystemId,   fileSystemProvider },
+         { MachineIdFlags::legacyUniqueId, legacyIdProvider },
+         { MachineIdFlags::uniqueId,       uniqueIdProvider }
+     };
+
+     StringArray ids;
+
+     for (const auto& provider : providers)
+     {
+         if (hasBitValueSet(flags, provider.flag))
+             provider.func(ids);
+     }
+
+     return ids;
+ }
 
 //==============================================================================
 struct CPUInformation

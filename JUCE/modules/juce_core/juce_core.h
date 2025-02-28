@@ -226,6 +226,7 @@ namespace juce
     extern JUCE_API void JUCE_CALLTYPE logAssertion (const char* file, int line) noexcept;
 }
 
+#include "misc/juce_EnumHelpers.h"
 #include "memory/juce_Memory.h"
 #include "maths/juce_MathsFunctions.h"
 #include "memory/juce_ByteOrder.h"
@@ -293,6 +294,7 @@ JUCE_END_IGNORE_WARNINGS_MSVC
 #include "text/juce_LocalisedStrings.h"
 #include "text/juce_Base64.h"
 #include "misc/juce_Functional.h"
+#include "containers/juce_Span.h"
 #include "misc/juce_Result.h"
 #include "misc/juce_Uuid.h"
 #include "misc/juce_ConsoleApplication.h"

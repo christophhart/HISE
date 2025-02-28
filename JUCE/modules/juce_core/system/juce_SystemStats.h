@@ -42,43 +42,40 @@ public:
     /** The set of possible results of the getOperatingSystemType() method. */
     enum OperatingSystemType
     {
-        UnknownOS       = 0,
+        UnknownOS = 0,
 
-        MacOSX          = 0x0100,   /**< To test whether any version of OSX is running,
+        MacOSX = 0x0100,   /**< To test whether any version of OSX is running,
                                          you can use the expression ((getOperatingSystemType() & MacOSX) != 0). */
-        Windows         = 0x0200,   /**< To test whether any version of Windows is running,
+        Windows = 0x0200,   /**< To test whether any version of Windows is running,
                                          you can use the expression ((getOperatingSystemType() & Windows) != 0). */
-        Linux           = 0x0400,
-        Android         = 0x0800,
-        iOS             = 0x1000,
-        WASM            = 0x2000,
+        Linux = 0x0400,
+        Android = 0x0800,
+        iOS = 0x1000,
+        WASM = 0x2000,
 
-        MacOSX_10_7     = MacOSX | 7,
-        MacOSX_10_8     = MacOSX | 8,
-        MacOSX_10_9     = MacOSX | 9,
-        MacOSX_10_10    = MacOSX | 10,
-        MacOSX_10_11    = MacOSX | 11,
-        MacOSX_10_12    = MacOSX | 12,
-        MacOSX_10_13    = MacOSX | 13,
-        MacOSX_10_14    = MacOSX | 14,
-        MacOSX_10_15    = MacOSX | 15,
-        MacOS_11        = MacOSX | 16,
-        MacOS_12        = MacOSX | 17,
-        MacOS_13        = MacOSX | 18,
-        MacOS_14        = MacOSX | 19,
-        MacOS_15        = MacOSX | 20,
-        MacOS_16        = MacOSX | 21,
-        MacOS_17        = MacOSX | 22,
-        MacOS_18        = MacOSX | 23,
-        MacOS_19        = MacOSX | 24,
-        MacOS_20        = MacOSX | 25,
-        Win2000         = Windows | 1,
-        WinXP           = Windows | 2,
-        WinVista        = Windows | 3,
-        Windows7        = Windows | 4,
-        Windows8_0      = Windows | 5,
-        Windows8_1      = Windows | 6,
-        Windows10       = Windows | 7
+        MacOSX_10_7 = MacOSX | 7,
+        MacOSX_10_8 = MacOSX | 8,
+        MacOSX_10_9 = MacOSX | 9,
+        MacOSX_10_10 = MacOSX | 10,
+        MacOSX_10_11 = MacOSX | 11,
+        MacOSX_10_12 = MacOSX | 12,
+        MacOSX_10_13 = MacOSX | 13,
+        MacOSX_10_14 = MacOSX | 14,
+        MacOSX_10_15 = MacOSX | 15,
+        MacOS_11 = MacOSX | 16,
+        MacOS_12 = MacOSX | 17,
+        MacOS_13 = MacOSX | 18,
+        MacOS_14 = MacOSX | 19,
+        MacOS_15 = MacOSX | 20,
+
+        Win2000 = Windows | 1,
+        WinXP = Windows | 2,
+        WinVista = Windows | 3,
+        Windows7 = Windows | 4,
+        Windows8_0 = Windows | 5,
+        Windows8_1 = Windows | 6,
+        Windows10 = Windows | 7,
+        Windows11 = Windows | 8
     };
 
     /** Returns the type of operating system we're running on.
@@ -159,7 +156,33 @@ public:
         This ID will be invalidated by changes to the motherboard and CPU on non-mobile
         platforms, or resetting an Android device.
     */
+
     static String getUniqueDeviceID();
+
+    /** Kinds of identifier that are passed to getMachineIdentifiers(). */
+    enum class MachineIdFlags
+    {
+        macAddresses = 1 << 0, ///< All Mac addresses of the machine.
+        fileSystemId = 1 << 1, ///< The filesystem id of the user's home directory (or system directory on Windows).
+        legacyUniqueId = 1 << 2, ///< Only implemented on Windows. A hash of the full smbios table, may be unstable on certain machines.
+        uniqueId = 1 << 3, ///< The most stable kind of machine identifier. A good default to use.
+    };
+
+    /** Returns a list of strings that can be used to uniquely identify a machine.
+
+        To get multiple kinds of identifier at once, you can combine flags using
+        bitwise-or, e.g. `uniqueId | legacyUniqueId`.
+
+        If a particular kind of identifier isn't available, it will be omitted from
+        the StringArray of results, so passing `uniqueId | legacyUniqueId`
+        may return 0, 1, or 2 results, depending on the platform and whether any
+        errors are encountered.
+
+        If you've previously generated a machine ID and just want to check it against
+        all possible identifiers, you can enable all of the flags and check whether
+        the stored identifier matches any of the results.
+    */
+    static StringArray getMachineIdentifiers(MachineIdFlags flags);
 
     //==============================================================================
     // CPU and memory information..
@@ -258,5 +281,7 @@ private:
     SystemStats() = delete; // uses only static methods
     JUCE_DECLARE_NON_COPYABLE (SystemStats)
 };
+
+JUCE_DECLARE_SCOPED_ENUM_BITWISE_OPERATORS(SystemStats::MachineIdFlags)
 
 } // namespace juce
