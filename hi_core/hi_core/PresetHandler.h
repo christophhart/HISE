@@ -629,7 +629,7 @@ public:
 	static bool showYesNoWindowIfMessageThread(const String &title, const String &message, bool defaultReturnValue, IconType icon = IconType::Question);
 
 	/** Opens a message box (HI Style) */
-	static void showMessageWindow(const String &title, const String &message, IconType icon=IconType::Info);
+	static bool showMessageWindow(const String &title, const String &message, IconType icon=IconType::Info);
 
 
 	/** Checks if an child processor has a already taken name. If silentMode is false, it will display a message box at the end. */

@@ -644,7 +644,7 @@ bool PresetHandler::showYesNoWindowIfMessageThread(const String &title, const St
 	return defaultReturnValue;
 }
 
-void PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
+bool PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
 	if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
 	{
@@ -652,7 +652,7 @@ void PresetHandler::showMessageWindow(const String &title, const String &message
 		if (CompileExporter::isExportingFromCommandLine())
 		{
 			std::cout << title << ": " << message << std::endl;
-			return;
+			return false;
 		}
 
 #endif
@@ -671,16 +671,16 @@ void PresetHandler::showMessageWindow(const String &title, const String &message
 		nameWindow->addCustomComponent(comp);
 		nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
 
-		nameWindow->runModalLoop();
+		return (nameWindow->runModalLoop() == 1);
 #endif
 
-		return;
+		return false;
 	}
 	else
 	{
 		MessageManager::callAsync([title, message, type]()
 		{
-			showMessageWindow(title, message, type);
+			return showMessageWindow(title, message, type);
 		});
 	}
 };
