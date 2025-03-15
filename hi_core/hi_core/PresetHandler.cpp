@@ -673,16 +673,15 @@ bool PresetHandler::showMessageWindow(const String &title, const String &message
 
 		return (nameWindow->runModalLoop() == 1);
 #endif
-
-		return false;
 	}
 	else
 	{
 		MessageManager::callAsync([title, message, type]()
 		{
-			return showMessageWindow(title, message, type);
+			showMessageWindow(title, message, type);
 		});
 	}
+	return false;
 };
 
 struct CountedProcessorId
