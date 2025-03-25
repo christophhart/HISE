@@ -29,6 +29,11 @@ RectangleDynamicObject::FunctionMap::FunctionMap()
 	ADD_FUNCTION2(withSize, "(double newWidth, double newHeight)");
 	ADD_FUNCTION2(withSizeKeepingCentre, "(double newWidth, double newHeight)");
 	ADD_FUNCTION2(translated, "(double deltaX, double deltaY)");
+	
+	ADD_FUNCTION1(withTrimmedBottom, "(double amountToRemove)");
+	ADD_FUNCTION1(withTrimmedLeft, "(double amountToRemove)");
+	ADD_FUNCTION1(withTrimmedRight, "(double amountToRemove)");
+	ADD_FUNCTION1(withTrimmedTop, "(double amountToRemove)");
 
 	ADD_FUNCTION(scaled, "(double factorX, double optionalFactorY", [](const Args& a)
 	{
