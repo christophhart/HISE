@@ -12,7 +12,7 @@
 
 
 
-#if IPP_VERSION_MAJOR >= 2021 && IPP_VERSION_MINOR >= 10
+#if (IPP_VERSION_MAJOR >= 2021 && IPP_VERSION_MINOR >= 10) || IPP_VERSION_MAJOR >= 2022
     #include <ipp/ippcore_tl.h>
     #include <ipp/ippcv.h>
     #include <ipp/ippi.h>
