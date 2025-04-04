@@ -173,11 +173,58 @@
     </VS2022>
     <LINUX_MAKE targetFolder="Builds/LinuxMakefile" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;PERFETTO=0&#10;HISE_INCLUDE_PROFILING_TOOLKIT=0"
                 smallIcon="bfBEgJ" bigIcon="bfBEgJ" linuxExtraPkgConfig="x11 xinerama xext"
-                extraLinkerFlags="-no-pie&#10;" extraCompilerFlags="-fpermissive">
+                extraLinkerFlags="-no-pie&#10;-flto=auto&#10;-fuse-ld=gold" extraCompilerFlags="-fno-strict-aliasing">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="HISE Standalone"/>
         <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="HISE Standalone"
-                       linkTimeOptimisation="1"/>
+                       linkTimeOptimisation="1" headerPath="/usr/include/freetype2&#10;/usr/include/gtk-3.0/gtk"/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_gui_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_graphics" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_events" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_data_structures" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_cryptography" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_core" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_utils" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_processors" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_formats" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_devices" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_audio_basics" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_scripting" path="../../"/>
+        <MODULEPATH id="hi_dsp_library" path="../../"/>
+        <MODULEPATH id="hi_core" path="../../"/>
+        <MODULEPATH id="hi_backend" path="../../"/>
+        <MODULEPATH id="hi_lac" path="../../"/>
+        <MODULEPATH id="hi_streaming" path="../../"/>
+        <MODULEPATH id="juce_product_unlocking" path="../../JUCE/modules"/>
+        <MODULEPATH id="juce_dsp" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_zstd" path="../../"/>
+        <MODULEPATH id="juce_opengl" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_snex" path="../../"/>
+        <MODULEPATH id="hi_rlottie" path="../../"/>
+        <MODULEPATH id="juce_osc" path="../../JUCE/modules"/>
+        <MODULEPATH id="hi_faust" path="../../"/>
+        <MODULEPATH id="hi_faust_jit" path="../../"/>
+        <MODULEPATH id="hi_faust_lib" path="../../"/>
+        <MODULEPATH id="hi_faust_types" path="../../"/>
+        <MODULEPATH id="hi_loris" path="../../"/>
+        <MODULEPATH id="hi_tools" path="../../"/>
+        <MODULEPATH id="melatonin_blur" path="../../"/>
+      </MODULEPATHS>
+    </LINUX_MAKE>
+    <LINUX_MAKE targetFolder="Builds/LinuxMakefileFaust" extraDefs="USE_IPP=0&#10;HI_ENABLE_EXPANSION_EDITING=1&#10;HISE_ENABLE_EXPANSIONS=1&#10;HISE_SCRIPT_SERVER_TIMEOUT=20000&#10;PERFETTO=0&#10;HISE_INCLUDE_PROFILING_TOOLKIT=0"
+                extraCompilerFlags="-fno-strict-aliasing" extraLinkerFlags="-no-pie&#10;-flto=auto&#10;-fuse-ld=gold"
+                linuxExtraPkgConfig="x11 xinerama xext" smallIcon="bfBEgJ" bigIcon="bfBEgJ"
+                externalLibraries="faust">
+      <CONFIGURATIONS>
+        <CONFIGURATION isDebug="1" name="Debug" headerPath="/usr/include/freetype2&#10;/usr/include/gtk-3.0/gtk"
+                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"
+                       targetName="HISE Standalone" optimisation="1"/>
+        <CONFIGURATION isDebug="0" name="Release" headerPath="/usr/include/freetype2&#10;/usr/include/gtk-3.0/gtk"
+                       defines="HISE_INCLUDE_FAUST=1&#10;HISE_FAUST_USE_LLVM_JIT=1&#10;HISE_INCLUDE_FAUST_JIT=1"
+                       targetName="HISE Standalone" linkTimeOptimisation="1" optimisation="3"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_gui_extra" path="../../JUCE/modules"/>
@@ -257,7 +304,7 @@
                ENABLE_ALL_PEAK_METERS="1" JUCE_ASIO="1" JUCE_DIRECTSOUND="1"
                JUCE_USE_DIRECTWRITE="1" JUCE_JACK="1" HISE_ENABLE_EXPANSIONS="1"
                HISE_ENABLE_MIDI_INPUT_FOR_FX="1" JUCE_STRICT_REFCOUNTEDPOINTER="1"
-               HISE_INCLUDE_RLOTTiE="1" HISE_INCLUDE_SNEX="1" HISE_INCLUDE_LORIS="1"
+               HISE_INCLUDE_RLOTTIE="1" HISE_INCLUDE_SNEX="1" HISE_INCLUDE_LORIS="1"
                HISE_USE_LORIS_DLL="0"/>
   <LIVE_SETTINGS>
     <OSX/>
