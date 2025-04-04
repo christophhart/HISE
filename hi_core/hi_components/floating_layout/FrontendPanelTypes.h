@@ -504,6 +504,7 @@ public:
 		MoreButtonBounds,
 		FavoriteButtonBounds,
     FullPathFavorites,
+    FavoriteIconOffset,
 		numSpecialProperties
 	};
 

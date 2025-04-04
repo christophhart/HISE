@@ -955,6 +955,7 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ShowRenameButton, options.showRenameButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowDeleteButton, options.showDeleteButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowSearchBar, options.showSearchBar);
+	storePropertyInObject(obj, SpecialPanelIds::FavoriteIconOffset, options.favoriteIconOffset);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFavoriteIcon, options.showFavoriteIcons);
 	storePropertyInObject(obj, SpecialPanelIds::FullPathFavorites, options.fullPathFavorites);
 	storePropertyInObject(obj, SpecialPanelIds::ButtonsInsideBorder, options.buttonsInsideBorder);
@@ -982,6 +983,7 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.showRenameButton = getPropertyWithDefault(object, SpecialPanelIds::ShowRenameButton);
 	options.showDeleteButton = getPropertyWithDefault(object, SpecialPanelIds::ShowDeleteButton);
 	options.showSearchBar = getPropertyWithDefault(object, SpecialPanelIds::ShowSearchBar);
+	options.favoriteIconOffset = getPropertyWithDefault(object, SpecialPanelIds::FavoriteIconOffset);
 	options.fullPathFavorites = getPropertyWithDefault(object, SpecialPanelIds::FullPathFavorites);
 	options.buttonsInsideBorder = getPropertyWithDefault(object, SpecialPanelIds::ButtonsInsideBorder);
 	options.editButtonOffset = getPropertyWithDefault(object, SpecialPanelIds::EditButtonOffset);
@@ -1084,6 +1086,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnWidthRatio, "ColumnWidthRatio");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FavoriteIconOffset, "FavoriteIconOffset");
 
 	return Identifier();
 }
@@ -1105,6 +1108,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowAddButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowRenameButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FullPathFavorites, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FavoriteIconOffset, 0);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowDeleteButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSearchBar, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ButtonsInsideBorder, false);

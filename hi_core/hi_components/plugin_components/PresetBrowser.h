@@ -82,6 +82,7 @@ public:
 		bool showSearchBar = true;
 		bool buttonsInsideBorder = false;
 		int editButtonOffset = 10;
+		int favoriteIconOffset = 0;
 		Array<var> listAreaOffset;
 		Array<var> columnRowPadding;
 		Array<var> searchBarBounds;
@@ -251,6 +252,7 @@ private:
 	DefaultPresetBrowserLookAndFeel laf;
 
 	void setShowFavorites(bool shouldShowFavorites);
+	void setFavoriteIconOffset(int xOffset);
 	void setShowFullPathFavorites(bool shouldShowFullPathFavorites);
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 	void setNumColumns(int numColumns);

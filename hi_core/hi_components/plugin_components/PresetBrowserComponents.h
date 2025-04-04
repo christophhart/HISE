@@ -288,7 +288,7 @@ public:
 			{
 				index = newIndex;
 			}
-
+			
 			ScopedPointer<ShapeButton> b;
 
 			ColumnListModel& parent;
@@ -339,7 +339,7 @@ public:
 
 		bool empty = false;
 		bool showFavoritesOnly = false;
-
+		
 		Listener* listener;
 		bool editMode = false;
 		bool displayDirectories = true;
@@ -405,6 +405,16 @@ public:
 	{
 		listModel->allowRecursiveSearch = shouldAllow;
 		listbox->updateContent();
+	}
+
+	void setFavoriteIconOffset(int xOffset)
+	{
+		favoriteIconOffset = xOffset;
+	}
+
+	int getFavoriteIconOffset()
+	{
+		return favoriteIconOffset;
 	}
 
 	void setShowButtons(int buttonId, bool shouldBeShown)
@@ -530,6 +540,7 @@ private:
 	bool shouldShowDeleteButton = true;
 	bool buttonsInsideBorder = false;
 	int editButtonOffset = 10;
+	int favoriteIconOffset = 0;
 	double rowPadding = 0;
 	Rectangle<int> listArea;
 	Array<var> listAreaOffset;
