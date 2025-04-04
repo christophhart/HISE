@@ -70,10 +70,10 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 1. Install the dependencies: 
 ```
-sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libgtk-3-dev libjack-jackd2-dev libwebkit2gtk-4.0
+sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libgtk-3-dev libjack-jackd2-dev libwebkit2gtk-4.0-dev
 ```
 
-> If *libwebkit2gtk-4.0* is not available in your distro's repositories you can use *libwebkit2gtk-4.1* instead.
+> If *libwebkit2gtk-4.0-dev* is not available in your distro's repositories you can use *libwebkit2gtk-4.1-dev* instead.
 
 > HISE can be compiled with GCC/G++ versions greater than 11, however there will be buggy behaviour with certain elements of the UI. Therefore it is advised to use GCC/G++ 11 or lower.
 
