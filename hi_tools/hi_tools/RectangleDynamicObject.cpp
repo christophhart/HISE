@@ -44,7 +44,32 @@ RectangleDynamicObject::FunctionMap::FunctionMap()
 
 		return var(a.thisObject);
 	});
+    
+    
+    ADD_FUNCTION(scaledCentre, "(double factorX, double optionalFactorY)", [](const Args& a)
+    {
+        Rectangle<double> rect = getRectangle(a);
+        Point<double> centre = rect.getCentre();
 
+        if (a.numArguments == 2)
+        {
+            AffineTransform t = AffineTransform::translation(-centre.x, -centre.y)
+                                  .scaled(getDoubleArgs(a, 0), getDoubleArgs(a, 1))
+                                  .translated(centre.x, centre.y);
+            return create(a, rect.transformedBy(t));
+        }
+
+        if (a.numArguments == 1)
+        {
+            AffineTransform t = AffineTransform::translation(-centre.x, -centre.y)
+                                  .scaled(getDoubleArgs(a, 0))
+                                  .translated(centre.x, centre.y);
+            return create(a, rect.transformedBy(t));
+        }
+
+        return var(a.thisObject);
+    });
+    
 	ADD_VOID_FUNCTION2(setPosition, "(double x, double y)");
 	ADD_VOID_FUNCTION2(setSize, "(double width, double height)");
 	ADD_VOID_FUNCTION2(setCentre, "(double centerX, double centerY)");
@@ -81,14 +106,34 @@ RectangleDynamicObject::FunctionMap::FunctionMap()
 	ADD_FUNCTION(intersects, "(var otherRect)", [](const Args& a)
 	{
 		Rectangle<double> r;
-		Point<double> p;
 
 		if(getRectangleArgs(a, r))
 			return getRectangle(a).intersects(r);
 
 		return false;
 	});
+    
+    ADD_FUNCTION(getCentre, void, [](const Args& a)
+    {
+        auto centre = getRectangle(a).getCentre();
 
+        Array<var> arr;
+        arr.add(centre.x);
+        arr.add(centre.y);
+
+        return var(arr);
+    });
+
+    ADD_FUNCTION(getCentreX, void, [](const Args& a)
+    {
+         return var(getRectangle(a).getCentreX());
+    });
+    
+    ADD_FUNCTION(getCentreY, void, [](const Args& a)
+    {
+         return var(getRectangle(a).getCentreY());
+    });
+    
 	ADD_FUNCTION(getUnion, "(var otherRect)", [](const Args& a)
 	{
 		Rectangle<double> r;
