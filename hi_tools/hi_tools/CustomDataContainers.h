@@ -673,6 +673,28 @@ public:
 		}
 	}
 
+	int getFirstSetBit() const
+	{
+		for(int i = 0; i < getNumElements(); i++)
+		{
+			auto v = data[i];
+
+			if(v != 0)
+			{
+				for (int j = 0; j < getElementSize(); j++)
+	            {
+	                DataType mask = 1 << j;
+					auto match = ((v & mask) != 0);
+
+					if(match)
+						return (i * getElementSize() + j);
+	            }
+			}
+		}
+
+		return -1;
+	}
+
     int getFirstFreeBit() const
     {
 		if(empty)

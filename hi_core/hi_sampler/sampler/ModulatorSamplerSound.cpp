@@ -150,7 +150,6 @@ ModulatorSamplerSound::ModulatorSamplerSound(SampleMap* parent, const ValueTree&
 	undoManager(getMainController()->getControlUndoManager()),
 	isMultiMicSound(data.getNumChildren() != 0),
 	gain(1.0f),
-	maxRRGroup(parent->getNumRRGroups()),
 	normalizedPeak(-1.0f),
 	isNormalized(false),
 	purgeChannels(0),
@@ -230,7 +229,7 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 	else if( id == SampleIds::Volume)		return Range<int>(-100, 18);
 	else if( id == SampleIds::Pan)			return Range<int>(-100, 100);
 	else if( id == SampleIds::Normalized)	return Range<int>(0, 1);
-	else if( id == SampleIds::RRGroup)		return Range<int>(1, maxRRGroup);
+	else if( id == SampleIds::RRGroup)	  { jassertfalse; return {}; }
 	else if( id == SampleIds::Pitch)		return Range<int>(-100, 100);
 	else if (id == SampleIds::LoopEnabled)			return Range<int>(0, 1);
 	else if (id == SampleIds::SampleStart || id == SampleIds::SampleEnd ||
@@ -414,12 +413,6 @@ void ModulatorSamplerSound::loadEntireSampleIfMaxPitch()
 	}
 }
 
-void ModulatorSamplerSound::setMaxRRGroupIndex(int newGroupLimit)
-{
-	maxRRGroup = newGroupLimit;
-	rrGroup = jmin<int>((int)data.getProperty(SampleIds::RRGroup), newGroupLimit);
-}
-
 void ModulatorSamplerSound::setMappingData(MappingData newData)
 {
 	for (int i = 0; i < newData.data.getNumProperties(); i++)
@@ -482,9 +475,10 @@ void ModulatorSamplerSound::setVelocityXFade(int crossfadeLength, bool isUpperSo
 
 void ModulatorSamplerSound::setPurged(bool shouldBePurged) 
 {
+	SynthSoundWithBitmask::setPurged(shouldBePurged);
+
 	if (purged != shouldBePurged)
 	{
-		purged = shouldBePurged;
 		FOR_EVERY_SOUND(setPurged(shouldBePurged));
 	}
 	
@@ -576,7 +570,7 @@ bool ModulatorSamplerSound::hasUnpurgedButUnloadedSounds() const
 	return false;
 }
 
-int ModulatorSamplerSound::getRRGroup() const {	return rrGroup; }
+
 
 void ModulatorSamplerSound::selectSoundsBasedOnRegex(const String &regexWildcard, ModulatorSampler *sampler, SelectedItemSet<ModulatorSamplerSound::Ptr> &set)
 {
@@ -746,7 +740,7 @@ void ModulatorSamplerSound::updateInternalData(const Identifier& id, const var& 
 		}
 		else if (id == SampleIds::RRGroup)
 		{
-			rrGroup = jmin<int>(maxRRGroup, newValue);
+			setBitmask((Bitmask)(int64)newValueVar);
 		}
 		else if (id == SampleIds::Volume)
 		{
@@ -889,12 +883,19 @@ void ModulatorSamplerSound::setSampleProperty(const Identifier& id, const var& n
 		return;
 	}
 
-	clipRangeProperties(id, newValue, useUndo);
+	if(id == SampleIds::RRGroup)
+	{
+		data.setProperty(id, (int64)newValue, useUndo ? undoManager : nullptr);
+	}
+	else
+	{
+		clipRangeProperties(id, newValue, useUndo);
 
-	jassert(!newValue.isString());
-	auto v = getPropertyRange(id).clipValue((int)newValue);
+		jassert(!newValue.isString());
 
-	data.setProperty(id, v, useUndo ? undoManager : nullptr);
+		auto v = getPropertyRange(id).clipValue((int)newValue);
+		data.setProperty(id, v, useUndo ? undoManager : nullptr);
+	}
 }
 
 var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
@@ -907,10 +908,10 @@ var ModulatorSamplerSound::getSampleProperty(const Identifier& id) const
 
 	var rv = data.getProperty(id, getDefaultValue(id));
 
+	if(id == SampleIds::RRGroup)
+		return var((int64)getBitmask());
 	if (SampleIds::Helpers::isMapProperty(id))
-	{
 		return jlimit(0, 127, (int)rv);
-	}
 	else
 		return rv;
 }

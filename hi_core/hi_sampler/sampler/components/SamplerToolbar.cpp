@@ -366,7 +366,7 @@ juce::Path SampleEditorToolbarFactory::Factory::createPath(const String& url) co
 	LOAD_EPATH_IF_URL("play-area", SampleToolbarIcons::playArea);
 	LOAD_EPATH_IF_URL("loop-area", SampleToolbarIcons::loopArea);
 	LOAD_EPATH_IF_URL("release-start", SampleToolbarIcons::releaseStart);
-	LOAD_PATH_IF_URL("external", ColumnIcons::openWorkspaceIcon);
+	LOAD_EPATH_IF_URL("external", ColumnIcons::openWorkspaceIcon);
     LOAD_EPATH_IF_URL("zero", SampleToolbarIcons::zero);
     LOAD_EPATH_IF_URL("improve-loop", SampleToolbarIcons::smooth_loop);
 	LOAD_EPATH_IF_URL("release-start-options", SampleToolbarIcons::releaseStartOptions);

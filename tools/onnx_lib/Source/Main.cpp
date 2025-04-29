@@ -166,10 +166,22 @@ struct ONNXRuntime::Pimpl
 
 			try
 			{
+				Ort::AllocatorWithDefaultOptions allocator;
+
+				std::vector<std::string> output_names;
+
+				for (std::size_t i = 0; i < session->GetOutputCount(); i++)
+				    output_names.emplace_back(session->GetOutputNameAllocated(i, allocator).get());
+				  
+
+				std::vector<const char*> output_names_char(output_names.size(), nullptr);
+				std::transform(std::begin(output_names), std::end(output_names), std::begin(output_names_char),
+                 [&](const std::string& str) { return str.c_str(); });
+
 				// Run inference
 		        auto output_tensors = session->Run(Ort::RunOptions{nullptr},
 		                                          &input, &input_tensor, 1,
-		                                          &output, outputData.size());
+		                                          output_names_char.data(), session->GetOutputCount());
 
 		        // Process output
 		        float* out = output_tensors[0].GetTensorMutableData<float>();

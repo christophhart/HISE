@@ -202,11 +202,13 @@ void ScriptComponentEditPanel::fillPanel()
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterName));
-    parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterGroup));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::processorId));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::parameterId));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::automationId));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::defaultValue));
+		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::deferControlCallback));
 
 		addSectionToPanel(parameterIds, "Parameter Properties");
 

@@ -87,6 +87,10 @@ private:
 		{
 			return ilf->parameterNames.size();
 		}
+		if(f.isMethod())
+		{
+			return 1;
+		}
 
 		return 0;
 	}
@@ -552,6 +556,8 @@ private:
 						elementReturnValue = fo->invokeWithoutAllocation(thisScope, args, scopeObject.get());
 					else if (ilf)
 						elementReturnValue = ilf->performDynamically(thisScope, args.arguments, args.numArguments);
+					else
+						elementReturnValue = f.getNativeFunction()(args);
 
 					if(rf(i, elementReturnValue, element, &totalReturnValue))
 						break;

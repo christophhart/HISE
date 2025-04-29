@@ -420,6 +420,26 @@ public:
 	/** This hides all sounds that to not belong to the specified group index. If you want to display all sounds, pass -1. */
 	void soloGroup(BigInteger groupIndex);
 
+	void setBitmask(SynthSoundWithBitmask::ValueWithFilter newFilter)
+	{
+		if(newFilter.value != bitmask.value)
+		{
+			bitmask = newFilter;
+
+			for (auto s: sampleComponents)
+			{
+				auto bm = s->getSound()->getBitmask();
+
+				auto visible = bitmask.matches(bm);
+
+				s->setVisible(visible);
+				s->setEnabled(visible);
+			}
+
+			refreshGraphics();
+		}
+	}
+
 	/** updates all sounds. It deletes all SampleComponents and recreates them if new samples are detected. */
 	void updateSoundData();
 
@@ -449,6 +469,10 @@ public:
 	}
 
 private:
+
+	bool useComplexManager = false;
+
+	SynthSoundWithBitmask::ValueWithFilter bitmask;
 
 	struct RepaintSkipper
 	{
@@ -549,8 +573,12 @@ public:
 
 private:
 
+	Array<std::pair<VoiceBitMap<128>, Colour>> complexGroupZones;
+
 	int lastNoteNumber;
 	ModulatorSampler *sampler;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MapWithKeyboard);
 };
 
 
@@ -571,12 +599,21 @@ public:
 
 	bool broadcasterIsSelection(ChangeBroadcaster *b) const;
 
+	void rebuildColumns();
 
+	int complexGroupOffset = 0;
+	bool useComplexGroupManager = false;
+	
 	void preloadStateChanged(bool isPreloading) override;
 	
     void paintRowBackground (Graphics& g, int rowNumber, int /*width*/, int /*height*/, bool rowIsSelected) override;
 
 	void selectedRowsChanged(int lastRowSelected) override;
+
+	bool isComplexGroupColumn(int columnId) const
+	{
+		return useComplexGroupManager && (columnId-1) >= complexGroupOffset;
+	}
 
     void paintCell (Graphics& g, int rowNumber, int columnId,
                     int width, int height, bool /*rowIsSelected*/) override;
@@ -596,6 +633,9 @@ public:
 	void refreshPropertyForRow(int index, const Identifier& id);
 
 private:
+
+	SynthSoundWithBitmask::ValueWithFilter currentDisplayFilter;
+	BigInteger activeNotes;
 
 	bool isDefaultOrder = false;
 
@@ -665,6 +705,7 @@ private:
     };
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SamplerSoundTable)
+	JUCE_DECLARE_WEAK_REFERENCEABLE(SamplerSoundTable);
 };
 
 } // namespace hise

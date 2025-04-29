@@ -180,6 +180,8 @@ public:
 
 	bool areVoicesActive() const override;
 
+	void onProfileEnableChange() override;
+
 	/** Handles the ModulatorSynthChain. */
 	class ModulatorSynthChainHandler: public Chain::Handler
 	{

@@ -126,11 +126,22 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor *s, const File &fileT
 
 	addEditor(externalFile->getFileDocument(), isJavascript);
 
-	if (externalFile != nullptr && !isJavascript)
-		externalFile->getRuntimeErrorBroadcaster().addListener(*this, runTimeErrorsOccured);
+	
+
+	
 
 	addButtonAndCompileLabel();
 	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
+
+	if (externalFile != nullptr && !isJavascript)
+		externalFile->getRuntimeErrorBroadcaster().addListener(*this, runTimeErrorsOccured);
+	if(isJavascript)
+	{
+		jp->runtimeErrorBroadcaster.addListener(*this, [](PopupIncludeEditor& e, const String& errorMessage)
+		{
+			e.setError(errorMessage.isEmpty() ? Result::ok() : Result::fail(errorMessage));
+		});
+	}
 
 	for (int i = 0; i < jp->getNumWatchedFiles(); i++)
 	{
@@ -160,6 +171,34 @@ PopupIncludeEditor::PopupIncludeEditor(JavascriptProcessor* s, const Identifier 
 	addEditor(d, true);
 	addButtonAndCompileLabel();
 
+	jp->runtimeErrorBroadcaster.addListener(*this, [](PopupIncludeEditor& e, const String& errorMessage)
+	{
+		if(errorMessage.isNotEmpty())
+		{
+			auto m = errorMessage.upToFirstOccurrenceOf("{{", false, false);
+			auto encodedState = errorMessage.fromFirstOccurrenceOf("{{", false, false).upToFirstOccurrenceOf("}}", false, false);
+			auto pId = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getProcessorId(encodedState);
+
+			DebugableObject::Location loc;
+			loc.charNumber = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getCharNumberFromBase64String(encodedState);
+			loc.fileName = HiseJavascriptEngine::RootObject::CodeLocation::Helpers::getFileName(encodedState);
+			if(loc.fileName.isEmpty())
+				loc.fileName = "onInit";
+
+			if(e.callback.toString() == loc.fileName)
+			{
+				CodeDocument::Position pos(e.doc->getCodeDocument(), loc.charNumber);
+
+				auto line = pos.getLineNumber() + 1;
+				auto col = pos.getIndexInLine();
+
+				String mclError = "Line ";
+				mclError << line << "(" << col << "): " << m;
+				e.editor->editor.setError(mclError);
+			}
+		}
+	});
+
     dynamic_cast<Processor*>(jp.get())->getMainController()->addScriptListener(this);
     
 	refreshAfterCompilation(JavascriptProcessor::SnippetResult(s->getLastErrorMessage(), 0));
@@ -171,9 +210,14 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 		jp(jp_),
         callback(callback_)
 	{
+		jp->heatmapManager.heatmapBroadcaster.addListener(ed, [](mcl::TextEditor& ed, DebugInformationBase::Ptr info, const std::map<int, double>* heatmap)
+		{
+			ed.setHeatMap(info, heatmap);
+		});
+
         jp->inplaceBroadcaster.addListener(ed, [](mcl::TextEditor& ed, Identifier, int)
         {
-            ed.repaint();
+			ed.rebuildInplaceDebugValues();
         });
     };
 
@@ -186,15 +230,15 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 
     Identifier getLanguageId() const override { return mcl::LanguageIds::HiseScript; }
     
-    bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const override
+    bool getInplaceDebugValues(InplaceDebugValue::List& values) const override
     {
-		auto sn = jp->getSnippet(callback);
+		auto sn = jp->getSnippetOrExternalFile(callback);
 		
 		for(auto& ip: jp->inplaceValues)
 		{
-			ip.init();
+			ip->init();
 
-			if(ip.location.getOwner() == sn)
+			if(ip->location.getOwner() == sn)
 			{
 				values.add(ip);
 			}
@@ -242,6 +286,8 @@ struct JavascriptLanguageManager : public mcl::LanguageManager
 			ADD_HS_SNIPPET("for (...)", "for($LOOP_VAR$ = 0; $LOOP_VAR$ < 10; $LOOP_VAR$++)\n{\n\t$// loop body$\n}",
 				           "A simple for loop");
 			ADD_HS_SNIPPET("tr (...)", "Console.print(trace($data$));", "A shortcut for printing something to the console using `trace`");
+			ADD_HS_SNIPPET("smp (...)", "Console.sample($ID$, $VALUE$);", "A shortcut for the debug session sampling command");
+			ADD_HS_SNIPPET("pr (...)", "..if(PROFILE):profile(\"$TEXT$\");", "A shortcut for adding scoped profiling code");
 
 			ADD_HS_SNIPPET("inline1 (...)", "inline function $functionName$($args1$)\n{\n\t$// body$\n};",
 				           "A shortcut for a inline function definition with a single argument");
@@ -375,53 +421,7 @@ void PopupIncludeEditor::addButtonAndCompileLabel()
 void PopupIncludeEditor::refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r)
 {
     checkUnreferencedExternalFile();
-    
-	bottomBar->setError(r.r.getErrorMessage());
-
-	if (auto asmcl = dynamic_cast<mcl::FullEditor*>(editor.get()))
-	{
-		if (!r.r.wasOk())
-		{
-			auto errorMessage = r.r.getErrorMessage();
-
-			auto secondLine = errorMessage.fromFirstOccurrenceOf("\n", false, false).substring(1).trim();
-
-			auto fileName = getFile().getFileName();
-
-			bool isSameFile = true;
-
-			if (!secondLine.startsWith(callback.toString()))
-				isSameFile = false;
-
-			if(fileName.isNotEmpty() && secondLine.contains(fileName))
-				isSameFile = true;
-
-			if (fileName.isEmpty() && secondLine.contains(".js"))
-				isSameFile = false;
-
-			if (secondLine.isEmpty())
-				isSameFile = true;
-
-			if (!isSameFile)
-			{
-				asmcl->editor.clearWarningsAndErrors();
-				return;
-			}
-
-			auto message = errorMessage.upToFirstOccurrenceOf("{", false, false);
-			auto line = errorMessage.fromFirstOccurrenceOf("Line ", false, false).getIntValue();
-			auto col = errorMessage.fromFirstOccurrenceOf("column ", false, false).getIntValue();
-
-			String mclError = "Line ";
-			mclError << line << "(" << col << "): " << message;
-
-			asmcl->editor.setError(mclError);
-		}
-		else
-		{
-			asmcl->editor.clearWarningsAndErrors();
-		}
-	}
+	setError(r.r);
 }
 
 PopupIncludeEditor::~PopupIncludeEditor()
@@ -726,7 +726,14 @@ void PopupIncludeEditor::addEditor(CodeDocument& d, bool isJavascript)
 	auto& ed = getEditor()->editor;
 
 	if (isJavascript)
-		ed.setLanguageManager(new JavascriptLanguageManager(jp, callback, ed));
+	{
+		auto callbackToUse = callback;
+
+		if(callbackToUse.isNull() && externalFile != nullptr)
+			callbackToUse = Identifier(externalFile->getFile().getFileName());
+
+		ed.setLanguageManager(new JavascriptLanguageManager(jp, callbackToUse, ed));
+	}
 	else
 	{
 		if(t == FileTypes::GLSL)

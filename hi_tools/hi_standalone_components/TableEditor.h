@@ -84,6 +84,7 @@ class TableEditor : public Component,
 	public SettableTooltipClient,
 	public CopyPasteTarget,
 	public Table::Listener,
+	public ProfiledComponent,
 	public ComplexDataUIBase::EditorBase
 {
 public:
@@ -271,6 +272,8 @@ public:
 	Rectangle<int> getPointAreaBetweenMouse() const;
 
 	LookAndFeelMethods* getTableLookAndFeel();
+
+	paintAndProfileChildren(g);
 
 private:
 

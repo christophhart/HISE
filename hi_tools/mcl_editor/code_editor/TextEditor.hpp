@@ -70,6 +70,28 @@ public:
 	void scrollToLine(float centerLine, bool roundToLine);
 
 	void timerCallback() override;
+	void setHeatMap(DebugInformationBase::Ptr ptr, const std::map<int, double>* map)
+	{
+		for(auto p: inplaceDebugValueComponents)
+		{
+			if(p->value->info == ptr)
+			{
+				heatmap.clear();
+
+				for(auto& i: *map)
+				{
+					if(i.second < 0.1)
+						continue;
+
+					heatmap.push_back({CodeDocument::Position(getDocument(), i.first-1, 0), i.second});
+					heatmap.back().first.setPositionMaintained(true);
+				}
+
+				repaint();
+				return;
+			}
+		}
+	}
 
 	static void setNewTokenCollectionForAllChildren(Component* any, const Identifier& languageId, TokenCollection::Ptr newCollection);
 
@@ -140,7 +162,7 @@ public:
     
 	bool gotoDefinition(Selection s1 = {});
 
-	void tokenListWasRebuild() override {};
+	void tokenListWasRebuild() override;;
 
 	void threadStateChanged(bool isRunning) override;
 
@@ -258,7 +280,170 @@ public:
 
 	ScrollBar& getVerticalScrollBar();
 
+	void rebuildInplaceDebugValues();
+
+	struct Error
+	{
+		struct Helpers
+		{
+			static int getCharNumberFromBase64String(const String& base64EncodedString)
+			{
+				auto s = getDecodedString(base64EncodedString);
+
+				auto sa = StringArray::fromTokens(s, "|", "");
+
+				return sa[2].getIntValue();
+			}
+
+			static String getProcessorId(const String& base64EncodedString)
+			{
+				auto s = getDecodedString(base64EncodedString);
+
+				auto sa = StringArray::fromTokens(s, "|", "");
+
+				jassert(sa.size() > 0);
+
+				return sa[0];
+			}
+
+			static String getFileName(const String& base64EncodedString)
+			{
+				auto s = getDecodedString(base64EncodedString);
+
+				auto sa = StringArray::fromTokens(s, "|", "");
+
+				jassert(sa.size() > 1);
+
+				if (sa[1].isEmpty())
+					return String();
+
+				if (sa[1].contains("()"))
+					return sa[1];
+
+				return "{PROJECT_FOLDER}" + sa[1];
+			}
+
+			static String getDecodedString(const String& base64EncodedString)
+			{
+				MemoryOutputStream mos;
+				Base64::convertFromBase64(mos, base64EncodedString.removeCharacters("{}"));
+				return String::createStringFromData(mos.getData(), (int)mos.getDataSize());
+			}
+		};
+
+		Error(TextDocument& doc_, const String& e, bool isWarning_);
+
+		Selection getSelection() const;
+
+		static void paintLine(Line<float> l, Graphics& g, const AffineTransform& transform, Colour c);
+
+		void paintLines(Graphics& g, const AffineTransform& transform, Colour c);
+
+		TooltipWithArea::Data getTooltip(const AffineTransform& transform, Point<float> position);
+
+		void rebuild();
+
+		bool isEntireLine = false;
+
+		TextDocument& document;
+
+		CodeDocument::Position start;
+		CodeDocument::Position end;
+
+		juce::Rectangle<float> area;
+		Array<Line<float>> errorLines;
+
+		String errorMessage;
+		bool isWarning;
+	};
+
 private:
+
+	struct InplaceDebugValueComponent: public Component,
+									   public PathFactory	
+	{
+		InplaceDebugValueComponent(TextEditor& parent_, const LanguageManager::InplaceDebugValue::Ptr ipv);;
+
+		void updatePosition();
+
+		Path createPath(const String& url) const override
+		{
+			Path p;
+			LOAD_EPATH_IF_URL("profile", EditorIcons::profileIcon);
+			LOAD_EPATH_IF_URL("graph", EditorIcons::searchIcon2);
+			return p;
+		}
+
+		struct WrapperComponent: public Component,
+								 public ComponentListener
+		{
+			static constexpr int margin = 10;
+
+			WrapperComponent(Component* c):
+			  child(c)
+			{
+				setVisible(true);
+				addAndMakeVisible(c);
+				c->addComponentListener(this);
+				setSize(c->getWidth() + 2 * margin, c->getHeight() + 2 * margin);
+			}
+
+			~WrapperComponent()
+			{
+				getChildComponent(0)->removeComponentListener(this);
+			}
+
+			void componentMovedOrResized(Component& c, bool wasMoved, bool wasResized) override
+			{
+				setSize(c.getWidth() + 2 * margin, c.getHeight() + 2 * margin);
+			}
+
+			void paint(Graphics& g) override
+			{
+				g.fillAll(Colour(0xFF242424));
+			}
+
+			void resized() override
+			{
+				getChildComponent(0)->setBounds(getLocalBounds().reduced(margin));
+			}
+
+			static std::unique_ptr<Component> wrap(Component* c)
+			{
+				auto n = new WrapperComponent(c);
+
+				std::unique_ptr<Component> v;
+				v.reset(n);
+
+                return v;
+			}
+
+			ScopedPointer<Component> child;
+		};
+
+		void mouseDown(const MouseEvent& e) override
+		{
+			if(value->info != nullptr)
+			{
+				if(auto c = value->info->createPopupComponent(e, this))
+				{
+					auto tc = TopLevelWindowWithOptionalOpenGL::findRoot(this);
+					auto area = tc->getLocalArea(this, getLocalBounds());
+
+					CallOutBox::launchAsynchronously(WrapperComponent::wrap(c), area, tc);
+				}
+			}
+		}
+
+		void paint(Graphics& g) override;
+
+		Font vf;
+		LanguageManager::InplaceDebugValue::Ptr value;
+		TextEditor& parent;
+		Path p;
+	};
+
+	OwnedArray<InplaceDebugValueComponent> inplaceDebugValueComponents;
 
     Array<int> currentTitles;
     
@@ -289,40 +474,68 @@ private:
 
 	bool nav(ModifierKeys mods, TextDocument::Target target, TextDocument::Direction direction);
 
-	struct Error
+	
+
+	class AutofixComponent : public juce::Component,
+							 public SettableTooltipClient,
+							 public CodeDocument::Listener
 	{
-		Error(TextDocument& doc_, const String& e, bool isWarning_);
-
-		Selection getSelection() const;
-
-		static void paintLine(Line<float> l, Graphics& g, const AffineTransform& transform, Colour c);
-
-		void paintLines(Graphics& g, const AffineTransform& transform, Colour c);
-
-		TooltipWithArea::Data getTooltip(const AffineTransform& transform, Point<float> position);
-
-		void rebuild();
-
-		bool isEntireLine = false;
-
-		TextDocument& document;
-
-		CodeDocument::Position start;
-		CodeDocument::Position end;
-
-		juce::Rectangle<float> area;
-		Array<Line<float>> errorLines;
+	public:
+	    AutofixComponent(mcl::TextEditor& editor_, const Error& error);
 
 		String errorMessage;
-		bool isWarning;
+		String errorLine;
+
+	    ~AutofixComponent()
+		{
+	        if (codeDoc != nullptr) {
+	            codeDoc->removeListener(this);
+	        }
+	    }
+
+	    void paint(juce::Graphics& g) override;
+	    void resized() override;
+
+	    void mouseEnter(const MouseEvent& e) override;
+	    void mouseDown(const MouseEvent& e) override;
+
+	    void codeDocumentTextDeleted(int startIndex, int endIndex) override
+	    {
+		    updatePosition();
+	    }
+
+		void codeDocumentTextInserted(const String& newText, int insertIndex) override
+	    {
+		    updatePosition();
+	    }
+
+		bool calculateFix();
+		void updatePosition();
+
+	private:
+
+		String getCurrentNamespaceId() const;
+
+	    String fixMessage;
+		String correctLine;
+		Selection sel;
+
+		Path icon;
+
+	    mcl::TextEditor& editor;
+	    CodeDocument* codeDoc;
 	};
+
+	ScopedPointer<AutofixComponent> autofixButton;
 
 	TooltipWithArea tooltipManager;
     
     ScrollbarFader sf;
 
 	bool tokenRebuildPending = false;
-	
+
+	std::vector<std::pair<CodeDocument::Position, double>> heatmap;
+
 	bool skipTextUpdate = false;
 	Selection autocompleteSelection;
 	ScopedPointer<Autocomplete> currentAutoComplete;

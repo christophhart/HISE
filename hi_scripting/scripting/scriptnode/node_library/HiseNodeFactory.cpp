@@ -292,7 +292,7 @@ struct TempoDisplay : public ModulationSourceBaseComponent
 		g.setFont(GLOBAL_BOLD_FONT());
 
 		Path p;
-		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+		p.loadPathFromData(ColumnIcons::targetIcon, SIZE_OF_PATH(ColumnIcons::targetIcon));
 
 		PathFactory::scalePath(p, b.removeFromLeft(b.getHeight()).reduced(3));
 
@@ -1026,6 +1026,7 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyNode<sampleandhold<1>, sampleandhold<NUM_POLYPHONIC_VOICES>, sampleandhold_editor>();
 	registerPolyNode<bitcrush<1>, bitcrush<NUM_POLYPHONIC_VOICES>, bitcrush_editor>();
 	registerPolyNode<wrap::fix<2, haas<1>>, wrap::fix<2, haas<NUM_POLYPHONIC_VOICES>>>();
+	registerPolyNode<pitch_shift<1>, pitch_shift<NUM_POLYPHONIC_VOICES>>();
 	registerPolyNode<phase_delay<1>, phase_delay<NUM_POLYPHONIC_VOICES>, phase_delay_editor>();
 }
 

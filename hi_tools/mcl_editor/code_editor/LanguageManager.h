@@ -49,28 +49,30 @@ public:
 
     virtual FoldableLineRange::List createLineRange(const juce::CodeDocument& doc);
 
-    struct InplaceDebugValue
+    struct InplaceDebugValue: public ReferenceCountedObject
     {
-        void init()
-        {
-	        if(!initialised)
-	        {
-		        location = CodeDocument::Position(*location.getOwner(), originalLineNumber, 99);
-                location.setPositionMaintained(true);
-                initialised = true;
-	        }
-        }
+        InplaceDebugValue() = default;
 
-        int originalLineNumber;
+        using List = ReferenceCountedArray<InplaceDebugValue>;
+        using Ptr = ReferenceCountedObjectPtr<InplaceDebugValue>;
+        
+        void init();
+
+        int originalLineNumber = -1;
         bool initialised = false;
         CodeDocument::Position location;
         String value;
+        DebugInformationBase::Ptr info;
+
+    private:
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(InplaceDebugValue);
     };
 
     /** Used for coallascating the token providers. */
     virtual Identifier getLanguageId() const = 0;
 
-    virtual bool getInplaceDebugValues(Array<InplaceDebugValue>& values) const;
+    virtual bool getInplaceDebugValues(InplaceDebugValue::List& values) const;
 
     virtual void processBookmarkTitle(juce::String& bookmarkTitle) = 0;
 
@@ -87,6 +89,8 @@ public:
     virtual void toggleCommentForLine(TextEditor* editor, bool shouldBeCommented);
 
     bool hashIsPreprocessor = true;
+
+    static String beautify(const String& input);
 };
 
 struct XmlLanguageManager: public LanguageManager

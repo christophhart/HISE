@@ -318,8 +318,41 @@ SamplerSoundMap::SamplerSoundMap(ModulatorSampler *ownerSampler_):
 
 	addChildComponent(sampleLasso);
 
-	updateSoundData();
+	ownerSampler->getSampleEditHandler()->complexGroupEventBroadcaster.addListener(*this, [](SamplerSoundMap& m, SampleEditHandler::ComplexGroupEvent e)
+	{
+		auto handler = const_cast<SampleEditHandler*>(m.getSampler()->getSampleEditHandler());
 
+		if(e == SampleEditHandler::ComplexGroupEvent::ComplexManagerDisabled)
+		{
+			m.useComplexManager = false;
+
+			handler->complexGroupBroadcaster.removeListener(m);
+			handler->groupBroadcaster.addListener(m, [](SamplerSoundMap& m, int rrGroup, BigInteger* displayedGroup)
+			{
+				if(displayedGroup != nullptr)
+					m.soloGroup(*displayedGroup);
+			});
+
+			
+		}
+		else
+		{
+			if(m.useComplexManager)
+				return;
+
+			handler->groupBroadcaster.removeListener(m);
+			handler->complexGroupBroadcaster.addListener(m, [](SamplerSoundMap& m, SynthSoundWithBitmask::ValueWithFilter mask)
+			{
+				m.setBitmask(mask);
+			});
+
+			m.useComplexManager = true;
+		}
+
+		m.sampleComponents.clear();
+		m.updateSoundData();
+	});
+	
 	//setOpaque(true);
 };
 
@@ -676,7 +709,7 @@ void SamplerSoundMap::paintOverChildren(Graphics &g)
 			g.drawHorizontalLine(y, 0.0f, (float)getWidth());
 
 			Path p;
-			p.loadPathFromData(ColumnIcons::lockIcon, sizeof(ColumnIcons::lockIcon));
+			p.loadPathFromData(ColumnIcons::lockIcon, ColumnIcons::lockIcon_Size);
 			Rectangle<float> d(0.0f, y, 32, 32);
 			if (d.getBottom() > getHeight())
 				d = d.translated(0, -32);
@@ -1153,6 +1186,26 @@ MapWithKeyboard::MapWithKeyboard(ModulatorSampler *ownerSampler):
 	sampler(ownerSampler),
 	lastNoteNumber(-1)
 {
+	sampler->getSampleEditHandler()->complexGroupEventBroadcaster.addListener(*this, [](MapWithKeyboard& mk, SampleEditHandler::ComplexGroupEvent event)
+	{
+		mk.complexGroupZones.clear();
+
+		if(auto gm = mk.sampler->getComplexGroupManager())
+		{
+			auto data = gm->getDataTree();
+
+			for(auto layer: data)
+			{
+				auto map = ComplexGroupManager::Helpers::getKeyRange(layer, mk.sampler);
+
+				if(!map.isEmpty())
+					mk.complexGroupZones.add({ map, ComplexGroupManagerComponent::Helpers::getLayerColour(layer)});
+			}
+		}
+
+		mk.repaint();
+	});
+
     setBufferedToImage(true);
     
 	addAndMakeVisible(map = new SamplerSoundMap(ownerSampler));
@@ -1171,16 +1224,30 @@ void MapWithKeyboard::paint(Graphics &g)
 
 	for(int i = 0; i < 128; i++)
 	{
-		Colour keyColour = selectedRootNotes[i] ? blackKeys[i % 12] ? Colour(SIGNAL_COLOUR).withMultipliedBrightness(0.5f) :
-                                                                      Colour(SIGNAL_COLOUR) :
-													blackKeys[i % 12] ? Colours::black : Colours::white;
+		Rectangle<float> note(x + i * noteWidth, (float)y, noteWidth, height);
 
-		if(i == lastNoteNumber) keyColour = Colour(SIGNAL_COLOUR);
+		for(const auto& zone: complexGroupZones)
+		{
+			if(zone.first[i])
+			{
+				g.setColour(zone.second.withMultipliedSaturation(1.5f).withMultipliedBrightness(1.3f));
+				g.fillRect(note.removeFromTop(5));
+			}
+		}
 
-		g.setColour(keyColour.withAlpha(0.4f));
-		g.fillRect(x + i * noteWidth, (float)y, noteWidth, height);
-		g.setColour(keyColour.withAlpha(0.05f));
-		g.drawRect(x + i * noteWidth, (float)y, noteWidth, height);
+		auto isBlack = blackKeys[i % 12];
+		auto c = isBlack ? Colours::black : Colours::white;
+
+		if(selectedRootNotes[i])
+			c = isBlack ? Colour(SIGNAL_COLOUR).withMultipliedBrightness(0.5f) : Colour(SIGNAL_COLOUR);
+		
+		if(i == lastNoteNumber)
+			c = Colour(SIGNAL_COLOUR);
+
+		g.setColour(c.withAlpha(0.4f));
+		g.fillRect(note);
+		g.setColour(c.withAlpha(0.05f));
+		g.drawRect(note);
 	}
 }
 
@@ -1262,44 +1329,28 @@ SamplerSoundTable::SamplerSoundTable(ModulatorSampler *ownerSampler_, SampleEdit
 	table.setColour(ListBox::backgroundColourId, Colours::transparentBlack);
 
     table.setOutlineThickness (0);
-
-
-	columnIds.add(SampleIds::ID);
-	columnIds.add(SampleIds::FileName);
-	columnIds.add(SampleIds::RRGroup);
-	columnIds.add(SampleIds::Root);
-	columnIds.add(SampleIds::LoKey);
-	columnIds.add(SampleIds::HiKey);
-	columnIds.add(SampleIds::LoVel);
-	columnIds.add(SampleIds::HiVel);
-
-	for (auto c : columnIds)
-	{
-		int i1, i2, i3 = 50;
-
-		if (c == SampleIds::FileName)
-		{
-			i1 = 320;
-			i2 = 220;
-			i3 = 1200;
-		}
-		else
-		{
-			i1 = 40;
-			i2 = 30;
-			i3 = 80;
-		}
-
-		table.getHeader().addColumn(c.toString(), columnIds.indexOf(c)+1, i1, i2, i3, TableHeaderComponent::ColumnPropertyFlags::defaultFlags);
-	}
-
 	table.getHeader().setLookAndFeel(&laf);
-
 	table.setHeaderHeight(18);
 	table.setMultipleSelectionEnabled (true);
-	table.getHeader().setStretchToFitActive(true);
-	
-	refreshList();
+
+	handler->complexGroupEventBroadcaster.addListener(*this, [](SamplerSoundTable& t, SampleEditHandler::ComplexGroupEvent e)
+	{
+		t.rebuildColumns();
+	});
+
+	handler->complexGroupBroadcaster.addListener(*this, [](SamplerSoundTable& st, SynthSoundWithBitmask::ValueWithFilter filter)
+    {
+		st.currentDisplayFilter = filter;
+		st.repaint();
+    });
+
+	//LambdaBroadcaster<int, int> 
+
+	handler->noteBroadcaster.addListener(*this, [](SamplerSoundTable& st, int note, int velocity)
+	{
+		st.activeNotes.setBit(note, velocity > 0);
+		st.repaint();
+	});
 }
 
 SamplerSoundTable::~SamplerSoundTable()
@@ -1348,7 +1399,109 @@ bool SamplerSoundTable::broadcasterIsSelection(ChangeBroadcaster *b) const
 	return dynamic_cast<SelectedItemSet<ModulatorSamplerSound*>*>(b) != nullptr;
 }
 
+void SamplerSoundTable::rebuildColumns()
+{
+	columnIds.clear();
+
+	auto s = handler->getSampler();
+
+	useComplexGroupManager = s->getComplexGroupManager();
+
+	columnIds.add(SampleIds::ID);
+	columnIds.add(SampleIds::FileName);
+
+	columnIds.add(SampleIds::Root);
+	columnIds.add(SampleIds::LoKey);
+	columnIds.add(SampleIds::HiKey);
+	columnIds.add(SampleIds::LoVel);
+	columnIds.add(SampleIds::HiVel);
+
+	table.getHeader().removeAllColumns();
+
+	if(useComplexGroupManager)
+	{
+		complexGroupOffset = columnIds.size();
+
+		auto gm = s->getComplexGroupManager();
+
+		for(uint8 i = 0; i < gm->getNumLayers(); i++)
+			columnIds.add(gm->getLayerId(i));
+	}
+	else
+	{
+		columnIds.add(SampleIds::RRGroup);
+	}
+
+	ValueTree complexDataTree;
+
+	if(auto gm = s->getComplexGroupManager())
+	{
+		complexDataTree = s->getComplexGroupManager()->getDataTree();
+	}
+
+	auto f = GLOBAL_FONT();
+
+	int id = 1;
+
+	ModulatorSampler::SoundIterator iter(s);
+
+	int maxFilenameLength = 0;
+
+	while(auto sound = iter.getNextSound())
+	{
+		PoolReference ref(s->getMainController(), sound->getPropertyAsString(SampleIds::FileName), FileHandlerBase::Samples);
+		auto filename = ref.getFile().getFileNameWithoutExtension();
+		
+		maxFilenameLength = jmax(maxFilenameLength, f.getStringWidth(filename));
+		maxFilenameLength += 50;
+	}
+
+	maxFilenameLength = jlimit(300, 600, maxFilenameLength);
+
+
+	for (auto c : columnIds)
+	{
+		int i1, i2, i3 = 50;
+
+		auto groupData = complexDataTree.getChildWithProperty(groupIds::id, c.toString());
+
+		if (c == SampleIds::FileName)
+		{
+			i1 = maxFilenameLength;
+			i2 = maxFilenameLength;
+			i3 = -1;
+		}
+		else if (groupData.isValid())
+		{
+			int width = f.getStringWidth(c.toString());
+
+			auto tokens = ComplexGroupManagerComponent::Helpers::getTokens(groupData);
+
+			for(auto t: tokens)
+				width = jmax(width, f.getStringWidth(t));
+
+			width += 10;
+
+			i1 = width;
+			i2 = width;
+			i3 = 1200;
+		}
+		else
+		{
+			i1 = 40;
+			i2 = 30;
+			i3 = 80;
+		}
+
+		table.getHeader().addColumn(c.toString(), id++, i1, i2, i3, TableHeaderComponent::ColumnPropertyFlags::defaultFlags);
+	}
+
+	table.getHeader().setStretchToFitActive(true);
 	
+	refreshList();
+}
+
+
 void SamplerSoundTable::preloadStateChanged(bool isPreloading_)
 {
 	isPreloading = isPreloading_;
@@ -1378,25 +1531,47 @@ void SamplerSoundTable::paintCell (Graphics& g, int rowNumber, int columnId,
 
 	if (rowNumber < sortedSoundList.size())
 	{
-        if(rowIsSelected)
-        {
-            g.setFont(GLOBAL_BOLD_FONT());
-            g.setColour(Colours::black.withAlpha(.8f));
-        }
-        else
-        {
-            g.setFont(font);
-            g.setColour(Colours::white.withAlpha(.8f));
-        }
+        
 		
 		
 		if (sortedSoundList[rowNumber].get() == nullptr)
 			return;
 
+		auto bitmask = sortedSoundList[rowNumber].get()->getBitmask();
+		auto active = currentDisplayFilter.matches(bitmask);
 
-		auto id = columnIds[columnId-1];
+		//auto s = sortedSoundList[rowNumber]
+		
 
-		String text(sortedSoundList[rowNumber]->getPropertyAsString(id));
+		auto alpha = active ? 0.8f : 0.4f;
+
+		if(rowIsSelected)
+        {
+            g.setFont(GLOBAL_BOLD_FONT());
+            g.setColour(Colours::black.withAlpha(alpha));
+        }
+        else
+        {
+            g.setFont(font);
+            g.setColour(Colours::white.withAlpha(alpha));
+        }
+
+		
+
+		String text;
+
+		if(isComplexGroupColumn(columnId))
+		{
+			auto layerIndex = columnId - complexGroupOffset - 1;
+			auto gm = handler->getSampler()->getComplexGroupManager();
+			auto s = sortedSoundList[rowNumber];
+			text = gm->getLayerValueAsToken(s.get(), layerIndex);
+		}
+		else
+		{
+			auto id = columnIds[columnId-1];
+			text = String(sortedSoundList[rowNumber]->getPropertyAsString(id));
+		}
 
 		g.drawText(text, 2, 0, width - 4, height, Justification::centred, true);
 
@@ -1417,12 +1592,53 @@ void SamplerSoundTable::sortOrderChanged (int newSortColumnId, bool isForwards)
 
 	isDefaultOrder = newDefaultOrder;
 
+
+
     if (newSortColumnId != 0 && needsSorting)
     {
-		DemoDataSorter sorter (columnIds[newSortColumnId-1], isForwards);
+		if(isComplexGroupColumn(newSortColumnId))
+		{
+			auto layerIndex = newSortColumnId - complexGroupOffset - 1;
+			auto gm = handler->getSampler()->getComplexGroupManager();
 
-		sortedSoundList.sort(sorter);
-        table.updateContent();
+			struct ComplexGroupSorter
+			{
+				ComplexGroupSorter(ComplexGroupManager* gm_, uint8 layerIndex_, bool isForwards):
+				  gm(gm_),
+				  layerIndex(layerIndex_),
+				  direction(isForwards ? 1 : -1)
+				{}
+
+				int compareElements (ModulatorSamplerSound::Ptr first, ModulatorSamplerSound::Ptr second) const
+		        {
+					if (first == nullptr || second == nullptr)
+						return direction;
+
+					auto v1 = gm->getLayerValueAsToken(first.get(), layerIndex);
+					auto v2 = gm->getLayerValueAsToken(second.get(), layerIndex);
+
+					int result = v1.compareNatural(v2);
+
+					return direction * result;
+		        }
+
+				ComplexGroupManager* gm;
+				uint8 layerIndex;
+				int direction;
+			};
+
+			ComplexGroupSorter sorter(gm, layerIndex, isForwards);
+			sortedSoundList.sort(sorter);
+		    table.updateContent();
+		}
+		else
+		{
+			DemoDataSorter sorter (columnIds[newSortColumnId-1], isForwards);
+
+			sortedSoundList.sort(sorter);
+		    table.updateContent();
+		}
+		
     }
 }
 
@@ -1449,7 +1665,7 @@ void SamplerSoundTable::soundsSelected(int numSelected)
 void SamplerSoundTable::resized()
 {
     table.setBounds(getLocalBounds());
-	table.getHeader().setColumnWidth(ModulatorSamplerSound::FileName, table.getVisibleRowWidth() - 330);
+	//table.getHeader().setColumnWidth(ModulatorSamplerSound::FileName, table.getVisibleRowWidth() - 330);
 }
 
 

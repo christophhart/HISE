@@ -251,6 +251,8 @@ struct ScriptBroadcaster :  public ConstScriptingObject,
 
 private:
 
+	ProfileCollection broadcasterProfile;
+
 	void sendMessageInternal(var args, bool isSync);
 
 	bool forceSync = false;
@@ -331,6 +333,7 @@ private:
 		virtual void registerSpecialBodyItems(ComponentWithPreferredSize::BodyFactory& factory);
 		virtual Array<var> createChildArray() const = 0;
 
+		int profileIndex = 0;
 		Metadata metadata;
 	};
 
@@ -345,6 +348,12 @@ private:
 		virtual ~TargetBase();;
 
 		virtual Result callSync(const Array<var>& args) = 0;
+
+		Result callSyncWithProfile(ScriptBroadcaster& sb, const Array<var>& args)
+		{
+			auto p = sb.broadcasterProfile.profile(profileIndex);
+			return callSync(args);
+		}
 
 		bool operator==(const TargetBase& other) const;
 
@@ -504,7 +513,13 @@ private:
 		virtual Array<var> getInitialArgs(int callIndex) const;;// = 0;
 
         virtual ~ListenerBase();;
-     
+
+		Result callItemWithProfile(ScriptBroadcaster& b, TargetBase* n)
+		{
+			auto p = b.broadcasterProfile.profile(profileIndex);
+			return callItem(n);
+		}
+
 		virtual Result callItem(TargetBase* n) = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ListenerBase);
@@ -914,6 +929,7 @@ private:
 		int currentIndex = -1;
 
 		const int radioGroup;
+		ScriptBroadcaster& parent;
 		OwnedArray<InternalListener> items;
 	};
 	

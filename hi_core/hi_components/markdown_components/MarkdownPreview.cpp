@@ -65,6 +65,8 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 {
 	showStatusMessage("Create Snippet database");
 
+	
+
 	auto am = dynamic_cast<BackendProcessor*>(&holder)->getAssetManager();
 	am->initialise();
 
@@ -86,6 +88,8 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 		File snippetRoot(snippetDirectory);
 
 		auto snippetList = snippetRoot.findChildFiles(File::findFiles, false, "*.md");
+
+		var ds;
 
 		struct Item
 		{
@@ -121,9 +125,27 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 				numCategories
 			};
 
-			Image createScreenshot(BackendRootWindow* rw) const
+			var createExtractedCode(BackendRootWindow* rw) const
 			{
-						
+				if(auto jmp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(rw->getBackendProcessor()))
+				{
+					auto x = new DynamicObject();
+
+					String extractedCode;
+					jmp->mergeCallbacksToScript(extractedCode, "\n");
+
+					x->setProperty("title", name + "(" + getCategories()[(int)cat] + ")");
+					x->setProperty("description", description);
+					x->setProperty("code", extractedCode);
+
+					return var(x);
+				}
+
+				return var();
+			}
+
+			std::pair<var, Image> createScreenshot(BackendRootWindow* rw) const
+			{
 				if(cat == Category::Scriptnode)
 				{
 					MainController::ScopedBadBabysitter sbb(rw->getBackendProcessor());
@@ -134,6 +156,8 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 					}
 							
 					Processor::Iterator<DspNetwork::Holder> iter(rw->getMainSynthChain(), false);
+
+					auto codeData = createExtractedCode(rw);
 
 					while(auto holder = iter.getNextProcessor())
 					{
@@ -147,9 +171,6 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 
 							c->setContentWithUndo(dynamic_cast<Processor*>(holder), 0);
 
-
-									
-
 							if(auto graph = c->getContent<WrapperWithMenuBarBase>()->canvas.getContent<juce::Component>())
 							{
 								auto comp = dynamic_cast<Component*>(graph);
@@ -161,7 +182,7 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 								}
 
 								auto img = graph->createComponentSnapshot(graph->getLocalBounds(), true);
-								return img;
+								return {codeData, img };
 							}
 						}
 					}
@@ -177,6 +198,8 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 						BackendCommandTarget::Actions::loadSnippet(rw, snippet);
 					}
 
+					auto cd = createExtractedCode(rw);
+
 					if(auto jmp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(rw->getBackendProcessor()))
 					{
 						auto cs = Point<int>(jmp->getScriptingContent()->getContentWidth(), jmp->getScriptingContent()->getContentHeight());
@@ -189,7 +212,7 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 								t->wait(200);
 							
 							// skip the interface if its the default value
-							return {};
+							return { cd, {} };
 						}
 
 						MessageManagerLock mm;
@@ -197,7 +220,7 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 						ScriptContentComponent content(jmp);
 						content.setNewContent(jmp->getScriptingContent());
 						content.setSize(content.getContentWidth(), content.getContentHeight());
-						return content.createComponentSnapshot(content.getLocalBounds(), true);
+						return { cd, content.createComponentSnapshot(content.getLocalBounds(), true) };
 					}
 				}
 
@@ -221,7 +244,7 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 				s << "```" << nl;
 				s << snippet << nl;
 				s << "```" << nl << nl;
-
+				
 				return s;
 			}
 
@@ -234,6 +257,8 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 			String snippet;
 			int priority = 3;
 			String name;
+
+			
 		};
 
 		std::map<Item::Category, std::vector<Item>> list;
@@ -255,6 +280,8 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 
 		auto targetDirectory = holder.getDatabaseRootDirectory().getChildFile("tutorials/");
 		auto imgDirectory = holder.getDatabaseRootDirectory().getChildFile("images").getChildFile("snippets");
+
+		auto codeFile = targetDirectory.getChildFile("snippet_dataset.js");
 
 		if(imgDirectory.isDirectory())
 			imgDirectory.deleteRecursively();
@@ -294,7 +321,11 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 
 				showStatusMessage("Create docs for " + i.name);
 
-				auto img = i.createScreenshot(root);
+				auto d = i.createScreenshot(root);
+				auto img = d.second;
+
+				if(d.first.getDynamicObject() != nullptr)
+					ds.append(d.first);
 
 				if(threadToUse != nullptr && threadToUse->threadShouldExit())
 					return;
@@ -310,12 +341,21 @@ void DocUpdater::SnippetCreator::createSnippetDatabase()
 				}
 
 				s << i.createMarkdown(img.isValid());
+
+				
 			}
 
 			auto targetFile = targetDirectory.getChildFile(MarkdownLink::Helpers::getSanitizedFilename(catName)).getChildFile("readme.md");
 
 			targetFile.getParentDirectory().createDirectory();
 			targetFile.replaceWithText(s);
+		}
+
+		if(ds.size() > 0)
+		{
+			auto t = JSON::toString(ds);
+
+			codeFile.replaceWithText(t);
 		}
 	}
 	else

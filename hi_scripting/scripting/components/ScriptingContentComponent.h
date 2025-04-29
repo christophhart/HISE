@@ -92,6 +92,7 @@ class ScriptContentComponent: public ComponentWithMiddleMouseDrag,
 							  public ScriptingApi::Content::ScreenshotListener,
 							  public DragAndDropContainer,
 							  public DragAndDropTarget,
+							  public ProfiledComponent,
 							  public simple_css::CSSRootComponent
 {
 public:
@@ -113,6 +114,12 @@ public:
 
 	/** Creates a new Content which acts as container for all scripted elements. */
 	ScriptContentComponent(ProcessorWithScriptingContent *p);;
+
+	static void onProfileRecordChange(ScriptContentComponent& c, bool isRecording)
+	{
+		auto jp = const_cast<JavascriptProcessor*>(c.getScriptProcessor());
+		c.setEnableProfiling(isRecording, jp, true);
+	}
 
 	~ScriptContentComponent();
 
@@ -160,15 +167,25 @@ public:
 
 	void paint(Graphics &g) override;
 
-#if PERFETTO
 	void paintComponentAndChildren(Graphics& g) override
 	{
+#if PERFETTO
 		dispatch::StringBuilder b;
 		auto cp = g.getClipBounds();
 		b << "[" << cp.getX() << ", " << cp.getY() << ", " << cp.getWidth() << ", " << cp.getHeight() << "]";
 		TRACE_EVENT("component", "Render script interface", "clipBounds", DYNAMIC_STRING_BUILDER(b));
 		double before = Time::getMillisecondCounterHiRes();
+#endif
+
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+		if(auto sp = const_cast<Processor*>(dynamic_cast<const Processor*>(getScriptProcessor())))
+			sp->getMainController()->getDebugSession().initUIThread();
+
+		Profiler sp(*this);
+#endif
 		Component::paintComponentAndChildren(g);
+
+#if PERFETTO
 		double now = Time::getMillisecondCounterHiRes();
 		auto deltaInSeconds = (now - before) * 0.001;
 		auto fps = 1.0 / deltaInSeconds;
@@ -178,22 +195,8 @@ public:
 			auto ct = perfetto::CounterTrack("Interface FPS Counter", "fps");
 			TRACE_COUNTER("component", ct.set_is_incremental(false), fps);
 		}
+#endif
 	}
-#endif
-
-#if 0
-#define VIRTUAL_PERFETTO_OVERRIDE_2(name, t0, a0, t1, a1, label) void name(t0 a0, t1 a1) override { TRACE_EVENT("drawactions", label); Component::name(a0, a1); };
-
-	VIRTUAL_PERFETTO_OVERRIDE_2(paintChildComponents, Graphics&, g, Rectangle<int>, clipBounds, "paint UI components");
-#endif
-
-#if 0
-	void paintChildComponents(Graphics& g, Rectangle<int> clipBounds) override
-	{
-		TRACE_EVENT("drawactions", "paint UI components");
-		Component::paintChildComponents(g, clipBounds);
-	}
-#endif
 	
     void paintOverChildren(Graphics& g) override;
     
@@ -312,7 +315,11 @@ public:
 
 	void dragOperationEnded(const DragAndDropTarget::SourceDetails& dragData);
 
+	void setHeatmap(DebugInformationBase::Ptr p, const std::map<int, double>* map);
+
 private:
+
+	std::vector<std::pair<Rectangle<int>, float>> heatmap;
 
 	struct ComponentDragInfo: public DrawActions::Handler::Listener,
 							  public ControlledObject
@@ -488,6 +495,8 @@ private:
 
 	OwnedArray<ScriptCreatedComponentWrapper> componentWrappers;
 	ScriptCreatedComponentWrapper::ValuePopup::Properties::Ptr valuePopupProperties;
+
+	DebugSession::ProfileDataSource::Ptr contentProfile;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptContentComponent);
 };

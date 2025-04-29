@@ -23,8 +23,24 @@
 namespace juce
 {
 
+std::array<std::pair<char, ObjectWithJSONConverter::StreamCreatorFunctions>, 32> ObjectWithJSONConverter::streamCreators = {};
+
+std::pair<char, ObjectWithJSONConverter*> ObjectWithJSONConverter::createFromMarker(::juce::InputStream& os)
+{
+	auto marker = os.readByte();
+
+	for(auto& f: streamCreators)
+	{
+		if(f.first == marker)
+            return { marker, f.second(os) };
+	}
+
+    return { 0, nullptr };
+}
+
 DynamicObject::DynamicObject()
 {
+    registerStreamCreator(this);
 }
 
 DynamicObject::DynamicObject (const DynamicObject& other)
@@ -80,6 +96,9 @@ void DynamicObject::clear()
     properties.clear();
 }
 
+NamedValueSet& DynamicObject::getProperties() noexcept
+{ return properties; }
+
 void DynamicObject::swapProperties(NamedValueSet&& other)
 {
 	std::swap(properties, other);
@@ -134,4 +153,36 @@ void DynamicObject::writeAsJSON (OutputStream& out, const int indentLevel, const
     out << '}';
 }
 
+void DynamicObject::writeToStream(OutputStream& os)
+{
+    JUCE_WRITE_STREAMABLE_OBJECT_MARKERS(os);
+
+	auto size = properties.size();
+
+	os.writeInt(size);
+
+	for(const auto& nv: properties)
+	{
+
+		os.writeString(nv.name.toString());
+		nv.value.writeToStream(os);
+	}
+}
+
+ObjectWithJSONConverter* DynamicObject::createFromStream(InputStream& os)
+{
+	auto numProperties = os.readInt();
+
+	auto no = new DynamicObject();
+
+	while(--numProperties >= 0 && !os.isExhausted())
+	{
+		auto id = os.readString();
+		auto value = var::readFromStream(os);
+
+		no->setProperty(id, value);
+	}
+
+	return no;
+}
 } // namespace juce

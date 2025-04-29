@@ -82,7 +82,7 @@ private:
 		using Ptr = ReferenceCountedObjectPtr<Breakpoint>;
 		using List = ReferenceCountedArray<Breakpoint>;
 
-		Breakpoint(Value::Listener* listener, int l, CodeDocument& doc);;
+		Breakpoint(Value::Listener* listener, int l, bool profiling, CodeDocument& doc);;
 
 		String processLine(const String& s);
 
@@ -103,7 +103,9 @@ private:
 		Value logExpression;
 		Value breakIfHit;
 		Value blinkIfHit;
-		
+
+		const bool profiling;
+
 		CodeDocument::Position pos;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Breakpoint);
@@ -142,6 +144,8 @@ private:
 
 	
 	bool recompileOnBreakpointChange = true;
+
+	bool createProfilingBreakpoints = false;
 	
 
 	CodeDocument::Position currentBreakLine;

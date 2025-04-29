@@ -72,6 +72,9 @@ public:
         /** Returns a pointer to a group if this node contains a group, nullptr otherwise. */
         AudioProcessorParameterGroup* getGroup() const;
 
+        /** Releases the parameter. Not hacky. */
+        AudioProcessorParameter* releaseParameter() { return parameter.release(); }
+
     private:
         //==============================================================================
         AudioProcessorParameterNode (std::unique_ptr<AudioProcessorParameter>, AudioProcessorParameterGroup*);
@@ -233,6 +236,18 @@ public:
                  "will most likely crash the host, so don't do that.")]]
     void swapWith (AudioProcessorParameterGroup& other)  { std::swap (*this, other); }
    #endif
+
+    /** Releases all parameters. This is used when you want to rearrange the parameters in a new group. Note that this will most likely crash the host so only proceed if you know what you're doing! */
+    void releaseAllParameters() const
+    {
+	    for(auto p: *this)
+	    {
+            const_cast<AudioProcessorParameterNode*>(p)->releaseParameter();
+
+		    if(auto g = p->group.get())
+                g->releaseAllParameters();
+	    }
+    }
 
 private:
     //==============================================================================

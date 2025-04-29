@@ -66,7 +66,7 @@ struct EditorBottomBar : public Component,
 		{
 			Path p;
 
-			LOAD_PATH_IF_URL("error", ColumnIcons::errorIcon);
+			LOAD_EPATH_IF_URL("error", ColumnIcons::errorIcon);
 
 			return p;
 		}
@@ -243,8 +243,67 @@ private:
         
         
     }
-    
-	void addButtonAndCompileLabel();
+
+    void setError(const Result& r)
+    {
+		bottomBar->setError(r.getErrorMessage());
+
+		if (auto asmcl = dynamic_cast<mcl::FullEditor*>(editor.get()))
+		{
+			if (!r.wasOk())
+			{
+				auto errorMessage = r.getErrorMessage();
+
+				auto secondLine = errorMessage.fromFirstOccurrenceOf("\n", false, false).substring(1).trim();
+
+				auto fileName = getFile().getFileName();
+
+				bool isSameFile = true;
+
+				if (!secondLine.startsWith(callback.toString()))
+					isSameFile = false;
+
+				if(fileName.isNotEmpty() && secondLine.contains(fileName))
+					isSameFile = true;
+
+				if (fileName.isEmpty() && secondLine.contains(".js"))
+					isSameFile = false;
+
+				if (secondLine.isEmpty())
+					isSameFile = true;
+
+				if (!isSameFile)
+				{
+					asmcl->editor.clearWarningsAndErrors();
+					return;
+				}
+
+				auto message = errorMessage.upToFirstOccurrenceOf("{{", false, false);
+				auto line = errorMessage.fromFirstOccurrenceOf("Line ", false, false).getIntValue();
+				auto col = errorMessage.fromFirstOccurrenceOf("column ", false, false).getIntValue();
+
+				if(line == 0 && col == 0)
+				{
+					auto charIndex = mcl::TextEditor::Error::Helpers::getCharNumberFromBase64String(errorMessage.fromFirstOccurrenceOf("{{", false, false).upToFirstOccurrenceOf("\n", false, false));
+
+					CodeDocument::Position pos(asmcl->editor.getDocument(), charIndex);
+					line = pos.getLineNumber() + 1;
+					col = pos.getIndexInLine();
+				}
+
+				String mclError = "Line ";
+				mclError << line << "(" << col << "): " << message;
+
+				asmcl->editor.setError(mclError);
+			}
+			else
+			{
+				asmcl->editor.clearWarningsAndErrors();
+			}
+		}
+    }
+
+    void addButtonAndCompileLabel();
 	void refreshAfterCompilation(const JavascriptProcessor::SnippetResult& r);
 	void compileInternal();
 

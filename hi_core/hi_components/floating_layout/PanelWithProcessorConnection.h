@@ -189,7 +189,7 @@ protected:
 		Path createPath(const String& url) const override
 		{
 			Path p;
-			LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
+			LOAD_EPATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
 			return p;
 		}
 	} factory;

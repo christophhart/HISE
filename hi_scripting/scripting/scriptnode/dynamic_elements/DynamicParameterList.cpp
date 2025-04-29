@@ -451,9 +451,9 @@ juce::Path ui::Factory::createPath(const String& url) const
 	Path p;
 	LOAD_EPATH_IF_URL("add", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
-	LOAD_PATH_IF_URL("local", ColumnIcons::localIcon);
-	LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
-	LOAD_PATH_IF_URL("edit", ColumnIcons::moveIcon);
+	LOAD_EPATH_IF_URL("local", ColumnIcons::localIcon);
+	LOAD_EPATH_IF_URL("drag", ColumnIcons::targetIcon);
+	LOAD_EPATH_IF_URL("edit", ColumnIcons::moveIcon);
 
 	return p;
 }

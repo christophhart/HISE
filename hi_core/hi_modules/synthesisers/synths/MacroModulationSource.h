@@ -87,7 +87,8 @@ public:
 
 	int getNumChildProcessors() const override
 	{
-		return ModulatorSynth::numInternalChains + HISE_NUM_MACROS;
+		auto numMacros = HISE_GET_PREPROCESSOR(getMainController(), HISE_NUM_MACROS);
+		return ModulatorSynth::numInternalChains + numMacros;
 	}
 
 	Processor* getChildProcessor(int processorIndex) override
@@ -128,7 +129,7 @@ public:
 
 private:
 
-	float lastValues[HISE_NUM_MACROS];
+	float lastValues[HISE_NUM_MAX_MACROS];
 
 	Array<ModulatorChain*> macroChains;
 

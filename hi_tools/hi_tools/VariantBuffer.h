@@ -119,7 +119,13 @@ public:
 	VariantBuffer& operator <<(const VariantBuffer &b);
 	VariantBuffer& operator << (float f);
 	void operator >>(VariantBuffer &destinationBuffer) const;
-	
+
+	DynamicObject::Ptr clone() override
+	{
+		auto nb = new VariantBuffer(size);
+		FloatVectorOperations::copy(nb->buffer.getWritePointer(0), buffer.getReadPointer(0), size);
+		return nb;
+	}
 	
 	const float &operator [](int sampleIndex) const;
 
@@ -130,8 +136,33 @@ public:
 
 	String toDebugString() const;
 	
-	
-	
+	JUCE_MAKE_STREAMABLE_OBJECT(3);
+
+	void writeToStream(OutputStream& os) override
+	{
+		JUCE_WRITE_STREAMABLE_OBJECT_MARKERS(os);
+		os.writeCompressedInt(size);
+		os.write(buffer.getReadPointer(0), size * sizeof(float));
+	}
+
+	void writeAsJSON(OutputStream& os, int , bool , int ) override
+	{
+		String msg;
+		msg << "buffer[" << String(size) << "]";
+		os.writeString(msg);
+	}
+
+	static ObjectWithJSONConverter* createFromStream(InputStream& input)
+	{
+		auto size = input.readCompressedInt();
+
+		auto ptr = new VariantBuffer(size);
+		input.read(ptr->buffer.getWritePointer(0), size * sizeof(float));
+		return ptr;
+	}
+
+
+
 	class Factory : public DynamicObject
 	{
 	public:

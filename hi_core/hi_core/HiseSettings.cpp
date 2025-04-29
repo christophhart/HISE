@@ -1221,7 +1221,12 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 #else
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2017";
 #endif
+
+#if JUCE_MAC
+	else if (id == Compiler::UseIPP)				return "No";
+#else
 	else if (id == Compiler::UseIPP)				return "Yes";
+#endif
 	else if (id == Compiler::LegacyCPUSupport) 		return "No";
 	else if (id == Compiler::RebuildPoolFiles)		return "Yes";
 	else if (id == Compiler::DefaultProjectFolder)  return File::getSpecialLocation(File::SpecialLocationType::userDocumentsDirectory).getChildFile("HISE Projects").getFullPathName();
@@ -1385,6 +1390,15 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		dynamic_cast<AudioProcessorDriver*>(mc)->setCurrentSampleRate(newValue.toString().getDoubleValue());
 	else if (id == Audio::BufferSize)
 		dynamic_cast<AudioProcessorDriver*>(mc)->setCurrentBlockSize(newValue.toString().getIntValue());
+#if USE_BACKEND
+	else if (id == Project::ExtraDefinitionsOSX || id == Project::ExtraDefinitionsWindows || id == Project::ExtraDefinitionsLinux)
+	{
+		mc->clearExtraDefinitionCache();
+		mc->rebuildPluginParameters();
+		auto chain = mc->getMainSynthChain();
+		chain->prepareToPlay(chain->getSampleRate(), chain->getLargestBlockSize());
+	}
+#endif
 	else if (id == Audio::Driver)
 	{
 		if (newValue.toString().isNotEmpty())

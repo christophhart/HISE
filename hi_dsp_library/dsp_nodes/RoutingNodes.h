@@ -1045,6 +1045,8 @@ public control::pimpl::no_processing,
 public control::pimpl::parameter_node_base<ParameterClass>,
 public runtime_target::indexable_target<IndexType, runtime_target::RuntimeTarget::GlobalCable, double>
 {
+	using DataCallback = std::function<void(const var& f)>;
+
     SN_GET_SELF_AS_OBJECT(global_cable);
     SN_NODE_ID("global_cable");
     SN_ADD_SET_VALUE(global_cable);
@@ -1067,13 +1069,40 @@ public runtime_target::indexable_target<IndexType, runtime_target::RuntimeTarget
         if(this->getParameter().isConnected())
             this->getParameter().call(c);
     }
-    
+
+	void onData(const void* data, size_t numBytes) override
+    {
+		if(recursion || !dataCallback)
+			return;
+
+		MemoryInputStream mis(data, numBytes, false);
+		auto x = var::readFromStream(mis);
+		dataCallback(x);
+    }
+
+	bool sendData(const void* data, size_t numBytes)
+    {
+		if(numBytes != 0)
+		{
+			ScopedValueSetter<bool> rec(recursion, true);
+			return this->sendDataToSource(const_cast<void*>(data), numBytes);
+		}
+
+		return false;
+    }
+
+	void setDataCallback(const DataCallback& f)
+    {
+	    dataCallback = f;
+    }
+
     void setValue(double newValue)
     {
         ScopedValueSetter<bool> rec(recursion, true);
         this->sendValueToSource(newValue);
     }
-    
+
+	DataCallback dataCallback;
     bool recursion = false;
 };
 
@@ -1219,6 +1248,12 @@ template <int N, typename SubType, bool HasSendChannels> struct static_matrix
 */
 template <typename... Ts> struct global_cable_cpp_manager: private advanced_tuple<Ts...>
 {
+	global_cable_cpp_manager()
+	{
+		ObjectWithJSONConverter::registerStreamCreatorStatic<DynamicObject>();
+		ObjectWithJSONConverter::registerStreamCreatorStatic<VariantBuffer>();
+	}
+
 	virtual ~global_cable_cpp_manager()
 	{
 		this->connectToRuntimeTarget(false, {});
@@ -1227,6 +1262,38 @@ template <typename... Ts> struct global_cable_cpp_manager: private advanced_tupl
 	void connectToRuntimeTarget(bool addConnection, const runtime_target::connection& c)
 	{
 		reset_each(addConnection, c, this->getIndexSequence());
+
+		if(addConnection)
+		{
+			sendPending_each(this->getIndexSequence());
+
+			for(auto& c: this->pendingData)
+				c = {};
+		}
+	}
+
+	template <auto CableIndex> void sendDataToGlobalCable(const var& dataToSend)
+	{
+        static constexpr int Idx = static_cast<int>(CableIndex);
+        auto& c = this->template get<Idx>();
+
+		this->pendingData[Idx] = {};
+
+		MemoryOutputStream mos;
+		dataToSend.writeToStream(mos);
+		mos.flush();
+
+		if(!c.sendData(mos.getData(), mos.getDataSize()))
+		{
+			this->pendingData[Idx] = mos.getMemoryBlock();
+		}
+	}
+
+	template <auto CableIndex> void registerDataCallback(const std::function<void(const var&)>& f)
+	{
+		static constexpr int Idx = static_cast<int>(CableIndex);
+        auto& c = this->template get<Idx>();
+        c.setDataCallback(f);
 	}
 
 	template <auto CableIndex> void setGlobalCableValue(double value)
@@ -1242,6 +1309,14 @@ private:
 	{
 		using swallow = int[]; (void)swallow { 1, ( std::get<Ns>(this->elements).connectToRuntimeTarget(addConnection, c) , void(), int{})... };
 	};
+
+	template <std::size_t ...Ns> void sendPending_each(std::index_sequence<Ns...>)
+	{
+		using swallow = int[]; (void)swallow { 1, ( std::get<Ns>(this->elements).sendData(this->pendingData[Ns].getData(), this->pendingData[Ns].getSize()) , void(), int{})... };
+	};
+
+	std::array<MemoryBlock, sizeof...(Ts)> pendingData;
+	bool dataEnableCalled = false;
 };
 
 

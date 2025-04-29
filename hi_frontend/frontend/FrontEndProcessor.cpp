@@ -258,7 +258,14 @@ updater(*this)
     
 	GlobalSettingManager::initData(this);
 	GlobalSettingManager::restoreGlobalSettings(this, false);
-    
+
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+    getDebugSession().syncRecordingBroadcaster.addListener(*synthChain, [](ModulatorSynthChain& c, bool isEnabled)
+    {
+        c.setEnableProfiling(isEnabled, &c.getMainController()->getDebugSession(), 0);
+    }, false);
+#endif
+
 #if HISE_INCLUDE_LORIS
     auto f = FrontendHandler::getAppDataDirectory(this).getChildFile("loris_library");
     
@@ -373,10 +380,22 @@ updater(*this)
 
     updater.suspendState = true;
     updater.updateDelayed();
+
+	AudioProcessor::addListener(&getUserPresetHandler());
 }
 
 FrontendProcessor::~FrontendProcessor()
 {
+	AudioProcessor::removeListener(&getUserPresetHandler());
+
+    for(auto p: getParameters())
+    {
+        if(auto typed = dynamic_cast<HisePluginParameterBase*>(p))
+        {
+            typed->cleanup();
+        }
+    }
+    
 	getRootDispatcher().setState(dispatch::HashedPath(dispatch::CharPtr::Type::Wildcard), dispatch::State::Shutdown);
 
 	numInstances--;
@@ -494,53 +513,8 @@ void FrontendProcessor::getStateInformation(MemoryBlock &destData)
 
 	compressor.compress(v, destData);
 #else
-	MemoryOutputStream output(destData, false);
-
-
-	ValueTree v("ControlData");
-
-	if (auto e = getExpansionHandler().getCurrentExpansion())
-		v.setProperty("CurrentExpansion", e->getProperty(ExpansionIds::Name), nullptr);
-
-	//synthChain->saveMacroValuesToValueTree(v);
-
-    getUserPresetHandler().saveStateManager(v, UserPresetIds::Modules);
-    
-    getUserPresetHandler().saveStateManager(v, UserPresetIds::MidiAutomation);
-    
 	
-
-	if (getUserPresetHandler().isUsingCustomDataModel())
-    {
-        getUserPresetHandler().saveStateManager(v, UserPresetIds::CustomJSON);
-        
-    }
-	else
-		synthChain->saveInterfaceValues(v);
-
-	v.setProperty("MidiChannelFilterData", getMainSynthChain()->getActiveChannelData()->exportData(), nullptr);
-
-	v.setProperty("Program", currentlyLoadedProgram, nullptr);
-
-	v.setProperty("HostTempo", globalBPM, nullptr);
-
-	v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
-
-	// Make sure to save the version string into the plugin state
-	v.setProperty("Version", FrontendHandler::getVersionString(), nullptr);
-
-    getUserPresetHandler().saveStateManager(v, UserPresetIds::MPEData);
-    
-	
-	// Reload the macro connections before restoring the preset values
-		// so that it will update the correct connections with `setMacroControl()` in a control callback
-	if (getMacroManager().isMacroEnabledOnFrontend())
-		getMacroManager().getMacroChain()->saveMacrosToValueTree(v);
-
-	v.writeToStream(output);
-
-	
-
+	MainController::savePluginState(destData, currentlyLoadedProgram);
 #endif
 }
 
@@ -568,7 +542,9 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 	zstd::ZDefaultCompressor compressor;
 	compressor.expand(mb, v);
 
+#if HISE_INCLUDE_TEMPO_IN_PLUGIN_STATE
 	globalBPM = v.getProperty("HostTempo", -1.0);
+#endif
 
 	rawDataHolder->restoreFromValueTree(v);
 #else
@@ -596,7 +572,9 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 	channelData = v.getProperty("MidiChannelFilterData", -1);
 	if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);
 
+#if HISE_INCLUDE_TEMPO_IN_PLUGIN_STATE
 	globalBPM = v.getProperty("HostTempo", -1.0);
+#endif
 
     getUserPresetHandler().restoreStateManager(v, UserPresetIds::Modules);
     

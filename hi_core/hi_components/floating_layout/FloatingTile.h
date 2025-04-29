@@ -164,7 +164,8 @@ public:
 class FloatingTileContainer;
 class FloatingTileContent;
 
-class FloatingTile : public Component
+class FloatingTile : public Component,
+					 public ProfiledComponent 
 {
 public:
 
@@ -401,6 +402,7 @@ public:
 
 	void bringButtonsToFront();
 
+	paintAndProfileChildren(g);
 	void paint(Graphics& g) override;
 	void paintOverChildren(Graphics& g) override;
 

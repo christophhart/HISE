@@ -39,7 +39,20 @@ namespace FileHelpers
 }
 
 //==============================================================================
+#if JUCE_WINDOWS
+const char* const sourceFileExtensions          = "cpp;mm;m;metal;c;cc;cxx;swift;s;asm;r;rc";
+const char* const windowsResourceFileExtension  = "rc";
+const char* const headerFileExtensions          = "h;hpp;hxx;hh;inl";
+const char* const cOrCppFileExtensions          = "cpp;cc;cxx;c";
+const char* const cppFileExtensions             = "cpp;cc;cxx";
+const char* const objCFileExtensions            = "mm;m";
+const char* const asmFileExtensions             = "s;S;asm";
+const char* const sourceOrHeaderFileExtensions  = "cpp;mm;m;metal;c;cc;cxx;swift;s;S;asm;h;hpp;hxx;hh;inl;rc";
+const char* const browseableFileExtensions      = "cpp;mm;m;metal;c;cc;cxx;swift;s;S;asm;h;hpp;hxx;hh;inl;txt;md;rtf;rc";
+const char* const fileTypesToCompileByDefault   = "cpp;mm;m;metal;c;cc;cxx;swift;s;S;asm;r;rc";
+#else
 const char* const sourceFileExtensions          = "cpp;mm;m;metal;c;cc;cxx;swift;s;asm;r";
+const char* const windowsResourceFileExtension  = "rc";
 const char* const headerFileExtensions          = "h;hpp;hxx;hh;inl";
 const char* const cOrCppFileExtensions          = "cpp;cc;cxx;c";
 const char* const cppFileExtensions             = "cpp;cc;cxx";
@@ -48,6 +61,7 @@ const char* const asmFileExtensions             = "s;S;asm";
 const char* const sourceOrHeaderFileExtensions  = "cpp;mm;m;metal;c;cc;cxx;swift;s;S;asm;h;hpp;hxx;hh;inl";
 const char* const browseableFileExtensions      = "cpp;mm;m;metal;c;cc;cxx;swift;s;S;asm;h;hpp;hxx;hh;inl;txt;md;rtf";
 const char* const fileTypesToCompileByDefault   = "cpp;mm;m;metal;c;cc;cxx;swift;s;S;asm;r";
+#endif
 
 //==============================================================================
 struct FileModificationDetector

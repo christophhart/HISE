@@ -370,6 +370,12 @@ public:
 		/** Creates a broadcaster that can send messages to attached listeners. */
 		var createBroadcaster(var defaultValues);
 
+        /** Creates a BX Licenser object (requires the proprietary SDK). */
+        var createBXLicenser();
+
+		/** Creates a NKS manager object (requires the proprietary SDK). */
+		var createNKSManager(); 
+
 		/** Creates a reference to the DSP network of another script processor. */
 		var getDspNetworkReference(String processorId, String id);
 
@@ -589,8 +595,8 @@ public:
 		/** Allows access to the data of the host (playing status, timeline, etc...). */
 		DynamicObject *getPlayHead();
 
-		/** Checks if the given CC number is used for parameter automation and returns the index of the control. */
-		int isControllerUsedByAutomation(int controllerNumber);
+		/** Checks if the given CC number (single number) or channel / CC number (JS Array: [channel, CC]) is used for parameter automation and returns the index of the control. */
+		int isControllerUsedByAutomation(var controllerNumber);
 
 		/** Creates a MIDI List object. */
     ScriptingObjects::MidiList *createMidiList();
@@ -640,9 +646,6 @@ public:
 		/** Imports a JSON file as object. */
 		var loadFromJSON(String fileName);
 
-		/** Displays the progress (0.0 to 1.0) in the progress bar of the editor. */
-		void setCompileProgress(var progress);
-
 		/** Matches the string against the regex token. */
 		bool matchesRegex(String stringToMatch, String regex);
 
@@ -658,6 +661,7 @@ public:
 		/** Returns the width of the string for the given font properties. */
 		float getStringWidth(String text, String fontName, float fontSize, float fontSpacing);
 
+        /** Returns a number as string in hexadecimal format (0xFFFFFFFF). */
 		String intToHexString(int value);
 
 		/** Signals that the application should terminate. */
@@ -1398,6 +1402,12 @@ public:
 		/** Throws an assertion in the attached debugger. */
 		void breakInDebugger();
 
+		/** Starts a sampling session with the given ID. */
+		void startSampling(const String& sessionId);
+
+		/** Stores the current state of the given data into the current sampling session. */
+		void sample(const String& label, var dataToSample);
+
 		struct Wrapper;
 
 		void setDebugLocation(const Identifier& id_, int lineNumber_)
@@ -1407,6 +1417,11 @@ public:
 		}
 
 private:
+	
+		bool warnIfNoSession = true;
+
+		ProfileCollection consoleProfile;
+		ProfileCollection::ID pLog;
 
 		Identifier id;
 		int lineNumber;
@@ -1644,7 +1659,7 @@ private:
 		void setServerCallback(var callback);
 
 		/** Checks if given email address is valid - not fool proof. */
-    bool isEmailAddress(String email);
+		bool isEmailAddress(String email);
 		
 		void queueChanged(int numItems) override
 		{
@@ -1697,6 +1712,7 @@ private:
 			Downloads,
 			Applications,
 			Temp,
+			Music,
 			numSpecialLocations
 		};
 
@@ -1795,7 +1811,10 @@ private:
 		/** Returns true if the given thread is currently locked. */
         bool isLocked(int thread) const;
 
-		/** Returns the name of the given string (for debugging purposes only!). */
+		/** Starts a profiling session and calls the finishCallback when ready. */
+        void startProfiling(var options, var finishCallback);
+
+        /** Returns the name of the given string (for debugging purposes only!). */
 		String toString(int thread) const;
 
 		/** Returns the name of the current thread (for debugging purposes only!). */
@@ -1809,6 +1828,8 @@ private:
 
     private:
 
+		WeakCallbackHolder threadProfileCallback;
+
 		using TargetThreadId = MainController::KillStateHandler::TargetThread;
 		using LockId = LockHelpers::Type;
 
@@ -1821,6 +1842,7 @@ private:
         struct Wrapper;
 
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Threads);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Threads);
     };
 
 	class Colours: public ApiClass

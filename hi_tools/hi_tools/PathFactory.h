@@ -42,9 +42,9 @@ using namespace juce;
 	{
 	public:
 
-		static void scalePath(Path& p, Rectangle<float> f);
+		static bool scalePath(Path& p, Rectangle<float> f);
 
-		static void scalePath(Path& p, Component* c, float padding);
+		static bool scalePath(Path& p, Component* c, float padding);
 
 		static bool isValid(const Path& p, Rectangle<float> area = {});
 

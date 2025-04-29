@@ -226,6 +226,36 @@ Component* FrontendProcessorEditor::getContentComponent()
 #endif
 }
 
+void FrontendProcessorEditor::setControlHighlight(ParameterControlHighlightInfo p)
+{
+	callRecursive<Component>(this, [this, p](Component* c)
+	{
+		if(getControlParameterIndex(*c) == p.parameterIndex)
+		{
+			auto colour = p.isHighlighted ? p.suggestedColour : Colours::transparentBlack;
+
+			auto cv = (int64)colour.getARGB();
+			c->getProperties().set("AAXPluginParameterColour", var(cv));
+			c->repaint();
+			return true;
+		}
+
+		return false;
+	});
+}
+
+int FrontendProcessorEditor::getControlParameterIndex(Component& c)
+{
+	const auto& prop = c.getProperties();
+
+	if(prop.contains("AAXPluginParameterIndex"))
+	{
+		return jlimit(0, getAudioProcessor()->getNumParameters(), (int)prop["AAXPluginParameterIndex"]);
+	}
+
+	return -1;
+}
+
 void FrontendProcessorEditor::newHisePresetLoaded()
 {
 	if (FullInstrumentExpansion::isEnabled(getMainController()))

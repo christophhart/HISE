@@ -81,6 +81,16 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 	{
 		using Ptr = ReferenceCountedObjectPtr<PropertyObject>;
 
+		struct ScopedPathProfiler
+		{
+			ScopedPathProfiler(const PropertyObject& po);
+
+			~ScopedPathProfiler();
+
+			const PropertyObject& obj;
+			bool running = false;
+		};
+
 		PropertyObject(WriterBase* b);;
 
 		virtual int getClassIndex() const;
@@ -99,6 +109,8 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 		virtual void initialiseRingBuffer(SimpleRingBuffer* b);
 
+		virtual void onGlobalUpdaterInit(SimpleRingBuffer* b, PooledUIUpdater* updater);;
+
 		virtual var getProperty(const Identifier& id) const;
 
 		virtual void setProperty(const Identifier& id, const var& newValue);
@@ -113,35 +125,19 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 
 		template <typename T> T* getTypedBase() { return dynamic_cast<T*>(writerBase.get()); }
 
-		void setPropertyInternal(const String& c, var nv)
-		{
-			for(auto& p: properties)
-			{
-				if(p.first == c)
-				{
-					p.second = nv;
-					return;
-				}
-			}
+		void setPropertyInternal(const String& c, var nv);
 
-			properties.add({ c, nv });
-		}
+		var getPropertyInternal(const String& c, var defaultValue=var()) const;
 
-		var getPropertyInternal(const String& c, var defaultValue=var()) const
-		{
-			for(const auto& p: properties)
-			{
-				if(p.first == c)
-					return p.second;
-			}
-
-			return defaultValue;
-		}
+		void openTrackEvent();
 
 	protected:
 
 		WeakReference<WriterBase> writerBase;
 		WeakReference<SimpleRingBuffer> buffer;
+
+		mutable hise::DebugSession::ProfileDataSource::Ptr pathSource;
+		int currentTrackEvent = 0;
 	};
 
 	using Ptr = ReferenceCountedObjectPtr<SimpleRingBuffer>;
@@ -149,6 +145,16 @@ struct SimpleRingBuffer: public ComplexDataUIBase,
 	SimpleRingBuffer();
 
 	bool fromBase64String(const String& b64) override;
+
+	void setGlobalUIUpdater(PooledUIUpdater* updater) override
+	{
+		ComplexDataUIBase::setGlobalUIUpdater(updater);
+
+		if(auto obj = getPropertyObject())
+		{
+			obj->onGlobalUpdaterInit(this, updater);
+		}
+	}
 
 	void setRingBufferSize(int numChannels, int numSamples, bool acquireLock=true);
 
@@ -448,10 +454,7 @@ public:
 
 	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue) override;
 
-	void resized() override
-	{
-		rebuildGraph();
-	}
+	void resized() override;
 
 	void refresh() override;
 

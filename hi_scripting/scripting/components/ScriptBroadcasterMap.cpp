@@ -684,10 +684,10 @@ struct ScriptBroadcasterMapViewport : public WrapperWithMenuBarBase
 			Path p;
 
 			LOAD_EPATH_IF_URL("watch", BackendBinaryData::ToolbarIcons::viewPanel);
-			LOAD_PATH_IF_URL("clear", ColumnIcons::moveIcon);
+			LOAD_EPATH_IF_URL("clear", ColumnIcons::moveIcon);
 			LOAD_EPATH_IF_URL("error", ScriptnodeIcons::errorIcon);
 			LOAD_EPATH_IF_URL("zoom-fit", ScriptnodeIcons::zoomFit);
-			LOAD_PATH_IF_URL("filter", ColumnIcons::filterIcon);
+			LOAD_EPATH_IF_URL("filter", ColumnIcons::filterIcon);
 			LOAD_PATH_IF_URL("tags", ScriptBroadcasterMapIcons::tagIcon);
 			LOAD_PATH_IF_URL("dim", ScriptBroadcasterMapIcons::dimIcon);
 			LOAD_PATH_IF_URL("and", ScriptBroadcasterMapIcons::andIcon);
@@ -1000,9 +1000,9 @@ juce::Path ScriptBroadcasterMapFactory::createPath(const String& url) const
     Path p;
 
 	LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
-    LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
+    LOAD_EPATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
     LOAD_PATH_IF_URL("queue", ScriptBroadcasterMapIcons::queueIcon);
-	LOAD_PATH_IF_URL("error", ColumnIcons::errorIcon);
+	LOAD_EPATH_IF_URL("error", ColumnIcons::errorIcon);
     LOAD_EPATH_IF_URL("realtime", HnodeIcons::jit);
 	LOAD_PATH_IF_URL("comment", ScriptBroadcasterMapIcons::commentIcon);
     return p;
@@ -1070,7 +1070,7 @@ void ScriptBroadcasterMap::EntryBase::setCurrentError(const String& e)
 	
 	if (!hasErrorButton)
 	{
-		auto errorLocation = e.fromFirstOccurrenceOf("{", false, false);
+		auto errorLocation = e.fromFirstOccurrenceOf("{{", false, false);
 
 		menubar.addButton("error", Justification::right, [errorLocation](Button* b, bool value)
 		{

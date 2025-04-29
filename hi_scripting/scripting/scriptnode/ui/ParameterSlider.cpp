@@ -1808,7 +1808,7 @@ Path MacroParameterSlider::createPath(const String& url) const
     Path p;
     
 	LOAD_EPATH_IF_URL("warning", EditorIcons::warningIcon);
-    LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
+    LOAD_EPATH_IF_URL("drag", ColumnIcons::targetIcon);
 	LOAD_EPATH_IF_URL("delete", SampleMapIcons::deleteSamples);
     return p;
 }

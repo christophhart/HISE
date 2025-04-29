@@ -40,6 +40,7 @@ SampleEditHandler::SampleEditHandler(ModulatorSampler* sampler_) :
 	noteBroadcaster.enableLockFreeUpdate(sampler->getMainController()->getGlobalUIUpdater());
 	noteBroadcaster.setEnableQueue(true, NUM_POLYPHONIC_VOICES);
 	groupBroadcaster.enableLockFreeUpdate(sampler->getMainController()->getGlobalUIUpdater());
+	complexGroupBroadcaster.enableLockFreeUpdate(sampler->getMainController()->getGlobalUIUpdater());
 	noteBroadcaster.addListener(*this, handleMidiSelection);
 
 	selectionBroadcaster.addListener(*this, updateMainSound);
@@ -142,15 +143,31 @@ void SampleEditHandler::handleMidiSelection(SampleEditHandler& handler, int note
 	{
 		handler.selectedSamplerSounds.deselectAll();
 
-		SelectedItemSet<const ModulatorSamplerSound*> midiSounds;
+		
 
-		ModulatorSampler::SoundIterator sIter(sampler);
-
-		while (auto sound = sIter.getNextSound())
+		if(auto gm = sampler->getComplexGroupManager())
 		{
-			if (sampler->soundCanBePlayed(sound, 1, noteNumber, (float)velocity / 127.0f))
+			UnorderedStack<ModulatorSynthSound*> soundsToStart;
+			ComplexGroupManager::ScopedPostProcessorDeactivator sppd(*gm);
+
+			HiseEvent no(HiseEvent::Type::NoteOn, noteNumber, velocity, 1);
+			gm->collectSounds(no, soundsToStart);
+
+			for(auto s: soundsToStart)
 			{
-				handler.selectedSamplerSounds.addToSelection(sound.get());
+				handler.selectedSamplerSounds.addToSelection(dynamic_cast<ModulatorSamplerSound*>(s));
+			}
+		}
+		else
+		{
+			ModulatorSampler::SoundIterator sIter(sampler);
+
+			while (auto sound = sIter.getNextSound())
+			{
+				if (sampler->soundCanBePlayed(sound, 1, noteNumber, (float)velocity / 127.0f))
+				{
+					handler.selectedSamplerSounds.addToSelection(sound.get());
+				}
 			}
 		}
 

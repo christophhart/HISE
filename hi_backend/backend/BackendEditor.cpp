@@ -287,6 +287,11 @@ void BackendProcessorEditor::loadNewContainer(const File &f)
 		GET_PROJECT_HANDLER(getMainSynthChain()).setWorkingProject(f.getParentDirectory().getParentDirectory());
 	}
 
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	if(owner->getDebugSession().getTriggerType() == DebugSession::TriggerType::Compilation)
+		owner->getDebugSession().startRecording(30000, &owner->getDebugSession());
+#endif
+
 	owner->killAndCallOnLoadingThread([f](Processor* p) {p->getMainController()->loadPresetFromFile(f, nullptr); return SafeFunctionCall::OK; });
 }
 
@@ -312,11 +317,13 @@ void BackendProcessorEditor::loadNewContainer(const ValueTree &v)
 	}
 	else
 	{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+		if(owner->getDebugSession().getTriggerType() == DebugSession::TriggerType::Compilation)
+			owner->getDebugSession().startRecording(30000, &owner->getDebugSession());
+#endif
+		
 		owner->killAndCallOnLoadingThread([v](Processor* p) {p->getMainController()->loadPresetFromValueTree(v, nullptr); return SafeFunctionCall::OK; });
-
 	}
-
-	
 }
 
 
@@ -351,6 +358,413 @@ void BackendProcessorEditor::clearModuleList()
 
 #undef toggleVisibility
 
+
+void PluginParameterSimulator::PluginParameterComponent::LAF::drawRotarySlider(Graphics& g, int x, int y, int width,
+	int height, float sliderPosProportional, float rotaryStartAngle, float rotaryEndAngle, Slider& s)
+{
+	const double value = s.getValue();
+	const double normalizedValue = (value - s.getMinimum()) / (s.getMaximum() - s.getMinimum());
+	const double proportion = pow(normalizedValue, s.getSkewFactor());
+
+	auto area = s.getLocalBounds().toFloat();
+
+	auto textBounds = area.removeFromTop(20.0f);
+
+	g.setColour(Colours::white.withAlpha(0.9f));
+	g.setFont(GLOBAL_BOLD_FONT());
+
+	g.drawText(s.getName(), textBounds, Justification::centred);
+
+	area = area.reduced(2.0f);
+	area.removeFromBottom(24);
+
+	area = area.withSizeKeepingCentre(area.getHeight(), area.getHeight());
+
+	auto bipolar = -1.0 * s.getMinimum() == s.getMaximum();
+
+	if((bool)s.getProperties()["gesture"])
+	{
+		g.setColour(Colour(HISE_WARNING_COLOUR).withAlpha(0.2f));
+		g.fillEllipse(area.expanded(1.0f));
+		g.setColour(Colour(HISE_WARNING_COLOUR));
+		g.drawEllipse(area.expanded(1.0f), 1.0);
+	}
+
+	drawVectorRotaryKnob(g, area, proportion, bipolar, s.isMouseOverOrDragging(true), s.isMouseButtonDown(), s.isEnabled(), proportion);
+}
+
+PluginParameterSimulator::PluginParameterComponent::PluginParameterComponent(HisePluginParameterBase* p):
+	parameter(p)
+{
+	slider.setLookAndFeel(&laf);
+	addAndMakeVisible(slider);
+	slider.addListener(this);
+	
+
+	refreshParameterInfo();
+}
+
+PluginParameterSimulator::PluginParameterComponent::~PluginParameterComponent()
+{
+	parameter = nullptr;
+}
+
+void PluginParameterSimulator::PluginParameterComponent::refreshParameterInfo()
+{
+	if(parameter != nullptr)
+	{
+		auto r = parameter->getNormalisableRange();
+		auto vtc = parameter->getValueToTextConverter();
+
+		slider.setRange(r.start, r.end, r.interval);
+		slider.setSkewFactor(r.skew);
+		slider.setName(parameter->getHisePluginParameterName());
+			
+
+		if(vtc.active)
+		{
+			slider.valueFromTextFunction = vtc;
+			slider.textFromValueFunction = vtc;
+		}
+		else
+		{
+			slider.valueFromTextFunction = {};
+			slider.textFromValueFunction = {};
+		}
+
+		slider.setValue(r.convertFrom0to1(parameter->getHisePluginParameterNormalisedValue()), dontSendNotification);
+		slider.updateText();
+	}
+	else
+	{
+		slider.valueFromTextFunction = {};
+		slider.textFromValueFunction = {};
+		slider.setName("Unassigned");
+		slider.setRange(0.0, 1.0);
+		slider.setSkewFactor(1.0);
+		slider.setValue(0.0, dontSendNotification);
+	}
+}
+
+void PluginParameterSimulator::PluginParameterComponent::parameterValueChanged(float newValue)
+{
+	SafeAsyncCall::callAsyncIfNotOnMessageThread<PluginParameterComponent>(*this, [newValue](PluginParameterComponent& p)
+	{
+		if(p.parameter != nullptr)
+		{
+			auto v = p.parameter->getNormalisableRange().convertFrom0to1(newValue);
+			p.slider.setValue(v, dontSendNotification);
+		}
+	});
+}
+
+void PluginParameterSimulator::PluginParameterComponent::parameterGestureChanged(bool gestureIsStarting)
+{
+	if(parameter != nullptr)
+	{
+		if(gestureActive != gestureIsStarting)
+		{
+			gestureActive = gestureIsStarting;
+
+			SafeAsyncCall::callAsyncIfNotOnMessageThread<PluginParameterComponent>(*this, [](PluginParameterComponent& pc)
+			{
+				auto parent = pc.findParentComponentOfClass<PluginParameterSimulator>();
+
+				if(!pc.gestureRecursion && parent->sourceThread.getSelectedItemIndex() == 0)
+				{
+					pc.slider.setEnabled(!pc.gestureActive);
+				}
+
+				pc.slider.getProperties().set("gesture", pc.gestureActive);
+				pc.slider.repaint();
+			});
+		}
+	}
+}
+
+void PluginParameterSimulator::PluginParameterComponent::resized()
+{
+	auto b = getLocalBounds().reduced(3);
+	slider.setBounds(b);
+}
+
+void PluginParameterSimulator::PluginParameterComponent::sliderValueChanged(Slider* slider)
+{
+	if(parameter.get() != nullptr)
+	{
+		auto parent = findParentComponentOfClass<PluginParameterSimulator>();
+		auto si = parent->createSimulatorInfo();
+
+		if(si.useRamp && !gestureRecursion)
+			return;
+
+		auto r = parameter->getNormalisableRange();
+
+		auto v = slider->getValue();
+		v = r.snapToLegalValue(v);
+		v = r.convertTo0to1(v);
+
+		si.currentParameter = parameter;
+		si.eventType = PluginParameterSimulatorInfo::EventType::ValueChange;
+		si.currentValue = v;
+
+		auto bp = dynamic_cast<BackendProcessor*>(parent->getMainController());
+		bp->pluginParameterRamp.setCurrentInfo(si);
+	}
+}
+
+void PluginParameterSimulator::PluginParameterComponent::sliderDragStarted(Slider* slider)
+{
+	if(parameter != nullptr)
+	{
+		auto parent = findParentComponentOfClass<PluginParameterSimulator>();
+
+		PROFILE_ONLY(parent->getMainController()->getDebugSession().checkMouseClickProfiler(true));
+
+		auto si = parent->createSimulatorInfo();
+
+		si.currentParameter = parameter;
+		si.eventType = PluginParameterSimulatorInfo::EventType::BeginGesture;
+		
+		ScopedValueSetter<bool> svs(gestureRecursion, true);
+
+		auto bp = dynamic_cast<BackendProcessor*>(parent->getMainController());
+		bp->pluginParameterRamp.setCurrentInfo(si);
+
+		if(si.useRamp)
+			sliderValueChanged(slider);
+	}
+}
+
+void PluginParameterSimulator::PluginParameterComponent::sliderDragEnded(Slider* slider)
+{
+	if(parameter != nullptr)
+	{
+		auto parent = findParentComponentOfClass<PluginParameterSimulator>();
+
+		PROFILE_ONLY(parent->getMainController()->getDebugSession().checkMouseClickProfiler(false));
+		
+		auto si = parent->createSimulatorInfo();
+
+		si.currentParameter = parameter;
+		si.eventType = PluginParameterSimulatorInfo::EventType::EndGesture;
+		si.useRamp = false;
+		
+		ScopedValueSetter<bool> svs(gestureRecursion, true);
+
+		auto bp = dynamic_cast<BackendProcessor*>(parent->getMainController());
+		bp->pluginParameterRamp.setCurrentInfo(si);
+	}
+}
+
+
+juce::AudioProcessorParameter* PluginParameterSimulator::PluginParameterComponent::asJuceParameter()
+{
+	if(parameter != nullptr)
+	{
+		auto typed = dynamic_cast<juce::AudioProcessorParameter*>(parameter.get());
+		jassert(typed != nullptr);
+		return typed;
+	}
+		
+	return nullptr;
+}
+
+PluginParameterSimulatorInfo PluginParameterSimulator::createSimulatorInfo() const
+{
+	PluginParameterSimulatorInfo si;
+
+	std::map<int, int> sizes;
+
+	// { "Audio buffer size", "8 samples", "16 samples", "32 samples", "64 samples"}
+	sizes[0] = -1;
+	sizes[1] = 8;
+	sizes[2] = 16;
+	sizes[3] = 32;
+	sizes[4] = 64;
+
+	si.bufferSize = sizes[rampResolution.getSelectedItemIndex()];
+	si.sourceThread = (PluginParameterSimulatorInfo::SourceThread)(int)sourceThread.getSelectedItemIndex();
+	si.useRamp = (bool)simulationMode.getSelectedItemIndex();
+
+	return si;
+}
+
+PluginParameterSimulator::PluginParameterSimulator(FloatingTile* parent):
+	FloatingTileContent(parent)
+	
+{
+	addAndMakeVisible(simulationMode);
+	addAndMakeVisible(sourceThread);
+	addAndMakeVisible(rampResolution);
+
+	GlobalHiseLookAndFeel::setDefaultColours(rampResolution);
+	GlobalHiseLookAndFeel::setDefaultColours(sourceThread);
+	GlobalHiseLookAndFeel::setDefaultColours(simulationMode);
+
+	sourceThread.setTooltip("Simulate the automation changes from different threads");
+	simulationMode.setTooltip("Emulates different parameter automation sources");
+	rampResolution.setTooltip("Selects the resolution for the automation ramp simulator in the audio thread");
+
+	simulationMode.addItemList({ "Drag parameter value", "Zig Zag automation lane" }, 1);
+	sourceThread.addItemList({ "UI Thread (Default)", "Dedicated Automation Thread (AAX)", "Audio Thread (DAW automation)"}, 1);
+	rampResolution.addItemList({ "Audio buffer size", "8 samples", "16 samples", "32 samples", "64 samples"}, 1);
+
+	simulationMode.setSelectedItemIndex(0, dontSendNotification);
+	sourceThread.setSelectedItemIndex(0, dontSendNotification);
+	rampResolution.setSelectedItemIndex(0, dontSendNotification);
+
+	viewport.setViewedComponent(&content, false);
+	addAndMakeVisible(viewport);
+	sf.addScrollBarToAnimate(viewport.getVerticalScrollBar());
+
+	// this needs to be inserted as very first listener so that the content will fetch the new plugin parameters
+	// in the MacroControlledObject::setup() calls
+	getMainController()->addScriptListener(this, true, true);
+
+	dynamic_cast<AudioProcessor*>(getMainController())->addListener(this);
+	rebuildParameters();
+
+	dynamic_cast<BackendProcessor*>(getMainController())->pluginParameterRefreshBroadcaster.addListener(*this, onPluginBroadcaster, false);
+}
+
+PluginParameterSimulator::~PluginParameterSimulator()
+{
+	dynamic_cast<AudioProcessor*>(getMainController())->removeListener(this);
+	getMainController()->removeScriptListener(this);
+}
+
+void PluginParameterSimulator::resized()
+{
+	auto b = getParentContentBounds();
+
+	auto topBar = b.removeFromTop(24);
+
+	auto w = topBar.getWidth() / 3;
+
+	simulationMode.setBounds(topBar.removeFromLeft(w));
+	sourceThread.setBounds(topBar.removeFromLeft(w));
+	rampResolution.setBounds(topBar.removeFromLeft(w));
+
+	viewport.setBounds(b);
+
+	b = Rectangle<int>(0, 0, viewport.getWidth() - viewport.getScrollBarThickness(), 100000);
+
+	b = b.reduced(Margin, 0);
+
+	Rectangle<int> row;
+
+	int h = 0;
+
+	for(int i = 0; i < content.getNumChildComponents(); i++)
+	{
+		auto c = content.getChildComponent(i);
+
+		if(auto gh = dynamic_cast<GroupHeaderComponent*>(c))
+		{
+			b.removeFromTop(Margin);
+			gh->setBounds(b.removeFromTop(GroupHeaderHeight));
+			b.removeFromTop(Margin);
+			row = b.removeFromTop(ParameterHeight);
+
+		}
+		else
+		{
+			if(row.getWidth() < ParameterWidth)
+			{
+				b.removeFromTop(Margin);
+				row = b.removeFromTop(ParameterHeight);
+			}
+
+			c->setBounds(row.removeFromLeft(ParameterWidth));
+			h = jmax(h, c->getBottom());
+		}
+	}
+
+	content.setSize(b.getWidth(), h + Margin);
+}
+
+void PluginParameterSimulator::rebuildParameters()
+{
+	parameters.clear();
+	groupHeaders.clear();
+	//const auto& tree = dynamic_cast<AudioProcessor*>(getMainController())->getParameterTree();
+
+	const auto fl = dynamic_cast<AudioProcessor*>(getMainController())->getParameters();
+
+	std::vector<std::pair<String, std::vector<HisePluginParameterBase*>>> groupMap;
+
+	for(auto p: fl)
+	{
+		if(auto pr = dynamic_cast<HisePluginParameterBase*>(p))
+		{
+			auto gn = pr->getHisePluginParameterGroupName();
+
+			bool found = false;
+
+			for(auto& existing: groupMap)
+			{
+				if(existing.first == gn)
+				{
+					existing.second.push_back(pr);
+					found = true;
+					break;
+				}
+			}
+
+			if(!found)
+			{
+				std::pair<String, std::vector<HisePluginParameterBase*>> newItem;
+
+				newItem.first = gn;
+				newItem.second.push_back(pr);
+
+				groupMap.push_back(std::move(newItem));
+			}
+		}
+	}
+
+#if 0
+	for(const auto& node: tree)
+	{
+		if(auto g = node->getGroup())
+		{
+			for(auto p: *g)
+			{
+				if(auto pr = dynamic_cast<HisePluginParameterBase*>(p->getParameter()))
+				{
+					groupMap[g->getName()].push_back(pr);
+				}
+			}
+		}
+		else if(auto pr = dynamic_cast<HisePluginParameterBase*>(node->getParameter()))
+		{
+			groupMap[""].push_back(pr);
+		}
+	}
+#endif
+
+	String thisGroupId;
+
+	for(const auto& g: groupMap)
+	{
+		if(g.first != thisGroupId)
+		{
+			thisGroupId = g.first;
+			groupHeaders.add(new GroupHeaderComponent(g.first));
+			content.addAndMakeVisible(groupHeaders.getLast());
+		}
+
+		for(auto p: g.second)
+		{
+			parameters.add(new PluginParameterComponent(p));
+			content.addAndMakeVisible(parameters.getLast());
+		}
+			
+	}
+
+	resized();
+}	
 
 MainTopBar::MainTopBar(FloatingTile* parent) :
 	FloatingTileContent(parent),
@@ -434,7 +848,7 @@ MainTopBar::MainTopBar(FloatingTile* parent) :
 	layoutButton->setCommandToTrigger(getRootWindow()->getBackendProcessor()->getCommandManager(), BackendCommandTarget::MenuViewEnableGlobalLayoutMode, true);
 	
 	Path layoutPath;
-	layoutPath.loadPathFromData(ColumnIcons::layoutIcon, sizeof(ColumnIcons::layoutIcon));
+	layoutPath.loadPathFromData(ColumnIcons::layoutIcon, ColumnIcons::layoutIcon_Size);
 	layoutButton->setShape(layoutPath, false, true, true);
 
 	addAndMakeVisible(quickPlayButton);
@@ -496,7 +910,7 @@ void MainTopBar::paint(Graphics& g)
 #if JUCE_DEBUG
 	infoText << " with ";
 #endif
-
+    
 	infoText << "Faust enabled";
 #endif
 
@@ -504,6 +918,10 @@ void MainTopBar::paint(Graphics& g)
     infoText << " + Perfetto";
 #endif
 
+#if HISE_INCLUDE_NKS_SDK
+    infoText << " + NKS";
+#endif
+    
 	if(getRootWindow()->getBackendProcessor()->isSnippetBrowser())
 		infoText = "HISE Snippet Playground";
 
@@ -773,7 +1191,7 @@ struct PopupFloatingTile: public Component,
 		LOAD_EPATH_IF_URL("clear", SampleMapIcons::newSampleMap);
 		LOAD_EPATH_IF_URL("load", SampleMapIcons::loadSampleMap);
 		LOAD_EPATH_IF_URL("save", SampleMapIcons::saveSampleMap);
-		LOAD_PATH_IF_URL("layout", ColumnIcons::customizeIcon);
+		LOAD_EPATH_IF_URL("layout", ColumnIcons::customizeIcon);
 		return p;
 	}
     
@@ -1192,7 +1610,11 @@ void MainTopBar::togglePopup(PopupType t, bool shouldShow)
 	case MainTopBar::PopupType::Macro:
 	{
 		c = new MacroComponent(getRootWindow());
-		c->setSize(90 * HISE_NUM_MACROS, 74);
+
+		auto mc = getRootWindow()->getBackendProcessor();
+		auto numMacros = HISE_GET_PREPROCESSOR(mc, HISE_NUM_MACROS);
+
+		c->setSize(90 * numMacros, 74);
 
 		button = macroButton;
 

@@ -155,6 +155,14 @@ StringArray SnippetBrowserHelpers::getCategoryNames()
 		if(c != nullptr && c->getTooltip() == tipText)
 		{
 			auto screenBounds = dynamic_cast<Component*>(c)->getScreenBounds();
+
+			if(auto t = dynamic_cast<TooltipClientWithCustomPosition*>(c))
+			{
+				Rectangle<int> area(0, 0, w, h);
+				t->applyPosition(screenBounds, area);
+				return area.constrainedWithin(parentArea.reduced(10));
+			}
+			
 			return screenBounds.withWidth(w).withHeight(h).translated(0, jmax(screenBounds.getHeight(), h * 3 / 2)).constrainedWithin(parentArea.reduced(10));
 		}
 
@@ -210,6 +218,91 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 	bool loadedCorrectly = true;
 	bool objectFound = editorState.isObject();
 
+	
+
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	auto c = getMainSynthChain();
+
+	getBackendProcessor()->getDebugSession().setGotoCallback([c](Component* p, DebugSession::ProfileDataSource::SourceType s, String loc)
+	{
+		using ST = DebugSession::ProfileDataSource::SourceType;
+
+		if(s == ST::Script || s == ST::Trace)
+			DebugableObject::Helpers::gotoLocation(c, loc);
+		else if (s == ST::DSP)
+		{
+			auto brw = GET_BACKEND_ROOT_WINDOW(p);
+
+			auto ft = brw->getRootFloatingTile();
+
+			auto b = p->getLocalBounds();
+			b = brw->getLocalArea(p, b);
+
+			if(auto fp = ProcessorHelpers::getFirstProcessorWithName(c, loc))
+			{
+				auto pe = dynamic_cast<ProcessorEditorContainer*>(DebugableObject::Helpers::showProcessorEditorPopup(p, fp));
+			
+				Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, p, b.getCentre(), true);
+
+				auto newC = new BreadcrumbComponent(pe);
+				newC->setSize(100, 28);
+
+				safePopup->addFixComponent(newC);
+
+				dynamic_cast<ProcessorEditorContainer*>(pe)->deleteCallback = [safePopup]()
+				{
+					if (safePopup.getComponent())
+						safePopup->deleteAndClose();
+				};
+			}
+		}
+		else if (s == ST::Paint)
+		{
+			auto brw = GET_BACKEND_ROOT_WINDOW(p);
+
+			Component::callRecursive<ScriptContentComponent>(brw, [&](ScriptContentComponent* sc)
+			{
+				auto id = Identifier(loc);
+				if(auto match = sc->getScriptProcessor()->getContent()->getComponentWithName(id))
+				{
+					c->getMainController()->getScriptComponentEditBroadcaster()->setSelection(const_cast<ScriptComponent*>(match), sendNotificationAsync);
+				}
+
+				return true;
+			});
+		}
+		else if (s == ST::Scriptnode)
+		{
+			auto pid = loc.upToFirstOccurrenceOf(".", false, false);
+			auto id = loc.fromFirstOccurrenceOf(".", false, false);
+
+			auto fp = ProcessorHelpers::getFirstProcessorWithName(c, pid);
+
+			if(auto jp = dynamic_cast<scriptnode::DspNetwork::Holder*>(fp))
+			{
+				if(auto n = jp->getActiveNetwork())
+				{
+					if(auto node = n->getNodeWithId(id))
+					{
+						auto brw = GET_BACKEND_ROOT_WINDOW(p);
+
+						if(brw->currentWorkspaceProcessor != fp)
+							brw->gotoIfWorkspace(dynamic_cast<Processor*>(jp));
+
+						node->getRootNetwork()->addToSelection (node, {});
+
+						auto f = [node, brw]()
+						{
+							node->getRootNetwork()->zoomToSelection(brw);
+						};
+
+						MessageManager::callAsync(f);
+					}
+				}
+			}
+		}
+	});
+#endif
 
 	int width = 1500;
 	int height = 900;
@@ -426,6 +519,19 @@ BackendRootWindow::BackendRootWindow(AudioProcessor *ownerProcessor, var editorS
 			});
 		}
 	}, true);
+
+	getBackendProcessor()->pluginParameterRefreshBroadcaster.addListener(*this, [](BackendRootWindow& brw, bool)
+	{
+		Component::callRecursive<MacroControlledObject>(&brw, [](MacroControlledObject* c)
+		{
+			ScopedValueSetter<bool> svs(c->skipHostDisplayUpdate, true);
+			c->rebuildPluginParameterConnection();
+			return false;
+		});
+
+		auto details = AudioProcessorListener::ChangeDetails().withParameterInfoChanged(true);
+		brw.getBackendProcessor()->updateHostDisplay(details);
+	}, false);
 }
 
 
@@ -693,6 +799,10 @@ void BackendRootWindow::initialiseAllKeyPresses()
 void BackendRootWindow::paint(Graphics& g)
 {
 	g.fillAll(HiseColourScheme::getColour(HiseColourScheme::ColourIds::EditorBackgroundColourIdBright));
+
+	// call this here so that the UI thread is correctly initialised
+	PROFILE_ONLY(getBackendProcessor()->getDebugSession().initUIThread());
+
 }
 
 void BackendRootWindow::setScriptProcessorForWorkspace(JavascriptProcessor* jsp)
@@ -979,6 +1089,8 @@ void BackendRootWindow::newHisePresetLoaded()
 	{
 		BackendPanelHelpers::ScriptingWorkspace::setGlobalProcessor(this, p);
 		BackendPanelHelpers::showWorkspace(this, BackendPanelHelpers::Workspace::ScriptingWorkspace, sendNotificationSync);
+
+		PROFILE_ONLY(getBackendProcessor()->getDebugSession().stopRecording());
 
 		SafeAsyncCall::callWithDelay<BackendRootWindow>(*this, [](BackendRootWindow& r)
 		{

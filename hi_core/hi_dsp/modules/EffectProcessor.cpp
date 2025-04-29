@@ -113,8 +113,9 @@ void EffectProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	if (sampleRate >= 0.0)
 	{
+		auto suspensionTime = HISE_GET_PREPROCESSOR(getMainController(), HISE_SUSPENSION_TAIL_MS);
 		auto callbackDurationMs = jmax(1.0, (double)samplesPerBlock / sampleRate * 1000.0);
-		numSilentCallbacksToWait = roundToInt((double)HISE_SUSPENSION_TAIL_MS / callbackDurationMs);
+		numSilentCallbacksToWait = roundToInt((double)suspensionTime / callbackDurationMs);
 	}
 
 	isInSend = dynamic_cast<SendContainer*>(getParentProcessor(true, false)) != nullptr;
@@ -136,6 +137,8 @@ void EffectProcessor::finaliseModChains()
 
 MasterEffectProcessor::MasterEffectProcessor(MainController* mc, const String& uid): EffectProcessor(mc, uid, 1)
 {
+	PROFILE_ONLY(addProfileDataSource(getId() + ".processBlock()")->colour = getColour());
+
 	softBypassRamper.setValueWithoutSmoothing(1.0f);
 
 	getMatrix().init();
@@ -332,6 +335,10 @@ void MasterEffectProcessor::renderWholeBuffer(AudioSampleBuffer& buffer)
 		{
 			auto suspendAtSilence = isSuspendedOnSilence();
 
+			// ignore the suspendAtSilence when rendering offline to avoid the effect not being processed in the throwaway-phase
+			if(getMainController()->getSampleManager().isNonRealtime())
+				suspendAtSilence = false;
+
 			if (suspendAtSilence && masterState.numSilentBuffers > numSilentCallbacksToWait)
 			{
 				if (isSilent(stereoBuffer, 0, samplesToUse))
@@ -472,6 +479,8 @@ void MonophonicEffectProcessor::renderNextBlock(AudioSampleBuffer& buffer, int s
 VoiceEffectProcessor::VoiceEffectProcessor(MainController* mc, const String& uid, int numVoices_): 
 	EffectProcessor(mc, uid, numVoices_)
 {
+	PROFILE_ONLY(addProfileDataSource("VoiceFX", false)->colour = getColour());
+
 	for (int i = 0; i < numVoices_; i++)
 		polyState.add({});
 }
@@ -506,6 +515,8 @@ void VoiceEffectProcessor::preVoiceRendering(int voiceIndex, int startSample, in
 void VoiceEffectProcessor::renderVoice(int voiceIndex, AudioSampleBuffer& b, int startSample, int numSamples)
 {
 	jassert(isOnAir());
+
+	Profiler p(*this, 0);
 
 	preVoiceRendering(voiceIndex, startSample, numSamples);
 

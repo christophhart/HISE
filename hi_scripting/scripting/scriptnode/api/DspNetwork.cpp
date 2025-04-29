@@ -776,6 +776,12 @@ bool DspNetwork::undo()
 	return getUndoManager(true)->undo();
 }
 
+void DspNetwork::checkValid() const
+{
+	if (parentHolder == nullptr)
+		reportScriptError("Parent of DSP Network is deleted");
+}
+
 bool DspNetwork::isBeingDebugged() const
 {
 	return parentHolder->getDebuggedNetwork() == this;
@@ -961,6 +967,28 @@ bool DspNetwork::isInSignalPath(NodeBase* b) const
 	return b->getValueTree().isAChildOf(getRootNode()->getValueTree());
 }
 
+
+bool DspNetwork::isForwardingControlsToParameters() const
+{
+	return forwardControls;
+}
+
+bool DspNetwork::checkAllowCompilationFlag(NodeBase* n, bool requiredValue)
+{
+	getExceptionHandler().removeError(n, Error::IllegalNoCompilation);
+	getExceptionHandler().removeError(n, Error::IllegalCompilation);
+
+	auto value = (bool)getValueTree()[PropertyIds::AllowCompilation];
+
+	if(value != requiredValue)
+	{
+		Error e;
+		e.error = requiredValue ? Error::IllegalNoCompilation : Error::IllegalCompilation;
+		getExceptionHandler().addError(n, e);
+	}
+
+	return value == requiredValue;
+}
 
 scriptnode::NodeBase* DspNetwork::getNodeWithId(const String& id) const
 {
@@ -2148,6 +2176,32 @@ void ScriptnodeExceptionHandler::removeError(NodeBase* n, Error::ErrorCode error
 		errorBroadcaster.sendMessage(sendNotificationAsync, lastItem.node, lastItem.error);
 }
 
+bool ScriptnodeExceptionHandler::canBeAutofixed(NodeBase* node, Error e)
+{
+	return e.error == Error::IllegalNoCompilation || e.error == Error::IllegalCompilation || e.error == Error::NoMatchingParent;
+}
+
+void ScriptnodeExceptionHandler::autofix(NodeBase* node)
+{
+	for(int i = 0; i < items.size(); i++)
+	{
+		auto it = items[i];
+
+		if(it.node == node)
+		{
+			if(autofixInternal(node, (Error::ErrorCode)it.error.error))
+			{
+				removeError(node, (Error::ErrorCode)it.error.error);
+				i--;
+			}
+		}
+	}
+
+	auto sp = node->getRootNetwork()->getCurrentSpecs();
+
+	node->getRootNetwork()->prepareToPlay(sp.sampleRate, sp.blockSize);
+}
+
 String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 {
 	String s;
@@ -2185,6 +2239,7 @@ String ScriptnodeExceptionHandler::getErrorMessage(Error e)
 		return s;
 	case Error::IllegalBypassConnection: return "Use a `container.soft_bypass` node";
 	case Error::CloneMismatch:	return "Clone container must have equal child nodes";
+	case Error::IllegalNoCompilation: return "You need to compile networks with this node. Check the `AllowCompilation` flag in the network properties to remove the error.";
 	case Error::IllegalCompilation: return "Can't compile networks with this node. Uncheck the `AllowCompilation` flag to remove the error.";
 	case Error::CompileFail:	s << "Compilation error** at Line " << e.expected << ", Column " << e.actual; return s;
 	case Error::UncompiledThirdPartyNode: s << "Uncompiled Third Party Node. Export the DLL and restart HISE to load this node."; return s;
@@ -2209,6 +2264,27 @@ String ScriptnodeExceptionHandler::getErrorMessage(const NodeBase* n) const
 	}
 
 	return {};
+}
+
+bool ScriptnodeExceptionHandler::autofixInternal(NodeBase* n, Error::ErrorCode code)
+{
+	if(code == Error::ErrorCode::IllegalCompilation)
+	{
+		n->getRootNetwork()->getValueTree().setProperty(PropertyIds::AllowCompilation, false, n->getUndoManager());
+		return true;
+	}
+	if(code == Error::ErrorCode::IllegalNoCompilation)
+	{
+		n->getRootNetwork()->getValueTree().setProperty(PropertyIds::AllowCompilation, true, n->getUndoManager());
+		return true;
+	}
+	if(code == Error::ErrorCode::NoMatchingParent)
+	{
+		NodeComponent::PopupHelpers::wrapIntoChain(n, NodeComponent::MenuActions::WrapIntoMidiChain);
+		return true;
+	}
+
+	return false;
 }
 
 DspNetwork::AnonymousNodeCloner::AnonymousNodeCloner(DspNetwork& p, NodeBase::Holder* other):

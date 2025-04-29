@@ -58,13 +58,11 @@ struct SampleThreadPool::Pimpl
 	static const String errorMessage;
 };
 
-SampleThreadPool::SampleThreadPool() :
+SampleThreadPool::SampleThreadPool(void*) :
 	Thread("Sample Loading Thread", HISE_DEFAULT_STACK_SIZE),
 	pimpl(new Pimpl())
 {
 
-	startThread(9);
-	
 }
 
 SampleThreadPool::~SampleThreadPool()
@@ -109,10 +107,32 @@ void SampleThreadPool::addJob(Job* jobToAdd, bool unused)
 	notify();
 }
 
+void SampleThreadPool::onProfile(Job* j, bool push)
+{
+#if ENABLE_CPU_MEASUREMENT
+		if(push)
+		{
+			const int64 lastEndTime = pimpl->endTime;
+			pimpl->startTime = Time::getHighResolutionTicks();
+		}
+		else
+		{
+			pimpl->endTime = Time::getHighResolutionTicks();
+
+			const int64 idleTime = pimpl->startTime - lastEndTime;
+			const int64 busyTime = pimpl->endTime - pimpl->startTime;
+
+			pimpl->diskUsage.store((double)busyTime / (double)(idleTime + busyTime));
+		}
+#endif
+}
+
 void SampleThreadPool::run()
 {
 	while (!threadShouldExit())
 	{
+		checkProfiling();
+
 		WeakReference<Job> next;
 
 		if (pimpl->jobQueue.try_dequeue(next))
@@ -121,21 +141,16 @@ void SampleThreadPool::run()
 
 			Job* j = next.get();
 
-#if ENABLE_CPU_MEASUREMENT
-
-			const int64 lastEndTime = pimpl->endTime;
-			pimpl->startTime = Time::getHighResolutionTicks();
-#endif
-
 			if (j != nullptr)
 			{
 				pimpl->currentlyExecutedJob.store(j);
 
 				j->currentThread.store(this);
-
 				j->running.store(true);
-				
+
+				onProfile(j, true);
 				Job::JobStatus status = j->runJob();
+				onProfile(j, false);
 
 				j->running.store(false);
 
@@ -154,15 +169,6 @@ void SampleThreadPool::run()
 			{
 				pimpl->jobQueue.pop();
 			}
-
-#if ENABLE_CPU_MEASUREMENT
-			pimpl->endTime = Time::getHighResolutionTicks();
-
-			const int64 idleTime = pimpl->startTime - lastEndTime;
-			const int64 busyTime = pimpl->endTime - pimpl->startTime;
-
-			pimpl->diskUsage.store((double)busyTime / (double)(idleTime + busyTime));
-#endif
 		}
 
 #if 0 // Set this to true to enable defective threading (for debugging purposes)

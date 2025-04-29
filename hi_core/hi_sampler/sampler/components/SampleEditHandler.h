@@ -41,7 +41,13 @@ class SampleEditHandler: public KeyListener
 {
 public:
 
-	
+	enum class ComplexGroupEvent
+	{
+		ComplexManagerDisabled,
+		ComplexManagerEnabled,
+		ComplexLayerAdded,
+		ComplexLayerRemoved
+	};
 
 	class SubEditorTraverser: public juce::KeyboardFocusTraverser
 	{
@@ -121,10 +127,24 @@ public:
 		static void selectNeighbourSample(SampleEditHandler* handler, SamplerSoundMap::Neighbour direction, ModifierKeys mods);
 	};
 
+	/** Sends a message with the currently displayed sample and mic index. */
 	LambdaBroadcaster<ModulatorSamplerSound::Ptr, int> selectionBroadcaster;
+
+	/** Sends a message whenever a note is played with the note number and velocity that was played. */
 	LambdaBroadcaster<int, int> noteBroadcaster;
+
+	/** When the complex manager is inactive, it sends a messsage with the current RR group and the BigInteger mask which RR groups to show. */
 	LambdaBroadcaster<int, BigInteger*> groupBroadcaster;
+
+	/** When the complex manager is active, it sends a message with the value filter that indicates which samples should be shown. */
+	LambdaBroadcaster<SynthSoundWithBitmask::ValueWithFilter> complexGroupBroadcaster;
+
+	/** Sends a message with the number of selected samples whenever the selection changes. */
 	LambdaBroadcaster<int> allSelectionBroadcaster;
+	
+	/** Sends an asynchronous message when the complex group state changed (activated / disabled / layers added / removed). */
+	LambdaBroadcaster<ComplexGroupEvent> complexGroupEventBroadcaster;
+
     SamplerTools toolBroadcaster;
     
 	const ModulatorSamplerSound::Ptr* begin() const
@@ -180,7 +200,24 @@ public:
 
 	const SamplePreviewer& getPreviewer() const { return previewer; }
 
+	void registerComplexGroupManager()
+	{
+		if(auto gm = sampler->getComplexGroupManager())
+		{
+			complexGroupLayerListener = new valuetree::ChildListener();
+			complexGroupLayerListener->setCallback(gm->getDataTree(), valuetree::AsyncMode::Synchronously, [this](const ValueTree&, bool wasAdded)
+			{
+				auto e = wasAdded ? ComplexGroupEvent::ComplexLayerAdded : ComplexGroupEvent::ComplexLayerRemoved;
+				this->complexGroupEventBroadcaster.sendMessage(sendNotificationAsync, e);
+			});
+		}
+		else
+			complexGroupLayerListener = nullptr;
+	}
+
 private:
+
+	ScopedPointer<valuetree::ChildListener> complexGroupLayerListener;
 
 	SamplerSoundMap::Neighbour currentDirection = SamplerSoundMap::Right;
 

@@ -92,6 +92,7 @@ void FloatingTileContent::Factory::registerAllPanelTypes()
 
 	registerType<SampleEditorPanel>(PopupMenuOptions::SampleEditor);
 	registerType<SampleMapEditorPanel>(PopupMenuOptions::SampleMapEditor);
+	registerType<ComplexGroupManagerFloatingTile>(PopupMenuOptions::ComplexGroupEditor);
 
 #endif
 
@@ -174,7 +175,7 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 	case FloatingTileContent::Factory::PopupMenuOptions::Spacer:
 	{
 		
-		path.loadPathFromData(ColumnIcons::layoutIcon, sizeof(ColumnIcons::layoutIcon));
+		path.loadPathFromData(ColumnIcons::layoutIcon, ColumnIcons::layoutIcon_Size);
 		//path.loadPathFromData(pathData, sizeof(pathData));
 
 		return path;
@@ -450,6 +451,13 @@ Path FloatingTileContent::Factory::getPath(PopupMenuOptions type)
 		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::fileTable, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::fileTable)));
 		break;
 	}
+	case PopupMenuOptions::ProfilerViewer:
+	case PopupMenuOptions::ProfilerManager:
+	case PopupMenuOptions::ProfilerStatistics:
+	{
+		BACKEND_ONLY(path.loadPathFromData(EditorIcons::profileIcon, EditorIcons::profileIcon_Size));
+		break;
+	}
 	case PopupMenuOptions::ImageTable:
 	{
 		BACKEND_ONLY(path.loadPathFromData(BackendBinaryData::ToolbarIcons::imageTable, SIZE_OF_PATH(BackendBinaryData::ToolbarIcons::imageTable)));
@@ -557,7 +565,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::SampleMapEditor, "Sample Map Editor");
 			addToPopupMenu(m, PopupMenuOptions::SamplerTable, "Sampler Table");
 			addToPopupMenu(m, PopupMenuOptions::SamplePoolTable, "Global Sample Pool");
-
+			addToPopupMenu(m, PopupMenuOptions::ComplexGroupEditor, "Complex Group Editor");
 
 			m.addSectionHeader("Misc Tools");
 
@@ -576,12 +584,16 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 			addToPopupMenu(m, PopupMenuOptions::SliderPackPanel, "Array Editor");
 			addToPopupMenu(m, PopupMenuOptions::MidiKeyboard, "Virtual Keyboard");
 			addToPopupMenu(m, PopupMenuOptions::PerfettoViewer, "Perfetto Viewer");
+			addToPopupMenu(m, PopupMenuOptions::ProfilerViewer, "Profiler Viewer");
+			addToPopupMenu(m, PopupMenuOptions::ProfilerManager, "Profiler Manager");
+			addToPopupMenu(m, PopupMenuOptions::ProfilerStatistics, "Profiler Statistics");
 
 			addToPopupMenu(m, PopupMenuOptions::Note, "Note");
 			addToPopupMenu(m, PopupMenuOptions::AudioFileTable, "Audio File Pool Table");
 			addToPopupMenu(m, PopupMenuOptions::ImageTable, "Image Pool Table");
 			addToPopupMenu(m, PopupMenuOptions::SampleMapPoolTable, "SampleMap Pool Table");
 			addToPopupMenu(m, PopupMenuOptions::MidiFilePoolTable, "MidiFile Pool Table");
+			addToPopupMenu(m, PopupMenuOptions::PluginParameterSimulator, "Plugin Parameter Simulator");
 
 			PopupMenu fm;
 
@@ -684,6 +696,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::SampleEditor:		parent->setNewContent(GET_PANEL_NAME(SampleEditorPanel)); break;
 	case PopupMenuOptions::SampleMapEditor:		parent->setNewContent(GET_PANEL_NAME(SampleMapEditorPanel)); break;
 	case PopupMenuOptions::SamplerTable:		parent->setNewContent(GET_PANEL_NAME(SamplerTablePanel)); break;
+	case PopupMenuOptions::ComplexGroupEditor:	parent->setNewContent(GET_PANEL_NAME(ComplexGroupManagerFloatingTile)); break;
 	case PopupMenuOptions::WavetablePreview:	parent->setNewContent(GET_PANEL_NAME(WaveformComponent::Panel)); break;
 	case PopupMenuOptions::AHDSRGraph:			parent->setNewContent(GET_PANEL_NAME(AhdsrEnvelope::Panel)); break;
 	case PopupMenuOptions::MarkdownPreviewPanel:parent->setNewContent(GET_PANEL_NAME(MarkdownPreviewPanel)); break;
@@ -694,6 +707,7 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 	case PopupMenuOptions::ScriptEditor:		parent->setNewContent(GET_PANEL_NAME(CodeEditorPanel)); break;
 	case PopupMenuOptions::ScriptContent:		parent->setNewContent(GET_PANEL_NAME(ScriptContentPanel)); break;
 	case PopupMenuOptions::OSCLogger:			parent->setNewContent(GET_PANEL_NAME(OSCLogger)); break;
+	case PopupMenuOptions::PluginParameterSimulator: parent->setNewContent(GET_PANEL_NAME(PluginParameterSimulator)); break;
 
 	
 
@@ -733,6 +747,9 @@ void FloatingTileContent::Factory::handlePopupMenu(PopupMenu& m, FloatingTile* p
 		break;
 #endif
     case PopupMenuOptions::PerfettoViewer:      parent->setNewContent(GET_PANEL_NAME(GenericPanel<PerfettoWebviewer>)); break;
+	case PopupMenuOptions::ProfilerViewer:      PROFILE_ONLY(parent->setNewContent(GET_PANEL_NAME(ProfilerViewer))); break;
+	case PopupMenuOptions::ProfilerManager:     PROFILE_ONLY(parent->setNewContent(GET_PANEL_NAME(ProfilerManager))); break;
+	case PopupMenuOptions::ProfilerStatistics:  PROFILE_ONLY(parent->setNewContent(GET_PANEL_NAME(ProfilerStatistics))); break;
 	case PopupMenuOptions::AudioFileTable:		parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::AudioFilePoolTable)); break;
 	case PopupMenuOptions::SampleMapPoolTable:  parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::SampleMapPoolTable)); break;
 	case PopupMenuOptions::ImageTable:			parent->setNewContent(GET_PANEL_NAME(PoolTableSubTypes::ImageFilePoolTable)); break;

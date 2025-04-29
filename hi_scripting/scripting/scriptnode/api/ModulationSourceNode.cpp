@@ -98,7 +98,7 @@ ModulationSourceBaseComponent::ModulationSourceBaseComponent(PooledUIUpdater* up
 {
 	unscaledPath.loadPathFromData(ScriptnodeIcons::unscaledMod, SIZE_OF_PATH(ScriptnodeIcons::unscaledMod));
 
-	dragPath.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+	dragPath.loadPathFromData(ColumnIcons::targetIcon, ColumnIcons::targetIcon_Size);
 
 	setRepaintsOnMouseActivity(true);
 	setMouseCursor(createMouseCursor());
@@ -135,7 +135,7 @@ juce::Image ModulationSourceBaseComponent::createDragImageStatic(bool shouldFill
 	if (shouldFill)
 	{
 		Path p;
-		p.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+		p.loadPathFromData(ColumnIcons::targetIcon, ColumnIcons::targetIcon_Size);
 		p.scaleToFit(0.0f, 0.0f, 28.0f * sf, 28.0f * sf, true);
 		g.setColour(Colours::white.withAlpha(0.9f));
 		g.fillPath(p);

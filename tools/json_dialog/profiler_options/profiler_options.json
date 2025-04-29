@@ -1,0 +1,130 @@
+{
+  "StyleData": {
+    "Font": "Lato Regular",
+    "BoldFont": "Lato Regular",
+    "FontSize": 18.0,
+    "bgColour": 4281545523,
+    "codeBgColour": 864585864,
+    "linkBgColour": 8947967,
+    "textColour": 4294967295,
+    "codeColour": 4294967295,
+    "linkColour": 4289374975,
+    "tableHeaderBgColour": 864059520,
+    "tableLineColour": 864059520,
+    "tableBgColour": 864059520,
+    "headlineColour": 4287692721,
+    "UseSpecialBoldFont": false
+  },
+  "Properties": {
+    "Header": "Profiler Options",
+    "Subtitle": "Subtitle",
+    "Image": "",
+    "ProjectName": "MyProject",
+    "Company": "MyCompany",
+    "Version": "1.0.0",
+    "BinaryName": "My Binary",
+    "UseGlobalAppData": false,
+    "Icon": ""
+  },
+  "LayoutData": {
+    "StyleSheet": "ModalPopup",
+    "Style": "#total-progress\n{\n\tdisplay: none;\n}\n\n\n\n#footer\n{\n\tdisplay: none;\n}\n\nlabel\n{\n\tmin-width: 140px;\n}\n\n#title\n{\n\tfont-size: 20px;\n}\n\n#header\n{\n\tdisplay: none;\n}\n\n.column-label\n{\n\twidth: 140px;\n\tflex-grow: 1;\n\ttext-align: left;\n}\n\n.tag-list\n{\n\twidth: 370px;\n\tflex-grow: 0;\n}\n\n\n\n.tag-button:checked\n{\n\tbackground: #999;\n\tborder-color: #aaa;\n}\n\n.label-column\n{\n\tmargin-top: 20px;\n}\n\n.only-help\n{\n\twidth: 24px;\n\t\n}\n\n.only-help label\n{\n\tdisplay: none;\n}\n\n.only-help .toggle-button\n{\n\tdisplay: none;\n}\n\n.export-button\n{\n\tmargin-top: 30px;\n}\n\n.export-button label\n{\n\tdisplay: none;\n}",
+    "UseViewport": false,
+    "ConfirmClose": false,
+    "CloseMessage": "Do you want to close this popup?",
+    "DialogWidth": 600,
+    "DialogHeight": 420
+  },
+  "GlobalState": {
+    "recordingLength": "1000 ms",
+    "recordingTrigger": "0"
+  },
+  "Children": [
+    {
+      "Type": "List",
+      "Children": [
+        {
+          "Type": "Choice",
+          "Text": "Recording Length:",
+          "ID": "recordingLength",
+          "Code": "{BIND::refresh}",
+          "InitValue": "1000 ms",
+          "UseInitValue": true,
+          "ValueMode": "Text",
+          "Items": "300 ms\n1000 ms\n2000 ms\n5000 ms",
+          "Help": "This sets a fixed duration for how long the profiler will record the events."
+        },
+        {
+          "Type": "Choice",
+          "Text": "Trigger:",
+          "ID": "recordingTrigger",
+          "Code": "{BIND::refresh}",
+          "InitValue": "0",
+          "UseInitValue": true,
+          "ValueMode": "Index",
+          "Items": "Manual\nCompile / Project Load\nMIDI Input\nMouse click",
+          "Help": "This determines the event that starts the recording\n\n- **Manual**: start recording when the record button is clicked (or `Threads.startProfiling()` is called.\n- **Compile / Project load**: Start the recording when the script is compiled (or the project is loaded). Use this to profile the compilation / onInit callback.\n- **MIDI Input**: Start the recording the next time a MIDI note on / off message is processed.\n- **Mouse Click** Start the recording when you click on your Interface."
+        },
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "SimpleText",
+              "Text": "Thread Filter:",
+              "Class": ".column-label"
+            },
+            {
+              "Type": "TagList",
+              "ID": "threadFilter",
+              "Items": "Audio Thread\nUI Thread\nScripting Thread\nLoading Thread\nWorker Thread\nServer Thread",
+              "Code": "{BIND::refresh}",
+              "Class": ".tag-list"
+            },
+            {
+              "Type": "Button",
+              "ID": "ButtonId",
+              "Class": ".only-help",
+              "Help": "Select all threads to be recorded and shown in the timeline.\n\nThis filter will be applied during recording, so any thread that is not selected will not be recorded in the profile.\n\n> This can be used to filter out threads that you don't want to analyse (eg. the UI thread when profiling the DSP performance)."
+            }
+          ],
+          "Class": ".label-column"
+        },
+        {
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "SimpleText",
+              "Text": "Event Filter:",
+              "Class": ".column-label"
+            },
+            {
+              "Type": "TagList",
+              "ID": "eventFilter",
+              "Class": ".tag-list",
+              "Code": "{BIND::refresh}",
+              "Items": "Lock\nScript\nScriptnode\nCallback\nBroadcaster\nPaint\nDSP\nTrace\nServer\nBackground Task"
+            },
+            {
+              "Type": "Button",
+              "ID": "ButtonId",
+              "Class": ".only-help",
+              "Help": "Select all event types to be recorded and shown in the timeline.\n\nThis filter will be applied dynamically after recording and can be used to show / hide certain event types.\n\n> This can be used to filter out events that you don't want to see (eg. Paint callbacks if you're profiling the DSP performance)."
+            }
+          ],
+          "Class": ".label-column"
+        },
+        {
+          "Type": "Button",
+          "Text": "Export as JSON",
+          "ID": "ButtonId",
+          "Code": "{BIND::onExport}",
+          "Class": ".export-button",
+          "ButtonType": "Text",
+          "Trigger": true
+        }
+      ],
+      "Text": ""
+    }
+  ],
+  "Assets": []
+}

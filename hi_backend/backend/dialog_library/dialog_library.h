@@ -431,6 +431,11 @@ struct NetworkCompiler: public EncodedDialogBase,
 	{
 		MULTIPAGE_BIND_CPP(NetworkCompiler, compileTask);
 		MULTIPAGE_BIND_CPP(NetworkCompiler, onInit);
+		MULTIPAGE_BIND_CPP(NetworkCompiler, onClipboard);
+		MULTIPAGE_BIND_CPP(NetworkCompiler, updateNodeProperties);
+		MULTIPAGE_BIND_CPP(NetworkCompiler, checkProperties);
+		MULTIPAGE_BIND_CPP(NetworkCompiler, toggleIsPolyphonic);
+		MULTIPAGE_BIND_CPP(NetworkCompiler, toggleAllowPolyphonic);
 	}
 
 	void setProgress(double progress) override
@@ -443,8 +448,20 @@ struct NetworkCompiler: public EncodedDialogBase,
 
 	var onInit(const var::NativeFunctionArgs& args);
 	var compileTask(const var::NativeFunctionArgs& args);
+	var onClipboard(const var::NativeFunctionArgs& args);
+	var updateNodeProperties(const var::NativeFunctionArgs& args);
+	var checkProperties(const var::NativeFunctionArgs& args);
+	var toggleIsPolyphonic(const var::NativeFunctionArgs& args);
+	var toggleAllowPolyphonic(const var::NativeFunctionArgs& args);
 
-	
+	File getNodePropertyFile() const;
+
+	bool checkPropertyMismatch() const;
+
+	var allNodeList;
+
+	bool rebuildNodes = false;
+
 	BackendRootWindow* bpe;
 	ScopedPointer<ControlledObject> compileExporter;
 };
@@ -532,6 +549,23 @@ struct ScriptModuleReplacer: public EncodedDialogBase
 	var selectAll(const var::NativeFunctionArgs& args);
 
 	BackendRootWindow* bpe;
+};
+
+
+
+struct DebugSessionOptions: public EncodedDialogBase
+{
+	DebugSessionOptions(BackendRootWindow* bpe_);
+
+	void bindCallbacks() override
+	{
+		MULTIPAGE_BIND_CPP(DebugSessionOptions, refresh);
+		MULTIPAGE_BIND_CPP(DebugSessionOptions, onExport);
+	}
+
+	var refresh(const var::NativeFunctionArgs& args);
+
+	var onExport(const var::NativeFunctionArgs& args);
 };
 
 struct SnippetBrowser: public EncodedDialogBase

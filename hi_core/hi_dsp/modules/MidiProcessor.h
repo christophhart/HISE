@@ -46,7 +46,8 @@ class ModulatorSynth;
 *	It can be used to change the incoming MIDI data before it is sent to a ModulatorSynth. Note that if you want to create your own MIDI processors,
 	you should use the HardcodedScriptProcessor as base class since it offers a simpler integration of existing Javascript code and a cleaner API.
 */
-class MidiProcessor: public Processor
+class MidiProcessor: public Processor,
+					 public ProfiledProcessor
 {
 public:
 

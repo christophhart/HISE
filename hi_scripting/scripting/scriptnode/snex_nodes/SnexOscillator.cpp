@@ -200,6 +200,9 @@ void core::SnexOscillator::process(OscProcessData& d)
 
 void core::SnexOscillator::prepare(PrepareSpecs ps)
 {
+	if(!checkAllowCompilation())
+		return;
+
 	rebuildCallbacksAfterChannelChange(ps.numChannels);
 	callbacks.prepare(ps);
 	

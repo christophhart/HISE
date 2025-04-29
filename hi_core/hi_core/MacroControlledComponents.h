@@ -123,6 +123,120 @@ private:
 };
 
 
+struct HisePluginParameterBase: public ControlledObject,
+								public dispatch::ListenerOwner,
+							    public AsyncUpdater
+
+{
+	enum class Type
+	{
+		Macro,
+		CustomAutomation,
+		ScriptControl,
+		NKSWrapper,
+		numTypes
+	};
+
+	HisePluginParameterBase(MainController* mc, int index):
+	  ControlledObject(mc),
+	  autoListener(getMainController()->getRootDispatcher(), *this, BIND_MEMBER_FUNCTION_2(HisePluginParameterBase::onUpdate)),
+	  parameterIndex(index)
+	{}
+
+	virtual ~HisePluginParameterBase()
+	{
+		// If this happens you haven't called cleanup before destroying this plugin parameter!
+		jassert(cleanupCalled);
+	}
+
+	int getHiseParameterIndex() { return parameterIndex; }
+
+	static int defaultSort(HisePluginParameterBase* p1, HisePluginParameterBase* p2)
+	{
+		auto i1 = p1->getHiseParameterIndex();
+		auto i2 = p2->getHiseParameterIndex();
+
+		if(i1 < i2)
+			return -1;
+		if (i1 > i2)
+			return 1;
+
+		return 0;
+	}
+
+	virtual Type getType() const = 0;
+	virtual NormalisableRange<float> getNormalisableRange() const = 0;
+	virtual int getSlotIndex() const = 0;
+	virtual ValueToTextConverter getValueToTextConverter() const = 0;
+	virtual String getHisePluginParameterName() const = 0;
+	virtual String getHisePluginParameterGroupName() const = 0;
+	virtual float getHisePluginParameterNormalisedValue() const = 0;
+
+#if USE_BACKEND
+	virtual HisePluginParameterBase* getWrappedParameter() { return this; }
+#else
+	HisePluginParameterBase* getWrappedParameter() { return this; }
+#endif
+
+	bool matchesIndex(int slotIndex) const { return getSlotIndex() == slotIndex; }
+
+	void onUpdate(int index, float v)
+	{
+		FloatSanitizers::sanitizeFloatNumber(v);
+		v = getNormalisableRange().convertTo0to1(v);
+
+		if(v != parameterValueToSend)
+		{
+			parameterValueToSend = v;
+			refreshParameterValue();
+		}
+	}
+
+	void refreshParameterValue()
+	{
+		auto mc = getMainController();
+		auto t = mc->getKillStateHandler().getCurrentThread();
+		auto defer = mc->getDeferNotifyHostFlag() || t != MainController::KillStateHandler::TargetThread::MessageThread;
+
+		if(defer)
+			triggerAsyncUpdate();
+		else
+			handleAsyncUpdate();
+	}
+
+	void handleAsyncUpdate() override
+	{
+		auto mc = getMainController();
+		
+		ScopedValueSetter<bool> svs(recursive, true);
+		ScopedValueSetter<bool> setter(mc->getPluginParameterUpdateState(), false, true);
+
+		getWrappedParameter()->asJuceParameter()->setValueNotifyingHost(parameterValueToSend);
+	}
+
+    virtual void cleanup() { cleanupCalled = true; }
+    
+	int parameterIndex = -1;
+	float parameterValueToSend = 0.0f;
+	bool recursive = false;
+
+	dispatch::library::CustomAutomationSource::Listener autoListener;
+
+	juce::AudioProcessorParameter* asJuceParameter()
+	{
+		auto typed = dynamic_cast<juce::AudioProcessorParameter*>(this);
+		jassert(typed != nullptr);
+		return typed;
+	}
+
+private:
+
+	bool cleanupCalled = false;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(HisePluginParameterBase);
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HisePluginParameterBase);
+};
+
 /** A base class for all control Components that can be controlled by a MacroControlBroadcaster.
 *	@ingroup macroControl
 *
@@ -232,6 +346,14 @@ public:
 
 	void onAttributeChange(dispatch::library::Processor* p, uint8 index);
 
+	juce::AudioProcessorParameter* getConnectedPluginParameter() const;
+
+	void rebuildPluginParameterConnection();
+
+	bool skipHostDisplayUpdate = false;
+
+	void checkMouseClickProfiler(bool isDown);
+
 protected:
 
 	ScopedPointer<dispatch::library::Processor::AttributeListener> valueListener;
@@ -279,7 +401,9 @@ private:
 	String name;
 
 	bool macroControlledComponentEnabled;
-	
+
+	WeakReference<HisePluginParameterBase> connectedPluginParameter;
+
 };
 
 
@@ -288,6 +412,7 @@ private:
 class HiComboBox: public SubmenuComboBox,
 				  public ComboBox::Listener,
 				  public MacroControlledObject,
+				  public ProfiledComponent,
                   public TouchAndHoldComponent
 {
 public:
@@ -311,24 +436,12 @@ public:
     void mouseDown(const MouseEvent &e) override;
 	void mouseDrag(const MouseEvent& e) override;
 
-	ValueToTextConverter getValueToTextConverter() const override
-	{
-		StringArray itemList;
-		itemList.add("Nothing");
+	paintAndProfileChildren(g);
 
-		for(int i = 0; i < getNumItems(); i++)
-			itemList.add(getItemText(i));
+	ValueToTextConverter getValueToTextConverter() const override;
 
-		ValueToTextConverter c;
-		c.active = true;
-		c.itemList = itemList;
 
-		return c;
-	}
-
-	
-    
-    bool customPopup = false;
+	bool customPopup = false;
     
 	NormalisableRange<double> getRange() const override;;
 	
@@ -355,7 +468,8 @@ private:
 class HiToggleButton: public MomentaryToggleButton,
 					  public Button::Listener,
 				      public MacroControlledObject,
-                      public TouchAndHoldComponent
+                      public TouchAndHoldComponent,
+					  public ProfiledComponent
 {
 public:
 
@@ -389,7 +503,8 @@ public:
 	void mouseUp(const MouseEvent& e) override;
 
 	void mouseDrag(const MouseEvent& event) override;
-	
+
+	paintAndProfileChildren(g);
 
 	void touchAndHold(Point<int> downPosition) override;
     
@@ -401,11 +516,7 @@ private:
 
 	var popupData;
 	Rectangle<int> popupPosition;
-
 	Component::SafePointer<Component> currentPopup;
-
-	
-
 	NotificationType notifyEditor;
 	ScopedPointer<LookAndFeel> laf;
 };
@@ -619,6 +730,7 @@ class HiSlider: public juce::Slider,
 			    public SliderWithShiftTextBox,
 				public MacroControlledObject,
 				public SliderListener,
+				public ProfiledComponent,
 				public TouchAndHoldComponent
 {
 public:
@@ -727,6 +839,8 @@ public:
 
 	static String getSuffixForMode(HiSlider::Mode mode, float panValue);
 
+	paintAndProfileChildren(g);
+	
 private:
 
 	bool sendValueOnDrag = true;

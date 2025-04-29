@@ -177,6 +177,7 @@ private:
 	NodePropertyT<bool> debugEnabled;
 	NodePropertyT<String> code;
 	snex::JitExpression::Ptr expr;
+	WeakReference<NodeBase> node;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic_expression);
 };

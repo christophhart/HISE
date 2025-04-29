@@ -113,6 +113,8 @@ struct Helpers
 
 			fftBufferSize = getPropertyInternal("BufferLength", 8192);
 			refreshFFTSize();
+
+			b->setEnableProfiling("Process FFT buffer");
 		}
 
 		RingBufferComponentBase* createComponent();
@@ -329,6 +331,8 @@ struct Helpers
 		}
 
 		void transformReadBuffer(AudioSampleBuffer& b) override;
+
+		int currentProfileTrack = 0;
 
 		FFTHelpers::WindowType currentWindow = FFTHelpers::BlackmanHarris;
 

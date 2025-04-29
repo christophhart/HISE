@@ -205,6 +205,7 @@ void TextEditor::setGotoFunction(const GotoFunction& f)
 
 void TextEditor::clearWarningsAndErrors()
 {
+	autofixButton = nullptr;
 	currentError = nullptr;
 	warnings.clear();
 	repaint();
@@ -332,6 +333,27 @@ bool TextEditor::gotoDefinition(Selection s1)
 	return false;
 }
 
+void TextEditor::tokenListWasRebuild()
+{
+    if(tokenCollection->getTokens().isEmpty())
+        return;
+
+#if 0
+	SafeAsyncCall::call<TextEditor>(*this, [](TextEditor& te)
+	{
+		if(te.currentError != nullptr)
+		{
+			te.autofixButton = new AutofixComponent(te, *te.currentError);
+
+			if(!te.autofixButton->calculateFix())
+				te.autofixButton = nullptr;
+			else
+				te.addAndMakeVisible(te.autofixButton);
+		}
+	});
+#endif
+}
+
 TextEditor::Action::Action(TextEditor* te, List nl, Ptr ncp):
 	editor(te),
 	oldList(te->currentParameterSelection),
@@ -445,6 +467,7 @@ void TextEditor::updateLineRanges()
 {
 	auto ranges = languageManager->createLineRange(document.getCodeDocument());
 	document.getFoldableLineRangeHolder().setRanges(ranges);
+	rebuildInplaceDebugValues();
 }
 
 void TextEditor::updateAfterTextChange(Range<int> rangeToInvalidate)
@@ -565,6 +588,100 @@ LanguageManager* TextEditor::getLanguageManager()
 
 ScrollBar& TextEditor::getVerticalScrollBar()
 { return scrollBar; }
+
+TextEditor::InplaceDebugValueComponent::InplaceDebugValueComponent(TextEditor& parent_,
+	const LanguageManager::InplaceDebugValue::Ptr ipv):
+	value(ipv),
+	parent(parent_)
+{
+	setRepaintsOnMouseActivity(true);
+
+	if(ipv->info != nullptr)
+	{
+		setMouseCursor(MouseCursor::PointingHandCursor);
+		p = createPath(ipv->info->getIconPath());
+	}
+		
+
+	updatePosition();
+}
+
+void TextEditor::InplaceDebugValueComponent::updatePosition()
+{
+	auto& document = parent.document;
+
+	auto line = value->location.getLineNumber();
+	auto col = value->location.getIndexInLine();
+
+	auto b = document.getBoundsOnRow(line, {col, col+1}, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
+            
+	b = b.translated(document.getCharacterRectangle().getWidth() * 1.0f, 0.0f);
+
+	vf = document.getFont().withHeight(document.getFontHeight() * parent.viewScaleFactor * 0.7f);
+	
+	auto w = vf.getStringWidthFloat(value->value) + 20.0f;
+
+	if(!p.isEmpty())
+		w += b.getHeight();
+
+	auto area = b.transformed(parent.transform);
+
+	area = area.withWidth(w);
+
+	setBounds(area.toNearestInt());
+
+	if(!p.isEmpty())
+	{
+		auto x = getLocalBounds().removeFromRight(getHeight()).reduced(3).toFloat();
+		scalePath(p, x);
+	}
+}
+
+void TextEditor::InplaceDebugValueComponent::paint(Graphics& g)
+{
+	g.setFont(vf);
+
+	float alpha = 0.05f;
+
+	if(value->info != nullptr && isMouseOver(true))
+		alpha += 0.05f;
+
+	g.setColour(Colours::white.withAlpha(alpha));
+            
+	auto area = getLocalBounds().toFloat();
+	auto r = area;
+	r = r.removeFromLeft(vf.getStringWidthFloat(value->value) + 20.0f);
+            
+	g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
+            
+	g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
+	g.drawText(value->value, area.reduced(10.0f, 0.0f), Justification::left);
+
+	if(!p.isEmpty())
+	{
+		g.setColour(Colours::white.withAlpha(alpha * 6.0f));
+		g.fillPath(p);
+	}
+		
+}
+
+void TextEditor::rebuildInplaceDebugValues()
+{
+	heatmap.clear();
+	inplaceDebugValueComponents.clear();
+	LanguageManager::InplaceDebugValue::List inplaceDebugValues;
+
+	if(languageManager != nullptr && languageManager->getInplaceDebugValues(inplaceDebugValues))
+	{
+		for(auto ip: inplaceDebugValues)
+		{
+			inplaceDebugValueComponents.add(new InplaceDebugValueComponent(*this, ip));
+			addAndMakeVisible(inplaceDebugValueComponents.getLast());
+		}
+	}
+
+	repaint();
+}
 
 TextEditor::AutocompleteTimer::AutocompleteTimer(TextEditor& p):
 	parent(p)
@@ -690,6 +807,147 @@ bool TextEditor::nav(ModifierKeys mods, TextDocument::Target target, TextDocumen
 	translateToEnsureCaretIsVisible();
 	updateSelections();
 	return true;
+}
+
+TextEditor::AutofixComponent::AutofixComponent(mcl::TextEditor& editor_, const Error& error): editor(editor_)
+{
+
+	icon.loadPathFromData(EditorIcons::autofixIcon, SIZE_OF_PATH(EditorIcons::autofixIcon));
+	errorMessage = error.errorMessage;
+
+	Selection el(error.start.getLineNumber(), 0, error.start.getLineNumber()+1, 0);
+
+	errorLine = editor.getTextDocument().getSelectionContent(el).trim();
+
+	// Position the component based on the error's area
+	updatePosition();
+
+	// Listen to CodeDocument for text changes
+	codeDoc = &editor.getDocument();
+	codeDoc->addListener(this);
+
+	setRepaintsOnMouseActivity(true);
+}
+
+void TextEditor::AutofixComponent::paint(juce::Graphics& g)
+{
+	juce::Colour baseColour(Colour(HISE_ERROR_COLOUR));
+	juce::Colour hoverColour(baseColour.brighter(0.1f));
+	juce::Colour clickedColour(hoverColour.darker(0.1f));
+
+	if (isMouseButtonDown()) {
+		g.setGradientFill(juce::ColourGradient(clickedColour, 0.0f, 0.0f,
+		                                       baseColour, 0.0f, getHeight(), false));
+	} else if (isMouseOverOrDragging()) {
+		g.setGradientFill(juce::ColourGradient(hoverColour, 0.0f, 0.0f,
+		                                       baseColour, 0.0f, getHeight(), false));
+	} else {
+		g.setGradientFill(juce::ColourGradient(baseColour, 0.0f, 0.0f,
+		                                       baseColour.darker(0.1f), 0.0f, getHeight(), false));
+	}
+
+	g.fillRoundedRectangle(getLocalBounds().toFloat(), (float)getHeight() * 0.5f);
+
+	g.setColour(Colours::white.withAlpha(0.1f));
+	g.drawRoundedRectangle(getLocalBounds().toFloat().reduced(1.0f), (float)getHeight() * 0.5f - 2.0f, 1.0f);
+
+	g.setColour(Colours::white.withAlpha(0.8f));
+	g.fillPath(icon);
+	g.setFont(GLOBAL_BOLD_FONT().withHeight((float)getHeight() * 0.55f));
+	auto b = getLocalBounds().toFloat();
+	b.removeFromLeft(b.getHeight());
+	g.drawText("Fix", b, Justification::centred);
+}
+
+void TextEditor::AutofixComponent::resized()
+{
+	PathFactory::scalePath(icon, getLocalBounds().toFloat().removeFromLeft(getHeight()).reduced(getHeight() / 6.0f));
+}
+
+void TextEditor::AutofixComponent::mouseEnter(const MouseEvent& e)
+{
+	setTooltip(fixMessage);
+}
+
+void TextEditor::AutofixComponent::mouseDown(const MouseEvent& e)
+{
+	if(!calculateFix())
+		return;
+
+	if(correctLine.isNotEmpty())
+	{
+		auto pc = getParentComponent();
+
+		editor.getTextDocument().setSelection(0, sel, false);
+		editor.insert(correctLine);
+		
+		KeyPress compileKey(KeyPress::F5Key);
+
+		while(pc != nullptr)
+		{
+			if(pc->keyPressed(compileKey))
+			{
+				break;
+			}
+
+			pc = pc->getParentComponent();
+		}
+
+	}
+}
+
+bool TextEditor::AutofixComponent::calculateFix()
+{
+	auto errorMessage = editor.currentError->errorMessage;
+
+	if(errorMessage.contains("when expecting ';'"))
+	{
+		sel = editor.currentError->getSelection();
+		editor.getTextDocument().navigate(sel.head, TextDocument::Target::nonwhitespace, TextDocument::Direction::backwardCol);
+		sel.tail = sel.head;
+		correctLine = ";\n";
+		return true;
+	}
+
+	auto tokens = editor.tokenCollection->getTokens();
+
+	SimpleDocumentTokenProvider doc(editor.getDocument());
+	doc.addTokens (tokens);
+	
+	sel = editor.currentError->getSelection();
+	errorLine = editor.getTextDocument().getSelectionContent(sel);
+
+	auto currentNamespace = getCurrentNamespaceId();
+
+	StringArray existingTokens;
+
+	for(auto t: tokens)
+	{
+		auto tk = t->tokenContent.upToFirstOccurrenceOf("(", false, false);
+
+		if(currentNamespace.isNotEmpty() && tk.startsWith(currentNamespace))
+			tk = tk.fromFirstOccurrenceOf(currentNamespace + ".", false, false);
+
+        if(!errorLine.endsWith(tk))
+            existingTokens.addIfNotAlreadyThere(tk);
+	}
+
+	correctLine = FuzzySearcher::suggestCorrection(errorLine, existingTokens, 0.3);
+
+	
+
+	
+
+	if(correctLine.isNotEmpty())
+	{
+		fixMessage = "Replace `" + errorLine + "` with `" + correctLine + "`";
+
+		auto m = correctLine.compare(errorLine);
+
+		return m != 0;
+	}
+
+	return false;
 }
 
 TextEditor::Error::Error(TextDocument& doc_, const String& e, bool isWarning_):
@@ -1456,6 +1714,64 @@ void mcl::TextEditor::scaleView (float scaleFactorMultiplier, float verticalCent
 	
 }
 
+void TextEditor::AutofixComponent::updatePosition()
+{
+
+	if(editor.currentError != nullptr)
+	{
+		auto& document = editor.getTextDocument();
+		auto line = editor.currentError->start.getLineNumber();
+		auto col = 10000;
+		auto b = document.getBoundsOnRow(line, {col, col+1}, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
+		b = b.translated(document.getCharacterRectangle().getWidth() * 1.0f, 0.0f);
+		auto area = b.withWidth(50).transformed(editor.transform);
+		setBounds(area.toNearestInt());
+	}
+}
+
+String TextEditor::AutofixComponent::getCurrentNamespaceId() const
+{
+	auto currentRange = editor.getTextDocument().getFoldableLineRangeHolder().getRangeContainingLine(sel.head.x);
+
+	while(currentRange != nullptr)
+	{
+		auto line = editor.getDocument().getLine(currentRange->getLineRange().getStart()).trim();
+
+		if(line.startsWith("namespace"))
+		{
+			auto ptr = line.begin() + sizeof("namespace");
+			auto end = line.end();
+
+			while(ptr != end)
+			{
+				if(CharacterFunctions::isWhitespace(*ptr))
+					ptr++;
+				else
+					break;
+			}
+
+			auto idStart = ptr;
+
+			while(ptr != end)
+			{
+				if(CharacterFunctions::isLetterOrDigit(*ptr))
+					ptr++;
+				else
+					break;
+			}
+
+			auto idEnd = ptr;
+			auto id = String(idStart, idEnd).trim();
+
+			return id;
+		}
+
+		currentRange = currentRange->parent;
+	}
+
+	return {};
+}
+
 void mcl::TextEditor::updateViewTransform()
 {
 	auto thisGutterWidth = gutter.getGutterWidth();
@@ -1465,6 +1781,9 @@ void mcl::TextEditor::updateViewTransform()
 		translation.x = thisGutterWidth;
 
 	closeAutocomplete(true, {}, {});
+
+	if(autofixButton != nullptr)
+		autofixButton->updatePosition();
 
 	transform = AffineTransform::scale(viewScaleFactor).translated(translation.x, translation.y);
 	highlight.setViewTransform(transform);
@@ -1503,7 +1822,10 @@ void mcl::TextEditor::updateViewTransform()
             fe->foldMap.addLineNumbersForParentItems(currentTitles, rows.getStart()+1);
         }        
     }
-    
+
+	for(auto ipv: inplaceDebugValueComponents)
+		ipv->updatePosition();
+
     repaint();
 }
 
@@ -1584,6 +1906,9 @@ void mcl::TextEditor::resized()
     {
         currentSearchBox->setBounds(getLocalBounds().removeFromBottom(document.getRowHeight() * transform.getScaleFactor() * 1.2f + 5));
     }
+
+	for(auto p: inplaceDebugValueComponents)
+		p->updatePosition();
 }
 
 void mcl::TextEditor::paint (Graphics& g)
@@ -1656,36 +1981,27 @@ void mcl::TextEditor::paint (Graphics& g)
 		g.fillRect(b);
 	}
     
-    Array<LanguageManager::InplaceDebugValue> inplaceDebugValues;
-    
-    if(languageManager != nullptr && languageManager->getInplaceDebugValues(inplaceDebugValues))
-    {
-        for(const auto& ip: inplaceDebugValues)
-        {
-			auto line = ip.location.getLineNumber();
-			auto col = ip.location.getIndexInLine();
-
-            auto b = document.getBoundsOnRow(line, {col, col+1}, GlyphArrangementArray::ReturnBeyondLastCharacter).getRectangle(0);
-            
-            b = b.translated(document.getCharacterRectangle().getWidth() * 1.0f, 0.0f);
-            
-            auto area = b.transformed(transform).withRight(getWidth());
-            auto vf = document.getFont().withHeight(document.getFontHeight() * viewScaleFactor * 0.7f);
-            g.setFont(vf);
-            g.setColour(Colours::white.withAlpha(0.05f));
-            
-            auto r = area;
-            r = r.removeFromLeft(vf.getStringWidthFloat(ip.value) + 20.0f);
-            
-            g.fillRoundedRectangle(r, r.getHeight() / 2.0f);
-            
-            g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.5f));
-            g.drawText(ip.value, area.reduced(10.0f, 0.0f), Justification::left);
-        }
-    }
-    
 	for (auto w : warnings)
 		w->paintLines(g, transform, w->isWarning ? Colours::yellow : Colours::red);
+
+	for(auto& h: heatmap)
+	{
+		auto row = h.first.getLineNumber();
+
+		auto x = document.getBoundsOnRow(row, {0, 1}, GlyphArrangementArray::OutOfBoundsMode::ReturnLastCharacter).getRectangle(0);
+		x = x.withHeight(document.getRowHeight()).reduced(0.0f, 1.0f);
+		x = x.transformedBy(transform).withWidth(getWidth());
+
+		auto alpha = std::pow((float)h.second, JUCE_LIVE_CONSTANT(2.0f));
+		FloatSanitizers::sanitizeFloatNumber(alpha);
+		alpha = jlimit(0.0f, 1.0f, alpha);
+
+		g.setColour(Colour(HISE_WARNING_COLOUR).withAlpha(alpha));
+		g.fillRect(x.removeFromLeft(3.0f));
+
+		g.setColour(Colour(HISE_WARNING_COLOUR).withAlpha(alpha * 0.1f));
+		g.fillRect(x);
+	}
 
 	if (xPos < -10.0f * transform.getScaleFactor())
 	{
@@ -1763,7 +2079,7 @@ void mcl::TextEditor::paintOverChildren (Graphics& g)
                 if (tokeniser != nullptr)
                     tokenType = tokeniser->readNextToken(it);
                 else
-                    tokenType = JavascriptTokeniserFunctions::readNextToken(it);
+                    tokenType = JavascriptTokeniser::readNextTokenStatic(it);
             
                 int now;
                 
@@ -2261,6 +2577,8 @@ void TextEditor::initKeyPresses(Component* root)
     
     TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::comment_line, "Toggle comment for line",
         KeyPress('#', ModifierKeys::commandModifier, 0));
+
+	TopLevelWindowWithKeyMappings::addShortcut(root, category, TextEditorShortcuts::beautify, "Beautify selection", KeyPress('b', ModifierKeys::commandModifier, 0));
 }
 
 struct TextEditor::DeactivatedRange
@@ -2880,7 +3198,49 @@ bool mcl::TextEditor::keyPressed (const KeyPress& key)
         
         return true;
     }
-    
+
+	if(keyMatchesId(key, TextEditorShortcuts::beautify))
+	{
+		auto s = document.getSelection(0);
+
+		Selection previous;
+		bool usePrevious = false;
+
+		if(s.isSingular())
+		{
+			usePrevious = true;
+			previous = s;
+			if(auto r = document.getFoldableLineRangeHolder().getRangeContainingLine(s.head.x))
+			{
+				auto lr = r->getLineRange();
+
+				if(lr.getLength() > 50)
+				{
+					for(auto c: r->children)
+					{
+						auto cr = c->getLineRange();
+						if(cr.contains(s.head.x))
+						{
+							lr = cr;
+							break;
+						}
+					}
+				}
+
+				s = Selection(lr.getStart(), 0, lr.getEnd(), 0);
+			}
+
+			document.setSelection(0, s, true);
+		}
+
+		auto beautified = LanguageManager::beautify(document.getSelectionContent(s));
+		insert(beautified);
+
+		if(usePrevious)
+			document.setSelection(0, previous, true);
+		return true;
+	}
+
 	if (keyMatchesId(key, TextEditorShortcuts::comment_line)) // "Cmd + #"
 	{
 		bool anythingCommented = false;
@@ -3074,7 +3434,7 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
                 if(dr->contains(cpos))
                 {
                     tokenType = JavascriptTokeniser::tokenType_deactivated;
-                    JavascriptTokeniserFunctions::readNextToken(it);
+					JavascriptTokeniser::readNextTokenStatic(it);
                     break;
                 }
             }
@@ -3084,7 +3444,7 @@ void mcl::TextEditor::renderTextUsingGlyphArrangement (juce::Graphics& g)
                 if (tokeniser != nullptr)
                     tokenType = tokeniser->readNextToken(it);
                 else
-                    tokenType = JavascriptTokeniserFunctions::readNextToken(it);
+                    tokenType = JavascriptTokeniser::readNextTokenStatic(it);
             }
 
 			Point<int> now(it.getLine(), it.getIndexInLine());

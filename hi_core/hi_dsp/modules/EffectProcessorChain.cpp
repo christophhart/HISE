@@ -270,6 +270,7 @@ void EffectProcessorChain::renderMasterEffects(AudioSampleBuffer &b)
 	for(auto mfx: masterEffects)
 	{
 		ScopedAnalyser sa(getMainController(), mfx, b, b.getNumSamples());
+		ProfiledProcessor::Profiler p(*mfx, 0);
 
 		if(!mfx->isSoftBypassed())
 			mfx->renderWholeBuffer(b);

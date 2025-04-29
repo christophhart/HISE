@@ -1209,7 +1209,7 @@ juce::Path PoolTableHelpers::Factory::createPath(const String& name) const
 	Path p;
 
 	LOAD_EPATH_IF_URL("preview", HiBinaryData::FrontendBinaryData::infoButtonShape);
-	LOAD_PATH_IF_URL("reload", ColumnIcons::moveIcon);
+	LOAD_EPATH_IF_URL("reload", ColumnIcons::moveIcon);
 
 	return p;
 }

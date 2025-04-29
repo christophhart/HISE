@@ -70,6 +70,24 @@ lastClockCounter(0),
 wasPlayingInLastBuffer(false),
 bypassState(false)
 {
+	enum class ProfileEnumIds
+	{
+		ProcessBlock,
+		ProcessMidi,
+		RenderVoices,
+		RenderVoice,
+		RenderFX,
+		numProfileIds
+	};
+
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	addProfileDataSource(getId() + ".processBlock()")->colour = Colour(0xFF888888);
+	addProfileDataSource(getId() + ".MIDI")->colour = Colour(MIDI_PROCESSOR_COLOUR);
+	addProfileDataSource(getId() + ".Render voices", true)->colour = Colour(0xFF666666);
+	addProfileDataSource(getId() + ".voice")->colour = Colour(0xFF555555);
+	addProfileDataSource(getId() + ".Master FX")->colour = Colour(0xff3a6666);
+#endif
+
 	modChains += { this, "GainModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::GainMode};
 	modChains += { this, "PitchModulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::PitchMode};
 
@@ -531,7 +549,9 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	jassert(isOnAir());
 
     ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthRendering);
-    
+
+	Profiler p(*this, 0);
+
 	int numSamples = outputBuffer.getNumSamples();
 
 	const int numSamplesFixed = numSamples;
@@ -544,9 +564,10 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 	
 	initRenderCallback();
 
-	processHiseEventBuffer(inputMidiBuffer, numSamplesFixed);
-
-	
+	{
+		Profiler mp(*this, (int)ProfileEnumIds::ProcessMidi);
+		processHiseEventBuffer(inputMidiBuffer, numSamplesFixed);
+	}
 
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
 
@@ -597,7 +618,10 @@ void ModulatorSynth::renderNextBlockWithModulators(AudioSampleBuffer& outputBuff
 		}
 	}
 
-	effectChain->renderMasterEffects(thisInternalBuffer);
+	{
+		Profiler fxp(*this, (int)ProfileEnumIds::RenderFX);
+		effectChain->renderMasterEffects(thisInternalBuffer);
+	}
 
 	for (int i = 0; i < thisInternalBuffer.getNumChannels(); i++)
 	{
@@ -628,11 +652,14 @@ void ModulatorSynth::preVoiceRendering(int startSample, int numThisTime)
 void ModulatorSynth::renderVoice(int startSample, int numThisTime)
 {
     ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthVoiceRendering);
-    
+	Profiler p(*this, (int)ProfileEnumIds::RenderVoices);
+
 	clearPendingRemoveVoices();
 
 	for (auto v : activeVoices)
 	{
+		Profiler vp(*this, (int)ProfileEnumIds::RenderVoice);
+
 		jassert(!v->isInactive());
 
 		calculateModulationValuesForVoice(v, startSample, numThisTime);

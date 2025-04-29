@@ -39,6 +39,8 @@ ModulatorSynthChain::ModulatorSynthChain(MainController *mc, const String &id, i
 	handler(this),
 	vuValue(0.0f)
 {
+	PROFILE_ONLY(addProfileDataSource("render children")->colour = Colour(0xFF888888));
+
 	finaliseModChains();
 
 	FactoryType *t = new ModulatorSynthChainFactoryType(numVoices, this);
@@ -258,6 +260,8 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	ADD_GLITCH_DETECTOR(this, DebugLogger::Location::SynthChainRendering);
 
+	Profiler p(*this, 0);
+
     auto isRoot = getMainController()->getMainSynthChain() == this;
     
 	if (isRoot && !activeChannels.areAllChannelsEnabled())
@@ -309,7 +313,10 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 #else
 
-	processHiseEventBuffer(inputMidiBuffer, numSamples);
+	{
+		Profiler mp(*this, (int)ProfileEnumIds::ProcessMidi);
+		processHiseEventBuffer(inputMidiBuffer, numSamples);
+	}
 
 	if (ownedUniformVoiceHandler != nullptr)
         ownedUniformVoiceHandler->processEventBuffer(inputMidiBuffer);
@@ -336,14 +343,20 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	ScopedAnalyser sa(getMainController(), this, internalBuffer, buffer.getNumSamples());
 
-	// Process the Synths and add store their output in the internal buffer
-	for (int i = 0; i < synths.size(); i++)
-    {
-		ScopedAnalyser sa(getMainController(), synths[i], internalBuffer, internalBuffer.getNumSamples());
+	{
+		Profiler cp(*this, (int)ProfileEnumIds::RenderChildSynths);
 
-        if (!synths[i]->isSoftBypassed())
-            synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
-    }
+		// Process the Synths and add store their output in the internal buffer
+		for (int i = 0; i < synths.size(); i++)
+	    {
+			ScopedAnalyser sa(getMainController(), synths[i], internalBuffer, internalBuffer.getNumSamples());
+
+	        if (!synths[i]->isSoftBypassed())
+	            synths[i]->renderNextBlockWithModulators(internalBuffer, eventBuffer);
+	    }
+	}
+
+	
 
 	HiseEventBuffer::Iterator eventIterator(eventBuffer);
 
@@ -361,7 +374,10 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 
 	postVoiceRendering(0, numSamples);
 
-	effectChain->renderMasterEffects(internalBuffer);
+	{
+		Profiler fxp(*this, (int)ProfileEnumIds::RenderFX);
+		effectChain->renderMasterEffects(internalBuffer);
+	}
 
 	if (internalBuffer.getNumChannels() != 2 || 
 		getMatrix().getConnectionForSourceChannel(0) != 0 ||
@@ -510,6 +526,26 @@ bool ModulatorSynthChain::areVoicesActive() const
 	}
 		
 	return effectChain->hasTailingMasterEffects();
+}
+
+void ModulatorSynthChain::onProfileEnableChange()
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	if(getMainController()->getMainSynthChain() == this)
+	{
+		Processor::Iterator<ProfiledProcessor> iter(this);
+		auto& session = getMainController()->getDebugSession();
+		int index = 0;
+
+		while(auto p = iter.getNextProcessor())
+		{
+			if(p == this)
+				continue;
+
+			p->setEnableProfiling(isProfiling(), &session, index++);
+		}
+	}
+#endif
 }
 
 

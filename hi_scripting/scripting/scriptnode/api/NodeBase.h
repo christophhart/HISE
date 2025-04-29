@@ -51,7 +51,7 @@ struct HelpManager : ControlledObject,
 	Path createPath(const String& id) const override
 	{
 		Path path;
-		path.loadPathFromData (ColumnIcons::commentIcon, sizeof(ColumnIcons::commentIcon));
+		path.loadPathFromData (ColumnIcons::commentIcon, SIZE_OF_PATH(ColumnIcons::commentIcon));
 		return path;
 	}
 
@@ -278,6 +278,8 @@ public:
 		Range<double> enabledRange;
 		String prevId;
 	};
+
+	DebugSession::ProfileDataSource::Ptr profileData;
 
 	NodeBase(DspNetwork* rootNetwork, ValueTree data, int numConstants);;
 	virtual ~NodeBase();
@@ -526,8 +528,6 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(NodeBase);
 };
 
-#define ENABLE_NODE_PROFILING 1
-
 struct DummyNodeProfiler
 {
 	DummyNodeProfiler(NodeBase* unused, int unused2)
@@ -562,25 +562,6 @@ struct FrameDataPeakChecker
 	NodeBase& p;
 	dyn<float> b;
 };
-
-struct RealNodeProfiler
-{
-	RealNodeProfiler(NodeBase* n, int numSamples);
-
-	~RealNodeProfiler();
-
-	NodeBase* node;
-	bool enabled;
-	double& profileFlag;
-	double start;
-	const int numSamples;
-};
-
-#if ENABLE_NODE_PROFILING
-using NodeProfiler = RealNodeProfiler;
-#else
-using NodeProfiler = DummyNodeProfiler;
-#endif
 
 struct ConnectionSourceManager
 {

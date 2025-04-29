@@ -247,7 +247,7 @@ inline Path MainTopBar::ClickablePeakMeter::PopupComponent::createPath(const Str
 	Path p;
 
 	LOAD_EPATH_IF_URL("freeze", HnodeIcons::freezeIcon);
-	LOAD_PATH_IF_URL("edit", ColumnIcons::threeDots);
+	LOAD_EPATH_IF_URL("edit", ColumnIcons::threeDots);
 	LOAD_EPATH_IF_URL("channels", HiBinaryData::SpecialSymbols::routingIcon);
 
 	return p;

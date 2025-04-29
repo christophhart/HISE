@@ -97,6 +97,9 @@ public:
 	void addError(NodeBase* n, Error e, const String& errorMessage = {});
 
 	void removeError(NodeBase* n, Error::ErrorCode errorToRemove=Error::numErrorCodes);
+	bool canBeAutofixed(NodeBase* node, Error error);
+
+	void autofix(NodeBase* node);
 
 	static String getErrorMessage(Error e);
 
@@ -105,6 +108,8 @@ public:
 	LambdaBroadcaster<NodeBase*, Error> errorBroadcaster;
 
 private:
+
+	bool autofixInternal(NodeBase* n, Error::ErrorCode code);
 
 	String customErrorMessage;
 	Array<Item> items;
@@ -242,7 +247,9 @@ public:
 	DspNetwork(ProcessorWithScriptingContent* p, ValueTree data, bool isPolyphonic, ExternalDataHolder* dataHolder=nullptr);
 	~DspNetwork();
 
-    /** The faust manager will handle the IDE editing features by sending out compilation and selection messages to its registered listeners. */
+	
+
+	/** The faust manager will handle the IDE editing features by sending out compilation and selection messages to its registered listeners. */
     struct FaustManager
     {
         struct FaustListener
@@ -515,11 +522,7 @@ public:
 	/** Undo the last action. */
 	bool undo();
 
-	void checkValid() const
-	{
-		if (parentHolder == nullptr)
-			reportScriptError("Parent of DSP Network is deleted");
-	}
+	void checkValid() const;
 
 	bool isBeingDebugged() const;
 
@@ -553,10 +556,9 @@ public:
 
     bool isInitialised() const noexcept { return initialised; };
 
-	bool isForwardingControlsToParameters() const
-	{
-		return forwardControls;
-	}
+	bool isForwardingControlsToParameters() const;
+
+	bool checkAllowCompilationFlag(NodeBase* n, bool requiredValue);
 
 	PrepareSpecs getCurrentSpecs() const { return currentSpecs; }
 

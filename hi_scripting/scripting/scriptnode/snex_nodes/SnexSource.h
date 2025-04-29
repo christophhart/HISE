@@ -631,6 +631,16 @@ public:
 
 	void debugModeChanged(bool isEnabled) override;
 
+	bool checkAllowCompilation()
+	{
+		if(parentNode != nullptr)
+		{
+			return parentNode->getRootNetwork()->checkAllowCompilationFlag(parentNode, true);
+		}
+
+		return false;
+	}
+
 	SimpleRingBuffer::Ptr getMainDisplayBuffer()
 	{
 		if (mainDisplayBuffer == nullptr)

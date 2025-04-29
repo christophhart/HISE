@@ -113,7 +113,7 @@ ProcessorEditorHeader::ProcessorEditorHeader(ProcessorEditor *p) :
 
 	addAndMakeVisible(workspaceButton = new ShapeButton("Workspace", drawColour, drawColour, drawColour));
     Path workspacePath;
-    workspacePath.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
+    workspacePath.loadPathFromData(ColumnIcons::openWorkspaceIcon, ColumnIcons::openWorkspaceIcon_Size);
 	workspaceButton->setShape(workspacePath, true, true, true);
 	workspaceButton->addListener(this);
 	workspaceButton->setToggleState(true, dontSendNotification);

@@ -95,6 +95,7 @@ public:
 		Type type;
 		bool holdsLock;
 		CriticalSection const* lock;
+		DebugSession::ProfileDataSource::Profiler waitProfiler, lockProfiler;
 	};
 
 	struct BadLockException

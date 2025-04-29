@@ -285,6 +285,14 @@ scriptnode::DspNetwork* DspNetworkCompileExporter::getNetwork()
 
 void DspNetworkCompileExporter::run()
 {
+	ok = setupHisePath();
+
+	if(ok != CompileExporter::ErrorCodes::OK)
+	{
+		errorMessage << "Can't find HISE path";
+		return;
+	}
+
 	auto n = getNetwork();
 
 	if(managerToUse != nullptr && !skipCompilation)
@@ -636,8 +644,6 @@ void DspNetworkCompileExporter::run()
 		}
 	}
 	
-	hisePath = File(GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Compiler::HisePath));
-
 	createProjucerFile();
 
 	for (auto l : getSourceDirectory(true).findChildFiles(File::findFiles, true, "*.h"))

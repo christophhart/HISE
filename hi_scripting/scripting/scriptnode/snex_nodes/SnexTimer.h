@@ -291,6 +291,9 @@ struct snex_timer : public OptionalSnexSource
 	void prepare(PrepareSpecs ps)
 	{
 #if HISE_INCLUDE_SNEX
+		if(currentMode == TimerMode::Custom && !checkAllowCompilation())
+			return;
+
 		rebuildCallbacksAfterChannelChange(ps.numChannels);
 #endif
 		

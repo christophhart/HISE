@@ -86,6 +86,7 @@ struct connection
     void* connectFunction = nullptr;
     void* disconnectFunction = nullptr;
     void* sendBackFunction = nullptr;
+    void* sendBackDataFunction = nullptr;
     source_base* source = nullptr;
     
     void clear();
@@ -108,6 +109,7 @@ template <typename MessageType> struct target_base
 {
     virtual ~target_base() {};
     virtual void onValue(MessageType value) = 0;
+    virtual void onData(const void* data, size_t numBytes) { ignoreUnused(data); ignoreUnused(numBytes); };
 };
 
 /** A simple POD with a type index and a hash as well
@@ -122,6 +124,7 @@ template <typename MessageType> struct typed_connection: public connection
         connectFunction = other.connectFunction;
         disconnectFunction = other.disconnectFunction;
         sendBackFunction = other.sendBackFunction;
+        sendBackDataFunction = other.sendBackDataFunction;
         return *this;
     }
     
@@ -133,6 +136,16 @@ template <typename MessageType> struct typed_connection: public connection
             auto tf = (TypedFunction)this->sendBackFunction;
             tf(this->source, t);
         }
+    }
+
+    void sendDataToSource(void* data, size_t numBytes)
+    {
+	    if(this->source != nullptr)
+	    {
+		    typedef void(*TypedFunction)(source_base*, void*, size_t);
+            auto tf = (TypedFunction)this->sendBackDataFunction;
+            tf(this->source, data, numBytes);
+	    }
     }
     
     template <bool Add> bool connect(target_base<MessageType>* obj)
@@ -206,9 +219,17 @@ public target_base<MessageType>
     {
         currentConnection.sendValueToSource(v);
     }
+
+    bool sendDataToSource(void* data, size_t numBytes)
+    {
+	    currentConnection.sendDataToSource(data, numBytes);
+        return isConnected();
+    }
     
     IndexSetter& getIndex() { return index; }
-    
+
+    bool isConnected() const { return (bool)currentConnection; }
+
 protected:
     
     TypedConnection currentConnection;

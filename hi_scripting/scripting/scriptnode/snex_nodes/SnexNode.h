@@ -279,6 +279,9 @@ struct snex_node : public SnexSource
     /** This function will be called whenever the processing specifications change. You can use this to setup your processing. */
 	void prepare(PrepareSpecs ps)
 	{
+		if(!checkAllowCompilation())
+			return;
+
 		rebuildCallbacksAfterChannelChange(ps.numChannels);
 		callbacks.prepare(ps);
 	}

@@ -49,6 +49,11 @@ RingBufferComponentBase* Helpers::FFT::createComponent()
 
 void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 {
+	openTrackEvent();
+
+
+	
+
 	resizeBuffers(b.getNumSamples());
 
 	int size = removeOverlap(b.getNumSamples());
@@ -160,6 +165,10 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 
 juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double) const
 {
+
+	PropertyObject::ScopedPathProfiler pp(*this);
+
+
     Path lPath;
 
 	auto data = buffer->getReadBuffer().getReadPointer(0);
@@ -334,6 +343,8 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 
 juce::Path Helpers::Oscilloscope::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double startValue) const
 {
+	ScopedPathProfiler sp(*this);
+
 	bool isStereo = buffer->getReadBuffer().getNumChannels() == 2;
 
 	Path p;

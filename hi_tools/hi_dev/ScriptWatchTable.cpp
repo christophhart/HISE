@@ -1284,7 +1284,8 @@ ScriptWatchTable::Info::Info(DebugInformationBase::Ptr di, Info* p_, int l /*= 0
 	for (int i = 0; i < level; i++)
 		ws << " ";
 
-	name = DebugInformationBase::replaceParentWildcard(name, parent->name);
+	if(parent != nullptr)
+		name = DebugInformationBase::replaceParentWildcard(name, parent->name);
 
 	name = ws + name.trim();
 	

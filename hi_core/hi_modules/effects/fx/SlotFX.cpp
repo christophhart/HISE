@@ -332,7 +332,7 @@ public:
 
 			auto ta = selector.getBoundsInParent().translated(0, 20);
 			
-			g.drawText("ERROR: " + errorMessage, ta, Justification::centred);
+			g.drawMultiLineText("ERROR: " + errorMessage, ta.getX(), ta.getY() + 15, ta.getWidth());
 		}
 
 	}
@@ -1197,8 +1197,9 @@ HardcodedMasterFX::HardcodedMasterFX(MainController* mc, const String& uid) :
 	MasterEffectProcessor(mc, uid),
 	HardcodedSwappableEffect(mc, false)
 {
-#if NUM_HARDCODED_FX_MODS
-	for (int i = 0; i < NUM_HARDCODED_FX_MODS; i++)
+	auto numHardcodedFXSlots = HISE_GET_PREPROCESSOR(getMainController(), NUM_HARDCODED_FX_MODS);
+
+	for (int i = 0; i < numHardcodedFXSlots; i++)
 	{
 		String p;
 		p << "P" << String(i + 1) << " Modulation";
@@ -1207,11 +1208,8 @@ HardcodedMasterFX::HardcodedMasterFX(MainController* mc, const String& uid) :
 
 	finaliseModChains();
 
-	for (int i = 0; i < NUM_HARDCODED_FX_MODS; i++)
-		paramModulation[i] = modChains[i].getChain();
-#else
-	finaliseModChains();
-#endif
+	for (int i = 0; i < numHardcodedFXSlots; i++)
+		paramModulation.push_back(modChains[i].getChain());
 
 	getMatrix().setNumAllowedConnections(NUM_MAX_CHANNELS);
 	connectionChanged();
@@ -1282,10 +1280,20 @@ void HardcodedMasterFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 
+#if USE_BACKEND
+    auto numSlots = HISE_GET_PREPROCESSOR(getMainController(), NUM_HARDCODED_FX_MODS);
+
+	if(numSlots != getNumChildProcessors())
+	{
+		errorBroadcaster.sendMessage(sendNotificationAsync, "NUM_HARDCODED_FX_MODS has changed. Reload this effect.");
+		channelCountMatches = false;
+		return ;
+	}
+#endif
+
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
 	auto ok = prepareOpaqueNode(opaqueNode.get());
-
 	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
 }
 
@@ -1305,12 +1313,15 @@ void HardcodedMasterFX::applyEffect(AudioSampleBuffer &b, int startSample, int n
 {
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
-#if NUM_HARDCODED_FX_MODS
-	float modValues[NUM_HARDCODED_FX_MODS];
+#if USE_BACKEND
+	auto useMods = !paramModulation.empty();
+#else
+	constexpr auto useMods = NUM_HARDCODED_FX_MODS > 0;
+#endif
 
-	if (opaqueNode != nullptr)
+	if(useMods && opaqueNode != nullptr)
 	{
-		int numParametersToModulate = jmin(NUM_HARDCODED_FX_MODS, opaqueNode->numParameters);
+		int numParametersToModulate = jmin((int)paramModulation.size(), opaqueNode->numParameters);
 
 		for (int i = 0; i < numParametersToModulate; i++)
 		{
@@ -1342,9 +1353,10 @@ void HardcodedMasterFX::applyEffect(AudioSampleBuffer &b, int startSample, int n
 		}
 	}
 
-#endif
-
 	auto canBeSuspended = isSuspendedOnSilence();
+
+	if(getMainController()->getSampleManager().isNonRealtime())
+		canBeSuspended = false;
 
 	if (canBeSuspended)
 	{
@@ -1517,8 +1529,9 @@ HardcodedPolyphonicFX::HardcodedPolyphonicFX(MainController *mc, const String &u
 {
 	polyHandler.setVoiceResetter(this);
 
-#if NUM_HARDCODED_POLY_FX_MODS
-	for (int i = 0; i < NUM_HARDCODED_POLY_FX_MODS; i++)
+	auto numMods = HISE_GET_PREPROCESSOR(mc, NUM_HARDCODED_POLY_FX_MODS);
+
+	for (int i = 0; i < numMods; i++)
 	{
 		String p;
 		p << "P" << String(i + 1) << " Modulation";
@@ -1527,11 +1540,8 @@ HardcodedPolyphonicFX::HardcodedPolyphonicFX(MainController *mc, const String &u
 
 	finaliseModChains();
 
-	for (int i = 0; i < NUM_HARDCODED_POLY_FX_MODS; i++)
-		paramModulation[i] = modChains[i].getChain();
-#else
-	finaliseModChains();
-#endif
+	for (int i = 0; i < numMods; i++)
+		paramModulation.push_back(modChains[i].getChain());
 	
 	getMatrix().setNumAllowedConnections(NUM_MAX_CHANNELS);
 	getMatrix().init();
@@ -1596,6 +1606,17 @@ hise::ProcessorEditorBody * HardcodedPolyphonicFX::createEditor(ProcessorEditor 
 
 void HardcodedPolyphonicFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+#if USE_BACKEND
+	auto numMods = HISE_GET_PREPROCESSOR(getMainController(), NUM_HARDCODED_POLY_FX_MODS);
+
+	if(numMods != paramModulation.size())
+	{
+		errorBroadcaster.sendMessage(sendNotificationAsync, "NUM_HARDCODED_POLY_FX_MODS has changed. Reload this effect");
+		channelCountMatches = false;
+		return;
+	}
+#endif
+
 	auto samplesToUse = jmin(samplesPerBlock, HARDCODED_POLY_FX_BLOCKSIZE);
 
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesToUse);
@@ -1629,9 +1650,14 @@ void HardcodedPolyphonicFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, in
 
 	bool ok = true;
 
-#if !NUM_HARDCODED_POLY_FX_MODS
-	blockSize = numSamples;
+#if USE_BACKEND
+	const auto useMods = !paramModulation.empty();
+#else
+	constexpr auto useMods = NUM_HARDCODED_POLY_FX_MODS > 0;
 #endif
+
+	if(!useMods)
+		blockSize = numSamples;
 
 	auto numToDo = numSamples;
 
@@ -1639,13 +1665,9 @@ void HardcodedPolyphonicFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, in
 	{
 		auto numThisTime = jmin(numToDo, blockSize);
 
-#if NUM_HARDCODED_POLY_FX_MODS
-
-		float modValues[NUM_HARDCODED_POLY_FX_MODS];
-
-		if (opaqueNode != nullptr)
+		if (opaqueNode != nullptr && useMods)
 		{
-			int numParametersToModulate = jmin(NUM_HARDCODED_POLY_FX_MODS, opaqueNode->numParameters);
+			int numParametersToModulate = jmin((int)paramModulation.size(), opaqueNode->numParameters);
 
 			for (int i = 0; i < numParametersToModulate; i++)
 			{
@@ -1677,15 +1699,11 @@ void HardcodedPolyphonicFX::applyEffect(int voiceIndex, AudioSampleBuffer &b, in
 			}
 		}
 
-	#endif
-		
 		ok &= processHardcoded(b, nullptr, startSample, numThisTime);
 
 		startSample += numThisTime;
 		numToDo -= numThisTime;
 	}
-
-
 
 	getMatrix().handleDisplayValues(b, b, false);
 
@@ -1706,9 +1724,14 @@ void HardcodedPolyphonicFX::renderData(ProcessDataDyn& data)
 
 void HardcodedPolyphonicFX::handleHiseEvent(const HiseEvent& m)
 {
-#if NUM_HARDCODED_POLY_FX_MODS
-	VoiceEffectProcessor::handleHiseEvent(m);
+#if USE_BACKEND
+	const auto useMods = !paramModulation.empty();
+#else
+	constexpr auto useMods = NUM_HARDCODED_POLY_FX_MODS > 0;
 #endif
+
+	if(useMods)
+		VoiceEffectProcessor::handleHiseEvent(m);
 
 	// Already handled...
 	if(m.isNoteOn())
@@ -1720,9 +1743,14 @@ void HardcodedPolyphonicFX::handleHiseEvent(const HiseEvent& m)
 
 void HardcodedPolyphonicFX::renderVoice(int voiceIndex, AudioSampleBuffer& b, int startSample, int numSamples)
 {
-#if NUM_HARDCODED_POLY_FX_MODS
-	preVoiceRendering(voiceIndex, startSample, numSamples);
+#if USE_BACKEND
+	const auto useMods = !paramModulation.empty();
+#else
+	constexpr auto useMods = NUM_HARDCODED_POLY_FX_MODS > 0;
 #endif
+
+	if(useMods)
+		preVoiceRendering(voiceIndex, startSample, numSamples);
 
 	applyEffect(voiceIndex, b, startSample, numSamples);
 }

@@ -39,7 +39,16 @@ using namespace hise;
 using namespace juce;
 
 
-
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+struct NodeProfiler: public DebugSession::ProfileDataSource::ScopedProfiler
+{
+	NodeProfiler(NodeBase* n, int numSamples_) :
+	  ScopedProfiler(n->getRootNetwork()->getCpuProfileFlag() ? n->profileData : nullptr, dynamic_cast<ApiProviderBase::Holder*>(n->getScriptProcessor()))
+	{}
+};
+#else
+using NodeProfiler = DummyNodeProfiler;
+#endif
 
 
 
@@ -166,6 +175,8 @@ public:
 		HiseShapeButton powerButton;
 		HiseShapeButton deleteButton;
 		HiseShapeButton parameterButton;
+
+		TextButton autofixButton;
 
 		bool isDragging = false;
 

@@ -26,7 +26,7 @@
 namespace juce
 {
 
-#if PERFETTO
+#if PERFETTO || ENABLE_HISE_PROFILER
 #define VIRTUAL_IF_PERFETTO(x) protected: virtual x private:
 #else
 #define VIRTUAL_IF_PERFETTO(x) x
@@ -2638,7 +2638,7 @@ private:
     void internalRepaintUnchecked (Rectangle<int>, bool);
     Component* removeChildComponent (int index, bool sendParentEvents, bool sendChildEvents);
     void reorderChildInternal (int sourceIndex, int destIndex);
-    VIRTUAL_IF_PERFETTO(void paintComponentAndChildren(Graphics&););
+    void paintChildComponents(Graphics& g, Rectangle<int> clipBounds);
     void paintWithinParentContext (Graphics&);
     void sendMovedResizedMessages (bool wasMoved, bool wasResized);
     void sendMovedResizedMessagesIfPending();
@@ -2650,7 +2650,7 @@ private:
     void sendEnablementChangeMessage();
     void sendVisibilityChangeMessage();
 
-    VIRTUAL_IF_PERFETTO(void paintChildComponents(Graphics& g, Rectangle<int> clipBounds);)
+    
 
     struct ComponentHelpers;
     friend struct ComponentHelpers;
@@ -2661,6 +2661,10 @@ private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Component)
 
 protected:
+
+    virtual void paintComponentAndChildren(Graphics&);
+    
+
     //==============================================================================
     /** @internal */
     virtual ComponentPeer* createNewPeer (int styleFlags, void* nativeWindowToAttachTo);

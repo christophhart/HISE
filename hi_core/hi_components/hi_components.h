@@ -95,7 +95,6 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 
 #include "resizable_height_component/ResizableHeightComponent.h"
 
-
 #include "keyboard/CustomKeyboard.h"
 #include "plugin_components/VoiceCpuBpmComponent.h"
 #include "plugin_components/PresetBrowserComponents.h"
@@ -108,10 +107,6 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 #if USE_BACKEND
 #include "plugin_components/PluginPreviewWindow.h"
 #endif
-
-
-
-
 
 #include "floating_layout/WrapperWithMenuBar.h"
 
@@ -132,10 +127,7 @@ Set to 1 to enable all workbench tools. (This is disabled in the lightweight sne
 #include "midi_overlays/MidiLooper.h"
 #include "midi_overlays/MidiOverlayFactory.h"
 
-namespace hise {
-using namespace juce;
 
-}
 
 
 

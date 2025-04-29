@@ -695,9 +695,15 @@ struct EncodedDialogBase: public Component,
 		}
 	} factory;
 
-	void writeState(const Identifier& id, const var& value)
+	void writeState(const Identifier& id, const var& value, NotificationType n=dontSendNotification)
 	{
 		state->globalState.getDynamicObject()->setProperty(id, value);
+
+		if(n != dontSendNotification)
+		{
+			if(auto pb = dialog->findPageBaseForID(id.toString()))
+				pb->postInit();
+		}
 	}
 
 	bool keyPressed(const KeyPress& key) override

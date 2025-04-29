@@ -114,6 +114,40 @@ struct HiseJavascriptEngine::RootObject::ApiConstant : public Expression
 
 struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 {
+	struct DynamicCall
+	{
+		DynamicCall(const CodeLocation& l_, ApiClass* apiClass_, int expectedNumArguments_, int functionIndex_):
+		  l(l_),
+		  apiClass(apiClass_),
+		  numArgs(expectedNumArguments_),
+		  functionIndex(functionIndex_)
+		{}
+
+		var operator()(const var::NativeFunctionArgs& args)
+		{
+			if(args.numArguments != numArgs)
+				throw Error::fromLocation(l, "Expected num arguments: " + String(numArgs));
+
+			try
+			{
+				return apiClass->callFunction(functionIndex, const_cast<var*>(args.arguments), args.numArguments);
+			}
+			catch (String& error)
+			{
+				throw Error::fromLocation(l, error);
+			}
+
+			return var();
+		}
+
+	private:
+
+		CodeLocation l;
+		ReferenceCountedObjectPtr<ApiClass> apiClass;
+		int functionIndex;
+		int numArgs;
+	};
+
 	ApiCall(const CodeLocation &l, ApiClass *apiClass_, int expectedArguments_, int functionIndex, const VarTypeChecker::ParameterTypes& types_) noexcept:
 	Expression(l),
 		expectedNumArguments(expectedArguments_),
@@ -141,6 +175,15 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
 			argumentList[i] = nullptr;
 		}
 	};
+
+	String getProfileName() const override
+	{
+		auto s = apiClass->getObjectName().toString();
+		s << ".";
+		s << functionName;
+		s << "()";
+		return s;
+	}
 
 	var getResult(const Scope& s) const override
 	{
@@ -226,6 +269,7 @@ struct HiseJavascriptEngine::RootObject::ApiCall : public Expression
     VarTypeChecker::ParameterTypes types;
 #endif
 
+	String functionName;
 	Identifier callbackName;
 
 	const ReferenceCountedObjectPtr<ApiClass> apiClass;
@@ -253,6 +297,11 @@ struct HiseJavascriptEngine::RootObject::ConstObjectApiCall : public Expression
 		// this might be turned into a constant...
 		jassertfalse;
 		return false;
+	}
+
+	String getProfileName() const override
+	{
+		return functionName.toString() + "()";
 	}
 
 	var getResult(const Scope& s) const override
@@ -720,6 +769,11 @@ struct HiseJavascriptEngine::RootObject::InlineFunction
 		void addParameter(Expression *e)
 		{
 			parameterExpressions.add(e);
+		}
+
+		String getProfileName() const override
+		{
+			return referenceToObject->name.toString() + "()";
 		}
 
 		var getResult(const Scope& s) const override

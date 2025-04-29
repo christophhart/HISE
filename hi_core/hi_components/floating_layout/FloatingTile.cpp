@@ -580,7 +580,7 @@ FloatingTile::MoveButton::MoveButton() :
 	ShapeButton("Move", Colours::white.withAlpha(0.2f), Colours::white.withAlpha(0.8f), Colours::white)
 {
 	Path p;
-	p.loadPathFromData(ColumnIcons::moveIcon, sizeof(ColumnIcons::moveIcon));
+	p.loadPathFromData(ColumnIcons::moveIcon, SIZE_OF_PATH(ColumnIcons::moveIcon));
 
 	setShape(p, false, true, true);
 
@@ -699,10 +699,6 @@ FloatingTile::FloatingTile(MainController* mc_, FloatingTileContainer* parent, v
 	addAndMakeVisible(moveButton = new MoveButton());
 	addAndMakeVisible(foldButton = new FoldButton());
 	addAndMakeVisible(resizeButton = new ResizeButton());
-
-	//layoutIcon.loadPathFromData(ColumnIcons::layoutIcon, sizeof(ColumnIcons::layoutIcon));
-
-
 
 	setContent(data);
 }
@@ -895,9 +891,9 @@ void FloatingTile::refreshPinButton()
 	Path p;
 
 	if (layoutData.isAbsolute())
-		p.loadPathFromData(ColumnIcons::absoluteIcon, sizeof(ColumnIcons::absoluteIcon));
+		p.loadPathFromData(ColumnIcons::absoluteIcon, ColumnIcons::absoluteIcon_Size);
 	else
-		p.loadPathFromData(ColumnIcons::relativeIcon, sizeof(ColumnIcons::relativeIcon));
+		p.loadPathFromData(ColumnIcons::relativeIcon, ColumnIcons::relativeIcon_Size);
 	
 	resizeButton->setShape(p, false, true, true);
 }
@@ -1207,7 +1203,7 @@ void FloatingTile::paintOverChildren(Graphics& g)
 		{
 			Path layoutPath;
 
-			layoutPath.loadPathFromData(ColumnIcons::layoutIcon, sizeof(ColumnIcons::layoutIcon));
+			layoutPath.loadPathFromData(ColumnIcons::layoutIcon, ColumnIcons::layoutIcon_Size);
 
 			g.setColour(Colours::white.withAlpha(0.1f));
 			layoutPath.scaleToFit((float)(getWidth() - 40) / 2.0f, (float)(getHeight() - 40) / 2.0f, 40.0f, 40.0f, true);

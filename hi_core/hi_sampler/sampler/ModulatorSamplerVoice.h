@@ -109,8 +109,11 @@ public:
 	// ================================================================================================================
 
 	float getConstantCrossfadeModulationValue() const noexcept;
-
 	const float *getCrossfadeModulationValues(int startSample, int numSamples);
+
+	float getConstantGroupModulationValue() const noexcept;
+	const float *getGroupModulationValues(int startSample, int numSamples);
+
 	void setSampleStartModValue(float modValue) { sampleStartModValue = modValue; };
 	void enablePitchModulation(bool shouldBeEnabled);
 	

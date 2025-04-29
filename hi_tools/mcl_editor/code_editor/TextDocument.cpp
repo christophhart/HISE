@@ -788,6 +788,7 @@ void mcl::TextDocument::navigate(juce::Point<int>& i, Target target, Direction d
 	switch (target)
 	{
 	case Target::whitespace: while (!CF::isWhitespace(get(i)) && advance(i)) {} break;
+	case Target::nonwhitespace: while (CF::isWhitespace(get(i)) && advance(i)) {} break;
 	case Target::punctuation: while (!punctuation.containsChar(get(i)) && advance(i)) {} break;
 
 	case Target::character: advance(i); break;

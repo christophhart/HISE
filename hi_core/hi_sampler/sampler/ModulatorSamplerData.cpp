@@ -42,12 +42,16 @@ SampleMap::SampleMap(ModulatorSampler *sampler_):
 	currentPool(nullptr),
 	sampleMapId(Identifier()),
 	data("samplemap"),
+	sampleMapSource(new DebugSession::ProfileDataSource()),
 	mode(data, Identifier("SaveMode"), nullptr, 0)
 #if HISE_SAMPLER_ALLOW_RELEASE_START
 	, releaseStartOptions(new StreamingHelpers::ReleaseStartOptions())
 #endif
 {
 	data.addListener(this);
+
+	PROFILE_ONLY(sampleMapSource->sourceType = DebugSession::ProfileDataSource::SourceType::BackgroundTask);
+	
 
 	changeWatcher = new ChangeWatcher(data);
 
@@ -941,6 +945,9 @@ juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const 
 
 void SampleMap::load(const PoolReference& reference)
 {
+	PROFILE_ONLY(sampleMapSource->name = getSampler()->getId() + ".loadSampleMap()");
+	DebugSession::ProfileDataSource::ScopedProfiler sp(sampleMapSource, &sampler->getMainController()->getDebugSession());
+		
 	LockHelpers::freeToGo(sampler->getMainController());
 
 	ScopedValueSetter<bool> iterationAborter(sampler->getIterationFlag(), true);
@@ -1027,7 +1034,7 @@ void RoundRobinMap::addSample(const ModulatorSamplerSound *sample)
 	Range<int> veloRange = sample->getVelocityRange();
 	Range<int> noteRange = sample->getNoteRange();
 
-	char thisGroup = (char)sample->getRRGroup();
+	char thisGroup = (char)sample->getBitmask();
 
 	for (int i = noteRange.getStart(); i < noteRange.getEnd(); i++)
 	{

@@ -71,74 +71,7 @@ String DebugInformation::varArrayToString(const Array<var> &arrayToStringify)
 	return getArrayTextForVar(ar);
 }
 
-struct BufferViewer : public Component,
-					  public ApiProviderBase::ApiComponentBase,
-					  public Timer
-{
-	BufferViewer(DebugInformation* info, ApiProviderBase::Holder* holder_) :
-		ApiComponentBase(holder_),
-		Component("Buffer Viewer")
-	{
-		setFromDebugInformation(info);
-		addAndMakeVisible(thumbnail);
-		thumbnail.setShouldScaleVertically(true);
-		startTimer(500);
-		setSize(500, 200);
-	}
 
-    void providerCleared() override
-    {
-        bufferToUse = nullptr;
-        
-    }
-    
-	void providerWasRebuilt() override
-	{
-		if (auto p = getProviderBase())
-		{
-			for (int i = 0; i < p->getNumDebugObjects(); i++)
-			{
-				auto di = p->getDebugInformation(i);
-
-				if (di->getCodeToInsert() == codeToInsert)
-				{
-					setFromDebugInformation(dynamic_cast<DebugInformation*>(di.get()));
-					dirty = true;
-					return;
-				}
-			};
-		}
-	};
-
-	void setFromDebugInformation(DebugInformation* info)
-	{
-		if (info != nullptr)
-		{
-			codeToInsert = info->getCodeToInsert();
-			bufferToUse = info->getVariantCopy().getBuffer();
-		}
-	}
-	
-	void timerCallback() override
-	{
-		if (dirty && bufferToUse != nullptr)
-		{
-			thumbnail.setBuffer(var(bufferToUse.get()));
-			dirty = false;
-		}
-	}
-
-	void resized() override
-	{
-		thumbnail.setBounds(getLocalBounds());
-	}
-
-	bool dirty = true;
-
-	HiseAudioThumbnail thumbnail;
-	String codeToInsert;
-	WeakReference<VariantBuffer> bufferToUse;
-};
 
 
 Component* DebugInformation::createPopupComponent(const MouseEvent& e, Component* componentToNotify)
@@ -150,11 +83,9 @@ Component* DebugInformation::createPopupComponent(const MouseEvent& e, Component
 
 	var v = getVariantCopy();
 
-	if (v.isBuffer())
-	{
-#if USE_BACKEND
-
-		PanelWithProcessorConnection* pc = componentToNotify->findParentComponentOfClass<PanelWithProcessorConnection>();
+    if(BufferViewer::isArrayOrBuffer(v))
+    {
+		auto pc = componentToNotify->findParentComponentOfClass<PanelWithProcessorConnection>();
 
 		if (pc == nullptr)
 		{
@@ -182,7 +113,6 @@ Component* DebugInformation::createPopupComponent(const MouseEvent& e, Component
 			return display;
 		}
 
-#endif
 		return nullptr;
 	}
 
@@ -538,7 +468,7 @@ DebugableObject::Location DebugableObject::Helpers::getLocationFromProvider(Proc
 	return loc;
 }
 
-Component* DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p)
+Component* DebugableObject::Helpers::showProcessorEditorPopup( Component* table, Processor* p)
 {
 #if USE_BACKEND
 	if (p != nullptr)
@@ -554,7 +484,7 @@ Component* DebugableObject::Helpers::showProcessorEditorPopup(const MouseEvent& 
         return nullptr;
 	}
 #else
-	ignoreUnused(e, table, p);
+	ignoreUnused(table, p);
 	return nullptr;
 #endif
 }
@@ -703,9 +633,6 @@ String DebugInformation::getTextForDataType() const
 	}
 }
 
-const var DebugInformation::getVariantCopy() const
-{ return var(); }
-
 AttributedString DebugInformation::getDescription() const
 { return AttributedString(); }
 
@@ -778,7 +705,7 @@ String DynamicObjectDebugInformation::getTextForDataType() const
 String DynamicObjectDebugInformation::getTextForValue() const
 { return obj != nullptr ? getVarValue(obj->getProperty(id)) : ""; }
 
-const var DynamicObjectDebugInformation::getVariantCopy() const
+var DynamicObjectDebugInformation::getVariantCopy() const
 { return obj != nullptr ? obj->getProperty(id) : var(); }
 
 DebugableObjectBase* DynamicObjectDebugInformation::getObject()
@@ -844,5 +771,6 @@ hise::DebugInformationBase::Ptr DebugableObject::Helpers::getDebugInformation(De
 
 	return nullptr;
 }
+
 
 } // namespace hise

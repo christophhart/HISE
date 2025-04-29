@@ -358,6 +358,167 @@ private:
 
 };
 
+struct VoiceData
+{
+	void reset()
+	{
+		stretcher.reset();
+		uptime = 0.0;
+		lastValues.clear();
+	}
+
+	void process(ProcessDataDyn& data, float* scratchBuffer)
+	{
+		auto numInput = (int)std::ceil(data.getNumSamples() / uptimeDelta - uptime);
+
+		float* ptrs[2] = { scratchBuffer, scratchBuffer + numInput };
+
+		auto src = data.getRawDataPointers();
+
+		auto thisUptime = uptime;
+
+		for(int i = 0; i < numInput; i++)
+		{
+			auto loIndex = (int)thisUptime;
+			auto hiIndex = loIndex + 1;
+			auto alpha = (float)thisUptime - (float)loIndex;
+
+			auto ls1 = loIndex == 0 ? lastValues[0] : src[0][loIndex-1];
+			auto ls2 = loIndex == 0 ? lastValues[1] : src[1][loIndex-1];
+			auto us1 = src[0][hiIndex-1];
+			auto us2 = src[1][hiIndex-1];
+
+			ptrs[0][i] = Interpolator::interpolateLinear(ls1, us1, alpha);
+			ptrs[1][i] = Interpolator::interpolateLinear(ls2, us2, alpha);
+
+			thisUptime += uptimeDelta;
+				
+		}
+
+		lastValues[0] = src[0][data.getNumSamples()-1];
+		lastValues[1] = src[1][data.getNumSamples()-1];
+
+		stretcher.process(ptrs, numInput, src, data.getNumSamples());
+
+		uptime = std::fmod(thisUptime, 1.0);
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		stretcher.configure(ps.numChannels, ps.sampleRate);
+		stretcher.setResampleBuffer(1.0, nullptr, 0);
+	}
+
+	double uptimeDelta = 1.0;
+	double uptime = 0.0;
+	span<float, NUM_MAX_CHANNELS> lastValues;
+	time_stretcher stretcher;
+};
+
+template <int NV> class pitch_shift: public HiseDspBase,
+									 public polyphonic_base
+{
+public:
+
+	static constexpr int NumVoices = NV;
+
+	enum class Parameters
+	{
+		FreqRatio
+	};
+
+	pitch_shift():
+	  polyphonic_base(getStaticId(), false)
+	{}
+
+	DEFINE_PARAMETERS
+	{
+		DEF_PARAMETER(FreqRatio, pitch_shift);
+	}
+    SN_PARAMETER_MEMBER_FUNCTION;
+
+	SN_POLY_NODE_ID("pitch_shift");
+	SN_GET_SELF_AS_OBJECT(pitch_shift);
+	SN_DESCRIPTION("A pitch shifting node using the signalsmith timestretcher");
+	SN_EMPTY_HANDLE_EVENT;
+
+	void createParameters(ParameterDataList& data) override
+	{
+		{
+			DEFINE_PARAMETERDATA(pitch_shift, FreqRatio);
+			p.setRange({ 0.25, 4.0 });
+			p.setSkewForCentre(1.0);
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+	}
+
+	void prepare(PrepareSpecs ps)
+	{
+		lastSpecs = ps;
+		stretchers.prepare(ps);
+
+		auto numChannels = ps.numChannels;
+		auto numSamples = ps.blockSize;
+		auto numElements = numChannels * numSamples * 4;
+
+		if (numElements > resampleBuffer.size())
+			resampleBuffer.setSize(numElements);
+
+		for(auto& s: stretchers)
+			s.prepare(ps);
+
+		if(initValue != 0.0)
+		{
+			setFreqRatio(initValue);
+		}
+
+		reset();
+	}
+
+	void reset()
+	{
+		for(auto& s: stretchers)
+			s.reset();
+	}
+
+	template <typename FD> void processFrame(FD& fd)
+	{
+		jassertfalse;
+	}
+
+	template <typename PD> void process(PD& d)
+	{
+		auto& s = stretchers.get();
+
+		s.process(d.template as<ProcessDataDyn>(), resampleBuffer.begin());
+	}
+
+	void setFreqRatio(double newValue)
+	{
+		if(newValue == 0.0)
+			return;
+
+		if(resampleBuffer.isEmpty() || !lastSpecs)
+			return;
+
+		newValue = jlimit(0.25, 4.0, newValue);
+
+		for(auto& s: stretchers)
+		{
+			s.uptimeDelta = newValue;
+		}
+	}
+
+	
+
+	PrepareSpecs lastSpecs;
+	double initValue = 1.0;
+	heap<float> resampleBuffer;
+	
+	PolyData<VoiceData, NumVoices> stretchers;
+};
+
 
 template <int V> class haas : public HiseDspBase,
 							  public polyphonic_base

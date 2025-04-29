@@ -45,6 +45,7 @@ struct WebViewData : public ReferenceCountedObject
 		Uninitialised,
 		FileBased,	    ///< Uses a root directory to load the content from files using their relative path
 		Embedded,       ///< Uses a cached data object to load the content from embedded data
+		Hardcoded,
 		numServerTypes
 	};
 
@@ -53,13 +54,12 @@ struct WebViewData : public ReferenceCountedObject
 
 	WebViewData(File projectRoot);
 
+	WebViewData(const char* embeddedHTMLCode);
+
 	~WebViewData();
 
 	/** Setup an error logger that will be notified whenever a resource isn't found. */
-	void setErrorLogger(const std::function<void(const String& m)>& errorFunction)
-	{
-		errorLogger = errorFunction;
-	}
+	void setErrorLogger(const std::function<void(const String& m)>& errorFunction);
 
 	/** Adds a custom JS script to the web view. */
 	void addScript(const String& script)
@@ -103,15 +103,14 @@ struct WebViewData : public ReferenceCountedObject
 	/** Sets the root directory from where all files should be cached (and sets the mode to ServerType::FileBased). */
 	void setRootDirectory(const File& newRootDirectory);
 
+	void setHtmlContent(const String& htmlCode);
+
 	/** If set to true, a new webview will be initialised will all function calls that have been called so far. This allow
 		you to initialise a state correctly when the webview is created after the data has been initialised.
 	*/
 	void setUsePersistentCalls(bool usePersistentCalls);
 
-	void setUseScaleFactorForZoom(bool shouldApplyScaleFactorAsZoom)
-	{
-		applyScaleFactorAsZoom = shouldApplyScaleFactorAsZoom;
-	}
+	void setUseScaleFactorForZoom(bool shouldApplyScaleFactorAsZoom);
 
 	/** Clears all caches and persistent calls and (optionally) the file resource information. */
 	void reset(bool resetFileStructure=false);
@@ -164,8 +163,148 @@ struct WebViewData : public ReferenceCountedObject
     {
         debugModeEnabled = shouldBeEnabled;
     }
-    
+
+	bool hasWebViews() const { return !registeredViews.isEmpty(); }
+
+	void unloadRegisteredWebViews();
+
+	void setEnableWebsocket(int port=-1);
+
+	void sendDataToWebsocket(const Identifier& id, const void* data, size_t numBytes);
+
+	void sendStringToWebsocket(const Identifier& id, const String& message);
+
+	void addBufferToWebsocket(uint8 bufferIndex, VariantBuffer::Ptr buffer);
+
+	void updateBuffer(uint8 bufferIndex);
+
+
+
+
+	/** Attaches a callback to incoming websocket messages. */
+	bool setWebSocketCallback(const CallbackType& webSocketFunction);
+
 private:
+
+	class TCPServer
+	{
+	public:
+
+		static int createRandomPort()
+		{
+			return Random::getSystemRandom().nextInt(65536);
+		}
+
+		TCPServer(WebViewData& parent, int port);
+		~TCPServer();
+
+		int getPort() const { return serverPort; }
+
+		void start();
+		void stop(int timeout);
+		void sendData(const Identifier& id, const void* data, size_t numBytes);
+		void sendString(const Identifier& id, const String& message);
+
+		void addBuffer(uint8 bufferIndex, VariantBuffer::Ptr buffer);
+		void updateBuffer(uint8 bufferIndex);
+
+		void setDataCallback(const CallbackType& d)
+		{
+			dataCallback = d;
+		}
+
+	private:
+		
+		struct ConnectionThread: public Thread
+		{
+			ConnectionThread(TCPServer& parent_);
+
+			void run() override;
+
+			TCPServer& parent;
+		} connectionThread;
+
+		struct CommunicationThread: public Thread
+		{
+			CommunicationThread(TCPServer& parent_);
+
+			void run() override;
+
+			TCPServer& parent;
+		} communicationThread;
+
+		juce::StreamingSocket serverSocket;
+
+		OwnedArray<StreamingSocket> openConnections;
+		CriticalSection dataLock;
+		CriticalSection connectionLock;
+		WebViewData& parent;
+
+		CallbackType dataCallback;
+
+		struct Helpers;
+
+		struct Data: public ReferenceCountedObject
+		{
+			using Ptr = ReferenceCountedObjectPtr<Data>;
+			using List = ReferenceCountedArray<Data>;
+
+			using BufferList = std::map<uint8, std::pair<VariantBuffer::Ptr, Data::Ptr>>;
+
+			Data(const Identifier& id, const void* data, size_t size);
+			Data(const Identifier& id, const String& message);
+
+			bool send(StreamingSocket* socket);
+
+			void* getDataStart() const
+			{
+				auto ptr = (uint8*)mos.getData() + dataOffset;
+				return const_cast<uint8*>(ptr);
+			}
+
+			Identifier getId() const { return id; }
+
+		private:
+
+			Identifier id;
+			uint8 dataOffset;
+
+			friend class BufferSlot;
+
+			void append(bool isString, const void* data, size_t size);
+
+			MemoryOutputStream mos;
+		};
+
+		struct BufferSlot
+		{
+			using List = OwnedArray<BufferSlot>;
+
+			BufferSlot(uint8 idx, VariantBuffer::Ptr b):
+			  index(idx),
+			  buffer(b),
+			  initialSize(b->size)
+			{
+				data = new Data(String(idx), b->buffer.getReadPointer(0), initialSize * sizeof(float));
+			}
+
+			void update(StreamingSocket* socket);
+
+			int initialSize = 0;
+			Data::Ptr data;
+			VariantBuffer::Ptr buffer;
+			bool dirty = true;
+			uint8 index;
+		};
+
+		void sendInternal(Data::Ptr d);
+
+		Data::List queue;
+		BufferSlot::List buffers;
+	    int serverPort;
+	};
+
+	ScopedPointer<TCPServer> currentTcpServer;
 
 	File projectRootDirectory;
 
@@ -204,7 +343,11 @@ private:
 
 	void deregisterWebView(Component* c);
 
+	
+
 	Array<Component::SafePointer<Component>> registeredViews;
+	
+	void addEmbeddedResource(const std::string& path, const std::string& mimeType, const std::string& content);
 
 	bool enableCache = true;
 
@@ -220,50 +363,43 @@ private:
 	StringArray scripts;
 
 	Pimpl* pimpl = nullptr;
+	
+	OwnedArray<ExternalResource> embeddedResources;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WebViewData);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(WebViewData);
 };
 
-struct SorryDavid: public Component
-{
-    void paint(Graphics& g) override
-    {
-        g.fillAll(Colours::grey);
-        g.setColour(Colours::black);
-        g.drawText("Not there yet...", getLocalBounds().toFloat(), Justification::centred);
-    }
-    void doNothing(float){}
-    void doNothing(void*){};
-	void doNothing(){};
-};
+
 
 class WebViewWrapper : public Component
 {
 public:
 
-#if JUCE_WINDOWS
-	using NativeComponentType = juce::HWNDComponent;
-#define setWindowHandle setHWND
-#define resizeToFitCrossPlatform resizeToFit
-#elif JUCE_MAC
-	using NativeComponentType = juce::NSViewComponent;
-#define setWindowHandle setView
+
+#if JUCE_MAC
+using NativeUIBase = juce::NSViewComponent;
 #define resizeToFitCrossPlatform resizeToFitView
-#elif JUCE_LINUX
-    // Unfortunately I'm too stupid to figure out how to
-    // use the Linux native handle wrapper -
-    // that would be juce::XEmbedComponent
-	using NativeComponentType = SorryDavid;
-#define setWindowHandle doNothing
-#define resizeToFitCrossPlatform doNothing
+#elif JUCE_IOS
+using NativeUIBase = juce::UIViewComponent;
+#define resizeToFitCrossPlatform resizeToFitView
+#elif JUCE_WINDOWS
+using NativeUIBase = juce::HWNDComponent;
+#define resizeToFitCrossPlatform resizeToFit
+#else
+using NativeUIBase = juce::XEmbedComponent;
+#define resizeToFitCrossPlatform resized
 #endif
 
 	WebViewWrapper(WebViewData::Ptr data);
 
 	~WebViewWrapper();
 
-	void resized();
+	void unload();
 
+void resized();
+
+	void setHtml(const String& htmlCode);
     void navigateToURL(const URL& urlToOpen);
     
 	void call(const String& jsCode);
@@ -282,9 +418,11 @@ private:
 #if !JUCE_LINUX
 	ScopedPointer<choc::ui::WebView> webView;
 #endif
-	ScopedPointer<NativeComponentType> content;
+	ScopedPointer<NativeUIBase> content;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(WebViewWrapper);
+	JUCE_DECLARE_WEAK_REFERENCEABLE(WebViewWrapper);
+
 };
 
 

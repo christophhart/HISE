@@ -47,6 +47,8 @@ SourceManager::SourceManager(RootObject& r, const HashedCharPtr& typeId):
 
 	r.addTypedChild(this);
 	jassert(!typeId.isDynamic());
+
+	setEnableProfiling("UI updates: " + treeId.toString());
 }
 
 SourceManager::~SourceManager()

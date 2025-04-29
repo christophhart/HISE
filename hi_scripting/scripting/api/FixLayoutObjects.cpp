@@ -531,11 +531,13 @@ bool ObjectReference::operator==(const ObjectReference& other) const
 
 ObjectReference::ObjectReference()
 {
+	registerStreamCreator(this);
 	reset();
 }
 
 ObjectReference::ObjectReference(const ObjectReference& other)
 {
+	registerStreamCreator(this);
 	*this = other;
 }
 
@@ -854,6 +856,7 @@ struct Array::Wrapper
 Array::Array(ProcessorWithScriptingContent* s, int numElements):
 	ConstScriptingObject(s, 1)
 {
+	registerStreamCreator(this);
 	addConstant("length", numElements);
 
 	ADD_API_METHOD_1(indexOf);

@@ -189,6 +189,7 @@ private:
 	This class is driven by the SliderPackData class, which acts as data container.
 */
 class SliderPack : public Component,
+				   public ProfiledComponent,
 				   public Slider::Listener,
 				   public SliderPackData::Listener,
 				   public Timer,
@@ -257,6 +258,8 @@ public:
 	void updateSliderRange();
 
 	void updateSliders();
+
+	paintAndProfileChildren(g);
 
 #if 0
 	void changeListenerCallback(SafeChangeBroadcaster *b) override;

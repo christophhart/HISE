@@ -1,7 +1,7 @@
 {
   "StyleData": {
     "Font": "Lato Regular",
-    "BoldFont": "<Sans-Serif>",
+    "BoldFont": "Lato Regular",
     "FontSize": 18.0,
     "bgColour": 4281545523,
     "codeBgColour": 864585864,
@@ -28,7 +28,7 @@
   },
   "LayoutData": {
     "StyleSheet": "ModalPopup",
-    "Style": "#total-progress\n{\n\tdisplay: none;\n}\n\n#content\n{\n\tpadding: 50px 80px;\n}\n\nlabel\n{\n\tmin-width: 180px;\n}\n\n.top\n{\n\talign-items: flex-start;\n}",
+    "Style": "\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n.top\n{\n\talign-items: flex-start;\n}\n\n.toggle-button\n{\n\t\n\ttext-align: left;\n}\n\n#ExportType label\n{\n\tdisplay: none;\n}\n\n#showCompiledFile label\n{\n\tdisplay: none;\n}\n\n#showPluginFolder label\n{\n\tdisplay: none;\n}\n\n.stop-button\n{\n\twidth: 0px;\n\tdisplay: none;\n}\n\n.description\n{\n\twidth: 100%;\n\ttext-align: left;\n}\n\nlabel\n{\n\tmin-width: 180px;\n}\n\n#OutputFile\n{\n\twidth: 100%;\n\ttext-align: left;\n\n\tbackground: #282828;\n\tpadding: 10px 15px;\n\tborder-radius: 2px;\n\tcolor: #888;\n}\n\n.property-button\n{\n\twidth: 600px;\n\t\n}\n\n.property-button button\n{\n\tcontent: 'Toggle All';\n\t\n}\n.property-button label\n{\n\tmax-width: 170px;\n\tfont-family: monospace;\n\tfont-size: 14px;\n}\n\n.property-column\n{\n\t\n\n\tbackground-color: red;\n}\n\n.property-tags\n{\n\tpadding-left: 190px;\n}",
     "UseViewport": true,
     "ConfirmClose": true,
     "CloseMessage": "Do you want to close this popup?",
@@ -36,8 +36,6 @@
     "DialogHeight": 780
   },
   "GlobalState": {
-    "clearDLL": "true",
-    "ButtonId": 1
   },
   "Children": [
     {
@@ -60,7 +58,8 @@
                   "ID": "nodeList"
                 }
               ],
-              "Class": ".column"
+              "Class": ".column",
+              "Text": ""
             },
             {
               "Type": "List",
@@ -99,27 +98,81 @@
           "Class": ".top"
         },
         {
-          "Type": "JavascriptFunction",
-          "ID": "onInit",
-          "Code": "{BIND::onInit}"
-        },
-        {
           "Type": "MarkdownText",
           "Text": "___\n"
-        },
-        {
-          "Type": "Button",
-          "Text": "Link time optimization",
-          "ID": "enableLTO",
-          "Class": ".nolabel",
-          "Help": "Enable this if you want to test the final performance of the compiled effect. This enables Link Time Optimization (the last step in the compilation stage).\n\nIf you want to decrease the compilation time during development, you can untick this box to speed up the DLL compilation."
         },
         {
           "Type": "Button",
           "Text": "Replace script FX modules",
           "ID": "replaceScriptModules",
           "Class": ".nolabel",
-          "Help": "Tick this box if you want to replace all script FX modules which have a compileable DSP network with their hardcoded counterpart. This preserves all parameter values and complex data connections."
+          "Help": "Tick this box if you want to replace all script FX modules which have a compileable DSP network with their hardcoded counterpart. This preserves all parameter values and complex data connections.",
+          "UseInitValue": ""
+        },
+        {
+          "Type": "Button",
+          "Text": "Open DLL project in IDE",
+          "ID": "openIDE",
+          "Class": ".nolabel",
+          "Help": "Enable this if you want to use your system's IDE to write / debug the C++ code of your custom nodes.\n\nIt will point to the project file for XCode / Visual Studio that you can open to debug.",
+          "UseInitValue": ""
+        },
+        {
+          "Type": "List",
+          "Text": "C++ Node Properties",
+          "Children": [
+            {
+              "Type": "Button",
+              "Text": "IsPolyphonic",
+              "ID": "toggleIsPolyphonic",
+              "Code": "{BIND::toggleIsPolyphonic}",
+              "Class": "property-button",
+              "Help": "This flag needs to be set if your C++ node is templated with the voice amount. \n\n> If the class definition starts with `template <int NV> class ...`, then you need to add this flag.\n\nIf you don't set this flag for a node that requires this, it will lead to subsequent compilation errors of networks that embed this node.",
+              "ButtonType": "Text",
+              "UseInitValue": ""
+            },
+            {
+              "Type": "TagList",
+              "ID": "IsPolyphonic",
+              "Items": "noice 1\nnoice 2\nnoice 2\nnoice 2\nnoice 2\nnoice 2\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\n\nnoice 43\nnoice 1\nnoice 123\nnoice 125",
+              "Code": "{BIND::updateNodeProperties}",
+              "Class": ".property-tags"
+            },
+            {
+              "Type": "MarkdownText",
+              "Text": "___\n\n"
+            },
+            {
+              "Type": "Button",
+              "Text": "AllowPolyphonic",
+              "ID": "toggleAllowPolyphonic",
+              "Code": "{BIND::toggleAllowPolyphonic}",
+              "Class": "property-button",
+              "Help": "This flag needs to be set if you want to create a polyphonic version of your  C++ node to be used in a polyphonic context.\n\n> If you want to use this flag, the `IsPolyphonic` flag also needs to be set obviously.\n\nYou can deactivate this flag to reduce the compile time & binary size a little bit as it will skip the creation of the polyphonic class template.\n\n",
+              "ButtonType": "Text"
+            },
+            {
+              "Type": "TagList",
+              "ID": "AllowPolyphonic",
+              "Items": "noice 1\nnoice 2\nnoice 2\nnoice 2\nnoice 2\nnoice 2\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\nnoice 3\n\nnoice 43\nnoice 1\nnoice 123\nnoice 125",
+              "Code": "{BIND::updateNodeProperties}",
+              "Class": ".property-tags"
+            }
+          ],
+          "Foldable": true,
+          "Style": "margin-top: 20px;",
+          "Folded": true
+        },
+        {
+          "Type": "JavascriptFunction",
+          "ID": "onInit",
+          "Code": "{BIND::onInit}"
+        },
+        {
+          "Type": "JavascriptFunction",
+          "ID": "checkProperties",
+          "EventTrigger": "OnSubmit",
+          "Code": "{BIND::checkProperties}"
         }
       ],
       "Text": ""
@@ -128,9 +181,23 @@
       "Type": "List",
       "Children": [
         {
-          "Type": "SimpleText",
-          "Text": "Compilation Log:",
-          "Class": ".description"
+          "Type": "Column",
+          "Children": [
+            {
+              "Type": "SimpleText",
+              "Text": "Compilation Log:",
+              "Class": ".description"
+            },
+            {
+              "Type": "Button",
+              "Text": "Copy to clipboard",
+              "ID": "CopyButton",
+              "Code": "{BIND::onClipboard}",
+              "Style": "width: 380px;",
+              "NoLabel": true,
+              "ButtonType": "Text"
+            }
+          ]
         },
         {
           "Type": "Placeholder",

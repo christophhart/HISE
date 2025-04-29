@@ -668,7 +668,13 @@ void MainController::KillStateHandler::addThreadIdToAudioThreadList()
     
 	auto threadId = Thread::getCurrentThreadId();
 
-	audioThreads.insert(threadId);
+	PROFILE_ONLY(mc->getDebugSession().checkAudioThreadRecorders());
+
+	if(!audioThreads.contains(threadId))
+	{
+		PROFILE_ONLY(mc->getDebugSession().addAudioThread({ threadId }));
+		audioThreads.insertWithoutSearch(threadId);
+	}
 }
 
 void MainController::KillStateHandler::removeThreadIdFromAudioThreadList()

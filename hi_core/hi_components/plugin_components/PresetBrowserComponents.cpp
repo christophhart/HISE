@@ -502,9 +502,10 @@ void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::resized()
 
 	int height = (int)l.font.getHeight() * 2;
 	int y = getHeight() / 2 - height / 2;
+	int x = findParentComponentOfClass<PresetBrowserColumn>()->getFavoriteIconOffset();
 	
 	refreshShape();
-	auto r = Rectangle<int>(0, y, height, height);
+	auto r = Rectangle<int>(x, y, height, height);
 	b->setBounds(r.reduced(4));
 }
 

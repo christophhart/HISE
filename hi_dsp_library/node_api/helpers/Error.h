@@ -84,6 +84,7 @@ struct Error: public ErrorC
         IllegalPolyphony,
         IllegalMonophony,
         IllegalBypassConnection,
+        IllegalNoCompilation,
         IllegalCompilation,
         IllegalFaustNode,
         IllegalFaustChannelCount,

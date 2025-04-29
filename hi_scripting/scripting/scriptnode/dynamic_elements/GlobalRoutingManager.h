@@ -112,6 +112,8 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 
 		virtual void sendValue(double v) = 0;
 
+		virtual void sendData(const void* data, size_t numBytes) {};
+
 		virtual Path getTargetIcon() const = 0;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(CableTargetBase);
@@ -125,7 +127,12 @@ struct GlobalRoutingManager: public ReferenceCountedObject
         {
             target->onValue(v);
         }
-        
+
+		void sendData(const void* data, size_t numBytes) override
+        {
+	        target->onData(data, numBytes);
+        }
+
         runtime_target::target_base<double>* target;
     };
     
@@ -194,7 +201,9 @@ struct GlobalRoutingManager: public ReferenceCountedObject
         {
             return runtime_target::RuntimeTarget::GlobalCable;
         }
-        
+
+		static void sendDataStatic(source_base* sb, void* data, size_t numBytes);
+
         static void setValueStatic(source_base* sb, double newValue)
         {
             auto c = static_cast<Cable*>(sb);
@@ -225,6 +234,7 @@ struct GlobalRoutingManager: public ReferenceCountedObject
             c.connectFunction = (void*)connectStatic<true>;
             c.disconnectFunction = (void*)connectStatic<false>;
             c.sendBackFunction = (void*)setValueStatic;
+			c.sendBackDataFunction = (void*)sendDataStatic;
             
             return c;
         }
@@ -237,9 +247,9 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 		void addTarget(CableTargetBase* n);
 		void removeTarget(CableTargetBase* n);
 
-        
-        
-		void sendValue(CableTargetBase* source, double v);
+        void sendData(CableTargetBase* source, void* data, size_t numBytes);
+
+        void sendValue(CableTargetBase* source, double v);
 		double getLastValue() const { return lastValue; }
 
 		double lastValue = 0.0;
@@ -251,6 +261,12 @@ struct GlobalRoutingManager: public ReferenceCountedObject
             {
                 for(auto t: runtimeTargets)
                     t->onValue(v);
+            }
+
+			void sendData(const void* data, size_t numBytes) override
+            {
+	            for(auto t: runtimeTargets)
+					t->onData(data, numBytes);
             }
 
             Path getTargetIcon() const override

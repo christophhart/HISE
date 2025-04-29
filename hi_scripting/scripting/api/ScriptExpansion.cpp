@@ -56,6 +56,10 @@ struct ScriptUserPresetHandler::Wrapper
 	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, createObjectForSaveInPresetComponents);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, resetToDefaultUserPreset);
 	API_METHOD_WRAPPER_0(ScriptUserPresetHandler, createObjectForAutomationValues);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setParameterGestureCallback);
+	API_METHOD_WRAPPER_3(ScriptUserPresetHandler, sendParameterGesture);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPluginParameterGroupNames);
+	API_VOID_METHOD_WRAPPER_1(ScriptUserPresetHandler, setPluginParameterSortFunction);
 	API_VOID_METHOD_WRAPPER_0(ScriptUserPresetHandler, runTest);
 };
 
@@ -66,7 +70,8 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	postCallback(pwsc, nullptr, var(), 1),
 	postSaveCallback(pwsc, nullptr, var(), 1),
 	customLoadCallback(pwsc, nullptr, var(), 1),
-	customSaveCallback(pwsc, nullptr, var(), 1)
+	customSaveCallback(pwsc, nullptr, var(), 1),
+	parameterGestureCallback(pwsc, nullptr, var(), 2)
 {
 	getMainController()->getUserPresetHandler().addListener(this);
 
@@ -92,14 +97,15 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_0(getSecondsSinceLastPresetLoad);
 	ADD_API_METHOD_0(resetToDefaultUserPreset);
 	ADD_API_METHOD_0(runTest);
-	
+	ADD_API_METHOD_1(setParameterGestureCallback);
+	ADD_API_METHOD_1(setPluginParameterGroupNames);
+	ADD_API_METHOD_3(sendParameterGesture);
+	ADD_API_METHOD_1(setPluginParameterSortFunction);
 }
 
 ScriptUserPresetHandler::~ScriptUserPresetHandler()
 {
 	clearAttachedCallbacks();
-	
-
 	getMainController()->getUserPresetHandler().removeListener(this);
 }
 
@@ -137,6 +143,30 @@ void ScriptUserPresetHandler::loadCustomUserPreset(const var& dataObject)
 
 		if (!ok.wasOk())
 			debugError(getMainController()->getMainSynthChain(), ok.getErrorMessage());
+	}
+}
+
+void ScriptUserPresetHandler::onParameterGesture(bool startGesture, int parameterIndex)
+{
+	if(parameterGestureCallback)
+	{
+		auto jp = dynamic_cast<AudioProcessor*>(getMainController())->getParameters()[parameterIndex];
+
+		if(auto hp = dynamic_cast<HisePluginParameterBase*>(jp))
+		{
+			auto type = (int)hp->getWrappedParameter()->getType();
+			auto slotIndex = hp->getWrappedParameter()->getSlotIndex();
+
+			var args[3];
+			args[0] = type;
+			args[1] = slotIndex;
+			args[2] = startGesture;
+			var::NativeFunctionArgs a(var(this), args, 3);
+			auto ok = parameterGestureCallback.callSync(a, nullptr);
+
+			if(!ok.wasOk())
+				reportScriptError(ok.getErrorMessage());
+		}
 	}
 }
 
@@ -302,6 +332,11 @@ ScriptUserPresetHandler::AttachedCallback::AttachedCallback(ScriptUserPresetHand
 	cData->dispatcher.addValueListener(&listener, false, n);
 #endif
 
+	if(customUpdateCallback)
+		customUpdateCallback.incRefCount();
+	if(customAsyncUpdateCallback)
+		customAsyncUpdateCallback.incRefCount();
+	
 
 }
 
@@ -361,7 +396,6 @@ void ScriptUserPresetHandler::attachAutomationCallback(String automationId, var 
 			if (automationId == c->cData->id)
 			{
 				attachedCallbacks.removeObject(c);
-				debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "removing old attached callback for " + automationId);
 				break;
 			}
 		}
@@ -377,6 +411,42 @@ void ScriptUserPresetHandler::attachAutomationCallback(String automationId, var 
 	{
 		reportScriptError(automationId + " not found");
 	}
+}
+
+void ScriptUserPresetHandler::setParameterGestureCallback(var callbackFunction)
+{
+	if(HiseJavascriptEngine::isJavascriptFunction(callbackFunction))
+	{
+		parameterGestureCallback = WeakCallbackHolder(getScriptProcessor(), this, callbackFunction, 2);
+		parameterGestureCallback.incRefCount();
+		parameterGestureCallback.setHighPriority();
+	}
+}
+
+bool ScriptUserPresetHandler::sendParameterGesture(int automationType, int indexWithinType, bool gestureActive)
+{
+	auto ap = dynamic_cast<AudioProcessor*>(getScriptProcessor()->getMainController_());
+	auto fl = ap->getParameters();
+
+	auto requiredType = (HisePluginParameterBase::Type)automationType;
+
+	for(auto p: fl)
+	{
+		if(auto hp = dynamic_cast<HisePluginParameterBase*>(p))
+		{
+			if(hp->getWrappedParameter()->getType() == requiredType && hp->matchesIndex(indexWithinType))
+			{
+				if(gestureActive)
+					p->beginChangeGesture();
+				else
+					p->endChangeGesture();
+
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 void ScriptUserPresetHandler::clearAttachedCallbacks()
@@ -563,6 +633,100 @@ void ScriptUserPresetHandler::resetToDefaultUserPreset()
 		reportScriptError("You need to set a default user preset in order to user this method");
 	}
 
+}
+
+void ScriptUserPresetHandler::setPluginParameterGroupNames(var pluginParameterGroupNames)
+{
+	if(pluginParameterGroupNames.isArray())
+	{
+		StringArray sa;
+
+		for(auto& x: *pluginParameterGroupNames.getArray())
+			sa.add(x.toString());
+
+		getScriptProcessor()->getMainController_()->getUserPresetHandler().setPluginParameterGroups(sa);
+	}
+	else
+	{
+		reportScriptError("pluginParameterGroupNames must be an array of strings");
+	}
+
+	
+}
+
+void ScriptUserPresetHandler::setPluginParameterSortFunction(var customSortFunction)
+{
+	if(HiseJavascriptEngine::isJavascriptFunction(customSortFunction))
+	{
+		struct CustomSorter
+		{
+			CustomSorter(ScriptUserPresetHandler& p, var f):
+			  callback(p.getScriptProcessor(), &p, f, 2),
+			  type("type"),
+			  parameterIndex("parameterIndex"),
+			  typeIndex("typeIndex"),
+			  group("group"),
+			  name("name")
+			{
+				arg1[type] = 0;
+				arg2[type] = 0;
+				arg1[parameterIndex] = 0;
+				arg2[parameterIndex] = 0;
+				arg1[typeIndex] = 0;
+				arg2[typeIndex] = 0;
+				arg1[name] = 0;
+				arg2[name] = 0;
+				arg1[group] = 0;
+				arg2[group] = 0;
+
+				callback.incRefCount();
+			};
+
+			int operator()(HisePluginParameterBase* p1, HisePluginParameterBase* p2)
+			{
+				if(callback)
+				{
+					arg1[type] = (int)p1->getType();
+					arg2[type] = (int)p2->getType();
+					arg1[parameterIndex] = p1->getHiseParameterIndex();
+					arg2[parameterIndex] = p2->getHiseParameterIndex();
+					arg1[typeIndex] = p1->getSlotIndex();
+					arg2[typeIndex] = p2->getSlotIndex();
+					arg1[name] = p1->getHisePluginParameterName();
+					arg2[name] = p2->getHisePluginParameterName();
+					arg1[group] = p1->getHisePluginParameterGroupName();
+					arg2[group] = p2->getHisePluginParameterGroupName();
+
+					var args[2] = { arg1, arg2 };
+					var rv;
+
+					auto ok = callback.callSync(args, 2, &rv);
+
+					// If we don't return anything, assume default sorting behaviour
+					if(rv.isUndefined() || rv.isVoid())
+						return HisePluginParameterBase::defaultSort(p1, p2);
+
+					if(ok.wasOk())
+						return (int)rv;
+				}
+
+				jassertfalse;
+				return HisePluginParameterBase::defaultSort(p1, p2);
+				
+			};
+
+			Identifier type, parameterIndex, typeIndex, group, name;
+			hise::JSONObject arg1, arg2;
+
+			WeakCallbackHolder callback;
+		};
+
+		dynamic_cast<PluginParameterAudioProcessor*>(getMainController())->pluginParameterSortFunction = CustomSorter(*this, customSortFunction);
+	}
+	else
+	{
+		dynamic_cast<PluginParameterAudioProcessor*>(getMainController())->pluginParameterSortFunction = HisePluginParameterBase::defaultSort;
+	}
 }
 
 double ScriptUserPresetHandler::getSecondsSinceLastPresetLoad()

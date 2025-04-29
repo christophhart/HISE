@@ -169,7 +169,7 @@ void PanelWithProcessorConnection::paint(Graphics& g)
 		g.setColour(connected ? getProcessor()->getColour() : Colours::white.withAlpha(0.1f));
 
 		Path p;
-		p.loadPathFromData(ColumnIcons::connectionIcon, sizeof(ColumnIcons::connectionIcon));
+		p.loadPathFromData(ColumnIcons::connectionIcon, ColumnIcons::connectionIcon_Size);
 		p.scaleToFit(2.0, (float)bounds.getY() + 2.0f, 14.0f, 14.0f, true);
 		g.fillPath(p);
 	}

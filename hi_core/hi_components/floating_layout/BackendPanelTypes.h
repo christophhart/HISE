@@ -791,6 +791,90 @@ struct PoolTableSubTypes
 	using MidiFilePoolTable = ExternalFileTableBase<MidiFileReference>;
 };
 
+
+
+template <typename ContentType>  struct ProfilerFloatingTileBase: public FloatingTileContent,
+								 public Component
+{
+	SET_PANEL_NAME(ContentType::getGenericPanelId());
+
+	ProfilerFloatingTileBase(FloatingTile* parent):
+	  FloatingTileContent(parent)
+	{
+		auto& d = getMainController()->getDebugSession();
+		addAndMakeVisible(c = new ContentType(d));
+	}
+
+	void resized() override
+	{
+		c->setBounds(getParentContentBounds());
+	}
+
+	ScopedPointer<ContentType> c;
+};
+
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+struct ProfilerManager: ProfilerFloatingTileBase<DebugSession::ProfileDataSource::ViewComponents::Manager>
+{
+	ProfilerManager(FloatingTile* r):
+	  ProfilerFloatingTileBase<hise::DebugSession::ProfileDataSource::ViewComponents::Manager>(r)
+	{};
+
+	bool showTitleInPresentationMode() const override { return false; }
+
+	int getFixedHeight() const override { return DebugSession::ProfileDataSource::ViewComponents::MultiViewerMenuBarHeight; }
+};
+
+using ProfilerViewer = ProfilerFloatingTileBase<DebugSession::ProfileDataSource::ViewComponents::MultiViewer>;
+using ProfilerStatistics = ProfilerFloatingTileBase<DebugSession::ProfileDataSource::ViewComponents::StatisticsComponent>;
+#else
+
+struct DummyManager: public Component
+{
+	SET_GENERIC_PANEL_ID("ProfilerManager");
+
+	DummyManager(DebugSession&) {};
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colour(0xFF242424));
+	}
+};
+
+struct DummyViewer: public Component
+{
+	DummyViewer(DebugSession&) {};
+
+	static Identifier getGenericPanelId() { return "ProfilerViewer"; };
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colour(0xFF242424));
+
+		g.setColour(Colours::white.withAlpha(0.7f));
+		g.setFont(GLOBAL_BOLD_FONT());
+		g.drawText("Compile HISE with HISE_INCLUDE_PROFILING_TOOLKIT=1 to enable the profiler", getLocalBounds().toFloat(), Justification::centred);
+	}
+};
+
+struct DummyStatistics: public Component
+{
+	DummyStatistics(DebugSession&) {};
+
+	SET_GENERIC_PANEL_ID("ProfilerStatistics");
+
+	void paint(Graphics& g) override
+	{
+		g.fillAll(Colour(0xFF242424));
+	}
+};
+
+using ProfilerManager = ProfilerFloatingTileBase<DummyManager>;
+using ProfilerViewer = ProfilerFloatingTileBase<DummyViewer>;
+using ProfilerStatistics = ProfilerFloatingTileBase<DummyStatistics>;
+
+#endif
+
 } // namespace hise
 
 #endif  // BACKENDPANELTYPES_H_INCLUDED

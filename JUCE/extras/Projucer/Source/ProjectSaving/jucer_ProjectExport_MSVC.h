@@ -899,6 +899,10 @@ public:
                 {
                     headers.createNewChildElement ("ClInclude")->setAttribute ("Include", path.toWindowsStyle());
                 }
+                else if (path.hasFileExtension(windowsResourceFileExtension))
+                {
+	                headers.createNewChildElement ("ResourceCompile")->setAttribute ("Include", path.toWindowsStyle());
+                }
                 else if (! path.hasFileExtension (objCFileExtensions))
                 {
                     otherFiles.createNewChildElement ("None")->setAttribute ("Include", path.toWindowsStyle());
@@ -929,6 +933,8 @@ public:
                 e = headers.createNewChildElement ("ClInclude");
             else if (file.hasFileExtension (sourceFileExtensions))
                 e = cpps.createNewChildElement ("ClCompile");
+            else if (file.hasFileExtension (windowsResourceFileExtension))
+                e = otherFiles.createNewChildElement ("ResourceCompile");
             else
                 e = otherFiles.createNewChildElement ("None");
 

@@ -52,6 +52,30 @@ struct NodeBase::Wrapper
 };
 
 
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+struct DspNetworkHeatmapGenerator: public DebugSession::ProfileDataSource::HeatmapGenerator<NodeBase>
+{
+	DspNetworkHeatmapGenerator(NodeBase* rootNode):
+	  HeatmapGenerator<NodeBase>(rootNode)
+	{};
+
+	DebugSession::ProfileDataSource* getSourceFromDataType(NodeBase* d) override
+	{
+		return d->profileData.get();
+	}
+
+	int getNumChildren(NodeBase* d) const override
+	{
+		return d->getValueTree().getChildWithName(PropertyIds::Nodes).getNumChildren();
+	}
+
+	NodeBase* getChild(NodeBase* n, int index) override
+	{
+		auto children = n->getValueTree().getChildWithName(PropertyIds::Nodes);
+		return n->getRootNetwork()->getNodeForValueTree(children.getChild(index));
+	}
+};
+#endif
 
 NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) :
 	ConstScriptingObject(rootNetwork->getScriptProcessor(), 8),
@@ -59,8 +83,16 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	v_data(data_),
 	helpManager(this, data_),
 	currentId(v_data[PropertyIds::ID].toString()),	
-	subHolder(rootNetwork->getCurrentHolder())
+	subHolder(rootNetwork->getCurrentHolder()),
+	profileData(new DebugSession::ProfileDataSource())
 {
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	profileData->name = getId();
+	profileData->preferredDomain = DebugSession::ProfileDataSource::TimeDomain::CpuUsage;
+	profileData->locationString = dynamic_cast<Processor*>(getScriptProcessor())->getId() + "." + profileData->name;
+	profileData->sourceType = DebugSession::ProfileDataSource::SourceType::Scriptnode;
+#endif
+
 	if (!v_data.hasProperty(PropertyIds::Bypassed))
 		v_data.setProperty(PropertyIds::Bypassed, false, getUndoManager());
 
@@ -1796,26 +1828,7 @@ void ProcessDataPeakChecker::check(bool post)
 #endif
 }
 
-RealNodeProfiler::RealNodeProfiler(NodeBase* n, int numSamples_) :
-	enabled(n->getRootNetwork()->getCpuProfileFlag()),
-	profileFlag(n->getCpuFlag()),
-	numSamples(numSamples_),
-	node(n)
-{
-	if (enabled)
-		start = Time::getMillisecondCounterHiRes();
-}
 
-RealNodeProfiler::~RealNodeProfiler()
-{
-	if (enabled)
-	{
-		auto delta = Time::getMillisecondCounterHiRes() - start;
-		profileFlag = profileFlag * 0.9 + 0.1 * delta;
-
-		node->processProfileInfo(profileFlag, numSamples);
-	}
-}
 
 Parameter::ScopedAutomationPreserver::ScopedAutomationPreserver(NodeBase* n) :
 	parent(n)

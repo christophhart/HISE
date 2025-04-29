@@ -133,12 +133,10 @@ protected:
 
 class ObjectReference : public LayoutBase,
 						public ReferenceCountedObject,
-						public DebugableObjectBase,
-						public ObjectWithJSONConverter
+						public ObjectWithJSONConverter,
+						public DebugableObjectBase
 {
 public:
-
-	
 
 	using Ptr = ReferenceCountedObjectPtr<ObjectReference>;
 	using CompareFunction = std::function<int(Ptr, Ptr)>;
@@ -256,6 +254,21 @@ public:
 
 	DebugInformationBase* getChildElement(int index);
 
+	void writeToStream(OutputStream& os) override
+	{
+		// soon
+		jassertfalse;
+	}
+
+	static ObjectWithJSONConverter* createFromStream(InputStream& os)
+	{
+		// soon
+		jassertfalse;
+		return nullptr;
+	}
+
+	JUCE_MAKE_STREAMABLE_OBJECT(4);
+
 	struct MemberReference : public ReferenceCountedObject,
 		public AssignableObject,
 		public DebugableObjectBase
@@ -341,6 +354,20 @@ struct Array : public LayoutBase,
 	void init(LayoutBase* parentLayout);
 
 	void assign(const int index, var newValue) override;
+
+	void writeToStream(OutputStream& os) override
+	{
+		jassertfalse;
+
+	}
+
+	static ObjectWithJSONConverter* createFromStream(InputStream& os)
+	{
+		jassertfalse;
+		return nullptr;
+	}
+
+	JUCE_MAKE_STREAMABLE_OBJECT(5);
 
 	var getAssignedValue(int index) const override;
 

@@ -99,11 +99,25 @@ namespace ScriptingApiDatabase
 			return new Resolver(docRoot);
 		}
 
+		void dumpRAGFile() override
+		{
+			if(apiDump.isNotEmpty())
+			{
+				docRoot.getChildFile("scriptapidump.md").replaceWithText(apiDump);
+
+				if(exampleDump.isNotEmpty())
+					docRoot.getChildFile("exampledump.md").replaceWithText(exampleDump);
+			}
+		}
+
 		String getContent(const MarkdownLink& url) override;
 		String createMethodText(ValueTree& mv);
 		File getFileToEdit(const MarkdownLink& url) override;
 
 		SharedResourcePointer<Data> data;
+
+		String apiDump;
+		String exampleDump;
 
 		File docRoot;
 		MarkdownLink rootURL;

@@ -57,6 +57,16 @@ namespace hise { using namespace juce;
 class PluginParameterAudioProcessor  : public AudioProcessor
 {
 public:
+
+	struct ParameterPostProcessor
+	{
+		virtual ~ParameterPostProcessor() = default;
+
+		virtual void processPluginParameterTree(juce::AudioProcessorParameterGroup& parameterTree) = 0;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ParameterPostProcessor);
+	};
+
     //==============================================================================
     
 	/** You have to create and add all PluginParameters here in order to ensure compatibility with most hosts */
@@ -79,8 +89,20 @@ public:
 
 	void handleLatencyWhenBypassed(AudioSampleBuffer& buffer, MidiBuffer& );
 
-	void setScriptedPluginParameter(Identifier id, float newValue);
+	//void setScriptedPluginParameter(Identifier id, float newValue);
 	void addScriptedParameters();
+
+	void createScriptedParameters(juce::AudioProcessorParameterGroup& parameters);
+
+	void addParameterPostProcessor(ParameterPostProcessor* pp)
+	{
+		parameterPostProcessors.addIfNotAlreadyThere(pp);
+	}
+
+	void removeParameterPostProcessor(ParameterPostProcessor* pp)
+	{
+		parameterPostProcessors.removeAllInstancesOf(pp);
+	}
 
     //==============================================================================
 	const String getName() const;;
@@ -105,12 +127,18 @@ public:
 	OwnedArray<DelayLine<32768>> bypassedLatencyDelays;
 	int lastLatencySamples = 0;
 
+	std::function<int(HisePluginParameterBase*, HisePluginParameterBase*)> pluginParameterSortFunction;
+
+	Array<WeakReference<ParameterPostProcessor>> parameterPostProcessors;
+
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PluginParameterAudioProcessor)
 };
 
 
 #pragma warning (pop)
+
+
 
 } // namespace hise
 

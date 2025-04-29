@@ -345,11 +345,7 @@ struct WeakCallbackHolder : private ScriptingObject
 	/** Increases the reference count for the callback object. 
 		Use this in order to assure the liveness of the callback, but beware of leaking. 
 	*/
-	void incRefCount()
-	{
-		if(weakCallback != nullptr && weakCallback->allowRefCount())
-			anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
-	}
+	void incRefCount();
 
 	DebugInformationBase* createDebugObject(const String& n) const;
 
@@ -358,7 +354,9 @@ struct WeakCallbackHolder : private ScriptingObject
 		anonymousFunctionRef = var();
 	}
 
-	void addAsSource(DebugableObjectBase* sourceObject, const String& callbackId);
+	void addAsSource(DebugableObjectBase* sourceObject, const String& callbackId, bool lookupVariableNameLater=true);
+
+	void addProfileSources(DebugInformationBase::Ptr p);
 
 	void clear();
 
@@ -399,6 +397,8 @@ private:
 	var refCountedThisObject;
 
 	WeakReference<HiseJavascriptEngine> engineToUse;
+	ProfileCollection::ID pTrigger = -1;
+	ProfileCollection::ID pCall = -1;
 };
 
 class AssignableDotObject

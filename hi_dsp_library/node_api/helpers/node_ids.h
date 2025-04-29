@@ -257,7 +257,7 @@ struct CustomNodeProperties
 	static void setInitialised(bool allInitialised)
 	{
 		CustomNodeProperties d;
-		d.data->initialised = true;
+		d.data->initialised = allInitialised;
 	}
 
 	static bool isInitialised()
@@ -292,6 +292,21 @@ struct CustomNodeProperties
 	static String getModeNamespace(const ValueTree& nodeTree)
 	{
 		return getModeNamespace(Identifier(getIdFromValueTree(nodeTree)));
+	}
+
+	static void clearNodeProperties(const Identifier& nodeId)
+	{
+#if !HISE_NO_GUI_TOOLS
+		CustomNodeProperties d;
+
+		for(auto& l: d.data->properties)
+		{
+			if(l.value.isArray())
+			{
+				l.value.getArray()->removeAllInstancesOf(nodeId.toString());
+			}
+		}
+#endif
 	}
 
 	static void addNodeIdManually(const Identifier& nodeId, const Identifier& propId)

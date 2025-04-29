@@ -39,7 +39,7 @@ class SampleThreadPool : public Thread
 {
 public:
 
-	SampleThreadPool();
+	SampleThreadPool(void* unused);
 
 	~SampleThreadPool();
 	
@@ -73,6 +73,8 @@ public:
 
 		bool isQueued() const noexcept{ return queued.load(); };
 
+		String getName() const { return name; }
+
 	protected:
 
 		void resetJob();
@@ -98,6 +100,10 @@ public:
 	void clearPendingTasks();
 
 	void addJob(Job* jobToAdd, bool unused);
+
+	virtual void checkProfiling() {};
+
+	virtual void onProfile(Job* j, bool push);
 
 	void run() override;
 

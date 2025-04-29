@@ -368,6 +368,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_SCRIPT_PROPERTY(sId1, "saveInPreset");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(iId4, "isPluginParameter"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId, "pluginParameterName");
+	ADD_SCRIPT_PROPERTY(pId88, "pluginParameterGroup"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	ADD_SCRIPT_PROPERTY(pId828, "deferControlCallback"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
     ADD_SCRIPT_PROPERTY(pId76, "isMetaParameter");  ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(pId72, "linkedTo");			ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 	ADD_SCRIPT_PROPERTY(pId73, "automationID");		ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
@@ -395,6 +397,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	setDefaultValue(Properties::defaultValue, 0);
 	setDefaultValue(Properties::isPluginParameter, false);
 	setDefaultValue(Properties::pluginParameterName, "");
+	setDefaultValue(Properties::pluginParameterGroup, "");
+	setDefaultValue(Properties::deferControlCallback, false);
     setDefaultValue(Properties::isMetaParameter, false);
 	setDefaultValue(automationId, "");
 	setDefaultValue(Properties::linkedTo, "");
@@ -438,6 +442,15 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_1(setStyleSheetClass);
 	ADD_API_METHOD_1(setStyleSheetPseudoState);
 
+	auto& cp = base->getScriptingContent()->contentProfile;
+
+	pSetValue =        cp.add(getId() + ".setValue()"); // 0
+	pChanged =         cp.add(getId() + ".changed()"); // 1
+	pControlCallback = cp.add(getId() + ".controlCallback()"); // 2
+	pSetAttribute =    cp.add(getId() + ".setAttribute"); // 3
+	pSetProperty =     cp.add(getId() + ".set()");
+	pOnProperty =     cp.add(getId() + ".propertyChange()");
+
 	//setName(name_.toString());
 
 
@@ -457,6 +470,10 @@ StringArray ScriptingApi::Content::ScriptComponent::getOptionsFor(const Identifi
 		}
 
 		return sa;
+	}
+	if(id == getIdFor(pluginParameterGroup))
+	{
+		return getScriptProcessor()->getMainController_()->getUserPresetHandler().pluginParameterGroups;
 	}
 	else if (id == getIdFor(parentComponent))
 	{
@@ -665,6 +682,10 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 		else
 			currentAutomationData = nullptr;
 	}
+	else if (id == getIdFor(deferControlCallback))
+	{
+		defersControlCallback = (bool)newValue;
+	}
 	else if (id == getIdFor(linkedTo))
 	{
 		if (newValue.toString().isEmpty())
@@ -690,6 +711,17 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 
 		if (linkedComponent != nullptr)
 			setValue(linkedComponent->getValue());
+	}
+	else if (id == getIdFor(pluginParameterGroup))
+	{
+#if USE_BACKEND
+		auto groupName = newValue.toString();
+
+		auto ok = getScriptProcessor()->getMainController_()->getUserPresetHandler().checkPluginParameterGroupName(groupName);
+
+		if(!ok.wasOk())
+			logErrorAndContinue(ok.getErrorMessage());
+#endif
 	}
 	else if (id == getIdFor(parentComponent))
 	{
@@ -948,6 +980,28 @@ void ScriptingApi::Content::ScriptComponent::set(String propertyName, var newVal
 
 	handleScriptPropertyChange(propertyId);
 
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	auto sp = profile(pSetProperty);
+
+	if(sp)
+	{
+		auto& dh = getScriptProcessor()->getMainController_()->getDebugSession();
+
+		auto propertyTrackId = dh.openTrackEvent();
+
+		propertyTrackIds.set(propertyId, propertyTrackId);
+
+		auto ni = new DebugSession::DataItem();
+		ni->label = getName().toString();
+		auto no = new DynamicObject();
+		no->setProperty(propertyId, newValue);
+		ni->data = var(no);
+		ni->p = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+		dh.addDataItem(ni);
+	}
+#endif
+	
+
 	setScriptObjectPropertyWithChangeMessage(propertyId, newValue, parent->allowGuiCreation ? dontSendNotification : sendNotification);
 }
 
@@ -987,6 +1041,9 @@ void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
 
 void ScriptingApi::Content::ScriptComponent::changed()
 {
+	auto p = profile(pChanged);
+	openTrack(pControlCallback);
+
 	if (!parent->asyncFunctionsAllowed())
 	{
 		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Skipping changed() callback during onInit for " + getId());
@@ -1057,6 +1114,9 @@ void ScriptingApi::Content::ScriptComponent::AsyncControlCallbackSender::handleA
 
 void ScriptingApi::Content::ScriptComponent::setValue(var controlValue)
 {
+	auto sp = profile(pSetAttribute);
+	openTrack(pControlCallback);
+
 #if ENABLE_SCRIPTING_SAFE_CHECKS
     
     if (controlValue.isString())
@@ -1567,10 +1627,7 @@ var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
 {
 	Rectangle<float> ar(0.0f, 0.0f, (float)getScriptObjectProperty(Properties::width), (float)getScriptObjectProperty(Properties::height));
 	ar = ar.reduced(reduceAmount);
-
-	Array<var> b;
-	b.add(ar.getX()); b.add(ar.getY()); b.add(ar.getWidth()); b.add(ar.getHeight());
-	return var(b);
+	return ApiHelpers::getVarRectangle(ar);
 }
 
 void ScriptingApi::Content::ScriptComponent::setKeyPressCallback(var keyboardFunction)
@@ -1758,8 +1815,11 @@ juce::LookAndFeel* ScriptingApi::Content::ScriptComponent::createLocalLookAndFee
 				simple_css::Selector classType(simple_css::SelectorType::Class, propertyTree["type"].toString().toLowerCase());
 				styleSheetProperties.setProperty("class", classType.toString(), nullptr);
 			}
-			
-			return new ScriptingObjects::ScriptedLookAndFeel::CSSLaf(l, contentComponent, componentToRegister, this->propertyTree, this->styleSheetProperties);
+
+			if(l->isUsingScriptFunctions())
+				return new ScriptingObjects::ScriptedLookAndFeel::CombinedLaf(l, contentComponent, componentToRegister, this->propertyTree, this->styleSheetProperties);
+			else
+				return new ScriptingObjects::ScriptedLookAndFeel::CSSLaf(l, contentComponent, componentToRegister, this->propertyTree, this->styleSheetProperties);
 		}
 		else
 		{
@@ -1854,6 +1914,42 @@ void ScriptingApi::Content::ScriptComponent::fadeComponent(bool shouldBeVisible,
 juce::var ScriptingApi::Content::ScriptComponent::getLookAndFeelObject()
 {
 	return localLookAndFeel;
+}
+
+ProfileCollection::PS::ScopedProfiler ScriptingApi::Content::ScriptComponent::profile(ProfileCollection::ID id)
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	return getScriptProcessor()->getScriptingContent()->contentProfile.profile(id);
+#else
+	return { nullptr, nullptr };
+#endif
+}
+
+void ScriptComponent::openTrack(ProfileCollection::ID id)
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	getScriptProcessor()->getScriptingContent()->contentProfile.openTrack(id);
+#endif
+}
+
+void ScriptComponent::closeTrack(ProfileCollection::ID id)
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	getScriptProcessor()->getScriptingContent()->contentProfile.closeTrack(id);
+#endif
+}
+
+String ScriptComponent::getCSSFromLocalLookAndFeel()
+{
+	if (auto l = dynamic_cast<ScriptingObjects::ScriptedLookAndFeel*>(localLookAndFeel.getObject()))
+	{
+		if(l->isUsingCSS())
+		{
+			return l->currentStyleSheet;
+		}
+	}
+
+	return {};
 }
 
 void ScriptComponent::attachValueListener(WeakCallbackHolder::CallableObject* obj)
@@ -4014,6 +4110,22 @@ ScriptingApi::Content::ScriptPanel* ScriptingApi::Content::ScriptPanel::getSubPa
 	return childPanels[index].get();
 }
 
+void ScriptingApi::Content::ScriptPanel::changed()
+{
+	if(pluginParameterInfo.p != nullptr)
+	{
+		auto v = (float)getValue();
+		FloatSanitizers::sanitizeFloatNumber(v);
+		auto idx = getScriptProcessor()->getScriptingContent()->getComponentIndex(getName());
+		pluginParameterInfo.p->setAttribute(idx, v, dispatch::DispatchType::sendNotificationAsyncHiPriority);
+	}
+	else
+	{
+		ScriptComponent::changed();
+	}
+
+}
+
 #if HISE_INCLUDE_RLOTTIE
 bool ScriptingApi::Content::ScriptPanel::isAnimationActive() const
 { return animation != nullptr && animation->isValid(); }
@@ -4038,9 +4150,12 @@ getCursorUpdater()
 void ScriptingApi::Content::ScriptPanel::setScriptObjectPropertyWithChangeMessage(const Identifier& id, var newValue,
 	NotificationType notifyEditor)
 {
-			
-
 	ScriptComponent::setScriptObjectPropertyWithChangeMessage(id, newValue, notifyEditor);
+
+	if(id == getIdFor((int)ScriptComponent::isPluginParameter))
+	{
+		pluginParameterInfo.update(this);
+	}
 
 #if HISE_INCLUDE_RLOTTIE
 	if (id == getIdFor((int)ScriptComponent::height) ||
@@ -4265,6 +4380,12 @@ void ScriptingApi::Content::ScriptPanel::init()
 #if PERFETTO
 	setWantsCurrentLocation(true);
 #endif
+
+	auto& cp = getScriptProcessor()->getScriptingContent()->contentProfile;
+	pRepaint =      cp.add(getId() + ".repaint()");
+	pPaintRoutine = cp.add(getId() + ".paintRoutine");
+
+	pluginParameterInfo.update(this);
 }
 
 
@@ -4306,6 +4427,9 @@ void ScriptingApi::Content::ScriptPanel::repaint()
 	auto newId = getScriptProcessor()->getMainController_()->getRootDispatcher().bumpFlowCounter();
 	flowManager.openFlow(newId, "repaint ", getName(), getCurrentLocationInFunctionCall().toGotoString());
 #endif
+
+	auto p = profile(pRepaint);
+	getScriptProcessor()->getScriptingContent()->contentProfile.openTrack(pRepaint);
 
 	auto threadId = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
 
@@ -4375,11 +4499,15 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 {
 	jassert_locked_script_thread(dynamic_cast<Processor*>(getScriptProcessor())->getMainController());
 
+	auto sp = profile(pPaintRoutine);
+
 	uint64_t lastId = 0;
 
 #if PERFETTO
 	lastId = flowManager.flushAllButLastOne("paint callback", getName());
 #endif
+
+	getScriptProcessor()->getScriptingContent()->contentProfile.closeTrack(pRepaint);
 
 	const bool parentHasMovedOn = !isChildPanel && !parent->hasComponent(this);
 
@@ -4422,7 +4550,9 @@ bool ScriptingApi::Content::ScriptPanel::internalRepaintIdle(bool forceRepaint, 
 		debugError(dynamic_cast<Processor*>(getScriptProcessor()), r.getErrorMessage());
 	}
 
-	graphics->getDrawHandler().flush(lastId);
+	auto idx = getScriptProcessor()->getScriptingContent()->contentProfile.openTrack(pPaintRoutine);
+
+	graphics->getDrawHandler().flush(lastId, idx);
 
 	return true;
 }
@@ -4710,7 +4840,7 @@ void ScriptingApi::Content::ScriptPanel::setImage(String imageName, int xOffset,
 	{
 		drawHandler->beginDrawing();
 		drawHandler->addDrawAction(new ScriptedDrawActions::drawImageWithin(img, b.toFloat()));
-		drawHandler->flush(0);
+		drawHandler->flush(0, 0);
 	}
 }
 
@@ -4938,7 +5068,7 @@ void ScriptingApi::Content::ScriptPanel::setAnimationFrame(int numFrame)
 	{
 		animation->setFrame(numFrame);
 		updateAnimationData();
-		graphics->getDrawHandler().flush(0);
+		graphics->getDrawHandler().flush(0, 0);
 	}
 #else
 	reportScriptError("RLottie is disabled. Compile with HISE_INCLUDE_RLOTTIE");
@@ -5015,6 +5145,22 @@ void ScriptingApi::Content::ScriptPanel::removeAnimationListener(AnimationListen
 #if HISE_INCLUDE_RLOTTIE
 	animationListeners.removeAllInstancesOf(l);
 #endif
+}
+
+void ScriptingApi::Content::ScriptPanel::PluginParameterInfo::update(ScriptPanel* sp)
+{
+	auto sendToPluginParameter = HISE_GET_PREPROCESSOR(sp->getScriptProcessor()->getMainController_(), HISE_SEND_PANEL_CHANGED_TO_PLUGIN_PARAMETER);
+
+	if(sendToPluginParameter && sp->getScriptObjectProperty(isPluginParameter))
+	{
+		pluginParameterIndex = sp->getScriptProcessor()->getScriptingContent()->getComponentIndex(sp);
+		p = dynamic_cast<Processor*>(sp->getScriptProcessor());
+	}
+	else
+	{
+		pluginParameterIndex = -1;
+		p = nullptr;
+	}
 }
 
 hise::DebugInformationBase::Ptr ScriptingApi::Content::ScriptPanel::createChildElement(DebugWatchIndex i) const
@@ -5481,10 +5627,17 @@ struct ScriptingApi::Content::ScriptWebView::Wrapper
 	API_VOID_METHOD_WRAPPER_2(ScriptWebView, evaluate);
 	API_VOID_METHOD_WRAPPER_0(ScriptWebView, reset);
     API_VOID_METHOD_WRAPPER_1(ScriptWebView, setIndexFile);
+	API_VOID_METHOD_WRAPPER_1(ScriptWebView, setHtmlContent);
+	API_VOID_METHOD_WRAPPER_1(ScriptWebView, setEnableWebSocket);
+	API_VOID_METHOD_WRAPPER_2(ScriptWebView, sendToWebSocket);
+	API_VOID_METHOD_WRAPPER_2(ScriptWebView, addBufferToWebSocket);
+	API_VOID_METHOD_WRAPPER_1(ScriptWebView, setWebSocketCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptWebView, updateBuffer);
 };
 
 ScriptingApi::Content::ScriptWebView::ScriptWebView(ProcessorWithScriptingContent* base, Content* parentContent, Identifier webViewName, int x, int y, int width, int height):
-	ScriptComponent(base, webViewName)
+	ScriptComponent(base, webViewName),
+	webSocketCallback(base, this, var(), 1) 
 {
 	auto mc = base->getMainController_();
 
@@ -5520,6 +5673,13 @@ ScriptingApi::Content::ScriptWebView::ScriptWebView(ProcessorWithScriptingConten
 	ADD_API_METHOD_2(callFunction);
 	ADD_API_METHOD_2(evaluate);
 	ADD_API_METHOD_0(reset);
+
+	ADD_API_METHOD_1(setHtmlContent);
+	ADD_API_METHOD_1(setEnableWebSocket);
+	ADD_API_METHOD_2(sendToWebSocket);
+	ADD_API_METHOD_2(addBufferToWebSocket);
+	ADD_API_METHOD_1(updateBuffer);
+	ADD_API_METHOD_1(setWebSocketCallback);
 }
 
 hise::ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptWebView::createComponentWrapper(ScriptContentComponent *content, int index)
@@ -5592,6 +5752,28 @@ juce::var ScriptingApi::Content::ScriptWebView::HiseScriptCallback::operator()(c
 	return {};
 }
 
+void ScriptingApi::Content::ScriptWebView::preRecompileCallback()
+{
+	if(data->hasWebViews())
+	{
+		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Clearing webviews...");
+
+		SafeAsyncCall::call<WebViewData>(*data, [](WebViewData& d)
+		{
+			d.unloadRegisteredWebViews();
+		});
+
+		auto t = Thread::getCurrentThread();
+
+		while(!t->threadShouldExit() && data->hasWebViews())
+		{
+			t->sleep(10);
+		}
+
+		debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), "Done");
+	}
+}
+
 void ScriptingApi::Content::ScriptWebView::bindCallback(const String& callbackId, const var& functionToCall)
 {
 	data->addCallback(callbackId, HiseScriptCallback(this, callbackId, functionToCall));
@@ -5605,6 +5787,63 @@ void ScriptingApi::Content::ScriptWebView::evaluate(const String& uid, const Str
 	{
 		copy->evaluate(uid, jsCode);
 	});
+}
+
+void ScriptingApi::Content::ScriptWebView::setHtmlContent(const String& htmlCode)
+{
+	data->setHtmlContent(htmlCode);
+}
+
+void ScriptingApi::Content::ScriptWebView::setEnableWebSocket(int port)
+{
+	data->setEnableWebsocket(port);
+}
+
+void ScriptingApi::Content::ScriptWebView::sendToWebSocket(String id, var nd)
+{
+	if(nd.isString())
+		data->sendStringToWebsocket(id, nd.toString());
+	else
+	{
+		if(nd.isBuffer())
+		{
+			auto ptr = nd.getBuffer()->buffer.getReadPointer(0);
+			data->sendDataToWebsocket(id, ptr, nd.getBuffer()->size * sizeof(float));
+		}
+		else if (auto obj = nd.getDynamicObject())
+		{
+			data->sendStringToWebsocket(id, JSON::toString(nd, true));
+		}
+	}
+}
+
+void ScriptingApi::Content::ScriptWebView::addBufferToWebSocket(int bufferIndex, var buffer)
+{
+	if(auto b = buffer.getBuffer())
+		data->addBufferToWebsocket(bufferIndex, b);
+}
+
+void ScriptingApi::Content::ScriptWebView::setWebSocketCallback(var callbackFunction)
+{
+	if(HiseJavascriptEngine::isJavascriptFunction(callbackFunction))
+	{
+		webSocketCallback = WeakCallbackHolder(getScriptProcessor(), this, callbackFunction, 1);
+		webSocketCallback.incRefCount();
+		
+		auto ok = data->setWebSocketCallback([this](const var& v)
+		{
+			webSocketCallback.call1(v);
+			return var();
+		});
+
+		if(!ok)
+			reportScriptError("You have to enable the WebSocket before calling this method");
+	}
+}
+
+void ScriptingApi::Content::ScriptWebView::updateBuffer(int bufferIndex)
+{
+	data->updateBuffer(bufferIndex);
 }
 
 void ScriptingApi::Content::ScriptWebView::setIndexFile(var file)
@@ -6615,6 +6854,18 @@ int ScriptingApi::Content::getComponentIndex(const Identifier &componentName) co
 	return -1;
 }
 
+int ScriptingApi::Content::getComponentIndex(ScriptComponent* sc) const
+{
+	for (int i = 0; i < getNumComponents(); i++)
+	{
+		if (components[i].get() == sc)
+			return i;
+	}
+
+	return -1;
+}
+
+
 ScriptingApi::Content::ScriptComboBox *ScriptingApi::Content::addComboBox(Identifier boxName, int x, int y)
 {
 	return addComponent<ScriptComboBox>(boxName, x, y);
@@ -6805,6 +7056,9 @@ void ScriptingApi::Content::beginInitialization()
 	updateWatcher = nullptr;
 	guides.clear();
 	registeredKeyPresses.clear();
+
+	contentProfile.setHolder(dynamic_cast<ApiProviderBase::Holder*>(getScriptProcessor()), true);
+	contentProfile.setSourceType(DebugSession::ProfileDataSource::SourceType::Script);
 }
 
 void ScriptingApi::Content::setHeight(int newHeight) noexcept

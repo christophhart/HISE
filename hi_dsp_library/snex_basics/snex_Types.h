@@ -108,7 +108,7 @@
 namespace snex {
 using namespace juce;
 
-using FloatType = float;
+using SnexFloatType = float;
 
 #define SNEX_ENABLE_DEBUG_TYPENAMES 0
 

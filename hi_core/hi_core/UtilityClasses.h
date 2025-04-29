@@ -148,6 +148,8 @@ public:
 	void valueTreeChildOrderChanged(ValueTree&, int, int) override;
 	void valueTreeParentChanged(ValueTree&) override;
 
+	virtual void clearQueue();
+
 private:
 
 	struct PropertyChange

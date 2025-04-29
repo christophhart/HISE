@@ -633,7 +633,9 @@ WeakCallbackHolder::WeakCallbackHolder(const WeakCallbackHolder& copy) :
 	thisObject(copy.thisObject),
 	refCountedThisObject(copy.refCountedThisObject),
 	capturedLocals(copy.capturedLocals),
-	trackIndex(copy.trackIndex)
+	trackIndex(copy.trackIndex),
+	pCall(copy.pCall),
+	pTrigger(copy.pTrigger)
 {
 	args.addArray(copy.args);
 }
@@ -649,7 +651,9 @@ WeakCallbackHolder::WeakCallbackHolder(WeakCallbackHolder&& other):
 	refCountedThisObject(other.refCountedThisObject),
 	thisObject(other.thisObject),
 	capturedLocals(other.capturedLocals),
-	trackIndex(other.trackIndex)
+	trackIndex(other.trackIndex),
+	pCall(other.pCall),
+	pTrigger(other.pTrigger)
 {
 	args.swapWith(other.args);
 }
@@ -672,8 +676,16 @@ hise::WeakCallbackHolder& WeakCallbackHolder::operator=(WeakCallbackHolder&& oth
 	capturedLocals = other.capturedLocals;
 	args.swapWith(other.args);
 	trackIndex = other.trackIndex;
+	pCall = other.pCall;
+	pTrigger = other.pTrigger;
 	
 	return *this;
+}
+
+void WeakCallbackHolder::incRefCount()
+{
+	if(weakCallback != nullptr && weakCallback->allowRefCount())
+		anonymousFunctionRef = var(dynamic_cast<ReferenceCountedObject*>(weakCallback.get()));
 }
 
 hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& n) const
@@ -688,14 +700,34 @@ hise::DebugInformationBase* WeakCallbackHolder::createDebugObject(const String& 
 	}
 }
 
-void WeakCallbackHolder::addAsSource(DebugableObjectBase* sourceObject, const String& callbackId)
+void WeakCallbackHolder::addAsSource(DebugableObjectBase* sourceObject, const String& callbackId, bool lookupVariableNameLater)
 {
 	if (weakCallback != nullptr)
 	{
-		auto id = sourceObject->getDebugName() + "." + callbackId;
-		cid = Identifier(id);
+		cid = callbackId;
+
+		if(lookupVariableNameLater)
+		{
+			engineToUse->debugInfoListeners.push_back({ sourceObject, BIND_MEMBER_FUNCTION_1(WeakCallbackHolder::addProfileSources)});
+		}
+		else
+		{
+			auto thisId = sourceObject->getInstanceName() + "." + callbackId;
+
+			pTrigger = getScriptProcessor()->callbackProfile.add(thisId + ".trigger()");
+			pCall = getScriptProcessor()->callbackProfile.add(thisId + ".call()");
+		}
+		
 		weakCallback->addAsSource(sourceObject, callbackId);
 	}
+}
+
+void WeakCallbackHolder::addProfileSources(DebugInformationBase::Ptr p)
+{
+	auto x = p->getTextForName() + "." + cid.toString();
+
+	pTrigger = getScriptProcessor()->callbackProfile.add(x + ".trigger()");
+	pCall = getScriptProcessor()->callbackProfile.add(x + ".call()");
 }
 
 void WeakCallbackHolder::clear()
@@ -777,6 +809,9 @@ void WeakCallbackHolder::call(const var::NativeFunctionArgs& args)
 
 			TRACE_EVENT("dispatch", DYNAMIC_STRING_BUILDER(b), perfetto::Flow::ProcessScoped(trackIndex));
 
+			auto sp = getScriptProcessor()->callbackProfile.profile(pTrigger);
+			getScriptProcessor()->callbackProfile.openTrack(pTrigger);
+
 			auto t = highPriority ? JavascriptThreadPool::Task::HiPriorityCallbackExecution : JavascriptThreadPool::Task::LowPriorityCallbackExecution;
 			getScriptProcessor()->getMainController_()->getJavascriptThreadPool().addJob(t, dynamic_cast<JavascriptProcessor*>(getScriptProcessor()), copy);
 		}
@@ -801,6 +836,8 @@ Result WeakCallbackHolder::callSync(var* arguments, int numArgs, var* returnValu
 Result WeakCallbackHolder::callSync(const var::NativeFunctionArgs& a, var* returnValue /*= nullptr*/)
 {
 	TRACE_EVENT("dispatch", "callback", perfetto::TerminatingFlow::ProcessScoped(trackIndex));
+	auto sp = getScriptProcessor()->callbackProfile.profile(pCall);
+	getScriptProcessor()->callbackProfile.closeTrack(pTrigger);
 
 	if (engineToUse.get() == nullptr || engineToUse->getRootObject() == nullptr)
 	{

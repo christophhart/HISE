@@ -561,7 +561,7 @@ struct switcher
 {
     SN_EMPTY_INITIALISE;
 
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         auto numParameters = (double)(numElements);
         auto indexToActivate = jmin(numElements - 1, (int)(normalisedInput * numParameters));
@@ -574,7 +574,7 @@ struct overlap
 {
     SN_EMPTY_INITIALISE;
 
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         if (isPositiveAndBelow(Index, numElements))
         {
@@ -621,7 +621,7 @@ struct harmonics
 {
     SN_EMPTY_INITIALISE;
 
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         return normalisedInput * (double)(Index + 1);
     }
@@ -631,7 +631,7 @@ struct threshold
 {
     SN_EMPTY_INITIALISE;
     
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         auto tr = (double)(Index) / (double)(numElements);
         
@@ -643,7 +643,7 @@ struct linear
 {
     SN_EMPTY_INITIALISE;
 
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         if (numElements == 1)
             return 1.0 - normalisedInput;
@@ -663,7 +663,7 @@ struct cosine
 {
     SN_EMPTY_INITIALISE;
     
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         auto lf = linear();
         
@@ -679,7 +679,7 @@ struct cosine_half
 {
     SN_EMPTY_INITIALISE;
     
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         auto lf = linear();
         
@@ -695,7 +695,7 @@ struct squared
 {
     SN_EMPTY_INITIALISE;
 
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         auto v = lf.getFadeValue<Index>(numElements, normalisedInput);
         return v * v;
@@ -708,7 +708,7 @@ struct rms
 {
     SN_EMPTY_INITIALISE;
 
-    template <int Index> double getFadeValue(int numElements, double normalisedInput)
+    template <int Index> double getFadeValue(int numElements, double normalisedInput) const
     {
         auto v = lf.getFadeValue<Index>(numElements, normalisedInput);
         return hmath::sqrt(v);

@@ -61,13 +61,13 @@ struct JavascriptTokeniserFunctions
             { "set", nullptr };
 
         static const char* const keywords4Char[] =
-            { "lock", "dump", "noop", nullptr };
+            { "lock", "call", "dump", "noop", nullptr };
 
         static const char* const keywords5Char[] =
             { "count", "print", "defer", "after", "trace", nullptr };
 
         static const char* const keywords6Char[] =
-            { "before", "bypass", nullptr };
+            { "before", "bypass", "sample", nullptr };
 
         static const char* const keywords7Char[] =
             { "profile", nullptr };
@@ -122,7 +122,7 @@ struct JavascriptTokeniserFunctions
           };
         
         static const char* const keywordsOther[] =
-		{ "FileSystem", "namespace", "protected", "undefined", "isDefined", nullptr };
+		{ "FileSystem", "namespace", "protected", "undefined", "isDefined", "Rectangle", nullptr };
 
         const char* const* k;
 

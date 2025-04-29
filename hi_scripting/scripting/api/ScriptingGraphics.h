@@ -63,8 +63,174 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ScreenshotListener);
 };
 
+
+
 namespace ScriptingObjects
 {
+	
+
+	class ScriptRectangle: public RectangleDynamicObject,
+						   public AssignableObject,
+						   public AssignableDotObject
+	{
+	public:
+
+		ScriptRectangle(Rectangle<double> d={}):
+		  RectangleDynamicObject(d)
+		{}
+
+		ScriptRectangle(const var& rectArray):
+		  RectangleDynamicObject(ApiHelpers::getRectangleFromVar(rectArray, nullptr).toDouble())
+		{}
+
+		/** Override this method and assign the new value to the given id. */
+		bool assign(const Identifier& id, const var& newValue) override
+		{
+			setProperty(id, newValue);
+			return hasProperty(id);
+		}
+
+		void assign(const int index, var newValue) override
+		{
+			static const std::array<Identifier, 4> ids = { "x", "y", "width", "height" };
+
+			if(isPositiveAndBelow(index, 4))
+				assign(ids[index], newValue);
+		}
+
+		var getAssignedValue(int index) const override
+		{
+			double values[4] = { rectangle.getX(), rectangle.getY(), rectangle.getWidth(), rectangle.getHeight() };
+
+			if(isPositiveAndBelow(index, 4))
+				return values[index];
+
+			return var();
+		}
+
+		int getCachedIndex(const var &indexExpression) const override { return (int)indexExpression; }
+
+		var getDotProperty(const Identifier& id) const override
+		{
+			return getProperty(id);
+		}
+
+		Ptr clone() override
+		{
+			return new ScriptRectangle(this->rectangle);
+		}
+
+		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Rectangle"); }
+		String getDebugValue() const override { return toString(); };
+		bool isAutocompleteable() const override { return true; }
+
+		
+
+		// API Methods =====
+
+		/** Removes a strip from the top of this rectangle, reducing this rectangle by the specified amount and returning the section that was removed. */
+		void removeFromTop(double numToRemove) { jassertfalse; }
+
+		/** Removes a strip from the left of this rectangle, reducing this rectangle by the specified amount and returning the section that was removed. */
+		void removeFromLeft(double numToRemove) { jassertfalse; }
+
+		/** Removes a strip from the right of this rectangle, reducing this rectangle by the specified amount and returning the section that was removed.*/
+		void removeFromRight(double numToRemove) { jassertfalse; }
+
+		/** Removes a strip from the bottom of this rectangle, reducing this rectangle by the specified amount and returning the section that was removed. */
+		void removeFromBottom(double numToRemove) { jassertfalse; }
+
+		/** Returns a rectangle which has the same size and y-position as this one, but with a different x-position. */
+		void withX(double newX) { jassertfalse; }
+
+		/** Returns a rectangle which has the same size and x-position as this one, but with a different y-position. */
+		void withY(double newY) { jassertfalse; }
+
+		/** Returns a new rectangle with a different x position, but the same right-hand edge as this one. */
+		void withLeft(double newLeft) { jassertfalse; }
+
+		/** Returns a new rectangle with a different right-hand edge position, but the same left-hand edge as this one. */
+		void withRight(double newRight) { jassertfalse; }
+
+		/** Returns a new rectangle with a different bottom edge position, but the same top edge as this one. */
+		void withBottom(double newBottom) { jassertfalse; }
+
+		/** Returns a rectangle which has the same size and x-position as this one, but whose bottom edge has the given position. */
+		void withBottomY(double newBottomY) { jassertfalse; }
+
+		/** Returns a rectangle which has the same position and height as this one, but with a different width. */
+		void withWidth(double newWidth) { jassertfalse; }
+
+		/** Returns a rectangle which has the same position and width as this one, but with a different height. */
+		void withHeight(double newHeight) { jassertfalse; }
+
+		/** Returns a rectangle with the same size as this one, but a new centre position. */
+		void withCentre(double newWidth, double newHeight) { jassertfalse; }
+
+		/** Returns a rectangle with the same top-left position as this one, but a new size. */
+		void withSize(double newWidth, double newHeight) { jassertfalse; }
+
+		/** Returns a rectangle with the same centre position as this one, but a new size. */
+		void withSizeKeepingCentre(double newWidth, double newHeight) { jassertfalse; }
+
+		/** Returns a rectangle with the position and size being scaled by the given factors. */
+		void scaled(double factorX, double optionalFactorY) { jassertfalse; }
+
+		/** Returns a rectangle which is the same as this one moved by a given amount. */
+		void translated(double deltaX, double deltaY) { jassertfalse; }
+
+		/** Changes the position of the rectangle's top-left corner (leaving its size unchanged). */
+		void setPosition(double x, double y) { jassertfalse; }
+
+		/** Changes the rectangle's size, leaving the position of its top-left corner unchanged. */
+		void setSize(double width, double height) { jassertfalse; }
+
+		/** Changes the position of the rectangle's centre (leaving its size unchanged). */
+		void setCentre(double centerX, double centerY) { jassertfalse; }
+
+		/** Tries to fit this rectangle within a target area, returning the result. */
+		void constrainedWithin(var targetArea) { jassertfalse; }
+
+		/** Returns true if this other rectangle is completely inside this one. */
+		void contains(var otherRectOrPoint) { jassertfalse; }
+
+		/** Returns the smallest rectangle that contains both this one and the one passed-in. */
+		void getUnion(var otherRect) { jassertfalse; }
+
+		/** Returns the intersection of both rectangles (the largest rectangle that fits into both rectangles. */
+		void getIntersection(var otherRect) { jassertfalse ; }
+
+	    /** Returns a version of this rectangle with the given amount removed from its left-hand edge. */
+	    void withTrimmedLeft (double amountToRemove) const noexcept { jassertfalse; }
+
+	    /** Returns a version of this rectangle with the given amount removed from its right-hand edge. */
+	    void withTrimmedRight (double amountToRemove) const noexcept { jassertfalse; }
+
+	    /** Returns a version of this rectangle with the given amount removed from its top edge. */
+	    void withTrimmedTop (double amountToRemove) const noexcept { jassertfalse; }
+
+	    /** Returns a version of this rectangle with the given amount removed from its bottom edge. */
+	    void withTrimmedBottom (double amountToRemove) const noexcept { jassertfalse; }
+
+		/** Returns true if any part of another rectangle overlaps this one. */
+		void intersects(var otherRect) { jassertfalse; }
+
+		/** Returns true if the rectangle's width or height are zero or less. */
+		void isEmpty() { jassertfalse; }
+
+		/** Returns a rectangle that is smaller than this one by a given amount. */
+		void reduced(double x, double optionalY) { jassertfalse; }
+
+		/** Returns a rectangle that is larger than this one by a given amount. */
+		void expanded(double x, double optionalY) { jassertfalse;  }
+
+		/** Returns the biggest rectangle that fits in this rectangle using the aspect ratio of the other rectangle. */
+		void withAspectRatioLike(var otherRect) { jassertfalse; }
+
+		/** Returns a standard JS array with the position [x, y, w, h]. */
+		void toArray() const { jassertfalse; }
+	};
+
 	class ScriptShader : public ConstScriptingObject,
 						 public ScreenshotListener
 	{
@@ -611,89 +777,24 @@ namespace ScriptingObjects
 								public ControlledObject
 	{
 	public:
+		
 
-		struct LafBase
+		struct LafBase: public ProfiledLookAndFeel
 		{
 			virtual ~LafBase() {};
 
 			virtual ScriptedLookAndFeel* get() = 0;
-			
-		};
 
-		struct CSSLaf: public simple_css::StyleSheetLookAndFeel,
-					   public SliderPack::LookAndFeelMethods,
-					   public TableEditor::LookAndFeelMethods,
-					   public HiseAudioThumbnail::LookAndFeelMethods,
-					   public PresetBrowserLookAndFeelMethods,
-					   public LafBase
-		{
-			CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree);;
-
-			ScriptedLookAndFeel* get() override;
-
-			void updateMultipageDialog(multipage::Dialog& mp);
-
-			static void copyPropertiesToElementSelector(simple_css::CSSRootComponent& root, Component& parent, simple_css::Selector s);
-			static void copyPropertiesToChildComponents(simple_css::CSSRootComponent& root, Component& parent);
-
-			void drawSliderPackBackground(Graphics& g, SliderPack& s) override;
-			void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity) override;
-			void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw) override;
-			void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw) override;
-
-			void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition) override {};
-			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
-			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
-			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
-			void drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox) override;
-
-			void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
-			void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
-			void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override;
-			void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
-			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override;
-			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
-			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
-
-			void drawPresetBrowserBackground(Graphics& g, Component* p) override;
-			void drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText) override;
-			void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
-
-			Font getTagFont(Component& tagButton) override
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+			void onProfileEnableChange() override
 			{
-				using namespace simple_css;
-
-				if(auto ss = root.css.getWithAllStates(&tagButton, Selector(".tag-button")))
+				if(auto laf = get())
 				{
-					return ss->getFont({}, tagButton.getLocalBounds().toFloat());
+					laf->setEnableProfiling(p, holder.get());
 				}
-
-				return PresetBrowserLookAndFeelMethods::getTagFont(tagButton);
 			}
+#endif
 
-			void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
-			void drawListItem(Graphics& g, Component& column, int columnIndex, int i, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override;
-			void drawSearchBar(Graphics& g, Component& labelComponent, Rectangle<int> area) override;
-
-			Rectangle<float> getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text);
-			bool drawValueLabel(Graphics& g, Component& valuePopup, Component& attachedComponent, const String& text, bool useAlignment=true);
-
-		private:
-
-			Rectangle<float> getTextLabelPopupArea(simple_css::StyleSheet::Ptr ss, Rectangle<float> fullBounds, const String& text);
-			void setupSliderPack(SliderPack& s);
-			void setPathAsVariable(simple_css::StyleSheet::Ptr ss, const Path& p, const Identifier& id);
-			bool drawPlayhead(Graphics& g, Component& c, double position, Rectangle<float> area);
-			
-			WeakReference<ScriptedLookAndFeel> parent;
-			Component::SafePointer<Component> componentToStyle;
-
-            ValueTree dataCopy;
-            ValueTree additionalDataCopy;
-            
-			valuetree::PropertyListener colourUpdater;
-			valuetree::PropertyListener additionalPropertyUpdater;
-			valuetree::PropertyListener additionalComponentPropertyUpdater;
 		};
 
 		struct Laf : public GlobalHiseLookAndFeel,
@@ -849,6 +950,82 @@ namespace ScriptingObjects
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Laf);
 		};
 
+		struct CSSLaf: public simple_css::StyleSheetLookAndFeel,
+					   public SliderPack::LookAndFeelMethods,
+					   public TableEditor::LookAndFeelMethods,
+					   public HiseAudioThumbnail::LookAndFeelMethods,
+					   public PresetBrowserLookAndFeelMethods,
+					   public LafBase
+		{
+			CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree);;
+
+			ScriptedLookAndFeel* get() override;
+
+			void updateMultipageDialog(multipage::Dialog& mp);
+
+			static void copyPropertiesToElementSelector(simple_css::CSSRootComponent& root, Component& parent, simple_css::Selector s);
+			static void copyPropertiesToChildComponents(simple_css::CSSRootComponent& root, Component& parent);
+
+			void drawSliderPackBackground(Graphics& g, SliderPack& s) override;
+			void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity) override;
+			void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw) override;
+			void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw) override;
+
+			void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition) override {};
+			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override;
+			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override;
+			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override;
+			void drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox) override;
+
+			void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
+			void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
+			void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override;
+			void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
+			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override;
+			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
+			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
+
+			void drawPresetBrowserBackground(Graphics& g, Component* p) override;
+			void drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText) override;
+			void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
+
+			Font getTagFont(Component& tagButton) override
+			{
+				using namespace simple_css;
+
+				if(auto ss = root.css.getWithAllStates(&tagButton, Selector(".tag-button")))
+				{
+					return ss->getFont({}, tagButton.getLocalBounds().toFloat());
+				}
+
+				return PresetBrowserLookAndFeelMethods::getTagFont(tagButton);
+			}
+
+			void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
+			void drawListItem(Graphics& g, Component& column, int columnIndex, int i, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override;
+			void drawSearchBar(Graphics& g, Component& labelComponent, Rectangle<int> area) override;
+
+			Rectangle<float> getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text);
+			bool drawValueLabel(Graphics& g, Component& valuePopup, Component& attachedComponent, const String& text, bool useAlignment=true);
+
+		private:
+
+			Rectangle<float> getTextLabelPopupArea(simple_css::StyleSheet::Ptr ss, Rectangle<float> fullBounds, const String& text);
+			void setupSliderPack(SliderPack& s);
+			void setPathAsVariable(simple_css::StyleSheet::Ptr ss, const Path& p, const Identifier& id);
+			bool drawPlayhead(Graphics& g, Component& c, double position, Rectangle<float> area);
+			
+			WeakReference<ScriptedLookAndFeel> parent;
+			Component::SafePointer<Component> componentToStyle;
+
+            ValueTree dataCopy;
+            ValueTree additionalDataCopy;
+            
+			valuetree::PropertyListener colourUpdater;
+			valuetree::PropertyListener additionalPropertyUpdater;
+			valuetree::PropertyListener additionalComponentPropertyUpdater;
+		};
+
 		struct LocalLaf : public Laf
 		{
 			LocalLaf(ScriptedLookAndFeel* l);;
@@ -856,6 +1033,272 @@ namespace ScriptingObjects
 			
 			WeakReference<ScriptedLookAndFeel> weakLaf;
 		};
+
+#define CALL_LAF(functionId, ...) if(functionDefined(#functionId)) Laf::functionId(__VA_ARGS__); else css.functionId(__VA_ARGS__)
+#define CALL_LAF_ID(functionName, functionId, ...) if(functionDefined(functionName)) Laf::functionId(__VA_ARGS__); else css.functionId(__VA_ARGS__)
+
+		struct CombinedLaf: public LocalLaf
+		{
+			CombinedLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree);
+
+			// Defined by Script LAF & CSS, check if function exists, otherwise default to CSS
+
+			void drawSearchBar(Graphics& g, Component& labelComponent, Rectangle<int> area) override
+			{
+				CALL_LAF_ID("drawPresetBrowserSearchBar", drawSearchBar, g, labelComponent, area);
+			}
+
+			void drawSliderPackBackground(Graphics& g, SliderPack& s) override
+			{
+				CALL_LAF(drawSliderPackBackground, g, s);
+			}
+
+			void drawSliderPackFlashOverlay(Graphics& g, SliderPack& s, int sliderIndex, Rectangle<int> sliderBounds, float intensity) override
+			{
+				CALL_LAF(drawSliderPackFlashOverlay, g, s, sliderIndex, sliderBounds, intensity);
+			}
+
+			void drawSliderPackRightClickLine(Graphics& g, SliderPack& s, Line<float> lineToDraw) override
+			{
+				CALL_LAF(drawSliderPackRightClickLine, g, s, lineToDraw);
+			}
+
+			void drawSliderPackTextPopup(Graphics& g, SliderPack& s, const String& textToDraw) override
+			{
+				CALL_LAF(drawSliderPackTextPopup, g, s, textToDraw);
+			}
+
+			void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition) override
+			{
+				CALL_LAF(drawTableBackground, g, te, area, rulerPosition);
+			}
+
+			void drawTablePath(Graphics& g, TableEditor& te, Path& p, Rectangle<float> area, float lineThickness) override
+			{
+				CALL_LAF(drawTablePath, g, te, p, area, lineThickness);
+			}
+
+			void drawTablePoint(Graphics& g, TableEditor& te, Rectangle<float> tablePoint, bool isEdge, bool isHover, bool isDragged) override
+			{
+				CALL_LAF(drawTablePoint, g, te, tablePoint, isEdge, isHover, isDragged);
+			}
+
+			void drawTableRuler(Graphics& g, TableEditor& te, Rectangle<float> area, float lineThickness, double rulerPosition) override
+			{
+				CALL_LAF(drawTableRuler, g, te, area, lineThickness, rulerPosition);
+			}
+
+			void drawTableValueLabel(Graphics& g, TableEditor& te, Font f, const String& text, Rectangle<int> textBox) override
+			{
+				css.drawTableValueLabel(g, te, f, text, textBox);
+			}
+
+			void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override
+			{
+				CALL_LAF_ID("drawThumbnailBackground", drawHiseThumbnailBackground, g, th, areaIsEnabled, area);
+			}
+
+			void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override
+			{
+				css.drawHiseThumbnailPath(g, th, areaIsEnabled, path);
+			}
+
+			void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override
+			{
+				css.drawHiseThumbnailRectList(g, th, areaIsEnabled, rectList);
+			}
+			void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override
+			{
+				CALL_LAF_ID("drawThumbnailText", drawTextOverlay, g, th, text, area);
+			}
+
+			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override
+			{
+				CALL_LAF(drawThumbnailRange, g, te, area, areaIndex, c, areaEnabled);
+			}
+
+			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override
+			{
+				css.drawStretchableLayoutResizerBar(g, resizer, w, h, isVerticalBar, isMouseOver, isMouseDragging);
+			}
+
+			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override
+			{
+				CALL_LAF(drawThumbnailRuler, g, te, xPosition);
+			}
+
+			void drawPresetBrowserBackground(Graphics& g, Component* p) override
+			{
+				CALL_LAF(drawPresetBrowserBackground, g, p);
+			}
+
+			void drawColumnBackground(Graphics& g, Component& column, int columnIndex, Rectangle<int> listArea, const String& emptyText) override
+			{
+				CALL_LAF_ID("drawPresetBrowserColumnBackground", drawColumnBackground, g, column, columnIndex, listArea, emptyText);
+			}
+
+			void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override
+			{
+				CALL_LAF_ID("drawPresetBrowserTag", drawTag, g, tagButton, hover, blinking, active, selected, name, position);
+			}
+
+			void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override
+			{
+				CALL_LAF_ID("drawPresetBrowserDialog", drawModalOverlay, g, modalWindow, area, labelArea, title, command);
+			}
+
+			void drawListItem(Graphics& g, Component& column, int columnIndex, int i, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override
+			{
+				CALL_LAF_ID("drawPresetBrowserListItem", drawListItem, g, column, columnIndex, i, itemName, position, rowIsSelected, deleteMode, hover);
+			}
+			
+			void drawButtonText(Graphics& g, TextButton& tb, bool over, bool down) override
+			{
+				if(!css.drawButtonText(g, &tb)) Laf::drawButtonText(g, tb, over, down);
+			}
+
+			void drawToggleButton(Graphics& g, ToggleButton& tb, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override
+			{
+				CALL_LAF(drawToggleButton, g, tb, shouldDrawButtonAsHighlighted, shouldDrawButtonAsDown);
+			}
+
+			void drawLinearSlider(Graphics& g, int x, int y, int width, int height, float sliderPos, float minSliderPos,
+			                      float maxSliderPos, const Slider::SliderStyle sliderStyle, Slider&slider) override
+			{
+				CALL_LAF(drawLinearSlider, g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, sliderStyle, slider);
+			}
+
+			void drawRotarySlider(Graphics&graphics, int x, int y, int width, int height, float sliderPosProportional,
+			                      float rotaryStartAngle, float rotaryEndAngle, Slider&slider) override
+			{
+				CALL_LAF(drawRotarySlider, graphics, x, y, width, height, sliderPosProportional, rotaryStartAngle, rotaryEndAngle, slider);
+			}
+
+			void drawComboBox (Graphics& g, int width, int height, bool isButtonDown,
+			                   int buttonX, int buttonY, int buttonW, int buttonH,
+			                   ComboBox& cb) override
+			{
+				CALL_LAF(drawComboBox, g, width, height, isButtonDown, buttonX, buttonY, buttonW, buttonH, cb);
+			}
+
+			void drawTableHeaderBackground (Graphics& g, TableHeaderComponent& th) override
+			{
+				CALL_LAF(drawTableHeaderBackground, g, th);
+			}
+
+		    void drawTableHeaderColumn (Graphics& g, TableHeaderComponent& th, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags) override
+			{
+				CALL_LAF(drawTableHeaderColumn, g, th, columnName, columnId, width, height, isMouseOver, isMouseDown, columnFlags);
+			}
+
+			void drawScrollbar (Graphics& g, ScrollBar& scrollbar,
+		                                int x, int y, int width, int height,
+		                                bool isScrollbarVertical,
+		                                int thumbStartPosition,
+		                                int thumbSize,
+		                                bool isMouseOver,
+		                                bool isMouseDown) override
+			{
+				CALL_LAF(drawScrollbar, g, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
+			}
+
+			// CSS only methods, just forward to the style sheet LAF...
+
+			void fillTextEditorBackground (Graphics& g, int width, int height, TextEditor& te) override
+			{
+				css.fillTextEditorBackground(g, width, height, te);
+			}
+
+			void drawTextEditorOutline (Graphics& g, int width, int height, TextEditor& te) override {}
+
+			void drawProgressBar(Graphics& g, ProgressBar& pb, int width, int height, double progress, const String& textToShow) override
+			{
+				css.drawProgressBar(g, pb, width, height, progress, textToShow);
+			}
+
+			bool isProgressBarOpaque(ProgressBar& b) override { return false; }
+
+			void drawLabel(Graphics& g, Label& l) override
+			{
+				css.drawLabel(g, l);
+			}
+
+			Font getLabelFont(Label& label) override
+			{
+				return css.getLabelFont(label);
+			}
+
+			Font getTagFont(Component& tagButton) override
+			{
+				return css.getTagFont(tagButton);
+			}
+
+			Font getComboBoxFont (ComboBox&) override { return getPopupMenuFont(); }
+			void positionComboBoxText (ComboBox& cb, Label& label) override
+			{
+				css.positionComboBoxText(cb, label);
+			}
+			void drawComboBoxTextWhenNothingSelected (Graphics&, ComboBox&, Label&) override { }
+
+			
+
+			void drawPopupMenuSectionHeaderWithOptions (Graphics& g, const Rectangle<int>& area,
+			                                            const String& sectionName,
+			                                            const PopupMenu::Options& o) override
+			{
+				css.drawPopupMenuSectionHeaderWithOptions(g, area, sectionName, o);
+			}
+
+			void getIdealPopupMenuItemSizeWithOptions (const String& text,
+	                                                   bool isSeparator,
+	                                                   int standardMenuItemHeight,
+	                                                   int& idealWidth,
+	                                                   int& idealHeight,
+	                                                   const PopupMenu::Options& options) override
+			{
+				css.getIdealPopupMenuItemSizeWithOptions(text, isSeparator, standardMenuItemHeight, idealWidth, idealHeight, options);
+			}
+
+			/** Uses the selector ".popup and .popup-item". */
+			Font getPopupMenuFont() override
+			{
+				return css.getPopupMenuFont();
+			}
+
+			/** Uses the selector ".popup". */
+			void drawPopupMenuBackgroundWithOptions (Graphics& g, int width, int height, const PopupMenu::Options& o) override
+			{
+				css.drawPopupMenuBackgroundWithOptions(g, width, height, o);
+			}
+
+		    void drawPopupMenuItemWithOptions (Graphics& g, const Rectangle<int>& area,
+		                                               bool isHighlighted,
+		                                               const PopupMenu::Item& item,
+		                                               const PopupMenu::Options& o) override
+			{
+				css.drawPopupMenuItemWithOptions(g, area, isHighlighted, item, o);
+			}
+
+			bool areScrollbarButtonsVisible() override { return css.areScrollbarButtonsVisible(); }
+			ImageEffectFilter* getScrollbarEffect() override { return css.getScrollbarEffect(); }
+		    void drawScrollbarButton (Graphics& ,ScrollBar& ,int , int ,int ,bool ,bool ,bool ) override { }
+			int getScrollbarButtonSize (ScrollBar&) override { return 0; }
+
+			/** Returns the minimum length in pixels to use for a scrollbar thumb. */
+		    int getMinimumScrollbarThumbSize (ScrollBar& sb) override
+			{
+				return css.getMinimumScrollbarThumbSize(sb);
+			}
+
+		private:
+
+			CSSLaf css;
+		};
+
+#undef CALL_LAF
+#undef CALL_LAF_ID
+
+		
 
 		struct Wrapper;
 
@@ -895,6 +1338,11 @@ namespace ScriptingObjects
 
 		bool isUsingCSS() const { return !currentStyleSheet.isEmpty(); }
 
+		bool isUsingScriptFunctions() const { return hasScriptFunctions; }
+
+
+		void setEnableProfiling(DebugSession::ProfileDataSource::Ptr ptr, ApiProviderBase::Holder* h);
+
 		bool callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject, Component* c);
 
 		var callDefinedFunction(const Identifier& name, var* args, int numArgs);
@@ -929,6 +1377,10 @@ namespace ScriptingObjects
 		String currentStyleSheetFile;
 		simple_css::StyleSheet::Collection css;
 
+		DebugSession::ProfileDataSource::Ptr scriptProfileData;
+		DebugSession::ProfileDataSource::Ptr profileData;
+		WeakReference<ApiProviderBase::Holder> holder;
+
 		var functions;
 
 		Image getLoadedImage(const String& prettyName);
@@ -945,6 +1397,8 @@ namespace ScriptingObjects
 		Result lastResult;
 
 		ValueTree additionalProperties;
+
+		bool hasScriptFunctions = false;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptedLookAndFeel);
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptedLookAndFeel);

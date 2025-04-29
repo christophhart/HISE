@@ -184,6 +184,9 @@ will break compatibility with older projects / presets because the tempo indexes
 #endif
 #endif
 
+#ifndef HISE_INCLUDE_PROFILING_TOOLKIT
+#define HISE_INCLUDE_PROFILING_TOOLKIT 0
+#endif
 
 #ifndef HISE_USE_ONLINE_DOC_UPDATER
 #define HISE_USE_ONLINE_DOC_UPDATER 0
@@ -246,26 +249,50 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_markdown/MarkdownDatabaseCrawler.h"
 #include "hi_markdown/MarkdownRenderer.h"
 
+#include "hi_standalone_components/ChocWebView.h"
+
+
+#include "hi_dev/JavascriptTokeniser.h"
+#include "hi_dev/CodeEditorApiBase.h"
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+#include "hi_dev/DebugSession.h"
+#include "hi_dev/DebugProfileTools.h"
+#endif
+
+
+#include "hi_dev/ZoomableViewport.h"
+
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+#include "hi_dev/DebugSessionViewItem.h"
+#include "hi_dev/DebugSessionManager.h"
+#include "hi_dev/DebugSessionComponents.h"
+#include "hi_dev/DebugSessionViewer.h"
+#include "hi_dev/DebugSessionMultiViewer.h"
+
+#else
+#include "hi_dev/DummyDebugSession.h"
+#endif
+#if USE_BACKEND
+#include "hi_dev/FaustTokeniser.h"
+#endif
+#include "hi_dev/ScriptWatchTable.h"
+
 
 
 #include "mcl_editor/mcl_editor.h"
+#include "hi_dev/AdvancedCodeEditor.h"
 
-
-
-#include "hi_tools/JavascriptTokeniser.h"
-
-
-
-#include "hi_standalone_components/ChocWebView.h"
-#include "hi_standalone_components/CodeEditorApiBase.h"
-#include "hi_standalone_components/AdvancedCodeEditor.h"
-#include "hi_standalone_components/ScriptWatchTable.h"
 #include "hi_standalone_components/ComponentWithPreferredSize.h"
-#include "hi_standalone_components/ZoomableViewport.h"
+
 #if USE_BACKEND
 #include "hi_standalone_components/PerfettoWebViewer.h"
 #endif
-#else
+
+#else // HISE_NO_GUI_TOOLS
+
+#include "hi_dev/CodeEditorApiBase.h"
+#include "hi_dev/DummyDebugSession.h"
+
 using ComponentWithMiddleMouseDrag = juce::Component;
 #define CHECK_MIDDLE_MOUSE_DOWN(e) ignoreUnused(e);
 #define CHECK_MIDDLE_MOUSE_UP(e) ignoreUnused(e);
@@ -276,10 +303,11 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 
 
 #if HISE_INCLUDE_RLOTTIE
-#include "hi_standalone_components/RLottieDevComponent.h"
+#include "hi_dev/RLottieDevComponent.h"
 #endif
 
 
+#include "hi_tools/RectangleDynamicObject.h"
 
 #include "hi_standalone_components/RingBuffer.h"
 #include "hi_standalone_components/Plotter.h"

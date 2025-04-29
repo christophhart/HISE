@@ -135,18 +135,19 @@ namespace hise {
 
 	}
 
-	void PathFactory::scalePath(Path& p, Rectangle<float> f)
+	bool PathFactory::scalePath(Path& p, Rectangle<float> f)
 	{
 		if(!isValid(p, f))
-			return;
+			return false;
 
 		p.scaleToFit(f.getX(), f.getY(), f.getWidth(), f.getHeight(), true);
+		return true;
 	}
 
-	void PathFactory::scalePath(Path& p, Component* c, float padding)
+	bool PathFactory::scalePath(Path& p, Component* c, float padding)
 	{
 		auto b = c->getBoundsInParent().toFloat().reduced(padding);
-		scalePath(p, b);
+		return scalePath(p, b);
 	}
 
 	bool PathFactory::isValid(const Path& p, Rectangle<float> area)

@@ -166,6 +166,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsReplaceScriptFXWithHardcodedFX,
         MenuToolsCreateRnboTemplate,
 		MenuToolsCreateGlobalCableCppCode,
+		MenuToolsCheckLatency,
 		MenuViewResetLookAndFeel,
 		MenuViewReset,
         MenuViewRotate,
@@ -534,6 +535,10 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
         setCommandTarget(result, "Create C++ template for RNBO patch", true, false, 'X', false);
         result.categoryName = "Tools";
         break;
+	case MenuToolsCheckLatency:
+        setCommandTarget(result, "Check latency of signal chain", true, false, 'X', false);
+        result.categoryName = "Tools";
+        break;
 	case MenuToolsConvertSampleMapToWavetableBanks:
 		setCommandTarget(result, "Show Wavetable Creator", true, false, 'X', false);
 		result.categoryName = "Tools";
@@ -723,6 +728,7 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 	case MenuExportUnloadAllAudioFiles:  Actions::unloadAllAudioFiles(bpe); return true;
 	case MenuToolsCreateRSAKeys:		Actions::createRSAKeys(bpe); return true;
 	case MenuToolsCreateDummyLicenseFile: Actions::createDummyLicenseFile(bpe); return true;
+	case MenuToolsCheckLatency:			Actions::checkLatency(bpe); return true;
 	case MenuExportCheckAllSampleMaps:	Actions::checkAllSamplemaps(bpe); return true;
     case MenuExportCheckPluginParameters:    Actions::checkPluginParameterSanity(bpe); return true;
 	case MenuExportCleanDspNetworkFiles: Actions::cleanDspNetworkFiles(bpe); return true;
@@ -1092,6 +1098,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 	        ADD_MENU_ITEM(MenuToolsCreateRnboTemplate);
 			ADD_MENU_ITEM(MenuToolsCreateThirdPartyNode);
 			ADD_MENU_ITEM(MenuToolsCreateGlobalCableCppCode);
+			ADD_MENU_ITEM(MenuToolsCheckLatency);
 			p.addSeparator();
 			p.addSectionHeader("License Management");
 			ADD_MENU_ITEM(MenuToolsCreateRSAKeys);
@@ -1727,13 +1734,6 @@ void BackendCommandTarget::Actions::resolveMissingSamples(BackendRootWindow *bpe
 void BackendCommandTarget::Actions::setCompileTimeOut(BackendRootWindow * /*bpe*/)
 {
 	jassertfalse;
-}
-
-void BackendCommandTarget::Actions::toggleUseBackgroundThreadsForCompiling(BackendRootWindow * bpe)
-{
-	const bool lastState = bpe->getBackendProcessor()->isUsingBackgroundThreadForCompiling();
-
-	bpe->getBackendProcessor()->setShouldUseBackgroundThreadForCompiling(!lastState);
 }
 
 void BackendCommandTarget::Actions::toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe)
@@ -3399,6 +3399,14 @@ void BackendCommandTarget::Actions::replaceScriptModules(BackendRootWindow* bpe)
 {
 	auto b = new multipage::library::ScriptModuleReplacer(bpe);
 	bpe->setModalComponent(b);		
+}
+
+void BackendCommandTarget::Actions::checkLatency(BackendRootWindow* bpe)
+{
+	if(PresetHandler::showYesNoWindow("Check latency", "This will send a short impulse through the signal chain to measure the latency of your DSP processing.\n> Turn down your speaker and make sure that there is no sound from a reverb trail or sound generator as this will mess up the measurements.", PresetHandler::IconType::Warning))
+	{
+		bpe->getBackendProcessor()->checkLatency();
+	}
 }
 
 #undef REPLACE_WILDCARD

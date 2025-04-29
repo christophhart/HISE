@@ -28,7 +28,7 @@
   },
   "LayoutData": {
     "StyleSheet": "ModalPopup",
-    "Style": "\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n.toggle-button\n{\n\tcolor: white;\n\ttext-align: left;\n}\n\n#ExportType label\n{\n\tdisplay: none;\n}\n\n#showCompiledFile label\n{\n\tdisplay: none;\n}\n\n.description\n{\n\twidth: 100%;\n\ttext-align: left;\n}\n\nlabel\n{\n\tmin-width: 120px;\n}\n\n#OutputFile\n{\n\twidth: 100%;\n\ttext-align: left;\n\n\tbackground: #282828;\n\tpadding: 10px 15px;\n\tborder-radius: 2px;\n\tcolor: #888;\n}",
+    "Style": "\n\n#content\n{\n\tpadding: 30px 80px;\n}\n\n#total-progress\n{\n\tdisplay: none;\n}\n\n.toggle-button\n{\n\tcolor: white;\n\ttext-align: left;\n}\n\n#ExportType label\n{\n\tdisplay: none;\n}\n\n#showCompiledFile label\n{\n\tdisplay: none;\n}\n\n#showPluginFolder label\n{\n\tdisplay: none;\n}\n\n.description\n{\n\twidth: 100%;\n\ttext-align: left;\n}\n\nlabel\n{\n\tmin-width: 120px;\n}\n\n.stop-button\n{\n\tdisplay: none;\n\twidth: 0px;\n}\n\n#OutputFile\n{\n\twidth: 100%;\n\ttext-align: left;\n\n\tbackground: #282828;\n\tpadding: 10px 15px;\n\tborder-radius: 2px;\n\tcolor: #888;\n}",
     "UseViewport": true,
     "ConfirmClose": true,
     "CloseMessage": "Do you want to close this popup?",
@@ -36,12 +36,11 @@
     "DialogHeight": 780
   },
   "GlobalState": {
-    "showCompiledFile": true,
-    "showPluginFolder": true,
-    "ExportType": 0,
+    "ExportType": "0",
     "projectType": "Instrument",
     "pluginType": "VST",
-    "Clipboard": true
+    "showCompiledFile": true,
+    "showPluginFolder": true
   },
   "Children": [
     {
@@ -85,7 +84,8 @@
           "InitValue": "Instrument",
           "UseInitValue": true,
           "ValueMode": "Text",
-          "Items": "Instrument\nFX plugin\nMIDI plugin"
+          "Items": "Instrument\nFX plugin\nMIDI plugin",
+          "Help": "This determines which type of plugin this project should use.\n\n> Note that this can also be changed in the project settings so you don't have to select it each time here"
         },
         {
           "Type": "Choice",
@@ -95,7 +95,8 @@
           "UseInitValue": true,
           "ValueMode": "Text",
           "Items": "VST\nAU\nAAX\nAll Platforms",
-          "Code": "{BIND::onPluginType}"
+          "Code": "{BIND::onPluginType}",
+          "Help": "The plugin architecture to export.\n\n- VST: exports the plugin as VST2 / VST3 plugin depending on the `VST3Support` flag in the project settings\n- AU: exports it as AU v2 plugin (macOS only)\n- AAX: exports a AAX plugin to be used in Protools. You need the AAX SDK from Avid for this."
         },
         {
           "Type": "MarkdownText",
@@ -153,7 +154,7 @@
       "Children": [
         {
           "Type": "MarkdownText",
-          "Text": "The compilation was successful.\n\n> On macOS you will have to manually copy this file to the plugin folder for the DAWs to pick it up when scanning for new plugins.\n\n___\n"
+          "Text": "The compilation was successful.\n\n___\n"
         },
         {
           "Type": "JavascriptFunction",
@@ -169,24 +170,24 @@
               "ID": "showCompiledFile",
               "Code": "{BIND::onShowCompiledFile}",
               "InitValue": "true",
-              "UseInitValue": true,
               "Trigger": true,
-              "ButtonType": "Text"
+              "ButtonType": "Text",
+              "Help": "Shows the file that you've just compiled."
             },
             {
               "Type": "Button",
               "Text": "Show plugin folder",
               "ID": "showPluginFolder",
-              "UseInitValue": "",
-              "NoLabel": true,
               "ButtonType": "Text",
               "Trigger": true,
-              "Code": "{BIND::onShowPluginFolder}"
+              "Code": "{BIND::onShowPluginFolder}",
+              "Help": "Open the default location where the exported plugin type is stored on your system so you can copy your compiled plugin there."
             }
           ]
         }
       ],
-      "Text": ""
+      "Text": "",
+      "Style": "padding-top: 30px;"
     }
   ],
   "Assets": []

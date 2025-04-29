@@ -145,7 +145,7 @@ juce::Path GlobalRoutingManager::RoutingIcons::createPath(const String& url) con
 #if USE_BACKEND
 	LOAD_EPATH_IF_URL("new", SampleMapIcons::newSampleMap);
 	LOAD_EPATH_IF_URL("debug", BackendBinaryData::ToolbarIcons::viewPanel);
-	LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
+	LOAD_EPATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
 	LOAD_EPATH_IF_URL("global", HiBinaryData::SpecialSymbols::globalCableIcon);
 #endif
 
@@ -1696,6 +1696,12 @@ scriptnode::routing::GlobalRoutingManager::SelectableTargetBase::List GlobalRout
 	return l;
 }
 
+void GlobalRoutingManager::Cable::sendDataStatic(source_base* sb, void* data, size_t numBytes)
+{
+	auto c = static_cast<Cable*>(sb);
+	c->sendData(nullptr, data, numBytes);
+}
+
 bool GlobalRoutingManager::Cable::containsTarget(CableTargetBase* n) const
 {
 	return targets.contains(n);
@@ -1712,6 +1718,17 @@ void GlobalRoutingManager::Cable::removeTarget(CableTargetBase* n)
 {
 	SimpleReadWriteLock::ScopedWriteLock sl(lock);
 	targets.removeAllInstancesOf(n);
+}
+
+void GlobalRoutingManager::Cable::sendData(CableTargetBase* source, void* data, size_t numBytes)
+{
+	for (auto t : targets)
+	{
+		if (t == source)
+			continue;
+
+		t->sendData(data, numBytes);
+	}
 }
 
 void GlobalRoutingManager::Cable::sendValue(CableTargetBase* source, double v)

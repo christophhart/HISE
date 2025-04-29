@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Network ID="snex_test" AllowCompilation="1" Version="0.0.0">
+  <Node FactoryPath="container.chain" ID="snex_test" Bypassed="0" Name="snex_test">
+    <Nodes>
+      <Node ID="snex_node" FactoryPath="core.snex_node" Bypassed="0" Name="snex_node">
+        <Properties>
+          <Property ID="ClassId" Value="simple_noise"/>
+        </Properties>
+        <ComplexData>
+          <Tables/>
+          <SliderPacks/>
+          <AudioFiles/>
+          <Filters/>
+          <DisplayBuffers/>
+        </ComplexData>
+        <Parameters/>
+      </Node>
+    </Nodes>
+    <Parameters/>
+  </Node>
+</Network>

@@ -58,24 +58,22 @@ It supports x86 and x64 on Windows, altough the 64bit version is highly recommen
 
 2. Extract the contents of `tools/SDK/sdk.zip` to `tools/SDK`. Your `tools` folder should now contain folders named `ASIOSDK2.3` and `VST3 SDK`.
 
-3. Install [xcpretty](https://github.com/xcpretty/xcpretty), a formatter for xcode. You can install it from the terminal using the command `sudo gem install xcpretty`.
-
-4. Open the Projucer (there are compiled versions for every supported OS in the `tools/projucer` subdirectory) and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`).
+3. Open the Projucer (there are compiled versions for every supported OS in the `tools/projucer` subdirectory) and load the HISE project (either `projects/standalone/HISE Standalone.jucer` or `project/plugin/HISE.jucer`).
 
 > If you hit a permission issue when launching Projucer (or an error stating that Projucer is damaged) you need to open Security & Privacy and whitelist Projucer.
 
-5. Click on "Save Project and open in IDE" to load the project in XCode.
+4. Click on "Save Project and open in IDE" to load the project in XCode.
 
-6. Hit compile and wait...
+5. Hit compile and wait...
 
 ### Linux
 
 1. Install the dependencies: 
 ```
-sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libgtk-3-dev libjack-jackd2-dev libwebkit2gtk-4.0
+sudo apt-get -y install build-essential make llvm clang libfreetype6-dev libx11-dev libxinerama-dev libxrandr-dev libxcursor-dev mesa-common-dev libasound2-dev freeglut3-dev libxcomposite-dev libcurl4-gnutls-dev libgtk-3-dev libjack-jackd2-dev libwebkit2gtk-4.0-dev
 ```
 
-> If *libwebkit2gtk-4.0* is not available in your distro's repositories you can use *libwebkit2gtk-4.1* instead.
+> If *libwebkit2gtk-4.0-dev* is not available in your distro's repositories you can use *libwebkit2gtk-4.1-dev* instead.
 
 > HISE can be compiled with GCC/G++ versions greater than 11, however there will be buggy behaviour with certain elements of the UI. Therefore it is advised to use GCC/G++ 11 or lower.
 

@@ -423,6 +423,10 @@ dynamic_expression::dynamic_expression() :
 
 void dynamic_expression::initialise(NodeBase* n)
 {
+	node = n;
+
+	node->getRootNetwork()->checkAllowCompilationFlag(node, true);
+
 	isMathNode = n->getPath().getParent().getIdentifier() == Identifier("math");
 
 	code.initialise(n);
@@ -481,6 +485,8 @@ void dynamic_expression::updateCode(Identifier id, var newValue)
 	messageIndex = 0;
 
 	warning = Result::ok();
+
+	node->getRootNetwork()->checkAllowCompilationFlag(node, true);
 
 	snex::JitExpression::Ptr newCode = new snex::JitExpression(newValue.toString(), this, isMathNode);
 

@@ -18,6 +18,7 @@
     your controls and content.
 */
 class MainContentComponent   : public Component,
+public TopLevelWindowWithOptionalOpenGL,
 							   public ProjectHandler::Listener
 {
 public:

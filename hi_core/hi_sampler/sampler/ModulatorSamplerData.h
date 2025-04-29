@@ -431,6 +431,8 @@ private:
 
 	ScopedPointer<ChangeWatcher> changeWatcher;
 
+	DebugSession::ProfileDataSource::Ptr sampleMapSource;
+
 	Notifier notifier;
 
 	/** Restores the samplemap from the ValueTree.

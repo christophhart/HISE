@@ -29,7 +29,7 @@ public:
 	{};
 
 	VariableStorage(Types::ID type_, const var& value);
-	VariableStorage(FloatType s);
+	VariableStorage(SnexFloatType s);
 	VariableStorage(double d);
 	VariableStorage(int s);
 	VariableStorage(const block& b);
@@ -61,14 +61,14 @@ public:
 
 	VariableStorage& operator=(const VariableStorage& other);
 	VariableStorage& operator =(int s);
-	VariableStorage& operator =(FloatType s);
+	VariableStorage& operator =(SnexFloatType s);
 	VariableStorage& operator =(double s);
 	VariableStorage& operator =(const block& s);
 
 	bool operator==(const VariableStorage& other) const;
 
 	void setWithType(Types::ID newType, double value);
-	void set(FloatType s);
+	void set(SnexFloatType s);
 	void set(double s);
 	void setDouble(double newValue);
 	void set(int s);;
@@ -78,7 +78,7 @@ public:
 
 	void clear();
 
-	explicit operator FloatType() const noexcept;
+	explicit operator SnexFloatType() const noexcept;
 	explicit operator double() const noexcept;
 	explicit operator int() const;
 	explicit operator block() const;
@@ -177,7 +177,7 @@ return *this;
 
 	void* toPtr() const;
 	double toDouble() const;
-	FloatType toFloat() const;
+	SnexFloatType toFloat() const;
 	int toInt() const;
 	block toBlock() const;
 	HiseEvent toEvent() const;

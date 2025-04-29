@@ -48,8 +48,15 @@ GlobalScriptCompileBroadcaster::~GlobalScriptCompileBroadcaster()
 	clearIncludedFiles();
 }
 
-void GlobalScriptCompileBroadcaster::addScriptListener(GlobalScriptCompileListener* listener, bool insertAtBeginning)
+void GlobalScriptCompileBroadcaster::addScriptListener(GlobalScriptCompileListener* listener, bool insertAtBeginning, bool insertAsFirstElement)
 {
+	if(insertAsFirstElement)
+	{
+		jassert(!listenerListStart.contains(listener));
+		listenerListStart.insert(0, listener);
+		return;
+	}
+
 	if (insertAtBeginning)
 	{
 		listenerListStart.addIfNotAlreadyThere(listener);
@@ -66,12 +73,6 @@ void GlobalScriptCompileBroadcaster::removeScriptListener(GlobalScriptCompileLis
 	listenerListStart.removeAllInstancesOf(listener);
 	listenerListEnd.removeAllInstancesOf(listener);
 }
-
-void GlobalScriptCompileBroadcaster::setShouldUseBackgroundThreadForCompiling(bool shouldBeEnabled) noexcept
-{ useBackgroundCompiling = shouldBeEnabled; }
-
-bool GlobalScriptCompileBroadcaster::isUsingBackgroundThreadForCompiling() const noexcept
-{ return useBackgroundCompiling; }
 
 void GlobalScriptCompileBroadcaster::setEnableCompileAllScriptsOnPresetLoad(bool shouldBeEnabled) noexcept
 { enableGlobalRecompile = shouldBeEnabled; }
@@ -244,6 +245,12 @@ void GlobalScriptCompileBroadcaster::saveAllExternalFiles()
 
 void GlobalScriptCompileBroadcaster::sendScriptCompileMessage(JavascriptProcessor *processorThatWasCompiled)
 {
+	if(auto jmp = dynamic_cast<JavascriptMidiProcessor*>(processorThatWasCompiled))
+	{
+		if(jmp->isFront())
+			rebuildPluginParameters();
+	}
+
 	if (!enableGlobalRecompile) return;
 
 	for (int i = 0; i < listenerListStart.size(); i++)

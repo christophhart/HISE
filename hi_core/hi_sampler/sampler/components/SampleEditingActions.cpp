@@ -322,7 +322,11 @@ void SampleEditHandler::SampleEditingActions::selectAllSamples(SampleEditHandler
 
 	while (auto sound = sIter.getNextSound())
 	{
-		if(thisIndex.isZero() || thisIndex[sound->getRRGroup() - 1])
+		auto matchesDisplay = thisIndex[sound->getBitmask() - 1];
+
+		
+
+		if(thisIndex.isZero() || matchesDisplay)
 			handler->getSelectionReference().addToSelection(sound.get());
 	}
 

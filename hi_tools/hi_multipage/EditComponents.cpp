@@ -62,7 +62,7 @@ static const char* BatchFile = R"(
 
     set -o pipefail
     echo Compiling %PROJECT% ...
-    xcodebuild -project "Builds/MacOSX/%PROJECT%.xcodeproj" -configuration "Release" -jobs "10" | xcpretty
+    xcodebuild -project "Builds/MacOSX/%PROJECT%.xcodeproj" -configuration "Release" -jobs "6" | "%HISE_PATH%/tools/Projucer/xcbeautify"
 )";
 #elif JUCE_LINUX
 static const char* BatchFile = R"(

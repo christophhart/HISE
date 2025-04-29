@@ -254,6 +254,7 @@ private:
 *	You can create subclasses of this component and populate it with some SampleArea objects (you can nest them if desired)
 */
 class AudioDisplayComponent: public ComponentWithMiddleMouseDrag,
+							 public ProfiledComponent,
                              public SettableTooltipClient
 {
 public:
@@ -435,6 +436,7 @@ public:
 
 	void resized() override;
 
+	paintAndProfileChildren(g);
 	virtual void paintOverChildren(Graphics &g) override;
 
 	HiseAudioThumbnail* getThumbnail();

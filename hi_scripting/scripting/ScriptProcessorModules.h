@@ -577,7 +577,10 @@ public:
 	
 	JavascriptMasterEffect(MainController *mc, const String &id);
 	~JavascriptMasterEffect();
-	
+
+
+	void onProfileEnableChange() override;
+
 
 	Path getSpecialSymbol() const override;
 

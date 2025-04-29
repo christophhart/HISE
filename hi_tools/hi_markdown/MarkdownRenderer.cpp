@@ -2265,7 +2265,19 @@ void MarkdownHelpButton::componentMovedOrResized(Component& c, bool cond, bool c
         {
             Rectangle<int> r(cBounds.getRight() - 16, cBounds.getY() - 16, 16, 16);
             setBounds(r);
+			break;
         }
+    case PropertyHelpOffsetXY:
+    {
+	    auto xOffset = c.getProperties()["helpOffsetX"];
+    	auto yOffset = c.getProperties()["helpOffsetY"];
+
+		Rectangle<int> b(16, 16);
+
+		b.setPosition(c.getPosition().translated(xOffset, yOffset));
+		setBounds(b);
+		break;
+    }
     default:
         break;
     }

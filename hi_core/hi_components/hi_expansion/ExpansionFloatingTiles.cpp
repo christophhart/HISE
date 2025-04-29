@@ -55,7 +55,7 @@ public:
 		LOAD_EPATH_IF_URL("new", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 
 		LOAD_EPATH_IF_URL("open", EditorIcons::openFile);
-		LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
+		LOAD_EPATH_IF_URL("rebuild", ColumnIcons::moveIcon);
 
 
 		BACKEND_ONLY(LOAD_EPATH_IF_URL("edit", OverlayIcons::penShape));

@@ -446,7 +446,7 @@ public:
 	void preHiseEventCallback(HiseEvent &m) override;
 
 	bool isUsingCrossfadeGroups() const { return crossfadeGroups; }
-	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, int groupIndex);
+	float* calculateCrossfadeModulationValuesForVoice(int voiceIndex, int startSample, int numSamples, ModulatorSamplerSound::Bitmask m);
 	const float *getCrossfadeModValues() const;
 
 	ValueTree parseMetadata(const File& sampleFile);
@@ -456,6 +456,29 @@ public:
 	void setVoiceLimit(int newVoiceLimit) override;
 
 	float getConstantCrossFadeModulationValue() const noexcept;
+
+	float* calculateGroupModulationValuesForVoice(const HiseEvent& e, int voiceIndex, int startSample, int numSamples,
+	                                              ModulatorSamplerSound::Bitmask m)
+	{
+		if(soundCollector == nullptr)
+			return nullptr;
+
+		if(auto gm = getComplexGroupManager())
+			return gm->calculateGroupModulationValuesForVoice(e, voiceIndex, startSample, numSamples, m);
+
+		return nullptr;
+	}
+
+	float getConstantGroupModulationValue(int voiceIndex, SynthSoundWithBitmask::Bitmask m) const
+	{
+		if(soundCollector == nullptr)
+			return 1.0f;
+
+		if(auto gm = getComplexGroupManager())
+			return gm->getConstantGroupModulationValue(voiceIndex, m);
+		
+		return 1.0f;
+	}
 
 	float getCrossfadeValue(int groupIndex, float inputValue) const;
 
@@ -578,6 +601,15 @@ public:
 	bool setAllowReleaseStart(int eventId, bool shouldAllow);
 
 	void handleSustainPedal(int midiChannel, bool isDown) override;
+
+	void setUseComplexGroupManager(bool shouldUseComplexGroupManager);
+
+	SynthSoundWithBitmask::Bitmask getMaxGroupIndex() const { return getComplexGroupManager() != nullptr ? UINT64_MAX : (uint64)rrGroupAmount; }
+
+	ComplexGroupManager* getComplexGroupManager() const
+	{
+		return dynamic_cast<ComplexGroupManager*>(soundCollector.get());
+	}
 
 	struct ChannelData: RestorableObject
 	{

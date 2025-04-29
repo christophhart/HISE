@@ -34,7 +34,7 @@ struct time_stretcher
 {
     using EngineFactoryFunction = std::function<timestretch_engine_base* (const Identifier& id)>;
 
-    time_stretcher(bool enabled = true);
+    
 
     void reset();
     void process(float** input, int numInput, float** outputs, int numOutput);
@@ -50,7 +50,7 @@ struct time_stretcher
 
     double getLatency(double ratio) const;
 
-    time_stretcher();
+    time_stretcher(bool enabled = true);
     ~time_stretcher();
     
     bool isEnabled() const;

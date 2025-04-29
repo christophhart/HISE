@@ -533,11 +533,11 @@ struct ScriptBroadcaster::Display: public Component,
 	{
 		Path p;
 
-		LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
-		LOAD_PATH_IF_URL("reset", ColumnIcons::resetIcon);
-		LOAD_PATH_IF_URL("breakpoint", ColumnIcons::breakpointIcon);
+		LOAD_EPATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
+		LOAD_EPATH_IF_URL("reset", ColumnIcons::resetIcon);
+		LOAD_EPATH_IF_URL("breakpoint", ColumnIcons::breakpointIcon);
 		LOAD_EPATH_IF_URL("enable", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
-		LOAD_PATH_IF_URL("delay", ColumnIcons::delayIcon);
+		LOAD_EPATH_IF_URL("delay", ColumnIcons::delayIcon);
 
 		return p;
 	}
@@ -740,7 +740,9 @@ juce::Result ScriptBroadcaster::ComponentPropertyListener::callItem(TargetBase* 
 			args.set(1, id.value);
 			args.set(2, v);
 
-			auto ok = n->callSync(args);
+			
+
+			auto ok = n->callSyncWithProfile(i->parent, args);
 
 			if (!ok.wasOk())
 				return ok;
@@ -825,7 +827,7 @@ juce::Result ScriptBroadcaster::ComponentVisibilityListener::callItem(TargetBase
 {
 	for (auto item : items)
 	{
-		auto ok = n->callSync(item->getArgs());
+		auto ok = n->callSyncWithProfile(item->parent, item->getArgs());
 
 		if (!ok.wasOk())
 			return ok;
@@ -850,6 +852,7 @@ ScriptBroadcaster::ScriptTarget::ScriptTarget(ScriptBroadcaster* sb, int numArgs
 {
 	metadata.attachCommentFromCallableObject(f);
 	callback.incRefCount();
+	callback.addAsSource(sb, metadata.id.toString());
 }
 
 
@@ -1448,8 +1451,8 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
                 {
                     args.set(1, "Intensity");
                     args.set(2, m->getIntensity());
-                    
-                    auto r = n->callSync(args);
+
+                    auto r = n->callSyncWithProfile(*p->sb, args);
 
                     if (!r.wasOk())
                         return r;
@@ -1464,7 +1467,7 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 
                 args.set(2, var((float)(int)v));
 
-                auto r = n->callSync(args);
+                auto r = n->callSyncWithProfile(*p->sb, args);
 
                 if (!r.wasOk())
                     return r;
@@ -1478,7 +1481,7 @@ Result ScriptBroadcaster::ModuleParameterListener::callItem(TargetBase* n)
 			args.set(1, processor->getIdentifierForParameterIndex(parameterIndex).toString());
 			args.set(2, processor->getAttribute(parameterIndex));
 
-			auto r = n->callSync(args);
+			auto r = n->callSyncWithProfile(*p->sb, args);
 
 			if (!r.wasOk())
 				return r;
@@ -1679,7 +1682,7 @@ Result ScriptBroadcaster::SamplemapListener::callItem(TargetBase* n)
 			args.set(1, p->samplerId);
 			args.set(2, p->sampleMap->getReference().getReferenceString());
 
-			auto r = n->callSync(args);
+			auto r = n->callSyncWithProfile(*p->sb, args);
 
 			if (!r.wasOk())
 				return r;
@@ -1691,7 +1694,7 @@ Result ScriptBroadcaster::SamplemapListener::callItem(TargetBase* n)
 			args.set(1, p->samplerId);
 			args.set(2, p->sampleMap->getSampler()->getNumSounds());
 
-			auto r = n->callSync(args);
+			auto r = n->callSyncWithProfile(*p->sb, args);
 
 			if (!r.wasOk())
 				return r;
@@ -1856,7 +1859,7 @@ juce::Result ScriptBroadcaster::RoutingMatrixListener::callItem(TargetBase* n)
 		args.set(0, p->id);
 		args.set(1, p->scriptMatrix);
 
-		auto r = n->callSync(args);
+		auto r = n->callSyncWithProfile(*p->sb, args);
 
 		if (!r.wasOk())
 			return r;
@@ -2018,7 +2021,7 @@ Result ScriptBroadcaster::ComplexDataListener::callItem(TargetBase* n)
 		else
 			args.setUnchecked(2, p->data->toBase64String());
 
-		auto r = n->callSync(args);
+		auto r = n->callSyncWithProfile(*p->parent, args);
 
 		if (!r.wasOk())
 			return r;
@@ -2086,7 +2089,7 @@ void ScriptBroadcaster::NonRealtimeSource::registerSpecialBodyItems(ComponentWit
 juce::Result ScriptBroadcaster::NonRealtimeSource::callItem(TargetBase* n)
 {
 	auto rt = parent->getScriptProcessor()->getMainController_()->getSampleManager().isNonRealtime();
-	return n->callSync(var(rt));
+	return n->callSyncWithProfile(*parent, var(rt));
 }
 
 
@@ -2138,7 +2141,7 @@ void ScriptBroadcaster::ProcessingSpecSource::registerSpecialBodyItems(Component
 
 juce::Result ScriptBroadcaster::ProcessingSpecSource::callItem(TargetBase* n)
 {
-	return n->callSync(processArgs);
+	return n->callSyncWithProfile(*parent, processArgs);
 }
 
 void ScriptBroadcaster::ProcessingSpecSource::prepareCalled(ProcessingSpecSource& p, double sampleRate, int blockSize)
@@ -2318,7 +2321,8 @@ struct ScriptBroadcaster::ContextMenuListener : public ListenerBase
 struct ScriptBroadcaster::ComponentValueListener::InternalListener
 {
 	InternalListener(ScriptBroadcaster* parent, ScriptComponent* sc_) :
-		sc(sc_)
+		sc(sc_),
+	    sb(*parent)
 	{
 		sc->attachValueListener(parent);
 	};
@@ -2328,6 +2332,7 @@ struct ScriptBroadcaster::ComponentValueListener::InternalListener
 
 	}
 
+	ScriptBroadcaster& sb;
 	WeakReference<ScriptComponent> sc;
 };
 
@@ -2375,7 +2380,7 @@ juce::Result ScriptBroadcaster::ComponentValueListener::callItem(TargetBase* n)
 		args.set(0, var(i->sc.get()));
 		args.set(1, var(i->sc->getValue()));
 
-		auto ok = n->callSync(args);
+		auto ok = n->callSyncWithProfile(i->sb, args);
 		if (!ok.wasOk())
 			return ok;
 	}
@@ -2406,7 +2411,8 @@ struct ScriptBroadcaster::RadioGroupListener::InternalListener
 
 ScriptBroadcaster::RadioGroupListener::RadioGroupListener(ScriptBroadcaster* b, int radioGroupIndex, const var& metadata):
 	ListenerBase(metadata),
-	radioGroup(radioGroupIndex)
+	radioGroup(radioGroupIndex),
+	parent(*b) 
 {
 	auto content = b->getScriptProcessor()->getScriptingContent();
 
@@ -2549,7 +2555,7 @@ juce::Result ScriptBroadcaster::RadioGroupListener::callItem(TargetBase* n)
 	{
 		Array<var> args;
 		args.add(currentIndex);
-		auto ok = n->callSync(args);
+		auto ok = n->callSyncWithProfile(parent, args);
 
 		if (!ok.wasOk())
 			return ok;
@@ -2593,7 +2599,7 @@ juce::Result ScriptBroadcaster::DebugableObjectListener::callItem(TargetBase* n)
 			return Result::ok();
 	}
 
-	return n->callSync(parent->lastValues);
+	return n->callSyncWithProfile(*parent, parent->lastValues);
 }
 
 
@@ -2639,7 +2645,7 @@ void ScriptBroadcaster::DebugableObjectListener::registerSpecialBodyItems(Compon
 		Path createPath(const String& url) const override
 		{
 			Path p;
-			p.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
+			p.loadPathFromData(ColumnIcons::openWorkspaceIcon, ColumnIcons::openWorkspaceIcon_Size);
 			return p;
 		}
 
@@ -2796,7 +2802,7 @@ void ScriptBroadcaster::ScriptCallListener::registerSpecialBodyItems(ComponentWi
 		Path createPath(const String& url) const override
 		{
 			Path p;
-			p.loadPathFromData(ColumnIcons::openWorkspaceIcon, sizeof(ColumnIcons::openWorkspaceIcon));
+			p.loadPathFromData(ColumnIcons::openWorkspaceIcon, ColumnIcons::openWorkspaceIcon_Size);
 			return p;
 		}
 
@@ -3306,6 +3312,13 @@ ScriptBroadcaster::ScriptBroadcaster(ProcessorWithScriptingContent* p, const var
 
 	auto parentId = dynamic_cast<Processor*>(p)->getIDAsIdentifier();
 	setWantsCurrentLocation(true);
+
+	broadcasterProfile.setPrefix(parentId + "." + metadata.id.toString());
+	broadcasterProfile.setSourceType(DebugSession::ProfileDataSource::SourceType::Broadcaster);
+	broadcasterProfile.setColour(metadata.c.withAlpha(0.7f));
+	broadcasterProfile.setHolder(dynamic_cast<JavascriptProcessor*>(p), true);
+	broadcasterProfile.add(".sendMessage()");
+	broadcasterProfile.add(".callListeners()");
 }
 
 ScriptBroadcaster::~ScriptBroadcaster()
@@ -3619,6 +3632,21 @@ void ScriptBroadcaster::sendMessage(var args, bool isSync)
 
 void ScriptBroadcaster::sendMessageInternal(var args, bool isSync)
 {
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	auto sp = broadcasterProfile.profile(0);
+
+	if(sp.data != nullptr)
+	{
+		DebugSession::DataItem::Ptr ni = new DebugSession::DataItem();
+		ni->label = metadata.id.toString() + ".args";
+		ni->id = metadata.id;
+		ni->data = args;
+		sp.session->addDataItem(ni);
+	}
+
+	broadcasterProfile.openTrack(0);
+#endif
+
 	if (forceSync)
 		isSync = true;
 
@@ -4584,6 +4612,8 @@ void ScriptBroadcaster::handleDebugStuff()
 Result ScriptBroadcaster::sendInternal(const Array<var>& args)
 {
 	TRACE_EVENT("dispatch", "Broadcaster.callListeners");
+	auto sp = broadcasterProfile.profile(1);
+	broadcasterProfile.closeTrack(0);
 
 	{
 		SimpleReadWriteLock::ScopedReadLock v(lastValueLock);
@@ -4600,7 +4630,7 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
     {
         for (auto i : items)
         {
-            auto r = i->callSync(args);
+            auto r = i->callSyncWithProfile(*this, args);
             
 			if (!r.wasOk())
 			{
@@ -4621,7 +4651,7 @@ Result ScriptBroadcaster::sendInternal(const Array<var>& args)
                 thisValues.addArray(args);
             }
 
-            auto r = i->callSync(thisValues);
+            auto r = i->callSyncWithProfile(*this, thisValues);
             if (!r.wasOk())
             {
 
@@ -4664,12 +4694,12 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 {
 	checkMetadataAndCallWithInitValues(ni);
 
-	if (!attachedListeners.isEmpty())
+	if (!attachedListeners.isEmpty() && !isBypassed())
 	{
 		for (auto attachedListener : attachedListeners)
 		{
 			// If it's attached to a listener, we'll update it with the current values.
-			auto r = attachedListener->callItem(ni);
+			auto r = attachedListener->callItemWithProfile(*this, ni);
 
 			if (!r.wasOk())
 				sendErrorMessage(ni, r.getErrorMessage());
@@ -4682,9 +4712,9 @@ void ScriptBroadcaster::initItem(TargetBase* ni)
 		for (const auto& v : lastValues)
 			callListener &= (!v.isUndefined() && !v.isVoid());
 
-		if (callListener || sendWhenUndefined)
+		if ((callListener || sendWhenUndefined) && !isBypassed())
 		{
-			auto r = ni->callSync(lastValues);
+			auto r = ni->callSyncWithProfile(*this, lastValues);
 
 			if (!r.wasOk())
 				sendErrorMessage(ni, r.getErrorMessage());
@@ -4697,6 +4727,11 @@ void ScriptBroadcaster::checkMetadataAndCallWithInitValues(ItemBase* i)
 	if (!i->metadata.r.wasOk())
 		sendErrorMessage(i, i->metadata.r.getErrorMessage(), true);
 
+	i->profileIndex = broadcasterProfile.add(i->metadata.id.toString());
+
+    if(isBypassed())
+        return;
+    
 	if (auto l = dynamic_cast<ListenerBase*>(i))
 	{
 		int numInitArgs = l->getNumInitialCalls();
@@ -4706,7 +4741,7 @@ void ScriptBroadcaster::checkMetadataAndCallWithInitValues(ItemBase* i)
 			lastValues = l->getInitialArgs(j);
 
 			for (auto target : items)
-				target->callSync(lastValues);
+				target->callSyncWithProfile(*this, lastValues);
 		}
 	}
 }

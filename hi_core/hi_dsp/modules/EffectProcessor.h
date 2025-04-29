@@ -46,7 +46,8 @@ namespace hise { using namespace juce;
 	depending on the type of your effect.
 *
 */
-class EffectProcessor: public Processor
+class EffectProcessor: public Processor,
+					   public ProfiledProcessor
 {
 public:
 

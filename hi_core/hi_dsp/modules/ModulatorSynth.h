@@ -106,13 +106,25 @@ private:
 */
 class ModulatorSynth: public Synthesiser,
 					  public Processor,
-					  public RoutableProcessor
+					  public RoutableProcessor,
+					  public ProfiledProcessor
 {
 public:
 
 	ADD_DOCUMENTATION();
 
 	// ===================================================================================================================
+
+	enum class ProfileEnumIds
+	{
+		ProcessBlock,
+		ProcessMidi,
+		RenderVoices,
+		RenderVoice,
+		RenderFX,
+		RenderChildSynths,
+		numProfileIds
+	};
 
 	enum Parameters
 	{
@@ -343,8 +355,12 @@ public:
 
 	struct SoundCollectorBase
 	{
-
 		virtual ~SoundCollectorBase();;
+
+		virtual void preHiseEventCallback(const HiseEvent& e) {};
+
+		/** Override this method and return the amount of samples that the given sampler sound started by the given event should be predelayed. */
+		virtual int getPredelayForVoice(const ModulatorSynthVoice* voice) const { return 0; }
 
 		virtual void collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound*>& soundsToBeStarted) = 0;
 	};
@@ -352,6 +368,13 @@ public:
 	/** This method should go through all sounds that are playable and fill the soundsToBeStarted array. */
 	virtual int collectSoundsToBeStarted(const HiseEvent &m);
 
+	int getPredelayForVoice(const ModulatorSynthVoice* voice) const
+	{
+		if(soundCollector != nullptr)
+			return soundCollector->getPredelayForVoice(voice);
+
+		return 0;
+	}
 
 	virtual void noteOff(const HiseEvent &m);
 

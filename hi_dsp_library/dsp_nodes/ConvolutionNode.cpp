@@ -88,7 +88,7 @@ void convolution::setDamping(double targetSustainDb)
 	if (damping != targetSustainDb)
 	{
 		damping = Decibels::decibelsToGain(targetSustainDb);
-		setImpulse(sendNotificationAsync);
+		calcCutoff();
 	}
 }
 

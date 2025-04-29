@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<Network ID="expr_test" AllowCompilation="1" Version="0.0.0">
+  <Node FactoryPath="container.chain" ID="expr_test" Bypassed="0" Name="expr_test">
+    <Nodes>
+      <Node ID="expr" FactoryPath="math.expr" Bypassed="0" Name="expr">
+        <Properties>
+          <Property ID="Code" Value="Math.pow(input, 2.0f)"/>
+          <Property ID="Debug" Value="0"/>
+        </Properties>
+        <Parameters>
+          <Parameter MinValue="0.0" MaxValue="1.0" ID="Value" Value="1.0"/>
+        </Parameters>
+      </Node>
+    </Nodes>
+    <Parameters/>
+  </Node>
+</Network>

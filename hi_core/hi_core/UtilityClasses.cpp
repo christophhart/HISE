@@ -656,6 +656,15 @@ void AsyncValueTreePropertyListener::valueTreeChildOrderChanged(ValueTree& value
 void AsyncValueTreePropertyListener::valueTreeParentChanged(ValueTree& valueTrees)
 {}
 
+void AsyncValueTreePropertyListener::clearQueue()
+{
+	while (!pendingPropertyChanges.isEmpty())
+	{
+		auto pc = pendingPropertyChanges.removeAndReturn(0);
+		asyncValueTreePropertyChanged(pc.v, pc.id);
+	}
+}
+
 AsyncValueTreePropertyListener::PropertyChange::PropertyChange(ValueTree v_, Identifier id_): v(v_), id(id_)
 {}
 
@@ -674,11 +683,8 @@ AsyncValueTreePropertyListener::AsyncHandler::AsyncHandler(AsyncValueTreePropert
 
 void AsyncValueTreePropertyListener::AsyncHandler::handleAsyncUpdate()
 {
-	while (!parent.pendingPropertyChanges.isEmpty())
-	{
-		auto pc = parent.pendingPropertyChanges.removeAndReturn(0);
-		parent.asyncValueTreePropertyChanged(pc.v, pc.id);
-	}
+	parent.clearQueue();
+	
 }
 
 

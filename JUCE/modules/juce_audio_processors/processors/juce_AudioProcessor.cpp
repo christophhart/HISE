@@ -537,10 +537,13 @@ void AudioProcessor::addParameterGroup (std::unique_ptr<AudioProcessorParameterG
 
 void AudioProcessor::setParameterTree (AudioProcessorParameterGroup&& newTree)
 {
-   #if JUCE_DEBUG
+#if JUCE_DEBUG
     paramIDs.clear();
     groupIDs.clear();
-   #endif
+#if !JUCE_DISABLE_CAUTIOUS_PARAMETER_ID_CHECKING
+    trimmedParamIDs.clear();
+#endif
+#endif
 
     parameterTree = std::move (newTree);
     checkForDuplicateGroupIDs (parameterTree);

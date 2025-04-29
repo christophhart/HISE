@@ -498,6 +498,7 @@ private:
 		}
         
         Rectangle<int> bypassArea;
+		float heatmapAlpha = 0.0f;
 
 	private:
 
@@ -526,6 +527,7 @@ private:
 
 	ScopedPointer<HiseShapeButton> addButton;
 	ScopedPointer<ShapeButton> foldButton;
+	ScopedPointer<HiseShapeButton> profileButton;
 
 	Array<WeakReference<Processor>> popupProcessors;
 

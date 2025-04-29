@@ -46,7 +46,6 @@ if %errorlevel% NEQ 0 (
 
 echo OK
 
-
 echo Running Unit Tests...
 
 %hise_ci% run_unit_tests
@@ -60,10 +59,23 @@ if %errorlevel% NEQ 0 (
 	exit 1
 )
 
+echo Exporting Scriptnode DLL
+
+%hise_ci% set_project_folder "-p:%cd%/extras/demo_project/"
+%hise_ci% compile_networks -c:Debug
+
+if %errorlevel% NEQ 0 (
+	echo ========================================================================
+	echo Error at exporting test project. Aborting...
+	cd tools\auto_build
+	pause
+	exit 1)
+
+call "%cd%/extras/demo_project/DspNetworks/Binaries/batchCompile.bat"
+
 echo Exporting Demo Project...
 
 %hise_ci% set_project_folder "-p:%cd%/extras/demo_project/"
-
 %hise_ci% export_ci "XmlPresetBackups/Demo.xml" -t:instrument -p:VST2 -a:x64 -nolto
 
 if %errorlevel% NEQ 0 (
@@ -74,7 +86,7 @@ if %errorlevel% NEQ 0 (
 	exit 1)
 
 
-"%cd%/extras/demo_project/Binaries/batchCompile.bat"
+call "%cd%/extras/demo_project/Binaries/batchCompile.bat"
 
 if %errorlevel% NEQ 0 (
 	echo ========================================================================

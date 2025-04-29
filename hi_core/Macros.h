@@ -178,6 +178,17 @@ namespace hise { using namespace juce;
 
 #define GET_HISE_SETTING(processor, settingId) dynamic_cast<const GlobalSettingManager*>(processor->getMainController())->getSettingsObject().getSetting(settingId)
 
+#if USE_BACKEND
+// Fetches the preprocessor value from the extra definitions	
+#define HISE_GET_PREPROCESSOR(mc, x) mc->getExtraDefinitionsValue(#x, x);
+// If this fails, then the extra definition preprocessor is different from the value that HISE was compiled with...
+#define ASSERT_EXTRA_DEFINITION_MATCH(mc, x) jassert(mc->getExtraDefinitionsValue(#x, x) == x);
+#else
+// Actually uses the preprocessor coming from the extra definitions for this platform
+#define HISE_GET_PREPROCESSOR(this, x) x
+#define ASSERT_EXTRA_DEFINITION_MATCH(mc, x) ignoreUnused(mc);
+#endif
+
 #include "copyProtectionMacros.h"
 
 } // namespace hise

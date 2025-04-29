@@ -202,6 +202,7 @@ public:
 	enum class Target
 	{
 		whitespace,
+		nonwhitespace,
 		punctuation,
 		character,
 		subword,

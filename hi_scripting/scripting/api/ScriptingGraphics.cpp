@@ -428,7 +428,7 @@ struct ScriptingObjects::ScriptShader::PreviewComponent: public Component,
 #if USE_BACKEND
 		LOAD_EPATH_IF_URL("stats", BackendBinaryData::ToolbarIcons::debugPanel);
 		LOAD_EPATH_IF_URL("view", BackendBinaryData::ToolbarIcons::viewPanel);
-		LOAD_PATH_IF_URL("time", ColumnIcons::moveIcon);
+		LOAD_EPATH_IF_URL("time", ColumnIcons::moveIcon);
 #endif
 		return p;
 	}
@@ -1240,14 +1240,7 @@ var ScriptingObjects::PathObject::getBounds(var scaleFactor)
 {
 	auto r = p.getBoundsTransformed(AffineTransform::scale(scaleFactor));
 
-	Array<var> area;
-
-	area.add(r.getX());
-	area.add(r.getY());
-	area.add(r.getWidth());
-	area.add(r.getHeight());
-
-	return var(area);
+	return ApiHelpers::getVarRectangle(r);
 }
 
 juce::var ScriptingObjects::PathObject::createStrokedPath(var strokeData, var dotData)
@@ -2028,10 +2021,12 @@ void ScriptingObjects::GraphicsObject::drawFittedText(String text, var area, Str
 	Result re = Result::ok();
 	auto just = ApiHelpers::getJustification(alignment, &re);
 
+	auto a = getRectangleFromVar(area).toNearestInt();
+
 	if (re.failed())
 		reportScriptError(re.getErrorMessage());
 
-	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawFittedText(text, area, just, maxLines, scale));
+	drawActionHandler.addDrawAction(new ScriptedDrawActions::drawFittedText(text, a, just, maxLines, scale));
 }
 
 void ScriptingObjects::GraphicsObject::drawMultiLineText(String text, var xy, int maxWidth, String alignment, float leading)
@@ -2280,7 +2275,7 @@ void ScriptingObjects::GraphicsObject::fillPath(var path, var area)
 		if (p.getBounds().isEmpty())
 			return;
 
-		if (area.isArray())
+		if (area.isArray() || dynamic_cast<ScriptingObjects::ScriptRectangle*>(area.getDynamicObject()) != nullptr)
 		{
 			Rectangle<float> r = getRectangleFromVar(area);
 			p.scaleToFit(r.getX(), r.getY(), r.getWidth(), r.getHeight(), false);
@@ -2298,7 +2293,7 @@ void ScriptingObjects::GraphicsObject::drawPath(var path, var area, var strokeTy
 
 		
 
-		if (area.isArray())
+		if (area.isArray() || dynamic_cast<ScriptingObjects::ScriptRectangle*>(area.getDynamicObject()) != nullptr)
 		{
 			Rectangle<float> r = getRectangleFromVar(area);
 
@@ -2421,6 +2416,7 @@ void ScriptingObjects::ScriptedLookAndFeel::registerFunction(var functionName, v
 {
 	if (HiseJavascriptEngine::isJavascriptFunction(function))
 	{
+		hasScriptFunctions = true;
 		addOptimizableFunction(function);
 		functions.getDynamicObject()->setProperty(Identifier(functionName.toString()), function);
 	}
@@ -2590,6 +2586,25 @@ Array<Identifier> ScriptingObjects::ScriptedLookAndFeel::getAllFunctionNames()
 	return sa;
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::setEnableProfiling(DebugSession::ProfileDataSource::Ptr ptr,
+	ApiProviderBase::Holder* h)
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	holder = h;
+
+	if(holder != nullptr)
+	{
+		profileData = new DebugSession::ProfileDataSource();
+		profileData->sourceType = DebugSession::ProfileDataSource::SourceType::Script;
+		profileData->name = "paintRoutine()";
+	}
+	else
+	{
+		profileData = nullptr;
+	}
+#endif
+}
+
 bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const Identifier& functionname, var argsObject, Component* c)
 {
 #if PERFETTO
@@ -2650,6 +2665,7 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 			if (auto sl = SimpleReadWriteLock::ScopedTryReadLock(getScriptProcessor()->getMainController_()->getJavascriptThreadPool().getLookAndFeelRenderLock()))
 			{
 				TRACE_SCRIPTING("executing script function");
+				DebugSession::ProfileDataSource::ScopedProfiler sp(profileData, holder);
 
 				if (c != nullptr && c->getParentComponent() != nullptr)
 				{
@@ -2689,13 +2705,15 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 				engine->callExternalFunction(f, arg, &lastResult, true);
 
 				if (lastResult.wasOk())
-					g->getDrawHandler().flush(0);
+					g->getDrawHandler().flush(0, 0);
 				else
 					debugToConsole(dynamic_cast<Processor*>(getScriptProcessor()), lastResult.getErrorMessage());
 			}
 		}
 
 		TRACE_SCRIPTING("rendering draw actions");
+
+		PROFILE_ONLY(g->getDrawHandler().setEnableProfiling(holder));
 
 		DrawActions::Handler::Iterator it(&g->getDrawHandler());
 
@@ -2820,6 +2838,9 @@ bool ScriptingObjects::ScriptedLookAndFeel::Laf::writeId(DynamicObject* obj, Com
 		return true;
 	}
 
+	if(c->getProperties().contains("AAXPluginParameterColour"))
+		obj->setProperty("AAXPluginParameterColour", c->getProperties()["AAXPluginParameterColour"]);
+
 	c = c->findParentComponentOfClass<FloatingTile>();
 
 	if(c != nullptr)
@@ -2834,7 +2855,6 @@ bool ScriptingObjects::ScriptedLookAndFeel::Laf::writeId(DynamicObject* obj, Com
 						
 	}
 
-	jassertfalse;
 	return false;
 }
 
@@ -3557,6 +3577,12 @@ Font ScriptingObjects::ScriptedLookAndFeel::Laf::getPopupMenuFont()
 
 Font ScriptingObjects::ScriptedLookAndFeel::Laf::getAlertWindowFont()
 { return getFont(); }
+
+ScriptingObjects::ScriptedLookAndFeel::CombinedLaf::CombinedLaf(ScriptedLookAndFeel* parent_,
+	ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree):
+	LocalLaf(parent_),
+	css(parent_, content, c, dataTree, additionalPropertyTree)
+{}
 
 Identifier ScriptingObjects::ScriptedLookAndFeel::getObjectName() const
 { return "ScriptLookAndFeel"; }
@@ -4481,7 +4507,6 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawScrollbar(Graphics& g_, Scr
 		else
 			thumbArea = Rectangle<int>(x + thumbStartPosition, y, thumbSize, height).toFloat();
 
-		writeId(obj, &scrollbar);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(fullArea));
 		obj->setProperty("handle", ApiHelpers::getVarRectangle(thumbArea));
 		obj->setProperty("vertical", isScrollbarVertical);
@@ -4976,7 +5001,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableCell(Graphics& g_, con
 
 		obj->setProperty("text", text);
 		obj->setProperty("rowIndex", rowNumber);
-		obj->setProperty("columnIndex", columnId - 1);
+		obj->setProperty("columnIndex", columnId);
 		obj->setProperty("selected", rowIsSelected);
 		obj->setProperty("clicked", cellIsClicked);
 		obj->setProperty("hover", cellIsHovered);
@@ -5029,7 +5054,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawTableHeaderColumn(Graphics&
 		obj->setProperty("textColour", d.textColour.getARGB());
 
 		obj->setProperty("text", columnName);
-		obj->setProperty("columnIndex", columnId - 1);
+		obj->setProperty("columnIndex", columnId);
 		obj->setProperty("hover", isMouseOver);
 		obj->setProperty("down", isMouseDown);
 

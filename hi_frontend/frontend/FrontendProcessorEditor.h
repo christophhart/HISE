@@ -103,6 +103,10 @@ public:
 
 	}
 
+	void setControlHighlight (ParameterControlHighlightInfo p) override;
+
+	int getControlParameterIndex (Component& c) override;
+
 	void newHisePresetLoaded() override;
 
 	void scaleFactorChanged(float newScaleFactor) override;

@@ -390,6 +390,24 @@ juce::String HiseModuleDatabase::Resolver::getContent(const MarkdownLink& url)
 			}
 		}
 
+		String pdump;
+
+		pdump << "\n### " << p->getType().toString() + " Parameter API";
+
+		pdump << "\n\n```javascript\n";
+
+		for(int i = 0; i < doc->parameters.size(); i++)
+		{
+			auto id = p->getType().toString();
+			
+			pdump << "/* " << doc->parameters[i].helpText << ". */\n";
+			pdump << id << ".setAttribute(" << id << "." << doc->parameters[i].id << ", value);\n\n";
+		}
+
+		pdump << "```\n";
+
+		parameterDump << pdump;
+
 		s << doc->createHelpText();
 
 		return s;

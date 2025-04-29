@@ -266,6 +266,7 @@ hiseSpecialData(this)
 	setMethod("parseInt", IntegerClass::parseInt);
 	setMethod("parseFloat", IntegerClass::parseFloat);
 	setMethod("typeof", typeof_internal);
+	setMethod("Rectangle", ApiHelpers::createRectangle);
 
     // These are not constants so if you're evil you can change them...
     setProperty("AsyncNotification", ApiHelpers::AsyncMagicNumber);
@@ -414,7 +415,7 @@ var HiseJavascriptEngine::RootObject::FunctionCall::getResult(const Scope& s) co
 				}
 			}
 
-			return invokeFunction(s, s.findFunctionCall(location, thisObject, dot->child), thisObject);
+			return invokeFunction(s, s.findFunctionCall(dot->parent->location, thisObject, dot->child), thisObject);
 		}
 
 		var r = object->getResult(s);
@@ -562,12 +563,14 @@ root(root_)
 		hiddenProperties.addIfNotAlreadyThere(Identifier("trace"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("charToInt"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("parseInt"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Rectangle"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("parseFloat"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("typeof"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Object"));
 		//hiddenProperties.addIfNotAlreadyThere(Identifier("Array"));
 		//hiddenProperties.addIfNotAlreadyThere(Identifier("String"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Math"));
+		hiddenProperties.addIfNotAlreadyThere(Identifier("Threads"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("JSON"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Integer"));
 		hiddenProperties.addIfNotAlreadyThere(Identifier("Content"));
@@ -1567,7 +1570,7 @@ void LambdaValueInformation::setAutocompleteable(bool shouldBe)
 	autocompleteable = shouldBe;
 }
 
-const var LambdaValueInformation::getVariantCopy() const
+var LambdaValueInformation::getVariantCopy() const
 { return var(getCachedValueFunction(false)); }
 
 String LambdaValueInformation::getTextForValue() const

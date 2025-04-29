@@ -117,6 +117,11 @@ struct ValueToTextConverter
 			return TempoSyncer::getTempoName(roundToInt(v));
 		}
 
+		static String Decibel(double v)
+		{
+			return Decibels::toString(v, std::abs(v < 18 ? 1 : 0));
+		}
+
 		static String Pan(double v)
 		{		
 			if (v == 0)
@@ -158,6 +163,14 @@ struct ValueToTextConverter
 				return input.getDoubleValue() * 1000.0;
 			else
 				return input.getDoubleValue();
+		}
+
+		static double Decibel(const String& v)
+		{
+			if(v == "-INF")
+				return -100.0;
+
+			return v.getDoubleValue();
 		}
 
 		static double TempoSync(const String& input)
@@ -240,6 +253,7 @@ struct ValueToTextConverter
 		FUNC(TempoSync);
 		FUNC(Pan);
 		FUNC(NormalizedPercentage);
+		FUNC(Decibel);
 
 #undef FUNC
 
@@ -335,26 +349,309 @@ class MidiControllerAutomationHandler : public UserPresetStateManager,
 {
 public:
 
+	// Used to identify the automation data
+	struct Key
+	{
+		static constexpr int16 MaxCCNumber = 128;
+		static constexpr int8 MaxChannel = 16;
+		
+		Key(): channel(-2), ccNumber(0) {};
+
+		Key(int channel_, int ccNumber_):
+		  channel((int8)channel_),
+		  ccNumber((int16)ccNumber_)
+		{
+			jassert(channel == -1 || channel < MaxChannel);
+			jassert(isPositiveAndBelow(ccNumber, (int)MaxCCNumber));
+		};
+
+		Key(const MidiMessage& m, bool useOmni):
+		  channel(useOmni ? -1 : m.getChannel()-1),
+		  ccNumber(m.getControllerNumber())
+		{
+			
+		}
+
+		Key asOmni() const
+		{
+			jassert(!isOmni());
+			Key k(*this);
+			k.channel = -1;
+			return k;
+		}
+
+		Key(const HiseEvent& e, bool useOmni):
+		  channel(useOmni ? -1 : e.getChannel()-1),
+		  ccNumber(e.getControllerNumber())
+		{}
+
+		bool isValid() const { return isOmni() || (isPositiveAndBelow(channel, MaxChannel) && isPositiveAndBelow(ccNumber, MaxCCNumber)); }
+		bool isOmni() const { return channel == -1; }
+		bool isInvalid() const { return channel == -2; }
+
+		int getMidiChannelBasedOne() const
+		{
+			if(isOmni()) return -1;
+
+			return channel + 1;
+		}
+
+		bool matchesOtherKey(const Key& other) const
+		{
+			auto channelMatches = other.channel == channel || other.isOmni() || isOmni();
+			auto ccMatches = other.ccNumber == ccNumber;
+			return channelMatches && ccMatches;
+		}
+
+		int8 channel = -2;
+		int16 ccNumber = 0;
+
+		
+	};
+    
+    template <typename T> struct Container
+    {
+        struct Iterator
+        {
+            Iterator(const Container& c_, bool justOmni_):
+              c(c_),
+              justOmni(justOmni_),
+              k(-1, 0)
+            {}
+
+            bool next(T* t=nullptr)
+            {
+                auto& l = c[k];
+
+                if(isPositiveAndBelow(indexInVector, l.size()))
+                {
+                    if(t != nullptr)
+                        *t = l[indexInVector];
+
+                    indexInVector++;
+                    return true;
+                }
+
+                indexInVector = 0;
+
+                if(!bumpKey())
+                    return false;
+
+                while(c[k].empty())
+                {
+                    if(!bumpKey())
+                        return false;
+                }
+
+                jassert(!c[k].empty());
+
+                if(t != nullptr)
+                    *t = c[k][indexInVector];
+
+                indexInVector++;
+
+                return true;
+            }
+                    
+
+            Key getCurrentKey() const { return k; }
+            int getPositionInVector() const { return indexInVector-1; }
+
+            void eraseCurrentElement()
+            {
+                jassert(indexInVector != 0);
+
+                auto& l = const_cast<Container*>(&c)->operator[](k);
+                indexInVector--;
+                l.erase(l.begin() + indexInVector);
+            }
+
+            int getNumItems() const
+            {
+                Iterator copy(*this);
+                copy.reset();
+
+                int numActive = 0;
+
+                while(copy.next())
+                    numActive++;
+
+                return numActive;
+            }
+
+            int getIndexForKey(const Key& k) const
+            {
+                Iterator copy(*this);
+                copy.reset();
+
+                int currentIndex = 0;
+
+                while(copy.next())
+                {
+                    if(copy.getCurrentKey().matchesOtherKey(k))
+                        return currentIndex;
+
+                    currentIndex++;
+                }
+
+                return -1;
+            }
+
+            bool perform(int indexInFlatList, const std::function<bool(T&)>& f) const
+            {
+                auto copy = Iterator(*this);
+                copy.reset();
+
+                int currentIndex = 0;
+
+                while(copy.next())
+                {
+                    if(currentIndex++ == indexInFlatList)
+                    {
+                        auto k = copy.getCurrentKey();
+                        auto pos = copy.getPositionInVector();
+                        auto& l = const_cast<Container*>(&c)->operator[](k);
+                        return f(l[pos]);
+                    }
+                }
+
+                return false;
+            }
+
+            T getDataFromIndex(int index) const
+            {
+                auto copy = Iterator(*this);
+                copy.reset();
+
+                int currentIndex = 0;
+
+                while(copy.next())
+                {
+                    if (index == currentIndex++)
+                    {
+                        return c[copy.getCurrentKey()][copy.getPositionInVector()];
+                    }
+                }
+
+                return {};
+            }
+
+            int removeMatches(const Key& key) const
+            {
+                int numRemoved = 0;
+                auto copy = Iterator(*this);
+                copy.reset();
+
+                while(copy.next())
+                {
+                    if(copy.getCurrentKey().matchesOtherKey(key))
+                    {
+                        copy.eraseCurrentElement();
+                        numRemoved++;
+                    }
+                }
+
+                return numRemoved;
+            }
+
+        private:
+
+            void reset()
+            {
+                k = { -1, 0 };
+                indexInVector = 0;
+            }
+
+            bool bumpKey()
+            {
+                if (justOmni)
+                {
+                    return ++k.ccNumber < Key::MaxCCNumber;
+                }
+                else
+                {
+                    if(++k.ccNumber == Key::MaxCCNumber)
+                    {
+                        k.ccNumber = 0;
+                        k.channel++;
+                        return k.channel < (Key::MaxChannel);
+                    }
+
+                    return true;
+                }
+            }
+
+            const bool justOmni;
+            const Container& c;
+            Key k;
+            int indexInVector = 0;
+        };
+
+        
+
+        std::vector<T>& operator[](const Key& k)
+        {
+            if(!k.isValid())
+            {
+                jassertfalse;
+                static std::vector<T> empty;
+                return empty;
+            }
+
+            if(k.isOmni())
+                return data[Key::MaxChannel][k.ccNumber];
+
+            return data[k.channel][k.ccNumber];
+        }
+
+        Iterator createIterator(bool justOmni) const { return Iterator(*this, justOmni); }
+
+        void clear()
+        {
+            for(auto& ch: data)
+            {
+                for(auto& cc: ch)
+                    cc.clear();
+            }
+        }
+
+        const std::vector<T>& operator[](const Key& k) const
+        {
+            return const_cast<Container*>(this)->operator[](k);
+        }
+
+        const std::array<std::vector<T>, Key::MaxCCNumber>& getChannelData(int8 channelIndex) const
+        {
+            if(isPositiveAndBelow(channelIndex, Key::MaxChannel))
+                return data[channelIndex];
+            else
+                return data[Key::MaxChannel];
+        }
+
+    private:
+
+        std::array<std::array<std::vector<T>, Key::MaxCCNumber>, Key::MaxChannel + 1> data;
+    };
+
 	MidiControllerAutomationHandler(MainController *mc_);
 
 	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, const ValueToTextConverter& converter, int macroIndex);
 	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners);
-
-	
 
 	bool isLearningActive() const;
 
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
-	Identifier getUserPresetStateId() const override;;
+	Identifier getUserPresetStateId() const override;
+	
 	void resetUserPresetState() override;
 
 	bool isLearningActive(Processor *interfaceProcessor, int attributeIndex) const;
 	void deactivateMidiLearning();
 
-	void setUnlearndedMidiControlNumber(int ccNumber, NotificationType notifyListeners);
-	int getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex) const;
+	void setUnlearndedMidiControlNumber(Key k, NotificationType notifyListeners);
+	Key getMidiControllerNumber(Processor *interfaceProcessor, int attributeIndex) const;
 
 	void refreshAnyUsedState();
 	void clear(NotificationType notifyListeners);
@@ -503,7 +800,7 @@ public:
 		NormalisableRange<double> fullRange;
 		float lastValue = -1.0f;
 		int macroIndex;
-		int ccNumber = -1;
+		Key k;
 		bool inverted = false;
 		bool used;
 		ValueToTextConverter textConverter;
@@ -515,6 +812,10 @@ public:
 	MPEData& getMPEData();
 
 	const MPEData& getMPEData() const;
+
+	Container<AutomationData>::Iterator createIterator() const;
+
+	int getIndexForKey(Key key) const;
 
 	int getNumActiveConnections() const;
 	bool setNewRangeForParameter(int index, NormalisableRange<double> range);
@@ -528,9 +829,9 @@ public:
 
 	bool hasSelectedControllerPopupNumbers() const;
 
-	bool shouldAddControllerToPopup(int controllerValue) const;
+	bool shouldAddControllerToPopup(int controllerNumber) const;
 
-	bool isMappable(int controllerValue) const;
+	bool isMappable(int controllerNumber) const;
 
 	void setExclusiveMode(bool shouldBeExclusive);
 
@@ -546,6 +847,8 @@ public:
 
 private:
 
+	bool filterChannels = false;
+
 	bool exclusiveMode = false;
 	bool consumeEvents = true;
 
@@ -554,23 +857,23 @@ private:
 
 	BigInteger controllerNumbersInPopup;
 
+	mutable SimpleReadWriteLock unloadLock;
+
 	ValueTree unloadedData;
 
 	// ========================================================================================================
 
 	MainController *mc;
-	
 
 	CriticalSection lock;
-
-	
 
 	MPEData mpeData;
 
 	bool anyUsed;
 	MidiBuffer tempBuffer;
 
-	Array<AutomationData> automationData[128];
+	Container<AutomationData> automationData;
+
 	AutomationData unlearnedData;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MidiControllerAutomationHandler)
@@ -825,7 +1128,7 @@ protected:
 
 private:
 
-	static constexpr int NumThrowAwayBuffers = 12;
+	static constexpr int NumThrowAwayBuffers = 128;
 
 	int thisNumThrowAway = 0;
 

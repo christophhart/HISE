@@ -211,7 +211,7 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 		return (int)(location - program.getCharPointer());
 	}
 
-	String getEncodedLocationString(const String& processorId, const File& scriptRoot) const
+	String getEncodedLocationString(const String& processorId, const File& scriptRoot, int col, int line) const
 	{
 		int charIndex = getCharIndex();
 
@@ -229,7 +229,13 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 		}
 		
 		l << "|" << String(charIndex);
-		
+		l << "|" << String(col) << "|" << String(line);
+
+		return "{" + Base64::toBase64(l) + "}";
+	}
+
+	String getEncodedLocationString(const String& processorId, const File& scriptRoot) const
+	{
 		int col = 1, line = 1;
 
 		for (String::CharPointerType i(program.getCharPointer()); i < location && !i.isEmpty(); ++i)
@@ -238,57 +244,10 @@ struct HiseJavascriptEngine::RootObject::CodeLocation
 			if (*i == '\n') { col = 1; ++line; }
 		}
 
-		l << "|" << String(col) << "|" << String(line);
-
-		return "{" + Base64::toBase64(l) + "}";
+		return getEncodedLocationString(processorId, scriptRoot, col, line);
 	}
 
-	struct Helpers
-	{
-		static int getCharNumberFromBase64String(const String& base64EncodedString)
-		{
-			auto s = getDecodedString(base64EncodedString);
-
-			auto sa = StringArray::fromTokens(s, "|", "");
-
-			return sa[2].getIntValue();
-		}
-
-		static String getProcessorId(const String& base64EncodedString)
-		{
-			auto s = getDecodedString(base64EncodedString);
-
-			auto sa = StringArray::fromTokens(s, "|", "");
-
-			jassert(sa.size() > 0);
-
-			return sa[0];
-		}
-
-		static String getFileName(const String& base64EncodedString)
-		{
-			auto s = getDecodedString(base64EncodedString);
-
-			auto sa = StringArray::fromTokens(s, "|", "");
-
-			jassert(sa.size() > 1);
-
-			if (sa[1].isEmpty())
-				return String();
-
-			if (sa[1].contains("()"))
-				return sa[1];
-
-			return "{PROJECT_FOLDER}" + sa[1];
-		}
-
-		static String getDecodedString(const String& base64EncodedString)
-		{
-			MemoryOutputStream mos;
-			Base64::convertFromBase64(mos, base64EncodedString.removeCharacters("{}"));
-			return String::createStringFromData(mos.getData(), (int)mos.getDataSize());
-		}
-	};
+	using Helpers = mcl::TextEditor::Error::Helpers;
 
 	String getErrorMessage(const String &message) const
 	{
@@ -598,6 +557,23 @@ struct HiseJavascriptEngine::RootObject::Statement
 
 	virtual bool isConstant() const { return false; }
 
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	mutable DebugSession::ProfileDataSource::Ptr currentProfileRoot;
+
+	void setCurrentProfileRoot(DebugSession::ProfileDataSource::Ptr newRoot) const
+	{
+		currentProfileRoot = newRoot;
+
+		int i = 0;
+		while(auto s = const_cast<Statement*>(this)->getChildStatement(i++))
+		{
+			s->setCurrentProfileRoot(newRoot);
+		}
+	}
+#endif
+
+	virtual String getProfileName() const { return {}; }
+
 	CodeLocation location;
 	
 	/** Return nullptr if there is no child, otherwise a reference to the child statement. 
@@ -651,6 +627,8 @@ struct HiseJavascriptEngine::RootObject::Expression : public Statement
 
 	virtual var getResult(const Scope&) const            { return var::undefined(); }
 	virtual void assign(const Scope&, const var&) const  { location.throwError("Cannot assign to this expression!"); }
+
+	String getProfileName() const override { return getVariableName().toString(); }
 
 	virtual Identifier getVariableName() const { return {}; }
 
@@ -811,6 +789,8 @@ Result HiseJavascriptEngine::execute(const String& javascriptCode, bool allowCon
 #else
         auto& copy = javascriptCode;
 #endif
+
+		root->setEnableOnInitProfiling(enableOnInitProfiling);
 
 		root->execute(copy, allowConstDeclarations);
 	}
@@ -1096,6 +1076,23 @@ void HiseJavascriptEngine::rebuildDebugInformation()
 	root->hiseSpecialData.clearDebugInformation();
 
 	root->hiseSpecialData.createDebugInformation(root.get());
+
+	for(const auto& f: debugInfoListeners)
+	{
+		for(int i = 0; i < getNumDebugObjects(); i++)
+		{
+			auto ptr = getDebugInformation(i);
+
+			if(auto obj = ptr->getObject())
+			{
+				if(f.first.get() == obj)
+				{
+					f.second(ptr);
+					break;
+				}
+			}
+		}
+	}
 }
 
 var HiseJavascriptEngine::executeWithoutAllocation(const Identifier &function, const var::NativeFunctionArgs& args, Result* result /*= nullptr*/, DynamicObject *scopeToUse)
@@ -2061,7 +2058,7 @@ String HiseJavascriptEngine::RootObject::Error::getEncodedLocation(Processor* p)
 	l << "|" << String(charIndex);
 	l << "|" << String(lineNumber) << "|" << String(columnNumber);
 
-	return "{" + Base64::toBase64(l) + "}";
+	return "{{" + Base64::toBase64(l) + "}}";
 #else
 				return {};
 #endif

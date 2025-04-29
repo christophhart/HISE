@@ -1133,6 +1133,8 @@ public:
 
 	ReferenceCountedObjectPtr<DspNetwork> network;
 
+	std::vector<std::pair<Rectangle<int>, double>> heatmap;
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(DspNetworkGraph);
 };
 

@@ -435,7 +435,7 @@ namespace control
 		{
 			setRepaintsOnMouseActivity(true);
 
-			dragPath.loadPathFromData(ColumnIcons::targetIcon, sizeof(ColumnIcons::targetIcon));
+			dragPath.loadPathFromData(ColumnIcons::targetIcon, SIZE_OF_PATH(ColumnIcons::targetIcon));
 
 			auto b = getLocalBounds().toFloat();
 			b = b.withSizeKeepingCentre(28.0f, 28.0f);

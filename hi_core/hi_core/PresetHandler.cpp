@@ -3100,6 +3100,7 @@ void FileHandlerBase::exportAllPoolsToTemporaryDirectory(ModulatorSynthChain* ch
 	
 
 	auto previousLogger = Logger::getCurrentLogger();
+	ignoreUnused(previousLogger);
 
 	ScopedPointer<Logger> outputLogger = new ConsoleLogger(chain);
 

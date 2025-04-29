@@ -23,6 +23,10 @@
 namespace juce
 {
 
+#define JUCE_MAKE_STREAMABLE_OBJECT(streamMarker) static char getStreamMarker() { return streamMarker; };
+#define JUCE_WRITE_STREAMABLE_OBJECT_MARKERS(output) os.writeByte(getStreamMarker());
+
+
 class JUCE_API  ObjectWithJSONConverter
 {
 public:
@@ -30,6 +34,42 @@ public:
 	virtual ~ObjectWithJSONConverter() {};
 
     virtual void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) = 0;
+
+    /** Overwrite this and write 10 as well as the stream marker provided with getStreamMarker() as well as the data. */
+    virtual void writeToStream(OutputStream& os) = 0;
+
+    static std::pair<char, ObjectWithJSONConverter*> createFromMarker(InputStream& os);
+
+     template <typename SubClass> static void registerStreamCreatorStatic()
+    {
+	    static_assert(std::is_base_of<ObjectWithJSONConverter, SubClass>(), "only call this from subclasses");
+
+        auto marker = SubClass::getStreamMarker();
+
+        for(int i = 0; i < 32; i++)
+        {
+            if(streamCreators[i].first == marker)
+                return;
+
+	        if(streamCreators[i].first == 0)
+	        {
+		        streamCreators[i] = { marker, SubClass::createFromStream};
+                return;
+	        }
+        }
+    }
+
+protected:
+
+    template <typename SubClass> void registerStreamCreator(SubClass* obj)
+    {
+        registerStreamCreatorStatic<SubClass>();
+    }
+
+private:
+
+    typedef ObjectWithJSONConverter*(*StreamCreatorFunctions)(InputStream&);
+    static std::array<std::pair<char, StreamCreatorFunctions>, 32> streamCreators;
 };
 
 // Small helper function that declares two lambdas, nl() and ind() based on the indentLevel and allInOneLine function
@@ -111,9 +151,9 @@ public:
     void clear();
 
     /** Returns the NamedValueSet that holds the object's properties. */
-    NamedValueSet& getProperties() noexcept     { return properties; }
+    NamedValueSet& getProperties() noexcept;
 
-	void swapProperties(NamedValueSet&& other);
+    void swapProperties(NamedValueSet&& other);
 
     /** Calls var::clone() on all the properties that this object contains. */
     void cloneAllProperties();
@@ -133,6 +173,12 @@ public:
         can stringify themselves appropriately.
     */
     void writeAsJSON (OutputStream&, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) override;
+
+    void writeToStream(OutputStream& os) override;
+
+    static ObjectWithJSONConverter* createFromStream(InputStream& os);
+
+    JUCE_MAKE_STREAMABLE_OBJECT(1);
 
 private:
     //==============================================================================

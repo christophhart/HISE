@@ -955,6 +955,7 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::ShowRenameButton, options.showRenameButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowDeleteButton, options.showDeleteButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowSearchBar, options.showSearchBar);
+	storePropertyInObject(obj, SpecialPanelIds::FavoriteIconOffset, options.favoriteIconOffset);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFavoriteIcon, options.showFavoriteIcons);
 	storePropertyInObject(obj, SpecialPanelIds::FullPathFavorites, options.fullPathFavorites);
 	storePropertyInObject(obj, SpecialPanelIds::ButtonsInsideBorder, options.buttonsInsideBorder);
@@ -982,6 +983,7 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.showRenameButton = getPropertyWithDefault(object, SpecialPanelIds::ShowRenameButton);
 	options.showDeleteButton = getPropertyWithDefault(object, SpecialPanelIds::ShowDeleteButton);
 	options.showSearchBar = getPropertyWithDefault(object, SpecialPanelIds::ShowSearchBar);
+	options.favoriteIconOffset = getPropertyWithDefault(object, SpecialPanelIds::FavoriteIconOffset);
 	options.fullPathFavorites = getPropertyWithDefault(object, SpecialPanelIds::FullPathFavorites);
 	options.buttonsInsideBorder = getPropertyWithDefault(object, SpecialPanelIds::ButtonsInsideBorder);
 	options.editButtonOffset = getPropertyWithDefault(object, SpecialPanelIds::EditButtonOffset);
@@ -1084,6 +1086,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnWidthRatio, "ColumnWidthRatio");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FavoriteIconOffset, "FavoriteIconOffset");
 
 	return Identifier();
 }
@@ -1105,6 +1108,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowAddButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowRenameButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FullPathFavorites, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FavoriteIconOffset, 0);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowDeleteButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSearchBar, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ButtonsInsideBorder, false);
@@ -1335,7 +1339,9 @@ void FrontendMacroPanel::macroConnectionChanged(int macroIndex, Processor* p, in
 
 hise::MacroControlBroadcaster::MacroControlData* FrontendMacroPanel::getData(MacroControlBroadcaster::MacroControlledParameterData* pd)
 {
-	for (int i = 0; i < HISE_NUM_MACROS; i++)
+	auto numMacros = HISE_GET_PREPROCESSOR(getMainController(), HISE_NUM_MACROS);
+
+	for (int i = 0; i < numMacros; i++)
 	{
         auto m = macroChain->getMacroControlData(i);
         
@@ -1348,7 +1354,9 @@ hise::MacroControlBroadcaster::MacroControlData* FrontendMacroPanel::getData(Mac
 
 const hise::MacroControlBroadcaster::MacroControlData* FrontendMacroPanel::getData(MacroControlBroadcaster::MacroControlledParameterData* pd) const
 {
-	for (int i = 0; i < HISE_NUM_MACROS; i++)
+	auto numMacros = HISE_GET_PREPROCESSOR(getMainController(), HISE_NUM_MACROS);
+
+	for (int i = 0; i < numMacros; i++)
 	{
         auto m = macroChain->getMacroControlData(i);
         
@@ -1491,7 +1499,9 @@ MidiLearnPanel::MidiLearnPanel(FloatingTile* parent) :
 {
 	handler.addChangeListener(this);
 	setName("MIDI Control List");
-	initTable();
+
+	auto addChannel = HISE_GET_PREPROCESSOR(parent->getMainController(), HISE_USE_MIDI_CHANNELS_FOR_AUTOMATION);
+	initTable(addChannel);
 }
 
 MidiLearnPanel::~MidiLearnPanel()
@@ -1580,7 +1590,9 @@ juce::String MidiLearnPanel::getCellText(int rowNumber, int columnId) const
 	if (columnId == ColumnId::ParameterName)
 		return ProcessorHelpers::getPrettyNameForAutomatedParameter(data.processor, data.attribute);
 	else if (columnId == ColumnId::CCNumber)
-		return String(data.ccNumber);
+		return String(data.k.ccNumber);
+	else if (columnId == ColumnId::Channel)
+		return data.k.channel == -1 ? String("Omni") : String("Channel ") + String(data.k.channel + 1);
 	else
 		return "";
 }
@@ -1676,7 +1688,7 @@ TableFloatingTileBase::TableFloatingTileBase(FloatingTile* parent) :
 
 }
 
-void TableFloatingTileBase::initTable()
+void TableFloatingTileBase::initTable(bool addChannelColumn)
 {
 	// Create our table component and add it to this component..
 	addAndMakeVisible(table);
@@ -1710,6 +1722,10 @@ void TableFloatingTileBase::initTable()
 	auto fWidth = (int)font.getStringWidthFloat(first) + 20;
 
 	table.getHeader().addColumn(getIndexName(), CCNumber, fWidth, 30, -1, TableHeaderComponent::visible);
+
+	if(addChannelColumn)
+		table.getHeader().addColumn("Channel", Channel, fWidth, 30, -1, TableHeaderComponent::visible);
+
 	table.getHeader().addColumn("Parameter", ParameterName, 70, 30, -1);
 	table.getHeader().addColumn("Inverted", Inverted, 70, 70, 70);
 	table.getHeader().addColumn("Min", Minimum, 70, 70, 70);

@@ -370,6 +370,12 @@ public:
 		exporter.getComboBoxComponent("build")->setText(config, dontSendNotification);
 
 		exporter.run();
+
+		auto r = exporter.getCompilationResult();
+
+		if(r.failed())
+			throwErrorAndQuit(r.getErrorMessage());
+
 		exporter.threadFinished();
 	}
 

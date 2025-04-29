@@ -222,11 +222,17 @@ juce::String ScriptingApiDatabase::Resolver::getContent(const MarkdownLink& url)
 
 			s << "  \n";
 			s << "# Class methods  \n";
-			
+
+			apiDump << "### API Class: " << classTree.getType().toString() << "\n";
+
+			apiDump << "\n```javascript\n";
+
 			for (auto c : classTree)
 			{
 				s << createMethodText(c);
 			}
+
+			apiDump << "\n```\n";
 
 			return s;
 		}
@@ -247,6 +253,9 @@ juce::String ScriptingApiDatabase::Resolver::createMethodText(ValueTree& mv)
 
 	String className = mv.getParent().getType().toString();
 	String methodName = mv.getProperty("name").toString();
+
+	apiDump << "/* " << mv.getProperty("description").toString().trim() << " */\n";
+	apiDump << className << "." << methodName << mv.getProperty("arguments").toString() << ";\n\n";
 
 	s << "## `" << methodName;
 	
@@ -269,7 +278,19 @@ juce::String ScriptingApiDatabase::Resolver::createMethodText(ValueTree& mv)
 
 	s << "```javascript\n" << className << "." << methodName << mv.getProperty("arguments").toString() << "```  \n";
 
-	s << fileLink.toString(MarkdownLink::ContentWithoutHeader, rootURL.getRoot());
+	auto extendedDescription = fileLink.toString(MarkdownLink::ContentWithoutHeader, rootURL.getRoot());
+
+	if(extendedDescription.contains("```"))
+	{
+		auto code = extendedDescription.fromFirstOccurrenceOf("```", false, false).upToLastOccurrenceOf("```", false, false);
+
+		if(code.startsWith("javascript"))
+			code = code.fromFirstOccurrenceOf("javascript", false, false);
+
+		exampleDump << code.trim();
+	}
+
+	s << extendedDescription;
 	s << "  \n";
 
 	return s;

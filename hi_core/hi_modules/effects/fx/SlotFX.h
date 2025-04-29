@@ -261,17 +261,25 @@ public:
         
         return false;
     }
-    
-#if NUM_HARDCODED_FX_MODS
-	Processor *getChildProcessor(int processorIndex) override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
-    const Processor *getChildProcessor(int processorIndex) const override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
-#else
-	Processor *getChildProcessor(int ) override { return nullptr; };
-	const Processor *getChildProcessor(int ) const override { return nullptr; };
-#endif
 
-	int getNumInternalChains() const override { return NUM_HARDCODED_FX_MODS; };
-	int getNumChildProcessors() const override { return NUM_HARDCODED_FX_MODS; };
+	Processor *getChildProcessor(int processorIndex) override
+    {
+		if(isPositiveAndBelow(processorIndex, getNumChildProcessors()))
+			return paramModulation[processorIndex];
+
+    	return nullptr;
+    };
+    const Processor *getChildProcessor(int processorIndex) const override
+    {
+		return const_cast<HardcodedMasterFX*>(this)->getChildProcessor(processorIndex);
+    };
+
+	int getNumInternalChains() const override
+	{
+		return static_cast<int>(paramModulation.size());
+	};
+
+	int getNumChildProcessors() const override { return getNumInternalChains(); };
 
 	void connectionChanged()
 	{
@@ -297,10 +305,7 @@ public:
 
 	void renderWholeBuffer(AudioSampleBuffer &buffer) override;
 
-#if NUM_HARDCODED_FX_MODS
-	ModulatorChain* paramModulation[NUM_HARDCODED_FX_MODS];
-#endif
-
+	std::vector<ModulatorChain*> paramModulation;
 };
 
 
@@ -330,17 +335,24 @@ public:
 
 	bool isSuspendedOnSilence() const final override;
 
-#if NUM_HARDCODED_POLY_FX_MODS
-	Processor *getChildProcessor(int processorIndex) override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_POLY_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
-    const Processor *getChildProcessor(int processorIndex) const override { return isPositiveAndBelow(processorIndex, NUM_HARDCODED_POLY_FX_MODS) ? paramModulation[processorIndex] : nullptr; };
-#else
-	Processor *getChildProcessor(int ) override { return nullptr; };
-	const Processor *getChildProcessor(int ) const override { return nullptr; };
-#endif
+	Processor *getChildProcessor(int index) override
+	{
+		if(isPositiveAndBelow(index, (int)paramModulation.size()))
+			return paramModulation[index];
 
-	
-	int getNumChildProcessors() const override { return NUM_HARDCODED_POLY_FX_MODS; };
-	int getNumInternalChains() const override { return NUM_HARDCODED_POLY_FX_MODS; };
+		return nullptr;
+	};
+
+	const Processor *getChildProcessor(int index) const override
+	{
+		if(isPositiveAndBelow(index, (int)paramModulation.size()))
+			return paramModulation[index];
+
+		return nullptr;
+	};
+
+	int getNumChildProcessors() const override { return (int)paramModulation.size(); ; };
+	int getNumInternalChains() const override { return (int)paramModulation.size(); };
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
@@ -399,9 +411,7 @@ public:
 
 	VoiceDataStack voiceStack;
 
-#if NUM_HARDCODED_POLY_FX_MODS
-	ModulatorChain* paramModulation[NUM_HARDCODED_POLY_FX_MODS];
-#endif
+	std::vector<ModulatorChain*> paramModulation;
 };
 
 class HardcodedTimeVariantModulator: public TimeVariantModulator,

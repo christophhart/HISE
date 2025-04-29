@@ -145,14 +145,25 @@ void GutterComponent::setCurrentBreakline(int n)
 	});
 }
 
-GutterComponent::Breakpoint::Breakpoint(Value::Listener* listener, int l, CodeDocument& doc): 
+GutterComponent::Breakpoint::Breakpoint(Value::Listener* listener, int l, bool profiling_, CodeDocument& doc): 
 	pos(doc, l, 0),
 	condition(String("true")), 
 	useCondition(var(1)), 
 	enabled(var(1)),
 	breakIfHit(var(1)),
-	blinkIfHit(var(0))
+	blinkIfHit(var(0)),
+	profiling(profiling_) 
 {
+	if(profiling)
+	{
+		while(l >= 0 && !doc.getLine(l).containsChar('{'))
+			l--;
+
+		auto col = doc.getLine(0).indexOfChar('{');
+		pos = CodeDocument::Position(doc, l, col);
+		logExpression.setValue("Scope @ line " + String(l+1));
+	}
+
 	pos.setPositionMaintained(true);
 	condition.addListener(listener);
 	useCondition.addListener(listener);
@@ -168,27 +179,41 @@ String GutterComponent::Breakpoint::processLine(const String& s)
 	{
 		String m;
 
-		auto e = logExpression.toString();
-
-		if (e.isNotEmpty() || blinkIfHit.getValue())
+		if(profiling)
 		{
-			if (getCondition() != "true")
-				m << "if(" << getCondition() << "){ ";
+			m << s;
 
-			if (blinkIfHit.getValue())
-				m << "Console.blink(); ";
+			if(getCondition() != "true")
+				m << ".if(" << getCondition() << "):";
+			else
+				m << ".";
 
-			if(e.isNotEmpty())
-				m << "Console.print(" << e << "); ";
-
-			if (getCondition() != "true")
-				m << "}";
+			m << "profile(" << logExpression.toString().quoted() << ");";
 		}
-					
-		if (breakIfHit.getValue())
-			m << "Console.stop(" << getCondition() << "); ";
+		else
+		{
+			auto e = logExpression.toString();
 
-		m << s;
+			if (e.isNotEmpty() || blinkIfHit.getValue())
+			{
+				if (getCondition() != "true")
+					m << "if(" << getCondition() << "){ ";
+
+				if (blinkIfHit.getValue())
+					m << "Console.blink(); ";
+
+				if(e.isNotEmpty())
+					m << "Console.print(" << e << "); ";
+
+				if (getCondition() != "true")
+					m << "}";
+			}
+						
+			if (breakIfHit.getValue())
+				m << "Console.stop(" << getCondition() << "); ";
+
+			m << s;
+		}
 
 		return m;
 	}
@@ -564,17 +589,31 @@ void mcl::GutterComponent::paint(Graphics& g)
 
 			if (bp->enabled.getValue() && breakpointsEnabled)
 			{
-				g.setColour(bp->breakIfHit.getValue() ? Colour(0xFF683333) : Colour(0xFF333368));
+				Colour c;
+
+				if(bp->profiling)
+				{
+					bPath.clear();
+					bPath.loadPathFromData(EditorIcons::profileIcon, EditorIcons::profileIcon_Size);
+					PathFactory::scalePath(bPath, b);
+					c = Colour(HISE_WARNING_COLOUR);
+				}
+				else
+					c = bp->breakIfHit.getValue() ? Colour(0xFF683333) : Colour(0xFF333368);
+
+				g.setColour(c);
 				g.fillPath(bPath);
 			}
 
 			g.setColour(Colours::white.withAlpha(0.4f));
 			g.strokePath(bPath, PathStrokeType(1.0f));
 
-			if (*bp == currentBreakLine.getLineNumber() - 1)
+			g.setColour(Colours::white);
+
+			
+			if (*bp == currentBreakLine.getLineNumber() - 1 && !bp->profiling)
 			{
-				g.strokePath(bPath, PathStrokeType(1.0f));
-				g.setColour(Colours::white);
+				
 
 				Path arrow = createArrow();
 				PathFactory::scalePath(arrow, b.reduced(2.0f * scaleFactor));
@@ -645,195 +684,225 @@ void mcl::GutterComponent::mouseDown(const MouseEvent& e)
 		{
 			breakpoints.clear();
 		}
+		else if(e.mods.isRightButtonDown())
+		{
+			PopupMenu m;
+			GlobalHiseLookAndFeel hlaf;
+			m.setLookAndFeel(&hlaf);
+
+			auto bp = getBreakpoint(hoveredData.rowNumber);
+
+			if (bp != nullptr)
+			{
+				m.addItem(1, bp->enabled.getValue() ? "Disable Breakpoint" : "Enable Breakpoint");
+				m.addItem(2, "Edit breakpoint");
+				m.addItem(5, "Show injected code");
+				m.addSeparator();
+				
+				
+			}					
+
+			m.addItem(3, "Delete all breakpoints", !breakpoints.isEmpty());
+			m.addItem(4, "Recompile when breakpoints change", true, recompileOnBreakpointChange);
+			m.addItem(6, "Create profiling breakpoints", true, createProfilingBreakpoints);
+
+			auto r = m.show();
+
+			auto calloutBounds = getRowBounds(hoveredData).toNearestInt();
+			calloutBounds.setWidth(calloutBounds.getHeight());
+			
+			if (r == 1)
+			{
+				bp->enabled.setValue(!bp->enabled.getValue());
+				repaint();
+			}
+			if (r == 2)
+			{
+				struct Popup : public Component,
+							   public juce::TextEditor::Listener,
+							   public Value::Listener
+				{
+					Popup(Breakpoint::Ptr bp):
+						p(bp),
+						useCondition("Use Condition"),
+						breakButton("Break when hit"),
+						blinkButton("Blink when hit")
+					{
+						setLookAndFeel(&laf);
+						laf.setDefaultSansSerifTypeface(GLOBAL_BOLD_FONT().getTypefacePtr());
+
+						bp->useCondition.addListener(this);
+
+						setup(conditionEditor, bp->condition);
+						setup(useCondition, bp->useCondition);
+						setup(logExpressionEditor, bp->logExpression);
+						setup(breakButton, bp->breakIfHit);
+						setup(blinkButton, bp->blinkIfHit);
+
+						blinkButton.setVisible(!bp->profiling);
+						breakButton.setVisible(!bp->profiling);
+
+						setSize(300, 30 + 5 * 28 + 8);
+					}
+
+					~Popup()
+					{
+						p->useCondition.removeListener(this);
+					}
+
+					void setup(ToggleButton& b, Value& v)
+					{
+						b.getToggleStateValue().referTo(v);
+						
+						addAndMakeVisible(b);
+					}
+
+					void valueChanged(Value& value) override
+					{
+						auto on = useCondition.getToggleState();
+						conditionEditor.setColour(juce::TextEditor::ColourIds::textColourId, on ? Colours::white : Colours::grey);
+
+						conditionEditor.setText(conditionEditor.getText(), dontSendNotification);
+						conditionEditor.setEnabled(on);
+					}
+
+					void setup(juce::TextEditor& t, Value& v)
+					{
+						t.addListener(this);
+						t.setColour(juce::TextEditor::ColourIds::backgroundColourId, Colours::transparentBlack);
+						t.setColour(juce::TextEditor::ColourIds::textColourId, Colours::white);
+						t.setColour(juce::TextEditor::ColourIds::highlightedTextColourId, Colours::white);
+						t.setColour(juce::TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.4f));
+						t.setColour(juce::TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR).withAlpha(0.8f));
+						t.setColour(juce::CaretComponent::ColourIds::caretColourId, Colours::white);
+						
+						t.setFont(GLOBAL_MONOSPACE_FONT());
+						t.setText(v.toString(), dontSendNotification);
+						t.setSelectAllWhenFocused(true);
+						addAndMakeVisible(t);
+					}
+
+					void textEditorReturnKeyPressed(juce::TextEditor& t)
+					{
+						if (&t == &conditionEditor)
+							p->condition.setValue(t.getText());
+						else
+							p->logExpression.setValue(t.getText());
+						
+						findParentComponentOfClass<CallOutBox>()->dismiss();
+					}
+
+					void resized() override
+					{
+						auto b = getLocalBounds().reduced(5);
+						b.removeFromTop(20);
+						
+						conditionEditor.setBounds(b.removeFromTop(28));
+						b.removeFromTop(8);
+						useCondition.setBounds(b.removeFromTop(20));
+						b.removeFromTop(18);
+						logExpressionEditor.setBounds(b.removeFromTop(28));
+						b.removeFromTop(8);
+
+						auto bottom = b.removeFromTop(20);
+
+						breakButton.setBounds(bottom.removeFromLeft(bottom.getWidth() / 2));
+						blinkButton.setBounds(bottom);
+						b.removeFromTop(8);
+
+					}
+
+					void paint(Graphics& g) override
+					{
+						auto b = getLocalBounds();
+						auto title = b.removeFromTop(20).toFloat();
+						g.setFont(GLOBAL_BOLD_FONT());
+						g.setColour(Colours::white);
+						g.drawText("Edit condition for breakpoint", title, Justification::centred);
+					}
+
+					LookAndFeel_V4 laf;
+
+					Breakpoint::Ptr p;
+					juce::TextEditor conditionEditor;
+					
+					juce::ToggleButton useCondition;
+					juce::TextEditor logExpressionEditor;
+					juce::ToggleButton breakButton;
+					juce::ToggleButton blinkButton;
+				};
+                
+                
+                auto root = TopLevelWindowWithOptionalOpenGL::findRoot(this);
+				auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Component>(new Popup(bp)), root->getLocalArea(this, calloutBounds), root);
+
+				cb.setColour(LookAndFeel_V4::ColourScheme::UIColour::widgetBackground, Colours::white);
+
+				//cb.grabKeyboardFocus();
+				return;
+			}
+			else if (r == 3)
+			{
+				breakpoints.clear();
+			}
+			else if (r == 4)
+			{
+				recompileOnBreakpointChange = !recompileOnBreakpointChange;
+			}
+			else if (r == 6)
+			{
+				createProfilingBreakpoints = !createProfilingBreakpoints;
+			}
+			else if (r == 5)
+			{
+				auto line = bp->processLine("");
+				AlertWindowLookAndFeel alaf;
+
+				auto t = new juce::TextEditor();
+				t->setFont(GLOBAL_MONOSPACE_FONT());
+				t->setColour(juce::TextEditor::ColourIds::backgroundColourId, Colours::transparentBlack);
+				t->setColour(juce::TextEditor::ColourIds::textColourId, Colours::white);
+				t->setColour(juce::TextEditor::ColourIds::highlightedTextColourId, Colours::white);
+				t->setColour(juce::TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.4f));
+				t->setColour(juce::TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR).withAlpha(0.8f));
+				t->setColour(juce::CaretComponent::ColourIds::caretColourId, Colours::white);
+				t->setSize(GLOBAL_MONOSPACE_FONT().getStringWidth(line) + 20.0f, 24.0f);
+				t->setText(line, dontSendNotification);
+				t->setReadOnly(true);
+                
+                auto root = TopLevelWindowWithOptionalOpenGL::findRoot(this);
+                CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), root->getLocalArea(this, calloutBounds), root);
+			}
+		}
 		else
 		{
-			if (auto bp = getBreakpoint(hoveredData.rowNumber))
+			auto found = false;
+
+			for (int i = 0; i < breakpoints.size(); i++)
 			{
-				if (e.mods.isRightButtonDown())
+				if (*breakpoints[i] == hoveredData.rowNumber)
 				{
-					PopupMenu m;
-					GlobalHiseLookAndFeel hlaf;
-					m.setLookAndFeel(&hlaf);
-
-					m.addItem(1, bp->enabled.getValue() ? "Disable Breakpoint" : "Enable Breakpoint");
-					m.addItem(2, "Edit breakpoint");
-					m.addItem(5, "Show injected code");
-					m.addSeparator();
-					m.addItem(3, "Delete all breakpoints");
-					m.addItem(4, "Recompile when breakpoints change", true, recompileOnBreakpointChange);
-					
-
-					auto r = m.show();
-
-					auto calloutBounds = getRowBounds(hoveredData).toNearestInt();
-					calloutBounds.setWidth(calloutBounds.getHeight());
-					
-					if (r == 1)
-					{
-						bp->enabled.setValue(!bp->enabled.getValue());
-						repaint();
-					}
-					if (r == 2)
-					{
-						struct Popup : public Component,
-									   public juce::TextEditor::Listener,
-									   public Value::Listener
-						{
-							Popup(Breakpoint::Ptr bp):
-								p(bp),
-								useCondition("Use Condition"),
-								breakButton("Break when hit"),
-								blinkButton("Blink when hit")
-							{
-								setLookAndFeel(&laf);
-								laf.setDefaultSansSerifTypeface(GLOBAL_BOLD_FONT().getTypefacePtr());
-
-								bp->useCondition.addListener(this);
-
-								setup(conditionEditor, bp->condition);
-								setup(useCondition, bp->useCondition);
-								setup(logExpressionEditor, bp->logExpression);
-								setup(breakButton, bp->breakIfHit);
-								setup(blinkButton, bp->blinkIfHit);
-								setSize(300, 30 + 5 * 28 + 8);
-							}
-
-							~Popup()
-							{
-								p->useCondition.removeListener(this);
-							}
-
-							void setup(ToggleButton& b, Value& v)
-							{
-								b.getToggleStateValue().referTo(v);
-								
-								addAndMakeVisible(b);
-							}
-
-							void valueChanged(Value& value) override
-							{
-								auto on = useCondition.getToggleState();
-								conditionEditor.setColour(juce::TextEditor::ColourIds::textColourId, on ? Colours::white : Colours::grey);
-
-								conditionEditor.setText(conditionEditor.getText(), dontSendNotification);
-								conditionEditor.setEnabled(on);
-							}
-
-							void setup(juce::TextEditor& t, Value& v)
-							{
-								t.addListener(this);
-								t.setColour(juce::TextEditor::ColourIds::backgroundColourId, Colours::transparentBlack);
-								t.setColour(juce::TextEditor::ColourIds::textColourId, Colours::white);
-								t.setColour(juce::TextEditor::ColourIds::highlightedTextColourId, Colours::white);
-								t.setColour(juce::TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.4f));
-								t.setColour(juce::TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR).withAlpha(0.8f));
-								t.setColour(juce::CaretComponent::ColourIds::caretColourId, Colours::white);
-								
-								t.setFont(GLOBAL_MONOSPACE_FONT());
-								t.setText(v.toString(), dontSendNotification);
-								t.setSelectAllWhenFocused(true);
-								addAndMakeVisible(t);
-							}
-
-							void textEditorReturnKeyPressed(juce::TextEditor& t)
-							{
-								if (&t == &conditionEditor)
-									p->condition.setValue(t.getText());
-								else
-									p->logExpression.setValue(t.getText());
-								
-								findParentComponentOfClass<CallOutBox>()->dismiss();
-							}
-
-							void resized() override
-							{
-								auto b = getLocalBounds().reduced(5);
-								b.removeFromTop(20);
-								
-								conditionEditor.setBounds(b.removeFromTop(28));
-								b.removeFromTop(8);
-								useCondition.setBounds(b.removeFromTop(20));
-								b.removeFromTop(18);
-								logExpressionEditor.setBounds(b.removeFromTop(28));
-								b.removeFromTop(8);
-
-								auto bottom = b.removeFromTop(20);
-
-								breakButton.setBounds(bottom.removeFromLeft(bottom.getWidth() / 2));
-								blinkButton.setBounds(bottom);
-								b.removeFromTop(8);
-
-							}
-
-							void paint(Graphics& g) override
-							{
-								auto b = getLocalBounds();
-								auto title = b.removeFromTop(20).toFloat();
-								g.setFont(GLOBAL_BOLD_FONT());
-								g.setColour(Colours::white);
-								g.drawText("Edit condition for breakpoint", title, Justification::centred);
-							}
-
-							LookAndFeel_V4 laf;
-
-							Breakpoint::Ptr p;
-							juce::TextEditor conditionEditor;
-							
-							juce::ToggleButton useCondition;
-							juce::TextEditor logExpressionEditor;
-							juce::ToggleButton breakButton;
-							juce::ToggleButton blinkButton;
-						};
-                        
-                        
-                        auto root = getTopLevelComponent();
-						auto& cb = CallOutBox::launchAsynchronously(std::unique_ptr<Component>(new Popup(bp)), root->getLocalArea(this, calloutBounds), root);
-
-						cb.setColour(LookAndFeel_V4::ColourScheme::UIColour::widgetBackground, Colours::white);
-
-						//cb.grabKeyboardFocus();
-						return;
-					}
-					else if (r == 3)
-					{
-						breakpoints.clear();
-					}
-					else if (r == 4)
-					{
-						recompileOnBreakpointChange = !recompileOnBreakpointChange;
-					}
-					else if (r == 5)
-					{
-						auto line = bp->processLine("");
-						AlertWindowLookAndFeel alaf;
-
-						auto t = new juce::TextEditor();
-						t->setFont(GLOBAL_MONOSPACE_FONT());
-						t->setColour(juce::TextEditor::ColourIds::backgroundColourId, Colours::transparentBlack);
-						t->setColour(juce::TextEditor::ColourIds::textColourId, Colours::white);
-						t->setColour(juce::TextEditor::ColourIds::highlightedTextColourId, Colours::white);
-						t->setColour(juce::TextEditor::ColourIds::highlightColourId, Colour(SIGNAL_COLOUR).withAlpha(0.4f));
-						t->setColour(juce::TextEditor::ColourIds::focusedOutlineColourId, Colour(SIGNAL_COLOUR).withAlpha(0.8f));
-						t->setColour(juce::CaretComponent::ColourIds::caretColourId, Colours::white);
-						t->setSize(GLOBAL_MONOSPACE_FONT().getStringWidth(line) + 20.0f, 24.0f);
-						t->setText(line, dontSendNotification);
-						t->setReadOnly(true);
-                        
-                        auto root = getTopLevelComponent();
-                        CallOutBox::launchAsynchronously(std::unique_ptr<Component>(t), root->getLocalArea(this, calloutBounds), root);
-					}
-				}
-				else
-				{
-					for (int i = 0; i < breakpoints.size(); i++)
-					{
-						if (*breakpoints[i] == hoveredData.rowNumber)
-							breakpoints.remove(i--);
-					}
+					breakpoints.remove(i--);
+					found = true;
 				}
 			}
-			else
-				breakpoints.add(new Breakpoint(this, hoveredData.rowNumber, document.getCodeDocument()));
+
+			if(!found)
+			{
+				Breakpoint::Ptr np = new Breakpoint(this, hoveredData.rowNumber, createProfilingBreakpoints, document.getCodeDocument());
+
+				if(createProfilingBreakpoints)
+				{
+					for(auto p: breakpoints)
+					{
+						if(*p == np->getLineNumber())
+							return;
+					}
+				}
+				
+				breakpoints.add(np);
+			}
+				
 
 			sendBreakpointChangeMessage();
 		}

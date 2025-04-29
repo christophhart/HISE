@@ -449,7 +449,7 @@ public:
 		Path createPath(const String& url) const override
 		{
 			Path p;
-			LOAD_PATH_IF_URL("drag", ColumnIcons::targetIcon);
+			LOAD_EPATH_IF_URL("drag", ColumnIcons::targetIcon);
 			return p;
 		}
 

@@ -90,6 +90,12 @@ public:
 	/** Attaches a callback to automation changes. Pass a non-function as updateCallback to remove the callback for the given automation ID. */
 	void attachAutomationCallback(String automationId, var updateCallback, var isSynchronous);
 
+	/** Attaches a callback to the begin and end of parameter gestures. */
+	void setParameterGestureCallback(var callbackFunction);
+
+	/** Sends a parameter gesture change message to the host. Returns true if the parameter exists. */
+	bool sendParameterGesture(int automationType, int indexWithinType, bool gestureActive);
+	
 	/** Clears all attached callbacks. */
 	void clearAttachedCallbacks();
 
@@ -101,7 +107,12 @@ public:
 
 	/** Loads the default user preset (if it's defined in the project). */
 	void resetToDefaultUserPreset();
-	
+
+	/** Sets the available group names for plugin parameter groups. */
+	void setPluginParameterGroupNames(var pluginParameterGroupNames);
+
+	/** Sets a custom sort function for the plugin parameter order. */
+	void setPluginParameterSortFunction(var customSortFunction);
 
 	/** Creates an object containing the values for every automation ID. */
 	var createObjectForAutomationValues();
@@ -133,13 +144,11 @@ public:
 	ValueTree prePresetLoad(const ValueTree& dataToLoad, const File& fileToLoad) override;
 
 	void presetChanged(const File& newPreset) override;
-
 	void presetSaved(const File& newPreset) override;
-
 	void presetListUpdated() override;
-
-
 	void loadCustomUserPreset(const var& dataObject) override;
+
+	void onParameterGesture(bool startGesture, int parameterIndex) override;
 
 	var saveCustomUserPreset(const String& presetName) override;
 
@@ -179,6 +188,7 @@ private:
 
 	WeakCallbackHolder customLoadCallback;
 	WeakCallbackHolder customSaveCallback;
+	WeakCallbackHolder parameterGestureCallback;
 	
 	ReferenceCountedArray<AttachedCallback> attachedCallbacks;
 

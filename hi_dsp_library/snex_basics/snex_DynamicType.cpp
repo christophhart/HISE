@@ -26,7 +26,7 @@ VariableStorage::VariableStorage(Types::ID type_, const var& value)
 		jassertfalse;
 }
 
-VariableStorage::VariableStorage(FloatType s)
+VariableStorage::VariableStorage(SnexFloatType s)
 {
 	data.d.type = Types::ID::Float;
 	data.f.value = s;
@@ -110,7 +110,7 @@ void VariableStorage::setWithType(Types::ID newType, double value)
 	}
 }
 
-void VariableStorage::set(FloatType s)
+void VariableStorage::set(SnexFloatType s)
 {
 	data.f.type = Types::ID::Float;
 	data.f.value = s;
@@ -158,7 +158,7 @@ void VariableStorage::clear()
 	data.e = {};
 }
 
-VariableStorage::operator FloatType() const noexcept
+VariableStorage::operator SnexFloatType() const noexcept
 {
 	//jassert(Types::Helpers::isFloatingPoint((Types::ID)getTypeValue()));
 
@@ -167,7 +167,7 @@ VariableStorage::operator FloatType() const noexcept
 	if (getTypeValue() == Types::ID::Double)
 		return static_cast<float>(data.d.value);
 
-	return static_cast<FloatType>(data.d.value);
+	return static_cast<SnexFloatType>(data.d.value);
 }
 
 VariableStorage::operator double() const noexcept
@@ -219,7 +219,7 @@ double VariableStorage::toDouble() const
 	return 0.0;
 }
 
-snex::FloatType VariableStorage::toFloat() const
+snex::SnexFloatType VariableStorage::toFloat() const
 {
 	if (getTypeValue() == Types::ID::Float)
 		return data.f.value;
@@ -228,7 +228,7 @@ snex::FloatType VariableStorage::toFloat() const
 	else if (getTypeValue() == Types::ID::Integer)
 		return static_cast<float>(data.i.value);
 
-	return FloatType(0);
+	return SnexFloatType(0);
 }
 
 int VariableStorage::toInt() const
@@ -280,7 +280,7 @@ snex::VariableStorage& VariableStorage::operator=(const block& s)
 	return *this;
 }
 
-snex::VariableStorage& VariableStorage::operator=(FloatType s)
+snex::VariableStorage& VariableStorage::operator=(SnexFloatType s)
 {
 	data.f.value = s;
 	data.f.type = Types::ID::Float;

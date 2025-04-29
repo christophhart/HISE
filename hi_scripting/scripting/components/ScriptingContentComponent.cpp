@@ -54,6 +54,7 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 	processor(p_),
 	p(dynamic_cast<Processor*>(p_))
 {
+	setName("Content");
 	css.setUseIsolatedCollections(true);
 
 	processor->getScriptingContent()->addRebuildListener(this);
@@ -71,6 +72,8 @@ ScriptContentComponent::ScriptContentComponent(ProcessorWithScriptingContent *p_
 	p->getMainController()->addScriptListener(this, true);
 
 	addChildComponent(modalOverlay);
+
+	PROFILE_ONLY(p->getMainController()->getDebugSession().syncRecordingBroadcaster.addListener(*this, onProfileRecordChange, true));
 }
 
 ScriptContentComponent::~ScriptContentComponent()
@@ -461,6 +464,44 @@ void ScriptContentComponent::dragOperationEnded(const DragAndDropTarget::SourceD
 	currentDragInfo = nullptr;
 }
 
+void ScriptContentComponent::setHeatmap(DebugInformationBase::Ptr p, const std::map<int, double>* map)
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	heatmap.clear();
+
+	if(map != nullptr)
+	{
+		Array<ProfiledComponent*> allChildren;
+
+		callRecursive<ProfiledComponent>(this, [&](ProfiledComponent* c)
+		{
+			allChildren.add(c);
+			return false;
+		});
+
+		for(auto nc: allChildren)
+		{
+			auto idx = nc->getHeatmapIndex();
+			auto ex = map->find(idx);
+
+			if(ex != map->end())
+			{
+				auto alpha = (float)ex->second;
+
+				FloatSanitizers::sanitizeFloatNumber(alpha);
+				alpha = jlimit(0.0f, 1.0f, alpha);
+
+				if(alpha > 0.01f)
+				{
+					auto b = getLocalArea(nc->asComponent(), nc->asComponent()->getLocalBounds());
+					heatmap.push_back({ b, alpha });
+				}
+			}
+		}
+	}
+#endif
+}
+
 void ScriptContentComponent::scriptWasCompiled(JavascriptProcessor *jp)
 {
 	if (jp == getScriptProcessor())
@@ -570,6 +611,8 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
     
 	valuePopupProperties = new ScriptCreatedComponentWrapper::ValuePopup::Properties(p->getMainController(), c->getValuePopupProperties());
 
+	int pluginParameterCount = 0;
+
 	for (int i = 0; i < contentData->components.size(); i++)
 	{
 		auto sc = contentData->components[i].get();
@@ -599,6 +642,11 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
 			addChildComponent(newComponent);
 			newComponent->setVisible(sc->isShowing(false));
 		}
+
+		if(sc->getScriptObjectProperty(ScriptComponent::Properties::isPluginParameter))
+		{
+			newComponent->getProperties().set("AAXPluginParameterIndex", pluginParameterCount++);
+		}
 	}
 
 	refreshMacroIndexes();
@@ -618,6 +666,12 @@ void ScriptContentComponent::addMouseListenersForComponentWrappers()
         {
             componentWrappers[i]->getComponent()->addMouseListener(getParentComponent(), true);
         }
+
+		if(contentData != nullptr)
+		{
+			PROFILE_ONLY(ProfiledComponent::setDebugSessionToAllComponents(this, contentData->getScriptProcessor()->getMainController_()->getDebugSession()));
+		}
+		
     }
 }
 
@@ -703,6 +757,14 @@ void ScriptContentComponent::paintOverChildren(Graphics& g)
 		g.setFont(GLOBAL_BOLD_FONT());
 		g.drawText("Suspended...", 0, 0, getWidth(), getHeight(), Justification::centred, false);
 		return;
+	}
+
+	for(const auto& h: heatmap)
+	{
+		g.setColour(Colour(HISE_WARNING_COLOUR).withAlpha(h.second * 0.3f));
+		g.fillRect(h.first);
+		g.setColour(Colour(HISE_WARNING_COLOUR).withAlpha(h.second));
+		g.drawRect(h.first, 3);
 	}
 
 #endif
@@ -1148,7 +1210,7 @@ void ScriptContentComponent::ComponentDragInfo::callRepaint()
 		paintRoutine.callSync(args, 2, nullptr);
 
 		auto handler = &dynamic_cast<ScriptingObjects::GraphicsObject*>(graphicsObject.getObject())->getDrawHandler();
-		handler->flush(0);
+		handler->flush(0, 0);
 	}
 }
 

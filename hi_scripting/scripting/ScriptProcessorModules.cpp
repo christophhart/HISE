@@ -706,6 +706,11 @@ JavascriptMasterEffect::~JavascriptMasterEffect()
 #endif
 }
 
+void JavascriptMasterEffect::onProfileEnableChange()
+{
+	PROFILE_ONLY(if (auto n = getActiveNetwork()) n->getCpuProfileFlag() = isProfiling());
+}
+
 Path JavascriptMasterEffect::getSpecialSymbol() const
 {
 	Path path; path.loadPathFromData(HiBinaryData::SpecialSymbols::scriptProcessor, SIZE_OF_PATH(HiBinaryData::SpecialSymbols::scriptProcessor)); return path;

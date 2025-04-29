@@ -106,7 +106,7 @@ xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_scripted_viewport.xml" "
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_floating_tile.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_audio_waveform.xml" "xml\selection"
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_multipage_dialog.xml" "xml\selection"
-
+xcopy "xml\classhise_1_1_scripting_objects_1_1_script_rectangle.xml" "xml\selection"
 
 
 xcopy "xml\structhise_1_1_scripting_api_1_1_content_1_1_script_slider_1_1_modifier_object.xml" "xml\selection"
@@ -232,6 +232,7 @@ ren "xml\selection\structhise_1_1_script_unlocker_1_1_ref_object.xml" "Unlocker.
 ren "xml\selection\classhise_1_1_beatport_manager.xml" "BeatportManager.xml"
 ren "xml\selection\classhise_1_1_scripting_api_1_1_date.xml" "Date.xml"
 ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_neural_network.xml" "NeuralNetwork.xml"
+ren "xml\selection\classhise_1_1_scripting_objects_1_1_script_rectangle.xml" "Rectangle.xml"
 
 ApiExtractor.exe xml\selection xml\selection
 

@@ -468,14 +468,14 @@ template <typename IndexType> struct interpolator_base
 		return *this;
 	}
 
-	interpolator_base operator+(FloatType t) const
+	interpolator_base operator+(SnexFloatType t) const
 	{
-		return interpolator_base((FloatType)idx + t);
+		return interpolator_base((SnexFloatType)idx + t);
 	}
 
-	interpolator_base operator-(FloatType t) const
+	interpolator_base operator-(SnexFloatType t) const
 	{
-		return interpolator_base((FloatType)idx - t);
+		return interpolator_base((SnexFloatType)idx - t);
 	}
 
 	void setLoopRange(int start, int end)

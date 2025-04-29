@@ -35,7 +35,9 @@ namespace hise { using namespace juce;
 MacroModulationSource::MacroModulationSource(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices)
 {
-	for (int i = 0; i < HISE_NUM_MACROS; i++)
+	auto numMacros = HISE_GET_PREPROCESSOR(mc, HISE_NUM_MACROS);
+
+	for (int i = 0; i < numMacros; i++)
 	{
 		String s("Macro " + String(i + 1));
 		modChains += { this, s};
@@ -46,7 +48,7 @@ ModulatorSynth(mc, id, numVoices)
 
 	auto offset = 2;
 
-	for (int i = 0; i < HISE_NUM_MACROS; i++)
+	for (int i = 0; i < numMacros; i++)
 	{
 		macroChains.set(i, modChains[i + offset].getChain());
 		modChains[i + offset].setExpandToAudioRate(true);
@@ -96,7 +98,9 @@ void MacroModulationSource::preVoiceRendering(int startSample, int numThisTime)
 	// skip plugin parameter update calls
 	ScopedValueSetter<bool> setter(getMainController()->getPluginParameterUpdateState(), false);
 
-	for (int i = 0; i < HISE_NUM_MACROS; i++)
+	auto numMacros = HISE_GET_PREPROCESSOR(getMainController(), HISE_NUM_MACROS);
+
+	for (int i = 0; i < numMacros; i++)
 	{
 		auto& mb = modChains[i+2];
 

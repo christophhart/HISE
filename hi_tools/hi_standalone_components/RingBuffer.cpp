@@ -348,6 +348,12 @@ void SimpleRingBuffer::setPropertyObject(PropertyObject* newObject)
 
 	properties->initialiseRingBuffer(this);
 
+	if(auto u = getUpdater().getGlobalUIUpdater())
+	{
+		properties->onGlobalUpdaterInit(this, u);
+	}
+
+
 	auto ns = internalBuffer.getNumSamples();
 	auto nc = internalBuffer.getNumChannels();
 
@@ -585,19 +591,27 @@ void ModPlotter::refresh()
 				auto range = buffer.findMinMax(0, sampleIndex, numThisTime);
 
 				auto maxValue = hmath::abs(range.getStart()) > hmath::abs(range.getEnd()) ? range.getStart() : range.getEnd();
+				auto srs = startRange.getStart();
+				auto sre = startRange.getEnd();
 
 				FloatSanitizers::sanitizeFloatNumber(maxValue);
+				FloatSanitizers::sanitizeFloatNumber(srs);
+				FloatSanitizers::sanitizeFloatNumber(sre);
 
-				maxValue = NormalisableRange<float>(startRange).convertTo0to1(maxValue);
 				
-				float height = maxValue * maxHeight;
-				float y = offset + maxHeight - height;
+				if(srs != sre)
+				{
+					maxValue = NormalisableRange<float>(srs, sre).convertTo0to1(maxValue);
+					
+					float height = maxValue * maxHeight;
+					float y = offset + maxHeight - height;
 
-				sampleIndex += samplesPerPixel;
+					sampleIndex += samplesPerPixel;
 
-				p.lineTo(i + offset, maxHeight - height + offset);
+					p.lineTo(i + offset, maxHeight - height + offset);
 
-				rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
+					rectangles.addWithoutMerging({ i + offset, y, rectangleWidth, height});
+				}
 			}
 		}
 		else
@@ -747,6 +761,11 @@ void AhdsrGraph::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var n
 	{
 		refresh();
 	}
+}
+
+void AhdsrGraph::resized()
+{
+	rebuildGraph();
 }
 
 void AhdsrGraph::refresh()
@@ -925,6 +944,41 @@ void AhdsrGraph::LookAndFeelMethods::drawAhdsrBallPosition(Graphics& g, AhdsrGra
 SimpleRingBuffer::WriterBase::~WriterBase()
 {}
 
+SimpleRingBuffer::PropertyObject::ScopedPathProfiler::ScopedPathProfiler(const PropertyObject& po):
+	obj(po)
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+
+	if(obj.pathSource != nullptr)
+	{
+		auto dh = dynamic_cast<DebugSession*>(obj.pathSource->holder.get());
+
+		if(dh != nullptr && dh->isRecordingMultithread())
+		{
+			DebugSession::ProfileDataSource::Profiler p(obj.pathSource);
+			p.startProfiling(dh);
+
+			if(obj.currentTrackEvent)
+				dh->closeTrackEvent(obj.currentTrackEvent);
+
+			running = true;
+		}
+	}
+#endif
+}
+
+SimpleRingBuffer::PropertyObject::ScopedPathProfiler::~ScopedPathProfiler()
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	if(running)
+	{
+		auto dh = dynamic_cast<DebugSession*>(obj.pathSource->holder.get());
+		DebugSession::ProfileDataSource::Profiler p(obj.pathSource);
+		p.stopProfiling(dh);
+	}
+#endif
+}
+
 SimpleRingBuffer::PropertyObject::PropertyObject(WriterBase* b):
 	writerBase(b)
 {
@@ -955,6 +1009,21 @@ bool SimpleRingBuffer::PropertyObject::allowModDragger() const
 void SimpleRingBuffer::PropertyObject::initialiseRingBuffer(SimpleRingBuffer* b)
 {
 	buffer = b;
+
+}
+
+void SimpleRingBuffer::PropertyObject::onGlobalUpdaterInit(SimpleRingBuffer* b, PooledUIUpdater* updater)
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	if(updater != nullptr && pathSource == nullptr)
+	{
+		pathSource = new DebugSession::ProfileDataSource();
+		pathSource->threadRoot = DebugSession::ThreadIdentifier::Type::UIThread;
+		pathSource->sourceType = DebugSession::ProfileDataSource::SourceType::Paint;
+		pathSource->name = "Create display buffer path";
+		pathSource->holder = updater->getDebugSession();		
+	}
+#endif
 }
 
 var SimpleRingBuffer::PropertyObject::getProperty(const Identifier& id) const
@@ -1002,6 +1071,47 @@ Array<Identifier> SimpleRingBuffer::PropertyObject::getPropertyList() const
 		ids.add(properties[i].first);
 	
 	return ids;
+}
+
+void SimpleRingBuffer::PropertyObject::setPropertyInternal(const String& c, var nv)
+{
+	for(auto& p: properties)
+	{
+		if(p.first == c)
+		{
+			p.second = nv;
+			return;
+		}
+	}
+
+	properties.add({ c, nv });
+}
+
+var SimpleRingBuffer::PropertyObject::getPropertyInternal(const String& c, var defaultValue) const
+{
+	for(const auto& p: properties)
+	{
+		if(p.first == c)
+			return p.second;
+	}
+
+	return defaultValue;
+}
+
+void SimpleRingBuffer::PropertyObject::openTrackEvent()
+{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	if(pathSource != nullptr)
+	{
+		if(auto dh = dynamic_cast<DebugSession*>(pathSource->holder.get()))
+		{
+			if(dh->isRecordingMultithread())
+			{
+				currentTrackEvent = dh->openTrackEvent();
+			}
+		}
+	}
+#endif
 }
 
 bool SimpleRingBuffer::fromBase64String(const String& b64)

@@ -39,12 +39,32 @@ class DebugInformation;
 class HiseJavascriptEngine;
 
 /** Overwrite this method if you want to add debugging functionality to a object. */
-class DebugableObject: public DebugableObjectBase
+class DebugableObject: public DebugableObjectBase,
+					   public ObjectWithJSONConverter	
 {
 public:
 
+	DebugableObject()
+	{
+		registerStreamCreator(this);
+	}
+
     virtual ~DebugableObject() {};
-    
+
+	void writeAsJSON (OutputStream& outputStream, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) override
+	{
+		outputStream.writeString(getDebugName() + " - " + getDebugValue());
+	}
+
+	void writeToStream(OutputStream& os) override
+	{
+		jassertfalse;
+	}
+
+	static ObjectWithJSONConverter* createFromStream(InputStream& os) { return nullptr; }
+
+	JUCE_MAKE_STREAMABLE_OBJECT(2);
+
 	struct Helpers
 	{
 		static AttributedString getFunctionDoc(const String &docBody, const Array<Identifier> &parameters);
@@ -58,7 +78,7 @@ public:
 		/** This will try to resolve the location from the provider if the obj has not a valid location. */
 		static Location getLocationFromProvider(Processor* p, DebugableObjectBase* obj);
 
-		static Component* showProcessorEditorPopup(const MouseEvent& e, Component* table, Processor* p);
+		static Component* showProcessorEditorPopup(Component* table, Processor* p);
 
 		static Component* createJSONEditorForObject(const MouseEvent& e, Component* table, var object, const String& id);
 
@@ -122,8 +142,6 @@ public:
 
 	String getTextForDataType() const override;
 
-	virtual const var getVariantCopy() const;;
-
 	virtual AttributedString getDescription() const;;
 
 	String getCodeToInsert() const override;
@@ -172,7 +190,7 @@ public:
 
 	String getTextForValue() const override;
 
-	const var getVariantCopy() const override;;
+	var getVariantCopy() const override;;
 
 	AttributedString getDescription() const override;;
 
@@ -212,7 +230,7 @@ public:
 
 	void setAutocompleteable(bool shouldBe);
 
-	const var getVariantCopy() const override;;
+	var getVariantCopy() const override;;
 
 	String getTextForValue() const;
 	DebugableObjectBase *getObject();

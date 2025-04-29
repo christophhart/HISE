@@ -361,6 +361,8 @@ private:
 
 	struct RawClass
 	{
+		operator bool() const { return !selectors.empty(); }
+
 		std::vector<Selector::RawList> selectors;
 		std::vector<RawLine> lines;
 	};

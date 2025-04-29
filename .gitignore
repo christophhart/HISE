@@ -133,3 +133,5 @@ tools/onnx_lib/Builds/
 tools/onnx_lib/JuceLibraryCode/
 tools/onnx_lib/Source/lib/
 tools/onnx_lib/onnx_hise_library.dll
+tools/auto_build/installer
+hi_scripting/scripting/api/bx

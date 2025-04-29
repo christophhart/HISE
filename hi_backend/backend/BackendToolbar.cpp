@@ -115,7 +115,7 @@ juce::Path MainToolbarFactory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("main-workspace", MainToolbarIcons::mainWorkspace);
 	LOAD_EPATH_IF_URL("scripting-workspace", HiBinaryData::SpecialSymbols::scriptProcessor);
 	LOAD_EPATH_IF_URL("sampler-workspace", MainToolbarIcons::samplerWorkspace);
-	LOAD_PATH_IF_URL("custom-workspace", ColumnIcons::customizeIcon);
+	LOAD_EPATH_IF_URL("custom-workspace", ColumnIcons::customizeIcon);
 	LOAD_EPATH_IF_URL("settings", MainToolbarIcons::settings);
 	LOAD_EPATH_IF_URL("help", MainToolbarIcons::help);
 	LOAD_EPATH_IF_URL("hise", MainToolbarIcons::hise);

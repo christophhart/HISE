@@ -41,7 +41,10 @@ void MacroComponent::addSynthChainToPopup(ModulatorSynthChain *parent, PopupMenu
 		{
 			PopupMenu sub;
 
-			for(int j = 0; j < HISE_NUM_MACROS; j++)
+			auto mc = msc->getMainController();
+			auto numMacros = HISE_GET_PREPROCESSOR(mc, HISE_NUM_MACROS);
+
+			for(int j = 0; j < numMacros; j++)
 			{
 				if(msc->hasActiveParameters(j))
 				{
@@ -74,7 +77,9 @@ MacroComponent::MacroComponent(BackendRootWindow* rootWindow_) :
 	
 	mlaf = new MacroKnobLookAndFeel();
 
-	for (int i = 0; i < HISE_NUM_MACROS; i++)
+	auto numMacros = HISE_GET_PREPROCESSOR(processor, HISE_NUM_MACROS);
+
+	for (int i = 0; i < numMacros; i++)
 	{
 		Slider *s = new Slider();
 		s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);

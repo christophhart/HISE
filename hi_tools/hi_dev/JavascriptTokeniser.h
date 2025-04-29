@@ -46,6 +46,8 @@ public:
     int readNextToken (CodeDocument::Iterator&) override;
     CodeEditorComponent::ColourScheme getDefaultColourScheme() override;
 
+    static int readNextTokenStatic(CodeDocument::Iterator& it);
+
     void setUseScopeStatements(bool shouldUse)
     {
 	    useScopeStatementParser = shouldUse;

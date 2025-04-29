@@ -99,7 +99,9 @@ public:
 		virtual String getContent(const MarkdownLink& url) = 0;
 		virtual LinkResolver* clone(MarkdownParser* parent) const = 0;
 		virtual Identifier getId() const = 0;
-		
+
+		virtual void dumpRAGFile() {};
+
 		virtual MarkdownLink resolveURL(const MarkdownLink& url) { return url; }
 
 		virtual File getFileToEdit(const MarkdownLink& url) 

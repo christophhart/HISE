@@ -36,6 +36,11 @@ namespace hise { using namespace juce;
 JavascriptTokeniser::JavascriptTokeniser() {}
 JavascriptTokeniser::~JavascriptTokeniser() {}
 
+int JavascriptTokeniser::readNextTokenStatic(CodeDocument::Iterator& it)
+{
+	 return JavascriptTokeniserFunctions::readNextToken(it);
+}
+
 int JavascriptTokeniser::readNextToken (CodeDocument::Iterator& source)
 {
 	if(!useScopeStatementParser)

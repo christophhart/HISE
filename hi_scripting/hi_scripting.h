@@ -89,6 +89,43 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define HISE_CREATE_DSP_NETWORKS_FOR_HARDCODED_NODES 0
 #endif
 
+/** Config: HISE_SEND_PANEL_CHANGED_TO_PLUGIN_PARAMETER
+ *
+ *  If this is enabled, then a ScriptPanel will send it's changed() message through the plugin parameter system if it was
+ *  assigned to a plugin parameter slot using the isPluginParameter property.
+ *
+ *  Enable this if you want to use a ScriptPanel as plugin parameter (for backwards compatibility this is disabled by default).
+ */
+#ifndef HISE_SEND_PANEL_CHANGED_TO_PLUGIN_PARAMETER
+#define HISE_SEND_PANEL_CHANGED_TO_PLUGIN_PARAMETER 0
+#endif
+
+/** Config: HISE_INCLUDE_BX_LICENSER
+  
+    Enable this to use the BX Licenser. 
+*/
+#ifndef HISE_INCLUDE_BX_LICENSER
+#define HISE_INCLUDE_BX_LICENSER 0
+#endif
+
+/** Config: HISE_INCLUDE_NKS_SDK
+ *
+ *  Enable this to use the NKS tools for HISE.
+ */
+#ifndef HISE_INCLUDE_NKS_SDK
+#define HISE_INCLUDE_NKS_SDK 0
+#endif
+
+/** Config: HISE_USE_SCRIPT_RECTANGLE_OBJECT
+ *
+ *  Enable this to use the custom rectangle object type instead of a JS
+ *  array in LAF methods and other scripting callbacks.
+ *
+ */
+#ifndef HISE_USE_SCRIPT_RECTANGLE_OBJECT
+#define HISE_USE_SCRIPT_RECTANGLE_OBJECT 0
+#endif
+
 #define MAX_SCRIPT_HEIGHT 700
 
 #include "AppConfig.h"
@@ -161,3 +198,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/scriptnode/api/NodeProperty.h"
 #include "scripting/scriptnode/api/ModulationSourceNode.h"
 #include "scripting/scriptnode/dynamic_elements/DynamicParameterList.h"
+
+#if HISE_INCLUDE_NKS_SDK && !USE_BACKEND
+#include "scripting/api/nks/nks_interface.h"
+#endif

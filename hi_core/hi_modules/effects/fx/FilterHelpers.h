@@ -229,11 +229,6 @@ private:
 			filters[r.voiceIndex].render(r);
 		}
 
-		void processFrame(float* frameData, int numChannels)
-		{
-			filters[this->r.voiceIndex].processFrame(frameData, numChannels);
-		}
-
 		void setSampleRate(double sampleRate) override
 		{
 			for (auto &filter : filters)

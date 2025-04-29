@@ -33,16 +33,26 @@
 namespace hise { using namespace juce;
 
 MidiProcessor::MidiProcessor(MainController *mc, const String &id):
-		Processor(mc, id, 1),
-		processThisMessage(true),
-		ownerSynth(nullptr),
-		numThisTime(0)
-	{
-
-		
-		
-
-	};
+	Processor(mc, id, 1),
+	processThisMessage(true),
+	ownerSynth(nullptr),
+	numThisTime(0)
+{
+	PROFILE_ONLY(addProfileDataSource(getId() + ".renderMidiBuffer()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".onNoteOn()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".onNoteOff()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".onController()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".onPitchBend()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".onAftertouch()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".onAllNotesOff()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".SongPosition()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".MidiStart()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".MidiStop()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".VolumeFade()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".PitchFade()"));
+	PROFILE_ONLY(addProfileDataSource(getId() + ".onTimer()"));
+	PROFILE_ONLY(forEachProfileSource([this](DebugSession::ProfileDataSource::Ptr p){ p->colour = getColour(); }));
+};
 
 MidiProcessor::~MidiProcessor()
 {
@@ -1053,7 +1063,11 @@ void MidiProcessorChain::processHiseEvent(HiseEvent& m)
 		}
 
 		if(!m.isIgnored())
+		{
+			ProfiledProcessor::Profiler p(*processors[i], (int)m.getType());
 			processors[i]->processHiseEvent(m);
+		}
+			
 	}
 }
 

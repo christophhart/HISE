@@ -199,6 +199,7 @@ public:
         MenuToolsCreateRnboTemplate,
 		MenuToolsCreateThirdPartyNode,
 		MenuToolsCreateGlobalCableCppCode,
+		MenuToolsCheckLatency,
 		// ----------------------------------
 		// License Management
 		MenuToolsCreateRSAKeys,
@@ -310,7 +311,6 @@ public:
 		static void plotModulator(CopyPasteTarget *currentCopyPasteTarget);
 		static void resolveMissingSamples(BackendRootWindow *bpe);
 		static void setCompileTimeOut(BackendRootWindow * bpe);
-		static void toggleUseBackgroundThreadsForCompiling(BackendRootWindow * bpe);
 		static void toggleCompileScriptsOnPresetLoad(BackendRootWindow * bpe);
 		static void createNewProject(BackendRootWindow *bpe);
 		static void loadProject(BackendRootWindow *bpe);
@@ -402,6 +402,7 @@ public:
 		static void exportAudio(BackendRootWindow* bpe);
 
 		static void replaceScriptModules(BackendRootWindow* bpe);
+		static void checkLatency(BackendRootWindow* bpe);
 	};
 
 private:

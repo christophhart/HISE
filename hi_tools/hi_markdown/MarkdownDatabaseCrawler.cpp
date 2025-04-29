@@ -276,6 +276,9 @@ void DatabaseCrawler::createContentTree()
 	contentTree = db.rootItem.createValueTree();
 	addContentToValueTree(contentTree);
 
+	for(auto r: linkResolvers)
+		r->dumpRAGFile();
+
 	logMessage("Resolved URLs: " + String(numResolved));
 	logMessage("unresolved URLs: " + String(numUnresolved));
 }

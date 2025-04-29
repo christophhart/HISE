@@ -254,7 +254,11 @@ public:
 	int getNumDebugObjects() const override;
 
 	DebugableObjectBase* getDebugObject(const String& token) override;
-	
+
+	void setEnableOnInitProfiling(bool shouldBeProfiling)
+	{
+		enableOnInitProfiling = shouldBeProfiling;
+	}
 
 	void clearDebugInformation();
 	
@@ -445,6 +449,29 @@ public:
 
         HiseJavascriptPreprocessor::Ptr preprocessor;
 
+		void setEnableOnInitProfiling(bool shouldBeEnabled)
+		{
+			ignoreUnused(shouldBeEnabled);
+
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+			auto isEnabled = onInitProfileSource != nullptr;
+
+			if(isEnabled != shouldBeEnabled)
+			{
+				parseProfileSource = new DebugSession::ProfileDataSource();
+				parseProfileSource->sourceType = DebugSession::ProfileDataSource::SourceType::Script;
+				parseProfileSource->name = "parse onInit()";
+
+				onInitProfileSource = new DebugSession::ProfileDataSource();
+				onInitProfileSource->sourceType = DebugSession::ProfileDataSource::SourceType::Script;
+				onInitProfileSource->name = "onInit()";
+			}
+#endif
+		}
+
+		DebugSession::ProfileDataSource::Ptr parseProfileSource;
+		DebugSession::ProfileDataSource::Ptr onInitProfileSource;
+
         struct LocalScopeCreator
         {
             using Ptr = WeakReference<LocalScopeCreator>;
@@ -556,6 +583,7 @@ public:
 		struct ScopedPrinter;			struct ScopedBefore;		struct ScopedAfter;
 		struct ScopedDumper;			struct ScopedNoop;			struct ScopedCounter;
 		struct ScopedProfiler;			struct ScopedSuspender;		struct ScopedBypasser;
+        struct ScopedSampling;          struct ScopedCall;
 		
 
 		// Variables
@@ -973,11 +1001,12 @@ public:
 	static void checkValidParameter(int index, const var& valueToTest, const RootObject::CodeLocation& location, VarTypeChecker::VarTypes expectedType);
 
     LambdaBroadcaster<bool> preCompileListeners;
-    
+	std::vector<std::pair<WeakReference<DebugableObjectBase>, std::function<void(DebugInformationBase::Ptr)>>> debugInfoListeners;
+
 private:
 
 	
-    
+    bool enableOnInitProfiling = false;
     bool initialising = false;
 	bool externalFunctionPending = false;
 

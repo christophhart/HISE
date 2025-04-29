@@ -413,6 +413,14 @@ private:
 	juce::KeyPressMappingSet keyMap;
 };
 
+struct TooltipClientWithCustomPosition: public TooltipClient
+{
+	virtual ~TooltipClientWithCustomPosition() {};
+
+	/** Override this method and apply the custom (global position). */
+	virtual void applyPosition(const Rectangle<int>& screenBoundsOfTooltipClient, Rectangle<int>& tooltipRectangleAtOrigin) = 0;
+};
+
 /** A small helper interface class that allows you to find the topmost component
 	that might have a OpenGL context attached.
 
@@ -496,6 +504,13 @@ private:
 	int lastTimerInterval = -1;
 };
 
+class DebugSession;
+
+// Set this to 1 to find out the timer children that take the most time so you can add profile infos to it.
+#ifndef MEASURE_TIMER_CHILDREN
+#define MEASURE_TIMER_CHILDREN 0
+#endif
+
 /** Coallescates timer updates.
 	@ingroup event_handling
 	
@@ -536,7 +551,13 @@ public:
 
 		virtual void timerCallback() = 0;
 
+		template <typename T> T* getProfileDataSource() { return dynamic_cast<T*>(profileData.get()); }
+
+		void setEnableProfiling(const String& profileName);
+
 	private:
+
+		ReferenceCountedObjectPtr<ReferenceCountedObject> profileData;
 
 		void startOrStop(bool shouldStart);
 
@@ -577,7 +598,19 @@ public:
 
 	void timerCallback() override;
 
+	void setDebugSession(hise::DebugSession* s) { debugSession = s;	 }
+
+	DebugSession* getDebugSession() { return debugSession; }
+
 private:
+
+
+#if MEASURE_TIMER_CHILDREN
+	double lastDuration = 0.0;
+#endif
+
+	hise::DebugSession* debugSession = nullptr;
+	ReferenceCountedObjectPtr<ReferenceCountedObject> timerSession;
 
 	Array<WeakReference<SimpleTimer>, CriticalSection> simpleTimers;
 	LockfreeQueue<WeakReference<Broadcaster>> pendingHandlers;
@@ -638,9 +671,18 @@ public:
 
 	float getLastDisplayValue() const;
 
-private:
+	void setEnableProfiling(const String& profileName_)
+	{
+		if(profileName_ != profileName)
+		{
+			profileName = profileName_;
 
-	
+			if(currentUpdater != nullptr)
+				currentUpdater->setEnableProfiling(profileName);
+		}
+	}
+
+private:
 
 	void updateUpdater();
 
@@ -663,6 +705,8 @@ private:
 	mutable float lastDisplayValue = 1.0f;
 	mutable EventType lastChange = EventType::Idle;
 	mutable var lastValue;
+
+	String profileName;
 
 	static constexpr int NumListenerSlots = 128;
 	hise::UnorderedStack<WeakReference<EventListener>, NumListenerSlots> listeners;
@@ -721,10 +765,7 @@ public:
 		name(name_)
 	{};
 
-	virtual ~SafeChangeBroadcaster()
-	{
-		dispatcher.cancelPendingUpdate();
-	};
+	virtual ~SafeChangeBroadcaster();;
 
 	/** Sends a synchronous change message to all the registered listeners.
 	*
@@ -1658,7 +1699,7 @@ struct ComplexDataUIBase : public ReferenceCountedObject
 
 	virtual ~ComplexDataUIBase();;
 
-	void setGlobalUIUpdater(PooledUIUpdater* updater);
+	virtual void setGlobalUIUpdater(PooledUIUpdater* updater);
 
     void sendDisplayIndexMessage(float n);
 
@@ -1673,6 +1714,11 @@ struct ComplexDataUIBase : public ReferenceCountedObject
     UndoManager* getUndoManager(bool useUndoManager = true);;
 
 	hise::SimpleReadWriteLock& getDataLock() const;
+
+	void setEnableProfiling(const String& profileName)
+	{
+		getUpdater().setEnableProfiling(profileName);
+	}
 
 protected:
 
@@ -1701,6 +1747,8 @@ public:
 
 	/** Returns a index array with the results for the given wordlist. */
 	static Array<int> searchForIndexes(const String &word, const StringArray &wordList, double fuzzyness);
+
+	static String suggestCorrection(const juce::String& wrongToken, const juce::StringArray& availableTokens, double fuzzyness = 0.3);
 
 private:
 
@@ -2292,6 +2340,10 @@ struct Spectrum2D
 		int gainFactorDb = 1000;
 		int gammaPercent = 60;
 
+		bool standardize = false;
+
+		int freqGamma = 100;
+
 		float getGamma() const
 		{
 			return (float)gammaPercent / 100.0f;
@@ -2491,5 +2543,151 @@ private:
 	BroadcasterType broadcaster;
 	std::array<std::array<std::pair<uint16, double>, NumDataSlots>, NumEventSlots> data;
 };
+
+/** A small helper class that simplifies the syntax when programatically creating JSON objects.
+ 
+    This is just a wrapper around a juce::DynamicObject but can be used as stack created variable
+ 	with overloaded []-operator access for neat syntax like:
+ 
+ 	```
+ 	JSONObject obj;
+ 	obj["someProperty"] = "Hello";
+ 	obj["noice"] = 1234;
+
+	// convert to juce::var for usage within JUCE / HISE
+ 	var v(obj);
+ */	
+struct JSONObject
+{
+	JSONObject(): obj(new DynamicObject()) {};
+
+	JSONObject(std::initializer_list<NamedValueSet::NamedValue>&& v):
+	  obj(new DynamicObject())
+	{
+		obj->getProperties() = v;
+	}
+
+	var& operator[](const Identifier& id)
+	{
+		if(!obj->hasProperty(id))
+			obj->setProperty(id, {});
+
+		return *obj->getProperties().getVarPointer(id);
+	}
+
+	const var& operator[](const Identifier& id) const
+	{
+		return obj->getProperty(id);
+	}
+
+
+	var& operator[](const String& c)
+	{
+		return operator[](Identifier(c));
+	}
+
+	const var& operator[](const String& c) const
+	{
+		return operator[](Identifier(c));
+	}
+
+	operator var() const { return var(obj.get()); }
+
+	const NamedValueSet::NamedValue* begin() const { return obj->getProperties().begin(); }
+	const NamedValueSet::NamedValue* end() const { return obj->getProperties().end(); }
+
+private:
+
+	DynamicObject::Ptr obj;
+};
+
+/** A interface class for a component that has a text editor that should show a autocomplete popup. */
+struct TextEditorWithAutocompleteComponent: public Timer,
+											public TextEditor::Listener
+{
+	static constexpr int ItemHeight = 28;
+
+    /** This is the main top level component (or any other component) that will show the autocomplete. */
+    struct Parent
+    {
+	    virtual ~Parent() {};
+
+        /** Overwrite this and return a dynamic list of autocomplete items. */
+        virtual StringArray getAutocompleteItems(const Identifier& id) = 0;
+
+		/** Overwrite this and return false if you want to add the autocomplete to the top level window. */
+		virtual bool isTopLevel() const { return true; }
+    };
+
+    TextEditorWithAutocompleteComponent():
+      navigator(*this)
+    {};
+
+    /** Call this from your subclass. */
+    void initEditor()
+    {
+	    getTextEditor()->addListener(this);
+		getTextEditor()->addKeyListener(&navigator);
+    }
+    
+    virtual ~TextEditorWithAutocompleteComponent() {};
+
+    /** Overwrite this and return the text editor that should be used by the autocomplete popup. */
+	virtual TextEditor* getTextEditor() = 0;
+
+    void timerCallback() override
+    {
+		if(Component::getCurrentlyFocusedComponent() == getTextEditor())
+			showAutocomplete(getTextEditor()->getText());
+        
+		stopTimer();
+    }
+
+    struct AutocompleteNavigator: public KeyListener
+    {
+        AutocompleteNavigator(TextEditorWithAutocompleteComponent& parent_):
+          parent(parent_)
+        {}
+	    bool keyPressed (const KeyPress& key,
+                             Component* originatingComponent) override;
+
+        TextEditorWithAutocompleteComponent& parent;
+    } navigator;
+
+	struct LookAndFeelMethods
+    {
+        virtual ~LookAndFeelMethods() {};
+        
+	    virtual void drawAutocompleteBackground(Graphics& g, TextEditor& te, Rectangle<float> b, const StringArray& itemToShow, int selectedIndex);
+    };
+
+    void textEditorTextChanged(TextEditor&) override
+    {
+	    startTimer(400);
+    }
+
+    void textEditorReturnKeyPressed(TextEditor& e) override;
+
+    void textEditorEscapeKeyPressed(TextEditor& e) override;
+
+    void showAutocomplete(const String& currentText);
+    void dismissAutocomplete();
+
+    virtual Identifier getIdForAutocomplete() const = 0;
+
+    struct Autocomplete;
+
+    Autocomplete* getCurrentAutocomplete();
+
+    ScopedPointer<Component> currentAutocomplete;
+    StringArray autocompleteItems;
+
+    bool useDynamicAutocomplete = false;
+	int itemsToShow = 4;
+
+    JUCE_DECLARE_WEAK_REFERENCEABLE(TextEditorWithAutocompleteComponent);
+};
+
+
 
 }

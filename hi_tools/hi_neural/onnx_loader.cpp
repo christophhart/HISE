@@ -101,6 +101,26 @@ Result ONNXLoader::loadModel(const MemoryBlock& mb)
 	return ok;
 }
 
+var ONNXLoader::getStatistics()
+{
+	auto o = new DynamicObject();
+
+	Statistics s;
+
+	if(currentModel != nullptr)
+	{
+		if(auto f = getFunction<getStatistics_f>("getStatistics"))
+			f(currentModel, &s);
+	}
+
+	o->setProperty("loaded", currentModel != nullptr);
+	o->setProperty("numInputs", s.numInputs);
+	o->setProperty("numParameters", s.numParameters);
+	o->setProperty("numOutputs", s.numOutputs);
+
+	return var(o);
+}
+
 Result ONNXLoader::getLastError() const
 {
 	return ok;

@@ -124,7 +124,13 @@ public:
 
 	bool skipCompilation = false;
 
+	DspNetwork* getNetwork();
+
+	Result getCompilationResult() const { return getErrorCode() == ErrorCodes::OK ? Result::ok() : Result::fail(errorMessage); }
+
 private:
+
+	
 
 	enum CppFileLocationType
 	{
@@ -139,7 +145,7 @@ private:
 
 	CppFileLocationType getLocationType(const File& f) const;
 
-	DspNetwork* getNetwork();
+	
 
 	static Array<File> getIncludedNetworkFiles(const File& networkFile);
 	

@@ -551,10 +551,10 @@ namespace ScriptedDrawActions
 	{
 		SET_ACTION_ID(drawFittedText);
 
-		drawFittedText(const String& text_, var area_, Justification j_, int maxLines_, float scale_ = Justification::centred) : text(text_), area(area_), j(j_), maxLines(maxLines_), scale(scale_) {};
-		void perform(Graphics& g) override { g.drawFittedText(text, area[0], area[1], area[2], area[3], j, maxLines, scale); };
+		drawFittedText(const String& text_, Rectangle<int> area_, Justification j_, int maxLines_, float scale_ = Justification::centred) : text(text_), area(area_), j(j_), maxLines(maxLines_), scale(scale_) {};
+		void perform(Graphics& g) override { g.drawFittedText(text, area, j, maxLines, scale); };
 		String text;
-		var area;
+		Rectangle<int> area;
 		Justification j;
 		int maxLines;
 		float scale;

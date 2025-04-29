@@ -607,8 +607,8 @@ struct LockedContainerExtraComponent: public ScriptnodeExtraComponent<NodeBase>,
 	{
 		Path p;
 
-		LOAD_PATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
-		LOAD_PATH_IF_URL("lock", ColumnIcons::lockIcon);
+		LOAD_EPATH_IF_URL("goto", ColumnIcons::openWorkspaceIcon);
+		LOAD_EPATH_IF_URL("lock", ColumnIcons::lockIcon);
 
 		return p;
 	}

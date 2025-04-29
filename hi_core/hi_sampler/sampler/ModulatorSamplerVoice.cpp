@@ -44,6 +44,9 @@ void ModulatorSamplerVoice::startVoiceInternal(int midiNoteNumber, float velocit
 
 	voiceUptime = wrappedVoice.voiceUptime;
 	uptimeDelta = wrappedVoice.uptimeDelta;
+
+	voiceUptime -= getOwnerSynth()->getPredelayForVoice(this);
+
 	isActive = true;
 
 	jassert(uptimeDelta > 0.0);
@@ -238,12 +241,22 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 		jassert(getConstantCrossfadeModulationValue() == 1.0f);
 	}
-	
+
+	if(auto groupGainValues = getGroupModulationValues(startSample, numSamples))
+	{
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(0, startIndex), groupGainValues + startIndex, samplesInBlock);
+		FloatVectorOperations::multiply(voiceBuffer.getWritePointer(1, startIndex), groupGainValues + startIndex, samplesInBlock);
+
+		jassert(getConstantGroupModulationValue() == 1.0f);
+	}
+
 	float totalGain = getOwnerSynth()->getConstantGainModValue() * envGain;
 	
 	float thisCrossfadeGain = getConstantCrossfadeModulationValue();
+	float thisGroupModGain = getConstantGroupModulationValue();
 
 	totalGain *= thisCrossfadeGain;
+	totalGain *= thisGroupModGain;
 
 	totalGain *= currentlyPlayingSamplerSound->getPropertyVolume();
 	totalGain *= currentlyPlayingSamplerSound->getNormalizedPeak();
@@ -390,9 +403,21 @@ const float * ModulatorSamplerVoice::getCrossfadeModulationValues(int startSampl
 	if (!sampler->isUsingCrossfadeGroups())
 		return nullptr;
 
-	return sampler->calculateCrossfadeModulationValuesForVoice(voiceIndex, startSample, numSamples, currentlyPlayingSamplerSound->getRRGroup() - 1);
+	auto bm = currentlyPlayingSamplerSound->getBitmask();
+	return sampler->calculateCrossfadeModulationValuesForVoice(voiceIndex, startSample, numSamples, bm - 1);
 }
 
+float ModulatorSamplerVoice::getConstantGroupModulationValue() const noexcept
+{
+	auto m = currentlyPlayingSamplerSound->getBitmask();
+	return sampler->getConstantGroupModulationValue(voiceIndex, m);
+}
+
+const float * ModulatorSamplerVoice::getGroupModulationValues(int startSample, int numSamples)
+{
+	auto m = currentlyPlayingSamplerSound->getBitmask();
+	return sampler->calculateGroupModulationValuesForVoice(getCurrentHiseEvent(), voiceIndex, startSample, numSamples, m);
+}
 
 
 void ModulatorSamplerVoice::resetVoice()

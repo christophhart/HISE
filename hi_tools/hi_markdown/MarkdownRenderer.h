@@ -670,6 +670,7 @@ public:
         OverlayRight,
         TopRight,
         Left,
+		PropertyHelpOffsetXY, // helpPosition = componentPosition.translated(prop["helpOffsetX"], prop["helpOffsetY"])
         numAttachmentTypes
     };
 
@@ -706,6 +707,8 @@ public:
     void setStyleData(const MarkdownLayout::StyleData& newStyleData);
 
     static Path getPath();
+
+	Component* getAttachedComponent() const { return ownerComponent.getComponent(); }
 
 private:
 

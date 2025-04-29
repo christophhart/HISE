@@ -104,7 +104,7 @@ struct SignalsmithStretch {
 				totalEnergy += s*s;
 			}
 		}
-		if (totalEnergy < noiseFloor) {
+		if (false && totalEnergy < noiseFloor) {
 			if (silenceCounter >= 2*stft.windowSize()) {
 				if (silenceFirst) {
 					silenceFirst = false;

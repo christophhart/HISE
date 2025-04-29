@@ -30,8 +30,6 @@
 *   ===========================================================================
 */
 
-#include "PatchBrowser.h"
-#include "PatchBrowser.h"
 
 namespace hise { using namespace juce;
 
@@ -55,8 +53,15 @@ showChains(false)
     addButton->setToggleModeWithColourChange(true);
 	addButton->setTooltip("Edit Module Tree");
     addButton->setToggleStateAndUpdateIcon(false);
-	
 	addCustomButton(addButton);
+
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+	addAndMakeVisible(profileButton = new HiseShapeButton("profile", this, f));
+    profileButton->setToggleModeWithColourChange(true);
+	profileButton->setTooltip("Profile Audio rendering of the entire module tree");
+    profileButton->setToggleStateAndUpdateIcon(false);
+	addCustomButton(profileButton);
+#endif
 
 	window->getBackendProcessor()->getLockFreeDispatcher().addPresetLoadListener(this);
 
@@ -189,7 +194,7 @@ void PatchBrowser::showProcessorInPopup(Component* c, const MouseEvent& e, Proce
 
 		auto b = c->getLocalBounds();
 		b = bp->getLocalArea(c, b);
-		auto pe = dynamic_cast<ProcessorEditorContainer*>(DebugableObject::Helpers::showProcessorEditorPopup(e, c, p));
+		auto pe = dynamic_cast<ProcessorEditorContainer*>(DebugableObject::Helpers::showProcessorEditorPopup(c, p));
 		
 		Component::SafePointer<FloatingTilePopup> safePopup = ft->showComponentAsDetachedPopup(pe, bp, { b.getRight() + 50 + (CONTAINER_WIDTH)/2, b.getY() -10 }, true);
 
@@ -728,6 +733,77 @@ void PatchBrowser::buttonClicked(Button *b)
 	else if (b == addButton)
 	{
 		toggleShowChains();
+	}
+	else if (b == profileButton)
+	{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+		auto shouldProfile = b->getToggleState();
+
+		auto chain = rootWindow.getComponent()->getBackendProcessor()->getMainSynthChain();
+		auto& session = chain->getMainController()->getDebugSession();
+		
+		chain->setEnableProfiling(shouldProfile, &session, 0);
+
+		if(shouldProfile)
+		{
+			Component::SafePointer<HiseShapeButton> b(profileButton.get());
+			auto delay = (int)session.getOptions().millisecondsToRecord;
+			Timer::callAfterDelay(delay, [b]()
+			{
+				if(b.getComponent() != nullptr && b->getToggleState())
+					b->setToggleState(false, sendNotificationSync);
+			});
+
+			session.clearData(&session);
+
+			session.heatmapManager.heatmapBroadcaster.addListener(*this, [](PatchBrowser& pb, DebugInformationBase::Ptr p, const std::map<int, double>* map)
+			{
+				if(map != nullptr)
+				{
+					Array<NodeComponent*> list;
+
+					callRecursive<PatchItem>(&pb, [&](PatchItem* i)
+					{
+						if(auto t = dynamic_cast<ProfiledProcessor*>(i->getProcessor()))
+						{
+							auto idx = t->getHeatmapIndex();
+
+							if(map->find(idx) != map->end())
+							{
+								i->heatmapAlpha = (float)map->at(idx);
+								FloatSanitizers::sanitizeFloatNumber(i->heatmapAlpha);
+								i->heatmapAlpha = jlimit(0.0f, 1.0f, i->heatmapAlpha);
+								i->repaint();
+							}
+						}
+
+						return false;
+					});
+				}
+			});
+		}
+		else
+		{
+			session.heatmapManager.heatmapBroadcaster.removeListener(*this);
+
+			callRecursive<PatchItem>(this, [&](PatchItem* i)
+			{
+				if(auto t = dynamic_cast<ProfiledProcessor*>(i->getProcessor()))
+				{
+					i->heatmapAlpha = 0.0f;
+					i->repaint();
+				}
+
+				return false;
+			});
+
+			if(auto r = chain->getMainController()->getDebugSession().getLastProfileRoot(DebugSession::ThreadIdentifier::Type::AudioThread))
+			{
+				auto c = chain->getMainController()->getDebugSession().createPopupViewer(r);
+				rootWindow->getRootFloatingTile()->showComponentInRootPopup(c, profileButton, { profileButton->getWidth() / 2, profileButton->getHeight() } );
+			}
+		}
+#endif
 	}
 }
 
@@ -1836,6 +1912,12 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 		g.drawRoundedRectangle(b.reduced(1.0f), 2.0f, 1.0f);
 	}
 
+	if(heatmapAlpha != 0.0f)
+	{
+		g.setColour(Colour(HISE_WARNING_COLOUR).withAlpha(heatmapAlpha));
+		g.fillRoundedRectangle(b.reduced(1.0f), 2.0f);
+	}
+
 	g.setColour(pColour.withAlpha(!bypassed ? 1.0f : 0.5f));
 
 	auto iconSpace = b.removeFromLeft(b.getHeight()).reduced(2.0f);
@@ -2458,11 +2540,12 @@ juce::Path PatchBrowser::Factory::createPath(const String& url) const
 {
 	Path p;
 	LOAD_EPATH_IF_URL("add", EditorIcons::penShape);
-	LOAD_PATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
+	LOAD_EPATH_IF_URL("workspace", ColumnIcons::openWorkspaceIcon);
 	LOAD_EPATH_IF_URL("close", SampleMapIcons::deleteSamples);
 	LOAD_EPATH_IF_URL("create", HiBinaryData::ProcessorEditorHeaderIcons::addIcon);
 	LOAD_EPATH_IF_URL("folded", HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon);
 	LOAD_EPATH_IF_URL("unfolded", HiBinaryData::ProcessorEditorHeaderIcons::foldedIcon);
+	LOAD_EPATH_IF_URL("profile", EditorIcons::profileIcon);
 
 	if (url == "unfolded")
 		p.applyTransform(AffineTransform::rotation(float_Pi * 0.5f));

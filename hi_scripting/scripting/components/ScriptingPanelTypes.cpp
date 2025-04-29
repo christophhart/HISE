@@ -570,6 +570,8 @@ public:
 
 private:
 
+	std::vector<std::pair<Rectangle<int>, float>> heatmap;
+
 	float overlayAlpha = 0.0f;
 	Image overlayImage;
 
@@ -816,6 +818,7 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 
 	addButton("edit-json");
 	addButton("debug-css");
+	addButton("profile");
 
 	addCustomComponent(overlaySelector);
 	addCustomComponent(overlayAlphaSlider);
@@ -903,6 +906,68 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		};
 
 		b->enabledFunction = isSingleSelection;
+	}
+	if(name == "profile")
+	{
+#if HISE_INCLUDE_PROFILING_TOOLKIT
+		b->stateFunction = [](Editor& e)
+		{
+			return e.canvas.getContent<Canvas>()->content->isProfiling();
+		};
+
+		b->actionFunction = [b](Editor& e)
+		{
+			auto content = e.canvas.getContent<Canvas>()->content.get();
+			auto jp = const_cast<JavascriptProcessor*>(content->getScriptProcessor());
+			auto mc = dynamic_cast<Processor*>(jp)->getMainController();
+
+			auto isProfiling = content->isProfiling();
+
+			
+			content->setEnableProfiling(!isProfiling, jp, true);
+
+			
+
+			if(content->isProfiling())
+			{
+				Component::SafePointer<ActionButton> sb(b);
+				Component::SafePointer<ScriptContentComponent> sc(content);
+				auto delay = (int)dynamic_cast<const Processor*>(content->getScriptProcessor())->getMainController()->getDebugSession().getOptions().millisecondsToRecord;
+				Timer::callAfterDelay(delay, [sb, sc]()
+				{
+					if(sb.getComponent() != nullptr && sc != nullptr && sc->isProfiling())
+						sb->triggerClick(sendNotificationSync);
+				});
+
+				ProfiledComponent::ComponentHeatmapGenerator hg(content);
+				hg.generateHeatmapIndexes();
+				mc->getDebugSession().clearData(jp);
+
+				jp->heatmapManager.heatmapBroadcaster.addListener(*content, [](ScriptContentComponent& c, DebugInformationBase::Ptr p, const std::map<int, double>* map)
+				{
+					c.setHeatmap(p, map);
+				});
+			}
+			else
+			{
+				jp->heatmapManager.heatmapBroadcaster.removeAllListeners();
+
+				content->setHeatmap(nullptr, nullptr);
+
+				auto dh = &dynamic_cast<const Processor*>(content->getScriptProcessor())->getMainController()->getDebugSession();
+
+				if(auto r = dh->getLastProfileRoot(DebugSession::ThreadIdentifier::Type::UIThread))
+				{
+					auto c = const_cast<DebugSession*>(dh)->createPopupViewer(r);
+					GET_BACKEND_ROOT_WINDOW(content)->getRootFloatingTile()->showComponentInRootPopup(c, b, { b->getWidth() / 2, b->getHeight() }, false);
+				}
+			}
+
+			content->repaint();
+
+			return true;
+		};
+#endif
 	}
 	if (name == "lock")
 	{
@@ -2152,7 +2217,7 @@ Component* ScriptWatchTablePanel::createContentComponent(int /*index*/)
 
 	auto f = [this](Component* p, Component* c, Point<int> s)
 	{
-		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentInRootPopup(p, c, s, true);
+		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentInRootPopup(p, c, s);
 	};
 
 	swt->setPopupFunction(f);
@@ -2233,15 +2298,16 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("cancel", EditorIcons::cancelIcon);
 	LOAD_EPATH_IF_URL("undo", EditorIcons::undoIcon);
 	LOAD_EPATH_IF_URL("redo", EditorIcons::redoIcon);
-	LOAD_PATH_IF_URL("rebuild", ColumnIcons::moveIcon);
+	LOAD_EPATH_IF_URL("rebuild", ColumnIcons::moveIcon);
 	LOAD_EPATH_IF_URL("learn", EditorIcons::connectIcon);
-	LOAD_PATH_IF_URL("vertical-align", ColumnIcons::verticalAlign);
-	LOAD_PATH_IF_URL("horizontal-align", ColumnIcons::horizontalAlign);
-	LOAD_PATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);
-	LOAD_PATH_IF_URL("horizontal-distribute", ColumnIcons::horizontalDistribute);
+	LOAD_EPATH_IF_URL("vertical-align", ColumnIcons::verticalAlign);
+	LOAD_EPATH_IF_URL("horizontal-align", ColumnIcons::horizontalAlign);
+	LOAD_EPATH_IF_URL("vertical-distribute", ColumnIcons::verticalDistribute);
+	LOAD_EPATH_IF_URL("horizontal-distribute", ColumnIcons::horizontalDistribute);
 	LOAD_EPATH_IF_URL("edit-json", HiBinaryData::SpecialSymbols::scriptProcessor);
-	LOAD_PATH_IF_URL("debug-css", ColumnIcons::debugCSS);
+	LOAD_EPATH_IF_URL("debug-css", ColumnIcons::debugCSS);
 	LOAD_EPATH_IF_URL("suspend", EditorIcons::nightIcon);
+	LOAD_EPATH_IF_URL("profile", EditorIcons::profileIcon);
 
 	return p;
 }
@@ -2371,7 +2437,7 @@ juce::Path OSCLogger::createPath(const String& url) const
 {
 	Path p;
 
-	LOAD_PATH_IF_URL("filter", ColumnIcons::filterIcon);
+	LOAD_EPATH_IF_URL("filter", ColumnIcons::filterIcon);
 	LOAD_EPATH_IF_URL("clear", SampleMapIcons::deleteSamples);
 	LOAD_EPATH_IF_URL("pause", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
 	LOAD_EPATH_IF_URL("scale", ScriptnodeIcons::scaleIcon);
