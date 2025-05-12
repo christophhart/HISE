@@ -149,7 +149,7 @@ float MonoFilterEffect::getDefaultValue(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case Gain:		return 0.0f;
-	case Frequency:	return 20000.0f;
+	case Frequency:	return 24000.0f;
 	case Q:			return 1.0f;
 	case Mode:		return (float)(int)FilterBank::FilterMode::StateVariableLP;
 	case Quality:   return 256.0f;
@@ -462,7 +462,7 @@ float PolyFilterEffect::getDefaultValue(int parameterIndex) const
 	switch (parameterIndex)
 	{
 	case PolyFilterEffect::Gain:		return 0.0f;
-	case PolyFilterEffect::Frequency:	return 20000.0f;
+	case PolyFilterEffect::Frequency:	return 24000.0f;
 	case PolyFilterEffect::Q:			return 1.0f;
 	case PolyFilterEffect::Mode:		return (float)(int)FilterBank::FilterMode::StateVariableLP;
 	case PolyFilterEffect::Quality:   return 256.0f;

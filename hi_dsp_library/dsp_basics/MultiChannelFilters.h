@@ -43,7 +43,7 @@ namespace hise { using namespace juce;
 namespace FilterLimitValues
 {
 	constexpr double lowFrequency = 5.0f;
-	constexpr double highFrequency = 20000.0f;
+	constexpr double highFrequency = 24000.0f;
 
 	constexpr double lowQ = 0.1;
 	constexpr double highQ = 9.999;

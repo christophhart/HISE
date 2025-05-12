@@ -295,7 +295,7 @@ private:
 
 	FilterMode mode;
 
-	double frequency = 20000.0;
+	double frequency = 24000.0;
 	float gain = 1.0f;
 	double q = 1.0;
 	
