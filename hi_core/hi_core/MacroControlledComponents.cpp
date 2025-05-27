@@ -1177,7 +1177,15 @@ void HiToggleButton::mouseDown(const MouseEvent &e)
 	checkMouseClickProfiler(true);
 
 	if(auto pp = getConnectedPluginParameter())
+	{
+		if(getTriggeredOnMouseDown())
+		{
+			dynamic_cast<HisePluginParameterBase*>(pp)->setIgnoreNextHostUpdate(true);
+		}
+
 		pp->beginChangeGesture();
+	}
+		
 
 	CHECK_MIDDLE_MOUSE_DOWN(e);
 
@@ -1236,7 +1244,15 @@ void HiToggleButton::mouseUp(const MouseEvent& e)
     MomentaryToggleButton::mouseUp(e);
 
 	if(auto pp = getConnectedPluginParameter())
+	{
+		if(!getTriggeredOnMouseDown())
+		{
+			dynamic_cast<HisePluginParameterBase*>(pp)->setIgnoreNextHostUpdate(true);
+		}
+
 		pp->endChangeGesture();
+	}
+		
 }
 
 HiComboBox::HiComboBox(const String& name):

@@ -1700,7 +1700,19 @@ void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
 {
     if(sampleRate_ <= 0.0 || samplesPerBlock <= 0)
         return;
-    
+
+#if 0
+	if(auto ap = dynamic_cast<AudioProcessor*>(this))
+	{
+		juce::PluginHostType hostType;
+
+		if(hostType.isLogic())
+			getMasterClock().setClockTolerance(0.2);
+		else
+			getMasterClock().setClockTolerance(0.0);
+	}
+#endif
+
 	auto oldSampleRate = processingSampleRate;
 	auto oldBlockSize = processingBufferSize.get();
 
@@ -2336,7 +2348,18 @@ void MainController::savePluginState(MemoryBlock& destData, int currentlyLoadedP
 		v.setProperty("HostTempo", globalBPM, nullptr);
 	}
 
-	v.setProperty("UserPreset", getUserPresetHandler().getCurrentlyLoadedFile().getFullPathName(), nullptr);
+	auto up = getActiveFileHandler()->getSubDirectory(FileHandlerBase::UserPresets);
+
+	auto currentUserPreset = getUserPresetHandler().getCurrentlyLoadedFile();
+
+	if(currentUserPreset.isAChildOf(up))
+	{
+		v.setProperty("UserPreset", currentUserPreset.getRelativePathFrom(up).replaceCharacter('\\', '/'), nullptr);
+	}
+	else
+	{
+		v.setProperty("UserPreset", currentUserPreset.getFullPathName(), nullptr);
+	}
 
 #if USE_BACKEND
 	auto version = GET_HISE_SETTING(getMainSynthChain(), HiseSettings::Project::Version).toString();

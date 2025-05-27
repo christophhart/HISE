@@ -2104,7 +2104,15 @@ struct MasterClock
 
 	void reset();
 
+	/** This is required by Logic to detect the beat 1 position with a latency-compensated track. */
+	void setClockTolerance(double tolerance)
+	{
+		clockTolerance = tolerance;
+	}
+
 private:
+
+	double clockTolerance = 0.0;
 
 	void updateGridDelta();
 

@@ -3117,7 +3117,7 @@ float ScriptedControlAudioParameter::getValue() const
 
 void ScriptedControlAudioParameter::setValue(float newValue)
 {
-	if(recursive)
+	if(recursive || shouldSkipHostUpdate())
 		return;
 
 	if(scriptProcessor != nullptr)

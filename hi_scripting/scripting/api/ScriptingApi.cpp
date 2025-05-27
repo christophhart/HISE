@@ -8002,7 +8002,7 @@ void ScriptingApi::Server::setNumAllowedDownloads(int maxNumberOfParallelDownloa
 
 bool ScriptingApi::Server::isOnline()
 {
-	const char* urlsToTry[] = { "http://google.com/generate_204", "https://amazon.com", nullptr };
+	const char* urlsToTry[] = { "https://google.com/generate_204", "https://amazon.com", nullptr };
 
 	for (const char** url = urlsToTry; *url != nullptr; ++url)
 	{

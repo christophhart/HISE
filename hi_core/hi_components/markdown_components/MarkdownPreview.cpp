@@ -50,7 +50,7 @@ static bool canConnectToWebsite(const URL& url)
 
 static bool areMajorWebsitesAvailable()
 {
-	const char* urlsToTry[] = { "http://google.com",  "http://bing.com",  "http://amazon.com",
+	const char* urlsToTry[] = { "https://google.com",  "https://bing.com",  "https://amazon.com",
 		"https://google.com", "https://bing.com", "https://amazon.com", nullptr };
 
 	for (const char** url = urlsToTry; *url != nullptr; ++url)

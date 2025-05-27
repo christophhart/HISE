@@ -119,7 +119,7 @@ struct ValueToTextConverter
 
 		static String Decibel(double v)
 		{
-			return Decibels::toString(v, std::abs(v < 18 ? 1 : 0));
+			return Decibels::toString(v, std::abs(v < 18 ? 1 : 0), -120.0);
 		}
 
 		static String Pan(double v)

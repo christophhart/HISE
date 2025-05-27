@@ -582,7 +582,14 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 
 	if (userPresetName.isNotEmpty())
 	{
-		getUserPresetHandler().currentlyLoadedFile = (File(userPresetName));
+		if(ProjectHandler::isAbsolutePathCrossPlatform(userPresetName))
+		{
+			getUserPresetHandler().currentlyLoadedFile = (File(userPresetName));
+		}
+		else
+		{
+			getUserPresetHandler().currentlyLoadedFile = getActiveFileHandler()->getSubDirectory(FileHandlerBase::UserPresets).getChildFile(userPresetName);
+		}
 	}
 
 	if (getUserPresetHandler().isUsingCustomDataModel())

@@ -2112,7 +2112,7 @@ MasterClock::GridInfo MasterClock::updateFromExternalPlayHead(const AudioPlayHea
 
 			auto gridPos = std::fmod(info.ppqPosition, multiplier);
 
-			if (std::abs(gridPos) <= 0.2)
+			if (std::abs(gridPos) <= clockTolerance)
 			{
 				gi.change = true;
 				gi.gridIndex = roundToInt(info.ppqPosition / multiplier);
@@ -2151,10 +2151,13 @@ MasterClock::GridInfo MasterClock::updateFromExternalPlayHead(const AudioPlayHea
 		auto ppqAfter = ppqBefore + numSamplesInPPQ;
 		auto multiplier = (double)TempoSyncer::getTempoFactor(clockGrid);
 
-		auto i1 = (int)(ppqBefore / multiplier);
-		auto i2 = (int)(ppqAfter / multiplier);
+		auto p1 = (ppqBefore / multiplier);
+		auto p2 = (ppqAfter / multiplier);
 
-		if (i1 != i2)
+		auto i1 = (int)p1;
+		auto i2 = (int)p2;
+
+		if (i1 != i2 || hmath::sign(p1) != hmath::sign(p2))
 		{
 			auto gridPosPPQ = (double)i2 * multiplier;
 			auto deltaPPQ = gridPosPPQ - ppqBefore;
