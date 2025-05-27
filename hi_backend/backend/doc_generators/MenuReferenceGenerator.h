@@ -130,9 +130,7 @@ namespace MenuReferenceDocGenerator
 
 		void createMenu(MarkdownDataBase::Item& parent, const String& menuName);
 
-		void createAndAddWorkspacesItem(MarkdownDataBase::Item& parent);
-
-		void createAndAddWorkspace(MarkdownDataBase::Item& parent, const String& id);
+		
 
 		void createSettingsItem(MarkdownDataBase::Item& parent);
 

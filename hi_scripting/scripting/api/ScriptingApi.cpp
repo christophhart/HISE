@@ -299,13 +299,12 @@ Point<float> ApiHelpers::getPointFromVar(const var& data, Result* r /*= nullptr*
 	}
 }
 
-var ApiHelpers::getVarRectangle(Rectangle<float> floatRectangle, Result* r /*= nullptr*/)
+var ApiHelpers::getVarRectangle(bool useRectangleClass, Rectangle<float> floatRectangle, Result* r /*= nullptr*/)
 {
 	ignoreUnused(r);
 
-#if HISE_USE_SCRIPT_RECTANGLE_OBJECT
-	return var(new ScriptingObjects::ScriptRectangle(floatRectangle.toDouble()));
-#else
+	if(useRectangleClass)
+		return var(new ScriptingObjects::ScriptRectangle(floatRectangle.toDouble()));
 
 	Array<var> newRect;
 
@@ -315,7 +314,6 @@ var ApiHelpers::getVarRectangle(Rectangle<float> floatRectangle, Result* r /*= n
 	newRect.add(floatRectangle.getHeight());
 
 	return var(newRect);
-#endif
 }
 
 

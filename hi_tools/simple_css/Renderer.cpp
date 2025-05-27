@@ -160,7 +160,7 @@ if (ss != nullptr)
             c.first = c.first.withMultipliedAlpha(op);
     }
 
-	if(c.second.getNumColours() > 0)
+	if(c.isGradient())
 		g.setGradientFill(c.second);
 	else
 		g.setColour(c.first);
@@ -199,8 +199,8 @@ CodeGenerator::CodeGenerator(StyleSheet::Ptr ss_):
 }
 
 Renderer::Renderer(Component* c, StateWatcher& state_, int subComponentIndex):
-	ScopedComponentSetter({c, subComponentIndex})  ,
-	currentComponent({c, subComponentIndex}),
+	ScopedComponentSetter({c, subComponentIndex, {}})  ,
+	currentComponent({c, subComponentIndex, {}}),
 	state(state_)
 {}
 
@@ -306,7 +306,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	else
 	{
 		state.renderShadow(g, pathToFill, currentComponent, ss->getShadow(ma, { "box-shadow", defaultState}, false), false);
-		setCurrentBrush(g, ss, ma, {"background", defaultState});
+		setCurrentBrush(g, ss, ma, {"background-color", defaultState});
 		g.fillPath(pathToFill);
 		state.renderShadow(g, bp.isEmpty() ? p : bp, currentComponent, ss->getShadow(ma, { "box-shadow", defaultState}, true), true);
 
@@ -318,7 +318,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 		{
 			if(borderSize > 0.0f)
 			{
-				setCurrentBrush(g, ss, ma, {"border", defaultState});
+				setCurrentBrush(g, ss, ma, {"border-color", defaultState});
 				g.strokePath(pathToStroke, PathStrokeType(borderSize));
 			} 
 		}

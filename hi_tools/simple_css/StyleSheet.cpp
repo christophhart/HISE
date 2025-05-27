@@ -1854,7 +1854,7 @@ AffineTransform StyleSheet::getTransform(Rectangle<float> totalArea, PseudoState
 	return {};
 }
 
-std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<float> area, PropertyKey key,
+ColourInfo StyleSheet::getColourOrGradient(Rectangle<float> area, PropertyKey key,
                                                                   Colour defaultColour) const
 {
 	key.appendSuffixIfNot("color");
@@ -1866,9 +1866,24 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
 
 	auto getValueFromString = [&](const String& v)
 	{
+		auto hash = v.hashCode();
+
+		auto hashed = hashedColours.find(hash);
+
+		auto isVar = v.indexOf("var(--");
+
+		if(isVar == -1)
+		{
+			if(hashed != hashedColours.end())
+				return hashed->second;
+		}
+
+		ColourInfo rv;
+
+		
+
 		if(v.startsWith("color-mix"))
 		{
-			
 			auto args = v.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false);
 			auto tokens = StringArray::fromTokens(args, ",", "()");
 			tokens.trim();
@@ -1880,31 +1895,34 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
 			auto c1Colour = c1.upToFirstOccurrenceOf(" ", false, false);
 			ExpressionParser::Context<> context;
 			auto c1Mix = ExpressionParser::evaluate(c1.fromFirstOccurrenceOf(" ", false, false), context);
-
 			auto c2Colour = c2.upToFirstOccurrenceOf(" ", false, false);
-			
 
 			auto colour1 = ColourParser(c1Colour).getColour();
 			auto colour2 = ColourParser(c2Colour).getColour();
 
-			return std::pair(colour1.interpolatedWith(colour2, 1.0 - c1Mix), ColourGradient());
+			rv.first = colour1.interpolatedWith(colour2, 1.0 - c1Mix);
 		}
-		if(v.startsWith("linear-gradient"))
+		else if(v.startsWith("linear-gradient"))
 		{
 			ColourGradient grad;
 			ColourGradientParser p(area, v.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false));
-			return std::pair(defaultColour, p.getGradient());
+			rv.first = defaultColour;
+			rv.second = p.getGradient();
 		}
 		else if (v.startsWith("rgb"))
 		{
-			auto c = ColourParser(v).getColour();
-			return std::pair(c, ColourGradient());
+			rv.first = ColourParser(v).getColour();
+			
 		}
 		else
 		{
-			auto c = Colour((uint32)v.getHexValue64());
-			return std::pair(c, ColourGradient());
+			rv.first = Colour((uint32)v.getHexValue64());
 		}
+
+		if(isVar == -1)
+			hashedColours[hash] = rv;
+
+		return rv;
 	};
 
     if(auto tv = getTransitionValue({ "background-size", key.state }))
@@ -1939,7 +1957,7 @@ std::pair<Colour, ColourGradient> StyleSheet::getColourOrGradient(Rectangle<floa
     
 	if(auto tv = getTransitionValue(key))
 	{
-		using Type = std::pair<Colour, ColourGradient>;
+		using Type = ColourInfo;
 
 		TransitionCalculator<Type> im(this, animator, key.name, tv);
 

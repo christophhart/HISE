@@ -560,6 +560,13 @@ public:
 			double progress;
 			Logger l;
 
+			print("Copying image files");
+
+			auto imgSrc = docRoot.getChildFile("images");
+			auto imgTarget = htmlDir.getChildFile("images");
+
+			imgSrc.copyDirectoryTo(imgTarget);
+
 			DatabaseCrawler::createImagesInHtmlFolder(htmlDir, *bp, &l, &progress);
 			DatabaseCrawler::createHtmlFilesInHtmlFolder(htmlDir, *bp, &l, &progress);
 		}

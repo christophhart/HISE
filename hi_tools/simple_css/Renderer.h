@@ -255,7 +255,7 @@ private:
 	bool forceOverwriteState = false;
 	int pseudoClassState = 0;
 	PseudoElementType currentlyRenderedPseudoElement = PseudoElementType::None;
-	std::pair<Component*, int> currentComponent;
+	Animator::RenderTarget currentComponent;
 	StateWatcher& state;
 };
 

@@ -232,7 +232,7 @@ struct StyleSheet: public ReferenceCountedObject
 	Font getFont(PseudoState currentState, Rectangle<float> totalArea) const;
 	AffineTransform getTransform(Rectangle<float> totalArea, PseudoState currentState) const;
 	std::vector<melatonin::ShadowParameters> getShadow(Rectangle<float> totalArea, const PropertyKey& key, bool wantsInset) const;
-	std::pair<Colour, ColourGradient> getColourOrGradient(Rectangle<float> area, PropertyKey key, Colour defaultColour=Colours::transparentBlack) const;
+	ColourInfo getColourOrGradient(Rectangle<float> area, PropertyKey key, Colour defaultColour=Colours::transparentBlack) const;
 
 	String getCodeGeneratorColour(const String& rectangleName, PropertyKey key, Colour defaultColour=Colours::transparentBlack) const;
 
@@ -304,6 +304,8 @@ private:
 	std::array<std::vector<Property>, (int)PseudoElementType::All> properties;
 	std::array<Transition, (int)PseudoElementType::All> defaultTransitions;
 	Animator* animator = nullptr;
+
+	mutable std::map<int64, ColourInfo> hashedColours;
 };
 
 

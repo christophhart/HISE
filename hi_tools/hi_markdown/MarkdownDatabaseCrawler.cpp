@@ -409,7 +409,7 @@ void DatabaseCrawler::addImagesInternal(ValueTree cTree, float maxWidth)
 		addImagesInternal(c, maxWidth);
 }
 
-void DatabaseCrawler::createHtmlInternal(ValueTree v)
+void DatabaseCrawler::createHtmlInternal(ValueTree v, bool isRootElement)
 {
 	if (progressCounter != nullptr)
 		*progressCounter = (double)currentLink++ / (double)totalLinks;
@@ -417,6 +417,9 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 
 	MarkdownDataBase::Item item;
 	item.loadFromValueTree(v);
+
+	if(isRootElement)
+		currentRootTitle = item.tocString;
 
 	if (!item)
 		return;
@@ -457,13 +460,13 @@ void DatabaseCrawler::createHtmlInternal(ValueTree v)
 		logMessage("ERROR: " + f.getFullPathName() + " : " + s);
 	}
 	
-
+	p.setRootTitle(currentRootTitle);
 	p.setHeaderFile(templateDirectory.getChildFile("template/header.html"));
 	p.setFooterFile(templateDirectory.getChildFile("template/footer.html"));
 	p.writeToFile(f, item.url.toString(MarkdownLink::Everything));
 
 	for (auto c : v)
-		createHtmlInternal(c);
+		createHtmlInternal(c, false);
 }
 
 void DatabaseCrawler::createHtmlFilesInternal(File htmlTemplateDirectoy, Markdown2HtmlConverter::LinkMode m, const String& linkBase)
@@ -478,7 +481,7 @@ void DatabaseCrawler::createHtmlFilesInternal(File htmlTemplateDirectoy, Markdow
 	logMessage("Create HTML files");
 
 	for (auto c : contentTree)
-		createHtmlInternal(c);
+		createHtmlInternal(c, true);
 }
 
 void DatabaseCrawler::addPathResolver()

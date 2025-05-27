@@ -37,16 +37,61 @@ using namespace juce;
 
 struct Animator: public Timer
 {
+	struct RenderTarget
+	{
+		RenderTarget():
+		  first(nullptr),
+		  second(-1),
+		  repaintArea({})
+		{};
+
+		RenderTarget(Component* c):
+		  first(c),
+		  second(-1),
+		  repaintArea({})
+		{}
+
+		RenderTarget(Component* c, int areaIndex, Rectangle<int> area):
+		  first(c),
+		  second(areaIndex),
+		  repaintArea(area)
+		{}
+
+		bool operator==(const RenderTarget& other) const
+		{
+			return first.getComponent() == other.first.getComponent() && second == other.second;
+		}
+
+		bool repaint()
+		{
+			if(first.getComponent() != nullptr)
+			{
+				if(repaintArea.isEmpty())
+					first->repaint();
+				else
+					first->repaint(repaintArea);
+
+				return true;
+			}
+
+			return false;
+		}
+
+		Component::SafePointer<Component> first;
+		int second = -1;
+		Rectangle<int> repaintArea;
+	};
+
 	struct ScopedComponentSetter
 	{
-		ScopedComponentSetter(std::pair<Component*, int> c);
+		ScopedComponentSetter(RenderTarget c);
 		~ScopedComponentSetter();
 
-		std::pair<Component::SafePointer<Component>, int> prev;
+		RenderTarget prev;
 		Animator* a = nullptr;
 	};
 
-	std::pair<Component::SafePointer<Component>, int> currentlyRenderedComponent;
+	RenderTarget currentlyRenderedComponent;
 
 	struct Item
 	{
@@ -87,7 +132,7 @@ struct Animator: public Timer
 			}
 		}
 
-		std::pair<Component::SafePointer<Component>, int> target;
+		RenderTarget target;
 
 		StyleSheet::Ptr css;
 		Transition transitionData;
@@ -136,7 +181,7 @@ struct StateWatcher
 		void renderShadow(Graphics& g, const TextData& textData, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset);
 		void renderShadow(Graphics& g, const Path& p, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset);
 
-		std::pair<Component::SafePointer<Component>, int> c;
+		Animator::RenderTarget c;
 		int currentState = 0;
 		
 		melatonin::DropShadow dropShadow;
@@ -145,7 +190,7 @@ struct StateWatcher
 		melatonin::InnerShadow innerShadowText;
 	};
 
-	template <typename RenderObject> void renderShadow(Graphics& g, const RenderObject& p, std::pair<Component*, int> c, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset)
+	template <typename RenderObject> void renderShadow(Graphics& g, const RenderObject& p, Animator::RenderTarget c, const std::vector<melatonin::ShadowParameters>& parameters, bool wantsInset)
 	{
 		if(parameters.empty())
 			return;
@@ -166,14 +211,9 @@ struct StateWatcher
 		}
 	}
 
-	void checkChanges(std::pair<Component*, int> c, StyleSheet::Ptr ss, int currentState);
+	void checkChanges(Animator::RenderTarget c, StyleSheet::Ptr ss, int currentState);
 
-	void checkChanges(Component* c, StyleSheet::Ptr ss, int currentState)
-	{
-		checkChanges(std::pair<Component*, int>(c, -1), ss, currentState);
-	}
-
-	std::pair<bool, int> changed(std::pair<Component*, int> c, int stateFlag);
+	std::pair<bool, int> changed(Animator::RenderTarget c, int stateFlag);
 
 	void registerComponentToUpdate(Component* c);
 
@@ -195,7 +235,7 @@ struct StateWatcher
 	{
 		bool operator==(const UpdatedComponent& other) const { return target.first.getComponent() == other.target.first.getComponent() && target.second == other.target.second; }
 
-		std::pair<Component::SafePointer<Component>, int> target;
+		Animator::RenderTarget target;
 
 		void resetInitialisation() { initialised = false; }
 

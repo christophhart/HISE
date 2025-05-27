@@ -2081,17 +2081,11 @@ void MarkdownPreview::MarkdownDatabaseTreeview::databaseWasRebuild()
 
 struct MarkdownHelpButton::MarkdownHelp : public Component
 {
-    MarkdownHelp(MarkdownRenderer* renderer, int lineWidth)
+    MarkdownHelp(MarkdownRenderer* renderer_, int lineWidth):
+	  renderer(renderer_)
     {
         setWantsKeyboardFocus(false);
-
-        img = Image(Image::ARGB, lineWidth, (int)renderer->getHeightForWidth((float)lineWidth), true);
-        Graphics g(img);
-
-        renderer->draw(g, { 0.0f, 0.0f, (float)img.getWidth(), (float)img.getHeight() });
-
-        setSize(img.getWidth() + 40, img.getHeight() + 40);
-
+        setSize(lineWidth + 20, renderer != nullptr ? renderer->getHeightForWidth((float)lineWidth) + 20 : 20);
     }
 
     void mouseDown(const MouseEvent& /*e*/) override
@@ -2106,15 +2100,17 @@ struct MarkdownHelpButton::MarkdownHelp : public Component
     {
         g.fillAll(Colour(0xFF333333));
 
-        g.drawImageAt(img, 20, 20);
+		if(renderer != nullptr)
+			renderer->draw(g, getLocalBounds().toFloat().reduced(10.0f));
     }
 
-    Image img;
+	WeakReference<MarkdownRenderer> renderer;
 };
 
 MarkdownHelpButton::MarkdownHelpButton() :
     ShapeButton("?", Colours::white.withAlpha(0.7f), Colours::white, Colours::white)
 {
+	sd.fontSize = 15.0f;
     setWantsKeyboardFocus(false);
 
     setShape(getPath(), false, true, true);
@@ -2169,12 +2165,13 @@ void MarkdownHelpButton::buttonClicked(Button* /*b*/)
         }
         else
         {
-            auto nc = new MarkdownHelp(parser, popupWidth);
 
-            auto window = TopLevelWindowWithOptionalOpenGL::findRoot(this);
+			auto window = TopLevelWindowWithOptionalOpenGL::findRoot(this);
 
-            if (window == nullptr)
+			if (window == nullptr)
                 return;
+
+			auto nc = new MarkdownHelp(parser, popupWidth);
 
             auto lb = window->getLocalArea(this, getLocalBounds());
 

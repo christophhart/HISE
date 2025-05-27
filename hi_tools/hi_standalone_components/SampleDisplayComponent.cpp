@@ -486,7 +486,7 @@ void MultiChannelAudioBuffer::loadFromEmbeddedData(SampleReference::Ptr r)
 	setDataBuffer(nb);
 }
 
-void MultiChannelAudioBuffer::loadBuffer(const AudioSampleBuffer& b, double sr)
+void MultiChannelAudioBuffer::loadBuffer(const AudioSampleBuffer& b, double sr, Range<int> newLoopRange)
 {
 	referenceString = "{INTERNAL}";
 		
@@ -496,6 +496,12 @@ void MultiChannelAudioBuffer::loadBuffer(const AudioSampleBuffer& b, double sr)
 	SimpleReadWriteLock::ScopedWriteLock l(getDataLock());
 	sampleRate = sr;
 	bufferRange = { 0, b.getNumSamples() };
+
+	if(!newLoopRange.isEmpty())
+	{
+		loopRange = newLoopRange.getIntersectionWith(bufferRange);
+	}
+
 	setDataBuffer(nb);
 }
 

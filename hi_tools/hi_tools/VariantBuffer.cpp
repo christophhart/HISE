@@ -471,6 +471,111 @@ void VariantBuffer::addMethods()
 			
 		return var(range);
 	});
+
+	setMethod("getNextZeroCrossing", [](const var::NativeFunctionArgs& n)
+	{
+		VariantBuffer::Ptr bf = n.thisObject.getBuffer();
+
+		if(n.numArguments > 0)
+		{
+			auto idx = (int)n.arguments[0];
+			auto ptr = bf->buffer.getReadPointer(0);
+
+			for(int i = idx; i < (bf->size-1); i++)
+			{
+				if(ptr[i] < 0.0f && ptr[i+1] > 0.0f)
+				{
+					return i;
+				}
+			}
+		}
+
+		return -1;
+	});
+
+	setMethod("getSlice", [](const var::NativeFunctionArgs& n)
+	{
+		VariantBuffer::Ptr bf = n.thisObject.getBuffer();
+
+		int offset = 0;
+		int numSamples = bf->size;
+
+		if(n.numArguments > 0)
+		{
+			offset = jmin(numSamples, (int)n.arguments[0]);
+			numSamples -= offset;
+		}
+		
+		if(n.numArguments > 1)
+			numSamples = jmin(numSamples, (int)n.arguments[1]);
+			
+		auto ptr = bf->buffer.getWritePointer(0, offset);
+		
+		return var(new VariantBuffer(ptr, numSamples));
+	});
+
+	setMethod("resample", [](const var::NativeFunctionArgs& n)
+	{
+		VariantBuffer::Ptr bf = n.thisObject.getBuffer();
+
+		double ratio = 1.0;
+
+		if(n.numArguments > 0)
+			ratio = jlimit(0.01, 1000.0, (double)n.arguments[0]);
+
+
+		const StringArray interpolatorTypes = {
+		"WindowedSinc",  
+		"Lagrange",      
+		"CatmullRom",    
+		"Linear",
+		"ZeroOrderHold"
+		};
+
+		String quality = "Linear";
+
+		if(n.numArguments > 1)
+		{
+			quality = n.arguments[1].toString();
+		}
+
+		bool wrapAround = false;
+
+		if(n.numArguments > 2)
+			wrapAround = (bool)n.arguments[2];
+
+		auto idx = interpolatorTypes.indexOf(quality);
+
+		if(idx == -1)
+		{
+			String available;
+
+			for(auto s: interpolatorTypes)
+				available << s << ", ";
+
+			throw String("unsupported interpolation type: " + quality + ", available: " + available);
+		}
+
+		auto numSamplesForOutput = roundToInt(bf->size / ratio);
+
+		VariantBuffer::Ptr output = new VariantBuffer(numSamplesForOutput);
+
+		auto in = bf->buffer.getReadPointer(0);
+		auto out = output->buffer.getWritePointer(0);
+		int numIn = bf->size;
+		auto numOut = numSamplesForOutput;
+
+		switch(idx)
+		{
+		case 0: juce::Interpolators::WindowedSinc().process(ratio, in, out, numOut, numIn, wrapAround); break;
+		case 1: juce::Interpolators::Lagrange().process(ratio, in, out, numOut, numIn, wrapAround); break;
+		case 2: juce::Interpolators::CatmullRom().process(ratio, in, out, numOut, numIn, wrapAround); break;
+		case 3: juce::Interpolators::Linear().process(ratio, in, out, numOut, numIn, wrapAround); break;
+		case 4: juce::Interpolators::ZeroOrderHold().process(ratio, in, out, numOut, numIn, wrapAround); break;
+		}
+		
+		return var(output.get());
+	});
 }
 
 void VariantBuffer::operator>>(VariantBuffer &destinationBuffer) const

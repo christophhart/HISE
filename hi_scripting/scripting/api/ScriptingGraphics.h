@@ -531,6 +531,8 @@ namespace ScriptingObjects
 
 	private:
 
+		bool useRectangleClass = false;
+
 		Path p;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PathObject);
@@ -946,6 +948,8 @@ namespace ScriptingObjects
 
 			static bool writeId(DynamicObject* obj, Component* c);
 
+			bool useRectangleClass = false;
+
 			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Laf);
 			JUCE_DECLARE_WEAK_REFERENCEABLE(Laf);
 		};
@@ -954,6 +958,7 @@ namespace ScriptingObjects
 					   public SliderPack::LookAndFeelMethods,
 					   public TableEditor::LookAndFeelMethods,
 					   public HiseAudioThumbnail::LookAndFeelMethods,
+					   public CustomKeyboardState::LookAndFeelBase,	
 					   public PresetBrowserLookAndFeelMethods,
 					   public LafBase
 		{
@@ -1007,6 +1012,10 @@ namespace ScriptingObjects
 
 			Rectangle<float> getValueLabelSize(Component& valuePopup, Component& attachedComponent, const String& text);
 			bool drawValueLabel(Graphics& g, Component& valuePopup, Component& attachedComponent, const String& text, bool useAlignment=true);
+
+			void drawKeyboardBackground(Graphics &g, Component* c, int width, int height) override;
+			void drawWhiteNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) override;
+			void drawBlackNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour) override;
 
 		private:
 
@@ -1200,6 +1209,21 @@ namespace ScriptingObjects
 		                                bool isMouseDown) override
 			{
 				CALL_LAF(drawScrollbar, g, scrollbar, x, y, width, height, isScrollbarVertical, thumbStartPosition, thumbSize, isMouseOver, isMouseDown);
+			}
+
+			void drawKeyboardBackground(Graphics &g, Component* c, int width, int height) override
+			{
+				CALL_LAF(drawKeyboardBackground, g, c, width, height);
+			}
+
+			void drawWhiteNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) override
+			{
+				CALL_LAF(drawWhiteNote, state, c, midiNoteNumber, g, x, y, w, h, isDown, isOver, lineColour, textColour);
+			}
+
+			void drawBlackNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour) override
+			{
+				CALL_LAF(drawBlackNote, state, c, midiNoteNumber, g, x, y, w, h, isDown, isOver, noteFillColour);
 			}
 
 			// CSS only methods, just forward to the style sheet LAF...

@@ -1199,7 +1199,7 @@ void ScriptContentComponent::ComponentDragInfo::callRepaint()
 		if (area.isEmpty())
 			thisObj->setProperty("area", sc->getLocalBounds(0));
 		else
-			thisObj->setProperty("area", ApiHelpers::getVarRectangle(area.withPosition({}).toFloat()));
+			thisObj->setProperty("area", ApiHelpers::getVarRectangle(false, area.withPosition({}).toFloat()));
 
 		thisObj->setProperty("source", sc->getId());
 		thisObj->setProperty("target", currentDragTarget);

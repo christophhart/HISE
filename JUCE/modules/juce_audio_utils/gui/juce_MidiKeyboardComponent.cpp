@@ -356,6 +356,8 @@ void MidiKeyboardComponent::paint (Graphics& g)
 {
     g.fillAll (findColour (whiteNoteColourId));
 
+    auto repaintBounds = g.getClipBounds().toFloat();
+
     auto lineColour = findColour (keySeparatorLineColourId);
     auto textColour = findColour (textLabelColourId);
 
@@ -366,9 +368,16 @@ void MidiKeyboardComponent::paint (Graphics& g)
             auto noteNum = octave + whiteNotes[white];
 
             if (noteNum >= rangeStart && noteNum <= rangeEnd)
-                drawWhiteNote (noteNum, g, getRectangleForKey (noteNum),
+            {
+                auto b = getRectangleForKey (noteNum);
+
+                if(b.intersects(repaintBounds))
+                {
+	                drawWhiteNote (noteNum, g, b,
                                state.isNoteOnForChannels (midiInChannelMask, noteNum),
                                mouseOverNotes.contains (noteNum), lineColour, textColour);
+                }
+            }
         }
     }
 
@@ -424,9 +433,15 @@ void MidiKeyboardComponent::paint (Graphics& g)
             auto noteNum = octave + blackNotes[black];
 
             if (noteNum >= rangeStart && noteNum <= rangeEnd)
-                drawBlackNote (noteNum, g, getRectangleForKey (noteNum),
-                               state.isNoteOnForChannels (midiInChannelMask, noteNum),
-                               mouseOverNotes.contains (noteNum), blackNoteColour);
+            {
+                auto b = getRectangleForKey (noteNum);
+
+                if(repaintBounds.intersects(b))
+					drawBlackNote (noteNum, g, getRectangleForKey (noteNum),
+	                               state.isNoteOnForChannels (midiInChannelMask, noteNum),
+	                               mouseOverNotes.contains (noteNum), blackNoteColour);
+            }
+                
         }
     }
 }

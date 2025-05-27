@@ -619,7 +619,7 @@ void TextEditor::InplaceDebugValueComponent::updatePosition()
 
 	vf = document.getFont().withHeight(document.getFontHeight() * parent.viewScaleFactor * 0.7f);
 	
-	auto w = vf.getStringWidthFloat(value->value) + 20.0f;
+	auto w = b.getWidth() * value->value.length() + 20.0f;
 
 	if(!p.isEmpty())
 		w += b.getHeight();

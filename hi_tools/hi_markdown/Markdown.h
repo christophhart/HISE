@@ -370,6 +370,12 @@ protected:
 
 	String markdownCode;
 
+protected:
+
+	MarkdownHeader header;
+
+	MarkdownLink lastLink;
+
 private:
 
 	bool containsLinks = false;
@@ -380,9 +386,7 @@ private:
 
 	friend class JavascriptCodeEditor;
 	
-	MarkdownHeader header;
-
-	MarkdownLink lastLink;
+	
 
     class Iterator
 	{

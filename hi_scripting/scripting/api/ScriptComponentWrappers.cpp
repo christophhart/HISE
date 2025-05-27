@@ -130,9 +130,18 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 					}
 				}
 
+				
+
 				auto m = MouseCallbackComponent::parseFromStringArray(thisArray, indexes, &safeThis->component->getLookAndFeel());
 
-				if (auto r = PopupLookAndFeel::showAtComponent(m, event.eventComponent, true))
+				auto alignToBottom = true;
+
+				if(auto sp = dynamic_cast<ScriptingApi::Content::ScriptPanel*>(safeThis->scriptComponent.get()))
+				{
+					alignToBottom = sp->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign);
+				}
+
+				if (auto r = PopupLookAndFeel::showAtComponent(m, event.eventComponent, alignToBottom))
 				{
 					safeThis->sendMessage(event, MouseCallbackComponent::Action::Clicked, MouseCallbackComponent::EnterState::Nothing, r - 1);
 				}

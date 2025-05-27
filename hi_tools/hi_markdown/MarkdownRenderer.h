@@ -251,6 +251,8 @@ public:
 	InternalComp canvas;
     
     ScrollbarFader sf;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MarkdownRenderer);
 };
 
 class MarkdownPreview : public Component,

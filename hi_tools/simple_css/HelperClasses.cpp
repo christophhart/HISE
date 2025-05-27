@@ -650,7 +650,7 @@ PropertyValue Property::getProperty(int stateFlag) const
 }
 
 NonUniformBorderData::NonUniformBorderData(Rectangle<float> totalArea_, float defaultWidth_,
-	const std::pair<Colour, ColourGradient>& defaultColor_):
+	const ColourInfo& defaultColor_):
 	defaultColour(defaultColor_),
 	defaultWidth(defaultWidth_),
 	totalArea(totalArea_)
@@ -702,7 +702,7 @@ void NonUniformBorderData::setBorderSize(Border b, float newSize)
 	active |= std::abs(newSize - defaultWidth) > 0.001f;
 }
 
-void NonUniformBorderData::setBorderColour(Border b, const std::pair<Colour, ColourGradient>& c)
+void NonUniformBorderData::setBorderColour(Border b, const ColourInfo& c)
 {
 	auto prevColour = data[b].second;
 	data[b].second = c;

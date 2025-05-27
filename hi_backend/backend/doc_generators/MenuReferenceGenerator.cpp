@@ -223,53 +223,7 @@ void MenuReferenceDocGenerator::ItemGenerator::createMenu(MarkdownDataBase::Item
 	parent.addChild(std::move(menuItem));
 }
 
-void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspacesItem(MarkdownDataBase::Item& parent)
-{
-	MarkdownDataBase::Item wItem;
 
-	wItem.c = parent.c;
-	wItem.tocString = "Workspaces";
-	wItem.url = parent.url.getChildUrl(wItem.tocString);
-	wItem.url.setType(MarkdownLink::Folder);
-
-	createAndAddWorkspace(wItem, "Main Workspace");
-	createAndAddWorkspace(wItem, "Scripting Workspace");
-	createAndAddWorkspace(wItem, "Sampler Workspace");
-	createAndAddWorkspace(wItem, "Custom Workspace");
-
-	parent.addChild(std::move(wItem));
-}
-
-void MenuReferenceDocGenerator::ItemGenerator::createAndAddWorkspace(MarkdownDataBase::Item& parent, const String& id)
-{
-	MarkdownDataBase::Item wItem;
-
-	wItem.c = parent.c;
-	wItem.tocString = id;
-	wItem.url = parent.url.getChildUrl(id).withRoot(rootDirectory, true);
-	wItem.icon = wItem.url.getHeaderFromFile({}).getIcon();
-
-
-	auto d = wItem.url.getDirectory({});
-
-	Array<File> files;
-
-	d.findChildFiles(files, File::findFiles, true, "*.md");
-
-	for (auto f : files)
-	{
-		if (MarkdownLink::Helpers::isReadme(f))
-			continue;
-
-		MarkdownDataBase::Item i;
-		i.url = { rootDirectory, f.getRelativePathFrom(rootDirectory) };
-
-		MarkdownParser::createDatabaseEntriesForFile(rootDirectory, i, f, wItem.c);
-		wItem.addChild(std::move(i));
-	}
-
-	parent.addChild(std::move(wItem));
-}
 
 void MenuReferenceDocGenerator::ItemGenerator::createSettingsItem(MarkdownDataBase::Item& parent)
 {
@@ -371,7 +325,14 @@ hise::MarkdownDataBase::Item MenuReferenceDocGenerator::ItemGenerator::createRoo
 	if (data->bp->shouldAbort())
 		return item;
 
-	createAndAddWorkspacesItem(item);
+	{
+		auto hi = rootDirectory.getChildFile("working-with-hise/hise-interface");
+
+		MarkdownDataBase::DirectoryItemGenerator fGenerator(hi, Colours::burlywood);
+		auto pItem = fGenerator.createRootItem(parent);
+		item.addChild(std::move(pItem));
+	}
+
 	createMenuReference(item);
 
 	if (data->bp->shouldAbort())

@@ -336,7 +336,8 @@ void ScriptingContentOverlay::paint(Graphics& g)
 
 		auto tb = b.expanded(0, 20).constrainedWithin(getLocalBounds());
 		auto f = GLOBAL_MONOSPACE_FONT();
-		auto r = ApiHelpers::getVarRectangle(b.toFloat(), nullptr);
+
+		auto r = ApiHelpers::getVarRectangle(false, b.toFloat(), nullptr);
 		auto t = JSON::toString(r, true).replace(".0", "");
 
 		tb.setWidth(f.getStringWidth(t) + 20);

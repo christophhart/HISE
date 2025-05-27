@@ -85,7 +85,7 @@ public:
 
 	static Point<float> getPointFromVar(const var& data, Result* r = nullptr);
 
-	static var getVarRectangle(Rectangle<float> floatRectangle, Result* r = nullptr);
+	static var getVarRectangle(bool useRectangleClass, Rectangle<float> floatRectangle, Result* r = nullptr);
 
 	static Rectangle<float> getRectangleFromVar(const var& data, Result* r = nullptr);
 
@@ -193,14 +193,23 @@ namespace ScriptingObjects
         var toCharString(int numChars, var range);
         
 		/** Returns an array with the min and max value in the given range. */
-		var getPeakRange(int startSample, int numSamples);
-        
+		var getPeakRange(int startSample, int numSamples) { jassertfalse; return -1; }
+
+		/** Returns a resampled buffer using the given resample ratio and interpolation type. */
+		var resample(double ratio, String interpolationType, bool wrapAround) { return var(); }
+
+		/** Returns a new buffer that contains a reference to a slice of this buffer. */
+		var getSlice(int offsetInBuffer, int numSamples) { return var(); }
+
         /** Trims a buffer at the start and end and returns a copy of it. */
         var trim(int trimFromStart, int trimFromEnd)
         {
             jassertfalse;
             return {};
         }
+
+		/** Returns the next zero crossing at the position. */
+		var getNextZeroCrossing(int index) const { return -1; }
 
 	};
 
@@ -1133,6 +1142,9 @@ namespace ScriptingObjects
 		/** Loads an audio file from the given reference. */
 		void loadFile(const String& filePath);
 
+		/** Loads a buffer into the audio sample slot. */
+		void loadBuffer(var bufferData, double sampleRate, var loopRange);
+		
 		/** Returns the current audio data as array of channels. */
 		var getContent();
 

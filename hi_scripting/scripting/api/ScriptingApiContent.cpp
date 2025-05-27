@@ -451,6 +451,8 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	pSetProperty =     cp.add(getId() + ".set()");
 	pOnProperty =     cp.add(getId() + ".propertyChange()");
 
+	useRectangleClass = HISE_GET_PREPROCESSOR(getScriptProcessor()->getMainController_(), HISE_USE_SCRIPT_RECTANGLE_OBJECT);
+
 	//setName(name_.toString());
 
 
@@ -1627,7 +1629,8 @@ var ScriptingApi::Content::ScriptComponent::getLocalBounds(float reduceAmount)
 {
 	Rectangle<float> ar(0.0f, 0.0f, (float)getScriptObjectProperty(Properties::width), (float)getScriptObjectProperty(Properties::height));
 	ar = ar.reduced(reduceAmount);
-	return ApiHelpers::getVarRectangle(ar);
+	
+	return ApiHelpers::getVarRectangle(useRectangleClass, ar);
 }
 
 void ScriptingApi::Content::ScriptComponent::setKeyPressCallback(var keyboardFunction)

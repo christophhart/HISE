@@ -106,8 +106,25 @@ String Markdown2HtmlConverter::generateHtml(const String&)
 
 	String html;
 
-	html << headerContent;
-		
+	auto description = header.getDescription();
+	auto subtitle = header.getFirstKeyword();
+	
+	if(subtitle == currentRootTitle)
+	{
+		subtitle = currentRootTitle;	
+	}
+	else
+	{
+		subtitle = currentRootTitle + " | " + subtitle;
+	}
+
+	auto thisHeader = headerContent;
+
+	thisHeader = thisHeader.replace("{TITLE_SUFFIX}", subtitle);
+	thisHeader = thisHeader.replace("{DESCRIPTION}", description);
+
+	html << thisHeader;
+
 	File root;
 
 	if (mode == LocalFile)

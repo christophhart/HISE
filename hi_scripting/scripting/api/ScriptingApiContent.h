@@ -886,6 +886,8 @@ public:
 
 		Array<WeakReference<ScriptComponent>> linkedComponentTargets;
 
+		bool useRectangleClass = false;
+
 		var customControlCallback;
 
 		NamedValueSet defaultValues;
