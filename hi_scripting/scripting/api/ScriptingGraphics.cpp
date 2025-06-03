@@ -2883,7 +2883,8 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 	if(auto ptr = root.css.getForComponent(c))
 	{
 		root.css.setAnimator(&root.animator);
-
+        root.css.performAtRules(this);
+        
 		auto cursor = ptr->getMouseCursor();
 
 		if(cursor != MouseCursor())
@@ -2961,6 +2962,45 @@ ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* paren
 			}
 		});
 	}
+}
+
+Font ScriptingObjects::ScriptedLookAndFeel::CSSLaf::loadFont(const String& fontName, const String& url)
+{
+    auto mc = get()->getScriptProcessor()->getMainController_();
+    
+#if USE_BACKEND
+    
+    if(auto tf = mc->getFont(fontName))
+    {
+        return Font(tf);
+    }
+    
+    if(url.isNotEmpty())
+    {
+        const String absolutePath = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getFilePath(url, ProjectHandler::SubDirectories::Images);
+        File f(absolutePath);
+        auto fis = f.createInputStream();
+
+        if (fis == nullptr)
+        {
+            return Font();
+        }
+        else
+        {
+            MemoryBlock mb;
+            fis->readIntoMemoryBlock(mb);
+            mc->loadTypeFace(url, mb.getData(), mb.getSize(), fontName);
+        }
+    }
+    
+#endif
+    
+    if(auto tf = mc->getFont(fontName))
+    {
+        return Font(tf);
+    }
+    
+    return Font();
 }
 
 ScriptingObjects::ScriptedLookAndFeel* ScriptingObjects::ScriptedLookAndFeel::CSSLaf::get()

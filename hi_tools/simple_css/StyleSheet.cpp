@@ -1042,6 +1042,42 @@ void StyleSheet::Collection::addCollectionForComponent(Component* c, const Colle
 
 Result StyleSheet::Collection::performAtRules(DataProvider* d)
 {
+    if(useIsolatedCollections)
+    {
+        for(auto& c: childCollections)
+        {
+            for(auto l: c.second)
+            {
+                auto ar = l->getAtRuleName();
+
+                auto url = l->getURLFromProperty({ "src", {} });
+                
+                if(ar == "font-face")
+                {
+                    auto fontName = l->getPropertyValueString({"font-family", {}});
+                    auto fToUse = d->loadFont(fontName, url);
+
+                    customFonts.addIfNotAlreadyThere({ fontName, fToUse });
+                }
+            }
+        }
+        
+        if(!customFonts.isEmpty())
+        {
+            for(auto& c: childCollections)
+            {
+                for(auto ss: c.second)
+                {
+                    ss->setCustomFonts(customFonts);
+                }
+            }
+        }
+        
+        return Result::ok();
+    }
+    
+    
+    
 	for(int i = 0; i < list.size(); i++)
 	{
 		auto l = list[i];
@@ -1311,9 +1347,15 @@ Rectangle<float> StyleSheet::getBounds(Rectangle<float> sourceArea, PseudoState 
 	case PseudoElementType::After:
 		a = a.removeFromRight(w);
 		break;
+    case PseudoElementType::After2:
+        a = a.removeFromRight(w);
+        break;
 	case PseudoElementType::Before:
 		a = a.removeFromLeft(w);
 		break;
+    case PseudoElementType::Before2:
+        a = a.removeFromLeft(w);
+        break;
 	case PseudoElementType::All:
 	default:
 		break;
@@ -1407,7 +1449,8 @@ Rectangle<float> StyleSheet::getPseudoArea(Rectangle<float> sourceArea, int curr
 	if(!found)
 		return {};
 
-	jassert(area == PseudoElementType::Before || area == PseudoElementType::After );
+	jassert(area == PseudoElementType::Before || area == PseudoElementType::After ||
+            area == PseudoElementType::Before2 || area == PseudoElementType::After2);
 
 	PseudoState ps(currentState);
 	ps.element = area;
@@ -1439,6 +1482,27 @@ Rectangle<float> StyleSheet::truncateBeforeAndAfter(Rectangle<float> sourceArea,
 			jassertfalse;
 		}
 	}
+    
+    auto wb2 = getPseudoArea(sourceArea, currentState, PseudoElementType::Before2);
+    auto truncateBefore2 = !wb2.isEmpty();
+
+    if(truncateBefore2)
+    {
+        auto t = getPositionType(PseudoState(currentState).withElement(PseudoElementType::Before2));
+        truncateBefore2 &= (t != PositionType::absolute);
+    }
+    
+    if(truncateBefore2)
+    {
+        if(wb2.getX() == sourceArea.getX())
+            sourceArea.removeFromLeft(wb2.getWidth());
+        else if (wb2.getRight() == sourceArea.getRight())
+            sourceArea.removeFromRight(wb2.getWidth());
+        else
+        {
+            jassertfalse;
+        }
+    }
 
 
 	auto wa = getPseudoArea(sourceArea, currentState, PseudoElementType::After);
@@ -1461,6 +1525,27 @@ Rectangle<float> StyleSheet::truncateBeforeAndAfter(Rectangle<float> sourceArea,
 			jassertfalse;
 		}
 	}
+    
+    auto wa2 = getPseudoArea(sourceArea, currentState, PseudoElementType::After2);
+    auto truncateAfter2 = !wa2.isEmpty();
+
+    if(truncateAfter2)
+    {
+        auto t = getPositionType(PseudoState(currentState).withElement(PseudoElementType::After2));
+        truncateAfter2 &= (t != PositionType::absolute);
+    }
+
+    if(truncateAfter2)
+    {
+        if(wa2.getX() == sourceArea.getX())
+            sourceArea.removeFromLeft(wa2.getWidth());
+        else if (wa2.getRight() == sourceArea.getRight())
+            sourceArea.removeFromRight(wa2.getWidth());
+        else
+        {
+            jassertfalse;
+        }
+    }
 
 	return sourceArea;
 }
@@ -2449,6 +2534,19 @@ Rectangle<float> StyleSheet::getLocalBoundsFromText(const String& text) const
 	if(!ba.isEmpty())
 		area = area.withLeft(area.getX() - ba.getWidth());
 	
+    auto ba2 = getPseudoArea(area, 0, PseudoElementType::Before2);
+
+    if(!ba2.isEmpty())
+    {
+        auto pos = getPositionType(PseudoState().withElement(PseudoElementType::Before2));
+        auto dontExtend = pos == PositionType::absolute || pos == PositionType::fixed;
+        if(dontExtend)
+            ba2 = {};
+    }
+
+    if(!ba2.isEmpty())
+        area = area.withLeft(area.getX() - ba2.getWidth());
+    
 	return area.withZeroOrigin();
 }
 }

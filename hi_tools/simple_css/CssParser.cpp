@@ -1442,6 +1442,10 @@ PseudoState Parser::parsePseudoClass()
 				element = PseudoElementType::Before;
 			if(currentToken == "after")
 				element = PseudoElementType::After;
+            if(currentToken == "before2")
+                element = PseudoElementType::Before2;
+            if(currentToken == "after2")
+                element = PseudoElementType::After2;
 		}
 		else
 		{

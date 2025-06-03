@@ -960,12 +960,27 @@ namespace ScriptingObjects
 					   public HiseAudioThumbnail::LookAndFeelMethods,
 					   public CustomKeyboardState::LookAndFeelBase,	
 					   public PresetBrowserLookAndFeelMethods,
-					   public LafBase
+					   public LafBase,
+                       public simple_css::StyleSheet::Collection::DataProvider
 		{
 			CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& dataTree, const ValueTree& additionalPropertyTree);;
 
 			ScriptedLookAndFeel* get() override;
 
+            Font loadFont(const String& fontName, const String& url) override;
+            
+            
+            String importStyleSheet(const String& url) override
+            {
+                return {};
+            }
+            
+            Image loadImage(const String& imageURL) override
+            {
+                jassertfalse;
+                return {};
+            }
+            
 			void updateMultipageDialog(multipage::Dialog& mp);
 
 			static void copyPropertiesToElementSelector(simple_css::CSSRootComponent& root, Component& parent, simple_css::Selector s);

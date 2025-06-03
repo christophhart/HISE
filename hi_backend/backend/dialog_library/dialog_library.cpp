@@ -1663,7 +1663,9 @@ var NetworkCompiler::updateNodeProperties(const var::NativeFunctionArgs& args)
 
 var NetworkCompiler::checkProperties(const var::NativeFunctionArgs& args)
 {
-	if(!checkPropertyMismatch())
+    auto ok = checkPropertyMismatch();
+    
+	if(!ok)
 	{
 		throw Result::fail("The C++ node properties are not properly initialised. Open the C++ node property tab and adjust the properties for each node.  \n> As soon as you tick / untick a node item it will recreate the `node_properties.json` file to include all available third party nodes with the given properties.");
 	}
@@ -1735,7 +1737,7 @@ bool NetworkCompiler::checkPropertyMismatch() const
 		return numThirdPartyFiles == o->getProperties().size();
 	}
 
-	return false;
+	return numThirdPartyFiles == 0;
 }
 
 ScriptModuleReplacer::ScriptModuleReplacer(BackendRootWindow* bpe_):

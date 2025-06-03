@@ -143,6 +143,8 @@ enum class PseudoElementType
 	None = 0,
 	Before,
 	After,
+    Before2,
+    After2,
 	All
 };
 
