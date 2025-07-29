@@ -1166,7 +1166,11 @@ File DebugLogger::getLogFile()
 File DebugLogger::getLogFolder()
 {
     
+#if USE_FRONTEND
+	File f = FrontendHandler::getAppDataDirectory().getChildFile("Logs/");
+#else
 	File f = ProjectHandler::getAppDataDirectory(nullptr).getChildFile("Logs/");
+#endif
 
 	if (!f.isDirectory())
 		f.createDirectory();
