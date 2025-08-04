@@ -5454,6 +5454,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawMatrixPeakMeter(Graphics& g
         setColourOrBlack(obj, "itemColour", *c, MatrixPeakMeter::ColourIds::peakColour);
         setColourOrBlack(obj, "itemColour2", *c, MatrixPeakMeter::ColourIds::trackColour);
         setColourOrBlack(obj, "textColour", *c, MatrixPeakMeter::ColourIds::maxPeakColour);
+        setColourOrBlack(obj, "itemColour3", *c, MatrixPeakMeter::ColourIds::overPeakColour);
 
         if (get()->callWithGraphics(g_, "drawMatrixPeakMeter", var(obj), c))
             return;

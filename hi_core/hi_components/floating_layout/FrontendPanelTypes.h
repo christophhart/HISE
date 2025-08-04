@@ -45,7 +45,8 @@ public:
         bgColour,
         trackColour,
         peakColour,
-        maxPeakColour
+        maxPeakColour,
+        overPeakColour
     };
     
     enum class SpecialProperties

@@ -50,6 +50,7 @@ namespace hise { using namespace juce;
 		auto tc = c->findColour(trackColour);
 		auto pc = c->findColour(peakColour);
 		auto mc = c->findColour(maxPeakColour);
+		auto oc = c->findColour(overPeakColour);
             
 		RectangleList<float> onSegments, offSegments, maxSegments;
             
@@ -75,7 +76,14 @@ namespace hise { using namespace juce;
 				{
 					auto maxPos = fullSize * maxPeaks[i];
                         
-					g.setColour(mc);
+					if (maxPeaks[i] >= 0.99f && oc.getAlpha() > 0)
+					{
+						g.setColour(oc);
+					}
+					else
+					{
+						g.setColour(mc);
+					}
                         
 					auto c = isVertical ? maxCopy.removeFromBottom(maxPos).withHeight(2.0f) :
 						         maxCopy.removeFromLeft(maxPos).removeFromRight(2.0f);
@@ -373,6 +381,7 @@ namespace hise { using namespace juce;
 			ni->setColour(peakColour, findPanelColour(PanelColourId::itemColour1));
 			ni->setColour(trackColour, findPanelColour(PanelColourId::itemColour2));
 			ni->setColour(maxPeakColour, findPanelColour(PanelColourId::textColour));
+			ni->setColour(overPeakColour, findPanelColour(PanelColourId::itemColour3));
             
 			if(ni->findColour(bgColour).isOpaque())
 				ni->setOpaque(true);
