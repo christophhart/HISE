@@ -1012,6 +1012,9 @@ public:
 
 		/** Sets the options for the release start behaviour. */
 		void setReleaseStartOptions(var newOptions);
+		
+		/** Internally multiply sample start offsets by set amount */
+		void setOffsetMultiplier(int multiplier);
 
 		/** Converts the user preset data of a audio waveform to a base 64 samplemap. */
 		String getAudioWaveformContentAsBase64(var presetObj);

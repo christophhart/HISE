@@ -522,7 +522,7 @@ public:
 	/** Sets the current index to the group. */
 	bool setCurrentGroupIndex(int currentIndex, int eventId=-1);
 
-	
+	void setStartOffsetMultiplier(int multiplier);
 
 	void setRRGroupVolume(int groupIndex, float gainValue);
 
@@ -790,6 +790,7 @@ private:
 	TimestretchOptions currentTimestretchOptions;
 
 	double ratioToUse = 1.0;
+	int startOffsetMultiplier = 1;
 
 	TimestretchOptions timestretchOptions;
 
