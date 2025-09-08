@@ -80,7 +80,7 @@ MacroControlModulatorEditorBody::MacroControlModulatorEditorBody (ProcessorEdito
 	getProcessor()->getMainController()->skin(*useTableButton);
 
 	smoothingSlider->setup(getProcessor(), MacroModulator::SmoothTime, "Smoothing");
-    smoothingSlider->setMode(HiSlider::Time, 0.0, 1000.0, 100.0);
+    smoothingSlider->setMode(HiSlider::Time, NormalisableRange(0.0, 1000.0).withCentreSkew(100.0));
 
     ProcessorHelpers::connectTableEditor(*valueTable, getProcessor());
     

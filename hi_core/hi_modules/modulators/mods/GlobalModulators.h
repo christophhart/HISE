@@ -95,7 +95,9 @@ public:
 	void loadFromValueTree(const ValueTree &v);
 
     void connectIfPending();
-    
+
+	virtual int getParameterOffset() const { return 0; }
+
 protected:
 
 	GlobalModulator(MainController *mc);
@@ -291,6 +293,8 @@ public:
 
 	void stopVoice(int voiceIndex) override;
 
+	int getParameterOffset() const override { return EnvelopeModulator::Parameters::numParameters; }
+
 	virtual Processor *getChildProcessor(int /*processorIndex*/) override final { return nullptr; };
 
 	virtual const Processor *getChildProcessor(int /*processorIndex*/) const override final { return nullptr; };
@@ -306,6 +310,9 @@ public:
 	void calculateBlock(int startSample, int numSamples) override;
 
 	uint8 active[NUM_POLYPHONIC_VOICES];
+	HiseEvent currentEvents[NUM_POLYPHONIC_VOICES];
+
+	int envelopeIndex = -1;
 };
 
 

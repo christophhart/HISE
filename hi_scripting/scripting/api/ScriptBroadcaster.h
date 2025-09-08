@@ -573,7 +573,7 @@ private:
 		struct InternalListener;
 		Identifier getItemId() const override;
 
-		EqListener(ScriptBroadcaster* b, const Array<WeakReference<CurveEq>>& eqs, const StringArray& eventList, const var& metadata);
+		EqListener(ScriptBroadcaster* b, const ReferenceCountedArray<ProcessorFilterStatistics>& eqs, const StringArray& eventList, const var& metadata);
 
 		int getNumInitialCalls() const override;
 		Array<var> getInitialArgs(int callIndex) const override;

@@ -195,6 +195,17 @@ public:
 
 	CoefficientData getCoefficientsForBroadcaster(Broadcaster* b) const;
 
+	void garbageCollect()
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(getDataLock());
+
+		for(int i = 0; i < internalData.size(); i++)
+		{
+			if(internalData[i].broadcaster.get() == nullptr)
+				internalData.removeElement(i--);
+		}
+	}
+
 	void sendUpdateFromBroadcaster(Broadcaster* b)
 	{
 		float idx = 0.0f;

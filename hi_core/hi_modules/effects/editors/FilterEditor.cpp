@@ -102,16 +102,16 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     //[UserPreSize]
 
 	gainSlider->setup(getProcessor(), PolyFilterEffect::Gain, "Gain");
-	gainSlider->setMode(HiSlider::Decibel, -18.0, 18.0, 0.0);
+	gainSlider->setMode(HiSlider::Decibel, NormalisableRange(-18.0, 18.0));
 
 	bipolarFreqSlider->setup(getProcessor(), PolyFilterEffect::BipolarIntensity, "Bipolar Freq Intensity");
-	bipolarFreqSlider->setMode(HiSlider::Linear, -1.0, 1.0, 0.0);
+	bipolarFreqSlider->setMode(HiSlider::Linear, NormalisableRange(-1.0, 1.0));
 
 	qSlider->setup(getProcessor(), PolyFilterEffect::Q, "Q");
-	qSlider->setMode(HiSlider::Linear, 0.3, 8.0, 1.0);
+	qSlider->setMode(HiSlider::Linear, NormalisableRange(0.3, 8.0).withCentreSkew(1.0));
 
 	freqSlider->setup(getProcessor(), PolyFilterEffect::Frequency, "Frequency");
-	freqSlider->setMode(HiSlider::Frequency, 20.0, 20000.0, 1500.0);
+	freqSlider->setMode(HiSlider::Frequency, NormalisableRange(20.0, 20000.0).withCentreSkew(1500.0));
 
 	getProcessor()->getMainController()->skin(*modeSelector);
 
@@ -139,8 +139,7 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 	timerCallback();
 	updateNameLabel(true);
 
-	freqSlider->setIsUsingModulatedRing(true);
-	bipolarFreqSlider->setIsUsingModulatedRing(true);
+	
 
     //[/Constructor]
 }
@@ -165,17 +164,19 @@ FilterEditor::~FilterEditor()
 
 void FilterEditor::timerCallback()
 {
-	auto c = dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients();
+	auto c = dynamic_cast<FilterEffect*>(getProcessor())->getCoefficients();
 
 	if (!sameCoefficients(c, currentCoefficients))
 	{
 		currentCoefficients = c;
 
-		filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCurrentCoefficients());
+        
+
+		filterGraph->setCoefficients(0, getProcessor()->getSampleRate(), dynamic_cast<FilterEffect*>(getProcessor())->getCoefficients());
 	}
 
 	freqSlider->setDisplayValue(getProcessor()->getChildProcessor(PolyFilterEffect::FrequencyChain)->getOutputValue());
-	bipolarFreqSlider->setDisplayValue(getProcessor()->getChildProcessor(PolyFilterEffect::BipolarFrequencyChain)->getOutputValue());
+	
 
 	updateNameLabel();
 }

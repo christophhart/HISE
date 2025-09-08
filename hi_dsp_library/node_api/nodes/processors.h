@@ -569,7 +569,11 @@ public:
 
 	}
 
-	
+	void connectToRuntimeTarget(bool add, const runtime_target::connection& c)
+    {
+        if constexpr (prototypes::check::connectToRuntimeTarget<T>::value)
+            obj.connectToRuntimeTarget(add, c);
+    }
 
 	template <int P> void setParameter(double v)
 	{
@@ -1122,6 +1126,12 @@ template <class T, class DataHandler = default_data<T>> struct data : public wra
 		T::template setParameterStatic<P>(&this->obj, v);
 	}
 
+	void connectToRuntimeTarget(bool addConnection, const runtime_target::connection& c)
+	{
+		if constexpr (prototypes::check::connectToRuntimeTarget<T>::value)
+			this->obj.connectToRuntimeTarget(addConnection, c);
+	}
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(data);
 };
 
@@ -1574,7 +1584,13 @@ template <class ParameterClass, class T> struct mod
             obj.createParameters(data);
         
     }
-    
+
+	void connectToRuntimeTarget(bool add, const runtime_target::connection& c)
+    {
+        if constexpr (prototypes::check::connectToRuntimeTarget<T>::value)
+            obj.connectToRuntimeTarget(add, c);
+    }
+
 	void setExternalData(const ExternalData& d, int index)
 	{
 		if constexpr (prototypes::check::setExternalData<T>::value)
@@ -1631,6 +1647,9 @@ template <typename T> struct illegal_poly: public scriptnode::data::base,
 	void initialise(NodeBase* n) { obj.initialise(n); }
 
 	void createParameters(ParameterDataList& l) { obj.createParameters(l); }
+
+	SN_DEFAULT_CREATE_MOD_INFO(T);
+
 	T obj;
 };
 
@@ -1669,6 +1688,8 @@ template <class T> struct node : public scriptnode::data::base
 	static constexpr int NumDisplayBuffers = MetadataClass::NumDisplayBuffers;
 
 	static constexpr int getFixChannelAmount() { return NumChannels; };
+
+	static constexpr std::pair<int, int> getModulationProperties() { return T::getModulationProperties(); }
 
 	// We treat everything in this node as opaque...
 	SN_GET_SELF_AS_OBJECT(node);
@@ -1769,14 +1790,22 @@ template <class T> struct node : public scriptnode::data::base
             obj.connectToRuntimeTarget(add, c);
     }
 
+	void createExternalModulationInfo(OpaqueNode::ModulationProperties& info) const
+	{
+		if constexpr (prototypes::check::createExternalModulationInfo<T>::value)
+			obj.createExternalModulationInfo(info);
+		else
+		{
+			info.template fromNode<node>();
+		}
+	}
+
 	void createParameters(ParameterDataList& data)
 	{
 		ParameterDataList l;
 		obj.parameters.addToList(l);
 
 		auto peList = parameter::encoder::fromNode<node>();
-
-		
 
 		for (const parameter::pod& p : peList)
 		{

@@ -66,6 +66,7 @@ public:
 		WebView,
 		FloatingTile,
 		MultipageDialog,
+		DynamicContainer,
 		duplicateComponent,
 		numComponentTypes
 	};
@@ -237,6 +238,7 @@ public:
 			return draggedComponent.getComponent();
 		}
 
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
 		String getCSSLogForCurrentComponent()
 		{
 			String debugLog;
@@ -254,6 +256,7 @@ public:
 			
 			return contentComponent->css.getDebugLogForComponent(draggedComponent.getComponent());
 		}
+#endif
 
 	private:
 

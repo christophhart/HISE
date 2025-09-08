@@ -375,22 +375,86 @@ class WavetableSound;
 
 struct WaterfallComponent : public Component,
 	public PooledUIUpdater::SimpleTimer,
-	public ControlledObject
+	public ControlledObject,
+	public FileDragAndDropTarget
 {
+	struct AlphaPathData
+	{
+		Range<float> smoothRange = { 0.0f, 1.0f };
+		float glowScale = 0.0f;
+		float fillAlpha = 0.0f;
+		float fillAlphaCenter = 0.0f;
+		float decay3d = 0.9f;
+		float peakAlphaGain = 1.0f;
+		float activeGlowRadius = 0.0f;
+		Colour activeGlowColour = Colours::transparentBlack;
+		Colour highlightColour = Colours::transparentBlack;
+
+		bool prerenderBackground = true;
+		int numHighlights = 0;
+		
+
+		bool canRenderBackgroundImage() const { return prerenderBackground; }
+
+		int getGlowDistance(int numTables) const
+		{
+			if(glowScale == 0.0f)
+				return 0;
+
+			return 8.0f;
+		}
+
+		bool drawHighlight(int displayTableIndex, int numDisplayTables) const
+		{
+			if(numHighlights == 0 || numDisplayTables == 0 || highlightColour.isTransparent())
+				return false;
+
+			auto idx = numDisplayTables - 1 - displayTableIndex;
+			auto delta = numDisplayTables / numHighlights;
+
+			if(idx % delta == 0)
+				return true;
+
+			return false;
+		}
+
+		float getGlowAlpha(int tableIndex, int activeTableIndex, int numTables) const;
+
+		var toVar() const;
+
+		void fromVar(const var& obj);
+	};
+
 	struct LookAndFeelMethods
 	{
+		LookAndFeelMethods():
+		pp(Colours::white, 10, {0, 0})
+		{};
+
         virtual ~LookAndFeelMethods() {};
 		virtual void drawWavetableBackground(Graphics& g, WaterfallComponent& wc, bool isEmpty);
 		virtual void drawWavetablePath(Graphics& g, WaterfallComponent& wc, const Path& p, int tableIndex, bool isStereo, int currentTableIndex, int numTables);
+
+		void setFromAlphaData(const AlphaPathData& ad)
+		{
+			pp.setColor(ad.activeGlowColour);
+			pp.setRadius((size_t)ad.activeGlowRadius);
+		}
+
+		melatonin::PathWithShadows pp;
 	};
 
 	struct DefaultLookAndFeel : public LookAndFeel_V3,
 		public LookAndFeelMethods
 	{};
 
-	WaterfallComponent(MainController* mc, ReferenceCountedObjectPtr<WavetableSound> sound_);
+	WaterfallComponent(Processor* wavetableSynth, ReferenceCountedObjectPtr<WavetableSound> sound_);
+
+	Array<Point<float>> plane;
 
 	void rebuildPaths();
+
+	
 
 	void paint(Graphics& g) override;
 
@@ -398,15 +462,56 @@ struct WaterfallComponent : public Component,
 
 	void resized() override;
 
+	bool isInterestedInFileDrag(const StringArray& files) override
+	{
+		return isEnabled() && afm.findFormatForFileExtension(File(files[0]).getFileExtension()) != nullptr;
+	}
+
+	void filesDropped(const StringArray& files, int x, int y) override
+	{
+		if(!isEnabled())
+			return;
+
+		PoolReference ref(getMainController(), files[0], FileHandlerBase::AudioFiles);
+		auto s = ref.getReferenceString();
+
+		if(auto edh = dynamic_cast<ExternalDataHolder*>(wavetableSynth.get()))
+		{
+			edh->getAudioFile(0)->fromBase64String(s);
+		}
+		else
+		{
+			// can't load into non-wavetable synths...
+			jassertfalse;
+		}
+	}
+
 	struct DisplayData
 	{
 		float modValue = 0.0f;
 		ReferenceCountedObjectPtr<WavetableSound> sound;
 	};
 
+	
+
 	void setPerspectiveDisplacement(const Point<float>& newDisplacement);
 
+	void setAlphaData(const AlphaPathData& sd)
+	{
+		alphaData = sd;
+		repaint();
+	}
+
+	AlphaPathData alphaData;
 	Point<float> displacement;
+	float isometricFactor = 0.5f;
+	float gainGamma = 1.0f;
+	Point<float> lineThickness = { 2.0f, 1.0f };
+	float margin = 5.0f;
+
+	Array<int> backgroundPaths;
+
+	int numDisplayTables = 16;
 
 	std::function<DisplayData()> displayDataFunction;
 
@@ -417,6 +522,13 @@ struct WaterfallComponent : public Component,
 		enum SpecialPanelIds
 		{
 			Displacement = (int)PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds,
+			LineThickness,
+			IsometricFactor,
+			AlphaData,
+			NumDisplayTables,
+			DownsamplingFactor,
+			GainGamma,
+			Margin,
 			numSpecialPanelIds
 		};
 
@@ -441,17 +553,33 @@ struct WaterfallComponent : public Component,
 		void fillModuleList(StringArray& moduleList) override;;
 		void fillIndexList(StringArray& indexList) override;;
 
-		bool hasSubIndex() const override { return true; }
+		bool hasSubIndex() const override { return false; }
 	};
 
 private:
+
+	Image background;
+
+	bool skipActivePath = false;
+
+	WeakReference<Processor> wavetableSynth;
+
+	bool drawHighlight = false;
+
+	
 
 	ReferenceCountedObjectPtr<WavetableSound> sound;
 	int currentTableIndex = -1;
 	int currentBank = -1;
 	bool stereo = false;
+	bool renderGlow = false;
+	float downsamplingFactor = 2.0f;
+
+	AudioFormatManager afm;
+	
 
 	Array<Path> paths;
+	Array<std::array<Line<float>, 3>> pathLines;
 
 	DefaultLookAndFeel defaultLaf;
 };

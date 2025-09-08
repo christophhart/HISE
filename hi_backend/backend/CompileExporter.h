@@ -208,7 +208,7 @@ public:
 	File hisePath;
 	
     bool useIpp;
-    
+		    
     bool legacyCpuSupport = false;
 
 	bool rawMode = false;

@@ -113,7 +113,7 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 	dampingSlider->setup(getProcessor(), ConvolutionEffect::Damping, "Damping");
 	
 
-    predelaySlider->setMode(HiSlider::Time, 0.0, 200.0, 50.0, 0.1);
+    predelaySlider->setMode(HiSlider::Time, NormalisableRange(0.0, 200.0).withCentreSkew(50.0));
 	predelaySlider->setup(getProcessor(), ConvolutionEffect::Predelay, "Predelay");
 	
 

@@ -345,6 +345,11 @@ public:
     
 	void setCrossfadeGammaValue(float newGammaValue);
 
+	std::vector<int> calculateZeroCrossings()
+	{
+		return fileReader.calculateZeroCrossings();
+	}
+
 private:
 
 	
@@ -437,6 +442,8 @@ private:
 		// ==============================================================================================================================================
 
 		void wakeSound();
+
+		std::vector<int> calculateZeroCrossings();
 
 		float calculatePeakValue();
 

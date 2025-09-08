@@ -69,12 +69,6 @@ END_JUCE_MODULE_DECLARATION
 #define HISE_DEFAULT_STACK_SIZE 0
 #endif
 
-
-#if USE_IPP
-#include "ipp.h"
-#endif
-
-
 //=============================================================================
 /** Config: STANDALONE_STREAMING
 

@@ -39,6 +39,12 @@ using namespace juce;
 namespace valuetree
 {
 
+// Use these macros for binding class methods to the listeners
+#define VT_BIND_CHILD_LISTENER(methodName) [this](const ValueTree& v, bool wasAdded){ this->methodName(v, wasAdded); }
+#define VT_BIND_PROPERTY_LISTENER(methodName) [this](const Identifier& id, const var& newValue){ this->methodName(id, newValue); }
+#define VT_BIND_RECURSIVE_PROPERTY_LISTENER(methodName) [this](const ValueTree& v, const Identifier& id){ this->methodName(v, id); }
+
+
 struct Helpers
 {
 	enum class IterationType
@@ -90,12 +96,18 @@ public:
 
 	virtual ~Base()
 	{
+		ScopedLock sl(asyncLock);
 		cancelPendingUpdate();
 	};
 
 	void setHighPriorityListener(Base* listenerToPriorise)
 	{
 		priorisedListener = listenerToPriorise;
+	}
+
+	virtual void shutdown()
+	{
+		cancelPendingUpdate();
 	}
 
 protected:
@@ -148,11 +160,19 @@ struct AnyListener : private Base,
 
 	void setForwardCallback(CallbackType c, bool shouldForward);
 
+	void shutdown() override
+	{
+		Base::shutdown();
+		data.removeListener(this);
+	}
+
 protected:	
 
 	void setPropertyCondition(const PropertyConditionFunc& f);
 
 	virtual void anythingChanged(CallbackType cb) = 0;
+
+	
 
 private:
 
@@ -232,21 +252,55 @@ struct IterationProtector : public Base
 	
 };
 
+/** This class fires the callback whenever any property is changed. */
+struct AnyPropertyListener: public Base
+{
+	using PropertyCallback = std::function<void(Identifier, var)>;
+
+	AnyPropertyListener():
+		f({})
+	{}
+
+	~AnyPropertyListener() override;
+
+	void setCallback(ValueTree d, AsyncMode asyncMode, const PropertyCallback& f_, bool sendAtInit);
+
+	bool isRegisteredTo(const ValueTree& t) const;
+
+	void shutdown() override
+	{
+		Base::shutdown();
+		v.removeListener(this);
+		changedIds.clear();
+		f = {};
+	}
+
+private:
+
+	void handleAsyncUpdate() override;
+
+	void valueTreePropertyChanged(ValueTree& v_, const Identifier& id) override;
+
+	PropertyCallback f;
+
+	ValueTree v;
+	Array<Identifier> ids;
+	Array<Identifier> changedIds;
+	var lastValue;
+};
+
 /** This class fires the given callback whenever the property changes. Can be used as member object
 	instead of deriving. */
 struct PropertyListener : public Base
 {
+	// use VT_BIND_PROPERTY_LISTENER(methodName) for this prototype
 	using PropertyCallback = std::function<void(Identifier, var)>;
 
 	PropertyListener():
 		f({})
 	{}
 
-	~PropertyListener()
-	{
-		cancelPendingUpdate();
-		v.removeListener(this);
-	}
+	~PropertyListener() override;
 
 	void setCallback(ValueTree d, const Array<Identifier>& ids_, AsyncMode asyncMode, const PropertyCallback& f_);
 
@@ -257,9 +311,18 @@ struct PropertyListener : public Base
 		return v == t;
 	}
 
+	void shutdown() override
+	{
+		changedIds.clear();
+		Base::shutdown();
+		v.removeListener(this);
+		lastValue = var();
+		f = {};
+	}
+
 private:
 
-	void handleAsyncUpdate();
+	void handleAsyncUpdate() override;
 
 	void valueTreePropertyChanged(ValueTree& v_, const Identifier& id_) override;
 
@@ -274,16 +337,19 @@ private:
 
 struct RecursivePropertyListener : public Base
 {
+	~RecursivePropertyListener() override;
 
-	~RecursivePropertyListener()
-	{
-		cancelPendingUpdate();
-		v.removeListener(this);
-	}
-
+	// use VT_BIND_RECURSIVE_PROPERTY_LISTENER(methodName) for this prototype
 	using RecursivePropertyCallback = std::function<void(ValueTree, Identifier)>;
 
 	void setCallback(ValueTree parent, const Array<Identifier>& ids_, AsyncMode asyncMode, const RecursivePropertyCallback& f_);
+
+	void shutdown() override
+	{
+		Base::shutdown();
+		v.removeListener(this);
+		pendingChanges.clear();
+	}
 
 private:
 
@@ -437,6 +503,14 @@ struct ChildListener : public Base
 
 	/** Get the index of the valuetree before it was removed from its parent. */
 	int getRemoveIndex() const;
+
+	void shutdown() override
+	{
+		Base::shutdown();
+		v.removeListener(this);
+		pendingChanges.clear();
+		cb = {};
+	}
 
 protected:
 

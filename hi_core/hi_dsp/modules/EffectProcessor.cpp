@@ -56,7 +56,7 @@ namespace hise { using namespace juce;
 	{
 		for (auto& mb : modChains)
 		{
-			if (!mb.getChain()->shouldBeProcessedAtAll())
+			if (!mb.getChain()->shouldBeProcessedAtAll() && !mb.isForceProcessEnabled())
 			{
 				mb.clear();
 				continue;

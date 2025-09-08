@@ -745,10 +745,10 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 
 	void refreshEnablement()
 	{
-		auto resynthesise = converter->phaseMode != SampleMapToWavetableConverter::PhaseMode::Resample;
+		auto resynthesise = converter->cd.phaseMode != SampleMapToWavetableConverter::PhaseMode::Resample;
 
 		row2->getComponent<ComboBox>("offset")->setEnabled(resynthesise);
-		row2->getComponent<ComboBox>("numSlices")->setEnabled(resynthesise && converter->phaseMode != SampleMapToWavetableConverter::PhaseMode::DynamicPhase);
+		row2->getComponent<ComboBox>("numSlices")->setEnabled(resynthesise && converter->cd.phaseMode != SampleMapToWavetableConverter::PhaseMode::DynamicPhase);
 		row2->getComponent<ComboBox>("sourcelength")->setEnabled(!resynthesise);
 
 		row2->getComponent<ComboBox>("Noise")->setEnabled(resynthesise);
@@ -797,7 +797,7 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 		{
 			cancelCurrentTask();
 
-			converter->phaseMode = (SampleMapToWavetableConverter::PhaseMode)comboBoxThatHasChanged->getSelectedItemIndex();
+			converter->cd.phaseMode = (SampleMapToWavetableConverter::PhaseMode)comboBoxThatHasChanged->getSelectedItemIndex();
 
 			refreshEnablement();
 			
@@ -807,7 +807,7 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 		}
 		if (comboBoxThatHasChanged->getName() == "compression")
 		{
-			converter->useCompression = comboBoxThatHasChanged->getSelectedItemIndex();
+			converter->cd.useCompression = comboBoxThatHasChanged->getSelectedItemIndex();
 			return;
 		}
 		if (comboBoxThatHasChanged->getName() == "samplemap")
@@ -878,7 +878,7 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 		{
 			cancelCurrentTask();
 
-			converter->reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 1;
+			converter->cd.reverseOrder = comboBoxThatHasChanged->getSelectedItemIndex() == 1;
 		}
         
 		refreshPreview();
@@ -888,7 +888,7 @@ This will use Loris to separate the noise from the sinusoidal parts of the sampl
 	{
 		converter->exportAll();
 
-		if (converter->phaseMode == SampleMapToWavetableConverter::PhaseMode::Resample)
+		if (converter->cd.phaseMode == SampleMapToWavetableConverter::PhaseMode::Resample)
 		{
 			showStatusMessage("Wavetables exported with " + String(converter->cycleLength) + " cycle length");
 		}

@@ -1556,6 +1556,42 @@ void ScriptingObjects::ScriptComplexDataReferenceBase::setCallbackInternal(bool 
 	}
 }
 
+void ScriptingObjects::ScriptComplexDataReferenceBase::linkToInternal(var o)
+{
+	auto other = dynamic_cast<ScriptComplexDataReferenceBase*>(o.getObject());
+            
+	if(other == nullptr)
+	{
+		reportScriptError("Not a data object");
+		return;
+	}
+            
+	if(other->type != type)
+	{
+		reportScriptError("Type mismatch");
+		return;
+	}
+            
+	using PED = hise::ProcessorWithExternalData;
+            
+	if(auto pdst = holder.get())
+	{
+		if(auto psrc = other->holder.get())
+		{
+			if(auto ex = psrc->getComplexBaseType(type, other->index))
+			{
+				complexObject->getUpdater().removeEventListener(this);
+
+				pdst->linkTo(type, *psrc, other->index, index);
+				complexObject = holder->getComplexBaseType(type, index);
+				complexObject->getUpdater().addEventListener(this);
+			}
+		}
+	}
+            
+	return;
+}
+
 struct ScriptingObjects::ScriptAudioFile::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_1(ScriptAudioFile, loadFile);
@@ -1737,6 +1773,8 @@ struct ScriptingObjects::ScriptRingBuffer::Wrapper
     API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, setActive);
 	API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, setRingBufferProperties);
 	API_VOID_METHOD_WRAPPER_1(ScriptRingBuffer, copyReadBuffer);
+	API_METHOD_WRAPPER_0(ScriptRingBuffer, toBase64);
+	API_VOID_METHOD_WRAPPER_2(ScriptRingBuffer, fromBase64);
 };
 
 ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingContent* pwsc, int index, ExternalDataHolder* other/*=nullptr*/):
@@ -1748,6 +1786,8 @@ ScriptingObjects::ScriptRingBuffer::ScriptRingBuffer(ProcessorWithScriptingConte
 	ADD_API_METHOD_1(setRingBufferProperties);
 	ADD_API_METHOD_1(copyReadBuffer);
     ADD_API_METHOD_1(setActive);
+	ADD_API_METHOD_0(toBase64);
+	ADD_API_METHOD_2(fromBase64);
 }
 
 var ScriptingObjects::ScriptRingBuffer::getReadBuffer()
@@ -1844,6 +1884,75 @@ void ScriptingObjects::ScriptRingBuffer::setActive(bool shouldBeActive)
     {
         obj->setActive(shouldBeActive);
     }
+}
+
+String ScriptingObjects::ScriptRingBuffer::toBase64() const
+{
+	if(auto rb = getRingBuffer())
+	{
+		if(auto prop = rb->getPropertyObject())
+		{
+			return prop->exportAsBase64();
+		}
+	}
+
+	return var();
+}
+
+void ScriptingObjects::ScriptRingBuffer::fromBase64(const String& b64, bool useUndoManager)
+{
+	if(auto rb = getRingBuffer())
+	{
+		if(auto prop = rb->getPropertyObject())
+		{
+			if(useUndoManager)
+			{
+				struct B64Action: public UndoableAction
+				{
+					B64Action(SimpleRingBuffer::PropertyObject::Ptr obj_, const String& newB64):
+						obj(obj_),
+						prevValue(obj->exportAsBase64()),
+						newValue(newB64)
+					{}
+
+					bool undo() override
+					{
+						if(obj != nullptr)
+						{
+							obj->restoreFromBase64(prevValue);
+							return true;
+						}
+
+						return false;
+					}
+
+					bool perform() override
+					{
+						if(obj != nullptr)
+						{
+							obj->restoreFromBase64(newValue);
+							return true;
+						}
+
+						return false;
+					}
+
+					SimpleRingBuffer::PropertyObject::Ptr obj;
+					String prevValue;
+					String newValue;
+							 
+				};
+
+				auto um = getScriptProcessor()->getMainController_()->getControlUndoManager();
+				um->beginNewTransaction();
+				um->perform(new B64Action(prop, b64));
+			}
+			else
+			{
+				prop->restoreFromBase64(b64);
+			}
+		}
+	}
 }
 
 void ScriptingObjects::ScriptRingBuffer::setRingBufferProperties(var propertyData)
@@ -2714,6 +2823,7 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingModulator, getType);
 	API_METHOD_WRAPPER_2(ScriptingModulator, connectToGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingModulator, getGlobalModulatorId);
+	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setMatrixProperties);
 };
 
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
@@ -2765,6 +2875,7 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_0(asTableProcessor);
 	ADD_API_METHOD_2(connectToGlobalModulator);
 	ADD_API_METHOD_0(getGlobalModulatorId);
+	ADD_API_METHOD_1(setMatrixProperties);
 }
 
 String ScriptingObjects::ScriptingModulator::getDebugName() const
@@ -2853,6 +2964,19 @@ String ScriptingObjects::ScriptingModulator::getGlobalModulatorId()
 		}
 	}
 	return String();
+}
+
+void ScriptingObjects::ScriptingModulator::setMatrixProperties(var matrixData)
+{
+	if(auto mm = dynamic_cast<MatrixModulator*>(mod.get()))
+	{
+		if(auto gc = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(mm->getMainController()->getMainSynthChain()))
+		{
+			auto rd = MatrixIds::Helpers::Properties::RangeData::fromJSON(matrixData);
+			gc->matrixProperties.rangeData[mm->getMatrixTargetId()] = rd;
+			gc->matrixProperties.propertyUpdateBroadcaster.sendMessage(sendNotificationSync, &gc->matrixProperties, mm->getMatrixTargetId());
+		}
+	}
 }
 
 void ScriptingObjects::ScriptingModulator::setAttribute(int index, float value)
@@ -3185,6 +3309,8 @@ struct ScriptingObjects::ScriptingEffect::Wrapper
 	API_METHOD_WRAPPER_1(ScriptingEffect, getModulatorChain);
 	API_METHOD_WRAPPER_3(ScriptingEffect, addStaticGlobalModulator);
 	API_METHOD_WRAPPER_0(ScriptingEffect, getId);
+	API_VOID_METHOD_WRAPPER_1(ScriptingEffect, setDraggableFilterData);
+	API_METHOD_WRAPPER_0(ScriptingEffect, getDraggableFilterData);
 };
 
 ScriptingObjects::ScriptingEffect::ScriptingEffect(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
@@ -3228,6 +3354,9 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 	ADD_API_METHOD_1(getModulatorChain);
 	ADD_API_METHOD_3(addGlobalModulator);
 	ADD_API_METHOD_3(addStaticGlobalModulator);
+
+	ADD_API_METHOD_1(setDraggableFilterData);
+	ADD_API_METHOD_0(getDraggableFilterData);
 };
 
 
@@ -3483,6 +3612,22 @@ var ScriptingObjects::ScriptingEffect::addStaticGlobalModulator(var chainIndex, 
 	return var();
 }
 
+void ScriptingObjects::ScriptingEffect::setDraggableFilterData(var filterData)
+{
+	if(auto h = dynamic_cast<ProcessorWithCustomFilterStatistics*>(getEffect()))
+		h->setFilterStatistics(filterData);
+}
+
+var ScriptingObjects::ScriptingEffect::getDraggableFilterData()
+{
+	if(auto h = dynamic_cast<ProcessorWithCustomFilterStatistics*>(getEffect()))
+	{
+		return h->getFilterStatisticsJSON();
+	}
+
+	return var();
+}
+
 ScriptingObjects::ScriptingEffect::FilterModeObject::FilterModeObject(const ProcessorWithScriptingContent* p) :
 	ConstScriptingObject(const_cast<ProcessorWithScriptingContent*>(p), (int)FilterBank::FilterMode::numFilterModes)
 {
@@ -3529,7 +3674,7 @@ struct ScriptingObjects::ScriptingSlotFX::Wrapper
     API_METHOD_WRAPPER_0(ScriptingSlotFX, getCurrentEffectId);
 };
 
-ScriptingObjects::ScriptingSlotFX::ScriptingSlotFX(ProcessorWithScriptingContent *p, EffectProcessor *fx) :
+ScriptingObjects::ScriptingSlotFX::ScriptingSlotFX(ProcessorWithScriptingContent *p, Processor* fx) :
 ConstScriptingObject(p, fx != nullptr ? fx->getNumParameters()+1 : 1),
 slotFX(fx)
 {
@@ -3566,6 +3711,10 @@ void ScriptingObjects::ScriptingSlotFX::clear()
 	{
         slot->clearEffect();
 	}
+	else if (auto holder = getDspNetworkHolder())
+	{
+		holder->clearAllNetworks();
+	}
 	else
 	{
 		reportScriptError("Invalid Slot");
@@ -3573,7 +3722,7 @@ void ScriptingObjects::ScriptingSlotFX::clear()
 }
 
 
-ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(String effectName)
+var ScriptingObjects::ScriptingSlotFX::setEffect(String effectName)
 {
 	if (effectName == "undefined")
 	{
@@ -3596,6 +3745,19 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 
 		return new ScriptingEffect(getScriptProcessor(), dynamic_cast<EffectProcessor*>(slot->getCurrentEffect()));
     }
+	else if (auto holder = getDspNetworkHolder())
+	{
+		if(auto an = holder->getActiveNetwork())
+		{
+			if(an->getId() == effectName)
+				return var(an);
+		}
+
+		holder->clearAllNetworks();
+		auto dn = holder->getOrCreate(effectName);
+
+		return var(dn);
+	}
 	else
 	{
 		reportScriptError("Invalid Slot");
@@ -3603,14 +3765,19 @@ ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::setEffect(
 	}
 }
 
-ScriptingObjects::ScriptingEffect* ScriptingObjects::ScriptingSlotFX::getCurrentEffect()
+var ScriptingObjects::ScriptingSlotFX::getCurrentEffect()
 {
 	if (auto slot = getSlotFX())
 	{
 		if (auto fx = slot->getCurrentEffect())
 		{
-			return new ScriptingEffect(getScriptProcessor(), dynamic_cast<EffectProcessor*>(fx));
+			return var(new ScriptingEffect(getScriptProcessor(), dynamic_cast<EffectProcessor*>(fx)));
 		}
+	}
+	else if (auto holder = getDspNetworkHolder())
+	{
+		if(auto an = holder->getActiveNetwork())
+			return var(an);
 	}
 
 	return {};
@@ -3655,6 +3822,18 @@ juce::var ScriptingObjects::ScriptingSlotFX::getModuleList()
 		for (const auto& s : sa)
 			list.add(var(s));
 	}
+	else if (auto h = getDspNetworkHolder())
+	{
+#if USE_BACKEND
+		auto files = BackendDllManager::getNetworkFiles(getScriptProcessor()->getMainController_());
+
+		for(auto n: files)
+			list.add(var(n.getFileNameWithoutExtension()));
+#else
+		jassertfalse;
+#endif
+
+	}
 
 	return var(list);
 }
@@ -3665,6 +3844,11 @@ String ScriptingObjects::ScriptingSlotFX::getCurrentEffectId()
     {
         return slot->getCurrentEffectId();
     }
+	else if (auto h = getDspNetworkHolder())
+	{
+		if(auto an = h->getActiveNetwork())
+			return an->getId();
+	}
     
     return "";
 }
@@ -3673,13 +3857,46 @@ var ScriptingObjects::ScriptingSlotFX::getParameterProperties()
 {
     if(auto slot = getSlotFX())
         return slot->getParameterProperties();
+	else if (auto h = getDspNetworkHolder())
+	{
+		if(auto an = h->getActiveNetwork())
+		{
+			auto rn = an->getRootNode();
+
+			Array<var> list;
     
+		    for (int i = 0; i < rn->getNumParameters(); i++)
+			{
+				auto pdata = rn->getParameterFromIndex(i)->data;
+				auto rng = scriptnode::RangeHelpers::getDoubleRange(pdata);
+				auto prop = new DynamicObject();
+
+				var obj(prop);
+
+				scriptnode::RangeHelpers::storeDoubleRange(obj, rng, RangeHelpers::IdSet::ScriptComponents);
+
+				prop->setProperty("text", pdata[PropertyIds::ID]);
+				prop->setProperty("defaultValue", pdata[PropertyIds::DefaultValue]);
+
+				list.add(var(prop));
+			}
+		    
+		    return var(list);
+		}
+		
+	}
+
     return var();
 }
 
 HotswappableProcessor* ScriptingObjects::ScriptingSlotFX::getSlotFX()
 {
 	return dynamic_cast<HotswappableProcessor*>(slotFX.get());
+}
+
+DspNetwork::Holder* ScriptingObjects::ScriptingSlotFX::getDspNetworkHolder()
+{
+	return dynamic_cast<DspNetwork::Holder*>(slotFX.get());
 }
 
 struct ScriptingObjects::ScriptRoutingMatrix::Wrapper
@@ -3937,6 +4154,8 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 	API_METHOD_WRAPPER_0(ScriptingSynth, asSampler);
 	API_METHOD_WRAPPER_0(ScriptingSynth, getRoutingMatrix);
 	API_METHOD_WRAPPER_0(ScriptingSynth, getId);
+	API_VOID_METHOD_WRAPPER_2(ScriptingSynth, setModulationInitialValue);
+	API_VOID_METHOD_WRAPPER_3(ScriptingSynth, setEffectChainOrder);
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
@@ -3978,6 +4197,8 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 	ADD_API_METHOD_3(addStaticGlobalModulator);
 	ADD_API_METHOD_0(asSampler);
 	ADD_API_METHOD_0(getRoutingMatrix);
+	ADD_API_METHOD_2(setModulationInitialValue);
+	ADD_API_METHOD_3(setEffectChainOrder);
 };
 
 
@@ -4001,6 +4222,21 @@ void ScriptingObjects::ScriptingSynth::setAttribute(int parameterIndex, float ne
         
         
 		synth->setAttribute(parameterIndex, newValue, ProcessorHelpers::getAttributeNotificationType());
+	}
+}
+
+void ScriptingObjects::ScriptingSynth::setModulationInitialValue(int chainIndex, float initialValue)
+{
+	if (checkValidObject())
+	{
+        if(auto mc = dynamic_cast<ModulatorChain*>(synth->getChildProcessor(chainIndex)))
+        {
+	        mc->setInitialValue(initialValue);
+        }
+		else
+		{
+			reportScriptError(String(chainIndex) + " is not a valid modulation chain");
+		}
 	}
 }
 
@@ -4202,6 +4438,23 @@ var ScriptingObjects::ScriptingSynth::addStaticGlobalModulator(var chainIndex, v
 	}
 
 	return var();
+}
+
+void ScriptingObjects::ScriptingSynth::setEffectChainOrder(bool doPoly, var slotRange, var chainOrder)
+{
+	if(checkValidObject())
+	{
+		auto r = Result::ok();
+		auto p = ApiHelpers::getPointFromVar(slotRange, &r).toInt();
+
+		if(!r.wasOk())
+			reportScriptError(r.getErrorMessage());
+
+		if(auto fx = dynamic_cast<EffectProcessorChain*>(synth->getChildProcessor(ModulatorSynth::EffectChain)))
+		{
+			fx->setFXOrder(false, { p.x, p.y }, chainOrder);
+		}
+	}
 }
 
 var ScriptingObjects::ScriptingSynth::asSampler()
@@ -4764,6 +5017,210 @@ var ScriptingObjects::ScriptingTableProcessor::getTable(int tableIndex)
 
 	reportScriptError("Not a valid object");
 	RETURN_IF_NO_THROW(var());
+}
+
+ScriptingObjects::ScriptWavetableController::ScriptWavetableController(ProcessorWithScriptingContent* sp,
+	Processor* wavetableSynth):
+	ConstScriptingObject(sp, 0),
+	ControlledObject(sp->getMainController_()),
+	wt_(wavetableSynth),
+	errorHandler(getScriptProcessor(), this, var(), 1) 
+{
+	ADD_API_METHOD_0(getResynthesisOptions);
+	ADD_API_METHOD_1(setResynthesisOptions);
+	ADD_API_METHOD_0(resynthesise);
+	ADD_API_METHOD_1(saveAsHwt);
+	ADD_API_METHOD_1(saveAsAudioFile);
+	ADD_API_METHOD_2(setEnableResynthesisCache);
+	ADD_API_METHOD_1(setErrorHandler);
+	ADD_API_METHOD_3(loadData);
+	ADD_API_METHOD_1(setPostFXProcessors);
+}
+
+var ScriptingObjects::ScriptWavetableController::getResynthesisOptions() const
+{
+	if(auto wt = getWavetableSynth())
+	{
+		return wt->getResynthesisOptions().toVar();
+	}
+	else
+	{
+		reportScriptError("No wavetable synth");
+		RETURN_IF_NO_THROW(var());
+	}
+}
+
+void ScriptingObjects::ScriptWavetableController::setResynthesisOptions(const var& optionData)
+{
+	if(auto wt = getWavetableSynth())
+	{
+		WavetableHelpers::ResynthesisOptions options;
+		options.fromVar(optionData);
+		options.errorHandler = this;
+		wt->setResynthesisOptions(options, dontSendNotification);
+	}
+	else
+	{
+		reportScriptError("No wavetable synth");
+	}
+}
+
+void ScriptingObjects::ScriptWavetableController::resynthesise()
+{
+	if(auto wt = getWavetableSynth())
+	{
+		wt->reloadWavetable();
+	}
+	else
+	{
+		reportScriptError("No wavetable synth");
+	}
+}
+
+void ScriptingObjects::ScriptWavetableController::saveAsHwt(const var& outputFile)
+{
+	if(auto wt = getWavetableSynth())
+	{
+		ValueTree v = wt->getCurrentlyLoadedWavetableTree();
+
+		if(v.isValid())
+		{
+			if(auto sf = dynamic_cast<ScriptFile*>(outputFile.getObject()))
+			{
+				sf->f.deleteFile();
+				sf->f.create();
+				FileOutputStream fos(sf->f);
+				v.writeToStream(fos);
+			}
+		}
+	}
+	else
+	{
+		reportScriptError("No wavetable synth");
+	}
+}
+
+void ScriptingObjects::ScriptWavetableController::saveAsAudioFile(const var& outputFile)
+{
+	if(auto wt = getWavetableSynth())
+	{
+		auto f = ScriptingApi::FileSystem::getFileFromVar(outputFile, getMainController());
+		f.deleteFile();
+
+		auto fos = new FileOutputStream(f);
+		auto b = wt->createAudioSampleBufferFromWavetable(0);
+
+		if(b.getNumSamples() > 0)
+		{
+			auto loopEnd = dynamic_cast<WavetableSound*>(wt->getSound(0))->getTableSize() - 1;
+
+			StringPairArray metadata;
+
+			metadata.set("Loop0Start", "0");
+			metadata.set("Loop0End", String(loopEnd));
+			metadata.set("NumSampleLoops", "1");
+
+			WavAudioFormat wav;
+			ScopedPointer<AudioFormatWriter> writer = wav.createWriterFor(fos, 48000.0, b.getNumChannels(), 24, metadata, 5);
+
+			writer->writeFromAudioSampleBuffer(b, 0, b.getNumSamples());
+			writer = nullptr;
+		}
+	}
+}
+
+void ScriptingObjects::ScriptWavetableController::setEnableResynthesisCache(const var& cacheDirectory, bool clearCache)
+{
+	if(auto wt = getWavetableSynth())
+	{
+		auto f = ScriptingApi::FileSystem::getFileFromVar(cacheDirectory, getMainController());
+
+		wt->setResynthesisCache(f, clearCache);
+	}
+	else
+	{
+		reportScriptError("No wavetable synth");
+	}
+}
+
+void ScriptingObjects::ScriptWavetableController::loadData(var bufferOrFile, var sampleRate, var loopRange)
+{
+	if(auto wt = getWavetableSynth())
+	{
+		Range<int> lr;
+
+		if(loopRange.isArray() && loopRange.size() == 2)
+		{
+			lr = { (int)loopRange[0], (int)loopRange[1] };
+		}
+
+		auto& buffer = wt->getBuffer();
+
+		if(auto sf = dynamic_cast<ScriptFile*>(bufferOrFile.getObject()))
+		{
+			PoolReference ref(getMainController(), sf->f.getFullPathName(), FileHandlerBase::AudioFiles);
+			buffer.fromBase64String(ref.getReferenceString());
+		}
+		if(bufferOrFile.isArray())
+		{
+			float* ptrs[NUM_MAX_CHANNELS];
+			int numChannels = bufferOrFile.size();
+			int numSamples = 0;
+
+			for(int i = 0; i < bufferOrFile.size(); i++)
+			{
+				if (auto b = bufferOrFile[i].getBuffer())
+				{
+					numSamples = b->buffer.getNumSamples();
+					ptrs[i] = b->buffer.getWritePointer(0);
+				}
+			}
+
+			AudioSampleBuffer ab(ptrs, numChannels, numSamples);
+			buffer.loadBuffer(ab, sampleRate, lr);
+		}
+		else if (auto b = bufferOrFile.getBuffer())
+		{
+			buffer.loadBuffer(b->buffer, sampleRate, lr);
+		}
+		
+	}
+	else
+	{
+		reportScriptError("No wavetable synth");
+	}
+}
+
+void ScriptingObjects::ScriptWavetableController::setPostFXProcessors(const var& postFXData)
+{
+	if(auto wt = getWavetableSynth())
+	{
+		Array<WavetableSynth::PostFXProcessor> newList;
+
+		if(auto ar = postFXData.getArray())
+		{
+			for(auto& v: *ar)
+			{
+				WavetableSynth::PostFXProcessor np;
+				np.fromVar(getMainController(), v);
+				newList.add(std::move(np));
+			}
+		}
+
+		wt->setPostProcessors(std::move(newList));
+	}
+	else
+	{
+		reportScriptError("No wavetable synth");
+	}
+}
+
+void ScriptingObjects::ScriptWavetableController::setErrorHandler(const var& errorCallback)
+{
+	if(HiseJavascriptEngine::isJavascriptFunction(errorCallback))
+	{
+		errorHandler = WeakCallbackHolder(getScriptProcessor(), this, errorCallback, 1);
+	}
 }
 
 struct ScriptingObjects::ScriptSliderPackProcessor::Wrapper
@@ -6642,7 +7099,11 @@ Component* ScriptingObjects::ScriptUnorderedStack::createPopupComponent(const Mo
 }
 
 
-
+DebugInformationBase* ScriptingObjects::ScriptUnorderedStack::getChildElement(int index)
+{
+	IndexedValue i(this, index);
+	return new LambdaValueInformation(i, i.getId(), {}, DebugInformation::Type::Constant, getLocation());
+}
 
 bool ScriptingObjects::ScriptUnorderedStack::copyTo(var target)
 {
@@ -9664,6 +10125,12 @@ void ScriptingObjects::ScriptBuilder::clear()
 
 	mc->getProcessorChangeHandler().sendProcessorChangeMessage(mc->getMainSynthChain(), MainController::ProcessorChangeHandler::EventType::ClearBeforeRebuild, false);
 
+	MessageManager::callAsync([this]()
+	{
+		getScriptProcessor()->getScriptingContent()->setIsRebuilding(true);
+	});
+	
+
 	Thread::getCurrentThread()->wait(500);
 	dynamic_cast<JavascriptProcessor*>(getScriptProcessor())->getScriptEngine()->extendTimeout(500);
 
@@ -9716,13 +10183,18 @@ void ScriptingObjects::ScriptBuilder::clear()
 
 void ScriptingObjects::ScriptBuilder::flush()
 {
-	flushed = true;
+	if(!flushed)
+	{
+		flushed = true;
 
-	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
-
-	synthChain->sendRebuildMessage(true);
-
-	getScriptProcessor()->getMainController_()->getProcessorChangeHandler().sendProcessorChangeMessage(synthChain, MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
+		MessageManager::callAsync([this]()
+		{
+			auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
+			getScriptProcessor()->getScriptingContent()->setIsRebuilding(false);
+			synthChain->sendRebuildMessage(true);
+			getScriptProcessor()->getMainController_()->getProcessorChangeHandler().sendProcessorChangeMessage(synthChain, MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
+		});
+	}
 }
 
 struct ScriptingObjects::ScriptErrorHandler::Wrapper

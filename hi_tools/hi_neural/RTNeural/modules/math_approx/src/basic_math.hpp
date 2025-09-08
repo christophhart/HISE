@@ -12,7 +12,10 @@
 #endif
 
 #include <algorithm>
+
+#if _HAS_CXX20
 #include <bit>
+#endif
 
 namespace math_approx
 {

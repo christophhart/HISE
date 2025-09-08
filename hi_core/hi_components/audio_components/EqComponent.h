@@ -44,23 +44,7 @@ class FilterDragOverlay : public Component,
 {
 public:
 
-	struct FilterResizeAction : public UndoableAction
-	{
-		FilterResizeAction(CurveEq* eq_, int index_, bool add, double freq_=0.0, double gain_=0.0);;
-
-		bool perform() override;
-		bool undo() override;
-
-		WeakReference<CurveEq> eq;
-		int index;
-		bool isAddAction;
-
-		double freq;
-		double gain;
-		int type;
-		double q;
-		bool enabled;
-	};
+	
 
 	enum class SpectrumVisibility
 	{
@@ -68,6 +52,8 @@ public:
 		AlwaysOn,
 		AlwaysOff
 	};
+
+	using DragAction = ProcessorFilterStatistics::DragAction;
 
 	struct DragData
 	{
@@ -115,7 +101,30 @@ public:
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Listener);
 	};
 
-	FilterDragOverlay(CurveEq* eq_, bool isInFloatingTile_ = false);
+	
+
+
+	
+
+	struct FilterResizeAction : public UndoableAction
+	{
+		FilterResizeAction(ProcessorFilterStatistics* stats, int index_, bool add, double freq_=0.0, double gain_=0.0);;
+
+		bool perform() override;
+		bool undo() override;
+
+		ProcessorFilterStatistics::Ptr stats;
+		int index;
+		bool isAddAction;
+
+		double freq;
+		double gain;
+		int type;
+		double q;
+		bool enabled;
+	};
+
+	FilterDragOverlay(Processor* eq_, ProcessorFilterStatistics::Ptr statistics, bool isInFloatingTile_ = false);
 	virtual ~FilterDragOverlay();
 
 	void otherChange(Processor* p) override
@@ -189,7 +198,7 @@ public:
 		void setIndex(int newIndex);;
 
 		bool isSelected() const { return selected; }
-		bool isDragging() const { return !menuActive && draggin; }
+		bool isDragging() const { return !menuActive && (draggin || down); }
 		bool isOver() const { return !menuActive && over; }
 		int getIndex() const { return index; }
 
@@ -224,7 +233,8 @@ public:
 
 protected:
 
-	WeakReference<CurveEq> eq;
+	ProcessorFilterStatistics::Ptr filterStats;
+	WeakReference<Processor> eq;
 	int numFilters = 0;
 
 public:
@@ -245,6 +255,7 @@ public:
 
 private:
 
+	
 
 	UndoManager* um = nullptr;
 

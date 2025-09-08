@@ -57,18 +57,19 @@ GlobalModulatorEditor::GlobalModulatorEditor (ProcessorEditor *p)
     invertButton->addListener (this);
     invertButton->setColour (ToggleButton::textColourId, Colours::white);
 
+    auto gm = dynamic_cast<GlobalModulator*>(getProcessor());
 
     //[UserPreSize]
 
 	getProcessor()->getMainController()->skin(*useTableButton);
 
-	tableUsed = getProcessor()->getAttribute(GlobalModulator::UseTable) == 1.0f;
+	tableUsed = getProcessor()->getAttribute(GlobalModulator::UseTable + gm->getParameterOffset()) == 1.0f;
 
     ProcessorHelpers::connectTableEditor(*midiTable, getProcessor());
     
-	useTableButton->setup(getProcessor(), GlobalModulator::UseTable, "Use Table");
+	useTableButton->setup(getProcessor(), GlobalModulator::UseTable  + gm->getParameterOffset(), "Use Table");
 
-	invertButton->setup(getProcessor(), GlobalModulator::Inverted, "Inverted");
+	invertButton->setup(getProcessor(), GlobalModulator::Inverted  + gm->getParameterOffset(), "Inverted");
 
 	getProcessor()->getMainController()->skin(*globalModSelector);
 
@@ -140,9 +141,10 @@ void GlobalModulatorEditor::buttonClicked (Button* buttonThatWasClicked)
 
     if (buttonThatWasClicked == useTableButton)
     {
+        auto gm = dynamic_cast<GlobalModulator*>(getProcessor());
         //[UserButtonCode_useTableButton] -- add your button handler code here..
 		tableUsed = useTableButton->getToggleState();
-		getProcessor()->setAttribute(GlobalModulator::UseTable, tableUsed ? 1.0f : 0.0f, dontSendNotification);
+		getProcessor()->setAttribute(GlobalModulator::UseTable  + gm->getParameterOffset(), tableUsed ? 1.0f : 0.0f, dontSendNotification);
 
 		refreshBodySize();
         //[/UserButtonCode_useTableButton]

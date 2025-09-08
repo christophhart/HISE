@@ -322,7 +322,10 @@ public:
     
     /** Overwrite this and return the default value. */
     virtual float getDefaultValue(int /*parameterIndex*/) const;
-    
+
+    /** Overwrite this method and return a function that calculates the modulation value for the given parameterIndex. */
+    virtual ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const { return nullptr; }
+
     /** This must be overriden by every Processor and return the Chain with the Chain index.
      *
      *	You can either:
@@ -679,7 +682,7 @@ public:
             // a uninitialised processor got inserted into the processing
             // chain, which is bad. Initialise all processors BEFORE
             // adding them there...
-            jassert(p->isValidAndInitialised());
+            jassert(p->isValidAndInitialised() || p->getMainController()->isFlakyThreadingAllowed());
             
             for(int i = 0; i < p->getNumChildProcessors(); i++)
             {
@@ -768,7 +771,15 @@ public:
         friend class WeakReference<DeleteListener>;
         WeakReference<DeleteListener>::Master masterReference;
     };
-    
+
+    virtual void onModulationDrop(int parameterIndex, int modulationSourceIndex) { jassertfalse; }
+
+    /** Override this whenever you want to show a different modulator target. */
+    virtual String getModulationTargetId(int parameterIndex) const
+    {
+	    return getIdentifierForParameterIndex(parameterIndex).toString();
+    }
+
     void addDeleteListener(DeleteListener* listener);
     
     void setIsWaitingForDeletion();
@@ -836,7 +847,34 @@ public:
 
 		NEW_PROCESSOR_DISPATCH(dispatcher.setNumAttributes(numForced));
 	}
+
     
+
+    virtual void connectToRuntimeTargets(scriptnode::OpaqueNode& on, bool shouldAdd)
+    {
+        getMainController()->connectToGlobalRuntimeTargets(on, shouldAdd);
+    }
+
+	struct ScopedAttributeNotificationSuspender
+    {
+	    ScopedAttributeNotificationSuspender(Processor* p_):
+          p(p_),
+          prevValue(p != nullptr ? p->forceDeactivateUpdates : false)
+	    {
+            if(p != nullptr)
+				p->forceDeactivateUpdates = true;
+	    }
+
+        ~ScopedAttributeNotificationSuspender()
+	    {
+            if(p != nullptr)
+				p->forceDeactivateUpdates = prevValue;
+	    }
+
+        Processor* p;
+        bool prevValue;
+    };
+
 protected:
 
 	/** Overwrite this method if you want to supply a custom symbol for the Processor. 
@@ -876,6 +914,8 @@ protected:
 	NEW_PROCESSOR_DISPATCH(dispatch::library::Processor dispatcher);
 
 private:
+
+    bool forceDeactivateUpdates = false;
 
     struct OldBroadcaster: public SafeChangeBroadcaster
     {

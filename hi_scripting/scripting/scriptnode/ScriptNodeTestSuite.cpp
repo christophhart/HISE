@@ -517,8 +517,8 @@ struct ScriptNodeTests : public juce::UnitTest
 	template <typename CableType, int NumChannels> void testSendReceiveFrame()
 	{
 		using SpanType = span<float, NumChannels>;
-		using SenderType = routing::send<CableType>;
-		using ReceiverType = routing::receive<CableType>;
+		using SenderType = routing::send<1, CableType>;
+		using ReceiverType = routing::receive<1, CableType>;
 		
 		{
 			SenderType sender;
@@ -576,8 +576,8 @@ struct ScriptNodeTests : public juce::UnitTest
 
 		buffer.setSize(NumChannels * numSamples);
 
-		using SenderType = routing::send<CableType>;
-		using ReceiverType = routing::receive<CableType>;
+		using SenderType = routing::send<1, CableType>;
+		using ReceiverType = routing::receive<1, CableType>;
 		
 
 		{
@@ -662,15 +662,15 @@ struct ScriptNodeTests : public juce::UnitTest
 	{
 		beginTest("Testing send / receive connections");
 
-		testSendReceiveBlock<cable::block<1>, 1>(512);
-		testSendReceiveBlock<cable::block<1>, 1>(512);
-		testSendReceiveBlock<cable::block<2>, 2>(300);
-		testSendReceiveBlock<cable::block<2>, 2>(491);
+		testSendReceiveBlock<cable::block<1, 1>, 1>(512);
+		testSendReceiveBlock<cable::block<1, 1>, 1>(512);
+		testSendReceiveBlock<cable::block<1, 2>, 2>(300);
+		testSendReceiveBlock<cable::block<1, 2>, 2>(491);
 		//testSendReceiveBlock<cable::dynamic, 1>(491);
 		//testSendReceiveBlock<cable::dynamic, 2>(491);
-		testSendReceiveFrame<cable::frame<1>, 1>();
-		testSendReceiveFrame<cable::frame<2>, 2>();
-		testSendReceiveFrame<cable::frame<7>, 7>();
+		testSendReceiveFrame<cable::frame<1, 1>, 1>();
+		testSendReceiveFrame<cable::frame<1, 2>, 2>();
+		testSendReceiveFrame<cable::frame<1, 7>, 7>();
 		//testSendReceiveFrame<cable::dynamic, 1>();
 		//testSendReceiveFrame<cable::dynamic, 2>();
 		//testSendReceiveFrame<cable::dynamic, 7>();

@@ -116,7 +116,6 @@ private:
 	void rebuildPath();
 
 	AudioSampleBuffer displayBuffer;
-
 	Path drawPath;
 
 	Point<int> popupPosition;

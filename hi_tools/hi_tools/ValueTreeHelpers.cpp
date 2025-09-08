@@ -285,7 +285,103 @@ bool Helpers::forEachParent(ValueTree& v, const Function& f)
 }
 
 
+AnyPropertyListener::~AnyPropertyListener()
+{
+	cancelPendingUpdate();
+	v.removeListener(this);
+}
 
+void AnyPropertyListener::setCallback(ValueTree d, AsyncMode asyncMode, const PropertyCallback& f_, bool sendAtInit)
+{
+	if (v.isValid())
+		v.removeListener(this);
+
+	v = d;
+	v.addListener(this);
+
+	f = f_;
+	mode = asyncMode;
+
+	if(sendAtInit)
+	{
+		for(int i = 0; i < v.getNumProperties(); i++)
+		{
+			auto id = v.getPropertyName(i);
+			f(id, v[id]);
+		}
+	}
+}
+
+bool AnyPropertyListener::isRegisteredTo(const ValueTree& t) const
+{
+	return v == t;
+}
+
+void AnyPropertyListener::handleAsyncUpdate()
+{
+	ScopedLock sl(asyncLock);
+
+	for (auto id : changedIds)
+	{
+		jassert(v.hasProperty(id) || (id == Identifier("Coallescated")));
+		f(id, v[id]);
+	}
+
+	changedIds.clear();
+}
+
+void AnyPropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier& id)
+{
+	if (v == v_)
+	{
+		auto thisValue = v[id];
+
+		if (v.hasProperty(id) && lastValue == thisValue)
+		{
+			//probably priorised
+			return;
+		}
+
+		lastValue = thisValue;
+
+		if (auto pb = dynamic_cast<AnyPropertyListener*>(priorisedListener.get()))
+		{
+			pb->valueTreePropertyChanged(v_, id);
+		}
+
+		switch (mode)
+		{
+		case AsyncMode::Unregistered:
+			break;
+		case AsyncMode::Synchronously:
+			f(id, v[id]);
+			break;
+		case AsyncMode::Asynchronously:
+			{
+				ScopedLock sl(asyncLock);
+				changedIds.addIfNotAlreadyThere(id);
+				triggerAsyncUpdate();
+				break;
+			}
+				
+		case AsyncMode::Coallescated:
+			{
+				ScopedLock sl(asyncLock);
+				changedIds.addIfNotAlreadyThere("Coallescated");
+				triggerAsyncUpdate();
+				break;
+			}
+		default:
+			break;
+		}
+	}
+}
+
+PropertyListener::~PropertyListener()
+{
+	cancelPendingUpdate();
+	v.removeListener(this);
+}
 
 void PropertyListener::setCallback(ValueTree d, const Array<Identifier>& ids_, AsyncMode asyncMode, const PropertyCallback& f_)
 {
@@ -375,7 +471,7 @@ void PropertyListener::handleAsyncUpdate()
 
 	for (auto id : changedIds)
     {
-        jassert(v.hasProperty(id) || (id == Identifier("Coallescated")));
+        //jassert(v.hasProperty(id) || (id == Identifier("Coallescated")));
         f(id, v[id]);
     }
 
@@ -432,6 +528,11 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 }
 
 
+RecursivePropertyListener::~RecursivePropertyListener()
+{
+	cancelPendingUpdate();
+	v.removeListener(this);
+}
 
 void RecursivePropertyListener::setCallback(ValueTree parent, const Array<Identifier>& ids_, AsyncMode asyncMode, const RecursivePropertyCallback& f_)
 {

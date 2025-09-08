@@ -790,7 +790,13 @@ void FileImportDialogWindow::run()
 				showStatusMessage("Loading sample " + collection.dataList[i].files.getFirst().getReferenceString());
 				counter = 0;
 			}
-			
+
+			if(sampler->getComplexGroupManager() != nullptr)
+			{
+				for(auto& d: collection.dataList)
+					d.group = 0;
+			}
+
 			setProgress((double)i / (double)collection.dataList.size());
 
 			SampleImporter::createSoundAndAddToSampler(sampler, collection.dataList[i]);
@@ -837,7 +843,7 @@ void FileImportDialogWindow::threadFinished()
 		maxRRIndex = jmax<int>(maxRRIndex, thisRR);
 	};
 
-	if (currentRRAmount != maxRRIndex)
+	if (sampler->getComplexGroupManager() == nullptr && currentRRAmount != maxRRIndex)
 	{
 		if (PresetHandler::showYesNoWindow("RR Group amount changed", "The amount of RR groups has changed (Old: " + String(currentRRAmount) + ", New: " + String(maxRRIndex) + "). Do you want to adjust the group amount?"))
 		{

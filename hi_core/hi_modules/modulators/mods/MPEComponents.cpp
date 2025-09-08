@@ -870,7 +870,7 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	selector.addItem("Lift", MPEModulator::Gesture::Lift);
 
 	smoothingTime.setup(mod, MPEModulator::SpecialParameters::SmoothingTime, "Smoothing");
-	smoothingTime.setMode(HiSlider::Time, 0.0, 2000.0, 200.0, 0.1);
+	smoothingTime.setMode(HiSlider::Time, NormalisableRange(0.0, 2000.0, 0.1).withCentreSkew(200.0));
 
 	defaultValue.setup(mod, MPEModulator::SpecialParameters::DefaultValue, "Default");
 	defaultValue.setMode(HiSlider::NormalizedPercentage);
@@ -886,10 +886,12 @@ MPEPanel::Model::Row::Row(MPEModulator* mod_, LookAndFeel& laf_) :
 	}
 	else if (mode == Modulation::PitchMode)
 	{
-		intensity.setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
+		NormalisableRange<double> pr(-12.0, 12.0, 0.01);
+
+		intensity.setMode(HiSlider::Linear, pr);
 		intensity.setTextValueSuffix(" st.");
 
-		defaultValue.setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
+		defaultValue.setMode(HiSlider::Linear, pr);
 		defaultValue.setTextValueSuffix(" st.");
 	}
 	else if (mode == Modulation::PanMode)

@@ -494,6 +494,9 @@ namespace ScriptingObjects
 		/** Creates a version of this path where all sharp corners have been replaced by curves.*/
 		void roundCorners(var radius);
 
+		/** Returns the y coordinate of the first intersection at the given X position or undefined if no match. */
+		var getYAt(float xPos);
+		
 		/** Returns the point where a line ([x1, y1], [x2, y2]) intersects the path when appropriate. Returns false otherwise. */
 		var getIntersection(var start, var end, bool keepSectionOutsidePath);
 
@@ -505,6 +508,9 @@ namespace ScriptingObjects
 
 		/** Returns the area ([x, y, width, height]) that the path is occupying with the scale factor applied. */
 		var getBounds(var scaleFactor);
+
+		/** Sets a (minimal) bounding box for the path. */
+		void setBounds(var boundingBox);
 
 		/** Returns the length of the path. */
 		var getLength();
@@ -713,8 +719,11 @@ namespace ScriptingObjects
 		/** Draws a drop shadow around a rectangle. */
 		void drawDropShadow(var area, var colour, int radius);
 
-		/** Draws a drop shadow from a path. */
+		/** Draws a drop shadow from a path using melatonin blur. */
 		void drawDropShadowFromPath(var path, var area, var colour, int radius, var offset);
+
+		/** Draws an inner shadow for the given path using melatonin blur. */
+		void drawInnerShadowFromPath(var path, var area, var colour, int radius, var offset);
 
 		/** Draws a triangle rotated by the angle in radians. */
 		void drawTriangle(var area, float angle, float lineThickness);
@@ -787,6 +796,8 @@ namespace ScriptingObjects
 
 			virtual ScriptedLookAndFeel* get() = 0;
 
+			virtual simple_css::StyleSheetLookAndFeel* getStyleSheetLookAndFeel() { return nullptr; }
+
 #if HISE_INCLUDE_PROFILING_TOOLKIT
 			void onProfileEnableChange() override
 			{
@@ -811,12 +822,14 @@ namespace ScriptingObjects
 			public FilterDragOverlay::LookAndFeelMethods,
 			public RingBufferComponentBase::LookAndFeelMethods,
 			public AhdsrGraph::LookAndFeelMethods,
+			public flex_ahdsr_base::FlexAhdsrGraph::LookAndFeelMethods,
 			public MidiFileDragAndDropper::LookAndFeelMethods,
 			public SliderPack::LookAndFeelMethods,
 			public CustomKeyboardLookAndFeelBase,
 			public ScriptTableListModel::LookAndFeelMethods,
             public MatrixPeakMeter::LookAndFeelMethods,
-			public WaterfallComponent::LookAndFeelMethods
+			public WaterfallComponent::LookAndFeelMethods,
+			public HiSlider::HoverPopupLookandFeel
 		{
 			Laf(MainController* mc);
 
@@ -921,7 +934,6 @@ namespace ScriptingObjects
             void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override;
             
 			void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override;
-
 			void drawFilterBackground(Graphics &g, FilterGraph& fg) override;
 			void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p) override;
 			void drawFilterGridLines(Graphics &g, FilterGraph& fg, const Path& gridPath) override;
@@ -935,6 +947,17 @@ namespace ScriptingObjects
             
 			void drawWavetableBackground(Graphics& g, WaterfallComponent& wc, bool isEmpty) override;
 			void drawWavetablePath(Graphics& g, WaterfallComponent& wc, const Path& p, int tableIndex, bool isStereo, int currentTableIndex, int numTables) override;
+
+			PositionData getModulatorDragData(HiSlider& s, const StringArray& sourceList) const override;
+			void drawModulationDragBackground(Graphics& g, HiSlider& s, const DrawData& dd, Rectangle<int> labelBounds) override;
+			void drawModulationDragger(Graphics& g, HiSlider& s, const DrawData& dd) override;
+
+			void drawFlexAhdsrBackground(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph) override;
+			void drawFlexAhdsrCurvePoint(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, flex_ahdsr_base::State s, Point<float> curvePoint, bool hover, bool down) override;
+			void drawFlexAhdsrFullPath(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph) override;
+			void drawFlexAhdsrPosition(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, flex_ahdsr_base::State s, Point<float> pointOnPath) override;
+			void drawFlexAhdsrSegment(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, flex_ahdsr_base::State s, const Path& segment, bool hover, bool active) override;
+			void drawFlexAhdsrText(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, const String& text) override;
 
 			Image createIcon(PresetHandler::IconType type) override;
 
@@ -960,6 +983,8 @@ namespace ScriptingObjects
 					   public HiseAudioThumbnail::LookAndFeelMethods,
 					   public CustomKeyboardState::LookAndFeelBase,	
 					   public PresetBrowserLookAndFeelMethods,
+					   public FilterGraph::LookAndFeelMethods,
+					   public FilterDragOverlay::LookAndFeelMethods,
 					   public LafBase,
                        public simple_css::StyleSheet::Collection::DataProvider
 		{
@@ -980,7 +1005,9 @@ namespace ScriptingObjects
                 jassertfalse;
                 return {};
             }
-            
+
+			simple_css::StyleSheetLookAndFeel* getStyleSheetLookAndFeel() override { return this; }
+
 			void updateMultipageDialog(multipage::Dialog& mp);
 
 			static void copyPropertiesToElementSelector(simple_css::CSSRootComponent& root, Component& parent, simple_css::Selector s);
@@ -1031,6 +1058,11 @@ namespace ScriptingObjects
 			void drawKeyboardBackground(Graphics &g, Component* c, int width, int height) override;
 			void drawWhiteNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &lineColour, const Colour &textColour) override;
 			void drawBlackNote(CustomKeyboardState* state, Component* c, int midiNoteNumber, Graphics &g, int x, int y, int w, int h, bool isDown, bool isOver, const Colour &noteFillColour) override;
+
+			void drawFilterBackground(Graphics& g, FilterGraph& fg) override;
+			void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p) override;
+			void drawFilterGridLines(Graphics& g, FilterGraph& fg, const Path& gridPath) override;
+			void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override;
 
 		private:
 
@@ -1215,6 +1247,23 @@ namespace ScriptingObjects
 				CALL_LAF(drawTableHeaderColumn, g, th, columnName, columnId, width, height, isMouseOver, isMouseDown, columnFlags);
 			}
 
+			void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override
+			{
+				CALL_LAF(drawFilterDragHandle, g, o, index, handleBounds, d);
+			}
+			void drawFilterBackground(Graphics &g, FilterGraph& fg) override
+			{
+				CALL_LAF(drawFilterBackground, g, fg);
+			}
+			void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p) override
+			{
+				CALL_LAF(drawFilterPath,g, fg, p);
+			}
+			void drawFilterGridLines(Graphics &g, FilterGraph& fg, const Path& gridPath) override
+			{
+				CALL_LAF(drawFilterGridLines, g, fg, gridPath);
+			}
+
 			void drawScrollbar (Graphics& g, ScrollBar& scrollbar,
 		                                int x, int y, int width, int height,
 		                                bool isScrollbarVertical,
@@ -1328,6 +1377,8 @@ namespace ScriptingObjects
 			{
 				return css.getMinimumScrollbarThumbSize(sb);
 			}
+
+			simple_css::StyleSheetLookAndFeel* getStyleSheetLookAndFeel() override { return &css; }
 
 		private:
 

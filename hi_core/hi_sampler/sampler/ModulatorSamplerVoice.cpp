@@ -46,6 +46,7 @@ void ModulatorSamplerVoice::startVoiceInternal(int midiNoteNumber, float velocit
 	uptimeDelta = wrappedVoice.uptimeDelta;
 
 	voiceUptime -= getOwnerSynth()->getPredelayForVoice(this);
+	wrappedVoice.voiceUptime = voiceUptime;
 
 	isActive = true;
 
@@ -186,15 +187,14 @@ void ModulatorSamplerVoice::calculateBlock(int startSample, int numSamples)
 
 	voiceBuffer.clear();
 
-	
-
 	wrappedVoice.renderNextBlock(voiceBuffer, startSample, numSamples);
 
 	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(0, startSample), true, samplesInBlock);
 	CHECK_AND_LOG_BUFFER_DATA(getOwnerSynth(), DebugLogger::Location::SampleRendering, voiceBuffer.getReadPointer(1, startSample), false, samplesInBlock);
 
-	if(wrappedVoice.isWaitingForTimestretchSeek())
+	if(wrappedVoice.isWaitingForTimestretchSeek() || wrappedVoice.voiceUptime < 0.0)
 	{
+		voiceUptime = wrappedVoice.voiceUptime;
 		return;
 	}
 

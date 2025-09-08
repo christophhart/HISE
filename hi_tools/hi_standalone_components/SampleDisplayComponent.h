@@ -809,6 +809,8 @@ class MultiChannelAudioBufferDisplay: public AudioDisplayComponent,
 {
 public:
 
+	using ComplexDataType = hise::MultiChannelAudioBuffer;
+
 	enum AreaTypes
 	{
 		PlayArea = 0,

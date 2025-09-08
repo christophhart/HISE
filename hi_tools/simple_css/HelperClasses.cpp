@@ -50,7 +50,9 @@ String PseudoState::getPseudoElementName(int idx)
 	static const StringArray list({
 		"none ",
 		"before",
+		"before2"
 		"after",
+		"after2"
 		"all"
 	});
 
@@ -91,9 +93,9 @@ String PseudoState::getPseudoClassName(int state)
 	String c;
         
 	if((state & (int)PseudoClassType::First) > 0)
-		c << ":first";
+		c << ":first-child";
 	if((state & (int)PseudoClassType::Last) > 0)
-		c << ":last";
+		c << ":last-child";
 	if((state & (int)PseudoClassType::Root) > 0)
 		c << ":root";
 	if((state & (int)PseudoClassType::Hover) > 0)
@@ -108,6 +110,8 @@ String PseudoState::getPseudoClassName(int state)
 		c << ":hidden";
 	if((state & (int)PseudoClassType::Checked) > 0)
 		c << ":checked";
+	if((state & (int)PseudoClassType::Empty) > 0)
+		c << ":empty";
 
 	return c;
 }
@@ -143,6 +147,7 @@ Selector::Selector(ElementType dt)
 
 Selector::Selector(const String& s)
 {
+	
 	auto firstChar = s[0];
 
 	switch(firstChar)
@@ -168,6 +173,8 @@ Selector::Selector(const String& s)
 		name = s;
 		break;
 	}
+
+	jassert(name.isNotEmpty());
 }
 
 Selector::Selector(SelectorType t, String n):
@@ -452,14 +459,14 @@ String Transition::toString() const
 
 	if(active)
 	{
-		s << " trans(";
-		s << "dur:" << String(duration, 2) << "s, ";
-		s << "del:" << String(duration, 2) << "s";
+		s << ";\n  transition: %TR% ";
+		s << String(duration, 2) << "s";
+
+		if(delay != 0.0)
+			s << " " << String(delay, 2) << "s";
 
 		if(f)
-			s << ", f: true";
-
-		s << ')';
+			s << " " << fName;
 	}
 
 	return s;
@@ -565,7 +572,12 @@ String PropertyValue::getValue(DynamicObject::Ptr variables)
 String PropertyValue::toString() const
 {
 	String s;
-	s << valueAsString;
+
+	if(valueAsString.isEmpty() || valueAsString.containsAnyOf("\t \n"))
+		s << valueAsString.quoted('\'');
+	else
+		s << valueAsString;
+
 	s << transition.toString();
 	return s;
 }

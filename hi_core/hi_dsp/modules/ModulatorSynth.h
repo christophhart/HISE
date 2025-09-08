@@ -46,51 +46,7 @@ typedef HiseEventBuffer EVENT_BUFFER_TO_USE;
 
 using VoiceStack = UnorderedStack<ModulatorSynthVoice*>;
 
-/** The uniform voice handler will unify the voice indexes of a container so that all sound generators will use the
-    same voice index (derived by the event ID of the HiseEvent that started the voice).
-    
-    By default you can't make assumptions about voice indexes outside of the sound generator because the note might be killed
-    earlier for shorter sounds and a restarted voice might have a different voice index. This class manages the voice index
-    in a way that guarantees that all voices of child sound generators that are started by the same HiseEvent have the same voice index.
 
-    The obvious advantage of this is that allows you to reuse polyphonic modulation signals, which was a no-go before, but that comes
-    with some performance impact at the voice start (because of the logic that has to determine which voice index can be used by all child synths),
-    so only enable this when you need to.
-
-    Also you must not change the MIDI events within the container you're using this (so all sound generators inside the synth are supposed to start their sound),
-    so MIDI processing (eg. Arpeggiators etc) should not be used inside this (you can of course use an arpeggiator outside the container you're calling this on).
-*/
-struct UniformVoiceHandler
-{
-    UniformVoiceHandler(ModulatorSynth* parent_);
-
-    ~UniformVoiceHandler();
-
-    /** This is called in the prepareToPlay function and makes sure that all. */
-    void rebuildChildSynthList();
-
-    /** This will ask all child synths which voice index it should use for that event, then store it. */
-    void processEventBuffer(const HiseEventBuffer& eventBuffer);
-
-    /** This will return the uniform voice index that is used for the given event. */
-    int getVoiceIndex(const HiseEvent& e);
-
-    void incVoiceCounter(ModulatorSynth* s, int voiceIndex);
-    void decVoiceCounter(ModulatorSynth* s, int voiceIndex);
-
-    void cleanupAfterProcessing();
-
-private:
-
-    hise::SimpleReadWriteLock arrayLock;
-
-    snex::span<std::tuple<HiseEvent, uint8>, NUM_POLYPHONIC_VOICES> currentEvents;
-
-    WeakReference<ModulatorSynth> parent;
-    Array<std::tuple<WeakReference<ModulatorSynth>, VoiceBitMap<NUM_POLYPHONIC_VOICES>>> childSynths;
-
-    JUCE_DECLARE_WEAK_REFERENCEABLE(UniformVoiceHandler);
-};
 
 
 /** The base class for all sound generators in HISE.
@@ -286,23 +242,7 @@ public:
 	void disableChain(InternalChains chainToDisable, bool shouldBeDisabled);
 	bool isChainDisabled(InternalChains chain) const;;
 
-	void syncAfterDelayStart(bool waitForDelay, int voiceIndex) override
-	{
-		LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock, isOnAir());
-
-		for(auto& mb: modChains)
-		{
-			if(!waitForDelay)
-			{
-				mb.resetVoice(voiceIndex);
-				mb.getChain()->syncAfterDelayStart(waitForDelay, voiceIndex);
-			}
-		}
-
-		effectChain->syncAfterDelayStart(waitForDelay, voiceIndex);
-
-		
-	}
+	void syncAfterDelayStart(bool waitForDelay, int voiceIndex) override;
 
 	// ===================================================================================================================
 
@@ -355,7 +295,27 @@ public:
 
 	struct SoundCollectorBase
 	{
-		virtual ~SoundCollectorBase();;
+		struct SpecialStart
+		{
+			HiseEvent m;
+			ModulatorSynthSound* sound = nullptr;
+
+			double delayTimeSamples = 0.0;
+			double startOffset = 0.0;
+			double fadeInTimeSeconds = 0.0;
+			double fixedLengthSamples = 0.0;
+
+			operator bool() const noexcept { return !m.isEmpty() && sound != nullptr; }
+
+			bool operator==(const SpecialStart& other) const
+			{
+				return m == other.m && sound == other.sound;
+			}
+		};
+
+		virtual ~SoundCollectorBase();
+
+		virtual SpecialStart getSpecialSoundStart(const HiseEvent& m, ModulatorSynthSound* sound) const { return {}; }
 
 		virtual void preHiseEventCallback(const HiseEvent& e) {};
 
@@ -506,18 +466,10 @@ public:
 
 	HiseEventBuffer* getEventBuffer();
 
-	virtual void setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalHandlerToUse);
-
-	bool isUsingUniformVoiceHandler() const;
-
-	UniformVoiceHandler* getUniformVoiceHandler() const;
-
 private:
 
 	VoiceStack pendingRemoveVoices;
     
-    WeakReference<UniformVoiceHandler> currentUniformVoiceHandler;
-
 protected:
 
 	virtual bool synthNeedsEnvelope() const;;
@@ -599,7 +551,12 @@ private:
 	std::atomic<bool> bypassState;
 
     bool anyTimerActive = false;
-    
+
+	hise::UnorderedStack<SoundCollectorBase::SpecialStart> delayedSounds;
+	hise::UnorderedStack<uint16> delayedSoundEventIds;
+
+	ModulatorSynthVoice* startSoundInternal(const HiseEvent& m, ModulatorSynthSound* sound);
+
 	// ===================================================================================================================
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ModulatorSynth)
@@ -636,9 +593,10 @@ public:
 
 
 	/** This only checks if the sound is valid, but you can override this with the desired behaviour. */
-	virtual bool canPlaySound(SynthesiserSound *s) override;;
+	virtual bool canPlaySound(SynthesiserSound *s) override;
 
-	
+	void setFadeOutAtUptime(double fixedLengthSamples, double fadeInTimeSeconds);
+
 	void setCurrentHiseEvent(const HiseEvent &m);
 
 	const HiseEvent &getCurrentHiseEvent() const;
@@ -670,7 +628,6 @@ public:
 
 	void setKillFadeFactor(float newKillFadeFactor);
 
-
 	void applyKillFadeout(int startSample, int numSamples);
 
 	void applyEventVolumeFade(int startSample, int numSamples);
@@ -679,9 +636,7 @@ public:
 
 	/** This checks the envelopes of the gain modulation if any envelopes are tailing off. */
 	virtual void checkRelease();
-
 	virtual void pitchWheelMoved (int /*newValue*/);;
-
     virtual void controllerMoved (int /*controllerNumber*/, int /*newValue*/);;
 
 	const float * getVoiceValues(int channelIndex, int startSample) const;
@@ -691,6 +646,8 @@ public:
 	int getVoiceIndex() const;
 
 	void setStartUptime(double newUptime) noexcept;
+
+	int getVoicePositionInSamples(bool wrapLoop) const;
 
 	void setScriptGainValue(float newGainValue);
 	void setScriptPitchValue(float newPitchValue);
@@ -702,7 +659,6 @@ public:
 
 	void setPitchFade(double fadeTimeSeconds, double targetPitch);
 
-
 	void saveStartUptimeDelta();
 
 	void setUptimeDeltaValueForBlock();
@@ -711,9 +667,28 @@ public:
 
 	void applyGainModulation(int startSample, int numSamples, bool copyLeftChannel);
 
-protected:
+	bool checkFixedLength()
+	{
+		if(fixedFadeOutUptime > 0.0 && voiceUptime > fixedFadeOutUptime)
+		{
+			setVolumeFade(fixedFadeTimeSeconds, 0.0);
+			fixedFadeOutUptime = 0.0;
+			fixedFadeTimeSeconds = 0.0;
+			return true;
+		}
 
-	
+		return false;
+	}
+
+	/** Use this to query whether this voice is the first one that was rendererd for this buffer segment. */
+	bool isFirstRenderedVoice() const { return firstRenderedVoice; }
+
+	void setIsFirstRenderedVoice(bool isFirstVoice)
+	{
+		firstRenderedVoice = isFirstVoice;
+	}
+
+protected:
 
 	/** Returns the ModulatorSynth instance that this voice belongs to.
 	*
@@ -753,6 +728,10 @@ protected:
 
 private:
 
+	bool firstRenderedVoice = false;
+
+	double fixedFadeOutUptime = -1.0;
+	double fixedFadeTimeSeconds = 0.0;
 	
 	HiseEvent currentHiseEvent;
 
@@ -804,7 +783,8 @@ public:
 		scriptSynth,
 		macroModulationSource,
 		sendContainer,
-		silentSynth
+		silentSynth,
+		hardcodedSynth
 	};
 
 	ModulatorSynthChainFactoryType(int numVoices_, Processor *ownerProcessor);;

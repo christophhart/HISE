@@ -52,6 +52,9 @@ public:
 	/** detects the pitch in the audio buffer. */
 	static double detectPitch(const AudioSampleBuffer &buffer, int startSample, int numSamples, double sampleRate);;
 
+	/** Call this to fetch the nearest MIDI note number that matches the frequency. */
+	static int getBestMidiNote(double frequency);
+
 	/** Returns the number of samples that is needed to detect 50 Hz. */
 	static int getNumSamplesNeeded(double sampleRate);
 

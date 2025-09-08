@@ -289,7 +289,6 @@ ValueTree ValueTreeConverters::convertDynamicObjectToContentProperties(const var
 		for (auto child : *ar)
 		{
 			auto cTree = convertDynamicObjectToContentProperties(child);
-
 			root.addChild(cTree, -1, nullptr);
 		}
 
@@ -298,7 +297,26 @@ ValueTree ValueTreeConverters::convertDynamicObjectToContentProperties(const var
 	{
 		root = ValueTree("Component");
 
-		copyDynamicObjectPropertiesToValueTree(root, d, true);
+		const auto& prop = d.getDynamicObject()->getProperties();
+
+		for(const auto& nv: prop)
+		{
+			if(nv.name == ch) // skip the child list
+				continue;
+
+			if(nv.name == dyncomp::dcid::bounds)
+			{
+				auto bounds = ApiHelpers::getRectangleFromVar(nv.value);
+				root.setProperty(dyncomp::dcid::x, bounds.getX(), nullptr);
+				root.setProperty(dyncomp::dcid::y, bounds.getY(), nullptr);
+				root.setProperty(dyncomp::dcid::width, bounds.getWidth(), nullptr);
+				root.setProperty(dyncomp::dcid::height, bounds.getHeight(), nullptr);
+			}
+			else
+			{
+				root.setProperty(nv.name, nv.value, nullptr);
+			}
+		}
 
 		auto childList = d.getProperty(ch, var());
 		
@@ -307,7 +325,6 @@ ValueTree ValueTreeConverters::convertDynamicObjectToContentProperties(const var
 			for (auto child : *ar2)
 			{
 				auto cTree = convertDynamicObjectToContentProperties(child);
-
 				root.addChild(cTree, -1, nullptr);
 			}
 		}

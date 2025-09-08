@@ -127,47 +127,11 @@ public:
 	};
 
 		/** sets the envelope time and calculates the delta values per sample */
-	void setInternalAttribute (int parameterIndex, float newValue) override
-	{
-		if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
-		{
-			EnvelopeModulator::setInternalAttribute(parameterIndex, newValue);
-			return;
-		}
+	void setInternalAttribute (int parameterIndex, float newValue) override;;
 
-		switch(parameterIndex)
-		{
-			case Attack:
-				attack = newValue;
-				attackUptimeDelta = calculateTableDelta(newValue);
-				break;
-			case Release:
-				release = newValue;
-				releaseUptimeDelta = calculateTableDelta(newValue);
-				break;
-			default:
-				jassertfalse;
-		}	
-	};
+	float getDefaultValue(int parameterIndex) const;
 
-	float getDefaultValue(int parameterIndex) const
-	{
-		if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
-		{
-			return EnvelopeModulator::getDefaultValue(parameterIndex);
-		}
-
-		switch (parameterIndex)
-		{
-		case Attack:
-			return 20.0f;
-		case Release:
-			return 20.0f;
-		default:
-			jassertfalse;
-			return -1;
-		}
-	}
+	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
 
 	double calculateTableDelta(float ms)
 	{

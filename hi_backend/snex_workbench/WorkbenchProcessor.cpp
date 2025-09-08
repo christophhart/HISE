@@ -907,18 +907,15 @@ void DspNetworkCompileExporter::createProjucerFile()
 	auto rlsName = rlsFile.getNonexistentSibling(false).getFileNameWithoutExtension().removeCharacters(" ");
 	auto ciName =  ciFile.getNonexistentSibling(false).getFileNameWithoutExtension().removeCharacters(" ");
 
-    
-    
-#if JUCE_MAC
-    REPLACE_WILDCARD_WITH_STRING("%USE_IPP_MAC%", useIpp ? "USE_IPP=1" : String());
-    REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", useIpp ? "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a" : String());
-    REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", useIpp ? "/opt/intel/ipp/include" : String());
-    REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", useIpp ? "/opt/intel/ipp/lib" : String());
-#endif
+	const auto& data = dynamic_cast<GlobalSettingManager*>(chainToExport->getMainController())->getSettingsObject();
 
-#if JUCE_LINUX
-    REPLACE_WILDCARD_WITH_STRING("%USE_IPP_LINUX%", useIpp ? "USE_IPP=1" : "USE_IPP=0");
-    REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", useIpp ? "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a" : String());
+#if JUCE_WINDOWS
+	if (!useIpp) 
+		useIpp = data.getSetting(HiseSettings::Compiler::UseIPP);
+
+	REPLACE_WILDCARD_WITH_STRING("%IPP_1A%", useIpp ? "Static_Library" : String());
+#else
+	REPLACE_WILDCARD_WITH_STRING("%IPP_1A%", "");
 #endif
 
 	REPLACE_WILDCARD_WITH_STRING("%DEBUG_DLL_NAME%", dbgName);

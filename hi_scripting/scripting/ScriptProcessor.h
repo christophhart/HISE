@@ -55,7 +55,56 @@ public:
 		numEditorStates
 	};
 
-	virtual ~ProcessorWithScriptingContent();;
+	virtual ~ProcessorWithScriptingContent();
+
+	struct InterfaceQueryFunction: public ModulationDisplayValue::QueryFunction
+	{
+		InterfaceQueryFunction(Processor* p, ModulationDisplayValue::QueryFunction::Ptr targetFunction_):
+		  safeP(p),
+		  targetFunction(targetFunction_)
+		{};
+
+		bool onScaleDrag(Processor* p, bool isDown, float delta) override
+		{
+			jassert(targetFunction != nullptr);
+
+			if(safeP != nullptr)
+				return targetFunction->onScaleDrag(safeP.get(), isDown, delta);
+
+			return false;
+		}
+
+		ModulationDisplayValue getDisplayValue(Processor* p, double nv, NormalisableRange<double> nr) const override
+		{
+			jassert(targetFunction != nullptr);
+
+			if(safeP != nullptr)
+				return targetFunction->getDisplayValue(safeP, nv, nr);
+
+			return {};
+		}
+
+		WeakReference<Processor> safeP;
+		ModulationDisplayValue::QueryFunction::Ptr targetFunction;
+	};
+
+	void setModulationDisplayQueryFunction(int idx, Processor* p, ModulationDisplayValue::QueryFunction::Ptr mv)
+	{
+		if(mv != nullptr)
+			assignedFunctions[idx] = new InterfaceQueryFunction(p, mv);
+		else
+			assignedFunctions[idx] = nullptr;
+	}
+
+	ModulationDisplayValue::QueryFunction::Ptr getAssignedModulationQueryFunction(int parameterIndex) const
+	{
+		auto f = assignedFunctions.find(parameterIndex);
+
+		if(f != assignedFunctions.end())
+			return f->second;
+
+		return {};
+	}
 
 	void setAllowObjectConstruction(bool shouldBeAllowed);
 
@@ -150,6 +199,8 @@ protected:
 	} contentParameterHandler;
 
 private:
+
+	std::map<int, ModulationDisplayValue::QueryFunction::Ptr> assignedFunctions;
 
 	void defaultControlCallbackIdle(ScriptingApi::Content::ScriptComponent *component, const var& controllerValue, Result& r);
 

@@ -242,6 +242,10 @@ ColourParser::ColourParser(const String& value)
 
 		c = Colour((uint32)colourValue.getHexValue64());
 	}
+	else if(value.startsWith("0x"))
+	{
+		c = Colour(value.getHexValue64());
+	}
 	else if(value.startsWith("rgb") || value.startsWith("hsl"))
 	{
 		auto content = value.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false);
@@ -1472,6 +1476,8 @@ PseudoState Parser::parsePseudoClass()
 				state |= (int)PseudoClassType::Root;
 			if(currentToken == "checked")
 				state |= (int)PseudoClassType::Checked;
+			if(currentToken == "empty")
+				state |= (int)PseudoClassType::Empty;
 		}
 
 		skip();
@@ -1798,11 +1804,14 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 		{
 		case PropertyType::Font: return "";
 		case PropertyType::Border: return "-width";
+		case PropertyType::BorderRadius: return "";
 		case PropertyType::Transform: return "";
 		case PropertyType::Positioning: return "";
 		case PropertyType::Layout: return "";
         case PropertyType::Colour: return "";
-		case PropertyType::Variable: return "";		default: jassertfalse; return "";
+		case PropertyType::Variable: return "";
+		case PropertyType::Shadow: return "";
+		default: jassertfalse; return "";
 		}
 	}
 	if(styles.contains(token))
@@ -2110,7 +2119,11 @@ StyleSheet::Collection Parser::getCSSValues() const
 					t.duration = processValue(tokens[1], ValueType::Time).getDoubleValue();
 
 					if(tokens.size() > 2)
+					{
+						t.fName = tokens[2];
 						t.f = parseTimingFunction(tokens[2]);
+					}
+						
 					
 					if(tokens.size() > 3)
 						t.delay = processValue(tokens[3], ValueType::Time).getDoubleValue();

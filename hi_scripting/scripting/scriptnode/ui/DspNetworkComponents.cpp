@@ -1298,7 +1298,7 @@ void DspNetworkGraph::paintOverChildren(Graphics& g)
 
 				if (auto rn = r->getAsReceiveNode())
 				{
-					if (&sn->cable == rn->source)
+					if (sn->getCable() == *rn->getSourceCablePtr())
 					{
 						auto start = getCircle(s, false);
 						auto end = getCircle(r, false);

@@ -79,7 +79,16 @@ struct ValueTreeIterator: public valuetree::Helpers
 	static ValueTree getTargetParameterTree(const ValueTree& connectionTree);
 
     static int getFixRuntimeHash(const ValueTree& nodeTree);
-    
+
+	struct ModConfigCodegenData
+	{
+		bool isConstant = false;
+		modulation::config::dynamic config;
+		modulation::ParameterMode pm = modulation::ParameterMode::numModulationModes;
+	};
+
+	static ModConfigCodegenData getTargetModeForModConfig(const ValueTree& nodeTree);
+
 	static int calculateChannelCount(const ValueTree& nodeTree, int numCurrentChannels);
 
 	static bool isContainerWithFixedParameters(const ValueTree& nodeTree);
@@ -284,6 +293,8 @@ struct PooledCableType : public UsingTemplate,
 		UsingTemplate(p, id, NamespacedIdentifier::fromString("cable").getChildId(c.isFrame ? "frame" : "block")),
 		data(c)
 	{
+		addTemplateIntegerArgument("NV", true);
+
 		*this << c.numChannels;
 	}
 

@@ -359,7 +359,8 @@ void SimpleMarkdownDisplay::InternalComp::mouseDown(const MouseEvent& e)
 	}
 }
 
-SimpleMarkdownDisplay::SimpleMarkdownDisplay():
+SimpleMarkdownDisplay::SimpleMarkdownDisplay(const String& name):
+	Component(name),
 	r("", nullptr),
 	canvas(*this)
 {

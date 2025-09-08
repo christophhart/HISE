@@ -1060,6 +1060,16 @@ float ModulatorSynthGroup::getDefaultValue(int parameterIndex) const
 	}
 }
 
+ModulationDisplayValue::QueryFunction::Ptr ModulatorSynthGroup::getModulationQueryFunction(int parameterIndex) const
+{
+	switch(parameterIndex)
+	{
+	case UnisonoDetune: return new ModulatorChain::GetModulationOutput<(int)InternalChains::DetuneModulation>();
+	case UnisonoSpread: return new ModulatorChain::GetModulationOutput<(int)InternalChains::SpreadModulation>();
+	default:            return ModulatorSynth::getModulationQueryFunction(parameterIndex);
+	}
+}
+
 ModulatorSynth* ModulatorSynthGroup::getFMModulator()
 {
 	if (fmIsCorrectlySetup())

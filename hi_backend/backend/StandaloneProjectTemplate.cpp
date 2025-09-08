@@ -56,14 +56,14 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <%VS_VERSION% targetFolder="Builds/%TARGET_FOLDER%/" IPP1ALibrary="%IPP_1A%"  %ICON_FILE% extraDefs="%EXTRA_DEFINES_WIN%&#10;%PERFETTO_INCLUDE_WIN%"  extraLinkerFlags="%UAC_LEVEL%" extraCompilerFlags="/bigobj /cgthreads8 %MSVC_WARNINGS% %PERFETTO_COMPILER_FLAGS_WIN%">
+    <%VS_VERSION% targetFolder="Builds/%TARGET_FOLDER%/" IPP1ALibrary="%IPP_1A%"  %ICON_FILE% extraDefs="%EXTRA_DEFINES_WIN%&#10;%PERFETTO_INCLUDE_WIN%"  extraLinkerFlags="%FFT_LINKER_FLAGS%&#10;%UAC_LEVEL%" extraCompilerFlags="/bigobj /cgthreads8 %MSVC_WARNINGS% %PERFETTO_COMPILER_FLAGS_WIN%&#10;/arch:AVX&#10;">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="1" generateManifest="1" winArchitecture="x64"
                        libraryPath="%WIN_STATIC_LIB_FOLDER_D64%" isDebug="1" optimisation="1" targetName="%NAME% Debug"
-                       binaryPath="Compiled/" headerPath="%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%" useRuntimeLibDLL="0" prebuildCommand="%PREBUILD_COMMAND%"/>
+                       binaryPath="Compiled/" headerPath="%FFT_HEADER_PATH%&#10;%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%" useRuntimeLibDLL="0" prebuildCommand="%PREBUILD_COMMAND%"/>
         <CONFIGURATION name="Release" winWarningLevel="1" generateManifest="1" winArchitecture="x64"
                        libraryPath="%WIN_STATIC_LIB_FOLDER_R64%" isDebug="0" optimisation="3" targetName="%NAME%"
-                       binaryPath="Compiled/" headerPath="%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%" useRuntimeLibDLL="0" prebuildCommand="%PREBUILD_COMMAND%"%STRIP_SYMBOLS_WIN%/>
+                       binaryPath="Compiled/" headerPath="%FFT_HEADER_PATH%&#10;%ASIO_SDK_PATH%;%FAUST_HEADER_PATH%" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%" useRuntimeLibDLL="0" prebuildCommand="%PREBUILD_COMMAND%;%STRIP_SYMBOLS_WIN%"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_core" path="%JUCE_PATH%"/>
@@ -99,15 +99,15 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
       </MODULEPATHS>
     </%VS_VERSION%>
     <XCODE_MAC targetFolder="Builds/MacOSX" vstFolder="%VSTSDK_FOLDER%" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -fno-aligned-allocation -ffp-contract=off" %ICON_FILE% 
-               extraLinkerFlags="%IPP_COMPILER_FLAGS% %OSX_STATIC_LIBS%" extraDefs="%EXTRA_DEFINES_OSX%&#10;%PERFETTO_INCLUDE_MACOS%" hardenedRuntime="0" hardenedRuntimeOptions="com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input" xcodeValidArchs="arm64,arm64e,x86_64" externalLibraries="%BEATPORT_LIB_MACOS%">
+               extraLinkerFlags="%OSX_STATIC_LIBS%" extraDefs="%EXTRA_DEFINES_OSX%&#10;%PERFETTO_INCLUDE_MACOS%" hardenedRuntime="0" hardenedRuntimeOptions="com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input" xcodeValidArchs="arm64,arm64e,x86_64" externalLibraries="%BEATPORT_LIB_MACOS%">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="10.9 SDK" osxArchitecture="%MACOS_ARCHITECTURE%"
                        isDebug="1" optimisation="1" targetName="%NAME% Debug"
-                       headerPath="%IPP_HEADER%;%FAUST_HEADER_PATH%" libraryPath="%IPP_LIBRARY%;%BEATPORT_DEBUG_LIB%"
+                       headerPath="%FAUST_HEADER_PATH%" libraryPath="%BEATPORT_DEBUG_LIB%"
                        cppLibType="libc++" binaryPath="Compiled/"/>
         <CONFIGURATION name="Release" osxSDK="default" osxCompatibility="10.9 SDK" osxArchitecture="%MACOS_ARCHITECTURE%"
-                       isDebug="0" optimisation="3" targetName="%NAME%" headerPath="%IPP_HEADER%;%FAUST_HEADER_PATH%"
-                       libraryPath="%IPP_LIBRARY%;%BEATPORT_RELEASE_LIB%" cppLibType="libc++" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%"
+                       isDebug="0" optimisation="3" targetName="%NAME%" headerPath="%FAUST_HEADER_PATH%"
+                       libraryPath="%BEATPORT_RELEASE_LIB%" cppLibType="libc++" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%"
                        binaryPath="Compiled/" %STRIP_SYMBOLS_MACOS%/>
       </CONFIGURATIONS>
       <MODULEPATHS>
@@ -143,10 +143,10 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
 		%LORIS_MODULEPATH%
       </MODULEPATHS>
     </XCODE_MAC>
-   <LINUX_MAKE targetFolder="Builds/LinuxMakefile" linuxExtraPkgConfig="%LINUX_GUI_LIBS%" extraLinkerFlags="-no-pie&#10;%IPP_COMPILER_FLAGS%" extraCompilerFlags="-fpermissive" extraDefs="%EXTRA_DEFINES_LINUX%">
+   <LINUX_MAKE targetFolder="Builds/LinuxMakefile" linuxExtraPkgConfig="%LINUX_GUI_LIBS%" extraLinkerFlags="-no-pie&#10;-flto=auto&#10;-fuse-ld=gold&#10;%FFT_LINKER_FLAGS%" extraCompilerFlags="-fpermissive" extraDefs="%EXTRA_DEFINES_LINUX%">
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="%NAME%" headerPath="%IPP_HEADER%;%FAUST_HEADER_PATH%" libraryPath="%IPP_LIBRARY%"/>
-        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="%NAME%" headerPath="%IPP_HEADER%;%FAUST_HEADER_PATH%" libraryPath="%IPP_LIBRARY%" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%"/>
+        <CONFIGURATION name="Debug" isDebug="1" optimisation="1" targetName="%NAME%" headerPath="%FAUST_HEADER_PATH%" libraryPath=""/>
+        <CONFIGURATION name="Release" isDebug="0" optimisation="3" targetName="%NAME%" headerPath="%FAUST_HEADER_PATH%" libraryPath="" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%"/>
       </CONFIGURATIONS>
       <MODULEPATHS>
         <MODULEPATH id="juce_product_unlocking" path="%HISE_PATH%"/>
@@ -216,12 +216,12 @@ static const unsigned char projectStandaloneTemplate_jucer_lines[] = R"(
   </MODULES>
   <JUCEOPTIONS JUCE_QUICKTIME="disabled" USE_BACKEND="disabled" USE_FRONTEND="enabled" USE_RAW_FRONTEND="%USE_RAW_FRONTEND%"
                HI_EXPORT_DSP_LIBRARY="disabled" USE_COPY_PROTECTION="%USE_COPY_PROTECTION%"
-               IS_STANDALONE_APP="enabled" USE_IPP="%USE_IPP%" FRONTEND_IS_PLUGIN="%FRONTEND_IS_PLUGIN%"
+               IS_STANDALONE_APP="enabled" FRONTEND_IS_PLUGIN="%FRONTEND_IS_PLUGIN%"
                USE_CUSTOM_FRONTEND_TOOLBAR="%USE_CUSTOM_FRONTEND_TOOLBAR%" HI_SUPPORT_FULL_DYNAMICS_HLAC="%SUPPORT_FULL_DYNAMICS%" READ_ONLY_FACTORY_PRESETS="%READ_ONLY_FACTORY_PRESETS%" IS_STANDALONE_FRONTEND="%IS_STANDALONE_FRONTEND%" USE_GLITCH_DETECTION="enabled"
                ENABLE_PLOTTER="disabled" ENABLE_SCRIPTING_SAFE_CHECKS="disabled"
                ENABLE_ALL_PEAK_METERS="disabled" ENABLE_CONSOLE_OUTPUT="disabled"
                JUCE_ASIO="%USE_ASIO%" JUCE_JACK="%USE_JACK%" USE_SPLASH_SCREEN="%USE_SPLASH_SCREEN%" HISE_OVERWRITE_OLD_USER_PRESETS="%OVERWRITE_OLD_USER_PRESETS%" HI_ENABLE_LEGACY_CPU_SUPPORT="%LEGACY_CPU_SUPPORT%" HISE_INCLUDE_RLOTTIE="enabled" HISE_INCLUDE_FAUST="%HISE_INCLUDE_FAUST%" HISE_USE_SYSTEM_APP_DATA_FOLDER="%USE_GLOBAL_APP_FOLDER%"  HLAC_MEASURE_DECODING_PERFORMANCE="disabled" HLAC_DEBUG_LOG="disabled" HLAC_INCLUDE_TEST_SUITE="disabled" STANDALONE_STREAMING="disabled"
-			   JUCE_DSP_USE_INTEL_MKL="disabled" JUCE_WEB_BROWSER="disabled" JUCE_USE_CURL="disabled" JUCE_DSP_USE_SHARED_FFTW="disabled" JUCE_DSP_USE_STATIC_FFTW="disabled" HISE_USE_CUSTOM_EXPANSION_TYPE="%USE_CUSTOM_EXPANSION_TYPE%" HISE_INCLUDE_LORIS="%HISE_INCLUDE_LORIS%"/>
+         JUCE_DSP_USE_INTEL_MKL="disabled" JUCE_WEB_BROWSER="disabled" JUCE_USE_CURL="disabled" JUCE_DSP_USE_SHARED_FFTW="disabled" JUCE_DSP_USE_STATIC_FFTW="%USE_STATIC_FFTW%" HISE_USE_CUSTOM_EXPANSION_TYPE="%USE_CUSTOM_EXPANSION_TYPE%" HISE_INCLUDE_LORIS="%HISE_INCLUDE_LORIS%"/>
 </JUCERPROJECT>)";
 
 const char* projectStandaloneTemplate_jucer = (const char*)projectStandaloneTemplate_jucer_lines;

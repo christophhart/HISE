@@ -1449,16 +1449,6 @@ namespace dynamic
 			display(b, updater)
 		{
 			addAndMakeVisible(display);
-
-#if 0
-			auto typed = dynamic_cast<pimpl::ahdsr_base*>(b);
-			if (auto rb = dynamic_cast<SimpleRingBuffer*>(typed->externalData.obj))
-			{
-				addAndMakeVisible(graph = new AhdsrGraph(rb));
-				graph->setSpecialLookAndFeel(new data::ui::pimpl::complex_ui_laf(), true);
-			}
-#endif
-
 			setSize(200, 100);
 		}
 
@@ -1493,6 +1483,76 @@ namespace dynamic
 		}
 
 		DisplayType display;
+	};
+
+	struct flex_ahdsr_display : public envelope_display_base
+	{
+		struct internal_display: public data::ui::pimpl::editorT<data::dynamic::displaybuffer, SimpleRingBuffer, flex_ahdsr_base::FlexAhdsrGraph, false>
+		{
+			static data::dynamic::displaybuffer* getDynamicRingBuffer(envelope_base* b)
+			{
+				if (auto mn = dynamic_cast<mothernode*>(b))
+				{
+					auto dataObject = mn->getDataProvider()->getDataObject();
+					auto typed = dynamic_cast<data::dynamic::displaybuffer*>(dataObject);
+					return typed;
+				}
+
+				return nullptr;
+			}
+
+			internal_display(envelope_base* o, PooledUIUpdater* u):
+			  editorT(u, getDynamicRingBuffer(o))
+			{
+				if(dragger != nullptr)
+					dragger->setVisible(false);
+
+				resized();
+			}
+
+			void resized() override
+			{
+				auto b = getLocalBounds();
+
+				externalButton.setBounds(b.removeFromRight(28).removeFromBottom(28).reduced(3));
+				editor->setBounds(b);
+				refreshDashPath();
+			}
+		};
+
+		flex_ahdsr_display(envelope_base* o, PooledUIUpdater* u):
+		  envelope_display_base(o, u),
+		  display(o, u)
+		{
+			addAndMakeVisible(display);
+			setSize(200, 180);
+		}
+
+		void timerCallback() override
+		{
+			
+		}
+
+		void resized() override
+		{
+			auto b = getLocalBounds();
+			b.removeFromBottom(UIValues::NodeMargin);
+
+			auto r = b.removeFromRight(100);
+			b.removeFromRight(UIValues::NodeMargin);
+			display.setBounds(b);
+			modValue.setBounds(r.removeFromTop(32));
+			activeValue.setBounds(r.removeFromBottom(32));
+		}
+
+		static Component* createExtraComponent(void* o, PooledUIUpdater* updater)
+		{
+			auto t = static_cast<mothernode*>(o);
+			auto typed = dynamic_cast<envelope_base*>(t);
+			return new flex_ahdsr_display(typed, updater);
+		}
+
+		internal_display display;
 	};
 
 	struct env_display : envelope_display_base
@@ -1673,10 +1733,67 @@ Factory::Factory(DspNetwork* network) :
 	registerNode<faust>();
 #endif // HISE_INCLUDE_FAUST_JIT
 
-	registerModNode<dp<extra_mod>, data::ui::displaybuffer_editor>();
-	registerModNode<dp<pitch_mod>, data::ui::displaybuffer_editor>();
-	registerModNode<dp<global_mod>, data::ui::displaybuffer_editor>();
+	using fi = runtime_target::indexers::fix_hash<1>;
+	using pci = modulation::config::PitchIndexer;
+	using mc = modulation::config::dynamic_with_display;
+
+	struct ec: public modulation::config::extra_config_with_display
+	{
+		void prepare(PrepareSpecs ps) override
+		{
+			if(parentNode != nullptr)
+				ScriptnodeExceptionHandler::validateMidiProcessingContext(parentNode);
+		}
+
+		void checkIndex(const Identifier& id, const var& newValue)
+		{
+			if(parentNode != nullptr)
+			{
+				auto root = parentNode->getRootNetwork();
+
+				root->getExceptionHandler().removeError(parentNode, Error::ErrorCode::RootIdMismatch);
+				auto mi = (int)newValue;
+				auto nn = root->getParameterProperties();
+				auto ok = nn.isUsed(mi);
+
+				if(!ok)
+				{
+					root->getExceptionHandler().addCustomError(parentNode, Error::ErrorCode::RootIdMismatch, "No parameter assigned to modulation slot #" + String(mi+1));
+				}
+			}
+		}
+
+		void initialise(NodeBase* n) override
+		{
+			parentNode = n;
+
+			if(n != nullptr)
+			{
+				auto ptree = n->getParameterTree().getChildWithProperty(PropertyIds::ID, "Index");
+
+				indexListener.setCallback(ptree, 
+									      { PropertyIds::Value }, 
+										  valuetree::AsyncMode::Asynchronously, 
+										  BIND_MEMBER_FUNCTION_2(ec::checkIndex));
+			}
+		}
+
+
+		valuetree::PropertyListener indexListener;
+		WeakReference<NodeBase> parentNode;
+	};
+
+	using pc = modulation::config::pitch_config_with_display;
+
+	using ei = modulation::config::ExtraIndexer;
 	
+
+
+	registerPolyModNode<dp<global_mod<1, fi, mc>>, dp<global_mod<NUM_POLYPHONIC_VOICES, fi, mc>>, data::ui::displaybuffer_editor>();
+	registerPolyModNode<dp<pitch_mod<1, pci, pc>>, dp<pitch_mod<NUM_POLYPHONIC_VOICES, pci, pc>>, data::ui::displaybuffer_editor>();
+	registerPolyModNode<dp<extra_mod<1, ei, ec>>, dp<extra_mod<NUM_POLYPHONIC_VOICES, ei, ec>>, data::ui::displaybuffer_editor>();
+	registerPolyModNode<dp<matrix_mod<1>>, dp<matrix_mod<NUM_POLYPHONIC_VOICES>>, data::ui::displaybuffer_editor>();
+
 	registerModNode<dp<peak>, data::ui::displaybuffer_editor>();
 	registerModNode<dp<peak_unscaled>, data::ui::displaybuffer_editor>();
 	registerPolyModNode<dp<ramp<1, true>>, dp<ramp<NUM_POLYPHONIC_VOICES, true>>, data::ui::displaybuffer_editor>();
@@ -1706,6 +1823,27 @@ template <typename T> using dp = wrap::data<T, data::dynamic::displaybuffer>;
 Factory::Factory(DspNetwork* network) :
 	NodeFactory(network)
 {
+	struct parameter_handler: public flex_ahdsr_base::DragHandlerBase
+	{
+		void initialise(NodeBase* n)
+		{
+			parentNode = n;
+		}
+
+		bool handleAdditionalDrag(int parameterIndex, double value) override
+		{
+			if(auto p = parentNode->getParameterFromIndex(parameterIndex))
+			{
+				p->setValueSync(value);
+				return true;
+			}
+
+			return false;
+		}
+
+		WeakReference<NodeBase> parentNode;
+	};
+
 	registerPolyModNode<dp<simple_ar<1, parameter::dynamic_list>>, 
 						dp<simple_ar<NUM_POLYPHONIC_VOICES, parameter::dynamic_list>>, 
 						dynamic::env_display, 
@@ -1714,6 +1852,11 @@ Factory::Factory(DspNetwork* network) :
 	registerPolyModNode<dp<ahdsr<1, parameter::dynamic_list>>, 
 						dp<ahdsr<NUM_POLYPHONIC_VOICES, parameter::dynamic_list>>, 
 						dynamic::ahdsr_display, 
+						false>();
+
+	registerPolyModNode<dp<flex_ahdsr<1, parameter::dynamic_list, parameter_handler>>,
+						dp<flex_ahdsr<NUM_POLYPHONIC_VOICES, parameter::dynamic_list, parameter_handler>>,
+						dynamic::flex_ahdsr_display,
 						false>();
 
 	registerNode<voice_manager, voice_manager_base::editor>();
@@ -1798,28 +1941,10 @@ BackendHostFactory::BackendHostFactory(DspNetwork* n, ProjectDll::Ptr dll) :
 
 	if(numNodesInDll == 0)
 	{
-		auto propFile = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::ThirdParty).getChildFile("node_properties.json");
+		std::pair<Array<Identifier>, int> rv = BackendDllManager::initialiseThirdPartyProperties(mc);
 
-		NamespacedIdentifier rootId("project");
-
-		auto thirdPartyList = JSON::parse(propFile.loadFileAsString());
-
-		if(auto obj = thirdPartyList.getDynamicObject())
-		{
-			for(const auto& nv: obj->getProperties())
-			{
-				thirdPartyOffset++;
-				idsFromJSON.add(nv.name);
-
-				if(nv.value.isArray())
-				{
-					for(const auto& v: *nv.value.getArray())
-					{
-						cppgen::CustomNodeProperties::addNodeIdManually(nv.name, v.toString());
-					}
-				}
-			}
-		}
+		thirdPartyOffset = rv.second;
+		idsFromJSON = rv.first;
 	}
 	else
 	{

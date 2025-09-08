@@ -931,6 +931,29 @@ void StreamingSamplerVoice::interpolateFromStereoData(int startSample, float* ou
 
 void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int startSample, int numSamples)
 {
+	if(voiceUptime < 0.0)
+	{
+		if(voiceUptime + pitchCounter > 0.0)
+		{
+			auto remainingUptime = pitchCounter - (-1.0) * voiceUptime;
+
+			pitchCounter -= remainingUptime;
+
+			auto bufferRatio = remainingUptime / (double)numSamples;
+
+			auto numSamplesToSkip = roundToInt(bufferRatio * (double)numSamples);
+
+			startSample += numSamplesToSkip;
+			numSamples -= numSamplesToSkip;
+			voiceUptime = 0.0;
+		}
+		else
+		{
+			voiceUptime += pitchCounter;
+			return;
+		}
+	}
+
 	const StreamingSamplerSound *sound = loader.getLoadedSound();
 
 #if USE_SAMPLE_DEBUG_COUNTER

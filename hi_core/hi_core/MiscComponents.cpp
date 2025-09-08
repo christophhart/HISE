@@ -323,38 +323,52 @@ bool MouseCallbackComponent::isInterestedInFileDrag(const StringArray& files)
 	if (fileDropExtensions.isEmpty())
 		return false;
 
-	if (files.size() > 1)
-		return false;
+	auto ok = !files.isEmpty();
 
-	File f(files[0]);
-
-	for (auto& ex : fileDropExtensions)
+	for(auto& fn: files)
 	{
-		if (files[0].matchesWildcard(ex, true))
-			return true;
+		File f(fn);
+
+		auto match = false;
+
+		for (auto& ex : fileDropExtensions)
+		{
+			if(ex == "{FOLDER}" && f.isDirectory())
+			{
+				match = true;
+				break;
+			}
+			else if (fn.matchesWildcard(ex, true))
+			{
+				match = true;
+				break;
+			}
+		}
+
+		ok &= match;
 	}
 
-	return false;
+	return ok;
 }
 
 void MouseCallbackComponent::fileDragEnter(const StringArray& files, int x, int y)
 {
-	sendFileMessage(Action::FileEnter, files[0], Point<int>(x, y));
+	sendFileMessage(Action::FileEnter, files, Point<int>(x, y));
 }
 
 void MouseCallbackComponent::fileDragMove(const StringArray& files, int x, int y)
 {
-	sendFileMessage(Action::FileMove, files[0], Point<int>(x, y));
+	sendFileMessage(Action::FileMove, files, Point<int>(x, y));
 }
 
 void MouseCallbackComponent::fileDragExit(const StringArray& files)
 {
-	sendFileMessage(Action::FileExit, files[0], Point<int>());
+	sendFileMessage(Action::FileExit, files, Point<int>());
 }
 
 void MouseCallbackComponent::filesDropped(const StringArray& files, int x, int y)
 {
-	sendFileMessage(Action::FileDrop, files[0], Point<int>(x, y));
+	sendFileMessage(Action::FileDrop, files, Point<int>(x, y));
 }
 
 void MouseCallbackComponent::setAllowCallback(const String &newCallbackLevel) noexcept
@@ -426,7 +440,7 @@ void MouseCallbackComponent::mouseUp(const MouseEvent &event)
 	sendMessage(event, Action::MouseUp);
 }
 
-void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<int> pos)
+void MouseCallbackComponent::sendFileMessage(Action a, const StringArray& f, Point<int> pos)
 {
 	FileCallbackLevel requiredLevel = FileCallbackLevel::NoCallbacks;
 
@@ -455,9 +469,20 @@ void MouseCallbackComponent::sendFileMessage(Action a, const String& f, Point<in
 	e->setProperty(y, pos.getY());
 	e->setProperty(hover, a != Action::FileExit);
 	e->setProperty(drop, a == Action::FileDrop);
-	e->setProperty(file, f);
 
-	
+	if(f.size() == 1)
+		e->setProperty(file, f[0]);
+	else
+	{
+		Array<var> fileList;
+
+		fileList.ensureStorageAllocated(f.size());
+
+		for(auto& fn: f)
+			fileList.add(var(fn));
+
+		e->setProperty(file, var(fileList));
+	}
 
 	for(auto l: listenerList)
 	{
@@ -1077,7 +1102,19 @@ void BorderPanel::paint(Graphics &g)
 	}
 	else
 	{
-        if(auto laf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&getLookAndFeel()))
+		auto thisLaf = &getLookAndFeel();
+
+		auto laf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(thisLaf);
+
+		if(laf == nullptr)
+		{
+			if(auto scriptedLaf = dynamic_cast<hise::ScriptingObjects::ScriptedLookAndFeel::LafBase*>(thisLaf))
+			{
+				laf = scriptedLaf->getStyleSheetLookAndFeel();
+			}
+		}
+
+        if(laf != nullptr)
         {
 			if(auto root = simple_css::CSSRootComponent::find(*this))
 			{

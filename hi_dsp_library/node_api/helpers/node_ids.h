@@ -140,6 +140,7 @@ DECLARE_ID(IsCloneCableNode);
 DECLARE_ID(IsRoutingNode);
 DECLARE_ID(IsFixRuntimeTarget);
 DECLARE_ID(IsDynamicRuntimeTarget);
+DECLARE_ID(NeedsModConfig);
 DECLARE_ID(IsPublicMod);
 DECLARE_ID(UseUnnormalisedModulation);
 DECLARE_ID(AllowPolyphonic);
@@ -149,6 +150,9 @@ DECLARE_ID(CompileChannelAmount);
 DECLARE_ID(HasTail);
 DECLARE_ID(SourceId);
 DECLARE_ID(SuspendOnSilence);
+DECLARE_ID(TextToValueConverter);
+DECLARE_ID(ModulationBlockSize);
+DECLARE_ID(ExternalModulation);
 
 struct Helpers
 {
@@ -169,7 +173,9 @@ struct Helpers
 			AllowCompilation,
 			HasTail,
 			SuspendOnSilence,
-            CompileChannelAmount
+            CompileChannelAmount,
+			TextToValueConverter,
+			ModulationBlockSize
 		};
 
 		return dIds;
@@ -193,6 +199,9 @@ struct Helpers
 		returnIfDefault(AllowCompilation, false);
 		returnIfDefault(AllowPolyphonic, false);
         returnIfDefault(CompileChannelAmount, 2);
+		returnIfDefault(TextToValueConverter, "Undefined");
+		returnIfDefault(ModulationBlockSize, 0);
+		returnIfDefault(ExternalModulation, "Disabled");
 
         return {};
 	}
@@ -326,6 +335,17 @@ struct CustomNodeProperties
 		else
 			jassertfalse;
 #endif
+	}
+
+	/** Use this to query whether the given node needs a runtime target. */
+	template <typename T> static bool isRuntimeTarget()
+	{
+		String id = T::WrappedObjectType::getStaticId().toString();
+
+		auto d = nodeHasProperty(id, PropertyIds::IsDynamicRuntimeTarget);
+		auto f = nodeHasProperty(id, PropertyIds::IsFixRuntimeTarget);
+
+		return d || f;
 	}
 
 	static StringArray getAllNodesWithProperty(const Identifier& propId)

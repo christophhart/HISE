@@ -1462,10 +1462,12 @@ void ModulatorSampler::noteOff(const HiseEvent &m)
 
 void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 {
+	if(soundCollector != nullptr)
+		soundCollector->preHiseEventCallback(m);
+
 	if (m.isNoteOnOrOff())
 	{
-		if(soundCollector != nullptr)
-			soundCollector->preHiseEventCallback(m);
+		
 
 		if (m.isNoteOn())
 		{

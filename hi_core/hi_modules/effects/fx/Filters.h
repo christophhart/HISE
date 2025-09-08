@@ -30,107 +30,9 @@
 *   ===========================================================================
 */
 
-#ifndef FILTERS_H_INCLUDED
-#define FILTERS_H_INCLUDED
+#pragma once
 
 namespace hise { using namespace juce;
-
-#define USE_STATE_VARIABLE_FILTERS 1
-
-
-#if HISE_INCLUDE_OLD_MONO_FILTER
-
-class MonoFilterEffect: public MonophonicEffectProcessor,
-						public FilterEffect
-{
-public:
-
-	SET_PROCESSOR_NAME("MonophonicFilter", "Monophonic Filter", "deprecated");
-
-	enum InternalChains
-	{
-		FrequencyChain = 0,
-		GainChain,
-		BipolarFrequencyChain,
-		numInternalChains
-	};
-
-	enum EditorStates
-	{
-		FrequencyChainShown = Processor::numEditorStates,
-		GainChainShown,
-		BipolarFrequencyChainShown,
-		numEditorStates
-	};
-
-	enum Parameters
-	{
-		Gain = 0,
-		Frequency,
-		Q,
-		Mode,
-        Quality,
-		BipolarIntensity,
-		numEffectParameters
-	};
-
-	MonoFilterEffect(MainController *mc, const String &id);;
-
-	void setUseInternalChains(bool shouldBeUsed);;
-	
-	float getAttribute(int parameterIndex) const override;;
-	void setInternalAttribute(int parameterIndex, float newValue) override;;
-	float getDefaultValue(int parameterIndex) const override;
-
-	void restoreFromValueTree(const ValueTree &v) override;;
-	ValueTree exportAsValueTree() const override;
-
-	void prepareToPlay(double sampleRate, int samplesPerBlock) override;;
-	void applyEffect(AudioSampleBuffer &buffer, int startSample, int numSamples) override;
-    
-    void processBlockPartial(AudioSampleBuffer &buffer, int startSample, int numSamples);
-	
-	bool hasTail() const override {return false; };
-
-	int getNumInternalChains() const override { return useInternalChains ? numInternalChains : 0; };
-	int getNumChildProcessors() const override { return useInternalChains ? numInternalChains : 0; };
-	Processor *getChildProcessor(int processorIndex) override;;
-	const Processor *getChildProcessor(int processorIndex) const override;;
-	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
-	
-	IIRCoefficients getCurrentCoefficients() const override
-	{
-		return filterCollection.getCurrentCoefficients();
-	}
-
-private:
-
-	void setMode(int filterMode);
-
-	void calcCoefficients();
-
-	bool useInternalChains;
-	bool useFixedFrequency;
-
-	ModulatorChain* freqChain;
-	ModulatorChain* gainChain;
-	ModulatorChain* bipolarFreqChain;
-
-	friend class PolyFilterEffect;
-	friend class HarmonicFilter;
-	friend class HarmonicMonophonicFilter;
-
-	bool changeFlag;
-
-	bool useBipolarIntensity = false;
-	float bipolarIntensity = 0.0f;
-
-	FilterBank filterCollection;
-
-	double lastSampleRate = 0.0;
-
-};
-#endif
 
 /** The filter module of HISE. 
 	@ingroup effectTypes
@@ -140,7 +42,9 @@ private:
 */
 class PolyFilterEffect: public VoiceEffectProcessor,
 						public FilterEffect,
-						public ModulatorChain::Handler::Listener
+						public ModulatorChain::Handler::Listener,
+						public scriptnode::data::filter_base,
+						public ProcessorWithCustomFilterStatistics
 {
 public:
 
@@ -185,6 +89,8 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getDefaultValue(int parameterIndex) const override;
 
+	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
+
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 
@@ -202,17 +108,22 @@ public:
 	
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	FilterDataObject::CoefficientData getCurrentCoefficients() const override;;
+	FilterDataObject::CoefficientData getApproximateCoefficients() const override;
 
 	bool hasPolyMods() const noexcept;
 
+	
 private:
 
-	
+	void updateDisplayCoefficients()
+	{
+		getFilterData(0)->getUpdater().sendDisplayChangeMessage(0, sendNotificationAsync);
+	}
+
+	friend class FilterEditor;
 
 	bool blockIsActive = false;
 	int polyWatchdog = 0;
-
 
 	BlockDivider<64> monoDivider;
 
@@ -242,4 +153,3 @@ private:
 } // namespace hise
 
 
-#endif  // FILTERS_H_INCLUDED

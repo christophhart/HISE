@@ -180,7 +180,46 @@ void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, Un
 	}
 	
 	d.setProperty(ri(rangeIdSet, RangeIdentifier::StepSize), r.rng.interval, um);
-	d.setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), r.rng.skew, um);
+
+	if(rangeIdSet == IdSet::ScriptComponents)
+	{
+		if(r.rng.skew != 1.0)
+		{
+			auto midPosition = r.convertFrom0to1(0.5, false);
+			d.setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), midPosition, um);
+		}
+	}
+	else
+	{
+		d.setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), r.rng.skew, um);
+	}
+
+	
+}
+
+std::pair<bool, double> RangeHelpers::getDefaultValue(const var& obj)
+{
+	double defaultValue = 0.0;
+
+	// the default value is not part of the RangeHelper::IdSet so we must fetch this manually
+	if(obj.hasProperty(PropertyIds::DefaultValue))
+		defaultValue = (double)obj[PropertyIds::DefaultValue];
+	else if(obj.hasProperty("defaultValue"))
+		defaultValue = (double)obj["defaultValue"];
+	else
+		return { false, 0.0 };
+		
+	FloatSanitizers::sanitizeDoubleNumber(defaultValue);
+
+	auto idSet = getIdSetForJSON(obj);
+	auto rng = getDoubleRange(obj, idSet);
+
+	if(defaultValue < rng.rng.start)
+		defaultValue = rng.getRange().getStart();
+	if(defaultValue > rng.rng.end)
+		defaultValue = rng.getRange().getEnd();
+
+	return {true, defaultValue};
 }
 
 void RangeHelpers::storeDoubleRange(var& obj, InvertableParameterRange r, IdSet rangeIdSet)
@@ -211,7 +250,19 @@ void RangeHelpers::storeDoubleRange(var& obj, InvertableParameterRange r, IdSet 
 	}
 
 	d->setProperty(ri(rangeIdSet, RangeIdentifier::StepSize), r.rng.interval);
-	d->setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), r.rng.skew);
+
+	if(rangeIdSet == IdSet::ScriptComponents)
+	{
+		if(r.rng.skew != 1.0)
+		{
+			auto midPosition = r.convertFrom0to1(0.5, false);
+			d->setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), midPosition);
+		}
+	}
+	else
+	{
+		d->setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), r.rng.skew);
+	}
 }
 
 bool RangeHelpers::equalsWithError(const InvertableParameterRange& r1, const InvertableParameterRange& r2, double maxError)
@@ -231,6 +282,15 @@ bool RangeHelpers::equalsWithError(const InvertableParameterRange& r1, const Inv
 
 	return thisError < hmath::abs(maxError);
 
+}
+
+bool RangeHelpers::isEqual(const InvertableParameterRange& r1, const InvertableParameterRange& r2)
+{
+	return  r1.rng.start == r2.rng.start &&
+		r1.rng.end == r2.rng.end &&
+		r1.rng.skew == r2.rng.skew &&
+		r1.rng.interval == r2.rng.interval &&
+		r1.inv == r2.inv;
 }
 
 scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTree& t, IdSet set)
@@ -276,14 +336,18 @@ scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTre
 	{
 		if(set == IdSet::ScriptComponents)
 		{
-			r.rng.setSkewForCentre(jlimit(r.rng.start, r.rng.end, (double)t[skewId]));
+			auto midPos = (double)t[skewId];
+
+			if(midPos > r.rng.start && midPos < r.rng.end)
+				r.rng.setSkewForCentre(jlimit(r.rng.start, r.rng.end, midPos));
 		}
 		else
 		{
 			r.rng.skew = jlimit(0.001, 100.0, (double)t[skewId]);
 		}
 	}
-		
+
+	r.checkIfIdentity();
 
 	return r;
 }
@@ -299,6 +363,31 @@ scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const var& obj
 	}
 
 	return getDoubleRange(v, set);
+}
+
+RangeHelpers::IdSet RangeHelpers::getIdSetForJSON(const var& obj)
+{
+	Array<Identifier> thisIds;
+
+	if(auto o = obj.getDynamicObject())
+	{
+		for(auto& nv: o->getProperties())
+			thisIds.add(nv.name);
+	}
+
+	for(const auto& id: thisIds)
+	{
+		if(getRangeIds(false, IdSet::scriptnode).contains(id))
+			return IdSet::scriptnode;
+		if(getRangeIds(false, IdSet::ScriptComponents).contains(id))
+			return IdSet::ScriptComponents;
+		if(getRangeIds(false, IdSet::MidiAutomation).contains(id))
+			return IdSet::MidiAutomation;
+		if(getRangeIds(false, IdSet::MidiAutomationFull).contains(id))
+			return IdSet::MidiAutomationFull;
+	}
+
+	return IdSet::scriptnode;
 }
 
 namespace parameter
@@ -330,6 +419,7 @@ namespace parameter
 		RangeHelpers::storeDoubleRange(p, info.toRange(), nullptr);
 
 		p.setProperty(PropertyIds::ID, info.getId(), nullptr);
+		p.setProperty(PropertyIds::TextToValueConverter, pod::getTextValueConverterNames()[(int)info.textConverter], nullptr);
 		p.setProperty(PropertyIds::Value, info.defaultValue, nullptr);
 		p.setProperty(PropertyIds::DefaultValue, info.defaultValue, nullptr);
 		return p;
@@ -443,6 +533,13 @@ namespace parameter
 		skew = (DataType)range.rng.skew;
 		interval = (DataType)range.rng.interval;
 		defaultValue = (DataType)v[PropertyIds::Value];
+
+		auto tv = getTextValueConverterNames().indexOf(v[PropertyIds::TextToValueConverter].toString());
+
+		if(tv != -1)
+		{
+			textConverter = (TextValueConverters)tv;
+		}
 	}
 
 	pod::pod(MemoryInputStream& mis)
@@ -451,9 +548,11 @@ namespace parameter
 
 		auto safe = mis.readByte();
 
-		if (safe == 91)
+		if (safe == 92)
 		{
 			ok = true;
+
+			textConverter = (TextValueConverters)mis.readByte();
 			index = mis.readInt();
 			auto s = mis.readString();
 
@@ -476,6 +575,7 @@ namespace parameter
 		s << "id: " << parameterName << nl;
 		s << "min: " << min << nl;
 		s << "max: " << max << nl;
+		s << "converter: " << getTextValueConverterNames()[(int)textConverter];
 
 		return s;
 	}
@@ -516,7 +616,8 @@ namespace parameter
 
 	void pod::writeToStream(MemoryOutputStream& b)
 	{
-		b.writeByte(91);
+		b.writeByte(92);
+		b.writeByte((uint8)textConverter);
 		b.writeInt(index);
 
 		String id(parameterName);

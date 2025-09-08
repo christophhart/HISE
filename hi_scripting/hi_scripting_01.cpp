@@ -108,6 +108,11 @@
 #include "scripting/api/ScriptingApiWrappers.cpp"
 #include "scripting/api/ScriptingApiContent.cpp"
 
+#include "scripting/api/DynamicComponentContainerIds.cpp"
+#include "scripting/api/DynamicComponentContainer.cpp"
+#include "scripting/api/DynamicComponentContainerTypes.cpp"
+
+
 #include "scripting/api/XmlApi.cpp"
 #include "scripting/engine/DebugHelpers.cpp"
 

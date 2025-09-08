@@ -142,16 +142,28 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 
 		ib.setDynamic(interfaceHorizontal, false);
 		const int interfacePanel = ib.addChild<ScriptContentPanel>(interfaceHorizontal);
-		
-		const int propertyEditor = ib.addChild<ScriptComponentEditPanel::Panel>(interfaceDesigner);
 
-		ib.getPanel(propertyEditor)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_properties);
+		const int rightPanel = ib.addChild<HorizontalTile>(interfaceDesigner);
+		ib.setDynamic(rightPanel, false);
+
+
+		const int propertyEditor = ib.addChild<ScriptComponentEditPanel::Panel>(rightPanel);
+
+		const int cssDebugger = ib.addChild<ScriptComponentCSSDebugger>(rightPanel);
+		ib.setCustomName(rightPanel, "Properties");
+		ib.setCustomName(cssDebugger, "CSS Debugger");
+
+		ib.setFoldable(rightPanel, true, { true, true});
+		ib.setFolded(rightPanel, { false, true});
+		ib.setSizes(rightPanel, { -0.7, -0.3 });
+
+		ib.getPanel(rightPanel)->getLayoutData().setKeyPress(false, FloatingTileKeyPressIds::fold_properties);
 
 		ib.setSizes(interfaceHorizontal, { -0.5 });
 		ib.setCustomName(interfaceHorizontal, "", { "Canvas"});
 
 		ib.setCustomName(interfaceDesigner, "Interface Designer");
-		ib.setCustomName(propertyEditor, "Property Editor");
+		ib.setCustomName(propertyEditor, "Component Properties");
 		ib.setCustomName(componentList, "Component List");
 
 		ib.getPanel(interfacePanel)->getLayoutData().setKeyPress(true, FloatingTileKeyPressIds::focus_interface);
@@ -172,6 +184,7 @@ Component* FloatingPanelTemplates::createScriptingWorkspace(FloatingTile* rootTi
 		ib.getContent<FloatingTileContent>(interfacePanel)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(componentList)->setStyleProperty("showConnectionBar", false);
 		ib.getContent<FloatingTileContent>(propertyEditor)->setStyleProperty("showConnectionBar", false);
+		ib.getContent<FloatingTileContent>(cssDebugger)->setStyleProperty("showConnectionBar", false);
 	}
 	
 	return ib.getPanel(mainVertical);
@@ -520,6 +533,7 @@ void FloatingTileContent::Factory::registerBackendPanelTypes()
 	registerType<ScriptContentPanel>(PopupMenuOptions::ScriptContent);
 	registerType<OSCLogger>(PopupMenuOptions::OSCLogger);
 	registerType<ScriptComponentEditPanel::Panel>(PopupMenuOptions::ScriptComponentEditPanel);
+	registerType<ScriptComponentCSSDebugger>(PopupMenuOptions::ScriptComponentCSSDebugger);
 	registerType<ApplicationCommandButtonPanel>(PopupMenuOptions::MenuCommandOffset);
 }
 
@@ -529,6 +543,7 @@ bool FloatingTileContent::Factory::handleBackendMenu(PopupMenuOptions r, Floatin
 	{
 	case PopupMenuOptions::ScriptComponentList: parent->setNewContent(GET_PANEL_NAME(ScriptComponentList::Panel)); return true;
 	case PopupMenuOptions::ScriptComponentEditPanel: parent->setNewContent(GET_PANEL_NAME(ScriptComponentEditPanel::Panel)); return true;
+	case PopupMenuOptions::ScriptComponentCSSDebugger: parent->setNewContent(GET_PANEL_NAME(ScriptComponentCSSDebugger)); return true;
 	case PopupMenuOptions::DspNodeList:			parent->setNewContent(GET_PANEL_NAME(scriptnode::DspNodeList::Panel)); return true;
 	case PopupMenuOptions::ApiCollection:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<ApiCollection>)); return true;
 	case PopupMenuOptions::PatchBrowser:		parent->setNewContent(GET_PANEL_NAME(GenericPanel<PatchBrowser>)); return true;

@@ -301,6 +301,7 @@ public:
 	void setInternalAttribute(int index, float newValue) override;
 	float getAttribute(int index) const override;
 	float getDefaultValue(int parameterIndex) const override;
+	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
 
 	ModulatorSynth* getFMModulator();
 	ModulatorSynth* getFMCarrier();

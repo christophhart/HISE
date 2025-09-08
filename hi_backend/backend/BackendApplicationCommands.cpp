@@ -3302,10 +3302,12 @@ void BackendCommandTarget::Actions::exportProject(BackendRootWindow* bpe, int bu
 {
 	auto exportIsReady = (bool)bpe->getBackendProcessor()->getSettingsObject().getSetting(HiseSettings::Compiler::ExportSetup);
 
+	#if !JUCE_LINUX
 	if(!exportIsReady)
 	{
 		PresetHandler::showMessageWindow("System not configured", "This computer is not setup for export yet. Please run the Export Wizard (**Tools -> Setup Export Wizard**) in order to silence this message.");
 	}
+	#endif
 
 	CompileExporter exporter(bpe->getMainSynthChain());
 

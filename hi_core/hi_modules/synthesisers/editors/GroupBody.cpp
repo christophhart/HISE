@@ -164,10 +164,10 @@ GroupBody::GroupBody (ProcessorEditor *p)
     fmStateLabel->setEditable(false, false);
 
 	unisonoSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoVoiceAmount, "Unisono Voices");
-	unisonoSlider->setMode(HiSlider::Mode::Discrete, 1, 16, 8, 1.0);
+    unisonoSlider->setMode(HiSlider::Mode::Discrete, { 1.0, 16.0, 1.0 });
 
 	detuneSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoDetune, "Detune");
-	detuneSlider->setMode(HiSlider::Mode::Linear, 0.0, 6.0, 1.0, 0.01);
+    detuneSlider->setMode(HiSlider::Mode::Linear, { 0.0, 6.0 });
 	detuneSlider->setTextValueSuffix(" st");
 
 	spreadSlider->setup(getProcessor(), ModulatorSynthGroup::SpecialParameters::UnisonoSpread, "Spread");
@@ -175,8 +175,7 @@ GroupBody::GroupBody (ProcessorEditor *p)
 	spreadSlider->setRange(0.0, 2.0, 0.01);
     spreadSlider->setValue(getProcessor()->getAttribute(ModulatorSynthGroup::SpecialParameters::UnisonoSpread), dontSendNotification);
 
-	spreadSlider->setIsUsingModulatedRing(true);
-	detuneSlider->setIsUsingModulatedRing(true);
+    
 
     //[/UserPreSize]
 

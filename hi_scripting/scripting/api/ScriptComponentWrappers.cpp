@@ -140,6 +140,18 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 				{
 					alignToBottom = sp->getScriptObjectProperty(ScriptingApi::Content::ScriptPanel::popupMenuAlign);
 				}
+				if(auto dc = dynamic_cast<ScriptingApi::Content::ScriptDynamicContainer*>(safeThis->scriptComponent.get()))
+				{
+					alignToBottom = false;
+
+					auto b = dynamic_cast<dyncomp::Base*>(event.eventComponent);
+
+					if(b == nullptr)
+						b = event.eventComponent->findParentComponentOfClass<dyncomp::Base>();
+
+					if(b != nullptr)
+						alignToBottom = b->getPropertyOrDefault(dyncomp::dcid::popupMenuAlign);
+				}
 
 				if (auto r = PopupLookAndFeel::showAtComponent(m, event.eventComponent, alignToBottom))
 				{
@@ -233,17 +245,15 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 	{
         auto mc = scriptComponent->getScriptProcessor()->getMainController_();
 
-        SimpleReadWriteLock::ScopedTryReadLock  sl(mc->getJavascriptThreadPool().getLookAndFeelRenderLock());
-        
-        if(sl)
-        {
-            LockHelpers::SafeLock sl(mc, LockHelpers::Type::ScriptLock);
+        if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(mc->getJavascriptThreadPool().getLookAndFeelRenderLock()))
+		{
+            LockHelpers::SafeLock sl2(mc, LockHelpers::Type::ScriptLock);
 
             if (data.listener != nullptr)
             {
                 var arguments[2];
 
-                arguments[0] = var(scriptComponent.get());
+                arguments[0] = scriptComponent->getPopupMenuTarget(event);
 
                 if (data.mouseCallbackLevel != MouseCallbackComponent::CallbackLevel::PopupMenuOnly)
                 {
@@ -617,7 +627,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
         min = jmax(min, 0.0);
         max = jmin(max, (double)((int)TempoSyncer::Tempo::numTempos-1));
         
-		s->setMode(HiSlider::Mode::TempoSync, min, max, min + (max-min)/2, 1);
+		s->setMode(HiSlider::Mode::TempoSync, NormalisableRange<double>((double)min, (double)max, 1.0));
 		return;
 	}
 
@@ -630,19 +640,22 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 		debugError(dynamic_cast<Processor*>(sc->getScriptProcessor()), "Slider min/max value exceeds upper limit!");
 	}
 
-	if (min >= max || stepsize <= 0.0 || min < -MaxValue || max > MaxValue)
+	if (min >= max || stepsize < 0.0 || min < -MaxValue || max > MaxValue)
 	{
-		s->setMode(HiSlider::Mode::Linear, 0.0, 1.0);
-		s->setSkewFactor(1.0);
+		s->setMode(HiSlider::Mode::Linear, {0.0, 1.0});
 		s->setEnabled(false);
 	}
 	else
 	{
-		s->setSkewFactor(1.0);
-		s->setMode(sc->m, min, max);
-		s->setRange(min, max, stepsize);
-		if (middlePos != min && r.contains(middlePos)) s->setSkewFactorFromMidPoint(middlePos);
-		if (sc->m == HiSlider::Mode::Linear) s->setTextValueSuffix(suffix);
+		NormalisableRange<double> nr(min, max, stepsize);
+
+		if(nr.getRange().contains(middlePos))
+			nr.setSkewForCentre(middlePos);
+
+		s->setMode(sc->m, nr);
+		
+		if (sc->m == HiSlider::Mode::Linear) 
+			s->setTextValueSuffix(suffix);
 	}
 
 	const double defaultValue = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::defaultValue);
@@ -1556,7 +1569,12 @@ ScriptCreatedComponentWrapper(content, index)
 	t->setName(table->name.toString());
 	t->popupFunction = BIND_MEMBER_FUNCTION_2(TableWrapper::getTextForTablePopup);
     t->setDrawTableValueLabel(false);
-    
+
+	table->dragProperties.addListener(*t, [](TableEditor& te, const var& p)
+	{
+		te.setMouseDragProperties(p);
+	});
+
 	table->getSourceWatcher().addSourceListener(this);
 
 	component = t;
@@ -2960,13 +2978,24 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateLookAndFeel()
     }
 }
 
+
+ScriptCreatedComponentWrappers::DynamicComponentWrapper::DynamicComponentWrapper(ScriptContentComponent* content,
+	ScriptingApi::Content::ScriptDynamicContainer* container, int index):
+	ScriptCreatedComponentWrapper(content, index)
+{
+	auto wc = new WrapperComponent();
+	container->dataBroadcaster.addListener(*wc, WrapperComponent::onChange);
+	component = wc;
+
+	initAllProperties();
+}
+
 ScriptCreatedComponentWrappers::MultipageDialogWrapper::MultipageDialogWrapper(ScriptContentComponent* content,
-	ScriptDialog* mp, int index):
+                                                                               ScriptDialog* mp, int index):
 	ScriptCreatedComponentWrapper(content, index)
 {
 	component = mp->createBackdrop();
 	initAllProperties();
-			
 }
 
 void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent()
@@ -2988,7 +3017,8 @@ void ScriptCreatedComponentWrappers::FloatingTileWrapper::updateComponent(int pr
 	switch (propertyIndex)
 	{
 	PROPERTY_CASE::ScriptComponent::itemColour: 
-	PROPERTY_CASE::ScriptComponent::itemColour2: 
+	PROPERTY_CASE::ScriptComponent::itemColour2:
+	PROPERTY_CASE::ScriptFloatingTile::itemColour3:
 	PROPERTY_CASE::ScriptComponent::bgColour: 
 	PROPERTY_CASE::ScriptComponent::textColour: 
 	PROPERTY_CASE::ScriptFloatingTile::Properties::Font:
@@ -3126,7 +3156,7 @@ float ScriptedControlAudioParameter::getValue() const
 
 void ScriptedControlAudioParameter::setValue(float newValue)
 {
-	if(recursive || shouldSkipHostUpdate())
+	if(recursive)
 		return;
 
 	ScopedValueSetter<bool> svs(sendToHost, false);

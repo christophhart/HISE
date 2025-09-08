@@ -139,6 +139,16 @@ bool FileChooser::browseForMultipleFilesOrDirectories (FilePreviewComponent* pre
                        previewComp);
 }
 
+bool FileChooser::browseForMultipleDirectories (FilePreviewComponent* previewComp)
+{
+    return showDialog (FileBrowserComponent::openMode
+                        | FileBrowserComponent::canSelectDirectories
+                        | FileBrowserComponent::canSelectMultipleItems,
+                       previewComp);
+}
+
+
+
 bool FileChooser::browseForFileToSave (const bool warnAboutOverwrite)
 {
     return showDialog (FileBrowserComponent::saveMode

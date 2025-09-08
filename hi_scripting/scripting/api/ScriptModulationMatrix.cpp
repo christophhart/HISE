@@ -30,689 +30,906 @@
 *   ===========================================================================
 */
 
+#include "hi_core/hi_dsp/modules/ModulationMatrixTools.h"
+
 namespace hise { using namespace juce;
+
+
+ScriptingApi::Content::ScriptSlider::MatrixCableConnection::QueryFunction::QueryFunction(
+	MatrixCableConnection* c):
+	connection(c)
+{}
+
+ModulationDisplayValue ScriptingApi::Content::ScriptSlider::MatrixCableConnection::QueryFunction::getDisplayValue(
+	Processor* p, double nv, NormalisableRange<double> nr) const
+{
+	if(connection != nullptr)
+		return connection->getDisplayValue(nv, nr);
+
+	return {};
+}
+
+ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::AuxTarget::AuxTarget(Target& p,
+	const String& sourceId):
+	parentTarget(&p)
+{
+	auxIntensity = (double)p.connection[MatrixIds::AuxIntensity];
+	FloatSanitizers::sanitizeDoubleNumber(auxIntensity);
+
+	auto rm = routing::GlobalRoutingManager::Helpers::getOrCreate(p.parent.getMainController());
+				
+	cable = dynamic_cast<CableType*>(rm->getSlotBase(sourceId, C).get());
+
+	if(cable != nullptr)
+		cable->addTarget(this);
+}
+
+ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::AuxTarget::~AuxTarget()
+{
+	if(cable != nullptr)
+	{
+		cable->removeTarget(this);
+		cable = nullptr;
+	}
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::AuxTarget::sendValue(double v)
+{
+	lastAuxValue = jlimit(0.0, 1.0, v);
+
+	if(parentTarget != nullptr && parentTarget->isVoiceStart)
+	{
+		parentTarget->parent.calculateNewModValue();
+	}
+}
+
+double ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::AuxTarget::getAuxValue() const
+{
+	auto a = 1.0 - auxIntensity;
+	return a + auxIntensity * lastAuxValue;
+}
+
+ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::Target(MatrixCableConnection& parent_,
+	const ValueTree& connection_):
+	SimpleTimer(parent_.getMainController()->getGlobalUIUpdater(), false),
+	connection(connection_),
+	parent(parent_),
+	rb(new SimpleRingBuffer()),
+	sourceIndex(connection[MatrixIds::SourceIndex])
+{
+			
+	rb->setGlobalUIUpdater(parent.getMainController()->getGlobalUIUpdater());
+	rb->setProperty("BufferLength", 44110 / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
+	jassert(connection.getType() == MatrixIds::Connection);
+
+	propertyListener.setCallback(connection, 
+	                             MatrixIds::Helpers::getWatchableIds(), 
+	                             valuetree::AsyncMode::Synchronously,
+	                             BIND_MEMBER_FUNCTION_2(Target::onPropertyUpdate));
+}
+
+ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::~Target()
+{
+	if(sourceCable != nullptr)
+		sourceCable->removeTarget(this);
+
+	sourceCable = nullptr;
+	auxTarget = nullptr;
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::sendValue(double v)
+{
+	lastModValue = jlimit(0.0, 1.0, v);
+
+	if(inverted)
+		lastModValue = 1.0f - lastModValue;
+
+	parent.calculateNewModValue();
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::timerCallback()
+{
+	jassert(isVoiceStart);
+
+	auto now = Time::getMillisecondCounter();
+	auto sr = parent.getMainController()->getMainSynthChain()->getSampleRate();
+	auto deltaSeconds = jmin((double)(now - lastMs) * 0.001, 0.03);
+
+	lastMs = now;
+
+	auto numSamplesToPush = (sr * deltaSeconds) / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	if(rb != nullptr)
+	{
+		rb->write(voiceStartValue, numSamplesToPush);
+	}
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::Target::onPropertyUpdate(const Identifier& id,
+	const var& newValue)
+{
+	if(id == MatrixIds::Intensity)
+		intensity = jlimit(-1.0, 1.0, (double)newValue);
+	if(id == MatrixIds::Mode)
+	{
+		SimpleReadWriteLock::ScopedWriteLock sl(parent.listLock);
+		tm = (modulation::TargetMode)(int)newValue;
+		parent.rebuildTargets();
+	}
+	if(id == MatrixIds::Inverted)
+		inverted = (bool)newValue;
+
+	if(id == MatrixIds::AuxIndex)
+	{
+		auto idx = (int)newValue;
+
+		if(idx == -1)
+		{
+			auxTarget = nullptr;
+		}
+		else
+		{
+			auxTarget = new AuxTarget(*this, parent.sourceNames[idx]);
+		}
+	}
+	if(id == MatrixIds::SourceIndex)
+	{
+		if(sourceCable != nullptr)
+		{
+			sourceCable->removeTarget(this);
+			sourceCable = nullptr;
+		}
+
+		sourceIndex = (int)newValue;
+
+		auto sourceId = parent.sourceNames[sourceIndex];
+
+		auto sourceMod = ProcessorHelpers::getFirstProcessorWithName(parent.getMainController()->getMainSynthChain(), sourceId);
+		isVoiceStart = dynamic_cast<VoiceStartModulator*>(sourceMod) != nullptr;
+
+		if(isVoiceStart)
+			start();
+		else
+			stop();
+
+		auto rm = routing::GlobalRoutingManager::Helpers::getOrCreate(parent.getMainController());
+		sourceCable = dynamic_cast<CableType*>(rm->getSlotBase(sourceId, C).get());
+
+		if(sourceCable != nullptr)
+			sourceCable->addTarget(this);
+	}
+	if(id == MatrixIds::AuxIntensity)
+	{
+		if(auxTarget != nullptr)
+		{
+			auxTarget->auxIntensity = (double)newValue;
+			FloatSanitizers::sanitizeDoubleNumber(auxTarget->auxIntensity);
+		}
+	}
+			
+	parent.calculateNewModValue();
+}
+
+ScriptingApi::Content::ScriptSlider::MatrixCableConnection::MatrixCableConnection(ScriptSlider& slider,
+                                                                                  const ValueTree& matrixData, const String& targetId_):
+	MatrixConnectionBase(slider, matrixData, targetId_)
+{
+	setTargetSlider(&slider);
+
+	if(gc != nullptr)
+	{
+		auto gainChain = gc->getChildProcessor(ModulatorSynth::GainModulation);
+		auto rm = scriptnode::routing::GlobalRoutingManager::Helpers::getOrCreate(getMainController());
+
+		for(int i = 0; i < gainChain->getNumChildProcessors(); i++)
+		{
+			auto mod = dynamic_cast<Modulator*>(gainChain->getChildProcessor(i));
+			auto id = mod->getId();
+			auto c = rm->getSlotBase(id, routing::GlobalRoutingManager::SlotBase::SlotType::Cable);
+			gc->connectToGlobalCable(mod, var(c.get()), true);
+			globalModCables.add(var(c.get()));
+		}
+	}
+
+	MatrixIds::Helpers::fillModSourceList(getMainController(), sourceNames);
+
+	auto componentIndex = slider.getScriptProcessor()->getScriptingContent()->getComponentIndex(&slider);
+	slider.getScriptProcessor()->setModulationDisplayQueryFunction(componentIndex, dynamic_cast<Processor*>(parent->getScriptProcessor()), new QueryFunction(this));
+
+	connectionListener.setCallback(matrixData, 
+	                               valuetree::AsyncMode::Synchronously, 
+	                               BIND_MEMBER_FUNCTION_2(MatrixCableConnection::onUpdate));
+
+	sourceTargetListener.setCallback(matrixData, 
+	                                 { MatrixIds::TargetId }, 
+	                                 valuetree::AsyncMode::Asynchronously,
+	                                 BIND_MEMBER_FUNCTION_2(MatrixCableConnection::onSourceTargetChange));
+}
+
+ScriptingApi::Content::ScriptSlider::MatrixCableConnection::~MatrixCableConnection()
+{
+	SimpleReadWriteLock::ScopedWriteLock sl(listLock);
+
+	scaleTargets.clear();
+	addTargets.clear();
+	allTargets.clear();
+	globalModCables.clear();
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::setTargetSlider(ScriptSlider* newParent)
+{
+	jassert(newParent != nullptr);
+	parent = newParent;
+	sliderRange = (RangeHelpers::getDoubleRange(parent->getPropertyValueTree(), RangeHelpers::IdSet::ScriptComponents));
+}
+
+MatrixIds::Helpers::IntensityTextConverter::ConstructData ScriptingApi::Content::ScriptSlider::MatrixCableConnection::
+createIntensityConverter(int sourceIndex)
+{
+	MatrixIds::Helpers::IntensityTextConverter::ConstructData cd;
+	cd.parameterIndex = parent->getScriptProcessor()->getScriptingContent()->getComponentIndex(parent);
+	cd.p = dynamic_cast<Processor*>(parent->getScriptProcessor());
+	auto rng = RangeHelpers::getDoubleRange(parent->getPropertyValueTree(), RangeHelpers::IdSet::ScriptComponents);
+	cd.inputRange = rng.rng;
+	cd.prettifierMode = parent->getScriptObjectProperty(ScriptSlider::Mode);
+
+	for(auto t: allTargets)
+	{
+		if(t->sourceIndex == sourceIndex)
+		{
+			cd.tm = t->tm;
+			return cd;
+		}
+	}
+
+	return cd;
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::rebuildTargets()
+{
+	Target::List newScale, newAdd;
+
+	for(auto t: allTargets)
+	{
+		if(t->tm == modulation::TargetMode::Gain)
+			newScale.add(t);
+		else
+			newAdd.add(t);
+	}
+
+	{
+		scaleTargets.swapWith(newScale);
+		addTargets.swapWith(newAdd);
+	}
+}
+
+SimpleRingBuffer::Ptr ScriptingApi::Content::ScriptSlider::MatrixCableConnection::getDisplayBuffer(int sourceIndex)
+{
+	for(auto t: allTargets)
+	{
+		if(t->sourceIndex == sourceIndex)
+			return t->rb;
+	}
+
+	return nullptr;
+}
+
+ModulationDisplayValue ScriptingApi::Content::ScriptSlider::MatrixCableConnection::getDisplayValue(double nv,
+	NormalisableRange<double> nr)
+{
+	ModulationDisplayValue mv;
+
+	auto sv = nr.convertTo0to1(nv);
+
+	auto normValue = sv;
+		
+	auto lastValue = mv.getNormalisedModulationValue();
+
+	double min = normValue;
+	double max = normValue;
+
+	mv.modulationActive = !scaleTargets.isEmpty() || !addTargets.isEmpty();
+	mv.normalisedValue = normValue;
+		
+	for(auto s: scaleTargets)
+	{
+		auto i = s->intensity;
+		auto a = 1.0f - i;
+		normValue *= a + i * s->lastModValue;
+		min = jmin(min, a * sv);
+	}
+		
+	mv.scaledValue = normValue;
+
+	for(auto a: addTargets)
+	{
+		auto modValue = a->lastModValue;
+		max += a->intensity;
+
+		if(a->tm == modulation::TargetMode::Bipolar)
+		{
+			modValue *= 2.0;
+			modValue -= 1.0;
+			min -= a->intensity;
+		}
+
+		modValue *= a->intensity;
+		mv.addValue += modValue;
+	}
+
+	if(min > max)
+		std::swap(min, max);
+
+	mv.modulationRange = { min, max };
+	mv.lastModValue = lastValue;
+	mv.clipTo0To1();
+	return mv;
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::onSourceTargetChange(const ValueTree& v,
+	const Identifier& id)
+{
+	auto isTarget = MatrixIds::Helpers::matchesTarget(v, targetId);
+
+	if(isTarget)
+		addConnection(v);
+	else
+		removeConnection(v);
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::addConnection(const ValueTree& v)
+{
+	auto idx = (int)v[MatrixIds::SourceIndex];
+
+	if(isPositiveAndBelow(idx, sourceNames.size()))
+	{
+		auto n = new Target(*this, v);
+		allTargets.add(n);
+
+		if((int)v[MatrixIds::Mode] == 0)
+			scaleTargets.add(n);
+		else
+			addTargets.add(n);
+	}
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::removeConnection(const ValueTree& v)
+{
+	ReferenceCountedObjectPtr<Target> toBeRemoved;
+
+	for(auto t: scaleTargets)
+	{
+		if(t->propertyListener.isRegisteredTo(v))
+		{
+			toBeRemoved = t;
+			scaleTargets.removeObject(t);
+			allTargets.removeObject(t);
+			break;
+		}
+	}
+
+	for(auto t: addTargets)
+	{
+		if(t->propertyListener.isRegisteredTo(v))
+		{
+			toBeRemoved = t;
+			addTargets.removeObject(t);
+			allTargets.removeObject(t);
+			break;
+		}
+	}
+
+	toBeRemoved = nullptr;
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::onUpdate(const ValueTree& v, bool wasAdded)
+{
+	if(MatrixIds::Helpers::matchesTarget(v, targetId))
+	{
+		if(!wasAdded)
+			removeConnection(v);
+		else
+			addConnection(v);
+	}
+}
+
+void ScriptingApi::Content::ScriptSlider::MatrixCableConnection::calculateNewModValue()
+{
+	auto normValue = sliderRange.convertTo0to1((double)parent->value, false);
+	auto numThisTime = 0;
+
+	if(gc != nullptr && getMainController()->getKillStateHandler().getCurrentThread() == MainController::KillStateHandler::TargetThread::AudioThread)
+		numThisTime = gc->getCurrentNumSamples() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	if(auto sl = SimpleReadWriteLock::ScopedTryReadLock(listLock))
+	{
+		for(auto s: scaleTargets)
+		{
+			jassert(s->tm == modulation::TargetMode::Gain);
+			auto i = s->intensity;
+
+			if(s->auxTarget != nullptr)
+				i *= s->auxTarget->getAuxValue();
+
+			auto a = 1.0f - i;
+			auto v = a + i * s->lastModValue;
+
+			if(s->isVoiceStart)
+				s->voiceStartValue = v;
+			else if (numThisTime > 0)
+				s->rb->write(v, numThisTime);
+
+			normValue *= v;
+		}
+			
+		for(auto a: addTargets)
+		{
+			auto modValue = a->lastModValue;
+
+			if(a->tm == modulation::TargetMode::Bipolar)
+			{
+				modValue *= 2.0;
+				modValue -= 1.0;
+			}
+
+			auto i = a->intensity;
+
+			if(a->auxTarget != nullptr)
+				i *= a->auxTarget->getAuxValue();
+
+			modValue *= i;
+
+			if(a->isVoiceStart)
+				a->voiceStartValue = modValue;
+			if(numThisTime > 0)
+				a->rb->write(modValue, numThisTime);
+
+			normValue += modValue;
+		}
+
+		normValue = jlimit(0.0, 1.0, normValue);
+		auto outputValue = sliderRange.convertFrom0to1(normValue, false);
+
+		auto pr = parent.get()->getConnectedProcessor();
+
+		Processor::ScopedAttributeNotificationSuspender sp(pr);
+
+		parent->getScriptProcessor()->controlCallback(parent.get(), outputValue);
+	}
+}
+
 
 namespace ScriptingObjects
 {
 
-#define DECLARE_ID(x) static const Identifier x(#x);
-
-namespace MatrixIds
-{
-	DECLARE_ID(Chain);
-	DECLARE_ID(Component);
-	DECLARE_ID(ID);
-	DECLARE_ID(Intensity);
-	DECLARE_ID(Inverted);
-	DECLARE_ID(Mode);
-	DECLARE_ID(Parameter);
-	DECLARE_ID(Source);
-	DECLARE_ID(Target);
-    DECLARE_ID(AddConstUIMod);
-	DECLARE_ID(items);
-}
-
-struct ValueModeHelpers
-{
-	static String getModeName(ScriptModulationMatrix::ValueMode m)
-	{
-		static const StringArray modulationModeList = { "Default", "Scale", "Unipolar", "Bipolar", "Undefined" };
-
-		return modulationModeList[(int)m];
-	}
-
-	static ScriptModulationMatrix::ValueMode getModeToUse(ScriptModulationMatrix::ValueMode defaultMode, ScriptModulationMatrix::ValueMode connectionMode)
-	{
-		if (connectionMode != ScriptModulationMatrix::ValueMode::Default && connectionMode != ScriptModulationMatrix::ValueMode::Undefined)
-			return connectionMode;
-
-		return defaultMode;
-	}
-
-	static ScriptModulationMatrix::ValueMode getMode(const String& m)
-	{
-		static const StringArray modulationModeList = { "Default", "Scale", "Unipolar", "Bipolar"};
-
-		if (!modulationModeList.contains(m))
-			return ScriptModulationMatrix::ValueMode::Undefined;
-
-		return (ScriptModulationMatrix::ValueMode)modulationModeList.indexOf(m);
-	}
-
-	static float getIntensityValue(const var& obj)
-	{
-		var intObject = obj[MatrixIds::Intensity];
-
-		float s;
-
-		if (intObject.isObject())
-		{
-			s = (float)intObject.getProperty(scriptnode::PropertyIds::Value, 0.0f);
-		}
-		else
-			s = (float)intObject;
-
-		FloatSanitizers::sanitizeFloatNumber(s);
-		return s;
-	}
-
-	
-};
-
-using RoutingManager = scriptnode::routing::GlobalRoutingManager;
-
-struct ScriptingObjects::ScriptModulationMatrix::SourceData : public ControlledObject
-{
-	
-
-	SourceData(ScriptModulationMatrix* parent_, Modulator* mod_) :
-		ControlledObject(parent_->getMainController()),
-		parent(parent_),
-		mod(mod_)
-	{
-		rm = RoutingManager::Helpers::getOrCreate(getMainController());
-		cable = rm->getSlotBase(mod->getId(), RoutingManager::SlotBase::SlotType::Cable);
-
-		parent->container->connectToGlobalCable(mod, var(cable.get()), true);
-	}
-
-	RoutingManager::Ptr rm;
-	RoutingManager::SlotBase::Ptr cable;
-	WeakReference<ScriptModulationMatrix> parent;
-	WeakReference<Modulator> mod;
-};
-
-struct ScriptingObjects::ScriptModulationMatrix::ParameterTargetCable : public RoutingManager::CableTargetBase,
-	public ReferenceCountedObject
-{
-	ParameterTargetCable(ParameterTargetData* p, const String& sourceId_) :
-		parent(p),
-		sourceId(sourceId_)
-	{};
-
-	virtual void selectCallback(Component*) {};
-
-	virtual String getTargetId() const { return "Modulation Matrix Parameter Target"; }
-
-	void sendValue(double v) override
-	{
-		if (v != value)
-		{
-			value = v;
-			parent->updateValue();
-		}
-	}
-
-	Path getTargetIcon() const override
-	{
-		return {};
-	}
-
-	String sourceId;
-	double value = 1.0;
-	double intensity = 1.0;
-	bool inverted = false;
-
-	ScriptModulationMatrix::ValueMode customMode = ScriptModulationMatrix::ValueMode::Default;
-
-	WeakReference<ParameterTargetData> parent;
-};
 
 struct ScriptingObjects::ScriptModulationMatrix::Wrapper
 {
-	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, addModulatorTarget);
-	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, addParameterTarget);
-	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setNumModulationSlots);
 	API_METHOD_WRAPPER_3(ScriptModulationMatrix, connect);
-	API_METHOD_WRAPPER_1(ScriptModulationMatrix, getModValue);
 	API_METHOD_WRAPPER_1(ScriptModulationMatrix, getTargetId);
-	API_METHOD_WRAPPER_1(ScriptModulationMatrix, getComponentId);
-	API_METHOD_WRAPPER_1(ScriptModulationMatrix, getConnectionData);
+	API_METHOD_WRAPPER_1(ScriptModulationMatrix, getComponent);
 	API_METHOD_WRAPPER_0(ScriptModulationMatrix, toBase64);
 	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, fromBase64);
 	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setConnectionCallback);
-	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, updateConnectionData);
-	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setEditCallback);
+	API_VOID_METHOD_WRAPPER_2(ScriptModulationMatrix, setEditCallback);
 	API_METHOD_WRAPPER_0(ScriptModulationMatrix, getSourceList);
 	API_METHOD_WRAPPER_0(ScriptModulationMatrix, getTargetList);
-	API_METHOD_WRAPPER_2(ScriptModulationMatrix, getIntensitySliderData);
-	API_METHOD_WRAPPER_2(ScriptModulationMatrix, getValueModeData);
-	API_METHOD_WRAPPER_3(ScriptModulationMatrix, updateIntensity);
-	API_METHOD_WRAPPER_3(ScriptModulationMatrix, updateValueMode);
 	API_METHOD_WRAPPER_2(ScriptModulationMatrix, canConnect);
-	API_VOID_METHOD_WRAPPER_0(ScriptModulationMatrix, clearAllConnections);
-	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setUseUndoManager);
+	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, clearAllConnections);
+	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setCurrentlySelectedSource);
+	API_VOID_METHOD_WRAPPER_4(ScriptModulationMatrix, setConnectionProperty);
+	API_METHOD_WRAPPER_3(ScriptModulationMatrix, getConnectionProperty);
+	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setSourceSelectionCallback);
+	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setMatrixModulationProperties);
+	API_METHOD_WRAPPER_0(ScriptModulationMatrix, getMatrixModulationProperties);
+	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setDragCallback);
 };
 
 ScriptModulationMatrix::ScriptModulationMatrix(ProcessorWithScriptingContent* p, const String& cid) :
-	ConstScriptingObject(p, 10),
+	ConstScriptingObject(p, 0),
 	ControlledObject(p->getMainController_()),
 	connectionCallback(p, nullptr, var(), 3),
-	editCallback(p, nullptr, var(), 1)
+	editCallback(p, nullptr, var(), 1),
+	um(getMainController()->getControlUndoManager()),
+	sourceSelectionCallback(getScriptProcessor(), this, var(), 1),
+	dragCallback(getScriptProcessor(), this, {}, 3) 
 {
 	container = dynamic_cast<GlobalModulatorContainer*>(ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), cid));
 
 	if (container == nullptr)
 		reportScriptError(cid + " is not a global modulation container");
 
-	addConstant("Gain", raw::IDs::Chains::Gain);
-	addConstant("Pitch", raw::IDs::Chains::Pitch);
-	addConstant("Frequency", raw::IDs::Chains::FilterFrequency);
-	addConstant("Scale", "Scale");
-	addConstant("Intensity", "Intensity");
-	addConstant("Bipolar", "Bipolar");
-	addConstant("Unipolar", "Unipolar");
-	addConstant("Add", "Add");
-	addConstant("Delete", "Delete");
-	addConstant("Update", "Update");
-	addConstant("Rebuild", "Rebuild");
-
-	ADD_API_METHOD_1(addModulatorTarget);
-	ADD_API_METHOD_1(addParameterTarget);
-	ADD_API_METHOD_1(setNumModulationSlots);
 	ADD_API_METHOD_3(connect);
-	ADD_API_METHOD_1(getModValue);
-	ADD_API_METHOD_1(getConnectionData);
 	ADD_API_METHOD_1(fromBase64);
 	ADD_API_METHOD_0(toBase64);
 	ADD_API_METHOD_1(setConnectionCallback);
-	ADD_API_METHOD_1(updateConnectionData);
-	ADD_API_METHOD_1(setEditCallback);
+	ADD_API_METHOD_2(setEditCallback);
 	ADD_API_METHOD_0(getSourceList);
 	ADD_API_METHOD_0(getTargetList);
-	ADD_API_METHOD_2(getIntensitySliderData);
-	ADD_API_METHOD_3(updateIntensity);
-	ADD_API_METHOD_2(getValueModeData);
-	ADD_API_METHOD_3(updateValueMode);
 	ADD_API_METHOD_1(getTargetId);
-	ADD_API_METHOD_1(getComponentId);
+	ADD_API_METHOD_1(getComponent);
 	ADD_API_METHOD_2(canConnect);
-	ADD_API_METHOD_0(clearAllConnections);
-	ADD_API_METHOD_1(setUseUndoManager);
+	ADD_API_METHOD_1(clearAllConnections);
 
-	auto h = dynamic_cast<ModulatorChain*>(container->getChildProcessor(1));
+	ADD_API_METHOD_1(setCurrentlySelectedSource);
+	ADD_API_METHOD_1(setSourceSelectionCallback);
+	ADD_API_METHOD_1(setDragCallback);
 
-	for (int i = 0; i < h->getNumChildProcessors(); i++)
-		sourceData.add(new SourceData(this, dynamic_cast<Modulator*>(h->getChildProcessor(i))));
+	ADD_API_METHOD_1(setMatrixModulationProperties);
+	ADD_API_METHOD_0(getMatrixModulationProperties);
 
-	broadcaster.addListener(*this, onUpdateMessage, false);
+	ADD_API_METHOD_3(getConnectionProperty);
+	ADD_API_METHOD_4(setConnectionProperty);
 
 	getScriptProcessor()->getMainController_()->getUserPresetHandler().addStateManager(this);
+
+	connectionListener.setCallback(container->getMatrixModulatorData(), valuetree::AsyncMode::Synchronously, [this](const ValueTree& v, bool wasAdded)
+	{
+		if(connectionCallback)
+		{
+			var args[3];
+
+			args[0] = sourceList[(int)v[MatrixIds::SourceIndex]];
+			args[1] = v[MatrixIds::TargetId];
+			args[2] = wasAdded;
+
+			connectionCallback.call(args, 3);
+		}
+	});
+
+	MatrixIds::Helpers::fillModSourceList(getMainController(), sourceList);
+	MatrixIds::Helpers::fillModTargetList(getMainController(), allTargets, MatrixIds::Helpers::TargetType::All);
+	MatrixIds::Helpers::fillModTargetList(getMainController(), parameterTargets, MatrixIds::Helpers::TargetType::Parameters);
+	MatrixIds::Helpers::fillModTargetList(getMainController(), modulatorTargets, MatrixIds::Helpers::TargetType::Modulators);
 }
-
-
 
 ScriptModulationMatrix::~ScriptModulationMatrix()
 {
+	if(auto gc = container.get())
+	{
+		gc->editCallbackHandler.removeListener(*this);
+	}
+
 	getScriptProcessor()->getMainController_()->getUserPresetHandler().removeStateManager(this);
 }
 
-juce::ValueTree ScriptModulationMatrix::exportAsValueTree() const
+ValueTree ScriptModulationMatrix::exportAsValueTree() const
 {
-	Array<var> l;
-
-	for (auto t : targetData)
-	{
-		l.addArray(*t->getConnectionData().getArray());
-	}
-
-	return ValueTreeConverters::convertVarArrayToFlatValueTree(var(l), getUserPresetStateId(), "Connection");
+	return container->getMatrixModulatorData().createCopy();
 }
 
-void ScriptModulationMatrix::restoreFromValueTree(const ValueTree &previouslyExportedState)
+void ScriptModulationMatrix::restoreFromValueTree(const ValueTree& v)
 {
-	auto obj = ValueTreeConverters::convertFlatValueTreeToVarArray(previouslyExportedState);
+	jassert(v.getType() == MatrixIds::MatrixData);
 
-	ScopedRefreshDeferrer srd(*this);
+	auto tree = container->getMatrixModulatorData();
 
-	clearConnectionsInternal();
+	tree.removeAllChildren(um);
 
-	if (obj.isArray())
-	{
-		for (auto& c : *obj.getArray())
-		{
-			for (auto& t : targetData)
-			{
-				if (c["Target"].toString() == t->modId)
-				{
-					t->connect(c["Source"].toString(), true);
-					t->updateConnectionData(c);
-				}
-			}
-		}
-	}
-}
-
-void ScriptModulationMatrix::setNumModulationSlots(var numSlotArray)
-{
-	if (!getScriptProcessor()->objectsCanBeCreated())
-		reportScriptError("You must declare all modulation targets at onInit");
-
-	if (numSlotArray.isArray() && numSlotArray.size() == 3)
-	{
-		numSlots[0] = (int)numSlotArray[0];
-		numSlots[1] = (int)numSlotArray[1];
-		numSlots[2] = (int)numSlotArray[2];
-	}
-	else
-	{
-		reportScriptError("You must pass in an array with three numbers into setNumModulationSlots");
-	}
-}
-
-void ScriptModulationMatrix::addModulatorTarget(var newTargetData)
-{
-	if (!getScriptProcessor()->objectsCanBeCreated())
-		reportScriptError("You must declare all modulation targets at onInit");
-
-	targetData.add(new ModulatorTargetData(this, newTargetData));
-	refreshBypassStates();
-}
-
-void ScriptModulationMatrix::addParameterTarget(var newTargetData)
-{
-	if (!getScriptProcessor()->objectsCanBeCreated())
-		reportScriptError("You must declare all modulation targets at onInit");
-
-	targetData.add(new ParameterTargetData(this, newTargetData));
-	refreshBypassStates();
+	for(auto c: v)
+		tree.addChild(c.createCopy(), -1, um);
 }
 
 bool ScriptModulationMatrix::connect(String sourceId, String targetId, bool addConnection)
 {
-	if (um == nullptr)
+	auto idx = sourceList.indexOf(sourceId);
+
+	if(idx != -1)
 	{
-		return connectInternal(sourceId, targetId, addConnection);
-	}
-	else
-	{
-		auto at = addConnection ? MatrixUndoAction::ActionType::Add : MatrixUndoAction::ActionType::Remove;
-
-		return um->perform(new MatrixUndoAction(this, at, {}, {}, sourceId, targetId));
-	}
-}
-
-float ScriptModulationMatrix::getModValue(var component)
-{
-	String componentId;
-
-	if (component.isString())
-		componentId = component.toString();
-	else if (auto sc = dynamic_cast<ScriptComponent*>(component.getObject()))
-		componentId = sc->getId();
-
-	for (auto t : targetData)
-	{
-		if (t->componentId == componentId)
+		callSuspended([idx, targetId, addConnection](ScriptModulationMatrix& m)
 		{
-			return t->getModValue();
-		}
-	}
+			auto md = m.container->getMatrixModulatorData();
 
-	return 1.0f;
-}
-
-String ScriptModulationMatrix::getTargetId(String componentId)
-{
-	for (auto t : targetData)
-	{
-		if (t->componentId == componentId)
-			return t->modId;
-	}
-
-	return {};
-}
-
-String ScriptModulationMatrix::getComponentId(String targetId)
-{
-	for (auto t : targetData)
-	{
-		if (t->modId == targetId)
-			return t->componentId;
-	}
-
-	return {};
-}
-
-bool ScriptModulationMatrix::canConnect(String source, String target)
-{
-	for (auto t : targetData)
-	{
-		if (t->modId == target)
-			return t->canConnect(source);
+			if(addConnection)
+				return MatrixIds::Helpers::addConnection(md, m.getMainController(), targetId, idx).isValid();
+			else
+				return MatrixIds::Helpers::removeConnection(md, m.um, targetId, idx);
+		});
 	}
 
 	return false;
 }
 
-juce::var ScriptModulationMatrix::getConnectionData(String componentId)
-{
-	Array<var> data;
 
-	for (auto t : targetData)
+
+String ScriptModulationMatrix::getTargetId(var componentOrId)
+{
+	ScriptComponent* sc = dynamic_cast<ScriptComponent*>(componentOrId.getObject());
+
+	if(sc == nullptr)
+		sc = getScriptProcessor()->getScriptingContent()->getComponentWithName(componentOrId.toString());
+
+	if(sc != nullptr)
 	{
-		if (t->componentId == componentId || componentId.isEmpty())
-			data.addArray(*t->getConnectionData().getArray());
+
+		if(auto mod = dynamic_cast<MatrixModulator*>(sc->getConnectedProcessor()))
+		{
+			if(sc->getConnectedParameterIndex() == MatrixModulator::SpecialParameters::Value)
+			{
+				return mod->getId();
+			}
+		}
+
+		return sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::matrixTargetId).toString();
 	}
 
-	return var(data);
+	return {};
 }
 
-void ScriptModulationMatrix::updateConnectionData(var connectionList)
+var ScriptModulationMatrix::getComponent(String targetId)
 {
-	if (connectionList.getDynamicObject() != nullptr)
+	auto c = getScriptProcessor()->getScriptingContent();
+
+	for(int i = 0; i < c->getNumComponents(); i++)
 	{
-		Array<var> x;
-		x.add(connectionList);
-		updateConnectionData(x);
-		return;
+		auto sc = c->getComponent(i);
+
+		if(auto mod = dynamic_cast<MatrixModulator*>(sc->getConnectedProcessor()))
+		{
+			if(sc->getConnectedParameterIndex() == MatrixModulator::SpecialParameters::Value)
+			{
+				if(mod->getId() == targetId)
+					return var(sc);
+			}
+		}
+
+		if(auto s = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(sc))
+		{
+			auto tid = s->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::matrixTargetId).toString();
+
+			if(tid == targetId)
+				return var(sc);
+		}
 	}
 
-	if (um == nullptr)
-	{
-		updateConnectionDataInternal(connectionList);
-	}
-	else
-	{
-		var oldValue = toBase64();
-
-		um->perform(new MatrixUndoAction(this, MatrixUndoAction::ActionType::Update, oldValue, connectionList));
-	}
+	return var();
 }
 
-bool ScriptModulationMatrix::updateIntensity(String source, String target, float intensityValue)
+bool ScriptModulationMatrix::canConnect(String source, String target)
 {
-	if (um == nullptr)
+	auto idx = sourceList.indexOf(source);
+
+	if(idx != -1)
 	{
-		return updateIntensityInternal(source, target, intensityValue);
+		auto con = MatrixIds::Helpers::getConnection(container->getMatrixModulatorData(), idx, target);
+		return !con.isValid();
 	}
-	else
-	{
-		auto oldValue = getIntensitySliderData(source, target)[scriptnode::PropertyIds::Value];
-		var newValue(intensityValue);
 
-		return um->perform(new MatrixUndoAction(this, MatrixUndoAction::ActionType::Intensity, oldValue, newValue, source, target));;
-	}	
+	return false;
+
 }
-
-bool ScriptModulationMatrix::updateValueMode(String source, String target, String valueMode)
-{
-	if(um == nullptr)
-		return updateValueModeInternal(source, target, valueMode);
-	else
-	{
-		auto oldValue = getValueModeData(source, target)[scriptnode::PropertyIds::Value];
-		var newValue(valueMode);
-
-		return um->perform(new MatrixUndoAction(this, MatrixUndoAction::ActionType::ValueMode, oldValue, newValue, source, target));
-	}
-}
-
 
 String ScriptModulationMatrix::toBase64()
 {
 	zstd::ZDefaultCompressor comp;
-	
-	auto v = exportAsValueTree();
+
+	auto md = container->getMatrixModulatorData();
 	MemoryBlock mb;
-
-	comp.compress(v, mb);
-
+	comp.compress(md, mb);
 	return mb.toBase64Encoding();
 }
 
 void ScriptModulationMatrix::fromBase64(String b64)
 {
-	zstd::ZDefaultCompressor comp;
-
 	MemoryBlock mb;
-	mb.fromBase64Encoding(b64);
 
-	ValueTree v;
-	comp.expand(mb, v);
-
-	restoreFromValueTree(v);
+	if(mb.fromBase64Encoding(b64))
+	{
+		zstd::ZDefaultCompressor comp;
+		ValueTree v;
+		if(comp.expand(mb, v))
+		{
+			callSuspended([v](ScriptModulationMatrix& m)
+			{
+				m.restoreFromValueTree(v);
+			});
+		}
+	}
 }
 
-void ScriptModulationMatrix::clearAllConnections()
+void ScriptModulationMatrix::clearAllConnections(String targetId)
 {
-	if(um == nullptr)
-		clearConnectionsInternal();
-	else
+	callSuspended([targetId](ScriptModulationMatrix& m)
 	{
-		um->perform(new MatrixUndoAction(this, MatrixUndoAction::ActionType::Clear, toBase64(), var()));
-	}
+		auto md = m.container->getMatrixModulatorData();
+		MatrixIds::Helpers::removeAllConnections(md, m.um, targetId);
+	});
 }
 
 void ScriptModulationMatrix::setConnectionCallback(var updateFunction)
 {
-	if (HiseJavascriptEngine::isJavascriptFunction(updateFunction))
+	if(HiseJavascriptEngine::isJavascriptFunction(updateFunction))
 	{
 		connectionCallback = WeakCallbackHolder(getScriptProcessor(), this, updateFunction, 3);
 		connectionCallback.incRefCount();
-		connectionCallback.setHighPriority();
+		connectionCallback.setThisObject(this);
 	}
 }
 
-void ScriptModulationMatrix::setEditCallback(var editFunction)
+void ScriptModulationMatrix::setEditCallback(var menuItems, var editFunction)
 {
-	if (!targetData.isEmpty())
-		reportScriptError("You must call this function before adding modulation targets");
+	StringArray items;
 
-	if (HiseJavascriptEngine::isJavascriptFunction(editFunction))
+	if(menuItems.isArray())
+	{
+		for(const auto& a: *menuItems.getArray())
+			items.add(a.toString());
+	}
+	else if (menuItems.isString())
+	{
+		items.add(menuItems.toString());
+	}
+
+	items.removeEmptyStrings(true);
+	items.removeDuplicates(false);
+
+	if(HiseJavascriptEngine::isJavascriptFunction(editFunction) && !items.isEmpty())
 	{
 		editCallback = WeakCallbackHolder(getScriptProcessor(), this, editFunction, 1);
 		editCallback.incRefCount();
 		editCallback.setThisObject(this);
+
+		container->customEditCallbacks = items;
+
+		container->editCallbackHandler.addListener(*this, [](ScriptModulationMatrix& m, int idx, const String& targetId)
+		{
+			if(targetId.isNotEmpty() && m.editCallback)
+			{
+				var args[2];
+				args[0] = var(idx);
+				args[1] = targetId;
+
+				m.editCallback.call(args, 2);
+			}
+		}, false);
+	}
+	else
+	{
+		container->customEditCallbacks = {};
+		container->editCallbackHandler.removeListener(*this);
 	}
 }
 
-juce::var ScriptModulationMatrix::getSourceList() const
+var ScriptModulationMatrix::getSourceList() const
 {
-	Array<var> list;
+	Array<var> l;
 
-	for (auto s : sourceData)
-		list.add(s->mod->getId());
+	for(auto s: sourceList)
+		l.add(s);
 
-	return var(list);
+	return var(l);
 }
 
-juce::var ScriptModulationMatrix::getTargetList() const
+var ScriptModulationMatrix::getTargetList() const
 {
-	Array<var> list;
+	Array<var> l;
 
-	for (auto t : targetData)
-		list.add(t->modId);
+	for(auto t: allTargets)
+		l.add(t);
 
-	return var(list);
+	return var(l);
 }
 
-var ScriptModulationMatrix::getIntensitySliderData(String sourceId, String targetId)
+void ScriptModulationMatrix::setCurrentlySelectedSource(String sourceId)
 {
-	for (auto t : targetData)
+	auto idx = sourceList.indexOf(sourceId);
+
+	if(idx != -1 && container != nullptr)
 	{
-		if (t->modId == targetId)
-			return t->getIntensitySliderData(sourceId);
+		if(!container->matrixProperties.selectableSources)
+			reportScriptError("Selectable sources are disabled");
+
+		container->currentMatrixSourceBroadcaster.sendMessage(sendNotificationSync, idx);
+	}
+}
+
+void ScriptModulationMatrix::setSourceSelectionCallback(var newCallback)
+{
+	container->currentMatrixSourceBroadcaster.removeListener(*this);
+
+	if(HiseJavascriptEngine::isJavascriptFunction(newCallback))
+	{
+		if(!container->matrixProperties.selectableSources)
+			reportScriptError("Selectable sources are disabled");
+
+		sourceSelectionCallback = WeakCallbackHolder(getScriptProcessor(), this, newCallback, 1);
+		sourceSelectionCallback.incRefCount();
+		sourceSelectionCallback.setThisObject(this);
+
+		container->currentMatrixSourceBroadcaster.addListener(*this, [](ScriptModulationMatrix& m, int idx)
+		{
+			if(isPositiveAndBelow(idx, m.sourceList.size()))
+			{
+				auto sourceName = m.sourceList[idx];
+				m.sourceSelectionCallback.call1(sourceName);
+			}
+		});
+	}
+	
+}
+
+void ScriptModulationMatrix::setDragCallback(var newDragCallback)
+{
+	container->dragBroadcaster.removeListener(*this);
+
+	if(HiseJavascriptEngine::isJavascriptFunction(newDragCallback))
+	{
+		dragCallback = WeakCallbackHolder(getScriptProcessor(), this, newDragCallback, 3);
+		dragCallback.incRefCount();
+
+		container->dragBroadcaster.addListener(*this, [](ScriptModulationMatrix& m, int si, const String& t, GlobalModulatorContainer::DragAction a)
+		{
+			if(m.dragCallback)
+			{
+				std::array<var, (int)GlobalModulatorContainer::DragAction::numDragActions> s({
+					"DragEnd",
+					"DragStart",
+					"Drop",
+					"Hover",
+					"DisabledHover"
+				});
+
+				var args[3];
+				args[0] = si == -1 ? String() : m.sourceList[si];
+				args[1] = t;
+				args[2] = s[(int)a];
+
+				m.dragCallback.call(args, 3);
+			}
+		}, false);
+	}
+}
+
+void ScriptModulationMatrix::setMatrixModulationProperties(var newProperties)
+{
+	container->matrixProperties.fromJSON(newProperties);
+
+	for(const auto& iv: container->matrixProperties.initValues)
+	{
+		if(iv.second.intensity != 0.0 && !iv.second)
+		{
+			reportScriptError(iv.first + " init value has no Mode property defined");
+		}
+	}
+}
+
+var ScriptModulationMatrix::getConnectionProperty(String sourceId, String targetId, String propertyId)
+{
+	auto sourceIndex = sourceList.indexOf(sourceId);
+
+	if(sourceIndex != -1)
+	{
+		auto c = MatrixIds::Helpers::getConnection(container->getMatrixModulatorData(), sourceIndex, targetId);
+
+		if(c.isValid())
+		{
+			Identifier id(propertyId);
+
+			if(MatrixIds::Helpers::getWatchableIds().contains(id))
+			{
+				return c[id];
+			}
+		}
 	}
 
 	return {};
 }
 
-juce::var ScriptModulationMatrix::getValueModeData(String sourceId, String targetId)
+bool ScriptModulationMatrix::setConnectionProperty(String sourceId, String targetId, String propertyId, var value)
 {
-	for (auto t : targetData)
+	auto sourceIndex = sourceList.indexOf(sourceId);
+
+	if(sourceIndex != -1)
 	{
-		if (t->modId == targetId)
-			return t->getValueModeData(sourceId);
-	}
+		auto c = MatrixIds::Helpers::getConnection(container->getMatrixModulatorData(), sourceIndex, targetId);
 
-	return {};
-}
-
-void ScriptModulationMatrix::setUseUndoManager(bool shouldUseUndoManager)
-{
-	if (shouldUseUndoManager)
-		um = getScriptProcessor()->getMainController_()->getControlUndoManager();
-	else
-		um = nullptr;
-}
-
-void ScriptModulationMatrix::sendUpdateMessage(String source, String target, ConnectionEvent eventType)
-{
-	if (!connectionCallback)
-		return;
-
-	broadcaster.sendMessage(deferRefresh ? dontSendNotification : sendNotificationAsync, source, target, eventType);
-}
-
-void ScriptModulationMatrix::onUpdateMessage(ScriptModulationMatrix& m, const String& source, const String& target, ConnectionEvent eventType)
-{
-	if (m.connectionCallback)
-	{
-		static const StringArray eventNames = {
-			"Add",
-			"Delete",
-			"Update",
-			"Intensity",
-			"ValueMode",
-			"Rebuild"
-		};
-
-		m.connectionCallback.call({ var(source), var(target), var(eventNames[(int)eventType]) });
-	}
-}
-
-
-
-void ScriptModulationMatrix::refreshBypassStates()
-{
-	if (deferRefresh)
-		return;
-
-	Array<TargetDataBase*> activeTargets;
-
-	for (auto s : sourceData)
-	{
-		bool found = false;
-
-		for (auto& t : targetData)
+		if(c.isValid())
 		{
-			bool tfound = t->checkActiveConnections(s->mod->getId());
+			Identifier id(propertyId);
 
-			if (tfound)
-				activeTargets.add(t);
-
-			found |= tfound;
-		}
-
-		s->mod->setBypassed(!found, sendNotificationAsync);
-
-		s->cable->cleanup();
-	}
-
-	for (auto t : targetData)
-	{
-		if (activeTargets.contains(t))
-			t->start();
-		else
-			t->stop();
-	}
-
-
-}
-
-void ScriptModulationMatrix::clearConnectionsInternal()
-{
-	for (auto t : targetData)
-	{
-		t->clear();
-	}
-
-	refreshBypassStates();
-	sendUpdateMessage("", "", ConnectionEvent::Rebuild);
-}
-
-void ScriptModulationMatrix::updateConnectionDataInternal(var connectionList)
-{
-	if (connectionList.isArray())
-	{
-		for (const auto& s : *connectionList.getArray())
-		{
-			auto targetId = s["Target"].toString();
-
-			if (targetId.isEmpty())
-				reportScriptError("missing target ID");
-
-			for (auto t : targetData)
+			if(MatrixIds::Helpers::getWatchableIds().contains(id))
 			{
-				if (t->modId == targetId)
-				{
-					t->updateConnectionData(s);
-					sendUpdateMessage(s["Source"].toString(), targetId, ConnectionEvent::Update);
-				}
-			}
-		}
-	}
-
-}
-
-bool ScriptModulationMatrix::connectInternal(const String& sourceId, const String& targetId, bool addConnection)
-{
-	for (auto s : sourceData)
-	{
-		if (s->mod->getId() == sourceId)
-		{
-			for (auto t : targetData)
-			{
-				if (t->modId == targetId)
-				{
-					if (t->connect(sourceId, addConnection))
-					{
-						dynamic_cast<ScriptComponent*>(t->sc.getObject())->sendRepaintMessage();
-						refreshBypassStates();
-						return true;
-					}
-				}
-			}
-		}
-	}
-
-	refreshBypassStates();
-	return false;
-}
-
-bool ScriptModulationMatrix::updateIntensityInternal(String source, String target, float intensityValue)
-{
-	for (auto t : targetData)
-	{
-		if (t->modId == target)
-		{
-			if (t->updateIntensity(source, intensityValue))
-			{
-				sendUpdateMessage(source, target, ConnectionEvent::Intensity);
-				return true;
-			}
-
-		}
-	}
-
-	return false;
-}
-
-bool ScriptModulationMatrix::updateValueModeInternal(String source, String target, String valueMode)
-{
-	auto mode = ValueModeHelpers::getMode(valueMode);
-
-	if (mode == ValueMode::Undefined)
-		reportScriptError("invalid value mode " + valueMode);
-
-	for (auto t : targetData)
-	{
-		if (t->modId == target)
-		{
-			if (t->updateValueMode(source, mode))
-			{
-				sendUpdateMessage(source, target, ConnectionEvent::ValueMode);
+				c.setProperty(id, value, getScriptProcessor()->getMainController_()->getControlUndoManager());
 				return true;
 			}
 		}
@@ -721,1253 +938,10 @@ bool ScriptModulationMatrix::updateValueModeInternal(String source, String targe
 	return false;
 }
 
-int ScriptModulationMatrix::getSourceIndex(const String& id) const
+var ScriptModulationMatrix::getMatrixModulationProperties() const
 {
-	int idx = 0;
-
-	for (auto s : sourceData)
-	{
-		if (s->mod->getId() == id)
-			return idx;
-
-		idx++;
-	}
-
-	return -1;
+	return container->getMatrixModulationProperties();
 }
 
-int ScriptModulationMatrix::getTargetIndex(const String& id) const
-{
-	int idx = 0;
-
-	for (auto t : targetData)
-	{
-		if (t->modId == id)
-			return idx;
-
-		idx++;
-	}
-
-	return -1;
-}
-
-hise::Modulator* ScriptModulationMatrix::getSourceMod(const String& id) const
-{
-	auto index = getSourceIndex(id);
-
-	if (isPositiveAndBelow(index, sourceData.size()))
-		return sourceData[index]->mod.get();
-
-	return nullptr;
-}
-
-juce::ReferenceCountedObject* ScriptModulationMatrix::getSourceCable(const String& id) const
-{
-	auto index = getSourceIndex(id);
-
-	if (isPositiveAndBelow(index, sourceData.size()))
-		return sourceData[index]->cable.get();
-
-	return nullptr;
-}
-
-ScriptModulationMatrix::TargetDataBase::TargetDataBase(ScriptModulationMatrix* p, const var& json, bool isMod_) :
-	SimpleTimer(p->getMainController()->getGlobalUIUpdater()),
-	parent(p),
-	isMod(isMod_)
-{
-
-}
-
-
-
-
-
-void ScriptModulationMatrix::TargetDataBase::timerCallback()
-{
-	auto thisValue = getModValue();
-
-	if (thisValue != lastValue)
-	{
-		lastValue = thisValue;
-		dynamic_cast<ScriptComponent*>(sc.getObject())->sendRepaintMessage();
-	}
-}
-
-void ScriptModulationMatrix::TargetDataBase::init(const var& json)
-{
-	auto p = parent.get();
-
-	verifyProperty(json, MatrixIds::ID);
-
-	modId = json[MatrixIds::ID].toString();
-
-	verifyProperty(json, MatrixIds::Target);
-
-	auto targetId = json[MatrixIds::Target].toString();
-
-	processor = ProcessorHelpers::getFirstProcessorWithName(p->getMainController()->getMainSynthChain(), targetId);
-
-	verifyExists(processor.get(), MatrixIds::Target);
-
-	verifyProperty(json, MatrixIds::Component);
-
-	componentId = json[MatrixIds::Component].toString();
-
-	sc = var(p->getScriptProcessor()->getScriptingContent()->getComponentWithName(componentId));
-
-	verifyExists(sc.getObject(), MatrixIds::Component);
-
-	if (auto comp = dynamic_cast<ScriptComponent*>(sc.getObject()))
-	{
-		r.rng.start = comp->getScriptObjectProperty(ScriptComponent::Properties::min);
-		r.rng.end = comp->getScriptObjectProperty(ScriptComponent::Properties::max);
-
-		if (comp->hasProperty("middlePosition"))
-		{
-			auto mp = comp->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
-
-			if (r.rng.getRange().contains(mp))
-				r.rng.setSkewForCentre(mp);
-		}
-
-		if (comp->hasProperty("stepSize"))
-			r.rng.interval = comp->getScriptObjectProperty("stepSize");
-		if (dynamic_cast<ScriptingApi::Content::ScriptComboBox*>(comp))
-			r.rng.interval = 1.0;
-	}
-
-	
-}
-
-hise::MacroControlledObject::ModulationPopupData::Ptr ScriptModulationMatrix::TargetDataBase::getModulationData()
-{
-	MacroControlledObject::ModulationPopupData::Ptr newData = new MacroControlledObject::ModulationPopupData();
-
-	newData->modulationId = modId;
-
-	for (auto s : parent->sourceData)
-		newData->sources.add(s->mod->getId());
-
-	WeakReference<ScriptModulationMatrix> safeParent(parent.get());
-	WeakReference<TargetDataBase> safeThis(this);
-
-	if (parent->editCallback)
-	{
-		newData->editCallback = [safeParent](String name)
-		{
-			if (safeParent != nullptr)
-				safeParent->editCallback.call1(name);
-		};
-	}
-
-	newData->queryFunction = [safeThis](int index, bool checkTicked)
-	{
-		if (safeThis != nullptr)
-			return safeThis->queryFunction(index, checkTicked);
-
-		return false;
-	};
-
-	newData->toggleFunction = [safeThis](int index, bool value)
-	{
-		if (safeThis != nullptr)
-		{
-			auto source = safeThis->parent->sourceData[index]->mod->getId();
-			
-			safeThis->parent->connect(source, safeThis->modId, value);
-		}
-	};
-
-	return newData;
-}
-
-void ScriptModulationMatrix::TargetDataBase::verifyProperty(const var& json, const Identifier& id)
-{
-	if (!json.hasProperty(id))
-		parent->reportScriptError("JSON must have property " + id.toString().quoted());
-}
-
-void ScriptModulationMatrix::TargetDataBase::verifyExists(void* obj, const Identifier& id)
-{
-	if (obj == nullptr)
-		parent->reportScriptError(id + " does not exist");
-}
-
-void ScriptModulationMatrix::ModulatorTargetData::updateConnectionData(const var& obj)
-{
-	auto sm = parent->getSourceMod(obj[MatrixIds::Source]);
-
-	forEach(sm, [&obj](Modulator* sm, ModulatorTargetData& data, GlobalModulator* gm)
-	{
-		if (gm->isConnected() && gm->getOriginalModulator() == sm)
-		{
-			auto intensity = ValueModeHelpers::getIntensityValue(obj);
-			auto newMode = ValueModeHelpers::getMode(obj[MatrixIds::Mode].toString());
-
-			data.updateValueMode(sm->getId(), newMode);
-			data.updateIntensity(sm->getId(), intensity);
-			
-			dynamic_cast<Modulator*>(gm)->setAttribute(GlobalModulator::Inverted, (int)obj.getProperty(MatrixIds::Inverted, 0), sendNotification);
-			return true;
-		}
-
-		return false;
-	});
-}
-
-juce::var ScriptModulationMatrix::ModulatorTargetData::getConnectionData() const
-{
-	Array<var> data;
-
-	forEach(nullptr, [&data](Modulator* sm, ModulatorTargetData& td, GlobalModulator* gm)
-	{
-		if (gm->isConnected())
-		{
-			DynamicObject::Ptr obj = new DynamicObject();
-			obj->setProperty(MatrixIds::Source, gm->getOriginalModulator()->getId());
-			obj->setProperty(MatrixIds::Target, td.modId);
-
-			auto mode = td.getValueModeValue(gm);
-			obj->setProperty(MatrixIds::Mode, mode);
-
-			auto intensity = td.getIntensityValue(gm);
-			obj->setProperty(MatrixIds::Intensity, intensity);
-			obj->setProperty(MatrixIds::Inverted, dynamic_cast<Modulator*>(gm)->getAttribute(GlobalModulator::Inverted));
-
-			data.add(var(obj.get()));
-		}
-
-		return false;
-	});
-
-	return data;
-}
-
-hise::MacroControlledObject::ModulationPopupData::Ptr ScriptModulationMatrix::ModulatorTargetData::getModulationData()
-{
-	auto newData = TargetDataBase::getModulationData();
-
-	if (componentMod != nullptr || targetMode == TargetMode::FrequencyMode)
-	{
-		WeakReference<ModulatorTargetData> safeThis(this);
-
-		newData->valueCallback = [safeThis](double v)
-		{
-			if (safeThis != nullptr)
-			{
-				safeThis->componentValue = v;
-				safeThis->updateValue();
-			}
-		};
-	}
-
-	return newData;
-}
-
-int ScriptModulationMatrix::ModulatorTargetData::getTypeIndex(GlobalModulator* gm) const
-{
-	auto asMod = dynamic_cast<Modulator*>(gm);
-
-	for (int i = 0; i < 3; i++)
-	{
-		if (modulators[i].contains(asMod))
-			return i;
-
-		if (targetMode == TargetMode::FrequencyMode && freqAddMods[i].contains(asMod))
-			return i;
-	}
-
-	jassertfalse;
-	return -1;
-}
-
-void ScriptModulationMatrix::ModulatorTargetData::updateValue()
-{
-    if(componentMod != nullptr)
-    {
-        auto mv = componentValue;
-        
-        auto mod = dynamic_cast<Modulation*>(componentMod.get());
-        
-        if(mod->getMode() == Modulation::Mode::GainMode)
-            mv = 1.0f - mv;
-        
-        mod->setIntensityFromSlider(mv);
-    }
-	else if(targetMode == TargetMode::FrequencyMode)
-    {
-		processor->setAttribute(PolyFilterEffect::Parameters::Frequency, componentValue, sendNotificationAsync);
-	}
-}
-
-bool ScriptModulationMatrix::ModulatorTargetData::isBipolarFreqMod(GlobalModulator* gm) const
-{
-	if (targetMode != TargetMode::FrequencyMode)
-		return false;
-
-	auto asMod = dynamic_cast<Modulator*>(gm);
-
-	return freqAddMods[0].contains(asMod) ||
-		   freqAddMods[1].contains(asMod) ||
-		   freqAddMods[2].contains(asMod);
-}
-
-String ScriptModulationMatrix::ModulatorTargetData::getValueModeValue(GlobalModulator* gm) const
-{
-	if (dynamic_cast<Modulation*>(gm)->getMode() == Modulation::Mode::GainMode)
-	{
-		// This will only happen in frequency mode...
-		return ValueModeHelpers::getModeName(ValueMode::Scale);
-	}
-
-	auto isBipolar = dynamic_cast<Modulation*>(gm)->isBipolar();
-
-	return ValueModeHelpers::getModeName(isBipolar ? ValueMode::Bipolar : ValueMode::Unipolar);
-}
-
-double ScriptModulationMatrix::ModulatorTargetData::getIntensityValue(GlobalModulator* gm) const
-{
-	auto intensity = dynamic_cast<Modulation*>(gm)->getDisplayIntensity();
-
-	if (isBipolarFreqMod(gm))
-		intensity *= 0.01f;
-
-	return intensity;
-}
-
-bool ScriptModulationMatrix::ModulatorTargetData::canConnect(const String& sourceId) const
-{
-	auto sm = parent->getSourceMod(sourceId);
-
-	bool alreadyConnected = forEach(sm, [](Modulator* sm, ModulatorTargetData& d, GlobalModulator* gm)
-	{
-		return gm->getOriginalModulator() == sm;
-	});
-
-	if (alreadyConnected)
-		return false;
-
-	return forEach(sm, [](Modulator* sm, ModulatorTargetData& d, GlobalModulator* gm)
-	{
-		if (gm->getOriginalModulator() == nullptr)
-			return true;
-		
-		return false;
-	});
-}
-
-bool ScriptModulationMatrix::ModulatorTargetData::connect(const String& sourceId, bool addConnection)
-{
-	auto sm = parent->getSourceMod(sourceId);
-
-	return forEach(sm, [sourceId, addConnection](Modulator* sm, TargetDataBase& d, GlobalModulator* gm)
-	{
-		if (gm->getOriginalModulator() == sm)
-		{
-			if (!addConnection)
-			{
-				gm->disconnect();
-				dynamic_cast<ScriptComponent*>(d.sc.getObject())->sendRepaintMessage();
-				d.parent->sendUpdateMessage(sourceId, d.modId, ConnectionEvent::Delete);
-			}
-
-			return true;
-		}
-
-		if (!gm->isConnected() && addConnection)
-		{
-			auto item = d.parent->container->getId() + ":" + sourceId;
-			gm->connectToGlobalModulator(item);
-			dynamic_cast<ScriptComponent*>(d.sc.getObject())->sendRepaintMessage();
-			d.parent->sendUpdateMessage(sourceId, d.modId, ConnectionEvent::Add);
-			return true;
-		}
-
-		return false;
-	});
-}
-
-void ScriptModulationMatrix::ModulatorTargetData::clear()
-{
-	forEach(nullptr, [](Modulator* sm, ModulatorTargetData& d, GlobalModulator* gm)
-	{
-		gm->disconnect();
-		auto mod = dynamic_cast<Modulation*>(gm);
-		mod->setIntensity(mod->getInitialValue());
-
-		return false;
-	});
-
-	dynamic_cast<ScriptComponent*>(sc.getObject())->sendRepaintMessage();
-}
-
-juce::var ScriptModulationMatrix::ModulatorTargetData::getIntensitySliderData(String sourceId) const
-{
-	auto sm = parent->getSourceMod(sourceId);
-
-	var obj;
-
-	scriptnode::InvertableParameterRange rng;
-
-	switch (targetMode)
-	{
-	case TargetMode::GainMode: 
-		rng = { 0.0, 1.0 }; break;
-	case TargetMode::PitchMode: 
-		rng = { -12.0, 12.0 }; 
-		rng.rng.interval = dynamic_cast<ScriptComponent*>(sc.getObject())->getScriptObjectProperty(Identifier("stepSize"));
-		break;
-	case TargetMode::FrequencyMode:
-		rng = { 0.0, 1.0 }; break;
-    case TargetMode::GlobalMode:
-        rng = { 0.0, 1.0 }; break;
-	case TargetMode::PanMode: 
-		rng = { -100.0, 100.0 }; 
-		rng.rng.interval = 1.0;
-		break;
-    default:
-        jassertfalse;
-        break;
-	}
-
-	scriptnode::RangeHelpers::storeDoubleRange(obj, rng);
-
-	obj.getDynamicObject()->setProperty("defaultValue", 0.0);
-
-	forEach(sm, [&](Modulator* sm, ModulatorTargetData& d, GlobalModulator* gm)
-	{
-		if (gm->getOriginalModulator() == sm)
-		{
-			if(isBipolarFreqMod(gm))
-				obj.getDynamicObject()->setProperty(scriptnode::PropertyIds::MinValue, -1.0);
-
-			obj.getDynamicObject()->setProperty(scriptnode::PropertyIds::Value, d.getIntensityValue(gm));
-			return true;
-		}
-
-		return false;
-	});
-
-	if (!obj.hasProperty(scriptnode::PropertyIds::Value))
-	{
-		obj.getDynamicObject()->setProperty(scriptnode::PropertyIds::Value, 0.0);
-	}
-
-	return obj;
-}
-
-juce::var ScriptModulationMatrix::ModulatorTargetData::getValueModeData(const String& sourceId) const
-{
-	Array<var> modes;
-
-	auto modChain = dynamic_cast<Modulation*>(processor->getChildProcessor(subIndex));
-	auto mode = modChain->getMode();
-
-	switch (targetMode)
-	{
-	case TargetMode::GainMode: 
-		modes.add(ValueModeHelpers::getModeName(ValueMode::Scale));
-		break;
-	case TargetMode::FrequencyMode:
-		modes.add(ValueModeHelpers::getModeName(ValueMode::Scale));
-		modes.add(ValueModeHelpers::getModeName(ValueMode::Unipolar));
-		modes.add(ValueModeHelpers::getModeName(ValueMode::Bipolar));
-		break;
-	default:
-		modes.add(ValueModeHelpers::getModeName(ValueMode::Unipolar));
-		modes.add(ValueModeHelpers::getModeName(ValueMode::Bipolar));
-		break;
-	}
-
-	DynamicObject::Ptr obj = new DynamicObject();
-
-	obj->setProperty(MatrixIds::items, var(modes));
-
-	if (targetMode != TargetMode::FrequencyMode && mode == Modulation::Mode::GainMode)
-		obj->setProperty(scriptnode::PropertyIds::Value, ValueModeHelpers::getModeName(ValueMode::Scale));
-	else
-	{
-		forEach(parent->getSourceMod(sourceId), [&](Modulator* sm, ModulatorTargetData& m, GlobalModulator* gm)
-		{
-			if (gm->getOriginalModulator() == sm)
-			{
-				obj->setProperty(scriptnode::PropertyIds::Value, m.getValueModeValue(gm));
-				return true;
-			}
-
-			return false;
-		});
-	}
-
-	return var(obj.get());
-}
-
-bool ScriptModulationMatrix::ModulatorTargetData::updateValueMode(const String& sourceId, ValueMode newMode)
-{
-	return forEach(parent->getSourceMod(sourceId), [newMode](Modulator* sm, ModulatorTargetData& d, GlobalModulator* gm)
-	{
-		if (d.targetMode == TargetMode::FrequencyMode)
-		{
-			if (gm->getOriginalModulator() == sm)
-			{
-				auto asMod = dynamic_cast<Modulator*>(gm);
-
-				auto typeIndex = d.getTypeIndex(gm);
-
-				for (int i = 0; i < d.freqValueModes[typeIndex].size(); i++)
-				{
-					if (d.modulators[typeIndex][i] == asMod || d.freqAddMods[typeIndex][i] == asMod)
-					{
-						auto isScaled = d.freqValueModes[typeIndex][i] == ValueMode::Scale;
-						auto shouldBeScaled = newMode == ValueMode::Scale;
-
-						if (isScaled != shouldBeScaled)
-						{
-							auto other = dynamic_cast<GlobalModulator*>(shouldBeScaled ?
-								d.modulators[typeIndex][i].get() :
-								d.freqAddMods[typeIndex][i].get());
-
-							jassert(other != gm);
-
-							gm->disconnect();
-							dynamic_cast<Modulator*>(gm)->setBypassed(true, sendNotificationAsync);
-							gm = other;
-
-							gm->connectToGlobalModulator(d.parent->container->getId() + ":" + sm->getId());
-							dynamic_cast<Modulator*>(gm)->setBypassed(false, sendNotificationAsync);
-						}
-
-						d.freqValueModes[typeIndex].set(i, newMode);
-
-						if (!shouldBeScaled)
-							dynamic_cast<Modulation*>(gm)->setIsBipolar(newMode == ValueMode::Bipolar);
-					}
-				}
-
-				return true;
-			}
-		}
-		else
-		{
-			if (gm->getOriginalModulator() == sm)
-			{
-				auto asMod = dynamic_cast<Modulation*>(gm);
-
-				if (asMod->getMode() == Modulation::Mode::GainMode)
-					return false;
-
-				if (asMod->isBipolar() == (newMode == ValueMode::Bipolar))
-					return false;
-
-				asMod->setIsBipolar(newMode == ValueMode::Bipolar);
-				return true;
-			}
-		}
-		
-		return false;
-	});
-}
-
-bool ScriptModulationMatrix::ModulatorTargetData::updateIntensity(const String& sourceId, float newValue)
-{
-	return forEach(parent->getSourceMod(sourceId), [newValue](Modulator* sm, ModulatorTargetData& d, GlobalModulator* gm)
-	{
-		if (gm->getOriginalModulator() == sm)
-		{
-			auto vToUse = newValue;
-
-			if (d.isBipolarFreqMod(gm)) // uses PAN range (wtf lol)
-				vToUse *= 100.0;
-
-			dynamic_cast<Modulation*>(gm)->setIntensityFromSlider(vToUse);
-			return true;
-		}
-		
-		return false;
-	});
-}
-
-bool ScriptModulationMatrix::ModulatorTargetData::checkActiveConnections(const String& sourceId)
-{
-	auto sm = parent->getSourceMod(sourceId);
-
-	bool tfound = false;
-
-	if (targetMode == TargetMode::FrequencyMode)
-	{
-		auto f = [&](int typeIndex)
-		{
-			int idx = 0;
-
-			for (auto& m : freqValueModes[typeIndex])
-			{
-				auto list = m == ValueMode::Scale ? &freqAddMods : &modulators;
-				(*list)[typeIndex][idx++]->setBypassed(true, sendNotificationAsync);
-			}
-		};
-		
-		f(0);
-		f(1);
-		f(2);
-	}
-
-	forEach(sm, [&tfound](Modulator* sm, ModulatorTargetData& d, GlobalModulator* gm)
-	{
-		auto asMod = dynamic_cast<Modulator*>(gm);
-
-		auto synth = asMod->getParentProcessor(true);
-		auto gainChain = synth->getChildProcessor(ModulatorSynth::GainModulation);
-		auto isGainMod = asMod->getParentProcessor(false) == gainChain;
-		auto isFirstEnvelope = d.modulators[2][0].get() == asMod;
-
-		// let the first gain envelope active to let the voice play
-		auto leaveAlwaysEnabled = (isGainMod && isFirstEnvelope);
-
-		if (!leaveAlwaysEnabled)
-		{
-			asMod->setBypassed(!gm->isConnected(), sendNotificationAsync);
-		}
-
-		tfound |= gm->getOriginalModulator() == sm;
-
-		return false;
-	});
-
-	return tfound;
-}
-
-
-
-template <typename ModulatorType> Modulator* createOrGet(Processor* p, int subIndex, const String& id)
-{
-	if (auto existingMod = ProcessorHelpers::getFirstProcessorWithName(p, id))
-		return dynamic_cast<Modulator*>(existingMod);
-
-	raw::Builder b(p->getMainController());
-	auto newMod = b.create<ModulatorType>(p, subIndex);
-	newMod->setId(id);
-	return newMod;
-}
-
-void ScriptModulationMatrix::ModulatorTargetData::init(const var& json)
-{
-	TargetDataBase::init(json);
-
-	auto p = parent.get();
-
-	verifyProperty(json, MatrixIds::Chain);
-
-	subIndex = (int)json.getProperty(MatrixIds::Chain, -1);
-
-	auto modChain = dynamic_cast<ModulatorChain*>(processor->getChildProcessor(subIndex));
-
-	verifyExists(modChain, MatrixIds::Chain);
-
-	targetMode = (TargetMode)(int)modChain->getMode();
-
-	if (dynamic_cast<FilterEffect*>(processor.get()) != nullptr && subIndex == PolyFilterEffect::FrequencyChain)
-		targetMode = TargetMode::FrequencyMode;
-
-	switch (targetMode)
-	{
-	case TargetMode::GainMode:
-	case TargetMode::FrequencyMode:
-	case TargetMode::GlobalMode: defaultValue = 1.0f; break;
-	case TargetMode::PitchMode:
-	case TargetMode::PanMode: defaultValue = 0.0f; break;
-	default:
-		jassertfalse;
-	}
-
-
-	int thisSlots[3] = { p->numSlots[0], p->numSlots[1], p->numSlots[2] };
-
-
-	auto tsa = json.getProperty("Slots", 0);
-
-	if (tsa.isArray())
-	{
-		thisSlots[0] = (int)tsa[0];
-		thisSlots[1] = (int)tsa[1];
-		thisSlots[2] = (int)tsa[2];
-	}
-
-	if (json.getProperty(MatrixIds::AddConstUIMod, false))
-	{
-		componentMod = createOrGet<ConstantModulator>(processor, subIndex, modId + " UIMod");
-	}
-	
-	for (int i = 0; i < thisSlots[0]; i++)
-		modulators[0].add(createOrGet<GlobalVoiceStartModulator>(processor, subIndex, modId + " VS" + String(i)));
-
-	for (int i = 0; i < thisSlots[1]; i++)
-		modulators[1].add(createOrGet<GlobalTimeVariantModulator>(processor, subIndex, modId + " TV" + String(i)));
-
-	for (int i = 0; i < thisSlots[2]; i++)
-		modulators[2].add(createOrGet<GlobalEnvelopeModulator>(processor, subIndex, modId + " EN" + String(i)));
-
-	if (targetMode == TargetMode::FrequencyMode)
-	{
-		auto defaultMode = ValueModeHelpers::getMode(json[MatrixIds::Mode]);
-
-		// make sure the bipolar mod is cranked up fully.
-		processor->setAttribute(PolyFilterEffect::Parameters::BipolarIntensity, 1.0, sendNotificationSync);
-
-		if (defaultMode == ValueMode::Undefined)
-			defaultMode = ValueMode::Scale;
-
-		for (int i = 0; i < thisSlots[0]; i++)
-		{
-			freqValueModes[0].add(defaultMode);
-			freqAddMods[0].add(createOrGet<GlobalVoiceStartModulator>(processor, PolyFilterEffect::BipolarFrequencyChain, modId + " VSAdd" + String(i)));
-		}
-			
-
-		for (int i = 0; i < thisSlots[1]; i++)
-		{
-			freqValueModes[1].add(defaultMode);
-			freqAddMods[1].add(createOrGet<GlobalTimeVariantModulator>(processor, PolyFilterEffect::BipolarFrequencyChain, modId + " TVAdd" + String(i)));
-		}
-			
-		for (int i = 0; i < thisSlots[2]; i++)
-		{
-			freqValueModes[2].add(defaultMode);
-			freqAddMods[2].add(createOrGet<GlobalEnvelopeModulator>(processor, PolyFilterEffect::BipolarFrequencyChain, modId + " ENAdd" + String(i)));
-		}
-	}
-
-	dynamic_cast<ScriptComponent*>(sc.getObject())->setModulationData(getModulationData());
-
-	auto synthChain = p->getMainController()->getMainSynthChain();
-
-	synthChain->sendRebuildMessage(true);
-}
-
-bool ScriptModulationMatrix::ModulatorTargetData::queryFunction(int index, bool checkTicked) const
-{
-	if (checkTicked)
-	{
-		auto sm = parent->sourceData[index]->mod.get();
-
-		return forEach(sm, [index](Modulator* sm, ModulatorTargetData& data, GlobalModulator* gm)
-		{
-			return gm->getOriginalModulator() == sm;
-		});
-	}
-	else
-	{
-		auto sm = parent->sourceData[index]->mod.get();
-
-		return forEach(sm, [](Modulator*, ModulatorTargetData& d, GlobalModulator* gm)
-		{
-			return !gm->isConnected();
-		});
-	}
-}
-
-bool ScriptModulationMatrix::ModulatorTargetData::forEach(Modulator* sourceMod, const IteratorFunction& f) const
-{
-	auto& thisRef = *const_cast<ModulatorTargetData*>(this);
-
- 	std::function<bool(int)> f2 = [&](int typeIndex)
-	{
-		for (auto m : modulators[typeIndex])
-		{
-			if (f(sourceMod, thisRef, dynamic_cast<GlobalModulator*>(m.get())))
-				return true;
-		}
-
-		return false;
-	};;
-
-	if (targetMode == TargetMode::FrequencyMode)
-	{
-		f2 = [&](int typeIndex)
-		{
-			int numToCheck = freqValueModes[typeIndex].size();
-
-			for (int i = 0; i < numToCheck; i++)
-			{
-				auto isScale = freqValueModes[typeIndex][i] == ValueMode::Scale;
-				auto m = isScale ? modulators[typeIndex][i] : freqAddMods[typeIndex][i];
-
-				if (f(sourceMod, thisRef, dynamic_cast<GlobalModulator*>(m.get())))
-					return true;
-			}
-
-			return false;
-		};
-	}
-
-	if (sourceMod == nullptr || dynamic_cast<VoiceStartModulator*>(sourceMod) != nullptr)
-	{
-		if (f2(0))
-			return true;
-	}
-	if (sourceMod == nullptr || dynamic_cast<TimeVariantModulator*>(sourceMod) != nullptr)
-	{
-		if (f2(1))
-			return true;
-	}
-	if (sourceMod == nullptr || dynamic_cast<EnvelopeModulator*>(sourceMod) != nullptr)
-	{
-		if (f2(2))
-			return true;
-	}
-
-	return false;
-}
-
-float ScriptModulationMatrix::ModulatorTargetData::getModValue() const
-{
-	auto dv = processor->getChildProcessor(subIndex)->getDisplayValues().outL;
-
-	switch (targetMode)
-	{
-	case TargetMode::PitchMode:
-	{
-		if (dv == 0.0)
-			return r.convertTo0to1(componentValue, false);
-
-		auto value = scriptnode::conversion_logic::pitch2st().getValue(dv);
-
-		auto copy = r;
-		copy.rng.interval = 0.0;
-
-		auto mValue = copy.convertTo0to1(value, false);
-
-		return (float)jlimit(0.0, 1.0, mValue);
-	}
-	case TargetMode::PanMode:
-	{
-		auto somethingActive = dynamic_cast<ModulatorSynth*>(processor->getParentProcessor(true))->getNumActiveVoices() != 0;
-		
-		if (somethingActive)
-			return jlimit(0.0f, 1.0f, (float)dv);
-		else
-			return r.convertTo0to1(componentValue, false);
-	}
-	case TargetMode::FrequencyMode:
-	{
-		auto c = r.convertTo0to1(componentValue, false);
-
-		auto gainMod = dv;
-
-		auto bimod = processor->getChildProcessor(PolyFilterEffect::BipolarFrequencyChain);
-
-		auto bipolarMod = bimod->getDisplayValues().outL;
-
-		if (!dynamic_cast<ModulatorChain*>(bimod)->shouldBeProcessedAtAll())
-			bipolarMod = 0.0;
-
-		return jlimit(0.0, 1.0, (c + bipolarMod) * gainMod);
-	}
-	default:
-	{
-		auto normValue = (float)dynamic_cast<ScriptComponent*>(sc.getObject())->getValueNormalized();
-		dynamic_cast<Modulation*>(processor->getChildProcessor(subIndex))->applyModulationValue(dv, normValue);
-		return normValue;
-	}
-	}
-}
-
-void ScriptModulationMatrix::ParameterTargetData::updateConnectionData(const var& obj)
-{
-	auto cable = parent->getSourceCable(obj["Source"]);
-
-	forEach(cable, [&obj](ReferenceCountedObject* cable, ParameterTargetData& d, ParameterTargetCable* target)
-	{
-		if (static_cast<RoutingManager::Cable*>(cable)->containsTarget(target))
-		{
-			target->intensity = ValueModeHelpers::getIntensityValue(obj);
-			target->inverted = obj.getProperty(MatrixIds::Inverted, false);
-			target->customMode = ValueModeHelpers::getMode(obj.getProperty(MatrixIds::Mode, "Default"));
-
-			d.updateValue();
-			return true;
-		}
-
-		return false;
-	});
-}
-
-juce::var ScriptModulationMatrix::ParameterTargetData::getConnectionData() const
-{
-	Array<var> data;
-
-	forEach(nullptr, [&data](ReferenceCountedObject*, ParameterTargetData& d, ParameterTargetCable* target)
-	{
-		DynamicObject::Ptr obj = new DynamicObject();
-		obj->setProperty(MatrixIds::Source, target->sourceId);
-		obj->setProperty(MatrixIds::Target, d.modId);
-		obj->setProperty(MatrixIds::Intensity, target->intensity);
-		obj->setProperty(MatrixIds::Inverted, target->inverted);
-		obj->setProperty(MatrixIds::Mode, ValueModeHelpers::getModeName(ValueModeHelpers::getModeToUse(d.valueMode, target->customMode)));
-
-		data.add(var(obj.get()));
-
-		return false;
-	});
-
-	return var(data);
-}
-
-void ScriptModulationMatrix::ParameterTargetData::updateValue()
-{
-	auto sv = (double)componentValue;
-
-	for (auto& s : parameterTargets)
-	{
-		auto pt = static_cast<ParameterTargetCable*>(s.getObject());
-		auto v = (1.0 - pt->value) * (double)pt->inverted + pt->value * (1.0 - (double)pt->inverted);
-
-		auto intensity = pt->intensity;
-
-		auto modeToUse = ValueModeHelpers::getModeToUse(valueMode, pt->customMode);
-
-		switch (modeToUse)
-		{
-		case ValueMode::Scale:
-			sv *= (1.0 - intensity + intensity * v);
-			break;
-		case ValueMode::Unipolar:
-			sv = jlimit(0.0, 1.0, sv + intensity * v);
-			break;
-		case ValueMode::Bipolar:
-			sv = jlimit(0.0, 1.0, sv + 2.0 * intensity * (v - 0.5));
-			break;
-		default:
-			jassertfalse;
-			break;
-		}
-	}
-
-	auto valueToSend = r.convertFrom0to1(sv, true);
-
-	if (valueToSend != lastParameterValue)
-	{
-		lastParameterValue = valueToSend;
-		processor->setAttribute(subIndex, valueToSend, sendNotificationAsync);
-		dynamic_cast<ScriptComponent*>(sc.getObject())->sendRepaintMessage();
-	}
-}
-
-void ScriptModulationMatrix::ParameterTargetData::clear()
-{
-	parameterTargets.clear();
-	dynamic_cast<ScriptComponent*>(sc.getObject())->sendRepaintMessage();
-}
-
-
-
-bool ScriptModulationMatrix::ParameterTargetData::connect(const String& sourceId, bool addConnection)
-{
-	auto cable = parent->getSourceCable(sourceId);
-
-	if (addConnection)
-	{
-		auto ok = forEach(cable, [sourceId](ReferenceCountedObject*, TargetDataBase& d, ParameterTargetCable* target)
-		{
-			return target->sourceId == sourceId;
-		});
-
-		if (ok)
-			return true;
-
-		auto parameterTarget = var(new ParameterTargetCable(dynamic_cast<ParameterTargetData*>(this), sourceId));
-		static_cast<RoutingManager::Cable*>(cable)->addTarget(dynamic_cast<RoutingManager::CableTargetBase*>(parameterTarget.getObject()));
-
-		parameterTargets.add(parameterTarget);
-		parent->sendUpdateMessage(sourceId, modId, ConnectionEvent::Add);
-	}
-	else
-	{
-		forEach(cable, [sourceId](ReferenceCountedObject* cable, ParameterTargetData& d, ParameterTargetCable* c)
-		{
-			auto typed = static_cast<RoutingManager::Cable*>(cable);
-
-			if (typed->containsTarget(c))
-			{
-				typed->removeTarget(c);
-				d.parameterTargets.remove(var(c));
-				dynamic_cast<ScriptComponent*>(d.sc.getObject())->sendRepaintMessage();
-				d.parent->sendUpdateMessage(sourceId, d.modId, ConnectionEvent::Delete);
-				return true;
-			}
-
-			return false;
-		});
-	}
-
-	updateValue();
-	return true;
-}
-
-bool ScriptModulationMatrix::ParameterTargetData::checkActiveConnections(const String& sourceId)
-{
-	auto cable = parent->getSourceCable(sourceId);
-
-	return forEach(cable, [](ReferenceCountedObject* cable, TargetDataBase& d, ParameterTargetCable* target)
-	{
-		return static_cast<RoutingManager::Cable*>(cable)->containsTarget(target);
-	});
-}
-
-bool ScriptModulationMatrix::ParameterTargetData::updateIntensity(const String& sourceId, float newValue)
-{
-	return forEach(parent->getSourceCable(sourceId), [newValue](ReferenceCountedObject* cable, ParameterTargetData& d, ParameterTargetCable* target)
-	{
-		if (static_cast<RoutingManager::Cable*>(cable)->containsTarget(target))
-		{
-			target->intensity = newValue;
-			d.updateValue();
-			return true;
-		}
-
-		return false;
-	});
-}
-
-
-bool ScriptModulationMatrix::ParameterTargetData::updateValueMode(const String& sourceId, ValueMode newMode)
-{
-	return forEach(parent->getSourceCable(sourceId), [newMode](ReferenceCountedObject* cable, ParameterTargetData& d, ParameterTargetCable* target)
-	{
-		if (static_cast<RoutingManager::Cable*>(cable)->containsTarget(target))
-		{
-			if (target->customMode != newMode)
-			{
-				target->customMode = newMode;
-				d.updateValue();
-				return true;
-			}
-			
-			return false;
-		}
-
-		return false;
-	});
-}
-
-bool ScriptModulationMatrix::ParameterTargetData::canConnect(const String& sourceId) const
-{
-	auto sourceCable = parent->getSourceCable(sourceId);
-
-	return !forEach(sourceCable, [](ReferenceCountedObject* cable, ParameterTargetData& data, ParameterTargetCable* pc)
-	{
-		return static_cast<RoutingManager::Cable*>(cable)->containsTarget(pc);
-	});
-}
-
-juce::var ScriptModulationMatrix::ParameterTargetData::getIntensitySliderData(String sourceId) const
-{
-	auto sourceCable = parent->getSourceCable(sourceId);
-
-	var obj;
-	
-	forEach(sourceCable, [&obj](ReferenceCountedObject* cable, ParameterTargetData& data, ParameterTargetCable* pc)
-	{
-		if (static_cast<RoutingManager::Cable*>(cable)->containsTarget(pc))
-		{
-			scriptnode::InvertableParameterRange rng(0.0, 1.0);
-
-			auto m = ValueModeHelpers::getModeToUse(data.valueMode, pc->customMode);
-
-			if (m == ValueMode::Bipolar || m == ValueMode::Unipolar)
-				rng.rng.start = -1.0;
-
-			scriptnode::RangeHelpers::storeDoubleRange(obj, rng);
-
-			obj.getDynamicObject()->setProperty(scriptnode::PropertyIds::Value, pc->intensity);
-			return true;
-		}
-
-		return false;
-	});
-
-	if (!obj.isObject())
-	{
-		scriptnode::InvertableParameterRange rng(0.0, 1.0);
-
-		if (valueMode == ValueMode::Bipolar)
-			rng.rng.start = -1.0;
-
-		scriptnode::RangeHelpers::storeDoubleRange(obj, rng);
-
-		obj.getDynamicObject()->setProperty(scriptnode::PropertyIds::Value, 0.0);
-	}
-
-	obj.getDynamicObject()->setProperty("defaultValue", 0.0);
-
-	return obj;
-}
-
-juce::var ScriptModulationMatrix::ParameterTargetData::getValueModeData(const String& sourceId) const
-{
-	Array<var> modes;
-	modes.add(ValueModeHelpers::getModeName(ValueMode::Default));
-	modes.add(ValueModeHelpers::getModeName(ValueMode::Scale));
-	modes.add(ValueModeHelpers::getModeName(ValueMode::Unipolar));
-	modes.add(ValueModeHelpers::getModeName(ValueMode::Bipolar));
-	
-	DynamicObject::Ptr obj = new DynamicObject();
-
-	obj->setProperty(MatrixIds::items, var(modes));
-
-	forEach(parent->getSourceCable(sourceId), [&](ReferenceCountedObject* cable, ParameterTargetData& d, ParameterTargetCable* target)
-	{
-		if (static_cast<RoutingManager::Cable*>(cable)->containsTarget(target))
-		{
-			obj->setProperty(scriptnode::PropertyIds::Value, ValueModeHelpers::getModeName(target->customMode));
-			return true;
-		}
-
-		return false;
-	});
-
-	return var(obj.get());
-}
-
-void ScriptModulationMatrix::ParameterTargetData::init(const var& json)
-{
-	TargetDataBase::init(json);
-
-	verifyProperty(json, MatrixIds::Parameter);
-
-	auto param = json["Parameter"];
-
-	if (param.isString())
-		subIndex = processor->getParameterIndexForIdentifier(param.toString());
-	else
-		subIndex = (int)subIndex;
-
-	if (subIndex == -1)
-		verifyExists(nullptr, MatrixIds::Parameter);
-
-	verifyProperty(json, MatrixIds::Mode);
-
-	valueMode = ValueModeHelpers::getMode(json[MatrixIds::Mode]);
-
-	if (valueMode == ValueMode::Undefined)
-		verifyExists(nullptr, MatrixIds::Mode);
-
-	dynamic_cast<ScriptComponent*>(sc.getObject())->setModulationData(getModulationData());
-}
-
-hise::MacroControlledObject::ModulationPopupData::Ptr ScriptModulationMatrix::ParameterTargetData::getModulationData()
-{
-	auto newData = TargetDataBase::getModulationData();
-
-	WeakReference<ParameterTargetData> safeThis(this);
-
-	newData->valueCallback = [safeThis](double v)
-	{
-		if (safeThis != nullptr)
-		{
-			safeThis->componentValue = safeThis->r.convertTo0to1(v, true);
-			safeThis->updateValue();
-		}
-	};
-
-	return newData;
-}
-
-bool ScriptModulationMatrix::ParameterTargetData::queryFunction(int index, bool checkTicked) const
-{
-	if (checkTicked)
-	{
-		auto cable = parent->sourceData[index]->cable.get();
-
-		return forEach(cable, [](ReferenceCountedObject* cable, ParameterTargetData& d, ParameterTargetCable* target)
-		{
-			return static_cast<RoutingManager::Cable*>(cable)->containsTarget(target);
-		});
-	}
-	else
-	{
-		return true;
-	}
-}
-
-bool ScriptModulationMatrix::ParameterTargetData::forEach(ReferenceCountedObject* cable, const IteratorFunction& f) const
-{
-	jassert(!isMod);
-
-	auto& thisRef = *const_cast<ParameterTargetData*>(this);
-
-	for (auto& pt : parameterTargets)
-	{
-		auto target = static_cast<ParameterTargetCable*>(pt.getObject());
-
-		if (f(cable, thisRef, target))
-			return true;
-	}
-
-	return false;
-}
-
-float ScriptModulationMatrix::ParameterTargetData::getModValue() const
-{
-	auto realValue = processor->getAttribute(subIndex);
-	return (float)r.convertTo0to1((double)realValue, true);
-}
-
-
-bool ScriptModulationMatrix::MatrixUndoAction::perform()
-{
-	if (matrix == nullptr)
-		return false;
-
-	switch (type)
-	{
-	case ActionType::Clear:
-		matrix->clearConnectionsInternal();
-		break;
-	case ActionType::Add:
-		return matrix->connectInternal(source, target, true);
-	case ActionType::Remove:
-		return matrix->connectInternal(source, target, false);
-	case ActionType::Intensity:
-		return matrix->updateIntensityInternal(source, target, newValue);
-	case ActionType::ValueMode:
-		return matrix->updateValueModeInternal(source, target, newValue);
-	case ActionType::Update:
-		matrix->updateConnectionDataInternal(newValue);
-		return true;
-	default:
-		break;
-	}
-
-	return true;
-}
-
-bool ScriptModulationMatrix::MatrixUndoAction::undo()
-{
-	if (matrix == nullptr)
-		return false;
-
-	switch (type)
-	{
-	case ActionType::Clear:
-	case ActionType::Update:
-		matrix->fromBase64(oldValue.toString());
-		break;
-	case ActionType::Add:
-		return matrix->connectInternal(source, target, false);
-	case ActionType::Remove:
-		return matrix->connectInternal(source, target, true);
-	case ActionType::Intensity:
-		return matrix->updateIntensityInternal(source, target, oldValue);
-	case ActionType::ValueMode:
-		return matrix->updateValueModeInternal(source, target, oldValue);
-	default:
-		break;
-	}
-
-	return true;
-}
-
-}
-
-} 
+} // namespace ScriptingObjects
+} // namespace hise

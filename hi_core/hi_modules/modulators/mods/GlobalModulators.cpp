@@ -608,6 +608,14 @@ hise::ProcessorEditorBody * GlobalEnvelopeModulator::createEditor(ProcessorEdito
 
 void GlobalEnvelopeModulator::setInternalAttribute(int parameterIndex, float newValue)
 {
+	if(parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		EnvelopeModulator::setInternalAttribute(parameterIndex, newValue);
+		return;
+	}
+
+	parameterIndex -= EnvelopeModulator::Parameters::numParameters;
+
 	switch (parameterIndex)
 	{
 	case UseTable:			useTable = (newValue > 0.5f); break;
@@ -618,6 +626,13 @@ void GlobalEnvelopeModulator::setInternalAttribute(int parameterIndex, float new
 
 float GlobalEnvelopeModulator::getAttribute(int parameterIndex) const
 {
+	if(parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		return EnvelopeModulator::getAttribute(parameterIndex);
+	}
+
+	parameterIndex -= EnvelopeModulator::Parameters::numParameters;
+
 	switch (parameterIndex)
 	{
 	case UseTable:			return useTable ? 1.0f : 0.0f;
@@ -630,11 +645,19 @@ float GlobalEnvelopeModulator::startVoice(int voiceIndex)
 {
 	if (isConnected())
 	{
+		auto ownerSynth = static_cast<ModulatorSynth*>(getParentProcessor(true));
+		auto ownerVoice = static_cast<ModulatorSynthVoice*>(ownerSynth->getVoice(voiceIndex));
+		currentEvents[voiceIndex] = ownerVoice->getCurrentHiseEvent();
+
+		envelopeIndex = getConnectedContainer()->getEnvelopeIndex(getOriginalModulator());
+
 		return 0.0f;
 	}
 	else
 	{
 		active[voiceIndex] = true;
+		currentEvents[voiceIndex] = HiseEvent();
+		
 		return getInitialValue();
 	}
 }
@@ -654,7 +677,10 @@ bool GlobalEnvelopeModulator::isPlaying(int voiceIndex) const
 {
 	if (isConnected())
 	{
-		return static_cast<const EnvelopeModulator*>(getOriginalModulator())->isPlaying(voiceIndex);
+		auto currentEvent = currentEvents[voiceIndex];
+		return getConnectedContainer()->isEnvelopePlaying(envelopeIndex, currentEvent);
+
+		//return static_cast<const EnvelopeModulator*>(getOriginalModulator())->isPlaying(voiceIndex);
 	}
 	else
 	{
@@ -672,6 +698,8 @@ void GlobalEnvelopeModulator::calculateBlock(int startSample, int numSamples)
 	if (isConnected())
 	{
 		auto voiceIndex = polyManager.getCurrentVoice();
+		auto currentEvent = currentEvents[voiceIndex];
+
 
 		if (static_cast<ModulatorSynth*>(getParentProcessor(true))->isInGroup())
 		{
@@ -682,7 +710,7 @@ void GlobalEnvelopeModulator::calculateBlock(int startSample, int numSamples)
 		
 		if (useTable)
 		{
-			const float *data = getConnectedContainer()->getEnvelopeValuesForModulator(getOriginalModulator(), startSample, voiceIndex);
+			const float *data = getConnectedContainer()->getEnvelopeValuesForModulator(envelopeIndex, startSample, currentEvent);
 
 			if (data != nullptr)
 			{
@@ -708,10 +736,17 @@ void GlobalEnvelopeModulator::calculateBlock(int startSample, int numSamples)
 
 				return;
 			}
+			else
+			{
+				auto v = table->getInterpolatedValue(0.0f, dontSendNotification);
+
+				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), v, numSamples);
+				setOutputValue(v);
+			}
 		}
 		else
 		{
-			if (auto src = getConnectedContainer()->getEnvelopeValuesForModulator(getOriginalModulator(), startSample, voiceIndex))
+			if (auto src = getConnectedContainer()->getEnvelopeValuesForModulator(envelopeIndex, startSample, currentEvent))
 			{
 				FloatVectorOperations::copy(internalBuffer.getWritePointer(0, startSample), src, numSamples);
 				//invertBuffer(startSample, numSamples);
@@ -719,6 +754,11 @@ void GlobalEnvelopeModulator::calculateBlock(int startSample, int numSamples)
 				setOutputValue(internalBuffer.getSample(0, startSample));
 
 				return;
+			}
+			else
+			{
+				FloatVectorOperations::fill(internalBuffer.getWritePointer(0, startSample), 0.0f, numSamples);
+				setOutputValue(0.0f);
 			}
 		}
 	}

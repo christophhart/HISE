@@ -317,6 +317,8 @@ public:
 
 	void setHeatmap(DebugInformationBase::Ptr p, const std::map<int, double>* map);
 
+	simple_css::StyleSheet::Collection::DataProvider* createDataProvider() override;
+
 private:
 
 	std::vector<std::pair<Rectangle<int>, float>> heatmap;
@@ -370,6 +372,8 @@ private:
 		var dragData;
 		WeakCallbackHolder paintRoutine;
 		WeakCallbackHolder dragCallback;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ComponentDragInfo);
 	};
 
 	ScopedPointer<ComponentDragInfo> currentDragInfo;

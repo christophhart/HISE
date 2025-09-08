@@ -63,13 +63,12 @@ TableEnvelopeEditorBody::TableEnvelopeEditorBody (ProcessorEditor *p)
     //[UserPreSize]
 
 	attackSlider->setup(getProcessor(), SimpleEnvelope::Attack, "Attack Time");
-	attackSlider->setMode(HiSlider::Time, 1.0, 20000.0, 2000.0);
+	attackSlider->setMode(HiSlider::Time, NormalisableRange(1.0, 20000.0).withCentreSkew(2000.0));
 
 	releaseSlider->setup(getProcessor(), SimpleEnvelope::Release, "Release Time");
-	releaseSlider->setMode(HiSlider::Time, 1.0, 20000.0, 2000.0);
+	releaseSlider->setMode(HiSlider::Time, NormalisableRange(1.0, 20000.0).withCentreSkew(2000.0));
 
-	attackSlider->setIsUsingModulatedRing(true);
-	releaseSlider->setIsUsingModulatedRing(true);
+	
 
     ProcessorHelpers::connectTableEditor(*attackTable, getProcessor(), 0);
     ProcessorHelpers::connectTableEditor(*releaseTable, getProcessor(), 1);

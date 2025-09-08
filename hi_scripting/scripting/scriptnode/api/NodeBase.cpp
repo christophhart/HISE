@@ -45,6 +45,7 @@ struct NodeBase::Wrapper
 	API_VOID_METHOD_WRAPPER_2(NodeBase, setParent);
 	API_METHOD_WRAPPER_2(NodeBase, connectTo);
 	API_VOID_METHOD_WRAPPER_1(NodeBase, connectToBypass);
+	API_METHOD_WRAPPER_1(NodeBase, getOrCreateParameter);
 	API_METHOD_WRAPPER_1(NodeBase, getParameter);
     API_METHOD_WRAPPER_3(NodeBase, setComplexDataIndex);
 	API_METHOD_WRAPPER_0(NodeBase, getNumParameters);
@@ -114,6 +115,7 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 	ADD_API_METHOD_1(setBypassed);
 	ADD_API_METHOD_0(isBypassed);
 	ADD_API_METHOD_2(setParent);
+	ADD_API_METHOD_1(getOrCreateParameter);
 	ADD_API_METHOD_1(getParameter);
 	ADD_API_METHOD_2(connectTo);
 	ADD_API_METHOD_1(connectToBypass);
@@ -123,6 +125,8 @@ NodeBase::NodeBase(DspNetwork* rootNetwork, ValueTree data_, int numConstants_) 
 
 	for (auto c : getPropertyTree())
 		addConstant(c[PropertyIds::ID].toString(), c[PropertyIds::ID]);
+
+	registerStreamCreator(this);
 }
 
 NodeBase::~NodeBase()
@@ -693,36 +697,64 @@ var NodeBase::getParameter(var indexOrId) const
 {
 	Parameter* p = nullptr;
 
-	if (indexOrId.isString())
+	if(auto obj = indexOrId.getDynamicObject())
+	{
+		auto id = obj->getProperty(PropertyIds::ID).toString();
+		p = getParameterFromName(id);
+	}
+	else if (indexOrId.isString())
 		p = getParameterFromName(indexOrId.toString());
 	else
 		p = getParameterFromIndex((int)indexOrId);
 
 	if (p != nullptr)
 		return var(p);
-	else
+
+	return var();
+}
+
+var NodeBase::getOrCreateParameter(var indexOrId) const
+{
+	auto existing = getParameter(indexOrId);
+
+	if(existing.isObject())
+		return existing;
+
+	if(auto nc = dynamic_cast<const NodeContainer*>(this))
     {
-        if(auto nc = dynamic_cast<const NodeContainer*>(this))
-        {
-            auto name = indexOrId.toString();
-            
-            ValueTree p(PropertyIds::Parameter);
-            p.setProperty(PropertyIds::ID, name, nullptr);
-            p.setProperty(PropertyIds::MinValue, 0.0, nullptr);
-            p.setProperty(PropertyIds::MaxValue, 1.0, nullptr);
+        auto name = indexOrId[PropertyIds::ID].toString();
+		auto idSet = RangeHelpers::getIdSetForJSON(indexOrId);
+		auto rng = RangeHelpers::getDoubleRange(indexOrId, idSet);
 
-            PropertyIds::Helpers::setToDefault(p, PropertyIds::StepSize);
-            PropertyIds::Helpers::setToDefault(p, PropertyIds::SkewFactor);
+        ValueTree p(PropertyIds::Parameter);
 
-            p.setProperty(PropertyIds::Value, 1.0, nullptr);
-            getValueTree().getChildWithName(PropertyIds::Parameters).addChild(p, -1, getUndoManager());
-            
-            return var(getParameterFromName(name));
-        }
+        p.setProperty(PropertyIds::ID, name, nullptr);
+
+		auto defaultValue = RangeHelpers::getDefaultValue(indexOrId);
+
+		RangeHelpers::storeDoubleRange(p, rng, nullptr);
+
+		if(indexOrId.hasProperty("mode"))
+			p.setProperty(PropertyIds::TextToValueConverter, indexOrId["mode"], nullptr);
+
+		PropertyIds::Helpers::setToDefault(p, PropertyIds::ExternalModulation);
+
+		if(defaultValue.first)
+		{
+			p.setProperty(PropertyIds::DefaultValue, defaultValue.second, nullptr);
+			p.setProperty(PropertyIds::Value, defaultValue.second, nullptr);
+		}
         
-        return {};
+        getValueTree().getChildWithName(PropertyIds::Parameters).addChild(p, -1, getUndoManager());
+        
+        return var(getParameterFromName(name));
     }
-		
+	else
+	{
+		reportScriptError("Can't create parameter for non-container node");
+	}
+
+	return {};
 }
 
 struct Parameter::Wrapper

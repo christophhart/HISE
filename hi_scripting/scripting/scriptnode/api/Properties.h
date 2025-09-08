@@ -43,7 +43,8 @@ struct PropertyHelpers
 {
 	static Colour getColour(ValueTree data);
 
-	static Colour getColourFromVar(const var& value);;
+	static Colour getColourFromVar(const var& value);
+	static void addMissingIdsForEditor(ValueTree& data, UndoManager* undoManager);;
 
 	static PropertyComponent* createPropertyComponent(ProcessorWithScriptingContent* p, ValueTree& d, const Identifier& id, UndoManager* um);
 };

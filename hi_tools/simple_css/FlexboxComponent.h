@@ -36,6 +36,12 @@ namespace simple_css
 {
 using namespace juce;
 
+struct ComponentWithAutoTextSize
+{
+	virtual ~ComponentWithAutoTextSize() = default;
+	virtual String getTextToAutofit() const = 0;
+};
+
 struct FlexboxContainer
 {
 	virtual ~FlexboxContainer() {}
@@ -43,6 +49,7 @@ struct FlexboxContainer
 	virtual void setDefaultStyleSheet(const String& code) = 0;
 	virtual void setCSS(StyleSheet::Collection& css) = 0;
 	virtual void addFlexItem(Component& c) = 0;
+	virtual void removeFlexItem(Component& c) = 0;
     virtual void rebuildLayout() = 0;
     
 	bool fullRebuild = true;
@@ -73,6 +80,56 @@ struct FlexboxComponent: public Component,
 	{
 		static void setFallbackStyleSheet(Component& c, const String& properties);
 
+		static String toCSSCode(Component& c, const Array<std::pair<PseudoState, String>>& stateProperties)
+		{
+			String cssCode;
+
+			for(const auto& st: stateProperties)
+			{
+				jassert(st.second.endsWithChar(';'));
+
+				cssCode << getElementSelector(c).toString();
+
+				if(st.first.element != PseudoElementType::None)
+				{
+					cssCode << "::";
+
+					switch(st.first.element)
+					{
+					case PseudoElementType::Before:
+						cssCode << "before";
+						break;
+					case PseudoElementType::After:
+						cssCode << "after";
+						break;
+					case PseudoElementType::Before2:
+						cssCode << "before2";
+						break;
+					case PseudoElementType::After2:
+						cssCode << "after2";
+						break;
+					case PseudoElementType::None:
+					case PseudoElementType::All:
+					default:
+						break;;
+					}
+				}
+
+				auto flag = st.first.stateFlag;
+
+				cssCode << PseudoState::getPseudoClassName(flag);
+				cssCode << " {" << st.second << "\n}\n\n";
+			}
+
+			return cssCode;
+		}
+
+		static void setFallbackStyleSheetWithStates(Component& c, const Array<std::pair<PseudoState, String>>& stateProperties)
+		{
+			auto cssCode = toCSSCode(c, stateProperties);
+			c.getProperties().set("style", cssCode);
+		}
+
 		static void appendToElementStyle(Component& c, const String& additionalStyle);
 
 		static String dump(Component& c);
@@ -88,6 +145,21 @@ struct FlexboxComponent: public Component,
 			return (int)c.getProperties().getWithDefault("manualPseudoState", var(0));
 		}
 
+		static FlexItem createDefaultFlexItem(Component& c, FlexItem::Margin margin)
+		{
+			FlexItem item(c);
+
+			auto db = getDefaultBounds(c);
+
+			if(db.getWidth() > 0.0)
+				item = item.withWidth(db.getWidth());
+
+			if(db.getHeight() > 0.0)
+				item = item.withHeight(db.getHeight());
+
+			return item.withMargin(margin);
+		}
+
 		static void writeSelectorsToProperties(Component& c, const StringArray& selectors);
 		static Selector getTypeSelectorFromComponentClass(Component* c);
 		static Array<Selector> getClassSelectorFromComponentClass(Component* c);
@@ -96,7 +168,62 @@ struct FlexboxComponent: public Component,
 
 		static void invalidateCache(Component& c);
 
+		static void storeDefaultBounds(Component& c, Rectangle<int> b)
+		{
+			if(b.getWidth() > 0)
+				c.getProperties().set("defaultWidth", b.getWidth());
+
+			if(b.getHeight() > 0)
+				c.getProperties().set("defaultHeight", b.getHeight());
+		}
+
+		/** Use this for components that wrap another component that should be queried for the style sheet. */
+		static void setIsOpaqueWrapper(Component& c, bool shouldBeOpaque)
+		{
+			if(shouldBeOpaque)
+			{
+				jassert(c.getNumChildComponents() == 1);
+			}
+
+			c.getProperties().set("invisibleParent", true);
+		}
+
+		/** Use this to get the component that might have style sheets attached. */
+		static Component* getComponentForStyleSheet(Component* c)
+		{
+			if(c == nullptr)
+				return nullptr;
+
+			if(c->getProperties()["invisibleParent"])
+			{
+				jassert(c->getNumChildComponents() == 1);
+				return getComponentForStyleSheet(c->getChildComponent(0));
+			}
+
+			return c;
+		}
+
+		static Rectangle<int> getDefaultBounds(Component& c)
+		{
+			int w = 0;
+			int h = 0;
+
+			if(c.getProperties().contains("defaultWidth"))
+				w = c.getProperties()["defaultWidth"];
+
+			if(c.getProperties().contains("defaultHeight"))
+				h = c.getProperties()["defaultHeight"];
+
+			return { 0, 0, w, h };
+		}
+
 		static Selector getIdSelectorFromComponentClass(Component* c);
+
+		static Selector getElementSelector(Component& c)
+		{
+			auto ptrValue = reinterpret_cast<uint64>(&c);
+			return Selector(SelectorType::Element, String::toHexString(ptrValue));
+		}
 
 		static String getInlineStyle(Component& c)
 		{
@@ -116,18 +243,25 @@ struct FlexboxComponent: public Component,
 		}
 	};
 
-	struct SimpleTextDisplay: public Component
+	
+
+	struct SimpleTextDisplay: public Component,
+							  public ComponentWithAutoTextSize
 	{
 		SimpleTextDisplay(ElementType s_):
+		  Component(),
+		  ComponentWithAutoTextSize(),
 		  s(s_)
 		{};
 
-		const ElementType s;
-		String currentText;
+		String getTextToAutofit() const override { return currentText; }
 
 		void setText(const String& text);
 
 		void paint(Graphics& g) override;
+
+		const ElementType s;
+		String currentText;
 	};
 
 	/** Create a flexbox component with a selector (usually a ID selector or either div or body). */
@@ -161,6 +295,12 @@ struct FlexboxComponent: public Component,
     Selector getSelector() const { return selector; }
 
 	void addFlexItem(Component& c) override;
+
+    void removeFlexItem(Component& c) override
+    {
+		childSheets.erase(&c);
+		removeChildComponent(&c);
+    }
 
     void addDynamicFlexItem(Component& c);
 
@@ -203,6 +343,20 @@ struct FlexboxComponent: public Component,
 		}
 
 		return c->isVisible();
+	}
+
+	void setFlexChildVisibility(Component* c, bool mustBeVisible, bool mustBeHidden)
+	{
+		VisibleState s;
+		s.mustBeHidden = mustBeHidden;
+		s.mustBeVisible = mustBeVisible;
+		setFlexChildVisibility(c, s);
+	}
+
+	void setFlexChildVisibility(Component* c, VisibleState newState)
+	{
+		jassert(c->getParentComponent() == this);
+		visibleStates[c] = newState;
 	}
 
     void setFlexChildVisibility(int childIndex, VisibleState newState)
@@ -283,6 +437,8 @@ private:
 	float lastWrapHeight = -1.0f;
 };
 
+
+
 struct FlexboxViewport: public Component,
 					    public FlexboxContainer
 {
@@ -292,11 +448,44 @@ struct FlexboxViewport: public Component,
 
 	void setCSS(StyleSheet::Collection& css) override;
 
+	void paint(Graphics& g) override
+	{
+		if(ss != nullptr)
+		{
+			if(auto root = CSSRootComponent::find(*this))
+			{
+				Renderer r(this, root->stateWatcher);
+
+				auto s = r.getPseudoClassState();
+
+				if(content.getNumChildComponents() == 0)
+				{
+					s |= (int)PseudoClassType::Empty;
+					r.setPseudoClassState(s, true);
+				}
+
+				root->stateWatcher.checkChanges(this, ss, s);
+
+				auto b = getLocalBounds().toFloat();
+				r.setApplyMargin(true);
+				r.drawBackground(g, b, ss);
+
+				auto text = content.getNumChildComponents() == 0 ? "No child elements" : "";
+				r.renderText(g, b, text, ss);
+			}
+		}
+	}
+
 	void resized() override;
 
 	void rebuildLayout() override;
 
 	void addFlexItem(Component& c) override;
+
+	void removeFlexItem(Component& c) override
+	{
+		content.removeFlexItem(c);
+	}
 
 	Viewport viewport;
     ScrollbarFader sf;
@@ -353,177 +542,7 @@ struct CSSImage: public Component
 struct HeaderContentFooter: public Component,
 						    public CSSRootComponent
 {
-	struct InspectorData
-	{
-		Component::SafePointer<Component> c;
-		Rectangle<float> first;
-		String second;
-	};
-
-	struct CSSDebugger: public Component,
-                    public Timer,
-                    public PathFactory
-	{
-	    CSSDebugger(HeaderContentFooter& componentToDebug):
-	      root(&componentToDebug),
-	      codeDoc(doc),
-	      editor(codeDoc),
-	      powerButton("bypass", nullptr, *this)
-	    {
-	        doc.setDisableUndo(true);
-	        setName("CSS Inspector");
-	        addAndMakeVisible(editor);
-	        
-	        editor.tokenCollection = new mcl::TokenCollection("CSS");
-	        editor.tokenCollection->setUseBackgroundThread(false);
-	        editor.setLanguageManager(new simple_css::LanguageManager(codeDoc));
-	        editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(12.0f));
-	        setSize(450, 800);
-	        setOpaque(true);
-	        startTimer(1000);
-
-			GlobalHiseLookAndFeel::setDefaultColours(hierarchy);
-	        hierarchy.setLookAndFeel(&laf);
-	        addAndMakeVisible(hierarchy);
-	        addAndMakeVisible(powerButton);
-	        powerButton.setToggleModeWithColourChange(true);
-	        powerButton.setToggleStateAndUpdateIcon(true);
-	        hierarchy.setTextWhenNothingSelected("Select parent component");
-	        addAndMakeVisible(powerButton);
-
-	        hierarchy.onChange = [&]()
-	        {
-		        auto pd = parentData[hierarchy.getSelectedItemIndex()];
-	            updateWithInspectorData(pd);
-	        };
-
-	        powerButton.onClick = [this]()
-	        {
-	            if(powerButton.getToggleState())
-	                this->startTimer(1000);
-	            else
-	                this->stopTimer();
-	            
-	            clear();
-	        };
-	    }
-	    
-	    void clear()
-	    {
-	        if(root.getComponent() != nullptr)
-	            root->setCurrentInspectorData({});
-	    }
-	    
-	    HiseShapeButton powerButton;
-	    
-	    Path createPath(const String& url) const override
-	    {
-	        Path p;
-	        LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
-	        return p;
-	    }
-	    
-	    ~CSSDebugger()
-	    {
-	        clear();
-	    }
-	    
-	    void paint(Graphics& g) override
-	    {
-	        g.fillAll(Colour(0xFF222222));
-	    }
-
-	    simple_css::HeaderContentFooter::InspectorData createInspectorData(Component* c)
-	    {
-		    auto b = root.getComponent()->getLocalArea(c, c->getLocalBounds()).toFloat();
-	        auto data = simple_css::FlexboxComponent::Helpers::dump(*c);
-
-	        simple_css::HeaderContentFooter::InspectorData id;
-	        id.first = b;
-	        id.second = data;
-	        id.c = c;
-
-	        return id;
-	    }
-
-	    void timerCallback() override
-	    {
-	        if(root.getComponent() == nullptr)
-	            return;
-	        
-	        auto* target = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
-
-	        bool change = false;
-
-	        if(target != nullptr && target->findParentComponentOfClass<simple_css::CSSRootComponent>() == root.getComponent())
-	        {
-	            currentTarget = target;
-	            change = true;
-	        }
-	        
-	        if(currentTarget.getComponent() != nullptr && change)
-	        {
-	            auto id = createInspectorData(currentTarget.getComponent());
-	            auto tc = id.c.getComponent();
-
-	            StringArray items;
-
-	            parentData.clear();
-
-	            while(tc != nullptr)
-	            {
-	                if(dynamic_cast<CSSRootComponent*>(tc) != nullptr)
-	                    break;
-
-	                parentData.add(createInspectorData(tc));
-		            tc = tc->getParentComponent();
-	            }
-
-	            hierarchy.clear(dontSendNotification);
-
-	            int idx = 1;
-	            for(const auto& pd: parentData)
-	                hierarchy.addItem(pd.second, idx++);
-
-	            hierarchy.setText("", dontSendNotification);
-
-	            updateWithInspectorData(id);
-	        }
-	    }
-
-	    Array<simple_css::HeaderContentFooter::InspectorData> parentData;
-
-	    void updateWithInspectorData(const simple_css::HeaderContentFooter::InspectorData& id)
-	    {
-		    root->setCurrentInspectorData(id);
-	        auto s = root->css.getDebugLogForComponent(id.c.getComponent());
-	        
-	        if(doc.getAllContent() != s)
-	            doc.replaceAllContent(s);
-	    }
-	    
-	    Component::SafePointer<Component> currentTarget = nullptr;
-	    
-	    void resized() override
-	    {
-	        auto b = getLocalBounds();
-	        auto topArea = b.removeFromTop(24);
-
-	        powerButton.setBounds(topArea.removeFromLeft(topArea.getHeight()).reduced(2));
-	        hierarchy.setBounds(b.removeFromBottom(32));
-	        editor.setBounds(b);
-	    }
-
-	    juce::CodeDocument doc;
-	    mcl::TextDocument codeDoc;
-	    mcl::TextEditor editor;
-
-	    ComboBox hierarchy;
-
-	    hise::GlobalHiseLookAndFeel laf;
-
-	    Component::SafePointer<simple_css::HeaderContentFooter> root;
-	};
+	
 
 	HeaderContentFooter(bool useViewportContent);
 
@@ -542,17 +561,12 @@ struct HeaderContentFooter: public Component,
 
 	void setDefaultCSSProperties(DynamicObject::Ptr newDefaultProperties);
 
-	void paintOverChildren(Graphics& g) override;
-
-	
-
-    void setCurrentInspectorData(const InspectorData& newData)
-    {
-        inspectorData = newData;
-        repaint();
-    }
-    
-    InspectorData inspectorData;
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
+	void paintOverChildren(Graphics& g) override
+	{
+		inspectorData.draw(g, getLocalBounds().toFloat(), css);
+	}
+#endif
     
 	FlexboxComponent body;
 	FlexboxComponent header;

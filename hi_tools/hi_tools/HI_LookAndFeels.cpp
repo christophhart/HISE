@@ -230,7 +230,8 @@ void GlobalHiseLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, 
 {
 	s.setTextBoxStyle (Slider::TextBoxRight, false, 80, 28);
 
-			if(!s.isEnabled()) g.setOpacity(0.4f);
+	if(!s.isEnabled()) 
+		g.setOpacity(0.4f);
 
 
 	height = s.getHeight();
@@ -247,40 +248,29 @@ void GlobalHiseLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, 
 
 	auto bipolar = -1.0 * s.getMinimum() == s.getMaximum();
 
-	drawVectorRotaryKnob(g, area.translated(0.0, 2.0f), proportion, bipolar, s.isMouseOverOrDragging(true), s.isMouseButtonDown(), s.isEnabled(), proportion);
+	auto mv = ModulationDisplayValue::fromComponent(s, proportion);
 
-#if OLD_FILMSTRIP
-	const int stripIndex = (int) (proportion * 127);
-	const int filmstripHeight = cachedImage_smalliKnob_png.getHeight() / 128;
-    const int offset = stripIndex * filmstripHeight;
+	drawVectorRotaryKnob(g, area.translated(0.0, 2.0f), bipolar, s.isMouseOverOrDragging(true), s.isMouseButtonDown(), s.isEnabled(), mv);
 
-	Image clip = cachedImage_smalliKnob_png.getClippedImage(Rectangle<int>(0, offset, filmstripHeight, filmstripHeight));
+	auto modDragState = (int)s.getProperties()["modulationDragState"];
 
-    g.setColour (Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
-    g.drawImage (clip, 0, 3, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
 
-	float displayValue = 1.0f;
-
-	Image *imageToUse = &cachedImage_knobRing_png;
-
-	Image clipRing = imageToUse->getClippedImage(Rectangle<int>(0, (int)(stripIndex * displayValue) * filmstripHeight, filmstripHeight, filmstripHeight));
-	
-    g.setColour (Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
-	g.drawImage(clipRing, 0, 3, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
-#endif
+	if(modDragState == 1)
+	{
+		g.setColour(Colours::white.withAlpha(0.2f));
+		g.fillRoundedRectangle(area.translated(0.0, 2.0f), area.getWidth() * 0.5f);
+	}
+	if(modDragState == 2)
+	{
+		g.setColour(Colours::white.withAlpha(0.4f));
+		g.fillRoundedRectangle(area.translated(0.0, 2.0f), area.getWidth() * 0.5f);
+	}
 
 	g.setColour(Colours::white.withAlpha(0.7f));
 	g.setFont (GLOBAL_BOLD_FONT());
 	g.drawText (s.getName(),
 				45 , 13, (int)((0.5391f) * width) + 10, 12,
 				Justification::centred, true);
-
-#if OLD_FILMSTRIP
-	if(s.getComponentEffect() != nullptr)
-	{
-		s.getComponentEffect()->applyEffect(clip, g, 1.0f, 1.0f);
-	}
-#endif
 }
 
 
@@ -616,10 +606,9 @@ void GlobalHiseLookAndFeel::setTextEditorColours(TextEditor& ed)
 	ed.setSelectAllWhenFocused(true);
 }
 
-void GlobalHiseLookAndFeel::drawVectorRotaryKnob(Graphics& g, Rectangle<float> area, double value, bool bipolar, bool hover, bool down, bool enabled, float modValue)
+void GlobalHiseLookAndFeel::drawVectorRotaryKnob(Graphics& g, Rectangle<float> area, bool bipolar, bool hover, bool down, bool enabled, const ModulationDisplayValue& mv)
 {
-	// Routine
-
+	auto value = mv.normalisedValue;
 	float displayValue = jlimit(0.0f, 1.0f, (float)(bipolar ? abs(value - 0.5) * 2.0 : value));
 	auto ringWidth = area.getWidth() / 16.0f;
 
@@ -630,28 +619,54 @@ void GlobalHiseLookAndFeel::drawVectorRotaryKnob(Graphics& g, Rectangle<float> a
 		Colour(0xFF111111), 0.0, area.getHeight(), false));
 	g.fillEllipse(area.reduced(ringWidth * 2.0));
 
-	Path ring3, ring4;
-	ring3.startNewSubPath(0.0, 0.0);
-	ring3.startNewSubPath(1.0, 1.0);
-	ring4.startNewSubPath(0.0, 0.0);
-	ring4.startNewSubPath(1.0, 1.0);
+	Path positionRing;
+	Path scaledModRing;
+	Path addModRing;
+
+	positionRing.startNewSubPath(0.0, 0.0);
+	positionRing.startNewSubPath(1.0, 1.0);
+	scaledModRing.startNewSubPath(0.0, 0.0);
+	scaledModRing.startNewSubPath(1.0, 1.0);
+	addModRing.startNewSubPath(0.0, 0.0);
+	addModRing.startNewSubPath(1.0, 1.0);
 
 	auto start = -double_Pi * 0.75;
 
+	if(mv.modulationRange.isEmpty())
 	{
 		auto s = start;
-		auto e1 = start + double_Pi * 1.5 * value;
-		auto e2 = start + double_Pi * 1.5 * modValue;
+		auto e1 = start + double_Pi * 1.5 * value; // the knob position
+		auto e2 = start + double_Pi * 1.5 * mv.scaledValue; // the scaled modulation value
+		auto e3 = start + double_Pi * 1.5 * jlimit(0.0, 1.0, mv.getNormalisedModulationValue());
 
 		if (bipolar)
 		{
 			s = value != 0.5 ? 0.0 : -0.04;
 			e1 = value != 0.5 ? e1 : 0.04;
 			e2 = value != 0.5 ? e2 : 0.04;
+			e3 = value != 0.5 ? e3 : 0.04;
 		}
 
-		ring3.addArc(0.0, 0.0, 1.0, 1.0, s, e1, true);
-		ring4.addArc(0.0, 0.0, 1.0, 1.0, s, e2, true);
+		positionRing.addArc(0.0, 0.0, 1.0, 1.0, s, e1, true);
+
+		if(mv.modulationActive)
+			scaledModRing.addArc(0.0, 0.0, 1.0, 1.0, s, e2, true);
+
+		if(mv.modulationActive && e2 != e3)
+			addModRing.addArc(0.0, 0.0, 1.0, 1.0, e2, e3, true);
+	}
+	else
+	{
+		auto s = start + double_Pi * 1.5 * value;
+
+		auto e = start + double_Pi * 1.5 * (mv.scaledValue + mv.addValue);
+
+		auto l = start + double_Pi * 1.5 * (mv.modulationRange.getStart());
+		auto u = start + double_Pi * 1.5 * (mv.modulationRange.getEnd());
+
+		positionRing.addArc(0.0f, 0.0f, 1.0f, 1.0f, l, u, true);
+		scaledModRing.addArc(0.0f, 0.0f, 1.0f, 1.0f, s, e, true);
+		addModRing.clear();
 	}
 
 	g.setColour(Colour(0xff111118));
@@ -659,19 +674,42 @@ void GlobalHiseLookAndFeel::drawVectorRotaryKnob(Graphics& g, Rectangle<float> a
 	g.strokePath(ring2, PathStrokeType(ringWidth * 2.0));
 	auto rColour = (down ? 0xFF9099AA : 0xFF808899);
 	g.setColour(Colour(rColour).withAlpha(0.1f));
-	PathFactory::scalePath(ring3, area.reduced(ringWidth));
-	g.strokePath(ring3, PathStrokeType(ringWidth * (down ? 1.55 : 1.4)));
+	PathFactory::scalePath(positionRing, area.reduced(ringWidth));
+	g.strokePath(positionRing, PathStrokeType(ringWidth * (down ? 1.55 : 1.4)));
 
 	auto c = Colour(rColour);
 
+	auto ringColour = c.withAlpha(0.5f + displayValue * 0.5f);
+	auto inactiveColour = JUCE_LIVE_CONSTANT_OFF(Colour(0xFF444444));
 
-	g.setColour(c.withAlpha(0.5f + displayValue * 0.5f));
 
+	g.setColour(mv.modulationActive ? inactiveColour : ringColour);
 
+	PathFactory::scalePath(positionRing, area.reduced(ringWidth));
+	g.strokePath(positionRing, PathStrokeType(ringWidth * (down ? 1.55 : 1.4)));
 
-	PathFactory::scalePath(ring4, area.reduced(ringWidth));
-	g.strokePath(ring4, PathStrokeType(ringWidth * (down ? 1.55 : 1.4)));
+	if(mv.modulationActive)
+	{
+		g.setColour(ringColour);
+		PathFactory::scalePath(scaledModRing, area.reduced(ringWidth));
+		g.strokePath(scaledModRing, PathStrokeType(3.8f));
 
+		if(mv.addValue != 0.0)
+		{
+			bool useActiveColour;
+
+			if(bipolar)
+				useActiveColour = mv.normalisedValue > 0.5 ? mv.addValue > 0.0 : mv.addValue < 0.0;
+			else
+				useActiveColour = mv.addValue > 0.0;
+
+			auto c = useActiveColour ? ringColour.withMultipliedBrightness(1.3f) : inactiveColour.withMultipliedBrightness(1.3f);
+
+			g.setColour(c);
+			PathFactory::scalePath(addModRing, area.reduced(ringWidth));
+			g.strokePath(addModRing, PathStrokeType(3.8f));
+		}
+	}
 	
 	if (enabled)
 	{
@@ -714,15 +752,10 @@ void MacroKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, i
     Path p1, p2;
     
     float start = JUCE_LIVE_CONSTANT_OFF(-2.4f);
-    
     float end = -1.0f * start;
-    
     auto length = -2.0f * start;
     
-    
-    
     p1.addPieSegment(area, start, end, JUCE_LIVE_CONSTANT_OFF(0.75));
-    
     p2.addPieSegment(area, start, start + proportion * length, JUCE_LIVE_CONSTANT_OFF(0.75));
     
     float bgAlpha = 0.1f;
@@ -750,40 +783,10 @@ void MacroKnobLookAndFeel::drawRotarySlider(Graphics &g, int /*x*/, int /*y*/, i
     
     g.setColour(Colour(SIGNAL_COLOUR).withAlpha(fAlpha));
     g.fillPath(p2);
-
-#if 0
-	const int stripIndex = (int)(proportion * 127);
-
-	const int filmstripHeight = cachedImage_macroKnob_png.getHeight() / 128;
-
-	const int offset = stripIndex * filmstripHeight;
-
-	Image clip = cachedImage_macroKnob_png.getClippedImage(Rectangle<int>(0, offset, filmstripHeight, filmstripHeight));
-
-	g.setColour(Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
-	g.drawImage(clip, 0, 0, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
-
-	float displayValue = 1.0f;
-
-	Image *imageToUse = &cachedImage_macroKnob_ring_png;
-
-	
-	Image clipRing = imageToUse->getClippedImage(Rectangle<int>(0, (int)(stripIndex * displayValue) * filmstripHeight, filmstripHeight, filmstripHeight));
-
-	g.setColour(Colours::black.withAlpha(s.isEnabled() ? 1.0f : 0.5f));
-	g.drawImage(clipRing, 0, 0, 48, 48, 0, 0, filmstripHeight, filmstripHeight);
-
-#endif
 	g.setColour(Colours::white.withAlpha(0.3f));
-
 	g.setFont(GLOBAL_BOLD_FONT());
     
-    
-    
 	g.drawText(s.getTextFromValue(value), 0, 0, 48, 48, Justification::centred, false);
-
-
-	
 }
 
 
@@ -2071,7 +2074,19 @@ void ChainBarButtonLookAndFeel::drawButtonBackground(Graphics &g, Button &b, con
 
 	ChainBarPathFactory factory;
 
-	Path path = factory.createPath(b.getButtonText());
+	auto bt = b.getButtonText();
+
+	Path path = factory.createPath(bt);
+
+	if(path.isEmpty())
+	{
+		if(b.getProperties().contains("ModulationMode"))
+		{
+			bt = b.getProperties()["ModulationMode"];
+		}
+
+		path = factory.createPath(bt);
+	}
 
 	path.scaleToFit(4.0f, 4.0f, (float)b.getHeight() - 8.0f, (float)b.getHeight() - 8.0f, true);
 

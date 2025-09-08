@@ -66,6 +66,8 @@ namespace melatonin
     // Renders a collection of inner and drop shadows plus a path
     class PathWithShadows : public internal::CachedShadows
     {
+    public:
+
         // multiple shadows
         PathWithShadows (std::initializer_list<ShadowParameters> p) : CachedShadows (p) {}
 

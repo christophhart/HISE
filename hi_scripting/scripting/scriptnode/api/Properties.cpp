@@ -258,29 +258,69 @@ struct ToggleButtonPropertyComponent : public PropertyComponent,
 struct SliderWithLimit : public PropertyComponent
 {
 	SliderWithLimit(ValueTree& data, const Identifier& id, UndoManager* um) :
-		PropertyComponent(id.toString())
+		PropertyComponent(id.toString()),
+	    d(data)
 	{
 		addAndMakeVisible(c);
+
+		textConverterUpdater.setCallback(d, { PropertyIds::TextToValueConverter }, valuetree::AsyncMode::Asynchronously,
+		[this](const Identifier&, const var& newValue)
+		{
+			parameter::data info;
+			info.info = parameter::pod(d);
+			c.vtc = info.getValueToTextConverter();
+			c.updateText();
+		});
+
+		if(id != PropertyIds::MinValue && id != PropertyIds::MaxValue)
+		{
+			rangeUpdater.setCallback(d, { PropertyIds::MinValue, PropertyIds::MaxValue}, valuetree::AsyncMode::Asynchronously,
+			[this](const Identifier& id, const var& newValue)
+			{
+				using namespace PropertyIds;
+
+				auto v = d.getProperty(id);
+				auto min = (double)jmin((double)v, (double)d.getProperty(MinValue, 0.0));
+				auto max = (double)jmax(v, d.getProperty(MaxValue, 1.0));
+
+				if (min > max)
+					std::swap(min, max);
+
+				auto stepSize = d.getProperty(StepSize, 0.01);
+				c.setRange(min, max, stepSize);
+			});
+		}
 
 		using namespace PropertyIds;
 
 		auto v = data.getProperty(id);
-
 		auto min = (double)jmin(0.0, (double)v, (double)data.getProperty(MinValue, 0.0));
 		auto max = (double)jmax(v, data.getProperty(MaxValue, 1.0));
-		auto stepSize = data.getProperty(StepSize, 0.01);
-		
+
 		if (min > max)
 			std::swap(min, max);
 
-		c.setScrollWheelEnabled(false);
+		auto stepSize = data.getProperty(StepSize, 0.01);
 		c.setRange(min, max, stepSize);
+		
+
+		initialRange.setStart(min);
+		initialRange.setEnd(max);
+
+
+
+		c.setScrollWheelEnabled(false);
+		
 		c.getValueObject().referTo(data.getPropertyAsValue(id, um, true));
 	}
 
+	ValueTree d;
+	valuetree::PropertyListener textConverterUpdater;
+	valuetree::PropertyListener rangeUpdater;
+
 	void refresh() override {}
 
-
+	Range<double> initialRange;
 
 	struct SliderWithLimitSetter : public juce::Slider
 	{
@@ -354,13 +394,21 @@ struct SliderWithLimit : public PropertyComponent
 			setColour(juce::Slider::textBoxHighlightColourId, Colour(SIGNAL_COLOUR));
 		}
 
+		ValueToTextConverter vtc;
+
 		String getTextFromValue(double v) override
 		{
+			if(vtc.active)
+				return vtc.getTextForValue(v);
+
 			return snex::Types::Helpers::getCppValueString(var(v), snex::Types::ID::Double);
 		}
 
 		double getValueFromText(const String& text) override
 		{
+			if(vtc.active)
+				return vtc.getValueForText(text);
+
 			auto v = text.getDoubleValue();
 			int numDigits = 0;	double check = v;
 
@@ -754,7 +802,29 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 		return Colour((uint32)colourValue);
 	}
 
-	juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* s, ValueTree& d, const Identifier& id, UndoManager* um)
+void PropertyHelpers::addMissingIdsForEditor(ValueTree& data, UndoManager* undoManager)
+{
+	if(data.getType() == PropertyIds::Parameter)
+	{
+		auto ids = RangeHelpers::getRangeIds(false);
+
+		ids.add(PropertyIds::TextToValueConverter);
+		ids.add(PropertyIds::Inverted);
+
+		auto isRootParameter = data.getParent().getParent().getParent().getType() == PropertyIds::Network;
+
+		if(isRootParameter)
+			ids.add(PropertyIds::ExternalModulation);
+
+		for(const auto& id: ids)
+		{
+			if(!data.hasProperty(id))
+				data.setProperty(id, PropertyIds::Helpers::getDefaultValue(id), undoManager);
+		}
+	}
+}
+
+juce::PropertyComponent* PropertyHelpers::createPropertyComponent(ProcessorWithScriptingContent* s, ValueTree& d, const Identifier& id, UndoManager* um)
 {
 	using namespace PropertyIds;
 
@@ -766,8 +836,22 @@ void ExpressionPropertyComponent::Comp::Display::mouseDown(const MouseEvent& )
 	if (id == NodeColour)
 		return new ColourSelectorPropertyComponent(d, id, um);
 
-	if (id == MinValue || id == MaxValue)
+	if (id == MinValue || id == MaxValue || id == Value || id == DefaultValue)
 		return new SliderWithLimit(d, id, um);
+
+	if(propId == ExternalModulation ||
+	   propId == TextToValueConverter)
+	{
+		auto sa = propId == ExternalModulation ? OpaqueNode::ModulationProperties::getModulationModeNames() :
+		                                         parameter::pod::getTextValueConverterNames();
+
+		Array<var> items;
+
+		for(auto& s: sa)
+			items.add(var(s));
+
+		return new ChoicePropertyComponent(value, name, sa, items);
+	}
 
 	if (propId == SplitSignal ||
 		propId == AllowCompilation ||

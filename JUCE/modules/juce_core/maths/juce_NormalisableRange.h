@@ -184,6 +184,14 @@ public:
         return (v <= start || end <= start) ? start : (v >= end ? end : v);
     }
 
+    /** Returns a copy of this range with the skew factor defined by the given middle position. */
+    NormalisableRange<ValueType> withCentreSkew(ValueType centrePointValue) const
+    {
+	    auto copy = *this;
+        copy.setSkewForCentre(centrePointValue);
+        return copy;
+    }
+
     /** Returns the extent of the normalisable range. */
     Range<ValueType> getRange() const noexcept          { return { start, end }; }
 

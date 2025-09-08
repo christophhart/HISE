@@ -98,6 +98,151 @@ public:
 
 	void renderMasterEffects(AudioSampleBuffer &b);
 
+	std::pair<bool, int> getProcessingOrderIndex(MasterEffectProcessor* fx) const
+	{
+		if(useReorderedMasterFX)
+			return { true, reorderedMasterEffects.indexOf(fx) };
+		else
+			return { false, masterEffects.indexOf(fx) };
+	}
+
+	std::pair<bool, int> getProcessingOrderIndex(VoiceEffectProcessor* fx) const
+	{
+		if(useReorderedPolyFX)
+			return { true, reorderedPolyEffects.indexOf(fx) };
+		else
+			return { false, voiceEffects.indexOf(fx) };
+	}
+
+	template <typename T> void setFXOrderInternal(Range<int> dynamicRange, const var& newOrder)
+	{
+		auto& use = std::is_same<T, MasterEffectProcessor>() ? useReorderedMasterFX : useReorderedPolyFX;
+
+		Array<T*>* target;
+		OwnedArray<T>* source;
+
+		if constexpr(std::is_same<T, MasterEffectProcessor>())
+		{
+			target = &reorderedMasterEffects;
+			source = &masterEffects;
+		}
+		else
+		{
+			target = &reorderedPolyEffects;
+			source = &voiceEffects;
+		}
+
+		Array<T*> newReorderedFX;
+
+		bool changed = false;
+
+		if(newOrder.isArray())
+		{
+			for(int i = 0; i < dynamicRange.getStart(); i++)
+			{
+				if(isPositiveAndBelow(i, source->size()))
+					newReorderedFX.add(source->getUnchecked(i));
+			}
+
+			for(const auto& v: *newOrder.getArray())
+			{
+				auto idx = (int)v;
+
+				jassert(dynamicRange.isEmpty() || dynamicRange.contains(idx));
+				
+				if(isPositiveAndBelow(idx, source->size()))
+					newReorderedFX.add(source->getUnchecked(idx));
+			}
+
+			if(!dynamicRange.isEmpty())
+			{
+				for(int i = dynamicRange.getEnd(); i < source->size(); i++)
+					newReorderedFX.add(source->getUnchecked(i));
+			}
+
+			{
+				LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
+				newReorderedFX.swapWith(*target);
+				use = true;
+				changed = true;
+			}
+
+			for(auto fx: *source)
+				fx->setBypassed(!target->contains(fx), sendNotificationAsync);
+		}
+		else
+		{
+			use = false;
+		}
+
+#if USE_BACKEND
+		if(changed)
+			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
+#endif
+
+	}
+
+	void setFXOrder(bool changePolyOrder, Range<int> dynamicRange, var newOrder)
+	{
+		if(changePolyOrder)
+		{
+			this->setFXOrderInternal<VoiceEffectProcessor>(dynamicRange, newOrder);
+		}
+		else
+		{
+			this->setFXOrderInternal<MasterEffectProcessor>(dynamicRange, newOrder);
+		}
+#if 0
+		bool changed = false;
+
+		if(newOrder.isArray())
+		{
+			Array<MasterEffectProcessor*> newReorderedFX;
+
+			for(int i = 0; i < dynamicRange.getStart(); i++)
+			{
+				if(isPositiveAndBelow(i, masterEffects.size()))
+					newReorderedFX.add(masterEffects[i]);
+			}
+
+			for(const auto& v: *newOrder.getArray())
+			{
+				auto idx = (int)v;
+
+				jassert(dynamicRange.isEmpty() || dynamicRange.contains(idx));
+				
+				if(isPositiveAndBelow(idx, masterEffects.size()))
+					newReorderedFX.add(masterEffects[idx]);
+			}
+
+			if(!dynamicRange.isEmpty())
+			{
+				for(int i = dynamicRange.getEnd(); i < masterEffects.size(); i++)
+					newReorderedFX.add(masterEffects[i]);
+			}
+
+			{
+				LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
+				newReorderedFX.swapWith(reorderedEffects);
+				useReorderedFX = true;
+				changed = true;
+			}
+
+			for(auto mfx: masterEffects)
+					mfx->setBypassed(!reorderedEffects.contains(mfx), sendNotificationAsync);
+		}
+		else
+		{
+			useReorderedFX = false;
+		}
+
+#if USE_BACKEND
+		if(changed)
+			getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::RebuildModuleList, false);
+#endif
+#endif
+	}
+
 	void startVoice(int voiceIndex, const HiseEvent& e);;
 
 	void stopVoice(int voiceIndex);;
@@ -152,6 +297,32 @@ public:
 
 private:
 
+	template <typename T> struct FXIterator
+	{
+		FXIterator(EffectProcessorChain& parent):
+		  p(parent)
+		{};
+
+		T** begin() const
+		{
+			if constexpr (std::is_same<T, MasterEffectProcessor>())
+				return p.useReorderedMasterFX ? p.reorderedMasterEffects.begin() : p.masterEffects.begin();
+			else
+				return p.useReorderedPolyFX ? p.reorderedPolyEffects.begin() : p.voiceEffects.begin();
+				
+		};
+
+		T** end() const
+		{
+			if constexpr (std::is_same<T, MasterEffectProcessor>())
+				return p.useReorderedMasterFX ? p.reorderedMasterEffects.end() : p.masterEffects.end();
+			else
+				return p.useReorderedPolyFX ? p.reorderedPolyEffects.end() : p.voiceEffects.end();
+		};
+
+		EffectProcessorChain& p;
+	};
+
 	bool renderPolyFxAsMono = false;
 
 	// Gives it a limit of 6 million years...
@@ -166,9 +337,15 @@ private:
 
 	OwnedArray<VoiceEffectProcessor> voiceEffects;
 	OwnedArray<MasterEffectProcessor> masterEffects;
+	Array<MasterEffectProcessor*> reorderedMasterEffects;
+	Array<VoiceEffectProcessor*> reorderedPolyEffects;
+	bool useReorderedMasterFX = false;
+	bool useReorderedPolyFX = false;
+
 	OwnedArray<MonophonicEffectProcessor> monoEffects;
 
 	Array<EffectProcessor*, DummyCriticalSection, 32> allEffects;
+	
 
 	Processor *parentProcessor;
 
@@ -206,7 +383,8 @@ public:
 		polyshapeFx,
 		hardcodedMasterFx,
 		polyHardcodedFx,
-		midiMetronome
+		midiMetronome,
+		noiseGrainPlayer
 	};
 
 	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):

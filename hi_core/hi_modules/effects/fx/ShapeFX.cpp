@@ -197,6 +197,14 @@ float ShapeFX::getDefaultValue(int parameterIndex) const
 	}
 }
 
+ModulationDisplayValue::QueryFunction::Ptr ShapeFX::getModulationQueryFunction(int parameterIndex) const
+{
+	if(parameterIndex == Drive)
+		return new ModulatorChain::GetModulationOutput<(int)PolyshapeFX::InternalChains::DriveModulation>();
+
+	return MasterEffectProcessor::getModulationQueryFunction(parameterIndex);
+}
+
 juce::ValueTree ShapeFX::exportAsValueTree() const
 {
 	ValueTree v = MasterEffectProcessor::exportAsValueTree();

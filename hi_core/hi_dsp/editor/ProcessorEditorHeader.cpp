@@ -354,6 +354,7 @@ void ProcessorEditorHeader::updateModulationMode(ProcessorEditorHeader& h, int m
         h.bipolarModButton->setVisible(false);
         h.intensitySlider->setTextValueSuffix("");
         h.intensitySlider->setRange (0, 1, 0.01);
+		h.bipolarModButton->setVisible(false);
     }
     else if(m == Modulation::PitchMode)
     {
@@ -362,7 +363,15 @@ void ProcessorEditorHeader::updateModulationMode(ProcessorEditorHeader& h, int m
         h.intensitySlider->setTextBoxIsEditable(true);
         h.bipolarModButton->setVisible(!h.isHeaderOfChain());
         h.bipolarModButton->addListener(&h);
+		h.bipolarModButton->setToggleState(dynamic_cast<Modulation*>(h.getProcessor())->isBipolar(), dontSendNotification);
     }
+	else if (m == Modulation::OffsetMode)
+	{
+		h.intensitySlider->setRange(-1.0, 1.0, 0.01);
+		h.bipolarModButton->setVisible(!h.isHeaderOfChain());
+        h.bipolarModButton->addListener(&h);
+		h.bipolarModButton->setToggleState(dynamic_cast<Modulation*>(h.getProcessor())->isBipolar(), dontSendNotification);
+	}
     else if (m == Modulation::PanMode)
     {
         h.intensitySlider->setRange(-100.0, 100.0, 1);
@@ -370,11 +379,13 @@ void ProcessorEditorHeader::updateModulationMode(ProcessorEditorHeader& h, int m
         h.intensitySlider->setTextBoxIsEditable(true);
         h.bipolarModButton->setVisible(!h.isHeaderOfChain());
         h.bipolarModButton->addListener(&h);
+		h.bipolarModButton->setToggleState(dynamic_cast<Modulation*>(h.getProcessor())->isBipolar(), dontSendNotification);
     }
     else if (m == Modulation::GlobalMode)
     {
         h.bipolarModButton->setVisible(!h.isHeaderOfChain());
         h.bipolarModButton->addListener(&h);
+		h.bipolarModButton->setToggleState(dynamic_cast<Modulation*>(h.getProcessor())->isBipolar(), dontSendNotification);
     }
     
     const double intensity = dynamic_cast<Modulation*>(h.getProcessor())->getDisplayIntensity();
@@ -816,7 +827,7 @@ void ProcessorEditorHeader::buttonClicked (Button* buttonThatWasClicked)
     }
 	else if (buttonThatWasClicked == bipolarModButton)
 	{
-		bool shouldBeBipolar = toggleButton(bipolarModButton);
+		bool shouldBeBipolar = !toggleButton(bipolarModButton);
 
 		dynamic_cast<Modulation*>(getProcessor())->setIsBipolar(shouldBeBipolar);
 		updateBipolarIcon(shouldBeBipolar);

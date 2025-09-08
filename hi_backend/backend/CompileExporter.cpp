@@ -916,6 +916,14 @@ bool CompileExporter::checkSanity(TargetTypes type, BuildOption option)
 
     const bool frontWasFound = chainToExport->hasDefinedFrontInterface();
 
+#if !USE_IPP
+	if(useIpp)
+	{
+		printErrorMessage("IPP setting mismatch", "You cannot compile a plugin with IPP if you have not compiled HISE with IPP.  \n> Turn off the `UseIpp` setting in the Compiler settings of HISE and retry.");
+		return false;
+	}
+#endif
+
 	if (!frontWasFound)
 	{
 		printErrorMessage("No Interface found.", "You have to add at least one script processor and call Synth.addToFront(true).");
@@ -1928,19 +1936,17 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
     
     REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", headerPath);
     
-    REPLACE_WILDCARD_WITH_STRING("%USE_IPP%", exporter->useIpp ? "1" : "0");
-
     REPLACE_WILDCARD_WITH_STRING("%IPP_1A%", exporter->useIpp ? "Static_Library" : String());
 		REPLACE_WILDCARD_WITH_STRING("%UAC_LEVEL%", exporter->dataObject.getSetting(HiseSettings::Project::AdminPermissions) ? "/MANIFESTUAC:level='requireAdministrator'" : String());
     
     REPLACE_WILDCARD_WITH_STRING("%LEGACY_CPU_SUPPORT%", exporter->legacyCpuSupport ? "1" : "0");
     
     auto s = exporter->dataObject.getTemporaryDefinitionsAsString();
-    
-    REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString() + s);
-	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString() + s);
-	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString() + s);
-	REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_IOS%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsIOS).toString());
+
+		REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_LINUX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString() + (exporter->useIpp ? "\r\nUSE_IPP=1" : String()) + s);
+		REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_WIN%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString() + s);
+		REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_OSX%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString() + s);
+		REPLACE_WILDCARD_WITH_STRING("%EXTRA_DEFINES_IOS%", exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsIOS).toString());
 
 #if JUCE_WINDOWS
     const auto useGlobalAppFolder = (bool)exporter->dataObject.getSetting(HiseSettings::Project::UseGlobalAppDataFolderWindows);
@@ -1973,26 +1979,33 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
     if(macOSVersion >= SystemStats::MacOS_14)
         copyPlugin = false;
 #endif
-    
+		
 	REPLACE_WILDCARD_WITH_STRING("%COPY_PLUGIN%", copyPlugin ? "1" : "0");
+	
+	// Handling FFTW on Windows/Linux and IPP on Linux - neither needed on MacOS
+	bool useFFTW = false;
 
-#if JUCE_MAC
-	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", exporter->useIpp ? "/opt/intel/ipp/lib/libippi.a  /opt/intel/ipp/lib/libipps.a /opt/intel/ipp/lib/libippvm.a /opt/intel/ipp/lib/libippcore.a" : String());
-	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", exporter->useIpp ? "/opt/intel/ipp/include" : String());
-	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", exporter->useIpp ? "/opt/intel/ipp/lib" : String());
-#endif
+	#if JUCE_LINUX
+		useFFTW = !exporter->useIpp && exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsLinux).toString().contains("AUDIOFFT_FFTW3=1");
+	#elif JUCE_WINDOWS
+		useFFTW = !exporter->useIpp && exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString().contains("AUDIOFFT_FFTW3=1");
+	#endif
 
-#if JUCE_LINUX
-	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", exporter->useIpp ? "/opt/intel/ipp/lib/intel64/libippi.a  /opt/intel/ipp/lib/intel64/libipps.a /opt/intel/ipp/lib/intel64/libippvm.a /opt/intel/ipp/lib/intel64/libippcore.a" : String());
-	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", exporter->useIpp ? "/opt/intel/ipp/include" : String());
-	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", exporter->useIpp ? "/opt/intel/ipp/lib" : String());
-#endif
+	REPLACE_WILDCARD_WITH_STRING("%USE_STATIC_FFTW%", useFFTW ? "enabled" : "disabled");
 
-#if !JUCE_MAC && !JUCE_LINUX
-	REPLACE_WILDCARD_WITH_STRING("%IPP_COMPILER_FLAGS%", String());
-	REPLACE_WILDCARD_WITH_STRING("%IPP_HEADER%", String());
-	REPLACE_WILDCARD_WITH_STRING("%IPP_LIBRARY%", String());
-#endif
+	#if JUCE_WINDOWS
+		const File fftwPath = exporter->hisePath.getChildFile("tools/fftw");
+		
+		REPLACE_WILDCARD_WITH_STRING("%FFT_HEADER_PATH%", useFFTW ? fftwPath.getFullPathName() : String());
+		REPLACE_WILDCARD_WITH_STRING("%FFT_LINKER_FLAGS%", useFFTW ? fftwPath.getFullPathName() + "/windows/fftw3f.lib" : String());
+	#elif JUCE_LINUX
+	
+		if (exporter->useIpp)
+			REPLACE_WILDCARD_WITH_STRING("%FFT_LINKER_FLAGS%", "-lippcore -lippvm -lipps -lippi -lippcv");
+		else
+			REPLACE_WILDCARD_WITH_STRING("%FFT_LINKER_FLAGS%", useFFTW ? "-lfftw3f" : String());
+
+	#endif
 
 	const auto includePerfetto = (bool)exporter->dataObject.getSetting(HiseSettings::Project::CompileWithPerfetto);
 
@@ -2345,15 +2358,6 @@ File CompileExporter::getProjucerProjectFile()
 {
 	return GET_PROJECT_HANDLER(chainToExport).getSubDirectory(ProjectHandler::SubDirectories::Binaries).getChildFile("AutogeneratedProject.jucer");
 }
-
-
-
-
-
-
-
-
-
 
 #undef REPLACE_WILDCARD
 

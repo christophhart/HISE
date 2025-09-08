@@ -32,8 +32,6 @@
 
 #pragma once
 
-#include "HiseNodes.h"
-
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
@@ -41,71 +39,5 @@ using namespace hise;
 namespace core
 {
 
-void hise_mod_base::initialise(NodeBase* b)
-{
-	parentNode = dynamic_cast<ModulationSourceNode*>(b);
-    
-    auto& bl = parentNode->getScriptProcessor()->getMainController_()->getBlocksizeBroadcaster();
-    
-    bl.addListener(*this, hise_mod_base::updateBlockSize, true);
-}
-
-void hise_mod_base::prepare(PrepareSpecs ps)
-{
-	modValues.prepare(ps);
-	uptime.prepare(ps);
-
-	for (auto& u : uptime)
-		u = 0.0;
-}
-
-bool hise_mod_base::handleModulation(double& v)
-{
-	return modValues.get().getChangedValue(v);
-}
-
-
-void hise_mod_base::handleHiseEvent(HiseEvent& e)
-{
-	if (e.isNoteOn())
-	{
-		uptime.get() = e.getTimeStamp() * uptimeDelta;
-	}
-}
-
-
-
-void hise_mod_base::reset()
-{
-	auto startValue = getModulationValue(-1);
-
-	for (auto& m : modValues)
-		m.setModValue(startValue);
-}
-
-
-void pitch_mod::transformModValues(float* d, int numSamples)
-{
-	auto lastValue = -1.0f;
-	auto lastPitchValue = 0.5f;
-
-	for (int i = 0; i < numSamples; i++)
-	{
-		auto thisValue = d[i];
-
-		if (thisValue != lastValue)
-		{
-			lastPitchValue = log2(thisValue);
-			lastPitchValue += 1.0f;
-			lastPitchValue *= 0.5f;
-			lastValue = thisValue;
-		}
-
-		d[i] = lastPitchValue;
-	}
-}
-
 } // namespace core
-
-
 } // namespace scriptnode

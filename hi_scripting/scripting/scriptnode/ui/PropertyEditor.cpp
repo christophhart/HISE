@@ -422,6 +422,8 @@ PropertyEditor::PropertyEditor(NodeBase* n, bool useTwoColumns, ValueTree data, 
 		if (hiddenIds.contains(id))
 			continue;
 
+		PropertyHelpers::addMissingIdsForEditor(data, n->getUndoManager());
+
 		auto nt = PropertyHelpers::createPropertyComponent(n->getScriptProcessor(), data, id, n->getUndoManager());
 
 		newProperties.add(nt);

@@ -44,10 +44,6 @@
 #define DONT_INCLUDE_HEADERS_IN_CPP 1
 #endif
 
-#if USE_IPP
-#define ICSTLIB_USE_IPP 1
-#endif
-
 namespace hise
 {
 	class IppFFT;

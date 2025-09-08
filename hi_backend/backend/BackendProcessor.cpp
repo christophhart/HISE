@@ -427,6 +427,8 @@ BackendProcessor::~BackendProcessor()
 
 	synthChain = nullptr;
 
+	dllManager->unloadDll();
+
 	handleEditorData(true);
 }
 

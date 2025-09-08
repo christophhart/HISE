@@ -219,13 +219,7 @@ public:
 
 	HiseEvent::ChannelFilterData* getActiveChannelData();
 
-	void setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalVoiceHandler) override;
-
-    bool isUniformVoiceHandlerRoot() const;;
-	
 private:
-
-	ScopedPointer<UniformVoiceHandler> ownedUniformVoiceHandler;
 
 	HiseEvent::ChannelFilterData activeChannels;
 	ModulatorSynthChainHandler handler;

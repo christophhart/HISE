@@ -55,7 +55,7 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	smoothingTime->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	smoothingTime->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
 	smoothingTime->setup(getProcessor(), MPEModulator::SpecialParameters::SmoothingTime, "Smoothing");
-	smoothingTime->setMode(HiSlider::Time, 0.0, 2000.0, 100.0, 0.1);
+	smoothingTime->setMode(HiSlider::Time, NormalisableRange(0.0, 2000.0, 0.1).withCentreSkew(100.0));
 
 	defaultValue->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	defaultValue->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
@@ -70,7 +70,7 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 	}
 	else if (mode == Modulation::PitchMode)
 	{
-		defaultValue->setMode(HiSlider::Linear, -12.0, 12.0, 0.0, 0.01);
+		defaultValue->setMode(HiSlider::Linear, NormalisableRange(-12.0, 12.0));
 		defaultValue->setTextValueSuffix(" st.");
 	}
 	else if (mode == Modulation::PanMode)

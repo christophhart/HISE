@@ -172,7 +172,7 @@ START_JUCE_APPLICATION (MainWrapper)
     </GROUP>
   </MAINGROUP>
   <EXPORTFORMATS>
-    <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="USE_IPP=0&#10;PERFETTO=0&#10;USE_BACKEND=1"
+    <XCODE_MAC targetFolder="Builds/MacOSX" extraDefs="PERFETTO=0&#10;USE_BACKEND=1"
                extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -mpopcnt -faligned-allocation -Wno-switch"
                xcodeValidArchs="x86_64" smallIcon="%ICON_REF%" bigIcon="%ICON_REF%" iosDevelopmentTeamID="%TEAM_ID%">
       <CONFIGURATIONS>

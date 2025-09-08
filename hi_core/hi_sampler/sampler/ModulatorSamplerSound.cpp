@@ -229,7 +229,7 @@ juce::Range<int> ModulatorSamplerSound::getPropertyRange(const Identifier& id) c
 	else if( id == SampleIds::Volume)		return Range<int>(-100, 18);
 	else if( id == SampleIds::Pan)			return Range<int>(-100, 100);
 	else if( id == SampleIds::Normalized)	return Range<int>(0, 1);
-	else if( id == SampleIds::RRGroup)	  { jassertfalse; return {}; }
+	else if( id == SampleIds::RRGroup)	    return { 1, 255 };
 	else if( id == SampleIds::Pitch)		return Range<int>(-100, 100);
 	else if (id == SampleIds::LoopEnabled)			return Range<int>(0, 1);
 	else if (id == SampleIds::SampleStart || id == SampleIds::SampleEnd ||

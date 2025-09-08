@@ -224,7 +224,7 @@ public:
 		addAndMakeVisible(spectrumButton = new TextButton("Spectrum"));
 		addAndMakeVisible(waterfallButton = new TextButton("Waterfall"));
 		addAndMakeVisible(spectrum = new SampleMapToWavetableConverter::Preview(parent));
-		addAndMakeVisible(waterfall = new WaterfallComponent(mc, nullptr));
+		addAndMakeVisible(waterfall = new WaterfallComponent(mc->getMainSynthChain(), nullptr));
 
 		spectrumButton->setClickingTogglesState(true);
 		waterfallButton->setClickingTogglesState(true);

@@ -103,7 +103,7 @@ AudioLooperEditor::AudioLooperEditor (ProcessorEditor *p)
 	sampleBufferContent->setAudioFile(&asp->getBuffer());
 
 	startModSlider->setup(getProcessor(), AudioLooper::SampleStartMod, "Random Start");
-	startModSlider->setMode(HiSlider::Discrete, 0.0, 20000, 1000.0, 1.0);
+    startModSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 20000.0, 1.0).withCentreSkew(1000.0));
 
 
 	syncToHost->setup(getProcessor(), AudioLooper::SyncMode, "Sync to host");

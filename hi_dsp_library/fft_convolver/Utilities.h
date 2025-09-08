@@ -156,7 +156,7 @@ public:
 private:
   T* allocate(size_t size)
   {
-#if USE_IPP && !HISE_IOS
+#if USE_IPP
 	  auto ptr = ippsMalloc_8u((int)size * sizeof(T));
 	  jassert(ptr != nullptr);
 	  return reinterpret_cast<T*>(ptr);
@@ -169,7 +169,7 @@ private:
   
   void deallocate(T* ptr)
   {
-#if USE_IPP && !HISE_IOS
+#if USE_IPP
 	  ippFree(ptr);
 #elif FFTCONVOLVER_USE_SSE
     _mm_free(ptr);

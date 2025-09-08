@@ -208,6 +208,7 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_tools/UpdateMerger.h"
 
 #include "hi_tools/MiscToolClasses.h"
+#include "hi_tools/SiTraNoConverter.h"
 
 #include "hi_tools/PathFactory.h"
 #include "hi_tools/HI_LookAndFeels.h"
@@ -228,9 +229,13 @@ will break compatibility with older projects / presets because the tempo indexes
 #include "hi_tools/runtime_target.h"
 
 #if USE_IPP
-
-#include "ipp.h"
+#if _IPP_SEQUENTIAL_STATIC || _IPP_SEQUENTIAL_DYNAMIC || _IPP_PARALLEL_STATIC || _IPP_PARALLEL_DYNAMIC
 #include "hi_tools/IppFFT.h"
+#elif JUCE_LINUX
+#include "hi_tools/IppFFT.h"
+#else
+#error "USE_IPP flag mismatch. Make sure that you use the OneAPI projucer setting / the Hise UseIpp setting instead of manually setting this flag."
+#endif
 #endif
 
 #if !HISE_NO_GUI_TOOLS
@@ -324,7 +329,7 @@ using ComponentWithMiddleMouseDrag = juce::Component;
 #include "hi_standalone_components/eq_plot/FilterInfo.h"
 #include "hi_standalone_components/eq_plot/FilterGraph.h"
 
-
+#include "hi_neural/RTNeural/modules/xsimd/xsimd.hpp"
 
 #if HISE_INCLUDE_RT_NEURAL
 #include "hi_neural/hi_neural.h"

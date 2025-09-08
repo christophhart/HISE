@@ -919,6 +919,176 @@ void FloatSanitizers::Test::testArray()
 			
 }
 
+bool ModBufferExpansion::isEqual(float rampStart, const float* data, int numElements)
+{
+	auto range = FloatVectorOperations::findMinAndMax(data, numElements);
+	return (range.contains(rampStart) || range.getEnd() == rampStart) && range.getLength() < 0.001f;
+}
+
+bool ModBufferExpansion::expand(const float* modulationData, int startSample, int numSamples, float& rampStart)
+{
+	const int startSample_cr = startSample / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+	const int numSamples_cr = numSamples / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	if (isEqual(rampStart, modulationData + startSample_cr, numSamples_cr))
+	{
+		rampStart = modulationData[startSample_cr];
+		return false;
+	}
+	else
+	{
+#if HISE_USE_CONTROLRATE_DOWNSAMPLING
+
+		float* temp = (float*)alloca(sizeof(float) * (numSamples_cr));
+		FloatVectorOperations::copy(temp, modulationData + startSample_cr, numSamples_cr);
+		float* d = const_cast<float*>(modulationData + startSample);
+
+		constexpr float ratio = 1.0f / (float)HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+		for (int i = 0; i < numSamples_cr; i++)
+		{
+			AlignedSSERamper<HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR> ramper(d);
+
+			const float delta1 = (temp[i] - rampStart) * ratio;
+			ramper.ramp(rampStart, delta1);
+			rampStart = temp[i];
+			d += HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		}
+#endif
+
+		return true;
+	}
+}
+
+
+template <bool Inverse> struct PitchSimd
+{
+	template <class Arch>
+    void operator()(Arch, float* rangeValues, int numValues)
+    {
+		using b_type = xsimd::batch<float, Arch>;
+	    auto inc = (int)b_type::size;
+		auto numVectorized = numValues - numValues % inc;
+
+	    for (int i = 0; i < numVectorized; i += inc)
+	    {
+	        auto v = b_type::load_unaligned(rangeValues + i);
+
+			if constexpr (Inverse)
+			{
+				v = xsimd::log2(v);
+				v *= 0.5f;
+				v += 0.5f;
+			}
+			else
+				v = xsimd::exp2(v);
+
+	        v.store_unaligned(rangeValues + i);
+	    }
+
+		if constexpr (Inverse)
+		{
+			for (int i = numVectorized; i < numValues; ++i)
+				rangeValues[i] = 0.5f * std::log2(rangeValues[i]) + 0.5f;
+		}
+		else
+		{
+			for (int i = numVectorized; i < numValues; ++i)
+				rangeValues[i] = std::exp2(rangeValues[i]);
+		}
+    }
+};
+
+struct SkewSimd
+{
+	template <class Arch>
+    void operator()(Arch, float* data, int numValues, Range<float> targetRange, float skew)
+    {
+		using b_type = xsimd::batch<float, Arch>;
+	    auto inc = (int)b_type::size;
+		auto numVectorized = numValues - numValues % inc;
+
+		auto min = targetRange.getStart();
+		auto max = targetRange.getEnd();
+
+		auto offset = min;
+		auto scale = max - min;
+
+		// return min + (max - min) * hmath::exp(hmath::log(value) / skew);
+
+		if(skew != 1.0f)
+		{
+			skew = 1.0f / skew;
+
+			for (int i = 0; i < numVectorized; i += inc)
+		    {
+		        auto v = b_type::load_unaligned(data + i);
+
+				v = xsimd::clip(v, b_type(0.0f), b_type(1.0f));
+
+				v = xsimd::log(v);
+				v *= skew;
+				v = xsimd::exp(v);
+				v *= scale;
+				v += offset;
+
+		        v.store_unaligned(data + i);
+		    }
+
+			for(int i = numVectorized; i < numValues; i++)
+			{
+				auto v = jlimit(0.0f, 1.0f, data[i]);
+				v = std::exp(std::log(v) * skew);
+				v *= scale;
+				v += offset;
+
+				data[i] = v;
+			}
+		}
+		else
+		{
+			for(int i = 0; i < numValues; i++)
+			{
+				data[i] *= scale;
+				data[i] += offset;
+			}
+		}
+    }
+};
+
+
+
+void ModBufferExpansion::pitchFactorToNormalisedRange(float* data, int numSamples)
+{
+	xsimd::dispatch(PitchSimd<true>{})(data, numSamples);
+}
+
+void ModBufferExpansion::normalisedRangeToPitchFactor(float* data, int numSamples)
+{
+	xsimd::dispatch(PitchSimd<false>{})(data, numSamples);
+}
+
+void ModBufferExpansion::applySkewFactor(float* data, int numSamples, Range<float> targetRange, float skewFactor)
+{
+	xsimd::dispatch(SkewSimd{})(data, numSamples, targetRange, skewFactor);
+}
+
+Ramper::Ramper():
+	targetValue(0.0f),
+	stepDelta(0.0f),
+	stepAmount(-1)
+{}
+
+void Ramper::setTarget(float currentValue, float newTarget, int numberOfSteps)
+{
+	if (numberOfSteps != -1) stepDelta = (newTarget - currentValue) / numberOfSteps;
+	else if (stepAmount != -1) stepDelta = (newTarget - currentValue) / stepAmount;
+	else jassertfalse; // Either the step amount should be set, or a new step amount should be supplied
+
+	targetValue = newTarget;
+	busy = true;
+}
+
 
 HiseDeviceSimulator::DeviceType HiseDeviceSimulator::currentDevice = HiseDeviceSimulator::DeviceType::Desktop;
 
@@ -2452,12 +2622,12 @@ String FFTHelpers::getWindowType(WindowType w)
 }
 
 void FFTHelpers::toComplexArray(const AudioSampleBuffer& phaseBuffer, const AudioSampleBuffer& magBuffer,
-	AudioSampleBuffer& out)
+	AudioSampleBuffer& out, int channelIndex)
 {
-	auto phase = phaseBuffer.getReadPointer(0);
-	auto mag = magBuffer.getReadPointer(0);
+	auto phase = phaseBuffer.getReadPointer(channelIndex);
+	auto mag = magBuffer.getReadPointer(channelIndex);
 
-	auto output = out.getWritePointer(0);
+	auto output = out.getWritePointer(channelIndex);
 		
 	jassert(phaseBuffer.getNumSamples() == magBuffer.getNumSamples());
 	jassert(phaseBuffer.getNumSamples() * 2 == out.getNumSamples());
@@ -2474,10 +2644,10 @@ void FFTHelpers::toComplexArray(const AudioSampleBuffer& phaseBuffer, const Audi
 	}
 }
 
-void FFTHelpers::toPhaseSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
+void FFTHelpers::toPhaseSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out, int channelIndex)
 {
-	auto input = inp.getReadPointer(0);
-	auto output = out.getWritePointer(0);
+	auto input = inp.getReadPointer(channelIndex);
+	auto output = out.getWritePointer(channelIndex);
 
 	jassert(inp.getNumSamples() == out.getNumSamples() * 2);
 
@@ -2491,10 +2661,10 @@ void FFTHelpers::toPhaseSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer
 	}
 }
 
-void FFTHelpers::toFreqSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out)
+void FFTHelpers::toFreqSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer& out, int channelIndex)
 {
-	auto input = inp.getReadPointer(0);
-	auto output = out.getWritePointer(0);
+	auto input = inp.getReadPointer(channelIndex);
+	auto output = out.getWritePointer(channelIndex);
         
 	jassert(inp.getNumSamples() == out.getNumSamples() * 2);
 
@@ -2508,9 +2678,9 @@ void FFTHelpers::toFreqSpectrum(const AudioSampleBuffer& inp, AudioSampleBuffer&
 	}
 }
 
-void FFTHelpers::scaleFrequencyOutput(AudioSampleBuffer& b, bool convertToDb, bool invert)
+void FFTHelpers::scaleFrequencyOutput(AudioSampleBuffer& b, bool convertToDb, bool invert, int channelIndex)
 {
-	auto data = b.getWritePointer(0);
+	auto data = b.getWritePointer(channelIndex);
 	auto numOriginalSamples = b.getNumSamples();
 
 	if (numOriginalSamples == 0)
@@ -2595,10 +2765,10 @@ void Spectrum2D::draw(Graphics& g, const Image& img, Rectangle<int> area, Graphi
 	g.restoreState();
 }
 
-void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise)
+void FFTHelpers::applyWindow(WindowType t, AudioSampleBuffer& b, bool normalise, int channelIndex)
 {
     auto s = b.getNumSamples() / 2;
-    auto data = b.getWritePointer(0);
+    auto data = b.getWritePointer(channelIndex);
 
     applyWindow(t, data, s, normalise);
 }
@@ -3615,6 +3785,180 @@ bool TextEditorWithAutocompleteComponent::AutocompleteNavigator::keyPressed(cons
 TextEditorWithAutocompleteComponent::Autocomplete* TextEditorWithAutocompleteComponent::getCurrentAutocomplete()
 {
 	return dynamic_cast<Autocomplete*>(currentAutocomplete.get());
+}
+
+void ModulationDisplayValue::clipTo0To1()
+{
+	normalisedValue = jlimit(0.0, 1.0, normalisedValue);
+	addValue = jlimit(0.0, 1.0, scaledValue + addValue) - scaledValue;
+	modulationRange.setStart(jlimit(0.0, 1.0, modulationRange.getStart()));
+	modulationRange.setEnd(jlimit(0.0, 1.0, modulationRange.getEnd()));
+}
+
+String ValueToTextConverter::getTextForValue(double v) const
+{
+	if(!active)
+		return String(v, 0);
+
+	if(customConverter != nullptr)
+		return customConverter->getText(v);
+
+	if(!itemList.isEmpty())
+	{
+		auto idx = jlimit<int>(0, itemList.size(), roundToInt(v));
+		return itemList[idx];
+	}
+
+	if(valueToTextFunction)
+		return valueToTextFunction(v);
+
+	auto numDecimalPlaces = jlimit(0, 4, roundToInt(log10(stepSize) * -1.0));
+	String valueString(v, numDecimalPlaces);
+	valueString << suffix;
+	return valueString;
+}
+
+double ValueToTextConverter::getValueForText(const String& v) const
+{
+	if(!active)
+		return v.getDoubleValue();
+
+	if(customConverter != nullptr)
+		return customConverter->getValue(v);
+
+	if(!itemList.isEmpty())
+		return (double)itemList.indexOf(v);
+
+	if(textToValueFunction)
+		return textToValueFunction(v);
+
+	return v.getDoubleValue();
+}
+
+ValueToTextConverter ValueToTextConverter::createForOptions(const StringArray& options)
+{
+	ValueToTextConverter vtc;
+	vtc.active = true;
+	vtc.itemList = options;
+	return vtc;
+}
+
+ValueToTextConverter ValueToTextConverter::createForMode(const String& modeString)
+{
+	ValueToTextConverter vtc;
+		
+#define FUNC(x) if(modeString == #x) { vtc.active = true; vtc.valueToTextFunction = ConverterFunctions::x; vtc.textToValueFunction = InverterFunctions::x; }
+
+	FUNC(Frequency);
+	FUNC(Time);
+	FUNC(TempoSync);
+	FUNC(Pan);
+	FUNC(NormalizedPercentage);
+	FUNC(Decibel);
+	FUNC(Semitones);
+
+#undef FUNC
+
+	return vtc;
+}
+
+ValueToTextConverter ValueToTextConverter::fromString(const String& converterString)
+{
+	ValueToTextConverter vtc;
+
+	if(converterString.isNotEmpty())
+	{
+#if HI_ZSTD_INCLUDED
+			zstd::ZDefaultCompressor comp;
+
+			MemoryBlock mb;
+			mb.fromBase64Encoding(converterString);
+			ValueTree v;
+
+			comp.expand(mb, v);
+
+			vtc.active = (bool)v["active"];
+
+			
+
+			vtc.itemList = StringArray::fromLines(v["items"].toString().trim());
+			vtc.itemList.removeEmptyStrings();
+
+#define FUNC(x) if(v.getProperty("function", "").toString() == #x) { vtc.valueToTextFunction = ConverterFunctions::x; vtc.textToValueFunction = InverterFunctions::x; }
+			FUNC(Frequency);
+			FUNC(Time);
+			FUNC(TempoSync);
+			FUNC(Pan);
+			FUNC(NormalizedPercentage);
+#undef FUNC
+#else
+		// You haven't included zstd here...
+		jassertfalse;
+#endif
+	}
+		
+	return vtc;
+}
+
+ValueToTextConverter ValueToTextConverter::createForCustomClass(CustomConverter* c)
+{
+	ValueToTextConverter vtc;
+	vtc.active = true;
+	vtc.customConverter = c;
+	return vtc;
+}
+
+StringArray ValueToTextConverter::getAvailableTextConverterModes()
+{
+	return {
+		"Frequency",
+		"Time",
+		"TempoSync",
+		"Pan",
+		"NormalizedPercentage",
+		"Decibel",
+		"Semitones"
+	};
+}
+
+String ValueToTextConverter::toString() const
+{
+#if HI_ZSTD_INCLUDED
+		ValueTree v("ValueConverter");
+
+		if(customConverter != nullptr)
+		{
+			// custom converters can't be serialized!
+			jassertfalse;
+		}
+
+		if(!itemList.isEmpty())
+			v.setProperty("items", itemList.joinIntoString("\n"), nullptr);
+
+		v.setProperty("active", active, nullptr);
+
+		if(suffix.isNotEmpty())
+			v.setProperty("suffix", suffix, nullptr);
+		
+#define FUNC(x) if(valueToTextFunction == ConverterFunctions::x) v.setProperty("function", #x, nullptr);
+
+		FUNC(Frequency);
+		FUNC(Time);
+		FUNC(TempoSync);
+		FUNC(Pan);
+		FUNC(NormalizedPercentage);
+
+#undef FUNC
+
+		MemoryBlock mb;
+		zstd::ZDefaultCompressor comp;
+		comp.compress(v, mb);
+		return mb.toBase64Encoding();
+#else
+	// you need to include zstd...
+	jassertfalse;
+	return {};
+#endif
 }
 
 void TextEditorWithAutocompleteComponent::showAutocomplete(const String& currentText)

@@ -550,26 +550,9 @@ void PatchBrowser::paint(Graphics &g)
 		auto endPoint = c->getPointForTreeGraph(false).toFloat();
 		auto endPointInParent = getLocalPoint(c, endPoint);
 
-        bool paintUniform = false;
-        
-        if(auto ms = dynamic_cast<ModulatorSynth*>(c->getProcessor()))
-        {
-            if(ms->isUsingUniformVoiceHandler())
-                paintUniform = true;
-            
-            if(auto msc = dynamic_cast<ModulatorSynthChain*>(ms))
-            {
-                if(msc->isUniformVoiceHandlerRoot())
-                    paintUniform = false;
-            }
-        }
-        
-		g.setColour(paintUniform ? Colour(0xFF888888) :
-            Colour(0xFF222222));
-
+		g.setColour(Colour(0xFF222222));
 		g.drawLine((float)startPointInParent.getX(), (float)startPointInParent.getY(), (float)startPointInParent.getX(), (float)endPointInParent.getY(), 2.0f);
 		g.drawLine((float)startPointInParent.getX(), (float)endPointInParent.getY(), (float)endPointInParent.getX(), (float)endPointInParent.getY(), 2.0f);
-
 	}
     
     if(showChains)
@@ -1178,17 +1161,17 @@ void PatchBrowser::ModuleDragTarget::itemDropped(const SourceDetails& dragSource
 		return;
 	}
 
-	Chain *c = dynamic_cast<Chain*>(getProcessor());
+	auto targetProcessor = getProcessor();
+
+	
+
+	Chain *c = dynamic_cast<Chain*>(targetProcessor);
+
+	auto isFirstTarget = c != nullptr;
 
 	auto p = dynamic_cast<ModuleDragTarget*>(dragSourceDetails.sourceComponent.get())->getProcessor();
 
 	auto oldChain = dynamic_cast<Chain*>(p->getParentProcessor(false));
-
-	if(p->getParentProcessor(false) == getProcessor())
-	{
-		resetDragState();
-		return;
-	}
 
 	if(c == nullptr)
 		c = dynamic_cast<Chain*>(getProcessor()->getParentProcessor(false));
@@ -1198,27 +1181,44 @@ void PatchBrowser::ModuleDragTarget::itemDropped(const SourceDetails& dragSource
 		Identifier type = Identifier(dragSourceDetails.description.toString().upToFirstOccurrenceOf("::", false, true));
 		String name = dragSourceDetails.description.toString().fromLastOccurrenceOf("::", false, true);
 
-		int index = -1;
+		Processor* sibling = nullptr;
 
-		for(int i = 0; i < c->getHandler()->getNumProcessors(); i++)
+		if(isFirstTarget && c->getHandler()->getNumProcessors() > 0)
 		{
-			if(c->getHandler()->getProcessor(i) == p)
+			sibling = c->getHandler()->getProcessor(0);
+		}
+		else
+		{
+			int index = -1;
+			int selfDelta = 0;
+
+			for(int i = 0; i < c->getHandler()->getNumProcessors(); i++)
 			{
-				index = i;
-				break;
+				//if(c->getHandler()->getProcessor(i) == p)
+					//selfDelta -= 1;
+
+				if(c->getHandler()->getProcessor(i) == targetProcessor)
+				{
+					index = i + selfDelta + 1;
+					break;
+				}
 			}
+
+			if(isPositiveAndBelow(index, c->getHandler()->getNumProcessors()))
+				sibling = c->getHandler()->getProcessor(index);
+		}
+
+		if(p == sibling)
+		{
+			resetDragState();
+			return;
 		}
 
 		p->getMainController()->allNotesOff();
 
-		auto sibling = index == -1 ? nullptr : c->getHandler()->getProcessor(index);
-
 		oldChain->getHandler()->remove(p, false);
 
 		c->getHandler()->add(p, sibling);
-
-		//if(index != -1)
-		//	c->getHandler()->moveProcessor(p, -1);
 
 		auto root = p->getMainController()->getMainSynthChain();
 		root->prepareToPlay(root->getSampleRate(), root->getLargestBlockSize());
@@ -1474,27 +1474,7 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 
 	idLabel.setColour(Label::ColourIds::textColourId, Colours::white.withAlpha(bypassed ? 0.2f : 0.8f));
     
-    if(auto ms = dynamic_cast<ModulatorSynthChain*>(getProcessor()))
-    {
-        if(ms->isUniformVoiceHandlerRoot())
-        {
-            
-            g.setFont(GLOBAL_BOLD_FONT().withHeight(10.0f));
-            
-            
-            
-            auto b = iconSpace2.removeFromRight(30.0f);
-            
-            g.setColour(JUCE_LIVE_CONSTANT_OFF(Colour(0x14FFFFFF)));
-            g.fillRoundedRectangle(b.reduced(3.0f), 2.0f);
-            
-            g.setColour(Colour(0xFF888888));
-            g.drawText("UVH", b, Justification::centred);
-        }
-        
-    }
-
-	auto ds = getDragState();
+    auto ds = getDragState();
 
 	if(ds != DragState::Inactive)
 	{
@@ -1947,6 +1927,36 @@ void PatchBrowser::PatchItem::paint(Graphics& g)
 		g.drawEllipse(iconSpace.reduced(JUCE_LIVE_CONSTANT_OFF(3.0f)), 1.5f);
 
 		g.setColour(Colour(0xFF222222));
+	}
+
+	if(auto fx = dynamic_cast<MasterEffectProcessor*>(p.get()))
+	{
+		if(auto fxChain = dynamic_cast<EffectProcessorChain*>(fx->getParentProcessor(false, false)))
+		{
+			auto idx = fxChain->getProcessingOrderIndex(fx);
+
+			if(idx.first)
+			{
+				g.setColour(Colour(0xFF222222));
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.drawText(String(idx.second+1), iconSpace.translated(0.0f, -1.0f), Justification::centred);
+			}
+		}
+	}
+
+	if(auto fx = dynamic_cast<VoiceEffectProcessor*>(p.get()))
+	{
+		if(auto fxChain = dynamic_cast<EffectProcessorChain*>(fx->getParentProcessor(false, false)))
+		{
+			auto idx = fxChain->getProcessingOrderIndex(fx);
+
+			if(idx.first)
+			{
+				g.setColour(Colour(0xFF222222));
+				g.setFont(GLOBAL_BOLD_FONT());
+				g.drawText(String(idx.second+1), iconSpace.translated(0.0f, -1.0f), Justification::centred);
+			}
+		}
 	}
 
 	g.drawRoundedRectangle(iconSpace, 2.0f, 2.0f);

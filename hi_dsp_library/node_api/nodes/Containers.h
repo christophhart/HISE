@@ -49,6 +49,13 @@ template <typename... Ps> static constexpr int getNumChannelsOfFirstElement()
 	return FirstElementType::NumChannels;
 }
 
+template <typename... Ps> static constexpr int getNumVoicesOfFirstElement()
+{
+	using TupleType = std::tuple<Ps...>;
+	using FirstElementType = typename std::tuple_element<0, TupleType>::type;
+	return FirstElementType::NumVoices;
+}
+
 template <class ...Types> struct _ChannelCounter;
 
 template <class T> struct _ChannelCounter<T>

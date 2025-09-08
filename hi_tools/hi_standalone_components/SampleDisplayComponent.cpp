@@ -2194,7 +2194,7 @@ void XYZMultiChannelAudioBufferEditor::addButton(const Identifier& id, const Ide
 	addAndMakeVisible(tb);
 	tb->addListener(this);
 
-	tb->setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>());
+	tb->setLookAndFeel(getSpecialLookAndFeel<LookAndFeel>(this));
 
 	buttons.add(tb);
 }

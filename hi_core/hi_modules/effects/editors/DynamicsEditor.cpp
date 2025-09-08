@@ -146,17 +146,17 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
 	gateRelease->setup(getProcessor(), DynamicsEffect::Parameters::GateRelease, "Release");
 	gateThreshold->setup(getProcessor(), DynamicsEffect::Parameters::GateThreshold, "Threshold");
 	gateEnabled->setup(getProcessor(), DynamicsEffect::Parameters::GateEnabled, "Gate On");
-	gateAttack->setMode(HiSlider::Mode::Time, 0.0, 100.0, 10.0, 0.01);
-	gateRelease->setMode(HiSlider::Mode::Time, 0.0, 300.0, 10.0, 0.01);
-	gateThreshold->setMode(HiSlider::Mode::Decibel, -100, 0.0, -40.0, 0.1);
+	gateAttack->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 100.0, 0.01).withCentreSkew(10.0));
+	gateRelease->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 300.0, 0.01).withCentreSkew(10.0));
+	gateThreshold->setMode(HiSlider::Mode::Decibel, NormalisableRange(-100.0, 0.0, 0.01).withCentreSkew(-40.0));
 
 	limiterAttack->setup(getProcessor(), DynamicsEffect::Parameters::LimiterAttack, "Attack");
 	limiterRelease->setup(getProcessor(), DynamicsEffect::Parameters::LimiterRelease, "Release");
 	limiterThreshold->setup(getProcessor(), DynamicsEffect::Parameters::LimiterThreshold, "Threshold");
 	limiterEnabled->setup(getProcessor(), DynamicsEffect::Parameters::LimiterEnabled, "Gate Enabled");
-	limiterAttack->setMode(HiSlider::Mode::Time, 0.0, 100.0, 10.0, 0.01);
-	limiterRelease->setMode(HiSlider::Mode::Time, 0.0, 300.0, 10.0, 0.01);
-	limiterThreshold->setMode(HiSlider::Mode::Decibel, -100, 0.0, -40.0, 0.1);
+	limiterAttack->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 100.0, 0.01).withCentreSkew(10.0));
+	limiterRelease->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 300.0, 0.01).withCentreSkew(10.0));
+	limiterThreshold->setMode(HiSlider::Mode::Decibel, NormalisableRange(-100.0, 0.0, 0.1).withCentreSkew(-40.0));
 	limiterMakeup->setup(getProcessor(), DynamicsEffect::Parameters::LimiterMakeup, "Limiter Makeup");
 
 	compAttack->setup(getProcessor(), DynamicsEffect::Parameters::CompressorAttack, "Attack");
@@ -164,10 +164,10 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
 	compThreshold->setup(getProcessor(), DynamicsEffect::Parameters::CompressorThreshold, "Threshold");
 	compEnabled->setup(getProcessor(), DynamicsEffect::Parameters::CompressorEnabled, "Compressor On");
 	compRatio->setup(getProcessor(), DynamicsEffect::Parameters::CompressorRatio, "Ratio");
-	compAttack->setMode(HiSlider::Mode::Time, 0.0, 100.0, 10.0, 0.01);
-	compRelease->setMode(HiSlider::Mode::Time, 0.0, 300.0, 10.0, 0.01);
-	compThreshold->setMode(HiSlider::Mode::Decibel, -100, 0.0, -40.0, 0.1);
-	compRatio->setMode(HiSlider::Mode::Linear, 1.0, 32.0, 4.0, 0.1);
+	compAttack->setMode(HiSlider::Mode::Time,       NormalisableRange(0.0, 100.0, 0.01).withCentreSkew(10.0));
+	compRelease->setMode(HiSlider::Mode::Time,      NormalisableRange(0.0, 300.0, 0.01).withCentreSkew(10.0));
+	compThreshold->setMode(HiSlider::Mode::Decibel, NormalisableRange(-100.0, 0.0,0.1).withCentreSkew( -40.0));
+	compRatio->setMode(HiSlider::Mode::Linear,      NormalisableRange(1.0, 32.0, 0.1).withCentreSkew(4.0));
 	compMakeup->setup(getProcessor(), DynamicsEffect::Parameters::CompressorMakeup, "Comp Makeup");
 
 	gateMeter->setType(VuMeter::MonoVertical);

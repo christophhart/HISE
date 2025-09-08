@@ -52,21 +52,6 @@ struct LocalCableHelpers
 	
 };
 
-/* TODO: Ideas for routing:
-
-	- make popup that shows all routing destination / targets OK
-	- make debug popup OK
-	- add debug popup to module browser
-	- use connection range from script component
-	- implement code goto
-	- allow set from receive OK
-	- make scripting layer for cables / signals OK
-	- attach scripting callback to the value send (with sync / async option)... OK
-	- increase margin in cable editor OK
-	- make global 64 block processing
-	- throw error if network is set to compileable (perhaps make compile-check system based on a `AllowCompilation` property listener) OK
-*/
-
 struct GlobalRoutingManager: public ReferenceCountedObject
 {
 	using Ptr = ReferenceCountedObjectPtr<GlobalRoutingManager>;
@@ -133,7 +118,7 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 	        target->onData(data, numBytes);
         }
 
-        runtime_target::target_base<double>* target;
+        runtime_target::typed_target<double>* target;
     };
     
 	struct RoutingIcons : public PathFactory
@@ -186,7 +171,7 @@ struct GlobalRoutingManager: public ReferenceCountedObject
 	struct Cable : public SlotBase,
                    public runtime_target::source_base
 	{
-        using TargetType = runtime_target::target_base<double>;
+        using TargetType = runtime_target::typed_target<double>;
         
 		Cable(const String& id_);;
 
@@ -212,18 +197,19 @@ struct GlobalRoutingManager: public ReferenceCountedObject
         
         
         
-        template <bool Add> static bool connectStatic(runtime_target::source_base* sb, TargetType* target)
+        template <bool Add> static bool connectStatic(runtime_target::source_base* sb, runtime_target::target_base* target)
         {
 			auto c = dynamic_cast<Cable*>(sb);
+			auto tt = dynamic_cast<TargetType*>(target);
 
             auto& rt = c->initRuntimeTarget();
             
             if(Add)
             {
-                return rt.runtimeTargets.addIfNotAlreadyThere(target);
+                return rt.runtimeTargets.addIfNotAlreadyThere(tt);
             }
             else
-                return rt.runtimeTargets.removeAllInstancesOf(target) != 0;
+                return rt.runtimeTargets.removeAllInstancesOf(tt) != 0;
 
         }
         
@@ -231,8 +217,8 @@ struct GlobalRoutingManager: public ReferenceCountedObject
         {
             auto c = source_base::createConnection();
             
-            c.connectFunction = (void*)connectStatic<true>;
-            c.disconnectFunction = (void*)connectStatic<false>;
+            c.connectFunction = connectStatic<true>;
+            c.disconnectFunction = connectStatic<false>;
             c.sendBackFunction = (void*)setValueStatic;
 			c.sendBackDataFunction = (void*)sendDataStatic;
             

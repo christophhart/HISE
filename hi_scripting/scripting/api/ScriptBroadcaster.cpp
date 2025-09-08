@@ -975,19 +975,19 @@ juce::Result ScriptBroadcaster::OtherBroadcasterTarget::callSync(const Array<var
 
 struct ScriptBroadcaster::EqListener::InternalListener
 {
-	InternalListener(ScriptBroadcaster* b_, CurveEq* eq_, const StringArray& eventList_) :
+	InternalListener(ScriptBroadcaster* b_, ProcessorFilterStatistics::Ptr filterStats_, const StringArray& eventList_) :
 		parent(b_),
-		eq(eq_),
+		filterStats(filterStats_),
 		eventTypes(eventList_),
 		keeper(args)
 	{
-		eq->eqBroadcaster.addListener(*this, onChange, false);
+		filterStats->eventBroadcaster.addListener(*this, onChange, false);
 	}
 
 	~InternalListener()
 	{
-		if (eq != nullptr)
-			eq->eqBroadcaster.removeListener(*this);
+		if (filterStats != nullptr)
+			filterStats->eventBroadcaster.removeListener(*this);
 	}
 
 	static void onChange(InternalListener& l, const String& type, const var& value)
@@ -1016,17 +1016,17 @@ struct ScriptBroadcaster::EqListener::InternalListener
 	Array<var> args;
 	var keeper;
 
-	WeakReference<CurveEq> eq;
+	ProcessorFilterStatistics::Ptr filterStats;
 	WeakReference<ScriptBroadcaster> parent;
 	StringArray eventTypes;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(InternalListener);
 };
 
-ScriptBroadcaster::EqListener::EqListener(ScriptBroadcaster* b, const Array<WeakReference<CurveEq>>& eqs, const StringArray& eventList, const var& metadata):
+ScriptBroadcaster::EqListener::EqListener(ScriptBroadcaster* b, const ReferenceCountedArray<ProcessorFilterStatistics>& filterStats, const StringArray& eventList, const var& metadata):
 	ListenerBase(metadata)
 {
-	for (const auto& eq : eqs)
+	for (const auto& eq : filterStats)
 	{
 		listeners.add(new InternalListener(b, eq, eventList));
 	}
@@ -4373,7 +4373,7 @@ void ScriptBroadcaster::attachToEqEvents(var moduleIds, var events, var optional
 		reportScriptError("If you want to attach a broadcaster to an EQ, it needs two parameters (eventType, value)");
 	}
 
-	Array<WeakReference<CurveEq>> eqs;
+	ReferenceCountedArray<ProcessorFilterStatistics> filterStats;
 	auto synthChain = getScriptProcessor()->getMainController_()->getMainSynthChain();
 
 	if (moduleIds.isArray())
@@ -4382,9 +4382,9 @@ void ScriptBroadcaster::attachToEqEvents(var moduleIds, var events, var optional
 		{
 			auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, pId.toString());
 
-			if (auto asHolder = dynamic_cast<CurveEq*>(p))
+			if (auto asHolder = dynamic_cast<ProcessorFilterStatistics::Holder*>(p))
 			{
-				eqs.add(asHolder);
+				filterStats.add(asHolder->getOrCreateProcessorFilterStatistics());
 			}
 			else
 				reportScriptError(pId.toString() + " is not an EQ");
@@ -4394,9 +4394,9 @@ void ScriptBroadcaster::attachToEqEvents(var moduleIds, var events, var optional
 	{
 		auto p = ProcessorHelpers::getFirstProcessorWithName(synthChain, moduleIds.toString());
 
-		if (auto asHolder = dynamic_cast<CurveEq*>(p))
+		if (auto asHolder = dynamic_cast<ProcessorFilterStatistics::Holder*>(p))
 		{
-			eqs.add(asHolder);
+			filterStats.add(asHolder->getOrCreateProcessorFilterStatistics());
 		}
 		else
 			reportScriptError(moduleIds.toString() + " is not an EQ");
@@ -4424,7 +4424,7 @@ void ScriptBroadcaster::attachToEqEvents(var moduleIds, var events, var optional
 	if (eventTypes.isEmpty())
 		eventTypes.swapWith(legitEventTypes);
 		
-	attachedListeners.add(new EqListener(this, eqs, eventTypes, optionalMetadata));
+	attachedListeners.add(new EqListener(this, filterStats, eventTypes, optionalMetadata));
 
 	checkMetadataAndCallWithInitValues(attachedListeners.getLast());
 }

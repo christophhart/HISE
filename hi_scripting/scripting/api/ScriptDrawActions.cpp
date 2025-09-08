@@ -578,10 +578,22 @@ namespace ScriptedDrawActions
 	{
 		SET_ACTION_ID(drawDropShadow);
 
-		drawDropShadow(Rectangle<int> r_, DropShadow& shadow_) : r(r_), shadow(shadow_) {};
-		void perform(Graphics& g) override { shadow.drawForRectangle(g, r); };
-		Rectangle<int> r;
-		DropShadow shadow;
+		drawDropShadow(Rectangle<int> r, DropShadow& s)
+		{
+			b.addRectangle(r.toFloat());
+			shadow.setColor(s.colour);
+			shadow.setOffset(s.offset);
+			shadow.setRadius(s.radius);
+		};
+
+		void perform(Graphics& g) override
+		{
+			shadow.render(g, b);
+			
+		};
+
+		Path b;
+		melatonin::DropShadow shadow;
 	};
 
 	struct addDropShadowFromAlpha : public DrawActions::ActionBase
@@ -622,50 +634,27 @@ namespace ScriptedDrawActions
 		DropShadow shadow;
 	};
 
-	struct drawDropShadowFromPath : public DrawActions::ActionBase
+	template <typename ShadowType=melatonin::DropShadow> struct drawDropShadowFromPath : public DrawActions::ActionBase
 	{
 		SET_ACTION_ID(drawDropShadowFromPath);
 
-		drawDropShadowFromPath(const Path& p_, Rectangle<float> a, Colour c_, int r_) :
-			p(p_),
-			c(c_),
-			area(a),
-			radius(r_)
+		drawDropShadowFromPath(const Path& p_, Rectangle<float> a, Colour colour, int radius, Point<int> offset) :
+			p(p_)
 		{
-			//shadow.setColor(c);
-			//shadow.setRadius(radius);
+            p.scaleToFit(a.getX(), a.getY(), a.getWidth(), a.getHeight(), false);
+            
+			shadow.setColor(colour);
+			shadow.setRadius(radius);
+			shadow.setOffset(offset);
 		}
 
 		void perform(Graphics& g) override
 		{
-//			PathFactory::scalePath(p, area);
-//			shadow.render(g, p);
-
-#if 1
-			auto spb = area.withPosition((float)radius, (float)radius).transformed(AffineTransform::scale(scaleFactor));
-
-			auto copy = p;
-
-			copy.scaleToFit(spb.getX(), spb.getY(), spb.getWidth(), spb.getHeight(), false);
-
-			auto drawTargetArea = area.expanded((float)radius).transformed(AffineTransform::scale(scaleFactor));
-			Image img(Image::PixelFormat::ARGB, drawTargetArea.getWidth(), drawTargetArea.getHeight(), true);
-			Graphics g2(img);
-			g2.setColour(c);
-			g2.fillPath(copy);
-			gin::applyStackBlur(img, radius);
-			
-			g.drawImageAt(img, drawTargetArea.getX(), drawTargetArea.getY());
-#endif
+			shadow.render(g, p);
 		}
 
-        // Soon...
-		//melatonin::DropShadow shadow;
-
-		Rectangle<float> area;
+		ShadowType shadow;
 		Path p;
-		Colour c;
-		int radius;
 	};
 
     struct drawSVG: public DrawActions::ActionBase

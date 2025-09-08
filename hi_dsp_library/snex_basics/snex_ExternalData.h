@@ -636,6 +636,16 @@ struct ExternalDataHolder
 		});
 	}
 
+	/** Call this to cleanup dangling filter coefficient data. */
+	void garbageCollectFilterCoefficients()
+	{
+		for(int i = 0; i < getNumDataObjects(ExternalData::DataType::FilterCoefficients); i++)
+		{
+			if(auto fd = getFilterData(i))
+				fd->garbageCollect();
+		}
+	}
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ExternalDataHolder);
 };
 
@@ -967,6 +977,25 @@ template <bool EnableBuffer> struct display_buffer_base : public base,
 
 			if(shouldWrite)
 				rb->write(v, numSamples);
+		}
+	}
+
+	void updateBuffer(const float* values, int numSamples)
+	{
+		if constexpr (EnableBuffer)
+		{
+			DataReadLock sl(this);
+
+			auto shouldWrite = rb != nullptr && rb->isActive();
+
+#if !SNEX_THROW_IF_MULTIPLE_WRITERS
+			shouldWrite |= rb != nullptr &&  rb->getCurrentWriter() == this;
+#endif
+
+			const float* v[1] = { values };
+
+			if(shouldWrite)
+				rb->write(v, 1, numSamples);
 		}
 	}
 

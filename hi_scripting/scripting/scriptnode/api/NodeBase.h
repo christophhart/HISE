@@ -120,7 +120,7 @@ class Parameter : public ConstScriptingObject
 {
 public:
 
-	/** Create an object of this type if you don't want to remove any connections when the node is
+	/* Create an object of this type if you don't want to remove any connections when the node is
 	    removed from the signal chain (eg. when dragging the node around). 
 	*/
 	struct ScopedAutomationPreserver
@@ -229,7 +229,8 @@ private:
 };
 
 /** A node in the DSP network. */
-class NodeBase : public ConstScriptingObject
+class NodeBase : public ConstScriptingObject,
+				 public ObjectWithJSONConverter
 {
 public:
 
@@ -254,6 +255,8 @@ public:
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Holder);
 	};
+
+	JUCE_MAKE_STREAMABLE_OBJECT(6);
 
 	struct DynamicBypassParameter : public parameter::dynamic_base
 	{
@@ -368,14 +371,33 @@ public:
 	/** Inserts the node into the given parent container. */
 	void setParent(var parentNode, int indexInParent);
 
-	/** Returns a reference to a parameter.*/
 	var getParameter(var indexOrId) const;
+
+	/** Returns a reference to a parameter or creates a parameter (if non existent and possible).*/
+	var getOrCreateParameter(var indexOrId) const;
 
 	/** Returns the number of parameters. */
 	int getNumParameters() const;;
 
 	/** Returns a list of child nodes if this node is a container. */
 	var getChildNodes(bool recursive);
+
+	void writeAsJSON (OutputStream& os, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) override
+	{
+		auto obj = ValueTreeConverters::convertScriptNodeToDynamicObject(getValueTree());
+		return obj.getDynamicObject()->writeAsJSON(os, indentLevel, allOnOneLine, maximumDecimalPlaces);
+	}
+
+    void writeToStream(OutputStream& os) override
+    {
+	    jassertfalse;
+    }
+
+	static ObjectWithJSONConverter* createFromStream(InputStream& input)
+	{
+		jassertfalse;
+		return nullptr;
+	}
 
 	// ============================================================================================= END NODE API
 

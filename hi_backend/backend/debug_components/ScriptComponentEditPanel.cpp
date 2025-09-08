@@ -202,6 +202,10 @@ void ScriptComponentEditPanel::fillPanel()
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::saveInPreset));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isPluginParameter));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterName));
+
+		if(dynamic_cast<ScriptingApi::Content::ScriptSlider*>(sc) != nullptr)
+			parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptSlider::Properties::matrixTargetId));
+
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::isMetaParameter));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::pluginParameterGroup));
 		parameterIds.add(sc->getIdFor(ScriptingApi::Content::ScriptComponent::Properties::processorId));

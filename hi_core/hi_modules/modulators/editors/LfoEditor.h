@@ -49,29 +49,7 @@ public:
     //==============================================================================
     //[UserMethods]     -- You can add your own custom methods in this section.
 
-	void updateGui() override
-	{
-		auto type = (int)getProcessor()->getAttribute(LfoModulator::WaveFormType);
-
-		loopButton->setEnabled(type == LfoModulator::Waveform::Custom || LfoModulator::Waveform::Steps);
-		loopButton->updateValue();
-
-		if (getProcessor()->getAttribute(LfoModulator::TempoSync) > 0.5f)
-			frequencySlider->setMode(HiSlider::Mode::TempoSync);
-		else
-			frequencySlider->setMode(HiSlider::Frequency, 0.5, 40.0, 10.0);
-
-		const bool newTableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
-		const bool newStepsUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Steps;
-
-		if (newTableUsed != tableUsed || newStepsUsed != stepsUsed)
-		{
-			tableUsed = newTableUsed;
-			stepsUsed = newStepsUsed;
-			refreshBodySize();
-			resized();
-		}
-	};
+	void updateGui() override;;
 
 	void timerCallback() override
 	{

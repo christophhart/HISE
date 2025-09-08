@@ -131,6 +131,22 @@ public:
 
 	float getAttribute(int parameterIndex) const override;;
 
+	float getDefaultValue(int index) const override
+	{
+		if(index < EnvelopeModulator::Parameters::numParameters)
+			return EnvelopeModulator::getDefaultValue(index);
+
+		switch(index)
+		{
+		case Parameter::SlotIndex:     return 0.0;
+		case Parameter::DefaultValue:  return 0.0;
+		case Parameter::SmoothingTime: return 20.0;
+		default:
+			jassertfalse;
+			return 0.0f;
+		}
+	}
+
 	void restoreFromValueTree(const ValueTree &v) override;;
 
 	ValueTree exportAsValueTree() const override;

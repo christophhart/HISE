@@ -580,7 +580,7 @@ struct simple_gon_display : public hise::GoniometerBase,
 
 	void paint(Graphics& g) override
 	{
-		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>(this);
 		laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
 
 		GoniometerBase::paintSpacialDots(g);

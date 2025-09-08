@@ -40,6 +40,10 @@ FilterGraph::FilterGraph (int numFiltersInit, int drawType_):
 	drawType((DrawType)drawType_),
 	numFilters(numFiltersInit)
 {
+#if !HISE_NO_GUI_TOOLS
+	simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(*this, { ".filtergraph" });
+#endif
+
 	setSpecialLookAndFeel(new DefaultLookAndFeel(), true);
 
 	setOpaque(true);
@@ -69,7 +73,9 @@ FilterGraph::~FilterGraph()
 
 void FilterGraph::refreshFilterPath()
 {
-	
+	if(getLocalBounds().isEmpty())
+		return;
+
 	float width = (float) getWidth();
 	float height = (float) getHeight();
 
@@ -83,12 +89,12 @@ void FilterGraph::refreshFilterPath()
 	}
 	else
 	{
-    
 		Array<FilterInfo*> activeFilters;
 
-		for(int i = 0; i < numFilters; i++)
+		for(auto& v: filterVector)
 		{
-			if(filterVector[i]->isEnabled()) activeFilters.add(filterVector[i]);
+			if(v->isEnabled())
+				activeFilters.add(v);
 		}
 
 		const int numActiveFilters = activeFilters.size();
@@ -112,25 +118,40 @@ void FilterGraph::refreshFilterPath()
 		}
 		traceMagnitude = 20 * log10 (traceMagnitude);
 		
-        tracePath.startNewSubPath(-3.0f, -3.0f);
-        tracePath.startNewSubPath((float)width+6.0f, (float)height+6.0f);
-        
+        tracePath.startNewSubPath(-1.0f * pathMargin, -1.0f * pathMargin);
+        tracePath.startNewSubPath((float)width+ 2.0f * pathMargin, (float)height+ 2.0f * pathMargin);
+
+		bool started = false;
+
 		if(drawType == Line)
 		{
-			tracePath.startNewSubPath (-3, height / 2);
+			if(!minimalPath)
+			{
+				tracePath.startNewSubPath (-1.0f * pathMargin, height / 2);
+				started = true;
+			}
+				
 			//tracePath.lineTo (-1, (height / 2) - (traceMagnitude * scaleFactor));
 
 		}
 		else if(drawType == Icon)
 		{
 			tracePath.startNewSubPath (0, height);
+			started = true;
 		}
 		else
 		{
-			tracePath.startNewSubPath (-1, height+1);
-			tracePath.lineTo (-1, (height / 2) - (traceMagnitude * scaleFactor));
+			if(!minimalPath)
+			{
+				tracePath.startNewSubPath (-1.0f * pathMargin, height / 2);
+				started = true;
+			}
 		}
 
+		float firstX = -1.0f;
+		float lastX = 0.0f;
+		float lastY = 0.0f;
+		
 		for (float xPos = 0; xPos < width; xPos += 1)
 		{
 			float freq = xToFreq (xPos);
@@ -141,17 +162,40 @@ void FilterGraph::refreshFilterPath()
 			{
 				traceMagnitude *= (float) (activeFilters [i]->getResponse (freq).magnitudeValue);
 			}
+
 			traceMagnitude = 20 * log10 (traceMagnitude);
-        
-            auto yValue = jlimit<float>(0.0f, (float)height, (height / 2) - (traceMagnitude * scaleFactor));
-            
-			tracePath.lineTo (xPos, yValue);
+
+			auto yValue = (height / 2) - (traceMagnitude * scaleFactor);
+
+			if(minimalPath && yValue > height)
+				continue;
+
+            yValue = jlimit<float>(0.0f, (float)height, yValue);
+
+			if(firstX == -1.0f)
+				firstX = xPos;
+
+			if(started)
+			{
+				tracePath.lineTo (xPos, yValue);
+			}
+			else
+			{
+				tracePath.startNewSubPath(xPos, yValue);
+				started = true;
+			}
+
+			lastY = yValue;
+			lastX = xPos;
 		}
 
 		if(drawType == Line)
 		{
-			tracePath.lineTo (width+3, (height / 2));
-
+			if(!minimalPath)
+			{
+				tracePath.lineTo (width+ 1.0f * pathMargin, lastY);
+				tracePath.lineTo (width+ 1.0f * pathMargin, (height / 2));
+			}
 		}
 		else if (drawType == Icon)
 		{
@@ -160,17 +204,21 @@ void FilterGraph::refreshFilterPath()
 		}
 		else
 		{
-			tracePath.lineTo (width+1, (height / 2) - (traceMagnitude * scaleFactor));
-			tracePath.lineTo (width+1, height+1);
-
+			if(minimalPath)
+			{
+				tracePath.lineTo(lastX, height+1.0f * pathMargin);
+				tracePath.lineTo(firstX, height+1.0f * pathMargin);
+			}
+			else
+			{
+				tracePath.lineTo (width+1.0f * pathMargin, (height / 2));
+			}
+			
 			tracePath.closeSubPath();
-
 		}
-    
-		
-
-		return;
 	}
+
+	repaint();
 }
 
 void FilterGraph::changeListenerCallback(SafeChangeBroadcaster *b)
@@ -260,9 +308,13 @@ void FilterGraph::paint (Graphics& g)
 	}
 	else
 	{
-		auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
-		
-		jassert(laf != nullptr);
+		LookAndFeelMethods fallback;
+		auto laf = &fallback;
+
+		if(auto laf2 = getSpecialLookAndFeel<LookAndFeelMethods>(this))
+		{
+			laf = laf2;
+		}
 
 		laf->drawFilterBackground(g, *this);
 
@@ -292,6 +344,8 @@ void FilterGraph::addEqBand(BandType eqType){
 
 void FilterGraph::resized()
 {
+	refreshFilterPath();
+	repaint();
 }
 
 void FilterGraph::createGridPath()

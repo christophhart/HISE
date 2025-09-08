@@ -178,6 +178,7 @@ public:
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 	float getAttribute(int parameterIndex) const override;
 	float getDefaultValue(int parameterIndex) const override;
+	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
 
 #if HI_USE_SHAPE_FX_SCRIPTING
 	int getNumScriptParameters() const override { return numParameters; }
@@ -419,6 +420,14 @@ public:
 	void recalculateDisplayTable();
 
 	void startVoice(int voiceIndex, const HiseEvent& e) override;
+
+	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override
+	{
+		if(parameterIndex == SpecialParameters::Drive)
+			return new ModulatorChain::GetModulationOutput<(int)PolyshapeFX::InternalChains::DriveModulation>();
+
+		return VoiceEffectProcessor::getModulationQueryFunction(parameterIndex);
+	}
 
 private:
 

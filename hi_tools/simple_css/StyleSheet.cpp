@@ -273,37 +273,29 @@ void StyleSheet::copyPropertiesFrom(Ptr other, bool overwriteExisting, const Str
 		return false;
 	});
 	
-
-#if 0
-	for(const auto& p: other->properties)
-	{
-		for(const auto& v: p.values)
-		{
-			bool found = false;
-
-			for(auto& tp: properties)
-			{
-				if(tp.name == p.name)
-				{
-					tp.values[v.first] = v.second;
-					found = true;
-					break;
-				}
-			}
-
-			if(!found)
-			{
-				properties.push_back(p);
-			}
-		}
-	}
-#endif
+	
 }
 
 void StyleSheet::copyPropertiesFromParent(Ptr parent)
 {
 	if(parent != nullptr)
 		copyPropertiesFrom(parent, true, keywords->getInheritedProperties());
+}
+
+void StyleSheet::copyVarProperties(Ptr other)
+{
+	if(other->varProperties != nullptr)
+	{
+		if(varProperties == nullptr)
+		{
+			varProperties = other->varProperties->clone();
+		}
+		else
+		{
+			for(const auto& nv: other->varProperties->getProperties())
+				varProperties->setProperty(nv.name, nv.value);
+		}
+	}
 }
 
 NonUniformBorderData StyleSheet::getNonUniformBorder(Rectangle<float> totalArea, PseudoState stateFlag) const
@@ -394,6 +386,11 @@ StyleSheet::Collection::Collection(List l):
 	// TODO: sort so that it takes the best match first
 }
 
+StyleSheet::Collection::operator bool() const
+{
+	return useIsolatedCollections ? !isolatedStyleSheetFileNames.isEmpty() : !list.isEmpty();
+}
+
 void StyleSheet::Collection::setAnimator(Animator* a)
 {
 	jassert(a != nullptr);
@@ -405,26 +402,51 @@ void StyleSheet::Collection::setAnimator(Animator* a)
 	});
 }
 
+StyleSheet::Ptr StyleSheet::Collection::getFirst() const
+{ return list.getFirst(); }
+
 StyleSheet::Ptr StyleSheet::Collection::operator[](const Selector& s) const
 {
 	StyleSheet::Ptr all;
 
-	for(auto& l: list)
+	if(useIsolatedCollections)
 	{
-		if(l->matchesSelectorList({s}))
+		for(auto& c: childCollections)
 		{
-			if(l->isAll())
-				all = l;
-			else
-				return l;
+			for(auto l: c.second)
+			{
+				if(l->matchesSelectorList({s}))
+				{
+					if(l->isAll())
+						all = l;
+					else
+						return l;
+				}
+			}
 		}
 	}
+	else
+	{
+		for(auto& l: list)
+		{
+			if(l->matchesSelectorList({s}))
+			{
+				if(l->isAll())
+					all = l;
+				else
+					return l;
+			}
+		}
+	}
+
+	
 
 	return all;
 }
 
 String StyleSheet::Collection::getDebugLogForComponent(Component* c) const
 {
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
 	for(auto& cm: cachedMaps)
 	{
 		if(cm.first.getComponent() == c)
@@ -439,17 +461,33 @@ String StyleSheet::Collection::getDebugLogForComponent(Component* c) const
 				s << cm.debugLog;
 				return s;
 			}
-
 			return cm.debugLog;
 		}
-			
 	}
+#endif
             
 	return {};
 }
 
+StyleSheet::Ptr StyleSheet::Collection::getForElementSelector(Component* c) const
+{
+	c = simple_css::FlexboxComponent::Helpers::getComponentForStyleSheet(c);
+
+	for(auto ss: list)
+	{
+		auto es = FlexboxComponent::Helpers::getElementSelector(*c);
+
+		if(ss->matchesSelectorList({ es}))
+			return ss;
+	}
+
+	return nullptr;
+}
+
 StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 {
+	c = simple_css::FlexboxComponent::Helpers::getComponentForStyleSheet(c);
+
 	for(const auto& existing: cachedMaps)
 	{
 		if(existing.first.getComponent() == c)
@@ -457,8 +495,20 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	}
 
 	using Match = std::pair<ComplexSelector::Score, StyleSheet::Ptr>;
-	
+
+
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
     List debugList;
+
+	auto addToDebugList = [&](Ptr p)
+	{
+		if(p != nullptr)
+			debugList.addIfNotAlreadyThere(p);
+	};
+#else
+	auto addToDebugList = [&](Ptr p){};
+#endif
+
     
 	Array<Match> matches;
 
@@ -566,8 +616,9 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 
 	matches.sort(sorter, true);
 
-	auto ptrValue = reinterpret_cast<uint64>(c);
-	Selector elementSelector(SelectorType::Element, String::toHexString(ptrValue));
+	auto elementSelector = FlexboxComponent::Helpers::getElementSelector(*c);
+
+	
 
 	StyleSheet::Ptr ptr;
 
@@ -575,10 +626,17 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	{
 		String code;
 
-		code << elementSelector.toString();
-		code << "{ " << elementStyle;
-		if(!code.endsWithChar(';')) code << ";";
-		code << " }";
+		if(!elementStyle.contains("{"))
+		{
+			code << elementSelector.toString();
+			code << "{ " << elementStyle;
+			if(!code.endsWithChar(';')) code << ";";
+			code << " }";
+		}
+		else
+		{
+			code << elementStyle;
+		}
 
 		Parser p(code);
 		auto ok = p.parse();
@@ -590,22 +648,15 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		ptr = new StyleSheet(elementSelector);
     
 	ptr->copyPropertiesFromParent(all);
-    
-    if(all != nullptr)
-        debugList.addIfNotAlreadyThere(all);
-    
 	ptr->copyPropertiesFromParent(parentStyle);
 
-    if(parentStyle != nullptr)
-        debugList.addIfNotAlreadyThere(parentStyle);
+	addToDebugList(all);
+	addToDebugList(parentStyle);
 
 	for(const auto& m: matches)
 	{
         auto other = m.second;
-        
-        if(other != nullptr)
-            debugList.addIfNotAlreadyThere(other);
-        
+		addToDebugList(other);
 		ptr->copyPropertiesFrom(other);
 	}
 
@@ -625,15 +676,17 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 		otherList.setAnimator(animator);
 
 		auto is = otherList.getWithAllStates(nullptr, elementSelector);
-        
-        if(is != nullptr)
-            debugList.addIfNotAlreadyThere(is);
+
+		addToDebugList(is);
         
 		ptr->copyPropertiesFrom(is, true);
 	}
 
+	String styleSheetLog;
+
+#if	HISE_INCLUDE_CSS_DEBUG_TOOLS
     String inherited;
-    String styleSheetLog;
+    
 	
     for(int i = debugList.size() - 1; i >= 0; i--)
     {
@@ -659,7 +712,7 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 
 	if(createStackTrace)
 		styleSheetLog << "/* CSS for component hierarchy: */\n";
-    
+
 
     
     StringArray hierarchy;
@@ -692,8 +745,11 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
     
 	    for(int i = hierarchy.size() - 1; i >= 0; i--)
 	    {
-	        styleSheetLog << pre << hierarchy[i];
-	        pre << " ";
+			if(hierarchy[i].trim() != "div")
+			{
+				styleSheetLog << pre << hierarchy[i];
+				pre << " ";
+			}
 	    }
 	    
 	    styleSheetLog << "\n\n/** Component stylesheet: */\n";
@@ -706,85 +762,19 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	        styleSheetLog = styleSheetLog.replace(elementSelectors[i], hierarchy[i]);
 	    }
 	}
+#endif
 
+	ptr->setPropertyVariable("name", c->getName());
 	ptr->setCustomFonts(customFonts);
 
 	cachedMaps.add({ c, ptr, styleSheetLog });
 
 	jassert(animator != nullptr);
 	ptr->animator = animator;
-	
-	return ptr;
 
-#if 0
-	Array<Selector> selectors;
-
-	if(auto fc = dynamic_cast<FlexboxComponent*>(c))
-	{
-		// overwrite the default behaviour and only return the
-		// selector that was defined
-		selectors.add(fc->getSelector());
-		selectors.addArray(FlexboxComponent::Helpers::getClassSelectorFromComponentClass(c));
-	}
-	else
-	{
-		if(auto ts = FlexboxComponent::Helpers::getTypeSelectorFromComponentClass(c))
-			selectors.add(ts);
-
-		auto classList = FlexboxComponent::Helpers::getClassSelectorFromComponentClass(c);
-
-		selectors.addArray(classList);
-
-		if(auto is = FlexboxComponent::Helpers::getIdSelectorFromComponentClass(c))
-			selectors.add(is);
-	}
-
-	auto elementStyle = c->getProperties()["style"].toString();
-
-	StyleSheet::Ptr ptr;
-
-	if(elementStyle.isNotEmpty())
-	{
-		String code;
-
-		auto ptrValue = reinterpret_cast<uint64>(c);
-		Selector elementSelector(SelectorType::Element, String::toHexString(ptrValue));
-					
-		code << elementSelector.toString();
-		code << "{ " << elementStyle;
-		if(!code.endsWithChar(';')) code << ";";
-		code << " }";
-
-		Parser p(code);
-		auto ok = p.parse();
-		if(ok.wasOk())
-			ptr = p.getCSSValues().getOrCreateCascadedStyleSheet({elementSelector});
-
-		addElementStyle(ptr);
-
-		if(auto body = (*this)[ElementType::Body])
-		{
-			ptr->copyPropertiesFrom(body, false);
-		}
-	}
-
-	auto cssPtr = getOrCreateCascadedStyleSheet(selectors);
-
-	if(ptr != nullptr)
-	{
-		if(cssPtr != nullptr)
-			ptr->copyPropertiesFrom(cssPtr);
-	}
-	else
-	{
-		ptr = cssPtr;
-	}
-
-	if(auto root = CSSRootComponent::find(*c))
-		setAnimator(&root->animator);
+	ptr->updateNonLayoutPropertyFlag();
 
 	return ptr;
-#endif
 }
 
 String StyleSheet::Collection::toString() const
@@ -805,6 +795,8 @@ String StyleSheet::Collection::toString() const
 
 StyleSheet::Ptr StyleSheet::Collection::getWithAllStates(Component* c, const Selector& s)
 {
+	c = simple_css::FlexboxComponent::Helpers::getComponentForStyleSheet(c);
+
 	for(const auto& existing: cachedMapForAllStates)
 	{
 		if(existing.first.second.exactMatch(s) && existing.first.first == c)
@@ -971,6 +963,8 @@ bool StyleSheet::Collection::clearCache(Component* c)
 	}
 	else
 	{
+		c = simple_css::FlexboxComponent::Helpers::getComponentForStyleSheet(c);
+
 		for(int i = 0; i < cachedMaps.size(); i++)
 		{
 			if(cachedMaps[i].first.getComponent() == c)
@@ -982,6 +976,37 @@ bool StyleSheet::Collection::clearCache(Component* c)
 		}
 
 		return false;
+	}
+}
+
+void StyleSheet::Collection::addIsolatedCollection(Component* c, const String& fileName, const Collection& other)
+{
+	setUseIsolatedCollections(true);
+	addCollectionForComponent(c, other);
+
+	if(fileName.isNotEmpty())
+	{
+		for(auto& f: isolatedStyleSheetFileNames)
+		{
+			if(f.first == c)
+			{
+				f.second = fileName;
+				return;
+			}
+		}
+
+		isolatedStyleSheetFileNames.add({ c, fileName});
+	}
+	else
+	{
+		for(const auto& f: isolatedStyleSheetFileNames)
+		{
+			if(f.first == c)
+			{
+				isolatedStyleSheetFileNames.remove(&f);
+				return;
+			}
+		}
 	}
 }
 
@@ -1020,6 +1045,63 @@ void StyleSheet::Collection::updateIsolatedCollection(const String& fileName, co
 	}
 }
 
+void StyleSheet::Collection::copyStyleSheetsFrom(Component* c, const Collection& other)
+{
+	// the other collection must not use isolated collections!
+	jassert(!other.useIsolatedCollections);
+
+	for(auto l: other.list)
+	{
+		if(useIsolatedCollections)
+		{
+			if(childCollections.isEmpty() && c != nullptr)
+			{
+				childCollections.add({ c, other.list });
+				return;
+			}
+
+			for(auto& c: childCollections)
+			{
+				bool found = false;
+
+				for(int i = 0; i < c.second.size(); i++)
+				{
+					auto ss = c.second[i];
+
+					if(ss->matchesComplexSelectorList(l->complexSelectors))
+					{
+						c.second.set(i, l);
+						found = true;
+					}
+				}
+
+				if(!found)
+					c.second.add(l);
+			}
+		}
+		else
+		{
+			bool found = false;
+
+			for(int i = 0; i < list.size(); i++)
+			{
+				auto ss = list[i];
+
+				if(ss->matchesComplexSelectorList(l->complexSelectors))
+				{
+					list.set(i, l);
+					found = true;
+				}
+			}
+
+			if(!found)
+				list.add(l);
+		}
+	}
+
+	clearCache(nullptr);
+}
+
 void StyleSheet::Collection::addCollectionForComponent(Component* c, const Collection& other)
 {
 	for(int i = 0; i < childCollections.size(); i++)
@@ -1038,6 +1120,41 @@ void StyleSheet::Collection::addCollectionForComponent(Component* c, const Colle
 	}
 
 	childCollections.add({ c, other.list });
+}
+
+void StyleSheet::Collection::updateStyleSheetInCache(Component* component, const Ptr& ss)
+{
+	for(auto& cd: cachedMaps)
+	{
+		if(cd.first == component)
+		{
+			cd.second = ss;
+			break;
+		}
+	}
+
+	for(auto cd: cachedMapForAllStates)
+	{
+		if(cd.first.first == component)
+		{
+			cd.second = ss;
+		}
+	}
+
+	simple_css::FlexboxComponent* rootFb = component->findParentComponentOfClass<FlexboxComponent>();
+
+	if(rootFb != nullptr)
+	{
+		while(auto p = rootFb->findParentComponentOfClass<FlexboxComponent>())
+		{
+			rootFb = p;
+		}
+	}
+	
+	if(rootFb != nullptr)
+		rootFb->setCSS(*this);
+
+	component->repaint();
 }
 
 Result StyleSheet::Collection::performAtRules(DataProvider* d)
@@ -1745,6 +1862,9 @@ String StyleSheet::getText(const String& t, PseudoState currentState) const
 		textToUse = getPropertyValueString({"content", currentState});
 	}
 
+	if(textToUse.isEmpty())
+		return {};
+
 	if(auto v = getPropertyValue({ "text-transform", currentState}))
 	{
 		auto tv = v.getValue(varProperties);
@@ -2226,12 +2346,49 @@ std::pair<bool, PseudoState> StyleSheet::matchesRawList(const Selector::RawList&
 	return { true, blockSelectors[0].second };
 }
 
+Array<std::pair<PseudoState, String>> StyleSheet::toStringForDefinedStates() const
+{
+	int idx = 0;
+
+	Array<std::pair<PseudoState, String>> sortedProperties;
+
+	for(const auto& ep: properties)
+	{
+		if(ep.empty())
+		{
+			idx++;
+			continue;
+		}
+
+		std::map<int, String> stateProperties;
+
+		for(const auto& p: ep)
+		{
+			for(const auto& v: p.values)
+			{
+				auto pv = v.second.toString().replace("%TR%", p.name);
+				stateProperties[v.first] << "\n  " << p.name << ": " << pv << ";";
+			}
+		}
+
+		for(const auto& sv: stateProperties)
+		{
+			auto state = PseudoState(sv.first).withElement((PseudoElementType)idx);
+			sortedProperties.add({ state, sv.second });
+		}
+
+		idx++;
+	}
+
+	return sortedProperties;
+}
+
 String StyleSheet::toString() const
 {
 	String listContent;
 
     String sel;
-    
+
 	for(auto s: complexSelectors)
 	{
 		sel << s->toString();
@@ -2239,9 +2396,8 @@ String StyleSheet::toString() const
 		if(s != complexSelectors.getLast().get())
 			sel << ", ";
 	}
-		
-    listContent << sel;
-	
+
+	listContent << sel;
 	int idx = 0;
 
 	for(const auto& ep: properties)
@@ -2251,7 +2407,7 @@ String StyleSheet::toString() const
 			idx++;
 			continue;
 		}
-			
+
 		if(idx != 0)
 			listContent << sel << "::" << PseudoState::getPseudoElementName(idx);
 
@@ -2264,9 +2420,6 @@ String StyleSheet::toString() const
 
 		listContent << "}\n";
 	}
-		
-
-	
 
 	return listContent;
 }
@@ -2360,6 +2513,11 @@ void StyleSheet::setPropertyVariable(const Identifier& id, const String& newValu
 	varProperties->setProperty(id, newValue);
 }
 
+bool StyleSheet::hasNonLayoutProperties(PseudoElementType type) const
+{
+	return nonLayoutPropertiesDefined[(int)type];
+}
+
 bool StyleSheet::isAll() const
 {
 	for(auto cs: complexSelectors)
@@ -2371,6 +2529,30 @@ bool StyleSheet::isAll() const
 	}
 
 	return false;
+}
+
+void StyleSheet::setCustomFonts(const Array<std::pair<String, Font>>& cf)
+{
+	customFonts = cf;
+}
+
+void StyleSheet::updateNonLayoutPropertyFlag()
+{
+	for(int i = 0; i < (int)PseudoElementType::All; i++)
+	{
+		nonLayoutPropertiesDefined[i] = false;
+
+		for(const auto& p: properties[i])
+		{
+			auto isNonLayout = simple_css::Parser::isNonLayoutProperty(p.name);
+
+			if(isNonLayout)
+			{
+				nonLayoutPropertiesDefined[i] = true;
+				break;
+			}
+		}
+	}
 }
 
 PositionType StyleSheet::getPositionType(PseudoState state) const
@@ -2423,6 +2605,19 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 	item.minHeight = getPixelValue(b, { "min-height", {}}, -1.0f);
 	item.maxHeight = getPixelValue(b, { "max-height", {}}, -1.0f);
 
+	if(item.height == -1 || item.width == -1)
+	{
+		auto db = FlexboxComponent::Helpers::getDefaultBounds(*c);
+
+		if(item.height == -1.0f && db.getHeight() > 0)
+			item.height = db.getHeight();
+
+		if(item.width == -1.0f && db.getWidth() > 0)
+			item.width = db.getWidth();
+	}
+
+	c = FlexboxComponent::Helpers::getComponentForStyleSheet(c);
+
 	if(auto bt = dynamic_cast<Button*>(c))
 	{
 		auto tb = getLocalBoundsFromText(bt->getButtonText());
@@ -2441,9 +2636,9 @@ FlexItem StyleSheet::getFlexItem(Component* c, Rectangle<float> fullArea) const
 			item.height = h;
 		}
 	}
-	if(auto st = dynamic_cast<FlexboxComponent::SimpleTextDisplay*>(c))
+	if(auto st = dynamic_cast<ComponentWithAutoTextSize*>(c))
 	{
-		auto b = getLocalBoundsFromText(st->currentText);
+		auto b = getLocalBoundsFromText(st->getTextToAutofit());
 
 		if(item.height == -1.0f)
 			item.height = b.getHeight();
@@ -2509,43 +2704,46 @@ String StyleSheet::getURLFromProperty(const PropertyKey& key) const
 	return {};
 }
 
-Rectangle<float> StyleSheet::getLocalBoundsFromText(const String& text) const
+Rectangle<float> StyleSheet::getLocalBoundsFromText(const String& text, PseudoState state) const
 {
-	auto f = getFont({}, {});
-	auto textWidth = f.getStringWidthFloat(getText(text, {}));
+	auto f = getFont(state, {});
+	auto textWidth = f.getStringWidthFloat(getText(text, state));
 	auto textHeight = f.getHeight();
 
 	Rectangle<float> area(0.0f, 0.0f, textWidth, textHeight);
 
-	area = getBounds(area, {});
-	area = expandArea(area, { "padding", {}});
-	area = expandArea(area, { "margin", {}});
+	area = getBounds(area, state);
+	area = expandArea(area, { "padding", state});
+	area = expandArea(area, { "margin", state});
 
-	auto ba = getPseudoArea(area, 0, PseudoElementType::Before);
-
-	if(!ba.isEmpty())
+	if(state.matchesElement(PseudoElementType::None))
 	{
-		auto pos = getPositionType(PseudoState().withElement(PseudoElementType::Before));
-		auto dontExtend = pos == PositionType::absolute || pos == PositionType::fixed;
-		if(dontExtend)
-			ba = {};
+		auto ba = getPseudoArea(area, 0, PseudoElementType::Before);
+
+		if(!ba.isEmpty())
+		{
+			auto pos = getPositionType(PseudoState().withElement(PseudoElementType::Before));
+			auto dontExtend = pos == PositionType::absolute || pos == PositionType::fixed;
+			if(dontExtend)
+				ba = {};
+		}
+
+		if(!ba.isEmpty())
+			area = area.withLeft(area.getX() - ba.getWidth());
+		
+	    auto ba2 = getPseudoArea(area, 0, PseudoElementType::Before2);
+
+	    if(!ba2.isEmpty())
+	    {
+	        auto pos = getPositionType(PseudoState().withElement(PseudoElementType::Before2));
+	        auto dontExtend = pos == PositionType::absolute || pos == PositionType::fixed;
+	        if(dontExtend)
+	            ba2 = {};
+	    }
+
+	    if(!ba2.isEmpty())
+	        area = area.withLeft(area.getX() - ba2.getWidth());
 	}
-
-	if(!ba.isEmpty())
-		area = area.withLeft(area.getX() - ba.getWidth());
-	
-    auto ba2 = getPseudoArea(area, 0, PseudoElementType::Before2);
-
-    if(!ba2.isEmpty())
-    {
-        auto pos = getPositionType(PseudoState().withElement(PseudoElementType::Before2));
-        auto dontExtend = pos == PositionType::absolute || pos == PositionType::fixed;
-        if(dontExtend)
-            ba2 = {};
-    }
-
-    if(!ba2.isEmpty())
-        area = area.withLeft(area.getX() - ba2.getWidth());
     
 	return area.withZeroOrigin();
 }

@@ -84,6 +84,13 @@ struct SynthSoundWithBitmask: public ModulatorSynthSound
 		/* Compares the bitmask whether it matches against the ValueWithFilter. */
 		bool matches(Bitmask otherValue) const;
 
+		void clear()
+		{
+			filterMask = 0;
+			ignoreMask = 0;
+			value = 0;
+		}
+
 		Bitmask filterMask = 0; // the mask that will filter out other bits
 		Bitmask ignoreMask = 0; // the mask that filter out all bits except for the ignore bit
 		Bitmask value      = 0;	// the current filter value
@@ -97,6 +104,12 @@ struct SynthSoundWithBitmask: public ModulatorSynthSound
 		static constexpr int NumIgnorableFilters = 4;
 
 		bool matches(Bitmask m) const;
+
+		void clear()
+		{
+			mainFilter.clear();
+			ignorableFilters.clear();
+		}
 
 		ValueWithFilter mainFilter;
 		UnorderedStack<std::pair<uint8, ValueWithFilter>, NumIgnorableFilters> ignorableFilters;
@@ -314,8 +327,26 @@ struct ComplexGroupManager: public ModulatorSynth::SoundCollectorBase,
 	 */
 	void applyFilter(uint8 layerIndex, uint8 value, NotificationType n);
 
+	
+
+	/** Delays the event that matches a given filter). */
+	void delayEventByFilter(uint8 layerIndex, uint8 value, double delayInSamples);
+
+	/** Adds a fade in to the event that matches a given filter. */
+	void fadeInEventByFilter(uint8 layerIndex, uint8 value, double fadeInTime);
+
+	/** Sets the sample to fade out with the given fade-in time after a fixed length. */
+	void setFixedLengthByFilter(uint8 layerIndex, uint8 value, double numSamplesToPlayBeforeFadeout);
+
+	/** Adds a start offset to the event that matches a given filter. */
+	void addStartOffsetByFilter(uint8 layerIndex, uint8 value, double startOffset);
+
 	/** Called by HISE in the noteOn callback to figure out what sounds to play. */
 	void collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound*>& soundsToBeStarted) override;
+
+	                    
+
+	SoundCollectorBase::SpecialStart getSpecialSoundStart(const HiseEvent& m, ModulatorSynthSound* sound) const override;
 
 	int getPredelayForVoice(const ModulatorSynthVoice* voice) const override;
 
@@ -407,6 +438,10 @@ struct ComplexGroupManager: public ModulatorSynth::SoundCollectorBase,
 	/** Returns the number of samples that are ignored by this layer. */
 	std::pair<int, int> getNumUnassignedAndIgnored(uint8 layerIndex) const;
 
+	
+
+	void samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue) override;
+
 	void sampleMapWasChanged(PoolReference) override
 	{
 		rebuildGroups();
@@ -431,6 +466,22 @@ struct ComplexGroupManager: public ModulatorSynth::SoundCollectorBase,
 	
 private:
 
+	
+
+	struct Updater: public AsyncUpdater
+	{
+		Updater(ComplexGroupManager& parent_):
+		  parent(parent_)
+		{};
+
+		void handleAsyncUpdate() override
+		{
+			parent.rebuildGroups();
+		}
+
+		ComplexGroupManager& parent;
+	} updater;
+
 	friend class ComplexGroupManagerComponent;
 
 	span<float, NUM_POLYPHONIC_VOICES> lastRampValues;
@@ -441,7 +492,7 @@ private:
 	
 	struct Layer
 	{
-		Layer(const Identifier& g, LogicType lt_, const StringArray& tokens_, int flags);
+		Layer(const ValueTree& v, const Identifier& g, LogicType lt_, const StringArray& tokens_, int flags);
 		virtual ~Layer() {}
 
 		/** Overwrite this method and calculate the gain values for the voices.
@@ -468,11 +519,23 @@ private:
 
 		virtual void prepare(PrepareSpecs ps) {};
 
+		bool matchesAllOtherLayers(Bitmask m1, Bitmask m2) const
+		{
+			const Bitmask inverted = ~filter;
+
+			auto rest1 = m1 & inverted;
+			auto rest2 = m2 & inverted;
+
+			return rest1 == rest2;
+		}
+
 		uint8 getUnmaskedValue(Bitmask m) const;
 		float getXFadeValue(SampleType* t) const;
 		void setValueFilter(ValueWithFilter& v, uint8 value) const;
 		void mask(Bitmask& m, uint8 value) const;
 		void clearBits(Bitmask& m) const;
+
+		virtual void onCacheRebuild(ComplexGroupManager& parent) {};
 
 		StringArray tokens;
 		  
@@ -491,11 +554,33 @@ private:
 
 		LambdaBroadcaster<uint8> playStateBroadcaster;
 
+	protected:
+
+		virtual void onValueTreeUpdate(const Identifier& id, const var& newValue) {};
+
+		void setPropertiesToWatch(const Array<Identifier>& ids)
+		{
+			// You must only call this once...
+			jassert(!rangeUpdater.isRegisteredTo(data));
+
+			// A change in tokens will rebuild the entire logic system so you don't have to check that...
+			jassert(!ids.contains(groupIds::tokens));
+			rangeUpdater.setCallback(data, ids, valuetree::AsyncMode::Synchronously, [this](const Identifier& id, const var& newValue)
+			{
+				this->onValueTreeUpdate(id, newValue);
+			});
+		}
+
+		ValueTree data;
+
+	private:
+		
+		valuetree::PropertyListener rangeUpdater;
+
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Layer);
 	};
 
 	struct RRLayer; struct LegatoLayer; struct TableFadeLayer; struct KeyswitchLayer;
-	
 
 	bool matchesCurrentFilter(const HiseEvent& m, SampleType* typed) const;
 
@@ -541,6 +626,45 @@ private:
 	OwnedArray<Layer> layers;
 	ReferenceCountedArray<SynthesiserSound>* soundList = nullptr;
 	OwnedArray<SampleType::NoteContainer> groups;
+
+	struct StartData
+	{
+		enum class Type
+		{
+			DelayTimeIndex,
+			StartOffsetIndex,
+			FadeTimeIndex,
+			FadeOutOffset,
+			numStartData
+		};
+
+		StartData()
+		{
+			memset(data.data(), 0, sizeof(data));
+		}
+
+		uint8 layerIndex = 0;
+		uint8 layerValue = 0;
+
+		bool isEmpty() const noexcept
+		{
+			StartData other;
+			return data == other.data;
+		}
+
+		operator bool() const noexcept { return layerIndex != 0 && layerValue != 0; }
+
+		bool operator==(const StartData& other) const
+		{
+			return layerIndex == other.layerIndex && layerValue == other.layerValue;
+		}
+
+		std::array<double, (int)Type::numStartData> data;
+	};
+
+	void applyEventDataInternal(StartData::Type dataType, uint8 layerIndex, uint8 layerValue, double value);
+
+	hise::UnorderedStack<StartData> activeDelayLayers;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(ComplexGroupManager);
 };

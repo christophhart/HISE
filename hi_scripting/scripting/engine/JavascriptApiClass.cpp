@@ -234,6 +234,9 @@ void ApiClass::addConstant(String constantName, var value)
 			return;
 		}
 	}
+
+	// You're using too many constants...
+	jassertfalse;
 }
 
 const var ApiClass::getConstantValue(int index) const

@@ -218,6 +218,12 @@ void dynamic_base::setIndex(int index, bool forceUpdate)
 
 }
 
+dynamic::sliderpack::sliderpack(data::base& t, int index):
+	dynamicT<hise::SliderPackData>(t, index)
+{
+	this->internalData->setNumSliders(16);
+}
+
 void dynamic::sliderpack::initialise(NodeBase* p)
 {
 	dynamicT<hise::SliderPackData>::initialise(p);
@@ -813,6 +819,90 @@ namespace pimpl
 		g.setColour(getNodeColour(&graph).withAlpha(1.0f));
 		Rectangle<float> a(p, p);
 		g.fillEllipse(a.withSizeKeepingCentre(6.0f, 6.0f));
+	}
+
+	void complex_ui_laf::drawFlexAhdsrBackground(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph)
+	{
+		ScriptnodeComboBoxLookAndFeel::drawScriptnodeDarkBackground(g, graph.getLocalBounds().toFloat(), false);
+
+		g.setColour(getNodeColour(&graph).withAlpha(1.0f));
+		g.strokePath(graph.fullPath, PathStrokeType(1.0f));
+	}
+
+	void complex_ui_laf::drawFlexAhdsrFullPath(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph)
+	{
+		auto ab = graph.boxes[(int)flex_ahdsr_base::State::ATTACK];
+		auto hb = graph.boxes[(int)flex_ahdsr_base::State::HOLD];
+		auto db = graph.boxes[(int)flex_ahdsr_base::State::DECAY];
+		auto sb = graph.segments[(int)flex_ahdsr_base::State::SUSTAIN].getBounds();
+		auto rb = graph.boxes[(int)flex_ahdsr_base::State::RELEASE];
+
+		auto fullBounds = graph.getLocalBounds().toFloat().reduced(10.0f);
+
+		Path gridPath;
+		gridPath.startNewSubPath(ab.getRight(), fullBounds.getY());
+		gridPath.lineTo(ab.getRight(), fullBounds.getBottom());
+
+		gridPath.startNewSubPath(hb.getRight(), fullBounds.getY());
+		gridPath.lineTo(hb.getRight(), fullBounds.getBottom());
+
+		gridPath.startNewSubPath(db.getRight(), fullBounds.getY());
+		gridPath.lineTo(db.getRight(), fullBounds.getBottom());
+
+		gridPath.startNewSubPath(sb.getRight(), fullBounds.getY());
+		gridPath.lineTo(sb.getRight(), fullBounds.getBottom());
+
+		gridPath.startNewSubPath(rb.getRight(), fullBounds.getY());
+		gridPath.lineTo(rb.getRight(), fullBounds.getBottom());
+
+		gridPath.startNewSubPath(fullBounds.getX(), ab.getY());
+		gridPath.lineTo(fullBounds.getRight(), ab.getY());
+
+		gridPath.startNewSubPath(fullBounds.getX(), sb.getY());
+		gridPath.lineTo(fullBounds.getRight(), sb.getY());
+
+		auto sf = UnblurryGraphics::getScaleFactorForComponent(&graph);
+
+		g.setColour(Colours::white.withAlpha(0.05f));
+		g.strokePath(gridPath, PathStrokeType(1.0f / sf));
+	} 
+
+	void complex_ui_laf::drawFlexAhdsrPosition(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph,
+		flex_ahdsr_base::State s, Point<float> pointOnPath)
+	{
+
+		Graphics::ScopedSaveState ss(g);
+
+		g.excludeClipRegion({(int)pointOnPath.getX(), 0, graph.getWidth(), graph.getHeight()});
+		g.setColour(getNodeColour(&graph));
+		g.strokePath(graph.fullPath, PathStrokeType(3.0f));
+	}
+
+	void complex_ui_laf::drawFlexAhdsrSegment(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph,
+		flex_ahdsr_base::State s, const Path& segment, bool hover, bool active)
+	{
+		if(hover)
+		{
+			g.setColour(getNodeColour(&graph).withAlpha(0.1f));
+			g.fillPath(segment);
+		}
+	}
+
+	void complex_ui_laf::drawFlexAhdsrText(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, const String& text)
+	{
+		
+	}
+
+	void complex_ui_laf::drawFlexAhdsrCurvePoint(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph,
+		flex_ahdsr_base::State s, Point<float> curvePoint, bool hover, bool down)
+	{
+		g.setColour(getNodeColour(&graph));
+		auto margin = hover ? 10.0f : 7.0f;
+
+		if(down)
+			margin -= 1.0f;
+
+		g.fillEllipse(curvePoint.x-margin*0.5f, curvePoint.y-margin*0.5f, margin, margin);
 	}
 
 	RingBufferPropertyEditor::Item::Item(dynamic::displaybuffer* b_, Identifier id_, const StringArray& entries, const String& value) :

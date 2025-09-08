@@ -64,7 +64,7 @@ DebugSession::ProfileDataSource::ViewComponents::StatisticsComponent::RowData::R
     currentRunIndex = currentRunIndex_;
 
 	if(currentRunIndex == -1)
-		runMultiplier = i.runs.size();
+		runMultiplier = (int)i.runs.size();
 
 	auto thisLength = currentRunIndex == -1 ? i.avg.length : i.runs[currentRunIndex].length;;
 	auto n = i.name.upToFirstOccurrenceOf("[", false, false);

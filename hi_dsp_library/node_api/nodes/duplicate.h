@@ -403,7 +403,7 @@ template <typename DataType, CloneProcessType ProcessType>
                 case CloneProcessType::Copy:
                 {
                     FrameDataType original = frameData;
-                    frameData = {};
+                    frameData = 0.0f;
                     
                     for(auto& obj: ActiveIterator(cloneData))
                     {

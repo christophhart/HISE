@@ -17,6 +17,7 @@
 #include "modulators/mods/SimpleEnvelope.cpp"
 #include "modulators/mods/KeyModulator.cpp"
 #include "modulators/mods/AhdsrEnvelope.cpp"
+#include "modulators/mods/FlexAhdsrEnvelope.cpp"
 #include "modulators/mods/EventDataModulator.cpp"
 #include "modulators/mods/PitchWheelModulator.cpp"
 #include "modulators/mods/TableEnvelope.cpp"
@@ -26,6 +27,8 @@
 #include "modulators/mods/MPEModulators.cpp"
 #include "modulators/mods/MPEComponents.cpp"
 #include "modulators/mods/HardcodedNetworkModulators.cpp"
+#include "modulators/mods/MatrixModulator.cpp"
+#include "modulators/editors/MatrixModulatorComponents.cpp"
 
 #if USE_BACKEND
 
@@ -43,6 +46,7 @@
 #include "modulators/editors/ArrayModulatorEditor.cpp"
 #include "modulators/editors/GlobalModulatorEditor.cpp"
 #include "modulators/editors/MPEModulatorEditors.cpp"
+#include "modulators/editors/MatrixModulatorEditor.cpp"
 
 #endif
 
@@ -69,6 +73,7 @@
 #include "effects/fx/HarmonicFilter.cpp"
 #include "effects/fx/CurveEq.cpp"
 #include "effects/fx/StereoFX.cpp"
+#include "effects/fx/NoiseGrainPlayer.cpp"
 #include "effects/fx/SimpleReverb.cpp"
 #include "effects/fx/Delay.cpp"
 #include "effects/fx/GainEffect.cpp"
@@ -81,7 +86,9 @@
 #include "effects/fx/Analyser.cpp"
 #include "effects/fx/WaveShapers.cpp"
 #include "effects/fx/ShapeFX.cpp"
-#include "effects/fx/HardcodedNetworkEffect.cpp"
+
+#include "hardcoded/HardcodedModuleBase.cpp"
+#include "hardcoded/HardcodedModules.cpp"
 
 #if USE_BACKEND
 

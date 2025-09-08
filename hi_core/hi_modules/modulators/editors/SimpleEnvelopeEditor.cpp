@@ -84,8 +84,6 @@ SimpleEnvelopeEditorBody::SimpleEnvelopeEditorBody (ProcessorEditor *p)
 
 	h = getHeight();
 
-	attackSlider->setIsUsingModulatedRing(true);
-
 	
 
 	sm = dynamic_cast<SimpleEnvelope*>(getProcessor());

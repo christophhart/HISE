@@ -73,7 +73,7 @@ PitchWheelEditorBody::PitchWheelEditorBody (ProcessorEditor *p)
     ProcessorHelpers::connectTableEditor(*midiTable, getProcessor());
 
 	smoothingSlider->setup(getProcessor(), PitchwheelModulator::SmoothTime, "Smoothing");
-	smoothingSlider->setMode(HiSlider::Mode::Time, 0, 1000.0, 100.0);
+	smoothingSlider->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 1000.0).withCentreSkew(100.0));
 
 
 

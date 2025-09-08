@@ -37,7 +37,7 @@ namespace hise { using namespace juce;
 struct HiseJavascriptEngine::RootObject::MathClass : public ApiClass
 {
 	MathClass() :
-	ApiClass(2)
+	ApiClass(8)
 	{
 		ADD_INLINEABLE_API_METHOD_1(abs);
 		ADD_INLINEABLE_API_METHOD_1(round);

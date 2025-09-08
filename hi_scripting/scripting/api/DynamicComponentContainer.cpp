@@ -30,13 +30,12 @@
 *   ===========================================================================
 */
 
-#include "DynamicComponentContainer.h"
 
 namespace hise {
 namespace dyncomp
 {
 
-struct Factory
+struct Factory: public ReferenceCountedObject
 {
 	Factory();
 
@@ -66,637 +65,275 @@ private:
 	}
 };
 
-template <typename ComponentType> struct WrapperBase: public Base
+struct Data::DragContainerHandler::EffectChainManager
 {
-	WrapperBase(Data::Ptr d, const ValueTree& v):
-	  Base(d, v)
+	template <typename T> static void initIdAndSetEffect(Processor* fxChain, const ValueTree& componentData, ValueTree& v, bool wasAdded)
 	{
-		addAndMakeVisible(component);
-
-		auto idSelector = String("#") + getId().toString();
-		component.getProperties().set(dcid::id, idSelector);
-
-		if constexpr(std::is_base_of<SettableTooltipClient, ComponentType>())
-		{
-			auto tooltip = this->dataTree[dcid::tooltip].toString();
-			component.setTooltip(tooltip);
-		}
-	};
-
-	virtual ~WrapperBase() {};
-
-	void resized() override
-	{
-		component.setBounds(getLocalBounds());
-	}
-
-	void initSpecialProperties(const Array<Identifier>& ids)
-	{
-		specialProperties.setCallback(this->dataTree, ids, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(WrapperBase::updateSpecialProperties));
-	}
-
-protected:
-
-	virtual void updateSpecialProperties(const Identifier& id, const var& newValue) = 0;
-
-	bool useUndoManager() const
-	{
-		return (bool)dataTree[dcid::useUndoManager];
-	}
-
-	ComponentType component;
-
-	valuetree::PropertyListener specialProperties;
-};
-
-struct Button: public WrapperBase<juce::ToggleButton>
-{
-	SN_NODE_ID("Button");
-
-	Button(Data::Ptr d, const ValueTree& v):
-	  WrapperBase<juce::ToggleButton>(d, v)
-	{
-		this->component.onClick = [&]()
-		{
-			data->onValueChange(getId(), this->component.getToggleState(), useUndoManager());
+		Range<int> dragEffectRange = {
+			(int)componentData[dyncomp::dcid::min],
+			(int)componentData[dyncomp::dcid::max]
 		};
 
-		component.setClickingTogglesState(!(bool)this->dataTree[dcid::isMomentary]);
-		component.setRadioGroupId((int)this->dataTree[dcid::radioGroupId]);
-		component.setTriggeredOnMouseDown((bool)this->dataTree[dcid::setValueOnClick]);
-		
-		initSpecialProperties({ dcid::text });
-	};
+		auto fxName = wasAdded ? v[dyncomp::dcid::text].toString() : "";
+		jassert(v.hasProperty(dyncomp::dcid::index));
+		auto fxIndex = (int)v[dyncomp::dcid::index] + dragEffectRange.getStart();
 
-	void onValue(const var& newValue) override
-	{
-		this->component.setToggleState((bool)newValue, dontSendNotification);
-	}
+		Processor::Iterator<T> iter(fxChain, false);
 
-	void updateSpecialProperties(const Identifier& id, const var& newValue) override
-	{
-		if(id == dcid::text)
+		int index = 0;
+
+		while(auto fx = iter.getNextProcessor())
 		{
-			this->component.setButtonText(newValue.toString());
-		}
-	}
-
-	static Base* createComponent(Data::Ptr d, const ValueTree& v) { return new Button(d, v); }
-};
-
-struct ComboBox: public WrapperBase<hise::SubmenuComboBox>
-{
-	SN_NODE_ID("ComboBox");
-
-	ComboBox(Data::Ptr d, const ValueTree& v):
-	  WrapperBase<juce::SubmenuComboBox>(d, v)
-	{
-		component.setUseCustomPopup((bool)this->dataTree[dcid::useCustomPopup]);
-
-		this->component.onChange = [&]()
-		{
-			data->onValueChange(getId(), this->component.getSelectedId(), useUndoManager());
-		};
-
-		initSpecialProperties({ dcid::items});
-
-		// Call it once synchronously so that the init value works
-		updateSpecialProperties(dcid::items, this->dataTree[dcid::items]);
-	}
-
-	static Base* createComponent(Data::Ptr d, const ValueTree& v) { return new ComboBox(d, v); }
-
-	void onValue(const var& newValue) override
-	{
-		this->component.setSelectedId((int)newValue, dontSendNotification);
-	}
-
-	void updateSpecialProperties(const Identifier& id, const var& newValue) override
-	{
-		if(id == dcid::items)
-		{
-			auto currentId = this->component.getSelectedId();
-			auto items = StringArray::fromLines(newValue.toString());
-			items.removeEmptyStrings();
-
-			this->component.clear(dontSendNotification);
-			this->component.addItemList(items, 1);
-			this->component.setSelectedId(currentId, dontSendNotification);
-			this->component.rebuildPopupMenu();
-		}
-	}
-};
-
-struct DynSlider: public juce::Slider,
-				  public hise::SliderWithShiftTextBox
-{
-	void mouseDoubleClick(const MouseEvent& e) override
-	{
-		performModifierAction(e, true);
-	}
-
-	void mouseDown(const MouseEvent& e) override
-	{
-		if(performModifierAction(e, false))
-			return;
-
-		Slider::mouseDown(e);
-	}
-};
-
-struct Slider: public WrapperBase<DynSlider>
-{
-	SN_NODE_ID("Slider");
-
-	Slider(Data::Ptr d, const ValueTree& v):
-	  WrapperBase<DynSlider>(d, v)
-	{
-		simple_css::FlexboxComponent::Helpers::writeClassSelectors(this->component, { simple_css::Selector(".scriptslider") }, true);
-		this->component.setDoubleClickReturnValue(true, (double)this->dataTree[dcid::defaultValue]);
-		this->component.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
-
-		this->component.onValueChange = [this]()
-		{
-			this->data->onValueChange (getId(), this->component.getValue(), this->useUndoManager());
-		};
-
-		initSpecialProperties({
-		 dcid::min, 
-		 dcid::max, 
-		 dcid::middlePosition, 
-		 dcid::stepSize, 
-		 dcid::mode, 
-		 dcid::suffix, 
-		 dcid::style, 
-		 dcid::showValuePopup
-		});
-
-		if(auto laf = createFilmstripLookAndFeel())
-		{
-			fslaf = laf;
-			component.setLookAndFeel(laf);
-		}
-	}
-
-	static bool isFilmStripId(const Identifier& id)
-	{
-		return id == dcid::filmstripImage || id == dcid::numStrips || id == dcid::isVertical || id == dcid::scaleFactor;
-	}
-
-	FilmstripLookAndFeel* createFilmstripLookAndFeel() const
-	{
-		auto ref = dataTree[dcid::filmstripImage].toString();
-
-		if(ref.isNotEmpty())
-		{
-			Image img = data->getImage(ref);
-
-			auto isVertical = (bool)dataTree.getProperty(dcid::isVertical, true);
-			auto scaleFactor = (double)dataTree.getProperty(dcid::scaleFactor, 1.0);
-			auto numStrips = (int)dataTree.getProperty(dcid::numStrips, 0);
-
-			if(numStrips > 0 && img.isValid())
+			if(index == fxIndex)
 			{
-				auto fs = new FilmstripLookAndFeel();
-				fs->setFilmstripImage(img, numStrips, isVertical);
-				fs->setScaleFactor(scaleFactor);
+				if(!v.hasProperty(dyncomp::dcid::id))
+				{
+					auto newId = componentData[dyncomp::dcid::id].toString() + "_" + v[dyncomp::dcid::index].toString();
+					v.setProperty(dyncomp::dcid::id, fx->getId(), nullptr);
+				}
 
-				return fs;
+				if(auto swappable = dynamic_cast<HotswappableProcessor*>(fx))
+				{
+					swappable->setEffect(fxName, false);
+					break;
+				}
 			}
-		}
 
-		return nullptr;
+			index++;
+		}
 	}
 
-	void updateSpecialProperties(const Identifier& id, const var& newValue) override
+	static void setFXOrder(EffectProcessorChain* fxChain, const ValueTree& componentData, const var& value)
 	{
-		if(id == dcid::suffix)
-		{
-			this->component.setTextValueSuffix(newValue.toString());
-		}
-		else if (id == dcid::style)
-		{
-			StringArray values({"Knob", "Horizontal", "Vertical"});
+		auto isPoly = (bool)componentData[dyncomp::dcid::polyFX];
+		auto low = (int)componentData[dyncomp::dcid::min];
+		auto high = (int)componentData[dyncomp::dcid::max];
 
-			std::array<juce::Slider::SliderStyle, 3> styles = { juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag,
-			  juce::Slider::SliderStyle::LinearBar,
-			  juce::Slider::SliderStyle::LinearHorizontal
-			};
+		Range<int> r(low, high);
 
-			auto idx = values.indexOf(newValue.toString());
-
-			if(idx != -1)
-				this->component.setSliderStyle(styles[idx]);
-		}
-		else if (isFilmStripId(id))
-		{
-			
-		}
-		else if(id == dcid::mode)
-		{
-			auto vtc = hise::ValueToTextConverter::createForMode(newValue.toString());
-
-			if(vtc.active)
-			{
-				this->component.textFromValueFunction = vtc;
-				this->component.valueFromTextFunction = vtc;
-			}
-			else
-			{
-				this->component.textFromValueFunction = {};
-				this->component.valueFromTextFunction = {};
-			}
-		}
-		else if (id == dcid::showValuePopup)
-		{
-			
-		}
+		if(isPoly)
+			fxChain->setFXOrderInternal<VoiceEffectProcessor>(r, value);
 		else
-		{
-			auto rng = scriptnode::RangeHelpers::getDoubleRange(this->dataTree, RangeHelpers::IdSet::ScriptComponents);
-			this->component.setRange(rng.rng.getRange(), rng.rng.interval);
-			this->component.setSkewFactor(rng.rng.skew);
-		}
+			fxChain->setFXOrderInternal<MasterEffectProcessor>(r, value);
 	}
+};
 
-	void onValue(const var& newValue) override
-	{
-		component.setValue((double)newValue, dontSendNotification);
-	}
-
-	static Base* createComponent(Data::Ptr d, const ValueTree& v) { return new Slider(d, v); }
-
-	ScopedPointer<FilmstripLookAndFeel> fslaf;
-};	
-
-struct Label: public WrapperBase<hise::MultilineLabel>
+Data::DragContainerHandler::DragContainerHandler(Data* d, const ValueTree& v):
+	SubDataHandler(d, v)
 {
-	SN_NODE_ID("Label");
+	connectionListener.setCallback(componentData, 
+	                               valuetree::AsyncMode::Synchronously,
+	                               VT_BIND_CHILD_LISTENER(onChildAdd));
 
-	Label(Data::Ptr d, const ValueTree& v):
-	  WrapperBase<MultilineLabel>(d, v)
-	{
-		component.onTextChange = [&]()
-		{
-			this->data->onValueChange(getId(), component.getText(), useUndoManager());
-		};
+	initValueListener();
 
-#if 0
-		if((bool)dataTree[dcid::updateEachKey])
-		{
-
-			component.onTextChange = component.onReturnKey;
-		}
-#endif
-
-		initSpecialProperties({ dcid::text, dcid::multiline, dcid::editable});
-	}
-
-	void onValue(const var& newValue) override
-	{
-		component.setText(newValue.toString(), dontSendNotification);
-	}
-
-	static Base* createComponent(Data::Ptr d, const ValueTree& v) { return new Label(d, v); }
-
-	void updateSpecialProperties(const Identifier& id, const var& newValue) override
-	{
-		if(id == dcid::text)
-		{
-			component.setText(newValue.toString(), dontSendNotification);
-		}
-		if(id == dcid::editable)
-		{
-			component.setEditable((bool)newValue);
-		}
-		if(id == dcid::multiline)
-		{
-			component.setMultiline((bool)newValue);
-		}
-	}
-};	
-
-struct DragContainer: public Base
-{
-	SN_NODE_ID("DragContainer");
-
-	DragContainer(Data::Ptr d, const ValueTree& v):
-	  Base(d, v)
-	{
-		auto idSelector = String("#") + getId().toString();
-		getProperties().set(dcid::id, idSelector);
-
-		isVertical = v.getProperty(dcid::isVertical, true);
-		dragMargin = v.getProperty(dcid::dragMargin, 3);
-		animationSpeed = v.getProperty(dcid::animationSpeed, 150);
-	}
-
-	static Base* createComponent(Data::Ptr d, const ValueTree& v) { return new DragContainer(d, v); }
-
-	void rearrangeChildren(const Array<var>& sortedIndexes, bool force)
-	{
-		bool same = sortedIndexes.size() == currentIndexes.size();
-
-		for(int i = 0; i < currentIndexes.size(); i++)
-			same &= currentIndexes[i] == sortedIndexes[i];
-
-		if(!same || force)
-		{
-			currentIndexes = sortedIndexes;
-			rebuildPositions(force);
-		}
-	}
-
-	void rebuildPositions(bool writePositionsInValueTree)
-	{
-		auto b = getLocalBounds().reduced(dragMargin);
-
-		for(auto& idx: currentIndexes)
-		{
-			Rectangle<int> tb;
-
-			if(auto c = getChildComponent(idx))
-			{
-				if(isVertical)
-					tb = b.removeFromTop(c->getHeight());
-				else
-					tb = b.removeFromLeft(c->getWidth());
-
-				if(c == currentlyDraggedComponent)
-					continue;
-
-				if(writePositionsInValueTree)
-					dynamic_cast<Base*>(c)->writePositionInValueTree(tb, false);
-
-				if(animationSpeed == 0)
-					c->setBounds (tb);
-				else
-                    Desktop::getInstance().getAnimator().animateComponent(c, tb, 1.0, 200, false, 1.0, 0.3);
-			}
-		}
-	}
-
-	void resized() override
-	{
-		rebuildPositions(false);
-	}
-
-	void onValue(const var& newValue)
-	{
-		if(auto a = newValue.getArray())
-		{
-			Array<var> copy;
-			copy.addArray(*a);
-
-			if(copy.size() == getNumChildComponents())
-			{
-				rearrangeChildren(copy, true);
-			}
-		}
-	}
-
-	Component* currentlyDraggedComponent = nullptr;
-
-	void snap()
-	{
-		rebuildIndexArrayFromPosition(false);
-	}
-
-	struct Dragger: public MouseListener,
-				    public ComponentBoundsConstrainer
-	{
-		Dragger(DragContainer& parent_, Component* c):
-		  child(dynamic_cast<Base*>(c)),
-		  parent(parent_) 
-		{
-			child->addMouseListener(this, false);
-		};
-
-		~Dragger()
-		{
-			if(child != nullptr)
-				child->removeMouseListener(this);
-		}
-
-		void mouseDown(const MouseEvent& e) override
-		{
-			parent.currentlyDraggedComponent = child.get();
-			child->toFront(false);
-			d.startDraggingComponent(child, e);
-			child->repaint();
-		}
-
-		void mouseDrag(const MouseEvent& e) override
-		{
-			d.dragComponent(child, e, this);
-			parent.snap();
-		}
-
-		void mouseUp(const MouseEvent& e) override
-		{
-			parent.currentlyDraggedComponent = nullptr;
-			parent.rebuildIndexArrayFromPosition(true);
-			parent.data->onValueChange(parent.getId(), var(parent.currentIndexes), (bool)parent.dataTree[dcid::useUndoManager]);
-
-			child->repaint();
-		}
-
-		void checkBounds (Rectangle<int>& bounds, const Rectangle<int>& previousBounds, const Rectangle<int>& limits, bool ,
-                               bool, bool, bool) override
-		{
-			auto x = parent.isVertical ? parent.dragMargin : 0;
-			auto y = parent.isVertical ? 0 : parent.dragMargin;
-
-			auto parentArea = parent.getLocalBounds().reduced(x, y);
-			bounds = bounds.constrainedWithin(parentArea);
-		}
-
-		DragContainer& parent;
-		Base::WeakPtr child;
-		ComponentDragger d;
+	dragEffectRange = {
+		(int)componentData[dyncomp::dcid::min],
+		(int)componentData[dyncomp::dcid::max]
 	};
+}
 
-	void paint(Graphics& g) override
+void Data::DragContainerHandler::onValue(const Identifier& id, const var& newValue)
+{
+	if(!newValue.isVoid() && newValue != lastValue)
 	{
-		auto slaf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&getLookAndFeel());
-		slaf->drawComponentBackground(g, this);
+		lastValue = newValue;
+
+		if(auto fxChain = getDragContainerEffectChain())
+		{
+			EffectChainManager::setFXOrder(fxChain, componentData, lastValue);
+		}
+	}
+}
+
+EffectProcessorChain* Data::DragContainerHandler::getDragContainerEffectChain()
+{
+	auto pid = componentData[dyncomp::dcid::processorId].toString();
+
+	if(auto p = ProcessorHelpers::getFirstProcessorWithName(getMainController()->getMainSynthChain(), pid))
+	{
+		if(auto fx = dynamic_cast<EffectProcessorChain*>(p->getChildProcessor(ModulatorSynth::EffectChain)))
+			return fx;
 	}
 
-	void updateChild(const ValueTree& v, bool wasAdded) override
-	{
-		Base::updateChild(v, wasAdded);
+	return nullptr;
+}
 
-		if(wasAdded)
+void Data::DragContainerHandler::onChildAdd(ValueTree v, bool wasAdded)
+{
+	if(wasAdded)
+	{
+		// write the index && id properties if they do not exist yet
+		if(!v.hasProperty(dyncomp::dcid::index))
 		{
-			auto c = getChildComponent(getNumChildComponents()-1);
-			auto nd = new Dragger(*this, c);
-			draggers.add(nd);
-		}
-		else
-		{
-			for(auto d: draggers)
+			VoiceBitMap<256, uint32> map;
+
+			for(auto c: componentData)
 			{
-				if(*d->child == v)
-				{
-					draggers.removeObject(d);
-				}
+				if(c == v)
+					break;
+
+				auto cIndex = (int)c[dyncomp::dcid::index];
+				map.setBit(cIndex, true);
 			}
-		}
 
-		rebuildIndexArrayFromPosition(true);
+			auto thisIndex = map.getFirstFreeBit();
+
+			if(thisIndex >= dragEffectRange.getLength())
+			{
+				jassertfalse;
+				return;
+			}
+
+			v.setProperty(dyncomp::dcid::index, thisIndex, nullptr);
+
+			auto idToUse = dcid::Helpers::get(componentData, dcid::isVertical) ? dyncomp::dcid::y : dyncomp::dcid::x;
+			v.setProperty(idToUse, dyncomp::dcid::Helpers::getMaxPositionOfChildComponents(componentData) + 1, nullptr);
+		}
 	}
 
-	void rebuildIndexArrayFromPosition(bool force)
+	if(auto fxChain = getDragContainerEffectChain())
 	{
-		Array<Component*> list;
-		for(int i = 0; i<  getNumChildComponents(); i++)
-			list.add(getChildComponent(i));
+		auto isPoly = (bool)componentData[dyncomp::dcid::polyFX];
 
-		struct Sorter
-		{
-			Sorter(bool isVertical_, int maxValue_):
-			  isVertical(isVertical_),
-			  maxValue(maxValue_) 
-			{};
+		if(isPoly)
+			EffectChainManager::initIdAndSetEffect<VoiceEffectProcessor>(fxChain, componentData, v, wasAdded);
+		else
+			EffectChainManager::initIdAndSetEffect<MasterEffectProcessor>(fxChain, componentData, v, wasAdded);
+	}
 
-			int compareElements(Component* c1, Component* c2) const
-			{
-				int pos1, pos2, b1, b2, l1, l2;
+	auto order = dyncomp::dcid::Helpers::getChildComponentOrderFromPosition(componentData);
+	auto orderAsValue = dyncomp::dcid::Helpers::getDragContainerIndexValues(order, componentData);
+	auto id = componentData[dyncomp::dcid::id].toString();
 
-				if(isVertical)
-				{
-					pos1 = c1->getY();
-					pos2 = c2->getY();
-					b1 = c1->getBottom();
-					b2 = c2->getBottom();
-					l1 = c1->getHeight();
-					l2 = c2->getHeight();
-				}
-				else
-				{
-					pos1 = c1->getX();
-					pos2 = c2->getX();
-					b1 = c1->getRight();
-					b2 = c2->getRight();
-					l1 = c1->getWidth();
-					l2 = c2->getWidth();
-				}
+	values.setProperty(id, orderAsValue, nullptr);
+}
 
-				auto h1 = pos1 + l1/2;
-				auto h2 = pos2 + l2/2;
+Data::ComplexDataHandler::ComplexDataHandler(Data* d, const ValueTree& v_, const ExternalData::DataType& dt_):
+	SubDataHandler(d, v_),
+	dt(dt_)
+{
+	connectionListener.setCallback(componentData, 
+	                               { dcid::processorId, dcid::index }, 
+	                               valuetree::AsyncMode::Synchronously,
+	                               VT_BIND_PROPERTY_LISTENER(onConnectionChange));
 
-				if(l1 == l2)
-				{
-				    if(pos1 < pos2)
-				        return -1;
-			        if(pos1 > pos2)
-				        return 1;
-				}
-				if(l1 < l2)
-				{
-				    if(h1 < h2)
-						return -1;
-                    if(h1 > h2)
-						return 1;
-				}
-				if(l1 > l2)
-				{
-					if(pos1 == 0 && pos2 != 0)
-						return -1;
-					if(pos2 == 0 && pos1 != 0)
-						return 1;
+	initValueListener();
+}
 
-					if(b1 == maxValue && b2 != maxValue)
-						return 1;
-					if(b1 == maxValue && b2 != maxValue)
-						return -1;
+Data::ComplexDataHandler::~ComplexDataHandler()
+{
+	if(complexData != nullptr)
+		complexData->getUpdater().removeEventListener(this);
+}
 
-				    if(h1 < h2)
-				        return -1;
-			        if(h1 > h2)
-				        return 1;
-				}
 
+
+void Data::ComplexDataHandler::handleAsyncUpdate()
+{
+	if(complexData != nullptr)
+	{
+		auto um = (bool)componentData[dcid::useUndoManager] ? getMainController()->getControlUndoManager() : nullptr;
+		ScopedValueSetter<bool> svs(recursive, true);
+
+		values.setPropertyExcludingListener(&valueListener, this->id, complexData->toBase64String(), um);
+	}
+}
+
+void Data::ComplexDataHandler::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType t, var data)
+{
+	jassert(complexData != nullptr);
+
+	if(t == ComplexDataUIUpdaterBase::EventType::ContentChange || 
+		t == ComplexDataUIUpdaterBase::EventType::ContentRedirected)
+	{
+		triggerAsyncUpdate();
+	}
+}
+
+void Data::ComplexDataHandler::onValue(const Identifier& pid, const var& newValue) 
+{
+	if(recursive || newValue.isVoid() || newValue.isUndefined())
+		return;
+
+	jassert(pid.toString() == id.toString());
+
+	auto b64 = newValue.toString();
+
+	if(complexData != nullptr)
+		complexData->fromBase64String(b64);
+}
+
+void Data::ComplexDataHandler::onConnectionChange(const Identifier&, const var&)
+{
+	auto nd = dcid::Helpers::getComplexDataBase(getMainController(), componentData, dt);
+			
+	if(nd != complexData.get())
+	{
+		if(complexData != nullptr)
+			complexData->getUpdater().removeEventListener(this);
+
+		complexData = nd;
 				
-
-				return 0;
-			}
-
-			const bool isVertical;
-			const int maxValue;
-		};
-
-		Sorter s(isVertical, isVertical ? getHeight() : getWidth());
-
-		Array<Component*> sorted;
-		sorted.addArray(list);
-		sorted.sort(s);
-
-		Array<var> newIndexes;
-
-		for(auto& s: sorted)
+		if(complexData != nullptr)
 		{
-			newIndexes.add(list.indexOf(s));
+			complexData->getUpdater().addEventListener(this);
 		}
-		
-		rearrangeChildren(newIndexes, force);
+
+		handleAsyncUpdate();
 	}
+}
 
-	bool isVertical = true;
-	double animationSpeed = 150.0;
-	int dragMargin = 3;
-	Array<var> currentIndexes;
-
-	OwnedArray<Dragger> draggers;
-};
-
-struct Panel: public Base
+Data::RefreshType Data::getRefreshType(const var& t)
 {
-	SN_NODE_ID("Panel");
-
-	Panel(Data::Ptr d, const ValueTree& v):
-	  Base(d, v)
+	if(t.isString())
 	{
-		auto idSelector = String("#") + getId().toString();
+		auto refreshMode_ = t.toString();
 
-		simple_css::FlexboxComponent::Helpers::setCustomType(*this, simple_css::Selector(simple_css::ElementType::Panel));
-
-		getProperties().set(dcid::id, idSelector);
-	}
-
-	void onValue(const var& newValue) override
-	{
-		
-	}
-
-	void paint(Graphics& g) override
-	{
-		auto slaf = dynamic_cast<simple_css::StyleSheetLookAndFeel*>(&getLookAndFeel());
-		slaf->drawComponentBackground(g, this);
-
-		auto text = dataTree[dcid::text].toString();
-
-		if(text.isNotEmpty())
+		if (refreshMode_ == "repaint")
+			return RefreshType::repaint;
+		else if (refreshMode_ == "changed")
+			return RefreshType::changed;
+		else if (refreshMode_ == "updateValueFromProcessorConnection")
+			return RefreshType::updateValueFromProcessorConnection;
+		else if (refreshMode_ == "loseFocus")
+			return RefreshType::loseFocus;
+		else if (refreshMode_ == "resetValueToDefault")
+			return RefreshType::resetValueToDefault;
+		else
 		{
-			slaf->drawGenericComponentText(g, text, this);
+			jassertfalse;
+			return RefreshType::numRefreshTypes;
 		}
+			
 	}
+	else
+		return (RefreshType)(int)t;
+}
 
-	static Base* createComponent(Data::Ptr d, const ValueTree& v)
-	{
-		return new Panel(d, v);
-	}
-};
-
-
-
-
-Data::Data(const var& obj, Rectangle<int> position):
+Data::Data(MainController* mc, const var& obj, Rectangle<int> position):
+	ControlledObject(mc),
 	data(fromJSON(obj, position)),
 	values(ValueTree("Values")),
-	factory(new Factory())
+	factory(new Factory()),
+	floatingTileData(obj[dcid::FloatingTileData].getDynamicObject()),
+	um(mc->getControlUndoManager())
 {
-		
+	refreshBroadcaster.enableLockFreeUpdate(mc->getGlobalUIUpdater());
+	refreshBroadcaster.setEnableQueue(true);
+
+	valueInitialiser.setTypeToWatch(dcid::Component);
+	valueInitialiser.setCallback(getValueTree(TreeType::Data),
+		valuetree::AsyncMode::Synchronously,
+		VT_BIND_CHILD_LISTENER(onChildAdd));
+}
+
+Data::~Data()
+{
+	valueInitialiser.shutdown();
+	registeredDrawHandlers.clear();
+	subDataHandlers.clear();
+	valueCallback = {};
 }
 
 void Data::setValues(const var& valueObject)
@@ -710,9 +347,68 @@ void Data::setValues(const var& valueObject)
 	}
 }
 
+Image Data::getImage(const String& ref)
+{
+	if(ip)
+	{
+		return ip(ref);
+	}
+
+	return {};
+}
+
+simple_css::StyleSheet::Collection::DataProvider* Data::createDataProvider() const
+{
+	struct DP: public simple_css::StyleSheet::Collection::DataProvider
+	{
+		DP() = default;
+
+		Font loadFont(const String& fontName, const String& url) override
+		{
+			if(fp)
+				return fp(fontName, url);
+
+			return Font(fontName, 13.0f, Font::plain);
+		}
+
+		String importStyleSheet(const String& url) override
+		{
+			return {};
+		}
+
+		Image loadImage(const String& imageURL) override
+		{
+			if(ip)
+				return ip(imageURL);
+
+			return {};
+		}
+
+		ImageProvider ip;
+		FontProvider fp;
+	};
+
+	auto np = new DP();
+	np->ip = ip;
+	np->fp = fp;
+	return np;
+}
+
 ValueTree Data::fromJSON(const var& obj, Rectangle<int> position)
 {
-	auto v = ValueTreeConverters::convertDynamicObjectToContentProperties(obj);
+	var ft;
+
+	ValueTree v;
+
+	if(obj.hasProperty(dcid::ContentProperties))
+	{
+		v = ValueTreeConverters::convertDynamicObjectToContentProperties(obj[dcid::ContentProperties]);
+		ft = obj[dcid::FloatingTileData];
+	}
+	else
+	{
+		v = ValueTreeConverters::convertDynamicObjectToContentProperties(obj);
+	}
 
 	v.setProperty(dcid::x, position.getX(), nullptr);
 	v.setProperty(dcid::y, position.getY(), nullptr);
@@ -724,7 +420,8 @@ ValueTree Data::fromJSON(const var& obj, Rectangle<int> position)
 		{ "ScriptSlider", "Slider" },
 		{ "ScriptComboBox", "ComboBox" },
 		{ "ScriptLabel", "Label" },
-		{ "ScriptPanel", "Panel" }
+		{ "ScriptPanel", "Panel" },
+		{ "ScriptViewport", "Viewport"}
 	};
 
 	valuetree::Helpers::forEach(v, [&](ValueTree& c)
@@ -755,7 +452,7 @@ ReferenceCountedObjectPtr<Base> Data::create(const ValueTree& v)
 	if(id.isNotEmpty() && v.hasProperty(dcid::defaultValue) && !values.hasProperty(Identifier(id)))
 		values.setProperty(Identifier(id), v[dcid::defaultValue], nullptr);
 	
-	return factory->create(this, v);
+	return getFactory()->create(this, v);
 }
 
 void Data::onValueChange(const Identifier& id, const var& newValue, bool useUndoManager)
@@ -770,27 +467,174 @@ const ValueTree& Data::getValueTree(TreeType t) const
 	return t == TreeType::Data ? data : values;
 }
 
+void Data::setValueCallback(const ValueCallback& v)
+{
+	valueCallback = v;
+}
+
+ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> Data::createGraphicsObject(const ValueTree& dataTree,
+	ConstScriptingObject* obj)
+{
+	jassert(dataTree.getType() == Identifier("Component"));
+
+	for(auto r: registeredDrawHandlers)
+	{
+		if(r->first == dataTree)
+			return r->second;
+	}
+
+	auto n = new std::pair<ValueTree, ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject>>();
+	n->first = dataTree;
+	n->second = new ScriptingObjects::GraphicsObject(obj->getScriptProcessor(), obj);
+	registeredDrawHandlers.add(n);
+	return registeredDrawHandlers.getLast()->second;
+}
+
+DrawActions::Handler* Data::getDrawHandler(const ValueTree& dataTree) const
+{
+	for(auto r: registeredDrawHandlers)
+	{
+		if(r->first == dataTree)
+			return &r->second->getDrawHandler();
+	}
+
+	return nullptr;
+}
+
+Factory* Data::getFactory()
+{
+    return dynamic_cast<Factory*>(factory.get());
+}
+
+void Data::onChildAdd(const ValueTree& v, bool wasAdded)
+{
+	auto vt = getValueTree(TreeType::Values);
+	auto id = Identifier(v[dcid::id].toString());
+
+	auto type = v[dcid::type].toString();
+
+	ExternalData::forEachType([&](ExternalData::DataType dt)
+	{
+		auto name = ExternalData::getDataTypeName(dt, false);
+
+		if(name == type)
+			this->updateComplexDataHandler(v, wasAdded, dt);
+	});
+
+	if(type == "DragContainer")
+	{
+		this->updateDragContainer(v, wasAdded);
+	}
+
+	if(wasAdded)
+	{
+		auto defaultValue = v[dcid::defaultValue];
+
+		if(!(defaultValue.isVoid() || defaultValue.isUndefined()))
+			vt.setProperty(id, defaultValue, nullptr);
+	}
+	else
+	{
+		vt.removeProperty(id, nullptr);
+	}
+}
+
+Data::SubDataHandler::SubDataHandler(Data* d, const ValueTree& v):
+	ControlledObject(d->getMainController()),
+	componentData(v),
+	values(d->getValueTree(TreeType::Values)),
+	id(v[dcid::id].toString())
+{
+			
+}
+
+void Data::SubDataHandler::initValueListener()
+{
+	valueListener.setCallback(values, { id }, valuetree::AsyncMode::Synchronously,
+	                          VT_BIND_PROPERTY_LISTENER(onValue));
+}
+
+void Data::SubDataHandler::onValue(const Identifier& id, const var& newValue)
+{
+	// If you hit this, you've haven't overriden this method!
+	jassertfalse;
+}
+
+
+void Data::updateComplexDataHandler(const ValueTree& v, bool wasAdded, ExternalData::DataType dt)
+{
+	if(wasAdded)
+	{
+		subDataHandlers.add(new ComplexDataHandler(this, v, dt));
+	}
+	else
+	{
+		for(auto c: subDataHandlers)
+		{
+			if(c->matches(v))
+			{
+				subDataHandlers.removeObject(c);
+				break;
+			}
+		}
+	}
+}
+
+void Data::updateDragContainer(const ValueTree& v, bool wasAdded)
+{
+	if(wasAdded)
+	{
+		subDataHandlers.add(new DragContainerHandler(this, v));
+	}
+	else
+	{
+		for(auto c: subDataHandlers)
+		{
+			if(c->matches(v))
+			{
+				subDataHandlers.removeObject(c);
+				break;
+			}
+		}
+	}
+}
+
+void Data::setDataProviderCallbacks(const ImageProvider& ip_, const FontProvider& fp_)
+{
+	ip = ip_;
+	fp = fp_;
+}
+
 Base::Base(Data::Ptr d, const ValueTree& v):
 	data(d),
 	dataTree(v),
 	valueReference(data->getValueTree(Data::TreeType::Values))
 {
-	basicPropertyListener.setCallback(dataTree, { dcid::enabled, dcid::visible, dcid::class_, dcid::elementStyle}, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateBasicProperties));
+	auto basicProperties = dcid::Helpers::getBasicProperties();
+
+	basicPropertyListener.setCallback(dataTree, basicProperties, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateBasicProperties));
+
 	positionListener.setCallback(dataTree, { dcid::x, dcid::y, dcid::width, dcid::height}, valuetree::AsyncMode::Coallescated, BIND_MEMBER_FUNCTION_2(Base::updatePosition));
 
 	childListener.setCallback(dataTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateChild));
+
+	cssListener.setCallback(dataTree, dcid::Helpers::getCSSProperties(), valuetree::AsyncMode::Coallescated, VT_BIND_PROPERTY_LISTENER(updateCSSProperties));
+
+	d->refreshBroadcaster.addListener(*this, onRefreshStatic, false);
 
 	if(getId().isValid())
 	{
 		valueListener.setCallback(valueReference, { getId() }, valuetree::AsyncMode::Asynchronously, [&](const Identifier& id, const var& newValue)
 		{
-			onValue(newValue);
+			onValue(getValueOrDefault());
 		});
 	}
 }
 
 Base::~Base()
-{}
+{
+	data->refreshBroadcaster.removeListener(*this);
+}
 
 Identifier Base::getId() const
 {
@@ -811,7 +655,7 @@ void Base::updateChild(const ValueTree& v, bool wasAdded)
 		{
 			if(c->dataTree == v)
 			{
-				removeChildComponent(c);
+				baseChildChanged(c, false);
 				children.removeObject(c);
 				break;
 			}
@@ -825,7 +669,7 @@ void Base::updateBasicProperties(const Identifier& id, const var& newValue)
     {
 		auto classes = StringArray::fromTokens(newValue.toString(), " ", "");
 
-		auto c = getCSSTarget();
+		auto c = getContentComponent();
 
 		auto existingClasses = simple_css::FlexboxComponent::Helpers::getClassSelectorFromComponentClass(c);
 
@@ -836,72 +680,221 @@ void Base::updateBasicProperties(const Identifier& id, const var& newValue)
 		classes.removeEmptyStrings();
 		
 		simple_css::FlexboxComponent::Helpers::writeSelectorsToProperties(*c, classes);
+		simple_css::FlexboxComponent::Helpers::invalidateCache(*c);
     }
 	if(id == dcid::elementStyle)
 	{
-	    simple_css::FlexboxComponent::Helpers::writeInlineStyle (*getCSSTarget(), newValue.toString());
+	    simple_css::FlexboxComponent::Helpers::writeInlineStyle (*getContentComponent(), newValue.toString());
+	}
+	if(id == dcid::bgColour || id == dcid::itemColour || id == dcid::itemColour2 || id == dcid::textColour)
+	{
+		if(auto root = simple_css::CSSRootComponent::find(*this))
+		{
+			if(auto ptr = root->css.getForComponent(this))
+			{
+				ptr->setPropertyVariable(id, newValue);
+				repaint();
+			}
+		}
 	}
 	if(id == dcid::enabled)
 		setEnabled((bool)newValue);
 	if(id == dcid::visible)
-		setVisible((bool)newValue);
+	{
+		if(auto p = findParentComponentOfClass<Base>())
+			p->hideChild(this, (newValue));
+		else
+			setVisible((bool)newValue);
+	}
 }
 
 void Base::updatePosition(const Identifier&, const var&)
 {
 	Rectangle<int> b((int)dataTree[dcid::x], (int)dataTree[dcid::y], (int)dataTree[dcid::width], (int)dataTree[dcid::height]);
-	setBounds(b);
-	resized();
+
+	if(auto parent = findParentComponentOfClass<Base>())
+	{
+		parent->resizeChild(this, b);
+	}
+}
+
+void Base::baseChildChanged(Base::Ptr c, bool wasAdded)
+{
+	auto content = getContentComponent();
+
+	if(wasAdded)
+	{
+		content->addAndMakeVisible(c.get());
+		c->updatePosition({}, {});
+	}
+	else
+	{
+		content->removeChildComponent(c.get());
+	}
+		
+}
+
+void Base::resizeChild(Base::Ptr b, Rectangle<int> newBounds)
+{
+	b->setBounds(newBounds);
+	b->resized();
+}
+
+void Base::hideChild(Base::Ptr b, bool shouldBeVisible)
+{
+	b->setVisible(shouldBeVisible);
+}
+
+void Base::updateCSSProperties(const Identifier&, const var&)
+{
+	writeComponentPropertiesToStyleSheet(true);
+}
+
+Base* Base::findBaseParent(Component* c)
+{
+	if(auto b = dynamic_cast<Base*>(c))
+		return b;
+
+	return c->findParentComponentOfClass<Base>();
+}
+
+void Base::onRefreshStatic(Base& b, const ValueTree& v, Data::RefreshType rt, bool isRecursive)
+{
+	if(b.dataTree == v)
+		b.onRefresh(rt, isRecursive);
+}
+
+void Base::initCSSForChildComponent()
+{
+	jassert(getNumChildComponents() == 1);
+
+	auto isOpaque = getContentComponent() != this;
+	simple_css::FlexboxComponent::Helpers::setIsOpaqueWrapper(*this, isOpaque);
+
+	auto idSelector = String("#") + getId().toString();
+	getChildComponent(0)->getProperties().set(dcid::id, idSelector);
+
+	if(dataTree.hasProperty(dcid::class_))
+		updateBasicProperties(dcid::class_, dataTree[dcid::class_]);
+	if(dataTree.hasProperty(dcid::elementStyle))
+		updateBasicProperties(dcid::elementStyle, dataTree[dcid::elementStyle]);
+}
+
+void Base::onRefresh(Data::RefreshType rt, bool recursive)
+{
+	switch(rt)
+	{
+	case Data::RefreshType::repaint:
+		getContentComponent()->repaint();
+		break;
+	case Data::RefreshType::changed:
+		onValue(getValueOrDefault());
+		break;
+	case Data::RefreshType::updateValueFromProcessorConnection:
+		jassertfalse;
+		break;
+	case Data::RefreshType::loseFocus:
+		unfocusAllComponents();
+		return; // no recursion needed
+	case Data::RefreshType::resetValueToDefault:
+		onValue(dataTree[dcid::defaultValue]);
+	default: ;
+	}
+
+	if(recursive)
+	{
+		for(auto c: children)
+			c->onRefresh(rt, true);
+	}
 }
 
 void Base::addChild(Base::Ptr c)
 {
-	c->setLookAndFeel(&getLookAndFeel());
-	children.add(c);
-	addAndMakeVisible(c.get());
-	c->updatePosition({}, {});
-}
-
-Factory::Factory()
-{
-	registerItem<Button>();
-	registerItem<Slider>();
-	registerItem<ComboBox>();
-	registerItem<Panel>();
-	registerItem<Label>();
-	registerItem<DragContainer>();
-}
-
-void Root::setCSS(const String& styleSheetCode)
-{
-	simple_css::Parser p(styleSheetCode);
-	auto ok = p.parse();
-	this->css = p.getCSSValues();
-
-	ScopedPointer<simple_css::StyleSheet::Collection::DataProvider> dp = createDataProvider();
-
-	this->css.performAtRules(dp);
-
-	dp = nullptr;
-
-	this->css.setAnimator(&animator);
-
-	auto newLaf = new simple_css::StyleSheetLookAndFeel(*this);
-
-	Component::callRecursive<Base>(this, [newLaf](Base* b)
+	if(c != nullptr)
 	{
-		b->setLookAndFeel(newLaf);
-		return false;
-	});
-
-	laf = newLaf;
+		children.add(c);
+		c->setLookAndFeel(&getLookAndFeel());
+		baseChildChanged(c, true);
+	}
 }
 
-Root::Root(Data::Ptr d):
-  Base(d, d->getValueTree(Data::TreeType::Data))
+bool Base::operator==(const Base& other) const noexcept
 {
-	
+	return dataTree == other.dataTree;
 }
+
+bool Base::operator==(const ValueTree& otherData) const noexcept
+{
+	return dataTree == otherData;
+}
+
+void Base::writePositionInValueTree(Rectangle<int> tb, bool useUndoManager)
+{
+	dataTree.setProperty(dcid::x, tb.getX(), nullptr);
+	dataTree.setProperty(dcid::y, tb.getY(), nullptr);
+	dataTree.setProperty(dcid::width, tb.getWidth(), nullptr);
+	dataTree.setProperty(dcid::height, tb.getHeight(), nullptr);
+}
+
+var Base::getValueOrDefault() const
+{
+	Identifier id_(dataTree[dcid::id].toString());
+	auto vt = data->getValueTree(Data::TreeType::Values);
+
+	if(vt.hasProperty(id_))
+		return vt[id_];
+
+	return dataTree[dcid::defaultValue];
+}
+
+var Base::getPropertyOrDefault(const Identifier& id) const
+{
+	if(dataTree.hasProperty(id))
+		return dataTree[id];
+
+	return dcid::Helpers::getDefaultValue(id);
+}
+
+void Base::setColourFromData(const Identifier& id, int colourId)
+{
+	auto c = getContentComponent();
+	c->setColour(colourId, ApiHelpers::getColourFromVar(getPropertyOrDefault(id)));
+}
+
+void Base::updateColours()
+{
+	setColourFromData(dcid::bgColour, HiseColourScheme::ComponentOutlineColourId);
+	setColourFromData(dcid::itemColour, HiseColourScheme::ComponentFillTopColourId);
+	setColourFromData(dcid::itemColour2, HiseColourScheme::ComponentFillBottomColourId);
+	setColourFromData(dcid::textColour, HiseColourScheme::ComponentTextColourId);
+}
+
+void Base::writeComponentPropertiesToStyleSheet(bool force)
+{
+	if(css == nullptr || force)
+	{
+		updateColours();	
+
+		if(auto r = simple_css::CSSRootComponent::find(*this))
+		{
+			css = r->css.getForComponent(this);
+		}
+
+		if(css != nullptr)
+		{
+
+			for(auto id: dcid::Helpers::getCSSProperties())
+			{
+				auto v = dcid::Helpers::convertColour(id, getPropertyOrDefault(id));
+				css->setPropertyVariable(id, v);
+			}
+					
+
+			repaint();
+		}
+	}
+}
+
 
 } // namespace dyncomp
 } // namespace hise

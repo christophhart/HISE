@@ -1051,8 +1051,6 @@ bool MidiControllerAutomationHandler::setParameterInverted(int index, bool value
 		d.inverted = value;
 		return true;
 	});
-
-	return false;
 }
 
 void ConsoleLogger::logMessage(const String &message)
@@ -1065,8 +1063,6 @@ void ConsoleLogger::logMessage(const String &message)
 	{
 		debugToConsole(processor, message);
 	}
-
-	
 }
 
 ControlledObject::ControlledObject(MainController *m, bool notifyOnShutdown) :

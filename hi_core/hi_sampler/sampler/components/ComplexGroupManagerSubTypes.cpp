@@ -55,43 +55,66 @@ struct ComplexGroupManagerComponent::LayerComponent::KeyboardComponent: public C
 	KeyboardComponent(LogicTypeComponent& parent):
 	  ComponentWithGroupManagerConnection(parent.getSampler()),
 	  layerIndex(ComplexGroupManager::Helpers::getLayerIndex(parent.data)),
-	  mappedKeys(ComplexGroupManager::Helpers::getKeyRange(parent.data, parent.getSampler())),
+	  data(parent.data),
 	  mapColour(ComplexGroupManagerComponent::Helpers::getLayerColour(parent.data))
 	{
 		parent.getSampleEditHandler()->noteBroadcaster.addListener(*this, onNote);
-
 		getComplexGroupManager()->addPlaystateListener(*this, layerIndex, onPlaystateChange);
+		rebuildKeyboard();
+	}
 
-		auto low = mappedKeys.getFirstSetBit();
-		auto high = (int)mappedKeys.getHighestSetBit();
+	void rebuildKeyboard()
+	{
+		mappedKeys = ComplexGroupManager::Helpers::getKeyRange(data, getSampler());
+		groupNoteMap.clear();
 
-		auto lowOctave = low - (low % 12);
-		auto highOctave = high - (high % 12) + 12;
-
-		octaveRange = { lowOctave / 12, highOctave / 12};
-		noteRange = { low, high };
-
-		if(octaveRange.getLength() == 1)
-			octaveRange.setLength(2);
-
-		uint8 layerValue = 1;
-
-		for(int i = 0; i < 128; i++)
+		if(mappedKeys.isEmpty())
 		{
-			if(mappedKeys[i])
-				groupNoteMap[layerValue++] = i;
+			octaveRange = {};
+			noteRange = {};
 		}
+		else
+		{
+			auto low = mappedKeys.getFirstSetBit();
+			auto high = (int)mappedKeys.getHighestSetBit();
+
+			auto lowOctave = low - (low % 12);
+			auto highOctave = high - (high % 12) + 12;
+
+			octaveRange = { lowOctave / 12, highOctave / 12};
+			noteRange = { low, high };
+
+			if(octaveRange.getLength() == 1)
+				octaveRange.setLength(2);
+
+			uint8 layerValue = 1;
+
+			for(int i = 0; i < 128; i++)
+			{
+				if(mappedKeys[i])
+					groupNoteMap[layerValue++] = i;
+			}
+		}
+
+		repaint();
 	}
 
 	std::map<uint8, int> groupNoteMap;
 
 	VoiceBitMap<128> playedNotes;
+	bool learnActive = false;
 
 	int getHeightToUse() const override { return KeyboardHeight; }
 
-
 	static void onNote(KeyboardComponent& k, int note, int velo)
 	{
+		if(k.learnActive)
+		{
+			k.data.setProperty(SampleIds::LoKey, note, k.getUndoManager());
+			k.learnActive = false;
+			return;
+		}
+
 		k.playedNotes.setBit(note, velo != 0);
 		k.repaint();
 	}
@@ -102,18 +125,23 @@ struct ComplexGroupManagerComponent::LayerComponent::KeyboardComponent: public C
 		k.repaint();
 	}
 
-	void mouseDown(const MouseEvent& e) override
+	int getNoteNumber(int position) const
 	{
-		if(e.mods.isRightButtonDown() && popupMenuHandler != nullptr)
+		auto numOctavesToShow = octaveRange.getLength();
+		auto b = getLocalBounds().toFloat();
+		auto keyWidth = b.getWidth() / (float)(numOctavesToShow * 12) + 1;
+
+		return roundToInt((float)position / (float)keyWidth) + octaveRange.getStart() * 12;
+	}
+
+	void showPopupMenu(int position)
+	{
+		if(popupMenuHandler != nullptr)
 		{
 			PopupLookAndFeel plaf;
 			PopupMenu m;
 
-			auto numOctavesToShow = octaveRange.getLength();
-			auto b = getLocalBounds().toFloat();
-			auto keyWidth = b.getWidth() / (float)(numOctavesToShow * 12) + 1;
-
-			auto noteNumber = roundToInt((float)e.getPosition().x / (float)keyWidth) + octaveRange.getStart() * 12;
+			auto noteNumber = getNoteNumber(position);
 
 			popupMenuHandler->fillPopupMenu(m, noteNumber);
 
@@ -124,13 +152,59 @@ struct ComplexGroupManagerComponent::LayerComponent::KeyboardComponent: public C
 		}
 	}
 
+	void mouseDown(const MouseEvent& e) override
+	{
+		auto position = e.getPosition().x;
+
+		if(e.mods.isRightButtonDown() || mappedKeys.isEmpty())
+		{
+			showPopupMenu(position);
+		}
+		else
+		{
+			auto noteNumber = getNoteNumber(position);
+
+			if(auto cg = findParentComponentOfClass<ComponentWithGroupManagerConnection>())
+			{
+				currentlyPlayedNote = noteNumber;
+				auto& ks = cg->getSampler()->getMainController()->getKeyboardState();
+				ks.noteOn(1, currentlyPlayedNote, 1.0);
+			}
+		}
+	}
+
+	void mouseUp(const MouseEvent& e) override
+	{
+		if(currentlyPlayedNote != -1)
+		{
+			if(auto cg = findParentComponentOfClass<ComponentWithGroupManagerConnection>())
+			{
+				auto& ks = cg->getSampler()->getMainController()->getKeyboardState();
+				ks.noteOff(1, currentlyPlayedNote, 0.0f);
+				currentlyPlayedNote = -1;
+			}
+		}
+	}
+
+	int currentlyPlayedNote = -1;
+
 	void paint(Graphics& g) override
 	{
-		auto numOctavesToShow = octaveRange.getLength();
-
 		auto b = getLocalBounds().toFloat();
 
+		
+
+		if(mappedKeys.isEmpty())
+		{
+			String m;
+			m << "No key range assigned. Click to setup the MIDI note range for this layer";
+			g.setColour(Colours::white.withAlpha(0.4f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText(m, b, Justification::centred);
+		}
+
 		auto top = b.removeFromTop(18);
+		auto numOctavesToShow = octaveRange.getLength();
 
 		auto keyWidth = b.getWidth() / (float)(numOctavesToShow * 12);
 
@@ -195,6 +269,16 @@ struct ComplexGroupManagerComponent::LayerComponent::KeyboardComponent: public C
 		}
 	}
 
+	void setKeyboardProperties(const Array<Identifier>& idsToWatch)
+	{
+		rebuildListener.setCallback(data, idsToWatch, valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& nv)
+		{
+			rebuildKeyboard();
+		});
+	}
+
+	valuetree::PropertyListener rebuildListener;
+
 	Range<int> octaveRange;
 	Range<int> noteRange;
 
@@ -203,8 +287,11 @@ struct ComplexGroupManagerComponent::LayerComponent::KeyboardComponent: public C
 
 	int selected = -1;
 	const uint8 layerIndex;
+	ValueTree data;
 
 	WeakReference<PopupMenuHandler> popupMenuHandler;
+
+	bool initialised = false;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(KeyboardComponent);
 };
@@ -218,17 +305,23 @@ struct ComplexGroupManagerComponent::RRBody: public LogicTypeComponent::BodyBase
 	  BodyBase(parent)
 	{
 		uint8 idx = 0;
+
 		for(auto t: tokens)
-			addAndMakeVisible(buttons.add(new CircleButton(idx++)));
+			addAndMakeVisible(buttons.add(new CircleButton(parent.data, idx++)));
 	}
 
 	int getHeightToUse() const override { return jmax(100, height + 10); }
 
+	
+
 	struct CircleButton: public ButtonBase
 	{
-		CircleButton(uint8 rrIndex_):
+		CircleButton(const ValueTree& layerData, uint8 rrIndex_):
+		  ButtonBase(layerData, rrIndex_ + 1),
 		  rrIndex(rrIndex_)
-		{}
+		{
+			setSize(getWidthToUse(), CircleWidth);
+		}
 
 		int getWidthToUse() const override { return CircleWidth; }
 
@@ -254,16 +347,18 @@ struct ComplexGroupManagerComponent::RRBody: public LogicTypeComponent::BodyBase
 		fb.padding = CircleMargin;
 		fb.justification = Justification::centred;
 
-		for(auto b: buttons)
-			b->setSize(CircleWidth, CircleWidth);
+		//for(auto b: buttons)
+			//b->setSize(CircleWidth, CircleWidth);
 
-		auto list = fb.createBoundsListFromComponents(buttons);
+		auto buttonList = getAllButtonsToShow();
+
+		auto list = fb.createBoundsListFromComponents(buttonList);
 
 		if(auto newHeight = fb.apply(list, getLocalBounds().removeFromTop(100).reduced(5)))
 		{
 			height = newHeight;
 
-			fb.applyBoundsListToComponents(buttons, list);
+			fb.applyBoundsListToComponents(buttonList, list);
 			
 			if(getHeight() != getHeightToUse())
 			{
@@ -290,15 +385,28 @@ struct ComplexGroupManagerComponent::KeyswitchBody: public LogicTypeComponent::B
 {
 	KeyswitchBody(LogicTypeComponent& parent):
 	  BodyBase(parent),
-	  keyboard(parent)
+	  keyboard(parent),
+	  editButton("settings", nullptr, f)
 	{
 		keyboard.mapColour = ComplexGroupManagerComponent::Helpers::getLayerColour(parent.data);
 		keyboard.popupMenuHandler = this;
 
+		keyboard.setKeyboardProperties({ SampleIds::LoKey, groupIds::isChromatic, groupIds::tokens });
+
 		addAndMakeVisible(keyboard);
+		addAndMakeVisible(editButton);
+
+		editButton.onClick = [this]()
+		{
+			keyboard.showPopupMenu(0);
+		};
+
+		uint8 layerValue = 1;
 
 		for(auto t: tokens)
-			addAndMakeVisible(buttons.add(new KeyswitchButton(t, parent.data[groupIds::purgable])));
+			addAndMakeVisible(buttons.add(new KeyswitchButton(parent.data, layerValue++, t, parent.data[groupIds::purgable])));
+
+		keyboard.rebuildKeyboard();
 	}
 
 	int getHeightToUse() const override
@@ -325,13 +433,17 @@ struct ComplexGroupManagerComponent::KeyswitchBody: public LogicTypeComponent::B
 	{
 		PopupMenu sub;
 
+		auto range = Helpers::getKeyRange(data, getSampler());
+		auto firstBit = range.getFirstSetBit();
+
 		for(int i = 0; i < 128; i++)
 		{
-			sub.addItem(i+1000, MidiMessage::getMidiNoteName(i, true, true, 3), true, i == 64);
+			sub.addItem(i+1000, MidiMessage::getMidiNoteName(i, true, true, 3), true, i == firstBit);
 		}
 
 		m.addSubMenu("Set keyswitch start note", sub);
 
+		m.addItem(2, "Set keyswitch start note to next played MIDI note", true, keyboard.learnActive);
 		m.addItem(1, "Use white keys", true, !(bool)data[groupIds::isChromatic]);
 	}
 
@@ -340,7 +452,15 @@ struct ComplexGroupManagerComponent::KeyswitchBody: public LogicTypeComponent::B
 		if(result == 1)
 		{
 			data.setProperty(groupIds::isChromatic, !(bool)data[groupIds::isChromatic], getUndoManager());
-			
+		}
+		else if (result == 2)
+		{
+			keyboard.learnActive = !keyboard.learnActive;
+		}
+		else
+		{
+			auto startNote = result - 1000;
+			data.setProperty(SampleIds::LoKey, startNote, getUndoManager());
 		}
 	}
 
@@ -354,13 +474,15 @@ struct ComplexGroupManagerComponent::KeyswitchBody: public LogicTypeComponent::B
 		SimpleFlexbox fb;
 		fb.justification = Justification::centred;
 
-		auto list = fb.createBoundsListFromComponents(buttons);
+		auto buttonList = getAllButtonsToShow();
+
+		auto list = fb.createBoundsListFromComponents(buttonList);
 
 		if(auto h = fb.apply(list, b.removeFromTop(100)))
 		{
 			height = h;
 
-			fb.applyBoundsListToComponents(buttons, list);
+			fb.applyBoundsListToComponents(buttonList, list);
 
 			if(getHeight() != getHeightToUse())
 			{
@@ -370,10 +492,19 @@ struct ComplexGroupManagerComponent::KeyswitchBody: public LogicTypeComponent::B
 
 		keyboard.setBounds(b.removeFromBottom(LayerComponent::KeyboardComponent::KeyboardHeight));
 
+		auto tb = keyboard.getBounds();
+
+		tb = tb.removeFromRight(tb.getHeight()).translated(tb.getHeight(), 0).reduced(3).getIntersection(getLocalBounds());
+		editButton.setBounds(tb);
+
 		BodyBase::resized();
 	}
 
 	LayerComponent::KeyboardComponent keyboard;
+
+	ComplexGroupManagerComponent::Factory f;
+
+	HiseShapeButton editButton;
 };
 
 struct ComplexGroupManagerComponent::TableFadeBody: public LogicTypeComponent::BodyBase,
@@ -402,8 +533,10 @@ struct ComplexGroupManagerComponent::TableFadeBody: public LogicTypeComponent::B
 
 		tableSelector.setLookAndFeel(&laf);
 
+		uint8 layerValue = 1;
+
 		for(auto t: tokens)
-			addAndMakeVisible(buttons.add(new KeyswitchButton(t, false)));
+			addAndMakeVisible(buttons.add(new KeyswitchButton(parent.data, layerValue++, t, false)));
 	}
 
 	int getHeightToUse() const override { return 220 + LogicTypeComponent::TopBarHeight; }
@@ -454,6 +587,17 @@ struct ComplexGroupManagerComponent::TableFadeBody: public LogicTypeComponent::B
 		Array<int> positions;
 
 		calculateXPositionsForItems(positions);
+
+		auto buttonList = getAllButtonsToShow();
+
+		if(unassignedButton->isVisible())
+		{
+			jassertfalse;
+		}
+		if(ignoreButton->isVisible())
+		{
+			jassertfalse;
+		}
 
 		for(int i = 0; i < buttons.size(); i++)
 		{
@@ -556,10 +700,11 @@ struct ComplexGroupManagerComponent::XFadeBody: public LogicTypeComponent::BodyB
 		// TODO: implement CC mode
 		// TODO: implement smoothing
 		// TODO: implement global mods 
-		
+
+		uint8 layerValue = 1;
 
 		for(auto t: tokens)
-			addAndMakeVisible(buttons.add(new KeyswitchButton(t, false)));
+			addAndMakeVisible(buttons.add(new KeyswitchButton(parent.data, layerValue++, t, false)));
 
 		addAndMakeVisible(slotSelector);
 		addAndMakeVisible(modeSelector);
@@ -664,7 +809,7 @@ struct ComplexGroupManagerComponent::XFadeBody: public LogicTypeComponent::BodyB
 		return p;
 	}
 
-	int getHeightToUse() const override { return 3 * LayerComponent::BodyMargin + 80 + LayerComponent::TopBarHeight + slotSelector.getHeightToUse(); }
+	int getHeightToUse() const override { return 5 * LayerComponent::BodyMargin + 80 + LayerComponent::TopBarHeight + slotSelector.getHeightToUse(); }
 
 	void resized() override
 	{
@@ -673,37 +818,41 @@ struct ComplexGroupManagerComponent::XFadeBody: public LogicTypeComponent::BodyB
 		paths.clear();
 		auto numPaths = tokens.size();
 
-		using FaderType = ComplexGroupManager::XFadeLayer::FaderTypes;
-
-		auto faderNames = ComplexGroupManager::XFadeLayer::getFaderNames();
-
-		auto idx = faderNames.indexOf(data[groupIds::fader].toString());
-
-		if(isPositiveAndBelow(idx, faderNames.size()))
+		if(numPaths >= 2)
 		{
-			auto type = (FaderType)idx;
+			using FaderType = ComplexGroupManager::XFadeLayer::FaderTypes;
 
-			paths.add(createPath<0>(numPaths, type));
-			paths.add(createPath<1>(numPaths, type));
+			auto faderNames = ComplexGroupManager::XFadeLayer::getFaderNames();
 
-			if(numPaths > 2)
-				paths.add(createPath<2>(numPaths, type));
-			if(numPaths > 3)
-				paths.add(createPath<3>(numPaths, type));
-			if(numPaths > 4)
-				paths.add(createPath<4>(numPaths, type));
-			if(numPaths > 5)
-				paths.add(createPath<5>(numPaths, type));
-			if(numPaths > 6)
-				paths.add(createPath<6>(numPaths, type));
-			if(numPaths > 7)
-				paths.add(createPath<7>(numPaths, type));
+			auto idx = faderNames.indexOf(data[groupIds::fader].toString());
+
+			if(isPositiveAndBelow(idx, faderNames.size()))
+			{
+				auto type = (FaderType)idx;
+
+				paths.add(createPath<0>(numPaths, type));
+				paths.add(createPath<1>(numPaths, type));
+
+				if(numPaths > 2)
+					paths.add(createPath<2>(numPaths, type));
+				if(numPaths > 3)
+					paths.add(createPath<3>(numPaths, type));
+				if(numPaths > 4)
+					paths.add(createPath<4>(numPaths, type));
+				if(numPaths > 5)
+					paths.add(createPath<5>(numPaths, type));
+				if(numPaths > 6)
+					paths.add(createPath<6>(numPaths, type));
+				if(numPaths > 7)
+					paths.add(createPath<7>(numPaths, type));
+			}
+
+			
 		}
-
-		
 
 		auto b = getLocalBounds();
 
+		b.removeFromTop(LayerComponent::BodyMargin);
 		b.removeFromTop(LayerComponent::BodyMargin);
 
 		auto top = b.removeFromTop(LayerComponent::TopBarHeight);
@@ -720,7 +869,17 @@ struct ComplexGroupManagerComponent::XFadeBody: public LogicTypeComponent::BodyB
 				p.scaleToFit(fb.getX(), fb.getY(), fb.getWidth(), fb.getHeight(), false);
 		}
 
-		
+		auto buttonList = getAllButtonsToShow();
+
+		if(unassignedButton->isVisible())
+		{
+			unassignedButton->setBounds(top.removeFromLeft(unassignedButton->getWidthToUse()));
+		}
+
+		if(ignoreButton->isVisible())
+		{
+			ignoreButton->setBounds(top.removeFromRight(unassignedButton->getWidthToUse()));
+		}
 		
 		if(tokens.size() >= 2)
 		{
@@ -738,7 +897,9 @@ struct ComplexGroupManagerComponent::XFadeBody: public LogicTypeComponent::BodyB
 		b.removeFromTop(LayerComponent::BodyMargin);
 
 		auto bottom = b;
-		
+
+		bottom.removeFromBottom(LayerComponent::BodyMargin);
+
 		modeSelector.setBounds(bottom.removeFromLeft(128));
 		slotSelector.setBounds(bottom.removeFromRight(128));
 		sourceSelector.setBounds(bottom.withSizeKeepingCentre(128, bottom.getHeight()));
@@ -758,18 +919,27 @@ struct ComplexGroupManagerComponent::XFadeBody: public LogicTypeComponent::BodyB
 	{
 		BodyBase::paint(g);
 
-		g.setColour(Colours::white.withAlpha(0.2f));
-
-		for(const auto& p: paths)
+		if(paths.isEmpty())
 		{
-			g.fillPath(p);
-			g.strokePath(p, PathStrokeType(1.0f));
+			g.setColour(Colours::white.withAlpha(0.2f));
+			g.setFont(GLOBAL_BOLD_FONT());
+			g.drawText("No tokens in this layer", getLocalBounds().toFloat(), Justification::centred);
 		}
+		else
+		{
+			g.setColour(Colours::white.withAlpha(0.2f));
 
-		auto x = pathArea.getX() + values[0] * pathArea.getWidth();
+			for(const auto& p: paths)
+			{
+				g.fillPath(p);
+				g.strokePath(p, PathStrokeType(1.0f));
+			}
 
-		g.setColour(Colours::white);
-		g.drawVerticalLine(x, pathArea.getY(), pathArea.getBottom());
+			auto x = pathArea.getX() + values[0] * pathArea.getWidth();
+
+			g.setColour(Colours::white);
+			g.drawVerticalLine(x, pathArea.getY(), pathArea.getBottom());
+		}
 	}
 
 	span<float, NUM_POLYPHONIC_VOICES> values;
@@ -796,16 +966,25 @@ struct ComplexGroupManagerComponent::LegatoBody: public LogicTypeComponent::Body
 	  keyboard(parent),
 	  transition(parent)
 	{
+		uint8 layerValue = 1;
+
 		for(auto t: tokens)
 		{
 			auto n = MidiMessage::getMidiNoteName(t.getIntValue(), true, true, 3);
-			addAndMakeVisible(buttons.add(new KeyswitchButton(n, false)));
+			addAndMakeVisible(buttons.add(new KeyswitchButton(parent.data, layerValue++, n, false)));
+			buttons.getLast()->setSize(buttons.getLast()->getWidthToUse(), ButtonHeight);
 		}
 			
+		transition.startOffset = keyboard.noteRange.getStart() - 1;
 
 		addAndMakeVisible(keyboard);
 		addAndMakeVisible(transition);
+
+		
+		
 	}
+
+	
 
 	void paint(Graphics& g) override
 	{
@@ -831,24 +1010,28 @@ struct ComplexGroupManagerComponent::LegatoBody: public LogicTypeComponent::Body
 
 		SimpleFlexbox fb;
 
-		for(auto b: buttons)
-			b->setSize(b->getWidthToUse(), LayerComponent::TopBarHeight);
 
-		auto pos = fb.createBoundsListFromComponents(buttons);
+		//for(auto b: buttons)
+		//	b->setSize(b->getWidthToUse(), LayerComponent::TopBarHeight);
+
+		auto buttonList = getAllButtonsToShow();
+
+		auto pos = fb.createBoundsListFromComponents(buttonList);
 
 		if(auto h = fb.apply(pos, b.removeFromTop(height)))
 		{
 			height = h;
 
-			fb.applyBoundsListToComponents(buttons, pos);
+			fb.applyBoundsListToComponents(buttonList, pos);
 
 			if(getHeight() != getHeightToUse())
 				findParentComponentOfClass<Content>()->updateSize();
 		}
 
-		
-		
 		transition.setBounds(b.removeFromBottom(transition.getHeightToUse()));
+
+		
+
 		b.removeFromBottom(LayerComponent::BodyMargin);
 		keyboard.setBounds(b.removeFromBottom(keyboard.getHeightToUse()));
 		addRuler(b.removeFromBottom(LayerComponent::BodyMargin));
@@ -878,7 +1061,7 @@ struct ComplexGroupManagerComponent::LegatoBody: public LogicTypeComponent::Body
 
 			if(currentStart != ComplexGroupManager::IgnoreFlag)
 			{
-				auto s = MidiMessage::getMidiNoteName(currentStart, true, true, 3);
+				auto s = MidiMessage::getMidiNoteName(currentStart + startOffset, true, true, 3);
 				auto e = MidiMessage::getMidiNoteName(currentNote, true, true, 3);
 
 				msg << s << " -> " << e;
@@ -900,6 +1083,7 @@ struct ComplexGroupManagerComponent::LegatoBody: public LogicTypeComponent::Body
 
 		uint8 currentStart = ComplexGroupManager::IgnoreFlag;
 		int currentNote = -1;
+		int startOffset = 0;
 
 		static void onPlaystate(TransitionDisplay& t, uint8 value)
 		{
@@ -915,6 +1099,7 @@ struct ComplexGroupManagerComponent::LegatoBody: public LogicTypeComponent::Body
 	LayerComponent::KeyboardComponent keyboard;
 
 	int height = LayerComponent::TopBarHeight;
+
 };
 
 struct ComplexGroupManagerComponent::ChokeBody: public KeyswitchBody

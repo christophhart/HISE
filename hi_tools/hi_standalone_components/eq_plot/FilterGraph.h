@@ -64,8 +64,9 @@ public:
 		Icon
 	};
 
-    FilterGraph (int numFilters=0, int type=Line);
+    FilterGraph (int numFilters=0, int type=Fill);
     ~FilterGraph();
+	
 
 	struct LookAndFeelMethods
 	{
@@ -184,13 +185,66 @@ public:
 		showLines = shouldShowLines;
 	}
 
+	bool isShowingLines() const { return showLines; }
+
+	void setPathMargin(float newPathMargin)
+	{
+		pathMargin = newPathMargin;
+		refreshFilterPath();
+		repaint();
+	}
+
+	void setMinimalPath(bool shouldBeMinimal)
+	{
+		minimalPath = shouldBeMinimal;
+		refreshFilterPath();
+		repaint();
+	}
+
+	void setDrawType(DrawType dt)
+	{
+		drawType = dt;
+		refreshFilterPath();
+		repaint();
+	}
+
+	void setDrawSpecsFromString(const String& pathType)
+	{
+		auto isStroke = pathType.contains("Stroke");
+		auto isMinimal = pathType.contains("Minimal");
+
+		drawType = isStroke ? DrawType::Line : DrawType::Fill;
+		minimalPath = isMinimal;
+		refreshFilterPath();
+		repaint();
+	}
+
+	float getPathMargin() const { return pathMargin; }
+
+	String getDrawSpecsString() const
+	{
+		String s;
+
+		if(drawType == DrawType::Line)
+			s << "Stroke";
+		else
+			s << "Fill";
+
+		if(minimalPath)
+			s << "Minimal";
+		else
+			s << "FullWidth";
+
+		return s;
+	}
+
 private:
 
-	
-
-	
-
 	void refreshFilterPath();
+
+	float pathMargin = 0.0f;
+	bool minimalPath = true;
+	DrawType drawType;
 
 	void clearFilterPath()
 	{
@@ -201,9 +255,8 @@ private:
 
 		if(drawType == Line)
 		{
-			tracePath.startNewSubPath(-3.0f, height / 2.0f);
-			tracePath.lineTo(width + 3.0f, height / 2.0f);
-
+			tracePath.startNewSubPath(-1.0f * pathMargin, height / 2.0f);
+			tracePath.lineTo(width + pathMargin, height / 2.0f);
 		}
 		else if( drawType == Icon)
 		{
@@ -226,8 +279,6 @@ private:
     int numHorizontalLines;
     float lowFreq, highFreq;   
     double fs;
-    
-	DrawType drawType;
 
     void mouseMove (const MouseEvent &event);
     

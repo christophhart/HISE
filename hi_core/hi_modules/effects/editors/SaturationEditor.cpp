@@ -68,9 +68,9 @@ SaturationEditor::SaturationEditor (ProcessorEditor *p)
 	saturationSlider->setMode(HiSlider::NormalizedPercentage);
 
 	pregainSlider->setup(getProcessor(), SaturatorEffect::PreGain, "Pre Gain");
-	pregainSlider->setMode(HiSlider::Decibel, 0, 24.0, 12.0);
+	pregainSlider->setMode(HiSlider::Decibel, NormalisableRange(0.0, 24.0));;
 	postGainSlider->setup(getProcessor(), SaturatorEffect::PostGain, "Post Gain");
-	postGainSlider->setMode(HiSlider::Decibel, -24.0, 0.0, -12.0);
+	postGainSlider->setMode(HiSlider::Decibel, NormalisableRange(-24.0, 0.0));
     //[/UserPreSize]
 
     setSize (800, 80);

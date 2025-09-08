@@ -1303,6 +1303,45 @@ float getAbsoluteValue(float input)
     return input > 0.0f ? input : input * -1.0f;
 }
 
+std::vector<int> StreamingSamplerSound::FileReader::calculateZeroCrossings()
+{
+	std::vector<int> zeroCrossings;
+
+	openFileHandles();
+
+	ScopedPointer<AudioFormatReader> readerToUse = createMonolithicReaderForPreview();// getReader();
+	
+	if (sound->sampleLength == MAX_SAMPLE_NUMBER)
+	{
+		sound->sampleLength = (int)getSampleLength();
+	}
+
+	AudioSampleBuffer buffer(1, sound->getSampleLength());
+
+	readerToUse->read(&buffer, 0, sound->getSampleLength(), sound->getSampleStart(), true, false);
+
+	auto d = buffer.getReadPointer(0);
+	auto numSamples = buffer.getNumSamples();
+
+	auto sign = d[0] > 0.0f;
+
+	for(int i = 1; i < numSamples; i++)
+	{
+		auto thisSign = d[i] >= 0.0f;
+
+		if(!sign && thisSign)
+		{
+			zeroCrossings.push_back(i);
+		}
+
+		sign = thisSign;
+	}
+
+	closeFileHandles();
+
+    return zeroCrossings;
+}
+
 float StreamingSamplerSound::FileReader::calculatePeakValue()
 {
 #if !USE_BACKEND && !HI_ENABLE_EXPANSION_EDITING

@@ -97,6 +97,8 @@ struct BackendDllManager : public ReferenceCountedObject,
 
 	int getDllHash(int index);
 
+	static std::pair<Array<Identifier>, int> initialiseThirdPartyProperties(MainController* mc);
+
 	static int getHashForNetworkFile(MainController* mc, const String& id);
 
 	bool isDllLoaded() const { return projectDll != nullptr; }

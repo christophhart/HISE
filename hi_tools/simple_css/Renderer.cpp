@@ -34,84 +34,553 @@ namespace hise
 {
 namespace simple_css
 {
-	void CSSRootComponent::InfoOverlay::Item::draw(Graphics& g)
+
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
+
+void CSSRootComponent::InfoOverlay::Item::draw(Graphics& g)
+{
+	String text;
+
+	for(const auto& s: selectors)
+		text << s.toString() << " ";
+
+    auto hue = 0.27f;
+	
+	auto colour = Colour::fromHSL(hue, 0.7f, 0.8f, 1.0f);
+	g.setColour(colour.withAlpha(0.4f));
+	g.drawRect(globalBounds, 1.0f);
+
+	g.setColour(colour);
+	g.setFont(GLOBAL_MONOSPACE_FONT());
+
+	auto tb = textBounds.withWidth(GLOBAL_MONOSPACE_FONT().getStringWidthFloat(text) + 6.0f);
+	
+	g.drawText(text, tb.reduced(3), Justification::topLeft);
+}
+
+CSSRootComponent::InfoOverlay::InfoOverlay(CSSRootComponent& parent_):
+  parent(parent_)
+{
+	auto root = dynamic_cast<Component*>(&parent);
+	root->addAndMakeVisible(this);
+	setBounds(0, 0, root->getWidth(), root->getHeight());
+	toFront(false);
+
+	//setInterceptsMouseClicks(false, false);
+	rebuild();
+}
+
+void CSSRootComponent::InfoOverlay::rebuild()
+{
+	items.clear();
+
+	auto root = dynamic_cast<Component*>(&parent);
+
+	Component::callRecursive<Component>(root, [&](Component* child)
 	{
-		String text;
-
-		for(const auto& s: selectors)
-			text << s.toString() << " ";
-
-        auto hue = 0.27f;
-		
-		auto colour = Colour::fromHSL(hue, 0.7f, 0.8f, 1.0f);
-		g.setColour(colour.withAlpha(0.4f));
-		g.drawRect(globalBounds, 1.0f);
-
-		g.setColour(colour);
-		g.setFont(GLOBAL_MONOSPACE_FONT());
-
-		auto tb = textBounds.withWidth(GLOBAL_MONOSPACE_FONT().getStringWidthFloat(text) + 6.0f);
-		
-		g.drawText(text, tb.reduced(3), Justification::topLeft);
-	}
-
-	CSSRootComponent::InfoOverlay::InfoOverlay(CSSRootComponent& parent_):
-	  parent(parent_)
-	{
-		auto root = dynamic_cast<Component*>(&parent);
-		root->addAndMakeVisible(this);
-		setBounds(0, 0, root->getWidth(), root->getHeight());
-		toFront(false);
-
-		setInterceptsMouseClicks(false, false);
-		rebuild();
-	}
-
-	void CSSRootComponent::InfoOverlay::rebuild()
-	{
-		items.clear();
-
-		auto root = dynamic_cast<Component*>(&parent);
-
-		Component::callRecursive<Component>(root, [&](Component* child)
-		{
-			if(!child->isShowing())
-				return false;
-
-			auto ni = new Item();
-
-			ni->selectors.addArray(FlexboxComponent::Helpers::getClassSelectorFromComponentClass(child));
-
-			if(auto id = FlexboxComponent::Helpers::getIdSelectorFromComponentClass(child))
-				ni->selectors.add(id);
-
-			ni->globalBounds = root->getLocalArea(child, child->getLocalBounds()).toFloat();
-			ni->textBounds = ni->globalBounds;
-			ni->ss = parent.css.getForComponent(child);
-			ni->c = child;
-
-			if(*ni)
-				items.add(ni);
-
+		if(!child->isShowing())
 			return false;
-		});
 
-		for(auto ni: items)
+		auto ni = new Item();
+
+		ni->selectors.addArray(FlexboxComponent::Helpers::getClassSelectorFromComponentClass(child));
+
+		if(auto id = FlexboxComponent::Helpers::getIdSelectorFromComponentClass(child))
+			ni->selectors.add(id);
+
+		ni->globalBounds = root->getLocalArea(child, child->getLocalBounds()).toFloat();
+		ni->textBounds = ni->globalBounds;
+		ni->ss = parent.css.getForComponent(child);
+		ni->c = child;
+
+		if(*ni)
+			items.add(ni);
+
+		return false;
+	});
+
+	for(auto ni: items)
+	{
+		for(int i = 0; i < items.size(); i++)
 		{
-			for(int i = 0; i < items.size(); i++)
-			{
-				if(items[i] == ni)
-					break;
+			if(items[i] == ni)
+				break;
 
-				if(items[i]->globalBounds.getTopLeft() == ni->globalBounds.getTopLeft())
-					ni->textBounds.removeFromTop(18.0f);
+			if(items[i]->globalBounds.getTopLeft() == ni->globalBounds.getTopLeft())
+				ni->textBounds.removeFromTop(18.0f);
+		}
+	}
+
+	repaint();
+}
+
+void CSSRootComponent::InspectorData::draw(Graphics& g, Rectangle<float> lb, StyleSheet::Collection& css) const
+{
+	if(!first.isEmpty())
+	{
+		auto cb = first;
+		auto b = lb;
+		auto left = b.removeFromLeft(cb.getX());
+		auto right = b.removeFromRight(b.getRight() - cb.getRight());
+		auto top = b.removeFromTop(cb.getY());
+		auto bottom = b.removeFromBottom(b.getBottom() - cb.getBottom());
+		            
+		g.setColour(Colours::black.withAlpha(0.5f));
+		g.fillRect(top);
+		g.fillRect(left);
+		g.fillRect(right);
+		g.fillRect(bottom);
+		            
+		g.setColour(Colour(SIGNAL_COLOUR).withAlpha(0.3f));
+		g.drawRect(first, 1.0f);
+		g.setColour(Colour(SIGNAL_COLOUR));
+		auto f = GLOBAL_MONOSPACE_FONT();
+		g.setFont(f);
+		            
+		auto tb = first.withSizeKeepingCentre(f.getStringWidthFloat(second), first.getHeight() + 40).constrainedWithin(lb);
+		            
+		if(first.getY() > 20)
+			g.drawText(second, tb, Justification::centredTop);
+		else
+			g.drawText(second, tb, Justification::centredBottom);
+
+		if(c.getComponent() == nullptr)
+			return;
+
+		if(auto ss = css.getForComponent(c.getComponent()))
+		{
+			auto b = first;
+
+			auto mb = ss->getArea(b, { "margin", {}});
+			auto pb = ss->getArea(mb, { "padding", {}});
+
+			Colour paddingColour(0xFFB8C37F);
+			Colour marginColour(0xFFB08354);
+
+			{
+				Graphics::ScopedSaveState sss(g);
+				g.reduceClipRegion(b.toNearestInt());
+				g.excludeClipRegion(mb.toNearestInt());
+				g.fillAll(marginColour.withAlpha(0.33f));
+			}
+
+			{
+				Graphics::ScopedSaveState sss(g);
+				g.reduceClipRegion(mb.toNearestInt());
+				g.excludeClipRegion(pb.toNearestInt());
+				g.fillAll(paddingColour.withAlpha(0.33f));
+			}
+
+			g.setColour(paddingColour);
+			g.drawRect(mb, 1);
+			g.drawRect(pb, 1);
+			g.setColour(marginColour);
+			g.drawRect(b, 1);
+		}
+	}
+}
+
+CSSRootComponent::CSSDebugger::CSSDebugger(CSSRootComponent& componentToDebug, bool start):
+	root(&componentToDebug),
+	codeDoc(doc),
+	editor(codeDoc),
+	powerButton("debug-css", nullptr, *this),
+	editButton("edit", nullptr, *this)
+{
+	doc.setDisableUndo(true);
+	setName("CSS Inspector");
+	addAndMakeVisible(editor);
+	        
+	editor.tokenCollection = new mcl::TokenCollection("CSS");
+	editor.tokenCollection->setUseBackgroundThread(false);
+	editor.setLanguageManager(new simple_css::LanguageManager(codeDoc));
+	
+	setSize(450, 800);
+	setOpaque(true);
+
+	setEditMode(false);
+
+	GlobalHiseLookAndFeel::setDefaultColours(hierarchy);
+	hierarchy.setLookAndFeel(&laf);
+	addAndMakeVisible(hierarchy);
+	addAndMakeVisible(powerButton);
+	powerButton.setToggleModeWithColourChange(true);
+	hierarchy.setTextWhenNothingSelected("Select parent component");
+	addAndMakeVisible(powerButton);
+
+	hierarchy.onChange = [&]()
+	{
+		auto pd = parentData[hierarchy.getSelectedItemIndex()];
+		updateWithInspectorData(pd);
+	};
+
+	powerButton.onClick = [this]()
+	{
+		setActive(powerButton.getToggleState());
+	};
+
+	editButton.onClick = [&]()
+	{
+		this->setEditMode(editButton.getToggleState());
+	};
+
+	editSelector.onChange = [&]()
+	{
+		updateEditorText(currentlyEditedData, true);
+	};
+
+	editButton.setToggleModeWithColourChange(true);
+	addAndMakeVisible(editButton);
+
+	addAndMakeVisible(overlayMode);
+	overlayMode.addItemList({ "None", "Hovered", "Selectors"}, 1);
+	overlayMode.setSelectedItemIndex(0, dontSendNotification);
+	overlayMode.setLookAndFeel(&laf);
+	GlobalHiseLookAndFeel::setDefaultColours(overlayMode);
+
+	addAndMakeVisible(editSelector);
+	editSelector.setLookAndFeel(&laf);
+	editSelector.setTextWhenNoChoicesAvailable("Selector");
+	editSelector.setTextWhenNothingSelected("Selector");
+	GlobalHiseLookAndFeel::setDefaultColours(editSelector);
+
+	overlayMode.onChange = [&]()
+	{
+		auto om = (OverlayMode)overlayMode.getSelectedItemIndex();
+
+		switch(om)
+		{
+		case OverlayMode::None:
+			root->setCurrentInspectorData({});
+			root->showInfo(false);
+			break;
+		case OverlayMode::Hovered:
+			root->setCurrentInspectorData(hoverData);
+			root->showInfo(false);
+			break;
+		case OverlayMode::Selectors:
+			root->setCurrentInspectorData({});
+			root->showInfo(true);
+			break;
+		default: ;
+		}
+	};
+
+	getRootComponent()->addAndMakeVisible(this);
+	setBounds(getRootComponent()->getLocalBounds());
+	toFront(false);
+
+	editButton.setTooltip("Edit the compiled stylesheet for the current UI element");
+	overlayMode.setTooltip("Choose the overlay type for the CSS inspection");
+	editSelector.setTooltip("Choose the selector that is used for editing the current CSS element");
+	powerButton.setTooltip("Enable hover to select UI elements for CSS inspection");
+	hierarchy.setTooltip("Select a parent UI element for CSS inspection");
+
+	setActive(start);
+}
+
+CSSRootComponent::CSSDebugger::SelectListener::SelectListener(CSSDebugger& parent_):
+	parent(parent_)
+{
+	
+
+	if(auto pc = parent.getRootComponent())
+		pc->addMouseListener(this, true);
+}
+
+CSSRootComponent::CSSDebugger::SelectListener::~SelectListener()
+{
+	if(auto pc = parent.getRootComponent())
+		pc->removeMouseListener(this);
+}
+
+void CSSRootComponent::CSSDebugger::SelectListener::mouseMove(const MouseEvent& e)
+{
+	auto* target = e.eventComponent;
+
+	if(target == parent.getRootComponent())
+		return;
+
+	auto hd = parent.createInspectorData(target);
+
+	while(!hd && target->getParentComponent() != nullptr && target != parent.getRootComponent())
+	{
+		target = target->getParentComponent();
+		hd = parent.createInspectorData(target);
+	}
+
+	if(hd != parent.hoverData)
+	{
+		parent.updateWithInspectorData(hd);
+		parent.hoverData = hd;
+		parent.repaint();
+	}
+}
+
+void CSSRootComponent::CSSDebugger::SelectListener::mouseDown(const MouseEvent& e)
+{
+	parent.check();
+
+	auto p = &parent;
+	MessageManager::callAsync([p]()
+	{
+		p->selectListener = nullptr;
+		p->powerButton.setToggleStateAndUpdateIcon(false);
+		p->root->setCurrentInspectorData({});
+		p->overlayMode.setSelectedItemIndex(0, sendNotificationAsync);
+	});
+}
+
+bool CSSRootComponent::CSSDebugger::keyPressed(const KeyPress& key)
+{
+	if(key == KeyPress::F5Key && editMode)
+	{
+		auto code = doc.getAllContent();
+
+		Parser p(code);
+
+		auto ok = p.parse();
+
+		if(ok.wasOk())
+		{
+			editor.clearWarningsAndErrors();
+			auto css = p.getCSSValues();
+
+			root->css.copyStyleSheetsFrom(currentlyEditedData.c.getComponent(), css);
+
+			callRecursive<Component>(getRootComponent(), [&](Component* c)
+			{
+				if(auto fb = dynamic_cast<FlexboxComponent*>(c))
+				{
+					fb->setCSS(root->css);
+				}
+
+				c->resized();
+				c->repaint();
+				return false;
+			});
+
+		}
+		else
+		{
+			editor.setError(ok.getErrorMessage());
+		}
+	}
+
+	return false;
+}
+
+void CSSRootComponent::CSSDebugger::clear()
+{
+	hoverData = {};
+	selectListener = nullptr;
+
+	if(root != nullptr)
+		root->setCurrentInspectorData({});
+}
+
+void CSSRootComponent::CSSDebugger::setEditMode(bool shouldBeEnabled)
+{
+	if(editMode != shouldBeEnabled)
+	{
+		editMode = shouldBeEnabled;
+		auto fontSize = shouldBeEnabled ? 15.0f : 12.0f;
+		editor.setFont(GLOBAL_MONOSPACE_FONT().withHeight(fontSize));
+		doc.setDisableUndo(!shouldBeEnabled);
+		doc.clearUndoHistory();
+		editor.setReadOnly(!shouldBeEnabled);
+
+		updateEditorText(currentlyEditedData, true);
+	}
+}
+
+void CSSRootComponent::CSSDebugger::updateEditorText(const InspectorData& d, bool force)
+{
+	if(force || (d != currentlyEditedData))
+	{
+		currentlyEditedData = d;
+
+		if(editMode)
+		{
+			if(auto c = currentlyEditedData.c.getComponent())
+			{
+				if(auto ss = root->css.getForComponent(c))
+				{
+					auto properties = ss->toStringForDefinedStates();
+					auto code = FlexboxComponent::Helpers::toCSSCode(*c, properties);
+
+					auto es = FlexboxComponent::Helpers::getElementSelector(*c).toString();
+
+					auto lastTag = editSelector.getText();
+					code = code.replace(es, lastTag);
+
+					doc.clearUndoHistory();
+					doc.replaceAllContent(code);
+				}
+				else
+				{
+					String code = editSelector.getText();
+
+					code << " {\n  \n}\n";
+					doc.clearUndoHistory();
+					doc.replaceAllContent(code);
+				}
 			}
 		}
-
-		repaint();
+		else
+		{
+			auto s = root->css.getDebugLogForComponent(currentlyEditedData.c.getComponent());
+	        
+			if(doc.getAllContent() != s)
+				doc.replaceAllContent(s);
+		}
 	}
+}
 
-	Positioner::Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_):
+void CSSRootComponent::CSSDebugger::setActive(bool shouldBeActive)
+{
+	powerButton.setToggleStateAndUpdateIcon(shouldBeActive, false);
+
+	clear();
+
+	if(shouldBeActive)
+	{
+		overlayMode.setSelectedItemIndex((int)OverlayMode::Hovered, sendNotificationAsync);
+		selectListener = new SelectListener(*this);
+	}
+		
+}
+
+Path CSSRootComponent::CSSDebugger::createPath(const String& url) const
+{
+	Path p;
+	LOAD_EPATH_IF_URL("debug-css", ColumnIcons::debugCSS);
+	LOAD_EPATH_IF_URL("bypass", HiBinaryData::ProcessorEditorHeaderIcons::bypassShape);
+	LOAD_EPATH_IF_URL("edit", EditorIcons::penShape);
+	return p;
+}
+
+void CSSRootComponent::CSSDebugger::paint(Graphics& g)
+{
+	g.fillAll(Colour(0xFF222222));
+
+	if(hoverData)
+	{
+		auto b = getLocalBounds().removeFromTop(24);
+		b.removeFromLeft(b.getHeight() + 10);
+		g.setFont(GLOBAL_MONOSPACE_FONT());
+		g.setColour(Colours::white.withAlpha(0.5f));
+		g.drawText(hoverData.second, b.toFloat(), Justification::left);
+	}
+}
+
+CSSRootComponent::InspectorData CSSRootComponent::CSSDebugger::createInspectorData(Component* c)
+{
+	auto b = getRootComponent()->getLocalArea(c, c->getLocalBounds()).toFloat();
+	auto data = simple_css::FlexboxComponent::Helpers::dump(*c);
+
+	InspectorData id;
+	id.first = b;
+	id.second = data;
+	id.c = c;
+
+	return id;
+}
+
+void CSSRootComponent::CSSDebugger::check()
+{
+	if(root == nullptr)
+		return;
+	        
+	auto* target = Desktop::getInstance().getMainMouseSource().getComponentUnderMouse();
+
+	bool change = false;
+
+	if(target != nullptr && target->findParentComponentOfClass<simple_css::CSSRootComponent>() == root)
+	{
+		currentTarget = target;
+		change = true;
+	}
+	        
+	if(currentTarget.getComponent() != nullptr && change)
+	{
+		auto hd = createInspectorData(currentTarget.getComponent());
+		auto tc = hd.c.getComponent();
+
+		StringArray items;
+
+		parentData.clear();
+
+		while(tc != nullptr)
+		{
+			if(dynamic_cast<CSSRootComponent*>(tc) != nullptr)
+				break;
+
+			if(auto id = createInspectorData(tc))
+			{
+				if(!hd)
+					hd = id;
+				else
+					parentData.addIfNotAlreadyThere(id);
+			}
+
+			tc = tc->getParentComponent();
+		}
+
+		int idx = 1;
+
+		if(!parentData.contains(hd))
+			parentData.insert(0, hd);
+
+		hierarchy.clear(dontSendNotification);
+
+		for(const auto& pd: parentData)
+			hierarchy.addItem(pd.second, idx++);
+
+		hierarchy.setText("", dontSendNotification);
+
+		updateWithInspectorData(hd);
+	}
+}
+
+void CSSRootComponent::CSSDebugger::updateWithInspectorData(const InspectorData& id)
+{
+	root->setCurrentInspectorData(id);
+
+	editSelector.clear(dontSendNotification);
+
+	auto selectors = StringArray::fromTokens(id.second, ",", "");
+
+	selectors.trim();
+	selectors.removeDuplicates(false);
+	selectors.removeEmptyStrings();
+
+	editSelector.addItemList(selectors, 1);
+	editSelector.setSelectedItemIndex(0, dontSendNotification);
+
+	updateEditorText(id, false);
+}
+
+void CSSRootComponent::CSSDebugger::resized()
+{
+	auto b = getLocalBounds();
+	auto topArea = b.removeFromTop(24);
+
+	auto cb = b.removeFromTop(32);
+
+	overlayMode.setBounds(cb.removeFromLeft(120));
+	editSelector.setBounds(cb.removeFromRight(110));
+	hierarchy.setBounds(cb);
+
+	powerButton.setBounds(topArea.removeFromLeft(topArea.getHeight()).reduced(2));
+	editButton.setBounds(topArea.removeFromRight(topArea.getHeight()).reduced(2));
+	        
+	editor.setBounds(b);
+}
+
+#endif
+
+Positioner::Positioner(StyleSheet::Collection styleSheet, Rectangle<float> totalArea_, bool applyMargin_):
 	css(styleSheet),
 	totalArea(totalArea_),
 	applyMargin(applyMargin_)
@@ -185,15 +654,49 @@ CodeGenerator::CodeGenerator(StyleSheet::Ptr ss_):
 	code << "{" << nl;
 	code << "\t" << nl;
 
-	for(const auto& ra: ss->getCodeGeneratorArea("fullArea", { "margin", {}}))
+	static const StringArray pseudoElementTypes({ "None", "Before", "After", "Before2", "After2" });
+
+	for(int i = 0; i < (int)PseudoElementType::All; i++)
 	{
-		appendLine(ra);
+		auto ps = PseudoState().withElement((PseudoElementType)i);
+
+		if(ss->hasNonLayoutProperties((PseudoElementType)i))
+		{
+			code << "if(type == PseudoElementType::" + pseudoElementTypes[i] << ") {";
+
+			for(const auto& ra: ss->getCodeGeneratorArea("fullArea", { "margin", ps }))
+			{
+				appendLine(ra);
+			}
+
+			auto c = ss->getCodeGeneratorColour("fullArea", { "background", {} });
+
+			auto btl = ss->getCodeGeneratorPixelValueString("fullArea", { "border-top-left-radius", ps });
+			auto btr = ss->getCodeGeneratorPixelValueString("fullArea", { "border-top-right-radius", ps });
+			auto bbl = ss->getCodeGeneratorPixelValueString("fullArea", { "border-bottom-left-radius", ps });
+			auto bbr = ss->getCodeGeneratorPixelValueString("fullArea", { "border-bottom-right-radius", ps });
+
+			appendLine("g.setColour(" + c + ");");
+
+			if(btl == btr && btl == bbl && btl == bbr)
+			{
+				if(btl.getFloatValue() == 0.0)
+				{
+					appendLine("g.fillRect(fullArea);");
+				}
+				else
+				{
+					appendLine("g.fillRoundedRectangle(fullArea, " + btl + ");");
+				}
+			}
+			else
+			{
+				appendLine("g.fillPath(borderPath)");
+			}
+			
+			code << "}";
+		}
 	}
-
-	auto c = ss->getCodeGeneratorColour("fullArea", { "background", {} });
-
-	appendLine("g.setColour(" + c + ");");
-	appendLine("g.fillRect(fullArea);");
 
 	code << "};" << nl;
 }
@@ -276,7 +779,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 
 	auto scopy = ma.reduced(borderSize * 0.5f);
 
-	if(!scopy.isEmpty())
+	if(!scopy.isEmpty() && !pathToStroke.getBounds().isEmpty())
 		pathToStroke.scaleToFit(scopy.getX(), scopy.getY(), scopy.getWidth(), scopy.getHeight(), false);
 	else
 		pathToStroke = {};
@@ -324,7 +827,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 		}
 	}
 	
-	if(type == PseudoElementType::None)
+	if(type == PseudoElementType::None && renderPseudoElements)
 	{
 		auto beforeAbsolute = ss->getPropertyValue({"position", PseudoState(0).withElement(PseudoElementType::Before)}).toString() == "absolute";
 		auto beforeArea = ss->getPseudoArea(beforeAbsolute ? area : ma, stateFlag, PseudoElementType::Before);
@@ -335,10 +838,13 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, beforeArea, ss, PseudoElementType::Before);
 
-			auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::Before)});
+			if(renderTextWithBackground)
+			{
+				auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::Before)});
 
-			if(v.isNotEmpty())
-				renderText(g, beforeArea, v, ss, PseudoElementType::Before);
+				if(v.isNotEmpty())
+					renderText(g, beforeArea, v, ss, PseudoElementType::Before);
+			}
             
             if(!beforeAbsolute)
             {
@@ -359,10 +865,13 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
             Graphics::ScopedSaveState sss(g);
             drawBackground(g, beforeArea2, ss, PseudoElementType::Before2);
 
-            auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::Before2)});
+			if(renderTextWithBackground)
+			{
+				auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::Before2)});
 
-            if(v.isNotEmpty())
-                renderText(g, beforeArea2, v, ss, PseudoElementType::Before2);
+	            if(v.isNotEmpty())
+	                renderText(g, beforeArea2, v, ss, PseudoElementType::Before2);
+			}
         }
 
 
@@ -376,10 +885,14 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 			Graphics::ScopedSaveState sss(g);
 			drawBackground(g, afterArea, ss, PseudoElementType::After);
 
-			auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::After)});
+			if(renderTextWithBackground)
+			{
+				auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::After)});
 
-			if(v.isNotEmpty())
-				renderText(g, afterArea, v, ss, PseudoElementType::After);
+				if(v.isNotEmpty())
+					renderText(g, afterArea, v, ss, PseudoElementType::After);
+			}
+			
             
             if(!afterAbsolute)
             {
@@ -400,10 +913,21 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
             Graphics::ScopedSaveState sss(g);
             drawBackground(g, afterArea2, ss, PseudoElementType::After2);
 
-            auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::After2)});
+			if(renderTextWithBackground)
+			{
+				auto v = ss->getPropertyValueString({"content", PseudoState().withElement(PseudoElementType::After2)});
 
-            if(v.isNotEmpty())
-                renderText(g, afterArea2, v, ss, PseudoElementType::After2);
+	            if(v.isNotEmpty())
+	                renderText(g, afterArea2, v, ss, PseudoElementType::After2);
+			}
+
+			if(!afterAbsolute2)
+            {
+                if(afterArea2.getX() == ma.getX())
+                    ma.removeFromLeft(afterArea2.getWidth());
+                else if (afterArea2.getRight() == ma.getRight())
+                    ma.removeFromRight(afterArea2.getWidth());
+            }
         }
 	}
 }
@@ -533,18 +1057,20 @@ void Renderer::renderText(Graphics& g, Rectangle<float> area, const String& text
 {
 	auto currentState = PseudoState(getPseudoClassState()).withElement(type);
 
+	auto textToDraw = ss->getText(text, currentState);
+
+	if(textToDraw.isEmpty())
+		return;
+
 	auto totalArea = area;
 		
 	totalArea = ss->getArea(totalArea, { "margin", currentState });
 	totalArea = ss->getArea(totalArea, { "padding", currentState });
 
-
 	if(type == PseudoElementType::None && truncateBeforeAfter)
 		totalArea = ss->truncateBeforeAndAfter(totalArea, currentState.stateFlag);
 	
 	g.setFont(ss->getFont(currentState, totalArea));
-
-	auto textToDraw = ss->getText(text, currentState);
 
 	auto j = jToUse.getFlags() ? jToUse : ss->getJustification(currentState);
 

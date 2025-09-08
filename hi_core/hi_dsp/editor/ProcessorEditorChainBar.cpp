@@ -95,6 +95,18 @@ ProcessorEditorChainBar::ProcessorEditorChainBar (ProcessorEditor *p):
 		t->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColour, Colour(0xaa000000));
 		t->setColour(ChainBarButtonLookAndFeel::ColourIds::IconColourOff, Colour(0x99ffffff));
 
+		if(auto modChain = dynamic_cast<Modulation*>(childProcessor))
+		{
+			auto mode = modChain->getMode();
+
+			if(mode == Modulation::Mode::OffsetMode)
+				t->getProperties().set("ModulationMode", "offset");
+			else if (mode == Modulation::Mode::CombinedMode)
+				t->getProperties().set("ModulationMode", "combined");
+			else
+				t->getProperties().set("ModulationMode", "gain");
+		}
+
 		t->setLookAndFeel(laf);
 
 		t->setTooltip("Show / Hide the " + childProcessor->getId() + " chain.");

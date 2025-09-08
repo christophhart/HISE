@@ -160,11 +160,7 @@ using filter = data::pimpl::dynamicT<hise::FilterDataObject>;
 */
 struct sliderpack : public data::pimpl::dynamicT<hise::SliderPackData>
 {
-	sliderpack(data::base& t, int index=0) :
-		dynamicT<hise::SliderPackData>(t, index)
-	{
-		this->internalData->setNumSliders(16);
-	}
+	sliderpack(data::base& t, int index=0);
 
 	virtual ~sliderpack() {};
 
@@ -329,7 +325,8 @@ struct complex_ui_laf : public ScriptnodeComboBoxLookAndFeel,
 						public HiseAudioThumbnail::LookAndFeelMethods,
 						public FilterGraph::LookAndFeelMethods,
 						public RingBufferComponentBase::LookAndFeelMethods,
-						public AhdsrGraph::LookAndFeelMethods
+						public AhdsrGraph::LookAndFeelMethods,
+					    public flex_ahdsr_base::FlexAhdsrGraph::LookAndFeelMethods
 {
 	complex_ui_laf() = default;
 
@@ -355,7 +352,6 @@ struct complex_ui_laf : public ScriptnodeComboBoxLookAndFeel,
 	void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
 
 	void drawButtonBackground(Graphics&, Button&, const Colour& backgroundColour, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
-
 	void drawButtonText(Graphics&, TextButton&, bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
 
 	Colour getNodeColour(Component* c);
@@ -368,6 +364,13 @@ struct complex_ui_laf : public ScriptnodeComboBoxLookAndFeel,
 	void drawAhdsrBackground(Graphics& g, AhdsrGraph& graph) override;
 	void drawAhdsrPathSection(Graphics& g, AhdsrGraph& graph, const Path& s, bool isActive) override;
 	void drawAhdsrBallPosition(Graphics& g, AhdsrGraph& graph, Point<float> p) override;
+
+	void drawFlexAhdsrBackground(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph) override;
+	void drawFlexAhdsrFullPath(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph) override;
+	void drawFlexAhdsrPosition(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, flex_ahdsr_base::State s, Point<float> pointOnPath) override;
+	void drawFlexAhdsrSegment(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, flex_ahdsr_base::State s, const Path& segment, bool hover, bool active) override;
+	void drawFlexAhdsrText(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, const String& text) override;
+	void drawFlexAhdsrCurvePoint(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, flex_ahdsr_base::State s, Point<float> curvePoint, bool hover, bool down) override;
 
 	Colour nodeColour;
 
@@ -392,12 +395,6 @@ template <class DynamicDataType, class DataType, class ComponentType, bool AddDr
 		addAndMakeVisible(externalButton);
 
 		rebuildSelectorItems();
-
-		
-
-		
-
-		//setSize(w, h + 41);
 
 		newSource = b->currentlyUsedData;
 		sourceChangedAsync();

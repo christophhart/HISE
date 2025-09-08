@@ -170,7 +170,10 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/api/GlobalServer.h"
 #include "scripting/api/ScriptingApi.h"
+#include "scripting/api/DynamicComponentContainerIds.h"
+#include "scripting/api/DynamicComponentContainer.h"
 #include "scripting/api/ScriptingApiContent.h"
+
 #include "scripting/api/ScriptComponentEditBroadcaster.h"
 
 #include "scripting/ScriptProcessor.h"

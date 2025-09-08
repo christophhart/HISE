@@ -88,7 +88,8 @@ public:
 	float getAttribute(int parameterIndex) const override;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getDefaultValue(int parameterIndex) const override;;
-	
+	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
+
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
 

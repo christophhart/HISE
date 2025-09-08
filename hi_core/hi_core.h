@@ -165,13 +165,7 @@ If true, then the copy protection will be used
 #define USE_COPY_PROTECTION 1
 #endif
 
-/** Config: USE_IPP
 
-Use the Intel Performance Primitives Library for the convolution reverb.
-*/
-#ifndef USE_IPP
-#define USE_IPP 1
-#endif
 
 /** Config: USE_VDSP_FFT
 *
@@ -560,15 +554,6 @@ For all defined variables:
 *
 *	New files must be added in the specific subfolder header / .cpp file.
 */
-
-
-#if USE_IPP
-#include "ipp.h"
-#endif
-
-
-
-
 
 #include "LibConfig.h"
 #include "Macros.h"

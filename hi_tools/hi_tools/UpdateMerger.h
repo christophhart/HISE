@@ -224,6 +224,25 @@ private:
 	static int numOddCalls;
 };
 
+struct ModBufferExpansion
+{
+
+	static bool isEqual(float rampStart, const float* data, int numElements);
+
+	/** Expands the data found in modulationData + startsample according to the HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR.
+	*
+	*	It updates the rampstart and returns true if there was movement in the modulation data.
+	*
+	*/
+	static bool expand(const float* modulationData, int startSample, int numSamples, float& rampStart);
+
+	static void pitchFactorToNormalisedRange(float* data, int numSamples);
+
+	static void normalisedRangeToPitchFactor(float* data, int numSamples);
+
+	static void applySkewFactor(float* data, int numSamples, Range<float> targetRange, float skewFactor);
+};
+
 /** This class divides a block into fixed chunks of data.
 *
 *	It can be used to divide a block of audio data into smaller chunks
@@ -403,25 +422,13 @@ class Ramper
 {
 public:
 
-	Ramper() :
-		targetValue(0.0f),
-		stepDelta(0.0f),
-		stepAmount(-1)
-	{};
+	Ramper();;
 
 	/** Sets the step amount that the ramper will use. You can overwrite this value by supplying a step number in setTarget. */
 	void setStepAmount(int newStepAmount) { stepAmount = newStepAmount; };
 
 	/** sets the new target and recalculates the step size using either the supplied step number or the step amount previously set by setStepAmount(). */
-	void setTarget(float currentValue, float newTarget, int numberOfSteps = -1)
-	{
-		if (numberOfSteps != -1) stepDelta = (newTarget - currentValue) / numberOfSteps;
-		else if (stepAmount != -1) stepDelta = (newTarget - currentValue) / stepAmount;
-		else jassertfalse; // Either the step amount should be set, or a new step amount should be supplied
-
-		targetValue = newTarget;
-		busy = true;
-	};
+	void setTarget(float currentValue, float newTarget, int numberOfSteps = -1);;
 
 	/** Sets the ramper value and the target to the new value and stops ramping. */
 	void setValue(float newValue)

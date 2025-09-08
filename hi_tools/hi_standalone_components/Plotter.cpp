@@ -210,9 +210,7 @@ void Plotter::rebuildPath()
 		return;
 
 	drawPath = rb->getPropertyObject()->createPath({0, rb->getReadBuffer().getNumSamples()}, {0.0, 1.0}, getLocalBounds().toFloat(), 0.0f);
-
 	repaint();
-	
 }
 
 

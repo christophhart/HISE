@@ -166,6 +166,14 @@ float SimpleEnvelope::getAttribute(int parameterIndex) const
 	}
 }
 
+ModulationDisplayValue::QueryFunction::Ptr SimpleEnvelope::getModulationQueryFunction(int parameterIndex) const
+{
+	if(parameterIndex == Attack)
+		return new ModulatorChain::GetModulationOutput<(int)SimpleEnvelope::InternalChains::AttackChain>();
+
+	return EnvelopeModulator::getModulationQueryFunction(parameterIndex);
+}
+
 float SimpleEnvelope::startVoice(int voiceIndex)
 {
 	if (isMonophonic)

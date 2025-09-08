@@ -49,6 +49,7 @@
 
 #endif
 
+#include "modules/ModulationMatrixTools.cpp"
 #include "modules/Modulators.cpp"
 #include "modules/ModulatorChain.cpp"
 #include "modules/MidiProcessor.cpp"

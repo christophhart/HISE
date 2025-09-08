@@ -82,7 +82,7 @@ void PostGraphicsRenderer::Data::createPathImage(int width, int height)
 
 bool PostGraphicsRenderer::Data::initGaussianBlur(int kernelSize, float sigma, int width, int height)
 {
-#if USE_IPP && JUCE_WINDOWS
+#if USE_IPP
 	auto thisNumPixels = width * height;
 
 	if (thisNumPixels != numPixels || kernelSize != lastKernelSize)

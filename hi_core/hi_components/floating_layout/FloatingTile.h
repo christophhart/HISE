@@ -360,6 +360,19 @@ public:
 
 	Rectangle<int> getContentBounds();
 
+	bool isFoldedRecursive() const
+	{
+		auto folded = isFolded();
+
+		if(!folded && getParentType() != ParentType::Root)
+		{
+			if(auto pt = getParentContainer())
+				folded |= pt->getParentShell()->isFolded();
+		}
+
+		return folded;
+	}
+
 	bool isFolded() const;
 	void setFolded(bool shouldBeFolded);
 	void refreshFoldButton();

@@ -55,17 +55,15 @@ struct StyleSheet: public ReferenceCountedObject
 		bool operator==(const Collection& other) const { return list.getFirst() == other.list.getFirst(); }
 		bool operator!=(const Collection& other) const { return !(*this == other); }
 
-		operator bool() const
-		{
-			return useIsolatedCollections ? !isolatedStyleSheetFileNames.isEmpty() : !list.isEmpty();
-		}
+		operator bool() const;
 
 		void setAnimator(Animator* a);
 
-		Ptr getFirst() const { return list.getFirst(); }
+		Ptr getFirst() const;
 
+		String getDebugLogForComponent(Component* c) const;
 
-        String getDebugLogForComponent(Component* c) const;
+		Ptr getForElementSelector(Component* c) const;
 
 		Ptr getForComponent(Component* c);
 		
@@ -81,46 +79,23 @@ struct StyleSheet: public ReferenceCountedObject
 
 		bool clearCache(Component* c = nullptr);
 
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
 		void setCreateStackTrace(bool shouldCreateStackTrace)
 		{
 			createStackTrace = shouldCreateStackTrace;
 			clearCache();
 		}
+#endif
 
-		void addIsolatedCollection(Component* c, const String& fileName, const Collection& other)
-		{
-			setUseIsolatedCollections(true);
-			addCollectionForComponent(c, other);
-
-			if(fileName.isNotEmpty())
-			{
-				for(auto& f: isolatedStyleSheetFileNames)
-				{
-					if(f.first == c)
-					{
-						f.second = fileName;
-						return;
-					}
-				}
-
-				isolatedStyleSheetFileNames.add({ c, fileName});
-			}
-			else
-			{
-				for(const auto& f: isolatedStyleSheetFileNames)
-				{
-					if(f.first == c)
-					{
-						isolatedStyleSheetFileNames.remove(&f);
-						return;
-					}
-				}
-			}
-		}
+		void addIsolatedCollection(Component* c, const String& fileName, const Collection& other);
 
 		void updateIsolatedCollection(const String& fileName, const Collection& other);
 
+		void copyStyleSheetsFrom(Component* c, const Collection& other);
+
 		void addCollectionForComponent(Component* c, const Collection& other);
+
+		void updateStyleSheetInCache(Component* component, const Ptr& ss);
 
 		struct DataProvider
 		{
@@ -147,7 +122,9 @@ struct StyleSheet: public ReferenceCountedObject
 		Array<std::pair<Component::SafePointer<Component>, String>> isolatedStyleSheetFileNames;
 		Array<std::pair<Component::SafePointer<Component>, List>> childCollections;
 
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
 		bool createStackTrace = true;
+#endif
 
 		Ptr operator[](const Selector& s) const;
 
@@ -155,9 +132,22 @@ struct StyleSheet: public ReferenceCountedObject
 
         struct CachedStyleSheet
         {
+			CachedStyleSheet(Component* c, Ptr ss, const String& debugLog_):
+			  first(c)
+			  , second(ss)
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
+			  , debugLog(debugLog_)
+#endif
+			{}
+
+			CachedStyleSheet() = default;
+
             Component::SafePointer<Component> first;
             StyleSheet::Ptr second;
+
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
             String debugLog;
+#endif
         };
         
 		Array<std::pair<std::pair<Component::SafePointer<Component>, Selector>, StyleSheet::Ptr>> cachedMapForAllStates;
@@ -188,21 +178,7 @@ struct StyleSheet: public ReferenceCountedObject
 
 	void copyPropertiesFromParent(Ptr parent);
 
-	void copyVarProperties(Ptr other)
-	{
-		if(other->varProperties != nullptr)
-		{
-			if(varProperties == nullptr)
-			{
-				varProperties = other->varProperties->clone();
-			}
-			else
-			{
-				for(const auto& nv: other->varProperties->getProperties())
-					varProperties->setProperty(nv.name, nv.value);
-			}
-		}
-	}
+	void copyVarProperties(Ptr other);
 
 	NonUniformBorderData getNonUniformBorder(Rectangle<float> totalArea, PseudoState stateFlag) const;
 	Path getBorderPath(Rectangle<float> totalArea, PseudoState stateFlag) const;
@@ -248,18 +224,22 @@ struct StyleSheet: public ReferenceCountedObject
 
 	String getURLFromProperty(const PropertyKey& key) const;
 
-	Rectangle<float> getLocalBoundsFromText(const String& text) const;
+	Rectangle<float> getLocalBoundsFromText(const String& text, PseudoState state={}) const;
 
 	std::pair<bool, PseudoState> matchesRawList(const Selector::RawList& blockSelectors) const;
 
 	String toString() const;
+
+	Array<std::pair<PseudoState, String>> toStringForDefinedStates() const;
 
 	void setDefaultTransition(PseudoElementType elementType, const Transition& t);
 
 	Transition getTransitionOrDefault(PseudoElementType elementType, const Transition& t) const;
 
 	bool matchesComplexSelectorList(ComplexSelector::List list) const;
+
 	
+
 	bool matchesSelectorList(const Array<Selector>& otherSelectors);
 	bool forEachProperty(PseudoElementType type, const std::function<bool(PseudoElementType, Property& v)>& f);
 	void setDefaultColour(const String& key, Colour c);
@@ -276,16 +256,22 @@ struct StyleSheet: public ReferenceCountedObject
 
 	void setPropertyVariable(const Identifier& id, const String& newValue);
 
+	/** This checks whether this stylesheet has defined any non-layout properties. This is used
+	 *  by the LookAndFeel class to check whether the default look and feel should be applied.
+	 */
+	bool hasNonLayoutProperties(PseudoElementType type=PseudoElementType::None) const;
+
 	ComplexSelector::List complexSelectors;
 
 	bool isAll() const;
 
-	void setCustomFonts(const Array<std::pair<String, Font>>& cf)
-	{
-		customFonts = cf;
-	}
+	void setCustomFonts(const Array<std::pair<String, Font>>& cf);
+
+	void updateNonLayoutPropertyFlag();
 
 private:
+
+	std::array<bool, (int)PseudoElementType::All> nonLayoutPropertiesDefined;
 
 	Array<std::pair<String, Font>> customFonts;
 

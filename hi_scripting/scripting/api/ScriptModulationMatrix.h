@@ -37,6 +37,178 @@ namespace hise { using namespace juce;
 class GlobalModulator;
 class GlobalModulatorContainer;
 
+
+struct ScriptingApi::Content::ScriptSlider::MultiMatrixModulatorConnection: public MatrixConnectionBase,
+																			public Processor::AttributeListener
+{
+	MultiMatrixModulatorConnection(ScriptSlider& s, const ValueTree& matrixData, const String& targetId):
+	  MatrixConnectionBase(s, matrixData, targetId),
+	  AttributeListener(s.getScriptProcessor()->getMainController_()->getRootDispatcher())
+	{
+		Processor::Iterator<MatrixModulator> iter(getMainController()->getMainSynthChain());
+
+		while(auto mm = iter.getNextProcessor())
+		{
+			if(mm->getMatrixTargetId() == targetId)
+				connectedMods.add(mm);
+		}
+
+		if(auto m = connectedMods.getFirst())
+		{
+			auto mvf = m->getModulationQueryFunction(MatrixModulator::SpecialParameters::Value);
+			auto componentIndex = s.getScriptProcessor()->getScriptingContent()->getComponentIndex(&s);
+			s.getScriptProcessor()->setModulationDisplayQueryFunction(componentIndex, m, mvf);
+			uint16 indexes[1] = { (uint16)componentIndex };
+			addToProcessor(dynamic_cast<Processor*>(s.getScriptProcessor()), indexes, 1, dispatch::sendNotificationSync);
+		}
+	}
+
+	void onAttributeUpdate(Processor* p, uint16 index) override
+	{
+		auto v = p->getAttribute(index);
+
+		for(auto m: connectedMods)
+			m->setAttribute(MatrixModulator::SpecialParameters::Value, v, sendNotificationAsync);
+	}
+
+	SimpleRingBuffer::Ptr getDisplayBuffer(int index) override
+	{
+		if(auto m = connectedMods.getFirst())
+			m->getDisplayBuffer(index);
+
+		return nullptr;
+	}
+
+	MatrixIds::Helpers::IntensityTextConverter::ConstructData createIntensityConverter(int sourceIndex) override
+	{
+		MatrixIds::Helpers::IntensityTextConverter::ConstructData cd;
+		cd.parameterIndex = parent->getScriptProcessor()->getScriptingContent()->getComponentIndex(parent);
+		cd.p = dynamic_cast<Processor*>(parent->getScriptProcessor());
+		auto rng = RangeHelpers::getDoubleRange(parent->getPropertyValueTree(), RangeHelpers::IdSet::ScriptComponents);
+		cd.inputRange = rng.rng;
+		cd.prettifierMode = parent->getScriptObjectProperty(ScriptSlider::Mode);
+
+		auto con = MatrixIds::Helpers::getConnection(matrixData, sourceIndex, targetId);
+
+		if(con.isValid())
+		{
+			jassertfalse; //MatrixIds::Helpers::getTargetType();
+		}
+
+		return cd;
+	}
+
+	
+
+	Array<WeakReference<MatrixModulator>> connectedMods;
+};
+
+struct ScriptingApi::Content::ScriptSlider::MatrixCableConnection: public MatrixConnectionBase
+{
+	using CableType = routing::GlobalRoutingManager::Cable;
+	static constexpr auto C = routing::GlobalRoutingManager::SlotBase::SlotType::Cable;
+
+	struct QueryFunction: public ModulationDisplayValue::QueryFunction
+	{
+		QueryFunction(MatrixCableConnection* c);
+		WeakReference<MatrixCableConnection> connection;
+		bool onScaleDrag(Processor* p, bool isDown, float delta) override { return true; };
+		ModulationDisplayValue getDisplayValue(Processor* p, double nv, NormalisableRange<double> nr) const override;
+	};
+
+	struct Target: public routing::GlobalRoutingManager::CableTargetBase,
+				   public ReferenceCountedObject,
+				   public PooledUIUpdater::SimpleTimer
+	{
+		
+		using List = ReferenceCountedArray<Target>;
+
+		struct AuxTarget: public routing::GlobalRoutingManager::CableTargetBase,
+						  public ReferenceCountedObject
+		{
+			using Ptr = ReferenceCountedObjectPtr<AuxTarget>;
+
+			AuxTarget(Target& p, const String& sourceId);
+			~AuxTarget() override;
+
+			Path getTargetIcon() const override { return {}; };
+
+			void selectCallback(Component* rootEditor) override {};
+			void sendValue(double v) override;
+			double getAuxValue() const;
+			String getTargetId() const override { return "CableMatrixAux"; }
+
+			double lastAuxValue;
+			double auxIntensity;
+			ReferenceCountedObjectPtr<CableType> cable;
+			WeakReference<Target> parentTarget;
+		};
+
+		Target(MatrixCableConnection& parent_, const ValueTree& connection_);
+		~Target() override;
+
+		void selectCallback(Component* rootEditor) override {};
+		String getTargetId() const override { return "CableMatrix"; }
+		void sendValue(double v) override;
+		void timerCallback() override;
+		void onPropertyUpdate(const Identifier& id, const var& newValue);
+
+		uint32 lastMs = 0;
+
+		bool isVoiceStart = false;
+		double voiceStartValue = 0.0;
+
+		ValueTree connection;
+		AuxTarget::Ptr auxTarget;
+		SimpleRingBuffer::Ptr rb;
+
+		MatrixCableConnection& parent;
+		scriptnode::modulation::TargetMode tm;
+		double intensity;
+		double lastModValue = 0.0;
+		bool inverted = false;
+		int sourceIndex;
+		ReferenceCountedObjectPtr<CableType> sourceCable;
+
+		Path getTargetIcon() const override { return {}; }
+		valuetree::PropertyListener propertyListener;
+
+		JUCE_DECLARE_WEAK_REFERENCEABLE(Target);
+	};
+
+	MatrixCableConnection(ScriptSlider& slider, const ValueTree& matrixData, const String& targetId_);;
+	~MatrixCableConnection() override;
+
+	void setTargetSlider(ScriptSlider* newParent);
+	MatrixIds::Helpers::IntensityTextConverter::ConstructData createIntensityConverter(int sourceIndex) override;
+	void rebuildTargets();
+
+	SimpleRingBuffer::Ptr getDisplayBuffer(int sourceIndex) override;
+	ModulationDisplayValue getDisplayValue(double nv, NormalisableRange<double> nr);
+	void onSourceTargetChange(const ValueTree& v, const Identifier& id);
+	void addConnection(const ValueTree& v);
+	void removeConnection(const ValueTree& v);
+	void onUpdate(const ValueTree& v, bool wasAdded);
+	void calculateNewModValue();
+
+	SimpleReadWriteLock listLock;
+
+	Target::List allTargets;
+	Target::List scaleTargets;
+	Target::List addTargets;
+	ModulationDisplayValue mv;
+
+	StringArray sourceNames;
+	valuetree::ChildListener connectionListener;
+	valuetree::RecursivePropertyListener sourceTargetListener;
+	InvertableParameterRange sliderRange;
+	Array<var> globalModCables;
+	
+	JUCE_DECLARE_WEAK_REFERENCEABLE(MatrixCableConnection);
+};
+
+
+
 namespace ScriptingObjects
 {
 
@@ -44,26 +216,17 @@ struct ScriptModulationMatrix : public ConstScriptingObject,
 								public ControlledObject,
 								public UserPresetStateManager
 {
-	enum class ValueMode
-	{
-		Default = 0,
-		Scale = 0x1,
-		Unipolar = 0x2,
-		Bipolar = 0x3,
-		Undefined
-	};
-
 	ScriptModulationMatrix(ProcessorWithScriptingContent* p, const String& cid);
 
 	~ScriptModulationMatrix();
 
 	Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ScriptModulationMatrix"); }
 
-	Identifier getUserPresetStateId() const override { RETURN_STATIC_IDENTIFIER("ModulationMatrix"); }
+	Identifier getUserPresetStateId() const override { return MatrixIds::MatrixData; }
 
-	void resetUserPresetState()
+	void resetUserPresetState() override
 	{
-		clearAllConnections();
+		clearAllConnections({});
 	}
 
 	ValueTree exportAsValueTree() const override;
@@ -72,41 +235,17 @@ struct ScriptModulationMatrix : public ConstScriptingObject,
 
 	// =============================================================================================
 
-	/** Sets the amount of modulation targets created for each [voice start, time-variant, envelope] modulation type. */
-	void setNumModulationSlots(var numSlotArray);
-
-	/** Adds a global modulator at the given mod chain for sample accurate modulation. */
-	void addModulatorTarget(var targetData);
-
-	/** Adds a (low resolution) parameter modulation slot. */
-	void addParameterTarget(var targetData);
-
 	/** Adds (or removes) a connection from the source to the target. */
 	bool connect(String sourceId, String targetId, bool addConnection);
 
-	/** Get the current modulation value for the connected component. */
-	float getModValue(var component);
+	/** Get the target ID (either ID of the matrix modulator or matrixTargetId property) for the given component. */
+	String getTargetId(var componentOrId);
 
-	/** Get the target ID for the given component. */
-	String getTargetId(String componentId);
-
-	/** Get the component ID for the given modulation target ID. */
-	String getComponentId(String targetId);
+	/** Get the component reference for the given modulation target ID. */
+	var getComponent(String targetId);
 
 	/** Checks whether the modulation connection can be made. */
 	bool canConnect(String source, String target);
-
-	/** Get the connection data for the given component. */
-	var getConnectionData(String componentId);
-
-	/** Update the connections in the list. */
-	void updateConnectionData(var connectionList);
-
-	/** Update the intensity for the given connection. */
-	bool updateIntensity(String source, String target, float intensityValue);
-
-	/** Update the value mode from the combobox item ID. */
-	bool updateValueMode(String source, String target, String valueMode);
 
 	/** Creates a Base64 string of all connections. */
 	String toBase64();
@@ -114,14 +253,14 @@ struct ScriptModulationMatrix : public ConstScriptingObject,
 	/** Loads the state from a previously exported Base64 string. */
 	void fromBase64(String b64);
 
-	/** Removes all connections. */
-	void clearAllConnections();
+	/** Removes all connections for the given target (or all connections if no target is specified). */
+	void clearAllConnections(String targetId);
 
 	/** Set a callback that will be executed whenever the matrix state changes. */
 	void setConnectionCallback(var updateFunction);
 
 	/** Set a callback that will be executed when the user clicks on "Edit connections". */
-	void setEditCallback(var editFunction);
+	void setEditCallback(var menuItems, var editFunction);
 
 	/** Return a list of all sources. */
 	var getSourceList() const;
@@ -129,332 +268,69 @@ struct ScriptModulationMatrix : public ConstScriptingObject,
 	/** Return a list of all targets. */
 	var getTargetList() const;
 
-	/** Creates a range object that can be passed into setTableRowData to update the slider range. */
-	var getIntensitySliderData(String sourceId, String targetId);
+	/** Sets the currently selected source. */
+	void setCurrentlySelectedSource(String sourceId);
 
-	/** Creates a JSON object that can be passed into the setTableRowData to update the combobox. */
-	var getValueModeData(String sourceId, String targetId);
+	/** Attaches a callback to be notified whenever a new modulation source is selected. */
+	void setSourceSelectionCallback(var sourceSelectionCallback);
 
-	/** Enables the undo manager for all modulation edit actions. */
-	void setUseUndoManager(bool shouldUseUndoManager);
+	/** Attaches a callback to be notified wheneve a modulation connection is being dragged. */
+	void setDragCallback(var newDragCallback);
+
+	/** Sets the global properties for the matrix modulation system. */
+	void setMatrixModulationProperties(var newProperties);
+
+	/** Sets the property of a modulation connection (with undo). */
+	bool setConnectionProperty(String sourceId, String targetId, String propertyId, var value);
+	
+	/** Returns the property of a modulation connection. */
+	var getConnectionProperty(String sourceId, String targetId, String propertyId);
+	
+	/** Returns a JSON object with the current matrix modulation properties. */
+	var getMatrixModulationProperties() const;
 
 	// =============================================================================================
 
 private:
 
-	struct MatrixUndoAction : public UndoableAction
+	void callSuspended(const std::function<void(ScriptModulationMatrix&)>& f)
 	{
-		enum class ActionType
+		auto safeThis = WeakReference<ScriptModulationMatrix>(this);
+		auto pf = [safeThis, f](Processor* p)
 		{
-			Clear,
-			Add,
-			Remove,
-			Intensity,
-			ValueMode,
-			Update,
-			numActionTypes
+			if(safeThis != nullptr)
+				f(*safeThis);
+
+			return SafeFunctionCall::OK;
 		};
 
-		MatrixUndoAction(ScriptModulationMatrix* m, ActionType a, const var oldValue_, const var& newValue_, const String& s = {}, const String& t = {}) :
-			UndoableAction(),
-			matrix(m),
-			type(a),
-			oldValue(oldValue_),
-			newValue(newValue_),
-			source(s),
-			target(t)
-		{}
+		auto tt = getMainController()->getKillStateHandler().getCurrentThread();
 
-		bool perform() override;
+		// allow it to be executed synchronously in the loading thread
+		if(tt != MainController::KillStateHandler::TargetThread::SampleLoadingThread)
+			tt = MainController::KillStateHandler::TargetThread::ScriptingThread;
 
-		bool undo() override;
+		auto p = dynamic_cast<Processor*>(getScriptProcessor());
+		p->getMainController()->getKillStateHandler().killVoicesAndCall(p, pf, tt);
+	}
+	
 
-		WeakReference<ScriptModulationMatrix> matrix;
-		ActionType type;
-		var oldValue;
-		var newValue;
-		String source;
-		String target;
-	};
+	StringArray sourceList;
+	StringArray allTargets;
+	StringArray parameterTargets;
+	StringArray modulatorTargets;
+
+	struct Wrapper;
 
 	UndoManager* um = nullptr;
 
-	void clearConnectionsInternal();
-
-	void updateConnectionDataInternal(var connectionList);
-
-	bool connectInternal(const String& source, const String& target, bool addConnection);
-	 
-	bool updateIntensityInternal(String source, String target, float intensityValue);
-
-	bool updateValueModeInternal(String source, String target, String valueMode);
-
-	int getSourceIndex(const String& id) const;
-
-	int getTargetIndex(const String& id) const;
-
-	Modulator* getSourceMod(const String& id) const;
-
-	ReferenceCountedObject* getSourceCable(const String& id) const;
-
-	struct ScopedRefreshDeferrer
-	{
-		ScopedRefreshDeferrer(ScriptModulationMatrix& p) :
-			parent(p)
-		{
-			prevValue = p.deferRefresh;
-			p.deferRefresh = true;
-		}
-
-		~ScopedRefreshDeferrer()
-		{
-			parent.deferRefresh = prevValue;
-
-			if (!prevValue)
-			{
-				parent.sendUpdateMessage("", "", ConnectionEvent::Rebuild);
-				parent.refreshBypassStates();
-			}
-		}
-
-		bool prevValue;
-		ScriptModulationMatrix& parent;
-	};
-
-	enum class ConnectionEvent
-	{
-		Add,
-		Delete,
-		Update,
-		Intensity,
-		ValueMode,
-		Rebuild,
-		numConnectionEvents
-	};
-
-	void sendUpdateMessage(String source, String target, ConnectionEvent eventType);
-
-
-
-	void refreshBypassStates();
-
-	bool deferRefresh = false;
-
-	struct SourceData;
-	struct ParameterTargetCable;
-
-	struct ModulatorTargetData;
-	struct ParameterTargetData;
-
-	struct TargetDataBase : public PooledUIUpdater::SimpleTimer
-	{
-		TargetDataBase(ScriptModulationMatrix* parent_, const var& json, bool isMod_);
-
-		virtual ~TargetDataBase() {};
-
-		virtual float getModValue() const = 0;
-
-		virtual void init(const var& json);
-
-		virtual MacroControlledObject::ModulationPopupData::Ptr getModulationData();
-
-		virtual bool canConnect(const String& sourceId) const = 0;
-
-		virtual bool connect(const String& sourceId, bool addConnection) = 0;
-
-		virtual bool updateIntensity(const String& source, float newValue) = 0;
-
-		virtual var getIntensitySliderData(String sourceId) const = 0;
-
-		virtual var getValueModeData(const String& sourceId) const = 0;
-
-		virtual bool updateValueMode(const String& sourceId, ValueMode newMode) = 0;
-
-		virtual void clear() = 0;
-
-		void timerCallback() override;
-
-		virtual bool queryFunction(int index, bool checkTicked) const = 0;
-
-		virtual bool checkActiveConnections(const String& sourceId) = 0;
-
-		virtual void updateConnectionData(const var& obj) = 0;
-
-		virtual var getConnectionData() const = 0;
-
-		void verifyProperty(const var& json, const Identifier& id);
-
-		void verifyExists(void* obj, const Identifier& id);
-
-		
-		WeakReference<Processor> processor;
-		int subIndex;
-		bool isMod;
-		String modId;
-		WeakReference<ScriptModulationMatrix> parent;
-
-		String componentId;
-		var sc;
-		float lastValue = 0.0f;
-		
-
-		float componentValue = 0.0f;
-		scriptnode::InvertableParameterRange r;
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(TargetDataBase);
-		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TargetDataBase);
-	};
-
-	struct ModulatorTargetData : public TargetDataBase
-	{
-		enum class TargetMode
-		{
-			GainMode = Modulation::GainMode,
-			PitchMode = Modulation::PitchMode,
-			PanMode = Modulation::PanMode,
-			GlobalMode = Modulation::GlobalMode,
-			FrequencyMode,
-			numTargetModes			
-		};
-
-		using IteratorFunction = std::function<bool(Modulator*, ModulatorTargetData&, GlobalModulator*)>;
-		
-
-		ModulatorTargetData(ScriptModulationMatrix* parent_, const var& json):
-			TargetDataBase(parent_, json, true)
-		{
-			init(json);
-		}
-
-		void init(const var& json) override;
-
-		bool queryFunction(int index, bool checkTicked) const override;
-
-		bool forEach(Modulator* sourceMod, const IteratorFunction& f) const;
-
-		float getModValue() const override;
-
-		bool canConnect(const String& sourceId) const override;
-
-		bool connect(const String& sourceId, bool addConnection) override;
-
-		void clear() override;
-
-		var getIntensitySliderData(String sourceId) const override;
-
-		var getValueModeData(const String& sourceId) const override;
-
-		bool updateValueMode(const String& sourceId, ValueMode newMode) override;
-
-		bool updateIntensity(const String& sourceId, float newValue) override;
-
-		bool checkActiveConnections(const String& sourceId) override;
-
-		void updateConnectionData(const var& obj) override;
-
-		var getConnectionData() const override;
-
-		MacroControlledObject::ModulationPopupData::Ptr getModulationData() override;
-
-	private:
-
-		int getTypeIndex(GlobalModulator* gm) const;
-
-		void updateValue();
-		
-		bool isBipolarFreqMod(GlobalModulator* gm) const;
-
-		String getValueModeValue(GlobalModulator* gm) const;
-		double getIntensityValue(GlobalModulator* gm) const;
-
-		WeakReference<Modulator> componentMod;
-
-		TargetMode targetMode = TargetMode::numTargetModes;
-		float defaultValue;
-
-		
-
-		Array<WeakReference<Modulator>> modulators[3];
-
-		Array<ValueMode> freqValueModes[3];
-		Array<WeakReference<Modulator>> freqAddMods[3];
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ModulatorTargetData);
-	};
-
-	struct ParameterTargetData : public TargetDataBase
-	{
-		using IteratorFunction = std::function<bool(ReferenceCountedObject*, ParameterTargetData&, ParameterTargetCable*)>;
-
-		ParameterTargetData(ScriptModulationMatrix* parent_, const var& json):
-			TargetDataBase(parent_, json, false)
-		{
-			init(json);
-		}
-
-		void init(const var& json) override;
-
-		
-
-		MacroControlledObject::ModulationPopupData::Ptr getModulationData() override;
-
-		bool queryFunction(int index, bool checkTicked) const override;
-
-		bool forEach(ReferenceCountedObject* cable, const IteratorFunction& f) const;
-
-		float getModValue() const override;
-
-		bool updateIntensity(const String& sourceId, float newValue) override;
-
-		bool updateValueMode(const String& sourceId, ValueMode newMode) override;
-
-		void clear() override;
-
-		bool canConnect(const String& sourceId) const override;
-
-		bool connect(const String& sourceId, bool addConnection) override;
-
-		bool checkActiveConnections(const String& sourceId) override;
-
-		var getIntensitySliderData(String sourceId) const override;
-
-		var getValueModeData(const String& sourceId) const override;
-
-		void updateConnectionData(const var& obj) override;
-
-		var getConnectionData() const override;
-
-	private:
-
-		friend struct ParameterTargetCable;
-
-		void updateValue();
-
-		ValueMode valueMode = ValueMode::Scale;
-
-		Array<var> parameterTargets;
-
-		float lastParameterValue = 0.0f;
-		float modValue = 1.0f;
-		
-
-		JUCE_DECLARE_WEAK_REFERENCEABLE(ParameterTargetData);
-	};
-
-	LambdaBroadcaster<String, String, ConnectionEvent> broadcaster;
-
-	static void onUpdateMessage(ScriptModulationMatrix& m, const String& source, const String& target, ConnectionEvent eventType);
-
 	WeakCallbackHolder connectionCallback;
 	WeakCallbackHolder editCallback;
+	WeakCallbackHolder sourceSelectionCallback;
+	WeakCallbackHolder dragCallback;
 
-	OwnedArray<TargetDataBase> targetData;
+	valuetree::ChildListener connectionListener;
 
-	OwnedArray<SourceData> sourceData;
-
-	int numSlots[3] = { 0, 0, 0 };
-
-	struct Wrapper;
 
 	WeakReference<GlobalModulatorContainer> container;
 

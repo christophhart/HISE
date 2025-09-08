@@ -51,17 +51,12 @@ class ModulatorEditor;
 class Modulation
 {
 public:
-
 	
 
 	static String getDomainAsMidiRange(float input);;
-
 	static String getDomainAsPitchBendRange(float input);;
-
 	static String getDomainAsMidiNote(float input);;
-
 	static String getValueAsDecibel(float input);;
-
 	static String getValueAsSemitone(float input);
 
 	/** There are two modes that Modulation can work: GainMode and PitchMode */
@@ -78,6 +73,10 @@ public:
 		PanMode,
 		/** Range is -1.0 ... 1.0 and the intensity will be ignored. */
 		GlobalMode,
+		/** Range is... -1.0 ... 1.0 and each modulator will be added using its intensity (either unipolar or bipolar) */
+		OffsetMode,
+		/** Range is 0...1 and each modulator can be set to GainMode or OffsetMode mode to apply its value. */
+		CombinedMode,
 		numModes
 	};
 
@@ -85,13 +84,17 @@ public:
 
 	Modulation(Mode m);;
 
-    virtual ~Modulation();;
+    virtual ~Modulation();
+
+	
 
 	virtual Processor *getProcessor() = 0;
 
 	/** returns the mode the Modulator is operating. */
 	Mode getMode() const noexcept;;
 
+	static Mode getModeFromModProperties(const scriptnode::modulation::ParameterProperties& modProperties, int parameterIndex);;
+	
 	/** This applies the intensity to the given value and returns the applied value. 
 	*
 	*	- In GainMode the input is supposed to be between 0.0 and 1.0. The output will be between 0.0 and 1.0 (and 1.0 if the intensity is 0.0)
@@ -100,12 +103,10 @@ public:
 	float calcIntensityValue(float calculatedModulationValue) const noexcept;;
 
 	inline float calcGainIntensityValue(float calculatedModulationValue) const noexcept;
-
 	inline float calcPitchIntensityValue(float calculatedModulationValue) const noexcept;
-
 	inline float calcPanIntensityValue(float calculatedModulationValue) const noexcept;
-
 	inline float calcGlobalIntensityValue(float calculatedModulationValue) const noexcept;
+	inline float calcOffsetIntensityValue(float calculatedModulationValue) const;
 
 	/** This applies the previously calculated value to the supplied destination value depending on the modulation mode (adding or multiplying). */
 	void applyModulationValue(float calculatedModulationValue, float &destinationValue) const noexcept;;
@@ -144,19 +145,13 @@ public:
 	struct PitchConverters
 	{
 		static float octaveRangeToSignedNormalisedRange(float octaveValue);
-
 		/** [-1 ... 1] => [0.5 ... 2.0] */
 		static float normalisedRangeToPitchFactor(float range);
-
 		/** [0.5 ... 2.0] => [-1 ... 1] */
 		static float pitchFactorToNormalisedRange(float pitchFactor);
-
 		static float octaveRangeToPitchFactor(float octaveValue);
-
 		static void octaveRangeToSignedNormalisedRange(float* octaveValues, int numValues);
-
 		static void normalisedRangeToPitchFactor(float* rangeValues, int numValues);
-
 		static void octaveRangeToPitchFactor(float* octaveValues, int numValues);
 	};
 
@@ -175,19 +170,49 @@ public:
 
 	virtual void setMode(Mode newMode, NotificationType n=dontSendNotification);
 
+	/** Call this in every modulator and it will properly store and restore the mode in a combined chain. */
+	void restoreMode(const ValueTree& v, Processor* p)
+	{
+		if(auto mc = dynamic_cast<const Modulation*>(p->getParentProcessor(false)))
+		{
+			if(mc->getMode() == Modulation::CombinedMode)
+			{
+				auto m = (int)v.getProperty("ModulationMode", -1);
+
+				if(m != -1)
+					setMode((Modulation::Mode)m, sendNotificationAsync);
+			}
+		}
+	}
+
+	/** Call this in every modulator and it will properly store and restore the mode in a combined chain. */
+	void storeMode(ValueTree& v, const Processor* p) const
+	{
+		if(auto mc = dynamic_cast<const Modulation*>(p->getParentProcessor(false)))
+		{
+			if(mc->getMode() == Modulation::CombinedMode)
+				v.setProperty("ModulationMode", (int)getMode(), nullptr);
+		}
+	}
+
 	LambdaBroadcaster<int> modeBroadcaster;
     LambdaBroadcaster<float> intensityBroadcaster;
-    
+
+	/** This value will be used as zero value when scaling the intensity. */
+	virtual void setZeroPosition(float newZeroPosition)
+	{
+		zeroPosition = newZeroPosition;
+	}
+
 protected:
 
 	Mode modulationMode;
 
 	LinearSmoothedValue<float> smoothedIntensity;
+	float zeroPosition = 0.0f;
 
 private:
 
-    
-    
 	Component::SafePointer<Plotter> attachedPlotter;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Modulation)
@@ -255,8 +280,6 @@ public:
 
 	virtual Colour getColour() const override;;
 
-	
-
 	UpdateMerger editorUpdater;
 
 private:
@@ -294,8 +317,6 @@ public:
 	*	By default, it applies one intensity value to all calculated values, but you can override it if your Modulator has a internal Chain for the intensity.
 	*/
 	void applyTimeModulation(float* destinationBuffer, int startIndex, int samplesToCopy);
-
-	
 
 	/** Returns a read pointer to the calculated values. This is used by the global modulator system. */
 	virtual const float *getCalculatedValues(int /*voiceIndex*/);
@@ -342,27 +363,16 @@ protected:
 	void applyGlobalModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept;
 	void applyGlobalModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept;
 
-	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
+	void applyOffsetModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, float* intensityValues, int numValues) const noexcept;
+    void applyOffsetModulation(float * calculatedModValues, float * destinationValues, float fixedIntensity, int numValues) const noexcept;
+
+    void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
 
 	void applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, int numValues) const;
 
 	void applyIntensityForGainValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValues) const;
 
 	void applyIntensityForPitchValues(float* calculatedModulationValues, float fixedIntensity, const float* intensityValues, int numValuse) const;
-
-#if 0
-	// Prepares the buffer for the processing. The buffer is cleared and filled with 1.0.
-
-	static void initializeBuffer(AudioSampleBuffer &bufferToBeInitialized, int startSample, int numSamples);
-	{
-		jassert(bufferToBeInitialized.getNumChannels() == 1);
-		jassert(bufferToBeInitialized.getNumSamples() >= startSample + numSamples);
-
-		float *writePointer = bufferToBeInitialized.getWritePointer(0, startSample);
-
-		FloatVectorOperations::fill(writePointer, 1.0f, numSamples);
-	}
-#endif
 
 	AudioSampleBuffer internalBuffer;
 
@@ -373,8 +383,6 @@ private:
 	double controlRate = 0.0;
 
 	float lastConstantValue = 1.0f;
-
-	
 };
 
 
@@ -422,6 +430,8 @@ public:
 		void clearCurrentVoice() noexcept;;
 
 		int getCurrentVoice() const noexcept;;
+
+		bool isAnyVoicePlaying() const noexcept { return currentVoice != -1; }
 
 	private:
 
@@ -686,6 +696,9 @@ private:
 		int8 numBitsSet = 0;
 	} monophonicKeymap;
 
+	// Used by the monophonic mode to render the first voice, then copy the internal buffer in there
+	AudioSampleBuffer firstVoiceBuffer;
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(EnvelopeModulator);
 };
 
@@ -761,7 +774,10 @@ class EnvelopeModulatorFactoryType: public FactoryType
 		mpeModulator,
 		voiceKillEnvelope,
 		globalEnvelope,
-		eventDataEnvelope
+		eventDataEnvelope,
+		hardcodedEnvelope,
+		matrixModulator,
+		flexAhdsrModulator
 	};
 
 public:

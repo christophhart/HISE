@@ -209,11 +209,9 @@ namespace duplilogic
 namespace cable
 {
 
-struct dynamic: public cable::block_base<NUM_MAX_CHANNELS>
-{
-	using dynamic_send = routing::send<dynamic>;
-	using dynamic_receive = routing::receive<dynamic>;
 
+struct dynamic
+{
 	using FrameType = dyn<float>;
 	using BlockType = ProcessDataDyn;
 
@@ -221,70 +219,57 @@ struct dynamic: public cable::block_base<NUM_MAX_CHANNELS>
 	{ 
 		return numChannels;
 	};
-
-	Colour colour = Colours::blue;
-
+	
 	static constexpr bool allowFrame() { return true; };
 	static constexpr bool allowBlock() { return true; };
-
 	static NamespacedIdentifier getReceiveId();
 
 	dynamic();
+	virtual ~dynamic() = default;
 
 	SN_EMPTY_SET_PARAMETER;
 
-	void prepare(PrepareSpecs ps);
-	void reset();
-	void validate(PrepareSpecs receiveSpecs);
+	void prepareDynamic(PrepareSpecs ps);
+	void validateDynamic(PrepareSpecs receiveSpecs);
 	void restoreConnections(Identifier id, var newValue);
-	void initialise(NodeBase* n);;
+	void initialiseDynamic(NodeBase* n);;
 
-	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	virtual std::pair<float, float> getDisplayPeakValues() const = 0;
+
+	cable::cable_base* asBaseCable()
 	{
-		jassert(data.size() == frameData.size());
-
-		frameData = data;
+		return dynamic_cast<cable::cable_base*>(this);
 	}
 
-	template <typename ProcessDataType> void process(ProcessDataType& data)
+	const cable::cable_base* asBaseCable() const
 	{
-		writeToBuffer(data);
-	};
+		return dynamic_cast<const cable::cable_base*>(this);
+	}
 
 	void setIsNull()
 	{
 		isNull = true;
 	}
 
+	
 	String getSendId() const
 	{
 		jassert(parentNode != nullptr);
 		return parentNode->getId();
 	}
 
-	void connect(routing::receive<cable::dynamic>& receiveTarget);
-
-	void setConnection(routing::receive<cable::dynamic>& receiveTarget, bool addAsConnection);
-
 	void checkSourceAndTargetProcessSpecs();
-
-	span<float, NUM_MAX_CHANNELS> data_;
-	dyn<float> frameData;
-
-	heap<float> buffer;
-
+	
 	int numChannels = 0;
 	bool useFrameDataForDisplay = false;
 	bool isNull = false;
-
+	
 	WeakReference<NodeBase> parentNode;
-
+	
 	NodePropertyT<String> receiveIds;
-
 	PrepareSpecs sendSpecs;
 	PrepareSpecs receiveSpecs;
 	bool postPrepareCheckActive = false;
-
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(dynamic);
 
@@ -315,8 +300,21 @@ struct dynamic: public cable::block_base<NUM_MAX_CHANNELS>
 
 		void updatePeakMeter();
 
-		dynamic_send* getAsSendNode();
-		dynamic_receive* getAsReceiveNode();
+		routing::send_base* getAsSendNode() const
+		{
+			if(auto c = dynamic_cast<routing::send_base*>(getObject()))
+				return c;
+
+			return nullptr;
+		}
+
+		routing::receive_base* getAsReceiveNode() const
+		{
+			if(auto c = dynamic_cast<routing::receive_base*>(getObject()))
+				return c;
+
+			return nullptr;
+		}
 
 		void itemDropped(const SourceDetails& dragSourceDetails) override;
 
@@ -348,10 +346,99 @@ struct dynamic: public cable::block_base<NUM_MAX_CHANNELS>
 		VuMeter levelDisplay;
 		Error currentDragError;
 	};
+
+protected:
+
+	void setConnection(routing::receive_base& receiveTarget, bool addAsConnection);
 };
+
+template <int NV> struct dynamic_cable: public dynamic,
+									    public cable::block_base<NV, NUM_MAX_CHANNELS>
+{
+	template <typename FrameDataType> void processFrame(FrameDataType& fd)
+	{
+		auto& d = frameData.get();
+		jassert(fd.size() <= d.size());
+
+		for(int i = 0; i < fd.size(); i++)
+			d[i] = fd[i];
+	}
+
+	void connect(routing::receive_base& target) override
+	{
+		block_base<NV, NUM_MAX_CHANNELS>::connect(target);
+		setConnection(target, true);
+	}
+
+	void disconnect(routing::receive_base& target) override
+	{
+		block_base<NV, NUM_MAX_CHANNELS>::disconnect(target);
+		setConnection(target, false);
+	}
+
+	void initialise(NodeBase* n) override
+	{
+		dynamic::initialiseDynamic(n);
+	}
+
+	void validate(PrepareSpecs ps) override
+	{
+		dynamic::validateDynamic(ps);
+	}
+
+	void reset() override
+	{
+		if(useFrameDataForDisplay)
+		{
+			for(auto& fd: frameData)
+				fd = 0.0f;
+		}
+		else
+		{
+			block_base<NV, NUM_MAX_CHANNELS>::reset();
+		}
+	}
+
+	template <typename ProcessDataType> void process(ProcessDataType& pd)
+	{
+		this->writeToBuffer(pd);
+	};
+
+	std::pair<float, float> getDisplayPeakValues() const override
+	{
+		if (useFrameDataForDisplay)
+		{
+			auto l = frameData.getFirst()[0];
+			auto r = numChannels == 2 ? frameData.getFirst()[1] : l;
+
+			return { l, r };
+		}
+		else
+		{
+			int numSamples = this->data.getFirst().channels[0].size();
+
+			float l = DspHelpers::findPeak(this->data.getFirst().channels[0].begin(), numSamples);
+			float r = numChannels == 2 ? DspHelpers::findPeak(this->data.getFirst().channels[1].begin(), numSamples) : l;
+
+			return { l, r };
+		}
+	}
+
+	void prepare(PrepareSpecs ps) override
+	{
+		dynamic::prepareDynamic(ps);
+		cable::block_base<NV, NUM_MAX_CHANNELS>::prepare(ps);
+		useFrameDataForDisplay = ps.blockSize == 1;
+		frameData.prepare(ps);
+	}
+
+	PolyData<span<float, NUM_MAX_CHANNELS>, NV> frameData;
+};
+
+
 }
-using dynamic_send =  routing::send<cable::dynamic>;
-using dynamic_receive = routing::receive<cable::dynamic>;
+template <int NV> using dynamic_send =  routing::send<NV, cable::dynamic_cable<NV>>;
+template <int NV> using dynamic_receive = routing::receive<NV, cable::dynamic_cable<NV>>;
 
 namespace routing
 {

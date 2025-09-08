@@ -36,22 +36,50 @@ namespace scriptnode {
 using namespace juce;
 using namespace hise;
 
-/**  TODO SEND STUFF:
+namespace cable { struct cable_base; }
 
+namespace routing
+{
 
-- add a dragging icon if not connected
-- add error handling (also while dragging)
+struct base: public mothernode,
+			 public polyphonic_base
+{
+	base(const Identifier& id):
+	  polyphonic_base(id, false)
+	{
+		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsRoutingNode);
+	}
 
-- remove old stuff
+	virtual ~base() {};
 
-Refactor ideas:
+	virtual Colour getColour() const = 0;
 
-- check whether the node property needs the HiseDspBase at all...
-- remove getAsHardcodedNode() once and for all
+	
 
+	JUCE_DECLARE_WEAK_REFERENCEABLE(base);
+};
 
-*/
+struct receive_base: public base
+{
+	receive_base(const Identifier& id):
+	  base(id)
+	{};
 
+	~receive_base() override {}
+
+	virtual cable::cable_base** getSourceCablePtr() = 0;
+	virtual cable::cable_base* getNullCable() = 0;
+
+	virtual float getFeedbackDisplayValue() const = 0;
+
+	bool isConnected() const
+	{
+		auto unconst = const_cast<receive_base*>(this);
+		return *unconst->getSourceCablePtr() != unconst->getNullCable();
+	}
+};
+
+}
 
 
 /** The classes defined in this namespace can be passed into the send / receive nodes
@@ -60,43 +88,72 @@ Refactor ideas:
 namespace cable
 {
 
-/** A cable type for usage in a frame-processing context. */
-template <int C> struct frame
+struct cable_base
 {
+	virtual ~cable_base() = default;
+
+	virtual void validate(PrepareSpecs ps) {};
+	virtual void prepare(PrepareSpecs ps) = 0;
+	virtual void initialise(NodeBase* n) {};
+
+	virtual void reset() = 0;
+
+	virtual void connect(routing::receive_base& target)
+	{
+		*target.getSourceCablePtr() = this;
+	}
+
+	virtual void disconnect(routing::receive_base& target)
+	{
+		*target.getSourceCablePtr() = target.getNullCable();
+	}
+
+	Colour colour;
+};
+
+/** A cable type for usage in a frame-processing context. */
+template <int NV, int C> struct frame: public cable_base
+{
+	static constexpr int NumVoices = NV;
+
 	using FrameType = span<float, C>;
 	using BlockType = ProcessData<C>;
 
-	Colour colour = Colours::transparentBlack;
-
+	constexpr bool isPolyphonic() { return NV > 1; }
 	constexpr int  getNumChannels() const { return C; };
 	static constexpr bool allowFrame() { return true; };
 	static constexpr bool allowBlock() { return false; };
 
-	void validate(PrepareSpecs receiveSpecs)
+	void validate(PrepareSpecs receiveSpecs) override
 	{
 		jassert(receiveSpecs.numChannels == getNumChannels());
 		jassert(receiveSpecs.blockSize == 1);
 	}
 
-	void prepare(PrepareSpecs ps)
+	void prepare(PrepareSpecs ps) override
 	{
 		jassert(ps.numChannels <= C);
+		frameData.prepare(ps);
 	}
 
-	void reset()
+	void reset() override
 	{
-		for (auto& d : frameData)
-			d = 0.0f;
+		{
+			for(auto& fd: frameData)
+				memset(fd.begin(), 0, sizeof(fd));
+		}
 	}
 
-	void initialise(NodeBase* n) {};
+	void initialise(NodeBase* n) override {};
 
 	void processFrame(FrameType& t)
 	{
 		int index = 0;
 
+		auto& fd = frameData.get();
+
 		for (auto& d : t)
-			frameData[index++] = d;
+			fd[index++] = d;
 	}
 
 	void setIsNull() {};
@@ -108,33 +165,37 @@ template <int C> struct frame
 		jassertfalse;
 	};
 
-	template <typename T> void connect(T& receiveTarget)
-	{
-		receiveTarget.source = this;
-	}
-
-	span<float, C> frameData;
+	PolyData<span<float, C>, NV> frameData;
 };
 
 
-template <int NumChannels> struct block_base
+template <int NV, int NumChannels> struct block_base: public cable_base
 {
-	template <typename PD> void readIntoBuffer(PD& data, float feedback)
+	static constexpr int NumVoices = NV;
+
+	static constexpr bool isPolyphonic() { return NV > 1; }
+
+	template <typename PD> void readIntoBuffer(PD& pd, float feedback)
 	{
-		int numTotal = data.getNumSamples();
-		const int readBufferSize = channels[0].size();
+		auto& d = data.get();
+
+		if(d.buffer.isEmpty())
+			return;
+
+		int numTotal = pd.getNumSamples();
+		const int readBufferSize = d.channels[0].size();
 		int numToDo = numTotal;
 		int writePos = 0;
 		
 		while (numToDo > 0)
 		{
 			int index = 0;
-			int numThisTime = jmin(numToDo, readBufferSize - readIndex);
+			int numThisTime = jmin(numToDo, readBufferSize - d.readIndex);
 
-			for (auto& ch : data)
+			for (auto& ch : pd)
 			{
-				jassert(isPositiveAndBelow(readIndex + numThisTime, readBufferSize + 1));
-				auto src = channels[index++].begin() + readIndex;
+				jassert(isPositiveAndBelow(d.readIndex + numThisTime, readBufferSize + 1));
+				auto src = d.channels[index++].begin() + d.readIndex;
 				auto dst = ch.getRawWritePointer() + writePos;
 
 				FloatVectorOperations::addWithMultiply(dst, src, feedback, numThisTime);
@@ -146,23 +207,25 @@ template <int NumChannels> struct block_base
 		}
 	}
 
-	template <typename PD> void writeToBuffer(PD& data)
+	template <typename PD> void writeToBuffer(PD& pd)
 	{
-		int numTotal = data.getNumSamples();
-		const int writeBufferSize = channels[0].size();
+		auto& d = data.get();
+
+		int numTotal = pd.getNumSamples();
+		const int writeBufferSize = d.channels[0].size();
 		int numToDo = numTotal;
 		int readPos = 0;
 
 		while (numToDo > 0)
 		{
 			int index = 0;
-			int numThisTime = jmin(numToDo, writeBufferSize - writeIndex);
+			int numThisTime = jmin(numToDo, writeBufferSize - d.writeIndex);
 
-			for (auto c : data)
+			for (auto c : pd)
 			{
-				jassert(isPositiveAndBelow(writeIndex + numThisTime, writeBufferSize + 1));
+				jassert(isPositiveAndBelow(d.writeIndex + numThisTime, writeBufferSize + 1));
 				auto src = c.getRawWritePointer() + readPos;
-				auto dst = channels[index++].begin() + writeIndex;
+				auto dst = d.channels[index++].begin() + d.writeIndex;
 				
 				FloatVectorOperations::copy(dst, src, numThisTime);
 			}
@@ -173,71 +236,88 @@ template <int NumChannels> struct block_base
 		}
 	}
 
+	void prepare(PrepareSpecs ps) override
+	{
+		this->data.prepare(ps);
+
+		for(auto& d: data)
+			d.prepare(ps);
+	}
+
+	void reset() override
+	{
+		for(auto& d: this->data)
+		{
+			FloatVectorOperations::clear(d.buffer.begin(), d.buffer.size());
+			d.readIndex = 0;
+			d.writeIndex = 0;
+		}
+	}
+
 protected:
 
-	span<dyn<float>, NumChannels> channels;
+	struct Data
+	{
+		void prepare(PrepareSpecs ps)
+		{
+			FrameConverters::increaseBuffer(buffer, ps);
+
+			for(int i = 0; i < channels.size(); i++)
+			{
+				if(isPositiveAndBelow(i, ps.numChannels))
+					channels[i].referTo(buffer, ps.blockSize, ps.blockSize * i);
+				else
+					channels[i].referToNothing();
+			}
+		}
+
+		span<dyn<float>, NumChannels> channels;
+
+		int writeIndex = 0;
+		int readIndex = 0;
+		heap<float> buffer;
+	};
+
+	PolyData<Data, NV> data;
 
 private:
 
 	void incCounter(bool incReadCounter, int delta)
 	{
-		auto& counter = incReadCounter ? readIndex : writeIndex;
+		auto& d = data.get();
+
+		auto& counter = incReadCounter ? d.readIndex : d.writeIndex;
 		counter += delta;
 
-		if (counter == channels[0].size())
+		if (counter == d.channels[0].size())
 			counter = 0;
 	}
-
-	int writeIndex = 0;
-	int readIndex = 0;
 };
 
-template <int C> struct block: public block_base<C>
+template <int NV, int C> struct block: public block_base<NV, C>
 {
 	using FrameType = span<float, C>;
 	using BlockType = ProcessData<C>;
-
-	Colour colour = Colours::transparentBlack;
 
 	constexpr int  getNumChannels() const { return C; };
 
 	static constexpr bool allowFrame() { return false; };
 	static constexpr bool allowBlock() { return true; };
 
-	void initialise(NodeBase* n) {};
+	void initialise(NodeBase* n) override {};
 
 	void setIsNull() {};
 
-	void validate(PrepareSpecs receiveSpecs)
+	void validate(PrepareSpecs receiveSpecs) override
 	{
 		jassert(receiveSpecs.numChannels == getNumChannels());
 	}
 
-	void prepare(PrepareSpecs ps)
+	void prepare(PrepareSpecs ps) override
 	{
 		jassert(ps.numChannels <= getNumChannels());
-		snex::Types::FrameConverters::increaseBuffer(buffer, ps);
-
-		int index = 0;
-
-		auto d = ProcessDataHelpers<C>::makeChannelData(buffer, ps.blockSize);
-
-        auto& c = this->channels;
-        
-		for (auto& ch : d)
-			c[index++].referToRawData(ch, ps.blockSize);
+		block_base<NV, C>::prepare(ps);
 	};
-
-	template <typename T> void connect(T& receiveTarget)
-	{
-		receiveTarget.source = this;
-	}
-
-	void reset()
-	{
-		for (auto& d : this->channels)
-			hmath::vmovs(d, 0.0f);
-	}
 
 	void processFrame(FrameType& unused)
 	{
@@ -249,8 +329,6 @@ template <int C> struct block: public block_base<C>
 	{
 		this->writeToBuffer(data);
 	};
-
-	heap<float> buffer;
 };
 
 }
@@ -535,23 +613,27 @@ template <int NV, typename CheckClass=NoCheck> struct event_data_writer:
 	CheckClass checkClass;
 };
 
-struct base
+struct send_base: public base
 {
-	base(const Identifier& id)
+	send_base(const Identifier& id):
+	  base(id)
+	{};
+
+	void connect(receive_base& b)
 	{
-		cppgen::CustomNodeProperties::addNodeIdManually(id, PropertyIds::IsRoutingNode);
+		getCable()->connect(b);
 	}
 
-	virtual ~base() {};
+	virtual cable::cable_base* getCable() = 0;
 
-	virtual Colour getColour() const = 0;
-
-	JUCE_DECLARE_WEAK_REFERENCEABLE(base);
+	~send_base() override {}
 };
 
-template <typename CableType> struct receive: public base
+template <int NV, typename CableType> struct receive: public receive_base
 {
-	SN_NODE_ID("receive");
+	static constexpr int NumVoices = NV;
+
+	SN_POLY_NODE_ID("receive");
 
 	SN_GET_SELF_AS_OBJECT(receive);
 	SN_DESCRIPTION("A signal target for a send node with adjustable feedback");
@@ -562,12 +644,15 @@ template <typename CableType> struct receive: public base
 	};
 
 	receive() :
-		base(getStaticId())
+		receive_base(getStaticId())
 	{
+		static_assert(std::is_base_of<cable::cable_base, CableType>(), "not a a base of cable::cable_base");
+		static_assert(NumVoices == CableType::NumVoices, "voice amount doesn't match");
 		null.setIsNull();
 	};
 
-	constexpr bool isPolyphonic() const { return false; }
+	~receive() override
+	{}
 
 	template <int P> void setParameter(double value)
 	{
@@ -576,21 +661,22 @@ template <typename CableType> struct receive: public base
 
 	template <int P> static void setParameterStatic(void* obj, double value)
 	{
-		auto t = static_cast<receive<CableType>*>(obj);
+		auto t = static_cast<receive<NV, CableType>*>(obj);
 		t->template setParameter<P>(value);
 	}
 
-	SN_EMPTY_RESET;
-
-	bool isConnected() const
+	void reset()
 	{
-		return &null != source;
+		source->reset();
 	}
 
-	void disconnect()
+	cable::cable_base** getSourceCablePtr() override
 	{
-		source = &null;
-		
+		return &source;
+	}
+	cable::cable_base* getNullCable() override
+	{
+		return &null;
 	}
 
 	void handleHiseEvent(HiseEvent& e) {}
@@ -600,11 +686,28 @@ template <typename CableType> struct receive: public base
 		
 	}
 
+	float getFeedbackDisplayValue() const override
+	{
+		return feedback.getFirst();
+	}
+
+	Colour getColour() const override 
+	{ 
+		if(isConnected())
+		{
+			return source->colour;
+		}
+
+		return Colours::transparentBlack;
+	}
+
 	void prepare(PrepareSpecs ps)
 	{
 		currentSpecs = ps;
 
 		null.prepare(ps);
+
+		feedback.prepare(ps);
 
 		if (isConnected())
 			source->validate(currentSpecs);
@@ -612,23 +715,26 @@ template <typename CableType> struct receive: public base
 
 	template <typename ProcessDataType> void process(ProcessDataType& data)
 	{
-		if (CableType::allowBlock())
+		if constexpr (CableType::allowBlock())
 		{
-			if (auto srcPointer = source->buffer.begin())
-				source->readIntoBuffer(data, feedback);
+			getTypedSource().readIntoBuffer(data, feedback.get());
 		}
 	}
 
-	template <typename FrameDataType> void processFrame(FrameDataType& data)
+	template <typename FrameDataType> void processFrame(FrameDataType& fd)
 	{
 		if constexpr (CableType::allowFrame())
 		{
-			jassert(data.size() <= source->frameData.size());
-
 			int index = 0;
 
-			for (auto& d : data)
-				d += source->frameData[index++] * feedback;
+			auto& sourceData = getTypedSource().frameData.get();
+
+			jassert(fd.size() <= sourceData.size());
+
+			auto fb = feedback.get();
+
+			for (auto& d : fd)
+				d += sourceData[index++] * fb;
 		}
 		else
 		{
@@ -643,25 +749,24 @@ template <typename CableType> struct receive: public base
 		data.add(p);
 	}
 
-	Colour getColour() const override 
-	{ 
-		if(isConnected())
-			return source->colour; 
-
-		return Colours::transparentBlack;
+	CableType& getTypedSource()
+	{
+		jassert(dynamic_cast<CableType*>(source) != nullptr);
+		return *static_cast<CableType*>(source);
 	}
 
 	void setFeedback(double value)
 	{
-		feedback = (float)jlimit(0.0, 1.0, value);
+		for(auto& f: feedback)
+			f = (float)jlimit(0.0, 1.0, value);
 	}
 
-	float feedback = 0.0f;
+	PolyData<float, NumVoices> feedback;
 
 	PrepareSpecs currentSpecs;
 
 	CableType null;
-	CableType* source = &null;
+	cable::cable_base* source = &null;
 };
 
 /** A node that sends the signal to one or more receive nodes. 
@@ -676,22 +781,25 @@ template <typename CableType> struct receive: public base
 	pass in one of the cable types from the `cable` namespace, then connect the nodes
 	like parameters or modulation targets
 */
-template <typename CableType> struct send: public base
+template <int NV, typename CableType> struct send: public send_base
 {
-	SN_NODE_ID("send");
+	static constexpr int NumVoices = NV;
 
-	SN_GET_SELF_AS_OBJECT(CableType);
+	SN_POLY_NODE_ID("send");
+
+	SN_GET_SELF_AS_OBJECT(send);
 	SN_DESCRIPTION("Send the signal to one or more targets");
 
 	send() :
-		base(getStaticId())
-	{};
-
-	constexpr bool isPolyphonic() const { return false; }
-
-	template <typename Target> void connect(Target& t)
+		send_base(getStaticId())
 	{
-		cable.connect(t);
+		static_assert(std::is_base_of<cable::cable_base, CableType>(), "not a a base of cable::cable_base");
+		static_assert(NumVoices == CableType::NumVoices, "voice amount doesn't match");
+	};
+
+	~send()
+	{
+		
 	}
 
 	void handleHiseEvent(HiseEvent& e) {};
@@ -724,6 +832,8 @@ template <typename CableType> struct send: public base
 	{
 		cable.processFrame(data);
 	}
+
+	cable::cable_base* getCable() override { return &cable; };
 
 	CableType cable;
 };

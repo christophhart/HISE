@@ -223,7 +223,7 @@ struct MacroPluginParameter: public juce::HostedAudioProcessorParameter,
 				}
 			};
 
-			auto setParameterListener = [&](Processor* p, uint16 processorIndex)
+			auto setParameterListener = [&](Processor* p, int processorIndex)
 			{
 				auto l = const_cast<dispatch::library::Processor::AttributeListener*>(&this->parameterListener);
 
@@ -236,7 +236,10 @@ struct MacroPluginParameter: public juce::HostedAudioProcessorParameter,
 					connectedAttribute = processorIndex;
 
 					if(connectedProcessor != nullptr)
-						connectedProcessor->addAttributeListener(l, &processorIndex, 1, dispatch::sendNotificationSync);
+					{
+						auto pi = (uint16)processorIndex;
+						connectedProcessor->addAttributeListener(l, &pi, 1, dispatch::sendNotificationSync);
+					}
 				}
 			};
 

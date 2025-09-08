@@ -93,8 +93,8 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
     //[UserPreSize]
 
 	driveSlider->setup(getProcessor(), PolyshapeFX::SpecialParameters::Drive, "Drive");
-	driveSlider->setMode(HiSlider::Decibel, 0.0, 60.0, 24.0, 0.1);
-	driveSlider->setIsUsingModulatedRing(true);
+	driveSlider->setMode(HiSlider::Decibel, NormalisableRange(0.0, 60.0, 0.1).withCentreSkew(24.0));
+	
 
     modeSelector->clear(dontSendNotification);
 	auto sa = sfx->getShapeNames();

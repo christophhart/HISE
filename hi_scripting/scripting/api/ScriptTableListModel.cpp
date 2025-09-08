@@ -508,7 +508,10 @@ void ScriptTableListModel::setup(juce::TableListBox* t)
 			else
 				w = jmax(min, w);
 
-			int flag = TableHeaderComponent::ColumnPropertyFlags::visible;
+			int flag = 0;
+
+			if (c.getProperty("Visible", true))
+				flag |= TableHeaderComponent::ColumnPropertyFlags::visible;
 
 			if(tableMetadata.getProperty("Sortable", false))
 				flag |= TableHeaderComponent::ColumnPropertyFlags::sortable;
@@ -1255,8 +1258,10 @@ void ScriptTableListModel::TableRepainter::repaintIfCellChange(const MouseEvent&
 		{
 			auto c = t.getComponent()->getCellPosition(i + 1, s.y, true);
 
+#if 0
 			if (c.isEmpty())
 				break;
+#endif
 
 			if (c.contains(pos))
 			{

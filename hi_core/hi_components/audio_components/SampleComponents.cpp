@@ -87,7 +87,7 @@ void WaveformComponent::setBypassed(bool shouldBeBypassed)
 
 void WaveformComponent::paint(Graphics &g)
 {
-	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>(this);
 	laf->drawOscilloscopeBackground(g, *this, getLocalBounds().toFloat());
 	laf->drawOscilloscopePath(g, *this, path);
 }
@@ -1411,6 +1411,77 @@ void SamplerDisplayWithTimeline::setEnvelope(Modulation::Mode m, ModulatorSample
 	}
 }
 
+float WaterfallComponent::AlphaPathData::getGlowAlpha(int tableIndex, int activeTableIndex, int numTables) const
+{
+	if(glowScale == 0.0f)
+		return 0.0f;
+
+	if(tableIndex == activeTableIndex)
+		return 1.0f;
+
+	float normalisedDiff = 1.0f - (float)hmath::abs(tableIndex - activeTableIndex) / (float)numTables;
+
+	normalisedDiff = hmath::smoothstep(normalisedDiff, smoothRange.getStart(), smoothRange.getEnd());
+	normalisedDiff *= glowScale;
+	return jlimit(0.0f, 1.0f, normalisedDiff);
+}
+
+var WaterfallComponent::AlphaPathData::toVar() const
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	obj->setProperty("NeighbourGlow", glowScale);
+	obj->setProperty("ActiveGlowColour", (int64)(int)activeGlowColour.getARGB());
+	obj->setProperty("ActiveGlowRadius", activeGlowRadius);
+	obj->setProperty("Decay3D", decay3d);
+	obj->setProperty("FillGain", fillAlpha);
+	obj->setProperty("FillGainCenter", fillAlphaCenter);
+	obj->setProperty("PeakGain", peakAlphaGain);
+	obj->setProperty("PrerenderBackground", prerenderBackground);
+	obj->setProperty("NumHighlights", numHighlights);
+	obj->setProperty("HighlightColour", (int64)(int)highlightColour.getARGB());
+
+	Array<var> sr;
+	sr.add(smoothRange.getStart());
+	sr.add(smoothRange.getEnd());
+	obj->setProperty("SmoothRange", var(sr));
+
+	return var(obj.get());
+}
+
+void WaterfallComponent::AlphaPathData::fromVar(const var& obj)
+{
+	if(auto d = obj.getDynamicObject())
+	{
+		glowScale = obj.getProperty("NeighbourGlow", glowScale);
+
+		auto sl = obj.getProperty("SmoothRange", var());
+
+		if(sl.isArray() && sl.size())
+		{
+			auto ss = (float)sl[0];
+			auto se = (float)sl[1];
+
+			if(se < ss)
+				std::swap(se, ss);
+
+			smoothRange = { ss, se };
+		}
+
+		fillAlpha = obj.getProperty("FillGain", fillAlpha);
+		fillAlphaCenter = obj.getProperty("FillGainCenter", fillAlphaCenter);
+		peakAlphaGain = obj.getProperty("PeakGain", peakAlphaGain);
+		prerenderBackground = obj.getProperty("PrerenderBackground", prerenderBackground);
+		decay3d = obj.getProperty("Decay3D", decay3d);
+
+		activeGlowColour = ApiHelpers::getColourFromVar(obj.getProperty("ActiveGlowColour", (int64)(int)activeGlowColour.getARGB()));
+		highlightColour = ApiHelpers::getColourFromVar(obj.getProperty("HighlightColour", (int64)(int)highlightColour.getARGB()));
+		activeGlowRadius = obj.getProperty("ActiveGlowRadius", activeGlowRadius);
+
+		numHighlights = obj.getProperty("NumHighlights", numHighlights);
+	}
+}
+
 void WaterfallComponent::LookAndFeelMethods::drawWavetableBackground(Graphics& g, WaterfallComponent& wc, bool isEmpty)
 {
 	auto bgColour = wc.findColour(HiseColourScheme::ColourIds::ComponentBackgroundColour);
@@ -1418,29 +1489,75 @@ void WaterfallComponent::LookAndFeelMethods::drawWavetableBackground(Graphics& g
 
 	g.fillAll(bgColour);
 
-	auto borderColour = wc.findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId);
-	g.setColour(borderColour);
-	g.drawRect(bounds, 1.0f);
+	auto tc = wc.findColour(HiseColourScheme::ColourIds::ComponentTextColourId);
+
+	g.setColour(tc);
 
 	if (isEmpty)
 	{
 		g.setFont(GLOBAL_BOLD_FONT());
-		g.setColour(wc.findColour(HiseColourScheme::ColourIds::ComponentTextColourId).withMultipliedAlpha(0.1f));
 		g.drawText("No preview available", bounds, Justification::centred);
-		return;
+	
+	}
+	else
+	{
+		auto firstBox = wc.pathLines.getFirst();
+		auto lastBox = wc.pathLines.getLast();
+
+		Line<float> l1(firstBox[0].getStart(), firstBox[2].getStart());
+		Line<float> l2(firstBox[0].getEnd(), firstBox[2].getEnd());
+
+		Line<float> l3(lastBox[0].getStart(), lastBox[2].getStart());
+		Line<float> l4(lastBox[0].getEnd(), lastBox[2].getEnd());
+
+		Line<float> l5 = firstBox[0];
+		Line<float> l6 = firstBox[2];
+		Line<float> l7 = lastBox[0];
+		Line<float> l8 = lastBox[2];
+
+		Line<float> d1(firstBox[0].getStart(), lastBox[0].getStart());
+		Line<float> d2(firstBox[1].getStart(), lastBox[1].getStart());
+		Line<float> d3(firstBox[2].getStart(), lastBox[2].getStart());
+
+		Line<float> d4(firstBox[0].getEnd(), lastBox[0].getEnd());
+		Line<float> d5(firstBox[1].getEnd(), lastBox[1].getEnd());
+		Line<float> d6(firstBox[2].getEnd(), lastBox[2].getEnd());
+
+		auto borderColour = wc.findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId);
+		g.setColour(borderColour);
+
+		g.drawLine(l1);
+		g.drawLine(l2);
+		g.drawLine(l3);
+		g.drawLine(l4);
+		g.drawLine(l5);
+		g.drawLine(l6);
+		g.drawLine(l7);
+		g.drawLine(l8);
+		g.drawLine(d1);
+		g.drawLine(d2);
+		g.drawLine(d3);
+		g.drawLine(d4);
+		g.drawLine(d5);
+		g.drawLine(d6);
 	}
 }
 
 void WaterfallComponent::LookAndFeelMethods::drawWavetablePath(Graphics& g, WaterfallComponent& wc, const Path& p, int tableIndex, bool isStereo, int currentTableIndex, int numTables)
 {
-	float thisAlpha = 1.0f - jlimit(0.0f, 1.0f, (float)hmath::abs(tableIndex - currentTableIndex) / (float)(numTables));
+	auto isActivePath = ((tableIndex == currentTableIndex) && !wc.skipActivePath);
 
-	auto alpha = hmath::pow(0.988f, (float)tableIndex);
+	//auto alpha = hmath::pow(0.988f, (float)tableIndex);
 
-	thisAlpha = jmax(0.08f, hmath::pow(thisAlpha, 8.0f)*0.5f);
-	thisAlpha *= alpha;
+	//thisAlpha = jmax(0.08f, hmath::pow(thisAlpha, 8.0f)*0.5f);
+	//thisAlpha *= alpha;
 
-	if (tableIndex == currentTableIndex)
+	auto thisAlpha = wc.alphaData.getGlowAlpha(tableIndex, currentTableIndex, numTables);
+
+	if(wc.skipActivePath)
+		thisAlpha = 0.0f;
+
+	if (isActivePath)
 	{
 		thisAlpha = 1.0f;
 
@@ -1453,28 +1570,125 @@ void WaterfallComponent::LookAndFeelMethods::drawWavetablePath(Graphics& g, Wate
 			auto pb = p.getBounds();
 
 			g.drawText("L    R", pb, Justification::centredTop);
+
+			auto borderColour = wc.findColour(HiseColourScheme::ColourIds::ComponentOutlineColourId);
+			g.setColour(borderColour);
+
 			g.drawVerticalLine(pb.getCentreX(), pb.getY(), pb.getBottom());
 		}
-
 	}
+	
+	
 
-	if (tableIndex != currentTableIndex && (tableIndex % 2) != 0)
+	auto l = wc.pathLines[tableIndex];
+
+	auto c1 = wc.findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId);
+	auto c2 = wc.findColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId);
+
+	if(wc.drawHighlight && !isActivePath)
+		c2 = wc.alphaData.highlightColour;
+
+	float lt = isActivePath ? wc.lineThickness.x : wc.lineThickness.y;
+
+	
+
+	if(wc.renderGlow)
+		c2 = Colours::transparentBlack;
+
+	auto c = c1.interpolatedWith(c2, 1.0f - thisAlpha);
+
+	float idxNormalised = numTables != 0 ? jlimit(0.0f, 1.0f, (float)tableIndex / (float)numTables) : 0.0f;
+
+	if(!isActivePath)
+		c = c.withMultipliedAlpha(1.0f - wc.alphaData.decay3d * idxNormalised);
+
+	
+
+	ColourGradient fc;
+
+	auto calculateFillGradient = wc.alphaData.fillAlpha != wc.alphaData.fillAlphaCenter;
+	auto calculatePeakGradient = wc.alphaData.peakAlphaGain != 1.0 && !wc.renderGlow;
+
+	if(calculateFillGradient || calculatePeakGradient)
 	{
-		return;
+		auto angle = l[0].getAngle() - float_Pi * 0.5;
+	
+		auto height = l[0].getStart().getDistanceFrom(l[2].getStart());
+
+		auto tx = hmath::sin(angle) * height;
+		auto ty = hmath::cos(angle) * height;
+
+		auto sp = l[0].getPointAlongLineProportionally(0.5);
+		auto ep = sp.translated(-tx, ty);
+
+		Line<float> pl(sp, ep);
+
+		if(calculatePeakGradient)
+		{
+			ColourGradient gc;
+			gc.point1 = sp;
+			gc.point2 = ep;
+
+			gc.addColour(0.0, c.withMultipliedBrightness(wc.alphaData.peakAlphaGain));
+			gc.addColour(0.5, c);
+
+			gc.addColour(1.0, isActivePath ? c : c.withMultipliedBrightness(1.0f / wc.alphaData.peakAlphaGain));
+			g.setGradientFill(gc);
+		}
+		else
+		{
+			g.setColour(c);
+		}
+
+		if(calculateFillGradient)
+		{
+			fc.point1 = sp;
+			fc.point2 = ep;
+
+			fc.addColour(0, c.withMultipliedAlpha(wc.alphaData.fillAlpha));
+			fc.addColour(0.5, c.withMultipliedAlpha(wc.alphaData.fillAlphaCenter));
+			fc.addColour(1.0, c.withMultipliedAlpha(wc.alphaData.fillAlpha));
+		}
+	}
+	else
+	{
+		g.setColour(c);
 	}
 
-	auto c = wc.findColour(HiseColourScheme::ColourIds::ComponentFillTopColourId).withMultipliedAlpha(thisAlpha);
+	PathStrokeType pt(lt, PathStrokeType::JointStyle::curved, PathStrokeType::butt);
 
-	g.setColour(c);
+	g.strokePath(p, pt);
 
-	g.strokePath(p, PathStrokeType(tableIndex == currentTableIndex ? 2.0f : 1.0f));
+	if(!wc.alphaData.activeGlowColour.isTransparent() != 0.0f && isActivePath)
+	{
+		pp.render(g, p, pt, true);
+	}
+
+	auto fillAlpha = wc.alphaData.fillAlpha;
+
+	if(currentTableIndex != currentTableIndex)
+		fillAlpha *= 0.0f;
+
+	if(fillAlpha > 0.001f && isActivePath && !wc.renderGlow)
+	{
+		auto fp = p;
+		fp.closeSubPath();
+
+		if(fc.getNumColours() > 0)
+			g.setGradientFill(fc);
+		else
+			g.setColour(c.withAlpha(jlimit(0.0f, 1.0f, fillAlpha)));
+
+		g.fillPath(fp);
+	}
 }
 
-WaterfallComponent::WaterfallComponent(MainController* mc, ReferenceCountedObjectPtr<WavetableSound> sound_) :
-	SimpleTimer(mc->getGlobalUIUpdater()),
-	ControlledObject(mc),
+WaterfallComponent::WaterfallComponent(Processor* wt, ReferenceCountedObjectPtr<WavetableSound> sound_) :
+	SimpleTimer(wt->getMainController()->getGlobalUIUpdater()),
+	ControlledObject(wt->getMainController()),
+	wavetableSynth(wt),
 	sound(sound_),
-	displacement(0.25f, 1.0f)
+	displacement(4.0f, -8.0f)
 {
 	start();
 	setOpaque(true);
@@ -1483,8 +1697,17 @@ WaterfallComponent::WaterfallComponent(MainController* mc, ReferenceCountedObjec
 
 	setColour(HiseColourScheme::ColourIds::ComponentBackgroundColour, Colour(0xFF222222));
 	setColour(HiseColourScheme::ColourIds::ComponentFillTopColourId, Colours::white);
+	setColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId, Colours::white.withAlpha(0.08f));
+	
 	setColour(HiseColourScheme::ColourIds::ComponentOutlineColourId, Colours::white.withAlpha(0.05f));
-	setColour(HiseColourScheme::ColourIds::ComponentTextColourId, Colours::white.withAlpha(0.5f));
+	setColour(HiseColourScheme::ColourIds::ComponentTextColourId, Colours::white.withAlpha(0.2f));
+
+	alphaData.peakAlphaGain = 7.0f;
+
+
+	
+
+	afm.registerBasicFormats();
 }
 
 
@@ -1493,26 +1716,21 @@ WaterfallComponent::WaterfallComponent(MainController* mc, ReferenceCountedObjec
 void WaterfallComponent::rebuildPaths()
 {
 	Array<Path> newPaths;
+	Array<std::array<Line<float>, 3>> newPathLines;
 
 	if (auto first = sound.get())
 	{
 		auto numTables = first->getWavetableAmount();
-		const auto realNumTables = numTables;
-
-		float tableStride = jmax(1.0f, (float)numTables / 64.0f);
-		numTables = jmin(numTables, 64);
-
 		auto size = first->getTableSize();
-
+		
 		stereo = first->isStereo();
 
 		if (stereo)
 			size *= 2;
 
-		auto b = getLocalBounds().reduced(5).toFloat();
+		
 
-		b.removeFromTop((float)numTables * displacement.getY());
-		b.removeFromRight((float)numTables * displacement.getX());
+		auto b = getLocalBounds().toFloat().reduced(margin);
 
 		float maxGain = 0.0f;
 
@@ -1524,48 +1742,98 @@ void WaterfallComponent::rebuildPaths()
 		HeapBlock<float> data;
 		data.calloc(size);
 
+		HeapBlock<float> data2;
+		data2.calloc(size);
+
 		auto reversed = first->isReversed();
+
+		RectangleList<float> allBounds;
+
+		auto thisBounds = b;
+		
+		std::array<Line<float>, 3> thisLines;
+
+		thisLines[0] = { thisBounds.getTopLeft(), thisBounds.getTopRight() };
+		thisLines[1] = { Point<float>(thisBounds.getX(), thisBounds.getCentreY()), Point<float>(thisBounds.getRight(), thisBounds.getCentreY()) };
+		thisLines[2] = { thisBounds.getBottomLeft(), thisBounds.getBottomRight() };
+
+		auto interpolateTables = numTables != numDisplayTables;
 
 		if (maxGain != 0.0f)
 		{
-			for (float pi = 0.0f; pi < realNumTables; pi += tableStride)
+			auto numPathsToCreate = numDisplayTables;
+
+			for (int ti = 0; ti < numPathsToCreate; ti++)
 			{
 				Path p;
 
-				auto thisBounds = b.translated((float)pi* displacement.getX() / (float)tableStride, -1.0f * displacement.getY() * pi / tableStride);
+				int i, tableIndex, upperIndex;
 
-				auto tableIndex = reversed ? (realNumTables - (int)pi - 1) : (int)pi;
+				float tableAlpha = 0.0f;
+
+				if(interpolateTables)
+				{
+					float idxNormalised = (float)ti / numPathsToCreate;
+
+					auto tiFloat = (float)idxNormalised * (float)numTables;
+
+					tableAlpha = hmath::fmod(tiFloat, 1.0f);
+					tableIndex = (int)tiFloat;
+					upperIndex = jmin(tableIndex + 1, numTables-1);
+				}
+				else
+				{
+					i = ti;
+					tableIndex = reversed ? (numTables - (int)i - 1) : (int)i;
+					upperIndex = tableIndex;
+				}
+
+				auto thisInterpolate = tableIndex != upperIndex && tableAlpha > 0.001;
 
 				auto l = first->getWaveTableData(0, tableIndex);
 				FloatVectorOperations::copy(data.get(), l, first->getTableSize());
+
+				if(thisInterpolate)
+				{
+					auto ud = first->getWaveTableData(0, upperIndex);
+					FloatVectorOperations::copy(data2.get(), ud, first->getTableSize());
+				}
 
 				if (stereo)
 				{
 					auto r = first->getWaveTableData(1, tableIndex);
 					FloatVectorOperations::copy(data.get() + first->getTableSize(), r, first->getTableSize());
+
+					if(thisInterpolate)
+					{
+						auto ud = first->getWaveTableData(1, upperIndex);
+						FloatVectorOperations::copy(data2.get() + first->getTableSize(), ud, first->getTableSize());
+					}
 				}
 
 				p.startNewSubPath(thisBounds.getX(), thisBounds.getY());
 				p.startNewSubPath(thisBounds.getX(), thisBounds.getBottom());
-
 				p.startNewSubPath(thisBounds.getX(), thisBounds.getCentreY());
 
 				auto gain = first->getUnnormalizedGainValue(tableIndex);
+
+				if(thisInterpolate)
+				{
+					auto upperGain = first->getUnnormalizedGainValue(upperIndex);
+					gain = Interpolator::interpolateLinear(gain, upperGain, tableAlpha);
+				}
 
 				if (gain == 0.0f)
 					continue;
 
 				//gain /= maxGain;
 
-				gain = 1.0f / gain;
+				gain = 1.0f;// / gain;
 				//gain = hmath::pow(maxGain, 0.8f);
 
-				for (int i = 0; i < b.getWidth(); i += 2)
+				for (float x = 0.0f; x < thisBounds.getWidth(); x += downsamplingFactor)
 				{
-					auto uptime = ((float)i / thisBounds.getWidth()) * (float)size;
-
-
-
+					auto uptime = (x / thisBounds.getWidth()) * (float)size;
 					int pos = (int)uptime;
 					pos = jlimit(0, size - 1, pos);
 
@@ -1575,22 +1843,90 @@ void WaterfallComponent::rebuildPaths()
 
 					auto value = Interpolator::interpolateLinear(data[pos], data[nextPos], alpha);
 
-					jassert(hmath::abs(value) <= 1.0f);
+					if(thisInterpolate)
+					{
+						auto upperValue = Interpolator::interpolateLinear(data2[pos], data2[nextPos], alpha);
+						value = Interpolator::interpolateLinear(value, upperValue, tableAlpha);
+					}
 
-					p.lineTo(thisBounds.getX() + (float)i,
-						thisBounds.getY() + thisBounds.getHeight() * 0.5f * (1.0f - value * gain));
+					//jassert(hmath::abs(value) <= 1.0f);
+
+					auto y = thisBounds.getY() + thisBounds.getHeight() * 0.5f * (1.0f - value * gain);
+
+					p.lineTo(x + thisBounds.getX(), y);
 				}
 
 				p.lineTo(thisBounds.getRight(), thisBounds.getCentreY());
-
 				newPaths.add(p);
+				newPathLines.add(thisLines);
 			}
+		}
+
+		auto p1 = b.getTopLeft();
+		auto p2 = b.getTopRight();
+		auto p3 = b.getBottomLeft();
+
+		auto perspective = AffineTransform::shear(0.0f, isometricFactor);
+
+		jassert(newPaths.size() == newPathLines.size());
+
+		float displacementFactor = 1.0f;
+
+		displacementFactor = (float)(numDisplayTables) / (float)newPaths.size();
+
+		for(int i = 0; i < newPaths.size(); i++)
+		{
+			auto pt = perspective.translated(displacement.x * (float)i * displacementFactor, displacement.y * (float)i * displacementFactor);
+
+			auto& p = newPaths.getReference(i);
+
+			p.applyTransform(pt);
+
+			auto& pl = newPathLines.getReference(i);
+
+			for(auto& l: pl)
+				l.applyTransform(pt);
+
+			Rectangle<float> x(pl[0].getStart(), pl[2].getEnd());
+			
+			allBounds.addWithoutMerging(x);
+		}
+
+		auto pb = allBounds.getBounds();
+
+		auto pb1 = pb.getTopLeft();
+		auto pb2 = pb.getTopRight();
+		auto pb3 = pb.getBottomLeft();
+		auto at = AffineTransform::fromTargetPoints(pb1, p1, pb2, p2, pb3, p3);
+
+		for(int i = 0; i < newPaths.size(); i++)
+		{
+			auto& p = newPaths.getReference(i);
+
+			p.applyTransform(at);
+
+			for(auto& l: newPathLines.getReference(i))
+				l.applyTransform(at);
 		}
 	}
 
 	std::swap(paths, newPaths);
+	std::swap(pathLines, newPathLines);
+
+	if(alphaData.canRenderBackgroundImage())
+	{
+		ScopedValueSetter<bool> svs(skipActivePath, true);
+		background = createComponentSnapshot(getLocalBounds(), true, 2.0f);
+	}
+
+	if(auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+	{
+		laf->setFromAlphaData(alphaData);
+	}
+
 	repaint();
 }
+
 
 void WaterfallComponent::paint(Graphics& g)
 {
@@ -1599,13 +1935,137 @@ void WaterfallComponent::paint(Graphics& g)
 	if (lafToUse == nullptr)
 		lafToUse = &defaultLaf;
 
-	lafToUse->drawWavetableBackground(g, *this, paths.isEmpty());
+	
 
-	int idx = 0;
-
-	for (const auto& p : paths)
+	if(alphaData.canRenderBackgroundImage() && !skipActivePath)
 	{
-		lafToUse->drawWavetablePath(g, *this, p, idx++, stereo, currentTableIndex, paths.size());
+		jassert(background.isValid());
+		g.drawImageWithin(background, 0, 0, getWidth(), getHeight(), RectanglePlacement::stretchToFit);
+	}
+	else
+	{
+		lafToUse->drawWavetableBackground(g, *this, paths.isEmpty());
+
+		if(numDisplayTables != 0 && !paths.isEmpty())
+		{
+			backgroundPaths.clear();
+
+			float delta = numDisplayTables > 1 ? (float)(paths.size()) / (float)(numDisplayTables) : 0.0f;
+
+			int displayIndex = 0;
+
+			std::vector<int> pathsToRender;
+			pathsToRender.reserve(numDisplayTables);
+
+			for(int i = 0; i < numDisplayTables; i++)
+			{
+				auto idx = roundToInt(i * delta);
+				pathsToRender.push_back(idx);
+			}
+
+			std::reverse(pathsToRender.begin(), pathsToRender.end());
+
+			for(const auto& idx: pathsToRender)
+			{
+				if(isPositiveAndBelow(idx, paths.size()))
+				{
+					backgroundPaths.add(idx);
+					auto& p = paths.getReference(idx);
+					ScopedValueSetter<bool> svs(drawHighlight, alphaData.drawHighlight(displayIndex++, numDisplayTables));
+					lafToUse->drawWavetablePath(g, *this, p, idx, stereo, currentTableIndex, paths.size());
+				}
+			}
+
+#if 0
+			for(float i = 0.0f; i < (int)paths.size(); i += delta)
+			{
+				auto idx = jlimit(0, paths.size() - 1, roundToInt(i));
+
+				idx = paths.size() - 1 - idx;
+
+				backgroundPaths.add(idx);
+
+				auto& p = paths.getReference(idx);
+
+				//if(idx == currentTableIndex)
+				//	continue;
+
+				ScopedValueSetter<bool> svs(drawHighlight, alphaData.drawHighlight(displayIndex++, numDisplayTables));
+
+				lafToUse->drawWavetablePath(g, *this, p, idx, stereo, currentTableIndex, paths.size());
+			}
+
+			if(!backgroundPaths.contains(0))
+			{
+				backgroundPaths.add(0);
+
+				ScopedValueSetter<bool> svs(drawHighlight, alphaData.drawHighlight(0, numDisplayTables));
+
+				lafToUse->drawWavetablePath(g, *this, paths[0], 0, stereo, currentTableIndex, paths.size());
+			}
+#endif
+		}
+	}
+
+	if(!skipActivePath && isPositiveAndBelow(currentTableIndex, paths.size()))
+	{
+		auto dist = alphaData.getGlowDistance(paths.size());
+
+		
+
+		if(dist != 0)
+		{
+			int backgroundIndex = -1;
+
+			for(int i = 0; i < backgroundPaths.size(); i++)
+			{
+				if(backgroundPaths[i] < currentTableIndex)
+				{
+					backgroundIndex = i;
+					break;
+				}
+			}
+
+			for(int i = 1; i < dist; i++)
+			{
+				
+				if(isPositiveAndBelow(backgroundIndex - i, backgroundPaths.size()))
+				{
+					ScopedValueSetter<bool> svs(renderGlow, true);
+					auto pathIndex = backgroundPaths[backgroundIndex - i];
+					auto alpha = alphaData.getGlowAlpha(pathIndex, currentTableIndex, paths.size());
+
+					if(alpha < 0.01f)
+						break;
+					
+					lafToUse->drawWavetablePath(g, *this, paths[pathIndex], pathIndex, stereo, currentTableIndex, paths.size());
+				}
+			}
+
+			auto& p = paths.getReference(currentTableIndex);
+			lafToUse->drawWavetablePath(g, *this, p, currentTableIndex, stereo, currentTableIndex, paths.size());
+
+			for(int i = 0; i < dist; i++)
+			{
+				if(isPositiveAndBelow(backgroundIndex + i, backgroundPaths.size()))
+				{
+					ScopedValueSetter<bool> svs(renderGlow, true);
+					auto pathIndex = backgroundPaths[backgroundIndex + i];
+
+					auto alpha = alphaData.getGlowAlpha(pathIndex, currentTableIndex, paths.size());
+
+					if(alpha < 0.01f)
+						break;
+
+					lafToUse->drawWavetablePath(g, *this, paths[pathIndex], pathIndex, stereo, currentTableIndex, paths.size());
+				}
+			}
+		}
+		else
+		{
+			auto& p = paths.getReference(currentTableIndex);
+			lafToUse->drawWavetablePath(g, *this, p, currentTableIndex, stereo, currentTableIndex, paths.size());
+		}
 	}
 }
 
@@ -1654,6 +2114,7 @@ WaterfallComponent::Panel::Panel(FloatingTile* parent):
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour1, Colours::white);
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour2, Colours::white.withAlpha(0.05f));
 	setDefaultPanelColour(FloatingTileContent::PanelColourId::textColour, Colours::white.withAlpha(0.5f));
+	setDefaultPanelColour(FloatingTileContent::PanelColourId::itemColour3, Colours::white.withAlpha(0.0f));
 }
 
 juce::Identifier WaterfallComponent::Panel::getProcessorTypeId() const
@@ -1665,36 +2126,37 @@ Component* WaterfallComponent::Panel::createContentComponent(int index)
 {
 	if (auto wt = dynamic_cast<WavetableSynth*>(getProcessor()))
 	{
-		if (auto sound = dynamic_cast<WavetableSound*>(wt->getSound(index)))
+		index = jmax(0, index);
+
+		auto sound = dynamic_cast<WavetableSound*>(wt->getSound(index));
+		auto wc = new WaterfallComponent(wt, sound);
+
+		auto currentIndex = index;
+		WeakReference<ModulatorSynth> safeThis(wt);
+
+		auto bgColour = findPanelColour(FloatingTileContent::PanelColourId::bgColour);
+
+		wc->setOpaque(bgColour.isOpaque());
+		wc->setColour(HiseColourScheme::ComponentBackgroundColour, bgColour);
+		wc->setColour(HiseColourScheme::ComponentFillTopColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
+		wc->setColour(HiseColourScheme::ComponentOutlineColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
+		wc->setColour(HiseColourScheme::ComponentFillBottomColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour3));
+		wc->setColour(HiseColourScheme::ComponentTextColourId, findPanelColour(FloatingTileContent::PanelColourId::textColour));
+		
+		wc->displayDataFunction = [safeThis, currentIndex]()
 		{
-			auto wc = new WaterfallComponent(getMainController(), sound);
+			WaterfallComponent::DisplayData data;
 
-			auto currentIndex = index;
-			WeakReference<ModulatorSynth> safeThis(wt);
-
-			auto bgColour = findPanelColour(FloatingTileContent::PanelColourId::bgColour);
-
-			wc->setOpaque(bgColour.isOpaque());
-			wc->setColour(HiseColourScheme::ComponentBackgroundColour, bgColour);
-			wc->setColour(HiseColourScheme::ComponentFillTopColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour1));
-			wc->setColour(HiseColourScheme::ComponentOutlineColourId, findPanelColour(FloatingTileContent::PanelColourId::itemColour2));
-			wc->setColour(HiseColourScheme::ComponentTextColourId, findPanelColour(FloatingTileContent::PanelColourId::textColour));
-
-			wc->displayDataFunction = [safeThis, currentIndex]()
+			if (safeThis != nullptr)
 			{
-				WaterfallComponent::DisplayData data;
+				data.sound = dynamic_cast<WavetableSound*>(safeThis->getSound(currentIndex));
+				data.modValue = static_cast<WavetableSynth*>(safeThis.get())->getDisplayTableValue();
+			}
 
-				if (safeThis != nullptr)
-				{
-					data.sound = dynamic_cast<WavetableSound*>(safeThis->getSound(currentIndex));
-					data.modValue = static_cast<WavetableSynth*>(safeThis.get())->getDisplayTableValue();
-				}
+			return data;
+		};
 
-				return data;
-			};
-
-			return wc;
-		}
+		return wc;
 	}
 
 	return nullptr;
@@ -1711,6 +2173,14 @@ juce::Identifier WaterfallComponent::Panel::getDefaultablePropertyId(int index) 
 		return PanelWithProcessorConnection::getDefaultablePropertyId(index);
 
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Displacement, "Displacement");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumDisplayTables, "NumDisplayTables");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::LineThickness, "LineThickness");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::DownsamplingFactor, "DownsamplingFactor");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::AlphaData, "AlphaData");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::IsometricFactor, "IsometricFactor");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::GainGamma, "GainGamma");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Margin, "Margin");
+	
 
 	jassertfalse;
 	return {};
@@ -1721,7 +2191,14 @@ juce::var WaterfallComponent::Panel::getDefaultProperty(int index) const
 	if (isPositiveAndBelow(index, PanelWithProcessorConnection::SpecialPanelIds::numSpecialPanelIds))
 		return PanelWithProcessorConnection::getDefaultProperty(index);
 
-	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Displacement, Array<var>(var(0.25), var(1.0)));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Displacement, Array<var>(var(0.5), var(-1.0)));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumDisplayTables, var(32));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::LineThickness, Array<var>(var(2.0), var(1.0)));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::DownsamplingFactor, var(2.0));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::AlphaData, AlphaPathData().toVar());
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::IsometricFactor, var(0.0));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::GainGamma, var(1.0f));
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Margin, var(5.0f));
 
 	jassertfalse;
 
@@ -1736,9 +2213,21 @@ void WaterfallComponent::Panel::fromDynamicObject(const var& object)
 	{
 		auto dp = getPropertyWithDefault(object, (int)SpecialPanelIds::Displacement);
 
+		auto lt = getPropertyWithDefault(object, (int)SpecialPanelIds::LineThickness);
+
+		wc->downsamplingFactor = jlimit(0.25f, 8.0f, (float)getPropertyWithDefault(object, (int)SpecialPanelIds::DownsamplingFactor));
+		wc->numDisplayTables = getPropertyWithDefault(object, (int)SpecialPanelIds::NumDisplayTables);
+		wc->lineThickness = ApiHelpers::getPointFromVar(lt, nullptr);
+		wc->isometricFactor = getPropertyWithDefault(object, (int)SpecialPanelIds::IsometricFactor);
+		wc->gainGamma = getPropertyWithDefault(object, (int)SpecialPanelIds::GainGamma);
+		wc->margin = getPropertyWithDefault(object, (int)SpecialPanelIds::Margin);
+
 		auto displacement = ApiHelpers::getPointFromVar(dp, nullptr);
 
+		WaterfallComponent::AlphaPathData ad;
+		ad.fromVar(getPropertyWithDefault(object, (int)SpecialPanelIds::AlphaData));
 		wc->setPerspectiveDisplacement(displacement);
+		wc->setAlphaData(ad);
 	}
 }
 
@@ -1749,6 +2238,25 @@ juce::var WaterfallComponent::Panel::toDynamicObject() const
 	if (auto wc = getContent<WaterfallComponent>())
 	{
 		storePropertyInObject(obj, (int)SpecialPanelIds::Displacement, ApiHelpers::getVarFromPoint(wc->displacement));
+		storePropertyInObject(obj, (int)SpecialPanelIds::LineThickness, ApiHelpers::getVarFromPoint(wc->lineThickness));
+		storePropertyInObject(obj, (int)SpecialPanelIds::NumDisplayTables, wc->numDisplayTables);
+		storePropertyInObject(obj, (int)SpecialPanelIds::IsometricFactor, wc->isometricFactor);
+		storePropertyInObject(obj, (int)SpecialPanelIds::AlphaData, wc->alphaData.toVar());
+		storePropertyInObject(obj, (int)SpecialPanelIds::DownsamplingFactor, wc->downsamplingFactor);
+		storePropertyInObject(obj, (int)SpecialPanelIds::GainGamma, wc->gainGamma);
+		storePropertyInObject(obj, (int)SpecialPanelIds::Margin, wc->margin);
+	}
+	else
+	{
+		
+		storePropertyInObject(obj, (int)SpecialPanelIds::Displacement, var());
+		storePropertyInObject(obj, (int)SpecialPanelIds::LineThickness, var());
+		storePropertyInObject(obj, (int)SpecialPanelIds::NumDisplayTables, var());
+		storePropertyInObject(obj, (int)SpecialPanelIds::IsometricFactor, var());
+		storePropertyInObject(obj, (int)SpecialPanelIds::AlphaData, var());
+		storePropertyInObject(obj, (int)SpecialPanelIds::DownsamplingFactor, var());
+		storePropertyInObject(obj, (int)SpecialPanelIds::GainGamma, var());
+		storePropertyInObject(obj, (int)SpecialPanelIds::Margin, var());
 	}
 
 	return obj;

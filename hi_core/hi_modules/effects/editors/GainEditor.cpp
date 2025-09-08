@@ -62,20 +62,16 @@ GainEditor::GainEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 	gainSlider->setup(getProcessor(), GainEffect::Gain, "Gain");
-	gainSlider->setMode(HiSlider::Decibel, -100.0, 36.0, 0.0);
-    gainSlider->setIsUsingModulatedRing(true);
+	gainSlider->setMode(HiSlider::Decibel, NormalisableRange(-100.0, 36.0).withCentreSkew(0.0));
 
     delaySlider->setup(getProcessor(), GainEffect::Delay, "Delay");
-    delaySlider->setMode(HiSlider::Time, 0, 500, 100);
-    delaySlider->setIsUsingModulatedRing(true);
+    delaySlider->setMode(HiSlider::Time, NormalisableRange(0.0, 500.0).withCentreSkew(100.0));
 
     widthSlider->setup(getProcessor(), GainEffect::Width, "Width");
-	widthSlider->setMode(HiSlider::Discrete, 0.0, 200.0, 100.0);
-    widthSlider->setIsUsingModulatedRing(true);
+	widthSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 200.0));
 
 	balanceSlider->setup(getProcessor(), GainEffect::Balance, "Balance");
 	balanceSlider->setMode(HiSlider::Pan);
-	balanceSlider->setIsUsingModulatedRing(true);
 
     START_TIMER();
 

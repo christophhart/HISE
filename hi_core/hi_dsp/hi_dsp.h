@@ -90,6 +90,7 @@ class ProcessorEditor;
 *	Classes related to the modulation architecture of HISE.
 */
 
+#include "modules/ModulationMatrixTools.h"
 #include "modules/Modulators.h"
 #include "modules/ModulatorChain.h"
 

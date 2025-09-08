@@ -368,7 +368,7 @@ struct SendEffect : public MasterEffectProcessor
 			smoothingButton.setup(parent->getProcessor(), Parameters::Smoothing, "Smoothing");
 
 			offsetSlider.setup(parent->getProcessor(), Parameters::ChannelOffset, "Channel");
-			offsetSlider.setMode(HiSlider::Mode::Discrete, 0, NUM_MAX_CHANNELS, DBL_MAX, 2);
+			offsetSlider.setMode(HiSlider::Mode::Discrete, { 0.0, (double)NUM_MAX_CHANNELS, 1 });
 
 			offsetSlider.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 			offsetSlider.setTextBoxStyle(Slider::TextBoxRight, false, 80, 20);

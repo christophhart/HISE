@@ -198,6 +198,7 @@ class SliderPack : public Component,
 {
 public:
 
+	using ComplexDataType = hise::SliderPackData;
 	using Listener = SliderPackData::Listener;
 
 	struct LookAndFeelMethods

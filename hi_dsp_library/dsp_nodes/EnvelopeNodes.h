@@ -957,6 +957,648 @@ template <int NV, typename ParameterType> struct ahdsr : public pimpl::envelope_
 	PolyData<state_base, NumVoices> states;
 };
 
+
+template <int NV, typename ParameterClass, typename DragHandler=flex_ahdsr_base::DragHandlerBase> struct flex_ahdsr: public mothernode,
+															  public flex_ahdsr_base,
+															  public data::base,
+															  public pimpl::envelope_base<ParameterClass>
+															  
+
+{
+	static constexpr int NumVoices = NV;
+
+	// Metadata Definitions ------------------------------------------------------------------------
+	
+	SN_POLY_NODE_ID("flex_ahdsr");
+	SN_GET_SELF_AS_OBJECT(flex_ahdsr);
+	SN_DESCRIPTION("A more advanced AHDSR with draggable curves & more playback modes");
+
+	static constexpr bool hasTail() { return true; };
+	static constexpr bool isProcessingHiseEvent() { return true; }
+	
+	// Scriptnode Callbacks ------------------------------------------------------------------------
+	flex_ahdsr():
+	  pimpl::envelope_base<ParameterClass>(getStaticId())
+	{
+		parameterTimeValues[(int)State::ATTACK] = 5.0;
+		parameterTimeValues[(int)State::HOLD] = 0.0;
+		parameterTimeValues[(int)State::DECAY] = 300.0;
+		parameterTimeValues[(int)State::RELEASE] = 300.0;
+	}
+
+	void refreshUI(float* buffer) override
+	{
+		auto& activeVoice = state.getWithIndex(lastStartedVoiceIndex);
+		*buffer++ = parameterTimeValues[(int)State::ATTACK];
+		*buffer++ = parameterTimeValues[(int)State::HOLD];
+		*buffer++ = parameterTimeValues[(int)State::DECAY];
+		*buffer++ = activeVoice.getUIValue(State::SUSTAIN, ParameterType::Level);
+		*buffer++ = parameterTimeValues[(int)State::RELEASE];
+		*buffer++ = 0.0f;
+		*buffer++ = activeVoice.getUIValue(State::ATTACK, ParameterType::Level);
+		*buffer++ = activeVoice.getUIValue(State::ATTACK, ParameterType::Curve);
+		*buffer++ = activeVoice.getUIValue(State::DECAY, ParameterType::Curve);
+		*buffer++ = activeVoice.getUIValue(State::RELEASE, ParameterType::Curve);
+
+	}
+
+	void initialise(NodeBase* n)
+	{
+		pimpl::envelope_base<ParameterClass>::initialise(n);
+
+		if constexpr(prototypes::check::initialise<DragHandler>::value)
+			dragHandler.initialise(n);
+	}
+
+	void prepare(PrepareSpecs specs)
+	{
+		sr = specs.sampleRate;
+
+		if(sr > 0)
+		{
+			state.prepare(specs);
+
+			for(auto& s: state)
+				s.prepare(sr);
+
+			setState<State::ATTACK, ParameterType::Time>(parameterTimeValues[(int)State::ATTACK]);
+			setState<State::HOLD, ParameterType::Time>(parameterTimeValues[(int)State::HOLD]);
+			setState<State::DECAY, ParameterType::Time>(parameterTimeValues[(int)State::DECAY]);
+			setState<State::RELEASE, ParameterType::Time>(parameterTimeValues[(int)State::RELEASE]);
+
+			reset();
+		}
+	}
+
+	void reset()
+	{
+		this->resetNoteCounter();
+
+		for(auto& s: state)
+			s.reset();
+
+		this->sendGateOffAtReset();
+
+		if(rb != nullptr)
+			rb->sendDisplayIndexMessage(0.0);
+	}
+
+	void handleHiseEvent(HiseEvent& e)
+	{
+		if constexpr (isPolyphonic())
+		{
+			if(e.isNoteOnOrOff())
+			{
+				for(auto& s: state)
+					s.gate(e.isNoteOn());
+			}
+		}
+		else
+		{
+			bool gateOn;
+
+			if(this->handleKeyEvent(e, gateOn))
+			{
+				for(auto& s: state)
+					s.gate(gateOn);
+			}
+		}
+		
+	}
+
+	template <typename T> void process(T& data)
+	{
+		auto& s = state.get();
+
+		auto wasActive = s.isActiveState();
+
+		bool stopVoice = false;
+
+		if (data.getNumChannels() == 1)
+		{
+			for (auto& v : data[0])
+				v *= s.calculateNewValue(stopVoice);
+		}
+		else
+		{
+			auto fd = data.template as<ProcessData<2>>().toFrameData();
+
+			while (fd.next())
+			{
+				auto modValue = s.calculateNewValue(stopVoice);
+				for (auto& v : fd)
+					v *= modValue;
+			}
+		}
+
+		this->postProcess(*this, wasActive, 1.0f);
+
+		if(sendBallUpdate)
+		{
+			lastStartedVoiceIndex = state.getVoiceIndexForData(s);
+			auto modDisplay = (float)(int)s.s;
+
+			if(s.thisTime != 0.0)
+				modDisplay += s.counter / s.thisTime;
+
+			if(rb != nullptr)
+				rb->sendDisplayIndexMessage(modDisplay);
+		}
+	}
+
+	double getModValue() const
+	{
+		return state.get().prevValue;
+	}
+
+	bool isActive() const
+	{
+		return state.get().isActiveState();
+	}
+
+	template <typename T> void processFrame(T& data)
+	{
+		auto wasActive = isActive();
+		bool unused;
+		data[0] = state.get().calculateNewValue(unused);
+
+		this->postProcess(*this, wasActive, 1.0f);
+
+	}
+
+	SimpleRingBuffer::Ptr rb;
+
+	void setExternalData(const snex::ExternalData& d, int index) override
+	{
+		if (rb != nullptr && rb->getCurrentWriter() == this)
+			rb->setCurrentWriter(nullptr);
+
+		base::setExternalData(d, index);
+
+		rb = dynamic_cast<SimpleRingBuffer*>(d.obj);
+
+		if(rb != nullptr)
+		{
+			rb->setCurrentWriter(this);
+			rb->registerPropertyObject<Properties>();
+		}
+			
+	}
+
+	SN_EMPTY_MOD;
+	
+	// Parameter Functions -------------------------------------------------------------------------
+
+	struct PolyState
+	{
+		PolyState()
+		{
+			memset(data.data(), 0, sizeof(data));
+
+			for(auto& s: data)
+				s.curve.set(1.0);
+
+			set<State::DECAY, ParameterType::Level>(0.5);
+			set<State::SUSTAIN, ParameterType::Level>(0.5);
+			set<State::ATTACK, ParameterType::Level>(1.0);
+			set<State::HOLD, ParameterType::Level>(1.0);
+		}
+
+		template<State S, ParameterType T> void set(float newValue)
+		{
+			auto& v = data[(int)S];
+
+			switch(T)
+			{
+			case ParameterType::Time:
+				v.time = newValue;
+				break;
+			case ParameterType::Level:
+			{
+				if(S == State::ATTACK || S == State::HOLD)
+				{
+					originalAttackLevel = newValue;
+					newValue = jmax(data[(int)State::SUSTAIN].level.targetValue, newValue);
+				}
+				else if(S == State::SUSTAIN)
+				{
+					auto atk = jmax(originalAttackLevel, newValue);
+
+					data[(int)State::ATTACK].level.set(atk);
+					data[(int)State::HOLD].level.set(atk);
+				}
+
+				v.level.set(newValue);
+
+				break;	
+			}
+			
+			case ParameterType::Curve:
+				v.curve.set(newValue);
+				break;
+			}
+		}
+
+		float getUIValue(State S, ParameterType T) const
+		{
+			const auto& v = data[(int)S];
+
+			switch(T)
+			{
+			case ParameterType::Level:
+				return v.level.targetValue;
+			case ParameterType::Curve:
+				return std::log2(v.curve.targetValue)/8.0 + 0.5;
+			case ParameterType::Time:
+				jassertfalse;
+				return v.time;
+			default:
+				jassertfalse;
+				return 0.0f;
+			}
+		}
+
+		void gate(bool on)
+		{
+			gateActive = on;
+
+			if(on)
+			{
+				bool unused = false;
+				s = State::IDLE;
+				//prevValue = 0.0f;
+				//preAttack = true;
+				bump(unused);
+			}
+			else if(s < State::RELEASE)
+			{
+				s = State::RELEASE;
+				counter = 0.0f;
+				thisTime = get<ParameterType::Time>();
+				prevLevel = prevValue;
+			}
+		}
+
+		void reset()
+		{
+			prevLevel = 0.0f;
+			prevValue = 0.0f;
+			counter = 0.0;
+
+			for(auto& s: data)
+			{
+				s.level.reset();
+				s.curve.reset();
+			}
+
+			s = State::IDLE;
+		}
+
+		template <ParameterType T> float get()
+		{
+			auto& v = data[(int)s];
+
+			switch(T)
+			{
+			case ParameterType::Time:
+				return v.time;
+			case ParameterType::Level:
+				return v.level.advance();
+			case ParameterType::Curve:
+				return v.curve.advance();
+			default:
+				jassertfalse;
+				return 0.0f;
+			}
+		}
+
+		void prepare(double sampleRate)
+		{
+			for(int i = 0; i < data.size(); i++)
+			{
+				data[i].prepare(sampleRate, 20.0);
+			}
+		}
+
+		bool isStaticState()
+		{
+			return s == State::HOLD || s == State::SUSTAIN;
+		}
+
+		bool isActiveState()
+		{
+			return s != State::DONE && s != State::IDLE && !preAttack;
+		}
+
+		float calculateNewValue(bool& stopVoice)
+		{
+			if(s != State::IDLE && s != State::DONE && thisTime > 0.0f)
+			{
+				preAttack = false;
+
+				auto value = jlimit(0.0f, 1.0f, counter / thisTime);
+
+				auto thisLevel = get<ParameterType::Level>();
+
+				if(isStaticState())
+				{
+					value = thisLevel;
+				}
+				else
+				{
+					auto c = get<ParameterType::Curve>();
+
+					if(hmath::abs(c - 1.0) < 0.01)
+					{
+						value = Interpolator::interpolateLinear(prevLevel, thisLevel, value);
+					}
+					else if(c > 1.0)
+					{
+						auto expValue = std::pow(value, c);
+						value = Interpolator::interpolateLinear(prevLevel, thisLevel, expValue);
+					}
+					else if (c < 1.0)
+					{
+						c = 1.0 / c;
+						value = 1.0f - value;
+						auto expValue = 1.0f - std::pow(value, c);
+						value = Interpolator::interpolateLinear(prevLevel, thisLevel, expValue);
+					}
+				}
+
+				prevValue = value;
+
+				if(s == State::SUSTAIN)
+				{
+					if(m != Mode::Note)
+						bump(stopVoice);
+
+				}
+				else if (++counter > thisTime)
+					bump(stopVoice);
+
+				return value;
+			}
+
+			return 0.0f;
+		}
+
+		void bump(bool& stopVoice)
+		{
+			prevLevel = prevValue;
+
+			while(true)
+			{
+				s = (State)((int)s + 1);
+
+				if(s == State::DONE)
+				{
+					if(m == Mode::Loop && gateActive)
+					{
+						s = State::IDLE;
+						bump(stopVoice);
+						return;
+					}
+
+					stopVoice = true;
+					break;
+				}
+
+				if(auto tt = get<ParameterType::Time>())
+				{
+					thisTime = tt;
+					break;
+				}
+				else
+				{
+					data[(int)s].curve.reset();
+					data[(int)s].level.reset();
+					prevLevel = get<ParameterType::Level>();
+				}
+
+				if(s == State::SUSTAIN && m == Mode::Note)
+					break;
+			}
+
+			counter = 0.0f;
+
+		}
+
+		struct Values
+		{
+			void prepare(double sr, double time)
+			{
+				level.prepare(sr, time);
+				curve.prepare(sr, time);
+				level.reset();
+				curve.reset();
+			}
+
+			sfloat curve;
+			float time = 0.0f;
+			sfloat level;
+		};
+
+		Mode m = Mode::Note;
+		State s = State::IDLE;
+		std::array<Values, (int)State::DONE> data;
+
+		float counter = 0.0f;
+		float thisTime = 0.0f;
+		float prevValue = 0.0f;
+		float prevLevel = 0.0f;
+
+		float originalAttackLevel = 0.0f;
+
+		bool gateActive = false;
+		bool preAttack = true;
+	};
+
+	double sr = 44100.0;
+	PolyData<PolyState, NV> state;
+
+	bool sendBallUpdate = true;
+
+	template<ParameterType T> double convert(double value)
+	{
+		switch(T)
+		{
+		case ParameterType::Level:
+			return value;
+		case ParameterType::Time:
+			return value * 0.001 * sr;
+		case ParameterType::Curve:
+			return std::pow(2.0, (value -0.5) * 8.0);
+		}
+
+		return value;
+	}
+
+	template <State S, ParameterType T> void setState(double newValue)
+	{
+		if(T == ParameterType::Time)
+			parameterTimeValues[(int)S] = newValue;
+
+		float v = convert<T>((float)newValue);
+
+		for(auto& s: state)
+			s.template set<S, T>(v);
+	}
+
+	void setMode(double newValue)
+	{
+		for(auto& s: state)
+			s.m = (Mode)(int)newValue;
+	}
+
+	template <int P> void setParameter(double v)
+	{
+		if (P == (int)SpecialParameters::Attack)
+			setState<State::ATTACK, ParameterType::Time>(v);
+		if(P == (int)SpecialParameters::Hold)
+			setState<State::HOLD, ParameterType::Time>(v);
+		if(P == (int)SpecialParameters::Decay)
+			setState<State::DECAY, ParameterType::Time>(v);
+		if(P == (int)SpecialParameters::Sustain)
+		{
+			setState<State::DECAY, ParameterType::Level>(v);
+			setState<State::SUSTAIN, ParameterType::Level>(v);
+		}
+			
+		if(P == (int)SpecialParameters::Release)
+			setState<State::RELEASE, ParameterType::Time>(v);
+
+		if(P == (int)SpecialParameters::Mode)
+			setMode(v);
+
+		if(P == (int)SpecialParameters::AttackLevel)
+		{
+			setState<State::ATTACK, ParameterType::Level>(v);
+			setState<State::HOLD, ParameterType::Level>(v);
+		}
+
+		if(P == (int)SpecialParameters::AttackCurve)
+			setState<State::ATTACK, ParameterType::Curve>(v);
+		if(P == (int)SpecialParameters::DecayCurve)
+			setState<State::DECAY, ParameterType::Curve>(v);
+		if(P == (int)SpecialParameters::ReleaseCurve)
+			setState<State::RELEASE, ParameterType::Curve>(v);
+
+		if(rb != nullptr)
+			rb->getUpdater().sendContentChangeMessage(sendNotificationAsync, P);
+	}
+
+	SN_FORWARD_PARAMETER_TO_MEMBER(flex_ahdsr);
+
+	int lastStartedVoiceIndex = 0;
+	bool changed = false;
+
+	void handleUIDrag(int parameterIndex, double attributeValue) override
+	{
+		if(dragHandler.handleAdditionalDrag(parameterIndex, attributeValue))
+			return;
+
+		switch(parameterIndex)
+		{
+		case 0: setParameter<0>(attributeValue); break;
+		case 1: setParameter<1>(attributeValue); break;
+		case 2: setParameter<2>(attributeValue); break;
+		case 3: setParameter<3>(attributeValue); break;
+		case 4: setParameter<4>(attributeValue); break;
+		case 5: setParameter<5>(attributeValue); break;
+		case 6: setParameter<6>(attributeValue); break;
+		case 7: setParameter<7>(attributeValue); break;
+		case 8: setParameter<8>(attributeValue); break;
+		case 9: setParameter<9>(attributeValue); break;
+		}
+	}
+
+	void createParameters(ParameterDataList& data)
+	{
+		{
+			parameter::data p("Attack", { 0.0, 30000.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::Time;
+			p.setSkewForCentre(2000.0);
+			registerCallback<0>(p);
+			p.setDefaultValue(5.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Hold", { 0.0, 30000.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::Time;
+			p.setSkewForCentre(2000.0);
+			registerCallback<1>(p);
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Decay", { 0.0, 30000.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::Time;
+			p.setSkewForCentre(2000.0);
+			registerCallback<2>(p);
+			p.setDefaultValue(100.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Sustain", { 0.0, 1.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::NormalizedPercentage;
+			registerCallback<3>(p);
+			p.setDefaultValue(0.5);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Release", { 0.0, 30000.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::Time;
+			p.setSkewForCentre(2000.0);
+			registerCallback<4>(p);
+			p.setDefaultValue(300.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("Mode", { 0.0, 2.0 });
+			p.setParameterValueNames({ "Trigger", "Note", "Loop"});
+			registerCallback<5>(p);
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("AttackLevel", { 0.0, 1.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::NormalizedPercentage;
+			registerCallback<6>(p);
+			p.setDefaultValue(1.0);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("AttackCurve", { 0.0, 1.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::NormalizedPercentage;
+			registerCallback<7>(p);
+			p.setDefaultValue(0.5);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("DecayCurve", { 0.0, 1.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::NormalizedPercentage;
+			registerCallback<8>(p);
+			p.setDefaultValue(0.5);
+			data.add(std::move(p));
+		}
+		{
+			parameter::data p("ReleaseCurve", { 0.0, 1.0 });
+			p.info.textConverter = parameter::pod::TextValueConverters::NormalizedPercentage;
+			registerCallback<9>(p);
+			p.setDefaultValue(0.5);
+			data.add(std::move(p));
+		}
+	}
+
+	std::array<double, (int)State::DONE> parameterTimeValues;
+
+	DragHandler dragHandler;
+};
+
+
+
+
 struct voice_manager_base : public mothernode
 {
 	struct editor : public Component,

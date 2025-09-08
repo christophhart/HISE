@@ -541,8 +541,8 @@ juce::String UIComponentDatabase::FloatingTileResolver::getFloatingTileContent(c
 	commonProperties.add("StyleData");
 	commonProperties.add("ColourData");
 	commonProperties.add("LayoutData");
-
-
+	commonProperties.add("FollowWorkspace");
+	
 	for (int i = 0; i < ft->getNumDefaultableProperties(); i++)
 	{
 		auto propertyid = ft->getDefaultablePropertyId(i);
@@ -552,8 +552,9 @@ juce::String UIComponentDatabase::FloatingTileResolver::getFloatingTileContent(c
 
 		auto value = ft->getDefaultProperty(i);
 
-		s << "| `" << ft->getDefaultablePropertyId(i) << "` | ";
-		s << MarkdownLink::Helpers::getPrettyVarString(value) << " | ";
+		
+
+		
 
 		String description = "no description";
 
@@ -567,6 +568,12 @@ juce::String UIComponentDatabase::FloatingTileResolver::getFloatingTileContent(c
 				break;
 			}
 		}
+
+		if(description.toLowerCase() == "unused")
+			continue;
+
+		s << "| `" << ft->getDefaultablePropertyId(i) << "` | ";
+		s << MarkdownLink::Helpers::getPrettyVarString(value) << " | ";
 
 		s << description << " |" <<  nl;
 	}

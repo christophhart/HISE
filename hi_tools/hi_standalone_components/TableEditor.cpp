@@ -97,7 +97,7 @@ int TableEditor::snapXValueToGrid(int x) const
 
 	auto normalizedX = (x - a.getX()) / a.getWidth();
 
-	auto snapRangeHalfWidth = 10.0f / a.getWidth();
+	auto snapRangeHalfWidth = dragProperties.snapWidth / a.getWidth();
 
 	for (int i = 0; i < snapValues.size(); i++)
 	{
@@ -302,13 +302,16 @@ void TableEditor::paint (Graphics& g)
 		int boxWidth = (int)fontToUse.getStringWidth(text) + 10;
 		int boxHeight = (int)fontToUse.getHeight() + 10;
 
-		int x_ = jlimit<int>(a.getX(), a.getRight() - boxWidth, dp->getPos().x - boxWidth / 2);
-		int y_ = jlimit<int>(a.getY(), a.getBottom() - boxHeight, dp->getPos().y - 20);
+		if(boxWidth < a.getWidth())
+		{
+			int x_ = jlimit<int>(a.getX(), a.getRight() - boxWidth, dp->getPos().x - boxWidth / 2);
+			int y_ = jlimit<int>(a.getY(), a.getBottom() - boxHeight, dp->getPos().y - 20);
 
-		Rectangle<int> area(x_, y_, boxWidth, boxHeight);
+			Rectangle<int> area(x_, y_, boxWidth, boxHeight);
 
-		if (auto l = getTableLookAndFeel())
-			l->drawTableValueLabel(g, *this, fontToUse, text, area);
+			if (auto l = getTableLookAndFeel())
+				l->drawTableValueLabel(g, *this, fontToUse, text, area);
+		}
     }
     
     g.setOpacity(isEnabled() ? 1.0f : 0.2f);
@@ -394,6 +397,8 @@ void TableEditor::mouseDown(const MouseEvent &e)
 	MouseEvent parentEvent = e.getEventRelativeTo(this);
 	int x = parentEvent.getMouseDownPosition().getX();
 	int y = parentEvent.getMouseDownPosition().getY();
+
+	x = snapXValueToGrid(x);
 
 	DragPoint *dp = this->getPointUnder(x, y);
 
@@ -566,10 +571,28 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 	if (parentEvent.mods.isShiftDown()) 
 		x = parentEvent.getMouseDownPosition().getX();
 
-	x = jmin(x, (int)a.getWidth() - 1);
+	if(dragProperties.allowSwap)
+	{
+		x = jmin(x, (int)a.getWidth() - 1);
+		x = jmax(x, 1);
+	}
+	else
+	{
+		auto dragIndex = drag_points.indexOf(currently_dragged_point);
+
+		auto prevPoint = dragIndex > 1 ? drag_points[dragIndex - 1] : nullptr;
+		auto nextPoint = dragIndex < (drag_points.size() - 2) ? drag_points[dragIndex+1] : nullptr;
+
+		auto prevX = prevPoint != nullptr ? (prevPoint->getPos().getX()) : a.getX();
+		auto nextX = nextPoint != nullptr ? (nextPoint->getPos().getX()) : a.getRight();
+
+		x = jlimit((int)prevX, (int)nextX, x);
+	}
+
+	
 	y = jmin(y, (int)a.getHeight());
 
-	x = jmax(x, 1);
+	
 	y = jmax(y, 0);
 
 	x = snapXValueToGrid(x);
@@ -578,12 +601,26 @@ void TableEditor::mouseDrag(const MouseEvent &e)
 
 	changePointPosition(index, x, y, true);
 
+	DragPoint* other = nullptr;
+
+	if(currently_dragged_point->isStartOrEnd() && dragProperties.syncStartEnd)
+	{
+		other = index == 0 ? drag_points.getLast() : drag_points.getFirst();
+		auto otherIndex = drag_points.indexOf(other);
+		auto x = other->getPos().getX();
+
+		changePointPosition(otherIndex, x, y, true);
+	}
+
 	ScopedLock sl(editListeners.getLock());
 
 	for (auto l : editListeners)
 	{
 		if (l.get() != nullptr)
 		{
+			if(other != nullptr)
+				l->pointDragged(other->getPosition(), other->getGraphPoint().x, other->getGraphPoint().y);
+
 			l->pointDragged(currently_dragged_point->getPosition(), currently_dragged_point->getGraphPoint().x, currently_dragged_point->getGraphPoint().y);
 		}
 	}
@@ -958,6 +995,33 @@ String TableEditor::getObjectTypeName()
 	return "Table Data"; 
 }
 
+void TableEditor::setMouseDragProperties(const var& obj)
+{
+	dragProperties.fromVar(obj);
+
+	if(dragProperties.numSteps != -1)
+	{
+		snapValues.clear();
+
+		if(dragProperties.numSteps > 0)
+		{
+			for(int i = 0; i < dragProperties.numSteps; i++)
+			{
+				auto v = (float)i / (float)dragProperties.numSteps;
+				snapValues.add(v);
+			}
+
+			snapValues.add(1.0f);
+		}
+
+		if(dragProperties.fixLeftEdge > -0.5f)
+			drag_points.getFirst()->setConstantValue(jlimit(0.0f, 1.0f, dragProperties.fixLeftEdge));
+
+		if(dragProperties.fixRightEdge > -0.5f)
+			drag_points.getLast()->setConstantValue(jlimit(0.0f, 1.0f, dragProperties.fixRightEdge));
+	}
+}
+
 void TableEditor::setDrawTableValueLabel(bool shouldBeDisplayed)
 {
 	displayPopup = shouldBeDisplayed;
@@ -1083,7 +1147,7 @@ float TableEditor::getLastIndex() const
 
 TableEditor::LookAndFeelMethods* TableEditor::getTableLookAndFeel()
 {
-	if (auto lm = getSpecialLookAndFeel<LookAndFeelMethods>())
+	if (auto lm = getSpecialLookAndFeel<LookAndFeelMethods>(this))
 		return lm;
 
 	return &defaultLaf;

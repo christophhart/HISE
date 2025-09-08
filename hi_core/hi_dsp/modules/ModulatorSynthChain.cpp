@@ -146,10 +146,6 @@ void ModulatorSynthChain::setActiveChannels(const HiseEvent::ChannelFilterData& 
 HiseEvent::ChannelFilterData* ModulatorSynthChain::getActiveChannelData()
 { return &activeChannels; }
 
-bool ModulatorSynthChain::isUniformVoiceHandlerRoot() const
-{ return ownedUniformVoiceHandler != nullptr; };
-
-
 Processor * ModulatorSynthChain::getChildProcessor(int processorIndex)
 {
 
@@ -171,9 +167,6 @@ void ModulatorSynthChain::prepareToPlay(double newSampleRate, int samplesPerBloc
 
 	for (auto s: synths)
 		s->prepareToPlay(newSampleRate, samplesPerBlock);
-
-	if (ownedUniformVoiceHandler != nullptr)
-        ownedUniformVoiceHandler->rebuildChildSynthList();
 }
 
 void ModulatorSynthChain::numSourceChannelsChanged()
@@ -245,8 +238,9 @@ void ModulatorSynthChain::compileAllScripts()
             
         while(auto m = rti.getNextProcessor())
         {
-			m->disconnectRuntimeTargets(getMainController());
-	        m->connectRuntimeTargets(getMainController());
+			auto as_p = dynamic_cast<Processor*>(m);
+			m->disconnectRuntimeTargets(as_p);
+	        m->connectRuntimeTargets(as_p);
         }
             
 	}
@@ -317,10 +311,6 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		Profiler mp(*this, (int)ProfileEnumIds::ProcessMidi);
 		processHiseEventBuffer(inputMidiBuffer, numSamples);
 	}
-
-	if (ownedUniformVoiceHandler != nullptr)
-        ownedUniformVoiceHandler->processEventBuffer(inputMidiBuffer);
-		
 
 	// Shrink the internal buffer to the output buffer size 
 	internalBuffer.setSize(getMatrix().getNumSourceChannels(), numSamples, true, false, true);
@@ -408,9 +398,6 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 	handlePeakDisplay(numSamples);
 
 #endif
-
-	if (ownedUniformVoiceHandler != nullptr)
-        ownedUniformVoiceHandler->cleanupAfterProcessing();
 }
 
 
@@ -438,18 +425,21 @@ void ModulatorSynthChain::restoreFromValueTree(const ValueTree &v)
 
 void ModulatorSynthChain::reset()
 {
-
 	Processor::Iterator<Processor> iter(this, false);
 
-#if 0
+	if(getMainController()->isBeingDeleted())
 	{
 		sendDeleteMessage();
 
 		while (auto p = iter.getNextProcessor())
 			p->sendDeleteMessage();
 	}
-#endif
-	
+
+	Processor::Iterator<HardcodedSwappableEffect> fxiter(this, false);
+
+	while(auto fx = fxiter.getNextProcessor())
+		fx->shutdown();
+
     midiProcessorChain->getHandler()->clearAsync(midiProcessorChain);
     gainChain->getHandler()->clearAsync(gainChain);
     effectChain->getHandler()->clearAsync(effectChain);
@@ -460,30 +450,21 @@ void ModulatorSynthChain::reset()
 
 	setIconColour(Colours::transparentBlack);
 
-    setUseUniformVoiceHandler(false, nullptr);
-
 #if USE_BACKEND
 	setId("Master Chain");
 #endif
 
-
 	for (int i = 0; i < getNumInternalChains(); i++)
-	{
 		getChildProcessor(i)->setEditorState(getEditorStateForIndex(Processor::Visible), false, sendNotification);
-	}
 
 	for (int i = 0; i < ModulatorSynth::numModulatorSynthParameters; i++)
-	{
 		setAttribute(i, getDefaultValue(i), dontSendNotification);
-	}
     
     clearAllMacroControls();
     
     
     for(int i = 0; i < parameterNames.size(); i++)
-    {
         setAttribute(i, getDefaultValue(i), dontSendNotification);
-    }
     
     sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Preset);
 }
@@ -596,48 +577,6 @@ void ModulatorSynthChain::restoreInterfaceValues(const ValueTree &v)
 	}
 }
 
-void ModulatorSynthChain::setUseUniformVoiceHandler(bool shouldUseVoiceHandler, UniformVoiceHandler* externalVoiceHandler)
-{
-    if(externalVoiceHandler == nullptr)
-    {
-        ScopedPointer<UniformVoiceHandler> newHandler;
-
-        if(shouldUseVoiceHandler)
-            newHandler = new UniformVoiceHandler(this);
-
-        {
-            LockHelpers::SafeLock sl(getMainController(), LockHelpers::Type::AudioLock);
-            newHandler.swapWith(ownedUniformVoiceHandler);
-        }
-
-        externalVoiceHandler = ownedUniformVoiceHandler.get();
-        getMainController()->allNotesOff();
-    }
-    else
-    {
-        if(shouldUseVoiceHandler && ownedUniformVoiceHandler != nullptr)
-        {
-            debugError(this, "Can't use more than one uniform voice handler!");
-        }
-    }
-    
-    ModulatorSynth::setUseUniformVoiceHandler(shouldUseVoiceHandler, externalVoiceHandler);
-    
-    for(int i = 0; i < getHandler()->getNumProcessors(); i++)
-    {
-        auto cs = dynamic_cast<ModulatorSynth*>(getHandler()->getProcessor(i));
-        cs->setUseUniformVoiceHandler(shouldUseVoiceHandler, externalVoiceHandler);
-    }
-
-#if USE_OLD_PROCESSOR_DISPATCH
-    getMainController()->getProcessorChangeHandler().sendProcessorChangeMessage(this, MainController::ProcessorChangeHandler::EventType::ProcessorColourChange, false);
-#endif
-#if USE_NEW_PROCESSOR_DISPATCH
-	dispatcher.setColour(Colours::black);
-#endif
-}
-
-
 bool ModulatorSynthChain::hasDefinedFrontInterface() const
 {   
     for (int i = 0; i < midiProcessorChain->getNumChildProcessors(); i++)
@@ -709,6 +648,7 @@ SynthGroupConstrainer::SynthGroupConstrainer()
 	ADD_NAME_TO_TYPELIST(ModulatorSynthChain);
 	ADD_NAME_TO_TYPELIST(GlobalModulatorContainer);
 	ADD_NAME_TO_TYPELIST(ModulatorSynthGroup);
+	ADD_NAME_TO_TYPELIST(MacroModulationSource);
 
 	forbiddenModulators.addArray(typeNames);
 }

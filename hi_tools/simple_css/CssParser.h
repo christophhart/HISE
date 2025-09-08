@@ -315,6 +315,30 @@ public:
 
 	Array<Selector> getSelectors() const;
 
+	static bool isNonLayoutProperty(const String& propertyName)
+	{
+		auto t = getPropertyType(propertyName);
+
+		switch(t)
+		{
+		case PropertyType::Positioning:
+		case PropertyType::Layout:
+		case PropertyType::Transition:
+		case PropertyType::Undefined:
+			return false;
+		case PropertyType::Transform:
+			case PropertyType::Border:
+			case PropertyType::BorderRadius:
+			case PropertyType::Colour:
+			case PropertyType::Shadow:
+			case PropertyType::Font:
+			case PropertyType::Variable:
+			return true;
+		}
+
+		return false;
+	}
+
 private:
 
 	String getLocation(String::CharPointerType p=String::CharPointerType(nullptr)) const;

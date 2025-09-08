@@ -75,7 +75,7 @@ float CurveEq::getAttribute(int index) const
 	if(index == -1) return 0.0f;
 
 	const int filterIndex = index / BandParameter::numBandParameters;
-	const BandParameter parameter = (BandParameter)(index % numBandParameters);
+	const BandParameter parameter = (BandParameter)(index % BandParameter::numBandParameters);
 
 	hise::SimpleReadWriteLock::ScopedReadLock sl(bandLock);
 
@@ -88,7 +88,7 @@ float CurveEq::getAttribute(int index) const
 		case BandParameter::Q:		 return (float)filter->getQ();
 		case BandParameter::Type:	 return (float)filter->getType();
 		case BandParameter::Enabled: return filter->isEnabled() ? 1.0f : 0.0f;
-		case numBandParameters:
+		case BandParameter::numBandParameters:
 		default:                     return 0.0f;
 		}
 	}
@@ -109,7 +109,7 @@ void CurveEq::setInternalAttribute(int index, float newValue)
 	if (index == -1) return;
 
 	const int filterIndex = index / BandParameter::numBandParameters;
-	const BandParameter parameter = (BandParameter)(index % numBandParameters);
+	const BandParameter parameter = (BandParameter)(index % BandParameter::numBandParameters);
 
 	hise::SimpleReadWriteLock::ScopedReadLock sl(bandLock);
 
@@ -126,7 +126,7 @@ void CurveEq::setInternalAttribute(int index, float newValue)
 		case BandParameter::Q:		filter->setQ(newValue); break;
 		case BandParameter::Type:	filter->setType((int)newValue); break;
 		case BandParameter::Enabled:filter->setEnabled(newValue >= 0.5f); break;
-		case numBandParameters:
+		case BandParameter::numBandParameters:
 		default:                    break;
 		}
 	}
@@ -141,7 +141,7 @@ void CurveEq::setInternalAttribute(int index, float newValue)
 
 void CurveEq::sendBroadcasterMessage(const String& type, const var& value, NotificationType n /*= sendNotificationAsync*/)
 {
-eqBroadcaster.sendMessage(n, type, value);
+	getOrCreateProcessorFilterStatistics()->sendBroadcasterMessage(type, value, n);
 }
 
 ProcessorEditorBody *CurveEq::createEditor(ProcessorEditor *parentEditor)

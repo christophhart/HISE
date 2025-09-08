@@ -551,11 +551,9 @@ void DebugSession::ProfileDataSource::ViewComponents::Viewer::mouseDown(const Mo
 			m.setLookAndFeel(&plaf);
 
 			constexpr int TimeDomainOffset = 400;
-			constexpr int FilterOffset = 800;
 
 			m.addItem(1, "Fold all", true, foldAll);
 			m.addItem(2, "Enable event flow mode", true, rootItem->useEquiDistance);
-			
 
 			m.addSectionHeader("Select Time domain");
 			m.addItem(TimeDomainOffset + (int)TimeDomain::Absolute, "Absolute", true, currentDomain == TimeDomain::Absolute);

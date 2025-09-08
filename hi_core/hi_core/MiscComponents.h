@@ -268,7 +268,7 @@ private:
 
 	using SubMenuList = std::tuple < String, StringArray > ;
 
-	void sendFileMessage(Action a, const String& f, Point<int> pos);
+	void sendFileMessage(Action a, const StringArray& f, Point<int> pos);
 
 	void sendMessage(const MouseEvent &event, Action action, EnterState state = Nothing);
 	void sendToListeners(var clickInformation);

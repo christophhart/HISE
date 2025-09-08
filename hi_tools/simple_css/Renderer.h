@@ -46,7 +46,10 @@ using namespace juce;
  *	and the animator in order to render its graphics. */
 struct CSSRootComponent
 {
-	struct InfoOverlay: public Component
+#if HISE_INCLUDE_CSS_DEBUG_TOOLS
+
+	struct InfoOverlay: public Component,
+						public TooltipClientWithCustomPosition
 	{
 		struct Item
 		{
@@ -75,9 +78,184 @@ struct CSSRootComponent
 				i->draw(g);
 		}
 
+		String getTooltip() override
+		{
+			auto point = getMouseXYRelative().toFloat();
+
+			currentlyHovered = nullptr;
+
+			for(auto i: items)
+			{
+				if(i->globalBounds.contains(point))
+				{
+					currentlyHovered = i;
+					String tt;
+					tt << "Selectors: ";
+
+					for(auto s: i->selectors)
+						tt << s.toString() << " |";
+
+					return tt;
+				}
+			}
+
+			return {};
+		}
+
+		void applyPosition(const Rectangle<int>& screenBoundsOfTooltipClient, Rectangle<int>& tooltipRectangleAtOrigin) override
+		{
+			if(currentlyHovered != nullptr)
+			{
+				auto delta = currentlyHovered->globalBounds.getBottomRight();
+				tooltipRectangleAtOrigin.translate(delta.x, delta.y);
+			}
+		}
+
 		CSSRootComponent& parent;
 		OwnedArray<Item> items;
+		Item* currentlyHovered = nullptr;
 	};
+
+	struct InspectorData
+	{
+		Component::SafePointer<Component> c;
+		Rectangle<float> first;
+		String second;
+
+		bool operator!=(const InspectorData& other) const
+		{
+			return !(*this == other);
+		}
+
+		bool operator==(const InspectorData& other) const
+		{
+			return c.getComponent() == other.c.getComponent();
+		}
+
+		operator bool() const
+		{
+			return c != nullptr && !first.isEmpty() && second.trim() != "div";
+		}
+
+		void draw(Graphics& g, Rectangle<float> lb, StyleSheet::Collection& css) const;
+	};
+
+	struct CSSDebugger: public Component,
+	                    public Timer,
+	                    public PathFactory
+	{
+		enum class OverlayMode
+		{
+			None,
+			Hovered,
+			Selectors
+		};
+
+	    CSSDebugger(CSSRootComponent& componentToDebug, bool start=true);
+
+		struct SelectListener: public MouseListener
+	    {
+		    SelectListener(CSSDebugger& parent_);;
+
+			~SelectListener() override;
+
+		    void mouseMove(const MouseEvent& e) override;
+
+			void mouseDown(const MouseEvent& e) override;
+
+		    CSSDebugger& parent;
+	    };
+
+		bool keyPressed(const KeyPress& key) override;
+
+		void clear();
+
+		bool editMode = true;
+		InspectorData currentlyEditedData;
+
+		void setEditMode(bool shouldBeEnabled);
+
+		void updateEditorText(const InspectorData& d, bool force=false);
+
+		void setActive(bool shouldBeActive);
+
+	    ScopedPointer<SelectListener> selectListener;
+		InspectorData hoverData;
+	    HiseShapeButton powerButton;
+		HiseShapeButton editButton;
+
+	    
+	    Path createPath(const String& url) const override;
+
+	    ~CSSDebugger()
+	    {
+	        clear();
+	    }
+	    
+	    void paint(Graphics& g) override;
+
+	    Component* getRootComponent()
+	    {
+		    return dynamic_cast<Component*>(root.get());
+	    }
+
+	    InspectorData createInspectorData(Component* c);
+
+		void check();
+
+		void timerCallback() override
+	    {
+	        //check();
+	    }
+
+	    Array<InspectorData> parentData;
+
+	    void updateWithInspectorData(const InspectorData& id);
+
+		Component::SafePointer<Component> currentTarget = nullptr;
+	    
+	    void resized() override;
+
+		juce::CodeDocument doc;
+	    mcl::TextDocument codeDoc;
+	    mcl::TextEditor editor;
+
+		ComboBox overlayMode;
+	    ComboBox hierarchy;
+		ComboBox editSelector;
+
+	    hise::GlobalHiseLookAndFeel laf;
+
+	    WeakReference<CSSRootComponent> root;
+	};
+
+	void setCurrentInspectorData(const InspectorData& newData)
+    {
+        inspectorData = newData;
+        dynamic_cast<Component*>(this)->repaint();
+    }
+    
+    InspectorData inspectorData;
+
+	void toggleInfo()
+	{
+		if(debugger != nullptr)
+			debugger = nullptr;
+		else
+			debugger = new InfoOverlay(*this);
+	}
+
+	void showInfo(bool shouldShow)
+	{
+		if(shouldShow != (debugger != nullptr))
+		{
+			if(shouldShow)
+				debugger = new InfoOverlay(*this);
+			else
+				debugger = nullptr;
+		}
+	}
+#endif
 
 	CSSRootComponent():
 	  stateWatcher(this, animator)
@@ -96,20 +274,14 @@ struct CSSRootComponent
 	}
 
 	virtual StyleSheet::Collection::DataProvider* createDataProvider() { return nullptr; }
-
-	void showInfo(bool shouldShow)
-	{
-		if(shouldShow)
-			info = new InfoOverlay(*this);
-		else
-			info = nullptr;
-	}
-
 	
 	Animator animator;
 	StateWatcher stateWatcher;
 	StyleSheet::Collection css;
-	ScopedPointer<InfoOverlay> info;
+
+	ScopedPointer<Component> debugger;
+
+	JUCE_DECLARE_WEAK_REFERENCEABLE(CSSRootComponent);
 };
 
 
@@ -246,9 +418,20 @@ struct Renderer: public Animator::ScopedComponentSetter
 		applyMargin = useMargin;
 	}
 
-	
+	void setRenderTextWithBackground(bool shouldRenderText)
+	{
+		renderTextWithBackground = shouldRenderText;
+	}
+
+	void setRenderPseudoElements(bool shouldRenderPseudoElements)
+	{
+		renderPseudoElements = shouldRenderPseudoElements;
+	}
 
 private:
+
+	bool renderPseudoElements = true;
+	bool renderTextWithBackground = true;
 
 	bool applyMargin = true;
 

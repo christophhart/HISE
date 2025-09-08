@@ -56,6 +56,8 @@ struct PseudoState
 	bool matchesElement(const PseudoState& other) const { return element == other.element; }
 	bool matchesElement(PseudoElementType otherType) const { return element == otherType; }
 
+	bool matchesPseudoClassType(PseudoClassType t) const { return stateFlag | (int)t; }
+
 	PseudoState withElement(PseudoElementType t) const { auto copy = *this; copy.element = t; return copy; }
 	PseudoState withAdditionalState(PseudoClassType t) const { auto copy = *this; copy.stateFlag |= (int)t; return copy; }
 
@@ -165,6 +167,7 @@ struct Transition
 	bool active = false;
 	double duration = 0.0;
 	double delay = 0.0;
+	String fName;
 	std::function<double(double)> f;
 };
 

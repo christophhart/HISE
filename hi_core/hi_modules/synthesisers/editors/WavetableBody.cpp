@@ -136,7 +136,19 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
 
 	wavetableSelector->addItemList(dynamic_cast<WavetableSynth*>(getProcessor())->getWavetableList(), 1);
 
-	auto wv = new WaterfallComponent(getProcessor()->getMainController(), nullptr);
+	auto wv = new WaterfallComponent(getProcessor(), nullptr);
+
+    wv->alphaData.peakAlphaGain = 5.0f;
+    wv->displacement = { 4.0f, -8.0f };
+    wv->alphaData.glowScale = 0.5f;
+    wv->alphaData.smoothRange = { 0.9f, 1.0f };
+    wv->alphaData.numHighlights = 8;
+    wv->alphaData.highlightColour = Colours::white.withAlpha(0.8f);
+    wv->numDisplayTables = 32;
+    wv->isometricFactor = 0.5;
+
+
+    wv->setColour(HiseColourScheme::ColourIds::ComponentFillBottomColourId, Colour(0x88545893));
 
 	wv->displayDataFunction = [owner]()
 	{

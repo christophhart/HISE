@@ -34,7 +34,7 @@ namespace hise {
 using namespace juce;
 
 
-bool LockHelpers::freeToGo(MainController* mc)
+bool LockHelpers::freeToGo(const MainController* mc)
 {
 	if (mc->isBeingDeleted())
 	{

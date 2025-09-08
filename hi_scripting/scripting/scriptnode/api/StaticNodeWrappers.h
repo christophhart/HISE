@@ -215,12 +215,20 @@ public:
 
 	virtual ~InterpretedNodeBase() 
 	{
+		if(runtimeTargetMaster != nullptr)
+		{
+			runtimeTargetMaster->connectToRuntimeTargets(obj.getWrappedObject(), false);
+			runtimeTargetMaster = nullptr;
+		}
+
 		if (nodeFactory != nullptr)
 		{
 			nodeFactory->deinitOpaqueNode(&obj.getWrappedObject());
 		}
 	};
 
+	Processor* runtimeTargetMaster = nullptr;
+	
 	InterpretedNodeBase() = default;
 
 	template <typename T, bool AddDataOffsetToUIPtr, bool UseNodeBaseAsUI=false> void init()
@@ -243,6 +251,14 @@ public:
 
 		this->obj.initialise(asWrapperNode());
 		postInit();
+
+		auto hasRuntimeTargets = cppgen::CustomNodeProperties::isRuntimeTarget<T>();
+
+		if(hasRuntimeTargets)
+		{
+			runtimeTargetMaster = dynamic_cast<Processor*>(asWrapperNode()->getScriptProcessor());
+			runtimeTargetMaster->connectToRuntimeTargets(obj.getWrappedObject(), true);
+		}
 	}
 
 	ExternalDataHolder* setOpaqueDataEditor(bool addDragger)
@@ -283,8 +299,8 @@ public:
 
 		if (nodeFactory != nullptr)
 		{
-			auto mc = asWrapperNode()->getScriptProcessor()->getMainController_();
-			mc->connectToRuntimeTargets(*on, false);
+			auto p = dynamic_cast<Processor*>(asWrapperNode()->getScriptProcessor());
+			p->connectToRuntimeTargets(*on, false);
 			nodeFactory->deinitOpaqueNode(on);
 		}
 
@@ -338,8 +354,8 @@ public:
 		setOpaqueDataEditor(addDragger);
 		
 		postInit();
-		auto mc = asWrapperNode()->getScriptProcessor()->getMainController_();
-		mc->connectToRuntimeTargets(obj.getWrappedObject(), true);
+		auto p = dynamic_cast<Processor*>(asWrapperNode()->getScriptProcessor());
+		p->connectToRuntimeTargets(obj.getWrappedObject(), true);
 	}
 
 	virtual void postInit()
@@ -412,7 +428,11 @@ public:
 
 	void connectToRuntimeTarget(bool shouldConnect) override
 	{
-		getScriptProcessor()->getMainController_()->connectToRuntimeTargets(obj.getWrappedObject(), shouldConnect);
+		auto p = dynamic_cast<Processor*>(getScriptProcessor());
+		p->connectToRuntimeTargets(obj.getWrappedObject(), shouldConnect);
+
+		if(!shouldConnect)
+			runtimeTargetMaster = nullptr;
 	}
 
     template <typename T, typename ComponentType, bool AddDataOffsetToUIPtr, bool UseNodeBaseAsUI> static NodeBase* createNode(DspNetwork* n, ValueTree d) 
@@ -474,6 +494,15 @@ public:
 	InterpretedModNode(DspNetwork* parent, ValueTree d);
 
 	void postInit() override;
+
+	void connectToRuntimeTarget(bool shouldConnect) override
+	{
+		auto p = dynamic_cast<Processor*>(getScriptProcessor());
+		p->connectToRuntimeTargets(obj.getWrappedObject(), shouldConnect);
+
+		if(!shouldConnect)
+			runtimeTargetMaster = nullptr;
+	}
 
 	bool isProcessingHiseEvent() const override
 	{
@@ -572,6 +601,15 @@ struct InterpretedCableNode : public ModulationSourceNode,
 	void* getObjectPtr() override
 	{
 		return getObjectPtrFromWrapper();
+	}
+
+	void connectToRuntimeTarget(bool shouldConnect) override
+	{
+		auto p = dynamic_cast<Processor*>(getScriptProcessor());
+		p->connectToRuntimeTargets(obj.getWrappedObject(), shouldConnect);
+
+		if(!shouldConnect)
+			runtimeTargetMaster = nullptr;
 	}
 
 	String getNodeDescription() const override { return obj.getWrappedObject().getDescription(); }

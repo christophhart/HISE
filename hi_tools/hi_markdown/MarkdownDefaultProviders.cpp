@@ -310,6 +310,7 @@ MarkdownCodeComponentBase::MarkdownCodeComponentBase(SyntaxType syntax_, String 
 	case Javascript: tok = new JavascriptTokeniser(); break;
 	case XML:	tok = new XmlTokeniser(); break;
 	case Snippet: tok = new MarkdownParser::SnippetTokeniser(); break;
+	case CSS: tok = new simple_css::LanguageManager::Tokeniser();
 	default: break;
 	}
 
@@ -460,6 +461,9 @@ juce::String MarkdownCodeComponentBase::HtmlHelpers::createCodeBlock(SyntaxType 
 
 	if (syntax == XML)
 		syntaxString = "language-xml";
+
+	if(syntax == CSS)
+		syntaxString = "language-css";
 
 	if (syntax == SyntaxType::Cpp)
 		syntaxString = "language-clike";

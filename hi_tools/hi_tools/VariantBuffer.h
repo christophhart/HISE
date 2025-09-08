@@ -129,6 +129,11 @@ public:
 	
 	const float &operator [](int sampleIndex) const;
 
+	const float* begin() const { return buffer.getReadPointer(0); }
+	const float* end() const   { return buffer.getReadPointer(0) + size; }
+	float* begin()             { return buffer.getWritePointer(0); }
+	float* end()               { return buffer.getWritePointer(0) + size; }
+
 	float &operator [](int sampleIndex);
 
 	var getSample(int sampleIndex);

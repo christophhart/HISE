@@ -39,12 +39,14 @@ freq2(1600.0f),
 feedback(0.7f),
 mix(1.0f)
 {
-	modChains += { this, "Phase Modulation" };
+	modChains += { this, "Phase Modulation" , ModulatorChain::ModulationType::Normal, Modulation::Mode::CombinedMode };
 
 	finaliseModChains();
 
 	phaseModulationChain = modChains[InternalChains::PhaseModulationChain].getChain();
 	modChains[InternalChains::PhaseModulationChain].setExpandToAudioRate(true);
+	modChains[InternalChains::PhaseModulationChain].setAllowModificationOfVoiceValues(true);
+	modChains[InternalChains::PhaseModulationChain].setClampTo0To1(true);
 
 	WeakReference<Processor> tmp(this);
 

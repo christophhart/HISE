@@ -141,6 +141,32 @@ double PitchDetection::detectPitch(const AudioSampleBuffer &buffer, int startSam
 	return pitchResult * (sampleRate / 44100.0);
 }
 
+int PitchDetection::getBestMidiNote(double frequency)
+{
+	if(frequency == 0.0)
+		return -1;
+
+	Array<double> deltas;
+	deltas.ensureStorageAllocated(128);
+
+	for(int i = 0; i < 127; i++)
+		deltas.add(std::abs(MidiMessage::getMidiNoteInHertz(i) - frequency));
+
+	double maxDelta = 9000000.0;
+	int bestNote = -1;
+
+	for(int i = 0; i < deltas.size(); i++)
+	{
+		if(deltas[i] < maxDelta)
+		{
+			bestNote = i;
+			maxDelta = deltas[i];
+		}
+	}
+
+	return bestNote;
+}
+
 int PitchDetection::getNumSamplesNeeded(double sampleRate)
 {
 	return getNumSamplesNeeded(sampleRate, 50.0);

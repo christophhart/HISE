@@ -260,6 +260,22 @@ public:
 		/** If you're doing the expansion manually, you can update the current ramp value with this method. */
 		void setCurrentRampValueForVoice(int voiceIndex, float value) noexcept;
 
+		bool isForceProcessEnabled() const noexcept { return options.forceProcessing; }
+
+		/** This will ensure that the modulation chain is always processed even if there are no modulators present.
+		 *
+		 *  This can be used to ensure that the value is smoothed when using the setInitialValue() function.
+		 */
+		void setForceProcessing(bool shouldBeProcessed)
+		{
+			options.forceProcessing = shouldBeProcessed;
+		}
+
+		void setClampTo0To1(bool shouldClamp)
+		{
+			options.clampTo0to1 = shouldClamp;
+		}
+
 		bool isAudioRateModulation() const noexcept;
 
 		struct Options
@@ -267,6 +283,8 @@ public:
 			bool expandToAudioRate = false;
 			bool includeMonophonicValues = true;
 			bool voiceValuesReadOnly = true;
+			bool clampTo0to1 = false;
+			bool forceProcessing = false;
 		};
 
 		void setDisplayValue(float v);
@@ -302,9 +320,11 @@ public:
 
 		float currentMonoValue = 1.0f;
 		float lastConstantVoiceValue = 1.0f;
+		float lastInitialMonoValue = 0.0f;
 		float currentConstantVoiceValues[NUM_POLYPHONIC_VOICES];
 		float currentRampValues[NUM_POLYPHONIC_VOICES];
-		
+
+
 		float currentMonophonicRampValue;
 		float const* currentVoiceData = nullptr;
 
@@ -313,7 +333,44 @@ public:
 
 	using ModulationType = ModChainWithBuffer::Type;
 	using Collection = PreallocatedHeapArray<ModChainWithBuffer, ModChainWithBuffer::ConstructionData>;
-	
+
+
+	struct SpecialQueryFunctions
+	{
+		/** A special function that converts db to gain and calculates the proper scaleValue for the resulting mod value. */
+		struct GainModulation: public ModulationDisplayValue::QueryFunction
+		{
+			bool onScaleDrag(Processor* p, bool isDown, float delta) override;
+			ModulationDisplayValue getDisplayValue(Processor* p, double v, NormalisableRange<double> nr) const override;
+		};
+
+		struct PitchModulation: public ModulationDisplayValue::QueryFunction
+		{
+			bool onScaleDrag(Processor* p, bool isDown, float delta) override;
+			ModulationDisplayValue getDisplayValue(Processor* p, double v, NormalisableRange<double> nr) const override;
+		};
+	};
+
+	ModulationDisplayValue getModulationDisplayValue(double pValue, NormalisableRange<double> nr) const;
+
+	/* Use this with HiSlider::setIsUsingModulatedRing(). */
+    template <int P > struct GetModulationOutput: public ModulationDisplayValue::QueryFunction
+	{
+		bool onScaleDrag(Processor* p, bool isDown, float delta) override
+		{
+			auto modChain = dynamic_cast<ModulatorChain*>(p->getChildProcessor(P));
+			jassert(modChain != nullptr);
+			return modChain->onIntensityDrag(isDown, delta);
+		}
+
+		ModulationDisplayValue getDisplayValue(Processor* p, double pValue, NormalisableRange<double> nr) const override
+		{
+			auto modChain = dynamic_cast<ModulatorChain*>(p->getChildProcessor(P));
+			jassert(modChain != nullptr);
+			return modChain->getModulationDisplayValue(pValue, nr);
+		}
+	};
+
 	SET_PROCESSOR_NAME("ModulatorChain", "Modulator Chain", "chain")
 
 	class ModulatorChainHandler;
@@ -429,7 +486,51 @@ public:
 
 	void applyMonoOnOutputValue(float monoValue);
 
+	/** This can be used to change the initial value of the modulation signal. Connect this to a UI element that
+	 *  shows the modulation output.
+	 */
+	void setInitialValue(float newInitialValue);
+
+	void changeChildModulatorMode(Processor* childMod, Modulation::Mode newMode, bool isBipolar)
+	{
+		auto mod = dynamic_cast<Modulation*>(childMod);
+		
+		if (getMode() == Modulation::Mode::CombinedMode)
+		{
+			mod->setMode(newMode);
+			sendRebuildMessage(true);
+		}
+		else
+		{
+			jassertfalse;
+			return;
+		}
+
+		if(newMode != Modulation::Mode::GainMode)
+			mod->setIsBipolar(isBipolar);
+	}
+
+	void setZeroPosition(float newZeroPosition) override
+	{
+		Modulation::setZeroPosition(newZeroPosition);
+
+		for(auto m: allModulators)
+			dynamic_cast<Modulation*>(m)->setZeroPosition(newZeroPosition);
+	}
+
+
+
 public:
+
+	float getInitialValueInternal() const
+	{
+		if(initialValue.first)
+			return initialValue.second;
+
+		return getInitialValue();
+	}
+
+	std::pair<bool, float> initialValue;
 
 	void setTableValueConverter(const Table::ValueTextConverter& converter);;
 
@@ -489,7 +590,6 @@ public:
 
 		void clear() override;
 
-
         Table::ValueTextConverter tableValueConverter;
 
 		bool hasActiveEnvelopes() const noexcept;;
@@ -517,7 +617,388 @@ public:
 		ModulatorChain *chain;
 	};
 
+	void connectToRuntimeTargets(scriptnode::OpaqueNode& on, bool shouldAdd) override
+	{
+		if(getMainController()->isBeingDeleted())
+			return;
+
+		// do not call this, as this is already called by the processor that owns the Opaque node...
+		//Processor::connectToRuntimeTargets(on, shouldAdd);
+
+		auto c = runtimeTargetSource.createConnection();
+
+
+		on.connectToRuntimeTarget(shouldAdd, c);
+	}
+
+	
+	/* Provides a modulation source for a single modulation chain. */
+	struct RuntimeTargetSource: public scriptnode::modulation::Host,
+							    public runtime_target::source_base
+    {
+		using TargetType = runtime_target::typed_target<scriptnode::modulation::SignalSource>;
+		using EventData = scriptnode::modulation::EventData;
+
+		RuntimeTargetSource(ModulatorChain& parent_):
+		  parent(parent_),
+		  signalData(1, 0)
+		{}
+
+		int getRuntimeHash() const override;
+
+		runtime_target::connection createConnection() const override
+		{
+			auto c = source_base::createConnection();
+			c.connectFunction = connectStatic<true>;
+			c.disconnectFunction = connectStatic<false>;
+			return c;
+		}
+
+		runtime_target::RuntimeTarget getType() const override { return runtime_target::RuntimeTarget::ExternalModulatorChain; }
+
+		static EventData getEventData(Host* rt, const HiseEvent& e, bool wantsPolyphonicSignal)
+		{
+			auto typed = static_cast<RuntimeTargetSource*>(rt);
+			EventData d;
+			d.type = scriptnode::modulation::SourceType::Envelope;
+			d.signal = typed->signalData.getWritePointer(0);
+			d.thisBlockSize = &typed->thisBlockSize;
+			d.constantValue = 0.0f;
+			return d;
+		}
+
+		void updateThisBlockSize(int numSamplesThisBlock)
+		{
+			thisBlockSize = numSamplesThisBlock;
+		}
+
+		void handleConnection(bool shouldBeAdded, int numSamples)
+		{
+			if(shouldBeAdded)
+			{
+				numConnections++;
+			}
+			else
+			{
+				numConnections = jmax(0, numConnections-1);
+			}
+
+			if(numConnections > 0)
+			{
+				ProcessorHelpers::increaseBufferIfNeeded(signalData, numSamples);
+				thisBlockSize = signalData.getNumSamples();
+			}
+			else
+			{
+				signalData = AudioSampleBuffer(1, 0);
+				thisBlockSize = 0;
+			}
+		}
+
+		bool addConnection(bool shouldBeAdded, TargetType* target)
+		{
+			scriptnode::modulation::SignalSource signal;
+
+			if(shouldBeAdded)
+			{
+				signal.sampleRate_cr = parent.getSampleRate() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+				signal.numSamples_cr = parent.getLargestBlockSize() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+				signal.modValueFunctions[0] = { this, getEventData };
+			}
+
+			handleConnection(shouldBeAdded, signal.numSamples_cr);
+
+			target->onValue(signal);
+			return true;
+		}
+
+		template <bool Add> static bool connectStatic(runtime_target::source_base* host, runtime_target::target_base* target)
+		{
+			auto rt = static_cast<RuntimeTargetSource*>(host);
+			auto tt = dynamic_cast<TargetType*>(target);
+			return rt->addConnection(Add, tt);
+		}
+
+		void copyModulationValues(const float* modValues, float constantValue, int startSample_cr, int numSamples_cr);
+
+		bool isEnabled() const
+		{
+			return numConnections > 0;
+		}
+
+		// this points to the currentVoiceData buffer...
+		AudioSampleBuffer signalData;
+		ModulatorChain& parent;
+		int thisBlockSize = 0;
+		int numConnections = 0;
+
+    } runtimeTargetSource;
+
+	/** Provides multiple modulation sources for the extra_mod. */
+	struct ExtraModulatorRuntimeTargetSource: public scriptnode::modulation::Host,
+											  public runtime_target::source_base
+	{
+		using TargetType = runtime_target::typed_target<scriptnode::modulation::SignalSource>;
+		using EventData = scriptnode::modulation::EventData;
+		using ParameterProperties = scriptnode::modulation::ParameterProperties;
+
+		ExtraModulatorRuntimeTargetSource() = default;
+
+		int getRuntimeHash() const override;
+		runtime_target::RuntimeTarget getType() const override;
+
+		runtime_target::connection createConnection() const override;
+
+		template <bool Add> static bool connectStatic(runtime_target::source_base* host, runtime_target::target_base* target)
+		{
+			auto rt = static_cast<ExtraModulatorRuntimeTargetSource*>(host);
+			auto tt = dynamic_cast<TargetType*>(target);
+			return rt->addConnection(Add, tt);
+		}
+
+		template <typename T> struct RenderData
+		{
+			RenderData(T& obj_, const ParameterProperties& pp_, HiseEventBuffer* eventBuffer, float** data_, int numChannels, int startSample, int numSamples):
+			    obj(obj_),
+				pd(data, numSamples, numChannels),
+				pp(pp_),
+				startOffset(startSample)
+			{
+				if(eventBuffer != nullptr)
+					pd.setEventBuffer(*eventBuffer);
+
+				for(int i = 0; i < numChannels; i++)
+					data[i] = data_[i] + startSample;
+			}
+
+			float* data[NUM_MAX_CHANNELS];
+			ProcessDataDyn pd;
+
+			void handleModulation(int pIndex, double mv) const
+			{
+				if constexpr (std::is_same<T, scriptnode::OpaqueNode>())
+				{
+					auto p = obj.getParameter(pIndex);
+					auto r = p->toRange();
+					auto value = r.convertFrom0to1(mv, false);
+					p->callback.call((double)value);
+				}
+				if constexpr (std::is_same<T, scriptnode::NodeBase>())
+				{
+					auto p = obj.getParameterFromIndex(pIndex)->getDynamicParameter();
+					auto r = p->getRange();
+					auto value = r.convertFrom0to1(mv, false);
+					p->call(value);
+				}
+			}
+
+			void process(ProcessDataDyn& data)
+			{
+				obj.process(data);
+			}
+
+			T& obj;
+
+			const ParameterProperties& pp;
+			const int startOffset;
+		};
+
+		/** Call this with the mod collection in your processors constructor after finalizing the modchains. */
+		void init(Collection& modChains, int offset=0);
+
+		/** Use this function in the Processor::connectToRuntimeTargets function. */
+		void connectToRuntimeTarget(scriptnode::OpaqueNode& on, bool shouldAdd);
+
+		/** Plug this in the Processor::getModulationQueryFunction function. */
+		ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(const ParameterProperties& pp, int parameterIndex) const;
+
+		/** Use this function to process the audio buffer and it will process all modulation chains and chunk
+		 *  the data according to the given modulation block size. */
+		template <typename RD> void processChunkedWithModulation(RD& rd)
+		{
+			auto thisBlockSize = rd.pp.getBlockSize(rd.pd.getNumSamples());
+
+			int startSample = rd.startOffset;
+
+
+			if(thisBlockSize == rd.pd.getNumSamples())
+			{
+				handleModulation(rd, startSample);
+				rd.process(rd.pd);
+			}
+			else
+			{
+				ChunkableProcessData<ProcessDataDyn, true> cd(rd.pd);
+						
+				while(auto numLeft = cd.getNumLeft())
+				{
+					auto numThisTime = jmin(numLeft, thisBlockSize);
+					auto chunk = cd.getChunk(numThisTime);
+
+					handleModulation(rd, startSample);
+
+					rd.process(chunk.toData());
+					startSample += numThisTime;
+				}
+			}
+		}
+
+		struct ParameterInitData
+		{
+			using QueryFunction = std::function<ParameterInitData(int)>;
+
+			float initValue;
+			scriptnode::InvertableParameterRange ir;
+			ValueToTextConverter vtc;
+		};
+
+		void updateModulationProperties(const ParameterProperties& pp, const ParameterInitData::QueryFunction& pf)
+		{
+			int idx = 0;
+
+			for(auto& mb: extraMods)
+			{
+				auto isUsed = pp.isUsed(idx);
+
+				mb->getChain()->setBypassed(!isUsed);
+				mb->setForceProcessing(isUsed);
+
+				if(isUsed)
+				{
+					auto parameterIndex = pp.getParameterIndex(idx);
+
+					if(parameterIndex != -1)
+					{
+						auto mode = Modulation::getModeFromModProperties(pp, parameterIndex);
+
+						auto zp = mode == Modulation::Mode::PanMode ? 0.5f : 0.0f;
+						mb->getChain()->setZeroPosition(zp);
+						mb->getChain()->setMode(Modulation::Mode::CombinedMode, sendNotificationAsync);
+
+						auto pd = pf(parameterIndex);
+
+						auto initialValue = pd.ir.convertTo0to1(pd.initValue, false);
+						mb->getChain()->setInitialValue(initialValue);
+
+						mb->getChain()->setTableValueConverter([pd](float v)
+						{
+							v = pd.ir.convertFrom0to1(v, false);
+
+							if(pd.vtc.active)
+								return pd.vtc.getTextForValue(v);
+							else
+								return String(v);
+						});
+					}
+				}
+
+				idx++;
+			}
+
+		}
+
+		ModulatorChain* getModulatorChain(int modulatorIndex) const
+		{
+			if(isPositiveAndBelow(modulatorIndex, extraMods.size()))
+			{
+				return extraMods[modulatorIndex]->getChain();
+			}
+
+			return nullptr;
+		}
+
+		int getExtraOffset() const { return extraOffset; }
+
+	private:
+
+		int extraOffset = 0;
+
+		template <typename RD> void handleModulation(const RD& rd, int startSample)
+		{
+			if(!rd.pp.isAnyConnected())
+				return;
+
+			int numParametersToModulate = rd.pp.getNumUsed(extraMods.size());
+
+			for(int mi = 0; mi < numParametersToModulate; mi++)
+			{
+				if(rd.pp.isConnected(mi))
+				{
+					auto mv = extraMods[mi]->getOneModulationValue(startSample);
+					auto pIndex = rd.pp.getParameterIndex(mi);
+					jassert(pIndex != -1);
+					rd.handleModulation(pIndex, mv);
+				}
+			}
+		}
+
+		bool addConnection(bool shouldBeAdded, TargetType* target);
+
+		Array<ModChainWithBuffer*> extraMods;
+	};
+
+	bool onIntensityDrag(bool isMouseDown, float delta);
+
+	struct SelfQueryFunction: public ModulationDisplayValue::QueryFunction
+	{
+		SelfQueryFunction(ModulatorChain* c):
+		  self(c)
+		{};
+
+		ModulationDisplayValue getDisplayValue(Processor* p, double nv, NormalisableRange<double> nr) const override
+		{
+			return self->getModulationDisplayValue(nv, nr);
+		}
+
+		bool onScaleDrag(Processor* p, bool isDown, float delta) override
+		{
+			return self->onIntensityDrag(isDown, delta);
+		}
+
+		ModulatorChain* self;
+	};
+
 private:
+
+	std::vector<float> intensityValues;
+
+	struct AddBufferData
+	{
+		void prepare(double sampleRate, int blockSize);
+
+		void checkActiveState(ModulatorChain* parent);
+
+		float* getWritePointer(int startSample_cr, bool getEnvelope)
+		{
+			return (getEnvelope ? envelopeValues.begin() : timeVariantValues.begin()) + startSample_cr;
+		}
+
+		const float* getReadPointer(int startSample_cr, bool getEnvelope) const
+		{
+			return (getEnvelope ? envelopeValues.begin() : timeVariantValues.begin()) + startSample_cr;
+		}
+
+		void clearModValues()
+		{
+			FloatVectorOperations::clear(timeVariantValues.begin(), timeVariantValues.size());
+			FloatVectorOperations::clear(envelopeValues.begin(), envelopeValues.size());
+			addStartValue = 0.0f;
+			currentTimeVariantAddValue = 0.0f;
+		}
+
+		bool useVoiceStartValue = false;
+		bool useTimeVariantBuffer = false;
+		bool useEnvelopeValues = false;
+
+		heap<float> timeVariantValues;
+		heap<float> envelopeValues;
+		float addStartValue = 0.0f;
+		float currentTimeVariantAddValue = 0.0f;
+	};
+
+	ScopedPointer<AddBufferData> addBufferData;
+
+	std::pair<std::pair<float, float>, Range<double>> getCombinedOutputValues() const;
 
     std::function<void(Modulator* m, const HiseEvent& e)> postEventFunction;
     
@@ -525,6 +1006,30 @@ private:
 
 	// Checks if the Modulators are initialized correctly and are set to the right voices */
 	bool checkModulatorStructure();
+
+	static void smoothConstantInitialValue(float* data, int numSamples, float thisValue, float lastValue)
+	{
+		const bool smoothConstantValue = (std::abs(thisValue - lastValue) > 0.01f);
+
+		if (smoothConstantValue)
+		{
+			const float start = lastValue;
+			const float delta = (thisValue - start) / (float)numSamples;
+			int numLoop = numSamples;
+			float value = start;
+			float* loop_ptr = data;
+
+			while (--numLoop >= 0)
+			{
+				*loop_ptr++ = value;
+				value += delta;
+			}
+		}
+		else
+		{
+			FloatVectorOperations::fill(data, thisValue, numSamples);
+		}
+	}
 
 	BigInteger activeVoices;
 
@@ -555,18 +1060,7 @@ private:
 };
 
 
-struct ModBufferExpansion
-{
 
-	static bool isEqual(float rampStart, const float* data, int numElements);
-
-	/** Expands the data found in modulationData + startsample according to the HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR.
-	*
-	*	It updates the rampstart and returns true if there was movement in the modulation data.
-	*
-	*/
-	static bool expand(const float* modulationData, int startSample, int numSamples, float& rampStart);
-};
 
 /**	Allows creation of TimeVariantModulators.
 *

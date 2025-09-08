@@ -271,7 +271,7 @@ void FilterBank::reset()
 
 FilterDataObject::CoefficientData FilterBank::getCurrentCoefficients() const noexcept
 {
-	return FilterEffect::getDisplayCoefficients(mode, freqModValue, q, gain * gainModValue, sampleRate);
+	return FilterEffect::getDisplayCoefficients(mode, freqModValue, q * qModValue, gain * gainModValue, sampleRate);
 }
 
 void FilterBank::setQ(double newQ)

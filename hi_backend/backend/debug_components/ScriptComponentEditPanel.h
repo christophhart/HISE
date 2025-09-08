@@ -37,6 +37,52 @@ namespace hise { using namespace juce;
 
 class HiPropertyComponent;
 
+class ScriptComponentCSSDebugger: public PanelWithProcessorConnection
+{
+public:
+
+	SET_PANEL_NAME("ScriptComponentCSSDebugger");
+
+	ScriptComponentCSSDebugger(FloatingTile* parent) :
+	  PanelWithProcessorConnection(parent)
+	{
+		
+	}
+
+	~ScriptComponentCSSDebugger()
+	{
+		
+	}
+
+	
+	Identifier getProcessorTypeId() const override { return JavascriptProcessor::getConnectorId();}
+
+	Component* createContentComponent(int ) override
+	{
+		ScriptContentComponent* firstContent = nullptr;
+		callRecursive<ScriptContentComponent>(getTopLevelComponent(), [&](ScriptContentComponent* r)
+		{
+			firstContent = r;
+			return true;
+		});
+
+		if(firstContent != nullptr)
+		{
+			return new simple_css::CSSRootComponent::CSSDebugger(*firstContent, false);
+		}
+			
+
+		return nullptr;
+	}
+
+	void fillModuleList(StringArray& moduleList) override
+	{
+		fillModuleListWithType<JavascriptProcessor>(moduleList);
+	}
+
+	
+};
+
 class ScriptComponentEditPanel : public Component,
 	public ScriptComponentEditListener,
 	public Timer,

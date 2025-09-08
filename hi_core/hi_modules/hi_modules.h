@@ -62,13 +62,8 @@ END_JUCE_MODULE_DECLARATION
 #define NUM_HARDCODED_POLY_FX_MODS 0
 #endif
 
-/** This can be used to decrease the block size between modulation values for polyphonic FX modulation. */
-#ifndef HARDCODED_POLY_FX_BLOCKSIZE
-#if NUM_HARDCODED_POLY_FX_MODS
-#define HARDCODED_POLY_FX_BLOCKSIZE 32
-#else 
-#define HARDCODED_POLY_FX_BLOCKSIZE 1024
-#endif
+#ifndef NUM_HARDCODED_SYNTH_MODS
+#define NUM_HARDCODED_SYNTH_MODS 2
 #endif
 
 #include "synthesisers/synths/PolyBlep.h"
@@ -98,6 +93,7 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/mods/SimpleEnvelope.h"
 #include "modulators/mods/KeyModulator.h"
 #include "modulators/mods/AhdsrEnvelope.h"
+#include "modulators/mods/FlexAhdsrEnvelope.h"
 #include "modulators/mods/EventDataModulator.h"
 #include "modulators/mods/PitchWheelModulator.h"
 #include "modulators/mods/TableEnvelope.h"
@@ -107,7 +103,8 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/mods/MPEModulators.h"
 #include "modulators/mods/MPEComponents.h"
 #include "modulators/mods/HardcodedNetworkModulators.h"
-
+#include "modulators/mods/MatrixModulator.h"
+#include "modulators/editors/MatrixModulatorComponents.h"
 
 #if USE_BACKEND
 
@@ -125,6 +122,7 @@ END_JUCE_MODULE_DECLARATION
 #include "modulators/editors/ArrayModulatorEditor.h"
 #include "modulators/editors/GlobalModulatorEditor.h"
 #include "modulators/editors/MPEModulatorEditors.h"
+#include "modulators/editors/MatrixModulatorEditor.h"
 
 #endif
 
@@ -157,6 +155,7 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/fx/HarmonicFilter.h"
 #include "effects/fx/CurveEq.h"
 #include "effects/fx/StereoFX.h"
+#include "effects/fx/NoiseGrainPlayer.h"
 #include "effects/fx/SimpleReverb.h"
 #include "effects/fx/Delay.h"
 #include "effects/fx/GainEffect.h"
@@ -168,7 +167,9 @@ END_JUCE_MODULE_DECLARATION
 #include "effects/fx/Analyser.h"
 #include "effects/fx/ShapeFX.h"
 #include "effects/fx/SlotFX.h"
-#include "effects/fx/HardcodedNetworkEffect.h"
+
+#include "hardcoded/HardcodedModuleBase.h"
+#include "hardcoded/HardcodedModules.h"
 
 
 #if USE_BACKEND

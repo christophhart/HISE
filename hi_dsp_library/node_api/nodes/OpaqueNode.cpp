@@ -44,6 +44,11 @@ OpaqueNode::~OpaqueNode()
 	callDestructor();
 }
 
+const OpaqueNode::ModulationProperties& OpaqueNode::getModulationProperties() const
+{
+	return mp;
+}
+
 void OpaqueNode::allocateObjectSize(int numBytes)
 {
 	object.setSize(numBytes);
@@ -137,6 +142,7 @@ void OpaqueNode::callDestructor()
 
 		object.free();
 		parameters.clear();
+		mp.reset();
 		destructFunc = nullptr;
 	}
 }

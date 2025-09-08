@@ -932,7 +932,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 					h = sliders[i]->getHeight() - v;
 				}
 
-				if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>())
+				if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>(this))
 					l->drawSliderPackFlashOverlay(g, *this, i, { x, y, w, h }, displayAlphas[i]);
 			}
 		}
@@ -940,7 +940,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 
 	if (rightClickLine.getLength() != 0)
 	{
-		if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>())
+		if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>(this))
 			l->drawSliderPackRightClickLine(g, *this, rightClickLine);
 	}
 
@@ -950,7 +950,7 @@ void SliderPack::paintOverChildren(Graphics &g)
 		const int unit = -roundToInt(logFromStepSize);
 		String textToDraw = " #" + String(currentlyDraggedSlider) + ": " + String(currentlyDraggedSliderValue, unit) + suffix + " ";
 
-		if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>())
+		if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>(this))
 			l->drawSliderPackTextPopup(g, *this, textToDraw);
 	}
 }
@@ -1068,7 +1068,7 @@ void SliderPack::mouseDoubleClick(const MouseEvent &e)
 
 void SliderPack::paint(Graphics &g)
 {
-	if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>())
+	if (auto l = getSpecialLookAndFeel<LookAndFeelMethods>(this))
 	{
 		l->drawSliderPackBackground(g, *this);
 	}

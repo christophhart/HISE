@@ -2731,6 +2731,8 @@ namespace control
 
 	template <int NV, typename SmootherClass> using smoothed_parameter = smoothed_parameter_pimpl<NV, SmootherClass, true>;
 	template <int NV, typename SmootherClass> using smoothed_parameter_unscaled = smoothed_parameter_pimpl<NV, SmootherClass, false>;
-}
+} // namespace control
+
+
 
 }

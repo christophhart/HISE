@@ -93,7 +93,6 @@ private:
 		if(wildcard == "-p:")
 		{
 			throwErrorAndQuit("`" + s + "` is not a valid path");
-			RETURN_IF_NO_THROW(File());
 		}
 
 		return File();

@@ -2527,19 +2527,11 @@ void AboutPage::refreshText()
 	infoData.append(JucePlugin_Manufacturer, normal, bright);
 #endif
 
-#if USE_COPY_PROTECTION
-
-	
-
-#endif
-
-
 #endif
 
 #if USE_IPP
 	infoData.append("\n\naccelerated by FFT routines from the IPP library\n", normal, bright);
 #endif
-
 
 	repaint();
 }

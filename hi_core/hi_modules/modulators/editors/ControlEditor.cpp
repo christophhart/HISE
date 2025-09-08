@@ -89,14 +89,13 @@ ControlEditorBody::ControlEditorBody (ProcessorEditor *p)
 	cm = static_cast<ControlModulator*>(this->getProcessor());
 
 	smoothingSlider->setup(getProcessor(), ControlModulator::SmoothTime, "Smoothing");
-	smoothingSlider->setMode(HiSlider::Mode::Time, 0, 1000.0, 100.0);
+	smoothingSlider->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 1000.0).withCentreSkew(100.0));
 
 	controllerNumberSlider->setup(getProcessor(), ControlModulator::ControllerNumber, "CC Number");
-	controllerNumberSlider->setMode(HiSlider::Discrete, 0, 129.0, 64.0);
+	controllerNumberSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 129.0, 1.0));
 
 	defaultSlider->setup(getProcessor(), ControlModulator::DefaultValue, "Default");
-	defaultSlider->setMode(HiSlider::Discrete, 0.0, 127.0);
-	defaultSlider->setRange(0.0, 127.0, 1.0);
+	defaultSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 127.0, 1.0));
 
     useTableButton->setup(getProcessor(), ControlModulator::Parameters::UseTable, "UseTable");
     invertedButton->setup(getProcessor(), ControlModulator::Parameters::Inverted, "Inverted");

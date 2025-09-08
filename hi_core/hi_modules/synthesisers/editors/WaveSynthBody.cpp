@@ -200,16 +200,14 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 	waveFormSelector2->setup(getProcessor(), WaveSynth::SpecialParameters::WaveForm2, "Waveform 2");
 
 	octaveSlider->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose1, "Octave 1");
-	octaveSlider->setMode(HiSlider::Discrete, -5.0, 5.0);
-	octaveSlider->setRange(-5.0, 5.0, 1.0);
+    octaveSlider->setMode(HiSlider::Discrete, {-5.0, 5.0, 1.0});
 	octaveSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose2, "Octave 2");
-	octaveSlider2->setMode(HiSlider::Discrete, -5.0, 5.0);
-	octaveSlider2->setRange(-5.0, 5.0, 1.0);
+    octaveSlider2->setMode(HiSlider::Discrete, {-5.0, 5.0, 1.0});
 
 	detuneSlider->setup(getProcessor(), WaveSynth::SpecialParameters::Detune1, "Detune 1");
 	detuneSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::Detune2, "Detune 2");
-	detuneSlider->setMode(HiSlider::Mode::Linear, -100.0, 100.0);
-	detuneSlider2->setMode(HiSlider::Mode::Linear, -100.0, 100.0);
+    detuneSlider->setMode(HiSlider::Mode::Linear, {-100.0, 100.0});
+    detuneSlider2->setMode(HiSlider::Mode::Linear, {-100.0, 100.0});
 	detuneSlider->setTextValueSuffix("ct");
 	detuneSlider2->setTextValueSuffix("ct");
 
@@ -231,12 +229,10 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 	pulseSlider2->setMode(HiSlider::Mode::NormalizedPercentage);
 
     semiToneSlider1->setup(getProcessor(), WaveSynth::SpecialParameters::SemiTones1, "SemiTones 1");
-    semiToneSlider1->setMode(HiSlider::Discrete, -12.0, 12.0);
-    semiToneSlider1->setRange(-12.0, 12.0, 1.0);
+    semiToneSlider1->setMode(HiSlider::Discrete, {-12.0, 12.0, 1.0});
 
     semiToneSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::SemiTones2, "SemiTones 2");
-    semiToneSlider2->setMode(HiSlider::Discrete, -12.0, 12.0);
-    semiToneSlider2->setRange(-12.0, 12.0, 1.0);
+    semiToneSlider2->setMode(HiSlider::Discrete, {-12.0, 12.0, 1.0});
 
     voiceAmountEditor->setFont(GLOBAL_FONT());
     voiceAmountLabel->setFont(GLOBAL_FONT());

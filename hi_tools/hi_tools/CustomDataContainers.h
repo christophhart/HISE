@@ -698,7 +698,7 @@ public:
     int getFirstFreeBit() const
     {
 		if(empty)
-			return -1;
+			return 0;
 
         for (int i = 0; i < getNumElements(); i++)
         {

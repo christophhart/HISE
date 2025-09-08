@@ -269,6 +269,13 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 
+	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override
+	{
+		if(parameterIndex == SpecialParameters::Mix)
+			return new ModulatorChain::GetModulationOutput<(int)InternalChains::MixModulation>();
+
+		return ModulatorSynth::getModulationQueryFunction(parameterIndex);
+	}
 
 	void prepareToPlay(double newSampleRate, int samplesPerBlock) override;
 

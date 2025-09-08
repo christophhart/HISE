@@ -150,11 +150,15 @@ DspNodeList::NodeItem::NodeItem(DspNetwork* parent, const String& id):
             
 	powerButton.setToggleModeWithColourChange(true);
 
-	idListener.setCallback(node->getValueTree(), { PropertyIds::Name }, valuetree::AsyncMode::Asynchronously,
-	                       BIND_MEMBER_FUNCTION_2(NodeItem::updateId));
+	idListener.setCallback(node->getValueTree(), 
+		{ PropertyIds::Name }, 
+		valuetree::AsyncMode::Asynchronously,
+		VT_BIND_PROPERTY_LISTENER(updateId));
 
-	bypassListener.setCallback(node->getValueTree(), { PropertyIds::Bypassed }, valuetree::AsyncMode::Asynchronously,
-	                           BIND_MEMBER_FUNCTION_2(NodeItem::updateBypassState));
+	bypassListener.setCallback(node->getValueTree(), 
+		{ PropertyIds::Bypassed }, 
+		valuetree::AsyncMode::Asynchronously,
+		VT_BIND_PROPERTY_LISTENER(updateBypassState));
 
 	auto fid = node->getValueTree()[PropertyIds::FactoryPath].toString();
 

@@ -137,10 +137,6 @@
  //#define USE_SCRIPT_COPY_PROTECTION 0
 #endif
 
-#ifndef    USE_IPP
- #define   USE_IPP 0
-#endif
-
 #ifndef    USE_VDSP_FFT
  //#define USE_VDSP_FFT 1
 #endif

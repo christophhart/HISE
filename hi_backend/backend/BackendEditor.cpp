@@ -390,7 +390,10 @@ void PluginParameterSimulator::PluginParameterComponent::LAF::drawRotarySlider(G
 		g.drawEllipse(area.expanded(1.0f), 1.0);
 	}
 
-	drawVectorRotaryKnob(g, area, proportion, bipolar, s.isMouseOverOrDragging(true), s.isMouseButtonDown(), s.isEnabled(), proportion);
+	ModulationDisplayValue mv;
+	mv.scaledValue = proportion;
+
+	drawVectorRotaryKnob(g, area, bipolar, s.isMouseOverOrDragging(true), s.isMouseButtonDown(), s.isEnabled(), mv);
 }
 
 PluginParameterSimulator::PluginParameterComponent::PluginParameterComponent(HisePluginParameterBase* p):

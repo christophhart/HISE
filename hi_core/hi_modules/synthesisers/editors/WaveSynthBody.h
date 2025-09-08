@@ -79,7 +79,7 @@ public:
 
 		mixSlider->updateValue();
 
-		mixSlider->setEnabled(getProcessor()->getChildProcessor(WaveSynth::MixModulation)->getNumChildProcessors() == 0);
+		//mixSlider->setEnabled(getProcessor()->getChildProcessor(WaveSynth::MixModulation)->getNumChildProcessors() == 0);
 
 		if (!enableSecond)
 		{

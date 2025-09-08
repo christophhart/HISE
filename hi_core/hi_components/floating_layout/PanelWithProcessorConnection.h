@@ -86,14 +86,9 @@ public:
 	void paint(Graphics& g) override;
 
 	var toDynamicObject() const override;
-
 	void fromDynamicObject(const var& object) override;
-
-
 	int getNumDefaultableProperties() const override;
-
 	Identifier getDefaultablePropertyId(int index) const override;
-
 	var getDefaultProperty(int index) const override;
 
 	void incIndex(bool up);

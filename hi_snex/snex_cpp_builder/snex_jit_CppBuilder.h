@@ -754,17 +754,22 @@ private:
 	String s;
 };
 
-struct EncodedParameterMacro : public Op
+struct EncoderBase: public Op
 {
-	EncodedParameterMacro(Base& b, scriptnode::parameter::encoder& pe_) :
-		Op(b),
-		pe(pe_)
+	EncoderBase(Base& b):
+	  Op(b)
 	{}
 
-	~EncodedParameterMacro()
+	virtual ~EncoderBase()
 	{
-		flushIfNot();
+		// this must be called in the derived class constructor to avoid
+		// a pure virtual function call
+		jassert(flushed);
 	}
+
+	virtual MemoryBlock getDataToEncode() = 0;
+
+	virtual String getMacroName() const = 0;
 
 	void flush() override
 	{
@@ -772,7 +777,7 @@ struct EncodedParameterMacro : public Op
 
 		a << "{\n\t" << IntendMarker;
 
-		auto data = pe.writeItems();
+		auto data = getDataToEncode();
 
 		MemoryInputStream mis(data, true);
 		auto numIntsWritten = 0;
@@ -805,14 +810,60 @@ struct EncodedParameterMacro : public Op
 		a = a.upToLastOccurrenceOf(", ", false, false);
 		a << "\n};";
 
-		Macro(parent, "SNEX_METADATA_ENCODED_PARAMETERS", { String(numIntsWritten) }, false);
+		Macro(parent, getMacroName(), { String(numIntsWritten) }, false);
 
 		parent << a;
 
 		Op::flush();
 	}
+};
+
+struct EncodedParameterMacro : public EncoderBase
+{
+	EncodedParameterMacro(Base& b, scriptnode::parameter::encoder& pe_) :
+		EncoderBase(b),
+		pe(pe_)
+	{}
+
+	~EncodedParameterMacro()
+	{
+		flushIfNot();
+	}
+
+	String getMacroName() const override { return "SNEX_METADATA_ENCODED_PARAMETERS"; }
+
+	MemoryBlock getDataToEncode() override
+	{
+		return pe.writeItems();
+	}
 
 	scriptnode::parameter::encoder& pe;
+};
+
+struct EncodedModulationProperties: public EncoderBase
+{
+	EncodedModulationProperties(Base& b, const ValueTree& networkTree):
+	  EncoderBase(b)
+	{
+		mp.fromValueTree(networkTree);
+	}
+
+	~EncodedModulationProperties()
+	{
+		flushIfNot();
+	}
+
+	String getMacroName() const override { return "SNEX_METADATA_ENCODED_MOD_INFO"; }
+
+	MemoryBlock getDataToEncode() override
+	{
+		MemoryOutputStream mos;
+		mp.writeToStream(mos);
+		mos.flush();
+		return mos.getMemoryBlock();
+	}
+
+	OpaqueNode::ModulationProperties mp;
 };
 
 struct UsingTemplate: public DefinitionBase,

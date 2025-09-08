@@ -282,7 +282,7 @@ void core::NewSnexOscillatorDisplay::wasCompiled(bool ok)
 
 void core::NewSnexOscillatorDisplay::SnexDisplay::paint(Graphics& g)
 {
-	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>();
+	auto laf = getSpecialLookAndFeel<LookAndFeelMethods>(this);
 
 	Path grid;
 	grid.addRectangle(getLocalBounds().toFloat().reduced(4.0f));

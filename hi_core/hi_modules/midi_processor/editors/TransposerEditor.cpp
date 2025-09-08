@@ -47,7 +47,7 @@ TransposerEditor::TransposerEditor (ProcessorEditor *p)
 
 	intensitySlider->setup(getProcessor(), Transposer::TransposeAmount, "Transpose");
 
-	intensitySlider->setMode(HiSlider::Discrete, -24.0, 24.0, 0.0, 1.0);
+	intensitySlider->setMode(HiSlider::Discrete, NormalisableRange(-24.0, 24.0, 1.0));
 	intensitySlider->setTextValueSuffix(" st");	
 
     //[/UserPreSize]
@@ -152,7 +152,7 @@ ChokeGroupEditor::ChokeGroupEditor(ProcessorEditor *p) : ProcessorEditorBody(p)
 	groupSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
 	groupSlider->setColour(Slider::textBoxTextColourId, Colours::white);
 	groupSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::ChokeGroup, "ChokeGroup");
-	groupSlider->setMode(HiSlider::Discrete, 0, 16.0, DBL_MAX, 1.0);
+	groupSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 16.0, 1.0));
 
 	addAndMakeVisible(loSlider = new HiSlider("LoKey"));
 	loSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
@@ -160,7 +160,7 @@ ChokeGroupEditor::ChokeGroupEditor(ProcessorEditor *p) : ProcessorEditorBody(p)
 	loSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
 	loSlider->setColour(Slider::textBoxTextColourId, Colours::white);
 	loSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::LoKey, "LoKey");
-	loSlider->setMode(HiSlider::Discrete, 0, 127, DBL_MAX, 1.0);
+	loSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 127.0, 1.0));
 
 	addAndMakeVisible(hiSlider = new HiSlider("HiKey"));
 	hiSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
@@ -168,7 +168,7 @@ ChokeGroupEditor::ChokeGroupEditor(ProcessorEditor *p) : ProcessorEditorBody(p)
 	hiSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
 	hiSlider->setColour(Slider::textBoxTextColourId, Colours::white);
 	hiSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::HiKey, "HiKey");
-	hiSlider->setMode(HiSlider::Discrete, 0, 127, DBL_MAX, 1.0);
+	hiSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 127.0, 1.0));
 
 	addAndMakeVisible(killButton = new HiToggleButton("KillVoices"));
 	killButton->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::KillVoice, "KillVoice");

@@ -37,7 +37,6 @@ namespace scriptnode
 using namespace juce;
 using namespace hise;
 
-// TODO: Move NodeWrappers in here...
 
 
 }

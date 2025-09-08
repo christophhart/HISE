@@ -30,8 +30,7 @@
 *   ===========================================================================
 */
 
-#ifndef SCRIPTINGAPICONTENT_H_INCLUDED
-#define SCRIPTINGAPICONTENT_H_INCLUDED
+#pragma once
 
 namespace hise { using namespace juce;
 
@@ -613,6 +612,12 @@ public:
 		void setChanged(bool isChanged = true) noexcept{ hasChanged = isChanged; }
 		bool isChanged() const noexcept{ return hasChanged; };
 
+		/** Override this if you want to change the `component` parameter of the popup menu callback. */
+		virtual var getPopupMenuTarget(const MouseEvent& e)
+		{
+			return var(this);
+		}
+
 		var value;
 		Identifier name;
 		Content *parent;
@@ -634,7 +639,7 @@ public:
 
 		Processor* getConnectedProcessor() const { return connectedProcessor.get(); };
 
-		int getConnectedParameterIndex() { return connectedParameterIndex; };
+		int getConnectedParameterIndex() const { return connectedParameterIndex; };
 
         bool isConnectedToMacroControll() const noexcept
         {
@@ -815,6 +820,7 @@ public:
 
 		private:
 
+			int cachedParameterIndex = -1;
 			bool changePending = false;
 
             void handleAsyncUpdate();
@@ -931,13 +937,14 @@ public:
 			scrollWheel,
 			enableMidiLearn,
 			sendValueOnDrag,
+			matrixTargetId,
 			numProperties,
 		};
 
         struct ModifierObject: public ConstScriptingObject
         {
             ModifierObject(ProcessorWithScriptingContent* sp):
-               ConstScriptingObject(sp, 12)
+               ConstScriptingObject(sp, 13)
             {
                 using Action = SliderWithShiftTextBox::ModifierObject::Action;
                 using Flags = ModifierKeys::Flags;
@@ -946,6 +953,7 @@ public:
                 addConstant("FineTune", "FineTune");
                 addConstant("ResetToDefault", "ResetToDefault");
                 addConstant("ContextMenu", "ContextMenu");
+				addConstant("ScaleModulation", "ScaleModulation");
                 
                 static const String doubleClick("doubleClick");
                 static const String rightClick("rightClick");
@@ -1025,6 +1033,9 @@ public:
 		/** Sets the upper range end to the given value. */
 		void setMaxValue(double max) noexcept;
 
+		/** Connects this slider to the modulation slot. */
+		void connectToModulatedParameter(String moduleId, var parameterId);
+
         /** Creates a object with constants for setModifiers(). */
         var createModifiers();
         
@@ -1040,7 +1051,13 @@ public:
 		/** Checks if the given value is within the range. */
 		bool contains(double value);
 
+		
+
 		// ========================================================================================================
+
+		SimpleRingBuffer::Ptr getMatrixPlotter(int sourceIndex);
+
+		MatrixIds::Helpers::IntensityTextConverter::ConstructData createIntensityConverter(int sourceIndex);
 
 		struct Wrapper;
 
@@ -1053,8 +1070,22 @@ public:
         
 	private:
 
-        
-        
+		struct MatrixConnectionBase: public ControlledObject
+		{
+			MatrixConnectionBase(ScriptSlider& parent_, const ValueTree& matrixData, const String& targetId);;
+
+			virtual SimpleRingBuffer::Ptr getDisplayBuffer(int index) = 0;
+			virtual MatrixIds::Helpers::IntensityTextConverter::ConstructData createIntensityConverter(int sourceIndex) = 0;
+
+			WeakReference<ScriptSlider> parent;
+			WeakReference<GlobalModulatorContainer> gc;
+			ValueTree matrixData;
+			String targetId;
+		};
+
+        struct MatrixCableConnection; struct MultiMatrixModulatorConnection;
+		ScopedPointer<MatrixConnectionBase> matrixConnection;
+
 		double minimum, maximum;
 		PooledImage image;
 
@@ -1379,6 +1410,11 @@ public:
 
 		/** Registers this table (and returns a reference to the data) with the given index so you can use it from the outside. */
 		var registerAtParent(int index);
+
+		/** Customizes the dragging behaviour of the script table. */
+		void setMouseHandlingProperties(var propertyObject);
+
+		LambdaBroadcaster<var> dragProperties;
 
 		// ========================================================================================================
 
@@ -2214,6 +2250,208 @@ public:
 		// ========================================================================================================
 	};
 
+	struct ScriptDynamicContainer : public ScriptComponent,
+									public Dispatchable
+	{
+		struct ChildReference: public ConstScriptingObject,
+							   public AssignableDotObject,
+							   public ObjectWithJSONConverter,
+							   public UserPresetStateManager	
+		{
+			ChildReference(ScriptDynamicContainer* base, dyncomp::Data::Ptr data_, const ValueTree& cd);
+			~ChildReference() override;
+
+			Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("ContainerChild"); }
+			bool objectExists() const override { return isValid(); }
+
+			// ==================================================================== API Methods
+
+			/** Returns the index of the child component (or ID). */
+			int getChildComponentIndex(const var& childIdOrComponent) const;
+
+			/** Checks if the other object (either ID or child reference) points to the same component. */
+			bool isEqual(const var& other) const;
+
+			/** Sets the component property. */
+			void set(const String& id, const var& newValue);
+
+			/** Returns the given property (or the default value for the property). */
+			var get(const String& id) const;
+
+			/** Sets the component bounds from the given rectangle. */
+			void setBounds(var area);
+
+			/** Returns the component bounds at the origin with the given margin. */
+			var getLocalBounds(int margin) const;
+
+			/** Checks whether this reference points to a valid component within the component tree. */
+			bool isValid() const;
+
+			/** Returns a reference object to the component's parent. */
+			var getParent() const;
+
+			/** Recursively searches the child components and returns the first with the given ID. */
+			var getComponent(const String& childId);
+
+			/** Recursively searches all child components and returns all matches. */
+			var getAllComponents(const String& regex);
+
+			/** Adds a child component from the given JSON data. */
+			var addChildComponent(const var& childData);
+
+			/** Removes the component. */
+			void removeFromParent();
+
+			/** Removes all child components. */
+			void removeAllChildren();
+
+			/** Sets the value of this component without causing a control callback. */
+			void setValue(var newValue);
+
+			/** Undoably sets the value of this component without causing a control callback. */
+			void setValueWithUndo(var newValue);
+
+			/** causes the control callback to fire. */
+			void changed();
+
+			/** Returns the value of this component (or the defaultValue property if not initialised). */
+			var getValue() const;
+
+			/** Attaches a value callback to this child reference. */
+			void setControlCallback(var controlCallback);
+
+			/** Sends a repaint message to this component. */
+			void sendRepaintMessage(bool recursive);
+
+			/** Causes a value update from the processor connection. */
+			void updateValueFromProcessorConnection(bool recursive);
+
+			/** Sends a message to the component to lose the keyboard focus. */
+			void loseFocus(bool recursive);
+
+			/** Sends a message to the component to reset its value. */
+			void resetValueToDefault(bool recursive);
+
+			/** Registers a paint routine that draws the panel's content. */
+			void setPaintRoutine(var newPaintRoutine);
+
+			/** Returns the number of child components. */
+			int getNumChildComponents() const { return componentData.getNumChildren(); }
+
+			/** Attaches a callback that is executed whenever a child component is added / removed to this component. */
+			void setChildCallback(const var& newChildCallback);
+
+			/** Returns a Base64 encoded state of this component and all of its children. */
+			String toBase64(bool includeValue) const;
+
+			/** Restores this component and all its children with the given Base64 encoded state. */
+			void fromBase64(String b64);
+
+			/** Stores / restores the values & components from this component in the user preset. */
+			void addStateToUserPreset(bool shouldAdd);
+
+			// ================================================================= END OF API Methods
+
+			Identifier getUserPresetStateId() const override { return Identifier(componentData[dyncomp::dcid::id].toString()); }
+			void resetUserPresetState() override;
+			ValueTree exportAsValueTree() const override;
+			void restoreFromValueTree(const ValueTree& v) override;
+
+			void onChildChange(ValueTree v, bool wasAdded);
+			void onValue(const Identifier&, const var& newValue);
+			bool assign(const Identifier& id, const var& newValue) override;
+			var getDotProperty(const Identifier& id) const override;
+			void writeAsJSON (OutputStream& os, int indentLevel, bool allOnOneLine, int maximumDecimalPlaces) override;
+			void writeToStream(OutputStream& os) override;
+			bool matchesValueTree(const ValueTree& v) const;
+			void setInvalid(UndoManager* umToUse);
+
+		private:
+
+			bool isValidOrThrow() const;
+			static void onRefresh(ChildReference& obj, const ValueTree& v, dyncomp::Data::RefreshType rt, bool isRecursive);
+			void sendMessage(dyncomp::Data::RefreshType rt, bool recursive=false);
+
+			WeakReference<ScriptDynamicContainer> parentContainer;
+
+			UndoManager* um = nullptr;
+
+			mutable bool invalid = false;
+			var lastValue;
+
+			WeakCallbackHolder valueCallback;
+			WeakCallbackHolder paintRoutine;
+			ReferenceCountedObjectPtr<ScriptingObjects::GraphicsObject> graphics;
+			valuetree::PropertyListener valueListener;
+			ValueTree componentData;
+			dyncomp::Data::Ptr data;
+
+			WeakCallbackHolder childCallback;
+			valuetree::ChildListener childListener;
+
+			struct Wrapper;
+
+			JUCE_DECLARE_WEAK_REFERENCEABLE(ChildReference);
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ChildReference);
+		};
+
+		enum Properties
+		{
+			numProperties
+		};
+
+		// ========================================================================================================
+
+		ScriptDynamicContainer(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);
+		~ScriptDynamicContainer() override;
+
+		void handleDefaultDeactivatedProperties() final;
+
+		// ========================================================================================================
+
+		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptDynamicContainer"); }
+		Identifier 	getObjectName() const override { return getStaticObjectName(); }
+		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		// ============================================================================= API methods
+
+		/** Sets the content data for this container. */
+		var setData(const var& newData);
+
+		/** Sets a callback that will be executed whenever a value is changed. */
+		void setValueCallback(const var& valueFunction);
+
+		// =============================================================================
+
+		var getPopupMenuTarget(const MouseEvent& e) override
+		{
+			if(auto b = dyncomp::Base::findBaseParent(e.eventComponent))
+				return getOrCreateChildReference(b->getDataTree());
+
+			return var(this);
+		}
+
+		dyncomp::Data::Ptr getData() { return data; }
+
+		LambdaBroadcaster<dyncomp::Data::Ptr> dataBroadcaster;
+
+	private:
+
+		var getOrCreateChildReference(const ValueTree& v);
+
+		ReferenceCountedArray<ChildReference> childReferences;
+		WeakCallbackHolder valueCallback;
+		valuetree::AnyPropertyListener valueListener;
+		dyncomp::Data::Ptr data;
+
+		struct Wrapper;
+
+		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptDynamicContainer);
+		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptDynamicContainer);
+
+		// ========================================================================================================
+	};
+
 	/*
 
 		TODO:
@@ -2684,6 +2922,9 @@ public:
 
 	/** Adds a multipage dialog component. */
 	ScriptMultipageDialog* addMultipageDialog(Identifier dialogId, int x, int y);
+
+	/** Adds a dynamic container component. */
+	ScriptDynamicContainer* addDynamicContainer(Identifier containerId, int x, int y);
 
 	/** Returns the reference to the given component. */
 	var getComponent(var name);
@@ -3281,4 +3522,3 @@ struct PrimitiveArrayDisplay : public SimpleVarBody,
 
 
 } // namespace hise
-#endif  // SCRIPTINGAPICONTENT_H_INCLUDED

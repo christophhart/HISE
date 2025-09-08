@@ -232,7 +232,7 @@ public:
 		SimpleMarkdownDisplay& parent;
 	};
 
-	SimpleMarkdownDisplay();
+	SimpleMarkdownDisplay(const String& name=String());
 
 	void setText(const String& text);
 

@@ -29,8 +29,10 @@
 *
 *   ===========================================================================
 */
-#ifndef IPPFFT_H_INCLUDED
-#define IPPFFT_H_INCLUDED
+
+#pragma once
+
+#include <ipp.h>
 
 namespace hise { using namespace juce;
 
@@ -188,4 +190,4 @@ private:
 
 } // namespace hise
 
-#endif  // IPPFFT_H_INCLUDED
+

@@ -412,6 +412,59 @@ bool TableEnvelope::isPlaying(int voiceIndex) const
 	}
 }
 
+void TableEnvelope::setInternalAttribute(int parameterIndex, float newValue)
+{
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		EnvelopeModulator::setInternalAttribute(parameterIndex, newValue);
+		return;
+	}
+
+	switch(parameterIndex)
+	{
+	case Attack:
+		attack = newValue;
+		attackUptimeDelta = calculateTableDelta(newValue);
+		break;
+	case Release:
+		release = newValue;
+		releaseUptimeDelta = calculateTableDelta(newValue);
+		break;
+	default:
+		jassertfalse;
+	}	
+}
+
+float TableEnvelope::getDefaultValue(int parameterIndex) const
+{
+	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
+	{
+		return EnvelopeModulator::getDefaultValue(parameterIndex);
+	}
+
+	switch (parameterIndex)
+	{
+	case Attack:
+		return 20.0f;
+	case Release:
+		return 20.0f;
+	default:
+		jassertfalse;
+		return -1;
+	}
+}
+
+ModulationDisplayValue::QueryFunction::Ptr TableEnvelope::getModulationQueryFunction(int parameterIndex) const
+{
+	switch(parameterIndex)
+	{
+	case Attack:  return new ModulatorChain::GetModulationOutput<(int)TableEnvelope::InternalChains::AttackChain>();
+	case Release: return new ModulatorChain::GetModulationOutput<(int)TableEnvelope::InternalChains::ReleaseChain>();
+	}
+
+	return EnvelopeModulator::getModulationQueryFunction(parameterIndex);
+}
+
 ProcessorEditorBody *TableEnvelope::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND

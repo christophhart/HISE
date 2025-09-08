@@ -186,7 +186,8 @@ void SynthSoundWithBitmask::dump()
 
 ComplexGroupManager::ComplexGroupManager(ReferenceCountedArray<SynthesiserSound>* allSounds, PooledUIUpdater* updater):
 	soundList(allSounds),
-	data(groupIds::Layers)
+	data(groupIds::Layers),
+	updater(*this) 
 {
 	dataListener.setCallback(data, valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(ComplexGroupManager::onDataChange));
 
@@ -328,7 +329,7 @@ int ComplexGroupManager::getLayerIndex(const Identifier& groupId) const
 struct ComplexGroupManager::LegatoLayer final : public ComplexGroupManager::Layer
 {
 	LegatoLayer(const ValueTree& v, int flags, ModulatorSampler* sampler):
-	  Layer(Helpers::getId(v), LogicType::LegatoInterval, {}, flags | Flags::FlagProcessHiseEvent | Flags::FlagProcessPostSounds),
+	  Layer(v, Helpers::getId(v), LogicType::LegatoInterval, {}, flags | Flags::FlagProcessHiseEvent | Flags::FlagProcessPostSounds),
 	  range(Helpers::getKeyRange(v, sampler))
 	{
 		uint8 layerValue = 1;
@@ -349,12 +350,178 @@ struct ComplexGroupManager::LegatoLayer final : public ComplexGroupManager::Laye
 
 	int getPredelay(const ComplexGroupManager& parent, const HiseEvent& e, uint8 layerValue, int sampleSampleRate) const override
 	{
-		if(layerValue == IgnoreFlag)
+		return 0;
+	}
+
+	std::map<SynthSoundWithBitmask*, std::vector<int>> zeroCrossings;
+
+	void onCacheRebuild(ComplexGroupManager& parent) override
+	{
+		ModulatorSampler::SoundIterator iter(parent.sampler);
+
+		zeroCrossings.clear();
+
+		while(auto s = iter.getNextSound())
 		{
-			return 44100;
+			auto d = s->getSampleProperty(SampleIds::FileName).toString();
+			zeroCrossings[s] = s->getReferenceToSound(0)->calculateZeroCrossings();
+		}
+	}
+
+	double fadeTime = 0.05;
+
+	void postVoiceStart(ComplexGroupManager& parent, const UnorderedStack<ModulatorSynthSound*>& soundsThatWereStarted) override
+	{
+		/*TODO:
+
+- fix sample length updating zero crossing
+- fix all note off resetting the filter values OK
+
+- check with multiple groups
+- check different sample rate & pitch ratios
+- check support with existing start offset (use phase lock)
+- check with looping OK
+- check sustain pedal
+- check retrigger
+
+- add poly legato
+- add timestretch to legato transition?
+
+- refactor zero crossing to another place
+
+- add parameters to UI: LockPhase, FadeTime
+- add API methods
+
+
+
+*/
+
+		bool someTransitionPlaying = false;
+
+		int firstZeroCrossing = 0;
+
+		for(auto s: soundsThatWereStarted)
+		{
+			auto typed = static_cast<SynthSoundWithBitmask*>(s);
+			auto v = getUnmaskedValue(typed->getBitmask());
+
+			auto isTransition =  (v != IgnoreFlag);
+
+			if(isTransition)
+			{
+				const auto& zp = zeroCrossings[typed];
+
+				if(!zp.empty())
+				{
+					auto ms = static_cast<ModulatorSamplerSound*>(s);
+
+					auto fadeLength = ms->getSampleRate() * fadeTime;
+
+					auto l = zp[zp.size() - 1];
+
+					auto position = l - fadeLength * 2;
+
+					auto pos = std::lower_bound(zp.begin(), zp.end(), position);
+
+					if(pos != zp.end())
+						firstZeroCrossing = *pos;
+				}
+			}
+
+			someTransitionPlaying |= isTransition;
 		}
 
-		return 0;
+		if(someTransitionPlaying)
+		{
+			int np = 0;
+
+			for(auto av: parent.sampler->activeVoices)
+			{
+				if(av->getCurrentHiseEvent().getEventId() == lastProcessedEvent.getEventId())
+				{
+					auto currentUptime = (int)av->getVoicePositionInSamples(true);
+
+					auto s = static_cast<SynthSoundWithBitmask*>(av->getCurrentlyPlayingSound().get());
+
+					const auto& zp = zeroCrossings[s];
+
+					auto pos = std::upper_bound(zp.begin(), zp.end(), (int)currentUptime);
+
+					if(pos != zp.end())
+						np = (int)hmath::round(currentUptime) - *(pos - 1);
+
+					av->setVolumeFade(fadeTime, 0.0);
+
+					if(np != 0)
+						break;
+				}
+			}
+
+			for(auto s: soundsThatWereStarted)
+			{
+				auto v = getUnmaskedValue(static_cast<SynthSoundWithBitmask*>(s)->getBitmask());
+
+				auto ms = static_cast<ModulatorSamplerSound*>(s);
+				auto pf = ms->getReferenceToSound()->getPitchFactor(lastEvent.getNoteNumberIncludingTransposeAmount(), ms->getRootNote());
+				pf *= ms->getSampleRate() / parent.sampler->getSampleRate();
+
+				auto delay = firstZeroCrossing - np;
+				auto delayPitched = roundToInt((double)firstZeroCrossing / pf) - np;
+
+				HiseEvent m;
+				m.setTimeStamp(delay);
+				m.alignToRaster<HISE_EVENT_RASTER>(INT_MAX);
+				auto aligned = m.getTimeStamp();
+				m.setTimeStamp(delayPitched);
+				m.alignToRaster<HISE_EVENT_RASTER>(INT_MAX);
+				auto alignedPitched = m.getTimeStamp(); 
+
+				auto delta = delayPitched - alignedPitched;
+				auto offset = 0.0;
+
+				if(delta > 0)
+				{
+					alignedPitched += HISE_EVENT_RASTER;
+					offset = HISE_EVENT_RASTER - delta;
+				}
+				else
+				{
+					offset = -1 * delta;
+				}
+
+				if(v == IgnoreFlag)
+				{
+					
+					// here we factor in the delay time
+					parent.delayEventByFilter(layerIndex, IgnoreFlag, alignedPitched);
+					parent.addStartOffsetByFilter(layerIndex, IgnoreFlag, offset);
+					parent.fadeInEventByFilter(layerIndex, IgnoreFlag, fadeTime);
+				}
+				else
+				{
+					parent.delayEventByFilter(layerIndex, v, 0.0);
+					parent.addStartOffsetByFilter(layerIndex, v, np);
+					parent.fadeInEventByFilter(layerIndex, v, fadeTime);
+
+					// here we use the delay value in the sample's time domain
+					parent.setFixedLengthByFilter(layerIndex, v, aligned + np);
+				}
+			}
+		}
+		else
+		{
+			parent.delayEventByFilter(layerIndex, IgnoreFlag, 0.0);
+			parent.addStartOffsetByFilter(layerIndex, IgnoreFlag, 0.0);
+			parent.fadeInEventByFilter(layerIndex, IgnoreFlag, 0.0);
+			parent.setFixedLengthByFilter(layerIndex, IgnoreFlag, 0.0);
+		}
+	}
+
+	void resetPlayState(ComplexGroupManager& parent) override
+	{
+		lastEvent = {};
+		lastProcessedEvent = {};
+
 	}
 
 	void handleHiseEvent(ComplexGroupManager& parent, const HiseEvent& e) override
@@ -366,22 +533,28 @@ struct ComplexGroupManager::LegatoLayer final : public ComplexGroupManager::Laye
 
 		if(e.isNoteOn())
 		{
+			auto lastNoteNumber = lastEvent.getNoteNumberIncludingTransposeAmount();
+
 			if(isPositiveAndBelow(lastNoteNumber, 128) && layerValues[lastNoteNumber])
 			{
-				parent.applyFilter(layerIndex, layerValues[lastNoteNumber], sendNotificationAsync);
+				auto legatoGroup = layerValues[lastNoteNumber];
+				parent.applyFilter(layerIndex, legatoGroup, sendNotificationAsync);
 			}
 			else
 			{
 				parent.applyFilter(layerIndex, IgnoreFlag, sendNotificationAsync);
+				
 			}
-			
-			lastNoteNumber = n;
+
+			lastProcessedEvent = lastEvent;
+			lastEvent = e;
 		}
 		else if (e.isNoteOff())
 		{
-			if(lastNoteNumber == n)
+			if(lastEvent.getEventId() == e.getEventId())
 			{
-				lastNoteNumber = -1;
+				lastEvent = {};
+				lastProcessedEvent = lastEvent;
 				parent.applyFilter(layerIndex, IgnoreFlag, sendNotificationAsync);
 			}
 		}
@@ -389,14 +562,15 @@ struct ComplexGroupManager::LegatoLayer final : public ComplexGroupManager::Laye
 
 	VoiceBitMap<128> range;
 	std::array<uint8, 128> layerValues;
-
-	int lastNoteNumber = -1;
+	
+	HiseEvent lastEvent;
+	HiseEvent lastProcessedEvent;
 };
 
 struct ComplexGroupManager::TableFadeLayer final : public ComplexGroupManager::Layer
 {
-	TableFadeLayer(ComplexGroupManager& parent, const Identifier& g, const StringArray& tokens_, int flags):
-	  Layer(g, LogicType::TableFade, tokens_, flags)
+	TableFadeLayer(ComplexGroupManager& parent, const ValueTree& v, const Identifier& g, const StringArray& tokens_, int flags):
+	  Layer(v, g, LogicType::TableFade, tokens_, flags)
 	{
 		if(parent.sampler != nullptr)
 		{
@@ -427,9 +601,20 @@ struct ComplexGroupManager::XFadeLayer final : public ComplexGroupManager::Layer
 	};
 
 	XFadeLayer(ComplexGroupManager& parent_, const ValueTree& layerData, int flags):
-	  Layer(Helpers::getId(layerData), LogicType::XFade, Helpers::getTokens(layerData), flags),
+	  Layer(layerData, Helpers::getId(layerData), LogicType::XFade, Helpers::getTokens(layerData), flags),
 	  parent(parent_)
 	{
+		auto t = const_cast<ValueTree*>(&layerData);
+
+		if(!layerData.hasProperty(groupIds::fader))
+			t->setProperty(groupIds::fader, getFaderNames()[0], nullptr);
+
+		if(!layerData.hasProperty(groupIds::sourceType))
+			t->setProperty(groupIds::sourceType, getSourceNames()[1], nullptr);
+
+		if(!layerData.hasProperty(groupIds::slotIndex))
+			t->setProperty(groupIds::slotIndex, 1, nullptr);
+
 		typeListener.setCallback(layerData,
 								 { groupIds::fader, groupIds::slotIndex, groupIds::sourceType }, 
 								 valuetree::AsyncMode::Synchronously, 
@@ -450,12 +635,13 @@ struct ComplexGroupManager::XFadeLayer final : public ComplexGroupManager::Layer
 
 	void prepare(PrepareSpecs ps) override
 	{
-		
+		smoothedValue.prepare(ps.sampleRate, 1000.0);
 	}
 
 	void resetPlayState(ComplexGroupManager& parent) override
 	{
-		
+		smoothedValue.set(midiValue);
+		smoothedValue.reset();
 	}
 
 	double getFadeValue(Bitmask m, double input)
@@ -498,6 +684,21 @@ struct ComplexGroupManager::XFadeLayer final : public ComplexGroupManager::Layer
 		return 1.0f;
 	}
 
+	void handleHiseEvent(ComplexGroupManager& parent, const HiseEvent& e) override
+	{
+		if(currentSource == SourceTypes::MidiCC)
+		{
+			if(e.isControllerOfType((int)slotIndex) || (slotIndex == 0 && e.isPitchWheel()))
+			{
+				midiValue = e.getControllerValue() / 127.0f;
+				BACKEND_ONLY(valueUpdater.sendMessage(sendNotificationAsync, 0, midiValue));
+				smoothedValue.set(midiValue);
+			}
+		}
+	};
+
+	
+
 	bool calculateGroupModulationValuesForVoice(const HiseEvent& e, int voiceIndex, float* data, int startSample, int numSamples, Bitmask m) override
 	{
 		float value = 0.0f;
@@ -534,14 +735,28 @@ struct ComplexGroupManager::XFadeLayer final : public ComplexGroupManager::Layer
 				values = globalModContainer->getModulationValuesForModulator(connectedGlobalMod, startSample);
 				break;
 			case GlobalModulator::Envelope:
-				values = globalModContainer->getEnvelopeValuesForModulator(connectedGlobalMod, startSample, voiceIndex);
+			{
+				auto idx = globalModContainer->getEnvelopeIndex(connectedGlobalMod);
+				values = globalModContainer->getEnvelopeValuesForModulator(idx, startSample, e);
 				break;
+			}
 			case GlobalModulator::numTypes: 
 				break;
 			default: ;
 			}
 		}
+		else if (currentSource == SourceTypes::MidiCC)
+		{
+			for(int i = 0; i < numSamples; i++)
+			{
+				value = smoothedValue.advance();
+				value = getFadeValue(m, value);
+				data[startSample + i] *= value;
+			}
 
+			return true;
+		}
+		
 		if(values == nullptr)
 		{
 			auto input = jlimit(0.0f, 1.0f, value);
@@ -606,9 +821,13 @@ private:
 
 	ComplexGroupManager& parent;
 
+	sfloat smoothedValue;
+
 	FaderTypes currentType = FaderTypes::Linear;
 	SourceTypes currentSource = SourceTypes::EventData;
 	GlobalModulator::ModulatorType currentModType = GlobalModulator::ModulatorType::TimeVariant;
+
+	float midiValue = 0.0f;
 };
 
 void ComplexGroupManager::XFadeLayer::rebuildConnection()
@@ -651,9 +870,15 @@ void ComplexGroupManager::XFadeLayer::rebuildConnection()
 struct ComplexGroupManager::KeyswitchLayer final : public ComplexGroupManager::Layer
 {
 	KeyswitchLayer(const ValueTree& v, int flags):
-	  Layer(Helpers::getId(v), LogicType::Keyswitch, Helpers::getTokens(v), flags | Flags::FlagProcessHiseEvent)
+	  Layer(v, Helpers::getId(v), LogicType::Keyswitch, Helpers::getTokens(v), flags | Flags::FlagProcessHiseEvent)
 	{
-		auto map = Helpers::getKeyRange(v);
+		setPropertiesToWatch({ SampleIds::LoKey, groupIds::isChromatic });
+		
+	}
+
+	void onValueTreeUpdate(const Identifier& id, const var& newValue)
+	{
+		auto map = Helpers::getKeyRange(data);
 
 		uint8 layerIndex = 1;
 
@@ -682,8 +907,8 @@ struct ComplexGroupManager::KeyswitchLayer final : public ComplexGroupManager::L
 
 struct ComplexGroupManager::RRLayer final : public ComplexGroupManager::Layer
 {
-	RRLayer(const Identifier& g, const StringArray& tokens_, int flags):
-	  Layer(g, LogicType::RoundRobin, tokens_, flags | Flags::FlagProcessHiseEvent | Flags::FlagProcessPostSounds)
+	RRLayer(const ValueTree& v, const Identifier& g, const StringArray& tokens_, int flags):
+	  Layer(v, g, LogicType::RoundRobin, tokens_, flags | Flags::FlagProcessHiseEvent | Flags::FlagProcessPostSounds)
 	{}
 
 	void postVoiceStart(ComplexGroupManager& parent, const UnorderedStack<ModulatorSynthSound*>& soundsThatWereStarted) override
@@ -917,32 +1142,7 @@ StringArray ComplexGroupManager::Helpers::getTokens(const ValueTree& layerData, 
 		{
 			// The tokens must be calculated otherwise...
 			return {};
-
-			jassertfalse;
 		}
-
-		
-#if 0
-		auto range = getKeyRange(layerData);
-
-		StringArray sa;
-
-		auto useNumbers = (bool)layerData[groupIds::useNumbers];
-
-		for(int i = 0; i < 128; i++)
-		{
-			if(range[i])
-			{
-				sa.add(useNumbers ? String(i) : MidiMessage::getMidiNoteName(i, true, true, 3));
-			}
-		}
-
-		sa.removeDuplicates(false);
-		sa.removeEmptyStrings(true);
-		sa.trim();
-
-		return sa;
-#endif
 	}
 	else
 	{
@@ -1106,6 +1306,8 @@ void ComplexGroupManager::finalize()
 
 	tableFadeLayer = -1;
 	uint8 bitPosition = 0;
+
+	currentFilters.clear();
 
 	int idx = 0;
 
@@ -1360,6 +1562,52 @@ void ComplexGroupManager::applyFilter(uint8 layerIndex, uint8 value, Notificatio
 	}
 }
 
+void ComplexGroupManager::applyEventDataInternal(StartData::Type dataType, uint8 layerIndex, uint8 layerValue, double value)
+{
+	if(auto l = layers[layerIndex])
+	{
+		StartData sd;
+		sd.layerIndex = layerIndex;
+		sd.layerValue = layerValue;
+
+		auto idx = activeDelayLayers.indexOf(sd);
+
+		if(idx != -1)
+		{
+			auto& ed = *(activeDelayLayers.begin() + idx);
+			ed.data[(int)dataType] = value;
+
+			if(ed.isEmpty())
+				activeDelayLayers.removeElement(idx);
+		}
+		else
+		{
+			sd.data[(int)dataType] = value;
+			activeDelayLayers.insertWithoutSearch(sd);
+		}
+	}
+}
+
+void ComplexGroupManager::delayEventByFilter(uint8 layerIndex, uint8 value, double delayInSamples)
+{
+	applyEventDataInternal(StartData::Type::DelayTimeIndex, layerIndex, value, delayInSamples);
+}
+
+void ComplexGroupManager::fadeInEventByFilter(uint8 layerIndex, uint8 value, double fadeInTime)
+{
+	applyEventDataInternal(StartData::Type::FadeTimeIndex, layerIndex, value, fadeInTime);
+}
+
+void ComplexGroupManager::setFixedLengthByFilter(uint8 layerIndex, uint8 value, double numSamplesToPlayBeforeFadeout)
+{
+	applyEventDataInternal(StartData::Type::FadeOutOffset, layerIndex, value, numSamplesToPlayBeforeFadeout);
+}
+
+void ComplexGroupManager::addStartOffsetByFilter(uint8 layerIndex, uint8 value, double startOffset)
+{
+	applyEventDataInternal(StartData::Type::StartOffsetIndex, layerIndex, value, startOffset);
+}
+
 void ComplexGroupManager::collectSounds(const HiseEvent& m, UnorderedStack<ModulatorSynthSound*>& soundsToBeStarted)
 {
 	auto nn = m.getNoteNumberIncludingTransposeAmount();
@@ -1394,6 +1642,36 @@ void ComplexGroupManager::collectSounds(const HiseEvent& m, UnorderedStack<Modul
 		for(auto p: postProcessors)
 			p->postVoiceStart(*this, soundsToBeStarted);
 	}
+}
+
+ModulatorSynth::SoundCollectorBase::SpecialStart ComplexGroupManager::getSpecialSoundStart(const HiseEvent& m, ModulatorSynthSound* sound) const
+{
+	if(!activeDelayLayers.isEmpty())
+	{
+		for(const auto& startData: activeDelayLayers)
+		{
+			auto l = layers[startData.layerIndex];
+			jassert(l != nullptr);
+			auto sm = static_cast<SynthSoundWithBitmask*>(sound)->getBitmask();
+
+			if(l->getUnmaskedValue(sm) == startData.layerValue)
+			{
+				SoundCollectorBase::SpecialStart sd;
+
+				sd.m = m;
+				sd.sound = sound;
+				sd.delayTimeSamples = startData.data[(int)StartData::Type::DelayTimeIndex];
+				sd.startOffset = startData.data[(int)StartData::Type::StartOffsetIndex];
+				sd.fadeInTimeSeconds = startData.data[(int)StartData::Type::FadeTimeIndex];
+				sd.fixedLengthSamples = startData.data[(int)StartData::Type::FadeOutOffset];
+
+				jassert(sd);
+				return sd;
+			}
+		}
+	}
+
+	return {};
 }
 
 int ComplexGroupManager::getPredelayForVoice(const ModulatorSynthVoice* voice) const
@@ -1587,6 +1865,9 @@ int ComplexGroupManager::getNumFiltered(uint8 layerIndex, uint8 value, bool incl
 
 void ComplexGroupManager::preHiseEventCallback(const HiseEvent& e)
 {
+	if(e.isAllNotesOff())
+		resetPlayingState();
+
 	for(auto mp: midiProcessors)
 		mp->handleHiseEvent(*this, e);
 }
@@ -1660,7 +1941,7 @@ void ComplexGroupManager::onDataChange(const ValueTree& c, bool wasAdded)
 		}
 		else if (lt == LogicType::RoundRobin)
 		{
-			layers.add(new RRLayer(id, tokens, flags));
+			layers.add(new RRLayer(c, id, tokens, flags));
 		}
 		else if (lt == LogicType::Keyswitch)
 		{
@@ -1669,7 +1950,7 @@ void ComplexGroupManager::onDataChange(const ValueTree& c, bool wasAdded)
 		else if (lt == LogicType::TableFade)
 		{
 			jassert(!Helpers::shouldBeCached(flags));
-			layers.add(new TableFadeLayer(*this, id, tokens, flags));
+			layers.add(new TableFadeLayer(*this, c, id, tokens, flags));
 		}
 		else if (lt == LogicType::XFade)
 		{
@@ -1679,7 +1960,7 @@ void ComplexGroupManager::onDataChange(const ValueTree& c, bool wasAdded)
 		}
 		else
 		{
-			layers.add(new Layer(id, lt, tokens, flags));
+			layers.add(new Layer(c, id, lt, tokens, flags));
 		}
 	}
 	else
@@ -1739,6 +2020,12 @@ std::pair<int, int> ComplexGroupManager::getNumUnassignedAndIgnored(uint8 layerI
 	return { numTotal - numAssigned - numIgnored, numIgnored };
 }
 
+void ComplexGroupManager::samplePropertyWasChanged(ModulatorSamplerSound* s, const Identifier& id, const var& newValue)
+{
+	if(id == SampleIds::RRGroup)
+		updater.triggerAsyncUpdate();
+}
+
 void ComplexGroupManager::setSampler(ModulatorSampler* m)
 {
 	sampler = m;
@@ -1757,7 +2044,10 @@ void ComplexGroupManager::setSampler(ModulatorSampler* m)
 #endif
 }
 
-ComplexGroupManager::Layer::Layer(const Identifier& g, LogicType lt_, const StringArray& tokens_, int flags):
+
+
+ComplexGroupManager::Layer::Layer(const ValueTree& v, const Identifier& g, LogicType lt_, const StringArray& tokens_, int flags):
+	data(v),
 	groupId(g),
 	lt(lt_),
 	tokens(tokens_),
@@ -1808,7 +2098,7 @@ void ComplexGroupManager::Layer::mask(Bitmask& m, uint8 value) const
 
 	m &= inverted;
 
-	if(value == 0xFF)
+	if(value == IgnoreFlag)
 	{
 		jassert(Helpers::canBeIgnored(propertyFlags));
 		m |= ignoreFlag;
@@ -1890,6 +2180,8 @@ void ComplexGroupManager::refreshCache()
 {
 	jassert(soundList != nullptr);
 
+	currentFilters.clear();
+
 	if(groups.size() == 1)
 	{
 		groups[0]->rebuild(*soundList);
@@ -1913,6 +2205,11 @@ void ComplexGroupManager::refreshCache()
 			g->rebuild(tempList);
 		}
 	}
+
+	activeDelayLayers.clear();
+
+	for(auto l: layers)
+		l->onCacheRebuild(*this);
 
 	resetPlayingState();
 }

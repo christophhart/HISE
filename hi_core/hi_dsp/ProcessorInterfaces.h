@@ -98,6 +98,11 @@ public:
 
 	SimpleRingBuffer* getDisplayBuffer(int index) final override;
 
+	FilterDataObject* getFilterData(int index) final override
+	{
+		return static_cast<FilterDataObject*>(getWithoutCreating(ExternalData::DataType::FilterCoefficients, index));
+	}
+
 	int getNumDataObjects(ExternalData::DataType t) const  final override;
 
 	void linkTo(ExternalData::DataType type, ExternalDataHolder& src, int srcIndex, int dstIndex) override;
@@ -401,6 +406,398 @@ private:
 	
 };
 
+/** Create this object and pass it to the constructor and it will query the filter stats.
+ *
+ *  This allows you to use custom build nodes to use the draggable filter path.
+ */
+struct ProcessorFilterStatistics: public ReferenceCountedObject
+{
+	/** The parameters for each band. */
+	enum BandParameter
+	{
+		Gain = 0, ///< the gain (not available on HP/LP)
+		Freq, ///< the center frequency
+		Q, ///< the q factor (not available on HP/LP)
+		Enabled, ///< enables / disables the band
+		Type, ///< defines the type of the band @see FilterType
+		numBandParameters
+	};
+
+	enum class DragAction
+	{
+		DragX,
+		DragY,
+		ShiftDrag,
+		DoubleClick,
+		RightClick
+	};
+
+	using Ptr = ReferenceCountedObjectPtr<ProcessorFilterStatistics>;
+
+	struct Holder
+	{
+		virtual ~Holder() {};
+
+		bool isFilterStatisticsInitialised() const { return filterStatistics != nullptr; }
+
+		Ptr getOrCreateProcessorFilterStatistics()
+		{
+			if(filterStatistics == nullptr)
+				filterStatistics = createFilterStatistics();
+
+			return filterStatistics;
+		}
+
+	protected:
+
+		virtual Ptr createFilterStatistics() = 0;
+
+	private:
+
+		Ptr filterStatistics;
+	};
+
+	ProcessorFilterStatistics(Processor* p_):
+	  p(p_)
+	{};
+
+	operator bool() const { return p.get() != nullptr; }
+
+	bool isValid() const { return *this; }
+
+	virtual ~ProcessorFilterStatistics() = default;
+
+	virtual int getNumFilterBands() const = 0;
+	virtual void removeFilterBand(int index) = 0;
+	virtual void addFilterBand(int index, double freq, double gain) = 0;
+	virtual FilterDataObject::CoefficientData getCoefficients(int index) = 0;
+	virtual hise::SimpleReadWriteLock& getEqLock() const = 0;
+	virtual String getTypeString(int filterIndex) const = 0;
+	void sendBroadcasterMessage(const String& type, const var& value, NotificationType n=sendNotificationSync)
+	{
+		eventBroadcaster.sendMessage(n, type, value);
+	}
+
+	virtual SimpleRingBuffer::Ptr getFFTBuffer() = 0;
+	virtual int getAttributeIndex(int filterIndex, BandParameter bp) const = 0;
+	virtual StringArray getFilterModes() const = 0;
+
+	bool isValidParameterIndex(int filterIndex, BandParameter bp) const
+	{
+		if(isPositiveAndBelow(filterIndex, getNumFilterBands()))
+		{
+			auto idx = getAttributeIndex(filterIndex, bp);
+			return idx != - 1;
+		};
+
+		return false;
+	}
+
+	float getBandAttribute(int filterIndex, BandParameter bp) const
+	{
+		auto index = getAttributeIndex(filterIndex, bp);
+
+		if(index != -1)
+		{
+			return p->getAttribute(index);
+		}
+		else
+		{
+			switch(bp)
+			{
+			case BandParameter::Gain: return 0.0f;
+			case BandParameter::Q:	   return 1.0f;
+			case BandParameter::Enabled: return 1.0f;
+			default:
+				// Type and Frequency don't have a sensible default
+				jassertfalse;
+			}
+			return 0.0f;
+		}
+	}
+
+	void setBandAttribute(int filterIndex, BandParameter bp, float newValue, NotificationType n)
+	{
+		auto idx = getAttributeIndex(filterIndex, bp);
+
+		if(idx != -1)
+			p->setAttribute(idx, newValue, n);
+	}
+
+	virtual BandParameter getParameterForDragAction(DragAction d) const
+	{
+		switch(d)
+		{
+		case DragAction::DragX: return Freq;
+		case DragAction::DragY: return Gain;
+		case DragAction::ShiftDrag: return Q;
+		case DragAction::DoubleClick: return Enabled;
+		case DragAction::RightClick: return numBandParameters;
+		default: jassertfalse; return numBandParameters;
+		}
+	}
+
+	bool isEnabled(int filterIndex) const
+	{
+		if(isPositiveAndBelow(filterIndex, getNumFilterBands()))
+		{
+			if(isValidParameterIndex(filterIndex, BandParameter::Enabled))
+				return getBandAttribute(filterIndex, BandParameter::Enabled) > 0.5f;
+
+			// filterIndex > numBands but no enabled parameter => enabled
+			return true;
+		}
+
+		return false;
+	}
+
+	void toggleSpectrumAnalyser()
+	{
+		if(auto fftBuffer = getFFTBuffer())
+		{
+			fftBuffer->setActive(!fftBuffer->isActive());
+			sendBroadcasterMessage("FFTEnabled", fftBuffer->isActive());
+		}
+	}
+
+	LambdaBroadcaster<String, var> eventBroadcaster;
+
+	WeakReference<Processor> p;
+	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ProcessorFilterStatistics);
+};
+
+/** Subclass from this interface if your module provides a custom filter statistics defined by a JSON object. */
+struct ProcessorWithCustomFilterStatistics: public ProcessorFilterStatistics::Holder
+{
+	struct CustomFilterStats: public ProcessorFilterStatistics
+	{
+		CustomFilterStats(Processor* p, const var& filterStats):
+		  ProcessorFilterStatistics(p)
+		{
+			setFilterStats(filterStats);
+		}
+
+		void setFilterStats(const var& filterStats)
+		{
+			if(auto obj = filterStats.getDynamicObject())
+			{
+				properties = obj->getProperties();
+
+				auto l = properties["TypeList"];
+
+				types.clear();
+
+				if(l.isArray())
+				{
+					for(auto& v: *l.getArray())
+						types.add(v.toString());
+				}
+
+				auto po = properties["ParameterOrder"];
+
+				parameters.clear();
+
+				if(po.isArray())
+				{
+					for(auto& v: *po.getArray())
+						parameters.add(getBandParameterFromName(v.toString()));
+				}
+
+				if(auto obj = properties["DragActions"].getDynamicObject())
+				{
+					const auto& dobj = obj->getProperties();
+
+					auto dx = dobj.getWithDefault("DragX", "Freq").toString();
+					auto dy = dobj.getWithDefault("DragY", "Gain").toString(); 
+					auto sd = dobj.getWithDefault("ShiftDrag", "Q").toString();
+					auto dc = dobj.getWithDefault("DoubleClick", "Enabled").toString();
+					auto rc = dobj.getWithDefault("RightClick", "").toString();
+
+					dragActions.clear();
+
+					dragActions.push_back({ DragAction::DragX, getBandParameterFromName(dx) });
+					dragActions.push_back({ DragAction::DragY, getBandParameterFromName(dy) });
+					dragActions.push_back({ DragAction::ShiftDrag, getBandParameterFromName(sd) });
+					dragActions.push_back({ DragAction::DoubleClick, getBandParameterFromName(dc) });
+					dragActions.push_back({ DragAction::RightClick, getBandParameterFromName(rc) });
+				}
+			}
+		}
+
+		static BandParameter getBandParameterFromName(const String& n)
+		{
+			static const StringArray pnames({
+				"Gain",
+				"Freq",
+				"Q",
+				"Enabled",
+				"Type"
+			});
+
+			auto idx = pnames.indexOf(n);
+
+			if(idx != -1)
+				return (BandParameter)idx;
+
+			return BandParameter::numBandParameters;
+		}
+
+		int getNumFilterBands() const override { return properties.getWithDefault("NumFilterBands", 0); }
+		void removeFilterBand(int ) override { jassertfalse; }
+		void addFilterBand(int , double , double ) override { jassertfalse; }
+		FilterDataObject::CoefficientData getCoefficients(int index) override
+		{
+			auto fc = ExternalData::DataType::FilterCoefficients;
+
+			auto slot = (int)properties.getWithDefault("FilterDataSlot", 0);
+
+			if(auto ed = dynamic_cast<ExternalDataHolder*>(p.get()))
+			{
+				if(isPositiveAndBelow(slot, ed->getNumDataObjects(fc)))
+				{
+					if(isPositiveAndBelow(index, ed->getFilterData(slot)->getNumCoefficients()))
+						return ed->getFilterData(slot)->getCoefficients(index);
+				}
+			}
+
+			return { {}, 0, nullptr }; 
+		}
+
+		mutable SimpleReadWriteLock unusedLock;
+
+		hise::SimpleReadWriteLock& getEqLock() const override { return unusedLock; }
+
+		String getTypeString(int filterIndex) const override
+		{
+			return types[filterIndex];
+		}
+
+		StringArray getFilterModes() const override { return types; }
+
+		SimpleRingBuffer::Ptr getFFTBuffer() override
+		{
+			auto idx = properties.getWithDefault("FFTDisplayBufferIndex", -1);
+
+			if(auto ed = dynamic_cast<ExternalDataHolder*>(p.get()))
+			{
+				auto numDisplayBuffers = ed->getNumDataObjects(ExternalData::DataType::DisplayBuffer);
+
+				if(isPositiveAndBelow(idx, numDisplayBuffers))
+				{
+					auto rb = ed->getDisplayBuffer(idx);
+
+					auto classIndex = rb->getPropertyObject()->getClassIndex();
+
+					if(classIndex == scriptnode::analyse::Helpers::FFT::PropertyIndex)
+					{
+						return rb;
+					}
+				}
+			}
+
+			return nullptr;
+		}
+
+		int getAttributeIndex(int filterIndex, BandParameter bp) const
+		{
+			auto offset = (int)properties.getWithDefault("FirstBandOffset", 0);
+			auto pidx = parameters.indexOf(bp);
+
+			if(pidx == -1)
+				return -1;
+
+			return offset + filterIndex * parameters.size() + pidx;
+		}
+
+		BandParameter getParameterForDragAction(DragAction d) const override
+		{
+			for(const auto& da: dragActions)
+			{
+				if(da.first == d)
+					return da.second;
+			}
+			
+			return BandParameter::numBandParameters;
+		}
+
+		static var getDefaultProperties()
+		{
+			DynamicObject::Ptr p = new DynamicObject();
+
+			Array<var> types;
+			types.add("Low Pass");
+			types.add("High Pass");
+			types.add("Low Shelf");
+			types.add("High Shelf");
+			types.add("Peak");
+
+			Array<var> parameterOrder;
+
+			parameterOrder.add("Gain");
+			parameterOrder.add("Freq");
+			parameterOrder.add("Q");
+			parameterOrder.add("Enabled");
+			parameterOrder.add("Type");
+
+			DynamicObject::Ptr da = new DynamicObject();
+
+			da->setProperty("DragX", "Freq");
+			da->setProperty("DragY", "Gain");
+			da->setProperty("ShiftDrag", "Q");
+			da->setProperty("DoubleClick", "Enabled");
+			da->setProperty("RightClick", "");
+
+			p->setProperty("NumFilterBands", 1);
+			p->setProperty("FilterDataSlot", 0);
+			p->setProperty("FirstBandOffset", 0);
+			p->setProperty("TypeList", var(types));
+			p->setProperty("ParameterOrder", parameterOrder);
+			p->setProperty("FFTDisplayBufferIndex", -1);
+			p->setProperty("DragActions", da.get());
+
+			return var(p.get());
+		}
+
+		NamedValueSet properties;
+		StringArray types;
+		Array<BandParameter> parameters;
+		std::vector<std::pair<DragAction, BandParameter>> dragActions;
+	};
+
+	ProcessorWithCustomFilterStatistics():
+	  filterStatisticJson(CustomFilterStats::getDefaultProperties())
+	{};
+
+	void handleFilterStatisticUpdate()
+	{
+		if(isFilterStatisticsInitialised())
+		{
+			auto p = dynamic_cast<Processor*>(this);
+			p->sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);
+		}
+	}
+
+	void setFilterStatistics(const var& newData)
+	{
+		filterStatisticJson = newData;
+
+		if(isFilterStatisticsInitialised())
+			dynamic_cast<CustomFilterStats*>(getOrCreateProcessorFilterStatistics().get())->setFilterStats(newData);
+	}
+
+	ProcessorFilterStatistics::Ptr createFilterStatistics() override
+	{
+		// must be set before calling this method...
+		jassert(filterStatisticJson.getDynamicObject() != nullptr);
+		return new CustomFilterStats(dynamic_cast<Processor*>(this), filterStatisticJson.getDynamicObject());
+	}
+
+	var getFilterStatisticsJSON() const { return filterStatisticJson; }
+
+	private:
+
+	var filterStatisticJson;
+};
 
 
 /** A Processor that has a dynamic size of child processors.

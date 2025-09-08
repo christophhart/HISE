@@ -36,6 +36,13 @@ namespace simple_css
 using namespace juce;
 
 
+struct HardcodedStyleSheetLookAndFeel: public GlobalHiseLookAndFeel
+{
+	virtual ~HardcodedStyleSheetLookAndFeel() {};
+
+	virtual void drawBackground(Graphics& g, Rectangle<float> fullBounds, PseudoState type) = 0;
+};
+
 
 /** A look and feel class that applies CSS styling to most stock JUCE controls.
  *
@@ -84,7 +91,10 @@ struct StyleSheetLookAndFeel: public GlobalHiseLookAndFeel
 	/** Draws any generic component background. */
 	bool drawComponentBackground(Graphics& g, Component* c, Selector s = {});
 
-	void drawGenericComponentText(Graphics& g, const String& text, Component* c, Selector s = {});
+	/** Draws the given text to the component.
+	 *  If drawEmptyText is true, then the :empty selector will be applied so you can add a placeholder text through the 'content'  property
+	 */
+	void drawGenericComponentText(Graphics& g, const String& text, bool drawEmptyText, Component* c, Selector s = {});
 
 	/** Use this for drawing a listbox row by styling the `tr` element. */
 	bool drawListBoxRow(int rowNumber, Graphics& g, const String& text, Component* lb, int width, int height, bool rowIsSelected,

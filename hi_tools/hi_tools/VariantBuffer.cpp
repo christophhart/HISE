@@ -288,6 +288,84 @@ void VariantBuffer::addMethods()
 	});
 #endif
 
+	setMethod("applyMedianFilter", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			if(n.numArguments > 0)
+			{
+				auto windowSize = (int)n.arguments[0];
+				MedianFilter mf(windowSize);
+				mf.prepare(bf->size);
+				VariantBuffer::Ptr filteredValues = new VariantBuffer(bf->size);
+				mf.apply(bf->buffer.getReadPointer(0), filteredValues->buffer.getWritePointer(0), bf->size);
+				return var(filteredValues.get());
+			}
+		}
+
+		return var();
+	});
+
+	setMethod("decompose", [](const var::NativeFunctionArgs& n)
+	{
+		if (auto bf = n.thisObject.getBuffer())
+		{
+			auto sr = 44100.0;
+
+			if (n.numArguments > 0)
+				sr = (double)n.arguments[0];
+
+			SiTraNoConverter::ConfigData cd;
+
+			if(n.numArguments > 1)
+				cd = SiTraNoConverter::ConfigData(n.arguments[1]);
+
+			SiTraNoConverter converter(sr, cd);
+
+			converter.process(bf->buffer);
+
+			Array<var> rv;
+
+			VariantBuffer::Ptr sine = new VariantBuffer(bf->size);
+			const auto& sb = converter.getSignalComponent(SiTraNoConverter::SignalComponent::Sinusoidal);
+			sine->buffer.copyFrom(0, 0, sb, 0, 0, bf->size);
+
+			rv.add(sine.get());
+
+			VariantBuffer::Ptr noise = new VariantBuffer(bf->size);
+			const auto& nb = converter.getSignalComponent(SiTraNoConverter::SignalComponent::Noise);
+			noise->buffer.copyFrom(0, 0, nb, 0, 0, bf->size);
+
+			rv.add(noise.get());
+
+			if(cd.calculateTransients)
+			{
+				VariantBuffer::Ptr trans = new VariantBuffer(bf->size);
+				const auto& tb = converter.getSignalComponent(SiTraNoConverter::SignalComponent::Transient);
+				trans->buffer.copyFrom(0, 0, tb, 0, 0, bf->size);
+				rv.add(trans.get());
+			}
+
+			const auto& noiseGrains = converter.getNoiseGrains();
+
+			Array<var> ng;
+
+			for(const auto& gb: noiseGrains)
+			{
+				VariantBuffer::Ptr p = new VariantBuffer(gb.getNumSamples());
+				FloatVectorOperations::copy(p->buffer.getWritePointer(0), gb.getReadPointer(0), gb.getNumSamples());
+
+				ng.add(var(p.get()));
+			}
+
+			rv.add(ng);
+
+			return var(rv);
+		}
+
+		return var();
+	});
+
 	setMethod("indexOfPeak", [](const var::NativeFunctionArgs& n)
 	{
 		if (auto bf = n.thisObject.getBuffer())

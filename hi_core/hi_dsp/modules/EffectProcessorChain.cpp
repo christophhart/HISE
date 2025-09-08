@@ -102,8 +102,13 @@ void EffectProcessorChain::renderVoice(int voiceIndex, AudioSampleBuffer& b, int
 	if(isBypassed()) return;
 
 	ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::VoiceEffectRendering);
-        
-	FOR_EACH_VOICE_EFFECT(renderVoice(voiceIndex, b, startSample, numSamples)); 
+
+	for(auto fx: FXIterator<VoiceEffectProcessor>(*this)) 
+	{
+		if(!fx->isBypassed()) 
+			fx->renderVoice(voiceIndex, b, startSample, numSamples);
+	}
+	 
 }
 
 void EffectProcessorChain::preRenderCallback(int startSample, int numSamples)
@@ -130,6 +135,8 @@ void EffectProcessorChain::renderNextBlock(AudioSampleBuffer& buffer, int startS
 
 	if (renderPolyFxAsMono)
 	{
+
+
 		// Make sure the modulation values get calculated...
 		FOR_EACH_VOICE_EFFECT(preRenderCallback(startSample, numSamples));
 	}
@@ -137,9 +144,7 @@ void EffectProcessorChain::renderNextBlock(AudioSampleBuffer& buffer, int startS
 	for(auto fx: allEffects)
 	{
 		if(!fx->isBypassed())
-		{
 			fx->renderNextBlock(buffer, startSample, numSamples);
-		}
 	}
 }
 
@@ -267,7 +272,7 @@ void EffectProcessorChain::renderMasterEffects(AudioSampleBuffer &b)
 
 	ADD_GLITCH_DETECTOR(parentProcessor, DebugLogger::Location::MasterEffectRendering);
 
-	for(auto mfx: masterEffects)
+	for(auto mfx: FXIterator<MasterEffectProcessor>(*this))
 	{
 		ScopedAnalyser sa(getMainController(), mfx, b, b.getNumSamples());
 		ProfiledProcessor::Profiler p(*mfx, 0);
@@ -341,6 +346,7 @@ void EffectProcessorChainFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(HardcodedMasterFX);
 	ADD_NAME_TO_TYPELIST(HardcodedPolyphonicFX);
 	ADD_NAME_TO_TYPELIST(MidiMetronome);
+	ADD_NAME_TO_TYPELIST(NoiseGrainPlayer);
 	
 };
 
@@ -375,6 +381,7 @@ Processor* EffectProcessorChainFactoryType::createProcessor	(int typeIndex, cons
 	case hardcodedMasterFx:				return new HardcodedMasterFX(m, id);
 	case polyHardcodedFx:				return new HardcodedPolyphonicFX(m, id, numVoices);
 	case midiMetronome:					return new MidiMetronome(m, id);
+	case noiseGrainPlayer:				return new NoiseGrainPlayer(m, id, numVoices);
 	default:					jassertfalse; return nullptr;
 	}
 };
@@ -470,8 +477,17 @@ void EffectProcessorChain::EffectChainHandler::remove(Processor *processorToBeRe
 		processorToBeRemoved->setIsOnAir(false);
 		chain->allEffects.removeAllInstancesOf(dynamic_cast<EffectProcessor*>(processorToBeRemoved));
 
-		if (auto vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved))		 chain->voiceEffects.removeObject(vep, false);
-		else if (auto mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved))		 chain->masterEffects.removeObject(mep, false);
+		if (auto vep = dynamic_cast<VoiceEffectProcessor*>(processorToBeRemoved))
+		{
+			chain->reorderedPolyEffects.removeAllInstancesOf(vep);
+			chain->voiceEffects.removeObject(vep, false);
+		}
+		else if (auto mep = dynamic_cast<MasterEffectProcessor*>(processorToBeRemoved))
+		{
+			chain->reorderedMasterEffects.removeAllInstancesOf(mep);
+			chain->masterEffects.removeObject(mep, false);
+		}
+			
 		else if (auto moep = dynamic_cast<MonophonicEffectProcessor*>(processorToBeRemoved)) chain->monoEffects.removeObject(moep, false);
 		else jassertfalse;
 
