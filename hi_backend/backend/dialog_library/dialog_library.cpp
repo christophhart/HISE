@@ -639,7 +639,7 @@ var WelcomeScreen::populateProjectSelector(const var::NativeFunctionArgs& args)
 {
 	auto recentProjects = ProjectHandler::getRecentWorkDirectories();
 
-	recentProjects.removeRange(4, 10000);
+	recentProjects.removeRange(10, 10000);
 
 	if(recentProjects.isEmpty())
 	{
@@ -685,8 +685,8 @@ var WelcomeScreen::populateProjectSelector(const var::NativeFunctionArgs& args)
 			hipFiles.sort(recentSorter, true);
 			xmlFiles.sort(recentSorter, true);
 
-			hipFiles.removeRange(3, 10000);
-			xmlFiles.removeRange(3, 10000);
+			hipFiles.removeRange(1, 10000);
+			xmlFiles.removeRange(10, 10000);
 
 				
 
