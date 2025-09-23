@@ -285,7 +285,7 @@ void FilterGraph::onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var 
 		}
 
 		fs = filterData->getSamplerate();
-		repaint();
+		refreshAsync();
 	}
 }
 
@@ -294,7 +294,7 @@ void FilterGraph::paint (Graphics& g)
 	if(drawType == Icon)
 	{
 		g.fillAll(Colour(0xff111111));
-		refreshFilterPath();
+		//refreshFilterPath();
 
 		g.setGradientFill (ColourGradient (Colour (0xaaffffff),
 										0.0f, 0.0f,
@@ -324,7 +324,7 @@ void FilterGraph::paint (Graphics& g)
 			laf->drawFilterGridLines(g, *this, gridPath);
 		}
 		
-		refreshFilterPath();
+		//refreshFilterPath();
 
 		laf->drawFilterPath(g, *this, tracePath);
 	}
@@ -398,6 +398,7 @@ void FilterGraph::setBypassed(bool shouldBeBypassed)
 	if (shouldBeBypassed != bypassed)
 	{
 		bypassed = shouldBeBypassed; repaint();
+		refreshAsync();
 	}
 }
 
@@ -406,7 +407,7 @@ void FilterGraph::setFilterGain (int filterNum, double gain)
 	if (filterNum < filterVector.size())
 	{
 		filterVector[filterNum]->setGain(gain);
-		repaint();
+		refreshAsync();
 	}
     
 }
@@ -419,7 +420,7 @@ void FilterGraph::setFilter (int filterNum, double sampleRate, double frequency,
 		filterVector[filterNum]->setFilter(frequency, filterType);
 
 		fs = sampleRate;
-		repaint();
+		refreshAsync();
 	}
     
 }
@@ -432,7 +433,7 @@ void FilterGraph::setEqBand (int filterNum, double sampleRate, double frequency,
 		filterVector[filterNum]->setEqBand(frequency, Q, gain, eqType);
 
 		fs = sampleRate;
-		repaint();
+		refreshAsync();
 	}
     
 }
@@ -445,7 +446,7 @@ void FilterGraph::setCustom (int filterNum, double sampleRate, std::vector <doub
 		filterVector[filterNum]->setCustom(numCoeffs, denCoeffs);
 
 		fs = sampleRate;
-		repaint();
+		refreshAsync();
 	}
 }
 
@@ -461,7 +462,7 @@ void FilterGraph::setCoefficients(int filterNum, double sampleRate, FilterDataOb
 			filterVector[filterNum]->setCoefficients(filterNum, sampleRate, newCoefficients);
 
 			fs = sampleRate;
-			repaint();
+			refreshAsync();
 		}
 	}
 }

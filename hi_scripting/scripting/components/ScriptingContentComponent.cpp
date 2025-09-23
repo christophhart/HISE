@@ -705,6 +705,9 @@ void ScriptContentComponent::setNewContent(ScriptingApi::Content *c)
     
     addMouseListenersForComponentWrappers();
 	repaint();
+
+	for (auto& cw : componentWrappers)
+		cw->postInit();
 }
 
 void ScriptContentComponent::addMouseListenersForComponentWrappers()

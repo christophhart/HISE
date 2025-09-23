@@ -69,6 +69,8 @@ DspNodeList::ParameterItem::ParameterItem(DspNetwork* parent, int parameterIndex
 	pIndex(parameterIndex),
 	dragListener(&dragButton, [parameterIndex](DspNetworkGraph* g){ return DspNetworkListeners::MacroParameterDragListener::findSliderComponent(g, parameterIndex); })
 {
+	setUsePopupMenu(true);
+
 	pname.getTextValue().referTo(ptree.getPropertyAsValue(PropertyIds::ID, parent->getUndoManager()));
 
 	auto value = (double)ptree[PropertyIds::Value];
@@ -80,7 +82,9 @@ DspNodeList::ParameterItem::ParameterItem(DspNetwork* parent, int parameterIndex
 	addAndMakeVisible(dragButton);
 	addAndMakeVisible(pname);
 
-			
+	valueSlider.addMouseListener(this, false);
+	pname.addMouseListener(this, false);		
+
 
 	valueSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
 	valueSlider.setTextBoxStyle(juce::Slider::TextEntryBoxPosition::NoTextBox, false, 0, 0);

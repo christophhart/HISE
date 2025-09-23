@@ -462,7 +462,7 @@ namespace dll
 	{
 		// This is just used to check whether the dll is deprecated and needs to be recompiled...
 		// (It will be bumped whenever a breaking change into the DLL API is introduced)...
-		static constexpr int DllUpdateCounter = 4;
+		static constexpr int DllUpdateCounter = 5;
 
 		using Ptr = ReferenceCountedObjectPtr<ProjectDll>;
 

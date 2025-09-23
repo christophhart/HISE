@@ -65,6 +65,13 @@ public:
 
 	};
 
+	~HardcodedMasterEditor()
+	{
+		pageComponent = nullptr;
+		currentParameters.clear();
+		currentEditors.clear();
+	}
+
 	static void onError(HardcodedMasterEditor& editor, const String& r)
 	{
 		editor.prepareError = r;
@@ -125,17 +132,87 @@ public:
 			g.drawMultiLineText("ERROR: " + errorMessage, ta.getX(), ta.getY() + 15, ta.getWidth());
 		}
 
+		for(auto& gr: singlePageGroups)
+		{
+			gr.drawGroup(g, *this, true);
+		}
 	}
+
+	static int getStaticPageHeight(const std::vector<PageTabComponent::Group>& groups)
+	{
+		int h = 0;
+
+		auto drawGroups = false;
+
+		for (auto& g : groups)
+		{
+			drawGroups |= g.name.isNotEmpty();
+		}
+
+		if (!drawGroups)
+			h += Margin;
+
+		for (auto& g : groups)
+		{
+			if (drawGroups)
+				h += (UIValues::GroupHeight + Margin);
+
+			h += (1 + (g.groupComponents.size() / 4)) * (48 + Margin);
+		}
+
+		h += Margin;
+
+		return h;
+	}
+
+	static void setGroupLayoutWithLineBreaks(Rectangle<int> b, const std::vector<PageTabComponent::Group>& groups, bool drawGroups)
+	{
+		for (auto& g : groups)
+		{
+			if (drawGroups)
+				b.removeFromTop(UIValues::GroupHeight + Margin);
+
+			auto r = b.removeFromTop(48);
+
+			int rowIndex = 0;
+
+			for (auto c : g.groupComponents)
+			{
+				c.getComponent()->setBounds(r.removeFromLeft(128));
+				r.removeFromLeft(Margin);
+				if (rowIndex++ == 3)
+				{
+					rowIndex = 0;
+					b.removeFromTop(Margin);
+					r = b.removeFromTop(48);
+				}
+			}
+		}
+	}
+
+	struct HardcodedPageTabComponent : public hise::PageTabComponent
+	{
+		HardcodedPageTabComponent() :
+			hise::PageTabComponent(nullptr)
+		{
+			layoutFunction = setGroupLayoutWithLineBreaks;
+			pageHeightFunction = getStaticPageHeight;
+
+			expandButton.setVisible(false);
+		}
+
+		ValueTree getNodeTree() override { return {}; };
+	};
+
+	ScopedPointer<HardcodedPageTabComponent> pageComponent;
+	std::vector<PageTabComponent::Group> singlePageGroups;
 
 	void rebuildParameters()
 	{
+		singlePageGroups.clear();
+		pageComponent = nullptr;
 		currentEditors.clear();
 		currentParameters.clear();
-
-#if 0
-		if(!getErrorMessage().isEmpty())
-			return;
-#endif
 
 		std::function<int(ExternalData::DataType)> numObjectsFunction;
 
@@ -169,17 +246,26 @@ public:
 		
 		if (auto on = getEffect()->opaqueNode.get())
 		{
-			for(const auto& p: OpaqueNode::ParameterIterator(*on))
+			ParameterDataList list;
+
+			on->createParameters(list);
+
+			auto tree = std::make_unique<PageInfo::Tree>(list);
+
+			std::function<Component*(int)> createSlider = [&](int parameterIndex)
 			{
+				jassert(isPositiveAndBelow(parameterIndex, list.size()));
+				const parameter::data& p = list[parameterIndex];
+
+				Component* c = nullptr;
 				auto pData = p.info;
 				auto s = new HiSlider(pData.getId());
-				addAndMakeVisible(s);
 				s->setup(getProcessor(), pData.index + getEffect()->getParameterOffset(), pData.getId());
 				auto nr = pData.toRange().rng;
 
 				auto vtc = p.getValueToTextConverter();
 
-				if(vtc.active)
+				if (vtc.active)
 				{
 					s->valueFromTextFunction = vtc;
 					s->textFromValueFunction = vtc;
@@ -191,8 +277,44 @@ public:
 				s->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
 				s->setColour(Slider::thumbColourId, Colour(0x80666666));
 				s->setColour(Slider::textBoxTextColourId, Colours::white);
-
+				c = s;
 				currentParameters.add(s);
+				return c;
+			};
+
+			if(tree->hasMoreThanOnePage())
+			{
+				addAndMakeVisible(pageComponent = new HardcodedPageTabComponent());
+				pageComponent->buildParameters(*tree, createSlider);
+			}
+			else
+			{
+				pageComponent = nullptr;
+
+				if(tree->hasGroupTags())
+				{
+					for (const auto& p : OpaqueNode::ParameterIterator(*on))
+					{
+						PageInfo pi(p.info);
+
+						if (pi.isGroup())
+							singlePageGroups.push_back({ pi.group });
+						else if (singlePageGroups.empty())
+							singlePageGroups.push_back({ String() });
+
+						auto s = createSlider(p.info.index);
+						addAndMakeVisible(s);
+						singlePageGroups.back().groupComponents.add(s);
+					}
+				}
+				else
+				{
+					for (const auto& p : OpaqueNode::ParameterIterator(*on))
+					{
+						auto s = createSlider(p.info.index);
+						addAndMakeVisible(s);
+					}
+				}
 			}
 		}
 		else if (getEffect()->hasLoadedButUncompiledEffect())
@@ -246,33 +368,83 @@ public:
 			b.removeFromTop(Margin);
 		}
 
-		for (int i = 0; i < currentParameters.size(); i++)
+		if(pageComponent != nullptr)
 		{
-			if ((i % 4) == 0)
+			pageComponent->setBounds(b);
+		}
+		else
+		{
+			if(!singlePageGroups.empty())
 			{
-				currentRow = b.removeFromTop(48);
-				b.removeFromTop(Margin);
+				b.setY(b.getY() - Margin);
+				setGroupLayoutWithLineBreaks(b, singlePageGroups, true);
 			}
+			else
+			{
+				for (int i = 0; i < currentParameters.size(); i++)
+				{
+					if ((i % 4) == 0)
+					{
+						currentRow = b.removeFromTop(48);
+						b.removeFromTop(Margin);
+					}
 
-			dynamic_cast<Component*>(currentParameters[i])->setBounds(currentRow.removeFromLeft(128));
-			currentRow.removeFromLeft(Margin);
+					dynamic_cast<Component*>(currentParameters[i])->setBounds(currentRow.removeFromLeft(128));
+					currentRow.removeFromLeft(Margin);
+				}
+			}
 		}
 	}
+
+	
 
 	HardcodedSwappableEffect* getEffect() { return dynamic_cast<HardcodedSwappableEffect*>(getProcessor()); }
 	const HardcodedSwappableEffect* getEffect() const { return dynamic_cast<const HardcodedSwappableEffect*>(getProcessor()); }
 
 	int getBodyHeight() const override
 	{
+		if(pageComponent != nullptr)
+		{
+			auto h = currentEditors.size() * (120 + Margin);
+			h += pageComponent->getMaxHeight();
+			return h;
+		}
+
 		if (currentParameters.isEmpty() && currentEditors.isEmpty())
 			return 32 + 2 * Margin;
 		else
 		{
-			int numRows = currentParameters.size() / 4 + 1;
+			
 
 			int numEditorRows = currentEditors.size();
 
-			return numRows * (48 + 4 * Margin) + numEditorRows * (120 + Margin);
+			auto editorHeight = numEditorRows * (120 + Margin);
+
+			int parameterHeight = 0;
+
+			if(singlePageGroups.empty())
+			{
+				int numRows = currentParameters.size() / 4 + 1;
+				parameterHeight = numRows * (48 + 4 * Margin);
+			}
+			else
+			{
+				parameterHeight += getStaticPageHeight(singlePageGroups);
+
+#if 0
+				for(const auto& g: singlePageGroups)
+				{
+					parameterHeight += scriptnode::UIValues::GroupHeight + Margin;
+					int numRows = g.groupComponents.size() / 4 + 1;
+					parameterHeight += numRows * (48 + Margin);
+				}
+				parameterHeight += Margin;
+#endif
+
+				
+			}
+
+			return parameterHeight + editorHeight;
 		}
 	}
 

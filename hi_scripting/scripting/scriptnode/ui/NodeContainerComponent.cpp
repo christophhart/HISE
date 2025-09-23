@@ -371,6 +371,7 @@ void ContainerComponent::resized()
 	b.expand(-UIValues::NodeMargin, 0);
 	b.removeFromTop(UIValues::HeaderHeight);
 	topComponent->setSize(b.getWidth(), topComponent->getHeight());
+	
 	topComponent->setTopLeftPosition(b.getTopLeft());
 
 	gotoButton.setSize(16,16);
@@ -429,8 +430,7 @@ juce::Point<int> ContainerComponent::getStartPosition() const
 	y += UIValues::HeaderHeight;
 	y += UIValues::PinHeight;
 
-	if (dataReference[PropertyIds::ShowParameters])
-		y += UIValues::ParameterHeight + UIValues::MacroDragHeight;
+	y += getHeaderHeight();
 
 	return { UIValues::NodeMargin, y};
 }
@@ -742,8 +742,7 @@ void SerialNodeComponent::paintSerialCable(Graphics& g, int cableIndex)
 	auto b2 = getLocalBounds();
 	b2.removeFromTop(UIValues::HeaderHeight);
 
-	if (dataReference[PropertyIds::ShowParameters])
-		b2.removeFromTop(UIValues::ParameterHeight + UIValues::MacroDragHeight);
+	b2.removeFromTop(getHeaderHeight());
 
 	auto top = b2.removeFromTop(UIValues::PinHeight);
 	auto start = top.getCentre().toFloat().translated(xOffset, 0.0f);
@@ -1079,8 +1078,7 @@ void ParallelNodeComponent::paintCable(Graphics& g, int cableIndex)
 
 	b2.removeFromTop(UIValues::HeaderHeight);
 
-	if (dataReference[PropertyIds::ShowParameters])
-		b2.removeFromTop(UIValues::ParameterHeight + UIValues::MacroDragHeight);
+	b2.removeFromTop(getHeaderHeight());
 
 	b2.removeFromTop(UIValues::NodeMargin / 2);
 	b2.removeFromBottom(UIValues::NodeMargin / 2);
@@ -1470,8 +1468,77 @@ void ContainerComponent::ParameterComponent::resized()
 	if (leftTabComponent != nullptr)
 		leftTabComponent->setBounds(b.removeFromLeft(leftTabComponent->getWidth()));
 
-	for (auto s : sliders)
-		s->setBounds(b.removeFromLeft(100));
+	if(tabs != nullptr)
+	{
+		tabs->setBounds(b);
+	}
+	else
+	{
+		auto forceNonLayout = (int)parent.node->getValueTree()[PropertyIds::CurrentPageIndex] == -1;
+
+		if(tree->hasGroupTags() && !forceNonLayout)
+			b.removeFromTop(UIValues::GroupHeight);
+
+		for (auto s : sliders)
+			s->setBounds(b.removeFromLeft(UIValues::ParameterWidth));
+	}
+
+	
+}
+
+void ContainerComponent::ParameterComponent::ContainerPageTabComponent::onExpandTabs()
+{
+	if (auto dn = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		MessageManager::callAsync([dn]()
+			{
+				dn->rebuildNodes();
+			});
+	}
+}
+
+void ContainerComponent::MacroToolbar::buttonClicked(Button* b)
+{
+	auto pc = findParentComponentOfClass<ParameterComponent>();
+
+	if (b == &addButton)
+	{
+		auto name = PresetHandler::getCustomName("Parameter", "Enter the parameter name");
+
+		while (name.isNotEmpty() && pc->parent.node->getParameterFromName(name) != nullptr)
+		{
+			PresetHandler::showMessageWindow("Already there", "The parameter " + name + " already exists. You need to be more creative.");
+
+			name = PresetHandler::getCustomName("Parameter", "Enter a new parameter name");
+		}
+
+		if (name.isNotEmpty())
+		{
+			auto obj = new DynamicObject();
+			obj->setProperty(PropertyIds::ID, name);
+			pc->parent.node->getOrCreateParameter(var(obj));
+		}
+
+	}
+	if (b == &tabButton)
+	{
+		if (auto nc = findParentComponentOfClass<NodeComponent>())
+		{
+			nc->node->getValueTree().setProperty(PropertyIds::CurrentPageIndex, 0, nc->node->getUndoManager());
+
+			auto dn = findParentComponentOfClass<DspNetworkGraph>();
+
+			MessageManager::callAsync([dn]()
+				{
+					dn->rebuildNodes();
+				});
+		}
+	}
+	if (b == &dragButton)
+	{
+		for (auto s : pc->sliders)
+			dynamic_cast<MacroParameterSlider*>(s)->setEditEnabled(b->getToggleState());
+	}
 }
 
 }

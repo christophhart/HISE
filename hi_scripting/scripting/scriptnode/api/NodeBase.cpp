@@ -738,6 +738,8 @@ var NodeBase::getOrCreateParameter(var indexOrId) const
 			p.setProperty(PropertyIds::TextToValueConverter, indexOrId["mode"], nullptr);
 
 		PropertyIds::Helpers::setToDefault(p, PropertyIds::ExternalModulation);
+		PropertyIds::Helpers::setToDefault(p, PropertyIds::Page);
+		PropertyIds::Helpers::setToDefault(p, PropertyIds::SubGroup);
 
 		if(defaultValue.first)
 		{

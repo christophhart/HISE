@@ -444,6 +444,33 @@ void GlobalScriptCompileBroadcaster::restoreWebResources(const ValueTree& v)
 	}
 }
 
+struct HiseWebResourceProvider: public ControlledObject,
+								public WebViewData::ExternalResourceProviderBase 
+{
+	HiseWebResourceProvider(MainController* mc):
+	  ControlledObject(mc)
+	{}
+
+	Image getImage(const String& hiseReference) override
+	{
+		PoolReference ref(getMainController(), hiseReference, ProjectHandler::Images);
+
+		if(!ref.isAbsoluteFile())
+		{
+			auto image = getMainController()->getExpansionHandler().loadImageReference(ref);
+
+			if(image)
+			{
+				return *(image.getData());
+			}
+		}
+
+		return Image();
+	}
+
+	std::pair<String, String> getMimeContent(const String& hiseReference) override { return {}; }
+};
+
 hise::WebViewData::Ptr GlobalScriptCompileBroadcaster::getOrCreateWebView(const Identifier& id)
 {
 	for (const auto& wv : webviews)
@@ -452,7 +479,13 @@ hise::WebViewData::Ptr GlobalScriptCompileBroadcaster::getOrCreateWebView(const 
 			return std::get<1>(wv);
 	}
 
-	webviews.add({ id, new WebViewData(webViewRoot) });
+	auto nw = new WebViewData(webViewRoot);
+
+	auto mc = dynamic_cast<MainController*>(this);
+
+	nw->addExternalResourceProvider(new HiseWebResourceProvider(mc));
+	
+	webviews.add({ id, nw });
 	return std::get<1>(webviews.getLast());
 }
 

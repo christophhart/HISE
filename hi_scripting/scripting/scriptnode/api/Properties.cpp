@@ -814,7 +814,11 @@ void PropertyHelpers::addMissingIdsForEditor(ValueTree& data, UndoManager* undoM
 		auto isRootParameter = data.getParent().getParent().getParent().getType() == PropertyIds::Network;
 
 		if(isRootParameter)
+		{
 			ids.add(PropertyIds::ExternalModulation);
+			ids.add(PropertyIds::Page);
+			ids.add(PropertyIds::SubGroup);
+		}
 
 		for(const auto& id: ids)
 		{

@@ -755,14 +755,12 @@ public:
 
 		void setDefaultValue(int p, const var &defaultValue);
 		
-		
-
-		void addLinkedTarget(ScriptComponent* newTarget)
+		virtual void addLinkedTarget(ScriptComponent* newTarget)
 		{
 			linkedComponentTargets.addIfNotAlreadyThere(newTarget);
 		}
 
-		void removeLinkedTarget(ScriptComponent* targetToRemove)
+		virtual void removeLinkedTarget(ScriptComponent* targetToRemove)
 		{
 			linkedComponentTargets.removeAllInstancesOf(targetToRemove);
 		}
@@ -1067,6 +1065,21 @@ public:
 		var sliderValueFunction;
         var modObject;
 
+        
+        void addLinkedTarget(ScriptComponent* newTarget) override
+        {
+            ScriptComponent::addLinkedTarget(newTarget);
+            
+            if(auto s = dynamic_cast<ScriptSlider*>(newTarget))
+            {
+				
+            }
+        }
+
+        void removeLinkedTarget(ScriptComponent* targetToRemove) override
+        {
+            ScriptComponent::removeLinkedTarget(targetToRemove);
+        }
         
 	private:
 

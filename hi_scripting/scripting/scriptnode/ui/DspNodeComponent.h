@@ -41,9 +41,12 @@ using namespace juce;
 
 
 
-class DefaultParameterNodeComponent : public NodeComponent
+class DefaultParameterNodeComponent : public NodeComponent,
+									  public PathFactory
 {
 public:
+
+	Path createPath(const String& url) const override;
 
 	DefaultParameterNodeComponent(NodeBase* node);;
 
@@ -53,6 +56,145 @@ public:
 		addAndMakeVisible(extraComponent);
 	}
 
+	struct NodePageTabComponent: public hise::PageTabComponent
+	{
+		NodePageTabComponent(NodeBase* n):
+		  PageTabComponent(n->getUndoManager()),
+		  v(n->getValueTree())
+		{
+			pageHeightFunction = getPageHeightStatic;
+			layoutFunction = setGroupLayout;
+		};
+
+		void onExpandTabs() override;
+
+		ValueTree getNodeTree() override { return v; }
+
+		ValueTree v;
+	};
+
+	ScopedPointer<NodePageTabComponent> pageComponent;
+	std::vector<PageTabComponent::Group> singlePageGroups;
+
+	std::unique_ptr<PageInfo::Tree> pageTree;
+
+	bool hasSpecialLayout() const
+	{
+		return pageTree->hasPageLayout() || pageTree->hasGroupTags();
+	}
+
+	Component* createSlider(int parameterIndex)
+	{
+		auto newSlider = new ParameterSlider(node.get(), parameterIndex);
+		sliders.add(newSlider);
+		return newSlider;
+	}
+
+	
+
+	static Rectangle<int> getPageBounds(PageInfo::Tree& pageTree, Point<int> topLeft)
+	{
+		jassert(pageTree.hasPageLayout());
+
+		if (pageTree.hasMoreThanOnePage())
+		{
+			int w = 0;
+			int h = 0;
+
+			for (const auto& p : pageTree.getPageNames())
+			{
+				int pw = 0;
+				int ph = 0;
+
+
+				for (auto& g : pageTree.getGroups(p))
+				{
+					if (g.isNotEmpty())
+						ph += UIValues::GroupHeight;
+
+					ph += UIValues::NodeMargin;
+
+					auto numInGroup = pageTree.getList(p, g).size();
+					auto pb = PositionHelpers::getPageBounds(numInGroup);
+
+					pw = jmax(pb.getWidth(), pw);
+
+					ph += pb.getHeight();
+
+					ph -= 2 * UIValues::NodeMargin;
+					ph -= UIValues::HeaderHeight;
+				};
+
+				w = jmax(pw, w);
+				h = jmax(h, ph);
+			}
+
+			h -= 10;
+			h += UIValues::HeaderHeight;
+			h += UIValues::TabHeight + UIValues::NodeMargin;
+			h += 2 * UIValues::NodeMargin;
+
+			return Rectangle<int>(w, h).withPosition(topLeft);
+		}
+		else
+		{
+			int w = 0;
+			int h = 0;
+
+			auto firstPageId = pageTree.getPageNames()[0];
+
+			for(const auto& g: pageTree.getGroups(firstPageId))
+			{
+				if(g.isNotEmpty())
+					h += UIValues::GroupHeight;
+
+				auto numInGroup = pageTree.getList(firstPageId, g).size();
+				auto pb = PositionHelpers::getPageBounds(numInGroup);
+
+				w = jmax(pb.getWidth(), w);
+
+				h += pb.getHeight();
+
+				h -= UIValues::NodeMargin;
+				h -= UIValues::HeaderHeight;
+			}
+
+			h -= 10;
+			h += UIValues::HeaderHeight;
+			h += UIValues::TabHeight + UIValues::NodeMargin;
+			h += 2 * UIValues::NodeMargin;
+
+			return Rectangle<int>(w, h).withPosition(topLeft);
+		}
+	}
+
+	static int getPageHeightStatic(const std::vector<PageTabComponent::Group>& groups)
+	{
+		int h = 0;
+
+		for(auto& g: groups)
+		{
+			if(g.name.isNotEmpty())
+				h += UIValues::GroupHeight + UIValues::NodeMargin;
+
+			h += 48 + UIValues::NodeMargin + 28;
+		}
+
+		return h;
+	}
+
+	static void setGroupLayout(Rectangle<int> b, const std::vector<PageTabComponent::Group>& group, bool drawGroups)
+	{
+		for(const auto& g: group)
+		{
+			if(drawGroups)
+				b.removeFromTop(UIValues::GroupHeight);
+
+
+			PositionHelpers::applySliderPositions(b, g.groupComponents);
+		}
+	}
+
 	void updateSliders(ValueTree , bool )
 	{
 		sliders.clear();
@@ -60,12 +202,33 @@ public:
 		if (node == nullptr)
 			return;
 
-		for (int i = 0; i < node->getNumParameters(); i++)
-		{
-			auto newSlider = new ParameterSlider(node.get(), i);
+		auto forceNoLayout = (int)node->getValueTree()[PropertyIds::CurrentPageIndex] == -1;
 
-			addAndMakeVisible(newSlider);
-			sliders.add(newSlider);
+		if(pageTree->hasPageLayout() && !forceNoLayout)
+		{
+			addAndMakeVisible(pageComponent = new NodePageTabComponent(node.get()));
+			pageComponent->buildParameters(*pageTree, BIND_MEMBER_FUNCTION_1(DefaultParameterNodeComponent::createSlider));
+		}
+		else
+		{
+			pageComponent = nullptr;
+
+			for (int i = 0; i < node->getNumParameters(); i++)
+			{
+				addAndMakeVisible(createSlider(i));
+
+				if(pageTree->hasGroupTags() && !forceNoLayout)
+				{
+					auto gid = pageTree->getGroupIdForParameter(i);
+
+					if(gid.isNotEmpty())
+						singlePageGroups.push_back({gid});
+					else if (singlePageGroups.empty())
+						singlePageGroups.push_back({ String() });
+
+					singlePageGroups.back().groupComponents.add(sliders.getLast());
+				}
+			}
 		}
 
 		resized();
@@ -86,6 +249,7 @@ public:
 	OwnedArray<ParameterSlider> sliders;
 
 	valuetree::ChildListener parameterListener;
+	HiseShapeButton tabButton;
 };
 
 }

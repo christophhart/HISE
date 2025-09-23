@@ -36,19 +36,47 @@ using namespace juce;
 using namespace hise;
 
 
-DefaultParameterNodeComponent::DefaultParameterNodeComponent(NodeBase* node) :
-	NodeComponent(node)
+juce::Path DefaultParameterNodeComponent::createPath(const String& url) const
+{
+	Path p;
+	LOAD_EPATH_IF_URL("tabs", ScriptnodeIcons::tabIcon);
+	return p;
+}
+
+DefaultParameterNodeComponent::DefaultParameterNodeComponent(NodeBase* node):
+	NodeComponent(node),
+	tabButton("tabs", nullptr, *this)
 {
 	parameterListener.setCallback(node->getParameterTree(), valuetree::AsyncMode::Asynchronously,
 		BIND_MEMBER_FUNCTION_2(DefaultParameterNodeComponent::updateSliders));
 
+	pageTree = PageInfo::createPageTree(node->getParameterTree());
+
+	tabButton.setTooltip("Group parameters into pages & tabs");
+
+	tabButton.onClick = [this, node]()
+	{
+		this->node->getValueTree().setProperty(PropertyIds::CurrentPageIndex, 0, node->getUndoManager());
+
+		if(auto dn = findParentComponentOfClass<DspNetworkGraph>())
+		{
+			MessageManager::callAsync([dn]()
+			{
+				dn->rebuildNodes();
+			});
+		}
+	};
+
+	addChildComponent(tabButton);
+	
 	updateSliders(node->getParameterTree(), false);
 }
 
 
+
 void DefaultParameterNodeComponent::resized()
 {
-	auto rowHeight = 48 + 28;
+	
 	NodeComponent::resized();
 
 	auto b = getLocalBounds();
@@ -61,60 +89,47 @@ void DefaultParameterNodeComponent::resized()
 		b.removeFromTop(UIValues::NodeMargin);
 	}
 	
-	
+	tabButton.setVisible((int)node->getValueTree()[PropertyIds::CurrentPageIndex] == -1);
 
-	int numPerRow = jlimit(1, jmax(sliders.size(), 1), b.getWidth() / 100);
-	int numColumns = jmax(1, (b.getHeight() + 10) / rowHeight);
-
-	auto staticIntend = 0;
-
-	if (numColumns == 2)
+	if(tabButton.isVisible())
 	{
-		numPerRow = (int)hmath::ceil((float)sliders.size() / 2.0f);
+		tabButton.toFront(false);
+		auto tb = getLocalBounds().reduced(UIValues::NodeMargin);
+		tabButton.setBounds(tb.removeFromRight(24).removeFromBottom(24).reduced(4));
 	}
-
-	staticIntend = (b.getWidth() - numPerRow * 100) / 2;
 		
 
-	auto intendOddRows = (sliders.size() % jmax(1, numPerRow)) != 0;
+	if(pageComponent != nullptr)
+	{
+		pageComponent->setBounds(b);
+	}
+	else if (!singlePageGroups.empty())
+	{
+		setGroupLayout(b, singlePageGroups, true);
+	}
+	else
+	{
+		Array<Component::SafePointer<Component>> sliderList;
 
-	auto rowIndex = 0;
+		for(auto& s: sliders)
+			sliderList.add(s);
 
-    auto row = b.removeFromTop(rowHeight);
-    row.removeFromLeft(staticIntend);
-    row.removeFromRight(staticIntend);
-	
-    for(auto s: sliders)
-    {
-        auto sliderBounds = row.removeFromLeft(100);
-        
-        if(sliderBounds.getWidth() < 100)
-        {
-            rowIndex++;
-            row = b.removeFromTop(rowHeight);
-        
-            auto intend = staticIntend;
-            
-            if (intendOddRows && (rowIndex % 2 != 0))
-                intend += 50;
-            
-            row.removeFromLeft(intend);
-            row.removeFromRight(staticIntend);
-			
-            sliderBounds = row.removeFromLeft(100);
-        }
+		PositionHelpers::applySliderPositions(b, sliderList);
 
-		if(b.getHeight() > 0)
-			sliderBounds.removeFromBottom(10);
 
-		s->setBounds(sliderBounds);
-    }
+	}
 }
 
-
-
-
-
+void DefaultParameterNodeComponent::NodePageTabComponent::onExpandTabs()
+{
+	if (auto dn = findParentComponentOfClass<DspNetworkGraph>())
+	{
+		MessageManager::callAsync([dn]()
+		{
+			dn->rebuildNodes();
+		});
+	}
+}
 
 }
 

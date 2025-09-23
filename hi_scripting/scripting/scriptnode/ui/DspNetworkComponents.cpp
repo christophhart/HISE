@@ -313,11 +313,11 @@ DspNetworkGraph::DspNetworkGraph(DspNetwork* n) :
 
 	rebuildListener.forwardCallbacksForChildEvents(true);
 
-	resizeListener.setCallback(dataReference, { PropertyIds::Folded, PropertyIds::ShowParameters, PropertyIds::ShowClones, PropertyIds::DisplayedClones },
+	resizeListener.setCallback(dataReference, { PropertyIds::Folded, PropertyIds::ShowParameters, PropertyIds::ShowClones, PropertyIds::DisplayedClones, PropertyIds::Page, PropertyIds::SubGroup },
 		valuetree::AsyncMode::Asynchronously,
 		[this](ValueTree, Identifier id)
 	{
-		if (id == PropertyIds::ShowClones || id == PropertyIds::DisplayedClones)
+		if (id == PropertyIds::ShowClones || id == PropertyIds::DisplayedClones || id == PropertyIds::Page || id == PropertyIds::SubGroup)
 			this->rebuildNodes();
 		else
 			this->resizeNodes();

@@ -92,6 +92,21 @@ struct WebViewData : public ReferenceCountedObject
 	/** Adds a juce::Image as PNG image with the given path. */
 	void addPNGImage(const String& path, const Image& img);
 
+	struct ExternalResourceProviderBase
+	{
+		virtual ~ExternalResourceProviderBase() = default;
+
+		virtual Image getImage(const String& hiseReference) = 0;
+		virtual std::pair<String, String> getMimeContent(const String& hiseReference) = 0;
+	};
+
+	OwnedArray<ExternalResourceProviderBase> additionalProviders;
+
+	void addExternalResourceProvider(ExternalResourceProviderBase* ownedProvider)
+	{
+		additionalProviders.add(ownedProvider);
+	}
+
 	/** Exports the resources as valuetree that can be imported later. Be aware that this takes the current state
 		into account and the WebView has to be initialised at least once so that the resources are cached (also, you
 		must not disable caching before calling this method, obviously...). */
@@ -391,7 +406,7 @@ using NativeUIBase = juce::XEmbedComponent;
 #define resizeToFitCrossPlatform resized
 #endif
 
-	WebViewWrapper(WebViewData::Ptr data);
+	WebViewWrapper(WebViewData::Ptr data, bool init=true);
 
 	~WebViewWrapper();
 

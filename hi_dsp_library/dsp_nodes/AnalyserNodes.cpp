@@ -1,4 +1,4 @@
-/*  ===========================================================================
+﻿/*  ===========================================================================
 *
 *   This file is part of HISE.
 *   Copyright 2016 Christoph Hart
@@ -51,9 +51,6 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 {
 	openTrackEvent();
 
-
-	
-
 	resizeBuffers(b.getNumSamples());
 
 	int size = removeOverlap(b.getNumSamples());
@@ -70,9 +67,14 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 		b2.clear();
 
 		auto data = b2.getWritePointer(0);
-		FloatVectorOperations::copy(data, b.getReadPointer(0, offset), size);
 
-		FloatVectorOperations::multiply(data, windowBuffer.getReadPointer(0), size);
+		auto src = b.getReadPointer(0, offset);
+		auto win = windowBuffer.getReadPointer(0);
+
+		for(int i = 0; i < size; i++)
+		{
+			data[i] = src[i] * win[i];
+		}
 
 		fft.performRealOnlyForwardTransform(data, true);
 
@@ -91,9 +93,7 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 				auto re = data[i];
 				auto im = data[i + 1];
 
-				d[sIndex++] = hmath::sqrt(re * re + im * im);
-				//data[i] = sqrt(data[i] * data[i] + data[i + 1] * data[i + 1]);
-				//data[i + 1] = data[i];
+				d[sIndex++] = std::sqrt(re * re + im * im);
 			}
 		}
 		else
@@ -152,8 +152,6 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 			
 			lastBuffer.setSample(0, i, v);
 		}
-		
-		
 
 		if(delta == 0)
 			break;
@@ -162,12 +160,72 @@ void Helpers::FFT::transformReadBuffer(AudioSampleBuffer& b)
 	FloatVectorOperations::copy(b.getWritePointer(0, 0), lastBuffer.getWritePointer(0, 0), size);
 }
 
+struct RDPReducer
+{
+	using Points = Array<Point<float>>;
+
+	RDPReducer(Points& pointList)
+	{
+		if(!pointList.isEmpty())
+		{
+			simplifyCollinear(pointList, JUCE_LIVE_CONSTANT_OFF(0.19));
+			result.swapWith(pointList);
+		}
+	}
+
+private:
+
+	static float pointToLineDistance(const juce::Point<float>& p,
+		const juce::Point<float>& a,
+		const juce::Point<float>& b)
+	{
+		auto ab = b - a;
+		auto ap = p - a;
+
+		float abLength = ab.getDistanceFromOrigin();
+		if (abLength < 1.0e-6f) // avoid divide by zero
+			return ap.getDistanceFromOrigin();
+
+		// Projection factor
+		float t = (ap.x * ab.x + ap.y * ab.y) / (abLength * abLength);
+
+		// Closest point on line segment
+		auto closest = a + ab * t;
+
+		return p.getDistanceFrom(closest);
+	}
+
+	void simplifyCollinear(const juce::Array<juce::Point<float>>& points,
+		float tolerance)
+	{
+		if (points.size() <= 2)
+			return;
+
+		result.ensureStorageAllocated(points.size());
+		result.add(points.getFirst());
+
+		for (int i = 1; i < points.size() - 1; ++i)
+		{
+			auto& prev = points.getReference(i - 1);
+			auto& curr = points.getReference(i);
+			auto& next = points.getReference(i + 1);
+
+			float dist = pointToLineDistance(curr, prev, next);
+
+			if (dist > tolerance)
+				result.add(curr); // keep only if outside tolerance
+		}
+
+		result.add(points.getLast());
+	}
+
+	Points result;
+};
+
 
 juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRange, Rectangle<float> targetBounds, double) const
 {
-
 	PropertyObject::ScopedPathProfiler pp(*this);
-
 
     Path lPath;
 
@@ -187,7 +245,6 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
         FloatVectorOperations::copy(cpy, data, size);
         data = cpy;
     }
-    
     
 	auto sampleRate = buffer->getSamplerate();
 
@@ -231,10 +288,24 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 
 	dataPoints.ensureStorageAllocated(size);
 
+	auto lastX = -1000.0f;
+	auto lastRealIndex = 0;
+
+	float cubicX = -1.0f;
+
 	for(int i = 0; i < size; i++)
 	{
 		auto pr = getPixelRangeForBin(i);
 		auto xPos = pr.getStart() + pr.getLength() * 0.5f;
+
+		if(xPos - lastX < 2.0)
+		{
+			cubicX = xPos;
+			break;
+		}
+
+		lastX = xPos;
+
 		auto yPos = (float)getYValue(data[i]);
 
 		FloatSanitizers::sanitizeFloatNumber(xPos);
@@ -243,69 +314,43 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 		dataPoints.add({jmax(0.0f, xPos), yPos});
 	}
 
-	auto lastX = -1000.0f;
-	auto lastRealIndex = 0;
+	int lastBin = -1;
 
-	
-
-	for(int i = 0; i < dataPoints.size(); i++)
+	for(int x = roundToInt(lastX); x < targetBounds.getRight(); x += 2)
 	{
-		auto x = dataPoints[i].getX();
+		auto freq = FFTHelpers::getFreqForLogX(x - targetBounds.getX(), targetBounds.getWidth());
+		auto binIndex = roundToInt(freq / (float)sampleRate * (float)size);
 
-		if(x == 0.0f && dataPoints[i+1].getX() == 0.0f)
+		float maxValue;
+
+		if(lastBin == -1)
 		{
-			dataPoints.remove(i--);
-			continue;
-		}
-		
-		if(x - lastX < JUCE_LIVE_CONSTANT_OFF(2))
-		{
-			auto thisY = dataPoints[i].getY();
-			auto lastRealY = dataPoints[lastRealIndex].getY();
-			dataPoints.getReference(lastRealIndex).setY(jmin(thisY, lastRealY)); // jmin because of pixel domain
-			dataPoints.remove(i--);
+			maxValue = data[binIndex];
 		}
 		else
 		{
-			lastX = x;
-			lastRealIndex = i;
+			auto binDelta = binIndex - lastBin;
+
+			if(binDelta <= 1)
+				maxValue = data[binIndex];
+			else if(binDelta == 2)
+				maxValue = jmax(data[binIndex-1], data[binIndex]);
+			else if (binDelta == 3)
+				maxValue = jmax(data[binIndex-2], data[binIndex-1], data[binIndex]);
+			else
+				maxValue = FloatVectorOperations::findMaximum(data + binIndex - (binDelta - 1), binDelta);
 		}
+
+		lastBin = binIndex;
+
+		auto yPos = (float)getYValue(maxValue);
+
+		FloatSanitizers::sanitizeFloatNumber(yPos);
+
+		dataPoints.add({ (float)x, yPos});
 	}
 
-	auto tolerance = JUCE_LIVE_CONSTANT_OFF(0.4f);
-
-	for(int i = 1; i < dataPoints.size() -2; i++)
-	{
-		auto prev = dataPoints[i-1];
-		auto current = dataPoints[i];
-
-		if(current.getY() == targetBounds.getBottom())
-			continue;
-
-		auto next = dataPoints[i+1];
-
-		auto midY = (prev.getY() + next.getY()) * 0.5f;
-
-		auto deltaMax = jmax(1.0f, hmath::abs(prev.getY() - next.getY()));
-		 
-		auto deltaY = hmath::abs(current.getY() - midY);
-
-		auto deltaNorm = deltaY / deltaMax;
-
-		if(deltaNorm < tolerance)
-		{
-			dataPoints.remove(i--);
-		}
-	}
-
-
-	for(int i = dataPoints.size() - 1; i >= 0.0; i--)
-	{
-		if(dataPoints[i].getX() > targetBounds.getRight())
-			dataPoints.remove(i);
-		else
-			break;
-	}
+	RDPReducer r(dataPoints);
 
 	if(dataPoints.isEmpty())
 	{
@@ -316,13 +361,15 @@ juce::Path Helpers::FFT::createPath(Range<int> sampleRange, Range<float> valueRa
 		lPath.startNewSubPath(targetBounds.getX(), targetBounds.getBottom());
 		lPath.lineTo(dataPoints[0]);
 
-		for(int i = 1; i < dataPoints.size() - 1; i++)
+		auto lastIndex = dataPoints.size() - 1;
+
+		for(int i = 1; i < lastIndex; i++)
 		{
 			auto prev = dataPoints[i-1];
 			auto current = dataPoints[i];
 			auto deltaX = current.getX() - prev.getX();
 			auto deltaY = current.getY() - prev.getY();
-			auto useCubic = hmath::abs(deltaY) > JUCE_LIVE_CONSTANT_OFF(10);
+			auto useCubic = current.getX() < cubicX;// (i < lastIndex / 2) && hmath::abs(deltaY) > JUCE_LIVE_CONSTANT_OFF(10);
 
 			if(useCubic)
 				lPath.cubicTo(prev.translated(deltaX / 3.0f, 0.0f), current.translated(deltaX / -3.0f, 0.0f), current);

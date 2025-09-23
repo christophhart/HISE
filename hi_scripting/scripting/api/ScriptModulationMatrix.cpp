@@ -523,6 +523,7 @@ struct ScriptingObjects::ScriptModulationMatrix::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setMatrixModulationProperties);
 	API_METHOD_WRAPPER_0(ScriptModulationMatrix, getMatrixModulationProperties);
 	API_VOID_METHOD_WRAPPER_1(ScriptModulationMatrix, setDragCallback);
+	API_METHOD_WRAPPER_1(ScriptModulationMatrix, getModulationDisplayData);
 };
 
 ScriptModulationMatrix::ScriptModulationMatrix(ProcessorWithScriptingContent* p, const String& cid) :
@@ -560,6 +561,7 @@ ScriptModulationMatrix::ScriptModulationMatrix(ProcessorWithScriptingContent* p,
 
 	ADD_API_METHOD_3(getConnectionProperty);
 	ADD_API_METHOD_4(setConnectionProperty);
+	ADD_API_METHOD_1(getModulationDisplayData);
 
 	getScriptProcessor()->getMainController_()->getUserPresetHandler().addStateManager(this);
 
@@ -683,6 +685,52 @@ var ScriptModulationMatrix::getComponent(String targetId)
 	}
 
 	return var();
+}
+
+var ScriptModulationMatrix::getModulationDisplayData (String targetId)
+{
+    if(queryFunctions.find(targetId) != queryFunctions.end())
+    {
+        auto ptr = queryFunctions.at(targetId);
+        return getModulationDataFromQueryFunction(ptr);
+    }
+        
+    auto c = getScriptProcessor()->getScriptingContent();
+
+    for(int i = 0; i < c->getNumComponents(); i++)
+    {
+        auto sc = c->getComponent(i);
+
+        if(auto mod = dynamic_cast<MatrixModulator*>(sc->getConnectedProcessor()))
+        {
+            if(sc->getConnectedParameterIndex() == MatrixModulator::SpecialParameters::Value)
+            {
+                if(mod->getId() == targetId)
+                {
+                    auto ptr = mod->getModulationQueryFunction(MatrixModulator::SpecialParameters::Value);
+                        
+                    queryFunctions[targetId] = { sc, mod, ptr };
+                    return getModulationDataFromQueryFunction({ sc, mod, ptr });
+                }
+            }
+        }
+
+        if(auto s = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(sc))
+        {
+            auto tid = s->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::matrixTargetId).toString();
+
+            if(tid == targetId)
+            {
+                auto p = dynamic_cast<Processor*>(getScriptProcessor());
+                auto ptr = p->getModulationQueryFunction(i);
+                    
+                queryFunctions[targetId] = { s, p,  ptr };
+                return getModulationDataFromQueryFunction({ s, p, ptr });
+            }
+        }
+    }
+
+    return var();
 }
 
 bool ScriptModulationMatrix::canConnect(String source, String target)
@@ -943,5 +991,32 @@ var ScriptModulationMatrix::getMatrixModulationProperties() const
 	return container->getMatrixModulationProperties();
 }
 
+var ScriptModulationMatrix::getModulationDataFromQueryFunction (const QueryObject& p)
+{
+    if(auto s = dynamic_cast<ScriptingApi::Content::ScriptSlider*>(p.slider))
+    {
+        if(p.qf.get() != nullptr && p.p.get() != nullptr)
+        {
+			auto nv = s->getValueNormalized();
+			auto min = (double)s->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
+			auto max = (double)s->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
+			auto midPos = (double)s->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
+
+			NormalisableRange<double> nr(min, max);
+
+			if(nr.getRange().contains (midPos))
+			    nr.setSkewForCentre (midPos);
+			
+			auto mv = p.qf->getDisplayValue(p.p.get(), nv, nr);
+
+			DynamicObject::Ptr obj = new DynamicObject();
+			mv.storeToJSON(obj.get());
+			return var(obj.get());
+		}
+    }
+
+    jassertfalse;
+    return var();
+}
 } // namespace ScriptingObjects
 } // namespace hise

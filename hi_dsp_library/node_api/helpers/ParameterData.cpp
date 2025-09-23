@@ -420,6 +420,11 @@ namespace parameter
 
 		p.setProperty(PropertyIds::ID, info.getId(), nullptr);
 		p.setProperty(PropertyIds::TextToValueConverter, pod::getTextValueConverterNames()[(int)info.textConverter], nullptr);
+
+		PageInfo pi(info);
+
+		p.setProperty(PropertyIds::Page, pi.page, nullptr);
+		p.setProperty(PropertyIds::SubGroup, pi.group, nullptr);
 		p.setProperty(PropertyIds::Value, info.defaultValue, nullptr);
 		p.setProperty(PropertyIds::DefaultValue, info.defaultValue, nullptr);
 		return p;
@@ -430,6 +435,28 @@ namespace parameter
 		data copy(*this);
 		copy.info.setRange(r);
 		return copy;
+	}
+
+	hise::ValueToTextConverter data::getValueToTextConverter() const
+	{
+		if (!parameterNames.isEmpty())
+		{
+			return ValueToTextConverter::createForOptions(parameterNames);
+		}
+
+		switch (info.textConverter)
+		{
+		case pod::Frequency: return ValueToTextConverter::createForMode("Frequency");
+		case pod::Time:		 return ValueToTextConverter::createForMode("Time");
+		case pod::TempoSync: return ValueToTextConverter::createForMode("TempoSync");
+		case pod::Pan:		 return ValueToTextConverter::createForMode("Pan");
+		case pod::NormalizedPercentage:
+			return ValueToTextConverter::createForMode("NormalizedPercentage");
+		case pod::Decibel:   return ValueToTextConverter::createForMode("Decibel");
+		case pod::Undefined:
+		case pod::numTextValueConverters:
+		default: return {};
+		}
 	}
 
 	void data::setParameterValueNames(const StringArray& valueNames)
@@ -519,12 +546,29 @@ namespace parameter
 		return data;
 	}
 
+	juce::StringArray pod::getTextValueConverterNames()
+	{
+		return {
+			"Undefined",
+			"Frequency",
+			"Time",
+			"TempoSync",
+			"Pan",
+			"NormalizedPercentage",
+			"Decibel",
+			"Undefined"
+		};
+	}
+
 	pod::pod(const ValueTree& v)
 	{
 		clearParameterName();
+		clearPageInfo();
 
 		index = v.getParent().indexOf(v);
 		ok = setId(v[PropertyIds::ID].toString());
+
+		setPageGroup(v[PropertyIds::Page].toString(), v[PropertyIds::SubGroup].toString());
 
 		auto range = RangeHelpers::getDoubleRange(v);
 		min = (DataType)range.rng.start;
@@ -545,6 +589,7 @@ namespace parameter
 	pod::pod(MemoryInputStream& mis)
 	{
 		clearParameterName();
+		clearPageInfo();
 
 		auto safe = mis.readByte();
 
@@ -557,6 +602,9 @@ namespace parameter
 			auto s = mis.readString();
 
 			ok = setId(s);
+
+			PageInfo pi(mis);
+			setPageGroup(pi.page, pi.group);
 
 			min = mis.readFloat();
 			max = mis.readFloat();
@@ -576,8 +624,55 @@ namespace parameter
 		s << "min: " << min << nl;
 		s << "max: " << max << nl;
 		s << "converter: " << getTextValueConverterNames()[(int)textConverter];
+		
+		PageInfo pd(*this);
+
+		if(pd)
+		{
+			s << "page: " << pd.page << nl;
+			s << "group: " << pd.group << nl;
+		}
 
 		return s;
+	}
+
+	bool pod::setPageName(const String& newPageName)
+	{
+		if (newPageName.isNotEmpty() && isPositiveAndBelow(newPageName.length(), MaxPageNameLength))
+		{
+			memcpy(pageName, newPageName.getCharPointer().getAddress(), newPageName.length());
+			return true;
+		}
+		else
+		{
+			memset(pageName, 0, MaxPageNameLength);
+			return false;
+		}
+	}
+
+	bool pod::setGroupName(const String& newGroupName)
+	{
+		if (newGroupName.isNotEmpty() && isPositiveAndBelow(newGroupName.length(), MaxPageNameLength))
+		{
+			memcpy(subGroupName, newGroupName.getCharPointer().getAddress(), newGroupName.length());
+			return true;
+		}
+		else
+		{
+			memset(subGroupName, 0, MaxPageNameLength);
+			return false;
+		}
+	}
+
+	void pod::clearParameterName()
+	{
+		memset(parameterName, 0, MaxParameterNameLength);
+	}
+
+	void pod::clearPageInfo()
+	{
+		memset(pageName, 0, MaxPageNameLength);
+		memset(subGroupName, 0, MaxPageNameLength);
 	}
 
 	void pod::setRange(const InvertableParameterRange& r)
@@ -614,6 +709,17 @@ namespace parameter
 		return false;
 	}
 
+	
+	void pod::setPageGroup(const String& p, const String& g)
+	{
+		clearPageInfo();
+
+		if (p.isNotEmpty() && isPositiveAndBelow(p.length(), MaxPageNameLength))
+			memcpy(pageName, p.getCharPointer().getAddress(), p.length());
+		if (g.isNotEmpty() && isPositiveAndBelow(g.length(), MaxPageNameLength))
+			memcpy(subGroupName, g.getCharPointer().getAddress(), g.length());
+	}
+
 	void pod::writeToStream(MemoryOutputStream& b)
 	{
 		b.writeByte(92);
@@ -623,6 +729,10 @@ namespace parameter
 		String id(parameterName);
 
 		b.writeString(id);
+
+		PageInfo pd(*this);
+		pd.writeToStream(b);
+
 		b.writeFloat(min);
 		b.writeFloat(max);
 		b.writeFloat(defaultValue);
@@ -744,6 +854,240 @@ bool OSCConnectionData::operator==(const OSCConnectionData& otherData) const
 		}
 
 		return true;
+	}
+
+	return false;
+}
+
+PageInfo::Tree::Tree(const ParameterDataList& list)
+{
+	for (const auto& p : list)
+		hasLayout |= (bool)PageInfo(p.info);
+
+	if (!hasLayout)
+		flatList = list;
+	else
+	{
+		String currentPage = "";
+		String currentGroup = "";
+
+		for (const auto& p : list)
+		{
+			PageInfo tp(p.info);
+
+			if (tp.isPage())
+			{
+				currentPage = tp.page;
+			}
+
+			if (tp.isGroup())
+			{
+				currentGroup = tp.group;
+				hasTags = true;
+			}
+
+			getBucket(currentPage, currentGroup).add(p);
+		}
+
+		for (auto outerIt = pageTree.begin(); outerIt != pageTree.end(); )
+		{
+			auto& innerMap = outerIt->second;
+
+			// Remove empty inner maps (if those are maps themselves)
+			for (auto innerIt = innerMap.begin(); innerIt != innerMap.end(); )
+			{
+				if (innerIt->second.isEmpty())
+					innerIt = innerMap.erase(innerIt);
+				else
+					++innerIt;
+			}
+
+			// Now remove the outer entry if its inner map is empty
+			if (innerMap.empty())
+				outerIt = pageTree.erase(outerIt);
+			else
+				++outerIt;
+		}
+	}
+}
+
+int PageInfo::Tree::getNumMaxSlidersPerPage() const
+{
+	if (hasPageLayout())
+	{
+		auto numParameters = 0;
+
+		for (auto& p : pageTree)
+		{
+			auto numOnPage = 0;
+
+			for (auto& g : p.second)
+				numOnPage += g.second.size();
+
+			numParameters = jmax(numParameters, numOnPage);
+		}
+
+		return numParameters;
+	}
+	else
+	{
+		return flatList.size();
+	}
+}
+
+String PageInfo::Tree::getGroupIdForParameter(int parameterIndex) const
+{
+	for (const auto& p : pageTree)
+	{
+		for (const auto& g : p.second)
+		{
+			for (const auto& pr : g.second)
+			{
+				if (pr.info.index == parameterIndex)
+					return g.first;
+			}
+		}
+	}
+
+	return {};
+}
+
+juce::StringArray PageInfo::Tree::getPageNames() const
+{
+	StringArray sa;
+
+	for (const auto& p : pageTree)
+		sa.add(p.first);
+
+	return sa;
+}
+
+juce::StringArray PageInfo::Tree::getGroups(const String& page) const
+{
+	jassert(hasLayout);
+
+	StringArray sa;
+
+	for (const auto& p : pageTree)
+	{
+		if (p.first == page)
+		{
+			for (auto& g : p.second)
+			{
+				sa.addIfNotAlreadyThere(g.first);
+			}
+		}
+	}
+
+	return sa;
+}
+
+const scriptnode::ParameterDataList& PageInfo::Tree::getList(const String& page, const String& group) const
+{
+	if (!hasLayout)
+		return flatList;
+
+	for (const auto& p : pageTree)
+	{
+		if (page == p.first)
+		{
+			for (const auto& g : p.second)
+			{
+				if (group == g.first)
+					return g.second;
+			}
+		}
+	}
+
+	jassertfalse;
+	return {};
+}
+
+scriptnode::ParameterDataList& PageInfo::Tree::getBucket(const String& page, const String& group)
+{
+	for (auto& p : pageTree)
+	{
+		if (page == p.first)
+		{
+			for (auto& g : p.second)
+			{
+				if (group == g.first)
+					return g.second;
+			}
+
+			p.second.push_back({ group, {} });
+			return p.second.back().second;
+		}
+	}
+
+	std::vector<std::pair<String, ParameterDataList>> newPage;
+	newPage.push_back({ group, {} });
+	pageTree.push_back({ page, newPage });
+	return pageTree.back().second.back().second;
+}
+
+PageInfo::PageInfo(InputStream& mis)
+{
+	auto m = mis.readByte();
+
+	if (m & HasPageMarker)
+		page = mis.readString();
+
+	if (m & HasGroupMarker)
+		group = mis.readString();
+}
+
+PageInfo::PageInfo(const parameter::pod& info) :
+	page(info.pageName),
+	group(info.subGroupName)
+{
+
+}
+
+void PageInfo::writeToStream(OutputStream& mos) const
+{
+	char m = 0;
+
+	if (isPage())
+		m |= HasPageMarker;
+
+	if (isGroup())
+		m |= HasGroupMarker;
+
+	mos.writeByte(m);
+
+	if (isPage())
+		mos.writeString(page);
+	if (isGroup())
+		mos.writeString(group);
+}
+
+std::unique_ptr<scriptnode::PageInfo::Tree> PageInfo::createPageTree(const ValueTree& parameterTree)
+{
+	jassert(parameterTree.getType() == PropertyIds::Parameters);
+
+	ParameterDataList list;
+
+	for (const auto& p : parameterTree)
+	{
+		parameter::data d;
+		d.info = parameter::pod(p);
+		list.add(std::move(d));
+	}
+
+	return std::make_unique<Tree>(list);
+}
+
+bool PageInfo::hasPageData(const ValueTree& pTree)
+{
+	jassert(pTree.getType() == PropertyIds::Parameters);
+
+	for (const auto& p : pTree)
+	{
+		if (p[PropertyIds::Page].toString().isNotEmpty())
+			return true;
+		if (p[PropertyIds::SubGroup].toString().isNotEmpty())
+			return true;
 	}
 
 	return false;

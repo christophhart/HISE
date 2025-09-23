@@ -433,54 +433,73 @@ NodeComponent::~NodeComponent()
 juce::Rectangle<int> NodeComponent::PositionHelpers::getPositionInCanvasForStandardSliders(const NodeBase* n,
 	Point<int> topLeft)
 {
-	auto numParameters = n->getNumParameters();
+	auto pTree = n->getValueTree().getChildWithName(PropertyIds::Parameters);
 
-	if (numParameters == 7)
-		return createRectangleForParameterSliders(n, 4).withPosition(topLeft);
-	else if (numParameters == 0)
-		return createRectangleForParameterSliders(n, 0).withPosition(topLeft);
-	else if (numParameters % 5 == 0)
-		return createRectangleForParameterSliders(n, 5).withPosition(topLeft);
-	else if (numParameters % 4 == 0)
-		return createRectangleForParameterSliders(n, 4).withPosition(topLeft);
-	else if (numParameters % 3 == 0)
-		return createRectangleForParameterSliders(n, 3).withPosition(topLeft);
-	else if (numParameters % 2 == 0)
-		return createRectangleForParameterSliders(n, 2).withPosition(topLeft);
-	else if (numParameters == 1)
-		return createRectangleForParameterSliders(n, 1).withPosition(topLeft);
+	auto forceNoLayout = (int)n->getValueTree()[PropertyIds::CurrentPageIndex] == -1;
+
+	if(PageInfo::hasPageData(pTree) && !forceNoLayout)
+	{
+		auto pageTree = PageInfo::createPageTree(pTree);
+		auto a = DefaultParameterNodeComponent::getPageBounds(*pageTree, topLeft);
+		return withExtraBoundsApplied(n, a);
+	}
 	else
-		return createRectangleForParameterSliders(n, 5).withPosition(topLeft);
-
+	{
+		auto a = getPageBounds(n->getNumParameters()).withPosition(topLeft);
+		return withExtraBoundsApplied(n, a);
+	}
 }
 
 
-juce::Rectangle<int> NodeComponent::PositionHelpers::createRectangleForParameterSliders(const NodeBase* n,
-                                                                                        int numColumns)
+juce::Rectangle<int> NodeComponent::PositionHelpers::createRectangleForParameterSliders(int numParameters, int numColumns)
 {
 	int h = UIValues::HeaderHeight;
-
-	auto eb = n->getExtraComponentBounds();
-
-	h += eb.getHeight();
 	int w = 0;
 
 	if (numColumns == 0)
-		w = eb.getWidth() > 0 ? eb.getWidth() : UIValues::NodeWidth * 2;
+		w = UIValues::NodeWidth * 2;
 	else
 	{
-		int numParameters = n->getNumParameters();
 		int numRows = (int)std::ceil((float)numParameters / (float)numColumns);
 
 		h += numRows * (48 + 28) - 10;
 		w = jmin(numColumns * 100, numParameters * 100);
 	}
 
-
-	w = jmax(w, eb.getWidth());
-
 	auto b = Rectangle<int>(0, 0, w, h);
 	return b.expanded(UIValues::NodeMargin);
+}
+
+juce::Rectangle<int> NodeComponent::PositionHelpers::withExtraBoundsApplied(const NodeBase* n, Rectangle<int> sliderBounds)
+{
+	auto eb = n->getExtraComponentBounds();
+
+	sliderBounds.setWidth(jmax(sliderBounds.getWidth(), eb.getWidth()));
+	sliderBounds.setHeight(sliderBounds.getHeight() + eb.getHeight());
+	return sliderBounds;
+
+}
+
+juce::Rectangle<int> NodeComponent::PositionHelpers::getPageBounds(int numParameters)
+{
+	if (numParameters == 7)
+		return createRectangleForParameterSliders(numParameters, 4);
+	if(numParameters == 6)
+		return createRectangleForParameterSliders(numParameters, 3);
+	else if (numParameters == 0)				   
+		return createRectangleForParameterSliders(numParameters, 0);
+	else if (numParameters % 5 == 0)			   
+		return createRectangleForParameterSliders(numParameters, 5);
+	else if (numParameters % 4 == 0)			   
+		return createRectangleForParameterSliders(numParameters, 4);
+	else if (numParameters % 3 == 0)			   
+		return createRectangleForParameterSliders(numParameters, 3);
+	else if (numParameters % 2 == 0)			   
+		return createRectangleForParameterSliders(numParameters, 2);
+	else if (numParameters == 1)				   
+		return createRectangleForParameterSliders(numParameters, 1);
+	else										   
+		return createRectangleForParameterSliders(numParameters, 5);
 }
 
 void NodeComponent::paint(Graphics& g)

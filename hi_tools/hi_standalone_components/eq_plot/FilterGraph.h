@@ -43,7 +43,8 @@ class FilterGraph    : public ComponentWithMiddleMouseDrag,
                        public SettableTooltipClient,
 					   public SafeChangeListener,
 					   public ComplexDataUIUpdaterBase::EventListener,
-					   public ComplexDataUIBase::EditorBase
+					   public ComplexDataUIBase::EditorBase,
+					   public AsyncUpdater	
 {
 public:
 
@@ -100,6 +101,23 @@ public:
 	int getNumFilterBands() const { return numFilters; }
 
 	void onComplexDataEvent(ComplexDataUIUpdaterBase::EventType e, var newValue) override;
+
+	void handleAsyncUpdate()
+	{
+		if(dirty)
+		{
+			dirty = false;
+			refreshFilterPath();
+		}
+	}
+
+	bool dirty = false;
+
+	void refreshAsync()
+	{
+		dirty = true;
+		triggerAsyncUpdate();
+	}
 
 	void clearBands()
 	{

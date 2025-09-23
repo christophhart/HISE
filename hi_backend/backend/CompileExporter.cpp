@@ -1934,6 +1934,18 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
         headerPath << ";" << folder.getChildFile("common").getFullPathName();
     }
     
+#if JUCE_WINDOWS
+    auto hasNKS = exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsWindows).toString().contains("HISE_INCLUDE_NKS_SDK=1");
+#else
+    auto hasNKS = exporter->dataObject.getSetting(HiseSettings::Project::ExtraDefinitionsOSX).toString().contains("HISE_INCLUDE_NKS_SDK=1");
+#endif
+    
+    if(hasNKS)
+    {
+        auto vst3sdk = exporter->hisePath.getChildFile("JUCE/modules/juce_audio_processors/format_types/VST3_SDK");
+        headerPath << ";" << vst3sdk.getFullPathName();
+    }
+    
     REPLACE_WILDCARD_WITH_STRING("%FAUST_HEADER_PATH%", headerPath);
     
     REPLACE_WILDCARD_WITH_STRING("%IPP_1A%", exporter->useIpp ? "Static_Library" : String());

@@ -208,9 +208,10 @@ struct TransportDisplay : public juce::ComponentWithMiddleMouseDrag,
 
 	void timerCallback() override
 	{
-		if (auto c = findParentComponentOfClass<ControlledObject>())
+		if (auto nc = findParentComponentOfClass<NodeComponent>())
 		{
-			hise::MainController* mc = c->getMainController();
+            auto mc = nc->node->getScriptProcessor()->getMainController_();
+            
 			auto shouldBePlaying = mc->getMasterClock().isPlaying();
 
 			if (isPlaying != shouldBePlaying)

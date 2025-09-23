@@ -84,6 +84,9 @@ DECLARE_ID(NumParameters);
 DECLARE_ID(Value);
 DECLARE_ID(DefaultValue);	
 DECLARE_ID(ID);
+DECLARE_ID(Page);
+DECLARE_ID(CurrentPageIndex);
+DECLARE_ID(SubGroup);
 DECLARE_ID(Index);
 DECLARE_ID(NodeId);
 DECLARE_ID(NumClones);
@@ -172,6 +175,9 @@ struct Helpers
 			AllowPolyphonic,
 			AllowCompilation,
 			HasTail,
+			Page,
+			CurrentPageIndex,
+			SubGroup,
 			SuspendOnSilence,
             CompileChannelAmount,
 			TextToValueConverter,
@@ -189,6 +195,9 @@ struct Helpers
 		returnIfDefault(NodeColour, 0x000000);
 		returnIfDefault(Folded, false);
 		returnIfDefault(Expression, "");
+		returnIfDefault(Page, "");
+		returnIfDefault(CurrentPageIndex, 0);
+		returnIfDefault(SubGroup, "");
 		returnIfDefault(SkewFactor, 1.0);
 		returnIfDefault(StepSize, 0.0);
 		returnIfDefault(Inverted, false);

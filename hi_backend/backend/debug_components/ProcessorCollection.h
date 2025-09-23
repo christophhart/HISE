@@ -155,12 +155,15 @@ public:
 		void matchAgainstSearch(const String &stringToMatch, double fuzzyness);
 
 		/** Checks if the last search query included this item. */
-		bool isIncludedInSearch() const noexcept{ return includedInSearch; };
+		bool isIncludedInSearch() const noexcept{ return includedInSearch && manualInclude; };
+
+		void setManualInclude(bool shouldBeShown) { manualInclude = shouldBeShown; }
 
 	protected:
 
 		bool usePopupMenu;
 		bool isSelected;
+		bool manualInclude = true;
 		bool includedInSearch;
 		String searchKeywords;
 

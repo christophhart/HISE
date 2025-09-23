@@ -60,6 +60,7 @@ namespace ScriptnodeIcons
 {
 	DECLARE_DATA(mainLogo, 4537);
 	DECLARE_DATA(zoomFit, 549);
+	DECLARE_DATA(tabIcon, 760);
 	DECLARE_DATA(errorIcon, 318);
 	DECLARE_DATA(fixIcon, 725);
 	DECLARE_DATA(unscaledMod, 576);

@@ -106,7 +106,7 @@ void NodeContainer::addFixedParameters()
 
 Component* NodeContainer::createLeftTabComponent() const
 {
-	return new ContainerComponent::MacroToolbar();
+	return new ContainerComponent::MacroToolbar(asNode());
 }
 
 void NodeContainer::prepareContainer(PrepareSpecs& ps)
@@ -367,7 +367,14 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 	if (ScopedPointer<Component> c = createLeftTabComponent())
 		minWidth += c->getWidth();
 
-	minWidth += 100 * an->getNumParameters();
+	auto forceNonLayout = (int)an->getValueTree()[PropertyIds::CurrentPageIndex] == -1;
+
+	auto tree = PageInfo::createPageTree(an->getValueTree().getChildWithName(PropertyIds::Parameters));
+
+	if(forceNonLayout)
+		minWidth += an->getNumParameters() * UIValues::ParameterWidth;
+	else
+		minWidth += UIValues::ParameterWidth * tree->getNumMaxSlidersPerPage();
 
 	minWidth = jmax(UIValues::NodeWidth, minWidth);
 
@@ -383,7 +390,16 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 		h += UIValues::HeaderHeight; // the input
 
 		if (asNode()->getValueTree()[PropertyIds::ShowParameters])
+		{
 			h += UIValues::ParameterHeight + UIValues::MacroDragHeight;
+
+			if (tree->hasMoreThanOnePage() && !forceNonLayout)
+				h += UIValues::TabHeight;
+
+			if (tree->hasGroupTags() && !forceNonLayout)
+				h += UIValues::GroupHeight;
+		}
+			
 
 		h += PinHeight; // the "hole" for the cable
 
@@ -425,8 +441,16 @@ juce::Rectangle<int> NodeContainer::getContainerPosition(bool isVerticalContaine
 		y += UIValues::PinHeight;
 
 		if (an->getValueTree()[PropertyIds::ShowParameters])
+		{
 			y += UIValues::ParameterHeight + UIValues::MacroDragHeight;
 
+			if (tree->hasMoreThanOnePage() && !forceNonLayout)
+				y += UIValues::TabHeight; 
+
+			if(tree->hasGroupTags() && !forceNonLayout)
+				y += UIValues::GroupHeight;
+		}
+		
 		Point<int> startPos(UIValues::NodeMargin, y);
 
 		int maxy = startPos.getY();

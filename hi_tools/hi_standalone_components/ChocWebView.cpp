@@ -487,6 +487,33 @@ WebViewData::OpaqueResourceType WebViewData::fetch(const std::string& path)
 			return r->resource;
 	}
 
+	auto hisePath = String(path);
+
+	if(hisePath.startsWith("/"))
+		hisePath = hisePath.substring(1);
+
+	hisePath = hisePath.replace("%7B", "{");
+	hisePath = hisePath.replace("%7D", "}");
+
+	for(auto pr: additionalProviders)
+	{
+		Image img = pr->getImage(hisePath);
+
+		if(img.isValid())
+		{
+			addPNGImage(path, img);
+			return pimpl->resources.getLast()->resource;
+		}
+
+		auto mimeContent = pr->getMimeContent(hisePath);
+		
+		if(mimeContent.first.isNotEmpty())
+		{
+			addResource(hisePath, mimeContent.first, mimeContent.second);
+			return pimpl->resources.getLast()->resource;
+		}
+	}
+
 	if (serverType == ServerType::FileBased)
 	{
 		auto f = rootDirectory.getChildFile(pathToUse.substr(1));
@@ -534,15 +561,18 @@ WebViewData::OpaqueResourceType WebViewData::fetch(const std::string& path)
 	return {};
 };
 
-WebViewWrapper::WebViewWrapper(WebViewData::Ptr d) :
+WebViewWrapper::WebViewWrapper(WebViewData::Ptr d, bool init) :
 	data(d)
 {
 	data->registerWebView(this);
 
-	SafeAsyncCall::callAsyncIfNotOnMessageThread<WebViewWrapper>(*this, [](WebViewWrapper& wv)
+	if(init)
 	{
-		wv.refresh();
-	});
+		SafeAsyncCall::callAsyncIfNotOnMessageThread<WebViewWrapper>(*this, [](WebViewWrapper& wv)
+		{
+			wv.refresh();
+		});
+	}
 }
 
 WebViewWrapper::~WebViewWrapper()

@@ -322,6 +322,8 @@ public:
 	/** Don't forget to deregister the listener here. */
 	virtual ~ScriptCreatedComponentWrapper();;
 
+	virtual void postInit() {};
+
 	/** Overwrite this method and update the component. */
 	virtual void updateComponent() = 0;
 
@@ -979,6 +981,8 @@ public:
 	public:
 
 		WebViewWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptWebView *wv, int index);
+
+		void postInit() override;
 
 		~WebViewWrapper();
 
