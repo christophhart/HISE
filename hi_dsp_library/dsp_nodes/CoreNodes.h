@@ -1541,8 +1541,7 @@ public:
 	{
 		currentMode = (Mode)(int)newMode;
 
-		if (auto o = this->externalData.obj)
-			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+		sendDisplayUpdateMessage(0.0, true);
 	}
 
 	void setFrequency(double newFrequency)
@@ -1555,8 +1554,10 @@ public:
 
 			uiData.uptimeDelta = newUptimeDelta;
 
-			for (auto& d : voiceData)
+			voiceData.forEachCurrentVoice([newUptimeDelta](OscData& d)
+			{
 				d.uptimeDelta = newUptimeDelta;
+			});
 		}
 	}
 
@@ -1581,36 +1582,38 @@ public:
 
 		uiData.phase = v;
 
-		for (auto& s : voiceData)
-			s.phase = v;
+		voiceData.forEachCurrentVoice([v](OscData& d)
+		{
+			d.phase = v;
+		});
 
-		if (auto o = this->externalData.obj)
-			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+		sendDisplayUpdateMessage(0.0f);
 	}
 
 	void setGain(double gain)
 	{
 		uiData.gain = gain;
 
-		for (auto& s : voiceData)
-			s.gain = gain;
+		voiceData.forEachCurrentVoice([gain](OscData& d)
+		{
+			d.gain = gain;
+		});
 
-		if (auto o = this->externalData.obj)
-			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+		sendDisplayUpdateMessage(0.0, true);
 	}
 
 	void setPitchMultiplier(double newMultiplier)
 	{
 		auto pitchMultiplier = newMultiplier;
-		//auto pitchMultiplier = jlimit(0.001, 100.0, newMultiplier);
 
-		for (auto& d : voiceData)
+		voiceData.forEachCurrentVoice([pitchMultiplier](OscData& d)
+		{
 			d.multiplier = pitchMultiplier;
+		});
 
 		uiData.multiplier = pitchMultiplier;
 
-		if (auto o = this->externalData.obj)
-			o->getUpdater().sendDisplayChangeMessage(0.0f, sendNotificationAsync, true);
+		sendDisplayUpdateMessage(0.0, true);
 	}
 
 	DEFINE_PARAMETERS
@@ -1633,6 +1636,9 @@ public:
 	double freqValue = 220.0;
 	
 	float currentNyquistGain = 1.0f;
+
+	SN_VOICE_SETTER(oscillator, voiceData);
+
 };
 
 template class oscillator<1>;

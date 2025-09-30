@@ -234,6 +234,12 @@ ScriptingApi::Content::ScriptSlider::MatrixCableConnection::MatrixCableConnectio
 	MatrixIds::Helpers::fillModSourceList(getMainController(), sourceNames);
 
 	auto componentIndex = slider.getScriptProcessor()->getScriptingContent()->getComponentIndex(&slider);
+
+	// if the component can't be found it's probably currently being constructed so we make 
+	// an educated guess that it will be appended at the end of the list shortly...
+	if(componentIndex == -1)
+		componentIndex = slider.getScriptProcessor()->getScriptingContent()->getNumComponents();
+
 	slider.getScriptProcessor()->setModulationDisplayQueryFunction(componentIndex, dynamic_cast<Processor*>(parent->getScriptProcessor()), new QueryFunction(this));
 
 	connectionListener.setCallback(matrixData, 

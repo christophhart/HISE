@@ -546,10 +546,10 @@ Node::Ptr ValueTreeBuilder::parseRuntimeTargetNode(Node::Ptr u)
 				switch(config.config.getMode())
 				{
 				case modulation::TargetMode::Gain:
-					configClass << "modulation::TargetMode::Gain:";
+					configClass << "modulation::TargetMode::Gain";
 					break;
 				case modulation::TargetMode::Unipolar:
-					configClass << "modulation::TargetMode::Unipolar:";
+					configClass << "modulation::TargetMode::Unipolar";
 					break;
 				case modulation::TargetMode::Bipolar:
 					configClass << "modulation::TargetMode::Bipolar";

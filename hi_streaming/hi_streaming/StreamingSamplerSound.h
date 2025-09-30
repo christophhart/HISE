@@ -426,7 +426,7 @@ private:
 
 		int64 getSampleLength() const
 		{
-			return sampleLength;
+			return realSampleLength ? realSampleLength : sampleLength;
 		}
 
 		double getMonolithSampleRate() const
@@ -437,6 +437,12 @@ private:
 			}
 
 			return 0.0;
+		}
+
+		void setMonolithSampleLength(int64 newRealSampleLength)
+		{
+			if(monolithicInfo != nullptr)
+				realSampleLength = newRealSampleLength;
 		}
 
 		// ==============================================================================================================================================
@@ -478,6 +484,7 @@ private:
 		bool isReading;
 
 		int64 sampleLength;
+		int64 realSampleLength = 0;
 
 		File loadedFile;
 

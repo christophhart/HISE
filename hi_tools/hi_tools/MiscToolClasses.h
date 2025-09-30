@@ -1105,17 +1105,37 @@ struct SimpleReadWriteLock
 	{
 		if (enabled && std::this_thread::get_id() != writer)
 		{
-			return mutex.try_lock_shared();
+			auto ok = mutex.try_lock_shared();
+
+#if JUCE_DEBUG
+			if(ok)
+				reader = std::this_thread::get_id();
+#endif
+
+			return ok;
 		}
 
 		return false;
 	}
+
+#if JUCE_DEBUG
+	bool isReadLocked() const
+	{
+		auto tid = std::this_thread::get_id();
+		return reader == tid;
+	}
+#endif
 
 	bool enterReadLock()
 	{
 		if (enabled && std::this_thread::get_id() != writer)
 		{
 			mutex.lock_shared();
+
+#if JUCE_DEBUG
+			reader = std::this_thread::get_id();
+#endif
+
 			return true;
 		}
 
@@ -1127,7 +1147,13 @@ struct SimpleReadWriteLock
 		if (holdsLock)
 		{
 			mutex.unlock_shared();
+
+#if JUCE_DEBUG
+			reader.store(std::thread::id());
+#endif
+
 			holdsLock = false;
+			
 		}
 	}
 
@@ -1178,6 +1204,13 @@ struct SimpleReadWriteLock
 			lock(l)
 		{
 			holdsLock = lock.mutex.try_lock_shared();
+
+#if JUCE_DEBUG
+			if(holdsLock)
+			{
+				lock.reader = std::this_thread::get_id();
+			}
+#endif
 		}
 
 		~ScopedTryReadLock()
@@ -1196,6 +1229,11 @@ struct SimpleReadWriteLock
 			if (holdsLock)
 			{
 				lock.mutex.unlock_shared();
+				
+#if JUCE_DEBUG
+				lock.reader.store(std::thread::id());
+#endif
+
 				holdsLock = false;
 			}
 		}
@@ -1222,6 +1260,11 @@ struct SimpleReadWriteLock
 	LockType mutex;
 
     std::atomic<std::thread::id> writer = {};
+
+#if JUCE_DEBUG
+	std::atomic<std::thread::id> reader = {};
+#endif
+
 	bool enabled = true;
 	bool fakeWriteLock = false;
 };

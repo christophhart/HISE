@@ -684,6 +684,11 @@ public:
 
 	LambdaBroadcaster<int, String, DragAction> dragBroadcaster;
 
+	void cleanUpRuntimeSources()
+	{
+		runtimeSource.clear();
+	}
+
 private:
 
 	int lastBlockSize = 0;

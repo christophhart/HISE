@@ -1369,7 +1369,7 @@ template <typename... Ts> struct global_cable_cpp_manager: private advanced_tupl
 		this->connectToRuntimeTarget(false, {});
 	}
 
-	void connectToRuntimeTarget(bool addConnection, const runtime_target::connection& c)
+	virtual void connectToRuntimeTarget(bool addConnection, const runtime_target::connection& c)
 	{
 		reset_each(addConnection, c, this->getIndexSequence());
 

@@ -982,7 +982,7 @@ juce::StringArray PageInfo::Tree::getGroups(const String& page) const
 	return sa;
 }
 
-const scriptnode::ParameterDataList& PageInfo::Tree::getList(const String& page, const String& group) const
+scriptnode::ParameterDataList PageInfo::Tree::getList(const String& page, const String& group) const
 {
 	if (!hasLayout)
 		return flatList;

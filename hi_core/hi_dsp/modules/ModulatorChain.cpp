@@ -2020,12 +2020,13 @@ int ModulatorChain::RuntimeTargetSource::getRuntimeHash() const
 void ModulatorChain::RuntimeTargetSource::copyModulationValues(const float* modValues, float constantValue,
 	int startSample_cr, int numSamples_cr)
 {
-	jassert(isEnabled() && isPositiveAndBelow(startSample_cr + numSamples_cr, signalData.getNumSamples() + 1));
-
-	if(modValues != nullptr)
-		FloatVectorOperations::copy(signalData.getWritePointer(0, startSample_cr), modValues + startSample_cr, numSamples_cr);
-	else
-		FloatVectorOperations::fill(signalData.getWritePointer(0, startSample_cr), constantValue, numSamples_cr);
+	if(isEnabled() && isPositiveAndBelow(startSample_cr + numSamples_cr, signalData.getNumSamples() + 1))
+	{
+		if (modValues != nullptr)
+			FloatVectorOperations::copy(signalData.getWritePointer(0, startSample_cr), modValues + startSample_cr, numSamples_cr);
+		else
+			FloatVectorOperations::fill(signalData.getWritePointer(0, startSample_cr), constantValue, numSamples_cr);
+	}
 }
 
 int ModulatorChain::ExtraModulatorRuntimeTargetSource::getRuntimeHash() const

@@ -140,6 +140,17 @@ SystemStats::OperatingSystemType SystemStats::getOperatingSystemType()
         case 13: return MacOS_13;
         case 14: return MacOS_14;
         case 15: return MacOS_15;
+        case 16: // let's make the version number the year it is published they said
+        case 17: // this makes it easier they said.
+        case 18:
+        case 19:
+        case 20:
+        case 21:
+        case 22:
+        case 23:
+        case 24:
+        case 25:
+        case 26: return MacOS_26;
     }
 
     return UnknownOS;

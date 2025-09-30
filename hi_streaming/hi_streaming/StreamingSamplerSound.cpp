@@ -571,6 +571,9 @@ void StreamingSamplerSound::setLoopCrossfade(int newCrossfadeLength)
 
 void StreamingSamplerSound::setSampleEnd(int newSampleEnd)
 {
+	if (sampleEnd == INT_MAX)
+		fileReader.setMonolithSampleLength(newSampleEnd);
+
 	if (sampleEnd != newSampleEnd &&
 		(!loopEnabled || (loopEnabled && loopEnd < newSampleEnd)))
 	{
@@ -1380,7 +1383,7 @@ float StreamingSamplerSound::FileReader::calculatePeakValue()
 AudioFormatReader* StreamingSamplerSound::FileReader::createMonolithicReaderForPreview()
 {
 	if (monolithicInfo != nullptr)
-		return monolithicInfo->createUserInterfaceReader(monolithicIndex, monolithicChannelIndex);
+		return monolithicInfo->createUserInterfaceReader(monolithicIndex, monolithicChannelIndex, realSampleLength);
 	else
 		return pool->afm.createReaderFor(loadedFile);
 }

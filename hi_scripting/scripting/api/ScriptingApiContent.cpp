@@ -2628,7 +2628,7 @@ juce::Array<hise::ScriptingApi::Content::ScriptComponent::PropertyWithValue> Scr
 	idList.add({ Properties::stepSize });
 	idList.add({ Properties::suffix });
 	idList.add({ ScriptComponent::defaultValue });
-	idList.add({ Properties::matrixTargetId, ""});
+	idList.add({ Properties::matrixTargetId });
 
 	return idList;
 }

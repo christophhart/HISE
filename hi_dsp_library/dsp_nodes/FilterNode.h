@@ -136,9 +136,11 @@ public:
 		DEF_PARAMETER(Enabled, FilterNodeBase);
 	}
 	SN_PARAMETER_MEMBER_FUNCTION;
-	
 
 	PolyData<FilterObject, NumVoices> filter;
+
+	SN_VOICE_SETTER(FilterNodeBase, filter);
+
 	double sr = -1.0;
 	bool enabled = true;
 

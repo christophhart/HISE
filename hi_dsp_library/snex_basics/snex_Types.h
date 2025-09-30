@@ -606,7 +606,6 @@ struct PolyHandler
 
 	private:
 
-		void* previousThread = nullptr;
 		PolyHandler& p;
 	};
 
@@ -643,6 +642,8 @@ struct PolyHandler
 
 		return voiceIndex.load() * enabled;
 	}
+
+	bool isAllThread() const { return enabled && currentAllThread != nullptr && Thread::getCurrentThreadId() == currentAllThread; };
 
 	bool isEnabled() const { return enabled; }
 
@@ -1051,15 +1052,77 @@ template <typename T, int NumVoices> struct PolyData
 		}
 	}
 
-	
+	struct ScopedVoiceSetter
+	{
+		ScopedVoiceSetter(PolyData& p_, bool forceAll):
+		  p(p_)
+		{
+			if constexpr (PolyData::isPolyphonic())
+			{
+				p.currentRenderVoice = p.begin();
+				prevForceAll = p.forceAll;
+				p.forceAll = forceAll;
+			}
+		};
+
+		~ScopedVoiceSetter()
+		{
+			if constexpr (PolyData::isPolyphonic())
+			{
+				p.currentRenderVoice = nullptr;
+				p.forceAll = prevForceAll;
+			}
+		}
+
+		PolyData& p;
+		bool prevForceAll;
+	};
+
 	/** If you know that you're inside a rendering context, you can
 	    use this function instead of the for-loop syntax. Be aware that
 		the performance will be the same, it's just a bit less to type. 
 	*/
-	T& get() const
+	T& get(bool allowSlowFetch=false) const
 	{
+		if constexpr (isPolyphonic())
+		{
+			if(currentRenderVoice == nullptr)
+			{
+				//jassert(allowSlowFetch);
+				return *begin();
+			}
+
+			return *currentRenderVoice;
+		}
+		else
+		{
+			return *const_cast<T*>(data);
+		}
+		
+#if 0
 		jassert(isMonophonicOrInsideVoiceRendering());
 		return *begin();
+#endif
+	}
+
+	template <typename F> void forEachCurrentVoice(F&& f)
+	{
+		if(!isPolyphonic() || voicePtr == nullptr)
+		{
+			f(data[0]);
+		}
+		else
+		{
+			if(forceAll || voicePtr->isAllThread())
+			{
+				for(int i = 0; i < NumVoices; i++)
+					f(data[i]);
+			}
+			else
+			{
+				f(get());
+			}
+		}
 	}
 
 	/** Allows range-based for loops to work inside the voice context. */
@@ -1178,7 +1241,11 @@ private:
 	mutable int lastVoiceIndex = -1;
 	int unused = 0;
 
+	T* currentRenderVoice = nullptr;
+	bool forceAll = false;
+
 	T data[NumVoices];
+
 };
 
 }

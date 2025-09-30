@@ -128,7 +128,7 @@ hise::MultiChannelAudioBuffer::SampleReference::Ptr XYZSampleMapProvider::Monoli
 				auto lr = new MultiChannelAudioBuffer::SampleReference();
 				lr->sampleRate = hmToUse->getMonolithSampleRate(i);
 
-				ScopedPointer<AudioFormatReader> afs = hmToUse->createUserInterfaceReader(i, 0);
+				ScopedPointer<AudioFormatReader> afs = hmToUse->createUserInterfaceReader(i, 0, INT_MAX);
 
 				if (afs != nullptr)
 				{

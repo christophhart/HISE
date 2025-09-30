@@ -403,6 +403,11 @@ void MainController::clearPreset(NotificationType sendPresetLoadMessage)
         if(auto sp = dynamic_cast<RuntimeTargetHolder*>(p))
             sp->disconnectRuntimeTargets(p);
         
+		if (auto gc = dynamic_cast<GlobalModulatorContainer*>(p))
+		{
+			gc->cleanUpRuntimeSources();
+		}
+
         p->cleanRebuildFlagForThisAndParents();
     }
 

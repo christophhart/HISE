@@ -55,6 +55,23 @@ class NodeBase;
 #define SN_REGISTER_CALLBACK(className) template <int P> void registerCallback(scriptnode::parameter::data& p) { p.template setParameterCallbackWithIndex<className, P>(this); }
 #define SN_PARAMETER_MEMBER_FUNCTION template <int P> void setParameter(double v) { setParameterStatic<P>(this, v); }
 
+#define SN_EMPTY_VOICE_SETTER(className) using VoiceSetter = container::Helpers::DummyVoiceSetter;
+
+#define SN_VOICE_SETTER(className, polyDataMember) struct VoiceSetter { \
+		using FT = decltype(polyDataMember); \
+		template <typename WT> VoiceSetter(WT& obj, bool forceAll) : svs(obj.getWrappedObject().polyDataMember, forceAll), updater(obj.getWrappedObject()) {}; \
+		data::updater<className> updater; \
+		operator bool() const { return true; } \
+		typename FT::ScopedVoiceSetter svs; }
+
+#define SN_VOICE_SETTER_WITH_DATA_LOCK(className, polyDataMember) struct VoiceSetter { \
+		using FT = decltype(polyDataMember); \
+		template <typename WT> VoiceSetter(WT& obj, bool forceAll) : svs(obj.getWrappedObject().polyDataMember, forceAll), sl(&obj.getWrappedObject(), !forceAll), updater(obj.getWrappedObject()) {}; \
+		DataTryReadLock sl; \
+		data::updater<className> updater; \
+		operator bool() const { return (bool)sl; } \
+		typename FT::ScopedVoiceSetter svs; }
+
 /** Object Accessors
 
  Use this macro to define the type that should be returned by calls to getObject(). Normally you pass in the wrapped object (for non-wrapped classes you should use SN_GET_SELF_AS_OBJECT().

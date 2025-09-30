@@ -572,6 +572,67 @@ bool SliderWithShiftTextBox::onShiftClick(const MouseEvent& e)
     return false;
 }
 
+bool SliderWithShiftTextBox::performModifierAction(const MouseEvent& e, bool isDoubleClick, bool isMouseDown /*= true*/)
+{
+	auto a = modObject.getActionForModifier(e.mods, isDoubleClick);
+
+	if (isMouseDown && a == ModifierObject::Action::TextInput)
+	{
+		onShiftClick(e);
+		return true;
+	}
+	if (isMouseDown && a == ModifierObject::Action::ResetToDefault)
+	{
+		if (asSlider()->isDoubleClickReturnEnabled())
+		{
+			auto defaultValue = asSlider()->getDoubleClickReturnValue();
+
+			if (auto his = dynamic_cast<HiSlider*>(asSlider()))
+			{
+				if (auto pp = his->getConnectedPluginParameter())
+				{
+					auto s = asSlider();
+
+					Timer::callAfterDelay(100, [s, defaultValue]()
+						{
+							s->setValue(defaultValue, sendNotificationSync);
+						});
+
+
+					return true;
+				}
+			}
+
+			asSlider()->setValue(defaultValue, sendNotificationSync);
+
+
+			return true;
+		}
+	}
+	if (isMouseDown && a == ModifierObject::Action::ContextMenu)
+	{
+		if (auto mco = dynamic_cast<MacroControlledObject*>(this))
+			mco->enableMidiLearnWithPopup();
+		else if (customPopupFunction)
+			customPopupFunction(e);
+
+		return true;
+	}
+	if (a == ModifierObject::Action::ScaleModulation)
+	{
+		if (scaleFunction)
+		{
+			float delta = ModulationDisplayValue::getDeltaForDragEvent(*asSlider(), e);
+
+			return scaleFunction(isMouseDown, delta);
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 SliderWithShiftTextBox::~SliderWithShiftTextBox()
 {}
 
@@ -669,8 +730,11 @@ void HiSlider::sliderDragStarted(Slider* s)
 {
 	checkMouseClickProfiler(true);
 
-	if(auto pp = getConnectedPluginParameter())
-		pp->beginChangeGesture();
+	if(!skipGestureActive)
+	{
+		if(auto pp = getConnectedPluginParameter())
+			pp->beginChangeGesture();
+	}
 
 	dragStartValue = s->getValue();
 
@@ -683,8 +747,11 @@ void HiSlider::sliderDragEnded(Slider* s)
 {
 	checkMouseClickProfiler(false);
 
-	if(auto pp = getConnectedPluginParameter())
-		pp->endChangeGesture();
+	if(!skipGestureActive)
+	{
+		if(auto pp = getConnectedPluginParameter())
+			pp->endChangeGesture();
+	}
 
 	abortTouch();
 	setAttributeWithUndo((float)s->getValue(), true, (float)dragStartValue);
@@ -1193,6 +1260,7 @@ void HiSlider::mouseEnter(const MouseEvent& event)
 
 void HiSlider::mouseDoubleClick(const MouseEvent &e)
 {
+	ScopedValueSetter<bool> svs(skipGestureActive, true);
     performModifierAction(e, true);
 }
 
@@ -1818,6 +1886,7 @@ void HiSlider::mouseWheelMove(const MouseEvent& event, const MouseWheelDetails& 
 {
 	CHECK_VIEWPORT_SCROLL(event, wheel);
 
+	ScopedValueSetter<bool> svs(skipGestureActive, true);
 	Slider::mouseWheelMove(event, wheel);
 }
 

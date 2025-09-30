@@ -44,6 +44,9 @@ template <int NV> void oscillator<NV>::prepare(PrepareSpecs ps)
 {
 	voiceData.prepare(ps);
 	sr = ps.sampleRate;
+
+	VoiceSetter sv(*this, true);
+
 	setFrequency(freqValue);
 	setPitchMultiplier(uiData.multiplier);
 }

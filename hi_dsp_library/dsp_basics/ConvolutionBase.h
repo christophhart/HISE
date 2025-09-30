@@ -173,8 +173,15 @@ public:
         
         void addConvolverToBeDeleted(MultithreadedConvolver::Ptr c)
         {
-            SpinLock::ScopedLockType sl(deleteLock);
-            soonToBeDeleted.add(c);
+			{
+				SpinLock::ScopedLockType sl(deleteLock);
+				soonToBeDeleted.add(c);
+			}
+
+			if(!isThreadRunning() && !currentlyRendering)
+			{
+				soonToBeDeleted.clear();
+			}
         }
         
 		bool isBusy() const { return currentlyRendering; }

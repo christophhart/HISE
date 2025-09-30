@@ -495,7 +495,7 @@ struct PageInfo
 		StringArray getPageNames() const;
 		StringArray getGroups(const String& page) const;
 
-		const ParameterDataList& getList(const String& page, const String& group) const;
+		ParameterDataList getList(const String& page, const String& group) const;
 
 	private:
 

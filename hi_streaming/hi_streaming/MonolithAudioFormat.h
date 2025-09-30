@@ -145,7 +145,7 @@ public:
 	AudioFormatReader* createReader(int sampleIndex, int channelIndex);
 
 	/** Use this for UI rendering stuff to avoid multithreading issues. */
-	AudioFormatReader* createUserInterfaceReader(int sampleIndex, int channelIndex);
+	AudioFormatReader* createUserInterfaceReader(int sampleIndex, int channelIndex, int64 realSampleLength);
 
 	using Ptr = ReferenceCountedObjectPtr<HlacMonolithInfo>;
 

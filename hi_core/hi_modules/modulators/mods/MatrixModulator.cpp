@@ -138,8 +138,7 @@ void MatrixModulator::Item::handleDisplayValue(ModulationDisplayValue& mv)
 	if(!isConnected())
 		return;
 
-	double v;
-	mod.handleModulation(v);
+	auto v = mod.getLastModValue();
 
 	if(isScale)
 	{

@@ -57,6 +57,12 @@ struct ScriptingApi::Content::ScriptSlider::MultiMatrixModulatorConnection: publ
 		{
 			auto mvf = m->getModulationQueryFunction(MatrixModulator::SpecialParameters::Value);
 			auto componentIndex = s.getScriptProcessor()->getScriptingContent()->getComponentIndex(&s);
+
+			// if this happens, the component wasn't added yet.
+			if(componentIndex == -1)
+				componentIndex = s.getScriptProcessor()->getScriptingContent()->getNumComponents();
+
+
 			s.getScriptProcessor()->setModulationDisplayQueryFunction(componentIndex, m, mvf);
 			uint16 indexes[1] = { (uint16)componentIndex };
 			addToProcessor(dynamic_cast<Processor*>(s.getScriptProcessor()), indexes, 1, dispatch::sendNotificationSync);
