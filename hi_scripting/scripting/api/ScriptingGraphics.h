@@ -464,6 +464,9 @@ namespace ScriptingObjects
 		/** Adds an arc to the path. */
 		void addArc(var area, var fromRadians, var toRadians);
 
+		/** Adds a pie segment to the path. */
+		void addPieSegment(var area, var fromRadians, var toRadians, var innerCircleProportionalSize);
+
 		/** Adds an ellipse to the path. */
 		void addEllipse(var area);
 

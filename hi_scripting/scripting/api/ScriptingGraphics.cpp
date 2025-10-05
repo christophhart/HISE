@@ -996,7 +996,8 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_VOID_METHOD_WRAPPER_4(PathObject, quadraticTo);
 	API_VOID_METHOD_WRAPPER_4(PathObject, cubicTo);
 	API_VOID_METHOD_WRAPPER_4(PathObject, addQuadrilateral);
-	API_VOID_METHOD_WRAPPER_3(PathObject, addArc);
+    API_VOID_METHOD_WRAPPER_3(PathObject, addArc);
+    API_VOID_METHOD_WRAPPER_4(PathObject, addPieSegment);
 	API_VOID_METHOD_WRAPPER_1(PathObject, addEllipse);
 	API_VOID_METHOD_WRAPPER_1(PathObject, addRectangle);
     API_VOID_METHOD_WRAPPER_2(PathObject, addRoundedRectangle);
@@ -1031,7 +1032,8 @@ ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_4(quadraticTo);
 	ADD_API_METHOD_4(cubicTo);
 	ADD_API_METHOD_4(addQuadrilateral);
-	ADD_API_METHOD_3(addArc);
+    ADD_API_METHOD_3(addArc);
+    ADD_API_METHOD_4(addPieSegment);
 	ADD_API_METHOD_1(addEllipse);
 	ADD_API_METHOD_1(addRectangle);
     ADD_API_METHOD_2(addRoundedRectangle);
@@ -1119,6 +1121,16 @@ void ScriptingObjects::PathObject::addArc(var area, var fromRadians, var toRadia
 	auto tr = (float)toRadians;
 
 	p.addArc(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(), SANITIZED(fr), SANITIZED(tr), true);
+}
+
+void ScriptingObjects::PathObject::addPieSegment(var area, var fromRadians, var toRadians, var innerCircleProportionalSize)
+{
+	auto rect = ApiHelpers::getRectangleFromVar(area);
+
+	auto fr = (float)fromRadians;
+	auto tr = (float)toRadians;
+
+	p.addPieSegment(rect.getX(), rect.getY(), rect.getWidth(), rect.getHeight(), SANITIZED(fr), SANITIZED(tr), innerCircleProportionalSize);
 }
 
 void ScriptingObjects::PathObject::addEllipse(var area)
