@@ -760,10 +760,15 @@ void MarkdownDatabaseHolder::setForceCachedDataUse(bool shouldUseCachedData, boo
 
 bool MarkdownDatabaseHolder::shouldAbort() const
 {
-	if (!MessageManager::getInstance()->isThisTheMessageThread() &&
-		Thread::getCurrentThread()->threadShouldExit())
+	if (!MessageManager::getInstance()->isThisTheMessageThread())
 	{
-		return true;
+		// Check if we're in a valid thread context before calling threadShouldExit()
+		// On Linux, getCurrentThread() may return nullptr during VST3 initialization
+		auto* currentThread = Thread::getCurrentThread();
+		if (currentThread != nullptr && currentThread->threadShouldExit())
+		{
+			return true;
+		}
 	}
 
 	return false;
