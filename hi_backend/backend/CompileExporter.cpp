@@ -1632,6 +1632,7 @@ hise::CompileExporter::ErrorCodes CompileExporter::createPluginProjucerFile(Targ
     REPLACE_WILDCARD_WITH_STRING("%VST3_CATEGORY%", vst3Category);
     
 	REPLACE_WILDCARD_WITH_STRING("%IS_STANDALONE_FRONTEND%", "disabled");
+	REPLACE_WILDCARD_WITH_STRING("%USE_CURL%", JUCE_LINUX ? "enabled" : "disabled");
 
 	ProjectTemplateHelpers::handleCompanyInfo(this, templateProject);
 
@@ -1851,6 +1852,8 @@ hise::CompileExporter::CompileExporter::ErrorCodes CompileExporter::createStanda
 
 	String overwriteUserPresets = GET_SETTING(HiseSettings::Project::OverwriteOldUserPresets) == "1" ? "enabled" : "disabled";
 	REPLACE_WILDCARD_WITH_STRING("%OVERWRITE_OLD_USER_PRESETS%", overwriteUserPresets);
+
+	REPLACE_WILDCARD_WITH_STRING("%USE_CURL%", JUCE_LINUX ? "enabled" : "disabled");
 
 	ProjectTemplateHelpers::handleVisualStudioVersion(dataObject,templateProject);
 
