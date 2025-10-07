@@ -386,7 +386,6 @@ void DeactiveOverlay::resized()
 		ignoreButton->setVisible(false);
 	}
 
-#if HISE_INCLUDE_UNLOCKER_OVERLAY
 	if (currentState[State::LicenseNotFound] ||
 		currentState[State::LicenseInvalid] ||
 		currentState[State::MachineNumbersNotMatching] ||
@@ -410,7 +409,6 @@ void DeactiveOverlay::resized()
 		resolveLicenseButton->setTopLeftPosition(registerProductButton->getX(),
 			registerProductButton->getY() + 40);
 	}
-#endif
 	
 	if (currentState[State::CriticalCustomErrorMessage])
 	{
