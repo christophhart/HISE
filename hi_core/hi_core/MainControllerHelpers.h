@@ -657,14 +657,14 @@ private:
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BufferPreviewListener);
 };
 
-
 class OverlayMessageBroadcaster
 {
 public:
 
 	enum State
 	{
-		AppDataDirectoryNotFound,
+		AppDataDirectoryNotFound = 0,
+#if HISE_INCLUDE_UNLOCKER_OVERLAY
 		LicenseNotFound,
 		ProductNotMatching,
 		UserNameNotMatching,
@@ -672,7 +672,8 @@ public:
 		MachineNumbersNotMatching,
 		LicenseExpired,
 		LicenseInvalid,
-		CriticalCustomErrorMessage,
+#endif
+		CriticalCustomErrorMessage = 8,
 		SamplesNotInstalled,
 		SamplesNotFound,
 		IllegalBufferSize,

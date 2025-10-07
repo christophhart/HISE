@@ -2487,7 +2487,7 @@ void ScriptingApi::Content::ScriptSlider::setValueNormalized(double normalizedVa
 	if (minValue < maxValue &&
 		midPoint > minValue &&
 		midPoint < maxValue &&
-		step > 0.0)
+		step >= 0.0)
 	{
 		const double skew = log(0.5) / log((midPoint - minValue) / (maxValue - minValue));
 
@@ -2527,7 +2527,7 @@ double ScriptingApi::Content::ScriptSlider::getValueNormalized() const
 	if (minValue < maxValue &&
 		midPoint > minValue &&
 		midPoint < maxValue &&
-		step > 0.0)
+		step >= 0.0)
 	{
 		const double skew = log(0.5) / log((midPoint - minValue) / (maxValue - minValue));
 

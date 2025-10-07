@@ -1980,7 +1980,17 @@ void HiSlider::setMode(Mode m, NormalisableRange<double> nr)
 	}
 	else
 	{
-		setNormalisableRange(nr);
+		setNormalisableRange(nr);	
+	}
+
+	if (nr.interval == 0.0)
+	{
+		auto delta = nr.end - nr.start;
+
+		if (delta > 1.5)
+			this->setNumDecimalPlacesToDisplay(1);
+		else
+			this->setNumDecimalPlacesToDisplay(3);
 	}
     
     updateValue(sendNotificationSync);

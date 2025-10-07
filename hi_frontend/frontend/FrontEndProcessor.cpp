@@ -374,8 +374,10 @@ updater(*this)
 
 	unlocker.loadKeyFile();
 
+#if HISE_INCLUDE_UNLOCKER_OVERLAY
 	if (!unlocker.isUnlocked())
 		sendOverlayMessage(OverlayMessageBroadcaster::LicenseNotFound);
+#endif
 #endif
 
     updater.suspendState = true;

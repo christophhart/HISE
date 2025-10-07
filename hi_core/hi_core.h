@@ -165,7 +165,10 @@ If true, then the copy protection will be used
 #define USE_COPY_PROTECTION 1
 #endif
 
-
+// If USE_SCRIPT_COPY_PROTECTION is used, then we want to disable the unlocker overlay messages...
+#ifndef HISE_INCLUDE_UNLOCKER_OVERLAY
+#define HISE_INCLUDE_UNLOCKER_OVERLAY (USE_COPY_PROTECTION && !USE_SCRIPT_COPY_PROTECTION)
+#endif
 
 /** Config: USE_VDSP_FFT
 *
