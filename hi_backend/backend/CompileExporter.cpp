@@ -30,6 +30,15 @@
 *   ===========================================================================
 */
 
+// Ensure JUCE_LINUX is defined for all platforms
+#ifndef JUCE_LINUX
+    #if defined(__linux__) || defined(__linux) || defined(linux)
+        #define JUCE_LINUX 1
+    #else
+        #define JUCE_LINUX 0
+    #endif
+#endif
+
 namespace hise { using namespace juce;
 
 #define GET_SETTING(id) dataObject.getSetting(id).toString()
