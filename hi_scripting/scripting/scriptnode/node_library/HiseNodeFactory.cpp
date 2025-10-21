@@ -1108,9 +1108,12 @@ template <int NV> struct NeuralNode: public NodeBase
 		hpfFrequency.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(NeuralNode::updateHpf), true);
 	}
     
+	using NeuralType = neural<NV, runtime_target::indexers::dynamic>;
+	using BypassWrapper = bypass::simple<NeuralType>;
+
 	AttributedString getDescription() const override
 	{
-		return AttributedString(obj.getDescription());
+		return AttributedString(obj.getWrappedObject().getDescription());
 	}
 
 	NodeComponent* createComponent() override
@@ -1165,15 +1168,18 @@ template <int NV> struct NeuralNode: public NodeBase
 			auto nn = getScriptProcessor()->getMainController_()->getNeuralNetworks().getOrCreate(newId);
             
 			// make sure it matches when connecting
-			obj.getIndex().currentHash = nn->getRuntimeHash();
-			obj.connectToRuntimeTarget(true, nn->createConnection());
+			auto& neuralObj = obj.getWrappedObject();
+			neuralObj.getIndex().currentHash = nn->getRuntimeHash();
+			neuralObj.connectToRuntimeTarget(true, nn->createConnection());
 
 		}
 		else
 		{
-			if(auto nn = obj.getCurrentNetwork())
+			auto& neuralObj = obj.getWrappedObject();
+
+			if(auto nn = neuralObj.getCurrentNetwork())
 			{
-				obj.connectToRuntimeTarget(false, nn->createConnection());
+				neuralObj.connectToRuntimeTarget(false, nn->createConnection());
 			}
 		}
 #endif
@@ -1185,20 +1191,27 @@ template <int NV> struct NeuralNode: public NodeBase
 		auto text = value.toString().trim();
 		auto lower = text.toLowerCase();
 
-		auto freq = decltype(obj)::HpfFrequency::Off;
+		auto& neuralObj = obj.getWrappedObject();
+		auto freq = NeuralType::HpfFrequency::Off;
 
 		if(lower == "1 hz" || lower == "1hz" || lower == "1")
-			freq = decltype(obj)::HpfFrequency::Hz1;
+			freq = NeuralType::HpfFrequency::Hz1;
 		else if(lower == "5 hz" || lower == "5hz" || lower == "5")
-			freq = decltype(obj)::HpfFrequency::Hz5;
+			freq = NeuralType::HpfFrequency::Hz5;
 
-		obj.setHpfFrequency(freq);
+		neuralObj.setHpfFrequency(freq);
 #else
 		ignoreUnused(value);
 #endif
 	}
-    
-	neural<NV, runtime_target::indexers::dynamic> obj;
+
+	void setBypassed(bool shouldBeBypassed) override
+	{
+		NodeBase::setBypassed(shouldBeBypassed);
+		obj.setBypassed(shouldBeBypassed);
+	}
+
+	BypassWrapper obj;
     
 	NodePropertyT<String> networkId;
 	NodePropertyT<String> hpfFrequency;

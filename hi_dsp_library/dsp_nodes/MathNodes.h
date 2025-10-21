@@ -875,6 +875,11 @@ public:
         reset();
     }
 
+    void createParameters(ParameterDataList&)
+    {
+        // Neural node currently exposes no adjustable parameters at the DSP level.
+    }
+
     static constexpr bool isPolyphonic() { return NV > 1; }
 
     void reset()
