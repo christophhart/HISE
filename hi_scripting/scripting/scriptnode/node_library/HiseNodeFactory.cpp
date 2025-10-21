@@ -1039,27 +1039,40 @@ namespace math
 
 
 struct NeuralComp : public ScriptnodeExtraComponent<NodeBase>
-              
 {
-    NeuralComp(NodeBase* n, PooledUIUpdater* updater) :
-        ScriptnodeExtraComponent<NodeBase>(n, updater),
-        networkSelector("", PropertyIds::Model)
-    {
+	NeuralComp(NodeBase* n, PooledUIUpdater* updater) :
+		ScriptnodeExtraComponent<NodeBase>(n, updater),
+		networkSelector("", PropertyIds::Model),
+		hpfSelector("Off", PropertyIds::HpfFreq)
+	{
 #if HISE_INCLUDE_RT_NEURAL
-        auto& holder = n->getScriptProcessor()->getMainController_()->getNeuralNetworks();
-        networkSelector.initModes(holder.getIdList(), n);
+		auto& holder = n->getScriptProcessor()->getMainController_()->getNeuralNetworks();
+		networkSelector.initModes(holder.getIdList(), n);
 		addAndMakeVisible(networkSelector);
+
+		hpfSelector.initModes({ "Off", "1 Hz", "5 Hz" }, n);
+		addAndMakeVisible(hpfSelector);
 #endif
-        
-        setSize(128, 32);
-    };
 
-    ComboBoxWithModeProperty networkSelector;
+		setSize(128, 64);
+	};
 
-    void resized() override
-    {
-        networkSelector.setBounds(getLocalBounds());
-    }
+	ComboBoxWithModeProperty networkSelector;
+	ComboBoxWithModeProperty hpfSelector;
+
+	void resized() override
+	{
+#if HISE_INCLUDE_RT_NEURAL
+		auto area = getLocalBounds().reduced(0, 4);
+		const int rowHeight = 24;
+
+		networkSelector.setBounds(area.removeFromTop(rowHeight));
+		area.removeFromTop(4);
+		hpfSelector.setBounds(area.removeFromTop(rowHeight));
+#else
+		networkSelector.setBounds(getLocalBounds());
+#endif
+	}
 
     void timerCallback() override
     {
@@ -1079,92 +1092,116 @@ struct NeuralComp : public ScriptnodeExtraComponent<NodeBase>
 
 template <int NV> struct NeuralNode: public NodeBase
 {
-    SN_NODE_ID("neural");
+	SN_NODE_ID("neural");
     
-    NeuralNode(DspNetwork* root, const ValueTree& data):
-      NodeBase(root, data, 0),
-      networkId(PropertyIds::Model, "")
-    {
-        cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsFixRuntimeTarget);
+	NeuralNode(DspNetwork* root, const ValueTree& data):
+	  NodeBase(root, data, 0),
+	  networkId(PropertyIds::Model, ""),
+	  hpfFrequency(PropertyIds::HpfFreq, "Off")
+	{
+		cppgen::CustomNodeProperties::setPropertyForObject(*this, PropertyIds::IsFixRuntimeTarget);
         
-        networkId.initialise(this);
-        networkId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(NeuralNode::updateModel), true);
-    }
-    
-    AttributedString getDescription() const override
-    {
-        return AttributedString(obj.getDescription());
-    }
+		networkId.initialise(this);
+		networkId.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(NeuralNode::updateModel), true);
 
-    NodeComponent* createComponent() override
-    {
-        auto n = new DefaultParameterNodeComponent(this);
-        n->setExtraComponent(new NeuralComp(this, getRootNetwork()->getMainController()->getGlobalUIUpdater()));
-        return n;
-    }
-
-    void reset() final
-    {
-        obj.reset();
-    }
-
-    void processFrame(FrameType& data) override
-    {
-        obj.processFrame(data);
-    }
+		hpfFrequency.initialise(this);
+		hpfFrequency.setAdditionalCallback(BIND_MEMBER_FUNCTION_2(NeuralNode::updateHpf), true);
+	}
     
-    void process(ProcessDataDyn& data) override
-    {
-        obj.process(data);
-    }
-    
-    static NodeBase* createNode(DspNetwork* n, ValueTree v)
-    {
-        return new NeuralNode(n, v);
-    }
+	AttributedString getDescription() const override
+	{
+		return AttributedString(obj.getDescription());
+	}
 
-    void prepare(PrepareSpecs ps) override
-    {
-        NodeBase::prepare(ps);
+	NodeComponent* createComponent() override
+	{
+		auto n = new DefaultParameterNodeComponent(this);
+		n->setExtraComponent(new NeuralComp(this, getRootNetwork()->getMainController()->getGlobalUIUpdater()));
+		return n;
+	}
 
-        obj.prepare(ps);
-    }
+	void reset() final
+	{
+		obj.reset();
+	}
+
+	void processFrame(FrameType& data) override
+	{
+		obj.processFrame(data);
+	}
     
-    Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
-    {
-        return getBoundsToDisplay(Rectangle<int>(topLeft, topLeft.translated(128, 100)));
-    }
+	void process(ProcessDataDyn& data) override
+	{
+		obj.process(data);
+	}
     
-    void updateModel(Identifier, var value)
-    {
+	static NodeBase* createNode(DspNetwork* n, ValueTree v)
+	{
+		return new NeuralNode(n, v);
+	}
+
+	void prepare(PrepareSpecs ps) override
+	{
+		NodeBase::prepare(ps);
+
+		obj.prepare(ps);
+	}
+    
+	Rectangle<int> getPositionInCanvas(Point<int> topLeft) const override
+	{
+		return getBoundsToDisplay(Rectangle<int>(topLeft, topLeft.translated(128, 100)));
+	}
+    
+	void updateModel(Identifier, var value)
+	{
 #if HISE_INCLUDE_RT_NEURAL
-        auto v = value.toString();
+		auto v = value.toString();
 
-        if(v.isNotEmpty())
-        {
-            auto newId = Identifier(value.toString());
+		if(v.isNotEmpty())
+		{
+			auto newId = Identifier(value.toString());
 
 
-            auto nn = getScriptProcessor()->getMainController_()->getNeuralNetworks().getOrCreate(newId);
+			auto nn = getScriptProcessor()->getMainController_()->getNeuralNetworks().getOrCreate(newId);
             
-            // make sure it matches when connecting
-            obj.getIndex().currentHash = nn->getRuntimeHash();
-            obj.connectToRuntimeTarget(true, nn->createConnection());
+			// make sure it matches when connecting
+			obj.getIndex().currentHash = nn->getRuntimeHash();
+			obj.connectToRuntimeTarget(true, nn->createConnection());
 
-        }
-        else
-        {
-            if(auto nn = obj.getCurrentNetwork())
-            {
-                obj.connectToRuntimeTarget(false, nn->createConnection());
-            }
-        }
+		}
+		else
+		{
+			if(auto nn = obj.getCurrentNetwork())
+			{
+				obj.connectToRuntimeTarget(false, nn->createConnection());
+			}
+		}
 #endif
-    }
+	}
+
+	void updateHpf(Identifier, var value)
+	{
+#if HISE_INCLUDE_RT_NEURAL
+		auto text = value.toString().trim();
+		auto lower = text.toLowerCase();
+
+		auto freq = decltype(obj)::HpfFrequency::Off;
+
+		if(lower == "1 hz" || lower == "1hz" || lower == "1")
+			freq = decltype(obj)::HpfFrequency::Hz1;
+		else if(lower == "5 hz" || lower == "5hz" || lower == "5")
+			freq = decltype(obj)::HpfFrequency::Hz5;
+
+		obj.setHpfFrequency(freq);
+#else
+		ignoreUnused(value);
+#endif
+	}
     
-    neural<NV, runtime_target::indexers::dynamic> obj;
+	neural<NV, runtime_target::indexers::dynamic> obj;
     
-    NodePropertyT<String> networkId;
+	NodePropertyT<String> networkId;
+	NodePropertyT<String> hpfFrequency;
 };
 
 struct map_editor : public simple_visualiser

@@ -32,6 +32,9 @@
 
 #pragma once
 
+#include <array>
+#include <cmath>
+
 namespace scriptnode {
 using namespace juce;
 using namespace hise;
@@ -807,6 +810,14 @@ public polyphonic_base
 {
 public:
 
+    enum class HpfFrequency
+    {
+        Off = 0,
+        Hz1,
+        Hz5
+    };
+
+
     SN_NODE_ID("neural");
     
     SN_GET_SELF_AS_OBJECT(neural);
@@ -818,6 +829,16 @@ public:
     neural():
       polyphonic_base(getStaticId(), false)
     {};
+
+    void setHpfFrequency(HpfFrequency newFrequency)
+    {
+        if(hpfFrequency == newFrequency)
+            return;
+
+        hpfFrequency = newFrequency;
+        clearFilterState();
+        updateHpfCoefficients(lastSpecs.sampleRate);
+    }
     
     void prepare(PrepareSpecs ps)
     {
@@ -848,10 +869,11 @@ public:
             }
         }
 
+        filterState.prepare(ps);
+        updateHpfCoefficients(ps.sampleRate);
+
         reset();
     }
-
-    PolyData<int, NV> voiceIndexOffsets;
 
     static constexpr bool isPolyphonic() { return NV > 1; }
 
@@ -866,6 +888,8 @@ public:
                     currentNetwork->reset(v + c);
             }
         }
+
+        clearFilterState();
     }
 
     void onValue(NeuralNetwork*) override {};
@@ -889,14 +913,28 @@ public:
         if(currentNetwork != nullptr && getNumExpectedNetworks() == currentNetwork->getNumNetworks())
         {
             auto offset = voiceIndexOffsets.get();
+            const bool useHpf = hpfFrequency != HpfFrequency::Off;
+            auto* state = useHpf ? &filterState.get() : nullptr;
 
             int c = 0;
+
             for(auto& ch: data)
             {
                 auto bl = data.toChannelData(ch);
 
-                for(auto& s: bl)
-                    currentNetwork->process(offset + c, &s, &s);
+                if(useHpf && state != nullptr)
+                {
+                    for(auto& s: bl)
+                    {
+                        currentNetwork->process(offset + c, &s, &s);
+                        s = processHpfSample(s, c, *state);
+                    }
+                }
+                else
+                {
+                    for(auto& s: bl)
+                        currentNetwork->process(offset + c, &s, &s);
+                }
 
                 c++;
             }
@@ -909,10 +947,25 @@ public:
         if(currentNetwork != nullptr && data.size() == currentNetwork->getNumNetworks())
         {
             auto offset = voiceIndexOffsets.get();
+            const bool useHpf = hpfFrequency != HpfFrequency::Off;
+            auto* state = useHpf ? &filterState.get() : nullptr;
 
             int c = 0;
-            for(auto& s: data)
-                currentNetwork->process(offset + c++, &s, &s);
+
+            if(useHpf && state != nullptr)
+            {
+                for(auto& s: data)
+                {
+                    currentNetwork->process(offset + c, &s, &s);
+                    s = processHpfSample(s, c, *state);
+                    c++;
+                }
+            }
+            else
+            {
+                for(auto& s: data)
+                    currentNetwork->process(offset + c++, &s, &s);
+            }
         }
     }
 
@@ -921,9 +974,77 @@ public:
         return thisNetwork.get();
     }
     
+private:
+
+    static constexpr int maxFilterChannels = 4;
+    using FilterStateArray = std::array<float, maxFilterChannels * 4>;
+
+    void updateHpfCoefficients(double sampleRate)
+    {
+        if(sampleRate <= 0.0 || hpfFrequency == HpfFrequency::Off)
+        {
+            setBypassCoefficients();
+            return;
+        }
+
+        double freq = (hpfFrequency == HpfFrequency::Hz1) ? 1.0 : 5.0;
+        const double K = std::tan(double_Pi * freq / sampleRate);
+        const double rootTwo = std::sqrt(2.0);
+        const double norm = 1.0 / (1.0 + rootTwo * K + K * K);
+
+        b0 = static_cast<float>(norm);
+        b1 = static_cast<float>(-2.0 * norm);
+        b2 = static_cast<float>(norm);
+        a1 = static_cast<float>(2.0 * (K * K - 1.0) * norm);
+        a2 = static_cast<float>((1.0 - rootTwo * K + K * K) * norm);
+    }
+
+    void setBypassCoefficients()
+    {
+        b0 = 1.0f;
+        b1 = 0.0f;
+        b2 = 0.0f;
+        a1 = 0.0f;
+        a2 = 0.0f;
+    }
+
+    void clearFilterState()
+    {
+        typename decltype(filterState)::ScopedVoiceSetter scope(filterState, true);
+
+        for(auto& voiceState : filterState)
+            voiceState.fill(0.0f);
+    }
+
+    float processHpfSample(float input, int channel, FilterStateArray& state)
+    {
+        if(channel >= maxFilterChannels)
+            return input;
+
+        const int offset = channel * 4;
+
+        const float x1 = state[offset];
+        const float x2 = state[offset + 1];
+        const float y1 = state[offset + 2];
+        const float y2 = state[offset + 3];
+
+        const float output = b0 * input + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+
+        state[offset + 1] = x1;
+        state[offset] = input;
+        state[offset + 3] = y1;
+        state[offset + 2] = output;
+
+        return output;
+    }
+
     NeuralNetwork::Ptr thisNetwork;
-    
     PrepareSpecs lastSpecs;
+    PolyData<int, NV> voiceIndexOffsets;
+    PolyData<FilterStateArray, NV> filterState;
+    HpfFrequency hpfFrequency = HpfFrequency::Off;
+    float b0 = 1.0f, b1 = 0.0f, b2 = 0.0f;
+    float a1 = 0.0f, a2 = 0.0f;
 };
 
 #else
