@@ -130,6 +130,7 @@ DECLARE_ID(ClassId);
 DECLARE_ID(AllowSubBlocks);
 DECLARE_ID(Mode);
 DECLARE_ID(Model);
+DECLARE_ID(HpfFreq);
 DECLARE_ID(BlockSize);
 DECLARE_ID(IsPolyphonic);
 DECLARE_ID(UseRingBuffer);
