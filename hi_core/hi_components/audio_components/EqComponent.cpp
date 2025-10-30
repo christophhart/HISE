@@ -658,7 +658,7 @@ void FilterDragOverlay::updateFilters()
 
 	if (numFilters == 0)
 	{
-		filterGraph.repaint();
+		filterGraph.refreshAsync();
 	}
 }
 
