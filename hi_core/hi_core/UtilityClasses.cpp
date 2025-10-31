@@ -203,8 +203,13 @@ File AutoSaver::getAutoSaveFile()
 
 	if (presetDirectory.isDirectory())
 	{
-		if (fileList.size() == 0)
+		bool projectChanged = fileList.size() > 0 && fileList[0].getParentDirectory() != presetDirectory;
+
+		if (fileList.size() == 0 || projectChanged)
 		{
+			fileList.clear();
+			currentAutoSaveIndex = 0;
+
 			fileList.add(presetDirectory.getChildFile("Autosave_1.hip"));
 			fileList.add(presetDirectory.getChildFile("Autosave_2.hip"));
 			fileList.add(presetDirectory.getChildFile("Autosave_3.hip"));
