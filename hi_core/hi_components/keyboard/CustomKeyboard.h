@@ -118,6 +118,7 @@ public:
     void mouseDown(const MouseEvent& e) override;
 	void mouseUp(const MouseEvent& e) override;
 	void mouseDrag(const MouseEvent& e) override;
+	bool keyPressed(const KeyPress& key) override;
 	bool isMPEKeyboard() const override { return false; }
 	bool isUsingCustomGraphics() const noexcept override { return useCustomGraphics; };
 	void setUseCustomGraphics(bool shouldUseCustomGraphics) override;
@@ -198,6 +199,8 @@ private:
 	bool displayOctaveNumber = false;
 
 	bool toggleMode = false;
+
+	int currentKeyboardOctave = 5;
 
     //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CustomKeyboard)
