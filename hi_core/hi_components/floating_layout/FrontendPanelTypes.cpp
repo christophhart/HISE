@@ -912,6 +912,44 @@ void TooltipPanel::fromDynamicObject(const var& object)
 	tooltipBar->setColour(TooltipBar::textColour, findPanelColour(PanelColourId::textColour));
 
 	tooltipBar->setFont(getFont());
+
+	useFade = getPropertyWithDefault(object, SpecialPanelIds::Fade);
+	tooltipBar->setUseFade(useFade);
+
+	showIcon = getPropertyWithDefault(object, SpecialPanelIds::ShowIcon);
+	tooltipBar->setShowInfoIcon(showIcon);
+}
+
+var TooltipPanel::toDynamicObject() const
+{
+	var obj = FloatingTileContent::toDynamicObject();
+	storePropertyInObject(obj, SpecialPanelIds::Fade, useFade, true);
+	storePropertyInObject(obj, SpecialPanelIds::ShowIcon, showIcon, true);
+	return obj;
+}
+
+Identifier TooltipPanel::getDefaultablePropertyId(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultablePropertyId(index);
+
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::Fade, "Fade");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowIcon, "ShowIcon");
+
+	jassertfalse;
+	return{};
+}
+
+var TooltipPanel::getDefaultProperty(int index) const
+{
+	if (index < (int)PanelPropertyId::numPropertyIds)
+		return FloatingTileContent::getDefaultProperty(index);
+
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::Fade, true);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowIcon, true);
+
+	jassertfalse;
+	return{};
 }
 
 void TooltipPanel::resized()

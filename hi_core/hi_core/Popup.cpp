@@ -80,7 +80,7 @@ void TooltipBar::LookAndFeelMethods::drawTooltipBar(Graphics& g, TooltipBar& bar
 {
 	int offset = 0;
 
-	g.setColour(bar.findColour(backgroundColour).withMultipliedAlpha(alpha));
+	g.setColour(bar.findColour(backgroundColour).withMultipliedAlpha(bar.useFade ? alpha : 1.0f));
 
 	g.fillRect(0.0f, 0.0f, (float)bar.getWidth(), (float)bar.getHeight());
 
@@ -88,12 +88,12 @@ void TooltipBar::LookAndFeelMethods::drawTooltipBar(Graphics& g, TooltipBar& bar
 	{
 		icon.scaleToFit(4.0f, 4.0f, (float)(bar.getHeight() - 8), (float)(bar.getHeight() - 8), true);
 
-		g.setColour(bar.findColour(iconColour).withMultipliedAlpha(alpha));
+		g.setColour(bar.findColour(iconColour).withMultipliedAlpha(bar.useFade ? alpha : 1.0f));
 		g.fillPath(icon);
 		offset = 24;
 	}
 
-	g.setColour(bar.findColour(textColour).withMultipliedAlpha(alpha));
+	g.setColour(bar.findColour(textColour).withMultipliedAlpha(bar.useFade ? alpha : 1.0f));
 	g.setFont(bar.font);
 	g.drawText(text, offset + 4, 0, bar.getWidth() - offset, bar.getHeight(), Justification::centredLeft, true);
 }
@@ -224,5 +224,3 @@ void TooltipBar::mouseDown(const MouseEvent &)
 }
 
 } // namespace hise
-
-

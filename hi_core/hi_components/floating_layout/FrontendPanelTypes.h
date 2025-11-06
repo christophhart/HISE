@@ -547,6 +547,8 @@ private:
 *	- `ColourData::itemColour1`: the icon colour
 *	- `Font`
 *	- `FontSize`
+*	- `Fade`: enable fade animation (default: true)
+*	- `ShowIcon`: show info icon (default: true)
 *
 *	### Example JSON
 *
@@ -555,6 +557,8 @@ private:
 	  "Type": "TooltipPanel",
 	  "Font": "Arial Italic",
 	  "FontSize": 20,
+	  "Fade": false,
+	  "ShowIcon": true,
 	  "ColourData": {
 		"bgColour": "0x22FF0000",
 		"textColour": "0xFFFFFFFF",
@@ -578,10 +582,24 @@ public:
 	void fromDynamicObject(const var& object) override;
 	void resized() override;
 
+	enum SpecialPanelIds
+	{
+		Fade = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
+		ShowIcon,
+		numPropertyIds
+	};
+
+	int getNumDefaultableProperties() const override { return SpecialPanelIds::numPropertyIds; }
+	Identifier getDefaultablePropertyId(int index) const override;
+	var getDefaultProperty(int index) const override;
+	var toDynamicObject() const override;
+
 private:
 
 	String fontName;
 	float fontSize = 14.0f;
+	bool useFade = true;
+	bool showIcon = true;
 
 	ScopedPointer<TooltipBar> tooltipBar;
 };
