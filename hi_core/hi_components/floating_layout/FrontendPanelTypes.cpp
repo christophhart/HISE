@@ -923,8 +923,8 @@ void TooltipPanel::fromDynamicObject(const var& object)
 var TooltipPanel::toDynamicObject() const
 {
 	var obj = FloatingTileContent::toDynamicObject();
-	storePropertyInObject(obj, SpecialPanelIds::Fade, useFade, true);
-	storePropertyInObject(obj, SpecialPanelIds::ShowIcon, showIcon, true);
+	storePropertyInObject(obj, SpecialPanelIds::Fade, useFade);
+	storePropertyInObject(obj, SpecialPanelIds::ShowIcon, showIcon);
 	return obj;
 }
 
