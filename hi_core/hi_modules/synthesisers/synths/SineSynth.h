@@ -109,6 +109,19 @@ public:
 
 	SET_PROCESSOR_NAME("SineSynth", "Sine Wave Generator", "A sine wave generator");
 
+	enum ChainIndex
+	{
+		GainChain = 0,
+		PitchChain,
+		SaturationChain
+	};
+
+	enum InternalChains
+	{
+		SaturationModulation = ModulatorSynth::numInternalChains,
+		numInternalChains
+	};
+
 	/** The parameters. */
 	enum SpecialParameters
 	{
@@ -200,6 +213,12 @@ public:
 		case FineFreqRatio:			fineRatio = newValue; break;
 		case SaturationAmount:		saturationAmount = newValue; 
 									saturator.setSaturationAmount(newValue); 
+									if (saturationChain != nullptr)
+									{
+										saturationChain->setInitialValue(newValue);
+										// Force update of constant value when parameter changes
+										modChains[ChainIndex::SaturationChain].clear();
+									}
 									triggerWaveformUpdate();
 									return; // skip the calculation of the pitch ratio
 		default:					jassertfalse;
@@ -241,9 +260,36 @@ public:
 		normalizeValue = 1.0f;
 	}
 
+	void handlePeakDisplay(int numSamplesInOutputBuffer) override;
+
+	int getNumChildProcessors() const override { return numInternalChains; }
+	int getNumInternalChains() const override { return numInternalChains; }
+	Processor *getChildProcessor(int processorIndex) override;
+	const Processor *getChildProcessor(int processorIndex) const override;
+
+	float* getSaturationModValues(int startSample)
+	{
+		return modChains[ChainIndex::SaturationChain].getWritePointerForVoiceValues(startSample);
+	}
+
+	float getConstantSaturationModValue() const
+	{
+		auto& mb = modChains[ChainIndex::SaturationChain];
+
+		if (mb.getChain()->shouldBeProcessedAtAll())
+		{
+			return mb.getConstantModulationValue();
+		}
+
+		return saturationAmount;
+	}
+
 private:
 
 	Saturator saturator;
+	ModulatorChain* saturationChain;
+	int waveformUpdateCounter;
+	float lastSaturationModValue; // Track the last modulation value for waveform display
 	
 	friend class SineSynthVoice;
 

@@ -76,7 +76,19 @@ SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
 	coarseRatio(getDefaultValue(CoarseFreqRatio)),
 	saturationAmount(getDefaultValue(SaturationAmount))
 {
+	modChains += { this, "Saturation Modulation", ModulatorChain::ModulationType::Normal, Modulation::Mode::GainMode };
+
 	finaliseModChains();
+
+	modChains[ChainIndex::SaturationChain].setAllowModificationOfVoiceValues(true);
+	modChains[ChainIndex::SaturationChain].setExpandToAudioRate(true);
+	modChains[ChainIndex::SaturationChain].setIncludeMonophonicValuesInVoiceRendering(true);
+	modChains[ChainIndex::SaturationChain].setClampTo0To1(true);
+
+	saturationChain = modChains[ChainIndex::SaturationChain].getChain();
+	saturationChain->setInitialValue(saturationAmount);
+	waveformUpdateCounter = 0;
+	lastSaturationModValue = saturationAmount;
 
 	parameterNames.add("OctaveTranspose");
 	parameterNames.add("SemiTones");
@@ -86,6 +98,8 @@ SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("SaturationAmount");
 
 	updateParameterSlots();
+
+	editorStateIdentifiers.add("SaturationModulationShown");
 
 	for (int i = 0; i < numVoices; i++) addVoice(new SineSynthVoice(this));
 	addSound(new SineWaveSound());
@@ -109,6 +123,23 @@ ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 
 float const * SineSynth::getSaturatedTableValues()
 {
+	// Use the last tracked modulation value if modulation is active, otherwise use base parameter value
+	float currentSaturation;
+
+	auto& mb = modChains[ChainIndex::SaturationChain];
+	if (mb.getChain()->shouldBeProcessedAtAll())
+	{
+		// Use the last modulation value tracked during rendering (most accurate for display)
+		currentSaturation = lastSaturationModValue;
+	}
+	else
+	{
+		currentSaturation = saturationAmount;
+	}
+
+	// Temporarily set the saturator to the current value for waveform display
+	saturator.setSaturationAmount(currentSaturation);
+
 	for (int i = 0; i < 128; i++)
 	{
 		const float sinValue = sin((float)i / 64.0f * float_Pi);
@@ -124,7 +155,7 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 	const int startIndex = startSample;
 	const int samplesToCopy = numSamples;
 
-	float saturation = static_cast<SineSynth*>(getOwnerSynth())->saturationAmount;
+	auto* sineSynth = static_cast<SineSynth*>(getOwnerSynth());
 	float *leftValues = voiceBuffer.getWritePointer(0, startSample);
 	const auto& sinTable = table.get();
 
@@ -148,25 +179,55 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 		}
 	}
 
-	if (saturation != 0.0f)
+	// Apply saturation with modulation support
+	if (auto modValues = sineSynth->getSaturationModValues(startSample))
 	{
-		if (saturation == 1.0f) saturation = 0.99f; // 1.0f makes it silent, so this is the best bugfix in the world...
-
-		const float saturationAmount = 2.0f * saturation / (1.0f - saturation);
-
-		// Once from the top...
-
+		// Audio-rate modulation - apply per sample
 		numSamples = samplesToCopy;
 		startSample = startIndex;
-
 		leftValues = voiceBuffer.getWritePointer(0, startSample);
 
 		for (int i = 0; i < numSamples; i++)
 		{
-			const float currentSample = leftValues[i];
-			const float saturatedSample = (1.0f + saturationAmount) * currentSample / (1.0f + saturationAmount * fabsf(currentSample));
+			float satValue = modValues[i];
+			if (satValue > 0.0f)
+			{
+				if (satValue >= 1.0f) satValue = 0.99f; // 1.0f makes it silent, so this is the best bugfix in the world...
 
-			leftValues[i] = saturatedSample;
+				const float saturationAmount = 2.0f * satValue / (1.0f - satValue);
+				const float currentSample = leftValues[i];
+				const float saturatedSample = (1.0f + saturationAmount) * currentSample / (1.0f + saturationAmount * fabsf(currentSample));
+
+				leftValues[i] = saturatedSample;
+			}
+		}
+	}
+	else
+	{
+		// Constant saturation value - only calculate when no modulation
+		float saturation = sineSynth->getConstantSaturationModValue();
+
+		if (saturation != 0.0f)
+		{
+			if (saturation >= 1.0f) saturation = 0.99f; // 1.0f makes it silent, so this is the best bugfix in the world...
+
+			// Cache the saturation amount calculation
+			const float saturationAmount = 2.0f * saturation / (1.0f - saturation);
+
+			// Once from the top...
+
+			numSamples = samplesToCopy;
+			startSample = startIndex;
+
+			leftValues = voiceBuffer.getWritePointer(0, startSample);
+
+			for (int i = 0; i < numSamples; i++)
+			{
+				const float currentSample = leftValues[i];
+				const float saturatedSample = (1.0f + saturationAmount) * currentSample / (1.0f + saturationAmount * fabsf(currentSample));
+
+				leftValues[i] = saturatedSample;
+			}
 		}
 	}
 
@@ -183,6 +244,59 @@ void SineSynthVoice::calculateBlock(int startSample, int numSamples)
 	FloatVectorOperations::copy(voiceBuffer.getWritePointer(1, startIndex), voiceBuffer.getReadPointer(0, startIndex), samplesToCopy);
 
 	getOwnerSynth()->effectChain->renderVoice(voiceIndex, voiceBuffer, startIndex, samplesToCopy);
+}
+
+void SineSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
+{
+	ModulatorSynth::handlePeakDisplay(numSamplesInOutputBuffer);
+
+	// Update the last modulation value for waveform display
+	if (saturationChain != nullptr && saturationChain->shouldBeProcessedAtAll())
+	{
+		waveformUpdateCounter += numSamplesInOutputBuffer;
+		// Update waveform display periodically (roughly every 30ms at 44.1kHz = ~1323 samples)
+		if (waveformUpdateCounter >= 1323)
+		{
+			waveformUpdateCounter = 0;
+
+			// Get the output value which is updated by setDisplayValueInternal during rendering
+			// This should reflect the current modulation state
+			auto& mb = modChains[ChainIndex::SaturationChain];
+			lastSaturationModValue = mb.getChain()->getOutputValue();
+
+			triggerWaveformUpdate();
+		}
+	}
+}
+
+Processor * SineSynth::getChildProcessor(int processorIndex)
+{
+	jassert(processorIndex < numInternalChains);
+
+	switch (processorIndex)
+	{
+	case GainModulation:	return gainChain;
+	case PitchModulation:	return pitchChain;
+	case SaturationModulation:	return saturationChain;
+	case MidiProcessor:		return midiProcessorChain;
+	case EffectChain:		return effectChain;
+	default:				jassertfalse; return nullptr;
+	}
+}
+
+const Processor * SineSynth::getChildProcessor(int processorIndex) const
+{
+	jassert(processorIndex < numInternalChains);
+
+	switch (processorIndex)
+	{
+	case GainModulation:	return gainChain;
+	case PitchModulation:	return pitchChain;
+	case SaturationModulation:	return saturationChain;
+	case MidiProcessor:		return midiProcessorChain;
+	case EffectChain:		return effectChain;
+	default:				jassertfalse; return nullptr;
+	}
 }
 
 } // namespace hise
