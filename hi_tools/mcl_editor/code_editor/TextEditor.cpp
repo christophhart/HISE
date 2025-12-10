@@ -2316,6 +2316,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			LineBreaks,
             AutoAutocomplete,
             ShowStickyLines,
+            EnableCmdScrollFontResize,
 			BackgroundParsing,
             FixWeirdTab,
 			Preprocessor,
@@ -2348,6 +2349,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
         menu.addItem(AutoAutocomplete, "Autoshow Autocomplete", true, showAutocompleteAfterDelay);
         menu.addItem(ShowStickyLines, "Show sticky lines on top", true, showStickyLines);
+        menu.addItem(EnableCmdScrollFontResize, "Enable Cmd+Scroll font resize", true, enableCmdScrollFontResize);
         
 		menu.addSeparator();
 
@@ -2389,6 +2391,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
                 break;
             case ShowStickyLines:
                 FullEditor::saveSetting(this, TextEditorSettings::ShowStickyLines, !showStickyLines);
+                break;
+            case EnableCmdScrollFontResize:
+                FullEditor::saveSetting(this, TextEditorSettings::EnableCmdScrollFontResize, !enableCmdScrollFontResize);
                 break;
         }
 
@@ -2555,7 +2560,7 @@ void mcl::TextEditor::mouseDoubleClick (const MouseEvent& e)
 
 void mcl::TextEditor::mouseWheelMove(const MouseEvent& e, const MouseWheelDetails& d)
 {
-	if (e.mods.isCommandDown())
+	if (e.mods.isCommandDown() && enableCmdScrollFontResize)
 	{
 		auto factor = 1.0f + (float)d.deltaY / 5.0f;
 
