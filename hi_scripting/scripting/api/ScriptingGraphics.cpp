@@ -5691,7 +5691,7 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawModulationDragBackground(Gr
 			obj->setProperty("hoverSourceName", dd.sourceName);
 			obj->setProperty("hoverSourceIndex", dd.sourceIndex);
 			obj->setProperty("hoverMode", (int)dd.targetMode);
-			obj->setProperty("hoverValugetIntere", dd.intensityValue);
+			obj->setProperty("hoverValueIntensity", dd.intensityValue);
 			obj->setProperty("hoverText", dd.labelText);
 		}
 
