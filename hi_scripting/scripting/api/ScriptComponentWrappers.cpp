@@ -2000,7 +2000,8 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::scrollBarMoved(ScrollBar* 
 
 		auto sv = dynamic_cast<ScriptingApi::Content::ScriptedViewport*>(getScriptComponent());
 		sv->positionBroadcaster.sendMessage(dontSendNotification, pos[0], pos[1]);
-		getScriptComponent()->setScriptObjectProperty(propertyToChange, normPos, dontSendNotification);
+		// Use sendNotificationAsync so the script's broadcaster gets notified, but async to avoid circular updates
+		getScriptComponent()->setScriptObjectProperty(propertyToChange, normPos, sendNotificationAsync);
 	}
 }
 
