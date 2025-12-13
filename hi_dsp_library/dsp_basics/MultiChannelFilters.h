@@ -78,6 +78,7 @@ public:
 		LowPassReso,
 		HighPass,
 		BandPass,
+		Notch,
 		Peak,
 		LowShelf,
 		HighShelf,

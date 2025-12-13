@@ -177,7 +177,8 @@ FilterDataObject::CoefficientData MultiChannelFilter<FilterSubType>::getApproxim
 	case FilterHelpers::LowPassReso:	return { IIRCoefficients::makeLowPass(sampleRate, f_, q_), 1 };
 	case FilterHelpers::Ladder24db:	    return { IIRCoefficients::makeLowPass(sampleRate, f_, q_), 2 };
 	case FilterHelpers::LowPass:		return { IIRCoefficients::makeLowPass(sampleRate, f_), 1 };
-	case FilterHelpers::BandPass:		return { IIRCoefficients::makeBandPass(sampleRate, f_), 1 };
+	case FilterHelpers::BandPass:		return { IIRCoefficients::makeBandPass(sampleRate, f_, q_), 1 };
+	case FilterHelpers::Notch:			return { IIRCoefficients::makeNotchFilter(sampleRate, f_, q_), 1 };
 	case FilterHelpers::LowShelf:		return { IIRCoefficients::makeLowShelf(sampleRate, f_, q_, g_), 1 };
 	case FilterHelpers::HighShelf:		return { IIRCoefficients::makeHighShelf(sampleRate, f_, q_, g_), 1 };
 	case FilterHelpers::Peak:			return { IIRCoefficients::makePeakFilter(sampleRate, f_, q_, g_), 1 };
@@ -935,7 +936,7 @@ juce::StringArray StateVariableFilterSubType::getModes() const
 Array<hise::FilterHelpers::CoefficientType> StateVariableFilterSubType::getCoefficientTypeList() const
 {
 	return { FilterHelpers::LowPassReso, FilterHelpers::HighPass,
-			 FilterHelpers::BandPass, FilterHelpers::BandPass,
+			 FilterHelpers::BandPass, FilterHelpers::Notch,
 			 FilterHelpers::AllPass };
 }
 
