@@ -548,6 +548,9 @@ public:
 		/** Changes the depth hierarchy (z-axis) of sibling components (Back, Default, Front or AlwaysOnTop). */
 		void setZLevel(String zLevel);
 
+		/** Returns the current z-level. */
+		ZLevelListener::ZLevel getCurrentZLevel() const { return currentZLevel; }
+
 		/** Adds a callback to react on key presses (when this component is focused). */
 		void setKeyPressCallback(var keyboardFunction);
 

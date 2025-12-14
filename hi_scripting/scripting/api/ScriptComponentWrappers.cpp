@@ -510,7 +510,16 @@ void ScriptCreatedComponentWrapper::initAllProperties()
 	}
 }
 
-
+void ScriptCreatedComponentWrapper::postInit()
+{
+	// Apply the current z-level after component is fully initialized
+	auto sc = getScriptComponent();
+	auto currentLevel = sc->getCurrentZLevel();
+	if (currentLevel != ScriptingApi::Content::ScriptComponent::ZLevelListener::ZLevel::Default)
+	{
+		zLevelChanged(currentLevel);
+	}
+}
 
 ScriptCreatedComponentWrappers::SliderWrapper::SliderWrapper(ScriptContentComponent *content, ScriptingApi::Content::ScriptSlider *sc, int index) :
 ScriptCreatedComponentWrapper(content, index)

@@ -322,7 +322,7 @@ public:
 	/** Don't forget to deregister the listener here. */
 	virtual ~ScriptCreatedComponentWrapper();;
 
-	virtual void postInit() {};
+	virtual void postInit();
 
 	/** Overwrite this method and update the component. */
 	virtual void updateComponent() = 0;
