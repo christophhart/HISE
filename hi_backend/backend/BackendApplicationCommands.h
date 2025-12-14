@@ -161,6 +161,7 @@ public:
 		MenuViewToggleSnippetBrowser,
 		MenuViewRotate,
 		MenuViewEnableGlobalLayoutMode,
+		MenuViewShowPluginPreview,
 		// -----------------------------
 		WorkspaceScript,
 		WorkspaceSampler,
