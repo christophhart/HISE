@@ -238,19 +238,19 @@ void ControlModulator::handleHiseEvent(const HiseEvent &m)
 		}
 		else if (m.isChannelPressure() || m.isAftertouch())
 		{
-			controllerNumber = 128;
+			controllerNumber = HiseEvent::AfterTouchCCNumber;
 			disableLearnMode();
 		}
 		else if (m.isPitchWheel())
 		{
-			controllerNumber = 129;
+			controllerNumber = HiseEvent::PitchWheelCCNumber;
 			disableLearnMode();
 		}
 	}
 
-	const bool isAftertouch = controllerNumber == 128 && (m.isAftertouch() || m.isChannelPressure());
+	const bool isAftertouch = controllerNumber == HiseEvent::AfterTouchCCNumber && (m.isAftertouch() || m.isChannelPressure());
 
-	const bool isPitchWheel = controllerNumber == 129 && m.isPitchWheel();
+	const bool isPitchWheel = controllerNumber == HiseEvent::PitchWheelCCNumber && m.isPitchWheel();
 
 	if(isAftertouch || m.isControllerOfType(controllerNumber) || isPitchWheel)
 	{
@@ -258,7 +258,7 @@ void ControlModulator::handleHiseEvent(const HiseEvent &m)
 		{
 			inputValue = (float)m.getControllerValue() / 127.0f;
 		}
-		else if (controllerNumber == 129 && m.isPitchWheel())
+		else if (controllerNumber == HiseEvent::PitchWheelCCNumber && m.isPitchWheel())
 		{
 			inputValue = (float)m.getPitchWheelValue() / 16383.0f;
 		}
