@@ -1801,6 +1801,19 @@ void TableFloatingTileBase::resized()
 
 	if(auto root = CSSRootComponent::find(*this))
 	{
+		// CSS LAF is set in refreshComponentForCell(),
+		// but that isn't called when there are no rows in the table.
+		// Initialising here for consistent styling for the empty state.
+		if (css_laf == nullptr)
+		{
+			css_laf = new simple_css::StyleSheetLookAndFeel(*root);
+
+			if (root->css.getWithAllStates(this, simple_css::Selector("th")) != nullptr)
+				table.getHeader().setLookAndFeel(css_laf);
+			else
+				table.getHeader().setLookAndFeel(laf);
+		}
+
 		int firstWidth = 0;
 
 		if(auto ss = root->css.getWithAllStates(this, Selector(ElementType::TableHeader)))
