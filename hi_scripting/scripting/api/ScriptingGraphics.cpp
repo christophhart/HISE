@@ -1015,6 +1015,7 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_METHOD_WRAPPER_1(PathObject, getBounds);
 	API_VOID_METHOD_WRAPPER_1(PathObject, setBounds);
 	API_METHOD_WRAPPER_0(PathObject, getLength);
+	API_METHOD_WRAPPER_0(PathObject, getRatio);
 	API_METHOD_WRAPPER_0(PathObject, toString);
 	API_METHOD_WRAPPER_0(PathObject, toBase64);
 	API_METHOD_WRAPPER_1(PathObject, getYAt);
@@ -1050,6 +1051,7 @@ ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ADD_API_METHOD_1(getBounds);
 	ADD_API_METHOD_1(setBounds);
 	ADD_API_METHOD_0(getLength);
+	ADD_API_METHOD_0(getRatio);
 	ADD_API_METHOD_2(createStrokedPath);
 	ADD_API_METHOD_0(toString);
 	ADD_API_METHOD_0(toBase64);
@@ -1258,6 +1260,13 @@ var ScriptingObjects::PathObject::contains(var point)
 var ScriptingObjects::PathObject::getLength()
 {
 	return p.getLength(AffineTransform::scale(1.0f), 1.0f);
+}
+
+var ScriptingObjects::PathObject::getRatio()
+{
+	auto b = p.getBounds();
+
+	return b.getWidth() / b.getHeight();
 }
 
 var ScriptingObjects::PathObject::getBounds(var scaleFactor)
