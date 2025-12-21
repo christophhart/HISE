@@ -208,7 +208,7 @@ juce::File ExpansionHandler::getExpansionFolder() const
 bool ExpansionHandler::createAvailableExpansions()
 {
 	Array<File> folders;
-	getExpansionFolder().findChildFiles(folders, File::findDirectories, false);
+	getExpansionFolder().findChildFiles(folders, File::findDirectories, true);
     OwnedArray<Expansion> newList;
 	bool didSomething = false;
 
@@ -507,10 +507,15 @@ juce::File ExpansionHandler::getExpansionTargetFolder(const File& resourceFile)
 
 	auto obj = a.readMetadataFromArchive(resourceFile);
 	auto expansionName = obj.getProperty("HxiName", "").toString();
+	auto company = obj.getProperty("Company", "").toString();
 
 	if (expansionName.isNotEmpty())
 	{
-		return getExpansionFolder().getChildFile(expansionName);
+		#if HISE_USE_EXPANSION_COMPANY_SUBFOLDERS
+			return getExpansionFolder().getChildFile(company + "/" + expansionName);
+		#else
+			return getExpansionFolder().getChildFile(expansionName);
+		#endif
 	}
 
 	return File();

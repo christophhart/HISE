@@ -118,6 +118,12 @@ namespace hise { using namespace juce;
 #define ENABLE_MARKDOWN false
 #endif
 
+/** If enabled, installed expansions will be placed in a sub-folder using the company's name
+*/
+#ifndef HISE_USE_EXPANSION_COMPANY_SUBFOLDERS
+#define HISE_USE_EXPANSION_COMPANY_SUBFOLDERS 0
+#endif
+
 #if (defined (_WIN32) || defined (_WIN64))
 #define JUCE_WINDOWS 1
 #endif
