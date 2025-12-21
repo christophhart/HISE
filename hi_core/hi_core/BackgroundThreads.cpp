@@ -668,6 +668,7 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 
 	StringArray sa2;
 
+	sa2.add("Exclude Samples");
 	sa2.add("500 MB");
 	sa2.add("1 GB");
 	sa2.add("1.5 GB");
@@ -806,6 +807,7 @@ void SampleDataExporter::run()
 
 	switch (partSize)
 	{
+	case PartSize::Empty: data.partSize *= 0; break;
 	case PartSize::HalfGig: data.partSize *= 500; break;
 	case PartSize::OneGig: data.partSize *= 1000; break;
 	case PartSize::OneAndHalfGig: data.partSize *= 1500; break;
@@ -856,9 +858,7 @@ void SampleDataExporter::run()
 			b->writeToStream(fos, &getProgressCounter());
 			b = nullptr;
 		}
-	}
-
-	
+	}	
 }
 
 void SampleDataExporter::threadFinished()
