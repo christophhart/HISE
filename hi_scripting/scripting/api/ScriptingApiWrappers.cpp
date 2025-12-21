@@ -106,6 +106,7 @@ struct ScriptingApi::Content::Wrapper
 
 	static var setSuspendTimerCallback(const var::NativeFunctionArgs& args);
 	static var setKeyPressCallback(const var::NativeFunctionArgs& args);
+	static var setRadioGroupNullable(const var::NativeFunctionArgs& args);
 
 	static var getCurrentTooltip(const var::NativeFunctionArgs& args);
 
@@ -520,6 +521,18 @@ var ScriptingApi::Content::Wrapper::setKeyPressCallback(const var::NativeFunctio
 		CHECK_ARGUMENTS("setKeyPressCallback()", 2);
 
 		thisObject->setKeyPressCallback(args.arguments[0], args.arguments[1]);
+	}
+
+	return var();
+}
+
+var ScriptingApi::Content::Wrapper::setRadioGroupNullable(const var::NativeFunctionArgs& args)
+{
+	if (ScriptingApi::Content* thisObject = GET_OBJECT(Content))
+	{
+		CHECK_ARGUMENTS("setRadioGroupNullable()", 2);
+
+		thisObject->setRadioGroupNullable((int)args.arguments[0], (bool)args.arguments[1]);
 	}
 
 	return var();

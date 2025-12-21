@@ -3044,6 +3044,12 @@ public:
 	/** Adds a callback that will be performed asynchronously when the key is pressed. */
 	void setKeyPressCallback(const var& keyPress, var keyPressCallback);
 
+	/** Sets whether a radio group is nullable. When nullable, clicking an already-on button will turn it off, leaving all buttons in the group off. */
+	void setRadioGroupNullable(int radioGroupId, bool nullable);
+
+	/** Returns whether a radio group is nullable. */
+	bool isRadioGroupNullable(int radioGroupId) const;
+
 	// ================================================================================================================
 
 	static var createKeyboardCallbackObject(const KeyPress& k)
@@ -3413,6 +3419,8 @@ private:
 	
 
 	AsyncRebuildMessageBroadcaster asyncRebuildBroadcaster;
+
+	SortedSet<int> nullableRadioGroups;
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Content);
 	

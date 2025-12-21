@@ -151,6 +151,26 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 
 		if (c != nullptr)
 		{
+			if (auto b = dynamic_cast<ScriptingApi::Content::ScriptButton*>(c))
+			{
+				if (int group = b->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup))
+				{
+					// Check if this is a nullable radio group and the button is already on
+					if (content->isRadioGroupNullable(group))
+					{
+						float currentValue = (float)c->getValue();
+
+						// If button is already on and we're trying to turn it on again, turn it off instead
+						if (currentValue > 0.5f && newValue > 0.5f)
+						{
+							c->setValue(0);
+							controlCallback(c, 0.0f);
+							return;
+						}
+					}
+				}
+			}
+
 			c->setValue(newValue);
 
 			if (auto b = dynamic_cast<ScriptingApi::Content::ScriptButton*>(c))
