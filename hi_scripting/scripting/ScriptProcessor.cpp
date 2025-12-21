@@ -166,7 +166,12 @@ void ProcessorWithScriptingContent::setControlValue(int index, float newValue)
 							if (auto other = dynamic_cast<ScriptingApi::Content::ScriptButton*>(content->getComponent(i)))
 							{
 								if ((int)other->getScriptObjectProperty(ScriptingApi::Content::ScriptButton::Properties::radioGroup) == group)
+								{
 									other->setValue(0);
+									// Explicitly trigger callback for buttons that get turned off in radio group
+									// to ensures callbacks fire properly regardless of component hierarchy
+									controlCallback(other, 0.0f);
+								}
 							}
 						}
 					}
