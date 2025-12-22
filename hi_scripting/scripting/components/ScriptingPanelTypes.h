@@ -47,6 +47,7 @@ namespace InterfaceDesignerShortcuts
 	DECLARE_ID(id_show_json);
     DECLARE_ID(id_show_panel_data_json);
 	DECLARE_ID(id_duplicate);
+	DECLARE_ID(id_toggle_overlay);
 }
 #undef DECLARE_ID
 
@@ -240,6 +241,8 @@ public:
 			static bool distribute(Editor* editor, bool isVertical);
 			static bool align(Editor* editor, bool isVertical);
 			static bool undo(Editor * e, bool shouldUndo);
+
+			static bool toggleOverlay(Editor& e);
 		};
 
 		LambdaBroadcaster<Image, float> overlayBroadcaster;

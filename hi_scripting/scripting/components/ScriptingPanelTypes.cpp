@@ -747,42 +747,7 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 	auto overlayToggleButtonAction = new ActionButton(this, "overlay-toggle");
 	overlayToggleButtonAction->stateFunction = [](Editor& e) { return e.overlayVisible; };
 	overlayToggleButtonAction->enabledFunction = [](Editor& e) { return e.currentOverlayImage.isValid(); };
-	overlayToggleButtonAction->actionFunction = [](Editor& e)
-	{
-		e.overlayVisible = !e.overlayVisible;
-
-		if(e.overlayVisible)
-		{
-			if(!e.currentOverlayImage.isValid())
-			{
-				e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, 0.0f);
-				return false;
-			}
-
-			float alphaToUse = e.overlayAlphaSlider->getValue();
-			e.overlayAlphaSlider->setValue(alphaToUse, dontSendNotification);
-			e.lastOverlayAlpha = alphaToUse;
-
-			auto nAlpha = e.overlayAlphaSlider->getValue();
-			if(nAlpha < 0.0)
-			{
-				Image copy = e.currentOverlayImage.createCopy();
-				gin::applyInvert(copy);
-				e.overlayBroadcaster.sendMessage(sendNotificationSync, copy, hmath::abs(nAlpha));
-			}
-			else
-			{
-				e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, hmath::abs(nAlpha));
-			}
-		}
-		else
-		{
-			e.lastOverlayAlpha = e.overlayAlphaSlider->getValue();
-			e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, 0.0f);
-		}
-
-		return false;
-	};
+	overlayToggleButtonAction->actionFunction = Actions::toggleOverlay;
 	overlayToggleButtonAction->setTooltip("Toggle overlay image visibility");
 	overlayToggleButton = overlayToggleButtonAction;
 
@@ -1321,6 +1286,43 @@ bool ScriptContentPanel::Editor::Actions::lockSelection(Editor& e)
 	return true;
 }
 
+bool ScriptContentPanel::Editor::Actions::toggleOverlay(Editor& e)
+{
+	e.overlayVisible = !e.overlayVisible;
+
+	if(e.overlayVisible)
+	{
+		if(!e.currentOverlayImage.isValid())
+		{
+			e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, 0.0f);
+			return false;
+		}
+
+		float alphaToUse = e.overlayAlphaSlider->getValue();
+		e.overlayAlphaSlider->setValue(alphaToUse, dontSendNotification);
+		e.lastOverlayAlpha = alphaToUse;
+
+		auto nAlpha = e.overlayAlphaSlider->getValue();
+		if(nAlpha < 0.0)
+		{
+			Image copy = e.currentOverlayImage.createCopy();
+			gin::applyInvert(copy);
+			e.overlayBroadcaster.sendMessage(sendNotificationSync, copy, hmath::abs(nAlpha));
+		}
+		else
+		{
+			e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, hmath::abs(nAlpha));
+		}
+	}
+	else
+	{
+		e.lastOverlayAlpha = e.overlayAlphaSlider->getValue();
+		e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, 0.0f);
+	}
+
+	return false;
+}
+
 struct ComponentPositionComparator
 {
 	ComponentPositionComparator(bool isVertical_) :
@@ -1436,6 +1438,7 @@ void ScriptContentPanel::initKeyPresses(Component* root)
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_show_json, "Show JSON properties", KeyPress('j'));
     TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_show_panel_data_json, "Show Panel.data as JSON", KeyPress('p'));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_toggle_overlay, "Toggle overlay image visibility", KeyPress('o'));
 }
 
 bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
@@ -1454,6 +1457,19 @@ bool ScriptContentPanel::Editor::keyPressed(const KeyPress& key)
 		return Actions::zoomOut(*this);
 	else if (TopLevelWindowWithKeyMappings::matches(this, key, id_lock_selection))
 		return Actions::lockSelection(*this);
+	else if (TopLevelWindowWithKeyMappings::matches(this, key, id_toggle_overlay))
+	{
+		if (overlayToggleButton && overlayToggleButton->isEnabled())
+		{
+			Actions::toggleOverlay(*this);
+			// Update button state
+			if (auto* actionButton = dynamic_cast<WrapperWithMenuBarBase::ActionButtonBase<Editor, Factory>*>(overlayToggleButton))
+			{
+				actionButton->repaint();
+			}
+		}
+		return true;
+	}
 
 	return false;
 }
@@ -2332,6 +2348,7 @@ Array<PathFactory::KeyMapping> ScriptContentPanel::Factory::getKeyMapping() cons
 	km.add({ "Undo", 'z', ModifierKeys::commandModifier });
 	km.add({ "Redo", 'y', ModifierKeys::commandModifier });
 	km.add({ "Edit JSON", 'j' });
+	km.add({ "overlay-toggle", 'o' });
 	
 	return km;
 }
