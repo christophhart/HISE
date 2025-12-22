@@ -737,15 +737,61 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
 			currentOverlayImage = format.loadFrom(currentOverlays[idx-1]);
 		}
 
-		overlayBroadcaster.sendMessage(sendNotificationSync, currentOverlayImage, overlayAlphaSlider->getValue());
+		float alphaToSend = overlayVisible ? overlayAlphaSlider->getValue() : 0.0f;
+		overlayBroadcaster.sendMessage(sendNotificationSync, currentOverlayImage, alphaToSend);
 	};
 
 	klaf.setDefaultColours(*overlaySelector);
+
+	using ActionButton = WrapperWithMenuBarBase::ActionButtonBase<Editor, Factory>;
+	auto overlayToggleButtonAction = new ActionButton(this, "overlay-toggle");
+	overlayToggleButtonAction->stateFunction = [](Editor& e) { return e.overlayVisible; };
+	overlayToggleButtonAction->enabledFunction = [](Editor& e) { return e.currentOverlayImage.isValid(); };
+	overlayToggleButtonAction->actionFunction = [](Editor& e)
+	{
+		e.overlayVisible = !e.overlayVisible;
+
+		if(e.overlayVisible)
+		{
+			if(!e.currentOverlayImage.isValid())
+			{
+				e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, 0.0f);
+				return false;
+			}
+
+			float alphaToUse = e.overlayAlphaSlider->getValue();
+			e.overlayAlphaSlider->setValue(alphaToUse, dontSendNotification);
+			e.lastOverlayAlpha = alphaToUse;
+
+			auto nAlpha = e.overlayAlphaSlider->getValue();
+			if(nAlpha < 0.0)
+			{
+				Image copy = e.currentOverlayImage.createCopy();
+				gin::applyInvert(copy);
+				e.overlayBroadcaster.sendMessage(sendNotificationSync, copy, hmath::abs(nAlpha));
+			}
+			else
+			{
+				e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, hmath::abs(nAlpha));
+			}
+		}
+		else
+		{
+			e.lastOverlayAlpha = e.overlayAlphaSlider->getValue();
+			e.overlayBroadcaster.sendMessage(sendNotificationSync, e.currentOverlayImage, 0.0f);
+		}
+
+		return false;
+	};
+	overlayToggleButtonAction->setTooltip("Toggle overlay image visibility");
+	overlayToggleButton = overlayToggleButtonAction;
 
 	overlayAlphaSlider = new Slider("Alpha Overlay");
 
 	overlayAlphaSlider->setRange(-1.0, 1.0, 0.0);
 	overlayAlphaSlider->setDoubleClickReturnValue(true, 0.0);
+	overlayAlphaSlider->setValue(0.0, dontSendNotification);
+	lastOverlayAlpha = 0.0f;
     overlayAlphaSlider->setSliderStyle(Slider::SliderStyle::LinearHorizontal);
     overlayAlphaSlider->setTextBoxStyle(Slider::TextEntryBoxPosition::NoTextBox, true, 0, 0);
 	overlayAlphaSlider->setLookAndFeel(&slaf);
@@ -755,15 +801,25 @@ ScriptContentPanel::Editor::Editor(Canvas* c):
     {
         auto nAlpha = overlayAlphaSlider->getValue();
 
+		if(overlayVisible)
+			lastOverlayAlpha = nAlpha;
+
+		if(!currentOverlayImage.isValid())
+		{
+			overlayBroadcaster.sendMessage(sendNotificationSync, currentOverlayImage, 0.0f);
+			overlayAlphaSlider->setColour(Slider::trackColourId, Colours::orange.withSaturation(0.0f).withAlpha(0.5f));
+			return;
+		}
+
 		if(nAlpha < 0.0)
 		{
 			Image copy = currentOverlayImage.createCopy();
 			gin::applyInvert(copy);
-			overlayBroadcaster.sendMessage(sendNotificationSync, copy, hmath::abs(nAlpha));
+			overlayBroadcaster.sendMessage(sendNotificationSync, copy, overlayVisible ? hmath::abs(nAlpha) : 0.0f);
 		}
 		else
 		{
-			overlayBroadcaster.sendMessage(sendNotificationSync, this->currentOverlayImage, hmath::abs(nAlpha));
+			overlayBroadcaster.sendMessage(sendNotificationSync, this->currentOverlayImage, overlayVisible ? hmath::abs(nAlpha) : 0.0f);
 		}
 		
 		overlayAlphaSlider->setColour(Slider::trackColourId, Colours::orange.withSaturation(hmath::abs(nAlpha)).withAlpha(0.5f));
@@ -826,6 +882,7 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 	addButton("profile");
 
 	addCustomComponent(overlaySelector);
+	addCustomComponent(overlayToggleButton);
 	addCustomComponent(overlayAlphaSlider);
 
 	setWantsKeyboardFocus(true);
@@ -2303,6 +2360,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("debug-css", ColumnIcons::debugCSS);
 	LOAD_EPATH_IF_URL("suspend", EditorIcons::nightIcon);
 	LOAD_EPATH_IF_URL("profile", EditorIcons::profileIcon);
+	LOAD_EPATH_IF_URL("overlay-toggle", EditorIcons::imageIcon);
 
 	return p;
 }

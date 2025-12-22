@@ -250,7 +250,10 @@ public:
 		LookAndFeel_V4 slaf;
 		ComboBox* zoomSelector;
 		ComboBox* overlaySelector;
+		Component* overlayToggleButton;
 		Slider* overlayAlphaSlider;
+		float lastOverlayAlpha = 0.0f;
+		bool overlayVisible = true;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(Editor);
 	};
