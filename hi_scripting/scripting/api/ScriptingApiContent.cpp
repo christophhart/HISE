@@ -7700,7 +7700,7 @@ colour(Colour(0xff777777))
 	setMethod("getComponent", Wrapper::getComponent);
 	setMethod("getAllComponents", Wrapper::getAllComponents);
 	setMethod("componentExists", Wrapper::componentExists);
-	setMethod("setRadioGroupNullable", Wrapper::setRadioGroupNullable);
+	setMethod("setAllowRadioGroupDeselect", Wrapper::setAllowRadioGroupDeselect);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("setValuePopupData", Wrapper::setValuePopupData);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
@@ -8058,7 +8058,7 @@ bool ScriptingApi::Content::isCtrlDown()
 	return juce::ModifierKeys::currentModifiers.isCommandDown() || juce::ModifierKeys::currentModifiers.isCtrlDown();
 }
 
-void ScriptingApi::Content::setRadioGroupNullable(int radioGroupId, bool nullable)
+void ScriptingApi::Content::setAllowRadioGroupDeselect(int radioGroupId, bool allowDeselect)
 {
 	if (radioGroupId == 0)
 	{
@@ -8066,9 +8066,9 @@ void ScriptingApi::Content::setRadioGroupNullable(int radioGroupId, bool nullabl
 		return;
 	}
 
-	// Only validate radio group exists when setting it to nullable (true)
+	// Only validate radio group exists when setting it to allow deselection (true)
 	// When removing (false), we don't need to validate
-	if (nullable)
+	if (allowDeselect)
 	{
 		// Check if any buttons exist with this radio group ID
 		bool radioGroupExists = false;
