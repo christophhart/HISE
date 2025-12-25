@@ -1121,6 +1121,7 @@ struct ScriptExpansionHandler::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setAllowedExpansionTypes);
 	API_METHOD_WRAPPER_2(ScriptExpansionHandler, installExpansionFromPackage);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansionForInstallPackage);
+	API_METHOD_WRAPPER_0(ScriptExpansionHandler, getUninitialisedExpansions);
 };
 
 ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
@@ -1149,6 +1150,7 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_0(getCurrentExpansion);
 	ADD_API_METHOD_1(setInstallCallback);
 	ADD_API_METHOD_1(getExpansionForInstallPackage);
+	ADD_API_METHOD_0(getUninitialisedExpansions);
 
 	
 
