@@ -307,10 +307,11 @@ ValueTree ValueTreeConverters::convertDynamicObjectToContentProperties(const var
 			if(nv.name == dyncomp::dcid::bounds)
 			{
 				auto bounds = ApiHelpers::getRectangleFromVar(nv.value);
-				root.setProperty(dyncomp::dcid::x, bounds.getX(), nullptr);
-				root.setProperty(dyncomp::dcid::y, bounds.getY(), nullptr);
-				root.setProperty(dyncomp::dcid::width, bounds.getWidth(), nullptr);
-				root.setProperty(dyncomp::dcid::height, bounds.getHeight(), nullptr);
+				// Cast to int to preserve integer format in XML (prevents "34.0" instead of "34")
+				root.setProperty(dyncomp::dcid::x, (int)bounds.getX(), nullptr);
+				root.setProperty(dyncomp::dcid::y, (int)bounds.getY(), nullptr);
+				root.setProperty(dyncomp::dcid::width, (int)bounds.getWidth(), nullptr);
+				root.setProperty(dyncomp::dcid::height, (int)bounds.getHeight(), nullptr);
 			}
 			else
 			{

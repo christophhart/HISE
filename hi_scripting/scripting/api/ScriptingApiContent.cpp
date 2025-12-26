@@ -6246,10 +6246,11 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setBounds(va
 	if(r.failed())
 		reportScriptError(r.getErrorMessage());
 
-	componentData.setProperty(dyncomp::dcid::x, b.getX(), um);
-	componentData.setProperty(dyncomp::dcid::y, b.getY(), um);
-	componentData.setProperty(dyncomp::dcid::width, b.getWidth(), um);
-	componentData.setProperty(dyncomp::dcid::height, b.getHeight(), um);
+	// Cast to int to preserve integer format in XML (prevents "34.0" instead of "34")
+	componentData.setProperty(dyncomp::dcid::x, (int)b.getX(), um);
+	componentData.setProperty(dyncomp::dcid::y, (int)b.getY(), um);
+	componentData.setProperty(dyncomp::dcid::width, (int)b.getWidth(), um);
+	componentData.setProperty(dyncomp::dcid::height, (int)b.getHeight(), um);
 }
 
 var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getLocalBounds(int margin) const
