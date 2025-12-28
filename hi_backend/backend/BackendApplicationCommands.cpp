@@ -1837,6 +1837,8 @@ void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 
 			            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
 			            
+						XmlBackupFunctions::normalizePositionProperties(v);
+
 						auto xml = v.createXml();
 						
 						XmlBackupFunctions::removeEditorStatesFromXml(*xml);
@@ -1933,6 +1935,8 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
             v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
             
+			XmlBackupFunctions::normalizePositionProperties(v);
+
 			auto xml = v.createXml();
 
 			FullInstrumentExpansion::setNewDefault(bpe->owner, v);
@@ -3541,6 +3545,32 @@ void XmlBackupFunctions::removeAllScripts(XmlElement &xml)
 	for (int i = 0; i < xml.getNumChildElements(); i++)
 	{
 		removeAllScripts(*xml.getChildElement(i));
+	}
+}
+
+void XmlBackupFunctions::normalizePositionProperties(ValueTree& v)
+{
+	static const Identifier x("x");
+	static const Identifier y("y");
+	static const Identifier width("width");
+	static const Identifier height("height");
+
+	// Cast all position props to int to prevent "34.0" in XML
+	for (int i = 0; i < v.getNumProperties(); i++)
+	{
+		auto propName = v.getPropertyName(i);
+		if (propName == x || propName == y || propName == width || propName == height)
+		{
+			var propValue = v.getProperty(propName);
+			v.setProperty(propName, (int)propValue, nullptr);
+		}
+	}
+
+	// Recursively normalize child trees
+	for (int i = 0; i < v.getNumChildren(); i++)
+	{
+		auto child = v.getChild(i);
+		normalizePositionProperties(child);
 	}
 }
 
