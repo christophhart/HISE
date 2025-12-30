@@ -310,12 +310,13 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 	{
 	case TableEnvelopeState::ATTACK:
 	{
-		state->current_value = attackTable->getInterpolatedValue(state->uptime / (double)SAMPLE_LOOKUP_TABLE_SIZE, dontSendNotification);
-
 		state->uptime += attackUptimeDelta * state->attackModValue;
 
 		if ((int)state->uptime >= SAMPLE_LOOKUP_TABLE_SIZE)
 		{
+			// Very short attack times caused the sustain phase to use the wrong value
+			// This makes sure we use the last value of the table for the sustain phase
+			state->current_value = attackTable->getInterpolatedValue(1.0, dontSendNotification);
 			state->uptime = 0.0f;
 
 			if (!isMonophonic && attackTable->getLastValue() <= 0.01f)
@@ -327,6 +328,10 @@ float TableEnvelope::calculateNewValue(int voiceIndex)
 			{
 				state->current_state = TableEnvelopeState::SUSTAIN;
 			}
+		}
+		else
+		{
+			state->current_value = attackTable->getInterpolatedValue(state->uptime / (double)SAMPLE_LOOKUP_TABLE_SIZE, dontSendNotification);
 		}
 		break;
 	}
