@@ -37,6 +37,14 @@ bool LanguageManager::isLineCommented(TextDocument& document, Selection s) const
 
 void LanguageManager::toggleCommentForLine(TextEditor* editor, bool shouldBeCommented)
 {
+	auto& textDoc = editor->getTextDocument();
+	auto currentSelection = textDoc.getSelection(0);
+	int lineNumber = currentSelection.head.x;
+
+	// Skip empty lines (lines with only whitespace)
+	if (!textDoc.getLine(lineNumber).containsNonWhitespaceChars())
+		return;
+
 	if(shouldBeCommented)
 	{
         editor->insert("//");
