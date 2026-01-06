@@ -528,6 +528,9 @@ void PatchBrowser::paint(Graphics &g)
         
 		if (!c->hasVisibleItems()) continue;
 
+		// Skip drawing joining lines if parent is folded
+		if (c->isParentFolded()) continue;
+
         Processor *p = c->getProcessor();
 
 		if (p == nullptr) return;
@@ -1488,6 +1491,56 @@ void PatchBrowser::PatchCollection::paint(Graphics &g)
 	}
 }
 
+
+bool PatchBrowser::PatchCollection::isParentFolded() const
+{
+	auto* pb = findParentComponentOfClass<PatchBrowser>();
+	if (pb == nullptr)
+		return false;
+
+	const Processor* thisProcessor = getProcessor();
+	if (thisProcessor == nullptr)
+		return false;
+
+	// Check if any parent is folded
+	const Processor* currentParent = ProcessorHelpers::findParentProcessor(thisProcessor, true);
+
+	while (currentParent != nullptr)
+	{
+		// Check all Collections to see if any matches the current parent processor
+		int numCollections = pb->getNumCollections();
+		for (int i = 0; i < numCollections; i++)
+		{
+			auto* pc = dynamic_cast<PatchCollection*>(pb->getCollection(i));
+			if (pc == nullptr || pc == this)
+				continue;
+
+			// Check if this Collection represents the parent processor
+			if (pc->getProcessor() == currentParent)
+			{
+				if (pc->isFolded())
+					return true;
+				// otherwise, keep checking higher parents
+				break;
+			}
+		}
+
+		// Move up to next parent processor, until it's null
+		currentParent = ProcessorHelpers::findParentProcessor(currentParent, true);
+	}
+
+	return false;
+}
+
+int PatchBrowser::PatchCollection::getHeightForCollection() const
+{
+	// If a parent is folded, hide this Collection
+	if (isParentFolded())
+		return 0;
+
+	// Otherwise, use the base class implementation
+	return SearchableListComponent::Collection::getHeightForCollection();
+}
 
 void PatchBrowser::PatchCollection::refreshFoldButton()
 {

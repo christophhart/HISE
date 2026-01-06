@@ -410,6 +410,11 @@ private:
 		void resetDragState();
 		void toggleShowChains();
 
+		bool isParentFolded() const;
+
+		/** Override to hide Collection if parent is folded */
+		int getHeightForCollection() const override;
+
 		void setInPopup(bool isInPopup)
 		{
 			if (inPopup != isInPopup)
