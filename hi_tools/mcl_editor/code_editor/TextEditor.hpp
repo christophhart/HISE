@@ -597,6 +597,7 @@ private:
 	bool autocompleteEnabled = true;
     bool showAutocompleteAfterDelay = false;
     bool showStickyLines = true;
+    bool enableHorizontalScrollPastLineEnds = true;
 	
 	Selection currentClosure[2];
 

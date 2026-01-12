@@ -1155,7 +1155,7 @@ void TextEditor::scrollBarMoved(ScrollBar* scrollBarThatHasMoved, double newRang
 		if (translation.x == 0)
 			translation.x = gutter.getGutterWidth();
 
-		xPos = translation.x;
+		xPos = translation.x - gutter.getGutterWidth();
 	}
 
 	updateViewTransform();
@@ -1797,6 +1797,34 @@ void mcl::TextEditor::updateViewTransform()
 	if (translation.x > 0.0)
 		translation.x = thisGutterWidth;
 
+	// Clamp horizontal translation based on the setting
+	if (!linebreakEnabled)
+	{
+		// Calculate the maximum width of any single line
+		float maxLineWidth = 0.0f;
+		auto charWidth = document.getCharacterRectangle().getWidth();
+		for (int i = 0; i < document.getNumRows(); i++)
+		{
+			float lineWidth = (float)document.getNumColumns(i) * charWidth + TEXT_INDENT;
+			maxLineWidth = jmax(maxLineWidth, lineWidth);
+		}
+		float maxWidth = maxLineWidth * viewScaleFactor;
+		float visibleWidth = (float)(getWidth() - thisGutterWidth);
+
+		// When enabled, allow scrolling one viewport width past the longest line
+		// When disabled, only allow scrolling to the end of the longest line
+		float allowedMaxWidth = enableHorizontalScrollPastLineEnds
+			? maxWidth + visibleWidth
+			: maxWidth;
+
+		// Clamp translation.x so we can't scroll past the allowed limit
+		float minTranslationX = thisGutterWidth - jmax(0.0f, allowedMaxWidth - visibleWidth);
+		translation.x = jlimit(minTranslationX, (float)thisGutterWidth, translation.x);
+
+		// Update xPos to match the clamped translation
+		xPos = translation.x - thisGutterWidth;
+	}
+
 	closeAutocomplete(true, {}, {});
 
 	if(autofixButton != nullptr)
@@ -1820,7 +1848,23 @@ void mcl::TextEditor::updateViewTransform()
 	if (!linebreakEnabled)
 	{
 		ScopedValueSetter<bool> svs(scrollBarRecursion, true);
-		horizontalScrollBar.setRangeLimits({ b.getX(), b.getRight() });
+		// Calculate the maximum width of any single line
+		float maxLineWidth = 0.0f;
+		auto charWidth = document.getCharacterRectangle().getWidth();
+		for (int i = 0; i < document.getNumRows(); i++)
+		{
+			float lineWidth = (float)document.getNumColumns(i) * charWidth + TEXT_INDENT;
+			maxLineWidth = jmax(maxLineWidth, lineWidth);
+		}
+		
+		// When enabled, allow scrolling one viewport width past the longest line
+		// When disabled, only allow scrolling to the end of the longest line
+		float visibleWidth = (float)(getWidth() - gutter.getGutterWidth());
+		float maxRight = enableHorizontalScrollPastLineEnds 
+			? maxLineWidth + visibleWidth 
+			: maxLineWidth;
+		
+		horizontalScrollBar.setRangeLimits({ b.getX(), maxRight });
 		auto visibleRange = getLocalBounds().toFloat().transformed(transform.inverted());
 		horizontalScrollBar.setCurrentRange({ visibleRange.getX(), visibleRange.getRight() }, sendNotificationSync);
 	}
@@ -2316,6 +2360,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 			LineBreaks,
             AutoAutocomplete,
             ShowStickyLines,
+            EnableHorizontalScrollPastLineEnds,
 			BackgroundParsing,
             FixWeirdTab,
 			Preprocessor,
@@ -2348,6 +2393,7 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
 		menu.addItem(LineBreaks, "Enable line breaks", true, linebreakEnabled);
         menu.addItem(AutoAutocomplete, "Autoshow Autocomplete", true, showAutocompleteAfterDelay);
         menu.addItem(ShowStickyLines, "Show sticky lines on top", true, showStickyLines);
+        menu.addItem(EnableHorizontalScrollPastLineEnds, "Allow horizontal scroll past line ends", true, enableHorizontalScrollPastLineEnds);
         
 		menu.addSeparator();
 
@@ -2389,6 +2435,9 @@ void mcl::TextEditor::mouseDown (const MouseEvent& e)
                 break;
             case ShowStickyLines:
                 FullEditor::saveSetting(this, TextEditorSettings::ShowStickyLines, !showStickyLines);
+                break;
+            case EnableHorizontalScrollPastLineEnds:
+                FullEditor::saveSetting(this, TextEditorSettings::EnableHorizontalScrollPastLineEnds, !enableHorizontalScrollPastLineEnds);
                 break;
         }
 
@@ -2580,9 +2629,6 @@ void mcl::TextEditor::mouseWheelMove(const MouseEvent& e, const MouseWheelDetail
 			xPos = jmin(-gutter.getGutterWidth(), xPos);
 
 		xPos += vToUse * factors[1];
-
-		auto maxWidth = document.getBounds().getWidth() * viewScaleFactor;
-		xPos = jmax(xPos, -maxWidth);
 
 	}
 	

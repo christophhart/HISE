@@ -108,6 +108,7 @@ void FullEditor::loadSettings(const File& sFile)
 	editor.showAutocompleteAfterDelay = s.getProperty(TextEditorSettings::AutoAutocomplete, true);
     
     editor.showStickyLines = s.getProperty(TextEditorSettings::ShowStickyLines, true);
+    editor.enableHorizontalScrollPastLineEnds = s.getProperty(TextEditorSettings::EnableHorizontalScrollPastLineEnds, true);
 }
 
 void FullEditor::saveSetting(Component* c, const Identifier& id, const var& newValue)
@@ -141,6 +142,10 @@ void FullEditor::saveSetting(Component* c, const Identifier& id, const var& newV
     if (id == TextEditorSettings::ShowStickyLines)
     {
         pe->editor.showStickyLines = (bool)newValue;
+    }
+    if (id == TextEditorSettings::EnableHorizontalScrollPastLineEnds)
+    {
+        pe->editor.enableHorizontalScrollPastLineEnds = (bool)newValue;
     }
 	if (id == TextEditorSettings::LineBreaks)
 	{
