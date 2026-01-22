@@ -1097,7 +1097,11 @@ void HiSlider::ModUpdater::timerCallback()
 
 			if(lastValue != mv || shouldSmooth)
 			{
-				mv.lastModValue = lastModValue * 0.9 + thisModValue * 0.1;
+				auto smoothing = SLIDER_LASTMODVALUE_SMOOTHING_RATIO / 100.0;
+
+				mv.lastModValue = lastModValue * smoothing
+								+ thisModValue * (1.0 - smoothing);
+
 				mv.storeToComponent(parent);
 				lastValue = mv;
 			}

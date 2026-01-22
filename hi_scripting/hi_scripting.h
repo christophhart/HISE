@@ -126,6 +126,16 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #define HISE_USE_SCRIPT_RECTANGLE_OBJECT 0
 #endif
 
+/** Config: SLIDER_LASTMODVALUE_SMOOTHING_RATIO
+ *
+ *  The slider lastModValue smoothing 0-100%
+ *  0%   -> the instantenous new mod value (no smoothing)
+ *  100% -> no update at all, so you probably want to keep it lower...
+ */
+#ifndef SLIDER_LASTMODVALUE_SMOOTHING_RATIO
+#define SLIDER_LASTMODVALUE_SMOOTHING_RATIO 90
+#endif
+
 #define MAX_SCRIPT_HEIGHT 700
 
 #include "AppConfig.h"
