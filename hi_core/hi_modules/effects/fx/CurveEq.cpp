@@ -51,6 +51,9 @@ CurveEq::CurveEq(MainController *mc, const String &id) :
     
     fftBuffer->setActive(false);
 
+	parameterNames.add("MaxBands");
+	parameterDescriptions.add("The maximum number of filter bands that can be added (0 = unlimited).");
+
 	parameterNames.add("Gain");
 	parameterDescriptions.add("The gain in decibels if supported from the filter type.");
 
@@ -73,6 +76,19 @@ CurveEq::CurveEq(MainController *mc, const String &id) :
 float CurveEq::getAttribute(int index) const
 {
 	if(index == -1) return 0.0f;
+
+	// Handle global effect parameters
+	if (index < numEffectParameters)
+	{
+		switch (index)
+		{
+		case MaxBands: return (float)maxBands;
+		default:       return 0.0f;
+		}
+	}
+
+	// Handle band-specific parameters (offset by numEffectParameters)
+	index -= numEffectParameters;
 
 	const int filterIndex = index / BandParameter::numBandParameters;
 	const BandParameter parameter = (BandParameter)(index % BandParameter::numBandParameters);
@@ -107,6 +123,19 @@ float CurveEq::getAttribute(int index) const
 void CurveEq::setInternalAttribute(int index, float newValue)
 {
 	if (index == -1) return;
+
+	// Handle global effect parameters
+	if (index < numEffectParameters)
+	{
+		switch (index)
+		{
+		case MaxBands: maxBands = jmax(0, (int)newValue); return;
+		default:       return;
+		}
+	}
+
+	// Handle band-specific parameters (offset by numEffectParameters)
+	index -= numEffectParameters;
 
 	const int filterIndex = index / BandParameter::numBandParameters;
 	const BandParameter parameter = (BandParameter)(index % BandParameter::numBandParameters);

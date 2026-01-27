@@ -62,6 +62,7 @@ public:
 
 	enum Parameters
 	{
+		MaxBands = 0, ///< The maximum number of filter bands that can be added (0 = unlimited)
 		numEffectParameters
 	};
 
@@ -119,7 +120,7 @@ public:
 
 	int getParameterIndex(int filterIndex, int parameterType) const
 	{
-		return filterIndex * BandParameter::numBandParameters + parameterType;
+		return numEffectParameters + filterIndex * BandParameter::numBandParameters + parameterType;
 	}
 
 	float getAttribute(int index) const override;;
@@ -200,6 +201,10 @@ public:
 
 	void addFilterBand(double freq, double gain, int insertIndex=-1)
 	{
+		// Check if we've reached the maximum number of bands (0 = unlimited)
+		if (maxBands > 0 && filterBands.size() >= maxBands)
+			return;
+
 		ScopedLock sl(getMainController()->getLock());
 
 		StereoFilter *f = new StereoFilter();
@@ -264,11 +269,12 @@ public:
 	{
 		ValueTree v = MasterEffectProcessor::exportAsValueTree();
 
+		v.setProperty("MaxBands", maxBands, nullptr);
 		v.setProperty("NumFilters", filterBands.size(), nullptr);
 
 		for(int i = 0; i < filterBands.size() * BandParameter::numBandParameters; i++)
 		{
-			v.setProperty("Band" + String(i), getAttribute(i), nullptr);
+			v.setProperty("Band" + String(i), getAttribute(numEffectParameters + i), nullptr);
 		}
 
 		v.setProperty("FFTEnabled", fftBuffer->isActive(), nullptr);
@@ -281,6 +287,8 @@ public:
 		MasterEffectProcessor::restoreFromValueTree(v);
 
 		ScopedLock sl(getMainController()->getLock());
+
+		maxBands = v.getProperty("MaxBands", 0);
 
 		OwnedArray<StereoFilter> newFilters;
 		
@@ -304,7 +312,7 @@ public:
 		for(int i = 0; i < numFilters * BandParameter::numBandParameters; i++)
 		{
             const float value = v.getProperty("Band" + String(i), 0.0f);
-            setAttribute(i, value, dontSendNotification);
+            setAttribute(numEffectParameters + i, value, dontSendNotification);
 		}
 
 		enableSpectrumAnalyser(v.getProperty("FFTEnabled", false));
@@ -324,7 +332,7 @@ public:
 
 	int getNumChildProcessors() const override { return 0; };
 
-	int getNumAttributes() const override { return BandParameter::numBandParameters * filterBands.size(); }
+	int getNumAttributes() const override { return numEffectParameters + BandParameter::numBandParameters * filterBands.size(); }
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 
@@ -393,6 +401,8 @@ private:
 	OwnedArray<StereoFilter> filterBands;
 	
 	double lastSampleRate = 0.0;
+
+	int maxBands = 0; // 0 = unlimited
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(CurveEq);
 };
