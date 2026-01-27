@@ -328,6 +328,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 		GainRange,
 		PathType,
 		PathMargin,
+		MaxBands,
 		numSpecialProperties
 	};
 
@@ -353,6 +354,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::PathMargin, "PathMargin");
 		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::PathType, "PathType");
+		RETURN_DEFAULT_PROPERTY_ID(index, SpecialProperties::MaxBands, "MaxBands");
 
 		jassertfalse;
 		return {};
@@ -373,6 +375,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::PathMargin, var(3.0));
 		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::PathType, var("StrokeFullWidth"));
+		RETURN_DEFAULT_PROPERTY(index, SpecialProperties::MaxBands, var(0));
 
 		jassertfalse;
 
@@ -410,6 +413,9 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 			fd->setResetOnDoubleClick(rd);
 			fd->setAllowFilterResizing(r);
 			fd->setSpectrumVisibility((SpectrumVisibility)s);
+
+			auto mb = (int)getPropertyWithDefault(object, (int)SpecialProperties::MaxBands);
+			fd->setMaxBands(mb);
 		}
 	}
 
@@ -432,6 +438,7 @@ struct FilterDragOverlay::Panel : public PanelWithProcessorConnection
 
 			storePropertyInObject(obj, (int)SpecialProperties::GainRange, fd->gainRange);
 			storePropertyInObject(obj, (int)SpecialProperties::AllowContextMenu, fd->allowContextMenu);
+			storePropertyInObject(obj, (int)SpecialProperties::MaxBands, fd->getMaxBands());
 		}
 
 		return obj;
@@ -749,6 +756,14 @@ void FilterDragOverlay::setAllowFilterResizing(bool shouldBeAllowed)
 	allowFilterResizing = shouldBeAllowed;
 }
 
+bool FilterDragOverlay::canAddMoreBands() const
+{
+	if (maxBands <= 0)
+		return true; // 0 = unlimited
+
+	return filterStats->getNumFilterBands() < maxBands;
+}
+
 void FilterDragOverlay::setSpectrumVisibility(SpectrumVisibility m)
 {
 	fftVisibility = m;
@@ -949,7 +964,7 @@ void FilterDragOverlay::mouseDown(const MouseEvent &e)
 			popupMenuAction(result, -1);
 		}
 	}
-	else if (allowFilterResizing)
+	else if (allowFilterResizing && canAddMoreBands())
 	{
 		const double freq = (double)filterGraph.xToFreq((float)e.getPosition().x - offset);
 		const double gain = Decibels::decibelsToGain((double)getGain(e.getPosition().y - offset));
