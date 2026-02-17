@@ -1807,39 +1807,40 @@ void TableFloatingTileBase::paintRowBackground(Graphics& g, int rowNumber, int w
 {
 	using namespace simple_css;
 
-	auto& rootDialog = *CSSRootComponent::find(*this);
-
-	if(auto ss = rootDialog.css.getWithAllStates(this, (Selector(ElementType::TableRow))))
+	if(auto rootDialog = CSSRootComponent::find(*this))
 	{
-		Renderer r(nullptr, rootDialog.stateWatcher);
-
-		auto point = table.getMouseXYRelative();
-		auto hoverRow = table.getRowContainingPosition(point.getX(), point.getY());
-
-		int flags = 0;
-
-		if(rowNumber == hoverRow)
+		if(auto ss = rootDialog->css.getWithAllStates(this, (Selector(ElementType::TableRow))))
 		{
-			flags |= (int)PseudoClassType::Hover;
+			Renderer r(nullptr, rootDialog->stateWatcher);
 
-			if(isMouseButtonDownAnywhere())
+			auto point = table.getMouseXYRelative();
+			auto hoverRow = table.getRowContainingPosition(point.getX(), point.getY());
+
+			int flags = 0;
+
+			if(rowNumber == hoverRow)
 			{
-				flags |= (int)PseudoClassType::Active;
+				flags |= (int)PseudoClassType::Hover;
+
+				if(isMouseButtonDownAnywhere())
+				{
+					flags |= (int)PseudoClassType::Active;
+				}
 			}
+
+			if(rowIsSelected)
+				flags |= (int)PseudoClassType::Focus;
+
+			r.setPseudoClassState(flags);
+			r.drawBackground(g, {0.0f, 0.0f, (float)width, (float)height}, ss);
+
+			return;
 		}
-
-		if(rowIsSelected)
-			flags |= (int)PseudoClassType::Focus;
-
-		r.setPseudoClassState(flags);
-		r.drawBackground(g, {0.0f, 0.0f, (float)width, (float)height}, ss);
 	}
-	else
+
+	if (rowIsSelected)
 	{
-		if (rowIsSelected)
-		{
-			g.fillAll(Colours::white.withAlpha(0.2f));
-		}
+		g.fillAll(Colours::white.withAlpha(0.2f));
 	}
 	
 }
@@ -2035,14 +2036,15 @@ Component* TableFloatingTileBase::refreshComponentForCell(int rowNumber, int col
 		{
 			slider = new ValueSliderColumn(*this);
 
-			auto& root = *simple_css::CSSRootComponent::find(*this);
-
-			if(auto ss = root.css.getWithAllStates(this, simple_css::Selector(".range-slider")))
+			if(auto root = simple_css::CSSRootComponent::find(*this))
 			{
-				simple_css::FlexboxComponent::Helpers::writeClassSelectors(*slider->slider, { simple_css::Selector(".range-slider")}, true);
-				slider->slider->setLookAndFeel(css_laf.get());
-				slider->slider->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
-				slider->slider->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
+				if(auto ss = root->css.getWithAllStates(this, simple_css::Selector(".range-slider")))
+				{
+					simple_css::FlexboxComponent::Helpers::writeClassSelectors(*slider->slider, { simple_css::Selector(".range-slider")}, true);
+					slider->slider->setLookAndFeel(css_laf.get());
+					slider->slider->setColour(Slider::textBoxOutlineColourId, Colours::transparentBlack);
+					slider->slider->setTextBoxStyle(Slider::NoTextBox, false, 0, 0);
+				}
 			}
 		}
 		
@@ -2074,11 +2076,12 @@ Component* TableFloatingTileBase::refreshComponentForCell(int rowNumber, int col
 		if (b == nullptr)
 			b = new InvertedButton(*this);
 
-		auto& root = *simple_css::CSSRootComponent::find(*this);
-
-		if(css_laf != nullptr && root.css.getWithAllStates(this, simple_css::Selector("button")))
+		if(auto root = simple_css::CSSRootComponent::find(*this))
 		{
-			b->t->setLookAndFeel(css_laf.get());
+			if(css_laf != nullptr && root->css.getWithAllStates(this, simple_css::Selector("button")))
+			{
+				b->t->setLookAndFeel(css_laf.get());
+			}
 		}
 		
 		b->t->setColour(TextButton::buttonOnColourId, itemColour1);
@@ -2102,29 +2105,31 @@ void TableFloatingTileBase::paintCell(Graphics& g, int rowNumber, int columnId, 
 {
 	using namespace simple_css;
 
-	auto& rootDialog = *CSSRootComponent::find(*this);
 	auto text = getCellText(rowNumber, columnId);
 
-	if(auto ss = rootDialog.css.getWithAllStates(this, Selector(ElementType::TableCell)))
+	if(auto rootDialog = CSSRootComponent::find(*this))
 	{
-		Renderer r(nullptr, rootDialog.stateWatcher);
-		auto state = r.getPseudoClassFromComponent(this);
+		if(auto ss = rootDialog->css.getWithAllStates(this, Selector(ElementType::TableCell)))
+		{
+			Renderer r(nullptr, rootDialog->stateWatcher);
+			auto state = r.getPseudoClassFromComponent(this);
                 
-		if(rowIsSelected)
-			state |= (int)PseudoClassType::Focus;
+			if(rowIsSelected)
+				state |= (int)PseudoClassType::Focus;
 
-		Rectangle<float> b(0.0, 0.0, (float)width, (float)height);
+			Rectangle<float> b(0.0, 0.0, (float)width, (float)height);
 
-		r.setPseudoClassState(state);
-		r.drawBackground(g, b, ss);
-		r.renderText(g, b, text, ss);
+			r.setPseudoClassState(state);
+			r.drawBackground(g, b, ss);
+			r.renderText(g, b, text, ss);
+
+			return;
+		}
 	}
-	else
-	{
-		g.setColour(textColour);
-		g.setFont(font);
-		g.drawText(text, 2, 0, width - 4, height, Justification::centredLeft, true);
-	}
+
+	g.setColour(textColour);
+	g.setFont(font);
+	g.drawText(text, 2, 0, width - 4, height, Justification::centredLeft, true);
 }
 
 } // namespace hise
