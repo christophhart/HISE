@@ -182,6 +182,14 @@ var ApiHelpers::convertStyleSheetProperty(const var& value, const String& type)
 	{
 		return var(String("#") + ApiHelpers::getColourFromVar(value).toDisplayString(true));
 	}
+	else if(type == "%")
+	{
+		return var(String((double)value * 100.0) + "%");
+	}
+	else if(type == "px" || type == "em" || type == "vh" || type == "deg")
+	{
+		return var(String((double)value) + type);
+	}
 
 	return value;
 }
