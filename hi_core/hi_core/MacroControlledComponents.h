@@ -943,6 +943,8 @@ public:
 			currentHoverPopup->setVisible(isVisible());
 	}
 
+	void parentHierarchyChanged() override;
+
     void itemDragExit (const SourceDetails& d) override
 	{
 		if(isInterestedInDragSource(d))
