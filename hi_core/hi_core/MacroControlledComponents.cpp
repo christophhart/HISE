@@ -1079,7 +1079,7 @@ HiSlider::HoverPopupLookandFeel& HiSlider::getHoverPopupLookAndFeel()
 
 	return fallback;
 }
-
+/*
 void HiSlider::ModUpdater::timerCallback()
 {
 	if(modFunction != nullptr)
@@ -1103,9 +1103,46 @@ void HiSlider::ModUpdater::timerCallback()
 			}
 		}
 	}
+}*/
+
+void HiSlider::ModUpdater::timerCallback()
+{
+    if(modFunction != nullptr)
+    {
+        if(auto p = parent.getProcessor())
+        {
+            auto nr = parent.getRange();
+            auto mv = modFunction->getDisplayValue(p, parent.getValue(), nr, currentExlusiveIndex);
+            
+            // Populate new ranges
+            mv.selectedSourceRange = (currentExlusiveIndex >= 0) ? mv.modulationRange : Range<double>();
+            
+            // Get accumulated range by calling with -1 if we're in exclusive mode
+            // Get accumulated live value
+            if(currentExlusiveIndex >= 0)
+            {
+                auto accMv = modFunction->getDisplayValue(p, parent.getValue(), nr, -1);
+                mv.accumulatedSourceRange = accMv.modulationRange;
+                mv.accumulatedLiveValue = accMv.scaledValue + accMv.addValue;
+            }
+            else
+            {
+                mv.accumulatedSourceRange = mv.modulationRange;
+                mv.accumulatedLiveValue = mv.scaledValue + mv.addValue;
+            }
+            
+            auto lastModValue = lastValue.lastModValue;
+            auto thisModValue = mv.getNormalisedModulationValue();
+            auto shouldSmooth = std::abs(lastModValue - thisModValue) > JUCE_LIVE_CONSTANT(0.01);
+            if(lastValue != mv || shouldSmooth)
+            {
+                mv.lastModValue = lastModValue * 0.9 + thisModValue * 0.1;
+                mv.storeToComponent(parent);
+                lastValue = mv;
+            }
+        }
+    }
 }
-
-
 
 bool HiSlider::ModUpdater::canBeDropped(const var& info) const
 {
@@ -1295,8 +1332,6 @@ struct HiSlider::HoverPopup: public Component,
 
 		if(!labelArea.isEmpty())
 			labelArea = labelArea.transformed(translationToOrigin);
-
-		
 
 		gc = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(slider.getProcessor()->getMainController()->getMainSynthChain());
 
@@ -1782,28 +1817,33 @@ struct HiSlider::HoverPopup: public Component,
 
 void HiSlider::ModUpdater::onExclusiveSourceSelection(ModUpdater& mu, int index)
 {
-	auto& slider = mu.parent;
-	auto matrixData = MatrixIds::Helpers::getMatrixDataFromGlobalContainer(slider.getProcessor()->getMainController());
-	auto targetId = slider.getProcessor()->getModulationTargetId(slider.getParameter());
-	auto hasConnection = MatrixIds::Helpers::getConnection(matrixData, index, targetId).isValid();
+    auto& slider = mu.parent;
 
-	if (hasConnection)
-	{
-		mu.currentExlusiveIndex = index;
-		Array<int> connectedSources;
-		connectedSources.add(index);
-		StringArray allSources, sourceList;
-		MatrixIds::Helpers::fillModSourceList(slider.getProcessor()->getMainController(), allSources);
-		sourceList.add(allSources[index]);
+    // Guard: don't rebuild hover popup if component isn't visible yet
+    if(!slider.isShowing())
+        return;
 
-		if (auto pd = slider.getHoverPopupLookAndFeel().getModulatorDragData(slider, sourceList))
-			slider.currentHoverPopup = new HoverPopup(slider, matrixData, targetId, connectedSources, sourceList, pd, true);
-	}
-	else
-	{
-		mu.currentExlusiveIndex = -1;
-		slider.currentHoverPopup = nullptr;
-	}
+    auto matrixData = MatrixIds::Helpers::getMatrixDataFromGlobalContainer(slider.getProcessor()->getMainController());
+    auto targetId = slider.getProcessor()->getModulationTargetId(slider.getParameter());
+    auto hasConnection = MatrixIds::Helpers::getConnection(matrixData, index, targetId).isValid();
+
+    if (hasConnection)
+    {
+        mu.currentExlusiveIndex = index;
+        Array<int> connectedSources;
+        connectedSources.add(index);
+        StringArray allSources, sourceList;
+        MatrixIds::Helpers::fillModSourceList(slider.getProcessor()->getMainController(), allSources);
+        sourceList.add(allSources[index]);
+
+        if (auto pd = slider.getHoverPopupLookAndFeel().getModulatorDragData(slider, sourceList))
+            slider.currentHoverPopup = new HoverPopup(slider, matrixData, targetId, connectedSources, sourceList, pd, true);
+    }
+    else
+    {
+        mu.currentExlusiveIndex = -1;
+        slider.currentHoverPopup = nullptr;
+    }
 }
 
 void HiSlider::ModUpdater::setUpdateFunction(const ModulationDisplayValue::QueryFunction::Ptr f)

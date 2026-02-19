@@ -22,7 +22,30 @@
 
 // [END_USER_CODE_SECTION]
 
-#define JUCE_PROJUCER_VERSION 0x8000c
+/*
+  ==============================================================================
+
+   In accordance with the terms of the JUCE 6 End-Use License Agreement, the
+   JUCE Code in SECTION A cannot be removed, changed or otherwise rendered
+   ineffective unless you have a JUCE Indie or Pro license, or are using JUCE
+   under the GPL v3 license.
+
+   End User License Agreement: www.juce.com/juce-6-licence
+
+  ==============================================================================
+*/
+
+// BEGIN SECTION A
+
+#ifndef JUCE_DISPLAY_SPLASH_SCREEN
+ #define JUCE_DISPLAY_SPLASH_SCREEN 0
+#endif
+
+// END SECTION A
+
+#define JUCE_USE_DARK_SPLASH_SCREEN 1
+
+#define JUCE_PROJUCER_VERSION 0x60104
 
 //==============================================================================
 #define JUCE_MODULE_AVAILABLE_hi_backend                          1
@@ -132,7 +155,7 @@
 #endif
 
 #ifndef    FORCE_INPUT_CHANNELS
- //#define FORCE_INPUT_CHANNELS 1
+ //#define FORCE_INPUT_CHANNELS 0
 #endif
 
 #ifndef    HI_DONT_SEND_ATTRIBUTE_UPDATES
@@ -452,16 +475,8 @@
  //#define JUCE_USE_WINRT_MIDI 0
 #endif
 
-#ifndef    JUCE_USE_WINDOWS_MIDI_SERVICES
- //#define JUCE_USE_WINDOWS_MIDI_SERVICES 0
-#endif
-
 #ifndef    JUCE_ASIO
  #define   JUCE_ASIO 1
-#endif
-
-#ifndef    JUCE_ASIO_USE_EXTERNAL_SDK
- //#define JUCE_ASIO_USE_EXTERNAL_SDK 0
 #endif
 
 #ifndef    JUCE_WASAPI
@@ -478,6 +493,10 @@
 
 #ifndef    JUCE_JACK
  #define   JUCE_JACK 1
+#endif
+
+#ifndef    JUCE_BELA
+ //#define JUCE_BELA 0
 #endif
 
 #ifndef    JUCE_USE_ANDROID_OBOE
@@ -520,7 +539,7 @@
 #endif
 
 //==============================================================================
-// juce_audio_processors_headless flags:
+// juce_audio_processors flags:
 
 #ifndef    JUCE_PLUGINHOST_VST
  //#define JUCE_PLUGINHOST_VST 0
@@ -538,16 +557,15 @@
  //#define JUCE_PLUGINHOST_LADSPA 0
 #endif
 
-#ifndef    JUCE_PLUGINHOST_LV2
- //#define JUCE_PLUGINHOST_LV2 0
-#endif
-
-#ifndef    JUCE_PLUGINHOST_ARA
- //#define JUCE_PLUGINHOST_ARA 0
-#endif
-
 #ifndef    JUCE_CUSTOM_VST3_SDK
  //#define JUCE_CUSTOM_VST3_SDK 0
+#endif
+
+//==============================================================================
+// juce_audio_processors_headless flags:
+
+#ifndef    JUCE_RANDOM_SETTING_2000
+ //#define JUCE_RANDOM_SETTING_2000 0
 #endif
 
 //==============================================================================
@@ -649,6 +667,10 @@
  //#define JUCE_USE_COREIMAGE_LOADER 1
 #endif
 
+#ifndef    JUCE_USE_DIRECTWRITE
+ #define   JUCE_USE_DIRECTWRITE 1
+#endif
+
 #ifndef    JUCE_DISABLE_COREGRAPHICS_FONT_SMOOTHING
  //#define JUCE_DISABLE_COREGRAPHICS_FONT_SMOOTHING 0
 #endif
@@ -689,10 +711,6 @@
 
 #ifndef    JUCE_WEB_BROWSER
  //#define JUCE_WEB_BROWSER 1
-#endif
-
-#ifndef    JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING
- //#define JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING 0
 #endif
 
 #ifndef    JUCE_USE_WIN_WEBVIEW2

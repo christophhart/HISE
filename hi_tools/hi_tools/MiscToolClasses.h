@@ -2844,6 +2844,8 @@ struct ModulationDisplayValue
 			   addValue == other.addValue &&
 			   modulationActive == other.modulationActive &&
 			   modulationRange == other.modulationRange;
+               selectedSourceRange == other.selectedSourceRange &&     // NEW
+               accumulatedSourceRange == other.accumulatedSourceRange; // NEW
 	}
 
 	bool operator!=(const ModulationDisplayValue& other) const
@@ -2856,29 +2858,44 @@ struct ModulationDisplayValue
 	double scaledValue = 1.0;
 	double addValue = 0.0;
 	Range<double> modulationRange;
+    Range<double> selectedSourceRange;      // NEW
+    Range<double> accumulatedSourceRange;   // NEW
 	bool modulationActive = false;
 	double lastModValue = 0.0;
+    double accumulatedLiveValue = 0.0;
 
 private:
 
-	static ModulationDisplayValue fromNamedValueSet(const NamedValueSet& set)
-	{
-		ModulationDisplayValue v;
-		v.scaledValue = set["scaledValue"];
-		v.normalisedValue = set["valueNormalized"];
-		v.addValue = set["addValue"];
-		v.modulationActive = set["modulationActive"];
-		v.lastModValue = set["lastModValue"];
+    static ModulationDisplayValue fromNamedValueSet(const NamedValueSet& set)
+    {
+        ModulationDisplayValue v;
+        v.scaledValue = set["scaledValue"];
+        v.normalisedValue = set["valueNormalized"];
+        v.addValue = set["addValue"];
+        v.modulationActive = set["modulationActive"];
+        v.lastModValue = set["lastModValue"];
 
-		auto minv = (float)set["modMinValue"];
-		auto maxv = (float)set["modMaxValue"];
+        auto minv = (float)set["modMinValue"];
+        auto maxv = (float)set["modMaxValue"];
+        minv = jlimit(0.0f, 1.0f, FloatSanitizers::sanitizeFloatNumber(minv));
+        maxv = jlimit(0.0f, 1.0f, FloatSanitizers::sanitizeFloatNumber(maxv));
+        v.modulationRange = { minv, maxv };
 
-		minv = jlimit(0.0f, 1.0f, FloatSanitizers::sanitizeFloatNumber(minv));
-		maxv = jlimit(0.0f, 1.0f, FloatSanitizers::sanitizeFloatNumber(maxv));
-		v.modulationRange = { minv, maxv };
+        auto selMinV = (float)set["modSelectedMinValue"];
+        auto selMaxV = (float)set["modSelectedMaxValue"];
+        selMinV = jlimit(0.0f, 1.0f, FloatSanitizers::sanitizeFloatNumber(selMinV));
+        selMaxV = jlimit(0.0f, 1.0f, FloatSanitizers::sanitizeFloatNumber(selMaxV));
+        v.selectedSourceRange = { selMinV, selMaxV };
 
-		return v;
-	}
+        auto accMinV = (float)set["modAccumulatedMinValue"];
+        auto accMaxV = (float)set["modAccumulatedMaxValue"];
+        accMinV = jlimit(0.0f, 1.0f, FloatSanitizers::sanitizeFloatNumber(accMinV));
+        accMaxV = jlimit(0.0f, 1.0f, FloatSanitizers::sanitizeFloatNumber(accMaxV));
+        v.accumulatedSourceRange = { accMinV, accMaxV };
+        v.accumulatedLiveValue = set["modAccumulatedLiveValue"];
+
+        return v;
+    }
 
 	void store(NamedValueSet& set) const
 	{
@@ -2888,7 +2905,12 @@ private:
 		set.set("modulationActive", modulationActive);
 		set.set("modMinValue", modulationRange.getStart());
 		set.set("modMaxValue", modulationRange.getEnd());
+        set.set("modSelectedMinValue", selectedSourceRange.getStart());   // NEW
+        set.set("modSelectedMaxValue", selectedSourceRange.getEnd());     // NEW
+        set.set("modAccumulatedMinValue", accumulatedSourceRange.getStart()); // NEW
+        set.set("modAccumulatedMaxValue", accumulatedSourceRange.getEnd());   // NEW
 		set.set("lastModValue", lastModValue);
+        set.set("modAccumulatedLiveValue", accumulatedLiveValue);   // NEW
 	}
 };
 
