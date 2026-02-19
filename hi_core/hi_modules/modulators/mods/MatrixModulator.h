@@ -190,6 +190,7 @@ private:
 	void rebuildModList();
 	void onMatrixChange(const ValueTree& v, bool wasAdded);
 	void onModeChange(const ValueTree& v, const Identifier& id);
+	void onTargetChange(const ValueTree& v, const Identifier& id);
 	static double getModeValue(const var& v);
 	void init();
 
@@ -211,6 +212,7 @@ private:
 	ValueTree globalMatrixData;
 	valuetree::ChildListener connectionWatcher;
 	valuetree::RecursivePropertyListener modeWatcher;
+	valuetree::RecursivePropertyListener targetWatcher;
 
 	valuetree::PropertyListener inputRangeWatcher;
 	valuetree::PropertyListener outputRangeWatcher;

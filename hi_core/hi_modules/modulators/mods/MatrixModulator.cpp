@@ -811,6 +811,27 @@ void MatrixModulator::onModeChange(const ValueTree& v, const Identifier& id)
 	}
 }
 
+void MatrixModulator::onTargetChange(const ValueTree& v, const Identifier& id)
+{
+	auto matches = MatrixIds::Helpers::matchesTarget(v, getMatrixTargetId());
+
+	bool hadItem = false;
+
+	for(auto i: items)
+	{
+		if(i->watcher.isRegisteredTo(v))
+		{
+			hadItem = true;
+			break;
+		}
+	}
+
+	if(matches && !hadItem)
+		onMatrixChange(v, true);
+	else if(!matches && hadItem)
+		onMatrixChange(v, false);
+}
+
 double MatrixModulator::getModeValue(const var& v)
 {
 	return (double)v;
@@ -848,6 +869,11 @@ void MatrixModulator::init()
 		                        { MatrixIds::SourceIndex, MatrixIds::Mode },
 		                        valuetree::AsyncMode::Synchronously,
 		                        BIND_MEMBER_FUNCTION_2(MatrixModulator::onModeChange));
+
+		targetWatcher.setCallback(globalMatrixData,
+		                          { MatrixIds::TargetId },
+		                          valuetree::AsyncMode::Synchronously,
+		                          BIND_MEMBER_FUNCTION_2(MatrixModulator::onTargetChange));
 
 		container->matrixProperties.propertyUpdateBroadcaster.addListener(*this, [](MatrixModulator& mm, MatrixIds::Helpers::Properties* p, const String& changedTarget)
 		{
