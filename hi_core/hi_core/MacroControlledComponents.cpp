@@ -1107,41 +1107,42 @@ void HiSlider::ModUpdater::timerCallback()
 
 void HiSlider::ModUpdater::timerCallback()
 {
-    if(modFunction != nullptr)
-    {
-        if(auto p = parent.getProcessor())
-        {
-            auto nr = parent.getRange();
-            auto mv = modFunction->getDisplayValue(p, parent.getValue(), nr, currentExlusiveIndex);
-            
-            // Populate new ranges
-            mv.selectedSourceRange = (currentExlusiveIndex >= 0) ? mv.modulationRange : Range<double>();
-            
-            // Get accumulated range by calling with -1 if we're in exclusive mode
-            // Get accumulated live value
-            if(currentExlusiveIndex >= 0)
-            {
-                auto accMv = modFunction->getDisplayValue(p, parent.getValue(), nr, -1);
-                mv.accumulatedSourceRange = accMv.modulationRange;
-                mv.accumulatedLiveValue = accMv.scaledValue + accMv.addValue;
-            }
-            else
-            {
-                mv.accumulatedSourceRange = mv.modulationRange;
-                mv.accumulatedLiveValue = mv.scaledValue + mv.addValue;
-            }
-            
-            auto lastModValue = lastValue.lastModValue;
-            auto thisModValue = mv.getNormalisedModulationValue();
-            auto shouldSmooth = std::abs(lastModValue - thisModValue) > JUCE_LIVE_CONSTANT(0.01);
-            if(lastValue != mv || shouldSmooth)
-            {
-                mv.lastModValue = lastModValue * 0.9 + thisModValue * 0.1;
-                mv.storeToComponent(parent);
-                lastValue = mv;
-            }
-        }
-    }
+	if(modFunction != nullptr)
+	{
+		if(auto p = parent.getProcessor())
+		{
+			auto nr = parent.getRange();
+
+			auto mv = modFunction->getDisplayValue(p, parent.getValue(), nr, currentExlusiveIndex);
+
+			if(currentExlusiveIndex >= 0)
+			{
+				mv.selectedSourceRange = mv.modulationRange;
+
+				auto accMv = modFunction->getDisplayValue(p, parent.getValue(), nr, -1);
+				mv.accumulatedSourceRange = accMv.modulationRange;
+				mv.accumulatedLiveValue = accMv.scaledValue + accMv.addValue;
+			}
+			else
+			{
+				mv.selectedSourceRange = Range<double>();
+				mv.accumulatedSourceRange = mv.modulationRange;
+				mv.accumulatedLiveValue = mv.scaledValue + mv.addValue;
+			}
+
+			auto lastModValue = lastValue.lastModValue;
+			auto thisModValue = mv.getNormalisedModulationValue();
+
+			auto shouldSmooth = std::abs(lastModValue - thisModValue) > JUCE_LIVE_CONSTANT(0.01);
+
+			if(lastValue != mv || shouldSmooth)
+			{
+				mv.lastModValue = lastModValue * 0.9 + thisModValue * 0.1;
+				mv.storeToComponent(parent);
+				lastValue = mv;
+			}
+		}
+	}
 }
 
 bool HiSlider::ModUpdater::canBeDropped(const var& info) const
