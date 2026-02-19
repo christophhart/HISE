@@ -3128,6 +3128,10 @@ public:
 
 	void beginInitialization();
 
+#if USE_BACKEND
+	void validatePluginParameterGroupNames();
+#endif
+
 	ValueTree exportAsValueTree() const override;
 	void restoreFromValueTree(const ValueTree &v) override;
 
