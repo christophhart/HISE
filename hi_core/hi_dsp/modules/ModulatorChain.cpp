@@ -1216,7 +1216,8 @@ float ModulatorChain::ModChainWithBuffer::getModValueForVoiceWithOffset(int star
 
 float ModulatorChain::ModChainWithBuffer::getOneModulationValue(int startSample) const
 {
-	if(numActiveVoices == 0)
+	// Skip modulation only when no voices are active AND no data was calculated.
+	if(numActiveVoices == 0 && currentVoiceData == nullptr)
 	{
 		ModIterator<Modulator> iter(c);
 
