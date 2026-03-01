@@ -544,6 +544,34 @@ void PresetHandler::copyProcessorToClipboard(Processor *p)
 
 void* PresetHandler::currentController = nullptr;
 
+static void applyAlertWindowMargin(AlertWindow* window, LookAndFeel* laf)
+{
+	if (auto alertLaf = dynamic_cast<AlertWindowLookAndFeel*>(laf))
+	{
+		int margin = alertLaf->getAlertWindowMargin();
+
+		if (margin > 0)
+		{
+			// Save current child positions before resize triggers updateLayout
+			struct ChildPos { Component* comp; int x, y; };
+			Array<ChildPos> positions;
+
+			for (int i = 0; i < window->getNumChildComponents(); i++)
+			{
+				auto* child = window->getChildComponent(i);
+				positions.add({ child, child->getX(), child->getY() });
+			}
+
+			window->setSize(window->getWidth() + margin * 2,
+			                window->getHeight() + margin * 2);
+
+			// Restore original positions offset by the margin
+			for (auto& p : positions)
+				p.comp->setTopLeftPosition(p.x + margin, p.y + margin);
+		}
+	}
+}
+
 String PresetHandler::getCustomName(const String &typeName, const String& thisMessage/*=String()*/)
 {
 	String message;
@@ -568,7 +596,7 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 
     ScopedPointer<AlertWindow> nameWindow = new AlertWindow(useCustomMessage ? ("Enter " + typeName) : ("Enter name for " + typeName), "", AlertWindow::AlertIconType::NoIcon);
 
-
+	nameWindow->setOpaque(false);
 	nameWindow->setLookAndFeel(laf);
 
 	nameWindow->addCustomComponent(comp);
@@ -589,9 +617,11 @@ String PresetHandler::getCustomName(const String &typeName, const String& thisMe
 	nameWindow->getTextEditor("Name")->setSelectAllWhenFocused(true);
 	nameWindow->getTextEditor("Name")->grabKeyboardFocusAsync();
 
+	applyAlertWindowMargin(nameWindow, laf);
+
 	if(nameWindow->runModalLoop()) return nameWindow->getTextEditorContents("Name");
 	else return String();
-    
+
 };
 
 bool PresetHandler::showYesNoWindow(const String &title, const String &message, PresetHandler::IconType type)
@@ -620,14 +650,17 @@ bool PresetHandler::showYesNoWindow(const String &title, const String &message, 
 	
 	ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
 
+	nameWindow->setOpaque(false);
 	nameWindow->setLookAndFeel(laf);
 	nameWindow->addCustomComponent(comp);
-	
+
 	nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
 	nameWindow->addButton("Cancel", 0, KeyPress(KeyPress::escapeKey));
 
+	applyAlertWindowMargin(nameWindow, laf);
+
 	return (nameWindow->runModalLoop() == 1);
-    
+
 #endif
 };
 
@@ -667,9 +700,12 @@ void PresetHandler::showMessageWindow(const String &title, const String &message
 		ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, laf, message);
 		ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
 
+		nameWindow->setOpaque(false);
 		nameWindow->setLookAndFeel(laf);
 		nameWindow->addCustomComponent(comp);
 		nameWindow->addButton("OK", 1, KeyPress(KeyPress::returnKey));
+
+		applyAlertWindowMargin(nameWindow, laf);
 
 		nameWindow->runModalLoop();
 #endif

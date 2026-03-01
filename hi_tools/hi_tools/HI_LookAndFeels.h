@@ -511,6 +511,9 @@ public:
 
 	void drawAlertBox (Graphics &g, AlertWindow &alert, const Rectangle< int > &textArea, juce::TextLayout &textLayout) override;;
 
+	/** Override this to add extra margin around the alert window for custom drop shadows. */
+	virtual int getAlertWindowMargin() { return 0; }
+
 	Colour dark, bright, special;
 };
 
