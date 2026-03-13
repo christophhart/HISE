@@ -234,6 +234,8 @@ public:
 		HardSync, ///< **Off** ... On | Syncs the second oscillator to the first
 		SemiTones1, ///< -12 ... **0** ... 12 | The semitone transpose amount for the first Oscillator.
 		SemiTones2, ///< -12 ... **0** ... 12 | The semitone transpose amount for the second Oscillator.
+		StartPhase1, ///< 0% ... **0%** ... 100% | The initial phase offset for the first oscillator.
+		StartPhase2, ///< 0% ... **0%** ... 100% | The initial phase offset for the second oscillator.
 		numWaveSynthParameters
 	};
 
@@ -292,6 +294,11 @@ public:
 		return mb.getConstantModulationValue();
 	}
 
+	float getStartPhaseValue(bool getLeftValue) const noexcept
+	{
+		return getLeftValue ? startPhase1 : startPhase2;
+	}
+
 	bool isHardSyncEnabled() const { return hardSync; }
 
 	float* getMixModulationValues(int startSample)
@@ -345,6 +352,8 @@ private:
 	float detune1, detune2;
 
 	double pulseWidth1, pulseWidth2;
+
+	float startPhase1, startPhase2;
 
 	bool hardSync = false;
 

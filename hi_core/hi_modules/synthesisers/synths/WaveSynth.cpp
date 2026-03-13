@@ -50,6 +50,8 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	mix(getDefaultValue(Mix)),
 	pulseWidth1(getDefaultValue(PulseWidth1)),
 	pulseWidth2(getDefaultValue(PulseWidth2)),
+	startPhase1(getDefaultValue(StartPhase1)),
+	startPhase2(getDefaultValue(StartPhase2)),
 	waveForm1(WaveformComponent::Saw),
 	waveForm2(WaveformComponent::Saw),
     tempBuffer(2, 0)
@@ -86,6 +88,8 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	parameterNames.add("HardSync");
     parameterNames.add("SemiTones1");
     parameterNames.add("SemiTones2");
+	parameterNames.add("StartPhase1");
+	parameterNames.add("StartPhase2");
 
 	updateParameterSlots();
 
@@ -120,6 +124,8 @@ void WaveSynth::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(PulseWidth1, "PulseWidth1");
 	loadAttribute(PulseWidth2, "PulseWidth2");
 	loadAttribute(HardSync, "HardSync");
+	loadAttribute(StartPhase1, "StartPhase1");
+	loadAttribute(StartPhase2, "StartPhase2");
 }
 
 ValueTree WaveSynth::exportAsValueTree() const
@@ -141,6 +147,8 @@ ValueTree WaveSynth::exportAsValueTree() const
 	saveAttribute(PulseWidth1, "PulseWidth1");
 	saveAttribute(PulseWidth2, "PulseWidth2");
 	saveAttribute(HardSync, "HardSync");
+	saveAttribute(StartPhase1, "StartPhase1");
+	saveAttribute(StartPhase2, "StartPhase2");
 
 	return v;
 }
@@ -197,6 +205,8 @@ float WaveSynth::getDefaultValue(int parameterIndex) const
 	case EnableSecondOscillator: return 1.0f;
 	case PulseWidth1:			return 0.5f;
 	case PulseWidth2:			return 0.5f;
+	case StartPhase1:			return 0.0f;
+	case StartPhase2:			return 0.0f;
 	default:					jassertfalse; return -1.0f;
 	}
 }
@@ -255,6 +265,8 @@ float WaveSynth::getAttribute(int parameterIndex) const
 	case PulseWidth1:			return (float)pulseWidth1;
 	case PulseWidth2:			return (float)pulseWidth2;
 	case HardSync:				return hardSync ? 1.0f : 0.0f;
+	case StartPhase1:			return startPhase1;
+	case StartPhase2:			return startPhase2;
 	default:					jassertfalse; return -1.0f;
 	}
 }
@@ -303,6 +315,8 @@ void WaveSynth::setInternalAttribute(int parameterIndex, float newValue)
 	case PulseWidth1:			pulseWidth1 = jlimit<float>(0.0f, 1.0f, newValue); refreshPulseWidth(true); break;
 	case PulseWidth2:			pulseWidth2 = jlimit<float>(0.0f, 1.0f, newValue); refreshPulseWidth(false); break;
 	case HardSync:				hardSync = newValue > 0.5f; break;
+	case StartPhase1:			startPhase1 = jlimit<float>(0.0f, 1.0f, newValue); break;
+	case StartPhase2:			startPhase2 = jlimit<float>(0.0f, 1.0f, newValue); break;
 	default:					jassertfalse;
 		break;
 	}
@@ -410,10 +424,36 @@ void WaveSynthVoice::startNote(int midiNoteNumber, float /*velocity*/, Synthesis
 	if(enableSecondOsc)
 		rightGenerator.setFrequency(cyclesPerSecond * octaveTransposeFactor2);
 
-	leftGenerator.setStartOffset((double)getCurrentHiseEvent().getStartOffset());
-        
-	if(enableSecondOsc)
-		rightGenerator.setStartOffset((double)getCurrentHiseEvent().getStartOffset());
+	// Get user phase offset
+	auto wavesynth = static_cast<WaveSynth*>(getOwnerSynth());
+	double phase1 = wavesynth->getStartPhaseValue(true);
+	double phase2 = wavesynth->getStartPhaseValue(false);
+
+	// Get timing offset
+	double startOffsetSamples = (double)getCurrentHiseEvent().getStartOffset();
+
+	// Fast path when phase is default and for backwards-compatibility
+	if(phase1 == 0.0f && phase2 == 0.0f)
+	{
+		leftGenerator.setStartOffset(startOffsetSamples);
+
+		if(enableSecondOsc)
+			rightGenerator.setStartOffset(startOffsetSamples);
+	}
+	else
+	{
+		// Apply user phase + timing offset
+		double freq1Hz = cyclesPerSecond * octaveTransposeFactor1;
+		double timingPhase1 = (startOffsetSamples / getSampleRate()) * freq1Hz;
+		leftGenerator.sync(std::fmod(phase1 + timingPhase1, 1.0));
+
+		if(enableSecondOsc)
+		{
+			double freq2Hz = cyclesPerSecond * octaveTransposeFactor2;
+			double timingPhase2 = (startOffsetSamples / getSampleRate()) * freq2Hz;
+			rightGenerator.sync(std::fmod(phase2 + timingPhase2, 1.0));
+		}
+	}
 
 #else
 
