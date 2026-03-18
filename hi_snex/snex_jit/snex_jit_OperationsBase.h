@@ -261,7 +261,7 @@ namespace Operations
 			jassert(currentPass == p);
 		}
 
-		void throwError(const juce::String& errorMessage) const;
+		[[noreturn]] void throwError(const juce::String& errorMessage) const;
 		void logOptimisationMessage(const juce::String& m);
 		void logWarning(const juce::String& m);
 		void logMessage(BaseCompiler* compiler, BaseCompiler::MessageType type, const juce::String& message);

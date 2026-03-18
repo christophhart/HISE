@@ -67,7 +67,7 @@ struct ParserHelpers
 
 		CodeLocation(const CodeLocation& other) noexcept : program(other.program), location(other.location) {}
 
-		void throwError(const juce::String& message) const
+		[[noreturn]] void throwError(const juce::String& message) const
 		{
 			Error e(*this);
 
@@ -452,7 +452,7 @@ struct ParserHelpers
 			return s;
 		}
 
-		void throwTokenMismatch(const char* expected)
+		[[noreturn]] void throwTokenMismatch(const char* expected)
 		{
 			String s;
 

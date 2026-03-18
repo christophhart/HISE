@@ -450,7 +450,7 @@ uint8 CompressionHelpers::getBitReductionForDifferential(AudioBufferInt16& b)
 {
 	AudioBufferInt16 copy(b.size);
 
-	memcpy(copy.getWritePointer(), b.getReadPointer(), 2*b.size);
+	memcpy(copy.getWritePointer(), b.getReadPointer(), 2 * (size_t)b.size);
 
 	Diff::downSampleBuffer(copy);
 

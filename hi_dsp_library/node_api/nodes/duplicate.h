@@ -169,7 +169,7 @@ template <typename T> struct cloned_node_reference
             auto& p = src->getParameter();
             auto& dst = obj[i];
 
-            p.connect<P>(dst);
+            p.template connect<P>(dst);
         }
 	}
 

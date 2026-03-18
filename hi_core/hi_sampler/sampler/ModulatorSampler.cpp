@@ -1530,7 +1530,7 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 
 		if (m.isNoteOn())
 		{
-			samplerDisplayValues.currentNotes[m.getNoteNumber() + m.getTransposeAmount()] = m.getVelocity();
+			samplerDisplayValues.currentNotes[jlimit(0, 127, m.getNoteNumber() + m.getTransposeAmount())] = m.getVelocity();
 		}
 		else
 		{
@@ -1538,7 +1538,7 @@ void ModulatorSampler::preHiseEventCallback(HiseEvent &m)
 			getSampleEditHandler()->noteBroadcaster.sendMessage(sendNotificationAsync, m.getNoteNumber(), 0);
 #endif
 
-            samplerDisplayValues.currentNotes[m.getNoteNumber() + m.getTransposeAmount()] = 0;
+            samplerDisplayValues.currentNotes[jlimit(0, 127, m.getNoteNumber() + m.getTransposeAmount())] = 0;
 		}
 		
         sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom, dispatch::sendNotificationAsync);

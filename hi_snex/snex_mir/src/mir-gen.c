@@ -138,6 +138,9 @@ static int64_t gen_int_log2 (int64_t i);
 #define MIR_GEN_CALL_TRACE 0
 #endif
 
+#ifdef DEBUG
+#undef DEBUG
+#endif
 #if MIR_NO_GEN_DEBUG
 #define DEBUG(level, code)
 #else
