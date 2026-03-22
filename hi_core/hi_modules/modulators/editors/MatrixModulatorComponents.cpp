@@ -624,7 +624,22 @@ void MatrixContent::Row::comboBoxChanged(ComboBox* cb)
 {
 	auto id = Identifier(cb->getName());
 	auto idx = cb->getSelectedItemIndex();
-	data.setProperty(id, comboBoxIndexToValue(id, idx), um);
+ 
+	if(id == MatrixIds::TargetId)
+	{
+		auto newTarget = comboBoxIndexToValue(id, idx).toString();
+		auto parent = data.getParent();
+		auto sourceIndex = (int)data[MatrixIds::SourceIndex];
+
+		parent.removeChild(data, um);
+
+		if(newTarget != "No connection" && newTarget.isNotEmpty())
+			MatrixIds::Helpers::addConnection(parent, getMainController(), newTarget, sourceIndex);
+	}
+	else
+	{
+		data.setProperty(id, comboBoxIndexToValue(id, idx), um);
+	}
 }
 
 void MatrixContent::Row::sliderValueChanged(Slider* slider)
