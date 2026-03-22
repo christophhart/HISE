@@ -62,7 +62,7 @@ template <int NV, class ModParameterClass, class FaustClass, class MC, int nChan
 
 	template <typename T> void processFrame(T& data)
 	{
-
+		faust_base_wrapper<NV, ModParameterClass>::template processFrame<T>(data);
 	}
 
 	void setExternalData(const ExternalData& data, int index)
