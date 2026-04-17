@@ -701,12 +701,19 @@ Point<int> PresetBrowser::getMouseHoverInformation() const
 
 void PresetBrowser::presetChanged(const File& newPreset)
 {
+	currentlyLoadedPreset = allPresets.indexOf(newPreset);
+
+	// If the preset isn't in the current list (e.g. after a project reload changed the
+	// root directory), rebuild the list so showLoadedPreset() can find it.
+	if (currentlyLoadedPreset == -1 && newPreset.existsAsFile())
+		rebuildAllPresets();
+
 	// After we switched the expansions we need to make sure to run this logic so that it ca
 	// set the correct columns for expansion / bank / category at least once
 	if (!refreshColumnUpdatesAfterExpansionSwitch &&
 		allPresets[currentlyLoadedPreset] == newPreset)
 	{
-		presetColumn->setSelectedFile(allPresets[currentlyLoadedPreset]);
+		showLoadedPreset();
 		return;
 	}
 
@@ -1260,6 +1267,7 @@ void PresetBrowser::showLoadedPreset()
 		categoryColumn->setSelectedFile(category, dontSendNotification);
 		presetColumn->setNewRootDirectory(category);
 		presetColumn->setSelectedFile(f, dontSendNotification);
+		presetColumn->updateButtonVisibility(isReadOnly(f));
 		saveButton->setEnabled(!isReadOnly(f));
 
 		if (expansionColumn != nullptr)

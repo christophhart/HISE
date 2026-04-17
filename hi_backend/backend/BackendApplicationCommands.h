@@ -455,6 +455,10 @@ struct XmlBackupFunctions
 
 	static File getScriptFileFor(ModulatorSynthChain *, File& directory, const String &id);
 
+	/** Writes the currently loaded user-preset path into the ValueTree so it
+	    can be restored when the XML backup is reopened. */
+	static void embedCurrentUserPreset(ValueTree& v, ModulatorSynthChain* chain);
+
 private:
 
 	static String getSanitiziedName(const String &id);

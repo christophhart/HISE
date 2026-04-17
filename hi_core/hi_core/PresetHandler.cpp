@@ -492,6 +492,24 @@ void PresetHandler::saveProcessorAsPreset(Processor *p, const String &directoryP
         
         v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
 
+#if USE_BACKEND
+		// Save the currently loaded user preset so it can be restored when this
+		// .hip file is reopened in HISE (mirrors the UserPreset property in the
+		// plugin state produced by BackendProcessor::getStateInformation).
+		{
+			auto& uph = p->getMainController()->getUserPresetHandler();
+			auto currentFile = uph.getCurrentlyLoadedFile();
+			if (currentFile.existsAsFile())
+			{
+				auto up = p->getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+				String presetPath = currentFile.isAChildOf(up) ?
+					currentFile.getRelativePathFrom(up).replaceCharacter('\\', '/') :
+					currentFile.getFullPathName();
+				v.setProperty("UserPreset", presetPath, nullptr);
+			}
+		}
+#endif
+
 		FullInstrumentExpansion::setNewDefault(p->getMainController(), v);
 
 		outputFile.deleteFile();

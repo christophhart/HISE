@@ -931,7 +931,7 @@ public:
 		File getCurrentlyLoadedFile() const;;
 
 		/** @internal */
-		//void setCurrentlyLoadedFile(const File& f);
+		void setCurrentlyLoadedFile(const File& f);
 
 		/** @internal */
 		void sendRebuildMessage();

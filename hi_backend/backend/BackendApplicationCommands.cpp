@@ -1935,11 +1935,11 @@ void BackendCommandTarget::Actions::saveFileXml(BackendRootWindow * bpe)
 						ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
 
 			            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
-			            
+			            XmlBackupFunctions::embedCurrentUserPreset(v, bpe->getMainSynthChain());
 						XmlBackupFunctions::normalizePositionProperties(v);
 
 						auto xml = v.createXml();
-						
+
 						XmlBackupFunctions::removeEditorStatesFromXml(*xml);
 						
 						Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
@@ -2033,7 +2033,7 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 			ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
 
             v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
-            
+            XmlBackupFunctions::embedCurrentUserPreset(v, bpe->getMainSynthChain());
 			XmlBackupFunctions::normalizePositionProperties(v);
 
 			auto xml = v.createXml();
@@ -3710,6 +3710,19 @@ void XmlBackupFunctions::removeAllScripts(XmlElement &xml)
 	}
 }
 
+
+void XmlBackupFunctions::embedCurrentUserPreset(ValueTree& v, ModulatorSynthChain* chain)
+{
+	auto currentFile = chain->getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
+	if (currentFile.existsAsFile())
+	{
+		auto up = GET_PROJECT_HANDLER(chain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+		String presetPath = currentFile.isAChildOf(up) ?
+			currentFile.getRelativePathFrom(up).replaceCharacter('\\', '/') :
+			currentFile.getFullPathName();
+		v.setProperty("UserPreset", presetPath, nullptr);
+	}
+}
 void XmlBackupFunctions::normalizePositionProperties(ValueTree& v)
 {
 	static const Identifier x("x");

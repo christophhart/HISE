@@ -533,12 +533,10 @@ File MainController::UserPresetHandler::getCurrentlyLoadedFile() const
 	return currentlyLoadedFile;
 }
 
-	/*
 void MainController::UserPresetHandler::setCurrentlyLoadedFile(const File& f)
 {
 	currentlyLoadedFile = f;
 }
-*/
 
 void MainController::UserPresetHandler::sendRebuildMessage()
 {

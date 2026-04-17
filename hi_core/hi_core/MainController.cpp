@@ -594,6 +594,26 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
 			auto sp4 = loadProfile.profile(4); // initUserPreset();
 			getUserPresetHandler().initDefaultPresetManager({});
 
+#if USE_BACKEND
+			// Restore the last selected user preset if it was embedded in the project file.
+			// This covers both .hip binary and XML backup loads since all paths call this
+			// function, mirroring what FrontendProcessor::setStateInformation does.
+			{
+				const String userPresetName = valueTreeToLoad.getProperty("UserPreset", "").toString();
+				if (userPresetName.isNotEmpty())
+				{
+					auto up = getCurrentFileHandler().getSubDirectory(FileHandlerBase::UserPresets);
+					File presetFile = FileHandlerBase::isAbsolutePathCrossPlatform(userPresetName) ?
+						File(userPresetName) : up.getChildFile(userPresetName);
+					if (presetFile.existsAsFile())
+					{
+						getUserPresetHandler().setCurrentlyLoadedFile(presetFile);
+						getUserPresetHandler().postPresetLoad();
+					}
+				}
+			}
+#endif
+
 		}
 		catch (String& errorMessage)
 		{

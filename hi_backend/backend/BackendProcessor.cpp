@@ -958,6 +958,13 @@ void BackendProcessor::getStateInformation(MemoryBlock &destData)
 
 		v.setProperty("ProjectRootFolder", GET_PROJECT_HANDLER(synthChain).getWorkDirectory().getFullPathName(), nullptr);
 
+		auto up = GET_PROJECT_HANDLER(synthChain).getSubDirectory(ProjectHandler::SubDirectories::UserPresets);
+		auto currentUserPreset = getUserPresetHandler().getCurrentlyLoadedFile();
+		if (currentUserPreset.isAChildOf(up))
+			v.setProperty("UserPreset", currentUserPreset.getRelativePathFrom(up).replaceCharacter('\\', '/'), nullptr);
+		else
+			v.setProperty("UserPreset", currentUserPreset.getFullPathName(), nullptr);
+
 		if (auto root = dynamic_cast<BackendRootWindow*>(getActiveEditor()))
 			root->saveInterfaceData();
 
