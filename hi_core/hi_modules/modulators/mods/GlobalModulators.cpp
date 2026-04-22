@@ -302,9 +302,26 @@ VoiceStartModulator(mc, id, numVoices, m),
 Modulation(m),
 GlobalModulator(mc)
 {
-	parameterNames.add("UseTable");
-	parameterNames.add("Inverted");
 	updateParameterSlots();
+}
+
+hise::ProcessorMetadata GlobalVoiceStartModulator::createMetadata()
+{
+	return ProcessorMetadata(getClassType())
+		.withPrettyName("Global Voice Start Modulator")
+		.withDescription("Connects to a global VoiceStartModulator in a GlobalModulatorContainer, allowing voice-start modulation to be shared across multiple targets.")
+		.withType<hise::VoiceStartModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(ProcessorMetadata::ParameterMetadata(GlobalModulator::Parameters::UseTable)
+			.withId("UseTable")
+			.withDescription("Enables a lookup table to transform the incoming modulation value")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(GlobalModulator::Parameters::Inverted)
+			.withId("Inverted")
+			.withDescription("Inverts the modulation signal (1 - value)")
+			.asToggle()
+			.withDefault(0.0f));
 }
 
 GlobalVoiceStartModulator::~GlobalVoiceStartModulator()
@@ -382,9 +399,26 @@ GlobalStaticTimeVariantModulator::GlobalStaticTimeVariantModulator(MainControlle
 	Modulation(m),
 	GlobalModulator(mc)
 {
-	parameterNames.add("UseTable");
-	parameterNames.add("Inverted");
 	updateParameterSlots();
+}
+
+hise::ProcessorMetadata GlobalStaticTimeVariantModulator::createMetadata()
+{
+	return ProcessorMetadata(getClassType())
+		.withPrettyName("Global Static Time Variant Modulator")
+		.withDescription("Captures the current value of a global TimeVariantModulator at voice start, creating a constant per-voice modulation based on the LFO/envelope state at note-on.")
+		.withType<hise::VoiceStartModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(ProcessorMetadata::ParameterMetadata(GlobalModulator::Parameters::UseTable)
+			.withId("UseTable")
+			.withDescription("Enables a lookup table to transform the incoming modulation value")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(GlobalModulator::Parameters::Inverted)
+			.withId("Inverted")
+			.withDescription("Inverts the modulation signal (1 - value)")
+			.asToggle()
+			.withDefault(0.0f));
 }
 
 
@@ -462,9 +496,26 @@ GlobalModulator(mc),
 inputValue(1.0f),
 currentValue(1.0f)
 {
-	parameterNames.add("UseTable");
-	parameterNames.add("Inverted");
 	updateParameterSlots();
+}
+
+hise::ProcessorMetadata GlobalTimeVariantModulator::createMetadata()
+{
+	return ProcessorMetadata(getClassType())
+		.withPrettyName("Global Time Variant Modulator")
+		.withDescription("Shares a global TimeVariantModulator signal across multiple targets, allowing real-time continuous modulation from a single source.")
+		.withType<hise::TimeVariantModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(ProcessorMetadata::ParameterMetadata(GlobalModulator::Parameters::UseTable)
+			.withId("UseTable")
+			.withDescription("Enables a lookup table to transform the incoming modulation value")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(GlobalModulator::Parameters::Inverted)
+			.withId("Inverted")
+			.withDescription("Inverts the modulation signal (1 - value)")
+			.asToggle()
+			.withDefault(0.0f));
 }
 
 void GlobalTimeVariantModulator::restoreFromValueTree(const ValueTree &v)
@@ -577,9 +628,27 @@ GlobalEnvelopeModulator::GlobalEnvelopeModulator(MainController *mc, const Strin
 	Modulation(m),
 	GlobalModulator(mc)
 {
-	parameterNames.add("UseTable");
-	parameterNames.add("Inverted");
 	updateParameterSlots();
+}
+
+hise::ProcessorMetadata GlobalEnvelopeModulator::createMetadata()
+{
+	return EnvelopeModulator::createBaseMetadata()
+		.withId(getClassType())
+		.withPrettyName("Global Envelope Modulator")
+		.withDescription("Connects to a global EnvelopeModulator in a GlobalModulatorContainer, allowing envelope modulation to be shared across multiple targets.")
+		.withType<hise::EnvelopeModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(ProcessorMetadata::ParameterMetadata(EnvelopeModulator::Parameters::numParameters + GlobalModulator::Parameters::UseTable)
+			.withId("UseTable")
+			.withDescription("Enables a lookup table to transform the incoming modulation value")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(EnvelopeModulator::Parameters::numParameters + GlobalModulator::Parameters::Inverted)
+			.withId("Inverted")
+			.withDescription("Inverts the modulation signal (1 - value)")
+			.asToggle()
+			.withDefault(0.0f));
 }
 
 void GlobalEnvelopeModulator::restoreFromValueTree(const ValueTree &v)
@@ -770,6 +839,27 @@ void GlobalEnvelopeModulator::calculateBlock(int startSample, int numSamples)
 	}
 
 	
+}
+
+NoGlobalsConstrainer::NoGlobalsConstrainer()
+{
+	illegalTypes.add(GlobalEnvelopeModulator::getClassType());
+	illegalTypes.add(GlobalVoiceStartModulator::getClassType());
+	illegalTypes.add(GlobalTimeVariantModulator::getClassType());
+	illegalTypes.add(GlobalStaticTimeVariantModulator::getClassType());
+}
+
+hise::ProcessorMetadata::WildcardFilterList NoGlobalsConstrainer::getWildcard()
+{
+	return {
+		{
+			ProcessorMetadataIds::Modulator,
+			makeNegativeFilterWildcard<GlobalEnvelopeModulator,
+									   GlobalVoiceStartModulator,
+									   GlobalTimeVariantModulator,
+									   GlobalStaticTimeVariantModulator>()
+		}
+	};
 }
 
 } // namespace hise

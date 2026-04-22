@@ -35,14 +35,13 @@
 
 namespace hise { using namespace juce;
 
-/** A general purpose dynamics processor based on chunkware's SimpleCompressor.
-	@ingroup effectTypes
-*/
 class DynamicsEffect : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("Dynamics", "Dynamics", "A general purpose dynamics processor based on chunkware's SimpleCompressor");
+	static ProcessorMetadata createMetadata();
+
+	SET_PROCESSOR_NAME("Dynamics", "Dynamics", "");
 
 		enum Parameters
 	{
@@ -74,7 +73,6 @@ public:
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;
-	float getDefaultValue(int parameterIndex) const override;
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;

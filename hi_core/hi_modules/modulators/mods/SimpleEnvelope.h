@@ -43,25 +43,20 @@ The most simple envelope (only attack and release).
 It has an attack and release time that can be modified by an internal modulator chain, which are calculated at the note-on (attack) and note-off (release) time.
 You have to specify a sampleRate using the prepareToPlay method or the modulator will not be working!
 
-ID | Parameter | Description
--- | --------- | -----------
-0 | Attack | the attack time in milliseconds
-1 | Release | the release time in milliseconds
-
 It simply ramps up the signal linearly, so it does not sound very good when used for longer attack / release times.
 */
 class SimpleEnvelope: public EnvelopeModulator	
 {
 public:
 
-	SET_PROCESSOR_NAME("SimpleEnvelope", "Simple Envelope", "The most simple envelope (only attack and release).")
+	SET_PROCESSOR_NAME("SimpleEnvelope", "Simple Envelope", "")
 
 	/// @brief special parameters for SimpleEnvelope
 	enum SpecialParameters
 	{
-		Attack = EnvelopeModulator::Parameters::numParameters, ///< the attack time in milliseconds
-		Release, ///< the release time in milliseconds
-		LinearMode, ///< toggles between linear and exponential mode
+		Attack = EnvelopeModulator::Parameters::numParameters,
+		Release, 
+		LinearMode, 
 		numTotalParameters
 	};
 
@@ -82,8 +77,11 @@ public:
 	SimpleEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m);
 	~SimpleEnvelope();
 
+	const bool metadataInitialised;
+
+	static ProcessorMetadata createMetadata();
+
 	void setInternalAttribute(int parameter_index, float newValue) override;
-	float getDefaultValue(int parameterIndex) const override;
 	float getAttribute(int parameter_index) const;
 	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
 

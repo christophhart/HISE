@@ -312,7 +312,7 @@ protected:
 	bool nonRealtime = false;
 	bool processingEnabled = true;
 
-	audiofft::ImplementationType currentType = audiofft::ImplementationType::numImplementationTypes;
+	audiofft::ImplementationType currentType = audiofft::ImplementationType::BestAvailable;
 
 	MultithreadedConvolver::Ptr createNewEngine(audiofft::ImplementationType fftType);
 

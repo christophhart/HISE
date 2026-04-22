@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+
+
 namespace hise { using namespace juce;
 
 //==============================================================================
@@ -268,6 +270,25 @@ void RestHelpers::waitForPendingCallbacks(ScriptComponent* sc, int timeoutMs)
 	}
 }
 
+bool RestHelpers::getTrueValue(const var& v)
+{
+	if (v.isBool())
+		return (bool)v;
+
+	if (v.isInt() || v.isInt64())
+		return (int)v != 0;
+
+	auto s = v.toString();
+
+	if (s == "true")
+		return true;
+
+	if (s == "false" || s.isEmpty())
+		return false;
+
+	return s.getIntValue() != 0;
+}
+
 //==============================================================================
 // LAF (LookAndFeel) integration helpers
 
@@ -424,8 +445,8 @@ static void addLafRenderWarningIfNeeded(MainController* mc,
 RestServer::Response RestHelpers::handleRecompile(MainController* mc, RestServer::AsyncRequest::Ptr req)
 {
 	auto obj = req->getRequest().getJsonBody();
-	bool forceSync = (bool)obj.getProperty(RestApiIds::forceSynchronousExecution, false);
-	
+	bool forceSync = getTrueValue(obj.getProperty(RestApiIds::forceSynchronousExecution, false));
+
 	// Create ScopedBadBabysitter if forceSynchronousExecution is requested
 	// This bypasses all threading checks and executes everything synchronously
 	std::unique_ptr<MainController::ScopedBadBabysitter> syncMode;
@@ -433,9 +454,9 @@ RestServer::Response RestHelpers::handleRecompile(MainController* mc, RestServer
 		syncMode = std::make_unique<MainController::ScopedBadBabysitter>(mc);
 
 	// Start attached profiling session if requested (fire-and-forget).
-	// Results are retrieved later via POST /api/profile { "mode": "get" }
+	// Results are retrieved later via POST /api/testing/profile { "mode": "get" }
 #if HISE_INCLUDE_PROFILING_TOOLKIT
-	if ((bool)obj.getProperty(RestApiIds::profile, false))
+	if (getTrueValue(obj.getProperty(RestApiIds::profile, false)))
 		startProfilingSession(mc, obj, 2000.0);
 #endif
 
@@ -573,258 +594,7 @@ DynamicObject::Ptr RestHelpers::createRecursivePropertyTree(ScriptComponent* sc)
 //==============================================================================
 // Route metadata registry
 
-const Array<RestHelpers::RouteMetadata>& RestHelpers::getRouteMetadata()
-{
-	static Array<RouteMetadata> metadata = []()
-	{
-		Array<RouteMetadata> m;
-		
-		// The order MUST match ApiRoute enum!
-		
-		// ApiRoute::ListMethods
-		m.add(RouteMetadata(ApiRoute::ListMethods, "")
-			.withCategory("status")
-			.withDescription("List all available API methods with parameters and descriptions")
-			.withReturns("Array of method definitions with path, parameters, and documentation"));
-		
-		// ApiRoute::Status
-		m.add(RouteMetadata(ApiRoute::Status, "api/status")
-			.withCategory("status")
-			.withDescription("Get project status and discover available script processors")
-			.withReturns("Server info (version, compileTimeout in seconds), project info, scriptsFolder path, and scriptProcessors with their callbacks"));
-		
-		// ApiRoute::GetScript
-		m.add(RouteMetadata(ApiRoute::GetScript, "api/get_script")
-			.withCategory("scripting")
-			.withDescription("Read script content from a processor's callbacks")
-			.withReturns("Callbacks object with script content for requested callback(s). Includes externalFiles array with name and full path.")
-			.withModuleIdParam()
-			.withQueryParam(RouteParameter(RestApiIds::callback, "Specific callback name (e.g., onInit). If omitted, returns all callbacks.").asOptional()));
-		
-		// ApiRoute::SetScript
-		m.add(RouteMetadata(ApiRoute::SetScript, "api/set_script")
-			.withMethod(RestServer::POST)
-			.withCategory("scripting")
-			.withDescription("Update one or more callbacks and optionally compile. Only specified callbacks are updated; others remain unchanged.")
-			.withReturns("Compilation result with updatedCallbacks array, success status, logs, errors, and optional lafRenderWarning listing unrendered LAF components with reason (invisible or timeout)")
-			.withBodyParam(RouteParameter(RestApiIds::moduleId, "The script processor's module ID"))
-			.withBodyParam(RouteParameter(RestApiIds::callbacks, "Object with callback names as keys and script content as values (e.g., {onInit: \"...\", onNoteOn: \"...\"})"))
-			.withBodyParam(RouteParameter(RestApiIds::compile, "Whether to compile after setting").withDefault("true"))
-			.withBodyParam(RouteParameter(RestApiIds::forceSynchronousExecution, "Debug tool: Bypass threading model for synchronous execution. WARNING: May cause crashes due to race conditions - use only as last resort after saving.").withDefault("false")));
-		
-		m.add(RouteMetadata(ApiRoute::EvaluateREPL, "api/repl")
-			.withMethod(RestServer::POST)
-			.withCategory("scripting")
-			.withDescription("Evaluates a script expression with the current script engine and returns the result")
-			.withReturns("Evaluation result with success status, logs and error messages")
-			.withBodyParam(RouteParameter(RestApiIds::moduleId, "The script processor's module ID"))
-			.withBodyParam(RouteParameter(RestApiIds::expression, "The HiseScript expression that is evaluated. Note that any side effects of this evaluation might change the runtime state of HISE.")));
 
-		// ApiRoute::Recompile
-		m.add(RouteMetadata(ApiRoute::Recompile, "api/recompile")
-			.withMethod(RestServer::POST)
-			.withCategory("scripting")
-			.withDescription("Recompile a processor (restores preset values, triggering callbacks for saveInPreset components)")
-			.withReturns("Compilation result with success status, logs, errors, and optional lafRenderWarning listing unrendered LAF components with reason (invisible or timeout)")
-			.withBodyParam(RouteParameter(RestApiIds::moduleId, "The script processor's module ID"))
-			.withBodyParam(RouteParameter(RestApiIds::forceSynchronousExecution, "Debug tool: Bypass threading model for synchronous execution. WARNING: May cause crashes due to race conditions - use only as last resort after saving.").withDefault("false"))
-			.withBodyParam(RouteParameter(RestApiIds::profile, "Start a profiling session alongside compilation. Retrieve results later via POST /api/profile with mode=\"get\".").withDefault("false"))
-			.withBodyParam(RouteParameter(RestApiIds::durationMs, "Profiling duration in ms when profile=true (100-5000).").withDefault("2000")));
-		
-		// ApiRoute::ListComponents
-		m.add(RouteMetadata(ApiRoute::ListComponents, "api/list_components")
-			.withCategory("ui")
-			.withDescription("List all UI components in a script processor")
-			.withReturns("Array of components with id, type, and laf info (flat list or hierarchical tree with layout properties)")
-			.withModuleIdParam()
-			.withQueryParam(RouteParameter(RestApiIds::hierarchy, "If true, returns nested tree with layout properties").withDefault("false")));
-		
-		// ApiRoute::GetComponentProperties
-		m.add(RouteMetadata(ApiRoute::GetComponentProperties, "api/get_component_properties")
-			.withCategory("ui")
-			.withDescription("Get all properties for a specific UI component")
-			.withReturns("Component type and array of properties with id, value, isDefault, and options")
-			.withModuleIdParam()
-			.withQueryParam(RouteParameter(RestApiIds::id, "The component's ID (e.g., Button1, Panel1)")));
-		
-		// ApiRoute::GetComponentValue
-		m.add(RouteMetadata(ApiRoute::GetComponentValue, "api/get_component_value")
-			.withCategory("ui")
-			.withDescription("Get the current runtime value of a UI component")
-			.withReturns("Component type, current value, and min/max range")
-			.withModuleIdParam()
-			.withQueryParam(RouteParameter(RestApiIds::id, "The component's ID (e.g., GainKnob, BypassButton)")));
-		
-		// ApiRoute::SetComponentValue
-		m.add(RouteMetadata(ApiRoute::SetComponentValue, "api/set_component_value")
-			.withMethod(RestServer::POST)
-			.withCategory("ui")
-			.withDescription("Set the runtime value of a UI component (triggers control callback)")
-			.withReturns("Success status")
-			.withBodyParam(RouteParameter(RestApiIds::moduleId, "The script processor's module ID"))
-			.withBodyParam(RouteParameter(RestApiIds::id, "The component's ID"))
-			.withBodyParam(RouteParameter(RestApiIds::value, "The value to set"))
-			.withBodyParam(RouteParameter(RestApiIds::validateRange, "If true, validates value is within component's min/max range").withDefault("false"))
-			.withBodyParam(RouteParameter(RestApiIds::forceSynchronousExecution, "Debug tool: Bypass threading model for synchronous execution. WARNING: May cause crashes due to race conditions - use only as last resort after saving.").withDefault("false")));
-		
-		// ApiRoute::SetComponentProperties
-		m.add(RouteMetadata(ApiRoute::SetComponentProperties, "api/set_component_properties")
-			.withMethod(RestServer::POST)
-			.withCategory("ui")
-			.withDescription("Set properties on one or more UI components (like Interface Designer)")
-			.withReturns("Success with applied changes (recompileRequired=true if parentComponent changed), or error with locked properties if any are script-controlled")
-			.withBodyParam(RouteParameter(RestApiIds::moduleId, "The script processor's module ID"))
-			.withBodyParam(RouteParameter(RestApiIds::changes, "Array of {id, properties: {...}} objects"))
-			.withBodyParam(RouteParameter(RestApiIds::force, "If true, bypasses script-lock check and sets all properties").withDefault("false")));
-		
-		// ApiRoute::Screenshot
-		m.add(RouteMetadata(ApiRoute::Screenshot, "api/screenshot")
-			.withCategory("ui")
-			.withDescription("Capture screenshot of interface or specific component")
-			.withReturns("Base64-encoded PNG image data with dimensions, or file path if outputPath is specified")
-			.withQueryParam(RouteParameter(RestApiIds::moduleId, "Script processor ID").withDefault("Interface"))
-			.withQueryParam(RouteParameter(RestApiIds::id, "Component ID to capture (omit for full interface)").asOptional())
-			.withQueryParam(RouteParameter(RestApiIds::scale, "Scale factor (0.5 or 1.0)").withDefault("1.0"))
-			.withQueryParam(RouteParameter(RestApiIds::outputPath, "File path to save PNG (must end with .png). If provided, writes to file instead of returning Base64").asOptional()));
-		
-		// ApiRoute::GetSelectedComponents
-		m.add(RouteMetadata(ApiRoute::GetSelectedComponents, "api/get_selected_components")
-			.withCategory("ui")
-			.withDescription("Get the currently selected UI components from the Interface Designer")
-			.withReturns("Selection count and array of selected components with all properties")
-			.withQueryParam(RouteParameter(RestApiIds::moduleId, "The script processor's module ID").withDefault("Interface")));
-		
-		// ApiRoute::SimulateInteractions
-		m.add(RouteMetadata(ApiRoute::SimulateInteractions, "api/simulate_interactions")
-			.withMethod(RestServer::POST)
-			.withCategory("testing")
-			.withDescription("Execute a sequence of UI interactions in a test window. Auto-inserts moveTo events as needed for proper mouse positioning.")
-			.withReturns("Execution result with success status, completion count, timing, execution log, captured screenshots, and optionally mouseState when verbose=true")
-			.withBodyParam(RouteParameter(RestApiIds::interactions, 
-				"Array of interaction objects. Types: 'moveTo' (explicit mouse positioning), 'click' (uses current position), "
-				"'doubleClick' (expands to two clicks), 'drag' (uses pixel 'delta'), 'selectMenuItem' (click menu item by text), "
-				"'screenshot' (capture interface). Fields: 'target' (component ID), 'delay' (ms before action), "
-				"'normalizedPosition' (0-1, default center), 'pixelPosition' (absolute, takes precedence), 'delta' (for drag), "
-				"'subtarget' (optional sub-component ID), 'rightClick' (boolean), 'shiftDown'/'ctrlDown'/'altDown'/'cmdDown' (modifiers), "
-				"'menuItemText' (for selectMenuItem), 'id'/'scale' (for screenshot)"))
-			.withBodyParam(RouteParameter(RestApiIds::verbose, "If true, include auto-insertion details and final mouseState in response").withDefault("false")));
-		
-		// ApiRoute::DiagnoseScript
-		m.add(RouteMetadata(ApiRoute::DiagnoseScript, "api/diagnose_script")
-			.withMethod(RestServer::POST)
-			.withCategory("scripting")
-			.withDescription("Run diagnostic-only shadow parse on a script file. Returns structured diagnostics "
-							 "without modifying runtime state. Requires at least one prior successful compile (F5).")
-			.withReturns("Array of diagnostics with line, column, severity, source, message, and suggestions")
-			.withBodyParam(RouteParameter(RestApiIds::moduleId, 
-				"The script processor's module ID. Required if filePath is not provided.").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::filePath,
-				"Path to the external .js file (absolute or relative to Scripts folder). "
-				"Required if moduleId is not provided. When used alone, HISE resolves the owning processor.").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::async,
-				"If true, defer the shadow parse to the scripting thread (slower, blocks audio). "
-				"Default is false: runs directly on the HTTP thread with a read lock.").withDefault("false")));
-		
-		// ApiRoute::GetIncludedFiles
-		m.add(RouteMetadata(ApiRoute::GetIncludedFiles, "api/get_included_files")
-			.withCategory("scripting")
-			.withDescription("List all included (watched) external script files. "
-							 "Without moduleId, returns all files across all processors with owning processor names. "
-							 "With moduleId, returns files for that processor only.")
-			.withReturns("Array of included files as full paths, optionally with owning processor ID")
-			.withQueryParam(RouteParameter(RestApiIds::moduleId, 
-				"Filter by script processor. If omitted, returns files from all processors with processor names.").asOptional()));
-		
-		// ApiRoute::StartProfiling
-		m.add(RouteMetadata(ApiRoute::StartProfiling, "api/profile")
-			.withMethod(RestServer::POST)
-			.withCategory("scripting")
-			.withDescription("Start a profiling session or retrieve last result. "
-							 "mode=\"record\" starts a new session (non-blocking, returns immediately). "
-							 "mode=\"get\" returns last result with optional filtering/summary. "
-							 "Workflow: record once, then query with different filters.")
-			.withReturns("Full tree (threads+flows), filtered results, or recording status")
-			.withBodyParam(RouteParameter(RestApiIds::mode,
-				"\"record\" = start new session (non-blocking), "
-				"\"get\" = return last result (blocks if recording in progress)")
-				.withDefault("record"))
-			.withBodyParam(RouteParameter(RestApiIds::durationMs,
-				"Recording duration in milliseconds (100-5000). Used in record mode.")
-				.withDefault("1000"))
-			.withBodyParam(RouteParameter(RestApiIds::threadFilter,
-				"Array of thread names to include (default: all). In record mode, controls "
-				"which threads are recorded. In get mode, filters which threads are queried. "
-				"Valid: Audio Thread, Scripting Thread, UI Thread, Loading Thread, etc.")
-				.asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::eventFilter,
-				"Array of event source types to record (default: all). Used in record mode. "
-				"Valid: DSP, Script, Lock, Callback, Trace, TimerCallback, Scriptnode, etc.")
-				.asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::summary,
-				"If true, aggregate repeated events with count/median/peak/min/total stats. "
-				"Used in get mode.")
-				.withDefault("false"))
-			.withBodyParam(RouteParameter(RestApiIds::filter,
-				"Wildcard pattern matched against event name (e.g. \"slow*\", \"*.processBlock*\"). "
-				"Case-insensitive. Used in get mode.")
-				.asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::minDuration,
-				"Only include events with duration >= this value in ms. Used in get mode.")
-				.asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::sourceTypeFilter,
-				"Wildcard pattern matched against sourceType (e.g. \"Trace\", \"Script\"). "
-				"Case-insensitive. Used in get mode.")
-				.asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::nested,
-				"When filtering, include children of matched events. Used in get mode.")
-				.withDefault("false"))
-			.withBodyParam(RouteParameter(RestApiIds::limit,
-				"Max number of results in filtered/summary mode (1-100). Used in get mode.")
-				.withDefault("15"))
-			.withBodyParam(RouteParameter(RestApiIds::wait,
-				"If false, return immediately when recording is in progress instead of "
-				"blocking. Returns {recording: true}. Used in get mode.")
-				.withDefault("true")));
-		
-		// ApiRoute::ParseCSS
-		m.add(RouteMetadata(ApiRoute::ParseCSS, "api/parse_css")
-			.withMethod(RestServer::POST)
-			.withCategory("scripting")
-			.withDescription("Parse CSS code and return structured diagnostics. "
-				"Accepts either inline code or a file path to a .css file. "
-				"Optionally resolves properties for a set of selectors using CSS specificity rules")
-			.withReturns("Diagnostics array with line/column/severity/message, "
-				"list of parsed selectors, "
-				"and resolved properties when selectors are provided")
-			.withBodyParam(RouteParameter(RestApiIds::code,
-				"The CSS code to parse (provide this or filePath)").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::filePath,
-				"Path to a .css file. Relative paths resolve against the Scripts/ directory "
-				"(provide this or code)").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::selectors,
-				"Array of selector strings representing a component's selectors "
-				"(e.g. [\"button\", \".my-class\", \"#MyId\"]). "
-				"Resolves properties using CSS specificity").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::width,
-				"Reference width in pixels for resolving percentage and relative units").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::height,
-				"Reference height in pixels for resolving percentage and relative units").asOptional()));
-		
-		// ApiRoute::Shutdown
-		m.add(RouteMetadata(ApiRoute::Shutdown, "api/shutdown")
-			.withMethod(RestServer::POST)
-			.withCategory("status")
-			.withDescription("Gracefully quit the HISE application")
-			.withReturns("Success confirmation before shutdown begins"));
-		
-		// Verify count matches enum
-		jassert(m.size() == (int)ApiRoute::numRoutes);
-		
-		return m;
-	}();
-	
-	return metadata;
-}
 
 String RestHelpers::getRoutePath(RestHelpers::ApiRoute route)
 {
@@ -845,98 +615,404 @@ RestHelpers::ApiRoute RestHelpers::findRoute(const String& subURL)
 //==============================================================================
 // Route handlers
 
+// Convert ParamType to OpenAPI type string
+static String paramTypeToOpenApi(RestHelpers::ParamType t)
+{
+	switch (t)
+	{
+	case RestHelpers::ParamType::String: return "string";
+	case RestHelpers::ParamType::Int:    return "integer";
+	case RestHelpers::ParamType::Float:  return "number";
+	case RestHelpers::ParamType::Bool:   return "boolean";
+	case RestHelpers::ParamType::Array:  return "array";
+	case RestHelpers::ParamType::Object: return "object";
+	case RestHelpers::ParamType::Enum:   return "string";
+	default: return "string";
+	}
+}
+
+// Recursively convert a RouteParameter to an OpenAPI schema object
+static var paramToOpenApiSchema(const RestHelpers::RouteParameter& p)
+{
+	DynamicObject::Ptr schema = new DynamicObject();
+
+	// Discriminated union → oneOf
+	if (!p.variants.isEmpty() && p.discriminator.isNotEmpty())
+	{
+		schema->setProperty("type", "object");
+
+		// Build properties from the flat property list
+		if (!p.properties.isEmpty())
+		{
+			DynamicObject::Ptr props = new DynamicObject();
+			Array<var> requiredArr;
+
+			for (const auto& child : p.properties)
+			{
+				props->setProperty(child.name, paramToOpenApiSchema(child));
+
+				if (child.required)
+					requiredArr.add(child.name.toString());
+			}
+
+			schema->setProperty("properties", var(props.get()));
+
+			if (!requiredArr.isEmpty())
+				schema->setProperty("required", var(requiredArr));
+		}
+
+		// Add discriminator
+		DynamicObject::Ptr disc = new DynamicObject();
+		disc->setProperty("propertyName", p.discriminator);
+		schema->setProperty("discriminator", var(disc.get()));
+
+		// Add variant descriptions as x-variants extension
+		Array<var> variantArr;
+
+		for (const auto& v : p.variants)
+		{
+			DynamicObject::Ptr vObj = new DynamicObject();
+			vObj->setProperty("value", v.discriminatorValue);
+			vObj->setProperty("description", v.description);
+			variantArr.add(var(vObj.get()));
+		}
+
+		schema->setProperty("x-variants", var(variantArr));
+	}
+	// Object with properties
+	else if (p.type == RestHelpers::ParamType::Object && !p.properties.isEmpty())
+	{
+		schema->setProperty("type", "object");
+
+		DynamicObject::Ptr props = new DynamicObject();
+		Array<var> requiredArr;
+
+		for (const auto& child : p.properties)
+		{
+			props->setProperty(child.name, paramToOpenApiSchema(child));
+
+			if (child.required)
+				requiredArr.add(child.name.toString());
+		}
+
+		schema->setProperty("properties", var(props.get()));
+
+		if (!requiredArr.isEmpty())
+			schema->setProperty("required", var(requiredArr));
+	}
+	// Array with item schema
+	else if (p.type == RestHelpers::ParamType::Array && p.itemSchema)
+	{
+		schema->setProperty("type", "array");
+		schema->setProperty("items", paramToOpenApiSchema(*p.itemSchema));
+	}
+	// Enum
+	else if (p.type == RestHelpers::ParamType::Enum && !p.enumValues.isEmpty())
+	{
+		schema->setProperty("type", "string");
+
+		Array<var> enumArr;
+
+		for (const auto& v : p.enumValues)
+			enumArr.add(v);
+
+		schema->setProperty("enum", var(enumArr));
+	}
+	// Simple type
+	else
+	{
+		schema->setProperty("type", paramTypeToOpenApi(p.type));
+	}
+
+	if (p.description.isNotEmpty())
+		schema->setProperty("description", p.description);
+
+	if (p.defaultValue.isNotEmpty())
+		schema->setProperty("default", p.defaultValue);
+
+	if (p.example.isNotEmpty())
+		schema->setProperty("example", p.example);
+
+	return var(schema.get());
+}
+
+// Build the response schema for a route, wrapped in the standard envelope
+static var buildResponseSchema(const RestHelpers::RouteMetadata& route)
+{
+	DynamicObject::Ptr envelope = new DynamicObject();
+	envelope->setProperty("type", "object");
+
+	DynamicObject::Ptr envProps = new DynamicObject();
+
+	// success (always present)
+	DynamicObject::Ptr successProp = new DynamicObject();
+	successProp->setProperty("type", "boolean");
+	successProp->setProperty("description", "Whether the request completed successfully");
+	envProps->setProperty("success", var(successProp.get()));
+
+	// Endpoint-specific response fields (flat, alongside success/logs/errors)
+	if (!route.responseFields.isEmpty())
+	{
+		for (const auto& rf : route.responseFields)
+			envProps->setProperty(rf.name, paramToOpenApiSchema(rf));
+	}
+	else if (route.returns.isNotEmpty())
+	{
+		// No typed responseFields, but has a returns description:
+		// add a generic "result" string field for status messages
+		DynamicObject::Ptr resultProp = new DynamicObject();
+		resultProp->setProperty("type", "string");
+		resultProp->setProperty("description", route.returns);
+		envProps->setProperty("result", var(resultProp.get()));
+	}
+
+	// logs - captured Console.print() output during request processing
+	DynamicObject::Ptr logsProp = new DynamicObject();
+	logsProp->setProperty("type", "array");
+	logsProp->setProperty("description",
+		"Console.print() output captured during request processing");
+	DynamicObject::Ptr logItems = new DynamicObject();
+	logItems->setProperty("type", "string");
+	logsProp->setProperty("items", var(logItems.get()));
+	envProps->setProperty("logs", var(logsProp.get()));
+
+	// errors - script errors with message and callstack
+	DynamicObject::Ptr errorsProp = new DynamicObject();
+	errorsProp->setProperty("type", "array");
+	errorsProp->setProperty("description",
+		"Script errors captured during request processing");
+
+	DynamicObject::Ptr errorItems = new DynamicObject();
+	errorItems->setProperty("type", "object");
+
+	DynamicObject::Ptr errorItemProps = new DynamicObject();
+
+	DynamicObject::Ptr errMsgProp = new DynamicObject();
+	errMsgProp->setProperty("type", "string");
+	errMsgProp->setProperty("description", "The error message");
+	errorItemProps->setProperty("errorMessage", var(errMsgProp.get()));
+
+	DynamicObject::Ptr callstackProp = new DynamicObject();
+	callstackProp->setProperty("type", "array");
+	callstackProp->setProperty("description",
+		"Call stack frames (e.g. \"myFunction() at Scripts/main.js:15:8\")");
+	DynamicObject::Ptr callstackItems = new DynamicObject();
+	callstackItems->setProperty("type", "string");
+	callstackProp->setProperty("items", var(callstackItems.get()));
+	errorItemProps->setProperty("callstack", var(callstackProp.get()));
+
+	errorItems->setProperty("properties", var(errorItemProps.get()));
+	errorItems->setProperty("required",
+		var(Array<var>{ var("errorMessage"), var("callstack") }));
+
+	errorsProp->setProperty("items", var(errorItems.get()));
+	envProps->setProperty("errors", var(errorsProp.get()));
+
+	envelope->setProperty("properties", var(envProps.get()));
+	envelope->setProperty("required", var(Array<var>{ var("success"), var("logs"), var("errors") }));
+
+	return var(envelope.get());
+}
+
 RestServer::Response RestHelpers::handleListMethods(MainController* mc, RestServer::AsyncRequest::Ptr req)
 {
 	ignoreUnused(mc);
-	
+
 	const auto& metadata = getRouteMetadata();
-	
-	// Sort by category, then alphabetically by path
-	Array<int> sortedIndices;
-	for (int i = 0; i < metadata.size(); i++)
-		sortedIndices.add(i);
-	
-	// JUCE ElementComparator for sorting indices by category then path
-	struct RouteIndexComparator
+
+	// Root object
+	DynamicObject::Ptr root = new DynamicObject();
+	root->setProperty("openapi", "3.0.3");
+
+	// Info
+	DynamicObject::Ptr info = new DynamicObject();
+	info->setProperty("title", "HISE REST API");
+	info->setProperty("description", "REST API for AI-assisted development in HISE");
+	info->setProperty("version", "1.0.0");
+	root->setProperty("info", var(info.get()));
+
+	// Servers
+	Array<var> servers;
+	DynamicObject::Ptr server = new DynamicObject();
+	server->setProperty("url", "http://localhost:1900");
+	server->setProperty("description", "Local HISE instance");
+	servers.add(var(server.get()));
+	root->setProperty("servers", var(servers));
+
+	// Collect unique tags from categories
+	StringArray categories;
+
+	for (const auto& route : metadata)
+		categories.addIfNotAlreadyThere(route.category);
+
+	categories.sort(false);
+
+	Array<var> tags;
+
+	for (const auto& cat : categories)
 	{
-		const Array<RouteMetadata>& routes;
-		
-		RouteIndexComparator(const Array<RouteMetadata>& r) : routes(r) {}
-		
-		int compareElements(int a, int b) const
-		{
-			const auto& ra = routes[a];
-			const auto& rb = routes[b];
-			
-			int catCompare = ra.category.compare(rb.category);
-			if (catCompare != 0)
-				return catCompare;
-			
-			return ra.path.compare(rb.path);
-		}
-	};
-	
-	RouteIndexComparator comparator(metadata);
-	sortedIndices.sort(comparator);
-	
-	// Build response
-	DynamicObject::Ptr result = new DynamicObject();
-	result->setProperty(RestApiIds::success, true);
-	
-	Array<var> methods;
-	for (int idx : sortedIndices)
+		DynamicObject::Ptr tag = new DynamicObject();
+		tag->setProperty("name", cat);
+		tags.add(var(tag.get()));
+	}
+
+	root->setProperty("tags", var(tags));
+
+	// Paths
+	DynamicObject::Ptr paths = new DynamicObject();
+
+	for (const auto& route : metadata)
 	{
-		const auto& route = metadata[idx];
-		
-		DynamicObject::Ptr m = new DynamicObject();
-		m->setProperty(RestApiIds::path, "/" + route.path);
-		m->setProperty(RestApiIds::method, route.method == RestServer::GET ? "GET" : "POST");
-		m->setProperty(RestApiIds::category, route.category);
-		m->setProperty(RestApiIds::description, route.description);
-		m->setProperty(RestApiIds::returns, route.returns);
-		
-		// Query parameters (for GET)
+		String pathKey = "/" + route.path;
+		String methodKey = route.method == RestServer::GET ? "get" : "post";
+
+		DynamicObject::Ptr operation = new DynamicObject();
+
+		// Tags
+		operation->setProperty("tags", var(Array<var>{ var(route.category) }));
+
+		// Summary (concise sentence) & description (detailed with behavioral notes)
+		operation->setProperty("summary", route.summary.isNotEmpty() ? route.summary : route.description);
+
+		if (route.summary.isNotEmpty())
+			operation->setProperty("description", route.description);
+
+		// Operation ID from path
+		String opId = route.path.replace("/", "_").replace("api_", "");
+		operation->setProperty("operationId", opId);
+
+		// Query parameters
 		if (!route.queryParameters.isEmpty())
 		{
 			Array<var> params;
-			for (const auto& p : route.queryParameters)
+
+			for (const auto& qp : route.queryParameters)
 			{
 				DynamicObject::Ptr param = new DynamicObject();
-				param->setProperty(RestApiIds::name, p.name.toString());
-				param->setProperty(RestApiIds::description, p.description);
-				param->setProperty(RestApiIds::required, p.required);
-				if (p.defaultValue.isNotEmpty())
-					param->setProperty(RestApiIds::defaultValue, p.defaultValue);
-				params.add(param.get());
+				param->setProperty("name", qp.name.toString());
+				param->setProperty("in", "query");
+				param->setProperty("description", qp.description);
+				param->setProperty("required", qp.required);
+				param->setProperty("schema", paramToOpenApiSchema(qp));
+
+				if (qp.example.isNotEmpty())
+					param->setProperty("example", qp.example);
+
+				params.add(var(param.get()));
 			}
-			m->setProperty(RestApiIds::queryParameters, params);
+
+			operation->setProperty("parameters", var(params));
 		}
-		
-		// Body parameters (for POST)
+
+		// Request body (POST with body params)
 		if (!route.bodyParameters.isEmpty())
 		{
-			Array<var> params;
-			for (const auto& p : route.bodyParameters)
+			DynamicObject::Ptr requestBody = new DynamicObject();
+			requestBody->setProperty("required", true);
+
+			DynamicObject::Ptr content = new DynamicObject();
+			DynamicObject::Ptr jsonMedia = new DynamicObject();
+
+			// Build body schema from parameters
+			DynamicObject::Ptr bodySchema = new DynamicObject();
+			bodySchema->setProperty("type", "object");
+
+			DynamicObject::Ptr bodyProps = new DynamicObject();
+			Array<var> requiredArr;
+
+			for (const auto& bp : route.bodyParameters)
 			{
-				DynamicObject::Ptr param = new DynamicObject();
-				param->setProperty(RestApiIds::name, p.name.toString());
-				param->setProperty(RestApiIds::description, p.description);
-				param->setProperty(RestApiIds::required, p.required);
-				if (p.defaultValue.isNotEmpty())
-					param->setProperty(RestApiIds::defaultValue, p.defaultValue);
-				params.add(param.get());
+				bodyProps->setProperty(bp.name, paramToOpenApiSchema(bp));
+
+				if (bp.required)
+					requiredArr.add(bp.name.toString());
 			}
-			m->setProperty(RestApiIds::bodyParameters, params);
+
+			bodySchema->setProperty("properties", var(bodyProps.get()));
+
+			if (!requiredArr.isEmpty())
+				bodySchema->setProperty("required", var(requiredArr));
+
+			jsonMedia->setProperty("schema", var(bodySchema.get()));
+
+			// Request example
+			if (route.requestExample.isNotEmpty())
+			{
+				var exampleJson;
+				JSON::parse(route.requestExample, exampleJson);
+
+				if (!exampleJson.isVoid())
+					jsonMedia->setProperty("example", exampleJson);
+			}
+
+			content->setProperty("application/json", var(jsonMedia.get()));
+			requestBody->setProperty("content", var(content.get()));
+			operation->setProperty("requestBody", var(requestBody.get()));
 		}
-		
-		methods.add(m.get());
+
+		// Responses
+		DynamicObject::Ptr responses = new DynamicObject();
+
+		// 200 OK
+		DynamicObject::Ptr ok200 = new DynamicObject();
+		ok200->setProperty("description", "Successful response");
+
+		DynamicObject::Ptr okContent = new DynamicObject();
+		DynamicObject::Ptr okJsonMedia = new DynamicObject();
+		okJsonMedia->setProperty("schema", buildResponseSchema(route));
+
+		// Response example
+		if (route.responseExample.isNotEmpty())
+		{
+			var exampleJson;
+			JSON::parse(route.responseExample, exampleJson);
+
+			if (!exampleJson.isVoid())
+				okJsonMedia->setProperty("example", exampleJson);
+		}
+
+		okContent->setProperty("application/json", var(okJsonMedia.get()));
+		ok200->setProperty("content", var(okContent.get()));
+		responses->setProperty("200", var(ok200.get()));
+
+		// Error responses
+		for (int code : route.errorCodes)
+		{
+			DynamicObject::Ptr errResp = new DynamicObject();
+
+			switch (code)
+			{
+			case 400: errResp->setProperty("description", "Bad request - invalid or missing parameters"); break;
+			case 404: errResp->setProperty("description", "Not found - unknown module or resource"); break;
+			case 409: errResp->setProperty("description", "Conflict - operation conflicts with current state"); break;
+			case 500: errResp->setProperty("description", "Internal server error"); break;
+			case 503: errResp->setProperty("description", "Service unavailable"); break;
+			default:  errResp->setProperty("description", "Error"); break;
+			}
+
+			responses->setProperty(String(code), var(errResp.get()));
+		}
+
+		operation->setProperty("responses", var(responses.get()));
+
+		// Add to paths (handle multiple methods on same path)
+		auto existingPath = paths->getProperty(Identifier(pathKey));
+
+		if (auto* existingObj = existingPath.getDynamicObject())
+		{
+			existingObj->setProperty(Identifier(methodKey), var(operation.get()));
+		}
+		else
+		{
+			DynamicObject::Ptr pathItem = new DynamicObject();
+			pathItem->setProperty(Identifier(methodKey), var(operation.get()));
+			paths->setProperty(Identifier(pathKey), var(pathItem.get()));
+		}
 	}
-	
-	result->setProperty(RestApiIds::methods, methods);
-	result->setProperty(RestApiIds::logs, Array<var>());
-	result->setProperty(RestApiIds::errors, Array<var>());
-	
-	req->complete(RestServer::Response::ok(var(result.get())));
+
+	root->setProperty("paths", var(paths.get()));
+
+	req->complete(RestServer::Response::ok(var(root.get())));
 	return req->waitForResponse();
 }
 
@@ -1025,6 +1101,26 @@ RestServer::Response RestHelpers::handleStatus(MainController* mc, RestServer::A
 	return req->waitForResponse();
 }
 
+RestServer::Response RestHelpers::handleStatusPreprocessors(MainController* mc,
+                                                            RestServer::AsyncRequest::Ptr req)
+{
+	const bool verbose      = req->getRequest().getTrueValue(RestApiIds::verbose);
+	const bool skipDefaults = req->getRequest().getTrueValue(RestApiIds::skipDefaults);
+
+	PreprocessorDataBase db;
+
+	auto preprocessors = db.toJSON(mc, verbose, skipDefaults);
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::preprocessors, preprocessors);
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
 RestServer::Response RestHelpers::handleGetScript(MainController* mc, RestServer::AsyncRequest::Ptr req)
 {
 	if (auto jp = getScriptProcessor(mc, req))
@@ -1099,7 +1195,7 @@ RestServer::Response RestHelpers::handleSetScript(MainController* mc, RestServer
 	auto obj = req->getRequest().getJsonBody();
 	
 	// Check for forceSynchronousExecution debug mode
-	bool forceSync = (bool)obj.getProperty(RestApiIds::forceSynchronousExecution, false);
+	bool forceSync = getTrueValue(obj.getProperty(RestApiIds::forceSynchronousExecution, false));
 	
 	std::unique_ptr<MainController::ScopedBadBabysitter> syncMode;
 	if (forceSync)
@@ -1224,8 +1320,7 @@ RestServer::Response RestHelpers::handleListComponents(MainController* mc, RestS
 	if (auto jp = getScriptProcessor(mc, req))
 	{
 		auto ps = dynamic_cast<ProcessorWithScriptingContent*>(jp);
-		auto hierarchyParam = req->getRequest()[RestApiIds::hierarchy];
-		auto useHierarchy = (hierarchyParam == "true" || hierarchyParam == "1");
+		auto useHierarchy = req->getRequest().getTrueValue(RestApiIds::hierarchy);
 
 		auto p = dynamic_cast<Processor*>(jp);
 		auto moduleId = p->getId();
@@ -1387,7 +1482,7 @@ RestServer::Response RestHelpers::handleSetComponentValue(MainController* mc, Re
 	auto obj = req->getRequest().getJsonBody();
 	
 	// Check for forceSynchronousExecution debug mode
-	bool forceSync = (bool)obj.getProperty(RestApiIds::forceSynchronousExecution, false);
+	bool forceSync = getTrueValue(obj.getProperty(RestApiIds::forceSynchronousExecution, false));
 	
 	std::unique_ptr<MainController::ScopedBadBabysitter> syncMode;
 	if (forceSync)
@@ -1415,9 +1510,9 @@ RestServer::Response RestHelpers::handleSetComponentValue(MainController* mc, Re
 	if (auto sc = c->getComponentWithName(Identifier(componentId)))
 	{
 		auto newValue = obj[RestApiIds::value];
-		auto validateRange = obj.getProperty(RestApiIds::validateRange, false);
-		
-		if ((bool)validateRange)
+		auto validateRange = getTrueValue(obj.getProperty(RestApiIds::validateRange, false));
+
+		if (validateRange)
 		{
 			double minVal = (double)sc->getScriptObjectProperty(ScriptComponent::min);
 			double maxVal = (double)sc->getScriptObjectProperty(ScriptComponent::max);
@@ -1473,7 +1568,7 @@ RestServer::Response RestHelpers::handleSetComponentProperties(MainController* m
 	if (!changesVar.isArray() || changesVar.size() == 0)
 		return req->fail(400, "changes must be a non-empty array");
 	
-	bool force = (bool)obj.getProperty(RestApiIds::force, false);
+	bool force = getTrueValue(obj.getProperty(RestApiIds::force, false));
 	
 	// Phase 1: Validation - collect all locked properties if force=false
 	Array<var> lockedProperties;
@@ -1552,7 +1647,7 @@ RestServer::Response RestHelpers::handleSetComponentProperties(MainController* m
 	Array<var> appliedChanges;
 	bool recompileRequired = false;
 	
-	ValueTreeUpdateWatcher::ScopedDelayer sd(content->getUpdateWatcher(), true);
+	ValueTreeUpdateWatcher::ScopedSuspender sd(content->getUpdateWatcher());
 
 	for (int i = 0; i < changesVar.size(); i++)
 	{
@@ -1605,7 +1700,7 @@ RestServer::Response RestHelpers::handleSetComponentProperties(MainController* m
 	return req->waitForResponse();
 }
 
-RestServer::Response RestHelpers::handleScreenshot(MainController* mc, RestServer::AsyncRequest::Ptr req)
+RestServer::Response RestHelpers::handleTestingScreenshot(MainController* mc, RestServer::AsyncRequest::Ptr req)
 {
 	// Parse parameters
 	auto moduleId = req->getRequest()[RestApiIds::moduleId];
@@ -1670,22 +1765,6 @@ RestServer::Response RestHelpers::handleScreenshot(MainController* mc, RestServe
 		cropBounds = fullBounds;
 	}
 	
-#if 0
-	 ============================================
-	 TODO: Christoph implements capture logic here
-	 ============================================
-	 
-	 Requirements:
-	 - Find the ScriptContentComponent (the actual UI component on screen)
-	 - Marshal to message thread for capture
-	 - Use Component::createComponentSnapshot(bounds, true, scale)
-	 - If componentId specified, crop to that component's bounds
-	 - 1 second timeout - return error if exceeded
-	 - Handle case where UI is mid-compilation gracefully
-	
-	 Suggested structure:
-#endif
-	
 	Image capturedImage;
 	bool captureSuccess = false;
 	WaitableEvent captureComplete;
@@ -1721,32 +1800,32 @@ RestServer::Response RestHelpers::handleScreenshot(MainController* mc, RestServe
 	DynamicObject::Ptr result = new DynamicObject();
 	result->setProperty(RestApiIds::success, true);
 	result->setProperty(RestApiIds::moduleId, moduleId);
-	
+
 	if (componentId.isNotEmpty())
 		result->setProperty(RestApiIds::id, componentId);
-	
+
 	result->setProperty(RestApiIds::width, capturedImage.getWidth());
 	result->setProperty(RestApiIds::height, capturedImage.getHeight());
 	result->setProperty(RestApiIds::scale, scale);
-	
+
 	if (outputPath.isNotEmpty())
 	{
 		// File output mode: write PNG to file
 		File outputFile(outputPath);
-		
+
 		// Delete existing file to ensure clean overwrite (FileOutputStream doesn't truncate)
 		if (outputFile.existsAsFile())
 			outputFile.deleteFile();
-		
+
 		FileOutputStream fos(outputFile);
-		
+
 		if (fos.failedToOpen())
 			return req->fail(500, "failed to open output file: " + outputPath);
-		
+
 		PNGImageFormat pngFormat;
 		if (!pngFormat.writeImageToStream(capturedImage, fos))
 			return req->fail(500, "failed to write PNG to file");
-		
+
 		result->setProperty(RestApiIds::filePath, outputFile.getFullPathName());
 	}
 	else
@@ -1759,14 +1838,14 @@ RestServer::Response RestHelpers::handleScreenshot(MainController* mc, RestServe
 			if (!pngFormat.writeImageToStream(capturedImage, mos))
 				return req->fail(500, "failed to encode PNG");
 		}
-		
+
 		auto base64 = Base64::toBase64(mb.getData(), mb.getSize());
 		result->setProperty(RestApiIds::imageData, base64);
 	}
-	
+
 	result->setProperty(RestApiIds::logs, Array<var>());
 	result->setProperty(RestApiIds::errors, Array<var>());
-	
+
 	req->complete(RestServer::Response::ok(var(result.get())));
 	return req->waitForResponse();
 }
@@ -1848,7 +1927,7 @@ RestServer::Response RestHelpers::handleGetSelectedComponents(MainController* mc
 	return req->waitForResponse();
 }
 
-RestServer::Response RestHelpers::handleSimulateInteractions(BackendProcessor* bp, RestServer::AsyncRequest::Ptr req)
+RestServer::Response RestHelpers::handleTestingE2e(BackendProcessor* bp, RestServer::AsyncRequest::Ptr req)
 {
 	// Capture console output during interaction execution
 	ScopedConsoleHandler consoleHandler(bp, req);
@@ -1865,7 +1944,7 @@ RestServer::Response RestHelpers::handleSimulateInteractions(BackendProcessor* b
 		return req->fail(400, "'interactions' must be an array");
 	
 	// Parse verbose flag (default false)
-	bool verbose = (bool)body.getProperty(RestApiIds::verbose, false);
+	bool verbose = getTrueValue(body.getProperty(RestApiIds::verbose, false));
 	
 	// Get the interaction tester (only available when REST server is running)
 	auto* tester = bp->getInteractionTester();
@@ -2012,7 +2091,7 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	
 	if (moduleIdStr.isNotEmpty())
 	{
-		// moduleId provided — use it to find the processor
+		// moduleId provided - use it to find the processor
 		jp = getScriptProcessor(mc, req);
 		
 		if (jp == nullptr)
@@ -2020,7 +2099,7 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 		
 		if (filePathStr.isEmpty())
 		{
-			// moduleId only, no filePath — need to pick a file
+			// moduleId only, no filePath - need to pick a file
 			// Use the first external file if available
 			if (jp->getNumWatchedFiles() > 0)
 			{
@@ -2038,7 +2117,7 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	}
 	else if (filePathStr.isNotEmpty())
 	{
-		// filePath only — resolve the owning processor
+		// filePath only - resolve the owning processor
 		if (!targetFile.existsAsFile())
 			return req->fail(404, "File not found: " + targetFile.getFullPathName());
 		
@@ -2059,7 +2138,7 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 	auto resolvedModuleId = dynamic_cast<Processor*>(jp)->getId();
 	auto normalizedFilePath = fileName.replace("\\", "/");
 	
-	auto useAsync = (bool)obj.getProperty(RestApiIds::async, false);
+	auto useAsync = getTrueValue(obj.getProperty(RestApiIds::async, false));
 	
 	// Shared lambda for building the diagnostics JSON array
 	auto buildDiagArray = [](const JavascriptProcessor::DiagnosticList& diagnostics)
@@ -2096,6 +2175,8 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 		result->setProperty(RestApiIds::moduleId, resolvedModuleId);
 		result->setProperty(RestApiIds::filePath, normalizedFilePath);
 		result->setProperty(RestApiIds::diagnostics, var(diagArray));
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, Array<var>());
 		return RestServer::Response::ok(var(result.get()));
 	};
 	
@@ -2698,7 +2779,7 @@ var RestHelpers::profilingResultToSummary(
 
 #endif // HISE_INCLUDE_PROFILING_TOOLKIT
 
-RestServer::Response RestHelpers::handleStartProfiling(MainController* mc,
+RestServer::Response RestHelpers::handleTestingProfile(MainController* mc,
                                                         RestServer::AsyncRequest::Ptr req)
 {
 #if !HISE_INCLUDE_PROFILING_TOOLKIT
@@ -2773,8 +2854,8 @@ RestServer::Response RestHelpers::handleStartProfiling(MainController* mc,
 	{
 		if (dh.isRecordingMultithread())
 		{
-			// Check wait param — if false, return immediately with recording status
-			bool shouldWait = (bool)obj.getProperty(RestApiIds::wait, true);
+			// Check wait param - if false, return immediately with recording status
+			bool shouldWait = getTrueValue(obj.getProperty(RestApiIds::wait, true));
 
 			if (!shouldWait)
 			{
@@ -2786,11 +2867,11 @@ RestServer::Response RestHelpers::handleStartProfiling(MainController* mc,
 				return req->waitForResponse();
 			}
 
-			// Recording in progress — block until it finishes
+			// Recording in progress - block until it finishes
 			return waitForRecording();
 		}
 
-		// Not recording — return last result immediately (or "no data")
+		// Not recording - return last result immediately (or "no data")
 		auto lastResult = dh.recordingFlushBroadcaster.getLastValue<0>();
 
 		DynamicObject::Ptr result = new DynamicObject();
@@ -2812,7 +2893,7 @@ RestServer::Response RestHelpers::handleStartProfiling(MainController* mc,
 		req->complete(RestServer::Response::ok(var(result.get())));
 		return req->waitForResponse();
 	}
-	else // "record" mode (default) — non-blocking, returns immediately
+	else // "record" mode (default) - non-blocking, returns immediately
 	{
 		if (!startProfilingSession(mc, obj))
 			return req->fail(409, "A profiling session is already in progress");
@@ -3058,6 +3139,3295 @@ RestServer::Response RestHelpers::handleShutdown(MainController* mc,
 	{
 		JUCEApplication::quit();
 	});
+
+	return req->waitForResponse();
+}
+
+// ============================================================================
+// Builder Endpoint Handlers
+// ============================================================================
+
+RestServer::Response RestHelpers::handleBuilderTree(MainController* mc, 
+                                                     RestServer::AsyncRequest::Ptr req)
+{
+	auto moduleId = req->getRequest()[RestApiIds::moduleId];
+	
+	Processor* root = mc->getMainSynthChain();
+	
+	
+
+	auto group = req->getRequest()[RestApiIds::group];
+
+	TreeOptions o;
+
+    o.includeParameters = req->getRequest().getTrueValue(RestApiIds::queryParameters);
+    o.verbose = req->getRequest().getTrueValue(RestApiIds::verbose);
+
+	var tree;
+
+	if (group.isNotEmpty())
+	{
+		if(group != "current")
+			return req->fail(501, "only current group is supported");
+
+		auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::BuilderTree);
+		auto v = um->getValidationPlan();
+		auto treeToUse = v;
+
+		if (moduleId.isNotEmpty())
+		{
+			treeToUse = ValueTree();
+
+			valuetree::Helpers::forEach(v, [&](const ValueTree& mv)
+			{
+				if (mv[PropertyIds::ID].toString() == moduleId)
+				{
+					treeToUse = mv;
+					return true;
+				}
+
+				return false;
+			});
+
+			if (!treeToUse.isValid())
+				return req->fail(404, "Module not found: " + moduleId);
+		}
+
+		if (!treeToUse.isValid())
+			return req->fail(400, group == "current" ? "No current group" : "group not found");
+
+		tree = buildModuleTree({ nullptr, treeToUse }, o);
+	}
+	else
+	{
+		if (moduleId.isNotEmpty())
+			root = findProcessorByName(mc, moduleId);
+
+		if (root == nullptr)
+			return req->fail(404, "Module not found: " + moduleId);
+
+		tree = buildModuleTree({ root, ValueTree() }, o);
+	}
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::result, tree);
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+
+
+hise::ControlledObject* BackendProcessor::getOrCreateRestServerBuildUndoManager()
+{
+	if (buildUndoManager == nullptr)
+		buildUndoManager = new RestServerUndoManager::Instance(this);
+
+	return buildUndoManager.get();
+}
+
+RestServer::Response RestHelpers::handleBuilderApply(MainController* mc,
+                                                      RestServer::AsyncRequest::Ptr req)
+{
+	static constexpr ApiRoute CurrentEndpoint = ApiRoute::BuilderApply;
+
+	std::vector<RestServerUndoManager::CallStack> errorCallstack;
+
+	req->setUseCustomErrors(true);
+	auto obj = req->getRequest().getJsonBody();
+	
+	// --- Field validation ---
+	
+	auto ops = obj[RestApiIds::operations];
+	if (!ops.isArray())
+		return req->fail(400, "operations must be an array");
+	
+	if (ops.size() == 0)
+		return req->fail(400, "operations array must not be empty");
+	
+	auto p = mc->getMainSynthChain();
+	auto noErrors = true;
+	
+	// Phase 3: Execute via undo manager
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, CurrentEndpoint);
+	
+	// Phase 1: Validate required fields per operation type
+	for (int i = 0; i < ops.size(); i++)
+	{
+		auto op = ops[i];
+		
+		auto ok = um->prevalidate(RestServerUndoManager::Domain::Builder, ops[i]);
+
+		if (!ok)
+		{
+			noErrors = false;
+
+			errorCallstack.push_back(RestServerUndoManager::CallStack(ok.getErrorMessage())
+				.withGroup(um->getCurrentGroupId())
+				.withPhase(RestServerUndoManager::CallStack::Phase::Prevalidation)
+				.withOperation(i, ops[i]["op"].toString())
+				.withEndpoint(CurrentEndpoint));
+
+			//debugError(p, "operations[" + String(i) + "]: " + ok.getErrorMessage());
+			continue;
+		}
+
+	}
+	
+	if (!noErrors)
+	{
+		//debugError(p, "Rejected batch: some operations failed validation");
+		
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, false);
+		result->setProperty(RestApiIds::result, var());
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, RestServerUndoManager::CallStack::toJSONList(errorCallstack));
+		req->complete(RestServer::Response::ok(var(result.get())));
+		return req->waitForResponse();
+	}
+	
+	using ActionBase = RestServerUndoManager::ActionBase;
+	ActionBase::List actions;
+	
+	for (int i = 0; i < ops.size(); i++)
+	{
+		auto op = ops[i];
+
+		auto ad = um->createAction(RestServerUndoManager::Domain::Builder, op);
+		auto ok = ad->validate();
+
+		if (ok)
+			actions.add(ad);
+		else
+		{
+			errorCallstack.push_back(RestServerUndoManager::CallStack(ok.getErrorMessage())
+				.withGroup(um->getCurrentGroupId())
+				.withPhase(RestServerUndoManager::CallStack::Phase::Validation)
+				.withOperation(i, ad->getDescription())
+				.withEndpoint(CurrentEndpoint));
+
+			noErrors = false;
+			//debugError(p, "operations[" + String(i) + "]: " + ok.getErrorMessage());
+		}
+	}
+	
+	if (!noErrors)
+	{
+		//debugError(p, "Rejected batch: some operations failed validation");
+		
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, false);
+		result->setProperty(RestApiIds::result, var());
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, RestServerUndoManager::CallStack::toJSONList(errorCallstack));
+		req->complete(RestServer::Response::ok(var(result.get())));
+		return req->waitForResponse();
+	}
+	
+	um->setValidationErrors(errorCallstack);
+
+	um->performAction(req, actions, [](ActionBase::List l, bool undo)
+	{
+		if (!l.isEmpty())
+		{
+			auto mc = l.getFirst()->getMainController();
+			
+			int rl = 0;
+
+			for (auto a : l)
+				rl |= a->getRebuildLevel(RestServerUndoManager::Domain::Builder, undo);
+
+			if(rl & RestServerUndoManager::RebuildLevel::UniqueId)
+				PresetHandler::setUniqueIdsForProcessor(mc->getMainSynthChain());
+
+			for (auto a : l)
+				debugToConsole(mc->getMainSynthChain(), a->getHistoryMessage(undo));
+		}
+	});
+	
+	return req->waitForResponse();
+}
+
+// ============================================================================
+// Builder Reset Handler
+// ============================================================================
+
+RestServer::Response RestHelpers::handleBuilderReset(MainController* mc,
+                                                      RestServer::AsyncRequest::Ptr req)
+{
+    auto um = RestServerUndoManager::Instance::getOrCreate(mc, RestHelpers::ApiRoute::BuilderReset);
+    
+    
+    
+    mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), [um, req](Processor* p)
+    {
+        p->getMainController()->clearPreset(sendNotificationAsync);
+        dynamic_cast<BackendProcessor*>(p->getMainController())->createInterface(600, 500);
+
+        DynamicObject::Ptr result = new DynamicObject();
+        result->setProperty(RestApiIds::success, true);
+        result->setProperty(RestApiIds::result, "Module tree reset");
+        result->setProperty(RestApiIds::logs, Array<var>());
+        result->setProperty(RestApiIds::errors, Array<var>());
+
+        
+        req->complete(RestServer::Response::ok(var(result.get())));
+        
+        um->clearUndoHistory();
+        um->flushUI(p);
+        
+        return SafeFunctionCall::OK;
+    }, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
+    
+	return req->waitForResponse();
+}
+
+// ============================================================================
+// Undo Endpoint Handlers
+// ============================================================================
+
+RestServer::Response RestHelpers::handleUndoPushGroup(MainController* mc,
+                                                       RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+	
+	auto groupName = obj[RestApiIds::name].toString();
+	if (groupName.isEmpty())
+		return req->fail(400, "name is required");
+	
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::UndoPushGroup);
+	
+	um->pushPlan(groupName);
+	
+	auto result = RestServerUndoManager::Instance::getResponse({}, um->getDiffJSON(true, true));
+	req->complete(result);
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleUndoPopGroup(MainController* mc,
+                                                      RestServer::AsyncRequest::Ptr req)
+{
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::UndoPopGroup);
+	
+	req->setUseCustomErrors(true);
+
+	if (!um->popPlan(req))
+		return req->fail(400, "Not inside a group");
+	
+	// popPlan reads cancel from the request body internally.
+	// When cancel=false, popPlan calls performAction which completes the request.
+	// When cancel=true, popPlan just pops without executing, so we complete here.
+	auto obj = req->getRequest().getJsonBody();
+	bool shouldCancel = getTrueValue(obj.getProperty(RestApiIds::cancel, false));
+	
+	if (shouldCancel)
+	{
+		auto result = RestServerUndoManager::Instance::getResponse({}, um->getDiffJSON(true, true));
+		req->complete(result);
+	}
+	
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleUndoBack(MainController* mc,
+                                                  RestServer::AsyncRequest::Ptr req)
+{
+	req->setUseCustomErrors(true);
+
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::UndoBack);
+	
+	if (!um->undo(req))
+	{
+		return req->fail(400, "nothing to undo");
+	}
+	
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleUndoForward(MainController* mc,
+                                                     RestServer::AsyncRequest::Ptr req)
+{
+	req->setUseCustomErrors(true);
+
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::UndoForward);
+	
+	if (!um->redo(req))
+	{
+		return req->fail(400, "nothing to redo");
+	}
+	
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleUndoDiff(MainController* mc,
+                                                  RestServer::AsyncRequest::Ptr req)
+{
+	auto scopeStr = req->getRequest()[RestApiIds::scope];
+	auto domainFilter = req->getRequest()[RestApiIds::domain];
+	bool shouldFlatten = req->getRequest()[RestApiIds::flatten].getIntValue() != 0;
+	
+	if (scopeStr.isEmpty()) 
+		scopeStr = "group";
+	
+	if (scopeStr != "group" && scopeStr != "root")
+		return req->fail(400, "scope must be 'group' or 'root'");
+	
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::UndoDiff);
+	
+	auto group = scopeStr == "group";
+
+	auto domainIndex = RestServerUndoManager::getDomains().indexOf(domainFilter);
+
+	RestServerUndoManager::Domain d = RestServerUndoManager::Domain::Undefined;
+
+	if (domainIndex != -1)
+		d = (RestServerUndoManager::Domain)domainIndex;
+
+	auto result = RestServerUndoManager::Instance::getResponse({}, um->getDiffJSON(shouldFlatten, group, d));
+
+	req->complete(result);
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleUndoHistory(MainController* mc,
+                                                     RestServer::AsyncRequest::Ptr req)
+{
+	auto scopeStr = req->getRequest()[RestApiIds::scope];
+	auto domainFilter = req->getRequest()[RestApiIds::domain];
+	bool shouldFlatten = req->getRequest()[RestApiIds::flatten].getIntValue() != 0;
+	
+	if (scopeStr.isEmpty()) scopeStr = "group";
+	
+	if (scopeStr != "group" && scopeStr != "root")
+		return req->fail(400, "scope must be 'group' or 'root'");
+	
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::UndoHistory);
+	
+	auto group = scopeStr == "group";
+	
+	auto domainIndex = RestServerUndoManager::getDomains().indexOf(domainFilter);
+	
+	RestServerUndoManager::Domain d = RestServerUndoManager::Domain::Undefined;
+	
+	if (domainIndex != -1)
+		d = (RestServerUndoManager::Domain)domainIndex;
+	
+	auto result = RestServerUndoManager::Instance::getResponse({}, um->getHistory(shouldFlatten, group, d));
+	
+	req->complete(result);
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleUndoClear(MainController* mc,
+                                                   RestServer::AsyncRequest::Ptr req)
+{
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::UndoClear);
+	
+	um->clearUndoHistory();
+	
+	auto result = RestServerUndoManager::Instance::getResponse({}, um->getDiffJSON(true, true));
+	req->complete(result);
+	return req->waitForResponse();
+}
+
+// ============================================================================
+// Wizard Endpoint Handlers
+// ============================================================================
+
+namespace WizardIds
+{
+	static const StringArray validWizardIds = {
+		"new_project", "recompile", "plugin_export",
+		"compile_networks", "audio_export", "install_package_maker"
+	};
+
+	static bool isAsyncTask(const String& wizardId)
+	{
+		if (wizardId == "plugin_export")
+			return true;
+
+		return false;
+	}
+
+	static bool isValidTaskForWizard(const String& wizardId, const String& task)
+	{
+		if (wizardId == "new_project")
+			return task == "createEmptyProject" || task == "importHxiTask" || task == "extractRhapsody";
+		if (wizardId == "recompile")
+			return task == "task";
+		if (wizardId == "plugin_export")
+			return task == "compileTask";
+		if (wizardId == "compile_networks")
+			return task == "compileTask";
+		if (wizardId == "audio_export")
+			return task == "onExport";
+		if (wizardId == "install_package_maker")
+			return task == "writePackageJson";
+		return false;
+	}
+
+	static String getValidTasksForWizard(const String& wizardId)
+	{
+		if (wizardId == "new_project")
+			return "createEmptyProject, importHxiTask, extractRhapsody";
+		if (wizardId == "recompile")
+			return "task";
+		if (wizardId == "plugin_export")
+			return "compileTask";
+		if (wizardId == "compile_networks")
+			return "compileTask";
+		if (wizardId == "audio_export")
+			return "onExport";
+		if (wizardId == "install_package_maker")
+			return "writePackageJson";
+		return "";
+	}
+}
+
+void RestHelpers::WizardExecutor::registerExecutors()
+{
+	// prove that the API envelope matches
+	registerExecutor<DummyTask>("dummy");
+	executors.clear();
+
+	registerExecutor<multipage::library::NewProjectCreator>("new_project");
+
+	registerExecutor<multipage::library::CompileProjectDialog>("plugin_export");
+}
+
+
+
+RestServer::Response RestHelpers::handleWizardInitialise(MainController* mc,
+                                                          RestServer::AsyncRequest::Ptr req)
+{
+	auto wizardId = req->getRequest()[RestApiIds::id];
+
+	if (wizardId.isEmpty())
+		return req->fail(400, "id query parameter is required");
+
+	if (!WizardIds::validWizardIds.contains(wizardId))
+		return req->fail(400, "Unknown wizard ID: " + wizardId +
+			". Valid IDs: " + WizardIds::validWizardIds.joinIntoString(", "));
+
+    WizardExecutor w(mc, wizardId);
+    
+    auto ok = w.initialise(req->getRequest());
+	req->complete(ok);
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleWizardExecute(MainController* mc,
+                                                       RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+
+	auto wizardId = obj[RestApiIds::wizardId].toString();
+	auto answers = obj[RestApiIds::answers];
+	auto tasks = obj[RestApiIds::tasks];
+
+	// Validate required fields
+	if (wizardId.isEmpty())
+		return req->fail(400, "wizardId is required in request body");
+
+	if (!answers.isObject())
+		return req->fail(400, "answers must be a key/value object");
+
+	if (!tasks.isArray() || tasks.size() != 1)
+		return req->fail(400, "tasks must be an array with exactly one task function name");
+
+	// Validate wizard ID
+	if (!WizardIds::validWizardIds.contains(wizardId))
+		return req->fail(400, "Unknown wizard ID: " + wizardId +
+			". Valid IDs: " + WizardIds::validWizardIds.joinIntoString(", "));
+
+	// Validate task name for this wizard
+	auto taskName = tasks[0].toString();
+
+	if (!WizardIds::isValidTaskForWizard(wizardId, taskName))
+		return req->fail(400, "Invalid task '" + taskName + "' for wizard '" + wizardId +
+			"'. Valid tasks: " + WizardIds::getValidTasksForWizard(wizardId));
+
+	// TODO (Christoph): Wire up to dialog_library task logic.
+	// 1. Create headless wizard instance or call extracted business logic
+	// 2. Populate state->globalState with answers
+	// 3. Call the task function (e.g., createEmptyProject, compileTask, etc.)
+	// 4. For sync tasks: return result directly
+	// 5. For async tasks (audio_export): start background job, return {jobId, async: true}
+
+    WizardExecutor w(mc, wizardId);
+
+	auto async = WizardIds::isAsyncTask(wizardId);
+
+	auto bp = dynamic_cast<BackendProcessor*>(mc);
+	auto s = dynamic_cast<RestHelpers::WizardExecutor::AsyncRunner*>(bp->getRestWizardRunner());
+
+    auto ok = w.execute(req->getRequest(), async ? s : nullptr);
+    req->complete(ok);
+    return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleWizardStatus(MainController* mc,
+                                                      RestServer::AsyncRequest::Ptr req)
+{
+	auto jobId = req->getRequest()[RestApiIds::jobId];
+
+	if (jobId.isEmpty())
+		return req->fail(400, "jobId query parameter is required");
+
+	auto bp = dynamic_cast<BackendProcessor*>(mc);
+	auto s = dynamic_cast<RestHelpers::WizardExecutor::AsyncRunner*>(bp->getRestWizardRunner());
+
+
+	// TODO (Christoph): Look up active async job by jobId.
+	// Return {finished, progress, message} from the job's current state.
+	// If jobId is unknown, return error.
+
+	if(jobId != s->getActiveJobId())
+		return req->fail(404, "No active job with ID: " + jobId);
+
+	req->complete(s->makeResponse());
+	return req->waitForResponse();
+
+}
+
+// ============================================================================
+// UI Tree Handler
+// ============================================================================
+
+static var buildUIComponentTreeFromValueTree(const ValueTree& v)
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	obj->setProperty(RestApiIds::id, v.getProperty("id"));
+	obj->setProperty(RestApiIds::type, v.getProperty("type"));
+	obj->setProperty(RestApiIds::visible, v.getProperty("visible", true));
+	obj->setProperty(RestApiIds::enabled, v.getProperty("enabled", true));
+	obj->setProperty(RestApiIds::saveInPreset, v.getProperty("saveInPreset", false));
+	obj->setProperty(RestApiIds::x, v.getProperty("x", 0));
+	obj->setProperty(RestApiIds::y, v.getProperty("y", 0));
+	obj->setProperty(RestApiIds::width, v.getProperty("width", 128));
+	obj->setProperty(RestApiIds::height, v.getProperty("height", 48));
+
+	Array<var> children;
+	for (int i = 0; i < v.getNumChildren(); i++)
+		children.add(buildUIComponentTreeFromValueTree(v.getChild(i)));
+
+	obj->setProperty(RestApiIds::childComponents, var(children));
+	return var(obj.get());
+}
+
+static var buildUIComponentTreeFromScriptComponent(ScriptComponent* sc)
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	obj->setProperty(RestApiIds::id, sc->getName().toString());
+	obj->setProperty(RestApiIds::type, sc->getObjectName().toString());
+	obj->setProperty(RestApiIds::visible, sc->getScriptObjectProperty(ScriptComponent::visible));
+	obj->setProperty(RestApiIds::enabled, sc->getScriptObjectProperty(ScriptComponent::enabled));
+	obj->setProperty(RestApiIds::saveInPreset, sc->getScriptObjectProperty(ScriptComponent::saveInPreset));
+	obj->setProperty(RestApiIds::x, sc->getScriptObjectProperty(ScriptComponent::x));
+	obj->setProperty(RestApiIds::y, sc->getScriptObjectProperty(ScriptComponent::y));
+	obj->setProperty(RestApiIds::width, sc->getScriptObjectProperty(ScriptComponent::width));
+	obj->setProperty(RestApiIds::height, sc->getScriptObjectProperty(ScriptComponent::height));
+
+	Array<var> children;
+
+	auto v = sc->getPropertyValueTree();
+	for (auto c : v)
+	{
+		if (auto child = sc->getScriptProcessor()->getScriptingContent()->getComponentWithName(c["id"].toString()))
+			children.add(buildUIComponentTreeFromScriptComponent(child));
+	}
+
+	obj->setProperty(RestApiIds::childComponents, var(children));
+	return var(obj.get());
+}
+
+RestServer::Response RestHelpers::handleUITree(MainController* mc,
+                                                RestServer::AsyncRequest::Ptr req)
+{
+	if (auto jp = getScriptProcessor(mc, req))
+	{
+		auto content = dynamic_cast<ProcessorWithScriptingContent*>(jp)->getScriptingContent();
+		auto group = req->getRequest()[RestApiIds::group];
+
+		var tree;
+
+		if (group.isNotEmpty())
+		{
+			if (group != "current")
+				return req->fail(501, "only 'current' group is supported");
+
+			auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::UITree);
+			auto uiState = um->getCurrentUIValidationState();
+
+			if (uiState == nullptr || !uiState->contentTree.isValid())
+				return req->fail(400, group == "current" ? "No current UI validation state" : "group not found");
+
+			// Build tree from UIValidationState's copied ValueTree
+			auto& ct = uiState->contentTree;
+
+			DynamicObject::Ptr root = new DynamicObject();
+			root->setProperty(RestApiIds::id, "Content");
+			root->setProperty(RestApiIds::type, "ScriptPanel");
+			root->setProperty(RestApiIds::visible, true);
+			root->setProperty(RestApiIds::enabled, true);
+			root->setProperty(RestApiIds::saveInPreset, false);
+			root->setProperty(RestApiIds::x, 0);
+			root->setProperty(RestApiIds::y, 0);
+			root->setProperty(RestApiIds::width, ct.getProperty("width", 600));
+			root->setProperty(RestApiIds::height, ct.getProperty("height", 500));
+
+			Array<var> children;
+			for (int i = 0; i < ct.getNumChildren(); i++)
+				children.add(buildUIComponentTreeFromValueTree(ct.getChild(i)));
+			root->setProperty(RestApiIds::childComponents, var(children));
+
+			tree = var(root.get());
+		}
+		else
+		{
+			// Build root Content node
+			DynamicObject::Ptr root = new DynamicObject();
+			root->setProperty(RestApiIds::id, "Content");
+			root->setProperty(RestApiIds::type, "ScriptPanel");
+			root->setProperty(RestApiIds::visible, true);
+			root->setProperty(RestApiIds::enabled, true);
+			root->setProperty(RestApiIds::saveInPreset, false);
+			root->setProperty(RestApiIds::x, 0);
+			root->setProperty(RestApiIds::y, 0);
+			root->setProperty(RestApiIds::width, content->getContentProperties().getProperty("width", 600));
+			root->setProperty(RestApiIds::height, content->getContentProperties().getProperty("height", 500));
+
+			Array<var> children;
+			for (int i = 0; i < content->getNumComponents(); i++)
+			{
+				auto sc = content->getComponent(i);
+				if (sc->getParentScriptComponent() == nullptr)
+					children.add(buildUIComponentTreeFromScriptComponent(sc));
+			}
+			root->setProperty(RestApiIds::childComponents, var(children));
+
+			tree = var(root.get());
+		}
+
+		// Merge tree fields onto flat response
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, true);
+		result->setProperty(RestApiIds::result, tree);
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, Array<var>());
+
+		req->complete(RestServer::Response::ok(var(result.get())));
+		return req->waitForResponse();
+	}
+	else
+	{
+		return req->fail(404, "moduleId is not a valid script processor");
+	}
+}
+
+// ============================================================================
+// UI Apply Handler
+// ============================================================================
+
+RestServer::Response RestHelpers::handleUIApply(MainController* mc,
+                                                 RestServer::AsyncRequest::Ptr req)
+{
+	static constexpr ApiRoute CurrentEndpoint = ApiRoute::UIApply;
+
+	std::vector<RestServerUndoManager::CallStack> errorCallstack;
+
+	req->setUseCustomErrors(true);
+	auto obj = req->getRequest().getJsonBody();
+
+	// --- Field validation ---
+
+	auto ops = obj[RestApiIds::operations];
+	if (!ops.isArray())
+		return req->fail(400, "operations must be an array");
+
+	if (ops.size() == 0)
+		return req->fail(400, "operations array must not be empty");
+
+	auto noErrors = true;
+
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, CurrentEndpoint);
+
+	// Phase 1: Validate required fields per operation type
+	for (int i = 0; i < ops.size(); i++)
+	{
+		auto ok = um->prevalidate(RestServerUndoManager::Domain::UI, ops[i]);
+
+		if (!ok)
+		{
+			noErrors = false;
+
+			errorCallstack.push_back(RestServerUndoManager::CallStack(ok.getErrorMessage())
+				.withGroup(um->getCurrentGroupId())
+				.withPhase(RestServerUndoManager::CallStack::Phase::Prevalidation)
+				.withOperation(i, ops[i][RestApiIds::op].toString())
+				.withEndpoint(CurrentEndpoint));
+		}
+	}
+
+	if (!noErrors)
+	{
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, false);
+		result->setProperty(RestApiIds::result, var());
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, RestServerUndoManager::CallStack::toJSONList(errorCallstack));
+		req->complete(RestServer::Response::ok(var(result.get())));
+		return req->waitForResponse();
+	}
+
+	// Phase 2: Create actions and validate semantics
+	using ActionBase = RestServerUndoManager::ActionBase;
+	ActionBase::List actions;
+
+	for (int i = 0; i < ops.size(); i++)
+	{
+		auto ad = um->createAction(RestServerUndoManager::Domain::UI, ops[i]);
+		auto ok = ad->validate();
+
+		if (ok)
+			actions.add(ad);
+		else
+		{
+			errorCallstack.push_back(RestServerUndoManager::CallStack(ok.getErrorMessage())
+				.withGroup(um->getCurrentGroupId())
+				.withPhase(RestServerUndoManager::CallStack::Phase::Validation)
+				.withOperation(i, ad->getDescription())
+				.withEndpoint(CurrentEndpoint));
+
+			noErrors = false;
+		}
+	}
+
+	if (!noErrors)
+	{
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, false);
+		result->setProperty(RestApiIds::result, var());
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, RestServerUndoManager::CallStack::toJSONList(errorCallstack));
+		req->complete(RestServer::Response::ok(var(result.get())));
+		return req->waitForResponse();
+	}
+
+	// Phase 3: Execute via undo manager
+	um->setValidationErrors(errorCallstack);
+
+    auto mid = obj[RestApiIds::moduleId].toString();
+    auto sp = dynamic_cast<ProcessorWithScriptingContent*>(ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), mid));
+    
+    if(sp == nullptr)
+        return req->fail(404, String("module with ID ") + mid + String(" + not found"));
+    
+    //ValueTreeUpdateWatcher::ScopedDelayer sd(sp->getScriptingContent()->getUpdateWatcher(), true);
+    
+	um->performAction(req, actions, [](ActionBase::List l, bool undo)
+	{
+		if (!l.isEmpty())
+		{
+			auto mc = l.getFirst()->getMainController();
+
+			for (auto a : l)
+				debugToConsole(mc->getMainSynthChain(), a->getHistoryMessage(undo));
+		}
+	});
+
+	return req->waitForResponse();
+}
+
+// ============================================================================
+// Builder Helper Methods
+// ============================================================================
+
+int RestHelpers::resolveChainIndex(const String& chainName)
+{
+	auto lower = chainName.toLowerCase();
+	
+	if (lower == "direct") return raw::IDs::Chains::Direct;
+	if (lower == "midi")   return raw::IDs::Chains::Midi;
+	if (lower == "gain")   return raw::IDs::Chains::Gain;
+	if (lower == "pitch")  return raw::IDs::Chains::Pitch;
+	if (lower == "fx")     return raw::IDs::Chains::FX;
+	
+	return -2; // Invalid
+}
+
+String RestHelpers::getChainName(int chainIndex)
+{
+	if (chainIndex == raw::IDs::Chains::Direct) return "direct";
+	if (chainIndex == raw::IDs::Chains::Midi)   return "midi";
+	if (chainIndex == raw::IDs::Chains::Gain)   return "gain";
+	if (chainIndex == raw::IDs::Chains::Pitch)  return "pitch";
+	if (chainIndex == raw::IDs::Chains::FX)     return "fx";
+	
+	return "unknown";
+}
+
+bool RestHelpers::validateTypeForChain(const Identifier& typeId, 
+                                        int chainIndex, 
+                                        DynamicObject::Ptr hints)
+{
+	ProcessorMetadataRegistry registry;
+	auto md = registry.get(typeId);
+	jassert(md != nullptr); // Should be checked by caller
+	
+	StringArray validChains;
+	
+	// Map metadata type to valid chains
+	if (md->type == ProcessorMetadataIds::Modulator)
+	{
+		validChains.add("gain");
+		validChains.add("pitch");
+	}
+	else if (md->type == ProcessorMetadataIds::Effect)
+	{
+		validChains.add("fx");
+	}
+	else if (md->type == ProcessorMetadataIds::MidiProcessor)
+	{
+		validChains.add("midi");
+	}
+	else if (md->type == ProcessorMetadataIds::SoundGenerator)
+	{
+		validChains.add("direct");
+	}
+	
+	hints->setProperty(RestApiIds::validChains, var(validChains));
+	
+	// Check if requested chain is valid
+	String requestedChain = getChainName(chainIndex);
+	return validChains.contains(requestedChain);
+}
+
+Processor* RestHelpers::findProcessorByName(MainController* mc, const String& name)
+{
+	return ProcessorHelpers::getFirstProcessorWithName(
+		mc->getMainSynthChain(), name);
+}
+
+var RestHelpers::buildModuleTree(const ProcessorOrValueTree& root, const TreeOptions& options)
+{
+	auto md = root.getMetadata();
+	auto metadata = md.toJSON();
+
+	auto obj = metadata.getDynamicObject();
+
+	if (!options.verbose)
+	{
+		obj->removeProperty("description");
+		obj->removeProperty("builderPath");
+		obj->removeProperty("metadataType");
+		obj->removeProperty("interfaces");
+	}
+
+	obj->setProperty("bypassed", root.isBypassed());
+	obj->setProperty("processorId", root.getId());
+	obj->setProperty("colour", root.getColour());
+
+	if (options.includeParameters)
+	{
+		auto parameters = metadata["parameters"];
+		jassert(parameters.size() == md.parameters.size());
+		int idx = 0;
+
+		for (const auto& p : md.parameters)
+		{
+			auto po = parameters[idx].getDynamicObject();
+
+			if (root.isRuntimeData())
+			{
+				auto value = root.getAttribute(p.parameterIndex);
+				auto normValue = p.range.convertTo0to1(value, false);
+				String valueAsString = p.vtc.active ? p.vtc(value) : String(value);
+
+				po->setProperty("value", value);
+				po->setProperty("valueNormalized", normValue);
+				po->setProperty("valueAsString", valueAsString);
+			}
+
+			if (!options.verbose)
+			{
+				po->removeProperty("description");
+				po->removeProperty("metadataType");
+				po->removeProperty("mode");
+				po->removeProperty("type");
+				po->removeProperty("unit");
+			}
+
+			idx++;
+		}
+	}
+	else
+	{
+		obj->removeProperty("parameters");
+	}
+
+	if (md.type == ProcessorMetadataIds::SoundGenerator)
+	{
+		auto mp = root.getChild(ModulatorSynth::InternalChains::MidiProcessor);
+
+		Array<var> midiProcessors;
+		
+		for (int i = 0; i < mp.getNumChildren(); i++)
+			midiProcessors.add(buildModuleTree(mp.getChild(i), options));
+		
+		obj->setProperty("midi", var(midiProcessors));
+		
+		Array<var> fxProcessors;
+
+		auto fx = root.getChild(ModulatorSynth::InternalChains::EffectChain);
+
+		for (int i = 0; i < fx.getNumChildren(); i++)
+			fxProcessors.add(buildModuleTree(fx.getChild(i), options));
+
+		obj->setProperty("fx", var(fxProcessors));
+
+		if (md.hasChildren)
+		{
+			Array<var> children;
+
+			auto offset = md.modulation.size() + 2;
+
+			for (int i = offset; i < root.getNumChildren(); i++)
+			{
+				auto cp = root.getChild(i);
+				children.add(buildModuleTree(cp, options));
+			}
+
+			obj->setProperty("children", var(children));
+		}
+	}
+
+	auto modData = obj->getProperty("modulation");
+
+	if (auto md = modData.getArray())
+	{
+		for (auto& modChain : *md)
+		{
+			auto mo = modChain.getDynamicObject();
+
+			
+			
+			if (!options.verbose)
+			{
+				mo->removeProperty("description");
+				mo->removeProperty("metadataType");
+			}
+
+			Array<var> children;
+
+			if (modChain["disabled"])
+			{
+				HiseModulationColours hc;
+
+				mo->setProperty("colour", "#" + hc.getColour(HiseModulationColours::ColourId::ExtraMod).toDisplayString(false));
+
+				modChain.getDynamicObject()->setProperty("children", var(children));
+
+				continue;
+			}
+
+			auto idx = (int)modChain["chainIndex"];
+			auto mc = root.getChild(idx);
+
+			if(mc.getType() == ModulatorChain::getClassType())
+			{
+				mo->setProperty("colour", mc.getColour());
+
+				for (int i = 0; i < mc.getNumChildren(); i++)
+					children.add(buildModuleTree(mc.getChild(i), options));
+			}
+
+			modChain.getDynamicObject()->setProperty("children", var(children));
+		}
+	}
+
+	return metadata;
+}
+
+Array<var> RestHelpers::buildChainArray(Processor* parent, int chainIndex)
+{
+	// TODO: Implement chain array building
+	// Get chain from parent, iterate processors, call buildModuleTree on each
+	return Array<var>();
+}
+
+//==============================================================================
+// MidiInjector implementation
+//==============================================================================
+
+MidiInjector::MidiInjector(MainController* mc_)
+	: mc(mc_)
+{
+}
+
+MidiInjector::~MidiInjector()
+{
+	stopTimer();
+}
+
+void MidiInjector::queueMessages(const Array<var>& messages)
+{
+	auto now = Time::getMillisecondCounterHiRes();
+
+	ScopedLock sl(lock);
+
+	// If nothing is playing, reset counters for a fresh sequence
+	bool wasIdle = scheduledEvents.isEmpty() && activeNotes.isEmpty();
+
+	if (wasIdle)
+	{
+		totalEvents = 0;
+		playedEvents = 0;
+		sequenceStartMs = now;
+		sequenceEndMs = now;
+	}
+
+	for (const auto& msg : messages)
+	{
+		auto type = msg.getProperty(RestApiIds::type, "").toString();
+
+		if (type.isEmpty())
+			continue;
+
+		ScheduledEvent e;
+		e.type = type;
+		e.channel = (int)msg.getProperty(RestApiIds::channel, 1);
+		e.noteNumber = (int)msg.getProperty(RestApiIds::noteNumber, 0);
+		e.velocity = (float)msg.getProperty(RestApiIds::velocity, 1.0);
+		e.controller = (int)msg.getProperty(RestApiIds::controller, 0);
+		e.value = (int)msg.getProperty(RestApiIds::value, 0);
+		e.duration = (int)msg.getProperty(RestApiIds::duration, 500);
+		e.expression = msg.getProperty(RestApiIds::expression, "").toString();
+		e.replId = msg.getProperty(RestApiIds::id, "").toString();
+		e.moduleId = msg.getProperty(RestApiIds::moduleId, "Interface").toString();
+		e.attributeValue = (float)msg.getProperty(RestApiIds::value, 0.0);
+
+		// testsignal fields
+		e.signal = msg.getProperty(RestApiIds::signal, "").toString();
+		e.frequency = (float)msg.getProperty(RestApiIds::frequency, 440.0);
+		e.startFrequency = (float)msg.getProperty(RestApiIds::startFrequency, 20.0);
+		e.endFrequency = (float)msg.getProperty(RestApiIds::endFrequency, 20000.0);
+
+		// set_attribute uses processorId instead of moduleId
+		if (type == "set_attribute")
+		{
+			e.moduleId = msg.getProperty(RestApiIds::processorId, "Interface").toString();
+			e.parameterIndex = (int)msg.getProperty(Identifier("_resolvedIndex"), -1);
+			e.attributeValue = (float)msg.getProperty(RestApiIds::value, 0.0);
+		}
+
+		e.fireTimeMs = now + (double)(int)msg.getProperty(RestApiIds::timestamp, 0);
+
+		// allNotesOff with delay=0 triggers immediate panic
+		if (type == "allNotesOff" && e.fireTimeMs <= now)
+		{
+			panic();
+			// Don't queue anything after allNotesOff in this batch
+			break;
+		}
+
+		// Insert sorted by fireTimeMs
+		int insertIdx = 0;
+		while (insertIdx < scheduledEvents.size() &&
+		       scheduledEvents[insertIdx].fireTimeMs <= e.fireTimeMs)
+			insertIdx++;
+
+		scheduledEvents.insert(insertIdx, e);
+		totalEvents++;
+
+		// Update sequence end time (account for note duration)
+		double eventEndMs = e.fireTimeMs;
+
+		if (type == "note")
+			eventEndMs += e.duration;
+
+		if (eventEndMs > sequenceEndMs)
+			sequenceEndMs = eventEndMs;
+	}
+
+	scheduleNextCallback();
+}
+
+MidiInjector::Status MidiInjector::getStatus() const
+{
+	ScopedLock sl(lock);
+
+	Status s;
+	s.isPlaying = !scheduledEvents.isEmpty() || !activeNotes.isEmpty();
+	s.activeNotes = activeNotes.size();
+	s.eventsInSequence = totalEvents;
+	s.playedEvents = playedEvents;
+
+	if (totalEvents > 0 && sequenceEndMs > sequenceStartMs)
+	{
+		auto now = Time::getMillisecondCounterHiRes();
+		auto elapsed = now - sequenceStartMs;
+		auto totalDuration = sequenceEndMs - sequenceStartMs;
+
+		s.durationMs = roundToInt(totalDuration);
+		s.progress = s.isPlaying ? jlimit(0.0, 1.0, elapsed / totalDuration) : 1.0;
+	}
+	else
+	{
+		s.durationMs = 0;
+		s.progress = s.isPlaying ? 0.0 : 1.0;
+	}
+
+	return s;
+}
+
+void MidiInjector::hiResTimerCallback()
+{
+	ScopedLock sl(lock);
+
+	auto now = Time::getMillisecondCounterHiRes();
+
+	// Fire all due scheduled events
+	while (!scheduledEvents.isEmpty() && scheduledEvents.getFirst().fireTimeMs <= now)
+	{
+		auto e = scheduledEvents.removeAndReturn(0);
+		fireEvent(e);
+	}
+
+	// Fire all due note-offs
+	fireDueNoteOffs(now);
+
+	// Schedule next or stop
+	scheduleNextCallback();
+}
+
+void MidiInjector::fireEvent(const ScheduledEvent& e)
+{
+	if (e.type == "allNotesOff")
+	{
+		panic();
+		return;
+	}
+
+	if (e.type == "repl")
+	{
+		fireReplEvent(e);
+		playedEvents++;
+		return;
+	}
+
+	if (e.type == "set_attribute")
+	{
+		if (auto* processor = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), e.moduleId))
+			processor->setAttribute(e.parameterIndex, e.attributeValue, dispatch::DispatchType::sendNotificationAsync);
+
+		playedEvents++;
+		return;
+	}
+
+	if (e.type == "testsignal")
+	{
+		fireTestSignalEvent(e);
+		playedEvents++;
+		return;
+	}
+
+	auto noteOff = RestHelpers::dispatchSingleMidiMessage(
+		mc, e.type, e.channel, e.noteNumber, e.velocity, e.controller, e.value);
+
+	playedEvents++;
+
+	if (noteOff.valid)
+	{
+		// Convert to ActiveNote with absolute note-off time
+		ActiveNote an;
+		an.channel = noteOff.channel;
+		an.noteNumber = noteOff.noteNumber;
+		an.noteOffTimeMs = Time::getMillisecondCounterHiRes() + e.duration;
+
+		// Insert sorted by noteOffTimeMs
+		int insertIdx = 0;
+		while (insertIdx < activeNotes.size() &&
+		       activeNotes[insertIdx].noteOffTimeMs <= an.noteOffTimeMs)
+			insertIdx++;
+
+		activeNotes.insert(insertIdx, an);
+	}
+}
+
+void MidiInjector::fireNoteOff(const ActiveNote& n)
+{
+	mc->getKeyboardState().noteOff(n.channel, n.noteNumber, 1.0f);
+}
+
+void MidiInjector::fireDueNoteOffs(double now)
+{
+	while (!activeNotes.isEmpty() && activeNotes.getFirst().noteOffTimeMs <= now)
+	{
+		auto n = activeNotes.removeAndReturn(0);
+		fireNoteOff(n);
+	}
+}
+
+void MidiInjector::fireReplEvent(const ScheduledEvent& e)
+{
+	auto jp = dynamic_cast<JavascriptProcessor*>(
+		ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), e.moduleId));
+
+	DynamicObject::Ptr entry = new DynamicObject();
+
+	if (e.replId.isNotEmpty())
+		entry->setProperty(RestApiIds::id, e.replId);
+
+	entry->setProperty(RestApiIds::expression, e.expression);
+	entry->setProperty(RestApiIds::moduleId, e.moduleId);
+	entry->setProperty(RestApiIds::timestamp, roundToInt(e.fireTimeMs - sequenceStartMs));
+
+	if (jp == nullptr)
+	{
+		entry->setProperty(RestApiIds::success, false);
+		entry->setProperty(RestApiIds::value, "module not found: " + e.moduleId);
+	}
+	else if (auto engine = jp->getScriptEngine())
+	{
+		auto r = Result::ok();
+		auto v = engine->evaluate(e.expression, &r);
+
+		if (v.isUndefined() || v.isVoid())
+			v = "undefined";
+
+		entry->setProperty(RestApiIds::success, r.wasOk());
+		entry->setProperty(RestApiIds::value, v);
+
+		if (!r.wasOk())
+		{
+			auto scriptRoot = mc->getSampleManager().getProjectHandler()
+				.getSubDirectory(FileHandlerBase::Scripts);
+
+			auto errorLines = StringArray::fromLines(r.getErrorMessage());
+			auto parsed = RestHelpers::BaseScopedConsoleHandler::parseError(
+				errorLines[0], scriptRoot, e.moduleId);
+
+			entry->setProperty(RestApiIds::errorMessage, parsed.message);
+
+			if (parsed.location.isNotEmpty())
+				entry->setProperty(RestApiIds::location, parsed.location);
+
+			// Parse callstack entries
+			Array<var> callstack;
+
+			for (int ci = 1; ci < errorLines.size(); ci++)
+			{
+				auto csEntry = RestHelpers::BaseScopedConsoleHandler::parseError(
+					errorLines[ci], scriptRoot, e.moduleId);
+
+				if (csEntry.location.isNotEmpty())
+					callstack.add(csEntry.toCallstackString());
+			}
+
+			if (!callstack.isEmpty())
+				entry->setProperty(RestApiIds::callstack, var(callstack));
+		}
+	}
+	else
+	{
+		entry->setProperty(RestApiIds::success, false);
+		entry->setProperty(RestApiIds::value, "no script engine present");
+	}
+
+	replResults.add(var(entry.get()));
+}
+
+Array<var> MidiInjector::takeReplResults()
+{
+	ScopedLock sl(lock);
+	Array<var> results;
+	results.swapWith(replResults);
+	return results;
+}
+
+void MidiInjector::panic()
+{
+	// Fire note-off for all active notes
+	for (const auto& n : activeNotes)
+		fireNoteOff(n);
+
+	activeNotes.clear();
+	scheduledEvents.clear();
+	mc->allNotesOff();
+	mc->stopBufferToPlay();
+
+	totalEvents = 0;
+	playedEvents = 0;
+	sequenceStartMs = 0;
+	sequenceEndMs = 0;
+
+	stopTimer();
+}
+
+void MidiInjector::scheduleNextCallback()
+{
+	if (scheduledEvents.isEmpty() && activeNotes.isEmpty())
+	{
+		stopTimer();
+		return;
+	}
+
+	auto now = Time::getMillisecondCounterHiRes();
+	double nextTime = std::numeric_limits<double>::max();
+
+	if (!scheduledEvents.isEmpty())
+		nextTime = jmin(nextTime, scheduledEvents.getFirst().fireTimeMs);
+
+	if (!activeNotes.isEmpty())
+		nextTime = jmin(nextTime, activeNotes.getFirst().noteOffTimeMs);
+
+	int deltaMs = jmax(1, roundToInt(nextTime - now));
+	startTimer(deltaMs);
+}
+
+//==============================================================================
+// Test signal generation
+//==============================================================================
+
+void MidiInjector::fireTestSignalEvent(const ScheduledEvent& e)
+{
+	auto sampleRate = mc->getMainSynthChain()->getSampleRate();
+
+	if (sampleRate <= 0.0)
+		return;
+
+	auto key = makeSignalCacheKey(e, sampleRate);
+
+	if (!signalCache.contains(key))
+	{
+		int numSamples = roundToInt(sampleRate * e.duration / 1000.0);
+
+		if (numSamples <= 0)
+			numSamples = 1;
+
+		auto buffer = generateSignal(e.signal, sampleRate, numSamples,
+		                              e.frequency, e.startFrequency, e.endFrequency);
+
+		signalCache.set(key, std::move(buffer));
+	}
+
+	mc->setBufferToPlay(signalCache[key], sampleRate);
+}
+
+String MidiInjector::makeSignalCacheKey(const ScheduledEvent& e, double sampleRate)
+{
+	String key;
+	key << e.signal << "|" << String(sampleRate) << "|" << String(e.duration);
+
+	if (e.signal == "sine" || e.signal == "saw")
+		key << "|" << String(e.frequency);
+	else if (e.signal == "sweep")
+		key << "|" << String(e.startFrequency) << "|" << String(e.endFrequency);
+
+	return key;
+}
+
+AudioSampleBuffer MidiInjector::generateSignal(const String& signal, double sampleRate,
+    int numSamples, float frequency, float startFreq, float endFreq)
+{
+#if 0
+	AudioSampleBuffer buffer(2, numSamples);
+	buffer.clear();
+
+	auto* ch0 = buffer.getWritePointer(0);
+
+	if (signal == "sine")
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			double t = (double)i / sampleRate;
+			ch0[i] = (float)std::sin(2.0 * MathConstants<double>::pi * frequency * t);
+		}
+	}
+	else if (signal == "saw")
+	{
+		for (int i = 0; i < numSamples; i++)
+		{
+			double t = (double)i / sampleRate;
+			double phase = std::fmod(frequency * t, 1.0);
+			ch0[i] = (float)(2.0 * phase - 1.0);
+		}
+	}
+	else if (signal == "sweep")
+	{
+		// Logarithmic sine sweep
+		double duration = (double)numSamples / sampleRate;
+		double logRatio = std::log(endFreq / startFreq);
+
+		for (int i = 0; i < numSamples; i++)
+		{
+			double t = (double)i / sampleRate;
+			double instantFreq = startFreq * std::exp(logRatio * t / duration);
+			double phase = 2.0 * MathConstants<double>::pi * startFreq * duration / logRatio
+			             * (std::exp(logRatio * t / duration) - 1.0);
+			ch0[i] = (float)std::sin(phase);
+		}
+	}
+	else if (signal == "dirac")
+	{
+		ch0[0] = 1.0f;
+	}
+	else if (signal == "noise")
+	{
+		Random rng;
+
+		for (int i = 0; i < numSamples; i++)
+			ch0[i] = rng.nextFloat() * 2.0f - 1.0f;
+	}
+	// "silence" - buffer is already cleared
+
+	// Copy channel 0 to channel 1
+	FloatVectorOperations::copy(buffer.getWritePointer(1), ch0, numSamples);
+
+	return buffer;
+#endif
+	return {};
+}
+
+//==============================================================================
+// dispatchSingleMidiMessage
+//==============================================================================
+
+RestHelpers::PendingNoteOff RestHelpers::dispatchSingleMidiMessage(
+	MainController* mc, const String& type, int channel,
+	int noteNumber, float velocity, int controller, int value)
+{
+	auto& ks = mc->getKeyboardState();
+
+	if (type == "note")
+	{
+		ks.noteOn(channel, noteNumber, velocity);
+
+		PendingNoteOff result;
+		result.channel = channel;
+		result.noteNumber = noteNumber;
+		result.valid = true;
+		return result;
+	}
+	else if (type == "cc")
+	{
+		ks.injectMessage(MidiMessage::controllerEvent(channel, controller, value));
+	}
+	else if (type == "pitchbend")
+	{
+		ks.injectMessage(MidiMessage::pitchWheel(channel, value));
+	}
+	else if (type == "allNotesOff")
+	{
+		mc->allNotesOff();
+	}
+
+	return {};
+}
+
+//==============================================================================
+// handleTestingSequence
+//==============================================================================
+
+RestServer::Response RestHelpers::handleTestingSequence(BackendProcessor* bp,
+                                                        RestServer::AsyncRequest::Ptr req)
+{
+	auto* injector = bp->getMidiInjector();
+
+	if (injector == nullptr)
+		return req->fail(503, "MIDI injector not available");
+
+	auto body = req->getRequest().getJsonBody();
+	auto messagesVar = body.getProperty(RestApiIds::messages, var());
+
+	if (!messagesVar.isArray())
+		return req->fail(400, "Missing or invalid 'messages' array");
+
+	auto* messagesArray = messagesVar.getArray();
+
+	// Validate messages before queuing
+	for (int i = 0; i < messagesArray->size(); i++)
+	{
+		auto& msg = messagesArray->getReference(i);
+		auto type = msg.getProperty(RestApiIds::type, "").toString();
+
+		if (type.isEmpty())
+			return req->fail(400, "Message at index " + String(i) + " missing 'type' field");
+
+		if (type != "note" && type != "cc" && type != "pitchbend" && type != "allNotesOff" && type != "repl" && type != "set_attribute" && type != "testsignal")
+			return req->fail(400, "Message at index " + String(i) + " has unknown type: " + type);
+
+		if (type == "testsignal")
+		{
+			auto signal = msg.getProperty(RestApiIds::signal, "").toString();
+
+			if (signal.isEmpty())
+				return req->fail(400, "testsignal at index " + String(i) + " missing 'signal'");
+
+			if (signal != "sine" && signal != "saw" && signal != "sweep" &&
+			    signal != "dirac" && signal != "noise" && signal != "silence")
+				return req->fail(400, "testsignal at index " + String(i) + " has unknown signal type: " + signal);
+
+			if ((signal == "sine" || signal == "saw") && msg.hasProperty(RestApiIds::frequency))
+			{
+				float freq = (float)msg.getProperty(RestApiIds::frequency, 440.0);
+
+				if (freq <= 0.0f)
+					return req->fail(400, "testsignal at index " + String(i) + " has invalid frequency: " + String(freq));
+			}
+
+			if (signal == "sweep")
+			{
+				float startFreq = (float)msg.getProperty(RestApiIds::startFrequency, 20.0);
+				float endFreq = (float)msg.getProperty(RestApiIds::endFrequency, 20000.0);
+
+				if (startFreq <= 0.0f || endFreq <= 0.0f)
+					return req->fail(400, "testsignal at index " + String(i) + " has invalid sweep frequency range");
+			}
+		}
+		else if (type == "set_attribute")
+		{
+			auto processorId = msg.getProperty(RestApiIds::processorId, "Interface").toString();
+			auto parameterId = msg.getProperty(RestApiIds::parameterId, "").toString();
+
+			if (parameterId.isEmpty())
+				return req->fail(400, "set_attribute at index " + String(i) + " missing 'parameterId'");
+
+			if (!msg.hasProperty(RestApiIds::value))
+				return req->fail(400, "set_attribute at index " + String(i) + " missing 'value'");
+
+			auto* processor = ProcessorHelpers::getFirstProcessorWithName(bp->getMainSynthChain(), processorId);
+
+			if (processor == nullptr)
+				return req->fail(400, "set_attribute at index " + String(i) + ": processor not found: " + processorId);
+
+			auto metadata = processor->getMetadata();
+			int resolvedIndex = -1;
+
+			for (int p = 0; p < metadata.parameters.size(); p++)
+			{
+				if (metadata.parameters[p].id == Identifier(parameterId))
+				{
+					resolvedIndex = metadata.parameters[p].parameterIndex;
+
+					// Validate value against range
+					auto range = metadata.parameters[p].range;
+					float val = (float)msg.getProperty(RestApiIds::value, 0.0);
+
+					if (val < (float)range.rng.start || val > (float)range.rng.end)
+						return req->fail(400, "set_attribute at index " + String(i) + ": value " + String(val)
+							+ " out of range [" + String(range.rng.start) + ", " + String(range.rng.end) + "] for parameter " + parameterId);
+
+					break;
+				}
+			}
+
+			if (resolvedIndex == -1)
+				return req->fail(400, "set_attribute at index " + String(i) + ": parameter not found: " + parameterId + " on processor " + processorId);
+
+			// Store resolved index back into the message for queueMessages to pick up
+			msg.getDynamicObject()->setProperty(Identifier("_resolvedIndex"), resolvedIndex);
+		}
+		else if (type == "repl")
+		{
+			auto expr = msg.getProperty(RestApiIds::expression, "").toString();
+
+			if (expr.isEmpty())
+				return req->fail(400, "REPL message at index " + String(i) + " missing 'expression'");
+		}
+		else if (type == "note")
+		{
+			if (!msg.hasProperty(RestApiIds::noteNumber))
+				return req->fail(400, "Note message at index " + String(i) + " missing 'noteNumber'");
+
+			int noteNumber = (int)msg.getProperty(RestApiIds::noteNumber, 0);
+
+			if (noteNumber < 0 || noteNumber > 127)
+				return req->fail(400, "Note message at index " + String(i) + " has invalid noteNumber: " + String(noteNumber));
+		}
+		else if (type == "cc")
+		{
+			if (!msg.hasProperty(RestApiIds::controller))
+				return req->fail(400, "CC message at index " + String(i) + " missing 'controller'");
+
+			if (!msg.hasProperty(RestApiIds::value))
+				return req->fail(400, "CC message at index " + String(i) + " missing 'value'");
+
+			int ctrl = (int)msg.getProperty(RestApiIds::controller, 0);
+			int val = (int)msg.getProperty(RestApiIds::value, 0);
+
+			if (ctrl < 0 || ctrl > 127)
+				return req->fail(400, "CC message at index " + String(i) + " has invalid controller: " + String(ctrl));
+
+			if (val < 0 || val > 127)
+				return req->fail(400, "CC message at index " + String(i) + " has invalid value: " + String(val));
+		}
+		else if (type == "pitchbend")
+		{
+			if (!msg.hasProperty(RestApiIds::value))
+				return req->fail(400, "Pitchbend message at index " + String(i) + " missing 'value'");
+
+			int val = (int)msg.getProperty(RestApiIds::value, 0);
+
+			if (val < 0 || val > 16383)
+				return req->fail(400, "Pitchbend message at index " + String(i) + " has invalid value: " + String(val));
+		}
+
+		// Validate channel if present (only for MIDI message types)
+		if (type != "allNotesOff" && type != "repl" && type != "set_attribute" && type != "testsignal" && msg.hasProperty(RestApiIds::channel))
+		{
+			int ch = (int)msg.getProperty(RestApiIds::channel, 1);
+
+			if (ch < 1 || ch > 16)
+				return req->fail(400, "Message at index " + String(i) + " has invalid channel: " + String(ch));
+		}
+	}
+
+	// Start audio recording if outputFile specified
+	auto recordOutput = body.getProperty(RestApiIds::recordOutput, "").toString();
+	bool isRecording = false;
+
+	if (recordOutput.isNotEmpty())
+	{
+		// Compute sequence duration from messages
+		double maxEndMs = 0.0;
+
+		for (int i = 0; i < messagesArray->size(); i++)
+		{
+			auto& msg = messagesArray->getReference(i);
+			double ts = (double)(int)msg.getProperty(RestApiIds::timestamp, 0);
+			double dur = (double)(int)msg.getProperty(RestApiIds::duration, 500);
+			auto type = msg.getProperty(RestApiIds::type, "").toString();
+
+			double endMs = ts;
+
+			if (type == "note" || type == "testsignal")
+				endMs += dur;
+
+			if (endMs > maxEndMs)
+				maxEndMs = endMs;
+		}
+
+		double recordSeconds = (maxEndMs / 1000.0) + 0.1; // add 100ms margin
+
+		if (recordSeconds < 0.1)
+			recordSeconds = 0.1;
+
+		File outputFile(recordOutput);
+		bp->getDebugLogger().startRecording(recordSeconds, outputFile);
+		isRecording = true;
+	}
+
+	// Queue messages
+	injector->queueMessages(*messagesArray);
+
+	// If blocking mode, wait for sequence to complete (with 30s timeout)
+	// Recording implies blocking - we need to wait for the sequence to finish
+	bool blocking = isRecording || getTrueValue(body.getProperty(RestApiIds::blocking, false));
+
+	if (blocking)
+	{
+		auto startWait = Time::getMillisecondCounterHiRes();
+		constexpr double maxWaitMs = 30000.0;
+
+		while (injector->getStatus().isPlaying)
+		{
+			if (Time::getMillisecondCounterHiRes() - startWait > maxWaitMs)
+				return req->fail(500, "Blocking sequence timed out after 30 seconds");
+
+			Thread::sleep(5);
+		}
+
+		// If recording, wait a bit more for the DebugLogger to finish writing
+		if (isRecording)
+			Thread::sleep(200);
+	}
+
+	// Build flat response
+	auto status = injector->getStatus();
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::isPlaying, status.isPlaying);
+	result->setProperty(RestApiIds::durationMs, status.durationMs);
+	result->setProperty(RestApiIds::activeNotes, status.activeNotes);
+	result->setProperty(RestApiIds::eventsInSequence, status.eventsInSequence);
+	result->setProperty(RestApiIds::playedEvents, status.playedEvents);
+	result->setProperty(RestApiIds::progress, status.progress);
+
+	if (isRecording)
+		result->setProperty(RestApiIds::recordOutput, recordOutput);
+
+	// Include any REPL results accumulated since last call
+	auto replResults = injector->takeReplResults();
+
+	if (!replResults.isEmpty())
+		result->setProperty(RestApiIds::replResults, var(replResults));
+
+	result->setProperty(RestApiIds::logs, var(Array<var>()));
+	result->setProperty(RestApiIds::errors, var(Array<var>()));
+
+	return RestServer::Response::ok(var(result.get()));
+}
+
+// ============================================================================
+// DSP (scriptnode) endpoints
+// ============================================================================
+
+using namespace scriptnode;
+
+static DspNetwork::Holder* getNetworkHolder(MainController* mc, const String& moduleId)
+{
+	auto p = ProcessorHelpers::getFirstProcessorWithName(mc->getMainSynthChain(), moduleId);
+
+	if (p == nullptr)
+		return nullptr;
+
+	return dynamic_cast<DspNetwork::Holder*>(p);
+}
+
+static DspNetwork* getActiveNetwork(MainController* mc, const String& moduleId)
+{
+	if (auto holder = getNetworkHolder(mc, moduleId))
+		return holder->getActiveOrDebuggedNetwork();
+
+	return nullptr;
+}
+
+static var buildDspNodeTree(const ValueTree& nodeTree, bool verbose, bool includeConnections)
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	obj->setProperty(RestApiIds::nodeId, nodeTree[PropertyIds::ID].toString());
+	obj->setProperty(RestApiIds::factoryPath, nodeTree[PropertyIds::FactoryPath].toString());
+	obj->setProperty(RestApiIds::bypassed, (bool)nodeTree[PropertyIds::Bypassed]);
+
+	// Parameters
+	Array<var> params;
+	auto paramTree = nodeTree.getChildWithName(PropertyIds::Parameters);
+
+	for (int i = 0; i < paramTree.getNumChildren(); i++)
+	{
+		auto p = paramTree.getChild(i);
+		DynamicObject::Ptr paramObj = new DynamicObject();
+		paramObj->setProperty(RestApiIds::parameterId, p[PropertyIds::ID].toString());
+		paramObj->setProperty(RestApiIds::value, p[PropertyIds::Value]);
+
+		if (verbose)
+		{
+			paramObj->setProperty(RestApiIds::min, p.getProperty(PropertyIds::MinValue, 0.0));
+			paramObj->setProperty(RestApiIds::max, p.getProperty(PropertyIds::MaxValue, 1.0));
+			paramObj->setProperty(RestApiIds::stepSize, p.getProperty(PropertyIds::StepSize, 0.0));
+			paramObj->setProperty(RestApiIds::defaultValue, p.getProperty(PropertyIds::DefaultValue, 0.0));
+
+			auto skew = (double)p.getProperty(PropertyIds::SkewFactor, 1.0);
+			if (skew != 1.0)
+			{
+				auto minVal = (double)p.getProperty(PropertyIds::MinValue, 0.0);
+				auto maxVal = (double)p.getProperty(PropertyIds::MaxValue, 1.0);
+				auto mid = minVal + (maxVal - minVal) * std::pow(0.5, skew);
+				paramObj->setProperty(RestApiIds::middlePosition, mid);
+			}
+		}
+
+		params.add(var(paramObj.get()));
+	}
+
+	obj->setProperty(RestApiIds::parameters, var(params));
+
+	if (includeConnections)
+	{
+		// Connections (modulation targets on parameters)
+		Array<var> connections;
+
+		valuetree::Helpers::forEach(nodeTree, [&](const ValueTree& c)
+			{
+				if (c.getType() == PropertyIds::Connection)
+				{
+					auto parentId = valuetree::Helpers::findParentWithType(c, PropertyIds::Node)[PropertyIds::ID].toString();
+
+					DynamicObject::Ptr np = new DynamicObject();
+					np->setProperty(RestApiIds::source, parentId);
+
+					auto pParent = valuetree::Helpers::findParentWithType(c, PropertyIds::Parameter);
+					auto mParent = valuetree::Helpers::findParentWithType(c, PropertyIds::ModulationTargets);
+					auto sParent = valuetree::Helpers::findParentWithType(c, PropertyIds::SwitchTarget);
+
+					if (pParent.isValid())
+						np->setProperty(RestApiIds::sourceOutput, pParent[PropertyIds::ID]);
+					else if (mParent.isValid())
+						np->setProperty(RestApiIds::sourceOutput, 0);
+					else
+						np->setProperty(RestApiIds::sourceOutput, sParent.getParent().indexOf(sParent));
+
+					np->setProperty(RestApiIds::target, c[PropertyIds::NodeId]);
+					np->setProperty(RestApiIds::parameter, c[PropertyIds::ParameterId]);
+
+					connections.add(var(np.get()));
+				}
+
+				return false;
+			});
+
+		obj->setProperty(RestApiIds::connections, var(connections));
+	}
+
+	// Children
+	Array<var> children;
+	auto nodesTree = nodeTree.getChildWithName(PropertyIds::Nodes);
+
+	for (int i = 0; i < nodesTree.getNumChildren(); i++)
+		children.add(buildDspNodeTree(nodesTree.getChild(i), verbose, false));
+
+	obj->setProperty(RestApiIds::children, var(children));
+
+	return var(obj.get());
+}
+
+RestServer::Response RestHelpers::handleDspList(MainController* mc,
+                                                 RestServer::AsyncRequest::Ptr req)
+{
+	StringArray networkNames;
+
+	// Scan on-disk .xml files
+	auto files = BackendDllManager::getNetworkFiles(mc, false);
+	for (auto& f : files)
+		networkNames.addIfNotAlreadyThere(f.getFileNameWithoutExtension());
+
+	// Also include in-memory networks from any holder
+	Processor::Iterator<JavascriptProcessor> iter(mc->getMainSynthChain());
+
+	while (auto jp = iter.getNextProcessor())
+	{
+		if (auto holder = dynamic_cast<DspNetwork::Holder*>(jp))
+		{
+			for (auto& id : holder->getIdList())
+				networkNames.addIfNotAlreadyThere(id);
+		}
+	}
+
+	Array<var> nameArray;
+	for (auto& n : networkNames)
+		nameArray.add(n);
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::networks, var(nameArray));
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleDspInit(MainController* mc,
+                                                 RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+	auto mid = obj[RestApiIds::moduleId].toString();
+	auto networkName = obj[RestApiIds::name].toString();
+
+	if (mid.isEmpty())
+		return req->fail(400, "moduleId is required");
+
+	if (networkName.isEmpty())
+		return req->fail(400, "name is required");
+
+	bool embedded = (bool)obj.getProperty(RestApiIds::embedded, false);
+
+	auto holder = getNetworkHolder(mc, mid);
+	if (holder == nullptr)
+		return req->fail(404, "Module " + mid + " is not a DspNetwork holder");
+
+	auto network = holder->getOrCreate(networkName);
+	if (network == nullptr)
+		return req->fail(500, "Failed to create network " + networkName);
+
+	auto p = dynamic_cast<Processor*>(holder);
+
+	p->prepareToPlay(p->getSampleRate(), p->getLargestBlockSize());
+	
+	auto tree = network->getValueTree();
+	auto rootNode = tree.getChild(0); // First child is the root container node
+
+	var treeJson = buildDspNodeTree(rootNode, false, true);
+
+	// Resolve file path (always return expected path, even if not yet saved)
+	String filePath;
+	if (!embedded)
+	{
+		auto networkFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::Networks);
+		filePath = networkFolder.getChildFile(networkName).withFileExtension("xml").getFullPathName();
+	}
+
+	if (auto brw = dynamic_cast<BackendProcessor*>(mc)->currentRootWindow)
+	{
+		MessageManager::callAsync([brw, p]()
+		{
+			brw->gotoIfWorkspace(p);
+		});
+	}
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::result, treeJson);
+	result->setProperty(RestApiIds::filePath, filePath);
+	result->setProperty(RestApiIds::embedded, embedded);
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleDspTree(MainController* mc,
+                                                 RestServer::AsyncRequest::Ptr req)
+{
+	auto mid = req->getRequest()[RestApiIds::moduleId];
+
+	if (mid.isEmpty())
+		return req->fail(400, "moduleId query parameter is required");
+
+	bool verbose = req->getRequest().getTrueValue(RestApiIds::verbose);
+	auto group = req->getRequest()[RestApiIds::group];
+
+	ValueTree rootNode;
+
+	if (group.isNotEmpty())
+	{
+		if (group != "current")
+			return req->fail(501, "only 'current' group is supported");
+
+		auto um = RestServerUndoManager::Instance::getOrCreate(mc, ApiRoute::DspTree);
+		auto dspState = um->getCurrentDspValidationState();
+
+		if (dspState == nullptr || !dspState->networkTree.isValid())
+			return req->fail(400, "No current DSP validation state");
+
+		// networkTree is the Network-typed ValueTree; root Node is first child.
+		rootNode = dspState->networkTree.getChild(0);
+	}
+	else
+	{
+		auto network = getActiveNetwork(mc, mid);
+		if (network == nullptr)
+			return req->fail(404, "No active DspNetwork for module: " + mid);
+
+		auto tree = network->getValueTree();
+		rootNode = tree.getChild(0);
+	}
+
+	var treeJson = buildDspNodeTree(rootNode, verbose, true);
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::result, treeJson);
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleDspApply(MainController* mc,
+                                                  RestServer::AsyncRequest::Ptr req)
+{
+	static constexpr ApiRoute CurrentEndpoint = ApiRoute::DspApply;
+
+	std::vector<RestServerUndoManager::CallStack> errorCallstack;
+
+	req->setUseCustomErrors(true);
+	auto obj = req->getRequest().getJsonBody();
+
+	auto mid = obj[RestApiIds::moduleId].toString();
+	if (mid.isEmpty())
+		return req->fail(400, "moduleId is required");
+
+	auto network = getActiveNetwork(mc, mid);
+	if (network == nullptr)
+		return req->fail(404, "No active DspNetwork for module: " + mid);
+
+	auto ops = obj[RestApiIds::operations];
+	if (!ops.isArray())
+		return req->fail(400, "operations must be an array");
+
+	if (ops.size() == 0)
+		return req->fail(400, "operations array must not be empty");
+
+	// Inject moduleId into each operation so action classes can resolve the network
+	for (int i = 0; i < ops.size(); i++)
+	{
+		if (auto* opObj = ops[i].getDynamicObject())
+			opObj->setProperty(RestApiIds::moduleId, mid);
+	}
+
+	auto noErrors = true;
+	auto um = RestServerUndoManager::Instance::getOrCreate(mc, CurrentEndpoint);
+
+	// Phase 1: Validate required fields per operation type
+	for (int i = 0; i < ops.size(); i++)
+	{
+		auto ok = um->prevalidate(RestServerUndoManager::Domain::DSP, ops[i]);
+
+		if (!ok)
+		{
+			noErrors = false;
+
+			errorCallstack.push_back(RestServerUndoManager::CallStack(ok.getErrorMessage())
+				.withGroup(um->getCurrentGroupId())
+				.withPhase(RestServerUndoManager::CallStack::Phase::Prevalidation)
+				.withOperation(i, ops[i][RestApiIds::op].toString())
+				.withEndpoint(CurrentEndpoint));
+		}
+	}
+
+	if (!noErrors)
+	{
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, false);
+		result->setProperty(RestApiIds::result, var());
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, RestServerUndoManager::CallStack::toJSONList(errorCallstack));
+		req->complete(RestServer::Response::ok(var(result.get())));
+		return req->waitForResponse();
+	}
+
+	// Phase 2: Create actions and validate semantics
+	using ActionBase = RestServerUndoManager::ActionBase;
+	ActionBase::List actions;
+
+	for (int i = 0; i < ops.size(); i++)
+	{
+		auto ad = um->createAction(RestServerUndoManager::Domain::DSP, ops[i]);
+		auto ok = ad->validate();
+
+		if (ok)
+			actions.add(ad);
+		else
+		{
+			errorCallstack.push_back(RestServerUndoManager::CallStack(ok.getErrorMessage())
+				.withGroup(um->getCurrentGroupId())
+				.withPhase(RestServerUndoManager::CallStack::Phase::Validation)
+				.withOperation(i, ad->getDescription())
+				.withEndpoint(CurrentEndpoint));
+
+			noErrors = false;
+		}
+	}
+
+	if (!noErrors)
+	{
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, false);
+		result->setProperty(RestApiIds::result, var());
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, RestServerUndoManager::CallStack::toJSONList(errorCallstack));
+		req->complete(RestServer::Response::ok(var(result.get())));
+		return req->waitForResponse();
+	}
+
+	// Phase 3: Execute via undo manager
+	um->setValidationErrors(errorCallstack);
+
+	um->performAction(req, actions, [](ActionBase::List l, bool undo)
+	{
+		if (!l.isEmpty())
+		{
+			auto mc = l.getFirst()->getMainController();
+
+			for (auto a : l)
+				debugToConsole(mc->getMainSynthChain(), a->getHistoryMessage(undo));
+		}
+	});
+
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleDspSave(MainController* mc,
+                                                 RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+	auto mid = obj[RestApiIds::moduleId].toString();
+
+	if (mid.isEmpty())
+		return req->fail(400, "moduleId is required");
+
+	auto holder = getNetworkHolder(mc, mid);
+	if (holder == nullptr)
+		return req->fail(404, "Module " + mid + " is not a DspNetwork holder");
+
+	auto network = getActiveNetwork(mc, mid);
+	if (network == nullptr)
+		return req->fail(404, "No active DspNetwork for module: " + mid);
+
+	auto networkName = network->getId();
+	auto networkFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::Networks);
+	auto targetFile = networkFolder.getChildFile(networkName).withFileExtension("xml");
+
+	// Embedded networks have no file representation
+	if (!targetFile.getParentDirectory().isDirectory())
+		return req->fail(400, "Cannot save embedded network to file");
+
+	auto xml = network->getValueTree().createXml();
+
+	if (xml == nullptr)
+		return req->fail(500, "Failed to serialize network");
+
+	if (!xml->writeTo(targetFile))
+		return req->fail(500, "Failed to write to " + targetFile.getFullPathName());
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::filePath, targetFile.getFullPathName());
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleDspScreenshot(MainController* mc,
+                                                       RestServer::AsyncRequest::Ptr req)
+{
+	// Parse parameters (same shape as /api/testing/screenshot)
+	auto moduleId = req->getRequest()[RestApiIds::moduleId];
+	if (moduleId.isEmpty())
+		return req->fail(400, "moduleId is required");
+
+	auto scaleStr = req->getRequest()[RestApiIds::scale];
+	float scale = scaleStr.isNotEmpty() ? scaleStr.getFloatValue() : 1.0f;
+
+	if (scale != 0.5f && scale != 1.0f && scale != 2.0f)
+		scale = 1.0f;
+
+	auto outputPath = req->getRequest()[RestApiIds::outputPath];
+
+	if (outputPath.isEmpty())
+		return req->fail(400, "outputPath is required");
+
+	if (!outputPath.endsWithIgnoreCase(".png"))
+		return req->fail(400, "outputPath must end with .png extension");
+
+	File outputFile;
+
+	if (File::isAbsolutePath(outputPath))
+		outputFile = File(outputPath);
+	else
+	{
+		auto imgFolder = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::Images);
+		outputFile = imgFolder.getChildFile(outputPath);
+	}
+
+	// Resolve active DspNetwork for the module
+	auto holder = getNetworkHolder(mc, moduleId);
+	if (holder == nullptr)
+		return req->fail(404, "Module " + moduleId + " is not a DspNetwork holder");
+
+	auto network = getActiveNetwork(mc, moduleId);
+	if (network == nullptr)
+		return req->fail(404, "No active DspNetwork for module: " + moduleId);
+
+	auto holderProcessor = dynamic_cast<Processor*>(holder);
+	if (holderProcessor == nullptr)
+		return req->fail(500, "DspNetwork holder is not a Processor");
+
+	// The DspNetworkGraph only exists inside the BackendRootWindow, so this
+	// endpoint requires the HISE backend IDE to be running. Headless contexts
+	// (unit tests, CLI) have no root window and cannot capture the graph.
+	auto backendProcessor = dynamic_cast<BackendProcessor*>(mc);
+	if (backendProcessor == nullptr || backendProcessor->currentRootWindow == nullptr)
+		return req->fail(503, "No BackendRootWindow available -- dsp/screenshot requires the HISE IDE to be running");
+
+	Image capturedImage;
+	bool captureSuccess = false;
+	WaitableEvent captureComplete;
+
+	SafeAsyncCall::callAsyncIfNotOnMessageThread<Processor>(*holderProcessor, [&](Processor& p)
+	{
+		auto bpe = backendProcessor->currentRootWindow;
+
+		if (bpe != nullptr && bpe->getCurrentWorkspaceProcessor() != &p)
+			bpe->gotoIfWorkspace(&p);
+
+		if (bpe != nullptr)
+		{
+			capturedImage = scriptnode::DspNetwork::createScreenshot(bpe, scale);
+			captureSuccess = capturedImage.isValid();
+		}
+
+		captureComplete.signal();
+	});
+
+	if (!captureComplete.wait(1000))
+		return req->fail(500, "screenshot capture timed out");
+
+	if (!captureSuccess)
+		return req->fail(500, "failed to capture screenshot");
+
+	outputFile.deleteFile();
+	outputFile.create();
+	FileOutputStream fos(outputFile);
+
+	if (fos.failedToOpen())
+		return req->fail(500, "failed to open output file: " + outputFile.getFullPathName());
+
+	PNGImageFormat pngFormat;
+	if (!pngFormat.writeImageToStream(capturedImage, fos))
+		return req->fail(500, "failed to write PNG to file");
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::moduleId, moduleId);
+	result->setProperty(RestApiIds::filePath, outputFile.getFullPathName());
+	result->setProperty(RestApiIds::width, capturedImage.getWidth());
+	result->setProperty(RestApiIds::height, capturedImage.getHeight());
+	result->setProperty(RestApiIds::scale, scale);
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+//==============================================================================
+// Project category
+
+namespace
+{
+	// Parse {projectRoot}/project_info.xml and return the Name attribute, or
+	// fall back to the folder basename when the file is missing or malformed.
+	static String readProjectDisplayName(const File& projectRoot)
+	{
+		auto xmlFile = projectRoot.getChildFile("project_info.xml");
+
+		if (xmlFile.existsAsFile())
+		{
+			if (auto xml = XmlDocument::parse(xmlFile))
+			{
+				if (auto nameEl = xml->getChildByName("Name"))
+				{
+					auto n = nameEl->getStringAttribute("value");
+					if (n.isNotEmpty())
+						return n;
+				}
+			}
+		}
+
+		return projectRoot.getFileName();
+	}
+
+	static bool isValidProjectFolder(const File& f)
+	{
+		return f.isDirectory() && f.getChildFile("project_info.xml").existsAsFile();
+	}
+}
+
+RestServer::Response RestHelpers::handleProjectList(MainController* mc,
+                                                    RestServer::AsyncRequest::Ptr req)
+{
+	Array<File> folders;
+
+	// Recent projects tracked by HISE
+	for (const auto& s : ProjectHandler::getRecentWorkDirectories())
+	{
+		File f(s);
+		if (isValidProjectFolder(f))
+			folders.addIfNotAlreadyThere(f);
+	}
+
+	// Filesystem scan of the configured projects root
+	if (auto gsm = dynamic_cast<GlobalSettingManager*>(mc))
+	{
+		auto rootSetting = gsm->getSettingsObject()
+		                      .getSetting(HiseSettings::Compiler::DefaultProjectFolder);
+		File projectsRoot(rootSetting.toString());
+
+		if (projectsRoot.isDirectory())
+		{
+			Array<File> children;
+			projectsRoot.findChildFiles(children, File::findDirectories, false);
+
+			for (const auto& c : children)
+			{
+				if (isValidProjectFolder(c))
+					folders.addIfNotAlreadyThere(c);
+			}
+		}
+	}
+
+	Array<var> projects;
+	for (const auto& f : folders)
+	{
+		DynamicObject::Ptr entry = new DynamicObject();
+		entry->setProperty(RestApiIds::name, readProjectDisplayName(f));
+		entry->setProperty(RestApiIds::path, f.getFullPathName());
+		projects.add(var(entry.get()));
+	}
+
+	auto activeRoot = mc->getSampleManager().getProjectHandler().getRootFolder();
+	String active = activeRoot.isDirectory() ? readProjectDisplayName(activeRoot) : String();
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::projects, var(projects));
+	result->setProperty(RestApiIds::active, active);
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectTree(MainController* mc,
+                                                    RestServer::AsyncRequest::Ptr req)
+{
+	auto& ph = mc->getSampleManager().getProjectHandler();
+	auto projectRoot = ph.getRootFolder();
+
+	if (!projectRoot.isDirectory())
+		return req->fail(500, "No active project");
+
+	// Collect referenced file paths per category (absolute paths, set for O(1) lookup).
+	std::set<String> refScripts, refSampleMaps, refImages, refDspNetworks, refUserPresets;
+
+	{
+		Processor::Iterator<JavascriptProcessor> iter(mc->getMainSynthChain());
+
+		while (auto jp = iter.getNextProcessor())
+		{
+			for (int i = 0; i < jp->getNumWatchedFiles(); ++i)
+				refScripts.insert(jp->getWatchedFile(i).getFullPathName());
+		}
+	}
+
+	{
+		Processor::Iterator<ModulatorSampler> iter(mc->getMainSynthChain());
+
+		while (auto ms = iter.getNextProcessor())
+		{
+			if (auto smap = ms->getSampleMap())
+			{
+				auto f = smap->getReference().getFile();
+				if (f.existsAsFile())
+					refSampleMaps.insert(f.getFullPathName());
+			}
+		}
+	}
+
+	if (auto pool = mc->getCurrentImagePool())
+	{
+		for (const auto& ref : pool->getListOfAllReferences(false))
+			refImages.insert(ref.getFile().getFullPathName());
+	}
+
+	{
+		Processor::Iterator<Processor> iter(mc->getMainSynthChain());
+
+		while (auto p = iter.getNextProcessor())
+		{
+			if (auto holder = dynamic_cast<scriptnode::DspNetwork::Holder*>(p))
+			{
+				if (auto net = holder->getActiveOrDebuggedNetwork())
+				{
+					auto networksFolder = BackendDllManager::getSubFolder(
+						mc, BackendDllManager::FolderSubType::Networks);
+					auto f = networksFolder.getChildFile(net->getId())
+						.withFileExtension("xml");
+					refDspNetworks.insert(f.getFullPathName());
+				}
+			}
+		}
+	}
+
+	{
+		auto currentPreset = mc->getUserPresetHandler().getCurrentlyLoadedFile();
+		if (currentPreset.existsAsFile())
+			refUserPresets.insert(currentPreset.getFullPathName());
+	}
+
+	enum class RefCategory { None, Scripts, SampleMaps, Images, DspNetworks, UserPresets };
+
+	auto isReferenced = [&](const File& f, RefCategory cat) -> bool
+	{
+		auto p = f.getFullPathName();
+		switch (cat)
+		{
+			case RefCategory::Scripts:     return refScripts.count(p) > 0;
+			case RefCategory::SampleMaps:  return refSampleMaps.count(p) > 0;
+			case RefCategory::Images:      return refImages.count(p) > 0;
+			case RefCategory::DspNetworks: return refDspNetworks.count(p) > 0;
+			case RefCategory::UserPresets: return refUserPresets.count(p) > 0;
+			default:                       return false;
+		}
+	};
+
+	// Per-category child filter. Runs before recursion so excluded folders are
+	// never visited (cheaper than building nodes and discarding them).
+	auto shouldInclude = [](const File& f, RefCategory cat) -> bool
+	{
+		// Any "Binaries" subfolder, at any depth, is build output noise.
+		if (f.isDirectory() && f.getFileName() == "Binaries")
+			return false;
+
+		if (cat == RefCategory::Scripts)
+		{
+			if (f.isDirectory())
+				return f.getFileName() != "ScriptProcessors";
+
+			auto ext = f.getFileExtension().toLowerCase();
+			return ext == ".js" || ext == ".glsl" || ext == ".css";
+		}
+
+		return true;
+	};
+
+	std::function<var(const File&, RefCategory)> buildNode =
+		[&](const File& f, RefCategory cat) -> var
+	{
+		DynamicObject::Ptr node = new DynamicObject();
+		node->setProperty(RestApiIds::name, f.getFileName());
+
+		if (f.isDirectory())
+		{
+			node->setProperty(RestApiIds::type, String("folder"));
+
+			Array<File> kids;
+			f.findChildFiles(kids, File::findFilesAndDirectories, false);
+
+			// Folders first, then files; alphabetical within each group.
+			std::sort(kids.begin(), kids.end(), [](const File& a, const File& b)
+			{
+				if (a.isDirectory() != b.isDirectory())
+					return a.isDirectory();
+				return a.getFileName().compareIgnoreCase(b.getFileName()) < 0;
+			});
+
+			Array<var> children;
+			for (const auto& c : kids)
+			{
+				if (shouldInclude(c, cat))
+					children.add(buildNode(c, cat));
+			}
+
+			node->setProperty(RestApiIds::children, children);
+		}
+		else
+		{
+			node->setProperty(RestApiIds::type, String("file"));
+			node->setProperty(RestApiIds::referenced, isReferenced(f, cat));
+		}
+
+		return var(node.get());
+	};
+
+	struct FolderSpec { const char* name; RefCategory cat; };
+
+	static const FolderSpec folders[] = {
+		{ "Scripts",     RefCategory::Scripts     },
+		{ "SampleMaps",  RefCategory::SampleMaps  },
+		{ "Images",      RefCategory::Images      },
+		{ "DspNetworks", RefCategory::DspNetworks },
+		{ "UserPresets", RefCategory::UserPresets },
+	};
+
+	DynamicObject::Ptr rootNode = new DynamicObject();
+	rootNode->setProperty(RestApiIds::name, projectRoot.getFileName());
+	rootNode->setProperty(RestApiIds::type, String("folder"));
+
+	Array<var> rootChildren;
+	for (const auto& fs : folders)
+	{
+		auto folder = projectRoot.getChildFile(fs.name);
+		if (folder.isDirectory())
+			rootChildren.add(buildNode(folder, fs.cat));
+	}
+	rootNode->setProperty(RestApiIds::children, rootChildren);
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::projectName, readProjectDisplayName(projectRoot));
+	result->setProperty(RestApiIds::root, var(rootNode.get()));
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectFiles(MainController* mc,
+                                                     RestServer::AsyncRequest::Ptr req)
+{
+	auto& ph = mc->getSampleManager().getProjectHandler();
+	auto projectRoot = ph.getRootFolder();
+
+	if (!projectRoot.isDirectory())
+		return req->fail(500, "No active project");
+
+	Array<var> files;
+
+	auto addEntry = [&](const File& f, const String& typeStr)
+	{
+		DynamicObject::Ptr e = new DynamicObject();
+		e->setProperty(RestApiIds::name, f.getFileName());
+		e->setProperty(RestApiIds::type, typeStr);
+		e->setProperty(RestApiIds::path,
+			f.getRelativePathFrom(projectRoot).replaceCharacter('\\', '/'));
+		e->setProperty(RestApiIds::modified, f.getLastModificationTime().toISO8601(true));
+		files.add(var(e.get()));
+	};
+
+	for (const auto& f : ph.getFileList(FileHandlerBase::XMLPresetBackups, true, false))
+	{
+		if (f.hasFileExtension("xml"))
+			addEntry(f, "xml");
+	}
+
+	for (const auto& f : ph.getFileList(FileHandlerBase::Presets, true, false))
+	{
+		if (f.hasFileExtension("hip"))
+			addEntry(f, "hip");
+	}
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::files, var(files));
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectSettingsList(MainController* mc,
+                                                            RestServer::AsyncRequest::Ptr req)
+{
+	auto& obj = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject();
+
+	DynamicObject::Ptr settings = new DynamicObject();
+
+	auto addSetting = [&](const Identifier& id)
+	{
+		DynamicObject::Ptr v = new DynamicObject();
+		v->setProperty(RestApiIds::value, obj.getSetting(id));
+		auto sa = obj.getOptionsFor(id);
+
+		auto desc = StringArray::fromLines(HiseSettings::SettingDescription::getDescription(id));
+		desc.remove(0);
+		v->setProperty(RestApiIds::description, desc.joinIntoString("\n"));
+
+		if (!sa.isEmpty())
+		{
+			Array<var> o;
+
+			if (sa.contains("Yes"))
+			{
+				o.add(true);
+				o.add(false);
+			}
+			else
+			{
+				for (auto& s : sa)
+					o.add(s);
+			}
+
+			v->setProperty(RestApiIds::options, var(o));
+		}
+
+		settings->setProperty(id, var(v.get()));
+	};
+
+	for (auto id : HiseSettings::Project::getAllIds())
+	{
+		if (id.toString().startsWith("ExtraDefinitions"))
+			continue;
+
+		addSetting(id);
+	}
+	
+	for (auto id : HiseSettings::User::getAllIds())
+		addSetting(id);
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::settings, var(settings.get()));
+	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectSettingsSet(MainController* mc,
+                                                           RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+	auto key = obj[RestApiIds::key].toString();
+	auto value = obj[RestApiIds::value];
+
+	if (key.isEmpty())
+		return req->fail(400, "key is required");
+
+	if (!obj.hasProperty(RestApiIds::value))
+		return req->fail(400, "value is required");
+
+	if (key.startsWith("ExtraDef"))
+		return req->fail(400, "use /api/project/preprocessor/set for preprocessor modification");
+
+	auto& settings = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject();
+	auto id = Identifier(key);
+
+	const bool isProjectId = HiseSettings::Project::getAllIds().contains(id);
+	const bool isUserId    = HiseSettings::User::getAllIds().contains(id);
+
+	if (!isProjectId && !isUserId)
+	{
+		StringArray keys;
+		for (auto& pid : HiseSettings::Project::getAllIds())
+			keys.add(pid.toString());
+
+		for (auto& uid : HiseSettings::User::getAllIds())
+			keys.add(uid.toString());
+
+		String errorMessage;
+		errorMessage << "invalid key " << key;
+
+		auto correct = FuzzySearcher::suggestCorrection(key, keys);
+		if (correct.isNotEmpty())
+			errorMessage << ". Did you mean: " << correct;
+
+		return req->fail(400, errorMessage);
+	}
+
+	auto ok = settings.checkInput(id, value);
+
+	if (!ok.wasOk())
+		return req->fail(400, ok.getErrorMessage());
+
+	settings.writeSetting(isProjectId ? HiseSettings::SettingFiles::ProjectSettings
+	                                  : HiseSettings::SettingFiles::UserSettings,
+	                      id, value);
+
+	DynamicObject::Ptr result = new DynamicObject();
+	result->setProperty(RestApiIds::success, true);
+
+	Array<var> logs;
+	logs.add("Updated " + key + " to " + value.toString());
+	result->setProperty(RestApiIds::logs, logs);
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectSave(MainController* mc,
+                                                    RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+	auto format = obj[RestApiIds::format].toString();
+	auto filename = obj[RestApiIds::filename].toString();
+
+	if (format != "xml" && format != "hip")
+		return req->fail(400, "format must be 'xml' or 'hip'");
+
+	DynamicObject::Ptr result = new DynamicObject();
+
+	Array<var> logs;
+
+	result->setProperty(RestApiIds::masterChainRenamed, false);
+
+	if (filename.isEmpty())
+		filename = mc->getMainSynthChain()->getId();
+	else
+	{
+		if (filename != mc->getMainSynthChain()->getId())
+		{
+			mc->getMainSynthChain()->setId(filename, sendNotificationAsync);
+			logs.add("Renamed master chain to " + filename);
+			result->setProperty(RestApiIds::masterChainRenamed, true);
+			result->setProperty(RestApiIds::newName, filename);
+		}	
+	}
+	
+	
+
+	auto bpe = dynamic_cast<BackendProcessor*>(mc)->currentRootWindow;
+
+	if (format == "xml")
+	{
+		auto d = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::XMLPresetBackups);
+		auto f = d.getChildFile(filename).withFileExtension(format);
+
+		if(!f.isAChildOf(d))
+			return req->fail(400, f.getFullPathName() + " not in project folder");
+
+		BackendCommandTarget::Actions::saveFileAsXml(bpe, f);
+		result->setProperty(RestApiIds::path, f.getFullPathName());
+	}
+	if (format == "hip")
+	{
+		auto d = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getSubDirectory(ProjectHandler::Presets);
+		auto f = d.getChildFile(filename).withFileExtension(format);
+		
+		if (!f.isAChildOf(d))
+			return req->fail(400, f.getFullPathName() + " not in project folder");
+
+		PresetHandler::saveProcessorAsPreset(mc->getMainSynthChain());
+		result->setProperty(RestApiIds::path, f.getFullPathName());
+	}
+	
+	result->setProperty(RestApiIds::success, true);
+	result->setProperty(RestApiIds::logs, logs);
+	result->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(result.get())));
+	return req->waitForResponse();
+
+}
+
+RestServer::Response RestHelpers::handleProjectLoad(MainController* mc,
+                                                    RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+	auto file = obj[RestApiIds::file].toString();
+
+	if (file.isEmpty())
+		return req->fail(400, "file is required");
+
+	auto projectRoot = GET_PROJECT_HANDLER(mc->getMainSynthChain()).getRootFolder();
+
+	auto bpe = dynamic_cast<BackendProcessor*>(mc)->currentRootWindow;
+
+	auto f = projectRoot.getChildFile(file);
+
+	if (!f.existsAsFile())
+		return req->fail(404, f.getFullPathName() + " is not a file");
+
+	if (!f.isAChildOf(projectRoot))
+		return req->fail(400, f.getFullPathName() + " not in project folder");
+
+
+
+	if (f.getFileExtension() == ".xml")
+	{
+		auto xml = XmlDocument::parse(f);
+
+		if (xml != nullptr)
+		{
+			XmlBackupFunctions::addContentFromSubdirectory(*xml, f);
+			String newId = xml->getStringAttribute("ID");
+
+			auto v = ValueTree::fromXml(*xml);
+
+			if (!(v.getType() == Identifier("Processor")
+				&& v.getProperty("Type", var::undefined()).toString() == "SynthChain"))
+				return req->fail(400, "XML is not a valid HISE preset (SynthChain)");
+
+			XmlBackupFunctions::restoreAllScripts(v, bpe->getMainSynthChain(), newId);
+
+			bpe->setOnetimeCallbackAfterPresetLoad([req, f]()
+			{
+				DynamicObject::Ptr r = new DynamicObject();
+				r->setProperty(RestApiIds::success, true);
+
+				Array<var> logs;
+
+				logs.add("Loaded " + f.getFullPathName());
+
+				r->setProperty(RestApiIds::logs, logs);
+				r->setProperty(RestApiIds::errors, Array<var>());
+				req->complete(RestServer::Response::ok(var(r.get())));
+			});
+
+			MessageManager::callAsync([bpe, v]()
+			{
+				bpe->loadNewContainer(v);
+			});
+		}
+		else
+		{
+			return req->fail(500, "The XML file is not valid. Loading aborted");
+		}
+	}
+	else if (f.getFileExtension() == ".hip")
+	{
+		bpe->setOnetimeCallbackAfterPresetLoad([req, f]()
+		{
+			DynamicObject::Ptr r = new DynamicObject();
+			r->setProperty(RestApiIds::success, true);
+
+			Array<var> logs;
+
+			logs.add("Loaded " + f.getFullPathName());
+
+			r->setProperty(RestApiIds::logs, logs);
+			r->setProperty(RestApiIds::errors, Array<var>());
+			req->complete(RestServer::Response::ok(var(r.get())));
+		});
+
+		MessageManager::callAsync([bpe, f]()
+		{
+			bpe->loadNewContainer(f);
+		});
+	}
+	else
+	{
+		return req->fail(400, "file extension must be .xml or .hip");
+	}
+		
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectSwitch(MainController* mc,
+                                                      RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+	auto project = obj[RestApiIds::project].toString();
+
+	if (project.isEmpty())
+		return req->fail(400, "project is required");
+
+	auto valid = isValidProjectFolder(File(project));
+
+	if (!valid)
+		return req->fail(400, project + " is not a valid project folder");
+
+	
+	
+
+	auto oldProject = GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Project::Name).toString();
+
+	bool done = false;
+
+	auto r = Result::fail("timeout at project switch");
+
+	MessageManager::callAsync([mc, project, &done, &r]()
+	{
+		auto bpe = dynamic_cast<BackendProcessor*>(mc)->currentRootWindow;
+		auto& handler = GET_PROJECT_HANDLER(bpe->getMainSynthChain());
+		r = handler.setWorkingProject(File(project));
+		bpe->getBackendProcessor()->getSettingsObject().refreshProjectData();
+		
+		mc->clearExtraDefinitionCache();
+
+		done = true;
+	});
+
+	int safeCounter = 0;
+
+	while (!done && ++safeCounter < 3000)
+		Thread::sleep(10);
+	
+	if (r.failed())
+	{
+		return req->fail(400, r.getErrorMessage());
+	}
+	else
+	{
+		
+		auto um = RestServerUndoManager::Instance::getOrCreate(mc, RestHelpers::ApiRoute::ProjectSwitch);
+
+		mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), [um, oldProject, req](Processor* p)
+		{
+			p->getMainController()->clearPreset(sendNotificationAsync);
+			dynamic_cast<BackendProcessor*>(p->getMainController())->createInterface(600, 500);
+
+			DynamicObject::Ptr result = new DynamicObject();
+			result->setProperty(RestApiIds::success, true);
+
+			auto newProject = GET_HISE_SETTING(p, HiseSettings::Project::Name).toString();
+
+			Array<var> logs;
+			logs.add("Switched project from " + oldProject + " to " + newProject);
+
+			result->setProperty(RestApiIds::logs, logs);
+			result->setProperty(RestApiIds::errors, Array<var>());
+
+			um->clearUndoHistory();
+			um->flushUI(p);
+
+			req->complete(RestServer::Response::ok(var(result.get())));
+
+			return SafeFunctionCall::OK;
+		}, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
+	}
+
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectExportSnippet(MainController* mc,
+                                                             RestServer::AsyncRequest::Ptr req)
+{
+	auto brw = dynamic_cast<BackendProcessor*>(mc)->currentRootWindow;
+
+	auto snippet = BackendCommandTarget::Actions::exportFileAsSnippet(brw, false);
+
+	DynamicObject::Ptr r = new DynamicObject();
+	r->setProperty(RestApiIds::success, true);
+	r->setProperty(RestApiIds::snippet, snippet);
+	r->setProperty(RestApiIds::logs, Array<var>());
+	r->setProperty(RestApiIds::errors, Array<var>());
+
+	req->complete(RestServer::Response::ok(var(r.get())));
+
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectImportSnippet(MainController* mc,
+                                                             RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+	auto snippet = obj[RestApiIds::snippet].toString();
+
+	if (snippet.isEmpty())
+		return req->fail(400, "snippet is required");
+
+	if (!snippet.startsWith("HiseSnippet "))
+		return req->fail(400, "snippet must start with 'HiseSnippet '");
+
+	auto data = snippet.fromFirstOccurrenceOf("HiseSnippet ", false, false);
+
+	MemoryBlock mb;
+	if (!mb.fromBase64Encoding(data))
+		return req->fail(400, "Failed to base64-decode snippet data");
+
+	auto vt = ValueTree::readFromGZIPData(mb.getData(), mb.getSize());
+
+	if (!vt.isValid())
+		return req->fail(400, "Failed to decompress snippet ValueTree");
+
+	const bool isExtended = vt.getType() == Identifier("extended_snippet");
+	const bool isPreset = (vt.getType() == Identifier("Processor")
+	                     && vt.getProperty("Type", var::undefined()).toString() == "SynthChain");
+
+	if (!isExtended && !isPreset)
+		return req->fail(400, "Snippet does not contain a valid SynthChain or extended_snippet");
+
+	auto brw = dynamic_cast<BackendProcessor*>(mc)->currentRootWindow;
+
+	brw->setOnetimeCallbackAfterPresetLoad([req]()
+	{
+		DynamicObject::Ptr r = new DynamicObject();
+		r->setProperty(RestApiIds::success, true);
+		r->setProperty(RestApiIds::logs, Array<var>());
+		r->setProperty(RestApiIds::errors, Array<var>());
+		req->complete(RestServer::Response::ok(var(r.get())));
+	});
+
+	MessageManager::callAsync([brw, vt]()
+	{
+		brw->loadNewContainer(vt);
+	});
+
+	return req->waitForResponse();
+}
+
+//==============================================================================
+// Preprocessor endpoints (Phase 1 stubs)
+
+struct PreprocessorHelpers
+{
+	static const StringArray& getPlatforms()
+	{
+		static const StringArray p = { "Windows", "macOS", "Linux" };
+		return p;
+	}
+
+	static const StringArray& getTargets()
+	{
+		static const StringArray t = { "Project", "Dll" };
+		return t;
+	}
+
+	static bool isValidPreprocessorOS(const String& s, bool acceptAll)
+	{
+		return getPlatforms().contains(s) || (acceptAll && s == "all");
+	}
+
+	static bool isValidPreprocessorTarget(const String& s, bool acceptAll)
+	{
+		return getTargets().contains(s) || (acceptAll && s == "all");
+	}
+};
+
+RestServer::Response RestHelpers::handleProjectPreprocessorList(MainController* mc,
+                                                                RestServer::AsyncRequest::Ptr req)
+{
+	auto os = req->getRequest()[RestApiIds::OS];
+	if (os.isEmpty())
+		os = "all";
+
+	auto target = req->getRequest()[RestApiIds::target];
+	if (target.isEmpty())
+		target = "all";
+
+	if (!PreprocessorHelpers::isValidPreprocessorOS(os, true))
+		return req->fail(400, "OS must be one of: Windows, macOS, Linux, all");
+
+	if (!PreprocessorHelpers::isValidPreprocessorTarget(target, true))
+		return req->fail(400, "target must be one of: Project, Dll, all");
+
+	auto& settings = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject();
+
+	const auto& platforms = PreprocessorHelpers::getPlatforms();
+	const auto& targets = PreprocessorHelpers::getTargets();
+
+	// Collect every (target, OS) slot with its full macro map so we can
+	// cross-reference below. Run over the full matrix (filters are applied
+	// later, at emit time) because sharing detection requires the full data.
+	struct Slot { String t; String pl; var obj; };
+	Array<Slot> slots;
+
+	for (const auto& t : targets)
+		for (const auto& pl : platforms)
+			slots.add({ t, pl, settings.getExtraDefinitionsAsObject(pl, t) });
+
+	StringArray macros;
+	for (const auto& s : slots)
+		if (auto* d = s.obj.getDynamicObject())
+			for (const auto& nv : d->getProperties())
+				macros.addIfNotAlreadyThere(nv.name.toString());
+
+	auto getValue = [&](const String& t, const String& pl, const String& macro) -> var
+	{
+		for (const auto& s : slots)
+		{
+			if (s.t == t && s.pl == pl)
+			{
+				if (auto* d = s.obj.getDynamicObject())
+				{
+					Identifier id(macro);
+					if (d->hasProperty(id))
+						return d->getProperty(id);
+				}
+				return var::undefined();
+			}
+		}
+		return var::undefined();
+	};
+
+	// Returns {true, commonValue} when the macro has the same value in every
+	// (t in tsubset, pl in pls) pair and is present in all of them.
+	auto sharedAcross = [&](const String& macro,
+	                        const StringArray& tsubset,
+	                        const StringArray& pls)
+	{
+		var ref;
+		bool seen = false;
+
+		for (const auto& t : tsubset)
+		{
+			for (const auto& pl : pls)
+			{
+				auto v = getValue(t, pl, macro);
+
+				if (v.isUndefined())
+					return std::make_pair(false, var());
+
+				if (!seen) { ref = v; seen = true; }
+				else if (v != ref) return std::make_pair(false, var());
+			}
+		}
+
+		return std::make_pair(seen, ref);
+	};
+
+	// juce::HashMap is non-copyable so nested containers don't work; flatten
+	// the (target, OS) leaf map to a single HashMap keyed by "target.OS".
+	DynamicObject::Ptr starStar = new DynamicObject();
+	HashMap<String, DynamicObject::Ptr> targetStar;
+	HashMap<String, DynamicObject::Ptr> leaf;
+
+	for (const auto& t : targets)
+	{
+		targetStar.set(t, new DynamicObject());
+
+		for (const auto& pl : platforms)
+			leaf.set(t + "." + pl, new DynamicObject());
+	}
+
+	for (const auto& m : macros)
+	{
+		auto global = sharedAcross(m, targets, platforms);
+
+		if (global.first)
+		{
+			starStar->setProperty(Identifier(m), global.second);
+			continue;
+		}
+
+		for (const auto& t : targets)
+		{
+			auto shared = sharedAcross(m, { t }, platforms);
+
+			if (shared.first)
+			{
+				targetStar[t]->setProperty(Identifier(m), shared.second);
+			}
+			else
+			{
+				for (const auto& pl : platforms)
+				{
+					auto v = getValue(t, pl, m);
+
+					if (!v.isUndefined())
+						leaf[t + "." + pl]->setProperty(Identifier(m), v);
+				}
+			}
+		}
+	}
+
+	// Emit sections filtered by the query parameters. A cross-reference section
+	// is emitted when its scope intersects the filter: "*.*" is always
+	// relevant; "T.*" is relevant when filter.target includes T; "T.OS" when
+	// both filter.target includes T and filter.os includes OS.
+	DynamicObject::Ptr fullObj = new DynamicObject();
+
+	auto emit = [&](const String& key, DynamicObject::Ptr obj)
+	{
+		if (obj != nullptr && obj->getProperties().size() > 0)
+			fullObj->setProperty(Identifier(key), var(obj.get()));
+	};
+
+	emit("*.*", starStar);
+
+	for (const auto& t : targets)
+	{
+		if (target != "all" && t != target)
+			continue;
+
+		emit(t + ".*", targetStar[t]);
+
+		for (const auto& pl : platforms)
+		{
+			if (os != "all" && pl != os)
+				continue;
+
+			emit(t + "." + pl, leaf[t + "." + pl]);
+		}
+	}
+
+	DynamicObject::Ptr r = new DynamicObject();
+	r->setProperty(RestApiIds::success, true);
+	r->setProperty(RestApiIds::logs, Array<var>());
+	r->setProperty(RestApiIds::preprocessors, var(fullObj.get()));
+	r->setProperty(RestApiIds::errors, Array<var>());
+	req->complete(RestServer::Response::ok(var(r.get())));
+	return req->waitForResponse();
+}
+
+RestServer::Response RestHelpers::handleProjectPreprocessorSet(MainController* mc,
+                                                               RestServer::AsyncRequest::Ptr req)
+{
+	auto obj = req->getRequest().getJsonBody();
+
+	auto os = obj[RestApiIds::OS].toString();
+	auto target = obj[RestApiIds::target].toString();
+	auto preprocessor = obj[RestApiIds::preprocessor].toString();
+	auto value = obj[RestApiIds::value].toString();
+
+	if (!PreprocessorHelpers::isValidPreprocessorOS(os, true))
+		return req->fail(400, "OS must be one of: Windows, macOS, Linux, all");
+
+	if (!PreprocessorHelpers::isValidPreprocessorTarget(target, true))
+		return req->fail(400, "target must be one of: Project, Dll, all");
+
+	if (preprocessor.isEmpty())
+		return req->fail(400, "preprocessor is required");
+
+	if (value.isEmpty())
+		return req->fail(400, "value is required");
+
+	if (value != "default" && !value.containsOnly("-0123456789"))
+		return req->fail(400, "value must be an integer or the literal string 'default'");
+
+	auto pf = [os, target, preprocessor, value, req](Processor* p)
+	{
+		const auto& platforms = PreprocessorHelpers::getPlatforms();
+		const auto& targets = PreprocessorHelpers::getTargets();
+
+		auto mc = p->getMainController();
+		auto& settings = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject();
+
+		Array<var> logs;
+
+		for (auto t : targets)
+		{
+			if (target != "all" && t != target)
+				continue;
+
+			for (auto pl : platforms)
+			{
+				if (os != "all" && pl != os)
+					continue;
+
+				String log;
+				log << t << "." << pl << ":";
+
+				auto s = settings.getExtraDefinitionsAsObject(pl, t, false);
+
+				bool didSomething = false;
+
+				if (auto obj = s.getDynamicObject())
+				{
+					if (value == "default")
+					{
+						if (obj->hasProperty(preprocessor))
+						{
+							logs.add(log + " removed " + preprocessor);
+							didSomething = true;
+							obj->removeProperty(preprocessor);
+						}
+						else
+							logs.add(log + " " + preprocessor + " not set. skip.");
+					}
+					else
+					{
+						if (obj->hasProperty(preprocessor))
+						{
+							auto prevValue = obj->getProperty(preprocessor).toString();
+
+							if (prevValue == value)
+							{
+								logs.add(log + " " + preprocessor + " already set. skip");
+							}
+							else
+							{
+								logs.add(log + " changed " + preprocessor + " from " + prevValue + " to " + value);
+								didSomething = true;
+								obj->setProperty(preprocessor, value);
+							}
+						}
+						else
+						{
+							logs.add(log + " set " + preprocessor + " to " + value);
+							didSomething = true;
+							obj->setProperty(preprocessor, value);
+						}
+					}
+				}
+
+				if(didSomething)
+					settings.setExtraDefinitionsFromObject(pl, t, s);
+			}
+		}
+
+		DynamicObject::Ptr r = new DynamicObject();
+		r->setProperty(RestApiIds::success, true);
+		r->setProperty(RestApiIds::logs, logs);
+		r->setProperty(RestApiIds::errors, Array<var>());
+		req->complete(RestServer::Response::ok(var(r.get())));
+
+		return SafeFunctionCall::OK;
+	};
+
+	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), pf, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 
 	return req->waitForResponse();
 }

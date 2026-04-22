@@ -1030,12 +1030,12 @@ var ScriptModulationMatrix::getModulationDataFromQueryFunction (const QueryObjec
 			auto nv = s->getValueNormalized();
 			auto min = (double)s->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
 			auto max = (double)s->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
-			auto midPos = (double)s->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
+			auto midPos = s->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
 
 			NormalisableRange<double> nr(min, max);
 
-			if(nr.getRange().contains (midPos))
-			    nr.setSkewForCentre (midPos);
+			if(ApiHelpers::shouldApplyMidPoint(min, max, midPos))
+			    nr.setSkewForCentre((double)midPos);
 			
 			auto mv = p.qf->getDisplayValue(p.p.get(), nv, nr, -1);
 

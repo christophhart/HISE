@@ -32,25 +32,50 @@
 
 namespace hise { using namespace juce;
 
-MacroModulator::MacroModulator(MainController *mc, const String &id, Modulation::Mode m) :
-TimeVariantModulator(mc, id, m),
-Modulation(m),
-LookupTableProcessor(mc, 1),
-macroIndex(-1),
-smoothTime(200.0f),
-useTable(false),
-learnMode(false),
-currentValue(1.0f),
-targetValue(1.0f)
+hise::ProcessorMetadata MacroModulator::createMetadata()
 {
-	parameterNames.add("MacroIndex");
-	parameterNames.add("SmoothTime");
-	parameterNames.add("UseTable");
-	parameterNames.add("MacroValue");
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata(getClassType())
+		.withPrettyName("Macro Modulator")
+		.withDescription("A modulator controlled by a macro controller slot, allowing real-time automation and MIDI learn functionality.")
+		.withType<hise::TimeVariantModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(ProcessorMetadata::ParameterMetadata(MacroIndex)
+			.withId("MacroIndex")
+			.withDescription("The macro controller slot index (0-7) to link to")
+			.withSliderMode(HiSlider::Discrete, scriptnode::InvertableParameterRange(-1.0, 7.0, 1.0))
+			.withDefault(-1.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(SmoothTime)
+			.withId("SmoothTime")
+			.withDescription("Smoothing time in milliseconds for value transitions")
+			.withSliderMode(HiSlider::Time, Range(0.0, 1000.0, 0.0).withCentreSkew(100.0))
+			.withDefault(200.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(UseTable)
+			.withId("UseTable")
+			.withDescription("Enables a lookup table for custom macro value response curves")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(MacroValue)
+			.withId("MacroValue")
+			.withDescription("The current macro value (automated by macro controller)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(1.0f));
+}
+
+MacroModulator::MacroModulator(MainController *mc, const String &id, Modulation::Mode m):
+	TimeVariantModulator(mc, id, m),
+	LookupTableProcessor(mc, 1),
+	Modulation(m),
+	targetValue(1.0f),
+	currentValue(1.0f),
+	macroIndex(-1),
+	smoothTime(200.0f),
+	useTable(false)
+{
+	referenceShared(ExternalData::DataType::Table, 0);
 
 	updateParameterSlots();
-
-	setup(this, MacroValue, id);
 }
 
 void MacroModulator::restoreFromValueTree(const ValueTree &v)

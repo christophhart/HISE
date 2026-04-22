@@ -179,6 +179,7 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 #include "scripting/ScriptProcessor.h"
 #include "scripting/ScriptProcessorModules.h"
 #include "scripting/HardcodedScriptProcessor.h"
+#include "scripting/hardcoded_modules/Arpeggiator.h"
 
 #include "scripting/api/ScriptComponentWrappers.h"
 #include "scripting/components/ScriptingContentComponent.h"

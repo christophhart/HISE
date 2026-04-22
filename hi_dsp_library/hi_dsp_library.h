@@ -57,13 +57,7 @@ END_JUCE_MODULE_DECLARATION
 #include "../JUCE/modules/juce_dsp/juce_dsp.h"
 
 
-/** Config: HISE_INCLUDE_SCRIPTNODE_DATABASE
 
-Set this to 1 to include the big base 64 database dump. 
-*/
-#ifndef HISE_INCLUDE_SCRIPTNODE_DATABASE
-#define HISE_INCLUDE_SCRIPTNODE_DATABASE 0
-#endif
 
 
 
@@ -73,6 +67,14 @@ Set this to 1 to include the big base 64 database dump.
 */
 #ifndef HI_EXPORT_AS_PROJECT_DLL
 #define HI_EXPORT_AS_PROJECT_DLL 0
+#endif
+
+/** Config: HISE_INCLUDE_SCRIPTNODE_DATABASE
+
+Set this to 1 to include the big base 64 database dump.
+*/
+#ifndef HISE_INCLUDE_SCRIPTNODE_DATABASE
+#define HISE_INCLUDE_SCRIPTNODE_DATABASE !HI_EXPORT_AS_PROJECT_DLL && USE_BACKEND
 #endif
 
 /** Config: HI_EXPORT_DSP_LIBRARY

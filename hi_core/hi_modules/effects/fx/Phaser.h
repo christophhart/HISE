@@ -42,16 +42,18 @@ class PhaseFX: public MasterEffectProcessor
 {
 public:
     
-	SET_PROCESSOR_NAME("PhaseFX", "Phase FX", "A general purpose phase effect used for phasers.");
-    
-    enum Attributes
-    {
-        Frequency1 = 0,
-        Frequency2,
-        Feedback,
-        Mix,
-        numAttributes
-    };
+	SET_PROCESSOR_NAME("PhaseFX", "Phase FX", "")
+
+	static ProcessorMetadata createMetadata();
+
+	enum Attributes
+	{
+		Frequency1 = 0,
+		Frequency2,
+		Feedback,
+		Mix,
+		numAttributes
+	};
     
 	enum InternalChains
 	{

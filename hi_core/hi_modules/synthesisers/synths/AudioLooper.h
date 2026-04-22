@@ -88,9 +88,9 @@ class AudioLooper : public ModulatorSynth,
 {
 public:
 
-	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
+	SET_PROCESSOR_NAME("AudioLooper", "Audio Loop Player", "");
 
-	SET_PROCESSOR_NAME("AudioLooper", "Audio Loop Player", "Plays a single audio sample.");
+	static ProcessorMetadata createMetadata();
 
 	enum SpecialParameters
 	{
@@ -117,8 +117,6 @@ public:
 	};
 
 	float getAttribute(int parameterIndex) const override;;
-
-	float getDefaultValue(int parameterIndex) const override;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 

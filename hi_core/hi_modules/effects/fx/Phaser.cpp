@@ -32,6 +32,41 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata PhaseFX::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<PhaseFX>()
+		.withDescription("Phaser effect using modulated allpass filters for sweeping frequency notches")
+		.withParameter(Par(Frequency1)
+			.withId("Frequency1")
+			.withDescription("Lower frequency bound of the phaser sweep range in Hz")
+			.withSliderMode(HiSlider::Frequency, Range(20.0, 20000.0).withCentreSkew(1500.0))
+			.withDefault(400.0f))
+		.withParameter(Par(Frequency2)
+			.withId("Frequency2")
+			.withDescription("Upper frequency bound of the phaser sweep range in Hz")
+			.withSliderMode(HiSlider::Frequency, Range(20.0, 20000.0).withCentreSkew(1500.0))
+			.withDefault(1600.0f))
+		.withParameter(Par(Feedback)
+			.withId("Feedback")
+			.withDescription("Amount of signal fed back through the filter chain for resonance")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.7f))
+		.withParameter(Par(Mix)
+			.withId("Mix")
+			.withDescription("Wet/dry balance where 0 is fully dry and 1 is fully wet")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(1.0f))
+		.withModulation(Mod(PhaseModulationChain)
+			.withId("Phase Modulation")
+			.withDescription("Modulates the phaser sweep position between the frequency bounds")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleAdd));
+}
+
 PhaseFX::PhaseFX(MainController *mc, const String &id) :
 MasterEffectProcessor(mc, id),
 freq1(400.0f),
@@ -66,12 +101,6 @@ mix(1.0f)
 	};
 
 	phaseModulationChain->setTableValueConverter(f);
-
-    parameterNames.add("Frequency1");
-    parameterNames.add("Frequency2");
-    parameterNames.add("Feedback");
-    parameterNames.add("Mix");
-
 	updateParameterSlots();
 
 	editorStateIdentifiers.add("PhaseModulationChainShown");

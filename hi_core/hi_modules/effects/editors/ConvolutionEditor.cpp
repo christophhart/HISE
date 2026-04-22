@@ -37,13 +37,11 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (drySlider = new HiSlider ("Dry Level"));
-    drySlider->setRange (-100, 0, 0.1);
     drySlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     drySlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     drySlider->addListener (this);
 
     addAndMakeVisible (wetSlider = new HiSlider ("Wet Level"));
-    wetSlider->setRange (-100, 0, 0.1);
     wetSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     wetSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     wetSlider->addListener (this);
@@ -77,19 +75,16 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
     backgroundButton->setColour (ToggleButton::textColourId, Colours::white);
 
     addAndMakeVisible (predelaySlider = new HiSlider ("Dry Level"));
-    predelaySlider->setRange (-100, 0, 0.1);
     predelaySlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     predelaySlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     predelaySlider->addListener (this);
 
     addAndMakeVisible (dampingSlider = new HiSlider ("Dry Level"));
-    dampingSlider->setRange (-100, 0, 0.1);
     dampingSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     dampingSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     dampingSlider->addListener (this);
 
     addAndMakeVisible (hiCutSlider = new HiSlider ("Dry Level"));
-    hiCutSlider->setRange (-100, 0, 0.1);
     hiCutSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     hiCutSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     hiCutSlider->addListener (this);
@@ -101,24 +96,12 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 
     label->setFont(GLOBAL_BOLD_FONT().withHeight(26.0f));
 
-    drySlider->setMode(HiSlider::Decibel);
-	drySlider->setup(getProcessor(), ConvolutionEffect::DryGain, "Dry Level");
-	
-
-    wetSlider->setMode(HiSlider::Decibel);
-	wetSlider->setup(getProcessor(), ConvolutionEffect::WetGain, "Wet Level");
-	
-
-    dampingSlider->setMode(HiSlider::Decibel);
-	dampingSlider->setup(getProcessor(), ConvolutionEffect::Damping, "Damping");
-	
-
-    predelaySlider->setMode(HiSlider::Time, NormalisableRange(0.0, 200.0).withCentreSkew(50.0));
-	predelaySlider->setup(getProcessor(), ConvolutionEffect::Predelay, "Predelay");
-	
-
-    hiCutSlider->setMode(HiSlider::Frequency);
-	hiCutSlider->setup(getProcessor(), ConvolutionEffect::HiCut, "IR High Cut");
+	auto md = getProcessor()->getMetadata();
+	md.setup(*drySlider, getProcessor(), ConvolutionEffect::DryGain);
+	md.setup(*wetSlider, getProcessor(), ConvolutionEffect::WetGain);
+	md.setup(*dampingSlider, getProcessor(), ConvolutionEffect::Damping);
+	md.setup(*predelaySlider, getProcessor(), ConvolutionEffect::Predelay);
+	md.setup(*hiCutSlider, getProcessor(), ConvolutionEffect::HiCut);
 	
 
 	dryMeter->setType(VuMeter::Type::StereoHorizontal);
@@ -132,9 +115,8 @@ ConvolutionEditor::ConvolutionEditor (ProcessorEditor *p)
 	wetMeter->setColour (VuMeter::ledColour, Colours::lightgrey);
 	wetMeter->setColour (VuMeter::outlineColour, Colour (0x45FFFFFF));
 
-	resetButton->setup(getProcessor(), ConvolutionEffect::ProcessInput, "Process Input");
-
-	backgroundButton->setup(getProcessor(), ConvolutionEffect::UseBackgroundThread, "Multithread");
+	md.setup(*resetButton, getProcessor(), ConvolutionEffect::ProcessInput);
+	md.setup(*backgroundButton, getProcessor(), ConvolutionEffect::UseBackgroundThread);
 
 	#if JUCE_DEBUG
 	startTimer(150);

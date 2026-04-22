@@ -39,7 +39,7 @@ class FlexAhdsrEnvelope: public EnvelopeModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("FlexAHDSR", "Flex AHDSR Envelope", "A more complex AHDSR envelope modulator with draggable curves & more playback modes");
+	SET_PROCESSOR_NAME("FlexAHDSR", "Flex AHDSR Envelope", "");
 
 	using SpecialParameters = flex_ahdsr_base::SpecialParameters;
 
@@ -84,7 +84,8 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor* parentEditor) override;
 
-	float getDefaultValue(int parameterIndex) const override;
+	static ProcessorMetadata createMetadata();
+
 	void setInternalAttribute (int parameterIndex, float newValue) override;;
 	float getAttribute(int parameterIndex) const override;;
 

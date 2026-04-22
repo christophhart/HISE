@@ -764,6 +764,8 @@ struct Parameter::Wrapper
 {
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getId);
 	API_METHOD_WRAPPER_0(NodeBase::Parameter, getValue);
+	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValue);
+	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setUseExternalConnection);
     API_VOID_METHOD_WRAPPER_2(NodeBase::Parameter, setRangeProperty);
 	API_METHOD_WRAPPER_1(NodeBase::Parameter, addConnectionFrom);
 	API_VOID_METHOD_WRAPPER_1(NodeBase::Parameter, setValueSync);
@@ -776,14 +778,17 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	ConstScriptingObject(parent_->getScriptProcessor(), 4),
 	parent(parent_),
 	data(data_),
-	dynamicParameter()
+	dynamicParameter(),
+    externalConnection(data, PropertyIds::AutomatedExternal, parent_->getUndoManager(), false)
 {
 	auto weakThis = WeakReference<Parameter>(this);
 
 	ADD_API_METHOD_0(getValue);
+	ADD_API_METHOD_1(setValue);
+	ADD_API_METHOD_1(setUseExternalConnection);
 	ADD_API_METHOD_1(addConnectionFrom);
-	ADD_API_METHOD_1(setValueAsync);
-	ADD_API_METHOD_1(setValueSync);
+	ADD_API_METHOD_1(setValueAsync); DIAGNOSTIC_MARK_DEPRECATED(setValueAsync, "Use setUseExternalConnection(), then setValue() instead.");
+	ADD_API_METHOD_1(setValueSync);  DIAGNOSTIC_MARK_DEPRECATED(setValueSync, "Use setUseExternalConnection(), then setValue() instead.");
     ADD_API_METHOD_2(setRangeProperty);
 	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_1(setRangeFromObject);
@@ -799,7 +804,7 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	valuePropertyUpdater.setCallback(data, { PropertyIds::Value }, valuetree::AsyncMode::Synchronously,
 		std::bind(&NodeBase::Parameter::updateFromValueTree, this, std::placeholders::_1, std::placeholders::_2));
 
-	rangeListener.setCallback(data, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Synchronously, BIND_MEMBER_FUNCTION_2(NodeBase::Parameter::updateRange));
+	rangeListener.setCallback(data, RangeHelpers::getRangeIds(), valuetree::AsyncMode::Synchronously, VT_BIND_PROPERTY_LISTENER(updateRange));
 
 	automationRemover.setCallback(data, valuetree::AsyncMode::Synchronously, true, BIND_MEMBER_FUNCTION_1(Parameter::updateConnectionOnRemoval));
 }
@@ -1114,6 +1119,41 @@ void Parameter::setValueSync(double newValue)
 	data.setProperty(PropertyIds::Value, newValue, parent->getUndoManager());
 }
 
+void Parameter::setValue(double newValue)
+{
+	if (externalConnection)
+		setValueAsync(newValue);
+	else
+	{
+#if USE_BACKEND
+		auto t = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
+
+		if (t == MainController::KillStateHandler::TargetThread::AudioThread)
+			reportScriptError("You need to call setUseExternalConnection before calling this on the audio thread");
+#endif
+
+		setValueSync(newValue);
+	}
+		
+}
+
+void Parameter::setUseExternalConnection(bool usesExternalConnection)
+{
+	externalConnection.setValue(usesExternalConnection, parent->getUndoManager());
+
+	if (externalConnection)
+		data.removeProperty(PropertyIds::Value, parent->getUndoManager());
+	else
+	{
+		auto v = (double)data[PropertyIds::DefaultValue];
+
+		if (dynamicParameter != nullptr)
+			v = dynamicParameter->getDisplayValue();
+
+		data.setProperty(PropertyIds::Value, v, parent->getUndoManager());
+	}
+}
+
 juce::ValueTree Parameter::getConnectionSourceTree(bool forceUpdate)
 {
 	if (forceUpdate)
@@ -1348,7 +1388,7 @@ var NodeBase::Parameter::addConnectionFrom(var dragDetails)
 
 	if (shouldAdd)
 	{
-		if (data[PropertyIds::Automated])
+		if (data[PropertyIds::Automated] || data[PropertyIds::AutomatedExternal])
 			return var();
 
 		data.setProperty(PropertyIds::Automated, true, parent->getUndoManager());

@@ -33,9 +33,71 @@
 namespace hise { using namespace juce;
 
 
+hise::ProcessorMetadata PolyFilterEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<PolyFilterEffect>()
+		.withDescription("Applies monophonic or polyphonic filtering with modulatable frequency, gain, and resonance, supporting multiple filter types.")
+		.withParameter(Par(Gain)
+			.withId("Gain")
+			.withDescription("Filter gain in decibels for shelf and peak filter types")
+			.withSliderMode(HiSlider::Decibel, Range(-18.0, 18.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Frequency)
+			.withId("Frequency")
+			.withDescription("The cutoff or center frequency of the filter in Hz")
+			.withSliderMode(HiSlider::Frequency, Range(20.0, 20000.0).withCentreSkew(1500.0))
+			.withDefault(20000.0f))
+		.withParameter(Par(Q)
+			.withId("Q")
+			.withDescription("The resonance or bandwidth of the filter")
+			.withSliderMode(HiSlider::Linear, Range(0.3, 8.0).withCentreSkew(1.0))
+			.withDefault(1.0f))
+		.withParameter(Par(Mode)
+			.withId("Mode")
+			.withDescription("Selects the filter type (low-pass, high-pass, shelf, peak, etc.)")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, (double)FilterBank::numFilterModes - 1.0, 1.0))
+			.withDefault((float)(int)FilterBank::FilterMode::StateVariableLP))
+		.withParameter(Par(Quality)
+			.withId("Quality")
+			.withDescription("Internal render quality as power-of-two buffer size for modulation processing")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 4096.0, 1.0))
+			.withDefault(512.0f))
+		.withParameter(Par(BipolarIntensity)
+			.withId("BipolarIntensity")
+			.withDescription("Intensity of the bipolar frequency modulation (-1 to 1)")
+			.withSliderMode(HiSlider::Linear, Range(-1.0, 1.0))
+			.withDefault(0.0f))
+		.withModulation(Mod(FrequencyChain)
+			.withId("Frequency Modulation")
+			.withDescription("Modulates the filter cutoff frequency")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Frequency))
+		.withModulation(Mod(GainChain)
+			.withId("Gain Modulation")
+			.withDescription("Modulates the filter gain")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Gain))
+		.withModulation(Mod(BipolarFrequencyChain)
+			.withId("Bipolar Freq Modulation")
+			.withDescription("Bipolar modulation of the filter frequency")
+			.withMode(scriptnode::modulation::ParameterMode::AddOnly)
+			.withModulatedParameter(BipolarIntensity))
+		.withModulation(Mod(ResonanceChain)
+			.withId("Q Modulation")
+			.withDescription("Modulates the filter resonance")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Q));
+}
+
 PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int numVoices) :
 	VoiceEffectProcessor(mc, uid, numVoices),
 	FilterEffect(mc),
+	metadataInitialised(updateParameterSlots()),
 	voiceFilters(numVoices),
 	monoFilters(1),
 	frequency(getDefaultValue(PolyFilterEffect::Parameters::Frequency)),
@@ -92,15 +154,6 @@ PolyFilterEffect::PolyFilterEffect(MainController *mc, const String &uid, int nu
 	editorStateIdentifiers.add("GainChainShown");
 	editorStateIdentifiers.add("BipolarFreqChainShown");
     
-    parameterNames.add("Gain");
-    parameterNames.add("Frequency");
-    parameterNames.add("Q");
-    parameterNames.add("Mode");
-    parameterNames.add("Quality");
-	parameterNames.add("BipolarIntensity");
-
-	updateParameterSlots();
-
 	voiceFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Mode));
 	monoFilters.setMode((FilterBank::FilterMode)(int)getDefaultValue(PolyFilterEffect::Mode));
 
@@ -206,19 +259,6 @@ void PolyFilterEffect::setInternalAttribute(int parameterIndex, float newValue)
 	handleFilterStatisticUpdate();
 }
 
-float PolyFilterEffect::getDefaultValue(int parameterIndex) const
-{
-	switch (parameterIndex)
-	{
-	case PolyFilterEffect::Gain:		return 0.0f;
-	case PolyFilterEffect::Frequency:	return 20000.0f;
-	case PolyFilterEffect::Q:			return 1.0f;
-	case PolyFilterEffect::Mode:		return (float)(int)FilterBank::FilterMode::StateVariableLP;
-	case PolyFilterEffect::Quality:   return 256.0f;
-	case PolyFilterEffect::BipolarIntensity: return 0.0f;
-	default:		jassertfalse; return 1.0f;
-	}
-}
 
 ModulationDisplayValue::QueryFunction::Ptr PolyFilterEffect::getModulationQueryFunction(int parameterIndex) const
 {
@@ -230,6 +270,8 @@ ModulationDisplayValue::QueryFunction::Ptr PolyFilterEffect::getModulationQueryF
 		return new ModulatorChain::GetModulationOutput<(int)InternalChains::ResonanceChain>();
 	case PolyFilterEffect::Gain:
 		return new ModulatorChain::GetModulationOutput<(int)InternalChains::GainChain>();
+	case PolyFilterEffect::BipolarIntensity:
+		return new ModulatorChain::GetModulationOutput<(int)InternalChains::BipolarFrequencyChain>();
 	}
 
 	return VoiceEffectProcessor::getModulationQueryFunction(parameterIndex);

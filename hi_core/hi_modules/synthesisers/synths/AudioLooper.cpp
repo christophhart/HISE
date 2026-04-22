@@ -32,17 +32,6 @@
 
 namespace hise { using namespace juce;
 
-SET_DOCUMENTATION(AudioLooper)
-{
-	SET_DOC_NAME(AudioLooper);
-
-	ADD_PARAMETER_DOC_WITH_NAME(SyncMode, "Sync Mode", "Syncs the looper to the host tempo");
-	ADD_PARAMETER_DOC_WITH_NAME(LoopEnabled, "Loop Enabled", "Enables looped playback");
-	ADD_PARAMETER_DOC_WITH_NAME(PitchTracking, "Pitch Tracking", "Repitches the sample based on the note and the root note.");
-	ADD_PARAMETER_DOC_WITH_NAME(RootNote, "Root Note", "Sets the root note when pitch tracking is enabled");
-	ADD_PARAMETER_DOC_WITH_NAME(SampleStartMod, "Sample Start modulation", "Modulates the sample start");
-	ADD_PARAMETER_DOC_WITH_NAME(Reversed, "Reversed", "Reverses the sample");
-}
 
 AudioLooperVoice::AudioLooperVoice(ModulatorSynth *ownerSynth) :
 ModulatorSynthVoice(ownerSynth),
@@ -308,6 +297,48 @@ void AudioLooperVoice::resetVoice()
 	ModulatorSynthVoice::resetVoice();
 }
 
+hise::ProcessorMetadata AudioLooper::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ModulatorSynth::createBaseMetadata()
+		.withStandardMetadata<AudioLooper>()
+		.withDescription("A single-file audio player with looping, pitch tracking, tempo sync, and reverse playback.")
+		.withComplexDataInterface(ExternalData::DataType::AudioFile)
+		.withParameter(Par(SyncMode)
+			.withId("SyncMode")
+			.withDescription("Syncs the playback length to the host tempo at the selected note division")
+			.withValueList({ "Free running", "1 Beat", "2 Beats", "1 Bar", "2 Bars", "4 Bars", "8 Bars", "12 Bars", "16 Bars" })
+			.withDefault(1.0f))
+		.withParameter(Par(LoopEnabled)
+			.withId("LoopEnabled")
+			.withDescription("Enables continuous looping of the audio file")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(PitchTracking)
+			.withId("PitchTracking")
+			.withDescription("Transposes playback pitch based on the MIDI note relative to the root note")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(RootNote)
+			.withId("RootNote")
+			.withDescription("The MIDI note number at which the sample plays at its original pitch")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 127.0, 1.0))
+			.withDefault(64.0f))
+		.withParameter(Par(SampleStartMod)
+			.withId("SampleStartMod")
+			.withDescription("Random sample start offset range in samples for each new note")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 20000.0, 1.0).withCentreSkew(1000.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Reversed)
+			.withId("Reversed")
+			.withDescription("Reverses the playback direction of the audio file")
+			.asToggle()
+			.withDefault(0.0f))
+		;
+}
+
 AudioLooper::AudioLooper(MainController *mc, const String &id, int numVoices) :
 ModulatorSynth(mc, id, numVoices),
 AudioSampleProcessor(mc),
@@ -317,15 +348,6 @@ rootNote(64)
 {
 	getBuffer().addListener(this);
 	finaliseModChains();
-
-	
-
-	parameterNames.add("SyncMode");
-	parameterNames.add("LoopEnabled");
-	parameterNames.add("PitchTracking");
-	parameterNames.add("RootNote");
-	parameterNames.add("SampleStartMod");
-	parameterNames.add("Reversed");
 
 	updateParameterSlots();
 
@@ -387,22 +409,6 @@ float AudioLooper::getAttribute(int parameterIndex) const
 	case SampleStartMod: return (float)sampleStartMod;
 	case Reversed:		return reversed ? 1.0f : 0.0f;
 	default:					jassertfalse; return -1.0f;
-	}
-}
-
-float AudioLooper::getDefaultValue(int parameterIndex) const
-{
-	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getDefaultValue(parameterIndex);
-
-	switch (parameterIndex)
-	{
-	case SyncMode:		return (float)(int)0;
-	case LoopEnabled:	return 1.0f;
-	case RootNote:		return 64.0f;
-	case PitchTracking:	return 0.0f;
-	case SampleStartMod: return 0.0f;
-	case Reversed:		return 0.0f;
-	default: jassertfalse; return -1.0f;
 	}
 }
 

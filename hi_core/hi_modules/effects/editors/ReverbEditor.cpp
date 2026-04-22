@@ -35,45 +35,32 @@ ReverbEditor::ReverbEditor (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (wetSlider = new HiSlider ("Dry/Wet"));
-    wetSlider->setRange (0, 1, 0.01);
     wetSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     wetSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     wetSlider->addListener (this);
 
     addAndMakeVisible (roomSlider = new HiSlider ("RoomSize"));
-    roomSlider->setRange (0, 1, 0.01);
     roomSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     roomSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     roomSlider->addListener (this);
 
     addAndMakeVisible (dampingSlider = new HiSlider ("Damping"));
-    dampingSlider->setRange (0, 1, 0.01);
     dampingSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     dampingSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     dampingSlider->addListener (this);
 
     addAndMakeVisible (widthSlider = new HiSlider ("Width"));
-    widthSlider->setRange (0, 1, 0.01);
     widthSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     widthSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     widthSlider->addListener (this);
 
 
     //[UserPreSize]
-
-	wetSlider->setup(getProcessor(), SimpleReverbEffect::WetLevel, "Wet Level");
-	wetSlider->setMode(HiSlider::NormalizedPercentage);
-
-	roomSlider->setup(getProcessor(), SimpleReverbEffect::RoomSize, "Room Size");
-	roomSlider->setMode(HiSlider::NormalizedPercentage);
-
-	dampingSlider->setup(getProcessor(), SimpleReverbEffect::Damping, "Damping");
-	dampingSlider->setMode(HiSlider::NormalizedPercentage);
-
-	widthSlider->setup(getProcessor(), SimpleReverbEffect::Width, "Stereo Width");
-	widthSlider->setMode(HiSlider::NormalizedPercentage);
-
-
+	auto md = getProcessor()->getMetadata();
+	md.setup(*wetSlider, getProcessor(), SimpleReverbEffect::WetLevel);
+	md.setup(*roomSlider, getProcessor(), SimpleReverbEffect::RoomSize);
+	md.setup(*dampingSlider, getProcessor(), SimpleReverbEffect::Damping);
+	md.setup(*widthSlider, getProcessor(), SimpleReverbEffect::Width);
     //[/UserPreSize]
 
     setSize (900, 80);

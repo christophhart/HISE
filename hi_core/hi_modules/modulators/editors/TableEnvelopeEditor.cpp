@@ -35,7 +35,6 @@ TableEnvelopeEditorBody::TableEnvelopeEditorBody (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (attackSlider = new HiSlider ("Attack Time"));
-    attackSlider->setRange (1, 20000, 1);
     attackSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     attackSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     attackSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -45,7 +44,6 @@ TableEnvelopeEditorBody::TableEnvelopeEditorBody (ProcessorEditor *p)
     attackSlider->setSkewFactor (0.3);
 
     addAndMakeVisible (releaseSlider = new HiSlider ("Release Time"));
-    releaseSlider->setRange (3, 20000, 1);
     releaseSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     releaseSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     releaseSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
@@ -62,14 +60,10 @@ TableEnvelopeEditorBody::TableEnvelopeEditorBody (ProcessorEditor *p)
 
     //[UserPreSize]
 
-	attackSlider->setup(getProcessor(), SimpleEnvelope::Attack, "Attack Time");
-	attackSlider->setMode(HiSlider::Time, NormalisableRange(1.0, 20000.0).withCentreSkew(2000.0));
-
-	releaseSlider->setup(getProcessor(), SimpleEnvelope::Release, "Release Time");
-	releaseSlider->setMode(HiSlider::Time, NormalisableRange(1.0, 20000.0).withCentreSkew(2000.0));
-
-	
-
+	auto md = getProcessor()->getMetadata();
+	md.setup(*attackSlider, getProcessor(), TableEnvelope::Attack);
+	md.setup(*releaseSlider, getProcessor(), TableEnvelope::Release);
+    
     ProcessorHelpers::connectTableEditor(*attackTable, getProcessor(), 0);
     ProcessorHelpers::connectTableEditor(*releaseTable, getProcessor(), 1);
     

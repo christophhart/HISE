@@ -932,17 +932,23 @@ namespace audiofft
 		  
 		  fft_->realFFT(data, (float*)tempBuffer, (int)numSamples);
 		  ippsCplxToReal_32fc(tempBuffer, re, im, size2);
+
+		  // Unpack DC/Nyquist: Perm format puts Nyquist in im[0]
+		  re[size2] = im[0];
+		  im[0] = 0.0f;
+		  im[size2] = 0.0f;
 	  }
 
 	  virtual void ifft(float* data, const float* re, const float* im) override
 	  {
-		  jassert(fft_ != nullptr);
+          jassert(fft_ != nullptr);
 
 		  int size2 = (int)numSamples / 2;
 		  ippsRealToCplx_32f(re, im, tempBuffer, size2);
+		  // Repack: put Nyquist back into Perm format position
+		  ((float*)tempBuffer)[1] = re[size2];
 		  auto s = (float*)tempBuffer;
 		  fft_->realFFTInverse(s, data, (int)numSamples);
-
 		  FloatVectorOperations::multiply(data, 1.0f / (float)numSamples, (int)numSamples);
 	  }
 

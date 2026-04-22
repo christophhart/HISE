@@ -49,14 +49,10 @@ public:
     //[UserMethods]     -- You can add your own custom methods in this section.
 	void updateGui()
 	{
-		const bool shouldBeSynced = tempoSyncButton->getToggleState();
+		auto md = getProcessor()->getMetadata();
 
-        
-        leftSyncTimeSlider->setVisible(shouldBeSynced);
-        rightSyncTimeSlider->setVisible(shouldBeSynced);
-
-        leftTimeSlider->setVisible(!shouldBeSynced);
-        rightTimeSlider->setVisible(!shouldBeSynced);
+        md.updateTempoSync(*leftTimeSlider);
+        md.updateTempoSync(*rightTimeSlider);
 	}
 
 	int getBodyHeight() const
@@ -83,8 +79,6 @@ private:
     //==============================================================================
     ScopedPointer<HiSlider> leftTimeSlider;
     ScopedPointer<HiSlider> rightTimeSlider;
-    ScopedPointer<HiSlider> leftSyncTimeSlider;
-    ScopedPointer<HiSlider> rightSyncTimeSlider;
     ScopedPointer<HiSlider> leftFeedbackSlider;
     ScopedPointer<HiSlider> rightFeedbackSlider;
     ScopedPointer<HiSlider> mixSlider;

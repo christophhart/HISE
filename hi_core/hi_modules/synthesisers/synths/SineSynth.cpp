@@ -32,43 +32,50 @@
 
 namespace hise { using namespace juce;
 
-SET_DOCUMENTATION(SineSynth)
+hise::ProcessorMetadata SineSynth::createMetadata()
 {
-	SET_DOC_NAME(SineSynth);
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
 
-	addLine("A simple and lightweight sine wave generator. " \
-		    "It can be used to drive a FM Synthesiser, or stacked together for Additive Synthesis or used as simple enhancement of another sound.");
-
-	addLine("It has two operating modes for the pitch definition :");
-	addLine("");
-	addLine("- **Musical**: in octaves / semitones.");
-	addLine("- **Harmonics**: as harmonics compared to the root frequency.Use this mode for additive synthesis(it will allow to define the harmonic structure of the resulting sound more clearly.)");
-	addLine("");
-	addLine("> It also has a internal Wave - Shaper effect, that allows to quickly add some harmonics to dirten up the sound.");
-
-	ADD_PARAMETER_DOC_WITH_NAME(OctaveTranspose, "Octave Transpose",
-		"If the mode is set to Musical, this defines the coarse frequency.");
-
-	ADD_PARAMETER_DOC_WITH_NAME(SemiTones, "Semitones",
-		"If the mode is set to Musical, this defines the fine frequency in semitones.");
-
-	ADD_PARAMETER_DOC_WITH_NAME(UseFreqRatio, "Use Frequency Ratio",
-		"Toggles between the two modes for the pitch definition.");
-
-	ADD_PARAMETER_DOC_WITH_NAME(CoarseFreqRatio, "Coarse Ratio",
-		"If the mode is set to Harmonics, this defines the harmonic index(1 being the root frequency).");
-
-	ADD_PARAMETER_DOC_WITH_NAME(FineFreqRatio, "Fine Ratio",
-		"If the mode is set to Harmonics, this defines the fine frequency(as factor).");
-
-	ADD_PARAMETER_DOC_WITH_NAME(SaturationAmount, "Saturation",
-		"The saturation amount for the internal wave shaper.Use this to quickly add some harmonics.");
-
+	return ModulatorSynth::createBaseMetadata()
+		.withStandardMetadata<SineSynth>()
+		.withDescription("A lightweight sine wave generator for FM synthesis, additive synthesis, or adding subtle harmonics to other sounds.")
+		.withParameter(Par(OctaveTranspose)
+			.withId("OctaveTranspose")
+			.withDescription("Coarse pitch offset in octaves when using musical tuning mode")
+			.withSliderMode(HiSlider::Discrete, Range(-5.0, 5.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(SemiTones)
+			.withId("SemiTones")
+			.withDescription("Fine pitch offset in semitones when using musical tuning mode")
+			.withSliderMode(HiSlider::Discrete, Range(-12.0, 12.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(UseFreqRatio)
+			.withId("UseFreqRatio")
+			.withDescription("Switches between musical (octave/semitone) and harmonic ratio tuning modes")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(CoarseFreqRatio)
+			.withId("CoarseFreqRatio")
+			.withDescription("Harmonic index as a frequency multiplier where 1 is the root frequency")
+			.withSliderMode(HiSlider::Discrete, Range(-5.0, 16.0, 1.0))
+			.withDefault(1.0f))
+		.withParameter(Par(FineFreqRatio)
+			.withId("FineFreqRatio")
+			.withDescription("Fine frequency offset as a fractional multiplier in harmonic tuning mode")
+			.withSliderMode(HiSlider::Linear, Range(0.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(SaturationAmount)
+			.withId("SaturationAmount")
+			.withDescription("Amount of waveshaping saturation applied to the sine wave to add harmonics")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f))
+		;
 }
-
     
 SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
+	metadataInitialised(updateParameterSlots()),
 	octaveTranspose((int)getDefaultValue(OctaveTranspose)),
 	semiTones((int)getDefaultValue(SemiTones)),
 	useRatio(false),
@@ -78,25 +85,16 @@ SineSynth::SineSynth(MainController *mc, const String &id, int numVoices) :
 {
 	finaliseModChains();
 
-	parameterNames.add("OctaveTranspose");
-	parameterNames.add("SemiTones");
-	parameterNames.add("UseFreqRatio");
-	parameterNames.add("CoarseFreqRatio");
-	parameterNames.add("FineFreqRatio");
-	parameterNames.add("SaturationAmount");
+	for (int i = 0; i < numVoices; i++) 
+		addVoice(new SineSynthVoice(this));
 
-	updateParameterSlots();
-
-	for (int i = 0; i < numVoices; i++) addVoice(new SineSynthVoice(this));
 	addSound(new SineWaveSound());
 }
 
 ProcessorEditorBody* SineSynth::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
-
 	return new SineSynthBody(parentEditor);
-
 #else 
 
 	ignoreUnused(parentEditor);

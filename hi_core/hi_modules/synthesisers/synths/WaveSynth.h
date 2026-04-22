@@ -193,7 +193,7 @@ class WaveSynth: public ModulatorSynth,
 {
 public:
 
-	SET_PROCESSOR_NAME("WaveSynth", "Waveform Generator", "A waveform generator based on BLIP synthesis of common synthesiser waveforms.");
+	SET_PROCESSOR_NAME("WaveSynth", "Waveform Generator", "");
 
 	enum EditorStates
 	{
@@ -219,21 +219,21 @@ public:
 
 	enum SpecialParameters
 	{
-		OctaveTranspose1 = ModulatorSynth::numModulatorSynthParameters, ///< -5 ... **0** ... 5 | The octave transpose factor for the first Oscillator.
-		WaveForm1, ///< Sine, Triangle, **Saw**, Square, Noise | the waveform type
-		Detune1, ///< -100ct ... **0.0ct** ... 100ct | The pitch detune of the first oscillator in cent (100 cent = 1 semitone).
-		Pan1, ///< -100 ... **0** ... 100 | the stereo panning of the first oscillator
-		OctaveTranspose2, ///< -5 ... **0** ... 5 | the octave transpose factor for the first oscillator
-		WaveForm2, ///< Sine, Triangle, **Saw**, Square, Noise | the waveform type
-		Detune2, ///< -100ct ... **0ct** ... 100ct | the pitch detune of the first oscillator in cent (100 cent = 1 semitone)
-		Pan2, ///< -100 ... **0** ... 100 | the stereo panning of the first oscillator
-		Mix, ///< 0 ... **50%** ... 100% | the balance between the two oscillators (0% is only the left oscillator, while 100% is the right oscillator). This can be modulated using the Mix Modulation chain (if there are some Modulators, this control will be disabled.
-		EnableSecondOscillator, ///< **On** ... Off | Can be used to mute the second oscillator to save CPU cycles
-		PulseWidth1, ///< 0 ... **1** | Determines the first pulse width for waveforms that support this (eg. square)
-		PulseWidth2, ///< 0 ... **1** | Determines the second pulse width for waveforms that support this (eg. square)
-		HardSync, ///< **Off** ... On | Syncs the second oscillator to the first
-		SemiTones1, ///< -12 ... **0** ... 12 | The semitone transpose amount for the first Oscillator.
-		SemiTones2, ///< -12 ... **0** ... 12 | The semitone transpose amount for the second Oscillator.
+		OctaveTranspose1 = ModulatorSynth::numModulatorSynthParameters, 
+		WaveForm1, 
+		Detune1, 
+		Pan1, 
+		OctaveTranspose2, 
+		WaveForm2, 
+		Detune2, 
+		Pan2, 
+		Mix, 
+		EnableSecondOscillator, 
+		PulseWidth1, 
+		PulseWidth2, 
+		HardSync, 
+		SemiTones1, 
+		SemiTones2, 
 		numWaveSynthParameters
 	};
 
@@ -245,6 +245,8 @@ public:
 	};
 
 	WaveSynth(MainController *mc, const String &id, int numVoices);;
+
+	const bool metadataInitialised;
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 
@@ -259,7 +261,7 @@ public:
 	const Processor *getChildProcessor(int processorIndex) const override;
 
 
-	float getDefaultValue(int parameterIndex) const override;;
+	static ProcessorMetadata createMetadata();
 
 	void getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue) override;
 

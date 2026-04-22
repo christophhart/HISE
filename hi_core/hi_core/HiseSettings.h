@@ -236,8 +236,12 @@ struct Data: public SafeChangeBroadcaster
 	void refreshProjectData();
 	void loadSettingsFromFile(const Identifier& id);
 
-    var getExtraDefinitionsAsObject() const;
-    
+	var getExtraDefinitionsAsObject(String platform = {}, String target = {}, bool includeTemp=true) const;
+	void setExtraDefinitionsFromObject(String platform, String target, const var& obj, String separator = ";");
+	static Identifier getExtraDefinitionId(String platform, String target);
+
+	void writeSetting(const Identifier& settingFile, const Identifier& settingId, const var& newValue);
+
 	var getSetting(const Identifier& id) const;
 
 	void initialiseAudioDriverData(bool forceReload = false);

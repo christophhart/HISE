@@ -73,6 +73,7 @@ If true, then the patch browser will display global modulator connections.
 
 #include "backend/currentGit.h"
 
+#include "backend/PreprocessorDatabase.h"
 #include "backend/ai_tools/RestServer.h"
 
 #include "backend/BackendProcessor.h"

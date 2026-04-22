@@ -47,7 +47,9 @@ class PitchwheelModulator: public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("PitchWheel", "Pitch Wheel Modulator", "Creates a monophonic modulation signal from the pitch-wheel");
+	SET_PROCESSOR_NAME("PitchWheel", "Pitch Wheel Modulator", "")
+
+	static ProcessorMetadata createMetadata();
 
 	PitchwheelModulator(MainController *mc, const String &id, Modulation::Mode m);
 
@@ -56,9 +58,9 @@ public:
 	/** Special Parameters for the PitchwheelModulator. */
 	enum Parameters
 	{
-		Inverted=0, ///< inverts the modulation.
-		UseTable, ///< use a Table object for a look up table
-		SmoothTime ///< the smoothing time
+		Inverted=0,
+		UseTable,
+		SmoothTime
 	};
 
 	void restoreFromValueTree(const ValueTree &v) override

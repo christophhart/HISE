@@ -44,7 +44,9 @@ class ChorusEffect : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("Chorus", "Chorus", "A simple chorus effect.");
+	SET_PROCESSOR_NAME("Chorus", "Chorus", "")
+
+	static ProcessorMetadata createMetadata();
 
 	/** The parameters */
 	enum Parameters

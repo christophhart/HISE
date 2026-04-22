@@ -32,6 +32,137 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata LegatoProcessor::createMetadata()
+{
+	return ProcessorMetadata()
+		.withStandardMetadata<LegatoProcessor>()
+		.withDescription("Monophonic legato processor that retriggers the previous note after a release, useful for lead lines and expressive legato phrasing");
+}
+
+hise::ProcessorMetadata CCSwapper::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<CCSwapper>()
+		.withDescription("Swaps two MIDI CC numbers to remap controller data without changing the source device or automation")
+		.withParameter(Par(0)
+			.withId("FirstCC")
+			.withDescription("First controller number that gets swapped")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 127.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(1)
+			.withId("SecondCC")
+			.withDescription("Second controller number that gets swapped")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 127.0, 1.0))
+			.withDefault(0.0f));
+}
+
+hise::ProcessorMetadata ReleaseTriggerScriptProcessor::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<ReleaseTriggerScriptProcessor>()
+		.withDescription("Release trigger generator that replays notes on key-up with velocity scaled by a time-based attenuation curve")
+		.withParameter(Par(0)
+			.withId("TimeAttenuate")
+			.withDescription("Enables time-based velocity attenuation on release")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(1)
+			.withId("Time")
+			.withDescription("Time in seconds used to normalise the release attenuation curve")
+			.withSliderMode(HiSlider::Time, Range(0.0, 20.0, 0.1))
+			.withDefault(0.0f))
+		.withParameter(Par(2)
+			.withId("TimeTable")
+			.withDescription("Curve that scales release velocity over time")
+			.withDefault(0.0f))
+		.withComplexDataInterface(ExternalData::DataType::Table);
+}
+
+hise::ProcessorMetadata CCToNoteProcessor::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<CCToNoteProcessor>()
+		.withDescription("Turns a selected MIDI CC into a note trigger, useful for controller-driven drum or round-robin triggering")
+		.withParameter(Par(0)
+			.withId("Bypass")
+			.withDescription("Bypasses CC-to-note triggering")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(1)
+			.withId("ccSelector")
+			.withDescription("Controller number that triggers notes")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 127.0, 1.0))
+			.withDefault(0.0f));
+}
+
+hise::ProcessorMetadata ChannelFilterScriptProcessor::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<ChannelFilterScriptProcessor>()
+		.withDescription("Filters incoming MIDI by channel, with optional MPE start and end channel ranges for MPE setups")
+		.withParameter(Par(0)
+			.withId("channelNumber")
+			.withDescription("MIDI channel to pass when MPE is disabled")
+			.withSliderMode(HiSlider::Discrete, Range(1.0, 16.0, 1.0))
+			.withDefault(1.0f))
+		.withParameter(Par(1)
+			.withId("mpeStart")
+			.withDescription("Start channel for the MPE note range")
+			.withSliderMode(HiSlider::Discrete, Range(2.0, 16.0, 1.0))
+			.withDefault(2.0f))
+		.withParameter(Par(2)
+			.withId("mpeEnd")
+			.withDescription("End channel for the MPE note range")
+			.withSliderMode(HiSlider::Discrete, Range(2.0, 16.0, 1.0))
+			.withDefault(16.0f));
+}
+
+hise::ProcessorMetadata ChannelSetterScriptProcessor::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<ChannelSetterScriptProcessor>()
+		.withDescription("Rewrites the MIDI channel for all incoming messages, useful for routing or consolidating controllers")
+		.withParameter(Par(0)
+			.withId("channelNumber")
+			.withDescription("MIDI channel assigned to all incoming messages")
+			.withSliderMode(HiSlider::Discrete, Range(1.0, 16.0, 1.0))
+			.withDefault(1.0f));
+}
+
+hise::ProcessorMetadata MuteAllScriptProcessor::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<MuteAllScriptProcessor>()
+		.withDescription("Mutes incoming note-on events while allowing other MIDI messages, with optional stuck-note protection")
+		.withParameter(Par(0)
+			.withId("ignoreButton")
+			.withDescription("Ignores incoming note-on events")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(1)
+			.withId("fixStuckNotes")
+			.withDescription("Allows note-offs for notes that were previously heard")
+			.asToggle()
+			.withDefault(0.0f));
+}
+
 HardcodedScriptProcessor::HardcodedScriptProcessor(MainController *mc, const String &id, ModulatorSynth *ms):
 	ScriptBaseMidiProcessor(mc, id),
 	ProcessorWithDynamicExternalData(mc),

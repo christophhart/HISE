@@ -34,6 +34,26 @@
 namespace hise {
 using namespace juce;
 
+hise::ProcessorMetadata AnalyserEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<AnalyserEffect>()
+		.withDescription("Provides audio visualization tools including goniometer, oscilloscope, and spectrum analyzer")
+		.withComplexDataInterface(ExternalData::DataType::DisplayBuffer)
+		.withParameter(Par(PreviewType)
+			.withId("PreviewType")
+			.withDescription("Selects the visualization type: goniometer for stereo phase, oscilloscope for waveforms, or spectrum analyzer for frequency content")
+			.withValueList({ "Nothing", "Goniometer", "Oscilloscope", "Spectral Analyser" })
+			.withDefault(1.0f))
+		.withParameter(Par(BufferSize)
+			.withId("BufferSize")
+			.withDescription("Size of the analysis buffer in samples, affecting frequency resolution and latency")
+			.withRange({ 0.0, 32768.0, 1.0})
+			.withDefault(8192.0f));
+}
+
 ProcessorEditorBody * AnalyserEffect::createEditor(ProcessorEditor *parentEditor)
 {
 

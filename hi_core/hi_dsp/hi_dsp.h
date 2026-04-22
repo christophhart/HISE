@@ -58,6 +58,8 @@ END_JUCE_MODULE_DECLARATION
 */
 
 
+#include "ProcessorMetadata.h"
+#include "ProcessorMetadataRegistry.h"
 #include "Processor.h"
 #include "ProcessorInterfaces.h"
 

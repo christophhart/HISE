@@ -10,6 +10,100 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata DynamicsEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<DynamicsEffect>()
+		.withDescription("A dynamics processor combining gate, compressor, and limiter based on chunkware's SimpleCompressor algorithms")
+		.withParameter(Par(GateEnabled)
+			.withId("GateEnabled")
+			.withDescription("Enables the noise gate to attenuate signals below the threshold")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(GateThreshold)
+			.withId("GateThreshold")
+			.withDescription("The level threshold in dB below which the gate attenuates the signal")
+			.withSliderMode(HiSlider::Decibel, Range(-100.0, 0.0, 0.01).withCentreSkew(-40.0))
+			.withDefault(0.0f))
+		.withParameter(Par(GateAttack)
+			.withId("GateAttack")
+			.withDescription("Attack time in milliseconds for the gate to open when the signal exceeds the threshold")
+			.withSliderMode(HiSlider::Time, Range(0.0, 100.0, 0.01).withCentreSkew(10.0))
+			.withDefault(1.0f))
+		.withParameter(Par(GateRelease)
+			.withId("GateRelease")
+			.withDescription("Release time in milliseconds for the gate to close when the signal falls below the threshold")
+			.withSliderMode(HiSlider::Time, Range(0.0, 300.0, 0.01).withCentreSkew(10.0))
+			.withDefault(100.0f))
+		.withParameter(Par(GateReduction)
+			.withId("GateReduction")
+			.withDescription("A read only slot for reading out the gate gain reduction"))
+		.withParameter(Par(CompressorEnabled)
+			.withId("CompressorEnabled")
+			.withDescription("Enables the compressor to reduce dynamic range of signals above the threshold")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(CompressorThreshold)
+			.withId("CompressorThreshold")
+			.withDescription("The level threshold in dB above which compression begins")
+			.withSliderMode(HiSlider::Decibel, Range(-100.0, 0.0, 0.1).withCentreSkew(-40.0))
+			.withDefault(0.0f))
+		.withParameter(Par(CompressorRatio)
+			.withId("CompressorRatio")
+			.withDescription("Compression ratio where higher values apply more aggressive gain reduction")
+			.withSliderMode(HiSlider::Linear, Range(1.0, 32.0, 0.1).withCentreSkew(4.0))
+			.withDefault(1.0f))
+		.withParameter(Par(CompressorAttack)
+			.withId("CompressorAttack")
+			.withDescription("Attack time in milliseconds for the compressor to respond to signals above the threshold")
+			.withSliderMode(HiSlider::Time, Range(0.0, 100.0, 0.01).withCentreSkew(10.0))
+			.withDefault(10.0f))
+		.withParameter(Par(CompressorRelease)
+			.withId("CompressorRelease")
+			.withDescription("Release time in milliseconds for the compressor to return to normal gain after compression")
+			.withSliderMode(HiSlider::Time, Range(0.0, 300.0, 0.01).withCentreSkew(10.0))
+			.withDefault(100.0f))
+		.withParameter(Par(CompressorReduction)
+			.withId("CompressorReduction")
+			.withDescription("A read only slot for reading out the compressor gain reduction"))
+		.withParameter(Par(CompressorMakeup)
+			.withId("CompressorMakeup")
+			.withDescription("Automatically applies makeup gain to compensate for compression gain reduction")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(LimiterEnabled)
+			.withId("LimiterEnabled")
+			.withDescription("Enables the limiter to prevent signals from exceeding the threshold")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(LimiterThreshold)
+			.withId("LimiterThreshold")
+			.withDescription("The ceiling level in dB that the limiter prevents the signal from exceeding")
+			.withSliderMode(HiSlider::Decibel, Range(-100.0, 0.0, 0.1).withCentreSkew(-40.0))
+			.withDefault(0.0f))
+		.withParameter(Par(LimiterAttack)
+			.withId("LimiterAttack")
+			.withDescription("Attack time in milliseconds for the limiter to respond to signals above the threshold")
+			.withSliderMode(HiSlider::Time, Range(0.0, 100.0, 0.01).withCentreSkew(10.0))
+			.withDefault(1.0f))
+		.withParameter(Par(LimiterRelease)
+			.withId("LimiterRelease")
+			.withDescription("Release time in milliseconds for the limiter to return to normal gain after limiting")
+			.withSliderMode(HiSlider::Time, Range(0.0, 300.0, 0.01).withCentreSkew(10.0))
+			.withDefault(10.0f))
+		.withParameter(Par(LimiterReduction)
+			.withId("LimiterReduction")
+			.withDescription("A read only slot for reading out the limiter gain reduction"))
+		.withParameter(Par(LimiterMakeup)
+			.withId("LimiterMakeup")
+			.withDescription("Automatically applies makeup gain to compensate for limiter gain reduction")
+			.asToggle()
+			.withDefault(0.0f));
+}
+
 DynamicsEffect::DynamicsEffect(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
 	gateEnabled(false),
@@ -22,26 +116,6 @@ DynamicsEffect::DynamicsEffect(MainController *mc, const String &uid) :
 	compressorMakeup(false)
 {
 	finaliseModChains();
-
-	parameterNames.add("GateEnabled");
-	parameterNames.add("GateThreshold");
-	parameterNames.add("GateAttack");
-	parameterNames.add("GateRelease");
-	parameterNames.add("GateReduction");
-	parameterNames.add("CompressorEnabled");
-	parameterNames.add("CompressorThreshold");
-	parameterNames.add("CompressorRatio");
-	parameterNames.add("CompressorAttack");
-	parameterNames.add("CompressorRelease");
-	parameterNames.add("CompressorReduction");
-	parameterNames.add("CompressorMakeup");
-	parameterNames.add("LimiterEnabled");
-	parameterNames.add("LimiterThreshold");
-	parameterNames.add("LimiterAttack");
-	parameterNames.add("LimiterRelease");
-	parameterNames.add("LimiterReduction");
-	parameterNames.add("LimiterMakeup");
-
 	updateParameterSlots();
 }
 
@@ -113,38 +187,6 @@ float DynamicsEffect::getAttribute(int parameterIndex) const
 	return 0.0f;
 }
 
-float DynamicsEffect::getDefaultValue(int parameterIndex) const
-{
-	auto p = (Parameters)parameterIndex;
-
-	switch (p)
-	{
-	case GateEnabled:			return false;
-	case CompressorEnabled:		return false;
-	case LimiterEnabled:		return false;
-	case GateThreshold:			return -100.0f;
-	case CompressorThreshold:	return 0.0f;
-	case LimiterThreshold:		return 0.0f;
-	case GateAttack:			return 10.0f;
-	case CompressorAttack:		return 10.0f;
-	case LimiterAttack:			return 10.0f;
-	case GateRelease:			return 40.0f;
-	case CompressorRelease:		return 40.0f;
-	case LimiterRelease:		return 40.0f;
-	case CompressorRatio:		return 1.0f;
-	case GateReduction:			return 0.f;
-	case CompressorReduction:	return 0.f;
-	case LimiterReduction:		return 0.f;
-	case LimiterMakeup:			return false;
-	case CompressorMakeup:		return false;
-	case numParameters:			jassertfalse;
-		
-	default:
-		break;
-	}
-
-	return 0.0f;
-}
 
 void DynamicsEffect::restoreFromValueTree(const ValueTree &v)
 {

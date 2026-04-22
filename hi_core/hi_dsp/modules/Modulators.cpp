@@ -80,17 +80,35 @@ namespace hise { using namespace juce;
 	Modulation::Mode Modulation::getMode() const noexcept
 	{ return modulationMode; }
 
-	Modulation::Mode Modulation::getModeFromModProperties(const scriptnode::modulation::ParameterProperties& modProperties,
-		int parameterIndex)
+	scriptnode::modulation::ParameterMode Modulation::convertToScriptnodeMode(Mode m)
 	{
-		if(parameterIndex == -1)
-			return Modulation::Mode::numModes;
-
 		using namespace scriptnode::modulation;
 
-		auto m = modProperties.getParameterMode(parameterIndex);
+		switch (m)
+		{
+		case GainMode:
+			return scriptnode::modulation::ParameterMode::ScaleOnly;
+		case PitchMode:
+			return scriptnode::modulation::ParameterMode::Pitch;
+		case PanMode:
+			return scriptnode::modulation::ParameterMode::Pan;
+		case GlobalMode:
+			return scriptnode::modulation::ParameterMode::ScaleOnly;
+		case OffsetMode:
+			return scriptnode::modulation::ParameterMode::AddOnly;
+		case CombinedMode:
+			return scriptnode::modulation::ParameterMode::ScaleAdd;
+		case numModes:
+		default:
+			return scriptnode::modulation::ParameterMode::Disabled;
+		}
+	}
 
-		switch(m)
+	hise::Modulation::Mode Modulation::convertFromScriptnodeMode(scriptnode::modulation::ParameterMode m)
+	{
+		using namespace scriptnode::modulation;
+
+		switch (m)
 		{
 		case ParameterMode::ScaleAdd:
 			return Modulation::Mode::CombinedMode;
@@ -109,6 +127,18 @@ namespace hise { using namespace juce;
 			return Modulation::Mode::numModes;
 			break;;
 		}
+	}
+
+	Modulation::Mode Modulation::getModeFromModProperties(const scriptnode::modulation::ParameterProperties& modProperties,
+		int parameterIndex)
+	{
+		if(parameterIndex == -1)
+			return Modulation::Mode::numModes;
+
+		using namespace scriptnode::modulation;
+
+		auto m = modProperties.getParameterMode(parameterIndex);
+		return convertFromScriptnodeMode(m);
 	}
 
 	float Modulation::PitchConverters::octaveRangeToSignedNormalisedRange(float octaveValue)
@@ -862,10 +892,7 @@ EnvelopeModulator::EnvelopeModulator(MainController *mc, const String &id, int v
 	TimeModulation(m),
 	Modulation(m),
 	VoiceModulation(voiceAmount_, m)
-{
-	parameterNames.add("Monophonic");
-	parameterNames.add("Retrigger");
-};
+{};
 
 #pragma warning( pop )
 
@@ -1039,16 +1066,6 @@ float EnvelopeModulator::getAttribute(int parameterIndex) const
 	{
 	case Parameters::Monophonic: return isInMonophonicMode();
 	case Parameters::Retrigger:  return shouldRetrigger;
-	default:					 jassertfalse; return 0.0f;
-	}
-}
-
-float EnvelopeModulator::getDefaultValue(int parameterIndex) const
-{
-	switch (parameterIndex)
-	{
-	case Parameters::Monophonic: return getVoiceAmount() == 1 ? 1.0f : 0.0f;
-	case Parameters::Retrigger:  return 1.0f;
 	default:					 jassertfalse; return 0.0f;
 	}
 }

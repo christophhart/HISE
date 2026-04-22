@@ -318,6 +318,49 @@ ProcessorEditorBody *EffectProcessorChain::EffectProcessorChain::createEditor(Pr
 #endif
 }
 
+EffectProcessorChainFactoryType::VoiceEffectConstrainer::VoiceEffectConstrainer()
+{
+	Array<ProcessorEntry> typeNames;
+
+	ADD_NAME_TO_TYPELIST(PolyFilterEffect);
+	ADD_NAME_TO_TYPELIST(HarmonicFilter);
+	ADD_NAME_TO_TYPELIST(StereoEffect);
+	ADD_NAME_TO_TYPELIST(JavascriptPolyphonicEffect);
+	ADD_NAME_TO_TYPELIST(PolyshapeFX);
+	ADD_NAME_TO_TYPELIST(HardcodedPolyphonicFX);
+	ADD_NAME_TO_TYPELIST(NoiseGrainPlayer);
+
+	for (auto& tn : typeNames)
+		allowedFX.add(tn.type);
+}
+
+EffectProcessorChainFactoryType::NoVoiceEffectConstrainer::NoVoiceEffectConstrainer()
+{
+	Array<ProcessorEntry> typeNames;
+
+	ADD_NAME_TO_TYPELIST(HarmonicMonophonicFilter);
+	ADD_NAME_TO_TYPELIST(CurveEq);
+	ADD_NAME_TO_TYPELIST(SimpleReverbEffect);
+	ADD_NAME_TO_TYPELIST(GainEffect);
+	ADD_NAME_TO_TYPELIST(ConvolutionEffect);
+	ADD_NAME_TO_TYPELIST(DelayEffect);
+	ADD_NAME_TO_TYPELIST(ChorusEffect);
+	ADD_NAME_TO_TYPELIST(PhaseFX);
+	ADD_NAME_TO_TYPELIST(RouteEffect);
+	ADD_NAME_TO_TYPELIST(SendEffect);
+	ADD_NAME_TO_TYPELIST(SaturatorEffect);
+	ADD_NAME_TO_TYPELIST(JavascriptMasterEffect);
+	ADD_NAME_TO_TYPELIST(SlotFX);
+	ADD_NAME_TO_TYPELIST(EmptyFX);
+	ADD_NAME_TO_TYPELIST(DynamicsEffect);
+	ADD_NAME_TO_TYPELIST(AnalyserEffect);
+	ADD_NAME_TO_TYPELIST(ShapeFX);
+	ADD_NAME_TO_TYPELIST(HardcodedMasterFX);
+	ADD_NAME_TO_TYPELIST(MidiMetronome);
+
+	for (auto& tn : typeNames)
+		allowedFX.add(tn.type);
+}
 
 void EffectProcessorChainFactoryType::fillTypeNameList()
 {
@@ -590,5 +633,7 @@ void EffectProcessorChain::EffectChainHandler::clear()
 	chain->monoEffects.clear();
 	chain->allEffects.clear();
 }
+
+
 
 } // namespace hise

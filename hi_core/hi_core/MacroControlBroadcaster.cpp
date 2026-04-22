@@ -344,6 +344,23 @@ namespace hise { using namespace juce;
 		}
 	}
 
+	void MacroControlBroadcaster::rebuildMacroControlsAfterProjectSwitch()
+	{
+		auto mc = thisAsSynth->getMainController();
+
+		auto numMacros = HISE_GET_PREPROCESSOR(mc, HISE_NUM_MACROS);
+
+		if (numMacros != macroControls.size())
+		{
+			macroControls.clear();
+
+			for (int i = 0; i < numMacros; i++)
+			{
+				macroControls.add(new MacroControlData(i, *this, mc));
+			}
+		}
+	}
+
 	bool MacroControlBroadcaster::hasActiveParameters(int macroIndex)
 	{
 		return macroControls[macroIndex]->getNumParameters() != 0;
@@ -352,13 +369,7 @@ namespace hise { using namespace juce;
 MacroControlBroadcaster::MacroControlBroadcaster(ModulatorSynthChain *chain):
 	thisAsSynth(chain)
 {
-	auto mc = thisAsSynth->getMainController();
-	auto numMacros = HISE_GET_PREPROCESSOR(mc, HISE_NUM_MACROS);
-
-	for(int i = 0; i < numMacros; i++)
-	{
-		macroControls.add(new MacroControlData(i, *this, mc));
-	}
+	rebuildMacroControlsAfterProjectSwitch();
 }
 
 

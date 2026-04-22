@@ -32,6 +32,40 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata TableEnvelope::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return EnvelopeModulator::createBaseMetadata()
+		.withStandardMetadata<TableEnvelope>()
+		.withDescription("An envelope with fully customizable attack and release shapes drawn as lookup tables.")
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(Par(Attack)
+			.withId("Attack")
+			.withDescription("Controls how long the envelope takes to reach full level after a note-on")
+			.withSliderMode(HiSlider::Time, Range(1.0, 20000.0).withCentreSkew(2000.0))
+			.withDefault(20.0f))
+		.withParameter(Par(Release)
+			.withId("Release")
+			.withDescription("The time the envelope takes to fall from the sustain level to zero after note-off")
+			.withSliderMode(HiSlider::Time, Range(1.0, 20000.0).withCentreSkew(2000.0))
+			.withDefault(20.0f))
+		.withModulation(Mod(AttackChain)
+			.withId("AttackTimeModulation")
+			.withDescription("Modulates the attack time per voice")
+			.withConstrainer<VoiceStartModulatorFactoryType::Constrainer>()
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Attack))
+		.withModulation(Mod(ReleaseChain)
+			.withId("ReleaseTimeModulation")
+			.withDescription("Modulates the release time per voice")
+			.withConstrainer<VoiceStartModulatorFactoryType::Constrainer>()
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Release));
+}
+
 TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m, float attackTimeMs, float releaseTimeMs):
 		EnvelopeModulator(mc, id, voiceAmount, m),
 		Modulation(m),
@@ -43,9 +77,6 @@ TableEnvelope::TableEnvelope(MainController *mc, const String &id, int voiceAmou
 {
 	attackTable = dynamic_cast<SampleLookupTable*>(getTableUnchecked(0));
 	releaseTable = dynamic_cast<SampleLookupTable*>(getTableUnchecked(1));
-
-	parameterNames.add("Attack");
-	parameterNames.add("Release");
 
 	updateParameterSlots();
 
@@ -437,25 +468,6 @@ void TableEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 		break;
 	default:
 		jassertfalse;
-	}	
-}
-
-float TableEnvelope::getDefaultValue(int parameterIndex) const
-{
-	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
-	{
-		return EnvelopeModulator::getDefaultValue(parameterIndex);
-	}
-
-	switch (parameterIndex)
-	{
-	case Attack:
-		return 20.0f;
-	case Release:
-		return 20.0f;
-	default:
-		jassertfalse;
-		return -1;
 	}
 }
 

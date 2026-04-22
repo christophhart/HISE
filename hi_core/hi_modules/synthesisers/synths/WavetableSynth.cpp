@@ -33,7 +33,48 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata WavetableSynth::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
 
+	return ModulatorSynth::createBaseMetadata()
+		.withStandardMetadata<WavetableSynth>()
+		.withDescription("A two-dimensional wavetable synthesiser that morphs between waveforms using a table index and supports audio file resynthesis.")
+		.withComplexDataInterface(ExternalData::DataType::AudioFile)
+		.withParameter(Par(HqMode)
+			.withId("HqMode")
+			.withDescription("Enables higher-quality rendering with better interpolation at the cost of more CPU usage")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(LoadedBankIndex)
+			.withId("LoadedBankIndex")
+			.withDescription("Index of the currently loaded wavetable bank from the project's wavetable directory")
+			.withSliderMode(HiSlider::Discrete, Range(-1.0, 128.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(TableIndexValue)
+			.withId("TableIndexValue")
+			.withDescription("Normalized position in the wavetable where 0.0 is the first and 1.0 is the last waveform")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f))
+		.withParameter(Par(RefreshMipmap)
+			.withId("RefreshMipMap")
+			.withDescription("Updates the mipmap when pitch modulation goes outside the frequency range to reduce aliasing")
+			.asToggle()
+			.withDefault(0.0f))
+		.withModulation(Mod((int)WavetableInternalChains::TableIndexModulation)
+			.withId("Table Index")
+			.withDescription("Modulates the wavetable position as a scale factor on the table index value")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(TableIndexValue))
+		.withModulation(Mod((int)WavetableInternalChains::TableIndexBipolarChain)
+			.withId("Table Index Bipolar")
+			.withDescription("Adds a bipolar offset to the wavetable position for modulation-driven morphing")
+			.withMode(scriptnode::modulation::ParameterMode::Pan)
+			.withModulatedParameter(TableIndexValue))
+		;
+}
 
 WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
@@ -48,11 +89,6 @@ WavetableSynth::WavetableSynth(MainController *mc, const String &id, int numVoic
 
 	tableIndexChain = modChains[ChainIndex::TableIndex].getChain();
 	tableIndexBipolarChain = modChains[ChainIndex::TableIndexBipolar].getChain();
-
-	parameterNames.add("HqMode");
-	parameterNames.add("LoadedBankIndex");
-	parameterNames.add("TableIndexValue");
-	parameterNames.add("RefreshMipmap");
 
 	updateParameterSlots();
 

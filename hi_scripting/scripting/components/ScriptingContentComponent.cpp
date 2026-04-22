@@ -230,9 +230,8 @@ void ScriptContentComponent::valueTreeChildAdded(ValueTree& /*parent*/, ValueTre
 
 void ScriptContentComponent::updateComponent(int i)
 {
-    if(componentWrappers[i]->getComponent() == nullptr)
+    if(!isPositiveAndBelow(i, componentWrappers.size()) || componentWrappers[i]->getComponent() == nullptr)
     {
-        jassertfalse;
         return;
     }
     
@@ -253,7 +252,8 @@ void ScriptContentComponent::updateContent(ScriptingApi::Content::ScriptComponen
 	if (componentToUpdate == nullptr)
 	{
 
-		jassert(contentData->components.size() == componentWrappers.size());
+        if(contentData->components.size() != componentWrappers.size())
+            return;
 
 		for (int i = 0; i < contentData->components.size(); i++)
 		{

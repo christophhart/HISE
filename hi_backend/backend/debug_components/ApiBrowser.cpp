@@ -359,21 +359,33 @@ className(className_)
     searchKeywords = searchKeywords.replaceCharacter('.', ';');
     
 	setSize(410 - 16 - 8 - 24, ITEM_HEIGHT);
+	setWantsKeyboardFocus(true);
+}
+
+
+
+
+void ApiCollection::MethodItem::initialiseMarkdown()
+{
+	if (markdownInitialised)
+		return;
+
+	markdownInitialised = true;
 
 	auto extendedHelp = ExtendedApiDocumentation::getMarkdownText(className, name);
 
-	if(extendedHelp.isEmpty())
+	if (extendedHelp.isEmpty())
 	{
 		AttributedString help;
 
-		const String name = methodTree_.getProperty(Identifier("name")).toString();
-		const String arguments = methodTree_.getProperty(Identifier("arguments")).toString();
-		const String description = methodTree_.getProperty(Identifier("description")).toString().trim();
-		const String returnType = methodTree_.getProperty("returnType", "void");
+		const String name = methodTree.getProperty(Identifier("name")).toString();
+		const String arguments = methodTree.getProperty(Identifier("arguments")).toString();
+		const String description = methodTree.getProperty(Identifier("description")).toString().trim();
+		const String returnType = methodTree.getProperty("returnType", "void");
 
-		extendedHelp << "#### `" << className_ << "." << name << arguments << "`  \n";
+		extendedHelp << "#### `" << className << "." << name << arguments << "`  \n";
 
-		if(!returnType.isEmpty())
+		if (!returnType.isEmpty())
 			extendedHelp << "**Return Type**: `" << returnType << "`  \n";
 
 		extendedHelp << "> " << description << "  \n";
@@ -388,12 +400,7 @@ className(className_)
 		bd.fontSize = 15.5f;
 		parser->setStyleData(bd);
 	}
-
-	setWantsKeyboardFocus(true);
 }
-
-
-
 
 void ApiCollection::MethodItem::mouseDoubleClick(const MouseEvent& e)
 {

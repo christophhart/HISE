@@ -132,7 +132,8 @@ public:
 		{
 			colour = PropertyHelpers::getColourFromVar(value);
 			parent.setColour(complex_ui_laf::NodeColourId, colour);
-			repaint();
+
+			SafeAsyncCall::repaint(this);
 		}
 
 		void itemDragMove(const SourceDetails& dragSourceDetails) override

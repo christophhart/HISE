@@ -93,6 +93,10 @@ public:
 	/** returns the mode the Modulator is operating. */
 	Mode getMode() const noexcept;;
 
+	static scriptnode::modulation::ParameterMode convertToScriptnodeMode(Mode m);
+
+	static Mode convertFromScriptnodeMode(scriptnode::modulation::ParameterMode pm);
+
 	static Mode getModeFromModProperties(const scriptnode::modulation::ParameterProperties& modProperties, int parameterIndex);;
 	
 	/** This applies the intensity to the given value and returns the applied value. 
@@ -480,6 +484,8 @@ public:
     /** Only used in Global Modulator Containers. */
     void setResetUnsavedValue(bool shouldReset);
 
+	
+
 	static Path getSymbolPath();
 
 	Path getSpecialSymbol() const override;
@@ -586,7 +592,29 @@ public:
 		numParameters
 	};
 
-	
+	/** Base metadata for all envelope modulators. Derived classes chain from this
+	 *  via EnvelopeModulator::createBaseMetadata() to inherit the 2 base parameters
+	 *  (Monophonic, Retrigger). No base modulation chains.
+	 */
+	static ProcessorMetadata createBaseMetadata()
+	{
+		using Par = ProcessorMetadata::ParameterMetadata;
+
+		return ProcessorMetadata("EnvelopeModulator")
+			.withParameter(Par(Monophonic)
+				.withId("Monophonic")
+				.withDescription("Enables monophonic mode where only one voice is rendered")
+				.asToggle()
+				.withDynamicDefault([](const Processor* p) {
+					return dynamic_cast<const EnvelopeModulator*>(p)->getVoiceAmount() == 1 ? 1.0f : 0.0f;
+				}))
+			.withParameter(Par(Retrigger)
+				.withId("Retrigger")
+				.withDescription("Restarts the envelope when a new note is triggered in monophonic mode")
+				.asToggle()
+				.withDefault(1.0f));
+	}
+
 	virtual ~EnvelopeModulator();;
 
 	static Path getSymbolPath();
@@ -601,8 +629,6 @@ public:
 	virtual bool isPlaying(int voiceIndex) const = 0;
 
 	float getAttribute(int parameterIndex) const override;
-
-	float getDefaultValue(int parameterIndex) const override;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;
 
@@ -738,6 +764,36 @@ class VoiceStartModulatorFactoryType: public FactoryType
 
 public:
 
+	struct Constrainer : public FactoryType::Constrainer
+	{
+		static ProcessorMetadata::WildcardFilterList getWildcard()
+		{
+			return {
+				{ ProcessorMetadataIds::Modulator, ProcessorMetadataIds::VoiceStartModulator.toString() }
+			};
+		};
+
+		ProcessorMetadata::WildcardFilterList getWildcardFromObject() const override { return getWildcard(); }
+
+		Constrainer()
+		{
+			Array<ProcessorEntry> tn;
+			fillArrayWithTypes(tn);
+
+			for (const auto& p : tn)
+				typeNames.add(p.type);
+		}
+
+		String getDescription() const override { return "Voice start modulators only"; }
+
+		bool allowType(const Identifier& typeName) override
+		{
+			return typeNames.contains(typeName);
+		}
+
+		Array<Identifier> typeNames;
+	};
+
 	VoiceStartModulatorFactoryType(int numVoices_, Modulation::Mode m, Processor *p):
 		FactoryType(p),
 		numVoices(numVoices_),
@@ -756,6 +812,8 @@ public:
 	};
 
 private:
+
+	static void fillArrayWithTypes(Array<ProcessorEntry>& tn);
 
 	Array<ProcessorEntry> typeNames;
 

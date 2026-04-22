@@ -180,7 +180,14 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 
 	bool useLock = n->getRootNetwork()->isInitialised();
 
-	if (auto nodeToProcess = n->getRootNetwork()->getNodeForValueTree(child))
+	auto nodeToProcess = n->getRootNetwork()->getNodeForValueTree(child);
+
+	if (nodeToProcess == nullptr)
+	{
+		nodeToProcess = n->getRootNetwork()->createFromValueTree(n->getRootNetwork()->isPolyphonic(), child);
+	}
+
+	if (nodeToProcess != nullptr)
 	{
 		if (wasAdded)
 		{
@@ -211,7 +218,7 @@ void NodeContainer::nodeAddedOrRemoved(ValueTree child, bool wasAdded)
 		//auto cs = n->getRootNetwork()->getCurrentSpecs();
 		//n->getRootNetwork()->prepareToPlay(cs.sampleRate, cs.blockSize);
 	}
-
+	
 	ownedReference.clear();
 	for (auto n : nodes)
 		ownedReference.add(n.get());

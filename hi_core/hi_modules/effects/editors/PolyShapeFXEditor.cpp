@@ -46,19 +46,9 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
     modeSelector->setJustificationType (Justification::centredLeft);
     modeSelector->setTextWhenNothingSelected (TRANS("Function"));
     modeSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
-    modeSelector->addItem (TRANS("Linear"), 1);
-    modeSelector->addItem (TRANS("Atan"), 2);
-    modeSelector->addItem (TRANS("Tanh"), 3);
-    modeSelector->addItem (TRANS("Saturate"), 4);
-    modeSelector->addItem (TRANS("Square"), 5);
-    modeSelector->addItem (TRANS("Square Root"), 6);
-    modeSelector->addItem (TRANS("Curve"), 7);
-    modeSelector->addItem (TRANS("Script"), 8);
-    modeSelector->addItem (TRANS("Cached Script"), 9);
     modeSelector->addListener (this);
 
     addAndMakeVisible (driveSlider = new HiSlider ("Drive"));
-    driveSlider->setRange (1, 20000, 1);
     driveSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     driveSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     driveSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -77,7 +67,6 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
     table->setName ("new component");
 
     addAndMakeVisible (bias = new HiSlider ("Bias"));
-    bias->setRange (1, 20000, 1);
     bias->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     bias->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     bias->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -92,8 +81,9 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
 
     //[UserPreSize]
 
-	driveSlider->setup(getProcessor(), PolyshapeFX::SpecialParameters::Drive, "Drive");
-	driveSlider->setMode(HiSlider::Decibel, NormalisableRange(0.0, 60.0, 0.1).withCentreSkew(24.0));
+	auto md = PolyshapeFX::createMetadata();
+
+	md.setup(*driveSlider, getProcessor(), PolyshapeFX::SpecialParameters::Drive);
 	
 
     modeSelector->clear(dontSendNotification);
@@ -110,10 +100,9 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
 	modeSelector->setup(getProcessor(), PolyshapeFX::SpecialParameters::Mode, "Mode");
 	
 
-	overSampling->setup(getProcessor(), PolyshapeFX::SpecialParameters::Oversampling, "Oversampling");
+	md.setup(*overSampling, getProcessor(), PolyshapeFX::SpecialParameters::Oversampling);
 
-    bias->setMode(HiSlider::NormalizedPercentage);
-	bias->setup(getProcessor(), PolyshapeFX::SpecialParameters::Bias, "Bias");
+	md.setup(*bias, getProcessor(), PolyshapeFX::SpecialParameters::Bias);
 
     //[/UserPreSize]
 

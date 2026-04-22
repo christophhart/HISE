@@ -203,9 +203,10 @@ public:
 		getSampleMap()->suspendInternalTimers(shouldBeSuspended);
 	}
 
-	SET_PROCESSOR_NAME("StreamingSampler", "Sampler", "The main sampler class of HISE.");
+	SET_PROCESSOR_NAME("StreamingSampler", "Sampler", "");
 
-	/** Special Parameters for the ModulatorSampler. */
+	static ProcessorMetadata createMetadata();
+
 	enum Parameters
 	{
 		PreloadSize = ModulatorSynth::numModulatorSynthParameters, 
@@ -223,13 +224,12 @@ public:
 		numModulatorSamplerParameters
 	};
 
-	/** Different behaviour for retriggered notes. */
 	enum RepeatMode
 	{
-		KillNote = 0, ///< kills the note (using the supplied fade time)
-		NoteOff, ///< triggers a note off event before starting the note
-		DoNothing, ///< do nothin (a new voice is started and the old keeps ringing).
-		KillSecondOldestNote, // allow one note to retrigger, but then kill the notes
+		KillNote = 0,
+		NoteOff,
+		DoNothing,
+		KillSecondOldestNote,
 		KillThirdOldestNote
 	};
 
@@ -239,10 +239,9 @@ public:
 		XFade
 	};
 
-	/** Additional modulator chains. */
 	enum InternalChains
 	{
-		SampleStartModulation = ModulatorSynth::numInternalChains, ///< allows modification of the sample start if the sound allows this.
+		SampleStartModulation = ModulatorSynth::numInternalChains,
 		CrossFadeModulation,
 		numInternalChains
 	};
@@ -339,8 +338,6 @@ public:
 
 		operator bool() const { return mode != TimestretchMode::Disabled; }
 	};
-
-	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
 
 	/** Creates a new ModulatorSampler. */
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;

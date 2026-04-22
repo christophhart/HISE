@@ -2103,7 +2103,7 @@ maximum(1.0f)
 	setDefaultValue(ScriptComponent::Properties::height, 48);
 	setDefaultValue(ScriptSlider::Properties::Mode, "Linear");
 	setDefaultValue(ScriptSlider::Properties::Style, "Knob");
-	setDefaultValue(ScriptSlider::Properties::middlePosition, -1.0);
+	setDefaultValue(ScriptSlider::Properties::middlePosition, "disabled");
 	setDefaultValue(ScriptSlider::Properties::stepSize, 0.01);
 	setDefaultValue(ScriptComponent::min, 0.0);
 	setDefaultValue(ScriptComponent::max, 1.0);
@@ -2139,7 +2139,8 @@ maximum(1.0f)
 
 	ADD_TYPED_API_METHOD_1(setValuePopupFunction, VarTypeChecker::Function);
 	ADD_CALLBACK_DIAGNOSTIC_RAW(setValuePopupFunction, WeakCallbackHolder::checkCallbackNumArgs<1>);
-	ADD_TYPED_API_METHOD_1(setMidPoint, VarTypeChecker::Number);
+	// hack: (String | Number) == Colour => allow "disabled" sentinel
+	ADD_TYPED_API_METHOD_1(setMidPoint, VarTypeChecker::Colour); 
 	ADD_API_METHOD_3(setRange);
 	ADD_TYPED_API_METHOD_1(setMode, VarTypeChecker::String);
 	ADD_TYPED_API_METHOD_1(setStyle, VarTypeChecker::String);
@@ -2356,27 +2357,26 @@ void ScriptingApi::Content::ScriptSlider::setValuePopupFunction(var newFunction)
 	getPropertyValueTree().sendPropertyChangeMessage(getIdFor(parameterId));
 }
 
-void ScriptingApi::Content::ScriptSlider::setMidPoint(double valueForMidPoint)
+void ScriptingApi::Content::ScriptSlider::setMidPoint(var valueForMidPoint)
 {
-	if (valueForMidPoint == -1.0f)
-	{
-		setScriptObjectProperty(middlePosition, valueForMidPoint);
-		return;
-		//valueForMidPoint = range.getStart() + (range.getEnd() - range.getStart()) / 2.0;
-	}
-
 	Range<double> range = Range<double>(getScriptObjectProperty(ScriptComponent::Properties::min), getScriptObjectProperty(ScriptComponent::Properties::max));
 
-	const bool illegalMidPoint = valueForMidPoint == range.getStart() || !range.contains(valueForMidPoint);
-	if (illegalMidPoint)
+	double mv;
+
+	if (ApiHelpers::shouldApplyMidPoint(range.getStart(), range.getEnd(), valueForMidPoint))
 	{
-		debugError(parent->getProcessor(), "setMidPoint() value must be in the knob range.");
-		valueForMidPoint = (range.getEnd() - range.getStart()) / 2.0 + range.getStart();
+		CHECK_COPY_AND_RETURN_11(getProcessor());
+		setScriptObjectProperty(middlePosition, valueForMidPoint);
 	}
+	else
+	{
+		auto rv = RangeHelpers::parseMidPointValue(valueForMidPoint);
 
-	CHECK_COPY_AND_RETURN_11(getProcessor());
-
-	setScriptObjectProperty(middlePosition, valueForMidPoint);
+		if (rv.first || valueForMidPoint.toString() == "disabled")
+			setScriptObjectProperty(middlePosition, valueForMidPoint);
+		else
+			reportScriptError("mid point string must be " + String("disabled").quoted());
+	}
 }
 
 void ScriptingApi::Content::ScriptSlider::setStyle(String style)
@@ -2536,31 +2536,26 @@ void ScriptingApi::Content::ScriptSlider::setValueNormalized(double normalizedVa
 {
 	const double minValue = getScriptObjectProperty(min);
 	const double maxValue = getScriptObjectProperty(max);
-	const double midPoint = getScriptObjectProperty(middlePosition);
+	
 	const double step = getScriptObjectProperty(stepSize);
 
-	if (minValue < maxValue &&
-		midPoint > minValue &&
-		midPoint < maxValue &&
-		step >= 0.0)
+	if (minValue < maxValue && step >= 0.0)
 	{
-		const double skew = log(0.5) / log((midPoint - minValue) / (maxValue - minValue));
+		NormalisableRange<double> range(minValue, maxValue, step);
+		
+		const var midPoint = getScriptObjectProperty(middlePosition);
 
-		NormalisableRange<double> range = NormalisableRange<double>(minValue, maxValue, step, skew);
-
+		if (ApiHelpers::shouldApplyMidPoint(minValue, maxValue, midPoint))
+			range.setSkewForCentre((double)midPoint);
+		
 		const double actualValue = range.convertFrom0to1(normalizedValue);
-
 		setValue(actualValue);
 	}
 	else
 	{
-
-
 #if USE_BACKEND
 		String errorMessage;
-
-		errorMessage << "Slider range of " << getName().toString() << " is illegal: min: " << minValue << ", max: " << maxValue << ", middlePoint: " << midPoint << ", step: " << step;
-
+		errorMessage << "Slider range of " << getName().toString() << " is illegal: min: " << minValue << ", max: " << maxValue << ", step: " << step;
 		logErrorAndContinue(errorMessage);
 #endif
 	}
@@ -2570,26 +2565,17 @@ double ScriptingApi::Content::ScriptSlider::getValueNormalized() const
 {
 	const double minValue = getScriptObjectProperty(min);
 	const double maxValue = getScriptObjectProperty(max);
-	double midPoint = getScriptObjectProperty(middlePosition);
+	const var midPoint = getScriptObjectProperty(middlePosition);
 	const double step = getScriptObjectProperty(stepSize);
 
-	Range<double> r(minValue, maxValue);
-
-	if (!r.contains(midPoint))
-		midPoint = r.getStart() + 0.5 * r.getLength();
-		
-
-	if (minValue < maxValue &&
-		midPoint > minValue &&
-		midPoint < maxValue &&
-		step >= 0.0)
+	if (minValue < maxValue && step >= 0.0)
 	{
-		const double skew = log(0.5) / log((midPoint - minValue) / (maxValue - minValue));
+		NormalisableRange<double> range = NormalisableRange<double>(minValue, maxValue, step);
 
-		NormalisableRange<double> range = NormalisableRange<double>(minValue, maxValue, step, skew);
+		if (ApiHelpers::shouldApplyMidPoint(minValue, maxValue, midPoint))
+			range.setSkewForCentre((double)midPoint);
 
 		const double unNormalizedValue = getValue();
-
 		return range.convertTo0to1(unNormalizedValue);
 	}
 	else
@@ -2598,9 +2584,7 @@ double ScriptingApi::Content::ScriptSlider::getValueNormalized() const
 
 #if USE_BACKEND
 		String errorMessage;
-
-		errorMessage << "Slider range of " << getName().toString() << " is illegal: min: " << minValue << ", max: " << maxValue << ", middlePoint: " << midPoint << ", step: " << step;
-
+		errorMessage << "Slider range of " << getName().toString() << " is illegal: min: " << minValue << ", max: " << maxValue << ", step: " << step;
 		logErrorAndContinue(errorMessage);
 #endif
 
@@ -2632,22 +2616,18 @@ void ScriptingApi::Content::ScriptSlider::setMode(String mode)
 
 	auto currentModeName = getScriptObjectProperty(ScriptSlider::Mode).toString();
 	auto currentMode = sa.indexOf(currentModeName);
-	
 	auto currentModeDefaultRange = HiSlider::getRangeForMode((HiSlider::Mode)currentMode);
-
 	
 	const bool sameStart = currentModeDefaultRange.start == (double)getScriptObjectProperty(ScriptComponent::Properties::min);
 	const bool sameEnd = currentModeDefaultRange.end == (double)getScriptObjectProperty(ScriptComponent::Properties::max);
 	
 	const bool sameStep = currentModeDefaultRange.interval == (double)getScriptObjectProperty(ScriptSlider::Properties::stepSize);
-	
-	
 
 	auto cp = currentModeDefaultRange;
-	auto mp = (double)getScriptObjectProperty(ScriptSlider::Properties::middlePosition);
+	const auto mp = getScriptObjectProperty(ScriptSlider::Properties::middlePosition);
 
-	if(cp.getRange().contains(mp) && mp > cp.start)
-		cp.setSkewForCentre(mp);
+	if(ApiHelpers::shouldApplyMidPoint(cp.start, cp.end, mp))
+		cp.setSkewForCentre((double)mp);
 
 	const bool sameSkew = cp.skew == 1.0;
 
@@ -5515,6 +5495,28 @@ bool ScriptingApi::Content::ScriptPanel::startInternalDrag(var dragData)
 	getScriptProcessor()->getScriptingContent()->sendDragAction(Content::RebuildListener::DragAction::Start, this, dragData);
 
 	return true;
+}
+
+hise::ProcessorMetadata::ParameterMetadata ScriptingApi::Content::ScriptPanel::createParameterMetadata(int indexInContent) const
+{
+	auto pd = ScriptComponent::createParameterMetadata(indexInContent);
+
+	auto clickable = getScriptObjectProperty(allowCallbacks).toString() != "No Callbacks";
+
+	if (!clickable)
+		return pd.asDisabled();
+
+	auto items = getItemList();
+
+	if (!items.isEmpty() && getScriptObjectProperty(saveInPreset))
+		return pd.withValueList(items);
+
+	auto rng = scriptnode::RangeHelpers::getDoubleRange(getPropertyValueTree(), scriptnode::RangeHelpers::IdSet::ScriptComponents);
+
+	if ((int)rng.getRange().getLength() == 1 && (int)rng.rng.interval == 1)
+		return pd.asToggle();
+
+	return pd.withRange(rng);
 }
 
 ScriptCreatedComponentWrapper * ScriptingApi::Content::ScriptedViewport::createComponentWrapper(ScriptContentComponent *content, int index)

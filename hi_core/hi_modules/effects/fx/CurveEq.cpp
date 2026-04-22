@@ -32,6 +32,14 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata CurveEq::createMetadata()
+{
+	return ProcessorMetadata()
+		.withStandardMetadata<CurveEq>()
+		.withDescription("A parametric equalizer with unlimited filter bands and an FFT spectrum display for visual feedback.")
+		.withComplexDataInterface(ExternalData::DataType::DisplayBuffer);
+}
+
 CurveEq::CurveEq(MainController *mc, const String &id) :
 	MasterEffectProcessor(mc, id),
     ProcessorWithStaticExternalData(mc, 0, 0, 0, 1)
@@ -51,23 +59,7 @@ CurveEq::CurveEq(MainController *mc, const String &id) :
     
     fftBuffer->setActive(false);
 
-	parameterNames.add("Gain");
-	parameterDescriptions.add("The gain in decibels if supported from the filter type.");
-
-	parameterNames.add("Freq");
-	parameterDescriptions.add("The frequency in Hz.");
-
-	parameterNames.add("Q");
-	parameterDescriptions.add("The bandwidth of the filter if supported.");
-
-	parameterNames.add("Enabled");
-	parameterDescriptions.add("the state of the filter band.");
-
-	parameterNames.add("Type");
-	parameterDescriptions.add("the filter type of the filter band.");
-
-	parameterNames.add("BandOffset");
-	parameterDescriptions.add("the offset that can be used to get the desired formula.");
+	updateParameterSlots();
 }
 
 float CurveEq::getAttribute(int index) const

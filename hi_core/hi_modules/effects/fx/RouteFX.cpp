@@ -32,6 +32,48 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata SendEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<SendEffect>()
+		.withDescription("Routes audio to a send container with adjustable gain, channel offset, and optional smoothing for consistent send automation")
+		.withParameter(Par(Gain)
+			.withId("Gain")
+			.withDescription("Send gain in decibels applied before routing to the send container")
+			.withSliderMode(HiSlider::Decibel, Range(-100.0, 0.0, 0.1))
+			.withDefault(-100.0f))
+		.withParameter(Par(ChannelOffset)
+			.withId("ChannelOffset")
+			.withDescription("Channel offset applied when routing into the send container")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, (double)NUM_MAX_CHANNELS, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(SendIndex)
+			.withId("SendIndex")
+			.withDescription("Index of the send container to receive the routed signal")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 128.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Smoothing)
+			.withId("Smoothing")
+			.withDescription("Enables smoothing of gain changes to reduce clicks")
+			.asToggle()
+			.withDefault(1.0f))
+		.withModulation(Mod((int)InternalChains::SendLevel)
+			.withId("Send Modulation")
+			.withDescription("Modulates the send gain")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly));
+}
+
+hise::ProcessorMetadata RouteEffect::createMetadata()
+{
+	return ProcessorMetadata()
+		.withStandardMetadata<RouteEffect>()
+		.withDescription("Routing matrix for duplicating and distributing audio across channels, useful for building aux-style signal paths and complex channel layouts");
+}
+
 RouteEffect::RouteEffect(MainController *mc, const String &uid) :
 MasterEffectProcessor(mc, uid)
 {

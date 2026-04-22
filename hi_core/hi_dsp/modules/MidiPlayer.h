@@ -369,7 +369,9 @@ public:
 	};
 
 
-	SET_PROCESSOR_NAME("MidiPlayer", "MIDI Player", "A player for MIDI sequences.");
+	SET_PROCESSOR_NAME("MidiPlayer", "MIDI Player", "");
+
+	static ProcessorMetadata createMetadata();
 
 	MidiPlayer(MainController *mc, const String &id, ModulatorSynth* ms);;
 	~MidiPlayer();
@@ -392,13 +394,13 @@ public:
 
 	enum SpecialParameters
 	{
-		CurrentPosition,		   ///< the current position within the current MIDI file (non-persistent)
-		CurrentSequence,		   ///< the index of the currently played sequence (not zero based for combobox compatibility)
-		CurrentTrack,			   ///< the index of the currently played track within a sequence.
-		LoopEnabled,			   ///< toggles between oneshot and loop playback
-		LoopStart,				   ///< start of the (loop) playback
-		LoopEnd,				   ///< end of the (loop) playback
-		PlaybackSpeed,			   ///< the playback speed of the MidiPlayer
+		CurrentPosition,
+		CurrentSequence,
+		CurrentTrack,
+		LoopEnabled,
+		LoopStart,
+		LoopEnd,
+		PlaybackSpeed,
 		numSpecialParameters
 	};
 

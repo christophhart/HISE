@@ -351,8 +351,12 @@ void DspNetwork::createAllNodesOnce()
 
 			Namespace nh(header, "ScriptnodeDataBase", false);
 			
-			String hl1 = "static constexpr int scriptnode_database_datSize = " + String(compressed.getSize()) << ";";
-			String hl2 = "extern const char* scriptnode_database_dat;";
+			String hl1;
+			
+			hl1 << "static constexpr int scriptnode_database_datSize = " << String(compressed.getSize()) << ";";
+			String hl2;
+			
+			hl2 << "extern const char* scriptnode_database_dat;";
 
 			header << hl1;
 			header << hl2;
@@ -1216,6 +1220,23 @@ void DspNetwork::addToSelection(NodeBase* node, ModifierKeys mods)
 }
 
 
+juce::Image DspNetwork::createScreenshot(Component* root, float scaleFactor)
+{
+	Image img;
+
+#if USE_BACKEND
+	jassert(MessageManager::getInstance()->isThisTheMessageThread());
+
+	Component::callRecursive<scriptnode::DspNetworkGraph>(root, [&](scriptnode::DspNetworkGraph* ng)
+	{
+		img = ng->createComponentSnapshot(ng->getLocalBounds(), true, scaleFactor);
+		return true;
+	});
+#endif
+
+	return img;
+}
+
 void DspNetwork::zoomToSelection(Component* c)
 {
     using ButtonBase = DspNetworkGraph::ActionButton;
@@ -1336,6 +1357,10 @@ juce::ValueTree DspNetwork::cloneValueTreeWithNewIds(const ValueTree& treeToClon
 	{
 		if (v[PropertyIds::Automated])
 			v.removeProperty(PropertyIds::Automated, nullptr);
+
+		if (v[PropertyIds::AutomatedExternal])
+			v.removeProperty(PropertyIds::AutomatedExternal, nullptr);
+		
 
 		return false;
 	});
@@ -1855,6 +1880,34 @@ void DspNetwork::Holder::restoreNetworks(const ValueTree& d)
 			setActiveNetwork(newNetwork);
 		}
 	}
+}
+
+hise::ProcessorMetadata DspNetwork::Holder::withDynamicParametersFromNetwork(const ProcessorMetadata& pn, int numMods, int offset) const
+{
+	auto md = pn;
+
+	if (auto an = getActiveNetwork())
+	{
+		auto rn = an->getRootNode();
+
+		for (int i = 0; i < rn->getNumParameters(); i++)
+		{
+			NodeBase::Parameter* p = rn->getParameterFromIndex(i);
+
+			parameter::data pd;
+			pd.info = parameter::pod(p->data);
+			md = md.withDynamicParameter(pd);
+		}
+
+		auto modProperties = an->getParameterProperties();
+		md = md.withDynamicModulation(modProperties, numMods, offset);
+	}
+	else
+	{
+		md = md.withDynamicModulation({}, numMods, offset);
+	}
+
+	return md;
 }
 
 scriptnode::NodeBase* NodeFactory::createNode(ValueTree data, bool createPolyIfAvailable) const
@@ -2987,6 +3040,7 @@ bool DspNetworkListeners::PatchAutosaver::stripValueTree(ValueTree& v)
 		removeIfDefault(v, id, PropertyIds::Helpers::getDefaultValue(id));
 
 	removeIfDefined(v, PropertyIds::Value, PropertyIds::Automated);
+	removeIfDefined(v, PropertyIds::Value, PropertyIds::AutomatedExternal);
 
 	if(v.hasProperty(PropertyIds::DefaultValue) && v[PropertyIds::DefaultValue] == v[PropertyIds::Value])
 		v.removeProperty(PropertyIds::DefaultValue, nullptr);

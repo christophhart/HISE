@@ -286,7 +286,10 @@ RestServer::Response BackendProcessor::onAsyncRequest(RestServer::AsyncRequest::
 			
 		case RestHelpers::ApiRoute::Status:
 			return RestHelpers::handleStatus(this, req);
-			
+
+		case RestHelpers::ApiRoute::StatusPreprocessors:
+			return RestHelpers::handleStatusPreprocessors(this, req);
+
 		case RestHelpers::ApiRoute::GetScript:
 			return RestHelpers::handleGetScript(this, req);
 			
@@ -314,14 +317,14 @@ RestServer::Response BackendProcessor::onAsyncRequest(RestServer::AsyncRequest::
 		case RestHelpers::ApiRoute::SetComponentProperties:
 			return RestHelpers::handleSetComponentProperties(this, req);
 			
-		case RestHelpers::ApiRoute::Screenshot:
-			return RestHelpers::handleScreenshot(this, req);
+		case RestHelpers::ApiRoute::TestingScreenshot:
+			return RestHelpers::handleTestingScreenshot(this, req);
 			
 		case RestHelpers::ApiRoute::GetSelectedComponents:
 			return RestHelpers::handleGetSelectedComponents(this, req);
 			
-		case RestHelpers::ApiRoute::SimulateInteractions:
-			return RestHelpers::handleSimulateInteractions(this, req);
+		case RestHelpers::ApiRoute::TestingE2e:
+			return RestHelpers::handleTestingE2e(this, req);
 			
 		case RestHelpers::ApiRoute::DiagnoseScript:
 			return RestHelpers::handleDiagnoseScript(this, req);
@@ -329,17 +332,119 @@ RestServer::Response BackendProcessor::onAsyncRequest(RestServer::AsyncRequest::
 		case RestHelpers::ApiRoute::GetIncludedFiles:
 			return RestHelpers::handleGetIncludedFiles(this, req);
 			
-		case RestHelpers::ApiRoute::StartProfiling:
-			return RestHelpers::handleStartProfiling(this, req);
+		case RestHelpers::ApiRoute::TestingProfile:
+			return RestHelpers::handleTestingProfile(this, req);
 			
 		case RestHelpers::ApiRoute::ParseCSS:
 			return RestHelpers::handleParseCSS(this, req);
 			
-		case RestHelpers::ApiRoute::Shutdown:
-			return RestHelpers::handleShutdown(this, req);
-			
-		default:
-			return req->fail(404, "Unknown API endpoint: " + subURL);
+	case RestHelpers::ApiRoute::Shutdown:
+		return RestHelpers::handleShutdown(this, req);
+	
+	case RestHelpers::ApiRoute::BuilderTree:
+		return RestHelpers::handleBuilderTree(this, req);
+	
+	case RestHelpers::ApiRoute::BuilderApply:
+		return RestHelpers::handleBuilderApply(this, req);
+
+	case RestHelpers::ApiRoute::BuilderReset:
+		return RestHelpers::handleBuilderReset(this, req);
+
+	case RestHelpers::ApiRoute::UndoPushGroup:
+		return RestHelpers::handleUndoPushGroup(this, req);
+	
+	case RestHelpers::ApiRoute::UndoPopGroup:
+		return RestHelpers::handleUndoPopGroup(this, req);
+	
+	case RestHelpers::ApiRoute::UndoBack:
+		return RestHelpers::handleUndoBack(this, req);
+	
+	case RestHelpers::ApiRoute::UndoForward:
+		return RestHelpers::handleUndoForward(this, req);
+	
+	case RestHelpers::ApiRoute::UndoDiff:
+		return RestHelpers::handleUndoDiff(this, req);
+	
+	case RestHelpers::ApiRoute::UndoHistory:
+		return RestHelpers::handleUndoHistory(this, req);
+	
+	case RestHelpers::ApiRoute::UndoClear:
+		return RestHelpers::handleUndoClear(this, req);
+
+	case RestHelpers::ApiRoute::WizardInitialise:
+		return RestHelpers::handleWizardInitialise(this, req);
+
+	case RestHelpers::ApiRoute::WizardExecute:
+		return RestHelpers::handleWizardExecute(this, req);
+
+	case RestHelpers::ApiRoute::WizardStatus:
+		return RestHelpers::handleWizardStatus(this, req);
+
+	case RestHelpers::ApiRoute::UITree:
+		return RestHelpers::handleUITree(this, req);
+
+	case RestHelpers::ApiRoute::UIApply:
+		return RestHelpers::handleUIApply(this, req);
+
+	case RestHelpers::ApiRoute::TestingSequence:
+		return RestHelpers::handleTestingSequence(this, req);
+
+	case RestHelpers::ApiRoute::DspList:
+		return RestHelpers::handleDspList(this, req);
+
+	case RestHelpers::ApiRoute::DspInit:
+		return RestHelpers::handleDspInit(this, req);
+
+	case RestHelpers::ApiRoute::DspTree:
+		return RestHelpers::handleDspTree(this, req);
+
+	case RestHelpers::ApiRoute::DspApply:
+		return RestHelpers::handleDspApply(this, req);
+
+	case RestHelpers::ApiRoute::DspSave:
+		return RestHelpers::handleDspSave(this, req);
+
+	case RestHelpers::ApiRoute::DspScreenshot:
+		return RestHelpers::handleDspScreenshot(this, req);
+
+	case RestHelpers::ApiRoute::ProjectList:
+		return RestHelpers::handleProjectList(this, req);
+
+	case RestHelpers::ApiRoute::ProjectTree:
+		return RestHelpers::handleProjectTree(this, req);
+
+	case RestHelpers::ApiRoute::ProjectFiles:
+		return RestHelpers::handleProjectFiles(this, req);
+
+	case RestHelpers::ApiRoute::ProjectSettingsList:
+		return RestHelpers::handleProjectSettingsList(this, req);
+
+	case RestHelpers::ApiRoute::ProjectSettingsSet:
+		return RestHelpers::handleProjectSettingsSet(this, req);
+
+	case RestHelpers::ApiRoute::ProjectSave:
+		return RestHelpers::handleProjectSave(this, req);
+
+	case RestHelpers::ApiRoute::ProjectLoad:
+		return RestHelpers::handleProjectLoad(this, req);
+
+	case RestHelpers::ApiRoute::ProjectSwitch:
+		return RestHelpers::handleProjectSwitch(this, req);
+
+	case RestHelpers::ApiRoute::ProjectExportSnippet:
+		return RestHelpers::handleProjectExportSnippet(this, req);
+
+	case RestHelpers::ApiRoute::ProjectImportSnippet:
+		return RestHelpers::handleProjectImportSnippet(this, req);
+
+	case RestHelpers::ApiRoute::ProjectPreprocessorList:
+		return RestHelpers::handleProjectPreprocessorList(this, req);
+
+	case RestHelpers::ApiRoute::ProjectPreprocessorSet:
+		return RestHelpers::handleProjectPreprocessorSet(this, req);
+
+	default:
+		return req->fail(404, "Unknown API endpoint: " + subURL);
 	}
 }
 
@@ -349,14 +454,18 @@ void BackendProcessor::serverStarted(int port)
 	
 	// Create interaction tester when server starts
 	interactionTester = std::make_unique<InteractionTester>(this);
+
+	// Create MIDI injector when server starts
+	midiInjector = std::make_unique<MidiInjector>(this);
 }
 
 void BackendProcessor::serverStopped()
 {
 	debugToConsole(getMainSynthChain(), "REST API Server stopped");
 	
-	// Destroy interaction tester when server stops
+	// Destroy interaction tester and MIDI injector when server stops
 	interactionTester = nullptr;
+	midiInjector = nullptr;
 }
 
 void BackendProcessor::requestReceived(const String& method, const String& path)
@@ -455,16 +564,7 @@ if (!inUnitTestMode())
 	{
 		getAutoSaver().initialise();
 
-		if (BackendProcessor::isUsingCommandLineServerMode())
-		{
-			restServer.start(commandLineServerPort);
-		}
-		else if (getSettingsObject().getSetting(HiseSettings::Scripting::AutoStartRestServer).toString() == "Yes")
-		{
-			// Auto-start REST API server if enabled in settings
-			int port = (int)getSettingsObject().getSetting(HiseSettings::Scripting::RestApiPort);
-			restServer.start(port);
-		}
+		
 	}
 	
 	clearPreset(dontSendNotification);
@@ -587,6 +687,11 @@ BackendProcessor::~BackendProcessor()
 InteractionTester* BackendProcessor::getInteractionTester()
 {
 	return interactionTester.get();
+}
+
+MidiInjector* BackendProcessor::getMidiInjector()
+{
+	return midiInjector.get();
 }
 
 void BackendProcessor::showInteractionTestWindow()
@@ -1120,9 +1225,13 @@ void BackendProcessor::setEditorData(var editorState)
 	editorInformation = editorState;
 }
 
+hise::ControlledObject* BackendProcessor::getRestWizardRunner()
+{
+	if (wizardRunner == nullptr)
+		wizardRunner = new RestHelpers::WizardExecutor::AsyncRunner(this);
 
-
-
+	return wizardRunner.get();
+}
 
 void BackendProcessor::pushToAnalyserBuffer(AnalyserInfo::Ptr info, bool post, const AudioSampleBuffer& buffer, int numSamples)
 {

@@ -67,6 +67,7 @@
 
 #include "backend/PostDebugComponents.cpp"
 
+#include "backend/PreprocessorDatabase.cpp"
 #include "backend/ai_tools/RestHelpers.h"
 
 #include "backend/ai_tools/InteractionParser.h"
@@ -80,6 +81,12 @@
 #include "backend/ai_tools/InteractionTestWindow.cpp"
 
 // RestHelpers.cpp must come after InteractionTester.h since it uses InteractionTester::TestResult
+
+#include "backend/ai_tools/RestServerUndoManager.h"
+#include "backend/ai_tools/RestServerUndoManagerActions.cpp"
+#include "backend/ai_tools/RestServerUndoManager.cpp"
+
+#include "backend/ai_tools/RestApiDefinitions.cpp"
 #include "backend/ai_tools/RestHelpers.cpp"
 
 #if HI_RUN_UNIT_TESTS
@@ -87,6 +94,7 @@
 #include "backend/ai_tools/tests/InteractionParserTests.cpp"
 #include "backend/ai_tools/tests/InteractionDispatcherTests.cpp"
 #include "backend/ai_tools/tests/InteractionAnalyzerTests.cpp"
+#include "backend/ai_tools/tests/ProcessorMetadataTests.cpp"
 #endif
 
 #include "backend/BackendProcessor.cpp"

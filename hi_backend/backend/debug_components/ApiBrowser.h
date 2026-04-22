@@ -211,6 +211,8 @@ public:
 				return 150; 
 		}
 
+		void initialiseMarkdown();
+
 		int getPopupWidth() const override
 		{
 			if (parser != nullptr)
@@ -279,6 +281,7 @@ public:
 		String arguments;
 
 		ScopedPointer<MarkdownRenderer> parser;
+		bool markdownInitialised = false;
 
 		const ValueTree methodTree;
 	};
@@ -1159,7 +1162,7 @@ public:
 			this->rebuildModuleList(true);
 		});
         
-        colourUpdater.setCallback(networkTree, { PropertyIds::NodeColour, PropertyIds::Automated }, valuetree::AsyncMode::Asynchronously, [this](ValueTree, Identifier)
+        colourUpdater.setCallback(networkTree, { PropertyIds::NodeColour, PropertyIds::Automated, PropertyIds::AutomatedExternal }, valuetree::AsyncMode::Asynchronously, [this](ValueTree, Identifier)
         {
             this->selectionChanged({});
         });

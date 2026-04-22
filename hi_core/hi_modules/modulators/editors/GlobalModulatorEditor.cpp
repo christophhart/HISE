@@ -67,9 +67,9 @@ GlobalModulatorEditor::GlobalModulatorEditor (ProcessorEditor *p)
 
     ProcessorHelpers::connectTableEditor(*midiTable, getProcessor());
     
-	useTableButton->setup(getProcessor(), GlobalModulator::UseTable  + gm->getParameterOffset(), "Use Table");
-
-	invertButton->setup(getProcessor(), GlobalModulator::Inverted  + gm->getParameterOffset(), "Inverted");
+	auto md = getProcessor()->getMetadata();
+	md.setup(*useTableButton, getProcessor(), GlobalModulator::UseTable + gm->getParameterOffset());
+	md.setup(*invertButton, getProcessor(), GlobalModulator::Inverted + gm->getParameterOffset());
 
 	getProcessor()->getMainController()->skin(*globalModSelector);
 

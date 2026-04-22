@@ -43,19 +43,21 @@ class DelayEffect: public MasterEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("Delay", "Delay", "A stereo delay effect");
+	static ProcessorMetadata createMetadata();
+
+	SET_PROCESSOR_NAME("Delay", "Delay", "");
 
 	/** The parameters*/
 	enum Parameters
 	{
-		DelayTimeLeft = 0, ///< the left channel time in ms or TempoSync::Mode
-		DelayTimeRight, ///< the right channel time in ms or TempoSync::Mode
-		FeedbackLeft, ///< the left channel feedback in percent
-		FeedbackRight, ///< the right channel feedback in percent
-		LowPassFreq, ///< the frequency for the low pass
-		HiPassFreq, ///< the frequency for the high pass
-		Mix, ///< the wet amount
-		TempoSync, ///< if enabled, the delay time will sync to the host tempo
+		DelayTimeLeft = 0,
+		DelayTimeRight,
+		FeedbackLeft,
+		FeedbackRight,
+		LowPassFreq,
+		HiPassFreq,
+		Mix,
+		TempoSync,
 		numEffectParameters
 	};
 
@@ -81,8 +83,6 @@ public:
 	float getAttribute(int parameterIndex) const override;;
 
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
-
-	float getDefaultValue(int parameterIndex) const override;
 
 	void restoreFromValueTree(const ValueTree &v) override
 	{

@@ -377,6 +377,10 @@ public:
 
 	void checkMouseClickProfiler(bool isDown);
 
+	Processor* getProcessor();;
+
+	const Processor* getProcessor() const;;
+
 protected:
 
 	ScopedPointer<dispatch::library::Processor::AttributeListener> valueListener;
@@ -396,9 +400,7 @@ protected:
 	*/
 	bool checkLearnMode();
 	
-	Processor *getProcessor();;
-
-	const Processor *getProcessor() const;;
+	
 
 	int parameter;
 
@@ -754,6 +756,20 @@ public:
 		NormalizedPercentage, ///< 0.0 - 1.0, Displayed as percentage
 		numModes
 	};
+
+	static StringArray getModeList()
+	{
+		return {
+			"Frequency", 
+			"Decibel", 
+			"Time", 
+			"TempoSync", 
+			"Linear", 
+			"Discrete", 
+			"Pan", 
+			"NormalizedPercentage"
+		};
+	}
 
 	struct HoverPopupLookandFeel
 	{

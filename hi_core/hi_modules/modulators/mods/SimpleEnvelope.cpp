@@ -32,6 +32,38 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata SimpleEnvelope::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return EnvelopeModulator::createBaseMetadata()
+		.withStandardMetadata<SimpleEnvelope>()
+		.withDescription("A lightweight two-stage envelope with attack and release, supporting linear or exponential curves.")
+		.withParameter(Par(Attack)
+			.withId("Attack")
+			.withDescription("The attack time in milliseconds")
+			.withSliderMode(HiSlider::Time, Range(0.0, 20000.0, 0.0).withCentreSkew(1000.0))
+			.withDefault(5.0f))
+		.withParameter(Par(Release)
+			.withId("Release")
+			.withDescription("The release time in milliseconds")
+			.withSliderMode(HiSlider::Time, Range(0.0, 20000.0, 0.0).withCentreSkew(1000.0))
+			.withDefault(10.0f))
+		.withParameter(Par(LinearMode)
+			.withId("LinearMode")
+			.withDescription("Toggles between linear and exponential envelope curves")
+			.asToggle()
+			.withDefault(1.0f))
+		.withModulation(Mod(AttackChain)
+			.withId("AttackTimeModulation")
+			.withDescription("Modulates the attack time per voice")
+			.withConstrainer<VoiceStartModulatorFactoryType::Constrainer>()
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Attack));
+}
+
 void SimpleEnvelope::restoreFromValueTree(const ValueTree &v)
 {
 	EnvelopeModulator::restoreFromValueTree(v);
@@ -52,31 +84,16 @@ ValueTree SimpleEnvelope::exportAsValueTree() const
 	return v;
 }
 
-/*
-  ==============================================================================
-
-    SimpleEnvelope.cpp
-    Created: 15 Jun 2014 2:08:15pm
-    Author:  Chrisboy
-
-  ==============================================================================
-*/
-
-
 
 SimpleEnvelope::SimpleEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m):
 		EnvelopeModulator(mc, id, voiceAmount, m),
 		Modulation(m),
+		metadataInitialised(updateParameterSlots()),
 		attack(getDefaultValue(Attack)),
 		release(getDefaultValue(Release)),
 		release_delta(-1.0f),
 		linearMode(getDefaultValue(LinearMode) == 1.0f ? true : false)
 {
-	parameterNames.add("Attack");
-	parameterNames.add("Release");
-	parameterNames.add("LinearMode");
-
-	updateParameterSlots();
 
 	editorStateIdentifiers.add("AttackChainShown");
 	//editorStateIdentifiers.add("ReleaseChainShown");
@@ -124,26 +141,7 @@ void SimpleEnvelope::setInternalAttribute(int parameterIndex, float newValue)
 	}
 }
 
-float SimpleEnvelope::getDefaultValue(int parameterIndex) const
-{
-	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
-	{
-		return EnvelopeModulator::getDefaultValue(parameterIndex);
-	}
 
-	switch (parameterIndex)
-	{
-	case Attack:
-		return 5.0f;
-	case Release:
-		return 10.0f;
-	case LinearMode:
-		return 1.0f;
-	default:
-		jassertfalse;
-		return -1;
-	}
-}
 
 float SimpleEnvelope::getAttribute(int parameterIndex) const
 {

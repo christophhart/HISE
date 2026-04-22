@@ -492,7 +492,7 @@ public:
 
 protected:
 
-	int quality;
+	int quality = HISE_MAX_PROCESSING_BLOCKSIZE;
 
 };
 

@@ -32,6 +32,20 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata RandomModulator::createMetadata()
+{
+	return ProcessorMetadata(getClassType())
+		.withPrettyName("Random Modulator")
+		.withDescription("Generates a random value at each voice start, with optional table mapping for custom probability distributions.")
+		.withType<hise::VoiceStartModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(ProcessorMetadata::ParameterMetadata(UseTable)
+			.withId("UseTable")
+			.withDescription("Enables a lookup table to shape the random distribution, allowing custom probability curves")
+			.asToggle()
+			.withDefault(0.0f));
+}
+
 RandomModulator::RandomModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
 		VoiceStartModulator(mc, id, numVoices, m),
 		Modulation(m),
@@ -40,8 +54,6 @@ RandomModulator::RandomModulator(MainController *mc, const String &id, int numVo
 		generator(Random (Time::currentTimeMillis()))
 {
 	this->enableConsoleOutput(false);
-
-	parameterNames.add("UseTable");
 
 	updateParameterSlots();
 };

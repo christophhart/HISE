@@ -103,6 +103,7 @@ DECLARE_ID(SwitchTarget);
 DECLARE_ID(ModulationTargets);
 DECLARE_ID(ModulationTarget);
 DECLARE_ID(Automated);
+DECLARE_ID(AutomatedExternal);
 DECLARE_ID(SmoothingTime);
 DECLARE_ID(ModulationChain);
 DECLARE_ID(SplitSignal);
@@ -208,6 +209,7 @@ struct Helpers
 		returnIfDefault(Inverted, false);
 		returnIfDefault(EmbeddedData, -1);
 		returnIfDefault(Automated, false);
+		returnIfDefault(AutomatedExternal, false);
 		returnIfDefault(HasTail, true);
 		returnIfDefault(SuspendOnSilence, false);
 		returnIfDefault(AllowCompilation, false);
@@ -690,7 +692,7 @@ struct NodeDatabase
 		}
 		else
 		{
-			return getSignalNodes ? data->signalNodeIds : data->cableFactoryIds;
+			return getSignalNodes ? data->signalNodeIds : data->cableNodeIds;
 		}
 	}
 

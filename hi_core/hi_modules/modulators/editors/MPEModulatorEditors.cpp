@@ -45,22 +45,17 @@ MPEModulatorEditor::MPEModulatorEditor(ProcessorEditor* parent) :
 
     ProcessorHelpers::connectTableEditor(*tableEditor, getProcessor());
 
-	typeSelector->setup(getProcessor(), MPEModulator::SpecialParameters::GestureCC, "Gesture Type");
-	typeSelector->addItem("Press", MPEModulator::Gesture::Press);
-	typeSelector->addItem("Slide", MPEModulator::Gesture::Slide);
-	typeSelector->addItem("Glide", MPEModulator::Gesture::Glide);
-	typeSelector->addItem("Stroke", MPEModulator::Gesture::Stroke);
-	typeSelector->addItem("Lift", MPEModulator::Gesture::Lift);
+	auto md = getProcessor()->getMetadata();
+
+	md.setup(*typeSelector, getProcessor(), MPEModulator::SpecialParameters::GestureCC);
 
 	smoothingTime->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	smoothingTime->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
-	smoothingTime->setup(getProcessor(), MPEModulator::SpecialParameters::SmoothingTime, "Smoothing");
-	smoothingTime->setMode(HiSlider::Time, NormalisableRange(0.0, 2000.0, 0.1).withCentreSkew(100.0));
+	md.setup(*smoothingTime, getProcessor(), MPEModulator::SpecialParameters::SmoothingTime);
 
 	defaultValue->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	defaultValue->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
-	defaultValue->setup(getProcessor(), MPEModulator::SpecialParameters::DefaultValue, "Default");
-	defaultValue->setMode(HiSlider::NormalizedPercentage);
+	md.setup(*defaultValue, getProcessor(), MPEModulator::SpecialParameters::DefaultValue);
 
 	auto mode = dynamic_cast<MPEModulator*>(getProcessor())->getMode();
 

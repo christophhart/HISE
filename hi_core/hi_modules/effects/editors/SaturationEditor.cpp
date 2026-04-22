@@ -35,42 +35,32 @@ SaturationEditor::SaturationEditor (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (saturationSlider = new HiSlider ("Saturation"));
-    saturationSlider->setRange (-24, 24, 0.1);
     saturationSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     saturationSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     saturationSlider->addListener (this);
 
     addAndMakeVisible (wetSlider = new HiSlider ("Wet"));
-    wetSlider->setRange (-24, 24, 0.1);
     wetSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     wetSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     wetSlider->addListener (this);
 
     addAndMakeVisible (pregainSlider = new HiSlider ("Saturation"));
-    pregainSlider->setRange (-24, 24, 0.1);
     pregainSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     pregainSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     pregainSlider->addListener (this);
 
     addAndMakeVisible (postGainSlider = new HiSlider ("Wet"));
-    postGainSlider->setRange (-24, 24, 0.1);
     postGainSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     postGainSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     postGainSlider->addListener (this);
 
 
     //[UserPreSize]
-
-	wetSlider->setup(getProcessor(), SaturatorEffect::WetAmount, "Wet Amount");
-	saturationSlider->setup(getProcessor(), SaturatorEffect::Saturation, "Saturation");
-
-	wetSlider->setMode(HiSlider::NormalizedPercentage);
-	saturationSlider->setMode(HiSlider::NormalizedPercentage);
-
-	pregainSlider->setup(getProcessor(), SaturatorEffect::PreGain, "Pre Gain");
-	pregainSlider->setMode(HiSlider::Decibel, NormalisableRange(0.0, 24.0));;
-	postGainSlider->setup(getProcessor(), SaturatorEffect::PostGain, "Post Gain");
-	postGainSlider->setMode(HiSlider::Decibel, NormalisableRange(-24.0, 0.0));
+	auto md = getProcessor()->getMetadata();
+	md.setup(*wetSlider, getProcessor(), SaturatorEffect::WetAmount);
+	md.setup(*saturationSlider, getProcessor(), SaturatorEffect::Saturation);
+	md.setup(*pregainSlider, getProcessor(), SaturatorEffect::PreGain);
+	md.setup(*postGainSlider, getProcessor(), SaturatorEffect::PostGain);
     //[/UserPreSize]
 
     setSize (800, 80);

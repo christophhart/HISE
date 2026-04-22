@@ -67,8 +67,6 @@ class ModulatorSynth: public Synthesiser,
 {
 public:
 
-	ADD_DOCUMENTATION();
-
 	// ===================================================================================================================
 
 	enum class ProfileEnumIds
@@ -129,6 +127,12 @@ public:
 		PitchChain = 1
 	};
 
+	/** Base metadata for all sound generators. Derived classes chain from this
+	 *  via ModulatorSynth::createBaseMetadata() to inherit the 4 base parameters
+	 *  and 2 standard modulation chains.
+	 */
+	static ProcessorMetadata createBaseMetadata(bool useUnityGain=false);
+
 	// ===================================================================================================================
 
 	ModulatorSynth(MainController *mc, const String &id, int numVoices);
@@ -143,8 +147,7 @@ public:
 
 	virtual float getAttribute(int parameterIndex) const override;
 	virtual void setInternalAttribute(int parameterIndex, float newValue) override;;
-    virtual float getDefaultValue(int parameterIndex) const override;
-
+    
 	// ===================================================================================================================
 
 	Processor *getChildProcessor(int processorIndex) override;

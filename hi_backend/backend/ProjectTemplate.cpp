@@ -65,7 +65,7 @@ static const unsigned char projectTemplate_jucer_lines[] = R"(
   </MAINGROUP>
   <EXPORTFORMATS>
     <%VS_VERSION% targetFolder="Builds/%TARGET_FOLDER%" vstLegacyFolder="%VSTSDK_FOLDER%" vst3Folder="%VSTSDK3_FOLDER%" aaxFolder="%AAX_PATH%" 
-            IPP1ALibrary="%IPP_1A%" extraDefs="%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_WIN%&#10;%PERFETTO_INCLUDE_WIN%" extraCompilerFlags="/bigobj /cgthreads8 %MSVC_WARNINGS% %PERFETTO_COMPILER_FLAGS_WIN%&#10;"
+            IPP1ALibrary="%IPP_1A%" extraDefs="%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_WIN%" extraCompilerFlags="/bigobj /cgthreads8 %MSVC_WARNINGS%&#10;"
             extraLinkerFlags="%FFT_LINKER_FLAGS%%WIN_STATIC_LIBS%">
       <CONFIGURATIONS>
         <CONFIGURATION name="Debug" winWarningLevel="1" generateManifest="1" winArchitecture="x64"
@@ -110,14 +110,14 @@ static const unsigned char projectTemplate_jucer_lines[] = R"(
         %LORIS_MODULEPATH%
       </MODULEPATHS>
     </%VS_VERSION%>
-    <XCODE_MAC targetFolder="Builds/MacOSX"  vstLegacyFolder="%VSTSDK_FOLDER%" vst3Folder="%VSTSDK3_FOLDER%"  aaxFolder="%AAX_PATH%" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override  -fno-aligned-allocation -ffp-contract=off"
-               extraLinkerFlags="%OSX_STATIC_LIBS%" extraDefs="%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_OSX%&#10;%PERFETTO_INCLUDE_MACOS%" hardenedRuntime="0" hardenedRuntimeOptions="com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input" xcodeValidArchs="%ARM_ARCH%"  externalLibraries="%BEATPORT_LIB_MACOS%;%OSX_EXTERNAL_LIBRARIES%">
+    <XCODE_MAC targetFolder="Builds/MacOSX"  vstLegacyFolder="%VSTSDK_FOLDER%" vst3Folder="%VSTSDK3_FOLDER%"  aaxFolder="%AAX_PATH%" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override  -faligned-allocation -ffp-contract=off"
+               extraLinkerFlags="%OSX_STATIC_LIBS%" extraDefs="%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_OSX%" hardenedRuntime="0" hardenedRuntimeOptions="com.apple.security.cs.allow-jit,com.apple.security.cs.allow-unsigned-executable-memory,com.apple.security.device.audio-input" xcodeValidArchs="%ARM_ARCH%"  externalLibraries="%BEATPORT_LIB_MACOS%;%OSX_EXTERNAL_LIBRARIES%">
                 
       <CONFIGURATIONS>
-        <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="10.9 SDK" osxArchitecture="%MACOS_ARCHITECTURE%"
+        <CONFIGURATION name="Debug" osxSDK="default" osxCompatibility="11.0 SDK" osxArchitecture="%MACOS_ARCHITECTURE%"
                        isDebug="1" optimisation="1" enablePluginBinaryCopyStep="%COPY_PLUGIN%" targetName="%NAME% Debug" headerPath="%FAUST_HEADER_PATH%"
                        libraryPath="%AAX_DEBUG_LIB%;%BEATPORT_DEBUG_LIB%;%OSC_STATIC_LIB_FOLDER_DEBUG%" cppLibType="libc++"/>
-        <CONFIGURATION name="Release" osxSDK="default" osxCompatibility="10.9 SDK" osxArchitecture="%MACOS_ARCHITECTURE%"
+        <CONFIGURATION name="Release" osxSDK="default" osxCompatibility="11.0 SDK" osxArchitecture="%MACOS_ARCHITECTURE%"
                        isDebug="0" optimisation="3" enablePluginBinaryCopyStep="%COPY_PLUGIN%" targetName="%NAME%" headerPath="%FAUST_HEADER_PATH%"
                        libraryPath="%AAX_RELEASE_LIB%;%BEATPORT_RELEASE_LIB%;%OSC_STATIC_LIB_FOLDER_RELEASE%" cppLibType="libc++" linkTimeOptimisation="%LINK_TIME_OPTIMISATION%"
                        %STRIP_SYMBOLS_MACOS%/>
@@ -157,7 +157,60 @@ static const unsigned char projectTemplate_jucer_lines[] = R"(
         %LORIS_MODULEPATH%
       </MODULEPATHS>
     </XCODE_MAC>
-    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -fno-aligned-allocation" extraLinkerFlags="%OSX_STATIC_LIBS%" extraDefs="%EXTRA_DEFINES_IOS%&#10;HISE_IOS=1&#10;JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=1&#10;USE_VDSP_FFT=1" %ICON_FILE% 
+    <MACOSX_MAKE targetFolder="Builds/MacOSXMakefile" vstLegacyFolder="%VSTSDK_FOLDER%" aaxFolder="%AAX_PATH%"
+                 extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override  -faligned-allocation -ffp-contract=off"
+                 extraLinkerFlags="%OSX_STATIC_LIBS% -Wl,-ld_new"
+                 extraDefs="%PLUGIN_CHANNEL_AMOUNT%&#10;%EXTRA_DEFINES_OSX%&#10;HISE_INCLUDE_LORIS=0"
+                 externalLibraries="%BEATPORT_LIB_MACOS%;%OSX_EXTERNAL_LIBRARIES%"
+                 compileFirstPatterns="*hi_scripting_01*, *hi_tools_01*, *hi_scripting_03*"
+                 featureGatedModules="hi_rlottie:HISE_INCLUDE_RLOTTIE, hi_loris:HISE_INCLUDE_LORIS">
+      <CONFIGURATIONS>
+        <CONFIGURATION name="Debug" osxArchitecture="%MACOS_MAKE_ARCHITECTURE%"
+                       isDebug="1" optimisation="1" enablePluginBinaryCopyStep="%COPY_PLUGIN%" targetName="%NAME% Debug"
+                       headerPath="%FAUST_HEADER_PATH%"
+                       libraryPath="%AAX_DEBUG_LIB%;%BEATPORT_DEBUG_LIB%;%OSC_STATIC_LIB_FOLDER_DEBUG%"/>
+        <CONFIGURATION name="Release" osxArchitecture="%MACOS_MAKE_ARCHITECTURE%"
+                       isDebug="0" optimisation="3" enablePluginBinaryCopyStep="%COPY_PLUGIN%" targetName="%NAME%"
+                       headerPath="%FAUST_HEADER_PATH%"
+                       libraryPath="%AAX_RELEASE_LIB%;%BEATPORT_RELEASE_LIB%;%OSC_STATIC_LIB_FOLDER_RELEASE%"
+                       linkTimeOptimisation="%LINK_TIME_OPTIMISATION%" %STRIP_SYMBOLS_MACOS%/>
+      </CONFIGURATIONS>
+      <MODULEPATHS>
+        <MODULEPATH id="juce_product_unlocking" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_gui_extra" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_gui_basics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_graphics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_events" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_data_structures" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_dsp" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_cryptography" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_core" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_utils" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_processors" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_processors_headless" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_plugin_client" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_formats" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_devices" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_audio_basics" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_opengl" path="%JUCE_PATH%"/>
+        <MODULEPATH id="juce_osc" path="%JUCE_PATH%"/>
+        <MODULEPATH id="hi_dsp_library" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_faust" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_faust_types" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_frontend" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_scripting" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_core" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_lac" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_zstd" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_rlottie" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_streaming" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_tools" path="%HISE_PATH%"/>
+        <MODULEPATH id="hi_snex" path="%HISE_PATH%"/>
+        <MODULEPATH id="melatonin_blur" path="%HISE_PATH%"/>
+        %LORIS_MODULEPATH%
+      </MODULEPATHS>
+    </MACOSX_MAKE>
+    <XCODE_IPHONE targetFolder="Builds/iOS" iosScreenOrientation="landscape" extraCompilerFlags="-Wno-reorder -Wno-inconsistent-missing-override -faligned-allocation" extraLinkerFlags="%OSX_STATIC_LIBS%" extraDefs="%EXTRA_DEFINES_IOS%&#10;HISE_IOS=1&#10;JUCE_USE_CUSTOM_PLUGIN_STANDALONE_APP=1&#10;USE_VDSP_FFT=1" %ICON_FILE% 
                   UIStatusBarHidden="1" iosBackgroundAudio="1" iosBackgroundBle="0"
     customXcodeResourceFolders="../Samples\n../Images\nEmbeddedResources\n../UserPresets"
     iosAppGroups="%USE_APP_GROUPS%" iosAppGroupsId="%APP_GROUP_ID%"

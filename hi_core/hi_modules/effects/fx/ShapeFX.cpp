@@ -34,6 +34,82 @@
 namespace hise {
 using namespace juce;
 
+hise::ProcessorMetadata ShapeFX::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<ShapeFX>()
+		.withDescription("Waveshaper effect with selectable shaping modes, bias, filters, and oversampling, suitable for distortion and tone shaping with optional autogain")
+		.withParameter(Par(BiasLeft)
+			.withId("BiasLeft")
+			.withDescription("DC bias applied to the left channel before shaping")
+			.withSliderMode(HiSlider::Linear, Range(-1.0, 1.0, 0.01))
+			.withDefault(0.0f))
+		.withParameter(Par(BiasRight)
+			.withId("BiasRight")
+			.withDescription("DC bias applied to the right channel before shaping")
+			.withSliderMode(HiSlider::Linear, Range(-1.0, 1.0, 0.01))
+			.withDefault(0.0f))
+		.withParameter(Par(HighPass)
+			.withId("HighPass")
+			.withDescription("High-pass cutoff frequency before the shaper")
+			.withSliderMode(HiSlider::Frequency, Range(20.0, 8000.0, 1.0).withCentreSkew(200.0))
+			.withDefault(20.0f))
+		.withParameter(Par(LowPass)
+			.withId("LowPass")
+			.withDescription("Low-pass cutoff frequency before the shaper")
+			.withSliderMode(HiSlider::Frequency, Range(200.0, 20000.0, 1.0).withCentreSkew(1500.0))
+			.withDefault(20000.0f))
+		.withParameter(Par(Mode)
+			.withId("Mode")
+			.withDescription("Selects the shaping function used to process the signal")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, (double)ShapeMode::numModes - 1.0, 1.0))
+			.withDefault((float)ShapeMode::Linear))
+		.withParameter(Par(Oversampling)
+			.withId("Oversampling")
+			.withDescription("Oversampling factor to reduce aliasing in nonlinear shaping")
+			.withValueList({ "1x", "2x", "4x", "8x", "16x" })
+			.withDefault(1.0f))
+		.withParameter(Par(Gain)
+			.withId("Gain")
+			.withDescription("Input gain in decibels applied before shaping")
+			.withSliderMode(HiSlider::Decibel, Range(0.0, 60.0, 0.1).withCentreSkew(24.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Reduce)
+			.withId("Reduce")
+			.withDescription("Bit reduction amount in bits for lo-fi distortion")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 14.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Autogain)
+			.withId("Autogain")
+			.withDescription("Automatically compensates output level based on the shaping curve")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(LimitInput)
+			.withId("LimitInput")
+			.withDescription("Enables a soft limiter before the input to avoid hard clipping")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(Drive)
+			.withId("Drive")
+			.withDescription("Drive amount applied to the shaper input")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Mix)
+			.withId("Mix")
+			.withDescription("Dry and wet balance where 0.0 is fully dry and 1.0 is fully wet")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(1.0f))
+		.withParameter(Par(BypassFilters)
+			.withId("BypassFilters")
+			.withDescription("Bypasses the pre-shaper high-pass and low-pass filters")
+			.asToggle()
+			.withDefault(0.0f))
+		.withComplexDataInterface(ExternalData::DataType::Table);
+}
+
 ShapeFX::ShapeFX(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
 	LookupTableProcessor(mc, 1),
@@ -41,6 +117,7 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid) :
 	JavascriptProcessor(mc),
 	ProcessorWithScriptingContent(mc),
 #endif
+	metadataInitialised(updateParameterSlots()),
 	biasLeft(getDefaultValue(BiasLeft)),
 	biasRight(getDefaultValue(BiasRight)),
 	gain(1.0f),
@@ -80,22 +157,6 @@ ShapeFX::ShapeFX(MainController *mc, const String &uid) :
 	memset(displayTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
     memset(unusedTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
 	
-	parameterNames.add("BiasLeft");
-	parameterNames.add("BiasRight");
-	parameterNames.add("HighPass");
-	parameterNames.add("LowPass");
-	parameterNames.add("Mode");
-	parameterNames.add("Oversampling");
-	parameterNames.add("Gain");
-	parameterNames.add("Reduce");
-	parameterNames.add("Autogain");
-	parameterNames.add("LimitInput");
-	parameterNames.add("Drive");
-	parameterNames.add("Mix");
-	parameterNames.add("BypassFilters");
-
-	updateParameterSlots();
-
 #if HI_USE_SHAPE_FX_SCRIPTING
 	setupApi();
 #endif
@@ -172,27 +233,6 @@ float ShapeFX::getAttribute(int parameterIndex) const
 	case Drive: return drive;
 	case Mix: return mix;
 	case BypassFilters: return bypassFilters ? 1.0f : 0.0f;
-	default:  return 0.0f;
-	}
-}
-
-float ShapeFX::getDefaultValue(int parameterIndex) const
-{
-	switch (parameterIndex)
-	{
-	case BiasLeft: return 0.0f;
-	case BiasRight: return 0.0f;
-	case LowPass: return 20000.0f;
-	case HighPass: return 20.0f;
-	case Mode: return (float)Linear;
-	case Oversampling: return (float)1;
-	case Gain: return 0.0f;
-	case Reduce: return 0.0f;
-	case Autogain: return (float)true;
-	case LimitInput: return (float)true;
-	case Drive: return 0.0f;
-	case Mix: return 1.0f;
-	case BypassFilters: return 0.0f;
 	default:  return 0.0f;
 	}
 }
@@ -634,6 +674,44 @@ void ShapeFX::updateMix()
 	mixSmoother_invR.setValue(1.0f - mix);
 }
 
+hise::ProcessorMetadata PolyshapeFX::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<PolyshapeFX>()
+		.withDescription("A polyphonic waveshaper with multiple shaping modes, table-based curves, and optional oversampling.")
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withComplexDataInterface(ExternalData::DataType::DisplayBuffer)
+		.withParameter(Par(Drive)
+			.withId("Drive")
+			.withDescription("The distortion drive amount in decibels")
+			.withSliderMode(HiSlider::Decibel, Range(0.0, 60.0).withCentreSkew(24.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Mode)
+			.withId("Mode")
+			.withDescription("Selects the waveshaping function (populated dynamically from available shapers)")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 33.0, 1.0))
+			.withDefault((float)ShapeFX::ShapeMode::Linear))
+		.withParameter(Par(Oversampling)
+			.withId("Oversampling")
+			.withDescription("Enables 4x oversampling to reduce aliasing from the shaping function")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(Bias)
+			.withId("Bias")
+			.withDescription("Adds a DC offset before the shaping function for asymmetric distortion")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f))
+		.withModulation(Mod(DriveModulation)
+			.withId("Drive Modulation")
+			.withDescription("Audio-rate modulation of the drive amount")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Drive));
+}
+
 PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
 	VoiceEffectProcessor(mc, uid, numVoices),
 	ProcessorWithStaticExternalData(mc, 2, 0, 0, 1),
@@ -665,11 +743,6 @@ PolyshapeFX::PolyshapeFX(MainController *mc, const String &uid, int numVoices):
     memset(unusedTable, 0, sizeof(float)*SAMPLE_LOOKUP_TABLE_SIZE);
     
 	tableUpdater = new TableUpdater(*this);
-
-	parameterNames.add("Drive");
-	parameterNames.add("Mode");
-	parameterNames.add("Oversampling");
-	parameterNames.add("Bias");
 
 	updateParameterSlots();
 
@@ -709,20 +782,6 @@ void PolyshapeFX::setInternalAttribute(int parameterIndex, float newValue)
 	}
 }
 
-float PolyshapeFX::getDefaultValue(int parameterIndex) const
-{
-	switch (parameterIndex)
-	{
-	case Drive: return 1.0f;
-	case Mode: return (float)ShapeFX::ShapeMode::Linear;
-	case Oversampling: return false;
-	case Bias: return 0.0f;
-	default: break;
-	}
-
-	return 0.0f;
-}
-
 void PolyshapeFX::restoreFromValueTree(const ValueTree &v)
 {
 	VoiceEffectProcessor::restoreFromValueTree(v);
@@ -733,6 +792,7 @@ void PolyshapeFX::restoreFromValueTree(const ValueTree &v)
 	loadAttribute(Drive, "Drive");
 	loadAttribute(Mode, "Mode");
 	loadAttribute(Oversampling, "Oversampling");
+	loadAttribute(Bias, "Bias");
 }
 
 juce::ValueTree PolyshapeFX::exportAsValueTree() const
@@ -745,6 +805,7 @@ juce::ValueTree PolyshapeFX::exportAsValueTree() const
 	saveAttribute(Drive, "Drive");
 	saveAttribute(Mode, "Mode");
 	saveAttribute(Oversampling, "Oversampling");
+	saveAttribute(Bias, "Bias");
 
 	return v;
 }

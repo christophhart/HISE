@@ -32,6 +32,30 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata VelocityModulator::createMetadata()
+{
+	return ProcessorMetadata(getClassType())
+		.withPrettyName("Velocity Modulator")
+		.withDescription("Creates a modulation value from the MIDI velocity of incoming note messages, with optional table mapping and decibel conversion.")
+		.withType<hise::VoiceStartModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(ProcessorMetadata::ParameterMetadata(Inverted)
+			.withId("Inverted")
+			.withDescription("Inverts the velocity response so high velocities produce low values")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(UseTable)
+			.withId("UseTable")
+			.withDescription("Enables a lookup table for custom velocity response curves")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(ProcessorMetadata::ParameterMetadata(DecibelMode)
+			.withId("DecibelMode")
+			.withDescription("Converts the output to a decibel scale (-100dB to 0dB) then to linear gain")
+			.asToggle()
+			.withDefault(0.0f));
+}
+
 ProcessorEditorBody *VelocityModulator::createEditor(ProcessorEditor *parentEditor)
 {
 

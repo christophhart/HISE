@@ -32,6 +32,43 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata HarmonicFilter::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<HarmonicFilter>()
+		.withDescription("Polyphonic peak filters tuned to the root frequency and harmonics of each voice, with crossfadeable A/B slider pack configurations.")
+		.withComplexDataInterface(ExternalData::DataType::SliderPack)
+		.withParameter(Par(NumFilterBands)
+			.withId("NumFilterBands")
+			.withDescription("The number of harmonic filter bands (1, 2, 4, 8, or 16)")
+			.withValueList({ "1 Filter Band", "2 Filter Bands", "4 Filter Bands", "8 Filter Bands", "16 Filter Bands" })
+			.withDefault(1.0f))
+		.withParameter(Par(QFactor)
+			.withId("QFactor")
+			.withDescription("The resonance of the harmonic peak filters")
+			.withSliderMode(HiSlider::Discrete, Range(4.0, 48.0, 1.0))
+			.withDefault(12.0f))
+		.withParameter(Par(Crossfade)
+			.withId("CrossfadeValue")
+			.withDescription("Crossfade position between slider pack A and B configurations (0 = A, 0.5 = mix, 1 = B)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.5f))
+		.withParameter(Par(SemiToneTranspose)
+			.withId("SemitoneTranspose")
+			.withDescription("Transposes the harmonic filter tuning in semitones")
+			.withSliderMode(HiSlider::Discrete, Range(-24.0, 24.0, 1.0))
+			.withDefault(0.0f))
+		.withModulation(Mod(XFadeChain)
+			.withId("X-Fade Modulation")
+			.withDescription("Modulates the crossfade position between A and B configurations")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Crossfade));
+}
+
 HarmonicFilter::HarmonicFilter(MainController *mc, const String &uid, int numVoices_) :
 VoiceEffectProcessor(mc, uid, numVoices_),
 BaseHarmonicFilter(mc),
@@ -45,12 +82,6 @@ filterBanks(numVoices_)
 	modChains += {this, "X-Fade Modulation"};
 
 	finaliseModChains();
-
-    parameterNames.add("NumFilterBands");
-    parameterNames.add("QFactor");
-    parameterNames.add("Crossfade");
-    parameterNames.add("SemiToneTranspose");
-
 	updateParameterSlots();
 
 	editorStateIdentifiers.add("XFadeChainShown");
@@ -242,6 +273,43 @@ int HarmonicFilter::getNumBandForFilterBandIndex(FilterBandNumbers number) const
 // ====================================================================================================================================================
 
 
+hise::ProcessorMetadata HarmonicMonophonicFilter::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<HarmonicMonophonicFilter>()
+		.withDescription("Monophonic peak filters tuned to the root frequency and harmonics of the last played note, with crossfadeable A/B configurations.")
+		.withComplexDataInterface(ExternalData::DataType::SliderPack)
+		.withParameter(Par(NumFilterBands)
+			.withId("NumFilterBands")
+			.withDescription("The number of harmonic filter bands (1, 2, 4, 8, or 16)")
+			.withValueList({ "1 Filter Band", "2 Filter Bands", "4 Filter Bands", "8 Filter Bands", "16 Filter Bands" })
+			.withDefault(1.0f))
+		.withParameter(Par(QFactor)
+			.withId("QFactor")
+			.withDescription("The resonance of the harmonic peak filters")
+			.withSliderMode(HiSlider::Discrete, Range(4.0, 48.0, 1.0))
+			.withDefault(12.0f))
+		.withParameter(Par(Crossfade)
+			.withId("CrossfadeValue")
+			.withDescription("Crossfade position between slider pack A and B configurations (0 = A, 0.5 = mix, 1 = B)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.5f))
+		.withParameter(Par(SemiToneTranspose)
+			.withId("SemitoneTranspose")
+			.withDescription("Transposes the harmonic filter tuning in semitones")
+			.withSliderMode(HiSlider::Discrete, Range(-24.0, 24.0, 1.0))
+			.withDefault(0.0f))
+		.withModulation(Mod(XFadeChain)
+			.withId("X-Fade Modulation")
+			.withDescription("Modulates the crossfade position between A and B configurations")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Crossfade));
+}
+
 HarmonicMonophonicFilter::HarmonicMonophonicFilter(MainController *mc, const String &uid) :
 MonophonicEffectProcessor(mc, uid),
 BaseHarmonicFilter(mc),
@@ -257,11 +325,6 @@ filterBank()
 
 	editorStateIdentifiers.add("XFadeChainShown");
 
-    parameterNames.add("NumFilterBands");
-    parameterNames.add("QFactor");
-    parameterNames.add("Crossfade");
-    parameterNames.add("SemiToneTranspose");
-    
 	dataA->setRange(-24.0, 24.0, 0.1);
 	dataB->setRange(-24.0, 24.0, 0.1);
 	dataMix->setRange(-24.0, 24.0, 0.1);

@@ -45,7 +45,9 @@ class RouteEffect : public MasterEffectProcessor
 {
 public:
 
-	SET_PROCESSOR_NAME("RouteFX", "Routing Matrix", "A signal chain tool that allows to duplicate and send the signal to other channels to build AUX signal paths.");
+	static ProcessorMetadata createMetadata();
+
+	SET_PROCESSOR_NAME("RouteFX", "Routing Matrix", "");
 
 	RouteEffect(MainController *mc, const String &uid);;
 
@@ -101,7 +103,15 @@ private:
 
 struct SendContainer : public ModulatorSynth
 {
-	SET_PROCESSOR_NAME("SendContainer", "Send Container", "A signal chain tool that allows to receive the signal from a Send FX");
+	SET_PROCESSOR_NAME("SendContainer", "Send Container", "");
+
+	static ProcessorMetadata createMetadata()
+	{
+		return ModulatorSynth::createBaseMetadata()
+			.withStandardMetadata<SendContainer>()
+			.withDescription("A signal chain tool that receives the signal from a Send FX and applies its own effect chain.")
+			.withFXConstrainer<NoMidiInputConstrainer>();
+	}
 
 	SendContainer(MainController* mc, const String& id) :
 		ModulatorSynth(mc, id, 1)
@@ -120,8 +130,11 @@ struct SendContainer : public ModulatorSynth
 		prepareToPlay(getSampleRate(), getLargestBlockSize());
 	}
 
-	float getAttribute(int) const override { return 1.0f; };
-	void setInternalAttribute(int, float) override {};
+	float getAttribute(int index) const override { return ModulatorSynth::getAttribute(index); };
+	void setInternalAttribute(int index, float value) override 
+	{
+		ModulatorSynth::setInternalAttribute(index, value);
+	};
 
 	void addProcessorsWhenEmpty() override
 	{
@@ -222,7 +235,9 @@ struct SendContainer : public ModulatorSynth
 
 struct SendEffect : public MasterEffectProcessor
 {
-	SET_PROCESSOR_NAME("SendFX", "Send Effect", "A signal chain tool that allows to send the signal to a send container");
+	SET_PROCESSOR_NAME("SendFX", "Send Effect", "");
+
+	static ProcessorMetadata createMetadata();
 
     enum class InternalChains
     {
@@ -250,28 +265,6 @@ struct SendEffect : public MasterEffectProcessor
         finaliseModChains();
 
         sendChain = modChains[(int)InternalChains::SendLevel].getChain();
-        
-#if 0
-        auto gainConverter = [tmp](float input)
-        {
-            if (tmp)
-            {
-                auto v = Decibels::decibelsToGain(tmp->getAttribute(GainEffect::Parameters::Gain));
-                auto dbValue = Decibels::gainToDecibels(v * input);
-                return String(dbValue, 1) + " dB";
-            }
-
-            return Table::getDefaultTextValue(input);
-        };
-
-        sendChain->setTableValueConverter(gainConverter);
-#endif
-        
-        parameterNames.add("Gain");
-        parameterNames.add("ChannelOffset");
-        parameterNames.add("SendIndex");
-		parameterNames.add("Smoothing");
-
 		updateParameterSlots();
 	};
 
@@ -280,19 +273,6 @@ struct SendEffect : public MasterEffectProcessor
         modChains.clear();
     }
     
-	float getDefaultValue(int index) const override
-	{
-		switch (index)
-		{
-		case Parameters::Gain: return -100.0;
-		case Parameters::ChannelOffset: return 0.0f;
-		case Parameters::SendIndex: return 0.0f;
-		case Parameters::Smoothing: return 1.0f;
-		}
-
-		return 0.0f;
-	}
-
 	float getAttribute(int index) const override 
 	{
 		switch (index)
@@ -361,14 +341,10 @@ struct SendEffect : public MasterEffectProcessor
             connectionBox("SendIndex"),
 			smoothingButton("Smoothing")
 		{
-			gainSlider.setup(parent->getProcessor(), Parameters::Gain, "Gain");
-			
-			gainSlider.setMode(HiSlider::Mode::Decibel);
-
-			smoothingButton.setup(parent->getProcessor(), Parameters::Smoothing, "Smoothing");
-
-			offsetSlider.setup(parent->getProcessor(), Parameters::ChannelOffset, "Channel");
-			offsetSlider.setMode(HiSlider::Mode::Discrete, { 0.0, (double)NUM_MAX_CHANNELS, 1 });
+			auto md = getProcessor()->getMetadata();
+			md.setup(gainSlider, getProcessor(), Parameters::Gain);
+			md.setup(smoothingButton, getProcessor(), Parameters::Smoothing);
+			md.setup(offsetSlider, getProcessor(), Parameters::ChannelOffset);
 
 			offsetSlider.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 			offsetSlider.setTextBoxStyle(Slider::TextBoxRight, false, 80, 20);
@@ -382,7 +358,7 @@ struct SendEffect : public MasterEffectProcessor
 			addAndMakeVisible(connectionBox);
 			connectionBox.setLookAndFeel(&claf);
 			claf.setDefaultColours(connectionBox);
-            connectionBox.setup(parent->getProcessor(), Parameters::SendIndex, "SendIndex");
+			md.setup(connectionBox, getProcessor(), Parameters::SendIndex);
 
 			auto list = ProcessorHelpers::getListOfAllProcessors<SendContainer>(getProcessor()->getMainController()->getMainSynthChain());
 

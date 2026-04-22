@@ -255,7 +255,9 @@ class WavetableSynth: public ModulatorSynth,
 {
 public:
 
-	SET_PROCESSOR_NAME("WavetableSynth", "Wavetable Synthesiser", "A two-dimensional wavetable synthesiser.");
+	SET_PROCESSOR_NAME("WavetableSynth", "Wavetable Synthesiser", "");
+
+	static ProcessorMetadata createMetadata();
 
 	/** An object that will perform the post processing after a wavetable is loaded. */
 	struct PostFXProcessor
@@ -733,20 +735,6 @@ public:
 	}
 
 	float getTotalTableModValue(int offset);
-
-	float getDefaultValue(int parameterIndex) const override
-	{
-		if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getDefaultValue(parameterIndex);
-
-		switch (parameterIndex)
-		{
-		case HqMode: return 1.0f;
-		case RefreshMipmap: return 0.0f;
-		case LoadedBankIndex: return -1.0f;
-		case TableIndexValue: return 1.0f;
-		default: jassertfalse; return 0.0f;
-		}
-	}
 
 	float getAttribute(int parameterIndex) const override 
 	{

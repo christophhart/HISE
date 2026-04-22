@@ -39,47 +39,24 @@ namespace hise { using namespace juce;
 
 
 
-/** @brief A pretty common envelope type with 5 states. @ingroup modulatorTypes
-
-### AHDSR Envelope
-
-A pretty common envelope type with 5 states. (Go to http://en.wikiaudio.org/ADSR_envelope for a general description on how an envelope works)
-
-The code is based on the example envelope code from http://earlevel.com.
-
-The Modulator has five states: Attack, Hold, Decay, Sustain and Release and allows modulation of 
-the attack time and level, the decay time and the release time with VoiceStartModulators.
-
-Unlike the [SimpleEnvelope](#SimpleEnvelope), this envelope has a exponential curve, so it sounds nicer (but is a little bit more resource-hungry).
-
-ID | Parameter | Description
--- | --------- | -----------
-0 | Attack | the attack time in milliseconds
-1 | AttackLevel | the attack level in decibel
-2 | Hold | the hold time in milliseconds
-3 | Decay | the decay time in milliseconds
-4 | Sustain | the sustain level in decibel
-5 | Release | the release time in milliseconds
-*/
 class AhdsrEnvelope: public EnvelopeModulator,
 					 public scriptnode::envelope::pimpl::ahdsr_base
 {
 public:
 
-	SET_PROCESSOR_NAME("AHDSR", "AHDSR Envelope", "A envelope modulator with five states")
+	SET_PROCESSOR_NAME("AHDSR", "AHDSR Envelope", "")
 
-	/// @brief special parameters for AhdsrEnvelope
 	enum SpecialParameters
 	{
-		Attack = EnvelopeModulator::Parameters::numParameters,		 ///< the attack time in milliseconds
-		AttackLevel, ///< the attack level in decibel
-		Hold,		 ///< the hold time in milliseconds
-		Decay,		 ///< the decay time in milliseconds
-		Sustain,	 ///< the sustain level in decibel
-		Release,	 ///< the release time in milliseconds
-		AttackCurve, ///< the attack curve (0.0 = concave, 1.0 = convex)
-		DecayCurve, ///< the release curve (and the decayCurve)
-		EcoMode,	 ///< uses 16x downsampling and linear interpolation for calculating the envelope curve
+		Attack = EnvelopeModulator::Parameters::numParameters,
+		AttackLevel,
+		Hold,
+		Decay,
+		Sustain,
+		Release,
+		AttackCurve,
+		DecayCurve,
+		EcoMode,
 		numTotalParameters
 	};
 
@@ -97,6 +74,8 @@ public:
 
 	AhdsrEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m);
 	~AhdsrEnvelope() {};
+
+	const bool metadataInitialised;
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;
@@ -116,7 +95,8 @@ public:
 
 	ProcessorEditorBody *createEditor(ProcessorEditor* parentEditor) override;
 
-	float getDefaultValue(int parameterIndex) const override;
+	static ProcessorMetadata createMetadata();
+
 	void setInternalAttribute (int parameter_index, float newValue) override;;
 
 	float getAttribute(int parameter_index) const override;;

@@ -54,8 +54,20 @@ static String varToJsonString(const var& v)
 static String createErrorJson(const String& message)
 {
     DynamicObject::Ptr obj = new DynamicObject();
-    obj->setProperty("error", true);
-    obj->setProperty("message", message);
+    obj->setProperty(RestApiIds::success, false);
+    obj->setProperty(RestApiIds::result, var());
+
+    Array<var> errors;
+    Array<var> logs;
+
+    DynamicObject::Ptr em = new DynamicObject();
+    em->setProperty(RestApiIds::errorMessage, message);
+    Array<var> callstack;
+    em->setProperty(RestApiIds::callstack, var(callstack));
+    errors.add(var(em.get()));
+
+    obj->setProperty(RestApiIds::logs, var(logs));
+    obj->setProperty(RestApiIds::errors, var(errors));
     return varToJsonString(obj.get());
 }
 
@@ -162,6 +174,22 @@ String RestServer::Request::operator[](const Identifier& name) const
     return {};
 }
 
+bool RestServer::Request::getTrueValue(const Identifier& name) const
+{
+    auto v = (*this)[name];
+    
+    if(v.isEmpty())
+        return false;
+    
+    if(v == "true")
+        return true;
+    
+    if(v == "false")
+        return false;
+    
+    return v.getIntValue();
+}
+
 var RestServer::Request::getJsonBody() const
 {
     var result;
@@ -256,33 +284,53 @@ void RestServer::AsyncRequest::mergeLogsIntoResponse()
         rootObj = new DynamicObject();
         
         if (response.body.isNotEmpty())
-            rootObj->setProperty("result", response.body);
+            rootObj->setProperty(RestApiIds::result, response.body);
     }
     
-    // Build logs array
     Array<var> logsArray;
+
+    if (rootObj->hasProperty(RestApiIds::logs))
+    {
+        if (auto ar = rootObj->getProperty(RestApiIds::logs).getArray())
+            logsArray.addArray(*ar);
+    }
+
     for (const auto& log : logs)
         logsArray.add(log);
     
-    rootObj->setProperty("logs", logsArray);
+    rootObj->setProperty(RestApiIds::logs, logsArray);
     
-    // Build errors array
-    Array<var> errorsArray;
-    for (const auto& err : errors)
+    Array<var> mergedErrors;
+
+    if (rootObj->hasProperty(RestApiIds::errors))
     {
-        DynamicObject::Ptr errObj = new DynamicObject();
-        errObj->setProperty("errorMessage", err.errorMessage);
-        
-        Array<var> callstackArray;
-        for (const auto& frame : err.callstack)
-            callstackArray.add(frame);
-        
-        errObj->setProperty("callstack", callstackArray);
-        errorsArray.add(var(errObj.get()));
+        auto existingErrors = rootObj->getProperty(RestApiIds::errors);
+
+        if (existingErrors.isArray())
+        {
+            for (const auto& e : *existingErrors.getArray())
+                mergedErrors.add(e);
+        }
     }
-    
-    rootObj->setProperty("errors", errorsArray);
-    
+
+    if (!usesCustomErrors)
+    {
+		for (const auto& err : errors)
+		{
+			DynamicObject::Ptr errObj = new DynamicObject();
+			errObj->setProperty(RestApiIds::errorMessage, err.errorMessage);
+
+			Array<var> callstackArray;
+			for (const auto& frame : err.callstack)
+				callstackArray.add(frame);
+
+			errObj->setProperty(RestApiIds::callstack, callstackArray);
+			mergedErrors.add(var(errObj.get()));
+		}
+    }
+
+    rootObj->setProperty(RestApiIds::errors, mergedErrors);
+
     // Normalize floating point values for clean JSON output (4 decimal places)
     var rootVar(rootObj.get());
     normalizeFloatsInVar(rootVar);

@@ -48,7 +48,9 @@ class PolyFilterEffect: public VoiceEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("PolyphonicFilter", "Filter", "The filter module of HISE.");
+	SET_PROCESSOR_NAME("PolyphonicFilter", "Filter", "");
+
+	static ProcessorMetadata createMetadata();
 
 	enum InternalChains
 	{
@@ -81,13 +83,14 @@ public:
 
 	PolyFilterEffect(MainController *mc, const String &uid, int numVoices);;
 
+	const bool metadataInitialised;
+
 	~PolyFilterEffect();
 
 	void processorChanged(EventType t, Processor* p) override;
 
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
-	float getDefaultValue(int parameterIndex) const override;
 
 	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
 

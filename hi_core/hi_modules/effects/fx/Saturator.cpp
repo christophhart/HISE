@@ -32,6 +32,41 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata SaturatorEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<SaturatorEffect>()
+		.withDescription("Applies waveshaping saturation with pre/post gain controls and wet/dry mix")
+		.withParameter(Par(Saturation)
+			.withId("Saturation")
+			.withDescription("Amount of saturation applied to the signal where 0 is none and 1 is maximum")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.0f))
+		.withParameter(Par(WetAmount)
+			.withId("WetAmount")
+			.withDescription("Dry/wet mix where 0 is fully dry and 1 is fully wet")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(1.0f))
+		.withParameter(Par(PreGain)
+			.withId("PreGain")
+			.withDescription("Input gain in decibels applied before saturation")
+			.withSliderMode(HiSlider::Decibel, Range(0.0, 24.0))
+			.withDefault(0.0f))
+		.withParameter(Par(PostGain)
+			.withId("PostGain")
+			.withDescription("Output gain in decibels applied after saturation")
+			.withSliderMode(HiSlider::Decibel, Range(-24.0, 0.0))
+			.withDefault(0.0f))
+		.withModulation(Mod(SaturationChain)
+			.withId("Saturation Modulation")
+			.withDescription("Modulates the saturation amount")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly));
+}
+
 SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
 	MasterEffectProcessor(mc, uid),
 	saturation(0.0f),
@@ -48,11 +83,6 @@ SaturatorEffect::SaturatorEffect(MainController *mc, const String &uid) :
 
 	modChains[InternalChains::SaturationChain].setExpandToAudioRate(true);
 	modChains[InternalChains::SaturationChain].setAllowModificationOfVoiceValues(true);
-
-	parameterNames.add("Saturation");
-	parameterNames.add("WetAmount");
-	parameterNames.add("PreGain");
-	parameterNames.add("PostGain");
 
 	updateParameterSlots();
 
@@ -109,27 +139,6 @@ float SaturatorEffect::getAttribute(int parameterIndex) const
 	return 0.0f;
 }
 
-float SaturatorEffect::getDefaultValue(int parameterIndex) const
-{
-	switch (parameterIndex)
-	{
-	case Saturation:
-		return 0.0;
-		break;
-	case WetAmount:
-		return 100.0;
-		break;
-	case PreGain:
-		return 0.0;
-	case PostGain:
-		return 0.0;
-	default:
-		break;
-	}
-
-	jassertfalse;
-	return 0.0f;
-}
 
 void SaturatorEffect::restoreFromValueTree(const ValueTree &v)
 {

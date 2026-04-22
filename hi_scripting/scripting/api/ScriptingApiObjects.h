@@ -111,6 +111,14 @@ public:
 
 	static Array<Identifier> getGlobalApiClasses();
 
+	/** Converts the sentinel string value "disabled" to DBL_MAX, otherwise writes the midpoint value into midPointValue.
+		Returns false if the string value is anything else than "disabled"
+	*/
+	static bool getMidPointValue(const var& midPointOrDisabledString, double& midPointValue);
+
+	/** Checks whether the midPointOrDisabledString should be applied to the given range. */
+	static bool shouldApplyMidPoint(double min, double max, const var& midPointOrDisabledString);
+
 	static void loadPathFromData(Path& p, var data);
 
 	static PathStrokeType createPathStrokeType(var strokeType);
@@ -2204,6 +2212,9 @@ namespace ScriptingObjects
 
 		/** Returns the output channel that is mapped to the given input channel (or -1). */
 		var getDestinationChannelForSource(var sourceIndex) const;
+
+		/** This forces the routing matrix to calculate its peak levels. */
+		void setForcePeakMeters(bool shouldBeEnabled);
 
 		// ============================================================================================================ 
 

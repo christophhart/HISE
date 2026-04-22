@@ -2173,43 +2173,6 @@ Processor *PresetHandler::loadProcessorFromFile(File fileName, Processor *parent
 	}	
 }
 
-
-
-
-
-XmlElement * PresetHandler::buildFactory(FactoryType *t, const String &factoryName)
-{
-	
-	XmlElement *xml = new XmlElement(factoryName);
-
-	for (int j = 0; j < t->getNumProcessors(); j++)
-	{
-
-		ScopedPointer<Processor> p = t->createProcessor(j, "X");
-
-		if (p == nullptr) continue;
-
-		// "Hardcoded Master FX", aaarg!
-		auto tagName = p->getType().toString().removeCharacters(" ");
-
-		XmlElement *child = new XmlElement(tagName);
-
-		for (int i = 0; i < p->getNumParameters(); i++)
-		{
-			Identifier id = p->getIdentifierForParameterIndex(i);
-
-
-			child->setAttribute(Identifier("id" + String(i)), id.toString());
-		}
-        
-        
-
-		xml->addChildElement(child);
-	}
-
-	return xml;
-}
-
 juce::File PresetHandler::getGlobalScriptFolder(Processor* p)
 {
 	auto f = dynamic_cast<GlobalSettingManager*>(p->getMainController())->getSettingsObject().getSetting(HiseSettings::Scripting::GlobalScriptPath);

@@ -1,5 +1,9 @@
 # AGENTS.md - HISE Modules Repository
 
+## ABSOLUTE RULES
+
+**NO EM-DASHES. NO SMART QUOTES. NO NON-ASCII CHARACTERS. EVER.** All text output - code, comments, documentation, strings, commit messages - must be ASCII-only. Use regular dashes (-), straight quotes, and three dots (...). This rule is non-negotiable and applies to every file in this repository without exception.
+
 ## Project Overview
 
 HISE (Hart Instruments Sampling Engine) is a cross-platform C++17 audio framework built on JUCE for creating virtual instruments (VST/AU/AAX plugins and standalone apps). This repository contains the core modules layer (`hi_core`, `hi_backend`, `hi_scripting`, `hi_dsp_library`, etc.).

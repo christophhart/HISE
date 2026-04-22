@@ -45,9 +45,8 @@ TransposerEditor::TransposerEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 
-	intensitySlider->setup(getProcessor(), Transposer::TransposeAmount, "Transpose");
-
-	intensitySlider->setMode(HiSlider::Discrete, NormalisableRange(-24.0, 24.0, 1.0));
+	auto md = getProcessor()->getMetadata();
+	md.setup(*intensitySlider, getProcessor(), Transposer::TransposeAmount);
 	intensitySlider->setTextValueSuffix(" st");	
 
     //[/UserPreSize]
@@ -145,33 +144,31 @@ END_JUCER_METADATA
 
 ChokeGroupEditor::ChokeGroupEditor(ProcessorEditor *p) : ProcessorEditorBody(p)
 {
+	auto md = getProcessor()->getMetadata();
+
 	addAndMakeVisible(groupSlider = new HiSlider("Transpose"));
-	groupSlider->setRange(-24, 24, 1);
 	groupSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	groupSlider->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
 	groupSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
 	groupSlider->setColour(Slider::textBoxTextColourId, Colours::white);
-	groupSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::ChokeGroup, "ChokeGroup");
-	groupSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 16.0, 1.0));
+	md.setup(*groupSlider, getProcessor(), ChokeGroupProcessor::SpecialParameters::ChokeGroup);
 
 	addAndMakeVisible(loSlider = new HiSlider("LoKey"));
 	loSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	loSlider->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
 	loSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
 	loSlider->setColour(Slider::textBoxTextColourId, Colours::white);
-	loSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::LoKey, "LoKey");
-	loSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 127.0, 1.0));
+	md.setup(*loSlider, getProcessor(), ChokeGroupProcessor::SpecialParameters::LoKey);
 
 	addAndMakeVisible(hiSlider = new HiSlider("HiKey"));
 	hiSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	hiSlider->setTextBoxStyle(Slider::TextBoxRight, true, 80, 20);
 	hiSlider->setColour(Slider::thumbColourId, Colour(0x80666666));
 	hiSlider->setColour(Slider::textBoxTextColourId, Colours::white);
-	hiSlider->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::HiKey, "HiKey");
-	hiSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 127.0, 1.0));
+	md.setup(*hiSlider, getProcessor(), ChokeGroupProcessor::SpecialParameters::HiKey);
 
 	addAndMakeVisible(killButton = new HiToggleButton("KillVoices"));
-	killButton->setup(getProcessor(), ChokeGroupProcessor::SpecialParameters::KillVoice, "KillVoice");
+	md.setup(*killButton, getProcessor(), ChokeGroupProcessor::SpecialParameters::KillVoice);
 	
 	setSize(800, 40);
 }

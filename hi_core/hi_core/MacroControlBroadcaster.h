@@ -338,6 +338,9 @@ public:
     
     void clearAllMacroControls();
 
+	/** Rebuild macros (might change after project switch). */
+	void rebuildMacroControlsAfterProjectSwitch();
+
 	/** Checks if the macro control has any parameters. */
 	bool hasActiveParameters(int macroIndex);
 

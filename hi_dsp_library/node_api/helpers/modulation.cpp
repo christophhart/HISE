@@ -311,6 +311,16 @@ juce::Colour ParameterProperties::getModulationColour(int16 parameterIndex) cons
 	return colours.getColour(HiseModulationColours::ColourId::ExtraMod);
 }
 
+hise::HiseModulationColours::ColourId ParameterProperties::getModulationColourRaw(int16 parameterIndex) const
+{
+	auto mi = getModulationChainIndex(parameterIndex);
+
+	if (mi != -1)
+		return modInfo[mi].colour;
+
+	return hise::HiseModulationColours::ColourId::ExtraMod;
+}
+
 ParameterMode ParameterProperties::getModeFromVar(const var& value)
 {
 	auto n = value.toString();

@@ -927,7 +927,9 @@ void dynamic::restoreConnections(Identifier id, var newValue)
 		return ok;
 	};
 
-	parentNode->getRootNetwork()->addPostInitFunction(f);
+	if (!f())
+		parentNode->getRootNetwork()->addPostInitFunction(f);
+	
 }
 
 void dynamic::setConnection(routing::receive_base& receiveTarget, bool addAsConnection)

@@ -69,6 +69,7 @@
 
 #if HI_RUN_UNIT_TESTS
 #include "hi_tools/FuzzySearcherTests.cpp"
+#include "hi_tools/SemanticVersionCheckerTests.cpp"
 #endif
 
 #include "hi_dispatch/hi_dispatch.cpp"

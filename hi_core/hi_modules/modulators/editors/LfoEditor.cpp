@@ -48,7 +48,6 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     fadeInSlider.reset (new HiSlider ("Fadein"));
     addAndMakeVisible (fadeInSlider.get());
     fadeInSlider->setTooltip (TRANS("The Fade in time after each key press"));
-    fadeInSlider->setRange (0, 5000, 1);
     fadeInSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     fadeInSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     fadeInSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
@@ -72,13 +71,6 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     waveFormSelector->setJustificationType (Justification::centredLeft);
     waveFormSelector->setTextWhenNothingSelected (TRANS("Select Waveform"));
     waveFormSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
-    waveFormSelector->addItem (TRANS("Sine"), 1);
-    waveFormSelector->addItem (TRANS("Triangle"), 2);
-    waveFormSelector->addItem (TRANS("Saw"), 3);
-    waveFormSelector->addItem (TRANS("Square"), 4);
-    waveFormSelector->addItem (TRANS("Random"), 5);
-    waveFormSelector->addItem (TRANS("Custom"), 6);
-	waveFormSelector->addItem(TRANS("Steps"), 7);
     waveFormSelector->addListener (this);
 
     waveFormSelector->setBounds (59, 68, 128, 28);
@@ -114,7 +106,6 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     smoothTimeSlider.reset (new HiSlider ("Smooth Time"));
     addAndMakeVisible (smoothTimeSlider.get());
     smoothTimeSlider->setTooltip (TRANS("The smoothing factor for the oscillator"));
-    smoothTimeSlider->setRange (0, 5000, 1);
     smoothTimeSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     smoothTimeSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     smoothTimeSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
@@ -130,7 +121,6 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
     phaseSlider.reset (new HiSlider ("Phase"));
     addAndMakeVisible (phaseSlider.get());
     phaseSlider->setTooltip (TRANS("The phase offset"));
-    phaseSlider->setRange (0, 5000, 1);
     phaseSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     phaseSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     phaseSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
@@ -140,45 +130,29 @@ LfoEditorBody::LfoEditorBody (ProcessorEditor *p)
 
     //[UserPreSize]
 
+	auto md = getProcessor()->getMetadata();
 
-
-	waveFormSelector->setup(getProcessor(), LfoModulator::WaveFormType, "Waveform");
-
-	tableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
-
-	frequencySlider->setup(getProcessor(), LfoModulator::Frequency, "Frequency");
-	frequencySlider->setMode(HiSlider::Frequency, NormalisableRange(0.01, 40.0).withCentreSkew(10.0));
-	
-
-	smoothTimeSlider->setup(getProcessor(), LfoModulator::SmoothingTime, "Smoothing");
-	smoothTimeSlider->setMode(HiSlider::Time, NormalisableRange(0.0, 1000.0).withCentreSkew(100.0));
-
-	fadeInSlider->setup(getProcessor(), LfoModulator::FadeIn, "Fadein Time");
-	fadeInSlider->setMode(HiSlider::Time, NormalisableRange(0.0, 3000.0).withCentreSkew(500.0));
-
-	retriggerButton->setup(getProcessor(), LfoModulator::Legato, "Legato Mode");
-
-	tempoSyncButton->setup(getProcessor(), LfoModulator::TempoSync, "Tempo Sync");
+	md.setup(*waveFormSelector, getProcessor(), LfoModulator::WaveFormType);
+	md.setup(*frequencySlider, getProcessor(), LfoModulator::Frequency);
+	md.setup(*fadeInSlider, getProcessor(), LfoModulator::FadeIn);
+	md.setup(*smoothTimeSlider, getProcessor(), LfoModulator::SmoothingTime);
+	md.setup(*phaseSlider, getProcessor(), LfoModulator::PhaseOffset);
+	md.setup(*retriggerButton, getProcessor(), LfoModulator::Legato);
+	md.setup(*tempoSyncButton, getProcessor(), LfoModulator::TempoSync);
+	md.setup(*clockSyncButton, getProcessor(), LfoModulator::SyncToMasterClock);
+	md.setup(*loopButton, getProcessor(), LfoModulator::LoopEnabled);
 
 	tempoSyncButton->setNotificationType(sendNotification);
-
-	clockSyncButton->setup(getProcessor(), LfoModulator::SyncToMasterClock, "Clock Sync");
 
     ProcessorHelpers::connectTableEditor(*waveformTable, getProcessor());
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
-
-	loopButton->setup(getProcessor(), LfoModulator::Parameters::LoopEnabled, "Loop On");
 
 	addAndMakeVisible(stepPanel = new SliderPack());
 	stepPanel->setSliderPackData(dynamic_cast<ExternalDataHolder*>(getProcessor())->getSliderPack(0));
 
 	stepPanel->setVisible(false);
 	stepPanel->setStepSize(0.01);
-
-    phaseSlider->setMode(HiSlider::NormalizedPercentage);
-	phaseSlider->setup(getProcessor(), LfoModulator::Parameters::PhaseOffset, "Phase Offset");
-	
 
     tableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
     stepsUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Steps;
@@ -230,10 +204,8 @@ void LfoEditorBody::updateGui()
 	loopButton->setEnabled(type == LfoModulator::Waveform::Custom || LfoModulator::Waveform::Steps);
 	loopButton->updateValue();
 
-	if (getProcessor()->getAttribute(LfoModulator::TempoSync) > 0.5f)
-		frequencySlider->setMode(HiSlider::Mode::TempoSync);
-	else
-		frequencySlider->setMode(HiSlider::Frequency, NormalisableRange(0.01, 40.0).withCentreSkew(10.0));
+	auto md = getProcessor()->getMetadata();
+	md.updateTempoSync(*frequencySlider);
 
 	const bool newTableUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Custom;
 	const bool newStepsUsed = getProcessor()->getAttribute(LfoModulator::WaveFormType) == LfoModulator::Steps;

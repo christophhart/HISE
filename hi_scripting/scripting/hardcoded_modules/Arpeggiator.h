@@ -46,6 +46,7 @@ class Arpeggiator : public HardcodedScriptProcessor,
 		  public hise::Processor::BypassListener
 {
 public:
+	static ProcessorMetadata createMetadata();
 
 	enum Parameters
 	{
@@ -81,7 +82,7 @@ public:
 	void mpeModeChanged(bool isEnabled) override;
 	void mpeModulatorAssigned(MPEModulator* /*m*/, bool /*wasAssigned*/) override {};
 
-	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator", "A arpeggiator module");
+	SET_PROCESSOR_NAME("Arpeggiator", "Arpeggiator", "");
 
 	void bypassStateChanged(Processor*, bool isBypassed) override
 	{

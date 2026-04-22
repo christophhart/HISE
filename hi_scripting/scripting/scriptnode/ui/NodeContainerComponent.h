@@ -691,8 +691,13 @@ public:
 			}
 		}
 
+		bool skipRebuild = false;
+
 		void rebuildParameters()
 		{
+			if (skipRebuild)
+				return;
+
 			sliders.clear();
 			groups.clear();
 

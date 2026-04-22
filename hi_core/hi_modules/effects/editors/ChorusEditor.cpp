@@ -37,42 +37,32 @@ ChorusEditor::ChorusEditor (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (rateSlider = new HiSlider ("Rate"));
-    rateSlider->setRange (0, 1, 0.01);
     rateSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     rateSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     rateSlider->addListener (this);
 
     addAndMakeVisible (widthSlider = new HiSlider ("Width"));
-    widthSlider->setRange (0, 1, 0.01);
     widthSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     widthSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     widthSlider->addListener (this);
 
     addAndMakeVisible (feedBackSlider = new HiSlider ("Feedback"));
-    feedBackSlider->setRange (0, 1, 0.01);
     feedBackSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     feedBackSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     feedBackSlider->addListener (this);
 
     addAndMakeVisible (delaySlider = new HiSlider ("Delay"));
-    delaySlider->setRange (0, 1, 0.1);
     delaySlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     delaySlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     delaySlider->addListener (this);
 
 
     //[UserPreSize]
-
-	rateSlider->setup(getProcessor(), ChorusEffect::Parameters::Rate, "Rate");
-	rateSlider->setMode(HiSlider::NormalizedPercentage);
-	widthSlider->setup(getProcessor(), ChorusEffect::Width, "Width");
-	widthSlider->setMode(HiSlider::NormalizedPercentage);
-	feedBackSlider->setup(getProcessor(), ChorusEffect::Feedback, "Feedback");
-	feedBackSlider->setMode(HiSlider::NormalizedPercentage);
-	delaySlider->setup(getProcessor(), ChorusEffect::Delay, "Delay");
-
-    
-    
+	auto md = getProcessor()->getMetadata();
+	md.setup(*rateSlider, getProcessor(), ChorusEffect::Rate);
+	md.setup(*widthSlider, getProcessor(), ChorusEffect::Width);
+	md.setup(*feedBackSlider, getProcessor(), ChorusEffect::Feedback);
+	md.setup(*delaySlider, getProcessor(), ChorusEffect::Delay);
     //[/UserPreSize]
 
     setSize (900, 80);

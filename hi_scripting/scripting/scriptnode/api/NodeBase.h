@@ -152,7 +152,7 @@ public:
 	/** Returns the current value. */
 	double getValue() const;
 
-	/** Sets the value immediately and stores it asynchronously. */
+	/** Sets the value immediately and stores it asynchronously (deprecated). */
 	void setValueAsync(double newValue);
 
 	/** Returns the range properties as JSON object. */
@@ -164,8 +164,14 @@ public:
     /** Sets a range property. */
     void setRangeProperty(String id, var newValue);
     
-	/** Stores the value synchronously and calls the callback. */
+	/** Stores the value synchronously and calls the callback (deprecated). */
 	void setValueSync(double newValue);
+
+	/** Changes the internal value and optionally stores it in the ValueTree. */
+	void setValue(double newValue);
+
+	/** Enables "external connection mode" that disables the internal data model. */
+	void setUseExternalConnection(bool usesExternalConnection);
 
 	// ================================================================== End of API Calls
 
@@ -185,7 +191,6 @@ public:
 
 	StringArray valueNames;
 	NodeBase* parent;
-	
 
 	void updateFromValueTree(Identifier id, var newValue)
 	{
@@ -204,10 +209,12 @@ public:
 
 	bool isModulated() const 
 	{ 
-		return (bool)data.getProperty(PropertyIds::Automated, false);
+		return (bool)(data.getProperty(PropertyIds::Automated, false) || externalConnection);
 	}
 
 private:
+
+	CachedValue<bool> externalConnection;
 
 	void updateRange(Identifier, var);
 

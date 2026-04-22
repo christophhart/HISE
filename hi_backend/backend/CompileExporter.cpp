@@ -820,6 +820,9 @@ CompileExporter::ErrorCodes CompileExporter::exportInternal(TargetTypes type, Bu
 			if (result != ErrorCodes::OK) return result;
 		}
 
+		if (createProjectFilesOnly)
+			return result;
+
 		setProgress(0.5);
 
 		logMessage("> Launch system compiler...");
@@ -2074,10 +2077,12 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 	if (allow32BitMacOS)
 	{
 		REPLACE_WILDCARD_WITH_STRING("%MACOS_ARCHITECTURE%", "64BitUniversal");
+		REPLACE_WILDCARD_WITH_STRING("%MACOS_MAKE_ARCHITECTURE%", "Universal");
 	}
 	else
 	{
 		REPLACE_WILDCARD_WITH_STRING("%MACOS_ARCHITECTURE%", "64BitIntel");
+		REPLACE_WILDCARD_WITH_STRING("%MACOS_MAKE_ARCHITECTURE%", "x86_64");
 	}
 
     auto copyPlugin = !isUsingCIMode();
@@ -2116,12 +2121,6 @@ void CompileExporter::ProjectTemplateHelpers::handleCompilerInfo(CompileExporter
 			REPLACE_WILDCARD_WITH_STRING("%FFT_LINKER_FLAGS%", useFFTW ? "-lfftw3f" : String());
 
 	#endif
-
-	const auto includePerfetto = (bool)exporter->dataObject.getSetting(HiseSettings::Project::CompileWithPerfetto);
-
-	REPLACE_WILDCARD_WITH_STRING("%PERFETTO_INCLUDE_WIN%", includePerfetto ? "\nPERFETTO=1\nNOMINMAX=1\nWIN32_LEAN_AND_MEAN=1" : "");
-	REPLACE_WILDCARD_WITH_STRING("%PERFETTO_COMPILER_FLAGS_WIN%", includePerfetto ? " /Zc:__cplusplus /permissive- /vmg" : "");
-	REPLACE_WILDCARD_WITH_STRING("%PERFETTO_INCLUDE_MACOS%", includePerfetto ? "\nPERFETTO=1" : "");
 
 	const auto dontStripSymbols = (bool)exporter->dataObject.getSetting(HiseSettings::Project::CompileWithDebugSymbols);
 

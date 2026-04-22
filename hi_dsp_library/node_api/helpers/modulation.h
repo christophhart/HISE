@@ -306,6 +306,8 @@ struct ParameterProperties
 
 	Colour getModulationColour(int16 parameterIndex) const;
 
+	HiseModulationColours::ColourId getModulationColourRaw(int16 parameterIndex) const;
+
 private:
 
 	friend class ParameterPropertiesTest;

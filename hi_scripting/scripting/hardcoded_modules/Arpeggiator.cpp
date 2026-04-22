@@ -34,6 +34,103 @@ namespace hise { using namespace juce;
 
 #define LOG_ARP(x)
 
+hise::ProcessorMetadata Arpeggiator::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<Arpeggiator>()
+		.withDescription("Configurable arpeggiator with tempo sync, direction, octave range, and per-step sliders for melodic sequencing and rhythm generation")
+		.withParameter(Par(0)
+			.withId("Bypass")
+			.withDescription("Bypasses the arpeggiator and passes input notes through")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(1)
+			.withId("Reset")
+			.withDescription("Resets the current sequence when pressed")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(2)
+			.withId("NumSteps")
+			.withDescription("Number of steps in the sequence")
+			.withSliderMode(HiSlider::Discrete, Range(1.0, 128.0, 1.0))
+			.withDefault(4.0f))
+		.withParameter(Par(3)
+			.withId("StepReset")
+			.withDescription("Step index that resets the sequence")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 128.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(4)
+			.withId("Stride")
+			.withDescription("Stride offset applied when stepping through the sequence")
+			.withSliderMode(HiSlider::Discrete, Range(-12.0, 12.0, 1.0))
+			.withDefault(1.0f))
+		.withParameter(Par(5)
+			.withId("SortKeys")
+			.withDescription("Sorts held keys before arpeggiating")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(6)
+			.withId("Tempo")
+			.withDescription("Arpeggiator speed as a tempo-synced note value")
+			.withSliderMode(HiSlider::TempoSync,
+				Range(0.0, (double)TempoSyncer::Tempo::numTempos - 1.0, 1.0))
+			.withDefault((float)TempoSyncer::Tempo::Sixteenth))
+		.withParameter(Par(7)
+			.withId("Direction")
+			.withDescription("Playback direction for the arpeggiator")
+			.withValueList({ "Up", "Down", "Up-Down", "Down-Up", "Random", "Chords" })
+			.withDefault(1.0f))
+		.withParameter(Par(8)
+			.withId("OctaveRange")
+			.withDescription("Octave range added to the sequence")
+			.withSliderMode(HiSlider::Discrete, Range(-2.0, 4.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(9)
+			.withId("Shuffle")
+			.withDescription("Shuffle amount for timing variation between steps")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(0.0f))
+		.withParameter(Par(10)
+			.withId("CurrentStep")
+			.withDescription("Displays the current step index")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 128.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(11)
+			.withId("EnableTieNotes")
+			.withDescription("Ties steps with full length to the next note")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(16)
+			.withId("InputChannel")
+			.withDescription("MIDI channel accepted by the arpeggiator")
+			.withValueList({ "All Channels", "Channel 1", "Channel 2", "Channel 3", "Channel 4", "Channel 5", "Channel 6", "Channel 7", "Channel 8", "Channel 9", "Channel 10", "Channel 11", "Channel 12", "Channel 13", "Channel 14", "Channel 15", "Channel 16" })
+			.withDefault(1.0f))
+		.withParameter(Par(17)
+			.withId("OutputChannel")
+			.withDescription("MIDI channel used for generated notes")
+			.withValueList({ "Use input channel", "Channel 1", "Channel 2", "Channel 3", "Channel 4", "Channel 5", "Channel 6", "Channel 7", "Channel 8", "Channel 9", "Channel 10", "Channel 11", "Channel 12", "Channel 13", "Channel 14", "Channel 15", "Channel 16" })
+			.withDefault(1.0f))
+		.withParameter(Par(18)
+			.withId("MPEStartChannel")
+			.withDescription("Start channel for the MPE note range")
+			.withValueList({ "Inactive", "Channel 2", "Channel 3", "Channel 4", "Channel 5", "Channel 6", "Channel 7", "Channel 8", "Channel 9", "Channel 10", "Channel 11", "Channel 12", "Channel 13", "Channel 14", "Channel 15", "Channel 16" })
+			.withDefault(2.0f))
+		.withParameter(Par(19)
+			.withId("MPEEndChannel")
+			.withDescription("End channel for the MPE note range")
+			.withValueList({ "Inactive", "Channel 2", "Channel 3", "Channel 4", "Channel 5", "Channel 6", "Channel 7", "Channel 8", "Channel 9", "Channel 10", "Channel 11", "Channel 12", "Channel 13", "Channel 14", "Channel 15", "Channel 16" })
+			.withDefault(16.0f))
+		.withParameter(Par(20)
+			.withId("Hold")
+			.withDescription("Holds the sequence while the sustain pedal is pressed")
+			.asToggle()
+			.withDefault(0.0f))
+		.withComplexDataInterface(ExternalData::DataType::SliderPack);
+}
+
 Arpeggiator::Arpeggiator(MainController *mc, const String &id, ModulatorSynth *ms) :
 	HardcodedScriptProcessor(mc, id, ms),
 	hise::Processor::BypassListener(mc->getRootDispatcher())
@@ -85,16 +182,11 @@ void Arpeggiator::onInit()
 	bypassButton->set("width", 74);
 	bypassButton->set("text", "Bypass");
 	
-	parameterNames.add("Bypass");
-
 	resetButton = Content.addButton("ResetButton", 74, 10);
 
 	resetButton->set("isMomentary", true);
 	resetButton->set("width", 64);
 	resetButton->set("text", "Reset");
-
-	parameterNames.add("Reset");
-
 
 	numStepSlider = Content.addKnob("NumStepSlider", 10, 110);
 
@@ -104,17 +196,11 @@ void Arpeggiator::onInit()
 	numStepSlider->set("stepSize", "1");
 	numStepSlider->set("defaultValue", "4");
 
-	parameterNames.add("NumSteps");
-
 	stepReset = Content.addKnob("StepReset", 10, 170);
 
 	stepReset->set("text", "Step Reset");
 	stepReset->set("max", 128);
 	stepReset->set("stepSize", "1");
-
-	parameterNames.add("StepReset");
-	
-
 
 	stepSkipSlider = Content.addKnob("StepSkipSlider", 10, 230);
 
@@ -124,29 +210,19 @@ void Arpeggiator::onInit()
 	stepSkipSlider->set("stepSize", "1");
 	stepSkipSlider->set("middlePosition", 0);
 
-	parameterNames.add("Stride");
-
-
 	sortKeysButton = Content.addButton("SortKeysButton", 10, 300);
 	sortKeysButton->set("text", "Sort Keys");
-
-	parameterNames.add("SortKeys");
 
 	speedKnob = Content.addKnob("SpeedKnob", 10, 340);
 
 	speedKnob->set("mode", "TempoSync");
 
 	speedKnob->set("text", "Speed");
-	
-
-	parameterNames.add("Tempo");
 
 	sequenceComboBox = Content.addComboBox("SequenceComboBox", 10, 410);
 
 	sequenceComboBox->set("text", "Direction");
 	sequenceComboBox->set("items", "Up\nDown\nUp-Down\nDown-Up\nRandom\nChords");
-
-	parameterNames.add("Direction");
 
 	octaveSlider = Content.addKnob("OctaveRange", 10, 445);
 
@@ -154,12 +230,8 @@ void Arpeggiator::onInit()
 	octaveSlider->set("max", 4);
 	octaveSlider->set("stepSize", "1");
 
-	parameterNames.add("OctaveRange");
-
 	shuffleSlider = Content.addKnob("Shuffle", 150, 445);
 	shuffleSlider->set("mode", "NormalizedPercentage");
-
-	parameterNames.add("Shuffle");
 
 	currentStepSlider = Content.addKnob("CurrentValue", 160, 400);
 
@@ -174,12 +246,8 @@ void Arpeggiator::onInit()
 	currentStepSlider->set("enabled", false);
 	currentStepSlider->set("stepSize", "1");
 
-	parameterNames.add("CurrentStep");
-
 	enableTieNotes = Content.addButton("EnableTie", 0, 70);
 	enableTieNotes->set("text", "Tie 100%");
-	parameterNames.add("EnableTieNotes");
-
 	
 	auto bg = Content.addPanel("packBg", 150, 5);
 
@@ -218,7 +286,7 @@ void Arpeggiator::onInit()
 	
 	inputMidiChannel = Content.addComboBox("ChannelSelector", 300, 460);
 	inputMidiChannel->set("items", "");
-	parameterNames.add("InputChannel");
+	
 	inputMidiChannel->addItem("All Channels");
 	inputMidiChannel->addItem("Channel 1");
 	inputMidiChannel->addItem("Channel 2");
@@ -238,7 +306,7 @@ void Arpeggiator::onInit()
 	inputMidiChannel->addItem("Channel 16");
 
 	outputMidiChannel = Content.addComboBox("OutputChannelSelector", 300, 460 + 55);
-	parameterNames.add("OutputChannel");
+	
 	outputMidiChannel->set("items", "");
 	outputMidiChannel->addItem("Use input channel");
 	outputMidiChannel->addItem("Channel 1");
@@ -259,7 +327,7 @@ void Arpeggiator::onInit()
 	outputMidiChannel->addItem("Channel 16");
 
 	mpeStartChannel = Content.addComboBox("MPEStartChannel", 450, 460);
-	parameterNames.add("MPEStartChannel");
+	
 	mpeStartChannel->set("items", "");
 	mpeStartChannel->addItem("Inactive");
 	mpeStartChannel->addItem("Channel 2");
@@ -300,7 +368,6 @@ void Arpeggiator::onInit()
 
 	sustainHold = Content.addButton("Hold", 85, 70);
 	
-	parameterNames.add("Hold");
 	enableTieNotes->set("width", 85);
 	sustainHold->set("width", 60);
 
@@ -336,7 +403,7 @@ void Arpeggiator::onInit()
 	inputMidiChannel->set("tooltip", "The MIDI channel that is fed into the arpeggiator.");
 	outputMidiChannel->set("tooltip", "The MIDI channel that is used for the arpeggiated notes");
 
-	updateParameterSlots();
+	updateParameterSlots(getScriptingContent()->getNumComponents());
 }
 
 void Arpeggiator::onNoteOn()

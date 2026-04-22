@@ -872,6 +872,12 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
 		{
 			auto value = prop.getProperty(va);
 
+			if (value == "1")
+				return var(true);
+
+			if (value == "0")
+				return var(false);
+
 			if (value == "Yes")
 				return var(true);
 
@@ -892,17 +898,53 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
         return value;
 }
 
-var HiseSettings::Data::getExtraDefinitionsAsObject() const
+juce::Identifier HiseSettings::Data::getExtraDefinitionId(String platform, String target)
 {
 #if JUCE_WINDOWS
-    
-    auto defName = Project::ExtraDefinitionsWindows;
+	auto defName = Project::ExtraDefinitionsWindows;
 #elif JUCE_MAC
-    auto defName = Project::ExtraDefinitionsOSX;
+	auto defName = Project::ExtraDefinitionsOSX;
 #elif JUCE_LINUX
-    auto defName = Project::ExtraDefinitionsLinux;
+	auto defName = Project::ExtraDefinitionsLinux;
 #endif
 
+	if (platform.isNotEmpty())
+	{
+		if (platform == "Windows")
+			defName = Project::ExtraDefinitionsWindows;
+		if (platform == "macOS")
+			defName = Project::ExtraDefinitionsOSX;
+		if (platform == "Linux")
+			defName = Project::ExtraDefinitionsLinux;
+	}
+
+	if (target == "Dll")
+		defName = Project::ExtraDefinitionsNetworkDll;
+
+	return defName;
+}
+
+void HiseSettings::Data::writeSetting(const Identifier& settingFile, const Identifier& settingId, const var& newValue)
+{
+	auto fileTree = data.getChildWithName(settingFile);
+	auto sv = fileTree.getOrCreateChildWithName(settingId, nullptr);
+
+	sv.setProperty("value", newValue, nullptr);
+	settingWasChanged(settingId, newValue);
+
+	if (sv.getProperty("options").toString() == "Yes&#10;No")
+		sv.setProperty("value", sv.getProperty("value") ? "Yes" : "No", nullptr);
+
+	if (ScopedPointer<XmlElement> xml = HiseSettings::ConversionHelpers::getConvertedXml(fileTree))
+	{
+		auto f = getFileForSetting(settingFile);
+		xml->writeToFile(f, "");
+	}
+}
+
+var HiseSettings::Data::getExtraDefinitionsAsObject(String platform, String target, bool includeTemp) const
+{
+	auto defName = getExtraDefinitionId(platform, target);
     auto s = getSetting(defName).toString();
 
     StringArray items;
@@ -913,6 +955,8 @@ var HiseSettings::Data::getExtraDefinitionsAsObject() const
         items = StringArray::fromTokens(s, ";", "");
     else
         items = StringArray::fromLines(s);
+
+	items.sort(false);
 
     DynamicObject::Ptr obj = new DynamicObject();
 
@@ -926,11 +970,34 @@ var HiseSettings::Data::getExtraDefinitionsAsObject() const
         obj->setProperty(i.upToFirstOccurrenceOf("=", false, false).trim(), i.fromFirstOccurrenceOf("=", false, false).trim());
     }
     
-    for(const auto& sp: temporaryExtraDefinitions)
-        obj->setProperty(sp.name, sp.value);
-    
+	if (includeTemp)
+	{
+		for (const auto& sp : temporaryExtraDefinitions)
+			obj->setProperty(sp.name, sp.value);
+	}
+
     return var(obj.get());
 }
+
+void HiseSettings::Data::setExtraDefinitionsFromObject(String platform, String target, const var& obj, String separator)
+{
+	String s;
+
+	if (obj.getDynamicObject() == nullptr)
+	{
+		jassertfalse;
+		return;
+	}
+
+	for (auto& nv : obj.getDynamicObject()->getProperties())
+		s << nv.name.toString() << "=" << nv.value.toString() << separator;
+
+	auto defName = getExtraDefinitionId(platform, target);
+
+	writeSetting(HiseSettings::SettingFiles::ProjectSettings, defName, s);
+}
+
+
 
 String HiseSettings::Data::getTemporaryDefinitionsAsString() const
 {

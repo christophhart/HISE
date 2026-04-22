@@ -338,6 +338,9 @@ public:
 		static void loadUserPreset(BackendRootWindow *bpe, const File &fileToLoad);
 		static void saveFileXml(BackendRootWindow * bpe);
 		static void saveFileAsXml(BackendRootWindow * bpe);
+
+		static void saveFileAsXml(BackendRootWindow* bpe, const File& fileToSave);
+
 		static void openFileFromXml(BackendRootWindow * bpe, const File &fileToLoad);
 		static String exportFileAsSnippet(BackendRootWindow* bpe, bool copyToClipboard=true);
 		

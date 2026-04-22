@@ -32,6 +32,32 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata StereoEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<StereoEffect>()
+		.withDescription("Polyphonic stereo panner with width control and modulatable pan position")
+		.withParameter(Par(Pan)
+			.withId("Pan")
+			.withDescription("Maximum stereo pan position where -100 is full left and 100 is full right")
+			.withSliderMode(HiSlider::Pan, Range(-100.0, 100.0, 1.0))
+			.withDefault(100.0))
+		.withParameter(Par(Width)
+			.withId("Width")
+			.withDescription("Stereo width as percentage where 0 is mono, 100 is normal, and 200 is exaggerated")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 200.0, 1.0))
+			.withDefault(100.0))
+		.withModulation(Mod(BalanceChain)
+			.withId("Pan Modulation")
+			.withDescription("Modulates the stereo pan position")
+			.withMode(scriptnode::modulation::ParameterMode::Pan)
+			.withModulatedParameter(Pan));
+}
+
 void MidSideDecoder::calculateStereoValues(float &left, float &right)
 {
 	const float m = (left + right) * 0.5f;
@@ -52,8 +78,9 @@ float MidSideDecoder::getWidth() const noexcept
 	return width;
 }
 
-StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices) :
+StereoEffect::StereoEffect(MainController* mc, const String& uid, int numVoices) :
 	VoiceEffectProcessor(mc, uid, numVoices),
+	metadataInitialised(updateParameterSlots()),
 	pan(getDefaultValue(Pan)/100.0f)
 {
 	modChains += {this, "Pan Modulation", ModulatorChain::ModulationType::Normal, Modulation::PanMode};
@@ -63,11 +90,6 @@ StereoEffect::StereoEffect(MainController *mc, const String &uid, int numVoices)
 	modChains[InternalChains::BalanceChain].setExpandToAudioRate(true);
 	modChains[InternalChains::BalanceChain].setIncludeMonophonicValuesInVoiceRendering(true);
 	modChains[InternalChains::BalanceChain].setAllowModificationOfVoiceValues(true);
-
-	parameterNames.add("Pan");
-	parameterNames.add("Width");
-
-	updateParameterSlots();
 
 	auto tmp = WeakReference<Processor>(this);
 
@@ -105,16 +127,6 @@ void StereoEffect::setInternalAttribute(int parameterIndex, float newValue)
 	case Pan:							pan = (newValue + 100.0f) / 200.0f; ; break;
 	case Width:							msDecoder.setWidth(newValue / 100.0f); break;
 	default:							jassertfalse; return;
-	}
-}
-
-float StereoEffect::getDefaultValue(int parameterIndex) const
-{
-	switch (parameterIndex)
-	{
-	case Pan:							return 100.0f;
-	case Width:							return 100.0f;
-	default:							jassertfalse; return 1.0f;
 	}
 }
 

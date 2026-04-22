@@ -396,6 +396,20 @@ public:
 		String getDebugDataType() const override { return getObjectName().toString(); }
 		virtual void doubleClickCallback(const MouseEvent &e, Component* componentToNotify) override;
 
+		virtual ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const
+		{
+			ProcessorMetadata::ParameterMetadata pd;
+
+			pd.parameterIndex = indexInContent;
+			pd.id = getName().toString();
+			pd.dataType = ProcessorMetadata::DataType::Dynamic;
+			pd.defaultValue = getScriptObjectProperty(defaultValue);
+			pd.description = getScriptObjectProperty(tooltip).toString();
+			pd.vtc = getValueToTextConverter();
+
+			return pd;
+		}
+
 		virtual ValueToTextConverter getValueToTextConverter() const
 		{
 			return {};
@@ -700,7 +714,7 @@ public:
         
         int getMacroControlIndex() const { return connectedMacroIndex; }
         
-		ValueTree getPropertyValueTree() { return propertyTree; }
+		ValueTree getPropertyValueTree() const { return propertyTree; }
 
 		struct ScopedPropertyEnabler
 		{
@@ -1044,6 +1058,14 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			auto mn = getScriptObjectProperty(ScriptSlider::Properties::Mode).toString();
+			auto m = (HiSlider::Mode)HiSlider::getModeList().indexOf(mn);
+			auto rng = scriptnode::RangeHelpers::getDoubleRange(getPropertyValueTree(), scriptnode::RangeHelpers::IdSet::ScriptComponents);
+			return ScriptComponent::createParameterMetadata(indexInContent).withSliderMode(m, rng);
+		}
+
 		ValueToTextConverter getValueToTextConverter() const override
 		{
 			auto m = getScriptObjectProperty(ScriptSlider::Properties::Mode).toString();
@@ -1070,7 +1092,7 @@ public:
 		void setValuePopupFunction(var newFunction);
 
 		/** Sets the value that is shown in the middle position. */
-		void setMidPoint(double valueForMidPoint);
+		void setMidPoint(var valueForMidPoint);
 
 		/** Sets the style Knob, Horizontal, Vertical. */
 		void setStyle(String style);;
@@ -1189,6 +1211,11 @@ public:
 
 		void handleDefaultDeactivatedProperties() override;
 
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			return ScriptComponent::createParameterMetadata(indexInContent).asToggle();
+		}
+
 		ValueToTextConverter getValueToTextConverter() const override
 		{
 			return ValueToTextConverter::createForOptions({ "Off", "On" });
@@ -1268,6 +1295,13 @@ public:
 			setValue((int)getScriptObjectProperty(defaultValue));
 		}
 
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+			sa.removeEmptyStrings();
+			return ScriptComponent::createParameterMetadata(indexInContent).withValueList(sa);
+		}
+
 		ValueToTextConverter getValueToTextConverter() const override
 		{
 			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
@@ -1325,6 +1359,11 @@ public:
 		StringArray getOptionsFor(const Identifier &id) override;
 		Justification getJustification();
 
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
+		}
+
 		void restoreFromValueTree(const ValueTree &v) override;
 
 		ValueTree exportAsValueTree() const override;
@@ -1379,6 +1418,11 @@ public:
 		virtual int getIndexPropertyId() const = 0;
 
 		StringArray getOptionsFor(const Identifier &id) override;
+
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
+		}
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor = sendNotification) override;
 
@@ -1697,6 +1741,11 @@ public:
 		const Image getImage() const;
 		void handleDefaultDeactivatedProperties() override;
 
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
+		}
+
 		void setScriptProcessor(ProcessorWithScriptingContent *sb);
 
 		// ======================================================================================================== API Method
@@ -1812,6 +1861,8 @@ public:
 
 		StringArray getOptionsFor(const Identifier &id) override;
 		StringArray getItemList() const;
+
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override;
 
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
@@ -2104,6 +2155,20 @@ public:
 			setValue((int)getScriptObjectProperty(defaultValue));
 		}
 
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			auto pd = ScriptComponent::createParameterMetadata(indexInContent);
+
+			if (getScriptObjectProperty(useList))
+			{
+				auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
+				sa.removeEmptyStrings();
+				return pd.withValueList(sa);
+			}
+
+			return pd.asDisabled();
+		}
+
 		ValueToTextConverter getValueToTextConverter() const override
 		{
 			auto sa = StringArray::fromLines(getScriptObjectProperty(Properties::Items).toString());
@@ -2177,6 +2242,11 @@ public:
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
+
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
+		}
 
 		void handleDefaultDeactivatedProperties() override;
 
@@ -2274,6 +2344,11 @@ public:
 		// ========================================================================================================
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
+
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
+		}
 
 		DynamicObject* createOrGetJSONData();
 
@@ -2478,6 +2553,11 @@ public:
 		Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
+		}
+
 		// ============================================================================= API methods
 
 		/** Sets the content data for this container. */
@@ -2565,6 +2645,11 @@ public:
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
+
+		ProcessorMetadata::ParameterMetadata createParameterMetadata(int indexInContent) const override
+		{
+			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
+		}
 
 		StringArray getOptionsFor(const Identifier &id) override;
 		
@@ -3301,18 +3386,17 @@ public:
 		
 		SubType* newComponent = new SubType(getScriptProcessor(), this, id, x, y, 0, 0);
 
-
-
 		components.add(newComponent);
-
-		asyncRebuildBroadcaster.notify();
-
-		updateParameterSlots();
+		componentAdded();
 
 		return newComponent;
 	}
 
-	
+	void componentAdded()
+	{
+		updateParameterSlots();
+		asyncRebuildBroadcaster.notify();
+	}
 
 	bool interfaceCreationAllowed() const;
 

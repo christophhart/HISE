@@ -581,6 +581,24 @@ public:
 
 	SET_PROCESSOR_NAME("GlobalModulatorContainer", "Global Modulator Container", "A container that processes Modulator instances that can be used at different locations.");
 
+	static ProcessorMetadata createMetadata()
+	{
+		auto md = ModulatorSynth::createBaseMetadata()
+			.withStandardMetadata<GlobalModulatorContainer>()
+			.withDescription("A container that processes Modulator instances that can be used at different locations.")
+			.withDisabledChain(ModulatorSynth::BasicChains::PitchChain)
+			.withDisabledFX();
+
+		// rewrite the gain mod chain
+		md.modulation.set(ModulatorSynth::BasicChains::GainChain,
+			ProcessorMetadata::ModulationMetadata(ModulatorSynth::InternalChains::GainModulation)
+			.withId("Global Modulators")
+			.withDescription("The modulation sources that can be picked up using GlobalModulators")
+			.withConstrainer<NoGlobalsConstrainer>());
+
+		return md;
+	}
+
 	float getVoiceStartValueFor(const Processor *voiceStartModulator);
     int getNumActiveVoices() const override { return 0; };
     

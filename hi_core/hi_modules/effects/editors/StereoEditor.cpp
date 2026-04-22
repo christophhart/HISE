@@ -35,25 +35,20 @@ StereoEditor::StereoEditor (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (widthSlider = new HiSlider ("Stereo Width"));
-    widthSlider->setRange (0, 200, 1);
     widthSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     widthSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     widthSlider->addListener (this);
 
     addAndMakeVisible (panSlider = new HiSlider ("Pan"));
-    panSlider->setRange (-100, 100, 1);
     panSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     panSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     panSlider->addListener (this);
 
 
     //[UserPreSize]
-
-	widthSlider->setup(getProcessor(), StereoEffect::Width, "Stereo Width");
-	widthSlider->setMode(HiSlider::Discrete, NormalisableRange(0.0, 200.0, 1.0));
-
-	panSlider->setup(getProcessor(), StereoEffect::Pan, "Max Pan");
-	panSlider->setMode(HiSlider::Pan);
+	auto md = getProcessor()->getMetadata();
+	md.setup(*widthSlider, getProcessor(), StereoEffect::Width);
+	md.setup(*panSlider, getProcessor(), StereoEffect::Pan);
 	panSlider->setEnabled(false);
     //[/UserPreSize]
 
