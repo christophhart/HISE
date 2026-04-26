@@ -256,8 +256,8 @@ public:
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
 	{
-        connectIfPending();
 		TimeVariantModulator::prepareToPlay(sampleRate, samplesPerBlock);
+        connectIfPending();
 	};
 	
 private:

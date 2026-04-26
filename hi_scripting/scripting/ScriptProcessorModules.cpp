@@ -985,7 +985,8 @@ void JavascriptMasterEffect::registerApiClasses()
 
 void JavascriptMasterEffect::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 
@@ -1570,7 +1571,8 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 
 void JavascriptTimeVariantModulator::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 
