@@ -613,9 +613,20 @@ public:
 		return isSnippet;
 	}
 
-	void setIsSnippetBrowser()
+	void setIsSnippetBrowser(BackendProcessor* main)
 	{
 		isSnippet = true;
+		mainInstance = main;
+	}
+
+	/** Returns the main BackendProcessor instance.
+	    For the main instance this returns `this`; for snippet browser instances
+	    it returns the parent main BackendProcessor. Used by REST handlers that
+	    must operate on the main instance regardless of which BP is currently
+	    driving audio (e.g. /api/snippet_browser, /api/shutdown). */
+	BackendProcessor* getMainInstance() const
+	{
+		return mainInstance;
 	}
 
 	ExampleAssetManager::Ptr getAssetManager()
@@ -641,6 +652,7 @@ private:
 #endif
 
 	bool isSnippet = false;
+	BackendProcessor* mainInstance = this;
 
 	enum class LatencyCheckState
 	{

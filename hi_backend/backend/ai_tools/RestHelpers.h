@@ -50,7 +50,7 @@ struct RestHelpers
 {
     //==========================================================================
     // Route types (nested to avoid polluting hise namespace)
-    
+
     /** Identifies REST API endpoints. The enum value is the index into getRouteMetadata(). */
     enum class ApiRoute
     {
@@ -108,6 +108,7 @@ struct RestHelpers
         ProjectImportSnippet,   ///< POST /api/project/import_snippet - Import a HISE snippet
         ProjectPreprocessorList,///< GET  /api/project/preprocessor/list - List preprocessor defines
         ProjectPreprocessorSet, ///< POST /api/project/preprocessor/set - Set or clear a preprocessor define
+        SnippetBrowser,         ///< POST /api/snippet_browser - Control the snippet browser instance (launch/shutdown/enable/disable)
         numRoutes
     };
     
@@ -252,6 +253,7 @@ struct RestHelpers
         Array<int> errorCodes;                   ///< HTTP error status codes (e.g., 400, 404)
         String requestExample;                   ///< JSON string example for request body
         String responseExample;                  ///< JSON string example for response body
+        bool rejectInSnippetBrowser = false;     ///< If true, dispatcher returns 409 when the active BP is the snippet browser
         
         /** Default constructor for juce::Array compatibility. */
         RouteMetadata() = default;
@@ -341,6 +343,16 @@ struct RestHelpers
         RouteMetadata withModuleIdParam() const
         {
             return withQueryParam(RouteParameter(RestApiIds::moduleId, "The script processor's module ID"));
+        }
+
+        /** Marks this route as forbidden when the snippet browser is the active BackendProcessor.
+            Used for endpoints that would mutate the user's real project (project/* writes,
+            wizard/* operations) and must not be accidentally executed against snippet content. */
+        RouteMetadata rejectsInSnippetBrowser() const
+        {
+            auto copy = *this;
+            copy.rejectInSnippetBrowser = true;
+            return copy;
         }
     };
     
@@ -1042,6 +1054,11 @@ struct RestHelpers
     /** Handler for POST /api/project/preprocessor/set - Upsert or clear a preprocessor define */
     static RestServer::Response handleProjectPreprocessorSet(MainController* mc,
                                                              RestServer::AsyncRequest::Ptr req);
+
+    /** Handler for POST /api/snippet_browser - Control snippet browser instance lifecycle.
+        Operates on the main BackendProcessor regardless of which BP is currently active. */
+    static RestServer::Response handleSnippetBrowser(MainController* mc,
+                                                     RestServer::AsyncRequest::Ptr req);
 
 #if HISE_INCLUDE_PROFILING_TOOLKIT
     /** Query options for filtering and summarizing profiling results. */

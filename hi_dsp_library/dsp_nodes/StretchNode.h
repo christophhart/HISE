@@ -89,11 +89,15 @@ template <int NV> struct stretch_player: public data::base,
             return false;
         }
 
-        void setSource(double sourceSamplerate, int numSourceSamples, double numQuarters = 0.0)
+        void setSource(double sourceSamplerate, int numSourceSamples, double numQuarters = 0.0, double sourceBpm = 0.0)
         {
             const auto numSeconds = static_cast<double>(numSourceSamples) / sourceSamplerate;
 
-            if (numQuarters == 0.0)
+            if (sourceBpm != 0.0)
+            {
+                numQuarters = numSeconds * (sourceBpm / 60.0);
+            }
+            else if (numQuarters == 0.0)
             {
                 // Try to guess the duration by picking the nearest numQuarters that matches a bar
                 const auto durationPerQuarterForCurrentBpm = 60.0 / bpm;

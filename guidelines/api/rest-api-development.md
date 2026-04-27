@@ -461,6 +461,7 @@ All responses follow this structure:
 ```json
 {
   "success": true,
+  "apiVersion": "1.0.0",
   "logs": ["Console.print output line 1", "line 2"],
   "errors": [
     {
@@ -473,6 +474,22 @@ All responses follow this structure:
 ```
 
 The `logs` and `errors` arrays are populated by `ScopedConsoleHandler` which captures all `Console.print()` calls and error messages during request processing.
+
+### `apiVersion` (auto-injected)
+
+Every JSON envelope - success and error - carries an `apiVersion` field at the root. It is **not** set per-handler. The chokepoint is `varToJsonString()` in `RestServer.cpp`, which every envelope flows through (factories like `Response::ok(var)` / `createErrorJson()` call it directly, and `mergeLogsIntoResponse()` finalizes the body through it). When the root var is a `DynamicObject` carrying a `success` property, the serializer stamps `apiVersion` and also guarantees `logs` and `errors` arrays exist so consumers can iterate them unconditionally. There is no extra parse/serialize round trip.
+
+The OpenAPI document at `GET /` has no `success` marker, so it is skipped automatically; binary and plain-text responses bypass the serializer entirely.
+
+The version is a compile-time `#define HISE_REST_API_VERSION "x.y.z"` in `RestServer.h`. The same macro is used for the OpenAPI document's `info.version`, so there is one source of truth and zero runtime plumbing. Bump it whenever the response envelope or any route's request/response contract changes:
+
+| Change | Bump |
+|--------|------|
+| Breaking change to envelope or route schema (renamed/removed field, type change) | MAJOR |
+| Additive field on envelope or route response | MINOR |
+| Doc/example fix only | PATCH |
+
+Consumers can read it from any response or from `/api/status` for an explicit handshake. The OpenAPI envelope schema marks `apiVersion` as required so generated clients pick it up automatically.
 
 ---
 
@@ -538,6 +555,7 @@ expectEquals<int>(json["count"], 5, "Should have 5 items");
 | `/api/wizard/execute` | POST | wizard | `wizardExecute` |
 | `/api/wizard/status` | GET | wizard | `wizardStatus` |
 | `/api/testing/sequence` | POST | testing | `testingSequence` |
+| `/api/snippet_browser` | POST | status | `snippetBrowser` |
 
 **Note:** The `diagnose_script` endpoint is consumed by the native LSP proxy binary at `tools/hise_lsp_server/`. The proxy forwards LSP `didSave` notifications to this endpoint and maps the response to standard LSP `publishDiagnostics`. See `tools/hise_lsp_server/README.md` for details.
 
@@ -605,6 +623,38 @@ Each unrendered component includes:
 Invisible components are reported immediately without waiting, as they cannot render while hidden.
 
 **Note**: LAF render waiting is skipped on the test port (1901) to avoid delays during unit tests.
+
+---
+
+## Active Processor Routing
+
+When the snippet browser is launched (see `/api/snippet_browser`), HISE has two `BackendProcessor` instances live at the same time: the main one and a snippet one. They share the same `AudioDeviceManager` and `AudioProcessorPlayer` callback, but only one is wired into `callback->setProcessor(...)` at any moment - the other is suspended (greyed out, no audio).
+
+There is **only one REST server**, owned by the main `BackendProcessor`. Every incoming request enters `BackendProcessor::onAsyncRequest()` on the main BP. Before dispatching, the dispatcher resolves the **currently active** BP via `callback->getCurrentProcessor()` and passes that pointer to the per-route handler. As a result:
+
+- `/api/list_components`, `/api/repl`, `/api/recompile`, `/api/get_component_value`, etc. always operate on whichever BP is producing audio.
+- Switching the snippet browser on/off via `/api/snippet_browser` redirects all subsequent requests to the new active BP without restarting the server.
+
+**Two routes bypass this rule** because they manage instance topology and must always run on main:
+
+- `/api/shutdown` - quits the application.
+- `/api/snippet_browser` - creates/destroys/swaps the snippet BP.
+
+These handlers rebind to the main BP at entry by calling `mc->getMainInstance()` (defined on `BackendProcessor`). Future endpoints that need to operate on main regardless of audio routing should do the same; the dispatcher itself is route-agnostic.
+
+The snippet BP suppresses its own REST server start (`BackendRootWindow::resized()` checks `isSnippetBrowser()`) and the snippet window's Tools menu omits the toggle item, so there is never a port collision.
+
+### Rejecting writes against the snippet project
+
+While the snippet browser is the active BP, requests that would mutate the user's real project must not be accidentally executed against snippet content. The dispatcher therefore rejects such requests with **HTTP 409 Conflict** before they reach the handler.
+
+Routes opt into this gate by calling `.rejectsInSnippetBrowser()` on the route metadata. The dispatcher reads `RouteMetadata::rejectInSnippetBrowser` and short-circuits when `active->isSnippetBrowser()` is true. The 409 is auto-added to the OpenAPI error responses, so callers see the failure mode in the spec.
+
+Currently flagged:
+- All `/api/project/*` endpoints **except** `/api/project/export_snippet` and `/api/project/import_snippet` (snippet import/export must remain available - they are how the snippet browser populates and saves work).
+- All `/api/wizard/*` endpoints.
+
+Use `/api/status` to detect the mode: the response carries an `activeIsSnippetBrowser` boolean. Callers should consult this before issuing project/wizard requests.
 
 ---
 

@@ -750,6 +750,16 @@ static var buildResponseSchema(const RestHelpers::RouteMetadata& route)
 	successProp->setProperty("description", "Whether the request completed successfully");
 	envProps->setProperty("success", var(successProp.get()));
 
+	// apiVersion (auto-injected by RestServer; semver, bump on envelope/contract changes)
+	DynamicObject::Ptr versionProp = new DynamicObject();
+	versionProp->setProperty("type", "string");
+	versionProp->setProperty("description",
+		"REST API contract version (semver). Bumped when the envelope or any "
+		"route contract changes - clients should compare against the version "
+		"they were built for.");
+	versionProp->setProperty("example", String(HISE_REST_API_VERSION));
+	envProps->setProperty("apiVersion", var(versionProp.get()));
+
 	// Endpoint-specific response fields (flat, alongside success/logs/errors)
 	if (!route.responseFields.isEmpty())
 	{
@@ -809,7 +819,7 @@ static var buildResponseSchema(const RestHelpers::RouteMetadata& route)
 	envProps->setProperty("errors", var(errorsProp.get()));
 
 	envelope->setProperty("properties", var(envProps.get()));
-	envelope->setProperty("required", var(Array<var>{ var("success"), var("logs"), var("errors") }));
+	envelope->setProperty("required", var(Array<var>{ var("success"), var("apiVersion"), var("logs"), var("errors") }));
 
 	return var(envelope.get());
 }
@@ -828,7 +838,7 @@ RestServer::Response RestHelpers::handleListMethods(MainController* mc, RestServ
 	DynamicObject::Ptr info = new DynamicObject();
 	info->setProperty("title", "HISE REST API");
 	info->setProperty("description", "REST API for AI-assisted development in HISE");
-	info->setProperty("version", "1.0.0");
+	info->setProperty("version", String(HISE_REST_API_VERSION));
 	root->setProperty("info", var(info.get()));
 
 	// Servers
@@ -975,8 +985,14 @@ RestServer::Response RestHelpers::handleListMethods(MainController* mc, RestServ
 		ok200->setProperty("content", var(okContent.get()));
 		responses->setProperty("200", var(ok200.get()));
 
-		// Error responses
-		for (int code : route.errorCodes)
+		// Error responses. Routes flagged with rejectsInSnippetBrowser() implicitly
+		// surface a 409 from the dispatcher; ensure it shows up in the spec even
+		// if the route definition didn't list it.
+		Array<int> codes = route.errorCodes;
+		if (route.rejectInSnippetBrowser && !codes.contains(409))
+			codes.add(409);
+
+		for (int code : codes)
 		{
 			DynamicObject::Ptr errResp = new DynamicObject();
 
@@ -1036,9 +1052,16 @@ RestServer::Response RestHelpers::handleStatus(MainController* mc, RestServer::A
 	DynamicObject::Ptr result = new DynamicObject();
 	result->setProperty(RestApiIds::success, true);
 
+	// Reflect whether the BP that handled this request is the snippet browser.
+	// In snippet mode, callers should expect the project/wizard endpoints to
+	// be rejected with 409 (see Active Processor Routing).
+	auto bp = dynamic_cast<BackendProcessor*>(mc);
+	result->setProperty(RestApiIds::activeIsSnippetBrowser, bp != nullptr && bp->isSnippetBrowser());
+
 	// Server info
 	DynamicObject::Ptr server = new DynamicObject();
 	server->setProperty(RestApiIds::version, PresetHandler::getVersionString());
+	server->setProperty(RestApiIds::commitHash, String(PREVIOUS_HISE_COMMIT));
 	server->setProperty(RestApiIds::compileTimeout, GET_HISE_SETTING(mc->getMainSynthChain(), HiseSettings::Scripting::CompileTimeout));
 	result->setProperty(RestApiIds::server, var(server.get()));
 
@@ -3138,6 +3161,113 @@ RestServer::Response RestHelpers::handleShutdown(MainController* mc,
 	MessageManager::callAsync([]()
 	{
 		JUCEApplication::quit();
+	});
+
+	return req->waitForResponse();
+}
+
+// ============================================================================
+// Snippet Browser Endpoint Handler
+// ============================================================================
+
+RestServer::Response RestHelpers::handleSnippetBrowser(MainController* mc,
+                                                        RestServer::AsyncRequest::Ptr req)
+{
+	// Always operate on the main BackendProcessor regardless of which BP
+	// drove the dispatcher. The endpoint manages instance topology and
+	// shutdown could destroy the BP we entered with.
+	auto bp = dynamic_cast<BackendProcessor*>(mc);
+	auto main = bp != nullptr ? bp->getMainInstance() : nullptr;
+	auto mainBrw = main != nullptr ? main->currentRootWindow : nullptr;
+
+	auto obj = req->getRequest().getJsonBody();
+	auto action = obj[RestApiIds::action].toString();
+
+	// Validate input before checking UI availability, so 400-class errors
+	// (missing/invalid action) win over the headless 501 path.
+	if (action.isEmpty())
+		return req->fail(400, "action is required (launch|shutdown|enable|disable)");
+
+	if (action != "launch" && action != "shutdown" && action != "enable" && action != "disable")
+		return req->fail(400, "action must be one of: launch, shutdown, enable, disable");
+
+	if (mainBrw == nullptr)
+		return req->fail(501, "snippet browser is not available without a UI root window");
+
+	MessageManager::callAsync([main, mainBrw, action, req]()
+	{
+		auto findSnippet = [mainBrw]() -> BackendRootWindow*
+		{
+			for (auto w : mainBrw->allWindowsAndBrowsers)
+			{
+				if (auto c = w.getComponent())
+				{
+					if (c != mainBrw && c->getBackendProcessor()->isSnippetBrowser())
+						return c;
+				}
+			}
+			return nullptr;
+		};
+
+		auto snippetBrw = findSnippet();
+		bool willBeDestroyed = false;
+
+		if (action == "launch")
+		{
+			if (snippetBrw != nullptr)
+				snippetBrw->setCurrentlyActiveProcessor();
+			else
+				BackendCommandTarget::Actions::showExampleBrowser(mainBrw);
+		}
+		else if (action == "shutdown")
+		{
+			if (snippetBrw != nullptr)
+			{
+				snippetBrw->deleteThisSnippetInstance(false);
+				willBeDestroyed = true;
+			}
+		}
+		else if (action == "enable")
+		{
+			if (snippetBrw == nullptr)
+			{
+				req->complete(RestServer::Response::error(409, "no snippet browser instance to enable"));
+				return;
+			}
+			snippetBrw->setCurrentlyActiveProcessor();
+		}
+		else if (action == "disable")
+		{
+			if (snippetBrw == nullptr)
+			{
+				req->complete(RestServer::Response::error(409, "no snippet browser instance to disable"));
+				return;
+			}
+			mainBrw->setCurrentlyActiveProcessor();
+		}
+
+		// Re-evaluate state for the response. deleteThisSnippetInstance(false)
+		// schedules the delete for the next message loop iteration, so the
+		// snippet pointer may still be alive here. Use willBeDestroyed to
+		// report the eventual state.
+		bool exists = !willBeDestroyed && (findSnippet() != nullptr);
+
+		String active = "main";
+		if (!willBeDestroyed && main->callback != nullptr)
+		{
+			auto cur = dynamic_cast<BackendProcessor*>(main->callback->getCurrentProcessor());
+			if (cur != nullptr && cur->isSnippetBrowser())
+				active = "snippet";
+		}
+
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, true);
+		result->setProperty(RestApiIds::exists, exists);
+		result->setProperty(RestApiIds::active, active);
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, Array<var>());
+
+		req->complete(RestServer::Response::ok(var(result.get())));
 	});
 
 	return req->waitForResponse();

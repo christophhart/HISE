@@ -74,6 +74,7 @@ struct RestApiEndpoints
 		auto serverObj = RouteParameter(RestApiIds::server, "Server info")
 			.withType(ParamType::Object)
 			.withProperty(RouteParameter(RestApiIds::version, "REST API version string"))
+			.withProperty(RouteParameter(RestApiIds::commitHash, "Git commit hash embedded at build time (PREVIOUS_HISE_COMMIT)"))
 			.withProperty(RouteParameter(RestApiIds::compileTimeout, "Compile timeout in seconds")
 				.withType(ParamType::Int));
 
@@ -88,13 +89,19 @@ struct RestApiEndpoints
 			.withSummary("Get project status and discover available script processors")
 			.withDescription("Returns server version, project paths, and a list of all script "
 				"processors with their callbacks and external file references. Use this as the "
-				"first call to discover moduleId values for other endpoints.")
-			.withReturns("Server info, project info, and scriptProcessors array")
+				"first call to discover moduleId values for other endpoints. "
+				"The activeIsSnippetBrowser flag tells whether the BackendProcessor that handled "
+				"this request is the snippet browser instance; while true, project/* and wizard/* "
+				"endpoints return 409.")
+			.withReturns("Server info, project info, scriptProcessors array, and the activeIsSnippetBrowser flag")
+			.withResponseField(RouteParameter(RestApiIds::activeIsSnippetBrowser,
+				"True when the active BackendProcessor is the snippet browser")
+				.withType(ParamType::Bool))
 			.withResponseField(serverObj)
 			.withResponseField(projectObj)
 			.withResponseField(RouteParameter(RestApiIds::scriptProcessors, "Array of script processor entries")
 				.withArrayItems(processorEntry))
-			.withResponseExample(R"({"success": true, "server": {"version": "1.0.0", "compileTimeout": 10}, "project": {"name": "My Project", "projectFolder": "D:/Projects/MyPlugin", "scriptsFolder": "D:/Projects/MyPlugin/Scripts"}, "scriptProcessors": [{"moduleId": "Interface", "isMainInterface": true, "externalFiles": ["utils.js"], "callbacks": [{"id": "onInit", "empty": false}]}], "logs": [], "errors": []})"));
+			.withResponseExample(R"({"success": true, "activeIsSnippetBrowser": false, "server": {"version": "1.0.0", "commitHash": "cf2cb9d33a6958c5aa67aa237b60adc5f2e9f7b5", "compileTimeout": 10}, "project": {"name": "My Project", "projectFolder": "D:/Projects/MyPlugin", "scriptsFolder": "D:/Projects/MyPlugin/Scripts"}, "scriptProcessors": [{"moduleId": "Interface", "isMainInterface": true, "externalFiles": ["utils.js"], "callbacks": [{"id": "onInit", "empty": false}]}], "logs": [], "errors": []})"));
 	}
 
 	/* GET /api/status/preprocessors */
@@ -1040,6 +1047,7 @@ struct RestApiEndpoints
 	static void wizardInitialise(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::WizardInitialise, "api/wizard/initialise")
+			.rejectsInSnippetBrowser()
 			.withMethod(RestServer::GET)
 			.withCategory("wizard")
 			.withSummary("Fetch pre-populated field defaults for a wizard form")
@@ -1058,6 +1066,7 @@ struct RestApiEndpoints
 	static void wizardExecute(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::WizardExecute, "api/wizard/execute")
+			.rejectsInSnippetBrowser()
 			.withMethod(RestServer::POST)
 			.withCategory("wizard")
 			.withSummary("Execute a wizard task")
@@ -1081,6 +1090,7 @@ struct RestApiEndpoints
 	static void wizardStatus(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::WizardStatus, "api/wizard/status")
+			.rejectsInSnippetBrowser()
 			.withMethod(RestServer::GET)
 			.withCategory("wizard")
 			.withSummary("Poll progress of a long-running async wizard job")
@@ -1512,6 +1522,7 @@ struct RestApiEndpoints
 			.withProperty(RouteParameter(RestApiIds::path, "Absolute path to project folder"));
 
 		m.add(RouteMetadata(ApiRoute::ProjectList, "api/project/list")
+			.rejectsInSnippetBrowser()
 			.withCategory("project")
 			.withSummary("List available HISE projects")
 			.withDescription("Returns the merged, deduplicated union of HISE's recent projects "
@@ -1542,6 +1553,7 @@ struct RestApiEndpoints
 				.withType(ParamType::Array).asOptional());
 
 		m.add(RouteMetadata(ApiRoute::ProjectTree, "api/project/tree")
+			.rejectsInSnippetBrowser()
 			.withCategory("project")
 			.withSummary("Get project file tree with runtime reference flags")
 			.withDescription("Walks the active project folder and returns its Scripts, SampleMaps, "
@@ -1571,6 +1583,7 @@ struct RestApiEndpoints
 			.withProperty(RouteParameter(RestApiIds::modified, "ISO8601 modification timestamp"));
 
 		m.add(RouteMetadata(ApiRoute::ProjectFiles, "api/project/files")
+			.rejectsInSnippetBrowser()
 			.withCategory("project")
 			.withSummary("List saveable project files (XML and HIP)")
 			.withDescription("Enumerates the XmlPresetBackups folder (xml) and the project root "
@@ -1597,6 +1610,7 @@ struct RestApiEndpoints
 				.withType(ParamType::Array).asOptional());
 
 		m.add(RouteMetadata(ApiRoute::ProjectSettingsList, "api/project/settings/list")
+			.rejectsInSnippetBrowser()
 			.withCategory("project")
 			.withSummary("Get all project settings with metadata")
 			.withDescription("Returns every project setting (covering the Project and User "
@@ -1618,6 +1632,7 @@ struct RestApiEndpoints
 	static void projectSettingsSet(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::ProjectSettingsSet, "api/project/settings/set")
+			.rejectsInSnippetBrowser()
 			.withMethod(RestServer::POST)
 			.withCategory("project")
 			.withSummary("Update a project setting")
@@ -1638,6 +1653,7 @@ struct RestApiEndpoints
 	static void projectSave(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::ProjectSave, "api/project/save")
+			.rejectsInSnippetBrowser()
 			.withMethod(RestServer::POST)
 			.withCategory("project")
 			.withSummary("Save the current state as XML or HIP")
@@ -1670,6 +1686,7 @@ struct RestApiEndpoints
 	static void projectLoad(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::ProjectLoad, "api/project/load")
+			.rejectsInSnippetBrowser()
 			.withMethod(RestServer::POST)
 			.withCategory("project")
 			.withSummary("Load an XML or HIP file into the current project")
@@ -1689,6 +1706,7 @@ struct RestApiEndpoints
 	static void projectSwitch(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::ProjectSwitch, "api/project/switch")
+			.rejectsInSnippetBrowser()
 			.withMethod(RestServer::POST)
 			.withCategory("project")
 			.withSummary("Switch the active HISE project")
@@ -1725,6 +1743,7 @@ struct RestApiEndpoints
 	static void projectPreprocessorList(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::ProjectPreprocessorList, "api/project/preprocessor/list")
+			.rejectsInSnippetBrowser()
 			.withCategory("project")
 			.withSummary("List preprocessor defines grouped by shared scope")
 			.withDescription("Returns the active project's ExtraDefinitions preprocessor macros, "
@@ -1759,6 +1778,7 @@ struct RestApiEndpoints
 	static void projectPreprocessorSet(Array<RouteMetadata>& m)
 	{
 		m.add(RouteMetadata(ApiRoute::ProjectPreprocessorSet, "api/project/preprocessor/set")
+			.rejectsInSnippetBrowser()
 			.withMethod(RestServer::POST)
 			.withCategory("project")
 			.withSummary("Upsert or clear a preprocessor define")
@@ -1799,6 +1819,35 @@ struct RestApiEndpoints
 			.withErrorCodes({ 400 })
 			.withRequestExample(R"({"snippet": "HiseSnippet 1234.abc..."})")
 			.withResponseExample(R"({"success": true, "logs": ["Imported snippet"], "errors": []})"));
+	}
+
+	/* POST /api/snippet_browser */
+	static void snippetBrowser(Array<RouteMetadata>& m)
+	{
+		m.add(RouteMetadata(ApiRoute::SnippetBrowser, "api/snippet_browser")
+			.withMethod(RestServer::POST)
+			.withCategory("status")
+			.withSummary("Control the snippet browser instance lifecycle")
+			.withDescription("Manages a secondary BackendProcessor used for browsing/auditioning HISE snippets. "
+				"The snippet BP shares the main audio device and REST server with the main BP, but only one of "
+				"the two drives audio at a time. While the snippet browser is active, requests to other endpoints "
+				"(e.g. /api/list_components, /api/repl, /api/recompile) operate on the snippet BP. The endpoints "
+				"/api/snippet_browser and /api/shutdown always operate on the main BP. "
+				"Actions: 'launch' creates the snippet BP and switches to it (or just switches to it if already "
+				"present). 'shutdown' destroys the snippet BP and reactivates the main BP. 'enable' switches to "
+				"the existing snippet BP. 'disable' switches back to the main BP without destroying the snippet. "
+				"Returns 409 when 'enable' or 'disable' is requested but no snippet instance exists. "
+				"Returns 501 in headless builds where no UI root window is available.")
+			.withReturns("Post-action state: exists (snippet alive?) and active ('main' or 'snippet')")
+			.withBodyParam(RouteParameter(RestApiIds::action, "Lifecycle action")
+				.withEnumValues({ "launch", "shutdown", "enable", "disable" }))
+			.withResponseField(RouteParameter(RestApiIds::exists, "Whether a snippet browser instance is alive after the action")
+				.withType(ParamType::Bool))
+			.withResponseField(RouteParameter(RestApiIds::active, "Which BackendProcessor is currently driving audio")
+				.withEnumValues({ "main", "snippet" }))
+			.withErrorCodes({ 400, 409, 501 })
+			.withRequestExample(R"({"action": "launch"})")
+			.withResponseExample(R"({"success": true, "exists": true, "active": "snippet", "logs": [], "errors": []})"));
 	}
 };
 
@@ -1864,6 +1913,7 @@ const Array<RestHelpers::RouteMetadata>& RestHelpers::getRouteMetadata()
 			RestApiEndpoints::projectImportSnippet(m);
 			RestApiEndpoints::projectPreprocessorList(m);
 			RestApiEndpoints::projectPreprocessorSet(m);
+			RestApiEndpoints::snippetBrowser(m);
 
 			// Verify count matches enum
 			jassert(m.size() == (int)ApiRoute::numRoutes);

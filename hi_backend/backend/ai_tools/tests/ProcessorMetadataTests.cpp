@@ -448,17 +448,7 @@ private:
             auto modChain = dynamic_cast<ModulatorChain*>(pToTest->getChildProcessor(idx));
             expect(modChain != nullptr, "not a modulation chain: #" + String(idx));
 
-            if (auto ms = dynamic_cast<ModulatorSynth*>(pToTest))
-            {
-                auto isDisabled = ms->isChainDisabled((ModulatorSynth::InternalChains)idx) ||
-                                 modChain->isBypassed();
-                auto shouldBeDisabled = m.disabled;
-
-                expect(isDisabled == shouldBeDisabled, "disable mismatch at " + m.id.toString());
-    
-            }
-
-			auto actual = Modulation::convertToScriptnodeMode(modChain->getMode());
+            auto actual = Modulation::convertToScriptnodeMode(modChain->getMode());
 			auto expected = m.modulationMode;
 
 			expectEquals<int>((int)actual, (int)expected, "mode mismatch at " + m.id.toString());

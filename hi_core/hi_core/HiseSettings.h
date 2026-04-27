@@ -162,6 +162,7 @@ DECLARE_ID(RecompileOnFileChange);
 DECLARE_ID(EnableMousePositioning);
 DECLARE_ID(RestApiPort);
 DECLARE_ID(AutoStartRestServer);
+DECLARE_ID(CorsAllowedOrigins);
 
 Array<Identifier> getAllIds();
 
@@ -178,6 +179,7 @@ DECLARE_ID(EnableAutosave);
 DECLARE_ID(AutosaveInterval);
 DECLARE_ID(AudioThreadGuardEnabled);
 DECLARE_ID(ExternalEditorPath);
+DECLARE_ID(LinuxTerminalCommand);
 DECLARE_ID(AutoShowWorkspace);
 
 Array<Identifier> getAllIds();

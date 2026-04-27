@@ -178,6 +178,7 @@ public:
 		MenuToolsConvertSVGToPathData,
 		MenuToolsBroadcasterWizard,
 		MenuToolsToggleRestServer,
+		MenuToolsLaunchHiseCli,
 		MenuToolsShowInteractionTestWindow,
 		MenuToolsCreateExternalScriptFile,
 		

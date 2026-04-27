@@ -146,6 +146,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsConvertSVGToPathData,
         MenuToolsBroadcasterWizard,
 		MenuToolsToggleRestServer,
+        MenuToolsLaunchHiseCli,
 		MenuToolsShowInteractionTestWindow,
 		MenuExportRestoreToDefault,
 		MenuExportValidateUserPresets,
@@ -503,8 +504,12 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsToggleRestServer:
-		setCommandTarget(result, "Toggle REST API Server", true, 
+		setCommandTarget(result, "Toggle REST API Server", true,
 			bpe->getBackendProcessor()->getRestServer().isRunning(), 'X', false);
+		result.categoryName = "Tools";
+		break;
+	case MenuToolsLaunchHiseCli:
+		setCommandTarget(result, "Launch HISE CLI in Terminal", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsShowInteractionTestWindow:
@@ -792,6 +797,11 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     }
 	case MenuToolsToggleRestServer:
 	{
+		// Snippet browser instances share the main BP's REST server and must
+		// not start or stop a second one on the same port.
+		if (bpe->getBackendProcessor()->isSnippetBrowser())
+			return true;
+
 		auto& server = bpe->getBackendProcessor()->getRestServer();
 		if (server.isRunning())
 		{
@@ -799,10 +809,40 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 		}
 		else
 		{
-			int port = (int)bpe->getBackendProcessor()->getSettingsObject().getSetting(HiseSettings::Scripting::RestApiPort);
-			server.start(port);
+			auto& settings = bpe->getBackendProcessor()->getSettingsObject();
+			int port = (int)settings.getSetting(HiseSettings::Scripting::RestApiPort);
+			String corsOrigins = settings.getSetting(HiseSettings::Scripting::CorsAllowedOrigins).toString();
+			server.start(port, "127.0.0.1", corsOrigins);
 		}
 		updateCommands();
+		return true;
+	}
+	case MenuToolsLaunchHiseCli:
+	{
+		auto* mc = bpe->getBackendProcessor();
+
+		auto& server = mc->getRestServer();
+		if (!server.isRunning())
+		{
+			auto& settings = mc->getSettingsObject();
+			int port = (int)settings.getSetting(HiseSettings::Scripting::RestApiPort);
+			String corsOrigins = settings.getSetting(HiseSettings::Scripting::CorsAllowedOrigins).toString();
+			server.start(port, "127.0.0.1", corsOrigins);
+			updateCommands();
+		}
+
+		File cwd = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory();
+		if (!cwd.isDirectory())
+			cwd = File::getSpecialLocation(File::userHomeDirectory);
+
+		String terminalOverride = mc->getSettingsObject()
+			.getSetting(HiseSettings::Other::LinuxTerminalCommand).toString();
+
+		auto r = HiseCliLauncher::launch(cwd, terminalOverride);
+
+		if (r.failed())
+			PresetHandler::showMessageWindow("Launch HISE CLI failed", r.getErrorMessage(), PresetHandler::IconType::Error);
+
 		return true;
 	}
 	case MenuToolsShowInteractionTestWindow:
@@ -1149,7 +1189,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
             ADD_MENU_ITEM(MenuToolsRecompile);
             ADD_MENU_ITEM(MenuToolsConvertSVGToPathData);
             ADD_MENU_ITEM(MenuToolsBroadcasterWizard);
-            ADD_MENU_ITEM(MenuToolsToggleRestServer);
+            ADD_MENU_ITEM(MenuToolsLaunchHiseCli);
             ADD_MENU_ITEM(MenuToolsShowInteractionTestWindow);
             p.addSeparator();
             ADD_MENU_ITEM(MenuToolsShowDspNetworkDllInfo);
@@ -1166,8 +1206,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_MENU_ITEM(MenuToolsConvertSVGToPathData);
             ADD_MENU_ITEM(MenuToolsBroadcasterWizard);
             ADD_MENU_ITEM(MenuToolsToggleRestServer);
+            ADD_MENU_ITEM(MenuToolsLaunchHiseCli);
             ADD_MENU_ITEM(MenuToolsShowInteractionTestWindow);
-            
+
 			p.addSeparator();
 			p.addSectionHeader("Sample Management");
 			
@@ -3440,8 +3481,8 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 	auto bp = new BackendProcessor(dm, cb);
 
-	bp->setIsSnippetBrowser();
-	
+	bp->setIsSnippetBrowser(bpe->getBackendProcessor()->getMainInstance());
+
 	auto nw = dynamic_cast<BackendRootWindow*>(bp->createEditor());
 
 	for(auto w: bpe->allWindowsAndBrowsers)
