@@ -32,6 +32,14 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata ConstantModulator::createMetadata()
+{
+	return ProcessorMetadata(getClassType())
+		.withPrettyName("Constant")
+		.withDescription("Creates a constant modulation signal (1.0) that can be used as a fixed gain offset or modulation source.")
+		.withType<hise::VoiceStartModulator>();
+}
+
 ProcessorEditorBody *ConstantModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND

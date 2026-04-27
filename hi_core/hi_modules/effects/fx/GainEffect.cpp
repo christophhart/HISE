@@ -32,6 +32,62 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata GainEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<GainEffect>()
+		.withDescription("Utility gain processor with optional delay, stereo width, and balance control, useful for level automation, simple timing offsets, and mid-side shaping")
+		.withParameter(Par(Gain)
+			.withId("Gain")
+			.withDescription("Output gain in decibels, where 0 dB is unity and negative values attenuate the signal")
+			.withSliderMode(HiSlider::Decibel, Range(-100.0, 36.0, 1.0).withCentreSkew(0.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Delay)
+			.withId("Delay")
+			.withDescription("Static delay time in milliseconds applied to both channels")
+			.withSliderMode(HiSlider::Time, Range(0.0, 500.0, 0.0).withCentreSkew(100.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Width)
+			.withId("Width")
+			.withDescription("Stereo width percentage where 0 is mono, 100 is unchanged, and higher values exaggerate the sides")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 200.0, 1.0))
+			.withDefault(100.0f))
+		.withParameter(Par(Balance)
+			.withId("Balance")
+			.withDescription("Stereo pan position of the output signal")
+			.withSliderMode(HiSlider::Pan, {})
+			.withDefault(0.0f))
+		.withParameter(Par(InvertPolarity)
+			.withId("InvertPolarity")
+			.withDescription("Inverts the signal polarity for phase correction or mid-side processing")
+			.asToggle()
+			.withDefault(0.0f))
+		.withModulation(Mod(GainChain)
+			.withId("Gain Modulation")
+			.withDescription("Modulates the output gain")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Gain))
+		.withModulation(Mod(DelayChain)
+			.withId("Delay Modulation")
+			.withDescription("Modulates the delay time")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Delay))
+		.withModulation(Mod(WidthChain)
+			.withId("Width Modulation")
+			.withDescription("Modulates the stereo width")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Width))
+		.withModulation(Mod(BalanceChain)
+			.withId("Pan Modulation")
+			.withDescription("Modulates the stereo pan position")
+			.withMode(scriptnode::modulation::ParameterMode::Pan)
+			.withModulatedParameter(Balance));
+}
+
 GainEffect::GainEffect(MainController *mc, const String &uid) :
 MasterEffectProcessor(mc, uid),
 gain(1.0f),
@@ -55,12 +111,6 @@ smoothedGainR(1.0f)
 	balanceChain = modChains[InternalChains::BalanceChain].getChain();
 
 	smoother.setSmoothingTime(0.2f);
-
-	parameterNames.add("Gain");
-    parameterNames.add("Delay");
-    parameterNames.add("Width");
-	parameterNames.add("Balance");
-	parameterNames.add("InvertPolarity");
 
 	updateParameterSlots();
 
@@ -332,6 +382,38 @@ void GainEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 	}
 }
 
+hise::ProcessorMetadata EmptyFX::createMetadata()
+{
+	return ProcessorMetadata()
+		.withStandardMetadata<EmptyFX>()
+		.withDescription("A placeholder effect that passes audio through unchanged, useful for routing or as a template");
+}
+
+hise::ProcessorMetadata MidiMetronome::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<MidiMetronome>()
+		.withDescription("A metronome that produces click sounds synchronized to a connected MIDI player's tempo")
+		.withParameter(Par(Enabled)
+			.withId("Enabled")
+			.withDescription("Enables the metronome click output")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(Volume)
+			.withId("Volume")
+			.withDescription("The volume of the metronome click in decibels")
+			.withSliderMode(HiSlider::Decibel, Range(- 100.0, 0.0, 0.0).withCentreSkew(-12.0f))
+			.withDefault(-12.0f))
+		.withParameter(Par(NoiseAmount)
+			.withId("NoiseAmount")
+			.withDescription("Blend between sine wave and noise for the click sound, where 0 is pure sine and 1 is pure noise")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.5f));
+}
+
 ProcessorEditorBody * EmptyFX::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND
@@ -361,7 +443,8 @@ public:
 		noiseSlider("Noise")
 	{
 		addAndMakeVisible(enableButton);
-		enableButton.setup(getProcessor(), MidiMetronome::Enabled, "Enabled");
+		auto md = getProcessor()->getMetadata();
+		md.setup(enableButton, getProcessor(), MidiMetronome::Enabled);
 		addAndMakeVisible(midiPlayerSelector);
 		getProcessor()->getMainController()->skin(midiPlayerSelector);
 
@@ -369,10 +452,8 @@ public:
 
 		auto list = ProcessorHelpers::getListOfAllProcessors<MidiPlayer>(getProcessor()->getMainController()->getMainSynthChain());
 
-		gainSlider.setup(getProcessor(), MidiMetronome::Volume, "Volume");
-		gainSlider.setMode(HiSlider::Mode::Decibel);
-		noiseSlider.setup(getProcessor(), MidiMetronome::NoiseAmount, "Noise");
-		noiseSlider.setMode(HiSlider::NormalizedPercentage);
+		md.setup(gainSlider, getProcessor(), MidiMetronome::Volume);
+		md.setup(noiseSlider, getProcessor(), MidiMetronome::NoiseAmount);
 
 		noiseSlider.setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 		noiseSlider.setTextBoxStyle(Slider::TextBoxRight, false, 80, 20);

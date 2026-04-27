@@ -56,6 +56,9 @@ HardcodedMasterFX::HardcodedMasterFX(MainController* mc, const String& uid) :
 
 	getMatrix().setNumAllowedConnections(NUM_MAX_CHANNELS);
 	connectionChanged();
+
+	extraMods.updateModulationProperties({},
+		BIND_MEMBER_FUNCTION_1(HardcodedSwappableEffect::getParameterInitData));
 }
 
 HardcodedMasterFX::~HardcodedMasterFX()
@@ -327,6 +330,9 @@ HardcodedPolyphonicFX::HardcodedPolyphonicFX(MainController *mc, const String &u
 	getMatrix().init();
 	getMatrix().setOnlyEnablingAllowed(true);
 	connectionChanged();
+
+	extraModSources.updateModulationProperties({},
+		BIND_MEMBER_FUNCTION_1(HardcodedSwappableEffect::getParameterInitData));
 }
 
 HardcodedPolyphonicFX::~HardcodedPolyphonicFX()
@@ -349,8 +355,6 @@ void HardcodedPolyphonicFX::setInternalAttribute(int parameterIndex, float newVa
 void HardcodedPolyphonicFX::restoreFromValueTree(const ValueTree &v)
 {
 	VoiceEffectProcessor::restoreFromValueTree(v);
-
-	DBG(v.createXml()->createDocument(""));
 
 	ValueTree r = v.getChildWithName("RoutingMatrix");
 
@@ -582,6 +586,12 @@ ModulationDisplayValue::QueryFunction::Ptr HardcodedPolyphonicFX::getModulationQ
 }
 
 
+hise::ProcessorMetadata HardcodedTimeVariantModulator::createMetadata()
+{
+	return withHardcodedMetadata<HardcodedTimeVariantModulator>({})
+		.withDescription("Runs a compiled C++ DSP network as a monophonic time-variant modulator with dynamic parameters.");
+}
+
 HardcodedTimeVariantModulator::HardcodedTimeVariantModulator(hise::MainController *mc, const String &uid, Modulation::Mode m):
   HardcodedSwappableEffect(mc, false),
   Modulation(m),
@@ -696,6 +706,12 @@ Result HardcodedTimeVariantModulator::prepareOpaqueNode(scriptnode::OpaqueNode *
 	return Result::ok();
 }
 
+hise::ProcessorMetadata HardcodedEnvelopeModulator::createMetadata()
+{
+	return withHardcodedMetadata<HardcodedEnvelopeModulator>(EnvelopeModulator::createBaseMetadata())
+		.withDescription("Runs a compiled C++ DSP network as a polyphonic envelope modulator with per-voice state and voice management.");
+}
+
 HardcodedEnvelopeModulator::HardcodedEnvelopeModulator(MainController* mc, const String& id, int numVoices,
 	Modulation::Mode m):
 	EnvelopeModulator(mc, id, numVoices, m),
@@ -743,17 +759,6 @@ float HardcodedEnvelopeModulator::getAttribute(int index) const
 {
 	if (index < getParameterOffset())
 		return EnvelopeModulator::getAttribute(index);
-	else
-	{
-		index -= getParameterOffset();
-		return getHardcodedAttribute(index);
-	}
-}
-
-float HardcodedEnvelopeModulator::getDefaultValue(int index) const
-{
-	if (index < getParameterOffset())
-		return EnvelopeModulator::getDefaultValue(index);
 	else
 	{
 		index -= getParameterOffset();
@@ -953,7 +958,7 @@ void HardcodedSynthesiser::Voice::prepareToPlay(double sampleRate, int samplesPe
 {
 	auto numSynthChannels = synth->numChannelsToRender;
 
-	if (numSynthChannels != voiceBuffer.getNumChannels())
+	if (numSynthChannels != voiceBuffer.getNumChannels() && numSynthChannels > 0)
 		voiceBuffer.setSize(numSynthChannels, samplesPerBlock);
 	
 	ModulatorSynthVoice::prepareToPlay(sampleRate, samplesPerBlock);
@@ -985,6 +990,9 @@ HardcodedSynthesiser::HardcodedSynthesiser(MainController* mc, const String& id,
 	connectionChanged();
 
 	polyHandler.setVoiceResetter(this);
+
+	extraModSources.updateModulationProperties({},
+		BIND_MEMBER_FUNCTION_1(HardcodedSwappableEffect::getParameterInitData));
 }
 
 HardcodedSynthesiser::~HardcodedSynthesiser()
@@ -1114,16 +1122,6 @@ void HardcodedSynthesiser::setInternalAttribute(int parameterIndex, float newVal
 		setHardcodedAttribute(parameterIndex - offset, newValue);
 }
 
-float HardcodedSynthesiser::getDefaultValue(int parameterIndex) const
-{
-	auto offset = getParameterOffset();
-
-	if(parameterIndex < offset)
-		return ModulatorSynth::getDefaultValue(parameterIndex);
-
-	return getAttribute(parameterIndex - offset);
-}
-
 void HardcodedSynthesiser::connectToRuntimeTargets(scriptnode::OpaqueNode& opaqueNode, bool shouldAdd)
 {
 	if(getMainController()->isBeingDeleted())
@@ -1153,7 +1151,7 @@ bool HardcodedSynthesiser::setEffect(const String& effectName, bool cond)
 		extraModSources.updateModulationProperties(modProperties, 
 			BIND_MEMBER_FUNCTION_1(HardcodedSwappableEffect::getParameterInitData));
 	}
-
+	
 	extraModSources.updateModulationChainIdAndColour(this, modProperties,
 		BIND_MEMBER_FUNCTION_1(HardcodedSwappableEffect::getOpaqueNodeParameterId));
 

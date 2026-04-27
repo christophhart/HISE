@@ -35,12 +35,68 @@
 namespace hise {
 using namespace juce;
 
+hise::ProcessorMetadata MPEModulator::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return EnvelopeModulator::createBaseMetadata()
+		.withId(getClassType())
+		.withPrettyName("MPE Modulator")
+		.withDescription("Creates per-voice modulation from MPE pressure, slide, or glide gestures with adjustable smoothing and default values.")
+		.withType<hise::EnvelopeModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(Par(GestureCC)
+			.withId("GestureCC")
+			.withDescription("The MPE gesture type to use for this modulator")
+			.withValueList({ "Press", "Slide", "Glide", "Stroke", "Lift" }, 1)
+			.withDefault(1.0f)
+			.withDynamicDefault([](const Processor* p)
+			{
+				return (float)(int)(dynamic_cast<const MPEModulator*>(p)->getMode() == Modulation::GainMode ? Gesture::Press : Gesture::Glide);
+			}))
+		.withParameter(Par(SmoothingTime)
+			.withId("SmoothingTime")
+			.withDescription("The smoothing time for the modulation value")
+			.withSliderMode(HiSlider::Time, Range(0.0, 2000.0, 0.1).withCentreSkew(100.0))
+			.withDefault(200.0f))
+		.withParameter(Par(DefaultValue)
+			.withId("DefaultValue")
+			.withDescription("The default value when no MPE data is available")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f)
+			.withDynamicDefault([](const Processor * p)
+			{
+				auto mod = dynamic_cast<const MPEModulator*>(p);
+
+				if (mod->getMode() == Modulation::PitchMode)
+					return 0.0f;
+
+				switch (mod->g)
+				{
+				case Press: return 0.0f;
+				case Slide: return 0.5f;
+				case Glide: return 0.5f;
+				case Stroke: return 0.0f;
+				case Lift: return 0.0f;
+				case numGestures:
+				default:
+					return 0.0f;
+				}
+			}))
+		.withParameter(Par(SmoothedIntensity)
+			.withId("SmoothedIntensity")
+			.withDescription("The intensity of the modulation with smoothing applied")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(1.0f));
+}
 
 MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
 	EnvelopeModulator(mc, id, voiceAmount, m),
 	Modulation(m),
 	LookupTableProcessor(mc, 1),
 	monoState(-1),
+	metadataInitialised(updateParameterSlots()),
 	g((Gesture)(int)getDefaultValue(GestureCC)),
 	smoothedIntensity(getIntensity())
 {
@@ -48,13 +104,6 @@ MPEModulator::MPEModulator(MainController *mc, const String &id, int voiceAmount
 	
 
     setAttribute(DefaultValue, getDefaultValue(DefaultValue), dontSendNotification);
-    
-	parameterNames.add("GestureCC");
-	parameterNames.add("SmoothingTime");
-	parameterNames.add("DefaultValue");
-	parameterNames.add("SmoothedIntensity");
-
-	updateParameterSlots();
 
 	getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().sendAmountChangeMessage();
 
@@ -172,44 +221,7 @@ void MPEModulator::setInternalAttribute(int parameterIndex, float newValue)
 		
 }
 
-float MPEModulator::getDefaultValue(int parameterIndex) const
-{
-	if (parameterIndex < EnvelopeModulator::Parameters::numParameters)
-	{
-		return EnvelopeModulator::getDefaultValue(parameterIndex);
-	}
 
-	else if (parameterIndex == SpecialParameters::GestureCC)
-	{
-		return (float)(int)(getMode() == Modulation::GainMode ? Gesture::Press : Gesture::Glide);
-	}
-	else if (parameterIndex == SpecialParameters::SmoothingTime)
-	{
-		return 200.0f;
-	}
-	else if (parameterIndex == SpecialParameters::DefaultValue)
-	{
-		if (getMode() == Modulation::PitchMode)
-			return 0.0f;
-
-		switch (g)
-		{
-		case Press: return 0.0f;
-		case Slide: return 0.5f;
-		case Glide: return 0.5f;
-		case Stroke: return 0.0f;
-		case Lift: return 0.0f;
-		case numGestures: return 0.0f;
-		}
-	}
-	else if (parameterIndex == SpecialParameters::SmoothedIntensity)
-	{
-		return getMode() == Modulation::GainMode ? 1.0f : 0.0f;
-	}
-		
-
-	return 0.0f;
-}
 
 void MPEModulator::resetToDefault()
 {

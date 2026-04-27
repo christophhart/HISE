@@ -1068,20 +1068,57 @@ void MidiPlayer::EditAction::writeArrayToSequence(HiseMidiSequence::Ptr destinat
 	destination->swapCurrentSequence(newSeq.release());
 }
 
+hise::ProcessorMetadata MidiPlayer::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<MidiPlayer>()
+		.withDescription("Plays MIDI sequences with transport controls, loop regions, and multi-track support for piano roll and step sequencer overlays.")
+		.withParameter(Par(CurrentPosition)
+			.withId("CurrentPosition")
+			.withDescription("The current playback position within the MIDI file, normalized 0-1 (non-persistent)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f))
+		.withParameter(Par(CurrentSequence)
+			.withId("CurrentSequence")
+			.withDescription("The 1-based index of the currently active MIDI sequence")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 16.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(CurrentTrack)
+			.withId("CurrentTrack")
+			.withDescription("The 1-based index of the currently active track within the sequence")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 16.0, 1.0))
+			.withDefault(1.0f))
+		.withParameter(Par(LoopEnabled)
+			.withId("LoopEnabled")
+			.withDescription("Toggles between looped and one-shot playback")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(LoopStart)
+			.withId("LoopStart")
+			.withDescription("The normalized start position of the loop region (0-1)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f))
+		.withParameter(Par(LoopEnd)
+			.withId("LoopEnd")
+			.withDescription("The normalized end position of the loop region (0-1)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(1.0f))
+		.withParameter(Par(PlaybackSpeed)
+			.withId("PlaybackSpeed")
+			.withDescription("Playback speed multiplier where 1.0 is normal speed")
+			.withSliderMode(HiSlider::Linear, Range(0.01, 16.0, 0.01))
+			.withDefault(1.0f));
+}
+
 MidiPlayer::MidiPlayer(MainController *mc, const String &id, ModulatorSynth*) :
 	MidiProcessor(mc, id),
 	ownedUndoManager(new UndoManager()),
 	updater(*this),
 	overdubUpdater(*this)
 {
-	addAttributeID(CurrentPosition);
-	addAttributeID(CurrentSequence);
-	addAttributeID(CurrentTrack);
-	addAttributeID(LoopEnabled);
-	addAttributeID(LoopStart);
-	addAttributeID(LoopEnd);
-	addAttributeID(PlaybackSpeed);
-
 	updateParameterSlots();
 
 	mc->addTempoListener(this);

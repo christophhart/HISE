@@ -284,8 +284,17 @@ public:
 	void setSilent(bool shouldBeSilent) { silentMode = shouldBeSilent; }
 
     std::function<void(String)> errorFunction;
+
+	std::function<void(String)> logFunction;
     
+	void setCreateProjectFilesOnly(bool should)
+	{
+		createProjectFilesOnly = should;
+	}
+
 protected:
+
+	bool createProjectFilesOnly = false;
 
 	void setProgress(double d)
 	{
@@ -295,7 +304,9 @@ protected:
 
 	void logMessage(const String& m)
 	{
-		if(isExportingFromCommandLine())
+		if (logFunction)
+			logFunction(m);
+		else if(isExportingFromCommandLine())
 			std::cout << m << "\n";
 		else if (manager != nullptr)
 			manager->logMessage(m);

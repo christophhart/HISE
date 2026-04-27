@@ -45,7 +45,9 @@ class KeyModulator: public VoiceStartModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("KeyNumber", "Notenumber Modulator", "Creates a modulation value based on the note-number.")
+	SET_PROCESSOR_NAME("KeyNumber", "Notenumber Modulator", "")
+
+	static ProcessorMetadata createMetadata();
 
 	KeyModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m);
 

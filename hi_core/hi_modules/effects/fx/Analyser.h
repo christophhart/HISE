@@ -39,13 +39,12 @@ using namespace juce;
 
 
 
-/** A analyser that powers one of the available visualisations in HISE (FFT, Oscilloscope or Goniometer.
-	@ingroup effectTypes
-*/
 class AnalyserEffect : public MasterEffectProcessor,
                        public ProcessorWithStaticExternalData
 {
 public:
+
+	static ProcessorMetadata createMetadata();
 
 	enum Parameters
 	{
@@ -62,7 +61,7 @@ public:
         SpectrumAnalyser
     };
     
-	SET_PROCESSOR_NAME("Analyser", "Analyser", "A audio analysis module");
+	SET_PROCESSOR_NAME("Analyser", "Analyser", "");
 
 	AnalyserEffect(MainController *mc, const String &uid) :
 		MasterEffectProcessor(mc, uid),
@@ -71,11 +70,6 @@ public:
         ringBuffer = getDisplayBuffer(0);
 		ringBuffer->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 		finaliseModChains();
-
-		parameterNames.add("PreviewType"); 
-		parameterDescriptions.add("The index of the visualisation type.");
-		parameterNames.add("BufferSize");
-		parameterDescriptions.add("The buffer size of the internal ring buffer.");
 
 		updateParameterSlots();
 

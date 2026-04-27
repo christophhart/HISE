@@ -186,6 +186,7 @@ void RangeHelpers::storeDoubleRange(ValueTree& d, InvertableParameterRange r, Un
 		if(r.rng.skew != 1.0)
 		{
 			auto midPosition = r.convertFrom0to1(0.5, false);
+			midPosition = std::round(midPosition * 100.0) / 100.0;
 			d.setProperty(ri(rangeIdSet, RangeIdentifier::SkewFactor), midPosition, um);
 		}
 	}
@@ -220,6 +221,40 @@ std::pair<bool, double> RangeHelpers::getDefaultValue(const var& obj)
 		defaultValue = rng.getRange().getEnd();
 
 	return {true, defaultValue};
+}
+
+std::pair<bool, double> RangeHelpers::parseMidPointValue(const var& mp)
+{
+	// disabled sentinel
+	if (mp.isString())
+	{
+		auto s = mp.toString().trim();
+		if (s == "disabled")
+			return { false, DBL_MAX };
+
+		if (s.isEmpty())
+			return { false, 0.0 };
+
+		char* endPtr = nullptr;
+		const auto raw = s.toRawUTF8();
+		const double v = std::strtod(raw, &endPtr);
+		if (endPtr != raw && *endPtr == '\0' && std::isfinite(v))
+		{
+			double sanitized = v;
+			FloatSanitizers::sanitizeDoubleNumber(sanitized);
+			return { true, sanitized };
+		}
+
+		return { false, 0.0 };
+	}
+	// numeric var
+	if (mp.isInt() || mp.isInt64() || mp.isDouble() || mp.isBool())
+	{
+		double v = (double)mp;
+		FloatSanitizers::sanitizeDoubleNumber(v);
+		return { true, v };
+	}
+	return { false, 0.0 };
 }
 
 void RangeHelpers::storeDoubleRange(var& obj, InvertableParameterRange r, IdSet rangeIdSet)
@@ -336,10 +371,15 @@ scriptnode::InvertableParameterRange RangeHelpers::getDoubleRange(const ValueTre
 	{
 		if(set == IdSet::ScriptComponents)
 		{
-			auto midPos = (double)t[skewId];
+			auto midPos = t[skewId];
 
-			if(midPos > r.rng.start && midPos < r.rng.end)
-				r.rng.setSkewForCentre(jlimit(r.rng.start, r.rng.end, midPos));
+			auto mp = parseMidPointValue(t[skewId]);
+
+			if (mp.first)
+			{
+				if (mp.second > r.rng.start && mp.second < r.rng.end)
+					r.rng.setSkewForCentre(jlimit(r.rng.start, r.rng.end, mp.second));
+			}
 		}
 		else
 		{

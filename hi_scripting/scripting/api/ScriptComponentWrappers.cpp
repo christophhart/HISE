@@ -627,7 +627,7 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
     double min = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::min);
     double max = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptComponent::max);
 	const double stepsize = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::stepSize);
-	const double middlePos = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
+	const auto middlePos = sc->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::middlePosition);
 
 	Range<double> r(min, max);
 
@@ -658,8 +658,8 @@ void ScriptCreatedComponentWrappers::SliderWrapper::updateSliderRange(ScriptingA
 	{
 		NormalisableRange<double> nr(min, max, stepsize);
 
-		if(nr.getRange().contains(middlePos) && middlePos > nr.start)
-			nr.setSkewForCentre(middlePos);
+		if(ApiHelpers::shouldApplyMidPoint(min, max, middlePos))
+			nr.setSkewForCentre((double)middlePos);
 
 		s->setMode(sc->m, nr);
 		
@@ -3125,19 +3125,10 @@ void ScriptedControlAudioParameter::setControlledScriptComponent(ScriptingApi::C
 		{
 			range.interval = c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::stepSize);
 
-			const float midPoint = (float)c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::middlePosition);
+			const auto midPoint = c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::middlePosition);
 
-			if (range.getRange().contains(midPoint))
-			{
-				range.skew = (float)HiSlider::getSkewFactorFromMidPoint((double)min, (double)max, (double)midPoint);
-
-				if (range.skew == 0.0f)
-				{
-					// You have some weird ranges going on here...
-					jassertfalse;
-					range.skew = 1.0f;
-				}
-			}
+			if (ApiHelpers::shouldApplyMidPoint(min, max, midPoint))
+				range.setSkewForCentre((float)midPoint);
 
 			suffix = c->getScriptObjectProperty(ScriptingApi::Content::ScriptSlider::Properties::suffix);
 			break;

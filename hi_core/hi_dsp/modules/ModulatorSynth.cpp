@@ -32,21 +32,41 @@
 
 namespace hise { using namespace juce;
 
-SET_DOCUMENTATION(ModulatorSynth)
+hise::ProcessorMetadata ModulatorSynth::createBaseMetadata(bool useUnityGain)
 {
-	ADD_PARAMETER_DOC(Gain, "The volume of the synth. It is stored as gain value from `0...1` so you need to use the conversion functions when using decibel ranges");
-	ADD_PARAMETER_DOC(Balance, "The stereo balance of the synth. The range is `-100...100`");
-	ADD_PARAMETER_DOC(VoiceLimit, "The number of voices that this synth can play.");
-	ADD_PARAMETER_DOC(KillFadeTime, "If you play more than the number of available voices this determines the fade out time of the voice that is going to be killed in ms");
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
 
-	ADD_CHAIN_DOC(MidiProcessor, "MIDI",
-		"Every MIDI message that is received by the sound generator will be processed by this chain. If you ignore the message here, it won't be passed to child modules");
-	ADD_CHAIN_DOC(GainModulation, "Gain",
-		"The volume modulation of this sound generator. The modulation range 0...1 will be used as gain value");
-	ADD_CHAIN_DOC(PitchModulation, "Pitch",
-		"The pitch modulation of this sound generator. The modulation range 0...1 will be converted to pitch values according to the BiPolar parameter");
-	ADD_CHAIN_DOC(EffectChain, "FX",
-		"the effect chain of this module");
+	return ProcessorMetadata("ModulatorSynth")
+		.withParameter(Par(Gain)
+			.withId("Gain")
+			.withDescription("The output volume as normalised linear gain (0.0 to 1.0), not decibels. Use a SimpleGain effect in the FX chain for decibel-scaled volume control.")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(useUnityGain ? 1.0f : 0.25f))
+		.withParameter(Par(Balance)
+			.withId("Balance")
+			.withDescription("The stereo balance")
+			.withSliderMode(HiSlider::Pan, { -1.0, 1.0 })
+			.withDefault(0.0f))
+		.withParameter(Par(VoiceLimit)
+			.withId("VoiceLimit")
+			.withDescription("The maximum number of voices")
+			.withSliderMode(HiSlider::Discrete, { 1.0, 256.0, 1.0 })
+			.withDefault((float)NUM_POLYPHONIC_VOICES))
+		.withParameter(Par(KillFadeTime)
+			.withId("KillFadeTime")
+			.withDescription("The fade out time in milliseconds when voices are killed by exceeding the voice limit or by a voice killer")
+			.withSliderMode(HiSlider::Time, { 0.0, 20000.0, 1.0 })
+			.withDefault(20.0f))
+		.withModulation(Mod(GainModulation)
+			.withId("Gain Modulation")
+			.withDescription("Modulates the output volume")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Gain))
+		.withModulation(Mod(PitchModulation)
+			.withId("Pitch Modulation")
+			.withDescription("Modulates the pitch of all voices")
+			.withMode(scriptnode::modulation::ParameterMode::Pitch));
 }
 
 ModulatorSynth::ModulatorSynth(MainController *mc, const String &id, int numVoices) :
@@ -103,11 +123,6 @@ bypassState(false)
 	}
 
 	getMatrix().init();
-
-	parameterNames.add("Gain");
-	parameterNames.add("Balance");
-	parameterNames.add("VoiceLimit");
-	parameterNames.add("KillFadeTime");
 
 	editorStateIdentifiers.add("OverviewFolded");
 	editorStateIdentifiers.add("MidiProcessorShown");
@@ -185,18 +200,6 @@ void ModulatorSynth::setInternalAttribute(int parameterIndex, float newValue)
 	case VoiceLimit:	setVoiceLimit((int)newValue); break;
 	case KillFadeTime:	setKillFadeOutTime((double)newValue); break;
 	default:			jassertfalse; return;
-	}
-}
-
-float ModulatorSynth::getDefaultValue(int parameterIndex) const
-{
-	switch (parameterIndex)
-	{
-	case Gain:			return 1.0;
-	case Balance:		return 0.0;
-	case VoiceLimit:	return (float)64;
-	case KillFadeTime:	return 20;
-	default:			jassertfalse; return 0.0f;
 	}
 }
 
@@ -1176,8 +1179,6 @@ void ModulatorSynth::finaliseModChains()
 
 	modChains[BasicChains::GainChain].setExpandToAudioRate(true);
 	modChains[BasicChains::PitchChain].setExpandToAudioRate(true);
-
-	//pitchChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 
 	gainChain->setTableValueConverter(Modulation::getValueAsDecibel);
 	pitchChain->setTableValueConverter(Modulation::getValueAsSemitone);

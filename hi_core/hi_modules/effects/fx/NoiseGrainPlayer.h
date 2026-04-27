@@ -44,7 +44,9 @@ class NoiseGrainPlayer: public VoiceEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("NoiseGrainPlayer", "Noise Grain Player", "A granular synthesiser for residual noise playback");
+	SET_PROCESSOR_NAME("NoiseGrainPlayer", "Noise Grain Player", "");
+
+	static ProcessorMetadata createMetadata();
 
 	enum InternalChains
 	{
@@ -53,7 +55,6 @@ public:
 		numInternalChains
 	};
 
-	/** The parameters */
 	enum Parameters
 	{
 		Position = 0,
@@ -94,7 +95,6 @@ public:
 		case Parameters::GrainSize: grainSize = jlimit(1, 6, (int)newValue); recalculate(); break;
 		}
 	}
-	float getDefaultValue(int parameterIndex) const override { return 0.0f; }
 	
 	void restoreFromValueTree(const ValueTree &v) override
 	{
@@ -113,7 +113,7 @@ public:
 	{
 		auto v = VoiceEffectProcessor::exportAsValueTree();
 		AudioSampleProcessor::saveToValueTree(v);
-		saveAttribute(Position, "TableIndex");
+		saveAttribute(Position, "Position");
 		saveAttribute(Mix, "Mix");
 		saveAttribute(WhiteNoise, "WhiteNoise");
 		saveAttribute(GrainSize, "GrainSize");

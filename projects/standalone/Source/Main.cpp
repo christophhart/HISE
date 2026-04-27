@@ -197,8 +197,6 @@ public:
 		print("");
 		print("create_module_list");
 		print("Creates a cache file that contains all relevant properties for the Builder AI agent to work.");
-		print("This includes an updated list of all modules & parameters as well as project-specific assets like samplemaps & audio files");
-		print("Run this whenever the project structure change to ensure that the Builder agent has the correct dataset to work with.");
 		print("");
 		print("get_build_flags");
 		print("Prints out the build flags that were used when compiling HISE.");
@@ -954,497 +952,135 @@ return 0;
 		print("Current project folder:\n" + getCurrentProjectFolder().getFullPathName());
 	}
 
-	static void fetchParameters(const String& commandLine)
-	{
-		auto args = getCommandLineArgs(commandLine);
-
-		auto typeIds = getArgument(args, "-m:");
-
-		if (typeIds.isEmpty())
-			throwErrorAndQuit("No module ID specified. Call fetch_parameters -m:TypeId1,TypeId2 to get the parameter list for the given module");
-
-		CLIInstance instance;
-
-		raw::Builder b(instance.getBackendProcessor());
-
-		auto sine = b.create<SineSynth>(instance.getMainSynthChain());
-
-		auto soundGenerators = instance.getMainSynthChain()->getFactoryType();
-		auto mps = dynamic_cast<Chain*>(sine->getChildProcessor(0))->getFactoryType();
-		auto mods = dynamic_cast<Chain*>(sine->getChildProcessor(1))->getFactoryType();
-		auto effects = dynamic_cast<Chain*>(sine->getChildProcessor(3))->getFactoryType();
-
-		auto idList = StringArray::fromTokens(typeIds, ",;", "");
-
-		DynamicObject::Ptr modules = new DynamicObject();
-
-		for (auto typeId : idList)
-		{
-			print("Fetching parameters for module type " + typeId);
-
-			WeakReference<Processor> p;
-
-			if (soundGenerators->allowType(typeId))
-				p = b.create(instance.getMainSynthChain(), typeId, -1);
-			if (mps->allowType(typeId))
-				p = b.create(sine, typeId, raw::IDs::Chains::Midi);
-			if (mods->allowType(typeId))
-				p = b.create(sine, typeId, raw::IDs::Chains::Gain);
-			if (effects->allowType(typeId))
-				p = b.create(sine, typeId, raw::IDs::Chains::FX);
-
-			if (p != nullptr)
-			{
-				DynamicObject::Ptr parameters = new DynamicObject();
-
-				for (int i = 0; i < p->getNumAttributes(); i++)
-				{
-					DynamicObject::Ptr pobj = new DynamicObject();
-					pobj->setProperty("defaultValue", p->getAttribute(i));
-					parameters->setProperty(p->getIdentifierForParameterIndex(i), var(pobj.get()));
-				}
-
-				ProcessorEditorContainer pc;
-				ProcessorEditor pe(&pc, 0, p, nullptr);
-
-				Component::callRecursive<MacroControlledObject>(&pe, [&](MacroControlledObject* mco)
-				{
-					auto pIndex = mco->getParameter();
-					auto pId = p->getIdentifierForParameterIndex(pIndex);
-
-					if (auto existing = parameters->getProperty(pId).getDynamicObject())
-					{
-						InvertableParameterRange r;
-						r.rng = mco->getRange();
-						var existingVar(existing);
-						RangeHelpers::storeDoubleRange(existingVar, r, scriptnode::RangeHelpers::IdSet::ScriptComponents);
-
-						if ((int)existing->getProperty("stepSize") == 1)
-						{
-
-							existing->setProperty("min", (int)existing->getProperty("min"));
-							existing->setProperty("max", (int)existing->getProperty("max"));
-							existing->setProperty("defaultValue", (int)existing->getProperty("defaultValue"));
-
-							if ((int)existing->getProperty("min") == 0 && (int)existing->getProperty("max") == 1)
-							{
-								existing->setProperty("min", (bool)existing->getProperty("min"));
-								existing->setProperty("max", (bool)existing->getProperty("max"));
-								existing->setProperty("defaultValue", (bool)existing->getProperty("defaultValue"));
-							}
-						}
-
-
-						existing->removeProperty("middlePosition");
-						existing->removeProperty("stepSize");
-						existing->removeProperty("Inverted");
-
-						if (auto s = dynamic_cast<HiSlider*>(mco))
-						{
-							existing->setProperty("mode", s->getModeId());
-							existing->setProperty("valueAsString", s->getTextFromValue(s->getValue()));
-						}
-
-						if (auto cb = dynamic_cast<HiComboBox*>(mco))
-						{
-							existing->setProperty("min", (int)existing->getProperty("min") - 1);
-							existing->setProperty("max", (int)existing->getProperty("max") - 1);
-							existing->setProperty("defaultValue", (int)existing->getProperty("defaultValue") - 1);
-
-							Array<var> items;
-
-							for (int i = 0; i < cb->getNumItems(); i++)
-								items.add(cb->getItemText(i));
-
-							existing->setProperty("items", var(items));
-						}
-					}
-
-					return false;
-				});
-
-				modules->setProperty(Identifier(typeId), var(parameters.get()));
-			}
-			else
-				throwErrorAndQuit("Can't find module with ID " + typeId);
-		}
-
-		print(JSON::toString(var(modules.get())));
-		
-	}
-
 	static void createBuilderCache(const String& commandLine)
 	{
+#if 0
+		scriptnode::NodeDatabase db;
+
+		auto processNodes = db.getNodeIds(false);
+		auto signalNodes = db.getNodeIds(true);
+		
+		auto desc = db.getDescriptions();
+		
+
+		DynamicObject::Ptr obj = new DynamicObject();
+
+		auto createMetadata = [&](const ValueTree& n)
+		{
+			auto path = n[PropertyIds::FactoryPath].toString();
+			auto pp = db.getProperties(path);
+
+			ProcessorMetadata md(n[PropertyIds::ID].toString());
+			md.type = pp->getProperty(PropertyIds::IsPolyphonic) ? "polyphonic" : "monophonic";
+			md.description = desc[path];
+			md.hasChildren = n.getChildWithName(PropertyIds::Nodes).isValid();
+			md.hasFX = pp->getProperty(PropertyIds::IsControlNode);
+
+			for (auto cn : n.getChildWithName(PropertyIds::ComplexData))
+			{
+				auto dt = ExternalData::getDataTypeForId(cn.getType(), true);
+
+				for (auto d : cn)
+					md = md.withComplexDataInterface(dt);
+			}
+
+			int idx = 0;
+
+			for (auto p : n.getChildWithName(PropertyIds::Parameters))
+			{
+				ProcessorMetadata::ParameterMetadata pd(idx);
+
+				pd.id = p[PropertyIds::ID].toString();
+
+				pd = pd.withRange(RangeHelpers::getDoubleRange(p));
+				pd.vtc = ValueToTextConverter::fromString(p[PropertyIds::TextToValueConverter].toString());
+				pd.parameterIndex = idx++;
+
+				md = md.withParameter(pd);
+			}
+
+			if (n.getChildWithName(PropertyIds::ModulationTargets).isValid())
+			{
+				ProcessorMetadata::ModulationMetadata mod(0);
+
+				mod.id = "Mod Output";
+
+
+				if (pp->getProperty(PropertyIds::UseUnnormalisedModulation))
+					mod.constrainerWildcard = "Unnormalised";
+				else
+					mod.constrainerWildcard = "Normalised";
+
+				md = md.withModulation(mod);
+			}
+
+			idx = 0;
+
+			for (auto sw : n.getChildWithName(PropertyIds::SwitchTargets))
+			{
+				ProcessorMetadata::ModulationMetadata mod(idx++);
+
+				mod.id = "Mod Output " + String(idx);
+
+				if (pp->getProperty(PropertyIds::UseUnnormalisedModulation))
+					mod.description = "Unnormalised";
+				else
+					mod.description = "Normalised";
+
+				md = md.withModulation(mod);
+			}
+
+			return md;
+		};
+
+		auto cleanupJSON = [&](const ValueTree& n, DynamicObject* f, const String& pn)
+		{
+			auto pp = db.getProperties(pn);
+
+			f->removeProperty("builderPath");
+			f->removeProperty("prettyName");
+			f->removeProperty("subType");
+			f->removeProperty("fxConstrainer");
+
+			DynamicObject::Ptr properties = new DynamicObject();
+
+			for (auto prop : n.getChildWithName(PropertyIds::Properties))
+			{
+				properties->setProperty(prop[PropertyIds::ID].toString(), prop[PropertyIds::Value]);
+			}
+
+			f->setProperty("hasMidi", pp->getProperty(PropertyIds::IsProcessingHiseEvent) ? true : false);
+			f->setProperty("properties", var(properties.get()));
+		};
+
+		for (auto pn : processNodes)
+		{
+			auto n = db.getValueTree(pn);
+			auto md = createMetadata(n);
+			auto f = md.toJSON();
+			cleanupJSON(n, f.getDynamicObject(), pn);
+			
+			obj->setProperty(pn, f);
+		}
+
+		for (auto pn : signalNodes)
+		{
+			auto n = db.getValueTree(pn);
+			auto md = createMetadata(n);
+			auto f = md.toJSON();
+			cleanupJSON(n, f.getDynamicObject(), pn);
+			obj->setProperty(pn, f);
+
+		}
+
+		auto nf = File::getSpecialLocation(File::userDesktopDirectory).getChildFile("scriptnodeList2.json");
+		nf.replaceWithText(JSON::toString(var(obj.get())));
+#endif
+
+		hise::ProcessorMetadataRegistry r;
 		print("Building module list...");
-
-		enum class Verbosity
-		{
-			All = 0,
-			NoParameters,
-			NoSlots,
-			NoInterfaces
-		};
-
-		auto args = getCommandLineArgs(commandLine);
-
-		auto filter = getArgument(args, "-filter:").toLowerCase();
-
-		auto verbosity = (Verbosity)getArgument(args, "--verbose:").getIntValue();
-
-		CLIInstance instance;
-
-		raw::Builder b(instance.getBackendProcessor());
-
-		auto sine = b.create<SineSynth>(instance.getMainSynthChain());
-
-		auto soundGenerators = instance.getMainSynthChain()->getFactoryType();
-		auto mps = dynamic_cast<Chain*>(sine->getChildProcessor(0))->getFactoryType();
-		auto mods = dynamic_cast<Chain*>(sine->getChildProcessor(1))->getFactoryType();
-		auto effects = dynamic_cast<Chain*>(sine->getChildProcessor(3))->getFactoryType();
-
-		struct ProcessorInformation
-		{
-			ProcessorInformation(Processor* p_) :
-				p(p_)
-			{
-			}
-
-			var toJSON(Verbosity verbosity) const
-			{
-				DynamicObject::Ptr obj = new DynamicObject();
-
-				obj->setProperty("ID", p->getType().toString());
-				obj->setProperty("PrettyName", p->getName());
-
-				
-				if (p->getType().toString().containsChar(' '))
-				{
-					// ouch, this shouldn't happen!
-					auto id = p->getId();
-					jassertfalse;
-				}
-
-				String builderPath = "Builder.";
-
-
-				
-
-				if (dynamic_cast<ModulatorSynth*>(p.get()) != nullptr)
-				{
-					obj->setProperty("Type", "SoundGenerator");
-					builderPath << "SoundGenerators.";
-				}
-					
-				if (dynamic_cast<VoiceStartModulator*>(p.get()) != nullptr)
-				{
-					obj->setProperty("Type", "VoiceStartModulator");
-					builderPath << "Modulators.";
-				}
-					
-				if (dynamic_cast<TimeVariantModulator*>(p.get()) != nullptr)
-				{
-					obj->setProperty("Type", "TimeVariantModulator");
-					builderPath << "Modulators.";
-				}
-					
-				if (dynamic_cast<EnvelopeModulator*>(p.get()) != nullptr)
-				{
-					obj->setProperty("Type", "EnvelopeModulator");
-					builderPath << "Modulators.";
-				}
-					
-				if (dynamic_cast<VoiceEffectProcessor*>(p.get()) != nullptr)
-				{
-					obj->setProperty("Type", "VoiceEffectProcessor");
-					builderPath << "Effects.";
-				}
-					
-				if (dynamic_cast<MasterEffectProcessor*>(p.get()) != nullptr)
-				{
-					obj->setProperty("Type", "MasterEffectProcessor");
-					builderPath << "Effects.";
-				}
-					
-				builderPath << p->getType().toString();
-
-				obj->setProperty("BuilderPath", builderPath);
-
-				Array<var> specialTypes;
-				Array<var> scriptInterfaces;
-
-				if (dynamic_cast<DspNetwork::Holder*>(p.get()))
-					specialTypes.add("Scriptnode");
-				if (dynamic_cast<HardcodedSwappableEffect*>(p.get()))
-					specialTypes.add("Hardcoded");
-				if (dynamic_cast<SlotFX*>(p.get()))
-					specialTypes.add("SlotFX");
-				if (dynamic_cast<JavascriptProcessor*>(p.get()))
-					specialTypes.add("Script");
-
-#define RETURN_IF_MATCH(Type, PType) if(dynamic_cast<PType*>(p.get()) != nullptr) scriptInterfaces.add(Type::getClassName().toString());
-
-				RETURN_IF_MATCH(ScriptingObjects::ScriptingMidiProcessor, hise::MidiProcessor);
-				RETURN_IF_MATCH(ScriptingObjects::ScriptingModulator, hise::Modulator);
-				RETURN_IF_MATCH(ScriptingObjects::ScriptingSynth, hise::ModulatorSynth);
-				RETURN_IF_MATCH(ScriptingObjects::ScriptingEffect, hise::EffectProcessor);
-				RETURN_IF_MATCH(ScriptingApi::Sampler, hise::ModulatorSampler);
-				RETURN_IF_MATCH(ScriptingObjects::ScriptedMidiPlayer, hise::MidiPlayer);
-				RETURN_IF_MATCH(ScriptingObjects::ScriptRoutingMatrix, hise::Processor);
-				RETURN_IF_MATCH(ScriptingObjects::ScriptingSlotFX, hise::HotswappableProcessor);
-
-#undef RETURN_IF_MATCH
-
-				if (verbosity < Verbosity::NoInterfaces)
-				{
-					if(!specialTypes.isEmpty())
-						obj->setProperty("SlotFXTypes", var(specialTypes));
-
-					obj->setProperty("InterfaceTypes", var(scriptInterfaces));
-				}
-				
-
-				
-				Array<var> children;
-
-				std::map<String, String> namedChainIds;
-				std::map<String, String> parentToChildType;
-
-				namedChainIds["GainModulation"] = "ChainIndexes.Gain";
-				namedChainIds["PitchModulation"] = "ChainIndexes.Pitch";
-				namedChainIds["Midi Processor"] = "ChainIndexes.Midi";
-				namedChainIds["FX"] = "ChainIndexes.FX";
-
-				parentToChildType["MidiProcessorChain"] = "MidiProcessor";
-				parentToChildType["ModulatorChain"] = "Modulator";
-				parentToChildType["EffectChain"] = "FX";
-				
-
-				for (int i = 0; i < p->getNumChildProcessors(); i++)
-				{
-					if (auto ms = dynamic_cast<ModulatorSynth*>(p.get()))
-					{
-						if (isPositiveAndBelow(i, ModulatorSynth::numInternalChains) && ms->isChainDisabled((ModulatorSynth::InternalChains)i))
-							continue;
-					}
-
-					DynamicObject::Ptr cobj = new DynamicObject();
-					auto c = p->getChildProcessor(i);
-
-					auto pid = c->getId();
-					auto ptype = c->getType().toString();
-
-					
-
-					cobj->setProperty("ChainIndex", i);
-					cobj->setProperty("ID", pid);
-					cobj->setProperty("Type", ptype);
-
-					
-
-					if (parentToChildType.find(ptype) != parentToChildType.end())
-						cobj->setProperty("Type", parentToChildType[ptype]);
-
-					if (namedChainIds.find(pid) != namedChainIds.end())
-						cobj->setProperty("ChainIndex", namedChainIds[pid]);
-
-					if (auto cc = dynamic_cast<Chain*>(c))
-					{
-						cobj->setProperty("Allowed", "*");
-
-						if (auto modChain = dynamic_cast<ModulatorChain*>(c))
-						{
-							cobj->setProperty("ID", modChain->getDisplayName());
-
-							Modulation::Mode mode = modChain->getMode();
-
-							StringArray modes =
-							{
-								"Gain",
-								"Pitch",
-								"Pan",
-								"Global",
-								"Offset",
-								"Combined"
-							};
-
-							cobj->setProperty("Mode", modes[(int)mode]);
-
-							if (dynamic_cast<VoiceStartModulatorFactoryType*>(cc->getFactoryType()))
-								cobj->setProperty("Allowed", "VoiceStartModulator");
-						}
-
-						if (auto constrainer = cc->getFactoryType()->getConstrainer())
-							cobj->setProperty("Allowed", constrainer->getDescription());	
-					}
-
-					children.add(cobj.get());
-				}
-
-				if (auto c = dynamic_cast<Chain*>(p.get()))
-				{
-					auto dobj = new DynamicObject();
-					dobj->setProperty("ChainIndex", "ChainIndexes.Direct");
-					dobj->setProperty("ID", p->getId());
-					dobj->setProperty("Type", "SoundGenerator");
-				}
-				
-				
-
-				if (auto eh = dynamic_cast<ExternalDataHolder*>(p.get()))
-				{
-					if(verbosity < Verbosity::NoInterfaces)
-					{
-						ExternalData::forEachType([&](ExternalData::DataType dt)
-						{
-							auto numObjects = eh->getNumDataObjects(dt);
-
-							if (numObjects > 0)
-							{
-
-#define RETURN_IF_MATCH(scriptClass, type) if (dt == type) obj->getProperty("InterfaceTypes").getArray()->addIfNotAlreadyThere(scriptClass::getClassName().toString());
-
-							RETURN_IF_MATCH(ScriptingObjects::ScriptingAudioSampleProcessor, ExternalData::DataType::AudioFile);
-							RETURN_IF_MATCH(ScriptingObjects::ScriptSliderPackProcessor, ExternalData::DataType::SliderPack);
-							RETURN_IF_MATCH(ScriptingObjects::ScriptingTableProcessor, ExternalData::DataType::Table);
-							RETURN_IF_MATCH(ScriptingObjects::ScriptDisplayBufferSource, ExternalData::DataType::DisplayBuffer);
-#undef RETURN_IF_MATCH
-
-								obj->setProperty(ExternalData::getDataTypeName(dt, true), numObjects);
-							}
-						});
-					}
-				}
-
-				if(verbosity < Verbosity::NoSlots)
-					obj->setProperty("Chains", var(children));
-
-				return var(obj.get());
-			}
-
-			WeakReference<Processor> p;
-		};
-
-		DynamicObject::Ptr slots = new DynamicObject();
-
-		DynamicObject::Ptr go = new DynamicObject();
-
-		{
-			Array<var> sgList;
-
-			for (auto sg : soundGenerators->getAllowedTypes())
-			{
-				auto p = b.create(instance.getMainSynthChain(), sg.type, -1);
-
-				if (filter.isNotEmpty() && !p->getId().toLowerCase().contains(filter))
-					continue;
-
-				sgList.add(ProcessorInformation(p).toJSON(verbosity));
-
-			}
-
-			go->setProperty("SoundGenerators", var(sgList));
-		}
-		
-		{
-			Array<var> midiList;
-
-			for (auto mp : mps->getAllowedTypes())
-			{
-				auto p = b.create(sine, mp.type, raw::IDs::Chains::Midi);
-
-				if (filter.isNotEmpty() && !p->getId().toLowerCase().contains(filter))
-					continue;
-
-				midiList.add(ProcessorInformation(p).toJSON(verbosity));
-			}
-
-			go->setProperty("MidiProcessors", var(midiList));
-		}
-
-		{
-			Array<var> modList;
-
-			for (auto mod : mods->getAllowedTypes())
-			{
-				auto p = b.create(sine, mod.type, raw::IDs::Chains::Gain);
-
-				if (filter.isNotEmpty() && !p->getId().toLowerCase().contains(filter))
-					continue;
-
-				modList.add(ProcessorInformation(p).toJSON(verbosity));
-			}
-
-			go->setProperty("Modulators", var(modList));
-		}
-		
-		{
-			Array<var> fxList;
-
-			for (auto fx : effects->getAllowedTypes())
-			{
-				auto p = b.create(sine, fx.type, raw::IDs::Chains::FX);
-
-				if (filter.isNotEmpty() && !p->getId().toLowerCase().contains(filter))
-					continue;
-
-				fxList.add(ProcessorInformation(p).toJSON(verbosity));
-			}
-
-			go->setProperty("FX", var(fxList));
-		}
-
-		auto numHardcodedFXSlots = HISE_GET_PREPROCESSOR(instance.getBackendProcessor(), NUM_HARDCODED_FX_MODS);
-		auto numHardcodedPolyFXSlots = HISE_GET_PREPROCESSOR(instance.getBackendProcessor(), NUM_HARDCODED_POLY_FX_MODS);
-		auto numHardcodedSynthSlots = HISE_GET_PREPROCESSOR(instance.getBackendProcessor(), NUM_HARDCODED_SYNTH_MODS);
-		
-		auto maxSlots = jmax(numHardcodedFXSlots, numHardcodedPolyFXSlots, numHardcodedSynthSlots);
-		
-		HardcodedSwappableEffect* hc[3];
-
-		hc[0] = ProcessorHelpers::getFirstProcessorWithType<HardcodedMasterFX>(instance.getMainSynthChain());
-		hc[1] = ProcessorHelpers::getFirstProcessorWithType<HardcodedPolyphonicFX>(instance.getMainSynthChain());
-		hc[2] = ProcessorHelpers::getFirstProcessorWithType<HardcodedSynthesiser>(instance.getMainSynthChain());
-		
-		jassert(hc[0] != nullptr && hc[1] != nullptr && hc[2] != nullptr);
-
-		HardcodedSwappableEffect* toUse = nullptr;
-
-		if (maxSlots == numHardcodedFXSlots)
-			toUse = hc[0];
-		if (maxSlots == numHardcodedPolyFXSlots)
-			toUse = hc[1];
-		if (maxSlots == numHardcodedSynthSlots)
-			toUse = hc[2];
-
-		if (toUse != nullptr)
-		{
-			auto asP = dynamic_cast<Processor*>(toUse);
-			DynamicObject::Ptr hobj = new DynamicObject();
-
-			auto list = toUse->getModuleList();
-
-			for (auto id : list)
-			{
-				toUse->setEffect(id, false);
-
-				auto n = ProcessorInformation(asP).toJSON(verbosity);
-				n.getDynamicObject()->removeProperty("ID");
-				n.getDynamicObject()->removeProperty("Type");
-				n.getDynamicObject()->removeProperty("InterfaceTypes");
-				n.getDynamicObject()->removeProperty("PrettyName");
-				n.getDynamicObject()->removeProperty("SlotTypes");
-
-				hobj->setProperty(id, n);
-			}
-
-			go->setProperty("HardcodedNetworks", var(hobj.get()));
-		}
-		else
-		{
-			jassertfalse;
-		}
-
-		instance.getProjectRoot().getChildFile("builderCache.js").replaceWithText(JSON::toString(var(go.get())));
+		auto tf = File::getSpecialLocation(File::userDesktopDirectory).getChildFile("moduleList.json");
+		tf.replaceWithText(JSON::toString(r.toJSON()));
 	}
 
 	static void cleanBuildFolder(const String& commandLine)
@@ -1972,10 +1608,10 @@ public:
 		{
 #if HI_RUN_UNIT_TESTS
 			UnitTestRunner runner;
-			runner.setAssertOnFailure(true);
+			//runner.setAssertOnFailure(false);
             
 			// If you're working on a unit test, just set this to the "Current" category
-			const String category = "allofem";
+			const String category = "";
 
             if(UnitTest::getTestsInCategory(category).isEmpty())
                 runner.runAllTests();
@@ -2072,12 +1708,6 @@ public:
 			quit();
 			return;
 		}
-		else if (commandLine.startsWith("fetch_parameters"))
-		{
-			CommandLineActions::fetchParameters(commandLine);
-			quit();
-			return;
-		}
 		else if (commandLine.startsWith("compile_networks"))
 		{
 			CommandLineActions::compileNetworks(commandLine);
@@ -2104,12 +1734,10 @@ public:
 		}
     }
 
-    void shutdown() override
-    {
-        // Add your application's shutdown code here..
-
-        mainWindow = nullptr; // (deletes our window)
-    }
+	void shutdown() override
+	{
+		mainWindow = nullptr; // (deletes our window)
+	}
 
     //==============================================================================
     void systemRequestedQuit() override

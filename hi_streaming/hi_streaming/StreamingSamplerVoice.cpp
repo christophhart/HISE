@@ -674,12 +674,14 @@ void StreamingSamplerVoice::startNote(int /*midiNoteNumber*/,
 
 void StreamingSamplerVoice::skipTimestretchSilenceAtStart()
 {
-	auto numBeforeOutput = stretcher.getLatency(stretchRatio);
+	// Use roundToInt to match skipLatency's rounding — mismatched rounding causes a
+	// one-sample buffer overread into uninitialised memory at certain stretch ratios.
+	auto numBeforeOutput = roundToInt(stretcher.getLatency(stretchRatio));
 
 	StereoChannelData data = loader.fillVoiceBuffer(*getTemporaryVoiceBuffer(), numBeforeOutput);
 
-	auto outL = (float*)alloca(sizeof(float*) * numBeforeOutput);
-	auto outR = (float*)alloca(sizeof(float*) * numBeforeOutput);
+	auto outL = (float*)alloca(sizeof(float) * numBeforeOutput);
+	auto outR = (float*)alloca(sizeof(float) * numBeforeOutput);
 
 	interpolateFromStereoData(0, outL, outR, numBeforeOutput, nullptr, 1.0, 0.0, data, numBeforeOutput);
 

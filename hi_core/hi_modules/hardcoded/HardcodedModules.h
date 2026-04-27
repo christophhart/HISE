@@ -43,7 +43,19 @@ class HardcodedMasterFX: public MasterEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("HardcodedMasterFX", "Hardcoded Master FX", "A master effect wrapper around a compiled DSP network");
+	SET_PROCESSOR_NAME("HardcodedMasterFX", "Hardcoded Master FX", "");
+
+	static ProcessorMetadata createMetadata()
+	{
+		return withHardcodedMetadata<HardcodedMasterFX>({})
+			.withDescription("Runs a compiled C++ DSP network as a master effect, with dynamic parameter and complex data exposure from the network.");
+	}
+
+	ProcessorMetadata getMetadata() const override
+	{
+		auto numHardcodedFXSlots = HISE_GET_PREPROCESSOR(getMainController(), NUM_HARDCODED_FX_MODS);
+		return withDynamicMetadata(createMetadata(), numHardcodedFXSlots, 0);
+	}
 
 	HardcodedMasterFX(MainController* mc, const String& uid);
 	~HardcodedMasterFX() override;
@@ -99,7 +111,19 @@ class HardcodedPolyphonicFX : public VoiceEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("HardcodedPolyphonicFX", "Hardcoded Polyphonic FX", "A polyphonic hardcoded FX.");
+	SET_PROCESSOR_NAME("HardcodedPolyphonicFX", "Hardcoded Polyphonic FX", "");
+
+	static ProcessorMetadata createMetadata()
+	{
+		return withHardcodedMetadata<HardcodedPolyphonicFX>({})
+			.withDescription("Runs a compiled C++ DSP network as a polyphonic effect, processing each voice independently with per-voice state.");
+	}
+
+	ProcessorMetadata getMetadata() const override
+	{
+		auto numHardcodedPolyFXSlots = HISE_GET_PREPROCESSOR(getMainController(), NUM_HARDCODED_POLY_FX_MODS);
+		return withDynamicMetadata(createMetadata(), numHardcodedPolyFXSlots, 0);
+	}
 
 	HardcodedPolyphonicFX(MainController *mc, const String &uid, int numVoices);;
 	~HardcodedPolyphonicFX() override;
@@ -159,7 +183,14 @@ class HardcodedTimeVariantModulator: public TimeVariantModulator,
 {
 public:
     
-    SET_PROCESSOR_NAME("HardcodedTimevariantModulator", "Hardcoded Time Variant Modulator", "A time variant modulator wrapper around a compiled DSP network");
+    SET_PROCESSOR_NAME("HardcodedTimevariantModulator", "Hardcoded Time Variant Modulator", "");
+
+	static ProcessorMetadata createMetadata();
+
+	ProcessorMetadata getMetadata() const override
+	{
+		return withDynamicMetadata(createMetadata(), -1, 0);
+	}
 
     HardcodedTimeVariantModulator(MainController* mc, const String& uid, Modulation::Mode m);
     ~HardcodedTimeVariantModulator() override;;
@@ -199,10 +230,17 @@ class HardcodedEnvelopeModulator: public EnvelopeModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("HardcodedEnvelopeModulator", "Hardcoded Envelope Modulator", "A envelope modulator wrapper around a compiled DLL node");
+	SET_PROCESSOR_NAME("HardcodedEnvelopeModulator", "Hardcoded Envelope Modulator", "");
 
 	HardcodedEnvelopeModulator(MainController* mc, const String& id, int numVoices, Modulation::Mode m);
 	~HardcodedEnvelopeModulator() override;
+
+	static ProcessorMetadata createMetadata();
+
+	ProcessorMetadata getMetadata() const override
+	{
+		return withDynamicMetadata(createMetadata(), -1, 0);
+	}
 
 	// Child processor methods
 	Processor *getChildProcessor(int processorIndex) override { return nullptr; };
@@ -227,7 +265,6 @@ public:
 	int getParameterOffset() const override;
 	void setInternalAttribute(int index, float newValue) override;
 	float getAttribute(int index) const override;
-	float getDefaultValue(int index) const override;
 
 	bool checkHardcodedChannelCount() override;
 
@@ -263,7 +300,19 @@ class HardcodedSynthesiser: public ModulatorSynth,
 {
 	public:
 
-	SET_PROCESSOR_NAME("HardcodedSynth", "Hardcoded Synthesiser", "A polyphonic synthesiser that uses a compiled network as sound generator.");
+	SET_PROCESSOR_NAME("HardcodedSynth", "Hardcoded Synthesiser", "");
+
+	static ProcessorMetadata createMetadata()
+	{
+		return withHardcodedMetadata<HardcodedSynthesiser>(ModulatorSynth::createBaseMetadata())
+			  .withDescription("Runs a compiled C++ DSP network as a polyphonic sound generator with per-voice processing and full modulator chain support.");
+	}
+
+	ProcessorMetadata getMetadata() const override
+	{
+		auto numMods = HISE_GET_PREPROCESSOR(getMainController(), NUM_HARDCODED_SYNTH_MODS);
+		return withDynamicMetadata(createMetadata(), numMods, ModulatorSynth::numInternalChains);
+	}
 
 	struct Sound : public ModulatorSynthSound
 	{
@@ -299,6 +348,8 @@ class HardcodedSynthesiser: public ModulatorSynth,
 		return sa;
 	}
 
+	
+
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
 	void connectionChanged() override;
@@ -320,8 +371,7 @@ class HardcodedSynthesiser: public ModulatorSynth,
 	// parameter methods
 	float getAttribute(int parameterIndex) const override;
 	void setInternalAttribute(int parameterIndex, float newValue) override;
-	float getDefaultValue(int parameterIndex) const override;
-
+	
 	int getParameterOffset() const override { return ModulatorSynth::Parameters::numModulatorSynthParameters; }
 
 	// extra mod methods

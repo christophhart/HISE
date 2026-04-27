@@ -253,8 +253,6 @@ class ModulatorSynthGroup : public ModulatorSynth,
 {
 public:
 
-	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
-	
 	enum ModChains
 	{
 		Detune = 2,
@@ -274,7 +272,69 @@ public:
 		numSynthGroupParameters
 	};
 
-	SET_PROCESSOR_NAME("SynthGroup", "Synthesiser Group", "A container for other Sound generators that allows FM and other additional synthesis types.");
+	SET_PROCESSOR_NAME("SynthGroup", "Synthesiser Group", "");
+
+	static ProcessorMetadata createMetadata()
+	{
+		using Par = ProcessorMetadata::ParameterMetadata;
+		using Mod = ProcessorMetadata::ModulationMetadata;
+
+		return ModulatorSynth::createBaseMetadata(true)
+			.withStandardMetadata<ModulatorSynthGroup>()
+			.withDescription("A container for synthesisers that share common modulation, with optional FM synthesis and unison detune/spread.")
+			.withChildConstrainer<SynthGroupConstrainer>()
+			.withChildFXConstrainer<SynthGroupFXConstrainer>()
+			.withParameter(Par(EnableFM)
+				.withId("EnableFM")
+				.withDescription("Enables FM synthesis between two child synths")
+				.asToggle()
+				.withDefault(0.0f))
+			.withParameter(Par(CarrierIndex)
+				.withId("CarrierIndex")
+				.withDescription("The child synth index used as FM carrier")
+				.withSliderMode(HiSlider::Discrete, {-1.0, 16.0, 1.0})
+				.withDefault(-1.0f))
+			.withParameter(Par(ModulatorIndex)
+				.withId("ModulatorIndex")
+				.withDescription("The child synth index used as FM modulator")
+				.withSliderMode(HiSlider::Discrete, {-1.0, 16.0, 1.0})
+				.withDefault(-1.0f))
+			.withParameter(Par(UnisonoVoiceAmount)
+				.withId("UnisonoVoiceAmount")
+				.withDescription("The number of unison voices per note")
+				.withSliderMode(HiSlider::Discrete, {1.0, 16.0, 1.0})
+				.withDefault(1.0f))
+			.withParameter(Par(UnisonoDetune)
+				.withId("UnisonoDetune")
+				.withDescription("The detune spread in semitones for unison voices")
+				.withSliderMode(HiSlider::Linear, {0.0, 24.0, 0.01})
+				.withDefault(0.0f))
+			.withParameter(Par(UnisonoSpread)
+				.withId("UnisonoSpread")
+				.withDescription("The stereo spread of unison voices (0 = mono, 1 = full width)")
+				.withSliderMode(HiSlider::NormalizedPercentage, {})
+				.withDefault(1.0f))
+			.withParameter(Par(ForceMono)
+				.withId("ForceMono")
+				.withDescription("Forces monophonic output by summing all voices")
+				.asToggle()
+				.withDefault(0.0f))
+			.withParameter(Par(KillSecondVoices)
+				.withId("KillSecondVoices")
+				.withDescription("Kills retriggered voices instead of allowing multiple notes")
+				.asToggle()
+				.withDefault(1.0f))
+			.withModulation(Mod(InternalChains::DetuneModulation)
+				.withId("Detune Modulation")
+				.withDescription("Modulates the unison detune amount")
+				.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+				.withModulatedParameter(UnisonoDetune))
+			.withModulation(Mod(InternalChains::SpreadModulation)
+				.withId("Spread Modulation")
+				.withDescription("Modulates the unison stereo spread")
+				.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+				.withModulatedParameter(UnisonoSpread));
+	}
 
 		enum InternalChains
 	{
@@ -286,6 +346,8 @@ public:
 
 	ModulatorSynthGroup(MainController *mc, const String &id, int numVoices);
 	~ModulatorSynthGroup();
+
+	const bool metadataInitialised;
 
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor) override;
 
@@ -300,7 +362,7 @@ public:
 	int getNumInternalChains() const override;;
 	void setInternalAttribute(int index, float newValue) override;
 	float getAttribute(int index) const override;
-	float getDefaultValue(int parameterIndex) const override;
+	
 	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
 
 	ModulatorSynth* getFMModulator();

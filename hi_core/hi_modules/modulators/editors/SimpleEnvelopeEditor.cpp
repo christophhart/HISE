@@ -38,7 +38,6 @@ SimpleEnvelopeEditorBody::SimpleEnvelopeEditorBody (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (attackSlider = new HiSlider ("Attack"));
-    attackSlider->setRange (0, 20000, 1);
     attackSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     attackSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     attackSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -48,7 +47,6 @@ SimpleEnvelopeEditorBody::SimpleEnvelopeEditorBody (ProcessorEditor *p)
     attackSlider->setSkewFactor (0.3);
 
     addAndMakeVisible (releaseSlider = new HiSlider ("Release"));
-    releaseSlider->setRange (3, 20000, 1);
     releaseSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     releaseSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     releaseSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
@@ -67,13 +65,10 @@ SimpleEnvelopeEditorBody::SimpleEnvelopeEditorBody (ProcessorEditor *p)
 
 
 
-	attackSlider->setup(getProcessor(), SimpleEnvelope::Attack, "Attack Time");
-	attackSlider->setMode(HiSlider::Time);
-
-	releaseSlider->setup(getProcessor(), SimpleEnvelope::Release, "Release Time");
-	releaseSlider->setMode(HiSlider::Time);
-
-	useLinearMode->setup(getProcessor(), SimpleEnvelope::LinearMode, "Linear Mode");
+	auto md = getProcessor()->getMetadata();
+	md.setup(*attackSlider, getProcessor(), SimpleEnvelope::Attack);
+	md.setup(*releaseSlider, getProcessor(), SimpleEnvelope::Release);
+	md.setup(*useLinearMode, getProcessor(), SimpleEnvelope::LinearMode);
 
     //[/UserPreSize]
 

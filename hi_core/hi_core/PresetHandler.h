@@ -696,8 +696,6 @@ public:
 
 	static void writeSampleMapsToValueTree(ValueTree &sampleMapTree, ValueTree &preset);
 
-	static XmlElement *buildFactory(FactoryType *t, const String &factoryName);
-
 	// creates a processor from the file
 	static Processor *loadProcessorFromFile(File fileName, Processor *parent);
 

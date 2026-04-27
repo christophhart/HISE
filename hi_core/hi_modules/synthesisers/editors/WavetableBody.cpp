@@ -117,20 +117,20 @@ WavetableBody::WavetableBody (ProcessorEditor *p)
 
 	addAndMakeVisible(tableSlider = new HiSlider("Table Index"));
 	tableSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-	tableSlider->setup(getProcessor(), WavetableSynth::TableIndexValue, "Table Index");
-	tableSlider->setMode(HiSlider::Mode::NormalizedPercentage);
 
     //[UserPreSize]
+
+	auto md = getProcessor()->getMetadata();
 
 	fadeTimeLabel->setFont (GLOBAL_FONT());
     voiceAmountLabel->setFont (GLOBAL_FONT());
     voiceAmountEditor->setFont (GLOBAL_FONT());
     fadeTimeEditor->setFont (GLOBAL_FONT());
 
-	hiqButton->setup(getProcessor(), WavetableSynth::HqMode, "HQ");
-	mipmapButton->setup(getProcessor(), WavetableSynth::RefreshMipmap, "Refresh Mipmap");
-
-	wavetableSelector->setup(getProcessor(), WavetableSynth::LoadedBankIndex, "Loaded Wavetable");
+	md.setup(*tableSlider, getProcessor(), WavetableSynth::TableIndexValue);
+	md.setup(*hiqButton, getProcessor(), WavetableSynth::HqMode);
+	md.setup(*mipmapButton, getProcessor(), WavetableSynth::RefreshMipmap);
+	md.setup(*wavetableSelector, getProcessor(), WavetableSynth::LoadedBankIndex);
 
 	WeakReference<Processor> owner = getProcessor();
 

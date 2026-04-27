@@ -49,19 +49,12 @@ AnalyserEditor::AnalyserEditor (ProcessorEditor *p):
 	addAndMakeVisible(bufferSize = new HiComboBox("BufferSize"));
 
 	bufferSize->setTextWhenNothingSelected("Analyser Buffer Size");
-	bufferSize->addItem("4096 Samples", 4096);
-	bufferSize->addItem("8192 Samples", 8192);
-	bufferSize->addItem("16384 Samples", 16384);
-	bufferSize->addItem("32768 Samples", 32768);
 
 	typeSelector->setTextWhenNothingSelected("Analyser Type");
-	typeSelector->addItem("Nothing", 1);
-	typeSelector->addItem("Goniometer", 2);
-	typeSelector->addItem("Oscilloscope", 3);
-	typeSelector->addItem("Spectral Analyser", 4);
 
-	typeSelector->setup(getProcessor(), AnalyserEffect::Parameters::PreviewType, "Analyser Type");
-	bufferSize->setup(getProcessor(), AnalyserEffect::Parameters::BufferSize, "Buffer Size");
+	auto md = getProcessor()->getMetadata();
+	md.setup(*typeSelector, getProcessor(), AnalyserEffect::Parameters::PreviewType);
+	md.setup(*bufferSize, getProcessor(), AnalyserEffect::Parameters::BufferSize);
 
     setSize (800, 300);
 

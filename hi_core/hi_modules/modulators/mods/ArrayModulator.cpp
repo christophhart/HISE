@@ -32,6 +32,15 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata ArrayModulator::createMetadata()
+{
+	return ProcessorMetadata(getClassType())
+		.withPrettyName(getClassName())
+		.withDescription("Creates a modulation signal from a slider pack array indexed by MIDI note number, allowing per-note modulation values.")
+		.withType<hise::VoiceStartModulator>()
+		.withComplexDataInterface(ExternalData::DataType::SliderPack);
+}
+
 ProcessorEditorBody * ArrayModulator::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND

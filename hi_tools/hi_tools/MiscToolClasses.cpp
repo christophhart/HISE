@@ -3476,6 +3476,21 @@ SemanticVersionChecker::SemanticVersionChecker(const std::array<int, 3>& oldVers
 	oldVersion.validVersion = true;
 }
 
+SemanticVersionChecker::SemanticVersionChecker(const std::array<int, 4>& oldVersion_, const std::array<int, 4>& newVersion_)
+{
+	newVersion.majorVersion = newVersion_[0];
+	newVersion.minorVersion = newVersion_[1];
+	newVersion.patchVersion = newVersion_[2];
+	newVersion.buildNumber = newVersion_[3];
+	newVersion.validVersion = true;
+
+	oldVersion.majorVersion = oldVersion_[0];
+	oldVersion.minorVersion = oldVersion_[1];
+	oldVersion.patchVersion = oldVersion_[2];
+	oldVersion.buildNumber = oldVersion_[3];
+	oldVersion.validVersion = true;
+}
+
 SemanticVersionChecker::SemanticVersionChecker(const String& oldVersion_, const String& newVersion_)
 {
 	parseVersion(oldVersion, oldVersion_);
@@ -3491,6 +3506,9 @@ bool SemanticVersionChecker::isMinorVersionUpdate() const
 bool SemanticVersionChecker::isPatchVersionUpdate() const
 { return newVersion.patchVersion > oldVersion.patchVersion; }
 
+bool SemanticVersionChecker::isBuildNumberUpdate() const
+{ return newVersion.buildNumber > oldVersion.buildNumber; }
+
 bool SemanticVersionChecker::oldVersionNumberIsValid() const
 { return oldVersion.validVersion; }
 
@@ -3502,7 +3520,7 @@ void SemanticVersionChecker::parseVersion(VersionInfo& info, const String& v)
 	const String sanitized = v.replace("v", "", true);
 	StringArray a = StringArray::fromTokens(sanitized, ".", "");
 
-	if (a.size() != 3)
+	if (a.size() != 3 && a.size() != 4)
 	{
 		info.validVersion = false;
 		return;
@@ -3512,6 +3530,10 @@ void SemanticVersionChecker::parseVersion(VersionInfo& info, const String& v)
 		info.majorVersion = a[0].getIntValue();
 		info.minorVersion = a[1].getIntValue();
 		info.patchVersion = a[2].getIntValue();
+
+		if (a.size() == 4)
+			info.buildNumber = a[3].getIntValue();
+
 		info.validVersion = true;
 	}
 }
@@ -3532,8 +3554,15 @@ bool SemanticVersionChecker::isUpdate() const
         {
             if (newVersion.patchVersion > oldVersion.patchVersion)
                 return true;
-            else
+            else if (newVersion.patchVersion < oldVersion.patchVersion)
                 return false;
+            else
+            {
+                if (newVersion.buildNumber > oldVersion.buildNumber)
+                    return true;
+                else
+                    return false;
+            }
         }
     }
 }

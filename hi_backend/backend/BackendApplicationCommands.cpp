@@ -146,6 +146,7 @@ void BackendCommandTarget::getAllCommands(Array<CommandID>& commands)
 		MenuToolsConvertSVGToPathData,
         MenuToolsBroadcasterWizard,
 		MenuToolsToggleRestServer,
+        MenuToolsLaunchHiseCli,
 		MenuToolsShowInteractionTestWindow,
 		MenuExportRestoreToDefault,
 		MenuExportValidateUserPresets,
@@ -503,8 +504,12 @@ void BackendCommandTarget::getCommandInfo(CommandID commandID, ApplicationComman
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsToggleRestServer:
-		setCommandTarget(result, "Toggle REST API Server", true, 
+		setCommandTarget(result, "Toggle REST API Server", true,
 			bpe->getBackendProcessor()->getRestServer().isRunning(), 'X', false);
+		result.categoryName = "Tools";
+		break;
+	case MenuToolsLaunchHiseCli:
+		setCommandTarget(result, "Launch HISE CLI in Terminal", true, false, 'X', false);
 		result.categoryName = "Tools";
 		break;
 	case MenuToolsShowInteractionTestWindow:
@@ -792,6 +797,11 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
     }
 	case MenuToolsToggleRestServer:
 	{
+		// Snippet browser instances share the main BP's REST server and must
+		// not start or stop a second one on the same port.
+		if (bpe->getBackendProcessor()->isSnippetBrowser())
+			return true;
+
 		auto& server = bpe->getBackendProcessor()->getRestServer();
 		if (server.isRunning())
 		{
@@ -799,10 +809,40 @@ bool BackendCommandTarget::perform(const InvocationInfo &info)
 		}
 		else
 		{
-			int port = (int)bpe->getBackendProcessor()->getSettingsObject().getSetting(HiseSettings::Scripting::RestApiPort);
-			server.start(port);
+			auto& settings = bpe->getBackendProcessor()->getSettingsObject();
+			int port = (int)settings.getSetting(HiseSettings::Scripting::RestApiPort);
+			String corsOrigins = settings.getSetting(HiseSettings::Scripting::CorsAllowedOrigins).toString();
+			server.start(port, "127.0.0.1", corsOrigins);
 		}
 		updateCommands();
+		return true;
+	}
+	case MenuToolsLaunchHiseCli:
+	{
+		auto* mc = bpe->getBackendProcessor();
+
+		auto& server = mc->getRestServer();
+		if (!server.isRunning())
+		{
+			auto& settings = mc->getSettingsObject();
+			int port = (int)settings.getSetting(HiseSettings::Scripting::RestApiPort);
+			String corsOrigins = settings.getSetting(HiseSettings::Scripting::CorsAllowedOrigins).toString();
+			server.start(port, "127.0.0.1", corsOrigins);
+			updateCommands();
+		}
+
+		File cwd = GET_PROJECT_HANDLER(bpe->getMainSynthChain()).getWorkDirectory();
+		if (!cwd.isDirectory())
+			cwd = File::getSpecialLocation(File::userHomeDirectory);
+
+		String terminalOverride = mc->getSettingsObject()
+			.getSetting(HiseSettings::Other::LinuxTerminalCommand).toString();
+
+		auto r = HiseCliLauncher::launch(cwd, terminalOverride);
+
+		if (r.failed())
+			PresetHandler::showMessageWindow("Launch HISE CLI failed", r.getErrorMessage(), PresetHandler::IconType::Error);
+
 		return true;
 	}
 	case MenuToolsShowInteractionTestWindow:
@@ -1149,7 +1189,7 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
             ADD_MENU_ITEM(MenuToolsRecompile);
             ADD_MENU_ITEM(MenuToolsConvertSVGToPathData);
             ADD_MENU_ITEM(MenuToolsBroadcasterWizard);
-            ADD_MENU_ITEM(MenuToolsToggleRestServer);
+            ADD_MENU_ITEM(MenuToolsLaunchHiseCli);
             ADD_MENU_ITEM(MenuToolsShowInteractionTestWindow);
             p.addSeparator();
             ADD_MENU_ITEM(MenuToolsShowDspNetworkDllInfo);
@@ -1166,8 +1206,9 @@ PopupMenu BackendCommandTarget::getMenuForIndex(int topLevelMenuIndex, const Str
 			ADD_MENU_ITEM(MenuToolsConvertSVGToPathData);
             ADD_MENU_ITEM(MenuToolsBroadcasterWizard);
             ADD_MENU_ITEM(MenuToolsToggleRestServer);
+            ADD_MENU_ITEM(MenuToolsLaunchHiseCli);
             ADD_MENU_ITEM(MenuToolsShowInteractionTestWindow);
-            
+
 			p.addSeparator();
 			p.addSectionHeader("Sample Management");
 			
@@ -2004,85 +2045,93 @@ void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow * bpe)
 
 		if (fc.browseForFileToSave(true))
 		{
-			const String newName = fc.getResult().getFileNameWithoutExtension();
-			bpe->owner->getMainSynthChain()->setId(newName);
-
-			ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
-
-            v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
-            
-			XmlBackupFunctions::normalizePositionProperties(v);
-
-			auto xml = v.createXml();
-
-			FullInstrumentExpansion::setNewDefault(bpe->owner, v);
-
-			XmlBackupFunctions::removeEditorStatesFromXml(*xml);
+			saveFileAsXml(bpe, fc.getResult());
 
 			
-			Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
-
-			while (auto s = siter.getNextProcessor())
-			{
-				if (s->getSampleMap()->hasUnsavedChanges())
-					s->getSampleMap()->saveAndReloadMap();
-			}
-
-			File originalScriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
-
-			File scriptDirectory = originalScriptDirectory.getSiblingFile("TempScriptDirectory");
-
-			Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
-
-			scriptDirectory.deleteRecursively();
-
-			scriptDirectory.createDirectory();
-
-			String interfaceId = "";
-
-			while (JavascriptProcessor *sp = iter.getNextProcessor())
-			{
-				if (sp->isConnectedToExternalFile())
-					continue;
-
-				String content;
-
-				if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
-				{
-					if (jmp->isFront())
-						interfaceId = jmp->getId();
-				}
-
-				sp->mergeCallbacksToScript(content);
-
-				File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), scriptDirectory, dynamic_cast<Processor*>(sp)->getId());
-
-				scriptFile.replaceWithText(content);
-			}
-
-			XmlBackupFunctions::removeAllScripts(*xml);
-			
-			if(interfaceId.isNotEmpty())
-				XmlBackupFunctions::extractContentData(*xml, interfaceId, fc.getResult());
-
-			fc.getResult().replaceWithText(xml->createDocument(""));
-
-			debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
-            
-			if (originalScriptDirectory.deleteRecursively())
-			{
-				scriptDirectory.moveFileTo(originalScriptDirectory);
-			}
-			else
-			{
-				PresetHandler::showMessageWindow("Error at writing script file",
-					"The embedded script files could not be saved (probably because the file is opened somewhere else).\nPress OK to show the folder and move it manually", PresetHandler::IconType::Error);
-
-				scriptDirectory.revealToUser();
-			}
 
             
 		}
+	}
+}
+
+void BackendCommandTarget::Actions::saveFileAsXml(BackendRootWindow* bpe, const File& fileToSave)
+{
+	const String newName = fileToSave.getFileNameWithoutExtension();
+
+	if(bpe->owner->getMainSynthChain()->getId() != newName)
+		bpe->owner->getMainSynthChain()->setId(newName, sendNotificationAsync);
+
+	ValueTree v = bpe->owner->getMainSynthChain()->exportAsValueTree();
+
+	v.setProperty("BuildVersion", BUILD_SUB_VERSION, nullptr);
+
+	XmlBackupFunctions::normalizePositionProperties(v);
+
+	auto xml = v.createXml();
+
+	FullInstrumentExpansion::setNewDefault(bpe->owner, v);
+
+	XmlBackupFunctions::removeEditorStatesFromXml(*xml);
+
+	Processor::Iterator<ModulatorSampler> siter(bpe->getMainSynthChain());
+
+	while (auto s = siter.getNextProcessor())
+	{
+		if (s->getSampleMap()->hasUnsavedChanges())
+			s->getSampleMap()->saveAndReloadMap();
+	}
+
+	File originalScriptDirectory = XmlBackupFunctions::getScriptDirectoryFor(bpe->getMainSynthChain());
+
+	File scriptDirectory = originalScriptDirectory.getSiblingFile("TempScriptDirectory");
+
+	Processor::Iterator<JavascriptProcessor> iter(bpe->getMainSynthChain());
+
+	scriptDirectory.deleteRecursively();
+
+	scriptDirectory.createDirectory();
+
+	String interfaceId = "";
+
+	while (JavascriptProcessor* sp = iter.getNextProcessor())
+	{
+		if (sp->isConnectedToExternalFile())
+			continue;
+
+		String content;
+
+		if (auto jmp = dynamic_cast<JavascriptMidiProcessor*>(sp))
+		{
+			if (jmp->isFront())
+				interfaceId = jmp->getId();
+		}
+
+		sp->mergeCallbacksToScript(content);
+
+		File scriptFile = XmlBackupFunctions::getScriptFileFor(bpe->getMainSynthChain(), scriptDirectory, dynamic_cast<Processor*>(sp)->getId());
+
+		scriptFile.replaceWithText(content);
+	}
+
+	XmlBackupFunctions::removeAllScripts(*xml);
+
+	if (interfaceId.isNotEmpty())
+		XmlBackupFunctions::extractContentData(*xml, interfaceId, fileToSave);
+
+	fileToSave.replaceWithText(xml->createDocument(""));
+
+	debugToConsole(bpe->owner->getMainSynthChain(), "Exported as XML");
+
+	if (originalScriptDirectory.deleteRecursively())
+	{
+		scriptDirectory.moveFileTo(originalScriptDirectory);
+	}
+	else
+	{
+		PresetHandler::showMessageWindow("Error at writing script file",
+			"The embedded script files could not be saved (probably because the file is opened somewhere else).\nPress OK to show the folder and move it manually", PresetHandler::IconType::Error);
+
+		scriptDirectory.revealToUser();
 	}
 }
 
@@ -2456,10 +2505,10 @@ Result checkPluginParameterComponent(ScriptingApi::Content* c, ScriptComponent* 
         
         if(v.hasProperty("middlePosition"))
         {
-            auto midPoint = (double)v["middlePosition"];
+            auto midPoint = v["middlePosition"];
             
-            if(nr.getRange().contains(midPoint))
-                nr.setSkewForCentre(midPoint);
+            if(ApiHelpers::shouldApplyMidPoint(nr.start, nr.end, midPoint))
+                nr.setSkewForCentre((double)midPoint);
         }
         
         auto newValue = (double)Random::getSystemRandom().nextFloat();
@@ -3432,8 +3481,8 @@ void BackendCommandTarget::Actions::showExampleBrowser(BackendRootWindow* bpe)
 
 	auto bp = new BackendProcessor(dm, cb);
 
-	bp->setIsSnippetBrowser();
-	
+	bp->setIsSnippetBrowser(bpe->getBackendProcessor()->getMainInstance());
+
 	auto nw = dynamic_cast<BackendRootWindow*>(bp->createEditor());
 
 	for(auto w: bpe->allWindowsAndBrowsers)

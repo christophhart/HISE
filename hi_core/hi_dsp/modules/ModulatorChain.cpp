@@ -2458,7 +2458,7 @@ void TimeVariantModulatorFactoryType::fillTypeNameList()
     ADD_NAME_TO_TYPELIST(HardcodedTimeVariantModulator);
 }
 
-void VoiceStartModulatorFactoryType::fillTypeNameList()
+void VoiceStartModulatorFactoryType::fillArrayWithTypes(Array<ProcessorEntry>& typeNames)
 {
 	ADD_NAME_TO_TYPELIST(ConstantModulator);
 	ADD_NAME_TO_TYPELIST(VelocityModulator);
@@ -2469,6 +2469,11 @@ void VoiceStartModulatorFactoryType::fillTypeNameList()
 	ADD_NAME_TO_TYPELIST(ArrayModulator);
 	ADD_NAME_TO_TYPELIST(JavascriptVoiceStartModulator);
 	ADD_NAME_TO_TYPELIST(EventDataModulator);
+}
+
+void VoiceStartModulatorFactoryType::fillTypeNameList()
+{
+	fillArrayWithTypes(typeNames);
 }
 
 void EnvelopeModulatorFactoryType::fillTypeNameList()

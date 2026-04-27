@@ -32,10 +32,93 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata LfoModulator::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<LfoModulator>()
+		.withDescription("Generates a periodic modulation signal with multiple waveform types, tempo sync, and an optional step sequencer mode.")
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withComplexDataInterface(ExternalData::DataType::SliderPack)
+		.withComplexDataInterface(ExternalData::DataType::DisplayBuffer)
+		.withParameter(Par(Frequency)
+			.withId("Frequency")
+			.withDescription("The modulation frequency")
+			.withSliderMode(HiSlider::Frequency, Range(0.01, 40.0, 0.0).withCentreSkew(10.0))
+			.withDynamicDefault([](const Processor* p){
+				return dynamic_cast<const LfoModulator*>(p)->tempoSync ? (float)TempoSyncer::Eighth : 3.0f;
+			 })
+			.withDefault(3.0f)
+			.withTempoSyncMode(TempoSync))
+		.withParameter(Par(FadeIn)
+			.withId("FadeIn")
+			.withDescription("Fade in time after each key press")
+			.withSliderMode(HiSlider::Time, Range(0.0, 3000.0, 0.0).withCentreSkew(500.0))
+			.withDefault(1000.0f))
+		.withParameter(Par(WaveFormType)
+			.withId("WaveformType")
+			.withDescription("The waveform for the oscillator")
+			.withValueList({ "Sine", "Triangle", "Saw", "Square", "Random", "Custom", "Steps" })
+			.withDefault(1.0f))
+		.withParameter(Par(Legato)
+			.withId("Legato")
+			.withDescription("Disables retriggering of the LFO if multiple keys are pressed")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(TempoSync)
+			.withId("TempoSync")
+			.withDescription("Enables sync to host tempo")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(SmoothingTime)
+			.withId("SmoothingTime")
+			.withDescription("Smoothing time in milliseconds to reduce discontinuities in the modulation signal")
+			.withSliderMode(HiSlider::Time, Range(0.0, 1000.0, 0.0).withCentreSkew(100.0))
+			.withDefault(5.0f))
+		.withParameter(Par(NumSteps)
+			.withId("NumSteps")
+			.withDescription("Number of steps for the step sequencer")
+			.withSliderMode(HiSlider::Discrete, Range(1.0, 128.0, 1.0))
+			.withDefault(16.0f))
+		.withParameter(Par(LoopEnabled)
+			.withId("LoopEnabled")
+			.withDescription("Enables oscillator looping")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(PhaseOffset)
+			.withId("PhaseOffset")
+			.withDescription("The initial phase offset of the LFO")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f))
+		.withParameter(Par(SyncToMasterClock)
+			.withId("SyncToMasterClock")
+			.withDescription("Sync the LFO to the master clock")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(IgnoreNoteOn)
+			.withId("IgnoreNoteOn")
+			.withDescription("Free run mode - does not reset the LFO phase on note on")
+			.asToggle()
+			.withDefault(0.0f))
+		.withModulation(Mod(IntensityChain)
+			.withId("LFO Intensity Mod")
+			.withDescription("Modulates the intensity of the LFO output")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly))
+		.withModulation(Mod(FrequencyChain)
+			.withId("LFO Frequency Mod")
+			.withDescription("Modulates the frequency of the LFO")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Parameters::Frequency));
+}
+
 LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mode m):
 	TimeVariantModulator(mc, id, m),
 	Modulation(m),
 	ProcessorWithStaticExternalData(mc, 1, 1, 0, 1),
+	metadataInitialised(updateParameterSlots()),
 	frequency(getDefaultValue(Frequency)),
 	run(false),
 	currentValue(1.0f),
@@ -84,28 +167,11 @@ LfoModulator::LfoModulator(MainController *mc, const String &id, Modulation::Mod
 	editorStateIdentifiers.add("IntensityChainShown");
 	editorStateIdentifiers.add("FrequencyChainShown");
 
-	parameterNames.add(Identifier("Frequency"));
-	parameterNames.add(Identifier("FadeIn")); 
-	parameterNames.add(Identifier("WaveFormType"));
-	parameterNames.add(Identifier("Legato"));
-	parameterNames.add(Identifier("TempoSync"));
-	parameterNames.add(Identifier("SmoothingTime"));
-	parameterNames.add(Identifier("NumSteps"));
-	parameterNames.add(Identifier("LoopEnabled"));
-	parameterNames.add(Identifier("PhaseOffset"));
-	parameterNames.add(Identifier("SyncToMasterClock"));
-    parameterNames.add(Identifier("IgnoreNoteOn"));
-	
-	updateParameterSlots();
-
 	frequencyUpdater.setManualCountLimit(4096/HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
 
 	randomGenerator.setSeedRandomly();
 
 	getMainController()->addTempoListener(this);
-
-	frequencyChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
-	intensityChain->getFactoryType()->setConstrainer(new NoGlobalEnvelopeConstrainer());
 
 	WeakReference<LfoModulator> safeThis(this);
 
@@ -235,40 +301,6 @@ ProcessorEditorBody *LfoModulator::createEditor(ProcessorEditor *parentEditor)
 
 #endif
 };
-
-
-float LfoModulator::getDefaultValue(int parameterIndex) const
-{
-	
-
-	switch (parameterIndex)
-	{
-	case Parameters::Frequency:
-		return tempoSync ? (float)TempoSyncer::Eighth : 3.0f;
-	case Parameters::FadeIn: return 1000.0;
-	case Parameters::WaveFormType:
-		return (float)Waveform::Sine;
-	case Parameters::Legato:
-		return true;
-	case Parameters::TempoSync:
-		return false;
-	case Parameters::SmoothingTime:
-		return 5.0f;
-	case Parameters::NumSteps:
-		return 16.0f;
-	case Parameters::LoopEnabled:
-		return true;
-	case Parameters::PhaseOffset:
-		return 0.0;
-	case Parameters::SyncToMasterClock:
-		return false;
-    case Parameters::IgnoreNoteOn:
-        return false;
-	default:
-		jassertfalse;
-		return -1.0f;
-	}
-}
 
 float LfoModulator::getAttribute(int parameter_index) const
 {

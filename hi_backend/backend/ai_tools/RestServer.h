@@ -32,7 +32,314 @@
 
 #pragma once
 
+//==============================================================================
+/** REST API contract version - stamped onto every JSON envelope as `apiVersion`.
+
+    Bump (semver) whenever the response envelope or any route's request/response
+    schema changes. Compile-time constant: there is no setter, no init call, no
+    runtime field. Consumers read it off any response (or `/api/status`) to
+    verify they are talking to a HISE build that matches their expected schema.
+*/
+#define HISE_REST_API_VERSION "0.5.0"
+
 namespace hise { using namespace juce;
+
+//==============================================================================
+/** Identifiers for REST API parameter names and JSON response keys.
+    Using Identifiers instead of string literals provides compile-time safety
+    and better performance for property lookups.
+*/
+#define DECLARE_ID(x) const Identifier x(#x);
+
+namespace RestApiIds
+{
+    // Request/body parameters
+    DECLARE_ID(moduleId);
+    DECLARE_ID(callback);
+    DECLARE_ID(script);
+    DECLARE_ID(compile);
+    DECLARE_ID(hierarchy);
+
+    // Common response fields
+    DECLARE_ID(success);
+    DECLARE_ID(result);
+    DECLARE_ID(logs);
+    DECLARE_ID(errors);
+    DECLARE_ID(errorMessage);
+    DECLARE_ID(callstack);
+    DECLARE_ID(apiVersion);  // Auto-injected envelope version (see HISE_REST_API_VERSION)
+
+    // list_methods response
+    DECLARE_ID(methods);
+    DECLARE_ID(path);
+    DECLARE_ID(method);
+    DECLARE_ID(category);
+    DECLARE_ID(description);
+    DECLARE_ID(returns);
+    DECLARE_ID(queryParameters);
+    DECLARE_ID(bodyParameters);
+    DECLARE_ID(name);
+    DECLARE_ID(required);
+    DECLARE_ID(defaultValue);
+    DECLARE_ID(inverted);
+
+    // status response
+    DECLARE_ID(server);
+    DECLARE_ID(version);
+    DECLARE_ID(commitHash);
+    DECLARE_ID(compileTimeout);
+    DECLARE_ID(project);
+    DECLARE_ID(projectFolder);
+    DECLARE_ID(scriptsFolder);
+    DECLARE_ID(scriptProcessors);
+    DECLARE_ID(isMainInterface);
+    DECLARE_ID(externalFiles);
+    DECLARE_ID(callbacks);
+    DECLARE_ID(id);
+    DECLARE_ID(type);
+    DECLARE_ID(empty);
+
+    // list_components response
+    DECLARE_ID(components);
+    DECLARE_ID(childComponents);
+    DECLARE_ID(visible);
+    DECLARE_ID(enabled);
+    DECLARE_ID(x);
+    DECLARE_ID(y);
+    DECLARE_ID(width);
+    DECLARE_ID(height);
+
+    // get_component_properties response
+    DECLARE_ID(properties);
+    DECLARE_ID(value);
+    DECLARE_ID(isDefault);
+    DECLARE_ID(options);
+
+    // get/set_component_value
+    DECLARE_ID(min);
+    DECLARE_ID(max);
+    DECLARE_ID(validateRange);
+
+    // Debug parameters
+    DECLARE_ID(forceSynchronousExecution);
+    DECLARE_ID(warning);
+
+    // set_component_property
+    DECLARE_ID(changes);
+    DECLARE_ID(force);
+    DECLARE_ID(applied);
+    DECLARE_ID(locked);
+    DECLARE_ID(property);
+    DECLARE_ID(recompileRequired);
+
+    // set_script response
+    DECLARE_ID(updatedCallbacks);
+
+    // repl
+    DECLARE_ID(expression);
+
+    // screenshot
+    DECLARE_ID(scale);
+    DECLARE_ID(imageData);
+    DECLARE_ID(outputPath);
+    DECLARE_ID(filePath);
+    DECLARE_ID(selectionCount);
+
+    // LAF (LookAndFeel) integration
+    DECLARE_ID(laf);                  // LAF info object for a component
+    DECLARE_ID(location);             // location of the LAF definition
+    DECLARE_ID(renderStyle);          // "script", "css", "css_inline", "mixed"
+    DECLARE_ID(cssLocation);          // Full path to external CSS file
+    DECLARE_ID(lafRenderWarning);     // Warning object when LAF render timeout
+    DECLARE_ID(unrenderedComponents); // Array of unrendered component objects
+    DECLARE_ID(timeoutMs);            // Timeout value in milliseconds
+    DECLARE_ID(reason);               // Reason for not rendering: "invisible" or "timeout"
+
+    // Interaction testing
+    DECLARE_ID(interactions);         // Array of interaction objects
+    DECLARE_ID(interactionsCompleted); // Number of interactions successfully executed
+    DECLARE_ID(totalElapsedMs);       // Total execution time in milliseconds
+    DECLARE_ID(executionLog);         // Array of executed events with timing
+    DECLARE_ID(screenshots);          // Object with screenshot id -> base64 PNG data
+    DECLARE_ID(parseWarnings);        // Array of non-fatal parse warnings
+    DECLARE_ID(verbose);              // If true, include extra debug info in response
+    DECLARE_ID(mouseState);           // Final mouse state object (when verbose=true)
+    DECLARE_ID(currentTarget);        // Component ID mouse is currently over
+    DECLARE_ID(pixelPosition);        // Absolute pixel position {x, y}
+
+    // SelectMenuItem response fields
+    DECLARE_ID(selectedMenuItem);     // Object with selected menu item info
+    DECLARE_ID(text);                 // Menu item display text
+    DECLARE_ID(itemId);               // Menu item ID
+
+    // diagnose_script response
+    DECLARE_ID(diagnostics);          // Array of diagnostic objects
+    DECLARE_ID(line);                 // Diagnostic line number
+    DECLARE_ID(column);               // Diagnostic column number
+    DECLARE_ID(severity);             // "error", "warning", "info", "hint"
+    DECLARE_ID(source);               // "syntax", "api-validation", "type-check", "language", "callscope"
+    DECLARE_ID(message);              // Diagnostic message text
+    DECLARE_ID(suggestions);          // Array of "did you mean?" suggestion strings
+    DECLARE_ID(async);                // If true, defer shadow parse to scripting thread (default: false)
+
+    // get_included_files
+    DECLARE_ID(files);                // Array of included file entries
+    DECLARE_ID(processor);            // Owning processor ID for an included file
+
+    // profile / attachable profiling
+    DECLARE_ID(durationMs);           // Profiling duration in milliseconds
+    DECLARE_ID(threadFilter);         // Array of thread names to filter
+    DECLARE_ID(eventFilter);          // Array of event type names to filter
+    DECLARE_ID(threads);              // Array of thread profiling results
+    DECLARE_ID(thread);               // Thread name string
+    DECLARE_ID(events);               // Array of profiled events in a thread
+    DECLARE_ID(duration);             // Event duration in ms
+    DECLARE_ID(sourceType);           // Event source type name
+    DECLARE_ID(children);             // Nested child events
+    DECLARE_ID(start);                // Event start time in ms
+    DECLARE_ID(mode);                 // "record" or "get"
+    DECLARE_ID(recording);            // Whether a recording is in progress
+    DECLARE_ID(profile);              // Enable attached profiling on an endpoint
+    DECLARE_ID(trackSource);          // Track source ID (causal link open end, -1 = none)
+    DECLARE_ID(trackTarget);          // Track target ID (causal link close end, -1 = none)
+    DECLARE_ID(flows);                // Array of cross-thread causal flow connections
+    DECLARE_ID(trackId);              // Shared integer ID connecting a flow source to target
+    DECLARE_ID(sourceEvent);          // Name of the event that caused the flow
+    DECLARE_ID(targetEvent);          // Name of the event that was caused
+    DECLARE_ID(sourceThread);         // Thread where the flow originated
+    DECLARE_ID(targetThread);         // Thread where the flow terminated
+
+    // Profile query/summary parameters
+    DECLARE_ID(summary);              // If true, aggregate repeated events with stats
+    DECLARE_ID(filter);               // Wildcard pattern matched against event name
+    DECLARE_ID(minDuration);          // Only include events with duration >= this (ms)
+    DECLARE_ID(sourceTypeFilter);     // Wildcard pattern matched against sourceType name
+    DECLARE_ID(nested);               // When filtering, include children of matched events
+    DECLARE_ID(limit);                // Max results returned (default 15)
+    DECLARE_ID(wait);                 // If false, return immediately when recording in progress
+
+    // Summary result fields
+    DECLARE_ID(results);              // Flat array of filtered/aggregated events
+    DECLARE_ID(count);                // Number of occurrences in summary
+    DECLARE_ID(median);               // Median duration (ms)
+    DECLARE_ID(peak);                 // Maximum duration (ms)
+    DECLARE_ID(total);                // Sum of durations (ms)
+
+    // parse_css
+    DECLARE_ID(code);                 // CSS code string to parse
+    DECLARE_ID(selectors);            // Array of selector strings for specificity resolution
+    DECLARE_ID(resolved);             // Resolved pixel value for a property
+
+    // Wizard endpoints
+    DECLARE_ID(wizardId);             // Wizard identifier string
+    DECLARE_ID(answers);              // Key/value form data from wizard
+    DECLARE_ID(tasks);                // Array of task function names to execute
+    DECLARE_ID(jobId);                // Job identifier for async wizard tasks
+    DECLARE_ID(finished);             // Whether an async job has completed
+    DECLARE_ID(progress);             // Progress value 0.0-1.0 for async jobs
+
+    // Builder endpoints
+    DECLARE_ID(operations);           // Array of builder operation objects
+    DECLARE_ID(parent);               // Parent module name
+    DECLARE_ID(chain);                // Chain index (-1=direct, 0=midi, 1=gain, 2=pitch, 3=fx)
+    DECLARE_ID(target);               // Target module name
+    DECLARE_ID(buildIndex);           // Index in creation order
+    DECLARE_ID(chains);               // Child chains object (tree response)
+    DECLARE_ID(bypassed);             // Module bypass state
+    DECLARE_ID(hints);                // Validation hints object
+    DECLARE_ID(validChains);          // Array of valid chain names for a type
+    const Identifier template_("template");;            // Name template with {n} placeholder
+    DECLARE_ID(created);              // Array of created module names
+    DECLARE_ID(parameters);
+    DECLARE_ID(prettyName);
+
+    // Undo system
+    DECLARE_ID(scope);                // "group" or "root"
+    DECLARE_ID(domain);               // Domain filter string (e.g., "builder", "ui")
+    DECLARE_ID(flatten);              // Flatten groups / compute net effect
+    DECLARE_ID(cancel);               // pop_group cancel flag
+    DECLARE_ID(group);                // Current group name in response
+    DECLARE_ID(groupName);            // Current group name in response
+    DECLARE_ID(depth);                // Stack depth in response
+    DECLARE_ID(cursor);               // Undo position in history
+    DECLARE_ID(history);              // History array
+    DECLARE_ID(index);                // History index (maps to cursor)
+    DECLARE_ID(symbol);               // Diff entry symbol (+/-/*)
+    DECLARE_ID(action);               // Diff entry action type
+    DECLARE_ID(diff);                 // diff list 
+    DECLARE_ID(op);                   // Operation type (add, remove, clone, set_attributes, etc.)
+    DECLARE_ID(attributes);           // Parameter values object {paramName: value}
+    DECLARE_ID(effect);               // Effect/network name for HotswappableEffect modules
+
+    // UI component endpoints
+    DECLARE_ID(componentType);        // Component type (ScriptButton, ScriptPanel, etc.)
+    DECLARE_ID(newId);                // New component ID for rename
+    DECLARE_ID(saveInPreset);         // Whether component value is saved in presets
+    DECLARE_ID(parentId);             // Parent component ID for add/move operations
+    DECLARE_ID(keepPosition);         // Preserve absolute position when reparenting
+
+    // testing/sequence
+    DECLARE_ID(messages);             // Array of MIDI message objects
+    DECLARE_ID(noteNumber);           // MIDI note number (0-127)
+    DECLARE_ID(velocity);             // Note velocity (0.0-1.0)
+    DECLARE_ID(channel);              // MIDI channel (1-16)
+    DECLARE_ID(controller);           // CC controller number (0-127)
+    DECLARE_ID(timestamp);            // Absolute time offset in ms from start of sequence
+    DECLARE_ID(isPlaying);            // Whether MIDI sequence is still playing
+    DECLARE_ID(activeNotes);          // Number of notes currently on
+    DECLARE_ID(eventsInSequence);     // Total logical events in queue
+    DECLARE_ID(playedEvents);         // Number of events dispatched so far
+    DECLARE_ID(replResults);          // Array of REPL evaluation results from testing/sequence
+    DECLARE_ID(processorId);          // Target processor ID for set_attribute
+    DECLARE_ID(parameterId);          // Parameter name for set_attribute
+    DECLARE_ID(blocking);             // If true, wait for sequence to complete before responding
+    DECLARE_ID(signal);               // Test signal type (sine, saw, sweep, dirac, noise, silence)
+    DECLARE_ID(frequency);            // Signal frequency in Hz
+    DECLARE_ID(startFrequency);       // Sweep start frequency in Hz
+    DECLARE_ID(endFrequency);         // Sweep end frequency in Hz
+    DECLARE_ID(recordOutput);         // File path to record audio output to WAV
+
+    // project endpoints
+    DECLARE_ID(projects);             // Array of available HISE projects
+    DECLARE_ID(active);               // Name of currently active project
+    DECLARE_ID(projectName);          // Project name for tree response
+    DECLARE_ID(root);                 // Root node of project file tree
+    DECLARE_ID(modified);             // ISO8601 timestamp of last modification
+    DECLARE_ID(masterChainRenamed);   // True if HIP save renamed the master chain
+    DECLARE_ID(newName);              // New master chain name after rename
+    DECLARE_ID(snippet);              // HISE snippet string
+    DECLARE_ID(settings);             // Flat object of project_info.xml settings
+    DECLARE_ID(key);                  // Setting key name
+    DECLARE_ID(format);               // Save format ("xml" or "hip")
+    DECLARE_ID(file);                 // Relative path to XML or HIP file
+    DECLARE_ID(filename);             // Relative path to XML or HIP file
+    DECLARE_ID(referenced);           // True if file is actively referenced by HISE runtime
+    DECLARE_ID(OS);                   // Target operating system (Windows, macOS, Linux, all)
+    DECLARE_ID(preprocessor);         // Preprocessor macro name
+    DECLARE_ID(preprocessors);        // Array of preprocessor entries
+    DECLARE_ID(skipDefaults);         // If true, omit preprocessors whose runtime value equals the default
+
+    // dsp (scriptnode)
+    DECLARE_ID(nodeId);               // Node instance ID within a network
+    DECLARE_ID(factoryPath);          // Node factory path (e.g. core.oscillator)
+    DECLARE_ID(embedded);             // Whether network is embedded (vs file-based)
+    DECLARE_ID(networks);             // Array of network names
+    DECLARE_ID(connections);          // Array of connection objects in tree
+    DECLARE_ID(sourceOutput);         // Connection source output name
+    DECLARE_ID(parameter);            // Parameter ID for connect/disconnect
+    DECLARE_ID(stepSize);             // Parameter step size
+    DECLARE_ID(middlePosition);       // Parameter middle position
+    DECLARE_ID(skewFactor);           // Parameter skew factor
+
+    // snippet browser
+    DECLARE_ID(exists);               // Whether a snippet browser instance is alive
+    DECLARE_ID(activeIsSnippetBrowser);  // /api/status: is the active BP the snippet browser?
+
+}
+
+#undef DECLARE_ID
+
+
 
 //==============================================================================
 /**
@@ -100,6 +407,8 @@ public:
         */
         String operator[](const Identifier& name) const;
 
+        bool getTrueValue(const Identifier& name) const;
+        
         /** Parse POST body as JSON. Returns undefined var on parse failure. */
         var getJsonBody() const;
     };
@@ -290,10 +599,20 @@ public:
         /** Returns true if any errors have been captured. */
         bool hasErrors() const { return !errors.isEmpty(); }
 
+        /** Enable this if you have defined a custom error field that you don't want to be overwritten with
+            the console error output. The RestUndoManager uses this for operations that define a custom callstack.
+        */
+        void setUseCustomErrors(bool shouldUseCustomErrors)
+        {
+            usesCustomErrors = shouldUseCustomErrors;
+        }
+
     private:
         ConsoleCapturePtr consoleCapture;
         /** Merges collected logs and errors into the response body as JSON. */
         void mergeLogsIntoResponse();
+
+        bool usesCustomErrors = false;
 
         Request request;
         std::atomic<bool> completed{false};
@@ -394,12 +713,15 @@ public:
 
     //==============================================================================
     /** Start listening for connections.
-        
-        @param port         Port number to listen on
-        @param bindAddress  Address to bind to. Default "127.0.0.1" for localhost only.
-        @returns            true if server started successfully
+
+        @param port                 Port number to listen on
+        @param bindAddress          Address to bind to. Default "127.0.0.1" for localhost only.
+        @param corsAllowedOrigins   CORS policy for the `Access-Control-Allow-Origin` header.
+                                    `"*"` (default) allows any origin, `""` disables CORS entirely,
+                                    or a comma-separated origin list to whitelist specific origins.
+        @returns                    true if server started successfully
     */
-    bool start(int port, const String& bindAddress = "127.0.0.1");
+    bool start(int port, const String& bindAddress = "127.0.0.1", const String& corsAllowedOrigins = "*");
 
     /** Stop the server. 
         

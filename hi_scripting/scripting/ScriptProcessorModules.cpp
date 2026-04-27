@@ -516,6 +516,8 @@ JavascriptPolyphonicEffect::JavascriptPolyphonicEffect(MainController *mc, const
 
 	extraModSources.init(modChains);
 	
+	extraModSources.updateModulationProperties({}, {});
+
 	editorStateIdentifiers.add("contentShown");
 	editorStateIdentifiers.add("onInitOpen");
 	editorStateIdentifiers.add("onControlOpen");
@@ -777,6 +779,8 @@ onControlCallback(new SnippetDocument("onControl", "number value"))
 
 	extraModSources.init(modChains);
 
+	extraModSources.updateModulationProperties({}, {});
+
 	editorStateIdentifiers.add("contentShown");
 	editorStateIdentifiers.add("onInitOpen");
 	editorStateIdentifiers.add("prepareToPlayOpen");
@@ -934,10 +938,6 @@ void JavascriptMasterEffect::setInternalAttribute(int index, float newValue)
 	handleFilterStatisticUpdate();
 }
 
-Identifier JavascriptMasterEffect::getIdentifierForParameterIndex(int parameterIndex) const
-{
-	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameterId(parameterIndex);
-}
 
 ValueTree JavascriptMasterEffect::exportAsValueTree() const
 { ValueTree v = MasterEffectProcessor::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
@@ -1383,14 +1383,6 @@ void JavascriptTimeVariantModulator::setInternalAttribute(int index, float newVa
 		contentParameterHandler.setParameter(index, newValue);
 }
 
-Identifier JavascriptTimeVariantModulator::getIdentifierForParameterIndex(int parameterIndex) const
-{
-	if (auto n = getActiveOrDebuggedNetwork())
-		return n->networkParameterHandler.getParameterId(parameterIndex);
-	else
-		return contentParameterHandler.getParameterId(parameterIndex);
-}
-
 ValueTree JavascriptTimeVariantModulator::exportAsValueTree() const
 { ValueTree v = TimeVariantModulator::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 
@@ -1634,10 +1626,6 @@ void JavascriptEnvelopeModulator::onVoiceReset(bool allVoices, int voiceIndex)
 		reset(voiceIndex);
 }
 
-int JavascriptEnvelopeModulator::getNumParameters() const
-{
-	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getNumParameters() + (int)hise::EnvelopeModulator::Parameters::numParameters;
-}
 
 void JavascriptEnvelopeModulator::setInternalAttribute(int index, float newValue)
 {
@@ -1669,21 +1657,7 @@ float JavascriptEnvelopeModulator::getAttribute(int index) const
 	}
 }
 
-Identifier JavascriptEnvelopeModulator::getIdentifierForParameterIndex(int index) const
-{
-	if (index < hise::EnvelopeModulator::Parameters::numParameters)
-		return parameterNames[index];
-	else
-	{
-		index -= (int)hise::EnvelopeModulator::Parameters::numParameters;
 
-		if (auto n = getActiveOrDebuggedNetwork())
-			return n->networkParameterHandler.getParameterId(index);
-		else
-			return contentParameterHandler.getParameterId(index);
-	}
-		
-}
 
 Processor* JavascriptEnvelopeModulator::getChildProcessor(int)
 { return nullptr; }
@@ -1909,6 +1883,8 @@ JavascriptSynthesiser::JavascriptSynthesiser(MainController *mc, const String &i
 	finaliseModChains();
 
 	extraModSources.init(modChains, 2);
+
+	extraModSources.updateModulationProperties({}, {});
 
 	for(int i = 0; i < numMods; i++)
 		modChains[i + 2].getChain()->setColour(Colour(0xFF888888));
@@ -2155,10 +2131,6 @@ int JavascriptSynthesiser::getNumChildProcessors() const
 ValueTree JavascriptSynthesiser::exportAsValueTree() const
 { ValueTree v = ModulatorSynth::exportAsValueTree(); saveContent(v); saveScript(v); return v; }
 
-int JavascriptSynthesiser::getNumParameters() const
-{
-	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getNumParameters() + (int)ModulatorSynth::Parameters::numModulatorSynthParameters;
-}
 
 float JavascriptSynthesiser::getAttribute(int index) const
 {
@@ -2183,34 +2155,6 @@ void JavascriptSynthesiser::setInternalAttribute(int index, float newValue)
 	index -= ModulatorSynth::Parameters::numModulatorSynthParameters;
 
 	getCurrentNetworkParameterHandler(&contentParameterHandler)->setParameter(index, newValue);
-}
-
-Identifier JavascriptSynthesiser::getIdentifierForParameterIndex(int parameterIndex) const
-{
-	if (parameterIndex < ModulatorSynth::Parameters::numModulatorSynthParameters)
-	{
-		return ModulatorSynth::getIdentifierForParameterIndex(parameterIndex);
-	}
-
-	parameterIndex -= ModulatorSynth::Parameters::numModulatorSynthParameters;
-
-	return getCurrentNetworkParameterHandler(&contentParameterHandler)->getParameterId(parameterIndex);
-}
-
-int JavascriptSynthesiser::getParameterIndexForIdentifier(const Identifier& id) const
-{
-	if (auto n = getActiveOrDebuggedNetwork())
-		return n->networkParameterHandler.getParameterIndexForIdentifier(id);
-	else
-		return contentParameterHandler.getParameterIndexForIdentifier(id);
-}
-
-int JavascriptSynthesiser::getNumAttributes() const
-{
-	if (auto n = getActiveOrDebuggedNetwork())
-		return n->networkParameterHandler.getNumParameters();
-	else
-		return contentParameterHandler.getNumParameters();
 }
 
 int JavascriptSynthesiser::getControlCallbackIndex() const
@@ -2272,14 +2216,24 @@ ScriptnodeVoiceKiller::ScriptnodeVoiceKiller(MainController* mc, const String& i
 	SafeAsyncCall::callWithDelay<ScriptnodeVoiceKiller>(*this, initialiseNetworks, 300);
 }
 
-void ScriptnodeVoiceKiller::setInternalAttribute(int parameter_index, float newValue)
-{}
+hise::ProcessorMetadata ScriptnodeVoiceKiller::createMetadata()
+{
+	return EnvelopeModulator::createBaseMetadata()
+		.withId(getClassType())
+		.withPrettyName("Scriptnode Voice Killer")
+		.withDescription("Monitors a scriptnode envelope's gate signal and terminates voices when the gate closes, required for voice management in scriptnode-based envelopes.")
+		.withType<hise::EnvelopeModulator>();
+}
 
-float ScriptnodeVoiceKiller::getDefaultValue(int parameterIndex) const
-{ return 0.0f; }
+void ScriptnodeVoiceKiller::setInternalAttribute(int parameter_index, float newValue)
+{
+	EnvelopeModulator::setInternalAttribute(parameter_index, newValue);
+}
 
 float ScriptnodeVoiceKiller::getAttribute(int parameter_index) const
-{ return 0.0f; }
+{ 
+	return EnvelopeModulator::getAttribute(parameter_index); 
+}
 
 int ScriptnodeVoiceKiller::getNumInternalChains() const
 { return 0; }

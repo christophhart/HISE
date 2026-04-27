@@ -83,15 +83,9 @@ HarmonicFilterEditor::HarmonicFilterEditor (ProcessorEditor *p)
     filterNumbers->setJustificationType (Justification::centredLeft);
     filterNumbers->setTextWhenNothingSelected (TRANS("Filter Numbers"));
     filterNumbers->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
-    filterNumbers->addItem (TRANS("1 Filter Band"), 1);
-    filterNumbers->addItem (TRANS("2 Filter Bands"), 2);
-    filterNumbers->addItem (TRANS("4 Filter Bands"), 3);
-    filterNumbers->addItem (TRANS("8 Filter Bands"), 4);
-    filterNumbers->addItem (TRANS("16 Filter Bands"), 5);
     filterNumbers->addListener (this);
 
     addAndMakeVisible (qSlider = new HiSlider ("Q"));
-    qSlider->setRange (4, 48, 1);
     qSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     qSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     qSlider->addListener (this);
@@ -105,7 +99,6 @@ HarmonicFilterEditor::HarmonicFilterEditor (ProcessorEditor *p)
     crossfadeSlider->addListener (this);
 
     addAndMakeVisible (semiToneTranspose = new HiSlider ("Semitones"));
-    semiToneTranspose->setRange (-24, 24, 1);
     semiToneTranspose->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     semiToneTranspose->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     semiToneTranspose->addListener (this);
@@ -128,11 +121,13 @@ HarmonicFilterEditor::HarmonicFilterEditor (ProcessorEditor *p)
     label4->setFont(GLOBAL_BOLD_FONT());
     
     
-	filterNumbers->setup(getProcessor(), HarmonicFilter::NumFilterBands, "Filterband Amount");
+	auto md = getProcessor()->getMetadata();
 
-	qSlider->setup(getProcessor(), HarmonicFilter::QFactor, "Q Factor");
+	md.setup(*filterNumbers, getProcessor(), HarmonicFilter::NumFilterBands);
 
-	semiToneTranspose->setup(getProcessor(), HarmonicFilter::SemiToneTranspose, "Transpose");
+	md.setup(*qSlider, getProcessor(), HarmonicFilter::QFactor);
+
+	md.setup(*semiToneTranspose, getProcessor(), HarmonicFilter::SemiToneTranspose);
 
 	semiToneTranspose->setTextValueSuffix(" st");
 

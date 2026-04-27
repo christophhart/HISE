@@ -123,6 +123,18 @@ struct RangeHelpers
 	 *	It tries to derive the IdSet, then sanitizes and checks that the value is within the range. */
 	static std::pair<bool, double> getDefaultValue(const var& obj);
 
+	/** Parses a var value to a valid midPoint. This allows the sentinel string value "disabled" to be used
+	    as a range-agnostic way of disabling the midpoint while parsing numeric types properly, even if they
+		come in as a string type.
+
+		rv.first will be false if the mid point shouldn't be used
+		rv.second is either:
+		  - the value to be used, 
+		  - std::numeric_limits<double>::max() if the sentinel value
+		  - 0 if the input string is invalid (so treat { false, 0.0 } as an error).
+	*/
+	static std::pair<bool, double> parseMidPointValue(const var& mp);
+	
 	static void storeDoubleRange(var& obj, InvertableParameterRange r, IdSet rangeIdSet = IdSet::scriptnode);
 
 	static void storeDoubleRange(ValueTree& d, InvertableParameterRange r, UndoManager* um, IdSet rangeIdSet = IdSet::scriptnode);

@@ -49,13 +49,19 @@ class SlotFX : public MasterEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("SlotFX", "Effect Slot", "A placeholder for another effect that can be swapped dynamically.")
+	SET_PROCESSOR_NAME("SlotFX", "Effect Slot", "")
+
+	static ProcessorMetadata createMetadata()
+	{
+		return ProcessorMetadata(getClassType())
+			.withDescription("A placeholder for another effect that can be swapped dynamically.")
+			.withStandardMetadata<SlotFX>()
+			.withChildFXConstrainer<SlotFX::Constrainer>();
+	}
 
 	SlotFX(MainController *mc, const String &uid);
 
 	~SlotFX() {};
-
-	
 
 	bool hasTail() const override 
 	{ 
@@ -210,30 +216,38 @@ public:
 	*/
 	bool setEffect(const String& typeName, bool synchronously=false);
 
-private:
-
-	class Constrainer : public FactoryType::Constrainer
+	class Constrainer : public EffectProcessorChainFactoryType::NoVoiceEffectConstrainer
 	{
-		String getDescription() const override { return "No poly FX"; }
+	public:
 
-#define DEACTIVATE(x) if (typeName == x::getClassType()) return false;
-
-		bool allowType(const Identifier &typeName) override
+		static ProcessorMetadata::WildcardFilterList getWildcard()
 		{
-			DEACTIVATE(PolyFilterEffect);
+			return {
+				{
+					ProcessorMetadataIds::Effect,
+					ProcessorMetadataIds::MasterEffect.toString() + "|" + 
+					ProcessorMetadataIds::MonophonicEffect.toString() + "|" +
+				    makeNegativeFilterWildcard<RouteEffect, SlotFX>()
+				}
+			};
+		};
 
-            DEACTIVATE(PolyshapeFX);
-			DEACTIVATE(HarmonicFilter);
-			DEACTIVATE(HarmonicMonophonicFilter);
-			DEACTIVATE(StereoEffect);
-			DEACTIVATE(RouteEffect);
-			DEACTIVATE(SlotFX);
+		String getDescription() const override { return "slot fx constrainer"; }
+
+		bool allowType(const Identifier& typeName) override
+		{
+			if (!NoVoiceEffectConstrainer::allowType(typeName))
+				return false;
+
+			if (typeName == RouteEffect::getClassType()) return false;
+			if (typeName == SlotFX::getClassType()) return false;
 
 			return true;
 		}
 
-#undef DEACTIVATE
 	};
+
+private:
 
 	void createList();
 

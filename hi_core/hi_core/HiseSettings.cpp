@@ -175,6 +175,7 @@ Array<juce::Identifier> HiseSettings::Scripting::getAllIds()
     ids.add(WarnIfUndefinedParameters);
 	ids.add(RestApiPort);
 	ids.add(AutoStartRestServer);
+	ids.add(CorsAllowedOrigins);
 
 	return ids;
 }
@@ -189,6 +190,9 @@ Array<juce::Identifier> HiseSettings::Other::getAllIds()
 	ids.add(AutosaveInterval);
 	ids.add(AudioThreadGuardEnabled);
 	ids.add(ExternalEditorPath);
+#if JUCE_LINUX
+	ids.add(LinuxTerminalCommand);
+#endif
     ids.add(AutoShowWorkspace);
 	ids.add(EnableShaderLineNumbers);
 	ids.add(ShowWelcomeScreen);
@@ -686,6 +690,16 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		D("> This is useful for AI agent integration workflows where you want the server always available.");
 		P_();
 
+		P(HiseSettings::Scripting::CorsAllowedOrigins);
+		D("Controls the `Access-Control-Allow-Origin` (CORS) header emitted by the REST API server.");
+		D("Use this to allow browser-based clients hosted on a different origin to call the API.");
+		D("- `*` (default): allow any origin. Convenient for development.");
+		D("- empty string: emit no CORS headers (matches the legacy behavior before this setting existed).");
+		D("- comma-separated origin list (e.g. `https://app.example.com,https://other.com`): the server only echoes the request's `Origin` header back if it appears in this list.");
+		D("> A wildcard preflight (HTTP `OPTIONS`) handler is automatically registered while CORS is enabled.");
+		D("> Restart the REST server after changing this setting for it to take effect.");
+		P_();
+
 		P(HiseSettings::Other::UseOpenGL);
 		D("Enable this in order to use OpenGL for the UI rendering of the HISE app. This might drastically accelerate the UI performance, so if you have a laggy UI in HISE, try this option");
 		D("> Be aware that this does not affect whether your compiled project uses OpenGL (as this can be defined separately).");
@@ -699,6 +713,12 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 		P(HiseSettings::Other::ExternalEditorPath);
 		D("You can specifiy the executable of an audio editor here and then use the button in the sample editor to open the currently selected files in the editor");
 		D("> You can use any editor that accepts filenames as command-line argument");
+		P_();
+
+		P(HiseSettings::Other::LinuxTerminalCommand);
+		D("Linux only. Optional override for the terminal launched by `Tools -> Launch HISE CLI in Terminal`.");
+		D("Leave empty to let HISE auto-detect (gnome-terminal, konsole, xfce4-terminal, alacritty, kitty, xterm, x-terminal-emulator).");
+		D("If set, provide a full command template using `{cwd}` and `{cmd}` placeholders, e.g. `gnome-terminal --working-directory={cwd} -- {cmd}`.");
 		P_();
 
 		P(HiseSettings::Other::EnableAutosave);
@@ -872,6 +892,12 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
 		{
 			auto value = prop.getProperty(va);
 
+			if (value == "1")
+				return var(true);
+
+			if (value == "0")
+				return var(false);
+
 			if (value == "Yes")
 				return var(true);
 
@@ -892,17 +918,53 @@ var HiseSettings::Data::getSetting(const Identifier& id) const
         return value;
 }
 
-var HiseSettings::Data::getExtraDefinitionsAsObject() const
+juce::Identifier HiseSettings::Data::getExtraDefinitionId(String platform, String target)
 {
 #if JUCE_WINDOWS
-    
-    auto defName = Project::ExtraDefinitionsWindows;
+	auto defName = Project::ExtraDefinitionsWindows;
 #elif JUCE_MAC
-    auto defName = Project::ExtraDefinitionsOSX;
+	auto defName = Project::ExtraDefinitionsOSX;
 #elif JUCE_LINUX
-    auto defName = Project::ExtraDefinitionsLinux;
+	auto defName = Project::ExtraDefinitionsLinux;
 #endif
 
+	if (platform.isNotEmpty())
+	{
+		if (platform == "Windows")
+			defName = Project::ExtraDefinitionsWindows;
+		if (platform == "macOS")
+			defName = Project::ExtraDefinitionsOSX;
+		if (platform == "Linux")
+			defName = Project::ExtraDefinitionsLinux;
+	}
+
+	if (target == "Dll")
+		defName = Project::ExtraDefinitionsNetworkDll;
+
+	return defName;
+}
+
+void HiseSettings::Data::writeSetting(const Identifier& settingFile, const Identifier& settingId, const var& newValue)
+{
+	auto fileTree = data.getChildWithName(settingFile);
+	auto sv = fileTree.getOrCreateChildWithName(settingId, nullptr);
+
+	sv.setProperty("value", newValue, nullptr);
+	settingWasChanged(settingId, newValue);
+
+	if (sv.getProperty("options").toString() == "Yes&#10;No")
+		sv.setProperty("value", sv.getProperty("value") ? "Yes" : "No", nullptr);
+
+	if (ScopedPointer<XmlElement> xml = HiseSettings::ConversionHelpers::getConvertedXml(fileTree))
+	{
+		auto f = getFileForSetting(settingFile);
+		xml->writeToFile(f, "");
+	}
+}
+
+var HiseSettings::Data::getExtraDefinitionsAsObject(String platform, String target, bool includeTemp) const
+{
+	auto defName = getExtraDefinitionId(platform, target);
     auto s = getSetting(defName).toString();
 
     StringArray items;
@@ -913,6 +975,8 @@ var HiseSettings::Data::getExtraDefinitionsAsObject() const
         items = StringArray::fromTokens(s, ";", "");
     else
         items = StringArray::fromLines(s);
+
+	items.sort(false);
 
     DynamicObject::Ptr obj = new DynamicObject();
 
@@ -926,11 +990,34 @@ var HiseSettings::Data::getExtraDefinitionsAsObject() const
         obj->setProperty(i.upToFirstOccurrenceOf("=", false, false).trim(), i.fromFirstOccurrenceOf("=", false, false).trim());
     }
     
-    for(const auto& sp: temporaryExtraDefinitions)
-        obj->setProperty(sp.name, sp.value);
-    
+	if (includeTemp)
+	{
+		for (const auto& sp : temporaryExtraDefinitions)
+			obj->setProperty(sp.name, sp.value);
+	}
+
     return var(obj.get());
 }
+
+void HiseSettings::Data::setExtraDefinitionsFromObject(String platform, String target, const var& obj, String separator)
+{
+	String s;
+
+	if (obj.getDynamicObject() == nullptr)
+	{
+		jassertfalse;
+		return;
+	}
+
+	for (auto& nv : obj.getDynamicObject()->getProperties())
+		s << nv.name.toString() << "=" << nv.value.toString() << separator;
+
+	auto defName = getExtraDefinitionId(platform, target);
+
+	writeSetting(HiseSettings::SettingFiles::ProjectSettings, defName, s);
+}
+
+
 
 String HiseSettings::Data::getTemporaryDefinitionsAsString() const
 {
@@ -1237,6 +1324,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Other::AudioThreadGuardEnabled)  return "Yes";
     else if (id == Other::AutoShowWorkspace)        return "Yes";
 	else if (id == Other::ExternalEditorPath)		return "";
+	else if (id == Other::LinuxTerminalCommand)		return "";
 	else if (id == Other::ShowWelcomeScreen)	    return "Yes";
 	else if (id == Other::GlobalHiseScaleFactor)    return "100%";
 	else if (id == Documentation::DocRepository)	return "";
@@ -1250,6 +1338,7 @@ var HiseSettings::Data::getDefaultSetting(const Identifier& id) const
 	else if (id == Scripting::SaveConnectedFilesOnCompile) return "No";
 	else if (id == Scripting::RestApiPort)			return 1900;
 	else if (id == Scripting::AutoStartRestServer)	return "No";
+	else if (id == Scripting::CorsAllowedOrigins)	return "*";
 #if HISE_USE_VS2022
 	else if (id == Compiler::VisualStudioVersion)	return "Visual Studio 2022";
 #else

@@ -35,7 +35,6 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (octaveSlider = new HiSlider ("Octave 1"));
-    octaveSlider->setRange (-5, 5, 1);
     octaveSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     octaveSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     octaveSlider->addListener (this);
@@ -46,16 +45,7 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     waveFormSelector->setJustificationType (Justification::centredLeft);
     waveFormSelector->setTextWhenNothingSelected (TRANS("Select Waveform"));
     waveFormSelector->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
-    waveFormSelector->addItem (TRANS("Sine"), 1);
-    waveFormSelector->addItem (TRANS("Triangle"), 2);
-    waveFormSelector->addItem (TRANS("Saw"), 3);
-    waveFormSelector->addItem (TRANS("Square"), 4);
-    waveFormSelector->addItem (TRANS("Noise"), 5);
-    waveFormSelector->addItem (TRANS("Triangle 2"), 6);
-    waveFormSelector->addItem (TRANS("Square 2"), 7);
-    waveFormSelector->addItem (TRANS("Trapezoid 1"), 8);
-    waveFormSelector->addItem (TRANS("Trapezoid 2"), 9);
-    waveFormSelector->addSeparator();
+
     waveFormSelector->addListener (this);
 
     addAndMakeVisible (waveformDisplay = new WaveformComponent(getProcessor(), 0));
@@ -104,7 +94,6 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     fadeTimeEditor->addListener (this);
 
     addAndMakeVisible (octaveSlider2 = new HiSlider ("Octave 2"));
-    octaveSlider2->setRange (-5, 5, 1);
     octaveSlider2->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     octaveSlider2->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     octaveSlider2->addListener (this);
@@ -115,47 +104,33 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
     waveFormSelector2->setJustificationType (Justification::centredLeft);
     waveFormSelector2->setTextWhenNothingSelected (TRANS("Select Waveform"));
     waveFormSelector2->setTextWhenNoChoicesAvailable (TRANS("(no choices)"));
-    waveFormSelector2->addItem (TRANS("Sine"), 1);
-    waveFormSelector2->addItem (TRANS("Triangle"), 2);
-    waveFormSelector2->addItem (TRANS("Saw"), 3);
-    waveFormSelector2->addItem (TRANS("Square"), 4);
-    waveFormSelector2->addItem (TRANS("Noise"), 5);
-    waveFormSelector2->addItem (TRANS("Triangle 2"), 6);
-    waveFormSelector2->addItem (TRANS("Square 2"), 7);
-    waveFormSelector2->addItem (TRANS("Trapezoid 1"), 8);
-    waveFormSelector2->addItem (TRANS("Trapezoid 2"), 9);
-    waveFormSelector2->addSeparator();
+
     waveFormSelector2->addListener (this);
 
     addAndMakeVisible (waveformDisplay2 = new WaveformComponent(getProcessor(), 1));
     waveformDisplay2->setName ("new component");
 
     addAndMakeVisible (mixSlider = new HiSlider ("Mix"));
-    mixSlider->setRange (0, 100, 1);
     mixSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     mixSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     mixSlider->addListener (this);
 
     addAndMakeVisible (panSlider = new HiSlider ("Pan 1"));
-    panSlider->setRange (-100, 100, 1);
     panSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     panSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     panSlider->addListener (this);
 
     addAndMakeVisible (panSlider2 = new HiSlider ("Pan 2"));
-    panSlider2->setRange (-100, 100, 1);
     panSlider2->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     panSlider2->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     panSlider2->addListener (this);
 
     addAndMakeVisible (detuneSlider2 = new HiSlider ("Detune 2"));
-    detuneSlider2->setRange (-100, 100, 1);
     detuneSlider2->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     detuneSlider2->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     detuneSlider2->addListener (this);
 
     addAndMakeVisible (detuneSlider = new HiSlider ("Detune"));
-    detuneSlider->setRange (-100, 100, 1);
     detuneSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     detuneSlider->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     detuneSlider->addListener (this);
@@ -170,69 +145,54 @@ WaveSynthBody::WaveSynthBody (ProcessorEditor *p)
 
     addAndMakeVisible (pulseSlider1 = new HiSlider ("Pulse 1"));
     pulseSlider1->setTooltip (TRANS("Select the pulse width if possible"));
-    pulseSlider1->setRange (0, 1, 0.01);
     pulseSlider1->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     pulseSlider1->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     pulseSlider1->addListener (this);
 
     addAndMakeVisible (pulseSlider2 = new HiSlider ("Pulse 2"));
     pulseSlider2->setTooltip (TRANS("Select the pulse width if possible"));
-    pulseSlider2->setRange (0, 1, 0.01);
     pulseSlider2->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     pulseSlider2->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     pulseSlider2->addListener (this);
 
     addAndMakeVisible (semiToneSlider1 = new HiSlider ("SemiTones 1"));
-    semiToneSlider1->setRange (-12, 12, 1);
     semiToneSlider1->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     semiToneSlider1->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     semiToneSlider1->addListener (this);
 
     addAndMakeVisible (semiToneSlider2 = new HiSlider ("SemiTones 2"));
-    semiToneSlider2->setRange (-12, 12, 1);
     semiToneSlider2->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     semiToneSlider2->setTextBoxStyle (Slider::TextBoxRight, false, 40, 20);
     semiToneSlider2->addListener (this);
 
     //[UserPreSize]
 
-	waveFormSelector->setup(getProcessor(), WaveSynth::SpecialParameters::WaveForm1, "Waveform 1");
-	waveFormSelector2->setup(getProcessor(), WaveSynth::SpecialParameters::WaveForm2, "Waveform 2");
+	auto md = getProcessor()->getMetadata();
 
-	octaveSlider->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose1, "Octave 1");
-    octaveSlider->setMode(HiSlider::Discrete, {-5.0, 5.0, 1.0});
-	octaveSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::OctaveTranspose2, "Octave 2");
-    octaveSlider2->setMode(HiSlider::Discrete, {-5.0, 5.0, 1.0});
+	md.setup(*waveFormSelector, getProcessor(), WaveSynth::WaveForm1);
+	md.setup(*waveFormSelector2, getProcessor(), WaveSynth::WaveForm2);
 
-	detuneSlider->setup(getProcessor(), WaveSynth::SpecialParameters::Detune1, "Detune 1");
-	detuneSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::Detune2, "Detune 2");
-    detuneSlider->setMode(HiSlider::Mode::Linear, {-100.0, 100.0});
-    detuneSlider2->setMode(HiSlider::Mode::Linear, {-100.0, 100.0});
+	md.setup(*octaveSlider, getProcessor(), WaveSynth::OctaveTranspose1);
+	md.setup(*octaveSlider2, getProcessor(), WaveSynth::OctaveTranspose2);
+
+	md.setup(*detuneSlider, getProcessor(), WaveSynth::Detune1);
+	md.setup(*detuneSlider2, getProcessor(), WaveSynth::Detune2);
 	detuneSlider->setTextValueSuffix("ct");
 	detuneSlider2->setTextValueSuffix("ct");
 
-	panSlider->setup(getProcessor(), WaveSynth::SpecialParameters::Pan1, "Pan 1");
-	panSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::Pan2, "Pan 2");
-	panSlider->setMode(HiSlider::Pan);
-	panSlider2->setMode(HiSlider::Pan);
+	md.setup(*panSlider, getProcessor(), WaveSynth::Pan1);
+	md.setup(*panSlider2, getProcessor(), WaveSynth::Pan2);
 
-	mixSlider->setup(getProcessor(), WaveSynth::SpecialParameters::Mix, "Mix");
-	mixSlider->setMode(HiSlider::Mode::NormalizedPercentage);
+	md.setup(*mixSlider, getProcessor(), WaveSynth::Mix);
 
-	enableSecondButton->setup(getProcessor(), WaveSynth::SpecialParameters::EnableSecondOscillator, "Enable 2nd Osc");
-	enableSyncButton->setup(getProcessor(), WaveSynth::SpecialParameters::HardSync, "Sync 2nd Osc");
+	md.setup(*enableSecondButton, getProcessor(), WaveSynth::EnableSecondOscillator);
+	md.setup(*enableSyncButton, getProcessor(), WaveSynth::HardSync);
 
-	pulseSlider1->setup(getProcessor(), WaveSynth::SpecialParameters::PulseWidth1, "Pulse Width 1");
-	pulseSlider1->setMode(HiSlider::Mode::NormalizedPercentage);
+	md.setup(*pulseSlider1, getProcessor(), WaveSynth::PulseWidth1);
+	md.setup(*pulseSlider2, getProcessor(), WaveSynth::PulseWidth2);
 
-	pulseSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::PulseWidth2, "Pulse Width 2");
-	pulseSlider2->setMode(HiSlider::Mode::NormalizedPercentage);
-
-    semiToneSlider1->setup(getProcessor(), WaveSynth::SpecialParameters::SemiTones1, "SemiTones 1");
-    semiToneSlider1->setMode(HiSlider::Discrete, {-12.0, 12.0, 1.0});
-
-    semiToneSlider2->setup(getProcessor(), WaveSynth::SpecialParameters::SemiTones2, "SemiTones 2");
-    semiToneSlider2->setMode(HiSlider::Discrete, {-12.0, 12.0, 1.0});
+	md.setup(*semiToneSlider1, getProcessor(), WaveSynth::SemiTones1);
+	md.setup(*semiToneSlider2, getProcessor(), WaveSynth::SemiTones2);
 
     voiceAmountEditor->setFont(GLOBAL_FONT());
     voiceAmountLabel->setFont(GLOBAL_FONT());

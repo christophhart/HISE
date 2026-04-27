@@ -34,6 +34,15 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata KeyModulator::createMetadata()
+{
+	return ProcessorMetadata(getClassType())
+		.withPrettyName("Notenumber Modulator")
+		.withDescription("Creates a modulation value based on the MIDI note number, with optional table mapping for custom response curves.")
+		.withType<hise::VoiceStartModulator>()
+		.withComplexDataInterface(ExternalData::DataType::Table);
+}
+
 KeyModulator::KeyModulator(MainController *mc, const String &id, int numVoices, Modulation::Mode m):
 		VoiceStartModulator(mc, id, numVoices, m),
 		LookupTableProcessor(mc, 1),

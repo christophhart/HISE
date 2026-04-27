@@ -33,6 +33,94 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata FlexAhdsrEnvelope::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	constexpr int o = (int)EnvelopeModulator::Parameters::numParameters;
+
+	return EnvelopeModulator::createBaseMetadata()
+		.withStandardMetadata<FlexAhdsrEnvelope>()
+		.withDescription("A more complex AHDSR envelope with draggable curves and multiple playback modes")
+		.withComplexDataInterface(ExternalData::DataType::DisplayBuffer)
+		.withParameter(Par(o + (int)SpecialParameters::Attack)
+			.withId("Attack")
+			.withDescription("Controls how long the envelope takes to reach full level after a note-on")
+			.withSliderMode(HiSlider::Time, Range(0.0, 30000.0, 0.0).withCentreSkew(2000.0))
+			.withDefault(5.0f))
+		.withParameter(Par(o + (int)SpecialParameters::Hold)
+			.withId("Hold")
+			.withDescription("The time the envelope stays at the attack level before decaying")
+			.withSliderMode(HiSlider::Time, Range(0.0, 30000.0, 0.0).withCentreSkew(2000.0))
+			.withDefault(0.0f))
+		.withParameter(Par(o + (int)SpecialParameters::Decay)
+			.withId("Decay")
+			.withDescription("The time the envelope takes to fall from the attack level to the sustain level")
+			.withSliderMode(HiSlider::Time, Range(0.0, 30000.0, 0.0).withCentreSkew(2000.0))
+			.withDefault(100.0f))
+		.withParameter(Par(o + (int)SpecialParameters::Sustain)
+			.withId("Sustain")
+			.withDescription("The level maintained while the note is held")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(0.5f))
+		.withParameter(Par(o + (int)SpecialParameters::Release)
+			.withId("Release")
+			.withDescription("The time the envelope takes to fall to zero after note-off")
+			.withSliderMode(HiSlider::Time, Range(0.0, 30000.0, 0.0).withCentreSkew(2000.0))
+			.withDefault(300.0f))
+		.withParameter(Par(o + (int)SpecialParameters::Mode)
+			.withId("Mode")
+			.withDescription("The envelope playback mode")
+			.withValueList({ "Trigger", "Note", "Loop" }, 0)
+			.withDefault(1.0f))
+		.withParameter(Par(o + (int)SpecialParameters::AttackLevel)
+			.withId("AttackLevel")
+			.withDescription("The peak level reached at the end of the attack phase")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(1.0f))
+		.withParameter(Par(o + (int)SpecialParameters::AttackCurve)
+			.withId("AttackCurve")
+			.withDescription("Controls the curvature of the attack phase")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(0.5f))
+		.withParameter(Par(o + (int)SpecialParameters::DecayCurve)
+			.withId("DecayCurve")
+			.withDescription("Controls the curvature of the decay phase")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(0.5f))
+		.withParameter(Par(o + (int)SpecialParameters::ReleaseCurve)
+			.withId("ReleaseCurve")
+			.withDescription("Controls the curvature of the release phase")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range(0.0, 1.0, 0.0))
+			.withDefault(0.5f))
+		.withModulation(Mod(InternalChains::AttackTimeChain)
+			.withId("AttackTimeModulation")
+			.withDescription("Modulates the attack time per voice")
+			.withConstrainer<VoiceStartModulatorFactoryType::Constrainer>()
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly))
+		.withModulation(Mod(InternalChains::AttackLevelChain)
+			.withId("AttackLevelModulation")
+			.withDescription("Modulates the attack level per voice")
+			.withConstrainer<VoiceStartModulatorFactoryType::Constrainer>()
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly))
+		.withModulation(Mod(InternalChains::DecayTimeChain)
+			.withId("DecayTimeModulation")
+			.withDescription("Modulates the decay time per voice")
+			.withConstrainer<VoiceStartModulatorFactoryType::Constrainer>()
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly))
+		.withModulation(Mod(InternalChains::SustainLevelChain)
+			.withId("SustainLevelModulation")
+			.withDescription("Modulates the sustain level per voice")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly))
+		.withModulation(Mod(InternalChains::ReleaseTimeChain)
+			.withId("ReleaseTimeModulation")
+			.withDescription("Modulates the release time per voice")
+			.withConstrainer<VoiceStartModulatorFactoryType::Constrainer>()
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly));
+}
+
 FlexAhdsrEnvelope::FlexAhdsrEnvelope(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m) :
 	EnvelopeModulator(mc, id, voiceAmount, m),
 	ProcessorWithSingleStaticExternalData(mc, ExternalData::DataType::DisplayBuffer, 1),
@@ -52,18 +140,7 @@ FlexAhdsrEnvelope::FlexAhdsrEnvelope(MainController *mc, const String &id, int v
 	getDisplayBuffer(0)->setGlobalUIUpdater(mc->getGlobalUIUpdater());
 	getDisplayBuffer(0)->setRingBufferSize(1, 9);
 	
-
-	parameterNames.add(Identifier("Attack"));
-	parameterNames.add(Identifier("Hold"));
-	parameterNames.add(Identifier("Decay"));
-	parameterNames.add(Identifier("Sustain"));
-	parameterNames.add(Identifier("Release"));
-	parameterNames.add(Identifier("Mode"));
-	parameterNames.add(Identifier("AttackLevel"));
-	parameterNames.add(Identifier("AttackCurve"));
-	parameterNames.add(Identifier("DecayCurve"));
-	parameterNames.add(Identifier("ReleaseCurve"));
-	updateParameterSlots();
+updateParameterSlots();
 
 	internalChains.reserve(numInternalChains);
 
@@ -81,10 +158,10 @@ FlexAhdsrEnvelope::FlexAhdsrEnvelope(MainController *mc, const String &id, int v
 	scriptnode::ParameterDataList list;
 	obj.createParameters(list);
 
-	for(int i = 0; i < list.size(); i++)
-	{
-		parameters[i] = list[i].info.defaultValue;
-	}
+	auto md = getMetadata();
+
+	for(int i = getParameterOffset(); i < md.parameters.size(); i++)
+		parameters[i - getParameterOffset()] = md[i].defaultValue;
 
 	getDisplayBuffer(0)->getUpdater().sendContentChangeMessage(sendNotificationSync, 2);
 }
@@ -332,30 +409,19 @@ public:
 		display.setComplexDataUIBase(mod->getDisplayBuffer(0));
 		addAndMakeVisible(display);
 
-		scriptnode::ParameterDataList list;
-		mod->obj.createParameters(list);
-		int i = 0;
+		auto md = getProcessor()->getMetadata();
 
-		for(auto l: list)
+		for(int i = FlexAhdsrEnvelope::getParameterOffset(); i < md.parameters.size(); i++)
 		{
-			auto info = l.info;
-			auto id = info.getId();
-			auto s = new HiSlider(id);
-			s->setup(getProcessor(), i + FlexAhdsrEnvelope::getParameterOffset(), id);
-			s->setRange(info.min, info.max, info.interval);
+			auto s = new HiSlider(md[i].id.toString());
+			md.setup(*s, getProcessor(), i);
 
-			s->setSkewFactor(info.skew);
 			s->setLookAndFeel(&laf);
 			s->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
-			auto vtc = l.getValueToTextConverter();
-			s->textFromValueFunction = vtc;
-			s->valueFromTextFunction = vtc;
 			s->updateText();
 			sliders.add(s);
 			addAndMakeVisible(s);
-			i++;
 		}
-
 	}
 
 	void resized() override
@@ -404,14 +470,6 @@ ProcessorEditorBody * FlexAhdsrEnvelope::createEditor(ProcessorEditor* parentEdi
 	return nullptr;
 
 #endif
-}
-
-float FlexAhdsrEnvelope::getDefaultValue(int parameterIndex) const
-{
-	if(parameterIndex < getParameterOffset())
-		return EnvelopeModulator::getDefaultValue(parameterIndex);
-
-	return 1.0f;
 }
 
 void FlexAhdsrEnvelope::setInternalAttribute(int parameterIndex, float newValue)

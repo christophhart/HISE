@@ -184,9 +184,6 @@ void Processor::restoreFromValueTree(const ValueTree &previouslyExportedProcesso
     }
 }
 
-ProcessorDocumentation* Processor::createDocumentation() const
-{ return nullptr; }
-
 const Path Processor::getSymbol() const
 {
 	if(symbol.isEmpty())
@@ -215,12 +212,14 @@ void Processor::setAttribute(int parameterIndex, float newValue, dispatch::Dispa
 #if HISE_NEW_PROCESSOR_DISPATCH
 	dispatcher.setAttribute(parameterIndex, newValue, notifyEditor);
 #endif
-
-	
 }
 
-float Processor::getDefaultValue(int) const
-{ return 1.0f; }
+float Processor::getDefaultValue(int parameterIndex) const
+{ 
+	jassert(hasInitialisedMetadata());
+	jassert(isPositiveAndBelow(parameterIndex, metadata.second.parameters.size()));
+	return metadata.second.getDefaultValue(this, parameterIndex);
+}
 
 int Processor::getNumInternalChains() const
 { return 0;}
@@ -265,7 +264,7 @@ void Processor::setId(const String& newId, NotificationType notifyChangeHandler)
 			MainController::ProcessorChangeHandler::EventType::ProcessorRenamed, false);
 #endif
 #if HISE_NEW_PROCESSOR_DISPATCH
-	dispatcher.setId(dispatch::HashedCharPtr(newId));
+	dispatcher.setId(dispatch::HashedCharPtr(newId), (dispatch::DispatchType)notifyChangeHandler);
 #endif
 
 
@@ -436,14 +435,6 @@ void Processor::BypassListener::onBypassUpdate(dispatch::library::Processor* p, 
     NEW_PROCESSOR_DISPATCH(bypassStateChanged(&p->getOwner<hise::Processor>(), state));
 }
 
-String Processor::getDescriptionForParameters(int parameterIndex)
-{
-	if (parameterNames.size() == parameterDescriptions.size())
-		return parameterDescriptions[parameterIndex];
-
-	return "-";
-}
-
 bool Processor::isOnAir() const noexcept
 { return onAir; }
 
@@ -554,35 +545,37 @@ void Processor::setConstrainerForAllInternalChains(BaseConstrainer *constrainer)
 
 Identifier Processor::getIdentifierForParameterIndex(int parameterIndex) const
 {
-	// Use ProcessorWithScriptingContent
-	jassert(dynamic_cast<const ProcessorWithScriptingContent*>(this) == nullptr);
+	jassert(hasInitialisedMetadata());
 
-	if (parameterIndex > parameterNames.size()) return Identifier();
+	for (const auto& pd : metadata.second.parameters)
+	{
+		if (pd.parameterIndex == parameterIndex)
+			return pd.id;
+	}
 
-	return parameterNames[parameterIndex];
+	jassertfalse;
+	return {};
 }
 
 int Processor::getParameterIndexForIdentifier(const Identifier& id) const
 {
-	// Use ProcessorWithScriptingContent
-	jassert(dynamic_cast<const ProcessorWithScriptingContent*>(this) == nullptr);
+	jassert(hasInitialisedMetadata());
 
-	return parameterNames.indexOf(id);
+	for (const auto& p : metadata.second.parameters)
+	{
+		if (p.id == id)
+			return p.parameterIndex;
+	}
+
+	jassertfalse;
+	return -1;
 }
 
 
 int Processor::getNumParameters() const
 {
-	if (auto jp = dynamic_cast<const JavascriptProcessor*>(this))
-	{
-		if (auto n = jp->getActiveOrDebuggedNetwork())
-			return n->networkParameterHandler.getNumParameters();
-	}
-
-	if (auto pwsc = dynamic_cast<const ProcessorWithScriptingContent*>(this))
-		return pwsc->getNumScriptParameters();
-	else
-		return parameterNames.size();
+	jassert(hasInitialisedMetadata());
+	return jmax(metadata.second.parameters.size(), (int)dispatcher.getNumAttributes());
 }
 
 void Processor::setIsOnAir(bool shouldBeOnAir)
@@ -809,23 +802,36 @@ String FactoryType::getUniqueName(Processor *id, String name/*=String()*/)
 
 	if (id == chain) return chain->getId();
 
-	int amount = 0;
-
 	if(name.isEmpty()) name = id->getId();
 
+	// If the exact name is unique in the tree, keep it as-is
+	int exactCount = 0;
 
+	Processor::Iterator<Processor> iter(chain, false);
 
+	while (auto* p = iter.getNextProcessor())
+	{
+		if (p->getId() == name)
+			exactCount++;
+	}
+
+	if (exactCount <= 1)
+		return name;
+
+	// Collision found - strip trailing numbers and renumber
 	auto lastNumbers = String(name.getTrailingIntValue());
 
 	if (lastNumbers.isNotEmpty())
 		name = name.upToLastOccurrenceOf(lastNumbers, false, false);
 
+	int amount = 0;
 	countProcessorsWithSameId(amount, chain, id, name);
 
 	// If this happens, you haven't added the processor yet.
 	jassert(amount != 0);
 
-	name = name + String(amount);
+	if(amount > 1)
+		name = name + String(amount);
 	
 	return name;
 }
@@ -1422,216 +1428,20 @@ void ProcessorHelpers::connectTableEditor(TableEditor& t, Processor* p, int inde
 	}
 }
 
-hise::MarkdownHelpButton* ProcessorDocumentation::createHelpButtonForParameter(int index, Component* componentToAttachTo)
+ProcessorMetadata Processor::getMetadata() const
 {
-	if (index < parameters.size())
-	{
-		auto doc = parameters[index].createHelpText(2);
+	if (hasInitialisedMetadata())
+		return metadata.second;
 
-		auto b = new MarkdownHelpButton();
-		b->setHelpText(doc);
+	// All processors must call updateParameterSlots() during construction.
+	// If this fires, a processor subclass is missing its initialisation.
+	ProcessorMetadataRegistry registry;
 
-		if (componentToAttachTo != nullptr)
-		{
-			b->attachTo(componentToAttachTo, MarkdownHelpButton::TopRight);
-		}
+	if (auto md = registry.get(getType()))
+		return *md;
 
-		return b;
-	}
-
-	return nullptr;
-}
-
-hise::MarkdownHelpButton* ProcessorDocumentation::createHelpButton()
-{
-	String t;
-
-	t << "# " << name << "\n";
-	t << description << "\n";
-	
-	t << createHelpText();
-
-	auto b = new MarkdownHelpButton();
-	b->setHelpText<PathProvider<ChainBarPathFactory>>(t);
-
-	return b;
-}
-
-juce::String ProcessorDocumentation::createHelpText()
-{
-	String t;
-
-	
-
-	if (parameterOffset < parameters.size())
-	{
-		t << "## Parameters \n";
-
-		t << "| `#` | ID | Description |\n";
-		t << "| - | --- | ----------- |\n";
-
-		int p = 0;
-
-		for (auto& e : parameters)
-		{
-			if (p++ < parameterOffset)
-				continue;
-
-			t << e.getMarkdownLine(false) << "\n";
-		}
-			
-	}
-
-	if (chainOffset < chains.size())
-	{
-		t << "## Chains \n";
-
-		t << "| `#` | ID | Restriction | Description |\n";
-		t << "| - | --- | ----- | ----------- |\n";
-
-		int c = 0;
-
-		for (auto& e : chains)
-		{
-			if (c++ < chainOffset)
-				continue;
-
-			t << e.getMarkdownLine(true) << "\n";
-		}
-			
-	}
-
-	return t;
-}
-
-void ProcessorDocumentation::fillMissingParameters(Processor* p)
-{
-	for (int i = parameterOffset; i < p->getNumParameters(); i++)
-	{
-		auto id = p->getIdentifierForParameterIndex(i);
-
-		Entry e;
-		e.id = id;
-		e.helpText = p->getDescriptionForParameters(i);
-		e.index = i;
-		e.name = id.toString();
-
-		if (!parameters.contains(e))
-			parameters.add(e);
-	}
-
-	for (int i = chainOffset; i < p->getNumInternalChains(); i++)
-	{
-		Entry e;
-
-		e.name = p->getChildProcessor(i)->getId();
-		e.helpText = "-";
-		e.index = i;
-		
-		auto c = dynamic_cast<Chain*>(p->getChildProcessor(i));
-		auto constrainer = c->getFactoryType()->getConstrainer();
-
-		if (constrainer == nullptr)
-			e.constrainer = "All types";
-		else
-			e.constrainer = constrainer->getDescription();
-
-		if (!chains.contains(e))
-			chains.add(e);
-	}
-
-    Entry::Sorter s;
-	parameters.sort(s);
-}
-
-int ProcessorDocumentation::Entry::Sorter::compareElements(Entry& first, Entry& second)
-{
-	if (first.index > second.index)
-		return 1;
-	else if (first.index < second.index)
-		return -1;
-	else
-		return 0;
-}
-
-bool ProcessorDocumentation::Entry::operator==(const Entry& other) const
-{ return id == other.id; }
-
-ProcessorDocumentation::~ProcessorDocumentation()
-{}
-
-int ProcessorDocumentation::getNumAttributes() const
-{ return parameters.size(); }
-
-Identifier ProcessorDocumentation::getAttributeId(int index) const
-{ return parameters[index].id; }
-
-void ProcessorDocumentation::setOffset(int pOffset, int cOffset)
-{
-	parameterOffset = pOffset;
-	chainOffset = cOffset;
-}
-
-ProcessorDocumentation::ProcessorDocumentation()
-{}
-
-void ProcessorDocumentation::addParameter(Entry newParameter)
-{
-	parameters.add(newParameter);
-}
-
-void ProcessorDocumentation::addChain(Entry newChain)
-{
-	chains.add(newChain);
-}
-
-void ProcessorDocumentation::addLine(const String& l)
-{
-	description << l << "\n";
-}
-
-void ProcessorDocumentation::setName(const String& name_)
-{
-	name = name_;
-}
-
-juce::String ProcessorDocumentation::Entry::getMarkdownLine(bool getChain) const
-{
-	String s;
-
-	s << "| " << String(index) << " | ";
-	
-	if (getChain)
-	{
-		s << name << " | " << constrainer << " |";
-	}
-	else
-	{
-		s << "`" << id.toString() << "`";
-	}
-	
-	s << " | " << helpText << " |";
-	return s;
-}
-
-juce::String ProcessorDocumentation::Entry::createHelpText(int headLineLevel) const
-{
-	String s;
-
-	switch (headLineLevel)
-	{
-	case 1: s << "# "; break;
-	case 2: s << "## "; break;
-	case 3: s << "### "; break;
-	default:
-		break;
-	}
-
-	s << " " << name << "\n";
-	s << "Scripting ID: `" << id.toString() << "`  \n";
-	s << "  \n";
-	s << helpText;
-	return s;
+	jassertfalse;
+	return {};
 }
 
 } // namespace hise

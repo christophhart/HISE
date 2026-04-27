@@ -38,25 +38,21 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (freqSlider = new HiSlider ("Frequency"));
-    freqSlider->setRange (20, 20000, 1);
     freqSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     freqSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     freqSlider->addListener (this);
 
     addAndMakeVisible (qSlider = new HiSlider ("Q"));
-    qSlider->setRange (0.3, 8, 0.1);
     qSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     qSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     qSlider->addListener (this);
 
     addAndMakeVisible (gainSlider = new HiSlider ("Gain"));
-    gainSlider->setRange (-24, 24, 0.1);
     gainSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     gainSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     gainSlider->addListener (this);
 
 	addAndMakeVisible(bipolarFreqSlider = new HiSlider("Bipolar Intensity"));
-	bipolarFreqSlider->setRange(-1.0, 1.0, 0.01);
 	bipolarFreqSlider->setSliderStyle(Slider::RotaryHorizontalVerticalDrag);
 	bipolarFreqSlider->setTextBoxStyle(Slider::TextBoxRight, false, 80, 20);
 	bipolarFreqSlider->addListener(this);
@@ -101,17 +97,12 @@ FilterEditor::FilterEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 
-	gainSlider->setup(getProcessor(), PolyFilterEffect::Gain, "Gain");
-	gainSlider->setMode(HiSlider::Decibel, NormalisableRange(-18.0, 18.0));
+	auto md = getProcessor()->getMetadata();
 
-	bipolarFreqSlider->setup(getProcessor(), PolyFilterEffect::BipolarIntensity, "Bipolar Freq Intensity");
-	bipolarFreqSlider->setMode(HiSlider::Linear, NormalisableRange(-1.0, 1.0));
-
-	qSlider->setup(getProcessor(), PolyFilterEffect::Q, "Q");
-	qSlider->setMode(HiSlider::Linear, NormalisableRange(0.3, 8.0).withCentreSkew(1.0));
-
-	freqSlider->setup(getProcessor(), PolyFilterEffect::Frequency, "Frequency");
-	freqSlider->setMode(HiSlider::Frequency, NormalisableRange(20.0, 20000.0).withCentreSkew(1500.0));
+	md.setup(*gainSlider, getProcessor(), PolyFilterEffect::Gain);
+	md.setup(*bipolarFreqSlider, getProcessor(), PolyFilterEffect::BipolarIntensity);
+	md.setup(*qSlider, getProcessor(), PolyFilterEffect::Q);
+	md.setup(*freqSlider, getProcessor(), PolyFilterEffect::Frequency);
 
 	getProcessor()->getMainController()->skin(*modeSelector);
 

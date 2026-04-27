@@ -167,10 +167,10 @@ void Processor::setBypassed(bool value, DispatchType n)
 	}
 }
 
-void Processor::setId(HashedCharPtr&& id)
+void Processor::setId(HashedCharPtr&& id, DispatchType n)
 {
 	setSourceId(HashedCharPtr(id));
-	nameAndColour.sendChangeMessage(0, sendNotificationSync);
+	nameAndColour.sendChangeMessage(0, n);
 }
 
 void Processor::setColour(const Colour&)
@@ -180,6 +180,8 @@ void Processor::setColour(const Colour&)
 
 void Processor::setNumAttributes(uint16 numAttributes)
 {
+	numTotalAttributes = numAttributes;
+
 	if(isPositiveAndBelow(numAttributes, SlotBitmap::getNumBits()))
 	{
 		attributes.setNumSlots(numAttributes);

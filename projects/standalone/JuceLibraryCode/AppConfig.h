@@ -458,6 +458,10 @@
  //#define HISE_INCLUDE_PITCH_DETECTION 1
 #endif
 
+#ifndef    HISE_INCLUDE_XSIMD
+ //#define HISE_INCLUDE_XSIMD 0
+#endif
+
 #ifndef    HISE_INCLUDE_RT_NEURAL
  //#define HISE_INCLUDE_RT_NEURAL 1
 #endif

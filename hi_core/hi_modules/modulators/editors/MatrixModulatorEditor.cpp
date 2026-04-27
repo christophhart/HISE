@@ -144,7 +144,9 @@ MatrixModulatorBody::MatrixModulatorBody(ProcessorEditor* parent):
 	autofixButton("Presets")
 {
 	auto p = dynamic_cast<MatrixModulator*>(getProcessor());
-	valueSlider.setup(p, MatrixModulator::Value, "Value");
+	auto md = getProcessor()->getMetadata();
+
+	md.setup(valueSlider, p, MatrixModulator::Value);
 	valueSlider.setSliderStyle(Slider::SliderStyle::RotaryHorizontalVerticalDrag);
 
 	auto obj = new DynamicObject();
@@ -154,8 +156,7 @@ MatrixModulatorBody::MatrixModulatorBody(ProcessorEditor* parent):
 
 	valueSlider.setModifierObject(var(obj));
 		
-	smoothingSlider.setup(p, MatrixModulator::SmoothingTime, "Smoothing");
-	smoothingSlider.setMode(HiSlider::Mode::Time, { 0.0, 200.0, 1.0 });
+	md.setup(smoothingSlider, p, MatrixModulator::SmoothingTime);
 	smoothingSlider.setSliderStyle(Slider::SliderStyle::RotaryHorizontalVerticalDrag);
 
 	auto mm = dynamic_cast<MatrixModulator*>(parent->getProcessor());

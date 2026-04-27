@@ -67,9 +67,11 @@ class LfoModulator: public TimeVariantModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("LFO", "LFO Modulator", "A LFO Modulator modulates the signal with a low frequency")
+	SET_PROCESSOR_NAME("LFO", "LFO Modulator", "")
 
 	LfoModulator(MainController *mc, const String &id, Modulation::Mode m);
+
+	const bool metadataInitialised;
 
 	~LfoModulator();
 
@@ -88,17 +90,17 @@ public:
 	/** Special Parameters for the LfoModulator. */
 	enum Parameters
 	{
-		Frequency = 0, ///< the modulation frequency.
-		FadeIn, ///< a fade in time after each note on
-		WaveFormType, ///< the waveform for the oscillator
-		Legato, ///< if enabled multiple keys are pressed, it will not retrigger the LFO
-		TempoSync, ///< enable sync to Host Tempo
-		SmoothingTime, ///< smoothes hard edges of the oscillator
+		Frequency = 0, 
+		FadeIn, 
+		WaveFormType, 
+		Legato, 
+		TempoSync, 
+		SmoothingTime, 
 		NumSteps,
-		LoopEnabled, ///< enables loop mode for the LFO
-		PhaseOffset, ///< the initial phase of the LFO
-		SyncToMasterClock, ///< sync the LFO to the master clock
-        IgnoreNoteOn, ///< does not reset the LFO phase on incoming notes (free run mode)
+		LoopEnabled, 
+		PhaseOffset, 
+		SyncToMasterClock, 
+        IgnoreNoteOn, 
 		numParameters
 	};
 
@@ -115,6 +117,8 @@ public:
 		FrequencyChainShown,
 		numEditorStates
 	};
+
+	static ProcessorMetadata createMetadata();
 
     void referenceShared(ExternalData::DataType, int) override
     {
@@ -157,7 +161,6 @@ public:
 	/** Returns a new ControlEditor */
 	ProcessorEditorBody *createEditor(ProcessorEditor *parentEditor)  override;
 
-	float getDefaultValue(int parameterIndex) const override; 
 	float getAttribute (int parameter_index) const override;
 	void setInternalAttribute (int parameter_index, float newValue) override;
 

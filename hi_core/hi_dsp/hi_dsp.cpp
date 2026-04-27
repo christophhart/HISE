@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#include "ProcessorMetadata.cpp"
+#include "ProcessorMetadataRegistry.cpp"
 #include "Processor.cpp"
 #include "ProcessorInterfaces.cpp"
 

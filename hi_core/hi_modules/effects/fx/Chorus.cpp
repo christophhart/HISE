@@ -32,16 +32,41 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata ChorusEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<ChorusEffect>()
+		.withDescription("Stereo chorus effect with modulated delay lines for thickening and movement")
+		.withParameter(Par(Rate)
+			.withId("Rate")
+			.withDescription("LFO rate controlling the modulation speed")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.3f))
+		.withParameter(Par(Width)
+			.withId("Width")
+			.withDescription("Modulation depth controlling the intensity of the pitch variation")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.43f))
+		.withParameter(Par(Feedback)
+			.withId("Feedback")
+			.withDescription("Amount of signal fed back into the delay line for more pronounced sweeps")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.3f))
+		.withParameter(Par(Delay)
+			.withId("Delay")
+			.withDescription("Base delay time that gets modulated by the LFO")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(1.0f));
+}
+
 ChorusEffect::ChorusEffect(MainController *mc, const String &id) :
 MasterEffectProcessor(mc, id),
 tempBuffer(2, 0)
 {
 	finaliseModChains();
-
-	parameterNames.add("Rate");		parameterDescriptions.add("The rate of the chorus");
-	parameterNames.add("Width");	parameterDescriptions.add("The stereo width of the chorus");
-	parameterNames.add("Feedback");	parameterDescriptions.add("The feedback amount of the chorus");
-	parameterNames.add("Delay");	parameterDescriptions.add("The delay amount of the chorus");
 
 	updateParameterSlots();
 

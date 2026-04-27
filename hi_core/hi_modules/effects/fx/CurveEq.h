@@ -58,7 +58,95 @@ class CurveEq: public MasterEffectProcessor,
 {
 public:
 
-	SET_PROCESSOR_NAME("CurveEq", "Parametriq EQ", "A parametric EQ with a variable amount of filter bands.")
+	SET_PROCESSOR_NAME("CurveEq", "Parametriq EQ", "")
+
+	using BandParameter = ProcessorFilterStatistics::BandParameter;
+
+	static ProcessorMetadata createMetadata();
+
+	ProcessorMetadata getMetadata() const override
+	{
+		auto md = createMetadata().asDynamic();
+		
+		static const StringArray parameterNames({
+			"Gain", 
+			"Freq", 
+			"Q", 
+			"Enabled", 
+			"Type", 
+		});
+
+		static const StringArray modeNames({
+			"LowPass",
+			"HighPass",
+			"LowShelf",
+			"HighShelf",
+			"Peak"
+		});
+
+		static const StringArray descriptions({
+			"The gain in decibels if supported from the filter type.",
+			"The frequency in Hz.",
+			"The bandwidth of the filter if supported.",
+			"the state of the filter band.",
+			"the filter type of the filter band."
+		});
+
+		std::array<float, BandParameter::numBandParameters> defaultValues({
+			0.0f,
+			1500.0f,
+			1.0f,
+			1.0f,
+			4.0f
+		});
+
+		for (int i = 0; i < getNumFilterBands(); i++)
+		{
+			using Range = scriptnode::InvertableParameterRange;
+
+			for (int m = 0; m < BandParameter::numBandParameters; m++)
+			{
+				ProcessorMetadata::ParameterMetadata pd(getParameterIndex(i, m));
+				
+				pd = pd.withId("Band " + String(i + 1) + " " + parameterNames[m]);
+				pd = pd.withDescription(descriptions[m]);
+				pd = pd.withDefault(defaultValues[m]);
+
+				switch ((BandParameter)m)
+				{
+				case BandParameter::Gain:
+					pd = pd.withSliderMode(HiSlider::Decibel, { -18.0, 18.0 });
+					pd = pd.withValueToTextConverter("Decibel");
+					break;
+				case BandParameter::Freq:
+					pd = pd.withSliderMode(HiSlider::Frequency, Range(20.0, 20000.0).withCentreSkew(1500.0));
+					pd = pd.withValueToTextConverter("Frequency");
+					break;
+				case BandParameter::Q:
+					pd = pd.withRange(Range(0.3, 8.0).withCentreSkew(1.0));
+					break;
+				case BandParameter::Enabled:
+					pd = pd.asToggle();
+					break;
+				case BandParameter::Type:
+					pd = pd.withValueList(modeNames, 0);
+					break;
+				}
+
+				if (m == BandParameter::Gain)
+				{
+					auto type = (FilterType)(int)getAttribute(getParameterIndex(i, BandParameter::Type));
+
+					if (type == FilterType::LowPass || type == FilterType::HighPass)
+						pd = pd.asDisabled();
+				}
+				
+				md = md.withParameter(pd.asDynamic());
+			}
+		}
+
+		return md;
+	}
 
 	enum Parameters
 	{
@@ -75,10 +163,6 @@ public:
 		Peak, ///< a peak eq
 		numFilterTypes
 	};
-
-	using BandParameter = ProcessorFilterStatistics::BandParameter;
-
-	
 
 #if HISE_USE_SVF_FOR_CURVE_EQ
 	using FilterTypeForEq = StateVariableEqSubType;
@@ -218,11 +302,10 @@ public:
 			filterBands.insert(insertIndex, f);
 		}
 		
-		sendBroadcasterMessage("BandAdded", insertIndex == -1 ? filterBands.size() - 1 : insertIndex);
-
-		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
-
 		updateParameterSlots();
+
+		sendBroadcasterMessage("BandAdded", insertIndex == -1 ? filterBands.size() - 1 : insertIndex);
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 	}
 
 	void removeFilterBand(int filterIndex)
@@ -234,11 +317,10 @@ public:
 			filterBands.remove(filterIndex);
 		}
 		
-		sendBroadcasterMessage("BandRemoved", filterIndex == -1 ? filterBands.size() - 1 : filterIndex);
-
-		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
-
 		updateParameterSlots();
+
+		sendBroadcasterMessage("BandRemoved", filterIndex == -1 ? filterBands.size() - 1 : filterIndex);
+		sendOtherChangeMessage(dispatch::library::ProcessorChangeEvent::Custom);
 	}
 
 	void prepareToPlay(double sampleRate, int samplesPerBlock) override
@@ -323,8 +405,6 @@ public:
 	bool hasTail() const override {return false;};
 
 	int getNumChildProcessors() const override { return 0; };
-
-	int getNumAttributes() const override { return BandParameter::numBandParameters * filterBands.size(); }
 
 	Processor *getChildProcessor(int /*processorIndex*/) override { return nullptr; };
 

@@ -42,13 +42,16 @@ namespace hise { using namespace juce;
 */
 class PolyFilterEffect: public VoiceEffectProcessor,
 						public FilterEffect,
+						public RoutableProcessor,
 						public ModulatorChain::Handler::Listener,
 						public scriptnode::data::filter_base,
 						public ProcessorWithCustomFilterStatistics
 {
 public:
 
-	SET_PROCESSOR_NAME("PolyphonicFilter", "Filter", "The filter module of HISE.");
+	SET_PROCESSOR_NAME("PolyphonicFilter", "Filter", "");
+
+	static ProcessorMetadata createMetadata();
 
 	enum InternalChains
 	{
@@ -81,13 +84,14 @@ public:
 
 	PolyFilterEffect(MainController *mc, const String &uid, int numVoices);;
 
+	const bool metadataInitialised;
+
 	~PolyFilterEffect();
 
 	void processorChanged(EventType t, Processor* p) override;
 
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
-	float getDefaultValue(int parameterIndex) const override;
 
 	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
 
@@ -112,6 +116,10 @@ public:
 
 	bool hasPolyMods() const noexcept;
 
+	void numSourceChannelsChanged() override {};
+	void numDestinationChannelsChanged() override {};
+
+	void connectionChanged() override;
 	
 private:
 
@@ -138,6 +146,25 @@ private:
 
 	float bipolarParameterValue = 0.0f;
 	LinearSmoothedValue<float> bipolarIntensity;
+
+	int8 channelIndexes[NUM_MAX_CHANNELS];
+	int numChannelsToRender = 0;
+
+	AudioSampleBuffer& makeChannelBuffer(AudioSampleBuffer& b, AudioSampleBuffer& cb, float** ptrs) const
+	{
+		auto useCustom = b.getNumChannels() != numChannelsToRender;
+
+		if (useCustom)
+		{
+			for (int i = 0; i < numChannelsToRender; i++)
+				ptrs[i] = b.getWritePointer(channelIndexes[i]);
+
+			cb.setDataToReferTo(ptrs, numChannelsToRender, b.getNumSamples());
+			return cb;
+		}
+
+		return b;
+	}
 
 	FilterBank voiceFilters;
 	FilterBank monoFilters;

@@ -695,6 +695,34 @@ struct EncodedDialogBase: public Component,
 		}
 	} factory;
 
+
+	struct DialogStateManager : public BaseStateManager
+	{
+		DialogStateManager(EncodedDialogBase& p) :
+			BaseStateManager(p.getMainController()),
+			parent(p)
+		{};
+
+		void write(const Identifier& id, const var& newValue, NotificationType n) override
+		{
+			parent.writeState(id, newValue, n);
+		}
+
+		var read(const Identifier& id) const override
+		{
+			return parent.readState(id);
+		}
+
+		void addToLog(const String& message) override
+		{
+			debugToConsole(getMainController()->getMainSynthChain(), message);
+		}
+
+	private:
+
+		EncodedDialogBase& parent;
+	};
+
 	void writeState(const Identifier& id, const var& value, NotificationType n=dontSendNotification)
 	{
 		state->globalState.getDynamicObject()->setProperty(id, value);

@@ -45,26 +45,21 @@ struct NoiseGrainPlayerEditor: public ProcessorEditorBody
 		auto np = dynamic_cast<NoiseGrainPlayer*>(parent->getProcessor());
 		thumbnail.setAudioFile(&np->getBuffer());
 
-		tableIndex.setup(np, NoiseGrainPlayer::Parameters::Position, "Position");
-		tableIndex.setMode(HiSlider::Mode::NormalizedPercentage);
-		tableIndex.setRange(0.0, 1.0, 0.0);
+		auto md = NoiseGrainPlayer::createMetadata();
+
+		md.setup(tableIndex, np, NoiseGrainPlayer::Parameters::Position);
 		tableIndex.setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
 		tableIndex.setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
 
-		mixSlider.setup(np, NoiseGrainPlayer::Parameters::Mix, "Mix");
-		mixSlider.setMode(HiSlider::Mode::NormalizedPercentage);
-		mixSlider.setRange(0.0, 1.0, 0.0);
+		md.setup(mixSlider, np, NoiseGrainPlayer::Parameters::Mix);
 		mixSlider.setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
 		mixSlider.setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
 
-		whiteNoise.setup(np, NoiseGrainPlayer::Parameters::WhiteNoise, "WhiteNoise");
-		whiteNoise.setMode(HiSlider::Mode::NormalizedPercentage);
-		whiteNoise.setRange(0.0, 1.0, 0.0);
+		md.setup(whiteNoise, np, NoiseGrainPlayer::Parameters::WhiteNoise);
 		whiteNoise.setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
 		whiteNoise.setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
 
-		grainSize.setup(np, NoiseGrainPlayer::Parameters::GrainSize, "GrainSize");
-		grainSize.addItemList({ "256 samples", "512 samples", "1024 samples", "2048 samples", "4096 samples", "8192 Samples" }, 1);
+		md.setup(grainSize, np, NoiseGrainPlayer::Parameters::GrainSize);
 
 		addAndMakeVisible(tableIndex);
 		addAndMakeVisible(mixSlider);
@@ -107,6 +102,47 @@ struct NoiseGrainPlayerEditor: public ProcessorEditorBody
 };
 #endif
 
+hise::ProcessorMetadata NoiseGrainPlayer::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<NoiseGrainPlayer>()
+		.withDescription("A polyphonic granular noise player that blends an audio file with white noise at a configurable grain size.")
+		.withComplexDataInterface(ExternalData::DataType::AudioFile)
+		.withParameter(Par(Position)
+			.withId("Position")
+			.withDescription("Playback position within the audio file as a normalized value (0 to 1)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f))
+		.withParameter(Par(Mix)
+			.withId("Mix")
+			.withDescription("Crossfade between dry signal and granular output using an overlap fader")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(1.0f))
+		.withParameter(Par(WhiteNoise)
+			.withId("WhiteNoise")
+			.withDescription("Amount of random noise applied to grain playback positions")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.0f))
+		.withParameter(Par(GrainSize)
+			.withId("GrainSize")
+			.withDescription("The size of each grain in samples")
+			.withValueList({ "256 samples", "512 samples", "1024 samples", "2048 samples", "4096 samples", "8192 Samples" })
+			.withDefault(6.0f))
+		.withModulation(Mod(PositionChain)
+			.withId("Table Index Modulation")
+			.withDescription("Scales the playback position")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly)
+			.withModulatedParameter(Position))
+		.withModulation(Mod(PositionBipolar)
+			.withId("Table Index Bipolar")
+			.withDescription("Bipolar offset modulation of the playback position")
+			.withMode(scriptnode::modulation::ParameterMode::AddOnly)
+			.withModulatedParameter(Position));
+}
+
 NoiseGrainPlayer::NoiseGrainPlayer(MainController* mc, const String& uid, int numVoices):
   VoiceEffectProcessor(mc, uid, numVoices),
   AudioSampleProcessor(mc)
@@ -121,10 +157,6 @@ NoiseGrainPlayer::NoiseGrainPlayer(MainController* mc, const String& uid, int nu
 	modChains[InternalChains::PositionBipolar].setIncludeMonophonicValuesInVoiceRendering(true);
 	modChains[InternalChains::PositionBipolar].setIncludeMonophonicValuesInVoiceRendering(true);
 
-	parameterNames.add("Position");
-	parameterNames.add("Mix");
-	parameterNames.add("WhiteNoise");
-	parameterNames.add("GrainSize");
 	updateParameterSlots();
 }
 

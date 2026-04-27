@@ -33,33 +33,80 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata ConvolutionEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<ConvolutionEffect>()
+		.withDescription("Zero-latency convolution reverb with adjustable dry/wet levels, predelay, damping, and high-cut filtering for shaping impulse responses")
+		.withParameter(Par(DryGain)
+			.withId("DryGain")
+			.withDescription("Dry output level in decibels for the unprocessed signal")
+			.withSliderMode(HiSlider::Decibel, Range(-100.0, 0.0, 0.1))
+			.withDefault(-100.0f))
+		.withParameter(Par(WetGain)
+			.withId("WetGain")
+			.withDescription("Wet output level in decibels for the convolved signal")
+			.withSliderMode(HiSlider::Decibel, Range(-100.0, 0.0, 0.1))
+			.withDefault(0.0f))
+		.withParameter(Par(Latency)
+			.withId("Latency")
+			.withDescription("Convolution latency in samples, which must be a power of two")
+			.withSliderMode(HiSlider::Linear, {})
+			.withDefault(0.0f))
+		.withParameter(Par(ImpulseLength)
+			.withId("ImpulseLength")
+			.withDescription("Deprecated impulse length control, use the sample area of the impulse display instead")
+			.withSliderMode(HiSlider::Linear, {})
+			.withDefault(1.0f))
+		.withParameter(Par(ProcessInput)
+			.withId("ProcessInput")
+			.withDescription("Enables processing of the input signal; disabling fades out and resets the engine")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(UseBackgroundThread)
+			.withId("UseBackgroundThread")
+			.withDescription("Renders the impulse tail on a background thread to reduce audio thread load")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(Predelay)
+			.withId("Predelay")
+			.withDescription("Delay time in milliseconds before the reverb tail begins")
+			.withSliderMode(HiSlider::Time, Range(0.0, 200.0, 0.0).withCentreSkew(50.0))
+			.withDefault(0.0f))
+		.withParameter(Par(HiCut)
+			.withId("HiCut")
+			.withDescription("Low-pass cutoff frequency applied to the impulse response")
+			.withSliderMode(HiSlider::Frequency, Range(20.0, 20000.0, 0.0))
+			.withDefault(20000.0f))
+		.withParameter(Par(Damping)
+			.withId("Damping")
+			.withDescription("Damping amount in decibels applied to the impulse response fade-out")
+			.withSliderMode(HiSlider::Decibel, Range(-100.0, 0.0, 0.1))
+			.withDefault(0.0f))
+		.withParameter(Par(FFTType)
+			.withId("FFTType")
+			.withDescription("Selects the FFT implementation used for convolution")
+			.withSliderMode(HiSlider::Discrete,
+				Range(0.0, (double)(int)audiofft::ImplementationType::numImplementationTypes - 1.0, 1.0))
+			.withDefault((float)(int)audiofft::ImplementationType::BestAvailable))
+		.withComplexDataInterface(ExternalData::DataType::AudioFile);
+}
+
 ConvolutionEffect::ConvolutionEffect(MainController *mc, const String &id) :
 MasterEffectProcessor(mc, id),
 AudioSampleProcessor(mc)
 {
 	getBuffer().addListener(this);
-
 	finaliseModChains();
-
-	parameterNames.add("DryGain");
-	parameterNames.add("WetGain");
-	parameterNames.add("Latency");
-	parameterNames.add("ImpulseLength");
-	parameterNames.add("ProcessInput");
-	parameterNames.add("UseBackgroundThread");
-	parameterNames.add("Predelay");
-	parameterNames.add("HiCut");
-	parameterNames.add("Damping");
-	parameterNames.add("FFTType");
-
 	updateParameterSlots();
 }
 
 ConvolutionEffect::~ConvolutionEffect()
 {
 	getBuffer().removeListener(this);
-
-	
 }
 
 
@@ -140,24 +187,6 @@ void ConvolutionEffect::setInternalAttribute(int parameterIndex, float newValue)
 		break;
 	}
 	default:			jassertfalse; return;
-	}
-}
-
-float ConvolutionEffect::getDefaultValue(int parameterIndex) const
-{
-	switch (parameterIndex)
-	{
-	case DryGain:		return -100.0f;
-	case WetGain:		return 0.0f;
-	case Latency:		return 0.0f;
-	case ImpulseLength:	return 1.0f;
-	case ProcessInput:	return true;
-	case UseBackgroundThread:	return false;
-	case Predelay:		return 0.0f;
-	case HiCut:			return 20000.0f;
-	case Damping:		return 0.0f;
-	case FFTType:		return (float)(int)audiofft::ImplementationType::BestAvailable;
-	default:			jassertfalse; return 1.0f;
 	}
 }
 

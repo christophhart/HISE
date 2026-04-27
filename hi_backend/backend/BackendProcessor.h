@@ -39,6 +39,32 @@ namespace hise { using namespace juce;
 
 class BackendProcessor;
 class InteractionTester;
+class MidiInjector;
+
+/** A base class that is used both by the HTTP wizards as well as the multipage dialog library.
+
+	This encapsulates the read / writing to the state as well as error reporting / logging.
+
+	In order to use that class, implement two static functions in your subclass that implement the logic
+	for initialisation and execution, then pass in a BaseStateManager that reads / writes the values.
+
+*/
+struct BaseStateManager : public ControlledObject
+{
+	using InitFunction = std::function<void(BaseStateManager*)>;
+	using Executor = std::function<void(BaseStateManager*)>;
+
+	BaseStateManager(MainController* mc) :
+		ControlledObject(mc)
+	{}
+
+	virtual ~BaseStateManager() {};
+	virtual void write(const Identifier& id, const var& newValue, NotificationType n=dontSendNotification) = 0;
+	virtual var read(const Identifier& id) const = 0;
+
+	virtual void addToLog(const String& message) = 0;
+};
+
 
 struct AnalyserInfo: public ReferenceCountedObject
 {
@@ -468,6 +494,9 @@ public:
 	
 	/** Returns the InteractionTester for UI interaction testing via REST API. */
 	InteractionTester* getInteractionTester();
+
+	/** Returns the MidiInjector for MIDI injection via REST API. */
+	MidiInjector* getMidiInjector();
 	
 	/** Shows the Interaction Test Window, creating the tester if needed. */
 	void showInteractionTestWindow();
@@ -539,9 +568,16 @@ public:
 		return &scriptUnlocker;
 	}
 
+	/** Creates or returns the build undo manager f. */
+	ControlledObject* getOrCreateRestServerBuildUndoManager();
+	
 	RestServer& getRestServer() { return restServer; }
 
+	ControlledObject* getRestWizardRunner();
+
 	simple_css::Animator& getCssParseAnimator() { return restServerAnimator; }
+
+	BackendRootWindow* currentRootWindow = nullptr;
 
 	LambdaBroadcaster<bool> pluginParameterRefreshBroadcaster;
 
@@ -577,9 +613,20 @@ public:
 		return isSnippet;
 	}
 
-	void setIsSnippetBrowser()
+	void setIsSnippetBrowser(BackendProcessor* main)
 	{
 		isSnippet = true;
+		mainInstance = main;
+	}
+
+	/** Returns the main BackendProcessor instance.
+	    For the main instance this returns `this`; for snippet browser instances
+	    it returns the parent main BackendProcessor. Used by REST handlers that
+	    must operate on the main instance regardless of which BP is currently
+	    driving audio (e.g. /api/snippet_browser, /api/shutdown). */
+	BackendProcessor* getMainInstance() const
+	{
+		return mainInstance;
 	}
 
 	ExampleAssetManager::Ptr getAssetManager()
@@ -596,6 +643,8 @@ public:
 
 	PluginParameterRamp pluginParameterRamp;
 
+	static int commandLineServerPort;
+
 private:
 
 #if HISE_INCLUDE_PROFILING_TOOLKIT
@@ -603,6 +652,7 @@ private:
 #endif
 
 	bool isSnippet = false;
+	BackendProcessor* mainInstance = this;
 
 	enum class LatencyCheckState
 	{
@@ -641,12 +691,18 @@ private:
 
 	AutoSaver autosaver;
 
+	ScopedPointer<ControlledObject> wizardRunner;
+	ScopedPointer<ControlledObject> buildUndoManager;
+
 	RestServer restServer;
 	simple_css::Animator restServerAnimator;
 	
 	std::unique_ptr<InteractionTester> interactionTester;
+	std::unique_ptr<MidiInjector> midiInjector;
 
-	static int commandLineServerPort;
+	hise::ProcessorMetadataRegistry processorDatabase;
+
+	
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(BackendProcessor);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(BackendProcessor)

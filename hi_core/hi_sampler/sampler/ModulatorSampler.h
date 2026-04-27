@@ -203,9 +203,10 @@ public:
 		getSampleMap()->suspendInternalTimers(shouldBeSuspended);
 	}
 
-	SET_PROCESSOR_NAME("StreamingSampler", "Sampler", "The main sampler class of HISE.");
+	SET_PROCESSOR_NAME("StreamingSampler", "Sampler", "");
 
-	/** Special Parameters for the ModulatorSampler. */
+	static ProcessorMetadata createMetadata();
+
 	enum Parameters
 	{
 		PreloadSize = ModulatorSynth::numModulatorSynthParameters, 
@@ -223,13 +224,12 @@ public:
 		numModulatorSamplerParameters
 	};
 
-	/** Different behaviour for retriggered notes. */
 	enum RepeatMode
 	{
-		KillNote = 0, ///< kills the note (using the supplied fade time)
-		NoteOff, ///< triggers a note off event before starting the note
-		DoNothing, ///< do nothin (a new voice is started and the old keeps ringing).
-		KillSecondOldestNote, // allow one note to retrigger, but then kill the notes
+		KillNote = 0,
+		NoteOff,
+		DoNothing,
+		KillSecondOldestNote,
 		KillThirdOldestNote
 	};
 
@@ -239,10 +239,9 @@ public:
 		XFade
 	};
 
-	/** Additional modulator chains. */
 	enum InternalChains
 	{
-		SampleStartModulation = ModulatorSynth::numInternalChains, ///< allows modification of the sample start if the sound allows this.
+		SampleStartModulation = ModulatorSynth::numInternalChains,
 		CrossFadeModulation,
 		numInternalChains
 	};
@@ -277,6 +276,7 @@ public:
 		double tonality = 0.0;
 		bool synchronousSkip = false;
 		double numQuarters = 0.0;
+		double sourceBpm = 0.0;
 		Identifier engineId;
 
 		void reset()
@@ -285,6 +285,7 @@ public:
 			tonality = 0.0;
 			synchronousSkip = false;
 			numQuarters = 0.0;
+			sourceBpm = 0.0;
 			engineId = {};
 		}
 
@@ -297,6 +298,7 @@ public:
 			obj->setProperty("SkipLatency", synchronousSkip);
 			obj->setProperty("Mode", modes[static_cast<int>(mode)]);
 			obj->setProperty("NumQuarters", numQuarters);
+			obj->setProperty("SourceBPM", sourceBpm);
 			obj->setProperty("PreferredEngine", engineId.toString());
 
 			return {obj.get()};
@@ -310,6 +312,7 @@ public:
 			synchronousSkip = json.getProperty("SkipLatency", false);
 			mode = static_cast<TimestretchMode>(modes.indexOf(json.getProperty("Mode", "Disabled").toString()));
 			numQuarters = json.getProperty("NumQuarters", 0.0);
+			sourceBpm = jmax(0.0, static_cast<double>(json.getProperty("SourceBPM", 0.0)));
 
 			auto id = json.getProperty("PreferredEngine", "").toString();
 
@@ -339,8 +342,6 @@ public:
 
 		operator bool() const { return mode != TimestretchMode::Disabled; }
 	};
-
-	ADD_DOCUMENTATION_WITH_BASECLASS(ModulatorSynth);
 
 	/** Creates a new ModulatorSampler. */
 	ModulatorSampler(MainController *mc, const String &id, int numVoices);;

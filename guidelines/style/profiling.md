@@ -1,6 +1,6 @@
 # Profiling Endpoint Guide
 
-`POST /api/profile` — record and query performance data from HISE's profiling toolkit.
+`POST /api/testing/profile` — record and query performance data from HISE's profiling toolkit.
 
 ## Workflow
 

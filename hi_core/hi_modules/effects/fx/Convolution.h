@@ -49,22 +49,24 @@ class ConvolutionEffect: public MasterEffectProcessor,
 
 public:
 
-	SET_PROCESSOR_NAME("Convolution", "Convolution Reverb", "A convolution reverb effect.");
+	static ProcessorMetadata createMetadata();
+
+	SET_PROCESSOR_NAME("Convolution", "Convolution Reverb", "");
 
 	// ============================================================================================= Constructor / Destructor / enums
 
 	enum Parameters
 	{
-		DryGain = 0, ///< the gain of the unprocessed input
-		WetGain, ///< the gain of the convoluted input
-		Latency, ///< you can change the latency (unused)
-		ImpulseLength, ///< the Impulse length (deprecated, use the SampleArea of the AudioSampleBufferComponent to change the impulse response)
-		ProcessInput, ///< if this attribute is set, the engine will fade out in a short time and reset itself.
-		UseBackgroundThread, ///< if true, then the tail of the impulse response will be rendered on a background thread to save cycles on the audio thread.
-		Predelay, ///< delays the reverb tail by the given amount in milliseconds
-		HiCut, ///< applies a low pass filter to the impulse response
-		Damping, ///< applies a fade-out to the impulse response
-		FFTType, ///< the FFT implementation. It picks the best available but for some weird use cases you can force to use another one.
+		DryGain = 0,
+		WetGain,
+		Latency,
+		ImpulseLength,
+		ProcessInput,
+		UseBackgroundThread,
+		Predelay,
+		HiCut,
+		Damping,
+		FFTType,
 		numEffectParameters
 	};
 
@@ -91,7 +93,6 @@ public:
 
 	float getAttribute(int parameterIndex) const override;;
 	void setInternalAttribute(int parameterIndex, float newValue) override;;
-	float getDefaultValue(int parameterIndex) const override;
 
 	void restoreFromValueTree(const ValueTree &v) override;;
 	ValueTree exportAsValueTree() const override;

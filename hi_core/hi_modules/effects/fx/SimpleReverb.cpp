@@ -32,6 +32,46 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata SimpleReverbEffect::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ProcessorMetadata()
+		.withStandardMetadata<SimpleReverbEffect>()
+		.withDescription("Algorithmic reverb based on Freeverb with controls for room size, damping, and stereo width")
+		.withParameter(Par(RoomSize)
+			.withId("RoomSize")
+			.withDescription("Perceived room size from 0 (small) to 1 (large cathedral)")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.8f))
+		.withParameter(Par(Damping)
+			.withId("Damping")
+			.withDescription("High frequency absorption where higher values create a darker reverb tail")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.6f))
+		.withParameter(Par(WetLevel)
+			.withId("WetLevel")
+			.withDescription("Wet/dry mix where 0 is fully dry and 1 is fully wet")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.2f))
+		.withParameter(Par(DryLevel)
+			.withId("DryLevel")
+			.withDescription("Level of the dry signal mixed into the output")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.8f))
+		.withParameter(Par(Width)
+			.withId("Width")
+			.withDescription("Stereo width of the reverb where 0 is mono and 1 is full stereo")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.8f))
+		.withParameter(Par(FreezeMode)
+			.withId("FreezeMode")
+			.withDescription("Freeze mode that sustains the reverb tail indefinitely")
+			.withSliderMode(HiSlider::NormalizedPercentage, Range())
+			.withDefault(0.1f));
+}
+
 ProcessorEditorBody *SimpleReverbEffect::createEditor(ProcessorEditor *parentEditor)
 {
 #if USE_BACKEND

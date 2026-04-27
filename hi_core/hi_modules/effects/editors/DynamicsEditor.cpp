@@ -54,19 +54,16 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     addAndMakeVisible (gateThreshold = new HiSlider ("Gate Threshold"));
-    gateThreshold->setRange (0, 1, 0.01);
     gateThreshold->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     gateThreshold->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     gateThreshold->addListener (this);
 
     addAndMakeVisible (gateAttack = new HiSlider ("Gate Attack"));
-    gateAttack->setRange (0, 1, 0.01);
     gateAttack->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     gateAttack->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     gateAttack->addListener (this);
 
     addAndMakeVisible (gateRelease = new HiSlider ("Gate Release"));
-    gateRelease->setRange (0, 1, 0.01);
     gateRelease->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     gateRelease->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     gateRelease->addListener (this);
@@ -80,25 +77,21 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
     compMeter->setName ("new component");
 
     addAndMakeVisible (compThreshold = new HiSlider ("Comp Threshold"));
-    compThreshold->setRange (0, 1, 0.01);
     compThreshold->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     compThreshold->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     compThreshold->addListener (this);
 
     addAndMakeVisible (compAttack = new HiSlider ("Comp Attack"));
-    compAttack->setRange (0, 1, 0.01);
     compAttack->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     compAttack->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     compAttack->addListener (this);
 
     addAndMakeVisible (compRelease = new HiSlider ("compRelease"));
-    compRelease->setRange (0, 1, 0.01);
     compRelease->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     compRelease->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     compRelease->addListener (this);
 
     addAndMakeVisible (compRatio = new HiSlider ("Comp Ratio"));
-    compRatio->setRange (0, 1, 0.01);
     compRatio->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     compRatio->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     compRatio->addListener (this);
@@ -112,19 +105,16 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
     limiterMeter->setName ("new component");
 
     addAndMakeVisible (limiterThreshold = new HiSlider ("Limiter Threshold"));
-    limiterThreshold->setRange (0, 1, 0.01);
     limiterThreshold->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     limiterThreshold->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     limiterThreshold->addListener (this);
 
     addAndMakeVisible (limiterAttack = new HiSlider ("Limiter Attack"));
-    limiterAttack->setRange (0, 1, 0.01);
     limiterAttack->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     limiterAttack->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     limiterAttack->addListener (this);
 
     addAndMakeVisible (limiterRelease = new HiSlider ("Limiter Release"));
-    limiterRelease->setRange (0, 1, 0.01);
     limiterRelease->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     limiterRelease->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     limiterRelease->addListener (this);
@@ -142,33 +132,25 @@ DynamicsEditor::DynamicsEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 
-	gateAttack->setup(getProcessor(), DynamicsEffect::Parameters::GateAttack, "Attack");
-	gateRelease->setup(getProcessor(), DynamicsEffect::Parameters::GateRelease, "Release");
-	gateThreshold->setup(getProcessor(), DynamicsEffect::Parameters::GateThreshold, "Threshold");
-	gateEnabled->setup(getProcessor(), DynamicsEffect::Parameters::GateEnabled, "Gate On");
-	gateAttack->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 100.0, 0.01).withCentreSkew(10.0));
-	gateRelease->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 300.0, 0.01).withCentreSkew(10.0));
-	gateThreshold->setMode(HiSlider::Mode::Decibel, NormalisableRange(-100.0, 0.0, 0.01).withCentreSkew(-40.0));
+	auto md = getProcessor()->getMetadata();
 
-	limiterAttack->setup(getProcessor(), DynamicsEffect::Parameters::LimiterAttack, "Attack");
-	limiterRelease->setup(getProcessor(), DynamicsEffect::Parameters::LimiterRelease, "Release");
-	limiterThreshold->setup(getProcessor(), DynamicsEffect::Parameters::LimiterThreshold, "Threshold");
-	limiterEnabled->setup(getProcessor(), DynamicsEffect::Parameters::LimiterEnabled, "Gate Enabled");
-	limiterAttack->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 100.0, 0.01).withCentreSkew(10.0));
-	limiterRelease->setMode(HiSlider::Mode::Time, NormalisableRange(0.0, 300.0, 0.01).withCentreSkew(10.0));
-	limiterThreshold->setMode(HiSlider::Mode::Decibel, NormalisableRange(-100.0, 0.0, 0.1).withCentreSkew(-40.0));
-	limiterMakeup->setup(getProcessor(), DynamicsEffect::Parameters::LimiterMakeup, "Limiter Makeup");
+	md.setup(*gateEnabled, getProcessor(), DynamicsEffect::Parameters::GateEnabled);
+	md.setup(*gateThreshold, getProcessor(), DynamicsEffect::Parameters::GateThreshold);
+	md.setup(*gateAttack, getProcessor(), DynamicsEffect::Parameters::GateAttack);
+	md.setup(*gateRelease, getProcessor(), DynamicsEffect::Parameters::GateRelease);
 
-	compAttack->setup(getProcessor(), DynamicsEffect::Parameters::CompressorAttack, "Attack");
-	compRelease->setup(getProcessor(), DynamicsEffect::Parameters::CompressorRelease, "Release");
-	compThreshold->setup(getProcessor(), DynamicsEffect::Parameters::CompressorThreshold, "Threshold");
-	compEnabled->setup(getProcessor(), DynamicsEffect::Parameters::CompressorEnabled, "Compressor On");
-	compRatio->setup(getProcessor(), DynamicsEffect::Parameters::CompressorRatio, "Ratio");
-	compAttack->setMode(HiSlider::Mode::Time,       NormalisableRange(0.0, 100.0, 0.01).withCentreSkew(10.0));
-	compRelease->setMode(HiSlider::Mode::Time,      NormalisableRange(0.0, 300.0, 0.01).withCentreSkew(10.0));
-	compThreshold->setMode(HiSlider::Mode::Decibel, NormalisableRange(-100.0, 0.0,0.1).withCentreSkew( -40.0));
-	compRatio->setMode(HiSlider::Mode::Linear,      NormalisableRange(1.0, 32.0, 0.1).withCentreSkew(4.0));
-	compMakeup->setup(getProcessor(), DynamicsEffect::Parameters::CompressorMakeup, "Comp Makeup");
+	md.setup(*compEnabled, getProcessor(), DynamicsEffect::Parameters::CompressorEnabled);
+	md.setup(*compThreshold, getProcessor(), DynamicsEffect::Parameters::CompressorThreshold);
+	md.setup(*compAttack, getProcessor(), DynamicsEffect::Parameters::CompressorAttack);
+	md.setup(*compRelease, getProcessor(), DynamicsEffect::Parameters::CompressorRelease);
+	md.setup(*compRatio, getProcessor(), DynamicsEffect::Parameters::CompressorRatio);
+	md.setup(*compMakeup, getProcessor(), DynamicsEffect::Parameters::CompressorMakeup);
+
+	md.setup(*limiterEnabled, getProcessor(), DynamicsEffect::Parameters::LimiterEnabled);
+	md.setup(*limiterThreshold, getProcessor(), DynamicsEffect::Parameters::LimiterThreshold);
+	md.setup(*limiterAttack, getProcessor(), DynamicsEffect::Parameters::LimiterAttack);
+	md.setup(*limiterRelease, getProcessor(), DynamicsEffect::Parameters::LimiterRelease);
+	md.setup(*limiterMakeup, getProcessor(), DynamicsEffect::Parameters::LimiterMakeup);
 
 	gateMeter->setType(VuMeter::MonoVertical);
 	gateMeter->setColour(VuMeter::backgroundColour, Colour(0xFF333333));

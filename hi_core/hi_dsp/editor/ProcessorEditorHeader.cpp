@@ -1001,8 +1001,9 @@ void ProcessorEditorHeader::updateIdAndColour(dispatch::library::Processor* p)
 {
 	auto n = ProcessorHelpers::getDisplayName(&p->getOwner<hise::Processor>());
 	NEW_PROCESSOR_DISPATCH(idLabel->setText(n, dontSendNotification));
-	repaint();
+
 	// skip colour, it's a icon colour (ideally the modulator synth should be a listener that updates the icon colour itself)
+	SafeAsyncCall::repaint(this);
 };
 
 

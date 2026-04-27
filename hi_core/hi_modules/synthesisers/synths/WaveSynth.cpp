@@ -37,8 +37,106 @@ float WaveSynthVoice::sinTable[2048];
 
 Random WaveSynthVoice::noiseGenerator = Random();
 
+hise::ProcessorMetadata WaveSynth::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return ModulatorSynth::createBaseMetadata()
+		.withId(getClassType())
+		.withPrettyName("Waveform Generator")
+		.withDescription("A waveform generator based on BLIP synthesis of common synthesiser waveforms.")
+		.withType<hise::ModulatorSynth>()
+		.withParameter(Par(OctaveTranspose1)
+			.withId("OctaveTranspose1")
+			.withDescription("The octave transpose factor for the first Oscillator")
+			.withSliderMode(HiSlider::Discrete, Range(-5.0, 5.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(WaveForm1)
+			.withId("WaveForm1")
+			.withDescription("The waveform type for oscillator 1")
+			.withValueList({ "Sine", "Triangle", "Saw", "Square", "Noise", "Triangle 2", "Square 2", "Trapezoid 1", "Trapezoid 2" })
+			.withDefault((float)WaveformComponent::WaveformType::Saw))
+		.withParameter(Par(Detune1)
+			.withId("Detune1")
+			.withDescription("The pitch detune of the first oscillator in cent")
+			.withSliderMode(HiSlider::Linear, Range(-100.0, 100.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Pan1)
+			.withId("Pan1")
+			.withDescription("The stereo panning of the first oscillator")
+			.withSliderMode(HiSlider::Pan, { -1.0, 1.0 })
+			.withDefault(0.0f))
+		.withParameter(Par(OctaveTranspose2)
+			.withId("OctaveTranspose2")
+			.withDescription("The octave transpose factor for the second Oscillator")
+			.withSliderMode(HiSlider::Discrete, Range(-5.0, 5.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(WaveForm2)
+			.withId("WaveForm2")
+			.withDescription("The waveform type for oscillator 2")
+			.withValueList({ "Sine", "Triangle", "Saw", "Square", "Noise", "Triangle 2", "Square 2", "Trapezoid 1", "Trapezoid 2" })
+			.withDefault((float)WaveformComponent::WaveformType::Saw))
+		.withParameter(Par(Detune2)
+			.withId("Detune2")
+			.withDescription("The pitch detune of the second oscillator in cent")
+			.withSliderMode(HiSlider::Linear, Range(-100.0, 100.0))
+			.withDefault(0.0f))
+		.withParameter(Par(Pan2)
+			.withId("Pan2")
+			.withDescription("The stereo panning of the second oscillator")
+			.withSliderMode(HiSlider::Pan, { -1.0, 1.0 })
+			.withDefault(0.0f))
+		.withParameter(Par(Mix)
+			.withId("Mix")
+			.withDescription("The balance between the two oscillators")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.5f))
+		.withParameter(Par(EnableSecondOscillator)
+			.withId("EnableSecondOscillator")
+			.withDescription("Can be used to mute the second oscillator to save CPU cycles")
+			.asToggle()
+			.withDefault(1.0f))
+	.withParameter(Par(PulseWidth1)
+			.withId("PulseWidth1")
+			.withDescription("The pulse width of oscillator 1 for waveforms that support this (eg. square)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.5f))
+		.withParameter(Par(PulseWidth2)
+			.withId("PulseWidth2")
+			.withDescription("The pulse width of oscillator 2 for waveforms that support this (eg. square)")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.5f))
+		.withParameter(Par(HardSync)
+			.withId("HardSync")
+			.withDescription("Syncs the second oscillator to the first")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(SemiTones1)
+			.withId("SemiTones1")
+			.withDescription("The semitone transpose amount for the first Oscillator")
+			.withSliderMode(HiSlider::Discrete, Range(-12.0, 12.0, 1.0))
+			.withDefault(0.0f))
+		.withParameter(Par(SemiTones2)
+			.withId("SemiTones2")
+			.withDescription("The semitone transpose amount for the second Oscillator")
+			.withSliderMode(HiSlider::Discrete, Range(-12.0, 12.0, 1.0))
+			.withDefault(0.0f))
+		.withModulation(Mod(MixModulation)
+			.withId("Mix Modulation")
+			.withDescription("Modulates the balance between oscillator 1 and 2")
+			.withMode(scriptnode::modulation::ParameterMode::ScaleAdd)
+			.withModulatedParameter(Mix))
+		.withModulation(Mod(Osc2PitchChain)
+			.withId("Osc2 Pitch Modulation")
+			.withDescription("Modulates the pitch of the second oscillator independently")
+			.withMode(scriptnode::modulation::ParameterMode::Pitch));
+}
+
 WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	ModulatorSynth(mc, id, numVoices),
+	metadataInitialised(updateParameterSlots()),
 	octaveTranspose1((int)getDefaultValue(OctaveTranspose1)),
 	octaveTranspose2((int)getDefaultValue(OctaveTranspose2)),
 	semiTones1((int)getDefaultValue(SemiTones1)),
@@ -70,24 +168,6 @@ WaveSynth::WaveSynth(MainController *mc, const String &id, int numVoices) :
 	osc2pitchChain = modChains[ChainIndex::Osc2PitchIndex].getChain();
 
 	scaleFunction = [](float input) { return input * 2.0f - 1.0f; };
-
-	parameterNames.add("OctaveTranspose1");
-	parameterNames.add("WaveForm1");
-	parameterNames.add("Detune1");
-	parameterNames.add("Pan1");
-	parameterNames.add("OctaveTranspose2");
-	parameterNames.add("WaveForm2");
-	parameterNames.add("Detune2");
-	parameterNames.add("Pan2");
-	parameterNames.add("Mix");
-	parameterNames.add("EnableSecondOscillator");
-	parameterNames.add("PulseWidth1");
-	parameterNames.add("PulseWidth2");
-	parameterNames.add("HardSync");
-    parameterNames.add("SemiTones1");
-    parameterNames.add("SemiTones2");
-
-	updateParameterSlots();
 
 	WaveformLookupTables::init();
 
@@ -177,29 +257,8 @@ const Processor * WaveSynth::getChildProcessor(int processorIndex) const
 	}
 }
 
-float WaveSynth::getDefaultValue(int parameterIndex) const
-{
-	if (parameterIndex < ModulatorSynth::numModulatorSynthParameters) return ModulatorSynth::getAttribute(parameterIndex);
 
-	switch (parameterIndex)
-	{
-	case OctaveTranspose1:		return 0.0f;
-	case SemiTones1:			return 0.0f;
-	case WaveForm1:				return (float)WaveformComponent::WaveformType::Saw;
-	case Detune1:				return 0.0f;
-	case Pan1:					return 0.0f;
-	case OctaveTranspose2:		return 0.0f;
-	case SemiTones2:			return 0.0f;
-	case WaveForm2:				return (float)WaveformComponent::WaveformType::Saw;
-	case Detune2:				return 0.0f;
-	case Pan2:					return 0.0f;
-	case Mix:					return 0.5f;
-	case EnableSecondOscillator: return 1.0f;
-	case PulseWidth1:			return 0.5f;
-	case PulseWidth2:			return 0.5f;
-	default:					jassertfalse; return -1.0f;
-	}
-}
+
 
 void WaveSynth::getWaveformTableValues(int displayIndex, float const** tableValues, int& numValues, float& normalizeValue)
 {

@@ -72,7 +72,9 @@ class MacroModulationSource : public ModulatorSynth,
 {
 public:
 
-	SET_PROCESSOR_NAME("MacroModulationSource", "Macro Modulation Source", "A container that processes Modulator instances that can be used as modulation sources for the macro control system");
+	SET_PROCESSOR_NAME("MacroModulationSource", "Macro Modulation Source", "");
+
+	static ProcessorMetadata createMetadata();
 
 	int getNumActiveVoices() const override { return 0; };
     

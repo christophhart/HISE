@@ -387,6 +387,53 @@ public:
 		noiseGrainPlayer
 	};
 
+	struct VoiceEffectConstrainer : public Constrainer
+	{
+		VoiceEffectConstrainer();
+
+		String getDescription() const override { return "only voice effects"; };
+
+		static ProcessorMetadata::WildcardFilterList getWildcard()
+		{
+			return {
+				{ ProcessorMetadataIds::Effect, ProcessorMetadataIds::VoiceEffect.toString() }
+			};
+		}
+
+		ProcessorMetadata::WildcardFilterList getWildcardFromObject() const override { return getWildcard(); }
+
+		bool allowType(const Identifier& typeName) override
+		{
+			return allowedFX.contains(typeName);
+		}
+
+		Array<Identifier> allowedFX;
+	};
+
+	struct NoVoiceEffectConstrainer : public Constrainer
+	{
+		NoVoiceEffectConstrainer();
+
+		String getDescription() const override { return "no voice effects"; };
+
+		static ProcessorMetadata::WildcardFilterList getWildcard()
+		{
+			return {
+				{ ProcessorMetadataIds::Effect, ProcessorMetadataIds::MasterEffect.toString() + "|" 
+											  + ProcessorMetadataIds::MonophonicEffect.toString() }
+			};
+		}
+
+		ProcessorMetadata::WildcardFilterList getWildcardFromObject() const override { return getWildcard(); }
+
+		bool allowType(const Identifier& typeName) override
+		{
+			return allowedFX.contains(typeName);
+		}
+
+		Array<Identifier> allowedFX;
+	};
+
 	EffectProcessorChainFactoryType(int numVoices_, Processor *ownerProcessor):
 		FactoryType(ownerProcessor),
 		numVoices(numVoices_)

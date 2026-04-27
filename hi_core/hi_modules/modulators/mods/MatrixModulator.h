@@ -42,7 +42,7 @@ class MatrixModulator: public EnvelopeModulator,
 {
 public:
 
-	SET_PROCESSOR_NAME("MatrixModulator", "Matrix Modulator", "A modulator that combines multiple global modulators with intensity modulation");
+	SET_PROCESSOR_NAME("MatrixModulator", "Matrix Modulator", "");
 
 	enum SpecialParameters
 	{
@@ -54,8 +54,9 @@ public:
 	MatrixModulator(MainController *mc, const String &id, int voiceAmount, Modulation::Mode m);
 	~MatrixModulator();
 
+	static ProcessorMetadata createMetadata();
+
 	void setInternalAttribute(int parameterInde, float newValue) override;
-	float getDefaultValue(int parameterIndex) const override;
 	float getAttribute(int parameterIndex) const;
 	ModulationDisplayValue::QueryFunction::Ptr getModulationQueryFunction(int parameterIndex) const override;
 

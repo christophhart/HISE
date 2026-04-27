@@ -951,10 +951,26 @@ public:
 	{
 	public:
 
+		template <typename First> static String makeNegativeFilterWildcard()
+		{
+			return "!" + First::getClassType().toString();
+		}
+
+		template <typename First, typename Second, typename... Ts> static String makeNegativeFilterWildcard()
+		{
+			String s;
+			s << "!" << First::getClassType().toString();
+			s << "|";
+			s << makeNegativeFilterWildcard<Second, Ts...>();
+			return s;
+		}
+
 		virtual ~Constrainer() {};
 
 		/** Overwrite this and return true if the FactoryType can create this Processor and false, if not. */
 		virtual bool allowType(const Identifier &typeName) = 0;
+
+		virtual ProcessorMetadata::WildcardFilterList getWildcardFromObject() const = 0;
 
 		virtual String getDescription() const = 0;
 

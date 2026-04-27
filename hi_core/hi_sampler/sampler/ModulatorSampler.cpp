@@ -32,65 +32,86 @@
 
 namespace hise { using namespace juce;
 
-
-
-
-
-SET_DOCUMENTATION(ModulatorSampler)
+hise::ProcessorMetadata ModulatorSampler::createMetadata()
 {
-	SET_DOC_NAME(ModulatorSampler);
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Mod = ProcessorMetadata::ModulationMetadata;
+	using Range = scriptnode::InvertableParameterRange;
 
-	addLine("A Sampler is a synthesiser which allows playback of samples.");
-	addLine("Features:");
-	addLine("- Disk Streaming with fast MemoryMappedFile reading");
-	addLine("- Looping with crossfades & sample start modulation");
-	addLine("- Round - Robin groups");
-	addLine("- Application - wide sample pool with reference counting to ensure minimal memory usage.");
-	addLine("- Different playback modes(pitch tracking / one shot, etc.)");
-
-	ADD_PARAMETER_DOC_WITH_NAME(PreloadSize, "Preload Size",
-		"The preload size in samples for all samples that are loaded into the sampler. " \
-		"If the preload size is `-1`, then the whole sample will be loaded into memory.");
-
-	ADD_PARAMETER_DOC_WITH_NAME(BufferSize, "Buffer Size",
-		"The buffer size of the streaming buffers (2 per voice) in samples.  " \
-		"The sampler uses two buffers which are swapped (one is used for reading from disk and one is used to supply the sampler with the audio data)");
-
-	ADD_PARAMETER_DOC_WITH_NAME(VoiceAmount, "Soft Limit", 
-		"The amount of voices that the sampler can play. ");
-
-	ADD_PARAMETER_DOC_WITH_NAME(RRGroupAmount, "RR Groups", 
-		"The number of groups that are cycled in a round robin manier. "\
-		"This is effectively just another dimension for mapping samples and " \
-		"can be used for many different purposes (handling round robins is just the default).");
-
-	ADD_PARAMETER_DOC_WITH_NAME(SamplerRepeatMode, "Retrigger",
-		"Determines how the sampler treats repeated notes.  "); 
-
-	ADD_PARAMETER_DOC(PitchTracking, 
-		"Enables pitch ratio modification for different notes than the root note. Disable this for drum samples.");
-
-	ADD_PARAMETER_DOC(OneShot, 
-		"Plays the whole sample (ignores the note off) if set to enabled.");
-
-	ADD_PARAMETER_DOC_WITH_NAME(CrossfadeGroups, "Group XF", 
-		"If enabled, the groups are played simultanously and can be crossfaded with the Group-Fade Modulation Chain.");
-
-	ADD_PARAMETER_DOC(Purged, 
-		"If *Enabled*, it will unload all preload buffers and deactivate the sample playback to save memory. The **Lazy load** option unloads all preload buffers and delays the preloading of a sample until it is triggered for the first time.");
-
-	ADD_PARAMETER_DOC(Reversed, 
-		"If this is true, the samples will be fully loaded into preload buffer and reversed");
-
-    ADD_PARAMETER_DOC(UseStaticMatrix,
-        "If this is true, then the routing matrix will not be resized when you load a sample map with another mic position amount.");
-
-	ADD_CHAIN_DOC(SampleStartModulation, "Sample Start", 
-		"Allows modification of the sample start if the sound allows this. The modulation range is depending on the *SampleStartMod* value of each sample.");
-
-	ADD_CHAIN_DOC(CrossFadeModulation, "Group Fade",
-		"Fades between the RR groups. This can be used for crossfading dynamics samples.");
-};
+	return ModulatorSynth::createBaseMetadata(true)
+		.withStandardMetadata<ModulatorSampler>()
+		.withDescription("A disk-streaming sampler with sample maps, round robin, crossfade groups, and timestretching.")
+		.withComplexDataInterface(ExternalData::DataType::Table)
+		.withParameter(Par(PreloadSize)
+			.withId("PreloadSize")
+			.withDescription("Preload buffer size in samples for all loaded samples. Set to -1 to load the entire sample into memory.")
+			.withSliderMode(HiSlider::Discrete, Range(-1.0, 65536.0, 1.0))
+			.withDefault(8192.0f))
+		.withParameter(Par(BufferSize)
+			.withId("BufferSize")
+			.withDescription("Streaming buffer size in samples. Two buffers per voice are swapped between disk reading and audio output.")
+			.withSliderMode(HiSlider::Discrete, Range(512.0, 65536.0, 1.0))
+			.withDefault(4096.0f))
+		.withParameter(Par(VoiceAmount)
+			.withId("VoiceAmount")
+			.withDescription("The actual number of allocated voices for sample playback")
+			.withSliderMode(HiSlider::Discrete, Range(1.0, (double)NUM_POLYPHONIC_VOICES, 1.0))
+			.withDefault((float)NUM_POLYPHONIC_VOICES))
+		.withParameter(Par(RRGroupAmount)
+			.withId("RRGroupAmount")
+			.withDescription("Number of round-robin groups. Also used as a general mapping dimension for velocity layers or articulations.")
+			.withSliderMode(HiSlider::Discrete, Range(1.0, 128.0, 1.0))
+			.withDefault(1.0f))
+		.withParameter(Par(SamplerRepeatMode)
+			.withId("SamplerRepeatMode")
+			.withDescription("How the sampler handles retriggered notes on the same key")
+			.withValueList({ "Kill Note", "Note off", "Do nothing", "Kill Duplicate", "Kill Third" })
+			.withDefault(3.0f))
+		.withParameter(Par(PitchTracking)
+			.withId("PitchTracking")
+			.withDescription("Transposes playback pitch based on the MIDI note relative to the sample root note. Disable for drum samples.")
+			.asToggle()
+			.withDefault(1.0f))
+		.withParameter(Par(OneShot)
+			.withId("OneShot")
+			.withDescription("Plays the entire sample ignoring note-off events")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(CrossfadeGroups)
+			.withId("CrossfadeGroups")
+			.withDescription("Plays all round-robin groups simultaneously and crossfades between them using the Group Fade modulation chain")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(Purged)
+			.withId("Purged")
+			.withDescription("Memory management: Disabled keeps samples loaded, Enabled unloads all preload buffers, Lazy Load delays preloading until first trigger")
+			.withValueList({ "Disabled", "Enabled", "Lazy Load" }, 0.0f)
+			.withDefault(0.0f))
+		.withParameter(Par(Reversed)
+			.withId("Reversed")
+			.withDescription("Loads samples fully into the preload buffer and reverses the playback direction")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(UseStaticMatrix)
+			.withId("UseStaticMatrix")
+			.withDescription("Prevents the routing matrix from resizing when loading a sample map with a different mic position count")
+			.asToggle()
+			.withDefault(0.0f))
+		.withParameter(Par(LowPassEnvelopeOrder)
+			.withId("LowPassEnvelopeOrder")
+			.withDescription("Filter order for the envelope follower low-pass filter, stored in multiples of 6 (0 = off, 6, 12, ...)")
+			.withSliderMode(HiSlider::Discrete, Range(0.0, 48.0, 6.0))
+			.withDefault(0.0f))
+		.withModulation(Mod(SampleStartModulation)
+			.withId("Sample Start")
+			.withDescription("Modulates the sample start position within each sample's SampleStartMod range. Voice-start-only, gain mode.")
+			.withConstrainer<VoiceStartModulatorFactoryType::Constrainer>()
+			.withMode(scriptnode::modulation::ParameterMode::ScaleOnly))
+		.withModulation(Mod(CrossFadeModulation)
+			.withId("Group Fade")
+			.withDescription("Crossfades between round-robin groups using the crossfade tables for dynamic layering"))
+		;
+}
 
 
 ModulatorSampler::ModulatorSampler(MainController *mc, const String &id, int numVoices) :
@@ -136,20 +157,6 @@ syncVoiceHandler(false)
 	OLD_PROCESSOR_DISPATCH(enablePooledUpdate(mc->getGlobalUIUpdater()));
 
 	//enableAllocationFreeMessages(50);
-
-	parameterNames.add("PreloadSize");
-	parameterNames.add("BufferSize");
-	parameterNames.add("VoiceAmount");
-	parameterNames.add("RRGroupAmount");
-	parameterNames.add("SamplerRepeatMode");
-	parameterNames.add("PitchTracking");
-	parameterNames.add("OneShot");
-	parameterNames.add("CrossfadeGroups");
-	parameterNames.add("Purged");
-	parameterNames.add("Reversed");
-    parameterNames.add("UseStaticMatrix");
-	parameterNames.add("LowPassEnvelopeOrder");
-	parameterNames.add("Timestretching");
 
 	updateParameterSlots();
 
@@ -554,6 +561,7 @@ void ModulatorSampler::restoreFromValueTree(const ValueTree &v)
 
     loadAttribute(CrossfadeGroups, "CrossfadeGroups");
     loadAttribute(RRGroupAmount, "RRGroupAmount");
+	loadAttribute(LowPassEnvelopeOrder, "LowPassEnvelopeOrder");
 
 	auto groupData = v.getChildWithName(groupIds::Layers);
 
@@ -600,6 +608,7 @@ ValueTree ModulatorSampler::exportAsValueTree() const
 	saveAttribute(Reversed, "Reversed");
 	v.setProperty("NumChannels", numChannels, nullptr);
     saveAttribute(UseStaticMatrix, "UseStaticMatrix");
+	saveAttribute(LowPassEnvelopeOrder, "LowPassEnvelopeOrder");
 
 	ValueTree channels("channels");
 
@@ -1372,8 +1381,8 @@ void ModulatorSampler::preStartVoice(int voiceIndex, const HiseEvent& e)
 			if(auto nextSound = dynamic_cast<ModulatorSamplerSound*>(soundsToBeStarted[0]))
 			{
                 auto nq = nextSound->getNumQuartersForTimestretch(currentTimestretchOptions.numQuarters);
-                
-				syncer.setSource(nextSound->getSampleRate(), nextSound->getReferenceToSound(0)->getSampleLength(), nq);
+
+				syncer.setSource(nextSound->getSampleRate(), nextSound->getReferenceToSound(0)->getSampleLength(), nq, currentTimestretchOptions.sourceBpm);
 			}
 				
 			v->setTimestretchRatio(getCurrentTimestretchRatio());

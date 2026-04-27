@@ -32,6 +32,31 @@
 
 namespace hise { using namespace juce;
 
+hise::ProcessorMetadata MatrixModulator::createMetadata()
+{
+	using Par = ProcessorMetadata::ParameterMetadata;
+	using Range = scriptnode::InvertableParameterRange;
+
+	return EnvelopeModulator::createBaseMetadata()
+		.withId(getClassType())
+		.withPrettyName("Matrix Modulator")
+		.withDescription("Combines multiple global modulators into a single modulation source with a base value and smoothed output.")
+		.withType<hise::EnvelopeModulator>()
+		.withParameter(Par(Value)
+			.withId("Value")
+			.withDescription("The base value of the modulation output")
+			.withSliderMode(HiSlider::NormalizedPercentage, {})
+			.withDefault(0.5f)
+			.withDynamicDefault([](const Processor* p){
+				return dynamic_cast<const MatrixModulator*>(p)->getInitialValue();
+			}))
+		.withParameter(Par(SmoothingTime)
+			.withId("SmoothingTime")
+			.withDescription("The smoothing time for the value parameter")
+			.withSliderMode(HiSlider::Time, Range(0.0, 2000.0, 0.1).withCentreSkew(200.0))
+			.withDefault(50.0f));
+}
+
 Array<Identifier> MatrixModulator::getRangeIds(bool isInput)
 {
 
@@ -353,9 +378,6 @@ MatrixModulator::MatrixModulator(MainController* mc, const String& id, int voice
 
 	chain->getHandler()->addListener(this);
 
-	parameterNames.add("Value");
-	parameterNames.add("SmoothingTime");
-
 	updateParameterSlots();
 
 	init();
@@ -391,25 +413,6 @@ void MatrixModulator::setInternalAttribute(int parameterIndex, float newValue)
 		baseValue.prepare(getSampleRate() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR, newValue);
 		smoothingTime = newValue;
 		break;
-	}
-}
-
-float MatrixModulator::getDefaultValue(int parameterIndex) const
-{
-	if(parameterIndex < EnvelopeModulator::numParameters)
-	{
-		return EnvelopeModulator::getDefaultValue(parameterIndex);
-	}
-
-	switch(parameterIndex)
-	{
-	case SpecialParameters::Value:
-		return getInitialValue();
-	case SpecialParameters::SmoothingTime:
-		return 200.0f;
-	default:
-		jassertfalse;
-		return 0.0f;
 	}
 }
 

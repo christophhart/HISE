@@ -48,7 +48,6 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     label->setColour (TextEditor::backgroundColourId, Colour (0x00000000));
 
     addAndMakeVisible (attackSlider = new HiSlider ("Attack"));
-    attackSlider->setRange (1, 20000, 1);
     attackSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     attackSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     attackSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -58,7 +57,6 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     attackSlider->setSkewFactor (0.3);
 
     addAndMakeVisible (releaseSlider = new HiSlider ("Release"));
-    releaseSlider->setRange (1, 20000, 1);
     releaseSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     releaseSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     releaseSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
@@ -68,7 +66,6 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
 
     addAndMakeVisible (attackLevelSlider = new HiSlider ("Attack Level"));
     attackLevelSlider->setTooltip (TRANS("The attack peak level."));
-    attackLevelSlider->setRange (-100, 0, 1);
     attackLevelSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     attackLevelSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     attackLevelSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -77,7 +74,6 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     attackLevelSlider->addListener (this);
 
     addAndMakeVisible (holdSlider = new HiSlider ("Hold"));
-    holdSlider->setRange (0, 20000, 1);
     holdSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     holdSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     holdSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -87,7 +83,6 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     holdSlider->setSkewFactor (0.3);
 
     addAndMakeVisible (decaySlider = new HiSlider ("Decay"));
-    decaySlider->setRange (1, 20000, 1);
     decaySlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     decaySlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     decaySlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -97,7 +92,6 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     decaySlider->setSkewFactor (0.3);
 
     addAndMakeVisible (sustainSlider = new HiSlider ("Sustain"));
-    sustainSlider->setRange (-100, 0, 1);
     sustainSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     sustainSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     sustainSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -114,7 +108,6 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     ahdsrGraph->setName ("new component");
 
     addAndMakeVisible (attackCurveSlider = new HiSlider ("Decay"));
-    attackCurveSlider->setRange (1, 20000, 1);
     attackCurveSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     attackCurveSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     attackCurveSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -124,7 +117,6 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
     attackCurveSlider->setSkewFactor (0.3);
 
     addAndMakeVisible (decayCurveSlider = new HiSlider ("Sustain"));
-    decayCurveSlider->setRange (-100, 0, 1);
     decayCurveSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     decayCurveSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
     decayCurveSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
@@ -135,31 +127,18 @@ AhdsrEnvelopeEditor::AhdsrEnvelopeEditor (ProcessorEditor *p)
 
     //[UserPreSize]
 
-	attackSlider->setup(getProcessor(), AhdsrEnvelope::Attack, "Attack Time");
-	attackSlider->setMode(HiSlider::Time);
+	auto md = getProcessor()->getMetadata();
 
-	attackLevelSlider->setup(getProcessor(), AhdsrEnvelope::AttackLevel, "Attack Level");
-	attackLevelSlider->setMode(HiSlider::Decibel, NormalisableRange(-100.0, 0.0).withCentreSkew(-12.0));
-
-	sustainSlider->setup(getProcessor(), AhdsrEnvelope::Sustain, "Sustain Level");
-	sustainSlider->setMode(HiSlider::Decibel, NormalisableRange(-100.0, 0.0).withCentreSkew(-12.0));
-
-	holdSlider->setup(getProcessor(), AhdsrEnvelope::Hold, "Hold Time");
-	holdSlider->setMode(HiSlider::Time);
-
-	decaySlider->setup(getProcessor(), AhdsrEnvelope::Decay, "Decay Time");
-	decaySlider->setMode(HiSlider::Time);
-
-	releaseSlider->setup(getProcessor(), AhdsrEnvelope::Release, "Release Time");
-	releaseSlider->setMode(HiSlider::Time);
+	md.setup(*attackSlider, getProcessor(), AhdsrEnvelope::Attack);
+	md.setup(*attackLevelSlider, getProcessor(), AhdsrEnvelope::AttackLevel);
+	md.setup(*sustainSlider, getProcessor(), AhdsrEnvelope::Sustain);
+	md.setup(*holdSlider, getProcessor(), AhdsrEnvelope::Hold);
+	md.setup(*decaySlider, getProcessor(), AhdsrEnvelope::Decay);
+	md.setup(*releaseSlider, getProcessor(), AhdsrEnvelope::Release);
+	md.setup(*attackCurveSlider, getProcessor(), AhdsrEnvelope::AttackCurve);
+	md.setup(*decayCurveSlider, getProcessor(), AhdsrEnvelope::DecayCurve);
 
     label->setFont (GLOBAL_BOLD_FONT().withHeight(26.0f));
-
-	attackCurveSlider->setup(getProcessor(), AhdsrEnvelope::AttackCurve, "Attack Curve");
-	attackCurveSlider->setMode(HiSlider::NormalizedPercentage);
-
-	decayCurveSlider->setup(getProcessor(), AhdsrEnvelope::DecayCurve, "Decay Curve");
-	decayCurveSlider->setMode(HiSlider::NormalizedPercentage);
 
 
 

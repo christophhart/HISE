@@ -106,6 +106,8 @@ public:
 		return {};
 	}
 
+	ProcessorMetadata withDynamicScriptParameters(const ProcessorMetadata& pd) const;
+
 	void setAllowObjectConstruction(bool shouldBeAllowed);
 
 	bool objectsCanBeCreated() const;
@@ -236,8 +238,7 @@ public:
 
 	float getAttribute(int index) const override { return getControlValue(index); }
 	void setInternalAttribute(int index, float newValue) override { setControlValue(index, newValue); }
-	float getDefaultValue(int index) const override;
-
+	
 	ValueTree exportAsValueTree() const override { ValueTree v = MidiProcessor::exportAsValueTree(); saveContent(v); return v; }
 	void restoreFromValueTree(const ValueTree &v) override { MidiProcessor::restoreFromValueTree(v); restoreContent(v); }
 
@@ -248,11 +249,6 @@ public:
 
 
 	int getControlCallbackIndex() const override { return onControl; };
-
-	Identifier getIdentifierForParameterIndex(int parameterIndex) const override
-	{
-		return getContentParameterIdentifier(parameterIndex);
-	}
 
 protected:
 
@@ -506,6 +502,20 @@ public:
 
 		static CodeDocument* gotoAndReturnDocumentWithDefinition(Processor* p, DebugableObjectBase* object);
 	};
+
+	template <typename T> static ProcessorMetadata withScriptnodeMetadata(const ProcessorMetadata& md)
+	{
+		return md.asDynamic()
+			.withId(T::getClassType())
+			.withPrettyName(T::getClassName())
+			.template withType<T>()
+			.template withInterface<T>()
+			.template withInterface<HotswappableProcessor>()
+			.withComplexDataInterface(ExternalData::DataType::Table)
+			.withComplexDataInterface(ExternalData::DataType::SliderPack)
+			.withComplexDataInterface(ExternalData::DataType::AudioFile)
+			.withComplexDataInterface(ExternalData::DataType::DisplayBuffer);
+	}
 
 	ValueTree createApiTree() override;
 

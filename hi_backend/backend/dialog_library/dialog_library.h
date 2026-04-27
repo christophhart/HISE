@@ -320,6 +320,10 @@ public:
 		MULTIPAGE_BIND_CPP(NewProjectCreator, createEmptyProject);
 	}
 
+    static void initialise(BaseStateManager* bp);
+    
+    static void execute(BaseStateManager* bp);
+    
 	var onTemplateSelector(const var::NativeFunctionArgs& args);
 	var initFolder(const var::NativeFunctionArgs& args);
 	var onProjectNameUpdate(const var::NativeFunctionArgs& args);
@@ -444,6 +448,8 @@ struct NetworkCompiler: public EncodedDialogBase,
 	ScopedPointer<ControlledObject> compileExporter;
 };
 
+
+
 struct CompileProjectDialog: public EncodedDialogBase,
 						public ChildProcessManager
 {
@@ -472,6 +478,10 @@ struct CompileProjectDialog: public EncodedDialogBase,
 			j->getProgress() = progress;
 		}
 	}
+
+	static void initialise(BaseStateManager* state);
+
+	static void execute(BaseStateManager* state);
 
     void refreshOutputFile()
     {
@@ -503,7 +513,7 @@ struct CompileProjectDialog: public EncodedDialogBase,
 
 	File getTargetFile() const;
 
-	int getBuildFlag() const;
+	static int getBuildFlag(BaseStateManager* state);
 
 	BackendRootWindow* bpe;
 	ScopedPointer<ControlledObject> compileExporter;

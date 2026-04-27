@@ -35,42 +35,32 @@ PhaserEditor::PhaserEditor (ProcessorEditor *p)
     //[/Constructor_pre]
 
     addAndMakeVisible (freq1Slider = new HiSlider ("Speed"));
-    freq1Slider->setRange (0, 1, 0.01);
     freq1Slider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     freq1Slider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     freq1Slider->addListener (this);
 
     addAndMakeVisible (freq2Slider = new HiSlider ("Range"));
-    freq2Slider->setRange (0, 1, 0.01);
     freq2Slider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     freq2Slider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     freq2Slider->addListener (this);
 
     addAndMakeVisible (feedBackSlider = new HiSlider ("Feedback"));
-    feedBackSlider->setRange (0, 1, 0.01);
     feedBackSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     feedBackSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     feedBackSlider->addListener (this);
 
     addAndMakeVisible (wetSlider = new HiSlider ("Wet"));
-    wetSlider->setRange (0, 1, 0.1);
     wetSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
     wetSlider->setTextBoxStyle (Slider::TextBoxRight, false, 80, 20);
     wetSlider->addListener (this);
 
 
     //[UserPreSize]
-    
-    freq1Slider->setup(getProcessor(), PhaseFX::Attributes::Frequency1, "Frequency1");
-    freq1Slider->setMode(HiSlider::Mode::Frequency);
-    freq2Slider->setup(getProcessor(), PhaseFX::Attributes::Frequency2, "Frequency2");
-    freq2Slider->setMode(HiSlider::Mode::Frequency);
-    feedBackSlider->setup(getProcessor(), PhaseFX::Attributes::Feedback, "Feedback");
-    feedBackSlider->setMode(HiSlider::Mode::NormalizedPercentage);
-    wetSlider->setup(getProcessor(), PhaseFX::Attributes::Mix, "Mix");
-    wetSlider->setMode(HiSlider::Mode::NormalizedPercentage);
-
-    
+	auto md = getProcessor()->getMetadata();
+	md.setup(*freq1Slider, getProcessor(), PhaseFX::Frequency1);
+	md.setup(*freq2Slider, getProcessor(), PhaseFX::Frequency2);
+	md.setup(*feedBackSlider, getProcessor(), PhaseFX::Feedback);
+	md.setup(*wetSlider, getProcessor(), PhaseFX::Mix);
     //[/UserPreSize]
 
     setSize (900, 80);

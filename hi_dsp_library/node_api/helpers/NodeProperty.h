@@ -69,6 +69,13 @@ struct InvertableParameterRange
 		return copy;
 	}
 
+	InvertableParameterRange withCentreSkew(double c) const
+	{
+		auto copy = *this;
+		copy.rng.setSkewForCentre(c);
+		return copy;
+	}
+
 	double convertTo0to1(double input, bool applyInversion) const;
 
 	Range<double> getRange() const

@@ -692,12 +692,12 @@ bool RoutableProcessor::MatrixData::isEditorShown(int channelIndex) const noexce
 { 
 	jassert(isPositiveAndBelow(channelIndex, NUM_MAX_CHANNELS));
 
-	return numEditors[channelIndex] > 0; 
+	return forcePeakMeters || numEditors[channelIndex] > 0; 
 }
 
 bool RoutableProcessor::MatrixData::anyChannelActive() const noexcept
 {
-	return anyActive;
+	return anyActive || forcePeakMeters;
 }
 
 void RoutableProcessor::MatrixData::setEditorShown(Array<int> channelIndexes, bool isShown) noexcept

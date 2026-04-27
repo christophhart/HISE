@@ -44,9 +44,36 @@
 namespace hise { using namespace juce;
 
 //==============================================================================
-// Helper to convert var to JSON string
+/** Serialize a var to JSON, normalizing API envelopes on the way out.
+
+    A var is treated as an envelope iff its root is a DynamicObject carrying
+    the `success` marker. For envelopes this:
+
+      - stamps `apiVersion` with the compile-time HISE_REST_API_VERSION,
+      - guarantees `logs` and `errors` arrays exist so consumers can iterate
+        them unconditionally without hasProperty() guards.
+
+    Non-envelope values (OpenAPI doc, raw arrays, primitives) pass through
+    untouched. Mutating the underlying DynamicObject is safe because every
+    envelope is built fresh by the handler/factory immediately before being
+    serialized; no caller observes the var afterwards.
+*/
 static String varToJsonString(const var& v)
 {
+    if (auto* obj = v.getDynamicObject())
+    {
+        if (obj->hasProperty(RestApiIds::success))
+        {
+            if (!obj->hasProperty(RestApiIds::apiVersion))
+                obj->setProperty(RestApiIds::apiVersion, HISE_REST_API_VERSION);
+
+            if (!obj->hasProperty(RestApiIds::logs))
+                obj->setProperty(RestApiIds::logs, var(Array<var>{}));
+
+            if (!obj->hasProperty(RestApiIds::errors))
+                obj->setProperty(RestApiIds::errors, var(Array<var>{}));
+        }
+    }
     return JSON::toString(v, false);
 }
 
@@ -54,8 +81,20 @@ static String varToJsonString(const var& v)
 static String createErrorJson(const String& message)
 {
     DynamicObject::Ptr obj = new DynamicObject();
-    obj->setProperty("error", true);
-    obj->setProperty("message", message);
+    obj->setProperty(RestApiIds::success, false);
+    obj->setProperty(RestApiIds::result, var());
+
+    Array<var> errors;
+    Array<var> logs;
+
+    DynamicObject::Ptr em = new DynamicObject();
+    em->setProperty(RestApiIds::errorMessage, message);
+    Array<var> callstack;
+    em->setProperty(RestApiIds::callstack, var(callstack));
+    errors.add(var(em.get()));
+
+    obj->setProperty(RestApiIds::logs, var(logs));
+    obj->setProperty(RestApiIds::errors, var(errors));
     return varToJsonString(obj.get());
 }
 
@@ -162,6 +201,22 @@ String RestServer::Request::operator[](const Identifier& name) const
     return {};
 }
 
+bool RestServer::Request::getTrueValue(const Identifier& name) const
+{
+    auto v = (*this)[name];
+    
+    if(v.isEmpty())
+        return false;
+    
+    if(v == "true")
+        return true;
+    
+    if(v == "false")
+        return false;
+    
+    return v.getIntValue();
+}
+
 var RestServer::Request::getJsonBody() const
 {
     var result;
@@ -256,39 +311,60 @@ void RestServer::AsyncRequest::mergeLogsIntoResponse()
         rootObj = new DynamicObject();
         
         if (response.body.isNotEmpty())
-            rootObj->setProperty("result", response.body);
+            rootObj->setProperty(RestApiIds::result, response.body);
     }
     
-    // Build logs array
     Array<var> logsArray;
+
+    if (rootObj->hasProperty(RestApiIds::logs))
+    {
+        if (auto ar = rootObj->getProperty(RestApiIds::logs).getArray())
+            logsArray.addArray(*ar);
+    }
+
     for (const auto& log : logs)
         logsArray.add(log);
     
-    rootObj->setProperty("logs", logsArray);
+    rootObj->setProperty(RestApiIds::logs, logsArray);
     
-    // Build errors array
-    Array<var> errorsArray;
-    for (const auto& err : errors)
+    Array<var> mergedErrors;
+
+    if (rootObj->hasProperty(RestApiIds::errors))
     {
-        DynamicObject::Ptr errObj = new DynamicObject();
-        errObj->setProperty("errorMessage", err.errorMessage);
-        
-        Array<var> callstackArray;
-        for (const auto& frame : err.callstack)
-            callstackArray.add(frame);
-        
-        errObj->setProperty("callstack", callstackArray);
-        errorsArray.add(var(errObj.get()));
+        auto existingErrors = rootObj->getProperty(RestApiIds::errors);
+
+        if (existingErrors.isArray())
+        {
+            for (const auto& e : *existingErrors.getArray())
+                mergedErrors.add(e);
+        }
     }
-    
-    rootObj->setProperty("errors", errorsArray);
-    
+
+    if (!usesCustomErrors)
+    {
+		for (const auto& err : errors)
+		{
+			DynamicObject::Ptr errObj = new DynamicObject();
+			errObj->setProperty(RestApiIds::errorMessage, err.errorMessage);
+
+			Array<var> callstackArray;
+			for (const auto& frame : err.callstack)
+				callstackArray.add(frame);
+
+			errObj->setProperty(RestApiIds::callstack, callstackArray);
+			mergedErrors.add(var(errObj.get()));
+		}
+    }
+
+    rootObj->setProperty(RestApiIds::errors, mergedErrors);
+
     // Normalize floating point values for clean JSON output (4 decimal places)
     var rootVar(rootObj.get());
     normalizeFloatsInVar(rootVar);
-    
-    // Update response
-    response.body = JSON::toString(rootVar, false);
+
+    // Route through varToJsonString so the envelope normalization (apiVersion
+    // stamp, default logs/errors arrays) is applied here too.
+    response.body = varToJsonString(rootVar);
     response.contentType = "application/json";
 }
 
@@ -335,13 +411,14 @@ public:
     }
 
     //==============================================================================
-    bool startServer(int port, const String& bindAddress)
+    bool startServer(int port, const String& bindAddress, const String& corsOrigins)
     {
         if (isThreadRunning())
             return false;
 
         currentPort = port;
         currentBindAddress = bindAddress;
+        currentCorsOrigins = corsOrigins.trim();
 
         server = std::make_unique<httplib::Server>();
 
@@ -367,6 +444,14 @@ public:
                 case DELETE: server->Delete(pathStr, wrappedHandler); break;
             }
         }
+
+        // Wildcard CORS preflight handler. httplib dispatches OPTIONS through its own
+        // handler list, so the actual route handlers above never run for preflight.
+        server->Options(R"(.*)", [this](const httplib::Request& req, httplib::Response& res)
+        {
+            applyCorsHeaders(res, req);
+            res.status = 204;
+        });
 
         // Start the server thread
         startThread();
@@ -495,9 +580,63 @@ private:
             response = Response::internalError(errorMsg);
         }
 
+        // Note: envelope normalization (apiVersion stamp, logs/errors arrays)
+        // happens inside varToJsonString at construction time, not here.
+
         // Send response
         res.status = response.statusCode;
         res.set_content(response.body.toStdString(), response.contentType.toStdString());
+        applyCorsHeaders(res, req);
+    }
+
+    //==============================================================================
+    /** Resolve the configured CORS policy and write the matching headers onto `res`.
+
+        Policy interpretation (`currentCorsOrigins`):
+        - `"*"`        : always emit `Access-Control-Allow-Origin: *`.
+        - empty        : emit no CORS headers (legacy behavior, lets the user opt out).
+        - origin list  : comma-separated. Echo the request's `Origin` header iff it
+                         appears in the list; otherwise emit no CORS headers.
+    */
+    void applyCorsHeaders(httplib::Response& res, const httplib::Request& req) const
+    {
+        if (currentCorsOrigins.isEmpty())
+            return;
+
+        String allowOrigin;
+        bool echoingSpecificOrigin = false;
+
+        if (currentCorsOrigins == "*")
+        {
+            allowOrigin = "*";
+        }
+        else
+        {
+            auto requestOriginIt = req.headers.find("Origin");
+            if (requestOriginIt == req.headers.end())
+                return;
+
+            String requestOrigin(requestOriginIt->second);
+
+            StringArray allowed;
+            allowed.addTokens(currentCorsOrigins, ",", {});
+            allowed.trim();
+            allowed.removeEmptyStrings();
+
+            if (! allowed.contains(requestOrigin))
+                return;
+
+            allowOrigin = requestOrigin;
+            echoingSpecificOrigin = true;
+        }
+
+        res.set_header("Access-Control-Allow-Origin", allowOrigin.toStdString());
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        res.set_header("Access-Control-Max-Age", "86400");
+
+        if (echoingSpecificOrigin)
+            res.set_header("Vary", "Origin");
     }
 
     //==============================================================================
@@ -506,6 +645,7 @@ private:
     
     int currentPort = 0;
     String currentBindAddress;
+    String currentCorsOrigins;
     std::atomic<bool> running{false};
 
     CriticalSection requestSerializationLock;
@@ -544,9 +684,9 @@ void RestServer::addAsyncRoute(Method method, const URL& routeUrl, AsyncRouteHan
     });
 }
 
-bool RestServer::start(int port, const String& bindAddress)
+bool RestServer::start(int port, const String& bindAddress, const String& corsAllowedOrigins)
 {
-    return pimpl->startServer(port, bindAddress);
+    return pimpl->startServer(port, bindAddress, corsAllowedOrigins);
 }
 
 void RestServer::stop()

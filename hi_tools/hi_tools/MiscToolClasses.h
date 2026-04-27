@@ -2652,6 +2652,7 @@ public:
     SemanticVersionChecker(const String& oldVersion_, const String& newVersion_);;
 
 	SemanticVersionChecker(const std::array<int, 3>& oldVersion_, const std::array<int, 3>& newVersion_);
+	SemanticVersionChecker(const std::array<int, 4>& oldVersion_, const std::array<int, 4>& newVersion_);
 
     bool isUpdate() const;
 	bool isExactMatch() const
@@ -2662,6 +2663,7 @@ public:
     bool isMajorVersionUpdate() const;;
     bool isMinorVersionUpdate() const;;
     bool isPatchVersionUpdate() const;;
+	bool isBuildNumberUpdate() const;
     bool oldVersionNumberIsValid() const;
     bool newVersionNumberIsValid() const;
 
@@ -2681,13 +2683,18 @@ private:
 		{
 		    return majorVersion == other.majorVersion &&
 				   minorVersion == other.minorVersion &&
-				   patchVersion == other.patchVersion;
+				   patchVersion == other.patchVersion &&
+				   buildNumber == other.buildNumber;
 		}
 
 		String toString() const
 		{
 		    String m;
 			m << String(majorVersion) << "." << String(minorVersion) << "." << String(patchVersion);
+
+			if (buildNumber != 0)
+				m << "." << String(buildNumber);
+
 			return m;
 		}
 
@@ -2695,6 +2702,7 @@ private:
         int majorVersion = 0;
         int minorVersion = 0;
         int patchVersion = 0;
+		int buildNumber = 0;
     };
 
     static void parseVersion(VersionInfo& info, const String& v);;
