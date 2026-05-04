@@ -800,6 +800,7 @@ public:
 			RectangleList<int> draggers;
 			Rectangle<int> labelArea;
 			int margin = 10;
+			bool alwaysOnTop = false;
 			SliderStyle s = SliderStyle::RotaryHorizontalVerticalDrag;
 			float sensitivity = 1.0f;
 		};

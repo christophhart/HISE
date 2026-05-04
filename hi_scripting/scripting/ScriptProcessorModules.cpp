@@ -662,10 +662,12 @@ void JavascriptPolyphonicEffect::prepareToPlay(double sampleRate, int samplesPer
 		auto numChannels = dynamic_cast<RoutableProcessor*>(getParentProcessor(true))->getMatrix().getNumSourceChannels();
 
         setVoiceKillerToUse(this);
-        
+
 		n->setNumChannels(numChannels);
 		n->prepareToPlay(sampleRate, (double)samplesPerBlock);
 	}
+
+	extraModSources.prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 void JavascriptPolyphonicEffect::renderVoice(int voiceIndex, AudioSampleBuffer &b, int startSample, int numSamples)
@@ -1020,9 +1022,9 @@ bool JavascriptMasterEffect::isSuspendedOnSilence() const
 void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
 	MasterEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
-	
+
     connectionChanged();
-    
+
 	if (getActiveNetwork() != nullptr)
 		getActiveNetwork()->prepareToPlay(sampleRate, samplesPerBlock);
 
@@ -1034,6 +1036,8 @@ void JavascriptMasterEffect::prepareToPlay(double sampleRate, int samplesPerBloc
 
 		BACKEND_ONLY(if (!lastResult.wasOk()) debugError(this, lastResult.getErrorMessage()));
 	}
+
+	extraModSources.prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 
@@ -2028,10 +2032,12 @@ void JavascriptSynthesiser::prepareToPlay(double newSampleRate, int samplesPerBl
 	if (auto n = getActiveNetwork())
 	{
 		setVoiceKillerToUse(this);
-		
+
         n->prepareToPlay(newSampleRate, (double)samplesPerBlock);
         n->setNumChannels(getMatrix().getNumSourceChannels());
 	}
+
+	extraModSources.prepareToPlay(newSampleRate, samplesPerBlock);
 }
 
 

@@ -380,16 +380,25 @@ void ApiCollection::MethodItem::initialiseMarkdown()
 
 		const String name = methodTree.getProperty(Identifier("name")).toString();
 		const String arguments = methodTree.getProperty(Identifier("arguments")).toString();
-		const String description = methodTree.getProperty(Identifier("description")).toString().trim();
+        String description = methodTree.getProperty(Identifier("description")).toString().trim();
 		const String returnType = methodTree.getProperty("returnType", "void");
 
 		extendedHelp << "#### `" << className << "." << name << arguments << "`  \n";
 
 		if (!returnType.isEmpty())
-			extendedHelp << "**Return Type**: `" << returnType << "`  \n";
+			extendedHelp << "> **Return Type**: `" << returnType << "`  \n";
 
-		extendedHelp << "> " << description << "  \n";
-		extendedHelp << "**[F1]** - open in docs **[Enter]** - paste in editor";
+        extendedHelp << "\n";
+        
+        if(description.contains("[!Warning:"))
+        {
+            auto d1 = description.upToFirstOccurrenceOf("[!Warning:", false, false);
+            auto d2 = description.fromFirstOccurrenceOf("[!Warning:", false, false);
+            d2 = d2.fromFirstOccurrenceOf("]", false, false);
+            description = d1 + d2;
+        }
+        
+		extendedHelp << description << "  \n";
 	}
 
 	if (extendedHelp.isNotEmpty())

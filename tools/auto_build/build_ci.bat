@@ -5,12 +5,30 @@ call ConfigWindows.bat
 cd..
 cd..
 
+echo Extracting 3rd party SDKs...
+
+if not exist "tools\SDK\sdk.zip" (
+	echo ========================================================================
+	echo tools\SDK\sdk.zip not found. Aborting...
+	cd tools\auto_build
+	exit 1
+)
+
 cd tools/SDK
 
 tar -xf sdk.zip
 
+if %errorlevel% NEQ 0 (
+	echo ========================================================================
+	echo Error at extracting sdk.zip. Aborting...
+	cd ..\..\tools\auto_build
+	exit 1
+)
+
 cd ..
 cd ..
+
+echo OK
 
 
 %projucerPath% --resave %standalone_projucer_project%

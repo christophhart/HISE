@@ -878,6 +878,7 @@ void HiSlider::HoverPopupLookandFeel::PositionData::fromVar(const var& data)
 		auto l = data["dragAreas"];
 		labelArea = ApiHelpers::getIntRectangleFromVar(data["labelArea"]);
 
+		alwaysOnTop = data["alwaysOnTop"];
 		sensitivity = data.getProperty("mouseSensitivity", sensitivity);
 
 		FloatSanitizers::sanitizeFloatNumber(sensitivity);
@@ -914,6 +915,7 @@ var HiSlider::HoverPopupLookandFeel::PositionData::toVar() const
 	obj->setProperty("margin", margin);
 	obj->setProperty("labelArea", ApiHelpers::getVarRectangle(true, labelArea.toFloat()));
 	obj->setProperty("mouseSensitivity", sensitivity);
+	obj->setProperty("alwaysOnTop", alwaysOnTop);
 
 	switch(s)
 	{
@@ -951,6 +953,8 @@ HiSlider::HoverPopupLookandFeel::PositionData HiSlider::HoverPopupLookandFeel::g
 	
 	for(auto s: sourceList)
 		pd.draggers.addWithoutMerging(x.removeFromLeft(DRAG_SIZE));
+
+	pd.alwaysOnTop = JUCE_LIVE_CONSTANT(1);
 
 	x.removeFromLeft(10);
 	pd.labelArea = x;
@@ -1270,33 +1274,67 @@ struct HiSlider::HoverPopup: public Component,
 	  sliderStyle(pd.s),
 	  exclusiveMode(exclusiveMode_)
 	{
-		
+		int numDragAreas = dragAreas.getNumRectangles();
+		int numSources = sourceNames.size();
+
+		// backwards compatibility fix: the default implementation of getModulatorDragData
+		// now contains the default positions - old code might just append the custom positions to the
+		// dragAreas list - this will truncate it to keep the last numSources entries.
+		if (numDragAreas > numSources)
+		{
+			auto firstToUse = numDragAreas - numSources;
+
+			RectangleList<int> truncatedAreas;
+
+			for (int i = firstToUse; i < numDragAreas; i++)
+				truncatedAreas.addWithoutMerging(dragAreas.getRectangle(i));
+
+			jassert(truncatedAreas.getNumRectangles() == numSources);
+
+			truncatedAreas.swapWith(dragAreas);
+		}
 
 		int pIndex = -1;
 
-		if(auto pp = parent->getParentComponent())
-		{
-			pIndex = pp->getIndexOfChildComponent(parent);
-			pp->addAndMakeVisible(this, pIndex+1);
-		}
-		
-		auto pb = parent->getBoundsInParent();
+		Component* parentToUse = nullptr;
+
+		if (pd.alwaysOnTop)
+			parentToUse = slider.findParentComponentOfClass<ScriptContentComponent>();
+
+		if (parentToUse == nullptr)
+			parentToUse = parent->getParentComponent();
+
+		auto idx = pd.alwaysOnTop ? -1 : parentToUse->getIndexOfChildComponent(parent);
+		parentToUse->addAndMakeVisible(this, idx);
+
+		auto pb = parentToUse->getLocalArea(parent, parent->getLocalBounds());
+
 		auto b = dragAreas.getBounds();
 
 		if(!labelArea.isEmpty())
 			b = b.getUnion(labelArea);
+
+		Point<float> pOffset;
+
+		if (pd.alwaysOnTop)
+		{
+			pOffset = parentToUse->getLocalPoint(parent->getParentComponent(), Point<float>());
+			b = b.translated(pOffset.getX(), pOffset.getY());
+		}
 		
 		setBounds(b.expanded(pd.margin));
+
 		globalHitbox = getScreenBounds().getUnion(slider.getScreenBounds());
 
-		auto translationToOrigin = AffineTransform::translation(getBoundsInParent().getTopLeft().toFloat() * -1.0f);
+		auto offset = getBoundsInParent().getTopLeft().toFloat() - pOffset;
+
+		auto translationToOrigin = AffineTransform::translation(offset * -1.0f);
 
 		dragAreas.transformAll(translationToOrigin);
 
-		if(!labelArea.isEmpty())
+		if (!labelArea.isEmpty())
 			labelArea = labelArea.transformed(translationToOrigin);
 
-		
 
 		gc = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(slider.getProcessor()->getMainController()->getMainSynthChain());
 

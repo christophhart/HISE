@@ -72,6 +72,12 @@ public:
 	/** Convert all registered metadata to a JSON array. */
 	var toJSON() const;
 
+	/** Returns the old ID and the index for given parameter ID - if the migration to the new metadata system
+		changed the ID, this function can be used to add additional scripting constants that link back to the index
+		to keep old scripts running.
+	*/
+	static std::vector<std::pair<Identifier, int>> getFallbackIdForOldParameter(const Identifier& typeId);
+
 private:
 
 	/** Called from constructor. Registers metadata for all known processor types

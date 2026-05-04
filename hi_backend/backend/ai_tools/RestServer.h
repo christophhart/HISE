@@ -292,6 +292,7 @@ namespace RestApiIds
     DECLARE_ID(replResults);          // Array of REPL evaluation results from testing/sequence
     DECLARE_ID(processorId);          // Target processor ID for set_attribute
     DECLARE_ID(parameterId);          // Parameter name for set_attribute
+    DECLARE_ID(propertyId);           // Property name for DSP node properties
     DECLARE_ID(blocking);             // If true, wait for sequence to complete before responding
     DECLARE_ID(signal);               // Test signal type (sine, saw, sweep, dirac, noise, silence)
     DECLARE_ID(frequency);            // Signal frequency in Hz
@@ -322,7 +323,6 @@ namespace RestApiIds
     // dsp (scriptnode)
     DECLARE_ID(nodeId);               // Node instance ID within a network
     DECLARE_ID(factoryPath);          // Node factory path (e.g. core.oscillator)
-    DECLARE_ID(embedded);             // Whether network is embedded (vs file-based)
     DECLARE_ID(networks);             // Array of network names
     DECLARE_ID(connections);          // Array of connection objects in tree
     DECLARE_ID(sourceOutput);         // Connection source output name
@@ -330,6 +330,7 @@ namespace RestApiIds
     DECLARE_ID(stepSize);             // Parameter step size
     DECLARE_ID(middlePosition);       // Parameter middle position
     DECLARE_ID(skewFactor);           // Parameter skew factor
+    DECLARE_ID(matchRange);           // connect op flag: copy target range onto source after wiring
 
     // snippet browser
     DECLARE_ID(exists);               // Whether a snippet browser instance is alive

@@ -3727,6 +3727,7 @@ void RestHelpers::WizardExecutor::registerExecutors()
 	registerExecutor<multipage::library::NewProjectCreator>("new_project");
 
 	registerExecutor<multipage::library::CompileProjectDialog>("plugin_export");
+	registerExecutor<multipage::library::NetworkCompiler>("compile_networks");
 }
 
 
@@ -5048,7 +5049,7 @@ static var buildDspNodeTree(const ValueTree& nodeTree, bool verbose, bool includ
 		auto p = paramTree.getChild(i);
 		DynamicObject::Ptr paramObj = new DynamicObject();
 		paramObj->setProperty(RestApiIds::parameterId, p[PropertyIds::ID].toString());
-		paramObj->setProperty(RestApiIds::value, p[PropertyIds::Value]);
+		paramObj->setProperty(RestApiIds::value, p.getProperty(PropertyIds::Value, 0.0));
 
 		if (verbose)
 		{
@@ -5072,39 +5073,87 @@ static var buildDspNodeTree(const ValueTree& nodeTree, bool verbose, bool includ
 
 	obj->setProperty(RestApiIds::parameters, var(params));
 
+	auto isContainer = nodeTree.getChildWithName(PropertyIds::Nodes).isValid();
+
+	auto propList = rest_undo::dsp::Helpers::getInlineNodeProperties(isContainer);
+
+	Array<var> properties;
+
+	for (auto p : propList)
+	{
+		if (nodeTree.hasProperty(p))
+		{
+			DynamicObject::Ptr pobj = new DynamicObject();
+			pobj->setProperty(RestApiIds::propertyId, p.toString());
+			pobj->setProperty(RestApiIds::value, nodeTree[p]);
+			properties.add(pobj.get());
+		}
+	}
+
+	for (auto p : nodeTree.getChildWithName(PropertyIds::Properties))
+	{
+		if (p[PropertyIds::ID].toString() == "Connection")
+			continue;
+
+		DynamicObject::Ptr pobj = new DynamicObject();
+		pobj->setProperty(RestApiIds::propertyId, p[PropertyIds::ID]);
+		pobj->setProperty(RestApiIds::value, p[PropertyIds::Value]);
+		properties.add(pobj.get());
+	}
+
+	obj->setProperty(RestApiIds::properties, var(properties));
+
 	if (includeConnections)
 	{
 		// Connections (modulation targets on parameters)
 		Array<var> connections;
 
 		valuetree::Helpers::forEach(nodeTree, [&](const ValueTree& c)
+		{
+			if (c.getType() == PropertyIds::Property && c[PropertyIds::ID].toString() == PropertyIds::Connection.toString())
 			{
-				if (c.getType() == PropertyIds::Connection)
-				{
-					auto parentId = valuetree::Helpers::findParentWithType(c, PropertyIds::Node)[PropertyIds::ID].toString();
+				auto receiveIds = StringArray::fromTokens(c[PropertyIds::Value].toString(), ",", "");
 
+				auto parentId = valuetree::Helpers::findParentWithType(c, PropertyIds::Node)[PropertyIds::ID].toString();
+
+				for (auto con : receiveIds)
+				{
 					DynamicObject::Ptr np = new DynamicObject();
 					np->setProperty(RestApiIds::source, parentId);
-
-					auto pParent = valuetree::Helpers::findParentWithType(c, PropertyIds::Parameter);
-					auto mParent = valuetree::Helpers::findParentWithType(c, PropertyIds::ModulationTargets);
-					auto sParent = valuetree::Helpers::findParentWithType(c, PropertyIds::SwitchTarget);
-
-					if (pParent.isValid())
-						np->setProperty(RestApiIds::sourceOutput, pParent[PropertyIds::ID]);
-					else if (mParent.isValid())
-						np->setProperty(RestApiIds::sourceOutput, 0);
-					else
-						np->setProperty(RestApiIds::sourceOutput, sParent.getParent().indexOf(sParent));
-
-					np->setProperty(RestApiIds::target, c[PropertyIds::NodeId]);
-					np->setProperty(RestApiIds::parameter, c[PropertyIds::ParameterId]);
+					np->setProperty(RestApiIds::sourceOutput, "routing");
+					np->setProperty(RestApiIds::target, con);
+					np->setProperty(RestApiIds::parameter, "");
 
 					connections.add(var(np.get()));
 				}
+			}
 
-				return false;
-			});
+			if (c.getType() == PropertyIds::Connection)
+			{
+				auto parentId = valuetree::Helpers::findParentWithType(c, PropertyIds::Node)[PropertyIds::ID].toString();
+
+				DynamicObject::Ptr np = new DynamicObject();
+				np->setProperty(RestApiIds::source, parentId);
+
+				auto pParent = valuetree::Helpers::findParentWithType(c, PropertyIds::Parameter);
+				auto mParent = valuetree::Helpers::findParentWithType(c, PropertyIds::ModulationTargets);
+				auto sParent = valuetree::Helpers::findParentWithType(c, PropertyIds::SwitchTarget);
+
+				if (pParent.isValid())
+					np->setProperty(RestApiIds::sourceOutput, pParent[PropertyIds::ID]);
+				else if (mParent.isValid())
+					np->setProperty(RestApiIds::sourceOutput, 0);
+				else
+					np->setProperty(RestApiIds::sourceOutput, sParent.getParent().indexOf(sParent));
+
+				np->setProperty(RestApiIds::target, c[PropertyIds::NodeId]);
+				np->setProperty(RestApiIds::parameter, c[PropertyIds::ParameterId]);
+
+				connections.add(var(np.get()));
+			}
+
+			return false;
+		});
 
 		obj->setProperty(RestApiIds::connections, var(connections));
 	}
@@ -5170,11 +5219,25 @@ RestServer::Response RestHelpers::handleDspInit(MainController* mc,
 	if (networkName.isEmpty())
 		return req->fail(400, "name is required");
 
-	bool embedded = (bool)obj.getProperty(RestApiIds::embedded, false);
+	auto mode = obj.getProperty(RestApiIds::mode, "auto").toString();
+	if (mode != "create" && mode != "load" && mode != "auto")
+		return req->fail(400, "mode must be one of: create, load, auto");
 
 	auto holder = getNetworkHolder(mc, mid);
 	if (holder == nullptr)
 		return req->fail(404, "Module " + mid + " is not a DspNetwork holder");
+
+	auto networkFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::Networks);
+	auto xmlFile = networkFolder.getChildFile(networkName).withFileExtension("xml");
+	auto filePath = xmlFile.getFullPathName();
+
+	if (mode == "create" && xmlFile.existsAsFile())
+		return req->fail(409, "Network XML already exists: " + filePath);
+
+	if (mode == "load" && !xmlFile.existsAsFile())
+		return req->fail(404, "No network XML found: " + filePath);
+
+	bool existsAlready = xmlFile.existsAsFile();
 
 	auto network = holder->getOrCreate(networkName);
 	if (network == nullptr)
@@ -5183,19 +5246,11 @@ RestServer::Response RestHelpers::handleDspInit(MainController* mc,
 	auto p = dynamic_cast<Processor*>(holder);
 
 	p->prepareToPlay(p->getSampleRate(), p->getLargestBlockSize());
-	
+
 	auto tree = network->getValueTree();
 	auto rootNode = tree.getChild(0); // First child is the root container node
 
 	var treeJson = buildDspNodeTree(rootNode, false, true);
-
-	// Resolve file path (always return expected path, even if not yet saved)
-	String filePath;
-	if (!embedded)
-	{
-		auto networkFolder = BackendDllManager::getSubFolder(mc, BackendDllManager::FolderSubType::Networks);
-		filePath = networkFolder.getChildFile(networkName).withFileExtension("xml").getFullPathName();
-	}
 
 	if (auto brw = dynamic_cast<BackendProcessor*>(mc)->currentRootWindow)
 	{
@@ -5208,9 +5263,20 @@ RestServer::Response RestHelpers::handleDspInit(MainController* mc,
 	DynamicObject::Ptr result = new DynamicObject();
 	result->setProperty(RestApiIds::success, true);
 	result->setProperty(RestApiIds::result, treeJson);
-	result->setProperty(RestApiIds::filePath, filePath);
-	result->setProperty(RestApiIds::embedded, embedded);
-	result->setProperty(RestApiIds::logs, Array<var>());
+
+	if(mode == "auto")
+		result->setProperty(RestApiIds::filePath, filePath);
+
+	Array<var> logs;
+
+	result->setProperty(RestApiIds::source, existsAlready ? "loaded" : "created");
+
+	if (existsAlready)
+		logs.add("Loaded network from XML " + xmlFile.getFileName());
+	else
+		logs.add("Created new network");
+
+	result->setProperty(RestApiIds::logs, logs);
 	result->setProperty(RestApiIds::errors, Array<var>());
 
 	req->complete(RestServer::Response::ok(var(result.get())));

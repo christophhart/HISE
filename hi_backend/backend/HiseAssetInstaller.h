@@ -83,7 +83,13 @@ struct HiseAssetInstaller: public ControlledObject
 					if (File::isAbsolutePath(path))
 					{
 						if (auto info = HiseAssetInstaller::UninstallInfo(File(path)))
-							assets.push_back(info);
+						{
+							auto exists = std::any_of(assets.begin(), assets.end(),
+								[&](const UninstallInfo& a) { return a.localFolder == info.localFolder; });
+
+							if (! exists)
+								assets.push_back(info);
+						}
 					}
 				}
 			}
@@ -617,10 +623,16 @@ private:
 
 		var toJSON() const override;
 
+		bool wouldConflict(const Array<File>& claimedByLog) const
+		{
+			return targetFile.existsAsFile() && ! claimedByLog.contains(targetFile);
+		}
+
 		File targetFile;
 		ScopedPointer<InputStream> is;
 		Time modificationTime;
 		int64 hash = 0;
+		bool hashValid = false;
 	};
 
 	struct ClipboardInstallAction: public UndoableInstallAction
@@ -709,6 +721,7 @@ private:
 	}
 
 	bool testMode = false;
+	bool isValid = true;
 
 	static StringArray getIllegalFilenames();
 

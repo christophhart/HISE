@@ -1734,9 +1734,11 @@ void ModulatorChain::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 		addBufferData->prepare(sampleRate, samplesPerBlock);
 	}
-	
+
 	for(int i = 0; i < envelopeModulators.size(); i++) envelopeModulators[i]->prepareToPlay(sampleRate, samplesPerBlock);
 	for(int i = 0; i < variantModulators.size(); i++) variantModulators[i]->prepareToPlay(sampleRate, samplesPerBlock);
+
+	runtimeTargetSource.prepareToPlay(sampleRate, samplesPerBlock);
 
 	jassert(checkModulatorStructure());
 };
@@ -2152,31 +2154,60 @@ getModulationQueryFunction(const ParameterProperties& pp, int parameterIndex) co
 
 
 
-bool ModulatorChain::ExtraModulatorRuntimeTargetSource::addConnection(bool shouldBeAdded, TargetType* target)
+bool ModulatorChain::ExtraModulatorRuntimeTargetSource::refreshSignal()
 {
-	if(extraMods.isEmpty())
-		return false;
-
-	scriptnode::modulation::SignalSource signal;
-
-	auto& first = extraMods.getFirst()->getChain()->runtimeTargetSource;
-
-	if(shouldBeAdded)
+	if (sampleRate > 0.0 && blockSize > 0)
 	{
-		signal.sampleRate_cr = first.parent.getSampleRate() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-		signal.numSamples_cr = first.parent.getLargestBlockSize() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		scriptnode::modulation::SignalSource signal;
 
-		for(int i = 0; i < extraMods.size(); i++)
+		signal.sampleRate_cr = sampleRate / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+		signal.numSamples_cr = blockSize / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+		for (int i = 0; i < extraMods.size(); i++)
 		{
 			auto rt = &extraMods[i]->getChain()->runtimeTargetSource;
 			signal.modValueFunctions[i] = { rt, RuntimeTargetSource::getEventData };
 		}
+
+		for (auto t : connectedTargets)
+			t->onValue(signal);
+
+		return true;
 	}
 
-	for(auto mc: extraMods)
-		mc->getChain()->runtimeTargetSource.handleConnection(shouldBeAdded, signal.numSamples_cr);
+	return false;
+}
 
-	target->onValue(signal);
+bool ModulatorChain::ExtraModulatorRuntimeTargetSource::addConnection(bool shouldBeAdded, TargetType* target)
+{
+	if (shouldBeAdded)
+		connectedTargets.addIfNotAlreadyThere(target);
+	else
+		connectedTargets.removeAllInstancesOf(target);
+
+	if (extraMods.isEmpty())
+		return false;
+
+	auto numSamples_cr = blockSize / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+
+	for (auto mc : extraMods)
+		mc->getChain()->runtimeTargetSource.handleConnection(shouldBeAdded, numSamples_cr);
+
+	if (shouldBeAdded)
+	{
+		if (!refreshSignal())
+		{
+			scriptnode::modulation::SignalSource emptySignal;
+			target->onValue(emptySignal);
+		}
+	}
+	else
+	{
+		scriptnode::modulation::SignalSource emptySignal;
+		target->onValue(emptySignal);
+		refreshSignal();
+	}
+
 	return true;
 }
 

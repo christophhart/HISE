@@ -107,6 +107,46 @@ public:
 		UninitialisedProperties
 	};
 
+	enum CppFileLocationType
+	{
+		UnknownFileType,
+		CompiledNetworkFile,
+		ThirdPartyFile,
+		ThirdPartySourceFile,
+		EmbeddedDataFile
+	};
+
+	/** Plain non-UI context object holding all data the static export pipeline
+	    operates on. Constructed on any thread - no UI base class. The instance
+	    `run()` builds one from its members; `NetworkCompiler::execute` builds
+	    one directly to avoid creating the UI-bound exporter on a worker thread. */
+	struct Context
+	{
+		// Inputs
+		BackendProcessor* bp = nullptr;
+		CompileExporter* exporter = nullptr;        // required - provides hisePath/useIpp/chainToExport/dataObject
+		ChildProcessManager* managerToUse = nullptr;
+		bool skipCompilation = false;
+		std::function<void(const String&)> logCallback;
+		std::function<void(double)> progressCallback;
+
+		// Working state (populated during runStatic)
+		StringArray nodesToCompile;
+		StringArray cppFilesToCompile;
+		Array<File> includedFiles;
+		Array<File> includedThirdPartyFiles;
+
+		// Outputs
+		CompileExporter::ErrorCodes ok = CompileExporter::ErrorCodes::UserAbort;
+		String errorMessage;
+
+		MainController* getMainController() const;
+		File getFolder(BackendDllManager::FolderSubType t) const;
+		void logMessage(const String& m) const;
+		void setProgress(double p) const;
+		Result getCompilationResult() const { return ok == CompileExporter::ErrorCodes::OK ? Result::ok() : Result::fail(errorMessage); }
+	};
+
 	DspNetworkCompileExporter(Component* editor, BackendProcessor* bp, bool skipCompilation_=false);
 
 	void run() override;
@@ -126,30 +166,28 @@ public:
 
 	DspNetwork* getNetwork();
 
+	BackendDllManager* getDllManager();
+
 	Result getCompilationResult() const { return getErrorCode() == ErrorCodes::OK ? Result::ok() : Result::fail(errorMessage); }
+
+	/** Runs the source-generation + projucer-file pipeline against the supplied
+	    context. Does NOT invoke `compileSolution()` - callers that want the DLL
+	    built must do so themselves on the supplied exporter. */
+	static void runStatic(Context& ctx);
+
+	static void createProjucerFile(Context& ctx);
+	static void createIncludeFile(Context& ctx, const File& sourceDir);
+	static void createMainCppFile(Context& ctx, bool isDllMainFile);
+	static File getSourceDirectory(const Context& ctx, bool isDllMainFile);
+	static CppFileLocationType getLocationType(const Context& ctx, const File& f);
+	static DspNetwork* getNetwork(const Context& ctx);
+	static BackendDllManager* getDllManager(const Context& ctx);
 
 private:
 
-	
-
-	enum CppFileLocationType
-	{
-		UnknownFileType,
-		CompiledNetworkFile,
-		ThirdPartyFile,
-		ThirdPartySourceFile,
-		EmbeddedDataFile
-	};
-
 	void writeDebugFileAndShowSolution();
 
-	CppFileLocationType getLocationType(const File& f) const;
-
-	
-
 	static Array<File> getIncludedNetworkFiles(const File& networkFile);
-	
-	BackendDllManager* getDllManager();
 
 	Component* editor;
 
@@ -165,24 +203,21 @@ private:
 	void logMessage(const String& m)
 	{
 		if(managerToUse != nullptr)
+		{
 			managerToUse->logMessage("> " + m + "\n");
-		else
+			return;
+		}
+
+		if(MessageManager::getInstance()->isThisTheMessageThread())
 			showStatusMessage(m);
+		else
+			Logger::writeToLog(m);
 	}
-
-	void createIncludeFile(const File& sourceDir);
-
-	void createProjucerFile();
 
 	String errorMessage;
 
 	Array<File> includedFiles;
 	Array<File> includedThirdPartyFiles;
-	
-
-	File getSourceDirectory(bool isDllMainFile) const;
-
-	void createMainCppFile(bool isDllMainFile);
 
 	snex::cppgen::CustomNodeProperties nodeProperties;
 };

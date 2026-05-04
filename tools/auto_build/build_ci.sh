@@ -52,6 +52,25 @@ $hise_path compile_networks -c:Debug
 
 echo "OK"
 
+echo "Extracting 3rd party SDKs..."
+
+if [ ! -f "tools/SDK/sdk.zip" ]; then
+	echo "========================================================================"
+	echo "tools/SDK/sdk.zip not found. Aborting..."
+	exit 1
+fi
+
+(cd tools/SDK && tar -xf sdk.zip)
+
+if [ $? != 0 ];
+then
+	echo "========================================================================"
+	echo "Error at extracting sdk.zip. Aborting..."
+	exit 1
+fi
+
+echo "OK"
+
 echo "Exporting demo project..."
 
 

@@ -568,6 +568,10 @@ struct ProcessorMetadata
 	ProcessorMetadata withParameter(const ParameterMetadata& pd) const
 	{
 		auto copy = *this;
+
+		// parameterIndex must equal the position in the array. Use asDisabled() to fill gaps.
+		jassert(pd.parameterIndex == copy.parameters.size());
+
 		copy.parameters.add(pd);
 		return copy;
 	}

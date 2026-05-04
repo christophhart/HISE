@@ -519,7 +519,17 @@ bool LineDiff::isTextFile(const File& f)
 		".cpp",
 		".dsp",
 		".js",
-		".xml"
+		".xml",
+		".css",
+		".glsl",
+		".md",
+		".json",
+		".txt",
+		".hpp",
+		".c",
+		".hxx",
+		".cxx",
+		".inl"
 		});
 
 	static constexpr int FileSizeLimit = 500 * 1024;

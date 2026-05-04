@@ -5585,7 +5585,7 @@
           "dsp"
         ],
         "summary": "Create or load a DspNetwork",
-        "description": "Creates a new DspNetwork or loads an existing one via the module's DspNetwork::Holder. If the network XML file does not exist, it is created. If it already exists, it is loaded. Returns the initial tree in the result field (same shape as GET /api/dsp/tree) plus filePath and embedded flag. The name is sanitized to a valid C++ identifier.",
+        "description": "Initialises a DspNetwork via the module's DspNetwork::Holder. The network lives in memory until POST /api/dsp/save writes it to disk. The mode parameter controls how the network XML file is treated: 'create' fails with 409 if an XML file with that name already exists; 'load' fails with 404 if no XML file with that name exists; 'auto' (default) loads the XML if present and creates an empty container otherwise. Returns the initial tree in the result field (same shape as GET /api/dsp/tree) plus filePath. The name is sanitized to a valid C++ identifier.",
         "operationId": "dsp_init",
         "parameters": [
           {
@@ -5611,10 +5611,15 @@
                     "description": "Network name to create or load",
                     "example": "MyDSP"
                   },
-                  "embedded": {
-                    "type": "boolean",
-                    "description": "Create as embedded network rather than file-based",
-                    "default": "false"
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "create",
+                      "load",
+                      "auto"
+                    ],
+                    "description": "How to handle the network XML file: create (error if exists), load (error if missing), auto (load if exists, create if missing)",
+                    "default": "auto"
                   }
                 },
                 "required": [
@@ -5623,7 +5628,8 @@
               },
               "example": {
                 "moduleId": "Script FX1",
-                "name": "MyDSP"
+                "name": "MyDSP",
+                "mode": "auto"
               }
             }
           }
@@ -5647,11 +5653,15 @@
                     },
                     "filePath": {
                       "type": "string",
-                      "description": "Absolute path to the network .xml file (empty for embedded networks)"
+                      "description": "Absolute path to the network .xml file"
                     },
-                    "embedded": {
-                      "type": "boolean",
-                      "description": "Whether the network is embedded"
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "created",
+                        "loaded"
+                      ],
+                      "description": "whether the network was created or loaded"
                     },
                     "logs": {
                       "type": "array",
@@ -5702,8 +5712,8 @@
                     "connections": [],
                     "children": []
                   },
+                  "source": "created",
                   "filePath": "D:/Projects/MyPlugin/DspNetworks/MyDSP.xml",
-                  "embedded": false,
                   "logs": [],
                   "errors": []
                 }
@@ -5715,6 +5725,9 @@
           },
           "404": {
             "description": "Not found - unknown module or resource"
+          },
+          "409": {
+            "description": "Conflict - operation conflicts with current state"
           }
         }
       }
@@ -5725,7 +5738,7 @@
           "dsp"
         ],
         "summary": "Get scriptnode network hierarchy",
-        "description": "Returns the nested JSON tree of the active DspNetwork for the given module. Each node contains its nodeId, factoryPath, bypass state, parameters, and child nodes. Container nodes also have a connections array listing all modulation edges within that container (source, sourceOutput, target, parameter). Use verbose=true to include full parameter range metadata (min, max, stepSize, middlePosition, defaultValue). Use group=current inside an undo group (after push_group) to read the accumulated plan-mode snapshot before the group is committed -- returns 400 if there is no active DSP validation state, 501 for any group value other than 'current'.",
+        "description": "Returns the nested JSON tree of the active DspNetwork for the given module. Each node contains its nodeId, factoryPath, bypass state, parameters, properties, and child nodes. The parameters array lists objects with parameterId and value (plus range metadata when verbose=true). The properties array lists node-level properties as objects with propertyId and value fields. Container nodes also have a connections array listing all modulation edges within that container (source, sourceOutput, target, parameter). Use verbose=true to include full parameter range metadata (min, max, stepSize, middlePosition, defaultValue). Use group=current inside an undo group (after push_group) to read the accumulated plan-mode snapshot before the group is committed -- returns 400 if there is no active DSP validation state, 501 for any group value other than 'current'.",
         "operationId": "dsp_tree",
         "parameters": [
           {
@@ -5779,7 +5792,7 @@
                     },
                     "result": {
                       "type": "string",
-                      "description": "Recursive node tree with parameters, connections on containers, and children"
+                      "description": "Recursive node tree with parameters, properties, connections on containers, and children"
                     },
                     "logs": {
                       "type": "array",
@@ -5827,6 +5840,7 @@
                     "factoryPath": "container.chain",
                     "bypassed": false,
                     "parameters": [],
+                    "properties": [],
                     "connections": [
                       {
                         "source": "PMA1",
@@ -5846,6 +5860,7 @@
                             "value": 0.0
                           }
                         ],
+                        "properties": [],
                         "children": []
                       },
                       {
@@ -5856,6 +5871,12 @@
                           {
                             "parameterId": "Frequency",
                             "value": 440
+                          }
+                        ],
+                        "properties": [
+                          {
+                            "propertyId": "UseFreqInput",
+                            "value": false
                           }
                         ],
                         "children": []
@@ -5986,7 +6007,11 @@
                         },
                         "skewFactor": {
                           "type": "number",
-                          "description": "Raw skew factor for create_parameter (mutually exclusive with middlePosition)"
+                          "description": "Raw skew factor for create_parameter or set (range-write). Mutually exclusive with middlePosition"
+                        },
+                        "matchRange": {
+                          "type": "boolean",
+                          "description": "For connect op: copy target parameter's range onto source after wiring. Mirrors IDE normalize button"
                         }
                       },
                       "required": [
@@ -6010,7 +6035,7 @@
                         },
                         {
                           "value": "connect",
-                          "description": "Connect a modulation source to a parameter (source, target, parameter, sourceOutput?). sourceOutput is a parameter name (string) or output slot index (int) for multi-output mod nodes"
+                          "description": "Connect a modulation source to a parameter (source, target, parameter, sourceOutput?, matchRange?). sourceOutput is a parameter name (string) or output slot index (int) for multi-output mod nodes. If matchRange is true, copies target parameter's range (min/max/skew/step) onto source after wiring (mirrors the IDE normalize button: target is canonical, source adopts target's units, no remap occurs)"
                         },
                         {
                           "value": "disconnect",
@@ -6018,7 +6043,7 @@
                         },
                         {
                           "value": "set",
-                          "description": "Set a parameter value or node property (nodeId, parameterId, value). When nodeId is the root network node, also supports network-level properties: AllowCompilation (bool), AllowPolyphonic (bool), CompileChannelAmount (int), HasTail (bool), SuspendOnSilence (bool), ModulationBlockSize (power-of-2 int or 0)"
+                          "description": "Set a parameter value or node property (nodeId, parameterId, value). When nodeId is the root network node, also supports network-level properties: AllowCompilation (bool), AllowPolyphonic (bool), CompileChannelAmount (int), HasTail (bool), SuspendOnSilence (bool), ModulationBlockSize (power-of-2 int or 0). Range-write variant: when min and max are present (with optional skewFactor/middlePosition/stepSize), overrides the parameter's declared range without changing its value. Mutually exclusive with value"
                         },
                         {
                           "value": "bypass",

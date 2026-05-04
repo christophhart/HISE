@@ -298,6 +298,11 @@ private:
 			// dynamic value, disregard
             roundTripSkipMap[{Arpeggiator::getClassType(), Arpeggiator::Parameters::CurrentStep}] = true;
 
+            // deprecated slots, disabled parameters that don't store values
+            roundTripSkipMap[{Arpeggiator::getClassType(), 13}] = true;
+            roundTripSkipMap[{Arpeggiator::getClassType(), 14}] = true;
+            roundTripSkipMap[{Arpeggiator::getClassType(), 15}] = true;
+
             // these are truncated with each other and highly mess up the fuzzer
             roundTripSkipMap[{ChokeGroupProcessor::getClassType(), ChokeGroupProcessor::SpecialParameters::HiKey}] = true;
             roundTripSkipMap[{ChokeGroupProcessor::getClassType(), ChokeGroupProcessor::SpecialParameters::LoKey}] = true;

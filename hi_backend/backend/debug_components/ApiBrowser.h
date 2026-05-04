@@ -204,8 +204,10 @@ public:
 		MethodItem(const ValueTree &methodTree_, const String &className_);
 
 		int getPopupHeight() const override
-		{ 
-			if (parser != nullptr) 
+		{
+            const_cast<MethodItem*>(this)->initialiseMarkdown();
+            
+			if (parser != nullptr)
 				return (int)parser->getHeightForWidth((float)extendedWidth);
 			else 
 				return 150; 
@@ -215,6 +217,8 @@ public:
 
 		int getPopupWidth() const override
 		{
+            const_cast<MethodItem*>(this)->initialiseMarkdown();
+            
 			if (parser != nullptr)
 				return extendedWidth + 20;
 			else
@@ -242,6 +246,8 @@ public:
 
 		void paintPopupBox(Graphics &g) const
 		{
+
+            
 			if (parser != nullptr)
 			{
 				auto bounds = Rectangle<float>(10.0f, -8.0f, (float)extendedWidth, (float)getPopupHeight());

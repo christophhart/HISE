@@ -708,6 +708,11 @@ public:
 				numConnections = jmax(0, numConnections-1);
 			}
 
+			resizeSignalBuffer(numSamples);
+		}
+
+		void resizeSignalBuffer(int numSamples)
+		{
 			if(numConnections > 0)
 			{
 				ProcessorHelpers::increaseBufferIfNeeded(signalData, numSamples);
@@ -720,20 +725,60 @@ public:
 			}
 		}
 
+		bool refreshSignal()
+		{
+			if(connectedTarget == nullptr)
+				return false;
+
+			if(sampleRate > 0.0 && blockSize > 0)
+			{
+				scriptnode::modulation::SignalSource signal;
+				signal.sampleRate_cr = sampleRate / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+				signal.numSamples_cr = blockSize / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+				signal.modValueFunctions[0] = { this, getEventData };
+
+				connectedTarget->onValue(signal);
+				return true;
+			}
+
+			return false;
+		}
+
+		void prepareToPlay(double newSampleRate, int newBlockSize)
+		{
+			sampleRate = newSampleRate;
+			blockSize = newBlockSize;
+
+			if(sampleRate > 0.0 && blockSize > 0)
+			{
+				resizeSignalBuffer(blockSize / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR);
+				refreshSignal();
+			}
+		}
+
 		bool addConnection(bool shouldBeAdded, TargetType* target)
 		{
-			scriptnode::modulation::SignalSource signal;
+			if(shouldBeAdded)
+				connectedTarget = target;
+
+			auto numSamples_cr = blockSize / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
+			handleConnection(shouldBeAdded, numSamples_cr);
 
 			if(shouldBeAdded)
 			{
-				signal.sampleRate_cr = parent.getSampleRate() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-				signal.numSamples_cr = parent.getLargestBlockSize() / HISE_CONTROL_RATE_DOWNSAMPLING_FACTOR;
-				signal.modValueFunctions[0] = { this, getEventData };
+				if(!refreshSignal())
+				{
+					scriptnode::modulation::SignalSource emptySignal;
+					target->onValue(emptySignal);
+				}
+			}
+			else
+			{
+				scriptnode::modulation::SignalSource emptySignal;
+				target->onValue(emptySignal);
+				connectedTarget = nullptr;
 			}
 
-			handleConnection(shouldBeAdded, signal.numSamples_cr);
-
-			target->onValue(signal);
 			return true;
 		}
 
@@ -756,6 +801,10 @@ public:
 		ModulatorChain& parent;
 		int thisBlockSize = 0;
 		int numConnections = 0;
+
+		double sampleRate = 0.0;
+		int blockSize = 0;
+		TargetType* connectedTarget = nullptr;
 
 		scriptnode::modulation::ClearState resetFlag[NUM_POLYPHONIC_VOICES];
 
@@ -897,7 +946,19 @@ public:
 
 		void updateModulationChainIdAndColour(Processor* parentProcessor, const scriptnode::modulation::ParameterProperties& data, const std::function<String(int)>& parameterIdFunction);
 
+		void prepareToPlay(double newSampleRate, int newBlockSize)
+		{
+			sampleRate = newSampleRate;
+			blockSize = newBlockSize;
+
+			if(sampleRate > 0.0 && blockSize > 0)
+				refreshSignal();
+		}
+
 	private:
+
+		double sampleRate = 0.0;
+		int blockSize = 0;
 
 		int extraOffset = 0;
 
@@ -922,7 +983,10 @@ public:
 
 		bool addConnection(bool shouldBeAdded, TargetType* target);
 
+		bool refreshSignal();
+
 		Array<ModChainWithBuffer*> extraMods;
+		Array<TargetType*> connectedTargets;
 	};
 
 	bool onIntensityDrag(bool isMouseDown, float delta);

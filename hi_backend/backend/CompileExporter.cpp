@@ -1170,6 +1170,20 @@ bool CompileExporter::checkSanity(TargetTypes type, BuildOption option)
 		}
 	}
 	
+	if (BuildOptionHelpers::isEffect(option))
+	{
+		if (ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(chainToExport) != nullptr)
+		{
+			auto soundGeneratorsEnabled = GET_HISE_SETTING(chainToExport, HiseSettings::Project::EnableSoundGeneratorsFX);
+
+			if (!soundGeneratorsEnabled)
+			{
+				printErrorMessage("EnableSoundGeneratorsFX not set", "You need to enable `EnableSoundGeneratorsFX` if you want to use a global mod container in an FX plugin");
+				return false;
+			}
+		}
+	}
+
 	return true;
 }
 

@@ -428,6 +428,10 @@ struct NetworkCompiler: public EncodedDialogBase,
 		}
 	}
 
+	static void initialise(BaseStateManager* state);
+
+	static void execute(BaseStateManager* state);
+
 	var onInit(const var::NativeFunctionArgs& args);
 	var compileTask(const var::NativeFunctionArgs& args);
 	var onClipboard(const var::NativeFunctionArgs& args);
