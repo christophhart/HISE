@@ -60,25 +60,37 @@ HiseAssetInstaller::HiseAssetInstaller(MainController* mc, ZipFile* archive) :
 		}
 	}
 
-	if (idx != -1)
+	if (idx == -1)
 	{
-		ScopedPointer<InputStream> zs = zf->createStreamForEntry(idx);
-
-		if (zs != nullptr)
-		{
-			MemoryOutputStream mos;
-			mos.writeFromInputStream(*zs, zs->getTotalLength());
-			mos.flush();
-			auto content = mos.getMemoryBlock().toString();
-			var obj;
-			auto ok = JSON::parse(content, obj);
-
-			if (ok.wasOk())
-			{
-				initialise(obj);
-			}
-		}
+		writeToLog("FATAL: zip does not contain package_install.json");
+		isValid = false;
+		return;
 	}
+
+	ScopedPointer<InputStream> zs = zf->createStreamForEntry(idx);
+
+	if (zs == nullptr)
+	{
+		writeToLog("FATAL: failed to open package_install.json stream");
+		isValid = false;
+		return;
+	}
+
+	MemoryOutputStream mos;
+	mos.writeFromInputStream(*zs, zs->getTotalLength());
+	mos.flush();
+	auto content = mos.getMemoryBlock().toString();
+	var obj;
+	auto parseResult = JSON::parse(content, obj);
+
+	if (! parseResult.wasOk())
+	{
+		writeToLog("FATAL: package_install.json parse error: " + parseResult.getErrorMessage());
+		isValid = false;
+		return;
+	}
+
+	initialise(obj);
 }
 
 HiseAssetInstaller::HiseAssetInstaller(MainController* mc, const UninstallInfo& uninstallInfo_):
@@ -539,6 +551,12 @@ bool HiseAssetInstaller::matchesFile(const File& f) const
 
 bool HiseAssetInstaller::install(const UninstallInfo& infoToUse)
 {
+	if (! isValid)
+	{
+		writeToLog("FATAL: installer is not valid (missing or invalid package_install.json)");
+		return false;
+	}
+
 	auto newSteps = createInstallList(infoToUse);
 
 	var obj;
@@ -552,31 +570,70 @@ bool HiseAssetInstaller::install(const UninstallInfo& infoToUse)
 
 	if(lf.existsAsFile())
 	{
-		auto ok = JSON::parse(getLogFile().loadFileAsString(), obj);
+		auto parseResult = JSON::parse(lf.loadFileAsString(), obj);
 
-		if (ok.wasOk())
+		if (! parseResult.wasOk())
 		{
-			if (auto ar = obj.getArray())
+			writeToLog("FATAL: install_packages_log.json is corrupted: " + parseResult.getErrorMessage());
+			return false;
+		}
+
+		if (auto ar = obj.getArray())
+		{
+			for(auto& v: *ar)
 			{
-				for(auto& v: *ar)
+				if(v[HiseSettings::Project::Name].toString() == packageName)
 				{
-					if(v[HiseSettings::Project::Name].toString() == packageName)
-					{
-						// this should be caught by the uninstaller before...
-						jassertfalse;
-					}
+					writeToLog("FATAL: package " + packageName + " is already installed. Uninstall first.");
+					return false;
 				}
 			}
-		}
-		else
-		{
-			// JSON parse failure - start with empty log
-			obj = var(Array<var>());
 		}
 	}
 	else
 	{
 		obj = var(Array<var>());
+	}
+
+	if (! testMode)
+	{
+		Array<File> claimedByLog;
+		auto root = getRootFolder();
+
+		if (auto ar = obj.getArray())
+		{
+			for (const auto& pkg : *ar)
+			{
+				if (auto steps = pkg["Steps"].getArray())
+				{
+					for (const auto& step : *steps)
+					{
+						if (step["Type"].toString() == FileInstallAction::getStaticId().toString())
+							claimedByLog.add(root.getChildFile(step["Target"].toString()));
+					}
+				}
+			}
+		}
+
+		StringArray conflicts;
+
+		for (auto a : newSteps)
+		{
+			if (auto fa = dynamic_cast<FileInstallAction*>(a))
+			{
+				if (fa->wouldConflict(claimedByLog))
+					conflicts.add(fa->targetFile.getFullPathName());
+			}
+		}
+
+		if (! conflicts.isEmpty())
+		{
+			writeToLog("FATAL: install would overwrite " + String(conflicts.size()) + " untracked file(s):");
+			for (const auto& c : conflicts)
+				writeToLog("  " + c);
+			writeToLog("Backup or rename these files and retry.");
+			return false;
+		}
 	}
 
 	if (!newSteps.isEmpty())
@@ -619,6 +676,13 @@ HiseAssetInstaller::UninstallResult HiseAssetInstaller::uninstall(const Error& s
 	UninstallResult result;
 
 	auto logInfo = getInstallInfoFromLog({});
+
+	if (! logInfo.getDynamicObject())
+	{
+		writeToLog("Package " + uninstallInfo.packageName + " is not installed.");
+		result.success = false;
+		return result;
+	}
 
 	auto uninstallSteps = fromInstallLog(logInfo);
 
@@ -821,31 +885,30 @@ HiseAssetInstaller::PreprocessorInstallAction::PreprocessorInstallAction(MainCon
 	UndoableInstallAction(mc),
 	changedValues(new DynamicObject())
 {
-	for (const auto& pf : n)
+	auto findFirst = [](const PreprocessorMap& m, const String& key) -> var
 	{
-		if (!pf.second.empty())
+		for (const auto& slot : m)
 		{
-			const auto& ov = o[pf.first];
-
-			for (auto& nv : pf.second)
-			{
-				if (keys.contains(nv.first))
-				{
-					var oldValue;
-
-					if (ov.find(nv.first) != ov.end())
-						oldValue = ov.at(nv.first);
-
-					auto newValue = nv.second;
-					auto key = Identifier(nv.first);
-
-					Array<var> values;
-					values.add(oldValue);
-					values.add(newValue);
-					changedValues->setProperty(key, var(values));
-				}
-			}
+			auto it = slot.second.find(key);
+			if (it != slot.second.end())
+				return var(it->second);
 		}
+		return var();
+	};
+
+	for (const auto& key : keys)
+	{
+		auto sourceValue = findFirst(n, key);
+
+		if (sourceValue.isVoid())
+			continue;
+
+		auto targetValue = findFirst(o, key);
+
+		Array<var> values;
+		values.add(targetValue);
+		values.add(sourceValue);
+		changedValues->setProperty(Identifier(key), var(values));
 	}
 }
 
@@ -900,10 +963,29 @@ HiseAssetInstaller::FileInstallAction::FileInstallAction(MainController* mc, con
 	UndoableInstallAction(mc),
 	is(nullptr),
 	targetFile(getRootFolder().getChildFile(data["Target"].toString())),
-	modificationTime(Time::fromISO8601(data["Modified"].toString())),
-	hash((int64)data["Hash"])
+	modificationTime(Time::fromISO8601(data["Modified"].toString()))
 {
 	jassert(data["Type"].toString() == getStaticId().toString());
+
+	// Accept BOTH legacy numeric form and new string form. JUCE's (int64) var
+	// on a string already routes through getLargeIntValue() so the cast works
+	// for both shapes. hashValid distinguishes "field present" (current or
+	// legacy entry) from "field absent" (legacy entry from before the file's
+	// extension was text-classified - treat as binary on uninstall).
+	if (auto obj = data.getDynamicObject())
+	{
+		if (obj->hasProperty("Hash"))
+		{
+			const auto hashVar = data["Hash"];
+
+			if (hashVar.isString())
+				hash = hashVar.toString().getLargeIntValue();
+			else
+				hash = (int64)hashVar;
+
+			hashValid = true;
+		}
+	}
 }
 
 bool HiseAssetInstaller::FileInstallAction::perform()
@@ -924,7 +1006,10 @@ bool HiseAssetInstaller::FileInstallAction::perform()
 		auto ok = numWritten == is->getTotalLength();
 
 		if(ok && LineDiff::isTextFile(targetFile))
+		{
 			hash = targetFile.loadFileAsString().hashCode64();
+			hashValid = true;
+		}
 
 		return ok;
 	}
@@ -951,13 +1036,11 @@ juce::var HiseAssetInstaller::FileInstallAction::toJSON() const
 	
 	if(LineDiff::isTextFile(targetFile))
 	{
-		auto hashToUse = hash;
+		auto hashToUse = hashValid ? hash : targetFile.loadFileAsString().hashCode64();
 
-		// this might have been set before patching the file...
-		if(hashToUse == 0)
-			hashToUse = targetFile.loadFileAsString().hashCode64();
-
-		obj->setProperty("Hash", hashToUse);
+		// Serialize as decimal string: 64-bit hashes can exceed 2^53 and lose
+		// precision when read by a standard JSON parser (e.g. JS JSON.parse).
+		obj->setProperty("Hash", String(hashToUse));
 	}
 	
 	obj->setProperty("Modified", targetFile.getLastModificationTime().toISO8601(false));
@@ -966,24 +1049,24 @@ juce::var HiseAssetInstaller::FileInstallAction::toJSON() const
 
 bool HiseAssetInstaller::FileInstallAction::undo()
 {
-	if(targetFile.existsAsFile())
+	if(! targetFile.existsAsFile())
+		return true;
+
+	// Legacy compat: if the file is text-classified now but the log entry has
+	// no recorded hash, the entry was written by pre-fix HISE before this
+	// extension was text-classified. Treat as binary - delete unconditionally.
+	if(hashValid && LineDiff::isTextFile(targetFile))
 	{
-		// Check if the file was modified since install (hash-based detection)
-		if(hash != 0 && LineDiff::isTextFile(targetFile))
+		auto currentHash = targetFile.loadFileAsString().hashCode64();
+
+		if(currentHash != hash)
 		{
-			auto currentHash = targetFile.loadFileAsString().hashCode64();
-
-			if(currentHash != hash)
-			{
-				// File was modified - signal skip by returning false
-				return false;
-			}
+			// File was modified - signal skip by returning false
+			return false;
 		}
-
-		return targetFile.deleteFile();
 	}
 
-	return true;
+	return targetFile.deleteFile();
 }
 
 

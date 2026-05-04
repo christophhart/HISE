@@ -2878,8 +2878,36 @@ struct ScriptingObjects::ScriptingModulator::Wrapper
 	API_VOID_METHOD_WRAPPER_1(ScriptingModulator, setMatrixProperties);
 };
 
+struct ModuleConstantInitialiser
+{
+	static int getFallbackCount(Processor* p)
+	{
+		if (p == nullptr)
+			return 0;
+
+		return (int)ProcessorMetadataRegistry::getFallbackIdForOldParameter(p->getType()).size();
+	}
+
+	static int getNumSlots(Processor* p)
+	{
+		if (p == nullptr)
+			return 1;
+
+		return p->getNumParameters() + 1 + getFallbackCount(p);
+	}
+
+	static void addFallbacksForTypos(ConstScriptingObject* obj, Processor* p)
+	{
+		if (p == nullptr)
+			return;
+
+		for (const auto& fb : ProcessorMetadataRegistry::getFallbackIdForOldParameter(p->getType()))
+			obj->addConstant(fb.first.toString(), var(fb.second));
+	}
+};
+
 ScriptingObjects::ScriptingModulator::ScriptingModulator(ProcessorWithScriptingContent *p, Modulator *m_) :
-ConstScriptingObject(p, m_ != nullptr ? m_->getNumParameters() + 1 : 1),
+ConstScriptingObject(p, ModuleConstantInitialiser::getNumSlots(m_)),
 mod(m_),
 m(nullptr),
 moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
@@ -2896,6 +2924,8 @@ moduleHandler(m_, dynamic_cast<JavascriptProcessor*>(p))
 		{
 			addConstant(mod->getIdentifierForParameterIndex(i).toString(), var(i));
 		}
+
+		ModuleConstantInitialiser::addFallbacksForTypos(this, mod);
 	}
 	else
 	{
@@ -3382,7 +3412,7 @@ struct CurveEqHelpers
 		}
 		else if (fx != nullptr)
 		{
-			return fx->getNumParameters() + 1;
+			return ModuleConstantInitialiser::getNumSlots(fx);
 		}
 
 		return 1;
@@ -3421,11 +3451,24 @@ moduleHandler(fx, dynamic_cast<JavascriptProcessor*>(p))
 		setName(fx->getId());
 
 		addScriptParameters(this, effect.get());
-		auto numToAdd = CurveEqHelpers::getNumConstants(fx) - 1;
 
-		for (int i = 0; i < numToAdd; i++)
+		if (dynamic_cast<CurveEq*>(fx) != nullptr)
 		{
-			addConstant(CurveEqHelpers::getConstantId(fx, i), var(i));
+			auto numToAdd = CurveEqHelpers::getNumConstants(fx) - 1;
+
+			for (int i = 0; i < numToAdd; i++)
+			{
+				addConstant(CurveEqHelpers::getConstantId(fx, i), var(i));
+			}
+		}
+		else
+		{
+			for (int i = 0; i < fx->getNumParameters(); i++)
+			{
+				addConstant(fx->getIdentifierForParameterIndex(i).toString(), var(i));
+			}
+
+			ModuleConstantInitialiser::addFallbacksForTypos(this, fx);
 		}
 	}
 	else
@@ -3774,7 +3817,7 @@ struct ScriptingObjects::ScriptingSlotFX::Wrapper
 };
 
 ScriptingObjects::ScriptingSlotFX::ScriptingSlotFX(ProcessorWithScriptingContent *p, Processor* fx) :
-ConstScriptingObject(p, fx != nullptr ? fx->getNumParameters()+1 : 1),
+ConstScriptingObject(p, ModuleConstantInitialiser::getNumSlots(fx)),
 slotFX(fx)
 {
     if (fx != nullptr)
@@ -3787,6 +3830,8 @@ slotFX(fx)
         {
             addConstant(fx->getIdentifierForParameterIndex(i).toString(), var(i));
         }
+
+        ModuleConstantInitialiser::addFallbacksForTypos(this, fx);
     }
     else
     {
@@ -4271,7 +4316,7 @@ struct ScriptingObjects::ScriptingSynth::Wrapper
 };
 
 ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *p, ModulatorSynth *synth_) :
-	ConstScriptingObject(p, synth_ != nullptr ? synth_->getNumParameters() + 1 : 1),
+	ConstScriptingObject(p, ModuleConstantInitialiser::getNumSlots(synth_)),
 	synth(synth_),
 	moduleHandler(synth_, dynamic_cast<JavascriptProcessor*>(p))
 {
@@ -4285,6 +4330,8 @@ ScriptingObjects::ScriptingSynth::ScriptingSynth(ProcessorWithScriptingContent *
 		{
 			addConstant(synth->getIdentifierForParameterIndex(i).toString(), var(i));
 		}
+
+		ModuleConstantInitialiser::addFallbacksForTypos(this, synth);
 	}
 	else
 	{
@@ -4614,7 +4661,7 @@ struct ScriptingObjects::ScriptingMidiProcessor::Wrapper
 };
 
 ScriptingObjects::ScriptingMidiProcessor::ScriptingMidiProcessor(ProcessorWithScriptingContent *p, MidiProcessor *mp_) :
-ConstScriptingObject(p, mp_ != nullptr ? mp_->getNumParameters()+1 : 1),
+ConstScriptingObject(p, ModuleConstantInitialiser::getNumSlots(mp_)),
 mp(mp_)
 {
 	if (mp != nullptr)
@@ -4627,6 +4674,8 @@ mp(mp_)
 		{
 			addConstant(mp->getIdentifierForParameterIndex(i).toString(), var(i));
 		}
+
+		ModuleConstantInitialiser::addFallbacksForTypos(this, mp);
 	}
 	else
 	{
@@ -4839,7 +4888,7 @@ struct ScriptingObjects::ScriptingAudioSampleProcessor::Wrapper
 
 
 ScriptingObjects::ScriptingAudioSampleProcessor::ScriptingAudioSampleProcessor(ProcessorWithScriptingContent *p, Processor *sampleProcessor) :
-ConstScriptingObject(p, dynamic_cast<Processor*>(sampleProcessor) != nullptr ? dynamic_cast<Processor*>(sampleProcessor)->getNumParameters() : 0),
+ConstScriptingObject(p, dynamic_cast<Processor*>(sampleProcessor) != nullptr ? dynamic_cast<Processor*>(sampleProcessor)->getNumParameters() + ModuleConstantInitialiser::getFallbackCount(dynamic_cast<Processor*>(sampleProcessor)) : 0),
 audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 {
 	if (audioSampleProcessor != nullptr)
@@ -4850,6 +4899,8 @@ audioSampleProcessor(dynamic_cast<Processor*>(sampleProcessor))
 		{
 			addConstant(audioSampleProcessor->getIdentifierForParameterIndex(i).toString(), var(i));
 		}
+
+		ModuleConstantInitialiser::addFallbacksForTypos(this, audioSampleProcessor);
 	}
 	else
 	{
@@ -5085,7 +5136,7 @@ struct ScriptingObjects::ScriptingTableProcessor::Wrapper
 
 
 ScriptingObjects::ScriptingTableProcessor::ScriptingTableProcessor(ProcessorWithScriptingContent *p, ExternalDataHolder *tableProcessor_) :
-ConstScriptingObject(p, dynamic_cast<Processor*>(tableProcessor_) != nullptr ? dynamic_cast<Processor*>(tableProcessor_)->getNumParameters() : 0),
+ConstScriptingObject(p, dynamic_cast<Processor*>(tableProcessor_) != nullptr ? dynamic_cast<Processor*>(tableProcessor_)->getNumParameters() + ModuleConstantInitialiser::getFallbackCount(dynamic_cast<Processor*>(tableProcessor_)) : 0),
 tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
 {
 	if (tableProcessor != nullptr)
@@ -5096,6 +5147,8 @@ tableProcessor(dynamic_cast<Processor*>(tableProcessor_))
 		{
 			addConstant(tableProcessor->getIdentifierForParameterIndex(i).toString(), var(i));
 		}
+
+		ModuleConstantInitialiser::addFallbacksForTypos(this, tableProcessor);
 	}
 	else
 	{

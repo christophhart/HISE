@@ -566,8 +566,21 @@ int Processor::getParameterIndexForIdentifier(const Identifier& id) const
 		if (p.id == id)
 			return p.parameterIndex;
 	}
+	
+	if ((int)dispatcher.getNumAttributes() != metadata.second.parameters.size())
+	{
+		auto numParameters = metadata.second.parameters.size();
+		auto numSlots = (int)dispatcher.getNumAttributes();
+		// called before metadata is setup correctly
+		jassertfalse;
+	}
 
-	jassertfalse;
+	for (const auto& fb : ProcessorMetadataRegistry::getFallbackIdForOldParameter(getType()))
+	{
+		if (fb.first == id)
+			return fb.second;
+	}
+
 	return -1;
 }
 
@@ -1272,8 +1285,10 @@ StringArray ProcessorHelpers::getListOfAllParametersForProcessor(Processor* p)
 
 	if (p != nullptr)
 	{
-		for (int i = 0; i < p->getNumParameters(); i++)
-			parameterNames.add(p->getIdentifierForParameterIndex(i).toString());
+		auto md = p->getMetadata();
+
+		for (const auto& pr : md.parameters)
+			parameterNames.add(pr.id.toString());
 	}
 	
 	return parameterNames;
@@ -1296,11 +1311,7 @@ int ProcessorHelpers::getParameterIndexFromProcessor(Processor* p, const Identif
 
 	if (p != nullptr)
 	{
-		for (int i = 0; i < p->getNumParameters(); i++)
-		{
-			if (p->getIdentifierForParameterIndex(i) == id)
-				return i;
-		}
+		return p->getParameterIndexForIdentifier(id);
 	}
 
 	return -1;

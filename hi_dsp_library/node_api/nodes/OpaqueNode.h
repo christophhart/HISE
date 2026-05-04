@@ -187,9 +187,44 @@ struct OpaqueNode
 
 		t->createParameters(pList);
 
+		struct ReorderEntry
+		{
+			String id;
+			int16 oldIndex;
+		};
+
+		std::vector<ReorderEntry> reorderModMap;
+
+		if (mp.getNumUsed(INT_MAX) != 0)
+		{
+			int listIndex = 0;
+			
+			for (auto& p : pList)
+			{
+				auto indexIsPosition = p.info.index == listIndex;
+
+				if (!indexIsPosition && mp.getParameterMode(p.info.index) != modulation::ParameterMode::Disabled)
+				{
+					reorderModMap.push_back({ p.info.getId(), (int16)p.info.index});
+				}
+
+				listIndex++;
+			}
+		}
+
 		fillParameterList(pList);
 
-		
+		for (const auto& ro : reorderModMap)
+		{
+			for (auto& p : pList)
+			{
+				if (p.info.getId() == ro.id)
+				{
+					auto newIndex = p.info.index;
+					mp.swapParameterIndexes(ro.oldIndex, newIndex);
+				}
+			}
+		}
 	}
 
 	template <typename T> T& as()

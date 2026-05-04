@@ -2368,6 +2368,24 @@ struct Helpers
 		}
 	}
 
+	static Array<Identifier> getInlineNodeProperties(bool includeContainer)
+	{
+		Array<Identifier> ids ={
+			PropertyIds::Bypassed,
+			PropertyIds::NodeColour,
+			PropertyIds::Folded,
+			PropertyIds::Name,
+			PropertyIds::Comment
+		};
+
+		if (includeContainer)
+		{
+			ids.add(PropertyIds::ShowParameters);
+		}
+		    
+		return ids;
+	}
+
 	static ValueTree findParameterOrProperty(const ValueTree& n, const String& id, bool searchProperties)
 	{
 		jassert(n.getType() == PropertyIds::Node);
@@ -2381,20 +2399,10 @@ struct Helpers
 				return n;
 		}
 
-		static const Array<Identifier> nodeIds({
-			PropertyIds::Bypassed,
-			PropertyIds::NodeColour,
-			PropertyIds::Folded,
-			PropertyIds::Name,
-			PropertyIds::Comment,
-			PropertyIds::ShowParameters,
-			PropertyIds::IsVertical
-		});
+		auto nodeIds = getInlineNodeProperties(true);
 
 		if (nodeIds.contains(Identifier(id)))
 			return n;
-
-		
 
 		for (auto p : n.getChildWithName(PropertyIds::Parameters))
 		{
@@ -2983,7 +2991,8 @@ struct connect : public ActionBase
 		sourceId(obj[RestApiIds::source].toString()),
 		targetId(obj[RestApiIds::target].toString()),
 		parameterName(obj[RestApiIds::parameter].toString()),
-		sourceOutput(obj.getProperty(RestApiIds::sourceOutput, 0).toString())
+		sourceOutput(obj.getProperty(RestApiIds::sourceOutput, 0).toString()),
+		matchRange((bool)obj.getProperty(RestApiIds::matchRange, false))
 	{}
 
 	String moduleId;
@@ -2991,6 +3000,11 @@ struct connect : public ActionBase
 	String targetId;
 	String parameterName;
 	String sourceOutput;
+	bool matchRange;
+
+	// Captured previous source range for undo when matchRange is true
+	bool capturedSourceRange = false;
+	scriptnode::InvertableParameterRange oldTargetRange;
 
 	int getRebuildLevel(Domain, bool) const override { return 0; }
 	bool needsKillVoice() const override { return false; }
@@ -3002,16 +3016,27 @@ struct connect : public ActionBase
 		d.domain = Domain::DSP;
 		d.type = Diff::Type::Modify;
 		diffList.push_back(d);
+
+		if (matchRange)
+		{
+			Diff s;
+			s.target = sourceId;
+			s.domain = Domain::DSP;
+			s.type = Diff::Type::Modify;
+			diffList.push_back(s);
+		}
 	}
 
 	String getHistoryMessage(bool undo) const override
 	{
-		return (undo ? "Disconnect " : "Connect ") + sourceId + "." + sourceOutput + " -> " + targetId + "." + parameterName;
+		auto base = (undo ? "Disconnect " : "Connect ") + sourceId + "." + sourceOutput + " -> " + targetId + "." + parameterName;
+		return matchRange ? (base + " (match range)") : base;
 	}
 
 	String getDescription() const override
 	{
-		return "connect " + sourceId + "." + sourceOutput + " -> " + targetId + "." + parameterName;
+		auto base = "connect " + sourceId + "." + sourceOutput + " -> " + targetId + "." + parameterName;
+		return matchRange ? (base + " (match range)") : base;
 	}
 
 	Error validate() override
@@ -3050,6 +3075,12 @@ struct connect : public ActionBase
 				if (!Helpers::addConnection(conTree, targetId, parameterName))
 					return Error().withError("Connection already exists");
 
+				if (matchRange)
+				{
+					// TODO: mirror range copy (target.pn -> source parameter) onto the plan snapshot.
+					// Reject if source is not a parameter-bearing node with a settable range.
+				}
+
 				return {};
 			}
 			catch (Error& e)
@@ -3083,6 +3114,22 @@ struct connect : public ActionBase
 
 		if(!Helpers::addConnection(conTree, targetId, parameterName))
 			throw Error().withError("Connection already exists");
+
+		if (matchRange)
+		{
+			auto sourceParameter = valuetree::Helpers::findParentWithType(conTree, PropertyIds::Parameter);
+
+			if (!sourceParameter.isValid())
+				throw Error().withError("matchRange requires a parameter source");
+
+			if(pn.getType() != PropertyIds::Parameter)
+				throw Error().withError("matchRange requires a parameter target");
+
+			oldTargetRange = RangeHelpers::getDoubleRange(pn);
+			
+			RangeHelpers::storeDoubleRange(sourceParameter, oldTargetRange, nullptr, scriptnode::RangeHelpers::IdSet::scriptnode);
+			capturedSourceRange = true;
+		}
 	}
 
 	void undo() override
@@ -3103,10 +3150,18 @@ struct connect : public ActionBase
 		if (!pn.isValid())
 			throw Helpers::getErrorForParameter404(tn, parameterName);
 
+		
+
 		auto conTree = Helpers::getConnectionParent(sn, sourceOutput);
 
 		if (!Helpers::removeConnection(conTree, targetId, parameterName))
 			throw Error().withError("Connection doesn't exist");
+
+		if (matchRange && capturedSourceRange)
+		{
+			auto sourceParameter = valuetree::Helpers::findParentWithType(conTree, PropertyIds::Parameter);
+			RangeHelpers::storeDoubleRange(sourceParameter, oldTargetRange, nullptr);
+		}
 	}
 };
 
@@ -3245,14 +3300,47 @@ struct set : public ActionBase
 {
 	BUILDER_ID(set);
 
+	static bool isRangeWrite(const var& op)
+	{
+		return op.hasProperty(RestApiIds::min) || 
+			   op.hasProperty(RestApiIds::max) || 
+			   op.hasProperty(RestApiIds::middlePosition) ||
+			   op.hasProperty(RestApiIds::stepSize) ||
+			   op.hasProperty(RestApiIds::skewFactor) ||
+			   op.hasProperty(RestApiIds::defaultValue);
+	}
+
 	static Error prevalidate(MainController*, const var& op)
 	{
 		if (op[RestApiIds::nodeId].toString().isEmpty())
 			return Error().withError("set requires 'nodeId'");
 		if (op[RestApiIds::parameterId].toString().isEmpty())
 			return Error().withError("set requires 'parameterId'");
+
+		const bool rangeWrite = isRangeWrite(op);
 		auto v = op[RestApiIds::value];
-		if (v.isVoid() || v.isUndefined())
+		const bool hasValue = !(v.isVoid() || v.isUndefined());
+
+		if (rangeWrite)
+		{
+			if (hasValue)
+				return Error().withError("set op cannot combine 'value' with range fields (min/max) - use two separate ops");
+
+			if (op.hasProperty(RestApiIds::skewFactor) && op.hasProperty(RestApiIds::middlePosition))
+				return Error().withError("set range-write: 'skewFactor' and 'middlePosition' are mutually exclusive");
+
+			if (op.hasProperty(RestApiIds::min) && op.hasProperty(RestApiIds::max))
+			{
+				const double mn = (double)op[RestApiIds::min];
+				const double mx = (double)op[RestApiIds::max];
+				if (!(mn < mx))
+					return Error().withError("set range-write: 'min' must be less than 'max'");
+			}
+
+			return {};
+		}
+
+		if (!hasValue)
 			return Error().withError("set requires 'value'");
 		return {};
 	}
@@ -3262,14 +3350,61 @@ struct set : public ActionBase
 		moduleId(obj[RestApiIds::moduleId].toString()),
 		nodeId(obj[RestApiIds::nodeId].toString()),
 		parameterId(obj[RestApiIds::parameterId].toString()),
-		newValue(obj[RestApiIds::value])
-	{}
+		newValue(obj[RestApiIds::value]),
+		rangeWrite(isRangeWrite(obj))
+	{
+		if (rangeWrite)
+		{
+			hasMin = obj.hasProperty(RestApiIds::min);
+			if(hasMin)
+				newMin = (double)obj[RestApiIds::min];
+
+			hasMax = obj.hasProperty(RestApiIds::max);
+			if(hasMax)
+				newMax = (double)obj[RestApiIds::max];
+
+			hasSkewFactor = obj.hasProperty(RestApiIds::skewFactor);
+			if (hasSkewFactor)
+				newSkewFactor = (double)obj[RestApiIds::skewFactor];
+
+			hasMiddlePosition = obj.hasProperty(RestApiIds::middlePosition);
+			if (hasMiddlePosition)
+				newMiddlePosition = (double)obj[RestApiIds::middlePosition];
+
+			hasStepSize = obj.hasProperty(RestApiIds::stepSize);
+			if (hasStepSize)
+				newStepSize = (double)obj[RestApiIds::stepSize];
+		}
+	}
 
 	String moduleId;
 	String nodeId;
 	String parameterId;
 	var newValue;
 	var oldValue;
+
+	// Range-write state
+	bool rangeWrite = false;
+	double newMin = 0.0;
+	bool hasMin = false;
+	double newMax = 1.0;
+	bool hasMax = false;
+	
+	double newSkewFactor = 1.0;
+	bool hasSkewFactor = false;
+	
+	double newMiddlePosition = 0.5;
+	bool hasMiddlePosition = false;
+	
+	double newStepSize = 0.0;
+	bool hasStepSize = false;
+
+	// Captured previous range for undo
+	double oldMin = 0.0;
+	double oldMax = 1.0;
+	double oldSkewFactor = 1.0;
+	double oldStepSize = 0.0;
+	double oldMiddlePosition = 0.5;
 
 	int getRebuildLevel(Domain, bool) const override { return 0; }
 	bool needsKillVoice() const override { return false; }
@@ -3285,12 +3420,39 @@ struct set : public ActionBase
 
 	String getHistoryMessage(bool undo) const override
 	{
+		if (rangeWrite)
+			return (undo ? "Restore range of " : "Set range of ") + nodeId + "." + parameterId;
+
 		return (undo ? "Restore " : "Set ") + nodeId + "." + parameterId +
 			(undo ? "" : (" to " + newValue.toString()));
 	}
 
 	String getDescription() const override
 	{
+		if (rangeWrite)
+		{
+			String msg;
+			msg << "set range " + nodeId + "." + parameterId < " to [";
+
+			if (hasMin)
+				msg << "min:" << String(newMin) << " ";
+
+			if (hasMax)
+				msg << "min:" << String(newMax) << " ";
+
+			if (hasSkewFactor)
+				msg << "min:" << String(newSkewFactor) << " ";
+
+			if (hasMiddlePosition)
+				msg << "min:" << String(newMiddlePosition) << " ";
+
+			if (hasStepSize)
+				msg << "step:" << String(newStepSize) << " ";
+
+			msg << "]";
+			return msg;
+		}
+
 		return "set " + nodeId + "." + parameterId + " to " + newValue.toString();
 	}
 
@@ -3313,6 +3475,14 @@ struct set : public ActionBase
 			if (!p.isValid())
 				return Helpers::getErrorForParameter404(n, parameterId);
 
+			if (rangeWrite)
+			{
+				return writeParameterRange(p, false);
+				// TODO: mirror range write onto plan snapshot (p inside rv).
+				// Reject if p is not a parameter value tree (e.g. discrete/enum property).
+				return {};
+			}
+
 			// Mirror perform() onto the plan snapshot. rv here is the snapshot
 			// tree, so p is already inside it. The branch matches perform()'s
 			// (pre-existing) behavior for network-property vs regular paths.
@@ -3322,6 +3492,42 @@ struct set : public ActionBase
 				p.setProperty(PropertyIds::Value, newValue, nullptr);
 		}
 
+		return {};
+	}
+
+	Error writeParameterRange(ValueTree& v, bool oldValues)
+	{
+		if (v.getType() != PropertyIds::Parameter)
+			return Error().withError("range only settable on parameters");
+
+		auto r = RangeHelpers::getDoubleRange(v, scriptnode::RangeHelpers::IdSet::scriptnode);
+
+		if (!oldValues)
+		{
+			oldMin = r.rng.start;
+			oldMax = r.rng.start;
+			oldStepSize = r.rng.start;
+			oldSkewFactor = r.rng.start;
+			oldMiddlePosition = r.convertFrom0to1(0.5, false);
+		}
+
+		if (hasMin)
+			r.rng.start = oldValues ? oldMin : newMin;
+
+		if (hasMax)
+			r.rng.end = oldValues ? oldMax : newMax;
+
+		if (hasStepSize)
+			r.rng.interval = oldValues ? oldStepSize : newStepSize;
+
+		if (hasSkewFactor)
+			r.rng.skew = oldValues ? oldSkewFactor : newSkewFactor;
+
+		if (hasMiddlePosition)
+			r.rng.setSkewForCentre(oldValues ? oldMiddlePosition : newMiddlePosition);
+
+		RangeHelpers::storeDoubleRange(v, r, nullptr);
+		
 		return {};
 	}
 
@@ -3341,6 +3547,16 @@ struct set : public ActionBase
 
 		if (!p.isValid())
 			throw Helpers::getErrorForParameter404(n, parameterId);
+
+		if (rangeWrite)
+		{
+			auto ok = writeParameterRange(p, false);
+
+			if (!ok)
+				throw ok;
+
+			return;
+		}
 
 		if (p.getType() == PropertyIds::Network || p.getType() == PropertyIds::Node)
 		{
@@ -3373,6 +3589,17 @@ struct set : public ActionBase
 
 		if (!p.isValid())
 			throw Helpers::getErrorForParameter404(n, parameterId);
+
+		if (rangeWrite)
+		{
+			auto ok = writeParameterRange(p, true);
+
+			if (!ok)
+				throw ok;
+
+			
+			return;
+		}
 
 		if (p.getType() == PropertyIds::Network)
 			p.setProperty(parameterId, oldValue, nullptr);

@@ -94,6 +94,42 @@ var ProcessorMetadataRegistry::toJSON() const
 	return var(o.get());
 }
 
+std::vector<std::pair<juce::Identifier, int>> ProcessorMetadataRegistry::getFallbackIdForOldParameter(const Identifier& typeId)
+{
+	static const std::map<Identifier, std::vector<std::pair<Identifier, int>>> oldEntries = {
+		{ LfoModulator::getClassType(), {
+			{ "WaveFormType", LfoModulator::Parameters::WaveFormType } // now WaveformType
+		}},
+		{ WavetableSynth::getClassType(), {
+			{ "RefreshMipmap", WavetableSynth::SpecialParameters::RefreshMipmap } // now RefreshMipMap
+		}},
+		{ hise::Arpeggiator::getClassType(), {
+			{ "BypassButton",     hise::Arpeggiator::Parameters::Bypass        }, // now Bypass
+			{ "ResetButton",      hise::Arpeggiator::Parameters::Reset         }, // now Reset
+			{ "NumStepSlider",    hise::Arpeggiator::Parameters::NumSteps      }, // now NumSteps
+			{ "StepSkipSlider",   hise::Arpeggiator::Parameters::Stride        }, // now Stride
+			{ "SortKeysButton",   hise::Arpeggiator::Parameters::SortKeys      }, // now SortKeys
+			{ "SpeedKnob",        hise::Arpeggiator::Parameters::Tempo         }, // now Tempo
+			{ "SequenceComboBox", hise::Arpeggiator::Parameters::DirectionType }, // now Direction
+			{ "CurrentValue",     hise::Arpeggiator::Parameters::CurrentStep   }, // now CurrentStep
+			{ "EnableTie",        11                                           }  // now EnableTieNotes (no enum entry)
+		}},
+		{ HarmonicFilter::getClassType(), {
+			{ "Crossfade",         HarmonicFilter::SpecialParameters::Crossfade         }, // now CrossfadeValue
+			{ "SemiToneTranspose", HarmonicFilter::SpecialParameters::SemiToneTranspose } // now SemitoneTranspose
+		}},
+		{ HarmonicMonophonicFilter::getClassType(), {
+			{ "Crossfade",         HarmonicMonophonicFilter::SpecialParameters::Crossfade         }, // now CrossfadeValue
+			{ "SemiToneTranspose", HarmonicMonophonicFilter::SpecialParameters::SemiToneTranspose } // now SemitoneTranspose
+		}}
+	};
+
+	if (oldEntries.find(typeId) != oldEntries.end())
+		return oldEntries.at(typeId);
+
+	return {};
+}
+
 void ProcessorMetadataRegistry::Data::init()
 {
 

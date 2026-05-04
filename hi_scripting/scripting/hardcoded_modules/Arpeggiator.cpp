@@ -103,6 +103,10 @@ hise::ProcessorMetadata Arpeggiator::createMetadata()
 			.withDescription("Ties steps with full length to the next note")
 			.asToggle()
 			.withDefault(1.0f))
+		.withParameter(Par(12).withId("DeprecatedSlot12").asDisabled())
+		.withParameter(Par(13).withId("DeprecatedSlot13").asDisabled())
+		.withParameter(Par(14).withId("DeprecatedSlot14").asDisabled())
+		.withParameter(Par(15).withId("DeprecatedSlot15").asDisabled())
 		.withParameter(Par(16)
 			.withId("InputChannel")
 			.withDescription("MIDI channel accepted by the arpeggiator")
@@ -403,7 +407,7 @@ void Arpeggiator::onInit()
 	inputMidiChannel->set("tooltip", "The MIDI channel that is fed into the arpeggiator.");
 	outputMidiChannel->set("tooltip", "The MIDI channel that is used for the arpeggiated notes");
 
-	updateParameterSlots(getScriptingContent()->getNumComponents());
+	updateParameterSlots(-1);
 }
 
 void Arpeggiator::onNoteOn()

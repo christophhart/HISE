@@ -168,6 +168,12 @@ void OpaqueNode::fillParameterList(ParameterDataList& pList)
 
 	pList.sort(sorter);
 
+	int listIndex = 0;
+
+	// enforce dense parameter index mappings
+	for (auto& p : pList)
+		p.info.index = listIndex++;
+
 	numParameters = pList.size();
 	parameters.clear();
 	parameters.ensureStorageAllocated(numParameters);	

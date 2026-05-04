@@ -135,7 +135,14 @@ struct HiseAssetManager::LoginTask : public ActionBase
 
 		if (rd.statusCode == 200)
 		{
-			manager->userName = "Logged in as " + rd.returnData["email"].toString();
+			auto email = rd.returnData["email"].toString();
+			auto username = rd.returnData["username"].toString();
+
+			if (username.isEmpty())
+				username = rd.returnData["login"].toString();
+
+			auto display = email.isNotEmpty() ? email : username;
+			manager->userName = "Logged in as " + display;
 			rd = Helpers::post(BaseURL::Repository, "api/v1/user/repos", true, {});
 		}
 
@@ -1438,6 +1445,15 @@ void HiseAssetManager::addNewAssetFolder()
 
 		if (auto info = HiseAssetInstaller::UninstallInfo(f))
 		{
+			auto exists = std::any_of(localAssets->assets.begin(), localAssets->assets.end(),
+				[&](const HiseAssetInstaller::UninstallInfo& a) { return a.localFolder == f; });
+
+			if (exists)
+			{
+				showStatusMessage("This folder is already registered.");
+				return;
+			}
+
 			localAssets->assets.push_back(info);
 			productList->setProducts({}, this);
 			localAssets->resave();
