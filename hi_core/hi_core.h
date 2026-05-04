@@ -207,6 +207,43 @@ If set to 1, then the FX plugin will also process child sound generators (eg. gl
 #define PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN 1
 #endif
 
+
+#ifndef HISE_NUM_PLUGIN_CHANNELS
+#define HISE_NUM_PLUGIN_CHANNELS 2
+#endif
+
+/** This is the amount of channels that your FX plugin will process.
+	This might be different from the amount of total channels that is automatically calculated
+	from the master container's routing matrix and stored into HISE_NUM_PLUGIN_CHANNELS (because
+	this might affect existing projects).
+
+	So if you want to use a FX with more than one stereo input, you need to define
+
+	```
+	HISE_NUM_FX_PLUGIN_CHANNELS=X
+	```
+
+	in your ExtraDefinitions. Be aware that this number must be greater or equal than the actual
+	channel count of the master container's routing matrix (which will still be stored into
+	HISE_NUM_PLUGIN_CHANNELS). This still lets you use "hidden" internal stereo pairs by choosing
+	a number that is smaller than the routing matrix, so if you eg. want a 6 channel plugin but
+	use an additional stereo pair for internal processing, you can set the routing matrix to use
+	8 channels, set HISE_NUM_FX_PLUGIN_CHANNELS to 6 and use the last stereo pair for the internal
+	processing while the plugin only shows the first 6 in the DAW.
+*/
+#ifndef HISE_NUM_FX_PLUGIN_CHANNELS
+#define HISE_NUM_FX_PLUGIN_CHANNELS 2
+#endif
+
+/** Config: HISE_NUM_STANDALONE_OUTPUTS
+
+ This lets you define the number of outputs for the standalone HISE app (or exported standalone app).
+*/
+#ifndef HISE_NUM_STANDALONE_OUTPUTS
+#define HISE_NUM_STANDALONE_OUTPUTS HISE_NUM_PLUGIN_CHANNELS
+#endif
+
+
 /** Config: FORCE_INPUT_CHANNELS
 
 If set to 1, the compiled plugin will use a stereo input channel pair and render the master containers effect chain on top of it.
@@ -226,6 +263,8 @@ This can be used to simulate an audio effect routing setup (when the appropriate
 #define FORCE_INPUT_CHANNELS 0
 #endif
 #endif
+
+
 
 /** Config: HI_DONT_SEND_ATTRIBUTE_UPDATES
  

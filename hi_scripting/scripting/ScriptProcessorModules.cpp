@@ -611,7 +611,8 @@ void JavascriptPolyphonicEffect::registerApiClasses()
 
 void JavascriptPolyphonicEffect::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 bool JavascriptPolyphonicEffect::hasTail() const
@@ -987,7 +988,8 @@ void JavascriptMasterEffect::registerApiClasses()
 
 void JavascriptMasterEffect::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 
@@ -1566,7 +1568,8 @@ void JavascriptTimeVariantModulator::registerApiClasses()
 
 void JavascriptTimeVariantModulator::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 
@@ -1859,7 +1862,8 @@ void JavascriptEnvelopeModulator::registerApiClasses()
 
 void JavascriptEnvelopeModulator::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 
@@ -1998,7 +2002,8 @@ void JavascriptSynthesiser::registerApiClasses()
 
 void JavascriptSynthesiser::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 void JavascriptSynthesiser::preHiseEventCallback(HiseEvent &e)
