@@ -611,7 +611,8 @@ void JavascriptPolyphonicEffect::registerApiClasses()
 
 void JavascriptPolyphonicEffect::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 bool JavascriptPolyphonicEffect::hasTail() const
@@ -1861,7 +1862,8 @@ void JavascriptEnvelopeModulator::registerApiClasses()
 
 void JavascriptEnvelopeModulator::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 
@@ -2000,7 +2002,8 @@ void JavascriptSynthesiser::registerApiClasses()
 
 void JavascriptSynthesiser::postCompileCallback()
 {
-	prepareToPlay(getSampleRate(), getLargestBlockSize());
+	if(getSampleRate() > 0)
+		prepareToPlay(getSampleRate(), getLargestBlockSize());
 }
 
 void JavascriptSynthesiser::preHiseEventCallback(HiseEvent &e)
