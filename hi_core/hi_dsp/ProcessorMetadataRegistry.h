@@ -66,6 +66,9 @@ public:
 	/** Get all registered type IDs. */
 	Array<Identifier> getRegisteredTypes() const;
 
+	/** Returns a list of all chain indexes. */
+	var getChainIndexList();
+
 	/** Get the total number of registered entries. */
 	int getNumRegistered() const;
 

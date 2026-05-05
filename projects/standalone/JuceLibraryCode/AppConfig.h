@@ -152,6 +152,10 @@
  //#define PROCESS_SOUND_GENERATORS_IN_FX_PLUGIN 1
 #endif
 
+#ifndef    HISE_NUM_STANDALONE_OUTPUTS
+ //#define HISE_NUM_STANDALONE_OUTPUTS 1
+#endif
+
 #ifndef    FORCE_INPUT_CHANNELS
  //#define FORCE_INPUT_CHANNELS 0
 #endif
@@ -295,12 +299,12 @@
 //==============================================================================
 // hi_dsp_library flags:
 
-#ifndef    HISE_INCLUDE_SCRIPTNODE_DATABASE
- //#define HISE_INCLUDE_SCRIPTNODE_DATABASE 0
-#endif
-
 #ifndef    HI_EXPORT_AS_PROJECT_DLL
  //#define HI_EXPORT_AS_PROJECT_DLL 0
+#endif
+
+#ifndef    HISE_INCLUDE_SCRIPTNODE_DATABASE
+ //#define HISE_INCLUDE_SCRIPTNODE_DATABASE 1
 #endif
 
 #ifndef    HI_EXPORT_DSP_LIBRARY

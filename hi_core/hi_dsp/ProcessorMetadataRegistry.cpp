@@ -72,6 +72,45 @@ Array<Identifier> ProcessorMetadataRegistry::getRegisteredTypes() const
 	return result;
 }
 
+juce::var ProcessorMetadataRegistry::getChainIndexList()
+{
+	DynamicObject::Ptr obj = new DynamicObject();
+
+	obj->setProperty("Direct", raw::IDs::Chains::Direct);
+	obj->setProperty("Midi", raw::IDs::Chains::Midi);
+	obj->setProperty("Gain", raw::IDs::Chains::Gain);
+	obj->setProperty("Pitch", raw::IDs::Chains::Pitch);
+	obj->setProperty("FX", raw::IDs::Chains::FX);
+	obj->setProperty("GlobalMod", raw::IDs::Chains::GlobalModulatorSlot);
+
+	for (const auto& e : data->entries)
+	{
+		for (auto mod : e.second.modulation)
+		{
+			auto s = mod.id.toString();
+			s = s.removeCharacters(" -");
+
+			if (s == "GainModulation")
+				s = "Gain";
+
+			if (s == "PitchModulation")
+				s = "Pitch";
+
+			auto id = Identifier(s);
+			
+			if (obj->hasProperty(id))
+			{
+				continue;
+				
+			}
+
+			obj->setProperty(id, mod.chainIndex);
+		}
+	}
+
+	return var(obj.get());
+}
+
 int ProcessorMetadataRegistry::getNumRegistered() const
 {
 	return data->entries.size();

@@ -10391,16 +10391,8 @@ void ScriptingObjects::ScriptBuilder::createJSONConstants()
 		addConstant("InterfaceTypes", s);
 	}
 	{
-		var chainIds(new DynamicObject());
-
-		chainIds.getDynamicObject()->setProperty("Direct", raw::IDs::Chains::Direct);
-		chainIds.getDynamicObject()->setProperty("Midi", raw::IDs::Chains::Midi);
-		chainIds.getDynamicObject()->setProperty("Gain", raw::IDs::Chains::Gain);
-		chainIds.getDynamicObject()->setProperty("Pitch", raw::IDs::Chains::Pitch);
-		chainIds.getDynamicObject()->setProperty("FX", raw::IDs::Chains::FX);
-		chainIds.getDynamicObject()->setProperty("GlobalMod", raw::IDs::Chains::GlobalModulatorSlot);
-
-		addConstant("ChainIndexes", chainIds);
+		ProcessorMetadataRegistry rd;
+		addConstant("ChainIndexes", rd.getChainIndexList());
 	}
 }
 
