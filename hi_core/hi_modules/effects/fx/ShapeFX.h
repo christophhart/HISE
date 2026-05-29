@@ -374,6 +374,7 @@ public:
 		Mode,
 		Oversampling,
 		Bias,
+		Mix,
 		numParameters
 	};
 
@@ -486,6 +487,7 @@ private:
 	float drive = 1.0f;
 
 	LinearSmoothedValue<float> driveSmoothers[NUM_POLYPHONIC_VOICES];
+	LinearSmoothedValue<float> mixSmoothers[NUM_POLYPHONIC_VOICES];
 
 	int mode = ShapeFX::ShapeMode::Linear;
 	bool oversampling = false;
@@ -499,6 +501,7 @@ private:
 	
 
 	float bias = 0.0f;
+	float mix = 1.0f;
 
 	float displayTable[SAMPLE_LOOKUP_TABLE_SIZE];
 	float unusedTable[SAMPLE_LOOKUP_TABLE_SIZE];

@@ -75,6 +75,14 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
     bias->addListener (this);
     bias->setSkewFactor (0.3);
 
+    addAndMakeVisible (mixSlider = new HiSlider ("Mix"));
+    mixSlider->setSliderStyle (Slider::RotaryHorizontalVerticalDrag);
+    mixSlider->setTextBoxStyle (Slider::TextBoxRight, true, 80, 20);
+    mixSlider->setColour (Slider::backgroundColourId, Colour (0x00000000));
+    mixSlider->setColour (Slider::thumbColourId, Colour (0x80666666));
+    mixSlider->setColour (Slider::textBoxTextColourId, Colours::white);
+    mixSlider->addListener (this);
+
     addAndMakeVisible (table2 = new TableEditor (getProcessor()->getMainController()->getControlUndoManager(), static_cast<PolyshapeFX*>(getProcessor())->getTable(1)));
     table2->setName ("new component");
 
@@ -104,6 +112,8 @@ PolyShapeFXEditor::PolyShapeFXEditor (ProcessorEditor* p)
 
 	md.setup(*bias, getProcessor(), PolyshapeFX::SpecialParameters::Bias);
 
+	md.setup(*mixSlider, getProcessor(), PolyshapeFX::SpecialParameters::Mix);
+
     //[/UserPreSize]
 
     setSize (800, 200);
@@ -126,6 +136,7 @@ PolyShapeFXEditor::~PolyShapeFXEditor()
     overSampling = nullptr;
     table = nullptr;
     bias = nullptr;
+    mixSlider = nullptr;
     table2 = nullptr;
 
 
@@ -174,7 +185,8 @@ void PolyShapeFXEditor::resized()
     driveSlider->setBounds ((getWidth() / 2) + -280 - (128 / 2), 24, 128, 48);
     overSampling->setBounds (((getWidth() / 2) + -280 - (128 / 2)) + 128 / 2 + 288 - (128 / 2), 8, 128, 32);
     table->setBounds ((getWidth() / 2) + 140 - ((getWidth() - 408) / 2), 48, getWidth() - 408, 128);
-    bias->setBounds ((getWidth() / 2) + -280 - (128 / 2), 88, 128, 48);
+    bias->setBounds ((getWidth() / 2) + -280 - (128 / 2), 76, 128, 48);
+    mixSlider->setBounds ((getWidth() / 2) + -280 - (128 / 2), 128, 128, 48);
     table2->setBounds ((getWidth() / 2) + 140 - ((getWidth() - 408) / 2), 48, getWidth() - 408, 128);
     //[UserResized] Add your own custom resize handling here..
     //[/UserResized]
@@ -209,6 +221,11 @@ void PolyShapeFXEditor::sliderValueChanged (Slider* sliderThatWasMoved)
     {
         //[UserSliderCode_bias] -- add your slider handling code here..
         //[/UserSliderCode_bias]
+    }
+    else if (sliderThatWasMoved == mixSlider)
+    {
+        //[UserSliderCode_mixSlider] -- add your slider handling code here..
+        //[/UserSliderCode_mixSlider]
     }
 
     //[UsersliderValueChanged_Post]
