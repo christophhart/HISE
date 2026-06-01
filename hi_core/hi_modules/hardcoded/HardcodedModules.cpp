@@ -212,10 +212,10 @@ void HardcodedMasterFX::prepareToPlay(double sampleRate, int samplesPerBlock)
 
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
 
+	extraMods.prepareToPlay(sampleRate, samplesPerBlock);
+
 	auto ok = prepareOpaqueNode(opaqueNode.get());
 	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
-
-	extraMods.prepareToPlay(sampleRate, samplesPerBlock);
 }
 
 juce::Path HardcodedMasterFX::getSpecialSymbol() const
@@ -420,11 +420,11 @@ void HardcodedPolyphonicFX::prepareToPlay(double sampleRate, int samplesPerBlock
 
 	VoiceEffectProcessor::prepareToPlay(sampleRate, samplesPerBlock);
 	SimpleReadWriteLock::ScopedReadLock sl(lock);
-	auto ok = prepareOpaqueNode(opaqueNode.get());
-
-	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
 
 	extraModSources.prepareToPlay(sampleRate, samplesPerBlock);
+
+	auto ok = prepareOpaqueNode(opaqueNode.get());
+	errorBroadcaster.sendMessage(sendNotificationAsync, ok.getErrorMessage());
 }
 
 void HardcodedPolyphonicFX::startVoice(int voiceIndex, const HiseEvent& e)
