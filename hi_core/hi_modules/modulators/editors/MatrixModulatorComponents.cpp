@@ -536,8 +536,6 @@ void MatrixContent::Row::updateValue(const Identifier& id, const var& newValue)
 			auto isEnabled = (int)newValue != -1;
 			intensitySlider.setEnabled(isEnabled);
 			auxSelector.setEnabled(isEnabled);
-			auto plotterIndex = 5;
-			setFlexChildVisibility(plotterIndex, false, !isEnabled);
 			rebuildLayout();
 		}
 		else if (id == MatrixIds::TargetId)
