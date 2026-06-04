@@ -90,7 +90,7 @@ void TableEditor::refreshGraph()
 
 	mid_points.clear();
 
-	if (dragProperties.midPointSize > 0)
+	if (dragProperties.midPointSize > 0 && (drag_points.size() > 2 || !dragProperties.syncStartEnd))
 	{
 		auto width = (float)a.getWidth();
 		float w = (float)dragProperties.midPointSize;
@@ -733,7 +733,7 @@ void TableEditor::mouseMove(const MouseEvent& e)
 {
 	hoveredMidPointIndex = getDraggedMidPointIndex(e);
 
-	setMouseCursor(hoveredMidPointIndex != -1 ? MouseCursor::DraggingHandCursor : MouseCursor::NormalCursor);
+	setMouseCursor(hoveredMidPointIndex != -1 ? MouseCursor::UpDownResizeCursor : MouseCursor::NormalCursor);
 
 	if (e.eventComponent != this)
 	{
@@ -1351,12 +1351,14 @@ void TableEditor::DragPoint::mouseEnter(const MouseEvent& mouseEvent)
 	if (auto te = findParentComponentOfClass<TableEditor>())
 		te->pointAreaBetweenMouse = {};
 
+	setMouseCursor(MouseCursor::CrosshairCursor);
 	over = true;
 	repaint();
 }
 
 void TableEditor::DragPoint::mouseExit(const MouseEvent& mouseEvent)
 {
+	setMouseCursor(MouseCursor::NormalCursor);
 	over = false;
 	repaint();
 }
