@@ -376,9 +376,22 @@ void LfoModulator::setInternalAttribute (int parameter_index, float newValue)
 		loopEnabled = newValue > 0.5f;
 		break;
 	case Parameters::PhaseOffset:
+	{
+		double phaseChange = (double)newValue - phaseOffset;
 		phaseOffset = (double)newValue;
+
+		uptime += phaseChange * (double)SAMPLE_LOOKUP_TABLE_SIZE;
+
+		while (uptime >= (double)SAMPLE_LOOKUP_TABLE_SIZE)
+			uptime -= (double)SAMPLE_LOOKUP_TABLE_SIZE;
+		while (uptime < 0.0)
+			uptime += (double)SAMPLE_LOOKUP_TABLE_SIZE;
+
+		lastCycleIndex = (int)floor(uptime * (1.0 / (double)SAMPLE_LOOKUP_TABLE_SIZE));
+
 		triggerWaveformUpdate();
 		break;
+	}
 	case Parameters::SyncToMasterClock:
 	{
 		auto shouldSync = newValue > 0.5f;
