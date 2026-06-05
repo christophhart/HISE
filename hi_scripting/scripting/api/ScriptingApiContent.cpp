@@ -3357,6 +3357,14 @@ void ScriptingApi::Content::ScriptTable::handleDefaultDeactivatedProperties()
 	deactivatedProperties.addIfNotAlreadyThere(getIdFor(ScriptComponent::Properties::textColour));
 }
 
+StringArray ScriptingApi::Content::ScriptTable::getOptionsFor(const Identifier &id)
+{
+	if (id == getIdFor(dragPointCursor) || id == getIdFor(midPointCursor))
+		return ApiHelpers::getMouseCursorNames();
+
+	return ComplexDataScriptComponent::getOptionsFor(id);
+}
+
 struct ScriptingApi::Content::ScriptTable::Wrapper
 {
 	API_VOID_METHOD_WRAPPER_0(ScriptTable, reset);
@@ -3376,6 +3384,8 @@ ComplexDataScriptComponent(base, name, snex::ExternalData::DataType::Table)
 {
 	propertyIds.add("tableIndex");
 	propertyIds.add("customColours"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
+	propertyIds.add("dragPointCursor"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
+	propertyIds.add("midPointCursor"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ChoiceSelector);
 
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
@@ -3383,6 +3393,8 @@ ComplexDataScriptComponent(base, name, snex::ExternalData::DataType::Table)
 	setDefaultValue(ScriptComponent::Properties::height, 50);
 	setDefaultValue(ScriptTable::Properties::TableIndex, 0);
 	setDefaultValue(ScriptTable::Properties::customColours, 0);
+	setDefaultValue(ScriptTable::Properties::dragPointCursor, "ParentCursor");
+	setDefaultValue(ScriptTable::Properties::midPointCursor, "ParentCursor");
 
 	handleDefaultDeactivatedProperties();
 	
