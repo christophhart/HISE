@@ -141,3 +141,6 @@ tools/auto_build/installer
 hi_scripting/scripting/api/bx
 # OpenCode project config (contains absolute, platform-specific paths)
 opencode.json
+
+# graphify knowledge-graph output (local, machine-specific)
+graphify-out/
