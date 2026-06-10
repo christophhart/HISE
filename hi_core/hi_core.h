@@ -126,6 +126,19 @@ Set this to 1 to disable the creation of the Expansions folder at init (i.e. for
 #define DONT_CREATE_EXPANSIONS_FOLDER 0
 #endif
 
+/** Config: DONT_CREATE_GENERAL_SETTINGS_FILE
+
+Set this to 1 to disable writing the GeneralSettings.xml file into the application data directory on shutdown
+(i.e. for non-audio related app or when you don't want the plugin to leave a settings file behind).
+
+The file is only ever written, never required: if it is absent the global settings (scale factor, disk mode,
+MIDI channels, OpenGL flag etc.) simply fall back to their defaults at startup. Note that with this flag set,
+settings changed during a session will not persist across restarts.
+*/
+#ifndef DONT_CREATE_GENERAL_SETTINGS_FILE
+#define DONT_CREATE_GENERAL_SETTINGS_FILE 0
+#endif
+
 /** Config: HISE_OVERWRITE_OLD_USER_PRESETS
 
 If true, then the plugin will silently overwrite user presets with the same name but an older version number. This will also overwrite user-modified factory presets

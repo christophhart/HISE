@@ -711,6 +711,16 @@ PreprocessorDataBase::PreprocessorDataBase()
 		.withCrossReference(LinkType::Preprocessor, "HISE_ENABLE_EXPANSIONS", "gates the expansion subsystem whose default folder this flag suppresses")
 		.withCrossReference(LinkType::Preprocessor, "DONT_CREATE_USER_PRESET_FOLDER", "sibling flag that suppresses the automatic user preset folder in the same way");
 
+	data["DONT_CREATE_GENERAL_SETTINGS_FILE"] = Entry()
+		.withCategory(Category::LicensingAndExpansions)
+		.withBrief("Disables writing the GeneralSettings.xml file into the application data directory on shutdown.")
+		.withDescriptionLine("On shutdown the plugin or standalone app normally persists its global settings (window scale factor, sample streaming disk mode, MIDI channel mask, voice amount multiplier, global BPM and the OpenGL toggle) to a GeneralSettings.xml file in the app data folder. Setting this flag to 1 suppresses that write. The file is never required for loading: if it is absent the settings simply fall back to their compiled-in defaults at startup, so this is useful for non-audio utility builds or projects that should not leave a settings file behind.")
+		.withDescriptionLine("> With this set, settings the user changes during a session (scale factor, disk mode, etc.) will not persist across restarts. Sample-based frontend plugins also lose the cached SAMPLES_FOUND flag, so they re-run the sample reference check on every cold boot.")
+		.withDefault(0)
+		.withValue(DONT_CREATE_GENERAL_SETTINGS_FILE)
+		.withCrossReference(LinkType::Preprocessor, "DONT_CREATE_EXPANSIONS_FOLDER", "sibling flag that suppresses the automatic Expansions folder in the same way")
+		.withCrossReference(LinkType::Preprocessor, "DONT_CREATE_USER_PRESET_FOLDER", "sibling flag that suppresses the automatic user preset folder in the same way");
+
 	data["HISE_ALLOW_OFFLINE_ACTIVATION"] = Entry()
 		.withCategory(Category::LicensingAndExpansions)
 		.withBrief("Enables an offline activation path in the copy protection flow.")
