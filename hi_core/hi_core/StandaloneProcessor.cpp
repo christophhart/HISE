@@ -613,6 +613,7 @@ void GlobalSettingManager::saveSettingsAsXml()
 
 	settings->setAttribute("OPEN_GL", useOpenGL);
 
+#if !DONT_CREATE_GENERAL_SETTINGS_FILE
 	settings->writeToFile(getGlobalSettingsFile(), "");
 #endif
 }
