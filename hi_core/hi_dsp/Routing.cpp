@@ -530,10 +530,8 @@ void RoutableProcessor::MatrixData::setGainValues(float *numMaxChannelValues, bo
                 auto lastValue = dst[i];
                 auto newValue = numMaxChannelValues[i];
                 
-                if(newValue > lastValue)
-                    newValue = upDecayFactor * newValue + (1.0f - upDecayFactor) * lastValue;
-                else
-                    newValue = downDecayFactor * lastValue + (1.0f - downDecayFactor) * newValue;
+                float alpha = (newValue > lastValue) ? upDecayFactor : downDecayFactor;
+				newValue += alpha * (lastValue - newValue);
                 
                 if(newValue < s)
                     newValue = 0.0f;
