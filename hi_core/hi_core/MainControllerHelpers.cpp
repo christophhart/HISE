@@ -87,6 +87,15 @@ void MidiControllerAutomationHandler::setUnlearndedMidiControlNumber(Key k, Noti
 
 	ScopedLock sl(mc->getLock());
 
+	auto iter = createIterator();
+	AutomationData a;
+
+	while (iter.next(&a))
+	{
+		if (a.processor == unlearnedData.processor && a.attribute == unlearnedData.attribute)
+			iter.eraseCurrentElement();
+	}
+
 	unlearnedData.k = k;
 
 	if (exclusiveMode)
