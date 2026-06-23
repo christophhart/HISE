@@ -2604,9 +2604,24 @@ void MainController::UserPresetHandler::DefaultPresetManager::init(const ValueTr
 
 	
 #else
-	
+
 	if (v.isValid())
 		defaultPreset = v;
+
+	// Mirror the USE_BACKEND branch: resolve the default preset file on disk so that
+	// resetToDefault() sets currentlyLoadedFile. Without this, the exported plugin loads
+	// the default preset's values but leaves currentlyLoadedFile empty, so
+	// Engine.getCurrentUserPresetName() returns "" on first launch (and incPreset() takes
+	// its "no current file" branch on the first prev/next). The embedded presets are
+	// already extracted to disk at this point (FrontEndProcessor.cpp calls
+	// extractUserPresets() before constructing the processor), so the file resolves here.
+	auto userPresetRoot = FrontendHandler::getUserPresetDirectory();
+	auto f = userPresetRoot.getChildFile(defaultValue).withFileExtension(".preset");
+
+	// only set the default file if it's a child of the user preset directory
+	// (in order to allow a "hidden" default user preset)
+	if (f.existsAsFile() && f.isAChildOf(userPresetRoot))
+		defaultFile = f;
 
 #endif
 
