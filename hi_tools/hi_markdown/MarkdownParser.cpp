@@ -179,31 +179,23 @@ void MarkdownParser::parseEnumeration()
 
 	Array<Array<HyperLink>> links;
 
-	while (CharacterFunctions::isDigit(it.peek()))
+	while (isEnumeration())
 	{
-		while(CharacterFunctions::isDigit(it.peek()))
+		while (CharacterFunctions::isDigit(it.peek()))
 			skipTagAndTrailingSpace();
-		
-		if (it.peek() == '.')
+
+		skipTagAndTrailingSpace(); // the dot
+
+		resetCurrentBlock();
+		resetForNewLine();
+
+		while (!Helpers::isNewElement(it.peek()))
 		{
-			skipTagAndTrailingSpace(); // the dot
-
-			resetCurrentBlock();
-			resetForNewLine();
-
-			while (!Helpers::isNewElement(it.peek()))
-			{
-				parseText();
-			}
-
-			links.add(currentLinks);
-			listItems.add(currentlyParsedBlock);
+			parseText();
 		}
-		else
-		{
-			parseLine();
-			return;
-		}
+
+		links.add(currentLinks);
+		listItems.add(currentlyParsedBlock);
 	}
 
 	elements.add(new EnumerationList(this, line, listItems, links));
@@ -438,7 +430,11 @@ void MarkdownParser::parseBlock()
 	case '6':
 	case '7':
 	case '8':
-	case '9': parseEnumeration(); break;
+	case '9': if (isEnumeration())
+		parseEnumeration();
+			  else
+				  parseLine();
+		break;
 	case '#': parseHeadline();
 		break;
 	case '-': parseBulletList();
@@ -778,6 +774,21 @@ bool MarkdownParser::isImageLink() const
 {
 	auto restString = it.getRestString();
 	return restString.startsWith("![");
+}
+
+bool MarkdownParser::isEnumeration() const
+{
+	// Only treat a digit-leading line as an ordered list if it matches the
+	// pattern <digits>. - otherwise lines like "1 osc" or "1) osc" would have
+	// their leading number silently consumed by parseEnumeration().
+	auto restString = it.getRestString();
+
+	int numDigits = 0;
+
+	while (CharacterFunctions::isDigit(restString[numDigits]))
+		numDigits++;
+
+	return numDigits > 0 && restString[numDigits] == '.';
 }
 
 void MarkdownParser::addCharacterToCurrentBlock(juce_wchar c)
