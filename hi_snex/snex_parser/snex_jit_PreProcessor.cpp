@@ -590,8 +590,10 @@ Preprocessor::TextBlockList Preprocessor::parseTextBlocks()
                         lineNumber++;
                     }
                     
-                    // skip escaped quoted (\")
-                    if(*start == '\\' && *(start + 1) == quoteChar)
+                    // skip any escaped character (\\, \", \n, ...) so that
+                    // an escaped backslash before the closing quote doesn't
+                    // swallow the quote (e.g. "\\")
+                    if(*start == '\\' && (start + 1) != end)
                     {
                         start++;
                         start++;
