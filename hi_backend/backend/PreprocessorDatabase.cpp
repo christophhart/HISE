@@ -1003,6 +1003,17 @@ PreprocessorDataBase::PreprocessorDataBase()
 		.withCrossReference(LinkType::Module, "MacroModulationSource", "every macro slot is mirrored as a front-of-list plugin parameter when this is on")
 		.withCrossReference(LinkType::Preprocessor, "HISE_NUM_MACROS", "determines how many macro plugin parameters the host sees");
 
+	data["HISE_MIDI_AUTOMATION_IN_USER_PRESETS"] = Entry()
+		.withCategory(Category::AutomationAndMacros)
+		.withBrief("Stores MIDI learn CC assignments inside user presets and restores them on preset load.")
+		.withDescriptionLine("When enabled (the default), every user preset save embeds the current MIDI CC assignments and every preset load replaces them with whatever the preset contains, including clearing them when the preset has none - the assignments behave like patch data. Disable this to decouple MIDI learn from the preset system: presets neither store nor touch CC assignments, so a mapping made by the end user survives preset browsing, which matches the per-instance convention of most synth plugins. The assignments are still saved and restored with the plugin instance state in the DAW session regardless of this setting.")
+		.withDescriptionLine("> Read at runtime from the Extra Definitions, so no HISE rebuild is required. Old presets that contain a MidiAutomation node are simply ignored on load when this is disabled.")
+		.withDefault(1)
+		.withValue(HISE_MIDI_AUTOMATION_IN_USER_PRESETS)
+		.withHotReload()
+		.withCrossReference(LinkType::ScriptingApi, "MidiAutomationHandler", "assignments can still be snapshotted/restored in script for global-file persistence")
+		.withCrossReference(LinkType::Preprocessor, "HISE_ENABLE_MIDI_LEARN", "controls whether MIDI learn assignments can be created at all");
+
 	data["HISE_NUM_MACROS"] = Entry()
 		.withCategory(Category::AutomationAndMacros)
 		.withBrief("Number of active macro control slots that the project exposes on the master chain.")

@@ -662,7 +662,9 @@ void MainController::UserPresetHandler::loadUserPresetInternal()
 
 #endif
 
-		restoreStateManager(userPresetToLoad, UserPresetIds::MidiAutomation);
+		if (HISE_GET_PREPROCESSOR(mc, HISE_MIDI_AUTOMATION_IN_USER_PRESETS))
+			restoreStateManager(userPresetToLoad, UserPresetIds::MidiAutomation);
+
 		restoreStateManager(userPresetToLoad, UserPresetIds::MPEData);
 
 		// Now we can restore the values of the macro controls

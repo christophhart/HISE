@@ -565,6 +565,16 @@ Note that this is a dynamic preprocessor so you don't need to recompile HISE to 
 #define HISE_MACROS_ARE_PLUGIN_PARAMETERS 0
 #endif
 
+/** Config: HISE_MIDI_AUTOMATION_IN_USER_PRESETS
+
+If enabled (default), MIDI CC assignments made through MIDI learn are stored in every user preset and restored (or cleared) whenever a preset is loaded - the assignments behave like patch data. Disable this to make MIDI learn assignments independent of the preset system: presets no longer contain a MidiAutomation node and loading a preset leaves the current assignments untouched. The assignments are still saved in the plugin instance state (DAW session) either way. Disable this if your end users expect controller mappings to survive preset browsing (the convention in most synth plugins).
+
+Note that this is a dynamic preprocessor so you don't need to recompile HISE to use this functionality, but just add HISE_MIDI_AUTOMATION_IN_USER_PRESETS=0 to your ExtraDefinitions.
+*/
+#ifndef HISE_MIDI_AUTOMATION_IN_USER_PRESETS
+#define HISE_MIDI_AUTOMATION_IN_USER_PRESETS 1
+#endif
+
 /** Config: HISE_USE_MIDI_CHANNELS_FOR_AUTOMATION
 
 If enabled, the plugin will use the MIDI channel information from CC messages when assigning a CC to a control. The default is disabled for backwards compatibility
