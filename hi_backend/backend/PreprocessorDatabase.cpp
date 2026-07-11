@@ -1003,16 +1003,28 @@ PreprocessorDataBase::PreprocessorDataBase()
 		.withCrossReference(LinkType::Module, "MacroModulationSource", "every macro slot is mirrored as a front-of-list plugin parameter when this is on")
 		.withCrossReference(LinkType::Preprocessor, "HISE_NUM_MACROS", "determines how many macro plugin parameters the host sees");
 
+	data["HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE"] = Entry()
+		.withCategory(Category::AutomationAndMacros)
+		.withBrief("Stores MIDI learn CC assignments in the project and plugin instance state and restores them after script compilation.")
+		.withDescriptionLine("When enabled (the default), MIDI CC assignments live in the project file, the embedded plugin data and the DAW session chunk, and are restored from there after every project load, plugin instantiation and session load - including after the interface script's onInit has run. Disable this together with HISE_MIDI_AUTOMATION_IN_USER_PRESETS when the project script owns the assignments itself (for example persisting them to a global file through the MidiAutomationHandler scripting object), because the post-compilation restore would otherwise overwrite the script-applied assignments and re-trigger the update callback with the overwritten state.")
+		.withDescriptionLine("> Read at runtime from the Extra Definitions, so no HISE rebuild is required. With this disabled the project XML no longer contains a MidiAutomation node after the next save.")
+		.withDefault(1)
+		.withValue(HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE)
+		.withHotReload()
+		.withCrossReference(LinkType::ScriptingApi, "MidiAutomationHandler", "the scripting object that owns the assignments when this is disabled")
+		.withCrossReference(LinkType::Preprocessor, "HISE_MIDI_AUTOMATION_IN_USER_PRESETS", "companion flag covering user presets; set both to 0 for fully script-owned MIDI automation");
+
 	data["HISE_MIDI_AUTOMATION_IN_USER_PRESETS"] = Entry()
 		.withCategory(Category::AutomationAndMacros)
 		.withBrief("Stores MIDI learn CC assignments inside user presets and restores them on preset load.")
-		.withDescriptionLine("When enabled (the default), every user preset save embeds the current MIDI CC assignments and every preset load replaces them with whatever the preset contains, including clearing them when the preset has none - the assignments behave like patch data. Disable this to decouple MIDI learn from the preset system: presets neither store nor touch CC assignments, so a mapping made by the end user survives preset browsing, which matches the per-instance convention of most synth plugins. The assignments are still saved and restored with the plugin instance state in the DAW session regardless of this setting.")
+		.withDescriptionLine("When enabled (the default), every user preset save embeds the current MIDI CC assignments and every preset load replaces them with whatever the preset contains, including clearing them when the preset has none - the assignments behave like patch data. Disable this to decouple MIDI learn from the preset system: presets neither store nor touch CC assignments, so a mapping made by the end user survives preset browsing, which matches the per-instance convention of most synth plugins. The assignments are still saved and restored with the plugin instance state in the DAW session as long as HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE is enabled.")
 		.withDescriptionLine("> Read at runtime from the Extra Definitions, so no HISE rebuild is required. Old presets that contain a MidiAutomation node are simply ignored on load when this is disabled.")
 		.withDefault(1)
 		.withValue(HISE_MIDI_AUTOMATION_IN_USER_PRESETS)
 		.withHotReload()
 		.withCrossReference(LinkType::ScriptingApi, "MidiAutomationHandler", "assignments can still be snapshotted/restored in script for global-file persistence")
-		.withCrossReference(LinkType::Preprocessor, "HISE_ENABLE_MIDI_LEARN", "controls whether MIDI learn assignments can be created at all");
+		.withCrossReference(LinkType::Preprocessor, "HISE_ENABLE_MIDI_LEARN", "controls whether MIDI learn assignments can be created at all")
+		.withCrossReference(LinkType::Preprocessor, "HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE", "companion flag covering project and DAW session state; set both to 0 for fully script-owned MIDI automation");
 
 	data["HISE_NUM_MACROS"] = Entry()
 		.withCategory(Category::AutomationAndMacros)

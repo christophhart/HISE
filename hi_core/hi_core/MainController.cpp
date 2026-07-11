@@ -559,7 +559,8 @@ void MainController::loadPresetInternal(const ValueTree& valueTreeToLoad)
 			{
 				auto sp2 = loadProfile.profile(2); // compileScripts();
 				getSampleManager().setCurrentPreloadMessage("Compiling scripts...");
-				getMacroManager().getMidiControlAutomationHandler()->setUnloadedData(v.getChildWithName("MidiAutomation"));
+				if (HISE_GET_PREPROCESSOR(this, HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE))
+					getMacroManager().getMidiControlAutomationHandler()->setUnloadedData(v.getChildWithName("MidiAutomation"));
 				synthChain->compileAllScripts();
 			}
 
@@ -2374,8 +2375,9 @@ void MainController::savePluginState(MemoryBlock& destData, int currentlyLoadedP
 	//synthChain->saveMacroValuesToValueTree(v);
 
     getUserPresetHandler().saveStateManager(v, UserPresetIds::Modules);
-    
-    getUserPresetHandler().saveStateManager(v, UserPresetIds::MidiAutomation);
+
+    if (HISE_GET_PREPROCESSOR(this, HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE))
+        getUserPresetHandler().saveStateManager(v, UserPresetIds::MidiAutomation);
 
 	if (getUserPresetHandler().isUsingCustomDataModel())
     {

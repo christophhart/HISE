@@ -455,10 +455,12 @@ void FrontendProcessor::createPreset(const ValueTree& synthData)
 	}
 
 
+#if HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE
 	ValueTree autoData = synthData.getChildWithName("MidiAutomation");
 
 	if (autoData.isValid())
 		getMacroManager().getMidiControlAutomationHandler()->restoreFromValueTree(autoData);
+#endif
 
 	synthChain->loadMacrosFromValueTree(synthData);
 
@@ -573,7 +575,9 @@ void FrontendProcessor::setStateInformation(const void *data, int sizeInBytes)
 	if (getMacroManager().isMacroEnabledOnFrontend())
 		getMacroManager().getMacroChain()->loadMacrosFromValueTree(v, false);
 
+#if HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE
     getUserPresetHandler().restoreStateManager(v, UserPresetIds::MidiAutomation);
+#endif
 
 	channelData = v.getProperty("MidiChannelFilterData", -1);
 	if (channelData != -1) synthChain->getActiveChannelData()->restoreFromData(channelData);

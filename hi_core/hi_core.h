@@ -567,12 +567,22 @@ Note that this is a dynamic preprocessor so you don't need to recompile HISE to 
 
 /** Config: HISE_MIDI_AUTOMATION_IN_USER_PRESETS
 
-If enabled (default), MIDI CC assignments made through MIDI learn are stored in every user preset and restored (or cleared) whenever a preset is loaded - the assignments behave like patch data. Disable this to make MIDI learn assignments independent of the preset system: presets no longer contain a MidiAutomation node and loading a preset leaves the current assignments untouched. The assignments are still saved in the plugin instance state (DAW session) either way. Disable this if your end users expect controller mappings to survive preset browsing (the convention in most synth plugins).
+If enabled (default), MIDI CC assignments made through MIDI learn are stored in every user preset and restored (or cleared) whenever a preset is loaded - the assignments behave like patch data. Disable this to make MIDI learn assignments independent of the preset system: presets no longer contain a MidiAutomation node and loading a preset leaves the current assignments untouched. The assignments are still saved in the plugin instance state (DAW session) as long as HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE is enabled. Disable this if your end users expect controller mappings to survive preset browsing (the convention in most synth plugins).
 
 Note that this is a dynamic preprocessor so you don't need to recompile HISE to use this functionality, but just add HISE_MIDI_AUTOMATION_IN_USER_PRESETS=0 to your ExtraDefinitions.
 */
 #ifndef HISE_MIDI_AUTOMATION_IN_USER_PRESETS
 #define HISE_MIDI_AUTOMATION_IN_USER_PRESETS 1
+#endif
+
+/** Config: HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE
+
+If enabled (default), MIDI CC assignments are stored in the project/instance state (project file, embedded plugin data, DAW session chunk) and restored from it after script compilation. Disable this together with HISE_MIDI_AUTOMATION_IN_USER_PRESETS to make the project script the single owner of MIDI CC assignments (e.g. persisting them to a global file in the app data folder through the MidiAutomationHandler scripting object) - the post-compilation restore would otherwise overwrite the assignments the script applied in onInit.
+
+Note that this is a dynamic preprocessor so you don't need to recompile HISE to use this functionality, but just add HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE=0 to your ExtraDefinitions.
+*/
+#ifndef HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE
+#define HISE_MIDI_AUTOMATION_IN_PLUGIN_STATE 1
 #endif
 
 /** Config: HISE_USE_MIDI_CHANNELS_FOR_AUTOMATION
