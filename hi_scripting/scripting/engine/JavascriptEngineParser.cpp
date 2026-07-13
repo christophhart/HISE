@@ -2427,7 +2427,7 @@ private:
 		return e.release();
 	}
 
-	Expression* parseFactor(JavascriptNamespace* ns=nullptr)
+	Expression* parseFactor(JavascriptNamespace* ns=nullptr, bool isQualified=false)
 	{
 		if (currentType == TokenTypes::identifier)
 		{
@@ -2444,86 +2444,91 @@ private:
 					match(TokenTypes::identifier);
 					match(TokenTypes::dot);
 					id = currentValue.toString();
+					isQualified = true;
 				}
 			}
 
-			LoopStatement* iteratorLoop = nullptr;
-
-			for (const auto& it : currentIterators)
+			// An identifier after an explicit namespace prefix (Palette.text) must
+			// resolve inside that namespace, so it is exempt from iterator /
+			// parameter / local shadowing.
+			if (!isQualified)
 			{
-				if (it.id == id)
+				LoopStatement* iteratorLoop = nullptr;
+
+				for (const auto& it : currentIterators)
 				{
-					iteratorLoop = it.loop;
-					break;
-				}
-			}
-
-			if (iteratorLoop != nullptr)
-			{
-				return parseSuffixes(new LoopStatement::IteratorName(location, iteratorLoop, parseIdentifier()));
-			}
-			else if (auto ob = dynamic_cast<InlineFunction::Object*>(outerInlineFunction))
-			{
-				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
-				const int localParameterIndex = ob->localProperties->indexOf(id);
-
-				int captureIndex = -1;
-
-				if (auto fo = dynamic_cast<FunctionObject*>(currentFunctionObject))
-				{
-					captureIndex = fo->getCaptureIndex(id);
-				}
-
-				if (captureIndex == -1)
-				{
-					// Recovery sites #9 and #10: outer inline function params/locals in nested body
-					if (inlineParameterIndex != -1)
+					if (it.id == id)
 					{
-						String msg = "Cannot reference inline function parameter '" + id.toString() + "' in nested function body. Use a capture: function [" + id.toString() + "](params){}.";
-
-#if USE_BACKEND
-						if (isDiagnosticMode())
-						{
-							recordDiagnostic(location, msg, {}, SV::Error, CS::Language);
-							parseIdentifier();
-							return parseSuffixes(new DiagnosticPlaceholder(location, msg));
-						}
-#endif
-						location.throwError(msg);
-					}
-
-					if (localParameterIndex != -1)
-					{
-						String msg = "Cannot reference local variable '" + id.toString() + "' in nested function body. Use a capture: function [" + id.toString() + "](params){}.";
-
-#if USE_BACKEND
-						if (isDiagnosticMode())
-						{
-							recordDiagnostic(location, msg, {}, SV::Error, CS::Language);
-							parseIdentifier();
-							return parseSuffixes(new DiagnosticPlaceholder(location, msg));
-						}
-#endif
-						location.throwError(msg);
+						iteratorLoop = it.loop;
+						break;
 					}
 				}
-			}
-			else if (auto ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction))
-			{
-				
 
-				const int inlineParameterIndex = ob->parameterNames.indexOf(id);
-				const int localParameterIndex = ob->localProperties->indexOf(id);
-
-				if (inlineParameterIndex >= 0)
+				if (iteratorLoop != nullptr)
 				{
-					parseIdentifier();
-					return parseSuffixes(new InlineFunction::ParameterReference(location, ob, inlineParameterIndex));
+					return parseSuffixes(new LoopStatement::IteratorName(location, iteratorLoop, parseIdentifier()));
 				}
-				if (localParameterIndex >= 0)
+				else if (auto ob = dynamic_cast<InlineFunction::Object*>(outerInlineFunction))
 				{
-					parseIdentifier();
-					return parseSuffixes(new LocalReference(location, ob, id));
+					const int inlineParameterIndex = ob->parameterNames.indexOf(id);
+					const int localParameterIndex = ob->localProperties->indexOf(id);
+
+					int captureIndex = -1;
+
+					if (auto fo = dynamic_cast<FunctionObject*>(currentFunctionObject))
+					{
+						captureIndex = fo->getCaptureIndex(id);
+					}
+
+					if (captureIndex == -1)
+					{
+						// Recovery sites #9 and #10: outer inline function params/locals in nested body
+						if (inlineParameterIndex != -1)
+						{
+							String msg = "Cannot reference inline function parameter '" + id.toString() + "' in nested function body. Use a capture: function [" + id.toString() + "](params){}.";
+
+#if USE_BACKEND
+							if (isDiagnosticMode())
+							{
+								recordDiagnostic(location, msg, {}, SV::Error, CS::Language);
+								parseIdentifier();
+								return parseSuffixes(new DiagnosticPlaceholder(location, msg));
+							}
+#endif
+							location.throwError(msg);
+						}
+
+						if (localParameterIndex != -1)
+						{
+							String msg = "Cannot reference local variable '" + id.toString() + "' in nested function body. Use a capture: function [" + id.toString() + "](params){}.";
+
+#if USE_BACKEND
+							if (isDiagnosticMode())
+							{
+								recordDiagnostic(location, msg, {}, SV::Error, CS::Language);
+								parseIdentifier();
+								return parseSuffixes(new DiagnosticPlaceholder(location, msg));
+							}
+#endif
+							location.throwError(msg);
+						}
+					}
+				}
+				else if (auto ob = dynamic_cast<InlineFunction::Object*>(currentInlineFunction))
+				{
+					const int inlineParameterIndex = ob->parameterNames.indexOf(id);
+					const int localParameterIndex = ob->localProperties->indexOf(id);
+
+					if (inlineParameterIndex >= 0)
+					{
+						parseIdentifier();
+						return parseSuffixes(new InlineFunction::ParameterReference(location, ob, inlineParameterIndex));
+					}
+					if (localParameterIndex >= 0)
+					{
+						parseIdentifier();
+						return parseSuffixes(new LocalReference(location, ob, id));
+					}
 				}
 			}
 
@@ -2535,7 +2540,7 @@ private:
 				match(TokenTypes::identifier);
 				match(TokenTypes::dot);
 				
-				return parseFactor(namespaceForId);
+				return parseFactor(namespaceForId, true);
 			}
 			else
 			{
