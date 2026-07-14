@@ -219,6 +219,7 @@ public:
 										// Force update of constant value when parameter changes
 										modChains[ChainIndex::SaturationChain].clear();
 									}
+									lastSaturationModValue = newValue;
 									triggerWaveformUpdate();
 									return; // skip the calculation of the pitch ratio
 		default:					jassertfalse;

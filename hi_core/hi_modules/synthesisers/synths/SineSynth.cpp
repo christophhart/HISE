@@ -250,8 +250,10 @@ void SineSynth::handlePeakDisplay(int numSamplesInOutputBuffer)
 {
 	ModulatorSynth::handlePeakDisplay(numSamplesInOutputBuffer);
 
-	// Update the last modulation value for waveform display
-	if (saturationChain != nullptr && saturationChain->shouldBeProcessedAtAll())
+	// Update the last modulation value for waveform display. Only track while
+	// voices are rendering - the chain's output value is not updated when idle,
+	// so it would overwrite the value set by the SaturationAmount attribute.
+	if (saturationChain != nullptr && saturationChain->shouldBeProcessedAtAll() && getNumActiveVoices() > 0)
 	{
 		waveformUpdateCounter += numSamplesInOutputBuffer;
 		// Update waveform display periodically (roughly every 30ms at 44.1kHz = ~1323 samples)
