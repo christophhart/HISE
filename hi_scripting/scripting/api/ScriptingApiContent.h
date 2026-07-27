@@ -1343,6 +1343,7 @@ public:
 			Editable,
 			Multiline,
             SendValueEachKeyPress,
+			LetterSpacing,
 			numProperties
 		};
 

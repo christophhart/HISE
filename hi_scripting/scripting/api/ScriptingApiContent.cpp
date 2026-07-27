@@ -2817,7 +2817,8 @@ ScriptComponent(base, name)
 	ADD_SCRIPT_PROPERTY(i05, "editable");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
 	ADD_SCRIPT_PROPERTY(i06, "multiline");	ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
     ADD_SCRIPT_PROPERTY(i07, "updateEachKey"); ADD_TO_TYPE_SELECTOR(SelectorTypes::ToggleSelector);
-    
+	ADD_NUMBER_PROPERTY(i08, "letterSpacing"); ADD_AS_SLIDER_TYPE(-0.5, 1.0, 0.01);
+
 	setDefaultValue(ScriptComponent::Properties::x, x);
 	setDefaultValue(ScriptComponent::Properties::y, y);
 	setDefaultValue(ScriptComponent::Properties::width, 128);
@@ -2834,6 +2835,7 @@ ScriptComponent(base, name)
 	setDefaultValue(Editable, true);
 	setDefaultValue(Multiline, false);
     setDefaultValue(SendValueEachKeyPress, false);
+	setDefaultValue(LetterSpacing, 0.0f);
 
 	handleDefaultDeactivatedProperties();
 
