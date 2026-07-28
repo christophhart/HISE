@@ -894,6 +894,7 @@ namespace ScriptingObjects
 			void drawTag(Graphics& g, Component& tagButton, bool hover, bool blinking, bool active, bool selected, const String& name, Rectangle<int> position) override;
 			void drawModalOverlay(Graphics& g, Component& modalWindow, Rectangle<int> area, Rectangle<int> labelArea, const String& title, const String& command) override;
 			void drawListItem(Graphics& g, Component& column, int columnIndex, int, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override;
+			void drawFolderRow(Graphics& g, Component& column, int columnIndex, int rowIndex, const String& folderName, Rectangle<int> position) override;
 			void drawSearchBar(Graphics& g, Component& label, Rectangle<int> area) override;
 
 			void drawTableBackground(Graphics& g, TableEditor& te, Rectangle<float> area, double rulerPosition) override;
@@ -1221,6 +1222,11 @@ namespace ScriptingObjects
 			void drawListItem(Graphics& g, Component& column, int columnIndex, int i, const String& itemName, Rectangle<int> position, bool rowIsSelected, bool deleteMode, bool hover) override
 			{
 				CALL_LAF_ID("drawPresetBrowserListItem", drawListItem, g, column, columnIndex, i, itemName, position, rowIsSelected, deleteMode, hover);
+			}
+
+			void drawFolderRow(Graphics& g, Component& column, int columnIndex, int i, const String& folderName, Rectangle<int> position) override
+			{
+				CALL_LAF_ID("drawPresetBrowserFolderRow", drawFolderRow, g, column, columnIndex, i, folderName, position);
 			}
 			
 			void drawButtonText(Graphics& g, TextButton& tb, bool over, bool down) override

@@ -232,6 +232,7 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 		if (!rootToUse.isDirectory())
 		{
 			entries.clear();
+			folderRowMap.clearQuick();
 			return 0;
 		}
 
@@ -253,7 +254,12 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 		}
 
 		entries.sort();
+		rebuildFolderRows();
 		empty = entries.isEmpty();
+
+		if (!folderRowMap.isEmpty())
+			return folderRowMap.size();
+
 		return entries.size();
 	}
 	else
@@ -312,41 +318,123 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 		}
 
 		entries.sort();
+
+		// No folder rows in search / tag / favorite result lists
+		folderRowMap.clearQuick();
+
 		empty = entries.isEmpty();
 		return entries.size();
 	}
 }
 
+void PresetBrowserColumn::ColumnListModel::rebuildFolderRows()
+{
+	folderRowMap.clearQuick();
+
+	if (!showFolderRows || showFavoritesOnly)
+		return;
+
+	File lastParent;
+
+	for (int i = 0; i < entries.size(); i++)
+	{
+		auto parentDirectory = entries[i].getParentDirectory();
+
+		// Presets sitting directly in the root don't get a folder row
+		if (parentDirectory != lastParent && parentDirectory != root)
+		{
+			lastParent = parentDirectory;
+
+			RowEntry folderRow;
+			folderRow.folderName = parentDirectory.getFileName();
+			folderRowMap.add(folderRow);
+		}
+
+		RowEntry presetRow;
+		presetRow.entryIndex = i;
+		folderRowMap.add(presetRow);
+	}
+}
+
+int PresetBrowserColumn::ColumnListModel::getEntryIndexForRow(int rowIndex) const
+{
+	if (folderRowMap.isEmpty())
+		return rowIndex;
+
+	if (isPositiveAndBelow(rowIndex, folderRowMap.size()))
+		return folderRowMap[rowIndex].entryIndex;
+
+	return -1;
+}
+
+int PresetBrowserColumn::ColumnListModel::getRowForEntryIndex(int entryIndex) const
+{
+	if (folderRowMap.isEmpty() || entryIndex < 0)
+		return entryIndex;
+
+	for (int i = 0; i < folderRowMap.size(); i++)
+	{
+		if (folderRowMap[i].entryIndex == entryIndex)
+			return i;
+	}
+
+	return -1;
+}
+
 void PresetBrowserColumn::ColumnListModel::listBoxItemClicked(int row, const MouseEvent &e)
 {
+	const int entryIndex = getEntryIndexForRow(row);
+
+	if (entryIndex == -1)
+	{
+		// Folder rows are display-only: undo the listbox selection caused by the click
+		if (auto lb = dynamic_cast<ListBox*>(parent->getColumn(index)))
+		{
+			auto currentFile = parent->getMainController()->getUserPresetHandler().getCurrentlyLoadedFile();
+			const int rowToSelect = getIndexForFile(currentFile);
+
+			if (rowToSelect != -1)
+				lb->selectRow(rowToSelect);
+			else
+				lb->deselectRow(row);
+		}
+
+		return;
+	}
+
 	auto maxWidth = e.eventComponent->getWidth() - e.eventComponent->getHeight();
 	bool deleteAction = deleteOnClick && e.getMouseDownX() > maxWidth;
 
 	if (deleteAction)
 	{
 		const String title = index != 2 ? "Directory" : "Preset";
-		auto name = entries[row].getFileNameWithoutExtension();
+		auto name = entries[entryIndex].getFileNameWithoutExtension();
 		auto pb = dynamic_cast<PresetBrowser*>(listener);
 
 		if (pb == nullptr)
 			return;
 
-		pb->openModalAction(PresetBrowser::ModalWindow::Action::Delete, name, entries[row], index, row);
+		pb->openModalAction(PresetBrowser::ModalWindow::Action::Delete, name, entries[entryIndex], index, row);
 
 	}
 	else
 	{
 		if (listener != nullptr && !e.mouseWasDraggedSinceMouseDown())
-			listener->selectionChanged(index, row, entries[row], false);
+			listener->selectionChanged(index, row, entries[entryIndex], false);
 	}
 }
 
 
 void PresetBrowserColumn::ColumnListModel::returnKeyPressed(int row)
 {
+	const int entryIndex = getEntryIndexForRow(row);
+
+	if (entryIndex == -1)
+		return;
+
 	if (listener != nullptr)
 	{
-		listener->selectionChanged(index, row, entries[row], false);
+		listener->selectionChanged(index, row, entries[entryIndex], false);
 	}
 }
 
@@ -386,17 +474,29 @@ void PresetBrowserColumn::ColumnListModel::updateTags(const StringArray& newSele
 
 void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graphics &g, int width, int height, bool rowIsSelected)
 {
-	if (rowNumber < entries.size())
+	auto position = Rectangle<int>(0, 1, width, height - 2);
+
+	if (isFolderRow(rowNumber))
 	{
-		auto itemName = entries[rowNumber].getFileNameWithoutExtension();
-		auto position = Rectangle<int>(0, 1, width, height - 2);
+		auto column = parent->getColumn(index);
+		jassert(dynamic_cast<ListBox*>(column)->getModel() == this);
+
+		getPresetBrowserLookAndFeel().drawFolderRow(g, *column, index, rowNumber, folderRowMap[rowNumber].folderName, position);
+		return;
+	}
+
+	const int entryIndex = getEntryIndexForRow(rowNumber);
+
+	if (entryIndex >= 0 && entryIndex < entries.size())
+	{
+		auto itemName = entries[entryIndex].getFileNameWithoutExtension();
 
 		auto column = parent->getColumn(index);
 		jassert(dynamic_cast<ListBox*>(column)->getModel() == this);
-		
+
     if (showFavoritesOnly && parent.getComponent()->shouldShowFullPathFavorites())
-			itemName = entries[rowNumber].getRelativePathFrom(totalRoot);
-    
+			itemName = entries[entryIndex].getRelativePathFrom(totalRoot);
+
 		getPresetBrowserLookAndFeel().drawListItem(g, *column, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
 	}
 }
@@ -417,7 +517,7 @@ Component* PresetBrowserColumn::ColumnListModel::refreshComponentForRow(int rowN
 	if (existingComponentToUpdate != nullptr)
 		delete existingComponentToUpdate;
 
-	if (index == 2 && parent.getComponent()->shouldShowFavoritesButton())
+	if (index == 2 && parent.getComponent()->shouldShowFavoritesButton() && !isFolderRow(rowNumber))
 	{
 		return new FavoriteOverlay(*this, rowNumber);
 	}
@@ -427,8 +527,12 @@ Component* PresetBrowserColumn::ColumnListModel::refreshComponentForRow(int rowN
 
 void PresetBrowserColumn::ColumnListModel::sendRowChangeMessage(int row)
 {
+	if (isFolderRow(row))
+		return;
+
+	// A row of -1 must keep sending a notification with an empty file (used by the expansion column)
 	if (listener != nullptr)
-		listener->selectionChanged(index, row, entries[row], false);
+		listener->selectionChanged(index, row, entries[getEntryIndexForRow(row)], false);
 }
 
 
@@ -802,6 +906,11 @@ void PresetBrowserColumn::timerCallback()
 
 void PresetBrowserColumn::setSelectedFile(const File& file, NotificationType notifyListeners)
 {
+	// The listbox rebuilds its rows asynchronously, so refresh the model here to
+	// resolve the file against the row mapping that will actually be displayed
+	if (listModel->isShowingFolderRows())
+		listModel->getNumRows();
+
 	const int rowIndex = listModel->getIndexForFile(file);
 
 	if (auto ec = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
