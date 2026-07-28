@@ -865,6 +865,12 @@ juce::StringArray LadderSubType::getModes() const
 void LadderSubType::reset(int newNumChannels)
 {
 	memset(buf, 0, sizeof(float) * newNumChannels * 4);
+
+	for (int i = 0; i < newNumChannels; i++)
+	{
+		cutS[i] = cut;
+		resS[i] = res;
+	}
 }
 
 void LadderSubType::setType(int /*t*/)
@@ -900,19 +906,25 @@ void LadderSubType::updateCoefficients(double sampleRate, double frequency, doub
 
 	cut = jlimit<float>(0.0f, 0.8f, x);
 	res = jlimit<float>(0.3f, 4.0f, (float)q / 2.0f);
+
+	// ~1 ms glide towards the new coefficients
+	smoothAlpha = 1.0f - std::exp(-1.0f / (0.001f * (float)sampleRate));
 }
 
 float LadderSubType::processSample(float input, int channel)
 {
 	float* buffer = buf[channel];
 
+	const float c = cutS[channel] += smoothAlpha * (cut - cutS[channel]);
+	const float r = resS[channel] += smoothAlpha * (res - resS[channel]);
+
 	float resoclip = buffer[3];
 
-	const float in = input - (resoclip * res);
-	buffer[0] = ((in - buffer[0]) * cut) + buffer[0];
-	buffer[1] = ((buffer[0] - buffer[1]) * cut) + buffer[1];
-	buffer[2] = ((buffer[1] - buffer[2]) * cut) + buffer[2];
-	buffer[3] = ((buffer[2] - buffer[3]) * cut) + buffer[3];
+	const float in = input - (resoclip * r);
+	buffer[0] = ((in - buffer[0]) * c) + buffer[0];
+	buffer[1] = ((buffer[0] - buffer[1]) * c) + buffer[1];
+	buffer[2] = ((buffer[1] - buffer[2]) * c) + buffer[2];
+	buffer[3] = ((buffer[2] - buffer[3]) * c) + buffer[3];
 	return 2.0f * buffer[3];
 }
 
