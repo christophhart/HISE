@@ -2208,11 +2208,11 @@ void ScriptingApi::Content::ScriptSlider::setScriptObjectPropertyWithChangeMessa
 	}
     else if (id == getIdFor(defaultValue))
     {
-        float v = (float)jlimit((double)getScriptObjectProperty(ScriptComponent::Properties::min),
-                                (double)getScriptObjectProperty(ScriptComponent::Properties::max),
-                                (double)newValue);
-        
-        v = FloatSanitizers::sanitizeFloatNumber(v);
+        double v = jlimit((double)getScriptObjectProperty(ScriptComponent::Properties::min),
+                          (double)getScriptObjectProperty(ScriptComponent::Properties::max),
+                          (double)newValue);
+
+        FloatSanitizers::sanitizeDoubleNumber(v);
         setScriptObjectProperty(defaultValue, var(v));
         
         return;
@@ -10059,8 +10059,12 @@ void ScriptingApi::Content::Helpers::sanitizeNumberProperties(juce::ValueTree co
 
 		if (isNumberProperty)
 		{
-			float valueAsNumber = (float)copy.getProperty(id);
-			valueAsNumber = FloatSanitizers::sanitizeFloatNumber(valueAsNumber);
+			// Sanitize in double precision - a float cast here contaminates
+			// every numeric property on load (0.1 -> 0.10000000149011612),
+			// warping the step-snap grid so a 0dB knob with a negative min
+			// can never store 0.0 again.
+			double valueAsNumber = (double)copy.getProperty(id);
+			FloatSanitizers::sanitizeDoubleNumber(valueAsNumber);
 			copy.setProperty(id, var(valueAsNumber), nullptr);
 		}
 	}
