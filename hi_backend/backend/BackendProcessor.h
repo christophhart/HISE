@@ -421,6 +421,8 @@ public:
 	void handleLatencyCheck(AudioSampleBuffer& buffer);
 	void handlePostLatencyCheck(AudioSampleBuffer& buffer);
 
+	bool isRunningLatencyCheck() const override { return latencyCheckState != LatencyCheckState::Idle; }
+
 	void logMessage(const String& message, bool isCritical) override;
 
 	void setStateInformation(const void *data,int sizeInBytes) override;

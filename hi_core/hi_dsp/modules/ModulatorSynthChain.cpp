@@ -324,7 +324,7 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
     if(isRoot)
     {
         int numChannels = jmin(buffer.getNumChannels(), internalBuffer.getNumChannels());
-        
+
         for(int i = 0; i < numChannels; i++)
         {
             FloatVectorOperations::copy(internalBuffer.getWritePointer(i),
@@ -334,6 +334,22 @@ void ModulatorSynthChain::renderNextBlockWithModulators(AudioSampleBuffer &buffe
 		// now clear the buffer
 		buffer.clear();
     }
+#elif USE_BACKEND
+	// Route the input through the effect chain during Tools -> Check latency so
+	// the injected impulse gets processed like in a FORCE_INPUT_CHANNELS build
+	if (isRoot && getMainController()->isRunningLatencyCheck())
+	{
+		int numChannels = jmin(buffer.getNumChannels(), internalBuffer.getNumChannels());
+
+		for (int i = 0; i < numChannels; i++)
+		{
+			FloatVectorOperations::copy(internalBuffer.getWritePointer(i),
+										buffer.getReadPointer(i), numSamples);
+		}
+
+		// now clear the buffer
+		buffer.clear();
+	}
 #endif
 
 	ScopedAnalyser sa(getMainController(), this, internalBuffer, buffer.getNumSamples());

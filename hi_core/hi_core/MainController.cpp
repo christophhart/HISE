@@ -1405,10 +1405,17 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
 #if !FRONTEND_IS_PLUGIN
 
 #if !FORCE_INPUT_CHANNELS
+#if USE_BACKEND
+	// The latency check impulse is injected into the input buffer, so it must
+	// not be cleared while the measurement is running
+	if (!isRunningLatencyCheck())
+		buffer.clear();
+#else
 	buffer.clear();
 #endif
+#endif
 
-	
+
 
 #endif
 
@@ -1528,6 +1535,22 @@ void MainController::processBlockCommon(AudioSampleBuffer &buffer, MidiBuffer &m
     
 #else
 	thisMultiChannelBuffer.clear();
+
+#if USE_BACKEND
+	// Feed the input into the processing buffer during the latency check so the
+	// injected impulse can travel through the signal chain in channel
+	// configurations that do not process input audio
+	if (isRunningLatencyCheck())
+	{
+		int numChannelsToCopy = jmin(2, thisMultiChannelBuffer.getNumChannels(), buffer.getNumChannels());
+
+		for (int i = 0; i < numChannelsToCopy; i++)
+		{
+			FloatVectorOperations::copy(thisMultiChannelBuffer.getWritePointer(i),
+										buffer.getReadPointer(i), buffer.getNumSamples());
+		}
+	}
+#endif
 #endif
 
 	

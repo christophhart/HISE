@@ -1879,6 +1879,11 @@ public:
 
 	virtual const ModulatorSynthChain *getMainSynthChain() const = 0;
 
+	/** Overwritten by the BackendProcessor to indicate an active Tools -> Check latency
+	    measurement. While this is true, the input buffer must survive into the signal
+	    chain even if the channel configuration does not process input audio. */
+	virtual bool isRunningLatencyCheck() const { return false; }
+
 	void resetLookAndFeelToDefault(Component* c);
 
 	void setCurrentScriptLookAndFeel(ReferenceCountedObject* newLaf) override;
