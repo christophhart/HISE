@@ -1081,23 +1081,29 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 	if(latencyCheckState == LatencyCheckState::WaitingForProcessBlock)
 		reportedLatency = 0.0;
 
-	if((latencyCheckState == LatencyCheckState::WaitingForProcessBlock ||
-	    latencyCheckState == LatencyCheckState::WaitingForImpulse) &&
-	    burstSamplesRemaining > 0)
+	if(latencyCheckState == LatencyCheckState::WaitingForProcessBlock ||
+	   latencyCheckState == LatencyCheckState::WaitingForImpulse)
 	{
-		auto delta = 2.0 * double_Pi * 1000.0 / getMainSynthChain()->getSampleRate();
+		// suppress the live input during the measurement so that it cannot
+		// trigger a false onset detection
+		buffer.clear();
 
-		int numThisTime = jmin(burstSamplesRemaining, buffer.getNumSamples());
-
-		for(int i = 0; i < numThisTime; i++)
+		if(burstSamplesRemaining > 0)
 		{
-			// start the phase one sample in so that the first sample of the
-			// burst is already above the detection threshold
-			burstUptime += delta;
-			buffer.setSample(0, i, (float)std::sin(burstUptime));
-		}
+			auto delta = 2.0 * double_Pi * 1000.0 / getMainSynthChain()->getSampleRate();
 
-		burstSamplesRemaining -= numThisTime;
+			int numThisTime = jmin(burstSamplesRemaining, buffer.getNumSamples());
+
+			for(int i = 0; i < numThisTime; i++)
+			{
+				// start the phase one sample in so that the first sample of the
+				// burst is already above the detection threshold
+				burstUptime += delta;
+				buffer.setSample(0, i, (float)std::sin(burstUptime));
+			}
+
+			burstSamplesRemaining -= numThisTime;
+		}
 	}
 }
 
@@ -1140,6 +1146,18 @@ void BackendProcessor::handlePostLatencyCheck(AudioSampleBuffer& buffer)
 		else
 		{
 			reportedLatency += buffer.getNumSamples();
+
+			if(reportedLatency > 2.0 * getMainSynthChain()->getSampleRate())
+			{
+				latencyCheckState = LatencyCheckState::Done;
+
+				MessageManager::callAsync([this]()
+				{
+					PresetHandler::showMessageWindow("No signal detected", "The test signal was not detected at the output within 2 seconds. The signal chain might be muting or heavily attenuating the input signal.", PresetHandler::IconType::Error);
+					latencyCheckState = LatencyCheckState::Idle;
+					reportedLatency = 0;
+				});
+			}
 		}
 
 		buffer.clear();
