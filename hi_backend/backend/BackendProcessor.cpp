@@ -1069,14 +1069,35 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 		{
 			killCounter = 0;
 			latencyCheckState = LatencyCheckState::WaitingForProcessBlock;
+
+			// Use a 20ms sine burst instead of a single impulse so that effects
+			// which smear transients (eg. pitch shifters) still pass a
+			// detectable signal level to the output
+			burstSamplesRemaining = roundToInt(getMainSynthChain()->getSampleRate() * 0.02);
+			burstUptime = 0.0;
 		}
 	}
 
 	if(latencyCheckState == LatencyCheckState::WaitingForProcessBlock)
-	{
 		reportedLatency = 0.0;
-		buffer.setSample(0, 0, 1.0f);
-		buffer.setSample(0, 1, 1.0f);
+
+	if((latencyCheckState == LatencyCheckState::WaitingForProcessBlock ||
+	    latencyCheckState == LatencyCheckState::WaitingForImpulse) &&
+	    burstSamplesRemaining > 0)
+	{
+		auto delta = 2.0 * double_Pi * 1000.0 / getMainSynthChain()->getSampleRate();
+
+		int numThisTime = jmin(burstSamplesRemaining, buffer.getNumSamples());
+
+		for(int i = 0; i < numThisTime; i++)
+		{
+			// start the phase one sample in so that the first sample of the
+			// burst is already above the detection threshold
+			burstUptime += delta;
+			buffer.setSample(0, i, (float)std::sin(burstUptime));
+		}
+
+		burstSamplesRemaining -= numThisTime;
 	}
 }
 
@@ -1090,22 +1111,22 @@ void BackendProcessor::handlePostLatencyCheck(AudioSampleBuffer& buffer)
 
 	if(latencyCheckState == LatencyCheckState::WaitingForImpulse)
 	{
-		if(buffer.getMagnitude(0, 0, buffer.getNumSamples()) > 0.01f)
+		// The latency is the onset of the sine burst at the output, so look
+		// for the first sample above the threshold instead of the peak
+		int onsetIndex = -1;
+
+		for(int i = 0; i < buffer.getNumSamples(); i++)
 		{
-			float maxPeak = 0.0f;
-			float indexOfPeak = 0.0f;
-
-			for(int i = 0; i < buffer.getNumSamples(); i++)
+			if(std::abs(buffer.getSample(0, i)) > 0.01f)
 			{
-				auto value = buffer.getSample(0, i);
-				if(value > maxPeak)
-				{
-					maxPeak = value;
-					indexOfPeak = i;
-				}
+				onsetIndex = i;
+				break;
 			}
+		}
 
-			reportedLatency += (double)indexOfPeak;
+		if(onsetIndex != -1)
+		{
+			reportedLatency += (double)onsetIndex;
 
 			latencyCheckState = LatencyCheckState::Done;
 
