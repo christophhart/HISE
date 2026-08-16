@@ -1517,7 +1517,7 @@ Factory::Factory(DspNetwork* network) :
     using mono_stretch_player = wrap::data<core::stretch_player<1>, data::dynamic::audiofile>;
     using poly_stretch_player = wrap::data<core::stretch_player<NUM_POLYPHONIC_VOICES>, data::dynamic::audiofile>;
 
-    registerPolyNode<mono_stretch_player, mono_stretch_player, data::ui::xyz_audio_editor>();
+    registerPolyNode<mono_stretch_player, poly_stretch_player, data::ui::xyz_audio_editor>();
     
 	registerNode   <wrap::data<core::recorder,    data::dynamic::audiofile>, data::ui::audiofile_editor>();
 

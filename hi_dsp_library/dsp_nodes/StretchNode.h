@@ -6,9 +6,316 @@ using namespace juce;
 using namespace hise;
 
 
+/** A base class that provides the mechanism for managing a pool of timestretch engines that are prewarmed on a background
+    thread so that the voice start can start outputting the samples without a CPU spike
+
+    The system works by supplying a list of keys that contain all the playback configurations of all samples.
+    This includes:
+    - tranpose amount (for repitching a tempo synced loop)
+    - sample start (for beat slicing)
+    - runtime parameters: pitch ratio and stretch ratio
+
+    This class contains a few virtual functions to customize the behaviour:
+    - a triggerJobs() function that should notify the background thread and wake it up
+    - a getPrewarmData() function that should return the audio sample buffer for the start
+*/
+class prewarm_pool
+{
+public:
+
+    virtual ~prewarm_pool() {};
+
+    struct runtime_info
+    {
+        double stretchRatio = 1.0;
+        double pitchSemitones = 0.0;
+
+		double getTimeRatio() const
+		{
+			auto pitchRatio = std::pow(2.0, pitchSemitones / 12.0);
+			return stretchRatio * pitchRatio;
+		}
+    };
+
+    struct key
+    {
+        int noteNumber = 64;
+        Range<int> velocityRange = { 0, 128 };
+        int sampleStart = 0;
+        int rrGroup = 1;
+        int transposeDelta = 0;
+        
+        static key fromVar(const var& obj)
+        {
+            key k;
+            k.noteNumber = jlimit<int>(0, 127, (int)obj["Root"]);
+            k.velocityRange = { jlimit<int>(0, 127, (int)obj["LoVel"]),
+                                jlimit<int>(0, 127, (int)obj["HiVel"]) };
+
+            k.rrGroup = (int)obj.getProperty("RRGroup", 1);
+            k.transposeDelta = (int)obj["TransposeAmount"];
+            k.sampleStart = (int)obj["SampleStart"];
+
+            return k;
+        }
+
+        bool matches(const key& other) const
+        {
+            return noteNumber == other.noteNumber &&
+                velocityRange == other.velocityRange &&
+                rrGroup == other.rrGroup &&
+                transposeDelta == other.transposeDelta &&
+                sampleStart == other.sampleStart;
+        }
+
+        bool matches(const HiseEvent& noteOn, int rr = 1, int ss = 0) const
+        {
+            auto noteMatches = noteOn.getNoteNumberIncludingTransposeAmount() - transposeDelta == noteNumber;
+            auto veloMatches = velocityRange.contains(noteOn.getVelocity());
+
+            auto rrMatch = rr == rrGroup;
+            auto ssMatch = ss == sampleStart;
+
+            return noteMatches && veloMatches && rrMatch && ssMatch;
+        }
+    };
+
+    struct item : public ReferenceCountedObject
+    {
+        enum State
+        {
+            Idle,
+            Dirty,
+            Prewarming,
+            ReadyForVoiceStart,
+            RenderingVoice
+        };
+
+        item() :
+            engine(true)
+        {};
+
+        using Ptr = ReferenceCountedObjectPtr<item>;
+
+        void prewarm(const key& k, prewarm_pool& p)
+        {
+            state = State::Prewarming;
+            auto numRequired = engine.getLatency(ratios.stretchRatio);
+            auto buffer = p.getPrewarmData(k, numRequired);
+            prewarmPosition = skipLatency(buffer.getArrayOfWritePointers(), ratios.stretchRatio);
+            state = State::ReadyForVoiceStart;
+        }
+
+        double getPrewarmPosition() const { return prewarmPosition; }
+
+        bool isPrewarmed() const
+        {
+            return state == State::ReadyForVoiceStart;
+        }
+
+        void reset()
+        {
+            engine.reset();
+            state = State::Idle;
+            prewarmPosition = 0.0;
+        }
+
+        void prepare(PrepareSpecs ps)
+        {
+            engine.configure(ps.numChannels, ps.sampleRate);
+        }
+        
+        void process(float** inputs, int numInputs, float** outputs, int numSamplesToProduce)
+        {
+            state = State::RenderingVoice;
+            engine.process(inputs, int(numInputs), outputs, numSamplesToProduce);
+        }
+
+        void setResampleBuffer(double ratio, float* resampleBuffer_, int totalNumFloats)
+        {
+            engine.setResampleBuffer(ratio, resampleBuffer_, totalNumFloats);
+        }
+
+        void setTransposeSemitones(double semiTones, double tonality)
+        {
+            engine.setTransposeSemitones(semiTones, tonality);
+        }
+
+        double skipLatency(float** inputs, double ratio)
+        {
+            return engine.skipLatency(inputs, ratio);
+        }
+
+        
+
+        bool setDirty(bool force=false)
+        {
+            if (force && state != State::Dirty)
+            {
+                state = State::Dirty;
+                return true;
+            }
+
+            if (state == State::Idle)
+            {
+                state = State::Dirty;
+                return true;
+            }
+
+            return false;
+        }
+
+        bool isDirty() const { return state == State::Dirty; }
+
+        runtime_info ratios;
+
+    private:
+
+        int taskFlag = 0;
+
+        time_stretcher engine;
+        State state = State::Idle;
+        double prewarmPosition = 0.0;
+
+        JUCE_DECLARE_NON_COPYABLE(item);
+    };
+
+    item::Ptr getPrewarmedEngine(const HiseEvent& noteOn, int rrGroup = 1, int sampleStart = 0)
+    {
+        SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+        for (auto& e : prewarmedEngines)
+        {
+            if (e.second->isPrewarmed() && e.first.matches(noteOn, rrGroup, sampleStart))
+                return e.second;
+        }
+
+        return nullptr;
+    }
+
+    void setRuntimeParameter(const key& k, bool isPitch, double newValue)
+    {
+        hise::SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+        auto someDirty = false;
+
+        for (auto& e : prewarmedEngines)
+        {
+            if (e.first.matches(k))
+            {
+                if (isPitch)
+                {
+                    e.second->ratios.pitchSemitones = newValue;
+                    e.second->setTransposeSemitones(newValue, 0.17);
+                }
+				else
+					e.second->ratios.stretchRatio = newValue;
+
+                someDirty |= e.second->setDirty();	
+            }
+        }
+
+        if(someDirty)
+            triggerJobs();
+    }
+
+    virtual AudioSampleBuffer getPrewarmData(const key& k, int numInputSamplesRequired) = 0;
+
+    void setKeys(const var& keyList)
+    {
+        std::vector<key> keys;
+
+        if (auto ar = keyList.getArray())
+        {
+            for (const auto& a : *ar)
+            {
+                keys.push_back(key::fromVar(a));
+            }
+        }
+
+        setKeys(std::move(keys));
+    }
+
+    void setKeys(std::vector<key>&& nk)
+    {
+        std::vector<std::pair<key, item::Ptr>> newEngines;
+
+        for (auto& k : nk)
+        {
+            newEngines.push_back({ k, new item() });
+        }
+
+        {
+            SimpleReadWriteLock::ScopedWriteLock sl(lock);
+            std::swap(prewarmedEngines, newEngines);
+        }
+
+        
+        rebuild();
+    }
+
+    void rebuild()
+    {
+        SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+        auto changed = false;
+
+        for (auto& e : prewarmedEngines)
+        {
+            changed |= e.second->setDirty();
+        }
+
+        if (changed)
+            triggerJobs();
+    }
+
+    /** Overwrite this method and wakeup the thread that will perform the executeJobs method. */
+    virtual void triggerJobs() = 0;
+
+    virtual bool shouldAbort() const = 0;
+
+protected:
+
+    /** Call this from your background thread to perform the pending jobs. */
+    void executeJobs()
+    {
+        SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+        for (auto& e : prewarmedEngines)
+        {
+            if (e.second->isDirty())
+            {
+                e.second->prewarm(e.first, *this);
+            }
+        }
+    }
+
+    void forEach(const std::function<void(item::Ptr)>& f)
+    {
+        SimpleReadWriteLock::ScopedReadLock sl(lock);
+
+        for (auto& e : prewarmedEngines)
+        {
+            f(e.second);
+        }
+    }
+
+    int getNumPrewarmedEngines() const { return prewarmedEngines.size(); }
+
+private:
+
+    hise::SimpleReadWriteLock lock;
+
+    std::vector<std::pair<key, item::Ptr>> prewarmedEngines;
+
+    item::Ptr fallback;
+};
+
 
 template <int NV> struct stretch_player: public data::base,
-                                         public polyphonic_base
+                                         public polyphonic_base,
+                                         public prewarm_pool,
+                                         public Thread
 {
     struct tempo_syncer: public hise::TempoListener
     {
@@ -177,8 +484,14 @@ template <int NV> struct stretch_player: public data::base,
     SN_DESCRIPTION("A buffer player with timestretching");
     
     stretch_player():
-      polyphonic_base(getStaticId())
+      polyphonic_base(getStaticId()),
+      Thread("Calculate prewarm engines")
     {};
+
+    ~stretch_player()
+    {
+        stopThread(1000);
+    }
     
     static constexpr bool isModNode() { return false; };
     static constexpr bool isPolyphonic() { return NV > 1; };
@@ -208,7 +521,7 @@ template <int NV> struct stretch_player: public data::base,
     {
         for(auto& s: state)
         {
-            s.stretcher.reset();
+            s.stretcher->reset();
             s.currentPosition = 0.0;
             s.leftOver = 0.0;
         }
@@ -222,8 +535,6 @@ template <int NV> struct stretch_player: public data::base,
     
     using InterpolatorType = index::hermite<index::unscaled<double, index::clamped<0, false>>>;
     using InterpolatorTypeWrapped = index::hermite<index::unscaled<double, index::wrapped<0, false>>>;
-    
-    
     
     void processFix(ProcessData<2>& data)
     {
@@ -246,11 +557,10 @@ template <int NV> struct stretch_player: public data::base,
 
             if (add4096)
             {
-                s.stretcher.reset();
+                s.stretcher->reset();
                 s.currentPosition += 4096.0;
             }
                 
-
             if(enabled)
             {
                 float* inputs[2];
@@ -261,7 +571,7 @@ template <int NV> struct stretch_player: public data::base,
                 
                 auto numSamplesToProduce = roundToInt(static_cast<double>(data.getNumSamples()) * playbackRatio);
 
-                auto ratio = syncer.getRatio(s.timeRatio);
+                auto ratio = syncer.getRatio(s.stretcher->ratios.stretchRatio);
 
                 auto numInputs = static_cast<double>(numSamplesToProduce) * ratio + s.leftOver;
                 auto numSamplesInLoop = numSourceSamples;
@@ -287,7 +597,7 @@ template <int NV> struct stretch_player: public data::base,
                     FloatVectorOperations::copy(inputs[0]+numBeforeWrap, stereoData[0].begin(), numAfterWrap);
                     FloatVectorOperations::copy(inputs[1]+numBeforeWrap, stereoData[1].begin(), numAfterWrap);
                     
-                    s.stretcher.process(inputs, int(numInputs), outputs, numSamplesToProduce);
+                    s.stretcher->process(inputs, int(numInputs), outputs, numSamplesToProduce);
                     s.currentPosition += numInputs - numSamplesInLoop;
                 }
                 else
@@ -295,7 +605,7 @@ template <int NV> struct stretch_player: public data::base,
                     inputs[0] = currentLeft;
                     inputs[1] = currentRight;
                     
-                    s.stretcher.process(inputs, static_cast<int>(numInputs), outputs, numSamplesToProduce);
+                    s.stretcher->process(inputs, static_cast<int>(numInputs), outputs, numSamplesToProduce);
                     s.currentPosition += numInputs;
                 }
             }
@@ -355,6 +665,17 @@ template <int NV> struct stretch_player: public data::base,
         
         ed = data;
         
+        if (getNumPrewarmedEngines() == 0)
+        {
+			std::vector<key> keys;
+
+			// Let's create one more than we need to cater in fast voice restarts
+			for (int i = 0; i < NV + 1; i++)
+				keys.push_back(createSingleKey());
+
+			this->setKeys(std::move(keys));
+        }
+
         if(ed.numSamples > 0)
         {
             ed.referBlockTo(stereoData[0], 0);
@@ -373,23 +694,92 @@ template <int NV> struct stretch_player: public data::base,
         
         reset();
     }
+
+    // pool handling
+
+    void run() override
+    {
+        while (!threadShouldExit())
+        {
+            this->executeJobs();
+            Thread::wait(500);
+        }
+    }
+
+    bool shouldAbort() const override
+    {
+        return threadShouldExit();
+    }
+
+    void triggerJobs() override
+    {
+        if(isThreadRunning())
+            this->notify();
+    }
+
+    AudioSampleBuffer getPrewarmData(const key& k, int numInputSamplesRequired) override
+    {
+        AudioSampleBuffer b(2, numInputSamplesRequired);
+        b.clear();
+
+        DataReadLock sl(ed, true);
+
+        if (!stereoData[0].isEmpty())
+        {
+            auto offset = k.sampleStart;
+            auto numToCopy = jmin(numInputSamplesRequired, stereoData[0].size() - offset);
+
+            if (numToCopy > 0)
+            {
+				FloatVectorOperations::copy(b.getWritePointer(0), stereoData[0].begin() + offset, numToCopy);
+				FloatVectorOperations::copy(b.getWritePointer(1), stereoData[1].begin() + offset, numToCopy);
+            }
+        }
+
+        return b;
+    }
+
     // Parameter Functions -------------------------------------------------------------------------
+
+    item::Ptr getPrewarmedSeek(int samplePos)
+    {
+        if (!isThreadRunning())
+            return nullptr;
+
+        HiseEvent no(HiseEvent::Type::NoteOn, 64, 64, 1);
+        return getPrewarmedEngine(no, 1, samplePos);
+    }
+
+    key createSingleKey() const
+    {
+        key k;
+        k.noteNumber = 64;
+        k.rrGroup = 1;
+        return k;
+    }
 
     void seek(double position = 0.0)
     {
         auto& s = state.get();
 
-
         if (ed.numSamples > 0 && enabled)
         {
-            float* inputs[2];
+			if (auto pe = getPrewarmedSeek(roundToInt(position)))
+			{
+				s.stretcher = pe;
+                s.currentPosition = pe->getPrewarmPosition();
+			}
+            else
+            {
+				float* inputs[2];
 
-            inputs[0] = stereoData[0].begin() + roundToInt(position);
-            inputs[1] = stereoData[1].begin() + roundToInt(position);
+				inputs[0] = stereoData[0].begin() + roundToInt(position);
+				inputs[1] = stereoData[1].begin() + roundToInt(position);
 
-            auto ratio = syncer.getRatio(s.timeRatio);
+                auto ratio = syncer.getRatio(s.stretcher->ratios.stretchRatio);
 
-            s.currentPosition = position + s.stretcher.skipLatency(inputs, ratio);
+				s.currentPosition = position + s.stretcher->skipLatency(inputs, ratio);
+            }
         }
         else
             s.currentPosition = jmin((double)ed.numSamples, position);
@@ -411,26 +801,25 @@ template <int NV> struct stretch_player: public data::base,
                     {
                         seek(0.0);
                     }
+                    else if (isThreadRunning())
+                    {
+                        s.stretcher->setDirty(true);
+                        triggerJobs();
+                    }
                 }
             }
         }
         if (P == 1)
         {
-            for(auto& s: state)
-                s.timeRatio = jlimit(0.5, 2.0, v);
+            auto thisRatio = jlimit(0.5, 2.0, v);
+
+            setRuntimeParameter(createSingleKey(), false, thisRatio);
         }
         if(P == 2)
         {
             auto thisPitch = jlimit(-24.0, 24.0, v);
             
-            for(auto& s: state)
-            {
-                if(s.pitchRatio != thisPitch)
-                {
-                    s.pitchRatio = thisPitch;
-                    s.stretcher.setTransposeSemitones(s.pitchRatio, 0.17);
-                }
-            }
+            setRuntimeParameter(createSingleKey(), true, thisPitch);
         }
         if(P == 3)
         {
@@ -439,6 +828,28 @@ template <int NV> struct stretch_player: public data::base,
         if(P == 4)
         {
             syncer.setEnabled(v > 0.5);
+        }
+        if (P == 5)
+        {
+            auto shouldPrewarm = v > 0.5;
+
+            auto isPrewarming = isThreadRunning();
+
+            if (shouldPrewarm != isPrewarming)
+            {
+                if (isPrewarming)
+                {
+                    stopThread(1000);
+                }
+                else
+                {
+					playbackRatio = -1.0;
+					refreshResampling();
+					refreshQuality();
+
+                    startThread(9);
+                }
+            }
         }
     }
     SN_FORWARD_PARAMETER_TO_MEMBER(stretch_player);
@@ -465,20 +876,33 @@ template <int NV> struct stretch_player: public data::base,
                 resampledBuffer.setSize(numSamplesResampled * lastSpecs.numChannels);
                 
                 for (auto& s : state)
-                    s.stretcher.setResampleBuffer(playbackRatio, resampledBuffer.begin(), resampledBuffer.size());
+                    s.stretcher->setResampleBuffer(playbackRatio, resampledBuffer.begin(), resampledBuffer.size());
+
+				this->forEach([&](item::Ptr p)
+				{
+					p->setResampleBuffer(playbackRatio, resampledBuffer.begin(), resampledBuffer.size());
+				});
             }
         }
     }
     
     void refreshQuality()
     {
+        auto ps = lastSpecs;
+        ps.sampleRate = ed.sampleRate;
+
         if(ed.sampleRate > 0.0 && lastSpecs.numChannels > 0 && lastSpecs.blockSize > 0)
         {
             for(auto& s: state)
             {
-                s.stretcher.configure(lastSpecs.numChannels, ed.sampleRate);
+                s.stretcher->prepare(ps);
             }
         }
+
+		this->forEach([&](item::Ptr i)
+		{
+			i->prepare(ps);
+		});
     }
     
     void createParameters(ParameterDataList& data)
@@ -519,19 +943,25 @@ template <int NV> struct stretch_player: public data::base,
             p.setDefaultValue(0.0);
             data.add(std::move(p));
         }
+        {
+            parameter::data p("Prewarm", { 0.0, 1.0 });
+			p.setParameterValueNames({ "Off", "On" });
+			registerCallback<5>(p);
+			p.setDefaultValue(0.0);
+			data.add(std::move(p));
+        }
     }
     
     struct State
     {
         State() :
-            stretcher(true)
+            stretcher(new prewarm_pool::item())
         {};
 
-        double pitchRatio = 0.0;
-        double timeRatio = 1.0;
         double currentPosition = 0.0;
         double leftOver = 0.0;
-        time_stretcher stretcher;
+
+        prewarm_pool::item::Ptr stretcher;
         bool gate = true;
     };
     
