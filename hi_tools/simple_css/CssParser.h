@@ -129,6 +129,7 @@ struct TransformParser
 
 	TransformParser(KeywordDataBase* database_, const String& stackedTransforms);
 	std::vector<TransformData> parse(Rectangle<float> totalArea, float defaultSize=16.0);
+	const StringArray& getWarnings() const { return warnings; }
 
 	static String toString(const std::vector<TransformData>& list)
 	{
@@ -147,6 +148,7 @@ private:
 	KeywordDataBase* database;
 
 	String t;
+	StringArray warnings;
 };
 
 /** Parses box-shadow and text-shadow properties to create a melatonin::DropShadow stack. */

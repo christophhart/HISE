@@ -603,76 +603,134 @@ std::vector<TransformParser::TransformData> TransformParser::parse(Rectangle<flo
 	auto end = t.end();
 
 	std::vector<TransformData> list;
+	warnings.clear();
+
+	KeywordDataBase fallbackDatabase;
+	auto& keywordDatabase = database != nullptr ? *database : fallbackDatabase;
+	static constexpr int maxTransformNameLength = 19;
 
 	while(ptr != end)
 	{
-		char nameBuffer[20];
-		int bufferIndex = 0;
+		while(ptr != end && CharacterFunctions::isWhitespace(*ptr))
+			++ptr;
 
-		while(ptr != end)
+		if(ptr == end)
+			break;
+
+		String transformId;
+
+		while(ptr != end && *ptr != '(')
+			transformId << *ptr++;
+
+		transformId = transformId.trim();
+
+		if(ptr == end)
 		{
-			if(*ptr == '(')
-			{
-				++ptr;
-				break;
-			}
-
-			if(isPositiveAndBelow(bufferIndex, sizeof(nameBuffer)))
-				nameBuffer[bufferIndex++] = *ptr++;
+			if(transformId == "none")
+				list.emplace_back(TransformTypes::none);
 			else
-			{
-				break;
-			}
+				warnings.add("Malformed transform '" + transformId + "': expected '('.");
+
+			break;
 		}
 
-		nameBuffer[bufferIndex] = 0;
+		++ptr;
 
-		String transformId(nameBuffer);
-		
-		KeywordDataBase database;
-		auto typeIndex = database.getAsEnum("transform", transformId, TransformTypes::none);
-		TransformData nd(typeIndex);
-			
-		bufferIndex = 0;
+		String argument;
+		StringArray arguments;
+		int parenthesisDepth = 1;
+		bool hasClosingParenthesis = false;
+		bool hasExcessiveArguments = false;
 
-		int valueIndex = 0;
-
-		while(ptr != end)
+		while(ptr != end && parenthesisDepth > 0)
 		{
-			if(*ptr == ',' || *ptr == ')')
+			auto c = *ptr++;
+
+			if(c == '(')
 			{
-				nameBuffer[bufferIndex] = 0;
+				++parenthesisDepth;
+				argument << c;
+				continue;
+			}
 
-				auto areaToUse = totalArea;
+			if(c == ')')
+			{
+				--parenthesisDepth;
 
-				if(nd.type >= TransformTypes::scale)
-					areaToUse = { 1.0f, 1.0f };
-
-				nd.values[valueIndex++] = ExpressionParser::evaluate(String(nameBuffer).trim(), { valueIndex == 0, areaToUse, defaultSize });
-
-				bufferIndex = 0;
-
-				if(*ptr == ')')
+				if(parenthesisDepth == 0)
 				{
-					++ptr;
+					hasClosingParenthesis = true;
 					break;
 				}
-				else
-				{
-					++ptr;
-					continue;
-				}
+
+				argument << c;
+				continue;
 			}
 
-			if(isPositiveAndBelow(bufferIndex, sizeof(nameBuffer)))
-				nameBuffer[bufferIndex++] = *ptr++;
-			else
+			if(c == ',' && parenthesisDepth == 1)
 			{
-				break;
+				if(arguments.size() < 2)
+					arguments.add(argument.trim());
+				else
+					hasExcessiveArguments = true;
+
+				argument.clear();
+				continue;
 			}
+
+			argument << c;
 		}
 
-		nd.numValues = jmin(2, valueIndex);
+		if(!hasClosingParenthesis)
+		{
+			warnings.add("Malformed transform '" + transformId + "': missing ')'.");
+			break;
+		}
+
+		if(arguments.size() < 2)
+			arguments.add(argument.trim());
+		else
+			hasExcessiveArguments = true;
+
+		if(transformId.length() > maxTransformNameLength)
+		{
+			warnings.add("Malformed transform '" + transformId + "': name exceeds 19 characters.");
+			continue;
+		}
+
+		if(hasExcessiveArguments)
+		{
+			warnings.add("Malformed transform '" + transformId + "': expected at most two arguments.");
+			continue;
+		}
+
+		if(arguments.isEmpty() || arguments.contains(String()))
+		{
+			warnings.add("Malformed transform '" + transformId + "': empty argument.");
+			continue;
+		}
+
+		auto typeIndex = keywordDatabase.getAsEnum("transform", transformId, TransformTypes::numTransformTypes);
+
+		if(typeIndex == TransformTypes::numTransformTypes)
+		{
+			warnings.add("Unsupported transform: " + transformId + ".");
+			continue;
+		}
+
+		TransformData nd(typeIndex);
+		nd.numValues = arguments.size();
+
+		for(int valueIndex = 0; valueIndex < nd.numValues; ++valueIndex)
+		{
+			auto areaToUse = totalArea;
+
+			if(nd.type >= TransformTypes::scale)
+				areaToUse = { 1.0f, 1.0f };
+
+			nd.values[valueIndex] = ExpressionParser::evaluate(arguments[valueIndex],
+				{ valueIndex == 0, areaToUse, defaultSize });
+		}
 
 		list.push_back(std::move(nd));
 	}
@@ -1644,6 +1702,23 @@ Result Parser::parse()
 					if(matchIf(TokenType::Semicolon))
 						break;
 				}
+
+				if(nl.property == "transform")
+				{
+					String transformValue;
+
+					for(const auto& item: nl.items)
+						transformValue << item;
+
+					if(!hasVariable(transformValue))
+					{
+						TransformParser transformParser(nullptr, transformValue);
+						transformParser.parse({});
+
+						for(const auto& warning: transformParser.getWarnings())
+							warnings.add(getLocation(kw.currentLocation) + warning);
+					}
+				}
 					
 				auto currentValue = currentToken;
 					
@@ -1857,6 +1932,9 @@ PropertyType Parser::getPropertyType(const String& p)
 		return PropertyType::Positioning;
 
 	if(p.startsWith("background"))
+		return PropertyType::Colour;
+
+	if (p.startsWith("color"))
 		return PropertyType::Colour;
 
 	if(p.startsWith("transition"))
