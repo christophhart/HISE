@@ -88,6 +88,7 @@ public:
             Dirty,
             Prewarming,
             ReadyForVoiceStart,
+            WaitingForVoiceStart,
             RenderingVoice
         };
 
@@ -97,13 +98,37 @@ public:
 
         using Ptr = ReferenceCountedObjectPtr<item>;
 
+        static String getStateName(State s) 
+        {
+            switch (s)
+            {
+            case Idle:
+                return "idle";
+            case Dirty:
+                return "dirty";
+            case Prewarming:
+                return "prewarming";
+            case ReadyForVoiceStart:
+                return "ready";
+            case WaitingForVoiceStart:
+                return "waiting";
+            case RenderingVoice:
+                return "rendering";
+            default:
+                return "undefined";
+            }
+        }
+
+        
+
         void prewarm(const key& k, prewarm_pool& p)
         {
-            state = State::Prewarming;
+            jassert(state == State::Dirty);
+            setState(State::Prewarming);
             auto numRequired = engine.getLatency(ratios.stretchRatio);
             auto buffer = p.getPrewarmData(k, numRequired);
             prewarmPosition = skipLatency(buffer.getArrayOfWritePointers(), ratios.stretchRatio);
-            state = State::ReadyForVoiceStart;
+            setState(State::ReadyForVoiceStart);
         }
 
         double getPrewarmPosition() const { return prewarmPosition; }
@@ -113,11 +138,20 @@ public:
             return state == State::ReadyForVoiceStart;
         }
 
+        void setUsed()
+        {
+            jassert(state == State::ReadyForVoiceStart);
+            setState(State::WaitingForVoiceStart);
+        }
+
         void reset()
         {
-            engine.reset();
-            state = State::Idle;
-            prewarmPosition = 0.0;
+            if (state != State::ReadyForVoiceStart)
+            {
+                engine.reset();
+				setState(State::Idle);
+				prewarmPosition = 0.0;
+            }
         }
 
         void prepare(PrepareSpecs ps)
@@ -127,7 +161,8 @@ public:
         
         void process(float** inputs, int numInputs, float** outputs, int numSamplesToProduce)
         {
-            state = State::RenderingVoice;
+            jassert(state == State::WaitingForVoiceStart || state == State::RenderingVoice);
+            setState(State::RenderingVoice);
             engine.process(inputs, int(numInputs), outputs, numSamplesToProduce);
         }
 
@@ -146,35 +181,54 @@ public:
             return engine.skipLatency(inputs, ratio);
         }
 
-        
-
         bool setDirty(bool force=false)
         {
-            if (force && state != State::Dirty)
+            if (force && (state != State::Dirty && state != State::Prewarming))
             {
-                state = State::Dirty;
+                setState(State::Dirty);
                 return true;
             }
 
             if (state == State::Idle)
             {
-                state = State::Dirty;
+                setState(State::Dirty);
                 return true;
             }
 
             return false;
         }
 
-        bool isDirty() const { return state == State::Dirty; }
+        bool isDirty() const { return state.load() == State::Dirty; }
 
         runtime_info ratios;
 
     private:
 
+        static constexpr bool LogStateChange = true;
+
+		void setState(State newState)
+		{
+            if (state != newState && LogStateChange)
+            {
+                auto x = String::toHexString(reinterpret_cast<uint64_t>(this));
+
+                String msg;
+                msg << x;
+                msg << ": ";
+                msg << getStateName(state);
+                msg << " -> ";
+                msg << getStateName(newState);
+
+                DBG(msg);
+            }
+			
+			state = newState;
+		}
+
         int taskFlag = 0;
 
         time_stretcher engine;
-        State state = State::Idle;
+        std::atomic<State> state{ State::Idle };
         double prewarmPosition = 0.0;
 
         JUCE_DECLARE_NON_COPYABLE(item);
@@ -187,7 +241,11 @@ public:
         for (auto& e : prewarmedEngines)
         {
             if (e.second->isPrewarmed() && e.first.matches(noteOn, rrGroup, sampleStart))
+            {
+                e.second->setUsed();
                 return e.second;
+            }
+                
         }
 
         return nullptr;
@@ -312,6 +370,12 @@ private:
 };
 
 
+/** TODO:
+
+- fix polyphony: something is picking the wrong stretcher when multiple voices are started
+- add tempo_sync mode: keep start / stop separate from transport but adapt to tempo change
+
+*/
 template <int NV> struct stretch_player: public data::base,
                                          public polyphonic_base,
                                          public prewarm_pool,
@@ -556,6 +620,8 @@ template <int NV> struct stretch_player: public data::base,
         {
             auto& s = state.get();
 
+            processGate(s);
+
             auto add4096 = syncer.updatePlayback(s.gate) && enabled;
 
             if(!s.gate)
@@ -718,7 +784,7 @@ template <int NV> struct stretch_player: public data::base,
 
     AudioSampleBuffer getPrewarmData(const key& k, int numInputSamplesRequired) override
     {
-        AudioSampleBuffer b(2, numInputSamplesRequired);
+        AudioSampleBuffer b(2, numInputSamplesRequired + 2);
         b.clear();
 
         DataReadLock sl(ed, true);
@@ -795,16 +861,7 @@ template <int NV> struct stretch_player: public data::base,
                 if(thisGate != s.gate)
                 {
                     s.gate = thisGate;
-                    
-                    if(thisGate)
-                    {
-                        seek(0.0);
-                    }
-                    else if (isThreadRunning())
-                    {
-                        s.stretcher->setDirty(true);
-                        triggerJobs();
-                    }
+                    s.gateChange.store(true);
                 }
             }
         }
@@ -957,13 +1014,33 @@ template <int NV> struct stretch_player: public data::base,
             stretcher(new prewarm_pool::item())
         {};
 
+        std::atomic<bool> gateChange {false};
+        
         double currentPosition = 0.0;
         double leftOver = 0.0;
 
         prewarm_pool::item::Ptr stretcher;
         bool gate = true;
     };
-    
+
+	void processGate(State& s)
+	{
+		if (s.gateChange.load())
+		{
+			if (s.gate)
+			{
+				seek(0.0);
+			}
+			else if (isThreadRunning())
+			{
+				s.stretcher->setDirty(true);
+				triggerJobs();
+			}
+
+            s.gateChange.store(false);
+		}
+	}
+
     bool enabled = true;
     ExternalData ed;
     
