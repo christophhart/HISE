@@ -256,13 +256,13 @@ public:
 
     void rebuild()
     {
-        SimpleReadWriteLock::ScopedReadLock sl(lock);
+        SimpleReadWriteLock::ScopedWriteLock sl(lock);
 
         auto changed = false;
 
         for (auto& e : prewarmedEngines)
         {
-            changed |= e.second->setDirty();
+            changed |= e.second->setDirty(true);
         }
 
         if (changed)
@@ -486,7 +486,15 @@ template <int NV> struct stretch_player: public data::base,
     stretch_player():
       polyphonic_base(getStaticId()),
       Thread("Calculate prewarm engines")
-    {};
+    {
+		std::vector<key> keys;
+
+		// Let's create one more than we need to cater in fast voice restarts
+		for (int i = 0; i < NV + 1; i++)
+			keys.push_back(createSingleKey());
+
+		this->setKeys(std::move(keys));
+    };
 
     ~stretch_player()
     {
@@ -665,17 +673,6 @@ template <int NV> struct stretch_player: public data::base,
         
         ed = data;
         
-        if (getNumPrewarmedEngines() == 0)
-        {
-			std::vector<key> keys;
-
-			// Let's create one more than we need to cater in fast voice restarts
-			for (int i = 0; i < NV + 1; i++)
-				keys.push_back(createSingleKey());
-
-			this->setKeys(std::move(keys));
-        }
-
         if(ed.numSamples > 0)
         {
             ed.referBlockTo(stereoData[0], 0);
@@ -693,6 +690,8 @@ template <int NV> struct stretch_player: public data::base,
         }
         
         reset();
+
+        this->rebuild();
     }
 
     // pool handling
@@ -726,7 +725,7 @@ template <int NV> struct stretch_player: public data::base,
 
         if (!stereoData[0].isEmpty())
         {
-            auto offset = k.sampleStart;
+            auto offset = jmax(0, k.sampleStart);
             auto numToCopy = jmin(numInputSamplesRequired, stereoData[0].size() - offset);
 
             if (numToCopy > 0)
@@ -767,7 +766,7 @@ template <int NV> struct stretch_player: public data::base,
 			if (auto pe = getPrewarmedSeek(roundToInt(position)))
 			{
 				s.stretcher = pe;
-                s.currentPosition = pe->getPrewarmPosition();
+                s.currentPosition = position + pe->getPrewarmPosition();
 			}
             else
             {
