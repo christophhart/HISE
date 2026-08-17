@@ -62,6 +62,7 @@ public:
         testDelayWorks();
         testTimedMoveAllowsMidpointScreenshot();
         testTimedClickAllowsPressedScreenshot();
+        testTimedClickObservationsBracketRelease();
         testTimedDragAllowsMidpointScreenshot();
         testTimedMenuSelectionAllowsScreenshot();
         testTimedInteractionAllowsRepl();
@@ -279,17 +280,21 @@ private:
                 hasDown = true;
                 expect(entry.pixelPos.x == 140, "MouseDown X should be 140");
                 expect(entry.pixelPos.y == 115, "MouseDown Y should be 115");
+                expect(entry.mods.isLeftButtonDown(), "MouseDown should include the left button modifier");
             }
             if (entry.type == InteractionIds::mouseUp)
             {
                 hasUp = true;
                 expect(entry.pixelPos.x == 140, "MouseUp X should be 140");
                 expect(entry.pixelPos.y == 115, "MouseUp Y should be 115");
+                expect(!entry.mods.isAnyMouseButtonDown(), "MouseUp should not include a mouse button modifier");
             }
         }
         
         expect(hasDown, "Should have mouseDown");
         expect(hasUp, "Should have mouseUp");
+        expect(exec.log.getLast().type == InteractionIds::mouseUp,
+               "Post-click settling should not require another mouse move");
     }
     
     void testExecuteClickRightClick()
@@ -334,16 +339,24 @@ private:
         Array<var> log;
         dispatcher.execute(interactions, exec, log);
         
-        bool hasModifiers = false;
+        bool hasDownModifiers = false;
+        bool hasUpModifiers = false;
         for (const auto& entry : exec.log)
         {
             if (entry.type == InteractionIds::mouseDown)
             {
-                hasModifiers = entry.mods.isShiftDown() && entry.mods.isCtrlDown();
+                hasDownModifiers = entry.mods.isShiftDown() && entry.mods.isCtrlDown()
+                    && entry.mods.isLeftButtonDown();
+            }
+            else if (entry.type == InteractionIds::mouseUp)
+            {
+                hasUpModifiers = entry.mods.isShiftDown() && entry.mods.isCtrlDown()
+                    && !entry.mods.isAnyMouseButtonDown();
             }
         }
         
-        expect(hasModifiers, "Should have shift and ctrl modifiers");
+        expect(hasDownModifiers, "MouseDown should retain keyboard and button modifiers");
+        expect(hasUpModifiers, "MouseUp should retain keyboard modifiers without a mouse button");
     }
     
     //==========================================================================
@@ -700,6 +713,68 @@ private:
                "Screenshot should be captured before mouseUp");
     }
 
+    void testTimedClickObservationsBracketRelease()
+    {
+        beginTest("Timing: Click observations run on the correct side of mouseUp");
+
+        TestExecutor exec;
+        exec.cursorPosition = {140, 115};
+        auto click = makeClick();
+        click.mouse.durationMs = 120;
+        click.mouse.durationWasExplicit = true;
+
+        auto pressedRepl = makeRepl("pressed", "currentlyClicked");
+        auto releasedRepl = makeRepl("released", "currentlyClicked");
+
+        Array<Interaction> interactions;
+        interactions.add(click);
+        interactions.add(makeScreenshot("pressed", 30));
+        interactions.add(pressedRepl);
+        interactions.add(makeScreenshot("released", 120));
+        interactions.add(releasedRepl);
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Timed click observation sequence should succeed");
+
+        int pressedScreenshotIndex = -1;
+        int pressedReplIndex = -1;
+        int mouseUpIndex = -1;
+        int releasedScreenshotIndex = -1;
+        int releasedReplIndex = -1;
+
+        for (int i = 0; i < exec.log.size(); ++i)
+        {
+            const auto& entry = exec.log.getReference(i);
+
+            if (entry.type == InteractionIds::mouseUp)
+            {
+                mouseUpIndex = i;
+                expect(!entry.mods.isAnyMouseButtonDown(),
+                       "Timed mouseUp should not include a mouse button modifier");
+            }
+            else if (entry.type == InteractionIds::screenshot && entry.screenshotId == "pressed")
+                pressedScreenshotIndex = i;
+            else if (entry.type == InteractionIds::screenshot && entry.screenshotId == "released")
+                releasedScreenshotIndex = i;
+            else if (entry.type == InteractionIds::repl && entry.replId == "pressed")
+                pressedReplIndex = i;
+            else if (entry.type == InteractionIds::repl && entry.replId == "released")
+                releasedReplIndex = i;
+        }
+
+        expect(pressedScreenshotIndex >= 0 && pressedScreenshotIndex < mouseUpIndex,
+               "Pressed screenshot should run before mouseUp");
+        expect(pressedReplIndex >= 0 && pressedReplIndex < mouseUpIndex,
+               "Pressed REPL should run before mouseUp");
+        expect(releasedScreenshotIndex > mouseUpIndex,
+               "Released screenshot should run after mouseUp");
+        expect(releasedReplIndex > mouseUpIndex,
+               "Released REPL should run after mouseUp");
+    }
+
     void testTimedDragAllowsMidpointScreenshot()
     {
         beginTest("Timing: Explicit drag allows a midpoint screenshot");
@@ -914,6 +989,8 @@ private:
         expect(exec.log.size() >= 2, "Cleanup should emit mouseUp");
         expect(exec.log.getLast().type == InteractionIds::mouseUp,
                "Last executor event should release the mouse button");
+        expect(!exec.log.getLast().mods.isAnyMouseButtonDown(),
+               "Cleanup mouseUp should not include a mouse button modifier");
     }
     
     //==========================================================================

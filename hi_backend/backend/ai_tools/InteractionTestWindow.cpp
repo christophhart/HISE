@@ -1454,22 +1454,31 @@ void InteractionTestWindow::RealExecutor::executeMouseDown(Point<int> pixelPos, 
 }
 
 void InteractionTestWindow::RealExecutor::executeMouseUp(Point<int> pixelPos, ModifierKeys mods,
-                                                         bool rightClick, int elapsedMs)
+                                                          bool rightClick, int elapsedMs)
 {
     ignoreUnused(elapsedMs);
     
     mouseCurrentlyDown = false;
     cursorPosition = pixelPos;
-    
-    injectMouseEvent(pixelPos.toFloat(), mods);
-    
-    if (rightClick)
-        syntheticModifiers = syntheticModifiers.withoutFlags(ModifierKeys::rightButtonModifier);
-    else
-        syntheticModifiers = syntheticModifiers.withoutFlags(ModifierKeys::leftButtonModifier);
+
+    ignoreUnused(rightClick);
+    auto releasedMods = mods.withoutMouseButtons();
+    syntheticModifiers = releasedMods;
+    injectMouseEvent(pixelPos.toFloat(), releasedMods);
     
     window->getOverlay()->setPosition(pixelPos);
     window->getOverlay()->setState(CursorOverlay::State::Idle);
+
+    // Script LAF state is updated while painting, so flush the released state
+    // before a following screenshot or REPL interaction can observe it.
+    if (auto* content = window->getContent())
+        content->repaint();
+
+    if (auto* peer = window->getPeer())
+    {
+        RestServer::forceRepaintWindow(peer->getNativeHandle());
+        peer->performAnyPendingRepaintsNow();
+    }
 }
 
 void InteractionTestWindow::RealExecutor::executeMouseMove(Point<int> pixelPos, ModifierKeys mods,

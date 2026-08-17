@@ -463,11 +463,16 @@ InteractionDispatcher::ExecutionResult InteractionTester::executeRawEvents(
         
         int elapsedMs = (int)(Time::getMillisecondCounter() - startTime);
         
-        // Add button modifier flag for mouseDown/mouseUp
-        if (type == InteractionIds::mouseDown.toString() || type == InteractionIds::mouseUp.toString())
+        // A release must be injected without mouse button modifiers so JUCE
+        // observes the transition from down to up.
+        if (type == InteractionIds::mouseDown.toString())
         {
             mods = mods.withFlags(rightClick ? ModifierKeys::rightButtonModifier 
                                              : ModifierKeys::leftButtonModifier);
+        }
+        else if (type == InteractionIds::mouseUp.toString())
+        {
+            mods = mods.withoutMouseButtons();
         }
         
         // Execute the event

@@ -442,6 +442,7 @@ struct InteractionExecutorBase
     // Primitive mouse operations (pixel coordinates)
     virtual void executeMouseDown(Point<int> pixelPos, ModifierKeys mods, 
                                   bool rightClick, int elapsedMs) = 0;
+    /** Inject a release using post-release modifiers (no mouse buttons down). */
     virtual void executeMouseUp(Point<int> pixelPos, ModifierKeys mods,
                                 bool rightClick, int elapsedMs) = 0;
     virtual void executeMouseMove(Point<int> pixelPos, ModifierKeys mods,

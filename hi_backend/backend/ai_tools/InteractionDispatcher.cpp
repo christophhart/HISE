@@ -473,7 +473,7 @@ void InteractionDispatcher::completeTimedInteraction()
 
         case Type::Click:
         {
-            activeExecutor->executeMouseUp(state.endPos, state.modifiers,
+            activeExecutor->executeMouseUp(state.endPos, state.modifiers.withoutMouseButtons(),
                                            state.mouse.rightClick, getElapsedMs());
             auto entry = createLogEntry(InteractionIds::mouseUp.toString(), state.endPos, getElapsedMs());
             if (state.mouse.rightClick)
@@ -484,7 +484,8 @@ void InteractionDispatcher::completeTimedInteraction()
 
         case Type::Drag:
         {
-            activeExecutor->executeMouseUp(state.endPos, state.modifiers, false, getElapsedMs());
+            activeExecutor->executeMouseUp(state.endPos, state.modifiers.withoutMouseButtons(),
+                                           false, getElapsedMs());
             activeExecutor->setCursorPosition(state.endPos);
             auto entry = createLogEntry(InteractionIds::mouseUp.toString(), state.endPos, getElapsedMs());
             DynamicObject::Ptr delta = new DynamicObject();
@@ -497,7 +498,8 @@ void InteractionDispatcher::completeTimedInteraction()
 
         case Type::SelectMenuItem:
         {
-            activeExecutor->executeMouseUp(state.endPos, state.modifiers, false, getElapsedMs());
+            activeExecutor->executeMouseUp(state.endPos, state.modifiers.withoutMouseButtons(),
+                                           false, getElapsedMs());
 
             lastSelectedMenuItem.text = state.menuItemText;
             lastSelectedMenuItem.itemId = state.menuItemId;
@@ -530,7 +532,7 @@ void InteractionDispatcher::abortTimedInteraction()
     if (state.active && state.mouseIsDown && activeExecutor != nullptr)
     {
         auto position = activeExecutor->getCurrentCursorPosition();
-        activeExecutor->executeMouseUp(position, state.modifiers,
+        activeExecutor->executeMouseUp(position, state.modifiers.withoutMouseButtons(),
                                        state.mouse.rightClick, getElapsedMs());
 
         if (activeLog != nullptr)
@@ -762,7 +764,7 @@ void InteractionDispatcher::executeClick(
     waitForDuration(mouse.durationMs, exec);
     
     // MouseUp
-    exec.executeMouseUp(pixelPos, mods, mouse.rightClick, getElapsedMs());
+    exec.executeMouseUp(pixelPos, mods.withoutMouseButtons(), mouse.rightClick, getElapsedMs());
     
     auto upEntry = createLogEntry(InteractionIds::mouseUp.toString(), pixelPos, getElapsedMs());
     if (mouse.rightClick)
@@ -770,7 +772,7 @@ void InteractionDispatcher::executeClick(
     log.add(upEntry);
     
     // Let UI settle after click (e.g., popup menus appearing, button state changes)
-    waitWithWiggle(UI_SETTLE_DELAY_MS, exec);
+    waitForDuration(UI_SETTLE_DELAY_MS, exec);
 }
 
 //==============================================================================
@@ -804,7 +806,7 @@ void InteractionDispatcher::executeDrag(
     interpolateMovement(startPos, endPos, mouse.durationMs, mods, exec);
     
     // MouseUp at end
-    exec.executeMouseUp(endPos, mods, false, getElapsedMs());
+    exec.executeMouseUp(endPos, mods.withoutMouseButtons(), false, getElapsedMs());
     exec.setCursorPosition(endPos);
     
     auto upEntry = createLogEntry(InteractionIds::mouseUp.toString(), endPos, getElapsedMs());
@@ -815,7 +817,7 @@ void InteractionDispatcher::executeDrag(
     log.add(upEntry);
     
     // Let UI settle after drag
-    waitWithWiggle(UI_SETTLE_DELAY_MS, exec);
+    waitForDuration(UI_SETTLE_DELAY_MS, exec);
 }
 
 //==============================================================================
@@ -972,7 +974,7 @@ void InteractionDispatcher::executeSelectMenuItem(
     auto mods = ModifierKeys(ModifierKeys::leftButtonModifier);
     exec.executeMouseDown(targetPos, mods, false, getElapsedMs());
     waitForDuration(20, exec);
-    exec.executeMouseUp(targetPos, mods, false, getElapsedMs());
+    exec.executeMouseUp(targetPos, mods.withoutMouseButtons(), false, getElapsedMs());
     
     // Log
     auto entry = createLogEntry(InteractionIds::selectMenuItem.toString(), targetPos, getElapsedMs());
@@ -981,7 +983,7 @@ void InteractionDispatcher::executeSelectMenuItem(
     log.add(entry);
     
     // Let UI settle after menu selection (menu closes, value updates)
-    waitWithWiggle(UI_SETTLE_DELAY_MS, exec);
+    waitForDuration(UI_SETTLE_DELAY_MS, exec);
 }
 
 //==============================================================================
