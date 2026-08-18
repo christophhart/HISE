@@ -383,6 +383,30 @@ void ExpansionHandler::setCurrentExpansion(Expansion* e, NotificationType notify
 
 				setErrorMessage(errorMessage, false);
 			}
+
+			auto requiredPlayerVersion = e->getPropertyValueTree()[ExpansionIds::RequiredPlayerVersion].toString();
+
+			if (requiredPlayerVersion.isNotEmpty())
+			{
+#if USE_BACKEND
+				auto playerVersion = GET_HISE_SETTING(getMainController()->getMainSynthChain(), HiseSettings::Project::Version).toString();
+#else
+				auto playerVersion = FrontendHandler::getVersionString();
+#endif
+
+				SemanticVersionChecker playerVersionCheck(playerVersion, requiredPlayerVersion);
+
+				if (playerVersionCheck.isUpdate())
+				{
+					String errorMessage;
+
+					errorMessage << "The expansion " << e->getProperty(ExpansionIds::Name) << " requires player version " << requiredPlayerVersion;
+					errorMessage << " but this player is version " << playerVersion << ". Please update the player to use this expansion.";
+
+					setErrorMessage(errorMessage, true);
+					return;
+				}
+			}
 		}
 
 		currentExpansion = e;

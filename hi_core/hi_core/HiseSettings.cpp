@@ -154,6 +154,7 @@ Array<juce::Identifier> HiseSettings::ExpansionSettings::getAllIds()
 	ids.add(UUID);
 	ids.add(Tags);
 	ids.add(Description);
+	ids.add(RequiredPlayerVersion);
 
 	return ids;
 }
@@ -662,6 +663,11 @@ Array<juce::Identifier> HiseSettings::SnexWorkbench::getAllIds()
 
 		P(HiseSettings::ExpansionSettings::Description);
 		D("A markdown formatted text that will be written into the metadata of the full instrument expansion");
+		P_();
+
+		P(HiseSettings::ExpansionSettings::RequiredPlayerVersion);
+		D("The minimum version of the player that is required to load this expansion (eg. `1.2.0`). Leave empty if there is no minimum version requirement.");
+		D("If a player with a lower version tries to load this expansion, it will show a critical error message instead of loading it.");
 		P_();
 
 		P(HiseSettings::Scripting::GlobalScriptPath);
@@ -1414,6 +1420,17 @@ juce::Result HiseSettings::Data::checkInput(const Identifier& id, const var& new
 		{
 			return Result::fail("The version number is not a valid semantic version number. Use something like 1.0.0.\n " \
 				"This is required for the user presets to detect whether it should ask for updating the presets after a version bump.");
+		};
+	}
+
+	if (id == ExpansionSettings::RequiredPlayerVersion && newValue.toString().isNotEmpty())
+	{
+		const String version = newValue.toString();
+		SemanticVersionChecker versionChecker(version, version);
+
+		if (!versionChecker.newVersionNumberIsValid())
+		{
+			return Result::fail("The version number is not a valid semantic version number. Use something like 1.0.0, or leave it empty if there is no minimum version requirement.");
 		};
 	}
 

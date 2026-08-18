@@ -57,6 +57,7 @@ DECLARE_ID(Name);
 DECLARE_ID(ProjectName);
 DECLARE_ID(ProjectVersion);
 DECLARE_ID(Version);
+DECLARE_ID(RequiredPlayerVersion);
 DECLARE_ID(Tags);
 DECLARE_ID(Key);
 DECLARE_ID(Hash);
