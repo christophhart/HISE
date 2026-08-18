@@ -1241,6 +1241,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_VOID_METHOD_WRAPPER_1(Engine, setDiskMode);
 	API_METHOD_WRAPPER_0(Engine, getVersion);
 	API_METHOD_WRAPPER_0(Engine, getName);
+	API_METHOD_WRAPPER_2(Engine, compareVersion);
 	API_METHOD_WRAPPER_3(Engine, getComplexDataReference);
 	API_METHOD_WRAPPER_0(Engine, getFilterModeList);
 	API_METHOD_WRAPPER_2(Engine, sortWithFunction);
@@ -1398,6 +1399,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(setDiskMode);
 	ADD_API_METHOD_0(getVersion);
 	ADD_API_METHOD_0(getName);
+	ADD_API_METHOD_2(compareVersion);
 	ADD_API_METHOD_0(getFilterModeList);
 	ADD_API_METHOD_2(sortWithFunction);
 	ADD_API_METHOD_0(createGlobalScriptLookAndFeel);
@@ -1922,6 +1924,24 @@ String ScriptingApi::Engine::getName()
 #else
 	return FrontendHandler::getProjectName();
 #endif
+}
+
+var ScriptingApi::Engine::compareVersion(String oldVersion, String newVersion)
+{
+	SemanticVersionChecker versionChecker(oldVersion, newVersion);
+
+	auto obj = new DynamicObject();
+
+	obj->setProperty("oldVersionValid", versionChecker.oldVersionNumberIsValid());
+	obj->setProperty("newVersionValid", versionChecker.newVersionNumberIsValid());
+	obj->setProperty("isUpdate", versionChecker.isUpdate());
+	obj->setProperty("isExactMatch", versionChecker.isExactMatch());
+	obj->setProperty("isMajorVersionUpdate", versionChecker.isMajorVersionUpdate());
+	obj->setProperty("isMinorVersionUpdate", versionChecker.isMinorVersionUpdate());
+	obj->setProperty("isPatchVersionUpdate", versionChecker.isPatchVersionUpdate());
+	obj->setProperty("isBuildNumberUpdate", versionChecker.isBuildNumberUpdate());
+
+	return var(obj);
 }
 
 double ScriptingApi::Engine::getMasterPeakLevel(int channel)
