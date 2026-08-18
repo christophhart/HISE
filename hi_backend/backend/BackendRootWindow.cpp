@@ -1000,7 +1000,7 @@ void BackendRootWindow::resized()
 			{
 				restServer.start(bp->commandLineServerPort, "127.0.0.1", corsOrigins);
 			}
-			else if (bp->getSettingsObject().getSetting(HiseSettings::Scripting::AutoStartRestServer).toString() == "Yes")
+			else if ((bool)bp->getSettingsObject().getSetting(HiseSettings::Scripting::AutoStartRestServer))
 			{
 				// Auto-start REST API server if enabled in settings
 				int port = (int)bp->getSettingsObject().getSetting(HiseSettings::Scripting::RestApiPort);
