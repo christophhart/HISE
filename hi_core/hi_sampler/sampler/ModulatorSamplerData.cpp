@@ -1238,8 +1238,37 @@ void MonolithExporter::exportCurrentSampleMap(bool overwriteExistingData, bool e
 		return;
 	}
 
+	splitSizeScale = 1.0;
+
 	if (exportSamples)
 	{
+		AudioFormatManager scanFormatManager;
+		scanFormatManager.registerBasicFormats();
+
+		int channel0Width = 1;
+		int widestChannelWidth = 1;
+
+		for (int i = 0; i < numChannels; i++)
+		{
+			auto* channelList = filesToWrite[i];
+
+			if (channelList == nullptr || channelList->isEmpty())
+				continue;
+
+			ScopedPointer<AudioFormatReader> reader = scanFormatManager.createReaderFor(channelList->getUnchecked(0));
+
+			if (reader == nullptr)
+				continue;
+
+			if (i == 0)
+				channel0Width = reader->numChannels;
+
+			widestChannelWidth = jmax(widestChannelWidth, (int)reader->numChannels);
+		}
+
+		if (widestChannelWidth > channel0Width)
+			splitSizeScale = (double)channel0Width / (double)widestChannelWidth;
+
 		for (int i = 0; i < numChannels; i++)
 		{
 			if (threadShouldExit())
@@ -1359,7 +1388,9 @@ int64 MonolithExporter::getNumBytesForSplitSize() const
 
 	auto sixtyMB = 1024 * 1024 * 60;
 
-	return (int64)(mb * 1024 * 1024 - sixtyMB);
+	auto capInBytes = (int64)(mb * 1024 * 1024 - sixtyMB);
+
+	return (int64)(capInBytes * splitSizeScale);
 }
 
 void MonolithExporter::checkSanity()
