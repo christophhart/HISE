@@ -1764,6 +1764,8 @@ MainController::CustomTypeFace::CustomTypeFace(ReferenceCountedObjectPtr<juce::T
 	memset(characterWidths, 0, sizeof(float) * 128);
 
 	String s;
+	float sum = 0.0f;
+
 	for(char i = 32; i < 127; i++)
 	{
 		s = String::fromUTF8((&i), 1);
@@ -1774,7 +1776,12 @@ MainController::CustomTypeFace::CustomTypeFace(ReferenceCountedObjectPtr<juce::T
 	characterWidths[i] = tf->getStringWidth(s);
 #endif
 
+		sum += characterWidths[i];
 	}
+
+	// Slot 127 holds the average printable width and is used as an estimate for
+	// any character outside the ASCII table (see getStringWidthFloat).
+	characterWidths[127] = sum / (float)(127 - 32);
 }
 
 void MainController::prepareToPlay(double sampleRate_, int samplesPerBlock)
