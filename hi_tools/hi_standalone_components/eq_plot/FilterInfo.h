@@ -231,7 +231,12 @@ private:
 	
 	double sampleRate = -1.0;
 
-	UnorderedStack<InternalData> internalData;
+	// The number of filters that can register for display must NOT be tied to the
+	// voice count (the default UnorderedStack size = NUM_POLYPHONIC_VOICES). A single
+	// shared FilterDataObject can collect many filter nodes (e.g. a multi-mode filter
+	// rack feeding one graph); with a low voice count the later filters overflowed and
+	// vanished from the graph. Use an explicit, polyphony-independent capacity.
+	UnorderedStack<InternalData, 64> internalData;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(FilterDataObject);
 };
