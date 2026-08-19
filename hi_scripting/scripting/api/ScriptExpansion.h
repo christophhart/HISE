@@ -280,6 +280,9 @@ public:
 	/** Sets a list of allowed expansion types that can be loaded. */
 	void setAllowedExpansionTypes(var typeList);
 
+	/** Cancels a running installExpansionFromPackage call. The install callback will fire with Status 3. */
+	void cancelInstallation();
+
 	// ============================================================== End of API calls
 
 	bool isUsingCredentials() const

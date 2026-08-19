@@ -452,7 +452,21 @@ struct HlacArchiver
 		listener = l;
 	}
 
+	void setCancelCheck(std::function<bool()> f)
+	{
+		cancelCheck = std::move(f);
+	}
+
 private:
+
+	bool shouldAbort() const
+	{
+		if (thread != nullptr && thread->threadShouldExit())
+			return true;
+		if (cancelCheck && cancelCheck())
+			return true;
+		return false;
+	}
 
 	FileInputStream* writeTempFile(AudioFormatReader* reader, int bitDepth=16);
 
@@ -473,8 +487,9 @@ private:
 	bool decompressMode = false;
 
 	Thread* thread = nullptr;
-	
-	
+
+	mutable std::function<bool()> cancelCheck;
+
 	File tmpFile;
 
 	double deltaPerFile = 0.1;
