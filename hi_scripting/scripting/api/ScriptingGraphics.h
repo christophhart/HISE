@@ -910,14 +910,16 @@ namespace ScriptingObjects
 
 			void drawMidiDropper(Graphics& g, Rectangle<float> area, const String& text, MidiFileDragAndDropper& d) override;
 
-            void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled);
+            void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled, float gamma, bool reversed) override;
             void drawHiseThumbnailBackground(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, Rectangle<int> area) override;
             void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
             void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override;
 
             HiseAudioThumbnail::RenderOptions getThumbnailRenderOptions(HiseAudioThumbnail& th, const HiseAudioThumbnail::RenderOptions& defaultOptions) override;
-            
+
 			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
+
+			void drawThumbnailMarker(Graphics& g, HiseAudioThumbnail& th, float x, float h, int markerIndex, Colour c, bool enabled) override;
 
             void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
             
@@ -1036,7 +1038,8 @@ namespace ScriptingObjects
 			void drawHiseThumbnailPath(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const Path& path) override;
 			void drawHiseThumbnailRectList(Graphics& g, HiseAudioThumbnail& th, bool areaIsEnabled, const HiseAudioThumbnail::RectangleListType& rectList) override;
 			void drawTextOverlay(Graphics& g, HiseAudioThumbnail& th, const String& text, Rectangle<float> area) override;
-			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override;
+			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled, float gamma, bool reversed) override;
+			void drawThumbnailMarker(Graphics& g, HiseAudioThumbnail& th, float x, float h, int markerIndex, Colour c, bool enabled) override;
 			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override;
 			void drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int xPosition) override;
 
@@ -1183,9 +1186,14 @@ namespace ScriptingObjects
 				CALL_LAF_ID("drawThumbnailText", drawTextOverlay, g, th, text, area);
 			}
 
-			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled) override
+			void drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled, float gamma, bool reversed) override
 			{
-				CALL_LAF(drawThumbnailRange, g, te, area, areaIndex, c, areaEnabled);
+				CALL_LAF(drawThumbnailRange, g, te, area, areaIndex, c, areaEnabled, gamma, reversed);
+			}
+
+			void drawThumbnailMarker(Graphics& g, HiseAudioThumbnail& th, float x, float h, int markerIndex, Colour c, bool enabled) override
+			{
+				CALL_LAF_ID("drawThumbnailMarkers", drawThumbnailMarker, g, th, x, h, markerIndex, c, enabled);
 			}
 
 			void drawStretchableLayoutResizerBar (Graphics &g, Component& resizer, int w, int h, bool isVerticalBar, bool isMouseOver, bool isMouseDragging) override

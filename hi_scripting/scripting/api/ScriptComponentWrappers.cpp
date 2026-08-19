@@ -2900,6 +2900,10 @@ void ScriptCreatedComponentWrappers::AudioWaveformWrapper::updateColours(AudioDi
 	tn->setColour(AudioDisplayComponent::ColourIds::fillColour, GET_OBJECT_COLOUR(itemColour2));
 	tn->setColour(AudioDisplayComponent::ColourIds::textColour, GET_OBJECT_COLOUR(textColour));
 
+	auto ic3 = ScriptingApi::Content::Helpers::getCleanedObjectColour(
+		getScriptComponent()->getScriptObjectProperty(
+			(int)ScriptingApi::Content::ScriptAudioWaveform::Properties::itemColour3));
+	tn->setColour(AudioDisplayComponent::ColourIds::itemColour3Id, ic3);
 
 	asb->repaint();
 	tn->repaint();
