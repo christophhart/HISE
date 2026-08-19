@@ -1918,7 +1918,7 @@ void ScriptingObjects::GraphicsObject::addNoise(var noiseAmount)
 
 		auto customArea = noiseAmount.getProperty("area", var());
 
-		if (customArea.isArray())
+		if (customArea.isArray() || dynamic_cast<RectangleDynamicObject*>(customArea.getDynamicObject()) != nullptr)
 		{
 			ar = ApiHelpers::getIntRectangleFromVar(customArea);
 		}
