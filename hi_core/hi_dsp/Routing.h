@@ -149,7 +149,7 @@ public:
 		bool forcePeakMeters = false;
 		bool anyActive = false;
 
-        float upDecayFactor = 1.0f;
+        float upDecayFactor = 0.0f;
         float downDecayFactor = 0.97f;
         
 		void refreshSourceUseStates();
