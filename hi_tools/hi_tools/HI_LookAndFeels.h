@@ -333,7 +333,9 @@ public:
 	Colour highlightColour;
 	Colour textColour;
 	Colour modalBackgroundColour;
+	Colour itemColour3;
 	Font font;
+	String fontName;
 };
 
 class DefaultPresetBrowserLookAndFeel : public LookAndFeel_V3,
