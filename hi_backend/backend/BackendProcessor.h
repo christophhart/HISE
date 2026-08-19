@@ -668,7 +668,8 @@ private:
 	double reportedLatency = 0.0;
 	int killCounter = 0;
 	int burstSamplesRemaining = 0;
-	double burstUptime = 0.0;
+	bool burstStarted = false;
+	Random burstNoise;
 
 	int currentNoteNumber = -1;
 

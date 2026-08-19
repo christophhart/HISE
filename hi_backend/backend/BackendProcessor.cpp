@@ -1070,11 +1070,14 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 			killCounter = 0;
 			latencyCheckState = LatencyCheckState::WaitingForProcessBlock;
 
-			// Use a 20ms sine burst instead of a single impulse so that effects
-			// which smear transients (eg. pitch shifters) still pass a
-			// detectable signal level to the output
+			// Use a 20ms broadband noise burst instead of a single impulse so
+			// that effects which smear transients (eg. pitch shifters) or
+			// remove parts of the spectrum (eg. filters) still pass a
+			// detectable signal level to the output. The generator is reseeded
+			// for every run so that the measurement is repeatable.
 			burstSamplesRemaining = roundToInt(getMainSynthChain()->getSampleRate() * 0.02);
-			burstUptime = 0.0;
+			burstNoise.setSeed(0x4C415445);
+			burstStarted = false;
 		}
 	}
 
@@ -1090,16 +1093,22 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 
 		if(burstSamplesRemaining > 0)
 		{
-			auto delta = 2.0 * double_Pi * 1000.0 / getMainSynthChain()->getSampleRate();
-
 			int numThisTime = jmin(burstSamplesRemaining, buffer.getNumSamples());
 
 			for(int i = 0; i < numThisTime; i++)
 			{
-				// start the phase one sample in so that the first sample of the
-				// burst is already above the detection threshold
-				burstUptime += delta;
-				buffer.setSample(0, i, (float)std::sin(burstUptime));
+				auto value = burstNoise.nextFloat() * 2.0f - 1.0f;
+
+				// force the very first sample of the burst to full scale so
+				// that it is guaranteed to be above the detection threshold
+				// and a zero-latency chain reports exactly 0
+				if(!burstStarted)
+				{
+					value = 1.0f;
+					burstStarted = true;
+				}
+
+				buffer.setSample(0, i, value);
 			}
 
 			burstSamplesRemaining -= numThisTime;
@@ -1117,7 +1126,7 @@ void BackendProcessor::handlePostLatencyCheck(AudioSampleBuffer& buffer)
 
 	if(latencyCheckState == LatencyCheckState::WaitingForImpulse)
 	{
-		// The latency is the onset of the sine burst at the output, so look
+		// The latency is the onset of the noise burst at the output, so look
 		// for the first sample above the threshold instead of the peak
 		int onsetIndex = -1;
 
