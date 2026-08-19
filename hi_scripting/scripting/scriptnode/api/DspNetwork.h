@@ -456,6 +456,8 @@ public:
 
 	void setNumChannels(int newNumChannels);
 
+	int getNumChannels() const;
+
 	void createAllNodesOnce();
 
 	Identifier getObjectName() const override { return "DspNetwork"; };
