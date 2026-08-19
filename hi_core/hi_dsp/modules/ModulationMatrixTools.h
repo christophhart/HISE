@@ -89,6 +89,7 @@ struct Helpers
 		FilterFreq,
 		FilterFreqLog,
 		Stereo,
+		LinearAbsolute,
 		numPresets
 	};
 
