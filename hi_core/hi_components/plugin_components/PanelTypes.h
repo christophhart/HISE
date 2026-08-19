@@ -136,7 +136,11 @@ A list with all MIDI channels that can be enabled or disabled.
 
 | ID | Description |
 | --- | --- |
+`ColourData::bgColour`  | the background colour
 `ColourData::textColour`  | the text colour
+`ColourData::itemColour1`  | the first item colour
+`ColourData::itemColour2`  | the second item colour
+`ColourData::itemColour3`  | the third item colour
 
 ### Example JSON
 
@@ -183,7 +187,11 @@ A list with all available MIDI devices that can be enabled / disabled (similar t
 
 | ID | Description |
 | --- | --- |
+`ColourData::bgColour`  | the background colour
 `ColourData::textColour`  | the text colour
+`ColourData::itemColour1`  | the first item colour
+`ColourData::itemColour2`  | the second item colour
+`ColourData::itemColour3`  | the third item colour
 
 ### Example JSON
 
