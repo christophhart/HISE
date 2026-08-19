@@ -218,6 +218,7 @@ struct ScriptingObjects::ScriptFile::Wrapper
 	API_METHOD_WRAPPER_1(ScriptFile, loadEncryptedObject);
 	API_METHOD_WRAPPER_0(ScriptFile, getRedirectedFolder);
 	API_METHOD_WRAPPER_1(ScriptFile, rename);
+	API_METHOD_WRAPPER_0(ScriptFile, isOnHardDisk);
 	API_METHOD_WRAPPER_1(ScriptFile, move);
 	API_METHOD_WRAPPER_1(ScriptFile, copy);
 	API_METHOD_WRAPPER_1(ScriptFile, copyDirectory);
@@ -280,6 +281,7 @@ ScriptingObjects::ScriptFile::ScriptFile(ProcessorWithScriptingContent* p, const
     ADD_API_METHOD_0(loadAudioMetadata);
 	ADD_API_METHOD_0(loadAsBase64String);
 	ADD_API_METHOD_1(rename);
+	ADD_API_METHOD_0(isOnHardDisk);
 	ADD_API_METHOD_1(move);
 	ADD_API_METHOD_1(copy);
 	ADD_API_METHOD_1(copyDirectory);
@@ -781,6 +783,11 @@ bool ScriptingObjects::ScriptFile::rename(String newName)
 {	
 	auto newFile = f.getSiblingFile(newName).withFileExtension(f.getFileExtension());
 	return f.moveFileTo(newFile);
+}
+
+bool ScriptingObjects::ScriptFile::isOnHardDisk()
+{	
+	return f.isOnHardDisk();
 }
 
 bool ScriptingObjects::ScriptFile::move(var target)
