@@ -4609,6 +4609,8 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawLinearSlider(Graphics &g, i
 	{
 		DynamicObject* obj = new DynamicObject();
 
+		slider.setTextBoxStyle(Slider::NoTextBox, false, -1, -1);
+
 		writeId(obj, &slider);
 		obj->setProperty("enabled", slider.isEnabled());
 		obj->setProperty("text", slider.getName());
