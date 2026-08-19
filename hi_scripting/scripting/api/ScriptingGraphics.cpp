@@ -1530,6 +1530,7 @@ struct ScriptingObjects::MarkdownObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(MarkdownObject, setImageProvider);
 	API_METHOD_WRAPPER_1(MarkdownObject, setTextBounds);
 	API_METHOD_WRAPPER_0(MarkdownObject, getStyleData);
+	API_METHOD_WRAPPER_1(MarkdownObject, getLinkAtPosition);
 };
 
 ScriptingObjects::MarkdownObject::MarkdownObject(ProcessorWithScriptingContent* pwsc) :
@@ -1541,6 +1542,7 @@ ScriptingObjects::MarkdownObject::MarkdownObject(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(setTextBounds);
 	ADD_API_METHOD_0(getStyleData);
 	ADD_API_METHOD_1(setImageProvider);
+	ADD_API_METHOD_1(getLinkAtPosition);
 }
 
 
@@ -1601,6 +1603,27 @@ void ScriptingObjects::MarkdownObject::setImageProvider(var data)
 	ScopedLock sl(obj->lock);
 	obj->renderer.clearResolvers();
 	obj->renderer.setImageProvider(newProvider);
+}
+
+String ScriptingObjects::MarkdownObject::getLinkAtPosition(var position)
+{
+	auto r = Result::ok();
+	auto p = ApiHelpers::getPointFromVar(position, &r);
+
+	if (r.failed())
+		reportScriptError(r.getErrorMessage());
+
+	ScopedLock sl(obj->lock);
+
+	if (obj->area.isEmpty())
+		return {};
+
+	auto link = obj->renderer.getHyperLinkForPoint(p - obj->area.getPosition(), obj->area.withZeroOrigin());
+
+	if (link.valid)
+		return link.url.toString(MarkdownLink::UrlFull);
+
+	return {};
 }
 
 struct ScriptingObjects::GraphicsObject::Wrapper
