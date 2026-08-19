@@ -966,6 +966,8 @@ String SampleDataExporter::getMetadataJSON() const
 	d->setProperty("Name", getProjectName());
 	d->setProperty("Version", getProjectVersion());
 	d->setProperty("Company", getCompanyName());
+	d->setProperty("CompanyURL", getCompanyURL());
+	d->setProperty("UUID", getExpansionUUID());
 
 	auto expName = getExpansionName();
 
@@ -1026,6 +1028,16 @@ String SampleDataExporter::getCompanyName() const
 #else
 	return FrontendHandler::getCompanyName();
 #endif
+}
+
+String SampleDataExporter::getCompanyURL() const
+{
+	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::User::CompanyURL);
+}
+
+String SampleDataExporter::getExpansionUUID() const
+{
+	return dynamic_cast<GlobalSettingManager*>(synthChain->getMainController())->getSettingsObject().getSetting(HiseSettings::ExpansionSettings::UUID);
 }
 
 String SampleDataExporter::getProjectVersion() const

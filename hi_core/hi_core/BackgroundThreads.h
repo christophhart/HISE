@@ -522,6 +522,10 @@ private:
 
 	String getCompanyName() const;
 
+	String getCompanyURL() const;
+
+	String getExpansionUUID() const;
+
 	String getProjectVersion() const;
 
 	File getTargetFile() const;
