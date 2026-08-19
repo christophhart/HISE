@@ -781,14 +781,9 @@ void ScriptingApi::Content::ScriptComponent::setScriptObjectPropertyWithChangeMe
 	}
 	else if (id == getIdFor(pluginParameterGroup))
 	{
-#if USE_BACKEND
-		auto groupName = newValue.toString();
-
-		auto ok = getScriptProcessor()->getMainController_()->getUserPresetHandler().checkPluginParameterGroupName(groupName);
-
-		if(!ok.wasOk())
-			logErrorAndContinue(ok.getErrorMessage());
-#endif
+		// Defer validation until after initialization completes (see endInitialization)
+		// because setPluginParameterGroupNames may not have been called yet and was leading
+		// to validation error: Plugin:! ParamName is not a valid group name
 	}
 	else if (id == getIdFor(parentComponent))
 	{
@@ -8095,7 +8090,43 @@ void ScriptingApi::Content::endInitialization()
 	allowAsyncFunctions = true;
 
 	updateWatcher = new ValueTreeUpdateWatcher(contentPropertyData, this);
+
+#if USE_BACKEND
+	validatePluginParameterGroupNames();
+#endif
 }
+
+#if USE_BACKEND
+void ScriptingApi::Content::validatePluginParameterGroupNames()
+{
+	// Validate all plugin parameter group names after initialization completes
+	// This ensures setPluginParameterGroupNames has been called before validation
+	if (auto processor = getScriptProcessor())
+	{
+		if (auto mc = processor->getMainController_())
+		{
+			auto& uph = mc->getUserPresetHandler();
+
+			for (int i = 0; i < components.size(); i++)
+			{
+				auto sc = components[i];
+				if (sc->getScriptObjectProperty(ScriptComponent::Properties::isPluginParameter))
+				{
+					auto groupName = sc->getScriptObjectProperty(ScriptComponent::Properties::pluginParameterGroup).toString();
+
+					if (!groupName.isEmpty())
+					{
+						auto ok = uph.checkPluginParameterGroupName(groupName);
+
+						if (!ok.wasOk())
+							logErrorAndContinue(ok.getErrorMessage());
+					}
+				}
+			}
+		}
+	}
+}
+#endif
 
 
 void ScriptingApi::Content::beginInitialization()
