@@ -8454,7 +8454,8 @@ void ScriptingApi::Content::restoreFromValueTree(const ValueTree &v)
 
 			if (childType != components[i]->getObjectName())
 			{
-				debugError(dynamic_cast<Processor*>(getScriptProcessor()), "Type mismatch in preset");
+				const String message = "Type mismatch in preset: " + components[i]->name.toString() + ", found " + childTypeString + ", expecting " + components[i]->getObjectName();
+				debugError(dynamic_cast<Processor*>(getScriptProcessor()), message);
 			}
 		}
 		else
