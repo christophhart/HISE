@@ -72,7 +72,7 @@ public:
 	struct LookAndFeelMethods
 	{
 		virtual ~LookAndFeelMethods() {};
-		virtual void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const DragData& d);
+		virtual void drawFilterDragHandle(Graphics& g, FilterGraph& fg, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const DragData& d);
 	};
 
 	struct Factory : public PathFactory
