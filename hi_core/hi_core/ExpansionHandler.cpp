@@ -482,7 +482,18 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 			auto expToSend = getExpansionFromRootFile(expRoot);
 			
 			if(expToSend != nullptr)
+			{
 				expToSend->initialise();
+
+				// Force-extract user presets after a fresh install so the preset
+				// browser is populated immediately without requiring a manual rebuild.
+				if (auto se = dynamic_cast<ScriptEncryptedExpansion*>(expToSend))
+				{
+					ValueTree v;
+					if (se->loadValueTree(v).wasOk())
+						se->extractUserPresetsIfEmpty(v, true);
+				}
+			}
 
 			for (auto l : listeners)
 			{
@@ -848,6 +859,12 @@ Result Expansion::initialise()
 	pool->getMidiFilePool().loadAllFilesFromProjectFolder();
 
 	return Result::ok();
+}
+
+void Expansion::loadSampleMapsIfEmpty()
+{
+	if (pool->getSampleMapPool().getNumLoadedFiles() == 0)
+		pool->getSampleMapPool().loadAllFilesFromProjectFolder();
 }
 
 template <class T>

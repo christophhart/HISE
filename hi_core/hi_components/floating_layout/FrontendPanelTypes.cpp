@@ -996,6 +996,7 @@ var PresetBrowserPanel::toDynamicObject() const
 
 	storePropertyInObject(obj, SpecialPanelIds::ShowSaveButton, options.showSaveButtons);
 	storePropertyInObject(obj, SpecialPanelIds::ShowExpansionsAsColumn, options.showExpansions);
+	storePropertyInObject(obj, SpecialPanelIds::ShowExpansionEditButtons, options.showExpansionEditButtons);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, options.showFolderButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, options.showNotesLabel);
 	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, options.showEditButtons);
@@ -1037,6 +1038,7 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.buttonsInsideBorder = getPropertyWithDefault(object, SpecialPanelIds::ButtonsInsideBorder);
 	options.editButtonOffset = getPropertyWithDefault(object, SpecialPanelIds::EditButtonOffset);
 	options.showExpansions = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionsAsColumn);
+	options.showExpansionEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionEditButtons);
 	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
 
 	auto ratios = getPropertyWithDefault(object, SpecialPanelIds::ColumnWidthRatio);
@@ -1136,6 +1138,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FavoriteIconOffset, "FavoriteIconOffset");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionEditButtons, "ShowExpansionEditButtons");
 
 	return Identifier();
 }
@@ -1169,6 +1172,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ColumnWidthRatio, var(defaultRatios));
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowExpansionsAsColumn, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowExpansionEditButtons, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFavoriteIcon, true);
 	
 	Array<var> defaultListAreaOffset = {0, 0, 0, 0};

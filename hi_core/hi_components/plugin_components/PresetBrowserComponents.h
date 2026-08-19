@@ -417,20 +417,20 @@ public:
 		return favoriteIconOffset;
 	}
 
+	enum ButtonIndexes
+	{
+		All = 0,
+		AddButton,
+		RenameButton,
+		DeleteButton
+	};
+
 	void setShowButtons(int buttonId, bool shouldBeShown)
 	{
-		enum ButtonIndexes
-		{
-			All = 0,
-			AddButton,
-			RenameButton,
-			DeleteButton
-		};
-		
 		switch (buttonId)
 		{
-			case All: showButtonsAtBottom = shouldBeShown; break;
-			case AddButton: shouldShowAddButton = shouldBeShown; break;
+			case All:         showButtonsAtBottom   = shouldBeShown; break;
+			case AddButton:   shouldShowAddButton   = shouldBeShown; break;
 			case RenameButton: shouldShowRenameButton = shouldBeShown; break;
 			case DeleteButton: shouldShowDeleteButton = shouldBeShown; break;
 		}
