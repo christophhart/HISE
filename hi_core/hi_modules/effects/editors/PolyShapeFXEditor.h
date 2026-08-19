@@ -87,6 +87,7 @@ private:
     ScopedPointer<HiToggleButton> overSampling;
     ScopedPointer<TableEditor> table;
     ScopedPointer<HiSlider> bias;
+    ScopedPointer<HiSlider> mixSlider;
     ScopedPointer<TableEditor> table2;
 
 
