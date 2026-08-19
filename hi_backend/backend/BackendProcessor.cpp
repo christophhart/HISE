@@ -1069,14 +1069,50 @@ void BackendProcessor::handleLatencyCheck(AudioSampleBuffer& buffer)
 		{
 			killCounter = 0;
 			latencyCheckState = LatencyCheckState::WaitingForProcessBlock;
+
+			// Use a 20ms broadband noise burst instead of a single impulse so
+			// that effects which smear transients (eg. pitch shifters) or
+			// remove parts of the spectrum (eg. filters) still pass a
+			// detectable signal level to the output. The generator is reseeded
+			// for every run so that the measurement is repeatable.
+			burstSamplesRemaining = roundToInt(getMainSynthChain()->getSampleRate() * 0.02);
+			burstNoise.setSeed(0x4C415445);
+			burstStarted = false;
 		}
 	}
 
 	if(latencyCheckState == LatencyCheckState::WaitingForProcessBlock)
-	{
 		reportedLatency = 0.0;
-		buffer.setSample(0, 0, 1.0f);
-		buffer.setSample(0, 1, 1.0f);
+
+	if(latencyCheckState == LatencyCheckState::WaitingForProcessBlock ||
+	   latencyCheckState == LatencyCheckState::WaitingForImpulse)
+	{
+		// suppress the live input during the measurement so that it cannot
+		// trigger a false onset detection
+		buffer.clear();
+
+		if(burstSamplesRemaining > 0)
+		{
+			int numThisTime = jmin(burstSamplesRemaining, buffer.getNumSamples());
+
+			for(int i = 0; i < numThisTime; i++)
+			{
+				auto value = burstNoise.nextFloat() * 2.0f - 1.0f;
+
+				// force the very first sample of the burst to full scale so
+				// that it is guaranteed to be above the detection threshold
+				// and a zero-latency chain reports exactly 0
+				if(!burstStarted)
+				{
+					value = 1.0f;
+					burstStarted = true;
+				}
+
+				buffer.setSample(0, i, value);
+			}
+
+			burstSamplesRemaining -= numThisTime;
+		}
 	}
 }
 
@@ -1090,22 +1126,22 @@ void BackendProcessor::handlePostLatencyCheck(AudioSampleBuffer& buffer)
 
 	if(latencyCheckState == LatencyCheckState::WaitingForImpulse)
 	{
-		if(buffer.getMagnitude(0, 0, buffer.getNumSamples()) > 0.01f)
+		// The latency is the onset of the noise burst at the output, so look
+		// for the first sample above the threshold instead of the peak
+		int onsetIndex = -1;
+
+		for(int i = 0; i < buffer.getNumSamples(); i++)
 		{
-			float maxPeak = 0.0f;
-			float indexOfPeak = 0.0f;
-
-			for(int i = 0; i < buffer.getNumSamples(); i++)
+			if(std::abs(buffer.getSample(0, i)) > 0.01f)
 			{
-				auto value = buffer.getSample(0, i);
-				if(value > maxPeak)
-				{
-					maxPeak = value;
-					indexOfPeak = i;
-				}
+				onsetIndex = i;
+				break;
 			}
+		}
 
-			reportedLatency += (double)indexOfPeak;
+		if(onsetIndex != -1)
+		{
+			reportedLatency += (double)onsetIndex;
 
 			latencyCheckState = LatencyCheckState::Done;
 
@@ -1119,6 +1155,18 @@ void BackendProcessor::handlePostLatencyCheck(AudioSampleBuffer& buffer)
 		else
 		{
 			reportedLatency += buffer.getNumSamples();
+
+			if(reportedLatency > 2.0 * getMainSynthChain()->getSampleRate())
+			{
+				latencyCheckState = LatencyCheckState::Done;
+
+				MessageManager::callAsync([this]()
+				{
+					PresetHandler::showMessageWindow("No signal detected", "The test signal was not detected at the output within 2 seconds. The signal chain might be muting or heavily attenuating the input signal.", PresetHandler::IconType::Error);
+					latencyCheckState = LatencyCheckState::Idle;
+					reportedLatency = 0;
+				});
+			}
 		}
 
 		buffer.clear();

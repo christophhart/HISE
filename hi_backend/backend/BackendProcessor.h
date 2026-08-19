@@ -669,6 +669,9 @@ private:
 	LatencyCheckState latencyCheckState = LatencyCheckState::Idle;
 	double reportedLatency = 0.0;
 	int killCounter = 0;
+	int burstSamplesRemaining = 0;
+	bool burstStarted = false;
+	Random burstNoise;
 
 	int currentNoteNumber = -1;
 
