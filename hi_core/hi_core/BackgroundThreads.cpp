@@ -668,13 +668,13 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 
 	StringArray sa2;
 
-	sa2.add("Exclude Samples");
 	sa2.add("500 MB");
 	sa2.add("1 GB");
 	sa2.add("1.5 GB");
 	sa2.add("2 GB");
 
 	addComboBox("split", sa2, "Split archive size");
+	getComboBoxComponent("split")->setSelectedItemIndex((int)PartSize::TwoGig, dontSendNotification);
 
 	StringArray sa3;
 
@@ -715,9 +715,25 @@ SampleDataExporter::SampleDataExporter(MainController* mc) :
 	File f = {};
 #endif
 
-	addComboBox("resume", sa3, "Resume on existing archive");
+	StringArray sa5;
 
-	hxiFile = new FilenameComponent("HXI File", File(), false, false, false, "*.hxi", "", "Choose optional HXI file to embed");
+	sa5.add("Combined Archive");
+	sa5.add("Split Data From Samples");
+	sa5.add("Data Only Update (reuse existing samples)");
+
+	addComboBox("archiveMode", sa5, "Archive layout");
+	getComboBoxComponent("archiveMode")->setSelectedItemIndex((int)ArchiveMode::Combined, dontSendNotification);
+
+	File defaultHxiFile;
+
+#if USE_BACKEND
+	auto autoHxi = f.getChildFile("info.hxi");
+
+	if (autoHxi.existsAsFile())
+		defaultHxiFile = autoHxi;
+#endif
+
+	hxiFile = new FilenameComponent("HXI File", defaultHxiFile, false, false, false, "*.hxi", "", "Choose optional HXI file to embed");
 	hxiFile->setSize(300, 24);
 	hxiFile->setDefaultBrowseTarget(f);
 	addCustomComponent(hxiFile);
@@ -803,11 +819,15 @@ void SampleDataExporter::run()
 	data.totalProgress = &totalProgress;
 	data.partSize = 1024 * 1024;
 
+	auto archiveMode = (ArchiveMode)getComboBoxComponent("archiveMode")->getSelectedItemIndex();
+
+	data.forceCleanSplit = archiveMode != ArchiveMode::Combined;
+	data.skipSampleEncoding = archiveMode == ArchiveMode::DataOnlyUpdate;
+
 	auto partSize = (PartSize)getComboBoxComponent("split")->getSelectedItemIndex();
 
 	switch (partSize)
 	{
-	case PartSize::Empty: data.partSize *= 0; break;
 	case PartSize::HalfGig: data.partSize *= 500; break;
 	case PartSize::OneGig: data.partSize *= 1000; break;
 	case PartSize::OneAndHalfGig: data.partSize *= 1500; break;
@@ -1047,16 +1067,19 @@ File SampleDataExporter::getTargetFile() const
 
 	if (getComboBoxComponent("format")->getSelectedItemIndex() == 0)
 	{
+		auto archiveMode = (ArchiveMode)getComboBoxComponent("archiveMode")->getSelectedItemIndex();
+		String suffix = archiveMode != ArchiveMode::Combined ? "_Data.hr1" : "_Samples.hr1";
+
 		if (expName.isEmpty())
 		{
 			auto name = getProjectName();
 			auto version = getProjectVersion();
 			version = version.replaceCharacter('.', '_');
-			fileName = name + "_" + version + "_Samples.hr1";
+			fileName = name + "_" + version + suffix;
 		}
 		else
 		{
-			fileName << expName + "_Samples.hr1";
+			fileName << expName + suffix;
 		}
 	}
 	else

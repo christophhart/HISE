@@ -398,6 +398,12 @@ struct HlacArchiver
 		int64 partSize = -1;
 		double* progress = nullptr;
 		double* totalProgress = nullptr;
+
+		/** Isolates the header/data from the sample monoliths into separate parts. */
+		bool forceCleanSplit = false;
+
+		/** Writes only the header part, reusing an existing set of sample parts. */
+		bool skipSampleEncoding = false;
 	};
 
 	struct DecompressData
@@ -431,15 +437,29 @@ struct HlacArchiver
 	/** Extracts the compressed data from the given file. */
 	bool extractSampleData(const DecompressData& data);
 
+    static String getArchiveCoreName(const File& archivePart)
+    {
+        String base = archivePart.getFileNameWithoutExtension();
+
+        if (base.endsWith("_Data"))
+            return base.dropLastCharacters(5);
+        else if (base.endsWith("_Samples"))
+            return base.dropLastCharacters(8);
+
+        return base;
+    }
+
     static Array<File> getSourceFiles(const File& firstSourceFile)
     {
         Array<File> parts;
 
-        firstSourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, firstSourceFile.getFileNameWithoutExtension() + ".*");
+        String base = getArchiveCoreName(firstSourceFile);
+
+        firstSourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, base + "*");
 
         return parts;
     }
-    
+
 	/** Compressed the given data using the supplied Thread. */
 	void compressSampleData(const CompressData& data);
 
