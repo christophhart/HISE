@@ -871,6 +871,8 @@ void FilterDragOverlay::fillPopupMenu(PopupMenu& m, int handleIndex)
 		if(allowFilterResizing)
 			m.addItem(1, "Delete all bands", true, false);
 
+		if(filterStats->getNumFilterBands() > 0)
+			m.addItem(4, allBandsEnabled() ? "Disable all bands" : "Enable all bands", true, false);
 
 		if(filterStats->getFFTBuffer() != nullptr && fftVisibility == SpectrumVisibility::Dynamic)
 			m.addItem(2, "Enable Spectrum Analyser", true, filterStats->getFFTBuffer()->isActive());
@@ -926,6 +928,16 @@ void FilterDragOverlay::popupMenuAction(int result, int handleIndex)
 		}
 		else if (result == 2)
 			filterStats->toggleSpectrumAnalyser();
+		else if (result == 4)
+		{
+			auto newValue = allBandsEnabled() ? 0.0f : 1.0f;
+
+			for (int i = 0; i < filterStats->getNumFilterBands(); i++)
+			{
+				if (filterStats->isValidParameterIndex(i, CurveEq::BandParameter::Enabled))
+					setEqAttribute(CurveEq::BandParameter::Enabled, i, newValue);
+			}
+		}
 	}
 }
 
@@ -1306,6 +1318,17 @@ void FilterDragOverlay::setEqAttribute(int bp, int filterIndex, float value)
 	}
 	else
 		eq->setAttribute(idx, value, sendNotificationAsync);
+}
+
+bool FilterDragOverlay::allBandsEnabled() const
+{
+	for (int i = 0; i < filterStats->getNumFilterBands(); i++)
+	{
+		if (!filterStats->isEnabled(i))
+			return false;
+	}
+
+	return true;
 }
 
 FilterDragOverlay::FFTDisplay::FFTDisplay(FilterDragOverlay& parent_) :

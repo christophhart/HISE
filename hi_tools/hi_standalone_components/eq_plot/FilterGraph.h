@@ -132,7 +132,7 @@ public:
 		if(auto p = filterVector[index])
 			p->setEnabled(shouldBeEnabled);
 
-		repaint();
+		refreshAsync();
 	}
 
 	void createGridPath();
