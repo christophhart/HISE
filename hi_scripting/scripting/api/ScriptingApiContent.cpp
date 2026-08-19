@@ -7820,6 +7820,7 @@ colour(Colour(0xff777777))
 	setMethod("getComponent", Wrapper::getComponent);
 	setMethod("getAllComponents", Wrapper::getAllComponents);
 	setMethod("componentExists", Wrapper::componentExists);
+	setMethod("setAllowRadioGroupDeselect", Wrapper::setAllowRadioGroupDeselect);
 	setMethod("setPropertiesFromJSON", Wrapper::setPropertiesFromJSON);
 	setMethod("setValuePopupData", Wrapper::setValuePopupData);
 	setMethod("storeAllControlsAsPreset", Wrapper::storeAllControlsAsPreset);
@@ -8176,6 +8177,61 @@ bool ScriptingApi::Content::isCtrlDown()
 	return juce::ModifierKeys::currentModifiers.isCommandDown() || juce::ModifierKeys::currentModifiers.isCtrlDown();
 }
 
+void ScriptingApi::Content::setAllowRadioGroupDeselect(int radioGroupId, bool allowDeselect)
+{
+	if (radioGroupId == 0)
+	{
+		reportScriptError("Radio group ID 0 is invalid");
+		return;
+	}
+
+	// Only validate radio group exists when setting it to allow deselection (true)
+	// When removing (false), we don't need to validate
+	if (allowDeselect)
+	{
+		// Check if any buttons exist with this radio group ID
+		bool radioGroupExists = false;
+		static const Identifier radioGroup("radioGroup");
+
+		for (int i = 0; i < getNumComponents(); i++)
+		{
+			if (auto button = dynamic_cast<ScriptButton*>(getComponent(i)))
+			{
+				// Use getProperty with default value to safely access the property
+				// This avoids crashes when the property doesn't exist
+				auto buttonTree = button->getPropertyValueTree();
+				if (buttonTree.isValid())
+				{
+					int groupValue = (int)buttonTree.getProperty(radioGroup, var(0));
+					if (groupValue == radioGroupId)
+					{
+						radioGroupExists = true;
+						break;
+					}
+				}
+			}
+		}
+
+		if (!radioGroupExists)
+		{
+			String error;
+			error << "No buttons with radio group " << String(radioGroupId) << " found";
+			reportScriptError(error);
+			return;
+		}
+
+		nullableRadioGroups.add(radioGroupId);
+	}
+	else
+	{
+		nullableRadioGroups.removeValue(radioGroupId);
+	}
+}
+
+bool ScriptingApi::Content::isRadioGroupNullable(int radioGroupId) const
+{
+	return nullableRadioGroups.contains(radioGroupId);
+}
 
 void ScriptingApi::Content::storeAllControlsAsPreset(const String &fileName, const ValueTree& automationData)
 {
