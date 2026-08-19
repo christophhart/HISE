@@ -66,7 +66,7 @@ struct MarkdownParser::TextBlock : public MarkdownParser::Element
 		}
 		else
 		{
-			l = { content, width, parent->stringWidthFunction };
+			l = { content, width, parent->stringWidthFunction, false, parent->styleData.lineSpacing };
 
 			l.addYOffset((float)getTopMargin());
 			l.styleData = parent->styleData;
@@ -308,8 +308,8 @@ struct MarkdownParser::Headline : public MarkdownParser::Element
 
 	float getHeightForWidth(float width) override
 	{
-		l = { content, width, parent->stringWidthFunction};
-		
+		l = { content, width, parent->stringWidthFunction, false, parent->styleData.lineSpacing };
+
 		l.styleData = parent->styleData;
 
 		auto idx = jlimit(0, 4, headlineLevel-1);
@@ -506,7 +506,7 @@ struct MarkdownParser::BulletPointList : public MarkdownParser::Element
 
 		for (auto& r : rows)
 		{
-			r.l = { r.content, width - bulletPointIntendation, parent->stringWidthFunction };
+			r.l = { r.content, width - bulletPointIntendation, parent->stringWidthFunction, false, parent->styleData.lineSpacing };
 			r.l.addXOffset(bulletPointIntendation);
 			r.l.styleData = parent->styleData;
 
@@ -642,7 +642,7 @@ struct MarkdownParser::Comment : public MarkdownParser::Element
 		{
 			lastWidth = widthToUse;
 
-			l = { content, widthToUse - thisIndentation, parent->stringWidthFunction };
+			l = { content, widthToUse - thisIndentation, parent->stringWidthFunction, false, parent->styleData.lineSpacing };
 			l.addYOffset((float)getTopMargin() + thisIndentation);
 			l.addXOffset(thisIndentation);
 			l.styleData = parent->styleData;
@@ -1275,7 +1275,7 @@ struct MarkdownParser::MarkdownTable : public MarkdownParser::Element
 				float w = getColumnWidth(width, h.index);
 				auto contentWidth = w - 2.0f * intendation;
 
-				h.l = MarkdownLayout(h.content, contentWidth, parser->stringWidthFunction);
+				h.l = MarkdownLayout(h.content, contentWidth, parser->stringWidthFunction, false, parser->styleData.lineSpacing);
 				h.l.styleData = parser->styleData;
 				
 				rowHeight = jmax(rowHeight, calculateHeightForCell(h, contentWidth, parser) + 2.0f * intendation);
