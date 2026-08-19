@@ -1087,7 +1087,7 @@ var ScriptComponent::getValue() const
 
 void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
 {
-	if (valueListener != nullptr)
+	if (!valueListeners.isEmpty())
 	{
 		auto currentThread = getScriptProcessor()->getMainController_()->getKillStateHandler().getCurrentThread();
 
@@ -1101,7 +1101,12 @@ void ScriptingApi::Content::ScriptComponent::sendValueListenerMessage()
 		a[0] = var(this);
 		a[1] = getValue();
 		var::NativeFunctionArgs args(var(this), a, 2);
-		valueListener->call(nullptr, args, nullptr);
+				
+		for (int i = 0; i < valueListeners.size(); i++)
+		{
+			if (valueListeners[i] != nullptr)
+				valueListeners[i]->call(nullptr, args, nullptr);
+		}
 	}
 }
 
@@ -2035,7 +2040,13 @@ String ScriptComponent::getCSSFromLocalLookAndFeel()
 
 void ScriptComponent::attachValueListener(WeakCallbackHolder::CallableObject* obj)
 {
-	valueListener = obj;
+	for (int i = 0; i < valueListeners.size(); i++)
+	{
+		if (valueListeners[i] == nullptr)
+			valueListeners.remove(i--);
+	}	
+
+	valueListeners.add(obj);
 	sendValueListenerMessage();
 }
 
