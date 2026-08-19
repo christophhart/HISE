@@ -874,6 +874,9 @@ void ScriptCreatedComponentWrapper::updatePopupPosition()
 
 		p.applyTransform(currentPopup->getTransform().inverted());
 
+		if (currentPopup->drawShadow)
+			p -= Point<int>(ValuePopup::shadowMargin, ValuePopup::shadowMargin);
+
 		currentPopup->setTopLeftPosition(p);
 	}
 }
@@ -3463,7 +3466,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::updateText()
 
 		if(!area.isEmpty())
 		{
-			shadow = nullptr;
+			drawShadow = false;
 			currentText = thisText;
 			setSize(area.getWidth(), area.getHeight());
 			repaint();
@@ -3479,9 +3482,9 @@ void ScriptCreatedComponentWrapper::ValuePopup::updateText()
 
 		int margin = (int)p->getLayoutData().margin;
 
-		int newWidth = p->getFont().getStringWidth(currentText) + 2 * margin + 5;
+		int newWidth = p->getFont().getStringWidth(currentText) + 2 * margin + 5 + 2 * shadowMargin;
 
-		setSize(newWidth, (int)p->getFont().getHeight() + 2*margin);
+		setSize(newWidth, (int)p->getFont().getHeight() + 2*margin + 2 * shadowMargin);
 
 
 		repaint();
@@ -3498,15 +3501,21 @@ void ScriptCreatedComponentWrapper::ValuePopup::paint(Graphics& g)
 
 	Properties::Ptr p = parent.contentComponent->getValuePopupProperties();
 
-	
-
 	if (p != nullptr)
 	{
 		auto l = p->getLayoutData();
 
-		auto ar = getLocalBounds().toFloat().reduced(l.lineThickness * 0.5f);
+		auto contentArea = getLocalBounds().toFloat().reduced((float)shadowMargin);
+		auto ar = contentArea.reduced(l.lineThickness * 0.5f);
 
-		g.setGradientFill(ColourGradient(p->getColour(Properties::itemColour), 0.0f, 0.0f, 
+		if (drawShadow)
+		{
+			Path shadowPath;
+			shadowPath.addRoundedRectangle(ar, l.radius);
+			shadow.drawForPath(g, shadowPath);
+		}
+
+		g.setGradientFill(ColourGradient(p->getColour(Properties::itemColour), 0.0f, 0.0f,
 										 p->getColour(Properties::itemColour2), 0.0f, (float)getHeight(), false));
 
 		g.fillRoundedRectangle(ar, l.radius);
@@ -3516,7 +3525,7 @@ void ScriptCreatedComponentWrapper::ValuePopup::paint(Graphics& g)
 
 		g.setFont(p->getFont());
 		g.setColour(p->getColour(Properties::textColour));
-		g.drawText(currentText, getLocalBounds(), Justification::centred);
+		g.drawText(currentText, contentArea.toNearestInt(), Justification::centred);
 	}
 
 	
