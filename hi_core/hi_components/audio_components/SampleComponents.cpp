@@ -914,6 +914,7 @@ void SamplerSoundWaveform::setSoundToDisplay(const ModulatorSamplerSound *s, int
 			preview->setReader(afr, numSamplesInCurrentSample);
 
 			timeProperties.sampleLength = (double)currentSound->getReferenceToSound(0)->getLengthInSamples();
+			timeProperties.sampleStart = (double)currentSound->getReferenceToSound(0)->getSampleStart();
 			timeProperties.sampleRate = (double)currentSound->getReferenceToSound(0)->getSampleRate();
 
 			updateRanges();
@@ -1233,7 +1234,7 @@ juce::Identifier SamplerSoundWaveform::getSampleIdToChange(AreaTypes a, const Mo
 
 SamplerDisplayWithTimeline::SamplerDisplayWithTimeline(ModulatorSampler* sampler)
 {
-	
+	sampler->getMainController()->addTempoListener(this);
 }
 
 hise::SamplerSoundWaveform* SamplerDisplayWithTimeline::getWaveform()
@@ -1272,11 +1273,15 @@ void SamplerDisplayWithTimeline::mouseDown(const MouseEvent& e)
 	m.addItem(1, "Samples", true, props.currentDomain == TimeDomain::Samples);
 	m.addItem(2, "Milliseconds", true, props.currentDomain == TimeDomain::Milliseconds);
 	m.addItem(3, "Seconds", true, props.currentDomain == TimeDomain::Seconds);
+	m.addItem(4, "Beats", true, props.currentDomain == TimeDomain::Beats);
 
 	if (auto r = m.show())
 	{
 		props.currentDomain = (TimeDomain)(r - 1);
 		getWaveform()->timeProperties.currentDomain = props.currentDomain;
+		getWaveform()->timeProperties.bpm = props.bpm;
+		getWaveform()->timeProperties.nominator = props.nominator;
+		getWaveform()->timeProperties.denominator = props.denominator;
 		repaint();
 	}
 }
@@ -1285,7 +1290,7 @@ String SamplerDisplayWithTimeline::getText(const Properties& p, float normalised
 {
 	if (p.sampleRate > 0.0)
 	{
-		auto sampleValue = roundToInt(normalisedX * p.sampleLength);
+		auto sampleValue = roundToInt(normalisedX * p.sampleLength - p.sampleStart);
 
 		if (p.currentDomain == TimeDomain::Samples)
 			return String(roundToInt(sampleValue));
@@ -1294,6 +1299,18 @@ String SamplerDisplayWithTimeline::getText(const Properties& p, float normalised
 
 		if (p.currentDomain == TimeDomain::Milliseconds)
 			return String(roundToInt(msValue)) + " ms";
+
+		if (p.currentDomain == TimeDomain::Beats && p.nominator > 0)
+		{
+			int position = roundToInt(getNumBeats(sampleValue, p.sampleRate, p.bpm) + 1);
+			int bar = floor((position - 1) / p.nominator) + 1;
+			int beat = ((position - 1) % p.nominator) + 1;
+
+			if (beat != 1)
+				return String(bar) + "." + String(beat);
+
+			return String(bar);
+		}
 
 		String sec;
 		sec << Time((int64)msValue).formatted("%M:%S:");
@@ -1308,6 +1325,11 @@ String SamplerDisplayWithTimeline::getText(const Properties& p, float normalised
 	}
 
 	return {};
+}
+
+double SamplerDisplayWithTimeline::getNumBeats(double positionInSamples, double sampleRate, double bpm)
+{
+		return positionInSamples / sampleRate * bpm * 1 / 60;
 }
 
 juce::Colour SamplerDisplayWithTimeline::getColourForEnvelope(Modulation::Mode m)
@@ -1327,17 +1349,26 @@ void SamplerDisplayWithTimeline::paint(Graphics& g)
 
 	g.setFont(GLOBAL_FONT());
 
+	int xOffset = 0;
 	int delta = 200;
-
+		
 	if (auto s = getWaveform()->getCurrentSound())
 	{
 		props.sampleLength = s->getReferenceToSound(0)->getLengthInSamples();
 		props.sampleRate = s->getReferenceToSound(0)->getSampleRate();
+		props.sampleStart = s->getReferenceToSound(0)->getSampleStart();
+
+		xOffset = roundToInt(getWidth() / props.sampleLength * props.sampleStart);
+
+		if (props.currentDomain == TimeDomain::Beats)
+			delta = roundToInt(getWidth() / getNumBeats(props.sampleLength, props.sampleRate, props.bpm));
 	}
 
-	for (int i = 0; i < getWidth(); i += delta)
+	for (int i = xOffset; i < getWidth(); i += delta)
 	{
 		auto textArea = b.removeFromLeft(delta).toFloat();
+
+		textArea.setX(textArea.getX() + xOffset);
 
 		g.setColour(Colours::white.withAlpha(0.1f));
 		g.drawVerticalLine(i, 3.0f, (float)TimelineHeight);
@@ -1349,7 +1380,6 @@ void SamplerDisplayWithTimeline::paint(Graphics& g)
 		g.drawText(getText(props, normalisedX), textArea.reduced(5.0f, 0.0f), Justification::centredLeft);
 	}
 }
-
 
 struct EnvelopeLaf : public TableEditor::LookAndFeelMethods,
 			 public LookAndFeel_V3

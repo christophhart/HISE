@@ -185,7 +185,7 @@ class SamplerSoundWaveform;
 
 
 
-struct SamplerDisplayWithTimeline : public Component
+struct SamplerDisplayWithTimeline : public Component, public TempoListener
 {
 	static constexpr int TimelineHeight = 24;
 
@@ -193,23 +193,34 @@ struct SamplerDisplayWithTimeline : public Component
 	{
 		Samples,
 		Milliseconds,
-		Seconds
+		Seconds,
+		Beats
 	};
 
 	struct Properties
 	{
+		double sampleStart;
 		double sampleLength;
 		double sampleRate;
+		double bpm;
+		int nominator;
+		int denominator;
 		TimeDomain currentDomain = TimeDomain::Seconds;
 	};
 
 	SamplerDisplayWithTimeline(ModulatorSampler* sampler);
+
+	~SamplerDisplayWithTimeline()
+	{
+		//Remove tempo listener here
+	}
 
 	SamplerSoundWaveform* getWaveform();
 	const SamplerSoundWaveform* getWaveform() const;
 	void resized() override;
 	void mouseDown(const MouseEvent& e) override;
 	static String getText(const Properties& p, float normalisedX);
+	static double getNumBeats(double positionInSamples, double sampleRate, double bpm);
 
 	static Colour getColourForEnvelope(Modulation::Mode m);
 
@@ -224,6 +235,25 @@ struct SamplerDisplayWithTimeline : public Component
 	Modulation::Mode envelope = Modulation::Mode::numModes;
 
 	JUCE_DECLARE_WEAK_REFERENCEABLE(SamplerDisplayWithTimeline);
+	
+	void tempoChanged(double newTempo) override
+	{
+		props.bpm = newTempo;
+		
+		MessageManager::callAsync([this]() {
+			this->repaint();
+		});
+	}
+	
+	void onSignatureChange(int newNominator, int newDenominator) override
+	{
+		props.nominator = newNominator;
+		props.denominator = newDenominator;
+		
+		MessageManager::callAsync([this]() {
+			this->repaint();
+		});
+	}
 };
 
 struct SamplerTools
