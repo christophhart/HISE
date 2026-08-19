@@ -1642,6 +1642,7 @@ struct ScriptingObjects::GraphicsObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, boxBlur);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, desaturate);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, addNoise);
+	API_VOID_METHOD_WRAPPER_3(GraphicsObject, addNoiseFromPath);
 	API_VOID_METHOD_WRAPPER_3(GraphicsObject, applyMask);
 	API_VOID_METHOD_WRAPPER_1(GraphicsObject, beginLayer);
 	API_VOID_METHOD_WRAPPER_0(GraphicsObject, endLayer);
@@ -1772,6 +1773,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_1(boxBlur);
 	ADD_API_METHOD_0(desaturate);
 	ADD_API_METHOD_1(addNoise);
+	ADD_API_METHOD_3(addNoiseFromPath);
 	ADD_API_METHOD_3(applyMask);
     ADD_API_METHOD_2(flip);
 
@@ -1933,6 +1935,37 @@ void ScriptingObjects::GraphicsObject::addNoise(var noiseAmount)
 			auto scale = jlimit(0.125, 2.0, (double)sf);
 
 			drawActionHandler.addDrawAction(new ScriptedPostDrawActions::addNoise(m, jlimit(0.0f, 1.0f, (float)alpha), ar, monochrom, scale));
+		}
+	}
+}
+
+void ScriptingObjects::GraphicsObject::addNoiseFromPath(var path, var area, var noiseAmount)
+{
+	auto m = drawActionHandler.getNoiseMapManager();
+	auto r = getRectangleFromVar(area);
+
+	if (auto p = dynamic_cast<ScriptingObjects::PathObject*>(path.getObject()))
+	{
+		Path sp = p->getPath();
+
+		if (noiseAmount.isDouble())
+		{
+			drawActionHandler.addDrawAction(new ScriptedPostDrawActions::addNoiseFromPath(
+				m, sp, r, jlimit(0.0f, 1.0f, (float)noiseAmount)));
+		}
+		else if (auto obj = noiseAmount.getDynamicObject())
+		{
+			auto alpha = jlimit(0.0f, 1.0f, (float)noiseAmount["alpha"]);
+			auto monochrom = (bool)noiseAmount["monochromatic"];
+			auto sf = (float)noiseAmount.getProperty("scaleFactor", 1.0);
+
+			if (sf == -1.0f)
+				sf = drawActionHandler.getScaleFactor();
+
+			auto scale = jlimit(0.125, 2.0, (double)sf);
+
+			drawActionHandler.addDrawAction(new ScriptedPostDrawActions::addNoiseFromPath(
+				m, sp, r, alpha, monochrom, (float)scale));
 		}
 	}
 }

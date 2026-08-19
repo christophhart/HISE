@@ -626,6 +626,9 @@ namespace ScriptingObjects
 		/** Adds noise to the current layer. */
 		void addNoise(var noiseAmount);
 
+		/** Adds noise clipped to the given path. noiseAmount can be a float (0..1) or an object with alpha, monochromatic and scaleFactor properties. */
+		void addNoiseFromPath(var path, var area, var noiseAmount);
+
 		/** Removes all colour from the current layer. */
 		void desaturate();
 
