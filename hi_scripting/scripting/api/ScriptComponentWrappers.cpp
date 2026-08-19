@@ -1582,6 +1582,12 @@ ScriptCreatedComponentWrapper(content, index)
 	table->dragProperties.addListener(*t, [](TableEditor& te, const var& p)
 	{
 		te.setMouseDragProperties(p);
+
+		if (p.hasProperty("dragPointCursor"))
+			te.setDragPointCursor(ApiHelpers::getMouseCursorFromString(p["dragPointCursor"].toString(), nullptr));
+
+		if (p.hasProperty("midPointCursor"))
+			te.setMidPointCursor(ApiHelpers::getMouseCursorFromString(p["midPointCursor"].toString(), nullptr));
 	});
 
 	table->getSourceWatcher().addSourceListener(this);
@@ -1635,6 +1641,16 @@ void ScriptCreatedComponentWrappers::TableWrapper::updateComponent(int propertyI
 		PROPERTY_CASE::ScriptComponent::itemColour2: t->setColour(TableEditor::ColourIds::lineColour, GET_OBJECT_COLOUR(itemColour2)); t->repaint(); break;
 		PROPERTY_CASE::ScriptComponent::tooltip: t->setTooltip(GET_SCRIPT_PROPERTY(tooltip)); break;
 		PROPERTY_CASE::ScriptTable::Properties::customColours: t->setUseFlatDesign(newValue); break;
+		// "ParentCursor" is the no-override default: leave the cursor to setMouseHandlingProperties (script)
+		// or the TableEditor's built-in default instead of clobbering it from the property editor.
+		PROPERTY_CASE::ScriptTable::Properties::dragPointCursor:
+			if (newValue.toString() != "ParentCursor")
+				t->setDragPointCursor(ApiHelpers::getMouseCursorFromString(newValue.toString(), nullptr));
+			break;
+		PROPERTY_CASE::ScriptTable::Properties::midPointCursor:
+			if (newValue.toString() != "ParentCursor")
+				t->setMidPointCursor(ApiHelpers::getMouseCursorFromString(newValue.toString(), nullptr));
+			break;
 		PROPERTY_CASE::ScriptComponent::parameterId: t->setSnapValues(st->snapValues);
 													  break;
 	default:
