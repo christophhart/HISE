@@ -230,6 +230,9 @@ public:
 	void setSpectrumVisibility(SpectrumVisibility m);
 	void setUndoManager(UndoManager* newUndoManager);
 	void setEqAttribute(int b, int filterIndex, float value);
+	void setMaxBands(int newMaxBands) { maxBands = jmax(0, newMaxBands); }
+	int getMaxBands() const { return maxBands; }
+	bool canAddMoreBands() const;
 
 protected:
 
@@ -264,6 +267,7 @@ private:
 
 	bool resetOnDoubleClick = false;
 	bool allowFilterResizing = true;
+	int maxBands = 0; // 0 = unlimited
 	SpectrumVisibility fftVisibility = SpectrumVisibility::Dynamic;
 	LookAndFeelMethods defaultLaf;
 	Array<WeakReference<Listener>> listeners;
