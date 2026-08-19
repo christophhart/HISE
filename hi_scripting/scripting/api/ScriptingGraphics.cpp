@@ -2834,16 +2834,18 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
 					argsObject.getDynamicObject()->setProperty("parentName", n);
 				}
                 
-                static const StringArray hiddenProps = {"jcclr"};
-                
+                static const StringArray hiddenProps = {"jcclr", "class"};
+
                 if(c != nullptr)
                 {
+                    writeClass(argsObject.getDynamicObject(), c);
+
                     for(auto& nv: c->getProperties())
                     {
                         if(!argsObject.hasProperty(nv.name))
                         {
                             bool hidden = false;
-                            
+
                             for(const auto& hp: hiddenProps)
                             {
                                 if(nv.name.toString().contains(hp))
@@ -2852,7 +2854,7 @@ bool ScriptingObjects::ScriptedLookAndFeel::callWithGraphics(Graphics& g_, const
                                     break;
                                 }
                             }
-                            
+
                             if(!hidden)
                                 argsObject.getDynamicObject()->setProperty(nv.name, nv.value);
                         }
@@ -3020,6 +3022,53 @@ bool ScriptingObjects::ScriptedLookAndFeel::Laf::writeId(DynamicObject* obj, Com
 	}
 
 	return false;
+}
+
+void ScriptingObjects::ScriptedLookAndFeel::writeClass(DynamicObject* obj, Component* c)
+{
+	Array<var> classNames;
+
+	// Read static "class" property set by FlexboxComponent/writeClassSelectors (no dots)
+	static const Identifier cid("class");
+	auto cp = c->getProperties()[cid];
+
+	if(cp.isString())
+	{
+		if(cp.toString().isNotEmpty())
+			classNames.add(cp);
+	}
+	else if(auto arr = cp.getArray())
+	{
+		for(const auto& v : *arr)
+			if(v.toString().isNotEmpty())
+				classNames.add(v);
+	}
+
+	// Look up the ScriptComponent and read user-set classes from styleSheetProperties
+	auto componentId = c->getComponentID();
+
+	if(componentId.isNotEmpty())
+	{
+		if(auto sc = getScriptProcessor()->getScriptingContent()->getComponentWithName(Identifier(componentId)))
+		{
+			auto fullClass = sc->getStyleSheetClass();
+			auto spacePos = fullClass.indexOfChar(' ');
+
+			if(spacePos >= 0)
+			{
+				for(auto cls : StringArray::fromTokens(fullClass.substring(spacePos + 1), " ", ""))
+				{
+					if(cls.startsWith("."))
+						cls = cls.substring(1);
+					if(cls.isNotEmpty())
+						classNames.add(var(cls));
+				}
+			}
+		}
+	}
+
+	if(!classNames.isEmpty())
+		obj->setProperty("class", var(classNames));
 }
 
 ScriptingObjects::ScriptedLookAndFeel::CSSLaf::CSSLaf(ScriptedLookAndFeel* parent_, ScriptContentComponent* content, Component* c, const ValueTree& data, const ValueTree& ad):
