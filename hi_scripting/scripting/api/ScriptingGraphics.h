@@ -949,6 +949,7 @@ namespace ScriptingObjects
 			void drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
 			void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index) override;
 			void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p) override;
+			bool providesCustomAnalyserBackground() override { return functionDefined("drawAnalyserBackground"); }
 
             void drawMatrixPeakMeter(Graphics& g, float* peakValues, float* maxPeaks, int numChannels, bool isVertical, float segmentSize, float paddingSize, Component* c) override;
             

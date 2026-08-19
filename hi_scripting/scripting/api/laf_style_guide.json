@@ -1861,6 +1861,14 @@
                 "itemColour2": {
                   "type": "int (ARGB)",
                   "description": "Line colour"
+                },
+                "topText": {
+                  "type": "String",
+                  "description": "The label text for the top corner (only present for Plotter components)"
+                },
+                "bottomText": {
+                  "type": "String",
+                  "description": "The label text for the bottom corner (only present for Plotter components)"
                 }
               }
             },
