@@ -7695,10 +7695,13 @@ void ScriptingApi::FileSystem::browseInternally(File f, bool forSaving, bool isD
 			
 		}
 
-		if (a.isObject())
+		if (!a.isObject())
 		{
-			wc.call(&a, 1);
+			File emptyFile;
+			a = var(new ScriptingObjects::ScriptFile(p_, emptyFile));
 		}
+			
+		wc.call(&a, 1);
 		
 		fileChooserIsOpen = false;
 	};
