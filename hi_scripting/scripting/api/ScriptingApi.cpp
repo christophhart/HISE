@@ -1202,6 +1202,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, getCurrentUserPresetName);
 	API_VOID_METHOD_WRAPPER_1(Engine, saveUserPreset);
 	API_METHOD_WRAPPER_0(Engine, isMpeEnabled);
+	API_VOID_METHOD_WRAPPER_1(Engine, setMpeEnabled);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterSliderPackData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterTableData);
 	API_METHOD_WRAPPER_1(Engine, createAndRegisterAudioFile);
@@ -1370,6 +1371,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_1(loadUserPreset);
 	ADD_API_METHOD_0(getUserPresetList);
 	ADD_API_METHOD_0(isMpeEnabled);
+	ADD_API_METHOD_1(setMpeEnabled);
 	ADD_API_METHOD_0(createMidiList);
 	ADD_API_METHOD_0(createUnorderedStack);
 	ADD_API_METHOD_1(createBackgroundTask);
@@ -2667,6 +2669,19 @@ void ScriptingApi::Engine::loadPreviousUserPreset(bool stayInDirectory)
 bool ScriptingApi::Engine::isMpeEnabled() const
 {
 	return getScriptProcessor()->getMainController_()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().isMpeEnabled();
+}
+
+void ScriptingApi::Engine::setMpeEnabled(bool shouldBeEnabled)
+{
+	auto mc = getScriptProcessor()->getMainController_();
+
+	auto f = [shouldBeEnabled](Processor* p)
+	{
+		p->getMainController()->getMacroManager().getMidiControlAutomationHandler()->getMPEData().setMpeMode(shouldBeEnabled);
+		return SafeFunctionCall::OK;
+	};
+
+	mc->getKillStateHandler().killVoicesAndCall(mc->getMainSynthChain(), f, MainController::KillStateHandler::TargetThread::SampleLoadingThread);
 }
 
 String ScriptingApi::Engine::getCurrentUserPresetName()
