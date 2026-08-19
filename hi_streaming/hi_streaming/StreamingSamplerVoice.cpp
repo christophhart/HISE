@@ -364,7 +364,13 @@ bool SampleLoader::advanceReadIndex(double uptime)
 		}
 		else
 		{
-			readBuffer = sound.get()->getReleaseStartBuffer();
+			auto rsb = sound.get()->getReleaseStartBuffer();
+
+			// Sound may have been purged while release start was pending
+			if(rsb == nullptr)
+				return false;
+
+			readBuffer = rsb;
 			writeBuffer = &b1;
 
 			lastSwapPosition = sound.get()->getReleaseStart() - sound.get()->getSampleStart();
@@ -1072,33 +1078,35 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 			auto rb = sound->getReleaseStartBuffer();
 
-			auto offsetInBuffer = releaseFadeDuration - releaseFadeCounter;
-
-
-			auto numToCopy = jmin(rb->getNumSamples() - offsetInBuffer - numToFadeIn, numToFadeIn);
-
-			if(releaseGain != 1.0f)
+			if(rb != nullptr)
 			{
-				hlac::HiseSampleBuffer::addWithGain(*tempVoiceBuffer, *rb, 0, offsetInBuffer, numToCopy, releaseGain);
-				applyReleaseGainToFullBuffer = false;
-			}
-			else
-			{
-				hlac::HiseSampleBuffer::add(*tempVoiceBuffer, *rb, 0, offsetInBuffer, numToCopy);
-			}
+				auto offsetInBuffer = releaseFadeDuration - releaseFadeCounter;
 
-			releaseFadeCounter -= (pitchCounter + startAlpha);
+				auto numToCopy = jmin(rb->getNumSamples() - offsetInBuffer - numToFadeIn, numToFadeIn);
 
-			if(releaseFadeCounter <= 0.0)
-			{
-				voiceUptime = (double)(sound->getReleaseStart() - sound->getSampleStart());
+				if(releaseGain != 1.0f)
+				{
+					hlac::HiseSampleBuffer::addWithGain(*tempVoiceBuffer, *rb, 0, offsetInBuffer, numToCopy, releaseGain);
+					applyReleaseGainToFullBuffer = false;
+				}
+				else
+				{
+					hlac::HiseSampleBuffer::add(*tempVoiceBuffer, *rb, 0, offsetInBuffer, numToCopy);
+				}
 
-				voiceUptime += releaseFadeDuration;
-				voiceUptime += (-1) * releaseFadeCounter;
-				voiceUptime -= pitchCounter;
-				
-				releaseFadeCounter = 0.0;
-				loader.setSeekToReleaseStart();
+				releaseFadeCounter -= (pitchCounter + startAlpha);
+
+				if(releaseFadeCounter <= 0.0)
+				{
+					voiceUptime = (double)(sound->getReleaseStart() - sound->getSampleStart());
+
+					voiceUptime += releaseFadeDuration;
+					voiceUptime += (-1) * releaseFadeCounter;
+					voiceUptime -= pitchCounter;
+
+					releaseFadeCounter = 0.0;
+					loader.setSeekToReleaseStart();
+				}
 			}
 		}
 #endif
