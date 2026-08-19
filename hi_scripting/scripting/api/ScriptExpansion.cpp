@@ -2593,6 +2593,37 @@ juce::Result FullInstrumentExpansion::initialise()
 }
 
 
+void FullInstrumentExpansion::loadSampleMapsIfEmpty()
+{
+	// For non-lazy-loaded expansion types just use the base class (reads from disk).
+	if (getExpansionType() != Expansion::Intermediate)
+	{
+		Expansion::loadSampleMapsIfEmpty();
+		return;
+	}
+
+	// FullInstrumentExpansion uses lazy loading: the pool is empty until the
+	// expansion is actually activated.  Populate just the sample maps so that
+	// the redirect-sample validation in the preset browser can check them.
+	if (pool->getSampleMapPool().getNumLoadedFiles() > 0)
+		return;
+
+	// A valid Blowfish key is required to decrypt the embedded pool data.
+	ScopedPointer<BlowFish> bf = createBlowfish();
+
+	if (bf == nullptr)
+		return;
+
+	auto allData = getValueTreeFromFile(getExpansionType());
+
+	if (!allData.isValid())
+		return;
+
+	setCompressorForPool(FileHandlerBase::SampleMaps, true);
+	restorePool(allData, FileHandlerBase::SampleMaps);
+	pool->getSampleMapPool().loadAllFilesFromDataProvider();
+}
+
 juce::ValueTree FullInstrumentExpansion::getValueTreeFromFile(Expansion::ExpansionType type)
 {
 	auto hxiFile = Helpers::getExpansionInfoFile(getRootFolder(), type);
