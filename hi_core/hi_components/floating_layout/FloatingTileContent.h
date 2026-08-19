@@ -296,6 +296,8 @@ public:
 		return getMainController()->getFontFromString(fontName, fontSize);
 	}
 
+	String getFontName() const { return fontName; }
+
 	/** This returns the title that is supposed to be displayed. */
     String getBestTitle() const;
 	
