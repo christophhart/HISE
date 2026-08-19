@@ -8780,7 +8780,7 @@ var ScriptingApi::Content::createShader(const String& fileName)
 	return var(f);
 }
 
-void ScriptingApi::Content::createScreenshot(var area, var directory, String name)
+void ScriptingApi::Content::createScreenshot(var area, var directory, String name, var scale)
 {
 	if (!screenshotListeners.isEmpty())
 	{
@@ -8812,6 +8812,9 @@ void ScriptingApi::Content::createScreenshot(var area, var directory, String nam
 						reportScriptError(r.getErrorMessage());
 				}
 
+				// A value <= 0 tells the listeners to fall back to the display's native scale factor
+				auto scaleFactor = (scale.isUndefined() || scale.isVoid()) ? -1.0f : (float)scale;
+
 				// Send a message to all listeners
 				for (auto sc : screenshotListeners)
 				{
@@ -8831,7 +8834,7 @@ void ScriptingApi::Content::createScreenshot(var area, var directory, String nam
 				for (auto sc : screenshotListeners)
 				{
 					if (sc != nullptr)
-						sc->makeScreenshot(target, a);
+						sc->makeScreenshot(target, a, scaleFactor);
 				}
 			}
 		}

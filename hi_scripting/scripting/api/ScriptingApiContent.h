@@ -3105,8 +3105,10 @@ public:
 	/** Sets the height of the content. */
 	void setWidth(int newWidth) noexcept;
 
-	/** Creates a screenshot of the area relative to the content's origin. */
-	void createScreenshot(var area, var directory, String name);
+	/** Creates a screenshot of the area relative to the content's origin. The optional scale
+	    argument (eg. 2.0 for 200%) renders the screenshot at that resolution instead of the
+	    display's native scale factor. */
+	void createScreenshot(var area, var directory, String name, var scale = var());
 
 	/** Creates either a line or rectangle with the given colour. */
 	void addVisualGuide(var guideData, var colour);
