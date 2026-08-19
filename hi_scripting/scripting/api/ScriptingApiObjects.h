@@ -479,6 +479,9 @@ namespace ScriptingObjects
 		/** Returns the number of items in the zip file. */
 		int getNumZippedItems();
 
+		/** Returns an array of the filenames of all entries in the zip file. */
+		var getZippedItemList();
+
 		/** Changes the read/write permission for the given file. */
 		void setReadOnly(bool shouldBeReadOnly, bool applyRecursively);
 
