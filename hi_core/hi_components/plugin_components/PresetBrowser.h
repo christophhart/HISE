@@ -95,7 +95,9 @@ public:
 		bool showFolderButton = true;
 		bool showFavoriteIcons = true;
 		bool fullPathFavorites = false;
+		bool fullPathSearch = false;
 		bool showExpansions = false;
+		bool showExpansionEditButtons = false;
 	};
 
 	// ============================================================================================
@@ -186,6 +188,7 @@ public:
 	void updateFavoriteButton();
 	bool shouldShowFavoritesButton() { return showFavoritesButton; }
 	bool shouldShowFullPathFavorites() { return fullPathFavorites; }
+	bool shouldShowFullPathSearch() { return fullPathSearch; }
 
 	void lookAndFeelChanged() override;
 
@@ -214,6 +217,9 @@ public:
 		static bool matchesAvailableExpansions(MainController* mc, const File& currentPreset);
 		static bool isFavorite(const var& database, const File& presetFile);
 		static Identifier getIdForFile(const File& presetFile);
+		static void renameEntriesInDatabase(const var& database, const File& rootDir,
+		                                    const File& oldDirectory, const File& newDirectory);
+		static void renameFileEntryInDatabase(const var& database, const File& oldFile, const File& newFile);
 	};
 
 	void setOptions(const Options& newOptions);
@@ -232,6 +238,12 @@ public:
 	}
 
 	Point<int> getMouseHoverInformation() const;
+
+	Array<File> getAllSearchRoots() const;
+	Array<File> getAllFavoritePresets();
+	bool isFavoriteInAnyDatabase(const File& presetFile) const;
+	void setFavoriteForFile(const File& presetFile, bool isFavorite);
+	void invalidateFavoritesCache() { favoritesCacheDirty = true; }
 
 	Component* getColumn(int columnIndex)
 	{
@@ -254,6 +266,7 @@ private:
 	void setShowFavorites(bool shouldShowFavorites);
 	void setFavoriteIconOffset(int xOffset);
 	void setShowFullPathFavorites(bool shouldShowFullPathFavorites);
+	void setShowFullPathSearch(bool shouldShowFullPathSearch);
 	void setHighlightColourAndFont(Colour c, Colour bgColour, Font f);
 	void setNumColumns(int numColumns);
 
@@ -305,6 +318,7 @@ private:
 
 	bool showFavoritesButton = true;
 	bool fullPathFavorites = false;
+	bool fullPathSearch = false;
 	bool showOnlyPresets = false;
 	String currentWildcard = "*";
 	StringArray currentTagSelection;
@@ -312,6 +326,17 @@ private:
 	WeakReference<Expansion> currentlySelectedExpansion;
 
 	var presetDatabase;
+
+	// Lazily rebuilt cache of favourite files across all roots.
+	mutable Array<File> cachedFavorites;
+	mutable bool favoritesCacheDirty = true;
+
+	void rebuildFavoritesCache() const;
+	var loadDatabaseForRoot(const File& rootDir) const;
+	void saveDatabaseForRoot(const var& db, const File& rootDir);
+	File findRootForFile(const File& f) const;
+	void updateDatabaseKeysForRename(const File& oldDirectory, const File& newDirectory);
+	void updateDatabaseKeyForFileRename(const File& oldFile, const File& newFile);
 
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PresetBrowser);
 

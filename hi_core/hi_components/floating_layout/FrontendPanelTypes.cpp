@@ -996,6 +996,7 @@ var PresetBrowserPanel::toDynamicObject() const
 
 	storePropertyInObject(obj, SpecialPanelIds::ShowSaveButton, options.showSaveButtons);
 	storePropertyInObject(obj, SpecialPanelIds::ShowExpansionsAsColumn, options.showExpansions);
+	storePropertyInObject(obj, SpecialPanelIds::ShowExpansionEditButtons, options.showExpansionEditButtons);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFolderButton, options.showFolderButton);
 	storePropertyInObject(obj, SpecialPanelIds::ShowNotes, options.showNotesLabel);
 	storePropertyInObject(obj, SpecialPanelIds::ShowEditButtons, options.showEditButtons);
@@ -1007,6 +1008,7 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::FavoriteIconOffset, options.favoriteIconOffset);
 	storePropertyInObject(obj, SpecialPanelIds::ShowFavoriteIcon, options.showFavoriteIcons);
 	storePropertyInObject(obj, SpecialPanelIds::FullPathFavorites, options.fullPathFavorites);
+	storePropertyInObject(obj, SpecialPanelIds::FullPathSearch, options.fullPathSearch);
 	storePropertyInObject(obj, SpecialPanelIds::ButtonsInsideBorder, options.buttonsInsideBorder);
 	storePropertyInObject(obj, SpecialPanelIds::NumColumns, options.numColumns);
 	storePropertyInObject(obj, SpecialPanelIds::ColumnWidthRatio, var(options.columnWidthRatios));
@@ -1034,9 +1036,11 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.showSearchBar = getPropertyWithDefault(object, SpecialPanelIds::ShowSearchBar);
 	options.favoriteIconOffset = getPropertyWithDefault(object, SpecialPanelIds::FavoriteIconOffset);
 	options.fullPathFavorites = getPropertyWithDefault(object, SpecialPanelIds::FullPathFavorites);
+	options.fullPathSearch = getPropertyWithDefault(object, SpecialPanelIds::FullPathSearch);
 	options.buttonsInsideBorder = getPropertyWithDefault(object, SpecialPanelIds::ButtonsInsideBorder);
 	options.editButtonOffset = getPropertyWithDefault(object, SpecialPanelIds::EditButtonOffset);
 	options.showExpansions = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionsAsColumn);
+	options.showExpansionEditButtons = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionEditButtons);
 	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
 
 	auto ratios = getPropertyWithDefault(object, SpecialPanelIds::ColumnWidthRatio);
@@ -1128,6 +1132,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnRowPadding, "ColumnRowPadding");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::SearchBarBounds, "SearchBarBounds");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FullPathFavorites, "FullPathFavorites");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FullPathSearch, "FullPathSearch");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FavoriteButtonBounds, "FavoriteButtonBounds");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::SaveButtonBounds, "SaveButtonBounds");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MoreButtonBounds, "MoreButtonBounds");
@@ -1136,6 +1141,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::FavoriteIconOffset, "FavoriteIconOffset");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionEditButtons, "ShowExpansionEditButtons");
 
 	return Identifier();
 }
@@ -1157,6 +1163,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowAddButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowRenameButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FullPathFavorites, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FullPathSearch, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::FavoriteIconOffset, 0);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowDeleteButton, true);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowSearchBar, true);
@@ -1169,6 +1176,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ColumnWidthRatio, var(defaultRatios));
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowExpansionsAsColumn, false);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowExpansionEditButtons, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFavoriteIcon, true);
 	
 	Array<var> defaultListAreaOffset = {0, 0, 0, 0};
