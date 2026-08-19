@@ -914,7 +914,7 @@ juce::String SampleMap::checkReferences(MainController* mc, ValueTree& v, const 
 	const std::string channelNames = v.getProperty("MicPositions").toString().toStdString();
 	const size_t numChannels = std::count(channelNames.begin(), channelNames.end(), ';');
 
-	const String sampleMapName = v.getProperty("ID").toString().replace("/", "_");
+	const String sampleMapName = MonolithFileReference::getIdFromValueTree(v).replace("/", "_");
 
 	if (isMonolith)
 	{
