@@ -990,6 +990,15 @@ private:
 	HoverPopupLookandFeel fallback;
 
 	bool skipGestureActive = false;
+
+	// Clicking between the two edges of a Range (TwoValueHorizontal) slider (outside
+	// the edgeGrabMargin around each edge) moves both thumbs together instead of
+	// dragging the nearest one, keeping their distance constant.
+	static constexpr int edgeGrabMargin = 6;
+	bool isDraggingWholeRange = false;
+	double rangeDragStartMin = 0.0;
+	double rangeDragStartMax = 0.0;
+	Point<int> rangeDragStartPosition;
 };
 
 
