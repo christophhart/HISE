@@ -1009,6 +1009,7 @@ var PresetBrowserPanel::toDynamicObject() const
 	storePropertyInObject(obj, SpecialPanelIds::FullPathFavorites, options.fullPathFavorites);
 	storePropertyInObject(obj, SpecialPanelIds::ButtonsInsideBorder, options.buttonsInsideBorder);
 	storePropertyInObject(obj, SpecialPanelIds::NumColumns, options.numColumns);
+	storePropertyInObject(obj, SpecialPanelIds::ShowFolderRows, options.showFolderRows);
 	storePropertyInObject(obj, SpecialPanelIds::ColumnWidthRatio, var(options.columnWidthRatios));
 	storePropertyInObject(obj, SpecialPanelIds::ListAreaOffset, var(options.listAreaOffset));
 	storePropertyInObject(obj, SpecialPanelIds::ColumnRowPadding, var(options.columnRowPadding));
@@ -1038,6 +1039,7 @@ void PresetBrowserPanel::fromDynamicObject(const var& object)
 	options.editButtonOffset = getPropertyWithDefault(object, SpecialPanelIds::EditButtonOffset);
 	options.showExpansions = getPropertyWithDefault(object, SpecialPanelIds::ShowExpansionsAsColumn);
 	options.numColumns = getPropertyWithDefault(object, SpecialPanelIds::NumColumns);
+	options.showFolderRows = getPropertyWithDefault(object, SpecialPanelIds::ShowFolderRows);
 
 	auto ratios = getPropertyWithDefault(object, SpecialPanelIds::ColumnWidthRatio);
 	if (ratios.isArray())
@@ -1132,6 +1134,7 @@ juce::Identifier PresetBrowserPanel::getDefaultablePropertyId(int index) const
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::SaveButtonBounds, "SaveButtonBounds");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::MoreButtonBounds, "MoreButtonBounds");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::NumColumns, "NumColumns");
+	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFolderRows, "ShowFolderRows");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ColumnWidthRatio, "ColumnWidthRatio");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowExpansionsAsColumn, "ShowExpansionsAsColumn");
 	RETURN_DEFAULT_PROPERTY_ID(index, SpecialPanelIds::ShowFavoriteIcon, "ShowFavoriteIcon");
@@ -1163,6 +1166,7 @@ var PresetBrowserPanel::getDefaultProperty(int index) const
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ButtonsInsideBorder, false);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::EditButtonOffset, 10);
 	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::NumColumns, 3);
+	RETURN_DEFAULT_PROPERTY(index, SpecialPanelIds::ShowFolderRows, false);
 
 	Array<var> defaultRatios;
 	defaultRatios.insertMultiple(0, 1.0 / 3.0, 3);

@@ -310,14 +310,31 @@ public:
 			showFavoritesOnly = shouldShowFavoritesOnly;
 		}
 
+		/** Enables display-only folder rows between the presets of different subfolders (single column layout only). */
+		void setShowFolderRows(bool shouldShowFolderRows)
+		{
+			showFolderRows = shouldShowFolderRows;
+		}
+
+		/** Returns true if the given listbox row is a display-only folder row. */
+		bool isFolderRow(int rowIndex) const
+		{
+			return !folderRowMap.isEmpty() && getEntryIndexForRow(rowIndex) == -1;
+		}
+
+		bool isShowingFolderRows() const
+		{
+			return showFolderRows;
+		}
+
 		File getFileForIndex(int fileIndex) const
 		{
-			return entries[fileIndex];
+			return entries[getEntryIndexForRow(fileIndex)];
 		};
 
 		int getIndexForFile(const File& f) const
 		{
-			return entries.indexOf(f);
+			return getRowForEntryIndex(entries.indexOf(f));
 		}
 		
 		String wildcard;
@@ -337,9 +354,27 @@ public:
 
 	protected:
 
+		/** A row in the listbox: either a regular entry or a display-only folder row. */
+		struct RowEntry
+		{
+			int entryIndex = -1;
+			String folderName;
+		};
+
+		/** Rebuilds the row map after entries have been scanned and sorted. Empty when folder rows are inactive. */
+		void rebuildFolderRows();
+
+		/** Maps a listbox row to an index into entries. Returns -1 for folder rows. Identity when folder rows are inactive. */
+		int getEntryIndexForRow(int rowIndex) const;
+
+		/** Maps an index into entries to its listbox row. Identity when folder rows are inactive. */
+		int getRowForEntryIndex(int entryIndex) const;
+
 		bool empty = false;
 		bool showFavoritesOnly = false;
-		
+		bool showFolderRows = false;
+		Array<RowEntry> folderRowMap;
+
 		Listener* listener;
 		bool editMode = false;
 		bool displayDirectories = true;
@@ -404,6 +439,12 @@ public:
 	void setAllowRecursiveFileSearch(bool shouldAllow)
 	{
 		listModel->allowRecursiveSearch = shouldAllow;
+		listbox->updateContent();
+	}
+
+	void setShowFolderRows(bool shouldShowFolderRows)
+	{
+		listModel->setShowFolderRows(shouldShowFolderRows);
 		listbox->updateContent();
 	}
 
