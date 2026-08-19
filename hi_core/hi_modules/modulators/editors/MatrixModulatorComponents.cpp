@@ -625,6 +625,19 @@ void MatrixContent::Row::comboBoxChanged(ComboBox* cb)
 	auto id = Identifier(cb->getName());
 	auto idx = cb->getSelectedItemIndex();
 	data.setProperty(id, comboBoxIndexToValue(id, idx), um);
+
+	// Re-assert the selected exclusive source so target sliders refresh their modulation
+	// dragger when a connection's source or target changes in the matrix.
+	if(id == MatrixIds::SourceIndex || id == MatrixIds::TargetId)
+	{
+		if(auto gc = ProcessorHelpers::getFirstProcessorWithType<GlobalModulatorContainer>(getMainController()->getMainSynthChain()))
+		{
+			auto selectedIndex = gc->getExclusiveMatrixSource();
+
+			if(selectedIndex != -1)
+				gc->setExlusiveMatrixSource(selectedIndex, sendNotificationSync);
+		}
+	}
 }
 
 void MatrixContent::Row::sliderValueChanged(Slider* slider)
