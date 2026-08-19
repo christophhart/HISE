@@ -467,10 +467,11 @@ public:
 
 
 	bool customPopup = false;
-    
+
 	NormalisableRange<double> getRange() const override;;
-	
+
 	Font font;
+	String fontName;
 };
 
 class MomentaryToggleButton: public ToggleButton
