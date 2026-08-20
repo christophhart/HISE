@@ -54,11 +54,11 @@ struct signal_smith_stretcher: public timestretch_engine_base
         stretcher.reset();
     }
 
-    void setFFTSize(int blockSamples_=4096, int intervalSamples_=512)
+    /** Takes effect on the next configure() call. */
+    void setFFTSize(int blockSamples_, int intervalSamples_) override
     {
 	    blockSamples = blockSamples_;
         intervalSamples = intervalSamples_;
-        configure(numChannels, 44100.0);
     }
 
     void configure(int numChannels_, double sourceSampleRate) override
@@ -254,6 +254,8 @@ void time_stretcher::setEnabled(bool shouldBeEnabled, const Identifier& engineTo
             
             if(engine != nullptr)
             {
+                engine->setFFTSize(blockSamples, intervalSamples);
+
                 if (numChannels != 0 && sourceSampleRate != 0.0)
                 {
                     engine->configure(numChannels, sourceSampleRate);
@@ -374,7 +376,10 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
     engine->reset();
     
     auto numBeforeOutput = roundToInt(getLatency(ratio));
-    
+
+    // A small window can finish the pre-roll before a fixed threshold and stay muted.
+    const double warmupThreshold = jmin((double)numBeforeOutput, 1536.0);
+
     float* thisInputs[2];
     float* outputs[2];
     
@@ -397,7 +402,7 @@ double time_stretcher::skipLatency(float** inputs, double ratio)
         
         currentPos += numInputs;
 
-        if (currentPos >= 1536)
+        if (currentPos >= warmupThreshold)
             engine->setEnableOutput(true);
 
         thisInputs[0] = inputs[0] + static_cast<int>(currentPos);
@@ -476,9 +481,25 @@ void time_stretcher::setTransposeSemitones(double semiTones, double tonality)
     engine->setTransposeSemitones(semiTones, tonality);
 }
 
-void time_stretcher::setFFTSize(int blockSamples, int intervalSamples)
+void time_stretcher::setFFTSize(int blockSamples_, int intervalSamples_)
 {
-	engine->setFFTSize(blockSamples, intervalSamples);
+    if (blockSamples == blockSamples_ && intervalSamples == intervalSamples_)
+        return;
+
+    ScopedLock sl(stretchLock);
+
+    blockSamples = blockSamples_;
+    intervalSamples = intervalSamples_;
+
+    if (engine != nullptr)
+    {
+        engine->setFFTSize(blockSamples, intervalSamples);
+
+        if (numChannels != 0 && sourceSampleRate != 0.0)
+            engine->configure(numChannels, sourceSampleRate);
+
+        engine->reset();
+    }
 }
 
 
