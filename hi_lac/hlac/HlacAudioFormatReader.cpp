@@ -581,12 +581,14 @@ void HlacSubSectionReader::readIntoFixedBuffer(HiseSampleBuffer& buffer, int sta
 	}
 	else
 	{
-		internalReader->fixedBufferRead(buffer, numChannels, startSample, start + readerStartSample, numSamples);
-
+		// Must be set before the read, otherwise the normalisation flush picks up
+		// stale values from the unwritten right map.
 		if (buffer.getNumChannels() == 1 || numChannels == 1)
 		{
 			buffer.setUseOneMap(true);
 		}
+
+		internalReader->fixedBufferRead(buffer, numChannels, startSample, start + readerStartSample, numSamples);
 	}
 }
 

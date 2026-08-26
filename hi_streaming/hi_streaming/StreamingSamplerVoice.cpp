@@ -1057,6 +1057,9 @@ void StreamingSamplerVoice::renderNextBlock(AudioSampleBuffer &outputBuffer, int
 
 			if(data.b != tempVoiceBuffer)
 			{
+				// copy() doesn't carry this over and the temp buffer is shared
+				tempVoiceBuffer->setUseOneMap(data.b->useOneMap);
+
 				hlac::HiseSampleBuffer::copy(*tempVoiceBuffer, *data.b, 0, data.offsetInBuffer, numToFadeIn);
 				data.b = tempVoiceBuffer;
 				data.offsetInBuffer = 0;
