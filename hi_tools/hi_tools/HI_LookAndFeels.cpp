@@ -1768,7 +1768,7 @@ void TableHeaderLookAndFeel::drawTableHeaderBackground(Graphics& graphics, Table
 }
 
 void TableHeaderLookAndFeel::drawTableHeaderColumn(Graphics& g, TableHeaderComponent& tableHeaderComponent,
-	const String& columnName, int i, int width, int height, bool cond, bool cond1, int i1)
+	const String& columnName, int columnId, int width, int height, bool cond, bool cond1, int i1)
 {
 	if (width > 0)
 	{
@@ -1779,7 +1779,10 @@ void TableHeaderLookAndFeel::drawTableHeaderColumn(Graphics& g, TableHeaderCompo
 		g.setFont(f);
 		g.setColour(textColour);
 
-		g.drawText(columnName, 3, 0, width - 3, height, Justification::centredLeft, true);
+		if (centredColumnIds.contains(columnId))
+			g.drawText(columnName, 0, 0, width - 1, height, Justification::centred, true);
+		else
+			g.drawText(columnName, 3, 0, width - 3, height, Justification::centredLeft, true);
 	}
 }
 
