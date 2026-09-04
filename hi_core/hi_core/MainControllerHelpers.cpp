@@ -995,10 +995,29 @@ bool MidiControllerAutomationHandler::handleControllerMessage(const HiseEvent& e
 			}
 			else
 			{
-				if (a.lastValue != snappedValue)
-				{
-					auto& uph = a.processor->getMainController()->getUserPresetHandler();
+				// The control can also be changed directly by the UI (or host
+				// automation). In that case the cached CC value alone is not enough
+				// to decide whether this event can be skipped: an identical CC value
+				// must restore the value it represents.
+				bool targetValueChanged = a.lastValue != snappedValue;
 
+				auto& uph = a.processor->getMainController()->getUserPresetHandler();
+
+				if (!targetValueChanged)
+				{
+					if (uph.isUsingCustomDataModel())
+					{
+						if (auto ad = uph.getCustomAutomationData(a.attribute))
+							targetValueChanged = ad->lastValue != snappedValue;
+					}
+					else
+					{
+						targetValueChanged = a.processor->getAttribute(a.attribute) != snappedValue;
+					}
+				}
+
+				if (targetValueChanged)
+				{
 					if (uph.isUsingCustomDataModel())
 					{
 						if (auto ad = uph.getCustomAutomationData(a.attribute))
