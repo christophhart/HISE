@@ -1092,6 +1092,9 @@ var RestHelpers::buildOpenApiComponents()
 			.withType(ParamType::Float).asOptional())
 		.withProperty(RouteParameter(RestApiIds::defaultValue, "Default value, verbose mode only")
 			.withType(ParamType::Float).asOptional())
+		.withProperty(RouteParameter(RestApiIds::externalModulation,
+			"External modulation mode for root parameters, verbose mode only")
+			.withEnumValues({ "Disabled", "Combined", "Gain", "Offset", "Pan", "Pitch" }).asOptional())
 		.withProperty(RouteParameter(RestApiIds::middlePosition, "Middle position after skew mapping, verbose mode only")
 			.withType(ParamType::Float).asOptional());
 
@@ -2835,73 +2838,102 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 {
 	auto obj = req->getRequest().getJsonBody();
 	
+	auto codeStr = obj.getProperty(RestApiIds::code, "").toString();
 	auto filePathStr = obj.getProperty(RestApiIds::filePath, "").toString();
 	auto moduleIdStr = obj.getProperty(RestApiIds::moduleId, "").toString();
 	
-	// Resolve the target file
-	File targetFile;
-	
-	if (filePathStr.isNotEmpty())
-	{
-		if (File::isAbsolutePath(filePathStr))
-			targetFile = File(filePathStr);
-		else
-			targetFile = mc->getSampleManager().getProjectHandler()
-				.getSubDirectory(FileHandlerBase::Scripts)
-				.getChildFile(filePathStr);
-	}
-	
-	// Resolve the processor
+	// The source to parse, the file name handed to the parser (used for the
+	// preprocessor id + diagnostic locations), and the path reported in the
+	// response. Code mode parses a raw string directly (never touches disk and
+	// never executes); file mode reads a real file from disk.
+	String code;
+	String fileName;
+	String responsePath;
 	JavascriptProcessor* jp = nullptr;
 	
-	if (moduleIdStr.isNotEmpty())
+	if (codeStr.isNotEmpty())
 	{
-		// moduleId provided - use it to find the processor
-		jp = getScriptProcessor(mc, req);
+		// Standalone code mode: the caller supplies the source directly.
+		if (filePathStr.isNotEmpty())
+			return req->fail(400, "code and filePath are mutually exclusive "
+								  "(code is a standalone raw-string mode; omit filePath)");
 		
-		if (jp == nullptr)
-			return req->fail(404, "moduleId is not a valid script processor");
+		// Validate against the first interface processor's API context. This
+		// processor must already be compiled so its engine is live.
+		jp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc);
 		
-		if (filePathStr.isEmpty())
-		{
-			// moduleId only, no filePath - need to pick a file
-			// Use the first external file if available
-			if (jp->getNumWatchedFiles() > 0)
-			{
-				targetFile = jp->getWatchedFile(0);
-			}
-			else
-			{
-				return req->fail(400, "filePath is required (this processor has no external files)");
-			}
-		}
-		else if (!targetFile.existsAsFile())
-		{
-			return req->fail(404, "File not found: " + targetFile.getFullPathName());
-		}
-	}
-	else if (filePathStr.isNotEmpty())
-	{
-		// filePath only - resolve the owning processor
-		if (!targetFile.existsAsFile())
-			return req->fail(404, "File not found: " + targetFile.getFullPathName());
+		if (jp == nullptr || jp->getScriptEngine() == nullptr)
+			return req->fail(404, "No compiled interface processor available to host the shadow parse. "
+								  "Compile the interface first (F5).");
 		
-		jp = findProcessorForFile(mc, targetFile);
-		
-		if (jp == nullptr)
-			return req->fail(404, "No script processor includes this file. "
-								  "Has it been compiled at least once (F5)?");
+		code = codeStr;
+		fileName = "";
+		responsePath = "";
 	}
 	else
 	{
-		return req->fail(400, "Either moduleId or filePath must be provided");
+		// File mode (existing behavior): resolve a real file from disk.
+		File targetFile;
+		
+		if (filePathStr.isNotEmpty())
+		{
+			if (File::isAbsolutePath(filePathStr))
+				targetFile = File(filePathStr);
+			else
+				targetFile = mc->getSampleManager().getProjectHandler()
+					.getSubDirectory(FileHandlerBase::Scripts)
+					.getChildFile(filePathStr);
+		}
+		
+		if (moduleIdStr.isNotEmpty())
+		{
+			// moduleId provided - use it to find the processor
+			jp = getScriptProcessor(mc, req);
+			
+			if (jp == nullptr)
+				return req->fail(404, "moduleId is not a valid script processor");
+			
+			if (filePathStr.isEmpty())
+			{
+				// moduleId only, no filePath - pick the first external file if any
+				if (jp->getNumWatchedFiles() > 0)
+				{
+					targetFile = jp->getWatchedFile(0);
+				}
+				else
+				{
+					return req->fail(400, "filePath is required (this processor has no external files)");
+				}
+			}
+			else if (!targetFile.existsAsFile())
+			{
+				return req->fail(404, "File not found: " + targetFile.getFullPathName());
+			}
+		}
+		else if (filePathStr.isNotEmpty())
+		{
+			// filePath only - resolve the owning processor
+			if (!targetFile.existsAsFile())
+				return req->fail(404, "File not found: " + targetFile.getFullPathName());
+			
+			jp = findProcessorForFile(mc, targetFile);
+			
+			if (jp == nullptr)
+				return req->fail(404, "No script processor includes this file. "
+									  "Has it been compiled at least once (F5)?");
+		}
+		else
+		{
+			return req->fail(400, "Either code, moduleId, or filePath must be provided");
+		}
+		
+		// Read file from disk
+		code = targetFile.loadFileAsString();
+		fileName = targetFile.getFullPathName();
+		responsePath = fileName.replace("\\", "/");
 	}
 	
-	// Read file from disk and run shadow parse
-	auto code = targetFile.loadFileAsString();
-	auto fileName = targetFile.getFullPathName();
 	auto resolvedModuleId = dynamic_cast<Processor*>(jp)->getId();
-	auto normalizedFilePath = fileName.replace("\\", "/");
 	
 	auto useAsync = getTrueValue(obj.getProperty(RestApiIds::async, false));
 	
@@ -2933,12 +2965,12 @@ RestServer::Response RestHelpers::handleDiagnoseScript(MainController* mc, RestS
 		return diagArray;
 	};
 	
-	auto buildResponse = [resolvedModuleId, normalizedFilePath](const Array<var>& diagArray)
+	auto buildResponse = [resolvedModuleId, responsePath](const Array<var>& diagArray)
 	{
 		DynamicObject::Ptr result = new DynamicObject();
 		result->setProperty(RestApiIds::success, true);
 		result->setProperty(RestApiIds::moduleId, resolvedModuleId);
-		result->setProperty(RestApiIds::filePath, normalizedFilePath);
+		result->setProperty(RestApiIds::filePath, responsePath);
 		result->setProperty(RestApiIds::diagnostics, var(diagArray));
 		result->setProperty(RestApiIds::logs, Array<var>());
 		result->setProperty(RestApiIds::errors, Array<var>());
@@ -4938,7 +4970,17 @@ var RestHelpers::buildModuleTree(const ProcessorOrValueTree& root, const TreeOpt
 			{
 				auto value = root.getAttribute(p.parameterIndex);
 				auto normValue = p.range.convertTo0to1(value, false);
-				String valueAsString = p.vtc.active ? p.vtc(value) : String(value);
+				String valueAsString;
+
+				if (!p.vtc.itemList.isEmpty())
+				{
+					const auto itemIndex = roundToInt(value - p.range.rng.start);
+					valueAsString = isPositiveAndBelow(itemIndex, p.vtc.itemList.size())
+						? p.vtc.itemList[itemIndex]
+						: String(value);
+				}
+				else
+					valueAsString = p.vtc.active ? p.vtc(value) : String(value);
 
 				po->setProperty("value", value);
 				po->setProperty("valueNormalized", normValue);
@@ -5854,6 +5896,8 @@ static var buildDspNodeTree(const ValueTree& nodeTree, bool verbose, bool includ
 			paramObj->setProperty(RestApiIds::max, p.getProperty(PropertyIds::MaxValue, 1.0));
 			paramObj->setProperty(RestApiIds::stepSize, p.getProperty(PropertyIds::StepSize, 0.0));
 			paramObj->setProperty(RestApiIds::defaultValue, p.getProperty(PropertyIds::DefaultValue, 0.0));
+			paramObj->setProperty(RestApiIds::externalModulation,
+				p.getProperty(PropertyIds::ExternalModulation, "Disabled"));
 
 			auto skew = (double)p.getProperty(PropertyIds::SkewFactor, 1.0);
 			if (skew != 1.0)

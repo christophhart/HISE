@@ -118,6 +118,9 @@ public:
         testDiagnoseScriptSuccess();
         testDiagnoseScriptWithDiagnostics();
         testDiagnoseScriptFilePath();
+        testDiagnoseScriptCodeClean();
+        testDiagnoseScriptCodeWithDiagnostics();
+        testDiagnoseScriptCodeFilePathConflict();
         testTestingProfileRecord();
         testTestingProfileGetAfterRecord();
         testTestingProfileSummary();
@@ -138,6 +141,7 @@ public:
         testBuilderTree();
         testBuilderTreeRouting();
         testBuilderApply();
+        testBuilderSetListAttribute();
         testBuilderApplyMove();
         testBuilderSetRoutingPreset();
         testBuilderSetRoutingMatrix();
@@ -3305,6 +3309,101 @@ private:
         tempFile.deleteFile();
     }
     
+    void testDiagnoseScriptCodeClean()
+    {
+        /** Setup: Compiled interface (provides the API context)
+         *  Scenario: POST /api/diagnose_script with a raw code string (standalone code mode)
+         *  Expected: Success, 0 diagnostics, moduleId=Interface, filePath empty
+         */
+        beginTest("POST /api/diagnose_script (code, clean)");
+        
+        ctx->reset();
+        ctx->compile("Content.makeFrontInterface(600, 400);");
+        
+        DynamicObject::Ptr bodyObj = new DynamicObject();
+        bodyObj->setProperty("code", "// Valid HISEScript\nConsole.print(\"hello\");\n");
+        
+        auto response = ctx->httpPost("/api/diagnose_script",
+                                      JSON::toString(var(bodyObj.get())));
+        var json = ctx->parseJson(response);
+        
+        expect((bool)json["success"], "Should succeed for clean code: " + response);
+        expect(json["moduleId"].toString() == "Interface",
+               "Should use the first interface processor as context");
+        expect(json.hasProperty("filePath"), "Should have filePath in response");
+        expect(json["filePath"].toString().isEmpty(), "filePath should be empty in code mode");
+        
+        auto diagnostics = json["diagnostics"];
+        expect(diagnostics.isArray(), "diagnostics should be array");
+        expectEquals<int>(diagnostics.size(), 0, "Clean code should have 0 diagnostics");
+    }
+    
+    void testDiagnoseScriptCodeWithDiagnostics()
+    {
+        /** Setup: Compiled interface (provides the API context)
+         *  Scenario: POST /api/diagnose_script with code containing a known API hallucination
+         *  Expected: Success (shadow parse reports diagnostics, not failure) with an
+         *            api-validation error and a 'print' suggestion for 'Console.prnt'
+         */
+        beginTest("POST /api/diagnose_script (code, with API error)");
+        
+        ctx->reset();
+        ctx->compile("Content.makeFrontInterface(600, 400);");
+        
+        DynamicObject::Ptr bodyObj = new DynamicObject();
+        bodyObj->setProperty("code", "Console.prnt(\"hello\");\n");
+        
+        auto response = ctx->httpPost("/api/diagnose_script",
+                                      JSON::toString(var(bodyObj.get())));
+        var json = ctx->parseJson(response);
+        
+        expect((bool)json["success"], "Shadow parse should succeed: " + response);
+        
+        auto diagnostics = json["diagnostics"];
+        expect(diagnostics.isArray(), "diagnostics should be array");
+        expect(diagnostics.size() >= 1, "Should have at least 1 diagnostic for 'Console.prnt'");
+        
+        if (diagnostics.size() > 0)
+        {
+            auto d = diagnostics[0];
+            auto severity = d["severity"].toString();
+            expect(severity == "error" || severity == "warning",
+                   "Severity should be error or warning, got: " + severity);
+            
+            if (d.hasProperty("suggestions"))
+            {
+                auto suggestions = d["suggestions"];
+                bool hasPrint = false;
+                for (int i = 0; i < suggestions.size(); i++)
+                    if (suggestions[i].toString() == "print")
+                        hasPrint = true;
+                expect(hasPrint, "Should suggest 'print' for 'prnt'");
+            }
+        }
+    }
+    
+    void testDiagnoseScriptCodeFilePathConflict()
+    {
+        /** Setup: Compiled interface
+         *  Scenario: POST /api/diagnose_script with both code and filePath
+         *  Expected: Failure (400) - the two modes are mutually exclusive
+         */
+        beginTest("POST /api/diagnose_script (code + filePath conflict)");
+        
+        ctx->reset();
+        ctx->compile("Content.makeFrontInterface(600, 400);");
+        
+        DynamicObject::Ptr bodyObj = new DynamicObject();
+        bodyObj->setProperty("code", "Console.print(\"x\");\n");
+        bodyObj->setProperty("filePath", "SomeFile.js");
+        
+        auto response = ctx->httpPost("/api/diagnose_script",
+                                      JSON::toString(var(bodyObj.get())));
+        var json = ctx->parseJson(response);
+        
+        expect(!(bool)json["success"], "Should fail when both code and filePath are set");
+    }
+    
     //==========================================================================
     // Profile endpoint tests
 
@@ -4291,6 +4390,44 @@ private:
         expectNoBuilderError(redoJson);
         expectBuilderProcessorAttribute("MySineRenamed", "SaturationAmount", 0.25f);
 
+    }
+
+    void testBuilderSetListAttribute()
+    {
+        /** Setup: A WaveSynth with a one-based waveform parameter
+         *  Scenario: Set WaveForm1 using its item label through builder/apply
+         *  Expected: The processor value and builder/tree display use the requested item
+         */
+        beginTest("POST /api/builder/apply list attribute");
+
+        resetBuilderState();
+
+        Array<var> addOps;
+        addOps.add(makeAddOp("WaveSynth", "ListWave"));
+        expectNoBuilderError(postBuilderOps(addOps));
+
+        NamedValueSet attrs;
+        attrs.set("WaveForm1", "Saw");
+        Array<var> setOps;
+        setOps.add(makeSetAttributesOp("ListWave", attrs));
+        expectNoBuilderError(postBuilderOps(setOps));
+        expectBuilderProcessorAttribute("ListWave", "WaveForm1", (float)WaveformComponent::WaveformType::Saw);
+
+        auto tree = ctx->parseJson(ctx->httpGet("/api/builder/tree?moduleId=ListWave"));
+        expect((bool)tree[RestApiIds::success], "Builder tree query should succeed");
+
+        auto parameters = tree[RestApiIds::result]["parameters"];
+        bool foundWaveForm = false;
+        for (int i = 0; i < parameters.size(); i++)
+        {
+            if (parameters[i]["id"].toString() == "WaveForm1")
+            {
+                foundWaveForm = true;
+                expectEquals(parameters[i]["valueAsString"].toString(), String("Saw"));
+                break;
+            }
+        }
+        expect(foundWaveForm, "Builder tree should include WaveForm1");
     }
 
     void testBuilderApplyMove()
@@ -6415,7 +6552,8 @@ private:
 
     var makeDspCreateParameterOp(const String& nodeId, const String& parameterId,
                                  double minVal = 0.0, double maxVal = 1.0,
-                                 double defaultVal = 0.0, double stepSize = 0.0)
+                                 double defaultVal = 0.0, double stepSize = 0.0,
+                                 const String& externalModulation = {})
     {
         DynamicObject::Ptr op = new DynamicObject();
         op->setProperty(RestApiIds::op, "create_parameter");
@@ -6425,6 +6563,8 @@ private:
         op->setProperty(RestApiIds::max, maxVal);
         op->setProperty(RestApiIds::defaultValue, defaultVal);
         op->setProperty(RestApiIds::stepSize, stepSize);
+        if (externalModulation.isNotEmpty())
+            op->setProperty(RestApiIds::externalModulation, externalModulation);
         return var(op.get());
     }
 
@@ -7457,6 +7597,27 @@ private:
             }
         }
         expect(found, "Should find MyParam in root parameters");
+
+        // ExternalModulation must be stored on the root parameter ValueTree so
+        // ParameterProperties can register the corresponding extra mod slot.
+        ops.clear();
+        ops.add(makeDspCreateParameterOp("test_network", "ModDepth", 0.0, 1.0, 0.5, 0.0, "Combined"));
+        json = postDspOps(ops);
+        expectDspSuccess(json);
+
+        auto modTree = getDspTree("DspTestFX", true);
+        auto modParams = modTree[RestApiIds::result][RestApiIds::parameters];
+        bool foundModDepth = false;
+        for (int i = 0; i < modParams.size(); i++)
+        {
+            if (modParams[i][RestApiIds::parameterId].toString() == "ModDepth")
+            {
+                foundModDepth = true;
+                expectEquals(modParams[i][RestApiIds::externalModulation].toString(),
+                             "Combined", "ExternalModulation should be stored");
+            }
+        }
+        expect(foundModDepth, "Should find ModDepth in root parameters");
 
         // Error: missing nodeId
         DynamicObject::Ptr badOp = new DynamicObject();

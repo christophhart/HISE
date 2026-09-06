@@ -1169,20 +1169,18 @@ struct set_attributes : public ActionBase
 					if (!p.vtc.itemList.isEmpty())
 					{
 						auto v = jsonParameter.value.toString().toLowerCase();
-
-						int idx = 1;
-
+						int idx = 0;
 						bool valueFound = false;
 
 						for (auto& it : p.vtc.itemList)
 						{
 							if (it.toLowerCase() == v)
 							{
-								value = (double)idx + 1;
+								value = p.range.rng.start + (double)idx;
 								valueFound = true;
 								break;
 							}
-	
+
 							idx++;
 						}
 
@@ -1192,9 +1190,6 @@ struct set_attributes : public ActionBase
 					}
 					else
 						value = (double)jsonParameter.value;
-
-					if (p.type == ProcessorMetadata::ParameterMetadata::Type::List)
-						value += 1.0;
 
 					if (p.range.getRange().contains(value - 0.001))
 					{
@@ -4051,8 +4046,12 @@ struct set : public ActionBase
 			return Error().withError("set requires 'parameterId'");
 
 		const bool rangeWrite = isRangeWrite(op);
+		const bool hasExternalModulation = op.hasProperty(RestApiIds::externalModulation);
 		auto v = op[RestApiIds::value];
 		const bool hasValue = !(v.isVoid() || v.isUndefined());
+
+		if (hasExternalModulation && !op[RestApiIds::externalModulation].isString())
+			return Error().withError("set externalModulation must be a string");
 
 		if (rangeWrite)
 		{
@@ -4065,8 +4064,8 @@ struct set : public ActionBase
 			return {};
 		}
 
-		if (!hasValue)
-			return Error().withError("set requires 'value'");
+		if (!hasValue && !hasExternalModulation)
+			return Error().withError("set requires 'value' or 'externalModulation'");
 		return {};
 	}
 
@@ -4076,6 +4075,8 @@ struct set : public ActionBase
 		nodeId(obj[RestApiIds::nodeId].toString()),
 		parameterId(obj[RestApiIds::parameterId].toString()),
 		newValue(obj[RestApiIds::value]),
+		externalModulation(obj.getProperty(RestApiIds::externalModulation, var())),
+		hasExternalModulation(obj.hasProperty(RestApiIds::externalModulation)),
 		rangeWrite(isRangeWrite(obj))
 	{
 		if (rangeWrite)
@@ -4107,6 +4108,9 @@ struct set : public ActionBase
 	String parameterId;
 	var newValue;
 	var oldValue;
+	var externalModulation;
+	var oldExternalModulation;
+	bool hasExternalModulation = false;
 
 	// Range-write state
 	bool rangeWrite = false;
@@ -4200,6 +4204,9 @@ struct set : public ActionBase
 			if (!p.isValid())
 				return Helpers::getErrorForParameter404(n, parameterId);
 
+			if (hasExternalModulation)
+				p.setProperty(PropertyIds::ExternalModulation, externalModulation, nullptr);
+
 			if (rangeWrite)
 			{
 				return writeParameterRange(p, false);
@@ -4207,6 +4214,9 @@ struct set : public ActionBase
 				// Reject if p is not a parameter value tree (e.g. discrete/enum property).
 				return {};
 			}
+
+			if (!hasExternalModulation && (newValue.isVoid() || newValue.isUndefined()))
+				return {};
 
 			// Mirror perform() onto the plan snapshot. rv here is the snapshot
 			// tree, so p is already inside it. The branch matches perform()'s
@@ -4273,6 +4283,11 @@ struct set : public ActionBase
 		if (!p.isValid())
 			throw Helpers::getErrorForParameter404(n, parameterId);
 
+		oldExternalModulation = p[PropertyIds::ExternalModulation];
+
+		if (hasExternalModulation)
+			p.setProperty(PropertyIds::ExternalModulation, externalModulation, nullptr);
+
 		if (rangeWrite)
 		{
 			auto ok = writeParameterRange(p, false);
@@ -4322,9 +4337,17 @@ struct set : public ActionBase
 			if (!ok)
 				throw ok;
 
-			
+			if (hasExternalModulation)
+				p.setProperty(PropertyIds::ExternalModulation, oldExternalModulation, nullptr);
+
 			return;
 		}
+
+		if (hasExternalModulation)
+			p.setProperty(PropertyIds::ExternalModulation, oldExternalModulation, nullptr);
+
+		if (newValue.isVoid() || newValue.isUndefined())
+			return;
 
 		if (p.getType() == PropertyIds::Network)
 			p.setProperty(parameterId, oldValue, nullptr);
@@ -4442,7 +4465,8 @@ struct create_parameter : public ActionBase
 		moduleId(obj[RestApiIds::moduleId].toString()),
 		nodeId(obj[RestApiIds::nodeId].toString()),
 		parameterId(obj[RestApiIds::parameterId].toString()),
-		defaultValue(obj.getProperty(RestApiIds::defaultValue, 0.0))
+		defaultValue(obj.getProperty(RestApiIds::defaultValue, 0.0)),
+		externalModulation(obj.getProperty(RestApiIds::externalModulation, var()))
 	{
 		auto minValue = (obj.getProperty(RestApiIds::min, 0.0));
 		auto maxValue = (obj.getProperty(RestApiIds::max, 1.0));
@@ -4465,6 +4489,7 @@ struct create_parameter : public ActionBase
 	String nodeId;
 	String parameterId;
 	double defaultValue;
+	var externalModulation;
 
 	int getRebuildLevel(Domain d, bool undo) const override 
 	{ 
@@ -4527,6 +4552,9 @@ struct create_parameter : public ActionBase
 			np.setProperty(PropertyIds::Value, defaultValue, nullptr);
 
 			pTree.addChild(np, -1, nullptr);
+
+			if (!externalModulation.isVoid() && !externalModulation.isUndefined())
+				np.setProperty(PropertyIds::ExternalModulation, externalModulation, nullptr);
 		}
 
 		return {};
@@ -4562,6 +4590,9 @@ struct create_parameter : public ActionBase
 		np.setProperty(PropertyIds::Value, defaultValue, nullptr);
 
 		pTree.addChild(np, -1, nullptr);
+
+		if (!externalModulation.isVoid() && !externalModulation.isUndefined())
+			np.setProperty(PropertyIds::ExternalModulation, externalModulation, nullptr);
 	}
 
 	void undo() override

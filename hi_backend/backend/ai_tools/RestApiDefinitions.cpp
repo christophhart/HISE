@@ -631,17 +631,27 @@ struct RestApiEndpoints
 		m.add(RouteMetadata(ApiRoute::DiagnoseScript, "api/diagnose_script")
 			.withMethod(RestServer::Method::Post)
 			.withCategory("scripting")
-			.withSummary("Run diagnostic-only shadow parse on a script file")
+			.withSummary("Run a diagnostic-only shadow parse on a script file or raw code string")
 			.withDescription("Returns structured diagnostics (API hallucinations, type mismatches, "
 				"language rule violations, audio-thread safety warnings) without modifying runtime "
-				"state - no recompilation, no execution. Requires at least one prior successful "
-				"compile. Always reads the file from disk - save pending edits before calling.")
+				"state - no recompilation, no execution. Two modes: (file) pass moduleId and/or "
+				"filePath to read a real file from disk and parse it against its owning processor - "
+				"requires a prior compile, save pending edits first; (code) pass a raw code string to "
+				"parse it directly against the first interface processor's API context, ideal for "
+				"unsaved or in-progress code. code is mutually exclusive with filePath.")
 			.withReturns("Array of diagnostics with line, column, severity, source, message, and suggestions")
 			.withBodyParam(RouteParameter(RestApiIds::moduleId,
-				"The script processor's module ID. Required if filePath is not provided.").asOptional())
+				"The script processor's module ID (file mode). Required if filePath is not provided. "
+				"Ignored when code is used.").asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::filePath,
-				"Path to the external .js file (absolute or relative to Scripts folder). "
-				"Required if moduleId is not provided. When used alone, HISE resolves the owning processor.").asOptional())
+				"Path to the external .js file (file mode, absolute or relative to Scripts folder). "
+				"Required if moduleId is not provided. When used alone, HISE resolves the owning "
+				"processor. Mutually exclusive with code.").asOptional())
+			.withBodyParam(RouteParameter(RestApiIds::code,
+				"Raw HISEScript source to parse directly (standalone code mode). When present, the "
+				"code is shadow-parsed against the first interface processor's API context without "
+				"reading any file from disk or executing. Use it to validate unsaved or in-progress "
+				"code. Mutually exclusive with filePath (400 if both are set).").asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::async,
 				"If true, defer the shadow parse to the scripting thread (slower, blocks audio). "
 				"Default is false: runs directly on the HTTP thread with a read lock.")
@@ -1476,13 +1486,15 @@ struct RestApiEndpoints
 				"AllowCompilation (bool), AllowPolyphonic (bool), CompileChannelAmount (int), "
 				"HasTail (bool), SuspendOnSilence (bool), ModulationBlockSize (power-of-2 int or 0). "
 				"Range-write variant: any subset of min/max/skewFactor/middlePosition/stepSize "
-				"may be sent without `value` to override individual range fields; omitted fields "
-				"keep their current value. skewFactor and middlePosition are mutually exclusive "
+				"may be sent without `value` to override individual range fields; omitted fields keep "
+				"their current value. External modulation variant: send externalModulation without "
+				"`value` to set the root parameter's modulation mode. The externalModulation field "
+				"may also be combined with range fields. skewFactor and middlePosition are mutually exclusive "
 				"(sending one clears the other). Mutually exclusive with value.",
 				{ RestApiIds::nodeId.toString(), RestApiIds::parameterId.toString() })
 			.withVariantRequired("bypass", "Set bypass state (nodeId, bypassed)",
 				{ RestApiIds::nodeId.toString(), RestApiIds::bypassed.toString() })
-			.withVariantRequired("create_parameter", "Create a dynamic parameter on a container (nodeId, parameterId, min?, max?, defaultValue?, stepSize?, middlePosition?, skewFactor?)",
+			.withVariantRequired("create_parameter", "Create a dynamic parameter on a container (nodeId, parameterId, min?, max?, defaultValue?, stepSize?, middlePosition?, skewFactor?, externalModulation?)",
 				{ RestApiIds::nodeId.toString(), RestApiIds::parameterId.toString() })
 			.withVariant("clear", "Clear all nodes from the network")
 			.withVariantRequired("set_complex_data", "Assign an external data object to a node slot (nodeId, dataType, slotIndex?, dataIndex)",
@@ -1519,6 +1531,9 @@ struct RestApiEndpoints
 				.withType(ParamType::Float).asOptional())
 			.withProperty(RouteParameter(RestApiIds::defaultValue, "Default value for create_parameter")
 				.withType(ParamType::Float).asOptional())
+			.withProperty(RouteParameter(RestApiIds::externalModulation,
+				"External modulation mode for a root dynamic parameter, for example Combined")
+				.withEnumValues({ "Disabled", "Combined", "Gain", "Offset", "Pan", "Pitch" }).asOptional())
 			.withProperty(RouteParameter(RestApiIds::stepSize, "Step size for create_parameter (0 = continuous)")
 				.withType(ParamType::Float).asOptional())
 			.withProperty(RouteParameter(RestApiIds::middlePosition,

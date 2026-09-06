@@ -1088,16 +1088,23 @@ curl -X POST http://localhost:1900/api/testing/e2e \
 
 ### POST /api/diagnose_script
 
-Run a diagnostic-only shadow parse on an external `.js` script file. Returns structured diagnostics (API hallucinations, type mismatches, language rule violations, audio-thread safety warnings) **without modifying runtime state** — no recompilation, no execution.
+Run a diagnostic-only shadow parse. Returns structured diagnostics (API hallucinations, type mismatches, language rule violations, audio-thread safety warnings) **without modifying runtime state** - no recompilation, no execution.
+
+There are two modes:
+
+- **File mode** (default): pass `moduleId` and/or `filePath` to read a real `.js` file from disk and parse it against its owning processor.
+- **Code mode** (standalone): pass a `code` string to parse it directly against the first interface processor's API context. Never reads disk, never executes. Use it to validate unsaved or in-progress code. `code` is mutually exclusive with `filePath`.
 
 Requires at least one prior successful compile (F5 or `/api/set_script` with `compile: true`) so that API objects are resolved.
 
-**Parameters** (JSON body — at least one required):
+**Parameters** (JSON body):
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `moduleId` | string | conditional | The script processor's module ID. If `filePath` is omitted, uses the processor's first external file. |
-| `filePath` | string | conditional | Path to the `.js` file (absolute, or relative to Scripts folder). If `moduleId` is omitted, HISE resolves the owning processor automatically. |
+| `code` | string | optional | Raw HISEScript source to parse directly (code mode). When present, it is shadow-parsed against the first interface processor's API context without reading any file from disk or executing. Mutually exclusive with `filePath` (400 if both are set). |
+| `moduleId` | string | conditional | The script processor's module ID (file mode). If `filePath` is omitted, uses the processor's first external file. Ignored in code mode. |
+| `filePath` | string | conditional | Path to the `.js` file (file mode, absolute, or relative to Scripts folder). If `moduleId` is omitted, HISE resolves the owning processor automatically. Mutually exclusive with `code`. |
+| `async` | bool | optional | If `true`, defer the shadow parse to the scripting thread (slower, blocks audio). Default `false`: runs directly on the HTTP thread with a read lock. |
 
 **Request**:
 ```json
@@ -1147,6 +1154,34 @@ Requires at least one prior successful compile (F5 or `/api/set_script` with `co
       "severity": "warning",
       "source": "callscope",
       "message": "[CallScope] cable.sendData (unsafe) in audio-thread context"
+    }
+  ],
+  "logs": [],
+  "errors": []
+}
+```
+
+**Code mode - Request** (raw string, no file):
+```json
+{
+  "code": "Console.prnt(\"hello\");"
+}
+```
+
+**Code mode - Response** (`filePath` is empty; `moduleId` is the interface processor used as the API context):
+```json
+{
+  "success": true,
+  "moduleId": "Interface",
+  "filePath": "",
+  "diagnostics": [
+    {
+      "line": 1,
+      "column": 1,
+      "severity": "error",
+      "source": "api-validation",
+      "message": "Function / constant not found: Console.prnt (did you mean: print?)",
+      "suggestions": ["print"]
     }
   ],
   "logs": [],

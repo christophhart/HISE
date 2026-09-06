@@ -938,8 +938,12 @@ struct RestHelpers
                                                   RestServer::AsyncRequest::Ptr req);
     
     /** Handler for POST /api/diagnose_script - Run diagnostic shadow parse.
-     *  Accepts moduleId and/or filePath. Reads file from disk, runs shadow parse,
-     *  returns structured diagnostics without modifying runtime state.
+     *  Two modes:
+     *    - code (standalone): a raw script string is shadow-parsed directly against the
+     *      first interface processor's API context. Never reads disk, never executes.
+     *    - file (default): accepts moduleId and/or filePath, reads the file from disk,
+     *      and shadow-parses it against the owning processor.
+     *  Both return structured diagnostics without modifying runtime state.
      */
     static RestServer::Response handleDiagnoseScript(MainController* mc, 
                                                      RestServer::AsyncRequest::Ptr req);

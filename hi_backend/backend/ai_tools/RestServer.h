@@ -40,7 +40,7 @@
     runtime field. Consumers read it off any response (or `/api/status`) to
     verify they are talking to a HISE build that matches their expected schema.
 */
-#define HISE_REST_API_VERSION "0.9.2"
+#define HISE_REST_API_VERSION "0.10.0"
 
 namespace hise { using namespace juce;
 
@@ -88,6 +88,7 @@ namespace RestApiIds
     DECLARE_ID(name);
     DECLARE_ID(required);
     DECLARE_ID(defaultValue);
+    DECLARE_ID(externalModulation);
     DECLARE_ID(inverted);
 
     // status response
@@ -249,7 +250,7 @@ namespace RestApiIds
     DECLARE_ID(total);                // Sum of durations (ms)
 
     // parse_css
-    DECLARE_ID(code);                 // CSS code string to parse
+    DECLARE_ID(code);                 // Raw source string to parse (parse_css, diagnose_script)
     DECLARE_ID(selectors);            // Array of selector strings for specificity resolution
     DECLARE_ID(resolved);             // Resolved pixel value for a property
 
