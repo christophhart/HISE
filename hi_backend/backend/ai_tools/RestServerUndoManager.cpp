@@ -124,6 +124,7 @@ void RestServerUndoManager::Factory::registerAllFunctions()
 
 	registerCreatorFunctionT<rest_undo::dsp::add>(Domain::DSP);
 	registerCreatorFunctionT<rest_undo::dsp::remove>(Domain::DSP);
+	registerCreatorFunctionT<rest_undo::dsp::set_id>(Domain::DSP);
 	registerCreatorFunctionT<rest_undo::dsp::move>(Domain::DSP);
 	registerCreatorFunctionT<rest_undo::dsp::connect>(Domain::DSP);
 	registerCreatorFunctionT<rest_undo::dsp::disconnect>(Domain::DSP);
@@ -784,6 +785,37 @@ void RestServerUndoManager::DspValidationState::moveNode(const String& nodeId, c
 		if (nodesChild.isValid())
 			nodesChild.addChild(v, index, nullptr);
 	}
+}
+
+bool RestServerUndoManager::DspValidationState::setId(const String& oldId, const String& newId)
+{
+	using namespace scriptnode;
+
+	auto node = findNode(oldId);
+	if (!node.isValid() || findNode(newId).isValid())
+		return false;
+
+	valuetree::Helpers::forEach(networkTree, [&](ValueTree& v)
+	{
+		if (v.hasType(PropertyIds::Connection) ||
+			v.hasType(PropertyIds::ModulationTarget) ||
+			v.hasType(PropertyIds::SwitchTarget))
+		{
+			if (v[PropertyIds::NodeId].toString() == oldId)
+				v.setProperty(PropertyIds::NodeId, newId, nullptr);
+		}
+		else if (v.hasType(PropertyIds::Property) &&
+			v[PropertyIds::ID].toString() == PropertyIds::Connection.toString() &&
+			v[PropertyIds::Value].toString() == oldId)
+		{
+			v.setProperty(PropertyIds::Value, newId, nullptr);
+		}
+
+		return false;
+	});
+
+	node.setProperty(PropertyIds::ID, newId, nullptr);
+	return true;
 }
 
 void RestServerUndoManager::DspValidationState::setNodeProperty(const String& nodeId, const Identifier& prop, const var& value)

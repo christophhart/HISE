@@ -318,6 +318,7 @@ struct RestServerUndoManager
 		             const String& nodeId, int index);
 		void removeNode(const String& nodeId);
 		void moveNode(const String& nodeId, const String& newParent, int index);
+		bool setId(const String& oldId, const String& newId);
 		void setNodeProperty(const String& nodeId, const Identifier& prop, const var& value);
 		void setParameterValue(const String& nodeId, const String& parameterId, const var& value);
 

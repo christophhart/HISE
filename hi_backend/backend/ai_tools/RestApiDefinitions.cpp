@@ -1474,6 +1474,8 @@ struct RestApiEndpoints
 				{ RestApiIds::nodeId.toString() })
 			.withVariantRequired("move", "Move a node to a different container (nodeId, parent, index?)",
 				{ RestApiIds::nodeId.toString(), RestApiIds::parent.toString() })
+			.withVariantRequired("set_id", "Rename a node (target, name)",
+				{ RestApiIds::target.toString(), RestApiIds::name.toString() })
 			.withVariantRequired("connect", "Connect a modulation source to a parameter (source, target, parameter, sourceOutput?, matchRange?). "
 				"sourceOutput is a parameter name (string) or output slot index (int) for multi-output mod nodes. "
 				"If matchRange is true, copies target parameter's range (min/max/skew/step) onto source after wiring "
@@ -1501,12 +1503,14 @@ struct RestApiEndpoints
 				{ RestApiIds::nodeId.toString(), RestApiIds::dataType.toString(), RestApiIds::dataIndex.toString() })
 			// All possible properties (union of all variants)
 			.withProperty(RouteParameter(RestApiIds::op, "Operation type")
-				.withEnumValues({ "add", "remove", "move", "connect", "disconnect", "set", "bypass", "create_parameter", "clear", "set_complex_data" }))
+				.withEnumValues({ "add", "remove", "move", "set_id", "connect", "disconnect", "set", "bypass", "create_parameter", "clear", "set_complex_data" }))
 			.withProperty(RouteParameter(RestApiIds::factoryPath, "Factory path for add op (e.g. core.oscillator, filters.svf)")
 				.asOptional())
 			.withProperty(RouteParameter(RestApiIds::parent, "Parent container node ID for add/move ops")
 				.asOptional())
 			.withProperty(RouteParameter(RestApiIds::nodeId, "Node instance ID")
+				.asOptional())
+			.withProperty(RouteParameter(RestApiIds::name, "New node ID for set_id op")
 				.asOptional())
 			.withProperty(RouteParameter(RestApiIds::parameterId, "Parameter name for set/create_parameter ops")
 				.asOptional())

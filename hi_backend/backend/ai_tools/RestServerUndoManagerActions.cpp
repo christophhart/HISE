@@ -3351,6 +3351,104 @@ struct remove : public ActionBase
 	}
 };
 
+struct set_id : public ActionBase
+{
+	BUILDER_ID(set_id);
+
+	static Error prevalidate(MainController*, const var& op)
+	{
+		if (op[RestApiIds::target].toString().isEmpty())
+			return Error().withError("set_id requires 'target'");
+		if (op[RestApiIds::name].toString().isEmpty())
+			return Error().withError("set_id requires 'name'");
+		return {};
+	}
+
+	set_id(MainController* mc, const var& obj) :
+		ActionBase(mc),
+		moduleId(obj[RestApiIds::moduleId].toString()),
+		previousName(obj[RestApiIds::target].toString()),
+		newName(obj[RestApiIds::name].toString())
+	{}
+
+	String moduleId;
+	String previousName;
+	String newName;
+
+	int getRebuildLevel(Domain, bool) const override { return 0; }
+	bool needsKillVoice() const override { return false; }
+
+	void addToDiffList(std::vector<Diff>& diffList, bool undo) override
+	{
+		Diff d;
+		d.target = undo ? newName : previousName;
+		d.domain = Domain::DSP;
+		d.type = Diff::Type::Modify;
+		diffList.push_back(d);
+	}
+
+	String getHistoryMessage(bool undo) const override
+	{
+		return undo ? "Rename " + newName + " back to " + previousName
+		            : "Rename " + previousName + " to " + newName;
+	}
+
+	String getDescription() const override
+	{
+		return "set_id " + previousName + " -> " + newName;
+	}
+
+	Error validate() override
+	{
+		auto rv = Helpers::getRootTree(this, moduleId);
+		if (!rv.isValid())
+			return Helpers::getErrorForModule404(getMainController(), moduleId);
+
+		if (previousName == newName)
+			return {};
+
+		if (!Helpers::findNode(rv, previousName).isValid())
+			return Helpers::getErrorForNode404(rv, previousName);
+
+		if (Helpers::findNode(rv, newName).isValid())
+			return Error().withError("A node with the ID " + newName + " already exists");
+
+		if (dspValidation != nullptr && !dspValidation->setId(previousName, newName))
+			return Error().withError("Plan model update failed");
+
+		return {};
+	}
+
+	void renameNode(ValueTree node, const String& oldId, const String& newId)
+	{
+		if (auto network = Helpers::getNetworkFromModule(getMainController(), moduleId))
+		{
+			network->changeNodeId(node, oldId, newId, nullptr);
+
+			if (auto nodeInstance = network->getNodeForValueTree(node, false))
+				nodeInstance->setCurrentId(newId);
+		}
+
+		node.setProperty(PropertyIds::ID, newId, nullptr);
+	}
+
+	void perform() override
+	{
+		auto node = Helpers::findNode(Helpers::getRootTree(this, moduleId), previousName);
+		if (!node.isValid())
+			throw Helpers::getErrorForNode404(Helpers::getRootTree(this, moduleId), previousName);
+		renameNode(node, previousName, newName);
+	}
+
+	void undo() override
+	{
+		auto node = Helpers::findNode(Helpers::getRootTree(this, moduleId), newName);
+		if (!node.isValid())
+			throw Helpers::getErrorForNode404(Helpers::getRootTree(this, moduleId), newName);
+		renameNode(node, newName, previousName);
+	}
+};
+
 struct move : public ActionBase
 {
 	BUILDER_ID(move);
