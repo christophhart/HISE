@@ -54,7 +54,10 @@ void ChainNode::process(ProcessDataDyn& data)
     TRACE_DSP();
     
 	if (isBypassed())
+	{
+		BACKEND_ONLY(processInjectedBypass(data));
 		return;
+	}
 
 	wrapper.process(data);
 }
@@ -63,7 +66,18 @@ void ChainNode::process(ProcessDataDyn& data)
 void ChainNode::processFrame(NodeBase::FrameType& data)
 {
 	if (isBypassed())
+	{
+#if USE_BACKEND
+		float* channels[NUM_MAX_CHANNELS];
+
+		for (int i = 0; i < data.size(); i++)
+			channels[i] = data.begin() + i;
+
+		ProcessDataDyn pd(channels, 1, data.size());
+		processInjectedBypass(pd);
+#endif
 		return;
+	}
 
 	FrameDataPeakChecker fd(this, data.begin(), data.size());
 
@@ -131,7 +145,10 @@ void SplitNode::handleHiseEvent(HiseEvent& e)
 void SplitNode::process(ProcessDataDyn& data)
 {
 	if (isBypassed() || original.begin() == nullptr)
+	{
+		BACKEND_ONLY(processInjectedBypass(data));
 		return;
+	}
 
 	NodeProfiler np(this, data.getNumSamples());
     ProcessDataPeakChecker pd(this, data);
@@ -164,6 +181,12 @@ void SplitNode::process(ProcessDataDyn& data)
 		if (n->isBypassed())
 		{
 			sp.processBypassed(data);
+
+#if USE_BACKEND
+			if (auto nc = dynamic_cast<NodeContainer*>(n.get()))
+				nc->processInjectedBypass(data);
+#endif
+
 			continue;
 		}
 		
@@ -219,12 +242,27 @@ void ModulationChainNode::processFrame(NodeBase::FrameType& data) noexcept
 
 	if (!isBypassed())
 		obj.processFrame(data);
+#if USE_BACKEND
+	else
+	{
+		float* channels[NUM_MAX_CHANNELS];
+
+		for (int i = 0; i < data.size(); i++)
+			channels[i] = data.begin() + i;
+
+		ProcessDataDyn pd(channels, 1, data.size());
+		processInjectedBypass(pd);
+	}
+#endif
 }
 
 void ModulationChainNode::process(ProcessDataDyn& data) noexcept
 {
 	if (isBypassed())
+	{
+		BACKEND_ONLY(processInjectedBypass(data));
 		return;
+	}
 
 	NodeProfiler np(this, data.getNumSamples());
     TRACE_DSP();
@@ -526,6 +564,9 @@ void MultiChannelNode::prepare(PrepareSpecs ps)
 	
 	NodeBase::prepare(ps);
 	NodeContainer::prepareContainer(ps);
+#if USE_BACKEND
+	injector.prepare(ps);
+#endif
 
 	int channelIndex = 0;
 
@@ -568,17 +609,40 @@ void MultiChannelNode::processFrame(NodeBase::FrameType& data)
 {
 	FrameDataPeakChecker fd(this, data.begin(), data.size());
 
+#if USE_BACKEND
+	float* channels[NUM_MAX_CHANNELS];
+
+	for (int i = 0; i < data.size(); i++)
+		channels[i] = data.begin() + i;
+
+	ProcessDataDyn pd(channels, 1, data.size());
+	ContainerInjector::ScopedProcessor sp(injector, pd);
+#endif
+
 	for (int i = 0; i < nodes.size(); i++)
 	{
 		auto& r = channelRanges[i];
 
 		if (r.getLength() == 0)
+		{
+#if USE_BACKEND
+			sp.processBypassed(pd);
+
+			if (auto nc = dynamic_cast<NodeContainer*>(nodes[i].get()))
+				nc->processInjectedBypass(pd);
+#endif
 			continue;
+		}
 
 		float* d = data.data + r.getStart();
 		int numThisThime = r.getLength();
 		FrameType md(d, numThisThime);
+
+#if USE_BACKEND
+		sp.processFrame(nodes[i], md);
+#else
 		nodes[i]->processFrame(md);
+#endif
 	}
 }
 
@@ -598,7 +662,7 @@ void MultiChannelNode::process(ProcessDataDyn& d)
 		int startChannel = channelIndex;
 		int endChannel = startChannel + numChannelsThisTime;
 
-		if (endChannel <= d.getNumChannels())
+		if (numChannelsThisTime > 0 && endChannel <= d.getNumChannels())
 		{
 			for (int i = 0; i < numChannelsThisTime; i++)
 				currentChannelData[i] = d[startChannel + i].data;
@@ -608,6 +672,15 @@ void MultiChannelNode::process(ProcessDataDyn& d)
 
 			sp.process(n, td);
 		}
+#if USE_BACKEND
+		else
+		{
+			sp.processBypassed(d);
+
+			if (auto nc = dynamic_cast<NodeContainer*>(n.get()))
+				nc->processInjectedBypass(d);
+		}
+#endif
 
 		channelIndex += numChannelsThisTime;
 	}
@@ -653,17 +726,71 @@ void BranchNode::handleHiseEvent(HiseEvent& e)
 
 void BranchNode::processFrame(FrameType& data)
 {
-	if(auto n = nodes[currentIndex])
+#if USE_BACKEND
+	float* channels[NUM_MAX_CHANNELS];
+
+	for (int i = 0; i < data.size(); i++)
+		channels[i] = data.begin() + i;
+
+	ProcessDataDyn pd(channels, 1, data.size());
+
+	if (isBypassed())
+	{
+		processInjectedBypass(pd);
+		return;
+	}
+
+	ContainerInjector::ScopedProcessor sp(injector, pd);
+
+	for (int i = 0; i < nodes.size(); i++)
+	{
+		auto n = nodes[i];
+
+		if (i == currentIndex)
+			sp.processFrame(n, data);
+		else
+		{
+			sp.processBypassed(pd);
+
+			if (auto nc = dynamic_cast<NodeContainer*>(n.get()))
+				nc->processInjectedBypass(pd);
+		}
+	}
+#else
+	if (auto n = nodes[currentIndex])
 		n->processFrame(data);
+#endif
 }
 
 void BranchNode::process(ProcessDataDyn& d)
 {
-	if(isBypassed())
+	if (isBypassed())
+	{
+		BACKEND_ONLY(processInjectedBypass(d));
 		return;
-	
-	if(auto n = nodes[currentIndex])
+	}
+
+#if USE_BACKEND
+	ContainerInjector::ScopedProcessor sp(injector, d);
+
+	for (int i = 0; i < nodes.size(); i++)
+	{
+		auto n = nodes[i];
+
+		if (i == currentIndex)
+			sp.process(n, d);
+		else
+		{
+			sp.processBypassed(d);
+
+			if (auto nc = dynamic_cast<NodeContainer*>(n.get()))
+				nc->processInjectedBypass(d);
+		}
+	}
+#else
+	if (auto n = nodes[currentIndex])
 		n->process(d);
+#endif
 }
 
 ParameterDataList BranchNode::createInternalParameterList()
@@ -845,12 +972,23 @@ OfflineChainNode::OfflineChainNode(DspNetwork* n, ValueTree t) :
 void OfflineChainNode::processFrame(FrameType& data) noexcept
 {
 	FrameDataPeakChecker pd(this, data.begin(), data.size());
+
+#if USE_BACKEND
+	float* channels[NUM_MAX_CHANNELS];
+
+	for (int i = 0; i < data.size(); i++)
+		channels[i] = data.begin() + i;
+
+	ProcessDataDyn fd(channels, 1, data.size());
+	processInjectedBypass(fd);
+#endif
 }
 
 void OfflineChainNode::process(ProcessDataDyn& data) noexcept
 {
 	NodeProfiler np(this, isBypassed() ? data.getNumSamples() : 1);
 	ProcessDataPeakChecker pd(this, data);
+	BACKEND_ONLY(processInjectedBypass(data));
 }
 
 void OfflineChainNode::prepare(PrepareSpecs ps)
@@ -1131,19 +1269,84 @@ scriptnode::ParameterDataList CloneNode::createInternalParameterList()
 
 void CloneNode::processFrame(FrameType& data) noexcept
 {
+#if USE_BACKEND
+	float* channels[NUM_MAX_CHANNELS];
+
+	for (int i = 0; i < data.size(); i++)
+		channels[i] = data.begin() + i;
+
+	ProcessDataDyn pd(channels, 1, data.size());
+	processInjectedBypass(pd);
+#endif
+
     // implement compile time channel count
     jassertfalse;
 }
+
+#if USE_BACKEND
+void CloneNode::DynamicCloneData::NodeWrapper::processWithProbe(ProcessDataDyn& data)
+{
+	auto node = get();
+
+	if (auto parent = dynamic_cast<CloneNode*>(node->getParentNode()))
+	{
+		if (auto context = parent->activeCloneProbe)
+		{
+			context->processor.process(node, data);
+			++context->numProcessed;
+			return;
+		}
+	}
+
+	node->process(data);
+}
+#endif
 
 void CloneNode::process(ProcessDataDyn& data) noexcept
 {
 	NodeProfiler np(this, data.getNumSamples());
 	ProcessDataPeakChecker pd(this, data);
 
+#if USE_BACKEND
+	ContainerInjector::ScopedProcessor sp(injector, data);
+	int numProcessed = 0;
+
+	if (isBypassed() && !nodes.isEmpty())
+	{
+		sp.process(nodes.getFirst(), data);
+		numProcessed = 1;
+	}
+	else
+	{
+		CloneProbeContext context { sp };
+
+		{
+			ScopedValueSetter<CloneProbeContext*> svs(activeCloneProbe, &context);
+			obj.process(data);
+		}
+
+		numProcessed = context.numProcessed;
+
+		// A nonempty clone container always has at least one active clone. If none ran,
+		// retry next buffer rather than treating a failed resize lock as inactive clones.
+		if (numProcessed == 0 && !nodes.isEmpty())
+			return;
+	}
+
+	// Inactive clones are not necessarily bypassed, but their probes still need completing.
+	for (int i = numProcessed; i < nodes.size(); i++)
+	{
+		sp.processBypassed(data);
+
+		if (auto nc = dynamic_cast<NodeContainer*>(nodes[i].get()))
+			nc->processInjectedBypass(data);
+	}
+#else
 	if (isBypassed() && !nodes.isEmpty())
 		nodes.getFirst()->process(data);
 	else
-        obj.process(data);
+		obj.process(data);
+#endif
 }
 
 void CloneNode::prepare(PrepareSpecs ps)
@@ -1664,6 +1867,19 @@ void SoftBypassNode::processFrame(FrameType& data) noexcept
 {
 	FrameDataPeakChecker fd(this, data.begin(), data.size());
 	obj.processFrame(data);
+
+#if USE_BACKEND
+	if (isBypassed())
+	{
+		float* channels[NUM_MAX_CHANNELS];
+
+		for (int i = 0; i < data.size(); i++)
+			channels[i] = data.begin() + i;
+
+		ProcessDataDyn pd(channels, 1, data.size());
+		processInjectedBypass(pd);
+	}
+#endif
 }
 
 void SoftBypassNode::process(ProcessDataDyn& data) noexcept
@@ -1673,6 +1889,11 @@ void SoftBypassNode::process(ProcessDataDyn& data) noexcept
     TRACE_DSP();
     
 	obj.process(data);
+
+#if USE_BACKEND
+	if (isBypassed())
+		processInjectedBypass(data);
+#endif
 }
 
 void SoftBypassNode::prepare(PrepareSpecs ps)

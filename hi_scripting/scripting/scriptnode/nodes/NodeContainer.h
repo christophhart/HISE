@@ -150,7 +150,12 @@ struct NodeContainer : public AssignableObject
 				ready = data.reportReady();
 
 				if (ready)
+				{
 					std::swap(nd, data);
+#if USE_BACKEND
+					pending.store(false, std::memory_order_release);
+#endif
+				}
 			}
 
 			if (ready)
@@ -162,6 +167,18 @@ struct NodeContainer : public AssignableObject
 		void reset()
 		{
 			data.reset();
+#if USE_BACKEND
+			pending.store(false, std::memory_order_release);
+#endif
+		}
+
+		bool hasPendingProbe() const noexcept
+		{
+#if USE_BACKEND
+			return pending.load(std::memory_order_acquire);
+#else
+			return false;
+#endif
 		}
 
 		Result inject(const InjectData& d)
@@ -182,6 +199,9 @@ struct NodeContainer : public AssignableObject
 			if (data.probeIndex == -1)
 				data.probeIndex = jmax(0, numNodes-1);
 
+#if USE_BACKEND
+			pending.store(true, std::memory_order_release);
+#endif
 			return Result::ok();
 		}
 
@@ -207,6 +227,33 @@ struct NodeContainer : public AssignableObject
 				BACKEND_ONLY(data.processProbe(pd, childIndex++));
 			}
 
+			void processFrame(NodeBase* n, NodeBase::FrameType& fd)
+			{
+#if USE_BACKEND
+				processFrame(fd, [&]() { n->processFrame(fd); });
+#else
+				n->processFrame(fd);
+#endif
+			}
+
+			template <typename Function> void processFrame(NodeBase::FrameType& fd, Function&& processFunction)
+			{
+#if USE_BACKEND
+				float* channels[NUM_MAX_CHANNELS];
+
+				for (int i = 0; i < fd.size(); i++)
+					channels[i] = fd.begin() + i;
+
+				ProcessDataDyn pd(channels, 1, fd.size());
+				data.processInject(pd, childIndex);
+				processFunction();
+				data.processProbe(pd, childIndex++);
+#else
+				ignoreUnused(fd);
+				processFunction();
+#endif
+			}
+
 		private:
 
 			InjectData& data;
@@ -222,7 +269,13 @@ struct NodeContainer : public AssignableObject
 	private:
 
 		SimpleReadWriteLock lock;
+#if USE_BACKEND
+		std::atomic<bool> pending { false };
+#endif
 	};
+
+	/** Complete pending probes without processing this container or its descendants. */
+	void processInjectedBypass(ProcessDataDyn& data);
 
 	/** Override this and call DynamicSerialProcessor::inject in each subclass if possible. */
 	Result injectNextBuffer(const InjectData& d) 
@@ -383,8 +436,29 @@ public:
 
 			NodeBase::FrameType dd(data.begin(), data.size());
 
+#if USE_BACKEND
+			if (!parent->injector.hasPendingProbe())
+			{
+				for (auto n : parent->getNodeList())
+					n->processFrame(dd);
+
+				return;
+			}
+
+			float* channels[NUM_MAX_CHANNELS];
+
+			for (int i = 0; i < dd.size(); i++)
+				channels[i] = dd.begin() + i;
+
+			ProcessDataDyn pd(channels, 1, dd.size());
+			ContainerInjector::ScopedProcessor sp(parent->injector, pd);
+
+			for (auto n : parent->getNodeList())
+				sp.processFrame(n, dd);
+#else
 			for (auto n : parent->getNodeList())
 				n->processFrame(dd);
+#endif
 		}
 
 		void createParameters(ParameterDataList& ) override {};

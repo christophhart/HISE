@@ -282,7 +282,18 @@ public:
             
             void reset() { if(get() != nullptr) get()->reset(); }
             void prepare(PrepareSpecs ps) { if (get() != nullptr) get()->prepare(ps); }
-            template <typename PT> void process(PT& d) { get()->process(d.template as<ProcessDataDyn>()); }
+			template <typename PT> void process(PT& d)
+			{
+#if USE_BACKEND
+				processWithProbe(d.template as<ProcessDataDyn>());
+#else
+				get()->process(d.template as<ProcessDataDyn>());
+#endif
+			}
+
+#if USE_BACKEND
+			void processWithProbe(ProcessDataDyn& data);
+#endif
             template <typename FT> void processFrame(FT& d) { get()->processFrame(d); };
             void handleHiseEvent(HiseEvent& e) { get()->handleHiseEvent(e); }
         };
@@ -335,6 +346,20 @@ public:
     };
     
     wrap::clone_base<DynamicCloneData, CloneProcessType::Dynamic> obj;
+
+private:
+#if USE_BACKEND
+	struct CloneProbeContext
+	{
+		ContainerInjector::ScopedProcessor& processor;
+		int numProcessed = 0;
+	};
+
+	// Only set during obj.process(); keep NodeWrapper layout identical to WeakReference<NodeBase>.
+	CloneProbeContext* activeCloneProbe = nullptr;
+#endif
+
+public:
     
 	struct CloneIterator
 	{
@@ -802,10 +827,74 @@ public:
 
 	template <int C> void processFrameInternal(snex::Types::span<float, C>& data)
 	{
+		using ThisFrameType = snex::Types::span<float, C>;
+
+#if USE_BACKEND
+		if (!injector.hasPendingProbe())
+		{
+			if (isBypassed())
+			{
+				float* channels[C];
+
+				for (int i = 0; i < C; i++)
+					channels[i] = data.begin() + i;
+
+				ProcessDataDyn pd(channels, 1, C);
+				processInjectedBypass(pd);
+				return;
+			}
+
+			ThisFrameType original;
+			data.copyTo(original);
+
+			bool isFirst = true;
+
+			for (auto n : nodes)
+			{
+				if (isFirst)
+				{
+					if (C == 1)
+						n->processMonoFrame(MonoFrameType::as(data.begin()));
+					if (C == 2)
+						n->processStereoFrame(StereoFrameType::as(data.begin()));
+
+					isFirst = false;
+				}
+				else
+				{
+					ThisFrameType wb;
+					original.copyTo(wb);
+
+					if (C == 1)
+						n->processMonoFrame(MonoFrameType::as(wb.begin()));
+					if (C == 2)
+						n->processStereoFrame(StereoFrameType::as(wb.begin()));
+
+					wb.addTo(data);
+				}
+			}
+
+			return;
+		}
+
+		float* channels[C];
+
+		for (int i = 0; i < C; i++)
+			channels[i] = data.begin() + i;
+
+		ProcessDataDyn pd(channels, 1, C);
+
+		if (isBypassed())
+		{
+			processInjectedBypass(pd);
+			return;
+		}
+
+		ContainerInjector::ScopedProcessor sp(injector, pd);
+#else
 		if (isBypassed())
 			return;
-
-		using ThisFrameType = snex::Types::span<float, C>;
+#endif
 
 		ThisFrameType original;
 		data.copyTo(original);
@@ -816,23 +905,36 @@ public:
 		{
 			if (isFirst)
 			{
-				if (C == 1)
-					n->processMonoFrame(MonoFrameType::as(data.begin()));
-				if (C == 2)
-					n->processStereoFrame(StereoFrameType::as(data.begin()));
-					
+#if USE_BACKEND
+				NodeBase::FrameType fd(data.begin(), C);
+				sp.processFrame(fd, [&]()
+				{
+#endif
+					if (C == 1)
+						n->processMonoFrame(MonoFrameType::as(data.begin()));
+					if (C == 2)
+						n->processStereoFrame(StereoFrameType::as(data.begin()));
+#if USE_BACKEND
+				});
+#endif
 				isFirst = false;
 			}
 			else
 			{
 				ThisFrameType wb;
 				original.copyTo(wb);
-
-				if (C == 1)
-					n->processMonoFrame(MonoFrameType::as(wb.begin()));
-				if (C == 2)
-					n->processStereoFrame(StereoFrameType::as(wb.begin()));
-
+#if USE_BACKEND
+				NodeBase::FrameType fd(wb.begin(), C);
+				sp.processFrame(fd, [&]()
+				{
+#endif
+					if (C == 1)
+						n->processMonoFrame(MonoFrameType::as(wb.begin()));
+					if (C == 2)
+						n->processStereoFrame(StereoFrameType::as(wb.begin()));
+#if USE_BACKEND
+				});
+#endif
 				wb.addTo(data);
 			}
 		}

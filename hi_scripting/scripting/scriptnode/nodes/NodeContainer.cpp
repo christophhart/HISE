@@ -1439,6 +1439,27 @@ bool NodeContainer::forEachNode(const std::function<bool(NodeBase::Ptr)> & f)
 	return false;
 }
 
+void NodeContainer::processInjectedBypass(ProcessDataDyn& data)
+{
+#if USE_BACKEND
+	if (injector.hasPendingProbe())
+	{
+		ContainerInjector::ScopedProcessor sp(injector, data);
+
+		for (int i = 0; i < nodes.size(); i++)
+			sp.processBypassed(data);
+	}
+
+	for (auto n : nodes)
+	{
+		if (auto nc = dynamic_cast<NodeContainer*>(n.get()))
+			nc->processInjectedBypass(data);
+	}
+#else
+	ignoreUnused(data);
+#endif
+}
+
 void NodeContainer::clear()
 {
 	getNodeTree().removeAllChildren(asNode()->getUndoManager());
