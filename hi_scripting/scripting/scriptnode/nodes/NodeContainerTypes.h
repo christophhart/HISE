@@ -254,6 +254,12 @@ public:
 
 	void setNumClones(double newNumVoices);
 
+	/** Rebuilds the configured clone children to the requested total using the first child as template.
+	 *  If restoreTrees is supplied, its matching child trees are used instead for exact undo restoration.
+	 */
+	bool setNumCloneNodes(int numClones, UndoManager* undoManager,
+		const Array<ValueTree>* restoreTrees = nullptr);
+
 	void setSplitSignal(double shouldSplit);
 
 	static int getCloneIndex(NodeBase* n);

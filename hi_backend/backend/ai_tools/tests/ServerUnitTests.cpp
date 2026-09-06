@@ -7237,6 +7237,43 @@ private:
         }
         expect(foundFreq, "Should find Frequency parameter");
 
+        /** Setup: Clone container with its generated child.
+         *  Scenario: Set NumClones through the REST DSP setter, shrink it, then undo.
+         *  Expected: Physical child count follows the value and resize messages are returned.
+         */
+        ops.clear();
+        ops.add(makeDspAddOp("container.clone", "test_network", "CloneSet"));
+        ops.add(makeDspSetOp("CloneSet", "NumClones", 4));
+        json = postDspOps(ops);
+        expectDspSuccess(json);
+        expectEquals(json[RestApiIds::logs][0].toString(),
+            String("Changed clone amount of CloneSet to 4 child nodes"));
+
+        tree = getDspTree();
+        auto cloneNode = findNodeInTree(tree[RestApiIds::result], "CloneSet");
+        expectEquals<int>(cloneNode[RestApiIds::children].size(), 4,
+            "NumClones REST set should create four physical children");
+
+        ops.clear();
+        ops.add(makeDspSetOp("CloneSet", "NumClones", 2));
+        json = postDspOps(ops);
+        expectDspSuccess(json);
+
+        tree = getDspTree();
+        cloneNode = findNodeInTree(tree[RestApiIds::result], "CloneSet");
+        expectEquals<int>(cloneNode[RestApiIds::children].size(), 2,
+            "Lowering NumClones through REST should remove trailing children");
+
+        auto cloneUndoJson = ctx->parseJson(ctx->httpPost("/api/undo/back", "{}"));
+        expectDspSuccess(cloneUndoJson);
+        expectEquals(cloneUndoJson[RestApiIds::logs][0].toString(),
+            String("Changed clone amount of CloneSet to 4 child nodes"));
+
+        tree = getDspTree();
+        cloneNode = findNodeInTree(tree[RestApiIds::result], "CloneSet");
+        expectEquals<int>(cloneNode[RestApiIds::children].size(), 4,
+            "Undo should restore removed clone children");
+
         // Set network-level property on root node
         ops.clear();
         ops.add(makeDspSetOp("test_network", "AllowPolyphonic", true));

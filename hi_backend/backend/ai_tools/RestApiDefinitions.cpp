@@ -1492,7 +1492,8 @@ struct RestApiEndpoints
 				"their current value. External modulation variant: send externalModulation without "
 				"`value` to set the root parameter's modulation mode. The externalModulation field "
 				"may also be combined with range fields. skewFactor and middlePosition are mutually exclusive "
-				"(sending one clears the other). Mutually exclusive with value.",
+				"(sending one clears the other). Mutually exclusive with value. Setting NumClones on a "
+				"container.clone resizes its physical child nodes to exactly that amount (1 to 128).",
 				{ RestApiIds::nodeId.toString(), RestApiIds::parameterId.toString() })
 			.withVariantRequired("bypass", "Set bypass state (nodeId, bypassed)",
 				{ RestApiIds::nodeId.toString(), RestApiIds::bypassed.toString() })

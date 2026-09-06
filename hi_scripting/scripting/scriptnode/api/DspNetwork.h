@@ -670,6 +670,10 @@ public:
 
 	ValueTree cloneValueTreeWithNewIds(const ValueTree& treeToClone, Array<IdChange>& idChanges, bool changeIds);
 
+	/** Resizes a container.clone without exposing its implementation type outside this module. */
+	Result setNumCloneNodes(const String& nodeId, int numClones, bool& changed,
+		UndoManager* undoManager, const Array<ValueTree>* restoreTrees = nullptr);
+
 	void setEnableUndoManager(bool shouldBeEnabled);
 
 	ScriptnodeExceptionHandler& getExceptionHandler()

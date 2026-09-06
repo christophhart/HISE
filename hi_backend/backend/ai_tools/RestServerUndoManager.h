@@ -593,6 +593,9 @@ struct RestServerUndoManager
 		/** Override this method and add to the diff list. */
 		virtual void addToDiffList(std::vector<Diff>& diffList, bool undo) = 0;
 
+		/** Override this method to report noteworthy side effects in the response logs. */
+		virtual void addResponseLogs(Array<var>&, bool) const {}
+
 		virtual String getActionId() const = 0;
 
 		virtual ~ActionBase() {};
@@ -686,7 +689,8 @@ struct RestServerUndoManager
 
 		Instance(MainController* mc);;
 
-		static RestServer::Response getResponse(const std::vector<CallStack>& callstack, var result=var());
+		static RestServer::Response getResponse(const std::vector<CallStack>& callstack, var result=var(),
+			const Array<var>& logs={});
 
 		bool killVoicesAndPerform(AsyncRequest::Ptr req, ActionBase::Ptr a, bool shouldUndo = false);
 
@@ -904,6 +908,12 @@ struct RestServerUndoManager
 			{
 				for (auto a : subActions)
 					a->addToDiffList(diffList, undo);
+			}
+
+			void addResponseLogs(Array<var>& logs, bool undo) const override
+			{
+				for (auto a : subActions)
+					a->addResponseLogs(logs, undo);
 			}
 
 			int getRebuildLevel(Domain d, bool undo) const override

@@ -162,7 +162,8 @@ RestServerUndoManager::Instance::Instance(MainController* mc) :
 	clearUndoHistory();
 }
 
-hise::RestServer::Response RestServerUndoManager::Instance::getResponse(const std::vector<CallStack>& callstacks, var r)
+hise::RestServer::Response RestServerUndoManager::Instance::getResponse(const std::vector<CallStack>& callstacks, var r,
+	const Array<var>& logs)
 {
 	DynamicObject::Ptr result = new DynamicObject();
 	result->setProperty(RestApiIds::success, callstacks.empty());
@@ -174,7 +175,7 @@ hise::RestServer::Response RestServerUndoManager::Instance::getResponse(const st
 			result->setProperty(prop.name, prop.value);
 	}
 
-	result->setProperty(RestApiIds::logs, Array<var>());
+	result->setProperty(RestApiIds::logs, logs);
 	result->setProperty(RestApiIds::errors, CallStack::toJSONList(callstacks));
 	return RestServer::Response::ok(var(result.get()));
 }
@@ -200,7 +201,10 @@ bool RestServerUndoManager::Instance::killVoicesAndPerform(AsyncRequest::Ptr req
 				.withEndpoint(currentEndpoint));
 		}
 		
-		req->complete(getResponse(callStack, getDiffJSON(true, true)));
+		Array<var> responseLogs;
+		if (callStack.empty())
+			a->addResponseLogs(responseLogs, shouldUndo);
+		req->complete(getResponse(callStack, getDiffJSON(true, true), responseLogs));
 
 		if ((a->getRebuildLevel(Domain::Builder, shouldUndo) & RebuildLevel::UpdateUI) != 0)
 			flushUI(getMainController()->getMainSynthChain());
@@ -283,7 +287,10 @@ bool RestServerUndoManager::Instance::killVoicesAndPerform(AsyncRequest::Ptr req
 					.withEndpoint(currentEndpoint));
 			}
 
-			req->complete(getResponse(callStack, getDiffJSON(true, true)));
+			Array<var> responseLogs;
+			if (callStack.empty())
+				a->addResponseLogs(responseLogs, shouldUndo);
+			req->complete(getResponse(callStack, getDiffJSON(true, true), responseLogs));
 
 			if ((a->getRebuildLevel(Domain::Builder, shouldUndo) & RebuildLevel::UpdateUI) != 0)
 				flushUI(p);
