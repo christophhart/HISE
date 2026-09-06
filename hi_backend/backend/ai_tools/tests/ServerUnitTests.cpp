@@ -6529,7 +6529,7 @@ private:
     }
 
     var makeDspConnectOp(const String& source, const String& target,
-                         const String& parameter, const String& sourceOutput = {})
+                         const String& parameter, const String& sourceOutput = {}, bool matchRange = false)
     {
         DynamicObject::Ptr op = new DynamicObject();
         op->setProperty(RestApiIds::op, "connect");
@@ -6538,6 +6538,8 @@ private:
         op->setProperty(RestApiIds::parameter, parameter);
         if (sourceOutput.isNotEmpty())
             op->setProperty(RestApiIds::sourceOutput, sourceOutput);
+        if (matchRange)
+            op->setProperty(RestApiIds::matchRange, true);
         return var(op.get());
     }
 
@@ -7505,6 +7507,43 @@ private:
                    hint.contains("Mode"),
                 "Error hint should include at least one valid parameter name from target node");
         }
+
+        /** Setup: A core.peak modulation source and a dynamic container parameter
+         *  Scenario: Connecting with matchRange fails because core.peak is not a parameter source
+         *  Expected: The failed operation does not create a connection, and a plain connection succeeds
+         */
+        ops.clear();
+        ops.add(makeDspAddOp("container.modchain", "test_network", "AtomicModChain"));
+        ops.add(makeDspAddOp("core.peak", "AtomicModChain", "AtomicPeak"));
+        ops.add(makeDspAddOp("container.chain", "test_network", "AtomicTarget"));
+        ops.add(makeDspCreateParameterOp("AtomicTarget", "Value"));
+        expectDspSuccess(postDspOps(ops));
+
+        ops.clear();
+        ops.add(makeDspConnectOp("AtomicPeak", "AtomicTarget", "Value", {}, true));
+        json = postDspOps(ops);
+        expect(!(bool)json[RestApiIds::success],
+            "Matched connection from a modulation output should fail");
+
+        tree = getDspTree();
+        connections = tree[RestApiIds::result][RestApiIds::connections];
+        bool failedConnectionWasCreated = false;
+
+        if (auto connectionArray = connections.getArray())
+        {
+            for (const auto& connection : *connectionArray)
+            {
+                failedConnectionWasCreated |= connection[RestApiIds::source].toString() == "AtomicPeak" &&
+                    connection[RestApiIds::target].toString() == "AtomicTarget" &&
+                    connection[RestApiIds::parameter].toString() == "Value";
+            }
+        }
+
+        expect(!failedConnectionWasCreated, "Failed matched connection must not mutate the graph");
+
+        ops.clear();
+        ops.add(makeDspConnectOp("AtomicPeak", "AtomicTarget", "Value"));
+        expectDspSuccess(postDspOps(ops));
     }
 
     void testDspApplyDisconnect()

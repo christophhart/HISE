@@ -3529,7 +3529,7 @@ struct connect : public ActionBase
 
 	// Captured previous source range for undo when matchRange is true
 	bool capturedSourceRange = false;
-	scriptnode::InvertableParameterRange oldTargetRange;
+	scriptnode::InvertableParameterRange oldSourceRange;
 
 	int getRebuildLevel(Domain, bool) const override { return 0; }
 	bool needsKillVoice() const override { return false; }
@@ -3595,16 +3595,21 @@ struct connect : public ActionBase
 				if (!conTree.isValid())
 					return Error().withError("illegal connection source node");
 
+				if (matchRange)
+				{
+					auto sourceParameter = valuetree::Helpers::findParentWithType(conTree, PropertyIds::Parameter);
+
+					if (!sourceParameter.isValid())
+						return Error().withError("matchRange requires a parameter source");
+
+					if (pn.getType() != PropertyIds::Parameter)
+						return Error().withError("matchRange requires a parameter target");
+				}
+
 				// Mirror the connection onto the plan snapshot. conTree is already
 				// inside the snapshot via getRootTree, so addConnection mutates it.
 				if (!Helpers::addConnection(conTree, targetId, parameterName))
 					return Error().withError("Connection already exists");
-
-				if (matchRange)
-				{
-					// TODO: mirror range copy (target.pn -> source parameter) onto the plan snapshot.
-					// Reject if source is not a parameter-bearing node with a settable range.
-				}
 
 				return {};
 			}
@@ -3636,23 +3641,27 @@ struct connect : public ActionBase
 			throw Helpers::getErrorForParameter404(tn, parameterName);
 
 		auto conTree = Helpers::getConnectionParent(sn, sourceOutput);
-
-		if(!Helpers::addConnection(conTree, targetId, parameterName))
-			throw Error().withError("Connection already exists");
+		ValueTree sourceParameter;
 
 		if (matchRange)
 		{
-			auto sourceParameter = valuetree::Helpers::findParentWithType(conTree, PropertyIds::Parameter);
+			sourceParameter = valuetree::Helpers::findParentWithType(conTree, PropertyIds::Parameter);
 
 			if (!sourceParameter.isValid())
 				throw Error().withError("matchRange requires a parameter source");
 
-			if(pn.getType() != PropertyIds::Parameter)
+			if (pn.getType() != PropertyIds::Parameter)
 				throw Error().withError("matchRange requires a parameter target");
+		}
 
-			oldTargetRange = RangeHelpers::getDoubleRange(pn);
-			
-			RangeHelpers::storeDoubleRange(sourceParameter, oldTargetRange, nullptr, scriptnode::RangeHelpers::IdSet::scriptnode);
+		if (!Helpers::addConnection(conTree, targetId, parameterName))
+			throw Error().withError("Connection already exists");
+
+		if (matchRange)
+		{
+			oldSourceRange = RangeHelpers::getDoubleRange(sourceParameter);
+			auto targetRange = RangeHelpers::getDoubleRange(pn);
+			RangeHelpers::storeDoubleRange(sourceParameter, targetRange, nullptr, scriptnode::RangeHelpers::IdSet::scriptnode);
 			capturedSourceRange = true;
 		}
 	}
@@ -3685,7 +3694,8 @@ struct connect : public ActionBase
 		if (matchRange && capturedSourceRange)
 		{
 			auto sourceParameter = valuetree::Helpers::findParentWithType(conTree, PropertyIds::Parameter);
-			RangeHelpers::storeDoubleRange(sourceParameter, oldTargetRange, nullptr);
+			RangeHelpers::storeDoubleRange(sourceParameter, oldSourceRange, nullptr,
+				scriptnode::RangeHelpers::IdSet::scriptnode);
 		}
 	}
 };
