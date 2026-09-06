@@ -3100,6 +3100,15 @@ private:
 		CREATE_TEST("float test(float input){ return (float)input * input; }");
 		EXPECT("Unnecessary cast", 12.0f, 144.0f);
 
+		/** Setup: Compile the parameterized saturation expression used by math.expr.
+		 *  Scenario: Process a 0.5 sample with value fixed to 0.75.
+		 *  Expected: Multiplication and division evaluate left-to-right and produce 0.8.
+		 */
+		CREATE_TEST("float test(float input){ float value = 0.75f; return "
+			"(1.0f + value / (1.0f - value)) * input / "
+			"(1.0f + value / (1.0f - value) * Math.abs(input)); }");
+		EXPECT("Mixed product associativity", 0.5f, 0.8f);
+
 		float input = r.nextFloat() * 125.0f - 80.0f;
 
 		CREATE_TEST("float test(float input){ return (float)(int)(8 > 5 ? (9.0*(double)input) : 1.23+ (double)(2.0f*input)); };");

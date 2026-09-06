@@ -779,16 +779,17 @@ BlockParser::ExprPtr BlockParser::parseProduct()
 {
 	ExprPtr left(parseTerm());
 
-	if (currentType == JitTokens::times ||
-		currentType == JitTokens::divide ||
-		currentType == JitTokens::modulo)
+	while (currentType == JitTokens::times ||
+		   currentType == JitTokens::divide ||
+		   currentType == JitTokens::modulo)
 	{
-		TokenType op = currentType;		  skip();
-		ExprPtr right(parseProduct());
-		return createBinaryNode(left, right, op);
+		TokenType op = currentType;
+		skip();
+		ExprPtr right(parseTerm());
+		left = createBinaryNode(left, right, op);
 	}
-	else
-		return left;
+
+	return left;
 }
 
 
