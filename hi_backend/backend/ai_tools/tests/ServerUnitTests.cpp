@@ -221,6 +221,7 @@ public:
         testDspProbeRecursiveFilter();
         testDspProbeParameterReport();
         testDspProbeParameterCompactAndInjectOnly();
+        testDspProbePolyphonicTrigger();
         testDspProbeValidation();
         testDspProbeTimeout();
         testDspScreenshot();
@@ -666,6 +667,10 @@ private:
         auto dspProbeProps = dspProbeResponse["properties"];
         expect(dspProbeProps["seed"]["format"].toString() == "int64", "dsp/probe seed should be int64");
         expect(dspProbeProps["signal"]["oneOf"].isArray(), "dsp/probe signal should describe full and compact shapes");
+        expect(dspProbeBody["properties"]["trigger"]["properties"]["predelayMs"]["type"].toString() == "number",
+            "dsp/probe trigger should expose predelayMs");
+        expect(dspProbeProps["trigger"]["properties"]["velocity"]["type"].toString() == "number",
+            "dsp/probe response should expose the resolved trigger");
         expect(dspProbeProps["containers"]["additionalProperties"]["$ref"].toString()
                == "#/components/schemas/DspProbeContainerReport",
                "dsp/probe containers should be a dynamic map of container reports");
@@ -6465,6 +6470,28 @@ private:
         ctx->parseJson(ctx->httpPost("/api/undo/clear", "{}"));
     }
 
+    void resetPolyDspState()
+    {
+        ctx->parseJson(ctx->httpPost("/api/builder/reset", "{}"));
+        ctx->parseJson(ctx->httpPost("/api/undo/clear", "{}"));
+
+        Array<var> ops;
+        ops.add(makeAddOp("SineSynth", "DspProbeSynth"));
+        ops.add(makeAddOp("PolyScriptFX", "DspPolyTestFX", "DspProbeSynth", 3));
+        auto builderJson = postBuilderOps(ops);
+        expect((bool)builderJson[RestApiIds::success], "Should add polyphonic DSP test processors");
+
+        DynamicObject::Ptr initBody = new DynamicObject();
+        initBody->setProperty(RestApiIds::moduleId, "DspPolyTestFX");
+        initBody->setProperty(RestApiIds::name, "poly_test_network");
+
+        auto initJson = ctx->parseJson(ctx->httpPost("/api/dsp/init",
+            JSON::toString(var(initBody.get()))));
+        expect((bool)initJson[RestApiIds::success], "Should init polyphonic network");
+
+        ctx->parseJson(ctx->httpPost("/api/undo/clear", "{}"));
+    }
+
     var postDspOps(const Array<var>& ops, const String& moduleId = "DspTestFX")
     {
         DynamicObject::Ptr bodyObj = new DynamicObject();
@@ -8957,6 +8984,37 @@ private:
             "Inject-only report should include empty touchedEdges object");
     }
 
+    /** Setup: A polyphonic script FX network inside a synthesiser.
+     *  Scenario: Probe without a trigger, then probe with a delayed trigger note.
+     *  Expected: The first request explains the trigger requirement and the second completes and releases its note.
+     */
+    void testDspProbePolyphonicTrigger()
+    {
+        beginTest("POST /api/dsp/probe - polyphonic trigger");
+
+        resetPolyDspState();
+
+        Array<var> ops;
+        ops.add(makeDspAddOp("core.gain", "poly_test_network", "PolyProbeGain"));
+        expectDspSuccess(postDspOps(ops, "DspPolyTestFX"));
+
+        auto missingTrigger = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
+            R"({"moduleId":"DspPolyTestFX","parent":"poly_test_network","signalType":"dirac"})"));
+        expectErrorMessageContains(missingTrigger, "requires a trigger note");
+
+        auto body = JSON::parse(R"({"moduleId":"DspPolyTestFX","parent":"poly_test_network","signalType":"dirac","trigger":{"type":"note","noteNumber":64,"velocity":0.75,"channel":1,"predelayMs":20.0}})");
+        auto json = postDspProbeWhileProcessing(body);
+
+        expect((bool)json[RestApiIds::success], "Triggered polyphonic probe should succeed");
+        expectEquals<int>((int)json[RestApiIds::trigger][RestApiIds::noteNumber], 64,
+            "Should echo the trigger note");
+        expectEquals((double)json[RestApiIds::trigger][RestApiIds::velocity], 0.75,
+            "Should echo the trigger velocity");
+        expectEquals((double)json[RestApiIds::trigger][RestApiIds::predelayMs], 20.0,
+            "Should echo the trigger predelay");
+        expect(!ctx->bp->getKeyboardState().isNoteOn(1, 64), "Trigger note should be released after probing");
+    }
+
     void testDspProbeValidation()
     {
         beginTest("POST /api/dsp/probe - validation");
@@ -8991,6 +9049,34 @@ private:
         auto invalidParameter = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
             R"({"moduleId": "DspTestFX", "parent": "test_network", "injectIndex": 0, "probeIndex": -1, "signalType": "dirac", "parameters": {"probe": ["Missing.Gain"]}})"));
         expectErrorMessageContains(invalidParameter, "parameter");
+
+        auto invalidTrigger = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
+            R"({"moduleId":"DspTestFX","parent":"test_network","trigger":true})"));
+        expectErrorMessageContains(invalidTrigger, "trigger must be an object");
+
+        auto invalidTriggerType = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
+            R"({"moduleId":"DspTestFX","parent":"test_network","trigger":{"type":"transport"}})"));
+        expectErrorMessageContains(invalidTriggerType, "trigger.type");
+
+        auto invalidNote = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
+            R"({"moduleId":"DspTestFX","parent":"test_network","trigger":{"noteNumber":128}})"));
+        expectErrorMessageContains(invalidNote, "noteNumber");
+
+        auto invalidVelocity = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
+            R"({"moduleId":"DspTestFX","parent":"test_network","trigger":{"velocity":127}})"));
+        expectErrorMessageContains(invalidVelocity, "velocity");
+
+        auto invalidChannel = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
+            R"({"moduleId":"DspTestFX","parent":"test_network","trigger":{"channel":0}})"));
+        expectErrorMessageContains(invalidChannel, "channel");
+
+        auto invalidPredelay = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
+            R"({"moduleId":"DspTestFX","parent":"test_network","trigger":{"predelayMs":-1}})"));
+        expectErrorMessageContains(invalidPredelay, "predelayMs");
+
+        auto invalidDelay = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
+            R"({"moduleId":"DspTestFX","parent":"test_network","delayMs":-1})"));
+        expectErrorMessageContains(invalidDelay, "delayMs");
     }
 
     void testDspProbeTimeout()
@@ -9004,8 +9090,9 @@ private:
         expectDspSuccess(postDspOps(ops));
 
         auto json = ctx->parseJson(ctx->httpPost("/api/dsp/probe",
-            R"({"moduleId": "DspTestFX", "parent": "test_network", "injectIndex": 0, "probeIndex": -1, "signalType": "dirac"})"));
+            R"({"moduleId":"DspTestFX","parent":"test_network","injectIndex":0,"probeIndex":-1,"signalType":"dirac","trigger":{"noteNumber":65}})"));
         expectErrorMessageContains(json, "timed out");
+        expect(!ctx->bp->getKeyboardState().isNoteOn(1, 65), "Trigger note should be released after timeout");
     }
 
     //==========================================================================

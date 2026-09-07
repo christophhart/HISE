@@ -1043,6 +1043,7 @@ struct InjectHelpers
 		float gain = 1.0f;
 		int64 seed = -1;
 		double delayMs = 0.0;
+		double predelayMs = 0.0;
 		bool processMidi = false;
 		bool recursive = false;
 

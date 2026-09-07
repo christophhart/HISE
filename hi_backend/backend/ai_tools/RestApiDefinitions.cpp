@@ -1666,11 +1666,25 @@ struct RestApiEndpoints
 				.withType(ParamType::Object)
 				.withAdditionalProperties(touchedEdgeArray).asOptional());
 
+		auto triggerParam = RouteParameter(RestApiIds::trigger, "MIDI note that starts voice processing before the probe")
+			.withType(ParamType::Object)
+			.withProperty(RouteParameter(RestApiIds::type, "Trigger type")
+				.withEnumValues({ "note" }).withDefault("note"))
+			.withProperty(RouteParameter(RestApiIds::noteNumber, "MIDI note number (0-127)")
+				.withType(ParamType::Int).withDefault("60"))
+			.withProperty(RouteParameter(RestApiIds::velocity, "Normalised note velocity (0.0-1.0)")
+				.withType(ParamType::Float).withDefault("1.0"))
+			.withProperty(RouteParameter(RestApiIds::channel, "MIDI channel (1-16)")
+				.withType(ParamType::Int).withDefault("1"))
+			.withProperty(RouteParameter(RestApiIds::predelayMs,
+				"Processed audio time between note-on and test signal or parameter injection")
+				.withType(ParamType::Float).withDefault("0.0"));
+
 		m.add(RouteMetadata(ApiRoute::DspProbe, "api/dsp/probe")
 			.withMethod(RestServer::Method::Post)
 			.withCategory("dsp")
 			.withSummary("Inject signal and/or parameter test stimuli and return a DSP probe report")
-			.withDescription("Queues a one-shot signal and/or parameter injection into a supported scriptnode container and waits until the requested probe point has processed a buffer. injectId and probeId override injectIndex and probeIndex when present. Signal injection resolves before a child node and signal probing resolves after a child node, so injectIndex == probeIndex is valid. probeIndex=-1 or an omitted probeIndex resolves to the container output after the last child. recursive=true returns containers keyed by container ID. parameters.inject temporarily injects parameter values keyed by nodeId.parameterId. parameters.probe accepts '*' or an array of parameter paths. touchedEdges reports runtime parameter/control connections reached by the probe, not static graph reachability. Full mixed trace example: {\"moduleId\":\"ReproFX\",\"parent\":\"repro_probe\",\"signalType\":\"silence\",\"probeId\":\"gain\",\"parameters\":{\"inject\":{\"repro_probe.Parameter\":1.0},\"probe\":[\"repro_probe.Parameter\",\"gain.Gain\"]},\"filter\":{\"compact\":false}}. Wildcard parameter trace example: {\"moduleId\":\"ReproNullControlFX\",\"parent\":\"repro_null_control\",\"signalType\":\"silence\",\"probeId\":\"gain\",\"parameters\":{\"inject\":{\"repro_null_control.Parameter\":0.25},\"probe\":\"*\"},\"filter\":{\"compact\":false}}. Compact trace example: {\"moduleId\":\"DspTestFX\",\"parent\":\"test_network\",\"signalType\":\"dirac\",\"probeId\":\"gain\",\"parameters\":{\"probe\":\"*\"},\"filter\":{\"compact\":true}}. The optional filter object can remove specs or signal data, compact signal arrays and parameter reports, and include the recursive topology tree. The request blocks until the report is available or until the fixed timeout of delayMs + 200ms expires.")
+			.withDescription("Queues a one-shot signal and/or parameter injection into a supported scriptnode container and waits until the requested probe point has processed a buffer. injectId and probeId override injectIndex and probeIndex when present. Signal injection resolves before a child node and signal probing resolves after a child node, so injectIndex == probeIndex is valid. probeIndex=-1 or an omitted probeIndex resolves to the container output after the last child. recursive=true returns containers keyed by container ID. parameters.inject temporarily injects parameter values keyed by nodeId.parameterId. parameters.probe accepts '*' or an array of parameter paths. touchedEdges reports runtime parameter/control connections reached by the probe, not static graph reachability. Full mixed trace example: {\"moduleId\":\"ReproFX\",\"parent\":\"repro_probe\",\"signalType\":\"silence\",\"probeId\":\"gain\",\"parameters\":{\"inject\":{\"repro_probe.Parameter\":1.0},\"probe\":[\"repro_probe.Parameter\",\"gain.Gain\"]},\"filter\":{\"compact\":false}}. Wildcard parameter trace example: {\"moduleId\":\"ReproNullControlFX\",\"parent\":\"repro_null_control\",\"signalType\":\"silence\",\"probeId\":\"gain\",\"parameters\":{\"inject\":{\"repro_null_control.Parameter\":0.25},\"probe\":\"*\"},\"filter\":{\"compact\":false}}. Compact trace example: {\"moduleId\":\"DspTestFX\",\"parent\":\"test_network\",\"signalType\":\"dirac\",\"probeId\":\"gain\",\"parameters\":{\"probe\":\"*\"},\"filter\":{\"compact\":true}}. The optional filter object can remove specs or signal data, compact signal arrays and parameter reports, and include the recursive topology tree. Polyphonic DspNetworks require a trigger object so that a voice processes the probe. trigger.predelayMs waits in processed audio time after note-on before injection. The trigger note is released after success or failure. The request blocks until the report is available or until the fixed timeout of trigger.predelayMs + delayMs + 200ms expires.")
 			.withReturns("Resolved probe configuration plus signal, recursive container, and optional parameter reports")
 			.withBodyParam(RouteParameter(RestApiIds::moduleId, "Module ID of the DspNetwork holder")
 				.withExample("DspTestFX"))
@@ -1692,8 +1706,9 @@ struct RestApiEndpoints
 				.withType(ParamType::Float).withDefault("1.0"))
 			.withBodyParam(RouteParameter(RestApiIds::seed, "Random seed used when signalType is noise")
 				.withType(ParamType::Int).withFormat("int64").asOptional())
-			.withBodyParam(RouteParameter(RestApiIds::delayMs, "Extra time to wait before capturing the probe result")
+			.withBodyParam(RouteParameter(RestApiIds::delayMs, "Processed audio time to wait after injection before capture")
 				.withType(ParamType::Float).withDefault("0.0"))
+			.withBodyParam(triggerParam.asOptional())
 			.withBodyParam(parameterProbeRequest.asOptional())
 			.withBodyParam(filterParam.asOptional())
 			.withResponseField(RouteParameter(RestApiIds::moduleId, "Module ID of the DspNetwork holder"))
@@ -1717,6 +1732,7 @@ struct RestApiEndpoints
 				.withType(ParamType::Int).withFormat("int64").asOptional())
 			.withResponseField(RouteParameter(RestApiIds::recursive, "True when recursive container probing was used")
 				.withType(ParamType::Bool))
+			.withResponseField(triggerParam.asOptional())
 			.withResponseField(specsReport.asOptional())
 			.withResponseField(signalReport.asOptional())
 			.withResponseField(containerReport.asOptional())
@@ -1724,7 +1740,7 @@ struct RestApiEndpoints
 			.withResponseField(RouteParameter(RestApiIds::tree, "Dense recursive topology tree when requested by filter.tree")
 				.withType(ParamType::Object).asOptional())
 			.withErrorCodes({ 400, 404, 409, 504 })
-			.withRequestExample(R"({"moduleId": "ReproFX", "parent": "repro_probe", "signalType": "silence", "probeId": "gain", "parameters": {"inject": {"repro_probe.Parameter": 1.0}, "probe": ["repro_probe.Parameter", "gain.Gain"]}, "filter": {"compact": false}})")
+			.withRequestExample(R"({"moduleId": "PolyFX", "parent": "repro_probe", "signalType": "dirac", "probeId": "gain", "trigger": {"type": "note", "noteNumber": 60, "velocity": 1.0, "channel": 1, "predelayMs": 100.0}, "filter": {"compact": false}})")
 			.withResponseExample(R"({"success": true, "moduleId": "DspTestFX", "parent": "test_network", "factoryPath": "container.chain", "injectIndex": 0, "probeIndex": 0, "signalType": "dirac", "gain": 1.0, "seed": 1234, "recursive": false, "specs": {"sampleRate": 44100.0, "numChannels": 2, "blockSize": 512, "polyphonic": false, "processMidi": false}, "signal": [{"channelIndex": 0, "min": 0.0, "max": 0.5, "avg": 0.001, "peakIndex": 0, "silence": false}], "parameters": {"injected": {"Gain1.Gain": 0.5}, "probed": {"Gain1.Gain": 0.5}, "touchedEdges": {}}, "logs": [], "errors": []})"));
 	}
 

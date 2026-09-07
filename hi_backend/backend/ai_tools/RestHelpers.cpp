@@ -6335,18 +6335,82 @@ RestServer::Response RestHelpers::handleDspProbe(MainController* mc,
 	if (network == nullptr)
 		return req->fail(404, "No active DspNetwork for module: " + moduleId);
 
+	auto hasTrigger = obj.hasProperty(RestApiIds::trigger);
+	auto triggerData = obj.getProperty(RestApiIds::trigger, var());
+
+	if (network->isPolyphonic() && !hasTrigger)
+	{
+		return req->fail(400, "Polyphonic DspNetwork requires a trigger note. Add a trigger object with "
+			"noteNumber, velocity, channel, and optional predelayMs.");
+	}
+
+	if (hasTrigger && !triggerData.isObject())
+		return req->fail(400, "trigger must be an object");
+
+	auto triggerType = triggerData.getProperty(RestApiIds::type, "note").toString();
+	auto triggerNoteNumber = (int)triggerData.getProperty(RestApiIds::noteNumber, 60);
+	auto triggerVelocity = (double)triggerData.getProperty(RestApiIds::velocity, 1.0);
+	auto triggerChannel = (int)triggerData.getProperty(RestApiIds::channel, 1);
+	auto triggerPredelayMs = (double)triggerData.getProperty(RestApiIds::predelayMs, 0.0);
+
+	if (hasTrigger)
+	{
+		if (triggerType != "note")
+			return req->fail(400, "trigger.type must be note");
+
+		if (!isPositiveAndBelow(triggerNoteNumber, 128))
+			return req->fail(400, "trigger.noteNumber must be between 0 and 127");
+
+		if (!std::isfinite(triggerVelocity) || triggerVelocity < 0.0 || triggerVelocity > 1.0)
+			return req->fail(400, "trigger.velocity must be between 0.0 and 1.0");
+
+		if (!isPositiveAndBelow(triggerChannel - 1, 16))
+			return req->fail(400, "trigger.channel must be between 1 and 16");
+
+		if (!std::isfinite(triggerPredelayMs) || triggerPredelayMs < 0.0)
+			return req->fail(400, "trigger.predelayMs must be a finite non-negative number");
+	}
+
 	auto injectId = obj.getProperty(RestApiIds::injectId, var()).toString();
 	auto probeId = obj.getProperty(RestApiIds::probeId, var()).toString();
 	auto hasInjectId = injectId.isNotEmpty();
 	auto hasProbeId = probeId.isNotEmpty();
 	auto delayMs = (double)obj.getProperty(RestApiIds::delayMs, 0.0);
-	auto timeoutMs = jmax(200, roundToInt(delayMs + 200.0));
-	auto finished = std::make_shared<std::atomic<bool>>(false);
 
-	auto completeSuccess = [req, finished, moduleId, hasInjectId, injectId, hasProbeId, probeId](const var::NativeFunctionArgs& args) -> var
+	if (!std::isfinite(delayMs) || delayMs < 0.0)
+		return req->fail(400, "delayMs must be a finite non-negative number");
+
+	DynamicObject::Ptr resolvedTriggerObject;
+	var resolvedTrigger;
+
+	if (hasTrigger)
+	{
+		resolvedTriggerObject = new DynamicObject();
+		resolvedTriggerObject->setProperty(RestApiIds::type, triggerType);
+		resolvedTriggerObject->setProperty(RestApiIds::noteNumber, triggerNoteNumber);
+		resolvedTriggerObject->setProperty(RestApiIds::velocity, triggerVelocity);
+		resolvedTriggerObject->setProperty(RestApiIds::channel, triggerChannel);
+		resolvedTriggerObject->setProperty(RestApiIds::predelayMs, triggerPredelayMs);
+		resolvedTrigger = var(resolvedTriggerObject.get());
+	}
+
+	auto timeoutMs = jmax(200, roundToInt(triggerPredelayMs + delayMs + 200.0));
+	auto finished = std::make_shared<std::atomic<bool>>(false);
+	auto noteReleased = std::make_shared<std::atomic<bool>>(!hasTrigger);
+
+	auto releaseTrigger = [mc, noteReleased, triggerChannel, triggerNoteNumber]()
+	{
+		if (!noteReleased->exchange(true))
+			mc->getKeyboardState().noteOff(triggerChannel, triggerNoteNumber, 1.0f);
+	};
+
+	auto completeSuccess = [req, finished, releaseTrigger, resolvedTrigger, moduleId, hasInjectId, injectId,
+		hasProbeId, probeId](const var::NativeFunctionArgs& args) -> var
 	{
 		if (finished->exchange(true))
 			return var();
+
+		releaseTrigger();
 
 		auto report = args.numArguments > 0 ? args.arguments[0] : var();
 
@@ -6367,15 +6431,24 @@ RestServer::Response RestHelpers::handleDspProbe(MainController* mc,
 		if (hasProbeId)
 			result->setProperty(RestApiIds::probeId, probeId);
 
+		if (resolvedTrigger.isObject())
+			result->setProperty(RestApiIds::trigger, resolvedTrigger);
+
 		req->complete(RestServer::Response::ok(var(result.get())));
 		return var();
 	};
+
+	if (hasTrigger)
+		mc->getKeyboardState().noteOn(triggerChannel, triggerNoteNumber, (float)triggerVelocity);
 
 	ReferenceCountedObjectPtr<InjectHelpers::InjectChecker> checker =
 		new InjectHelpers::InjectChecker(network, obj, var(var::NativeFunction(completeSuccess)));
 
 	if (!checker->injectOk.wasOk())
+	{
+		releaseTrigger();
 		return req->fail(getDspProbeErrorStatusCode(checker->injectOk.getErrorMessage()), checker->injectOk.getErrorMessage());
+	}
 
 	auto start = Time::getMillisecondCounterHiRes();
 
@@ -6389,6 +6462,7 @@ RestServer::Response RestHelpers::handleDspProbe(MainController* mc,
 
 	if (!finished->exchange(true))
 	{
+		releaseTrigger();
 		checker->cleanup();
 		return RestServer::Response::error(504, "Probe timed out");
 	}

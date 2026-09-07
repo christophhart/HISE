@@ -484,6 +484,7 @@ InjectHelpers::InjectData::InjectData(const var& data) :
 	gain((float)data.getProperty("gain", 1.0f)),
 	seed((int64)data.getProperty("seed", Random::getSystemRandom().nextInt64())),
 	delayMs(data.getProperty("delayMs", 0.0)),
+	predelayMs(data.getProperty("trigger", var()).getProperty("predelayMs", 0.0)),
 	recursive(data.getProperty("recursive", false))
 {
 
@@ -516,6 +517,19 @@ void InjectHelpers::InjectData::processInject(ProcessDataDyn& data, int currentI
 
 	if (currentState == State::WaitingForInjection)
 	{
+		if (predelayMs > 0.0)
+		{
+			if (currentIndex == 0)
+			{
+				auto numThisTime = data.getNumSamples();
+				auto thisTimeMs = numThisTime / currentSpecs.sampleRate * 1000.0;
+				predelayMs -= thisTimeMs;
+			}
+
+			if (predelayMs > 0.0)
+				return;
+		}
+
 		if (parameterInjector != nullptr && currentIndex == 0)
 			parameterInjector->processInject(data);
 
