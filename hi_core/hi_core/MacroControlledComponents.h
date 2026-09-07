@@ -188,9 +188,41 @@ struct HisePluginParameterBase: public ControlledObject,
 		{
 			parameterValueToSend = v;
 
+			// The host already holds this value: it is the one it sent us last. Do not echo it
+			// back. This catches the listener events that were queued while the dispatcher was
+			// paused (editor teardown) and fire after the sendToHost scope in setValue() ended.
+			if(v == lastHostValue)
+				return;
+
 			if(sendToHost)
 				refreshParameterValue();
 		}
+	}
+
+	/** Called by the host-facing setValue() overrides with the normalised value the host
+	    sent, converted exactly the way onUpdate() converts the resulting attribute, so the
+	    two compare equal for stepped and skewed ranges too. */
+	void setLastHostValue(float normalisedValue)
+	{
+		lastHostValue = normalisedValue;
+	}
+
+	/** Returns true while a parameter change must not be reported to the host.
+
+	    Three situations set a value without the user (or the host) asking for it: the host
+	    restoring plugin state, the interface being created, and the internal preset load that
+	    runs inside the state restore. Reporting those back with performEdit() makes Ableton Live
+	    treat them as manual edits: it disables the automation lane of every affected parameter
+	    and lights "Re-Enable Automation" (forum topic 15004, GitHub issue 749). The host does
+	    not need the report either - JUCE already announces restored values through
+	    restartComponent(kParamValuesChanged) after setStateInformation(). */
+	bool shouldSkipHostNotification()
+	{
+		auto mc = getMainController();
+
+		return mc->getKillStateHandler().getStateLoadFlag() ||
+		       mc->getInterfaceCreationFlag() ||
+		       mc->getUserPresetHandler().isInternalPresetLoad();
 	}
 
 	void refreshParameterValue()
@@ -202,6 +234,9 @@ struct HisePluginParameterBase: public ControlledObject,
 		if(!getMainController()->getPluginParameterUpdateState())
 			return;
 
+		if(shouldSkipHostNotification())
+			return;
+
 		if(defer)
 			triggerAsyncUpdate();
 		else
@@ -210,18 +245,32 @@ struct HisePluginParameterBase: public ControlledObject,
 
 	void handleAsyncUpdate() override
 	{
+		// A deferred update queued before a state load began must not land in the middle of it.
+		if(shouldSkipHostNotification())
+			return;
+
+		// A deferred update that was overtaken by a host write carries the host's own value.
+		if(parameterValueToSend == lastHostValue)
+			return;
+
 		auto mc = getMainController();
 		
 		ScopedValueSetter<bool> svs(recursive, true);
 		ScopedValueSetter<bool> setter(mc->getPluginParameterUpdateState(), false, true);
 
 		getWrappedParameter()->asJuceParameter()->setValueNotifyingHost(parameterValueToSend);
+
+		// The host now holds the value we just sent. Without this the memo goes stale after a user
+		// edit: a later user change back to the last host-written value would compare equal and
+		// never be reported (host-facing setValue() is blocked by the recursive flag above).
+		lastHostValue = parameterValueToSend;
 	}
 
     virtual void cleanup() { cleanupCalled = true; }
     
 	int parameterIndex = -1;
 	float parameterValueToSend = 0.0f;
+	float lastHostValue = -1.0f;
 	bool recursive = false;
 
 	dispatch::library::CustomAutomationSource::Listener autoListener;
