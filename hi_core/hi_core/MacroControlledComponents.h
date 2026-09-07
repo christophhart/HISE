@@ -259,6 +259,11 @@ struct HisePluginParameterBase: public ControlledObject,
 		ScopedValueSetter<bool> setter(mc->getPluginParameterUpdateState(), false, true);
 
 		getWrappedParameter()->asJuceParameter()->setValueNotifyingHost(parameterValueToSend);
+
+		// The host now holds the value we just sent. Without this the memo goes stale after a user
+		// edit: a later user change back to the last host-written value would compare equal and
+		// never be reported (host-facing setValue() is blocked by the recursive flag above).
+		lastHostValue = parameterValueToSend;
 	}
 
     virtual void cleanup() { cleanupCalled = true; }
