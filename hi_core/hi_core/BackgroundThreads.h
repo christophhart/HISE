@@ -524,6 +524,10 @@ private:
 
 	String getProjectVersion() const;
 
+	String getVariationFromHxi() const;
+
+	static bool matchesVariation(const ValueTree& sampleMapData, const String& variation);
+
 	File getTargetFile() const;
 
 	ModulatorSynthChain* synthChain;
