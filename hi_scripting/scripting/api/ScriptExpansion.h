@@ -377,6 +377,9 @@ public:
 
 	void extractUserPresetsIfEmpty(ValueTree encryptedTree, bool forceExtraction = false);
 
+	/** If set before encodeExpansion(), only content tagged with this variation is exported. */
+	String variationToExport;
+
 protected:
 
 	void encodePoolAndUserPresets(ValueTree &hxiData, bool encodeAdditionalData);
@@ -387,6 +390,9 @@ protected:
 	void addDataType(ValueTree& parent, SubDirectories fileType);
 	void restorePool(ValueTree encryptedTree, SubDirectories fileType);
 	void addUserPresets(ValueTree encryptedTree);
+
+	bool matchesVariation(const ValueTree& contentData) const;
+	void pruneUserPresetsForVariation(ValueTree tree) const;
 
 	Result returnFail(const String& errorMessage);
 };
