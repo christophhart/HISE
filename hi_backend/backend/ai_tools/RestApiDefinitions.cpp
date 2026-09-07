@@ -1478,8 +1478,10 @@ struct RestApiEndpoints
 				{ RestApiIds::target.toString(), RestApiIds::name.toString() })
 			.withVariantRequired("connect", "Connect a modulation source to a parameter (source, target, parameter, sourceOutput?, matchRange?). "
 				"sourceOutput is a parameter name (string) or output slot index (int) for multi-output mod nodes. "
-				"If matchRange is true, copies target parameter's range (min/max/skew/step) onto source after wiring "
-				"(mirrors the IDE normalize button: target is canonical, source adopts target's units, no remap occurs)",
+				"If matchRange is true and both endpoints are parameters, copies the target range (min/max/skew/step) "
+				"onto the source after wiring. Otherwise the connection succeeds without matching and adds an explanation "
+				"to the response logs (mirrors the IDE normalize button: target is canonical, source adopts target's units, "
+				"no remap occurs)",
 				{ RestApiIds::source.toString(), RestApiIds::target.toString() })
 			.withVariantRequired("disconnect", "Disconnect a modulation connection (target, parameter). The source is resolved automatically by searching the network for the unique connection that targets target.parameter. Errors if more than one match is found.",
 				{ RestApiIds::target.toString(), RestApiIds::parameter.toString() })
@@ -1548,7 +1550,7 @@ struct RestApiEndpoints
 				"Raw skew factor for create_parameter or set (range-write). Mutually exclusive with middlePosition")
 				.withType(ParamType::Float).asOptional())
 			.withProperty(RouteParameter(RestApiIds::matchRange,
-				"For connect op: copy target parameter's range onto source after wiring. Mirrors IDE normalize button")
+				"For connect op: copy the target range when both endpoints are parameters; otherwise log and ignore")
 				.withType(ParamType::Bool).asOptional())
 			.withProperty(RouteParameter(RestApiIds::dataType,
 				"External data type for set_complex_data: Table, SliderPack, AudioFile, FilterCoefficients, or DisplayBuffer")

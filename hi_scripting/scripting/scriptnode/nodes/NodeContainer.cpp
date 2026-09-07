@@ -862,6 +862,15 @@ void InjectHelpers::InjectChecker::cleanup()
 {
 	stopTimer();
 
+	if (auto nc = dynamic_cast<NodeContainer*>(container.get()))
+		nc->injector.reset();
+
+	for (auto c : recursiveContainers)
+	{
+		if (auto nc = dynamic_cast<NodeContainer*>(c.get()))
+			nc->injector.reset();
+	}
+
 	recursiveContainers.clear();
 	container = nullptr;
 	paramInjector = nullptr;

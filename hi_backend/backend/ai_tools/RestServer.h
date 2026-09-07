@@ -357,7 +357,7 @@ namespace RestApiIds
     DECLARE_ID(stepSize);             // Parameter step size
     DECLARE_ID(middlePosition);       // Parameter middle position
     DECLARE_ID(skewFactor);           // Parameter skew factor
-    DECLARE_ID(matchRange);           // connect op flag: copy target range onto source after wiring
+    DECLARE_ID(matchRange);           // connect op flag: copy target range when both endpoints are parameters
     DECLARE_ID(injectId);             // Child node ID to inject before
     DECLARE_ID(probeId);              // Child node ID to probe after
     DECLARE_ID(injectIndex);          // Resolved injection checkpoint index

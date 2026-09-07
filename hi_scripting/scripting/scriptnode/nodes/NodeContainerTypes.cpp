@@ -1823,8 +1823,6 @@ void DynamicBlockSizeNode::prepare(PrepareSpecs ps)
 		obj.getObject().prepare(ps);
 	else
 		obj.prepare(ps);
-
-	obj.prepare(ps);
 }
 
 void DynamicBlockSizeNode::reset()

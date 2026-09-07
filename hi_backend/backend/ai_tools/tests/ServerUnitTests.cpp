@@ -7546,8 +7546,8 @@ private:
         }
 
         /** Setup: A core.peak modulation source and a dynamic container parameter
-         *  Scenario: Connecting with matchRange fails because core.peak is not a parameter source
-         *  Expected: The failed operation does not create a connection, and a plain connection succeeds
+         *  Scenario: Connecting with matchRange when core.peak is not a parameter source
+         *  Expected: The connection succeeds without range matching and reports why it was ignored
          */
         ops.clear();
         ops.add(makeDspAddOp("container.modchain", "test_network", "AtomicModChain"));
@@ -7559,28 +7559,26 @@ private:
         ops.clear();
         ops.add(makeDspConnectOp("AtomicPeak", "AtomicTarget", "Value", {}, true));
         json = postDspOps(ops);
-        expect(!(bool)json[RestApiIds::success],
-            "Matched connection from a modulation output should fail");
+        expectDspSuccess(json);
+        expectEquals(json[RestApiIds::logs][0].toString(),
+            String("Ignored matchRange for AtomicPeak.0 -> AtomicTarget.Value "
+                "because source output is not a parameter"));
 
         tree = getDspTree();
         connections = tree[RestApiIds::result][RestApiIds::connections];
-        bool failedConnectionWasCreated = false;
+        bool connectionWasCreated = false;
 
         if (auto connectionArray = connections.getArray())
         {
             for (const auto& connection : *connectionArray)
             {
-                failedConnectionWasCreated |= connection[RestApiIds::source].toString() == "AtomicPeak" &&
+                connectionWasCreated |= connection[RestApiIds::source].toString() == "AtomicPeak" &&
                     connection[RestApiIds::target].toString() == "AtomicTarget" &&
                     connection[RestApiIds::parameter].toString() == "Value";
             }
         }
 
-        expect(!failedConnectionWasCreated, "Failed matched connection must not mutate the graph");
-
-        ops.clear();
-        ops.add(makeDspConnectOp("AtomicPeak", "AtomicTarget", "Value"));
-        expectDspSuccess(postDspOps(ops));
+        expect(connectionWasCreated, "Ignored matchRange must not prevent the connection");
     }
 
     void testDspApplyDisconnect()
