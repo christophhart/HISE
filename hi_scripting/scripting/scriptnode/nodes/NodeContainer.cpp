@@ -667,34 +667,37 @@ var InjectHelpers::InjectData::poll(NodeBase* parent)
 
 		if (list.isEmpty())
 		{
-			Report r;
-			r.specs = currentSpecs;
-			auto cd = r.toJSON(processMidi);
+			jassert(reports.size() == 1);
+			auto cd = reports[0].toJSON(processMidi);
 			v.getDynamicObject()->setProperty("specs", cd["specs"]);
 			v.getDynamicObject()->setProperty("signal", cd["signal"]);
 		}
 
-		for (const auto& r : reports)
+		if (!list.isEmpty())
 		{
-			
+			for (const auto& r : reports)
+			{
+				if (index >= list.size())
+					break;
 
-			auto id = list[index]->getId();
-			auto fp = list[index]->getValueTree()[PropertyIds::FactoryPath].toString();
+				auto id = list[index]->getId();
+				auto fp = list[index]->getValueTree()[PropertyIds::FactoryPath].toString();
 
-			index++;
+				index++;
 
-			auto cd = r.toJSON(processMidi);
-			
-			DynamicObject* child = new DynamicObject();
+				auto cd = r.toJSON(processMidi);
 
-			child->setProperty("id", id);
-			child->setProperty("factoryPath", fp);
-			child->setProperty("signal", cd["signal"]);
+				DynamicObject* child = new DynamicObject();
 
-			// move specs to outer report
-			v.getDynamicObject()->setProperty("specs", cd["specs"]);
-			
-			recursiveData.add(child);
+				child->setProperty("id", id);
+				child->setProperty("factoryPath", fp);
+				child->setProperty("signal", cd["signal"]);
+
+				// move specs to outer report
+				v.getDynamicObject()->setProperty("specs", cd["specs"]);
+
+				recursiveData.add(child);
+			}
 		}
 
 		v.getDynamicObject()->setProperty("children", recursiveData);
@@ -725,6 +728,12 @@ void InjectHelpers::InjectData::ensureStorageAllocated(int numNodes)
 		reports.reserve(numNodes);
 
 		for (int i = 0; i < numNodes; i++)
+			reports.push_back({});
+
+		// An empty recursive container still needs one report for its
+		// passthrough buffer. Otherwise poll() serializes an unprocessed,
+		// uninitialized Report instance.
+		if (numNodes == 0)
 			reports.push_back({});
 	}
 	else
@@ -1139,6 +1148,13 @@ void NodeContainer::resetNodes()
 {
 	for (auto n : nodes)
 		n->reset();
+
+#if USE_BACKEND
+	// Voice startup resets DSP state before delivering note-on. The injector
+	// is shared by all voices, so a per-voice reset must not cancel its probe.
+	if (asNode()->getRootNetwork()->isCurrentlyRenderingVoice())
+		return;
+#endif
 
 	injector.reset();
 }

@@ -6394,7 +6394,14 @@ RestServer::Response RestHelpers::handleDspProbe(MainController* mc,
 		resolvedTrigger = var(resolvedTriggerObject.get());
 	}
 
-	auto timeoutMs = jmax(200, roundToInt(triggerPredelayMs + delayMs + 200.0));
+	// Recursive probes on polyphonic networks can enter a frame container once
+	// per sample and may therefore need considerably longer than one audio
+	// block to produce the report when running in the interpreted backend.
+	// Keep the short timeout for ordinary probes, but leave enough wall-clock
+	// time for this intentionally expensive trace path.
+	auto processingAllowanceMs = (network->isPolyphonic() && (bool)obj[RestApiIds::recursive])
+		? 1000.0 : 200.0;
+	auto timeoutMs = jmax(200, roundToInt(triggerPredelayMs + delayMs + processingAllowanceMs));
 	auto finished = std::make_shared<std::atomic<bool>>(false);
 	auto noteReleased = std::make_shared<std::atomic<bool>>(!hasTrigger);
 
@@ -6438,9 +6445,6 @@ RestServer::Response RestHelpers::handleDspProbe(MainController* mc,
 		return var();
 	};
 
-	if (hasTrigger)
-		mc->getKeyboardState().noteOn(triggerChannel, triggerNoteNumber, (float)triggerVelocity);
-
 	ReferenceCountedObjectPtr<InjectHelpers::InjectChecker> checker =
 		new InjectHelpers::InjectChecker(network, obj, var(var::NativeFunction(completeSuccess)));
 
@@ -6449,6 +6453,11 @@ RestServer::Response RestHelpers::handleDspProbe(MainController* mc,
 		releaseTrigger();
 		return req->fail(getDspProbeErrorStatusCode(checker->injectOk.getErrorMessage()), checker->injectOk.getErrorMessage());
 	}
+
+	// Arm the complete probe before starting its voice. Per-voice DSP resets
+	// must preserve the pending injectors until that voice processes them.
+	if (hasTrigger)
+		mc->getKeyboardState().noteOn(triggerChannel, triggerNoteNumber, (float)triggerVelocity);
 
 	auto start = Time::getMillisecondCounterHiRes();
 

@@ -219,9 +219,11 @@ public:
         testDspProbeSuccess();
         testDspProbeIdTargeting();
         testDspProbeRecursiveFilter();
+        testDspProbeEmptyRecursiveContainer();
         testDspProbeParameterReport();
         testDspProbeParameterCompactAndInjectOnly();
         testDspProbePolyphonicTrigger();
+		testDspProbePolyphonicMultiReset();
         testDspProbeValidation();
         testDspProbeTimeout();
         testDspScreenshot();
@@ -8923,6 +8925,43 @@ private:
         expect(rootReport[RestApiIds::children].isArray(), "Root container should include child reports");
     }
 
+    void testDspProbeEmptyRecursiveContainer()
+    {
+        beginTest("POST /api/dsp/probe - empty recursive container");
+
+        resetDspState();
+
+        Array<var> ops;
+        ops.add(makeDspAddOp("container.chain", "test_network", "EmptyChain"));
+        expectDspSuccess(postDspOps(ops));
+
+        DynamicObject::Ptr body = new DynamicObject();
+        body->setProperty(RestApiIds::moduleId, "DspTestFX");
+        body->setProperty(RestApiIds::parent, "test_network");
+        body->setProperty(RestApiIds::recursive, true);
+        body->setProperty(RestApiIds::signalType, "dc");
+        body->setProperty(RestApiIds::gain, 0.25);
+
+        auto json = postDspProbeWhileProcessing(var(body.get()));
+
+        expect((bool)json[RestApiIds::success], "Recursive probe should succeed");
+
+        auto root = json[RestApiIds::containers]["test_network"];
+        auto child = root[RestApiIds::children][0];
+        auto channel = child[RestApiIds::signal][0];
+
+        expectEquals((double)channel[RestApiIds::min], 0.25,
+            "Empty container should report the passed-through minimum");
+        expectEquals((double)channel[RestApiIds::max], 0.25,
+            "Empty container should report the passed-through maximum");
+        expectEquals((double)channel[RestApiIds::avg], 0.25,
+            "Empty container should report the passed-through average");
+        expectEquals<int>((int)channel[RestApiIds::peakIndex], 0,
+            "Peak index should be inside the captured buffer");
+        expect(!(bool)channel[RestApiIds::silence],
+            "A nonzero passthrough signal should not be silent");
+    }
+
     void testDspProbeParameterReport()
     {
         beginTest("POST /api/dsp/probe - parameter report");
@@ -9014,6 +9053,53 @@ private:
             "Should echo the trigger predelay");
         expect(!ctx->bp->getKeyboardState().isNoteOn(1, 64), "Trigger note should be released after probing");
     }
+
+	/** Setup: A polyphonic network containing multi -> framex -> gain.
+	 *  Scenario: Arm a direct multi probe and a recursive root probe before triggering a voice.
+	 *  Expected: Voice-start resets preserve both probes and recursive reports include every container.
+	 */
+	void testDspProbePolyphonicMultiReset()
+	{
+		beginTest("POST /api/dsp/probe - polyphonic multi voice reset");
+
+		resetPolyDspState();
+
+		Array<var> ops;
+		ops.add(makeDspAddOp("container.multi", "poly_test_network", "PolyMulti"));
+		ops.add(makeDspAddOp("container.framex_block", "PolyMulti", "PolyFrames"));
+		ops.add(makeDspAddOp("core.gain", "PolyFrames", "PolyGain"));
+		expectDspSuccess(postDspOps(ops, "DspPolyTestFX"));
+
+		for (bool recursive : { false, true })
+		{
+			DynamicObject::Ptr trigger = new DynamicObject();
+			trigger->setProperty(RestApiIds::noteNumber, 64);
+			trigger->setProperty(RestApiIds::velocity, 0.75);
+			trigger->setProperty(RestApiIds::channel, 1);
+			trigger->setProperty(RestApiIds::predelayMs, 20.0);
+
+			DynamicObject::Ptr body = new DynamicObject();
+			body->setProperty(RestApiIds::moduleId, "DspPolyTestFX");
+			body->setProperty(RestApiIds::parent, recursive ? "poly_test_network" : "PolyMulti");
+			body->setProperty(RestApiIds::recursive, recursive);
+			body->setProperty(RestApiIds::signalType, "dirac");
+			body->setProperty(RestApiIds::trigger, var(trigger.get()));
+
+			auto json = postDspProbeWhileProcessing(var(body.get()), 2000);
+			expect((bool)json[RestApiIds::success], "Voice reset must not cancel the multi probe");
+			expect(!ctx->bp->getKeyboardState().isNoteOn(1, 64), "Trigger note must be released");
+
+			if (recursive)
+			{
+				auto containers = json[RestApiIds::containers];
+				expect(containers["poly_test_network"].isObject(), "Root must report");
+				expect(containers["PolyMulti"].isObject(), "Multi must report after voice reset");
+				expect(containers["PolyFrames"].isObject(), "Framex must report");
+				expectEquals<int>((int)containers["PolyFrames"][RestApiIds::specs][RestApiIds::blockSize], 1,
+					"Framex must report one-sample processing");
+			}
+		}
+	}
 
     void testDspProbeValidation()
     {

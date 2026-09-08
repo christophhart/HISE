@@ -992,7 +992,13 @@ struct InjectHelpers
 
 		struct Report
 		{
-			Report() = default;
+			Report()
+			{
+				indexOfPeak.fill(0);
+				peaks.fill(Range<float>(0.0f, 0.0f));
+				avg.fill(0.0f);
+				silence.fill(true);
+			}
 
 			operator bool() const { return specs; }
 
