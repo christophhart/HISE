@@ -617,6 +617,7 @@ private:
         expect(schemas["BuilderTreeNode"].isObject(), "OpenAPI should include BuilderTreeNode schema");
         expect(schemas["UiTreeNode"].isObject(), "OpenAPI should include UiTreeNode schema");
 		expect(schemas["DspTreeComplexData"].isObject(), "OpenAPI should include DspTreeComplexData schema");
+		expect(schemas["DspTreeBounds"].isObject(), "OpenAPI should include DspTreeBounds schema");
         expect(schemas["DspTreeNode"].isObject(), "OpenAPI should include DspTreeNode schema");
         expect(schemas["ProjectTreeNode"].isObject(), "OpenAPI should include ProjectTreeNode schema");
 
@@ -632,6 +633,9 @@ private:
 		expect(schemas["DspTreeNode"]["properties"]["complexData"]["items"]["$ref"].toString()
 			== "#/components/schemas/DspTreeComplexData",
 			"DspTreeNode complexData should reference DspTreeComplexData");
+		expect(schemas["DspTreeNode"]["properties"]["bounds"]["$ref"].toString()
+			== "#/components/schemas/DspTreeBounds",
+			"DspTreeNode bounds should reference DspTreeBounds");
         expect(schemas["ProjectTreeNode"]["properties"]["children"]["items"]["$ref"].toString()
                == "#/components/schemas/ProjectTreeNode",
                "ProjectTreeNode children should be recursive refs");
@@ -6635,11 +6639,13 @@ private:
         }
     }
 
-    var getDspTree(const String& moduleId = "DspTestFX", bool verbose = false)
+    var getDspTree(const String& moduleId = "DspTestFX", bool verbose = false, bool includeBounds = false)
     {
         auto url = "/api/dsp/tree?moduleId=" + URL::addEscapeChars(moduleId, true);
         if (verbose)
             url += "&verbose=true";
+        if (includeBounds)
+            url += "&includeBounds=true";
         auto response = ctx->httpGet(url);
         return ctx->parseJson(response);
     }
@@ -6865,6 +6871,13 @@ private:
             "Root should be container.chain");
         expect(result[RestApiIds::children].isArray(), "Should have children");
         expectEquals<int>(result[RestApiIds::children].size(), 0, "Should be empty");
+		expect(!result.hasProperty(RestApiIds::bounds), "Bounds should be omitted by default");
+		auto boundsResult = getDspTree("DspTestFX", false, true)[RestApiIds::result];
+		expect(boundsResult[RestApiIds::bounds].isObject(), "Live root should expose requested bounds");
+		expect((int)boundsResult[RestApiIds::bounds][RestApiIds::width] > 0,
+			"Root bounds should have positive width");
+		expect((int)boundsResult[RestApiIds::bounds][RestApiIds::height] > 0,
+			"Root bounds should have positive height");
 		expect(result[RestApiIds::complexData].isArray(), "Root should have a complexData array");
 		expectEquals<int>(result[RestApiIds::complexData].size(), 0, "Root should have no complex data slots");
 
@@ -6885,6 +6898,8 @@ private:
         expect(child[RestApiIds::parameters].isArray(), "Should have parameters");
         expect(child[RestApiIds::parameters].size() > 0, "Oscillator should have parameters");
 		expect(child[RestApiIds::complexData].isArray(), "DSP nodes should have a complexData array");
+		auto boundsChild = getDspTree("DspTestFX", false, true)[RestApiIds::result][RestApiIds::children][0];
+		expect(boundsChild[RestApiIds::bounds].isObject(), "Live child should expose requested bounds");
 
         // Check parameter shape (compact mode)
         auto firstParam = child[RestApiIds::parameters][0];

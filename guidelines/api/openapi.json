@@ -3,7 +3,7 @@
     "info": {
         "title": "HISE REST API",
         "description": "REST API for AI-assisted development in HISE",
-        "version": "0.10.1"
+        "version": "0.11.0"
     },
     "servers": [
         {
@@ -650,6 +650,36 @@
                 ],
                 "description": "DSP complex data slot entry"
             },
+            "DspTreeBounds": {
+                "type": "object",
+                "properties": {
+                    "x": {
+                        "type": "integer",
+                        "description": "Local X position"
+                    },
+                    "y": {
+                        "type": "integer",
+                        "description": "Local Y position"
+                    },
+                    "width": {
+                        "type": "integer",
+                        "description": "Calculated canvas width",
+                        "minimum": 0.0
+                    },
+                    "height": {
+                        "type": "integer",
+                        "description": "Calculated canvas height",
+                        "minimum": 0.0
+                    }
+                },
+                "required": [
+                    "x",
+                    "y",
+                    "width",
+                    "height"
+                ],
+                "description": "Calculated DSP node canvas bounds"
+            },
             "DspTreeNode": {
                 "type": "object",
                 "properties": {
@@ -664,6 +694,9 @@
                     "bypassed": {
                         "type": "boolean",
                         "description": "Current bypass state"
+                    },
+                    "bounds": {
+                        "$ref": "#/components/schemas/DspTreeBounds"
                     },
                     "parameters": {
                         "type": "array",
@@ -771,7 +804,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -845,7 +878,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "activeIsSnippetBrowser": {
                                             "type": "boolean",
@@ -1070,7 +1103,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "preprocessors": {
                                             "type": "object",
@@ -1175,7 +1208,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -1403,7 +1436,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -1589,7 +1622,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -1730,7 +1763,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -1867,7 +1900,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -1988,7 +2021,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -2127,7 +2160,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -2290,7 +2323,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -2448,7 +2481,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -2612,7 +2645,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -2778,7 +2811,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -2908,7 +2941,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -3155,7 +3188,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "interactionsCompleted": {
                                             "type": "integer",
@@ -3310,7 +3343,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -3479,7 +3512,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -3659,7 +3692,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "recording": {
                                             "type": "boolean",
@@ -3855,7 +3888,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "diagnostics": {
                                             "type": "array",
@@ -3960,7 +3993,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -4084,7 +4117,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "$ref": "#/components/schemas/BuilderTreeNode"
@@ -4380,7 +4413,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -4518,7 +4551,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -4621,7 +4654,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -4766,7 +4799,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -4869,7 +4902,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -4966,7 +4999,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -5107,7 +5140,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -5277,7 +5310,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -5377,7 +5410,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -5491,7 +5524,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -5617,7 +5650,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "jobId": {
                                             "type": "string",
@@ -5715,7 +5748,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "finished": {
                                             "type": "boolean",
@@ -5831,7 +5864,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "$ref": "#/components/schemas/UiTreeNode"
@@ -6070,7 +6103,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -6380,7 +6413,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "isPlaying": {
                                             "type": "boolean",
@@ -6535,7 +6568,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "networks": {
                                             "type": "array",
@@ -6670,7 +6703,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "filePath": {
                                             "type": "string",
@@ -6761,7 +6794,7 @@
                     "dsp"
                 ],
                 "summary": "Get scriptnode network hierarchy",
-                "description": "Returns the nested JSON tree of the active DspNetwork for the given module. Each node contains its nodeId, factoryPath, bypass state, parameters, properties, complex data slots, and child nodes. The parameters array lists objects with parameterId and value (plus range metadata when verbose=true). The properties array lists node-level properties as objects with propertyId and value fields. The complexData array lists dataType, slotIndex, and dataIndex for each slot; dataIndex=-1 means embedded data. Container nodes also have a connections array listing all modulation edges within that container (source, sourceOutput, target, parameter). Use verbose=true to include full parameter range metadata (min, max, stepSize, middlePosition, defaultValue). Use group=current inside an undo group (after push_group) to read the accumulated plan-mode snapshot before the group is committed -- returns 400 if there is no active DSP validation state, 501 for any group value other than 'current'.",
+                "description": "Returns the nested JSON tree of the active DspNetwork for the given module. Each node contains its nodeId, factoryPath, bypass state, calculated bounds, parameters, properties, complex data slots, and child nodes. Bounds are local and include the complete subtree for container nodes, so the root width and height describe the total network area. Use includeBounds=true to calculate them on the message thread. Bounds are omitted by default and for non-instantiated plan-mode nodes. The parameters array lists objects with parameterId and value (plus range metadata when verbose=true). The properties array lists node-level properties as objects with propertyId and value fields. The complexData array lists dataType, slotIndex, and dataIndex for each slot; dataIndex=-1 means embedded data. Container nodes also have a connections array listing all modulation edges within that container (source, sourceOutput, target, parameter). Use verbose=true to include full parameter range metadata (min, max, stepSize, middlePosition, defaultValue). Use group=current inside an undo group (after push_group) to read the accumulated plan-mode snapshot before the group is committed -- returns 400 if there is no active DSP validation state, 501 for any group value other than 'current'.",
                 "operationId": "dsp_tree",
                 "parameters": [
                     {
@@ -6782,6 +6815,17 @@
                         "schema": {
                             "type": "boolean",
                             "description": "Include full parameter range metadata",
+                            "default": "false"
+                        }
+                    },
+                    {
+                        "name": "includeBounds",
+                        "in": "query",
+                        "description": "Calculate bounds for instantiated live nodes on the message thread",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "description": "Calculate bounds for instantiated live nodes on the message thread",
                             "default": "false"
                         }
                     },
@@ -6811,7 +6855,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "$ref": "#/components/schemas/DspTreeNode"
@@ -6861,6 +6905,12 @@
                                         "nodeId": "MyDSP",
                                         "factoryPath": "container.chain",
                                         "bypassed": false,
+                                        "bounds": {
+                                            "x": 0,
+                                            "y": 0,
+                                            "width": 256,
+                                            "height": 320
+                                        },
                                         "parameters": [],
                                         "properties": [],
                                         "complexData": [],
@@ -6877,6 +6927,12 @@
                                                 "nodeId": "PMA1",
                                                 "factoryPath": "control.pma",
                                                 "bypassed": false,
+                                                "bounds": {
+                                                    "x": 0,
+                                                    "y": 0,
+                                                    "width": 128,
+                                                    "height": 100
+                                                },
                                                 "parameters": [
                                                     {
                                                         "parameterId": "Value",
@@ -6891,6 +6947,12 @@
                                                 "nodeId": "Table1",
                                                 "factoryPath": "core.table",
                                                 "bypassed": false,
+                                                "bounds": {
+                                                    "x": 0,
+                                                    "y": 0,
+                                                    "width": 128,
+                                                    "height": 100
+                                                },
                                                 "parameters": [
                                                     {
                                                         "parameterId": "Value",
@@ -7401,7 +7463,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "scope": {
                                             "type": "string",
@@ -7519,7 +7581,7 @@
                     "dsp"
                 ],
                 "summary": "Inject signal and/or parameter test stimuli and return a DSP probe report",
-                "description": "Queues a one-shot signal and/or parameter injection into a supported scriptnode container and waits until the requested probe point has processed a buffer. injectId and probeId override injectIndex and probeIndex when present. Signal injection resolves before a child node and signal probing resolves after a child node, so injectIndex == probeIndex is valid. probeIndex=-1 or an omitted probeIndex resolves to the container output after the last child. recursive=true returns containers keyed by container ID. parameters.inject temporarily injects parameter values keyed by nodeId.parameterId. parameters.probe accepts '*' or an array of parameter paths. touchedEdges reports runtime parameter/control connections reached by the probe, not static graph reachability. Full mixed trace example: {\"moduleId\":\"ReproFX\",\"parent\":\"repro_probe\",\"signalType\":\"silence\",\"probeId\":\"gain\",\"parameters\":{\"inject\":{\"repro_probe.Parameter\":1.0},\"probe\":[\"repro_probe.Parameter\",\"gain.Gain\"]},\"filter\":{\"compact\":false}}. Wildcard parameter trace example: {\"moduleId\":\"ReproNullControlFX\",\"parent\":\"repro_null_control\",\"signalType\":\"silence\",\"probeId\":\"gain\",\"parameters\":{\"inject\":{\"repro_null_control.Parameter\":0.25},\"probe\":\"*\"},\"filter\":{\"compact\":false}}. Compact trace example: {\"moduleId\":\"DspTestFX\",\"parent\":\"test_network\",\"signalType\":\"dirac\",\"probeId\":\"gain\",\"parameters\":{\"probe\":\"*\"},\"filter\":{\"compact\":true}}. The optional filter object can remove specs or signal data, compact signal arrays and parameter reports, and include the recursive topology tree. Polyphonic DspNetworks require a trigger object so that a voice processes the probe. trigger.predelayMs waits in processed audio time after note-on before injection. The trigger note is released after success or failure. The request blocks until the report is available or until the fixed timeout of trigger.predelayMs + delayMs + 200ms expires.",
+                "description": "Queues a one-shot signal and/or parameter injection into a supported scriptnode container and waits until the requested probe point has processed a buffer. injectId and probeId override injectIndex and probeIndex when present. Signal injection resolves before a child node and signal probing resolves after a child node, so injectIndex == probeIndex is valid. probeIndex=-1 or an omitted probeIndex resolves to the container output after the last child. recursive=true returns containers keyed by container ID. parameters.inject temporarily injects parameter values keyed by nodeId.parameterId. parameters.probe accepts '*' or an array of parameter paths. touchedEdges reports runtime parameter/control connections reached by the probe, not static graph reachability. Full mixed trace example: {\"moduleId\":\"ReproFX\",\"parent\":\"repro_probe\",\"signalType\":\"silence\",\"probeId\":\"gain\",\"parameters\":{\"inject\":{\"repro_probe.Parameter\":1.0},\"probe\":[\"repro_probe.Parameter\",\"gain.Gain\"]},\"filter\":{\"compact\":false}}. Wildcard parameter trace example: {\"moduleId\":\"ReproNullControlFX\",\"parent\":\"repro_null_control\",\"signalType\":\"silence\",\"probeId\":\"gain\",\"parameters\":{\"inject\":{\"repro_null_control.Parameter\":0.25},\"probe\":\"*\"},\"filter\":{\"compact\":false}}. Compact trace example: {\"moduleId\":\"DspTestFX\",\"parent\":\"test_network\",\"signalType\":\"dirac\",\"probeId\":\"gain\",\"parameters\":{\"probe\":\"*\"},\"filter\":{\"compact\":true}}. The optional filter object can remove specs or signal data, compact signal arrays and parameter reports, and include the recursive topology tree. Polyphonic DspNetworks require a trigger object so that a voice processes the probe. trigger.predelayMs waits in processed audio time after note-on before injection. The trigger note is released after success or failure. The request blocks until the report is available or until the timeout of trigger.predelayMs + delayMs + 200ms expires for ordinary probes, or 1000ms for recursive probes on polyphonic networks.",
                 "operationId": "dsp_probe",
                 "requestBody": {
                     "required": true,
@@ -7726,7 +7788,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -8043,7 +8105,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -8170,7 +8232,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "filePath": {
                                             "type": "string",
@@ -8289,7 +8351,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "moduleId": {
                                             "type": "string",
@@ -8401,7 +8463,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "projects": {
                                             "type": "array",
@@ -8516,7 +8578,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "projectName": {
                                             "type": "string",
@@ -8622,7 +8684,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "files": {
                                             "type": "array",
@@ -8753,7 +8815,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "settings": {
                                             "type": "object",
@@ -8917,7 +8979,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -9038,7 +9100,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "path": {
                                             "type": "string",
@@ -9160,7 +9222,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -9279,7 +9341,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -9366,7 +9428,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "snippet": {
                                             "type": "string",
@@ -9472,7 +9534,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -9591,7 +9653,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "preprocessors": {
                                             "type": "object",
@@ -9740,7 +9802,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "result": {
                                             "type": "string",
@@ -9856,7 +9918,7 @@
                                         "apiVersion": {
                                             "type": "string",
                                             "description": "REST API contract version (semver). Bumped when the envelope or any route contract changes - clients should compare against the version they were built for.",
-                                            "example": "0.10.1"
+                                            "example": "0.11.0"
                                         },
                                         "exists": {
                                             "type": "boolean",

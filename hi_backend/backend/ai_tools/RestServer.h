@@ -40,7 +40,7 @@
     runtime field. Consumers read it off any response (or `/api/status`) to
     verify they are talking to a HISE build that matches their expected schema.
 */
-#define HISE_REST_API_VERSION "0.10.1"
+#define HISE_REST_API_VERSION "0.11.0"
 
 namespace hise { using namespace juce;
 
@@ -350,6 +350,8 @@ namespace RestApiIds
     // dsp (scriptnode)
     DECLARE_ID(nodeId);               // Node instance ID within a network
     DECLARE_ID(factoryPath);          // Node factory path (e.g. core.oscillator)
+    DECLARE_ID(bounds);               // Calculated node canvas bounds
+    DECLARE_ID(includeBounds);        // Include calculated live-node canvas bounds
     DECLARE_ID(networks);             // Array of network names
     DECLARE_ID(connections);          // Array of connection objects in tree
     DECLARE_ID(sourceOutput);         // Connection source output name

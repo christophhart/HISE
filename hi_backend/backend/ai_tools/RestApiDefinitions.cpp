@@ -1433,8 +1433,11 @@ struct RestApiEndpoints
 			.withCategory("dsp")
 			.withSummary("Get scriptnode network hierarchy")
 			.withDescription("Returns the nested JSON tree of the active DspNetwork for the given "
-				"module. Each node contains its nodeId, factoryPath, bypass state, parameters, "
-				"properties, complex data slots, and child nodes. The parameters array lists objects with parameterId "
+				"module. Each node contains its nodeId, factoryPath, bypass state, calculated bounds, parameters, "
+				"properties, complex data slots, and child nodes. Bounds are local and include the complete subtree for "
+				"container nodes, so the root width and height describe the total network area. Use includeBounds=true "
+				"to calculate them on the message thread. Bounds are omitted by default and for non-instantiated "
+				"plan-mode nodes. The parameters array lists objects with parameterId "
 				"and value (plus range metadata when verbose=true). The properties array lists "
 				"node-level properties as objects with propertyId and value fields. The complexData array "
 				"lists dataType, slotIndex, and dataIndex for each slot; dataIndex=-1 means embedded data. Container "
@@ -1445,10 +1448,14 @@ struct RestApiEndpoints
 				"Use group=current inside an undo group (after push_group) to read the accumulated "
 				"plan-mode snapshot before the group is committed -- returns 400 if there is no "
 				"active DSP validation state, 501 for any group value other than 'current'.")
-			.withReturns("Recursive node tree with parameters, properties, complex data slots, connections on containers, and children")
+			.withReturns("Recursive node tree with bounds, parameters, properties, complex data slots, "
+				"connections on containers, and children")
 			.withModuleIdParam()
 			.withQueryParam(RouteParameter(RestApiIds::verbose,
 				"Include full parameter range metadata")
+				.withType(ParamType::Bool).withDefault("false"))
+			.withQueryParam(RouteParameter(RestApiIds::includeBounds,
+				"Calculate bounds for instantiated live nodes on the message thread")
 				.withType(ParamType::Bool).withDefault("false"))
 			.withQueryParam(RouteParameter(RestApiIds::group,
 				"Optional group selector. 'current' returns the active plan's validation tree "
@@ -1456,8 +1463,8 @@ struct RestApiEndpoints
 			.withResponseField(RouteParameter(RestApiIds::result, "Recursive scriptnode tree root")
 				.withRef("#/components/schemas/DspTreeNode"))
 			.withErrorCodes({ 400, 404, 501 })
-			.withRequestExample(R"(GET /api/dsp/tree?moduleId=Script%20FX1)")
-			.withResponseExample(R"({"success": true, "result": {"nodeId": "MyDSP", "factoryPath": "container.chain", "bypassed": false, "parameters": [], "properties": [], "complexData": [], "connections": [{"source": "PMA1", "sourceOutput": 0, "target": "Osc1", "parameter": "Frequency"}], "children": [{"nodeId": "PMA1", "factoryPath": "control.pma", "bypassed": false, "parameters": [{"parameterId": "Value", "value": 0.0}], "properties": [], "complexData": [], "children": []}, {"nodeId": "Table1", "factoryPath": "core.table", "bypassed": false, "parameters": [{"parameterId": "Value", "value": 0.0}], "properties": [], "complexData": [{"dataType": "Table", "slotIndex": 0, "dataIndex": 0}], "children": []}]}, "logs": [], "errors": []})"));
+			.withRequestExample(R"(GET /api/dsp/tree?moduleId=Script%20FX1&includeBounds=true)")
+			.withResponseExample(R"({"success": true, "result": {"nodeId": "MyDSP", "factoryPath": "container.chain", "bypassed": false, "bounds": {"x": 0, "y": 0, "width": 256, "height": 320}, "parameters": [], "properties": [], "complexData": [], "connections": [{"source": "PMA1", "sourceOutput": 0, "target": "Osc1", "parameter": "Frequency"}], "children": [{"nodeId": "PMA1", "factoryPath": "control.pma", "bypassed": false, "bounds": {"x": 0, "y": 0, "width": 128, "height": 100}, "parameters": [{"parameterId": "Value", "value": 0.0}], "properties": [], "complexData": [], "children": []}, {"nodeId": "Table1", "factoryPath": "core.table", "bypassed": false, "bounds": {"x": 0, "y": 0, "width": 128, "height": 100}, "parameters": [{"parameterId": "Value", "value": 0.0}], "properties": [], "complexData": [{"dataType": "Table", "slotIndex": 0, "dataIndex": 0}], "children": []}]}, "logs": [], "errors": []})"));
 	}
 
 	static void dspApply(Array<RouteMetadata>& m)

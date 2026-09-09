@@ -2554,6 +2554,28 @@ If you discover that `forceSynchronousExecution: true` produces different result
 - The actual bug may be in a different file/function than where it manifests
 - Look at `externalFiles` to understand the include chain
 
+## DSP Tree Bounds
+
+`GET /api/dsp/tree?moduleId=Script%20FX1&includeBounds=true` includes calculated `bounds` for every instantiated
+node in the active network. Bounds are omitted by default so normal tree requests do not require message-thread layout work:
+
+```json
+{
+  "nodeId": "Root",
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "width": 512,
+    "height": 320
+  }
+}
+```
+
+The bounds are calculated by the node's `getPositionInCanvas()` implementation using a local origin. Container bounds include their complete subtree, so the root `width` and `height` describe the total network layout area. This allows clients to compare layouts after changing properties such as `IsVertical` without requiring the DSP network editor to be open.
+
+Bounds are omitted from `group=current` plan-mode trees because planned nodes might not have live `NodeBase` instances.
+The `includeBounds` flag has no effect in plan mode.
+
 ## DSP Tree Complex Data
 
 `GET /api/dsp/tree` includes a `complexData` array on every node. The array contains one entry for each complex data slot declared by that node:

@@ -1129,12 +1129,27 @@ var RestHelpers::buildOpenApiComponents()
 		.withProperty(RouteParameter(RestApiIds::dataIndex, "External data index; -1 means embedded data")
 			.withType(ParamType::Int).withMinimum(-1.0));
 
+	auto dspTreeBounds = RouteParameter(Identifier("bounds"), "Calculated DSP node canvas bounds")
+		.withType(ParamType::Object)
+		.withProperty(RouteParameter(RestApiIds::x, "Local X position")
+			.withType(ParamType::Int))
+		.withProperty(RouteParameter(RestApiIds::y, "Local Y position")
+			.withType(ParamType::Int))
+		.withProperty(RouteParameter(RestApiIds::width, "Calculated canvas width")
+			.withType(ParamType::Int).withMinimum(0.0))
+		.withProperty(RouteParameter(RestApiIds::height, "Calculated canvas height")
+			.withType(ParamType::Int).withMinimum(0.0));
+
 	auto dspTreeNode = RouteParameter(Identifier("node"), "Scriptnode DSP tree node")
 		.withType(ParamType::Object)
 		.withProperty(RouteParameter(RestApiIds::nodeId, "Node instance ID"))
 		.withProperty(RouteParameter(RestApiIds::factoryPath, "Node factory path"))
 		.withProperty(RouteParameter(RestApiIds::bypassed, "Current bypass state")
 			.withType(ParamType::Bool))
+		.withProperty(RouteParameter(RestApiIds::bounds,
+			"Calculated local canvas bounds, including the complete subtree for container nodes. "
+			"Only available for instantiated live nodes")
+			.withRef("#/components/schemas/DspTreeBounds").asOptional())
 		.withProperty(RouteParameter(RestApiIds::parameters, "Node parameters")
 			.withArrayItems(RouteParameter(Identifier("parameter"), "DSP node parameter entry")
 				.withRef("#/components/schemas/DspTreeParameter")))
@@ -1171,6 +1186,7 @@ var RestHelpers::buildOpenApiComponents()
 	schemas->setProperty("DspTreeProperty", paramToOpenApiSchema(dspTreeProperty));
 	schemas->setProperty("DspTreeConnection", paramToOpenApiSchema(dspTreeConnection));
 	schemas->setProperty("DspTreeComplexData", paramToOpenApiSchema(dspTreeComplexData));
+	schemas->setProperty("DspTreeBounds", paramToOpenApiSchema(dspTreeBounds));
 	schemas->setProperty("DspTreeNode", paramToOpenApiSchema(dspTreeNode));
 	schemas->setProperty("ProjectTreeNode", paramToOpenApiSchema(projectTreeNode));
 
@@ -5871,13 +5887,27 @@ static int getDspProbeErrorStatusCode(const String& message)
 	return 400;
 }
 
-static var buildDspNodeTree(const ValueTree& nodeTree, bool verbose, bool includeConnections)
+static var buildDspNodeTree(DspNetwork* network, const ValueTree& nodeTree, bool verbose, bool includeConnections)
 {
 	DynamicObject::Ptr obj = new DynamicObject();
 
 	obj->setProperty(RestApiIds::nodeId, nodeTree[PropertyIds::ID].toString());
 	obj->setProperty(RestApiIds::factoryPath, nodeTree[PropertyIds::FactoryPath].toString());
 	obj->setProperty(RestApiIds::bypassed, (bool)nodeTree[PropertyIds::Bypassed]);
+
+	if (network != nullptr)
+	{
+		if (auto node = network->getNodeForValueTree(nodeTree, false))
+		{
+			auto bounds = node->getPositionInCanvas({ 0, 0 });
+			DynamicObject::Ptr boundsObj = new DynamicObject();
+			boundsObj->setProperty(RestApiIds::x, bounds.getX());
+			boundsObj->setProperty(RestApiIds::y, bounds.getY());
+			boundsObj->setProperty(RestApiIds::width, bounds.getWidth());
+			boundsObj->setProperty(RestApiIds::height, bounds.getHeight());
+			obj->setProperty(RestApiIds::bounds, var(boundsObj.get()));
+		}
+	}
 
 	// Parameters
 	Array<var> params;
@@ -6027,7 +6057,7 @@ static var buildDspNodeTree(const ValueTree& nodeTree, bool verbose, bool includ
 	auto nodesTree = nodeTree.getChildWithName(PropertyIds::Nodes);
 
 	for (int i = 0; i < nodesTree.getNumChildren(); i++)
-		children.add(buildDspNodeTree(nodesTree.getChild(i), verbose, false));
+		children.add(buildDspNodeTree(network, nodesTree.getChild(i), verbose, false));
 
 	obj->setProperty(RestApiIds::children, var(children));
 
@@ -6114,7 +6144,8 @@ RestServer::Response RestHelpers::handleDspInit(MainController* mc,
 	auto tree = network->getValueTree();
 	auto rootNode = tree.getChild(0); // First child is the root container node
 
-	var treeJson = buildDspNodeTree(rootNode, false, true);
+	// dsp/init may run off the message thread, so omit optional live-node bounds here.
+	var treeJson = buildDspNodeTree(nullptr, rootNode, false, true);
 
 	if (auto brw = dynamic_cast<BackendProcessor*>(mc)->currentRootWindow)
 	{
@@ -6156,9 +6187,11 @@ RestServer::Response RestHelpers::handleDspTree(MainController* mc,
 		return req->fail(400, "moduleId query parameter is required");
 
 	bool verbose = req->getRequest().getTrueValue(RestApiIds::verbose);
+	bool includeBounds = req->getRequest().getTrueValue(RestApiIds::includeBounds);
 	auto group = req->getRequest()[RestApiIds::group];
 
 	ValueTree rootNode;
+	DspNetwork* network = nullptr;
 
 	if (group.isNotEmpty())
 	{
@@ -6176,7 +6209,7 @@ RestServer::Response RestHelpers::handleDspTree(MainController* mc,
 	}
 	else
 	{
-		auto network = getActiveNetwork(mc, mid);
+		network = getActiveNetwork(mc, mid);
 		if (network == nullptr)
 			return req->fail(404, "No active DspNetwork for module: " + mid);
 
@@ -6184,15 +6217,28 @@ RestServer::Response RestHelpers::handleDspTree(MainController* mc,
 		rootNode = tree.getChild(0);
 	}
 
-	var treeJson = buildDspNodeTree(rootNode, verbose, true);
+	auto completeRequest = [req, rootNode, verbose](DspNetwork* liveNetwork)
+	{
+		auto treeJson = buildDspNodeTree(liveNetwork, rootNode, verbose, true);
 
-	DynamicObject::Ptr result = new DynamicObject();
-	result->setProperty(RestApiIds::success, true);
-	result->setProperty(RestApiIds::result, treeJson);
-	result->setProperty(RestApiIds::logs, Array<var>());
-	result->setProperty(RestApiIds::errors, Array<var>());
+		DynamicObject::Ptr result = new DynamicObject();
+		result->setProperty(RestApiIds::success, true);
+		result->setProperty(RestApiIds::result, treeJson);
+		result->setProperty(RestApiIds::logs, Array<var>());
+		result->setProperty(RestApiIds::errors, Array<var>());
+		req->complete(RestServer::Response::ok(var(result.get())));
+	};
 
-	req->complete(RestServer::Response::ok(var(result.get())));
+	if (network != nullptr && includeBounds)
+	{
+		// Some node bounds implementations create temporary Components.
+		MessageManager::callAsync([completeRequest, network]() { completeRequest(network); });
+	}
+	else
+	{
+		completeRequest(nullptr);
+	}
+
 	return req->waitForResponse();
 }
 
