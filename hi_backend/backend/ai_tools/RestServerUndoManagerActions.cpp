@@ -2754,6 +2754,15 @@ struct Helpers
 		return Error().withError(factoryPath + " not a valid node type. ").withHint(hint);
 	}
 
+	static String getConnectionParameterId(const ValueTree& targetNode, const String& parameterId)
+	{
+		if (parameterId == "Bypass" &&
+			targetNode[PropertyIds::FactoryPath].toString() == "container.soft_bypass")
+			return PropertyIds::Bypassed.toString();
+
+		return parameterId;
+	}
+
 	static Error getErrorForParameter404(const ValueTree& n, const String& parameterId)
 	{
 		StringArray ids;
@@ -3688,7 +3697,8 @@ struct connect : public ActionBase
 			if (!tn.isValid())
 				throw Helpers::getErrorForNode404(rv, targetId);
 
-			auto pn = Helpers::findParameterOrProperty(tn, parameterName, false);
+			auto targetParameterId = Helpers::getConnectionParameterId(tn, parameterName);
+			auto pn = Helpers::findParameterOrProperty(tn, targetParameterId, false);
 
 			if (!pn.isValid())
 				throw Helpers::getErrorForParameter404(tn, parameterName);
@@ -3707,7 +3717,7 @@ struct connect : public ActionBase
 
 				// Mirror the connection onto the plan snapshot. conTree is already
 				// inside the snapshot via getRootTree, so addConnection mutates it.
-				if (!Helpers::addConnection(conTree, targetId, parameterName))
+				if (!Helpers::addConnection(conTree, targetId, targetParameterId))
 					return Error().withError("Connection already exists");
 
 				if (canMatchRange)
@@ -3741,7 +3751,8 @@ struct connect : public ActionBase
 		if (!tn.isValid())
 			throw Helpers::getErrorForNode404(rv, targetId);
 
-		auto pn = Helpers::findParameterOrProperty(tn, parameterName, false);
+		auto targetParameterId = Helpers::getConnectionParameterId(tn, parameterName);
+		auto pn = Helpers::findParameterOrProperty(tn, targetParameterId, false);
 
 		if (!pn.isValid())
 			throw Helpers::getErrorForParameter404(tn, parameterName);
@@ -3755,7 +3766,7 @@ struct connect : public ActionBase
 		capturedSourceRange = false;
 		matchRangeWarning.clear();
 
-		if (!Helpers::addConnection(conTree, targetId, parameterName))
+		if (!Helpers::addConnection(conTree, targetId, targetParameterId))
 			throw Error().withError("Connection already exists");
 
 		if (canMatchRange)
@@ -3788,16 +3799,15 @@ struct connect : public ActionBase
 		if (!tn.isValid())
 			throw Helpers::getErrorForNode404(rv, targetId);
 
-		auto pn = Helpers::findParameterOrProperty(tn, parameterName, false);
+		auto targetParameterId = Helpers::getConnectionParameterId(tn, parameterName);
+		auto pn = Helpers::findParameterOrProperty(tn, targetParameterId, false);
 
 		if (!pn.isValid())
 			throw Helpers::getErrorForParameter404(tn, parameterName);
 
-		
-
 		auto conTree = Helpers::getConnectionParent(sn, sourceOutput);
 
-		if (!Helpers::removeConnection(conTree, targetId, parameterName))
+		if (!Helpers::removeConnection(conTree, targetId, targetParameterId))
 			throw Error().withError("Connection doesn't exist");
 
 		if (matchRange && capturedSourceRange)
@@ -3905,8 +3915,14 @@ struct disconnect : public ActionBase
 
 		if (dspValidation != nullptr)
 		{
+			auto tn = Helpers::findNode(rv, targetId);
+
+			if (!tn.isValid())
+				return Helpers::getErrorForNode404(rv, targetId);
+
+			auto targetParameterId = Helpers::getConnectionParameterId(tn, parameterName);
 			Error ambiguityErr;
-			auto con = findUniqueConnection(rv, targetId, parameterName, ambiguityErr);
+			auto con = findUniqueConnection(rv, targetId, targetParameterId, ambiguityErr);
 
 			if (!ambiguityErr)
 				return ambiguityErr;
@@ -3926,8 +3942,14 @@ struct disconnect : public ActionBase
 	{
 		auto rv = Helpers::getRootTree(this, moduleId);
 
+		auto tn = Helpers::findNode(rv, targetId);
+
+		if (!tn.isValid())
+			throw Helpers::getErrorForNode404(rv, targetId);
+
+		auto targetParameterId = Helpers::getConnectionParameterId(tn, parameterName);
 		Error ambiguityErr;
-		auto con = findUniqueConnection(rv, targetId, parameterName, ambiguityErr);
+		auto con = findUniqueConnection(rv, targetId, targetParameterId, ambiguityErr);
 
 		if (!ambiguityErr)
 			throw ambiguityErr;
@@ -3959,14 +3981,15 @@ struct disconnect : public ActionBase
 		if (!tn.isValid())
 			throw Helpers::getErrorForNode404(rv, targetId);
 
-		auto pn = Helpers::findParameterOrProperty(tn, parameterName, false);
+		auto targetParameterId = Helpers::getConnectionParameterId(tn, parameterName);
+		auto pn = Helpers::findParameterOrProperty(tn, targetParameterId, false);
 
 		if (!pn.isValid())
 			throw Helpers::getErrorForParameter404(tn, parameterName);
 
 		auto conTree = Helpers::getConnectionParent(sn, oldSourceOutput);
 
-		if (!Helpers::addConnection(conTree, targetId, parameterName))
+		if (!Helpers::addConnection(conTree, targetId, targetParameterId))
 			throw Error().withError("Connection already exists");
 	}
 };

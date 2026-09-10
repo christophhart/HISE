@@ -217,6 +217,7 @@ public:
         
         testDspApplyBatchOps();
         testDspProbeSuccess();
+        testDspProbeDelayRemainder();
         testDspProbeIdTargeting();
         testDspProbeRecursiveFilter();
         testDspProbeEmptyRecursiveContainer();
@@ -7545,7 +7546,7 @@ private:
 
         // Connect BypassCtrl -> SoftBypass1.Bypass (synthetic parameter name)
         ops.clear();
-        ops.add(makeDspConnectOp("BypassCtrl", "SoftBypass1", "Bypassed"));
+        ops.add(makeDspConnectOp("BypassCtrl", "SoftBypass1", "Bypass"));
         json = postDspOps(ops);
         expectDspSuccess(json);
 
@@ -8874,6 +8875,25 @@ private:
         auto signal = json[RestApiIds::signal];
         expect(signal.isArray(), "signal should be an array");
         expectEquals<int>(signal.size(), 2, "Should contain two channel reports");
+    }
+
+    void testDspProbeDelayRemainder()
+    {
+        beginTest("POST /api/dsp/probe - non-negative delay remainder");
+
+        resetDspState();
+
+        DynamicObject::Ptr body = new DynamicObject();
+        body->setProperty(RestApiIds::moduleId, "DspTestFX");
+        body->setProperty(RestApiIds::parent, "test_network");
+        body->setProperty(RestApiIds::signalType, "dirac");
+        body->setProperty(RestApiIds::delayMs, 20.0);
+
+        auto json = postDspProbeWhileProcessing(var(body.get()));
+
+        expect((bool)json[RestApiIds::success], "Delayed probe request should succeed");
+        expect((double)json[RestApiIds::delayMs] >= 0.0,
+            "Completed probe should not report a negative delay remainder");
     }
 
     void testDspProbeIdTargeting()

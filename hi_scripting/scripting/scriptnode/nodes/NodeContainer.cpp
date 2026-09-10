@@ -362,7 +362,10 @@ juce::var InjectHelpers::ParameterInjector::poll(bool compact)
 								{
 									if (auto modNode = dynamic_cast<ModulationSourceNode*>(network->getNodeForValueTree(sourceNode)))
 									{
-										con->setProperty("sourceValue", modNode->getParameterHolder()->getDisplayValue());
+                                        if(auto ph = modNode->getParameterHolder())
+                                        {
+                                            con->setProperty("sourceValue", ph->getDisplayValue());
+                                        }
 									}
 									
 									mode << (RangeHelpers::isIdentity(rng2) ? "matched" : "scaled");
@@ -589,7 +592,7 @@ void InjectHelpers::InjectData::processProbe(ProcessDataDyn& data, int currentIn
 				{
 					auto numThisTime = data.getNumSamples();
 					auto thisTimeMs = numThisTime / currentSpecs.sampleRate * 1000.0;
-					delayMs -= thisTimeMs;
+					delayMs = jmax(0.0, delayMs - thisTimeMs);
 				}
 			}
 
@@ -618,9 +621,11 @@ void InjectHelpers::InjectData::processProbe(ProcessDataDyn& data, int currentIn
 			{
 				auto numThisTime = data.getNumSamples();
 				auto thisTimeMs = numThisTime / currentSpecs.sampleRate * 1000.0;
-				delayMs -= thisTimeMs;
-				return;
+				delayMs = jmax(0.0, delayMs - thisTimeMs);
 			}
+
+			if (delayMs > 0.0)
+				return;
 
 			if (parameterInjector != nullptr)
 				parameterInjector->processProbe(data);

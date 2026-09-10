@@ -6440,13 +6440,12 @@ RestServer::Response RestHelpers::handleDspProbe(MainController* mc,
 		resolvedTrigger = var(resolvedTriggerObject.get());
 	}
 
-	// Recursive probes on polyphonic networks can enter a frame container once
-	// per sample and may therefore need considerably longer than one audio
-	// block to produce the report when running in the interpreted backend.
-	// Keep the short timeout for ordinary probes, but leave enough wall-clock
-	// time for this intentionally expensive trace path.
-	auto processingAllowanceMs = (network->isPolyphonic() && (bool)obj[RestApiIds::recursive])
-		? 1000.0 : 200.0;
+	// Recursive probes can enter nested containers once per processing block
+	// and may need considerably longer than one audio block to produce the
+	// report when running in the interpreted backend. This also applies to
+	// Script FX networks containing a MIDI-aware container, where the first
+	// trace can include lazy wrapper setup.
+	auto processingAllowanceMs = (bool)obj[RestApiIds::recursive] ? 1000.0 : 200.0;
 	auto timeoutMs = jmax(200, roundToInt(triggerPredelayMs + delayMs + processingAllowanceMs));
 	auto finished = std::make_shared<std::atomic<bool>>(false);
 	auto noteReleased = std::make_shared<std::atomic<bool>>(!hasTrigger);
