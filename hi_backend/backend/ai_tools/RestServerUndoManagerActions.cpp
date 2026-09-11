@@ -30,6 +30,8 @@
 *   ===========================================================================
 */
 
+#include <cstdlib>
+
 namespace hise {
 namespace rest_undo {
 
@@ -4434,6 +4436,41 @@ struct set : public ActionBase
 			parameter.setProperty(PropertyIds::MaxValue, numClones, nullptr);
 	}
 
+	static Error normalizeStringValue(const ValueTree& parameter, var& value)
+	{
+		if (!value.isString())
+			return {};
+
+		auto text = value.toString().trim();
+		if (text.isEmpty())
+			return Error().withError("set value must be numeric or a valid text-converter value");
+
+		auto* start = text.toRawUTF8();
+		char* end = nullptr;
+		auto numericValue = std::strtod(start, &end);
+
+		if (end != start && *end == '\0')
+		{
+			value = numericValue;
+			return {};
+		}
+
+		auto converter = ValueToTextConverter::fromString(
+			parameter[PropertyIds::TextToValueConverter].toString());
+
+		if (!converter.active)
+			return Error().withError("set value is not numeric and the parameter has no active text converter");
+
+		if (!converter.itemList.isEmpty() && !converter.itemList.contains(text))
+		{
+			auto error = Error().withError("set value is not a valid value for the parameter text converter");
+			return error.withHint(" Available values: " + converter.itemList.joinIntoString(", ") + ".");
+		}
+
+		value = converter.getValueForText(text);
+		return {};
+	}
+
 	Error validate() override
 	{
 		auto rv = Helpers::getRootTree(this, moduleId);
@@ -4457,10 +4494,16 @@ struct set : public ActionBase
 		if (!p.isValid())
 			return Helpers::getErrorForParameter404(n, parameterId);
 
+        if(p.getType() == PropertyIds::Parameter)
+        {
+            auto normalizationError = normalizeStringValue(p, newValue);
+            if (!normalizationError)
+                return normalizationError;
+        }
+        
 		auto cloneCountError = configureCloneCountSet(n);
 		if (!cloneCountError)
 			return cloneCountError;
-
 		if (dspValidation == nullptr)
 			return {};
 
@@ -4540,10 +4583,16 @@ struct set : public ActionBase
 		if (!p.isValid())
 			throw Helpers::getErrorForParameter404(n, parameterId);
 
+        if(p.getType() == PropertyIds::Parameter)
+        {
+            auto normalizationError = normalizeStringValue(p, newValue);
+            if (!normalizationError)
+                throw normalizationError;
+        }
+
 		auto cloneCountError = configureCloneCountSet(n);
 		if (!cloneCountError)
 			throw cloneCountError;
-
 		oldExternalModulation = p[PropertyIds::ExternalModulation];
 
 		if (hasExternalModulation)
