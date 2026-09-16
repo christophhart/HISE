@@ -1856,7 +1856,7 @@ PropertyType Parser::getPropertyType(const String& p)
 	if(p.startsWith("layout"))
 		return PropertyType::Positioning;
 
-	if(p.startsWith("background"))
+	if(p.startsWith("background") || p == "color")
 		return PropertyType::Colour;
 
 	if(p.startsWith("transition"))
