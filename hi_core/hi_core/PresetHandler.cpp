@@ -139,6 +139,7 @@ juce::ValueTree UserPresetHelpers::createUserPreset(ModulatorSynthChain* chain)
 	chain->getMainController()->getUserPresetHandler().saveStateManager(preset, UserPresetIds::MPEData, userPresetState);
 
 	preset.setProperty("Version", getCurrentVersionNumber(chain), nullptr);
+	preset.setProperty("EngineVersion", getCurrentEngineVersionNumber(chain), nullptr);
 
 	addRequiredExpansions(chain->getMainController(), preset);
 
@@ -257,14 +258,40 @@ bool UserPresetHelpers::checkVersionNumber(ModulatorSynthChain* chain, XmlElemen
 	return !versionChecker.isMinorVersionUpdate() && !versionChecker.isMajorVersionUpdate();
 }
 
-String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
+String UserPresetHelpers::getCurrentEngineVersionNumber(ModulatorSynthChain* chain)
 {
 #if USE_BACKEND
 	return dynamic_cast<GlobalSettingManager*>(chain->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
 #else
-	ignoreUnused(chain);
 	return FrontendHandler::getVersionString();
 #endif
+}
+
+String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
+{
+	auto mc = chain->getMainController();
+
+#if USE_BACKEND
+	auto isFullInstrumentExpansion = dynamic_cast<GlobalSettingManager*>(mc)->getSettingsObject().getSetting(HiseSettings::Project::ExpansionType) == "Full";
+#else
+	auto isFullInstrumentExpansion = FrontendHandler::getExpansionType() == "Full";
+#endif
+
+	if (isFullInstrumentExpansion)
+	{
+		if (auto currentExpansion = mc->getExpansionHandler().getCurrentExpansion())
+		{
+			if (auto obj = currentExpansion->getPropertyObject().getDynamicObject())
+			{
+				auto expansionVersion = obj->getProperty(ExpansionIds::Version).toString();
+
+				if (expansionVersion.isNotEmpty())
+					return expansionVersion;
+			}
+		}
+	}
+
+	return getCurrentEngineVersionNumber(chain);
 }
 
 

@@ -1908,11 +1908,7 @@ var ScriptingApi::Engine::getFilterModeList() const
 
 String ScriptingApi::Engine::getVersion()
 {
-#if USE_BACKEND
-	return dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
-#else
-	return FrontendHandler::getVersionString();
-#endif
+	return UserPresetHelpers::getCurrentVersionNumber(getProcessor()->getMainController()->getMainSynthChain());
 }
 
 String ScriptingApi::Engine::getName()
