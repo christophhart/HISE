@@ -1692,9 +1692,10 @@ double ScriptingApi::Engine::getMilliSecondsForQuarterBeatsWithTempo(double quar
 
 double ScriptingApi::Engine::getUptime() const
 {
-	if (parentMidiProcessor != nullptr && parentMidiProcessor->getCurrentHiseEvent() != nullptr)
+	if (parentMidiProcessor != nullptr)
 	{
-		return parentMidiProcessor->getMainController()->getUptime() + parentMidiProcessor->getCurrentHiseEvent()->getTimeStamp() / getSampleRate();
+		if (auto currentEvent = parentMidiProcessor->getCurrentHiseEvent())
+			return parentMidiProcessor->getMainController()->getUptime() + currentEvent->getTimeStamp() / getSampleRate();
 	}
 
 	return getProcessor()->getMainController()->getUptime();
