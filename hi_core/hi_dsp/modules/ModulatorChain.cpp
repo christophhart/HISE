@@ -1366,7 +1366,14 @@ void ModulatorChain::ModChainWithBuffer::clear()
 	currentConstantValue = c->getInitialValueInternal();
 }
 
-ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoices, Mode m, Processor *p): 
+hise::ProcessorMetadata ModulatorChain::createMetadata()
+{
+	return ProcessorMetadata()
+		.withStandardMetadata<ModulatorChain>()
+		.withDescription("Internal container that combines the output of one or more modulators feeding a single parameter.");
+}
+
+ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoices, Mode m, Processor *p):
 	EnvelopeModulator(mc, uid, numVoices, m),
 	Modulation(m),
 	handler(this),
@@ -1389,6 +1396,8 @@ ModulatorChain::ModulatorChain(MainController *mc, const String &uid, int numVoi
 	}
 
 	setEditorState(Processor::Visible, false, dontSendNotification);
+
+	updateParameterSlots();
 };
 
 ModulatorChain::~ModulatorChain()
