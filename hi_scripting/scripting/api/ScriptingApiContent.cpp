@@ -8698,6 +8698,8 @@ void ScriptingApi::Content::sendRebuildMessage()
 
 	auto p = dynamic_cast<Processor*>(getScriptProcessor());
 
+	p->getMainController()->getMacroManager().getMidiControlAutomationHandler()->refreshAttributeIndexesForProcessor(p);
+
 	auto b = p->getMainController()->getScriptComponentEditBroadcaster();
 
 	if (b->isBeingEdited(p))
