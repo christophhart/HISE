@@ -400,6 +400,9 @@ public:
 	void addMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NormalisableRange<double> parameterRange, const ValueToTextConverter& converter, int macroIndex);
 	void removeMidiControlledParameter(Processor *interfaceProcessor, int attributeIndex, NotificationType notifyListeners);
 
+	/** Re-resolves the attribute index of every learned CC for this processor from its stable parameter ID. */
+	void refreshAttributeIndexesForProcessor(Processor* interfaceProcessor);
+
 	bool isLearningActive() const;
 
 	ValueTree exportAsValueTree() const override;
@@ -576,6 +579,8 @@ public:
 		MainController* mc = nullptr;
 		WeakReference<Processor> processor;
 		int attribute;
+		Identifier parameterId;
+
 		NormalisableRange<double> parameterRange;
 		NormalisableRange<double> fullRange;
 		float lastValue = -1.0f;
