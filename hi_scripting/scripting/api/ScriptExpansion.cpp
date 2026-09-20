@@ -264,11 +264,7 @@ bool ScriptUserPresetHandler::isCurrentlyLoadingPreset() const
 
 bool ScriptUserPresetHandler::isOldVersion(const String& version)
 {
-#if USE_BACKEND
-	auto thisVersion = dynamic_cast<GlobalSettingManager*>(getProcessor()->getMainController())->getSettingsObject().getSetting(HiseSettings::Project::Version);
-#else
-	auto thisVersion = FrontendHandler::getVersionString();
-#endif
+	auto thisVersion = UserPresetHelpers::getCurrentVersionNumber(getMainController()->getMainSynthChain());
 
 	SemanticVersionChecker svs(version, thisVersion);
 
@@ -1001,6 +997,7 @@ var ScriptUserPresetHandler::convertToJson(const ValueTree& d)
 		Array<var> dataArray;
 
 		p->setProperty("version", d["Version"]);
+		p->setProperty("engineVersion", d["EngineVersion"]);
 
 		for (const auto& c : dataTree)
 		{
