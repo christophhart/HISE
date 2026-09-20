@@ -281,7 +281,9 @@ String UserPresetHelpers::getCurrentVersionNumber(ModulatorSynthChain* chain)
 	{
 		if (auto currentExpansion = mc->getExpansionHandler().getCurrentExpansion())
 		{
-			if (auto obj = currentExpansion->getPropertyObject().getDynamicObject())
+			auto propertyObject = currentExpansion->getPropertyObject();
+
+			if (auto obj = propertyObject.getDynamicObject())
 			{
 				auto expansionVersion = obj->getProperty(ExpansionIds::Version).toString();
 
