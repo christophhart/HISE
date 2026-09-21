@@ -421,7 +421,7 @@ void MainController::clearPreset(NotificationType sendPresetLoadMessage)
 		mc->getMainSynthChain()->rebuildMacroControlsAfterProjectSwitch();
 		mc->rebuildPluginParameters();
 
-		
+		mc->getUserPresetHandler().setStateManagerProperties(var());
 
 		mc->getMacroManager().getMidiControlAutomationHandler()->getMPEData().clear();
 		mc->getScriptComponentEditBroadcaster()->getUndoManager().clearUndoHistory();
