@@ -48,11 +48,11 @@ PseudoState::PseudoState(int state):
 String PseudoState::getPseudoElementName(int idx)
 {
 	static const StringArray list({
-		"none ",
+		"none",
 		"before",
-		"before2"
 		"after",
-		"after2"
+		"before2",
+		"after2",
 		"all"
 	});
 
@@ -508,8 +508,21 @@ bool PropertyKey::looseMatch(const String& other) const
 	if(other == name)
 		return true;
 
-	if(other.startsWith(name) || name.startsWith(other))
-		return true;
+	static const std::map<String, StringArray> shorthandProperties =
+	{
+		{ "background", { "background-color", "background-image", "background-position", "background-size" } },
+		{ "border", { "border-color", "border-style", "border-width",
+						  "border-top-color", "border-right-color", "border-bottom-color", "border-left-color",
+						  "border-top-style", "border-right-style", "border-bottom-style", "border-left-style",
+						  "border-top-width", "border-right-width", "border-bottom-width", "border-left-width" } },
+		{ "border-radius", { "border-top-left-radius", "border-top-right-radius",
+							   "border-bottom-right-radius", "border-bottom-left-radius" } },
+		{ "margin", { "margin-top", "margin-right", "margin-bottom", "margin-left" } },
+		{ "padding", { "padding-top", "padding-right", "padding-bottom", "padding-left" } }
+	};
+
+	if(auto family = shorthandProperties.find(name); family != shorthandProperties.end())
+		return family->second.contains(other);
 
 	return false;
 }
@@ -536,42 +549,56 @@ PropertyValue::operator bool() const
 
 String PropertyValue::getValue(DynamicObject::Ptr variables)
 {
-	if(valueAsString.startsWith("var("))
-	{
-		if(variables != nullptr)
-		{
-			Identifier id(valueAsString.substring(6, valueAsString.length() - 1));
-			return variables->getProperty(id).toString();
-		}
-		else
-			return {};
-	}
-	else if(valueAsString.contains("var("))
-	{
-		if(variables != nullptr)
-		{
-			auto current = valueAsString;
+	if(!valueAsString.contains("var(--"))
+		return valueAsString;
 
-			while(current.contains("var(--"))
+	if(variables == nullptr)
+		return {};
+
+	auto current = valueAsString;
+	StringArray resolvingVariables;
+
+	std::function<String(const String&)> resolve = [&](const String& input)
+	{
+		String output;
+		int cursor = 0;
+
+		while(true)
+		{
+			auto variableStart = input.indexOf(cursor, "var(--");
+
+			if(variableStart == -1)
+				break;
+
+			auto variableEnd = input.indexOf(variableStart, ")");
+
+			if(variableEnd == -1)
+				break;
+
+			output << input.substring(cursor, variableStart);
+
+			auto id = input.substring(variableStart + 6, variableEnd);
+			auto variable = input.substring(variableStart, variableEnd + 1);
+
+			if(resolvingVariables.contains(id))
 			{
-				auto id = current.fromFirstOccurrenceOf("var(--", false, false);
-				id = id.upToFirstOccurrenceOf(")", false, false);
-				auto rp = variables->getProperty(Identifier(id)).toString();
-
-				auto bf = "var(--" + id + ")";
-
-				current = current.replace(bf, rp);
+				output << variable;
+			}
+			else
+			{
+				resolvingVariables.add(id);
+				output << resolve(variables->getProperty(Identifier(id)).toString());
+				resolvingVariables.removeString(id);
 			}
 
-			return current;
+			cursor = variableEnd + 1;
 		}
-		else
-			return {};
-	}
-	else
-	{
-		return valueAsString;
-	}
+
+		output << input.substring(cursor);
+		return output;
+	};
+
+	return resolve(current);
 }
 
 String PropertyValue::toString() const

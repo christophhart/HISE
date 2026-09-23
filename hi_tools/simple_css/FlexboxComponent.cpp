@@ -841,6 +841,10 @@ std::pair<Component*, Component*> FlexboxComponent::getFirstLastComponents()
 	}
 
 	thisList.sort();
+
+	if(thisList.isEmpty())
+		return { nullptr, nullptr };
+
 	return { thisList.getFirst().c, thisList.getLast().c };
 }
 
@@ -1005,6 +1009,9 @@ void CSSImage::paint(Graphics& g)
 {
 	using namespace simple_css;
 
+	if(!currentImage.isValid() || currentImage.getWidth() <= 0 || currentImage.getHeight() <= 0)
+		return;
+
 	if(auto p = CSSRootComponent::find(*this))
 	{
 		if(auto ss = p->css.getForComponent(this))
@@ -1043,17 +1050,43 @@ CSSImage::LoadThread::LoadThread(CSSImage& parent_, const URL& url):
 	ThreadStarters::startNormal(this);
 }
 
+CSSImage::LoadThread::~LoadThread()
+{
+	stopThread(-1);
+	cancelPendingUpdate();
+}
+
 void CSSImage::LoadThread::handleAsyncUpdate()
 {
-	parent.imageCache->setImage(imageURL, loadedImage);
-	parent.setImage(loadedImage);
-	parent.currentLoadThread = nullptr;
+	Component::SafePointer<CSSImage> safeParent(&parent);
+	auto image = loadedImage;
+	auto url = imageURL;
+	auto completedThread = this;
+
+	MessageManager::callAsync([safeParent, image, url, completedThread]()
+	{
+		if(safeParent == nullptr)
+			return;
+
+		if(safeParent->currentLoadThread.get() != completedThread)
+			return;
+
+		safeParent->imageCache->setImage(url, image);
+		safeParent->setImage(image);
+		safeParent->currentLoadThread = nullptr;
+	});
 }
 
 void CSSImage::LoadThread::run()
 {
 	int status = 0;
 	auto input = imageURL.createInputStream(false, nullptr, nullptr, {}, 500, nullptr, &status);
+
+	if(input == nullptr)
+	{
+		triggerAsyncUpdate();
+		return;
+	}
 
 	MemoryBlock mb;
 	input->readIntoMemoryBlock(mb);

@@ -321,12 +321,18 @@ void CSSRootComponent::CSSDebugger::SelectListener::mouseDown(const MouseEvent& 
 {
 	parent.check();
 
-	auto p = &parent;
+	Component::SafePointer<CSSDebugger> p(&parent);
 	MessageManager::callAsync([p]()
 	{
+		if(p == nullptr)
+			return;
+
 		p->selectListener = nullptr;
 		p->powerButton.setToggleStateAndUpdateIcon(false);
-		p->root->setCurrentInspectorData({});
+
+		if(p->root.get() != nullptr)
+			p->root->setCurrentInspectorData({});
+
 		p->overlayMode.setSelectedItemIndex(0, sendNotificationAsync);
 	});
 }
@@ -794,19 +800,32 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 	}
 
 	auto imageURL = ss->getURLFromProperty({ "background-image", defaultState});
+	bool renderedBackgroundImage = false;
 
-	if(imageURL.isNotEmpty())
+	if(imageURL.isNotEmpty() && currentComponent.first != nullptr)
 	{
-		auto hc = CSSRootComponent::find(*currentComponent.first);
-		ScopedPointer<StyleSheet::Collection::DataProvider> dp = hc->createDataProvider();
-
-		if(dp != nullptr)
+		if(!ss->invalidImageURLs.contains(imageURL))
 		{
-			auto img = dp->loadImage(imageURL);
-			drawImage(g, img, area, ss, false);
+			if(auto hc = CSSRootComponent::find(*currentComponent.first))
+			{
+				ScopedPointer<StyleSheet::Collection::DataProvider> dp = hc->createDataProvider();
+
+				if(dp != nullptr)
+				{
+					auto img = dp->loadImage(imageURL);
+
+					if(img.isValid() && img.getWidth() > 0 && img.getHeight() > 0)
+					{
+						drawImage(g, img, area, ss, false);
+						renderedBackgroundImage = true;
+					}
+					else
+						ss->invalidImageURLs.addIfNotAlreadyThere(imageURL);
+				}
+			}
 		}
 	}
-	else
+	if(!renderedBackgroundImage)
 	{
 		state.renderShadow(g, pathToFill, currentComponent, ss->getShadow(ma, { "box-shadow", defaultState}, false), false);
 		setCurrentBrush(g, ss, ma, {"background-color", defaultState});
@@ -905,7 +924,7 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
         
         auto afterAbsolute2 = ss->getPropertyValue({"position", PseudoState(0).withElement(PseudoElementType::After2)}).toString() == "absolute";
         
-        auto afterArea2 = ss->getPseudoArea(afterAbsolute ? area : ma, stateFlag, PseudoElementType::After2);
+		auto afterArea2 = ss->getPseudoArea(afterAbsolute2 ? area : ma, stateFlag, PseudoElementType::After2);
         
         if(!afterArea2.isEmpty())
         {
@@ -934,6 +953,9 @@ void Renderer::drawBackground(Graphics& g, Rectangle<float> area, StyleSheet::Pt
 
 void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> area, StyleSheet::Ptr ss, bool isContent)
 {
+	if(ss == nullptr || !img.isValid() || img.getWidth() <= 0 || img.getHeight() <= 0 || area.isEmpty())
+		return;
+
 	Rectangle<float> clipBounds;
 
 	{
@@ -991,7 +1013,8 @@ void Renderer::drawImage(Graphics& g, const juce::Image& img, Rectangle<float> a
 			imageBounds = totalArea.withSizeKeepingCentre(sourceWidth, sourceHeight);
 			break;
 		case CSSPlacement::scaledown:
-			imageBounds = totalArea.withSizeKeepingCentre(sourceWidth * jmax(1.0f, maxScale), sourceHeight * jmax(1.0f, maxScale));
+			imageBounds = totalArea.withSizeKeepingCentre(sourceWidth * jmin(1.0f, minScale),
+				sourceHeight * jmin(1.0f, minScale));
 			break;
 		case CSSPlacement::numPlacements: break;
 		}

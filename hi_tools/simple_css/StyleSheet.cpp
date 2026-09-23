@@ -603,7 +603,9 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	
 	if(matches.size() == 1 && !customCode && !useIsolatedCollections)
 	{
-		return matches.getFirst().second;
+		auto match = matches.getFirst().second;
+		match->updateNonLayoutPropertyFlag();
+		return match;
 	}
 
 	struct Sorter
@@ -998,18 +1000,27 @@ bool StyleSheet::Collection::clearCache(Component* c)
 	else
 	{
 		c = simple_css::FlexboxComponent::Helpers::getComponentForStyleSheet(c);
+		bool removed = false;
 
-		for(int i = 0; i < cachedMaps.size(); i++)
+		for(int i = cachedMaps.size() - 1; i >= 0; i--)
 		{
 			if(cachedMaps[i].first.getComponent() == c)
 			{
-
 				cachedMaps.remove(i);
-				return true;
+				removed = true;
 			}
 		}
 
-		return false;
+		for(int i = cachedMapForAllStates.size() - 1; i >= 0; i--)
+		{
+			if(cachedMapForAllStates[i].first.first.getComponent() == c)
+			{
+				cachedMapForAllStates.remove(i);
+				removed = true;
+			}
+		}
+
+		return removed;
 	}
 }
 
@@ -1032,7 +1043,13 @@ void StyleSheet::Collection::updateIsolatedCollection(const String& fileName, co
 			auto prev = getForComponent(c.first);
 			c.second = other.list;
 
-			clearCache(c.first);
+			auto collectionRoot = c.first.getComponent();
+
+			for(int i = cachedMaps.size() - 1; i >= 0; i--)
+			{
+				if(sameOrParent(collectionRoot, cachedMaps[i].first.getComponent()))
+					cachedMaps.remove(i);
+			}
 
 			auto ss = getForComponent(c.first);
 
@@ -1126,6 +1143,11 @@ void StyleSheet::Collection::addCollectionForComponent(Component* c, const Colle
 
 void StyleSheet::Collection::updateStyleSheetInCache(Component* component, const Ptr& ss)
 {
+	component = simple_css::FlexboxComponent::Helpers::getComponentForStyleSheet(component);
+
+	if(component == nullptr)
+		return;
+
 	for(auto& cd: cachedMaps)
 	{
 		if(cd.first == component)
@@ -1135,9 +1157,9 @@ void StyleSheet::Collection::updateStyleSheetInCache(Component* component, const
 		}
 	}
 
-	for(auto cd: cachedMapForAllStates)
+	for(auto& cd: cachedMapForAllStates)
 	{
-		if(cd.first.first == component)
+		if(cd.first.first == component && ss != nullptr && ss->matchesSelectorList({ cd.first.second }))
 		{
 			cd.second = ss;
 		}
@@ -1197,45 +1219,63 @@ Result StyleSheet::Collection::performAtRules(DataProvider* d)
     
     
     
-	for(int i = 0; i < list.size(); i++)
+	StringArray importStack;
+	std::function<Result(List&)> processList;
+
+	processList = [&](List& listToProcess) -> Result
 	{
-		auto l = list[i];
-		auto ar = l->getAtRuleName();
-
-		auto url = l->getURLFromProperty({ "src", {} });
-		
-		if(ar == "font-face")
+		for(int i = 0; i < listToProcess.size(); ++i)
 		{
-			auto fontName = l->getPropertyValueString({"font-family", {}});
-			auto fToUse = d->loadFont(fontName, url);
+			auto l = listToProcess[i];
+			auto ar = l->getAtRuleName();
+			auto url = l->getURLFromProperty({ "src", {} });
 
-			customFonts.addIfNotAlreadyThere({ fontName, fToUse });
-		}
-		if(ar == "import")
-		{
-			auto code = d->importStyleSheet(url);
-
-			if(code.isNotEmpty())
+			if(ar == "font-face")
 			{
+				auto fontName = l->getPropertyValueString({"font-family", {}});
+				auto fToUse = d->loadFont(fontName, url);
+				customFonts.addIfNotAlreadyThere({ fontName, fToUse });
+			}
+			else if(ar == "import")
+			{
+				if(importStack.contains(url))
+					return Result::fail("Cyclic stylesheet import: " + url);
+
+				auto code = d->importStyleSheet(url);
+
+				if(code.isEmpty())
+					continue;
+
 				simple_css::Parser p(code);
 				auto ok = p.parse();
 
-				if(!ok.Result::wasOk())
-				{
-					Result::fail("Error at importing " + url + ": " + ok.Result::getErrorMessage());
-				}
-
-				list.removeAndReturn(i);
+				if(ok.failed())
+					return Result::fail("Error at importing " + url + ": " + ok.getErrorMessage());
 
 				auto newCss = p.getCSSValues();
+				importStack.add(url);
+				auto nestedResult = processList(newCss.list);
+				importStack.remove(importStack.size() - 1);
 
-				for(int j = 0; j < newCss.list.size(); j++)
-				{
-					list.insert(i+j, newCss.list[j]);
-				}
+				if(nestedResult.failed())
+					return Result::fail("Error at importing " + url + ": " + nestedResult.getErrorMessage());
+
+				listToProcess.remove(i);
+
+				for(int j = 0; j < newCss.list.size(); ++j)
+					listToProcess.insert(i + j, newCss.list[j]);
+
+				i += newCss.list.size() - 1;
 			}
 		}
-	}
+
+		return Result::ok();
+	};
+
+	auto atRuleResult = processList(list);
+
+	if(atRuleResult.failed())
+		return atRuleResult;
 
 	if(!customFonts.isEmpty())
 	{
@@ -1353,7 +1393,8 @@ String StyleSheet::getCodeGeneratorPixelValueString(const String& areaName, cons
 	if(auto v = getPropertyValue(key))
 	{
 		ExpressionParser::Context<String> c;
-		auto useHeight = key.name.contains("top") || key.name.contains("bottom") || key.name == "font-size" || key.name == "height";
+		auto useHeight = key.name.contains("top") || key.name.contains("bottom") || key.name == "font-size" ||
+			key.name.endsWith("height");
 		c.defaultFontSize = defaultFontSize;
 		c.useWidth = !useHeight;
 		c.fullArea = areaName;
@@ -1367,7 +1408,8 @@ float StyleSheet::getPixelValue(Rectangle<float> totalArea, const PropertyKey& k
 {
 	auto getValueFromString = [&](const String& v)
 	{
-		auto useHeight = key.name.contains("top") || key.name.contains("bottom") || key.name == "font-size" || key.name == "height";
+		auto useHeight = key.name.contains("top") || key.name.contains("bottom") || key.name == "font-size" ||
+			key.name.endsWith("height");
 		auto useWidth = !useHeight;
 
 		if(v == "auto")
@@ -1375,7 +1417,7 @@ float StyleSheet::getPixelValue(Rectangle<float> totalArea, const PropertyKey& k
 			if(!currentFullArea.isEmpty())
 			{
 				auto size = useHeight ? totalArea.getHeight() : totalArea.getWidth();
-				auto fullSize = useHeight ? currentFullArea.getWidth() : currentFullArea.getHeight();
+				auto fullSize = useHeight ? currentFullArea.getHeight() : currentFullArea.getWidth();
 
 				return (fullSize - size) / 2;
 			}
@@ -1500,9 +1542,9 @@ Rectangle<float> StyleSheet::getBounds(Rectangle<float> sourceArea, PseudoState 
 		h = ExpressionParser::evaluate(hv.getValue(varProperties), { false, a, defaultFontSize });
 
 	if(auto mv = getPropertyValue({ "max-height", ps}))
-		h = jmin(h, ExpressionParser::evaluate(mv.getValue(varProperties), { true, sourceArea, defaultFontSize }));
+		h = jmin(h, ExpressionParser::evaluate(mv.getValue(varProperties), { false, sourceArea, defaultFontSize }));
 	if(auto mv = getPropertyValue({ "min-height", ps})) // min has precedence
-		h = jmax(h, ExpressionParser::evaluate(mv.getValue(varProperties), { true, sourceArea, defaultFontSize }));
+		h = jmax(h, ExpressionParser::evaluate(mv.getValue(varProperties), { false, sourceArea, defaultFontSize }));
 
 	a = a.removeFromTop(h);
 
@@ -1977,37 +2019,35 @@ std::vector<melatonin::ShadowParameters> StyleSheet::getShadow(Rectangle<float> 
 			auto ptr = full.begin();
 			auto end = full.end();
 
-			char buffer[128];
-			int pos = 0;
-
 			std::vector<String> list;
+			String token;
 
 			while(ptr != end)
 			{
 				if(*ptr == '|')
 				{
-					if(pos != 0)
-						list.push_back(String(buffer));
+					if(token.isNotEmpty())
+						list.push_back(token);
 
-					memset(buffer, 0, sizeof(buffer));
-					pos = 0;
+					token.clear();
 				}
 				else
 				{
-					buffer[pos++] = *ptr;
+					token << *ptr;
 				}
 
 				++ptr;
 			}
 
-			list.push_back(String(buffer));
+			if(token.isNotEmpty())
+				list.push_back(token);
 
 			for(auto& v: list)
 			{
 				if(v.startsWith("var(--"))
 				{
 					Identifier id(v.substring(6, v.length() - 1));
-					v = varProperties->getProperty(id).toString();
+					v = varProperties != nullptr ? varProperties->getProperty(id).toString() : String();
 				}
 			}
 
@@ -2087,9 +2127,22 @@ ColourInfo StyleSheet::getColourOrGradient(Rectangle<float> area, PropertyKey ke
 
 	auto getValueFromString = [&](const String& v)
 	{
-		auto hash = v.hashCode();
+		auto hash = (uint64)v.hashCode64();
 
-		auto hashed = hashedColours.find(hash);
+		if(v.startsWith("linear-gradient"))
+		{
+			auto combine = [&hash](float value)
+			{
+				hash ^= (uint64)std::hash<float>{}(value) + 0x9e3779b9 + (hash << 6) + (hash >> 2);
+			};
+
+			combine(area.getX());
+			combine(area.getY());
+			combine(area.getWidth());
+			combine(area.getHeight());
+		}
+
+		auto hashed = hashedColours.find((int64)hash);
 
 		auto isVar = v.indexOf("var(--");
 
@@ -2108,6 +2161,13 @@ ColourInfo StyleSheet::getColourOrGradient(Rectangle<float> area, PropertyKey ke
 			auto args = v.fromFirstOccurrenceOf("(", false, false).upToLastOccurrenceOf(")", false, false);
 			auto tokens = StringArray::fromTokens(args, ",", "()");
 			tokens.trim();
+
+			if (tokens.size() < 3)
+			{
+				rv.first = defaultColour;
+				rv.second = {};
+				return rv;
+			}
 			
 			auto type = tokens[0];
 
@@ -2141,7 +2201,7 @@ ColourInfo StyleSheet::getColourOrGradient(Rectangle<float> area, PropertyKey ke
 		}
 
 		if(isVar == -1)
-			hashedColours[hash] = rv;
+			hashedColours[(int64)hash] = rv;
 
 		return rv;
 	};
@@ -2211,21 +2271,16 @@ ColourInfo StyleSheet::getColourOrGradient(Rectangle<float> area, PropertyKey ke
 					t.second.point2 = f2.second.point2;
 				}
 
-				auto numColours = jmax(f1.second.getNumColours(), f2.second.getNumColours());
-
-				auto useFirstAsPos = true;
-
-				if(f1.second.getNumColours() < f2.second.getNumColours())
-					useFirstAsPos = false;
+				auto numColours1 = f1.second.getNumColours();
+				auto numColours2 = f2.second.getNumColours();
+				auto numColours = jmax(numColours1, numColours2);
+				auto& positionGradient = numColours1 >= numColours2 ? f1.second : f2.second;
 
 				for(int i = 0 ; i < numColours; i++)
 				{
 					Colour c1, c2;
 
-					auto pos1 = f1.second.getColourPosition(i);
-					auto pos2 = f2.second.getColourPosition(i);
-
-					auto posToUse = useFirstAsPos ? pos1 : pos2;
+					auto posToUse = positionGradient.getColourPosition(i);
 
 					if(isGradient1)
 						c1 = f1.second.getColourAtPosition(posToUse);
@@ -2717,7 +2772,7 @@ String StyleSheet::getURLFromProperty(const PropertyKey& key) const
 		return n.unquoted();
 	}
 
-	return {};
+	return n.unquoted();
 }
 
 Rectangle<float> StyleSheet::getLocalBoundsFromText(const String& text, PseudoState state) const

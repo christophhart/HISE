@@ -61,7 +61,7 @@ Animator::Item::Item(Animator& parent, StyleSheet::Ptr css_, Transition tr_):
 	target(parent.currentlyRenderedComponent)
 {
 	jassert(target.first != nullptr);
-	resetWaitCounter();
+	restart();
 }
 
 bool Animator::Item::timerCallback(double delta)
@@ -69,25 +69,29 @@ bool Animator::Item::timerCallback(double delta)
 	if(target.first.getComponent() == nullptr)
 		return false;
 
-	auto d = delta * 0.001;
-
-	if(transitionData.duration > 0.0)
-		d /= transitionData.duration;
+	auto elapsed = delta * 0.001;
 
 	if(waitCounter > 0.0)
 	{
-		waitCounter -= d;
+		auto consumedDelay = jmin(waitCounter, elapsed);
+		waitCounter -= consumedDelay;
+		elapsed -= consumedDelay;
 
 		if(waitCounter > 0.0)
 			return true;
 	}
 
-	if(reverse)
-		d *= -1.0;
+	if(transitionData.duration <= 0.0)
+	{
+		currentProgress = reverse ? 0.0 : 1.0;
+		target.first->repaint();
+		return false;
+	}
 
-	currentProgress += d / speed;
+	auto progressDelta = elapsed / transitionData.duration / speed;
+	currentProgress += reverse ? -progressDelta : progressDelta;
 
-	if(currentProgress > 1.0 || currentProgress < 0.0)
+	if((reverse && currentProgress <= 0.0) || (!reverse && currentProgress >= 1.0))
 	{
 		currentProgress = jlimit(0.0, 1.0, currentProgress);
 		target.first->repaint();
@@ -97,7 +101,8 @@ bool Animator::Item::timerCallback(double delta)
 	return target.repaint();
 }
 
-Animator::Animator()
+Animator::Animator():
+	lastCallbackTime(Time::getMillisecondCounterHiRes())
 {
 	startTimer(15);
 }
@@ -229,27 +234,39 @@ void StateWatcher::checkChanges(Animator::RenderTarget c, StyleSheet::Ptr ss, in
                     
 					bool found = false;
 
-					for(auto i: animator.items)
+					for(int itemIndex = 0; itemIndex < animator.items.size(); itemIndex++)
 					{
+						auto i = animator.items[itemIndex];
+
 						if(i->css == ss &&
 							i->target == animator.currentlyRenderedComponent &&
 							i->startValue.name == p.name &&
 							i->startValue.state.matchesElement(t))
 						{
-							i->resetWaitCounter();
-
-							// just a switch between the start and end state
 							auto tv = ss->getTransitionValue(i->endValue);
-
-							i->currentProgress = 0.0;
-							i->reverse = false;
-							 
-							String m;
-							m << tv.startValue << "~" << tv.endValue << "~" << String(tv.progress, 3);
-
-							i->intermediateStartValue = m;
-							i->endValue.state.stateFlag = currentState;
 							i->transitionData = thisTransition;
+
+							if(i->intermediateStartValue.isEmpty() &&
+							   (currentState == i->startValue.state.stateFlag ||
+								currentState == i->endValue.state.stateFlag))
+							{
+								i->restartFromCurrent(tv.progress,
+									currentState == i->startValue.state.stateFlag);
+							}
+							else
+							{
+								String m;
+								m << tv.startValue << "~" << tv.endValue << "~" << String(tv.progress, 3);
+
+								i->intermediateStartValue = m;
+								i->endValue.state.stateFlag = currentState;
+								i->reverse = false;
+								i->restart();
+							}
+
+							if(i->isComplete())
+								animator.items.remove(itemIndex);
+
 							found = true;
 							break;
 						}
@@ -262,8 +279,11 @@ void StateWatcher::checkChanges(Animator::RenderTarget c, StyleSheet::Ptr ss, in
 						
 					ad->startValue = thisStartValue;
 					ad->endValue = thisEndValue;
-						
-					animator.items.add(ad);
+
+					if(ad->isComplete())
+						delete ad;
+					else
+						animator.items.add(ad);
 				}
 			}
 			

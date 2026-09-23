@@ -65,6 +65,9 @@ void StyleSheetLookAndFeel::drawButtonBackground(Graphics& g, Button& tb, const 
 
 bool StyleSheetLookAndFeel::drawButtonText(Graphics& g, Button* b)
 {
+	if(b == nullptr)
+		return false;
+
 	if(auto ed = b->findParentComponentOfClass<CSSRootComponent>())
 	{
 		if(auto ss = root.css.getForComponent(b))
@@ -81,6 +84,9 @@ bool StyleSheetLookAndFeel::drawButtonText(Graphics& g, Button* b)
 
 bool StyleSheetLookAndFeel::drawImageOnComponent(Graphics& g, Component* c, const Image& img)
 {
+	if(c == nullptr || !img.isValid() || img.getWidth() <= 0 || img.getHeight() <= 0)
+		return false;
+
 	if(auto ss = root.css.getWithAllStates(c, Selector(ElementType::Image)))
 	{
 		Renderer r(c, root.stateWatcher);
@@ -214,6 +220,9 @@ void StyleSheetLookAndFeel::drawRotarySlider(Graphics& graphics, int x, int y, i
 
 void StyleSheetLookAndFeel::drawGenericComponentText(Graphics& g, const String& text, bool drawEmptyText, Component* c, Selector s)
 {
+	if(c == nullptr)
+		return;
+
 	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
 	{
 		Renderer r(c, root.stateWatcher);
@@ -231,6 +240,9 @@ void StyleSheetLookAndFeel::drawGenericComponentText(Graphics& g, const String& 
 
 bool StyleSheetLookAndFeel::drawComponentBackground(Graphics& g, Component* c, Selector s)
 {
+	if(c == nullptr)
+		return false;
+
 	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
 	{
 		if(ss->hasNonLayoutProperties())
@@ -414,6 +426,9 @@ void StyleSheetLookAndFeel::drawScrollbar(Graphics& g, ScrollBar& scrollbar, int
 
 void StyleSheetLookAndFeel::initComponent(Component* c, Selector s)
 {
+	if(c == nullptr)
+		return;
+
 	if(auto ss = s ? root.css.getWithAllStates(c, s) : root.css.getForComponent(c))
 	{
 		ss->setupComponent(&root, c, 0);

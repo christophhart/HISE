@@ -288,7 +288,7 @@ struct StyleSheet: public ReferenceCountedObject
 
 private:
 
-	std::array<bool, (int)PseudoElementType::All> nonLayoutPropertiesDefined;
+	std::array<bool, (int)PseudoElementType::All> nonLayoutPropertiesDefined {};
 
 	Array<std::pair<String, Font>> customFonts;
 
@@ -309,6 +309,9 @@ private:
 	Animator* animator = nullptr;
 
 	mutable std::map<int64, ColourInfo> hashedColours;
+	mutable StringArray invalidImageURLs;
+
+	friend struct Renderer;
 };
 
 

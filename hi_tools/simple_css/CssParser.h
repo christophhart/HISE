@@ -43,6 +43,7 @@ struct ColourParser
 	ColourParser(const String& value);
 
 	Colour getColour() const { return c; }
+	bool isValid() const { return valid; }
 
 	String toCodeGeneratorString() const
 	{
@@ -53,7 +54,8 @@ struct ColourParser
 
 private:
 
-	Colour c;
+	Colour c = Colours::transparentBlack;
+	bool valid = false;
 };
 
 /** Parses a colour gradient using a list of value items and an area. */
@@ -130,6 +132,7 @@ struct TransformParser
 	TransformParser(KeywordDataBase* database_, const String& stackedTransforms);
 	std::vector<TransformData> parse(Rectangle<float> totalArea, float defaultSize=16.0);
 	const StringArray& getWarnings() const { return warnings; }
+	bool isValid() const { return valid; }
 
 	static String toString(const std::vector<TransformData>& list)
 	{
@@ -149,6 +152,7 @@ private:
 
 	String t;
 	StringArray warnings;
+	bool valid = true;
 };
 
 /** Parses box-shadow and text-shadow properties to create a melatonin::DropShadow stack. */
@@ -431,6 +435,7 @@ private:
 
 	String code;
 	String::CharPointerType ptr, end;
+	bool recoverUnterminatedFunctionAtDeclarationBoundary = false;
 
 	StringArray warnings;
 
