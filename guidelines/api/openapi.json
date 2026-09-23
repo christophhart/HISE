@@ -7913,6 +7913,14 @@
                                             "type": "string",
                                             "description": "Module ID of the DspNetwork holder"
                                         },
+                                        "ok": {
+                                            "type": "boolean",
+                                            "description": "Low-level probe completion state"
+                                        },
+                                        "error": {
+                                            "type": "string",
+                                            "description": "Low-level probe error message"
+                                        },
                                         "parent": {
                                             "type": "string",
                                             "description": "ID of the container node that handled the probe"
