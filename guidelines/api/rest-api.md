@@ -1334,21 +1334,25 @@ curl -X POST http://localhost:1900/api/testing/profile \
 
 Parse CSS code and return structured diagnostics. Optionally resolves properties for a set of selectors using CSS specificity rules.
 
+Instead of passing selectors explicitly, you can pass `moduleId` + `componentId`: the component's own stylesheet is fetched automatically (so `code`/`filePath` become optional), its own selectors are used, and `width`/`height` default to the component's current bounds (unless explicitly overridden). If `code` or `filePath` is given, it takes precedence over the stylesheet attached to the component. If no stylesheet is attached to the component, the request fails with 404 (unless `code`/`filePath` is given).
+
 **Parameters** (JSON body):
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `code` | Conditional | — | CSS code string to parse (required if `filePath` not given) |
 | `filePath` | Conditional | — | Path to a `.css` file (relative to Scripts/ or absolute) |
-| `selectors` | No | — | Array of selector strings to resolve properties for |
-| `width` | No | — | Reference width in pixels for resolving relative units |
-| `height` | No | — | Reference height in pixels for resolving relative units |
+| `moduleId` | No | — | Module ID of a scripting-content module; use with `componentId` to resolve the component's own selectors |
+| `componentId` | No | — | Component ID inside the module's scripting content; use with `moduleId` |
+| `selectors` | No | — | Array of selector strings to resolve properties for (ignored in component mode) |
+| `width` | No | Component bounds (component mode) | Reference width in pixels for resolving relative units |
+| `height` | No | Component bounds (component mode) | Reference height in pixels for resolving relative units |
 
 **Example Request**:
 ```bash
 curl -X POST http://localhost:1900/api/parse_css \
   -H "Content-Type: application/json" \
-  -d '{"code": ".myClass { background: red; padding: 10px; }", "selectors": [".myClass"]}'
+  -d '{"code": ".myClass { background: red; padding: 10px; }", "moduleId": "Interface", "componentId": "MyButton"}'
 ```
 
 **Response**:
@@ -1367,8 +1371,11 @@ curl -X POST http://localhost:1900/api/parse_css \
 
 | Status | Condition |
 |--------|-----------|
-| 400 | Neither `code` nor `filePath` provided |
+| 400 | Neither `code`, `filePath`, nor `moduleId`+`componentId` provided |
+| 400 | Only one of `moduleId`/`componentId` provided |
 | 404 | File not found at `filePath` |
+| 404 | `moduleId` is not a scripting-content module, or `componentId` not found |
+| 404 | No stylesheet attached to the component (and no `code`/`filePath` given) |
 
 ---
 

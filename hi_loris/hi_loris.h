@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_loris
   vendor:           CERL Soundgroup
-  version:          4.9.4
+  version:          4.9.7
   name:             HISE Loris module
   description:      A JUCE module that wraps the Loris library
   website:          https://www.cerlsoundgroup.org/Loris/

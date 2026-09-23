@@ -782,23 +782,42 @@ struct RestApiEndpoints
 			.withCategory("scripting")
 			.withSummary("Parse CSS code and return structured diagnostics")
 			.withDescription("Accepts either inline CSS code or a file path to a .css file. "
-				"Returns diagnostics with line/column/severity/message. Optionally resolves "
-				"properties for a set of selectors using CSS specificity rules.")
-			.withReturns("Diagnostics array, list of parsed selectors, and resolved properties when selectors provided")
+				"Returns diagnostics with line/column/severity/message. "
+				"Properties can be resolved using CSS specificity rules either by passing an explicit "
+				"selectors array, or by passing moduleId + componentId: in component mode the "
+				"component's own selectors are used, and width/height default to the component's "
+				"current bounds unless explicitly overridden. "
+				"In component mode the component's own stylesheet is fetched automatically, "
+				"but an explicit code or filePath takes precedence over the attached stylesheet. "
+				"Component mode requires the module to be a script processor with scripting content; "
+				"fails with 404 if the module or component cannot be found, or if no stylesheet is "
+				"attached to the component (and no code/filePath was given).")
+			.withReturns("Diagnostics array, list of parsed selectors, and resolved properties when selectors or component provided")
 			.withBodyParam(RouteParameter(RestApiIds::code,
 				"The CSS code to parse (provide this or filePath)").asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::filePath,
 				"Path to a .css file. Relative paths resolve against the Scripts/ directory "
 				"(provide this or code)").asOptional())
+			.withBodyParam(RouteParameter(RestApiIds::moduleId,
+				"Module ID of a scripting-content module. Use together with componentId to "
+				"resolve the component's own selectors (alternative to the selectors array)")
+				.asOptional())
+			.withBodyParam(RouteParameter(RestApiIds::componentId,
+				"Component ID inside the module's scripting content. Use together with moduleId; "
+				"width/height default to the component's bounds unless given")
+				.asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::selectors,
 				"Array of selector strings representing a component's selectors "
-				"(e.g. [\"button\", \".my-class\", \"#MyId\"]). Resolves properties using CSS specificity")
+				"(e.g. [\"button\", \".my-class\", \"#MyId\"]). Resolves properties using CSS specificity. "
+				"Ignored when moduleId + componentId are provided")
 				.withType(ParamType::Array).asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::width,
-				"Reference width in pixels for resolving percentage and relative units")
+				"Reference width in pixels for resolving percentage and relative units. "
+				"Defaults to the component's bounds width in component mode")
 				.withType(ParamType::Int).asOptional())
 			.withBodyParam(RouteParameter(RestApiIds::height,
-				"Reference height in pixels for resolving percentage and relative units")
+				"Reference height in pixels for resolving percentage and relative units. "
+				"Defaults to the component's bounds height in component mode")
 				.withType(ParamType::Int).asOptional())
 			.withResponseField(RouteParameter(RestApiIds::diagnostics, "Array of diagnostic entries")
 				.withType(ParamType::Array))
@@ -809,8 +828,8 @@ struct RestApiEndpoints
 			.withResponseField(RouteParameter(RestApiIds::properties, "Resolved properties when selectors provided")
 				.withType(ParamType::Object).asOptional())
 			.withErrorCodes({ 400, 404 })
-			.withRequestExample(R"({"code": ".myClass { background: red; padding: 10px; }", "selectors": [".myClass"]})")
-			.withResponseExample(R"({"success": true, "diagnostics": [], "selectors": [".myClass"], "properties": {"background": "red", "padding": "10px"}, "logs": [], "errors": []})"));
+			.withRequestExample(R"({"code": ".myClass { background: red; padding: 10px; }", "moduleId": "Interface", "componentId": "MyButton"})")
+			.withResponseExample(R"({"success": true, "diagnostics": [], "selectors": [".MyButton"], "properties": {"background": "red", "padding": "10px"}, "logs": [], "errors": []})"));
 	}
 
 	/* POST /api/shutdown */

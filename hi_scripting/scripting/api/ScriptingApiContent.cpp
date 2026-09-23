@@ -2033,6 +2033,36 @@ String ScriptComponent::getCSSFromLocalLookAndFeel()
 	return {};
 }
 
+var ScriptComponent::getCSSSelectors()
+{
+	static const std::map<String, String> typeSelectors =
+	{
+		{ "ScriptButton", "button" },
+		{ "ScriptComboBox", "select" },
+		{ "ScriptLabel", "label" },
+		{ "ScriptImage", "img" },
+		{ "ScriptPanel", "div" }
+	};
+
+	Array<var> selectors;
+	selectors.addIfNotAlreadyThere("#" + getName().toString());
+
+	auto type = typeSelectors.find(getObjectName().toString());
+
+	if (type != typeSelectors.end())
+		selectors.addIfNotAlreadyThere(type->second);
+
+	if (styleSheetProperties.isValid())
+	{
+		for (const auto& token : StringArray::fromTokens(styleSheetProperties["class"].toString(), " \t\r\n", ""))
+		{
+			selectors.addIfNotAlreadyThere(token.startsWithChar('.') ? token : "." + token);
+		}
+	}
+
+	return var(selectors);
+}
+
 void ScriptComponent::attachValueListener(WeakCallbackHolder::CallableObject* obj)
 {
 	valueListener = obj;

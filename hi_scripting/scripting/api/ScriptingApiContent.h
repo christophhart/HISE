@@ -786,9 +786,14 @@ public:
 
 		bool isAdditionalPluginParameter = false;
 
+		String getCSSFromLocalLookAndFeel();
+
+		/** Returns a array with all selectors used by this component. */
+		var getCSSSelectors();
+
 	protected:
 
-		String getCSSFromLocalLookAndFeel();
+		
 
 		bool isCorrectlyInitialised(int p) const
 		{

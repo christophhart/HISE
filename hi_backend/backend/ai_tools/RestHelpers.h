@@ -966,7 +966,10 @@ struct RestHelpers
     /** Handler for POST /api/parse_css - Parse CSS code and return diagnostics.
      *  HISE-agnostic: does not require a script processor.
      *  Accepts either inline code or a file path to a .css file.
-     *  Optionally resolves properties for a set of selectors using CSS specificity.
+     *  Optionally resolves properties using CSS specificity, either from an explicit
+     *  selectors array, or from moduleId + componentId (resolves the component's own
+     *  selectors; width/height default to the component's bounds unless given).
+     *  404 if the module is not a scripting-content module or the component is missing.
      */
     static RestServer::Response handleParseCSS(MainController* mc, 
                                                RestServer::AsyncRequest::Ptr req);

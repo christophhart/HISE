@@ -40,7 +40,7 @@
     runtime field. Consumers read it off any response (or `/api/status`) to
     verify they are talking to a HISE build that matches their expected schema.
 */
-#define HISE_REST_API_VERSION "0.11.0"
+#define HISE_REST_API_VERSION "0.10.0"  // 0.10.0: parse_css gains optional moduleId/componentId (component mode)
 
 namespace hise { using namespace juce;
 
@@ -55,6 +55,7 @@ namespace RestApiIds
 {
     // Request/body parameters
     DECLARE_ID(moduleId);
+    DECLARE_ID(componentId);      // Component ID inside a scripting-content module (parse_css component mode)
     DECLARE_ID(callback);
     DECLARE_ID(script);
     DECLARE_ID(compile);
@@ -88,7 +89,6 @@ namespace RestApiIds
     DECLARE_ID(name);
     DECLARE_ID(required);
     DECLARE_ID(defaultValue);
-    DECLARE_ID(externalModulation);
     DECLARE_ID(inverted);
 
     // status response
@@ -250,7 +250,7 @@ namespace RestApiIds
     DECLARE_ID(total);                // Sum of durations (ms)
 
     // parse_css
-    DECLARE_ID(code);                 // Raw source string to parse (parse_css, diagnose_script)
+    DECLARE_ID(code);                 // CSS code string to parse
     DECLARE_ID(selectors);            // Array of selector strings for specificity resolution
     DECLARE_ID(resolved);             // Resolved pixel value for a property
 
@@ -350,8 +350,6 @@ namespace RestApiIds
     // dsp (scriptnode)
     DECLARE_ID(nodeId);               // Node instance ID within a network
     DECLARE_ID(factoryPath);          // Node factory path (e.g. core.oscillator)
-    DECLARE_ID(bounds);               // Calculated node canvas bounds
-    DECLARE_ID(includeBounds);        // Include calculated live-node canvas bounds
     DECLARE_ID(networks);             // Array of network names
     DECLARE_ID(connections);          // Array of connection objects in tree
     DECLARE_ID(sourceOutput);         // Connection source output name
@@ -359,7 +357,7 @@ namespace RestApiIds
     DECLARE_ID(stepSize);             // Parameter step size
     DECLARE_ID(middlePosition);       // Parameter middle position
     DECLARE_ID(skewFactor);           // Parameter skew factor
-    DECLARE_ID(matchRange);           // connect op flag: copy target range when both endpoints are parameters
+    DECLARE_ID(matchRange);           // connect op flag: copy target range onto source after wiring
     DECLARE_ID(injectId);             // Child node ID to inject before
     DECLARE_ID(probeId);              // Child node ID to probe after
     DECLARE_ID(injectIndex);          // Resolved injection checkpoint index
@@ -369,8 +367,6 @@ namespace RestApiIds
     DECLARE_ID(gain);                 // Probe signal gain
     DECLARE_ID(seed);                 // Probe noise seed
     DECLARE_ID(delayMs);              // Probe delay before capture
-    DECLARE_ID(trigger);              // Optional MIDI note trigger for a DSP probe
-    DECLARE_ID(predelayMs);           // Audio time between trigger note and signal injection
     DECLARE_ID(specs);                // Probe processing specs
     DECLARE_ID(containers);           // Recursive probe container reports
     DECLARE_ID(numChildren);          // Number of child nodes in a container report

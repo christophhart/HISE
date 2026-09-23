@@ -36,7 +36,7 @@ BEGIN_JUCE_MODULE_DECLARATION
 
   ID:               hi_rlottie
   vendor:           Samsung
-  version:          4.9.4
+  version:          4.9.7
   name:             HISE Tools module
   description:      A JUCE module that wraps the RLottie library by Samsung
   website:          http://hise.audio
