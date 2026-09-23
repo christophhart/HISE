@@ -2472,6 +2472,7 @@ JavascriptThreadPool::JavascriptThreadPool(MainController* mc) :
 {
 	memset(numTasks, 0, sizeof(numTasks));
 	taskNames[Task::Compilation] = "Compilation Count";
+	taskNames[Task::ReplEvaluation] = "REPL Evaluation Counter";
 	taskNames[Task::HiPriorityCallbackExecution] = "Hi Priority Callback Counter";
 	taskNames[Task::LowPriorityCallbackExecution] = "Low Priority Callback Counter";
 	taskNames[Task::DeferredPanelRepaintJob] = "Deferred Paint Routine Counter";
@@ -2506,6 +2507,9 @@ void JavascriptThreadPool::cancelAllJobs(bool shouldStopThread)
 	compilationQueue.clear();
 	lowPriorityQueue.clear();
 	highPriorityQueue.clear();
+#if USE_BACKEND
+	replQueue.clear();
+#endif
 	deferredPanels.clear();
 }
 
@@ -2653,7 +2657,7 @@ void JavascriptThreadPool::addJob(Task::Type t, JavascriptProcessor* p, const Ta
 
 	auto currentThread = getMainController()->getKillStateHandler().getCurrentThread();
 
-	if (t != Task::Type::Compilation && isSleeping)
+	if (t != Task::Type::Compilation && t != Task::Type::ReplEvaluation && isSleeping)
 		return;
 
 	switch (currentThread)
@@ -2770,9 +2774,15 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 			clearCounter(Task::LowPriorityCallbackExecution);
 			clearCounter(Task::HiPriorityCallbackExecution);
 			clearCounter(Task::DeferredPanelRepaintJob);
+#if USE_BACKEND
+			clearCounter(Task::ReplEvaluation);
+#endif
 
 			lowPriorityQueue.clear();
 			highPriorityQueue.clear();
+#if USE_BACKEND
+			replQueue.clear();
+#endif
 
 #if PERFETTO
 			dispatch::StringBuilder b;
@@ -2801,12 +2811,10 @@ Result JavascriptThreadPool::executeQueue(const Task::Type& t, PendingCompilatio
 
         while (r.wasOk() && replQueue.pop(hpt))
         {
-            if (alreadyCompiled(hpt))
-                continue;
-
             r = hpt.call();
         }
 #endif
+		clearCounter(t);
 
         return r;
     }
@@ -2993,6 +3001,16 @@ void JavascriptThreadPool::pushToQueue(const Task::Type& t, JavascriptProcessor*
 	case Task::HiPriorityCallbackExecution:
 	{
 		highPriorityQueue.push({ Task(t, p, f), getMainController() });
+		break;
+	}
+	case Task::ReplEvaluation:
+	{
+#if USE_BACKEND
+		replQueue.push({ Task(t, p, f), getMainController() });
+#else
+		jassertfalse;
+		return;
+#endif
 		break;
 	}
 	case Task::Compilation:

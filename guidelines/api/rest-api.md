@@ -1041,7 +1041,7 @@ curl "http://localhost:1900/api/get_selected_components?moduleId=Interface"
 
 ### POST /api/testing/e2e
 
-Execute a sequence of UI interactions (mouse movements, clicks, drags, screenshots) in a dedicated test window. Auto-inserts `moveTo` events as needed for proper mouse positioning. Mouse state persists across API calls for sequential interaction workflows.
+Execute a sequence of UI interactions and REPL evaluations in a dedicated test window. Auto-inserts `moveTo` events as needed for proper mouse positioning. Mouse state persists across API calls for sequential interaction workflows.
 
 **Parameters** (JSON body):
 
@@ -1050,9 +1050,24 @@ Execute a sequence of UI interactions (mouse movements, clicks, drags, screensho
 | `interactions` | Yes | — | Array of interaction objects (see below) |
 | `verbose` | No | `false` | Include auto-insertion details and final mouse state in response |
 
-**Interaction types**: `moveTo`, `click`, `doubleClick`, `drag`, `selectMenuItem`, `screenshot`
+**Interaction types**: `moveTo`, `click`, `doubleClick`, `drag`, `selectMenuItem`, `screenshot`, `repl`
 
-Each interaction targets a component by ID and supports optional timing parameters (`delayMs`, `durationMs`).
+Component interactions target a component by ID and support optional timing parameters (`delay`, `duration`). Omitting `duration` preserves blocking behavior and uses the interaction's default duration. Supplying a positive `duration` makes `moveTo`, `click`, `drag`, or `selectMenuItem` a timed interaction that can be observed while it is running. An explicit `duration: 0` executes synchronously.
+Screenshot interactions require an `id` used as the result label, and may optionally provide `componentId` to crop the capture to a component. The `scale` field accepts `0.5` or `1.0` and applies to either full-interface or cropped captures. The optional non-negative `delay` is applied before capture. Each capture is written automatically to the project root as `<sanitized-id>.png`. Existing filenames are preserved by adding a numeric suffix.
+REPL interactions require an `id` and `expression`. They evaluate against the processor returned by `JavascriptMidiProcessor::getFirstInterfaceScriptProcessor()`. A failed evaluation is reported in `replResults` without stopping later interactions or failing the overall E2E sequence.
+
+While a timed interaction is active, only `screenshot` and `repl` interactions are allowed. Their delays advance the timed interaction before capture or evaluation. Any pointer interaction whose delay expires before the active interaction completes fails the sequence and releases a held mouse button. Auto-inserted `moveTo` events remain blocking.
+
+**Timed interaction example**:
+```json
+{
+  "interactions": [
+    {"type": "click", "target": "Button1", "duration": 250},
+    {"type": "screenshot", "id": "button_pressed", "componentId": "Button1", "delay": 50},
+    {"type": "repl", "id": "pressed_value", "expression": "Content.getComponent('Button1').getValue()", "delay": 50}
+  ]
+}
+```
 
 **Example Request**:
 ```bash
@@ -1061,7 +1076,8 @@ curl -X POST http://localhost:1900/api/testing/e2e \
   -d '{
     "interactions": [
       {"type": "click", "target": "Button1"},
-      {"type": "screenshot", "id": "after_click"}
+      {"type": "repl", "id": "buttonValue", "expression": "Content.getComponent('Button1').getValue()"},
+      {"type": "screenshot", "id": "button1_after_click", "componentId": "Button1", "scale": 0.5}
     ]
   }'
 ```
@@ -1070,19 +1086,49 @@ curl -X POST http://localhost:1900/api/testing/e2e \
 ```json
 {
   "success": true,
-  "interactionsCompleted": 2,
+  "interactionsCompleted": 3,
   "totalElapsedMs": 120,
   "executionLog": [...],
-  "screenshots": {"after_click": {"sizeKB": 12.5, "width": 600, "height": 400}},
+  "replResults": [
+    {
+      "id": "buttonValue",
+      "expression": "Content.getComponent('Button1').getValue()",
+      "moduleId": "Interface",
+      "timestamp": 100,
+      "success": true,
+      "value": 1
+    }
+  ],
+  "screenshots": {
+    "button1_after_click": {
+      "id": "button1_after_click",
+      "moduleId": "Interface",
+      "componentId": "Button1",
+      "sizeKB": 1.8,
+      "width": 64,
+      "height": 16,
+      "scale": 0.5,
+      "filePath": "D:/Projects/MyPlugin/button1_after_click.png"
+    }
+  },
   "logs": [],
   "errors": []
 }
 ```
 
 **Notes**:
-- This endpoint blocks until all interactions complete (30s timeout)
+- This endpoint blocks until all interactions complete (20s timeout)
+- Explicit positive durations allow screenshots and REPL evaluations to run before the timed interaction completes
+- Other pointer interactions fail if their delay expires while a timed interaction is active
 - Mouse state persists across calls — subsequent calls continue from the last cursor position
 - The test window is created when the REST server starts and re-created if closed
+- A screenshot with an unknown `componentId`, an invalid crop, or a capture failure fails the E2E sequence
+- Screenshot IDs are sanitized with `File::createLegalFileName()` before being used as filenames
+- Existing screenshot files are never overwritten; a numeric suffix is added using `getNonexistentSibling(false)`
+- E2E screenshots return `filePath` and do not include Base64 `imageData`
+- REPL failures include `success: false`, `value`, `errorMessage`, and optional `location` and `callstack` fields
+- REPL jobs run asynchronously on the scripting thread; later interactions continue immediately, then the response waits for pending REPL results at the end
+- Compilation discards queued REPL jobs because they target stale script state; discarded or timed-out jobs return a failed REPL result
 
 ---
 
@@ -1922,6 +1968,8 @@ curl -X POST http://localhost:1900/api/testing/sequence \
 | `progress` | 0.0–1.0 playhead position against sequence duration |
 | `replResults` | Array of REPL evaluation results (only present when results are available) |
 | `recordOutput` | File path of recorded WAV (only present when `recordOutput` was specified) |
+
+Each REPL result contains `id` when supplied, `expression`, `moduleId`, `timestamp`, `success`, and `value`. Failed evaluations also include `errorMessage` and may include `location` and `callstack`.
 
 **Notes**:
 - By default the endpoint returns immediately (non-blocking). Use `blocking: true` or `recordOutput` to wait for completion

@@ -46,6 +46,13 @@ public:
         
         // Screenshot
         testExecuteScreenshot();
+        testExecuteScreenshotComponent();
+        testExecuteScreenshotFailure();
+
+        // REPL
+        testExecuteRepl();
+        testReplResultOrder();
+        testReplFailureContinues();
         
         // SelectMenuItem
         testExecuteSelectMenuItem();
@@ -53,6 +60,15 @@ public:
         
         // Timing
         testDelayWorks();
+        testTimedMoveAllowsMidpointScreenshot();
+        testTimedClickAllowsPressedScreenshot();
+        testTimedDragAllowsMidpointScreenshot();
+        testTimedMenuSelectionAllowsScreenshot();
+        testTimedInteractionAllowsRepl();
+        testTimedInteractionRejectsPointerEvent();
+        testDelayedPointerWaitsForTimedCompletion();
+        testExplicitZeroDurationRemainsBlocking();
+        testTimedInteractionReleasesMouseOnFailure();
         
         // Component resolution
         testResolutionSuccess();
@@ -133,11 +149,21 @@ private:
         return i;
     }
     
-    Interaction makeScreenshot(const String& id)
+    Interaction makeScreenshot(const String& id, int delayMs = 0)
     {
         Interaction i;
         i.mouse.type = MouseInteraction::Type::Screenshot;
         i.mouse.screenshotId = id;
+        i.mouse.delayMs = delayMs;
+        return i;
+    }
+
+    Interaction makeRepl(const String& id, const String& expression)
+    {
+        Interaction i;
+        i.mouse.type = MouseInteraction::Type::Repl;
+        i.mouse.replId = id;
+        i.mouse.replExpression = expression;
         return i;
     }
     
@@ -419,6 +445,110 @@ private:
         
         expect(hasScreenshot, "Should have screenshot event");
     }
+
+    void testExecuteScreenshotComponent()
+    {
+        beginTest("Screenshot: Component crop is forwarded");
+
+        TestExecutor exec;
+        Array<Interaction> interactions;
+        auto screenshot = makeScreenshot("test_capture");
+        screenshot.mouse.screenshotComponentId = "Button1";
+        interactions.add(screenshot);
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Execution should succeed");
+        expect(exec.log.size() == 1, "Should have one screenshot event");
+        expect(exec.log[0].screenshotComponentId == "Button1",
+               "Component ID should be forwarded");
+    }
+
+    void testExecuteScreenshotFailure()
+    {
+        beginTest("Screenshot: Capture failure fails E2E sequence");
+
+        TestExecutor exec;
+        exec.screenshotError = "Screenshot component not found: MissingButton";
+
+        Array<Interaction> interactions;
+        interactions.add(makeScreenshot("missing_component"));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.failed(), "Execution should fail");
+        expect(result.result.getErrorMessage().contains("MissingButton"),
+               "Failure should identify the missing component");
+        expectEquals(result.interactionsCompleted, 0,
+                     "Failed screenshot should not count as completed");
+    }
+
+    void testExecuteRepl()
+    {
+        beginTest("REPL: Result and execution log");
+
+        TestExecutor exec;
+        Array<Interaction> interactions;
+        interactions.add(makeRepl("buttonValue", "Button1.getValue()"));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Execution should succeed");
+        expectEquals(result.interactionsCompleted, 1, "REPL should count as completed");
+        expect(dispatcher.getReplResults().size() == 1, "Should collect one REPL result");
+        expect(dispatcher.getReplResults()[0][RestApiIds::id].toString() == "buttonValue",
+               "Result ID should match");
+        expect(exec.log[0].replExpression == "Button1.getValue()", "Expression should be forwarded");
+    }
+
+    void testReplFailureContinues()
+    {
+        beginTest("REPL: Failure does not stop sequence");
+
+        TestExecutor exec;
+        exec.replShouldFail = true;
+
+        Array<Interaction> interactions;
+        interactions.add(makeRepl("failure", "doesNotExist()"));
+        interactions.add(makeScreenshot("after_failure"));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "REPL failure should not fail E2E execution");
+        expectEquals(result.interactionsCompleted, 2, "Later interactions should execute");
+        expect(!(bool)dispatcher.getReplResults()[0][RestApiIds::success],
+               "REPL result should report failure");
+        expect(exec.log.getLast().screenshotId == "after_failure",
+               "Screenshot after failed REPL should execute");
+    }
+
+    void testReplResultOrder()
+    {
+        beginTest("REPL: Results preserve interaction order");
+
+        TestExecutor exec;
+        Array<Interaction> interactions;
+        interactions.add(makeRepl("first", "1"));
+        interactions.add(makeRepl("second", "2"));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+        auto replResults = dispatcher.getReplResults();
+
+        expect(result.result.wasOk(), "Execution should succeed");
+        expectEquals(replResults.size(), 2, "Should collect both REPL results");
+        expect(replResults[0][RestApiIds::id].toString() == "first", "First result should stay first");
+        expect(replResults[1][RestApiIds::id].toString() == "second", "Second result should stay second");
+    }
     
     //==========================================================================
     // SelectMenuItem Tests
@@ -491,6 +621,299 @@ private:
         
         // Should have waited at least 50ms (with some tolerance)
         expect(elapsed >= 40, "Should wait for delay, elapsed: " + String(elapsed));
+    }
+
+    void testTimedMoveAllowsMidpointScreenshot()
+    {
+        beginTest("Timing: Explicit move allows a midpoint screenshot");
+
+        TestExecutor exec;
+        setupDefaultMockComponents(exec);
+        auto move = makeMoveTo("Button1", 0, 120);
+        move.mouse.durationWasExplicit = true;
+
+        Array<Interaction> interactions;
+        interactions.add(move);
+        interactions.add(makeScreenshot("mid_move", 40));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Timed move sequence should succeed");
+        expectEquals(result.interactionsCompleted, 2, "Both interactions should complete");
+
+        int screenshotIndex = -1;
+        for (int i = 0; i < exec.log.size(); ++i)
+            if (exec.log[i].type == InteractionIds::screenshot)
+                screenshotIndex = i;
+
+        expect(screenshotIndex > 0, "Screenshot should occur after movement starts");
+        if (screenshotIndex > 0)
+        {
+            int previousMoveIndex = screenshotIndex - 1;
+            while (previousMoveIndex >= 0
+                   && exec.log[previousMoveIndex].type != InteractionIds::mouseMove)
+                previousMoveIndex--;
+
+            expect(previousMoveIndex >= 0, "A mouse move should precede the screenshot");
+            if (previousMoveIndex >= 0)
+                expect(exec.log[previousMoveIndex].pixelPos.x > 0
+                    && exec.log[previousMoveIndex].pixelPos.x < 140,
+                    "Cursor should be between start and target at capture time");
+        }
+        expect(exec.cursorPosition == Point<int>(140, 115), "Timed move should finish at the target");
+    }
+
+    void testTimedClickAllowsPressedScreenshot()
+    {
+        beginTest("Timing: Explicit click allows a pressed screenshot");
+
+        TestExecutor exec;
+        exec.cursorPosition = {140, 115};
+        auto click = makeClick();
+        click.mouse.durationMs = 120;
+        click.mouse.durationWasExplicit = true;
+
+        Array<Interaction> interactions;
+        interactions.add(click);
+        interactions.add(makeScreenshot("pressed", 30));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Timed click sequence should succeed");
+        expectEquals(result.interactionsCompleted, 2, "Both interactions should complete");
+
+        int screenshotIndex = -1;
+        int mouseUpIndex = -1;
+        for (int i = 0; i < exec.log.size(); ++i)
+        {
+            if (exec.log[i].type == InteractionIds::screenshot)
+                screenshotIndex = i;
+            if (exec.log[i].type == InteractionIds::mouseUp)
+                mouseUpIndex = i;
+        }
+
+        expect(screenshotIndex >= 0 && mouseUpIndex > screenshotIndex,
+               "Screenshot should be captured before mouseUp");
+    }
+
+    void testTimedDragAllowsMidpointScreenshot()
+    {
+        beginTest("Timing: Explicit drag allows a midpoint screenshot");
+
+        TestExecutor exec;
+        exec.cursorPosition = {100, 100};
+        auto drag = makeDrag("Panel1", 100, 0, 120);
+        drag.mouse.durationWasExplicit = true;
+
+        Array<Interaction> interactions;
+        interactions.add(drag);
+        interactions.add(makeScreenshot("mid_drag", 40));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Timed drag sequence should succeed");
+        expectEquals(result.interactionsCompleted, 2, "Both interactions should complete");
+
+        int screenshotIndex = -1;
+        for (int i = 0; i < exec.log.size(); ++i)
+            if (exec.log[i].type == InteractionIds::screenshot)
+                screenshotIndex = i;
+
+        expect(screenshotIndex > 0, "Screenshot should occur after drag movement starts");
+        if (screenshotIndex > 0)
+        {
+            int previousMoveIndex = screenshotIndex - 1;
+            while (previousMoveIndex >= 0
+                   && exec.log[previousMoveIndex].type != InteractionIds::mouseMove)
+                previousMoveIndex--;
+
+            expect(previousMoveIndex >= 0, "A drag move should precede the screenshot");
+            if (previousMoveIndex >= 0)
+                expect(exec.log[previousMoveIndex].pixelPos.x > 100
+                    && exec.log[previousMoveIndex].pixelPos.x < 200,
+                    "Cursor should be between drag endpoints at capture time");
+        }
+        expect(exec.cursorPosition == Point<int>(200, 100), "Timed drag should finish at its endpoint");
+    }
+
+    void testTimedMenuSelectionAllowsScreenshot()
+    {
+        beginTest("Timing: Explicit menu selection allows a screenshot");
+
+        TestExecutor exec;
+        exec.addMockMenuItem("Option 1", 1, {100, 100, 100, 20});
+        auto selection = makeSelectMenuItem("Option 1", 100);
+        selection.mouse.durationWasExplicit = true;
+
+        Array<Interaction> interactions;
+        interactions.add(selection);
+        interactions.add(makeScreenshot("menu_move", 30));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Timed menu selection should succeed");
+        expectEquals(result.interactionsCompleted, 2, "Both interactions should complete");
+
+        int screenshotIndex = -1;
+        int mouseDownIndex = -1;
+        for (int i = 0; i < exec.log.size(); ++i)
+        {
+            if (exec.log[i].type == InteractionIds::screenshot)
+                screenshotIndex = i;
+            if (exec.log[i].type == InteractionIds::mouseDown)
+                mouseDownIndex = i;
+        }
+
+        expect(screenshotIndex >= 0 && mouseDownIndex > screenshotIndex,
+               "Screenshot should occur before the menu item click");
+        expect(dispatcher.getLastSelectedMenuItem().wasSelected,
+               "Menu item should be selected when the timed interaction completes");
+
+        int mouseUpIndex = -1;
+        for (int i = mouseDownIndex + 1; i < exec.log.size(); ++i)
+            if (exec.log[i].type == InteractionIds::mouseUp)
+                mouseUpIndex = i;
+
+        expect(mouseDownIndex >= 0 && mouseUpIndex > mouseDownIndex,
+               "Timed menu selection should emit mouseDown before mouseUp");
+        if (mouseDownIndex >= 0 && mouseUpIndex > mouseDownIndex)
+            expect(exec.log[mouseUpIndex].elapsedMs - exec.log[mouseDownIndex].elapsedMs >= 15,
+                   "Timed menu click should retain its 20ms hold");
+    }
+
+    void testTimedInteractionAllowsRepl()
+    {
+        beginTest("Timing: REPL is allowed during a timed interaction");
+
+        TestExecutor exec;
+        auto click = makeClick();
+        click.mouse.durationMs = 80;
+        click.mouse.durationWasExplicit = true;
+        auto repl = makeRepl("pressedValue", "Button1.getValue()");
+        repl.mouse.delayMs = 20;
+
+        Array<Interaction> interactions;
+        interactions.add(click);
+        interactions.add(repl);
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "REPL should not conflict with a timed interaction");
+        expectEquals(dispatcher.getReplResults().size(), 1, "REPL result should be collected");
+    }
+
+    void testTimedInteractionRejectsPointerEvent()
+    {
+        beginTest("Timing: Pointer event is rejected during a timed interaction");
+
+        TestExecutor exec;
+        setupDefaultMockComponents(exec);
+        auto move = makeMoveTo("Button1", 0, 150);
+        move.mouse.durationWasExplicit = true;
+        auto conflictingMove = makeMoveTo("Button2", 20, 50);
+
+        Array<Interaction> interactions;
+        interactions.add(move);
+        interactions.add(conflictingMove);
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.failed(), "Conflicting pointer event should fail");
+        expect(result.result.getErrorMessage().contains("Only screenshot and repl"),
+               "Error should identify the allowed interactions");
+        expectEquals(result.interactionsCompleted, 0,
+                     "Aborted timed interaction should not count as completed");
+    }
+
+    void testDelayedPointerWaitsForTimedCompletion()
+    {
+        beginTest("Timing: Pointer conflict is checked after its delay");
+
+        TestExecutor exec;
+        setupDefaultMockComponents(exec);
+        auto firstMove = makeMoveTo("Button1", 0, 80);
+        firstMove.mouse.durationWasExplicit = true;
+        auto delayedMove = makeMoveTo("Button2", 100, 50);
+
+        Array<Interaction> interactions;
+        interactions.add(firstMove);
+        interactions.add(delayedMove);
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Pointer interaction should run after the timed interaction completes");
+        expect(exec.cursorPosition == Point<int>(240, 115), "Second move should reach Button2");
+    }
+
+    void testExplicitZeroDurationRemainsBlocking()
+    {
+        beginTest("Timing: Explicit zero duration remains blocking");
+
+        TestExecutor exec;
+        auto click = makeClick();
+        click.mouse.durationMs = 0;
+        click.mouse.durationWasExplicit = true;
+
+        Array<Interaction> interactions;
+        interactions.add(click);
+        interactions.add(makeScreenshot("after_zero_click"));
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.wasOk(), "Zero-duration click should execute synchronously");
+
+        int mouseUpIndex = -1;
+        int screenshotIndex = -1;
+        for (int i = 0; i < exec.log.size(); ++i)
+        {
+            if (exec.log[i].type == InteractionIds::mouseUp)
+                mouseUpIndex = i;
+            if (exec.log[i].type == InteractionIds::screenshot)
+                screenshotIndex = i;
+        }
+
+        expect(mouseUpIndex >= 0 && screenshotIndex > mouseUpIndex,
+               "MouseUp should occur before the following screenshot");
+    }
+
+    void testTimedInteractionReleasesMouseOnFailure()
+    {
+        beginTest("Timing: Failure releases a held mouse button");
+
+        TestExecutor exec;
+        auto click = makeClick();
+        click.mouse.durationMs = 150;
+        click.mouse.durationWasExplicit = true;
+        auto conflictingClick = makeClick(20);
+
+        Array<Interaction> interactions;
+        interactions.add(click);
+        interactions.add(conflictingClick);
+
+        InteractionDispatcher dispatcher;
+        Array<var> log;
+        auto result = dispatcher.execute(interactions, exec, log);
+
+        expect(result.result.failed(), "Sequence should fail on the conflicting click");
+        expect(exec.log.size() >= 2, "Cleanup should emit mouseUp");
+        expect(exec.log.getLast().type == InteractionIds::mouseUp,
+               "Last executor event should release the mouse button");
     }
     
     //==========================================================================

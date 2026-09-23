@@ -2777,6 +2777,9 @@ RestServer::Response RestHelpers::handleTestingE2e(BackendProcessor* bp, RestSer
 	result->setProperty(RestApiIds::interactionsCompleted, testResult.interactionsCompleted);
 	result->setProperty(RestApiIds::totalElapsedMs, testResult.totalElapsedMs);
 	result->setProperty(RestApiIds::executionLog, testResult.executionLog);
+
+	if (!testResult.replResults.isEmpty())
+		result->setProperty(RestApiIds::replResults, var(testResult.replResults));
 	
 	// Convert screenshots to JSON object with metadata (no base64 data)
 	DynamicObject::Ptr screenshotsObj = new DynamicObject();
@@ -2784,9 +2787,16 @@ RestServer::Response RestHelpers::handleTestingE2e(BackendProcessor* bp, RestSer
 	{
 		DynamicObject::Ptr ssInfo = new DynamicObject();
 		ssInfo->setProperty(RestApiIds::id, info.id);
+		ssInfo->setProperty(RestApiIds::moduleId, info.moduleId);
+
+		if (info.componentId.isNotEmpty())
+			ssInfo->setProperty(RestApiIds::componentId, info.componentId);
+
 		ssInfo->setProperty("sizeKB", info.sizeKB);
-		ssInfo->setProperty("width", info.width);
-		ssInfo->setProperty("height", info.height);
+		ssInfo->setProperty(RestApiIds::width, info.width);
+		ssInfo->setProperty(RestApiIds::height, info.height);
+		ssInfo->setProperty(RestApiIds::scale, info.scale);
+		ssInfo->setProperty(RestApiIds::filePath, info.filePath);
 		screenshotsObj->setProperty(Identifier(id), var(ssInfo.get()));
 	}
 	result->setProperty(RestApiIds::screenshots, var(screenshotsObj.get()));

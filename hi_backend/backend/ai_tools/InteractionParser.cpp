@@ -181,10 +181,51 @@ InteractionParser::ParseResult InteractionParser::parseMouseInteraction(
         mouse.type = MouseInteraction::Type::Screenshot;
     else if (type == InteractionIds::selectMenuItem.toString().toLowerCase())
         mouse.type = MouseInteraction::Type::SelectMenuItem;
+    else if (type == InteractionIds::repl.toString().toLowerCase())
+        mouse.type = MouseInteraction::Type::Repl;
     else
         return ParseResult::fail(formatError(
-            "unknown value '" + type + "'. Valid types: moveTo, click, doubleClick, drag, screenshot, selectMenuItem", 
+            "unknown value '" + type + "'. Valid types: moveTo, click, doubleClick, drag, screenshot, selectMenuItem, repl",
             index, RestApiIds::type));
+
+    //==========================================================================
+    // REPL handling
+    //==========================================================================
+    if (mouse.type == MouseInteraction::Type::Repl)
+    {
+        if (!obj.hasProperty(RestApiIds::id))
+            return ParseResult::fail(formatError("required field", index, RestApiIds::id));
+
+        auto idVar = obj[RestApiIds::id];
+
+        if (!idVar.isString())
+            return ParseResult::fail(formatError("must be a string", index, RestApiIds::id));
+
+        mouse.replId = idVar.toString();
+
+        if (mouse.replId.isEmpty())
+            return ParseResult::fail(formatError("cannot be empty", index, RestApiIds::id));
+
+        if (!obj.hasProperty(RestApiIds::expression))
+            return ParseResult::fail(formatError("required field", index, RestApiIds::expression));
+
+        auto expressionVar = obj[RestApiIds::expression];
+
+        if (!expressionVar.isString())
+            return ParseResult::fail(formatError("must be a string", index, RestApiIds::expression));
+
+        mouse.replExpression = expressionVar.toString();
+
+        if (mouse.replExpression.isEmpty())
+            return ParseResult::fail(formatError("cannot be empty", index, RestApiIds::expression));
+
+        mouse.delayMs = static_cast<int>(obj.getProperty(InteractionIds::delay, 0));
+
+        if (mouse.delayMs < 0)
+            return ParseResult::fail(formatError("cannot be negative", index, InteractionIds::delay));
+
+        return ParseResult::ok();
+    }
     
     //==========================================================================
     // Screenshot handling
@@ -201,11 +242,28 @@ InteractionParser::ParseResult InteractionParser::parseMouseInteraction(
         mouse.screenshotId = idVar.toString();
         if (mouse.screenshotId.isEmpty())
             return ParseResult::fail(formatError("cannot be empty", index, RestApiIds::id));
+
+        if (obj.hasProperty(RestApiIds::componentId))
+        {
+            auto componentIdVar = obj[RestApiIds::componentId];
+
+            if (!componentIdVar.isString())
+                return ParseResult::fail(formatError("must be a string", index, RestApiIds::componentId));
+
+            mouse.screenshotComponentId = componentIdVar.toString();
+
+            if (mouse.screenshotComponentId.isEmpty())
+                return ParseResult::fail(formatError("cannot be empty", index, RestApiIds::componentId));
+        }
         
         // Parse scale (optional, defaults to 1.0)
         mouse.screenshotScale = static_cast<float>(obj.getProperty(RestApiIds::scale, 1.0f));
         if (mouse.screenshotScale != 0.5f && mouse.screenshotScale != 1.0f)
             return ParseResult::fail(formatError("must be 0.5 or 1.0", index, RestApiIds::scale));
+
+        mouse.delayMs = static_cast<int>(obj.getProperty(InteractionIds::delay, 0));
+        if (mouse.delayMs < 0)
+            return ParseResult::fail(formatError("cannot be negative", index, InteractionIds::delay));
         
         // Screenshot has no other fields
         return ParseResult::ok();
@@ -233,6 +291,24 @@ InteractionParser::ParseResult InteractionParser::parseMouseInteraction(
             return ParseResult::fail(formatError("cannot be negative", index, InteractionIds::delay));
         
         // Parse duration (optional)
+        mouse.durationWasExplicit = obj.hasProperty(InteractionIds::duration);
+
+        if (mouse.durationWasExplicit)
+        {
+            auto durationVar = obj[InteractionIds::duration];
+            if (!(durationVar.isInt() || durationVar.isInt64() || durationVar.isDouble()))
+                return ParseResult::fail(formatError("must be an integer", index, InteractionIds::duration));
+
+            auto durationValue = static_cast<double>(durationVar);
+            if (!std::isfinite(durationValue) || std::floor(durationValue) != durationValue)
+                return ParseResult::fail(formatError("must be an integer", index, InteractionIds::duration));
+            if (durationValue < 0.0)
+                return ParseResult::fail(formatError("cannot be negative", index, InteractionIds::duration));
+            if (durationValue > MaxDurationMs)
+                return ParseResult::fail(formatError("exceeds maximum of "
+                    + String(MaxDurationMs) + "ms", index, InteractionIds::duration));
+        }
+
         mouse.durationMs = static_cast<int>(obj.getProperty(InteractionIds::duration, InteractionConstants::DefaultMenuSelectDurationMs));
         if (mouse.durationMs < 0)
             return ParseResult::fail(formatError("cannot be negative", index, InteractionIds::duration));
@@ -284,6 +360,24 @@ InteractionParser::ParseResult InteractionParser::parseMouseInteraction(
     //==========================================================================
     // Type-specific parsing
     //==========================================================================
+    mouse.durationWasExplicit = obj.hasProperty(InteractionIds::duration);
+
+    if (mouse.durationWasExplicit)
+    {
+        auto durationVar = obj[InteractionIds::duration];
+        if (!(durationVar.isInt() || durationVar.isInt64() || durationVar.isDouble()))
+            return ParseResult::fail(formatError("must be an integer", index, InteractionIds::duration));
+
+        auto durationValue = static_cast<double>(durationVar);
+        if (!std::isfinite(durationValue) || std::floor(durationValue) != durationValue)
+            return ParseResult::fail(formatError("must be an integer", index, InteractionIds::duration));
+        if (durationValue < 0.0)
+            return ParseResult::fail(formatError("cannot be negative", index, InteractionIds::duration));
+        if (durationValue > MaxDurationMs)
+            return ParseResult::fail(formatError("exceeds maximum of "
+                + String(MaxDurationMs) + "ms", index, InteractionIds::duration));
+    }
+
     switch (mouse.type)
     {
         case MouseInteraction::Type::MoveTo:

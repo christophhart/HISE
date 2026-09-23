@@ -51,6 +51,7 @@ namespace InteractionIds
     DECLARE_ID(moveTo);
     DECLARE_ID(screenshot);
     DECLARE_ID(selectMenuItem);
+    DECLARE_ID(repl);
     
     // Event types (raw) 
     DECLARE_ID(mouseDown);
@@ -271,7 +272,8 @@ public:
             Click,
             Drag,
             Screenshot,
-            SelectMenuItem
+            SelectMenuItem,
+            Repl
         };
         
         Type type = Type::Click;
@@ -290,6 +292,9 @@ public:
         
         /** Duration of animated movement (ms). */
         int durationMs = 0;
+
+        /** True when duration was explicitly supplied by the caller. */
+        bool durationWasExplicit = false;
         
         /** Modifier keys (shift, ctrl, alt, cmd). */
         ModifierKeys modifiers;
@@ -299,9 +304,16 @@ public:
         
         /** Screenshot ID (for screenshot only). */
         String screenshotId;
+
+        /** Optional component ID to crop (for screenshot only). */
+        String screenshotComponentId;
         
         /** Screenshot scale factor (for screenshot only). */
         float screenshotScale = 1.0f;
+
+        /** Required result ID and expression (for REPL only). */
+        String replId;
+        String replExpression;
         
         /** Menu item text to match (for selectMenuItem only). */
         String menuItemText;
@@ -436,7 +448,12 @@ struct InteractionExecutorBase
                                   int elapsedMs) = 0;
     
     // Screenshot capture
-    virtual void executeScreenshot(const String& id, float scale, int elapsedMs) = 0;
+    virtual Result executeScreenshot(const String& id, const String& componentId,
+                                     float scale, int elapsedMs) = 0;
+
+    using ReplCompletion = std::function<void(var)>;
+    virtual void executeRepl(const String& id, const String& expression, int elapsedMs,
+                             const ReplCompletion& completion) = 0;
     
     // Synthetic input mode control
     virtual void executeSyntheticModeStart(int elapsedMs) = 0;

@@ -549,14 +549,18 @@ struct RestApiEndpoints
 			.withVariant("doubleClick", "Double-click (expands to two clicks)")
 			.withVariant("drag", "Drag using pixel delta from current position")
 			.withVariant("selectMenuItem", "Click a menu item by text")
-			.withVariant("screenshot", "Capture interface screenshot")
+			.withVariant("screenshot", "Capture interface screenshot and save PNG to project root")
+			.withVariant("repl", "Evaluate HISEScript against the interface script processor")
 			.withProperty(RouteParameter(RestApiIds::type, "Interaction type")
-				.withEnumValues({ "moveTo", "click", "doubleClick", "drag", "selectMenuItem", "screenshot" }))
+				.withEnumValues({ "moveTo", "click", "doubleClick", "drag", "selectMenuItem", "screenshot", "repl" }))
 			.withProperty(RouteParameter(RestApiIds::target, "Component ID to interact with").asOptional())
 			.withProperty(RouteParameter(Identifier("delay"), "Delay in ms before action")
 				.withType(ParamType::Int).asOptional())
+			.withProperty(RouteParameter(Identifier("duration"),
+				"Duration in ms. An explicit positive value makes moveTo, click, drag, and selectMenuItem run as a timed interaction")
+				.withType(ParamType::Int).asOptional())
 			.withProperty(RouteParameter(Identifier("normalizedPosition"), "Position within target (0-1, default center)")
-				.withType(ParamType::Float).asOptional())
+				.withType(ParamType::Object).asOptional())
 			.withProperty(RouteParameter(Identifier("pixelPosition"), "Absolute pixel position (takes precedence over normalized)")
 				.withType(ParamType::Object).asOptional())
 			.withProperty(RouteParameter(Identifier("delta"), "Pixel offset for drag {x, y}")
@@ -573,19 +577,42 @@ struct RestApiEndpoints
 			.withProperty(RouteParameter(Identifier("cmdDown"), "Hold cmd modifier")
 				.withType(ParamType::Bool).asOptional())
 			.withProperty(RouteParameter(Identifier("menuItemText"), "Menu item text for selectMenuItem").asOptional())
-			.withProperty(RouteParameter(RestApiIds::id, "Screenshot ID for screenshot type").asOptional())
+			.withProperty(RouteParameter(RestApiIds::id,
+				"Result ID (required for screenshot and repl types). Screenshot IDs are sanitized for the PNG filename").asOptional())
+			.withProperty(RouteParameter(RestApiIds::componentId,
+				"Optional component ID to crop the screenshot to").asOptional())
 			.withProperty(RouteParameter(RestApiIds::scale, "Scale factor for screenshot type")
-				.withType(ParamType::Float).asOptional());
+				.withType(ParamType::Float).asOptional())
+			.withProperty(RouteParameter(RestApiIds::expression,
+				"HISEScript expression for repl type").asOptional());
+
+		auto replResult = RouteParameter(Identifier("entry"), "REPL result entry")
+			.withType(ParamType::Object)
+			.withProperty(RouteParameter(RestApiIds::id, "Required tag from the repl interaction"))
+			.withProperty(RouteParameter(RestApiIds::expression, "The expression that was evaluated"))
+			.withProperty(RouteParameter(RestApiIds::moduleId, "Resolved interface script processor ID"))
+			.withProperty(RouteParameter(RestApiIds::timestamp, "Elapsed E2E sequence time in ms")
+				.withType(ParamType::Int))
+			.withProperty(RouteParameter(RestApiIds::success, "Whether evaluation succeeded")
+				.withType(ParamType::Bool))
+			.withProperty(RouteParameter(RestApiIds::value, "Evaluated result value"))
+			.withProperty(RouteParameter(RestApiIds::errorMessage, "Evaluation error message").asOptional())
+			.withProperty(RouteParameter(RestApiIds::location, "Source location of the error").asOptional())
+			.withProperty(RouteParameter(RestApiIds::callstack, "Script callstack entries")
+				.withArrayItems(RouteParameter(Identifier("frame"), "Callstack frame")).asOptional());
 
 		m.add(RouteMetadata(ApiRoute::TestingE2e, "api/testing/e2e")
 			.withMethod(RestServer::Method::Post)
 			.withCategory("testing")
-			.withSummary("Execute a sequence of UI interactions in a test window")
-			.withDescription("Execute mouse movements, clicks, drags, menu selections, and screenshots "
+			.withSummary("Execute UI interactions and REPL evaluations in a test window")
+			.withDescription("Execute mouse movements, clicks, drags, menu selections, screenshots, and REPL evaluations "
 				"in a dedicated test window. Auto-inserts moveTo events as needed for proper mouse "
 				"positioning. Mouse state persists across API calls. Blocks until all interactions "
-				"complete (30s timeout).")
-			.withReturns("Completion count, timing, execution log, captured screenshots, and optional mouseState")
+				"complete (20s timeout). Screenshots are saved as unique PNG files in the project root. "
+				"An explicitly supplied positive duration runs moveTo, click, drag, or selectMenuItem as a timed "
+				"interaction; only screenshots and REPL evaluations may run before it completes. "
+				"REPL failures are reported per result and do not stop or fail the sequence.")
+			.withReturns("Completion count, timing, execution log, captured screenshots, REPL results, and optional mouseState")
 			.withBodyParam(RouteParameter(RestApiIds::interactions, "Array of interaction objects")
 				.withArrayItems(interactionItem))
 			.withBodyParam(RouteParameter(RestApiIds::verbose,
@@ -597,8 +624,11 @@ struct RestApiEndpoints
 				.withType(ParamType::Int))
 			.withResponseField(RouteParameter(RestApiIds::executionLog, "Array of executed events with timing")
 				.withType(ParamType::Array))
-			.withResponseField(RouteParameter(RestApiIds::screenshots, "Object with screenshot id -> metadata")
+			.withResponseField(RouteParameter(RestApiIds::screenshots,
+				"Object with screenshot id -> moduleId, optional componentId, width, height, scale, sizeKB, and filePath")
 				.withType(ParamType::Object))
+			.withResponseField(RouteParameter(RestApiIds::replResults, "Ordered REPL evaluation results (when available)")
+				.withArrayItems(replResult).asOptional())
 			.withResponseField(RouteParameter(RestApiIds::mouseState,
 				"Final mouse state object (only when verbose=true)")
 				.withType(ParamType::Object).asOptional())
@@ -607,8 +637,8 @@ struct RestApiEndpoints
 			.withResponseField(RouteParameter(RestApiIds::selectedMenuItem, "Selected menu item info")
 				.withType(ParamType::Object).asOptional())
 			.withErrorCodes({ 400, 500, 503 })
-			.withRequestExample(R"({"interactions": [{"type": "click", "target": "Button1"}, {"type": "screenshot", "id": "after_click"}]})")
-			.withResponseExample(R"({"success": true, "interactionsCompleted": 2, "totalElapsedMs": 120, "executionLog": [], "screenshots": {"after_click": {"sizeKB": 12.5, "width": 600, "height": 400}}, "logs": [], "errors": []})"));
+			.withRequestExample("{\"interactions\": [{\"type\": \"click\", \"target\": \"Button1\"}, {\"type\": \"repl\", \"id\": \"buttonValue\", \"expression\": \"Content.getComponent('Button1').getValue()\"}, {\"type\": \"screenshot\", \"id\": \"after_click\", \"componentId\": \"Button1\"}]}")
+			.withResponseExample("{\"success\": true, \"interactionsCompleted\": 3, \"totalElapsedMs\": 120, \"executionLog\": [], \"replResults\": [{\"id\": \"buttonValue\", \"expression\": \"Content.getComponent('Button1').getValue()\", \"moduleId\": \"Interface\", \"timestamp\": 100, \"success\": true, \"value\": 1}], \"screenshots\": {\"after_click\": {\"id\": \"after_click\", \"moduleId\": \"Interface\", \"componentId\": \"Button1\", \"width\": 128, \"height\": 32, \"scale\": 1.0, \"sizeKB\": 2.5, \"filePath\": \"D:/Projects/MyPlugin/after_click.png\"}}, \"logs\": [], \"errors\": []}"));
 	}
 
 	/* POST /api/diagnose_script */
@@ -1357,7 +1387,11 @@ struct RestApiEndpoints
 				.withType(ParamType::Int))
 			.withProperty(RouteParameter(RestApiIds::success, "Whether evaluation succeeded")
 				.withType(ParamType::Bool))
-			.withProperty(RouteParameter(RestApiIds::value, "Evaluated result value").asOptional());
+			.withProperty(RouteParameter(RestApiIds::value, "Evaluated result value").asOptional())
+			.withProperty(RouteParameter(RestApiIds::errorMessage, "Evaluation error message").asOptional())
+			.withProperty(RouteParameter(RestApiIds::location, "Source location of the error").asOptional())
+			.withProperty(RouteParameter(RestApiIds::callstack, "Script callstack entries")
+				.withArrayItems(RouteParameter(Identifier("frame"), "Callstack frame")).asOptional());
 
 		m.add(RouteMetadata(ApiRoute::TestingSequence, "api/testing/sequence")
 			.withMethod(RestServer::Method::Post)

@@ -58,9 +58,13 @@ public:
     struct ScreenshotInfo
     {
         String id;
+        String moduleId;
+        String componentId;
         float sizeKB = 0.0f;
+        float scale = 1.0f;
         int width = 0;
         int height = 0;
+        String filePath;
         MemoryBlock pngData;  // Raw PNG data for dump feature (not serialized to JSON)
     };
 
@@ -87,6 +91,7 @@ public:
         int interactionsCompleted = 0;
         int totalElapsedMs = 0;
         Array<var> executionLog;
+        Array<var> replResults;
         std::map<String, ScreenshotInfo> screenshots;  // id -> metadata + PNG data
         StringArray parseWarnings;
 

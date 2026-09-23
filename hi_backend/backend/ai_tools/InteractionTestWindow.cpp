@@ -959,7 +959,8 @@ void InteractionTestWindow::StatusBar::onInteractionStarted(int index, const Str
 
 void InteractionTestWindow::StatusBar::onInteractionCompleted(int index)
 {
-    completedInteractions = index + 1;
+    ignoreUnused(index);
+    completedInteractions++;
     repaint();
 }
 
@@ -1493,7 +1494,9 @@ void InteractionTestWindow::RealExecutor::executeMouseMove(Point<int> pixelPos, 
         window->getOverlay()->setState(CursorOverlay::State::Hovering);
 }
 
-void InteractionTestWindow::RealExecutor::executeScreenshot(const String& id, float scale, int elapsedMs)
+Result InteractionTestWindow::RealExecutor::executeScreenshot(const String& id,
+                                                               const String& componentId,
+                                                               float scale, int elapsedMs)
 {
     ignoreUnused(elapsedMs);
     
@@ -1501,7 +1504,7 @@ void InteractionTestWindow::RealExecutor::executeScreenshot(const String& id, fl
     auto* overlayComponent = window->getOverlay();
     
     if (contentComponent == nullptr)
-        return;
+        return Result::fail("Screenshot content is not available");
     
     // Hide overlay for screenshot
     bool wasVisible = overlayComponent != nullptr && overlayComponent->isVisible();
@@ -1515,33 +1518,70 @@ void InteractionTestWindow::RealExecutor::executeScreenshot(const String& id, fl
         overlayComponent->setVisible(wasVisible);
     
     if (!windowImage.isValid())
-        return;
+        return Result::fail("Failed to capture screenshot");
     
     // Calculate crop region to exclude status bar (content area only)
     // Note: Native title bar is already excluded from window->getLocalBounds()
     auto contentBoundsInWindow = window->getLocalArea(contentComponent, contentComponent->getLocalBounds());
+    auto cropBoundsInWindow = contentBoundsInWindow;
+
+    if (componentId.isNotEmpty())
+    {
+        auto* scriptingContent = processor->getScriptingContent();
+        auto* component = scriptingContent != nullptr
+            ? scriptingContent->getComponentWithName(Identifier(componentId))
+            : nullptr;
+
+        if (component == nullptr)
+            return Result::fail("Screenshot component not found: " + componentId);
+
+        cropBoundsInWindow = Rectangle<int>(
+            component->getGlobalPositionX(),
+            component->getGlobalPositionY(),
+            component->getPosition().getWidth(),
+            component->getPosition().getHeight())
+            .translated(contentBoundsInWindow.getX(), contentBoundsInWindow.getY());
+    }
     
     // Scale the crop region
     auto scaledCropBounds = Rectangle<int>(
-        roundToInt(contentBoundsInWindow.getX() * scale),
-        roundToInt(contentBoundsInWindow.getY() * scale),
-        roundToInt(contentBoundsInWindow.getWidth() * scale),
-        roundToInt(contentBoundsInWindow.getHeight() * scale)
+        roundToInt(cropBoundsInWindow.getX() * scale),
+        roundToInt(cropBoundsInWindow.getY() * scale),
+        roundToInt(cropBoundsInWindow.getWidth() * scale),
+        roundToInt(cropBoundsInWindow.getHeight() * scale)
     );
     
     // Crop to just the content area (excludes status bar)
     auto image = windowImage.getClippedImage(scaledCropBounds);
     
     if (!image.isValid())
-        return;
+        return Result::fail("Failed to crop screenshot to component: " + componentId);
     
     MemoryBlock mb;
     {
         MemoryOutputStream mos(mb, false);
         PNGImageFormat pngFormat;
         if (!pngFormat.writeImageToStream(image, mos))
-            return;
+            return Result::fail("Failed to encode screenshot PNG");
     }
+
+    auto* mc = getMainController();
+    auto projectRoot = mc != nullptr
+        ? GET_PROJECT_HANDLER(mc->getMainSynthChain()).getRootFolder()
+        : File();
+
+    if (!projectRoot.isDirectory())
+        return Result::fail("Cannot save screenshot without an active project root");
+
+    auto safeId = File::createLegalFileName(id);
+
+    if (safeId.isEmpty())
+        safeId = "screenshot";
+
+    auto outputFile = projectRoot.getChildFile(safeId + ".png").getNonexistentSibling(false);
+
+    if (!outputFile.replaceWithData(mb.getData(), mb.getSize()))
+        return Result::fail("Failed to write screenshot PNG: " + outputFile.getFullPathName());
     
     // Store PNG data in StatusBar for dump feature
     if (auto* sb = window->getStatusBar())
@@ -1550,11 +1590,111 @@ void InteractionTestWindow::RealExecutor::executeScreenshot(const String& id, fl
     // Store screenshot info (metadata + raw PNG data)
     InteractionTester::ScreenshotInfo info;
     info.id = id;
+
+    if (auto* p = dynamic_cast<Processor*>(processor))
+        info.moduleId = p->getId();
+    else
+        info.moduleId = "Interface";
+
+    info.componentId = componentId;
     info.sizeKB = static_cast<float>(mb.getSize()) / 1024.0f;
+    info.scale = scale;
     info.width = image.getWidth();
     info.height = image.getHeight();
+    info.filePath = outputFile.getFullPathName();
     info.pngData = std::move(mb);
     screenshots[id] = std::move(info);
+    return Result::ok();
+}
+
+void InteractionTestWindow::RealExecutor::executeRepl(const String& id,
+                                                       const String& expression,
+                                                       int elapsedMs,
+                                                       const ReplCompletion& completion)
+{
+    auto* mc = getMainController();
+    auto* jp = mc != nullptr
+        ? JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc)
+        : nullptr;
+
+    if (jp == nullptr)
+    {
+        DynamicObject::Ptr entry = new DynamicObject();
+        entry->setProperty(RestApiIds::id, id);
+        entry->setProperty(RestApiIds::expression, expression);
+        entry->setProperty(RestApiIds::moduleId, "Interface");
+        entry->setProperty(RestApiIds::timestamp, elapsedMs);
+        entry->setProperty(RestApiIds::success, false);
+        entry->setProperty(RestApiIds::value, "interface script processor not found");
+        completion(var(entry.get()));
+        return;
+    }
+
+    mc->getJavascriptThreadPool().addJob(JavascriptThreadPool::Task::ReplEvaluation, jp,
+        [id, expression, elapsedMs, completion](JavascriptProcessor* processor)
+    {
+        auto* p = dynamic_cast<Processor*>(processor);
+        auto* controller = p->getMainController();
+
+        DynamicObject::Ptr entry = new DynamicObject();
+        entry->setProperty(RestApiIds::id, id);
+        entry->setProperty(RestApiIds::expression, expression);
+        entry->setProperty(RestApiIds::moduleId, p->getId());
+        entry->setProperty(RestApiIds::timestamp, elapsedMs);
+
+        auto* engine = processor->getScriptEngine();
+
+        if (engine == nullptr)
+        {
+            entry->setProperty(RestApiIds::success, false);
+            entry->setProperty(RestApiIds::value, "no script engine present");
+            completion(var(entry.get()));
+            return Result::ok();
+        }
+
+        auto evaluationResult = Result::ok();
+        auto value = engine->evaluate(expression, &evaluationResult);
+
+        if (value.isUndefined() || value.isVoid())
+            value = "undefined";
+
+        entry->setProperty(RestApiIds::success, evaluationResult.wasOk());
+        entry->setProperty(RestApiIds::value, value);
+
+        if (evaluationResult.failed())
+        {
+            auto scriptRoot = controller->getSampleManager().getProjectHandler()
+                .getSubDirectory(FileHandlerBase::Scripts);
+            auto errorLines = StringArray::fromLines(evaluationResult.getErrorMessage());
+
+            if (!errorLines.isEmpty())
+            {
+                auto parsed = RestHelpers::BaseScopedConsoleHandler::parseError(
+                    errorLines[0], scriptRoot, p->getId());
+                entry->setProperty(RestApiIds::errorMessage, parsed.message);
+
+                if (parsed.location.isNotEmpty())
+                    entry->setProperty(RestApiIds::location, parsed.location);
+            }
+
+            Array<var> callstack;
+
+            for (int i = 1; i < errorLines.size(); i++)
+            {
+                auto parsed = RestHelpers::BaseScopedConsoleHandler::parseError(
+                    errorLines[i], scriptRoot, p->getId());
+
+                if (parsed.location.isNotEmpty())
+                    callstack.add(parsed.toCallstackString());
+            }
+
+            if (!callstack.isEmpty())
+                entry->setProperty(RestApiIds::callstack, var(callstack));
+        }
+
+        completion(var(entry.get()));
+        return Result::ok();
+    });
 }
 
 void InteractionTestWindow::RealExecutor::injectMouseEvent(Point<float> pixelPos, ModifierKeys mods)

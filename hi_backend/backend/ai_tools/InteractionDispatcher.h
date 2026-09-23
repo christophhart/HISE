@@ -28,7 +28,7 @@ using namespace juce;
 /** Executes parsed interactions with timing control.
  *  Must be called on the message thread. Pumps message loop between events.
  */
-class InteractionDispatcher
+class InteractionDispatcher : private Timer
 {
 public:
     //==============================================================================
@@ -121,6 +121,8 @@ public:
      *  Only valid after executing a selectMenuItem interaction.
      */
     SelectedMenuItemInfo getLastSelectedMenuItem() const { return lastSelectedMenuItem; }
+
+    Array<var> getReplResults() const;
     
     /** Set a listener to receive progress callbacks during execution. */
     void setProgressListener(ProgressListener* listener) { progressListener = listener; }
@@ -133,11 +135,35 @@ public:
     static constexpr int RESOLVE_MAX_RETRIES = 10;      // Max attempts (10 * 30ms = 300ms max)
     
 private:
+    struct TimedInteraction
+    {
+        InteractionParser::MouseInteraction mouse;
+        Point<int> startPos;
+        Point<int> endPos;
+        ModifierKeys modifiers;
+        int64 startTimeMs = 0;
+        int64 menuMouseDownTimeMs = 0;
+        int interactionIndex = -1;
+        int menuItemId = 0;
+        String menuItemText;
+        bool active = false;
+        bool mouseIsDown = false;
+        bool menuClickStarted = false;
+        bool usedFallback = false;
+    };
+
     int64 startTimeMs = 0;
     int timeoutMs = 20000;
     String lastError;
     SelectedMenuItemInfo lastSelectedMenuItem;
+    struct ReplJobState;
+    std::shared_ptr<ReplJobState> replJobState;
     ProgressListener* progressListener = nullptr;
+    TimedInteraction timedInteraction;
+    InteractionExecutorBase* activeExecutor = nullptr;
+    Array<var>* activeLog = nullptr;
+    int currentInteractionIndex = -1;
+    int completedCount = 0;
     
     int getElapsedMs() const;
     void waitForDuration(int ms, InteractionExecutorBase& executor);
@@ -146,6 +172,18 @@ private:
     void interpolateMovement(Point<int> startPos, Point<int> endPos, int durationMs,
                              ModifierKeys mods, InteractionExecutorBase& exec);
     String checkAbortConditions() const;
+    void waitForPendingReplResults();
+    void waitForTimedInteraction(InteractionExecutorBase& executor);
+    void timerCallback() override;
+    void updateTimedInteraction();
+    void completeTimedInteraction();
+    void abortTimedInteraction();
+    void startTimedInteraction(const InteractionParser::MouseInteraction& mouse,
+                               Point<int> startPos, Point<int> endPos,
+                               ModifierKeys modifiers, bool mouseIsDown = false);
+    bool shouldRunTimed(const InteractionParser::MouseInteraction& mouse) const;
+    bool isAllowedDuringTimedInteraction(InteractionParser::MouseInteraction::Type type) const;
+    String getTimedInteractionConflict(const InteractionParser::MouseInteraction& mouse) const;
     
     // Execute individual interaction types
     void executeMoveTo(const InteractionParser::MouseInteraction& mouse, InteractionExecutorBase& exec, Array<var>& log);
@@ -153,6 +191,7 @@ private:
     void executeDrag(const InteractionParser::MouseInteraction& mouse, InteractionExecutorBase& exec, Array<var>& log);
     void executeScreenshot(const InteractionParser::MouseInteraction& mouse, InteractionExecutorBase& exec, Array<var>& log);
     void executeSelectMenuItem(const InteractionParser::MouseInteraction& mouse, InteractionExecutorBase& exec, Array<var>& log);
+    void executeRepl(const InteractionParser::MouseInteraction& mouse, InteractionExecutorBase& exec, Array<var>& log);
     
     // Create log entry for response
     var createLogEntry(const String& type, Point<int> pixelPos, int elapsedMs) const;
@@ -172,7 +211,10 @@ public:
         ModifierKeys mods;
         bool rightClick = false;
         String screenshotId;
+        String screenshotComponentId;
         float screenshotScale = 1.0f;
+        String replId;
+        String replExpression;
         int elapsedMs = 0;
     };
     
@@ -190,6 +232,8 @@ public:
     std::map<String, MockComponent> mockComponents;
     Point<int> cursorPosition{0, 0};
     Array<PopupMenu::VisibleMenuItem> mockMenuItems;
+    bool replShouldFail = false;
+    String screenshotError;
     
     //==========================================================================
     /** Reset all state for a new test. */
@@ -226,7 +270,11 @@ public:
     void executeMouseMove(Point<int> pixelPos, ModifierKeys mods,
                           int elapsedMs) override;
     
-    void executeScreenshot(const String& id, float scale, int elapsedMs) override;
+    Result executeScreenshot(const String& id, const String& componentId,
+                             float scale, int elapsedMs) override;
+
+    void executeRepl(const String& id, const String& expression, int elapsedMs,
+                     const ReplCompletion& completion) override;
     
     void executeSyntheticModeStart(int elapsedMs) override { ignoreUnused(elapsedMs); }
     void executeSyntheticModeEnd(int elapsedMs) override { ignoreUnused(elapsedMs); }

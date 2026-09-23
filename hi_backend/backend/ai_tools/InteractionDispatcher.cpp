@@ -22,6 +22,63 @@
 namespace hise {
 using namespace juce;
 
+struct InteractionDispatcher::ReplJobState
+{
+    int reserve(const var& fallbackResult)
+    {
+        ScopedLock sl(lock);
+
+        if (pendingJobs == 0)
+            completedEvent.reset();
+
+        auto index = results.size();
+        results.add(fallbackResult);
+        completed.add(false);
+        pendingJobs++;
+        return index;
+    }
+
+    void complete(int index, const var& result)
+    {
+        ScopedLock sl(lock);
+
+        if (!isPositiveAndBelow(index, completed.size()) || completed[index])
+            return;
+
+        results.set(index, result);
+        completed.set(index, true);
+        pendingJobs--;
+
+        if (pendingJobs == 0)
+            completedEvent.signal();
+    }
+
+    bool wait(int timeoutMs)
+    {
+        {
+            ScopedLock sl(lock);
+
+            if (pendingJobs == 0)
+                return true;
+        }
+
+        return completedEvent.wait(timeoutMs);
+    }
+
+    Array<var> getResults() const
+    {
+        ScopedLock sl(lock);
+        return results;
+    }
+
+private:
+    mutable CriticalSection lock;
+    WaitableEvent completedEvent { true };
+    Array<var> results;
+    Array<bool> completed;
+    int pendingJobs = 0;
+};
+
 //==============================================================================
 // Helper functions
 //==============================================================================
@@ -45,6 +102,8 @@ String getInteractionDescription(const InteractionParser::MouseInteraction& mous
             return "Capturing screenshot \"" + mouse.screenshotId + "\"";
         case Type::SelectMenuItem:
             return "Selecting menu item \"" + mouse.menuItemText + "\"";
+        case Type::Repl:
+            return "Evaluating REPL \"" + mouse.replId + "\"";
         default:
             return "Processing...";
     }
@@ -89,8 +148,12 @@ InteractionDispatcher::ExecutionResult InteractionDispatcher::execute(
     timeoutMs = timeout;
     lastError = {};
     lastSelectedMenuItem = {};
-    
-    int completedCount = 0;
+    replJobState = std::make_shared<ReplJobState>();
+    timedInteraction = {};
+    activeExecutor = nullptr;
+    activeLog = nullptr;
+    currentInteractionIndex = -1;
+    completedCount = 0;
     
     // Start synthetic input mode
     executor.executeSyntheticModeStart(0);
@@ -114,11 +177,28 @@ InteractionDispatcher::ExecutionResult InteractionDispatcher::execute(
     
     // Start timing AFTER ready
     startTimeMs = Time::getMillisecondCounterHiRes();
+    activeExecutor = &executor;
+    activeLog = &executedLog;
+
+    auto failExecution = [&](const String& error)
+    {
+        abortTimedInteraction();
+        executor.executeSyntheticModeEnd(getElapsedMs());
+        activeExecutor = nullptr;
+        activeLog = nullptr;
+        waitForPendingReplResults();
+
+        if (progressListener != nullptr)
+            progressListener->onSequenceCompleted(false, error);
+
+        return ExecutionResult::fail(error, getElapsedMs(), completedCount);
+    };
     
     int interactionIndex = 0;
     for (const auto& interaction : interactions)
     {
         const auto& mouse = interaction.mouse;
+        currentInteractionIndex = interactionIndex;
         
         // Notify listener that interaction is starting
         String description = getInteractionDescription(mouse);
@@ -139,12 +219,12 @@ InteractionDispatcher::ExecutionResult InteractionDispatcher::execute(
         // Check abort conditions
         String error = checkAbortConditions();
         if (error.isNotEmpty())
-        {
-            executor.executeSyntheticModeEnd(getElapsedMs());
-            if (progressListener != nullptr)
-                progressListener->onSequenceCompleted(false, error);
-            return ExecutionResult::fail(error, getElapsedMs(), completedCount);
-        }
+            return failExecution(error);
+
+        updateTimedInteraction();
+
+        if (timedInteraction.active && !isAllowedDuringTimedInteraction(mouse.type))
+            return failExecution(getTimedInteractionConflict(mouse));
         
         // Execute based on type
         using Type = InteractionParser::MouseInteraction::Type;
@@ -162,44 +242,51 @@ InteractionDispatcher::ExecutionResult InteractionDispatcher::execute(
                 break;
             case Type::Screenshot:
                 executeScreenshot(mouse, executor, executedLog);
-                if (progressListener != nullptr)
+                if (lastError.isEmpty() && progressListener != nullptr)
                     progressListener->onScreenshotCaptured();
                 break;
             case Type::SelectMenuItem:
                 executeSelectMenuItem(mouse, executor, executedLog);
                 break;
+            case Type::Repl:
+                executeRepl(mouse, executor, executedLog);
+                break;
         }
         
         // Check if resolution/execution failed
         if (lastError.isNotEmpty())
+            return failExecution(lastError);
+
+        auto startedTimedInteraction = timedInteraction.active
+            && timedInteraction.interactionIndex == interactionIndex;
+
+        if (!startedTimedInteraction)
         {
-            executor.executeSyntheticModeEnd(getElapsedMs());
+            completedCount++;
+
             if (progressListener != nullptr)
-                progressListener->onSequenceCompleted(false, lastError);
-            return ExecutionResult::fail(lastError, getElapsedMs(), completedCount);
+                progressListener->onInteractionCompleted(interactionIndex);
         }
-        
-        completedCount++;
-        
-        // Notify listener that interaction completed
-        if (progressListener != nullptr)
-            progressListener->onInteractionCompleted(interactionIndex);
         
         interactionIndex++;
         
         // Check again after execution
         error = checkAbortConditions();
         if (error.isNotEmpty())
-        {
-            executor.executeSyntheticModeEnd(getElapsedMs());
-            if (progressListener != nullptr)
-                progressListener->onSequenceCompleted(false, error);
-            return ExecutionResult::fail(error, getElapsedMs(), completedCount);
-        }
+            return failExecution(error);
     }
+
+    waitForTimedInteraction(executor);
+
+    auto finalError = checkAbortConditions();
+    if (finalError.isNotEmpty())
+        return failExecution(finalError);
     
     // End synthetic mode
     executor.executeSyntheticModeEnd(getElapsedMs());
+    activeExecutor = nullptr;
+    activeLog = nullptr;
+    waitForPendingReplResults();
     
     // Notify listener of successful completion
     if (progressListener != nullptr)
@@ -223,12 +310,252 @@ void InteractionDispatcher::waitForDuration(int ms, InteractionExecutorBase& exe
     
     while (Time::getMillisecondCounterHiRes() < endTime)
     {
+        updateTimedInteraction();
+
         if (checkAbortConditions().isNotEmpty())
             return;
         
         // Pump message loop
         MessageManager::getInstance()->runDispatchLoopUntil(5);
     }
+
+    updateTimedInteraction();
+}
+
+String getInteractionTypeName(InteractionParser::MouseInteraction::Type type)
+{
+    using Type = InteractionParser::MouseInteraction::Type;
+
+    switch (type)
+    {
+        case Type::MoveTo:         return "moveTo";
+        case Type::Click:          return "click";
+        case Type::Drag:           return "drag";
+        case Type::Screenshot:     return "screenshot";
+        case Type::SelectMenuItem: return "selectMenuItem";
+        case Type::Repl:           return "repl";
+        default:                   return "interaction";
+    }
+}
+
+bool InteractionDispatcher::shouldRunTimed(const InteractionParser::MouseInteraction& mouse) const
+{
+    return mouse.durationWasExplicit && mouse.durationMs > 0;
+}
+
+bool InteractionDispatcher::isAllowedDuringTimedInteraction(
+    InteractionParser::MouseInteraction::Type type) const
+{
+    using Type = InteractionParser::MouseInteraction::Type;
+    return type == Type::Screenshot || type == Type::Repl;
+}
+
+String InteractionDispatcher::getTimedInteractionConflict(
+    const InteractionParser::MouseInteraction& mouse) const
+{
+    auto activeTarget = timedInteraction.mouse.target.toString();
+
+    if (timedInteraction.mouse.type == InteractionParser::MouseInteraction::Type::SelectMenuItem)
+        activeTarget = timedInteraction.menuItemText;
+
+    auto now = Time::getMillisecondCounterHiRes();
+    auto remaining = timedInteraction.menuClickStarted
+        ? jmax(0, 20 - roundToInt(now - timedInteraction.menuMouseDownTimeMs))
+        : jmax(0, timedInteraction.mouse.durationMs - roundToInt(now - timedInteraction.startTimeMs));
+
+    return "Cannot execute " + getInteractionTypeName(mouse.type) + " while timed "
+        + getInteractionTypeName(timedInteraction.mouse.type) + " on '" + activeTarget
+        + "' is active (approximately " + String(remaining)
+        + "ms remaining). Only screenshot and repl are allowed until completion.";
+}
+
+void InteractionDispatcher::startTimedInteraction(
+    const InteractionParser::MouseInteraction& mouse,
+    Point<int> startPos, Point<int> endPos,
+    ModifierKeys modifiers, bool mouseIsDown)
+{
+    jassert(!timedInteraction.active);
+
+    timedInteraction = {};
+    timedInteraction.mouse = mouse;
+    timedInteraction.startPos = startPos;
+    timedInteraction.endPos = endPos;
+    timedInteraction.modifiers = modifiers;
+    timedInteraction.startTimeMs = Time::getMillisecondCounterHiRes();
+    timedInteraction.interactionIndex = currentInteractionIndex;
+    timedInteraction.active = true;
+    timedInteraction.mouseIsDown = mouseIsDown;
+    startTimer(MOVE_STEP_INTERVAL_MS);
+}
+
+void InteractionDispatcher::timerCallback()
+{
+    updateTimedInteraction();
+}
+
+void InteractionDispatcher::updateTimedInteraction()
+{
+    if (!timedInteraction.active || activeExecutor == nullptr)
+        return;
+
+    auto now = Time::getMillisecondCounterHiRes();
+
+    if (timedInteraction.menuClickStarted)
+    {
+        if (now - timedInteraction.menuMouseDownTimeMs >= 20)
+            completeTimedInteraction();
+        return;
+    }
+
+    auto elapsed = now - timedInteraction.startTimeMs;
+    auto progress = jlimit(0.0, 1.0, elapsed / timedInteraction.mouse.durationMs);
+    using Type = InteractionParser::MouseInteraction::Type;
+
+    if (timedInteraction.mouse.type == Type::MoveTo
+        || timedInteraction.mouse.type == Type::Drag
+        || timedInteraction.mouse.type == Type::SelectMenuItem)
+    {
+        auto delta = (timedInteraction.endPos - timedInteraction.startPos).toFloat()
+            * static_cast<float>(progress);
+        auto position = timedInteraction.startPos
+            + Point<int>(roundToInt(delta.x), roundToInt(delta.y));
+        activeExecutor->executeMouseMove(position, timedInteraction.modifiers, getElapsedMs());
+        activeExecutor->setCursorPosition(position);
+    }
+
+    if (progress >= 1.0)
+        completeTimedInteraction();
+}
+
+void InteractionDispatcher::completeTimedInteraction()
+{
+    if (!timedInteraction.active || activeExecutor == nullptr || activeLog == nullptr)
+        return;
+
+    auto state = timedInteraction;
+    using Type = InteractionParser::MouseInteraction::Type;
+
+    if (state.mouse.type == Type::SelectMenuItem && !state.menuClickStarted)
+    {
+        stopTimer();
+        timedInteraction.modifiers = ModifierKeys(ModifierKeys::leftButtonModifier);
+        timedInteraction.mouseIsDown = true;
+        timedInteraction.menuClickStarted = true;
+        timedInteraction.menuMouseDownTimeMs = Time::getMillisecondCounterHiRes();
+
+        wiggleToUpdateComponent(state.endPos, *activeExecutor);
+        activeExecutor->executeMouseDown(state.endPos, timedInteraction.modifiers,
+                                         false, getElapsedMs());
+        timedInteraction.menuMouseDownTimeMs = Time::getMillisecondCounterHiRes();
+        startTimer(MOVE_STEP_INTERVAL_MS);
+        return;
+    }
+
+    stopTimer();
+    timedInteraction.active = false;
+
+    switch (state.mouse.type)
+    {
+        case Type::MoveTo:
+        {
+            activeExecutor->setCursorPosition(state.endPos);
+            auto entry = createLogEntry(InteractionIds::moveTo.toString(), state.endPos, getElapsedMs());
+            state.mouse.target.toVar(entry.getDynamicObject());
+
+            if (state.usedFallback)
+                entry.getDynamicObject()->setProperty(InteractionIds::fallback, true);
+            if (state.mouse.autoInserted)
+                entry.getDynamicObject()->setProperty(InteractionIds::autoInserted, true);
+
+            activeLog->add(entry);
+            break;
+        }
+
+        case Type::Click:
+        {
+            activeExecutor->executeMouseUp(state.endPos, state.modifiers,
+                                           state.mouse.rightClick, getElapsedMs());
+            auto entry = createLogEntry(InteractionIds::mouseUp.toString(), state.endPos, getElapsedMs());
+            if (state.mouse.rightClick)
+                entry.getDynamicObject()->setProperty(InteractionIds::rightClick, true);
+            activeLog->add(entry);
+            break;
+        }
+
+        case Type::Drag:
+        {
+            activeExecutor->executeMouseUp(state.endPos, state.modifiers, false, getElapsedMs());
+            activeExecutor->setCursorPosition(state.endPos);
+            auto entry = createLogEntry(InteractionIds::mouseUp.toString(), state.endPos, getElapsedMs());
+            DynamicObject::Ptr delta = new DynamicObject();
+            delta->setProperty(RestApiIds::x, state.mouse.deltaPixels.x);
+            delta->setProperty(RestApiIds::y, state.mouse.deltaPixels.y);
+            entry.getDynamicObject()->setProperty(InteractionIds::delta, var(delta.get()));
+            activeLog->add(entry);
+            break;
+        }
+
+        case Type::SelectMenuItem:
+        {
+            activeExecutor->executeMouseUp(state.endPos, state.modifiers, false, getElapsedMs());
+
+            lastSelectedMenuItem.text = state.menuItemText;
+            lastSelectedMenuItem.itemId = state.menuItemId;
+            lastSelectedMenuItem.wasSelected = true;
+
+            auto entry = createLogEntry(InteractionIds::selectMenuItem.toString(), state.endPos, getElapsedMs());
+            entry.getDynamicObject()->setProperty(InteractionIds::menuItemText, state.menuItemText);
+            entry.getDynamicObject()->setProperty(RestApiIds::itemId, state.menuItemId);
+            activeLog->add(entry);
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    timedInteraction = {};
+    completedCount++;
+
+    if (progressListener != nullptr)
+        progressListener->onInteractionCompleted(state.interactionIndex);
+}
+
+void InteractionDispatcher::abortTimedInteraction()
+{
+    stopTimer();
+    auto state = timedInteraction;
+    timedInteraction.active = false;
+
+    if (state.active && state.mouseIsDown && activeExecutor != nullptr)
+    {
+        auto position = activeExecutor->getCurrentCursorPosition();
+        activeExecutor->executeMouseUp(position, state.modifiers,
+                                       state.mouse.rightClick, getElapsedMs());
+
+        if (activeLog != nullptr)
+        {
+            auto entry = createLogEntry(InteractionIds::mouseUp.toString(), position, getElapsedMs());
+            activeLog->add(entry);
+        }
+    }
+
+    timedInteraction = {};
+}
+
+void InteractionDispatcher::waitForTimedInteraction(InteractionExecutorBase& executor)
+{
+    while (timedInteraction.active)
+    {
+        updateTimedInteraction();
+
+        if (checkAbortConditions().isNotEmpty())
+            return;
+
+        MessageManager::getInstance()->runDispatchLoopUntil(5);
+    }
+
+    ignoreUnused(executor);
 }
 
 void InteractionDispatcher::waitWithWiggle(int ms, InteractionExecutorBase& exec)
@@ -331,6 +658,14 @@ void InteractionDispatcher::executeMoveTo(
             
             // Move to fallback position - subsequent click/drag will create the subtarget
             Point<int> startPos = exec.getCurrentCursorPosition();
+
+            if (shouldRunTimed(mouse))
+            {
+                startTimedInteraction(mouse, startPos, fallbackPos, mouse.modifiers);
+                timedInteraction.usedFallback = true;
+                return;
+            }
+
             int duration = mouse.durationMs;
             int numSteps = jmax(1, duration / MOVE_STEP_INTERVAL_MS);
             int stepDuration = duration / numSteps;
@@ -370,6 +705,12 @@ void InteractionDispatcher::executeMoveTo(
     
     Point<int> startPos = exec.getCurrentCursorPosition();
     Point<int> endPos = mouse.position.getPixelPosition(resolved.componentBounds);
+
+    if (shouldRunTimed(mouse))
+    {
+        startTimedInteraction(mouse, startPos, endPos, mouse.modifiers);
+        return;
+    }
     
     interpolateMovement(startPos, endPos, mouse.durationMs, mouse.modifiers, exec);
     exec.setCursorPosition(endPos);
@@ -410,6 +751,12 @@ void InteractionDispatcher::executeClick(
     if (mouse.rightClick)
         downEntry.getDynamicObject()->setProperty(InteractionIds::rightClick, true);
     log.add(downEntry);
+
+    if (shouldRunTimed(mouse))
+    {
+        startTimedInteraction(mouse, pixelPos, pixelPos, mods, true);
+        return;
+    }
     
     // Brief pause (click duration)
     waitForDuration(mouse.durationMs, exec);
@@ -447,6 +794,12 @@ void InteractionDispatcher::executeDrag(
     // MouseDown at start
     exec.executeMouseDown(startPos, mods, false, getElapsedMs());
     log.add(createLogEntry(InteractionIds::mouseDown.toString(), startPos, getElapsedMs()));
+
+    if (shouldRunTimed(mouse))
+    {
+        startTimedInteraction(mouse, startPos, endPos, mods, true);
+        return;
+    }
     
     interpolateMovement(startPos, endPos, mouse.durationMs, mods, exec);
     
@@ -474,11 +827,73 @@ void InteractionDispatcher::executeScreenshot(
     InteractionExecutorBase& exec,
     Array<var>& log)
 {
-    exec.executeScreenshot(mouse.screenshotId, mouse.screenshotScale, getElapsedMs());
+    auto result = exec.executeScreenshot(mouse.screenshotId, mouse.screenshotComponentId,
+                                         mouse.screenshotScale, getElapsedMs());
+
+    if (result.failed())
+    {
+        lastError = result.getErrorMessage();
+        return;
+    }
     
     auto entry = createLogEntry(InteractionIds::screenshot.toString(), {}, getElapsedMs());
     entry.getDynamicObject()->setProperty(RestApiIds::id, mouse.screenshotId);
+
+    if (mouse.screenshotComponentId.isNotEmpty())
+        entry.getDynamicObject()->setProperty(RestApiIds::componentId, mouse.screenshotComponentId);
+
     entry.getDynamicObject()->setProperty(RestApiIds::scale, mouse.screenshotScale);
+    log.add(entry);
+}
+
+Array<var> InteractionDispatcher::getReplResults() const
+{
+    return replJobState != nullptr ? replJobState->getResults() : Array<var>();
+}
+
+void InteractionDispatcher::waitForPendingReplResults()
+{
+    if (replJobState == nullptr)
+        return;
+
+    auto remainingMs = jmax(0, timeoutMs - getElapsedMs());
+    replJobState->wait(remainingMs);
+}
+
+void InteractionDispatcher::executeRepl(
+    const InteractionParser::MouseInteraction& mouse,
+    InteractionExecutorBase& exec,
+    Array<var>& log)
+{
+    auto elapsedMs = getElapsedMs();
+    String moduleId = "Interface";
+
+    if (auto* mc = exec.getMainController())
+        if (auto* jp = JavascriptMidiProcessor::getFirstInterfaceScriptProcessor(mc))
+            moduleId = jp->getId();
+
+    DynamicObject::Ptr fallback = new DynamicObject();
+    fallback->setProperty(RestApiIds::id, mouse.replId);
+    fallback->setProperty(RestApiIds::expression, mouse.replExpression);
+    fallback->setProperty(RestApiIds::moduleId, moduleId);
+    fallback->setProperty(RestApiIds::timestamp, elapsedMs);
+    fallback->setProperty(RestApiIds::success, false);
+    fallback->setProperty(RestApiIds::value, "undefined");
+    fallback->setProperty(RestApiIds::errorMessage,
+        "REPL evaluation timed out or was discarded by compilation");
+
+    auto state = replJobState;
+    auto resultIndex = state->reserve(var(fallback.get()));
+
+    exec.executeRepl(mouse.replId, mouse.replExpression, elapsedMs,
+        [state, resultIndex](var result)
+        {
+            state->complete(resultIndex, result);
+        });
+
+    auto entry = createLogEntry(InteractionIds::repl.toString(), {}, elapsedMs);
+    entry.getDynamicObject()->setProperty(RestApiIds::id, mouse.replId);
+    entry.getDynamicObject()->setProperty(RestApiIds::expression, mouse.replExpression);
     log.add(entry);
 }
 
@@ -533,14 +948,22 @@ void InteractionDispatcher::executeSelectMenuItem(
     
     auto& matchedItem = menuItems.getReference(matchedIndex);
     
+    // Move to menu item
+    Point<int> startPos = exec.getCurrentCursorPosition();
+    Point<int> targetPos = matchedItem.screenBounds.getCentre();
+
+    if (shouldRunTimed(mouse))
+    {
+        startTimedInteraction(mouse, startPos, targetPos, {});
+        timedInteraction.menuItemText = matchedItem.text;
+        timedInteraction.menuItemId = matchedItem.itemId;
+        return;
+    }
+
     // Store matched item info
     lastSelectedMenuItem.text = matchedItem.text;
     lastSelectedMenuItem.itemId = matchedItem.itemId;
     lastSelectedMenuItem.wasSelected = true;
-    
-    // Move to menu item
-    Point<int> startPos = exec.getCurrentCursorPosition();
-    Point<int> targetPos = matchedItem.screenBounds.getCentre();
     
     interpolateMovement(startPos, targetPos, mouse.durationMs, {}, exec);
     wiggleToUpdateComponent(targetPos, exec);
@@ -585,6 +1008,8 @@ void TestExecutor::reset()
     mockComponents.clear();
     mockMenuItems.clear();
     cursorPosition = {0, 0};
+    replShouldFail = false;
+    screenshotError = {};
 }
 
 void TestExecutor::addMockComponent(const String& id, Rectangle<int> bounds, bool visible)
@@ -741,14 +1166,44 @@ void TestExecutor::executeMouseMove(Point<int> pixelPos, ModifierKeys mods, int 
     log.add(entry);
 }
 
-void TestExecutor::executeScreenshot(const String& id, float scale, int elapsedMs)
+Result TestExecutor::executeScreenshot(const String& id, const String& componentId,
+                                       float scale, int elapsedMs)
 {
+    if (screenshotError.isNotEmpty())
+        return Result::fail(screenshotError);
+
     LogEntry entry;
     entry.type = InteractionIds::screenshot;
     entry.screenshotId = id;
+    entry.screenshotComponentId = componentId;
     entry.screenshotScale = scale;
     entry.elapsedMs = elapsedMs;
     log.add(entry);
+    return Result::ok();
+}
+
+void TestExecutor::executeRepl(const String& id, const String& expression, int elapsedMs,
+                               const ReplCompletion& completion)
+{
+    LogEntry logEntry;
+    logEntry.type = InteractionIds::repl;
+    logEntry.replId = id;
+    logEntry.replExpression = expression;
+    logEntry.elapsedMs = elapsedMs;
+    log.add(logEntry);
+
+    DynamicObject::Ptr result = new DynamicObject();
+    result->setProperty(RestApiIds::id, id);
+    result->setProperty(RestApiIds::expression, expression);
+    result->setProperty(RestApiIds::moduleId, "Interface");
+    result->setProperty(RestApiIds::timestamp, elapsedMs);
+    result->setProperty(RestApiIds::success, !replShouldFail);
+    result->setProperty(RestApiIds::value, "undefined");
+
+    if (replShouldFail)
+        result->setProperty(RestApiIds::errorMessage, "mock REPL failure");
+
+    completion(var(result.get()));
 }
 
 } // namespace hise

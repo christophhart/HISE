@@ -197,6 +197,7 @@ InteractionTester::TestResult InteractionTester::executeInteractions(const var& 
     result.interactionsCompleted = execResult.interactionsCompleted;
     result.totalElapsedMs = execResult.totalElapsedMs;
     result.screenshots = executor.getScreenshots();
+    result.replResults = dispatcher.getReplResults();
     result.selectedMenuItem = dispatcher.getLastSelectedMenuItem();
     
     if (verbose)
@@ -348,6 +349,7 @@ InteractionTester::createMoveToIfNeeded(const InteractionParser::MouseInteractio
         case Type::MoveTo:
         case Type::SelectMenuItem:
         case Type::Screenshot:
+        case Type::Repl:
             // No auto-insertion needed
             break;
     }
@@ -382,6 +384,7 @@ void InteractionTester::updateMouseStateForNormalization(const InteractionParser
             break;
             
         case Type::Screenshot:
+        case Type::Repl:
             // No state change
             break;
     }
