@@ -2898,6 +2898,8 @@ struct Helpers
 		if (includeContainer)
 		{
 			ids.add(PropertyIds::ShowParameters);
+			ids.add(PropertyIds::ShowClones);
+			ids.add(PropertyIds::DisplayedClones);
 		}
 		    
 		return ids;
@@ -4694,7 +4696,8 @@ struct set : public ActionBase
 				throw Error().withError(result.getErrorMessage());
 		}
 
-		if (p.getType() == PropertyIds::Network)
+		if (p.getType() == PropertyIds::Network ||
+			p.getType() == PropertyIds::Node)
 			p.setProperty(parameterId, oldValue, nullptr);
 		else
 			p.setProperty(PropertyIds::Value, oldValue, nullptr);
