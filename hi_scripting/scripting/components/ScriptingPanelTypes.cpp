@@ -1432,9 +1432,9 @@ void ScriptContentPanel::initKeyPresses(Component* root)
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_rebuild, "Rebuild & Recompile", KeyPress(KeyPress::F5Key));
 
-	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_lock_selection, "Lock selected components", KeyPress('l', ModifierKeys::commandModifier, 'l'));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_lock_selection, "Lock selected components", KeyPress('l', ModifierKeys::commandModifier, 0));
 
-	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_duplicate, "Duplicate selection at cursor", KeyPress('d', ModifierKeys::commandModifier, 'd'));
+	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_duplicate, "Duplicate selection at cursor", KeyPress('d', ModifierKeys::commandModifier, 0));
 
 	TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_show_json, "Show JSON properties", KeyPress('j'));
     TopLevelWindowWithKeyMappings::addShortcut(root, cat, id_show_panel_data_json, "Show Panel.data as JSON", KeyPress('p'));
