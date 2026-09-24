@@ -1749,6 +1749,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_2_DEPRECATED(drawText,       "use drawAlignedText for better placement");
 	ADD_API_METHOD_3(drawAlignedText);			CHECK_FONT_AND_COLOUR(drawAlignedText);
 	ADD_API_METHOD_4(drawAlignedTextShadow);	CHECK_FONT_AND_COLOUR(drawAlignedTextShadow)
+	ADD_API_METHOD_5(drawFittedText);			CHECK_FONT_AND_COLOUR(drawFittedText)
 	ADD_API_METHOD_5(drawMultiLineText);		CHECK_FONT_AND_COLOUR(drawMultiLineText)
 	ADD_API_METHOD_1(drawMarkdownText);
     ADD_API_METHOD_3(drawSVG);
