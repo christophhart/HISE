@@ -1427,7 +1427,9 @@ int FrontendMacroPanel::getNumRows()
 
 	Array<WeakReference<MacroControlBroadcaster::MacroControlledParameterData>> newList;
 
-	for (int i = 0; i < 8; i++)
+	auto numMacros = HISE_GET_PREPROCESSOR(getMainController(), HISE_NUM_MACROS);
+
+	for (int i = 0; i < numMacros; i++)
 	{
 		auto d = macroChain->getMacroControlData(i);
 
