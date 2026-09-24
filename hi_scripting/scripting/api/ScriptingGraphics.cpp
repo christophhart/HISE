@@ -4451,6 +4451,20 @@ hise::MarkdownLayout::StyleData ScriptingObjects::ScriptedLookAndFeel::Laf::getA
 	return s;
 }
 
+void ScriptingObjects::ScriptedLookAndFeel::Laf::preparePopupMenuWindow(Component& newWindow)
+{
+	// Force the component to be non-opaque so it doesn't fill with white before drawing
+	if (functionDefined("drawPopupMenuBackground"))
+	{
+		newWindow.setOpaque(false);
+	}
+}
+int ScriptingObjects::ScriptedLookAndFeel::Laf::getMenuWindowFlags()
+{
+    return LookAndFeel_V2::getMenuWindowFlags()
+           & ~ComponentPeer::windowHasDropShadow;
+}
+
 void ScriptingObjects::ScriptedLookAndFeel::Laf::drawPopupMenuBackground(Graphics& g_, int width, int height)
 {
 	if (functionDefined("drawPopupMenuBackground"))

@@ -856,6 +856,9 @@ namespace ScriptingObjects
 
 			MarkdownLayout::StyleData getAlertWindowMarkdownStyleData() override;
 
+			void preparePopupMenuWindow(Component& newWindow) override;
+			int getMenuWindowFlags();
+
 			void drawPopupMenuBackground(Graphics& g_, int width, int height) override;
 
 			void drawPopupMenuItem(Graphics& g, const Rectangle<int>& area,
