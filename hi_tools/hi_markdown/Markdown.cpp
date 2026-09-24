@@ -48,6 +48,14 @@ bool MarkdownRenderer::NavigationAction::perform()
 	if (parent != nullptr)
 	{
 		parent->MarkdownParser::gotoLink(currentLink);
+		
+		// Force anchor jump for hash-only links (e.g., #introduction)
+		auto linkStr = currentLink.toString(MarkdownLink::Everything);
+		if (linkStr.startsWith("#"))
+		{
+			parent->jumpToCurrentAnchor();
+		}
+		
 		return true;
 	}
 
@@ -219,7 +227,11 @@ void MarkdownParser::setNewText(const String& newText)
 
 bool MarkdownParser::gotoLink(const MarkdownLink& url)
 {
-	if (url.isSamePage(lastLink))
+	// Check if this is an anchor-only link (starts with #)
+	auto urlStr = url.toString(MarkdownLink::Everything);
+	bool isAnchorOnlyLink = urlStr.startsWith("#");
+	
+	if (url.isSamePage(lastLink) || isAnchorOnlyLink)
 	{
 		lastLink = url;
 		jumpToCurrentAnchor();
