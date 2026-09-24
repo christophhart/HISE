@@ -827,14 +827,8 @@ int Note::getFixedHeight() const
 PerformanceLabelPanel::PerformanceLabelPanel(FloatingTile* parent) :
 	FloatingTileContent(parent)
 {
-	addAndMakeVisible(statisticLabel = new Label());
-	statisticLabel->setEditable(false, false);
-	statisticLabel->setColour(Label::ColourIds::textColourId, Colours::white);
-
 	setDefaultPanelColour(PanelColourId::textColour, Colours::white);
 	setDefaultPanelColour(PanelColourId::bgColour, Colours::transparentBlack);
-
-	statisticLabel->setFont(GLOBAL_BOLD_FONT());
 
 	startTimer(200);
 }
@@ -843,9 +837,8 @@ void PerformanceLabelPanel::timerCallback()
 {
 	auto mc = getMainController();
 
-	const int cpuUsage = (int)mc->getCpuUsage();
-	const int voiceAmount = mc->getNumActiveVoices();
-
+	cpuUsage = mc->getCpuUsage();
+	voiceAmount = mc->getNumActiveVoices();
 
 	auto bytes = mc->getSampleManager().getModulatorSamplerSoundPool2()->getMemoryUsageForAllSamples();
 
@@ -856,30 +849,44 @@ void PerformanceLabelPanel::timerCallback()
 		bytes += handler.getExpansion(i)->pool->getSamplePool()->getMemoryUsageForAllSamples();
 	}
 
-	const double ramUsage = (double)bytes / 1024.0 / 1024.0;
+	ramUsage = (int64)bytes;
 
-	//const bool midiFlag = mc->checkAndResetMidiInputFlag();
-
-	//activityLed->setOn(midiFlag);
-
-	String stats = "CPU: ";
-	stats << String(cpuUsage) << "%, RAM: " << String(ramUsage, 1) << "MB , Voices: " << String(voiceAmount);
-	statisticLabel->setText(stats, dontSendNotification);
+	repaint();
 }
 
 
+
+void PerformanceLabelPanel::LookAndFeelMethods::drawPerformanceLabel(
+	Graphics& g, PerformanceLabelPanel& panel, float cpu, int64 ram, int voices)
+{
+	g.setColour(panel.findPanelColour(FloatingTileContent::PanelColourId::textColour));
+	g.setFont(panel.getFont());
+	String stats = "CPU: " + String(cpu, 1) + "%, RAM: " + String((double)ram / 1024.0 / 1024.0, 1) + "MB , Voices: " + String(voices);
+	g.drawText(stats, panel.getLocalBounds(), Justification::centredLeft);
+}
+
+void PerformanceLabelPanel::paint(Graphics& g)
+{
+	g.fillAll(findPanelColour(FloatingTileContent::PanelColourId::bgColour));
+
+	if (auto laf = dynamic_cast<LookAndFeelMethods*>(&getLookAndFeel()))
+		laf->drawPerformanceLabel(g, *this, cpuUsage, ramUsage, voiceAmount);
+	else
+	{
+		g.setColour(findPanelColour(FloatingTileContent::PanelColourId::textColour));
+		g.setFont(getFont());
+		String stats = "CPU: " + String(cpuUsage, 1) + "%, RAM: " + String((double)ramUsage / 1024.0 / 1024.0, 1) + "MB , Voices: " + String(voiceAmount);
+		g.drawText(stats, getLocalBounds(), Justification::centredLeft);
+	}
+}
 
 void PerformanceLabelPanel::fromDynamicObject(const var& object)
 {
 	FloatingTileContent::fromDynamicObject(object);
-
-	statisticLabel->setColour(Label::ColourIds::textColourId, findPanelColour(PanelColourId::textColour));
-	statisticLabel->setFont(getFont());
 }
 
 void PerformanceLabelPanel::resized()
 {
-	statisticLabel->setBounds(getLocalBounds());
 }
 
 bool PerformanceLabelPanel::showTitleInPresentationMode() const
