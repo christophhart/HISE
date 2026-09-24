@@ -940,7 +940,8 @@ namespace ScriptingObjects
 
             void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override;
             
-			void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override;
+			void drawFilterDragHandle(Graphics& g, FilterGraph& fg, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override;
+
 			void drawFilterBackground(Graphics &g, FilterGraph& fg) override;
 			void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p) override;
 			void drawFilterGridLines(Graphics &g, FilterGraph& fg, const Path& gridPath) override;
@@ -1070,7 +1071,7 @@ namespace ScriptingObjects
 			void drawFilterBackground(Graphics& g, FilterGraph& fg) override;
 			void drawFilterPath(Graphics& g, FilterGraph& fg, const Path& p) override;
 			void drawFilterGridLines(Graphics& g, FilterGraph& fg, const Path& gridPath) override;
-			void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override;
+			void drawFilterDragHandle(Graphics& g, FilterGraph& fg, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override;
 
 		private:
 
@@ -1262,9 +1263,9 @@ namespace ScriptingObjects
 				CALL_LAF(drawTableHeaderColumn, g, th, columnName, columnId, width, height, isMouseOver, isMouseDown, columnFlags);
 			}
 
-			void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override
+			void drawFilterDragHandle(Graphics& g, FilterGraph& fg, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override
 			{
-				CALL_LAF(drawFilterDragHandle, g, o, index, handleBounds, d);
+				CALL_LAF(drawFilterDragHandle, g, fg, o, index, handleBounds, d);
 			}
 			void drawFilterBackground(Graphics &g, FilterGraph& fg) override
 			{
