@@ -99,6 +99,10 @@ public:
 	*/
 	virtual Result initialise();;
 
+	/** Ensures the sample map pool is populated, loading from disk if needed.
+	 *  Call this before iterating the pool for validation purposes. */
+	virtual void loadSampleMapsIfEmpty();
+
 	struct Helpers
 	{
 		static ValueTree loadValueTreeForFileBasedExpansion(const File& root);;
