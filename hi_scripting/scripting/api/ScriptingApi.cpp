@@ -1264,6 +1264,7 @@ struct ScriptingApi::Engine::Wrapper
 	API_METHOD_WRAPPER_0(Engine, createMacroHandler);
 	API_METHOD_WRAPPER_0(Engine, getWavetableList);
 	API_VOID_METHOD_WRAPPER_3(Engine, showYesNoWindow);
+	API_VOID_METHOD_WRAPPER_4(Engine, showMessageBoxWithCallback);
 	API_VOID_METHOD_WRAPPER_1(Engine, addModuleStateToUserPreset);
 	API_VOID_METHOD_WRAPPER_0(Engine, rebuildCachedPools);
 	API_VOID_METHOD_WRAPPER_1(Engine, extendTimeOut);
@@ -1443,6 +1444,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
 	ADD_API_METHOD_0(createExpansionHandler);
 	ADD_API_METHOD_1(createModulationMatrix);
 	ADD_API_METHOD_3(showYesNoWindow);
+	ADD_API_METHOD_4(showMessageBoxWithCallback);
 	ADD_API_METHOD_3(showMessageBox);
 	ADD_API_METHOD_1(getSystemTime);
 	ADD_API_METHOD_0(createLicenseUnlocker);
@@ -2014,6 +2016,30 @@ void ScriptingApi::Engine::showMessageBox(String title, String markdownMessage, 
 	});
 }
 
+void ScriptingApi::Engine::showMessageBoxWithCallback(String title, String markdownMessage, int type, var callback)
+{
+	static bool isMessageBoxOpen = false;
+
+	if (isMessageBoxOpen)
+		return;
+
+	isMessageBoxOpen = true;
+
+	auto p = getScriptProcessor();
+
+	WeakCallbackHolder cb(p, this, callback, 0);
+	cb.incRefCount();
+
+	auto f = [markdownMessage, title, cb, type]() mutable
+	{
+		PresetHandler::showMessageWindow(title, markdownMessage, (PresetHandler::IconType)type);
+		cb.call({});
+		isMessageBoxOpen = false;
+	};
+	
+	MessageManager::callAsync(f);	
+}
+
 void ScriptingApi::Engine::showYesNoWindow(String title, String markdownMessage, var callback)
 {
 	//auto p = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
@@ -2032,8 +2058,6 @@ void ScriptingApi::Engine::showYesNoWindow(String title, String markdownMessage,
 
 	MessageManager::callAsync(f);
 }
-
-
 
 String ScriptingApi::Engine::decodeBase64ValueTree(const String& b64Data)
 {

@@ -648,23 +648,23 @@ bool PresetHandler::showYesNoWindowIfMessageThread(const String &title, const St
 
 void PresetHandler::showMessageWindow(const String &title, const String &message, PresetHandler::IconType type)
 {
-	if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
-	{
-#if USE_BACKEND
-		if (CompileExporter::isExportingFromCommandLine())
-		{
-			std::cout << title << ": " << message << std::endl;
-			return;
-		}
-
+#if HISE_HEADLESS
+	return;
 #endif
 
+#if USE_BACKEND
+	if (CompileExporter::isExportingFromCommandLine())
+	{
+		std::cout << title << ": " << message << std::endl;
+		return;
+	}
+#endif
+
+	if (MessageManager::getInstanceWithoutCreating()->isThisTheMessageThread())
+	{
 #if HISE_IOS
-
 		NativeMessageBox::showMessageBox(AlertWindow::AlertIconType::NoIcon, title, message);
-
 #else
-
 		ScopedPointer<LookAndFeel> laf = createAlertWindowLookAndFeel();
 		ScopedPointer<MessageWithIcon> comp = new MessageWithIcon(type, laf, message);
 		ScopedPointer<AlertWindow> nameWindow = new AlertWindow(title, "", AlertWindow::AlertIconType::NoIcon);
@@ -675,8 +675,6 @@ void PresetHandler::showMessageWindow(const String &title, const String &message
 
 		nameWindow->runModalLoop();
 #endif
-
-		return;
 	}
 	else
 	{
@@ -685,7 +683,7 @@ void PresetHandler::showMessageWindow(const String &title, const String &message
 			showMessageWindow(title, message, type);
 		});
 	}
-};
+}
 
 struct CountedProcessorId
 {

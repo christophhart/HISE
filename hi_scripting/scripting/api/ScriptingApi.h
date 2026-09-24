@@ -456,6 +456,9 @@ public:
 		/** Shows a message box with an OK button and a icon defined by the type variable. */
 		void showMessageBox(String title, String markdownMessage, int type);
 
+		/** Shows a message box with an OK button and calls the callback after the user clicks OK. */
+		void showMessageBoxWithCallback(String title, String markdownMessage, int type, var callback);
+
 		/** Returns the millisecond value for the supplied tempo (HINT: Use "TempoSync" mode from Slider!) */
 		double getMilliSecondsForTempo(int tempoIndex) const;;
 
