@@ -93,11 +93,16 @@ public:
 	~Expansion();
 
 	/** Override this method and initialise the expansion. You need to do at least those things:
-	
+
 		- create a Data object
 	    - setup the pools
 	*/
 	virtual Result initialise();;
+
+	/** Override to ensure the sample map pool is populated before removal.
+	    The default no-op is sufficient for expansion types that populate
+	    the pool eagerly during initialise(). */
+	virtual void populateSampleMapPool() {}
 
 	struct Helpers
 	{
@@ -299,6 +304,12 @@ public:
 	};
 
 	void unloadExpansion(Expansion* e);
+
+	/** Removes an expansion and its associated files from disk.
+	    Monolith sample files are identified via the sample map pool and deleted
+	    from the true samples directory. Pass true for removeUserPresets to also
+	    delete the expansion's UserPresets subfolder. */
+	void removeExpansion(Expansion* e, bool removeUserPresets);
 
 	void createNewExpansion(const File& expansionFolder);
 	File getExpansionFolder() const;
