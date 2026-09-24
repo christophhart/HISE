@@ -425,6 +425,13 @@ class PerformanceLabelPanel : public Component,
 {
 public:
 
+	struct LookAndFeelMethods
+	{
+		virtual ~LookAndFeelMethods() {};
+		virtual void drawPerformanceLabel(Graphics& g, PerformanceLabelPanel& panel,
+		                                  float cpu, int64 ram, int voices);
+	};
+
 	PerformanceLabelPanel(FloatingTile* parent);
 
 	SET_PANEL_NAME("PerformanceLabel");
@@ -433,15 +440,13 @@ public:
 	void fromDynamicObject(const var& object) override;
 	void resized() override;
 	bool showTitleInPresentationMode() const override;
-
-	void paint(Graphics& g) override
-	{
-		g.fillAll(findPanelColour(FloatingTileContent::PanelColourId::bgColour));
-	}
+	void paint(Graphics& g) override;
 
 private:
 
-	ScopedPointer<Label> statisticLabel;
+	float cpuUsage = 0.0f;
+	int voiceAmount = 0;
+	int64 ramUsage = 0;
 };
 
 
@@ -708,9 +713,33 @@ public:
 		Inverted,
 		Minimum,
 		Maximum,
-		numColumns,
-		columnWidthRatio
+		numColumns
 	};
+
+	enum SpecialPanelIds
+	{
+		ColumnWidthRatio = (int)FloatingTileContent::PanelPropertyId::numPropertyIds,
+		numSpecialPanelIds
+	};
+
+	struct LookAndFeelData
+	{
+		Font f = GLOBAL_BOLD_FONT();
+		String fontName;
+		Colour textColour, bgColour, itemColour1, itemColour2, itemColour3;
+		String parentType;
+	};
+
+	struct LookAndFeelMethods
+	{
+		virtual ~LookAndFeelMethods() {}
+
+		virtual void drawTableRowBackground(Graphics& g, const LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected, bool rowIsHovered);
+
+		virtual void drawTableCell(Graphics& g, const LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected, bool cellIsClicked, bool cellIsHovered);
+	};
+
+	LookAndFeelData getLookAndFeelData() const;
 
 	TableFloatingTileBase(FloatingTile* parent);
 	void initTable(bool addChannelColumn=false);
@@ -718,7 +747,13 @@ public:
 	virtual ~TableFloatingTileBase() {};
 
 	void updateContent();
-	void fromDynamicObject(const var& object);
+
+	int getNumDefaultableProperties() const override { return (int)SpecialPanelIds::numSpecialPanelIds; }
+	Identifier getDefaultablePropertyId(int index) const override;
+	var getDefaultProperty(int index) const override;
+	var toDynamicObject() const override;
+	void fromDynamicObject(const var& object) override;
+
 	void paintRowBackground(Graphics& g, int /*rowNumber*/, int /*width*/, int /*height*/, bool rowIsSelected) override;
 
 	//==============================================================================
@@ -817,8 +852,6 @@ protected:
 	private:
 		TableFloatingTileBase &owner;
 
-		HiPropertyPanelLookAndFeel laf;
-
 		int row;
 		int columnId;
 
@@ -835,7 +868,7 @@ protected:
 		void setRowAndColumn(const int newRow, bool value);
 		void buttonClicked(Button *b);;
 
-		ScopedPointer<TextButton> t;
+		ScopedPointer<ToggleButton> t;
 
 	private:
 
@@ -849,8 +882,11 @@ protected:
 	TableListBox table;     // the table component itself
 	Font font;
 	int numRows;            // The number of rows of data we've got
+	Array<var> columnWidthRatios;
+	bool hasChannelColumn = false;
 	ScopedPointer<TableHeaderLookAndFeel> laf;
 	ScopedPointer<simple_css::StyleSheetLookAndFeel> css_laf;
+	LookAndFeelMethods fallbackLaf;
 };
 
 

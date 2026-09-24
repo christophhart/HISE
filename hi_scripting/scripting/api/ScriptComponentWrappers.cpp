@@ -1875,7 +1875,19 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent()
 		auto vp = dynamic_cast<Viewport*>(component.get());
 
 		vp->setScrollBarThickness(vpc->getScriptObjectProperty(ScriptingApi::Content::ScriptedViewport::Properties::scrollbarThickness));
-		vp->setColour(ScrollBar::ColourIds::thumbColourId, GET_OBJECT_COLOUR(itemColour));
+
+		auto bgColour = GET_OBJECT_COLOUR(bgColour);
+		auto itemColour1 = GET_OBJECT_COLOUR(itemColour);
+		auto itemColour2 = GET_OBJECT_COLOUR(itemColour2);
+		auto tc = GET_OBJECT_COLOUR(textColour);
+
+		vp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::backgroundColourId, bgColour);
+		vp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, itemColour1);
+		vp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::trackColourId, itemColour2);
+		vp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::backgroundColourId, bgColour);
+		vp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, itemColour1);
+		vp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::trackColourId, itemColour2);
+		vp->getProperties().set("textColour", (int64)tc.getARGB());
 	}
 	else
 	{
@@ -1926,7 +1938,35 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateComponent(int proper
 		switch (propertyIndex)
 		{
 			PROPERTY_CASE::ScriptedViewport::Properties::scrollbarThickness: vp->setScrollBarThickness(newValue); break;
-			PROPERTY_CASE::ScriptComponent::itemColour: vp->setColour(ScrollBar::ColourIds::thumbColourId, GET_OBJECT_COLOUR(itemColour)); break;
+			PROPERTY_CASE::ScriptComponent::bgColour:
+			{
+				auto c = GET_OBJECT_COLOUR(bgColour);
+				vp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::backgroundColourId, c);
+				vp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::backgroundColourId, c);
+				break;
+			}
+			PROPERTY_CASE::ScriptComponent::itemColour:
+			{
+				auto c = GET_OBJECT_COLOUR(itemColour);
+				vp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, c);
+				vp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, c);
+				break;
+			}
+			PROPERTY_CASE::ScriptComponent::itemColour2:
+			{
+				auto c = GET_OBJECT_COLOUR(itemColour2);
+				vp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::trackColourId, c);
+				vp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::trackColourId, c);
+				break;
+			}
+			PROPERTY_CASE::ScriptComponent::textColour:
+			{
+				auto c = GET_OBJECT_COLOUR(textColour);
+				vp->getProperties().set("textColour", (int64)c.getARGB());
+				vp->getVerticalScrollBar().repaint();
+				vp->getHorizontalScrollBar().repaint();
+				break;
+			}
 		}
 	}
 }
@@ -2038,7 +2078,14 @@ void ScriptCreatedComponentWrappers::ViewportWrapper::updateColours()
 			tableModel->setColours(textColour, bgColour, itemColour1, itemColour2);
 		}
 
-		listBox->getViewport()->setColour(ScrollBar::ColourIds::thumbColourId, itemColour1);
+		auto lbvp = listBox->getViewport();
+		lbvp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::backgroundColourId, bgColour);
+		lbvp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, itemColour1);
+		lbvp->getVerticalScrollBar().setColour(ScrollBar::ColourIds::trackColourId, itemColour2);
+		lbvp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::backgroundColourId, bgColour);
+		lbvp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::thumbColourId, itemColour1);
+		lbvp->getHorizontalScrollBar().setColour(ScrollBar::ColourIds::trackColourId, itemColour2);
+		lbvp->getProperties().set("textColour", (int64)textColour.getARGB());
 
 		listBox->setColour(ListBox::ColourIds::backgroundColourId, bgColour);
 		listBox->setColour(ListBox::ColourIds::outlineColourId, itemColour2);
