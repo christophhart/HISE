@@ -813,7 +813,13 @@ struct HiseJavascriptEngine::RootObject::StringClass : public DynamicObject
 	static var contains(Args a)		 { return a.thisObject.toString().contains(getString(a, 0)); }
 	static var startsWith(Args a)    { return a.thisObject.toString().startsWith(getString(a, 0)); }
 	static var endsWith(Args a)      { return a.thisObject.toString().endsWith(getString(a, 0)); }
-	static var fromCharCode(Args a)  { return String::charToString(getInt(a, 0)); }
+	static var fromCharCode(Args a)
+	{
+		auto arg = a.arguments[0];
+		if (arg.isString())
+			return String::charToString(arg.toString().getHexValue32());
+		return String::charToString(getInt(a, 0));
+	}
 	static var substring(Args a)     { return a.thisObject.toString().substring(getInt(a, 0), a.numArguments > 1 ? getInt(a, 1) : 0x7fffffff); }
 	static var indexOf(Args a)       { return a.thisObject.toString().indexOf(getString(a, 0)); }
 	static var lastIndexOf(Args a)		 { return a.thisObject.toString().lastIndexOf(getString(a, 0)); }
