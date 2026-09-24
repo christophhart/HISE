@@ -183,6 +183,42 @@ namespace hise { using namespace juce;
 	void GlobalServer::setInitialised()
 	{
 		initialised = true;
+		connectivityChecker.addListener (this);
+	}
+
+	void GlobalServer::startConnectivityMonitoring()
+	{
+		if (++connectivityMonitoringRefCount == 1)
+		{
+			MessageManager::callAsync ([this]()
+			{
+				connectivityChecker.start();
+			});
+		}
+	}
+
+	void GlobalServer::stopConnectivityMonitoring()
+	{
+		if (--connectivityMonitoringRefCount <= 0)
+		{
+			connectivityMonitoringRefCount = 0;
+			MessageManager::callAsync ([this]()
+			{
+				connectivityChecker.stop();
+			});
+		}
+	}
+
+	NetworkConnectivityChecker::NetworkType GlobalServer::queryCurrentNetworkType()
+	{
+		return connectivityChecker.getCurrentNetworkType();
+	}
+
+	void GlobalServer::networkStatusChanged (NetworkConnectivityChecker::NetworkType newType)
+	{
+		for (auto& l : listeners)
+			if (l != nullptr)
+				l->networkConnectivityChanged (newType);
 	}
 
 	GlobalServer::WebThread::WebThread(GlobalServer& p):
