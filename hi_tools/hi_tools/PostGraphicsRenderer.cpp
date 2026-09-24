@@ -188,7 +188,7 @@ void PostGraphicsRenderer::applyMask(const Path& path, bool invert /*= false*/, 
 	else if (scaleFactor != 1.0f)
 	{
 		other = path;
-		//other.applyTransform(AffineTransform::scale(scaleFactor));
+		other.applyTransform(AffineTransform::scale(scaleFactor));
 		pathToUse = &other;
 	}
 
