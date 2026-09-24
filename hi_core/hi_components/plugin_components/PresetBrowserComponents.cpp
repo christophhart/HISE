@@ -227,30 +227,39 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 {
 	if (wildcard.isEmpty() && currentlyActiveTags.isEmpty())
 	{
-		const File& rootToUse = showFavoritesOnly ? totalRoot : root;
+		if (showFavoritesOnly && index == 2)
+		{
+			entries = parent->getAllFavoritePresets();
+			entries.sort();
+			empty = entries.isEmpty();
+			return entries.size();
+		}
 
-		if (!rootToUse.isDirectory())
+		if (!root.isDirectory())
 		{
 			entries.clear();
 			return 0;
 		}
 
 		entries.clear();
-		rootToUse.findChildFiles(entries, displayDirectories ? File::findDirectories : File::findFiles, allowRecursiveSearch || showFavoritesOnly);
+
+		if (flattenOneLevel && displayDirectories)
+		{
+			// When the folder structure is deeper than the number of columns, skip
+			// the top level (bank) and collect all second-level directories instead,
+			// so categories are shown directly in the first visible column.
+			Array<File> level1;
+			root.findChildFiles(level1, File::findDirectories, false);
+			PresetBrowser::DataBaseHelpers::cleanFileList(parent->getMainController(), level1);
+			for (auto& l1 : level1)
+				l1.findChildFiles(entries, File::findDirectories, false);
+		}
+		else
+		{
+			root.findChildFiles(entries, displayDirectories ? File::findDirectories : File::findFiles, allowRecursiveSearch);
+		}
 
 		PresetBrowser::DataBaseHelpers::cleanFileList(parent->getMainController(), entries);
-
-		if (showFavoritesOnly && index == 2)
-		{
-			for (int i = 0; i < entries.size(); i++)
-			{
-				if (!PresetBrowser::DataBaseHelpers::isFavorite(database, entries[i]))
-				{
-					entries.remove(i--);
-					continue;
-				}
-			}
-		}
 
 		entries.sort();
 		empty = entries.isEmpty();
@@ -260,8 +269,28 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 	{
 		jassert(index == 2);
 		Array<File> allFiles;
-		totalRoot.findChildFiles(allFiles, File::findFiles, true);
+
+		auto searchRoots = parent->getAllSearchRoots();
+
+		if (searchRoots.isEmpty())
+			totalRoot.findChildFiles(allFiles, File::findFiles, true);
+		else
+			for (auto& r : searchRoots)
+				r.findChildFiles(allFiles, File::findFiles, true);
 		entries.clear();
+
+		// When showExpansionContentOnly is active, remove any files that don't
+		// live under the expansion folder so project-level presets never appear
+		// in search results.
+		if (parent && parent->isExpansionContentOnly())
+		{
+			const File expansionFolder = parent->expHandler.getExpansionFolder();
+			for (int i = allFiles.size() - 1; i >= 0; i--)
+			{
+				if (!allFiles[i].isAChildOf(expansionFolder))
+					allFiles.remove(i);
+			}
+		}
 
 		for (int i = 0; i < allFiles.size(); i++)
 		{
@@ -303,11 +332,8 @@ int PresetBrowserColumn::ColumnListModel::getNumRows()
 		{
 			for (int i = 0; i < entries.size(); i++)
 			{
-				if (!PresetBrowser::DataBaseHelpers::isFavorite(database, entries[i]))
-				{
+				if (!parent->isFavoriteInAnyDatabase(entries[i]))
 					entries.remove(i--);
-					continue;
-				}
 			}
 		}
 
@@ -394,9 +420,28 @@ void PresetBrowserColumn::ColumnListModel::paintListBoxItem(int rowNumber, Graph
 		auto column = parent->getColumn(index);
 		jassert(dynamic_cast<ListBox*>(column)->getModel() == this);
 		
-    if (showFavoritesOnly && parent.getComponent()->shouldShowFullPathFavorites())
-			itemName = entries[rowNumber].getRelativePathFrom(totalRoot);
-    
+		bool showFullPath = (showFavoritesOnly && parent.getComponent()->shouldShowFullPathFavorites())
+		                 || (!wildcard.isEmpty() && parent.getComponent()->shouldShowFullPathSearch());
+
+		if (showFullPath)
+		{
+			const auto& f = entries[rowNumber];
+			const auto searchRoots = parent->getAllSearchRoots();
+
+			itemName = f.getRelativePathFrom(totalRoot);
+
+			for (int i = 0; i < searchRoots.size(); ++i)
+			{
+				if (f.isAChildOf(searchRoots[i]))
+				{
+					auto rel = f.getRelativePathFrom(searchRoots[i]);
+					itemName = (i > 0) ? searchRoots[i].getParentDirectory().getFileName() + File::getSeparatorString() + rel
+					                   : rel;
+					break;
+				}
+			}
+		}
+
 		getPresetBrowserLookAndFeel().drawListItem(g, *column, index, rowNumber, itemName, position, rowIsSelected, deleteOnClick, isMouseHover(rowNumber));
 	}
 }
@@ -414,15 +459,34 @@ const juce::Array<PresetBrowserColumn::ColumnListModel::CachedTag>& PresetBrowse
 
 Component* PresetBrowserColumn::ColumnListModel::refreshComponentForRow(int rowNumber, bool /*isRowSelected*/, Component* existingComponentToUpdate)
 {
+	if (index == 2 && parent.getComponent()->shouldShowFavoritesButton())
+	{
+		// Reuse existing overlays to avoid flicker, but only if the parent
+		// reference is still valid (setModel() may have replaced the model,
+		// leaving stale overlays in JUCE's spare-component cache).
+		if (auto* existing = dynamic_cast<FavoriteOverlay*>(existingComponentToUpdate))
+		{
+			if (&existing->parent == this)
+			{
+				existing->refreshIndex(rowNumber);
+				existing->refreshShape();
+				return existing;
+			}
+
+			delete existing;
+			existingComponentToUpdate = nullptr;
+		}
+
+		if (existingComponentToUpdate != nullptr)
+			delete existingComponentToUpdate;
+
+		return new FavoriteOverlay(*this, rowNumber);
+	}
+
 	if (existingComponentToUpdate != nullptr)
 		delete existingComponentToUpdate;
 
-	if (index == 2 && parent.getComponent()->shouldShowFavoritesButton())
-	{
-		return new FavoriteOverlay(*this, rowNumber);
-	}
-	else
-		return nullptr;
+	return nullptr;
 }
 
 void PresetBrowserColumn::ColumnListModel::sendRowChangeMessage(int row)
@@ -460,7 +524,7 @@ void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::refreshShape()
 {
 	auto f = parent.getFileForIndex(index);
 
-	const bool on = PresetBrowser::DataBaseHelpers::isFavorite(parent.database, f);
+	const bool on = parent.isFavoriteInAnyDatabase(f);
 
 	auto path = parent.getPresetBrowserLookAndFeel().createPresetBrowserIcons(on ? "favorite_on" : "favorite_off");
 
@@ -481,14 +545,22 @@ void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::refreshShape()
 }
 
 
+bool PresetBrowserColumn::ColumnListModel::isFavoriteInAnyDatabase(const File& f) const
+{
+	if (auto* pb = parent.getComponent())
+		return pb->isFavoriteInAnyDatabase(f);
+	return false;
+}
+
+
 void PresetBrowserColumn::ColumnListModel::FavoriteOverlay::buttonClicked(Button*)
 {
 	const bool newValue = !b->getToggleState();
 
 	auto f = parent.getFileForIndex(index);
 
-	PresetBrowser::DataBaseHelpers::setFavorite(parent.database, f, newValue);
-
+	if (auto* pb = findParentComponentOfClass<PresetBrowser>())
+		pb->setFavoriteForFile(f, newValue);
 
 	refreshShape();
 
@@ -652,11 +724,161 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 	}
 	else if (b == addButton)
 	{
+		if (index == -1)
+		{
+			// Expansion column: install expansion from .hr1 package file
+			FileChooser fc("Select Expansion Package", File(), "*.hr1", true);
+
+			if (fc.browseForFileToOpen())
+			{
+				auto hr1File = fc.getResult();
+				auto& expHandler = mc->getExpansionHandler();
+
+				auto targetFolder = expHandler.getExpansionTargetFolder(hr1File);
+
+				if (targetFolder == File())
+				{
+					PresetHandler::showMessageWindow("Invalid Package", "Could not read the expansion package metadata.", PresetHandler::IconType::Error);
+					return;
+				}
+
+				auto existingExpansion = expHandler.getExpansionFromRootFile(targetFolder);
+
+				File sampleDirectory;
+
+				if (existingExpansion != nullptr)
+				{
+					// Expansion already installed: reuse existing sample location
+					sampleDirectory = existingExpansion->getSubDirectory(FileHandlerBase::Samples);
+				}
+				else
+				{
+					// New expansion: prompt for sample install location
+					FileChooser sampleFc("Select Sample Install Location");
+
+					if (sampleFc.browseForDirectory())
+						sampleDirectory = sampleFc.getResult();
+					else
+						return;
+
+					// Put samples in a subfolder named after the expansion unless the
+					// chosen directory already matches the expansion name (case-insensitive,
+					// treating spaces, underscores, and dashes as equivalent).
+					auto normalize = [](String s) {
+						return s.toLowerCase().replaceCharacters("-_", "  ");
+					};
+
+					auto expansionName = targetFolder.getFileName();
+
+					if (normalize(sampleDirectory.getFileName()) != normalize(expansionName))
+						sampleDirectory = sampleDirectory.getChildFile(expansionName);
+
+					sampleDirectory.createDirectory();
+				}
+
+				expHandler.installFromResourceFile(hr1File, sampleDirectory);
+			}
+			return;
+		}
+
 		parent->openModalAction(PresetBrowser::ModalWindow::Action::Add, index == 2 ? "New Preset" : "New Directory", File(), index, -1);
 	}
 #if !OLD_PRESET_BROWSER
 	else if (b == renameButton)
 	{
+		if (index == -1)
+		{
+			// Expansion column: relocate samples for the selected expansion
+			if (auto ecm = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
+			{
+				int selectedIdx = ecm->lastIndex;
+
+				if (selectedIdx >= 0)
+				{
+					auto rootFolder = ecm->getFileForIndex(selectedIdx);
+
+					if (auto expansion = mc->getExpansionHandler().getExpansionFromRootFile(rootFolder))
+					{
+						auto expName = expansion->getProperty(ExpansionIds::Name);
+						FileChooser fc("Select new sample location for '" + expName + "'");
+
+						if (fc.browseForDirectory())
+						{
+							auto selectedDir = fc.getResult();
+
+							// Validate that the selected folder contains the expected monolith
+							// files for all sample maps in this expansion.
+							//
+							// Ensure the pool is populated before checking.
+							// FullInstrumentExpansion uses lazy loading, so the pool may be
+							// empty if the expansion hasn't been activated yet.
+							expansion->loadSampleMapsIfEmpty();
+
+							StringArray missingSampleMaps;
+
+							auto checkMonolithRef = [&](const ValueTree& v)
+							{
+								MonolithFileReference mref(v);
+
+								if (!mref.isUsingMonolith())
+									return;
+
+								mref.setFileNotFoundBehaviour(MonolithFileReference::FileNotFoundBehaviour::DoNothing);
+								mref.addSampleDirectory(selectedDir);
+
+								if (!mref.getFile(false).existsAsFile())
+									missingSampleMaps.add(mref.referenceString);
+							};
+
+							auto& smPool = expansion->pool->getSampleMapPool();
+							auto sampleMapRefs = smPool.getListOfAllReferences(true);
+
+							if (sampleMapRefs.isEmpty())
+							{
+								// File-based expansion fallback: read XMLs directly from disk.
+								Array<File> sampleMapFiles;
+								expansion->getSubDirectory(FileHandlerBase::SampleMaps)
+								         .findChildFiles(sampleMapFiles, File::findFiles, true, "*.xml");
+
+								for (auto& smFile : sampleMapFiles)
+								{
+									if (auto xml = XmlDocument::parse(smFile))
+										checkMonolithRef(ValueTree::fromXml(*xml));
+								}
+							}
+							else
+							{
+								// Pool-based (HXI): all sample maps are already loaded.
+								for (auto& ref : sampleMapRefs)
+								{
+									auto entry = smPool.loadFromReference(ref, PoolHelpers::LoadingType::DontCreateNewEntry);
+
+									if (entry != nullptr)
+										checkMonolithRef(entry->data);
+								}
+							}
+
+							if (!missingSampleMaps.isEmpty())
+							{
+								PresetHandler::showMessageWindow("Missing Sample Files",
+									"The selected folder is missing sample files for:\n" + missingSampleMaps.joinIntoString("\n"),
+									PresetHandler::IconType::Warning);
+								return;
+							}
+
+							expansion->createLinkFile(FileHandlerBase::Samples, selectedDir);
+							expansion->checkSubDirectories();
+						
+							PresetHandler::showMessageWindow("Sample Folder Relocated",
+								"The sample folder for '" + expName + "' has been successfully relocated to:\n" + selectedDir.getFullPathName(),
+								PresetHandler::IconType::Info);
+						}
+					}
+				}
+			}
+			return;
+		}
+
 		int selectedIndex = listbox->getSelectedRow(0);
 
 		if (selectedIndex >= 0)
@@ -668,6 +890,102 @@ void PresetBrowserColumn::buttonClicked(Button* b)
 	}
 	else if (b == deleteButton)
 	{
+		if (index == -1)
+		{
+			// Expansion column: uninstall the selected expansion and its samples
+			if (auto ecm = dynamic_cast<ExpansionColumnModel*>(listModel.get()))
+			{
+				int selectedIdx = ecm->lastIndex;
+
+				if (selectedIdx >= 0)
+				{
+					auto rootFolder = ecm->getFileForIndex(selectedIdx);
+
+					if (auto expansion = mc->getExpansionHandler().getExpansionFromRootFile(rootFolder))
+					{
+						auto expName = expansion->getProperty(ExpansionIds::Name);
+
+						if (!PresetHandler::showYesNoWindow("Uninstall Expansion",
+							"Are you sure you want to uninstall '" + expName + "' and its samples?"))
+							return;
+
+						bool removePresets = PresetHandler::showYesNoWindow("Remove User Presets",
+							"Do you want to remove your custom presets for '" + expName + "'?\n\nSelect 'No' to keep your presets.");
+
+						// getSubDirectory() returns the already-resolved path (follows link files).
+						// The expansion is still loaded here because unloadExpansion() is called last.
+						auto samplesDir = expansion->getSubDirectory(FileHandlerBase::Samples);
+						bool samplesAreExternal = !samplesDir.isAChildOf(rootFolder);
+
+						// Don't touch the samples folder if it's shared (parent has project_info.xml).
+						bool safeToDeleteSamples = !samplesDir.getParentDirectory()
+						                                       .getChildFile("project_info.xml")
+						                                       .existsAsFile();
+
+						// Deletes all .ch* monolith files from a directory, then removes the
+						// directory itself if empty. Uses .ch* prefix (HISE's monolith format).
+						auto deleteMonolithFiles = [](const File& dir)
+						{
+							if (!dir.isDirectory())
+								return;
+
+							Array<File> files;
+							dir.findChildFiles(files, File::findFiles, false);
+
+							for (auto& f : files)
+								if (f.getFileExtension().startsWith(".ch"))
+									f.deleteFile();
+
+							if (dir.getNumberOfChildFiles(File::findFilesAndDirectories) == 0)
+								dir.deleteFile();
+						};
+
+						if (safeToDeleteSamples && samplesAreExternal)
+							deleteMonolithFiles(samplesDir);
+
+						if (removePresets)
+						{
+							rootFolder.deleteRecursively();
+						}
+						else
+						{
+							Array<File> children;
+							rootFolder.findChildFiles(children, File::findFilesAndDirectories, false);
+
+							for (auto& child : children)
+							{
+								if (child.getFileName() == "UserPresets")
+									continue;
+
+								if (!samplesAreExternal && child.getFileName() == "Samples" && child.isDirectory())
+								{
+									if (safeToDeleteSamples)
+										deleteMonolithFiles(child);
+									continue;
+								}
+
+								if (child.isDirectory())
+									child.deleteRecursively();
+								else
+									child.deleteFile();
+							}
+						}
+
+						mc->getExpansionHandler().unloadExpansion(expansion);
+
+						ecm->setLastIndex(-1);
+						listbox->deselectAllRows();
+						listbox->updateContent();
+						listbox->repaint();
+						updateButtonVisibility(false);
+
+						parent->selectionChanged(-1, -1, File(), false);
+					}
+				}
+			}
+			return;
+		}
+
 		int selectedIndex = listbox->getSelectedRow(0);
 
 		if (selectedIndex >= 0)
@@ -731,7 +1049,7 @@ void PresetBrowserColumn::paint(Graphics& g)
 
 	StringArray columnNames = { "Expansion", "Nothing", "Bank", "Column" };
 
-	if (currentRoot == File() && listModel->wildcard.isEmpty() && listModel->currentlyActiveTags.isEmpty())
+	if (currentRoot == File() && listModel->wildcard.isEmpty() && listModel->currentlyActiveTags.isEmpty() && !listModel->getShowFavoritesOnly())
 		emptyText = "Select a " + columnNames[jlimit(0, 3, index+1)];
 	else if (listModel->isEmpty())
 		emptyText = isResultBar ? "No results" : "Add a " + name;
@@ -784,10 +1102,13 @@ void PresetBrowserColumn::updateButtonVisibility(bool isReadOnly)
 {
 	editButton->setVisible(false);
 
-	const bool buttonsVisible = showButtonsAtBottom && !isResultBar && currentRoot.isDirectory() && !isReadOnly;
+	// The expansion column (index == -1) doesn't use setNewRootDirectory so currentRoot
+	// is never set; bypass the directory check for it
+	const bool rootOk = (index == -1) || currentRoot.isDirectory();
+	const bool buttonsVisible = showButtonsAtBottom && !isResultBar && rootOk && !isReadOnly;
 	const bool fileIsSelected = listbox->getNumSelectedRows() > 0;
 
-	addButton->setVisible(buttonsVisible && shouldShowAddButton);
+	addButton->setVisible(buttonsVisible && shouldShowAddButton && !expansionAddButtonHidden);
 	deleteButton->setVisible(buttonsVisible && fileIsSelected && shouldShowDeleteButton);
 	renameButton->setVisible(buttonsVisible && fileIsSelected && shouldShowRenameButton);
 }
