@@ -425,6 +425,13 @@ class PerformanceLabelPanel : public Component,
 {
 public:
 
+	struct LookAndFeelMethods
+	{
+		virtual ~LookAndFeelMethods() {};
+		virtual void drawPerformanceLabel(Graphics& g, PerformanceLabelPanel& panel,
+		                                  float cpu, int64 ram, int voices);
+	};
+
 	PerformanceLabelPanel(FloatingTile* parent);
 
 	SET_PANEL_NAME("PerformanceLabel");
@@ -433,15 +440,13 @@ public:
 	void fromDynamicObject(const var& object) override;
 	void resized() override;
 	bool showTitleInPresentationMode() const override;
-
-	void paint(Graphics& g) override
-	{
-		g.fillAll(findPanelColour(FloatingTileContent::PanelColourId::bgColour));
-	}
+	void paint(Graphics& g) override;
 
 private:
 
-	ScopedPointer<Label> statisticLabel;
+	float cpuUsage = 0.0f;
+	int voiceAmount = 0;
+	int64 ramUsage = 0;
 };
 
 
