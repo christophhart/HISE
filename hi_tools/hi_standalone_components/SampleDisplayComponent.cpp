@@ -726,15 +726,87 @@ void AudioDisplayComponent::SampleArea::mouseDrag(const MouseEvent& e)
 	parentWaveform->refreshSampleAreaBounds(this);
 };
 
-void HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled)
+void HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRange(Graphics& g, HiseAudioThumbnail& te, Rectangle<float> area, int areaIndex, Colour c, bool areaEnabled, float gamma, bool reversed)
 {
-    UnblurryGraphics ug(g, te, true);
-    
-    g.setColour(c.withAlpha(areaEnabled ? 0.1f : 0.02f));
-    g.fillAll();
+    if (areaIndex == AudioDisplayComponent::AreaTypes::LoopCrossfadeArea)
+    {
+        Path fadePath;
 
-    g.setColour(c.withAlpha(0.3f));
-    ug.draw1PxRect(area);
+        auto w = area.getWidth();
+        auto h = area.getHeight();
+
+        if (!reversed)
+        {
+            fadePath.startNewSubPath(area.getX(), area.getBottom());
+
+            if (gamma == 1.0f)
+            {
+                fadePath.lineTo(area.getRight(), area.getY());
+                fadePath.lineTo(area.getRight(), area.getBottom());
+            }
+            else
+            {
+                for (float x = 0.0f; x < w; x += 3.0f)
+                {
+                    float gain = x / w;
+                    gain = std::pow(gain, gamma);
+                    fadePath.lineTo(area.getX() + x, area.getBottom() - gain * h);
+                }
+                fadePath.lineTo(area.getRight(), area.getBottom());
+            }
+
+            fadePath.closeSubPath();
+        }
+        else
+        {
+            if (gamma == 1.0f)
+            {
+                fadePath.startNewSubPath(area.getX(), area.getY());
+                fadePath.lineTo(area.getRight(), area.getBottom());
+                fadePath.lineTo(area.getX(), area.getBottom());
+            }
+            else
+            {
+                fadePath.startNewSubPath(area.getRight(), area.getBottom());
+                for (float x = 0.0f; x < w; x += 3.0f)
+                {
+                    float gain = x / w;
+                    gain = std::pow(gain, gamma);
+                    fadePath.lineTo(area.getRight() - x, area.getBottom() - gain * h);
+                }
+                fadePath.lineTo(area.getX(), area.getBottom());
+            }
+
+            fadePath.closeSubPath();
+        }
+
+        g.setColour(c.withAlpha(areaEnabled ? 0.1f : 0.05f));
+        g.fillPath(fadePath);
+        g.setColour(c.withAlpha(0.3f));
+        g.strokePath(fadePath, PathStrokeType(1.0f));
+    }
+    else if (areaIndex == 4) // ReleaseStartArea
+    {
+        g.setColour(c.withAlpha(0.2f));
+        g.fillRect(area);
+
+        Path p;
+        p.startNewSubPath(0.0f, 0.0f);
+        p.quadraticTo(0.5f, std::pow(0.5f, gamma), 1.0f, 1.0f);
+        p.scaleToFit(area.getX(), area.getY(), area.getWidth(), area.getHeight(), false);
+        g.setColour(c.withAlpha(0.7f));
+        g.strokePath(p, PathStrokeType(1.0f));
+    }
+    else
+    {
+        UnblurryGraphics ug(g, te, true);
+
+        g.setColour(c.withAlpha(areaEnabled ? 0.1f : 0.02f));
+        g.fillAll();
+
+        g.setColour(c.withAlpha(0.3f));
+        ug.draw1PxRect(area);
+    }
 }
 
 void HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRuler(Graphics& g, HiseAudioThumbnail& te, int x)
@@ -749,88 +821,26 @@ void HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailRuler(Graphics& g, His
 	g.drawLine(l, 0.5f);
 }
 
+void HiseAudioThumbnail::LookAndFeelMethods::drawThumbnailMarker(Graphics& g, HiseAudioThumbnail& th, float x, float h, int markerIndex, Colour c, bool enabled)
+{
+	g.setColour(c.withAlpha(enabled ? 0.8f : 0.4f));
+	g.drawVerticalLine(roundToInt(x), 0.0f, h);
+	g.fillRect(x, 0.0f, 20.0f, 5.0f);
+}
+
 void AudioDisplayComponent::SampleArea::paint(Graphics &g)
 {
-	if(area == AreaTypes::LoopCrossfadeArea)
-	{
-		Path fadeInPath;
+    if (!areaEnabled && area == AreaTypes::PlayArea)
+        return;
 
-		auto w = (float)getWidth();
-		auto h = (float)getHeight();
-		auto z = 0.0f;
-
-		
-
-		if (!reversed)
-		{
-			fadeInPath.startNewSubPath(z, h);
-
-			if (gamma == 1.0f)
-			{
-				fadeInPath.lineTo(w, z);
-				fadeInPath.lineTo(w, h);
-			}
-			else
-			{
-				for (float x = z; x < w; x += 3.0f)
-				{
-					float gain = (x - z) / w;
-					gain = std::pow(gain, gamma);
-					float y = h - gain * h;
-					fadeInPath.lineTo(x, y);
-				}
-
-				fadeInPath.lineTo(w, h);
-			}
-			
-			fadeInPath.closeSubPath();
-		}
-		else
-		{
-			
-
-			if (gamma == 1.0f)
-			{
-				fadeInPath.startNewSubPath(z, z);
-				fadeInPath.lineTo(w, h);
-				fadeInPath.lineTo(z, h);
-			}
-			else
-			{
-				fadeInPath.startNewSubPath(w, h);
-				for (float x = z; x < w; x += 3.0f)
-				{
-					float gain = (x - z) / w;
-					gain = std::pow(gain, gamma);
-					float y = h - gain * h;
-					fadeInPath.lineTo(w - x, y);
-				}
-
-				fadeInPath.lineTo(z, h);
-			}
-			
-			fadeInPath.closeSubPath();
-		}
-
-		g.setColour(getAreaColour((AreaTypes)area).withAlpha(areaEnabled ? 0.1f : 0.05f));
-		g.fillPath(fadeInPath);
-
-		g.setColour(getAreaColour((AreaTypes)area).withAlpha(0.3f));
-		PathStrokeType stroke(1.0f);
-		g.strokePath(fadeInPath, stroke);
-	}
-	else
-	{
-        auto p = findParentComponentOfClass<AudioDisplayComponent>();
-        if(auto laf = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(&p->getThumbnail()->getLookAndFeel()))
-        {
-            auto a = getLocalBounds().toFloat();
-            
-            laf->drawThumbnailRange(g, *p->getThumbnail(), a, (int)area, getAreaColour((AreaTypes)area), areaEnabled);
-        }
-        else
-            jassertfalse;
-	}
+    auto p = findParentComponentOfClass<AudioDisplayComponent>();
+    if(auto laf = dynamic_cast<HiseAudioThumbnail::LookAndFeelMethods*>(&p->getThumbnail()->getLookAndFeel()))
+    {
+        auto a = getLocalBounds().toFloat();
+        laf->drawThumbnailRange(g, *p->getThumbnail(), a, (int)area, getAreaColour((AreaTypes)area), areaEnabled, gamma, reversed);
+    }
+    else
+        jassertfalse;
 }
 
 void AudioDisplayComponent::SampleArea::checkBounds()
