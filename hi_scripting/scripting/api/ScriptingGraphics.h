@@ -834,14 +834,17 @@ namespace ScriptingObjects
 			public CustomKeyboardLookAndFeelBase,
 			public ScriptTableListModel::LookAndFeelMethods,
             public MatrixPeakMeter::LookAndFeelMethods,
+			public TableFloatingTileBase::LookAndFeelMethods,
 			public WaterfallComponent::LookAndFeelMethods,
-			public HiSlider::HoverPopupLookandFeel
+			public HiSlider::HoverPopupLookandFeel,
+			public PerformanceLabelPanel::LookAndFeelMethods
 		{
 			Laf(MainController* mc);
 
 			virtual ~Laf();;
 			
 			Font getFont();
+			String getFontName();
 
 			ScriptedLookAndFeel* get() override;
 
@@ -856,18 +859,20 @@ namespace ScriptingObjects
 
 			MarkdownLayout::StyleData getAlertWindowMarkdownStyleData() override;
 
-			void drawPopupMenuBackground(Graphics& g_, int width, int height) override;
+			void preparePopupMenuWindow(Component& newWindow) override;
+			int getMenuWindowFlags();
 
-			void drawPopupMenuItem(Graphics& g, const Rectangle<int>& area,
-				bool isSeparator, bool isActive,
-				bool isHighlighted, bool isTicked,
-				bool hasSubMenu, const String& text,
-				const String& shortcutKeyText,
-				const Drawable* icon, const Colour* textColourToUse);
+			void drawPopupMenuBackgroundWithOptions(Graphics& g_, int width, int height, const PopupMenu::Options& options) override;
 
-            void drawPopupMenuSectionHeader (Graphics& g,
+			void drawPopupMenuItemWithOptions(Graphics& g, const Rectangle<int>& area,
+				bool isHighlighted,
+				const PopupMenu::Item& item,
+				const PopupMenu::Options& options) override;
+
+            void drawPopupMenuSectionHeaderWithOptions(Graphics& g,
                                              const Rectangle<int>& area,
-                                             const String& sectionName);
+                                             const String& sectionName,
+                                             const PopupMenu::Options& options) override;
             
 			void drawToggleButton(Graphics &g, ToggleButton &b, bool isMouseOverButton, bool /*isButtonDown*/) override;
 
@@ -938,6 +943,10 @@ namespace ScriptingObjects
 
 			void drawTableHeaderColumn(Graphics& g, TableHeaderComponent&, const String& columnName, int columnId, int width, int height, bool isMouseOver, bool isMouseDown, int columnFlags) override;
 
+			void drawTableRowBackground(Graphics& g, const TableFloatingTileBase::LookAndFeelData& d, int rowNumber, int width, int height, bool rowIsSelected, bool rowIsHovered) override;
+
+			void drawTableCell(Graphics& g, const TableFloatingTileBase::LookAndFeelData& d, const String& text, int rowNumber, int columnId, int width, int height, bool rowIsSelected, bool cellIsClicked, bool cellIsHovered) override;
+
             void getIdealPopupMenuItemSize(const String &text, bool isSeparator, int standardMenuItemHeight, int &idealWidth, int &idealHeight) override;
             
 			void drawFilterDragHandle(Graphics& g, FilterDragOverlay& o, int index, Rectangle<float> handleBounds, const FilterDragOverlay::DragData& d) override;
@@ -965,6 +974,9 @@ namespace ScriptingObjects
 			void drawFlexAhdsrPosition(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, flex_ahdsr_base::State s, Point<float> pointOnPath) override;
 			void drawFlexAhdsrSegment(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, flex_ahdsr_base::State s, const Path& segment, bool hover, bool active) override;
 			void drawFlexAhdsrText(Graphics& g, flex_ahdsr_base::FlexAhdsrGraph& graph, const String& text) override;
+
+			void drawPerformanceLabel(Graphics& g, PerformanceLabelPanel& panel,
+			                         float cpu, int64 ram, int voices) override;
 
 			Image createIcon(PresetHandler::IconType type) override;
 
@@ -1471,6 +1483,7 @@ namespace ScriptingObjects
 
         
 		Font f = GLOBAL_BOLD_FONT();
+		String fontName = "Default";
         
         struct GraphicsWithComponent
         {

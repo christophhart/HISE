@@ -714,8 +714,22 @@ ScriptTableListModel::LookAndFeelData ScriptTableListModel::LookAndFeelMethods::
 		{
 			return st->d;
 		}
+
+		if (auto ft = dynamic_cast<TableFloatingTileBase*>(table->getModel()))
+		{
+			auto ftd = ft->getLookAndFeelData();
+			LookAndFeelData d;
+			d.f = ftd.f;
+			d.fontName = ftd.fontName;
+			d.textColour = ftd.textColour;
+			d.bgColour = ftd.bgColour;
+			d.itemColour1 = ftd.itemColour1;
+			d.itemColour2 = ftd.itemColour2;
+			d.itemColour3 = ftd.itemColour3;
+			return d;
+		}
 	}
-	
+
 	return {};
 }
 
