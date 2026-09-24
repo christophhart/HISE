@@ -699,6 +699,36 @@ Point<int> PresetBrowser::getMouseHoverInformation() const
 	return p;
 }
 
+Array<File> PresetBrowser::getAllSearchRoots() const
+{
+	Array<File> roots;
+
+	if (currentlySelectedExpansion != nullptr)
+	{
+		auto userPresetsDir = currentlySelectedExpansion->getSubDirectory(FileHandlerBase::UserPresets);
+		if (userPresetsDir.isDirectory())
+			roots.add(userPresetsDir);
+		return roots;
+	}
+
+	if (defaultRoot.isDirectory())
+		roots.add(defaultRoot);
+
+	auto& handler = getMainController()->getExpansionHandler();
+
+	for (int i = 0; i < handler.getNumExpansions(); ++i)
+	{
+		if (auto e = handler.getExpansion(i))
+		{
+			auto userPresetsDir = e->getSubDirectory(FileHandlerBase::UserPresets);
+			if (userPresetsDir.isDirectory() && !roots.contains(userPresetsDir))
+				roots.add(userPresetsDir);
+		}
+	}
+
+	return roots;
+}
+
 void PresetBrowser::presetChanged(const File& newPreset)
 {
 	// After we switched the expansions we need to make sure to run this logic so that it ca
@@ -1093,6 +1123,11 @@ void PresetBrowser::setShowFullPathFavorites(bool shouldShowFullPathFavorites)
 	fullPathFavorites = shouldShowFullPathFavorites;
 }
 
+void PresetBrowser::setShowFullPathSearch(bool shouldShowFullPathSearch)
+{
+	fullPathSearch = shouldShowFullPathSearch;
+}
+
 void PresetBrowser::setHighlightColourAndFont(Colour c, Colour bgColour, Font f)
 {
 	auto& lf = getPresetBrowserLookAndFeel();
@@ -1313,6 +1348,17 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setShowEditButtons(1, newOptions.showAddButton);
 	setShowEditButtons(2, newOptions.showRenameButton);
 	setShowEditButtons(3, newOptions.showDeleteButton);
+
+	// Override expansion column buttons independently of the other columns.
+	// We hide individual buttons rather than disabling showButtonsAtBottom so that
+	// the 28px button area is still reserved, keeping the column height consistent
+	// with the bank/category/preset columns.
+	if (expansionColumn != nullptr && !newOptions.showExpansionEditButtons)
+	{
+		expansionColumn->setShowButtons(PresetBrowserColumn::AddButton, false);
+		expansionColumn->setShowButtons(PresetBrowserColumn::RenameButton, false);
+		expansionColumn->setShowButtons(PresetBrowserColumn::DeleteButton, false);
+	}
 	setShowSearchBar(newOptions.showSearchBar);
 	setButtonsInsideBorder(newOptions.buttonsInsideBorder);
 	setEditButtonOffset(newOptions.editButtonOffset);
@@ -1322,7 +1368,8 @@ void PresetBrowser::setOptions(const Options& newOptions)
 	setShowFavorites(newOptions.showFavoriteIcons);
 	setFavoriteIconOffset(newOptions.favoriteIconOffset);
 	setShowFullPathFavorites(newOptions.fullPathFavorites);
-	
+	setShowFullPathSearch(newOptions.fullPathSearch);
+
 	if (expansionColumn != nullptr)
 		expansionColumn->update();
 
@@ -1370,21 +1417,36 @@ void PresetBrowser::selectionChanged(int columnIndex, int /*rowIndex*/, const Fi
 		}
 
 		if(expansionColumn != nullptr)
+		{
+			if (file == File())
+				expansionColumn->setSelectedFile(File());
 			expansionColumn->repaint();
+			expansionColumn->updateButtonVisibility(false);
+		}
 
 		bankColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 0, this), rootFile);
 		bankColumn->setNewRootDirectory(rootFile);
 		categoryColumn->setModel(new PresetBrowserColumn::ColumnListModel(this, 1, this), rootFile);
 		categoryColumn->setNewRootDirectory(currentCategoryFile);
-		presetColumn->setNewRootDirectory(File());
-		
-		auto pc = new PresetBrowserColumn::ColumnListModel(this, 2, this);
-		pc->setDisplayDirectories(false);
-		presetColumn->setModel(pc, rootFile);
-		
+
 		loadPresetDatabase(rootFile);
 		presetColumn->setDatabase(getDataBase());
 		rebuildAllPresets();
+
+		if (showOnlyPresets)
+		{
+			// Keep the existing model so the search wildcard is preserved; just
+			// refresh the list — getAllSearchRoots() now returns the new expansion.
+			presetColumn->setNewRootDirectory(rootFile);
+		}
+		else
+		{
+			presetColumn->setNewRootDirectory(File());
+
+			auto pc = new PresetBrowserColumn::ColumnListModel(this, 2, this);
+			pc->setDisplayDirectories(false);
+			presetColumn->setModel(pc, rootFile);
+		}
 	}
 
 	if (columnIndex == 0)
