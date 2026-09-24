@@ -212,6 +212,15 @@ bool ExpansionHandler::createAvailableExpansions()
     OwnedArray<Expansion> newList;
 	bool didSomething = false;
 
+	for (int i = expansionList.size() - 1; i >= 0; i--)
+	{
+		if (!expansionList[i]->getRootFolder().isDirectory())
+		{
+			expansionList.remove(i);
+			didSomething = true;
+		}
+	}
+
 	for (auto f : folders)
 	{
 		bool exists = false;
@@ -240,7 +249,7 @@ bool ExpansionHandler::createAvailableExpansions()
 			}
 		}
 	}
-    
+
 	if (didSomething)
 	{
 		Expansion::Sorter s;
