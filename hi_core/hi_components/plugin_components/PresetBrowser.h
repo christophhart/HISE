@@ -69,7 +69,10 @@ public:
 		Colour highlightedTextColour;
 		Colour backgroundColour;
 		Colour textColour;
+		Colour modalBackgroundColour;
+		Colour itemColour3;
 		Font font;
+		String fontName;
 
 		int numColumns = 3;
 		Array<var> columnWidthRatios;

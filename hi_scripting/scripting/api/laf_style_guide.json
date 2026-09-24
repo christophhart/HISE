@@ -1246,6 +1246,14 @@
                 "keyColour": {
                   "type": "int (ARGB)",
                   "description": "Custom colour for the key"
+                },
+                "font": {
+                  "type": "String",
+                  "description": "The typeface name from the keyboard panel's Font property"
+                },
+                "fontSize": {
+                  "type": "float",
+                  "description": "The font size from the keyboard panel's FontSize property"
                 }
               }
             },
@@ -1271,6 +1279,14 @@
                 "keyColour": {
                   "type": "int (ARGB)",
                   "description": "Custom colour for the key"
+                },
+                "font": {
+                  "type": "String",
+                  "description": "The typeface name from the keyboard panel's Font property"
+                },
+                "fontSize": {
+                  "type": "float",
+                  "description": "The font size from the keyboard panel's FontSize property"
                 }
               }
             }
@@ -2691,6 +2707,63 @@
                 "area": {
                   "type": "Array[x, y, w, h]",
                   "description": "The column header bounds"
+                }
+              }
+            }
+          }
+        },
+        "PerformanceLabel": {
+          "lafFunctions": {
+            "drawPerformanceLabel": {
+              "description": "Draws the performance statistics floating tile (CPU usage, RAM usage, active voice count)",
+              "callbackProperties": {
+                "id": {
+                  "type": "String",
+                  "description": "The component's ID from getComponentID()"
+                },
+                "area": {
+                  "type": "Array[x, y, w, h]",
+                  "description": "The panel bounds"
+                },
+                "bgColour": {
+                  "type": "int (ARGB)",
+                  "description": "Background colour (ColourData::bgColour)"
+                },
+                "textColour": {
+                  "type": "int (ARGB)",
+                  "description": "Text colour (ColourData::textColour)"
+                },
+                "itemColour1": {
+                  "type": "int (ARGB)",
+                  "description": "Item colour 1 (ColourData::itemColour1)"
+                },
+                "itemColour2": {
+                  "type": "int (ARGB)",
+                  "description": "Item colour 2 (ColourData::itemColour2)"
+                },
+                "itemColour3": {
+                  "type": "int (ARGB)",
+                  "description": "Item colour 3 (ColourData::itemColour3)"
+                },
+                "font": {
+                  "type": "String",
+                  "description": "Typeface name from the panel's Font setting"
+                },
+                "fontSize": {
+                  "type": "float",
+                  "description": "Font size from the panel's FontSize setting"
+                },
+                "cpu": {
+                  "type": "float",
+                  "description": "Current CPU usage as a percentage (0.0-100.0)"
+                },
+                "ram": {
+                  "type": "int64",
+                  "description": "Current RAM usage in bytes"
+                },
+                "voices": {
+                  "type": "int",
+                  "description": "Number of currently active voices"
                 }
               }
             }
