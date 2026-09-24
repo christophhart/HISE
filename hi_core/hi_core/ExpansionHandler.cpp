@@ -412,15 +412,19 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 
 	if (expRoot != File())
 	{
+		installationCancelled = false;
+
 		auto f = [this, expRoot, resourceFile, sampleDirectoryToUse](Processor* p)
 		{
 			jassert(LockHelpers::freeToGo(getMainController()));
+
+			bool expRootExistedBefore = expRoot.isDirectory();
 
 			expRoot.createDirectory();
 			auto samplesDir = expRoot.getChildFile("Samples");
 			samplesDir.createDirectory();
 
-			if (sampleDirectoryToUse != getExpansionFolder() && 
+			if (sampleDirectoryToUse != getExpansionFolder() &&
 				sampleDirectoryToUse != getMainController()->getCurrentFileHandler().getSubDirectory(FileHandlerBase::Samples))
 				FileHandlerBase::createLinkFileInFolder(samplesDir, sampleDirectoryToUse);
 			else
@@ -455,9 +459,38 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 
 			hlac::HlacArchiver a(currentThread);
 			a.setListener(this);
-			auto ok = a.extractSampleData(data);
+			a.setCancelCheck([this]() { return installationCancelled.load(); });
+			a.extractSampleData(data);
 
-			ignoreUnused(ok);
+			if (installationCancelled.load())
+			{
+				// Only remove the expansion root if this installation created it.
+				// If it already existed the user may have custom presets or other
+				// files there that must be preserved across update installs.
+				if (!expRootExistedBefore)
+					expRoot.deleteRecursively();
+
+				// header.dat is always written by the archiver to the samples
+				// directory first. On a cancelled update it may be partially
+				// overwritten and is no longer valid, so remove it.
+				sampleDirectoryToUse.getChildFile("header.dat").deleteFile();
+
+				// TmpFlac files are intermediate files the archiver normally
+				// cleans up itself; one may be left behind on cancellation.
+				Array<File> tmpFlacFiles;
+				sampleDirectoryToUse.findChildFiles(tmpFlacFiles, File::findFiles, false, "TmpFlac*.flac");
+
+				for (auto& tf : tmpFlacFiles)
+					tf.deleteFile();
+
+				for (auto l : listeners)
+				{
+					if (l.get() != nullptr)
+						l->expansionInstalled(nullptr);
+				}
+
+				return SafeFunctionCall::OK;
+			}
 
 			auto headerFile = samplesDir.getChildFile("header.dat");
 			jassert(headerFile.existsAsFile());
@@ -480,7 +513,7 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 			forceReinitialisation();
 
 			auto expToSend = getExpansionFromRootFile(expRoot);
-			
+
 			if(expToSend != nullptr)
 				expToSend->initialise();
 
@@ -499,6 +532,16 @@ bool ExpansionHandler::installFromResourceFile(const File& resourceFile, const F
 	}
 
 	return false;
+}
+
+void ExpansionHandler::cancelInstallation()
+{
+	installationCancelled = true;
+}
+
+bool ExpansionHandler::isInstallationCancelled() const noexcept
+{
+	return installationCancelled.load();
 }
 
 juce::File ExpansionHandler::getExpansionTargetFolder(const File& resourceFile)

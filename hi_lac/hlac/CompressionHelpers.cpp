@@ -1276,7 +1276,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		auto archiveTime = Time::fromISO8601(fis->readString());
 		CHECK_FLAG(Flag::EndTime);
 
-		if (thread->threadShouldExit())
+		if (shouldAbort())
 			return false;
 
 		
@@ -1305,7 +1305,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				
 		}
 
-		if (thread->threadShouldExit())
+		if (shouldAbort())
 			return false;
 		
 		if (overwriteThisFile || data.debugLogMode)
@@ -1358,7 +1358,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				currentFlag = readFlag(fis);
 			}
 
-			if (thread->threadShouldExit())
+			if (shouldAbort())
 				return false;
 
 			jassert(currentFlag == Flag::EndMonolith);
@@ -1397,7 +1397,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset(hlac::HlacEncoder::CompressorOptions::Presets::Diff);
 
-			if (thread->threadShouldExit())
+			if (shouldAbort())
 				return false;
 
 			options.applyDithering = false;
@@ -1416,7 +1416,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			for (int64 readerOffset = 0; readerOffset < flacReader->lengthInSamples; readerOffset += bufferSize)
 			{
-				if (thread->threadShouldExit())
+				if (shouldAbort())
 					return false;
 
 				const int numToRead = jmin<int>(bufferSize, (int)(flacReader->lengthInSamples - readerOffset));
@@ -1447,7 +1447,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 					return false;
 				}
 
-				if (thread->threadShouldExit())
+				if (shouldAbort())
 					return false;
 
 				writer = nullptr;
@@ -1480,7 +1480,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				bytesToSkip = fis->readInt64();
 				CHECK_FLAG(Flag::EndMonolithLength);
 
-				if (thread->threadShouldExit())
+				if (shouldAbort())
 					return false;
 
 				CHECK_FLAG(Flag::ResumeMonolith);
@@ -1527,7 +1527,7 @@ FileInputStream* HlacArchiver::writeTempFile(AudioFormatReader* reader, int bitD
 	for (int offsetInReader = 0; offsetInReader < reader->lengthInSamples; offsetInReader += bufferSize)
 	{
 
-		if (thread->threadShouldExit())
+		if (shouldAbort())
 		{
 			tempOutput->flush();
 			writer = nullptr;
@@ -1633,7 +1633,7 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 		{
 			for (int i = 0; i < hlacFiles.size(); i++)
 			{
-				if (thread->threadShouldExit())
+				if (shouldAbort())
 					return;
 
 				*data.totalProgress = ((double)i / (double)hlacFiles.size());

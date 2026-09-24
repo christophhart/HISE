@@ -1176,6 +1176,7 @@ struct ScriptExpansionHandler::Wrapper
 	API_METHOD_WRAPPER_2(ScriptExpansionHandler, installExpansionFromPackage);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansionForInstallPackage);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getMetaDataFromPackage);
+	API_VOID_METHOD_WRAPPER_0(ScriptExpansionHandler, cancelInstallation);
 };
 
 ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
@@ -1208,8 +1209,9 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_CALLBACK_DIAGNOSTIC(installCallback, setInstallCallback, 0);
 	ADD_API_METHOD_1(getMetaDataFromPackage);
 	ADD_API_METHOD_1(getExpansionForInstallPackage);
+	ADD_API_METHOD_0(cancelInstallation);
 
-	
+
 
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::FileBased), Expansion::FileBased);
 	addConstant(Expansion::Helpers::getExpansionTypeName(Expansion::Intermediate), Expansion::Intermediate);
@@ -1434,6 +1436,11 @@ var ScriptExpansionHandler::getExpansionForInstallPackage(var packageFile)
 	RETURN_IF_NO_THROW(var());
 }
 
+void ScriptExpansionHandler::cancelInstallation()
+{
+	getMainController()->getExpansionHandler().cancelInstallation();
+}
+
 void ScriptExpansionHandler::setAllowedExpansionTypes(var typeList)
 {
 	Array<Expansion::ExpansionType> l;
@@ -1524,9 +1531,11 @@ void ScriptExpansionHandler::InstallState::expansionInstalled(Expansion* newExpa
 	SimpleReadWriteLock::ScopedWriteLock sl(timerLock);
 
 	stopTimer();
-	status = 2;
 
-	if (newExpansion != nullptr && newExpansion->getRootFolder() == targetFolder)
+	bool wasCancelled = parent.getMainController()->getExpansionHandler().isInstallationCancelled();
+	status = wasCancelled ? 3 : 2;
+
+	if (!wasCancelled && newExpansion != nullptr && newExpansion->getRootFolder() == targetFolder)
 		createdExpansion = newExpansion;
 
 	call();
