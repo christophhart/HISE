@@ -2418,6 +2418,7 @@ void HiComboBox::updateValue(NotificationType /*sendAttributeChange*/)
 	setEnabled(enabled);
 
 	setSelectedId(roundToInt(getProcessor()->getAttribute(parameter)), dontSendNotification);
+	refreshTickState();
 
 	//addItemsToMenu(*getRootMenu());
 }
