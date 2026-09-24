@@ -1828,6 +1828,14 @@ void HiSlider::ModUpdater::onExclusiveSourceSelection(ModUpdater& mu, int index)
 	if (hasConnection)
 	{
 		mu.currentExlusiveIndex = index;
+
+		// If the slider hasn't been added to the component hierarchy yet
+		// (e.g. during onInit), just store the index — the popup will be
+		// created later from parentHierarchyChanged() once the slider
+		// has a parent and valid bounds.
+		if (slider.getParentComponent() == nullptr)
+			return;
+
 		Array<int> connectedSources;
 		connectedSources.add(index);
 		StringArray allSources, sourceList;
@@ -1841,6 +1849,21 @@ void HiSlider::ModUpdater::onExclusiveSourceSelection(ModUpdater& mu, int index)
 	{
 		mu.currentExlusiveIndex = -1;
 		slider.currentHoverPopup = nullptr;
+	}
+}
+
+void HiSlider::parentHierarchyChanged()
+{
+	// When the slider is added to the component hierarchy, check if there's
+	// a pending exclusive source selection that couldn't create its popup
+	// earlier (because the slider had no parent during onInit).
+	if (getParentComponent() != nullptr &&
+		modUpdater != nullptr &&
+		modUpdater->isUsingExclusiveSourceMode() &&
+		modUpdater->currentExlusiveIndex >= 0 &&
+		currentHoverPopup == nullptr)
+	{
+		ModUpdater::onExclusiveSourceSelection(*modUpdater, modUpdater->currentExlusiveIndex);
 	}
 }
 
