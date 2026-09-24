@@ -307,6 +307,7 @@ struct RingBufferComponentBase : public ComplexDataUIBase::EditorBase,
 		virtual void drawOscilloscopePath(Graphics& g, RingBufferComponentBase& ac, const Path& p);
 		virtual void drawGonioMeterDots(Graphics& g, RingBufferComponentBase& ac, const RectangleList<float>& dots, int index);
 		virtual void drawAnalyserGrid(Graphics& g, RingBufferComponentBase& ac, const Path& p);
+		virtual bool providesCustomAnalyserBackground() { return false; }
 	};
 
 	struct DefaultLookAndFeel : public GlobalHiseLookAndFeel,

@@ -4344,10 +4344,15 @@ void ScriptingObjects::ScriptedLookAndFeel::Laf::drawOscilloscopeBackground(Grap
 		writeId(obj, c);
 		obj->setProperty("area", ApiHelpers::getVarRectangle(useRectangleClass, areaToFill));
 
-		
 		setColourOrBlack(obj, "bgColour", *c, RingBufferComponentBase::ColourId::bgColour);
 		setColourOrBlack(obj, "itemColour1", *c, RingBufferComponentBase::ColourId::fillColour);
 		setColourOrBlack(obj, "itemColour2", *c, RingBufferComponentBase::ColourId::lineColour);
+
+		if (auto plotter = dynamic_cast<Plotter*>(c))
+		{
+			obj->setProperty("topText", plotter->getCornerText(true));
+			obj->setProperty("bottomText", plotter->getCornerText(false));
+		}
 
 		if (get()->callWithGraphics(g_, "drawAnalyserBackground", var(obj), c))
 			return;
