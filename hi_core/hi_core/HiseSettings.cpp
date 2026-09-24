@@ -1639,6 +1639,14 @@ void HiseSettings::Data::settingWasChanged(const Identifier& id, const var& newV
 		auto channelData = mc->getMainSynthChain()->getActiveChannelData();
 
 		channelData->restoreFromData(intValue);
+
+		// Also update GlobalSettingManager::channelData so it gets saved to GeneralSettings.xml
+		auto gm = dynamic_cast<GlobalSettingManager*>(mc);
+		if (gm != nullptr)
+		{
+			gm->setEnabledMidiChannels((int)intValue);
+			gm->saveSettingsAsXml(); // Save immediately
+		}
 	}
 }
 
