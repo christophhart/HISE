@@ -261,6 +261,8 @@ private:
 	Rectangle<int> bottomArea;
 	Rectangle<int> bottomBar;
 
+	bool hideEnableMPEButton = false;
+
 	JUCE_DECLARE_WEAK_REFERENCEABLE(MPEPanel);
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MPEPanel);
 };
