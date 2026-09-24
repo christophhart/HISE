@@ -251,13 +251,13 @@ public:
 			{
 				switch (id)
 				{
-				case bgColour: return getColourFrom(bg);
-				case itemColour: return getColourFrom(item);
-				case itemColour2: return getColourFrom(item2);
-				case textColour: return getColourFrom(text);
+				case bgColour: return ApiHelpers::getColourFromVar(bg.getValue());
+				case itemColour: return ApiHelpers::getColourFromVar(item.getValue());
+				case itemColour2: return ApiHelpers::getColourFromVar(item2.getValue());
+				case textColour: return ApiHelpers::getColourFromVar(text.getValue());
                 default: break;
 				}
-					
+
 				jassertfalse;
 				return Colours::transparentBlack;
 			}
