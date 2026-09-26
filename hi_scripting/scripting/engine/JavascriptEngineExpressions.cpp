@@ -589,6 +589,16 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
 
 		return nullptr;
 	};
+    
+    bool isConstant() const override
+    {
+        auto c = true;
+        
+        for(const auto& v: values)
+            c &= v->isConstant();
+        
+        return c;
+    }
 
 	bool replaceChildStatement(Ptr& s, Statement* newData) override
 	{

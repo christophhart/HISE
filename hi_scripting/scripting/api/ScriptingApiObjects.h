@@ -3004,6 +3004,7 @@ namespace ScriptingObjects
 	public:
 
 		struct Wrapper;
+        struct Diagnostics;
 
 		ScriptedMidiAutomationHandler(ProcessorWithScriptingContent* sp);
 

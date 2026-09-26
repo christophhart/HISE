@@ -32,6 +32,15 @@
 
 namespace hise { using namespace juce;
 
+LightweightDiagnostics::Factory::Factory()
+{
+    registerType<ScriptingObjects::ScriptedMidiAutomationHandler>();
+    registerType<ScriptingObjects::PathObject>();
+    
+    // final validation gate: all API class must be creatable
+    //jassert(items.size() == getNumApiClasses());
+}
+
 ScriptingObject::ScriptingObject(ProcessorWithScriptingContent *p) :
 processor(p),
 thisAsProcessor(dynamic_cast<Processor*>(p))
@@ -741,10 +750,16 @@ void WeakCallbackHolder::addAsSource(DebugableObjectBase* sourceObject, const St
 
 void WeakCallbackHolder::addProfileSources(DebugInformationBase::Ptr p)
 {
-	auto x = p->getTextForName() + "." + cid.toString();
+#if 0
+    String x;
+    
+    x << p->getTextForName();
+    x << ".";
+//    x << cid.toString();
 
 	pTrigger = getScriptProcessor()->callbackProfile.add(x + ".trigger()");
 	pCall = getScriptProcessor()->callbackProfile.add(x + ".call()");
+#endif
 }
 
 void WeakCallbackHolder::clear()

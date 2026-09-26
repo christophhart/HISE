@@ -612,6 +612,24 @@ struct HiseJavascriptEngine::RootObject::Statement
 
 	Breakpoint::Reference breakpointReference;
 
+#if USE_BACKEND
+    void setObjectTypeInformation(const Identifier& objType)
+    {
+        objectTypeInformation = objType;
+    }
+    
+    Identifier getObjectTypeInformation() const { return objectTypeInformation; }
+    
+    Identifier objectTypeInformation;
+#else
+    void setObjectTypeInformation(const Identifier&)
+    {
+
+    }
+    
+    Identifier getObjectTypeInformation() const { return {}; }
+#endif
+    
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
 };
 

@@ -1354,6 +1354,7 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
   ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_0(createUserPresetHandler);
 	ADD_API_METHOD_0(createMidiAutomationHandler);
+	API_RETURN_OBJECT_TYPE(createMidiAutomationHandler, ScriptingObjects::ScriptedMidiAutomationHandler);
 	ADD_API_METHOD_0(createMacroHandler);
 	ADD_API_METHOD_0(createBXLicenser);
 	ADD_API_METHOD_0(createNKSManager);
@@ -5346,7 +5347,7 @@ struct ScriptingApi::Synth::Wrapper
 #if USE_BACKEND
 struct ModuleDiagnoser
 {
-	template <typename T> static ApiClass::DiagnosticResult check(ApiClass* c, const Identifier&, const Array<var>& args)
+	template <typename T> static ApiClass::DiagnosticResult check(DiagnosticBase* c, const Identifier&, const Array<var>& args)
 	{
 		if (auto s = dynamic_cast<ScriptingApi::Synth*>(c))
 		{

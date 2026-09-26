@@ -63,7 +63,82 @@ struct CommandLineException: public std::exception
 };
 #endif
 
-/** The base class for all scripting API classes. 
+struct LightweightDiagnostics: public DiagnosticBase
+{
+    LightweightDiagnostics(ProcessorWithScriptingContent* p_):
+      p(p_)
+    {}
+    
+    struct Factory
+    {
+        Factory();
+        
+        using CreatorFunction = std::function<DiagnosticBase*(ProcessorWithScriptingContent*)>;
+        
+        template <typename T> void registerType()
+        {
+            items[T::getClassName()] = [](ProcessorWithScriptingContent* p)
+            {
+                return new typename T::Diagnostics(p);
+            };
+        }
+        
+        DiagnosticBase* createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id) const
+        {
+            for(const auto& i: items)
+            {
+                if(i.first == id)
+                    return i.second(p);
+            }
+            
+            return nullptr;
+        }
+        
+        private:
+        
+        std::map<Identifier, CreatorFunction> items;
+    };
+    
+    struct FunctionInfo
+    {
+        Identifier methodName;
+        int numArgs;
+        // TODO: add argument type check data
+    };
+    
+    void addFunction(const Identifier &id, call0 unused) override { functions.add({id, 0}); }
+    void addFunction1(const Identifier &id, call1 unused) override { functions.add({id, 1}); }
+    void addFunction2(const Identifier &id, call2 unused) override { functions.add({id, 2}); }
+    void addFunction3(const Identifier &id, call3 unused) override { functions.add({id, 3}); }
+    void addFunction4(const Identifier &id, call4 unused) override { functions.add({id, 4}); }
+    void addFunction5(const Identifier &id, call5 unused) override { functions.add({id, 5}); }
+    
+    bool getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const override
+    {
+        int idx = 0;
+        
+        for(const auto& f: functions)
+        {
+            if(f.methodName == id)
+            {
+                numArgs = f.numArgs;
+                index = idx;
+                return true;
+            }
+            
+            idx++;
+        }
+        
+        numArgs = -1;
+        index = -1;
+        return false;
+    }
+    
+    Array<FunctionInfo> functions;
+    ProcessorWithScriptingContent* p;
+};
+
+/** The base class for all scripting API classes.
 *	@ingroup scripting
 *
 *	It contains some basic methods for error handling.
@@ -152,7 +227,7 @@ private:
 
 	Identifier name;
 
-	using CreateFunction = std::function<ConstScriptingObject*(ProcessorWithScriptingContent*)>;
+	using CreateFunction = std::function<DiagnosticBase*(ProcessorWithScriptingContent*)>;
 	
 	static std::map<Identifier, CreateFunction>& getDiagnosticPrototypeFactory()
 	{
@@ -162,7 +237,7 @@ private:
 	
 public:
 
-	static ReferenceCountedObjectPtr<ConstScriptingObject> createDiagnosticPrototype(const Identifier& className,
+	static ReferenceCountedObjectPtr<DiagnosticBase> createDiagnosticPrototype(const Identifier& className,
 		ProcessorWithScriptingContent* pwsc)
 	{
 		auto& map = getDiagnosticPrototypeFactory();
@@ -402,7 +477,7 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	};
 
-	template <int E, int FIndex=0> static ApiClass::DiagnosticResult checkCallbackNumArgs(ApiClass*, const Identifier&, const Array<var>& args)
+	template <int E, int FIndex=0> static ApiClass::DiagnosticResult checkCallbackNumArgs(DiagnosticBase*, const Identifier&, const Array<var>& args)
 	{
 		if (auto f = dynamic_cast<CallableObject*>(args[FIndex].getObject()))
 		{
@@ -548,11 +623,11 @@ struct WeakCallbackHolder : private ScriptingObject
 	}
 
 #if USE_BACKEND
-	void addCallbackDiagnostic(ApiClass* c, const Identifier& methodName, int fIndex = 0)
+	void addCallbackDiagnostic(DiagnosticBase* c, const Identifier& methodName, int fIndex = 0)
 	{
 		auto numArgs = numExpectedArgs;
 
-		c->addDiagnostic(methodName, [numArgs, fIndex](ApiClass*, const Identifier&, const Array<var>& args)
+		c->addDiagnostic(methodName, [numArgs, fIndex](DiagnosticBase*, const Identifier&, const Array<var>& args)
 		{
 			if (auto f = dynamic_cast<CallableObject*>(args[fIndex].getObject()))
 			{

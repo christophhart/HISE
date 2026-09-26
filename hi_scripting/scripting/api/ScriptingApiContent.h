@@ -3537,8 +3537,26 @@ public:
 #endif
 	}
 
+    void setReturnType(const Identifier& methodName, const Identifier& returnedClassType)
+    {
+        contentTypeMap.add({methodName, returnedClassType});
+    }
+    
+    Identifier getReturnType(const Identifier& methodName) const
+    {
+        for(const auto& c: contentTypeMap)
+        {
+            if(c.first == methodName)
+                return c.second;
+        }
+        
+        return {};
+    }
+    
 private:
 
+    Array<std::pair<Identifier, Identifier>> contentTypeMap;
+    
 	LafRegistry::Ptr lafRegistry;
 
 	WeakCallbackHolder dragCallback;

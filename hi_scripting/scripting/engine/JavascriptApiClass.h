@@ -302,71 +302,32 @@ private:
 
 #define NUM_API_FUNCTION_SLOTS 64
 
+class ApiClass;
 
-/** A API class is a class with a fixed number of methods and constants that can be called from Javascript.
-*
-*	It is used to improve the performance of calling C++ functions from Javascript. 
-*   This is achieved by resolving the function call at compile time making the call from Javascript almost as fast 
-*   as a regular C++ function call (the arguments still need to be evaluated).
-*
-*	You can also define constants which are resolved into literal values at compile time making them exactly 
-*   as fast as typing the literal value.
-*
-*	A ApiClass needs to be registered on the C++ side before the ScriptingEngine parses and executes the code using
-*   HiseJavascriptEngine::registerApiClass().
-*
-*   To use this class, subclass it, write the methods you want to expose to Javascript as member functions of your
-*   subclass and use these two macros to publish them to the Javascript Engine:
-*
- *      @code{.cpp}
- *		class MyApiClass: public ApiClass
- *		{
- *		public:
- *		   MyApiClass():
- *		     ApiClass(0) // we don't need constants here...
- *		   {
- *		       ADD_API_METHOD_1(square); // This adds the method wrapper to the function list
- *		   }
- *
- *
- *		   double square(double x) const
- *		   {
- *		       return x*x;
- *		   };
- *
- *		   struct Wrapper // You'll need a subclass called `Wrapper` for it to work...
- *		   {
- *		   		// this defines a wrapper function that is using a static_cast to call the member function.
- *		 		ADD_API_METHOD_WRAPPER_1(MyApiClass, square);
- *		   };
- *		};
-        @endcode
- *
- *  The Macros support up to 5 arguments. You'll need another macro for void functions: `API_VOID_METHOD_WRAPPER_X`,
- *  but apart from this, it is pretty straight forward...
- *
- *  For a living example of an API class take a look at eg. the Math class or the ScriptingApi::Engine class.
- */
-class ApiClass : public ReferenceCountedObject,
-				 public DebugableObjectBase
+struct DiagnosticBase: public ReferenceCountedObject
 {
-public:
-
+    typedef var(*call0)(ApiClass*);
+    typedef var(*call1)(ApiClass*, var);
+    typedef var(*call2)(ApiClass*, var, var);
+    typedef var(*call3)(ApiClass*, var, var, var);
+    typedef var(*call4)(ApiClass*, var, var, var, var);
+    typedef var(*call5)(ApiClass*, var, var, var, var, var);
+    
 #if USE_BACKEND
     struct DiagnosticResult
     {
-        using QueryFunction = std::function<DiagnosticResult(ApiClass*, const Identifier&, const Array<var>&)>;
+        using QueryFunction = std::function<DiagnosticResult(DiagnosticBase*, const Identifier&, const Array<var>&)>;
 
-		enum class Severity
-		{
-			OK,
-			Unknown,
-			Error,
-			Warning,
-			Info,
-			Hint,
-			numSeverity
-		};
+        enum class Severity
+        {
+            OK,
+            Unknown,
+            Error,
+            Warning,
+            Info,
+            Hint,
+            numSeverity
+        };
 
         enum class Classification
         {
@@ -399,19 +360,19 @@ public:
             }
         }
 
-		static String getSeverityString(Severity s)
-		{
-			switch (s)
-			{
-			case Severity::Error:   return "error";
-			case Severity::Warning: return "warning";
-			case Severity::Info:    return "info";
-			case Severity::Hint:    return "hint";
+        static String getSeverityString(Severity s)
+        {
+            switch (s)
+            {
+            case Severity::Error:   return "error";
+            case Severity::Warning: return "warning";
+            case Severity::Info:    return "info";
+            case Severity::Hint:    return "hint";
             case Severity::Unknown: return "unknown";
             case Severity::OK:      return "ok";
-			default:                return "error";
-			}
-		}
+            default:                return "error";
+            }
+        }
 
         /** A small helper POD that carries over the data from a diagnostic event. */
         struct Item
@@ -424,7 +385,7 @@ public:
             StringArray suggestions;
             Severity severity = Severity::Error;
 
-            ApiClass::DiagnosticResult::Classification classification;
+            DiagnosticResult::Classification classification;
 
             /** Formats the diagnostic matching F5 compile error output:
                 "locationString: message {{Base64(processorId|path|charIndex|line|col)}}"
@@ -435,11 +396,11 @@ public:
 
         };
 
-		DiagnosticResult(Severity s, const String& msg) :
-			severity(s),
-			message(msg)
-		{
-		}
+        DiagnosticResult(Severity s, const String& msg) :
+            severity(s),
+            message(msg)
+        {
+        }
 
         DiagnosticResult(const String& msg=String()) :
             severity(Severity::Unknown),
@@ -487,8 +448,8 @@ public:
         }
 
         Severity getSeverity() const { return severity; }
-        String getErrorMessage() const 
-        { 
+        String getErrorMessage() const
+        {
             String msg;
 
             msg << message;
@@ -531,7 +492,7 @@ public:
         QueryFunction signature. */
         template <typename... Fns> static QueryFunction combine(Fns... checks)
         {
-            return [=](ApiClass* c, const Identifier& id, const Array<var>& args) -> DiagnosticResult
+            return [=](DiagnosticBase* c, const Identifier& id, const Array<var>& args) -> DiagnosticResult
             {
                 DiagnosticResult best = ok();
                 ((best = DiagnosticResult::max(best, checks(c, id, args))), ...);
@@ -549,16 +510,145 @@ public:
         StringArray suggestions;
 
     };
+    
+    void setReturnType(const Identifier& fn, const Identifier& rt)
+    {
+        functionTypeInformation[fn] = rt;
+    }
+    
+    std::map<Identifier, Identifier> functionTypeInformation;
+    
+    Identifier getReturnType(const Identifier& fn) const
+    {
+        if(functionTypeInformation.find(fn) != functionTypeInformation.end())
+            return functionTypeInformation.at(fn);
+        
+        return {};
+    };
+    
+    void markMethodTouched(const Identifier& methodName)
+    {
+        touchedMethods.insert(methodName);
+    }
+
+    bool wasMethodTouched(const Identifier& methodName) const
+    {
+        return touchedMethods.count(methodName) > 0;
+    }
+
+    void clearTouchedMethods()
+    {
+        touchedMethods.clear();
+    }
+
+    /** Registers a diagnostic function that is evaluated at parse time.
+
+        A diagnostic function is a lambda that performs dynamic checks on the validity of a API call.
+        What this check is implementing is completely up to the call site. It is used by the ApiValidationAnalyzer
+        in the shadow parser to collect dynamic diagnostic reports for the LSP server.
+
+        QueryFunction must be a callable object with this signature:
+
+        DiagnosticResult getDiagnostics(DiagnosticBase* c, const Array<var>& arguments>)
+
+        Note that the arguments object might contain undefined values for parameter values that
+        could not be deduced at parse time. If you rely on that check, then just return
+        DiagnosticResult::unknown().
+    */
+    virtual void addDiagnostic(const Identifier& methodName, const DiagnosticResult::QueryFunction& qf)
+    {
+        diagnostics[methodName] = qf;
+    }
+    
+
+    /** Performs the assigned diagnostic check in the parser. */
+    DiagnosticResult performDiagnostic(const Identifier& methodName, const Array<var>& args)
+    {
+        jassert(hasDiagnosticCheck(methodName));
+        return diagnostics.at(methodName)(this, methodName, args);
+    }
+
+    /** Used by the parser to check whether to evaluate the arguments for the check. */
+    bool hasDiagnosticCheck(const Identifier& methodName) const
+    {
+        return diagnostics.find(methodName) != diagnostics.end();
+    }
+    
+    std::map<Identifier, DiagnosticResult::QueryFunction> diagnostics;
+    std::set<Identifier> touchedMethods;
+    
 #endif
+    
+    virtual bool getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const = 0;
+    
+    virtual ~DiagnosticBase() {};
+    
+    virtual void addFunction(const Identifier &id, call0 newFunction) = 0;
+    virtual void addFunction1(const Identifier &id, call1 newFunction) = 0;
+    virtual void addFunction2(const Identifier &id, call2 newFunction) = 0;
+    virtual void addFunction3(const Identifier &id, call3 newFunction) = 0;
+    virtual void addFunction4(const Identifier &id, call4 newFunction) = 0;
+    virtual void addFunction5(const Identifier &id, call5 newFunction) = 0;
+    
+};
+
+
+
+
+
+
+/** A API class is a class with a fixed number of methods and constants that can be called from Javascript.
+*
+*	It is used to improve the performance of calling C++ functions from Javascript. 
+*   This is achieved by resolving the function call at compile time making the call from Javascript almost as fast 
+*   as a regular C++ function call (the arguments still need to be evaluated).
+*
+*	You can also define constants which are resolved into literal values at compile time making them exactly 
+*   as fast as typing the literal value.
+*
+*	A ApiClass needs to be registered on the C++ side before the ScriptingEngine parses and executes the code using
+*   HiseJavascriptEngine::registerApiClass().
+*
+*   To use this class, subclass it, write the methods you want to expose to Javascript as member functions of your
+*   subclass and use these two macros to publish them to the Javascript Engine:
+*
+ *      @code{.cpp}
+ *		class MyApiClass: public ApiClass
+ *		{
+ *		public:
+ *		   MyApiClass():
+ *		     ApiClass(0) // we don't need constants here...
+ *		   {
+ *		       ADD_API_METHOD_1(square); // This adds the method wrapper to the function list
+ *		   }
+ *
+ *
+ *		   double square(double x) const
+ *		   {
+ *		       return x*x;
+ *		   };
+ *
+ *		   struct Wrapper // You'll need a subclass called `Wrapper` for it to work...
+ *		   {
+ *		   		// this defines a wrapper function that is using a static_cast to call the member function.
+ *		 		ADD_API_METHOD_WRAPPER_1(MyApiClass, square);
+ *		   };
+ *		};
+        @endcode
+ *
+ *  The Macros support up to 5 arguments. You'll need another macro for void functions: `API_VOID_METHOD_WRAPPER_X`,
+ *  but apart from this, it is pretty straight forward...
+ *
+ *  For a living example of an API class take a look at eg. the Math class or the ScriptingApi::Engine class.
+ */
+class ApiClass : public DiagnosticBase,
+				 public DebugableObjectBase
+{
+public:
 
 	// ================================================================================================================
 
-	typedef var(*call0)(ApiClass*);
-	typedef var(*call1)(ApiClass*, var);
-	typedef var(*call2)(ApiClass*, var, var);
-	typedef var(*call3)(ApiClass*, var, var, var);
-	typedef var(*call4)(ApiClass*, var, var, var, var);
-	typedef var(*call5)(ApiClass*, var, var, var, var, var);
+	
 
 	// ================================================================================================================
 
@@ -600,32 +690,32 @@ public:
     /** Adds a function with no parameters. 
     *
     *   You don't need to use this directly, but use the macro ADD_API_METHOD_0() for it. */
-	void addFunction(const Identifier &id, call0 newFunction);;
+	void addFunction(const Identifier &id, call0 newFunction) override;;
 	
     /** Adds a function with one parameter.
      *
      *   You don't need to use this directly, but use the macro ADD_API_METHOD_1() for it. */
-    void addFunction1(const Identifier &id, call1 newFunction);
+    void addFunction1(const Identifier &id, call1 newFunction) override;
 	
     /** Adds a function with two parameters.
      *
      *   You don't need to use this directly, but use the macro ADD_API_METHOD_2() for it. */
-    void addFunction2(const Identifier &id, call2 newFunction);
+    void addFunction2(const Identifier &id, call2 newFunction) override;
 	
     /** Adds a function with three parameters.
      *
      *   You don't need to use this directly, but use the macro ADD_API_METHOD_3() for it. */
-    void addFunction3(const Identifier &id, call3 newFunction);
+    void addFunction3(const Identifier &id, call3 newFunction) override;
 	
     /** Adds a function with four parameters.
      *
      *   You don't need to use this directly, but use the macro ADD_API_METHOD_4() for it. */
-    void addFunction4(const Identifier &id, call4 newFunction);
+    void addFunction4(const Identifier &id, call4 newFunction) override;
 	
     /** Adds a function with five parameters.
      *
      *   You don't need to use this directly, but use the macro ADD_API_METHOD_5() for it. */
-    void addFunction5(const Identifier &id, call5 newFunction);
+    void addFunction5(const Identifier &id, call5 newFunction) override;
 
 #if ENABLE_SCRIPTING_SAFE_CHECKS
     void addForcedParameterTypes(const Identifier& id, const VarTypeChecker::ParameterTypes& types)
@@ -671,7 +761,7 @@ public:
     *
     *   The JavascriptEngine uses this to resolve the function call into a function pointer at compile time.
     *   When the script is executed, this information will be used for blazing fast access to the methods.*/
-	bool getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const;
+	bool getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const override;
     
     /** Calls the function with the index and the argument data.
     *
@@ -688,6 +778,8 @@ public:
 
 	int getNumChildElements() const override { return numConstants; }
 	
+
+    
 	DebugInformationBase* getChildElement(int index) override
 	{
 		auto name = getConstantName(index);
@@ -752,38 +844,7 @@ public:
 	}
 
 #if USE_BACKEND
-    void markMethodTouched(const Identifier& methodName)
-    {
-        int unused;
-        jassert(getIndexAndNumArgsForFunction(methodName, unused, unused));
-        touchedMethods.insert(methodName);
-    }
-
-    bool wasMethodTouched(const Identifier& methodName) const
-    {
-        return touchedMethods.count(methodName) > 0;
-    }
-
-    void clearTouchedMethods()
-    {
-        touchedMethods.clear();
-    }
-
-    /** Registers a diagnostic function that is evaluated at parse time.
-
-        A diagnostic function is a lambda that performs dynamic checks on the validity of a API call.
-        What this check is implementing is completely up to the call site. It is used by the ApiValidationAnalyzer
-        in the shadow parser to collect dynamic diagnostic reports for the LSP server.
-
-        QueryFunction must be a callable object with this signature:
-
-        DiagnosticResult getDiagnostics(ApiClass* c, const Array<var>& arguments>)
-
-        Note that the arguments object might contain undefined values for parameter values that
-        could not be deduced at parse time. If you rely on that check, then just return
-        DiagnosticResult::unknown().
-    */
-    void addDiagnostic(const Identifier& methodName, const DiagnosticResult::QueryFunction& qf)
+    void addDiagnostic(const Identifier& methodName, const DiagnosticResult::QueryFunction& qf) override
     {
         int unused;
         auto ok = getIndexAndNumArgsForFunction(methodName, unused, unused);
@@ -791,22 +852,9 @@ public:
         // if you hit this you need to add the function first...
         jassert(ok);
         ignoreUnused(ok);
-        diagnostics[methodName] = qf;
+        
+        DiagnosticBase::addDiagnostic(methodName, qf);
     }
-
-    /** Performs the assigned diagnostic check in the parser. */
-    DiagnosticResult performDiagnostic(const Identifier& methodName, const Array<var>& args)
-    {
-        jassert(hasDiagnosticCheck(methodName));
-        return diagnostics.at(methodName)(this, methodName, args);
-    }
-
-    /** Used by the parser to check whether to evaluate the arguments for the check. */
-    bool hasDiagnosticCheck(const Identifier& methodName) const
-    {
-        return diagnostics.find(methodName) != diagnostics.end();
-    }
-
 #endif
 
 private:
@@ -814,10 +862,6 @@ private:
 	bool wantsLocation = false;
 	DebugableObjectBase::Location currentLocation;
 
-#if USE_BACKEND
-    std::map<Identifier, DiagnosticResult::QueryFunction> diagnostics;
-    std::set<Identifier> touchedMethods;
-#endif
 
 	Array<WeakReference<DebugableObjectBase>> optimizableFunctions;
 

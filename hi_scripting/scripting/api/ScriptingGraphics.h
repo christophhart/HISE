@@ -422,7 +422,9 @@ namespace ScriptingObjects
 		PathObject(ProcessorWithScriptingContent* p);
 		~PathObject();
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Path"); }
+        static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Path"); }
+        
+        Identifier getObjectName() const override { return getClassName(); }
 
 		String getDebugName() const override { return "Path"; }
 
@@ -536,6 +538,7 @@ namespace ScriptingObjects
 		// ============================================================================================================
 
 		struct Wrapper;
+        struct Diagnostics;
 
 		Path& getPath() { return p; }
 

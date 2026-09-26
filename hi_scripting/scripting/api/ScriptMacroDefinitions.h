@@ -21,27 +21,45 @@
 #define ADD_API_METHOD_4(name) static const Identifier name ## _id (#name); addFunction4(name ## _id, &Wrapper::name)
 #define ADD_API_METHOD_5(name) static const Identifier name ## _id (#name); addFunction5(name ## _id, &Wrapper::name)
 
+#define PTR_API_METHOD_0(name) static const Identifier name ## _id (#name); c->addFunction(name ## _id, &Wrapper::name)
+#define PTR_API_METHOD_1(name) static const Identifier name ## _id (#name); c->addFunction1(name ## _id, &Wrapper::name)
+#define PTR_API_METHOD_2(name) static const Identifier name ## _id (#name); c->addFunction2(name ## _id, &Wrapper::name)
+#define PTR_API_METHOD_3(name) static const Identifier name ## _id (#name); c->addFunction3(name ## _id, &Wrapper::name)
+#define PTR_API_METHOD_4(name) static const Identifier name ## _id (#name); c->addFunction4(name ## _id, &Wrapper::name)
+#define PTR_API_METHOD_5(name) static const Identifier name ## _id (#name); c->addFunction5(name ## _id, &Wrapper::name)
+
+#define PTR_API_METHOD_0_WITH_DIAGNOSTIC(method) PTR_API_METHOD_0(method); c->addDiagnostic(#method, check<Checks::method>);
+#define PTR_API_METHOD_1_WITH_DIAGNOSTIC(method) PTR_API_METHOD_1(method); c->addDiagnostic(#method, check<Checks::method>);
+#define PTR_API_METHOD_2_WITH_DIAGNOSTIC(method) PTR_API_METHOD_2(method); c->addDiagnostic(#method, check<Checks::method>);
+#define PTR_API_METHOD_3_WITH_DIAGNOSTIC(method) PTR_API_METHOD_3(method); c->addDiagnostic(#method, check<Checks::method>);
+#define PTR_API_METHOD_4_WITH_DIAGNOSTIC(method) PTR_API_METHOD_4(method); c->addDiagnostic(#method, check<Checks::method>);
+#define PTR_API_METHOD_5_WITH_DIAGNOSTIC(method) PTR_API_METHOD_5(method); c->addDiagnostic(#method, check<Checks::method>);
+
 // MACROS FOR DIAGNOSTICS ======================================================================
 
 #if USE_BACKEND
 // appends a callback argument check
 #define ADD_CALLBACK_DIAGNOSTIC(wc, id, idx) wc.addCallbackDiagnostic(this, #id, idx);
-#define ADD_CALLBACK_DIAGNOSTIC_RAW(methodName, ...) addDiagnostic(Identifier(#methodName), [](ApiClass* c, const Identifier& id, const Array<var>& args) \
+#define ADD_CALLBACK_DIAGNOSTIC_RAW(methodName, ...) addDiagnostic(Identifier(#methodName), [](DiagnosticBase* c, const Identifier& id, const Array<var>& args) \
 { \
 	return (__VA_ARGS__)(c, id, args); \
 });
 
-#define DIAGNOSTIC_MARK_DEPRECATED(methodName, text) addDiagnostic(Identifier(#methodName), [](ApiClass* c, const Identifier& id, const Array<var>& args) \
+#define DIAGNOSTIC_MARK_DEPRECATED(methodName, text) addDiagnostic(Identifier(#methodName), [](DiagnosticBase* c, const Identifier& id, const Array<var>& args) \
 { \
 	return DiagnosticResult("this method is deprecated") \
 		.withSuggestion(text) \
-		.withClassification(ApiClass::DiagnosticResult::Classification::Deprecation) \
-		.withSeverity(ApiClass::DiagnosticResult::Severity::Warning); \
+		.withClassification(DiagnosticBase::DiagnosticResult::Classification::Deprecation) \
+		.withSeverity(DiagnosticBase::DiagnosticResult::Severity::Warning); \
 });
+
+#define API_RETURN_OBJECT_TYPE(name, className) setReturnType(Identifier(#name), className::getClassName());
+
 #else
 #define ADD_CALLBACK_DIAGNOSTIC(wc, id, idx)
 #define ADD_CALLBACK_DIAGNOSTIC_RAW(methodName, ...) ;
 #define DIAGNOSTIC_MARK_DEPRECATED(methodName, text)
+#define API_RETURN_OBJECT_TYPE(name, ClassName)
 #endif
 
 #define ADD_API_METHOD_0_DEPRECATED(methodName, text) ADD_API_METHOD_0(methodName); DIAGNOSTIC_MARK_DEPRECATED(methodName, text);
@@ -52,6 +70,8 @@
 #define ADD_API_METHOD_5_DEPRECATED(methodName, text) ADD_API_METHOD_5(methodName); DIAGNOSTIC_MARK_DEPRECATED(methodName, text);
 
 // TYPED METHOD REGISTRATIONS ======================================================================
+
+
 
 #if USE_BACKEND
 #define ADD_TYPED_API_METHOD_1(name, t1) static const Identifier name ## _id (#name); addFunction1(name ## _id, &Wrapper::name); addForcedParameterTypes(name ## _id, VarTypeChecker::createParameterTypes(t1));
@@ -73,6 +93,9 @@
 #define ADD_INLINEABLE_API_METHOD_3(name) addFunction3(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));
 #define ADD_INLINEABLE_API_METHOD_4(name) addFunction4(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));
 #define ADD_INLINEABLE_API_METHOD_5(name) addFunction5(Identifier(#name), &Wrapper::name); setFunctionIsInlineable(Identifier(#name));
+
+
+#define API_METHOD_WRAPPER_0(className, name)    inline static var name(ApiClass *m) { return var(static_cast<className*>(m)->name()); };
 
 
 #define API_METHOD_WRAPPER_0(className, name)	inline static var name(ApiClass *m) { return var(static_cast<className*>(m)->name()); };

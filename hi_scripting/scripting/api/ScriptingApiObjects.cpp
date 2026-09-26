@@ -10381,6 +10381,48 @@ struct ScriptingObjects::ScriptedMidiAutomationHandler::Wrapper
 
 
 
+struct ScriptingObjects::ScriptedMidiAutomationHandler::Diagnostics: public LightweightDiagnostics
+{
+    enum class Checks
+    {
+        setAutomationDataFromObject,
+        numChecks
+    };
+    
+    static void registerMethods(DiagnosticBase* c)
+    {
+        PTR_API_METHOD_0(getAutomationDataObject);
+        PTR_API_METHOD_1_WITH_DIAGNOSTIC(setAutomationDataFromObject);
+        PTR_API_METHOD_1(setControllerNumbersInPopup);
+        PTR_API_METHOD_1(setExclusiveMode);
+        PTR_API_METHOD_1(setUpdateCallback);
+        PTR_API_METHOD_1(setConsumeAutomatedControllers);
+        PTR_API_METHOD_2(setControllerNumberNames);
+    }
+    
+    template <Checks C> static DiagnosticResult check(DiagnosticBase* b, const Identifier& methodName, const Array<var>& argValues)
+    {
+        if(C == Checks::setAutomationDataFromObject)
+        {
+            auto list = argValues[0];
+            
+            if(list.size() == 0)
+                return DiagnosticResult::fail("dummy live check: array must not be empty");
+            else
+                return DiagnosticResult::ok();
+        }
+        
+        return DiagnosticResult::fail("not implemented");
+    }
+    
+    Diagnostics(ProcessorWithScriptingContent* sp):
+      LightweightDiagnostics(sp)
+    {
+        registerMethods(this);
+    }
+};
+
+
 ScriptingObjects::ScriptedMidiAutomationHandler::ScriptedMidiAutomationHandler(ProcessorWithScriptingContent* sp) :
 	ConstScriptingObject(sp, 0),
 	handler(sp->getMainController_()->getMacroManager().getMidiControlAutomationHandler()),
@@ -10388,13 +10430,7 @@ ScriptingObjects::ScriptedMidiAutomationHandler::ScriptedMidiAutomationHandler(P
 {
 	handler->addChangeListener(this);
 
-	ADD_API_METHOD_0(getAutomationDataObject);
-	ADD_API_METHOD_1(setAutomationDataFromObject);
-	ADD_API_METHOD_1(setControllerNumbersInPopup);
-	ADD_API_METHOD_1(setExclusiveMode);
-	ADD_API_METHOD_1(setUpdateCallback);
-	ADD_API_METHOD_1(setConsumeAutomatedControllers);
-	ADD_API_METHOD_2(setControllerNumberNames);
+    Diagnostics::registerMethods(this);
 }
 
 ScriptingObjects::ScriptedMidiAutomationHandler::~ScriptedMidiAutomationHandler()

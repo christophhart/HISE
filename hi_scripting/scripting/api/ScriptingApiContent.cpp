@@ -344,7 +344,7 @@ struct ScriptingApi::Content::ScriptComponent::Validators
 #if USE_BACKEND
 	using DiagnosticResult = ApiClass::DiagnosticResult;
 
-	static DiagnosticResult checkProperty(ApiClass* c, const Identifier&, const Array<var>& args)
+	static DiagnosticResult checkProperty(DiagnosticBase* c, const Identifier&, const Array<var>& args)
 	{
 		if (auto sc = dynamic_cast<ScriptComponent*>(c))
 		{
@@ -7828,6 +7828,7 @@ colour(Colour(0xff777777))
 	setMethod("clear", Wrapper::clear);
 	setMethod("isCtrlDown", Wrapper::isCtrlDown);
 	setMethod("createPath", Wrapper::createPath);
+    API_RETURN_OBJECT_TYPE(createPath, ScriptingObjects::PathObject);
 	setMethod("createShader", Wrapper::createShader);
 	setMethod("setSuspendTimerCallback", Wrapper::setSuspendTimerCallback);
     setMethod("setKeyPressCallback", Wrapper::setKeyPressCallback);

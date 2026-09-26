@@ -1534,9 +1534,57 @@ struct ApiValidationAnalyzer : public HiseJavascriptEngine::RootObject::Optimiza
 
 	using DR = ApiClass::DiagnosticResult;
 
+	struct ObjectTypeItem
+	{
+		RO::JavascriptNamespace* ns = nullptr;
+		Identifier constRef;
+		Identifier typeInfo;
+        ReferenceCountedObjectPtr<DiagnosticBase> obj;
+	};
+
+    ObjectTypeItem getObjectTypeFromTypeMap(RO::ConstReference* ref) const
+	{
+		if (ref == nullptr || ref->ns == nullptr)
+			return {};
+
+		for (const auto& item : typeMap)
+		{
+			if (ref->ns.get() == item.ns && ref->getVariableName() == item.constRef)
+				return item;
+		}
+
+		return {};
+	}
+
+	void setObjectTypeInTypeMap(RO::JavascriptNamespace* ns, const Identifier& constRef,
+	                            const Identifier& typeInfo)
+	{
+		if (ns == nullptr || !typeInfo.isValid())
+			return;
+
+		for (auto& item : typeMap)
+		{
+			if (item.ns == ns && item.constRef == constRef)
+			{
+				item.typeInfo = typeInfo;
+				return;
+			}
+		}
+
+        auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(hiseSpecialData->processor);
+        jassert(pwsc != nullptr);
+
+        auto db = lightweightDiagnostics.createLightweightPrototype(pwsc, typeInfo);
+
+
+		typeMap.add(ObjectTypeItem{ ns, constRef, typeInfo, db });
+	}
+
+	Array<ObjectTypeItem> typeMap;
+
 	/** Run the QueryFunction for a method (if registered) and return the result.
 	    Does NOT emit — the caller coalesces with other checks before emitting. */
-	DR getQueryDiagnostic(ApiClass* c, Statement* s, const Identifier& methodName)
+	DR getQueryDiagnostic(DiagnosticBase* c, Statement* s, const Identifier& methodName)
 	{
 		if (!c->hasDiagnosticCheck(methodName))
 			return DR::ok();
@@ -1686,6 +1734,9 @@ struct ApiValidationAnalyzer : public HiseJavascriptEngine::RootObject::Optimiza
 		if (auto ac = dynamic_cast<RO::ApiCall*>(statementToOptimize))
 		{
 			auto queryDr = getQueryDiagnostic(ac->apiClass.get(), ac, ac->functionName);
+			auto returnType = ac->apiClass->getReturnType(ac->functionName);
+
+			statementToOptimize->setObjectTypeInformation(returnType);
 
 			if (queryDr.shouldReport())
 			{
@@ -1694,6 +1745,48 @@ struct ApiValidationAnalyzer : public HiseJavascriptEngine::RootObject::Optimiza
 			}
 		}
 
+		if (auto cas = dynamic_cast<RO::ConstVarStatement*>(statementToOptimize))
+		{
+			// Top-level siblings are visited before their descendants, so infer the
+			// initializer type here instead of waiting for the ApiCall visit.
+			if (auto* ac = dynamic_cast<RO::ApiCall*>(cas->initialiser.get()))
+			{
+				auto returnType = ac->apiClass->getReturnType(ac->functionName);
+
+				ac->setObjectTypeInformation(returnType);
+				cas->setObjectTypeInformation(returnType);
+				setObjectTypeInTypeMap(cas->ns, cas->name, returnType);
+			}
+            else
+            {
+                // argh, Content being a DynamicObject (wtf) needs a special route...
+                std::pair<ScriptingApi::Content*, Identifier> rt;
+                rt.first = nullptr;
+
+                if(auto f = dynamic_cast<RO::FunctionCall*>(cas->initialiser.get()))
+                {
+                    if(auto dot = dynamic_cast<RO::DotOperator*>(f->object.get()))
+                    {
+                        if(auto uc = dynamic_cast<RO::UnqualifiedName*>(dot->parent.get()))
+                        {
+                            if(uc->name.toString() == "Content")
+                            {
+                                auto pwsc = dynamic_cast<ProcessorWithScriptingContent*>(hiseSpecialData->processor);
+                                rt.first = pwsc->getScriptingContent();
+                                rt.second = dot->child.toString();
+                            }
+                        }
+                    }
+                }
+
+                if(rt.first != nullptr)
+                {
+                    auto returnType = rt.first->getReturnType(rt.second);
+                    cas->setObjectTypeInformation(returnType);
+                    setObjectTypeInTypeMap(cas->ns, cas->name, returnType);
+                }
+            }
+		}
 
 		// --- FunctionCall: check for DotOperator pattern ---
 		if (auto* funcCall = dynamic_cast<RO::FunctionCall*>(statementToOptimize))
@@ -1712,25 +1805,6 @@ struct ApiValidationAnalyzer : public HiseJavascriptEngine::RootObject::Optimiza
 					// --- Tier 3: Greedy lookup across all API classes ---
 					validateTier3(funcCall, dot);
 				}
-#if 0 // REMOVE G HACK IF DONE
-				else if (auto* un = dynamic_cast<RO::UnqualifiedName*>(dot->parent.get()))
-				{
-
-					// --- Tier 2 via naming convention: g -> Graphics ---
-					// The parameter name "g" universally means a GraphicsObject
-					// in paint routines and LAF functions. Validate at Tier 2
-					// against a prototype GraphicsObject instance.
-					if (un->name == Identifier("g"))
-					{
-						if (auto* gObj = getOrCreatePrototype("Graphics", "g"))
-							validateWithKnownObject(funcCall, dot, gObj);
-					}
-					else
-					{
-						
-					}
-				}
-#endif
 			}
 		}
 
@@ -1748,11 +1822,77 @@ private:
 
 		auto constValue = constRef->ns->constObjects.getValueAt(constRef->index);
 		auto* cso = dynamic_cast<ConstScriptingObject*>(constValue.getObject());
+		auto typeMapType = getObjectTypeFromTypeMap(constRef);
 
-		if (cso == nullptr)
-			return; // Not a scripting object (could be a value, array, etc.)
+		if (typeMapType.obj.get() != nullptr)
+		{
+			// Use the live object only when it agrees with the current source. This
+			// preserves object-dependent diagnostics without trusting a stale value.
+			if (cso != nullptr && cso->getObjectName() == typeMapType.typeInfo)
+				validateWithKnownObject(funcCall, dot, cso);
+			else
+            {
+                validateWithKnownTypeId(funcCall, dot, typeMapType);
+            }
 
+
+			return;
+		}
+
+		if (cso != nullptr)
 		validateWithKnownObject(funcCall, dot, cso);
+	}
+
+	void validateWithKnownTypeId(RO::FunctionCall* funcCall, RO::DotOperator* dot,
+	                             const ObjectTypeItem& resolvedType)
+	{
+		auto classNode = ApiHelpers::getApiTree().getChildWithName(resolvedType.typeInfo);
+
+		if (!classNode.isValid())
+			return;
+
+		auto methodName = dot->child.toString();
+		ValueTree methodNode;
+		StringArray candidates;
+
+        if(resolvedType.obj.get() != nullptr)
+        {
+            resolvedType.obj->markMethodTouched(methodName);
+        }
+
+		for (const auto& child : classNode)
+		{
+			auto candidate = child.getProperty("name").toString();
+
+			if (candidate.isNotEmpty())
+				candidates.add(candidate);
+
+			if (candidate == methodName)
+				methodNode = child;
+		}
+
+		if (!methodNode.isValid())
+		{
+			StringArray suggestions;
+			auto suggestion = FuzzySearcher::suggestCorrection(methodName, candidates, 0.6);
+
+			if (suggestion.isNotEmpty())
+				suggestions.add(suggestion);
+
+			String msg = resolvedType.typeInfo.toString() + " has no method '" + methodName + "'";
+			addDiagnostic(funcCall->location, msg, suggestions, SV::Error, CS::ApiValidation);
+			return;
+		}
+
+		auto argString = methodNode.getProperty("arguments").toString();
+		auto argDr = checkArgCount(funcCall, GreedyApiMethodMap::countArgsFromString(argString));
+
+        auto queryDr = getQueryDiagnostic(resolvedType.obj.get(), funcCall, methodName);
+
+        auto best = DR::max(queryDr, argDr);
+
+        if (best.shouldReport())
+            emitDiagnostic(funcCall->location, resolvedType.typeInfo.toString(), methodName, best);
 	}
 
 	/** Tier 2 validation with a known ConstScriptingObject.
@@ -2010,9 +2150,9 @@ private:
 
 	// Contains prototypes for all tier 3 function call parents that can be resolved unambiguously
 	// by their method name
-	std::map<std::pair<Identifier, String>, ReferenceCountedObjectPtr<ConstScriptingObject>> prototypeCache;
+	std::map<std::pair<Identifier, String>, ReferenceCountedObjectPtr<DiagnosticBase>> prototypeCache;
 
-	ConstScriptingObject* getOrCreatePrototype(const Identifier& className, const String& expression)
+	DiagnosticBase* getOrCreatePrototype(const Identifier& className, const String& expression)
 	{
 		std::pair<Identifier, String> key = { className, expression };
 
@@ -2038,6 +2178,7 @@ private:
 
 	Array<ApiDiagnostic>* diagnostics = nullptr;
 	RO::HiseSpecialData* hiseSpecialData = nullptr;
+    LightweightDiagnostics::Factory lightweightDiagnostics;
 };
 
 void HiseJavascriptEngine::RootObject::InlineFunction::Object::performLazyCallScopeAnalysis() const
