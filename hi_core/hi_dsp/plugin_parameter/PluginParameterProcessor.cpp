@@ -103,6 +103,7 @@ struct CustomAutomationParameter : public juce::AudioProcessorParameterWithID,
 		ScopedValueSetter<bool> svs(sendToHost, false);
 
 		newValue = data->range.convertFrom0to1(newValue);
+		setLastHostValue(data->range.convertTo0to1(newValue));
 		data->call(newValue, dispatch::DispatchType::sendNotificationSync);
 	}
 
@@ -386,6 +387,8 @@ struct MacroPluginParameter: public juce::HostedAudioProcessorParameter,
 			return;
 
 		ScopedValueSetter<bool> svs(sendToHost, false);
+
+		setLastHostValue(getNormalisableRange().convertTo0to1(getNormalisableRange().convertFrom0to1(newValue)));
 
 		ScopedValueSetter<bool> svs2(recursive, true);
 		md->setValue(newValue * 127.0);
