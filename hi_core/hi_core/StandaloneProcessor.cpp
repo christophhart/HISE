@@ -343,27 +343,23 @@ void AudioProcessorDriver::initialiseAudioDriver(XmlElement *deviceData)
 
 	getSettingsObject().initialiseAudioDriverData();
 
-	// Apply saved MIDI input settings to ensure MIDI inputs are properly connected
-	// This fixes the issue where MIDI keyboards appear selected but don't work until manually toggled
+	// Apply the saved MIDI input enabled-state on launch. getSetting(Midi::MidiInput) runs the
+	// value through a generic Yes/No coercion (HiseSettings.cpp getSetting), so the bitmask comes
+	// back as a bool ("1"->true, "0"->false) or a string ("3") - never an int64. The old
+	// isInt64() guard therefore always failed and the restore never ran, leaving the device
+	// disabled even though its settings checkbox read as ticked. Coerce with (int64) the same way
+	// settingWasChanged does (HiseSettings.cpp:1605): (int64)var(true)=1, (int64)var("3")=3 etc.
+	// At this point the port reads as disabled, so applying the saved state is a genuine enable.
 	auto midiInputSetting = getSettingsObject().getSetting(HiseSettings::Midi::MidiInput);
-	if (midiInputSetting.isInt64())
+	auto mc = dynamic_cast<MainController*>(this);
+
+	if (mc != nullptr && !mc->isFlakyThreadingAllowed())
 	{
 		auto state = BigInteger((int64)midiInputSetting);
-		auto mc = dynamic_cast<MainController*>(this);
+		auto midiNames = MidiInput::getDevices();
 
-		StringArray midiNames;
-		if (mc != nullptr && !mc->isFlakyThreadingAllowed())
-		{
-			midiNames = MidiInput::getDevices();
-		}
-
-		if (midiNames.size() > 0)
-		{
-			for (int i = 0; i < midiNames.size(); i++)
-			{
-				toggleMidiInput(midiNames[i], state[i]);
-			}
-		}
+		for (int i = 0; i < midiNames.size(); i++)
+			toggleMidiInput(midiNames[i], state[i]);
 	}
 }
 
