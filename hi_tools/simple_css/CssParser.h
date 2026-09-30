@@ -435,6 +435,7 @@ private:
 
 	String code;
 	String::CharPointerType ptr, end;
+	bool recoverUnterminatedFunctionAtDeclarationBoundary = false;
 
 	StringArray warnings;
 

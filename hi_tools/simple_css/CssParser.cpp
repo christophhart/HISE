@@ -1506,74 +1506,89 @@ bool Parser::matchIf(TokenType t)
 	case ValueString:
 		{
 			currentToken = "";
+			bool parsedValue = false;
 
-			while(ptr != end && *ptr != ' ' && *ptr != ';')
+			while(ptr != end && !CharacterFunctions::isWhitespace(*ptr) && *ptr != ';' && *ptr != '}')
 			{
 				if(*ptr == '\'' || *ptr == '"')
 				{
-					auto quoteChar = *ptr;
-
-					++ptr;
+					parsedValue = true;
+					auto quoteChar = *ptr++;
+					bool closed = false;
 
 					while(ptr != end)
 					{
 						if(*ptr == quoteChar)
 						{
-							ptr++;
-
-							if(*ptr == ';')
-								return true;
-
+							++ptr;
+							closed = true;
 							break;
 						}
-							
-						currentToken << *ptr++;
 
-						if(ptr != end && *ptr == quoteChar)
-						{
-							++ptr;
-							
-							if(ptr != end && *ptr == ';')
-								return currentToken.isNotEmpty();
-							else
-								break;
-							
-						}
-							
+						currentToken << *ptr++;
 					}
+
+					if(!closed)
+						throwError("Unterminated quoted value");
+
+					continue;
 				}
 
-                if(matchIf(CloseBracket))
-                    throwError("Expected ;");
-                
 				if(matchIf(OpenParen))
 				{
+					parsedValue = true;
 					int numOpen = 1;
+					juce_wchar quoteChar = 0;
+					bool hitDeclarationBoundary = false;
 
 					currentToken << '(';
 
 					while(ptr != end)
 					{
-						if(*ptr == '(')
-							++numOpen;
+						if(recoverUnterminatedFunctionAtDeclarationBoundary && quoteChar == 0 &&
+							(*ptr == ';' || *ptr == '}'))
+						{
+							hitDeclarationBoundary = true;
+							break;
+						}
 
-						if(*ptr == ')')
+						auto c = *ptr++;
+
+						if(quoteChar != 0)
+						{
+							currentToken << c;
+
+							if(c == quoteChar)
+								quoteChar = 0;
+
+							continue;
+						}
+
+						if(c == '\'' || c == '"')
+							quoteChar = c;
+						else if(c == '(')
+							++numOpen;
+						else if(c == ')')
 							--numOpen;
 
-						currentToken << *ptr++;
+						currentToken << c;
 
 						if(numOpen == 0)
 							break;
 					}
-					
+
+					if((numOpen != 0 || quoteChar != 0) && !hitDeclarationBoundary)
+						throwError("Unterminated function value");
+
 					break;
 				}
-				else if (ptr != end)
-					currentToken << *ptr++;
+
+				parsedValue = true;
+				currentToken << *ptr++;
 			}
 
 			currentToken = currentToken.trim();
-			return currentToken.isNotEmpty();
+			return parsedValue;
 		}
 	case numTokenTypes: break;
 	default: ;
@@ -1834,6 +1849,7 @@ Result Parser::parse()
 				kw.check(currentToken, KeywordDataBase::KeywordType::Property);
 				
 				match(TokenType::Colon);
+				recoverUnterminatedFunctionAtDeclarationBoundary = nl.property == "transform";
 
 				while(ptr != end)
 				{
@@ -1858,6 +1874,8 @@ Result Parser::parse()
 					if(ptr != end && *ptr == '}')
 						break;
 				}
+
+				recoverUnterminatedFunctionAtDeclarationBoundary = false;
 
 				if(nl.property == "transform")
 				{
