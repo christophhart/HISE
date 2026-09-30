@@ -1169,8 +1169,11 @@ float ExpressionParser::Node::evaluate(const Context<>& context) const
 
 void ExpressionParser::match(String::CharPointerType& ptr, const String::CharPointerType end, juce_wchar t)
 {
-	if(ptr == end && t != 0)
+	if(ptr == end)
 	{
+		if(t == 0)
+			return;
+
 		String errorMessage;
 		errorMessage << "expected: " << String(t) << ", got EOF";
 		throw Result::fail(errorMessage);
@@ -1205,57 +1208,50 @@ ExpressionParser::Node ExpressionParser::parseNode(String::CharPointerType& ptr,
 
 		if(isExpressionKeyword)
 		{
-			int bufferIndex = 0;
-			char buffer[6];
-			memset(buffer, 0, sizeof(buffer));
+			String expressionType;
+
+			while(ptr != end && *ptr != '(' && !CharacterFunctions::isWhitespace(*ptr))
+				expressionType << *ptr++;
+
+			if(ptr == end)
+				throw Result::fail("Expected '(' after expression " + expressionType);
+
+			int typeIndex = 0;
+
+			for(const auto& typeName: types)
+			{
+				if(expressionType == typeName)
+				{
+					node.type = (ExpressionType)typeIndex;
+					break;
+				}
+
+				++typeIndex;
+			}
+
+			if(node.type == ExpressionType::none)
+				throw Result::fail("Unknown expression type " + expressionType);
+
+			skipWhitespace(ptr, end);
+			match(ptr, end, '(');
 
 			while(ptr != end)
 			{
-				buffer[bufferIndex++] = *ptr++;
+				node.children.push_back(parseNode(ptr, end));
 
-				if(*ptr == '(' || CharacterFunctions::isWhitespace(*ptr))
+				if(ptr != end && *ptr == ')')
 				{
-					buffer[bufferIndex] = 0;
-					int typeIndex = 0;
-
-					for(const auto& t: types)
-					{
-						if(memcmp(t, buffer, bufferIndex) == 0)
-						{
-							node.type = (ExpressionType)typeIndex;
-							break;
-						}
-								
-						typeIndex++;
-					}
-
-					if(node.type == ExpressionType::none)
-						throw Result::fail("Unknown expression type " + String(buffer));
-
-					bufferIndex = 0;
-
-					skipWhitespace(ptr, end);
-					match(ptr, end, '(');
-
-					while(ptr != end)
-					{
-						node.children.push_back(parseNode(ptr, end));
-
-						if(ptr != end && *ptr == ')')
-						{
-							++ptr;
-							return node;
-						}
-								
-						if(ptr != end)
-						{
-							skipWhitespace(ptr, end);
-							node.op = *ptr++;
-							skipWhitespace(ptr, end);
-						}
-							
-					}
+					++ptr;
+					return node;
 				}
+
+				skipWhitespace(ptr, end);
+
+				if(ptr == end)
+					break;
+
+				node.op = *ptr++;
+				skipWhitespace(ptr, end);
 			}
 		}
 		else
@@ -1293,7 +1289,7 @@ String ExpressionParser::evaluateToCodeGeneratorLiteral(const String& expression
 
 float ExpressionParser::evaluate(const String& expression, const Context<>& context)
 {
-	if(!CharacterFunctions::isLetter(expression[0]))
+	if(expression.isEmpty() || !CharacterFunctions::isLetter(expression[0]))
 		return evaluateLiteral(expression, context);
 
 	auto ptr = expression.begin();
@@ -1418,8 +1414,11 @@ void Parser::skip()
 	if(ptr == end)
 		return;
 
-	while(CharacterFunctions::isWhitespace(*ptr))
+	while(ptr != end && CharacterFunctions::isWhitespace(*ptr))
 		++ptr;
+
+	if(ptr == end)
+		return;
 
 	if(ptr < (end-1) && *ptr == '/')
 	{
@@ -1499,7 +1498,7 @@ bool Parser::matchIf(TokenType t)
 		{
 			currentToken = "";
 
-			while(CharacterFunctions::isLetterOrDigit(*ptr) || *ptr == '-' || *ptr == '_')
+			while(ptr != end && (CharacterFunctions::isLetterOrDigit(*ptr) || *ptr == '-' || *ptr == '_'))
 				currentToken << *ptr++;
 
 			return currentToken.isNotEmpty();
@@ -1718,7 +1717,7 @@ Parser::RawClass Parser::parseSelectors()
 			}
 		}
 
-		auto isSpace = CharacterFunctions::isWhitespace(*ptr);
+		auto isSpace = ptr != end && CharacterFunctions::isWhitespace(*ptr);
 
 		currentList.push_back({ns, parsePseudoClass() });
 
