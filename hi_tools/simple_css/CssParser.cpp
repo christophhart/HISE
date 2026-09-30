@@ -1742,6 +1742,50 @@ Result Parser::parse()
 	{
 		KeywordWarning kw(*this);	
 
+		auto hasSameSelectors = [](const RawClass& first, const RawClass& second)
+		{
+			if(first.selectors.size() != second.selectors.size())
+				return false;
+
+			std::vector<bool> matched(second.selectors.size(), false);
+
+			for(const auto& firstList: first.selectors)
+			{
+				bool found = false;
+
+				for(int i = 0; i < (int)second.selectors.size() && !found; ++i)
+				{
+					if(matched[i] || firstList.size() != second.selectors[i].size())
+						continue;
+
+					found = true;
+
+					for(int j = 0; j < (int)firstList.size(); ++j)
+					{
+						if(firstList[j].first != second.selectors[i][j].first ||
+							firstList[j].second != second.selectors[i][j].second)
+						{
+							found = false;
+							break;
+						}
+					}
+
+					if(found)
+						matched[i] = true;
+				}
+
+				if(!found)
+					return false;
+			}
+
+			return true;
+		};
+
+		auto isImportantLine = [](const RawLine& line)
+		{
+			return !line.items.empty() && line.items.back() == "!important";
+		};
+
 		while(ptr != end)
 		{
 			auto newClass = parseSelectors();
@@ -1793,15 +1837,193 @@ Result Parser::parse()
 
 				while(ptr != end)
 				{
-					match(TokenType::ValueString);
+					if(!matchIf(TokenType::ValueString))
+					{
+						if(ptr != end && *ptr == '}')
+							break;
+
+						throwError("Expected declaration value");
+					}
 
 					nl.items.push_back(currentToken);
 
+					if(nl.items.size() > 1 && currentToken.containsChar(':'))
+						throwError("Expected ; between declarations");
+
 					if(matchIf(TokenType::Semicolon))
 						break;
+
+					skip();
+
+					if(ptr != end && *ptr == '}')
+						break;
 				}
-					
-				auto currentValue = currentToken;
+
+				if(nl.property == "transform")
+				{
+					String transformValue;
+
+					for(const auto& item: nl.items)
+					{
+						if(item != "!important")
+							transformValue << item;
+					}
+
+					TransformParser transformParser(nullptr, transformValue);
+					transformParser.parse({});
+
+					for(const auto& warning: transformParser.getWarnings())
+						warnings.add(getLocation(kw.currentLocation) + warning);
+
+					if(!transformParser.isValid())
+					{
+						skip();
+						kw.setLocation(*this);
+						continue;
+					}
+				}
+
+				if(nl.items.size() == 1 && nl.items.front() == "!important")
+				{
+					warnings.add(getLocation(kw.currentLocation) +
+						"Empty !important value for '" + nl.property + "' ignored.");
+					skip();
+					kw.setLocation(*this);
+					continue;
+				}
+
+				bool hasFourDigitHash = false;
+
+				for(const auto& item: nl.items)
+					hasFourDigitHash |= item.length() == 5 && item.startsWithChar('#');
+
+				if(hasFourDigitHash)
+				{
+					warnings.add(getLocation(kw.currentLocation) +
+						"Four-digit hash colour ignored; use rgba() or HISE #AARRGGBB.");
+					skip();
+					kw.setLocation(*this);
+					continue;
+				}
+
+				if(!nl.items.empty() && nl.items.front().startsWith("linear-gradient") &&
+					!hasVariable(nl.items.front()))
+				{
+					auto content = nl.items.front().fromFirstOccurrenceOf("(", false, false)
+						.upToLastOccurrenceOf(")", false, false);
+					auto gradientItems = StringArray::fromTokens(content, ",", "()");
+					gradientItems.trim();
+					bool validGradient = gradientItems.size() > 1;
+					bool hasFourDigitGradientHash = false;
+					int firstColour = !gradientItems.isEmpty() &&
+						(gradientItems[0].startsWith("to ") || gradientItems[0].endsWith("deg")) ? 1 : 0;
+
+					for(int i = firstColour; validGradient && i < gradientItems.size(); ++i)
+					{
+						auto colourItems = StringArray::fromTokens(gradientItems[i], " ", "()");
+						colourItems.removeEmptyStrings();
+
+						if(!colourItems.isEmpty())
+							hasFourDigitGradientHash |= colourItems[0].length() == 5 && colourItems[0].startsWithChar('#');
+
+						validGradient = !colourItems.isEmpty() && ColourParser(colourItems[0]).isValid();
+
+						for(int j = 1; validGradient && j < colourItems.size(); ++j)
+							validGradient = colourItems[j].endsWithChar('%');
+					}
+
+					if(!validGradient)
+					{
+						if(hasFourDigitGradientHash)
+						{
+							warnings.add(getLocation(kw.currentLocation) +
+								"Four-digit hash colour ignored; use rgba() or HISE #AARRGGBB.");
+						}
+						else
+						{
+							warnings.add(getLocation(kw.currentLocation) + "Invalid linear-gradient value ignored.");
+						}
+
+						skip();
+						kw.setLocation(*this);
+						continue;
+					}
+				}
+
+				const bool isBackgroundShorthand = nl.property == "background";
+				const bool isDeferredColourValue = !nl.items.empty() &&
+					(hasVariable(nl.items.front()) || nl.items.front().startsWith("color-mix(") ||
+					 nl.items.front() == "initial" || nl.items.front() == "unset" || nl.items.front() == "inherit");
+				const bool isPreservedBackgroundValue = !nl.items.empty() &&
+					(nl.items.front().startsWith("url(") || nl.items.front().startsWith("linear-gradient(") ||
+					 isDeferredColourValue || nl.items.front() == "none");
+				const bool isColourDeclaration = nl.property == "color" || nl.property.endsWith("-color") ||
+					(isBackgroundShorthand && !isPreservedBackgroundValue);
+
+				if(isColourDeclaration && !nl.items.empty() && !isDeferredColourValue)
+				{
+					auto colourValue = nl.items.front();
+
+					if(!ColourParser(colourValue).isValid())
+					{
+						warnings.add(getLocation(kw.currentLocation) + "Invalid colour '" + colourValue +
+							"' for '" + nl.property + "' ignored.");
+						skip();
+						kw.setLocation(*this);
+						continue;
+					}
+				}
+
+				if(nl.property == "transition" && nl.items.size() > 2)
+				{
+					auto timingFunction = nl.items[2];
+
+					if(timingFunction.startsWith("steps") && !parseTimingFunction(timingFunction))
+					{
+						warnings.add(getLocation(kw.currentLocation) + "Invalid transition timing function '" +
+							timingFunction + "' ignored.");
+						skip();
+						kw.setLocation(*this);
+						continue;
+					}
+				}
+
+				if(nl.property == "box-shadow" || nl.property == "text-shadow")
+				{
+					bool hasPreviousValue = false;
+					bool previousIsImportant = false;
+
+					auto considerPreviousLines = [&](const std::vector<RawLine>& lines)
+					{
+						for(const auto& previousLine: lines)
+						{
+							if(previousLine.property != nl.property)
+								continue;
+
+							auto previousLineIsImportant = isImportantLine(previousLine);
+
+							if(!hasPreviousValue || (int)previousLineIsImportant >= (int)previousIsImportant)
+							{
+								hasPreviousValue = true;
+								previousIsImportant = previousLineIsImportant;
+							}
+						}
+					};
+
+					for(const auto& previousClass: rawClasses)
+					{
+						if(hasSameSelectors(previousClass, newClass))
+							considerPreviousLines(previousClass.lines);
+					}
+
+					considerPreviousLines(newClass.lines);
+
+					if(hasPreviousValue && (int)isImportantLine(nl) >= (int)previousIsImportant)
+					{
+						warnings.add(getLocation(kw.currentLocation) + "Repeated " + nl.property +
+							" overrides the previous value; use commas to combine shadows.");
+					}
+				}
 					
 				newClass.lines.push_back(std::move(nl));
 
@@ -2162,8 +2384,6 @@ StyleSheet::Collection Parser::getCSSValues() const
 		
 		auto addOrOverwrite = [&](PropertyType pt, bool isImportant, const String& k, const String& v)
 		{
-			bool shouldExtend = pt == PropertyType::Shadow;
-
 			if(pt == PropertyType::Variable)
 			{
 				n->setPropertyVariable(Identifier(k.substring(2, 1000)), v);
@@ -2190,10 +2410,7 @@ StyleSheet::Collection Parser::getCSSValues() const
                                     }
                                     else
                                     {
-                                        if(shouldExtend)
-                                            propertyValue.second.appendToValue(v);
-                                        else
-                                            propertyValue.second = PropertyValue(pt, v, isImportant);
+										propertyValue.second = PropertyValue(pt, v, isImportant);
                                     }
                                 }
 								found = true;

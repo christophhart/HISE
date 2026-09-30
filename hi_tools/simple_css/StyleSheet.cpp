@@ -1219,45 +1219,63 @@ Result StyleSheet::Collection::performAtRules(DataProvider* d)
     
     
     
-	for(int i = 0; i < list.size(); i++)
+	StringArray importStack;
+	std::function<Result(List&)> processList;
+
+	processList = [&](List& listToProcess) -> Result
 	{
-		auto l = list[i];
-		auto ar = l->getAtRuleName();
-
-		auto url = l->getURLFromProperty({ "src", {} });
-		
-		if(ar == "font-face")
+		for(int i = 0; i < listToProcess.size(); ++i)
 		{
-			auto fontName = l->getPropertyValueString({"font-family", {}});
-			auto fToUse = d->loadFont(fontName, url);
+			auto l = listToProcess[i];
+			auto ar = l->getAtRuleName();
+			auto url = l->getURLFromProperty({ "src", {} });
 
-			customFonts.addIfNotAlreadyThere({ fontName, fToUse });
-		}
-		if(ar == "import")
-		{
-			auto code = d->importStyleSheet(url);
-
-			if(code.isNotEmpty())
+			if(ar == "font-face")
 			{
+				auto fontName = l->getPropertyValueString({"font-family", {}});
+				auto fToUse = d->loadFont(fontName, url);
+				customFonts.addIfNotAlreadyThere({ fontName, fToUse });
+			}
+			else if(ar == "import")
+			{
+				if(importStack.contains(url))
+					return Result::fail("Cyclic stylesheet import: " + url);
+
+				auto code = d->importStyleSheet(url);
+
+				if(code.isEmpty())
+					continue;
+
 				simple_css::Parser p(code);
 				auto ok = p.parse();
 
-				if(!ok.Result::wasOk())
-				{
-					Result::fail("Error at importing " + url + ": " + ok.Result::getErrorMessage());
-				}
-
-				list.removeAndReturn(i);
+				if(ok.failed())
+					return Result::fail("Error at importing " + url + ": " + ok.getErrorMessage());
 
 				auto newCss = p.getCSSValues();
+				importStack.add(url);
+				auto nestedResult = processList(newCss.list);
+				importStack.remove(importStack.size() - 1);
 
-				for(int j = 0; j < newCss.list.size(); j++)
-				{
-					list.insert(i+j, newCss.list[j]);
-				}
+				if(nestedResult.failed())
+					return Result::fail("Error at importing " + url + ": " + nestedResult.getErrorMessage());
+
+				listToProcess.remove(i);
+
+				for(int j = 0; j < newCss.list.size(); ++j)
+					listToProcess.insert(i + j, newCss.list[j]);
+
+				i += newCss.list.size() - 1;
 			}
 		}
-	}
+
+		return Result::ok();
+	};
+
+	auto atRuleResult = processList(list);
+
+	if(atRuleResult.failed())
+		return atRuleResult;
 
 	if(!customFonts.isEmpty())
 	{
