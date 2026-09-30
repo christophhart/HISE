@@ -223,109 +223,44 @@ std::pair<bool, Colour> ColourParser::getColourFromHardcodedString(const String&
 
 ColourParser::ColourParser(const String& value)
 {
-	auto isNumeric = [](String text)
+	if(value[0] == '#')
 	{
-		text = text.trim();
-
-		if(text.startsWithChar('+') || text.startsWithChar('-'))
-			text = text.substring(1);
-
-		return text.containsAnyOf("0123456789") && text.containsOnly("0123456789.") &&
-			text.indexOfChar('.') == text.lastIndexOfChar('.');
-	};
-
-	if(value.startsWithChar('#'))
-	{
-		String colourValue;
+		String colourValue = "0xFF";
 
 		if(value.length() == 4)
 		{
-			colourValue = "0xFF";
-
 			for(int i = 1; i < 4; i++)
 			{
 				colourValue << value[i];
 				colourValue << value[i];
 			}
 		}
-		else if(value.length() == 7)
-		{
-			colourValue = "0xFF" + value.substring(1);
-		}
-		else if(value.length() == 9)
-		{
-			colourValue = "0x" + value.substring(1);
-		}
 		else
 		{
-			return;
+			colourValue << value.substring(1, 1000);
 		}
 
-		if(!colourValue.substring(2).containsOnly("0123456789abcdefABCDEF"))
-			return;
-
 		c = Colour((uint32)colourValue.getHexValue64());
-		valid = true;
 	}
 	else if(value.startsWith("0x"))
 	{
-		if(value.length() != 10 || !value.substring(2).containsOnly("0123456789abcdefABCDEF"))
-			return;
-
 		c = Colour((uint32)value.getHexValue64());
-		valid = true;
 	}
-	else if(value.startsWith("rgb(") || value.startsWith("rgba(") || value.startsWith("hsl(") || value.startsWith("hsla("))
+	else if(value.startsWith("rgb") || value.startsWith("hsl"))
 	{
-		if(!value.endsWithChar(')'))
-			return;
-
 		auto content = value.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false);
 		auto values = StringArray::fromTokens(content, ",", "\"'");
 		values.trim();
 
-		const bool hasAlpha = value.startsWith("rgba(") || value.startsWith("hsla(");
-
-		if(values.size() != (hasAlpha ? 4 : 3))
-			return;
-
-		if(value.startsWith("hsl"))
-		{
-			if(!isNumeric(values[0]) || !values[1].endsWithChar('%') || !values[2].endsWithChar('%') ||
-				!isNumeric(values[1].dropLastCharacters(1)) || !isNumeric(values[2].dropLastCharacters(1)) ||
-				(hasAlpha && !isNumeric(values[3])))
-				return;
-
-			auto hue = std::fmod(values[0].getFloatValue(), 360.0f);
-
-			if(hue < 0.0f)
-				hue += 360.0f;
-
-			auto saturation = jlimit(0.0f, 1.0f, values[1].getFloatValue() * 0.01f);
-			auto lightness = jlimit(0.0f, 1.0f, values[2].getFloatValue() * 0.01f);
-			auto alpha = hasAlpha ? jlimit(0.0f, 1.0f, values[3].getFloatValue()) : 1.0f;
-			c = Colour::fromHSL(hue / 360.0f, saturation, lightness, alpha);
-		}
-		else
-		{
-			if(!isNumeric(values[0]) || !isNumeric(values[1]) || !isNumeric(values[2]) ||
-				(hasAlpha && !isNumeric(values[3])))
-				return;
-
-			auto r = jlimit(0, 255, values[0].getIntValue());
-			auto g = jlimit(0, 255, values[1].getIntValue());
-			auto b = jlimit(0, 255, values[2].getIntValue());
-			auto a = hasAlpha ? jlimit(0, 255, roundToInt(values[3].getFloatValue() * 255.0f)) : 255;
-			c = Colour::fromRGBA(r, g, b, a);
-		}
-
-		valid = true;
+		auto r = jlimit(0, 255, values[0].getIntValue());
+		auto g = jlimit(0, 255, values[1].getIntValue());
+		auto b = jlimit(0, 255, values[2].getIntValue());
+		auto a = jlimit(0, 255, values.size() > 3 ? roundToInt(values[3].getFloatValue() * 255) : 255);
+		c = value.startsWith("hsl") ? Colour::fromHSL((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f) : Colour::fromRGBA(r, g, b, a);
 	}
 	else
 	{
-		auto result = getColourFromHardcodedString(value);
-		valid = result.first;
-		c = result.second;
+		c = getColourFromHardcodedString(value).second;
 	}
 }
 
@@ -404,7 +339,7 @@ String ColourGradientParser::toString(Rectangle<float> area, const ColourGradien
 	}
 	else
 	{
-		auto deg = radiansToDegrees(l.getAngle());
+		auto deg = roundToInt(radiansToDegrees(l.getAngle()));
 		s << String(deg) << "deg";
 	}
 	
@@ -412,7 +347,6 @@ String ColourGradientParser::toString(Rectangle<float> area, const ColourGradien
 	{
 		auto idx = grad.getColourPosition(i);
 		s << ", #" << grad.getColourAtPosition(idx).toString();
-		s << " " << String(idx * 100.0f) << "%";
 
 	}
 
@@ -499,7 +433,7 @@ ColourGradientParser::ColourGradientParser(Rectangle<float> area, const String& 
 		gradient.point1 = { area.getCentreX(), square.getY() };
 		gradient.point2 = { area.getCentreX(), square.getBottom() };
 
-		auto rad = float_Pi + tokens[0].getFloatValue() / 180.0f * float_Pi;
+		auto rad = float_Pi + (float)tokens[0].getIntValue() / 180.0f * float_Pi;
 
 		auto t = AffineTransform::rotation(rad, area.getCentreX(), area.getCentreY());
 
@@ -532,11 +466,8 @@ ColourGradientParser::ColourGradientParser(Rectangle<float> area, const String& 
 
 			for(int j = 1; j< colourTokens.size(); j++)
 			{
-				if(colourTokens[j].endsWithChar('%'))
-				{
-					float proportion = colourTokens[j].getFloatValue() / 100.0f;
-					gradient.addColour(jlimit(0.0f, 1.0f, proportion), lastColour);
-				}
+				float proportion = (float)colourTokens[j].getIntValue() / 100.0f;
+				gradient.addColour(proportion, lastColour);
 			}
 		}
 		else
@@ -578,9 +509,9 @@ TransformParser::TransformData::TransformData(TransformTypes t):
 		0.0f, // rotateX(angle)
 		0.0f, // rotateY(angle)
 		0.0f, // rotateZ(angle)
-		0.0f, // skew(x-angle,y-angle)
-		0.0f, // skewX(angle)
-		0.0f, // skewY(angle)
+		1.0f, // skew(x-angle,y-angle)
+		1.0f, // skewX(angle)
+		1.0f, // skewY(angle)
 	};
 
 	values[0] = defaultValues[(int)t];
@@ -597,7 +528,9 @@ TransformParser::TransformData TransformParser::TransformData::interpolate(const
 	TransformData copy(TransformTypes(jmax((int)type, (int)other.type)));
 
 	copy.values[0] = values[0];
-	copy.values[1] = numValues == 1 && type == TransformTypes::scale ? values[0] : values[1];
+
+	if(numValues == 1)
+		copy.values[1] = values[0];
 
 	copy.numValues = jmax(numValues, other.numValues);
 
@@ -608,9 +541,7 @@ TransformParser::TransformData TransformParser::TransformData::interpolate(const
 	};
 
 	copy.values[0] = interpolate(copy.values[0], other.values[0], alpha);
-	auto otherSecondValue = other.numValues == 1 && other.type == TransformTypes::scale ?
-		other.values[0] : other.values[1];
-	copy.values[1] = interpolate(copy.values[1], otherSecondValue, alpha);
+	copy.values[1] = interpolate(copy.values[1], other.values[1], alpha);
 
 	return copy;
 }
@@ -627,28 +558,27 @@ AffineTransform TransformParser::TransformData::toTransform(const std::vector<Tr
 	for(const auto& d: list)
 	{
 		auto firstValue = d.values[0];
-		auto secondValue = d.numValues == 2 ? d.values[1] : 0.0f;
+		auto secondValue = d.values[(int)(d.numValues == 2)];
 
 		switch(d.type)
 		{
 		case TransformTypes::none: break;
 		case TransformTypes::matrix: break;
-		case TransformTypes::translate: t = t.followedBy(AffineTransform::translation(firstValue, secondValue)); break;
-		case TransformTypes::translateX: t = t.followedBy(AffineTransform::translation(firstValue, 0.0f)); break;
-		case TransformTypes::translateY: t = t.followedBy(AffineTransform::translation(0.0f, firstValue)); break;
-		case TransformTypes::translateZ: break;
-		case TransformTypes::scale: t = t.followedBy(AffineTransform::scale(firstValue,
-			d.numValues == 2 ? secondValue : firstValue)); break;
-		case TransformTypes::scaleX: t = t.followedBy(AffineTransform::scale(firstValue, 1.0f)); break;
-		case TransformTypes::scaleY: t = t.followedBy(AffineTransform::scale(1.0f, firstValue)); break;
-		case TransformTypes::scaleZ: break;
+		case TransformTypes::translate: ;
+		case TransformTypes::translateX: ;
+		case TransformTypes::translateY: ;
+		case TransformTypes::translateZ: t = t.followedBy(AffineTransform::translation(firstValue, secondValue)); break;
+		case TransformTypes::scale: ;
+		case TransformTypes::scaleX: ;
+		case TransformTypes::scaleY: ;
+		case TransformTypes::scaleZ: t = t.followedBy(AffineTransform::scale(firstValue, secondValue)); break;
 		case TransformTypes::rotate: ;
-		case TransformTypes::rotateZ: t = t.followedBy(AffineTransform::rotation(firstValue)); break;
 		case TransformTypes::rotateX: ;
-		case TransformTypes::rotateY: break;
-		case TransformTypes::skew: t = t.followedBy(AffineTransform::shear(firstValue, secondValue)); break;
-		case TransformTypes::skewX: t = t.followedBy(AffineTransform::shear(firstValue, 0.0f)); break;
-		case TransformTypes::skewY: t = t.followedBy(AffineTransform::shear(0.0f, firstValue)); break;
+		case TransformTypes::rotateY: ;
+		case TransformTypes::rotateZ: t = t.followedBy(AffineTransform::rotation(firstValue)); break;
+		case TransformTypes::skew: ;
+		case TransformTypes::skewX: ;
+		case TransformTypes::skewY: t = t.followedBy(AffineTransform::shear(firstValue, secondValue)); break;
 		case TransformTypes::numTransformTypes: break;
 		default: ;
 		}
@@ -673,163 +603,76 @@ std::vector<TransformParser::TransformData> TransformParser::parse(Rectangle<flo
 	auto end = t.end();
 
 	std::vector<TransformData> list;
-	warnings.clear();
-	valid = true;
-
-	static constexpr int maxTransformNameLength = 19;
 
 	while(ptr != end)
 	{
-		while(ptr != end && CharacterFunctions::isWhitespace(*ptr))
-			++ptr;
+		char nameBuffer[20];
+		int bufferIndex = 0;
 
-		if(ptr == end)
-			break;
-
-		String transformId;
-
-		while(ptr != end && *ptr != '(')
-			transformId << *ptr++;
-
-		transformId = transformId.trim();
-
-		if(ptr == end)
+		while(ptr != end)
 		{
-			if(transformId == "none")
-				list.emplace_back(TransformTypes::none);
+			if(*ptr == '(')
+			{
+				++ptr;
+				break;
+			}
+
+			if(isPositiveAndBelow(bufferIndex, sizeof(nameBuffer)))
+				nameBuffer[bufferIndex++] = *ptr++;
 			else
 			{
-				warnings.add("Malformed transform '" + transformId + "': expected '('.");
-				valid = false;
+				break;
 			}
-
-			break;
 		}
 
-		++ptr;
+		nameBuffer[bufferIndex] = 0;
 
-		String argument;
-		StringArray arguments;
-		int parenthesisDepth = 1;
-		bool hasClosingParenthesis = false;
-		bool hasExcessiveArguments = false;
+		String transformId(nameBuffer);
+		
+		KeywordDataBase database;
+		auto typeIndex = database.getAsEnum("transform", transformId, TransformTypes::none);
+		TransformData nd(typeIndex);
+			
+		bufferIndex = 0;
 
-		while(ptr != end && parenthesisDepth > 0)
+		int valueIndex = 0;
+
+		while(ptr != end)
 		{
-			auto c = *ptr++;
-
-			if(c == '(')
+			if(*ptr == ',' || *ptr == ')')
 			{
-				++parenthesisDepth;
-				argument << c;
-				continue;
-			}
+				nameBuffer[bufferIndex] = 0;
 
-			if(c == ')')
-			{
-				--parenthesisDepth;
+				auto areaToUse = totalArea;
 
-				if(parenthesisDepth == 0)
+				if(nd.type >= TransformTypes::scale)
+					areaToUse = { 1.0f, 1.0f };
+
+				nd.values[valueIndex++] = ExpressionParser::evaluate(String(nameBuffer).trim(), { valueIndex == 0, areaToUse, defaultSize });
+
+				bufferIndex = 0;
+
+				if(*ptr == ')')
 				{
-					hasClosingParenthesis = true;
+					++ptr;
 					break;
 				}
-
-				argument << c;
-				continue;
-			}
-
-			if(c == ',' && parenthesisDepth == 1)
-			{
-				if(arguments.size() < 2)
-					arguments.add(argument.trim());
 				else
-					hasExcessiveArguments = true;
-
-				argument.clear();
-				continue;
+				{
+					++ptr;
+					continue;
+				}
 			}
 
-			argument << c;
+			if(isPositiveAndBelow(bufferIndex, sizeof(nameBuffer)))
+				nameBuffer[bufferIndex++] = *ptr++;
+			else
+			{
+				break;
+			}
 		}
 
-		if(!hasClosingParenthesis)
-		{
-			warnings.add("Malformed transform '" + transformId + "': missing ')'.");
-			valid = false;
-			break;
-		}
-
-		if(arguments.size() < 2)
-			arguments.add(argument.trim());
-		else
-			hasExcessiveArguments = true;
-
-		if(transformId.length() > maxTransformNameLength)
-		{
-			warnings.add("Malformed transform '" + transformId + "': name exceeds 19 characters.");
-			valid = false;
-			continue;
-		}
-
-		static const StringArray unsupportedTransforms = { "matrix", "translateZ", "scaleZ", "rotateX", "rotateY" };
-
-		if(unsupportedTransforms.contains(transformId))
-		{
-			warnings.add("Unsupported transform: " + transformId + ".");
-			valid = false;
-			continue;
-		}
-
-		if(hasExcessiveArguments)
-		{
-			warnings.add("Malformed transform '" + transformId + "': expected at most two arguments.");
-			valid = false;
-			continue;
-		}
-
-		if(arguments.isEmpty() || arguments.contains(String()))
-		{
-			warnings.add("Malformed transform '" + transformId + "': empty argument.");
-			valid = false;
-			continue;
-		}
-
-		static const StringArray transformNames = { "none", "matrix", "translate", "translateX", "translateY", "translateZ",
-			"scale", "scaleX", "scaleY", "scaleZ", "rotate", "rotateX", "rotateY", "rotateZ", "skew", "skewX", "skewY" };
-		auto typeIndex = (TransformTypes)transformNames.indexOf(transformId);
-
-		if((int)typeIndex == -1)
-		{
-			warnings.add("Unsupported transform: " + transformId + ".");
-			valid = false;
-			continue;
-		}
-
-		const bool allowsTwoArguments = typeIndex == TransformTypes::translate ||
-			typeIndex == TransformTypes::scale || typeIndex == TransformTypes::skew;
-
-		if(arguments.size() > (allowsTwoArguments ? 2 : 1))
-		{
-			warnings.add("Malformed transform '" + transformId + "': invalid argument count.");
-			valid = false;
-			continue;
-		}
-
-		TransformData nd(typeIndex);
-		nd.numValues = arguments.size();
-
-		for(int valueIndex = 0; valueIndex < nd.numValues; ++valueIndex)
-		{
-			auto areaToUse = totalArea;
-
-			if(nd.type >= TransformTypes::scale)
-				areaToUse = { 1.0f, 1.0f };
-
-			auto useWidth = valueIndex == 0 && nd.type != TransformTypes::translateY;
-			nd.values[valueIndex] = ExpressionParser::evaluate(arguments[valueIndex],
-				{ useWidth, areaToUse, defaultSize });
-		}
+		nd.numValues = jmin(2, valueIndex);
 
 		list.push_back(std::move(nd));
 	}
@@ -1116,7 +959,7 @@ float ExpressionParser::Node::evaluate(const Context<>& context) const
 				{
 				case '+': return l + r;
 				case '-': return l - r;
-				case '/': return r != 0.0f ? l / r : 0.0f;
+				case '/': return r > 0.0f ? l / r : 0.0f;
 				case '*': return l * r;
 				default: return 0.0f;
 				}
@@ -1139,7 +982,7 @@ float ExpressionParser::Node::evaluate(const Context<>& context) const
 			if(children.empty())
 				return 0.0f;
 
-			float value = std::numeric_limits<float>::lowest();
+			float value = std::numeric_limits<float>::min();
 
 			for(const auto& c: children)
 				value = jmax(value, c.evaluate(context));
@@ -1169,11 +1012,8 @@ float ExpressionParser::Node::evaluate(const Context<>& context) const
 
 void ExpressionParser::match(String::CharPointerType& ptr, const String::CharPointerType end, juce_wchar t)
 {
-	if(ptr == end)
+	if(ptr == end && t != 0)
 	{
-		if(t == 0)
-			return;
-
 		String errorMessage;
 		errorMessage << "expected: " << String(t) << ", got EOF";
 		throw Result::fail(errorMessage);
@@ -1208,50 +1048,57 @@ ExpressionParser::Node ExpressionParser::parseNode(String::CharPointerType& ptr,
 
 		if(isExpressionKeyword)
 		{
-			String expressionType;
-
-			while(ptr != end && *ptr != '(' && !CharacterFunctions::isWhitespace(*ptr))
-				expressionType << *ptr++;
-
-			if(ptr == end)
-				throw Result::fail("Expected '(' after expression " + expressionType);
-
-			int typeIndex = 0;
-
-			for(const auto& typeName: types)
-			{
-				if(expressionType == typeName)
-				{
-					node.type = (ExpressionType)typeIndex;
-					break;
-				}
-
-				++typeIndex;
-			}
-
-			if(node.type == ExpressionType::none)
-				throw Result::fail("Unknown expression type " + expressionType);
-
-			skipWhitespace(ptr, end);
-			match(ptr, end, '(');
+			int bufferIndex = 0;
+			char buffer[6];
+			memset(buffer, 0, sizeof(buffer));
 
 			while(ptr != end)
 			{
-				node.children.push_back(parseNode(ptr, end));
+				buffer[bufferIndex++] = *ptr++;
 
-				if(ptr != end && *ptr == ')')
+				if(*ptr == '(' || CharacterFunctions::isWhitespace(*ptr))
 				{
-					++ptr;
-					return node;
+					buffer[bufferIndex] = 0;
+					int typeIndex = 0;
+
+					for(const auto& t: types)
+					{
+						if(memcmp(t, buffer, bufferIndex) == 0)
+						{
+							node.type = (ExpressionType)typeIndex;
+							break;
+						}
+								
+						typeIndex++;
+					}
+
+					if(node.type == ExpressionType::none)
+						throw Result::fail("Unknown expression type " + String(buffer));
+
+					bufferIndex = 0;
+
+					skipWhitespace(ptr, end);
+					match(ptr, end, '(');
+
+					while(ptr != end)
+					{
+						node.children.push_back(parseNode(ptr, end));
+
+						if(ptr != end && *ptr == ')')
+						{
+							++ptr;
+							return node;
+						}
+								
+						if(ptr != end)
+						{
+							skipWhitespace(ptr, end);
+							node.op = *ptr++;
+							skipWhitespace(ptr, end);
+						}
+							
+					}
 				}
-
-				skipWhitespace(ptr, end);
-
-				if(ptr == end)
-					break;
-
-				node.op = *ptr++;
-				skipWhitespace(ptr, end);
 			}
 		}
 		else
@@ -1289,7 +1136,7 @@ String ExpressionParser::evaluateToCodeGeneratorLiteral(const String& expression
 
 float ExpressionParser::evaluate(const String& expression, const Context<>& context)
 {
-	if(expression.isEmpty() || !CharacterFunctions::isLetter(expression[0]))
+	if(!CharacterFunctions::isLetter(expression[0]))
 		return evaluateLiteral(expression, context);
 
 	auto ptr = expression.begin();
@@ -1414,11 +1261,8 @@ void Parser::skip()
 	if(ptr == end)
 		return;
 
-	while(ptr != end && CharacterFunctions::isWhitespace(*ptr))
+	while(CharacterFunctions::isWhitespace(*ptr))
 		++ptr;
-
-	if(ptr == end)
-		return;
 
 	if(ptr < (end-1) && *ptr == '/')
 	{
@@ -1498,7 +1342,7 @@ bool Parser::matchIf(TokenType t)
 		{
 			currentToken = "";
 
-			while(ptr != end && (CharacterFunctions::isLetterOrDigit(*ptr) || *ptr == '-' || *ptr == '_'))
+			while(CharacterFunctions::isLetterOrDigit(*ptr) || *ptr == '-' || *ptr == '_')
 				currentToken << *ptr++;
 
 			return currentToken.isNotEmpty();
@@ -1507,76 +1351,64 @@ bool Parser::matchIf(TokenType t)
 		{
 			currentToken = "";
 
-			while(ptr != end && !CharacterFunctions::isWhitespace(*ptr) && *ptr != ';' && *ptr != '}')
+			while(ptr != end && *ptr != ' ' && *ptr != ';')
 			{
 				if(*ptr == '\'' || *ptr == '"')
 				{
 					auto quoteChar = *ptr;
+
 					++ptr;
-					bool closed = false;
 
 					while(ptr != end)
 					{
 						if(*ptr == quoteChar)
 						{
-							++ptr;
-							closed = true;
+							ptr++;
+
+							if(*ptr == ';')
+								return true;
+
 							break;
 						}
-
+							
 						currentToken << *ptr++;
+
+						if(ptr != end && *ptr == quoteChar)
+						{
+							++ptr;
+							
+							if(ptr != end && *ptr == ';')
+								return currentToken.isNotEmpty();
+							else
+								break;
+							
+						}
+							
 					}
-
-					if(!closed)
-						throwError("Unterminated quoted value");
-
-					continue;
 				}
-				
+
+                if(matchIf(CloseBracket))
+                    throwError("Expected ;");
+                
 				if(matchIf(OpenParen))
 				{
 					int numOpen = 1;
-					juce_wchar quoteChar = 0;
-					bool hitDeclarationBoundary = false;
 
 					currentToken << '(';
 
 					while(ptr != end)
 					{
-						if(recoverUnterminatedFunctionAtDeclarationBoundary && quoteChar == 0 &&
-							(*ptr == ';' || *ptr == '}'))
-						{
-							hitDeclarationBoundary = true;
-							break;
-						}
-
-						auto c = *ptr++;
-
-						if(quoteChar != 0)
-						{
-							currentToken << c;
-
-							if(c == quoteChar)
-								quoteChar = 0;
-
-							continue;
-						}
-
-						if(c == '\'' || c == '"')
-							quoteChar = c;
-						else if(c == '(')
+						if(*ptr == '(')
 							++numOpen;
-						else if(c == ')')
+
+						if(*ptr == ')')
 							--numOpen;
 
-						currentToken << c;
+						currentToken << *ptr++;
 
 						if(numOpen == 0)
 							break;
 					}
-
-					if((numOpen != 0 || quoteChar != 0) && !hitDeclarationBoundary)
-						throwError("Unterminated function value");
 					
 					break;
 				}
@@ -1729,7 +1561,7 @@ Parser::RawClass Parser::parseSelectors()
 			}
 		}
 
-		auto isSpace = ptr != end && CharacterFunctions::isWhitespace(*ptr);
+		auto isSpace = CharacterFunctions::isWhitespace(*ptr);
 
 		currentList.push_back({ns, parsePseudoClass() });
 
@@ -1753,50 +1585,6 @@ Result Parser::parse()
 	try
 	{
 		KeywordWarning kw(*this);	
-
-		auto hasSameSelectors = [](const RawClass& first, const RawClass& second)
-		{
-			if(first.selectors.size() != second.selectors.size())
-				return false;
-
-			std::vector<bool> matched(second.selectors.size(), false);
-
-			for(const auto& firstList: first.selectors)
-			{
-				bool found = false;
-
-				for(int i = 0; i < (int)second.selectors.size() && !found; ++i)
-				{
-					if(matched[i] || firstList.size() != second.selectors[i].size())
-						continue;
-
-					found = true;
-
-					for(int j = 0; j < (int)firstList.size(); ++j)
-					{
-						if(firstList[j].first != second.selectors[i][j].first ||
-							firstList[j].second != second.selectors[i][j].second)
-						{
-							found = false;
-							break;
-						}
-					}
-
-					if(found)
-						matched[i] = true;
-				}
-
-				if(!found)
-					return false;
-			}
-
-			return true;
-		};
-
-		auto isImportantLine = [](const RawLine& line)
-		{
-			return !line.items.empty() && line.items.back() == "!important";
-		};
 
 		while(ptr != end)
 		{
@@ -1846,199 +1634,18 @@ Result Parser::parse()
 				kw.check(currentToken, KeywordDataBase::KeywordType::Property);
 				
 				match(TokenType::Colon);
-				recoverUnterminatedFunctionAtDeclarationBoundary = nl.property == "transform";
 
 				while(ptr != end)
 				{
-					if(!matchIf(TokenType::ValueString))
-					{
-						if(ptr != end && *ptr == '}')
-							break;
-
-						throwError("Expected declaration value");
-					}
+					match(TokenType::ValueString);
 
 					nl.items.push_back(currentToken);
 
-					if(nl.items.size() > 1 && currentToken.containsChar(':'))
-						throwError("Expected ; between declarations");
-
 					if(matchIf(TokenType::Semicolon))
 						break;
-
-					skip();
-
-					if(ptr != end && *ptr == '}')
-						break;
 				}
-
-				recoverUnterminatedFunctionAtDeclarationBoundary = false;
-
-				if(nl.property == "transform")
-				{
-					String transformValue;
-
-					for(const auto& item: nl.items)
-					{
-						if(item != "!important")
-							transformValue << item;
-					}
-
-					TransformParser transformParser(nullptr, transformValue);
-					transformParser.parse({});
-
-					for(const auto& warning: transformParser.getWarnings())
-						warnings.add(getLocation(kw.currentLocation) + warning);
-
-					if(!transformParser.isValid())
-					{
-						skip();
-						kw.setLocation(*this);
-						continue;
-					}
-				}
-
-				if(nl.items.size() == 1 && nl.items.front() == "!important")
-				{
-					warnings.add(getLocation(kw.currentLocation) +
-						"Empty !important value for '" + nl.property + "' ignored.");
-					skip();
-					kw.setLocation(*this);
-					continue;
-				}
-
-				bool hasFourDigitHash = false;
-
-				for(const auto& item: nl.items)
-					hasFourDigitHash |= item.length() == 5 && item.startsWithChar('#');
-
-				if(hasFourDigitHash)
-				{
-					warnings.add(getLocation(kw.currentLocation) +
-						"Four-digit hash colour ignored; use rgba() or HISE #AARRGGBB.");
-					skip();
-					kw.setLocation(*this);
-					continue;
-				}
-
-				if(!nl.items.empty() && nl.items.front().startsWith("linear-gradient") &&
-					!hasVariable(nl.items.front()))
-				{
-					auto content = nl.items.front().fromFirstOccurrenceOf("(", false, false)
-						.upToLastOccurrenceOf(")", false, false);
-					auto gradientItems = StringArray::fromTokens(content, ",", "()");
-					gradientItems.trim();
-					bool validGradient = gradientItems.size() > 1;
-					bool hasFourDigitGradientHash = false;
-					int firstColour = !gradientItems.isEmpty() &&
-						(gradientItems[0].startsWith("to ") || gradientItems[0].endsWith("deg")) ? 1 : 0;
-
-					for(int i = firstColour; validGradient && i < gradientItems.size(); ++i)
-					{
-						auto colourItems = StringArray::fromTokens(gradientItems[i], " ", "()");
-						colourItems.removeEmptyStrings();
-
-						if(!colourItems.isEmpty())
-							hasFourDigitGradientHash |= colourItems[0].length() == 5 && colourItems[0].startsWithChar('#');
-
-						validGradient = !colourItems.isEmpty() && ColourParser(colourItems[0]).isValid();
-
-						for(int j = 1; validGradient && j < colourItems.size(); ++j)
-							validGradient = colourItems[j].endsWithChar('%');
-					}
-
-					if(!validGradient)
-					{
-						if(hasFourDigitGradientHash)
-						{
-							warnings.add(getLocation(kw.currentLocation) +
-								"Four-digit hash colour ignored; use rgba() or HISE #AARRGGBB.");
-						}
-						else
-						{
-							warnings.add(getLocation(kw.currentLocation) + "Invalid linear-gradient value ignored.");
-						}
-
-						skip();
-						kw.setLocation(*this);
-						continue;
-					}
-				}
-
-				const bool isBackgroundShorthand = nl.property == "background";
-				const bool isDeferredColourValue = !nl.items.empty() &&
-					(hasVariable(nl.items.front()) || nl.items.front().startsWith("color-mix(") ||
-					 nl.items.front() == "initial" || nl.items.front() == "unset" || nl.items.front() == "inherit");
-				const bool isPreservedBackgroundValue = !nl.items.empty() &&
-					(nl.items.front().startsWith("url(") || nl.items.front().startsWith("linear-gradient(") ||
-					 isDeferredColourValue || nl.items.front() == "none");
-				const bool isColourDeclaration = nl.property == "color" || nl.property.endsWith("-color") ||
-					(isBackgroundShorthand && !isPreservedBackgroundValue);
-
-				if(isColourDeclaration && !nl.items.empty() && !isDeferredColourValue)
-				{
-					auto colourValue = nl.items.front();
-
-					if(!ColourParser(colourValue).isValid())
-					{
-						warnings.add(getLocation(kw.currentLocation) + "Invalid colour '" + colourValue +
-							"' for '" + nl.property + "' ignored.");
-						skip();
-						kw.setLocation(*this);
-						continue;
-					}
-				}
-
-				if(nl.property == "transition" && nl.items.size() > 2)
-				{
-					auto timingFunction = nl.items[2];
-
-					if(timingFunction.startsWith("steps") && !parseTimingFunction(timingFunction))
-					{
-						warnings.add(getLocation(kw.currentLocation) + "Invalid transition timing function '" +
-							timingFunction + "' ignored.");
-						skip();
-						kw.setLocation(*this);
-						continue;
-					}
-				}
-
-				if(nl.property == "box-shadow" || nl.property == "text-shadow")
-				{
-					bool hasPreviousValue = false;
-					bool previousIsImportant = false;
-
-					auto considerPreviousLines = [&](const std::vector<RawLine>& lines)
-					{
-						for(const auto& previousLine: lines)
-						{
-							if(previousLine.property != nl.property)
-								continue;
-
-							auto previousLineIsImportant = isImportantLine(previousLine);
-
-							if(!hasPreviousValue || (int)previousLineIsImportant >= (int)previousIsImportant)
-							{
-								hasPreviousValue = true;
-								previousIsImportant = previousLineIsImportant;
-							}
-						}
-					};
-
-					for(const auto& previousClass: rawClasses)
-					{
-						if(hasSameSelectors(previousClass, newClass))
-							considerPreviousLines(previousClass.lines);
-					}
-
-					considerPreviousLines(newClass.lines);
-
-					if(hasPreviousValue && (int)isImportantLine(nl) >= (int)previousIsImportant)
-					{
-						warnings.add(getLocation(kw.currentLocation) + "Repeated " + nl.property +
-							" overrides the previous value; use commas to combine shadows.");
-					}
-				}
+					
+				auto currentValue = currentToken;
 					
 				newClass.lines.push_back(std::move(nl));
 
@@ -2196,7 +1803,7 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 		switch(p)
 		{
 		case PropertyType::Font: return "";
-		case PropertyType::Border: return keyword.endsWith("-width") ? "" : "-width";
+		case PropertyType::Border: return "-width";
 		case PropertyType::BorderRadius: return "";
 		case PropertyType::Transform: return "";
 		case PropertyType::Positioning: return "";
@@ -2208,7 +1815,7 @@ String Parser::getTokenSuffix(PropertyType p, const String& keyword, String& tok
 		}
 	}
 	if(styles.contains(token))
-		return keyword.endsWith("-style") ? "" : "-style";
+		return "-style";
 	if(v == ValueType::Colour)
 	{
 		token = processValue(token, ValueType::Colour);
@@ -2252,9 +1859,6 @@ PropertyType Parser::getPropertyType(const String& p)
 	if(p.startsWith("background"))
 		return PropertyType::Colour;
 
-	if (p.startsWith("color"))
-		return PropertyType::Colour;
-
 	if(p.startsWith("transition"))
 		return PropertyType::Transition;
 
@@ -2273,45 +1877,44 @@ std::function<double(double)> Parser::parseTimingFunction(const String& t)
 
 	if(t.startsWith("steps"))
 	{
-		if(!t.startsWith("steps(") || !t.endsWithChar(')'))
-			return {};
-
 		auto values = t.fromFirstOccurrenceOf("(", false, false).upToFirstOccurrenceOf(")", false, false);
 
 		auto sa = StringArray::fromTokens(values, ",", "");
 		sa.trim();
 
-		if(sa.isEmpty() || sa.size() > 2 || sa[0].isEmpty() || !sa[0].containsOnly("0123456789"))
-			return {};
+		auto numSteps = (float)sa[0].getIntValue();
 
-		auto numSteps = sa[0].getIntValue();
-		auto mode = sa.size() == 2 ? sa[1] : "jump-end";
-
-		if(numSteps > 0)
+		if(numSteps > 0.0)
 		{
-			if(mode == "jump-start" || mode == "start")
-				return [numSteps](double input)
-				{
-					return jlimit(0.0, 1.0, (std::floor(input * numSteps) + 1.0) / numSteps);
-				};
+			enum JumpMode
+			{
+				Ceil,
+				Floor,
+				Round
+			};
 
-			if(mode == "jump-end" || mode == "end")
-				return [numSteps](double input) { return std::floor(input * numSteps) / numSteps; };
+			std::map<String, JumpMode> modes;
+			
+			modes["jump-start"] = JumpMode::Ceil;
+			modes["jump-end"] = JumpMode::Floor;
+			modes["jump-both"] = JumpMode::Round;
+			modes["jump-none"] = JumpMode::Round;
+			modes["start"] = JumpMode::Ceil;
+			modes["end"] = JumpMode::Floor;
 
-			if(mode == "jump-both")
-				return [numSteps](double input)
-				{
-					return (std::floor(input * numSteps) + 1.0) / (numSteps + 1.0);
-				};
+			JumpMode m = JumpMode::Round;
 
-			if(mode == "jump-none" && numSteps > 1)
-				return [numSteps](double input)
-				{
-					return jlimit(0.0, 1.0, std::floor(input * numSteps) / (numSteps - 1.0));
-				};
+			if(sa[1].isNotEmpty() && modes.find(sa[1]) != modes.end())
+				m = modes[sa[1]];
+
+			switch(m)
+			{
+			case Ceil: return [numSteps](double input) { return std::ceil(input * numSteps) / numSteps; };
+			case Floor: return [numSteps](double input) { return std::floor(input * numSteps) / numSteps; };
+			case Round: return [numSteps](double input) { return std::round(input * numSteps) / numSteps; };
+			default: ;
+			}
 		}
-
-		return {};
 	}
 
 	if(t.startsWith("cubic-bezier"))
@@ -2399,6 +2002,8 @@ StyleSheet::Collection Parser::getCSSValues() const
 		
 		auto addOrOverwrite = [&](PropertyType pt, bool isImportant, const String& k, const String& v)
 		{
+			bool shouldExtend = pt == PropertyType::Shadow || pt == PropertyType::Transform;
+
 			if(pt == PropertyType::Variable)
 			{
 				n->setPropertyVariable(Identifier(k.substring(2, 1000)), v);
@@ -2425,7 +2030,10 @@ StyleSheet::Collection Parser::getCSSValues() const
                                     }
                                     else
                                     {
-										propertyValue.second = PropertyValue(pt, v, isImportant);
+                                        if(shouldExtend)
+                                            propertyValue.second.appendToValue(v);
+                                        else
+                                            propertyValue.second = PropertyValue(pt, v, isImportant);
                                     }
                                 }
 								found = true;
@@ -2463,16 +2071,13 @@ StyleSheet::Collection Parser::getCSSValues() const
             auto tokens = rv.items;
 			auto isMultiValue = tokens.size() > 1;
             
-			if(!tokens.empty() && tokens.back() == "!important")
-			{
-				isImportant = true;
-				tokens.pop_back();
-				isMultiValue = tokens.size() > 1;
-			}
-
-			if(tokens.empty())
-				continue;
-			
+            if(tokens[tokens.size()-1] == "!important")
+            {
+                isImportant = true;
+                tokens.pop_back();
+                isMultiValue = tokens.size() > 1;
+            }
+            
 			if(p == PropertyType::Positioning)
 				isMultiValue = !rv.property.containsChar('-');
 
@@ -2512,9 +2117,9 @@ StyleSheet::Collection Parser::getCSSValues() const
 					{
 						// tokens = [t, r, b, l]
 						addOrOverwrite(p, isImportant, rv.property + "-top", tokens[0]);
-						addOrOverwrite(p, isImportant, rv.property + "-right", tokens[1]);
-						addOrOverwrite(p, isImportant, rv.property + "-bottom", tokens[2]);
-						addOrOverwrite(p, isImportant, rv.property + "-left", tokens[3]);
+						addOrOverwrite(p, isImportant, rv.property + "-bottom", tokens[1]);
+						addOrOverwrite(p, isImportant, rv.property + "-left", tokens[2]);
+						addOrOverwrite(p, isImportant, rv.property + "-right", tokens[3]);
 					}
 
 					break;
@@ -2566,19 +2171,12 @@ StyleSheet::Collection Parser::getCSSValues() const
 						addOrOverwrite(p, isImportant, "border-bottom-left-radius", tokens[1]);
 						addOrOverwrite(p, isImportant, "border-bottom-right-radius", tokens[0]);
 					}
-					if(tokens.size() == 3)
-					{
-						addOrOverwrite(p, isImportant, "border-top-left-radius", tokens[0]);
-						addOrOverwrite(p, isImportant, "border-top-right-radius", tokens[1]);
-						addOrOverwrite(p, isImportant, "border-bottom-right-radius", tokens[2]);
-						addOrOverwrite(p, isImportant, "border-bottom-left-radius", tokens[1]);
-					}
 					if(tokens.size() == 4)
 					{
 						addOrOverwrite(p, isImportant, "border-top-left-radius", tokens[0]);
 						addOrOverwrite(p, isImportant, "border-top-right-radius", tokens[1]);
-						addOrOverwrite(p, isImportant, "border-bottom-right-radius", tokens[2]);
-						addOrOverwrite(p, isImportant, "border-bottom-left-radius", tokens[3]);
+						addOrOverwrite(p, isImportant, "border-bottom-left-radius", tokens[2]);
+						addOrOverwrite(p, isImportant, "border-bottom-right-radius", tokens[3]);
 					}
 
 					break;
@@ -2616,12 +2214,11 @@ StyleSheet::Collection Parser::getCSSValues() const
 				}
 				case PropertyType::Transform:
 				{
-					String transformValue;
-
 					for(const auto& t: tokens)
-						transformValue << (transformValue.isEmpty() ? "" : " ") << t;
-
-					addOrOverwrite(PropertyType::Transform, isImportant, rv.property, transformValue);
+					{
+						addOrOverwrite(PropertyType::Transform, isImportant, rv.property, t);
+							
+					}
 
 					break;
 				}
