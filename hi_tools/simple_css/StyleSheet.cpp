@@ -603,7 +603,9 @@ StyleSheet::Ptr StyleSheet::Collection::getForComponent(Component* c)
 	
 	if(matches.size() == 1 && !customCode && !useIsolatedCollections)
 	{
-		return matches.getFirst().second;
+		auto match = matches.getFirst().second;
+		match->updateNonLayoutPropertyFlag();
+		return match;
 	}
 
 	struct Sorter
@@ -998,18 +1000,27 @@ bool StyleSheet::Collection::clearCache(Component* c)
 	else
 	{
 		c = simple_css::FlexboxComponent::Helpers::getComponentForStyleSheet(c);
+		bool removed = false;
 
-		for(int i = 0; i < cachedMaps.size(); i++)
+		for(int i = cachedMaps.size() - 1; i >= 0; i--)
 		{
 			if(cachedMaps[i].first.getComponent() == c)
 			{
-
 				cachedMaps.remove(i);
-				return true;
+				removed = true;
 			}
 		}
 
-		return false;
+		for(int i = cachedMapForAllStates.size() - 1; i >= 0; i--)
+		{
+			if(cachedMapForAllStates[i].first.first.getComponent() == c)
+			{
+				cachedMapForAllStates.remove(i);
+				removed = true;
+			}
+		}
+
+		return removed;
 	}
 }
 
@@ -1032,7 +1043,13 @@ void StyleSheet::Collection::updateIsolatedCollection(const String& fileName, co
 			auto prev = getForComponent(c.first);
 			c.second = other.list;
 
-			clearCache(c.first);
+			auto collectionRoot = c.first.getComponent();
+
+			for(int i = cachedMaps.size() - 1; i >= 0; i--)
+			{
+				if(sameOrParent(collectionRoot, cachedMaps[i].first.getComponent()))
+					cachedMaps.remove(i);
+			}
 
 			auto ss = getForComponent(c.first);
 
@@ -1126,6 +1143,11 @@ void StyleSheet::Collection::addCollectionForComponent(Component* c, const Colle
 
 void StyleSheet::Collection::updateStyleSheetInCache(Component* component, const Ptr& ss)
 {
+	component = simple_css::FlexboxComponent::Helpers::getComponentForStyleSheet(component);
+
+	if(component == nullptr)
+		return;
+
 	for(auto& cd: cachedMaps)
 	{
 		if(cd.first == component)
@@ -1135,9 +1157,9 @@ void StyleSheet::Collection::updateStyleSheetInCache(Component* component, const
 		}
 	}
 
-	for(auto cd: cachedMapForAllStates)
+	for(auto& cd: cachedMapForAllStates)
 	{
-		if(cd.first.first == component)
+		if(cd.first.first == component && ss != nullptr && ss->matchesSelectorList({ cd.first.second }))
 		{
 			cd.second = ss;
 		}
