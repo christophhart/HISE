@@ -61,7 +61,8 @@ KeywordDataBase::KeywordDataBase()
 		                    "font-variant", "font-weight", "font", "letter-spacing", "opacity",
 	                        "text-align", "text-transform" };
 	
-	keywords[(int)KeywordType::PseudoClass] = { "hover", "active", "focus", "disabled", "hidden", "before", "after", "root", "checked", "first-child", "last-child" };
+	keywords[(int)KeywordType::PseudoClass] = { "hover", "active", "focus", "disabled", "hidden", "before",
+		"after", "before2", "after2", "root", "checked", "empty", "first-child", "last-child" };
 	keywords[(int)KeywordType::AtRules] = { "@font-face", "@import" };
 	keywords[(int)KeywordType::Type] = { "button", "body", "div", "select", "img", "input", "hr", "label", "table", "th", "tr", "td", "p", "progress", "scrollbar", "h1", "h2", "h3", "h4" };
 	keywords[(int)KeywordType::ExpressionKeywords] = { "calc", "clamp", "min", "max" };
@@ -69,7 +70,9 @@ KeywordDataBase::KeywordDataBase()
 		"::selection",
 		"align-items", "align-content", "align-self",
 		"background", "background-color", "background-size", "background-position", "background-image",
-        "border", "border-width", "border-style", "border-color",
+		"border", "border-width", "border-style", "border-color",
+		"border-top-width", "border-right-width", "border-bottom-width", "border-left-width",
+		"border-top-color", "border-right-color", "border-bottom-color", "border-left-color",
         "border-radius", "border-top-left-radius", "border-top-right-radius", "border-bottom-left-radius", "border-bottom-right-radius",
 		"bottom",
         "box-shadow", "box-sizing",
@@ -79,7 +82,7 @@ KeywordDataBase::KeywordDataBase()
         "cursor",
 		"display",
 		"flex-wrap", "flex-direction", "flex-grow", "flex-shrink", "flex-basis",
-        "font-family", "font-size", "font-weight", "font-stretch",
+		"font-family", "font-size", "font-style", "font-weight", "font-stretch",
 		"gap",
         "height",
 		"justify-content",
@@ -90,10 +93,10 @@ KeywordDataBase::KeywordDataBase()
         "opacity",
 		"object-fit",
 		"order",
-		"overflow",
 		"padding", "padding-top", "padding-left", "padding-right", "padding-bottom",
 		"position",
 		"right",
+		"src",
         "text-align",
         "text-transform",
 		"text-shadow",
@@ -115,14 +118,14 @@ KeywordDataBase::KeywordDataBase()
 	valueNames["font-style"] = { "normal", "italic" };
 	valueNames["cursor"] = { "default", "pointer", "wait", "crosshair", "text", "copy", "grabbing" };
     valueNames["box-sizing"] = { "initial", "content-box", "border-box" };
-    valueNames["transition"] = { "linear", "ease", "ease-in", "ease-in-out" };
+	valueNames["transition"] = { "linear", "ease", "ease-in", "ease-out", "ease-in-out" };
     valueNames["text-transform"] = { "none", "capitalize", "uppercase", "lowercase" };
 	valueNames["object-fit"] = { "fill", "contain", "cover", "none", "scale-down" };
 	valueNames["background-size"] = { "fill", "contain", "cover", "none", "scale-down" };
-	functNames["transform"] = { "none", "matrix", "translate", "translateX", "translateY", "translateZ",
-								"scale", "scaleX", "scaleY", "scaleZ", "rotate", "rotateX", "rotateY", "rotateZ",
+	functNames["transform"] = { "none", "translate", "translateX", "translateY",
+								"scale", "scaleX", "scaleY", "rotate", "rotateZ",
 								"skew", "skewX", "skewY" };
-    functNames["color"] = { "rgba", "rgb", "hsl", "linear-gradient", "color-mix" };
+	functNames["color"] = { "rgba", "rgb", "hsl", "hsla", "linear-gradient", "color-mix" };
 }
 
 String KeywordDataBase::getKeywordName(KeywordType type)
