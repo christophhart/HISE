@@ -636,7 +636,8 @@ Base::Base(Data::Ptr d, const ValueTree& v):
 	{
 		valueListener.setCallback(valueReference, { getId() }, valuetree::AsyncMode::Asynchronously, [&](const Identifier& id, const var& newValue)
 		{
-			ScopedLock sl(Data::getLock());
+			// getValueOrDefault() takes the lock. onValue() must not run with it: a connected
+			// slider passes the value on to its processor synchronously.
 			onValue(getValueOrDefault());
 		});
 	}
@@ -790,10 +791,7 @@ void Base::onRefreshStatic(Base& b, const ValueTree& v, Data::RefreshType rt, bo
 			MessageManager::callAsync([safe, rt, isRecursive]()
 			{
 				if(safe != nullptr)
-				{
-					ScopedLock sl(Data::getLock());
 					safe->onRefresh(rt, isRecursive);
-				}
 			});
 
 			return;
@@ -836,7 +834,7 @@ void Base::onRefresh(Data::RefreshType rt, bool recursive)
 		unfocusAllComponents();
 		return; // no recursion needed
 	case Data::RefreshType::resetValueToDefault:
-		onValue(dataTree[dcid::defaultValue]);
+		onValue(getPropertyOrDefault(dcid::defaultValue));
 	default: ;
 	}
 

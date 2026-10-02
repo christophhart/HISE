@@ -7019,6 +7019,14 @@ ScriptCreatedComponentWrapper* ScriptingApi::Content::ScriptDynamicContainer::cr
 
 var ScriptingApi::Content::ScriptDynamicContainer::setData(const var& newData)
 {
+	{
+		// The value callback belongs to the old data (setValueCallback() has to be called again),
+		// and the references below remove their values from it, which reported every one of
+		// them as an undefined value.
+		ScopedLock sl(dyncomp::Data::getLock());
+		valueListener.shutdown();
+	}
+
 	for(auto c: childReferences)
 	{
 		c->setInvalid(nullptr);
