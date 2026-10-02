@@ -576,16 +576,34 @@ struct FloatingTile: public Base
 
 	void lookAndFeelChanged() override
 	{
-		if(ft != nullptr)
-		{
-			auto laf = &getLookAndFeel();
+		applyLookAndFeel();
+	}
 
-			Component::callRecursive<Component>(ft, [laf](Component* c)
-			{
-				c->setLookAndFeel(laf);
-				return false;
-			});
-		}
+	/** Like the wrapper of a ScriptFloatingTile: the global look and feel unless a scripted one is
+	 *	set, and only a scripted look and feel replaces the one of the tile's content - otherwise the
+	 *	content keeps its own, and a MatrixPeakMeter looked different from the same static tile. */
+	void applyLookAndFeel()
+	{
+		if(ft == nullptr)
+			return;
+
+		LookAndFeel* laf = &getLookAndFeel();
+
+		if(dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::LafBase*>(laf) == nullptr)
+			laf = &data->getMainController()->getGlobalLookAndFeel();
+
+		if(dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::LafBase*>(laf) == nullptr)
+			return;
+
+		Component::callRecursive<Component>(ft, [laf](Component* c)
+		{
+			c->setLookAndFeel(laf);
+
+			if(auto ed = dynamic_cast<ComplexDataUIBase::EditorBase*>(c))
+				ed->setSpecialLookAndFeel(laf, false);
+
+			return false;
+		});
 	}
 
 	// without data there is no tile, and getContentComponent() would return a null child
@@ -595,12 +613,19 @@ struct FloatingTile: public Base
 	{
 		if(newValue.getDynamicObject() != nullptr)
 		{
-			addAndMakeVisible(ft = new hise::FloatingTile(data->getMainController(), nullptr, newValue));
+			// set up like the wrapper of a ScriptFloatingTile
+			ft = new hise::FloatingTile(data->getMainController(), nullptr);
+			ft->setIsFloatingTileOnInterface();
+			ft->setOpaque(false);
+			ft->setContent(newValue);
+			ft->refreshRootLayout();
+
+			addAndMakeVisible(ft);
 			simple_css::FlexboxComponent::Helpers::setIsOpaqueWrapper(*this, true);
 
 			auto idSelector = String("#") + getId().toString();
 			ft->getProperties().set(dcid::id, idSelector);
-			ft->setLookAndFeel(&getLookAndFeel());
+			applyLookAndFeel();
 			resized();
 		}
 		else
