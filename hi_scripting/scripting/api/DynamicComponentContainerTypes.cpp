@@ -578,7 +578,8 @@ struct FloatingTile: public Base
 		}
 	}
 
-	bool forwardToFirstChild() const override { return true; }
+	// without data there is no tile, and getContentComponent() would return a null child
+	bool forwardToFirstChild() const override { return ft != nullptr; }
 
 	void onValue(const var& newValue) override
 	{
