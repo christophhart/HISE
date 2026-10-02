@@ -1028,12 +1028,25 @@ public:
 
 		struct WrapperComponent: public Component
 		{
+			~WrapperComponent() override
+			{
+				// the components unregister from the value trees when they are deleted
+				ScopedLock sl(dyncomp::Data::getLock());
+				root = nullptr;
+			}
+
 			static void onChange(WrapperComponent& c, dyncomp::Data::Ptr d)
 			{
-				if(d != nullptr)
-					c.addAndMakeVisible(c.root = new dyncomp::Root(d));
-				else
-					c.root = nullptr;
+				{
+					// building and deleting the components registers and removes listeners
+					// on the value trees, which the scripting thread might be changing
+					ScopedLock sl(dyncomp::Data::getLock());
+
+					if(d != nullptr)
+						c.addAndMakeVisible(c.root = new dyncomp::Root(d));
+					else
+						c.root = nullptr;
+				}
 
 				c.resized();
 				

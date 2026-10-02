@@ -6284,8 +6284,6 @@ ScriptingApi::Content::ScriptDynamicContainer::ChildReference::ChildReference(Sc
 	ADD_API_METHOD_1(toBase64);
 	ADD_API_METHOD_1(fromBase64);
 	ADD_API_METHOD_1(addStateToUserPreset);
-
-	data->refreshBroadcaster.addListener(*this, onRefresh, false);
 }
 
 ScriptingApi::Content::ScriptDynamicContainer::ChildReference::~ChildReference()
@@ -6295,14 +6293,19 @@ ScriptingApi::Content::ScriptDynamicContainer::ChildReference::~ChildReference()
 	valueCallback.clear();
 	childCallback.clear();
 
+	ScopedLock sl(dyncomp::Data::getLock());
+
+	valueListener.shutdown();
+	childListener.shutdown();
 	lastValue = var();
-	data->refreshBroadcaster.removeListener(*this);
 	data = nullptr;
 }
 
 int ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getChildComponentIndex(
 	const var& childIdOrComponent) const
 {
+	ScopedLock sl(dyncomp::Data::getLock());
+
 	if(childIdOrComponent.isString())
 	{
 		auto id = childIdOrComponent.toString();
@@ -6331,6 +6334,8 @@ int ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getChildCompo
 
 bool ScriptingApi::Content::ScriptDynamicContainer::ChildReference::isEqual(const var& other) const
 {
+	ScopedLock sl(dyncomp::Data::getLock());
+
 	if(other.isString())
 	{
 		return componentData[dyncomp::dcid::id] == other;
@@ -6349,6 +6354,7 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::set(const St
 {
 	if(isValidOrThrow())
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
 		Identifier id_(id);
 
 		if(!dyncomp::dcid::Helpers::isValidProperty(id_))
@@ -6362,6 +6368,7 @@ var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::get(const Str
 {
 	if(isValidOrThrow())
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
 		Identifier id_(id);
 
 		if(!dyncomp::dcid::Helpers::isValidProperty(id_))
@@ -6384,6 +6391,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setBounds(va
 	if(r.failed())
 		reportScriptError(r.getErrorMessage());
 
+	ScopedLock sl(dyncomp::Data::getLock());
+
 	componentData.setProperty(dyncomp::dcid::x, b.getX(), um);
 	componentData.setProperty(dyncomp::dcid::y, b.getY(), um);
 	componentData.setProperty(dyncomp::dcid::width, b.getWidth(), um);
@@ -6393,6 +6402,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setBounds(va
 var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getLocalBounds(int margin) const
 {
 	using namespace dyncomp;
+
+	ScopedLock sl(dyncomp::Data::getLock());
 
 	Rectangle<int> b(0, 
 	                 0, 
@@ -6407,15 +6418,14 @@ bool ScriptingApi::Content::ScriptDynamicContainer::ChildReference::isValid() co
 	if(invalid || parentContainer.get() == nullptr)
 		return false;
 
+	ScopedLock sl(dyncomp::Data::getLock());
+
 	auto dt = data->getValueTree(dyncomp::Data::TreeType::Data);
 
 	auto valid = valuetree::Helpers::isParent(componentData, dt);
 
 	if(!valid)
-	{
-		data->refreshBroadcaster.removeListener(*const_cast<ChildReference*>(this));
 		invalid = true;
-	}
 
 	return valid;
 }
@@ -6424,6 +6434,7 @@ var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getParent() c
 {
 	if(isValidOrThrow())
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
 		auto p = componentData.getParent();
 		return parentContainer->getOrCreateChildReference(p);
 	}
@@ -6435,6 +6446,7 @@ var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getComponent(
 {
 	if(isValidOrThrow())
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
 		ValueTree c;
 		auto ok = valuetree::Helpers::forEach(componentData, [&](const ValueTree& v)
 		{
@@ -6460,6 +6472,8 @@ var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getAllCompone
 
 	if(isValidOrThrow())
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
+
 		valuetree::Helpers::forEach(componentData, [&](const ValueTree& v)
 		{
 			if(RegexFunctions::matchesWildcard(regex, v[dyncomp::dcid::id].toString()))
@@ -6477,6 +6491,8 @@ var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::addChildCompo
 	if(isValidOrThrow())
 	{
 		using namespace dyncomp;
+
+		ScopedLock sl(dyncomp::Data::getLock());
 
 		Rectangle<int> b;
 
@@ -6513,6 +6529,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::removeFromPa
 	{
 		valueCallback.clear();
 
+		ScopedLock sl(dyncomp::Data::getLock());
+
 		valuetree::Helpers::forEach(componentData, [&](ValueTree& v)
 		{
 			Identifier idToRemove(v[dyncomp::dcid::id].toString());
@@ -6525,6 +6543,7 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::removeFromPa
 
 		SafeAsyncCall::call<ChildReference>(*this, [parentUm](ChildReference& r)
 		{
+			ScopedLock sl(dyncomp::Data::getLock());
 			r.componentData.getParent().removeChild(r.componentData, parentUm);
 		});
 	}
@@ -6537,6 +6556,7 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::removeAllChi
 	{
 		SafeAsyncCall::call<ChildReference>(*this, [](ChildReference& r)
 		{
+			ScopedLock sl(dyncomp::Data::getLock());
 			r.componentData.removeAllChildren(r.um);
 		});
 	}
@@ -6547,6 +6567,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setValue(var
 {
 	if(isValidOrThrow())
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
+
 		auto id = componentData[dyncomp::dcid::id].toString();
 		auto vt = data->getValueTree(dyncomp::Data::TreeType::Values);
 
@@ -6560,6 +6582,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setValueWith
 {
 	if(isValidOrThrow())
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
+
 		auto id = componentData[dyncomp::dcid::id].toString();
 		auto vt = data->getValueTree(dyncomp::Data::TreeType::Values);
 
@@ -6571,13 +6595,19 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::changed()
 {
 	if(isValidOrThrow())
 	{
-		valueListener.sendMessageForAllProperties();
+		{
+			ScopedLock sl(dyncomp::Data::getLock());
+			valueListener.sendMessageForAllProperties();
+		}
+
 		sendMessage(dyncomp::Data::RefreshType::changed);
 	}
 }
 
 var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getValue() const
 {
+	ScopedLock sl(dyncomp::Data::getLock());
+
 	auto id = componentData[dyncomp::dcid::id].toString();
 	auto vt = data->getValueTree(dyncomp::Data::TreeType::Values);
 
@@ -6595,6 +6625,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setControlCa
 		valueCallback.incRefCount();
 		valueCallback.setThisObject(this);
 		valueCallback.setHighPriority();
+
+		ScopedLock sl(dyncomp::Data::getLock());
 
 		Array<Identifier> ids;
 
@@ -6635,9 +6667,12 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setPaintRout
 		paintRoutine.incRefCount();
 		paintRoutine.setThisObject(this);
 
-		graphics = data->createGraphicsObject(componentData, this);
+		{
+			ScopedLock sl(dyncomp::Data::getLock());
+			graphics = data->createGraphicsObject(componentData, this);
+		}
 
-		onRefresh(*this, componentData, dyncomp::Data::RefreshType::repaint, false);
+		addPaintJob();
 	}
 }
 
@@ -6649,6 +6684,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setChildCall
 		childCallback.incRefCount();
 		childCallback.setThisObject(this);
 
+		ScopedLock sl(dyncomp::Data::getLock());
+
 		childListener.setCallback(componentData, 
           valuetree::AsyncMode::Synchronously,
           VT_BIND_CHILD_LISTENER(onChildChange));
@@ -6657,6 +6694,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setChildCall
 
 String ScriptingApi::Content::ScriptDynamicContainer::ChildReference::toBase64(bool includeValues) const
 {
+	ScopedLock sl(dyncomp::Data::getLock());
+
 	MemoryBlock mb;
 
 	zstd::ZDefaultCompressor comp;
@@ -6701,6 +6740,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::fromBase64(S
 
 	SafeAsyncCall::call<ChildReference>(*this, [vt, dt](ChildReference& r)
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
+
 		r.componentData.removeAllChildren(r.um);
 		r.componentData.removeAllProperties(r.um);
 		r.componentData.copyPropertiesAndChildrenFrom(dt, r.um);
@@ -6778,6 +6819,7 @@ bool ScriptingApi::Content::ScriptDynamicContainer::ChildReference::assign(const
 {
 	if(dyncomp::dcid::Helpers::isValidProperty(id))
 	{
+		ScopedLock sl(dyncomp::Data::getLock());
 		componentData.setProperty(id, newValue, um);
 		return true;
 	}
@@ -6786,17 +6828,22 @@ bool ScriptingApi::Content::ScriptDynamicContainer::ChildReference::assign(const
 }
 
 var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::getDotProperty(const Identifier& id) const
-{ return componentData[id]; }
+{
+	ScopedLock sl(dyncomp::Data::getLock());
+	return componentData[id];
+}
 
 void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::writeAsJSON(OutputStream& os, int indentLevel,
 	bool allOnOneLine, int maximumDecimalPlaces)
 {
+	ScopedLock sl(dyncomp::Data::getLock());
 	auto obj = ValueTreeConverters::convertContentPropertiesToDynamicObject(componentData);
 	obj.getDynamicObject()->writeAsJSON(os, indentLevel, allOnOneLine, maximumDecimalPlaces);
 }
 
 void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::writeToStream(OutputStream& os)
 {
+	ScopedLock sl(dyncomp::Data::getLock());
 	auto obj = ValueTreeConverters::convertContentPropertiesToDynamicObject(componentData);
 	obj.getDynamicObject()->writeToStream(os);
 }
@@ -6808,6 +6855,8 @@ bool ScriptingApi::Content::ScriptDynamicContainer::ChildReference::matchesValue
 
 void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setInvalid(UndoManager* umToUse)
 {
+	ScopedLock sl(dyncomp::Data::getLock());
+
 	invalid = true;
 	valueCallback.clear();
 	childCallback.clear();
@@ -6833,43 +6882,47 @@ bool ScriptingApi::Content::ScriptDynamicContainer::ChildReference::isValidOrThr
 	RETURN_IF_NO_THROW(ok);
 }
 
-void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::onRefresh(ChildReference& obj, const ValueTree& v,
-                                                                              dyncomp::Data::RefreshType rt, bool isRecursive)
+void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::addPaintJob()
 {
-	if(!obj.isValid())
+	if(!paintRoutine)
 		return;
 
-	if(rt == dyncomp::Data::RefreshType::repaint && obj.paintRoutine)
+	auto p = &getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
+	auto jp = dynamic_cast<JavascriptProcessor*>(getScriptProcessor());
+
+	auto t = var(this);
+
+	p->addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, jp, [t](JavascriptProcessor* p)
 	{
-		auto p = &obj.getScriptProcessor()->getMainController_()->getJavascriptThreadPool();
-		auto jp = dynamic_cast<JavascriptProcessor*>(obj.getScriptProcessor());
+		auto s = dynamic_cast<ChildReference*>(t.getObject());
 
-		auto t = var(&obj);
-
-		p->addJob(JavascriptThreadPool::Task::LowPriorityCallbackExecution, jp, [t](JavascriptProcessor* p)
-		{
-			auto s = dynamic_cast<ChildReference*>(t.getObject());
-
-			var args(var(s->graphics.get()));
-
-			auto ok = s->paintRoutine.callSync(&args, 1);
-
-			s->graphics->getDrawHandler().flush(0, 0);
-
+		if(!s->isValid() || !s->paintRoutine)
 			return Result::ok();
-		});
-	}
 
-	if(rt == dyncomp::Data::RefreshType::changed && obj.componentData == v)
-	{
-		obj.onValue({}, obj.getValue());
-	}
+		var args(var(s->graphics.get()));
+
+		auto ok = s->paintRoutine.callSync(&args, 1);
+
+		s->graphics->getDrawHandler().flush(0, 0);
+
+		return Result::ok();
+	});
 }
 
 void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::sendMessage(dyncomp::Data::RefreshType rt,
 	bool recursive)
 {
 	data->refreshBroadcaster.sendMessage(sendNotificationAsync, componentData, rt, recursive);
+
+	// The components get the message above. The paint routines are run from here instead of
+	// listening to the broadcaster: its callback runs on the message thread while it holds
+	// its lock, so a child reference that touches the value trees in there (or removes itself
+	// as listener) will deadlock with the scripting thread.
+	if(rt == dyncomp::Data::RefreshType::repaint)
+	{
+		if(auto pc = parentContainer.get())
+			pc->repaintChildReferences(componentData, recursive);
+	}
 }
 
 
@@ -6898,6 +6951,9 @@ ScriptingApi::Content::ScriptDynamicContainer::ScriptDynamicContainer(ProcessorW
 ScriptingApi::Content::ScriptDynamicContainer::~ScriptDynamicContainer()
 {
 	childReferences.clear();
+
+	ScopedLock sl(dyncomp::Data::getLock());
+	valueListener.shutdown();
 	data = nullptr;
 }
 
@@ -6969,6 +7025,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::setValueCallback(const var& 
 		valueCallback.setThisObject(this);
 		valueCallback.setHighPriority();
 
+		ScopedLock sl(dyncomp::Data::getLock());
+
 		valueListener.setCallback(data->getValueTree(dyncomp::Data::TreeType::Values), valuetree::AsyncMode::Synchronously, [this](const Identifier& id, const var& newValue)
 		{
 			if(valueCallback)
@@ -6980,6 +7038,22 @@ void ScriptingApi::Content::ScriptDynamicContainer::setValueCallback(const var& 
 			}
 				
 		}, false);
+	}
+}
+
+void ScriptingApi::Content::ScriptDynamicContainer::repaintChildReferences(const ValueTree& v, bool recursive)
+{
+	for(auto r: childReferences)
+	{
+		bool reached;
+
+		{
+			ScopedLock sl(dyncomp::Data::getLock());
+			reached = recursive ? valuetree::Helpers::isParent(r->componentData, v) : r->componentData == v;
+		}
+
+		if(reached)
+			r->addPaintJob();
 	}
 }
 

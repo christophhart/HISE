@@ -63,7 +63,11 @@ template <typename ComponentType> struct WrapperBase: public Base
 
 	void initSpecialProperties(const Array<Identifier>& ids)
 	{
-		specialProperties.setCallback(this->dataTree, ids, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(WrapperBase::updateSpecialProperties));
+		specialProperties.setCallback(this->dataTree, ids, valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
+		{
+			ScopedLock sl(Data::getLock());
+			this->updateSpecialProperties(id, newValue);
+		});
 	}
 
 	bool forwardToFirstChild() const override { return true; }
@@ -74,6 +78,7 @@ protected:
 
 	bool useUndoManager() const
 	{
+		ScopedLock sl(Data::getLock());
 		return (bool)dataTree[dcid::useUndoManager];
 	}
 
@@ -343,6 +348,8 @@ struct Slider: public Base,
 
 	void updateSliderProperty(const Identifier& id, const var& newValue)
 	{
+		ScopedLock sl(Data::getLock());
+
 		if(id == dcid::parameterId || id == dcid::processorId)
 		{
 			auto connection = getConnectedParameter();
@@ -489,7 +496,7 @@ struct Label: public WrapperBase<hise::MultilineLabel>,
 
 	void textEditorTextChanged(TextEditor& te) override
 	{
-		if((bool)dataTree[dcid::updateEachKey])
+		if((bool)getPropertyOrDefault(dcid::updateEachKey))
 		{
 			currentText = te.getText();
 			startTimer(500);
@@ -631,6 +638,8 @@ struct TextBox: public WrapperBase<SimpleMarkdownDisplay>
 
 	void resized() override
 	{
+		ScopedLock sl(Data::getLock());
+
 		if(waitForNotEmpty && !getLocalBounds().isEmpty())
 		{
 			if(auto r = simple_css::CSSRootComponent::find(*this))
@@ -715,6 +724,8 @@ template <typename T> struct ComplexDataEditor: public Base
 
 	void onConnectionChange(const Identifier&, const var&)
 	{
+		ScopedLock sl(Data::getLock());
+
 		auto cd = dcid::Helpers::getComplexDataBase(data->getMainController(), getDataTree(), dt);
 		editor.setComplexDataUIBase(cd);
 	}
@@ -893,6 +904,8 @@ struct DragContainer: public Base
 
 		void mouseUp(const MouseEvent& e) override
 		{
+			ScopedLock sl(Data::getLock());
+
 			parent.currentlyDraggedComponent = nullptr;
 			parent.rebuildIndexArrayFromPosition(true);
 
@@ -930,6 +943,8 @@ struct DragContainer: public Base
 
 	void updateChild(const ValueTree& v, bool wasAdded) override
 	{
+		ScopedLock sl(Data::getLock());
+
 		if(wasAdded)
 		{
 			Base::updateChild(v, wasAdded);
@@ -1095,7 +1110,12 @@ struct Panel: public Base
 
 	void paintOverChildren(Graphics& g) override
 	{
-		auto text = dataTree[dcid::text].toString();
+		String text;
+
+		{
+			ScopedLock sl(Data::getLock());
+			text = dataTree[dcid::text].toString();
+		}
 
 		if(text.isNotEmpty())
 		{

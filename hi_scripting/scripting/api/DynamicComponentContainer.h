@@ -74,6 +74,19 @@ struct Data: public ReferenceCountedObject,
 
 	~Data() override;
 
+	/** The lock that guards the value trees of every dynamic container.
+	 *
+	 *  The scripting thread changes the trees through the ContainerChild API while the message
+	 *	thread builds, updates and destroys the components that listen to them, and a juce::ValueTree
+	 *	is not thread safe. Hold this lock for every access to the trees from either side.
+	 *
+	 *	It must only be held for short periods: never wait for another lock or run script code while
+	 *	holding it, and never acquire it inside a refreshBroadcaster callback (the broadcaster holds
+	 *	its own lock during the callback, so this could deadlock with the scripting thread adding a
+	 *	listener).
+	 */
+	static CriticalSection& getLock();
+
 	void setValues(const var& valueObject);
 
 	Image getImage(const String& ref);

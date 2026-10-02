@@ -231,6 +231,8 @@ Data::ComplexDataHandler::~ComplexDataHandler()
 
 void Data::ComplexDataHandler::handleAsyncUpdate()
 {
+	ScopedLock sl(Data::getLock());
+
 	if(complexData != nullptr)
 	{
 		auto um = (bool)componentData[dcid::useUndoManager] ? getMainController()->getControlUndoManager() : nullptr;
@@ -309,6 +311,12 @@ Data::RefreshType Data::getRefreshType(const var& t)
 	}
 	else
 		return (RefreshType)(int)t;
+}
+
+CriticalSection& Data::getLock()
+{
+	static CriticalSection lock;
+	return lock;
 }
 
 Data::Data(MainController* mc, const var& obj, Rectangle<int> position):
@@ -457,6 +465,8 @@ ReferenceCountedObjectPtr<Base> Data::create(const ValueTree& v)
 
 void Data::onValueChange(const Identifier& id, const var& newValue, bool useUndoManager)
 {
+	ScopedLock sl(getLock());
+
 	values.setProperty(id, newValue, useUndoManager ? um : nullptr);
 	if(valueCallback)
 		valueCallback(id, newValue);
@@ -626,6 +636,7 @@ Base::Base(Data::Ptr d, const ValueTree& v):
 	{
 		valueListener.setCallback(valueReference, { getId() }, valuetree::AsyncMode::Asynchronously, [&](const Identifier& id, const var& newValue)
 		{
+			ScopedLock sl(Data::getLock());
 			onValue(getValueOrDefault());
 		});
 	}
@@ -638,12 +649,15 @@ Base::~Base()
 
 Identifier Base::getId() const
 {
+	ScopedLock sl(Data::getLock());
 	auto s = dataTree[dcid::id].toString();
 	return s.isNotEmpty() ? Identifier(s) : Identifier();
 }
 
 void Base::updateChild(const ValueTree& v, bool wasAdded)
 {
+	ScopedLock sl(Data::getLock());
+
 	if(wasAdded)
 	{
 		auto newChild = data->create(v);
@@ -665,6 +679,8 @@ void Base::updateChild(const ValueTree& v, bool wasAdded)
 
 void Base::updateBasicProperties(const Identifier& id, const var& newValue)
 {
+	ScopedLock sl(Data::getLock());
+
     if(id == dcid::class_)
     {
 		auto classes = StringArray::fromTokens(newValue.toString(), " ", "");
@@ -710,6 +726,8 @@ void Base::updateBasicProperties(const Identifier& id, const var& newValue)
 
 void Base::updatePosition(const Identifier&, const var&)
 {
+	ScopedLock sl(Data::getLock());
+
 	Rectangle<int> b((int)dataTree[dcid::x], (int)dataTree[dcid::y], (int)dataTree[dcid::width], (int)dataTree[dcid::height]);
 
 	if(auto parent = findParentComponentOfClass<Base>())
@@ -747,6 +765,7 @@ void Base::hideChild(Base::Ptr b, bool shouldBeVisible)
 
 void Base::updateCSSProperties(const Identifier&, const var&)
 {
+	ScopedLock sl(Data::getLock());
 	writeComponentPropertiesToStyleSheet(true);
 }
 
@@ -761,7 +780,27 @@ Base* Base::findBaseParent(Component* c)
 void Base::onRefreshStatic(Base& b, const ValueTree& v, Data::RefreshType rt, bool isRecursive)
 {
 	if(b.dataTree == v)
+	{
+		// These read the value tree, which needs the data lock - and that must not be acquired
+		// while the broadcaster holds its own lock, so they run after the broadcast.
+		if(rt == Data::RefreshType::changed || rt == Data::RefreshType::resetValueToDefault)
+		{
+			Component::SafePointer<Base> safe(&b);
+
+			MessageManager::callAsync([safe, rt, isRecursive]()
+			{
+				if(safe != nullptr)
+				{
+					ScopedLock sl(Data::getLock());
+					safe->onRefresh(rt, isRecursive);
+				}
+			});
+
+			return;
+		}
+
 		b.onRefresh(rt, isRecursive);
+	}
 }
 
 void Base::initCSSForChildComponent()
@@ -830,6 +869,8 @@ bool Base::operator==(const ValueTree& otherData) const noexcept
 
 void Base::writePositionInValueTree(Rectangle<int> tb, bool useUndoManager)
 {
+	ScopedLock sl(Data::getLock());
+
 	dataTree.setProperty(dcid::x, tb.getX(), nullptr);
 	dataTree.setProperty(dcid::y, tb.getY(), nullptr);
 	dataTree.setProperty(dcid::width, tb.getWidth(), nullptr);
@@ -838,6 +879,8 @@ void Base::writePositionInValueTree(Rectangle<int> tb, bool useUndoManager)
 
 var Base::getValueOrDefault() const
 {
+	ScopedLock sl(Data::getLock());
+
 	Identifier id_(dataTree[dcid::id].toString());
 	auto vt = data->getValueTree(Data::TreeType::Values);
 
@@ -849,6 +892,8 @@ var Base::getValueOrDefault() const
 
 var Base::getPropertyOrDefault(const Identifier& id) const
 {
+	ScopedLock sl(Data::getLock());
+
 	if(dataTree.hasProperty(id))
 		return dataTree[id];
 
