@@ -6954,6 +6954,9 @@ ScriptingApi::Content::ScriptDynamicContainer::ScriptDynamicContainer(ProcessorW
 	setDefaultValue(ScriptComponent::Properties::width, 200);
 	setDefaultValue(ScriptComponent::Properties::height, 100);
 
+	// the container has no value of its own - its children are stored with addStateToUserPreset()
+	setDefaultValue(ScriptComponent::Properties::saveInPreset, false);
+
 	handleDefaultDeactivatedProperties();
 
 	ADD_API_METHOD_1(setData);

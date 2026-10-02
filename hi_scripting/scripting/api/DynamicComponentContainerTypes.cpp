@@ -186,8 +186,11 @@ struct ComboBox: public WrapperBase<hise::SubmenuComboBox>
 
 			this->component.clear(dontSendNotification);
 			this->component.addItemList(items, 1);
-			this->component.setSelectedId(currentId, dontSendNotification);
+
+			// rebuild first: the label takes its text from the menu, which only splits
+			// "Category::Item" into a submenu and its item once it is rebuilt
 			this->component.rebuildPopupMenu();
+			this->component.setSelectedId(currentId, dontSendNotification);
 		}
 	}
 };
@@ -245,6 +248,7 @@ struct Slider: public Base,
 		 dcid::suffix, 
 		 dcid::style, 
 		 dcid::showValuePopup,
+		 dcid::defaultValue,
          dcid::processorId,
 		 dcid::parameterId
 		});
@@ -301,6 +305,12 @@ struct Slider: public Base,
 
 			updateSliderProperty(id, getPropertyOrDefault(id));
 		}
+
+		// The slider is created again when the processor connection is set up (also right after
+		// the constructor), so it has to pick up the current value here - otherwise it shows its
+		// minimum until the value changes. A connected slider gets it from the processor.
+		if(dynamic_cast<HiSlider*>(s) == nullptr)
+			s->setValue((double)getValueOrDefault(), dontSendNotification);
 
 		initCSSForChildComponent();
 		resized();
@@ -382,7 +392,7 @@ struct Slider: public Base,
 
 			std::array<juce::Slider::SliderStyle, 3> styles = { juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag,
 			  juce::Slider::SliderStyle::LinearBar,
-			  juce::Slider::SliderStyle::LinearHorizontal
+			  juce::Slider::SliderStyle::LinearBarVertical
 			};
 
 			auto idx = values.indexOf(newValue.toString());
@@ -416,6 +426,10 @@ struct Slider: public Base,
 		else if (id == dcid::showValuePopup)
 		{
 			
+		}
+		else if (id == dcid::defaultValue)
+		{
+			this->slider->setDoubleClickReturnValue(true, (double)newValue);
 		}
 		else
 		{
