@@ -2516,7 +2516,7 @@ public:
 			UndoManager* um = nullptr;
 
 			mutable bool invalid = false;
-			var lastValue;
+			bool attachingCallback = false;
 
 			WeakCallbackHolder valueCallback;
 			WeakCallbackHolder paintRoutine;

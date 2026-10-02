@@ -6297,7 +6297,6 @@ ScriptingApi::Content::ScriptDynamicContainer::ChildReference::~ChildReference()
 
 	valueListener.shutdown();
 	childListener.shutdown();
-	lastValue = var();
 	data = nullptr;
 }
 
@@ -6628,6 +6627,10 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setControlCa
 
 		ScopedLock sl(dyncomp::Data::getLock());
 
+		// setCallback() reports the current value right away: a control callback
+		// only fires on a change or changed(), as for any other component
+		ScopedValueSetter<bool> svs(attachingCallback, true);
+
 		Array<Identifier> ids;
 
 		ids.add(componentData[dyncomp::dcid::id].toString());
@@ -6806,13 +6809,11 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::onChildChang
 
 void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::onValue(const Identifier&, const var& newValue)
 {
-	if(isValid() && !newValue.isVoid() && newValue != lastValue)
-	{
-		lastValue = newValue;
-
-		if(valueCallback)
-			valueCallback.call1(lastValue);
-	}
+	// Every call is a real change of the value tree or a changed() request. Do not skip a value
+	// that equals the last one: a script setValue() does not pass through here, so the user
+	// setting it back would be lost - and an empty var compares equal to 0.
+	if(!attachingCallback && isValid() && !newValue.isVoid() && valueCallback)
+		valueCallback.call1(newValue);
 }
 
 bool ScriptingApi::Content::ScriptDynamicContainer::ChildReference::assign(const Identifier& id, const var& newValue)
@@ -6868,8 +6869,6 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setInvalid(U
 
 	auto vt = data->getValueTree(dyncomp::Data::TreeType::Values);
 	vt.removeProperty(idToRemove, umToUse);
-
-	lastValue = var();
 }
 
 bool ScriptingApi::Content::ScriptDynamicContainer::ChildReference::isValidOrThrow() const
