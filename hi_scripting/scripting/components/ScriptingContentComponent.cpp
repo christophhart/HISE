@@ -1039,7 +1039,10 @@ void MarkdownPreviewPanel::initPanel()
 
 Component* ScriptContentComponent::SimpleTraverser::getDefaultComponent(Component* parentComponent)
 {
-	if(parentComponent->getWantsKeyboardFocus())
+	// Component::grabKeyboardFocusInternal() asks a component that cannot take the focus for its
+	// default component and hands the focus on to it: returning a disabled component itself makes
+	// that recurse until the stack overflows (a click on a disabled control that wants the focus).
+	if(parentComponent->getWantsKeyboardFocus() && parentComponent->isEnabled())
 		return parentComponent;
 
 	return nullptr;
