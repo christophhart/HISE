@@ -284,12 +284,41 @@ struct Base: public Component,
 
 protected:
 
+	/** Runs f after the value tree listener that is calling back has returned.
+	 *
+	 *	The listeners of the valuetree namespace hold a lock while they call back, and the scripting
+	 *	thread waits for that lock when it changes the tree while it holds Data::getLock(). So a
+	 *	listener callback must not wait for the data lock itself: it queues its work here instead,
+	 *	which runs right after on the message thread, in the order it was queued.
+	 */
+	void deferUpdate(const std::function<void()>& f);
+
 	Data::Ptr data;
 	ValueTree dataTree;
 	ValueTree valueReference;
 	simple_css::StyleSheet::Ptr css;
 
 private:
+
+	struct DeferredUpdater: public AsyncUpdater
+	{
+		DeferredUpdater(Base& b):
+		  owner(b)
+		{}
+
+		~DeferredUpdater() override
+		{
+			cancelPendingUpdate();
+		}
+
+		void handleAsyncUpdate() override;
+
+		Base& owner;
+		CriticalSection queueLock;
+		Array<std::function<void()>> queue;
+	};
+
+	DeferredUpdater deferredUpdater;
 
 	valuetree::PropertyListener basicPropertyListener;
 	valuetree::PropertyListener positionListener;

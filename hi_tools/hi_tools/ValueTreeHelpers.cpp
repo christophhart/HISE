@@ -489,7 +489,8 @@ void PropertyListener::valueTreePropertyChanged(ValueTree& v_, const Identifier&
 	{
 		auto thisValue = v[id];
 
-		if (v.hasProperty(id) && lastValues[id] == thisValue)
+		// only a value that was seen before: a missing entry is an empty var, which equals 0
+		if (v.hasProperty(id) && lastValues.contains(id) && lastValues[id] == thisValue)
 		{
 			//probably priorised
 			return;

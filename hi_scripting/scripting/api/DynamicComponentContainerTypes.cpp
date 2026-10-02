@@ -65,8 +65,11 @@ template <typename ComponentType> struct WrapperBase: public Base
 	{
 		specialProperties.setCallback(this->dataTree, ids, valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
 		{
-			ScopedLock sl(Data::getLock());
-			this->updateSpecialProperties(id, newValue);
+			this->deferUpdate([this, id, newValue]()
+			{
+				ScopedLock sl(Data::getLock());
+				this->updateSpecialProperties(id, newValue);
+			});
 		});
 	}
 
@@ -228,7 +231,10 @@ struct Slider: public Base,
 	  Base(d, v),
 	  ControlledObject(d->getMainController())
 	{
-		connectionListener.setCallback(v, getSliderIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Slider::updateSliderProperty));
+		connectionListener.setCallback(v, getSliderIds(), valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
+		{
+			deferUpdate([this, id, newValue]() { updateSliderProperty(id, newValue); });
+		});
 		updateSliderProperty(dcid::processorId, dataTree[dcid::processorId]);
 	}
 
@@ -727,7 +733,10 @@ template <typename T> struct ComplexDataEditor: public Base
 		connectionListener.setCallback(v,
 			{ dcid::processorId, dcid::index},
 			valuetree::AsyncMode::Asynchronously,
-			VT_BIND_PROPERTY_LISTENER(onConnectionChange));
+			[this](const Identifier& id, const var& newValue)
+			{
+				this->deferUpdate([this, id, newValue]() { onConnectionChange(id, newValue); });
+			});
 	}
 
 	static Identifier getStaticId()

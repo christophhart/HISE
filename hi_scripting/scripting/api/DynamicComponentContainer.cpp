@@ -618,28 +618,74 @@ void Data::setDataProviderCallbacks(const ImageProvider& ip_, const FontProvider
 Base::Base(Data::Ptr d, const ValueTree& v):
 	data(d),
 	dataTree(v),
-	valueReference(data->getValueTree(Data::TreeType::Values))
+	valueReference(data->getValueTree(Data::TreeType::Values)),
+	deferredUpdater(*this)
 {
 	auto basicProperties = dcid::Helpers::getBasicProperties();
 
-	basicPropertyListener.setCallback(dataTree, basicProperties, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateBasicProperties));
+	// All handlers take the data lock, so none of them may run inside the listener (see deferUpdate())
 
-	positionListener.setCallback(dataTree, { dcid::x, dcid::y, dcid::width, dcid::height}, valuetree::AsyncMode::Coallescated, BIND_MEMBER_FUNCTION_2(Base::updatePosition));
+	basicPropertyListener.setCallback(dataTree, basicProperties, valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
+	{
+		deferUpdate([this, id, newValue]() { updateBasicProperties(id, newValue); });
+	});
 
-	childListener.setCallback(dataTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateChild));
+	positionListener.setCallback(dataTree, { dcid::x, dcid::y, dcid::width, dcid::height}, valuetree::AsyncMode::Coallescated, [this](const Identifier& id, const var& newValue)
+	{
+		deferUpdate([this, id, newValue]() { updatePosition(id, newValue); });
+	});
 
-	cssListener.setCallback(dataTree, dcid::Helpers::getCSSProperties(), valuetree::AsyncMode::Coallescated, VT_BIND_PROPERTY_LISTENER(updateCSSProperties));
+	childListener.setCallback(dataTree, valuetree::AsyncMode::Asynchronously, [this](ValueTree c, bool wasAdded)
+	{
+		deferUpdate([this, c, wasAdded]() { updateChild(c, wasAdded); });
+	});
+
+	cssListener.setCallback(dataTree, dcid::Helpers::getCSSProperties(), valuetree::AsyncMode::Coallescated, [this](const Identifier& id, const var& newValue)
+	{
+		deferUpdate([this, id, newValue]() { updateCSSProperties(id, newValue); });
+	});
 
 	d->refreshBroadcaster.addListener(*this, onRefreshStatic, false);
 
 	if(getId().isValid())
 	{
-		valueListener.setCallback(valueReference, { getId() }, valuetree::AsyncMode::Asynchronously, [&](const Identifier& id, const var& newValue)
+		valueListener.setCallback(valueReference, { getId() }, valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
 		{
 			// getValueOrDefault() takes the lock. onValue() must not run with it: a connected
 			// slider passes the value on to its processor synchronously.
-			onValue(getValueOrDefault());
+			deferUpdate([this]() { onValue(getValueOrDefault()); });
 		});
+	}
+}
+
+void Base::deferUpdate(const std::function<void()>& f)
+{
+	{
+		ScopedLock sl(deferredUpdater.queueLock);
+		deferredUpdater.queue.add(f);
+	}
+
+	deferredUpdater.triggerAsyncUpdate();
+}
+
+void Base::DeferredUpdater::handleAsyncUpdate()
+{
+	Array<std::function<void()>> toRun;
+
+	{
+		ScopedLock sl(queueLock);
+		toRun.swapWith(queue);
+	}
+
+	Component::SafePointer<Base> safe(&owner);
+
+	for(auto& f: toRun)
+	{
+		// an update can delete this component (and this updater with it)
+		if(safe == nullptr)
+			return;
+
+		f();
 	}
 }
 

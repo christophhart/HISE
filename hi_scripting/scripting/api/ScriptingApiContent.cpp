@@ -6584,8 +6584,12 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setValue(var
 		auto id = componentData[dyncomp::dcid::id].toString();
 		auto vt = data->getValueTree(dyncomp::Data::TreeType::Values);
 
+		// The listener has to see the change (it skips a value equal to the last one it saw, so
+		// leaving it out would lose the user setting it back) - only the callback stays silent.
+		ScopedValueSetter<bool> svs(muteValueCallback, true);
+
 		// force the undomanager to be nullptr here as we have the other method
-		vt.setPropertyExcludingListener(&valueListener, id, newValue, nullptr);
+		vt.setProperty(id, newValue, nullptr);
 	}
 	
 }
@@ -6599,7 +6603,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setValueWith
 		auto id = componentData[dyncomp::dcid::id].toString();
 		auto vt = data->getValueTree(dyncomp::Data::TreeType::Values);
 
-		vt.setPropertyExcludingListener(&valueListener, id, newValue, data->getMainController()->getControlUndoManager());
+		ScopedValueSetter<bool> svs(muteValueCallback, true);
+		vt.setProperty(id, newValue, data->getMainController()->getControlUndoManager());
 	}
 }
 
@@ -6642,7 +6647,7 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setControlCa
 
 		// setCallback() reports the current value right away: a control callback
 		// only fires on a change or changed(), as for any other component
-		ScopedValueSetter<bool> svs(attachingCallback, true);
+		ScopedValueSetter<bool> svs(muteValueCallback, true);
 
 		Array<Identifier> ids;
 
@@ -6828,9 +6833,9 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::onChildChang
 void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::onValue(const Identifier&, const var& newValue)
 {
 	// Every call is a real change of the value tree or a changed() request. Do not skip a value
-	// that equals the last one: a script setValue() does not pass through here, so the user
-	// setting it back would be lost - and an empty var compares equal to 0.
-	if(!attachingCallback && isValid() && !newValue.isVoid() && valueCallback)
+	// that equals the last one: the user setting a value back after a script setValue() would be
+	// lost - and an empty var compares equal to 0.
+	if(!muteValueCallback && isValid() && !newValue.isVoid() && valueCallback)
 		valueCallback.call1(newValue);
 }
 
