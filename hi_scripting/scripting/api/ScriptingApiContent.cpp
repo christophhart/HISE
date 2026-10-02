@@ -6518,6 +6518,8 @@ var ScriptingApi::Content::ScriptDynamicContainer::ChildReference::addChildCompo
 
 void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::removeFromParent()
 {
+	ScopedLock sl(dyncomp::Data::getLock());
+
 	// we want to use the parent's undo manager for this operation...
 	UndoManager* parentUm = nullptr;
 
@@ -6527,8 +6529,6 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::removeFromPa
 	if(isValidOrThrow())
 	{
 		valueCallback.clear();
-
-		ScopedLock sl(dyncomp::Data::getLock());
 
 		valuetree::Helpers::forEach(componentData, [&](ValueTree& v)
 		{
@@ -6786,7 +6786,12 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::resetUserPre
 {
 	removeAllChildren();
 
-	auto defaultValue = componentData[dyncomp::dcid::defaultValue];
+	var defaultValue;
+
+	{
+		ScopedLock sl(dyncomp::Data::getLock());
+		defaultValue = componentData[dyncomp::dcid::defaultValue];
+	}
 
 	if(!(defaultValue.isVoid() || defaultValue.isUndefined()))
 	{
@@ -6919,6 +6924,19 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::addPaintJob(
 
 		return Result::ok();
 	});
+}
+
+void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::repaintIfReachedBy(const ValueTree& v, bool recursive)
+{
+	bool reached;
+
+	{
+		ScopedLock sl(dyncomp::Data::getLock());
+		reached = recursive ? valuetree::Helpers::isParent(componentData, v) : componentData == v;
+	}
+
+	if(reached)
+		addPaintJob();
 }
 
 void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::sendMessage(dyncomp::Data::RefreshType rt,
@@ -7061,17 +7079,7 @@ void ScriptingApi::Content::ScriptDynamicContainer::setValueCallback(const var& 
 void ScriptingApi::Content::ScriptDynamicContainer::repaintChildReferences(const ValueTree& v, bool recursive)
 {
 	for(auto r: childReferences)
-	{
-		bool reached;
-
-		{
-			ScopedLock sl(dyncomp::Data::getLock());
-			reached = recursive ? valuetree::Helpers::isParent(r->componentData, v) : r->componentData == v;
-		}
-
-		if(reached)
-			r->addPaintJob();
-	}
+		r->repaintIfReachedBy(v, recursive);
 }
 
 var ScriptingApi::Content::ScriptDynamicContainer::getOrCreateChildReference(const ValueTree& v)

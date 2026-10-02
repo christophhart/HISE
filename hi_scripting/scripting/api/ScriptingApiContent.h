@@ -2505,6 +2505,9 @@ public:
 			bool matchesValueTree(const ValueTree& v) const;
 			void setInvalid(UndoManager* umToUse);
 
+			/** Queues the paint routine if a repaint message sent to v reaches this component. */
+			void repaintIfReachedBy(const ValueTree& v, bool recursive);
+
 		private:
 
 			bool isValidOrThrow() const;
