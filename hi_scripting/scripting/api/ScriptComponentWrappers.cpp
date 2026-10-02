@@ -81,6 +81,7 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 				Array<int> indexes;
 
 				int index = 0;
+				bool anyEnabled = false;
 
 				{
 					if (safeThis->data.popupMenuItemFunction)
@@ -120,7 +121,10 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 								}
 							}
 							else
+							{
 								thisArray.add(copy);
+								anyEnabled |= !copy.contains("~~");
+							}
 
 							if (safeThis->data.tickedFunction && safeThis->data.tickedFunction(index))
 								indexes.add(index);
@@ -131,6 +135,11 @@ struct ScriptCreatedComponentWrapper::AdditionalMouseCallback: public MouseListe
 				}
 
 				
+
+				// a container hears every child, so its state function can leave a child without a
+				// menu by disabling every item - an empty menu would also take a slider pack's right click
+				if (!anyEnabled && dynamic_cast<ScriptingApi::Content::ScriptDynamicContainer*>(safeThis->scriptComponent.get()) != nullptr)
+					return;
 
 				auto m = MouseCallbackComponent::parseFromStringArray(thisArray, indexes, &safeThis->component->getLookAndFeel());
 
