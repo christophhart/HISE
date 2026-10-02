@@ -6693,7 +6693,8 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::setPaintRout
 			graphics = data->createGraphicsObject(componentData, this);
 		}
 
-		addPaintJob();
+		// tells a panel that was built before this paint routine existed, and runs it
+		sendMessage(dyncomp::Data::RefreshType::repaint);
 	}
 }
 

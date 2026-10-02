@@ -1142,6 +1142,38 @@ struct Panel: public Base
 		
 	}
 
+	void onRefresh(Data::RefreshType rt, bool recursive) override
+	{
+		// The draw handler is looked up when the panel is built, so a paint routine set after that
+		// (any setPaintRoutine() after setData() once the interface is shown) was never drawn. The
+		// panel picks it up here - after the broadcast, which must not wait for the data lock.
+		if(rt == Data::RefreshType::repaint && !bp.isUsingCustomImage)
+		{
+			Component::SafePointer<Panel> safe(this);
+
+			MessageManager::callAsync([safe]()
+			{
+				if(safe == nullptr)
+					return;
+
+				DrawActions::Handler* dh = nullptr;
+
+				{
+					ScopedLock sl(Data::getLock());
+					dh = safe->data->getDrawHandler(safe->dataTree);
+				}
+
+				if(dh != nullptr)
+				{
+					safe->bp.setDrawHandler(dh);
+					safe->bp.isUsingCustomImage = true;
+				}
+			});
+		}
+
+		Base::onRefresh(rt, recursive);
+	}
+
 	void paintOverChildren(Graphics& g) override
 	{
 		String text;
