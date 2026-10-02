@@ -121,6 +121,10 @@ struct Button: public WrapperBase<hise::MomentaryToggleButton>
 			}
 		};
 
+		// like HiToggleButton: a disabled button that wants the keyboard focus sends JUCE's focus
+		// search round in circles on a click (it offers the focus back to the button itself)
+		component.setWantsKeyboardFocus(false);
+
 		component.setIsMomentary((bool)this->dataTree[dcid::isMomentary]);
 		component.setClickingTogglesState(!(bool)this->dataTree[dcid::isMomentary]);
 		component.setTriggeredOnMouseDown((bool)this->dataTree[dcid::setValueOnClick]);
@@ -158,6 +162,9 @@ struct ComboBox: public WrapperBase<hise::SubmenuComboBox>
 	ComboBox(Data::Ptr d, const ValueTree& v):
 	  WrapperBase<juce::SubmenuComboBox>(d, v)
 	{
+		// like HiComboBox, see Button
+		component.setWantsKeyboardFocus(false);
+
 		component.setUseCustomPopup((bool)this->dataTree[dcid::useCustomPopup]);
 
 		this->component.onChange = [&]()
