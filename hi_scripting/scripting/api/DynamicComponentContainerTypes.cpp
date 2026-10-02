@@ -308,6 +308,9 @@ struct Slider: public Base,
 
 		GlobalHiseLookAndFeel::setDefaultColours(*s);
 
+		// JUCE outlines a linear bar without a text box in this colour - ScriptSlider clears it too
+		s->setColour(juce::Slider::textBoxOutlineColourId, Colours::transparentBlack);
+
 		slider = s;
 		addAndMakeVisible(s);
 
