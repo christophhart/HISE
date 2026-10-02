@@ -1306,6 +1306,7 @@ Root::Root(Data::Ptr d):
 {
 	simple_css::FlexboxComponent::Helpers::setCustomType(*this, simple_css::Selector(simple_css::ElementType::Body));
 	simple_css::FlexboxComponent::Helpers::setFallbackStyleSheet(*this, "background-color:transparent;");
+	setInterceptsMouseClicks(false, true);
 }
 
 void Root::paint(Graphics& g)
