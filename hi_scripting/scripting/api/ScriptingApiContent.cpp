@@ -6553,10 +6553,23 @@ void ScriptingApi::Content::ScriptDynamicContainer::ChildReference::removeAllChi
 {
 	if(isValidOrThrow())
 	{
-		SafeAsyncCall::call<ChildReference>(*this, [](ChildReference& r)
+		// The removal is deferred, so it takes the children there are now: a child added
+		// right after this call must not go with them.
+		Array<ValueTree> childrenToRemove;
+
 		{
 			ScopedLock sl(dyncomp::Data::getLock());
-			r.componentData.removeAllChildren(r.um);
+
+			for(auto c: componentData)
+				childrenToRemove.add(c);
+		}
+
+		SafeAsyncCall::call<ChildReference>(*this, [childrenToRemove](ChildReference& r)
+		{
+			ScopedLock sl(dyncomp::Data::getLock());
+
+			for(auto c: childrenToRemove)
+				r.componentData.removeChild(c, r.um);
 		});
 	}
 		
