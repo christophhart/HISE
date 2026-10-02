@@ -107,6 +107,9 @@ struct Data: public ReferenceCountedObject,
 
 	var getFloatingTileData(const Identifier& id)
 	{
+		if(floatingTileData == nullptr)
+			return {};
+
 		return floatingTileData->getProperty(id);
 	}
 

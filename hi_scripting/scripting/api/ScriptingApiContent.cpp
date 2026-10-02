@@ -6996,7 +6996,9 @@ var ScriptingApi::Content::ScriptDynamicContainer::setData(const var& newData)
 
 	bool getFirstChild = false;
 
-	if(!json.isArray())
+	// { "ContentProperties": [...], "FloatingTileData": {...} } goes in as it is - wrapped
+	// into an array, the data would never find its FloatingTileData
+	if(!json.isArray() && !json.hasProperty(dyncomp::dcid::ContentProperties))
 	{
 		json = var(Array<var>(newData));
 		getFirstChild = true;
