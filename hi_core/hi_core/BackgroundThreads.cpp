@@ -913,10 +913,14 @@ Array<File> SampleDataExporter::collectMonoliths()
 
 	auto& smPool = handler->pool->getSampleMapPool();
 	auto sampleDirectory = handler->getSubDirectory(FileHandlerBase::Samples);
+	auto variation = getVariationFromHxi();
 
 	for (int i = 0; i < smPool.getNumLoadedFiles(); i++)
 	{
 		auto entry = smPool.loadFromReference(smPool.getReference(i), PoolHelpers::DontCreateNewEntry);
+
+		if (!matchesVariation(entry->data, variation))
+			continue;
 
 		MonolithFileReference mref(entry->data);
 
@@ -1035,6 +1039,45 @@ String SampleDataExporter::getProjectVersion() const
 #else
 	return FrontendHandler::getVersionString();
 #endif
+}
+
+String SampleDataExporter::getVariationFromHxi() const
+{
+	if (!hxiFile->getCurrentFile().existsAsFile())
+		return {};
+
+	if (Expansion::Helpers::isXmlFile(hxiFile->getCurrentFile()))
+	{
+		if (auto xml = XmlDocument::parse(hxiFile->getCurrentFile()))
+		{
+			if (auto c = xml->getChildByName(ExpansionIds::ExpansionInfo.toString()))
+				return c->getStringAttribute(ExpansionIds::Variation.toString());
+		}
+	}
+	else
+	{
+		FileInputStream fis(hxiFile->getCurrentFile());
+		auto v = ValueTree::readFromStream(fis);
+		return v.getChildWithName(ExpansionIds::ExpansionInfo)[ExpansionIds::Variation].toString();
+	}
+
+	return {};
+}
+
+bool SampleDataExporter::matchesVariation(const ValueTree& sampleMapData, const String& variation)
+{
+	if (variation.isEmpty())
+		return true;
+
+	auto tagString = sampleMapData.getProperty("Variations").toString();
+
+	// untagged content is always included
+	if (tagString.isEmpty())
+		return true;
+
+	auto variations = StringArray::fromTokens(tagString, ",", "");
+	variations.trim();
+	return variations.contains(variation);
 }
 
 File SampleDataExporter::getTargetFile() const
