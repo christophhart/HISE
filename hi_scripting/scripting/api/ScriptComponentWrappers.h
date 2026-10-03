@@ -1028,12 +1028,6 @@ public:
 
 		struct WrapperComponent: public Component
 		{
-			WrapperComponent()
-			{
-				// only the children take clicks, the empty area lets them through to what is below
-				setInterceptsMouseClicks(false, true);
-			}
-
 			~WrapperComponent() override
 			{
 				// the components unregister from the value trees when they are deleted

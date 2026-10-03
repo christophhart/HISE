@@ -2560,6 +2560,10 @@ public:
 			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
 		}
 
+		/** Only the children take clicks: the empty area lets them through to the components below.
+		 *  The content component sets this on the wrapper whenever it updates its visibility. */
+		bool isClickable() const override { return false; }
+
 		// ============================================================================= API methods
 
 		/** Sets the content data for this container. */
