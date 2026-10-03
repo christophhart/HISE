@@ -987,6 +987,9 @@ String SampleDataExporter::getMetadataJSON() const
 	d->setProperty("Version", getProjectVersion());
 	d->setProperty("Company", getCompanyName());
 
+	auto archiveMode = (ArchiveMode)getComboBoxComponent("archiveMode")->getSelectedItemIndex();
+	d->setProperty("DataOnly", archiveMode == ArchiveMode::DataOnlyUpdate);
+
 	auto expName = getExpansionName();
 
 	if (expName.isNotEmpty())
@@ -1067,19 +1070,17 @@ File SampleDataExporter::getTargetFile() const
 
 	if (getComboBoxComponent("format")->getSelectedItemIndex() == 0)
 	{
-		auto archiveMode = (ArchiveMode)getComboBoxComponent("archiveMode")->getSelectedItemIndex();
-		String suffix = archiveMode != ArchiveMode::Combined ? "_Data.hr1" : "_Samples.hr1";
+		auto variation = getVariationFromHxi();
+		auto variationToken = variation.isNotEmpty() ? "_" + variation : String();
 
 		if (expName.isEmpty())
 		{
-			auto name = getProjectName();
-			auto version = getProjectVersion();
-			version = version.replaceCharacter('.', '_');
-			fileName = name + "_" + version + suffix;
+			auto version = getProjectVersion().replaceCharacter('.', '_');
+			fileName = getProjectName() + variationToken + "_" + version + "_Part1.hr1";
 		}
 		else
 		{
-			fileName << expName + suffix;
+			fileName << expName + variationToken + "_Part1.hr1";
 		}
 	}
 	else

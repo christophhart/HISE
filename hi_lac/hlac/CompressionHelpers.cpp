@@ -1205,7 +1205,17 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		}
 	}
 
-	auto parts = getSourceFiles(sourceFile);
+	auto metadataObject = readMetadataFromArchive(sourceFile);
+
+	auto isDataOnlyUpdate = [&metadataObject](int64 sampleBytesInFirstPart)
+	{
+		if (metadataObject.hasProperty("DataOnly"))
+			return (bool)metadataObject.getProperty("DataOnly", false);
+
+		return sampleBytesInFirstPart == 0;
+	};
+
+	auto parts = getSourceFiles(sourceFile, metadataObject);
 	
 	int64 processedBytes = 0;
 	int64 totalBytes = 0;
@@ -1331,11 +1341,11 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			while (currentFlag == Flag::SplitMonolith)
 			{
-				bool continuingFromDataOnlyPart = (partIndex == 1);
+				bool continuingFromDataOnlyPart = (partIndex == 1 && isDataOnlyUpdate(monolithBytes));
 
 				partIndex++;
 
-				auto nextPart = getPartFile(sourceFile, partIndex);
+				auto nextPart = findExistingPartFile(sourceFile, partIndex, metadataObject);
 
 				if (!nextPart.existsAsFile())
 				{
@@ -1348,7 +1358,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 						return true;
 					}
 
-					listener->criticalErrorOccured("Missing archive part: " + nextPart.getFileName());
+					listener->criticalErrorOccured("Missing archive: " + nextPart.getFileName());
 					return false;
 				}
 
@@ -1482,11 +1492,11 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			while (currentFlag == Flag::SplitMonolith)
 			{
-				bool continuingFromDataOnlyPart = (partIndex == 1);
+				bool continuingFromDataOnlyPart = (partIndex == 1 && isDataOnlyUpdate(bytesToSkip));
 
 				partIndex++;
 
-				auto nextPart = getPartFile(sourceFile, partIndex);
+				auto nextPart = findExistingPartFile(sourceFile, partIndex, metadataObject);
 
 				if (!nextPart.existsAsFile())
 				{
@@ -1496,7 +1506,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 						return true;
 					}
 
-					listener->criticalErrorOccured("Missing archive part: " + nextPart.getFileName());
+					listener->criticalErrorOccured("Missing archive: " + nextPart.getFileName());
 					return false;
 				}
 
@@ -1742,7 +1752,9 @@ void HlacArchiver::compressSampleData(const CompressData& data)
 
 					partIndex++;
 
-					auto newPart = getPartFile(targetFile, partIndex);
+					auto newPart = getPartFileToWrite(targetFile, partIndex);
+
+					VERBOSE_LOG("New Part " + newPart.getFileName());
 
 					if (newPart.existsAsFile())
 						newPart.deleteFile();
@@ -1819,13 +1831,50 @@ String HlacArchiver::getFlagName(Flag f)
 
 #undef RETURN
 
-File HlacArchiver::getPartFile(const File& originalFile, int partIndex)
+File HlacArchiver::getPartFileToWrite(const File& firstFile, int partIndex)
 {
-	String newFileName = getArchiveCoreName(originalFile) + "_Samples.hr" + String(partIndex);
+	return firstFile.getSiblingFile(getArchiveCoreName(firstFile) + "_Part" + String(partIndex) + ".hr" + String(partIndex));
+}
 
-	VERBOSE_LOG("New Part " + newFileName);
+File HlacArchiver::findExistingPartFile(const File& firstFile, int partIndex, const var& metadata)
+{
+	auto core = getArchiveCoreName(firstFile);
+	auto extension = ".hr" + String(partIndex);
+	auto part = getPartFileToWrite(firstFile, partIndex);
 
-	return originalFile.getSiblingFile(newFileName);
+	if (part.existsAsFile())
+		return part;
+
+	auto legacyPart = firstFile.getSiblingFile(core + "_Samples" + extension);
+
+	if (legacyPart.existsAsFile())
+		return legacyPart;
+
+	auto versionSuffix = "_" + metadata.getProperty("Version", "").toString().replaceCharacter('.', '_');
+
+	if (!(bool)metadata.getProperty("DataOnly", false) || !core.endsWith(versionSuffix))
+		return part;
+
+	auto stem = core.dropLastCharacters(versionSuffix.length()) + "_";
+
+	Array<File> candidates;
+	firstFile.getParentDirectory().findChildFiles(candidates, File::findFiles, false, stem + "*" + extension);
+
+	File best;
+	String bestVersion;
+
+	for (const auto& f : candidates)
+	{
+		auto version = f.getFileNameWithoutExtension().substring(stem.length()).upToLastOccurrenceOf("_", false, false);
+
+		if (CharacterFunctions::isDigit(version[0]) && (best == File() || version.compareNatural(bestVersion) > 0))
+		{
+			best = f;
+			bestVersion = version;
+		}
+	}
+
+	return best != File() ? best : part;
 }
 
 bool HlacArchiver::writeFlag(FileOutputStream* fos, Flag flag)

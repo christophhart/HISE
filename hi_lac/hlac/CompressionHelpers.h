@@ -441,6 +441,11 @@ struct HlacArchiver
     {
         String base = archivePart.getFileNameWithoutExtension();
 
+        auto partIndex = base.lastIndexOf("_Part");
+
+        if (partIndex != -1 && base.length() > partIndex + 5 && base.substring(partIndex + 5).containsOnly("0123456789"))
+            return base.substring(0, partIndex);
+
         if (base.endsWith("_Data"))
             return base.dropLastCharacters(5);
         else if (base.endsWith("_Samples"))
@@ -449,15 +454,22 @@ struct HlacArchiver
         return base;
     }
 
-    static Array<File> getSourceFiles(const File& firstSourceFile)
+    Array<File> getSourceFiles(const File& firstSourceFile, var metadata = var())
     {
-        Array<File> parts;
+        Array<File> parts = { firstSourceFile };
 
-        String base = getArchiveCoreName(firstSourceFile);
+        if (metadata.isVoid())
+            metadata = readMetadataFromArchive(firstSourceFile);
 
-        firstSourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, base + "*");
+        for (int i = 2; ; i++)
+        {
+            auto part = findExistingPartFile(firstSourceFile, i, metadata);
 
-        return parts;
+            if (!part.existsAsFile())
+                return parts;
+
+            parts.add(part);
+        }
     }
 
 	/** Compressed the given data using the supplied Thread. */
@@ -480,7 +492,9 @@ private:
 
 	String getFlagName(Flag f);
 
-	File getPartFile(const File& originalFile, int partIndex);
+	static File getPartFileToWrite(const File& firstFile, int partIndex);
+
+	File findExistingPartFile(const File& firstFile, int partIndex, const var& metadata);
 
 	bool writeFlag(FileOutputStream* fos, Flag flag);
 
