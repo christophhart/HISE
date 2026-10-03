@@ -1188,6 +1188,27 @@ var HlacArchiver::readMetadataFromArchive(const File& sourceFile)
 
 bool HlacArchiver::extractSampleData(const DecompressData& data)
 {
+	extractedFiles.clear();
+
+	if (extractSampleDataInternal(data))
+		return true;
+
+	if (data.cancelFlag != nullptr && data.cancelFlag->load())
+	{
+		for (const auto& f : extractedFiles)
+			f.deleteFile();
+	}
+
+	return false;
+}
+
+bool HlacArchiver::shouldAbort(const DecompressData& data) const
+{
+	return thread->threadShouldExit() || (data.cancelFlag != nullptr && data.cancelFlag->load());
+}
+
+bool HlacArchiver::extractSampleDataInternal(const DecompressData& data)
+{
 	jassert(listener != nullptr);
 	jassert(thread != nullptr);
 
@@ -1237,6 +1258,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		auto numBytesForHeaderFile = fis->readInt64();
 		VERBOSE_LOG(String(numBytesForHeaderFile) + String(" bytes"));
 		auto headerTargetFile = data.targetDirectory.getChildFile("header.dat");
+		extractedFiles.add(headerTargetFile);
 		headerTargetFile.create();
 		ScopedPointer<FileOutputStream> fos = new FileOutputStream(headerTargetFile);
 		fos->writeFromInputStream(*fis, numBytesForHeaderFile);
@@ -1254,6 +1276,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		auto fileName = fis->readString();
 
 		auto additionalFile = data.targetDirectory.getChildFile(fileName);
+		extractedFiles.add(additionalFile);
 		additionalFile.create();
 		ScopedPointer<FileOutputStream> fos = new FileOutputStream(additionalFile);
 		fos->writeFromInputStream(*fis, numBytesForAdditionalFile);
@@ -1276,7 +1299,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 		auto archiveTime = Time::fromISO8601(fis->readString());
 		CHECK_FLAG(Flag::EndTime);
 
-		if (thread->threadShouldExit())
+		if (shouldAbort(data))
 			return false;
 
 		
@@ -1305,7 +1328,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				
 		}
 
-		if (thread->threadShouldExit())
+		if (shouldAbort(data))
 			return false;
 		
 		if (overwriteThisFile || data.debugLogMode)
@@ -1315,6 +1338,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 			bool ok = true;
 
 			File tmpFlacFile = targetHlacFile.getSiblingFile("TmpFlac.flac").getNonexistentSibling();
+			extractedFiles.add(tmpFlacFile);
 
 			if (tmpFlacFile.existsAsFile())
 				tmpFlacFile.deleteFile();
@@ -1358,7 +1382,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				currentFlag = readFlag(fis);
 			}
 
-			if (thread->threadShouldExit())
+			if (shouldAbort(data))
 				return false;
 
 			jassert(currentFlag == Flag::EndMonolith);
@@ -1387,6 +1411,8 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				if (targetHlacFile.existsAsFile())
 					targetHlacFile.create();
 
+				extractedFiles.add(targetHlacFile);
+
 				monolithOutputStream = new FileOutputStream(targetHlacFile);
 				writer = hlacFormat.createWriterFor(monolithOutputStream, flacReader->sampleRate, flacReader->numChannels, 5, metadata, 5);
 			}
@@ -1397,7 +1423,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			hlac::HlacEncoder::CompressorOptions options = hlac::HlacEncoder::CompressorOptions::getPreset(hlac::HlacEncoder::CompressorOptions::Presets::Diff);
 
-			if (thread->threadShouldExit())
+			if (shouldAbort(data))
 				return false;
 
 			options.applyDithering = false;
@@ -1416,7 +1442,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 
 			for (int64 readerOffset = 0; readerOffset < flacReader->lengthInSamples; readerOffset += bufferSize)
 			{
-				if (thread->threadShouldExit())
+				if (shouldAbort(data))
 					return false;
 
 				const int numToRead = jmin<int>(bufferSize, (int)(flacReader->lengthInSamples - readerOffset));
@@ -1447,7 +1473,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 					return false;
 				}
 
-				if (thread->threadShouldExit())
+				if (shouldAbort(data))
 					return false;
 
 				writer = nullptr;
@@ -1480,7 +1506,7 @@ bool HlacArchiver::extractSampleData(const DecompressData& data)
 				bytesToSkip = fis->readInt64();
 				CHECK_FLAG(Flag::EndMonolithLength);
 
-				if (thread->threadShouldExit())
+				if (shouldAbort(data))
 					return false;
 
 				CHECK_FLAG(Flag::ResumeMonolith);
