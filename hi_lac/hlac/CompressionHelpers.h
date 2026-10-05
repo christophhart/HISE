@@ -410,7 +410,7 @@ struct HlacArchiver
 		double* partProgress = nullptr;
 		double* totalProgress = nullptr;
 		bool debugLogMode = false;
-
+		std::atomic<bool>* cancelFlag = nullptr;
 	};
 
 	HlacArchiver(Thread* threadToUse) :
@@ -455,6 +455,12 @@ struct HlacArchiver
 private:
 
 	FileInputStream* writeTempFile(AudioFormatReader* reader, int bitDepth=16);
+
+	bool extractSampleDataInternal(const DecompressData& data);
+
+	bool shouldAbort(const DecompressData& data) const;
+
+	Array<File> extractedFiles;
 
 	Listener* listener = nullptr;
 

@@ -1174,6 +1174,7 @@ struct ScriptExpansionHandler::Wrapper
 	API_METHOD_WRAPPER_0(ScriptExpansionHandler, refreshExpansions);
 	API_VOID_METHOD_WRAPPER_1(ScriptExpansionHandler, setAllowedExpansionTypes);
 	API_METHOD_WRAPPER_2(ScriptExpansionHandler, installExpansionFromPackage);
+	API_VOID_METHOD_WRAPPER_0(ScriptExpansionHandler, cancelInstallation);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getExpansionForInstallPackage);
 	API_METHOD_WRAPPER_1(ScriptExpansionHandler, getMetaDataFromPackage);
 };
@@ -1202,6 +1203,7 @@ ScriptExpansionHandler::ScriptExpansionHandler(JavascriptProcessor* jp_) :
 	ADD_API_METHOD_1(encodeWithCredentials);
 	ADD_API_METHOD_0(refreshExpansions);
 	ADD_API_METHOD_2(installExpansionFromPackage);
+	ADD_API_METHOD_0(cancelInstallation);
 	ADD_API_METHOD_1(setAllowedExpansionTypes);
 	ADD_API_METHOD_0(getCurrentExpansion);
 	ADD_TYPED_API_METHOD_1(setInstallCallback, VarTypeChecker::Function);
@@ -1396,6 +1398,11 @@ bool ScriptExpansionHandler::installExpansionFromPackage(var packageFile, var sa
 	}
 }
 
+void ScriptExpansionHandler::cancelInstallation()
+{
+	getMainController()->getExpansionHandler().cancelInstallation();
+}
+
 var ScriptExpansionHandler::getMetaDataFromPackage(var packageFile)
 {
 	if (auto sf = dynamic_cast<ScriptingObjects::ScriptFile*>(packageFile.getObject()))
@@ -1524,7 +1531,7 @@ void ScriptExpansionHandler::InstallState::expansionInstalled(Expansion* newExpa
 	SimpleReadWriteLock::ScopedWriteLock sl(timerLock);
 
 	stopTimer();
-	status = 2;
+	status = (newExpansion == nullptr && parent.getMainController()->getExpansionHandler().wasInstallationCancelled()) ? 3 : 2;
 
 	if (newExpansion != nullptr && newExpansion->getRootFolder() == targetFolder)
 		createdExpansion = newExpansion;
