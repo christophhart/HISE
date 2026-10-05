@@ -1689,7 +1689,7 @@ void SampleEditor::perform(SampleMapCommands c)
     }
     case SampleMapCommands::ShowReleaseStartOptions:
 	{
-#if HISE_SAMPLER_ALLOW_RELEASE_START
+#if HISE_SAMPLER_ALLOW_RELEASE_START && USE_BACKEND
 		auto bpe = GET_BACKEND_ROOT_WINDOW(this);
 		auto n = new multipage::library::ReleaseStartOptionDialog(bpe, sampler);
 		findParentComponentOfClass<FloatingTile>()->getRootFloatingTile()->showComponentAsDetachedPopup(n, showReleaseButton, {8, 16});
