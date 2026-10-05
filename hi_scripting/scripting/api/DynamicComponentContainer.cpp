@@ -231,6 +231,8 @@ Data::ComplexDataHandler::~ComplexDataHandler()
 
 void Data::ComplexDataHandler::handleAsyncUpdate()
 {
+	ScopedLock sl(Data::getLock());
+
 	if(complexData != nullptr)
 	{
 		auto um = (bool)componentData[dcid::useUndoManager] ? getMainController()->getControlUndoManager() : nullptr;
@@ -309,6 +311,12 @@ Data::RefreshType Data::getRefreshType(const var& t)
 	}
 	else
 		return (RefreshType)(int)t;
+}
+
+CriticalSection& Data::getLock()
+{
+	static CriticalSection lock;
+	return lock;
 }
 
 Data::Data(MainController* mc, const var& obj, Rectangle<int> position):
@@ -457,6 +465,8 @@ ReferenceCountedObjectPtr<Base> Data::create(const ValueTree& v)
 
 void Data::onValueChange(const Identifier& id, const var& newValue, bool useUndoManager)
 {
+	ScopedLock sl(getLock());
+
 	values.setProperty(id, newValue, useUndoManager ? um : nullptr);
 	if(valueCallback)
 		valueCallback(id, newValue);
@@ -608,26 +618,74 @@ void Data::setDataProviderCallbacks(const ImageProvider& ip_, const FontProvider
 Base::Base(Data::Ptr d, const ValueTree& v):
 	data(d),
 	dataTree(v),
-	valueReference(data->getValueTree(Data::TreeType::Values))
+	valueReference(data->getValueTree(Data::TreeType::Values)),
+	deferredUpdater(*this)
 {
 	auto basicProperties = dcid::Helpers::getBasicProperties();
 
-	basicPropertyListener.setCallback(dataTree, basicProperties, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateBasicProperties));
+	// All handlers take the data lock, so none of them may run inside the listener (see deferUpdate())
 
-	positionListener.setCallback(dataTree, { dcid::x, dcid::y, dcid::width, dcid::height}, valuetree::AsyncMode::Coallescated, BIND_MEMBER_FUNCTION_2(Base::updatePosition));
+	basicPropertyListener.setCallback(dataTree, basicProperties, valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
+	{
+		deferUpdate([this, id, newValue]() { updateBasicProperties(id, newValue); });
+	});
 
-	childListener.setCallback(dataTree, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Base::updateChild));
+	positionListener.setCallback(dataTree, { dcid::x, dcid::y, dcid::width, dcid::height}, valuetree::AsyncMode::Coallescated, [this](const Identifier& id, const var& newValue)
+	{
+		deferUpdate([this, id, newValue]() { updatePosition(id, newValue); });
+	});
 
-	cssListener.setCallback(dataTree, dcid::Helpers::getCSSProperties(), valuetree::AsyncMode::Coallescated, VT_BIND_PROPERTY_LISTENER(updateCSSProperties));
+	childListener.setCallback(dataTree, valuetree::AsyncMode::Asynchronously, [this](ValueTree c, bool wasAdded)
+	{
+		deferUpdate([this, c, wasAdded]() { updateChild(c, wasAdded); });
+	});
+
+	cssListener.setCallback(dataTree, dcid::Helpers::getCSSProperties(), valuetree::AsyncMode::Coallescated, [this](const Identifier& id, const var& newValue)
+	{
+		deferUpdate([this, id, newValue]() { updateCSSProperties(id, newValue); });
+	});
 
 	d->refreshBroadcaster.addListener(*this, onRefreshStatic, false);
 
 	if(getId().isValid())
 	{
-		valueListener.setCallback(valueReference, { getId() }, valuetree::AsyncMode::Asynchronously, [&](const Identifier& id, const var& newValue)
+		valueListener.setCallback(valueReference, { getId() }, valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
 		{
-			onValue(getValueOrDefault());
+			// getValueOrDefault() takes the lock. onValue() must not run with it: a connected
+			// slider passes the value on to its processor synchronously.
+			deferUpdate([this]() { onValue(getValueOrDefault()); });
 		});
+	}
+}
+
+void Base::deferUpdate(const std::function<void()>& f)
+{
+	{
+		ScopedLock sl(deferredUpdater.queueLock);
+		deferredUpdater.queue.add(f);
+	}
+
+	deferredUpdater.triggerAsyncUpdate();
+}
+
+void Base::DeferredUpdater::handleAsyncUpdate()
+{
+	Array<std::function<void()>> toRun;
+
+	{
+		ScopedLock sl(queueLock);
+		toRun.swapWith(queue);
+	}
+
+	Component::SafePointer<Base> safe(&owner);
+
+	for(auto& f: toRun)
+	{
+		// an update can delete this component (and this updater with it)
+		if(safe == nullptr)
+			return;
+
+		f();
 	}
 }
 
@@ -638,12 +696,15 @@ Base::~Base()
 
 Identifier Base::getId() const
 {
+	ScopedLock sl(Data::getLock());
 	auto s = dataTree[dcid::id].toString();
 	return s.isNotEmpty() ? Identifier(s) : Identifier();
 }
 
 void Base::updateChild(const ValueTree& v, bool wasAdded)
 {
+	ScopedLock sl(Data::getLock());
+
 	if(wasAdded)
 	{
 		auto newChild = data->create(v);
@@ -665,6 +726,8 @@ void Base::updateChild(const ValueTree& v, bool wasAdded)
 
 void Base::updateBasicProperties(const Identifier& id, const var& newValue)
 {
+	ScopedLock sl(Data::getLock());
+
     if(id == dcid::class_)
     {
 		auto classes = StringArray::fromTokens(newValue.toString(), " ", "");
@@ -710,6 +773,8 @@ void Base::updateBasicProperties(const Identifier& id, const var& newValue)
 
 void Base::updatePosition(const Identifier&, const var&)
 {
+	ScopedLock sl(Data::getLock());
+
 	Rectangle<int> b((int)dataTree[dcid::x], (int)dataTree[dcid::y], (int)dataTree[dcid::width], (int)dataTree[dcid::height]);
 
 	if(auto parent = findParentComponentOfClass<Base>())
@@ -747,6 +812,7 @@ void Base::hideChild(Base::Ptr b, bool shouldBeVisible)
 
 void Base::updateCSSProperties(const Identifier&, const var&)
 {
+	ScopedLock sl(Data::getLock());
 	writeComponentPropertiesToStyleSheet(true);
 }
 
@@ -761,7 +827,24 @@ Base* Base::findBaseParent(Component* c)
 void Base::onRefreshStatic(Base& b, const ValueTree& v, Data::RefreshType rt, bool isRecursive)
 {
 	if(b.dataTree == v)
+	{
+		// These read the value tree, which needs the data lock - and that must not be acquired
+		// while the broadcaster holds its own lock, so they run after the broadcast.
+		if(rt == Data::RefreshType::changed || rt == Data::RefreshType::resetValueToDefault)
+		{
+			Component::SafePointer<Base> safe(&b);
+
+			MessageManager::callAsync([safe, rt, isRecursive]()
+			{
+				if(safe != nullptr)
+					safe->onRefresh(rt, isRecursive);
+			});
+
+			return;
+		}
+
 		b.onRefresh(rt, isRecursive);
+	}
 }
 
 void Base::initCSSForChildComponent()
@@ -797,7 +880,7 @@ void Base::onRefresh(Data::RefreshType rt, bool recursive)
 		unfocusAllComponents();
 		return; // no recursion needed
 	case Data::RefreshType::resetValueToDefault:
-		onValue(dataTree[dcid::defaultValue]);
+		onValue(getPropertyOrDefault(dcid::defaultValue));
 	default: ;
 	}
 
@@ -830,6 +913,8 @@ bool Base::operator==(const ValueTree& otherData) const noexcept
 
 void Base::writePositionInValueTree(Rectangle<int> tb, bool useUndoManager)
 {
+	ScopedLock sl(Data::getLock());
+
 	dataTree.setProperty(dcid::x, tb.getX(), nullptr);
 	dataTree.setProperty(dcid::y, tb.getY(), nullptr);
 	dataTree.setProperty(dcid::width, tb.getWidth(), nullptr);
@@ -838,6 +923,8 @@ void Base::writePositionInValueTree(Rectangle<int> tb, bool useUndoManager)
 
 var Base::getValueOrDefault() const
 {
+	ScopedLock sl(Data::getLock());
+
 	Identifier id_(dataTree[dcid::id].toString());
 	auto vt = data->getValueTree(Data::TreeType::Values);
 
@@ -849,6 +936,8 @@ var Base::getValueOrDefault() const
 
 var Base::getPropertyOrDefault(const Identifier& id) const
 {
+	ScopedLock sl(Data::getLock());
+
 	if(dataTree.hasProperty(id))
 		return dataTree[id];
 

@@ -74,6 +74,19 @@ struct Data: public ReferenceCountedObject,
 
 	~Data() override;
 
+	/** The lock that guards the value trees of every dynamic container.
+	 *
+	 *  The scripting thread changes the trees through the ContainerChild API while the message
+	 *	thread builds, updates and destroys the components that listen to them, and a juce::ValueTree
+	 *	is not thread safe. Hold this lock for every access to the trees from either side.
+	 *
+	 *	It must only be held for short periods: never wait for another lock or run script code while
+	 *	holding it, and never acquire it inside a refreshBroadcaster callback (the broadcaster holds
+	 *	its own lock during the callback, so this could deadlock with the scripting thread adding a
+	 *	listener).
+	 */
+	static CriticalSection& getLock();
+
 	void setValues(const var& valueObject);
 
 	Image getImage(const String& ref);
@@ -94,6 +107,9 @@ struct Data: public ReferenceCountedObject,
 
 	var getFloatingTileData(const Identifier& id)
 	{
+		if(floatingTileData == nullptr)
+			return {};
+
 		return floatingTileData->getProperty(id);
 	}
 
@@ -268,12 +284,41 @@ struct Base: public Component,
 
 protected:
 
+	/** Runs f after the value tree listener that is calling back has returned.
+	 *
+	 *	The listeners of the valuetree namespace hold a lock while they call back, and the scripting
+	 *	thread waits for that lock when it changes the tree while it holds Data::getLock(). So a
+	 *	listener callback must not wait for the data lock itself: it queues its work here instead,
+	 *	which runs right after on the message thread, in the order it was queued.
+	 */
+	void deferUpdate(const std::function<void()>& f);
+
 	Data::Ptr data;
 	ValueTree dataTree;
 	ValueTree valueReference;
 	simple_css::StyleSheet::Ptr css;
 
 private:
+
+	struct DeferredUpdater: public AsyncUpdater
+	{
+		DeferredUpdater(Base& b):
+		  owner(b)
+		{}
+
+		~DeferredUpdater() override
+		{
+			cancelPendingUpdate();
+		}
+
+		void handleAsyncUpdate() override;
+
+		Base& owner;
+		CriticalSection queueLock;
+		Array<std::function<void()>> queue;
+	};
+
+	DeferredUpdater deferredUpdater;
 
 	valuetree::PropertyListener basicPropertyListener;
 	valuetree::PropertyListener positionListener;

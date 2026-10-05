@@ -2471,7 +2471,11 @@ public:
 			void setPaintRoutine(var newPaintRoutine);
 
 			/** Returns the number of child components. */
-			int getNumChildComponents() const { return componentData.getNumChildren(); }
+			int getNumChildComponents() const
+			{
+				ScopedLock sl(dyncomp::Data::getLock());
+				return componentData.getNumChildren();
+			}
 
 			/** Attaches a callback that is executed whenever a child component is added / removed to this component. */
 			void setChildCallback(const var& newChildCallback);
@@ -2501,10 +2505,13 @@ public:
 			bool matchesValueTree(const ValueTree& v) const;
 			void setInvalid(UndoManager* umToUse);
 
+			/** Queues the paint routine if a repaint message sent to v reaches this component. */
+			void repaintIfReachedBy(const ValueTree& v, bool recursive);
+
 		private:
 
 			bool isValidOrThrow() const;
-			static void onRefresh(ChildReference& obj, const ValueTree& v, dyncomp::Data::RefreshType rt, bool isRecursive);
+			void addPaintJob();
 			void sendMessage(dyncomp::Data::RefreshType rt, bool recursive=false);
 
 			WeakReference<ScriptDynamicContainer> parentContainer;
@@ -2512,7 +2519,7 @@ public:
 			UndoManager* um = nullptr;
 
 			mutable bool invalid = false;
-			var lastValue;
+			bool muteValueCallback = false;
 
 			WeakCallbackHolder valueCallback;
 			WeakCallbackHolder paintRoutine;
@@ -2553,6 +2560,10 @@ public:
 			return ScriptComponent::createParameterMetadata(indexInContent).asDisabled();
 		}
 
+		/** Only the children take clicks: the empty area lets them through to the components below.
+		 *  The content component sets this on the wrapper whenever it updates its visibility. */
+		bool isClickable() const override { return false; }
+
 		// ============================================================================= API methods
 
 		/** Sets the content data for this container. */
@@ -2578,6 +2589,9 @@ public:
 	private:
 
 		var getOrCreateChildReference(const ValueTree& v);
+
+		/** Runs the paint routines of the child references that a repaint message to v reaches. */
+		void repaintChildReferences(const ValueTree& v, bool recursive);
 
 		ReferenceCountedArray<ChildReference> childReferences;
 		WeakCallbackHolder valueCallback;

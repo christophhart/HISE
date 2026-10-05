@@ -63,7 +63,14 @@ template <typename ComponentType> struct WrapperBase: public Base
 
 	void initSpecialProperties(const Array<Identifier>& ids)
 	{
-		specialProperties.setCallback(this->dataTree, ids, valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(WrapperBase::updateSpecialProperties));
+		specialProperties.setCallback(this->dataTree, ids, valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
+		{
+			this->deferUpdate([this, id, newValue]()
+			{
+				ScopedLock sl(Data::getLock());
+				this->updateSpecialProperties(id, newValue);
+			});
+		});
 	}
 
 	bool forwardToFirstChild() const override { return true; }
@@ -74,6 +81,7 @@ protected:
 
 	bool useUndoManager() const
 	{
+		ScopedLock sl(Data::getLock());
 		return (bool)dataTree[dcid::useUndoManager];
 	}
 
@@ -113,6 +121,10 @@ struct Button: public WrapperBase<hise::MomentaryToggleButton>
 			}
 		};
 
+		// like HiToggleButton: a disabled button that wants the keyboard focus sends JUCE's focus
+		// search round in circles on a click (it offers the focus back to the button itself)
+		component.setWantsKeyboardFocus(false);
+
 		component.setIsMomentary((bool)this->dataTree[dcid::isMomentary]);
 		component.setClickingTogglesState(!(bool)this->dataTree[dcid::isMomentary]);
 		component.setTriggeredOnMouseDown((bool)this->dataTree[dcid::setValueOnClick]);
@@ -150,6 +162,9 @@ struct ComboBox: public WrapperBase<hise::SubmenuComboBox>
 	ComboBox(Data::Ptr d, const ValueTree& v):
 	  WrapperBase<juce::SubmenuComboBox>(d, v)
 	{
+		// like HiComboBox, see Button
+		component.setWantsKeyboardFocus(false);
+
 		component.setUseCustomPopup((bool)this->dataTree[dcid::useCustomPopup]);
 
 		this->component.onChange = [&]()
@@ -181,8 +196,11 @@ struct ComboBox: public WrapperBase<hise::SubmenuComboBox>
 
 			this->component.clear(dontSendNotification);
 			this->component.addItemList(items, 1);
-			this->component.setSelectedId(currentId, dontSendNotification);
+
+			// rebuild first: the label takes its text from the menu, which only splits
+			// "Category::Item" into a submenu and its item once it is rebuilt
 			this->component.rebuildPopupMenu();
+			this->component.setSelectedId(currentId, dontSendNotification);
 		}
 	}
 };
@@ -220,7 +238,10 @@ struct Slider: public Base,
 	  Base(d, v),
 	  ControlledObject(d->getMainController())
 	{
-		connectionListener.setCallback(v, getSliderIds(), valuetree::AsyncMode::Asynchronously, BIND_MEMBER_FUNCTION_2(Slider::updateSliderProperty));
+		connectionListener.setCallback(v, getSliderIds(), valuetree::AsyncMode::Asynchronously, [this](const Identifier& id, const var& newValue)
+		{
+			deferUpdate([this, id, newValue]() { updateSliderProperty(id, newValue); });
+		});
 		updateSliderProperty(dcid::processorId, dataTree[dcid::processorId]);
 	}
 
@@ -240,6 +261,7 @@ struct Slider: public Base,
 		 dcid::suffix, 
 		 dcid::style, 
 		 dcid::showValuePopup,
+		 dcid::defaultValue,
          dcid::processorId,
 		 dcid::parameterId
 		});
@@ -286,6 +308,9 @@ struct Slider: public Base,
 
 		GlobalHiseLookAndFeel::setDefaultColours(*s);
 
+		// JUCE outlines a linear bar without a text box in this colour - ScriptSlider clears it too
+		s->setColour(juce::Slider::textBoxOutlineColourId, Colours::transparentBlack);
+
 		slider = s;
 		addAndMakeVisible(s);
 
@@ -296,6 +321,12 @@ struct Slider: public Base,
 
 			updateSliderProperty(id, getPropertyOrDefault(id));
 		}
+
+		// The slider is created again when the processor connection is set up (also right after
+		// the constructor), so it has to pick up the current value here - otherwise it shows its
+		// minimum until the value changes. A connected slider gets it from the processor.
+		if(dynamic_cast<HiSlider*>(s) == nullptr)
+			s->setValue((double)getValueOrDefault(), dontSendNotification);
 
 		initCSSForChildComponent();
 		resized();
@@ -343,6 +374,8 @@ struct Slider: public Base,
 
 	void updateSliderProperty(const Identifier& id, const var& newValue)
 	{
+		ScopedLock sl(Data::getLock());
+
 		if(id == dcid::parameterId || id == dcid::processorId)
 		{
 			auto connection = getConnectedParameter();
@@ -375,7 +408,7 @@ struct Slider: public Base,
 
 			std::array<juce::Slider::SliderStyle, 3> styles = { juce::Slider::SliderStyle::RotaryHorizontalVerticalDrag,
 			  juce::Slider::SliderStyle::LinearBar,
-			  juce::Slider::SliderStyle::LinearHorizontal
+			  juce::Slider::SliderStyle::LinearBarVertical
 			};
 
 			auto idx = values.indexOf(newValue.toString());
@@ -409,6 +442,10 @@ struct Slider: public Base,
 		else if (id == dcid::showValuePopup)
 		{
 			
+		}
+		else if (id == dcid::defaultValue)
+		{
+			this->slider->setDoubleClickReturnValue(true, (double)newValue);
 		}
 		else
 		{
@@ -489,7 +526,7 @@ struct Label: public WrapperBase<hise::MultilineLabel>,
 
 	void textEditorTextChanged(TextEditor& te) override
 	{
-		if((bool)dataTree[dcid::updateEachKey])
+		if((bool)getPropertyOrDefault(dcid::updateEachKey))
 		{
 			currentText = te.getText();
 			startTimer(500);
@@ -539,30 +576,56 @@ struct FloatingTile: public Base
 
 	void lookAndFeelChanged() override
 	{
-		if(ft != nullptr)
-		{
-			auto laf = &getLookAndFeel();
-
-			Component::callRecursive<Component>(ft, [laf](Component* c)
-			{
-				c->setLookAndFeel(laf);
-				return false;
-			});
-		}
+		applyLookAndFeel();
 	}
 
-	bool forwardToFirstChild() const override { return true; }
+	/** Like the wrapper of a ScriptFloatingTile: the global look and feel unless a scripted one is
+	 *	set, and only a scripted look and feel replaces the one of the tile's content - otherwise the
+	 *	content keeps its own, and a MatrixPeakMeter looked different from the same static tile. */
+	void applyLookAndFeel()
+	{
+		if(ft == nullptr)
+			return;
+
+		LookAndFeel* laf = &getLookAndFeel();
+
+		if(dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::LafBase*>(laf) == nullptr)
+			laf = &data->getMainController()->getGlobalLookAndFeel();
+
+		if(dynamic_cast<ScriptingObjects::ScriptedLookAndFeel::LafBase*>(laf) == nullptr)
+			return;
+
+		Component::callRecursive<Component>(ft, [laf](Component* c)
+		{
+			c->setLookAndFeel(laf);
+
+			if(auto ed = dynamic_cast<ComplexDataUIBase::EditorBase*>(c))
+				ed->setSpecialLookAndFeel(laf, false);
+
+			return false;
+		});
+	}
+
+	// without data there is no tile, and getContentComponent() would return a null child
+	bool forwardToFirstChild() const override { return ft != nullptr; }
 
 	void onValue(const var& newValue) override
 	{
 		if(newValue.getDynamicObject() != nullptr)
 		{
-			addAndMakeVisible(ft = new hise::FloatingTile(data->getMainController(), nullptr, newValue));
+			// set up like the wrapper of a ScriptFloatingTile
+			ft = new hise::FloatingTile(data->getMainController(), nullptr);
+			ft->setIsFloatingTileOnInterface();
+			ft->setOpaque(false);
+			ft->setContent(newValue);
+			ft->refreshRootLayout();
+
+			addAndMakeVisible(ft);
 			simple_css::FlexboxComponent::Helpers::setIsOpaqueWrapper(*this, true);
 
 			auto idSelector = String("#") + getId().toString();
 			ft->getProperties().set(dcid::id, idSelector);
-			ft->setLookAndFeel(&getLookAndFeel());
+			applyLookAndFeel();
 			resized();
 		}
 		else
@@ -631,6 +694,8 @@ struct TextBox: public WrapperBase<SimpleMarkdownDisplay>
 
 	void resized() override
 	{
+		ScopedLock sl(Data::getLock());
+
 		if(waitForNotEmpty && !getLocalBounds().isEmpty())
 		{
 			if(auto r = simple_css::CSSRootComponent::find(*this))
@@ -704,7 +769,10 @@ template <typename T> struct ComplexDataEditor: public Base
 		connectionListener.setCallback(v,
 			{ dcid::processorId, dcid::index},
 			valuetree::AsyncMode::Asynchronously,
-			VT_BIND_PROPERTY_LISTENER(onConnectionChange));
+			[this](const Identifier& id, const var& newValue)
+			{
+				this->deferUpdate([this, id, newValue]() { onConnectionChange(id, newValue); });
+			});
 	}
 
 	static Identifier getStaticId()
@@ -715,6 +783,8 @@ template <typename T> struct ComplexDataEditor: public Base
 
 	void onConnectionChange(const Identifier&, const var&)
 	{
+		ScopedLock sl(Data::getLock());
+
 		auto cd = dcid::Helpers::getComplexDataBase(data->getMainController(), getDataTree(), dt);
 		editor.setComplexDataUIBase(cd);
 	}
@@ -893,6 +963,8 @@ struct DragContainer: public Base
 
 		void mouseUp(const MouseEvent& e) override
 		{
+			ScopedLock sl(Data::getLock());
+
 			parent.currentlyDraggedComponent = nullptr;
 			parent.rebuildIndexArrayFromPosition(true);
 
@@ -930,6 +1002,8 @@ struct DragContainer: public Base
 
 	void updateChild(const ValueTree& v, bool wasAdded) override
 	{
+		ScopedLock sl(Data::getLock());
+
 		if(wasAdded)
 		{
 			Base::updateChild(v, wasAdded);
@@ -1093,9 +1167,46 @@ struct Panel: public Base
 		
 	}
 
+	void onRefresh(Data::RefreshType rt, bool recursive) override
+	{
+		// The draw handler is looked up when the panel is built, so a paint routine set after that
+		// (any setPaintRoutine() after setData() once the interface is shown) was never drawn. The
+		// panel picks it up here - after the broadcast, which must not wait for the data lock.
+		if(rt == Data::RefreshType::repaint && !bp.isUsingCustomImage)
+		{
+			Component::SafePointer<Panel> safe(this);
+
+			MessageManager::callAsync([safe]()
+			{
+				if(safe == nullptr)
+					return;
+
+				DrawActions::Handler* dh = nullptr;
+
+				{
+					ScopedLock sl(Data::getLock());
+					dh = safe->data->getDrawHandler(safe->dataTree);
+				}
+
+				if(dh != nullptr)
+				{
+					safe->bp.setDrawHandler(dh);
+					safe->bp.isUsingCustomImage = true;
+				}
+			});
+		}
+
+		Base::onRefresh(rt, recursive);
+	}
+
 	void paintOverChildren(Graphics& g) override
 	{
-		auto text = dataTree[dcid::text].toString();
+		String text;
+
+		{
+			ScopedLock sl(Data::getLock());
+			text = dataTree[dcid::text].toString();
+		}
 
 		if(text.isNotEmpty())
 		{
@@ -1195,6 +1306,7 @@ Root::Root(Data::Ptr d):
 {
 	simple_css::FlexboxComponent::Helpers::setCustomType(*this, simple_css::Selector(simple_css::ElementType::Body));
 	simple_css::FlexboxComponent::Helpers::setFallbackStyleSheet(*this, "background-color:transparent;");
+	setInterceptsMouseClicks(false, true);
 }
 
 void Root::paint(Graphics& g)
