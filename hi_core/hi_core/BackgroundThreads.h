@@ -489,12 +489,19 @@ public:
 
 	enum PartSize
 	{
-		Empty = 0,
-		HalfGig,
+		HalfGig = 0,
 		OneGig,
 		OneAndHalfGig,
 		TwoGig,
 		numPartSizes
+	};
+
+	enum ArchiveMode
+	{
+		Combined = 0,
+		SplitDataAndSamples,
+		DataOnlyUpdate,
+		numArchiveModes
 	};
 
 	SampleDataExporter(MainController* mc);;

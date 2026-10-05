@@ -398,6 +398,12 @@ struct HlacArchiver
 		int64 partSize = -1;
 		double* progress = nullptr;
 		double* totalProgress = nullptr;
+
+		/** Isolates the header/data from the sample monoliths into separate parts. */
+		bool forceCleanSplit = false;
+
+		/** Writes only the header part, reusing an existing set of sample parts. */
+		bool skipSampleEncoding = false;
 	};
 
 	struct DecompressData
@@ -431,15 +437,41 @@ struct HlacArchiver
 	/** Extracts the compressed data from the given file. */
 	bool extractSampleData(const DecompressData& data);
 
-    static Array<File> getSourceFiles(const File& firstSourceFile)
+    static String getArchiveCoreName(const File& archivePart)
     {
-        Array<File> parts;
+        String base = archivePart.getFileNameWithoutExtension();
 
-        firstSourceFile.getParentDirectory().findChildFiles(parts, File::findFiles, false, firstSourceFile.getFileNameWithoutExtension() + ".*");
+        auto partIndex = base.lastIndexOf("_Part");
 
-        return parts;
+        if (partIndex != -1 && base.length() > partIndex + 5 && base.substring(partIndex + 5).containsOnly("0123456789"))
+            return base.substring(0, partIndex);
+
+        if (base.endsWith("_Data"))
+            return base.dropLastCharacters(5);
+        else if (base.endsWith("_Samples"))
+            return base.dropLastCharacters(8);
+
+        return base;
     }
-    
+
+    Array<File> getSourceFiles(const File& firstSourceFile, var metadata = var())
+    {
+        Array<File> parts = { firstSourceFile };
+
+        if (metadata.isVoid())
+            metadata = readMetadataFromArchive(firstSourceFile);
+
+        for (int i = 2; ; i++)
+        {
+            auto part = findExistingPartFile(firstSourceFile, i, metadata);
+
+            if (!part.existsAsFile())
+                return parts;
+
+            parts.add(part);
+        }
+    }
+
 	/** Compressed the given data using the supplied Thread. */
 	void compressSampleData(const CompressData& data);
 
@@ -460,7 +492,9 @@ private:
 
 	String getFlagName(Flag f);
 
-	File getPartFile(const File& originalFile, int partIndex);
+	static File getPartFileToWrite(const File& firstFile, int partIndex);
+
+	File findExistingPartFile(const File& firstFile, int partIndex, const var& metadata);
 
 	bool writeFlag(FileOutputStream* fos, Flag flag);
 
