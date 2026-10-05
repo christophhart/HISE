@@ -845,6 +845,7 @@ void ScriptContentPanel::Editor::rebuildAfterContentChange()
 
 	addButton("edit-json");
 	addButton("profile");
+	addButton("screenshot");
 
 	addCustomComponent(overlaySelector);
 	addCustomComponent(overlayToggleButton);
@@ -893,6 +894,11 @@ void ScriptContentPanel::Editor::addButton(const String& name)
 		};
 
 		b->setTooltip("Zoom to fit");
+	}
+	if (name == "screenshot")
+	{
+		b->actionFunction = Actions::showScreenshotMenu;
+		b->setTooltip("Save a screenshot of the interface to the project folder");
 	}
 	if (name == "move")
 	{
@@ -1284,6 +1290,45 @@ bool ScriptContentPanel::Editor::Actions::lockSelection(Editor& e)
 	sl->setScriptComponentPropertyForSelection("locked", !wasLocked, sendNotification);
 
 	return true;
+}
+
+bool ScriptContentPanel::Editor::Actions::showScreenshotMenu(Editor& e)
+{
+	PopupMenu m;
+	m.setLookAndFeel(&e.klaf);
+	m.addItem(1, "Screenshot (1x)");
+	m.addItem(2, "Screenshot (2x)");
+
+	WeakReference<Editor> safeEditor(&e);
+
+	m.showMenuAsync(PopupMenu::Options(), [safeEditor](int result)
+	{
+		if (safeEditor != nullptr && result != 0)
+			saveScreenshot(*safeEditor, (float)result);
+	});
+
+	return false;
+}
+
+bool ScriptContentPanel::Editor::Actions::saveScreenshot(Editor& e, float scale)
+{
+	auto content = e.canvas.getContent<Canvas>()->content.get();
+	auto mc = dynamic_cast<Processor*>(e.getProcessor())->getMainController();
+	auto root = mc->getCurrentFileHandler().getRootFolder();
+
+	if (content == nullptr || !root.isDirectory())
+	{
+		PresetHandler::showMessageWindow("No project", "You need to load a project to save a screenshot.");
+		return false;
+	}
+
+	auto name = "Screenshot_" + Time::getCurrentTime().formatted("%Y-%m-%d_%H-%M-%S") + (scale > 1.0f ? "@2x" : "");
+	auto target = root.getNonexistentChildFile(name, ".png", false);
+
+	content->prepareScreenshot();
+	content->makeScreenshot(target, content->getLocalBounds().toFloat(), scale);
+
+	return false;
 }
 
 bool ScriptContentPanel::Editor::Actions::toggleOverlay(Editor& e)
@@ -2378,6 +2423,7 @@ juce::Path ScriptContentPanel::Factory::createPath(const String& id) const
 	LOAD_EPATH_IF_URL("suspend", EditorIcons::nightIcon);
 	LOAD_EPATH_IF_URL("profile", EditorIcons::profileIcon);
 	LOAD_EPATH_IF_URL("overlay-toggle", EditorIcons::imageIcon);
+	LOAD_EPATH_IF_URL("screenshot", EditorIcons::cropIcon);
 
 	return p;
 }
