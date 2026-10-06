@@ -32,14 +32,7 @@
 
 namespace hise { using namespace juce;
 
-LightweightDiagnostics::Factory::Factory()
-{
-    registerType<ScriptingObjects::ScriptedMidiAutomationHandler>();
-    registerType<ScriptingObjects::PathObject>();
-    
-    // final validation gate: all API class must be creatable
-    //jassert(items.size() == getNumApiClasses());
-}
+
 
 ScriptingObject::ScriptingObject(ProcessorWithScriptingContent *p) :
 processor(p),

@@ -77,12 +77,21 @@
 #include "scripting/engine/JavascriptEngineExpressions.cpp"
 #include "scripting/engine/JavascriptEngineStatements.cpp"
 #include "scripting/engine/JavascriptEngineOperators.cpp"
+
 #include "scripting/engine/JavascriptEngineCustom.cpp"
+
+#include "scripting/engine/ApiValidator.h"
+#include "scripting/engine/ApiValidator.cpp"
+
+
+
 #include "scripting/engine/JavascriptEngineParser.cpp"
 #include "scripting/engine/JavascriptEngineObjects.cpp"
 #include "scripting/engine/JavascriptEngineMathObject.cpp"
 #include "scripting/engine/JavascriptEngineAdditionalMethods.cpp"
 #include "scripting/engine/JavascriptEngineCyclicReferenceChecks.cpp"
+
+#include "scripting/engine/LightweightParserHelpers.cpp"
 
 #if HISE_INCLUDE_BX_LICENSER
 #include "scripting/api/bx/bx_wrapper.cpp"
@@ -107,6 +116,8 @@
 
 #include "scripting/api/ScriptingApiWrappers.cpp"
 #include "scripting/api/ScriptingApiContent.cpp"
+
+#include "scripting/api/ApiDiagnostics.cpp"
 
 #include "scripting/api/DynamicComponentContainerIds.cpp"
 #include "scripting/api/DynamicComponentContainer.cpp"

@@ -2088,6 +2088,7 @@ namespace ScriptingObjects
 		// ============================================================================================================
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		EffectProcessor* getEffect() { return dynamic_cast<EffectProcessor*>(effect.get()); }
 
@@ -3004,7 +3005,6 @@ namespace ScriptingObjects
 	public:
 
 		struct Wrapper;
-        struct Diagnostics;
 
 		ScriptedMidiAutomationHandler(ProcessorWithScriptingContent* sp);
 

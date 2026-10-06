@@ -53,7 +53,7 @@
 		.withSeverity(DiagnosticBase::DiagnosticResult::Severity::Warning); \
 });
 
-#define API_RETURN_OBJECT_TYPE(name, className) setReturnType(Identifier(#name), className::getClassName());
+
 
 #else
 #define ADD_CALLBACK_DIAGNOSTIC(wc, id, idx)

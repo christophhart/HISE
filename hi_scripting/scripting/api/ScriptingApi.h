@@ -1098,7 +1098,8 @@ public:
 		Synth(ProcessorWithScriptingContent *p, Message* messageObject, ModulatorSynth *ownerSynth);
 		~Synth() {}
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Synth"); };
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Synth"); }
+		Identifier getObjectName() const override { return getClassName(); };
 
 		typedef ScriptingObjects::ScriptingModulator ScriptModulator;
 		typedef ScriptingObjects::ScriptingEffect ScriptEffect;
@@ -1340,6 +1341,7 @@ public:
 		void setSustainPedal(bool shouldBeDown) { sustainState = shouldBeDown; };
 
 		struct Wrapper;
+		struct Diagnostics;
 
 	private:
 

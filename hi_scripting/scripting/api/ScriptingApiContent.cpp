@@ -7828,7 +7828,6 @@ colour(Colour(0xff777777))
 	setMethod("clear", Wrapper::clear);
 	setMethod("isCtrlDown", Wrapper::isCtrlDown);
 	setMethod("createPath", Wrapper::createPath);
-    API_RETURN_OBJECT_TYPE(createPath, ScriptingObjects::PathObject);
 	setMethod("createShader", Wrapper::createShader);
 	setMethod("setSuspendTimerCallback", Wrapper::setSuspendTimerCallback);
     setMethod("setKeyPressCallback", Wrapper::setKeyPressCallback);

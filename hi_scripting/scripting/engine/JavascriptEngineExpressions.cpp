@@ -9,7 +9,21 @@ struct HiseJavascriptEngine::RootObject::LiteralValue : public Expression
 
 	String getProfileName() const override { return value.toString(); }
 
+	bool hasSideEffects() const override { return false; }
+
 	Statement* getChildStatement(int) override { return nullptr; };
+
+	Identifier getObjectTypeInformation(RootObject*) const override
+	{
+		if (value.isString())
+			return "String";
+		if (value.isArray())
+			return "Array";
+		if (value.isBuffer())
+			return "Buffer";
+		
+		return {};
+	}
 
 	var value;
 };
@@ -47,9 +61,19 @@ struct HiseJavascriptEngine::RootObject::UnqualifiedName : public Expression
 		return v;
 	}
 
+	bool hasSideEffects() const override { return false; }
+
 	String getProfileName() const override { return name.toString(); }
 
 	Identifier getVariableName() const override { return name; }
+
+	Identifier getObjectTypeInformation(RootObject* ro) const override
+	{
+		if (auto obj = ro->objectTypeMap->getObjectTypeFromTypeMap(name.toString()))
+			return obj.typeInfo;
+
+		return Expression::getObjectTypeInformation(ro);
+	}
 
 	Statement* getChildStatement(int) override { return nullptr; };
 
@@ -104,6 +128,8 @@ struct HiseJavascriptEngine::RootObject::ConstReference : public Expression
 		return var();
 	}
 
+	bool hasSideEffects() const override { return false; }
+
 	bool isConstant() const override
 	{
 		jassert(ns != nullptr);
@@ -132,7 +158,7 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
 {
 	ArraySubscript(const CodeLocation& l) noexcept : Expression(l) {}
 
-
+	bool hasSideEffects() const override { return false; }
     
 	var getResult(const Scope& s) const override
 	{
@@ -230,6 +256,19 @@ struct HiseJavascriptEngine::RootObject::ArraySubscript : public Expression
         }
 
 		Expression::assign(s, newValue);
+	}
+
+	Identifier getVariableName() const override
+	{
+		return Identifier(getProfileName());
+	}
+
+	Identifier getObjectTypeInformation(RootObject* ro) const override
+	{
+		if (auto t = ro->objectTypeMap->getObjectTypeFromTypeMap(getProfileName()))
+			return t.typeInfo;
+
+		return Expression::getObjectTypeInformation(ro);
 	}
 
 	String getProfileName() const override { return object->getProfileName() + "[" + index->getProfileName() + "]"; }
@@ -372,6 +411,8 @@ struct HiseJavascriptEngine::RootObject::DotOperator : public Expression
 		return false;
 	}
 
+	bool hasSideEffects() const override { return false; }
+
 	Statement* getChildStatement(int index) override { return index == 0 ? parent.get() : nullptr; };
 	
 	ExpPtr parent;
@@ -481,6 +522,27 @@ struct HiseJavascriptEngine::RootObject::FunctionCall : public Expression
 			   swapIfArrayElement(newChild, childToReplace, arguments);
 	}
 
+	Identifier getObjectTypeInformation(RootObject* ro) const override
+	{
+		// manually check Content method because it's not a ApiClass, argh!
+		if (auto dot = dynamic_cast<DotOperator*>(object.get()))
+		{
+			if (auto uc = dynamic_cast<UnqualifiedName*>(dot->parent.get()))
+			{
+				if (uc->name.toString() == "Content")
+				{
+					auto cApi = ro->objectTypeMap->getApiClassFromMap(uc->name);
+					return cApi->getReturnType(dot->child);
+				}
+				if (uc->name.toString() == "Buffer")
+				{
+					return "Buffer";
+				}
+			}
+		}
+
+		return Expression::getObjectTypeInformation(ro);
+	}
 
 	ExpPtr object;
 	OwnedArray<Expression> arguments;
@@ -599,6 +661,8 @@ struct HiseJavascriptEngine::RootObject::ArrayDeclaration : public Expression
         
         return c;
     }
+
+	Identifier getObjectTypeInformation(RootObject* ro) const override { return "Array"; }
 
 	bool replaceChildStatement(Ptr& s, Statement* newData) override
 	{

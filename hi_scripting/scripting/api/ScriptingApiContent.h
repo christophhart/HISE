@@ -1846,6 +1846,7 @@ public:
 
 		// ========================================================================================================
 
+		static Identifier getClassName() { return getStaticObjectName(); }
 		static Identifier getStaticObjectName();
 		virtual Identifier 	getObjectName() const override;
 
@@ -1988,6 +1989,7 @@ public:
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor=sendNotification) override;
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		bool isModal() const;
 
@@ -3537,26 +3539,10 @@ public:
 #endif
 	}
 
-    void setReturnType(const Identifier& methodName, const Identifier& returnedClassType)
-    {
-        contentTypeMap.add({methodName, returnedClassType});
-    }
     
-    Identifier getReturnType(const Identifier& methodName) const
-    {
-        for(const auto& c: contentTypeMap)
-        {
-            if(c.first == methodName)
-                return c.second;
-        }
-        
-        return {};
-    }
     
 private:
 
-    Array<std::pair<Identifier, Identifier>> contentTypeMap;
-    
 	LafRegistry::Ptr lafRegistry;
 
 	WeakCallbackHolder dragCallback;

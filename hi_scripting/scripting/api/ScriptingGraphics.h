@@ -607,7 +607,8 @@ namespace ScriptingObjects
 
 		// ============================================================================================================
 
-		Identifier getObjectName() const override { RETURN_STATIC_IDENTIFIER("Graphics"); }
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("Graphics"); }
+		Identifier getObjectName() const override { return getClassName(); }
 
 		// ============================================================================================================ API Methods
 

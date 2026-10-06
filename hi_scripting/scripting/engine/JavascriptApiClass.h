@@ -511,18 +511,9 @@ struct DiagnosticBase: public ReferenceCountedObject
 
     };
     
-    void setReturnType(const Identifier& fn, const Identifier& rt)
+    virtual Identifier getReturnType(const Identifier& fn) const
     {
-        functionTypeInformation[fn] = rt;
-    }
-    
-    std::map<Identifier, Identifier> functionTypeInformation;
-    
-    Identifier getReturnType(const Identifier& fn) const
-    {
-        if(functionTypeInformation.find(fn) != functionTypeInformation.end())
-            return functionTypeInformation.at(fn);
-        
+        jassertfalse;
         return {};
     };
     
@@ -579,6 +570,27 @@ struct DiagnosticBase: public ReferenceCountedObject
     
 #endif
     
+    virtual DiagnosticResult checkArgCount(const Identifier& id, int numActual) const
+    {
+        int numExpected;
+        int index;
+        
+        if (getIndexAndNumArgsForFunction(id, index, numExpected))
+        {
+            if (numExpected != numActual)
+            {
+                String msg;
+                msg << "expects " << numExpected << " argument"
+                    << (numExpected != 1 ? "s" : "")
+                    << ", got " << numActual;
+
+                return DiagnosticResult::fail(msg);
+            }
+        }
+
+        return DiagnosticResult::ok();
+    }
+
     virtual bool getIndexAndNumArgsForFunction(const Identifier &id, int &index, int &numArgs) const = 0;
     
     virtual ~DiagnosticBase() {};

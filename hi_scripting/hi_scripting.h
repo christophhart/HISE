@@ -137,8 +137,9 @@ compile / debug cycle and don't need all nodes in scriptnode you might want to t
 
 #include "scripting/api/ScriptMacroDefinitions.h"
 #include "scripting/engine/JavascriptApiClass.h"
-#include "scripting/api/ScriptingBaseObjects.h"
 
+#include "scripting/api/ScriptingBaseObjects.h"
+#include "scripting/engine/LightweightParserHelpers.h"
 
 #include "scripting/engine/DebugHelpers.h"
 #include "scripting/api/DspInstance.h"

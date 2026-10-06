@@ -1354,7 +1354,6 @@ parentMidiProcessor(dynamic_cast<ScriptBaseMidiProcessor*>(p))
   ADD_API_METHOD_1(openWebsite);
 	ADD_API_METHOD_0(createUserPresetHandler);
 	ADD_API_METHOD_0(createMidiAutomationHandler);
-	API_RETURN_OBJECT_TYPE(createMidiAutomationHandler, ScriptingObjects::ScriptedMidiAutomationHandler);
 	ADD_API_METHOD_0(createMacroHandler);
 	ADD_API_METHOD_0(createBXLicenser);
 	ADD_API_METHOD_0(createNKSManager);
@@ -5344,42 +5343,6 @@ struct ScriptingApi::Synth::Wrapper
 	
 };
 
-#if USE_BACKEND
-struct ModuleDiagnoser
-{
-	template <typename T> static ApiClass::DiagnosticResult check(DiagnosticBase* c, const Identifier&, const Array<var>& args)
-	{
-		if (auto s = dynamic_cast<ScriptingApi::Synth*>(c))
-		{
-			if (args[0].isString())
-			{
-				auto id = args[0].toString();
-				auto mc = s->getScriptProcessor()->getMainController_();
-
-				Processor::Iterator<T> iter(mc->getMainSynthChain());
-
-				StringArray sa;
-
-				while (auto p = iter.getNextProcessor())
-				{
-					auto pid = dynamic_cast<Processor*>(p)->getId();
-
-					if (pid == id)
-						return ApiClass::DiagnosticResult::ok();
-
-					sa.add(pid);
-				}
-
-				return ApiClass::DiagnosticResult::fail("module not found").withWrongToken(id).withFuzzySuggestion(sa);
-			}
-
-			return ApiClass::DiagnosticResult::unknown();
-		}
-
-		return ApiClass::DiagnosticResult::unknown();
-	}
-};
-#endif
 
 ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObject_, ModulatorSynth *ownerSynth) :
 	ScriptingObject(p),
@@ -5396,12 +5359,6 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObj
 	jassert(owner != nullptr);
 
 	keyDown.setRange(0, 128, false);
-
-#if USE_BACKEND
-#define CHECK_MODULE(methodName, className) addDiagnostic(#methodName, ModuleDiagnoser::check<className>)
-#else
-#define CHECK_MODULE(methodName, className) ;
-#endif
 
 	ADD_API_METHOD_0(getNumChildSynths);
 	ADD_API_METHOD_1(addToFront);
@@ -5436,22 +5393,22 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObj
 	ADD_API_METHOD_2(setUseUniformVoiceHandler);
 	ADD_API_METHOD_3(addModulator);
 	ADD_API_METHOD_3(addEffect);
-	ADD_API_METHOD_1(getMidiPlayer);			CHECK_MODULE(getMidiPlayer, hise::MidiPlayer);
+	ADD_API_METHOD_1(getMidiPlayer);			
 	ADD_API_METHOD_1(removeEffect);
 	ADD_API_METHOD_1(removeModulator);
-	ADD_API_METHOD_1(getModulator);				CHECK_MODULE(getModulator, Modulator);
-	ADD_API_METHOD_1(getAudioSampleProcessor);	CHECK_MODULE(getAudioSampleProcessor, ProcessorWithExternalData);
-	ADD_API_METHOD_1(getDisplayBufferSource);	CHECK_MODULE(getDisplayBufferSource, ProcessorWithExternalData);
-	ADD_API_METHOD_1(getTableProcessor);		CHECK_MODULE(getTableProcessor, ProcessorWithExternalData);
-	ADD_API_METHOD_1(getSliderPackProcessor);	CHECK_MODULE(getSliderPackProcessor, ProcessorWithExternalData);
-	ADD_API_METHOD_1(getWavetableController);	CHECK_MODULE(getWavetableController, hise::WavetableSynth);
-	ADD_API_METHOD_1(getSampler);				CHECK_MODULE(getSampler, ModulatorSampler);
-	ADD_API_METHOD_1(getSlotFX);				CHECK_MODULE(getSlotFX, HotswappableProcessor);
-	ADD_API_METHOD_1(getEffect);				CHECK_MODULE(getEffect, EffectProcessor);
+	ADD_API_METHOD_1(getModulator);				
+	ADD_API_METHOD_1(getAudioSampleProcessor);	
+	ADD_API_METHOD_1(getDisplayBufferSource);	
+	ADD_API_METHOD_1(getTableProcessor);		
+	ADD_API_METHOD_1(getSliderPackProcessor);	
+	ADD_API_METHOD_1(getWavetableController);	
+	ADD_API_METHOD_1(getSampler);				
+	ADD_API_METHOD_1(getSlotFX);				
+	ADD_API_METHOD_1(getEffect);				
 	ADD_API_METHOD_1(getAllEffects);
-	ADD_API_METHOD_1(getRoutingMatrix);			CHECK_MODULE(getRoutingMatrix, hise::RoutableProcessor);
-	ADD_API_METHOD_1(getMidiProcessor);			CHECK_MODULE(getMidiProcessor, hise::MidiProcessor);
-	ADD_API_METHOD_1(getChildSynth);			CHECK_MODULE(getChildSynth, hise::ModulatorSynth);
+	ADD_API_METHOD_1(getRoutingMatrix);			
+	ADD_API_METHOD_1(getMidiProcessor);			
+	ADD_API_METHOD_1(getChildSynth);			
 	ADD_API_METHOD_1(getChildSynthByIndex);	
 	ADD_API_METHOD_1(getIdList);
 	ADD_API_METHOD_2(getModulatorIndex);
@@ -5464,8 +5421,6 @@ ScriptingApi::Synth::Synth(ProcessorWithScriptingContent *p, Message* messageObj
 	ADD_API_METHOD_1(setClockSpeed);
 	ADD_API_METHOD_1(setShouldKillRetriggeredNote);
 	ADD_API_METHOD_0(createBuilder);
-
-#undef CHECK_MODULE
 };
 
 

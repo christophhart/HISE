@@ -1022,84 +1022,44 @@ struct ScriptingObjects::PathObject::Wrapper
 	API_VOID_METHOD_WRAPPER_1(PathObject, fromString);
 };
 
-struct ScriptingObjects::PathObject::Diagnostics: public LightweightDiagnostics
-{
-    enum Checks
-    {
-        clear,
-        addArc,
-        numChecks
-    };
-    
-    template <Checks C> static DiagnosticResult check(DiagnosticBase* b, const Identifier& methodName, const Array<var>& argValues)
-    {
-        if(C == Checks::clear)
-        {
-            b->clearTouchedMethods();
-            
-            return DiagnosticResult::ok();
-        }
-        if(C == Checks::addArc)
-        {
-            if(!b->wasMethodTouched("startNewSubPath"))
-            {
-                return DiagnosticResult(DiagnosticResult::Severity::Warning, "addArc needs a bounding box to be rendered consistently").withSuggestion("Call startNewSubPath twice with the top-left and bottom right corner of the area that should be the consistent bounding box before calling this method.");
-            }
-            
-            return DiagnosticResult::ok();
-        }
-        
-        return DiagnosticResult::fail("not implemented");
-    }
-    
-    static void registerMethods(DiagnosticBase* c)
-    {
-        PTR_API_METHOD_1(loadFromData);
-        PTR_API_METHOD_0(closeSubPath);
-        PTR_API_METHOD_0_WITH_DIAGNOSTIC(clear);
-        PTR_API_METHOD_2(startNewSubPath);
-        PTR_API_METHOD_2(lineTo);
-        PTR_API_METHOD_4(quadraticTo);
-        PTR_API_METHOD_4(cubicTo);
-        PTR_API_METHOD_4(addQuadrilateral);
-        PTR_API_METHOD_3_WITH_DIAGNOSTIC(addArc);
-        PTR_API_METHOD_4(addPieSegment);
-        PTR_API_METHOD_1(addEllipse);
-        PTR_API_METHOD_1(addRectangle);
-        PTR_API_METHOD_2(addRoundedRectangle);
-        PTR_API_METHOD_3(addRoundedRectangleCustomisable);
-        PTR_API_METHOD_3(addTriangle);
-        PTR_API_METHOD_4(addPolygon);
-        PTR_API_METHOD_5(addArrow);
-        PTR_API_METHOD_5(addStar);
-        PTR_API_METHOD_5(scaleToFit);
-        PTR_API_METHOD_1(roundCorners);
-        PTR_API_METHOD_1(getPointOnPath);
-        PTR_API_METHOD_3(getIntersection);
-        PTR_API_METHOD_1(contains);
-        PTR_API_METHOD_1(getBounds);
-        PTR_API_METHOD_1(setBounds);
-        PTR_API_METHOD_0(getLength);
-        PTR_API_METHOD_0(getRatio);
-        PTR_API_METHOD_2(createStrokedPath);
-        PTR_API_METHOD_0(toString);
-        PTR_API_METHOD_0(toBase64);
-        PTR_API_METHOD_1(fromString);
-        PTR_API_METHOD_1(getYAt);
-    }
-    
-    Diagnostics(ProcessorWithScriptingContent* p):
-      LightweightDiagnostics(p)
-    {
-        registerMethods(this);
-    }
-};
+
 
 ScriptingObjects::PathObject::PathObject(ProcessorWithScriptingContent* p) :
 	ConstScriptingObject(p, 0)
 {
 
-    Diagnostics::registerMethods(this);
+	ADD_API_METHOD_1(loadFromData);
+	ADD_API_METHOD_0(closeSubPath);
+	ADD_API_METHOD_0(clear);
+	ADD_API_METHOD_2(startNewSubPath);
+	ADD_API_METHOD_2(lineTo);
+	ADD_API_METHOD_4(quadraticTo);
+	ADD_API_METHOD_4(cubicTo);
+	ADD_API_METHOD_4(addQuadrilateral);
+	ADD_API_METHOD_3(addArc);
+	ADD_API_METHOD_4(addPieSegment);
+	ADD_API_METHOD_1(addEllipse);
+	ADD_API_METHOD_1(addRectangle);
+	ADD_API_METHOD_2(addRoundedRectangle);
+	ADD_API_METHOD_3(addRoundedRectangleCustomisable);
+	ADD_API_METHOD_3(addTriangle);
+	ADD_API_METHOD_4(addPolygon);
+	ADD_API_METHOD_5(addArrow);
+	ADD_API_METHOD_5(addStar);
+	ADD_API_METHOD_5(scaleToFit);
+	ADD_API_METHOD_1(roundCorners);
+	ADD_API_METHOD_1(getPointOnPath);
+	ADD_API_METHOD_3(getIntersection);
+	ADD_API_METHOD_1(contains);
+	ADD_API_METHOD_1(getBounds);
+	ADD_API_METHOD_1(setBounds);
+	ADD_API_METHOD_0(getLength);
+	ADD_API_METHOD_0(getRatio);
+	ADD_API_METHOD_2(createStrokedPath);
+	ADD_API_METHOD_0(toString);
+	ADD_API_METHOD_0(toBase64);
+	ADD_API_METHOD_1(fromString);
+	ADD_API_METHOD_1(getYAt);
 
 	useRectangleClass = HISE_GET_PREPROCESSOR(getScriptProcessor()->getMainController_(), HISE_USE_SCRIPT_RECTANGLE_OBJECT);
 }

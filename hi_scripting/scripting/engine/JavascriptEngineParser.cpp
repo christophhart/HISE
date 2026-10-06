@@ -1142,20 +1142,7 @@ private:
 		return s.release();
 	}
 
-	Statement *parseRegisterAssignment(const Identifier &id)
-	{
-		match(TokenTypes::identifier);
-		match(TokenTypes::assign);
-
-		//const int index = registerIdentifiers.indexOf(id);
-
-		const int index = hiseSpecialData->varRegister.getRegisterIndex(id);
-
-		RegisterAssignment *r = new RegisterAssignment(location, index, parseExpression());
-
-		match(TokenTypes::semicolon);
-		return r;
-	}
+	
 
 	Statement* parseReturn()
 	{

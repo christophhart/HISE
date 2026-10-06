@@ -618,7 +618,7 @@ struct HiseJavascriptEngine::RootObject::Statement
         objectTypeInformation = objType;
     }
     
-    Identifier getObjectTypeInformation() const { return objectTypeInformation; }
+    virtual Identifier getObjectTypeInformation(RootObject* ro) const { return objectTypeInformation; }
     
     Identifier objectTypeInformation;
 #else
@@ -627,7 +627,7 @@ struct HiseJavascriptEngine::RootObject::Statement
 
     }
     
-    Identifier getObjectTypeInformation() const { return {}; }
+    virtual Identifier getObjectTypeInformation(RootObject* ro) const { return {}; }
 #endif
     
 	JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(Statement)
@@ -643,6 +643,18 @@ struct HiseJavascriptEngine::RootObject::Expression : public Statement
 	String getProfileName() const override { return getVariableName().toString(); }
 
 	virtual Identifier getVariableName() const { return {}; }
+
+	virtual bool hasSideEffects() const { return true; }
+
+	Identifier getObjectTypeInformation(RootObject* ro) const override
+	{
+		auto id = getVariableName();
+
+		if (auto ti = ro->objectTypeMap->getObjectTypeFromTypeMap(id.toString()))
+			return ti.typeInfo;
+
+		return Statement::getObjectTypeInformation(ro);
+	}
 
 	ResultCode perform(const Scope& s, var*) const override  { getResult(s); return ok; }
 };
@@ -2083,6 +2095,8 @@ hise::HiseJavascriptEngine::RootObject::OptimizationPass::OptimizationResult His
 	OptimizationResult r;
 	r.passName = getPassName();
 
+	
+
 	callForEach(rootStatementToOptimize, [this, &r](Statement* st)
 	{
 		if (st == nullptr)
@@ -2206,6 +2220,7 @@ bool HiseJavascriptEngine::RootObject::OptimizationPass::callForEach(Statement* 
 
 	return false;
 }
+
 
 
 

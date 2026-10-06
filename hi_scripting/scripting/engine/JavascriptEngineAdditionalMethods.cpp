@@ -1805,29 +1805,7 @@ void SDP::snapshotNamespace(JavascriptNamespace* ns)
 	// Deep-copy constObjects and constLocations
 	snap.savedConstObjects = ns->constObjects;
 	snap.savedConstLocations = ns->constLocations;
-
-	// Snapshot each inline function's body pointer and localProperties
-	for (int i = 0; i < ns->inlineFunctions.size(); i++)
-	{
-		if (auto ifo = dynamic_cast<InlineFunction::Object*>(ns->inlineFunctions[i].get()))
-		{
-			InlineFunctionSnapshot ifSnap;
-			ifSnap.obj = ifo;
-
-			// Detach body via swap — we own the old one, parser can write a new one
-			ifSnap.savedBody = ifo->body.release();
-
-			// If savedBody was non-null, put it back so parsing can still reference it.
-			// The parser will overwrite body with a new parse result; we restore in destructor.
-			if (ifSnap.savedBody != nullptr)
-				ifo->body = new BlockStatement(ifSnap.savedBody->location);
-
-			// Snapshot localProperties (parser registers names here during parse)
-			ifSnap.savedLocalProperties = ifo->localProperties.get();
-
-			snap.inlineFnSnapshots.add(std::move(ifSnap));
-		}
-	}
+	snap.savedInlineFunctions.swapWithArray(ns->inlineFunctions);
 
 	nsSnapshots.add(std::move(snap));
 }
@@ -1837,17 +1815,7 @@ void SDP::restoreNamespace(NamespaceSnapshot& snap)
 	// Restore constObjects and constLocations
 	snap.ns->constObjects = snap.savedConstObjects;
 	snap.ns->constLocations = snap.savedConstLocations;
-
-	// Restore inline function bodies and localProperties
-	for (auto& ifSnap : snap.inlineFnSnapshots)
-	{
-		if (auto ifo = dynamic_cast<InlineFunction::Object*>(ifSnap.obj))
-		{
-			// Discard whatever the shadow parse wrote and restore original
-			ifo->body = ifSnap.savedBody.release();
-			ifo->localProperties.get() = ifSnap.savedLocalProperties;
-		}
-	}
+	snap.ns->inlineFunctions.swapWith(snap.savedInlineFunctions);
 }
 
 SDP::ScopedDiagnosticParse(HiseSpecialData& data) : hsd(data)
@@ -1935,6 +1903,7 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 
 	try
 	{
+		root->objectTypeMap->clear();
 		tb.setupApiData(root->hiseSpecialData, copy);
 		ScopedPointer<RootObject::BlockStatement> sl = tb.parseStatementList();
 		// No sl->perform() — parse only, no execution
@@ -1944,8 +1913,9 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 		{
 			ApiValidationAnalyzer analyzer;
 			analyzer.setDiagnosticTarget(&tb.getDiagnostics(), &root->hiseSpecialData);
-			analyzer.executePass(sl);
+			analyzer.process(sl);
 
+#if 0
 			// Also walk inline function bodies that were parsed in this file.
 			// They are temporarily stored in hiseSpecialData (restored by ScopedDiagnosticParse).
 			for (auto ns : root->hiseSpecialData.namespaces)
@@ -1955,7 +1925,7 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 					if (auto* obj = dynamic_cast<RootObject::InlineFunction::Object*>(ifo))
 					{
 						if (obj->body != nullptr)
-							analyzer.executePass(obj->body);
+							analyzer.process(obj->body);
 					}
 				}
 			}
@@ -1966,9 +1936,10 @@ Array<HiseJavascriptEngine::RootObject::ApiDiagnostic> HiseJavascriptEngine::sha
 				if (auto* obj = dynamic_cast<RootObject::InlineFunction::Object*>(ifo))
 				{
 					if (obj->body != nullptr)
-						analyzer.executePass(obj->body);
+						analyzer.process(obj->body);
 				}
 			}
+#endif
 
 			// --- Collect CallScope warnings from static realtime callbacks ---
 			{

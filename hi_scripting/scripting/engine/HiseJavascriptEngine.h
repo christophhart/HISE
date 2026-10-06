@@ -630,21 +630,20 @@ public:
 
 			virtual String getPassName() const = 0;
 
+			/** Override this and return true if you want to process all child statements before the next sibling. */
+			virtual bool processChildrenBeforeSiblings() const { return false; }
+
 			/** Override this method and return a new optimized statement if this pass can be applied to the statementToOptimize. 
 				
 				You can use the parentStatement to figure out whether this optimisation pass should apply.
 			*/
 			virtual Statement* getOptimizedStatement(Statement* parentStatement, Statement* statementToOptimize) = 0;
 
-			
-
 			/** Called before (isBefore=true) and after (isBefore=false) iterating
 				a node's child statements during executePass. */
 			virtual void handleChildIteration(Statement*, bool isBefore) {}
 
 			static bool callForEach(Statement* root, const std::function<bool(Statement* child)>& f, OptimizationPass* p=nullptr);
-
-			
 
 			OptimizationResult executePass(Statement* rootStatementToOptimize);
 
@@ -756,7 +755,7 @@ public:
 
 		// HISE special
 
-		struct RegisterVarStatement;	struct RegisterName;		struct RegisterAssignment;
+		struct RegisterVarStatement;	struct RegisterName;		
 		struct ApiConstant;				struct ApiCall;				struct InlineFunction;
 		struct ConstVarStatement;		struct ConstReference;		struct ConstObjectApiCall;
 #if USE_BACKEND
@@ -1077,6 +1076,212 @@ public:
 
 #if USE_BACKEND
 
+		struct ObjectTypeMap : public ReferenceCountedObject
+		{
+			using Ptr = ReferenceCountedObjectPtr<ObjectTypeMap>;
+
+			struct ObjectTypeItem
+			{
+				// the parseable expression that yields the object
+				String expression; 
+
+				// the object Id as defined by API_RETURN_OBJECT_TYPE()
+				Identifier typeInfo; 
+
+				// an ID given as argument to the API call that created the object
+				// this will be passed on to the lightweight diagnostic object
+				// and can be used to resolve the target object in the HISE runtime
+				String argId;
+
+				// the diagnostics object
+				ReferenceCountedObjectPtr<DiagnosticBase> obj;
+
+				operator bool() const { return obj.get() != nullptr; }
+			};
+
+			struct TypeScope
+			{
+				TypeScope(ObjectTypeMap& parent_) : parent(parent_)
+				{
+
+				}
+
+				~TypeScope()
+				{
+					for (const auto& s : scopedExpressions)
+					{
+						parent.removeObjectTypeInTypeMap(s);
+					}
+
+					for (const auto& sc : scopedConstants)
+					{
+						if (sc.value.isUndefined())
+							parent.scopedConstantValues.remove(sc.name);
+						else
+							parent.scopedConstantValues.set(sc.name, sc.value);
+					}
+				}
+
+				void add(const String& expression, const Identifier& typeInfo)
+				{
+					scopedExpressions.push_back(expression);
+					parent.setObjectTypeInTypeMap(expression, typeInfo);
+				}
+
+				void setConstantScopedValue(const Identifier& id, const var& newValue)
+				{
+					if (!newValue.isUndefined())
+					{
+						scopedConstants.set(id, parent.scopedConstantValues[id]);
+						parent.scopedConstantValues.set(id, newValue);
+					}
+				}
+
+				bool addReference(const String& originalExpression, const String& newExpression)
+				{
+					if (parent.addReference(originalExpression, newExpression))
+					{
+						scopedExpressions.push_back(newExpression);
+						return true;
+					}
+
+					return false;
+				}
+
+				ObjectTypeMap& parent;
+				std::vector<String> scopedExpressions;
+				
+				NamedValueSet scopedConstants;
+			};
+
+			ObjectTypeMap(ProcessorWithScriptingContent* p) :
+				pwsc(p)
+			{}
+
+			ObjectTypeItem getObjectTypeFromTypeMap(const String& e) const
+			{
+				ScopedLock sl(lock);
+
+				for (const auto& i : items)
+				{
+					if (i.expression == e)
+						return i;
+				}
+
+				return {};
+			}
+
+			bool addReference(const String& original, const String& newExpression)
+			{
+				ScopedLock sl(lock);
+
+				for (auto& i : items)
+				{
+					if (i.expression == original)
+					{
+						auto copy = i;
+						copy.expression = newExpression;
+						items.add(copy);
+						return true;
+					}
+				}
+
+				return false;
+			}
+
+			bool addReference(const String& referenceId, const ObjectTypeItem& type)
+			{
+				ScopedLock sl(lock);
+
+				auto copy = type;
+				copy.expression = referenceId;
+				items.add(copy);
+				return true;
+
+				return false;
+			}
+
+			void setObjectTypeInTypeMap(const String& expression, const Identifier& typeInfo, const String& argId = {})
+			{
+				ScopedLock sl(lock);
+
+				if (expression.isEmpty() || !typeInfo.isValid())
+					return;
+
+				jassert(pwsc != nullptr);
+				auto db = lightweightDiagnostics.createLightweightPrototype(pwsc, typeInfo, argId);
+
+				for (auto& item : items)
+				{
+					if (item.expression == expression)
+					{
+						// must be resolved...
+						jassert(item);
+						item.typeInfo = typeInfo;
+						item.obj = db;
+						item.argId = argId;
+						return;
+					}
+				}
+
+				items.add(ObjectTypeItem{ expression, typeInfo, argId, db });
+
+			}
+
+			bool removeObjectTypeInTypeMap(const String& expression)
+			{
+				ScopedLock sl(lock);
+				int idx = 0;
+
+				for (auto& i : items)
+				{
+					if (i.expression == expression)
+					{
+						items.remove(idx);
+						return true;
+					}
+
+					idx++;
+				}
+
+				return false;
+			}
+
+			void clear()
+			{
+				ScopedLock sl(lock);
+				items.clear();
+			}
+
+			Identifier getReturnTypeFromApiMap(const Identifier& className, const Identifier& methodName) const
+			{
+				return lightweightDiagnostics.getReturnTypeFromApiMap(className, methodName);
+			}
+
+			DiagnosticBase* getApiClassFromMap(const Identifier& apiClassName)
+			{
+				return lightweightDiagnostics.createLightweightPrototype(pwsc, apiClassName, {});
+			}
+
+			var getScopedConstant(const Identifier& id) const { return scopedConstantValues[id]; }
+
+			void setScopedConstant(const Identifier& id, const var& newValue)
+			{
+				scopedConstantValues.set(id, newValue);
+			}
+
+		private:
+
+			CriticalSection lock;
+			ProcessorWithScriptingContent* pwsc;
+			LightweightDiagnostics::Factory lightweightDiagnostics;
+			Array<ObjectTypeItem> items;
+			NamedValueSet scopedConstantValues;
+
+			JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ObjectTypeMap);
+		};
+
+		ObjectTypeMap::Ptr objectTypeMap;
 
 		using ApiDiagnostic = ApiClass::DiagnosticResult::Item;
 
@@ -1096,19 +1301,14 @@ public:
 
 			bool isDiagnosticMode() const { return true; }
 
-			struct InlineFunctionSnapshot
-			{
-				DynamicObject* obj;                     // actually InlineFunction::Object*, cast at restore
-				ScopedPointer<BlockStatement> savedBody;
-				NamedValueSet savedLocalProperties;
-			};
-
 			struct NamespaceSnapshot
 			{
 				JavascriptNamespace* ns;
 				NamedValueSet savedConstObjects;
+				
+				ReferenceCountedArray<DynamicObject> savedInlineFunctions;
+
 				Array<DebugableObject::Location> savedConstLocations;
-				Array<InlineFunctionSnapshot> inlineFnSnapshots;
 			};
 
 			Array<NamespaceSnapshot> nsSnapshots;
