@@ -75,6 +75,10 @@ String ApiValidationAnalyzer::getArgIdFromExpression(RO::Expression* e) const
 	{
 		return evaluateIfNoSideEffect(ac->argumentList[0].get()).toString();
 	}
+	if (auto fc = dynamic_cast<RO::FunctionCall*>(e))
+	{
+		return evaluateIfNoSideEffect(fc->arguments[0]).toString();
+	}
 
 	return {};
 }
@@ -242,6 +246,17 @@ void ApiValidationAnalyzer::processInternal(RO::FunctionCall* funcCall)
 			// --- Tier 2: Exact resolution via ConstReference ---
 			validateTier2(funcCall, dot, constRef);
 		}
+		else if (auto fc = dynamic_cast<RO::FunctionCall*>(dot->parent.get()))
+		{
+			RO::ObjectTypeMap::ObjectTypeItem i;
+			i.expression = "anonymous";
+			i.argId = getArgIdFromExpression(fc);
+			i.typeInfo = fc->getObjectTypeInformation(hiseSpecialData->root);
+			i.obj = getOrCreateObjectTypeMap()->createAnonoymousDiagnosticObject(i.typeInfo, i.argId);
+
+			if(i)
+				validateWithKnownTypeId(funcCall, dot, i);
+		}
 		else if (auto ar = dynamic_cast<RO::ArraySubscript*>(dot->parent.get()))
 		{
 			if (auto cs = dynamic_cast<RO::ConstReference*>(ar->object.get()))
@@ -315,7 +330,7 @@ void ApiValidationAnalyzer::processInternal(RO::InlineFunction::FunctionCall* if
 
 		auto value = evaluateIfNoSideEffect(pExpressions[i]);
 		s.setConstantScopedValue(pNames[i].id, value);
-
+		 
 	}
 
 	returnItem = {};

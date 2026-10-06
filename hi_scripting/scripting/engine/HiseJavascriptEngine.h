@@ -1122,10 +1122,10 @@ public:
 					}
 				}
 
-				void add(const String& expression, const Identifier& typeInfo)
+				void add(const String& expression, const Identifier& typeInfo, const String& argId = {})
 				{
 					scopedExpressions.push_back(expression);
-					parent.setObjectTypeInTypeMap(expression, typeInfo);
+					parent.setObjectTypeInTypeMap(expression, typeInfo, argId);
 				}
 
 				void setConstantScopedValue(const Identifier& id, const var& newValue)
@@ -1263,7 +1263,18 @@ public:
 				return lightweightDiagnostics.createLightweightPrototype(pwsc, apiClassName, {});
 			}
 
-			var getScopedConstant(const Identifier& id) const { return scopedConstantValues[id]; }
+			DiagnosticBase* createAnonoymousDiagnosticObject(const Identifier& className, const String& argId)
+			{
+				return lightweightDiagnostics.createLightweightPrototype(pwsc, className, argId);
+			}
+
+			var getScopedConstant(const Identifier& id) const 
+			{ 
+				if(id.isValid())
+					return scopedConstantValues[id]; 
+
+				return var();
+			}
 
 			void setScopedConstant(const Identifier& id, const var& newValue)
 			{

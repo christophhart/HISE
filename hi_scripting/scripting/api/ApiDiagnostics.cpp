@@ -44,7 +44,11 @@ using namespace juce;
 2. Register at LightweightDiagnostics::Factory() (at the bottom of this file)...
 3. Use this class template and add a diagnostic for each method
 
-
+4. Component special: add static void addComponentDiagnostics(LightweightDiagnostics* lb) {}
+5. Component special: call ScriptComponentChecks::addBaseChecks(this) in this function
+6. Call this method in the constructor. This will make the generic ScriptComponent diagnostic resolve
+   the type from the API class tree and call the same functions.
+7. add ADD_CUSTOM_DIAGNOSTICS(ClassName); in the ScriptComponent constructor
 
 */
 struct Class::Diagnostics : public LightweightDiagnostics
@@ -62,16 +66,108 @@ struct Class::Diagnostics : public LightweightDiagnostics
 
 // ============================================================================================================
 
+struct ScriptComponentChecks
+{
+    using DR = DiagnosticBase::DiagnosticResult;
+
+    static DR checkProperty(DiagnosticBase* b, const Identifier& id, const Array<var>& args)
+    {
+        auto typed = dynamic_cast<LightweightDiagnostics*>(b);
+
+        auto sc = typed->p->getScriptingContent()->getComponentWithName(typed->getArgId());
+
+        auto propId = args[0];
+
+        auto props = sc->getAllProperties();
+
+        if (props.indexOf(propId) == -1)
+        {
+            StringArray sa;
+
+            for (const auto& a : *props.getArray())
+                sa.add(a.toString());
+
+            return DR::fail("Unknown property").withWrongToken(propId.toString()).withFuzzySuggestion(sa);
+        }
+
+        auto isSet = id == Identifier("set");
+
+        if (isSet && typed->checkValidArgs(args))
+        {
+            auto v = args[1].toString();
+            auto options = sc->getOptionsFor(propId.toString());
+
+            if (!options.isEmpty())
+                return DR::fail("Illegal option for property " + propId.toString()).withWrongToken(v).withFuzzySuggestion(options);
+        }
+
+        return DR::ok();
+    }
+
+    static DiagnosticBase::DiagnosticResult setControlCallback(DiagnosticBase* b, const Identifier& id, const Array<var>& args)
+    {
+        auto typed = dynamic_cast<LightweightDiagnostics*>(b);
+
+        auto callback = dynamic_cast<WeakCallbackHolder::CallableObject*>(args[0].getObject());
+
+        if (callback == nullptr || !callback->isRealtimeSafe())
+        {
+            return DR::fail("A control callback must be an inline function");
+        }
+
+        LightweightDiagnostics::CallbackParseOptions cb;
+        cb.callback = args[0];
+        cb.argTypes.push_back({ typed->getObjectName(), typed->getArgId() });
+        cb.argTypes.push_back({});
+        cb.thisObj = typed;
+
+        return typed->shadowParseCallbackWithArgType(cb);
+    }
+
+    static void addBaseChecks(LightweightDiagnostics* lb)
+    {
+        lb->addDiagnostic("set", checkProperty);
+        lb->addDiagnostic("get", checkProperty);
+        lb->addDiagnostic("setControlCallback", setControlCallback);
+    }
+};
+
+struct ScriptingApi::Content::ScriptSlider::Diagnostics : public LightweightDiagnostics
+{
+    static void addComponentDiagnostics(LightweightDiagnostics* lb)
+    {
+        ScriptComponentChecks::addBaseChecks(lb);
+    }
+
+    Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
+        LightweightDiagnostics(pwsc, v, argId)
+    {
+        addComponentDiagnostics(this);
+    }
+};
+
 
 struct ScriptingApi::Content::ScriptPanel::Diagnostics : public LightweightDiagnostics
 {
+    static void addComponentDiagnostics(LightweightDiagnostics* lb)
+    {
+        ScriptComponentChecks::addBaseChecks(lb);
+
+        lb->addDiagnostic("setPaintRoutine", [lb](DiagnosticBase* b, const Identifier& id, const Array<var>& args)
+        {
+            CallbackParseOptions cb;
+            cb.callback = args[0];
+            cb.argTypes.push_back({ ScriptingObjects::GraphicsObject::getClassName(), "" });
+            cb.thisObj = lb;
+
+            return lb->shadowParseCallbackWithArgType(cb);
+        });
+    }
+
 	Diagnostics(ProcessorWithScriptingContent* pwsc, const ValueTree& v, const String& argId) :
 		LightweightDiagnostics(pwsc, v, argId)
 	{
-		addDiagnostic("setPaintRoutine", [this](DiagnosticBase* b, const Identifier& id, const Array<var>& args)
-		{
-			return shadowParseCallbackWithArgType(args[0], { ScriptingObjects::GraphicsObject::getClassName() });
-		});
+        addComponentDiagnostics(this);
 	}
 };
 
@@ -252,12 +348,39 @@ struct ScriptingObjects::PathObject::Diagnostics : public LightweightDiagnostics
     }
 };
 
+#define ADD_CUSTOM_DIAGNOSTICS(className) if (sc != nullptr && sc->getObjectName() == ScriptingApi::Content::className::getClassName()) \
+                ScriptingApi::Content::className::Diagnostics::addComponentDiagnostics(this);
+
+struct ScriptComponentDiagnostics
+{
+    static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("ScriptComponent"); }
+
+    struct Diagnostics : public LightweightDiagnostics
+    {
+        Diagnostics(ProcessorWithScriptingContent* p, const ValueTree& fullApiTree, const String& arg):
+            LightweightDiagnostics(p, {}, arg)
+        {
+            auto sc = p->getScriptingContent()->getComponentWithName(arg);
+
+            ADD_CUSTOM_DIAGNOSTICS(ScriptPanel);
+            ADD_CUSTOM_DIAGNOSTICS(ScriptSlider);
+
+            if (sc != nullptr)
+                initClassTree(fullApiTree.getChildWithName(sc->getObjectName()));
+        }
+    };
+};
+
+#undef ADD_CUSTOM_DIAGNOSTICS
+
 LightweightDiagnostics::Factory::Factory()
 {
     registerType<ScriptingObjects::PathObject>();
     registerType<ScriptingObjects::ScriptingEffect>();
     registerType<ScriptingApi::Content::ScriptPanel>();
+    registerType<ScriptingApi::Content::ScriptSlider>();
     registerType<ScriptingApi::Synth>();
+    registerType<ScriptComponentDiagnostics>();
 
     // final validation gate: all API class must be creatable
     //jassert(items.size() == getNumApiClasses());

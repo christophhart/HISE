@@ -270,40 +270,8 @@ private:
 		if (resolvedType.obj.get() == nullptr)
 			return;
 
-		auto classNode = ApiHelpers::getApiTree().getChildWithName(resolvedType.typeInfo);
-
-		if (!classNode.isValid())
-			return;
 
 		auto methodName = dot->child.toString();
-		ValueTree methodNode;
-		StringArray candidates;
-
-		resolvedType.obj->markMethodTouched(methodName);
-
-		for (const auto& child : classNode)
-		{
-			auto candidate = child.getProperty("name").toString();
-
-			if (candidate.isNotEmpty())
-				candidates.add(candidate);
-
-			if (candidate == methodName)
-				methodNode = child;
-		}
-
-		if (!methodNode.isValid())
-		{
-			StringArray suggestions;
-			auto suggestion = FuzzySearcher::suggestCorrection(methodName, candidates, 0.6);
-
-			if (suggestion.isNotEmpty())
-				suggestions.add(suggestion);
-
-			String msg = resolvedType.typeInfo.toString() + " has no method '" + methodName + "'";
-			addDiagnostic(funcCall->location, msg, suggestions, SV::Error, CS::ApiValidation);
-			return;
-		}
 
 		auto argDr = resolvedType.obj->checkArgCount(methodName, funcCall->arguments.size());
 		auto queryDr = getQueryDiagnostic(resolvedType.obj.get(), funcCall, methodName);

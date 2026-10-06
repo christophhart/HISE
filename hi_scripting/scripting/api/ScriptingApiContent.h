@@ -680,6 +680,7 @@ public:
 		Array<MouseListenerData> mouseListeners;
 
 		struct Wrapper;
+		struct Diagnostics;
 		struct Validators;
 
 		bool isConnectedToProcessor() const;;
@@ -1027,6 +1028,7 @@ public:
             };
             
             static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("Modifiers"); }
+			static Identifier getClassName() { return getStaticObjectName(); }
             
             Identifier getObjectName() const override { return getStaticObjectName(); }
         };
@@ -1035,6 +1037,7 @@ public:
 		~ScriptSlider();
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptSlider"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
 
 		Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		virtual bool isAutomatable() const { return true; }
@@ -1120,6 +1123,7 @@ public:
 		MatrixIds::Helpers::IntensityTextConverter::ConstructData createIntensityConverter(int sourceIndex);
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		HiSlider::Mode m = HiSlider::Mode::Linear;
 		Slider::SliderStyle styleId;
@@ -1236,6 +1240,7 @@ public:
 	private:
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		// ========================================================================================================
 
@@ -1314,6 +1319,7 @@ public:
 		// ========================================================================================================
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComboBox);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptComboBox)
@@ -1379,6 +1385,7 @@ public:
 		// ========================================================================================================
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptLabel);
 	};
@@ -1516,6 +1523,7 @@ public:
 		// ========================================================================================================
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		var snapValues;
 		var tableValueFunction;
@@ -1606,6 +1614,7 @@ public:
 		void changed() override;
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		SliderPackData* getSliderPackData() { return getCachedSliderPack(); };
 
@@ -1688,6 +1697,7 @@ public:
 	private:
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		MultiChannelAudioBuffer* getCachedAudioFile() { return static_cast<MultiChannelAudioBuffer*>(getCachedDataObject()); };
 		const MultiChannelAudioBuffer* getCachedAudioFile() const { return static_cast<const MultiChannelAudioBuffer*>(getCachedDataObject()); };
@@ -1753,6 +1763,7 @@ public:
 		// ========================================================================================================
 
 		struct Wrapper;
+		struct Diagnostics;
 
 	private:
 
@@ -2208,6 +2219,7 @@ public:
 		ScriptTableListModel::Ptr tableModel;
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		StringArray currentItems;
 
@@ -2307,6 +2319,7 @@ public:
 		OwnedArray<HiseScriptCallback> callbacks;
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		hise::WebViewData::Ptr data;
 
@@ -2374,6 +2387,7 @@ public:
 	private:
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		var jsonData;
 
@@ -2582,6 +2596,7 @@ public:
 		dyncomp::Data::Ptr data;
 
 		struct Wrapper;
+		struct Diagnostics;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptDynamicContainer);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptDynamicContainer);
@@ -2633,6 +2648,7 @@ public:
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
 
+		
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptMultipageDialog"); }
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 

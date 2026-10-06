@@ -36,11 +36,8 @@
 /** TODO:
 
 - migrate all DiagnosticBase lambdas to ApiDiagnostics.cpp
-
+- add all component types
 - make ApiClass not a DiagnosticBase method
-
-
-
 
 
 */
@@ -56,16 +53,8 @@ struct LightweightDiagnostics : public DiagnosticBase
         p(p_),
         argId(argId_)
     {
-        for (auto m : classTree)
-        {
-            addFunction(FunctionInfo(m));
-        }
-
-        for (int i = 0; i < classTree.getNumProperties(); i++)
-        {
-            auto id = classTree.getPropertyName(i);
-            apiConstants.set(id.toString().removeCharacters("`"), classTree[id]);
-        }
+        if(classTree.isValid())
+            initClassTree(classTree);
     }
 
     struct ApiMap
@@ -170,16 +159,20 @@ struct LightweightDiagnostics : public DiagnosticBase
 
     virtual bool checkProperty(const Identifier& propertyId) const;
 
+    struct CallbackParseOptions
+    {
+        var callback;
+        std::vector<std::pair<Identifier, String>> argTypes;
+        LightweightDiagnostics* thisObj;
+    };
 
-    DiagnosticResult shadowParseCallbackWithArgType(const var& callback, const std::vector<Identifier>& argTypes);
+    DiagnosticResult shadowParseCallbackWithArgType(const CallbackParseOptions& callbackOptions);
 
     String getArgId() const { return argId; }
 
     Array<FunctionInfo> functions;
     ProcessorWithScriptingContent* p;
     ApiValidationAnalyzer* currentParentValidator = nullptr;
-
-protected:
 
     /** small helper function : returns false if an argument couldn't be resolved. Use this in your diagnostics. */
     static bool checkValidArgs(const Array<var>& args)
@@ -193,10 +186,35 @@ protected:
         return true;
     }
 
+    Identifier getObjectName() const { return className; }
+
+protected:
+
+    void initClassTree(const ValueTree& classTree)
+    {
+        jassert(classTree.isValid());
+
+        className = classTree.getType();
+
+        for (auto& m : classTree)
+        {
+            addFunction(FunctionInfo(m));
+        }
+
+        for (int i = 0; i < classTree.getNumProperties(); i++)
+        {
+            auto id = classTree.getPropertyName(i);
+            apiConstants.set(id.toString().removeCharacters("`"), classTree[id]);
+        }
+    }
+
+    
+    
 
 private:
 
     NamedValueSet apiConstants;
+    Identifier className;
 
     const String argId;
 };

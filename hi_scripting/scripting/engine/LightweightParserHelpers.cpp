@@ -40,8 +40,16 @@ using namespace juce;
 
 DiagnosticBase* LightweightDiagnostics::Factory::createLightweightPrototype(ProcessorWithScriptingContent* p, const Identifier& id, const String& argId) const
 {
-	auto cTree = ApiHelpers::getApiTree().getChildWithName(id);
-	jassert(cTree.isValid());
+	const Array<Identifier> metaIds({ "ScriptComponent" });
+
+	auto apiTree = ApiHelpers::getApiTree();
+
+	auto cTree = apiTree.getChildWithName(id);
+
+	jassert(cTree.isValid() || metaIds.contains(id));
+
+	if (!cTree.isValid())
+		cTree = apiTree;
 
 	for (const auto& i : items)
 	{
@@ -219,8 +227,12 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::checkArgCount(const Ide
 		}
 	}
 
-	jassertfalse;
-	return DiagnosticResult::fail("Can't find method");
+	StringArray candidates;
+
+	for (const auto& f : functions)
+		candidates.add(f.methodName.toString());
+
+	return DiagnosticResult::fail(getObjectName() + ": missing function").withWrongToken(id.toString()).withFuzzySuggestion(candidates);
 }
 
 bool LightweightDiagnostics::getIndexAndNumArgsForFunction(const Identifier& id, int& index, int& numArgs) const
@@ -255,11 +267,11 @@ bool LightweightDiagnostics::checkProperty(const Identifier& propertyId) const
 	return apiConstants.contains(propertyId);
 }
 
-DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWithArgType(const var& callback, const std::vector<Identifier>& argTypes)
+DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWithArgType(const CallbackParseOptions& cbo)
 {
 	using RO = HiseJavascriptEngine::RootObject;
 
-	if (auto ifo = dynamic_cast<RO::InlineFunction::Object*>(callback.getObject()))
+	if (auto ifo = dynamic_cast<RO::InlineFunction::Object*>(cbo.callback.getObject()))
 	{
 		jassert(currentParentValidator != nullptr);
 
@@ -268,15 +280,14 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWith
 		for (int i = 0; i < ifo->getNumArguments(); i++)
 		{
 			auto exp = ifo->parameterNames[i].toString();
-			auto typ = argTypes[i];
-
-			t.add(exp, typ);
+			auto typ = cbo.argTypes[i].first;
+			t.add(exp, typ, cbo.argTypes[i].second);
 		}
 
 		currentParentValidator->process(ifo->body);
 	}
 
-	if (auto fo = dynamic_cast<RO::FunctionObject*>(callback.getObject()))
+	if (auto fo = dynamic_cast<RO::FunctionObject*>(cbo.callback.getObject()))
 	{
 		jassert(currentParentValidator != nullptr);
 
@@ -285,9 +296,8 @@ DiagnosticBase::DiagnosticResult LightweightDiagnostics::shadowParseCallbackWith
 		for (int i = 0; i < fo->getNumArguments(); i++)
 		{
 			auto exp = fo->parameters[i].toString();
-			auto typ = argTypes[i];
-
-			t.add(exp, typ);
+			auto typ = cbo.argTypes[i].first;
+			t.add(exp, typ, cbo.argTypes[i].second);
 		}
 
 		currentParentValidator->process(fo->body);
