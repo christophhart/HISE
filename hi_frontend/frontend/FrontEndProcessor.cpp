@@ -500,6 +500,8 @@ const String FrontendProcessor::getName(void) const
 
 void FrontendProcessor::prepareToPlay(double newSampleRate, int samplesPerBlock)
 {
+	getKillStateHandler().setHostProcessingActive(true);
+
 
 
     getDelayedRenderer().prepareToPlayWrapped(newSampleRate, samplesPerBlock);

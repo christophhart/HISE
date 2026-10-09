@@ -123,7 +123,7 @@ public:
     void restorePool(InputStream* inputStream, FileHandlerBase::SubDirectories directory, const String& fileNameToLook);
     
 	void prepareToPlay (double sampleRate, int samplesPerBlock);
-	void releaseResources() {};
+	void releaseResources() { getKillStateHandler().setHostProcessingActive(false); };
 
 	void loadSamplesAfterRegistration(bool reloadSamples=true)
     {

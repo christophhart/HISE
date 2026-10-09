@@ -68,7 +68,7 @@ bool MainController::LockFreeDispatcher::isIdle() const
 	if (!mc->isInitialised())
 		return true;
 
-	return mc->getKillStateHandler().isAudioRunning();
+	return mc->getKillStateHandler().allowsDeferredCalls();
 }
 
 bool MainController::LockFreeDispatcher::callOnMessageThreadAfterSuspension(Dispatchable* object, const Dispatchable::Function& f)
