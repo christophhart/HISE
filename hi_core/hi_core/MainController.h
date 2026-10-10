@@ -1354,6 +1354,12 @@ public:
 
 		/** Replacement for allVoicesKilled. Checks if the audio is running. */
 		bool isAudioRunning() const noexcept;
+
+		/** Called when the host deactivates / reactivates processing. While inactive, isAudioRunning() is false. */
+		void setHostProcessingActive(bool shouldBeActive);
+
+		/** Deferred message thread calls may run while audio is running, or while the host is inactive and no loader holds a ticket. */
+		bool allowsDeferredCalls() const noexcept;
 		
 
 		/** Give this method a lambda and a processor and it will call it as soon as all voices are killed.
@@ -1505,6 +1511,7 @@ public:
 		mutable hise::SimpleReadWriteLock ticketLock;
 
 		std::atomic<State> currentState;
+		std::atomic<bool> hostProcessingActive { true };
 
 		UnorderedStack<StackTrace<3, 6>, 32> stackTraces;
 

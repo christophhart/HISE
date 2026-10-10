@@ -1580,6 +1580,10 @@ void DelayedRenderer::processWrapped(AudioSampleBuffer& buffer, MidiBuffer& midi
 
 void DelayedRenderer::prepareToPlayWrapped(double sampleRate, int samplesPerBlock)
 {
+	numLeftOvers = 0;
+	lastBlockSizeForShortBuffer = 0;
+	shortBuffer.clear();
+
 	illegalBufferSize = !(samplesPerBlock % HISE_EVENT_RASTER == 0);
 
 #if HISE_COMPLAIN_ABOUT_ILLEGAL_BUFFER_SIZE

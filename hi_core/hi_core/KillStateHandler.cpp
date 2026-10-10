@@ -57,6 +57,9 @@ bool MainController::KillStateHandler::handleKillState()
 
 	initAudioThreadId();
 
+	if (!hostProcessingActive)
+		setHostProcessingActive(true);
+
 	SimpleReadWriteLock::ScopedTryReadLock sl(ticketLock);
 
 	if(!sl)
@@ -291,10 +294,28 @@ void MainController::KillStateHandler::deferToThread(Processor* p, const Process
 
 bool MainController::KillStateHandler::isAudioRunning() const noexcept
 {
+	if (!hostProcessingActive)
+		return false;
+
 	if(currentState == State::InitialisedButNotActivated)
 		return false;
 
 	return initialised() && currentState < State::Suspended;
+}
+
+void MainController::KillStateHandler::setHostProcessingActive(bool shouldBeActive)
+{
+	if (hostProcessingActive.exchange(shouldBeActive) == shouldBeActive)
+		return;
+
+	// Stay silent until tickets of loaders started while inactive are released
+	if (shouldBeActive && currentState >= State::Clear && currentState < State::Suspended && !checkForClearance())
+		currentState = State::Suspended;
+}
+
+bool MainController::KillStateHandler::allowsDeferredCalls() const noexcept
+{
+	return isAudioRunning() || (!hostProcessingActive && checkForClearance());
 }
 
 void MainController::KillStateHandler::setLockForCurrentThread(LockHelpers::Type t, bool lock) const
@@ -321,6 +342,7 @@ void MainController::KillStateHandler::deinitialise()
 bool MainController::KillStateHandler::invalidateTicket(uint16 ticket)
 {
 	jassert(mc->isBeingDeleted() || 
+			!hostProcessingActive || 
 			currentState == Suspended || 
 			currentState == InitialisedButNotActivated);
 
