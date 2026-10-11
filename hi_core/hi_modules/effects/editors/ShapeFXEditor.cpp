@@ -188,7 +188,7 @@ ShapeFXEditor::ShapeFXEditor (ProcessorEditor* p)
 		}
 	}
 
-	md.setup(*modeSelector, getProcessor(), ShapeFX::SpecialParameters::Mode);
+	modeSelector->setup(getProcessor(), ShapeFX::SpecialParameters::Mode, "Mode");
 	md.setup(*biasLeft, getProcessor(), ShapeFX::SpecialParameters::BiasLeft);
 	md.setup(*biasRight, getProcessor(), ShapeFX::SpecialParameters::BiasRight);
 	md.setup(*limitButton, getProcessor(), ShapeFX::SpecialParameters::LimitInput);
