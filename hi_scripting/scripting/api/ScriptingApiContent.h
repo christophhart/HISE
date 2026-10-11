@@ -154,6 +154,7 @@ class ScriptingApi::Content : public ScriptingObject,
 public:
 
 	struct ScriptComponent;
+	struct Diagnostics;
 
 	// ================================================================================================================
 
@@ -1192,9 +1193,12 @@ public:
 		ScriptButton(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int, int);
 		~ScriptButton();
 
+		struct Diagnostics;
+
 		// ========================================================================================================
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptButton") }
+		static Identifier getClassName() { return getStaticObjectName(); }
 
 		Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		bool isAutomatable() const override { return true; }
@@ -1240,7 +1244,7 @@ public:
 	private:
 
 		struct Wrapper;
-		struct Diagnostics;
+		
 
 		// ========================================================================================================
 
@@ -1273,9 +1277,12 @@ public:
 		ScriptComboBox(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int);
 		~ScriptComboBox() {};
 
+		struct Diagnostics;
+
 		// ========================================================================================================
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptComboBox"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
 
 		StringArray getOptionsFor(const Identifier &id) override;
 
@@ -1319,7 +1326,6 @@ public:
 		// ========================================================================================================
 
 		struct Wrapper;
-		struct Diagnostics;
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptComboBox);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptComboBox)
@@ -1346,9 +1352,12 @@ public:
 		ScriptLabel(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int);
 		~ScriptLabel();;
 		
+		struct Diagnostics;
+
 		// ========================================================================================================
 
 		static Identifier getStaticObjectName();
+		static Identifier getClassName() { return getStaticObjectName(); }
 
 		virtual Identifier 	getObjectName() const override;
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
@@ -1385,8 +1394,7 @@ public:
 		// ========================================================================================================
 
 		struct Wrapper;
-		struct Diagnostics;
-
+		
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptLabel);
 	};
 
@@ -1474,11 +1482,14 @@ public:
 		ScriptTable(ProcessorWithScriptingContent *base, Content *parentContent, Identifier name, int x, int y, int width, int height);
 		~ScriptTable();
 
+		struct Diagnostics;
+
 		// ========================================================================================================
 
 		int getIndexPropertyId() const override { return TableIndex; };
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptTable"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
 
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
@@ -1523,7 +1534,6 @@ public:
 		// ========================================================================================================
 
 		struct Wrapper;
-		struct Diagnostics;
 
 		var snapValues;
 		var tableValueFunction;
@@ -1559,6 +1569,7 @@ public:
 		// ========================================================================================================
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptSliderPack"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
 
 		int getIndexPropertyId() const override { return SliderPackIndex; };
 
@@ -1652,11 +1663,15 @@ public:
 		ScriptAudioWaveform(ProcessorWithScriptingContent *base, Content *parentContent, Identifier plotterName, int x, int y, int width, int height);
 		~ScriptAudioWaveform() {};
 
+		struct Diagnostics;
+
 		// ========================================================================================================
 
 		int getIndexPropertyId() const override { return sampleIndex; };
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptAudioWaveform"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
+
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); };
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
@@ -1697,11 +1712,9 @@ public:
 	private:
 
 		struct Wrapper;
-		struct Diagnostics;
 
 		MultiChannelAudioBuffer* getCachedAudioFile() { return static_cast<MultiChannelAudioBuffer*>(getCachedDataObject()); };
 		const MultiChannelAudioBuffer* getCachedAudioFile() const { return static_cast<const MultiChannelAudioBuffer*>(getCachedDataObject()); };
-		
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptAudioWaveform);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptAudioWaveform);
@@ -1732,6 +1745,8 @@ public:
 		// ========================================================================================================
 
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptImage"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
+
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		virtual String getDebugValue() const override { return getScriptObjectProperty(Properties::FileName); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
@@ -2142,7 +2157,11 @@ public:
 
 		ScriptedViewport(ProcessorWithScriptingContent* base, Content* parentContent, Identifier viewportName, int x, int y, int width, int height);
 
+		struct Diagnostics;
+
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptedViewport"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
+
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
@@ -2219,7 +2238,7 @@ public:
 		ScriptTableListModel::Ptr tableModel;
 
 		struct Wrapper;
-		struct Diagnostics;
+		
 
 		StringArray currentItems;
 
@@ -2240,7 +2259,10 @@ public:
 
 		~ScriptWebView();
 
+		struct Diagnostics;
+
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptWebView"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
 
 		virtual Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
@@ -2319,7 +2341,7 @@ public:
 		OwnedArray<HiseScriptCallback> callbacks;
 
 		struct Wrapper;
-		struct Diagnostics;
+		
 
 		hise::WebViewData::Ptr data;
 
@@ -2346,6 +2368,8 @@ public:
 		ScriptFloatingTile(ProcessorWithScriptingContent *base, Content *parentContent, Identifier panelName, int x, int y, int width, int height);
 		~ScriptFloatingTile();;
 
+		struct Diagnostics;
+
 		// ========================================================================================================
 
 		void setScriptObjectPropertyWithChangeMessage(const Identifier &id, var newValue, NotificationType notifyEditor /* = sendNotification */) override;
@@ -2361,6 +2385,8 @@ public:
 
 
 		static Identifier getStaticObjectName();
+		static Identifier getClassName() { return getStaticObjectName(); }
+
 		virtual Identifier 	getObjectName() const override;;
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
@@ -2387,7 +2413,7 @@ public:
 	private:
 
 		struct Wrapper;
-		struct Diagnostics;
+		
 
 		var jsonData;
 
@@ -2555,7 +2581,11 @@ public:
 
 		// ========================================================================================================
 
+		struct Diagnostics;
+
 		static Identifier getStaticObjectName() { RETURN_STATIC_IDENTIFIER("ScriptDynamicContainer"); }
+		static Identifier getClassName() { return getStaticObjectName(); }
+
 		Identifier 	getObjectName() const override { return getStaticObjectName(); }
 		ScriptCreatedComponentWrapper *createComponentWrapper(ScriptContentComponent *content, int index) override;
 
@@ -2596,7 +2626,7 @@ public:
 		dyncomp::Data::Ptr data;
 
 		struct Wrapper;
-		struct Diagnostics;
+		
 
 		JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ScriptDynamicContainer);
 		JUCE_DECLARE_WEAK_REFERENCEABLE(ScriptDynamicContainer);
@@ -3028,7 +3058,7 @@ public:
 	Content(ProcessorWithScriptingContent *p);;
 	~Content();
 
-	static Identifier getClassName()   { RETURN_STATIC_IDENTIFIER("CONTENT") };
+	static Identifier getClassName()   { RETURN_STATIC_IDENTIFIER("Content") };
 
 	// ================================================================================================================
 

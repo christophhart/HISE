@@ -787,8 +787,8 @@ Parameter::Parameter(NodeBase* parent_, const ValueTree& data_) :
 	ADD_API_METHOD_1(setValue);
 	ADD_API_METHOD_1(setUseExternalConnection);
 	ADD_API_METHOD_1(addConnectionFrom);
-	ADD_API_METHOD_1(setValueAsync); DIAGNOSTIC_MARK_DEPRECATED(setValueAsync, "Use setUseExternalConnection(), then setValue() instead.");
-	ADD_API_METHOD_1(setValueSync);  DIAGNOSTIC_MARK_DEPRECATED(setValueSync, "Use setUseExternalConnection(), then setValue() instead.");
+	ADD_API_METHOD_1(setValueAsync); 
+	ADD_API_METHOD_1(setValueSync);  
     ADD_API_METHOD_2(setRangeProperty);
 	ADD_API_METHOD_0(getId);
 	ADD_API_METHOD_1(setRangeFromObject);

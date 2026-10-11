@@ -95,7 +95,6 @@ ScriptUserPresetHandler::ScriptUserPresetHandler(ProcessorWithScriptingContent* 
 	ADD_API_METHOD_1(setCustomAutomation);
 	ADD_API_METHOD_3(setUseCustomUserPresetModel);
 	ADD_TYPED_API_METHOD_3(attachAutomationCallback, VarTypeChecker::String, VarTypeChecker::Function, VarTypeChecker::Number);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(attachAutomationCallback, WeakCallbackHolder::checkCallbackNumArgs<2, 1>);
 	ADD_API_METHOD_0(clearAttachedCallbacks);
 	ADD_API_METHOD_1(getAutomationIndex);
 	ADD_API_METHOD_2(setAutomationValue);

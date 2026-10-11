@@ -1748,7 +1748,7 @@ ScriptingObjects::GraphicsObject::GraphicsObject(ProcessorWithScriptingContent *
 	ADD_API_METHOD_3(drawVerticalLine);
 	ADD_API_METHOD_2(setFont);
 	ADD_API_METHOD_3(setFontWithSpacing);
-	ADD_API_METHOD_2_DEPRECATED(drawText,       "use drawAlignedText for better placement");
+	ADD_API_METHOD_2(drawText);
 	ADD_API_METHOD_3(drawAlignedText);			CHECK_FONT_AND_COLOUR(drawAlignedText);
 	ADD_API_METHOD_4(drawAlignedTextShadow);	CHECK_FONT_AND_COLOUR(drawAlignedTextShadow)
 	ADD_API_METHOD_5(drawMultiLineText);		CHECK_FONT_AND_COLOUR(drawMultiLineText)
@@ -4119,7 +4119,7 @@ ScriptingObjects::ScriptedLookAndFeel::CombinedLaf::CombinedLaf(ScriptedLookAndF
 {}
 
 Identifier ScriptingObjects::ScriptedLookAndFeel::getObjectName() const
-{ return "ScriptLookAndFeel"; }
+{ return getClassName(); }
 
 int ScriptingObjects::ScriptedLookAndFeel::getNumChildElements() const
 {

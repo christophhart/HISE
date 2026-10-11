@@ -410,6 +410,7 @@ struct WeakCallbackHolder : private ScriptingObject
 
 	};
 
+#if 0
 	template <int E, int FIndex=0> static ApiClass::DiagnosticResult checkCallbackNumArgs(DiagnosticBase*, const Identifier&, const Array<var>& args)
 	{
 		if (auto f = dynamic_cast<CallableObject*>(args[FIndex].getObject()))
@@ -422,6 +423,7 @@ struct WeakCallbackHolder : private ScriptingObject
 
 		return ApiClass::DiagnosticResult::unknown();
 	}
+#endif
 
 #endif
 	struct CallableObjectManager

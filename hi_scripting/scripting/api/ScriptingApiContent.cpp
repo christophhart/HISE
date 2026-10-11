@@ -476,11 +476,9 @@ ScriptingApi::Content::ScriptComponent::ScriptComponent(ProcessorWithScriptingCo
 	ADD_API_METHOD_0(getGlobalPositionX);
 	ADD_API_METHOD_0(getGlobalPositionY);
 	ADD_TYPED_API_METHOD_1(setControlCallback, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setControlCallback, WeakCallbackHolder::checkCallbackNumArgs<2>);
 	ADD_API_METHOD_0(getAllProperties);
 	ADD_API_METHOD_1(setZLevel);
 	ADD_TYPED_API_METHOD_1(setKeyPressCallback, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC(keyboardCallback, setKeyPressCallback, 0);
 	ADD_API_METHOD_1(setConsumedKeyPresses);
 	ADD_API_METHOD_0(loseFocus);
     ADD_API_METHOD_0(grabFocus);
@@ -2149,7 +2147,7 @@ maximum(1.0f)
 	initInternalPropertyFromValueTreeOrDefault(ScriptComponent::linkedTo);
 
 	ADD_TYPED_API_METHOD_1(setValuePopupFunction, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setValuePopupFunction, WeakCallbackHolder::checkCallbackNumArgs<1>);
+	
 	// hack: (String | Number) == Colour => allow "disabled" sentinel
 	ADD_TYPED_API_METHOD_1(setMidPoint, VarTypeChecker::Colour); 
 	ADD_API_METHOD_3(setRange);
@@ -5586,10 +5584,8 @@ ScriptingApi::Content::ScriptedViewport::ScriptedViewport(ProcessorWithScripting
 	ADD_API_METHOD_1(setTableColumns);
 	ADD_API_METHOD_1(setTableRowData);
 	ADD_TYPED_API_METHOD_1(setTableCallback, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setTableCallback, WeakCallbackHolder::checkCallbackNumArgs<1>);
 	ADD_API_METHOD_1(getOriginalRowIndex);
 	ADD_TYPED_API_METHOD_1(setTableSortFunction, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setTableSortFunction, WeakCallbackHolder::checkCallbackNumArgs<2>);
 	ADD_API_METHOD_1(setEventTypesForValueCallback);
 }
 

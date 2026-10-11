@@ -1407,14 +1407,14 @@ namespace ScriptingObjects
 #undef CALL_LAF
 #undef CALL_LAF_ID
 
-		
-
 		struct Wrapper;
+		struct Diagnostics;
 
 		ScriptedLookAndFeel(ProcessorWithScriptingContent* sp, bool isGlobal);
 
 		~ScriptedLookAndFeel();
 
+		static Identifier getClassName() { RETURN_STATIC_IDENTIFIER("ScriptLookAndFeel"); }
 		Identifier getObjectName() const override;
 
 		// ========================================================================================

@@ -8040,19 +8040,15 @@ ScriptingApi::Server::Server(JavascriptProcessor* jp_):
 
 	ADD_API_METHOD_1(setBaseURL);
 	ADD_TYPED_API_METHOD_3(callWithPOST, VarTypeChecker::String, VarTypeChecker::ComplexType, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(callWithPOST, checkBaseURLAndCallbackArgs<2, 2>);
 	ADD_TYPED_API_METHOD_3(callWithGET, VarTypeChecker::String, VarTypeChecker::ComplexType, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(callWithGET, checkBaseURLAndCallbackArgs<2, 2>);
 	ADD_TYPED_API_METHOD_1(setHttpHeader, VarTypeChecker::String);
     ADD_TYPED_API_METHOD_4(downloadFile, VarTypeChecker::String, VarTypeChecker::JSON, VarTypeChecker::ScriptObject, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(downloadFile, checkBaseURLAndCallbackArgs<0, 3>);
 	ADD_API_METHOD_0(getPendingDownloads);
 	ADD_API_METHOD_0(getPendingCalls);
 	ADD_API_METHOD_0(isOnline);
     ADD_API_METHOD_0(resendLastCall);
 	ADD_API_METHOD_1(setNumAllowedDownloads);
 	ADD_TYPED_API_METHOD_1(setServerCallback, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC(serverCallback, setServerCallback, 0);
 	ADD_API_METHOD_0(cleanFinishedDownloads);
 	ADD_API_METHOD_1(isEmailAddress);
     ADD_API_METHOD_1(setTimeoutMessageString);
@@ -8359,17 +8355,11 @@ ScriptingApi::TransportHandler::TransportHandler(ProcessorWithScriptingContent* 
 	getMainController()->addTempoListener(this);
 
 	ADD_TYPED_API_METHOD_2(setOnTempoChange, VarTypeChecker::Number, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setOnTempoChange, WeakCallbackHolder::checkCallbackNumArgs<1, 1>);
 	ADD_TYPED_API_METHOD_2(setOnBeatChange, VarTypeChecker::Number, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setOnBeatChange, WeakCallbackHolder::checkCallbackNumArgs<2, 1>);
 	ADD_TYPED_API_METHOD_2(setOnGridChange, VarTypeChecker::Number, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setOnGridChange, WeakCallbackHolder::checkCallbackNumArgs<3, 1>);
 	ADD_TYPED_API_METHOD_2(setOnSignatureChange, VarTypeChecker::Number, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setOnSignatureChange, WeakCallbackHolder::checkCallbackNumArgs<2, 1>);
 	ADD_TYPED_API_METHOD_2(setOnTransportChange, VarTypeChecker::Number, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setOnTransportChange, WeakCallbackHolder::checkCallbackNumArgs<1, 1>);
 	ADD_TYPED_API_METHOD_1(setOnBypass, VarTypeChecker::Function);
-	ADD_CALLBACK_DIAGNOSTIC_RAW(setOnBypass, WeakCallbackHolder::checkCallbackNumArgs<1>);
 	ADD_API_METHOD_1(setSyncMode);
 	ADD_API_METHOD_1(startInternalClock);
 	ADD_API_METHOD_1(stopInternalClock);
